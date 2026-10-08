@@ -89,3 +89,14 @@ test('turnOrderOf: แต้มเท่ากันสุ่มลำดับ 
   assert.deepEqual(action.turnOrderOf([A, B, C, D], seq([0.1, 0.9, 0.2, 0.8])), ['A', 'B', 'C', 'D']);
   assert.deepEqual(action.turnOrderOf([A, B, C, D], seq([0.9, 0.1, 0.8, 0.2])), ['B', 'A', 'D', 'C']);
 });
+
+test('ช่วงจั่ว: ระยะเดิน (mov) ของคนอื่นไม่บอกใบ้ว่าไพ่แตก · เจ้าตัวเห็นค่าจริง · เปิดไพ่แล้วทุกคนเห็น', () => {
+  const { A, B } = setup(['A', 'B']);
+  A.locked = false; B.locked = false;
+  A.cards = [{ value: 10, color: 'red' }, { value: 9, color: 'blue' }, { value: 9, color: 'green' }]; // แตก
+  const movSeen = (viewer, id) => engine.buildStateFor(viewer).players.find((p) => p.id === id).mov;
+  assert.equal(movSeen('A', 'A'), action.baseMovOf(A) - 1, 'เจ้าตัวเห็นโทษไพ่แตก');
+  assert.equal(movSeen('B', 'A'), action.baseMovOf(A), 'คนอื่นเห็นระยะเดินปกติจนกว่าจะเปิดไพ่');
+  engine.setGameState('ORDER');
+  assert.equal(movSeen('B', 'A'), action.baseMovOf(A) - 1, 'เปิดไพ่แล้วเห็นค่าจริง');
+});

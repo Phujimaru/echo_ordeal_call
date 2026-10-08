@@ -2,8 +2,8 @@
 //  ใช้คู่กับ ?autoplay=muimi ฝั่ง client (ผู้เล่นจริงนั่งที่ 1 · บอทนั่งที่ 2..)
 //  รัน: node scripts/dev-bots.js [จำนวนบอท=3] [url=http://localhost:3000] [โหมด=ffa|duo|trio]
 //  บอท: พร้อม → โหวตโหมด (ทีม: เลือกทีมสลับกัน + ยืนยัน) → จั่วจนแต้ม ≥ 16 แล้ว "พอ"
-//   → ตาของตัวเอง (สุ่มบ้างเพื่อให้ทดสอบครอบคลุม): ใช้สกิลที่แต้มพอ · ใช้ของในกระเป๋า · ยิงปืน GUTS ·
-//     ซื้อของถ้ายืนติดร้าน · เดินเข้าหาร้านถ้ามีเหรียญ ไม่งั้นเข้าหาศัตรูใกล้สุด · ตีถ้าถึง ไม่งั้น "รอ"
+//   → ตาของตัวเอง: เดินก่อน (มีเหรียญ = แวะร้านบ้าง ไม่งั้นเข้าหาศัตรูใกล้สุด) แล้วสุ่มทำ (ให้ทดสอบครอบคลุม):
+//     ยิงปืน GUTS · ใช้สกิลที่แต้มพอ · ใช้ของในกระเป๋า · ซื้อของถ้ายืนติดร้าน → ตีถ้าถึง ไม่งั้น "รอ"
 const path = require("path");
 const { io } = require(path.join(__dirname, "..", "client", "node_modules", "socket.io-client"));
 const Board = require("../server/board");
@@ -25,6 +25,7 @@ function bot(i) {
   let readySent = false;
   let tried = {}; // สิ่งที่ลองไปแล้วในตานี้ (กันวนซ้ำเมื่อ server ไม่รับคำสั่ง)
   let watchdog = null; // คำสั่งไม่ถูกรับ (ไม่มี state ใหม่) → "รอ" จบตา ไม่ให้ค้างจนหมดเวลา
+  let shopTrip = false; // กำลังเดินไปร้าน (ข้ามหลายตา)
   s.on("connect", () => s.emit("join", { name, position: i + 2, color: COLORS[i % COLORS.length], characterId: CHARS[i % CHARS.length] }));
   s.on("state", (st) => {
     const me = st.players.find((p) => p.id === st.youId);
@@ -67,8 +68,33 @@ function bot(i) {
     const range = me.range || [1, 1];
     const near = (lo, hi) => foes.filter((f) => { const d = Board.dist(me.pos, f.pos); return d >= lo && d <= hi; });
     const inv = me.inventory || [];
+    const bagFull = inv.length >= (st.bagSlots || 5);
 
-    // 1) ยิงปืน GUTS (จบตา)
+    // 1) เดินก่อน (แบบ FE) — มีเหรียญ → แวะร้าน (บางครั้ง) · ไม่งั้นเข้าหาศัตรู · ยืนตีถึง/ติดร้านอยู่แล้ว = ไม่เดิน
+    if (!tried.move && !st.action.moved && !st.action.locked) {
+      tried.move = true;
+      // ตัดสินใจไปร้านแล้วไปให้ถึง (ไม่สุ่มใหม่ทุกตา ไม่งั้นเดินวนกลางทาง)
+      if (shopTrip && ((me.gold || 0) < 6 || bagFull || !st.shopPos)) shopTrip = false;
+      else if (!shopTrip && (me.gold || 0) >= 6 && st.shopPos && !bagFull && chance(50)) shopTrip = true;
+      const wantShop = shopTrip;
+      const already = wantShop ? Board.dist(me.pos, st.shopPos) === 1 : near(range[0], range[1]).length > 0;
+      if (!already) {
+        const blocked = st.shopPos ? new Set([Board.key(st.shopPos.x, st.shopPos.y)]) : null;
+        const reach = Board.reachable(map, { id: me.id, ...me.pos }, me.mov || 0, units, { blocked, isAlly: (a, b) => teamMode && a.teamId && a.teamId === b.teamId });
+        const goals = wantShop ? [{ pos: st.shopPos, shop: true }] : foes.map((f) => ({ pos: f.pos }));
+        let best = null;
+        for (const n of reach.values()) {
+          for (const g of goals) {
+            const d = Board.dist(n, g.pos);
+            const score = (g.shop ? d === 1 : Board.inRange(range, d)) ? -100 + n.d : d;
+            if (!best || score < best.score) best = { n, score };
+          }
+        }
+        if (best && best.n.d > 0) { send("move", { x: best.n.x, y: best.n.y }); return; }
+        // หลังเดิน state ใหม่จะเรียก takeTurn อีกรอบ (moved = true) → ทำอย่างอื่นต่อ
+      }
+    }
+    // 2) ยิงปืน GUTS (จบตา)
     const ammo = inv.find((it) => it.type === "gutsAmmo");
     const gunRange = st.gutsRange || [1, 4];
     if (!tried.gun && ammo && inv.some((it) => it.type === "gutsGun") && me.gutsShotTurn !== st.roundNumber && near(gunRange[0], gunRange[1]).length && chance(60)) {
@@ -76,7 +102,7 @@ function bot(i) {
       send("useInventoryItem", { uid: ammo.uid, targetId: pickOne(near(gunRange[0], gunRange[1])).id });
       return;
     }
-    // 2) สกิล (ครั้งเดียวต่อตา · สุ่ม)
+    // 3) สกิล (ครั้งเดียวต่อตา · สุ่ม)
     if (!tried.skill && !me.skillUsed && chance(45)) {
       tried.skill = true;
       const ch = me.character || {};
@@ -99,7 +125,7 @@ function bot(i) {
         return;
       }
     }
-    // 3) ของในกระเป๋าที่ใช้กับตัวเอง
+    // 4) ของในกระเป๋าที่ใช้กับตัวเอง
     const usable = inv.filter((it) => ["armor", "skillPoint", "resist", "fortune"].includes(it.type) || (it.type === "mark42" && !me.mark42));
     if (!tried.item && usable.length && chance(40)) {
       tried.item = true;
@@ -107,33 +133,18 @@ function bot(i) {
       send("useInventoryItem", it.type === "mark42" ? { uid: it.uid, mode: "self" } : { uid: it.uid });
       return;
     }
-    // 4) ซื้อของเมื่อยืนติดร้าน
+    // 5) ซื้อของเมื่อยืนติดร้าน (ซื้อได้หลายชิ้น — tried นับต่อชิ้น)
     const nearShop = st.shopPos && Board.dist(me.pos, st.shopPos) === 1;
-    if (!tried.buy && nearShop && inv.length < (st.bagSlots || 5)) {
-      tried.buy = true;
+    if ((tried.buy || 0) < 2 && nearShop && !bagFull) {
+      tried.buy = (tried.buy || 0) + 1;
       const hasGun = inv.some((it) => it.type === "gutsGun");
       const ok = (st.shop || []).filter((it) => !it.sold && it.price <= (me.gold || 0) && !(it.type === "gutsGun" && hasGun) && !(it.type === "mark42" && me.mark42));
-      if (ok.length) { send("buyShopItem", { itemId: pickOne(ok).id }); return; }
+      if (ok.length) { shopTrip = false; send("buyShopItem", { itemId: pickOne(ok).id }); return; }
     }
-    // 5) ตีถ้าถึง
+    // 6) ตีถ้าถึง ไม่งั้น "รอ"
     const inReach = foes.find((f) => Board.inRange(range, Board.dist(me.pos, f.pos)));
     if (inReach) { send("attack", { targetId: inReach.id }); return; }
-    if (st.action.moved || st.action.locked) { send("endAction"); return; }
-    // 6) เดิน: มีเหรียญ → แวะร้าน (บางครั้ง) · ไม่งั้นเข้าหาศัตรู
-    const blocked = st.shopPos ? new Set([Board.key(st.shopPos.x, st.shopPos.y)]) : null;
-    const reach = Board.reachable(map, { id: me.id, ...me.pos }, me.mov || 0, units, { blocked, isAlly: (a, b) => teamMode && a.teamId && a.teamId === b.teamId });
-    const goals = (me.gold || 0) >= 6 && st.shopPos && inv.length < (st.bagSlots || 5) && chance(50) ? [{ pos: st.shopPos, shop: true }] : foes.map((f) => ({ pos: f.pos }));
-    let best = null;
-    for (const n of reach.values()) {
-      for (const g of goals) {
-        const d = Board.dist(n, g.pos);
-        const score = (g.shop ? d === 1 : Board.inRange(range, d)) ? -100 + n.d : d;
-        if (!best || score < best.score) best = { n, score };
-      }
-    }
-    if (!best || best.n.d === 0) { send("endAction"); return; }
-    send("move", { x: best.n.x, y: best.n.y });
-    // หลังเดิน state ใหม่จะเรียก takeTurn อีกรอบ (moved = true) → ซื้อ/ตีถ้าถึง ไม่งั้นรอ
+    send("endAction");
   }
   s.on("disconnect", () => console.log(`${name} หลุด`));
   return s;

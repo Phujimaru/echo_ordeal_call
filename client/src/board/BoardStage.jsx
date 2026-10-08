@@ -8,7 +8,7 @@
 //   · ฉากตีบนกระดาน (ฟัน → สวน → ถอย/ชน) แทน AttackFx เต็มจอ
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
 import * as Rules from "./boardRules";
 import { computeView, tileCenter } from "./boardDraw";
@@ -366,9 +366,26 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     : state.turnOrder;
   const actorIdx = state.actorId ? order.indexOf(state.actorId) : -1;
 
+  // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
+  //  วัดใหม่เมื่อจอ/รายชื่อ/ข้อความแถบบนเปลี่ยน (เทียบแค่แนวนอน ตำแหน่งแนวตั้งไม่มีผล) · setState เฉพาะตอนค่าเปลี่ยน
+  const orderRef = useRef(null);
+  const [orderLow, setOrderLow] = useState(0); // 0 = ที่เดิม · ตัวเลข = ระยะจากขอบบน (ใต้แถบบนซ้าย)
+  const orderSig = `${vp ? vp.w : 0}x${vp ? vp.h : 0}|${order.join(",")}|${phase}|${state.roundNumber}|${state.journey ? state.journey.name : ""}`;
+  useLayoutEffect(() => {
+    const el = orderRef.current;
+    const top = document.querySelector(".hud-top");
+    let low = 0;
+    if (el && top) {
+      const a = el.getBoundingClientRect(), b = top.getBoundingClientRect();
+      if (b.width > 0 && a.left < b.right + 8 && a.right > b.left - 8) low = Math.round(b.bottom + 6);
+    }
+    setOrderLow(low);
+  }, [orderSig, map]);
+
   if (!map) return null;
   return (
-    <div className="bs-root" data-hidden={hidden ? "true" : "false"}>
+    <div className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
+      style={orderLow ? { "--bs-order-top": `${orderLow}px` } : undefined}>
       <BoardCanvas
         map={state.board}
         units={units}
@@ -386,7 +403,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       />
 
       {/* แถบลำดับเดิน */}
-      <div className="bs-order" data-phase={phase}>
+      <div className="bs-order" data-phase={phase} ref={orderRef}>
         {order.map((id, i) => {
           const p = byId[id];
           if (!p) return null;
