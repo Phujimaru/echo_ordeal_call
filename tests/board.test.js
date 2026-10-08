@@ -20,8 +20,9 @@ test('แผนที่ภูมิภาค I: 16×12 · จุดเกิด
   assert.ok(map.shopSpots.length >= 4 && map.shopSpots.length <= 6);
 });
 
-test('mapOf: ภูมิภาคที่ยังไม่มีแผนที่ใช้ของภูมิภาค I', () => {
-  assert.equal(Board.mapOf(5), Board.MAPS[1]);
+test('mapOf: ภูมิภาค I–VII มีแผนที่ของตัวเอง · ภูมิภาคที่ไม่มีแผนที่ใช้ของภูมิภาค I', () => {
+  for (let a = 1; a <= 7; a++) assert.equal(Board.mapOf(a).area, a);
+  assert.equal(Board.mapOf(99), Board.MAPS[1]);
 });
 
 test('เดิน: BFS 4 ทิศ ไม่เกินค่าเดิน · ระยะนับแบบแมนฮัตตัน', () => {
