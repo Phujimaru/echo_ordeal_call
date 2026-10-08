@@ -213,6 +213,7 @@ function strike(attacker, target, { counter = false } = {}) {
 //  คืน { dmg, dodge, kill }
 function skillStrike(attacker, target, reason) {
   const accurate = accurateActive(attacker);
+  target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
   if (!accurate && (target.statuses.evade || 0) > 0) {
     const evadePct = statusAmtOf(target, "evade") || 100;
     consumeEvadeStack(target);
@@ -278,6 +279,7 @@ function boardAttack(attacker, target, done) {
 // ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
 //  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
 function gunAttack(shooter, target, ammo, done) {
+  target.wasAttacked = true; // ถูกยิงนับว่าถูกโจมตี
   const card = { id: ++match.attackSeq, ...strikeCard(shooter, target, { dmg: 0, kill: !target.alive }), gun: ammo, counter: null, push: null };
   counterAndPush(shooter, target, card);
   playAttackCard(card, shooter, target, done);

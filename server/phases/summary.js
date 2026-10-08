@@ -17,7 +17,11 @@ const timers = require("../timers");
 
 function resolveRound() {
   timers.clearPhaseTimer();
-  for (const p of combat.alivePlayers()) p.locked = true;
+  // หมดเวลาช่วงจั่ว: คนที่ยังไม่กด "พอ" ได้ผลไพ่สี 3 ใบเหมือนกดเอง (เดิมหลุดไป) แล้วค่อยล็อก
+  for (const p of combat.alivePlayers()) {
+    if (!p.locked) cardDeck.applyLockColorTriggers(p);
+    p.locked = true;
+  }
 
   // QTE ที่ยังเล่นไม่จบเมื่อถึงเวลาเปิดไพ่ = ถือว่าพลาด (แต้มเสียฟรี)
   qteSystem.sweepQte();
