@@ -1726,7 +1726,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const giftFree = (t) => !!(giftLocks[t] && giftLocks[t].free);
   const muimiBasicLocked = isMuimi && ((me?.muimiEmergencyUses || 0) <= 0 || !!me?.muimiEmergencyUsed);
   const muimiSecLocked = isMuimi && (me?.statuses?.muimiTower || 0) > 0;
-  const muimiUltLocked = isMuimi && ((me?.statuses?.muimiRusty || 0) > 0 || muimiUltCd > 0);
+  const muimiUltLocked = isMuimi && ((me?.statuses?.muimiRusty || 0) > 0 || (me?.statuses?.muimiTower || 0) > 0 || muimiUltCd > 0);
 
   // สกิลช่วงจั่วการ์ด: server แจ้งมา -> เด้งทันที (ไม่ตัดเข้าจอดำ) แล้วหายเอง
   //  บั๊กเดิม: ป้ายนี้มีช่องเดียวใช้ร่วมกันทั้งเกม ถ้ามีสกิลใหม่ (ของใครก็ได้) เด้งเข้ามาถี่กว่า 1.8 วิ

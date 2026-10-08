@@ -51,7 +51,8 @@ module.exports = {
       return (p.muimiEmergencyUses || 0) > 0 && p.muimiEmergencyUsedRound !== engine.roundNumber;
     }
     if (tier === "secondary") return !towerActive(p);
-    if (tier === "ultimate") return !rustyActive(p) && this.ultCooldownLeft(engine, p) <= 0;
+    // ระหว่างดาบสะบั้นกดซ้ำไม่ได้ (ผู้ใช้สั่ง)
+    if (tier === "ultimate") return !rustyActive(p) && !towerActive(p) && this.ultCooldownLeft(engine, p) <= 0;
     return true;
   },
 
@@ -89,21 +90,38 @@ module.exports = {
       return " — ได้รับสถานะ ดาบเก่าๆ";
     }
     if (tier === "ultimate") {
+      const resistBefore = p.statuses.resist || 0;
       p.statuses.muimiTower = TOWER_TURNS;
-      p.statuses.resist = Math.max(p.statuses.resist || 0, RESIST_TURNS);
+      p.statuses.resist = Math.max(resistBefore, RESIST_TURNS);
       p.muimiUltCasts = (p.muimiUltCasts || 0) + 1;
       p.transformAt = engine.nextTransformCounter();
-      engine.queueCutscene(p, p.muimiUltCasts === 1 ? "muimiUltimateFull" : "muimiUltimateShort");
+      // วีดีโอ (ผู้ใช้สั่ง): ฉบับเต็ม 1 ครั้ง ฉบับสั้น 1 ครั้ง ต่อแมตช์ — หลังจากนั้นเป็นการ์ดแจ้งเตือน ไม่หยุดเกม
+      p.cutsceneShown ||= {};
+      const clip = !p.cutsceneShown.muimiUltimateFull ? "muimiUltimateFull" : !p.cutsceneShown.muimiUltimateShort ? "muimiUltimateShort" : null;
+      if (clip) { p.cutsceneShown[clip] = true; engine.queueCutscene(p, clip); }
+      else engine.notifyTransform(p, "muimiUltimateShort");
       engine.log(`⚔️ ${p.name} ได้รับสถานะ “ดาบสะบั้น” ${TOWER_TURNS} เทิร์น และ “ต้านสถานะผิดปกติ” ${RESIST_TURNS} เทิร์น`);
-      // คลื่นดาบแนว 4×3 (GRID_PLAN §7.3): ได้ดาบสะบั้นก่อน แล้วฟันด้วยพลังโจมตีที่รวม +3 แล้ว · เฉพาะศัตรู
-      let hits = 0;
-      for (const id of targets || []) {
-        const t = engine.players[id];
-        if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
-        const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
-        if (!res.dodge) hits++;
-      }
-      return hits ? ` — ได้รับสถานะ ดาบสะบั้น · คลื่นดาบโดน ${hits} คน` : " — ได้รับสถานะ ดาบสะบั้น";
+      // คลื่นดาบแนว 4×3 (GRID_PLAN §7.3): ลงผล "หลังวีดีโอจบ" พร้อมเสียงฟัน · พลังโจมตีรวม +3 ของดาบสะบั้นแล้ว · เฉพาะศัตรู
+      //  มีศัตรูในแนวแต่หลบได้ทุกคน = เสียท่าไม้ตาย (ดาบสะบั้น + ต้านสถานะที่ได้) และเข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ
+      //  แนวว่างไม่มีศัตรู = ได้ดาบสะบั้นตามปกติ (ไม่มีใครหลบ)
+      engine.deferAfterCutscene(() => {
+        let tried = 0, hits = 0;
+        for (const id of targets || []) {
+          const t = engine.players[id];
+          if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
+          tried++;
+          const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
+          if (!res.dodge) hits++;
+        }
+        engine.sfx("muimi_ub_hit");
+        if (tried > 0 && hits === 0) {
+          delete p.statuses.muimiTower;
+          if (resistBefore > 0) p.statuses.resist = resistBefore; else delete p.statuses.resist;
+          p.muimiUltLock = Math.max(p.muimiUltLock || 0, engine.roundNumber + ULT_COOLDOWN_TURNS);
+          engine.log(`💨 คลื่นดาบของ ${p.name} ถูกหลบทั้งหมด — เสียดาบสะบั้น · ใช้ท่าไม้ตายซ้ำไม่ได้ ${ULT_COOLDOWN_TURNS} เทิร์น`);
+        }
+      });
+      return " — ได้รับสถานะ ดาบสะบั้น";
     }
     return "";
   },

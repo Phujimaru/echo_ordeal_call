@@ -1,6 +1,7 @@
 // ปิดรอบ: ลดเทิร์นสถานะ, เหรียญ, ตัดสินจบเกม, ไปรอบถัดไป
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
+  gameOver,
   endTurn,
 });
 

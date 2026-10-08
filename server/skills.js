@@ -13,6 +13,7 @@ const Journey = require("../characters/_journey");
 const { io } = require("./app");
 const { SKILL_COST_MAX } = require("./constants");
 const match = require("./match");
+const endTurnPhase = require("./phases/endTurn");
 const { engine } = require("./engine");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
@@ -104,7 +105,10 @@ function useSkill(id, tier, targets, opts = {}) {
 
   // ผลของสกิลที่ตัวละครเขียนเองในโมดูล (effect: null ใน characters.js) — คืนข้อความต่อท้ายป้ายเด้ง
   let flashSuffix = "";
+  match.afterCutscene = []; // ผลที่ hook ขอให้เกิด "หลังคลิปจบ" (engine.deferAfterCutscene) — เช่นคลื่นดาบมุยมิ
   if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets) || "";
+  const deferred = match.afterCutscene.splice(0);
+  const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
   combat.applyEffect(p, skill.effect);
 
@@ -115,7 +119,9 @@ function useSkill(id, tier, targets, opts = {}) {
   }
   match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
 
-  // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
-  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
+  // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
+  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }
+  runDeferred();
+  if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
   view.broadcastState();
 }

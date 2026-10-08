@@ -23,6 +23,7 @@ const match = {
   actorIndex: -1,
   actorId: null,       // คนที่กำลังเดิน (ACTION / ATTACKING)
   action: null,        // { from, moved, locked, path } ของตาเดินปัจจุบัน
+  afterCutscene: [],   // ผลของสกิลที่รอลงหลังคลิปจบ (engine.deferAfterCutscene — ใช้ใน useSkill)
   shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)
   shopOpenedRound: 0,  // เทิร์นที่ร้านมาตั้งจุดนี้ — ครบ SHOP_INTERVAL_TURNS แล้วย้าย
   roundNumber: 0,

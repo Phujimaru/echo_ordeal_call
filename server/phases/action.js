@@ -7,7 +7,7 @@
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
-  removeFromOrder, hasActed, areaRange, resolveArea, tileEndEffect,
+  removeFromOrder, hasActed, areaRange, resolveArea, counters, tileEndEffect,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -50,6 +50,14 @@ function baseMovOf(p) {
 // ระยะเดินเทิร์นนี้: ไพ่แตก −1
 function movOf(p) {
   return Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0));
+}
+// ตีสวนได้ไหม (ผู้ใช้ตัดสิน 2026-10-09: เลิกตีสวนแบบ FE แล้ว — เก็บกลไกไว้ให้ตัวละคร "สะท้อน" ในอนาคต)
+//  เปิดด้วยข้อมูลตัวละคร `counter: true` ใน characters.js หรือ p.counterBack (สถานะ/เทสต์)
+function counters(p) {
+  if (!p) return false;
+  if (p.counterBack === true) return true;
+  const ch = CHAR_BY_ID[p.characterId];
+  return !!(ch && ch.counter);
 }
 // ระยะโจมตีปกติ [rmin, rmax]
 function rangeOf(p) {
@@ -131,6 +139,8 @@ function actionSeconds() {
 // ไปคนถัดไปในลำดับ · หมดแถว = จบเทิร์น
 function nextActor() {
   timers.clearPhaseTimer();
+  // ศัตรูคนสุดท้ายตายกลางเทิร์น = จบเกมทันที ไม่ต้องรอคนที่เหลือเดิน (ผู้ใช้ตัดสิน 2026-10-09)
+  if (endTurnPhase.gameOver()) return;
   for (;;) {
     match.actorIndex++;
     const id = match.turnOrder[match.actorIndex];

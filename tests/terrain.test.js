@@ -289,6 +289,7 @@ test('ทุ่งดอกไม้: เป้าในพุ่มดอกไ
 
 test('ทุ่งดอกไม้: ผู้ตียืนในพุ่มดอกไม้ หลบการตีสวนได้ · แม่นยำเจาะการหลบจากช่อง', () => {
   let P = setup(2, { A: { x: 7, y: 4 }, B: { x: 6, y: 4 } });
+  P.B.counterBack = true; // ตีสวนปิดเป็นค่าเริ่มต้น — เปิดให้เทสต์
   startActions(['A', 'B']);
   Math.random = () => 0;
   engine.attackTarget('A', 'B');
@@ -412,6 +413,7 @@ test('น้ำแข็ง (engine): เดินเข้าน้ำแข็
 test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง ไถลรวม 2 ช่อง', () => {
   // A (4,3) ตี B (3,3) → ถอยขวาไป (5,3) น้ำแข็ง → ไถลไป (6,3)
   const P = setup(6, { A: { x: 4, y: 3 }, B: { x: 3, y: 3 } });
+  P.B.counterBack = true;
   startActions(['A', 'B']);
   engine.attackTarget('A', 'B');
   engine.clearPhaseTimer();

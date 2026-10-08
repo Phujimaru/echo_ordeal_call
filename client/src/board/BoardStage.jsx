@@ -106,7 +106,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
-    const counter = Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
+    // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
+    const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
     if (counter) {
       const moved = ruleUnits.map((u) => (u.id === me.id ? { ...u, ...stand } : u));
@@ -490,7 +491,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           <div className="bs-fc-mid">
             <span>{forecast && forecast.dmg != null ? `-${forecast.dmg}` : "?"}</span>
             <span className="bs-fc-arrow">⚔</span>
-            <span>{plan.counter ? (forecast && forecast.back != null ? `สวน -${forecast.back}` : "สวน") : "ไม่สวน"}</span>
+            {plan.counter && <span>{forecast && forecast.back != null ? `สวน -${forecast.back}` : "สวน"}</span>}
             {plan.push && <span className="bs-fc-push">{plan.push.collide ? "ชน -1" : "ถอย 1"}</span>}
           </div>
           <FcSide p={plan.foe} label="เป้า" take={forecast ? forecast.dmg : 0} right />

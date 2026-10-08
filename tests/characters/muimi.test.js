@@ -111,7 +111,9 @@ test('ดาบสนิมกับดาบสะบั้นล็อกก�
   delete m.statuses.muimiRusty;
   m.statuses.muimiTower = 2;
   assert.equal(muimi.canUseSkill(engine, m, 'secondary'), false);
-  assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), true, 'ท่าไม้ตายกดซ้ำได้ถ้าดาบสนิมไม่ทำงาน');
+  assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), false, 'ระหว่างดาบสะบั้นกดท่าไม้ตายซ้ำไม่ได้');
+  delete m.statuses.muimiTower;
+  assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), true);
 });
 
 test('ดาบสะบั้นหมดลงแล้วคูลดาวน์ 5 เทิร์น ก่อนใช้ท่าไม้ตายซ้ำได้', () => {
@@ -146,6 +148,9 @@ test('ท่าไม้ตาย: ได้ดาบสะบั้น + ต้
   assert.deepEqual(queued, ['muimiUltimateFull']);
 
   engine.setRoundNumber(4);
+  muimi.applyInstantSkill(engine, m, 'ultimate');
+  assert.deepEqual(queued, ['muimiUltimateFull', 'muimiUltimateShort']);
+  // วีดีโอเล่นอย่างละครั้งต่อแมตช์ — ครั้งที่ 3 เป็นแค่การ์ดแจ้งเตือน
   muimi.applyInstantSkill(engine, m, 'ultimate');
   assert.deepEqual(queued, ['muimiUltimateFull', 'muimiUltimateShort']);
 });

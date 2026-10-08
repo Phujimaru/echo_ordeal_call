@@ -229,6 +229,7 @@ function buildStateFor(viewerId) {
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),
+        counter: action.counters(p), // ตีสวนได้ไหม (ตอนนี้ไม่มีใคร — เผื่อตัวละครสะท้อน)
       };
     }),
   };

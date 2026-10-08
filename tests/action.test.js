@@ -104,6 +104,7 @@ test('สกิล/ไอเทม/ร้านค้า ใช้ไม่ไ�
 test('โจมตี: เป้านอกระยะตีไม่ได้ · ประชิดแล้วโดนสวน + ถอย 1 ช่อง · จบตาหลังฉากตี', () => {
   const P = setup();
   P.A.pos = { x: 7, y: 9 }; P.B.pos = { x: 7, y: 7 }; P.C.pos = { x: 0, y: 4 };
+  P.B.counterBack = true; // ตีสวนปิดเป็นค่าเริ่มต้นแล้ว — เทสต์กลไกที่เก็บไว้ให้ตัวละครสะท้อน
   startActions(['A', 'B', 'C']);
   assert.equal(engine.attackTarget('A', 'B'), false, 'ห่าง 2 ช่อง ตีประชิดไม่ถึง');
   engine.moveTo('A', 7, 8);
@@ -120,10 +121,37 @@ test('โจมตี: เป้านอกระยะตีไม่ได้
   assert.equal(engine.actorId, 'B', 'ไปตาคนถัดไป');
 });
 
+test('ค่าเริ่มต้น: ไม่มีการตีสวน — ผู้ตีไม่เสียเลือดและไม่ถอย (ผู้ใช้ตัดสิน 2026-10-09)', () => {
+  const P = setup(['A', 'B']);
+  P.A.pos = { x: 7, y: 8 }; P.B.pos = { x: 7, y: 7 };
+  startActions(['A', 'B']);
+  const hpA = P.A.hp;
+  engine.attackTarget('A', 'B');
+  engine.clearPhaseTimer();
+  assert.equal(P.A.hp, hpA);
+  assert.deepEqual(P.A.pos, { x: 7, y: 8 });
+  assert.equal(engine.lastAttack.counter, null);
+  assert.equal(engine.lastAttack.push, null);
+});
+
+test('ศัตรูคนสุดท้ายตายกลางเทิร์น = จบเกมทันที ไม่รอคนที่เหลือเดิน', () => {
+  const P = setup(['A', 'B', 'C']);
+  P.A.pos = { x: 7, y: 8 }; P.B.pos = { x: 7, y: 7 }; P.C.pos = { x: 0, y: 4 };
+  P.B.hp = 1; P.B.armor = 0;
+  P.C.alive = false; P.C.pos = null;
+  startActions(['A', 'B', 'C']);
+  engine.attackTarget('A', 'B');
+  engine.clearPhaseTimer();
+  engine.finishActor();
+  engine.clearPhaseTimer();
+  assert.equal(engine.gameState, 'GAMEOVER');
+});
+
 test('ถอยชนสิ่งกีดขวางหลังโดนสวน: ไม่ขยับ และเสียเพิ่ม 1', () => {
   const P = setup(['A', 'B']);
   // เสาคริสตัลที่ (4,8): A ยืน (4,7) ตี B ที่ (4,6) → ถอยลงไปชนเสา
   P.A.pos = { x: 4, y: 7 }; P.B.pos = { x: 4, y: 6 };
+  P.B.counterBack = true;
   startActions(['A', 'B']);
   const hpA = P.A.hp;
   engine.attackTarget('A', 'B');

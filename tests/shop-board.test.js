@@ -88,7 +88,7 @@ test('ร้านค้ากินช่อง: เดินทับ/ผ่�
   assert.ok(!engine.action.path.some((t) => t.x === 6 && t.y === 3), 'เส้นทางไม่ผ่านร้าน');
   engine.undoMove(a.id);
 
-  const d = mkPlayer({ x: 6, y: 5 });
+  const d = mkPlayer({ x: 6, y: 5 }, { counterBack: true }); // ตีสวนปิดเป็นค่าเริ่มต้น — เปิดให้เทสต์กลไกถอย
   engine.attackTarget(a.id, d.id); // ถูกสวน → ถอยขึ้นไปทาง (6,3) = ร้าน
   assert.equal(engine.lastAttack.push.collide, true);
   assert.deepEqual(a.pos, { x: 6, y: 4 });
@@ -162,7 +162,7 @@ test('ปืน GUTS: ยิงได้ระยะ 1–4 เท่านั้
 test('ปืน GUTS = การโจมตีของตา: เข้าฉากยิงแล้วจบตา · เป้าประชิดสวนกลับ + ผู้ยิงถอย · ยิงจากไกลไม่โดนสวน', () => {
   const p = mkPlayer({ x: 6, y: 4 }, { hp: 7, armor: 0 });
   giveGun(p);
-  const near = mkPlayer({ x: 6, y: 5 });
+  const near = mkPlayer({ x: 6, y: 5 }, { counterBack: true });
   const a1 = giveAmmo(p, 'thunder');
   engine.setActor(p.id);
   engine.useInventoryItem(p.id, a1.uid, { targetId: near.id });

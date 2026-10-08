@@ -4,6 +4,7 @@ process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine, resolveRound } = require('../server.js');
+const muimi = require('../characters/muimi.js');
 
 const realRandom = Math.random;
 const blank = (id, characterId, position, teamId = null) => ({
@@ -119,6 +120,25 @@ test('คลื่นดาบมุยมิ: ต้องเลือกทิ
   assert.equal(P.D.hp, 5, 'นอกแนวด้านข้าง');
   assert.equal(engine.action.locked, true);
   assert.equal(engine.moveTo('M', 7, 10), false);
+});
+
+test('คลื่นดาบมุยมิ: ศัตรูในแนวหลบได้ทุกคน = เสียดาบสะบั้น + เข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ', () => {
+  let P = setup([['M', 'muimi', 7, 9], ['E', 'dummy', 7, 8]]);
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100; P.E.evadeStacks = [{ turns: 2 }];
+  Math.random = () => 0;
+  engine.setActor('M');
+  engine.useSkill('M', 'ultimate', [], { dir: 'up' });
+  assert.equal(P.E.hp, 5, 'หลบหลีก 100%');
+  assert.equal(P.M.statuses.muimiTower, undefined, 'หลบหมด = เสียดาบสะบั้น');
+  assert.ok(muimi.ultCooldownLeft(engine, P.M) > 0, 'เข้าคูลดาวน์ทันที');
+
+  P = setup([['M', 'muimi', 7, 9], ['E', 'dummy', 7, 8], ['G', 'dummy', 6, 7]]);
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100; P.E.evadeStacks = [{ turns: 2 }];
+  Math.random = () => 0;
+  engine.setActor('M');
+  engine.useSkill('M', 'ultimate', [], { dir: 'up' });
+  assert.equal(P.G.hp, 1, 'โดน 1 คน');
+  assert.ok(P.M.statuses.muimiTower > 0, 'โดนอย่างน้อย 1 คน = ยังได้ดาบสะบั้น');
 });
 
 test('คลื่นดาบมุยมิ: หลบหลีกหลบได้ · ไม่โดนเพื่อนร่วมทีม', () => {

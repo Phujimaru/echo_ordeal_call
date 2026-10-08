@@ -7,6 +7,7 @@ Object.assign(module.exports, {
 const { io } = require("./app");
 const { TRANSFORMS } = require("./constants");
 const match = require("./match");
+const endTurnPhase = require("./phases/endTurn");
 const action = require("./phases/action");
 const draw = require("./phases/draw");
 const lobby = require("./lobby");
@@ -66,7 +67,9 @@ function pausePlayingForCutscene(after) {
   runCutsceneQueue(() => {
     if (after) after();
     if (inAction) {
-      // คนเดินอยู่ตกรอบระหว่างคลิป (เช่นโดนสวน/ระเบิดตัวเอง) = ไปคนถัดไปเลย
+      // ศัตรูหมดแล้ว (เช่นคลื่นดาบ/ระเบิดฆ่าคนสุดท้าย) = จบเกมทันที
+      if (endTurnPhase.gameOver()) return;
+      // คนเดินอยู่ตกรอบระหว่างคลิป (เช่นระเบิดตัวเอง) = ไปคนถัดไปเลย
       const actor = match.players[match.actorId];
       if (!actor || !actor.alive) { action.finishActor(); return; }
       match.gameState = "ACTION";

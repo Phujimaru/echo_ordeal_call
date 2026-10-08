@@ -230,6 +230,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   queueCutscene: cutscene.queueCutscene,
   triggerCutscene: cutscene.triggerCutscene,
   notifyTransform: cutscene.notifyTransform,
+  // ให้ผลของสกิลเกิดหลังคลิปที่คิวไว้จบ (ไม่มีคลิป = เกิดทันทีหลัง hook) — ใช้ได้เฉพาะใน applyInstantSkill
+  deferAfterCutscene(fn) { match.afterCutscene.push(fn); },
   runCutsceneQueue: cutscene.runCutsceneQueue,
   pausePlayingForCutscene: cutscene.pausePlayingForCutscene,
   startPhaseTimer: timers.startPhaseTimer,

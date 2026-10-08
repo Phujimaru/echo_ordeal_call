@@ -282,9 +282,10 @@ function gunAttack(shooter, target, ammo, done) {
   counterAndPush(shooter, target, card);
   playAttackCard(card, shooter, target, done);
 }
-// เป้ารอดและผู้ตีอยู่ในระยะตีของเป้า → ตีสวน 1 ครั้ง แล้วผู้ตีถอย 1 ช่อง (ถอยไม่ได้ = ชน เสียเพิ่ม 1) — เขียนผลลง card
+// เป้ารอด + มีความสามารถตีสวน (action.counters — ตอนนี้ไม่มีตัวละครไหนมี) + ผู้ตีอยู่ในระยะตีของเป้า
+//  → ตีสวน 1 ครั้ง แล้วผู้ตีถอย 1 ช่อง (ถอยไม่ได้ = ชน เสียเพิ่ม 1) — เขียนผลลง card
 function counterAndPush(attacker, target, card) {
-  if (attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
+  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     if (attacker.alive) {
