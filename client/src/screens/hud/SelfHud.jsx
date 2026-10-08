@@ -278,7 +278,7 @@ export function HudCenter({ score, busted, handRef, hand, draw, reveal }) {
       <div className="hud-hand-row">
         <div className="hud-score">
           <span className="hud-score-label">แต้ม</span>
-          <span className="hud-medal" data-busted={busted ? "true" : "false"}>{busted ? "แต้มเกิน" : (score != null ? score : "???")}</span>
+          <span className="hud-medal" data-busted={busted ? "true" : "false"}>{busted ? "แตก" : (score != null ? score : "???")}</span>
         </div>
         <div ref={handRef} className="hud-hand">{hand}</div>
       </div>

@@ -249,7 +249,14 @@ export default function BoardCanvas(props) {
     let unit = null;
     for (const b of st.boxes) { if (lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1) { unit = units.find((u) => u.id === b.id) || null; if (unit) break; } }
     let tile = pickTile(st.info, lx, ly);
-    if (!unit && tile) unit = units.find((u) => u.alive !== false && u.x === tile.x && u.y === tile.y) || null;
+    if (tile) {
+      // กล่องรูปตัวหมากสูงทับ 1–2 ช่องด้านหลัง: คนที่ยืนบนช่องใต้เมาส์ชนะเสมอ ·
+      //  ช่องว่างที่กดได้ (เดิน/สกิล/ตีหมู่) ชนะกล่องของตัวที่ยืนช่องอื่น — ไม่งั้นเดินถอยไปทางหลังตัวเองไม่ได้
+      const onTile = units.find((u) => u.alive !== false && u.x === tile.x && u.y === tile.y) || null;
+      const k = key(tile.x, tile.y), hl = st.hl;
+      if (onTile) unit = onTile;
+      else if (unit && (hl.move.has(k) || hl.skill.has(k) || hl.aoe.has(k))) unit = null;
+    }
     if (unit) tile = { x: unit.x, y: unit.y };
     return { tile, unit };
   };

@@ -596,3 +596,6 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
   `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|gun|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
+- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=21` เริ่มแมตช์ที่เทิร์น/ภูมิภาคนั้น · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
+  `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มยิงปืน/ใช้สกิล/ไอเทม/ซื้อของ)
+- หมุนกระดาน: `BoardCanvas` prop `rotation` 0–3 (ภาพอย่างเดียว พิกัด/คอลแบ็กเป็นพิกัดกระดานเสมอ) · คีย์ใช้ `e.code` KeyQ/KeyE (แป้นโหมดไทยใช้ได้) · ตัววาดแยก `boardGeo.js` (กล้อง/หมุน) · `boardProps.js` (สิ่งกีดขวาง/ช่องพิเศษ) · `regionThemes.js` (ธีม 7 ภูมิภาค)

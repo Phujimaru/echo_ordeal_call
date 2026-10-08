@@ -2216,7 +2216,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               ) : myTurn ? (
                 <span className="hud-hand-note" data-tone="me">ตาของคุณ</span>
               ) : phase !== "PLAYING" && phase !== "TRANSITION" ? (
-                <span className="hud-hand-note" data-tone={me.busted ? "bad" : undefined}>{me.busted ? "แต้มเกิน" : "เปิดไพ่แล้ว"}</span>
+                <span className="hud-hand-note" data-tone={me.busted ? "bad" : undefined}>{me.busted ? "แตก" : "เปิดไพ่แล้ว"}</span>
               ) : me.cards && me.cards.length ? (
                 // ถือการ์ดแบบพัดสไตล์ UNO — บีบระยะซ้อนอัตโนมัติตามจำนวนใบให้พอดีพื้นที่เสมอ (ห้ามเกิด scroll เด็ดขาด)
                 <div className="flex items-center pl-1 pr-4">

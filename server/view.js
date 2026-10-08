@@ -79,7 +79,9 @@ function publicStatuses(p) {
   return out;
 }
 function buildStateFor(viewerId) {
-  const revealAll = match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
+  // คัตซีนที่แทรกกลางช่วงจั่ว (ยังมีคนไม่กด "พอ") ยังห้ามเปิดแต้ม — คัตซีนหลังเปิดไพ่ทุกคนล็อกแล้ว
+  const drawingCutscene = match.gameState === "CUTSCENE" && combat.alivePlayers().some((p) => !p.locked);
+  const revealAll = !drawingCutscene && match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
   const nightNow = dayNight.isNightRound(match.roundNumber);
   const sm = activeSkillMusic();
   const viewer = match.players[viewerId];

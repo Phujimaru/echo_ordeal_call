@@ -279,6 +279,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (plan.push) h.push = plan.push;
       } else if (hover && canMove && myReach.has(key(hover.x, hover.y))) {
         h.path = Rules.pathTo(myReach, hover.x, hover.y);
+      } else if (hoverUnit && hoverUnit.pos && isEnemy(hoverUnit)) {
+        // ชี้ศัตรูที่ตาเราเดินไปตีไม่ถึง = เห็นระยะเดิน+ตีของศัตรูตัวนั้น (แบบ FE)
+        const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, { isAlly, blocked });
+        h.danger = [...new Set([...(h.danger || []), ...z.move, ...z.threat])];
       }
       return h;
     }

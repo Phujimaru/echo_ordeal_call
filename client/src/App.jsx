@@ -46,6 +46,7 @@ export default function App() {
   useEffect(() => {
     const ch = import.meta.env.DEV ? new URLSearchParams(location.search).get("autoplay") : null;
     if (!ch) return undefined;
+    saveSessionToken(null); // session เก่าจาก server รอบก่อน = join แล้วโดน sessionExpired เด้งกลับ
     const go = () => socket.emit("join", { name: "ทดสอบ", position: 1, color: "#3B82C4", characterId: ch });
     if (socket.connected) go(); else socket.once("connect", go);
     return () => socket.off("connect", go);
