@@ -4,38 +4,26 @@
 //
 //  แนวคิด
 //   - วาดในพิกัด "ตรรกะ" 1280 × 720 แบบต้นแบบเสมอ แล้วย่อ/ขยายลงแคนวาสจริงด้วย view (computeView)
-//     จอกว้าง/สูงกว่า 16:9 = เห็นพื้นหญ้า/ท้องฟ้า/ต้นไม้รอบนอกเพิ่ม กระดานไม่ถูกตัด
-//   - ชั้นนิ่ง (พื้น ท้องฟ้า ปราสาท ช่อง วงเวท ต้นไม้นอกกระดาน ใบไม้หน้ากล้อง) อบครั้งเดียวต่อ แผนที่/ขนาด/กลางคืน
-//   - ชั้นเคลื่อนไหว (ไฮไลต์ สิ่งกีดขวาง ตัวละคร ร้าน เอฟเฟกต์) วาดใหม่ทุกเฟรม เรียงตามความลึก
-//   - lowQ = ข้ามอนุภาค (ประกายวงเวท หิ่งห้อย) และใบไม้หน้ากล้อง
+//     จอกว้าง/สูงกว่า 16:9 = เห็นพื้น/ท้องฟ้า/ฉากรอบนอกเพิ่ม กระดานไม่ถูกตัด
+//   - ชั้นอบ 2 ชั้น
+//      scene = ฟ้า ฉากหลัง ลายพื้น ของสองข้าง (ไม่หมุนตามกระดาน) — อบต่อ ภูมิภาค/ขนาด/กลางคืน/แนวกระดาน (ตั้ง/นอน)
+//      board = ฐานกระดาน ช่อง ช่องพิเศษ จุดฟื้นฟู เส้นตาราง แสงแดด/ความมืด — อบต่อ แผนที่/ขนาด/กลางคืน/มุมหมุน
+//     ระหว่างหมุนกระดาน (≈250ms) ชั้น board วาดสดทุกเฟรม · ชั้น scene ค่อยๆ เปลี่ยน (crossfade)
+//   - ชั้นเคลื่อนไหว (ไฮไลต์ สิ่งกีดขวาง ตัวละคร ร้าน เอฟเฟกต์) วาดใหม่ทุกเฟรม เรียงตามความลึกของมุมมอง
+//   - ธีมรายภูมิภาค (ฉาก/สี/อนุภาค) อยู่ที่ regionThemes.js · สิ่งกีดขวาง/ช่องพิเศษ/จุดฟื้นฟูอยู่ที่ boardProps.js
+//   - lowQ = ข้ามอนุภาค ใบไม้หน้ากล้อง แอนิเมชันช่องพิเศษ และหมุนกระดานทันที
 //
-//  พิกัดช่อง: x = คอลัมน์ 0..cols-1 (ซ้าย→ขวา) · y = แถว 0..rows-1 (ไกล→ใกล้กล้อง) · key = "x,y"
+//  พิกัดช่อง: x = คอลัมน์ 0..cols-1 (ซ้าย→ขวา) · y = แถว 0..rows-1 (ไกล→ใกล้กล้อง ที่มุม 0) · key = "x,y"
+//  map.special["x,y"] = ช่องพิเศษ (flowers forest thorns shallow whirl quicksand ice lava power) · map.flow["x,y"] = up/down/left/right (น้ำวน)
 // ============================================================
+import {
+  F_TH, F_UI, LH, LW, P, PA, computeView, depthOf, gEllipse, hexA, hexPath, key, normColor, parseKey, project,
+  quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
+} from "./boardGeo";
+import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
+import { themeOf, worldRange } from "./regionThemes";
 
-export const LW = 1280;
-export const LH = 720;
-
-const F_UI = '"Chakra Petch","Kanit",sans-serif';
-const F_TH = '"Kanit","Chakra Petch",sans-serif';
-
-export const key = (x, y) => x + "," + y;
-export const parseKey = (k) => String(k).split(",").map(Number);
-
-// ---------- สีฉาก กลางวัน/กลางคืน (ตามต้นแบบ) ----------
-const PAL = {
-  day: {
-    grass1: "#bfd8a8", grass2: "#9fc28a", clump: "#8fb878", plaza: "#f3f4f1", plaza2: "#e9ebe6", rim: "#d8d1bf", rim2: "#b4aa92",
-    path: "#ebe7dc", line: "rgba(61,139,217,.75)", gold: "#d9a93f", tile: "rgba(28,63,110,.05)", tile2: "rgba(28,63,110,.16)",
-    dots: ["#f6d36b", "#ffffff", "#eaa6c2"], c1: "#8fb878", c2: "#7aa765", c3: "#b4d69b", trunk: "#8b7355", shadow: "rgba(28,46,40,.22)",
-    sky: ["#bcd8f2", "#e6f0fa"], hill: ["#cfe0ef", "#b8d1e6"], leaf: "#6f9e58", spark: "#7fb8e6", crystal: 0.35,
-  },
-  night: {
-    grass1: "#2f4f5a", grass2: "#22394a", clump: "#1d3242", plaza: "#5d7697", plaza2: "#526b8c", rim: "#465e7e", rim2: "#33475f",
-    path: "#55708f", line: "rgba(170,215,255,.85)", gold: "#f0c868", tile: "rgba(200,225,255,.06)", tile2: "rgba(200,225,255,.16)",
-    dots: ["#fff3b0", "#cfe8ff", "#fff3b0"], c1: "#2c5a55", c2: "#244b48", c3: "#3d7068", trunk: "#4a3d33", shadow: "rgba(0,8,24,.45)",
-    sky: ["#0b1830", "#183056"], hill: ["#22355a", "#1a2b4a"], leaf: "#13283a", spark: "#cfe8ff", crystal: 0.9,
-  },
-};
+export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
 // สีไฮไลต์ [พื้น, ขอบ]
 const OV = {
@@ -46,78 +34,29 @@ const OV = {
   danger: ["rgba(206,58,122,.2)", "rgba(255,128,182,.9)"],
 };
 
-// =================================================================== projection
-//  กล้องเอียง 38° แบบต้นแบบด่าน I — ขอบใกล้ของกระดานอยู่ที่ y ตรรกะ 528 (เว้นที่ล่างให้ HUD)
-const PITCH = 38 * Math.PI / 180, SN = Math.sin(PITCH), CS = Math.cos(PITCH);
-const CAM_D = 22, FOC = 66.25 * (CAM_D - 6 * CS), OX = 640, OY = 528 - 6 * SN * 66.25;
-// จุดกึ่งกลางกระดาน — กล้องจูนไว้สำหรับ 16 × 12 (ทุกภูมิภาคใช้ขนาดนี้ — GRID_PLAN §3)
-let HC = 8, HR = 6;
-
-// โลก (x, y, สูง z) → [sx, sy, สเกล] ในพิกัดตรรกะ
-export function project(x, y, z = 0) {
-  const X = x - HC, Y = y - HR, depth = CAM_D - Y * CS - z * SN, s = FOC / depth;
-  return [OX + X * s, OY + (Y * SN - z * CS) * s, s];
-}
-const P = project;
-// จุดบนจอ (ตรรกะ) → จุดบนพื้น (z = 0) · เหนือเส้นขอบฟ้า = null
-export function unproject(sx, sy) {
-  const v = (sy - OY) / FOC, den = SN + v * CS;
-  if (den <= 1e-6) return null;
-  const Y = v * CAM_D / den, depth = CAM_D - Y * CS;
-  if (depth <= 0.5) return null;
-  const s = FOC / depth;
-  return { x: (sx - OX) / s + HC, y: Y + HR };
-}
-// ขนาดแคนวาสจริง (CSS px) → ตัวแปลงพิกัด ตรรกะ ↔ CSS · ย่อให้เห็นเฟรม 1280×720 ครบ แล้วต่อฉากรอบนอกให้เต็มจอ
-export function computeView(w, h) {
-  const k = Math.min(w / LW, h / LH) || 1;
-  const ox = (w - LW * k) / 2, oy = (h - LH * k) / 2;
-  return { w, h, k, ox, oy, x0: -ox / k, y0: -oy / k, x1: (w - ox) / k, y1: (h - oy) / k };
-}
-export function toLogical(view, cx, cy) {
-  return [(cx - view.ox) / view.k, (cy - view.oy) / view.k];
-}
-// จุดบนจอ (ตรรกะ) → ช่อง {x, y} หรือ null ถ้านอกกระดาน
+// จุดบนจอ (ตรรกะ) → ช่อง {x, y} (พิกัดกระดาน — ย้อนการหมุนแล้ว) หรือ null ถ้านอกกระดาน
 export function pickTile(info, lx, ly) {
   const g = unproject(lx, ly);
   if (!g) return null;
   const x = Math.floor(g.x), y = Math.floor(g.y);
   return x >= 0 && y >= 0 && x < info.cols && y < info.rows ? { x, y } : null;
 }
-// ช่อง → จุดกลางช่องบนจอ (ตรรกะ) — เผื่อ Game.jsx อยากวาง DOM ทับตำแหน่งตัวละคร
-export function tileCenter(x, y, z = 0) {
+// ช่อง → จุดกลางช่องบนจอ (ตรรกะ) — ใช้วาง DOM ทับตำแหน่งบนกระดาน
+//  rotation (0..3) ไม่ใส่ = ใช้มุมที่กำลังแสดงอยู่ (รวมระหว่างหมุน)
+export function tileCenter(x, y, z = 0, rotation) {
+  if (rotation == null) { const p = P(x + 0.5, y + 0.5, z); return [p[0], p[1]]; }
+  const prev = viewTurn();
+  setViewTurn(normRot(rotation));
   const p = P(x + 0.5, y + 0.5, z);
+  setViewTurn(prev);
   return [p[0], p[1]];
 }
-
-function quad(g, x, y, inset = 0) {
-  const a = P(x + inset, y + inset), b = P(x + 1 - inset, y + inset), c = P(x + 1 - inset, y + 1 - inset), d = P(x + inset, y + 1 - inset);
-  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
+export const normRot = (r) => ((Math.round(+r || 0) % 4) + 4) % 4;
+// ตั้งกล้องตามกระดาน + มุมมอง (เรียกก่อนคำนวณพิกัดนอกลูปวาด เช่น ตอนคลิก)
+export function setCamera(info, turn) {
+  setBoardSize(info.cols, info.rows);
+  setViewTurn(turn);
 }
-function gEllipse(g, cx, cy, r, z = 0, n = 40) {
-  g.beginPath();
-  for (let i = 0; i <= n; i++) {
-    const a = i / n * Math.PI * 2, p = P(cx + Math.cos(a) * r, cy + Math.sin(a) * r, z);
-    if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
-  }
-  g.closePath();
-}
-function hexPath(g, cx, cy, r, ry) {
-  ry = ry || r * 0.866; g.beginPath();
-  g.moveTo(cx - r, cy); g.lineTo(cx - r / 2, cy - ry); g.lineTo(cx + r / 2, cy - ry); g.lineTo(cx + r, cy); g.lineTo(cx + r / 2, cy + ry); g.lineTo(cx - r / 2, cy + ry); g.closePath();
-}
-function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
-
-// ---------- สี ----------
-function normColor(c) {
-  if (typeof c !== "string") return "#3d8bd9";
-  if (/^#[0-9a-f]{6}$/i.test(c)) return c;
-  if (/^#[0-9a-f]{3}$/i.test(c)) return "#" + c.slice(1).split("").map((h) => h + h).join("");
-  return "#3d8bd9";
-}
-function rgbOf(h) { return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); }
-function shadeHex(h, k) { return `rgb(${rgbOf(h).map((v) => Math.max(0, Math.min(255, v + v * k)) | 0)})`; }
-function hexA(h, a) { return `rgba(${rgbOf(h)},${a})`; }
 
 // ---------- รูปตัวละคร (แคชทั้งแอป) ----------
 const imgCache = new Map();
@@ -143,6 +82,7 @@ function cover(g, img, x, y, w, h, fy = 0.12) {
   g.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+
 // =================================================================== map info
 function normPt(p) {
   if (Array.isArray(p)) return { x: +p[0], y: +p[1] };
@@ -158,153 +98,148 @@ function ptList(list) {
 // ลายเซ็นของแผนที่ — ใช้ตัดสินว่าต้องอบชั้นนิ่งใหม่ไหม (state จาก server เป็นอ็อบเจกต์ใหม่ทุกครั้ง)
 export function mapSignature(map) {
   if (!map) return "none";
-  return JSON.stringify([map.area, map.cols, map.rows, map.terrain || {}, ptList(map.heal), ptList(map.spawns)]);
+  return JSON.stringify([map.area, map.cols, map.rows, map.terrain || {}, ptList(map.heal), ptList(map.spawns), map.special || {}, map.flow || {}]);
 }
 // แปลง map (รูปแบบ state.board) เป็นข้อมูลพร้อมวาด
 export function prepareMap(map) {
   const cols = (map && map.cols) || 16, rows = (map && map.rows) || 12;
-  HC = cols / 2; HR = rows / 2;
+  setBoardSize(cols, rows);
+  const area = (map && +map.area) || 1;
+  const tMap = (map && map.terrain) || {};
   const terrain = [];
-  for (const [k, kind] of Object.entries((map && map.terrain) || {})) {
+  for (const [k, kind] of Object.entries(tMap)) {
     const [x, y] = parseKey(k);
-    if (Number.isFinite(x) && Number.isFinite(y)) terrain.push({ x, y, kind: String(kind) });
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const same = (dx, dy) => String(tMap[key(x + dx, y + dy)]) === String(kind);
+    terrain.push({ x, y, kind: String(kind), conn: { l: same(-1, 0), r: same(1, 0), u: same(0, -1), d: same(0, 1) } });
+  }
+  const flow = (map && map.flow) || {};
+  const special = [];
+  for (const [k, kind] of Object.entries((map && map.special) || {})) {
+    const [x, y] = parseKey(k);
+    if (Number.isFinite(x) && Number.isFinite(y) && kind) special.push({ x, y, kind: String(kind), flow: flow[k] ? String(flow[k]) : null });
   }
   const heal = ptList(map && map.heal);
   let plaza = null;
-  if (heal.length) {
+  // ด่าน I: จุดฟื้นฟูวาดเป็นวงเวทใหญ่ (ด่านอื่นดู boardProps.bakeHeal)
+  if (heal.length && area === 1) {
     const cx = heal.reduce((s, p) => s + p.x, 0) / heal.length + 0.5;
     const cy = heal.reduce((s, p) => s + p.y, 0) / heal.length + 0.5;
     const sc = Math.sqrt(heal.length / 4);
     plaza = { x: cx, y: cy, r1: 3.45 * sc, r2: 2.25 * sc, sc };
   }
-  return { cols, rows, area: (map && map.area) || 1, terrain, heal, plaza, spawns: ptList(map && map.spawns) };
+  return {
+    cols, rows, area, terrain, heal, plaza, spawns: ptList(map && map.spawns), special,
+    healClusters: healClusters(heal), lavaTiles: special.filter((s) => s.kind === "lava"),
+  };
 }
 
 // =================================================================== baked layers
-//  คืน { ground, fore } เป็นแคนวาสขนาดพิกเซลจริง (w*dpr × h*dpr) วาดทับได้ตรงๆ ด้วย drawImage(…, 0, 0)
-export function bakeLayers(info, view, dpr, night, lowQ) {
-  const C = PAL[night ? "night" : "day"], R = rng(21);
+function layerCanvas(view, dpr) {
   const pw = Math.max(1, Math.round(view.w * dpr)), ph = Math.max(1, Math.round(view.h * dpr));
   const cv = document.createElement("canvas"); cv.width = pw; cv.height = ph;
   const g = cv.getContext("2d");
   g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
+  return { cv, g };
+}
+// ชั้นฉาก (ไม่หมุนตามกระดาน) · turn = มุมที่ใช้คำนวณกล้อง (0 = กระดานนอน 16×12 · 1 = ตั้ง 12×16)
+//  คืน { scene, fore, marks } · marks = ตำแหน่งของที่ animBack ต้องใช้ (ใบพัด ไฟประภาคาร ฯลฯ)
+export function bakeScene(info, view, dpr, night, lowQ, turn = 0) {
+  const prev = viewTurn();
+  setCamera(info, turn);
+  const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
+  const { cv, g } = layerCanvas(view, dpr);
+  const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
+  // ขอบไกลของกระดานบนจอ (ฉากหลังวางอิงเส้นนี้)
+  const bY = Math.min(P(0, 0)[1], P(info.cols, 0)[1], P(0, info.rows)[1], P(info.cols, info.rows)[1]);
+  const c = { g, C, night, lowQ, info, R: rngSeq(21), VX0, VY0, VX1, VY1, VW, bY, ...worldRange(view), marks: {} };
+  // พื้นทั้งจอ
+  const gr = g.createRadialGradient(640, 360, 120, 640, 360, Math.max(820, VW * 0.65));
+  gr.addColorStop(0, C.ground1); gr.addColorStop(1, C.ground2);
+  g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
+  T.back(c);
+  T.ground(c);
+  T.side(c);
+  // ใบไม้/ของเบลอหน้ากล้อง (ชั้นแยก วาดทับตัวละคร) — ต้องมี ctx.filter · lowQ ข้าม
+  let fore = null;
+  if (!lowQ && T.fore) {
+    const { cv: fc, g: f } = layerCanvas(view, dpr);
+    if ("filter" in f) {
+      f.filter = `blur(${Math.max(2, 9 * dpr * view.k) / (dpr * view.k)}px)`;
+      T.fore(f, c);
+      fore = fc;
+    }
+  }
+  setViewTurn(prev);
+  return { scene: cv, fore, marks: c.marks };
+}
+function rngSeq(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
+
+// ชั้นกระดาน (หมุนตามกระดาน) — ใช้ทั้งตอนอบและวาดสดระหว่างหมุน · g ต้องตั้ง transform ตรรกะไว้แล้ว
+function drawBoardLayer(g, info, view, night) {
+  const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
   const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   const COLS = info.cols, ROWS = info.rows;
-
-  // --- พื้นทั้งจอ
-  let gr = g.createRadialGradient(640, 360, 120, 640, 360, Math.max(820, VW * 0.65));
-  gr.addColorStop(0, C.grass1); gr.addColorStop(1, C.grass2);
-  g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
-  // --- ฟ้า + เนิน + ปราสาท (ฉากหลังขอบไกล)
-  const backY = P(0, 0)[1];
-  gr = g.createLinearGradient(0, VY0, 0, backY);
-  gr.addColorStop(0, C.sky[0]); gr.addColorStop(1, C.sky[1]);
-  g.fillStyle = gr; g.fillRect(VX0, VY0, VW, backY - 18 - VY0);
-  if (night) {
-    const nStars = Math.round(60 * VW / LW * Math.max(1, (backY - VY0) / backY));
-    for (let i = 0; i < nStars; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + R() * 0.6})`; g.fillRect(VX0 + R() * VW, VY0 + R() * (backY - 40 - VY0), 1.4, 1.4); }
-  }
-  [[C.hill[0], backY - 46, 22, 0.004], [C.hill[1], backY - 30, 16, 0.009]].forEach(([c, base, amp, f], i) => {
-    g.fillStyle = c; g.beginPath(); g.moveTo(VX0, backY);
-    for (let x = VX0; x <= VX1 + 6; x += 6) g.lineTo(x, base - Math.abs(Math.sin(x * f + i * 2)) * amp - Math.sin(x * f * 2.7) * amp * 0.4);
-    g.lineTo(VX1, backY); g.closePath(); g.fill();
-  });
-  gr = g.createLinearGradient(0, backY - 30, 0, backY + 8);
-  gr.addColorStop(0, night ? "#1d3342" : "#a9c995"); gr.addColorStop(1, C.grass1);
-  g.fillStyle = gr; g.fillRect(VX0, backY - 30, VW, 40);
-  drawCastle(g, OX, backY - 14, night);
-  // แนวต้นไม้หลังกระดาน (เว้นตรงปราสาท)
-  const rt = rng(5), nBack = Math.round(26 * VW / LW);
-  for (let i = 0; i < nBack; i++) {
-    const x = VX0 + (i / Math.max(1, nBack - 1)) * VW + (rt() - 0.5) * 30;
-    const sz = 26 + rt() * 14, yy = backY - 10 + rt() * 10;
-    if (Math.abs(x - OX) < 300) continue;
-    drawTree(g, x, yy, sz, C);
-  }
-  // --- ลายหญ้า (กอหญ้า + จุดดอกไม้) ครอบคลุมพื้นที่ที่มองเห็น
-  const bl = unproject(VX0, VY1) || { x: -4, y: 14 }, br = unproject(VX1, VY1) || { x: 20, y: 14 };
-  const wx0 = Math.min(-4, bl.x - 1), wx1 = Math.max(COLS + 4, br.x + 1), wy1 = Math.max(ROWS + 2, bl.y + 1);
-  const area = (wx1 - wx0) * (wy1 + 1);
-  const nClump = Math.min(900, Math.round(area * 0.68)), nDots = Math.min(2600, Math.round(area * 1.9));
-  g.globalAlpha = 0.35; g.fillStyle = C.clump;
-  for (let i = 0; i < nClump; i++) {
-    const x = wx0 + R() * (wx1 - wx0), y = -1 + R() * (wy1 + 1), r = 0.25 + R() * 0.5;
-    gEllipse(g, x, y, r, 0, 16); g.fill();
-  }
-  g.globalAlpha = night ? 0.75 : 0.9;
-  for (let i = 0; i < nDots; i++) {
-    const x = wx0 + R() * (wx1 - wx0), y = -0.5 + R() * (wy1 + 0.5), [sx, sy, s] = P(x, y), rr = R();
-    if (sy < backY || sx < VX0 - 4 || sx > VX1 + 4) continue;
-    g.fillStyle = C.dots[i % 3]; g.beginPath(); g.arc(sx, sy, Math.max(0.8, s * (0.025 + rr * 0.03)), 0, 7); g.fill();
-  }
-  g.globalAlpha = 1;
-  // --- กระดาน: ขอบหิน + ช่องลายหมากรุก
   const c0 = P(0, 0), c1 = P(COLS, 0), c2 = P(COLS, ROWS), c3 = P(0, ROWS);
-  g.fillStyle = night ? "rgba(0,0,0,.18)" : "rgba(60,80,50,.12)";
-  g.beginPath(); g.moveTo(c0[0] - 8, c0[1] - 4); g.lineTo(c1[0] + 8, c1[1] - 4); g.lineTo(c2[0] + 12, c2[1] + 8); g.lineTo(c3[0] - 12, c3[1] + 8); g.closePath(); g.fill();
+  if (T.base) T.base({ g, C, night, info, R: rngSeq(31), VX0, VY0, VX1, VY1, VW });
+  else {
+    // เงาจางใต้กระดาน (ขยายออกไปทางใกล้กล้องเล็กน้อย)
+    const ax = viewAxes(), o = (x, y) => P(x + ax.fx * 0.15, y + ax.fy * 0.15);
+    const e0 = o(-0.15, -0.1), e1 = o(COLS + 0.15, -0.1), e2 = o(COLS + 0.15, ROWS + 0.1), e3 = o(-0.15, ROWS + 0.1);
+    g.fillStyle = night ? "rgba(0,0,0,.18)" : "rgba(60,80,50,.12)";
+    g.beginPath(); g.moveTo(e0[0], e0[1]); g.lineTo(e1[0], e1[1]); g.lineTo(e2[0], e2[1]); g.lineTo(e3[0], e3[1]); g.closePath(); g.fill();
+  }
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     quad(g, x, y); g.fillStyle = (x + y) % 2 ? C.tile2 : C.tile; g.fill();
   }
   const pz = info.plaza;
-  // ทางหินจากวงเวทไปประตูปราสาท
+  // ด่าน I: ทางหินจากวงเวทไปทางปราสาท (ขอบไกลของมุมมอง)
   if (pz) {
-    const pc = Math.floor(pz.x) - 1, py1 = Math.floor(pz.y - pz.r1);
-    for (let y = -2; y <= py1; y++) for (let x = pc; x <= pc + 1; x++) {
+    const ax = viewAxes(), fx = Math.round(ax.fx), fy = Math.round(ax.fy), rx = Math.round(ax.rx), ry = Math.round(ax.ry);
+    const half = Math.abs(fx) * COLS / 2 + Math.abs(fy) * ROWS / 2;
+    for (let k = Math.ceil(pz.r1 - 0.5); k <= Math.floor(half + 1.5); k++) for (const w of [-1, 0]) {
+      const x = Math.floor(pz.x + rx * (w + 0.5) - fx * (k + 0.5)), y = Math.floor(pz.y + ry * (w + 0.5) - fy * (k + 0.5));
       quad(g, x, y, 0.04); g.fillStyle = C.path; g.fill(); g.strokeStyle = C.rim; g.lineWidth = 1.5; g.stroke();
     }
     drawPlazaStatic(g, pz, C, night);
-  }
-  // ช่องฟื้นฟู
-  for (const { x, y } of info.heal) {
-    quad(g, x, y, 0.06); g.strokeStyle = night ? "rgba(255,225,140,.55)" : "rgba(217,169,63,.55)"; g.lineWidth = 1.4; g.stroke();
-  }
+    for (const { x, y } of info.heal) {
+      quad(g, x, y, 0.06); g.strokeStyle = night ? "rgba(255,225,140,.55)" : "rgba(217,169,63,.55)"; g.lineWidth = 1.4; g.stroke();
+    }
+  } else if (info.heal.length) bakeHeal(g, info, { night, C, area: info.area });
+  // ช่องพิเศษ
+  for (const sp of info.special) bakeSpecial(g, sp, { night, C, area: info.area });
   // จุดเกิด
   for (const { x, y } of info.spawns) {
-    g.strokeStyle = night ? "rgba(200,225,255,.35)" : "rgba(28,63,110,.22)"; g.lineWidth = 1.5;
+    g.strokeStyle = C.spawn; g.lineWidth = 1.5;
     gEllipse(g, x + 0.5, y + 0.5, 0.36, 0, 24); g.stroke(); gEllipse(g, x + 0.5, y + 0.5, 0.2, 0, 24); g.stroke();
   }
   // เส้นตาราง + ขอบกระดาน
-  g.strokeStyle = night ? "rgba(200,225,255,.13)" : "rgba(28,63,110,.13)"; g.lineWidth = 1;
+  g.strokeStyle = C.grid; g.lineWidth = 1;
   for (let x = 0; x <= COLS; x++) { const a = P(x, 0), b = P(x, ROWS); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
   for (let y = 0; y <= ROWS; y++) { const a = P(0, y), b = P(COLS, y); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
-  g.strokeStyle = night ? "rgba(200,225,255,.4)" : "rgba(255,255,255,.75)"; g.lineWidth = 2;
+  g.strokeStyle = C.border; g.lineWidth = 2;
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
-  // ต้นไม้นอกกระดานสองข้าง (เรียงไกล→ใกล้) — จอกว้างกว่า 16:9 ได้แนวต้นไม้หนาขึ้น
-  const rs = rng(9), band = 2.2 + Math.max(0, (VW - LW) / 60), nSide = Math.round(16 * band / 2.2);
-  const sideTrees = [];
-  for (let i = 0; i < nSide; i++) {
-    sideTrees.push([-1.6 - rs() * band, rs() * (ROWS + 0.5), rs()]);
-    sideTrees.push([COLS + 0.6 + rs() * band, rs() * (ROWS + 0.5), rs()]);
-  }
-  sideTrees.sort((a, b) => a[1] - b[1]).forEach(([x, y, r]) => {
-    const [sx, sy, s] = P(x, y);
-    if (sx < VX0 - 80 || sx > VX1 + 80) return;
-    drawTree(g, sx, sy, s * (1.1 + r * 0.5), C);
-  });
-  // แสงแดด / ความมืด
-  gr = g.createLinearGradient(VX0, VY0, VX1, VY1);
-  gr.addColorStop(0, night ? "rgba(120,160,255,.06)" : "rgba(255,250,225,.22)"); gr.addColorStop(0.45, "rgba(255,255,255,0)"); gr.addColorStop(1, night ? "rgba(0,8,24,.3)" : "rgba(10,30,60,.14)");
+  // แสงแดด / ความมืด (ทับทั้งจอ รวมฉากหลัง)
+  const gr = g.createLinearGradient(VX0, VY0, VX1, VY1);
+  gr.addColorStop(0, C.light[0]); gr.addColorStop(0.45, "rgba(255,255,255,0)"); gr.addColorStop(1, C.light[1]);
   g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
-  if (night) { g.fillStyle = "rgba(8,18,40,.22)"; g.fillRect(VX0, VY0, VW, VY1 - VY0); }
-
-  // --- ใบไม้หน้ากล้อง (ชั้นแยก วาดทับตัวละคร) — ต้องมี ctx.filter (เบลอ) · lowQ ข้าม
-  let fore = null;
-  if (!lowQ) {
-    const fc = document.createElement("canvas"); fc.width = pw; fc.height = ph;
-    const f = fc.getContext("2d");
-    if ("filter" in f) {
-      f.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
-      f.filter = `blur(${Math.max(2, 9 * dpr * view.k) / (dpr * view.k)}px)`;
-      for (const [cx, cy] of [[VX1 - 30, VY0 + 40], [VX1 - 90, VY0 - 10], [VX0 - 20, 300]]) {
-        f.fillStyle = C.leaf; f.globalAlpha = 0.9;
-        f.beginPath(); f.ellipse(cx, cy, 120, 80, 0.3, 0, 7); f.fill();
-        f.beginPath(); f.ellipse(cx - 60, cy + 40, 90, 60, -0.2, 0, 7); f.fill();
-        f.fillStyle = "rgba(255,255,255,.18)"; f.beginPath(); f.ellipse(cx - 30, cy - 20, 50, 26, 0.3, 0, 7); f.fill();
-      }
-      fore = fc;
-    }
-  }
-  return { ground: cv, fore };
+  if (C.nightTint) { g.fillStyle = C.nightTint; g.fillRect(VX0, VY0, VW, VY1 - VY0); }
+}
+// อบชั้นกระดานที่มุม rotation (0..3)
+export function bakeBoard(info, view, dpr, night, rotation = 0) {
+  const prev = viewTurn();
+  setCamera(info, normRot(rotation));
+  const { cv, g } = layerCanvas(view, dpr);
+  drawBoardLayer(g, info, view, night);
+  setViewTurn(prev);
+  return cv;
+}
+// ใช้กับโค้ดเดิม: อบครบทุกชั้นที่มุม 0 → { ground, fore }
+export function bakeLayers(info, view, dpr, night, lowQ) {
+  const s = bakeScene(info, view, dpr, night, lowQ, 0);
+  const b = bakeBoard(info, view, dpr, night, 0);
+  s.scene.getContext("2d").drawImage(b, 0, 0);
+  return { ground: s.scene, fore: s.fore, marks: s.marks };
 }
 
 function drawPlazaStatic(g, pz, C, night) {
@@ -333,95 +268,10 @@ function drawPlazaStatic(g, pz, C, night) {
     g.stroke();
   }
 }
-function drawTree(g, x, y, s, C) {
-  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(x, y, s * 0.42, s * 0.14, 0, 0, 7); g.fill();
-  g.fillStyle = C.trunk; g.fillRect(x - s * 0.06, y - s * 0.55, s * 0.12, s * 0.55);
-  const blob = (dx, dy, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x + dx * s, y + dy * s, r * s, 0, 7); g.fill(); };
-  blob(-0.2, -0.75, 0.3, C.c2); blob(0.2, -0.72, 0.3, C.c2); blob(0, -0.98, 0.36, C.c1); blob(-0.08, -1.08, 0.16, C.c3);
-}
-function drawCastle(g, cx, base, night) {
-  const wall = night ? "#c9d4e4" : "#f5f7fa", shade = night ? "#a8b6ca" : "#e2e9f1", roof = "#3d8bd9", roofS = "#2a64a8",
-    win = night ? "#ffcf6e" : "#7fb8e6", gate = "#1c3f6e", gold = "#d9a93f";
-  const tower = (x, w, h, coneH, pen) => {
-    g.fillStyle = wall; g.fillRect(x - w / 2, base - h, w, h);
-    g.fillStyle = shade; g.fillRect(x, base - h, w / 2, h);
-    g.fillStyle = roof; g.beginPath(); g.moveTo(x - w / 2 - 4, base - h); g.lineTo(x, base - h - coneH); g.lineTo(x + w / 2 + 4, base - h); g.closePath(); g.fill();
-    g.fillStyle = roofS; g.beginPath(); g.moveTo(x, base - h - coneH); g.lineTo(x + w / 2 + 4, base - h); g.lineTo(x, base - h); g.closePath(); g.fill();
-    g.fillStyle = win; for (let k = 0; k < 2; k++) g.fillRect(x - 4, base - h + 14 + k * 22, 8, 12);
-    if (pen) {
-      g.strokeStyle = "#8a7a5a"; g.lineWidth = 2; g.beginPath(); g.moveTo(x, base - h - coneH); g.lineTo(x, base - h - coneH - 18); g.stroke();
-      g.fillStyle = pen; g.beginPath(); g.moveTo(x, base - h - coneH - 18); g.lineTo(x + 18, base - h - coneH - 13); g.lineTo(x, base - h - coneH - 8); g.closePath(); g.fill();
-    }
-  };
-  if (night) {
-    const gl = g.createRadialGradient(cx, base - 60, 10, cx, base - 60, 260);
-    gl.addColorStop(0, "rgba(255,210,120,.18)"); gl.addColorStop(1, "rgba(255,210,120,0)");
-    g.fillStyle = gl; g.fillRect(cx - 280, base - 260, 560, 280);
-  }
-  tower(cx - 240, 46, 92, 46, "#9b4f96"); tower(cx + 240, 46, 92, 46, "#9b4f96");
-  g.fillStyle = night ? "#bfcadc" : "#eef2f6"; g.fillRect(cx - 220, base - 62, 440, 62);
-  for (let x = cx - 220; x < cx + 220; x += 16) g.fillRect(x, base - 70, 9, 8);
-  g.fillStyle = gold; g.fillRect(cx - 220, base - 30, 440, 3);
-  tower(cx - 120, 40, 108, 40); tower(cx + 120, 40, 108, 40);
-  tower(cx, 70, 150, 70, gold);
-  g.fillStyle = gate; g.beginPath(); g.moveTo(cx - 20, base); g.lineTo(cx - 20, base - 34); g.arc(cx, base - 34, 20, Math.PI, 0); g.lineTo(cx + 20, base); g.closePath(); g.fill();
-  if (night) { g.fillStyle = "rgba(255,200,110,.35)"; g.fillRect(cx - 14, base - 30, 28, 30); }
-}
 
-// =================================================================== props (วาดทุกเฟรม เรียงความลึกกับตัวละคร)
-function drawPillar(g, x, y, C, now) {
-  const [bx, by, s] = P(x + 0.5, y + 0.55);
-  const w = s * 0.36, h = s * 1.7;
-  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx + s * 0.1, by, s * 0.4, s * 0.13, 0, 0, 7); g.fill();
-  g.fillStyle = "#cfc8b4"; g.fillRect(bx - w * 0.75, by - s * 0.14, w * 1.5, s * 0.14);
-  g.fillStyle = "#f6f4ee"; g.fillRect(bx - w / 2, by - h, w, h - s * 0.12);
-  g.fillStyle = "#dcd6c6"; g.fillRect(bx, by - h, w / 2, h - s * 0.12);
-  g.fillStyle = "#d9a93f"; g.fillRect(bx - w / 2, by - h * 0.62, w, s * 0.05);
-  g.fillStyle = "#e8e2d2"; g.fillRect(bx - w * 0.7, by - h - s * 0.08, w * 1.4, s * 0.1);
-  const cy = by - h - s * 0.32 + Math.sin(now / 700 + x) * s * 0.03;
-  const gl = g.createRadialGradient(bx, cy, 0, bx, cy, s * 0.55);
-  gl.addColorStop(0, `rgba(160,215,255,${C.crystal})`); gl.addColorStop(1, "rgba(160,215,255,0)");
-  g.fillStyle = gl; g.fillRect(bx - s * 0.6, cy - s * 0.6, s * 1.2, s * 1.2);
-  g.fillStyle = "#bfe1fa"; g.beginPath(); g.moveTo(bx, cy - s * 0.2); g.lineTo(bx + s * 0.11, cy); g.lineTo(bx, cy + s * 0.2); g.lineTo(bx - s * 0.11, cy); g.closePath(); g.fill();
-  g.fillStyle = "#7fb8e6"; g.beginPath(); g.moveTo(bx, cy - s * 0.2); g.lineTo(bx + s * 0.11, cy); g.lineTo(bx, cy + s * 0.2); g.closePath(); g.fill();
-}
-function drawBanner(g, x, y, color, C, now) {
-  const [bx, by, s] = P(x + 0.5, y + 0.5);
-  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.3, s * 0.1, 0, 0, 7); g.fill();
-  g.strokeStyle = "#8a7a5a"; g.lineWidth = Math.max(2, s * 0.06); g.beginPath(); g.moveTo(bx, by); g.lineTo(bx, by - s * 2.6); g.stroke();
-  g.fillStyle = "#d9a93f"; g.beginPath(); g.arc(bx, by - s * 2.62, s * 0.07, 0, 7); g.fill();
-  const top = by - s * 2.45, w = s * 0.62, h = s * 1.5, sway = Math.sin(now / 900 + x) * s * 0.04;
-  g.fillStyle = color; g.beginPath(); g.moveTo(bx - w / 2, top); g.lineTo(bx + w / 2, top);
-  g.lineTo(bx + w / 2 + sway, top + h); g.lineTo(bx + sway, top + h - s * 0.22); g.lineTo(bx - w / 2 + sway, top + h); g.closePath(); g.fill();
-  g.fillStyle = "#f0c868"; g.fillRect(bx - w / 2, top, w, s * 0.1);
-  g.fillStyle = "#d9a93f"; const dy = top + h * 0.45;
-  g.beginPath(); g.moveTo(bx + sway * 0.5, dy - s * 0.15); g.lineTo(bx + s * 0.1 + sway * 0.5, dy); g.lineTo(bx + sway * 0.5, dy + s * 0.15); g.lineTo(bx - s * 0.1 + sway * 0.5, dy); g.closePath(); g.fill();
-}
-function drawHedge(g, x, y, C) {
-  const [bx, by, s] = P(x + 0.5, y + 0.55);
-  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.5, s * 0.15, 0, 0, 7); g.fill();
-  const blob = (dx, dy, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(bx + dx * s, by + dy * s, r * s, 0, 7); g.fill(); };
-  blob(-0.22, -0.2, 0.26, C.c2); blob(0.22, -0.2, 0.26, C.c2); blob(0, -0.32, 0.3, C.c1); blob(-0.06, -0.42, 0.13, C.c3);
-  const R = rng(x * 31 + y * 7 + 1);
-  for (let i = 0; i < 6; i++) { g.fillStyle = C.dots[i % 3]; g.beginPath(); g.arc(bx + (R() - 0.5) * s * 0.7, by - s * (0.15 + R() * 0.35), s * 0.035, 0, 7); g.fill(); }
-}
-// ชนิดสิ่งกีดขวางที่ไม่รู้จัก → ก้อนหิน (จาก grid-prototype)
-function drawRock(g, x, y, night) {
-  const [cx, cy, s] = P(x + 0.5, y + 0.55);
-  g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(cx, cy + s * 0.04, s * 0.48, s * 0.2, 0, 0, 7); g.fill();
-  const dl = night ? -16 : 0;
-  const blob = (bx, by, rx, ry, l) => {
-    const rg = g.createRadialGradient(bx - rx * 0.35, by - ry * 0.45, rx * 0.1, bx, by, rx * 1.1);
-    rg.addColorStop(0, `hsl(210,8%,${l + 22 + dl}%)`); rg.addColorStop(0.6, `hsl(210,9%,${l + dl}%)`); rg.addColorStop(1, `hsl(215,12%,${l - 14 + dl}%)`);
-    g.fillStyle = rg; g.beginPath(); g.ellipse(bx, by, rx, ry, 0, 0, 7); g.fill();
-  };
-  blob(cx + s * 0.14, cy - s * 0.16, s * 0.26, s * 0.22, 44);
-  blob(cx - s * 0.08, cy - s * 0.26, s * 0.34, s * 0.32, 52);
-  g.fillStyle = night ? "rgba(60,100,70,.6)" : "rgba(90,140,70,.6)"; g.beginPath(); g.ellipse(cx - s * 0.14, cy - s * 0.48, s * 0.12, s * 0.04, -0.3, 0, 7); g.fill();
-}
 // แผงร้านค้ามายา (กินช่อง 1 ช่อง — GRID_PLAN §8.1)
 function drawShop(g, x, y, C, now, night) {
-  const [bx, by, s] = P(x + 0.5, y + 0.55);
+  const [bx, by, s] = PA(x, y, 0.05);
   gEllipse(g, x + 0.5, y + 0.5, 0.46, 0, 28);
   g.fillStyle = night ? "rgba(240,200,104,.22)" : "rgba(217,169,63,.2)"; g.fill();
   g.strokeStyle = night ? "rgba(255,225,140,.85)" : "rgba(217,169,63,.85)"; g.lineWidth = 1.5; g.stroke();
@@ -455,6 +305,7 @@ function drawShop(g, x, y, C, now, night) {
   g.font = `700 ${Math.max(9, s * 0.2) | 0}px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
   g.fillStyle = "#7a5a1a"; g.fillText("฿", bx, cy + 1); g.textBaseline = "alphabetic";
 }
+
 
 // =================================================================== units
 function unitHex(g, u, cx, cy, r, alpha = 1) {
@@ -582,8 +433,9 @@ function drawUnit(g, u, now, boxes) {
   }
   if (u.reticle) drawReticle(g, bx, hy, hexR, u.reticle, now);
   g.restore();
-  if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: wy, x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
+  if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
 }
+
 
 // =================================================================== overlays
 function tileFill(g, x, y, fill, stroke, inset = 0.06) {
@@ -683,16 +535,30 @@ function slashFx(g, x, y, p, rgb) {
 }
 export const FX_DUR = { slash: 420, float: 1300 };
 
+
 // =================================================================== frame
-//  st = { info, view, dpr, bake, night, lowQ, units (พร้อมวาด), hl, shopPos, hover, fx (กำลังเล่น) }
+//  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, hover, fx (กำลังเล่น) }
+//   bake = { scene, sceneFrom?, mix?, board?, fore, marks } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
+//   turn = มุมมองตอนนี้ (หน่วย 90° ทศนิยมได้)
 //  คืน boxes = กล่องคลิกของตัวละคร (พิกัดตรรกะ) เรียงหน้า→หลัง
 export function drawFrame(g, st, now) {
   const { info, view, dpr, bake, night, lowQ, units, hl, shopPos, hover, fx } = st;
-  const C = PAL[night ? "night" : "day"];
+  setCamera(info, st.turn || 0);
+  const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
+  const L = () => g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  if (bake) g.drawImage(bake.ground, 0, 0);
-  g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
-  // วงเวทเคลื่อนไหว
+  if (bake && bake.scene) {
+    if (bake.sceneFrom && bake.mix < 1) {
+      g.drawImage(bake.sceneFrom, 0, 0);
+      g.globalAlpha = Math.max(0, bake.mix); g.drawImage(bake.scene, 0, 0); g.globalAlpha = 1;
+    } else g.drawImage(bake.scene, 0, 0);
+  }
+  L();
+  const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {} };
+  if (T.animBack) T.animBack(g, f, lowQ ? 0 : now);
+  if (bake && bake.board) { g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(bake.board, 0, 0); L(); }
+  else drawBoardLayer(g, info, view, night);
+  // วงเวทเคลื่อนไหว (ด่าน I)
   const pz = info.plaza;
   if (pz) {
     const pulse = 0.5 + 0.5 * Math.sin(now / 800);
@@ -703,53 +569,57 @@ export function drawFrame(g, st, now) {
     g.fillStyle = gl; g.fillRect(cx - s * 2 * pz.sc, cy - s * 2 * pz.sc, s * 4 * pz.sc, s * 4 * pz.sc); g.restore();
     g.save(); g.setLineDash([6, 7]); g.lineDashOffset = -now / 60; g.strokeStyle = C.line; g.lineWidth = 1.4; gEllipse(g, pz.x, pz.y, 1.8 * pz.sc, 0, 60); g.stroke(); g.restore();
   }
+  // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
+  const tA = lowQ ? 0 : now;
+  for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
+  if (info.heal.length && !pz) animHeal(g, info, { night, C, area: info.area }, tA);
   drawHighlights(g, info, hl, hover, now);
-  // เรียงความลึก: สิ่งกีดขวาง + ร้าน + ตัวละคร
+  // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
-  const behind = (x, y) => units.some((u) => Math.abs(u.rx - x) < 0.9 && u.ry < y && u.ry >= y - 2.2);
+  const uv = units.map((u) => toView(u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0)));
+  const behind = (x, y) => {
+    const [vx, vy] = toView(x + 0.5, y + 0.5);
+    return uv.some(([ux, uy]) => Math.abs(ux - vx) < 0.9 && uy < vy && uy >= vy - 2.2);
+  };
+  const octx = { area: info.area, C, night, cols: info.cols };
   for (const t of info.terrain) {
-    const { x, y, kind } = t;
-    const fade = kind !== "hedge" && kind !== "rock" && behind(x, y);
-    let f0;
-    if (kind === "tree") f0 = () => { const [sx, sy, s] = P(x + 0.5, y + 0.6); drawTree(g, sx, sy, s * 1.35, C); };
-    else if (kind === "pillar") f0 = () => drawPillar(g, x, y, C, now);
-    else if (kind === "hedge") f0 = () => drawHedge(g, x, y, C);
-    else if (kind === "banner" || kind === "bannerP" || kind === "bannerB") {
-      const col = kind === "bannerP" ? "#9b4f96" : kind === "bannerB" ? "#3d8bd9" : x < info.cols / 2 ? "#9b4f96" : "#3d8bd9";
-      f0 = () => drawBanner(g, x, y, col, C, now);
-    } else f0 = () => drawRock(g, x, y, night);
-    items.push({ d: y + 0.55, f: fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0 });
+    const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
+    const f0 = () => drawObstacle(g, t, octx, now);
+    items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0 });
   }
   if (shopPos && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
     const { x, y } = shopPos, fade = behind(x, y);
-    items.push({ d: y + 0.55, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });
+    items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });
   }
   const boxes = [];
-  for (const u of units) items.push({ d: u.ry + (u.oy || 0) + 0.5 + (u.isActor ? 0.001 : 0), f: () => drawUnit(g, u, now, boxes) });
+  units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawUnit(g, u, now, boxes) }));
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   // อนุภาค (ข้ามเมื่อ lowQ)
-  if (pz && !lowQ) {
-    for (let i = 0; i < 18; i++) {
-      const a = i * 2.4, r = (i % 6) / 6 * 1.6 * pz.sc, ph = (now / (2000 + i * 170) + i * 0.37) % 1;
-      const [sx, sy] = P(pz.x + Math.cos(a) * r, pz.y + Math.sin(a) * r, 0.2 + ph * 1.8);
-      g.globalAlpha = Math.sin(ph * Math.PI) * (night ? 0.95 : 0.7);
-      g.fillStyle = C.spark; g.beginPath(); g.arc(sx, sy, night ? 2.6 : 2, 0, 7); g.fill();
-    }
-    if (night) {
-      for (let i = 0; i < 26; i++) {
-        const ph = (now / (5000 + i * 300) + i * 0.21) % 1, a = i * 1.7 + now / 4000;
-        const [x, y] = P(pz.x + Math.cos(a) * (2 + (i % 5) * 0.9), pz.y + Math.sin(a * 1.3) * (2 + (i % 4)), 0.4 + Math.sin(ph * 6.28) * 0.4 + 1);
-        g.globalAlpha = 0.5 + 0.5 * Math.sin(now / 300 + i); g.fillStyle = "#fff3b0"; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill();
+  if (!lowQ) {
+    if (pz) {
+      for (let i = 0; i < 18; i++) {
+        const a = i * 2.4, r = (i % 6) / 6 * 1.6 * pz.sc, ph = (now / (2000 + i * 170) + i * 0.37) % 1;
+        const [sx, sy] = P(pz.x + Math.cos(a) * r, pz.y + Math.sin(a) * r, 0.2 + ph * 1.8);
+        g.globalAlpha = Math.sin(ph * Math.PI) * (night ? 0.95 : 0.7);
+        g.fillStyle = C.spark; g.beginPath(); g.arc(sx, sy, night ? 2.6 : 2, 0, 7); g.fill();
       }
+      if (night) {
+        for (let i = 0; i < 26; i++) {
+          const ph = (now / (5000 + i * 300) + i * 0.21) % 1, a = i * 1.7 + now / 4000;
+          const [x, y] = P(pz.x + Math.cos(a) * (2 + (i % 5) * 0.9), pz.y + Math.sin(a * 1.3) * (2 + (i % 4)), 0.4 + Math.sin(ph * 6.28) * 0.4 + 1);
+          g.globalAlpha = 0.5 + 0.5 * Math.sin(now / 300 + i); g.fillStyle = "#fff3b0"; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill();
+        }
+      }
+      g.globalAlpha = 1;
     }
-    g.globalAlpha = 1;
+    if (T.ambient) { g.save(); T.ambient(g, f, now); g.restore(); }
   }
   // เอฟเฟกต์ครั้งเดียว
-  for (const f of fx) {
-    const p = (now - f.t0) / (FX_DUR[f.kind] || 1000);
-    if (f.kind === "slash") slashFx(g, f.x, f.y, p, f.rgb || "255,255,255");
-    else if (f.kind === "float") floatText(g, f.x, f.y, String(f.text == null ? "" : f.text), f.color || "#ffffff", p, f.size || 24);
+  for (const e of fx) {
+    const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
+    if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
+    else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24);
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
   if (bake && bake.fore) g.drawImage(bake.fore, 0, 0);

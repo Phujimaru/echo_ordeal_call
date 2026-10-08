@@ -1,29 +1,80 @@
 // หน้าดูกระดานเดินได้ (เฉพาะ dev): ?board=1 — ดู main.jsx
-//  ไว้ตรวจตัววาด BoardCanvas โดยไม่ต้องเปิดห้องจริง: ด่าน I + ตัวละครจำลอง 6 ตัว
+//  ไว้ตรวจตัววาด BoardCanvas โดยไม่ต้องเปิดห้องจริง: แผนที่ภูมิภาค I–VII + ตัวละครจำลอง 6 ตัว
+//  ?board=1&area=N เลือกภูมิภาค · ?rot=0..3 มุมมอง · ?night=1
+//  ภูมิภาคที่ server ยังไม่มีแผนที่ (MAPS ใน boardRules.js) → สร้าง "แผนที่สาธิต" จากผังด่าน I:
+//   เปลี่ยนชนิดสิ่งกีดขวางเป็นของภูมิภาคนั้น + โรยช่องพิเศษ (ทิศน้ำวนวนครบ 4 ทิศ) ให้ตรวจภาพได้ครบทุกแบบ
 //  คลิกตัวละคร = เลือกเป็นคนเดิน · คลิกช่องฟ้า = เดิน · คลิกศัตรูในช่องแดง = เดินเข้าไปตี (สวน/ถอย/ชน แบบง่าย)
-//  ปุ่ม: กลางคืน · ประหยัดสเปก (lowQ) · ระยะอันตราย · โหมด เดิน / สกิลระยะ 3 / ตีหมู่ 5
-//  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น — เกมจริงคำนวณที่ server (server/board.js)
+//  ปุ่ม: ภูมิภาค I–VII · หมุน ⟲/⟳ · กลางคืน · ประหยัดสเปก (lowQ) · ระยะอันตราย · โหมด เดิน / สกิลระยะ 3 / ตีหมู่ 5
+//  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
+import { MAPS } from "./boardRules";
 
-// สำเนาแผนที่ภูมิภาค I จาก server/board.js MAPS[1] ในรูปแบบที่ server จะส่งมาเป็น state.board
-const t = (list) => list.map(([x, y]) => `${x},${y}`);
-const REGION1 = {
-  area: 1, cols: 16, rows: 12,
-  terrain: Object.fromEntries([
-    ...t([[0, 0], [1, 1], [0, 7], [1, 8], [0, 10], [15, 0], [14, 1], [15, 7], [14, 8], [15, 10], [3, 6], [12, 6]]).map((k) => [k, "tree"]),
-    ...t([[4, 3], [11, 3], [4, 8], [11, 8]]).map((k) => [k, "pillar"]),
-    ...t([[6, 1], [9, 1]]).map((k) => [k, "banner"]),
-    ...t([[5, 9], [10, 9], [5, 2], [10, 2]]).map((k) => [k, "hedge"]),
-  ]),
-  heal: t([[7, 5], [8, 5], [7, 6], [8, 6]]),
-  spawns: [[2, 9], [13, 9], [1, 4], [14, 4], [4, 0], [11, 0], [7, 11]].map(([x, y]) => ({ x, y })),
-  shopSpots: [[7, 2], [2, 2], [13, 2], [2, 10], [13, 10], [8, 9]].map(([x, y]) => ({ x, y })),
+const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก" };
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
+const SPECIAL_NAMES = {
+  flowers: "พุ่มดอกไม้สูง", forest: "ป่าทึบ", thorns: "หนามพิษ", shallow: "น้ำตื้น", whirl: "น้ำวน", quicksand: "ทรายดูด",
+  ice: "น้ำแข็งลื่น", lava: "ลาวา", power: "แท่นพลัง",
 };
-const SHOP = { x: 7, y: 2 };
+const FLOW_NAMES = { up: "↑", down: "↓", left: "←", right: "→" };
+// ชนิดสิ่งกีดขวางของแผนที่สาธิต: ชนิดในด่าน I → รายชื่อชนิดของภูมิภาค (วนตามลำดับ)
+const DEMO_KINDS = {
+  2: { tree: ["rock", "fence"], pillar: ["windmill"], banner: ["windmill"], hedge: ["fence"] },
+  3: { tree: ["deadtree", "rock"], pillar: ["deadtree"], banner: ["rock"], hedge: ["stump"] },
+  4: { tree: ["rock", "reef"], pillar: ["wreck"], banner: ["reef"], hedge: ["rock"] },
+  5: { tree: ["cactus", "dune"], pillar: ["ruin"], banner: ["cactus"], hedge: ["dune"] },
+  6: { tree: ["pine", "rock"], pillar: ["iceblock"], banner: ["pine"], hedge: ["iceblock"] },
+  7: { tree: ["crystal", "ruin"], pillar: ["obelisk"], banner: ["crystal"], hedge: ["ruin"] },
+};
+// รั้วต่อกันเพิ่ม (ด่าน II) — ให้เห็นรั้วแนวนอน/แนวตั้งที่เชื่อมกัน
+const DEMO_EXTRA = { 2: { "2,6": "fence", "13,6": "fence", "5,10": "fence", "10,10": "fence" } };
+const DEMO_SPECIALS = { 2: ["flowers"], 3: ["forest", "thorns"], 4: ["shallow", "whirl"], 5: ["quicksand"], 6: ["ice"], 7: ["lava", "power"] };
+// กลุ่มช่องที่โรยช่องพิเศษ (ข้ามช่องที่เป็นสิ่งกีดขวาง/ฟื้นฟู/จุดเกิด/จุดร้าน)
+const DEMO_PATCHES = [
+  [[3, 2], [3, 3], [2, 3]], [[12, 2], [12, 3], [13, 3]], [[6, 5], [5, 5], [6, 6]], [[9, 6], [10, 5], [10, 6]],
+  [[6, 9], [7, 9], [6, 10]], [[9, 10], [10, 11], [9, 9]], [[1, 6], [2, 7]], [[14, 6], [13, 7]], [[7, 3], [8, 3]], [[3, 8], [12, 8]],
+];
+const FLOWS = ["up", "right", "down", "left"];
+
+// แผนที่ฝั่ง server → รูปแบบ state.board (heal เป็น array ของ "x,y")
+function toPublic(m) {
+  return {
+    area: m.area, name: m.name, cols: m.cols, rows: m.rows, terrain: { ...m.terrain },
+    heal: [...(m.heal || [])], spawns: m.spawns.map((p) => ({ ...p })), shopSpots: (m.shopSpots || []).map((p) => ({ ...p })),
+    special: { ...(m.special || {}) }, flow: { ...(m.flow || {}) },
+  };
+}
+function demoMap(area) {
+  const base = toPublic(MAPS[1]);
+  if (area === 1) return base;
+  const cnt = {}, terrain = {};
+  for (const [k, kind] of Object.entries(base.terrain)) {
+    const list = DEMO_KINDS[area][kind] || ["rock"], i = cnt[kind] = (cnt[kind] || 0) + 1;
+    terrain[k] = list[(i - 1) % list.length];
+  }
+  Object.assign(terrain, DEMO_EXTRA[area] || {});
+  const used = new Set([...Object.keys(terrain), ...base.heal, ...base.spawns.map((p) => `${p.x},${p.y}`), ...base.shopSpots.map((p) => `${p.x},${p.y}`)]);
+  const kinds = DEMO_SPECIALS[area], special = {}, flow = {};
+  let nf = 0;
+  DEMO_PATCHES.forEach((patch, pi) => {
+    const kind = kinds[pi % kinds.length];
+    for (const [x, y] of patch) {
+      const k = `${x},${y}`;
+      if (used.has(k)) continue;
+      special[k] = kind;
+      if (kind === "whirl") flow[k] = FLOWS[nf++ % 4];
+    }
+  });
+  return { ...base, area, name: AREA_NAMES[area], terrain, special, flow, demo: true };
+}
+function mapFor(area) {
+  return MAPS[area] && MAPS[area].area === area ? toPublic(MAPS[area]) : demoMap(area);
+}
 const MUIMI = "/characters/muimi/muimi.webp";
 const OBERON = "/characters/oberon(summer)/oberon_summer.webp";
 const MOV = 4;
+const Q = new URLSearchParams(location.search);
+const qInt = (name, lo, hi, def) => { const v = parseInt(Q.get(name), 10); return v >= lo && v <= hi ? v : def; };
 
 const initialUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
@@ -33,15 +84,28 @@ const initialUnits = () => [
   { id: "p5", name: "ไม่มีรูป", img: "/characters/__missing__.webp", color: "#E5B33B", x: 12, y: 9, hp: 3, maxHp: 7, armor: 3, maxArmor: 3, tag: "20" },
   { id: "p6", name: "โอเบรอน 2", img: OBERON, color: "#E86A2B", x: 3, y: 3, hp: 7, maxHp: 7, armor: 2, maxArmor: 3, tag: "15" },
 ];
+// ย้ายตัวละครที่ยืนทับสิ่งกีดขวาง/ร้านของแผนที่ใหม่ไปจุดเกิดที่ว่าง
+function placeUnits(units, map, shop) {
+  const bad = (x, y, taken) => !!map.terrain[`${x},${y}`] || (shop && shop.x === x && shop.y === y) || taken.has(`${x},${y}`);
+  const taken = new Set(), out = [];
+  for (const u of units) {
+    let p = { x: u.x, y: u.y };
+    if (bad(p.x, p.y, taken)) p = map.spawns.find((s) => !bad(s.x, s.y, taken)) || p;
+    taken.add(`${p.x},${p.y}`); out.push({ ...u, ...p });
+  }
+  return out;
+}
+const shopOf = (map) => (map.shopSpots && map.shopSpots[0]) || null;
 
 const key = (x, y) => `${x},${y}`;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const inB = (x, y) => x >= 0 && y >= 0 && x < REGION1.cols && y < REGION1.rows;
-const isBlocked = (x, y) => !inB(x, y) || !!REGION1.terrain[key(x, y)] || (x === SHOP.x && y === SHOP.y);
+// M = แผนที่ที่กำลังดู + shop (ช่องร้าน)
+const inB = (M, x, y) => x >= 0 && y >= 0 && x < M.cols && y < M.rows;
+const isBlocked = (M, x, y) => !inB(M, x, y) || !!M.terrain[key(x, y)] || (!!M.shop && x === M.shop.x && y === M.shop.y);
 const man = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
 // BFS 4 ทิศ ไม่เกิน mov ก้าว — ตัวละครอื่นขวางทาง
-function reach(units, u, mov) {
+function reach(M, units, u, mov) {
   const start = { x: u.x, y: u.y, d: 0, prev: null };
   const R = new Map([[key(u.x, u.y), start]]), q = [start];
   while (q.length) {
@@ -49,7 +113,7 @@ function reach(units, u, mov) {
     if (c.d >= mov) continue;
     for (const [dx, dy] of DIRS) {
       const nx = c.x + dx, ny = c.y + dy, k = key(nx, ny);
-      if (R.has(k) || isBlocked(nx, ny) || units.some((o) => o.id !== u.id && o.x === nx && o.y === ny)) continue;
+      if (R.has(k) || isBlocked(M, nx, ny) || units.some((o) => o.id !== u.id && o.x === nx && o.y === ny)) continue;
       const n = { x: nx, y: ny, d: c.d + 1, prev: c };
       R.set(k, n); q.push(n);
     }
@@ -64,29 +128,29 @@ function pathOf(R, x, y) {
   return out;
 }
 // ช่องแดง = ตีถึงหลังเดิน (ระยะ 1) ไม่รวมช่องที่เดินถึง
-function threat(R) {
+function threat(M, R) {
   const out = new Set();
   for (const n of R.values()) for (const [dx, dy] of DIRS) {
     const x = n.x + dx, y = n.y + dy, k = key(x, y);
-    if (!R.has(k) && inB(x, y) && !REGION1.terrain[k]) out.add(k);
+    if (!R.has(k) && inB(M, x, y) && !M.terrain[k]) out.add(k);
   }
   return out;
 }
-function diamond(cx, cy, r) {
+function diamond(M, cx, cy, r) {
   const out = [];
   for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
     const d = Math.abs(dx) + Math.abs(dy);
-    if (d >= 1 && d <= r && inB(cx + dx, cy + dy)) out.push(key(cx + dx, cy + dy));
+    if (d >= 1 && d <= r && inB(M, cx + dx, cy + dy)) out.push(key(cx + dx, cy + dy));
   }
   return out;
 }
 // ถอย 1 ช่องออกจากผู้สวน · ไม่มีที่ถอย = ชน
-function pushback(units, a, d) {
+function pushback(M, units, a, d) {
   const dx = a.x - d.x, dy = a.y - d.y;
   const dirs = Math.abs(dx) > Math.abs(dy) ? [[Math.sign(dx), 0]] : Math.abs(dy) > Math.abs(dx) ? [[0, Math.sign(dy)]] : [[0, Math.sign(dy)], [Math.sign(dx), 0]];
   for (const [ux, uy] of dirs) {
     const nx = a.x + ux, ny = a.y + uy;
-    if (!isBlocked(nx, ny) && !units.some((o) => o.id !== a.id && o.x === nx && o.y === ny)) return { to: { x: nx, y: ny }, collide: false };
+    if (!isBlocked(M, nx, ny) && !units.some((o) => o.id !== a.id && o.x === nx && o.y === ny)) return { to: { x: nx, y: ny }, collide: false };
   }
   const [ux, uy] = dirs[0];
   return { to: { x: a.x + ux, y: a.y + uy }, collide: true };
@@ -99,7 +163,11 @@ const btn = (on) => ({
 });
 
 export default function BoardPreview() {
-  const [units, setUnitsState] = useState(initialUnits);
+  const [area, setAreaState] = useState(() => qInt("area", 1, 7, 1));
+  const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
+  const map = useMemo(() => mapFor(area), [area]);
+  const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 7, 1)); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;
@@ -108,7 +176,7 @@ export default function BoardPreview() {
   };
   const [actorId, setActorId] = useState("me");
   const [mode, setMode] = useState("move"); // move | skill | aoe
-  const [night, setNight] = useState(false);
+  const [night, setNight] = useState(() => Q.get("night") === "1");
   const [lowQ, setLowQ] = useState(false);
   const [danger, setDanger] = useState(false);
   const [hover, setHover] = useState(null);
@@ -119,7 +187,7 @@ export default function BoardPreview() {
   const fxId = useRef(0);
 
   const actor = units.find((u) => u.id === actorId) || units[0];
-  const R = useMemo(() => reach(units, actor, MOV), [units, actor]);
+  const R = useMemo(() => reach(M, units, actor, MOV), [M, units, actor]);
   const busy = !!anim;
 
   const pushFx = (list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxId.current }))]);
@@ -137,8 +205,8 @@ export default function BoardPreview() {
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
     const moved = units.map((u) => (u.id === actor.id ? { ...u, ...stand } : u));
-    return { foe, stand, path: pathOf(R, stand.x, stand.y), push: { from: stand, ...pushback(moved, { ...actor, ...stand }, foe) } };
-  }, [mode, hover, units, actor, R]);
+    return { foe, stand, path: pathOf(R, stand.x, stand.y), push: { from: stand, ...pushback(M, moved, { ...actor, ...stand }, foe) } };
+  }, [M, mode, hover, units, actor, R]);
 
   const highlights = useMemo(() => {
     const h = {};
@@ -146,25 +214,25 @@ export default function BoardPreview() {
       const d = new Set();
       for (const u of units) {
         if (u.id === "me") continue;
-        const r = reach(units, u, MOV);
+        const r = reach(M, units, u, MOV);
         for (const k of r.keys()) d.add(k);
-        for (const k of threat(r)) d.add(k);
+        for (const k of threat(M, r)) d.add(k);
       }
       h.danger = [...d];
     }
     if (busy) return h;
     if (mode === "move") {
       h.move = [...R.keys()];
-      h.attack = [...threat(R)];
+      h.attack = [...threat(M, R)];
       if (plan) { h.path = plan.path; h.target = { x: plan.foe.x, y: plan.foe.y }; h.push = plan.push; }
       else if (hover && R.has(key(hover.x, hover.y))) h.path = pathOf(R, hover.x, hover.y);
     } else if (mode === "skill") {
-      h.skill = diamond(actor.x, actor.y, 3);
+      h.skill = diamond(M, actor.x, actor.y, 3);
     } else if (mode === "aoe") {
-      h.aoe = diamond(actor.x, actor.y, 5);
+      h.aoe = diamond(M, actor.x, actor.y, 5);
     }
     return h;
-  }, [danger, busy, mode, R, plan, hover, actor, units]);
+  }, [M, danger, busy, mode, R, plan, hover, actor, units]);
 
   const viewUnits = units.map((u) => ({ ...u, isMe: u.id === "me", isActor: u.id === actor.id, teamId: null }));
 
@@ -187,7 +255,7 @@ export default function BoardPreview() {
       setTimeout(() => {
         const us = unitsRef.current;
         const me = us.find((u) => u.id === actor.id);
-        const pb = pushback(us, me, foe);
+        const pb = pushback(M, us, me, foe);
         after.current = () => {
           if (pb.collide) {
             setUnits((v) => v.map((u) => (u.id === actor.id ? hurt(u, 1) : u)));
@@ -241,15 +309,35 @@ export default function BoardPreview() {
     setActorId(id); setMode("move"); setLog(`เลือก ${u.name} เป็นคนเดิน`);
   };
 
-  const reset = () => { setUnits(initialUnits()); setActorId("me"); setMode("move"); setAnim(null); after.current = null; setLog("รีเซ็ตแล้ว"); };
+  const reset = () => { setUnits(placeUnits(initialUnits(), M, M.shop)); setActorId("me"); setMode("move"); setAnim(null); after.current = null; setLog("รีเซ็ตแล้ว"); };
+  // เปลี่ยนภูมิภาค/มุมมอง + จำลงใน URL (รีเฟรชแล้วยังอยู่ที่เดิม)
+  const syncUrl = (a, r, n) => {
+    const q = new URLSearchParams(location.search);
+    q.set("area", a); if (r) q.set("rot", r); else q.delete("rot"); if (n) q.set("night", "1"); else q.delete("night");
+    history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
+  };
+  const setArea = (a) => {
+    const m = mapFor(a);
+    setAreaState(a); setAnim(null); after.current = null; setMode("move");
+    setUnits(placeUnits(unitsRef.current, m, shopOf(m)));
+    setLog(`ภูมิภาค ${ROMAN[a]} · ${AREA_NAMES[a]}${MAPS[a] && MAPS[a].area === a ? "" : " (แผนที่สาธิต)"}`);
+    syncUrl(a, rotation, night);
+  };
+  const turn = (d) => { const r = (rotation + d + 4) % 4; setRotation(r); syncUrl(area, r, night); };
+  const hoverInfo = hover ? [
+    map.terrain[key(hover.x, hover.y)] && `สิ่งกีดขวาง: ${map.terrain[key(hover.x, hover.y)]}`,
+    map.special && map.special[key(hover.x, hover.y)] && `ช่องพิเศษ: ${SPECIAL_NAMES[map.special[key(hover.x, hover.y)]] || map.special[key(hover.x, hover.y)]}${map.flow && map.flow[key(hover.x, hover.y)] ? " " + FLOW_NAMES[map.flow[key(hover.x, hover.y)]] : ""}`,
+    map.heal.includes(key(hover.x, hover.y)) && (area === 5 ? "โอเอซิส (ฟื้นฟู)" : "จุดฟื้นฟู"),
+  ].filter(Boolean).join(" · ") : "";
 
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
       <BoardCanvas
-        map={REGION1}
+        map={map}
         units={viewUnits}
         highlights={highlights}
-        shopPos={SHOP}
+        shopPos={M.shop}
+        rotation={rotation}
         night={night}
         lowQ={lowQ}
         anim={anim}
@@ -259,8 +347,14 @@ export default function BoardPreview() {
         onUnitClick={onUnitClick}
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
       />
-      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 640 }}>
-        <button style={btn(night)} onClick={() => setNight((v) => !v)}>กลางคืน</button>
+      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 760 }}>
+        {[1, 2, 3, 4, 5, 6, 7].map((a) => (
+          <button key={a} style={btn(area === a)} title={AREA_NAMES[a]} onClick={() => setArea(a)}>{ROMAN[a]}</button>
+        ))}
+        <span style={{ width: 8 }} />
+        <button style={btn(false)} title="หมุนทวนเข็ม" onClick={() => turn(-1)}>⟲</button>
+        <button style={btn(false)} title="หมุนตามเข็ม" onClick={() => turn(1)}>⟳ {rotation * 90}°</button>
+        <button style={btn(night)} onClick={() => { setNight(!night); syncUrl(area, rotation, !night); }}>กลางคืน</button>
         <button style={btn(lowQ)} onClick={() => setLowQ((v) => !v)}>ประหยัดสเปก</button>
         <button style={btn(danger)} onClick={() => setDanger((v) => !v)}>ระยะอันตราย</button>
         <span style={{ width: 8 }} />
@@ -270,8 +364,9 @@ export default function BoardPreview() {
         <button style={btn(false)} onClick={reset}>รีเซ็ต</button>
       </div>
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>
+        <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""}</div>
         <div>คนเดิน: <b>{actor.name}</b> (เดิน {MOV}) · โหมด: {mode === "move" ? "เดิน" : mode === "skill" ? "สกิลระยะ 3" : "ตีหมู่ 5"}</div>
-        <div style={{ color: "#9db8da" }}>ชี้ช่อง: {hover ? `(${hover.x}, ${hover.y})` : "—"} · {log}</div>
+        <div style={{ color: "#9db8da" }}>ชี้ช่อง: {hover ? `(${hover.x}, ${hover.y})` : "—"}{hoverInfo ? ` · ${hoverInfo}` : ""} · {log}</div>
       </div>
     </div>
   );

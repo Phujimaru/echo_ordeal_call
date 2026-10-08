@@ -10,6 +10,9 @@
 //   highlights  { move, attack, skill, aoe, danger: ["x,y"…], path: [{x,y}…], target?: {x,y}, push?: { from, to, collide } } — ไม่ใส่ได้ทุกช่อง
 //   shopPos     {x,y} | null — แผงร้านค้ามายา
 //   night, lowQ boolean
+//   rotation    0|1|2|3 = หมุนมุมมองทีละ 90° ตามเข็มนาฬิกา (ค่าเริ่ม 0) — หมุนแค่ภาพ ทุก prop และคอลแบ็กยังเป็นพิกัดกระดานเดิม
+//               เปลี่ยนค่า = หมุนนุ่มๆ ≈250ms (lowQ = ทันที) · 90°/270° กระดานเป็น 12 กว้าง × 16 ลึก กล้องย่อให้พอดีเอง
+//   map.special { "x,y": "flowers"|"forest"|"thorns"|"shallow"|"whirl"|"quicksand"|"ice"|"lava"|"power" } · map.flow { "x,y": "up"|"down"|"left"|"right" }
 //   anim        { kind: "move", id, path } | { kind: "push", id, from, to, collide } — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
 //   fx          [{ key, kind: "slash"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
@@ -17,13 +20,15 @@
 // ============================================================
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  bakeLayers, computeView, drawFrame, FX_DUR, key, mapSignature, normColor,
-  pickTile, prepareHighlights, prepareMap, rgbString, toLogical,
+  bakeBoard, bakeScene, computeView, drawFrame, FX_DUR, key, mapSignature, normColor, normRot,
+  pickTile, prepareHighlights, prepareMap, rgbString, setCamera, toLogical,
 } from "./boardDraw";
 
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
 const PUSH_MS = 240;   // ถอย 1 ช่อง
 const BUMP_MS = 280;   // ถอยชน (ขยับไปนิดแล้วเด้งกลับ)
+const TURN_MS = 250;   // หมุนมุมมอง 90°
+const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
 
 // ตำแหน่งระหว่างเล่นแอนิเมชัน → { x, y, ox, oy, done, hitAt? }
 function animPose(a, t) {
@@ -64,7 +69,10 @@ export default function BoardCanvas(props) {
   const S = useRef(null);
   if (S.current === null) {
     S.current = {
-      size: { w: 0, h: 0 }, mapRef: undefined, sig: "", info: null, bakeKey: "", bake: null,
+      size: { w: 0, h: 0 }, mapRef: undefined, sig: "", info: null,
+      scenes: new Map(),     // key → { scene, fore, marks } (เก็บไม่เกิน 3)
+      boardKey: "", boardCv: null,
+      rotTarget: null, turn: 0, turnFrom: 0, turnTo: 0, turnT0: 0, // มุมมอง (หน่วย 90° ต่อเนื่อง)
       hlRef: undefined, hl: prepareHighlights(null),
       anim: null,            // { obj, t0, startX, startY, done, hit }
       fxSeen: new Set(), fxRef: undefined, fxActive: [],
@@ -109,8 +117,42 @@ export default function BoardCanvas(props) {
       if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
       const view = computeView(w, h);
       st.view = view;
-      const bk = `${st.sig}|${w}x${h}|${dpr}|${night}|${lowQ}`;
-      if (bk !== st.bakeKey) { st.bakeKey = bk; st.bake = bakeLayers(info, view, dpr, night, lowQ); }
+      // --- มุมมอง (หมุนนุ่มๆ ไปทางที่สั้นกว่า)
+      const target = normRot(p.rotation);
+      if (st.rotTarget === null) { st.rotTarget = target; st.turn = st.turnFrom = st.turnTo = target; }
+      else if (target !== st.rotTarget) {
+        let d = (((target - st.rotTarget) % 4) + 4) % 4;
+        if (d === 3) d = -1;
+        st.rotTarget = target; st.turnFrom = st.turn; st.turnTo += d; st.turnT0 = now;
+        if (lowQ) { st.turnTo = ((st.turnTo % 4) + 4) % 4; st.turn = st.turnFrom = st.turnTo; }
+      }
+      let turning = false, mix = 1;
+      if (st.turn !== st.turnTo) {
+        const pr = Math.min(1, (now - st.turnT0) / TURN_MS);
+        if (pr >= 1) { st.turnTo = ((st.turnTo % 4) + 4) % 4; st.turn = st.turnFrom = st.turnTo; }
+        else { turning = true; mix = ease(pr); st.turn = st.turnFrom + (st.turnTo - st.turnFrom) * mix; }
+      }
+      // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
+      const sceneOf = (turn) => {
+        const par = normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${dpr}|${night}|${lowQ}|${par}`;
+        let sc = st.scenes.get(sk);
+        if (!sc) {
+          sc = bakeScene(info, view, dpr, night, lowQ, par);
+          st.scenes.set(sk, sc);
+          if (st.scenes.size > 3) st.scenes.delete(st.scenes.keys().next().value);
+          if (turning) st.turnT0 = performance.now() - (now - st.turnT0); // ไม่นับเวลาอบเข้าไปในแอนิเมชัน
+        }
+        return sc;
+      };
+      const scTo = sceneOf(turning ? st.turnTo : st.turn);
+      const scFrom = turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
+      let boardCv = null;
+      if (!turning) {
+        const bk = `${st.sig}|${w}x${h}|${dpr}|${night}|${normRot(st.turn)}`;
+        if (bk !== st.boardKey) { st.boardKey = bk; st.boardCv = bakeBoard(info, view, dpr, night, normRot(st.turn)); }
+        boardCv = st.boardCv;
+      }
+      const bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix };
       // --- ไฮไลต์
       if (p.highlights !== st.hlRef) { st.hlRef = p.highlights; st.hl = prepareHighlights(p.highlights); }
       const hl = st.hl;
@@ -188,7 +230,7 @@ export default function BoardCanvas(props) {
       }
 
       st.boxes = drawFrame(g, {
-        info, view, dpr, bake: st.bake, night, lowQ, units: list, hl,
+        info, view, dpr, bake, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, hover: hov, fx: st.fxActive,
       }, now);
     };
@@ -200,6 +242,7 @@ export default function BoardCanvas(props) {
   const locate = (e) => {
     const st = S.current, cv = cvRef.current;
     if (!st.view || !st.info) return { tile: null, unit: null };
+    setCamera(st.info, st.turn);
     const r = cv.getBoundingClientRect();
     const [lx, ly] = toLogical(st.view, e.clientX - r.left, e.clientY - r.top);
     const units = Array.isArray(propsRef.current.units) ? propsRef.current.units : [];
