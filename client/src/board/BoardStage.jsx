@@ -77,8 +77,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   useEffect(() => {
     const onKey = (e) => {
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
-      if (e.key === "q" || e.key === "Q") rotate(-1);
-      else if (e.key === "e" || e.key === "E") rotate(1);
+      // ใช้ตำแหน่งปุ่ม (e.code) ไม่ใช่ตัวอักษร — แป้นโหมดไทย Q/E พิมพ์เป็น ๆ/ำ
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.code === "KeyQ") rotate(-1);
+      else if (e.code === "KeyE") rotate(1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
