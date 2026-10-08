@@ -1,22 +1,43 @@
-# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08)
+# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08 ท้าย session)
 
-> สำหรับ session ถัดไป: อ่านไฟล์นี้ให้จบก่อนเริ่มงาน แล้วอ่าน [CLAUDE.md](../CLAUDE.md), [GRID_PLAN.md](../GRID_PLAN.md) และ [GAME_SYSTEM.md](../GAME_SYSTEM.md) §1.1
-> คุยกับผู้ใช้เป็นภาษาไทยเสมอ
+> สำหรับ session ถัดไป: อ่านไฟล์นี้ให้จบก่อนเริ่มงาน แล้วอ่าน [CLAUDE.md](../CLAUDE.md), [GRID_PLAN.md](../GRID_PLAN.md) (กติกาทั้งหมดที่ผู้ใช้ตัดสินแล้ว) และ [GAME_SYSTEM.md](../GAME_SYSTEM.md) §1–§3
+> คุยกับผู้ใช้เป็นภาษาไทยเสมอ · **commit + push `origin/main` ทุกครั้งที่จบขั้นของ GRID_PLAN §13 (ผู้ใช้อนุญาตแล้ว ไม่ต้องถาม)**
+> ผู้ใช้ชอบให้แบ่งงานคู่ขนานให้ subagent ได้ (แยกไฟล์กันชัดเจน)
 
-## สถานะ repo (C:\Echo — repo ใหม่)
+## สถานะ repo (C:\Echo · remote `github.com/Phujimaru/echo_ordeal_call` · branch `main`)
 
-- ย้ายมาจาก `C:\backjact` branch `feat/ordeal-call` @ `3b687da` แล้ว **เริ่มประวัติ git ใหม่** (ทั้งหมดอยู่ใน commit เดียว) · ห้าม push จนกว่าผู้ใช้อนุญาต
-- **ตัวละครเหลือ 2 ตัว:** `muimi` (มุยมิ) และ `oberon_summer` (โอเบรอน ฤดูร้อน) + ระบบกลาง Mark 42 / ปืน GUTS / การเดินทาง 7 ภูมิภาค / สถานะ Universal
-- **ลบออกแล้ว:** ตัวละคร 56 ตัว (รวม ORT, ยูนะ, Echo Queen, `_zect`), โหมด Type Mercury (Raid) / Purge, ตีฟรีของ Echo, ระบบคู่หูสไตรเกอร์ (`server/pair.js`), Clock Up, ย้อนเวลาของชิโด, ของร้านค้าที่ผูกตัวละคร (Hyper Key / Trigger Dark Key / Black Sparklence / WineBarrel / มื้อเทเปา) — โหมดเหลือ ffa / duo / trio
-  - ไฟล์สื่อของตัวที่ลบยังอยู่บน R2 และใน `client/public/` เครื่องผู้ใช้ (gitignore — ไม่ได้แตะ)
-- ตรวจแล้ว 2026-10-08: `npm test` 146/146 · `cd client && npx vite build` ผ่าน · `npx eslint .` 0 error · เปิดพรีวิว `?hud=1&game=1` กระดานขึ้นไม่มี error JS · **ยังไม่ได้ลองเล่นแมตช์จริงหลายคน**
-- เครื่องมือที่ใช้ล้างตอนย้าย (strip script) อยู่นอก repo และไม่ได้เก็บไว้ — บทเรียนจากการล้างอยู่ใน skill `remove-character`
+- ย้ายมาจาก `C:\backjact` @ `3b687da` (เริ่มประวัติ git ใหม่) · เหลือตัวละคร `muimi` + `oberon_summer` + ระบบกลาง Mark 42 / ปืน GUTS / การเดินทาง 7 ภูมิภาค / สถานะ Universal · โหมด ffa / duo / trio
+- ตรวจล่าสุด: `npm test` **184/184** · `cd client && npx vite build` ผ่าน · `npx eslint .` 0 error
+- **กำลังเปลี่ยนเป็นเกมกระดานแบบ Fire Emblem** — ความคืบหน้าตาม GRID_PLAN §13:
+  - ✅ ขั้น 1 `server/board.js` (แผนที่ภูมิภาค I, BFS, ระยะ, ตีสวน/ถอย, จุดเกิด, ร้าน) + `tests/board.test.js`
+  - ✅ ขั้น 2 วงจรเทิร์น server: PLAYING (จั่ว/พอ) → ORDER → ACTION → ATTACKING · `server/phases/action.js` · `tests/action.test.js`, `tests/turn-order.test.js`
+  - ✅ ขั้น 3 ระยะสกิล (`area` ใน characters.js · `resolveArea` ใน action.js เรียกจาก skills.js) · คลื่นดาบมุยมิ 4×3 (`attack.skillStrike`) · จังหวะบัฟ/สตั้นโอเบรอน (`obsDreamUseRound`, `hasActed`) · `tests/skill-area.test.js`
+  - ✅ ตัววาดกระดาน client (ส่วนหนึ่งของขั้น 5): `client/src/board/BoardCanvas.jsx` + `boardDraw.js` + พรีวิว `?board=1` (`BoardPreview.jsx`) — **ยังไม่ได้ต่อเข้า Game.jsx**
+  - ⏭️ **ถัดไป ขั้น 4**: ร้านค้าบนแผนที่ (ตั้ง 5 เทิร์นแล้วย้ายจุด + สุ่มของใหม่ · ซื้อได้เมื่อยืนติดร้าน · `board.pickShopSpot`/`nearShop` มีแล้ว) · กระเป๋า 5 ช่อง + ปุ่มทิ้ง · ปืน GUTS ระยะ 1–4 นับเป็นการโจมตี (จบตา) · Mark 42 ใส่/ใส่ให้/ระเบิด/เรียกคืน ต้องติดกัน · ถอดยาเปลี่ยนสีการ์ด + ยาลดไพ่ (GRID_PLAN §8.1)
+  - ขั้น 5–6: ต่อ BoardCanvas เข้า Game.jsx (แถบลำดับเดิน, เดิน/ย้อน/ตี/รอ, คาดการณ์ผล, ระยะอันตราย, ป้ายระยะบนปุ่มสกิล, เลือกทิศสกิลแนว) — วิธีแปลง state → props ดูหัวข้อด้านล่าง
+  - ขั้น 7: ภูมิภาค II–VII — **ผู้ใช้ให้ Claude ออกแบบผังเอง และอยากได้ช่องพิเศษแบบ Fire Emblem** (ร่างใน GRID_PLAN §3.1 — ทำพรีวิวให้ผู้ใช้ดู/ยืนยันตัวเลขก่อนลงโค้ด) · ธีมภาพรายภูมิภาคใน boardDraw.js (ตอนนี้ทุกภูมิภาควาดปราสาทของ I)
+  - ขั้น 8: เอกสาร GAME_SYSTEM.md / skill add-character ให้ตรง (§2–§3 อัปเดตแล้ว)
+- **ตอนนี้หน้าจอเกมเดิม (Game.jsx) เล่นกับ server ใหม่ไม่ได้** (ยังอ่าน attackerId/SUMMARY/ATTACK แบบเดิม) จนกว่าขั้น 5 เสร็จ — ทดสอบผ่านเทสต์เป็นหลัก · พรีวิวที่ใช้ได้: `?board=1`, `?hud=1&game=1`
 
-## งานถัดไป: ระบบกระดานเดินได้ (แบบ Fire Emblem)
+## ต่อ BoardCanvas เข้า Game.jsx (สรุปจากเอเจนต์ที่ทำตัววาด)
+- props: `map` (= `state.board` — heal ส่งเป็น array แล้วใน view.js) · `units` [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag }] · `highlights` { move, attack, skill, aoe, danger: ["x,y"], path: [{x,y}], target: {x,y}, push: {from,to,collide} } · `shopPos` · `night` · `lowQ` · `anim` ({kind:"move",id,path} | {kind:"push",id,from,to,collide}) + `onAnimDone` · `fx` [{ key, kind:"slash"|"float", x, y, text, color }] · `onTileClick` / `onUnitClick` / `onHoverTile`
+- tag: ช่วงจั่ว `{ backs: จำนวนไพ่, text: locked ? "พอ" : "" }` · หลังเปิดไพ่ = แต้ม หรือ `"แตก"`
+- กล่องแม่ต้อง positioned และมีขนาด · ย่อให้เห็นเฟรม 1280×720 ครบ · ขอบใกล้กระดาน ~73% ของความสูง (เหลือที่ให้ HUD ด้านล่าง) · `tileCenter` + `computeView` ใช้วาง DOM ทับช่อง
+- ข้อมูลจาก server ต่อผู้เล่น: `pos`, `mov` (เทิร์นนี้), `baseMov`, `range`, สกิล `character.<tier>.area` (range แปลงเป็นตัวเลขแล้ว) · ส่วนกลาง: `board`, `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `attack` (มี `counter`/`push`)
+- socket: `move {x,y}` · `undoMove` · `attack {targetId}` · `endAction` · `useSkill {tier,targets,dir}` (dir = up/down/left/right สำหรับสกิลแนว)
+- ระยะเดิน/อันตรายคำนวณฝั่ง client ได้ด้วยตรรกะเดียวกับ `server/board.js` (ไฟล์เป็น CommonJS — ถ้าจะใช้ร่วมให้ทำโมดูล ESM คู่ หรือ copy ฟังก์ชันที่ต้องใช้ แล้วมีเทสต์เทียบ)
 
-- กติกาทั้งหมดที่ผู้ใช้ตัดสินแล้วอยู่ใน [GRID_PLAN.md](../GRID_PLAN.md) (ไม่มีข้อค้าง) · ลำดับงานใน §13 — ขั้นแรก `server/board.js` + เทสต์
-- ต้นแบบ: [.claude/plans/region1-board.html](plans/region1-board.html) (ภาพ/HUD ด่าน I) · [.claude/plans/grid-prototype.html](plans/grid-prototype.html) (กติกาเดิน/ตี/สวน/ถอย กับบอท) — ต้นแบบยังให้ใช้สกิลช่วงจั่วไพ่ ซึ่ง **แผนล้างทับแล้ว** (ทุกอย่างทำในตาเดินเท่านั้น)
-- Game.jsx ถูกล้างแค่พอ build ผ่าน ส่วนที่นั่ง/ฉากโจมตี/ร้านเด้งอัตโนมัติจะถูกแทนด้วยกระดาน — อย่าเสียเวลาเกลา
+## เรื่องค้างเล็กๆ ที่รู้แล้ว (ยังไม่แก้)
+- คอมเมนต์ค้าง: `SHOP_WEIGHTS` บอกรวม 97 (จริง 105) · `toggleReady` บอก "อย่างน้อย 2 คน" (โค้ดให้ 1)
+- โค้ดไม่มีผลแล้ว: สถานะ `manaLeech`/`manaRupture`/`drunk` ไม่มีใครสร้าง · กติกาวัน/คืนแบบไม่มีการเดินทาง (`morningBonusActive`, ภาษีกลางคืนเดิม) ไม่มีทางทำงานเพราะทุกโหมดเปิดการเดินทาง — **ห้ามลบระบบวัน/คืน (ผู้ใช้สั่ง)**
+- `tests/audio-policy.test.js` ยังป้อน gameState `SUMMARY`/`ATTACK` ให้ policy เพลงฝั่ง client — ปรับตอนทำขั้น 5
+- `p.journeyStunRound` ไม่ถูกรีเซ็ตใน `resetCombat`
+
+## เคล็ดลับเครื่องมือที่ใช้ใน session นี้
+- **อย่าใช้ heredoc ใน Bash เขียนสคริปต์ที่มี `\\`** (Bash tool ยุบ backslash) — เขียนไฟล์ .js ด้วยเครื่องมือ Write ใน scratchpad แล้วค่อยรัน
+- ไฟล์ปน LF/CRLF — สคริปต์แทนข้อความต้อง normalize `\r\n` ก่อนเทียบแล้วคืนรูปเดิมตอนเขียน (helper แบบ `rep(a,b)` + `cut(a,b)` + `save()` ที่ fail ทั้งก้อนถ้าหาไม่เจอ ใช้ได้ดี)
+- เทสต์ขับตาเดิน: `engine.setActor(id)` (เข้าตาเดินทันทีไม่มีตัวจับเวลา) · `engine.moveTo/undoMove/attackTarget/waitAction/finishActor/beginOrder/placeOnBoard` · ทุกครั้งที่เรียกฟังก์ชันที่ตั้งตัวจับเวลา ให้ `engine.clearPhaseTimer()` ตาม
+- ตัวละครสมมติในเทสต์: `characterId: 'dummy'` (ไม่มีฮุค · เดิน 4 · ตีประชิด)
 
 ## ประวัติจาก repo เดิม (ยังเกี่ยวข้อง)
 
