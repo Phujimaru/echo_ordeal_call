@@ -182,14 +182,6 @@ test('ดาบเก่าๆ ฟื้น 1/1 ส่วนดาบสะบ�
   assert.equal(m.statuses.muimiTower, 3);
 });
 
-test('ใจที่ไม่ยอมแพ้กัน Overload Force เฉพาะขณะดาบสะบั้น', () => {
-  const { m } = setup();
-  assert.equal(muimi.blocksOverloadForce(engine), false);
-  m.statuses.muimiTower = 2;
-  assert.equal(muimi.blocksOverloadForce(engine), true);
-  m.alive = false;
-  assert.equal(muimi.blocksOverloadForce(engine), false, 'มุยมิที่ตกรอบแล้วไม่กัน');
-});
 
 test('เสียงโจมตีสลับตามสถานะดาบสะบั้น', () => {
   const { m } = setup();

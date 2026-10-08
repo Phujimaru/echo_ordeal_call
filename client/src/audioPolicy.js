@@ -6,8 +6,7 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(phase)) return { name: "lobby5" };
   if (intro) return { name: "lobby5" };
   const cs = phase === "CUTSCENE" ? state.cutscene : null;
-  const mandatory = cs?.kind === "overloadForce";
-  if (cs && (!lowQ || mandatory || cs.announce)) return { name: null };
+  if (cs && (!lowQ || cs.announce)) return { name: null };
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว
   //  เพลงประจำภูมิภาคใหม่จึงเริ่มตั้งแต่ฉากเริ่ม (App ขยับ cycleSeq เมื่อภูมิภาค/ช่วงเวลาเปลี่ยน)
   const journey = state?.journey;

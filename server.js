@@ -24,7 +24,6 @@ const { engine } = require("./server/engine");
 const attack = require("./server/phases/attack");
 const characterRules = require("./server/characterRules");
 const combat = require("./server/combat");
-const overload = require("./server/overload");
 const summary = require("./server/phases/summary");
 require("./server/socket");
 
@@ -38,11 +37,6 @@ module.exports = {
   engine,
   maxHpOf: combat.maxHpOf,
   maxArmorOf: combat.maxArmorOf,
-  overloadCanSafelyDraw: combat.overloadCanSafelyDraw,
-  resetOverloadDrawCounter: combat.resetOverloadDrawCounter,
-  captureTurnSnapshot: overload.captureTurnSnapshot,
-  restoreTurnSnapshot: overload.restoreTurnSnapshot,
-  clearTurnSnapshot: overload.clearTurnSnapshot,
 };
 
 if (require.main === module) {

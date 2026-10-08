@@ -21,7 +21,6 @@ function setup(ids = ['A', 'B', 'C']) {
   engine.startMatch();
   engine.clearPhaseTimer();
   engine.setGameState('PLAYING');
-  engine.setOverloadForceActive(false);
   for (const p of Object.values(engine.players)) {
     p.locked = true; p.skillPoints = 3; p.skillUsedRound = false; p.gold = 0;
     p.hp = engine.maxHpOf(p); p.armor = 0; p.shield = 0; p.statuses = {}; p.statusAmt = {};

@@ -231,7 +231,7 @@ test('effects sit above background music and loud files are evened out per file'
   const music = instances.at(-1).volume;
   const hit = api.playSfx('attack').volume;
   assert.ok(hit >= music * 1.5, `เอฟเฟกต์ ${hit} ต้องดังกว่าเพลง ${music} ชัดเจน`);
-  assert.ok(api.soundGain('muimi') < 0.6, 'เพลงสนาม Overload Force ดังเกินต้นฉบับ ต้องถูกลด');
+  assert.ok(api.soundGain('muimi') < 0.6, 'เพลงท่าไม้ตายมุยมิดังเกินต้นฉบับ ต้องถูกลด');
   assert.equal(api.soundGain('trun_change'), 1, 'ไฟล์ที่เบาอยู่แล้วห้ามลดเพิ่ม');
   assert.equal(api.soundGain('action_button'), 1, 'เสียงคลิกใช้ระดับของตัวเอง');
   const loudVideo = new Audio('/characters/muimi/muimi_skill3_short.mp4');

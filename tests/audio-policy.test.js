@@ -17,7 +17,7 @@ test('music follows cutscene -> skill -> day/night priority', () => {
 });
 
 test('voice announcements and mandatory clips stay silent in low quality; private clips do not silence outsiders', () => {
-  for (const cs of [{ announce: true, voice: 'ex_k' }, { kind: 'overloadForce' }]) {
+  for (const cs of [{ announce: true, voice: 'ex_k' }]) {
     assert.equal(policy.musicForState({ ...night, gameState: 'CUTSCENE', cutscene: cs }, { lowQ: true }).name, null);
   }
   assert.equal(policy.musicForState({ ...night, gameState: 'CUTSCENE', cutscene: null }).name, 'new_night');

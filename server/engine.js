@@ -17,7 +17,7 @@ const Journey = require("../characters/_journey");
 const { io } = require("./app");
 const {
   ATTACKFX_TIME, ACTION_TIME, GOLD_MAX, GUTS_AMMO, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG, MAX_HP,
-  OVERLOAD_FORCE_CHANCE, TRANSFORMS,
+  TRANSFORMS,
 } = require("./constants");
 const match = require("./match");
 const action = require("./phases/action");
@@ -30,7 +30,6 @@ const cardDeck = require("./deck");
 const draw = require("./phases/draw");
 const endTurnPhase = require("./phases/endTurn");
 const lobby = require("./lobby");
-const overload = require("./overload");
 const qteSystem = require("./qte");
 const shop = require("./shop");
 const skills = require("./skills");
@@ -51,7 +50,6 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   ACTION_TIME,
   TRANSFORMS,
   SPELLBURDEN_MAX,
-  OVERLOAD_FORCE_CHANCE,
   MAX_HP,
   maxHpOf: combat.maxHpOf,
   maxArmorOf: combat.maxArmorOf,
@@ -175,12 +173,6 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   statusAmtOf,
   calculateScore: cardDeck.calculateScore,
   scoreCap: cardDeck.scoreCap,
-  get overloadForceActive() { return match.overloadForceActive; },
-  setOverloadForceActive(v) { match.overloadForceActive = !!v; },
-  get overloadForceCount() { return match.overloadForceCount; },
-  setOverloadForceCount(v) { match.overloadForceCount = Number(v) || 0; },
-  triggerOverloadForce: overload.triggerOverloadForce,
-  applyOverloadOverdrawPenalty: combat.applyOverloadOverdrawPenalty,
   applyBuff: rawApplyBuff,
   applyDebuff: combat.applyDebuff,
   applyPoison,     // "พิษร้าย" (สถานะ Universal): ดาเมจ 1/เทิร์น + พลังโจมตี -1 (เคารพต้านสถานะผิดปกติ)

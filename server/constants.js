@@ -6,8 +6,6 @@ const SKILL_COST_MAX = 8;
 // ---------- ค่าคงที่ ----------
 const MAX_PLAYERS = 7; // patch 2.8: เปิดช่องผู้เล่นที่ 7
 const CARD_TIME = 60;
-const OVERLOAD_FORCE_CHANCE = 0.30;
-const OVERLOAD_FORCE_CUTSCENE_SECONDS = 5; // overload_force_start.mp4 = 4.809s
 // กระดาน (GRID_PLAN.md): แบนเนอร์ลำดับเดิน · เวลาต่อตาเดิน · ค่าเดิน/ระยะตีตั้งต้นของตัวละครที่ไม่ได้กำหนด
 const ORDER_TIME = 2;
 const ACTION_TIME = 60;
@@ -92,7 +90,7 @@ const TEAM_IDS = ["A", "B", "C"];
 const RESYNC_EVERY = 10; // ทุกกี่วินาทีถึงจะ broadcast state ตัวเต็ม (นอกนั้นส่งแค่ "tick")
 
 module.exports = {
-  SKILL_COST_MAX, MAX_PLAYERS, CARD_TIME, OVERLOAD_FORCE_CHANCE, OVERLOAD_FORCE_CUTSCENE_SECONDS,
+  SKILL_COST_MAX, MAX_PLAYERS, CARD_TIME,
   ORDER_TIME, ACTION_TIME, DEFAULT_MOV, DEFAULT_RANGE, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
   ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_FIRST_BONUS,
   SHOP_INTERVAL_TURNS, SHOP_MAX_ITEMS, SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_PRICE,

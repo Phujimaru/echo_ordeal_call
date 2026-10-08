@@ -43,14 +43,12 @@ grep -rn "<id>\|<Id>\|<ID>" --include=*.js --include=*.jsx --include=*.css . \
 | หมวด | สิ่งที่ต้องถอน |
 |---|---|
 | ค่าคงที่ | `<ID>_*_IMG` ทั้งชุด **และชื่อที่ไปโผล่ในก้อน `img` ที่ส่งให้ `buildTransforms`** |
-| สถานะแมตช์ (`server/match.js`) | ธงสนามของเขา (`match.oberonDevour`) + ทุกที่ที่ reset และที่อยู่ในสแนปช็อตย้อนเวลา |
+| สถานะแมตช์ (`server/match.js`) | ธงสนามของเขา (`match.oberonDevour`) + ทุกที่ที่ reset |
 | ฮุค | `resetCombat` · `onRoundStartTick` · `canUseSkill` · `applyInstantSkill` · `damageBonus` · `tryAttackDodge` · `displayImg` · `publicState` · `maybeQueueIntro` |
 | ด่านกลางเกม | `hit()` · `lock()` · `useSkill()` · `buyShopItem()` · `useInventoryItem()` · `endTurn()` |
 | ฟังก์ชันเฉพาะตัว | ฟังก์ชันระดับไฟล์ที่เขียนไว้ให้เขาคนเดียว (`beginKotarouRewindDraw`) + ที่ export ให้เทสต์ |
 | ก้อน state | ฟิลด์ใน `buildStateFor` + ธงฉากหลัง/เพลงสนาม |
 
-**สแนปช็อตย้อนเวลา** (`captureTurnSnapshot`/`restoreTurnSnapshot`) มีรายชื่อตัวแปรซ้ำกัน 4 ที่
-ในไฟล์ — ใช้ `s.replace()` ทั้งไฟล์ ไม่ใช่ลบทีละจุด
 
 ## เส้นแบ่ง: อะไรลบ อะไรเก็บ
 

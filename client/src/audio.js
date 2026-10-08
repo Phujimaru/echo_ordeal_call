@@ -32,7 +32,6 @@ const FILES = {
   journey_7_night: "/journey/map7/Fire Emblem Engage Distorted Flash of Light.mp3",
   buy_something: "/effect_sound/buy_something.mp3",
   change_cutscene: "/effect_sound/change_cutscene.mp3",
-  overload_force: "/overload_force/overload_force_connect.m4a",
   muimi: "/overload_force/overload_force_theme.mp3",
   muimi_normal_hit: "/characters/muimi/mumi_normal_hit.mp3",
   muimi_ub_hit: "/characters/muimi/mumi_ub_hit.mp3",
@@ -45,13 +44,8 @@ const FILES = {
   attack: "/effect_sound/attack.wav",
 };
 
-// เพลงสนามนี้มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูปจนจบเทิร์น
-const MUSIC_SEQUENCES = {
-  overload_force: [
-    "/overload_force/overload_force_connect.m4a",
-    "/overload_force/overload_force_theme.mp3",
-  ],
-};
+// เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (ตอนนี้ยังไม่มีเพลงที่ใช้)
+const MUSIC_SEQUENCES = {};
 
 // เพลงที่อยู่กลุ่มเดียวกัน = สลับไฟล์กันแล้ว "เล่นต่อจากตำแหน่งเดิม" (เช่นเพลงกลางวัน/กลางคืนของท่าเดียวกัน)
 //  key = ชื่อเพลงใน FILES · value = ชื่อกลุ่ม — ตอนนี้ยังไม่มีเพลงที่ใช้
@@ -76,7 +70,6 @@ const LOUDNESS_GAIN = {
   "/characters/muimi/muimi_skill3_short.mp4": 0.88,
   "/characters/muimi/mumi_ub_hit.mp3": 0.79,
   "/item/guts_key/shockwave_boost.mp4": 0.92,
-  "/overload_force/overload_force_connect.m4a": 0.67,
   "/overload_force/overload_force_theme.mp3": 0.53,
   // การเดินทาง (วัดด้วย Web Audio: RMS บล็อก 0.4 วิ ตัดบล็อกที่เบากว่า -50 dBFS) — ไฟล์ที่เบากว่า -14 อยู่แล้วไม่อยู่ในตาราง
   //  ⚠️ map2 กลางคืน (Full Bloom in the Breeze.mp3) เบากว่าเป้า ~5 dB — ต้องเข้ารหัสใหม่ให้ดังขึ้นที่ตัวไฟล์ถ้าต้องการให้เท่ากัน

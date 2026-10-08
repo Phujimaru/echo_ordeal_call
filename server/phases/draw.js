@@ -17,7 +17,6 @@ const combat = require("../combat");
 const cutscene = require("../cutscene");
 const dayNight = require("../dayNight");
 const cardDeck = require("../deck");
-const overload = require("../overload");
 const qteSystem = require("../qte");
 const shop = require("../shop");
 const summary = require("./summary");
@@ -27,7 +26,6 @@ const view = require("../view");
 function dealRound() {
   timers.clearPhaseTimer();
   match.roundNumber++;
-  match.overloadForceActive = false;
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
   match.lastLog = [];
   match.turnOrder = [];
@@ -47,7 +45,7 @@ function dealRound() {
     combat.resetRoundDisplay(p);
     p.shield = 0;
     p.skillUsedRound = false; // เทิร์นใหม่ ใช้สกิลได้อีก 1 อัน
-    if (!p.alive) { p.cards = []; p.locked = true; p.busted = false; p.overloadDrawReady = false; continue; }
+    if (!p.alive) { p.cards = []; p.locked = true; p.busted = false; continue; }
 
     // กลางคืน (patch 2.1.7): สุ่มใหม่ทุกเทิร์นว่าสกิลพื้นฐานหรือสกิลรอง (อย่างใดอย่างหนึ่ง) จะใช้แต้มมากขึ้น — ไม่มีผลกับท่าไม้ตาย
     //  การเดินทาง: ภาษีนี้เหลือเฉพาะ "อาณาจักรแห่งจุดเริ่มต้น" กลางคืน (ภูมิภาคอื่นใช้ผลของภูมิภาคแทน)
@@ -112,9 +110,7 @@ function dealRound() {
     p.cards = [];
     p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; // นับจำนวนครั้งที่ทริกเกอร์สีนั้นทำงานไปแล้วในรอบนี้
     p.statusAmt.cardAtkBonus = 0; // พลังโจมตีจากการ์ดแดง — รีเซ็ตทุกรอบ
-    combat.resetOverloadDrawCounter(p, false); // ไพ่ตั้งต้นไม่นับเป็นไพ่จั่วเพิ่มของ Overload Force
     { const c = cardDeck.drawInitialCard(p); if (c) { p.cards.push(c); cardDeck.onCardDrawn(p, c); } }
-    p.overloadDrawReady = match.overloadForceActive;
     p.locked = false;
     p.busted = false;
     p.result = null;
@@ -150,7 +146,6 @@ function dealRound() {
     match.lastLog.push(night ? "🌙 ราตรีมาเยือน — สุ่มสกิลพื้นฐาน/สกิลรองแพงขึ้น +1 ทุกเทิร์น" : "☀️ ฟ้าสางแล้ว — จบเทิร์นได้แต้มสกิลเพิ่ม +1");
   }
 
-  overload.captureTurnSnapshot(); // จุดย้อนเวลาของเทิร์นนี้ (เอฟเฟกต์ต้นเทิร์นทำงานครบแล้ว ยังไม่มีใครกดอะไร)
   match.gameState = "PLAYING";
   timers.startPhaseTimer(timers.cardPhaseSeconds(), summary.resolveRound);
   // คัตซีนที่ถูกคิวไว้ระหว่างเอฟเฟกต์ต้นเทิร์น เล่นก่อนแล้วค่อยเริ่มช่วงจั่วไพ่
@@ -169,7 +164,7 @@ function hit(id) {
   //  ปรับไพ่ที่จั่วให้แต้มรวมตกอยู่ 19-21 (สุ่มถ่วงน้ำหนัก มีเคสพิเศษถ้าแต้มปัจจุบันเป็น 19/20 อยู่แล้ว)
   //  ถ้าเป้าที่สุ่มได้ไม่มีไพ่ให้จั่วพอดี จะลองเป้าที่เหลือก่อน — ไม่มีไพ่ให้ตรงเป้าไหนเลยจริงๆ ค่อยจั่วแบบสุ่มตามปกติ (แตกได้ตามปกติ)
   let drawn = null;
-  if (!match.overloadForceActive && (p.statuses.fortune || 0) > 0) {
+  if ((p.statuses.fortune || 0) > 0) {
     p.statuses.fortune--;
     if (p.statuses.fortune <= 0) delete p.statuses.fortune;
     const cur = cardDeck.calculateScore(p.cards);

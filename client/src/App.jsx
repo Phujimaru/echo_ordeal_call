@@ -230,7 +230,6 @@ export default function App() {
     : null;
   const skillMusic = stage === "connected" && state ? state.skillMusic : null;
   const skillMusicSeq = stage === "connected" && state ? state.skillMusicSeq : 0;
-  const mandatoryCutscene = phase === "CUTSCENE" && state?.cutscene?.kind === "overloadForce";
   const introOn = !!intro; // ฉากเปิดแมตช์ (รวมช่วงดิ่ง) ยังเป็นเพลงห้องรอ
   useEffect(() => {
     // CUTSCENE: หยุดเพลงพื้นหลัง ปล่อยให้เสียงในวีดีโอเล่น (เพลงสกิลมาหลังวีดีโอ)
@@ -275,7 +274,7 @@ export default function App() {
     if (sounds.attack) {
       playSfx(state?.attack?.byAttackSound || "attack");
     }
-  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, mandatoryCutscene, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, introOn]);
+  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, introOn]);
 
   const goCharacter = (n, pos, col) => {
     setName(n);

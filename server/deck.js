@@ -65,7 +65,7 @@ function calculateScore(cards) {
     if (c.special) continue; // King/Queen ไม่เพิ่มแต้ม
     base += c.value;
   }
-  if (hasJoker) base += match.overloadForceActive ? 12 : Math.min(12, Math.max(0, 21 - base)); // Overload: Joker +12 ตายตัว
+  if (hasJoker) base += Math.min(12, Math.max(0, 21 - base));
   return base;
 }
 const YELLOW_CARD_SKILL_BONUS = 2; // ไพ่เหลืองครบ 3 ใบ 1 ชุด = แต้มสกิล +2 (เดิม +1)
@@ -94,7 +94,6 @@ function applySpecialCardEffect(p, card) {
 function onCardDrawn(p, card) {
   checkBlueTrigger(p);
   applySpecialCardEffect(p, card);
-  combat.applyOverloadOverdrawPenalty(p);
 }
 // แดง/เขียว/เหลือง ครบ 3 ใบ: ประเมินครั้งเดียวตอนเปิดไพ่ (lock) จากมือสุดท้ายทั้งหมด
 function applyLockColorTriggers(p) {
@@ -126,16 +125,14 @@ function fortuneTargetList(currentScore) {
   const primary = roll < 0.4 ? 19 : roll < 0.7 ? 20 : 21; // ปกติ: 19 = 40% / 20 = 30% / 21 = 30%
   return [primary, ...[19, 20, 21].filter((v) => v !== primary)];
 }
-// แต้มสูงสุดที่รับได้ก่อนล็อกไพ่อัตโนมัติ (Overload Force ไม่มีเพดาน)
+// แต้มสูงสุดที่รับได้ก่อนล็อกไพ่อัตโนมัติ
 function scoreCap(p) {
-  if (match.overloadForceActive) return Infinity;
   return 21;
 }
 function scoreOf(p) {
   return calculateScore(p.cards);
 }
 function bustedOf(p) {
-  if (match.overloadForceActive) return false;
   return calculateScore(p.cards) > 21;
 }
 

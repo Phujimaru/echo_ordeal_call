@@ -63,9 +63,7 @@ function publicStatuses(p) {
 function buildStateFor(viewerId) {
   const revealAll = match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
   const nightNow = dayNight.isNightRound(match.roundNumber);
-  const sm = (match.overloadForceActive && match.gameState !== "CUTSCENE")
-    ? { music: "overload_force", at: match.overloadForceSeq }
-    : activeSkillMusic();
+  const sm = activeSkillMusic();
   const viewer = match.players[viewerId];
   // สมุดการ์ดกองกลาง: การ์ดทั้ง 43 ใบตามลำดับคงที่ + ใบไหนถูกจั่วไปแล้วในรอบนี้ (centralDeck สับใหม่ทุกรอบ — สมุดนี้จึงนับเฉพาะรอบปัจจุบัน)
   const remainingCardKeys = new Set(match.centralDeck.map(cardDeck.cardKey));
@@ -81,7 +79,6 @@ function buildStateFor(viewerId) {
     winningTeamId: match.winningTeamId,
     timeLeft: match.timeLeft,
     roundNumber: match.roundNumber,
-    overloadForce: match.overloadForceActive,
     deckEmpty: match.centralDeck.length === 0,
     cycle: nightNow ? "night" : "day", // กลางวัน/กลางคืน
     // การเดินทาง (ffa/duo/trio): ภูมิภาค + กลางวัน/กลางคืน + คำอธิบายผลสนาม + ฉากแผนที่ที่กำลังพักเกมรอ

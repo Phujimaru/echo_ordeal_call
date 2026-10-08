@@ -42,7 +42,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `app.js` | Express + HTTP + Socket.IO (`app`, `server`, `io`), redirect ไฟล์สื่อไป R2 |
 | `mediaDirs.js` | รายชื่อโฟลเดอร์สื่อบน R2 (ใช้ร่วมกับ `app.js` และ `desktop/` ที่แคชไฟล์ในเครื่อง) |
 | `constants.js` | ค่าคงที่ทั้งหมด (`CARD_TIME`, `MAX_HP`, ราคาร้านค้า `SHOP_*`/`GUTS_*`, `CYCLE_TURNS`, `JOURNEY_*_SECONDS`, `TRANSFORMS` ฯลฯ) |
-| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `journeyScene`, `turnSnapshot` … |
+| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `journeyScene` … |
 | `engine.js` | `engine` object |
 | `lobby.js` | สี/ตำแหน่ง/จองที่นั่ง, โหวตโหมด (`modeOptionsFor`, `voteGameMode`), จัดทีม, `checkLobbyReady`, `startSoloTest`, `startMatch`, `backToLobby`, `relayLobbyEmote`, `remainingTeamWinInfo` |
 | `timers.js` | `startPhaseTimer`/`clearPhaseTimer`, `cardPhaseSeconds` (= `CARD_TIME` เสมอ) |
@@ -54,12 +54,11 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
-| `overload.js` | snapshot ย้อนเทิร์น (`captureTurnSnapshot`/`restoreTurnSnapshot`/`clearTurnSnapshot`) + `triggerOverloadForce` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
 | `board.js` | **กระดาน (ฟังก์ชันล้วน)**: แผนที่ภูมิภาค (`MAPS`, `mapOf`), BFS เดิน (`reachable`/`pathTo`), ระยะ (`tilesInRange`/`aoeTiles`/`lineTiles`), `attackTargets`, `canCounter`, `pushback`, `threatZone`, `assignSpawns`, `pickShopSpot`, `nearShop` |
-| `phases/summary.js` | `resolveRound` (เปิดไพ่ · Overload Force), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
+| `phases/summary.js` | `resolveRound` (เปิดไพ่), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
 | `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
 | `phases/attack.js` | `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `strike` (ตี 1 ครั้ง), `boardAttack` (ตี → สวน → ถอย), `doAttack` (ตี 1 ครั้งไม่มีกระดาน), `attackSoundOf` |
 | `phases/endTurn.js` | `endTurn` + `gameOver()` (ตัดสินจบเกม) + `maybeJourneyAdvance()` (ฉากเปลี่ยนภูมิภาค) — สองตัวหลังใช้ภายในไฟล์ |
@@ -105,20 +104,18 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 ## 3. วงจร 1 รอบ (call chain ที่ต้องจำ)
 
 ```
-dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, ปิด Overload Force, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
+dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
                                          ร้านเปิดทุก 5 เทิร์น (ไม่งั้น refreshShopForJourney)
                                          ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
-                                         หลังลูป: captureTurnSnapshot() → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
+                                         หลังลูป: PLAYING (+ เล่นคิวคัตซีนถ้ามี)
    ↓ (ผู้เล่นกด)
 hit(id)                phases/draw.js    จั่ว 1 ใบ (เช็ค nodraw/เพดานแต้ม/โชคลาภ/สภาพชา) → checkAllLocked()
 lock(id)               phases/draw.js    "เปิดไพ่" = พร้อม — ยิง applyLockColorTriggers() ก่อนล็อก
    ↓
 checkAllLocked()       phases/draw.js    ผู้รอดทุกคน locked && ไม่มี QTE ค้าง → resolveRound()
 resolveRound()         phases/summary.js ล็อกทุกคน → sweepQte() → (ไม่มีผู้ชนะ/ผู้แพ้ · แต้มต่ำสุดไม่เสียเลือด) → afterResolve()
-   └ ถ้าแต้มสูงสุดเสมอ & ไม่มี "ดาบสะบั้น" ในสนาม & rand<30% → triggerOverloadForce() → restoreTurnSnapshot() (ย้อนทั้งเทิร์น)
-     → beginOverloadForceDraw() (ทุกคนจั่วใหม่ในเทิร์นเดิม → จัดลำดับเดินใหม่)
 afterResolve()         phases/summary.js คัตซีน afterReveal ที่ค้าง (TRANSFORMS) → runCutsceneQueue(action.beginOrder)
 beginOrder()           phases/action.js  turnOrderOf(): แต้มมากก่อน · เท่ากันสุ่ม · ไพ่แตกท้ายแถว → คนแรกเหรียญ +1 → ORDER 2s → nextActor
 nextActor()            phases/action.js  คนถัดไปในแถว (ข้ามคนตาย/สตั้น/หลับ) → ACTION 60s · หมดแถว → endTurn()
@@ -144,14 +141,13 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
   - `state.deckLedger` = การ์ดทั้ง 43 ใบตามลำดับคงที่ + ใบไหนถูกจั่วไปแล้วในรอบนี้ (กดกองกลางเพื่อดู)
 - `drawFromCentralDeck(predicate)` (`server/deck.js`) — สุ่มจาก index ที่ผ่าน predicate (ใช้ทำ "โชคลาภ")
 - `drawInitialCard()` ห้ามได้การ์ดพิเศษ
-- **การ์ดพิเศษ**: King = เหรียญ +10 ทันที (ผ่าน `addGold`) · Queen = `freecast` ใช้สกิลฟรี 1 ครั้ง (หายจบเทิร์น) · Joker = `+min(12, 21-base)` (Overload Force = +12 ตายตัว)
+- **การ์ดพิเศษ**: King = เหรียญ +10 ทันที (ผ่าน `addGold`) · Queen = `freecast` ใช้สกิลฟรี 1 ครั้ง (หายจบเทิร์น) · Joker = `+min(12, 21-base)`
 - **ทริกเกอร์สี ครบ 3 ใบ/ชุด**
   - 🔵 ฟ้า → ทำงาน **ทันทีตอนจั่ว** (`checkBlueTrigger`): ต้านสถานะผิดปกติ 1 เทิร์น
   - 🔴 แดง / 🟢 เขียว / 🟡 เหลือง → ประเมิน **ตอนกด lock** (`applyLockColorTriggers`): แดง = ATK รอบนี้ +n (`statusAmt.cardAtkBonus`) · เขียว = ฟื้นเลือด +n · เหลือง = แต้มสกิล +2n
 - **แต้ม**: `calculateScore()` (raw) → `scoreOf(p)` → `bustedOf(p)`
-- **เพดาน** `scoreCap(p)`: ปกติ 21 · Overload Force = `Infinity` (แต้มถึงเพดาน = ปุ่มจั่วปิด `atCap`)
-- **ตอนนี้ไม่มีความสามารถที่ทำให้ไพ่แตก** (ผู้ใช้ตัดสิน — GRID_PLAN §7) · `bustedOf(p)` = แต้มเกิน 21 (ยกเว้นช่วง Overload Force)
-  แม้จะอยู่ใน Overload Force (เพราะเป็นคำสั่ง ไม่ใช่ผลการคิดแต้ม)
+- **เพดาน** `scoreCap(p)`: 21 (แต้มถึงเพดาน = ปุ่มจั่วปิด `atCap`)
+- **ตอนนี้ไม่มีความสามารถที่ทำให้ไพ่แตก** (ผู้ใช้ตัดสิน — GRID_PLAN §7) · `bustedOf(p)` = แต้มเกิน 21
 - **ไพ่แตกแล้วไม่ล็อกอัตโนมัติ** — ยังกดสกิล/ไอเทมได้จนกว่าจะกดเปิดไพ่เอง แต่ท่าไม้ตายแบบ afterReveal ที่กดไปเป็นโมฆะ (`voidUltimateOnBust` ใน `server/combat.js`)
 
 ---
@@ -250,7 +246,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
   - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → จะเปลี่ยนเป็นคลื่นดาบแนว 4×3 (GRID_PLAN §7.3 — ยังไม่ลงโค้ด)
   - ระหว่างดาบสะบั้น: พลังโจมตี +3 (`damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
-    **Overload Force ไม่เกิด** (`blocksOverloadForce` เช็คใน `resolveRound`) · ภาพบนสนาม/เพลงสกิลเปลี่ยน (`displayImg`, `activeSkillMusic` → `"muimi"`) ·
+    ภาพบนสนาม/เพลงสกิลเปลี่ยน (`displayImg`, `activeSkillMusic` → `"muimi"`) ·
     เสียงตีปกติ `muimi_ub_hit` (ปกติ `muimi_normal_hit` — `attackSoundOf`)
   - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 5 เทิร์น (`p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
   - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักเฟสจั่วไพ่
@@ -339,7 +335,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 ## 8. คัตซีน / แปลงร่าง
 
 - **เสียงฝั่ง client:** `audioPolicy.js` กำหนดลำดับคัตซีน/เสียงพากย์ → เพลงสกิล → เพลงช่วงโจมตี (`battle_phase`) → เพลงภูมิภาค ของทุกโหมด
-  คัตซีนที่ถูกซ่อนจากผู้ชมไม่หยุดเพลงของผู้ชมคนนั้น · โหมดประหยัดเล่นเพลงต่อได้เมื่อข้ามวิดีโอ (ยกเว้นคัตซีน `overloadForce` ที่บังคับเล่น)
+  คัตซีนที่ถูกซ่อนจากผู้ชมไม่หยุดเพลงของผู้ชมคนนั้น · โหมดประหยัดเล่นเพลงต่อได้เมื่อข้ามวิดีโอ
   `playCutsceneVideo()` พักเพลงด้วย `suspendMusic()` จนกว่าจะออกจากคลิป และคืนเสียงหลัง autoplay บังคับปิดเสียงเมื่อผู้เล่นคลิก/กดแป้นพิมพ์
   เสียงพากย์ประกาศร่างต้องหยุดเมื่อออกจากฉาก · เสียงจบเทิร์นติดตามจาก PLAYING ผ่านคัตซีนถึง SUMMARY และเสียงโจมตีนับตาม `attack.id`
 - **สัดส่วนผสมเสียง (`client/src/audio.js`):** ระดับ = ฐานตามชนิด × ค่าปรับรายไฟล์ × `masterGain()`
@@ -411,13 +407,13 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   กฎเดิมยังอยู่ในโค้ดเป็นค่า fallback เมื่อ `Journey.active()` เป็น false (ตอนนี้ไม่มีโหมดไหนเข้าทางนั้น):
   กลางวัน = จบเทิร์นแต้มสกิล +1 เฉพาะเช้าที่ 2, 4, 6, … (`morningBonusActive`) · กลางคืน = สุ่ม basic/secondary ของแต่ละคนแพงขึ้น +1 (`p.nightTaxTier`)
 - **เกราะฟื้น +1 ทุกเทิร์นเลขคู่** เหมือนกันทั้งวัน/คืน (บล็อกโดย `decay`) — ภูมิภาค 5-7 ฟื้นทุกเทิร์น (`Journey.armorRegenDue`)
-- `cycleShift` = ตัวเลื่อนวงจรทั้งเกม (`engine.setCycleShift` ใช้ในเทสต์ · ถูกเก็บในสแนปช็อต Overload Force) — ถ้าจะเลื่อนวงจร **ต้องคำนวณใหม่ตรงๆ ห้ามบวกสะสม** (บวกคงที่ทำให้เกิดวันแทรกกลางคืนสั้นๆ)
+- `cycleShift` = ตัวเลื่อนวงจรทั้งเกม (`engine.setCycleShift` ใช้ในเทสต์) — ถ้าจะเลื่อนวงจร **ต้องคำนวณใหม่ตรงๆ ห้ามบวกสะสม** (บวกคงที่ทำให้เกิดวันแทรกกลางคืนสั้นๆ)
 
 ### 10.1 การเดินทาง 7 ภูมิภาค (ffa / duo / trio)
 
 โมดูลกลาง [characters/_journey.js](characters/_journey.js) (require ตรงเหมือน `_mark42` — ไม่ใช่ตัวละคร) · เทสต์ [tests/journey.test.js](tests/journey.test.js)
 - `Journey.active(engine)` = `gameMode` เป็น ffa/duo/trio (ทุกโหมดที่มีตอนนี้)
-- ภูมิภาค = `areaOf(roundNumber)` เปลี่ยนทุก `AREA_TURNS` (10) เทิร์น ค้างที่ 7 ถาวร — **ไม่มี state แยก** Overload Force จึงย้อนภูมิภาคไปด้วยเอง
+- ภูมิภาค = `areaOf(roundNumber)` เปลี่ยนทุก `AREA_TURNS` (10) เทิร์น ค้างที่ 7 ถาวร — **ไม่มี state แยก**
   กลางวัน/กลางคืนอ่านจาก `isNightRound()` (เทิร์น 1-5 ของภูมิภาคกลางวัน 6-10 กลางคืน)
 - ผลของภูมิภาค **แทน** กฎวัน/คืนเดิม: `Journey.nightTaxOn()` (เหลือแค่ภูมิภาค 1 กลางคืน) · `Journey.skillBonus()` (1 กลางวันเทิร์นคู่ / 7 ทุกเทิร์น)
 - จุดเสียบใน engine (ชื่อฟังก์ชันใน `_journey.js` → ที่เรียก):
@@ -438,20 +434,10 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 ---
 
-## 11. Overload Force
+## 11. ~~Overload Force~~ (ถอดออกแล้ว)
 
-- แต้มสูงสุด **เสมอกัน** (2 คนขึ้นไป) → โรล 30% (`OVERLOAD_FORCE_CHANCE`) → `triggerOverloadForce()` (`server/overload.js`)
-  - กันไม่ให้เกิด: เกิดไปแล้วในเทิร์นนี้ (`overloadForceActive`) · มีมุยมิติด "ดาบสะบั้น" ในสนาม (`muimi.blocksOverloadForce`)
-  - เล่นคลิป `overload_force_start.mp4` (คัตซีน `kind: "overloadForce"` — บังคับเล่นแม้โหมดประหยัด) แล้ว `beginOverloadForceDraw()`
-  - แจกไพ่ใหม่ **ในเทิร์นเดิม**, ปลดเพดาน 21 (ไม่มีการแตก — ยกเว้นคำสั่งไพ่แตกของมุยมิ), Joker = +12 ตายตัว, ปิดโชคลาภ · เพลง `overload_force`
-  - โทษ: ทุกใบที่ 5 ที่จั่วหลังแต้มเกิน 21 → เสีย HP จริง 1 (`applyOverloadOverdrawPenalty` ผ่าน `loseHp` — Mark 42/เลือดชั่วคราวรับแทนได้)
-- **ย้อนทั้งเทิร์นก่อนแจกไพ่ใหม่**: `captureTurnSnapshot()` (`structuredClone` ของ `players` + `roundSkills` + `shopItems` + `cycleShift`/`transformCounter`) ปลาย `dealRound()` ก่อนเข้าเฟสจั่วไพ่ ·
-  `restoreTurnSnapshot()` เรียกเป็นอย่างแรกใน `triggerOverloadForce()`
-  - คืนให้ครบ: แต้มสกิล, โควตา `skillUsedRound`, ไอเทม+เหรียญ, ดาเมจ/ดีบัฟที่ก่อในเทิร์นนั้น, ฟิลด์เฉพาะตัวละครบน `p` (เลขรอบคูลดาวน์ ฯลฯ), แม้แต่คนที่ตายไปแล้วก็ฟื้น
-    (บั๊กเดิม: สกิลที่ทำงาน "หลังเปิดไพ่" ถูกล้างทิ้งพร้อมมือไพ่ = เสียแต้มกับสกิลฟรี)
-  - **ไม่ย้อน** ข้อมูลการเชื่อมต่อ (`socketId`/`connected`/`sessionToken`/`ready`) และไม่ปลุกผู้เล่นที่ออกจากเกมกลางเทิร์น · สแนปช็อตใช้ได้ครั้งเดียว (ล้างทิ้งหลัง restore / ตอน `startMatch()` / กลับล็อบบี้)
-  - ผลข้างเคียง: ฟิลด์ของตัวละครต้องเป็น plain data ที่ `structuredClone` ได้ (ห้ามเก็บฟังก์ชัน/อ้างอิงวน) ไม่งั้นสแนปช็อตเป็น `null` เงียบๆ
-- เทสต์: [tests/overload-force.test.js](tests/overload-force.test.js) · [tests/overload-rollback.test.js](tests/overload-rollback.test.js)
+ผู้ใช้สั่งถอดออกทั้งระบบ (2026-10-08) — แต้มเสมอกันแค่สุ่มลำดับเดิน (§3) · **ห้ามใส่กลับ** · ไม่มีสแนปช็อตย้อนเทิร์นแล้ว
+(โฟลเดอร์สื่อ `/overload_force` ยังอยู่เพราะเพลงท่าไม้ตายมุยมิ `overload_force_theme.mp3` อยู่ในนั้น)
 
 ## 12. โหมดทีม
 
@@ -533,7 +519,6 @@ module.exports = {
 ```
 
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
-`muimi.blocksOverloadForce` (`resolveRound`) ·
 `muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
 `oberon_summer.onRoundStartTick` (ลูปของ `dealRound`) · `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) · `oberon_summer.onEndTurn` (`endTurn`) ·
 `resetCombat` ทั้งสองตัว (`combat.resetCombat`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
@@ -576,4 +561,4 @@ npm test    # node --test "tests/**/*.test.js"
 - `tests/characters/*.test.js` — ทดสอบ hook รายตัวละคร (`muimi`, `oberon_summer`, `duplicate-safety`) ผ่าน `engine` จริงจาก `server.js` หรือ mock
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
-- ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` · `spellburden` · `overload-force` / `overload-rollback` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`

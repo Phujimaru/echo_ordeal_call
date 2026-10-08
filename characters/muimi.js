@@ -132,10 +132,4 @@ module.exports = {
     }
     return null;
   },
-
-  blocksOverloadForce(engine) {
-    return Object.values(engine.players).some(
-      (p) => p.alive && towerActive(p)
-    );
-  },
 };

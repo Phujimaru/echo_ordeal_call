@@ -20,7 +20,6 @@ const action = require("./phases/action");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
 const draw = require("./phases/draw");
-const overload = require("./overload");
 const socketLayer = require("./socket");
 const timers = require("./timers");
 const view = require("./view");
@@ -254,10 +253,7 @@ function startMatch() {
   for (const p of Object.values(match.players)) combat.resetCombat(p);
   match.roundNumber = 0;
   match.cycleShift = 0;
-  match.overloadForceActive = false;
-  match.overloadForceCount = 0;
   match.journeyScene = null;
-  overload.clearTurnSnapshot();
   action.placeOnBoard(1); // กระดานภูมิภาค I · แจกจุดเกิด (GRID_PLAN §3)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (รอเปิดใหม่ตอนเทิร์นที่ 5)
   match.cutsceneQueue = [];
@@ -308,10 +304,7 @@ function backToLobby() {
   match.action = null;
   match.roundNumber = 0;
   match.cycleShift = 0;
-  match.overloadForceActive = false;
-  match.overloadForceCount = 0;
   match.journeyScene = null;
-  overload.clearTurnSnapshot();
   match.lastLog = [];
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;

@@ -3,9 +3,9 @@
 Object.assign(module.exports, {
   maxHpOf, healHp, healArmor, maxSkillOf, sameTeam,
   friendlyEffectBlocked, withEffectSource, applyBuff, applyDebuff,
-  applySpellburden, alivePlayers, overloadCanSafelyDraw, resetOverloadDrawCounter,
+  applySpellburden, alivePlayers,
   maxArmorOf, instantDeath,
-  resolveDamageAftermath, healOverflow, loseHp, applyOverloadOverdrawPenalty, loseArmor,
+  resolveDamageAftermath, healOverflow, loseHp, loseArmor,
   damageSoft, dealDirect, dealArmorOnly, dealMixed,
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
@@ -101,17 +101,6 @@ function applySpellburden(p, turns) {
 // ============================================================
 // ผู้เล่นที่ยังรอด
 function alivePlayers() { return Object.values(match.players).filter((p) => p.alive); }
-function overloadCanSafelyDraw(p) {
-  if (!match.overloadForceActive) return true;
-  const nextExtraDraw = (p.overloadExtraDraws || 0) + 1;
-  return nextExtraDraw % 5 !== 0 || p.hp > 1;
-}
-
-function resetOverloadDrawCounter(p, ready = false) {
-  if (!p) return;
-  p.overloadExtraDraws = 0;
-  p.overloadDrawReady = !!ready;
-}
 
 // สถานะผิดปกติพื้นฐาน (ล้างออกได้ทั้งหมดด้วยผลล้างดีบัฟ)
 const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
@@ -165,20 +154,6 @@ function loseHp(p) {
   p.hp--; p.dmgHp++;
 }
 
-// Overload Force: เริ่มนับเฉพาะไพ่ที่จั่วหลังคะแนนเกิน 21 และรีเซ็ตตัวนับใหม่ทุกเทิร์น
-// ทุกใบที่ 5 ในช่วงคะแนนเกิน 21 จะเสีย HP จริง 1 หน่วย
-// ใช้ loseHp เพื่อให้ระบบกันตาย (เกราะ Mark 42 / เลือดชั่วคราว) ยังทำงานตามกติกาหลักของเกม
-function applyOverloadOverdrawPenalty(p) {
-  if (!match.overloadForceActive || !p || !p.alive || !p.overloadDrawReady) return;
-  if (cardDeck.calculateScore(p.cards) <= 21) return;
-  p.overloadExtraDraws = (p.overloadExtraDraws || 0) + 1;
-  if (p.overloadExtraDraws % 5 !== 0) return;
-  const before = p.hp;
-  loseHp(p);
-  if (p.alive && p.hp <= 0) instantDeath(p);
-  const lost = Math.max(0, before - p.hp);
-  match.lastLog.push(`⚡ ${p.name} จั่วเพิ่มครบ ${p.overloadExtraDraws} ใบใน Overload Force — HP -${lost}${p.alive ? "" : " และหมดสภาพต่อสู้!"}`);
-}
 function loseArmor(p) {
   if (friendlyEffectBlocked(p)) return;
   // เกราะ Mark 42: ล้าง/สลายเกราะ ลงเกราะชุดแทนเกราะจริงที่ซ่อนอยู่ข้างใต้

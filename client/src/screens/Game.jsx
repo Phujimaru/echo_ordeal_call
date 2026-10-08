@@ -131,21 +131,6 @@ function Cutscene({ cs }) {
   );
 }
 
-// Overload Force: วิดีโอเต็มจอโดยไม่มีโปรไฟล์หรือการ์ดตัวละครซ้อน
-function OverloadForceCutscene({ cs }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    return playCutsceneVideo(v);
-  }, [cs.id]);
-  return (
-    <div className="fixed inset-0 z-50 bg-black overflow-hidden">
-      <video ref={ref} src={cs.video} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-    </div>
-  );
-}
-
 // ---------- อนิเมชันบอกว่าใครตีใคร + สกิลที่มีผลกับการโจมตีครั้งนี้ ----------
 //  แถวสกิลข้างใต้บอกว่า "ทำไมความเสียหายถึงเป็นเท่านี้ / ทำไมป้องกันได้"
 //  choreography ใหม่: พุ่งเข้าปะทะ -> แฟลชกระทบ -> ตัวเลข/ผล -> สกิลไล่เข้าทีละใบ — ทั้งหมดต้องจบภายใน a.fxMs (server เป็นคนคุมเวลาตัดฉาก)
@@ -495,16 +480,6 @@ function JourneyInfoModal({ journey, onClose }) {
   );
 }
 
-function OverloadForceBadge() {
-  return (
-    <div className="fixed top-[calc(58%+5.5rem)] left-1/2 -translate-x-1/2 z-40 pointer-events-none">
-      <div className="pop-in whitespace-nowrap text-sm font-black text-cyan-200 bg-black/75 px-4 py-1 rounded-full border border-cyan-300/60 text-hard">
-        ⚡ Overload Force
-      </div>
-    </div>
-  );
-}
-
 // สนามประลอง 2.5D: spec = "จำนวนคนอื่น~กว้าง~สูง~สีเรา|สีคนอื่น…" (สตริงเดียว memo ง่าย) → ผังที่นั่งชุดเดียวกับ GameBoard
 // การ์ดผู้เล่น/กองไพ่หล่นลงที่นั่งเมื่อฉากพุ่งลง (ArenaScene) ใกล้จบ — วินาทีนับจาก mount
 const ARENA_SEAT_IN_S = 4.9;
@@ -526,7 +501,7 @@ function ArenaBackground({ area, night, lowQ, spec }) {
 // ---------- ฉากหลังกลางวัน/กลางคืน (patch 1.7) ----------
 //  กลางวัน = background_morning.jpg | กลางคืน = background_night.jpg
 //  เปลี่ยนช่วงเวลาแบบ crossfade ช้าๆ (ไม่ตัดปุ๊บปั๊บ) — ซ้อนทั้ง 2 ภาพแล้วเฟดสลับกัน
-function GameBackground({ cycle, round, overloadForce, lowQ, journey, arena }) {
+function GameBackground({ cycle, round, lowQ, journey, arena }) {
   return (
     <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
       {/* การเดินทาง (ffa/duo/trio): ฉากหลังประจำภูมิภาค แยกกลางวัน/กลางคืน แทนสนามดอกไม้เดิม */}
@@ -536,13 +511,6 @@ function GameBackground({ cycle, round, overloadForce, lowQ, journey, arena }) {
         : journey
           ? <JourneyBackdrop area={journey.area} night={journey.night} lowQ={lowQ} />
           : <ArenaBackdrop cycle={cycle} round={round} />}
-      {overloadForce && (
-        <img
-          src="/overload_force/back_cyber.gif"
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover bg-fade-in"
-        />
-      )}
       {/* ฉากหลังการเดินทางมีชั้นเกรดสีของตัวเองแล้ว (jb-grade) — ไม่ซ้อนดำเพิ่มอีกชั้น */}
       {!journey && <div className="absolute inset-0 bg-[#0b1d3a]/10" />}
     </div>
@@ -685,14 +653,13 @@ function SummaryTiers({ winners, losers, compact }) {
 //  ไม่งั้นฉากจะถูกถอดออกกลางคัน แล้วฉากถัดไปในคิวจะเด้งมาทับตอนอันเก่ายังจางไม่หมด
 const SCENE_MS = { cycle: 3500, draw: 2000, atk: 2200, shop: 3700 };
 
-function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx, overloadForce }) {
+function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx }) {
   return (
     <>
       {phase === "ATTACKING" && attack && <AttackFx key={attack.id} a={attack} />}
       {csSkipped && <CutsceneSkipNotice key={csSkipped.id} cs={csSkipped} />}
       {flash && <SkillFlash key={flash.id} f={flash} />}
       {notice && <TransformNotice key={notice.id} n={notice} />}
-      {overloadForce && <OverloadForceBadge />}
       {cycleFx && <CycleScene key={cycleFx.id} c={cycleFx} />}
     </>
   );
@@ -874,7 +841,7 @@ const STATUS_INFO = {
   netramana:   { icon: "✨", label: "เนตรมณะ", cls: "bg-echo-ice text-gray-900", desc: "เนตรมณะ: ตีปกติ 20% สังหารทันที · เป็นบัฟ (ยาต้านสถานะล้างไม่ได้) · ซ้อนกับโอกาสสังหารของตัวละครได้" },
   stagger: { icon: "🫨", label: "ชะงัก", cls: "bg-echo-hp", desc: "ชะงัก: ฟื้นฟูแต้มสกิลไม่ได้ทุกช่องทาง ตามจำนวนเทิร์นที่เหลือ" },
   muimiRusty: { icon: "🗡️", label: "ดาบเก่าๆ", cls: "bg-echo-armor", desc: "ดาบเก่าๆ: เมื่อโจมตีปกติจะฟื้นพลังชีวิต 1 หน่วย และแต้มสกิล 1 หน่วย — ระหว่างสถานะนี้ใช้ดาบสะบั้นหอคอยสวรรค์ไม่ได้" },
-  muimiTower: { icon: "⚔️", label: "ดาบสะบั้น", cls: "bg-echo-ice text-gray-900", desc: "ดาบสะบั้น: โจมตีพื้นฐาน +3 · ตีปกติฟื้นพลังชีวิต 2 และยืดสถานะ +1 เทิร์น · ไม่เกิด Overload Force" },
+  muimiTower: { icon: "⚔️", label: "ดาบสะบั้น", cls: "bg-echo-ice text-gray-900", desc: "ดาบสะบั้น: โจมตีพื้นฐาน +3 · ตีปกติฟื้นพลังชีวิต 2 และยืดสถานะ +1 เทิร์น" },
   mend:      { icon: "💚", label: "เยียวยา", cls: "bg-echo-armor", desc: "เยียวยา: ต้นเทิร์นฟื้นพลังชีวิตเท่ากับจำนวนหน่วยที่ระบุ (1 หน่วย = 1 พลังชีวิต) — ซ้อนทับจำนวนเทิร์นได้สูงสุด 5 เทิร์น" },
   blind:     { icon: "🕶️", label: "ตาบอด", cls: "bg-echo-hp", desc: "ตาบอด: มองไม่เห็นอะไรเลยทั้งเทิร์น — ไพ่ แต้ม พลังงาน พลังชีวิต และเกราะของทุกคนรวมทั้งของตัวเอง ถูกปิดหมด" },
   // โอเบรอน (ฤดูร้อน)
@@ -1875,7 +1842,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const sceneSeq = useRef(0);
   const prevPhaseRef = useRef(null);
   // ประกาศช่วงละครั้งต่อเทิร์น — phase กลับมาเป็น PLAYING/ATTACK ซ้ำได้หลายรอบในเทิร์นเดียว
-  //  (จบคัตซีนท่าไม้ตาย, Overload Force แจกไพ่ใหม่)
+  //  (เช่น จบคัตซีนท่าไม้ตาย)
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
@@ -2088,10 +2055,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
   // เฟส CUTSCENE: วีดีโอแปลงร่าง (key=id -> remount กันจอดำ)
   //  โหมดประหยัด (patch 2.0.6): ข้ามวีดีโอ — แสดงกระดาน + แจ้งเตือนว่าใครเปิดท่าไม้ตาย รอเวลาเท่าวีดีโอจริง
-  const csOverload = phase === "CUTSCENE" && state.cutscene && state.cutscene.kind === "overloadForce" ? state.cutscene : null;
-  const csSkipped = lowQ && phase === "CUTSCENE" && state.cutscene && !csOverload ? state.cutscene : null;
-  const cutsceneEl = csOverload ? <OverloadForceCutscene key={state.cutscene.id} cs={state.cutscene} />
-    : phase === "CUTSCENE" && state.cutscene && !lowQ ? <Cutscene key={state.cutscene.id} cs={state.cutscene} />
+  const csSkipped = lowQ && phase === "CUTSCENE" && state.cutscene ? state.cutscene : null;
+  const cutsceneEl = phase === "CUTSCENE" && state.cutscene && !lowQ ? <Cutscene key={state.cutscene.id} cs={state.cutscene} />
     : null;
   // จอคอม: คัตซีนลอยทับกระดาน (ท้าย return ด้านล่าง) — เดิมคืนคัตซีนแทนกระดานทั้งจอ ทำให้กระดาน+สนาม 2.5D+HUD
   //  ถูกถอดแล้ว mount ใหม่ทุกครั้งที่จบคัตซีน (สร้างฉากใหม่ทั้งหมด = จอกระตุก/กะพริบตอนกลับมา) · มือถือคงแบบเดิม
@@ -2114,7 +2079,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     const revealed = phase === "SUMMARY" || phase === "ATTACK" || phase === "ATTACKING";
     return (
       <div className="fixed inset-0 overflow-hidden flex flex-col">
-        <GameBackground cycle={state.cycle} round={state.roundNumber} overloadForce={state.overloadForce} lowQ={lowQ} />
+        <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} />
         {/* แถบบน: รอบ + เวลา (เว้นขวาให้ปุ่มเสียง) */}
         <div className="shrink-0 flex flex-col items-center gap-1 pt-2 px-14 min-h-[40px]">
           {(phase === "PLAYING" || phase === "ATTACK") && (
@@ -2322,7 +2287,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         {scene?.kind === "draw" && <DrawCall key={scene.id} />}
 
         {/* ---------- overlay ที่ใช้ร่วมกับจอคอม ---------- */}
-        <OverlayLayer phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} overloadForce={state.overloadForce} />
+        <OverlayLayer phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} />
         <FlyingCardsLayer flights={cardFlights} onDone={removeCardFlight} />
 
         {/* ---------- แบนเนอร์รอบถัดไป ---------- */}
@@ -2369,7 +2334,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      <GameBackground cycle={state.cycle} round={state.roundNumber} overloadForce={state.overloadForce} lowQ={lowQ} journey={arenaJourney} arena={arenaBg} />
+      <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} arena={arenaBg} />
       <div
         className="relative overflow-hidden"
         style={{ width: DESIGN_W, height: designH, transform: `scale(${scale})`, transformOrigin: "top left" }}
@@ -2561,7 +2526,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {scene?.kind === "draw" && <DrawCall key={scene.id} />}
 
       {/* ---------- overlay ที่ใช้ร่วมกับมือถือ ---------- */}
-      <OverlayLayer phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} overloadForce={state.overloadForce} />
+      <OverlayLayer phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} />
       <FlyingCardsLayer flights={cardFlights} onDone={removeCardFlight} />
       {journeyInfoOpen && state.journey && <JourneyInfoModal journey={state.journey} onClose={() => setJourneyInfoOpen(false)} />}
 
