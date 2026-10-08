@@ -7,10 +7,11 @@
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
-  removeFromOrder, hasActed, areaRange, resolveArea,
+  removeFromOrder, hasActed, areaRange, resolveArea, tileEndEffect,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
+const Status = require("../../characters/_universal_status");
 const { ACTION_TIME, ORDER_TIME, GOLD_FIRST_BONUS, DEFAULT_MOV, DEFAULT_RANGE } = require("../constants");
 const Board = require("../board");
 const match = require("../match");
@@ -214,13 +215,45 @@ function waitAction(id) {
   finishActor();
   return true;
 }
-// จบตาของคนที่กำลังเดิน: ผลของช่อง (จุดฟื้นฟู) แล้วไปคนถัดไป
+// จบตาของคนที่กำลังเดิน: ผลของช่อง (จุดฟื้นฟู / ช่องพิเศษ) แล้วไปคนถัดไป
 function finishActor() {
   timers.clearPhaseTimer();
   const p = match.players[match.actorId];
-  if (p && p.alive && p.pos && Board.isHeal(boardMap(), p.pos.x, p.pos.y) && combat.healHp(p, 1) > 0) {
-    match.lastLog.push(`✨ ${p.name} ยืนบนวงเวทฟื้นฟู — ฟื้นพลังชีวิต +1`);
+  const map = boardMap();
+  if (p && p.alive && p.pos && Board.isHeal(map, p.pos.x, p.pos.y) && combat.healHp(p, 1) > 0) {
+    const heal = Board.TERRAIN_INFO[map.healKind || "heal"];
+    match.lastLog.push(`${heal.icon} ${p.name} ยืนบน${heal.name} — ฟื้นพลังชีวิต +1`);
   }
+  if (p && p.alive && p.pos) tileEndEffect(p);
   match.action = null;
   nextActor();
+}
+// ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น
+//  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้)
+function tileEndEffect(p) {
+  const fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked() });
+  if (!fx) return null;
+  const info = Board.TERRAIN_INFO[fx.kind];
+  if (fx.kind === "thorns") {
+    // ติดตอนจบตา → endTurn ของเทิร์นนี้ลดเทิร์นสถานะไป 1 ทันที จึงตั้งเผื่อ +1
+    //  = พิษมีผลเต็มๆ 1 เทิร์นถัดไป (ต้นเทิร์นเสีย 1 · พลังโจมตี −1 ตลอดเทิร์นนั้น)
+    if (Status.applyPoison(p, fx.turns + 1)) match.lastLog.push(`${info.icon} ${p.name} จบตาบน${info.name} — ติดพิษร้าย ${fx.turns} เทิร์น`);
+    else match.lastLog.push(`${info.icon} ${p.name} จบตาบน${info.name} — แต่ต้านสถานะผิดปกติไว้ได้`);
+  } else if (fx.kind === "lava") {
+    combat.dealMixed(p, fx.dmg, true);
+    match.lastLog.push(`${info.icon} ${p.name} จบตาบน${info.name} — เสียหาย -${fx.dmg} (ลดเกราะก่อน)`);
+    if (p.alive && p.hp <= 0) {
+      combat.instantDeath(p);
+      if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
+    }
+    if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
+  } else if (fx.kind === "whirl") {
+    if (fx.to) {
+      p.pos = { x: fx.to.x, y: fx.to.y };
+      match.lastLog.push(`${info.icon} ${p.name} โดน${info.name}ดันไป 1 ช่อง`);
+    } else {
+      match.lastLog.push(`${info.icon} ${p.name} อยู่ใน${info.name} แต่ช่องข้างหน้าไม่ว่าง — ไม่ขยับ`);
+    }
+  }
+  return fx;
 }

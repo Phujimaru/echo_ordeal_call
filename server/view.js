@@ -40,11 +40,16 @@ function activeSkillMusic() {
   return best;
 }
 
-// แผนที่ที่ client วาด (ค่าคงที่ต่อภูมิภาค — ส่งไปทั้งก้อนเพราะไม่ใหญ่: สิ่งกีดขวาง ~20 ช่อง)
+// แผนที่ที่ client วาด (ค่าคงที่ต่อภูมิภาค — ส่งไปทั้งก้อนเพราะไม่ใหญ่: สิ่งกีดขวาง ~20 ช่อง + ช่องพิเศษ)
+//  special = { "x,y": ชนิด } · flow = { "x,y": ทิศกระแสน้ำวน } · healKind = ชื่อจุดฟื้นฟูใน Board.TERRAIN_INFO
 function boardPublic() {
   if (!match.board) return null;
   const m = action.boardMap();
-  return { area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal], spawns: m.spawns, shopSpots: m.shopSpots };
+  return {
+    area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal],
+    special: m.special || {}, flow: m.flow || {}, healKind: m.healKind || "heal",
+    spawns: m.spawns, shopSpots: m.shopSpots,
+  };
 }
 
 // ============================================================

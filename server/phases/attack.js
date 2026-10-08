@@ -54,12 +54,22 @@ function computeAttackBase(engine, attacker, target) {
   const journeyAtk = journeyAtkFx ? journeyAtkFx.amount : 0;
   // โอเบรอน (ฤดูร้อน): บัฟพลังโจมตีที่แจกให้คนอื่น — ungated ใครติดสถานะก็ได้
   const giftAtk = CHAR_HOOKS.oberon_summer.atkBonus(attacker);
-  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
+  // ช่องพิเศษ (GRID_PLAN §3.1): ยืนบนแท่นพลัง พลังโจมตี +1 — ungated ใครยืนก็ได้
+  const terrainAtk = attacker.pos ? Board.terrainAtk(action.boardMap(), attacker.pos.x, attacker.pos.y) : 0;
+  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
-    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx,
+    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk,
     ...hookCtx,
   };
+}
+
+// ทอยหลบจากช่องที่เป้ายืน (พุ่มดอกไม้สูง/ป่าทึบ — GRID_PLAN §3.1) → หลบพ้น = ข้อมูลช่อง { name, icon, pct } · ไม่พ้น/ไม่มี = null
+//  ทอยเฉพาะตอนเป้ายืนบนช่องที่หลบได้ (ช่องอื่นไม่แตะ Math.random) · ผู้เรียกเช็ค "แม่นยำ" เอง
+function terrainCoverDodge(target) {
+  if (!target || !target.pos) return null;
+  const cover = Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y);
+  return cover && Math.random() * 100 < cover.pct ? cover : null;
 }
 
 // ประเมินพลังโจมตีปกติที่ attacker จะฟาดใส่ target ได้ (engine.attackPowerAgainst)
@@ -97,6 +107,16 @@ function strike(attacker, target, { counter = false } = {}) {
     }
     match.lastLog.push(`💨 ${target.name} พยายามหลบ (${evadePct}%) แต่ไม่พ้น — การโจมตีดำเนินต่อ (เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง)`);
   }
+  // ช่องพิเศษ (GRID_PLAN §3.1): เป้ายืนในพุ่มดอกไม้สูง/ป่าทึบ หลบได้อีก 20% (ทอยแยกหลังสถานะหลบหลีก · แม่นยำเจาะได้)
+  const cover = !accurate && terrainCoverDodge(target);
+  if (cover) {
+    target.wasAttacked = true;
+    match.lastLog.push(`${cover.icon} ${target.name} หลบการ${verb}ของ ${attacker.name} ใน${cover.name}ได้ (${cover.pct}%)`);
+    return {
+      dmg: 0, dodge: true, kill: false,
+      skills: [{ name: `${cover.name} — หลบหลีก ${cover.pct}%`, img: null, by: target.name, color: lobby.colorOf(target), side: "def" }],
+    };
+  }
 
   // ---------- "เนตรมณะ" (สถานะ Universal patch 2.2.7) ----------
   //  ใครก็ตามที่ติดบัฟนี้ โจมตีปกติแล้วมีโอกาสสังหารเป้าหมายทันที NETRAMANA_KILL_CHANCE
@@ -117,7 +137,7 @@ function strike(attacker, target, { counter = false } = {}) {
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
-  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, muimiTowerAtk } = atkCtx;
+  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, muimiTowerAtk } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   let dmg = base;
@@ -164,6 +184,7 @@ function strike(attacker, target, { counter = false } = {}) {
   const defFx = (name, img = view.displayImg(target)) => addFx({ name, img, by: target.name, color: lobby.colorOf(target) }, "def");
   if (mark42Atk > 0) atkFx(`เกราะ Mark 42 +${mark42Atk}`, Mark42.IMG.suit);
   if (journeyAtkFx) atkFx(journeyAtkFx.name, null);
+  if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
   for (const name of CHAR_HOOKS.oberon_summer.atkFx(attacker)) atkFx(name, CHAR_HOOKS.oberon_summer.IMG.base);
   if (journeyCritFx.crit) atkFx(`คริติคอล ×2 (${journeyCritFx.pct}%)`, null);
   if (accurate) atkFx("แม่นยำ — เจาะการหลบหลีก");
@@ -199,6 +220,11 @@ function skillStrike(attacker, target, reason) {
       match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
       return { dmg: 0, dodge: true, kill: false };
     }
+  }
+  const cover = !accurate && terrainCoverDodge(target); // พุ่มดอกไม้สูง/ป่าทึบ +20%
+  if (cover) {
+    match.lastLog.push(`${cover.icon} ${target.name} หลบ${reason}ใน${cover.name}ได้ (${cover.pct}%)`);
+    return { dmg: 0, dodge: true, kill: false };
   }
   const atkCtx = computeAttackBase(engine, attacker, target);
   let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
@@ -263,10 +289,11 @@ function counterAndPush(attacker, target, card) {
     card.counter = strikeCard(target, attacker, back);
     if (attacker.alive) {
       const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked() });
-      card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide };
+      // via = ช่องน้ำแข็งที่ไถลผ่าน (ถอยบนน้ำแข็ง = 2 ช่อง) — client วาดการไถลผ่านช่องนี้
+      card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide, via: push.via || null };
       if (push.moved) {
         attacker.pos = { x: push.x, y: push.y };
-        match.lastLog.push(`↩️ ${attacker.name} ถอย 1 ช่อง`);
+        match.lastLog.push(push.via ? `↩️🧊 ${attacker.name} ถอยบนน้ำแข็ง ไถลไป 2 ช่อง` : `↩️ ${attacker.name} ถอย 1 ช่อง`);
       } else {
         combat.dealMixed(attacker, 1, true);
         match.lastLog.push(`💥 ${attacker.name} ถอยชนสิ่งกีดขวาง — เสียเพิ่ม -1`);
