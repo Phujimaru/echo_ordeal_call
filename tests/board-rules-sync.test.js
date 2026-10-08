@@ -45,7 +45,7 @@ test('boardRules.js: ช่องพิเศษ (น้ำแข็ง/ทร�
   const Server = require('../server/board.js');
   const Client = await import('../client/src/board/boardRules.js');
   const mk = (special, terrain = {}) => ({
-    area: 0, cols: 16, rows: 12, terrain, special, flow: {}, heal: new Set(), healKind: 'heal', spawns: [], shopSpots: [],
+    area: 0, cols: 14, rows: 14, terrain, special, flow: {}, heal: new Set(), healKind: 'heal', spawns: [], shopSpots: [],
   });
   const me = { id: 'a', x: 4, y: 5, alive: true };
   const cases = [
@@ -53,7 +53,7 @@ test('boardRules.js: ช่องพิเศษ (น้ำแข็ง/ทร�
     { name: 'น้ำแข็งไถลไม่ได้', map: mk({ '5,5': 'ice' }, { '6,5': 'rock' }), mov: 2, units: [me, { id: 'b', x: 4, y: 3, alive: true }] },
     { name: 'ทรายดูด', map: mk({ '5,5': 'quicksand', '4,6': 'quicksand' }), mov: 4, units: [me] },
     { name: 'ค่าเดิน 2', map: mk({ '5,5': 'flowers', '5,4': 'forest', '5,6': 'shallow', '6,5': 'shallow' }), mov: 4, units: [me] },
-    { name: 'ทะเลสาบน้ำแข็งจริง', map: Server.MAPS[6], mov: 5, units: [{ id: 'a', x: 3, y: 4, alive: true }] },
+    { name: 'ทะเลสาบน้ำแข็งจริง', map: Server.MAPS[6], mov: 5, units: [{ id: 'a', x: 2, y: 4, alive: true }] },
   ];
   for (const c of cases) {
     const r1 = Server.reachable(c.map, c.units[0], c.mov, c.units);

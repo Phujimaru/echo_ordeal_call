@@ -1,5 +1,5 @@
 // ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS (GRID_PLAN §8.1 · ขั้น 4)
-//  แผนที่ภูมิภาค I (server/board.js MAPS[1]) — จุดร้านค้า: (7,2) (2,2) (13,2) (2,10) (13,10) (8,9)
+//  แผนที่ภูมิภาค I (server/board.js MAPS[1]) — จุดร้านค้า: (6,2) (1,3) (12,3) (1,10) (12,10) (7,11)
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine } = require('../server.js');
