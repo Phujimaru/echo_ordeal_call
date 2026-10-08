@@ -4,9 +4,9 @@
 > อ้างอิงด้วยชื่อไฟล์/ชื่อฟังก์ชัน ไม่ใช้เลขบรรทัด — ค้นด้วยชื่อฟังก์ชันได้เสมอ · ตรวจกับโค้ดล่าสุดหลังย้ายจากโปรเจกต์เดิม
 > (ตัวละครที่มี: **มุยมิ** `muimi` + **โอเบรอน (ฤดูร้อน)** `oberon_summer` · โหมด: ffa / duo / trio)
 >
-> ⚠️ **กำลังเปลี่ยนเป็นระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) ·
-> ฝั่ง server ลงแล้ว: กระดาน `server/board.js` + วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
-> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS / Mark 42 (§9) · ที่ยังไม่ลง: หน้าจอกระดานฝั่ง client
+> **ระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาที่ผู้ใช้ตัดสินอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) · ลงครบแล้ว:
+> กระดาน + ช่องพิเศษ `server/board.js` · วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
+> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS / Mark 42 (§9) · หน้าจอกระดานฝั่ง client (§17) · **Overload Force ถอดออกแล้ว — ห้ามมี**
 
 ---
 
@@ -22,7 +22,7 @@ characters/_universal_status.js  บัฟ/ดีบัฟกลาง (ส่�
 characters/_transforms.js        ตาราง metadata คัตซีน (TRANSFORMS) — data ล้วน
 characters/_mark42.js            เกราะ Mark 42 (ไอเทมร้านค้า) — ระบบกลาง ไม่ใช่ตัวละคร (ไม่อยู่ใน CHAR_HOOKS, require ตรง)
 characters/_journey.js           การเดินทาง 7 ภูมิภาค — ระบบกลาง ไม่ใช่ตัวละคร (require ตรง)
-client/src/                      React (Vite): App.jsx คุมฉาก, screens/Game.jsx (~2.6k บรรทัด) คือ UI สนามทั้งหมด
+client/src/                      React (Vite): App.jsx คุมฉาก, screens/Game.jsx = HUD + modal (จอคอมวาดกระดานผ่าน board/BoardStage.jsx — §17)
 tests/                           node --test (ไม่มี dep เพิ่ม) — มี integration test ที่ spawn server จริง
 ```
 
@@ -57,7 +57,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
-| `board.js` | **กระดาน (ฟังก์ชันล้วน)**: แผนที่ภูมิภาค (`MAPS`, `mapOf`), BFS เดิน (`reachable`/`pathTo`), ระยะ (`tilesInRange`/`aoeTiles`/`lineTiles`), `attackTargets`, `canCounter`, `pushback`, `threatZone`, `assignSpawns`, `pickShopSpot`, `nearShop` |
+| `board.js` | **กระดาน (ฟังก์ชันล้วน)**: แผนที่ภูมิภาค I–VII (`MAPS`, `mapOf`) + ช่องพิเศษ (`TERRAIN_INFO`, `specialAt`, `moveCost`, `terrainEvade`, `terrainAtk`, `tileInfo`, `endTurnTile`), เดินแบบมีค่าเดิน/ทรายดูด/น้ำแข็ง (`reachable`/`pathTo`), ระยะ (`tilesInRange`/`aoeTiles`/`lineTiles`), `attackTargets`, `canCounter`, `pushback`, `threatZone`, `assignSpawns`, `pickShopSpot`, `nearShop` · **client ใช้สำเนาที่สร้างอัตโนมัติ** `client/src/board/boardRules.js` (`node scripts/gen-board-rules.js` — เทสต์ `board-rules-sync` ฟ้องถ้าไม่ตรง) |
 | `phases/summary.js` | `resolveRound` (เปิดไพ่), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
 | `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
 | `phases/attack.js` | `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `strike` (ตี 1 ครั้ง), `boardAttack` (ตี → สวน → ถอย), `doAttack` (ตี 1 ครั้งไม่มีกระดาน), `attackSoundOf` |
@@ -470,8 +470,8 @@ safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name
 ห้องรอ:        startGame   toggleReady   selectGameMode {mode}   modeBackToLobby   teamBackToMode
                chooseTeam {teamId}   confirmTeam {confirmed}   lobbyEmote {emoji,dir}
 จั่วไพ่:        hit   lock
-ตาเดิน:        move {x,y}   undoMove   attack {targetId}   endAction (รอ)   useSkill {tier,targets}
-               buyShopItem {itemId}   useInventoryItem {uid,cardIndex,color,targetId,mode}   mark42Control {action}
+ตาเดิน:        move {x,y}   undoMove   attack {targetId}   endAction (รอ)   useSkill {tier,targets,dir}
+               buyShopItem {itemId}   useInventoryItem {uid,targetId,mode}   dropItem {uid}   mark42Control {action}
                (ทั้งหมดผ่านด่าน action.canAct — ตาของตัวเองเท่านั้น)
                qteKey {key}   qteTimeout
 จบเกม:         backToLobby
@@ -481,7 +481,7 @@ safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name
 
 | event | เนื้อหา |
 |---|---|
-| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING · กระดาน: `board` (แผนที่ภูมิภาค), `turnOrder`, `actorId`, `action` {from,moved,locked,path}, ต่อผู้เล่น `pos`/`mov`/`baseMov`/`range` |
+| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING · กระดาน: `board` (แผนที่ภูมิภาค + `special`/`flow`/`healKind`), `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `forecast` (คนที่กำลังเดิน: {[id]:{dmg,back}}), `shopPos`, `shopTurnsLeft`, `bagSlots`, `gutsRange`, ต่อผู้เล่น `pos`/`mov`/`baseMov`/`range` |
 | `tick` | ตัวเลขเวลาที่เหลือทุกวินาที (state ตัวเต็มส่งทุก `RESYNC_EVERY` วิ) |
 | `roster` / `positions` / `takenChars` | หน้า setup/lobby (ส่งตอนเชื่อมต่อ + `broadcastPositions()`) |
 | `joined` / `reconnected` / `sessionExpired` / `sessionInUse` | session (`sessionToken`) |
@@ -493,8 +493,7 @@ safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name
 | `lobbyEmote` | อีโมตบนลูกโลกในห้องรอ |
 
 - ไม่มีระบบห้อง — **เกมเดียวทั้งเซิร์ฟเวอร์**, สูงสุด 7 คน (patch 2.8)
-  - `POSITION_COLORS` มี 7 คีย์ = ที่นั่ง 1-7 (`POSITIONS` ฝั่ง client ตรงกัน) · `SLOTS` ใน `client/src/screens/Game.jsx` คือผังการ์ดผู้เล่นคนอื่น
-    (index = จำนวนคนอื่น สูงสุด 6) ที่ต้อง **ไม่ทับกองการ์ดกลาง** (top 40% / left 45-55%)
+  - `POSITION_COLORS` มี 7 คีย์ = ที่นั่ง 1-7 (`POSITIONS` ฝั่ง client ตรงกัน)
 - `playerId` แยกจาก `socket.id` → รีคอนเนกต์กลับมาเป็นคนเดิมได้ · ระหว่างแมตช์ผู้เล่นที่หลุดถูกพักไว้ไม่มีกำหนด ·
   ในห้องรอ/ก่อนเริ่มเกม ถูกลบเมื่อครบ `RECONNECT_GRACE_MS` (60s) · มีคนออกหรือหลุดก่อนเริ่มเกม = ย้อนกลับห้องรอ (`resetPregameFlowToLobby`)
 - `buildStateFor` เป็นจุดเดียวที่ตัดสินว่าอะไรถูกซ่อน — เพิ่มฟิลด์ลับต้องระวังที่นี่ (`mine` = ของเจ้าตัวเท่านั้น)
@@ -570,4 +569,30 @@ npm test    # node --test "tests/**/*.test.js"
 - `tests/characters/*.test.js` — ทดสอบ hook รายตัวละคร (`muimi`, `oberon_summer`, `duplicate-safety`) ผ่าน `engine` จริงจาก `server.js` หรือ mock
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
+- กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
 - ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+
+---
+
+## 17. หน้าจอกระดาน (client · จอคอม/แท็บเล็ต)
+
+มือถือ (`vp.w < 768`) ยังเป็นหน้าจอเดิม ไม่ทำต่อ (CLAUDE.md) — ทุกอย่างในหัวข้อนี้คือจอคอม
+```
+screens/Game.jsx (GameBoard)   HUD ล่าง (SelfHud) · modal ร้าน/กระเป๋า/สถานะ · โหมดเลือกเป้า (pickReq → boardPick) · เงื่อนไขกดได้/ไม่ได้
+  └ board/BoardStage.jsx      state → BoardCanvas · แถบลำดับเดิน · แบนเนอร์ ORDER · แผนเดินแล้วตี · หน้าต่างคาดการณ์ ·
+                              ระยะอันตราย · ป้ายข้อมูลช่อง · ป้ายร้าน · ฉากตีบนกระดาน · หมุนกระดาน (Q/E, localStorage echo.boardRotation)
+      └ board/BoardCanvas.jsx  canvas ล้วน (ไม่รู้กติกา) — ตัววาดอยู่ใน board/boardDraw.js · ธีมรายภูมิภาค
+board/boardRules.js            สำเนากติกาจาก server/board.js (สร้างอัตโนมัติ ห้ามแก้ตรง)
+```
+- **ตาของเรา** (`phase === "ACTION" && actorId === me.id`): ฟ้า = เดินถึง (`reachable`) · แดง = เดินแล้วตีถึง (`threatZone`) ·
+  ชี้ศัตรู = แผนยืนตีที่เดินน้อยสุด + ลูกศรถอย (`pushback`) + หน้าต่างคาดการณ์ (`state.forecast`) · คลิกศัตรู = `move` แล้วรอแอนิเมชันจบค่อย `attack`
+- ปุ่มกลาง HUD: ช่วงจั่ว = จั่ว / พอ · ORDER/ACTION/ATTACKING = ย้อน (`undoMove`) / รอ (`endAction`)
+- สกิล: `area.kind` self = ส่งทันที · target / aoe / line = `pickReq` → BoardStage เลือกเป้า/ยืนยัน/ทิศ แล้วส่ง `useSkill {tier, targets | dir}` ·
+  ป้ายระยะบนปุ่ม (`areaText`) · target ที่ไม่มีใครในระยะ (และเลือกตัวเองไม่ได้) = ปุ่มเทา
+- ปืน GUTS (`range = state.gutsRange`, ศัตรูเท่านั้น) และ Mark 42 ใส่ให้/ระเบิดใส่ (ระยะ 1) ใช้โหมดเลือกเป้าเดียวกัน
+- ฉากตี (ATTACKING): BoardStage วาดฟัน → สวน → ถอย/ชน (`attack.counter`, `attack.push`) แทน `AttackFx` เต็มจอ (`OverlayLayer boardFx`) ·
+  เลือด/เกราะเปลี่ยนนอกฉากตี = ตัวเลขลอยบนตัวนั้น
+- เพลง: ORDER/ACTION/ATTACKING เล่นเพลงภูมิภาคต่อ (`audioPolicy.js` — ไม่สลับไปเพลงโจมตีแล้ว)
+- **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
+  `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|gun|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
+  `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
