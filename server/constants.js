@@ -23,9 +23,9 @@ const MAX_SKILL = 8;
 const GOLD_MAX = 30;             // เพดานเหรียญต่อผู้เล่น
 const GOLD_PER_TURN = 1;         // เหรียญที่ได้ทุกจบเทิร์น (ทุกคน)
 const GOLD_FIRST_BONUS = 1;      // เหรียญเพิ่มให้คนเดินลำดับแรก (รวมกับของทุกคน = 2)
-const SHOP_INTERVAL_TURNS = 5;   // ร้านค้าเปิดทุกๆ 5 เทิร์น
+const SHOP_INTERVAL_TURNS = 5;   // ร้านค้าตั้งบนแผนที่ 5 เทิร์น แล้วย้ายจุด + สุ่มของใหม่ (GRID_PLAN §8.1)
+const BAG_SLOTS = 5;             // กระเป๋า 5 ช่อง — ไอเทมทุกชิ้นกิน 1 ช่อง (ปืน กระสุนแต่ละนัด ชุด Mark 42 ที่ยังไม่ได้ใส่)
 const SHOP_MAX_ITEMS = 15;       // จำนวนสินค้าสูงสุดต่อรอบร้านค้า (เดิม 6 -> 9 -> 15 หลังรวมร้านลุงเท่งเข้ามา)
-const SHOP_CARD_COLOR_PRICE = 5; // ยาเปลี่ยนสีการ์ด: เลือกการ์ด 1 ใบในมือ เปลี่ยนเป็นสีที่ต้องการ
 const SHOP_FORTUNE_PRICE = 5;
 const SHOP_FORTUNE_AMOUNT = 2;   // ยาโชคลาภ: ได้โชคลาภ +2 หน่วยเมื่อใช้
 const FORTUNE_MAX = 3;           // โชคลาภ ซ้อนทับได้สูงสุด 3 ครั้ง
@@ -33,14 +33,15 @@ const SHOP_RESIST_PRICE = 5;
 const SHOP_RESIST_TURNS = 1;     // ยาต้านสถานะ: ต้านสถานะผิดปกติ 1 เทิร์น
 const SHOP_ARMOR_PRICE = 3;
 const SHOP_ARMOR_AMOUNT = 1;     // ยาฟื้นเกราะ: ฟื้นเกราะ +1 หน่วย
-const SHOP_CARD_REMOVE_PRICE = 5; // ยาลดไพ่: ลดไพ่ใบล่าสุดของตัวเองออก 1 ใบ (กันแตกได้)
 const SHOP_SKILL_SIZES = [
   { size: "small", amount: 1, price: 2, weight: 50 },   // สัดส่วนภายในกลุ่ม "ยาฟื้นแต้มสกิล"
   { size: "medium", amount: 4, price: 6, weight: 35 },
   { size: "large", amount: 6, price: 10, weight: 15 },
 ];
 // ---------- ปืนหน่วย GUTS Select (เดิมอยู่ร้านลุงเท่ง — ยุบรวมเข้าร้านค้ามายาแล้ว) ----------
-// ปืนเป็นไอเทมถาวร (มีได้กระบอกเดียว) กระสุนซื้อแยกอิสระ แต่ยิงไม่ได้ถ้าไม่มีปืน — ยิงได้ 1 นัด/เทิร์น ช่วงจั่วไพ่เท่านั้น
+// ปืนเป็นไอเทมถาวร (มีได้กระบอกเดียว) กระสุนซื้อแยกอิสระ แต่ยิงไม่ได้ถ้าไม่มีปืน
+//  ยิงในตาเดินของตัวเอง ระยะ GUTS_RANGE · นับเป็นการโจมตีของตา (จบตา · เป้าสวนกลับได้) — GRID_PLAN §6/§8.1
+const GUTS_RANGE = [1, 4];
 const ITEM_BASE = "/item";
 const GUTS_GUN_PRICE = 15;
 const GUTS_CHAA_TURNS = 2;       // Thunder Bullet: สภาพชาคงอยู่ 2 เทิร์น
@@ -56,12 +57,11 @@ const SHOP_MAX_GUNS = 2;          // ปืนขึ้นได้สูงส�
 const SHOP_MAX_MARK42 = 2;        // เกราะ Mark 42: โอกาสออก/เพดานต่อรอบเท่าปืน GUTS (ที่เกินสุ่มเป็นกระสุนแทน)
 // น้ำหนักกระสุนธรรมดาภายในกลุ่ม "กระสุน" (รวม = SHOP_WEIGHTS.gutsAmmo)
 const SHOP_AMMO_WEIGHTS = { shockwave: 4, gargorgon: 4, thunder: 4, nurse: 2 };
-// ตารางโอกาสออกสินค้าต่อ 1 ช่องสุ่ม (รวม 97)
+// ตารางโอกาสออกสินค้าต่อ 1 ช่องสุ่ม (รวม 78)
+//  ยาเปลี่ยนสีการ์ด / ยาลดไพ่ ถอดออกแล้ว (ใช้ได้แค่ช่วงจั่วไพ่ แต่ระบบกระดานใช้ของได้เฉพาะตาเดิน — GRID_PLAN §8.1)
 const SHOP_WEIGHTS = {
-  cardColor: 15,
   fortune: 5,      // หายากสุด
   resist: 15,
-  cardRemove: 12,
   skillPoint: 14,  // แตกย่อยตาม SHOP_SKILL_SIZES.weight
   armor: 14,
   gutsGun: 8,      // จำกัด SHOP_MAX_GUNS ต่อรอบ ที่เกินตกไปรวมกับกระสุน
@@ -93,9 +93,9 @@ module.exports = {
   SKILL_COST_MAX, MAX_PLAYERS, CARD_TIME,
   ORDER_TIME, ACTION_TIME, DEFAULT_MOV, DEFAULT_RANGE, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
   ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_FIRST_BONUS,
-  SHOP_INTERVAL_TURNS, SHOP_MAX_ITEMS, SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_PRICE,
+  SHOP_INTERVAL_TURNS, BAG_SLOTS, SHOP_MAX_ITEMS, SHOP_FORTUNE_PRICE,
   SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT,
-  SHOP_CARD_REMOVE_PRICE, SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS,
+  SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS, GUTS_RANGE,
   GUTS_NURSE_DMG, GUTS_AMMO, GUTS_AMMO_IDS, SHOP_MAX_GUNS, SHOP_MAX_MARK42, SHOP_AMMO_WEIGHTS,
   SHOP_WEIGHTS, TEMP_HP_TURNS, CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
   TEAM_IDS, RESYNC_EVERY,

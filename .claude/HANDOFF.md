@@ -1,4 +1,4 @@
-# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08 ท้าย session)
+# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08 · ขั้น 4 เสร็จ)
 
 > สำหรับ session ถัดไป: อ่านไฟล์นี้ให้จบก่อนเริ่มงาน แล้วอ่าน [CLAUDE.md](../CLAUDE.md), [GRID_PLAN.md](../GRID_PLAN.md) (กติกาทั้งหมดที่ผู้ใช้ตัดสินแล้ว) และ [GAME_SYSTEM.md](../GAME_SYSTEM.md) §1–§3
 > คุยกับผู้ใช้เป็นภาษาไทยเสมอ · **commit + push `origin/main` ทุกครั้งที่จบขั้นของ GRID_PLAN §13 (ผู้ใช้อนุญาตแล้ว ไม่ต้องถาม)**
@@ -7,13 +7,17 @@
 ## สถานะ repo (C:\Echo · remote `github.com/Phujimaru/echo_ordeal_call` · branch `main`)
 
 - ย้ายมาจาก `C:\backjact` @ `3b687da` (เริ่มประวัติ git ใหม่) · เหลือตัวละคร `muimi` + `oberon_summer` + ระบบกลาง Mark 42 / ปืน GUTS / การเดินทาง 7 ภูมิภาค / สถานะ Universal · โหมด ffa / duo / trio
-- ตรวจล่าสุด: `npm test` **184/184** · `cd client && npx vite build` ผ่าน · `npx eslint .` 0 error
+- ตรวจล่าสุด: `npm test` **187/187** · build client ผ่าน · `npx eslint .` 0 error
+- **Overload Force ถอดออกทั้งระบบแล้ว (ผู้ใช้สั่ง 2026-10-08 — "ห้ามมี")** `2d12ab7` · yuna ไม่มีโค้ดเหลือใน repo นี้ (ตัดไปตั้งแต่ย้ายจาก backjact) — **ห้ามใส่กลับทั้งคู่**
+  · โฟลเดอร์สื่อ `/overload_force` ยังอยู่เพราะเพลงท่าไม้ตายมุยมิ (`overload_force_theme.mp3`) อยู่ในนั้น
 - **กำลังเปลี่ยนเป็นเกมกระดานแบบ Fire Emblem** — ความคืบหน้าตาม GRID_PLAN §13:
   - ✅ ขั้น 1 `server/board.js` (แผนที่ภูมิภาค I, BFS, ระยะ, ตีสวน/ถอย, จุดเกิด, ร้าน) + `tests/board.test.js`
   - ✅ ขั้น 2 วงจรเทิร์น server: PLAYING (จั่ว/พอ) → ORDER → ACTION → ATTACKING · `server/phases/action.js` · `tests/action.test.js`, `tests/turn-order.test.js`
   - ✅ ขั้น 3 ระยะสกิล (`area` ใน characters.js · `resolveArea` ใน action.js เรียกจาก skills.js) · คลื่นดาบมุยมิ 4×3 (`attack.skillStrike`) · จังหวะบัฟ/สตั้นโอเบรอน (`obsDreamUseRound`, `hasActed`) · `tests/skill-area.test.js`
   - ✅ ตัววาดกระดาน client (ส่วนหนึ่งของขั้น 5): `client/src/board/BoardCanvas.jsx` + `boardDraw.js` + พรีวิว `?board=1` (`BoardPreview.jsx`) — **ยังไม่ได้ต่อเข้า Game.jsx**
-  - ⏭️ **ถัดไป ขั้น 4**: ร้านค้าบนแผนที่ (ตั้ง 5 เทิร์นแล้วย้ายจุด + สุ่มของใหม่ · ซื้อได้เมื่อยืนติดร้าน · `board.pickShopSpot`/`nearShop` มีแล้ว) · กระเป๋า 5 ช่อง + ปุ่มทิ้ง · ปืน GUTS ระยะ 1–4 นับเป็นการโจมตี (จบตา) · Mark 42 ใส่/ใส่ให้/ระเบิด/เรียกคืน ต้องติดกัน · ถอดยาเปลี่ยนสีการ์ด + ยาลดไพ่ (GRID_PLAN §8.1)
+  - ✅ ขั้น 4 (server): ร้านบนแผนที่ `shop.maybeMoveShop/relocateShop` (เทิร์น 1, 6, 11 … · `match.shopPos`/`shopOpenedRound` · ร้านกินช่องผ่าน `action.boardBlocked()`) · ซื้อต้องยืนติดร้าน · กระเป๋า `BAG_SLOTS` 5 + socket `dropItem {uid}` · ปืน GUTS `fireGuts` ระยะ [1,4] = การโจมตีของตา → `attack.gunAttack` (ฉาก ATTACKING `attack.gun` + ตีสวน/ถอยร่วมกับตีปกติผ่าน `counterAndPush`) · Mark 42 ใส่ให้/ระเบิดใส่/เรียกคืน ต้องติดกัน · ถอดยาเปลี่ยนสีการ์ด/ยาลดไพ่ · state ใหม่ `shopPos`, `shopTurnsLeft`, `bagSlots`, `gutsRange` · `tests/shop-board.test.js`
+    - **client ยังไม่ได้แตะ**: Game.jsx ยังมี UI ยาเปลี่ยนสีการ์ด (`colorPickUid`) + `client/src/data/shop.js` ยังมี cardColor/cardRemove + ร้านเด้งอัตโนมัติ — ล้าง/ทำใหม่ในขั้น 6 (ร้านบนแผนที่ + ปุ่มทิ้ง + ป้าย "อีก N เทิร์นย้าย")
+  - ⏭️ **ถัดไป ขั้น 5**: ต่อ BoardCanvas เข้า Game.jsx (หัวข้อด้านล่าง)
   - ขั้น 5–6: ต่อ BoardCanvas เข้า Game.jsx (แถบลำดับเดิน, เดิน/ย้อน/ตี/รอ, คาดการณ์ผล, ระยะอันตราย, ป้ายระยะบนปุ่มสกิล, เลือกทิศสกิลแนว) — วิธีแปลง state → props ดูหัวข้อด้านล่าง
   - ขั้น 7: ภูมิภาค II–VII — **ผู้ใช้ให้ Claude ออกแบบผังเอง และอยากได้ช่องพิเศษแบบ Fire Emblem** (ร่างใน GRID_PLAN §3.1 — ทำพรีวิวให้ผู้ใช้ดู/ยืนยันตัวเลขก่อนลงโค้ด) · ธีมภาพรายภูมิภาคใน boardDraw.js (ตอนนี้ทุกภูมิภาควาดปราสาทของ I)
   - ขั้น 8: เอกสาร GAME_SYSTEM.md / skill add-character ให้ตรง (§2–§3 อัปเดตแล้ว)
@@ -24,7 +28,8 @@
 - tag: ช่วงจั่ว `{ backs: จำนวนไพ่, text: locked ? "พอ" : "" }` · หลังเปิดไพ่ = แต้ม หรือ `"แตก"`
 - กล่องแม่ต้อง positioned และมีขนาด · ย่อให้เห็นเฟรม 1280×720 ครบ · ขอบใกล้กระดาน ~73% ของความสูง (เหลือที่ให้ HUD ด้านล่าง) · `tileCenter` + `computeView` ใช้วาง DOM ทับช่อง
 - ข้อมูลจาก server ต่อผู้เล่น: `pos`, `mov` (เทิร์นนี้), `baseMov`, `range`, สกิล `character.<tier>.area` (range แปลงเป็นตัวเลขแล้ว) · ส่วนกลาง: `board`, `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `attack` (มี `counter`/`push`)
-- socket: `move {x,y}` · `undoMove` · `attack {targetId}` · `endAction` · `useSkill {tier,targets,dir}` (dir = up/down/left/right สำหรับสกิลแนว)
+- socket: `move {x,y}` · `undoMove` · `attack {targetId}` · `endAction` · `useSkill {tier,targets,dir}` (dir = up/down/left/right สำหรับสกิลแนว) · `buyShopItem {itemId}` · `useInventoryItem {uid,targetId,mode}` · `dropItem {uid}` · `mark42Control {action}`
+- ร้าน: `shopPos` ส่งเข้า BoardCanvas เป็น prop `shopPos` ได้เลย · ช่องร้านต้องไม่อยู่ในไฮไลต์เดิน (ส่ง blocked ให้ reachable ฝั่ง client ด้วย)
 - ระยะเดิน/อันตรายคำนวณฝั่ง client ได้ด้วยตรรกะเดียวกับ `server/board.js` (ไฟล์เป็น CommonJS — ถ้าจะใช้ร่วมให้ทำโมดูล ESM คู่ หรือ copy ฟังก์ชันที่ต้องใช้ แล้วมีเทสต์เทียบ)
 
 ## เรื่องค้างเล็กๆ ที่รู้แล้ว (ยังไม่แก้)

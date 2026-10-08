@@ -23,6 +23,11 @@ function setup() {
     p.locked = false; p.hp = 7; p.armor = 1; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.inventory = []; p.gold = 30;
     Mark42.resetCombat(p);
   }
+  // ใส่ให้ / ระเบิดใส่ / เรียกคืน ต้องยืนติดกัน (GRID_PLAN §8.1): B อยู่ขวา C อยู่บนของ A
+  engine.players.A.pos = { x: 5, y: 5 };
+  engine.players.B.pos = { x: 6, y: 5 };
+  engine.players.C.pos = { x: 5, y: 4 };
+  engine.setShopPos({ x: 4, y: 5 }); // ร้านติด A (ซ้าย)
   cutscenes.length = 0;
   return engine.players;
 }
@@ -177,4 +182,40 @@ test('ใส่ซ้อนไม่ได้ · ซื้อจากร้า�
   engine.buyShopItem('A', 's2');
   assert.equal(A2.inventory.filter((i) => i.type === 'mark42').length, 1);
   assert.equal(A2.gold, 5, 'ราคา 25');
+});
+
+// ---------- ระยะบนกระดาน (GRID_PLAN §8.1) ----------
+test('ระยะ: ใส่ให้ / ระเบิดใส่ ต้องยืนติดกัน · ไม่ติดกัน = ใช้ไม่ได้ (ไม่เสียชุด)', () => {
+  const { A, B } = setup();
+  B.pos = { x: 7, y: 4 }; // ห่าง A 3 ช่อง
+  giveSuit(A);
+  use(A, 'give', 'B');
+  assert.equal(B.mark42 || null, null);
+  use(A, 'bomb', 'B');
+  assert.equal(B.hp, 7);
+  assert.equal(A.inventory.length, 1, 'ชุดยังอยู่ในกระเป๋า');
+  use(A, 'give', 'C'); // C ติดกัน
+  assert.equal(engine.players.C.mark42.ownerId, 'A');
+});
+
+test('ระยะ: เรียกคืนต้องยืนติดกัน · ถอด / สั่งระเบิด สั่งจากไกลได้ · กระเป๋าเต็ม = ถอดไม่ได้', () => {
+  const { A, B, C } = setup();
+  giveSuit(A);
+  use(A, 'give', 'B');
+  B.pos = { x: 9, y: 5 };
+  control('A', 'recall');
+  assert.equal(B.mark42.ownerId, 'A', 'ไกลเกิน เรียกคืนไม่ได้');
+  for (let i = 0; i < 5; i++) A.inventory.push({ uid: `x${i}`, type: 'resist' });
+  control('A', 'remove');
+  assert.ok(B.mark42, 'กระเป๋าเต็ม ถอดไม่ได้');
+  A.inventory.length = 0;
+  control('A', 'remove');
+  assert.equal(B.mark42, null, 'ถอดจากไกลได้');
+  assert.equal(A.inventory[0].type, 'mark42');
+
+  use(A, 'give', 'C');
+  C.pos = { x: 12, y: 8 };
+  control('A', 'detonate');
+  assert.equal(C.mark42, null, 'สั่งระเบิดจากไกลได้');
+  assert.equal(C.hp + C.armor, 8 - 2);
 });

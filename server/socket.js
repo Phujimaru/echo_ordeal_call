@@ -242,7 +242,8 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
   onPlayerEvent(socket, 'useSkill', (id, { tier, targets, dir } = {}) => skills.useSkill(id, tier, targets, { dir }), 12);
   onPlayerEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
-  onPlayerEvent(socket, 'useInventoryItem', (id, { uid, cardIndex, color, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { cardIndex, color, targetId, mode })), 8);
+  onPlayerEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
+  onPlayerEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
   // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
   onPlayerEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)

@@ -3,7 +3,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   attackableTargets, attackSoundOf, computeAttackBase,
-  estimateAttackOn, strike, skillStrike, doAttack, boardAttack,
+  estimateAttackOn, strike, skillStrike, doAttack, boardAttack, gunAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -246,11 +246,23 @@ function doAttack(byId, targetId) {
 function boardAttack(attacker, target, done) {
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
+  counterAndPush(attacker, target, card);
+  playAttackCard(card, attacker, target, done);
+}
+// ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
+//  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
+function gunAttack(shooter, target, ammo, done) {
+  const card = { id: ++match.attackSeq, ...strikeCard(shooter, target, { dmg: 0, kill: !target.alive }), gun: ammo, counter: null, push: null };
+  counterAndPush(shooter, target, card);
+  playAttackCard(card, shooter, target, done);
+}
+// เป้ารอดและผู้ตีอยู่ในระยะตีของเป้า → ตีสวน 1 ครั้ง แล้วผู้ตีถอย 1 ช่อง (ถอยไม่ได้ = ชน เสียเพิ่ม 1) — เขียนผลลง card
+function counterAndPush(attacker, target, card) {
   if (attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     if (attacker.alive) {
-      const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id });
+      const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked() });
       card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide };
       if (push.moved) {
         attacker.pos = { x: push.x, y: push.y };
@@ -265,6 +277,9 @@ function boardAttack(attacker, target, done) {
       }
     }
   }
+}
+// เล่นฉากตี (ATTACKING) แล้วเรียก done — คนตกรอบหายจากกระดานก่อน
+function playAttackCard(card, attacker, target, done) {
   // คนตกรอบหายจากกระดาน
   for (const p of [attacker, target]) if (!p.alive) p.pos = null;
   // มีข้อมูลสกิลให้อ่าน / มีตีสวน -> ยืดเวลาฉากให้อ่านทัน · คัตซีนที่ค้างคิวเล่นต่อหลังฉากตี

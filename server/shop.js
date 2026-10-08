@@ -2,6 +2,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   goldCapOf, addGold, rollShopItem, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
+  shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, bagFull, dropItem,
   grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, buyShopItem,
   cardLabel, useInventoryItem, gutsFireTargetOf, applyGutsBullet,
 });
@@ -9,18 +10,20 @@ Object.assign(module.exports, {
 const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const {
-  FORTUNE_MAX, GOLD_MAX, GUTS_AMMO, GUTS_AMMO_IDS, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG,
-  SHOP_AMMO_WEIGHTS, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_CARD_COLOR_PRICE, SHOP_CARD_REMOVE_PRICE,
+  BAG_SLOTS, FORTUNE_MAX, GOLD_MAX, GUTS_AMMO, GUTS_AMMO_IDS, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG,
+  GUTS_RANGE, SHOP_AMMO_WEIGHTS, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_INTERVAL_TURNS,
   SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_MAX_GUNS, SHOP_MAX_ITEMS, SHOP_MAX_MARK42,
   SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_SKILL_SIZES, SHOP_WEIGHTS,
 } = require("./constants");
+const Board = require("./board");
 const match = require("./match");
 const { engine } = require("./engine");
 const action = require("./phases/action");
+const attack = require("./phases/attack");
 const characterRules = require("./characterRules");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
-const cardDeck = require("./deck");
+const timers = require("./timers");
 const view = require("./view");
 
 // เพดานเหรียญรายบุคคล
@@ -56,10 +59,8 @@ function rollShopItem(allowGun = true, allowMark42 = true) {
   if (!allowMark42) { weights.gutsAmmo += weights.mark42; weights.mark42 = 0; }
   if (!allowGun) { weights.gutsAmmo += weights.gutsGun; weights.gutsGun = 0; }
   const type = pickWeighted(Object.entries(weights).map(([key, w]) => ({ key, w })));
-  if (type === "cardColor") return { type: "cardColor", price: SHOP_CARD_COLOR_PRICE };
   if (type === "fortune") return { type: "fortune", price: SHOP_FORTUNE_PRICE };
   if (type === "resist") return { type: "resist", price: SHOP_RESIST_PRICE };
-  if (type === "cardRemove") return { type: "cardRemove", price: SHOP_CARD_REMOVE_PRICE };
   if (type === "skillPoint") {
     const size = pickWeighted(SHOP_SKILL_SIZES.map((s) => ({ key: s.size, w: s.weight })));
     const s = SHOP_SKILL_SIZES.find((x) => x.size === size);
@@ -71,10 +72,8 @@ function rollShopItem(allowGun = true, allowMark42 = true) {
   return { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE };
 }
 function shopItemName(item) {
-  if (item.type === "cardColor") return "ยาเปลี่ยนสีการ์ด";
   if (item.type === "fortune") return "ยาโชคลาภ";
   if (item.type === "resist") return "ยาต้านสถานะ";
-  if (item.type === "cardRemove") return "ยาลดไพ่";
   if (item.type === "skillPoint") return `ยาฟื้นแต้มสกิล +${item.value}`;
   if (item.type === "armor") return `ยาฟื้นเกราะ +${item.value}`;
   if (item.type === "gutsGun") return "ปืนหน่วย GUTS Select";
@@ -130,17 +129,55 @@ function journeyGiftItem() {
   const pool = [
     { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE },
     { type: "skillPoint", size: small.size, value: small.amount, price: small.price },
-    { type: "cardColor", price: SHOP_CARD_COLOR_PRICE },
     { type: "fortune", price: SHOP_FORTUNE_PRICE },
     { type: "resist", price: SHOP_RESIST_PRICE },
-    { type: "cardRemove", price: SHOP_CARD_REMOVE_PRICE },
   ].filter((it) => it.price <= 5);
   return { ...pool[Math.floor(Math.random() * pool.length)] };
 }
+// ---------- ร้านค้าบนแผนที่ (GRID_PLAN §8.1) ----------
+// ร้านตั้งอยู่ SHOP_INTERVAL_TURNS เทิร์น แล้วย้ายไปจุดร้านค้าอื่นแบบสุ่ม (ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) พร้อมสุ่มของใหม่
+//  ยังไม่มีที่ตั้ง = เริ่มเกม / เพิ่งเปลี่ยนภูมิภาค (placeOnBoard ล้าง shopPos) → ตั้งทันทีตอนต้นเทิร์น
+function shopDue() {
+  return !match.shopPos || match.roundNumber - match.shopOpenedRound >= SHOP_INTERVAL_TURNS;
+}
+function relocateShop() {
+  const prev = match.shopPos;
+  match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits(), prev);
+  match.shopOpenedRound = match.roundNumber;
+  openShop();
+  if (prev) match.lastLog.push("🏪 ร้านค้ามายาย้ายแล้ว");
+}
+// ต้นเทิร์น (dealRound): ครบกำหนดย้าย = ย้าย + ของใหม่ · ไม่งั้นแค่คิดผลของภูมิภาคต่อร้านใหม่ตามช่วงเวลา
+function maybeMoveShop() {
+  if (shopDue()) relocateShop();
+  else refreshShopForJourney();
+}
+// อีกกี่เทิร์นร้านย้าย (นับเทิร์นนี้ด้วย — 1 = เทิร์นสุดท้ายที่จุดนี้)
+function shopTurnsLeft() {
+  return match.shopPos ? Math.max(1, match.shopOpenedRound + SHOP_INTERVAL_TURNS - match.roundNumber) : 0;
+}
+
+// ---------- กระเป๋า 5 ช่อง ----------
+function bagFull(p) {
+  return (p.inventory || []).length >= BAG_SLOTS;
+}
+// ทิ้งของ: เฉพาะตาตัวเอง · ไม่นับเป็นการใช้ (ยังเดิน/ย้อนได้)
+function dropItem(id, uid) {
+  const p = match.players[id];
+  if (!action.canAct(p)) return false;
+  const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
+  if (idx < 0) return false;
+  const [item] = p.inventory.splice(idx, 1);
+  match.lastLog.push(`🗑️ ${p.name} ทิ้ง ${shopItemName(item)}`);
+  view.broadcastState();
+  return true;
+}
+
 // แจกไอเทมเข้าคลังโดยตรง (ไม่ผ่านร้านค้า/ไม่เสียเหรียญ) — ใช้กับเอฟเฟกต์ตัวละครที่ "ได้รับไอเทม +1 ชิ้น"
-//  item = { type, value?, size?, ammo? } รูปแบบเดียวกับของในร้าน — คืน item ที่เข้าคลังจริง
+//  item = { type, value?, size?, ammo? } รูปแบบเดียวกับของในร้าน — คืน item ที่เข้าคลังจริง · กระเป๋าเต็ม = ไม่ได้ (null)
 function grantInventoryItem(p, item) {
   if (!p || !item || !item.type) return null;
+  if (bagFull(p)) return null;
   p.inventory = p.inventory || [];
   const entry = { uid: `grant_${item.type}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, size: item.size, ammo: item.ammo, price: item.price || 0 };
   p.inventory.push(entry);
@@ -161,8 +198,10 @@ function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
   if (!p || !p.alive) return;
-  if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง (ระยะร้านค้าบนแผนที่: GRID_PLAN §8.1)
+  if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
+  if (!p.pos || !Board.nearShop(p.pos, match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
+  if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = match.shopItems.find((it) => it.id === itemId);
   if (!item || item.sold) return;
   if ((p.gold || 0) < item.price) return;
@@ -179,7 +218,6 @@ function buyShopItem(id, itemId) {
   view.broadcastState();
 }
 // ใช้ของในคลัง
-const CARD_COLOR_NAME = { red: "แดง", blue: "ฟ้า", green: "เขียว", yellow: "เหลือง" };
 function cardLabel(c) {
   if (!c) return "?";
   if (c.special) return { king: "ราชา", queen: "ราชินี", joker: "โจ๊กเกอร์" }[c.special] || c.special;
@@ -193,7 +231,7 @@ function useInventoryItem(id, uid, opts = {}) {
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];
-  // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด — ช่วงจั่วการ์ด ----------
+  // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด (ต้องยืนติดกัน) ----------
   if (item.type === "mark42") {
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
@@ -202,30 +240,17 @@ function useInventoryItem(id, uid, opts = {}) {
     characterRules.mark42Run(p, plan, null);
     return;
   }
-  let cutsceneKey = null;  // ตั้งค่าโดยกระสุน GUTS Select — ถ้ามีจะตัดเข้า CUTSCENE แทน broadcastState ปกติ
-  let pendingShot = null;  // { item, target } ของกระสุนที่ยิง — ให้ผลจริงตอนวีดีโอจบ
-  if (item.type === "cardColor") {
-    if (match.gameState !== "PLAYING" || p.locked) return; // ใช้ได้เฉพาะช่วงกำลังจั่วไพ่อยู่เท่านั้น
-    const cardIndex = Number(opts.cardIndex);
-    const color = opts.color;
-    const target = Number.isInteger(cardIndex) ? p.cards[cardIndex] : null;
-    if (!target || target.special || !cardDeck.CARD_COLORS.includes(color)) return; // ต้องเลือกการ์ดเลข (ไม่ใช่การ์ดพิเศษ) + สีที่ถูกต้อง
-    const oldColor = target.color;
-    target.color = color;
-    cardDeck.checkBlueTrigger(p); // เผื่อเปลี่ยนสีแล้วครบฟ้า 3 ใบพอดี
-    match.lastLog.push(`🎨 ${p.name} ใช้ยาเปลี่ยนสีการ์ด — เปลี่ยนไพ่ ${cardLabel(target)} จาก${CARD_COLOR_NAME[oldColor]}เป็น${CARD_COLOR_NAME[color]}`);
-  } else if (item.type === "fortune") {
+  // ---------- ปืน GUTS: นับเป็นการโจมตีของตา (จบตา) ----------
+  if (item.type === "gutsAmmo") {
+    fireGuts(p, idx, item, opts.targetId);
+    return;
+  }
+  if (item.type === "fortune") {
     p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);
     match.lastLog.push(`🍀 ${p.name} ใช้ยาโชคลาภ — ได้โชคลาภ +${SHOP_FORTUNE_AMOUNT} จากคลัง`);
   } else if (item.type === "resist") {
     p.statuses.resist = Math.max(p.statuses.resist || 0, SHOP_RESIST_TURNS);
     match.lastLog.push(`🛡️ ${p.name} ใช้ยาต้านสถานะ — ต้านสถานะผิดปกติ ${SHOP_RESIST_TURNS} เทิร์น จากคลัง`);
-  } else if (item.type === "cardRemove") {
-    if (match.gameState !== "PLAYING" || p.locked || !p.cards || p.cards.length === 0) return;
-    const removed = p.cards.pop();
-    match.centralDeck.push(removed); // คืนไพ่ที่ลดออกกลับเข้ากองกลาง ให้คนอื่นจั่วได้อีก
-    p.busted = cardDeck.bustedOf(p);
-    match.lastLog.push(`✂️ ${p.name} ใช้ยาลดไพ่ — ลดไพ่ใบล่าสุด (${cardLabel(removed)}) ออก คืนเข้ากองกลาง${p.busted ? "" : " — ไพ่ไม่แตกแล้ว!"}`);
   } else if (item.type === "skillPoint") {
     combat.addSkill(p, item.value, "item");
     match.lastLog.push(`⚡ ${p.name} ใช้ยาฟื้นแต้มสกิล +${item.value} จากคลัง (เพดาน ${combat.maxSkillOf(p)})`);
@@ -234,35 +259,38 @@ function useInventoryItem(id, uid, opts = {}) {
     match.lastLog.push(`🔧 ${p.name} ใช้ยาฟื้นเกราะ +${healed} จากคลัง`);
   } else if (item.type === "gutsGun") {
     return; // ปืนเป็นไอเทมถาวร ไม่ใช่ของกดใช้ — ต้อง return ก่อนถึง splice ท้ายฟังก์ชัน ไม่งั้นปืนหายทันทีที่กด
-  } else if (item.type === "gutsAmmo") {
-    const target = gutsFireTargetOf(p, item, opts.targetId);
-    if (!target) return; // ยิงไม่ได้ = ไม่เสียกระสุน
-    p.gutsShotTurn = match.roundNumber; // 1 นัดต่อเทิร์น — จองไว้ตั้งแต่ตอนกด กันยิงซ้ำระหว่างวีดีโอเล่นอยู่
-    match.lastLog.push(`🔫 ${p.name} ยิง ${GUTS_AMMO[item.ammo].name} ใส่ ${target.name}!`);
-    // วีดีโอเต็มจอของกระสุนแต่ละแบบเล่นครั้งเดียวต่อเกม "ต่อผู้ยิงแต่ละคน" (เก็บใน p.cutsceneShown เหมือน
-    //  วีดีโอแปลงร่างของตัวละคร — รีเซ็ตทุกแมตช์ใหม่ใน resetCombat) ครั้งต่อไปเป็นการ์ดแจ้งเตือนเล็ก ไม่หยุดกระดาน
-    const key = GUTS_AMMO[item.ammo].cut;
-    if (p.cutsceneShown[key]) cutscene.notifyTransform(p, key);
-    else { p.cutsceneShown[key] = true; cutsceneKey = key; }
-    pendingShot = { item, target };
   } else {
     return;
   }
   action.lockMove(p);
   p.inventory.splice(idx, 1);
-  if (cutsceneKey) {
-    // เล่นวีดีโอก่อน แล้วค่อยให้ผลของกระสุนเกิดขึ้นตอนวีดีโอจบ (ผู้เล่นจะเห็นความเสียหายโผล่หลังจบวีดีโอ)
-    cutscene.queueCutscene(p, cutsceneKey);
-    // ห่อ withEffectSource ซ้ำ: คอลแบ็กนี้ทำงาน "หลังวีดีโอจบ" ซึ่งหลุดออกจากขอบเขต effectSourceId ของ
-    //  onPlayerEvent ไปแล้ว — ไม่ห่อ = friendly-fire check ไม่รู้ว่าใครยิง
-    cutscene.pausePlayingForCutscene(() => combat.withEffectSource(p, () => applyGutsBullet(p, pendingShot.item, pendingShot.target)));
-  } else {
-    if (pendingShot) applyGutsBullet(p, pendingShot.item, pendingShot.target); // ไม่มีวีดีโอ = ให้ผลทันที
-    view.broadcastState();
-  }
+  view.broadcastState();
+}
+// ยิงปืน GUTS (GRID_PLAN §6/§8.1): นับเป็นการโจมตีของตา — ย้อนการเดินไม่ได้แล้ว และจบตาหลังฉากยิง
+//  ลำดับ: วีดีโอกระสุน (ครั้งแรกต่อคน) → ผลของกระสุน → ฉากยิง (ATTACKING) ที่มีตีสวนถ้าผู้ยิงอยู่ในระยะตีของเป้า → คนถัดไป
+function fireGuts(p, idx, item, targetId) {
+  const target = gutsFireTargetOf(p, item, targetId);
+  if (!target) return false; // ยิงไม่ได้ = ไม่เสียกระสุน
+  timers.clearPhaseTimer();
+  match.action.locked = true;
+  p.gutsShotTurn = match.roundNumber;
+  p.inventory.splice(idx, 1);
+  match.lastLog.push(`🔫 ${p.name} ยิง ${GUTS_AMMO[item.ammo].name} ใส่ ${target.name}!`);
+  // วีดีโอเต็มจอของกระสุนแต่ละแบบเล่นครั้งเดียวต่อเกม "ต่อผู้ยิงแต่ละคน" (เก็บใน p.cutsceneShown เหมือน
+  //  วีดีโอแปลงร่างของตัวละคร — รีเซ็ตทุกแมตช์ใหม่ใน resetCombat) ครั้งต่อไปเป็นการ์ดแจ้งเตือนเล็ก ไม่หยุดกระดาน
+  const key = GUTS_AMMO[item.ammo].cut;
+  if (p.cutsceneShown[key]) cutscene.notifyTransform(p, key);
+  else { p.cutsceneShown[key] = true; cutscene.queueCutscene(p, key); }
+  // ห่อ withEffectSource ซ้ำ: คอลแบ็กทำงาน "หลังวีดีโอจบ" ซึ่งหลุดขอบเขต effectSourceId ของ onPlayerEvent ไปแล้ว
+  //  — ไม่ห่อ = friendly-fire check ไม่รู้ว่าใครยิง
+  cutscene.runCutsceneQueue(() => combat.withEffectSource(p, () => {
+    applyGutsBullet(p, item, target);
+    attack.gunAttack(p, target, item.ammo, action.finishActor);
+  }));
+  return true;
 }
 // ตรวจว่ายิงได้ไหม + คืนเป้าหมายที่ถูกต้อง (null = ยิงไม่ได้)
-//  ยิงได้เฉพาะช่วงจั่วไพ่และยังไม่เปิดไพ่ / ต้องมีปืน / 1 นัดต่อเทิร์น / เป้าหมายต้องเป็นคนอื่นที่ยังไม่ตกรอบ
+//  ตาเดินของตัวเอง / ต้องมีปืน / 1 นัดต่อเทิร์น / เป้าเป็นศัตรูที่ยังอยู่ และห่างอยู่ในระยะ GUTS_RANGE
 function gutsFireTargetOf(p, item, targetId) {
   if (!action.canAct(p)) return null;
   if (!hasGutsWeapon(p)) return null;
@@ -270,6 +298,7 @@ function gutsFireTargetOf(p, item, targetId) {
   if (!GUTS_AMMO[item.ammo]) return null;
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
+  if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(p.pos, target.pos))) return null;
   return target;
 }
 // ให้ผลของกระสุน — เรียกหลังวีดีโอจบเท่านั้น (ดู pausePlayingForCutscene)

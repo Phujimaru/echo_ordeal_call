@@ -168,6 +168,12 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   lock: draw.lock, // เปิดไพ่ (เทสต์ใช้ตรวจผลไพ่ครบชุดตอนเปิดไพ่)
   get shopItems() { return match.shopItems; },
   setShopItems(v) { match.shopItems = v; },
+  get shopPos() { return match.shopPos; },
+  setShopPos(v) { match.shopPos = v; },
+  maybeMoveShop: shop.maybeMoveShop,
+  shopTurnsLeft: shop.shopTurnsLeft,
+  bagFull: shop.bagFull,
+  dropItem: shop.dropItem,
   NETRAMANA_KILL_CHANCE,
   netramanaActive,
   statusAmtOf,

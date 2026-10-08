@@ -36,8 +36,11 @@ function attack(byId, targetId) {
   engine.doAttack(byId, targetId);
   engine.clearPhaseTimer();
 }
-// ซื้อของได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §8.1)
+// ซื้อของได้เฉพาะตาเดินของตัวเอง และต้องยืนติดร้าน (GRID_PLAN §8.1) — ย้ายคนซื้อไปยืนข้างร้าน (ร้านเป็นของกลาง)
 function buy(id, itemId) {
+  const p = engine.players[id];
+  p.pos = { x: 6, y: 4 };
+  engine.setShopPos({ x: 6, y: 3 });
   engine.setActor(id);
   engine.buyShopItem(id, itemId);
 }

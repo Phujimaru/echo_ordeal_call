@@ -5,7 +5,7 @@
 //  กติกากระดานล้วน (เดิน/ระยะ/สวน/ถอย) อยู่ใน server/board.js — ไฟล์นี้แค่ต่อเข้ากับ match
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  placeOnBoard, boardMap, boardUnits, movOf, baseMovOf, rangeOf, turnOrderOf,
+  placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea,
 });
@@ -33,6 +33,10 @@ function boardUnits() {
     .filter((p) => p.pos)
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null }));
 }
+// ช่องที่ยืน/เดินผ่าน/ถอยเข้าไม่ได้นอกจากสิ่งกีดขวางของแผนที่: แผงร้านค้ามายา (GRID_PLAN §8.1)
+function boardBlocked() {
+  return match.shopPos ? new Set([Board.key(match.shopPos.x, match.shopPos.y)]) : null;
+}
 // พวกเดียวกัน (โหมดทีม) — เดินผ่านกันได้ ตีกันไม่ได้
 function unitAlly(a, b) {
   return combat.sameTeam(match.players[a.id], match.players[b.id]);
@@ -52,8 +56,10 @@ function rangeOf(p) {
   return ch && Array.isArray(ch.range) ? ch.range : DEFAULT_RANGE;
 }
 // เริ่มเกม/เปลี่ยนภูมิภาค: ตั้งแผนที่แล้วแจกจุดเกิดให้ทุกคนที่ยังอยู่ (คนตกรอบไม่มีที่ยืน)
+//  ร้านค้าถูกยกออก — ต้นเทิร์นถัดไป (dealRound) สุ่มจุดใหม่บนแผนที่นี้พร้อมของใหม่ (GRID_PLAN §3)
 function placeOnBoard(area) {
   match.board = { area };
+  match.shopPos = null;
   const map = boardMap();
   const alive = combat.alivePlayers();
   const spawns = Board.assignSpawns(map, alive.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
@@ -170,7 +176,7 @@ function moveTo(id, x, y) {
   const p = match.players[id];
   if (!canAct(p) || match.action.moved || match.action.locked) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-  const reach = Board.reachable(boardMap(), { id: p.id, ...p.pos }, movOf(p), boardUnits(), { isAlly: unitAlly });
+  const reach = Board.reachable(boardMap(), { id: p.id, ...p.pos }, movOf(p), boardUnits(), { isAlly: unitAlly, blocked: boardBlocked() });
   const node = reach.get(Board.key(x, y));
   if (!node || node.d === 0) return false;
   match.action.path = Board.pathTo(reach, x, y);

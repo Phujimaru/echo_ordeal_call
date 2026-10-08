@@ -2,6 +2,8 @@
 //  ทดสอบเงื่อนไขการซื้อ/การยิง (gutsFireTargetOf) แยกจากผลของกระสุน (applyGutsBullet) เพราะการยิงจริง
 //  ผ่าน useInventoryItem จะตัดเข้าคัตซีน (ตั้ง timer) — ผลของกระสุนเกิดหลังวีดีโอจบเสมอ
 //  ระบบกระดาน (GRID_PLAN §8.1): ซื้อ/ใช้ของ/ยิงได้เฉพาะตาเดินของตัวเอง — เทสต์ใช้ engine.setActor(id)
+//  ผู้เล่นในไฟล์นี้ยืนเรียงแถว y = 4 ห่างกันคนละ 2 ช่อง (ในระยะปืน · ไกลเกินตีสวนประชิด) · ร้านตั้งติดคนซื้อ (shopNextTo)
+//  กติการ้านบนแผนที่ / กระเป๋า 5 ช่อง / ระยะปืน อยู่ใน tests/shop-board.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine } = require('../server.js');
@@ -9,20 +11,24 @@ const { engine } = require('../server.js');
 test.beforeEach(() => {
   for (const k of Object.keys(engine.players)) delete engine.players[k];
   engine.setShopItems([]);
+  engine.setShopPos(null);
   engine.setGameState('PLAYING');
+  slot = 0;
   engine.setRoundNumber(1);
 });
 test.afterEach(() => engine.clearPhaseTimer()); // คัตซีนที่เกิดจากการยิงจริงจะตั้ง interval ค้างไว้
 
 let uid = 0;
+let slot = 0;
 function mkPlayer(over = {}) {
   const id = `p${++uid}`;
+  const pos = { x: 2 + 2 * slot++, y: 4 };
   const p = Object.assign({
     id, name: id, alive: true, characterId: 'dummy', hp: 5, armor: 2, skillPoints: 0,
     gold: 0, inventory: [], cards: [], locked: false, busted: false,
     statuses: {}, statusAmt: {}, cutsceneShown: {}, seen: {},
     colorTrigger: { blue: 0, red: 0, green: 0, yellow: 0 },
-    dmgHp: 0, dmgArmor: 0, gutsShotTurn: 0, gutsGargorgonPending: false,
+    dmgHp: 0, dmgArmor: 0, gutsShotTurn: 0, gutsGargorgonPending: false, pos,
   }, over);
   engine.players[id] = p;
   return p;
@@ -31,6 +37,8 @@ function stockShop(...items) {
   engine.setShopItems(items.map((it, i) => ({ id: `shop_1_${i}`, sold: false, soldTo: null, ...it })));
   return engine.shopItems;
 }
+// ตั้งร้านไว้ช่องบนของคนซื้อ (ระยะ 1)
+function shopNextTo(p) { engine.setShopPos({ x: p.pos.x, y: p.pos.y - 1 }); }
 function giveGun(p) { p.inventory.push({ uid: `gun_${p.id}`, type: 'gutsGun' }); }
 function giveAmmo(p, ammo) {
   const item = { uid: `ammo_${ammo}_${p.id}_${p.inventory.length}`, type: 'gutsAmmo', ammo };
@@ -39,7 +47,7 @@ function giveAmmo(p, ammo) {
 }
 
 // ---------- การสุ่มสินค้า ----------
-const SHOP_TYPES = ['cardColor', 'fortune', 'resist', 'cardRemove', 'skillPoint', 'armor', 'gutsGun', 'gutsAmmo', 'mark42'];  // เกราะ Mark 42 (characters/_mark42.js)
+const SHOP_TYPES = ['fortune', 'resist', 'skillPoint', 'armor', 'gutsGun', 'gutsAmmo', 'mark42'];  // เกราะ Mark 42 (characters/_mark42.js)
 test('rollShopItem: ออกได้เฉพาะชนิดที่มีจริง และราคาปืน/กระสุนตรงกับตาราง', () => {
   for (let i = 0; i < 800; i++) {
     const it = engine.rollShopItem();
@@ -77,6 +85,7 @@ test('openShop: ปืนและเกราะ Mark 42 ขึ้นได้�
 test('buyShopItem: ซื้อปืน/กระสุนจากร้านค้ามายาได้ หักเหรียญ และของเข้ากระเป๋าพร้อมชนิดกระสุน', () => {
   const p = mkPlayer({ gold: 20 });
   const [gun, ammo] = stockShop({ type: 'gutsGun', price: 15 }, { type: 'gutsAmmo', ammo: 'thunder', price: 5 });
+  shopNextTo(p);
   engine.setActor(p.id);
   engine.buyShopItem(p.id, gun.id);
   engine.buyShopItem(p.id, ammo.id);
@@ -92,6 +101,7 @@ test('buyShopItem: นอกตาเดินของตัวเอง = ซ�
   const p = mkPlayer({ gold: 20 });
   const other = mkPlayer();
   const [gun] = stockShop({ type: 'gutsGun', price: 15 });
+  shopNextTo(p);
   engine.buyShopItem(p.id, gun.id); // ช่วงจั่วไพ่
   engine.setActor(other.id);
   engine.buyShopItem(p.id, gun.id); // ตาของคนอื่น
@@ -103,6 +113,7 @@ test('buyShopItem: นอกตาเดินของตัวเอง = ซ�
 test('buyShopItem: มีปืนแล้วซื้อปืนอีกกระบอกไม่ได้ (ไม่เสียเหรียญ ของไม่ถูกทำเครื่องหมายว่าขายแล้ว)', () => {
   const p = mkPlayer({ gold: 40 });
   const [g1, g2] = stockShop({ type: 'gutsGun', price: 15 }, { type: 'gutsGun', price: 15 });
+  shopNextTo(p);
   engine.setActor(p.id);
   engine.buyShopItem(p.id, g1.id);
   engine.buyShopItem(p.id, g2.id);
@@ -113,8 +124,9 @@ test('buyShopItem: มีปืนแล้วซื้อปืนอีกก�
 
 test('buyShopItem: เหรียญไม่พอ / ของขายไปแล้ว = ซื้อไม่ได้', () => {
   const poor = mkPlayer({ gold: 14 });
-  const rich = mkPlayer({ gold: 30 });
+  const rich = mkPlayer({ gold: 30, pos: { x: 2, y: 2 } }); // ยืนอีกฝั่งของร้าน (2,3)
   const [gun] = stockShop({ type: 'gutsGun', price: 15 });
+  shopNextTo(poor);
   engine.setActor(poor.id);
   engine.buyShopItem(poor.id, gun.id);
   assert.equal(poor.inventory.length, 0);
@@ -224,7 +236,7 @@ test('วีดีโอกระสุนแบบเดิมเล่นค�
   engine.setActor(p.id);
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.useInventoryItem(p.id, a2.uid, { targetId: t.id }); // นัดที่ 2 ของแบบเดิม = ไม่มีวีดีโอ
-  assert.equal(engine.gameState, 'ACTION');
+  assert.equal(engine.gameState, 'ATTACKING'); // ฉากยิงทันที (ยิงปืน = การโจมตีของตา)
   assert.equal(t.armor, 0); // ผลเกิดทันที
 });
 

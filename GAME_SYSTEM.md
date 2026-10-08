@@ -5,8 +5,8 @@
 > (ตัวละครที่มี: **มุยมิ** `muimi` + **โอเบรอน (ฤดูร้อน)** `oberon_summer` · โหมด: ffa / duo / trio)
 >
 > ⚠️ **กำลังเปลี่ยนเป็นระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) ·
-> ฝั่ง server ลงแล้ว: กระดาน `server/board.js` + วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) ·
-> ที่ยังไม่ลง: ระยะสกิล (`area`), ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง, หน้าจอกระดานฝั่ง client — ส่วนนั้นเอกสารยังอธิบายแบบเดิม
+> ฝั่ง server ลงแล้ว: กระดาน `server/board.js` + วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
+> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS / Mark 42 (§9) · ที่ยังไม่ลง: หน้าจอกระดานฝั่ง client
 
 ---
 
@@ -42,14 +42,14 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `app.js` | Express + HTTP + Socket.IO (`app`, `server`, `io`), redirect ไฟล์สื่อไป R2 |
 | `mediaDirs.js` | รายชื่อโฟลเดอร์สื่อบน R2 (ใช้ร่วมกับ `app.js` และ `desktop/` ที่แคชไฟล์ในเครื่อง) |
 | `constants.js` | ค่าคงที่ทั้งหมด (`CARD_TIME`, `MAX_HP`, ราคาร้านค้า `SHOP_*`/`GUTS_*`, `CYCLE_TURNS`, `JOURNEY_*_SECONDS`, `TRANSFORMS` ฯลฯ) |
-| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `journeyScene` … |
+| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `shopPos`, `journeyScene` … |
 | `engine.js` | `engine` object |
 | `lobby.js` | สี/ตำแหน่ง/จองที่นั่ง, โหวตโหมด (`modeOptionsFor`, `voteGameMode`), จัดทีม, `checkLobbyReady`, `startSoloTest`, `startMatch`, `backToLobby`, `relayLobbyEmote`, `remainingTeamWinInfo` |
 | `timers.js` | `startPhaseTimer`/`clearPhaseTimer`, `cardPhaseSeconds` (= `CARD_TIME` เสมอ) |
 | `deck.js` | กองกลาง 43 ใบ, `drawFromCentralDeck`, `drawCardFor`, `drawInitialCard`, `calculateScore`, `scoreCap`, `scoreOf`, `bustedOf`, ทริกเกอร์สีการ์ด/การ์ดพิเศษ (`onCardDrawn`, `applyLockColorTriggers`) |
 | `combat.js` | `maxHpOf`/`maxArmorOf`/`maxSkillOf`, `healHp`/`healArmor`/`healOverflow`, `loseHp`/`loseArmor`, `damageSoft`, `dealDirect`/`dealMixed`/`dealArmorOnly`, `adjustIncomingDamage` (ภายใน), `instantDeath`, บัฟ/ดีบัฟ wrapper, `sameTeam`/`friendlyEffectBlocked`/`withEffectSource`, `addSkill`, `voidUltimateOnBust`, `resetCombat` |
 | `skills.js` | `useSkill` — ด่านเช็ค/คิดราคา/หักแต้ม แล้วเรียก hook ของตัวละคร |
-| `shop.js` | เหรียญ (`addGold`), ร้านค้ามายา (`openShop`, `refreshShopForJourney`, `buyShopItem`), ไอเทม (`useInventoryItem`), ปืน GUTS (`gutsFireTargetOf`, `applyGutsBullet`) |
+| `shop.js` | เหรียญ (`addGold`), ร้านค้ามายาบนแผนที่ (`maybeMoveShop`/`relocateShop`, `openShop`, `refreshShopForJourney`, `buyShopItem`), กระเป๋า (`bagFull`, `dropItem`, `grantInventoryItem`), ไอเทม (`useInventoryItem`), ปืน GUTS (`fireGuts`, `gutsFireTargetOf`, `applyGutsBullet`) |
 | `view.js` | `displayImg`, `buildStateFor`, `broadcastState`, `broadcastPositions`, `takenUniqueChars` (`activeSkillMusic` ภายใน) |
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
@@ -105,7 +105,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 
 ```
 dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
-                                         ร้านเปิดทุก 5 เทิร์น (ไม่งั้น refreshShopForJourney)
+                                         shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 5 เทิร์น (ไม่งั้น refreshShopForJourney)
                                          ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
@@ -372,21 +372,29 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 ## 9. เศรษฐกิจ + ร้านค้า
 
-- **เหรียญ**: จบเทิร์น +1 ทุกคน (`GOLD_PER_TURN` + `Journey.goldBonus` ภูมิภาค 4 +1) · ชนะจั่ว +1 · การ์ด King +10 · หน้าไหว้หลังหลอกของโอเบรอน +1 · เพดาน `goldCapOf(p)` = `GOLD_MAX` 30
+- **เหรียญ**: จบเทิร์น +1 ทุกคน (`GOLD_PER_TURN` + `Journey.goldBonus` ภูมิภาค 4 +1) · คนเดินลำดับแรก +1 (`GOLD_FIRST_BONUS`) · การ์ด King +10 · หน้าไหว้หลังหลอกของโอเบรอน +1 · เพดาน `goldCapOf(p)` = `GOLD_MAX` 30
   - **ทุกการได้รับเหรียญต้องผ่าน `addGold(p, n)`** (`server/shop.js`, เปิดให้ hook ผ่าน `engine.addGold`) — จุดเดียวที่บังคับเพดานรายบุคคล
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
-- **ร้านเปิดทุก 5 เทิร์น** (`roundNumber % SHOP_INTERVAL_TURNS === 0` ใน `dealRound`) — **ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน** (`openShop()`)
-  - น้ำหนักต่อช่อง `SHOP_WEIGHTS` (รวม 105): เปลี่ยนสีการ์ด 15 · โชคลาภ 5 · ต้านสถานะ 15 · ยาลดไพ่ 12 · แต้มสกิล 14 · เกราะ 14 · ปืน GUTS Select 8 · กระสุน 14 · เกราะ Mark 42 8
+- **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน (`openShop()`) ตั้งที่ `match.shopPos`
+  - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (5) นับจาก `shopOpenedRound`
+    → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 6, 11 … (ตรงกับจังหวะเปลี่ยนภูมิภาค)
+  - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
+  - ซื้อได้เมื่อ **ยืนติดร้าน** (`board.nearShop` ระยะ 1) ในตาตัวเอง · ซื้อแล้วเดินไม่ได้อีก (`lockMove`) · ซื้อหลายชิ้นได้
+  - state: `shopPos` · `shopTurnsLeft` (อีกกี่เทิร์นย้าย รวมเทิร์นนี้) · `bagSlots` · `gutsRange`
+  - น้ำหนักต่อช่อง `SHOP_WEIGHTS` (รวม 78): โชคลาภ 5 · ต้านสถานะ 15 · แต้มสกิล 14 · เกราะ 14 · ปืน GUTS Select 8 · กระสุน 14 · เกราะ Mark 42 8
+    (ยาเปลี่ยนสีการ์ด / ยาลดไพ่ **ถอดออกแล้ว** — ใช้ได้แค่ช่วงจั่วไพ่ ซึ่งระบบกระดานใช้ของไม่ได้)
     - แต้มสกิลแตกย่อยตาม `SHOP_SKILL_SIZES[].weight` — เล็ก (+1, 2 เหรียญ) 50 / กลาง (+4, 6) 35 / ใหญ่ (+6, 10) 15
     - กระสุนแตกย่อยตาม `SHOP_AMMO_WEIGHTS` — Shockwave/Gargorgon/Thunder อย่างละ 4 / Nurse 2
     - โควตาต่อรอบ: ปืน ≤ `SHOP_MAX_GUNS` (2) · Mark 42 ≤ `SHOP_MAX_MARK42` (2) — เต็มโควตาแล้วน้ำหนักตกไปรวมกับกระสุน (`rollShopItem(allowGun, allowMark42)`)
   - ผลของการเดินทางต่อร้าน **คิดใหม่ทุกต้นเทิร์น** ที่ `refreshShopForJourney()` (ร้านค้างข้ามช่วงกลางวัน/กลางคืน): ดูข้อ 10.1
   - ซื้อ: ใครกดก่อนได้ก่อน · หลับไหลซื้อไม่ได้ · ปืนมีได้กระบอกเดียว · ช่องนับ `bought` แล้วตัดสิน `sold` (ช่องละหลายชิ้นได้ในทุ่งดอกไม้ กลางคืน)
-- ซื้อแล้วเข้า `p.inventory` (หายทุกแมตช์ใหม่) → ใช้ผ่าน `useInventoryItem()` (socket ห่อ `withEffectSource` ให้แล้ว) · หลับไหลใช้ไม่ได้
-  · ยาเปลี่ยนสีการ์ด / ยาลดไพ่ ใช้ได้เฉพาะช่วงจั่วไพ่ก่อนเปิดไพ่ (ยาลดไพ่คืนใบล่าสุดเข้ากองกลาง)
-- **ปืนหน่วย GUTS Select** (15 เหรียญ · ไอเทมถาวร): ยิงได้ 1 นัด/เทิร์น (`p.gutsShotTurn`) เฉพาะช่วงจั่วไพ่ก่อนเปิดไพ่ · ต้องมีปืนถึงจะยิงกระสุนได้ (`hasGutsGun`) ·
-  เป้าต้องเป็นคนอื่นที่ยังรอดและไม่ใช่เพื่อนร่วมทีม (`gutsFireTargetOf`)
-  - วีดีโอกระสุนเต็มจอครั้งแรกต่อผู้ยิงต่อชนิด แล้วผลเกิด **หลังวีดีโอ** (`pausePlayingForCutscene(after)`) · ครั้งต่อไปเป็นการ์ดแจ้งเตือน + ผลทันที
+- ซื้อแล้วเข้า `p.inventory` (หายทุกแมตช์ใหม่) → ใช้ผ่าน `useInventoryItem()` (socket ห่อ `withEffectSource` ให้แล้ว) · ใช้ได้เฉพาะตาตัวเอง · ใช้แล้วเดินไม่ได้อีก
+- **กระเป๋า `BAG_SLOTS` = 5 ช่อง** — ทุกชิ้นกิน 1 ช่อง (ปืน · กระสุนแต่ละนัด · ชุด Mark 42 ที่ยังไม่ได้ใส่) · เต็ม = ซื้อไม่ได้ / `grantInventoryItem` คืน null (ของฟรีทุ่งดอกไม้หลุด) /
+  ถอด Mark 42 กลับเข้ากระเป๋าไม่ได้ · socket `dropItem {uid}` ทิ้งได้เฉพาะตาตัวเอง ไม่นับเป็นการใช้ (ยังเดินได้)
+- **ปืนหน่วย GUTS Select** (15 เหรียญ · ไอเทมถาวร): ต้องมีปืนถึงจะยิงกระสุนได้ (`hasGutsGun`) · ระยะ `GUTS_RANGE` [1, 4] ·
+  เป้าต้องเป็นคนอื่นที่ยังรอดและไม่ใช่เพื่อนร่วมทีม (`gutsFireTargetOf`) · **ยิง = การโจมตีของตา** (`fireGuts`): ย้อนเดินไม่ได้ → จบตาหลังฉากยิง
+  - ลำดับ: วีดีโอกระสุน (เต็มจอครั้งแรกต่อผู้ยิงต่อชนิด · ครั้งต่อไปการ์ดแจ้งเตือน) → ผลกระสุน → `attack.gunAttack` ฉาก ATTACKING (`attack.gun` = ชนิดกระสุน)
+    ที่มีตีสวน + ถอยถ้าผู้ยิงอยู่ในระยะตีของเป้า (`counterAndPush` ตัวเดียวกับตีปกติ) → `finishActor`
   - Shockwave = ทำลายเกราะทั้งหมด (ใส่ Mark 42 = ชุดพัง) · Gargorgon = สตั้น 1 เทิร์น **ต้นเทิร์นถัดไป** (`gutsGargorgonPending` — ต้านได้ตอนนั้น) ·
     Thunder = สภาพชา 2 เทิร์น · Nursedessei Cannon (10 เหรียญ) = ดาเมจ 4 (เกราะก่อน) แล้ว **ปืนพัง**
 - **เกราะ Mark 42** (`characters/_mark42.js` — ระบบกลาง ไม่ใช่ตัวละคร · 25 เหรียญ · ระเบิด 2 · วีดีโอใส่/ใส่ให้/เรียกคืนเต็มครั้งแรกครั้งเดียวต่อผู้เล่น ระเบิดทุกครั้ง) ใครก็ใส่ได้
@@ -396,7 +404,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   - เจ้าของ (`p.mark42Owned`) คุมชุดผ่าน socket `mark42Control` (recall / remove / detonate) — คนใส่ถอดเองไม่ได้ ·
     ใช้ไอเทมส่ง `mode` (`self` / `give` / `bomb`) ทาง `useInventoryItem` · วีดีโอก่อนแล้วผลเกิดหลังคลิป (`mark42Run` ใน `server/characterRules.js`)
   - ชุดพังจากการต่อสู้ = เจ้าของซื้อใหม่ไม่ได้ 10 เทิร์น (`p.mark42BuyLock`) · ระเบิด/ถอด/เรียกคืนไม่ติดคูลดาวน์ · มีได้ชุดเดียวต่อคน
-  - เทสต์: [tests/mark42.test.js](tests/mark42.test.js) · ร้านค้า: [tests/shop.test.js](tests/shop.test.js)
+  - ระยะบนกระดาน: ใส่ให้ / ใส่แล้วระเบิด / เรียกคืน ต้อง **ยืนติดกัน** (ระยะ 1 — `adjacent` ใน `_mark42.js`) · ถอด / สั่งระเบิด สั่งจากไกลได้ (รีโมต)
+  - เทสต์: [tests/mark42.test.js](tests/mark42.test.js) · ร้านค้า: [tests/shop.test.js](tests/shop.test.js) · ร้านบนแผนที่/กระเป๋า/ระยะปืน: [tests/shop-board.test.js](tests/shop-board.test.js)
 
 ---
 
@@ -561,4 +570,4 @@ npm test    # node --test "tests/**/*.test.js"
 - `tests/characters/*.test.js` — ทดสอบ hook รายตัวละคร (`muimi`, `oberon_summer`, `duplicate-safety`) ผ่าน `engine` จริงจาก `server.js` หรือ mock
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
-- ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`

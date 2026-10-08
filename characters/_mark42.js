@@ -2,7 +2,8 @@
 //  เกราะ Mark 42 — ไอเทมร้านค้ามายา (25 เหรียญ) ที่ใครก็ใส่ได้
 //  ไฟล์นี้ไม่ใช่ตัวละคร (ไม่อยู่ใน CHAR_HOOKS) — server.js require ตรงเหมือน _universal_status
 //
-//  ใช้ได้ 3 แบบ (ช่วงจั่วการ์ด): ใส่ให้ตัวเอง · ใส่ให้ผู้เล่นอื่น · ใส่ให้ผู้เล่นอื่นแล้วระเบิดทันที (ความเสียหาย 2)
+//  ใช้ได้ 3 แบบ (ตาเดินของตัวเอง): ใส่ให้ตัวเอง · ใส่ให้ผู้เล่นอื่น · ใส่ให้ผู้เล่นอื่นแล้วระเบิดทันที (ความเสียหาย 2)
+//  ระยะบนกระดาน (GRID_PLAN §8.1): ใส่ให้ / ใส่แล้วระเบิด / เรียกคืน ต้องยืนติดกัน (ระยะ 1) · ถอด / สั่งระเบิด สั่งจากไกลได้ (รีโมต)
 //  วีดีโอ: ใส่เอง / ใส่ให้ / เรียกคืน เล่นเต็มครั้งแรกครั้งเดียว (ต่อผู้เล่น — triggerCutscene) · ระเบิดเล่นทุกครั้ง
 //  ใส่แล้วอยู่ถาวรจนกว่าเจ้าของจะถอด/เรียกคืน/ระเบิด หรือชุดพังจากการต่อสู้ — คนใส่ถอดเองไม่ได้
 //  เจ้าของ (คนซื้อ) คุมชุดได้ตลอด: เรียกคืนมาใส่เอง · ถอดออก (ชุดกลับเข้ากระเป๋า) · สั่งระเบิดชุดที่อยู่บนตัวคนอื่น
@@ -29,6 +30,8 @@ const VIDEO = {
 };
 
 const suited = (p) => !!p && !!p.mark42 && p.alive !== false;
+// ยืนติดกัน (ระยะแมนฮัตตัน 1) — ใส่ให้ / ระเบิดใส่ / เรียกคืน
+const adjacent = (a, b) => !!a && !!b && !!a.pos && !!b.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
 
 module.exports = {
   SUIT_ARMOR, SUIT_ATK, BOMB_DMG, BREAK_BUY_LOCK, PRICE, IMG, VIDEO,
@@ -81,7 +84,7 @@ module.exports = {
       };
     }
     const t = engine.players[targetId];
-    if (!t || t.id === p.id || !this.validWearer(engine, t)) return null;
+    if (!t || t.id === p.id || !this.validWearer(engine, t) || !adjacent(p, t)) return null;
     if (mode === "give") {
       return {
         video: "mark42SuitSome", flash: `ใส่เกราะ Mark 42 ให้ ${t.name}`,
@@ -123,6 +126,7 @@ module.exports = {
     if (!own) return null;
     if (!w || !w.alive || !w.mark42 || w.mark42.ownerId !== p.id) { p.mark42Owned = null; return null; } // ชุดหายไปแล้ว (คนใส่ตาย ฯลฯ)
     if (action === "remove") {
+      if (engine.bagFull(p)) return null; // ชุดกลับเข้ากระเป๋า — กระเป๋าเต็ม = ถอดไม่ได้
       return {
         video: null, flash: "ถอดเกราะ Mark 42",
         after: () => {
@@ -138,7 +142,7 @@ module.exports = {
     }
     if (w.id === p.id) return null; // เรียกคืน/ระเบิด ใช้กับชุดที่อยู่บนตัวคนอื่นเท่านั้น
     if (action === "recall") {
-      if (p.mark42) return null;
+      if (p.mark42 || !adjacent(p, w)) return null;
       return {
         video: "mark42Recall", flash: `เรียกเกราะ Mark 42 กลับจาก ${w.name}`,
         after: () => {

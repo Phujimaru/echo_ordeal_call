@@ -10,7 +10,7 @@ const { SPELLBURDEN_MAX, statusAmtOf, blindActive } = require("../characters/_un
 const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
-const { MAX_PLAYERS, SKILL_COST_MAX, TRANSFORMS } = require("./constants");
+const { BAG_SLOTS, GUTS_RANGE, MAX_PLAYERS, SKILL_COST_MAX, TRANSFORMS } = require("./constants");
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
@@ -98,6 +98,10 @@ function buildStateFor(viewerId) {
     attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
     log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? match.lastLog : [],
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
+    shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
+    shopTurnsLeft: shop.shopTurnsLeft(), // อีกกี่เทิร์นร้านย้าย (รวมเทิร์นนี้)
+    bagSlots: BAG_SLOTS,
+    gutsRange: GUTS_RANGE,
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
     players: Object.values(match.players).map((p) => {
       const mine = p.id === viewerId;

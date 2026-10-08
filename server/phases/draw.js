@@ -10,7 +10,6 @@ const {
   tickPoison, tickShock, tickMend, tickBurn, tickBleed,
 } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
-const { SHOP_INTERVAL_TURNS } = require("../constants");
 const match = require("../match");
 const { engine } = require("../engine");
 const combat = require("../combat");
@@ -36,9 +35,8 @@ function dealRound() {
   match.cutsceneInfo = null;
   match.lastAttack = null;
   match.roundSkills = [];
-  // ร้านค้ามายา (patch 2.2 full): เปิดทุกๆ 5 เทิร์น ตอนเริ่มเทิร์นใหม่
-  if (match.roundNumber % SHOP_INTERVAL_TURNS === 0) shop.openShop();
-  else shop.refreshShopForJourney(); // การเดินทาง: ผลต่อร้านค้าตามช่วงเวลาของเทิร์นนี้ (ร้านค้างมาจากเทิร์นก่อน)
+  // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 5 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้
+  shop.maybeMoveShop();
   const prevNight = dayNight.isNightRound(match.roundNumber - 1);
 
   for (const p of Object.values(match.players)) {
