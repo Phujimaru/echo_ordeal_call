@@ -1,7 +1,7 @@
 import { GUTS_AMMO_INFO, shopInfoOf } from "../data/shop";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -9,16 +9,16 @@ import VictoryScreen from "../components/VictoryScreen";
 import ArenaBackdrop from "../components/ArenaBackdrop";
 import JourneyBackdrop from "../journey/JourneyBackdrop";
 import ArenaScene from "../journey/arena/ArenaScene";
-import { arenaLayout, hasArena, ARENA_CARD_SCALE, arenaCardZoom } from "../journey/arena/arenaData";
-import { onArenaLand, getArenaLandSeq, arenaLandDelay } from "../journey/arena/arenaLandBus";
+import { arenaLayout } from "../journey/arena/arenaData";
 import { journeyArea } from "../journey/areas";
 import { RoundBanner, CycleScene } from "../components/BattleScenes";
 import { AvModal, AvButton } from "../components/avalon";
 import { socket } from "../socket";
-import { StatRow, SpRow, VitalExtras } from "./hud/StatRow";
+import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { SelfHud, HudPanel, HudStatusDrawer, HudCenter, HudRight, HudTopBar } from "./hud/SelfHud";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
+import BoardStage from "../board/BoardStage";
 
 const P_DISPLAY = "var(--font-p-display)";
 const TEAM_COLORS = { A: "#22d3ee", B: "#f97316", C: "#a3e635" };
@@ -480,9 +480,6 @@ function JourneyInfoModal({ journey, onClose }) {
   );
 }
 
-// สนามประลอง 2.5D: spec = "จำนวนคนอื่น~กว้าง~สูง~สีเรา|สีคนอื่น…" (สตริงเดียว memo ง่าย) → ผังที่นั่งชุดเดียวกับ GameBoard
-// การ์ดผู้เล่น/กองไพ่หล่นลงที่นั่งเมื่อฉากพุ่งลง (ArenaScene) ใกล้จบ — วินาทีนับจาก mount
-const ARENA_SEAT_IN_S = 4.9;
 const ARENA_FALLBACK_COLS = ["#3d8bd9", "#9b4f96", "#e0812f", "#2fa39a", "#d2455b", "#6b7fd6", "#c49a2c"];
 function ArenaBackground({ area, night, lowQ, spec }) {
   const { W, H, seats } = useMemo(() => {
@@ -544,33 +541,6 @@ function Laurel({ size = 250 }) {
         );
       })}
     </svg>
-  );
-}
-
-// ม่านมืดของสรุปผล (.sum-veil) / ฉากโจมตี (.fx-veil) หายวับตอนเปลี่ยนเฟส แล้วม่านของฉากถัดไปค่อยเฟดเข้าจาก 0
-//  บนสนามสีขาว (5.1) = จอกะพริบ มืด→สว่างทั้งจอ→มืด ทุกเทิร์น · VeilTail วางม่านสีเดียวกันทับช่วงรอยต่อแล้วจางออกเอง
-//  เปลี่ยน key ระหว่าง render (ไม่รอ effect) — ม่านหางขึ้นในเฟรมเดียวกับที่ม่านเดิมหาย จึงไม่มีเฟรมสว่างโผล่
-const VEIL_TAIL_MS = 480;
-function VeilTail({ veilKey }) {
-  const [s, setS] = useState({ key: veilKey, n: 0, on: false });
-  if (s.key !== veilKey) setS({ key: veilKey, n: s.key ? s.n + 1 : s.n, on: s.on || !!s.key });
-  useEffect(() => {
-    if (!s.on) return undefined;
-    const t = setTimeout(() => setS((cur) => (cur.n === s.n ? { ...cur, on: false } : cur)), VEIL_TAIL_MS + 60);
-    return () => clearTimeout(t);
-  }, [s.on, s.n]);
-  if (!s.on) return null;
-  return (
-    <div
-      key={s.n}
-      aria-hidden="true"
-      className="fixed inset-0 pointer-events-none"
-      style={{
-        zIndex: 30,
-        background: "radial-gradient(ellipse 66% 60% at 50% 48%, rgba(14, 31, 60, 0.71), rgba(3, 10, 22, 0.9) 76%)",
-        animation: `fxVeil ${VEIL_TAIL_MS}ms ease-in reverse both`,
-      }}
-    />
   );
 }
 
@@ -653,10 +623,10 @@ function SummaryTiers({ winners, losers, compact }) {
 //  ไม่งั้นฉากจะถูกถอดออกกลางคัน แล้วฉากถัดไปในคิวจะเด้งมาทับตอนอันเก่ายังจางไม่หมด
 const SCENE_MS = { cycle: 3500, draw: 2000, atk: 2200, shop: 3700 };
 
-function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx }) {
+function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx, boardFx = false }) {
   return (
     <>
-      {phase === "ATTACKING" && attack && <AttackFx key={attack.id} a={attack} />}
+      {!boardFx && phase === "ATTACKING" && attack && <AttackFx key={attack.id} a={attack} />}
       {csSkipped && <CutsceneSkipNotice key={csSkipped.id} cs={csSkipped} />}
       {flash && <SkillFlash key={flash.id} f={flash} />}
       {notice && <TransformNotice key={notice.id} n={notice} />}
@@ -669,16 +639,17 @@ function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx }) {
 function ModalMounts({
   showChar, ch, me, onCloseChar,
   statusView, statusViewIsSelf, onCloseStatus,
-  shopOpen, shop, onCloseShop,
+  shopOpen, shop, onCloseShop, shopBlock, shopTurnsLeft,
   bagOpen, onCloseBag, players, gameState, roundNumber, onPickGunAmmo,
+  myTurn, bagSlots, onPickSuit,
   skillConfirm, onConfirmSkill, onCancelSkill,
 }) {
   return (
     <>
       {showChar && ch && <CharModal ch={ch} me={me} onClose={onCloseChar} />}
       {statusView && <StatusModal p={statusView} statusOnly={statusViewIsSelf} onClose={onCloseStatus} />}
-      {shopOpen && <ShopModal shop={shop} me={me} onClose={onCloseShop} />}
-      {bagOpen && <InventoryModal me={me} players={players} gameState={gameState} roundNumber={roundNumber} onPickGunAmmo={onPickGunAmmo} onClose={onCloseBag} />}
+      {shopOpen && <ShopModal shop={shop} me={me} block={shopBlock} turnsLeft={shopTurnsLeft} onClose={onCloseShop} />}
+      {bagOpen && <InventoryModal me={me} players={players} gameState={gameState} roundNumber={roundNumber} onPickGunAmmo={onPickGunAmmo} myTurn={myTurn} bagSlots={bagSlots} onPickSuit={onPickSuit} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <GutsVideoPreloader me={me} players={players} />
     </>
@@ -697,23 +668,6 @@ function rankTiers(players) {
   return scores.map((v) => ({ score: v, players: combatants.filter((p) => val(p) === v) }));
 }
 
-// ตำแหน่งผู้เล่นคนอื่น (นอกจากตัวเรา) รอบโต๊ะ — [top%, left%] จัดตามจำนวน ไม่เรียงแถว
-// [top%, left%] ของการ์ดผู้เล่นคนอื่นบนกระดานจอคอม (index = จำนวนคนอื่นในสนาม)
-//  ข้อกำหนดสำคัญ: ห้ามมีช่องไหนทับ "กองการ์ดกลาง" ซึ่งอยู่ที่ top 40% / left 45-55%
-//  (การ์ดกว้าง w-28 = กว้าง +-6.2% ที่ความกว้างออกแบบต่ำสุด 900px)
-const SLOTS = {
-  0: [],
-  1: [[12, 50]],
-  2: [[12, 22], [12, 78]],
-  3: [[12, 17], [11, 50], [12, 83]],
-  4: [[12, 18], [12, 82], [36, 13], [36, 87]],
-  5: [[12, 17], [11, 50], [12, 83], [38, 13], [38, 87]],
-  // patch 2.8 (ช่องผู้เล่นที่ 7): 6 คนอื่น — แถวบน 4 ใบ + ข้างละ 1 ใบ
-  //  แถวบนคู่กลางวางที่ 38/62% (ขอบในสุด 44.2/55.8%) จึงเว้นช่องกองการ์ดกลางไว้ทั้งแนวนอน
-  //  และปลายล่างของการ์ดยังอยู่เหนือกองการ์ดที่เริ่มต้นที่ 40% อีกชั้นหนึ่ง
-  // 5.1 (แผงตัวเราใหม่ ใหญ่ขึ้นตามจอ): แถวบนเลื่อนลงพ้นแถบรอบ/ภูมิภาคซ้ายบน (~10%) · ใบข้างยกขึ้นพ้นแผงล่าง (เดิม 44-50%)
-  6: [[11, 15], [11, 38], [11, 62], [11, 85], [38, 12], [38, 88]],
-};
 
 // รูปตัวละคร (เต็มกรอบ + fallback) — แยกชั้น "รูป" (overflow-hidden ตัดขอบ) ออกจากชั้น "ออร่า" (ต้องฟุ้งเลยขอบพอร์เทรตได้)
 function Portrait({ p, className, rounded = "rounded-2xl" }) {
@@ -741,28 +695,6 @@ function Shield({ on, size = 16 }) {
   );
 }
 
-// ---------- ตัวล็อกเป้าหมาย (5.1.11 ธีม ORDEAL CALL): มุมกรอบสีแดงปะการังหุบเข้าล็อก + เส้นสแกนวิ่งผ่านการ์ด ----------
-//  วางนอกการ์ด (การ์ดมี clip-path ตัดลูกหลานทิ้ง — วงรีหมุนแบบเดิมเลยถูกตัดจนรูปทรงเพี้ยน) · รูปหกเหลี่ยมมีเรติเคิลของตัวเอง (HexLock)
-function TargetLock() {
-  return (
-    <span className="tl-lock" aria-hidden="true">
-      <span className="tl-corner tl" />
-      <span className="tl-corner tr" />
-      <span className="tl-corner bl" />
-      <span className="tl-corner br" />
-      <span className="tl-scan" />
-    </span>
-  );
-}
-// เรติเคิลหกเหลี่ยมครอบรูปตัวละครบนการ์ดที่ตีได้ (เส้นประหมุนช้า + หกเหลี่ยมในเต้น)
-function HexLock() {
-  return (
-    <svg className="tl-hex" viewBox="0 0 120 104" aria-hidden="true">
-      <polygon className="tl-hex-spin" points="30,2 90,2 118,52 90,102 30,102 2,52" />
-      <polygon className="tl-hex-in" points="36,12 84,12 107,52 84,92 36,92 13,52" />
-    </svg>
-  );
-}
 function TargetLockLegacy() {
   return (
     <>
@@ -1077,12 +1009,6 @@ function SkillConfirmModal({ confirm, onConfirm, onCancel }) {
 }
 
 // ---------- ร้านค้ามายา + คลังผู้เล่น (patch 2.2 full) ----------
-const CARD_COLOR_OPTIONS = [
-  { key: "red", label: "แดง", swatch: "bg-red-600" },
-  { key: "blue", label: "ฟ้า", swatch: "bg-sky-500" },
-  { key: "green", label: "เขียว", swatch: "bg-emerald-500" },
-  { key: "yellow", label: "เหลือง", swatch: "bg-amber-400" },
-];
 // รูปไอคอนไอเทมทั้งหมด: ดึงมาแคชไว้ตั้งแต่เข้าเกม (ไฟล์เล็ก) กันไอคอนโหลดช้าตอนเปิดร้าน/กระเป๋าครั้งแรก
 const ITEM_PRELOAD_IMGS = ["/item/guts_select_gun/guts_gun.webp", ...Object.values(GUTS_AMMO_INFO).map((a) => a.img)];
 // วีดีโอกระสุนที่ผู้เล่นถืออยู่: โหลดล่วงหน้าไว้ในเบื้องหลัง (ไฟล์ 5-16MB) — ไม่งั้นตอนยิงจริงวีดีโอจะขึ้นช้า
@@ -1107,7 +1033,7 @@ function ItemIcon({ info, className = "" }) {
   return <span className={`shrink-0 ${className}`}>{info.icon}</span>;
 }
 
-// ร้านค้ามายา (patch 2.3): ร้านเดียว 15 ช่อง — รีสต็อกทุกๆ 5 เทิร์น
+// ร้านค้ามายา: ร้านเดียว 15 ช่อง ตั้งบนแผนที่ — ย้ายจุด + สุ่มของใหม่ทุก 5 เทิร์น (GRID_PLAN §8.1)
 //  กริดขยายออกด้านข้าง (สูงสุด 5 คอลัมน์ = 3 แถว) ไม่ให้โมดัลยืดลงจนต้อง scroll แนวตั้ง
 function ShopHerald() {
   const sparks = Array.from({ length: 14 }, (_, i) => {
@@ -1152,17 +1078,14 @@ function ShopHerald() {
         </svg>
         <div className="relative min-w-0">
           <div className="av-label">ร้านค้ามายา</div>
-          <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">มาเยือนแล้ว</div>
-          <div className="av-heading text-sm" style={{ color: "rgba(234,243,252,.62)" }}>
-            กดไอคอนร้านค้าเพื่อเลือกซื้อของ
-          </div>
+          <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">ย้ายแล้ว</div>
         </div>
       </div>
     </div>
   );
 }
 
-function ShopModal({ shop, me, onClose }) {
+function ShopModal({ shop, me, block, turnsLeft, onClose }) {
   const list = shop;
   const hasGun = (me?.inventory || []).some((i) => i.type === "gutsGun");
   return (
@@ -1171,11 +1094,14 @@ function ShopModal({ shop, me, onClose }) {
       title="ร้านค้ามายา"
       width="min(72rem, 94vw)"
       onClose={onClose}
-      right={<span className="av-chip av-chip-gold"><span>🪙 {me?.gold ?? 0}</span></span>}
+      right={<span className="flex gap-2">
+        {turnsLeft > 0 && <span className="av-chip"><span>ย้ายในอีก {turnsLeft} เทิร์น</span></span>}
+        <span className="av-chip av-chip-gold"><span>🪙 {me?.gold ?? 0}</span></span>
+      </span>}
     >
       <>
         {(!list || list.length === 0) ? (
-          <div className="av-label py-10 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ร้านจะเติมของทุกๆ 5 เทิร์น</div>
+          <div className="av-label py-10 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ไม่มีของ</div>
         ) : (
           <div className="grid grid-cols-5 gap-3">
             {list.map((it) => {
@@ -1201,10 +1127,10 @@ function ShopModal({ shop, me, onClose }) {
                     </div>
                     <AvButton
                       className="w-full py-1.5 text-xs px-2"
-                      disabled={sold || owned || suitLock > 0 || !afford}
+                      disabled={sold || owned || suitLock > 0 || !afford || !!block}
                       onClick={() => { playSfx("buy_something"); socket.emit("buyShopItem", { itemId: it.id }); }}
                     >
-                      {sold ? "ขายแล้ว" : owned ? "มีแล้ว" : suitLock > 0 ? `รออีก ${suitLock} เทิร์น` : afford ? "ซื้อ" : "เหรียญไม่พอ"}
+                      {sold ? "ขายแล้ว" : owned ? "มีแล้ว" : suitLock > 0 ? `รออีก ${suitLock} เทิร์น` : !afford ? "เหรียญไม่พอ" : block || "ซื้อ"}
                     </AvButton>
                   </div>
                 </div>
@@ -1217,40 +1143,42 @@ function ShopModal({ shop, me, onClose }) {
   );
 }
 
-function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, onClose }) {
+function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, myTurn, bagSlots = 5, onPickSuit, onClose }) {
   const items = me?.inventory || [];
-  // ยาเปลี่ยนสีการ์ด: ต้องเลือกการ์ด 1 ใบในมือก่อน ค่อยเลือกสีเป้าหมาย — เก็บ uid ของไอเทมที่กำลังเลือกอยู่ + index การ์ดที่เลือกแล้ว
-  const [colorPickUid, setColorPickUid] = useState(null);
-  const [colorPickCardIdx, setColorPickCardIdx] = useState(null);
   // ปืนหน่วย GUTS Select: กดที่ปืน -> เลือกกระสุนในกระเป๋า -> ปิดกระเป๋าแล้วไปเลือกเป้าหมายบนกระดานต่อ
   const [gunOpen, setGunOpen] = useState(false);
-  const myCards = me?.cards || [];
-  // เกราะ Mark 42: เลือกโหมดที่ต้องเลือกเป้าหมาย ("give" | "bomb") ของชุดในกระเป๋า
+  // เกราะ Mark 42: เลือกโหมดที่ต้องเลือกเป้าหมาย ("give" | "bomb") ของชุดในกระเป๋า (มือถือ — จอคอมเลือกบนกระดาน)
   const [suitMode, setSuitMode] = useState(null);
-  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42);
-  const suitBlock = gameState !== "PLAYING" ? "ใช้ได้เฉพาะช่วงจั่วการ์ด" : null;
+  // ใส่ให้ / ระเบิดใส่ / เรียกคืน ต้องยืนติดกัน (GRID_PLAN §8.1)
+  const adjacent = (a, b) => !!a?.pos && !!b?.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
+  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42 && (!me?.pos || adjacent(me, p)));
+  // ใช้ของได้เฉพาะตาเดินของตัวเอง (ระบบกระดาน)
+  const turnBlock = !myTurn ? "ใช้ได้เฉพาะตาของคุณ" : null;
+  const suitBlock = turnBlock;
   const applySuit = (uid, mode, targetId) => { clickSound(); socket.emit("useInventoryItem", { uid, mode, targetId }); setSuitMode(null); };
   const suitControl = (action) => { clickSound(); socket.emit("mark42Control", { action }); };
   const suitOut = me?.mark42Owned || null;
+  const suitWearer = suitOut ? (players || []).find((p) => p.id === suitOut.wearerId) : null;
+  const recallBlock = suitBlock || (suitWearer && !adjacent(me, suitWearer) ? "ต้องยืนติดกัน" : null);
 
   const ammoItems = items.filter((it) => it.type === "gutsAmmo");
   const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && !(me?.teamId && p.teamId === me.teamId));
   // เหตุผลที่ยิงไม่ได้ (โชว์ให้เห็นเลย ไม่ปล่อยให้กดแล้วเงียบ)
   const fireBlock =
-    gameState !== "PLAYING" ? "ยิงได้เฉพาะช่วงจั่วไพ่"
-    : me?.locked ? "เปิดไพ่ไปแล้ว — ยิงไม่ได้"
+    !myTurn ? "ยิงได้เฉพาะตาของคุณ"
     : (me?.gutsShotTurn || 0) === roundNumber ? "ยิงไปแล้วในเทิร์นนี้ (1 นัด/เทิร์น)"
     : ammoItems.length === 0 ? "ไม่มีกระสุน — ซื้อได้ที่ร้านค้ามายา"
     : targets.length === 0 ? "ไม่มีเป้าหมายให้ยิง"
     : null;
 
   function applyItem(uid) { clickSound(); socket.emit("useInventoryItem", { uid }); }
-  function startColorPick(uid) { clickSound(); setColorPickUid(uid); setColorPickCardIdx(null); }
-  function cancelColorPick() { clickSound(); setColorPickUid(null); setColorPickCardIdx(null); }
-  function pickColor(color) {
+  // ทิ้งของ: ตาตัวเองเท่านั้น ไม่นับเป็นการใช้
+  function dropItem(uid) { clickSound(); socket.emit("dropItem", { uid }); }
+  // ใส่ให้ / ระเบิดใส่: จอคอมไปเลือกคนที่ยืนติดกันบนกระดาน · มือถือเลือกจากรายชื่อด้านล่าง
+  function chooseSuitMode(uid, mode) {
     clickSound();
-    socket.emit("useInventoryItem", { uid: colorPickUid, cardIndex: colorPickCardIdx, color });
-    setColorPickUid(null); setColorPickCardIdx(null);
+    if (onPickSuit) { onPickSuit(uid, mode); return; }
+    setSuitMode(suitMode === mode ? null : mode);
   }
   function toggleGun() { clickSound(); setGunOpen((v) => !v); }
   // เลือกกระสุนแล้วเด้งไปโหมดเลือกเป้าหมายบนกระดานทันที (กดที่การ์ดผู้เล่นจริง ไม่ใช่กดชื่อในกระเป๋า)
@@ -1261,7 +1189,8 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
   }
 
   return (
-    <AvModal label="กระเป๋า" title={`กระเป๋าของ ${me?.name || ""}`} width="min(34rem, 94vw)" onClose={onClose}>
+    <AvModal label="กระเป๋า" title={`กระเป๋าของ ${me?.name || ""}`} width="min(34rem, 94vw)" onClose={onClose}
+      right={<span className="av-chip"><span>{items.length}/{bagSlots}</span></span>}>
       <>
         {suitOut && (
           <div className="av-item flex flex-col gap-2 mb-2" style={{ borderLeftColor: "#f97316" }}>
@@ -1273,7 +1202,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {!suitOut.self && <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !!me?.mark42} title={me?.mark42 ? "ใส่ชุดอยู่แล้ว" : suitBlock || ""} onClick={() => suitControl("recall")}>เรียกคืนมาใส่เอง</AvButton>}
+              {!suitOut.self && <AvButton className="px-3 py-1.5 text-xs" disabled={!!recallBlock || !!me?.mark42} title={me?.mark42 ? "ใส่ชุดอยู่แล้ว" : recallBlock || ""} onClick={() => suitControl("recall")}>เรียกคืนมาใส่เอง</AvButton>}
               <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock} title={suitBlock || ""} onClick={() => suitControl("remove")}>ถอดออก</AvButton>
               {!suitOut.self && <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock} title={suitBlock || ""} onClick={() => suitControl("detonate")}>💥 สั่งระเบิด (2)</AvButton>}
             </div>
@@ -1285,11 +1214,9 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
           <div className="flex flex-col gap-2">
             {items.map((it) => {
               const info = shopInfoOf(it);
-              const isColorItem = it.type === "cardColor";
               const isGun = it.type === "gutsGun";
               const isAmmo = it.type === "gutsAmmo";
               const isSuit = it.type === "mark42";
-              const picking = isColorItem && colorPickUid === it.uid;
               return (
                 <div key={it.uid} className="av-item flex flex-col gap-2" style={isGun ? { borderLeftColor: "var(--av-gold-mid)" } : undefined}>
                   <div className="flex items-center gap-3">
@@ -1306,20 +1233,17 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
                       <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>{suitBlock || "เลือกวิธีใช้ด้านล่าง"}</span>
                     ) : isAmmo ? (
                       <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>ใช้ผ่านปืน</span>
-                    ) : isColorItem ? (
-                      <AvButton className="px-4 py-1.5 text-xs shrink-0" onClick={() => (picking ? cancelColorPick() : startColorPick(it.uid))}>
-                        {picking ? "ยกเลิก" : "ใช้"}
-                      </AvButton>
                     ) : (
-                      <AvButton className="px-4 py-1.5 text-xs shrink-0" onClick={() => applyItem(it.uid)}>ใช้</AvButton>
+                      <AvButton className="px-4 py-1.5 text-xs shrink-0" disabled={!!turnBlock} title={turnBlock || ""} onClick={() => applyItem(it.uid)}>ใช้</AvButton>
                     )}
+                    <AvButton className="px-3 py-1.5 text-xs shrink-0" disabled={!myTurn} onClick={() => dropItem(it.uid)}>ทิ้ง</AvButton>
                   </div>
                   {isSuit && (
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap gap-2">
                         <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !!me?.mark42} title={me?.mark42 ? "ใส่ชุดอยู่แล้ว" : ""} onClick={() => applySuit(it.uid, "self")}>🦾 ใส่ให้ตัวเอง</AvButton>
-                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} onClick={() => { clickSound(); setSuitMode(suitMode === "give" ? null : "give"); }}>ใส่ให้ผู้เล่นอื่น</AvButton>
-                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} onClick={() => { clickSound(); setSuitMode(suitMode === "bomb" ? null : "bomb"); }}>💥 ใส่ให้แล้วระเบิด (2)</AvButton>
+                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} title={!suitTargets.length ? "ต้องยืนติดกัน" : ""} onClick={() => chooseSuitMode(it.uid, "give")}>ใส่ให้ผู้เล่นอื่น</AvButton>
+                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} title={!suitTargets.length ? "ต้องยืนติดกัน" : ""} onClick={() => chooseSuitMode(it.uid, "bomb")}>💥 ใส่ให้แล้วระเบิด (2)</AvButton>
                       </div>
                       {suitMode && (
                         <div className="rounded-lg bg-black/40 p-2">
@@ -1350,35 +1274,6 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
                       </div>
                     </div>
                   )}
-                  {picking && (
-                    <div className="rounded-lg bg-black/30 p-2">
-                      {colorPickCardIdx === null ? (
-                        <>
-                          <div className="text-xs opacity-80 mb-1">เลือกการ์ดที่จะเปลี่ยนสี:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {myCards.map((c, i) => c.special ? null : (
-                              <button key={i} className="hover:-translate-y-1 transition-transform" onClick={() => { clickSound(); setColorPickCardIdx(i); }}>
-                                <Card value={c.value} color={c.color} size="sm" />
-                              </button>
-                            ))}
-                          </div>
-                          {myCards.every((c) => c.special) && <div className="text-xs opacity-60 py-1">ไม่มีการ์ดเลขในมือให้เปลี่ยนสี</div>}
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-xs opacity-80 mb-1">เลือกสีเป้าหมาย:</div>
-                          <div className="flex gap-2">
-                            {CARD_COLOR_OPTIONS.map((c) => (
-                              <button key={c.key} className="flex flex-col items-center gap-1" onClick={() => pickColor(c.key)}>
-                                <span className={`w-7 h-7 rounded-full border-2 border-white/40 ${c.swatch}`} />
-                                <span className="text-[10px]">{c.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -1390,102 +1285,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, on
 }
 
 
-// ---------- ลวดลายแผ่นป้าย: ยอดตราบนสุด + เส้นคั่นมีเพชรกลาง ----------
-//  รูปทรงตัวการ์ดเป็น clip-path เฉพาะตัว (ยอดแหลมกลาง มุมบนเฉียง มุมล่างตัด) ไม่ใช่สี่เหลี่ยมมนสำเร็จรูป
-function PlaqueCrest() {
-  return (
-    <svg className="pc-crest" viewBox="0 0 40 20" aria-hidden="true">
-      <path d="M20 1.5 26.5 8 20 14.5 13.5 8Z" fill="#eaf3fc" stroke="#1c3f6e" strokeWidth="0.8" />
-      <path d="M20 5.2 23 8 20 10.8 17 8Z" fill="#3d8bd9" opacity="0.75" />
-      <path d="M1.5 16.5 H15" stroke="#7fb8e6" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M25 16.5 H38.5" stroke="#7fb8e6" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
 
-// ผู้เล่นคนอื่นรอบโต๊ะ — picked = ถูกเลือกเป้าหมาย ANATA WAAAAAAAA แล้ว
-//  คลิกตอนไม่ได้เลือกเป้า = เปิดหน้าต่างดูสถานะของคนนั้น (onInspect)
-// การ์ดแนวนอน: รูปซ้าย · ชื่อ/เลือด/เกราะ/แต้มสกิลเรียงเป็นแถวทางขวา · สถานะเป็นแถบล่างในกล่องเดียวกัน
-//  แบบแนวตั้งที่เกจขนาบสองข้างอ่านยาก (ต้องเทียบสีเอาเองว่าเสาไหนคือเลือด) — แถวมีไอคอนกับตัวเลขกำกับชัดกว่า
-// slot[2] (ถ้ามี) = ย่อการ์ด · slot[3] = "bottom" ยึดขอบล่าง (สนาม 2.5D)
-function OtherPlayer({ p, phase, slot, targetable, onAttack, onInspect, hostRef, enterDelay = null }) {
-  const summary = phase === "SUMMARY";
-  const seatScale = slot[2];
-  const fromBottom = slot[3] === "bottom"; // สนาม 2.5D: จุดยึด = ขอบล่างกลางการ์ด (ยืนบนเส้นแสงเหนือฐานที่นั่ง)
-  return (
-    <div
-      ref={hostRef}
-      // Tailwind v4: -translate-x-1/2 ใช้ property `translate` แยกจาก `transform` — ใส่ทั้งคู่ = เลื่อนซ้ำ 2 เท่า
-      //  ที่นั่งแบบย่อจึงเลื่อนกึ่งกลางใน transform เองแทนคลาส
-      className={`absolute ${seatScale ? "" : "-translate-x-1/2"} flex flex-col items-center gap-1.5 w-[260px]`}
-      style={{ top: `${slot[0]}%`, left: `${slot[1]}%`, ...(fromBottom ? { transform: `translate(-50%, -100%) scale(${seatScale})`, transformOrigin: "bottom center" } : seatScale ? { transform: `translateX(-50%) scale(${seatScale})`, transformOrigin: "top center" } : null), ...(enterDelay != null ? { animation: `arSeatIn 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) ${enterDelay}s both` } : null) }}
-    >
-      <div className="relative w-full">
-      <div
-        onClick={targetable ? () => { clickSound(); onAttack(p.id); } : () => { clickSound(); onInspect(p.id); }}
-        className={`p-target-wrap relative pc-card w-full${targetable ? " pc-targetable" : ""} ${p.alive ? "pc-card-live" : ""} ${!p.alive ? "opacity-40 grayscale" : ""} ${targetable ? "cursor-crosshair" : "cursor-pointer"}`}
-        title={targetable ? undefined : "แตะเพื่อดูสถานะ"}
-        style={{ "--p-frame-color": p.color }}
-      >
-        <span className="pc-plate" aria-hidden="true" />
-            <PlaqueCrest />
-            <div className="pc-inner">
-              <div className="pc-main">
-                {/* รูปหกเหลี่ยมด้านแบนบน (ชุดเดียวกับแผงตัวเรา) — ขอบไล่จากสีประจำที่นั่งไปฟ้า */}
-                <div className="pc-hex-wrap">
-                  <div className="pc-hex">
-                    <span className="pc-hex-dark" aria-hidden="true" />
-                    <span className="pc-hex-in">
-                      <Portrait p={p} className="w-full h-full" rounded="" />
-                    </span>
-                  </div>
-                  {targetable && <HexLock />}
-                </div>
-                <div className="pc-info">
-                  <div className="pc-name-text">
-                    {p.name}{!p.connected && <span className="ml-1 text-[10px] text-echo-hp">•offline</span>}
-                  </div>
-                  <StatRow kind="hp" value={p.hp} max={p.maxHp} extra={p.tempHp || 0} extraLabel="เลือดชั่วคราว" />
-                  <StatRow kind="ar" value={p.armor} max={p.maxArmor} />
-                  <SpRow p={p} />
-                </div>
-              </div>
-              {/* แถบสถานะ: จองที่ไว้ตลอดแม้ยังว่าง ไม่งั้นความสูงการ์ดกระตุกทุกครั้งที่สถานะมา/ไป */}
-              <div className="pc-foot">
-                <VitalExtras p={p} className="pc-extra-inline" />
-                <StatusChips p={p} left compact max={8} />
-              </div>
-            </div>
-        {!p.alive && <span className="absolute inset-0 grid place-items-center text-3xl z-10">💀</span>}
-      </div>
-      {targetable && <TargetLock />}
-      </div>
-      {/* ป้ายที่ลอยพ้นขอบการ์ดต้องอยู่ "นอก" .pc-card — clip-path ของการ์ดตัดลูกหลานทุกตัวทิ้ง
-          ไม่สนใจ z-index หรือ overflow ถ้าวางไว้ข้างในจะหายทั้งใบ เหลือแต่เงาที่เล็ดลอดออกมา
-          (กรอบนอกกว้างเท่ากันและไม่มี clip-path จึงวางตำแหน่งเดิมได้เป๊ะ) */}
-      <TeamBadge teamId={p.teamId} className="absolute -top-3 -right-3 z-20" />
-      {targetable && (
-        <span className="p-target-badge absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] px-2 py-0.5 rounded-full text-white whitespace-nowrap z-10">
-          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" className="inline-block -mt-px mr-1 align-middle"><circle cx="12" cy="12" r="7" fill="none" stroke="#fff" strokeWidth="2" /><path d="M12 1v5M12 18v5M1 12h5M18 12h5" stroke="#fff" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="12" r="2" fill="#fff" /></svg>เป้าหมาย
-        </span>
-      )}
-      {p.isWinner && summary && <span className="absolute -top-2 -right-2 text-xl z-10">👑</span>}
-      {/* กลางบน: ไม่ชนกับตราทีม (ขวาบน) และป้าย 🎯/👑 อยู่คนละเฟสกันอยู่แล้ว */}
-      {phase === "PLAYING" && p.locked && p.alive && (
-        <span className="pc-ready absolute -top-2 left-1/2 -translate-x-1/2 z-10" title="เปิดไพ่แล้ว">✓ พร้อม</span>
-      )}
-      {/* เปิดแต้ม (promo): แต้มการ์ดถูกเปิดเผยให้ทุกคนเห็นแม้ยังไม่เปิดไพ่ */}
-      {(summary || (p.statuses?.promo || 0) > 0) && p.score !== null && p.score !== undefined && (
-        <div className={`score-pop text-2xl font-black ${p.isWinner ? "text-echo-ice" : p.busted ? "text-echo-hp" : "text-white"}`}>
-          {p.busted ? "แตก!" : `${p.score} แต้ม`}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------- การ์ดคู่ต่อสู้แบบมือถือ (เรียงกริดด้านบน แตะเพื่อโจมตี/เลือกเป้า) ----------
-//  แตะตอนไม่ได้เลือกเป้า = เปิดหน้าต่างดูสถานะของคนนั้น (onInspect)
 function MobileOpponent({ p, phase, targetable, onAttack, onInspect, hostRef }) {
   const summary = phase === "SUMMARY";
   return (
@@ -1815,16 +1615,12 @@ function FlyingCardsLayer({ flights, onDone }) {
 export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [showChar, setShowChar] = useState(false);
   const [flash, setFlash] = useState(null); // สกิลช่วงจั่วการ์ด เด้งทันทีบนกระดาน
-  // สนาม 2.5D: ทุกครั้งที่ฉากพุ่งลงภูมิภาคใหม่เริ่ม → ใส่ key ใหม่ให้การ์ดผู้เล่น/กองไพ่ หล่นลงที่นั่งซ้ำหลังฉากพุ่งลง
-  //  อ่านผ่าน store เพราะสนาม (ลูก) ประกาศตอน mount ก่อน effect ของกระดานจะได้สมัครฟัง
-  //  กระดาน mount ใหม่หลังคัตซีน: seq เดิม + arenaLandDelay = null → การ์ดไม่หล่นซ้ำ (เคยทำให้จอกระพริบ)
-  const arenaLandSeq = useSyncExternalStore(onArenaLand, getArenaLandSeq);
-  //  ค่าหน่วงให้การ์ดหล่นลงที่นั่ง: คิดครั้งเดียวต่อการพุ่งลงแต่ละรอบ (ถ้าคิดใหม่ทุก render ค่าลดลงเรื่อยๆ ตาม state ที่เข้ามา → การ์ดหล่นเร็ว/กระตุก)
-  const arenaSeatDelay0 = useMemo(() => arenaLandDelay(ARENA_SEAT_IN_S), [arenaLandSeq]); // eslint-disable-line react-hooks/exhaustive-deps
   const [notice, setNotice] = useState(null); // แปลงร่างซ้ำ (ครั้งที่ 2 เป็นต้นไป) เด้งแจ้งเตือนทันที ไม่หยุดเกม
   const [giftSel, setGiftSel] = useState(null);              // โอเบรอน (ฤดูร้อน): { tier, anyone } ที่กำลังรอจิ้มเป้าหมาย
   const [journeyInfoOpen, setJourneyInfoOpen] = useState(false);   // การเดินทาง: หน้าต่างอ่านผลของภูมิภาคปัจจุบัน
   const [gunSel, setGunSel] = useState(null);                // ปืนหน่วย GUTS Select: กระสุนที่เลือกไว้ รอจิ้มเป้าหมายบนกระดาน (เลือกตัวเองไม่ได้)
+  // จอคอม (ระบบกระดาน): โหมดเลือกเป้า/ทิศบนกระดาน — { kind: "skill", tier } | { kind: "gun", item } | { kind: "suit", uid, mode }
+  const [pickReq, setPickReq] = useState(null);
   // ---------- คิวฉากประกาศ ----------
   //  ฉากประกาศทุกอันกินจอเต็มใบ เดิมต่างคนต่างมีตัวตั้งเวลาของตัวเอง ไม่มีใครรู้จักกัน จึงทับกันได้
   //  ที่ชนบ่อยที่สุด: วงจรกลางวัน-กลางคืนสลับทุก 3 เทิร์น แล้วเด้งพร้อม "เริ่มจั่วการ์ด" ที่ต้นเทิร์นพอดี
@@ -1872,21 +1668,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const others = state.players.filter((p) => p.id !== state.youId);
   const arenaJourney = state.journey;
   const seatOthers = others;
-  const slots = SLOTS[Math.min(seatOthers.length, 6)] || [];
-  // สนามประลอง 2.5D (ภูมิภาค I–III, จอคอม): คนอื่นนั่งครึ่งวงด้านไกลของสนาม เราอยู่ฝั่งใกล้กล้อง
-  //  ตำแหน่งที่นั่งคำนวณจากสูตรเดียวกับฉากหลัง (arenaLayout) → การ์ดวาง "ขอบล่าง" ตรงปลายเส้นแสงเหนือฐานที่นั่งพอดี
-  const arenaArea = arenaJourney && vp.w >= 768 && hasArena(arenaJourney.area) ? arenaJourney.area : 0;
-  const arenaSeatN = seatOthers.length;
-  const vpW = vp.w, vpH = vp.h;
-  const arenaLay = arenaArea ? arenaLayout(vpW, vpH, arenaArea, arenaSeatN) : null; // คำนวณเบา ไม่ต้อง memo
-  const arenaColorKey = arenaArea ? [me?.color, ...seatOthers.map((p) => p.color)].join("|") : "";
-  // ฉากหลังได้แค่ค่าพื้นฐาน (ภูมิภาค/จำนวน/สี/ขนาดจอ) — ArenaBackground memo เองแล้วค่อยสร้างฉาก (หนัก) เมื่อค่าเปลี่ยน
-  const arenaBg = arenaArea ? `${arenaSeatN}~${vpW}~${vpH}~${arenaColorKey}` : null;
-  const arenaSlots = arenaLay
-    ? arenaLay.others.map((o) => [(o.bottom / vp.h) * 100, (o.cardX / vp.w) * 100, o.s * ARENA_CARD_SCALE * arenaCardZoom(vp.w, vp.h), "bottom"])
-    : null;
-  const cardOthers = seatOthers;
-  const cardSlots = arenaSlots || slots;
   const iAmAttacker = phase === "ATTACK" && state.attackerId === state.youId;
   const attacker = state.players.find((p) => p.id === state.attackerId);
   const rankedTiers = rankTiers(state.players);
@@ -1895,6 +1676,20 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const done = me && (me.locked || !me.alive);
   const ch = me?.character;
   const meStatuses = me ? statusEntries(me) : []; // รายการสถานะของตัวเอง — ใช้ในกล่อง "สถานะ" ของแผง HUD (เรียงลงล่างเรื่อยๆ ตามลำดับที่ติด)
+  // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
+  const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
+  const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
+  const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const nearShop = !!(me?.pos && state.shopPos && manhattan(me.pos, state.shopPos) === 1);
+  const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
+  const shopBlock = !myTurn ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
+  const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
+    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "field" ? "ทั้งสนาม" : "";
+  // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
+  const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
+    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && manhattan(p.pos, me.pos) <= (a.range || 0));
+  const enemyOf = (p) => !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
   // เข้าช่วงโจมตี -> ฉากประกาศ "เริ่มโจมตีได้" + เสียงเปลี่ยนช่วง (ไม่บังการกดเลือกเป้า)
   useEffect(() => {
     if (phase !== "ATTACK") return;
@@ -1998,6 +1793,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
   const skill = (tier) => {
     clickSound();
+    // จอคอม (ระบบกระดาน): สกิลที่มีระยะ → เลือกเป้า/ทิศบนกระดานก่อน · self → ใช้ทันที (GRID_PLAN §7.2)
+    if (vp.w >= 768) {
+      const kind = ch?.[tier]?.area?.kind || "self";
+      if (kind === "target" || kind === "aoe" || kind === "line") { setPickReq({ kind: "skill", tier }); return; }
+      socket.emit("useSkill", { tier });
+      return;
+    }
     // โอเบรอน (ฤดูร้อน) สกิลรอง/ท่าไม้ตาย: เข้าโหมดเลือกเป้าหมายกลาง (เลือกตัวเองได้)
     if (ch?.id === "oberon_summer" && (tier === "secondary" || tier === "ultimate")) { setGiftSel({ tier, anyone: true, name: ch[tier]?.name }); return; }
     socket.emit("useSkill", { tier });
@@ -2020,8 +1822,41 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ปืนหน่วย GUTS Select: เลือกกระสุนจากกระเป๋าแล้วปิดกระเป๋า เข้าโหมดจิ้มเป้าหมายบนกระดาน -> จิ้มแล้วยิงทันที
   const startGunPick = (ammoItem) => {
     setBagOpen(false);
-    setGunSel(ammoItem);
+    if (vp.w >= 768) setPickReq({ kind: "gun", item: ammoItem });
+    else setGunSel(ammoItem);
   };
+  // เกราะ Mark 42 ใส่ให้ / ระเบิดใส่: ปิดกระเป๋าแล้วเลือกคนที่ยืนติดกันบนกระดาน
+  const startSuitPick = (uid, mode) => {
+    setBagOpen(false);
+    setPickReq({ kind: "suit", uid, mode });
+  };
+  // หมดตาเรา / ของถูกใช้ไปแล้ว = ออกจากโหมดเลือกเป้า
+  useEffect(() => {
+    if (!pickReq) return;
+    const gone = (pickReq.kind === "gun" && !(me?.inventory || []).some((it) => it.uid === pickReq.item.uid))
+      || (pickReq.kind === "suit" && !(me?.inventory || []).some((it) => it.uid === pickReq.uid));
+    if (!myTurn || gone) setPickReq(null);
+  }, [pickReq, myTurn, me?.inventory]);
+  // โหมดเลือกเป้าที่ส่งให้ BoardStage
+  let boardPick = null;
+  if (pickReq && me) {
+    const done = () => setPickReq(null);
+    if (pickReq.kind === "skill") {
+      const s = ch?.[pickReq.tier];
+      const a = s?.area || {};
+      const label = `${s?.name || ""} · ${areaText(a)}`;
+      const tier = pickReq.tier;
+      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id] }); done(); }, onCancel: done };
+      else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier }); done(); }, onCancel: done };
+      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "gun") {
+      const item = pickReq.item;
+      boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "suit") {
+      const { uid, mode } = pickReq;
+      boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
+    }
+  }
   const pickGunTarget = (id) => {
     socket.emit("useInventoryItem", { uid: gunSel.uid, targetId: id });
     setGunSel(null);
@@ -2304,113 +2139,60 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <ModalMounts
           showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
           statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
-          shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)}
+          shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
           bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
+          myTurn={myTurn} bagSlots={state.bagSlots}
           skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         />
       </div>
     );
   }
 
-  // ---- จอคอม/แท็บเล็ต: กระดานเดิม (ออกแบบที่ 900px, auto-fit) ----
-  //  ย่อทั้งตามความกว้าง (ต่ำกว่า 900px) และ "ตามความสูง" (เตี้ยกว่า MIN_DESIGN_H):
-  //  ที่นั่งคู่แข่งวางเป็น % ของความสูง แต่แผงเรา/การ์ด/ปุ่มเป็น px ตายตัว — จอเตี้ย (เช่น 1650×796
-  //  ของเบราว์เซอร์ที่มีแถบเครื่องมือ/ซูม 125%) ที่นั่งจึงเลื่อนลงมาทับแผงเรา · ย่อแล้วพื้นที่ออกแบบสูงพอเสมอ
-  const MIN_DESIGN_H = 920;
-  const scale = Math.min(vp.w / Math.max(900, vp.w), Math.min(1, vp.h / MIN_DESIGN_H));
-  const DESIGN_W = vp.w / scale;
-  const designH = vp.h / scale;
-  // กำลังเลือกเป้าหมาย (สกิล/ไอเทม — ทุกโหมดที่มีแถบ "คลิกเลือกเป้าหมาย") หรือเป็นฝ่ายโจมตีที่ต้องเลือกเป้า
-  //  → แผงตัวเราเลื่อนลงพ้นจอ เหลือแต่เป้าหมายบนสนาม · ยกเลิก/เลือกเสร็จ/เปลี่ยนเฟส = state ถูกล้าง แผงเลื่อนกลับขึ้นมาเอง
-  const pickingTarget = !!(gunSel || giftSel);
-  //  ATTACKING ของฝ่ายเราเองยังซ่อนต่อ — โจมตีซ้ำ (ATTACK → ATTACKING → ATTACK) แผงจะได้ไม่เด้งขึ้นลง
-  const attackingSelf = phase === "ATTACKING" && state.attackerId === state.youId;
-  const hudAway = !!me && (pickingTarget || iAmAttacker || attackingSelf);
+  // ---- จอคอม/แท็บเล็ต: กระดานเดินได้แบบ Fire Emblem (GRID_PLAN §11) ----
+  //  กระดาน/ตัวละคร/แถบลำดับเดิน/คาดการณ์ อยู่ใน board/BoardStage.jsx · ไฟล์นี้คุม HUD ล่าง + เงื่อนไขกดได้/ไม่ได้
+  //  กำลังเลือกเป้าบนกระดาน → แผงตัวเราเลื่อนลงพ้นจอ ไม่บังกระดาน
+  const hudAway = !!me && !!boardPick;
   // ขนาด UI แผงตัวเรา: ออกแบบที่หน่วยฐาน 1440×810 แล้วขยายตามจอ (1080p = ×1.333)
   //  ความกว้างฐานขั้นต่ำ 1376 = ซ้าย+กลาง+ขวาเรียงได้ไม่ชนกัน (จอแคบ/4:3 จึงย่อตามความกว้าง)
-  //  กระดานทั้งหมดถูกย่อด้วย scale อยู่แล้ว → ตัวคูณภายในกระดาน = hudZ / scale
   const hudZ = Math.min(1.6, Math.max(0.6, Math.min(vp.h / 810, vp.w / 1376)));
-  const hudK = hudZ / scale;
+  const inBoardTurn = phase === "ORDER" || phase === "ACTION" || phase === "ATTACKING";
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
-      <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} arena={arenaBg} />
-      <div
-        className="relative overflow-hidden"
-        style={{ width: DESIGN_W, height: designH, transform: `scale(${scale})`, transformOrigin: "top left" }}
-      >
-      {/* กองการ์ดกลาง ทับตำแหน่งโลโก้กลางโต๊ะเดิม (โลโก้เป็นแค่วอเตอร์มาร์กจางๆ ด้านหลัง) — ใหญ่ขึ้นชัดเจน */}
-        <div
-          className={`absolute inset-x-0 ${arenaLay ? "" : "top-[40%]"} flex justify-center pointer-events-none`}
-          // สนาม 2.5D: กองการ์ดตั้งอยู่บนแท่นกลางสนาม (ขอบล่างกองตรงหน้าบนของแท่น)
-          style={arenaLay ? { top: `${(arenaLay.center.y / vp.h) * 100}%`, transform: "translateY(-92%)", ...(lowQ || arenaSeatDelay0 == null ? null : { animation: `arSeatIn 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) ${Math.max(0, arenaSeatDelay0 - 0.2)}s both` }) } : undefined}
-          key={arenaLay ? `deck-l${arenaLandSeq}` : "deck"}
-        >
-          <div className="bd-deck relative grid place-items-center">
-            <img src="/image/logo_current.webp" alt="" className="relative h-16 sm:h-20 w-auto opacity-20" />
-            <div className="absolute inset-0 grid place-items-center">
-              <DeckPile hostRef={deckRef} size="lg" onClick={() => setDeckOpen(true)} />
-            </div>
-          </div>
-        </div>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
+      {state.board ? (
+        <BoardStage state={state} me={me} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther} />
+      ) : (
+        <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
+      )}
+      {/* กองการ์ดกลาง: ขอบซ้ายกลางจอ (การ์ดบินออกจากตรงนี้ไปมือเรา/แถบลำดับเดิน) */}
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-[18]">
+        <DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} />
+      </div>
       {deckOpen && <DeckLedgerModal ledger={state.deckLedger || []} onClose={() => setDeckOpen(false)} />}
 
-      {/* QTE — ลอยกลางจอ ไม่บังกองการ์ด */}
+      {/* QTE — ลอยกลางจอ */}
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}
 
-      {/* แถบซ้ายบน: กลางวัน/คืน · รอบ · เวลา · ภูมิภาค (รวมกล่อง "รอบที่" กับป้ายการเดินทางเดิมเป็นแถบเดียว — แตะภูมิภาคเปิดหน้าต่างผลสนาม) */}
+      {/* แถบซ้ายบน: กลางวัน/คืน · รอบ · เวลา · ภูมิภาค */}
       <HudTopBar
         night={nightNow}
-        round={phase === "PLAYING" || phase === "ATTACK" ? state.roundNumber : null}
-        timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}`} />}
-        journey={state.journey && (phase === "PLAYING" || phase === "ATTACK" || phase === "SUMMARY")
+        round={phase === "PLAYING" || inBoardTurn ? state.roundNumber : null}
+        timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
+        journey={state.journey && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : null}
         onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
-        zoom={hudK}
+        zoom={hudZ}
       />
-      {/* ผู้เล่นคนอื่น */}
-      {cardOthers.map((p, i) => (
-        <OtherPlayer
-          // สนาม 2.5D: key ผูกภูมิภาค → เข้าภูมิภาคใหม่แล้วการ์ดหล่นลงที่นั่งซ้ำหลังฉากพุ่งลง
-          key={arenaSlots ? `${p.id}-l${arenaLandSeq}` : p.id}
-          enterDelay={arenaSlots && !lowQ && arenaSeatDelay0 != null ? arenaSeatDelay0 + i * 0.09 : null}
-          p={p}
-          phase={phase}
-          slot={cardSlots[i] || [50, 50]}
-          targetable={isTargetable(p, iAmAttacker, targetChain)}
-          onAttack={(id) => resolveAttackPick(id, targetChain)}
-          onInspect={setStatusViewId}
-          hostRef={(el) => registerOther(p.id, el)}
-        />
-      ))}
-      {/* โหมดเลือกเป้าหมายกระสุนปืนหน่วย GUTS Select — เลือกได้เฉพาะคนอื่น */}
-      {gunSel && (
-        <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-40 text-center text-hard whitespace-nowrap">
-          <span className="text-xl font-black text-echo-hp animate-pulse bg-black/60 rounded-full px-5 py-1.5">🔫 คลิกเลือกเป้าหมาย {shopInfoOf(gunSel).label(gunSel)}</span>
-          <button onClick={() => { clickSound(); setGunSel(null); }} className="ml-2 text-sm font-bold bg-black/60 rounded-full px-3 py-1 border border-white/30">ยกเลิก</button>
-        </div>
-      )}
 
-      {giftSel && (
-        <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-40 text-center text-hard whitespace-nowrap">
-          <span className="text-xl font-black text-echo-ice animate-pulse bg-black/60 rounded-full px-5 py-1.5">✨ คลิกเลือกเป้าหมายของ “{giftSel.name}”</span>
-          {(!giftSel.onlyIds || giftSel.onlyIds.includes(me?.id)) && (
-            <button onClick={() => { clickSound(); pickGift(me.id); }} className="ml-3 text-sm font-bold bg-echo-ice text-gray-900 rounded-full px-3 py-1">เลือกตัวเอง</button>
-          )}
-          <button onClick={() => { clickSound(); setGiftSel(null); }} className="ml-2 text-sm font-bold bg-black/60 rounded-full px-3 py-1 border border-white/30">ยกเลิก</button>
-        </div>
-      )}
-      {/* ---------- แผงตัวเรา ฉบับที่ 6 (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------
-          ซ้ายล่าง = แผงผู้เล่น (รูป/ชื่อ/ทีม · เลือด/เกราะ · ทรัพยากรตัวละคร) · ขอบซ้าย = ลิ้นชักสถานะ (แนวตั้งเลื่อนลง แตะแถวดูรายละเอียด)
-          กลางล่าง = แต้ม · มือไพ่ · จั่ว/เปิดไพ่ · ขวาล่าง = แต้มสกิล · กระเป๋า · ร้านค้า · สกิล 3 ช่อง
-          ตอนเลือกเป้าหมาย/เป็นฝ่ายโจมตี (hudAway) แผงทั้งหมดเลื่อนลงพ้นจอ ไม่บังเป้าหมายบนสนาม
-          ส่วนวาดอยู่ที่ hud/SelfHud.jsx — เงื่อนไขกดได้/ไม่ได้ทั้งหมดยังอยู่ตรงนี้เหมือนเดิม */}
+      {/* ---------- แผงตัวเรา (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------
+          ซ้ายล่าง = แผงผู้เล่น · ขอบซ้าย = ลิ้นชักสถานะ · กลางล่าง = แต้ม · มือไพ่ · จั่ว/พอ (ช่วงจั่ว) หรือ ย้อน/รอ (ตาเดิน)
+          ขวาล่าง = แต้มสกิล · กระเป๋า · ร้านค้า · สกิล 3 ช่อง (ป้ายระยะ) — ส่วนวาดอยู่ที่ hud/SelfHud.jsx */}
       {me && (
         <SelfHud
           hidden={hudAway}
           lowQ={lowQ}
-          zoom={hudK}
+          zoom={hudZ}
           panel={
             <HudPanel
               portrait={<Portrait p={me} className="w-full h-full" rounded="" />}
@@ -2434,7 +2216,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             />
           }
           drawer={
-            // ลิ้นชักสถานะชิดขอบซ้าย (แยกจากแผงผู้เล่น — แผงจะได้เตี้ย ไม่ทับที่นั่งคู่แข่งมุมซ้ายล่าง)
             <HudStatusDrawer
               statuses={meStatuses}
               rawStatuses={me.statuses || {}}
@@ -2451,7 +2232,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               hand={me.cards === null ? (
                 // ตาบอด: การ์ด/แต้มของตัวเองก็ถูกซ่อน
                 <span className="hud-hand-note">🌑 ???</span>
-              ) : phase === "SUMMARY" || phase === "ATTACK" || phase === "ATTACKING" ? (
+              ) : myTurn ? (
+                <span className="hud-hand-note" data-tone="me">ตาของคุณ</span>
+              ) : phase !== "PLAYING" && phase !== "TRANSITION" ? (
                 <span className="hud-hand-note" data-tone={me.busted ? "bad" : undefined}>{me.busted ? "แต้มเกิน" : "เปิดไพ่แล้ว"}</span>
               ) : me.cards && me.cards.length ? (
                 // ถือการ์ดแบบพัดสไตล์ UNO — บีบระยะซ้อนอัตโนมัติตามจำนวนใบให้พอดีพื้นที่เสมอ (ห้ามเกิด scroll เด็ดขาด)
@@ -2484,11 +2267,20 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               ) : (
                 <span className="hud-hand-note">ยังไม่จั่วไพ่</span>
               )}
-              draw={{
+              draw={inBoardTurn ? {
+                label: "ย้อน",
+                disabled: !(myTurn && state.action.moved && !state.action.locked),
+                onClick: () => { clickSound(); socket.emit("undoMove"); },
+              } : {
                 disabled: state.deckEmpty || !(phase === "PLAYING" && me.alive && !done) || me.atCap || noDraw,
                 onClick: () => { clickSound(); socket.emit("hit"); },
               }}
-              reveal={{
+              reveal={inBoardTurn ? {
+                label: "รอ",
+                disabled: !myTurn,
+                onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); },
+              } : {
+                label: "พอ",
                 disabled: !(phase === "PLAYING" && me.alive && !done),
                 onClick: () => { clickSound(); socket.emit("lock"); },
               }}
@@ -2502,9 +2294,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               onShop={() => { clickSound(); setShopOpen(true); }}
               skills={
                 <>
-                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} disabled={!me.alive || phase !== "PLAYING" || done || noSkill || (me.skillUsed && !isMuimi && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
-                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} disabled={done || phase !== "PLAYING" || noSkill || (me.skillUsed && !giftFree("secondary")) || muimiSecLocked || giftLocked("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
-                  <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} disabled={done || phase !== "PLAYING" || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />
+                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !isMuimi && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
+                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("secondary")) || muimiSecLocked || giftLocked("secondary") || noTargetInRange(ch?.secondary?.area)} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
+                  <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />
                 </>
               }
             />
@@ -2512,28 +2304,16 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         />
       )}
 
-      {/* ม่านมืดสรุปผล/ฉากโจมตีหายแล้ว → จางออกแทนการตัดเป็นจอขาว (ดู VeilTail) */}
-      <VeilTail
-        veilKey={phase === "SUMMARY" && (summaryWinners.length || summaryLosers.length) ? `sum-${state.roundNumber}`
-          : phase === "ATTACKING" && state.attack ? `atk-${state.attack.id}` : null}
-      />
-      {/* ---------- เฟสสรุปผล: ลีดเดอร์บอร์ด (กลางจอ) ---------- */}
-      {phase === "SUMMARY" && (
-        <SummaryTiers winners={summaryWinners} losers={summaryLosers} />
-      )}
-
-      {/* ---------- อนิเมชันเปลี่ยนเฟส (กลางจอ) ---------- */}
+      {/* ---------- อนิเมชันเปลี่ยนเฟส ---------- */}
       {scene?.kind === "draw" && <DrawCall key={scene.id} />}
 
-      {/* ---------- overlay ที่ใช้ร่วมกับมือถือ ---------- */}
-      <OverlayLayer phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} />
+      {/* ---------- overlay ที่ใช้ร่วมกับมือถือ (ฉากตีวาดบนกระดานแทน AttackFx) ---------- */}
+      <OverlayLayer boardFx phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} />
       <FlyingCardsLayer flights={cardFlights} onDone={removeCardFlight} />
       {journeyInfoOpen && state.journey && <JourneyInfoModal journey={state.journey} onClose={() => setJourneyInfoOpen(false)} />}
 
       {/* ---------- แบนเนอร์รอบถัดไป ---------- */}
       {phase === "TRANSITION" && <RoundBanner round={state.roundNumber + 1} />}
-
-      {scene?.kind === "atk" && <AttackCall key={scene.id} />}
 
       {scene?.kind === "shop" && <ShopHerald key={scene.id} />}
 
@@ -2541,15 +2321,15 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
       )}
 
-      {/* ---------- modal รายละเอียดตัวละคร / ดูสถานะผู้เล่น ---------- */}
+      {/* ---------- modal รายละเอียดตัวละคร / ดูสถานะผู้เล่น / ร้าน / กระเป๋า ---------- */}
       <ModalMounts
         showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
         statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
-        shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)}
+        shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
+        myTurn={myTurn} bagSlots={state.bagSlots} onPickSuit={startSuitPick}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
-      </div>
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
     </div>

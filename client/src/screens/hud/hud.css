@@ -647,3 +647,11 @@
   font: 600 13px/1.35 Kanit, sans-serif;
 }
 .hud-skill-cost[data-cheap="true"] { background: #f0c868; color: #12264a; }
+
+/* ป้ายระยะสกิลบนกระดาน (มุมซ้ายบนของปุ่ม — GRID_PLAN §7.2) */
+.hud-skill-range {
+  position: absolute; top: -4px; left: 0; z-index: 2; padding: 2px 7px;
+  background: rgba(12, 28, 58, 0.94); border: 1px solid #c8a2ff; color: #e2d2ff;
+  font: 600 12px/1.35 Kanit, sans-serif; white-space: nowrap;
+}
+.hud-hand-note[data-tone="me"] { color: #f0c868; }

@@ -11,9 +11,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   //  เพลงประจำภูมิภาคใหม่จึงเริ่มตั้งแต่ฉากเริ่ม (App ขยับ cycleSeq เมื่อภูมิภาค/ช่วงเวลาเปลี่ยน)
   const journey = state?.journey;
   if (state?.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
-  // ช่วงโจมตี: เพลงเฉพาะกิจทับเพลงกลางวัน/กลางคืน และเริ่มจากต้นทุกครั้งที่เข้าช่วง (attackSeq ขยับ)
-  if (phase === "ATTACK" || phase === "ATTACKING") return { name: "battle_phase", seq: attackSeq };
-  if (["PLAYING", "SUMMARY", "ATTACK", "ATTACKING", "TRANSITION", "CUTSCENE"].includes(phase)) {
+  // ระบบกระดาน: ทุกคนได้ตีในตาของตัวเอง — ฉากตี (ATTACKING) ไม่สลับไปเพลงช่วงโจมตีแล้ว (สลับไปมาทุกตา = รก)
+  if (isMatchPhase(phase)) {
     // การเดินทาง (ffa/duo/trio): เพลงประจำภูมิภาค แยกกลางวัน/กลางคืน
     if (journey) return { name: `journey_${journey.area}_${journey.night ? "night" : "day"}`, seq: cycleSeq };
     return { name: state.cycle === "night" ? "new_night" : "new_morning", seq: cycleSeq };
@@ -23,10 +22,10 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
 
 // เฟสที่นับว่า "อยู่ในแมตช์" — ข้ามขอบนี้เมื่อไหร่ App รีเซ็ตตำแหน่งเพลงทั้งหมด (เพลงเริ่มจากต้น)
 export function isMatchPhase(phase) {
-  return ["PLAYING", "SUMMARY", "ATTACK", "ATTACKING", "TRANSITION", "CUTSCENE"].includes(phase);
+  return ["PLAYING", "ORDER", "ACTION", "ATTACKING", "TRANSITION", "CUTSCENE"].includes(phase);
 }
 
-// Cutscenes can sit between drawing and summary; attack IDs can change without a phase change.
+// Cutscenes can sit between drawing and the turn order; attack IDs can change without a phase change.
 export function createPhaseSoundTracker() {
   let drawing = false;
   let lastSummary = null;
@@ -37,7 +36,8 @@ export function createPhaseSoundTracker() {
       drawing = false; lastSummary = null; lastAttack = null;
     }
     if (phase === "PLAYING") drawing = true;
-    const roundEnded = phase === "SUMMARY" && drawing && lastSummary !== state.roundNumber;
+    // จบช่วงจั่ว = เข้า ORDER (แบนเนอร์ลำดับเดิน)
+    const roundEnded = phase === "ORDER" && drawing && lastSummary !== state.roundNumber;
     if (roundEnded) { lastSummary = state.roundNumber; drawing = false; }
     const attack = phase === "ATTACKING" && state.attack && state.attack.id !== lastAttack;
     if (attack) lastAttack = state.attack.id;

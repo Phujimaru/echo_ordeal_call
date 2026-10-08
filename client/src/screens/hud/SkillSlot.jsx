@@ -15,7 +15,7 @@ export function HexFrame({ gold = false, className = "", children }) {
   );
 }
 
-export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, onUse, ammo, cost, size, cooldown, variant }) {
+export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, onUse, ammo, cost, size, cooldown, variant, rangeLabel }) {
   const [broken, setBroken] = useState(false);
   const disabled = disabledProp;
   const hasAmmo = skill && skill.ammo != null;
@@ -60,6 +60,8 @@ export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, 
         </span>
         {/* costLabel (server ส่งมา): ท่าที่จ่ายด้วยทรัพยากรอื่นแทนแต้มสกิล */}
         {skill && <span className="hud-skill-cost" data-cheap={useCost < skill.cost ? "true" : "false"}>{skill.costLabel || `${useCost} แต้ม`}</span>}
+        {/* ระยะบนกระดาน: "ระยะ 4" / "รอบตัว 4" / "ทิศทาง 4×3" / "ทั้งสนาม" */}
+        {skill && rangeLabel && <span className="hud-skill-range">{rangeLabel}</span>}
       </button>
     );
   }

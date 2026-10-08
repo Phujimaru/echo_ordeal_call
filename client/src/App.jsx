@@ -42,6 +42,22 @@ export default function App() {
   // เสียงที่ดังบ่อยที่สุดในเกม: โหลดไว้ตั้งแต่เปิดหน้า ไม่ให้ไปสะดุดกลางแมตช์
   useEffect(() => installClickSound(), []); // เสียงคลิกทุกการกดทั้งเกม
   useEffect(() => { prewarmSfx(["action_button", "change_cutscene", "trun_change", "buy_something"]); }, []);
+  // dev: ?autoplay=<characterId> — เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa อัตโนมัติ (ทดสอบกระดานคู่กับ scripts/dev-bots.js)
+  useEffect(() => {
+    const ch = import.meta.env.DEV ? new URLSearchParams(location.search).get("autoplay") : null;
+    if (!ch) return undefined;
+    const go = () => socket.emit("join", { name: "ทดสอบ", position: 1, color: "#3B82C4", characterId: ch });
+    if (socket.connected) go(); else socket.once("connect", go);
+    return () => socket.off("connect", go);
+  }, []);
+  useEffect(() => {
+    if (import.meta.env.DEV) window.__echoState = state; // dev: เปิดดู state ล่าสุดจาก console
+    if (!import.meta.env.DEV || !state || !new URLSearchParams(location.search).get("autoplay")) return;
+    const me = state.players?.find((p) => p.id === state.youId);
+    if (!me) return;
+    if (state.gameState === "LOBBY" && !me.ready) socket.emit("toggleReady");
+    if (state.gameState === "TEAM_MODE" && !me.modeVote) socket.emit("selectGameMode", { mode: "ffa" });
+  }, [state]);
   const curtainRef = useRef(null); // ม่านเปลี่ยนฉาก — ควบคุมจังหวะปิด/เปิดจอตอนสลับหน้า
   // กันดับเบิ้ลคลิก/กดรัวบนปุ่มนำทาง (ถัดไป/ยืนยัน/ย้อนกลับ) ไม่ให้ยิงคำสั่งเปลี่ยนฉากซ้อนกัน
   const navLockRef = useRef(false);
@@ -102,7 +118,7 @@ export default function App() {
     // (ต่างจากตอนกดยืนยันตัวละครที่ต้องรอ server ตอบแบบไม่รู้เวลาแน่นอน) ถ้าใช้ holdCover ที่นี่จะเจอบั๊กใหม่:
     // ม่านจะปล่อยเปิดทันทีตั้งแต่เฟรมแรก (เพราะ screenKey เปลี่ยนพร้อมกันในเรนเดอร์เดียวกันอยู่แล้ว)
     const onState = (s) => {
-      const matchStates = new Set(["PLAYING", "CUTSCENE", "SUMMARY", "ATTACK", "ATTACKING", "TRANSITION", "GAMEOVER"]);
+      const matchStates = new Set(["PLAYING", "CUTSCENE", "ORDER", "ACTION", "ATTACKING", "TRANSITION", "GAMEOVER"]);
       const wasInMatch = matchStates.has(prevGameStateRef.current);
       const nowInMatch = matchStates.has(s.gameState);
       if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(s.gameState)) {

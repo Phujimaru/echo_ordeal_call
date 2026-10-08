@@ -44,9 +44,10 @@ test("ทุกฉากประกาศเล่นผ่านคิวเ�
 
 test("แต่ละฉากถูกเรนเดอร์จากหัวคิวเท่านั้น และครบทั้งสองกระดาน", () => {
   const lines = game.split("\n");
-  const desktopAt = lines.findIndex((l) => l.includes("จอคอม/แท็บเล็ต: กระดานเดิม"));
+  const desktopAt = lines.findIndex((l) => l.includes("จอคอม/แท็บเล็ต: กระดานเดินได้"));
   assert.ok(desktopAt > 0, "หาจุดเริ่มกระดานจอคอมไม่เจอ");
-  for (const kind of ["draw", "atk", "shop"]) {
+  // ฉาก "atk" (เฟส ATTACK แบบเดิม) เหลือแค่โค้ดมือถือ — ระบบกระดานไม่มีเฟสนี้แล้ว
+  for (const kind of ["draw", "shop"]) {
     const at = lines.reduce((acc, l, i) => (l.includes(`scene?.kind === "${kind}"`) ? [...acc, i] : acc), []);
     assert.equal(at.length, 2, `ฉาก ${kind} ถูกเรนเดอร์ ${at.length} จุด (ต้องเป็น 2: มือถือ + จอคอม)`);
     assert.ok(at.some((i) => i < desktopAt) && at.some((i) => i > desktopAt), `ฉาก ${kind} ขาดไปกระดานหนึ่ง`);

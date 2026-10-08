@@ -17,6 +17,7 @@ const combat = require("./combat");
 const dayNight = require("./dayNight");
 const cardDeck = require("./deck");
 const action = require("./phases/action");
+const attackPhase = require("./phases/attack");
 const lobby = require("./lobby");
 const shop = require("./shop");
 
@@ -45,6 +46,18 @@ function boardPublic() {
   if (!match.board) return null;
   const m = action.boardMap();
   return { area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal], spawns: m.spawns, shopSpots: m.shopSpots };
+}
+
+// คาดการณ์ผลการตีปกติของคนที่กำลังเดิน (หน้าต่างคาดการณ์แบบ Fire Emblem — GRID_PLAN §6)
+//  { [targetId]: { dmg: เราตีเขา, back: เขาสวนเรา } } — พลังโจมตีก่อนหักเกราะ/หลบ (ไม่สุ่ม ไม่แตะสถานะ)
+function forecastFor(viewer) {
+  if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
+  const out = {};
+  for (const t of combat.alivePlayers()) {
+    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t)) continue;
+    out[t.id] = { dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer) };
+  }
+  return out;
 }
 
 // ============================================================
@@ -88,6 +101,7 @@ function buildStateFor(viewerId) {
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     turnOrder: match.turnOrder,
+    forecast: forecastFor(viewer), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
     actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,
     action: match.gameState === "ACTION" && match.action ? { from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null } : null,
     skillMusic: sm ? sm.music : null,
