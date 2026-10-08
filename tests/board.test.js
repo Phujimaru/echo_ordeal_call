@@ -9,9 +9,9 @@ const keys = (tiles) => tiles.map((t) => Board.key(t.x, t.y)).sort();
 // rng ที่ให้ค่าซ้ำตามลำดับ (ทดสอบการสุ่มแบบกำหนดผล)
 const seq = (...vals) => { let i = 0; return () => vals[i++ % vals.length]; };
 
-test('แผนที่ภูมิภาค I: 16×12 · จุดเกิด 7 · จุดฟื้นฟู 4 · จุดเกิด/ร้านค้า/ฟื้นฟูไม่ทับสิ่งกีดขวางหรือกัน', () => {
-  assert.equal(map.cols, 16);
-  assert.equal(map.rows, 12);
+test('แผนที่ภูมิภาค I: 14×14 · จุดเกิด 7 · จุดฟื้นฟู 4 · จุดเกิด/ร้านค้า/ฟื้นฟูไม่ทับสิ่งกีดขวางหรือกัน', () => {
+  assert.equal(map.cols, 14);
+  assert.equal(map.rows, 14);
   assert.equal(map.spawns.length, 7);
   assert.equal(map.heal.size, 4);
   const special = [...map.spawns, ...map.shopSpots, ...[...map.heal].map((k) => { const [x, y] = k.split(',').map(Number); return { x, y }; })];
@@ -36,11 +36,11 @@ test('เดิน: BFS 4 ทิศ ไม่เกินค่าเดิน �
 });
 
 test('เดิน: สิ่งกีดขวางเดินผ่านไม่ได้ ต้องอ้อม', () => {
-  // ต้นไม้ที่ (3,6): จาก (2,6) ไป (4,6) ต้องอ้อม 4 ก้าว ไม่ใช่ 2
-  const me = u('A', 2, 6);
-  assert.ok(!Board.reachable(map, me, 2, [me]).has('4,6'));
-  assert.ok(Board.reachable(map, me, 4, [me]).has('4,6'));
-  assert.ok(!Board.reachable(map, me, 9, [me]).has('3,6'));
+  // ต้นไม้ที่ (2,6): จาก (1,6) ไป (3,6) ต้องอ้อม 4 ก้าว ไม่ใช่ 2
+  const me = u('A', 1, 6);
+  assert.ok(!Board.reachable(map, me, 2, [me]).has('3,6'));
+  assert.ok(Board.reachable(map, me, 4, [me]).has('3,6'));
+  assert.ok(!Board.reachable(map, me, 9, [me]).has('2,6'));
 });
 
 test('เดิน: ศัตรูขวางทาง · เพื่อนร่วมทีมเดินผ่านได้แต่หยุดทับไม่ได้', () => {
@@ -133,11 +133,11 @@ test('ถอยหลังโดนสวน: แนวทแยง (ห่า�
 });
 
 test('ถอยหลังโดนสวน: ชนสิ่งกีดขวาง/ขอบ/ตัวละคร = ไม่ขยับ และ collide (ชน −1)', () => {
-  // หลังเป็นเสาคริสตัล (4,8)
-  const pillar = Board.pushback(map, { x: 4, y: 7 }, { x: 4, y: 6 }, []);
-  assert.deepEqual(pillar, { x: 4, y: 7, moved: false, collide: true });
+  // หลังเป็นเสาคริสตัล (4,9)
+  const pillar = Board.pushback(map, { x: 4, y: 8 }, { x: 4, y: 7 }, []);
+  assert.deepEqual(pillar, { x: 4, y: 8, moved: false, collide: true });
   // หลังเป็นขอบกระดาน
-  const edge = Board.pushback(map, { x: 6, y: 11 }, { x: 6, y: 10 }, []);
+  const edge = Board.pushback(map, { x: 6, y: 13 }, { x: 6, y: 12 }, []);
   assert.equal(edge.collide, true);
   // หลังมีคนยืน
   const body = Board.pushback(map, { x: 7, y: 7 }, { x: 7, y: 6 }, [u('X', 7, 8)]);

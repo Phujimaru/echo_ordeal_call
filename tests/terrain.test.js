@@ -11,9 +11,9 @@ const match = require('../server/match.js');
 
 const K = Board.key;
 const u = (id, x, y, extra = {}) => ({ id, x, y, alive: true, ...extra });
-// แผนที่สมมติ 16×12 โล่งๆ — special = { "x,y": ชนิด } · terrain = { "x,y": สิ่งกีดขวาง }
+// แผนที่สมมติ 14×14 โล่งๆ — special = { "x,y": ชนิด } · terrain = { "x,y": สิ่งกีดขวาง }
 const mapWith = (special = {}, terrain = {}, flow = {}) => ({
-  cols: 16, rows: 12, terrain, special, flow, heal: new Set(), healKind: 'heal', spawns: [], shopSpots: [],
+  cols: 14, rows: 14, terrain, special, flow, heal: new Set(), healKind: 'heal', spawns: [], shopSpots: [],
 });
 const path = (reach, x, y) => (Board.pathTo(reach, x, y) || []).map((t) => K(t.x, t.y));
 
@@ -28,19 +28,19 @@ const KINDS = {
 };
 
 // ---------- แผนที่จริงทุกภูมิภาค ----------
-test('แผนที่ I–VII: 16×12 · จุดเกิด 7 จุดบนพื้นธรรมดา ไม่ซ้ำ ไม่ติดกัน · จุดร้านค้า 4–6 จุดบนพื้นธรรมดา', () => {
+test('แผนที่ I–VII: 14×14 (จัตุรัส) · จุดเกิด 7 จุดบนพื้นธรรมดา ไม่ซ้ำ ไม่ติดกัน · จุดร้านค้า 4–6 จุดบนพื้นธรรมดา', () => {
   for (let area = 1; area <= 7; area++) {
     const m = Board.MAPS[area];
     assert.equal(m.area, area);
-    assert.equal(m.cols, 16);
-    assert.equal(m.rows, 12);
+    assert.equal(m.cols, 14);
+    assert.equal(m.rows, 14);
     const plain = (s) => Board.inBounds(m, s.x, s.y) && !m.terrain[K(s.x, s.y)] && !Board.specialAt(m, s.x, s.y) && !Board.isHeal(m, s.x, s.y);
     assert.equal(m.spawns.length, 7, `ภูมิภาค ${area} จุดเกิด`);
     assert.equal(new Set(m.spawns.map((s) => K(s.x, s.y))).size, 7);
     for (const s of m.spawns) assert.ok(plain(s), `ภูมิภาค ${area} จุดเกิด ${K(s.x, s.y)} ต้องเป็นพื้นธรรมดา`);
     for (const a of m.spawns) for (const b of m.spawns) if (a !== b) assert.ok(Board.dist(a, b) >= 2, `ภูมิภาค ${area} จุดเกิดติดกัน ${K(a.x, a.y)}`);
     // จุดเกิดอยู่รอบขอบ (ห่างขอบไม่เกิน 2 ช่อง)
-    for (const s of m.spawns) assert.ok(Math.min(s.x, s.y, 15 - s.x, 11 - s.y) <= 2, `ภูมิภาค ${area} จุดเกิด ${K(s.x, s.y)} ต้องอยู่ริมขอบ`);
+    for (const s of m.spawns) assert.ok(Math.min(s.x, s.y, m.cols - 1 - s.x, m.rows - 1 - s.y) <= 2, `ภูมิภาค ${area} จุดเกิด ${K(s.x, s.y)} ต้องอยู่ริมขอบ`);
     assert.ok(m.shopSpots.length >= 4 && m.shopSpots.length <= 6, `ภูมิภาค ${area} จุดร้านค้า`);
     assert.equal(new Set(m.shopSpots.map((s) => K(s.x, s.y))).size, m.shopSpots.length);
     const spawnKeys = new Set(m.spawns.map((s) => K(s.x, s.y)));
@@ -85,10 +85,10 @@ test('TERRAIN_INFO: มีป้ายข้อมูลครบทุกชน
     const info = Board.TERRAIN_INFO[kind];
     assert.ok(info && info.name && info.desc && info.icon, `ป้ายของ ${kind}`);
   }
-  assert.equal(Board.tileInfo(Board.MAPS[1], 7, 5).name, 'วงเวทฟื้นฟู');
-  assert.equal(Board.tileInfo(Board.MAPS[5], 7, 5).name, 'โอเอซิส');
+  assert.equal(Board.tileInfo(Board.MAPS[1], 6, 6).name, 'วงเวทฟื้นฟู');
+  assert.equal(Board.tileInfo(Board.MAPS[5], 6, 6).name, 'โอเอซิส');
   assert.equal(Board.tileInfo(Board.MAPS[2], 7, 4).kind, 'flowers');
-  assert.equal(Board.tileInfo(Board.MAPS[2], 6, 4), null, 'พื้นธรรมดาไม่มีป้าย');
+  assert.equal(Board.tileInfo(Board.MAPS[2], 6, 3), null, 'พื้นธรรมดาไม่มีป้าย');
 });
 
 // ช่องที่ "เข้าไปได้" จากจุดหนึ่ง (ไม่สนคน): ช่องที่หยุดได้ + ช่องน้ำแข็งที่ไถลผ่าน (อยู่ใน prev)
@@ -114,6 +114,77 @@ test('แผนที่ I–VII: ทุกช่องที่ไม่ใช�
     for (const s of m.spawns) check(s, null);
     for (const shop of m.shopSpots) check(m.spawns[0], new Set([K(shop.x, shop.y)]));
   }
+});
+
+// ---------- ช่องอันตรายขวางทางหลัก (ผู้ใช้ตัดสิน 2026-10-09) ----------
+//  ช่องอันตราย = ช่องที่มีผลเสียตอนจบตา/เดินเข้า (หนามพิษ น้ำวน ทรายดูด ลาวา)
+const HAZARDS = new Set(['thorns', 'whirl', 'quicksand', 'lava']);
+// ก้าวน้อยสุดจาก from ไปทุกช่อง (ค่าเดินตามช่อง · ไม่คิดไถล/ทรายดูดหยุด — วัดแค่ความยาวทาง) · avoid = ห้ามเหยียบช่องอันตราย
+function steps(m, from, avoid) {
+  const best = new Map([[K(from.x, from.y), 0]]);
+  const buckets = [[from]];
+  for (let d = 0; d < buckets.length; d++) {
+    for (const cur of buckets[d] || []) {
+      if (best.get(K(cur.x, cur.y)) !== d) continue;
+      for (const [dx, dy] of Board.DIRS) {
+        const x = cur.x + dx, y = cur.y + dy, k = K(x, y);
+        if (Board.isObstacle(m, x, y)) continue;
+        if (avoid && HAZARDS.has(Board.specialAt(m, x, y))) continue;
+        const nd = d + Board.moveCost(m, x, y);
+        if (best.has(k) && best.get(k) <= nd) continue;
+        best.set(k, nd);
+        (buckets[nd] ||= []).push({ x, y });
+      }
+    }
+  }
+  return best;
+}
+// จุดสำคัญของแผนที่: ศูนย์กลาง (กลางแผนที่ 4 ช่อง + จุดฟื้นฟู + แท่นพลัง) และจุดร้านค้าแต่ละจุด
+function keyPoints(m) {
+  const hub = [[6, 6], [7, 6], [6, 7], [7, 7]].filter(([x, y]) => !Board.isObstacle(m, x, y)).map(([x, y]) => K(x, y));
+  for (const k of m.heal) hub.push(k);
+  for (const [k, kind] of Object.entries(m.special)) if (kind === 'power') hub.push(k);
+  const groups = hub.length ? [{ name: 'ศูนย์กลาง', keys: hub, hub: true }] : [];
+  for (const s of m.shopSpots) groups.push({ name: `ร้าน ${K(s.x, s.y)}`, keys: [K(s.x, s.y)] });
+  return groups;
+}
+test('ช่องอันตรายวางขวางทางหลัก: ลุยสั้นกว่าอ้อม ≥ 2 ก้าว (จุดเกิด → ศูนย์กลาง/จุดร้านค้า) · จุดเกิดทุกคู่ยังมีทางไม่ผ่านช่องอันตราย', () => {
+  for (const m of Object.values(Board.MAPS)) {
+    const hazards = Object.values(m.special).filter((kind) => HAZARDS.has(kind));
+    if (!hazards.length) continue;
+    assert.ok(hazards.length >= 12, `ภูมิภาค ${m.area}: ช่องอันตรายต้องเป็นแนวกว้าง (มี ${hazards.length})`);
+    const groups = keyPoints(m);
+    let cut = 0;
+    const cutSpawns = new Set(), cutHub = new Set();
+    for (const s of m.spawns) {
+      const any = steps(m, s, false), safe = steps(m, s, true);
+      for (const t of m.spawns) assert.ok(safe.has(K(t.x, t.y)), `ภูมิภาค ${m.area}: ${K(s.x, s.y)} → ${K(t.x, t.y)} ต้องมีทางไม่ผ่านช่องอันตราย`);
+      for (const g of groups) {
+        const d1 = Math.min(...g.keys.map((k) => (any.has(k) ? any.get(k) : Infinity)));
+        const d2 = Math.min(...g.keys.map((k) => (safe.has(k) ? safe.get(k) : Infinity)));
+        assert.ok(Number.isFinite(d2), `ภูมิภาค ${m.area}: ${g.name} ต้องไปถึงได้แบบไม่ผ่านช่องอันตรายจาก ${K(s.x, s.y)}`);
+        if (d2 - d1 >= 2) {
+          cut++;
+          cutSpawns.add(K(s.x, s.y));
+          if (g.hub) cutHub.add(K(s.x, s.y));
+        }
+      }
+    }
+    // ช่องอันตรายต้องอยู่บนทางหลักจริง (ไม่ใช่จุดเล็กๆ ที่ไม่มีใครเหยียบ)
+    assert.ok(cut >= 14, `ภูมิภาค ${m.area}: คู่จุดเกิด→จุดสำคัญที่ช่องอันตรายตัดทาง ${cut} คู่`);
+    assert.ok(cutSpawns.size >= 5, `ภูมิภาค ${m.area}: จุดเกิดที่ต้องเลือกลุย/อ้อม ${cutSpawns.size} จุด`);
+    if (groups.some((g) => g.hub)) assert.ok(cutHub.size >= 2, `ภูมิภาค ${m.area}: ทางไปศูนย์กลางที่ช่องอันตรายตัด ${cutHub.size} จุดเกิด`);
+  }
+  // ภูมิภาคที่มีช่องอันตราย
+  for (const area of [3, 4, 5, 7]) assert.ok(Object.values(Board.MAPS[area].special).some((kind) => HAZARDS.has(kind)), `ภูมิภาค ${area}`);
+});
+
+test('ช่องเดินช้า/น้ำแข็งคลุมพื้นที่จริงจัง: ดอกไม้ ป่าทึบ น้ำตื้น ≥ 20 ช่อง · ทะเลสาบน้ำแข็ง ≥ 40 ช่อง', () => {
+  const count = (area, kind) => Object.values(Board.MAPS[area].special).filter((k) => k === kind).length;
+  assert.ok(count(2, 'flowers') >= 20);
+  assert.ok(count(3, 'forest') >= 20);
+  assert.ok(count(4, 'shallow') >= 20);
+  assert.ok(count(6, 'ice') >= 40);
 });
 
 // ---------- ค่าเดิน ----------
@@ -171,9 +242,9 @@ test('น้ำแข็ง: ไถลไม่ได้ (สิ่งกีด�
   const me = u('A', 4, 5);
   const wall = mapWith({ '5,5': 'ice' }, { '6,5': 'rock' });
   assert.equal(Board.reachable(wall, me, 1, [me]).get('5,5').d, 1);
-  const edge = mapWith({ '15,5': 'ice' });
-  const e = u('A', 14, 5);
-  assert.ok(Board.reachable(edge, e, 1, [e]).has('15,5'));
+  const edge = mapWith({ '13,5': 'ice' });
+  const e = u('A', 12, 5);
+  assert.ok(Board.reachable(edge, e, 1, [e]).has('13,5'));
   const m = mapWith({ '5,5': 'ice' });
   const foe = u('B', 6, 5);
   assert.ok(Board.reachable(m, me, 1, [me, foe]).has('5,5'), 'ศัตรูขวาง');
@@ -197,20 +268,20 @@ test('ถอยบนน้ำแข็ง: ไถลรวม 2 ช่อง (v
 
 test('ระยะอันตรายใช้กติกาช่องพิเศษ (แผนที่น้ำแข็งจริง)', () => {
   const m = Board.MAPS[6];
-  const me = u('A', 3, 4); // ข้างทะเลสาบ: (4,4) น้ำแข็ง → ไถลไป (5,4)
+  const me = u('A', 2, 4); // ริมทะเลสาบ: (3,4) น้ำแข็ง → ไถลไปลง (4,4) (น้ำแข็งอีกช่อง = หยุด)
   const { move } = Board.threatZone(m, me, 1, [1, 1], [me]);
-  assert.ok(move.has('5,4') && !move.has('4,4'));
+  assert.ok(move.has('4,4') && !move.has('3,4'));
 });
 
 // ---------- ผลตอนจบตา (ฟังก์ชันล้วน) ----------
 test('endTurnTile: หนามพิษ/ลาวา/น้ำวน · พื้นอื่นไม่มีผล', () => {
-  const m = mapWith({ '1,1': 'thorns', '2,2': 'lava', '5,5': 'whirl', '15,0': 'whirl', '3,3': 'flowers' }, { '5,4': 'rock' }, { '5,5': 'right', '15,0': 'right' });
+  const m = mapWith({ '1,1': 'thorns', '2,2': 'lava', '5,5': 'whirl', '13,0': 'whirl', '3,3': 'flowers' }, { '5,4': 'rock' }, { '5,5': 'right', '13,0': 'right' });
   assert.deepEqual(Board.endTurnTile(m, 1, 1), { kind: 'thorns', turns: 1 });
   assert.deepEqual(Board.endTurnTile(m, 2, 2), { kind: 'lava', dmg: 1 });
   assert.deepEqual(Board.endTurnTile(m, 5, 5, []), { kind: 'whirl', dir: 'right', to: { x: 6, y: 5 } });
   assert.equal(Board.endTurnTile(m, 5, 5, [u('X', 6, 5)]).to, null, 'มีคนขวาง');
   assert.equal(Board.endTurnTile(m, 5, 5, [], { blocked: new Set(['6,5']) }).to, null, 'แผงร้านค้าขวาง');
-  assert.equal(Board.endTurnTile(m, 15, 0).to, null, 'ขอบกระดาน');
+  assert.equal(Board.endTurnTile(m, 13, 0).to, null, 'ขอบกระดาน');
   m.flow['5,5'] = 'up';
   assert.equal(Board.endTurnTile(m, 5, 5).to, null, 'สิ่งกีดขวาง');
   assert.equal(Board.endTurnTile(m, 3, 3), null);
@@ -256,19 +327,22 @@ test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
 const lastLogs = (n = 8) => match.lastLog.slice(-n).join('\n');
 
 test('เปลี่ยนภูมิภาค: mapOf/boardMap ได้แผนที่จริงของภูมิภาค · state.board ส่งช่องพิเศษ/ทิศกระแส', () => {
-  setup(4, { A: { x: 0, y: 4 }, B: { x: 15, y: 4 } });
+  setup(4, { A: { x: 0, y: 4 }, B: { x: 13, y: 4 } });
   assert.equal(engine.boardMap().area, 4);
   assert.equal(engine.boardMap(), Board.MAPS[4]);
   const st = engine.buildStateFor ? engine.buildStateFor('A') : require('../server/view.js').buildStateFor('A');
   assert.equal(st.board.area, 4);
-  assert.equal(st.board.special['6,4'], 'whirl');
-  assert.equal(st.board.flow['6,4'], 'right');
+  assert.equal(st.board.special['3,6'], 'whirl');
+  assert.equal(st.board.flow['3,6'], 'right');
+  assert.equal(st.board.flow['10,7'], 'left'); // แม่น้ำไหลจากสองฝั่งเข้าหาซากเรือ
+  assert.equal(st.board.cols, 14);
+  assert.equal(st.board.rows, 14);
   assert.equal(st.board.healKind, 'heal');
 });
 
 test('ทุ่งดอกไม้: เป้าในพุ่มดอกไม้หลบการโจมตีปกติได้ 20% · ไม่พ้น = โดนตามปกติ', () => {
-  // (7,4) พุ่มดอกไม้ · (6,4) พื้น
-  let P = setup(2, { A: { x: 6, y: 4 }, B: { x: 7, y: 4 } });
+  // (6,4) พุ่มดอกไม้ · (6,3) พื้น
+  let P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
   Math.random = () => 0; // ทอยหลบพ้น
   const hpB = P.B.hp;
@@ -279,7 +353,7 @@ test('ทุ่งดอกไม้: เป้าในพุ่มดอกไ
   assert.ok(engine.lastAttack.skills.some((s) => s.name.includes('พุ่มดอกไม้สูง') && s.side === 'def'));
   assert.match(lastLogs(), /🌸 B หลบการโจมตีของ A ในพุ่มดอกไม้สูงได้ \(20%\)/);
 
-  P = setup(2, { A: { x: 6, y: 4 }, B: { x: 7, y: 4 } });
+  P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
   Math.random = () => 0.5; // 50 ≥ 20 → ไม่พ้น
   engine.attackTarget('A', 'B');
@@ -288,7 +362,7 @@ test('ทุ่งดอกไม้: เป้าในพุ่มดอกไ
 });
 
 test('ทุ่งดอกไม้: ผู้ตียืนในพุ่มดอกไม้ หลบการตีสวนได้ · แม่นยำเจาะการหลบจากช่อง', () => {
-  let P = setup(2, { A: { x: 7, y: 4 }, B: { x: 6, y: 4 } });
+  let P = setup(2, { A: { x: 6, y: 4 }, B: { x: 6, y: 3 } });
   P.B.counterBack = true; // ตีสวนปิดเป็นค่าเริ่มต้น — เปิดให้เทสต์
   startActions(['A', 'B']);
   Math.random = () => 0;
@@ -298,7 +372,7 @@ test('ทุ่งดอกไม้: ผู้ตียืนในพุ่ม
   assert.equal(P.A.hp, engine.maxHpOf(P.A), 'A หลบการตีสวนในพุ่มดอกไม้');
   assert.equal(engine.lastAttack.counter.dodge, true);
 
-  P = setup(2, { A: { x: 6, y: 4 }, B: { x: 7, y: 4 } });
+  P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
   P.A.statuses.accurate = 1;
   Math.random = () => 0;
@@ -321,8 +395,8 @@ test('ป่าทึบ: สกิลที่ตีด้วยพลังโ
 });
 
 test('แท่นพลัง: ยืนบนแท่นพลัง พลังโจมตี +1 (ตีปกติ + ป้ายในฉากตี) · ลงจากแท่นแล้วหาย', () => {
-  // (7,5) แท่นพลัง · (7,6) พื้น ภูมิภาค VII
-  const P = setup(7, { A: { x: 7, y: 5 }, B: { x: 7, y: 6 } });
+  // (6,6) แท่นพลัง (กลางแท่นบูชา) · (7,6) พื้น ภูมิภาค VII
+  const P = setup(7, { A: { x: 6, y: 6 }, B: { x: 7, y: 6 } });
   assert.equal(attack.computeAttackBase(engine, P.A, P.B).terrainAtk, 1);
   assert.equal(attack.computeAttackBase(engine, P.B, P.A).terrainAtk, 0);
   startActions(['A', 'B']);
@@ -333,15 +407,15 @@ test('แท่นพลัง: ยืนบนแท่นพลัง พล�
 });
 
 test('หนามพิษ: จบตาบนช่อง ติดพิษร้าย (มีผล 1 เทิร์นถัดไป) · ต้านสถานะผิดปกติกันได้', () => {
-  // (6,3) หนามพิษ ภูมิภาค III
-  let P = setup(3, { A: { x: 6, y: 3 }, B: { x: 0, y: 4 } });
+  // (5,3) หนามพิษ ภูมิภาค III
+  let P = setup(3, { A: { x: 5, y: 3 }, B: { x: 0, y: 4 } });
   startActions(['A', 'B']);
   engine.waitAction('A');
   engine.clearPhaseTimer();
   assert.equal(P.A.statuses.poison, 2, 'จบเทิร์นนี้ลดเหลือ 1 → ต้นเทิร์นหน้าโดนพิษ');
   assert.match(lastLogs(), /หนามพิษ — ติดพิษร้าย 1 เทิร์น/);
 
-  P = setup(3, { A: { x: 6, y: 3 }, B: { x: 0, y: 4 } });
+  P = setup(3, { A: { x: 5, y: 3 }, B: { x: 0, y: 4 } });
   startActions(['A', 'B']);
   P.A.statuses.resist = 3;
   engine.waitAction('A');
@@ -351,24 +425,24 @@ test('หนามพิษ: จบตาบนช่อง ติดพิษ�
 });
 
 test('น้ำวน: จบตาบนช่อง โดนดัน 1 ช่องตามกระแส · ช่องข้างหน้ามีคน = ไม่ขยับ', () => {
-  // (6,4) น้ำวนไหลขวา → (7,4) ภูมิภาค IV
-  let P = setup(4, { A: { x: 6, y: 4 }, B: { x: 0, y: 4 } });
+  // (3,6) น้ำวนไหลขวา (เข้าหาซากเรือ) → (4,6) ภูมิภาค IV
+  let P = setup(4, { A: { x: 3, y: 6 }, B: { x: 0, y: 4 } });
   startActions(['A', 'B']);
   engine.waitAction('A');
   engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 7, y: 4 });
+  assert.deepEqual(P.A.pos, { x: 4, y: 6 });
   assert.equal(engine.actorId, 'B');
 
-  P = setup(4, { A: { x: 6, y: 4 }, B: { x: 7, y: 4 } });
+  P = setup(4, { A: { x: 3, y: 6 }, B: { x: 4, y: 6 } });
   startActions(['A', 'B']);
   engine.waitAction('A');
   engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 6, y: 4 });
+  assert.deepEqual(P.A.pos, { x: 3, y: 6 });
 });
 
 test('ลาวา: จบตาบนช่อง เสีย 1 (เกราะก่อน) · เลือดหมด = ตกรอบหายจากกระดาน', () => {
   // (2,4) ลาวา ภูมิภาค VII
-  let P = setup(7, { A: { x: 2, y: 4 }, B: { x: 15, y: 4 }, C: { x: 0, y: 5 } });
+  let P = setup(7, { A: { x: 2, y: 4 }, B: { x: 13, y: 7 }, C: { x: 0, y: 5 } });
   startActions(['A', 'B', 'C']);
   P.A.armor = 1;
   const hp = P.A.hp;
@@ -378,7 +452,7 @@ test('ลาวา: จบตาบนช่อง เสีย 1 (เกรา�
   assert.equal(P.A.hp, hp);
   assert.match(lastLogs(), /🌋 A จบตาบนลาวา — เสียหาย -1/);
 
-  P = setup(7, { A: { x: 2, y: 4 }, B: { x: 15, y: 4 }, C: { x: 0, y: 5 } });
+  P = setup(7, { A: { x: 2, y: 4 }, B: { x: 13, y: 7 }, C: { x: 0, y: 5 } });
   startActions(['A', 'B', 'C']);
   P.A.hp = 1;
   engine.waitAction('A');
@@ -388,8 +462,8 @@ test('ลาวา: จบตาบนช่อง เสีย 1 (เกรา�
 });
 
 test('ทะเลทราย: จบตาบนโอเอซิส ฟื้นพลังชีวิต +1', () => {
-  // (7,5) โอเอซิส ภูมิภาค V
-  const P = setup(5, { A: { x: 7, y: 5 }, B: { x: 0, y: 4 } });
+  // (6,6) โอเอซิส ภูมิภาค V
+  const P = setup(5, { A: { x: 6, y: 6 }, B: { x: 0, y: 4 } });
   startActions(['A', 'B']);
   P.A.hp = 3;
   engine.waitAction('A');
@@ -399,27 +473,28 @@ test('ทะเลทราย: จบตาบนโอเอซิส ฟื�
 });
 
 test('น้ำแข็ง (engine): เดินเข้าน้ำแข็งแล้วไถล · path มีช่องน้ำแข็ง', () => {
-  // (3,4) พื้น → (4,4) น้ำแข็ง → ไถลไป (5,4) ภูมิภาค VI
-  const P = setup(6, { A: { x: 3, y: 4 }, B: { x: 15, y: 4 } });
+  // (2,4) พื้น → (3,4) น้ำแข็ง → ไถลไป (4,4) (น้ำแข็งอีกช่อง = หยุด ไม่ไถลซ้ำ) ภูมิภาค VI
+  const P = setup(6, { A: { x: 2, y: 4 }, B: { x: 13, y: 6 } });
   startActions(['A', 'B']);
-  // (4,4) หยุดตรงๆ ไม่ได้ (เดินเข้าแล้วไถลไป (5,4)) — ไปลงได้แค่ทางอ้อมที่ไถลมาจากช่องอื่น
+  // (3,4) หยุดตรงๆ ไม่ได้ (เดินเข้าแล้วไถลไป (4,4)) — ไปลงได้แค่ทางอ้อมที่ไถลมาจากช่องอื่น
   const reach = Board.reachable(engine.boardMap(), { id: 'A', ...P.A.pos }, engine.movOf(P.A), [{ id: 'A', ...P.A.pos, alive: true }]);
-  assert.ok(reach.get('4,4').d > 1);
-  assert.equal(engine.moveTo('A', 5, 4), true);
-  assert.deepEqual(P.A.pos, { x: 5, y: 4 });
-  assert.deepEqual(engine.action.path, [{ x: 3, y: 4 }, { x: 4, y: 4 }, { x: 5, y: 4 }]);
+  assert.ok(reach.get('3,4').d > 1);
+  assert.equal(reach.get('4,4').d, 1);
+  assert.equal(engine.moveTo('A', 4, 4), true);
+  assert.deepEqual(P.A.pos, { x: 4, y: 4 });
+  assert.deepEqual(engine.action.path, [{ x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 }]);
 });
 
 test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง ไถลรวม 2 ช่อง', () => {
-  // A (4,3) ตี B (3,3) → ถอยขวาไป (5,3) น้ำแข็ง → ไถลไป (6,3)
-  const P = setup(6, { A: { x: 4, y: 3 }, B: { x: 3, y: 3 } });
+  // A (4,2) ตี B (3,2) → ถอยขวาไป (5,2) น้ำแข็ง → ไถลไป (6,2)
+  const P = setup(6, { A: { x: 4, y: 2 }, B: { x: 3, y: 2 } });
   P.B.counterBack = true;
   startActions(['A', 'B']);
   engine.attackTarget('A', 'B');
   engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 6, y: 3 });
-  assert.deepEqual(engine.lastAttack.push.via, { x: 5, y: 3 });
-  assert.deepEqual(engine.lastAttack.push.to, { x: 6, y: 3 });
+  assert.deepEqual(P.A.pos, { x: 6, y: 2 });
+  assert.deepEqual(engine.lastAttack.push.via, { x: 5, y: 2 });
+  assert.deepEqual(engine.lastAttack.push.to, { x: 6, y: 2 });
   assert.equal(engine.lastAttack.push.collide, false);
   assert.ok(action.tileEndEffect); // ส่งออกให้ไฟล์อื่น/เทสต์เรียกได้
 });

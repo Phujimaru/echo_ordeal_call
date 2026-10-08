@@ -67,7 +67,7 @@ test('เปิดไพ่: แต้มมากเดินก่อน · �
 
 test('ตาเดิน: เดินได้ไม่เกินระยะ · ย้อนกลับที่เดิมได้ · ตาคนอื่นกดไม่ได้', () => {
   const P = setup();
-  P.A.pos = { x: 7, y: 9 }; P.B.pos = { x: 0, y: 4 }; P.C.pos = { x: 15, y: 4 };
+  P.A.pos = { x: 7, y: 9 }; P.B.pos = { x: 0, y: 4 }; P.C.pos = { x: 13, y: 4 };
   startActions(['A', 'B', 'C']);
   assert.equal(engine.gameState, 'ACTION');
   assert.equal(engine.actorId, 'A');
@@ -149,14 +149,14 @@ test('ศัตรูคนสุดท้ายตายกลางเทิ�
 
 test('ถอยชนสิ่งกีดขวางหลังโดนสวน: ไม่ขยับ และเสียเพิ่ม 1', () => {
   const P = setup(['A', 'B']);
-  // เสาคริสตัลที่ (4,8): A ยืน (4,7) ตี B ที่ (4,6) → ถอยลงไปชนเสา
-  P.A.pos = { x: 4, y: 7 }; P.B.pos = { x: 4, y: 6 };
+  // เสาคริสตัลที่ (4,9): A ยืน (4,8) ตี B ที่ (4,7) → ถอยลงไปชนเสา
+  P.A.pos = { x: 4, y: 8 }; P.B.pos = { x: 4, y: 7 };
   P.B.counterBack = true;
   startActions(['A', 'B']);
   const hpA = P.A.hp;
   engine.attackTarget('A', 'B');
   engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 4, y: 7 });
+  assert.deepEqual(P.A.pos, { x: 4, y: 8 });
   assert.equal(P.A.hp, hpA - 2, 'โดนสวน 1 + ชน 1');
   assert.equal(engine.lastAttack.push.collide, true);
 });

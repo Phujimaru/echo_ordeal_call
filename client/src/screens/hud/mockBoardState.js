@@ -66,7 +66,7 @@ const POSITION_COLORS = { 1: "#9B4F96", 2: "#9B2D3A", 3: "#3B82C4", 4: "#E5B33B"
 // ผู้เล่น 5 คน (p0 = เรา) — ตำแหน่งอยู่บนช่องพื้นของแผนที่ภูมิภาค I (ไม่ทับสิ่งกีดขวาง/จุดฟื้นฟู)
 //  ทีม (โหมด duo): A = เรา + ต้นกล้า · B = ฟ้าใส + มิวมิว · C = บอส
 const ROSTER = [
-  { id: "p0", name: "เรา", char: "muimi", position: 1, pos: { x: 6, y: 7 }, hp: 5, armor: 2, sp: 5, gold: 9, team: "A",
+  { id: "p0", name: "เรา", char: "muimi", position: 1, pos: { x: 5, y: 7 }, hp: 5, armor: 2, sp: 5, gold: 9, team: "A",
     cards: [{ value: 7, color: "red" }, { value: 9, color: "blue" }], score: 16, statuses: { atkUp: 2 }, statusAmt: { atkUp: 1 } },
   { id: "p1", name: "ฟ้าใส", char: "oberon_summer", position: 2, pos: { x: 9, y: 7 }, hp: 6, armor: 1, sp: 3, gold: 6, team: "B",
     cards: [{ value: 10, color: "green" }, { value: 9, color: "yellow" }], score: 19, statuses: { burn: 1 }, statusAmt: {} },
@@ -379,7 +379,7 @@ export function buildMockState(opts) {
     attack: null,
     log: [],
     shop: SHOP_ROLL.map((it, i) => ({ id: `shop_${Math.ceil(round / 5)}_${i}`, ...it, sold: SOLD.has(i), soldTo: SOLD.has(i) ? "p3" : null })),
-    shopPos: { x: 7, y: 2 },
+    shopPos: { x: 6, y: 2 },
     shopTurnsLeft: 5 - ((round - 1) % 5),
     bagSlots: 5,
     gutsRange: [1, 4],
@@ -402,15 +402,15 @@ export function buildMockState(opts) {
   if (scn === "other") startTurn(s, "p1");
   const me = byId(ME);
   if (scn === "moved" || scn === "attack") {
-    // เดินจาก (6,7) ไป (8,7) — ติดฟ้าใสที่ (9,7)
-    s.action.path = [{ x: 6, y: 7 }, { x: 7, y: 7 }, { x: 8, y: 7 }];
+    // เดินจาก (5,7) ผ่านวงเวทไป (8,7) — ติดฟ้าใสที่ (9,7)
+    s.action.path = [{ x: 5, y: 7 }, { x: 6, y: 7 }, { x: 7, y: 7 }, { x: 8, y: 7 }];
     s.action.moved = true;
     me.pos = { x: 8, y: 7 };
   }
   if (scn === "collide") {
-    // ยืนใต้เสาคริสตัล (11,3) แล้วตีบอสที่อยู่ข้างล่าง → ถอยขึ้นไปชนเสา
-    me.pos = { x: 11, y: 4 };
-    byId("p4").pos = { x: 11, y: 5 };
+    // ยืนใต้เสาคริสตัล (9,4) แล้วตีบอสที่อยู่ข้างล่าง → ถอยขึ้นไปชนเสา
+    me.pos = { x: 9, y: 5 };
+    byId("p4").pos = { x: 9, y: 6 };
     s.action.from = { ...me.pos };
   }
   if (opts.shopNear) s.shopPos = freeNeighbor(s, me.pos) || s.shopPos;
