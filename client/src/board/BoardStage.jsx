@@ -227,6 +227,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (d < 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `${d}` }]);
       else if (d > 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `+${d}`, color: "#8ff0b0" }]);
     }
+    // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
+    for (const p of state.players) {
+      const before = prevPos.current[p.id], now = nextPos[p.id];
+      if (!before || !now || samePos(before, now) || involved.has(p.id) || anims.some((a) => a.id === p.id)) continue;
+      if (Math.abs(before.x - now.x) + Math.abs(before.y - now.y) > 2) continue; // ไกลกว่านั้น = วางใหม่ (เปลี่ยนภูมิภาค/ย้อนการเดิน)
+      if (p.id === state.actorId && !(state.action && state.action.moved)) continue; // กดย้อน = กลับที่เดิมทันที
+      anims.push({ kind: "push", id: p.id, from: before, to: now, collide: false, seq: ++fxSeq.current });
+    }
     if (anims.length) setAnimQ((q) => [...q, ...anims]);
     prevPos.current = nextPos;
     prevVit.current = nextVit;
