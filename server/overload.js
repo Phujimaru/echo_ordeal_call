@@ -37,7 +37,7 @@ function restoreTurnSnapshot() {
     // ข้อมูลการเชื่อมต่อเป็นของ "ปัจจุบัน" เสมอ ห้ามย้อน ไม่งั้น reconnect/disconnect กลางเทิร์นจะพัง
     const keep = {
       socketId: live.socketId, connected: live.connected,
-      sessionToken: live.sessionToken, ready: live.ready,
+      sessionToken: live.sessionToken, ready: live.ready, pos: live.pos,
     };
     for (const k of Object.keys(live)) delete live[k];
     Object.assign(live, structuredClone(saved), keep);
@@ -51,8 +51,6 @@ function restoreTurnSnapshot() {
 
 function beginOverloadForceDraw() {
   match.centralDeck = cardDeck.buildCentralDeck();
-  match.roundWinnerId = null;
-  match.roundTiedWin = false;
 
   for (const p of Object.values(match.players)) {
     if (!p.alive) {
@@ -76,11 +74,9 @@ function beginOverloadForceDraw() {
     p.locked = (p.statuses.sleep || 0) > 0 || (p.statuses.stun || 0) > 0;
     p.busted = false;
     p.result = null;
-    p.isWinner = false;
-    p.isLoser = false;
   }
 
-  match.lastLog.push("⚡ Overload Force เริ่มทำงาน — แจกไพ่ใหม่ในเทิร์นเดิม ปลดเพดาน 21 แต้ม!");
+  match.lastLog.push("⚡ Overload Force เริ่มทำงาน — ทุกคนจั่วใหม่ในเทิร์นเดิม (จัดลำดับเดินใหม่) ปลดเพดาน 21 แต้ม!");
   match.gameState = "PLAYING";
   timers.startPhaseTimer(timers.cardPhaseSeconds(), summary.resolveRound);
   view.broadcastState();

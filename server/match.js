@@ -6,7 +6,7 @@ const match = {
 
   // ---------- สถานะเกมส่วนกลาง ----------
   players: {},
-  gameState: "LOBBY", // LOBBY | TEAM_MODE | TEAM_SETUP | PLAYING | CUTSCENE | SUMMARY | ATTACK | TRANSITION | GAMEOVER
+  gameState: "LOBBY", // LOBBY | TEAM_MODE | TEAM_SETUP | PLAYING | CUTSCENE | ORDER | ACTION | ATTACKING | TRANSITION | GAMEOVER
   gameMode: "ffa", // ffa | duo | trio | pending
   teamSize: 1,
   teamCount: 0,
@@ -17,9 +17,12 @@ const match = {
   effectSourceId: null,
   timeLeft: 0,
   phaseTimerId: null,
-  attackerId: null,
-  roundWinnerId: null,
-  roundTiedWin: false,  // ผู้ชนะได้จากการเสมอแต้ม -> ไม่มีเทิร์นโจมตีรอบนี้
+  // ---------- กระดาน (GRID_PLAN.md) — ตำแหน่งผู้เล่นอยู่ที่ p.pos ----------
+  board: null,         // { area } — แผนที่จริงอ่านผ่าน board.mapOf(area)
+  turnOrder: [],       // ลำดับเดินของเทิร์นนี้ (playerId) — เรียงตอนเปิดไพ่
+  actorIndex: -1,
+  actorId: null,       // คนที่กำลังเดิน (ACTION / ATTACKING)
+  action: null,        // { from, moved, locked, path } ของตาเดินปัจจุบัน
   overloadForceActive: false, // สนามพิเศษมีผลเฉพาะเทิร์นที่สุ่มติด
   overloadForceSeq: 0,        // เริ่มวิดีโอและเพลงใหม่ทุกครั้งที่เกิด
   overloadForceCount: 0,      // ครั้งที่เกิดในแมตช์

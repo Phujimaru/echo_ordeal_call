@@ -27,6 +27,7 @@ function setup(mode, supportId) {
     p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.evadeStacks = [];
     p.cards = [{ value: 5, color: 'red' }, { value: 4, color: 'blue' }];
   }
+  engine.setActor('S'); // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7)
   return engine.players;
 }
 

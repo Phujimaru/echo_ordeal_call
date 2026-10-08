@@ -16,6 +16,7 @@ const {
 } = require("./constants");
 const match = require("./match");
 const { engine } = require("./engine");
+const action = require("./phases/action");
 const characterRules = require("./characterRules");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
@@ -160,6 +161,7 @@ function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
   if (!p || !p.alive) return;
+  if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง (ระยะร้านค้าบนแผนที่: GRID_PLAN §8.1)
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   const item = match.shopItems.find((it) => it.id === itemId);
   if (!item || item.sold) return;
@@ -171,6 +173,7 @@ function buyShopItem(id, itemId) {
   item.soldTo = p.id;
   refreshShopForJourney();
   p.gold -= item.price;
+  action.lockMove(p); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้)
   p.inventory.push({ uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, size: item.size, ammo: item.ammo, price: item.price });
   match.lastLog.push(`🛍️ ${p.name} ซื้อ ${shopItemName(item)} จากร้านค้ามายา (-${item.price} เหรียญ)`);
   view.broadcastState();
@@ -185,15 +188,16 @@ function cardLabel(c) {
 function useInventoryItem(id, uid, opts = {}) {
   const p = match.players[id];
   if (!p || !p.alive) return;
+  if (!action.canAct(p)) return; // ใช้ของได้เฉพาะตาเดินของตัวเอง — ใช้แล้วเดินไม่ได้อีก (GRID_PLAN §8.1)
   if (asleep(p)) return; // หลับไหล: ใช้ไอเทมไม่ได้เลย (ยาโชคลาภ/ต้านสถานะ/แต้มสกิล/เกราะ เดิมไม่เช็ค p.locked จึงรั่ว)
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];
   // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด — ช่วงจั่วการ์ด ----------
   if (item.type === "mark42") {
-    if (match.gameState !== "PLAYING") return;
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
+    action.lockMove(p);
     p.inventory.splice(idx, 1);
     characterRules.mark42Run(p, plan, null);
     return;
@@ -244,6 +248,7 @@ function useInventoryItem(id, uid, opts = {}) {
   } else {
     return;
   }
+  action.lockMove(p);
   p.inventory.splice(idx, 1);
   if (cutsceneKey) {
     // เล่นวีดีโอก่อน แล้วค่อยให้ผลของกระสุนเกิดขึ้นตอนวีดีโอจบ (ผู้เล่นจะเห็นความเสียหายโผล่หลังจบวีดีโอ)
@@ -259,7 +264,7 @@ function useInventoryItem(id, uid, opts = {}) {
 // ตรวจว่ายิงได้ไหม + คืนเป้าหมายที่ถูกต้อง (null = ยิงไม่ได้)
 //  ยิงได้เฉพาะช่วงจั่วไพ่และยังไม่เปิดไพ่ / ต้องมีปืน / 1 นัดต่อเทิร์น / เป้าหมายต้องเป็นคนอื่นที่ยังไม่ตกรอบ
 function gutsFireTargetOf(p, item, targetId) {
-  if (match.gameState !== "PLAYING" || p.locked) return null;
+  if (!action.canAct(p)) return null;
   if (!hasGutsWeapon(p)) return null;
   if (p.gutsShotTurn === match.roundNumber) return null;
   if (!GUTS_AMMO[item.ammo]) return null;

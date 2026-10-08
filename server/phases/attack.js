@@ -1,8 +1,9 @@
-// เฟสโจมตี: เลือกเป้า, คำนวณดาเมจ, doAttack
+// การโจมตีปกติ: คำนวณดาเมจ (strike) + ลำดับบนกระดาน ตี → ตีสวน → ถอย (boardAttack)
+//  ใครเรียกได้ตอนไหน (ตาเดิน/ระยะ) ตัดสินที่ phases/action.js — ไฟล์นี้แค่ลงผล
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  attackableTargets, afterSummary, attackSoundOf, computeAttackBase,
-  estimateAttackOn, doAttack,
+  attackableTargets, attackSoundOf, computeAttackBase,
+  estimateAttackOn, strike, doAttack, boardAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -12,12 +13,13 @@ const {
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../../characters/_universal_status");
 const Mark42 = require("../../characters/_mark42");
 const Journey = require("../../characters/_journey");
-const { ATTACKFX_TIME, ATTACK_TIME } = require("../constants");
+const { ATTACKFX_TIME } = require("../constants");
+const Board = require("../board");
 const match = require("../match");
 const { engine } = require("../engine");
 const combat = require("../combat");
 const cutscene = require("../cutscene");
-const endTurnPhase = require("./endTurn");
+const action = require("./action");
 const lobby = require("../lobby");
 const timers = require("../timers");
 const view = require("../view");
@@ -25,40 +27,6 @@ const view = require("../view");
 function attackableTargets(atkId) {
   const attacker = match.players[atkId];
   return combat.alivePlayers().filter((p) => p.id !== atkId && !combat.sameTeam(attacker, p));
-}
-
-function afterSummary() {
-  const winner = match.players[match.roundWinnerId];
-  // หลับไหล: ผู้ชนะที่ยังหลับอยู่ ออกการกระทำไม่ได้ -> ไม่มีเทิร์นโจมตี
-  //  (เทิร์นที่เพิ่งโดนกล่อม sleepFresh ยังโจมตีได้ — การหลับเริ่มเทิร์นถัดไป)
-  if (winner && winner.alive && (winner.statuses.sleep || 0) > 0 && !winner.sleepFresh) {
-    match.lastLog.push(`💤 ${winner.name} ยังหลับไหลอยู่ — ไม่มีเทิร์นโจมตี`);
-    endTurnPhase.endTurn();
-    return;
-  }
-  // สตั้น (สถานะพื้นฐาน patch 2.0.8): ไม่มีเทิร์นโจมตี
-  if (winner && winner.alive && (winner.statuses.stun || 0) > 0) {
-    match.lastLog.push(`💤 ${winner.name} ไม่อยู่ในสภาพจะโจมตีใคร — ไม่มีเทิร์นโจมตี`);
-    endTurnPhase.endTurn();
-    return;
-  }
-
-  if (winner && winner.alive && !match.roundTiedWin) {
-    const targets = attackableTargets(winner.id);
-    if (targets.length > 0) {
-      match.attackerId = winner.id;
-      match.gameState = "ATTACK";
-      timers.startPhaseTimer(ATTACK_TIME, () => {
-        const t = attackableTargets(match.attackerId);
-        if (t.length) doAttack(match.attackerId, t[Math.floor(Math.random() * t.length)].id);
-        // doAttack ปฏิเสธเป้าได้ — อย่าให้เฟส ATTACK ค้าง
-        if (match.gameState === "ATTACK") endTurnPhase.endTurn();
-      });
-      view.broadcastState();
-      return;
-    }
-  }
-  endTurnPhase.endTurn();
 }
 
 // เสียงโจมตีปกติเฉพาะตัวละคร (คีย์ใน client/src/audio.js) — undefined = ใช้เสียง "attack" กลาง
@@ -104,13 +72,11 @@ function estimateAttackOn(attacker, target) {
   } catch { return null; }
 }
 
-function doAttack(byId, targetId) {
-  if (match.gameState !== "ATTACK" || byId !== match.attackerId) return;
-  const attacker = match.players[byId];
-  if (!match.effectSourceId && attacker) return combat.withEffectSource(attacker, () => doAttack(byId, targetId));
-  const target = match.players[targetId];
-  if (!attacker || !target || !target.alive || target.id === attacker.id || combat.sameTeam(attacker, target)) return;
-  timers.clearPhaseTimer();
+// ลงผลการตีปกติ 1 ครั้ง (ใช้ทั้งตีและตีสวน) — คืน { dmg, dodge, kill, skills }
+//  ไม่แตะ gameState/ตัวจับเวลา (คนเรียกจัดฉากเอง) · counter = ตีสวน (ข้อความ log ต่างกันเท่านั้น)
+function strike(attacker, target, { counter = false } = {}) {
+  if (!match.effectSourceId) return combat.withEffectSource(attacker, () => strike(attacker, target, { counter }));
+  const verb = counter ? "ตีสวน" : "โจมตี";
   attacker.didAttackRound = true;
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
@@ -123,19 +89,11 @@ function doAttack(byId, targetId) {
     if (Math.random() * 100 < evadePct) {
       // patch 2.1.3.5: ถูกโจมตีไม่ได้แต้มสกิลอีกต่อไป (แม้หลบพ้น)
       target.wasAttacked = true;
-      match.lastLog.push(`💨 หลบหลีก! ${target.name} หลบการโจมตีของ ${attacker.name} ได้ (${evadePct}%) — เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง`);
-      match.lastAttack = {
-        id: ++match.attackSeq, byId: attacker.id, targetId: target.id,
-        byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
-        byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
-        targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
-        dmg: 0, dodge: true, fxMs: ATTACKFX_TIME * 1000,
+      match.lastLog.push(`💨 หลบหลีก! ${target.name} หลบการ${verb}ของ ${attacker.name} ได้ (${evadePct}%) — เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง`);
+      return {
+        dmg: 0, dodge: true, kill: false,
         skills: [{ name: `หลบหลีก (${evadePct}%)`, img: null, by: target.name, color: lobby.colorOf(target), side: "def" }],
       };
-      match.gameState = "ATTACKING";
-      timers.startPhaseTimer(ATTACKFX_TIME, () => cutscene.runCutsceneQueue(endTurnPhase.endTurn));
-      view.broadcastState();
-      return;
     }
     match.lastLog.push(`💨 ${target.name} พยายามหลบ (${evadePct}%) แต่ไม่พ้น — การโจมตีดำเนินต่อ (เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง)`);
   }
@@ -147,23 +105,15 @@ function doAttack(byId, targetId) {
     target.wasAttacked = true;
     if (!target.alive) match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} (โอกาส ${Math.round(NETRAMANA_KILL_CHANCE * 100)}%) — สังหารทันที!`);
     else match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} — แต่ ${target.name} รอดไปได้!`);
-    match.lastAttack = {
-      id: ++match.attackSeq, byId: attacker.id, targetId: target.id,
-      byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
-      targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
-      dmg: 0, kill: !target.alive,
+    return {
+      dmg: 0, dodge: false, kill: !target.alive,
       skills: [{ name: "เนตรมณะ — สังหารทันที", img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
     };
-    cutscene.runCutsceneQueue(() => {
-      match.gameState = "ATTACKING";
-      timers.startPhaseTimer(ATTACKFX_TIME + 2, endTurnPhase.endTurn);
-      view.broadcastState();
-    });
-    return;
   }
 
   // การเดินทาง (ป่าไม้ต้องสาป กลางวัน): โจมตีพลาด 40% — ฝั่งผู้ตีพลาดเอง แต่ "แม่นยำ" ก็เจาะได้เหมือนด่านหลบ
-  if (!accurate && Journey.tryAttackMiss(engine, attacker, target)) return;
+  const miss = !accurate && Journey.tryAttackMiss(engine, attacker, target);
+  if (miss) return { dmg: 0, dodge: true, kill: false, skills: [{ ...miss, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }] };
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
@@ -200,7 +150,12 @@ function doAttack(byId, targetId) {
     match.lastLog.push(`💪 ${attacker.name} เสริมพลัง — การโจมตีนี้ +1 (บัฟหมดลง)`);
   }
   target.wasAttacked = true;
-  match.lastLog.push(`${attacker.name} โจมตี ${target.name} -${dmg} (ลดเกราะก่อน)`);
+  match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (ลดเกราะก่อน)`);
+  // เลือดหมดจากการตี = ตกรอบทันที (เดิมกวาดตอนจบเทิร์น — บนกระดานคนตายต้องหายจากช่องก่อนตีสวน/คนถัดไป)
+  if (target.alive && target.hp <= 0) {
+    combat.instantDeath(target);
+    if (!target.alive) match.lastLog.push(`💀 ${target.name} เลือดจริงหมด ตกรอบ!`);
+  }
 
   // สกิลที่มีผลกับการโจมตีครั้งนี้ (โชว์ใต้อนิเมชัน แยกฝั่งชัดเจน: atk = ฝั่งโจมตี | def = ฝั่งป้องกัน)
   const fxSkills = [];
@@ -228,18 +183,62 @@ function doAttack(byId, targetId) {
   if (discord) defFx("ขัดแย้ง (+1 ดาเมจ)");
   if (fragileAmt > 0) defFx(`เปราะบาง (+${fragileAmt} ดาเมจ)`);
 
-  // อนิเมชันบอกว่าใครตีใคร — มีข้อมูลสกิลให้อ่าน -> ยืดเวลาอนิเมชันให้อ่านทัน
-  //  คัตซีนที่ค้างคิวระหว่างการโจมตีเล่นต่อหลังการ์ดสรุปความเสียหาย
-  const fxSeconds = fxSkills.length ? ATTACKFX_TIME + 2 : ATTACKFX_TIME;
-  match.lastAttack = {
-    id: ++match.attackSeq, byId: attacker.id, targetId: target.id,
+  return { dmg, dodge: false, kill: !target.alive, skills: fxSkills };
+}
+
+// การ์ดฉากตี 1 จังหวะ (ตี หรือ ตีสวน) — client วาดใครตีใคร + เหตุผลดาเมจ
+function strikeCard(attacker, target, res) {
+  return {
+    byId: attacker.id, targetId: target.id,
     byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
-    dmg, skills: fxSkills,
-    fxMs: fxSeconds * 1000,
+    dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, skills: res.skills || [],
   };
+}
+
+// ตี 1 ครั้งแบบไม่มีกระดาน (ไม่มีตีสวน/ถอย/ฉาก) — engine.doAttack ให้เทสต์ท่อดาเมจ + โค้ดตัวละครเรียกใช้
+//  ตั้ง lastAttack ไว้ให้อ่านผล · ไม่แตะ gameState/ตัวจับเวลา
+function doAttack(byId, targetId) {
+  const attacker = match.players[byId];
+  const target = match.players[targetId];
+  if (!attacker || !attacker.alive || !target || !target.alive || target.id === attacker.id || combat.sameTeam(attacker, target)) return null;
+  const res = strike(attacker, target);
+  match.lastAttack = { id: ++match.attackSeq, ...strikeCard(attacker, target, res), fxMs: ATTACKFX_TIME * 1000 };
+  return res;
+}
+
+// โจมตีบนกระดาน (GRID_PLAN §6): ตี → ถ้าเป้ายังรอดและตีถึงเรา = ตีสวน → ผู้ตีถอย 1 ช่อง (ชนของ = เสีย 1)
+//  จบฉาก (ATTACKING) แล้วเรียก done (= จบตาของผู้ตี)
+function boardAttack(attacker, target, done) {
+  const first = strike(attacker, target);
+  const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
+  if (attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
+    const back = strike(target, attacker, { counter: true });
+    card.counter = strikeCard(target, attacker, back);
+    if (attacker.alive) {
+      const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id });
+      card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide };
+      if (push.moved) {
+        attacker.pos = { x: push.x, y: push.y };
+        match.lastLog.push(`↩️ ${attacker.name} ถอย 1 ช่อง`);
+      } else {
+        combat.dealMixed(attacker, 1, true);
+        match.lastLog.push(`💥 ${attacker.name} ถอยชนสิ่งกีดขวาง — เสียเพิ่ม -1`);
+        if (attacker.alive && attacker.hp <= 0) {
+          combat.instantDeath(attacker);
+          if (!attacker.alive) match.lastLog.push(`💀 ${attacker.name} เลือดจริงหมด ตกรอบ!`);
+        }
+      }
+    }
+  }
+  // คนตกรอบหายจากกระดาน
+  for (const p of [attacker, target]) if (!p.alive) p.pos = null;
+  // มีข้อมูลสกิลให้อ่าน / มีตีสวน -> ยืดเวลาฉากให้อ่านทัน · คัตซีนที่ค้างคิวเล่นต่อหลังฉากตี
+  const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0);
+  card.fxMs = fxSeconds * 1000;
+  match.lastAttack = card;
   match.gameState = "ATTACKING";
-  timers.startPhaseTimer(fxSeconds, () => cutscene.runCutsceneQueue(endTurnPhase.endTurn));
+  timers.startPhaseTimer(fxSeconds, () => cutscene.runCutsceneQueue(done));
   view.broadcastState();
 }

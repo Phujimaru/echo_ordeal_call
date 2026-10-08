@@ -36,7 +36,7 @@ function mk(id, characterId, position, teamId = null) {
     id, name: id, characterId, position, teamId, alive: true, connected: true,
     hp: 4, armor: 0, shield: 0, skillPoints: 4, statuses: {}, statusAmt: {},
     seen: {}, cutsceneShown: {}, cards: [], inventory: [], evadeStacks: [],
-    locked: false, busted: false, result: null, isWinner: false, isLoser: false,
+    locked: false, busted: false, result: null,
     dmgArmor: 0, dmgHp: 0, gainedSkill: 0, skillUsedRound: false,
     transformAt: 0,
   };
@@ -56,12 +56,6 @@ function setup() {
   return { m, a, b };
 }
 
-function withRandom(value, fn) {
-  const real = Math.random;
-  Math.random = () => value;
-  try { return fn(); } finally { Math.random = real; }
-}
-
 test('ข้อมูลตัวละครมุยมิเป็นระดับง่าย ใช้ชื่อสถานะภาษาไทย และมีสกิลครบตามค่าใช้', () => {
   const c = CHAR_BY_ID.muimi;
   assert.ok(c);
@@ -73,7 +67,10 @@ test('ข้อมูลตัวละครมุยมิเป็นระ�
   assert.equal(c.ultimate.cost, 8);
   assert.match(c.secondary.desc, /ดาบเก่าๆ/);
   assert.match(c.ultimate.desc, /ดาบสะบั้น/);
-  assert.ok(c.passive && c.passive2);
+  assert.ok(c.passive);
+  assert.equal(c.passive2, undefined, 'หัวใจนักสู้ถอดออกแล้ว (GRID_PLAN §7.1)');
+  assert.equal(c.mov, 4);
+  assert.deepEqual(c.range, [1, 1]);
 });
 
 test('เสบียงฉุกเฉินฟื้นชีวิตและแต้มสกิล กดได้เทิร์นละครั้ง รวม 2 ครั้งต่อเกม', () => {
@@ -97,7 +94,7 @@ test('เสบียงฉุกเฉินฟื้นชีวิตแล�
 
 test('เสบียงฉุกเฉินไม่กินสิทธิ์สกิลหลักของเทิร์น แต่สกิลรองกินสิทธิ์ตามปกติ', () => {
   const { m } = setup();
-  engine.setGameState('PLAYING');
+  engine.setActor(m.id); // ใช้สกิลได้เฉพาะตาเดินของตัวเอง
   m.skillPoints = 4;
   engine.useSkill(m.id, 'basic');
   assert.equal(m.skillUsedRound, false);
@@ -134,19 +131,15 @@ test('ดาบสะบั้นหมดลงแล้วคูลดาว�
   assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), true);
 });
 
-test('ท่าไม้ตายบังคับเฉพาะศัตรูให้ไพ่แตก ต้านสถานะกันไม่ได้ และสลับคลิปเต็ม/สั้น', () => {
+test('ท่าไม้ตาย: ได้ดาบสะบั้น + ต้านสถานะ · ไม่ทำให้ใครไพ่แตกแล้ว · สลับคลิปเต็ม/สั้น', () => {
   const { m, a, b } = setup();
-  engine.setGameMode('duo');
-  m.teamId = 'red';
-  b.teamId = 'red';
-  a.teamId = 'blue';
-  a.statuses.resist = 9;
   m.skillPoints = 8;
 
   muimi.applyInstantSkill(engine, m, 'ultimate');
-  assert.equal(engine.bustedOf(a), true, 'ศัตรูแตกแม้มีต้านสถานะ');
-  assert.equal(engine.bustedOf(b), false, 'เพื่อนร่วมทีมไม่โดน');
-  assert.equal(engine.bustedOf(m), false, 'ตัวเองไม่โดน');
+  // ตอนนี้ไม่มีความสามารถที่ทำให้ไพ่แตก (GRID_PLAN §7)
+  assert.equal(engine.bustedOf(a), false);
+  assert.equal(engine.bustedOf(b), false);
+  assert.equal(engine.bustedOf(m), false);
   assert.equal(m.statuses.muimiTower, 2);
   assert.equal(m.statuses.resist, 3);
   assert.equal(muimi.displayImg(m), muimi.IMG.ultimate);
@@ -196,43 +189,6 @@ test('ใจที่ไม่ยอมแพ้กัน Overload Force เฉ�
   assert.equal(muimi.blocksOverloadForce(engine), true);
   m.alive = false;
   assert.equal(muimi.blocksOverloadForce(engine), false, 'มุยมิที่ตกรอบแล้วไม่กัน');
-});
-
-test('หัวใจนักสู้: ชนะจากการกดท่าไม้ตายยังเป็นแพ้ครั้งที่ 3 และสุ่มในเทิร์นถัดไป', () => {
-  const { m, a } = setup();
-  m.muimiLoseStreak = 2;
-  m.muimiUltCastRound = engine.roundNumber;
-  m.isWinner = true;
-  muimi.onAfterRoundScores(engine, [m, a]);
-  assert.equal(m.muimiLoseStreak, 3);
-  assert.equal(m.muimiHeartRound, 4);
-
-  engine.setRoundNumber(4);
-  a.statuses.resist = 5;
-  withRandom(0.1, () => muimi.onRoundStartAfterLoop(engine));
-  assert.equal(engine.bustedOf(a), true, 'สุ่มสำเร็จแล้วต้านสถานะกันไม่ได้');
-  assert.equal(m.muimiLoseStreak, 0);
-  assert.equal(m.muimiHeartRound, 0);
-});
-
-test('หัวใจนักสู้รีเซ็ตจำนวนแพ้หลังสุ่มล้มเหลว และไม่โดนเพื่อนร่วมทีม', () => {
-  const { m, a, b } = setup();
-  engine.setGameMode('duo');
-  m.teamId = b.teamId = 'red';
-  a.teamId = 'blue';
-  m.muimiLoseStreak = 3;
-  m.muimiHeartRound = 3;
-
-  withRandom(0.9, () => muimi.onRoundStartAfterLoop(engine));
-  assert.equal(m.muimiLoseStreak, 0);
-  assert.equal(engine.bustedOf(a), false);
-  assert.equal(engine.bustedOf(b), false);
-
-  m.muimiLoseStreak = 3;
-  m.muimiHeartRound = 3;
-  withRandom(0.1, () => muimi.onRoundStartAfterLoop(engine));
-  assert.equal(engine.bustedOf(a), true);
-  assert.equal(engine.bustedOf(b), false, 'เพื่อนร่วมทีมไม่โดนหัวใจนักสู้');
 });
 
 test('เสียงโจมตีสลับตามสถานะดาบสะบั้น', () => {

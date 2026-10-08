@@ -1,6 +1,7 @@
 // ระบบร้านค้า: ร้านค้ามายา (ร้านเดียว รวมปืนหน่วย GUTS Select ที่เดิมอยู่ร้านลุงเท่ง)
 //  ทดสอบเงื่อนไขการซื้อ/การยิง (gutsFireTargetOf) แยกจากผลของกระสุน (applyGutsBullet) เพราะการยิงจริง
 //  ผ่าน useInventoryItem จะตัดเข้าคัตซีน (ตั้ง timer) — ผลของกระสุนเกิดหลังวีดีโอจบเสมอ
+//  ระบบกระดาน (GRID_PLAN §8.1): ซื้อ/ใช้ของ/ยิงได้เฉพาะตาเดินของตัวเอง — เทสต์ใช้ engine.setActor(id)
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine } = require('../server.js');
@@ -76,6 +77,7 @@ test('openShop: ปืนและเกราะ Mark 42 ขึ้นได้�
 test('buyShopItem: ซื้อปืน/กระสุนจากร้านค้ามายาได้ หักเหรียญ และของเข้ากระเป๋าพร้อมชนิดกระสุน', () => {
   const p = mkPlayer({ gold: 20 });
   const [gun, ammo] = stockShop({ type: 'gutsGun', price: 15 }, { type: 'gutsAmmo', ammo: 'thunder', price: 5 });
+  engine.setActor(p.id);
   engine.buyShopItem(p.id, gun.id);
   engine.buyShopItem(p.id, ammo.id);
   assert.equal(p.gold, 0);
@@ -83,11 +85,25 @@ test('buyShopItem: ซื้อปืน/กระสุนจากร้าน
   assert.equal(p.inventory[0].type, 'gutsGun');
   assert.equal(p.inventory[1].ammo, 'thunder');
   assert.ok(gun.sold && ammo.sold);
+  assert.equal(engine.action.locked, true); // ซื้อแล้วเดินไม่ได้อีก
+});
+
+test('buyShopItem: นอกตาเดินของตัวเอง = ซื้อไม่ได้ (ไม่เสียเหรียญ)', () => {
+  const p = mkPlayer({ gold: 20 });
+  const other = mkPlayer();
+  const [gun] = stockShop({ type: 'gutsGun', price: 15 });
+  engine.buyShopItem(p.id, gun.id); // ช่วงจั่วไพ่
+  engine.setActor(other.id);
+  engine.buyShopItem(p.id, gun.id); // ตาของคนอื่น
+  assert.equal(p.gold, 20);
+  assert.equal(p.inventory.length, 0);
+  assert.equal(gun.sold, false);
 });
 
 test('buyShopItem: มีปืนแล้วซื้อปืนอีกกระบอกไม่ได้ (ไม่เสียเหรียญ ของไม่ถูกทำเครื่องหมายว่าขายแล้ว)', () => {
   const p = mkPlayer({ gold: 40 });
   const [g1, g2] = stockShop({ type: 'gutsGun', price: 15 }, { type: 'gutsGun', price: 15 });
+  engine.setActor(p.id);
   engine.buyShopItem(p.id, g1.id);
   engine.buyShopItem(p.id, g2.id);
   assert.equal(p.gold, 25);
@@ -99,9 +115,12 @@ test('buyShopItem: เหรียญไม่พอ / ของขายไป�
   const poor = mkPlayer({ gold: 14 });
   const rich = mkPlayer({ gold: 30 });
   const [gun] = stockShop({ type: 'gutsGun', price: 15 });
+  engine.setActor(poor.id);
   engine.buyShopItem(poor.id, gun.id);
   assert.equal(poor.inventory.length, 0);
+  engine.setActor(rich.id);
   engine.buyShopItem(rich.id, gun.id);
+  engine.setActor(poor.id);
   engine.buyShopItem(poor.id, gun.id); // ขายไปแล้ว
   assert.equal(poor.inventory.length, 0);
   assert.equal(rich.inventory.length, 1);
@@ -112,6 +131,7 @@ test('gutsFireTargetOf: ไม่มีปืนยิงไม่ได้ / �
   const p = mkPlayer();
   const t = mkPlayer();
   const ammo = giveAmmo(p, 'thunder');
+  engine.setActor(p.id);
   assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), null);
   giveGun(p);
   assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), t);
@@ -122,24 +142,24 @@ test('gutsFireTargetOf: ยิงตัวเอง / ยิงคนที่�
   const dead = mkPlayer({ alive: false });
   giveGun(p);
   const ammo = giveAmmo(p, 'shockwave');
+  engine.setActor(p.id);
   assert.equal(engine.gutsFireTargetOf(p, ammo, p.id), null);
   assert.equal(engine.gutsFireTargetOf(p, ammo, dead.id), null);
   assert.equal(engine.gutsFireTargetOf(p, ammo, 'ไม่มีคนนี้'), null);
 });
 
-test('gutsFireTargetOf: ยิงได้เฉพาะช่วงจั่วไพ่ที่ยังไม่เปิดไพ่ และ 1 นัดต่อเทิร์น', () => {
+test('gutsFireTargetOf: ยิงได้เฉพาะตาเดินของตัวเอง และ 1 นัดต่อเทิร์น', () => {
   const p = mkPlayer();
   const t = mkPlayer();
   giveGun(p);
   const ammo = giveAmmo(p, 'shockwave');
 
-  engine.setGameState('ATTACK');
+  engine.setGameState('PLAYING'); // ช่วงจั่วไพ่ = ยิงไม่ได้แล้ว
   assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), null);
-  engine.setGameState('PLAYING');
-
-  p.locked = true;
+  engine.setActor(t.id); // ตาของคนอื่น
   assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), null);
-  p.locked = false;
+  engine.setActor(p.id);
+  assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), t);
 
   p.gutsShotTurn = engine.roundNumber; // ยิงไปแล้วในเทิร์นนี้
   assert.equal(engine.gutsFireTargetOf(p, ammo, t.id), null);
@@ -153,6 +173,10 @@ test('useInventoryItem: ยิงไม่ผ่านเงื่อนไข =
   giveGun(p);
   const ammo = giveAmmo(p, 'thunder');
 
+  engine.useInventoryItem(p.id, ammo.uid, { targetId: t.id }); // นอกตาเดินของตัวเอง = ยิงไม่ได้
+  assert.equal(p.inventory.length, 2);
+
+  engine.setActor(p.id);
   engine.useInventoryItem(p.id, ammo.uid, { targetId: p.id }); // ยิงตัวเองไม่ได้
   assert.equal(p.inventory.length, 2);
 
@@ -173,10 +197,11 @@ test('วีดีโอกระสุนนับแยกรายคน — 
   const ammoA = giveAmmo(a, 'thunder');
   const ammoB = giveAmmo(b, 'thunder');
 
+  engine.setActor(a.id);
   engine.useInventoryItem(a.id, ammoA.uid, { targetId: t.id });
   assert.equal(engine.gameState, 'CUTSCENE');
   engine.clearPhaseTimer();
-  engine.setGameState('PLAYING');
+  engine.setActor(b.id);
 
   engine.useInventoryItem(b.id, ammoB.uid, { targetId: t.id }); // คนละคน = ยังได้วีดีโอ
   assert.equal(engine.gameState, 'CUTSCENE');
@@ -190,15 +215,16 @@ test('วีดีโอกระสุนแบบเดิมเล่นค�
   const a1 = giveAmmo(p, 'shockwave');
   const a2 = giveAmmo(p, 'shockwave');
 
+  engine.setActor(p.id);
   engine.useInventoryItem(p.id, a1.uid, { targetId: t.id }); // นัดแรก = เล่นวีดีโอ (เข้าเฟส CUTSCENE)
   assert.equal(engine.gameState, 'CUTSCENE');
   assert.equal(t.armor, 3); // ผลยังไม่เกิด — รอวีดีโอจบก่อน
   engine.clearPhaseTimer();
 
-  engine.setGameState('PLAYING');
+  engine.setActor(p.id);
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.useInventoryItem(p.id, a2.uid, { targetId: t.id }); // นัดที่ 2 ของแบบเดิม = ไม่มีวีดีโอ
-  assert.equal(engine.gameState, 'PLAYING');
+  assert.equal(engine.gameState, 'ACTION');
   assert.equal(t.armor, 0); // ผลเกิดทันที
 });
 

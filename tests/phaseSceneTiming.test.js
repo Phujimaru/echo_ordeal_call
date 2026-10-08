@@ -25,11 +25,11 @@ test("round banner runs exactly as long as the server's TRANSITION phase", () =>
   assert.strictEqual(cssSeconds(".rb-wash", "rbWash"), serverSeconds("TRANSITION_TIME"));
 });
 
-// ฉาก "เริ่มโจมตีได้" ต้องไม่ยาวกว่าเวลาที่ผู้ชนะมีให้เลือกเป้าหมาย
-test("attack call is shorter than the attack phase", () => {
+// ฉาก "เริ่มโจมตีได้" ต้องไม่ยาวกว่าตาเดินของผู้เล่น (ระบบกระดาน: ตีได้ในตาเดินของตัวเอง — ACTION_TIME)
+test("attack call is shorter than the action turn", () => {
   // ย้ายไปอยู่ในคิวฉากประกาศแล้ว (SCENE_MS) — เดิมเป็น setTimeout ของตัวเอง
   const src = fs.readFileSync(path.join(root, "client", "src", "screens", "Game.jsx"), "utf8");
   const m = /const SCENE_MS = \{[^}]*atk:\s*(\d+)/.exec(src);
   assert.ok(m, "หาเวลาของฉากเริ่มโจมตีใน SCENE_MS ไม่เจอ");
-  assert.ok(Number(m[1]) / 1000 < serverSeconds("ATTACK_TIME"), "ฉากเริ่มโจมตียาวกว่าเฟสโจมตีเอง");
+  assert.ok(Number(m[1]) / 1000 < serverSeconds("ACTION_TIME"), "ฉากเริ่มโจมตียาวกว่าตาเดินเอง");
 });

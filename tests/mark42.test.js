@@ -18,6 +18,7 @@ function setup() {
   engine.clearPhaseTimer();
   engine.setGameState('PLAYING');
   engine.setRoundNumber(5);
+  engine.placeOnBoard(1);
   for (const p of Object.values(engine.players)) {
     p.locked = false; p.hp = 7; p.armor = 1; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.inventory = []; p.gold = 30;
     Mark42.resetCombat(p);
@@ -26,13 +27,16 @@ function setup() {
   return engine.players;
 }
 const giveSuit = (p) => engine.grantInventoryItem(p, { type: 'mark42', price: 15 });
-const use = (p, mode, targetId) => engine.useInventoryItem(p.id, p.inventory.find((i) => i.type === 'mark42').uid, { mode, targetId });
+// ใส่/สั่งชุดได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §8.1) — helper พาเข้าตาของคนนั้นก่อนเสมอ
+const use = (p, mode, targetId) => {
+  engine.setActor(p.id);
+  engine.useInventoryItem(p.id, p.inventory.find((i) => i.type === 'mark42').uid, { mode, targetId });
+};
+const control = (id, act) => { engine.setActor(id); mark42Control(id, act); };
+// ตีปกติ 1 ครั้ง (ท่อดาเมจล้วน ไม่มีกระดาน/ตีสวน)
 function attack(by, target) {
-  engine.setGameState('ATTACK');
-  engine.setAttackerId(by);
   engine.doAttack(by, target);
   engine.clearPhaseTimer();
-  engine.setGameState('PLAYING');
 }
 
 const saved = { triggerCutscene: engine.triggerCutscene, queueCutscene: engine.queueCutscene, skillFlash: engine.skillFlash };
@@ -96,15 +100,15 @@ test('ใส่ให้คนอื่น: คนใส่ถอดเองไ
   use(A, 'give', 'B');
   assert.equal(B.mark42.ownerId, 'A');
   assert.equal(A.mark42Owned.wearerId, 'B');
-  mark42Control('B', 'remove');
+  control('B', 'remove');
   assert.ok(B.mark42, 'คนใส่ถอดเองไม่ได้ (ไม่ใช่เจ้าของ)');
   engine.dealMixed(B, 2);
   assert.equal(B.mark42.armor, 5);
-  mark42Control('A', 'recall');
+  control('A', 'recall');
   assert.equal(B.mark42, null);
   assert.equal(A.mark42.armor, 5, 'เรียกคืนพร้อมเกราะที่เหลือ');
   assert.deepEqual(cutscenes, ['mark42SuitSome', 'mark42Recall']);
-  mark42Control('A', 'remove');
+  control('A', 'remove');
   assert.equal(A.mark42, null);
   assert.equal(A.inventory[0].type, 'mark42');
   assert.equal(A.inventory[0].armor, 5);
@@ -122,7 +126,7 @@ test('ระเบิด: ใส่ให้แล้วระเบิดทั
 
   giveSuit(A);
   use(A, 'give', 'C');
-  mark42Control('A', 'detonate');
+  control('A', 'detonate');
   assert.equal(C.mark42, null);
   assert.deepEqual([C.armor, C.hp], [0, 6]);
   assert.equal(A.mark42Owned, null);
@@ -137,13 +141,25 @@ test('วีดีโอ: ใส่/ใส่ให้/เรียกคืน 
   try {
     giveSuit(A);
     use(A, 'give', 'B');
-    mark42Control('A', 'recall');
-    mark42Control('A', 'remove');
+    control('A', 'recall');
+    control('A', 'remove');
     use(A, 'self');
-    mark42Control('A', 'remove');
+    control('A', 'remove');
     use(A, 'bomb', 'C');
   } finally { engine.triggerCutscene = t0; engine.queueCutscene = q0; }
   assert.deepEqual(calls, ['T:mark42SuitSome', 'T:mark42Recall', 'T:mark42Suitup', 'Q:mark42Bomb']);
+});
+
+test('นอกตาเดินของตัวเอง: ใส่ชุด / สั่งชุดไม่ได้', () => {
+  const { A, B } = setup();
+  giveSuit(A);
+  engine.useInventoryItem('A', A.inventory[0].uid, { mode: 'self' }); // ช่วงจั่วไพ่
+  assert.equal(A.mark42 || null, null);
+  assert.equal(A.inventory.length, 1);
+  use(A, 'give', 'B');
+  engine.setActor('B'); // ตาของคนอื่น
+  mark42Control('A', 'recall');
+  assert.equal(B.mark42.ownerId, 'A', 'เรียกคืนนอกตาตัวเองไม่ได้');
 });
 
 test('ใส่ซ้อนไม่ได้ · ซื้อจากร้านได้ชุดเดียว', () => {
@@ -156,6 +172,7 @@ test('ใส่ซ้อนไม่ได้ · ซื้อจากร้า�
 
   const { A: A2 } = setup();
   engine.setShopItems([{ id: 's1', type: 'mark42', price: Mark42.PRICE, sold: false }, { id: 's2', type: 'mark42', price: Mark42.PRICE, sold: false }]);
+  engine.setActor('A');
   engine.buyShopItem('A', 's1');
   engine.buyShopItem('A', 's2');
   assert.equal(A2.inventory.filter((i) => i.type === 'mark42').length, 1);

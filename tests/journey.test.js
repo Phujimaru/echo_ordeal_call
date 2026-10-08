@@ -31,11 +31,15 @@ function setup(chars = ['dummy', 'dummy', 'dummy'], mode = 'ffa') {
   engine.clearPhaseTimer();
   return engine.players;
 }
+// ตีปกติ 1 ครั้ง (ท่อดาเมจล้วน ไม่มีกระดาน/ตีสวน)
 function attack(byId, targetId) {
-  engine.setGameState('ATTACK');
-  engine.setAttackerId(byId);
   engine.doAttack(byId, targetId);
   engine.clearPhaseTimer();
+}
+// ซื้อของได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §8.1)
+function buy(id, itemId) {
+  engine.setActor(id);
+  engine.buyShopItem(id, itemId);
 }
 
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
@@ -72,7 +76,7 @@ test('เริ่มเกม: พักรอฉากเปิดตัว + 
 test('ข้ามเข้าภูมิภาคใหม่: ฉากแผนที่ "advance" ก่อนเทิร์น 11', async () => {
   setup();
   engine.setRoundNumber(10);
-  engine.setGameState('SUMMARY');
+  engine.setGameState('ATTACKING');
   engine.endTurn();
   assert.ok(await waitState(() => engine.buildStateFor('p0').journey.scene?.active));
   const j = engine.buildStateFor('p0').journey;
@@ -109,14 +113,13 @@ test('2 ทุ่งดอกไม้: กลางวันได้ของ�
   const potion = shop.find((it) => it.type !== 'gutsGun' && it.type !== 'mark42');
   assert.equal(potion.stock, 3);
   for (const p of [p0, p1, p2]) p.gold = 30;
-  engine.setGameState('PLAYING');
-  engine.buyShopItem('p0', potion.id);
-  engine.buyShopItem('p1', potion.id);
+  buy('p0', potion.id);
+  buy('p1', potion.id);
   assert.equal(potion.sold, false);
   assert.equal(potion.stock, 1);
-  engine.buyShopItem('p2', potion.id);
+  buy('p2', potion.id);
   assert.equal(potion.sold, true, 'ชิ้นที่ 3 หมดช่อง');
-  engine.buyShopItem('p0', potion.id);
+  buy('p0', potion.id);
   assert.equal(p0.gold, 30 - potion.price, 'ซื้อเกินสต็อกไม่ได้');
   for (const it of shop.filter((x) => x.type === 'gutsGun' || x.type === 'mark42')) {
     assert.equal(it.stock, undefined, 'ของที่มีโควตาต่อรอบยังช่องละ 1');
@@ -129,15 +132,14 @@ test('2 ทุ่งดอกไม้: ร้านที่เปิดตอ�
   engine.setRoundNumber(15);
   engine.openShop();
   const potion = engine.shopItems.find((it) => it.type !== 'gutsGun' && it.type !== 'mark42');
-  engine.setGameState('PLAYING');
-  engine.buyShopItem('p0', potion.id);
+  buy('p0', potion.id);
   assert.equal(potion.sold, true, 'กลางวันช่องละ 1 ชิ้น');
   engine.setRoundNumber(16);
   engine.refreshShopForJourney(); // ต้นเทิร์นใหม่
   assert.equal(potion.sold, false, 'กลางคืนซื้อต่อได้');
   assert.equal(potion.stock, 2, 'ซื้อไปแล้ว 1 จาก 3');
-  engine.buyShopItem('p1', potion.id);
-  engine.buyShopItem('p1', potion.id);
+  buy('p1', potion.id);
+  buy('p1', potion.id);
   assert.equal(potion.sold, true);
   engine.setRoundNumber(21);
   engine.refreshShopForJourney();
@@ -153,8 +155,7 @@ test('4 คลื่นวงวนน้ำ: เข้ากลางวัน 
     { id: 'b', type: 'armor', value: 1, price: 3, sold: false, soldTo: null },
     { id: 'c', type: 'resist', price: 5, sold: false, soldTo: null },
   ]);
-  engine.setGameState('PLAYING');
-  engine.buyShopItem('p0', 'b');
+  buy('p0', 'b');
   engine.setRoundNumber(31);
   engine.refreshShopForJourney();
   const shop = engine.shopItems;

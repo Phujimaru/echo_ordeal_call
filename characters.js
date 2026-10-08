@@ -30,13 +30,11 @@ const CHARACTERS = [
     avatar: 0,
     difficulty: "easy",
     img: "/characters/muimi/muimi.webp",
+    mov: 4,          // ระยะเดิน (GRID_PLAN §5)
+    range: [1, 1],   // ระยะตีปกติ [ใกล้สุด, ไกลสุด] — ประชิด
     passive: {
       name: "ใจที่ไม่ยอมแพ้",
       desc: "ระหว่าง “ดาบสะบั้น” ตีปกติแต่ละครั้งยืดสถานะ +1 เทิร์น · ระหว่างนี้ไม่เกิด Overload Force",
-    },
-    passive2: {
-      name: "หัวใจนักสู้",
-      desc: "แพ้การจั่วหรือไพ่แตกติดกัน 3 ครั้ง: เทิร์นหน้า 50% ศัตรูทุกคนไพ่แตก (ไม่โดนเพื่อน · ต้านไม่ได้) · สุ่มแล้วนับใหม่เสมอ · ชนะจากดาบสะบั้นหอคอยสวรรค์ยังนับเป็นแพ้",
     },
     basic: {
       name: "เสบียงฉุกเฉิน",
@@ -72,6 +70,8 @@ const CHARACTERS = [
     avatar: 0,
     difficulty: "medium",
     img: "/characters/oberon(summer)/oberon_summer.webp",
+    mov: 4,
+    range: [1, 1],
     passive: {
       name: "หน้าไหว้หลังหลอก",
       desc: "จบเทิร์นที่ไม่ถูกโจมตีเลย (ถูกเลือกเป็นเป้าก็นับ แม้หลบได้) ได้แต้มสกิล +1 และเหรียญ +1",
@@ -128,7 +128,6 @@ function publicRoster() {
     hidden: !!c.hidden,
     difficulty: c.difficulty || "easy", // ความยากในการเล่น (ใช้แบ่งหน้าเลือกตัวละคร)
     passive: c.passive ? { name: c.passive.name, desc: c.passive.desc } : null,
-    passive2: c.passive2 ? { name: c.passive2.name, desc: c.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
     basic: pub(c.basic),
     secondary: pub(c.secondary),
     ultimate: pub(c.ultimate),

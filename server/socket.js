@@ -10,11 +10,10 @@ const CHAR_HOOKS = require("../characters/index");
 const { io } = require("./app");
 const { MAX_ARMOR, MAX_HP, MAX_PLAYERS, RECONNECT_GRACE_MS } = require("./constants");
 const match = require("./match");
-const attack = require("./phases/attack");
+const action = require("./phases/action");
 const characterRules = require("./characterRules");
 const combat = require("./combat");
 const draw = require("./phases/draw");
-const endTurnPhase = require("./phases/endTurn");
 const lobby = require("./lobby");
 const qteSystem = require("./qte");
 const shop = require("./shop");
@@ -77,7 +76,6 @@ function scheduleDisconnectedRemoval(playerId) {
 function removeDisconnectedPlayer(playerId) {
   const p = match.players[playerId];
   if (!p || p.connected) return;
-  const wasAttacker = match.attackerId === playerId;
   const wasPregame = lobby.pregameStateActive();
   forgetPlayerSession(p);
   delete match.players[playerId];
@@ -86,7 +84,7 @@ function removeDisconnectedPlayer(playerId) {
   if (Object.keys(match.players).length === 0) {
     match.gameState = 'LOBBY';
     timers.clearPhaseTimer();
-    match.attackerId = null;
+    match.actorId = null;
     view.broadcastPositions();
     return;
   }
@@ -96,7 +94,7 @@ function removeDisconnectedPlayer(playerId) {
     view.broadcastPositions();
     return;
   }
-  if (match.gameState === 'ATTACK' && wasAttacker) endTurnPhase.endTurn();
+  if (match.gameState === 'ACTION' && match.actorId === playerId) action.removeFromOrder(playerId);
   else if (match.gameState === 'PLAYING') { draw.checkAllLocked(); view.broadcastState(); }
   else view.broadcastState();
   view.broadcastPositions();
@@ -144,9 +142,10 @@ function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, c
     tempHp: 0, tempHpTurns: 0,
     sleepFresh: false,
     muimiEmergencyUses: CHAR_HOOKS.muimi.EMERGENCY_USES, muimiEmergencyUsedRound: 0,
-    muimiLoseStreak: 0, muimiHeartRound: 0, muimiForcedBustRound: 0, muimiUltCasts: 0, muimiUltCastRound: 0, muimiUltLock: 0,
+    muimiUltCasts: 0, muimiUltLock: 0,
+    pos: null, // ตำแหน่งบนกระดาน { x, y } (แจกตอนเริ่มแมตช์ — phases/action.js placeOnBoard)
     dmgHp: 0, dmgArmor: 0, gainedSkill: 0,
-    wasAttacked: false, isWinner: false, isLoser: false,
+    wasAttacked: false,
   };
 }
 
@@ -246,7 +245,11 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'useInventoryItem', (id, { uid, cardIndex, color, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { cardIndex, color, targetId, mode })), 8);
   // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
   onPlayerEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
-  onPlayerEvent(socket, 'attack', (id, { targetId } = {}) => attack.doAttack(id, targetId), 6);
+  // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
+  onPlayerEvent(socket, 'move', (id, { x, y } = {}) => action.moveTo(id, x, y), 8);
+  onPlayerEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
+  onPlayerEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
+  onPlayerEvent(socket, 'endAction', (id) => action.waitAction(id), 4);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);

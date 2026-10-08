@@ -16,10 +16,11 @@ const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../characters/_unive
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
 const {
-  ATTACKFX_TIME, ATTACK_TIME, GOLD_MAX, GUTS_AMMO, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG, MAX_HP,
+  ATTACKFX_TIME, ACTION_TIME, GOLD_MAX, GUTS_AMMO, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG, MAX_HP,
   OVERLOAD_FORCE_CHANCE, TRANSFORMS,
 } = require("./constants");
 const match = require("./match");
+const action = require("./phases/action");
 const attack = require("./phases/attack");
 const characterRules = require("./characterRules");
 const combat = require("./combat");
@@ -47,7 +48,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   CHAR_HOOKS,
   POSITION_COLORS,
   ATTACKFX_TIME,
-  ATTACK_TIME,
+  ACTION_TIME,
   TRANSFORMS,
   SPELLBURDEN_MAX,
   OVERLOAD_FORCE_CHANCE,
@@ -92,8 +93,30 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
   setCycleShift(v) { match.cycleShift = Number(v) || 0; }, // เทสต์ตั้งช่วงเวลาเองได้
-  get attackerId() { return match.attackerId; },
-  setAttackerId(v) { match.attackerId = v; },
+  // ---------- กระดาน (GRID_PLAN.md) — เทสต์ขับตาเดินผ่านตรงนี้ ----------
+  get board() { return match.board; },
+  get turnOrder() { return match.turnOrder; },
+  get actorId() { return match.actorId; },
+  get action() { return match.action; },
+  placeOnBoard: action.placeOnBoard,
+  boardMap: action.boardMap,
+  movOf: action.movOf,
+  baseMovOf: action.baseMovOf,
+  rangeOf: action.rangeOf,
+  beginOrder: action.beginOrder,
+  canAct: action.canAct,
+  moveTo: action.moveTo,
+  undoMove: action.undoMove,
+  attackTarget: action.attackTarget,
+  waitAction: action.waitAction,
+  finishActor: action.finishActor,
+  // เทสต์: ให้ผู้เล่นคนนี้อยู่ในตาเดินของตัวเองทันที (ข้ามช่วงจั่วไพ่/ลำดับเดิน) — ไม่ตั้งตัวจับเวลา
+  setActor(id) {
+    const p = match.players[id];
+    match.gameState = "ACTION";
+    match.actorId = id;
+    match.action = { from: p && p.pos ? { ...p.pos } : null, moved: false, locked: false, path: null };
+  },
   get lastAttack() { return match.lastAttack; },
   setLastAttack(v) { match.lastAttack = v; },
   attackableTargets: attack.attackableTargets,

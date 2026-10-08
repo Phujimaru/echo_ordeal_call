@@ -30,9 +30,10 @@ function dealRound() {
   match.overloadForceActive = false;
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
   match.lastLog = [];
-  match.attackerId = null;
-  match.roundWinnerId = null;
-  match.roundTiedWin = false;
+  match.turnOrder = [];
+  match.actorIndex = -1;
+  match.actorId = null;
+  match.action = null;
   match.cutsceneQueue = []; // ล้างคิวเก่าก่อนเสมอ — ต้องอยู่ก่อน CHAR_HOOKS ด้านล่างทั้งหมด ไม่งั้นคัตซีนที่เพิ่งคิวไว้จะโดนล้างทิ้งไปด้วย
   match.cutsceneInfo = null;
   match.lastAttack = null;
@@ -44,8 +45,6 @@ function dealRound() {
 
   for (const p of Object.values(match.players)) {
     combat.resetRoundDisplay(p);
-    // ธงบังคับไพ่แตกของมุยมิผูกกับเลขเทิร์นอยู่แล้ว แต่ล้างค่าค้างไว้ให้ state อ่านง่ายและกัน snapshot เก่า
-    if (p.muimiForcedBustRound !== match.roundNumber) p.muimiForcedBustRound = 0;
     p.shield = 0;
     p.skillUsedRound = false; // เทิร์นใหม่ ใช้สกิลได้อีก 1 อัน
     if (!p.alive) { p.cards = []; p.locked = true; p.busted = false; p.overloadDrawReady = false; continue; }
@@ -144,9 +143,6 @@ function dealRound() {
       match.lastLog.push(`😵 ${p.name} ติดสถานะสตั้น — ขยับไม่ได้ทั้งเทิร์น! (เหลืออีก ${p.statuses.stun} เทิร์น)`);
     }
   }
-
-  // มุยมิ: ครบแพ้ต่อเนื่อง 3 ครั้งแล้วสุ่มหัวใจนักสู้ที่ต้นเทิร์นถัดไป หลังแจกไพ่ครบทั้งสนาม
-  CHAR_HOOKS.muimi.onRoundStartAfterLoop(engine);
 
   // สลับช่วงเวลากลางวัน/กลางคืน — แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน
   const night = dayNight.isNightRound(match.roundNumber);

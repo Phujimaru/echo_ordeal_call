@@ -31,11 +31,11 @@ function setup({ mode = 'ffa', teams = null } = {}) {
     p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {};
     ob.resetCombat(p);
   }
+  engine.setActor('O'); // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7)
   return engine.players;
 }
+// ตีปกติ 1 ครั้ง (ท่อดาเมจล้วน ไม่มีกระดาน/ตีสวน)
 function attack(byId, targetId) {
-  engine.setGameState('ATTACK');
-  engine.setAttackerId(byId);
   engine.doAttack(byId, targetId);
   engine.clearPhaseTimer();
 }
@@ -58,7 +58,15 @@ test('ข้อมูล: ระดับกลาง · ราคา 2/4/4 · �
 
 test('ม่านแห่งราตรี: ffa ทุกคน +1 พลังโจมตี 3 เทิร์น + ฟื้น 1 · กดซ้ำไม่ได้จนผลหมด', () => {
   const { O, M, T } = setup();
+  engine.setActor('T'); // ตาของคนอื่น = ใช้สกิลไม่ได้
   engine.useSkill('O', 'basic');
+  assert.equal(O.statuses.obsVeil, undefined);
+  engine.setGameState('PLAYING'); // ช่วงจั่วไพ่ก็ใช้ไม่ได้แล้ว
+  engine.useSkill('O', 'basic');
+  assert.equal(O.statuses.obsVeil, undefined);
+  engine.setActor('O');
+  engine.useSkill('O', 'basic');
+  assert.equal(engine.action.locked, true, 'ใช้สกิลแล้วเดินไม่ได้อีก');
   for (const p of [O, M, T]) {
     assert.equal(p.statuses.obsVeil, 3);
     assert.equal(p.hp, 4);
@@ -102,7 +110,7 @@ test('นกจาบยามเช้า: ต้นเทิร์นถัด
   const { O, T } = setup();
   engine.useSkill('O', 'secondary', ['T']);
   T.hp = 2; T.armor = 3;
-  engine.setGameState('SUMMARY');
+  engine.setGameState('ATTACKING');
   const round = engine.roundNumber;
   engine.endTurn();
   assert.ok(await waitState(() => engine.roundNumber === round + 1 && engine.gameState === 'PLAYING'));
@@ -120,7 +128,7 @@ test('จุดจบของความฝัน: +4 เฉพาะเทิ
   assert.equal(O.obsUltReady, r0 + 5);
   let stunnedTurns = 0;
   for (let i = 0; i < 4; i++) {
-    engine.setGameState('SUMMARY');
+    engine.setGameState('ATTACKING');
     const round = engine.roundNumber;
     engine.endTurn();
     assert.ok(await waitState(() => engine.roundNumber === round + 1 && engine.gameState === 'PLAYING'));

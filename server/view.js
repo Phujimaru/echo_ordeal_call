@@ -16,6 +16,7 @@ const { engine } = require("./engine");
 const combat = require("./combat");
 const dayNight = require("./dayNight");
 const cardDeck = require("./deck");
+const action = require("./phases/action");
 const lobby = require("./lobby");
 const shop = require("./shop");
 
@@ -37,6 +38,13 @@ function activeSkillMusic() {
     }
   }
   return best;
+}
+
+// แผนที่ที่ client วาด (ค่าคงที่ต่อภูมิภาค — ส่งไปทั้งก้อนเพราะไม่ใหญ่: สิ่งกีดขวาง ~20 ช่อง)
+function boardPublic() {
+  if (!match.board) return null;
+  const m = action.boardMap();
+  return { area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal], spawns: m.spawns, shopSpots: m.shopSpots };
 }
 
 // ============================================================
@@ -80,15 +88,18 @@ function buildStateFor(viewerId) {
     journey: Journey.publicInfo(engine, match.journeyScene),
     maxPlayers: MAX_PLAYERS,
     youId: viewerId,
-    attackerId: match.gameState === "ATTACK" ? match.attackerId : null,
-    winnerId: (match.gameState === "SUMMARY" || match.gameState === "ATTACK") ? match.roundWinnerId : null,
+    // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
+    board: boardPublic(),
+    turnOrder: match.turnOrder,
+    actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,
+    action: match.gameState === "ACTION" && match.action ? { from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null } : null,
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
     cutscene: (match.gameState === "CUTSCENE" && match.cutsceneInfo && (!match.cutsceneInfo.onlyFor || match.cutsceneInfo.onlyFor.includes(viewerId)))
       ? match.cutsceneInfo : null,
     attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
-    log: (match.gameState === "SUMMARY" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? match.lastLog : [],
+    log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? match.lastLog : [],
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
     players: Object.values(match.players).map((p) => {
@@ -166,8 +177,6 @@ function buildStateFor(viewerId) {
         muimiEmergencyUses: p.characterId === "muimi" ? (p.muimiEmergencyUses != null ? p.muimiEmergencyUses : CHAR_HOOKS.muimi.EMERGENCY_USES) : undefined,
         muimiEmergencyMax: p.characterId === "muimi" ? CHAR_HOOKS.muimi.EMERGENCY_USES : undefined,
         muimiEmergencyUsed: p.characterId === "muimi" ? p.muimiEmergencyUsedRound === match.roundNumber : undefined,
-        muimiLoseStreak: p.characterId === "muimi" ? (p.muimiLoseStreak || 0) : undefined,
-        muimiLoseStreakMax: p.characterId === "muimi" ? CHAR_HOOKS.muimi.HEART_LOSSES : undefined,
         muimiUltCd: mine && p.characterId === "muimi" ? CHAR_HOOKS.muimi.ultCooldownLeft(engine, p) : undefined,
         atCap: cardDeck.scoreOf(p) >= cardDeck.scoreCap(p), // แต้มเต็มเพดาน (21) -> ปิดปุ่มจั่ว รอเปิดไพ่เอง
         skillUsed: !!p.skillUsedRound,    // ใช้สกิลไปแล้วในเทิร์นนี้ (1 อันต่อเทิร์น)
@@ -188,7 +197,10 @@ function buildStateFor(viewerId) {
           ultimate: ultimatePub,
         },
         dmgHp: p.dmgHp, dmgArmor: p.dmgArmor, gainedSkill: p.gainedSkill,
-        wasAttacked: p.wasAttacked, isWinner: p.isWinner, isLoser: p.isLoser,
+        wasAttacked: p.wasAttacked,
+        // กระดาน: ตำแหน่ง + ระยะเดิน (เทิร์นนี้ / ปกติสูงสุด) + ระยะตี — ทุกคนเห็น (ใช้วาดระยะอันตราย)
+        pos: p.pos || null,
+        mov: action.movOf(p), baseMov: action.baseMovOf(p), range: action.rangeOf(p),
       };
     }),
   };

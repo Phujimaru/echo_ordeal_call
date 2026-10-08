@@ -7,6 +7,7 @@ Object.assign(module.exports, {
 const { io } = require("./app");
 const { TRANSFORMS } = require("./constants");
 const match = require("./match");
+const action = require("./phases/action");
 const draw = require("./phases/draw");
 const lobby = require("./lobby");
 const summary = require("./phases/summary");
@@ -54,15 +55,25 @@ function notifyTransform(p, key, onlyFor) {
   if (Array.isArray(onlyFor)) { for (const id of onlyFor) io.to(id).emit("transformNotice", payload); return; }
   io.emit("transformNotice", payload);
 }
-// พักช่วงจั่วการ์ดไว้ เล่น cutscene ให้จบ แล้วกลับมาจั่วต่อด้วยเวลาที่เหลือ
-// (ใช้กับสกิลที่แปลงร่างทันทีก่อนเปิดไพ่)
+// พักเฟสปัจจุบันไว้ เล่น cutscene ให้จบ แล้วกลับมาเฟสเดิมด้วยเวลาที่เหลือ
+//  ช่วงจั่วไพ่ (PLAYING) หรือ ตาเดิน (ACTION — สกิล/ไอเทมที่มีคลิปในตาของตัวเอง)
 // after (ไม่บังคับ): งานที่ต้องทำ "หลังวีดีโอจบ" ก่อนกลับเข้าเฟสจั่วไพ่ — ใช้กับกระสุน GUTS Select
 //  ที่ต้องเล่นวีดีโอก่อนแล้วค่อยให้ผลเสียหาย/สถานะโผล่บนกระดาน (ไม่ใช่ลดเลือดไปตั้งแต่ก่อนวีดีโอเล่น)
 function pausePlayingForCutscene(after) {
   const remain = Math.max(3, match.timeLeft);
+  const inAction = match.gameState === "ACTION";
   timers.clearPhaseTimer();
   runCutsceneQueue(() => {
     if (after) after();
+    if (inAction) {
+      // คนเดินอยู่ตกรอบระหว่างคลิป (เช่นโดนสวน/ระเบิดตัวเอง) = ไปคนถัดไปเลย
+      const actor = match.players[match.actorId];
+      if (!actor || !actor.alive) { action.finishActor(); return; }
+      match.gameState = "ACTION";
+      timers.startPhaseTimer(remain, action.finishActor);
+      view.broadcastState();
+      return;
+    }
     match.gameState = "PLAYING";
     timers.startPhaseTimer(remain, summary.resolveRound);
     view.broadcastState();

@@ -10,8 +10,6 @@ const TOWER_TURNS = 2;
 const RESIST_TURNS = 3;
 const TOWER_ATK_BONUS = 3;
 const ULT_COOLDOWN_TURNS = 5;
-const HEART_LOSSES = 3;
-const HEART_CHANCE = 0.5;
 
 const IMG = {
   base: "/characters/muimi/muimi.webp",
@@ -25,19 +23,6 @@ function isMuimi(p) { return !!p && p.characterId === ID; }
 function rustyActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiRusty) || 0) > 0; }
 function towerActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiTower) || 0) > 0; }
 
-function forceBustOpponents(engine, owner, reason) {
-  let affected = 0;
-  for (const target of Object.values(engine.players)) {
-    if (!target.alive || target.id === owner.id || engine.sameTeam(owner, target)) continue;
-    // เป็นคำสั่งให้ไพ่แตกโดยตรง ไม่ใช่ดีบัฟ จึงไม่ผ่าน applyDebuff และต้านสถานะป้องกันไม่ได้
-    target.muimiForcedBustRound = engine.roundNumber;
-    target.busted = true;
-    affected++;
-  }
-  engine.log(`💥 ${owner.name} ${reason} — บังคับให้คู่ต่อสู้ไพ่แตก ${affected} คน`);
-  return affected;
-}
-
 module.exports = {
   id: ID,
   IMG,
@@ -47,8 +32,6 @@ module.exports = {
   RESIST_TURNS,
   TOWER_ATK_BONUS,
   ULT_COOLDOWN_TURNS,
-  HEART_LOSSES,
-  HEART_CHANCE,
 
   rustyActive,
   towerActive,
@@ -56,19 +39,11 @@ module.exports = {
   resetCombat(p) {
     p.muimiEmergencyUses = EMERGENCY_USES;
     p.muimiEmergencyUsedRound = 0;
-    p.muimiLoseStreak = 0;
-    p.muimiHeartRound = 0;
-    p.muimiForcedBustRound = 0;
     p.muimiUltCasts = 0;
-    p.muimiUltCastRound = 0;
     p.muimiUltLock = 0;
   },
 
   displayImg(p) { return towerActive(p) ? IMG.ultimate : null; },
-
-  forcedBust(engine, p) {
-    return !!p && p.muimiForcedBustRound === engine.roundNumber;
-  },
 
   canUseSkill(engine, p, tier) {
     if (!isMuimi(p)) return true;
@@ -116,13 +91,11 @@ module.exports = {
     if (tier === "ultimate") {
       p.statuses.muimiTower = TOWER_TURNS;
       p.statuses.resist = Math.max(p.statuses.resist || 0, RESIST_TURNS);
-      p.muimiUltCastRound = engine.roundNumber;
       p.muimiUltCasts = (p.muimiUltCasts || 0) + 1;
       p.transformAt = engine.nextTransformCounter();
-      forceBustOpponents(engine, p, "ดาบสะบั้นหอคอยสวรรค์");
       engine.queueCutscene(p, p.muimiUltCasts === 1 ? "muimiUltimateFull" : "muimiUltimateShort");
       engine.log(`⚔️ ${p.name} ได้รับสถานะ “ดาบสะบั้น” ${TOWER_TURNS} เทิร์น และ “ต้านสถานะผิดปกติ” ${RESIST_TURNS} เทิร์น`);
-      return " — คู่ต่อสู้ไพ่แตก · ได้รับสถานะ ดาบสะบั้น";
+      return " — ได้รับสถานะ ดาบสะบั้น";
     }
     return "";
   },
@@ -156,39 +129,5 @@ module.exports = {
     return Object.values(engine.players).some(
       (p) => p.alive && towerActive(p)
     );
-  },
-
-  onAfterRoundScores(engine, combatants) {
-    for (const p of combatants) {
-      if (!isMuimi(p)) continue;
-      // การกดท่าไม้ตายในรอบนี้นับเป็นแพ้สำหรับหัวใจนักสู้ แม้มุยมิจะชนะและได้โจมตี
-      const lost = engine.bustedOf(p) || !!p.isLoser || p.muimiUltCastRound === engine.roundNumber;
-      if (!lost) {
-        p.muimiLoseStreak = 0;
-        continue;
-      }
-      p.muimiLoseStreak = Math.min(HEART_LOSSES, (p.muimiLoseStreak || 0) + 1);
-      if (p.muimiLoseStreak >= HEART_LOSSES) {
-        p.muimiHeartRound = engine.roundNumber + 1;
-        engine.log(`❤️‍🔥 ${p.name} แพ้ต่อเนื่องครบ ${HEART_LOSSES} ครั้ง — “หัวใจนักสู้” จะสุ่มทำงานในเทิร์นถัดไป`);
-      }
-    }
-  },
-
-  onRoundStartAfterLoop(engine) {
-    for (const p of Object.values(engine.players)) {
-      if (!p.alive || !isMuimi(p) || p.muimiHeartRound !== engine.roundNumber) continue;
-      p.muimiHeartRound = 0;
-      p.muimiLoseStreak = 0; // รีเซ็ตหลังสุ่มทั้งกรณีสำเร็จและล้มเหลว
-      const success = Math.random() < HEART_CHANCE;
-      if (success) forceBustOpponents(engine, p, "หัวใจนักสู้ทำงาน");
-      else engine.log(`💔 ${p.name} สุ่ม “หัวใจนักสู้” ไม่สำเร็จ`);
-      if (engine.skillFlash) engine.skillFlash({
-        name: success ? "หัวใจนักสู้ — ทำงานสำเร็จ" : "หัวใจนักสู้ — ไม่สำเร็จ",
-        img: IMG.base,
-        by: p.name,
-        color: engine.colorOf ? engine.colorOf(p) : "#888",
-      });
-    }
   },
 };

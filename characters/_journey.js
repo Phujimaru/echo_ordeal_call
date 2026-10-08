@@ -142,22 +142,12 @@ module.exports = {
 
   // ---------- การโจมตีปกติ ----------
   // 3 กลางวัน: โจมตีพลาด — จบหมัดเหมือนด่านหลบหลีก (การ์ดสรุป dodge: true)
+  // คืนการ์ดเหตุผล { name, img } ถ้าพลาด (คนเรียกใส่ลงฉากตีเอง) · ไม่พลาด = false
   tryAttackMiss(engine, attacker, target) {
     if (!is(engine, 3, "day") || !roll(FOREST_ATK_MISS_PCT)) return false;
     target.wasAttacked = true;
     engine.log(`🌲 ป่าไม้ต้องสาป — ${attacker.name} โจมตี ${target.name} พลาดเป้า! (${FOREST_ATK_MISS_PCT}%)`);
-    engine.setLastAttack({
-      byName: attacker.name, byImg: engine.displayImg(attacker), byColor: engine.colorOf(attacker),
-      targetName: target.name, targetImg: engine.displayImg(target), targetColor: engine.colorOf(target),
-      dmg: 0, dodge: true,
-      skills: [{ name: `ป่าไม้ต้องสาป — พลาดเป้า (${FOREST_ATK_MISS_PCT}%)`, img: null, by: attacker.name, color: engine.colorOf(attacker), side: "atk" }],
-    });
-    engine.runCutsceneQueue(() => {
-      engine.setGameState("ATTACKING");
-      engine.startPhaseTimer(engine.ATTACKFX_TIME, engine.endTurn);
-      engine.broadcastState();
-    });
-    return true;
+    return { name: `ป่าไม้ต้องสาป — พลาดเป้า (${FOREST_ATK_MISS_PCT}%)`, img: null };
   },
   // พลังโจมตีที่ภูมิภาคให้ (3 กลางวัน: ตีโดนแรงขึ้น +1 · 7 กลางคืน: ทุกคน +1)
   attackBonus(engine) {

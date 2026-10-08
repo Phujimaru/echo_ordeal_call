@@ -6,9 +6,7 @@ Object.assign(module.exports, {
   fortuneTargetList, scoreCap, scoreOf, bustedOf,
 });
 
-const CHAR_HOOKS = require("../characters/index");
 const match = require("./match");
-const { engine } = require("./engine");
 const combat = require("./combat");
 const shop = require("./shop");
 
@@ -137,8 +135,6 @@ function scoreOf(p) {
   return calculateScore(p.cards);
 }
 function bustedOf(p) {
-  // มุยมิ: ดาบสะบั้นหอคอยสวรรค์ / หัวใจนักสู้ สั่งให้ไพ่แตกโดยตรง ต้านสถานะป้องกันไม่ได้
-  if (CHAR_HOOKS.muimi.forcedBust(engine, p)) return true;
   if (match.overloadForceActive) return false;
   return calculateScore(p.cards) > 21;
 }

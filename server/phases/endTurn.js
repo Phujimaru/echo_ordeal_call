@@ -13,6 +13,7 @@ const { engine } = require("../engine");
 const combat = require("../combat");
 const cutscene = require("../cutscene");
 const dayNight = require("../dayNight");
+const action = require("./action");
 const draw = require("./draw");
 const lobby = require("../lobby");
 const shop = require("../shop");
@@ -21,7 +22,8 @@ const view = require("../view");
 
 function endTurn() {
   timers.clearPhaseTimer();
-  match.attackerId = null;
+  match.actorId = null;
+  match.action = null;
 
   for (const p of Object.values(match.players)) {
     tickEvadeStacks(engine, p);
@@ -63,6 +65,7 @@ function endTurn() {
     ? `🗺️ ${Journey.AREAS[Journey.areaOf(match.roundNumber) - 1].name} — ทุกคนได้แต้มสกิลเพิ่ม +${dayBonus}`
     : "☀️ จบเทิร์นช่วงกลางวัน — ทุกคนได้แต้มสกิลเพิ่ม +1");
   // ระบบเหรียญ (patch 2.2 full): จบเทิร์น +1 เหรียญให้ทุกคน (เพดาน 30 — เต็มแล้วไม่ได้เพิ่มจน spending ลดลง)
+  //  คนเดินลำดับแรกได้เพิ่มอีกตอนจัดลำดับ (phases/action.js beginOrder)
   for (const p of combat.alivePlayers()) shop.addGold(p, GOLD_PER_TURN + Journey.goldBonus(engine));
 
   // การเดินทาง: ผลจบเทิร์นของภูมิภาค (ของฟรี / เสียเหรียญ / ความเสียหายจากสนาม / สตั้น / ผุพัง)
@@ -76,6 +79,7 @@ function endTurn() {
       combat.instantDeath(p);
       if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
     }
+    if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
   }
 
   // เล่นฉากที่ค้างคิว (ถ้ามี) ให้จบก่อน แล้วค่อยสรุปจบเกม/ขึ้นรอบถัดไป
@@ -124,6 +128,7 @@ function maybeJourneyAdvance() {
   if (to <= from) return false;
   match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "advance", area: to, fromArea: from };
   match.lastLog.push(`🗺️ ออกเดินทางต่อ — มุ่งหน้าสู่ภูมิภาคที่ ${to} ${Journey.AREAS[to - 1].name}`);
+  action.placeOnBoard(to); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด (GRID_PLAN §3)
   match.cutsceneInfo = null;
   match.gameState = "CUTSCENE";
   timers.startPhaseTimer(JOURNEY_ADVANCE_SECONDS, () => { match.journeyScene.active = false; draw.dealRound(); });

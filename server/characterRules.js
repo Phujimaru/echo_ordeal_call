@@ -14,7 +14,7 @@ const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
-const draw = require("./phases/draw");
+const actionPhase = require("./phases/action");
 const lobby = require("./lobby");
 const shop = require("./shop");
 const view = require("./view");
@@ -38,7 +38,7 @@ function mark42Run(p, plan, onUsed) {
   io.emit("skillFlash", { name: plan.flash, img: Mark42.IMG.item, by: p.name, color: lobby.colorOf(p) });
   if (onUsed) onUsed();
   const after = () => combat.withEffectSource(p, plan.after);
-  if (plan.video && match.gameState === "PLAYING") {
+  if (plan.video && (match.gameState === "PLAYING" || match.gameState === "ACTION")) {
     // ระเบิดเล่นทุกครั้ง · ใส่เอง/ใส่ให้/เรียกคืน เต็มครั้งแรกครั้งเดียว (ครั้งถัดไปแค่การ์ดแจ้งเตือน ไม่หยุดเกม)
     //  ผ่าน engine — เทสต์แทนที่ได้ (ในเกมจริงคือฟังก์ชันเดียวกัน)
     if (plan.video === "mark42Bomb") engine.queueCutscene(p, plan.video);
@@ -47,13 +47,13 @@ function mark42Run(p, plan, onUsed) {
   }
   after();
   view.broadcastState();
-  draw.checkAllLocked();
 }
 // เจ้าของคุมชุดที่ส่งออกไปแล้ว: เรียกคืน / ถอด / สั่งระเบิด (ช่วงจั่วการ์ด · คนใส่ถอดเองไม่ได้)
 function mark42Control(id, action) {
   const p = match.players[id];
-  if (!p || !p.alive || match.gameState !== "PLAYING" || shop.asleep(p)) return;
+  if (!p || !p.alive || !actionPhase.canAct(p) || shop.asleep(p)) return;
   const plan = Mark42.planControl(engine, p, action);
   if (!plan) { view.broadcastState(); return; }
+  actionPhase.lockMove(p);
   mark42Run(p, plan, null);
 }

@@ -292,7 +292,7 @@ function voidUltimateOnBust(p) {
 
 function resetRoundDisplay(p) {
   p.dmgHp = 0; p.dmgArmor = 0; p.gainedSkill = 0;
-  p.wasAttacked = false; p.didAttackRound = false; p.isWinner = false; p.isLoser = false;
+  p.wasAttacked = false; p.didAttackRound = false;
 }
 function resetCombat(p) {
   p.ready = false; // ห้องรอ: ต้องกดพร้อมใหม่ทุกครั้งที่กลับมาห้องรอ/เริ่มแมตช์ใหม่

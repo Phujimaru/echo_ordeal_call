@@ -4,8 +4,9 @@
 > อ้างอิงด้วยชื่อไฟล์/ชื่อฟังก์ชัน ไม่ใช้เลขบรรทัด — ค้นด้วยชื่อฟังก์ชันได้เสมอ · ตรวจกับโค้ดล่าสุดหลังย้ายจากโปรเจกต์เดิม
 > (ตัวละครที่มี: **มุยมิ** `muimi` + **โอเบรอน (ฤดูร้อน)** `oberon_summer` · โหมด: ffa / duo / trio)
 >
-> ⚠️ **ระบบกระดานเดินได้ (แบบ Fire Emblem) จะมาแทนวงจรรอบปัจจุบัน** (ผู้ชนะการจั่ว → `SUMMARY` → `ATTACK`) — แผนอยู่ที่
-> [GRID_PLAN.md](GRID_PLAN.md) · เอกสารนี้อธิบาย **ระบบที่ใช้อยู่ตอนนี้** จนกว่าระบบกระดานจะลงโค้ดจริง
+> ⚠️ **กำลังเปลี่ยนเป็นระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) ·
+> ฝั่ง server ลงแล้ว: กระดาน `server/board.js` + วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) ·
+> ที่ยังไม่ลง: ระยะสกิล (`area`), ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง, หน้าจอกระดานฝั่ง client — ส่วนนั้นเอกสารยังอธิบายแบบเดิม
 
 ---
 
@@ -57,12 +58,14 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
-| `phases/summary.js` | `resolveRound`, `afterResolve`, `goSummary` |
-| `phases/attack.js` | `afterSummary`, `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `doAttack`, `attackSoundOf` |
+| `board.js` | **กระดาน (ฟังก์ชันล้วน)**: แผนที่ภูมิภาค (`MAPS`, `mapOf`), BFS เดิน (`reachable`/`pathTo`), ระยะ (`tilesInRange`/`aoeTiles`/`lineTiles`), `attackTargets`, `canCounter`, `pushback`, `threatZone`, `assignSpawns`, `pickShopSpot`, `nearShop` |
+| `phases/summary.js` | `resolveRound` (เปิดไพ่ · Overload Force), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
+| `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
+| `phases/attack.js` | `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `strike` (ตี 1 ครั้ง), `boardAttack` (ตี → สวน → ถอย), `doAttack` (ตี 1 ครั้งไม่มีกระดาน), `attackSoundOf` |
 | `phases/endTurn.js` | `endTurn` + `gameOver()` (ตัดสินจบเกม) + `maybeJourneyAdvance()` (ฉากเปลี่ยนภูมิภาค) — สองตัวหลังใช้ภายในไฟล์ |
 
 **กติกาเวลาแก้โค้ดใน server/**
-- สถานะแมตช์อ่าน/เขียนผ่าน `match.<ชื่อ>` เสมอ (`match.gameState = "SUMMARY"`) — ห้าม destructure ออกมาเก็บ ค่าจะไม่อัปเดต
+- สถานะแมตช์อ่าน/เขียนผ่าน `match.<ชื่อ>` เสมอ (`match.gameState = "ACTION"`) — ห้าม destructure ออกมาเก็บ ค่าจะไม่อัปเดต
   สถานะใหม่ของแมตช์ = เพิ่ม field ใน `server/match.js`
 - เรียกฟังก์ชันข้ามไฟล์ผ่านชื่อโมดูล (`combat.healHp(p, 1)`, `view.broadcastState()`) — ไฟล์ใน server/ require วนกันเอง
   จึง **ห้าม** `const { healHp } = require("./combat")` (ได้ undefined ถ้าโหลดก่อน) · ยกเว้นไฟล์ที่ไม่ require ใครกลับ:
@@ -76,8 +79,9 @@ tests/                           node --test (ไม่มี dep เพิ่�
 ## 2. State machine (`gameState`)
 
 ```
-LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING ⇄ CUTSCENE
-      → SUMMARY → ATTACK → ATTACKING → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค) → (วน PLAYING) → GAMEOVER → LOBBY
+LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING (จั่ว/พอ)
+      → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค)
+      → (วน PLAYING) → GAMEOVER → LOBBY
 ```
 
 | state | ความหมาย | timer |
@@ -85,11 +89,11 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 | `LOBBY` | ห้องรอ กดพร้อม — ทุกคนพร้อม (1 คนก็ได้ = เล่นทดสอบคนเดียว) → `enterModeSelect()` · ปุ่ม "เล่นคนเดียว" = socket `startGame` (`startSoloTest`) | – |
 | `TEAM_MODE` | โหวตโหมด ffa / duo / trio (ปุ่มเทาเมื่อจำนวนคนไม่ผ่าน `validGameMode`) · โหวตครบและมีอันดับหนึ่งเดี่ยว → `startTeamSetup` (ffa เข้า `startMatch` ทันที) · `modeBackToLobby` ถอยกลับห้องรอ | – |
 | `TEAM_SETUP` | เลือกทีม A/B/C + ยืนยัน — ทีมเต็มครบและยืนยันหมด → `startMatch()` · `teamBackToMode` ถอยกลับ | – |
-| `PLAYING` | เฟสจั่วไพ่ + ใช้สกิล/ไอเทม | `cardPhaseSeconds()` = `CARD_TIME` 60s |
+| `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
 | `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` | ตาม `seconds` ของแต่ละคลิป/ฉาก |
-| `SUMMARY` | เปิดแต้มทุกคน ประกาศผู้ชนะ | `SUMMARY_TIME` 5s |
-| `ATTACK` | ผู้ชนะเลือกเป้า (หมดเวลา = สุ่มเป้าให้) | `ATTACK_TIME` 15s |
-| `ATTACKING` | การ์ดสรุปการโจมตี (`state.attack` = `lastAttack`) แล้ว `runCutsceneQueue(endTurn)` | `ATTACKFX_TIME` 3s (+2 ถ้ามีป้ายสกิล) |
+| `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 2s → `nextActor` |
+| `ACTION` | ตาเดินของ `match.actorId`: เดิน 1 ครั้ง (ย้อนได้) · สกิล/ไอเทม/ซื้อของ (ทำแล้วเดินไม่ได้อีก) · โจมตีหรือ "รอ" = จบตา | `ACTION_TIME` 60s → `finishActor` |
+| `ATTACKING` | ฉากตี/ตีสวน/ถอย ของคนที่กำลังเดิน (`state.attack` = `lastAttack` มี `counter`/`push`) แล้ว `runCutsceneQueue(finishActor)` | `ATTACKFX_TIME` 3s (+2 มีป้ายสกิล · +2 มีตีสวน) |
 | `TRANSITION` | แบนเนอร์ "รอบที่ N" | `TRANSITION_TIME` 3s |
 | `GAMEOVER` | ประกาศผู้ชนะสุดท้าย (socket `backToLobby` กลับห้องรอ) | – |
 
@@ -106,24 +110,27 @@ dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++
                                          ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
-                                         หลังลูป: muimi.onRoundStartAfterLoop → captureTurnSnapshot() → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
+                                         หลังลูป: captureTurnSnapshot() → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
    ↓ (ผู้เล่นกด)
 hit(id)                phases/draw.js    จั่ว 1 ใบ (เช็ค nodraw/เพดานแต้ม/โชคลาภ/สภาพชา) → checkAllLocked()
-useSkill(id,tier,...)  skills.js         ใช้สกิล (ดูข้อ 6)
 lock(id)               phases/draw.js    "เปิดไพ่" = พร้อม — ยิง applyLockColorTriggers() ก่อนล็อก
    ↓
 checkAllLocked()       phases/draw.js    ผู้รอดทุกคน locked && ไม่มี QTE ค้าง → resolveRound()
-resolveRound()         phases/summary.js ล็อกทุกคน → sweepQte() → หาผู้ชนะ (best) / ผู้แพ้ (worst) → ดาเมจแพ้ → muimi.onAfterRoundScores
-                                         → afterResolve()
+resolveRound()         phases/summary.js ล็อกทุกคน → sweepQte() → (ไม่มีผู้ชนะ/ผู้แพ้ · แต้มต่ำสุดไม่เสียเลือด) → afterResolve()
    └ ถ้าแต้มสูงสุดเสมอ & ไม่มี "ดาบสะบั้น" ในสนาม & rand<30% → triggerOverloadForce() → restoreTurnSnapshot() (ย้อนทั้งเทิร์น)
-     → beginOverloadForceDraw() (แจกไพ่ใหม่ในเทิร์นเดิม)
-afterResolve()         phases/summary.js คัตซีน afterReveal ที่ค้าง (TRANSFORMS) → runCutsceneQueue(goSummary)
-goSummary()            phases/summary.js gameState = SUMMARY, timer 5s → afterSummary
-afterSummary()         phases/attack.js  ผู้ชนะหลับ/สตั้น/ชนะจากการเสมอแต้ม/ไม่มีเป้า → endTurn()
-                                         ไม่งั้น gameState = ATTACK รอ doAttack
-doAttack(by,target)    phases/attack.js  ท่อดาเมจเต็ม (ดูข้อ 5) → ATTACKING → runCutsceneQueue(endTurn)
+     → beginOverloadForceDraw() (ทุกคนจั่วใหม่ในเทิร์นเดิม → จัดลำดับเดินใหม่)
+afterResolve()         phases/summary.js คัตซีน afterReveal ที่ค้าง (TRANSFORMS) → runCutsceneQueue(action.beginOrder)
+beginOrder()           phases/action.js  turnOrderOf(): แต้มมากก่อน · เท่ากันสุ่ม · ไพ่แตกท้ายแถว → คนแรกเหรียญ +1 → ORDER 2s → nextActor
+nextActor()            phases/action.js  คนถัดไปในแถว (ข้ามคนตาย/สตั้น/หลับ) → ACTION 60s · หมดแถว → endTurn()
+   ↓ (คนที่กำลังเดินกด — ทุกอย่างเช็ค canAct(p))
+moveTo / undoMove      phases/action.js  BFS ใน board.js (เดิน movOf(p) = mov − ไพ่แตก) · ย้อนได้จนกว่า action.locked
+useSkill / useInventoryItem / buyShopItem / mark42Control   ทำแล้ว lockMove(p) = เดินไม่ได้อีก
+attackTarget(id,t)     phases/action.js  เป้าในระยะ rangeOf(p) → attack.boardAttack(): strike → (เป้ารอด+ตีถึง) ตีสวน
+                                         → pushback ถอย 1 ช่อง/ชน −1 → ATTACKING → runCutsceneQueue(finishActor)
+waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → nextActor()
 endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, Journey.onEndTurn, oberon_summer.onEndTurn,
-                                         กวาดคนเลือดหมด → runCutsceneQueue → gameOver() / maybeJourneyAdvance() / TRANSITION → dealRound()
+                                         กวาดคนเลือดหมด (หายจากกระดาน) → runCutsceneQueue → gameOver() / maybeJourneyAdvance()
+                                         (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่) / TRANSITION → dealRound()
 ```
 
 **จุดพลาดที่เจอบ่อย**: `dealRound()` ล้าง `cutsceneQueue` ทิ้ง — โค้ดที่คิววีดีโอไว้ต้องอยู่ **หลัง** บรรทัดนั้นเสมอ
@@ -143,7 +150,7 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
   - 🔴 แดง / 🟢 เขียว / 🟡 เหลือง → ประเมิน **ตอนกด lock** (`applyLockColorTriggers`): แดง = ATK รอบนี้ +n (`statusAmt.cardAtkBonus`) · เขียว = ฟื้นเลือด +n · เหลือง = แต้มสกิล +2n
 - **แต้ม**: `calculateScore()` (raw) → `scoreOf(p)` → `bustedOf(p)`
 - **เพดาน** `scoreCap(p)`: ปกติ 21 · Overload Force = `Infinity` (แต้มถึงเพดาน = ปุ่มจั่วปิด `atCap`)
-- **`bustedOf(p)` เช็คการ "สั่งให้แตก" ก่อนทุกอย่าง** — `CHAR_HOOKS.muimi.forcedBust()` (ท่าไม้ตาย/หัวใจนักสู้ของมุยมิ) คืน true
+- **ตอนนี้ไม่มีความสามารถที่ทำให้ไพ่แตก** (ผู้ใช้ตัดสิน — GRID_PLAN §7) · `bustedOf(p)` = แต้มเกิน 21 (ยกเว้นช่วง Overload Force)
   แม้จะอยู่ใน Overload Force (เพราะเป็นคำสั่ง ไม่ใช่ผลการคิดแต้ม)
 - **ไพ่แตกแล้วไม่ล็อกอัตโนมัติ** — ยังกดสกิล/ไอเทมได้จนกว่าจะกดเปิดไพ่เอง แต่ท่าไม้ตายแบบ afterReveal ที่กดไปเป็นโมฆะ (`voidUltimateOnBust` ใน `server/combat.js`)
 
@@ -182,7 +189,9 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
 `guard` ของเป้า −n → `discord` +1 → `fragile` +n → คริติคอลของสนาม (`Journey.applyCrit`) → `dealMixed(target, dmg, true)` →
 `muimi.onAttackLanded` → `empower` หมดไป → ป้ายสกิล (`skills` แยกฝั่ง atk/def) → `ATTACKING`
 
-**ดาเมจแพ้รอบ** (`resolveRound`): แต้มน้อยสุด (และไม่ใช่ผู้ชนะ) → `damageSoft` 1 หน่วย — **ไม่ได้แต้มสกิล** · ทุกคนแต้มเท่ากัน = ไม่มีผู้แพ้
+**ไม่มีดาเมจแพ้รอบแล้ว** — แต้มใช้จัดลำดับเดินเท่านั้น (GRID_PLAN §10)
+**ตีบนกระดาน** (`boardAttack`): `strike` (ท่อข้างบน — เลือดหมดตกรอบทันที) → ถ้าเป้ารอดและผู้ตีอยู่ใน `rangeOf(เป้า)` → `strike` ตีสวน
+→ ผู้ตีถอย `Board.pushback` 1 ช่อง (ทางตัน = ไม่ขยับ + `dealMixed` 1 "ชน −1") · `doAttack(by, target)` = ตี 1 ครั้งไม่มีกระดาน (เทสต์/โค้ดตัวละคร)
 
 ---
 
@@ -223,7 +232,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - จบเทิร์น **+1** + โบนัสภูมิภาค `Journey.skillBonus()` (ภูมิภาค 1 กลางวันเทิร์นคู่ +1 · ภูมิภาค 7 ทุกเทิร์น +1) — `endTurn()`
 - ทริกเกอร์ไพ่เหลืองครบ 3 ใบ **+2 ต่อชุด**
 - ไอเทม "ยาฟื้นแต้มสกิล" · สกิล/สกิลติดตัวของตัวละคร (เสบียงฉุกเฉิน +2 · ดาบเก่าๆ +1/หมัด · หน้าไหว้หลังหลอก +1)
-- **ชนะการจั่ว / แพ้แต้มน้อยสุด / ไพ่แตก / โดนโจมตี ไม่ได้แต้มสกิล** — ไม่มี `addSkill` ใน `resolveRound()`/`doAttack()`
+- **เปิดไพ่ / ไพ่แตก / โดนโจมตี ไม่ได้แต้มสกิล** — ไม่มี `addSkill` ใน `resolveRound()`/`strike()`
 - บล็อกการฟื้นแต้ม: `stagger` (ชะงัก) · `manaSeal` (ผนึกพลังงาน) — เช็คที่หัว `addSkill`
 - `addSkill(p, n, src)` — `src` เป็น tag ของ "ช่องทางฟื้นฟู" (`"item"` / `"passive"` / `"card"`) ใส่เฉพาะจุดที่เป็นการฟื้นพลังงานจริงๆ
   (ไม่ใส่ให้แต้มพื้นฐานจบเทิร์น) · ตอนนี้ยังไม่มีระบบไหนอ่านค่านี้ แต่ให้คงคอนเวนชันไว้
@@ -238,16 +247,14 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - **เสบียงฉุกเฉิน** (basic · 0 แต้ม): 1 ครั้ง/เทิร์น รวม 2 ครั้งต่อเกม (`p.muimiEmergencyUses`/`p.muimiEmergencyUsedRound`) ฟื้นเลือด 2 + แต้มสกิล 2
   · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota`) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2`)
 - **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ใช้ไม่ได้ระหว่าง "ดาบสะบั้น"
-- **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): ศัตรูทุกคน (ไม่รวมเพื่อนร่วมทีม) **ไพ่แตกทันที** + `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
-  - "ไพ่แตก" เป็นคำสั่งตรง ไม่ใช่ดีบัฟ: ตั้ง `target.muimiForcedBustRound = roundNumber` แล้ว `bustedOf()` อ่านผ่าน `muimi.forcedBust()` (ต้านไม่ได้ · ไม่ผ่าน `applyDebuff`)
+- **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
+  - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → จะเปลี่ยนเป็นคลื่นดาบแนว 4×3 (GRID_PLAN §7.3 — ยังไม่ลงโค้ด)
   - ระหว่างดาบสะบั้น: พลังโจมตี +3 (`damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
     **Overload Force ไม่เกิด** (`blocksOverloadForce` เช็คใน `resolveRound`) · ภาพบนสนาม/เพลงสกิลเปลี่ยน (`displayImg`, `activeSkillMusic` → `"muimi"`) ·
     เสียงตีปกติ `muimi_ub_hit` (ปกติ `muimi_normal_hit` — `attackSoundOf`)
   - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 5 เทิร์น (`p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
   - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักเฟสจั่วไพ่
-- **หัวใจนักสู้** (passive2): `onAfterRoundScores` (ท้าย `resolveRound`) นับแพ้/ไพ่แตกติดกัน — **เทิร์นที่กดท่าไม้ตายนับเป็นแพ้** ·
-  ครบ 3 → จองเทิร์นถัดไป (`p.muimiHeartRound`) → `onRoundStartAfterLoop` (หลังแจกไพ่ใบแรกครบทั้งสนาม) สุ่ม 50% บังคับศัตรูไพ่แตกแบบเดียวกับท่าไม้ตาย
-  · สุ่มแล้วรีเซ็ตสตรีคเสมอ (สำเร็จหรือไม่ก็ตาม)
+- ~~หัวใจนักสู้~~ (passive2) ถอดออกแล้ว (ผู้ใช้ตัดสิน — GRID_PLAN §7.1)
 
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
 - **ม่านแห่งราตรี** (basic · 2): ทุกคน (duo/trio = ตัวเอง + เพื่อนร่วมทีม) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
@@ -467,8 +474,10 @@ event ก่อนเข้าห้อง/การเชื่อมต่อ�
 safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name,position,characterId,color}   leave   disconnect
 ห้องรอ:        startGame   toggleReady   selectGameMode {mode}   modeBackToLobby   teamBackToMode
                chooseTeam {teamId}   confirmTeam {confirmed}   lobbyEmote {emoji,dir}
-ในแมตช์:       hit   lock   useSkill {tier,targets}   attack {targetId}
+จั่วไพ่:        hit   lock
+ตาเดิน:        move {x,y}   undoMove   attack {targetId}   endAction (รอ)   useSkill {tier,targets}
                buyShopItem {itemId}   useInventoryItem {uid,cardIndex,color,targetId,mode}   mark42Control {action}
+               (ทั้งหมดผ่านด่าน action.canAct — ตาของตัวเองเท่านั้น)
                qteKey {key}   qteTimeout
 จบเกม:         backToLobby
 ```
@@ -477,7 +486,7 @@ safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name
 
 | event | เนื้อหา |
 |---|---|
-| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING |
+| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING · กระดาน: `board` (แผนที่ภูมิภาค), `turnOrder`, `actorId`, `action` {from,moved,locked,path}, ต่อผู้เล่น `pos`/`mov`/`baseMov`/`range` |
 | `tick` | ตัวเลขเวลาที่เหลือทุกวินาที (state ตัวเต็มส่งทุก `RESYNC_EVERY` วิ) |
 | `roster` / `positions` / `takenChars` | หน้า setup/lobby (ส่งตอนเชื่อมต่อ + `broadcastPositions()`) |
 | `joined` / `reconnected` / `sessionExpired` / `sessionInUse` | session (`sessionToken`) |
@@ -524,7 +533,7 @@ module.exports = {
 ```
 
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
-`muimi.forcedBust` (`bustedOf`) · `muimi.blocksOverloadForce` / `onAfterRoundScores` (`resolveRound`) · `muimi.onRoundStartAfterLoop` (หลังลูปของ `dealRound`) ·
+`muimi.blocksOverloadForce` (`resolveRound`) ·
 `muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
 `oberon_summer.onRoundStartTick` (ลูปของ `dealRound`) · `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) · `oberon_summer.onEndTurn` (`endTurn`) ·
 `resetCombat` ทั้งสองตัว (`combat.resetCombat`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`

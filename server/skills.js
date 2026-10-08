@@ -16,8 +16,7 @@ const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
-const cardDeck = require("./deck");
-const draw = require("./phases/draw");
+const action = require("./phases/action");
 const lobby = require("./lobby");
 const view = require("./view");
 
@@ -25,9 +24,9 @@ function useSkill(id, tier, targets) {
   const p = match.players[id];
   if (!match.effectSourceId && p) return combat.withEffectSource(p, () => useSkill(id, tier, targets));
   if (!p || !p.alive) return;
-  if (match.gameState !== "PLAYING") return;
+  // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7) — ใช้แล้วเดินไม่ได้อีก แต่ยังโจมตีได้
+  if (!action.canAct(p)) return;
   if (!["basic", "secondary", "ultimate"].includes(tier)) return;
-  if (p.locked) return;
   const ch = CHAR_BY_ID[p.characterId];
   const skill = ch && ch[tier];
   if (!skill) return;
@@ -63,6 +62,7 @@ function useSkill(id, tier, targets) {
   if (tier === "ultimate" && st && (p.statuses[st] || 0) > 0) return;
 
   p.skillPoints -= cost;
+  action.lockMove(p);
   if (blessFree) {
     p.statuses.freecast--;
     if (p.statuses.freecast <= 0) delete p.statuses.freecast;
@@ -77,7 +77,6 @@ function useSkill(id, tier, targets) {
     match.lastLog.push(`🫨 ${p.name} เหน็บชา — ${skill.name} ไม่ทำงาน! (แต้มสกิลถูกหักไปแล้ว)`);
     io.emit("skillFlash", { name: `${skill.name} — เหน็บชา สกิลไม่ทำงาน`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) });
     view.broadcastState();
-    draw.checkAllLocked();
     return;
   }
   // การเดินทาง (ป่าไม้ต้องสาป กลางวัน): สกิลที่เลือกศัตรูเป็นเป้าหมายพลาด 25% — คืนแต้ม (และการ์ดราชินี)
@@ -88,7 +87,6 @@ function useSkill(id, tier, targets) {
     match.lastLog.push(`🌲 ป่าไม้ต้องสาป — ${skill.name} ของ ${p.name} พลาดเป้า! (ได้แต้มสกิลคืน ${cost})`);
     io.emit("skillFlash", { name: `${skill.name} — พลาดเป้า (ป่าไม้ต้องสาป)`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) });
     view.broadcastState();
-    draw.checkAllLocked();
     return;
   }
   // การเดินทาง (ทะเลทราย กลางคืน): ใช้สกิลได้แต้มคืน 2 — ไม่เกินที่จ่ายจริง (การ์ดราชินี/ราคา 0 จึงไม่ได้คืน)
@@ -113,12 +111,7 @@ function useSkill(id, tier, targets) {
   }
   match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
 
-  p.busted = cardDeck.bustedOf(p);
-  if (p.busted) combat.voidUltimateOnBust(p);
-  // ไพ่แตก/ถึงเพดานพอดี: ไม่ล็อกอัตโนมัติ — ยังกดสกิล/ใช้ไอเทมได้ต่อไป จนกว่าจะกดเปิดไพ่เอง หรือทุกคนเปิดไพ่ครบ
-
-  // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันทีช่วงจั่วการ์ด แล้วกลับมาจั่วต่อ
-  if (match.gameState === "PLAYING" && match.cutsceneQueue.length) cutscene.pausePlayingForCutscene();
+  // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
+  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
   view.broadcastState();
-  draw.checkAllLocked();
 }

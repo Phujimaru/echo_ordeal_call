@@ -8,8 +8,11 @@ const MAX_PLAYERS = 7; // patch 2.8: เปิดช่องผู้เล่�
 const CARD_TIME = 60;
 const OVERLOAD_FORCE_CHANCE = 0.30;
 const OVERLOAD_FORCE_CUTSCENE_SECONDS = 5; // overload_force_start.mp4 = 4.809s
-const SUMMARY_TIME = 5;
-const ATTACK_TIME = 15;
+// กระดาน (GRID_PLAN.md): แบนเนอร์ลำดับเดิน · เวลาต่อตาเดิน · ค่าเดิน/ระยะตีตั้งต้นของตัวละครที่ไม่ได้กำหนด
+const ORDER_TIME = 2;
+const ACTION_TIME = 60;
+const DEFAULT_MOV = 4;
+const DEFAULT_RANGE = [1, 1];
 const TRANSITION_TIME = 3;
 const RECONNECT_GRACE_MS = Math.max(100, Number(process.env.RECONNECT_GRACE_MS) || 60_000);
 const RESERVATION_TTL_MS = 120_000;
@@ -21,7 +24,7 @@ const MAX_SKILL = 8;
 // ---------- ร้านค้ามายา + เศรษฐกิจเหรียญ (patch 2.2 full) ----------
 const GOLD_MAX = 30;             // เพดานเหรียญต่อผู้เล่น
 const GOLD_PER_TURN = 1;         // เหรียญที่ได้ทุกจบเทิร์น (ทุกคน)
-const GOLD_WIN_BONUS = 1;        // เหรียญเพิ่มเมื่อชนะการจั่วไพ่
+const GOLD_FIRST_BONUS = 1;      // เหรียญเพิ่มให้คนเดินลำดับแรก (รวมกับของทุกคน = 2)
 const SHOP_INTERVAL_TURNS = 5;   // ร้านค้าเปิดทุกๆ 5 เทิร์น
 const SHOP_MAX_ITEMS = 15;       // จำนวนสินค้าสูงสุดต่อรอบร้านค้า (เดิม 6 -> 9 -> 15 หลังรวมร้านลุงเท่งเข้ามา)
 const SHOP_CARD_COLOR_PRICE = 5; // ยาเปลี่ยนสีการ์ด: เลือกการ์ด 1 ใบในมือ เปลี่ยนเป็นสีที่ต้องการ
@@ -90,8 +93,8 @@ const RESYNC_EVERY = 10; // ทุกกี่วินาทีถึงจะ 
 
 module.exports = {
   SKILL_COST_MAX, MAX_PLAYERS, CARD_TIME, OVERLOAD_FORCE_CHANCE, OVERLOAD_FORCE_CUTSCENE_SECONDS,
-  SUMMARY_TIME, ATTACK_TIME, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
-  ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_WIN_BONUS,
+  ORDER_TIME, ACTION_TIME, DEFAULT_MOV, DEFAULT_RANGE, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
+  ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_FIRST_BONUS,
   SHOP_INTERVAL_TURNS, SHOP_MAX_ITEMS, SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_PRICE,
   SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT,
   SHOP_CARD_REMOVE_PRICE, SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS,

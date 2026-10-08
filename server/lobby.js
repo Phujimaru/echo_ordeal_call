@@ -16,6 +16,7 @@ const {
 const { io } = require("./app");
 const match = require("./match");
 const { engine } = require("./engine");
+const action = require("./phases/action");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
 const draw = require("./phases/draw");
@@ -257,6 +258,7 @@ function startMatch() {
   match.overloadForceCount = 0;
   match.journeyScene = null;
   overload.clearTurnSnapshot();
+  action.placeOnBoard(1); // กระดานภูมิภาค I · แจกจุดเกิด (GRID_PLAN §3)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (รอเปิดใหม่ตอนเทิร์นที่ 5)
   match.cutsceneQueue = [];
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
@@ -299,8 +301,11 @@ function backToLobby() {
   resetTeamAssignments(true);
   timers.clearPhaseTimer();
   match.timeLeft = 0;
-  match.attackerId = null;
-  match.roundWinnerId = null;
+  match.board = null;
+  match.turnOrder = [];
+  match.actorIndex = -1;
+  match.actorId = null;
+  match.action = null;
   match.roundNumber = 0;
   match.cycleShift = 0;
   match.overloadForceActive = false;
@@ -311,7 +316,7 @@ function backToLobby() {
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;
   for (const p of Object.values(match.players)) {
-    p.cards = []; p.locked = false; p.busted = false; p.result = null;
+    p.cards = []; p.locked = false; p.busted = false; p.result = null; p.pos = null;
     combat.resetRoundDisplay(p);
     combat.resetCombat(p);
     if (!p.connected) socketLayer.scheduleDisconnectedRemoval(p.id);

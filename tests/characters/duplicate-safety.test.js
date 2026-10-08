@@ -30,7 +30,7 @@ function player(characterId, over = {}) {
   const p = Object.assign({
     id, name: id, characterId, alive: true, position: uid, hp: 20, armor: 0, shield: 0, gold: 0,
     skillPoints: 4, gainedSkill: 0, cards: [], statuses: {}, statusAmt: {}, cutsceneShown: {}, seen: {},
-    inventory: [], wasAttacked: false, isWinner: false, isLoser: false, busted: false,
+    inventory: [], wasAttacked: false, busted: false,
   });
   if (characterId === 'muimi') muimi.resetCombat(p);
   if (characterId === 'oberon_summer') oberon.resetCombat(p);
@@ -77,14 +77,4 @@ test('มุยมิ 2 คน: เสบียงฉุกเฉินและ
   muimi.onUltExpire(engine, a);
   assert.ok(muimi.ultCooldownLeft(engine, a) > 0);
   assert.equal(muimi.ultCooldownLeft(engine, b), 0, 'คูลดาวน์ของอีกคนต้องไม่ติดมา');
-});
-
-test('มุยมิ 2 คน: หัวใจนักสู้นับแพ้ต่อเนื่องของใครของมัน', () => {
-  const a = player('muimi', { muimiLoseStreak: 2, isLoser: true });
-  const b = player('muimi', { muimiLoseStreak: 2, isWinner: true });
-  muimi.onAfterRoundScores(engine, [a, b]);
-  assert.equal(a.muimiLoseStreak, 3);
-  assert.equal(a.muimiHeartRound, 4);
-  assert.equal(b.muimiLoseStreak, 0, 'คนที่ชนะรีเซ็ตเฉพาะของตัวเอง');
-  assert.equal(b.muimiHeartRound, 0);
 });
