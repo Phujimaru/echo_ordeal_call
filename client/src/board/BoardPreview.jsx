@@ -1,12 +1,15 @@
 // หน้าดูกระดานเดินได้ (เฉพาะ dev): ?board=1 — ดู main.jsx
 //  ไว้ตรวจตัววาด BoardCanvas โดยไม่ต้องเปิดห้องจริง: แผนที่ภูมิภาค I–VII + ตัวละครจำลอง 6 ตัว
-//  ?board=1&area=N เลือกภูมิภาค · ?rot=0..3 มุมมอง · ?night=1
+//  ?board=1&area=N เลือกภูมิภาค · ?rot=0..3 มุมมอง · ?night=1 · ?zoom=1 มุมใกล้ · ?sq=1 กระดานจัตุรัส 14 × 14
+//  sq = ตัด/เติมแผนที่ปัจจุบันให้เป็น 14 × 14 (ตัดคอลัมน์ซ้ายขวา เติมแถวบนล่าง) — ไว้ตรวจกล้องก่อนแผนที่จริงเปลี่ยนขนาด
 //  ภูมิภาคที่ server ยังไม่มีแผนที่ (MAPS ใน boardRules.js) → สร้าง "แผนที่สาธิต" จากผังด่าน I:
 //   เปลี่ยนชนิดสิ่งกีดขวางเป็นของภูมิภาคนั้น + โรยช่องพิเศษ (ทิศน้ำวนวนครบ 4 ทิศ) ให้ตรวจภาพได้ครบทุกแบบ
 //  คลิกตัวละคร = เลือกเป็นคนเดิน · คลิกช่องฟ้า = เดิน · คลิกศัตรูในช่องแดง = เดินเข้าไปตี (สวน/ถอย/ชน แบบง่าย)
-//  ปุ่ม: ภูมิภาค I–VII · หมุน ⟲/⟳ · กลางคืน · ประหยัดสเปก (lowQ) · ระยะอันตราย · โหมด เดิน / สกิลระยะ 3 / ตีหมู่ 5
+//  ปุ่ม: ภูมิภาค I–VII · หมุน ⟲/⟳ · ซูม ＋/－ (ล้อเมาส์) · 14×14 · กลางคืน · ประหยัดสเปก (lowQ) · ระยะอันตราย ·
+//   โหมด เดิน / สกิลระยะ 3 / ตีหมู่ 5 · แผงล่างซ้ายบอกช่องที่ชี้/คลิกล่าสุด (ตรวจการเลือกช่องตอนซูม/หมุน)
+//  คอนโซล: window.__boardFocus(x, y) = ส่ง focus ให้ BoardCanvas (มุมใกล้เลื่อนตามถ้าช่องนั้นอยู่นอกจอ)
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
 import { MAPS } from "./boardRules";
 
@@ -53,6 +56,7 @@ function demoMap(area) {
     terrain[k] = list[(i - 1) % list.length];
   }
   Object.assign(terrain, DEMO_EXTRA[area] || {});
+  const inMap = (k) => { const [x, y] = k.split(",").map(Number); return x >= 0 && y >= 0 && x < base.cols && y < base.rows; };
   const used = new Set([...Object.keys(terrain), ...base.heal, ...base.spawns.map((p) => `${p.x},${p.y}`), ...base.shopSpots.map((p) => `${p.x},${p.y}`)]);
   const kinds = DEMO_SPECIALS[area], special = {}, flow = {};
   let nf = 0;
@@ -60,15 +64,28 @@ function demoMap(area) {
     const kind = kinds[pi % kinds.length];
     for (const [x, y] of patch) {
       const k = `${x},${y}`;
-      if (used.has(k)) continue;
+      if (used.has(k) || !inMap(k)) continue;
       special[k] = kind;
       if (kind === "whirl") flow[k] = FLOWS[nf++ % 4];
     }
   });
+  for (const k of Object.keys(terrain)) if (!inMap(k)) delete terrain[k];
   return { ...base, area, name: AREA_NAMES[area], terrain, special, flow, demo: true };
 }
-function mapFor(area) {
-  return MAPS[area] && MAPS[area].area === area ? toPublic(MAPS[area]) : demoMap(area);
+// ตัด/เติมแผนที่ให้เป็น n × n โดยคงกลางไว้ (16 × 12 → ตัดคอลัมน์ซ้ายขวาข้างละ 1 · เติมแถวบนล่างข้างละ 1)
+function squareMap(m, n = 14) {
+  const dx = Math.floor((n - m.cols) / 2), dy = Math.floor((n - m.rows) / 2);
+  const mv = (k) => { const [x, y] = k.split(",").map(Number); const X = x + dx, Y = y + dy; return X >= 0 && Y >= 0 && X < n && Y < n ? `${X},${Y}` : null; };
+  const mvObj = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [mv(k), v]).filter(([k]) => k));
+  const mvPt = (list) => (list || []).map((p) => ({ x: p.x + dx, y: p.y + dy })).filter((p) => p.x >= 0 && p.y >= 0 && p.x < n && p.y < n);
+  return {
+    ...m, cols: n, rows: n, terrain: mvObj(m.terrain), special: mvObj(m.special), flow: mvObj(m.flow),
+    heal: (m.heal || []).map(mv).filter(Boolean), spawns: mvPt(m.spawns), shopSpots: mvPt(m.shopSpots), square: m.cols !== n || m.rows !== n,
+  };
+}
+function mapFor(area, sq) {
+  const m = MAPS[area] && MAPS[area].area === area ? toPublic(MAPS[area]) : demoMap(area);
+  return sq ? squareMap(m) : m;
 }
 const MUIMI = "/characters/muimi/muimi.webp";
 const OBERON = "/characters/oberon(summer)/oberon_summer.webp";
@@ -86,7 +103,7 @@ const initialUnits = () => [
 ];
 // ย้ายตัวละครที่ยืนทับสิ่งกีดขวาง/ร้านของแผนที่ใหม่ไปจุดเกิดที่ว่าง
 function placeUnits(units, map, shop) {
-  const bad = (x, y, taken) => !!map.terrain[`${x},${y}`] || (shop && shop.x === x && shop.y === y) || taken.has(`${x},${y}`);
+  const bad = (x, y, taken) => x < 0 || y < 0 || x >= map.cols || y >= map.rows || !!map.terrain[`${x},${y}`] || (shop && shop.x === x && shop.y === y) || taken.has(`${x},${y}`);
   const taken = new Set(), out = [];
   for (const u of units) {
     let p = { x: u.x, y: u.y };
@@ -165,9 +182,11 @@ const btn = (on) => ({
 export default function BoardPreview() {
   const [area, setAreaState] = useState(() => qInt("area", 1, 7, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
-  const map = useMemo(() => mapFor(area), [area]);
+  const [zoom, setZoom] = useState(() => qInt("zoom", 0, 1, 0));
+  const [sq, setSq] = useState(() => Q.get("sq") === "1");
+  const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
-  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 7, 1)); return placeUnits(initialUnits(), m, shopOf(m)); });
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 7, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;
@@ -183,6 +202,10 @@ export default function BoardPreview() {
   const [anim, setAnim] = useState(null);
   const [fx, setFx] = useState([]);
   const [log, setLog] = useState("คลิกช่องฟ้าเพื่อเดิน · คลิกศัตรูในช่องแดงเพื่อตี");
+  const [lastClick, setLastClick] = useState(null);
+  const [focus, setFocus] = useState(null);
+  // ทดสอบกล้องตามตัวละครจากคอนโซล: window.__boardFocus(x, y)
+  useEffect(() => { window.__boardFocus = (x, y) => setFocus({ x, y }); return () => { delete window.__boardFocus; }; }, []);
   const after = useRef(null);   // งานต่อหลังแอนิเมชันจบ
   const fxId = useRef(0);
 
@@ -238,6 +261,7 @@ export default function BoardPreview() {
 
   const walk = (path, then) => {
     if (!path || path.length < 2) { if (then) then(); return; }
+    setFocus(path[path.length - 1]);
     after.current = () => {
       const end = path[path.length - 1];
       setUnits((us) => us.map((u) => (u.id === actor.id ? { ...u, x: end.x, y: end.y } : u)));
@@ -280,6 +304,7 @@ export default function BoardPreview() {
   };
 
   const onTileClick = (x, y) => {
+    setLastClick(`(${x}, ${y})`);
     if (busy) return;
     const k = key(x, y);
     if (mode === "move" && R.has(k)) { walk(pathOf(R, x, y)); setLog(`เดินไป (${x}, ${y})`); return; }
@@ -294,6 +319,7 @@ export default function BoardPreview() {
     if (busy) return;
     const u = units.find((v) => v.id === id);
     if (!u) return;
+    setLastClick(`${u.name} (${u.x}, ${u.y})`);
     if (id === actor.id) return;
     if (mode === "skill" && man(u, actor) <= 3) {
       pushFx([{ kind: "slash", x: u.x, y: u.y, color: "#c9a2ff" }, { kind: "float", x: u.x, y: u.y, text: "ลุกไหม้ +2", color: "#ffb347", size: 20 }]);
@@ -306,18 +332,27 @@ export default function BoardPreview() {
       walk(plan.path, () => strike(u, stand));
       return;
     }
-    setActorId(id); setMode("move"); setLog(`เลือก ${u.name} เป็นคนเดิน`);
+    setActorId(id); setMode("move"); setFocus({ x: u.x, y: u.y }); setLog(`เลือก ${u.name} เป็นคนเดิน`);
   };
 
   const reset = () => { setUnits(placeUnits(initialUnits(), M, M.shop)); setActorId("me"); setMode("move"); setAnim(null); after.current = null; setLog("รีเซ็ตแล้ว"); };
   // เปลี่ยนภูมิภาค/มุมมอง + จำลงใน URL (รีเฟรชแล้วยังอยู่ที่เดิม)
-  const syncUrl = (a, r, n) => {
+  const syncUrl = (a, r, n, extra = {}) => {
     const q = new URLSearchParams(location.search);
     q.set("area", a); if (r) q.set("rot", r); else q.delete("rot"); if (n) q.set("night", "1"); else q.delete("night");
+    for (const [k, v] of Object.entries(extra)) { if (v) q.set(k, "1"); else q.delete(k); }
     history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
   };
+  const changeZoom = (z) => { setZoom(z); syncUrl(area, rotation, night, { zoom: z }); };
+  const toggleSq = () => {
+    const v = !sq, m = mapFor(area, v);
+    setSq(v); setAnim(null); after.current = null; setMode("move");
+    setUnits(placeUnits(unitsRef.current, m, shopOf(m)));
+    setLog(v ? `กระดาน ${m.cols} × ${m.rows}` : "แผนที่เดิม");
+    syncUrl(area, rotation, night, { sq: v });
+  };
   const setArea = (a) => {
-    const m = mapFor(a);
+    const m = mapFor(a, sq);
     setAreaState(a); setAnim(null); after.current = null; setMode("move");
     setUnits(placeUnits(unitsRef.current, m, shopOf(m)));
     setLog(`ภูมิภาค ${ROMAN[a]} · ${AREA_NAMES[a]}${MAPS[a] && MAPS[a].area === a ? "" : " (แผนที่สาธิต)"}`);
@@ -338,6 +373,10 @@ export default function BoardPreview() {
         highlights={highlights}
         shopPos={M.shop}
         rotation={rotation}
+        zoom={zoom}
+        onZoomChange={changeZoom}
+        focus={focus}
+        shopLabel={3}
         night={night}
         lowQ={lowQ}
         anim={anim}
@@ -354,6 +393,8 @@ export default function BoardPreview() {
         <span style={{ width: 8 }} />
         <button style={btn(false)} title="หมุนทวนเข็ม" onClick={() => turn(-1)}>⟲</button>
         <button style={btn(false)} title="หมุนตามเข็ม" onClick={() => turn(1)}>⟳ {rotation * 90}°</button>
+        <button style={btn(!!zoom)} title="ซูม (ล้อเมาส์)" onClick={() => changeZoom(zoom ? 0 : 1)}>{zoom ? "－" : "＋"}</button>
+        <button style={btn(sq)} onClick={toggleSq}>14×14</button>
         <button style={btn(night)} onClick={() => { setNight(!night); syncUrl(area, rotation, !night); }}>กลางคืน</button>
         <button style={btn(lowQ)} onClick={() => setLowQ((v) => !v)}>ประหยัดสเปก</button>
         <button style={btn(danger)} onClick={() => setDanger((v) => !v)}>ระยะอันตราย</button>
@@ -364,9 +405,9 @@ export default function BoardPreview() {
         <button style={btn(false)} onClick={reset}>รีเซ็ต</button>
       </div>
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>
-        <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""}</div>
+        <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""} · {map.cols} × {map.rows}{zoom ? " · มุมใกล้" : ""}</div>
         <div>คนเดิน: <b>{actor.name}</b> (เดิน {MOV}) · โหมด: {mode === "move" ? "เดิน" : mode === "skill" ? "สกิลระยะ 3" : "ตีหมู่ 5"}</div>
-        <div style={{ color: "#9db8da" }}>ชี้ช่อง: {hover ? `(${hover.x}, ${hover.y})` : "—"}{hoverInfo ? ` · ${hoverInfo}` : ""} · {log}</div>
+        <div style={{ color: "#9db8da" }}>ชี้ช่อง: {hover ? `(${hover.x}, ${hover.y})` : "—"}{hoverInfo ? ` · ${hoverInfo}` : ""} · คลิก: <span data-testid="last-click">{lastClick || "—"}</span> · {log}</div>
       </div>
     </div>
   );

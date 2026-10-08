@@ -13,18 +13,24 @@ export const key = (x, y) => x + "," + y;
 export const parseKey = (k) => String(k).split(",").map(Number);
 
 // =================================================================== projection
-//  กล้องเอียง 38° · ขอบใกล้ของกระดานอยู่ที่ y ตรรกะ 528 เสมอ (เว้นที่ล่างให้ HUD ≈ 27% ของจอ)
+//  กล้องเอียง 38° · ขอบใกล้ของกระดานอยู่ที่ y ตรรกะ NEAR_Y = 528 เสมอ (เว้นที่ล่างให้ HUD ≈ 27% ของจอ)
 //  หมุนมุมมองได้ทีละ 90° (rotation 0..3 = หมุนตามเข็มนาฬิกา) — หมุนแค่ภาพ ข้อมูลเกมยังเป็นพิกัดกระดานเดิม
+//  ขนาดกระดานอ่านจาก map.cols × map.rows (setBoardSize) — กลางกระดานอยู่กลางจอ (OX) เสมอ · ระยะกล้องคำนวณจาก
+//   ขนาดตามแนวจอหลังหมุน (กระดานจัตุรัส เช่น 14 × 14 = ทุกมุมเหมือนกันเป๊ะ)
 //   พิกัด 3 แบบ
 //    - กระดาน (x, y)     = พิกัดเกม · P(x, y, z)
 //    - มุมมอง (X, Y)     = หลังหมุน วัดจากกลางกระดาน · Y มาก = ใกล้กล้อง · PV(X, Y, z)
 //    - ฉาก (x, y)        = กรอบสี่เหลี่ยมตามแนวจอขนาดเท่ากระดานหลังหมุน (มุม 0 = เหมือนพิกัดกระดาน) · PS(x, y, z)
 //                          ใช้กับของรอบนอก (ลายพื้น ต้นไม้ข้างกระดาน) ที่ไม่หมุนตามกระดาน
+//  ซูม/เลื่อนกล้อง (มุมใกล้) ไม่ยุ่งกับไฟล์นี้ — เป็นการขยายภาพ 2 มิติทั้งเฟรมใน computeView (cam)
 const PITCH = 38 * Math.PI / 180, SN = Math.sin(PITCH), CS = Math.cos(PITCH);
-const CAM_D = 22, NEAR_Y = 528;
+const CAM_D = 22;
+export const NEAR_Y = 528;
 export const OX = 640;
-// ขอบไกลของกระดาน 16 × 12 (มุม 0) ตามต้นแบบ — กระดานที่ลึกกว่า (หมุน 90°) ยอมให้ขอบไกลสูงขึ้นช่องละ 7.5 px แล้วย่อกล้องให้พอดี
+// ขอบไกลของกระดานลึก 12 ช่อง (ครึ่งลึก 6) ตามต้นแบบ 16 × 12 — กระดานที่ลึกกว่ายอมให้ขอบไกลสูงขึ้นช่องละ 7.5 px แล้วย่อกล้องให้พอดี
 const FOC0 = 66.25 * (CAM_D - 6 * CS), FAR0 = NEAR_Y - 6 * SN * 66.25 - 6 * SN * FOC0 / (CAM_D + 6 * CS);
+// ขอบใกล้กว้างได้ไม่เกินนี้ (กระดานกว้างมาก = ย่อกล้องเพิ่ม ขอบไกลต่ำลง) · 16 × 12 = 1060 ไม่ถึง
+const MAX_NEAR_W = 1140;
 let BC = 16, BR = 12, TH = 0, cT = 1, sT = 0, HCe = 8, HRe = 6, FOC = FOC0, OY = NEAR_Y - 6 * SN * 66.25;
 function fit() {
   const a = TH * Math.PI / 2;
@@ -33,11 +39,11 @@ function fit() {
   if (Math.abs(sT) < 1e-9) sT = 0;
   HCe = Math.abs(cT) * BC / 2 + Math.abs(sT) * BR / 2;
   HRe = Math.abs(sT) * BC / 2 + Math.abs(cT) * BR / 2;
-  const dn = CAM_D - HRe * CS, df = CAM_D + HRe * CS, farY = FAR0 - (HRe - 6) * 7.5;
-  FOC = (NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df));
+  const dn = Math.max(1, CAM_D - HRe * CS), df = CAM_D + HRe * CS, farY = FAR0 - (HRe - 6) * 7.5;
+  FOC = Math.min((NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df)), MAX_NEAR_W * dn / (2 * HCe));
   OY = NEAR_Y - HRe * SN * FOC / dn;
 }
-// ขนาดกระดาน (ช่อง) — กล้องจูนไว้สำหรับ 16 × 12 (ทุกภูมิภาคใช้ขนาดนี้ — GRID_PLAN §3)
+// ขนาดกระดาน (ช่อง) — อ่านจากแผนที่ (map.cols × map.rows)
 export function setBoardSize(cols, rows) { if (cols !== BC || rows !== BR) { BC = cols; BR = rows; fit(); } }
 // มุมมอง: จำนวนรอบ 90° ตามเข็มนาฬิกา (ทศนิยมได้ = ระหว่างหมุน)
 export function setViewTurn(t) { if (t !== TH) { TH = t; fit(); } }
@@ -94,10 +100,15 @@ export function unprojectScene(sx, sy) {
   return v ? { x: v.X + HCe, y: v.Y + HRe } : null;
 }
 // ขนาดแคนวาสจริง (CSS px) → ตัวแปลงพิกัด ตรรกะ ↔ CSS · ย่อให้เห็นเฟรม 1280×720 ครบ แล้วต่อฉากรอบนอกให้เต็มจอ
-export function computeView(w, h) {
-  const k = Math.min(w / LW, h / LH) || 1;
-  const ox = (w - LW * k) / 2, oy = (h - LH * k) / 2;
-  return { w, h, k, ox, oy, x0: -ox / k, y0: -oy / k, x1: (w - ox) / k, y1: (h - oy) / k };
+//  cam = { z, cx, cy } (ไม่ใส่ = มุมปกติ) — ขยาย z เท่า โดยให้จุดตรรกะ (cx, cy) อยู่กลางจอ (มุมใกล้)
+//   z = 1 และ (cx, cy) = (640, 360) = เหมือนไม่ใส่ · x0..y1 = ขอบจอในพิกัดตรรกะ (ส่วนที่มองเห็น)
+export function computeView(w, h, cam) {
+  const k0 = Math.min(w / LW, h / LH) || 1;
+  const ox0 = (w - LW * k0) / 2, oy0 = (h - LH * k0) / 2;
+  const z = cam && cam.z > 0 ? cam.z : 1;
+  const cx = cam && Number.isFinite(cam.cx) ? cam.cx : LW / 2, cy = cam && Number.isFinite(cam.cy) ? cam.cy : LH / 2;
+  const k = k0 * z, ox = ox0 + k0 * (LW / 2 - z * cx), oy = oy0 + k0 * (LH / 2 - z * cy);
+  return { w, h, k, ox, oy, z, x0: -ox / k, y0: -oy / k, x1: (w - ox) / k, y1: (h - oy) / k };
 }
 export function toLogical(view, cx, cy) {
   return [(cx - view.ox) / view.k, (cy - view.oy) / view.k];
