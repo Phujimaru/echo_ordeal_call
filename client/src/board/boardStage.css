@@ -1,5 +1,6 @@
 /* ============================================================
-   BoardStage — ชั้น DOM ทับกระดาน (แถบลำดับเดิน · แบนเนอร์ · โหมดเลือกเป้า · คาดการณ์ · ป้ายช่อง)
+   BoardStage — ชั้น DOM ทับกระดาน (แถบลำดับเดิน · แบนเนอร์ · โหมดเลือกเป้า · คาดการณ์ · ป้ายช่อง · ปุ่มกล้อง)
+   ป้ายร้านค้าย้ายไปวาดในแคนวาสแล้ว (ตามซูม/เลื่อน/หมุน)
    โทนแผงน้ำเงินเข้ม ORDEAL CALL (--oc-navy) · ห้าม letter-spacing กับภาษาไทย
    ============================================================ */
 .bs-root { position: fixed; inset: 0; z-index: 0; font-family: var(--oc-f-body); color: var(--oc-navy-text); }
@@ -69,6 +70,7 @@
   background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
 }
 .bs-tool:hover { background: #24406e; }
+.bs-tool[data-on="true"] { background: #3d5f8f; border-color: #f0c868; }
 .bs-danger {
   cursor: pointer;
   font: 600 14px var(--oc-f-body); color: #fff; padding: 5px 14px;
@@ -83,13 +85,6 @@
 }
 .bs-tile-name { font: 600 15px var(--oc-f-body); }
 .bs-tile-desc { font-size: 12px; color: var(--oc-navy-mute); }
-
-/* ---------- ป้ายร้านค้า ---------- */
-.bs-shoptag {
-  position: absolute; z-index: 15; transform: translate(-50%, -100%); pointer-events: none;
-  font: 600 13px var(--oc-f-ui); padding: 1px 8px; color: #12264a; background: #f0c868;
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
-}
 
 /* ---------- หน้าต่างคาดการณ์ ---------- */
 .bs-fc {

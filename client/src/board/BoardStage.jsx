@@ -4,14 +4,15 @@
 //   · ตาของเรา: ฟ้า = เดินถึง · แดง = เดินแล้วตีถึง · ชี้ศัตรู = แผนเดินเข้าไปตี + หน้าต่างคาดการณ์ + ลูกศรถอย
 //   · โหมดเลือกเป้า (pick) จาก Game.jsx: สกิล target / aoe / line · ปืน GUTS · Mark 42
 //   · นอกตาเรา: ชี้ตัวละคร = เห็นระยะเดิน/ตีของคนนั้น · กดตัวละคร = ดูสถานะ
-//   · แถบลำดับเดินด้านบน · แบนเนอร์ "ลำดับเดิน" ตอน ORDER · ปุ่มระยะอันตราย · ป้ายข้อมูลช่อง · ป้ายร้านค้า
+//   · แถบลำดับเดินด้านบน · แบนเนอร์ "ลำดับเดิน" ตอน ORDER · ปุ่มระยะอันตราย · ป้ายข้อมูลช่อง · ป้ายร้านค้า (วาดในแคนวาส)
+//   · กล้อง: หมุน ⟲ ⟳ (Q/E) · ซูม ＋/－ (ล้อเมาส์) มุมปกติ/มุมใกล้ — จำไว้ในเครื่อง · มุมใกล้: ลาก/ลูกศรเลื่อนดู
+//     เริ่มตาใคร/ตี/เดิน/เลือดเปลี่ยน → ส่ง focus ให้ BoardCanvas เลื่อนตามถ้าอยู่นอกจอ
 //   · ฉากตีบนกระดาน (ฟัน → สวน → ถอย/ชน) แทน AttackFx เต็มจอ
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
 import * as Rules from "./boardRules";
-import { computeView, tileCenter } from "./boardDraw";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
@@ -74,6 +75,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     try { localStorage.setItem("echo.boardRotation", String(n)); } catch { /* ไม่มีที่เก็บ */ }
     return n;
   }), []);
+  // ซูม 2 ระดับ: 0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ — จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน/ปุ่ม ＋－
+  const [zoom, setZoomState] = useState(() => {
+    try { return localStorage.getItem("echo.boardZoom") === "1" ? 1 : 0; } catch { return 0; }
+  });
+  const setZoom = useCallback((z) => {
+    const n = z ? 1 : 0;
+    setZoomState(n);
+    try { localStorage.setItem("echo.boardZoom", String(n)); } catch { /* ไม่มีที่เก็บ */ }
+  }, []);
+  // จุดที่กล้องมุมใกล้ควรเห็น (อ็อบเจกต์ใหม่ = เลื่อนไปถ้าอยู่นอกจอ)
+  const [focus, setFocus] = useState(() => (me && me.pos ? { x: me.pos.x, y: me.pos.y } : null));
+  const look = useCallback((pos) => { if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) setFocus({ x: pos.x, y: pos.y }); }, []);
   useEffect(() => {
     const onKey = (e) => {
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -86,6 +99,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => window.removeEventListener("keydown", onKey);
   }, [rotate]);
   const hoverUnit = hover ? state.players.find((p) => p.alive && samePos(p.pos, hover)) : null;
+  // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
+  const [lookedTurn, setLookedTurn] = useState("");
+  const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
+  if (turnKey !== lookedTurn) {
+    setLookedTurn(turnKey);
+    const a = byId[state.actorId];
+    if (a && a.pos) setFocus({ x: a.pos.x, y: a.pos.y });
+  }
 
   // ---------- ระยะเดินของเรา ----------
   const myReach = useMemo(() => {
@@ -183,6 +204,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
       if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
         anims.push({ kind: "move", id, path, seq: ++fxSeq.current });
+        look(now);
       }
     }
     // ฉากตี: ฟัน → (สวน) → ถอย/ชน
@@ -195,6 +217,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
       // เสียงตีจังหวะแรก App เล่นให้แล้ว (createPhaseSoundTracker) — ที่นี่เล่นเฉพาะเสียงตีสวน
       if (tPos) {
+        look(tPos);
         const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง")
           : a.dodge ? "หลบ" : `-${a.dmg}`;
         pushFx([
@@ -223,13 +246,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         });
       }
     }
-    // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย
+    // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
+    let hurtPos = null;
     for (const p of state.players) {
       if (involved.has(p.id) || !p.pos) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
       if (d < 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `${d}` }]);
       else if (d > 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `+${d}`, color: "#8ff0b0" }]);
+      if (d && !hurtPos) hurtPos = p.pos;
     }
+    if (hurtPos && !freshAtk) look(hurtPos);
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
     for (const p of state.players) {
       const before = prevPos.current[p.id], now = nextPos[p.id];
@@ -356,14 +382,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shopPos, state.shopTurnsLeft]);
 
-  // ป้ายร้านค้าลอยเหนือแผง (ตำแหน่งจอจากสูตรเดียวกับตัววาด)
-  const shopTag = useMemo(() => {
-    if (!shopPos || !vp) return null;
-    const view = computeView(vp.w, vp.h);
-    const [lx, ly] = tileCenter(shopPos.x, shopPos.y, 2.1, rotation);
-    return { left: view.ox + lx * view.k, top: view.oy + ly * view.k };
-  }, [shopPos, vp, rotation]);
-
   // ---------- หน้าต่างคาดการณ์ ----------
   const forecast = plan && state.forecast ? state.forecast[plan.foe.id] : null;
 
@@ -401,6 +419,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         night={night}
         lowQ={lowQ}
         rotation={rotation}
+        zoom={zoom}
+        onZoomChange={setZoom}
+        focus={focus}
+        shopLabel={state.shopTurnsLeft > 0 ? state.shopTurnsLeft : null}
         anim={anim}
         fx={fx}
         onAnimDone={onAnimDone}
@@ -461,10 +483,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         </div>
       )}
 
-      {/* ปุ่มระยะอันตราย + หมุนกระดาน */}
+      {/* ปุ่มระยะอันตราย + หมุนกระดาน + ซูม */}
       <div className="bs-tools">
         <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
         <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
+        <button type="button" className="bs-tool" data-on={zoom ? "true" : "false"} title={zoom ? "ซูมออก" : "ซูมเข้า"}
+          onClick={() => { clickSound(); if (!zoom && me && me.pos) look(me.pos); setZoom(zoom ? 0 : 1); }}>{zoom ? "－" : "＋"}</button>
         <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
           ระยะอันตราย
         </button>
@@ -476,11 +500,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           <div className="bs-tile-name">{tileInfo.icon ? `${tileInfo.icon} ` : ""}{tileInfo.name}</div>
           {tileInfo.desc && <div className="bs-tile-desc">{tileInfo.desc}</div>}
         </div>
-      )}
-
-      {/* ป้ายร้านค้า: เหลือ N เทิร์น */}
-      {shopTag && state.shopTurnsLeft > 0 && (
-        <div className="bs-shoptag" style={{ left: shopTag.left, top: shopTag.top }}>🏪 {state.shopTurnsLeft}</div>
       )}
 
       {/* หน้าต่างคาดการณ์ (แบบ FE) */}

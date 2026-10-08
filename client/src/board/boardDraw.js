@@ -12,12 +12,14 @@
 //   - ชั้นเคลื่อนไหว (ไฮไลต์ สิ่งกีดขวาง ตัวละคร ร้าน เอฟเฟกต์) วาดใหม่ทุกเฟรม เรียงตามความลึกของมุมมอง
 //   - ธีมรายภูมิภาค (ฉาก/สี/อนุภาค) อยู่ที่ regionThemes.js · สิ่งกีดขวาง/ช่องพิเศษ/จุดฟื้นฟูอยู่ที่ boardProps.js
 //   - lowQ = ข้ามอนุภาค ใบไม้หน้ากล้อง แอนิเมชันช่องพิเศษ และหมุนกระดานทันที
+//   - มุมใกล้ (ซูม) = ขยายภาพ 2 มิติทั้งเฟรม (computeView ใส่ cam) · ชั้นอบยังอบด้วยเฟรมปกติ (base view) แต่ละเอียดขึ้น
+//     (res = dpr × ZOOM_K ไม่เกิน 2) แล้ววาดขยายลงจอ · กล้องเลื่อนได้แค่ในเฟรมปกติ (clampCam) ชั้นอบจึงครอบคลุมเสมอ
 //
 //  พิกัดช่อง: x = คอลัมน์ 0..cols-1 (ซ้าย→ขวา) · y = แถว 0..rows-1 (ไกล→ใกล้กล้อง ที่มุม 0) · key = "x,y"
 //  map.special["x,y"] = ช่องพิเศษ (flowers forest thorns shallow whirl quicksand ice lava power) · map.flow["x,y"] = up/down/left/right (น้ำวน)
 // ============================================================
 import {
-  F_TH, F_UI, LH, LW, P, PA, computeView, depthOf, gEllipse, hexA, hexPath, key, normColor, parseKey, project,
+  F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, hexA, hexPath, key, normColor, parseKey, project,
   quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
 } from "./boardGeo";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
@@ -41,8 +43,8 @@ export function pickTile(info, lx, ly) {
   const x = Math.floor(g.x), y = Math.floor(g.y);
   return x >= 0 && y >= 0 && x < info.cols && y < info.rows ? { x, y } : null;
 }
-// ช่อง → จุดกลางช่องบนจอ (ตรรกะ) — ใช้วาง DOM ทับตำแหน่งบนกระดาน
-//  rotation (0..3) ไม่ใส่ = ใช้มุมที่กำลังแสดงอยู่ (รวมระหว่างหมุน)
+// ช่อง → จุดกลางช่องบนจอ (ตรรกะของเฟรมปกติ) — แปลงเป็น CSS px ด้วย computeView(w, h, cam) (มุมใกล้ต้องรู้ cam ของ BoardCanvas
+//  — ป้ายที่ต้องเกาะช่องจึงวาดในแคนวาสแทน เช่น shopLabel) · rotation (0..3) ไม่ใส่ = ใช้มุมที่กำลังแสดงอยู่ (รวมระหว่างหมุน)
 export function tileCenter(x, y, z = 0, rotation) {
   if (rotation == null) { const p = P(x + 0.5, y + 0.5, z); return [p[0], p[1]]; }
   const prev = viewTurn();
@@ -56,6 +58,44 @@ export const normRot = (r) => ((Math.round(+r || 0) % 4) + 4) % 4;
 export function setCamera(info, turn) {
   setBoardSize(info.cols, info.rows);
   setViewTurn(turn);
+}
+
+// =================================================================== กล้องมุมใกล้ (ซูม/เลื่อน)
+//  cam = { z, cx, cy } — z = ขยายกี่เท่า · (cx, cy) = จุดตรรกะ (ของเฟรมปกติ) ที่อยู่กลางจอ · base = computeView(w, h) ไม่มี cam
+export const ZOOM_K = 1.6;   // มุมใกล้ = ขยาย 1.6 เท่า
+const PAN_M = 30;            // เลื่อนเลยขอบกระดานได้เท่านี้ (ตรรกะ)
+const TOP_UI = 50;           // แถบลำดับเดินด้านบน (ตรรกะที่ z = 1)
+// กรอบของกระดานบนจอ (ตรรกะ · กล้องปัจจุบัน) รวมความสูงของของบนแถวไกล
+export function boardBox(info) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of [[0, 0], [info.cols, 0], [0, info.rows], [info.cols, info.rows]]) {
+    const a = P(x, y, 0), b = P(x, y, 1.3);
+    x0 = Math.min(x0, a[0]); x1 = Math.max(x1, a[0]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, a[1]);
+  }
+  return { x0, x1, y0, y1 };
+}
+// HUD ล่างกินที่ใต้ขอบใกล้ของเฟรมปกติ · มุมใกล้ = สูงเท่าเดิมบนจอ → หาร z ในพิกัดตรรกะ
+const hudOf = (base, z) => Math.max(0, base.y1 - NEAR_Y) / z;
+// จำกัดจุดกลางกล้อง: ไม่ออกนอกเฟรมปกติ (ชั้นอบครอบคลุมแค่นั้น) และไม่เลยกระดาน (+PAN_M) · z = 1 → กลางเฟรมพอดี (= มุมปกติ)
+//  ขอบล่างเผื่อ HUD — เลื่อนจนขอบใกล้ของกระดานโผล่เหนือ HUD ได้ · ต้องตั้งกล้อง (setCamera) ก่อนเรียก
+export function clampCam(info, base, cam) {
+  const z = Math.max(1, cam.z), hw = (base.x1 - base.x0) / (2 * z), hh = (base.y1 - base.y0) / (2 * z);
+  const bb = boardBox(info);
+  const fit = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
+  let cx = fit(cam.cx, bb.x0 - PAN_M + hw, bb.x1 + PAN_M - hw);
+  let cy = fit(cam.cy, bb.y0 - PAN_M - TOP_UI / z + hh, bb.y1 + PAN_M - hh + hudOf(base, z));
+  cx = fit(cx, base.x0 + hw, base.x1 - hw);
+  cy = fit(cy, base.y0 + hh, base.y1 - hh);
+  return { z: cam.z, cx, cy };
+}
+// จุดกลางของส่วนที่มองเห็นเหนือ HUD ↔ จุดกลางกล้อง (ใช้หมุนรอบจุดกลางจอ / เลื่อนไปหาตัวละคร)
+export const camEyeY = (base, z, cy) => cy - hudOf(base, z) / 2;
+export const camFromEye = (base, z, sx, sy) => ({ cx: sx, cy: sy + hudOf(base, z) / 2 });
+// จุดตรรกะ (sx, sy) อยู่ในส่วนที่มองเห็น (หักขอบ/แถบบน/HUD) ไหม — ใช้ตัดสินว่าต้องเลื่อนกล้องตามไหม
+export function inCamView(base, cam, sx, sy) {
+  const z = cam.z, hw = (base.x1 - base.x0) / (2 * z), hh = (base.y1 - base.y0) / (2 * z);
+  return sx >= cam.cx - hw + 60 / z && sx <= cam.cx + hw - 60 / z
+    && sy >= cam.cy - hh + (TOP_UI + 70) / z && sy <= cam.cy + hh - hudOf(base, z) - 12 / z;
 }
 
 // ---------- รูปตัวละคร (แคชทั้งแอป) ----------
@@ -269,6 +309,18 @@ function drawPlazaStatic(g, pz, C, night) {
   }
 }
 
+// ป้ายร้านค้าลอยเหนือแผง ("🏪 N" = เหลือ N เทิร์น) — วาดทับของบนกระดาน จึงตามซูม/เลื่อน/หมุนเอง
+function drawShopLabel(g, x, y, text) {
+  const [lx, ly] = P(x + 0.5, y + 0.5, 2.1);
+  g.save();
+  g.font = `600 13px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
+  const tw = g.measureText(text).width + 16, th = 18;
+  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 6; g.shadowOffsetY = 2;
+  g.fillStyle = "#f0c868"; g.fillRect(lx - tw / 2, ly - th, tw, th);
+  g.shadowColor = "transparent";
+  g.fillStyle = "#12264a"; g.fillText(text, lx, ly - th / 2 + 0.5);
+  g.restore();
+}
 // แผงร้านค้ามายา (กินช่อง 1 ช่อง — GRID_PLAN §8.1)
 function drawShop(g, x, y, C, now, night) {
   const [bx, by, s] = PA(x, y, 0.05);
@@ -537,8 +589,10 @@ export const FX_DUR = { slash: 420, float: 1300 };
 
 
 // =================================================================== frame
-//  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, hover, fx (กำลังเล่น) }
-//   bake = { scene, sceneFrom?, mix?, board?, fore, marks } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
+//  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, shopLabel?, hover, fx (กำลังเล่น) }
+//   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
+//   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
+//          view/res = เฟรมปกติ + ความละเอียดที่ใช้อบ (ไม่ใส่ = เท่ากับ view/dpr)
 //   turn = มุมมองตอนนี้ (หน่วย 90° ทศนิยมได้)
 //  คืน boxes = กล่องคลิกของตัวละคร (พิกัดตรรกะ) เรียงหน้า→หลัง
 export function drawFrame(g, st, now) {
@@ -546,18 +600,24 @@ export function drawFrame(g, st, now) {
   setCamera(info, st.turn || 0);
   const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
   const L = () => g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  // ชั้นอบ → จอ: เฟรมเดียวกัน = วางตรงพิกเซล · มุมใกล้/ความละเอียดต่าง = วาดตามพิกัดตรรกะ (ขยาย/เลื่อนตามกล้อง)
+  const bv = (bake && bake.view) || view, bres = (bake && bake.res) || dpr;
+  const exact = bres === dpr && bv.k === view.k && bv.ox === view.ox && bv.oy === view.oy;
+  const blit = (cv) => {
+    if (exact) { g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(cv, 0, 0); return; }
+    L(); g.drawImage(cv, bv.x0, bv.y0, cv.width / (bres * bv.k), cv.height / (bres * bv.k));
+  };
   if (bake && bake.scene) {
     if (bake.sceneFrom && bake.mix < 1) {
-      g.drawImage(bake.sceneFrom, 0, 0);
-      g.globalAlpha = Math.max(0, bake.mix); g.drawImage(bake.scene, 0, 0); g.globalAlpha = 1;
-    } else g.drawImage(bake.scene, 0, 0);
+      blit(bake.sceneFrom);
+      g.globalAlpha = Math.max(0, bake.mix); blit(bake.scene); g.globalAlpha = 1;
+    } else blit(bake.scene);
   }
   L();
   const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {} };
   if (T.animBack) T.animBack(g, f, lowQ ? 0 : now);
-  if (bake && bake.board) { g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(bake.board, 0, 0); L(); }
-  else drawBoardLayer(g, info, view, night);
+  if (bake && bake.board) { blit(bake.board); L(); }
+  else drawBoardLayer(g, info, bv, night);
   // วงเวทเคลื่อนไหว (ด่าน I)
   const pz = info.plaza;
   if (pz) {
@@ -595,6 +655,9 @@ export function drawFrame(g, st, now) {
   units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawUnit(g, u, now, boxes) }));
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
+  if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
+    drawShopLabel(g, shopPos.x, shopPos.y, `🏪 ${st.shopLabel}`);
+  }
   // อนุภาค (ข้ามเมื่อ lowQ)
   if (!lowQ) {
     if (pz) {
@@ -621,8 +684,8 @@ export function drawFrame(g, st, now) {
     if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24);
   }
+  if (bake && bake.fore) blit(bake.fore);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  if (bake && bake.fore) g.drawImage(bake.fore, 0, 0);
   boxes.sort((a, b) => b.d - a.d);
   return boxes;
 }
