@@ -598,4 +598,6 @@ board/boardRules.js            สำเนากติกาจาก server/bo
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
 - env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=21` เริ่มแมตช์ที่เทิร์น/ภูมิภาคนั้น · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
   `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มยิงปืน/ใช้สกิล/ไอเทม/ซื้อของ)
+- **กระดาน 14×14 ทุกภูมิภาค** (ผู้ใช้ตัดสิน 2026-10-09) · กล้องจัดกลาง/ย่อจาก `map.cols×rows` เอง
+- ซูม: `BoardCanvas` prop `zoom` 0|1 (มุมใกล้ ×1.6) + `onZoomChange` (ล้อเมาส์) + `focus` {x,y} (เลื่อนกล้องไปหา ถ้าอยู่นอกจอ) · โหมดใกล้: ลากเมาส์/ปุ่มขวา/ลูกศรเลื่อนดู · ปุ่ม ＋/－ ใน BoardStage · จำใน localStorage `echo.boardZoom` · ป้ายร้าน "🏪 N" วาดในแคนวาส (`shopLabel`) · dev: `?board=1&sq=1`, `window.__boardFocus(x,y)`
 - หมุนกระดาน: `BoardCanvas` prop `rotation` 0–3 (ภาพอย่างเดียว พิกัด/คอลแบ็กเป็นพิกัดกระดานเสมอ) · คีย์ใช้ `e.code` KeyQ/KeyE (แป้นโหมดไทยใช้ได้) · ตัววาดแยก `boardGeo.js` (กล้อง/หมุน) · `boardProps.js` (สิ่งกีดขวาง/ช่องพิเศษ) · `regionThemes.js` (ธีม 7 ภูมิภาค)
