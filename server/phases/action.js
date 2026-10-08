@@ -123,6 +123,11 @@ function beginOrder() {
   timers.startPhaseTimer(ORDER_TIME, nextActor);
   view.broadcastState();
 }
+// เวลาต่อตาเดิน — เครื่องมือ dev: ECHO_DEV_ACTION_TIME=300 ยืดเวลาไว้ทดสอบ (ไม่ตั้ง = ACTION_TIME)
+function actionSeconds() {
+  const n = Math.floor(Number(process.env.ECHO_DEV_ACTION_TIME));
+  return Number.isFinite(n) && n > 0 ? n : ACTION_TIME;
+}
 // ไปคนถัดไปในลำดับ · หมดแถว = จบเทิร์น
 function nextActor() {
   timers.clearPhaseTimer();
@@ -145,7 +150,7 @@ function nextActor() {
     match.actorId = id;
     match.action = { from: { ...p.pos }, moved: false, locked: false };
     match.gameState = "ACTION";
-    timers.startPhaseTimer(ACTION_TIME, finishActor);
+    timers.startPhaseTimer(actionSeconds(), finishActor);
     view.broadcastState();
     return;
   }

@@ -224,7 +224,9 @@ function buildStateFor(viewerId) {
         wasAttacked: p.wasAttacked,
         // กระดาน: ตำแหน่ง + ระยะเดิน (เทิร์นนี้ / ปกติสูงสุด) + ระยะตี — ทุกคนเห็น (ใช้วาดระยะอันตราย)
         pos: p.pos || null,
-        mov: action.movOf(p), baseMov: action.baseMovOf(p), range: action.rangeOf(p),
+        //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
+        mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
+        baseMov: action.baseMovOf(p), range: action.rangeOf(p),
       };
     }),
   };

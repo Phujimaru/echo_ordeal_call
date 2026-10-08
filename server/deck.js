@@ -84,7 +84,7 @@ function applySpecialCardEffect(p, card) {
   if (!card || !card.special) return;
   if (card.special === "king") {
     const g = shop.addGold(p, 10);
-    match.lastLog.push(`👑 ${p.name} จั่วได้การ์ดราชา — ได้เหรียญ +${g}!`);
+    match.lastLog.push(g > 0 ? `👑 ${p.name} จั่วได้การ์ดราชา — ได้เหรียญ +${g}!` : `👑 ${p.name} จั่วได้การ์ดราชา — เหรียญเต็มแล้ว`);
   } else if (card.special === "queen") {
     p.statuses.freecast = 1; // ใช้สกิลครั้งถัดไปไม่เสียแต้ม — หายเมื่อจบเทิร์นถ้าไม่ได้ใช้
     match.lastLog.push(`👸 ${p.name} จั่วได้การ์ดราชินี — ใช้สกิลได้ฟรี 1 ครั้งในเทิร์นนี้!`);

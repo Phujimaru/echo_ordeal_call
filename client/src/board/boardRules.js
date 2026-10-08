@@ -26,17 +26,17 @@ const key = (x, y) => `${x},${y}`;
 //   atk   = ยืนอยู่แล้วพลังโจมตี +N (computeAttackBase) · end = ผลตอนจบตาบนช่องนี้ (endTurnTile)
 //  heal / oasis = จุดฟื้นฟู (map.heal) — ชื่อตามภูมิภาค (map.healKind)
 const TERRAIN_INFO = {
-  heal: { name: "วงเวทฟื้นฟู", icon: "✨", desc: "จบตาบนช่องนี้ ฟื้นพลังชีวิต +1" },
-  oasis: { name: "โอเอซิส", icon: "🌴", desc: "จบตาบนช่องนี้ ฟื้นพลังชีวิต +1" },
-  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดินกิน 2 ก้าว · ยืนแล้วหลบหลีก +20%", cost: 2, evade: 20 },
-  forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดินกิน 2 ก้าว · ยืนแล้วหลบหลีก +20%", cost: 2, evade: 20 },
-  thorns: { name: "หนามพิษ", icon: "🥀", desc: "จบตาบนช่องนี้ ติดพิษร้าย 1 เทิร์น (ต้านสถานะผิดปกติกันได้)", end: "thorns", poison: 1 },
-  shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดินกิน 2 ก้าว", cost: 2 },
-  whirl: { name: "น้ำวน", icon: "🌀", desc: "จบตาบนช่องนี้ โดนกระแสน้ำดันไป 1 ช่องตามลูกศร (ช่องนั้นไม่ว่าง = ไม่ขยับ)", end: "whirl" },
-  quicksand: { name: "ทรายดูด", icon: "⏳", desc: "เดินเข้าแล้วหยุดทันที (ก้าวที่เหลือหายหมด)", stop: true },
-  ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิม · ถอยบนน้ำแข็ง ไถล 2 ช่อง", slide: true },
-  lava: { name: "ลาวา", icon: "🌋", desc: "จบตาบนช่องนี้ เสียพลังชีวิต 1 (ลดเกราะก่อน)", end: "lava", dmg: 1 },
-  power: { name: "แท่นพลัง", icon: "🔮", desc: "ยืนแล้วพลังโจมตี +1", atk: 1 },
+  heal: { name: "วงเวทฟื้นฟู", icon: "✨", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  oasis: { name: "โอเอซิส", icon: "🌴", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20%", cost: 2, evade: 20 },
+  forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดิน 2 ก้าว · หลบหลีก +20%", cost: 2, evade: 20 },
+  thorns: { name: "หนามพิษ", icon: "🥀", desc: "จบตา ติดพิษร้าย 1 เทิร์น", end: "thorns", poison: 1 },
+  shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดิน 2 ก้าว", cost: 2 },
+  whirl: { name: "น้ำวน", icon: "🌀", desc: "จบตา ถูกดัน 1 ช่องตามกระแส", end: "whirl" },
+  quicksand: { name: "ทรายดูด", icon: "⏳", desc: "เดินเข้าแล้วหยุด", stop: true },
+  ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "ไถลต่อ 1 ช่อง", slide: true },
+  lava: { name: "ลาวา", icon: "🌋", desc: "จบตา เสียหาย 1", end: "lava", dmg: 1 },
+  power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
 };
 
 // ---------- แผนที่รายภูมิภาค ----------

@@ -20,6 +20,7 @@ const action = require("./phases/action");
 const combat = require("./combat");
 const cutscene = require("./cutscene");
 const draw = require("./phases/draw");
+const shop = require("./shop");
 const socketLayer = require("./socket");
 const timers = require("./timers");
 const view = require("./view");
@@ -243,6 +244,12 @@ function gameIntroHoldSeconds() {
   return Math.ceil((n * perMs + 2900 + 1000) / 1000) + 1; // +1 เผื่อม่านปิด-เปิด
 }
 
+// เทิร์นเริ่มแมตช์สำหรับ dev (env ECHO_DEV_START_ROUND) — ไม่ตั้ง/ค่าผิด = 1
+function devStartRound() {
+  const n = Math.floor(Number(process.env.ECHO_DEV_START_ROUND));
+  return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
 function startMatch() {
   if (!teamModeActive()) {
     resetTeamAssignments(false);
@@ -251,16 +258,24 @@ function startMatch() {
   }
   match.winningTeamId = null;
   for (const p of Object.values(match.players)) combat.resetCombat(p);
-  match.roundNumber = 0;
+  // เครื่องมือ dev: ECHO_DEV_RICH=1 = เริ่มแมตช์ด้วยเหรียญเต็มเพดาน + แต้มสกิลเต็ม (ทดสอบร้าน/ท่าไม้ตายได้ทันที) · ไม่ตั้ง = ปกติ
+  if (process.env.ECHO_DEV_RICH === "1") {
+    for (const p of Object.values(match.players)) { p.gold = shop.goldCapOf(p); p.skillPoints = combat.maxSkillOf(p); }
+  }
+  // เครื่องมือ dev: ECHO_DEV_START_ROUND=21 = เริ่มแมตช์ที่เทิร์นนั้น (ทดสอบภูมิภาค II–VII โดยไม่ต้องเล่นยาว)
+  //  ไม่ตั้ง env = เริ่มเทิร์น 1 ภูมิภาค I ตามปกติ
+  const startRound = devStartRound();
+  match.roundNumber = startRound - 1;
   match.cycleShift = 0;
   match.journeyScene = null;
-  action.placeOnBoard(1); // กระดานภูมิภาค I · แจกจุดเกิด (GRID_PLAN §3)
+  const startArea = Journey.areaOf(startRound);
+  action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
   match.cutsceneQueue = [];
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   const journeyStart = Journey.active(engine) && JOURNEY_START_SECONDS > 0;
-  if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: 1, fromArea: null };
+  if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
     //  (cutsceneInfo = null -> client วาดกระดานปกติไว้ใต้ฉากเปิดแมตช์ (MatchIntro) ซึ่งบังอยู่แล้ว)
