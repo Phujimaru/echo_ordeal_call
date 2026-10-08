@@ -15,8 +15,22 @@
     {
       "name": "server",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server.js"],
+      "runtimeArgs": [
+        "server.js"
+      ],
       "port": 3000
+    },
+    {
+      "name": "server-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3000,
+      "env": {
+        "ECHO_DEV_START_ROUND": "51",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
     }
   ]
 }

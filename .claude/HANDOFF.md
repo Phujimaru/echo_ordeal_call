@@ -18,6 +18,7 @@
 - มือถือ (`vp.w < 768`) ยังเป็นหน้าจอเดิมที่อ่าน SUMMARY/ATTACK — ตามกติกา CLAUDE.md ไม่ทำต่อ
 
 ## งานถัดไป / รอผู้ใช้
+- ✅ **ปล่อย 5.2.1 ขึ้น R2 แล้ว** (QA แก้บั๊ก: คลิกช่องหลังตัวหมาก · คัตซีนกลางช่วงจั่วไม่เปิดแต้ม · ค่า mov ไม่บอกใบ้ไพ่แตก · คาดการณ์นับชน −1 · แถบลำดับไม่ทับแถบบน · ชี้ศัตรูนอกระยะเห็นระยะของมัน · ข้อความช่องพิเศษสั้นลง) · ลิงก์ `updates/ECHO-Setup-5.2.1.exe`
 - ✅ **ปล่อย 5.2.0 ขึ้น R2 แล้ว** (2026-10-08 · ผู้ใช้สั่ง) — ลิงก์ติดตั้ง `updates/ECHO-Setup-5.2.0.exe` · ธีมภาพ II–VII + หมุนกระดาน (Q/E ใช้ e.code) รวมแล้ว `a612c02` · บั๊กที่ QA เจอหลังจากนี้ → ปล่อย 5.2.1
   · **ไฟล์สื่อใน `client/public` ของ repo นี้คัดลอกมาจาก `C:ackjactclientpublic` เฉพาะที่เกมใช้** (characters/muimi, oberon, oberon(summer), Mark42 · item/guts_key, guts_select_gun · journey/map1–7 · overload_force/overload_force_theme.mp3) — manifest สร้างจากโฟลเดอร์นี้ ห้ามปล่อยถ้าโฟลเดอร์หาย (manifest จะขาดไฟล์) · ไฟล์ตัวละครเก่าบน R2 ยังไม่ได้ลบ (ผู้ใช้ไม่ได้สั่ง)
 - รวมงานภาพ (ธีมภูมิภาค + หมุนกระดาน) → ตรวจภาพทุกภูมิภาค/ทุกมุม → push · BoardStage ส่ง prop `rotation` และเรียก `tileCenter(x, y, z, rotation)` ไว้แล้ว (ปุ่ม ⟲ ⟳ + คีย์ Q/E · localStorage `echo.boardRotation`)
