@@ -20,8 +20,13 @@ const HudPreview = import.meta.env.DEV && hudQ.has("hud")
   ? React.lazy(() => (hudQ.get("game") === "1" ? import("./screens/hud/GamePreview.jsx") : import("./screens/hud/HudPreview.jsx")))
   : null;
 
+// ?board=1 = หน้าดูกระดานเดินได้แบบ Fire Emblem (เฉพาะ dev) — ดู board/BoardPreview.jsx
+const BoardPreview = import.meta.env.DEV && hudQ.has("board")
+  ? React.lazy(() => import("./board/BoardPreview.jsx"))
+  : null;
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
+    {BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
   </React.StrictMode>
 );
