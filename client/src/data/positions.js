@@ -1,0 +1,11 @@
+// สีประจำตำแหน่ง P1-P7 (ต้องตรงกับ characters.js ฝั่ง server)
+export const POSITION_COLORS = {
+  1: "#9B4F96", // ม่วง
+  2: "#9B2D3A", // แดงเลือดหมู
+  3: "#3B82C4", // ฟ้า
+  4: "#E5B33B", // เหลือง
+  5: "#C0392B", // แดง
+  6: "#2E9E4B", // เขียว
+  7: "#E86A2B", // ส้ม (patch 2.8)
+};
+export const POSITIONS = [1, 2, 3, 4, 5, 6, 7];

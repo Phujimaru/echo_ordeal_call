@@ -1,0 +1,448 @@
+/* =========================================================================
+   Journey — ฉากหลัง 7 ภูมิภาค (jb-) · ฉากเปลี่ยนภูมิภาคอยู่ที่ oc/intro/RegionTravel.jsx
+   กฎประสิทธิภาพ: ขยับด้วย transform / opacity เท่านั้น ไม่มี filter/blur/box-shadow ที่ขยับ
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- jb: backdrop */
+.jb {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #06040a;
+}
+
+/* หนึ่งฉาก = หนึ่งชั้น; ฉากใหม่ซ้อนด้านบนแล้วค่อย ๆ เฟดเข้า ฉากเก่าอยู่ใต้ทึบเต็มจนถูกถอด */
+.jb-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  contain: strict;
+  container-type: size;
+}
+.jb-scene.jb-in {
+  animation: jbSceneIn var(--jb-fade, 1800ms) ease-in-out both;
+}
+@keyframes jbSceneIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* stage 1600×900 (16:9) ที่คลุมจอแบบ cover — ลูกทั้งหมดวางด้วย % จึงตรงกับ svg พอดี */
+.jb-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100cqw, 177.7778cqh);
+  height: max(100cqh, 56.25cqw);
+  transform: translate(-50%, -50%);
+}
+.jb-sky,
+.jb-svg,
+.jb-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.jb-abs {
+  position: absolute;
+}
+.jb-abs > svg,
+.jb-fill > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ชั้นเกรดสีคุมคอนทราสต์ตรงกลาง (กระดานเกมอยู่ด้านบน)
+   เบาลงจากเดิม (กลาง 0.3 -> 0.12 · ขอบ 0.62 -> 0.34) เพราะผู้เล่นบอกว่าฉากหลังมืดเกินไป */
+.jb-grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 72% 62% at 50% 50%, rgba(6, 4, 12, 0.12) 0%, rgba(6, 4, 12, 0.05) 48%, rgba(6, 4, 12, 0.34) 100%),
+    linear-gradient(180deg, rgba(6, 4, 12, 0.18) 0%, transparent 22%, transparent 74%, rgba(6, 4, 12, 0.28) 100%);
+}
+
+/* ---------- อนิเมชันทั่วไปของฉาก ---------- */
+.jb-breathe {
+  animation: jbBreathe 9s ease-in-out infinite alternate;
+}
+@keyframes jbBreathe {
+  from { opacity: 0.72; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1.03); }
+}
+.jb-pulse {
+  animation: jbPulse 4s ease-in-out infinite;
+}
+@keyframes jbPulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.96); }
+  45% { opacity: 1; transform: scale(1.04); }
+  60% { opacity: 0.8; }
+}
+.jb-tw {
+  animation: jbTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes jbTwinkle {
+  from { opacity: 1; }
+  to { opacity: 0.15; }
+}
+.jb-rays {
+  transform-origin: 50% 0%;
+  animation: jbRays 12s ease-in-out infinite alternate;
+}
+@keyframes jbRays {
+  from { opacity: 0.55; transform: rotate(-1.5deg); }
+  to { opacity: 1; transform: rotate(1.5deg); }
+}
+.jb-drift {
+  will-change: transform;
+  animation: jbDrift 60s ease-in-out infinite alternate;
+}
+@keyframes jbDrift {
+  from { transform: translate3d(var(--from, -6cqw), 0, 0); }
+  to { transform: translate3d(var(--to, 6cqw), 0, 0); }
+}
+.jb-slide {
+  will-change: transform;
+  animation: jbSlide 40s linear infinite;
+}
+@keyframes jbSlide {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.jb-spin {
+  will-change: transform;
+  animation: jbSpin 30s linear infinite;
+}
+@keyframes jbSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.jb-sway {
+  transform-origin: 50% 100%;
+  animation: jbSway 7s ease-in-out infinite alternate;
+}
+@keyframes jbSway {
+  from { transform: skewX(-2.5deg); }
+  to { transform: skewX(2.5deg); }
+}
+.jb-flag {
+  transform-origin: 0% 50%;
+  animation: jbFlag 1.8s ease-in-out infinite alternate;
+}
+@keyframes jbFlag {
+  from { transform: scaleX(1) skewY(-4deg); }
+  to { transform: scaleX(0.82) skewY(5deg); }
+}
+.jb-fly {
+  will-change: transform;
+  animation: jbFly 34s linear infinite;
+}
+@keyframes jbFly {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(118cqw, var(--rise, -6cqh), 0); }
+}
+.jb-flap {
+  transform-origin: 50% 60%;
+  animation: jbFlap 0.55s ease-in-out infinite alternate;
+}
+@keyframes jbFlap {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(-0.35); }
+}
+.jb-orbit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: jbSpin 16s linear infinite;
+}
+.jb-orbit-arm {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.jb-orbit-arm > svg {
+  display: block;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.jb-shoot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 0.22cqh;
+  min-height: 1px;
+  border-radius: 999px;
+  opacity: 0;
+  transform-origin: 100% 50%;
+  animation: jbShoot 11s ease-out infinite;
+}
+@keyframes jbShoot {
+  0%, 86% { opacity: 0; transform: translate3d(0, 0, 0) scaleX(0.2); }
+  88% { opacity: 1; transform: translate3d(4cqw, 0, 0) scaleX(1); }
+  94% { opacity: 0; transform: translate3d(22cqw, 0, 0) scaleX(0.6); }
+  100% { opacity: 0; transform: translate3d(22cqw, 0, 0) scaleX(0.6); }
+}
+.jb-shimmer {
+  animation: jbShimmer 3.2s ease-in-out infinite alternate;
+}
+@keyframes jbShimmer {
+  from { opacity: 0.25; transform: scaleX(0.94); }
+  to { opacity: 1; transform: scaleX(1.06); }
+}
+.jb-haze {
+  transform-origin: 50% 50%;
+  background: repeating-linear-gradient(180deg, rgba(255, 244, 220, 0) 0, rgba(255, 244, 220, 0.2) 0.35cqh, rgba(255, 244, 220, 0) 0.7cqh);
+  animation: jbHaze 3s ease-in-out infinite alternate;
+}
+@keyframes jbHaze {
+  from { opacity: 0.2; transform: translate3d(0, -0.6cqh, 0) scaleY(0.9); }
+  to { opacity: 0.75; transform: translate3d(0, 0.6cqh, 0) scaleY(1.12); }
+}
+/* ขอบจางของแสงเหนืออยู่ใน SVG <mask> แล้ว (ดู Area6) — ห้ามใช้ CSS mask-image กับชั้นที่ขยับ (กระตุก) */
+.jb-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+.jb-aurora {
+  transform-origin: 50% 0%;
+  will-change: transform, opacity;
+  animation: jbAurora 16s ease-in-out infinite alternate;
+}
+@keyframes jbAurora {
+  0% { opacity: 0.35; transform: translate3d(-3cqw, 0, 0) scaleY(0.86) skewX(-4deg); }
+  50% { opacity: 0.95; }
+  100% { opacity: 0.55; transform: translate3d(3cqw, 0, 0) scaleY(1.14) skewX(4deg); }
+}
+.jb-glint {
+  animation: jbGlint 3.4s ease-in-out infinite;
+}
+@keyframes jbGlint {
+  0%, 60%, 100% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  75% { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+.jb-eyes {
+  transform-origin: 50% 50%;
+  animation: jbEyes 10s ease-in-out infinite;
+}
+@keyframes jbEyes {
+  0%, 8% { opacity: 0; transform: scaleY(1); }
+  16%, 44% { opacity: 1; transform: scaleY(1); }
+  46% { transform: scaleY(0.08); }
+  48%, 70% { opacity: 1; transform: scaleY(1); }
+  72% { transform: scaleY(0.08); }
+  74% { opacity: 1; transform: scaleY(1); }
+  84%, 100% { opacity: 0; transform: scaleY(1); }
+}
+.jb-flicker {
+  animation: jbFlicker 3s linear infinite;
+}
+@keyframes jbFlicker {
+  0% { opacity: 0.75; }
+  18% { opacity: 1; }
+  22% { opacity: 0.45; }
+  30% { opacity: 0.95; }
+  56% { opacity: 0.6; }
+  62% { opacity: 1; }
+  80% { opacity: 0.7; }
+}
+.jb-flame {
+  transform-origin: 50% 100%;
+  will-change: transform;
+  animation: jbFlame 1.2s ease-in-out infinite alternate;
+}
+.jb-flame > svg {
+  overflow: hidden;
+}
+@keyframes jbFlame {
+  0% { transform: scale(1, 0.9) skewX(-3deg); opacity: 0.9; }
+  35% { transform: scale(0.94, 1.08) skewX(3deg); opacity: 1; }
+  70% { transform: scale(1.04, 0.96) skewX(-1deg); }
+  100% { transform: scale(0.96, 1.14) skewX(4deg); opacity: 0.92; }
+}
+.jb-flash {
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 20%, rgba(255, 40, 30, 0.45), transparent 70%),
+    linear-gradient(180deg, rgba(120, 0, 0, 0.35), transparent 70%);
+  animation: jbFlash 9s linear infinite;
+}
+@keyframes jbFlash {
+  0%, 71% { opacity: 0; }
+  72% { opacity: 0.9; }
+  73% { opacity: 0.1; }
+  74.5% { opacity: 0.75; }
+  78% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ---------- อนุภาค: ชั้นเดียวคลุมจอพอดี (ไม่ใช่ทั้ง stage) ---------- */
+.jb-parts {
+  position: absolute;
+  left: calc(50% - 50cqw);
+  top: calc(50% - 50cqh);
+  width: 100cqw;
+  height: 100cqh;
+  overflow: hidden;
+}
+.jb-p {
+  position: absolute;
+  top: 0;
+  display: block;
+  border-radius: 50%;
+  will-change: transform;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.jb-p-snow,
+.jb-p-snowNight {
+  background: radial-gradient(circle, #ffffff 0%, #ffffff 40%, rgba(214, 230, 248, 0.7) 54%, rgba(255, 255, 255, 0) 72%);
+  animation-name: jbFall;
+}
+.jb-p-snowNight {
+  background: radial-gradient(circle, #eaf8ff 0%, #d4efff 40%, rgba(200, 235, 255, 0) 72%);
+}
+.jb-p-ash {
+  border-radius: 40%;
+  background: #6d5a57;
+  animation-name: jbFall;
+}
+@keyframes jbFall {
+  0% { transform: translate3d(0, -6cqh, 0); }
+  50% { transform: translate3d(calc(var(--dx) * 0.5 + var(--sw)), 48cqh, 0); }
+  100% { transform: translate3d(var(--dx), 104cqh, 0); }
+}
+.jb-p-petal {
+  border-radius: 80% 0 80% 0;
+  opacity: 0.9;
+  animation-name: jbPetal;
+}
+@keyframes jbPetal {
+  0% { transform: translate3d(0, -6cqh, 0) rotate3d(0.4, 1, 0.2, 0deg) rotate(var(--r0)); }
+  50% { transform: translate3d(calc(var(--dx) * 0.5 + var(--sw)), 48cqh, 0) rotate3d(0.4, 1, 0.2, 360deg) rotate(var(--r0)); }
+  100% { transform: translate3d(var(--dx), 104cqh, 0) rotate3d(0.4, 1, 0.2, 720deg) rotate(var(--r0)); }
+}
+.jb-p-ember {
+  top: 100%;
+  background: radial-gradient(circle, #fff1c2 0%, #ffab3d 30%, rgba(255, 70, 20, 0.6) 55%, rgba(255, 40, 10, 0) 72%);
+  animation-name: jbRise;
+}
+@keyframes jbRise {
+  0% { transform: translate3d(0, 2cqh, 0) scale(1); opacity: 0; }
+  8% { opacity: 1; }
+  50% { transform: translate3d(var(--sw), calc(var(--rise) * 0.5), 0) scale(0.85); opacity: 0.95; }
+  100% { transform: translate3d(var(--dx), var(--rise), 0) scale(0.3); opacity: 0; }
+}
+.jb-p-firefly,
+.jb-p-wisp {
+  animation-name: jbWander, jbBlink;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-direction: alternate, alternate;
+}
+.jb-p-firefly {
+  background: radial-gradient(circle, #fbffd0 0%, #e3ff7a 28%, rgba(190, 255, 90, 0.35) 50%, rgba(160, 255, 80, 0) 72%);
+}
+.jb-p-wisp {
+  background: radial-gradient(circle, #eafff8 0%, #8ff0e0 22%, rgba(120, 220, 255, 0.35) 46%, rgba(160, 110, 255, 0) 72%);
+}
+@keyframes jbWander {
+  0% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(var(--ax), var(--ay), 0); }
+  66% { transform: translate3d(var(--bx), var(--by), 0); }
+  100% { transform: translate3d(calc(var(--ax) * -0.6), calc(var(--by) * 0.5), 0); }
+}
+@keyframes jbBlink {
+  0%, 30% { opacity: 0.15; }
+  60%, 100% { opacity: 1; }
+}
+.jb-p-sand,
+.jb-p-sandNight {
+  left: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 226, 170, 0), rgba(255, 226, 170, 0.75) 50%, rgba(255, 226, 170, 0));
+  animation-name: jbBlow;
+}
+.jb-p-sandNight {
+  background: linear-gradient(90deg, rgba(180, 190, 255, 0), rgba(190, 200, 255, 0.5) 50%, rgba(180, 190, 255, 0));
+}
+@keyframes jbBlow {
+  from { transform: translate3d(-12cqw, 0, 0); }
+  to { transform: translate3d(112cqw, var(--dy), 0); }
+}
+
+/* หิมะชั้นไกล: ลายจุดปูกระเบื้อง เลื่อนลงทีละ 1 ช่องแบบวนไร้รอยต่อ -> หิมะหนาแน่นในราคา 1 layer */
+.jb-snowsheet {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: calc(var(--tile) * -1);
+  height: calc(100% + var(--tile));
+  background-size: var(--tile) var(--tile);
+  will-change: transform;
+  animation: jbSheet 14s linear infinite;
+}
+.jb-snowsheet.s1 {
+  --tile: 26cqh;
+  opacity: 0.75;
+  background-image:
+    radial-gradient(circle at 12% 18%, #fff 0, #fff 0.18cqh, transparent 0.34cqh),
+    radial-gradient(circle at 58% 8%, #fff 0, #fff 0.14cqh, transparent 0.3cqh),
+    radial-gradient(circle at 84% 46%, #fff 0, #fff 0.2cqh, transparent 0.36cqh),
+    radial-gradient(circle at 36% 62%, #fff 0, #fff 0.16cqh, transparent 0.32cqh),
+    radial-gradient(circle at 70% 86%, #fff 0, #fff 0.18cqh, transparent 0.34cqh),
+    radial-gradient(circle at 20% 90%, #fff 0, #fff 0.12cqh, transparent 0.28cqh),
+    radial-gradient(circle at 92% 12%, #fff 0, #fff 0.12cqh, transparent 0.28cqh);
+  animation-duration: 16s;
+}
+.jb-snowsheet.s2 {
+  --tile: 40cqh;
+  opacity: 0.85;
+  background-image:
+    radial-gradient(circle at 22% 30%, #fff 0, #fff 0.3cqh, transparent 0.52cqh),
+    radial-gradient(circle at 74% 20%, #fff 0, #fff 0.26cqh, transparent 0.48cqh),
+    radial-gradient(circle at 50% 72%, #fff 0, #fff 0.32cqh, transparent 0.54cqh),
+    radial-gradient(circle at 8% 78%, #fff 0, #fff 0.24cqh, transparent 0.46cqh),
+    radial-gradient(circle at 90% 60%, #fff 0, #fff 0.28cqh, transparent 0.5cqh);
+  animation-duration: 11s;
+}
+.jb-snowsheet.is-night {
+  opacity: 0.6;
+}
+@keyframes jbSheet {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, var(--tile), 0); }
+}
+/* lowQ: ทุกอย่างหยุดนิ่ง (paused + negative delay = ภาพนิ่งกลางอนิเมชัน) ไม่จอง GPU layer */
+.jb-lowq .jb-stage *,
+.jb-lowq .jb-stage {
+  animation-play-state: paused !important;
+  will-change: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jb-p,
+  .jb-snowsheet,
+  .jb-drift,
+  .jb-slide,
+  .jb-spin,
+  .jb-fly,
+  .jb-flap,
+  .jb-orbit,
+  .jb-flame,
+  .jb-flash,
+  .jb-flicker,
+  .jb-shoot,
+  .jb-haze,
+  .jb-sway,
+  .jb-flag,
+  .jb-aurora {
+    animation-play-state: paused !important;
+    will-change: auto;
+  }
+}

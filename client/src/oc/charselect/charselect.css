@@ -1,0 +1,251 @@
+/* หน้าเลือกตัวละคร (ORDEAL CALL) — วงการ์ดตามหมวดรอบลูกโลก + ปุ่มหมวดซ้าย + การ์ดลอย/แผงข้อมูลขวา/ปุ่มยืนยันขวาล่าง (เมื่อเลือกตัว) */
+.cs-screen {
+  --cs-side-r: max(28px, 3vw);
+  --cs-side-w: 384px;
+  /* สูงคงที่ทุกตัวละคร — เว้นแถบบนและปุ่มยืนยันขวาล่าง */
+  --cs-side-h: min(640px, calc(100vh - 240px));
+  --cs-show-w: min(340px, 24vw, 46vh);
+  --cs-gap: max(28px, 2.4vw);
+  /* กล่องแผงข้อมูลยื่นซ้ายเข้าหาภาพหลักเท่านี้ (เส้นโคจรปลายบน/ล่างโค้งเข้าไป) — ตรงกับ ARC_OFF ใน CharacterSelect.jsx */
+  --cs-arc-off: 96px;
+}
+.cs-screen .oc-globe { cursor: default; }
+.cs-screen .oc-globe.is-focus { cursor: grab; }
+.cs-screen .oc-globe[data-pointing] { cursor: pointer; }
+.cs-screen .oc-globe[data-dragging] { cursor: grabbing; }
+
+.cs-top { position: absolute; top: 56px; left: max(16px, 6vw); z-index: 5; display: flex; flex-direction: column; gap: 10px; max-width: min(560px, 50vw); pointer-events: none; }
+.cs-me { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; font: 600 13px/1 var(--oc-f-ui); color: var(--oc-ink); background: rgba(255, 255, 255, 0.86); border: 1px solid var(--oc-line); padding: 7px 10px; }
+.cs-me .p { font: 400 11px/1 var(--oc-f-logo); color: var(--oc-azure); }
+.cs-me b { font-weight: 600; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- ปุ่มหมวด (ปุ่มเล็กแยกกัน เรียงลงด้านซ้าย กึ่งกลางแนวตั้ง) — ซ่อนระหว่างเลือกตัว ---------- */
+.cs-filter-wrap {
+  position: absolute; z-index: 5; left: max(28px, 3vw); top: 112px; bottom: 112px; max-width: 190px;
+  display: flex; flex-direction: column; justify-content: center; pointer-events: none;
+  transition: opacity 0.3s, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
+}
+.cs-filter-wrap.hide { opacity: 0; transform: translateX(-28px); visibility: hidden; transition: opacity 0.25s, transform 0.35s, visibility 0s 0.35s; }
+@media (prefers-reduced-motion: reduce) { .cs-filter-wrap { transition: none; } }
+.cs-filter { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.cs-chip {
+  --c: var(--oc-azure); --fg: #fff;
+  appearance: none; position: relative; pointer-events: auto; display: inline-flex; align-items: center; gap: 8px;
+  max-width: 100%; box-sizing: border-box; padding: 7px 12px 7px 10px; cursor: pointer; text-align: left;
+  font: 600 13px/1.3 var(--oc-f-ui); color: var(--oc-ink);
+  background: rgba(255, 255, 255, 0.86); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  box-shadow: inset 3px 0 0 var(--c), 0 6px 16px -12px rgba(10, 24, 48, 0.5);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.cs-chip-dot { flex: none; width: 7px; height: 7px; background: var(--c); transform: rotate(45deg); transition: background 0.2s; }
+.cs-chip:hover { background: color-mix(in srgb, var(--c) 12%, #fff); border-color: var(--c); }
+.cs-chip:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+.cs-chip.on { background: var(--c); border-color: var(--c); color: var(--fg); box-shadow: 0 8px 18px -12px var(--c); }
+.cs-chip.on .cs-chip-dot { background: var(--fg); }
+.cs-chip.all { margin-bottom: 4px; }
+
+/* ฉากเปิด: เส้นสแกนกวาดลงผ่านโลกครั้งเดียว */
+.cs-scan { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.cs-scan::before, .cs-scan::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 2px; top: 0; opacity: 0;
+  background: linear-gradient(90deg, transparent 8%, rgba(61, 139, 217, 0.55) 30%, rgba(155, 79, 150, 0.6) 50%, rgba(61, 139, 217, 0.55) 70%, transparent 92%);
+  box-shadow: 0 0 18px 2px rgba(127, 184, 230, 0.45);
+  animation: cs-scan 1.5s cubic-bezier(0.45, 0, 0.2, 1) 0.1s both;
+}
+.cs-scan::after { height: 1px; animation-delay: 0.42s; animation-duration: 1.35s; box-shadow: none; }
+@keyframes cs-scan { 0% { transform: translateY(6vh); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 0.8; } 100% { transform: translateY(94vh); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cs-scan { display: none; } }
+
+/* ปุ่มย้อนกลับ — มุมซ้ายล่างเสมอ */
+.cs-back { position: absolute; z-index: 6; left: max(28px, 3vw); bottom: 44px; padding: 12px 18px; font-size: 14px; }
+.cs-back span { color: var(--oc-azure); }
+
+.cs-tip { position: absolute; z-index: 7; left: 0; top: 0; pointer-events: none; background: var(--oc-ink); color: #fff; font: 500 13px/1 var(--oc-f-body); padding: 7px 10px; white-space: nowrap; }
+
+/* ---------- การ์ดที่ลอยออกจากวง → ภาพหลักหกเหลี่ยม (หน้าตาเดียวกับตราโปรไฟล์ในห้องรอ) ข้างแผง ---------- */
+.cs-show-slot {
+  position: absolute; visibility: hidden; pointer-events: none; top: 50%;
+  right: calc(var(--cs-side-r) + var(--cs-side-w) + var(--cs-gap)); width: var(--cs-show-w); aspect-ratio: 7 / 8; transform: translateY(-50%);
+}
+.cs-fly {
+  position: absolute; left: 0; top: 0; z-index: 4; width: var(--cs-show-w); aspect-ratio: 7 / 8;
+  transform-origin: 0 0; pointer-events: none; opacity: 0; will-change: transform, opacity;
+}
+.cs-fly:not([data-placed]) { visibility: hidden; }
+.cs-fly-card { --hex: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); position: absolute; inset: 0; filter: drop-shadow(0 22px 26px rgba(28, 63, 110, 0.3)); transition: filter 0.4s; }
+/* วงหกเหลี่ยมจางๆ รอบภาพหลักตอนลงจอด (กรอบทรงหกเหลี่ยมใช้ box-shadow ไม่ได้) */
+.cs-fly-card::before {
+  content: ""; position: absolute; inset: -3.2% -2.8%; clip-path: var(--hex); opacity: 0; transition: opacity 0.4s;
+  background: linear-gradient(160deg, rgba(201, 154, 214, 0.55), rgba(127, 184, 230, 0.45));
+}
+.cs-fly-hex { position: absolute; inset: 0; clip-path: var(--hex); background: #fff; }
+.cs-fly-face {
+  position: absolute; inset: 2.7%; clip-path: var(--hex); overflow: hidden;
+  background: linear-gradient(160deg, var(--oc-paper) 0%, var(--oc-frost) 100%);
+}
+.cs-fly-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 16%; display: block; }
+.cs-fly-card.dim .cs-fly-art { filter: grayscale(1) brightness(0.85); }
+.cs-fly-face.emoji { background: linear-gradient(150deg, var(--oc-echo-glow), var(--oc-azure)); display: grid; place-items: center; }
+.cs-fly-card.dim .cs-fly-face.emoji { background: linear-gradient(150deg, #b9c3cf, #8ba3c2); }
+.cs-fly-emoji { font-size: calc(var(--cs-show-w) * 0.4); line-height: 1; }
+.cs-fly-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cs-fly-line polygon { fill: none; stroke: rgba(61, 139, 217, 0.8); stroke-width: 1.4px; vector-effect: non-scaling-stroke; }
+.cs-fly-flag {
+  position: absolute; left: 0; right: 0; top: 60%; padding: 9px 6px; text-align: center;
+  background: rgba(18, 38, 72, 0.84); color: #eaf3fc; font: 600 16px/1.2 var(--oc-f-ui);
+}
+.cs-fly[data-landed] .cs-fly-card { animation: cs-bob 4.6s ease-in-out infinite; filter: drop-shadow(0 0 16px rgba(155, 79, 150, 0.28)) drop-shadow(0 30px 28px rgba(28, 63, 110, 0.32)); }
+.cs-fly[data-landed] .cs-fly-card::before { opacity: 0.75; }
+@keyframes cs-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@media (prefers-reduced-motion: reduce) { .cs-fly[data-landed] .cs-fly-card { animation: none; } }
+
+/* ---------- แผงข้อมูลตัวละคร (โผล่เมื่อเลือกตัว) — ไม่ใช่กล่อง: แผ่นป้ายแขวนบนเส้นโคจรที่โค้งรอบภาพหลัก ----------
+   กล่อง .cs-side ขนาดคงที่ทุกตัว กึ่งกลางแนวตั้งเดียวกับภาพหลัก · ขอบซ้ายกล่อง = ขอบขวาหกเหลี่ยม - --cs-arc-off (ARC_OFF ใน jsx)
+   JS (bend) ตั้ง --ax ของทุกแถว [data-arc] = ตำแหน่งเส้นโค้งที่ระดับแถวนั้น → หกเหลี่ยมหัวแถววางบนเส้นพอดี
+   บนลงล่าง: แผ่นชื่อ (หัวเป็นหกเหลี่ยมสีหมวด) → แผ่นสกิลเรียงตามเส้น (หกเหลี่ยม = แต้ม) → ตัวเลือกบทบาท/ท่าไม้ตาย */
+.cs-side {
+  --hexp: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  --node-w: 30px;
+  --plate: polygon(13px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 13px 100%, 0 50%);
+  position: absolute; z-index: 5; top: 50%; right: var(--cs-side-r); height: var(--cs-side-h);
+  width: calc(var(--cs-side-w) + var(--cs-gap) + var(--cs-arc-off));
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  transform: translate(36px, -50%); opacity: 0; visibility: hidden;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s, visibility 0s 0.55s;
+}
+.cs-side.open { transform: translate(0, -50%); opacity: 1; visibility: visible; transition-delay: 0.12s, 0.12s, 0s; }
+@media (prefers-reduced-motion: reduce) { .cs-side { transition: none; } }
+
+/* เส้นโคจร: เส้นหลัก (ไล่จากสีหมวดด้านบนเป็นฟ้า จางที่ปลาย) + เส้นประคู่ขนานจางๆ แบบวงโคจรรอบโลก */
+.cs-orbit { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cs-orbit path { fill: none; vector-effect: non-scaling-stroke; }
+.cs-orbit-line { stroke: url(#cs-orbit-grad); stroke-width: 1.5px; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.cs-orbit-echo { stroke: var(--oc-sky); stroke-opacity: 0.55; stroke-width: 1px; stroke-dasharray: 2 7; transform: translateX(13px); }
+
+/* หกเหลี่ยมหัวแถว (วางบนเส้นโคจร) — มีแต้ม = ทึบสีประเภท · ไม่มีแต้ม = กรอบสีประเภท + เพชรกลาง */
+.cs-node {
+  --k: var(--oc-azure);
+  position: relative; z-index: 0; flex: none; width: var(--node-w); height: 34px; display: grid; place-items: center;
+  font: 600 14px/1 var(--oc-f-ui); color: #fff; transition: transform 0.2s;
+}
+.cs-node::before, .cs-node::after { content: ""; position: absolute; inset: 0; z-index: -1; clip-path: var(--hexp); }
+.cs-node::before { background: linear-gradient(160deg, color-mix(in srgb, var(--k) 72%, #fff), var(--k) 70%); }
+.cs-node.empty::after { inset: 2px; background: #fff; }
+.cs-node i { width: 7px; height: 7px; background: var(--k); transform: rotate(45deg); }
+
+/* แถวที่แขวนบนเส้น: [หกเหลี่ยม][แผ่น] — ขยับซ้าย/ขวาตามเส้นด้วย --ax · ขอบขวาทุกแผ่นตรงกัน */
+.cs-title, .cs-sk {
+  position: relative; flex: none; display: grid; grid-template-columns: var(--node-w) minmax(0, 1fr); column-gap: 7px; align-items: center;
+  margin-left: calc(var(--ax, 150px) - var(--node-w) / 2); pointer-events: auto;
+}
+/* ขีดเชื่อมหกเหลี่ยมกับปลายแผ่น */
+.cs-title::before, .cs-sk::before {
+  content: ""; position: absolute; left: var(--node-w); width: 9px; top: 50%; height: 1px; background: var(--k, var(--oc-azure)); opacity: 0.8;
+}
+
+/* แผ่นชื่อ: หัวแหลมชี้เข้าหาภาพหลัก ตัดมุมขวาบน · แถบสีหมวดบนสุด */
+.cs-title { --k: var(--g); margin-bottom: 4px; }
+.cs-title-node::before { background: var(--g); }
+.cs-title-node::after { content: ""; inset: 2.5px; background: #fff; }
+.cs-title-node i { background: var(--g); width: 8px; height: 8px; }
+.cs-title-plate {
+  --cut: polygon(18px 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 18px 100%, 0 50%);
+  position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: 9px;
+  padding: 14px 18px 15px 30px; clip-path: var(--cut); background: color-mix(in srgb, var(--g) 50%, transparent);
+}
+.cs-title-plate::before {
+  content: ""; position: absolute; inset: 1px; z-index: -1; clip-path: var(--cut);
+  background: linear-gradient(105deg, color-mix(in srgb, var(--g) 10%, #fff) 0%, rgba(255, 255, 255, 0.94) 62%);
+}
+.cs-title-plate::after { content: ""; position: absolute; left: 16px; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--g), color-mix(in srgb, var(--g) 10%, transparent)); }
+.cs-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cs-group, .cs-flag {
+  font: 600 12px/1.2 var(--oc-f-ui); padding: 4px 13px 4px 11px;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+.cs-group { background: var(--g); color: var(--g-ink, #fff); }
+.cs-flag { background: var(--oc-frost); color: var(--oc-ink-2); }
+.cs-flag.bad { background: color-mix(in srgb, var(--oc-hp) 14%, #fff); color: var(--oc-hp); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--oc-hp) 45%, transparent); }
+.cs-name {
+  margin: 0; font: 600 30px/1.18 var(--oc-f-ui); color: var(--oc-ink); overflow-wrap: anywhere; text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* แผ่นชื่อ + รายการสกิล + ตัวเลือก รวมเป็นกลุ่มเดียว กึ่งกลางแนวตั้งที่ภาพหลัก · สกิลล้น = แบบกระชับ (data-dense) · ยังล้น = เลื่อน (data-scroll) */
+.cs-side > .cs-title { margin-top: auto; }
+.cs-side > :last-child { margin-bottom: auto; }
+.cs-skills {
+  flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; gap: 7px;
+  padding: 6px 2px 6px 0; pointer-events: none; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--oc-sky) transparent;
+}
+.cs-skills[data-scroll] {
+  pointer-events: auto;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+.cs-skills[data-dense] { gap: 5px; }
+
+.cs-sk { --k: var(--oc-azure); cursor: help; outline: none; }
+.cs-sk.k-passive { --k: var(--oc-sky); }
+.cs-sk.k-sec { --k: var(--oc-ink-2); }
+.cs-sk.k-ult { --k: var(--oc-echo); }
+.cs-sk.k-passive .cs-node::before { background: linear-gradient(160deg, #a9d0ef, var(--oc-azure) 80%); }
+.cs-sk.k-ult .cs-node { filter: drop-shadow(0 0 5px rgba(201, 154, 214, 0.95)); }
+.cs-sk-plate {
+  position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 16px 9px 24px; clip-path: var(--plate); background: var(--oc-line); transition: background 0.2s;
+}
+.cs-sk-plate::before { content: ""; position: absolute; inset: 1px; z-index: -1; clip-path: var(--plate); background: rgba(255, 255, 255, 0.92); transition: background 0.2s; }
+/* ปลายแหลมสีประเภท */
+.cs-sk-plate::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 15px; background: var(--k); clip-path: polygon(13px 0, 15px 0, 2px 50%, 15px 100%, 13px 100%, 0 50%); }
+.cs-sk-k { font: 600 11.5px/1.2 var(--oc-f-ui); color: color-mix(in srgb, var(--k) 78%, var(--oc-ink)); white-space: nowrap; }
+.cs-sk-n { font: 600 15px/1.3 var(--oc-f-ui); color: var(--oc-ink); overflow-wrap: anywhere; }
+.cs-sk.k-ult .cs-sk-plate { background: color-mix(in srgb, var(--oc-echo) 55%, transparent); }
+.cs-sk.k-ult .cs-sk-plate::before { background: linear-gradient(100deg, color-mix(in srgb, var(--oc-echo) 15%, #fff) 0%, rgba(255, 255, 255, 0.94) 72%); }
+.cs-sk.k-ult .cs-sk-n { color: var(--oc-echo-deep); }
+.cs-sk:hover .cs-sk-plate, .cs-sk:focus-visible .cs-sk-plate, .cs-sk.on .cs-sk-plate { background: var(--k); }
+.cs-sk:hover .cs-sk-plate::before, .cs-sk:focus-visible .cs-sk-plate::before, .cs-sk.on .cs-sk-plate::before { background: color-mix(in srgb, var(--k) 9%, #fff); }
+.cs-sk:hover .cs-node, .cs-sk:focus-visible .cs-node, .cs-sk.on .cs-node { transform: scale(1.1); }
+.cs-skills[data-dense] .cs-sk-plate { flex-direction: row; align-items: baseline; gap: 10px; padding-block: 7px 8px; }
+.cs-skills[data-dense] .cs-sk-n { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-skills[data-dense] .cs-node { width: 26px; height: 30px; justify-self: center; font-size: 13px; }
+
+/* ลำดับตอนเปิด (หลังภาพหลักลอยออก): เส้นโคจรลากตัวเอง → แผ่นชื่อ → แผ่นสกิลทีละแผ่น */
+.cs-side.open .cs-orbit-line { animation: cs-draw 0.95s cubic-bezier(0.45, 0, 0.2, 1) 0.4s both; }
+.cs-side.open .cs-orbit-echo { animation: cs-fade 0.9s ease 0.75s both; }
+.cs-side.open .cs-title { animation: cs-hang 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.55s both; }
+.cs-side.open .cs-sk { animation: cs-hang 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.68s + var(--i, 0) * 0.05s) both; }
+@keyframes cs-draw { from { stroke-dashoffset: 1; } }
+@keyframes cs-fade { from { opacity: 0; } }
+@keyframes cs-hang { from { opacity: 0; transform: translateX(-16px); } }
+@media (prefers-reduced-motion: reduce) {
+  .cs-side.open .cs-orbit-line, .cs-side.open .cs-orbit-echo, .cs-side.open .cs-title, .cs-side.open .cs-sk { animation: none; }
+}
+
+/* ปุ่มยืนยัน — มุมขวาล่าง (คู่กับปุ่มย้อนกลับซ้ายล่าง) โผล่เฉพาะตอนเลือกตัว */
+.cs-confirm-wrap {
+  position: absolute; z-index: 6; right: var(--cs-side-r); bottom: 44px; display: flex; align-items: center; gap: 12px;
+  transform: translateY(16px); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s, visibility 0s 0.45s;
+}
+.cs-confirm-wrap.open { transform: none; opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0.16s, 0.16s, 0s; }
+@media (prefers-reduced-motion: reduce) { .cs-confirm-wrap { transition: none; } }
+.cs-confirm { min-width: 184px; padding: 15px 28px; font-size: 16px; }
+.cs-confirm-why { font: 600 13px/1 var(--oc-f-ui); color: var(--oc-hp); background: #fff; border: 1px solid rgba(210, 69, 91, 0.45); padding: 8px 10px; }
+
+/* คำอธิบาย: โผล่เฉพาะตอนชี้/โฟกัสแถว — ลอยใต้แผ่นที่ชี้ (แถวล่าง = ลอยเหนือ) กว้างเท่าคอลัมน์ขวา ไม่ทับภาพหลัก
+   วางระดับหน้าจอ (รายการสกิลเลื่อนได้ จะตัดกล่องทิ้ง) · ตำแหน่ง left/width/top|bottom ตั้งจาก showDesc */
+.cs-desc {
+  position: absolute; z-index: 8; box-sizing: border-box; pointer-events: none;
+  background: rgba(255, 255, 255, 0.97); border: 1px solid var(--oc-azure); border-left-width: 3px; padding: 11px 14px 12px;
+  font: 300 13.5px/1.6 var(--oc-f-body); color: var(--oc-ink);
+  box-shadow: 0 18px 40px -18px rgba(28, 63, 110, 0.45); white-space: pre-line; animation: cs-desc-in 0.18s ease-out both;
+}
+.cs-desc.up { animation-name: cs-desc-up; }
+.cs-desc b { display: block; font: 600 13.5px/1.3 var(--oc-f-ui); color: var(--oc-azure); margin-bottom: 4px; }
+@keyframes cs-desc-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes cs-desc-up { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .cs-desc { animation: none; } }

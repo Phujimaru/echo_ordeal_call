@@ -1,0 +1,360 @@
+// ECHO 5.0 — โปรแกรมเปิดห้อง/เข้าร่วม (Electron)
+//  หน้าแรก (launcher/) เป็นไฟล์ในเครื่อง · เข้าเกมแล้วหน้าต่างโหลดหน้าเกมจาก server ของห้อง (http://IP:3000)
+//  ปุ่มลัด: F11 = สลับเต็มจอ · F10 = ออกจากห้องกลับหน้าแรก (หรือเมนูมุมขวาบนในเกม → window.echoApp.leaveRoom)
+const { app, BrowserWindow, Menu, ipcMain, clipboard, dialog, session, net } = require("electron");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const room = require("./room");
+const { MediaCache, createHttpHandler } = require("./media");
+const { checkForUpdate } = require("./updater");
+const { R2_PUBLIC_URL, UPDATES_URL, MEDIA_MANIFEST_URL } = require("./config");
+
+const VERSION = app.getVersion();
+// exe (ขั้นถัดไป) จะพกโค้ดเกมไว้ใน resources/game · ตอน dev ใช้ repo ตรงๆ
+const GAME_ROOT = app.isPackaged ? path.join(process.resourcesPath, "game") : path.resolve(__dirname, "..");
+const LAUNCHER = path.join(__dirname, "launcher", "index.html");
+const MEDIA_DIRS = require(path.join(GAME_ROOT, "server", "mediaDirs.js"));
+const ASSET_BASE_URL = process.env.ECHO_ASSET_BASE_URL || R2_PUBLIC_URL;
+// รายการไฟล์สื่อ: exe ใช้ของ R2 เสมอ · ตอน dev ข้ามการโหลด (ใช้ client/public ตรงๆ) เว้นแต่ตั้ง ECHO_MEDIA_MANIFEST (path หรือ URL)
+const MEDIA_MANIFEST = process.env.ECHO_MEDIA_MANIFEST || (app.isPackaged ? MEDIA_MANIFEST_URL : null);
+// ที่ตรวจอัปเดต: exe ใช้ R2 เสมอ · ตอน dev ข้าม (ECHO_UPDATE_URL ใช้ทดสอบกับ exe ที่ build แล้ว)
+const UPDATE_FEED = process.env.ECHO_UPDATE_URL || (app.isPackaged ? UPDATES_URL : null);
+
+// ห้องที่ exe เปิดรับเฉพาะ user agent ที่มี token นี้ (ดู server/app.js) — ต้องตั้งก่อนสร้างหน้าต่าง
+const UA_TOKEN = `ECHO-Desktop/${VERSION}`;
+app.userAgentFallback = `${app.userAgentFallback} ${UA_TOKEN}`;
+
+let win = null;
+let inGame = false;
+let gameBase = null; // origin ของห้องที่อยู่ตอนนี้ (http://IP:3000)
+let media = null; // MediaCache — สร้างหลัง app ready (ต้องรู้ path userData)
+let mediaPrep = null; // Promise ของการเตรียมไฟล์สื่อรอบปัจจุบัน
+let mediaReady = false;
+let updateChecked = false; // ด่านที่ 1 ผ่านแล้ว (ตรวจครั้งเดียวต่อการเปิดโปรแกรม)
+let pendingJoin = null; // ห้องที่เข้าร่วมผ่านการตรวจแล้ว รอหน้าแรกเล่นฉากเปลี่ยนหน้าเสร็จ (echo:enterJoinedRoom)
+
+// ---------- ค่าที่จำไว้ (IP ล่าสุด) ----------
+const settingsFile = () => path.join(app.getPath("userData"), "settings.json");
+function readSettings() {
+  try {
+    return JSON.parse(fs.readFileSync(settingsFile(), "utf8"));
+  } catch {
+    return {};
+  }
+}
+function writeSettings(patch) {
+  try {
+    fs.writeFileSync(settingsFile(), JSON.stringify({ ...readSettings(), ...patch }, null, 2));
+  } catch (err) {
+    console.error("บันทึก settings ไม่สำเร็จ:", err);
+  }
+}
+
+// ---------- IP ของเครื่องนี้ ----------
+// Radmin VPN แจก IP ขึ้นต้น 26. — โชว์ก่อนเสมอ · IP วงแลนอื่นโชว์รองไว้ (เผื่อเล่นบ้านเดียวกัน)
+function localAddresses() {
+  const radmin = [];
+  const other = [];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs || []) {
+      if (a.family !== "IPv4" || a.internal) continue;
+      if (a.address.startsWith("26.")) radmin.push(a.address);
+      else other.push({ name, address: a.address });
+    }
+  }
+  return { radmin, other };
+}
+
+// รับได้ทั้ง "26.1.2.3" และ "26.1.2.3:3000"
+function parseHost(input) {
+  const text = String(input || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const m = text.match(/^([0-9]{1,3}(?:\.[0-9]{1,3}){3}|localhost)(?::([0-9]{1,5}))?$/);
+  if (!m) return null;
+  return { host: m[1], port: m[2] ? Number(m[2]) : room.PORT };
+}
+
+async function fetchJson(url, timeoutMs) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ---------- หน้าต่าง ----------
+// ระดับเสียง 0–1 (ส่งระหว่างหน้าแรก ↔ หน้าเกม) — ค่าอื่น = null
+function cleanVolume(value) {
+  const v = typeof value === "string" ? parseFloat(value) : value;
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
+}
+
+// back = กลับมาจากห้อง (F10/ห้องปิด/โหลดหน้าเกมไม่ได้) → หน้าแรกข้ามหน้า "แตะเพื่อเริ่ม" ไปเมนูเลย
+// volume = ระดับเสียงล่าสุดในหน้าเกม → หน้าแรกใช้ต่อ
+function showLauncher(message, back = true, volume = null) {
+  inGame = false;
+  gameBase = null;
+  pendingJoin = null;
+  const query = {};
+  if (message) query.message = message;
+  if (back) query.back = "1";
+  if (cleanVolume(volume) != null) query.vol = String(cleanVolume(volume));
+  win.loadFile(LAUNCHER, { query });
+}
+
+// musicTime = ตำแหน่งเพลง main5 ของหน้าแรก (วินาที) → หน้าเกมเล่นต่อจากจุดเดิม · volume = ระดับเสียงหน้าแรก
+//  (client/src/audio.js อ่าน #music=…&mt=…&vol=… ครั้งเดียวตอนเปิดหน้า)
+function enterGame(base, musicTime, volume) {
+  inGame = true;
+  gameBase = base;
+  const hash = new URLSearchParams();
+  const t = Number(musicTime);
+  if (Number.isFinite(t) && t >= 0) {
+    hash.set("music", "main5");
+    hash.set("mt", t.toFixed(2));
+  }
+  const v = cleanVolume(volume);
+  if (v != null) hash.set("vol", v.toFixed(2));
+  const h = hash.toString();
+  win.loadURL(h ? `${base}/#${h}` : base);
+}
+
+// ระดับเสียงที่ผู้เล่นตั้งในหน้าเกม (localStorage ของ origin ห้อง) — อ่านไม่ได้/ช้า = null
+async function readGameVolume() {
+  try {
+    const value = await Promise.race([
+      win.webContents.executeJavaScript('localStorage.getItem("echo_vol")', false),
+      new Promise((resolve) => setTimeout(() => resolve(null), 400)),
+    ]);
+    return cleanVolume(value);
+  } catch {
+    return null;
+  }
+}
+
+// ask = ถามยืนยันด้วย dialog (F10) · เมนูในเกมยืนยันในเมนูแล้ว → ไม่ถามซ้ำ
+async function leaveRoom({ ask = true } = {}) {
+  if (!inGame) return false;
+  if (ask) {
+    const hosting = room.isRunning();
+    const { response } = await dialog.showMessageBox(win, {
+      type: "question",
+      buttons: ["ออกจากห้อง", "ยกเลิก"],
+      defaultId: 1,
+      cancelId: 1,
+      title: "ECHO",
+      message: "ออกจากห้องแล้วกลับหน้าแรก?",
+      detail: hosting ? "คุณเป็นคนเปิดห้องนี้ — ออกแล้วห้องจะปิด ทุกคนในห้องจะหลุดจากเกม" : "",
+    });
+    if (response !== 0 || !inGame) return false;
+  }
+  const volume = await readGameVolume();
+  if (!inGame) return false;
+  room.stop();
+  showLauncher(null, true, volume);
+  return true;
+}
+
+function createWindow() {
+  win = new BrowserWindow({
+    title: "ECHO",
+    fullscreen: !process.env.ECHO_WINDOWED, // ECHO_WINDOWED=1 ไว้ทดสอบตอน dev ไม่ให้ทับทั้งจอ
+    width: 1280,
+    height: 800,
+    backgroundColor: "#f7fafd", // ขาวอมฟ้าของธีม ORDEAL CALL — ช่วงเปลี่ยนหน้าแรก → หน้าเกมไม่วาบดำ
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      sandbox: true,
+      // เพลง main5 เริ่มทันทีที่เปิดโปรแกรม และหน้าเกมเล่นต่อได้โดยไม่ต้องรอผู้เล่นแตะจอ
+      autoplayPolicy: "no-user-gesture-required",
+    },
+  });
+
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    if (input.key === "F11") {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    } else if (input.key === "F10") {
+      event.preventDefault();
+      leaveRoom({ ask: true });
+    }
+  });
+
+  // หน้าเกมห้ามเปิดหน้าต่างใหม่/พาออกไปเว็บอื่น
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (event, url) => {
+    const current = win.webContents.getURL();
+    if (current && new URL(url).origin !== new URL(current).origin) event.preventDefault();
+  });
+
+  win.webContents.on("did-fail-load", (_e, code, desc, url, isMainFrame) => {
+    if (!isMainFrame || !inGame || code === -3) return; // -3 = ABORTED (เปลี่ยนหน้าเอง)
+    room.stop();
+    showLauncher(`โหลดหน้าเกมไม่สำเร็จ (${desc})`);
+  });
+
+  showLauncher(null, false);
+}
+
+// ---------- IPC จากหน้าแรก ----------
+ipcMain.handle("echo:info", () => ({
+  version: VERSION,
+  lastHost: readSettings().lastHost || "",
+  addresses: localAddresses(),
+}));
+
+ipcMain.handle("echo:copy", (_e, text) => {
+  clipboard.writeText(String(text));
+  return true;
+});
+
+// ด่านที่ 1: เวอร์ชันต้องตรงกับ R2 — มีใหม่ = โหลด ติดตั้ง แล้วเปิดใหม่เอง
+ipcMain.handle("echo:checkUpdate", async (event) => {
+  if (updateChecked || !UPDATE_FEED) {
+    updateChecked = true;
+    return { ok: true };
+  }
+  const result = await checkForUpdate({
+    feedUrl: UPDATE_FEED,
+    onStatus: (status) => {
+      if (!event.sender.isDestroyed()) event.sender.send("echo:updateStatus", status);
+    },
+  });
+  if (result.ok) updateChecked = true;
+  return result;
+});
+
+// ด่านที่ 2: เตรียมไฟล์สื่อให้ครบก่อนเข้าห้อง — ล้มเหลว = เข้าห้องไม่ได้ (หน้าแรกมีปุ่มลองใหม่)
+ipcMain.handle("echo:prepareMedia", (event) => {
+  if (mediaReady) return { ok: true };
+  if (!updateChecked) return { ok: false, error: "ยังไม่ได้ตรวจเวอร์ชัน" };
+  if (!MEDIA_MANIFEST) {
+    mediaReady = true;
+    return { ok: true, skipped: true };
+  }
+  if (!mediaPrep) {
+    mediaPrep = media
+      .sync(MEDIA_MANIFEST, (progress) => {
+        if (!event.sender.isDestroyed()) event.sender.send("echo:mediaProgress", progress);
+      })
+      .then(() => {
+        mediaReady = true;
+        return { ok: true };
+      })
+      .catch((err) => ({ ok: false, error: err.message }))
+      .finally(() => {
+        mediaPrep = null;
+      });
+  }
+  return mediaPrep;
+});
+
+const NOT_READY = { ok: false, error: "ไฟล์เกมยังโหลดไม่ครบ" };
+
+ipcMain.handle("echo:host", async () => {
+  if (!mediaReady) return NOT_READY;
+  const result = await room.start({
+    gameRoot: GAME_ROOT,
+    version: VERSION,
+    assetBaseUrl: ASSET_BASE_URL,
+    onExit: (code) => {
+      if (win && !win.isDestroyed()) showLauncher(`ห้องหยุดทำงาน (รหัส ${code})`);
+    },
+  });
+  return { ...result, addresses: localAddresses() };
+});
+
+const hostedBase = () => `http://127.0.0.1:${room.PORT}`;
+
+ipcMain.handle("echo:enterHostedRoom", (_e, musicTime, volume) => {
+  if (!room.isRunning()) return { ok: false, error: "ห้องยังไม่ได้เปิด" };
+  enterGame(hostedBase(), musicTime, volume);
+  return { ok: true };
+});
+
+ipcMain.handle("echo:closeHostedRoom", () => {
+  room.stop();
+  return { ok: true };
+});
+
+// เข้าร่วม ขั้นที่ 1: ตรวจ IP + ด่านที่ 3 (เวอร์ชันต้องตรงกับห้อง) — ผ่านแล้วจำห้องไว้ ยังไม่เปลี่ยนหน้า
+//  (หน้าแรกเล่นฉากซูมลูกโลกก่อน แล้วค่อยเรียก echo:enterJoinedRoom)
+ipcMain.handle("echo:join", async (_e, input) => {
+  pendingJoin = null;
+  if (!mediaReady) return NOT_READY;
+  const target = parseHost(input);
+  if (!target) return { ok: false, error: "IP ไม่ถูกต้อง" };
+  const base = `http://${target.host}:${target.port}`;
+  let hostVersion;
+  try {
+    hostVersion = (await fetchJson(`${base}/version`, 5000)).version;
+  } catch {
+    return { ok: false, error: "ติดต่อห้องไม่ได้" };
+  }
+  if (hostVersion !== VERSION) {
+    return { ok: false, error: `เวอร์ชันไม่ตรงกับห้อง (ของคุณ ${VERSION} · ของห้อง ${hostVersion})` };
+  }
+  writeSettings({ lastHost: String(input).trim() });
+  pendingJoin = base;
+  return { ok: true };
+});
+
+// เข้าร่วม ขั้นที่ 2: เปลี่ยนไปหน้าเกมของห้องที่ตรวจผ่านแล้ว
+ipcMain.handle("echo:enterJoinedRoom", (_e, musicTime, volume) => {
+  if (!pendingJoin) return { ok: false, error: "ยังไม่ได้เลือกห้อง" };
+  const base = pendingJoin;
+  pendingJoin = null;
+  enterGame(base, musicTime, volume);
+  return { ok: true };
+});
+
+ipcMain.handle("echo:quit", () => app.quit());
+
+// ---------- IPC จากหน้าเกม (window.echoApp — สิทธิ์น้อยที่สุด) ----------
+// รับเฉพาะเฟรมหลักของหน้าต่างเกม ขณะอยู่ในห้องจริง และ origin ตรงกับห้องที่เข้า
+function fromGamePage(event) {
+  if (!win || win.isDestroyed() || !inGame || !gameBase) return false;
+  if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) return false;
+  try {
+    return new URL(event.senderFrame.url).origin === new URL(gameBase).origin;
+  } catch {
+    return false;
+  }
+}
+
+ipcMain.handle("echoApp:leaveRoom", async (event) => {
+  if (!fromGamePage(event)) return false;
+  return leaveRoom({ ask: false });
+});
+
+// เครื่องนี้เป็นคนเปิดห้องที่อยู่ตอนนี้ไหม (ออกแล้วห้องปิด)
+ipcMain.handle("echoApp:isHost", (event) => fromGamePage(event) && room.isRunning() && gameBase === hostedBase());
+
+// ---------- วงจรชีวิตแอป ----------
+if (!app.requestSingleInstanceLock()) {
+  app.quit(); // เปิดซ้อน 2 ตัวจะแย่งพอร์ต 3000 กัน — ให้หน้าต่างเดิมเด้งขึ้นมาแทน
+} else {
+  app.on("second-instance", () => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  });
+  app.whenReady().then(() => {
+    Menu.setApplicationMenu(null);
+    session.defaultSession.setUserAgent(app.userAgentFallback);
+    media = new MediaCache({ cacheDir: path.join(app.getPath("userData"), "media"), remoteBase: ASSET_BASE_URL, dirs: MEDIA_DIRS });
+    // ไฟล์สื่อตอบจากแคชที่ origin เดิมของหน้าเกม (ดูเหตุผลใน media.js) · คำขออื่นส่งต่อตามปกติ
+    session.defaultSession.protocol.handle("http", createHttpHandler({
+      cache: media,
+      dirs: MEDIA_DIRS,
+      remoteBase: ASSET_BASE_URL,
+      devPublicDir: app.isPackaged ? null : path.join(GAME_ROOT, "client", "public"),
+      passThrough: (request) => net.fetch(request, { bypassCustomProtocolHandlers: true }),
+      fetchRemote: (url, init) => net.fetch(url, { ...init, bypassCustomProtocolHandlers: true }),
+    }));
+    createWindow();
+  });
+  app.on("window-all-closed", () => app.quit());
+  app.on("before-quit", () => room.stop());
+}
