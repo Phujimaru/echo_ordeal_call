@@ -1078,7 +1078,7 @@ function ShopHerald() {
         </svg>
         <div className="relative min-w-0">
           <div className="av-label">ร้านค้ามายา</div>
-          <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">ย้ายแล้ว</div>
+          <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">ปรากฏ</div>
         </div>
       </div>
     </div>
@@ -1095,7 +1095,7 @@ function ShopModal({ shop, me, block, turnsLeft, onClose }) {
       width="min(72rem, 94vw)"
       onClose={onClose}
       right={<span className="flex gap-2">
-        {turnsLeft > 0 && <span className="av-chip"><span>ย้ายในอีก {turnsLeft} เทิร์น</span></span>}
+        {turnsLeft > 0 && <span className="av-chip"><span>เหลือ {turnsLeft} เทิร์น</span></span>}
         <span className="av-chip av-chip-gold"><span>🪙 {me?.gold ?? 0}</span></span>
       </span>}
     >

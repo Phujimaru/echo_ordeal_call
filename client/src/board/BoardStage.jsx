@@ -333,7 +333,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
-    if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `อีก ${state.shopTurnsLeft} เทิร์นย้าย` : "" };
+    if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `เหลือ ${state.shopTurnsLeft} เทิร์น` : "" };
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shopPos, state.shopTurnsLeft]);
 
@@ -442,7 +442,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         </div>
       )}
 
-      {/* ป้ายร้านค้า: อีก N เทิร์นย้าย */}
+      {/* ป้ายร้านค้า: เหลือ N เทิร์น */}
       {shopTag && state.shopTurnsLeft > 0 && (
         <div className="bs-shoptag" style={{ left: shopTag.left, top: shopTag.top }}>🏪 {state.shopTurnsLeft}</div>
       )}

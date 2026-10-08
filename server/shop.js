@@ -95,7 +95,7 @@ function openShop() {
     match.shopItems.push({ id: `shop_${match.shopRoundSeq}_${i}`, ...rolled, sold: false, soldTo: null });
   }
   refreshShopForJourney();
-  match.lastLog.push(`🏪 ร้านค้ามายาเปิดแล้ว! มีสินค้า ${match.shopItems.length} ชิ้น: ${match.shopItems.map(shopItemName).join(", ")}`);
+  match.lastLog.push(`🏪 ร้านค้ามายาปรากฏ — มีสินค้า ${match.shopItems.length} ชิ้น: ${match.shopItems.map(shopItemName).join(", ")}`);
 }
 // การเดินทาง: ผลของภูมิภาคที่มีต่อร้านค้า "คิดใหม่ทุกต้นเทิร์น" (เรียกจาก dealRound + ตอนร้านเปิด + หลังซื้อ)
 //  ร้านเปิดทุก 5 เทิร์นแต่ของค้างอยู่ข้ามช่วงเวลา — เดิมคิดผลครั้งเดียวตอนเปิดร้าน ผลจึงช้ากว่าช่วงจริงทั้งช่วง
@@ -145,7 +145,6 @@ function relocateShop() {
   match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits(), prev);
   match.shopOpenedRound = match.roundNumber;
   openShop();
-  if (prev) match.lastLog.push("🏪 ร้านค้ามายาย้ายแล้ว");
 }
 // ต้นเทิร์น (dealRound): ครบกำหนดย้าย = ย้าย + ของใหม่ · ไม่งั้นแค่คิดผลของภูมิภาคต่อร้านใหม่ตามช่วงเวลา
 function maybeMoveShop() {
