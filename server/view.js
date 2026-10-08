@@ -112,7 +112,7 @@ function buildStateFor(viewerId) {
       // "เปิดแต้ม" (promo, สถานะ Universal): แต้มการ์ดของคนติดสถานะถูกเปิดเผยให้ทุกคนเห็น
       const promoShow = (p.statuses.promo || 0) > 0;
       const ch = CHAR_BY_ID[p.characterId] || {};
-      const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo } : null);
+      const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
       const basicPub = pub(ch.basic);
       const secondaryPub = pub(ch.secondary);
       const ultimatePub = pub(ch.ultimate);
@@ -130,6 +130,10 @@ function buildStateFor(viewerId) {
             + Journey.skillTax(engine, baseCost), // การเดินทาง (ป่าไม้ต้องสาป) — ต้องตรงกับ useSkill()
         );
       };
+      // ระยะสกิลที่ client วาด: range "mov" แปลงเป็นตัวเลขของผู้เล่นคนนี้
+      for (const s of [basicPub, secondaryPub, ultimatePub]) {
+        if (s && s.area && s.area.range === "mov") s.area = { ...s.area, range: action.areaRange(p, s.area) };
+      }
       if (basicPub) basicPub.cost = showCost(basicPub, "basic");
       if (secondaryPub) secondaryPub.cost = showCost(secondaryPub, "secondary");
       if (ultimatePub) ultimatePub.cost = showCost(ultimatePub, "ultimate");

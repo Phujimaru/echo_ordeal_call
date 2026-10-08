@@ -7,7 +7,7 @@
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
-  removeFromOrder,
+  removeFromOrder, hasActed, areaRange, resolveArea,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -58,6 +58,38 @@ function placeOnBoard(area) {
   const alive = combat.alivePlayers();
   const spawns = Board.assignSpawns(map, alive.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
   for (const p of Object.values(match.players)) p.pos = p.alive && spawns[p.id] ? { ...spawns[p.id] } : null;
+}
+
+// ระยะของสกิล (area.range) — "mov" = ระยะเดินปกติสูงสุดของผู้ใช้ (บัฟของโอเบรอน — ผู้ใช้ตัดสิน)
+function areaRange(p, area) {
+  if (!area) return 0;
+  return area.range === "mov" ? baseMovOf(p) : (Number(area.range) || 0);
+}
+// ตรวจระยะสกิลบนกระดาน แล้วคืนรายชื่อผู้โดน (playerId[]) ที่ส่งต่อให้ hook ของตัวละคร — null = ใช้ไม่ได้
+//  self: ไม่สนเป้า · target: เป้า 1 คนในระยะ (self = เลือกตัวเองได้) · aoe: ทุกคนในรัศมี (self = รวมตัวเอง)
+//  line: เลือกทิศ (dir) — ทุกคนในแนว len×width · การคัดเพื่อน/ศัตรูเป็นหน้าที่ของ hook (บางท่าใช้กับศัตรูได้)
+function resolveArea(p, area, targets, dir) {
+  const kind = (area && area.kind) || "self";
+  if (kind === "self" || kind === "field") return Array.isArray(targets) ? targets : [];
+  if (!p.pos) return null;
+  const range = areaRange(p, area);
+  if (kind === "target") {
+    const t = match.players[Array.isArray(targets) ? targets[0] : null];
+    if (!t || !t.alive || !t.pos) return null;
+    if (t.id === p.id) return area.self ? [t.id] : null;
+    return Board.dist(p.pos, t.pos) <= range ? [t.id] : null;
+  }
+  const units = boardUnits();
+  if (kind === "aoe") {
+    const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range)).map((u) => u.id);
+    return area.self ? [p.id, ...ids] : ids;
+  }
+  if (kind === "line") {
+    if (!Board.LINE_DIRS[dir]) return null;
+    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1);
+    return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
+  }
+  return null;
 }
 
 // ---------- ลำดับเดิน ----------
@@ -115,6 +147,14 @@ function nextActor() {
 //  (กำลังเล่นฉากตีอยู่ = ปล่อยให้ตัวจับเวลาของฉากพาไปคนถัดไปเอง ไม่งั้นข้ามสองคน)
 function removeFromOrder(playerId) {
   if (match.actorId === playerId && match.gameState === "ACTION") nextActor();
+}
+
+// เดินไปแล้วในเทิร์นนี้ไหม (ตาของคนนี้ผ่านไปแล้ว — ไม่นับคนที่กำลังเดินอยู่)
+function hasActed(id) {
+  const idx = match.turnOrder.indexOf(id);
+  if (idx < 0) return false;
+  if (idx === match.actorIndex && match.actorId === id) return false;
+  return idx <= match.actorIndex;
 }
 
 // ---------- ตาเดิน ----------

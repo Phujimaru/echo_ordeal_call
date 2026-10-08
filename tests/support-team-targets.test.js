@@ -27,6 +27,9 @@ function setup(mode, supportId) {
     p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.evadeStacks = [];
     p.cards = [{ value: 5, color: 'red' }, { value: 4, color: 'blue' }];
   }
+  // ยืนใกล้กันกลางกระดาน — ทุกคนอยู่ในระยะสกิล (ระยะบัฟของโอเบรอน = ระยะเดิน 4)
+  const spots = [{ x: 7, y: 9 }, { x: 7, y: 8 }, { x: 8, y: 9 }, { x: 6, y: 9 }, { x: 7, y: 10 }];
+  Object.values(engine.players).forEach((p, i) => { p.pos = { ...spots[i] }; });
   engine.setActor('S'); // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7)
   return engine.players;
 }

@@ -110,6 +110,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   attackTarget: action.attackTarget,
   waitAction: action.waitAction,
   finishActor: action.finishActor,
+  hasActed: action.hasActed,
+  skillStrike: attack.skillStrike,
   // เทสต์: ให้ผู้เล่นคนนี้อยู่ในตาเดินของตัวเองทันที (ข้ามช่วงจั่วไพ่/ลำดับเดิน) — ไม่ตั้งตัวจับเวลา
   setActor(id) {
     const p = match.players[id];

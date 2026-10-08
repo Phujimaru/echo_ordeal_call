@@ -31,6 +31,9 @@ function setup({ mode = 'ffa', teams = null } = {}) {
     p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {};
     ob.resetCombat(p);
   }
+  // ยืนใกล้กันกลางกระดาน — ทุกคนอยู่ในระยะสกิล (ระยะบัฟของโอเบรอน = ระยะเดิน 4)
+  const spots = [{ x: 7, y: 9 }, { x: 7, y: 8 }, { x: 8, y: 9 }, { x: 6, y: 9 }, { x: 7, y: 10 }];
+  Object.values(engine.players).forEach((p, i) => { p.pos = { ...spots[i] }; });
   engine.setActor('O'); // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7)
   return engine.players;
 }

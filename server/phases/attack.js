@@ -3,7 +3,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   attackableTargets, attackSoundOf, computeAttackBase,
-  estimateAttackOn, strike, doAttack, boardAttack,
+  estimateAttackOn, strike, skillStrike, doAttack, boardAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -184,6 +184,39 @@ function strike(attacker, target, { counter = false } = {}) {
   if (fragileAmt > 0) defFx(`เปราะบาง (+${fragileAmt} ดาเมจ)`);
 
   return { dmg, dodge: false, kill: !target.alive, skills: fxSkills };
+}
+
+// ดาเมจจากสกิลที่ "ตีด้วยพลังโจมตี" (เช่นคลื่นดาบของมุยมิ) — ไม่ทะลุอะไรเลย (GRID_PLAN §7.3):
+//  หลบหลีกหลบได้ (แม่นยำเจาะได้) · คุ้มครองลด · ขัดแย้ง/เปราะบางเพิ่ม · เกราะ/โล่รับก่อน (dealMixed)
+//  ต่างจากตีปกติ: ไม่นับเป็นการโจมตีปกติ (ไม่ตีสวน · ไม่ใช้เสริมพลัง · ไม่ติดผลตีปกติของตัวละคร · ไม่มีเนตรมณะ/ป่าพลาดเป้า)
+//  คืน { dmg, dodge, kill }
+function skillStrike(attacker, target, reason) {
+  const accurate = accurateActive(attacker);
+  if (!accurate && (target.statuses.evade || 0) > 0) {
+    const evadePct = statusAmtOf(target, "evade") || 100;
+    consumeEvadeStack(target);
+    if (Math.random() * 100 < evadePct) {
+      match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
+      return { dmg: 0, dodge: true, kill: false };
+    }
+  }
+  const atkCtx = computeAttackBase(engine, attacker, target);
+  let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
+  if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
+  let dmg = base + statusAmtOf(attacker, "might");
+  dmg = Math.max(0, dmg - (statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker)));
+  const guardAmt = (target.statuses.guard || 0) > 0 ? (statusAmtOf(target, "guard") || 1) : 0;
+  dmg = Math.max(0, dmg - guardAmt);
+  if ((target.statuses.discord || 0) > 0) dmg += 1;
+  dmg += statusAmtOf(target, "fragile");
+  combat.dealMixed(target, dmg, true);
+  match.lastLog.push(`${attacker.name} ${reason} → ${target.name} -${dmg} (ลดเกราะก่อน)`);
+  if (target.alive && target.hp <= 0) {
+    combat.instantDeath(target);
+    if (!target.alive) match.lastLog.push(`💀 ${target.name} เลือดจริงหมด ตกรอบ!`);
+  }
+  if (!target.alive) target.pos = null;
+  return { dmg, dodge: false, kill: !target.alive };
 }
 
 // การ์ดฉากตี 1 จังหวะ (ตี หรือ ตีสวน) — client วาดใครตีใคร + เหตุผลดาเมจ

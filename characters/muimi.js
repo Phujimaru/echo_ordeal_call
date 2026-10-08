@@ -71,7 +71,7 @@ module.exports = {
     return Math.max(0, (p.muimiUltLock || 0) - engine.roundNumber + 1);
   },
 
-  applyInstantSkill(engine, p, tier) {
+  applyInstantSkill(engine, p, tier, targets) {
     p.statuses ||= {};
     if (tier === "basic") {
       p.muimiEmergencyUses = Math.max(0, (p.muimiEmergencyUses || 0) - 1);
@@ -95,7 +95,15 @@ module.exports = {
       p.transformAt = engine.nextTransformCounter();
       engine.queueCutscene(p, p.muimiUltCasts === 1 ? "muimiUltimateFull" : "muimiUltimateShort");
       engine.log(`⚔️ ${p.name} ได้รับสถานะ “ดาบสะบั้น” ${TOWER_TURNS} เทิร์น และ “ต้านสถานะผิดปกติ” ${RESIST_TURNS} เทิร์น`);
-      return " — ได้รับสถานะ ดาบสะบั้น";
+      // คลื่นดาบแนว 4×3 (GRID_PLAN §7.3): ได้ดาบสะบั้นก่อน แล้วฟันด้วยพลังโจมตีที่รวม +3 แล้ว · เฉพาะศัตรู
+      let hits = 0;
+      for (const id of targets || []) {
+        const t = engine.players[id];
+        if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
+        const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
+        if (!res.dodge) hits++;
+      }
+      return hits ? ` — ได้รับสถานะ ดาบสะบั้น · คลื่นดาบโดน ${hits} คน` : " — ได้รับสถานะ ดาบสะบั้น";
     }
     return "";
   },

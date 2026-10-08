@@ -20,9 +20,9 @@ const action = require("./phases/action");
 const lobby = require("./lobby");
 const view = require("./view");
 
-function useSkill(id, tier, targets) {
+function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
-  if (!match.effectSourceId && p) return combat.withEffectSource(p, () => useSkill(id, tier, targets));
+  if (!match.effectSourceId && p) return combat.withEffectSource(p, () => useSkill(id, tier, targets, opts));
   if (!p || !p.alive) return;
   // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7) — ใช้แล้วเดินไม่ได้อีก แต่ยังโจมตีได้
   if (!action.canAct(p)) return;
@@ -49,6 +49,10 @@ function useSkill(id, tier, targets) {
   if (p.skillPoints < cost) return;
 
   const st = skill.effect && !Array.isArray(skill.effect) && skill.effect.type === "status" ? skill.effect.status : null;
+
+  // ระยะบนกระดาน (GRID_PLAN §7): เป้านอกระยะ/ไม่ได้เลือกทิศ = กดไม่ได้ · ได้รายชื่อผู้โดนจริงส่งต่อให้ hook
+  targets = action.resolveArea(p, skill.area, targets, opts.dir);
+  if (!targets) return;
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
   const hook = CHAR_HOOKS[p.characterId];

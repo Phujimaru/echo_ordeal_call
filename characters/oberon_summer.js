@@ -1,15 +1,17 @@
 // ============================================================
 //  โอเบรอน (ฤดูร้อน) — ระดับกลาง
 //
-//  สกิลพื้นฐาน ม่านแห่งราตรี (2 แต้ม · กดซ้ำไม่ได้ระหว่างผลยังอยู่) — ทำงานก่อนเปิดการ์ด
-//    ผู้เล่นทุกคน (โหมดทีม: ตัวเอง + เพื่อนร่วมทีมเท่านั้น) พลังโจมตี +1 3 เทิร์น และฟื้นพลังชีวิต 1
-//  สกิลรอง นกจาบยามเช้า (4 แต้ม · ไม่กินโควตาสกิลของเทิร์น แต่กดได้ 1 ครั้ง/เทิร์น) — ทำงานก่อนเปิดการ์ด
-//    เลือก 1 คน (ใครก็ได้รวมตัวเอง ทุกโหมด — ข้อยกเว้นของโอเบรอน: ใช้ผลเสียของท่ากับศัตรูได้)
+//  ระยะทุกท่า = ระยะเดินปกติสูงสุดของโอเบรอน (area range "mov" ใน characters.js — server/skills.js ตรวจให้)
+//  สกิลพื้นฐาน ม่านแห่งราตรี (2 แต้ม · กดซ้ำไม่ได้ระหว่างผลยังอยู่)
+//    ทุกคนในรัศมี (โหมดทีม: ตัวเอง + เพื่อนร่วมทีมเท่านั้น) พลังโจมตี +1 3 เทิร์น และฟื้นพลังชีวิต 1
+//  สกิลรอง นกจาบยามเช้า (4 แต้ม · ไม่กินโควตาสกิลของเทิร์น แต่กดได้ 1 ครั้ง/เทิร์น)
+//    เลือก 1 คนในระยะ (ใครก็ได้รวมตัวเอง ทุกโหมด — ข้อยกเว้นของโอเบรอน: ใช้ผลเสียของท่ากับศัตรูได้)
 //    ฟื้นพลังชีวิต 5 + ต้านสถานะผิดปกติ 2 เทิร์น + ล้างดีบัฟที่โดนล่าสุด 1 อย่าง
 //    ต้นเทิร์นถัดไป เป้าหมายเสียพลังชีวิต 2 แบบทะลุเกราะ (ต้านสถานะกันไม่ได้ · ตายได้)
-//  ท่าไม้ตาย จุดจบของความฝัน (4 แต้ม · คูลดาวน์ 5 เทิร์น) — ทำงานก่อนเปิดการ์ด
-//    เลือก 1 คน (ใครก็ได้รวมตัวเอง ทุกโหมด) พลังโจมตี +4 เฉพาะเทิร์นนี้
-//    จบเทิร์นนี้ -> ติดสตั้น 3 เทิร์น เริ่มเทิร์นถัดไป (ต้านสถานะผิดปกติกันได้)
+//  ท่าไม้ตาย จุดจบของความฝัน (4 แต้ม · คูลดาวน์ 5 เทิร์น)
+//    เลือก 1 คนในระยะ (ใครก็ได้รวมตัวเอง ทุกโหมด) พลังโจมตี +4 จนจบตาเดินถัดไปของเป้า (GRID_PLAN §7.4)
+//    ให้ก่อนเป้าเดิน (หรือให้ตัวเอง) = ใช้ได้เทิร์นนี้ · ให้หลังเป้าเดินไปแล้ว = ใช้เทิร์นหน้า
+//    จบเทิร์นที่เป้าได้ใช้บัฟ -> ติดสตั้น 3 เทิร์น เริ่มเทิร์นถัดไป (ต้านสถานะผิดปกติกันได้)
 //  สกิลติดตัว หน้าไหว้หลังหลอก — จบเทิร์นที่ไม่ถูกโจมตีปกติเลย (ถูกเลือกเป็นเป้าก็นับว่าถูกโจมตี แม้หลบได้)
 //    แต้มสกิล +1 และเหรียญ +1
 //
@@ -40,10 +42,11 @@ const DREAM_COOLDOWN = 5;
 
 const isOberon = (p) => !!p && p.characterId === ID;
 
-// ผู้รับผลดี "ทุกคน": โหมดทีม = ตัวเอง + เพื่อนร่วมทีม · ffa = ทุกคนที่ยังอยู่
-function allies(engine, src) {
+// ผู้รับผลดี "ทุกคนในรัศมี": โหมดทีม = ตัวเอง + เพื่อนร่วมทีม · ffa = ทุกคน (ids = ผู้ที่อยู่ในรัศมีจาก server/skills.js)
+function allies(engine, src, ids) {
   const teamish = engine.teamModeActive();
-  return engine.alivePlayers().filter((o) => !teamish || o.id === src.id || engine.isAlly(src, o));
+  const inArea = Array.isArray(ids) ? new Set(ids) : null;
+  return engine.alivePlayers().filter((o) => (!inArea || inArea.has(o.id)) && (!teamish || o.id === src.id || engine.isAlly(src, o)));
 }
 function pickTarget(engine, targets) {
   const t = engine.players[Array.isArray(targets) ? targets[0] : null];
@@ -59,7 +62,7 @@ module.exports = {
     p.obsVeilUntil = 0;     // ม่านแห่งราตรี: กดได้อีกเมื่อ roundNumber >= ค่านี้ (ผลบนตัวผู้เล่นหมดแล้ว)
     p.obsLarkRound = 0;     // นกจาบยามเช้า: เทิร์นที่กดล่าสุด (กดได้ 1 ครั้ง/เทิร์น)
     p.obsUltReady = 0;      // จุดจบของความฝัน: กดได้อีกเมื่อ roundNumber >= ค่านี้
-    p.obsDreamStunDue = false; // ที่ตัวเป้าหมาย: จบเทิร์นนี้ติดสตั้น 3 เทิร์น
+    p.obsDreamUseRound = 0;    // ที่ตัวเป้าหมาย: เทิร์นที่ได้ใช้บัฟ +4 — จบเทิร์นนั้นติดสตั้น 3 เทิร์น
   },
 
   // พลังโจมตีจากท่าของโอเบรอน (ungated — อ่านที่ computeAttackBase ใครติดก็ได้)
@@ -91,7 +94,7 @@ module.exports = {
     const round = engine.roundNumber;
     if (tier === "basic") {
       p.obsVeilUntil = round + VEIL_TURNS;
-      const list = allies(engine, p);
+      const list = allies(engine, p, targets);
       for (const o of list) {
         engine.applyBuff(o, "obsVeil", VEIL_ATK, VEIL_TURNS);
         engine.healHp(o, VEIL_HEAL);
@@ -112,9 +115,11 @@ module.exports = {
     if (tier === "ultimate") {
       const t = pickTarget(engine, targets);
       p.obsUltReady = round + DREAM_COOLDOWN;
-      engine.applyBuff(t, "obsDream", DREAM_ATK, 1);
-      t.obsDreamStunDue = true;
-      engine.log(`💤 ${p.name} จุดจบของความฝัน → ${t.name} พลังโจมตี +${DREAM_ATK} เทิร์นนี้ — จบเทิร์นแล้วจะติดสตั้น ${DREAM_STUN_TURNS} เทิร์น`);
+      // เป้าเดินไปแล้วในเทิร์นนี้ = ได้ใช้บัฟในตาเดินของเทิร์นหน้า (บัฟอยู่ 2 เทิร์น) · ยังไม่เดิน/ตัวเอง = เทิร์นนี้
+      const later = engine.hasActed(t.id);
+      t.obsDreamUseRound = later ? round + 1 : round;
+      engine.applyBuff(t, "obsDream", DREAM_ATK, later ? 2 : 1);
+      engine.log(`💤 ${p.name} จุดจบของความฝัน → ${t.name} พลังโจมตี +${DREAM_ATK} ${later ? "ในตาเดินเทิร์นหน้า" : "ตาเดินนี้"} — จากนั้นจะติดสตั้น ${DREAM_STUN_TURNS} เทิร์น`);
       return ` → ${t.name}`;
     }
     return "";
@@ -138,8 +143,9 @@ module.exports = {
   // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ — สตั้นที่ติดตรงนี้จึงเต็ม 3 เทิร์นถัดไป) ----------
   onEndTurn(engine) {
     for (const t of Object.values(engine.players)) {
-      if (!t.obsDreamStunDue) continue;
-      t.obsDreamStunDue = false;
+      if (!t.obsDreamUseRound || t.obsDreamUseRound !== engine.roundNumber) continue;
+      t.obsDreamUseRound = 0;
+      delete t.statuses.obsDream; // ตาเดินที่ได้ใช้บัฟผ่านไปแล้ว
       if (!t.alive) continue;
       if (engine.applyDebuff(t, "stun", null, DREAM_STUN_TURNS)) engine.log(`💤 ${t.name} ความฝันจบลง — ติดสตั้น ${DREAM_STUN_TURNS} เทิร์น`);
       else engine.log(`💤 ${t.name} ต้านทานสตั้นจากจุดจบของความฝันได้ (ต้านสถานะผิดปกติ)`);
@@ -162,6 +168,4 @@ module.exports = {
       ultimate: { cd: Math.max(0, (p.obsUltReady || 0) - round) },
     };
   },
-  // ช่องที่ต้องเลือกเป้าหมาย (client เปิดโหมดเลือก) — anyone = เลือกศัตรูได้แม้ในโหมดทีม
-  targetSkills: { secondary: { anyone: true }, ultimate: { anyone: true } },
 };
