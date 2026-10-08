@@ -10,7 +10,7 @@ module.exports = [
   },
   // server.js + server/**/*.js + characters/*.js + tests/*.js — Node CommonJS
   {
-    files: ["server.js", "server/**/*.js", "characters/**/*.js", "tests/**/*.js"],
+    files: ["server.js", "server/**/*.js", "characters/**/*.js", "tests/**/*.js", "scripts/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
