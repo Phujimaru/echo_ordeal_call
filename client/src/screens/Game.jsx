@@ -1375,21 +1375,6 @@ function CharModal({ ch, me, onClose }) {
   );
 }
 
-// มุยมิ: แสดงจำนวนการแพ้ต่อเนื่องของ “หัวใจนักสู้” แบบสด (ครบ 3 จะสุ่มผลในเทิร์นถัดไป)
-function MuimiLoseBadge({ me, ch }) {
-  if (!ch || ch.id !== "muimi") return null;
-  const max = me.muimiLoseStreakMax || 3;
-  const losses = Math.max(0, Math.min(max, me.muimiLoseStreak || 0));
-  return (
-    <span
-      className={`text-xs font-bold rounded-full px-2 py-0.5 whitespace-nowrap ${losses >= max ? "bg-echo-hp animate-pulse" : losses > 0 ? "bg-black/55 text-echo-hp" : "bg-black/55"}`}
-      title="หัวใจนักสู้ — แพ้การจั่วหรือไพ่แตกต่อเนื่องครบ 3 ครั้ง แล้วสุ่มโอกาส 50% ให้คู่ต่อสู้ทุกคนไพ่แตกในเทิร์นถัดไป"
-    >
-      💖 แพ้ต่อเนื่อง {losses}/{max}
-    </span>
-  );
-}
-
 // ---------- QTE กลาง (server/qte.js) — เดสก์ท็อป: กด W/A/S/D ตามที่ขึ้น ----------
 //  server ส่งมาแค่ "ปุ่มตัวถัดไป" ตัวเดียว (ส่งทั้งชุด = เห็นล่วงหน้าทั้งเพลง หมดความหมาย)
 //  แถบเวลาวิ่งเองฝั่ง client เพื่อความลื่น แต่ผลตัดสินที่ server เสมอ (deadline เป็นเวลาของ server)
@@ -2011,7 +1996,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2 min-w-0">
                 {<LifeBar p={me} />}
                 {<StatusChips p={me} left />}
-                <MuimiLoseBadge me={me} ch={ch} />
                 <span className="ml-auto flex items-center gap-1.5">
                   <span className="flex gap-1 p-1 rounded-lg bg-black/25">
                     {Array.from({ length: me.maxSkill }, (_, i) => (
@@ -2208,9 +2192,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   <StatRow big kind="ar" value={me.armor} max={me.maxArmor} />
                   <VitalExtras p={me} className="pc-extra-inline" />
                 </div>}
-              chips={
-                <MuimiLoseBadge me={me} ch={ch} />
-              }
               statuses={meStatuses}
               rawStatuses={me.statuses || {}}
             />

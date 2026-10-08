@@ -65,6 +65,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
   const [hover, setHover] = useState(null);
   const [danger, setDanger] = useState(false);
+  // หมุนกระดาน 4 มุม (ทีละ 90° ตามเข็มนาฬิกา) — จำไว้ในเครื่องผู้เล่น · Q / E = หมุนซ้าย / ขวา
+  const [rotation, setRotation] = useState(() => {
+    try { return Number(localStorage.getItem("echo.boardRotation")) % 4 || 0; } catch { return 0; }
+  });
+  const rotate = useCallback((d) => setRotation((r) => {
+    const n = (r + d + 4) % 4;
+    try { localStorage.setItem("echo.boardRotation", String(n)); } catch { /* ไม่มีที่เก็บ */ }
+    return n;
+  }), []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.key === "q" || e.key === "Q") rotate(-1);
+      else if (e.key === "e" || e.key === "E") rotate(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rotate]);
   const hoverUnit = hover ? state.players.find((p) => p.alive && samePos(p.pos, hover)) : null;
 
   // ---------- ระยะเดินของเรา ----------
@@ -315,22 +333,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
-    const k = key(hover.x, hover.y);
-    const info = Rules.TERRAIN_INFO || {};
-    const sp = map.special && map.special[k];
-    if (sp) return info[sp] || { name: sp, desc: "" };
-    if (map.heal && map.heal.has(k)) return info.heal || { name: "จุดฟื้นฟู", desc: "จบตาบนช่องนี้ พลังชีวิต +1" };
-    if (samePos(shopPos, hover)) return { name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `อีก ${state.shopTurnsLeft} เทิร์นย้าย` : "" };
-    return null;
+    if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `อีก ${state.shopTurnsLeft} เทิร์นย้าย` : "" };
+    return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shopPos, state.shopTurnsLeft]);
 
   // ป้ายร้านค้าลอยเหนือแผง (ตำแหน่งจอจากสูตรเดียวกับตัววาด)
   const shopTag = useMemo(() => {
     if (!shopPos || !vp) return null;
     const view = computeView(vp.w, vp.h);
-    const [lx, ly] = tileCenter(shopPos.x, shopPos.y, 2.1);
+    const [lx, ly] = tileCenter(shopPos.x, shopPos.y, 2.1, rotation);
     return { left: view.ox + lx * view.k, top: view.oy + ly * view.k };
-  }, [shopPos, vp]);
+  }, [shopPos, vp, rotation]);
 
   // ---------- หน้าต่างคาดการณ์ ----------
   const forecast = plan && state.forecast ? state.forecast[plan.foe.id] : null;
@@ -351,6 +364,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         shopPos={shopPos}
         night={night}
         lowQ={lowQ}
+        rotation={rotation}
         anim={anim}
         fx={fx}
         onAnimDone={onAnimDone}
@@ -411,15 +425,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         </div>
       )}
 
-      {/* ปุ่มระยะอันตราย */}
-      <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
-        ระยะอันตราย
-      </button>
+      {/* ปุ่มระยะอันตราย + หมุนกระดาน */}
+      <div className="bs-tools">
+        <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
+        <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
+        <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
+          ระยะอันตราย
+        </button>
+      </div>
 
       {/* ป้ายข้อมูลช่อง */}
       {tileInfo && (
         <div className="bs-tile">
-          <div className="bs-tile-name">{tileInfo.name}</div>
+          <div className="bs-tile-name">{tileInfo.icon ? `${tileInfo.icon} ` : ""}{tileInfo.name}</div>
           {tileInfo.desc && <div className="bs-tile-desc">{tileInfo.desc}</div>}
         </div>
       )}

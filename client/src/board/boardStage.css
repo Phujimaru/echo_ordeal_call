@@ -58,8 +58,14 @@
 .bs-btn-gold:hover { background: #ffd98a; }
 
 /* ---------- ปุ่มระยะอันตราย ---------- */
+.bs-tools { position: absolute; top: 64px; right: 14px; z-index: 20; display: flex; gap: 6px; }
+.bs-tool {
+  cursor: pointer; width: 34px; font: 600 18px var(--oc-f-ui); color: #fff;
+  background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
+}
+.bs-tool:hover { background: #24406e; }
 .bs-danger {
-  position: absolute; top: 64px; right: 14px; z-index: 20; cursor: pointer;
+  cursor: pointer;
   font: 600 14px var(--oc-f-body); color: #fff; padding: 5px 14px;
   background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
 }
