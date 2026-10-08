@@ -1,42 +1,34 @@
-# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08 · ขั้น 4 เสร็จ)
+# บันทึกส่งต่องาน ECHO (อัปเดต 2026-10-08 · ระบบกระดานลงครบทุกขั้น)
 
-> สำหรับ session ถัดไป: อ่านไฟล์นี้ให้จบก่อนเริ่มงาน แล้วอ่าน [CLAUDE.md](../CLAUDE.md), [GRID_PLAN.md](../GRID_PLAN.md) (กติกาทั้งหมดที่ผู้ใช้ตัดสินแล้ว) และ [GAME_SYSTEM.md](../GAME_SYSTEM.md) §1–§3
-> คุยกับผู้ใช้เป็นภาษาไทยเสมอ · **commit + push `origin/main` ทุกครั้งที่จบขั้นของ GRID_PLAN §13 (ผู้ใช้อนุญาตแล้ว ไม่ต้องถาม)**
-> ผู้ใช้ชอบให้แบ่งงานคู่ขนานให้ subagent ได้ (แยกไฟล์กันชัดเจน)
+> สำหรับ session ถัดไป: อ่านไฟล์นี้ให้จบก่อนเริ่มงาน แล้วอ่าน [CLAUDE.md](../CLAUDE.md), [GRID_PLAN.md](../GRID_PLAN.md) (กติกาทั้งหมดที่ผู้ใช้ตัดสินแล้ว) และ [GAME_SYSTEM.md](../GAME_SYSTEM.md) §1–§3 + §17
+> คุยกับผู้ใช้เป็นภาษาไทยเสมอ · **commit + push `origin/main` ทุกครั้งที่จบขั้นงาน (ผู้ใช้อนุญาตแล้ว ไม่ต้องถาม)**
+> ผู้ใช้ชอบให้แบ่งงานคู่ขนานให้ subagent ได้ (แยกไฟล์กันชัดเจน · งานที่ชนไฟล์เดียวกันใช้ worktree แล้ว merge)
 
 ## สถานะ repo (C:\Echo · remote `github.com/Phujimaru/echo_ordeal_call` · branch `main`)
 
 - ย้ายมาจาก `C:\backjact` @ `3b687da` (เริ่มประวัติ git ใหม่) · เหลือตัวละคร `muimi` + `oberon_summer` + ระบบกลาง Mark 42 / ปืน GUTS / การเดินทาง 7 ภูมิภาค / สถานะ Universal · โหมด ffa / duo / trio
-- ตรวจล่าสุด: `npm test` **187/187** · build client ผ่าน · `npx eslint .` 0 error
-- **Overload Force ถอดออกทั้งระบบแล้ว (ผู้ใช้สั่ง 2026-10-08 — "ห้ามมี")** `2d12ab7` · yuna ไม่มีโค้ดเหลือใน repo นี้ (ตัดไปตั้งแต่ย้ายจาก backjact) — **ห้ามใส่กลับทั้งคู่**
-  · โฟลเดอร์สื่อ `/overload_force` ยังอยู่เพราะเพลงท่าไม้ตายมุยมิ (`overload_force_theme.mp3`) อยู่ในนั้น
-- **กำลังเปลี่ยนเป็นเกมกระดานแบบ Fire Emblem** — ความคืบหน้าตาม GRID_PLAN §13:
-  - ✅ ขั้น 1 `server/board.js` (แผนที่ภูมิภาค I, BFS, ระยะ, ตีสวน/ถอย, จุดเกิด, ร้าน) + `tests/board.test.js`
-  - ✅ ขั้น 2 วงจรเทิร์น server: PLAYING (จั่ว/พอ) → ORDER → ACTION → ATTACKING · `server/phases/action.js` · `tests/action.test.js`, `tests/turn-order.test.js`
-  - ✅ ขั้น 3 ระยะสกิล (`area` ใน characters.js · `resolveArea` ใน action.js เรียกจาก skills.js) · คลื่นดาบมุยมิ 4×3 (`attack.skillStrike`) · จังหวะบัฟ/สตั้นโอเบรอน (`obsDreamUseRound`, `hasActed`) · `tests/skill-area.test.js`
-  - ✅ ตัววาดกระดาน client (ส่วนหนึ่งของขั้น 5): `client/src/board/BoardCanvas.jsx` + `boardDraw.js` + พรีวิว `?board=1` (`BoardPreview.jsx`) — **ยังไม่ได้ต่อเข้า Game.jsx**
-  - ✅ ขั้น 4 (server): ร้านบนแผนที่ `shop.maybeMoveShop/relocateShop` (เทิร์น 1, 6, 11 … · `match.shopPos`/`shopOpenedRound` · ร้านกินช่องผ่าน `action.boardBlocked()`) · ซื้อต้องยืนติดร้าน · กระเป๋า `BAG_SLOTS` 5 + socket `dropItem {uid}` · ปืน GUTS `fireGuts` ระยะ [1,4] = การโจมตีของตา → `attack.gunAttack` (ฉาก ATTACKING `attack.gun` + ตีสวน/ถอยร่วมกับตีปกติผ่าน `counterAndPush`) · Mark 42 ใส่ให้/ระเบิดใส่/เรียกคืน ต้องติดกัน · ถอดยาเปลี่ยนสีการ์ด/ยาลดไพ่ · state ใหม่ `shopPos`, `shopTurnsLeft`, `bagSlots`, `gutsRange` · `tests/shop-board.test.js`
-    - **client ยังไม่ได้แตะ**: Game.jsx ยังมี UI ยาเปลี่ยนสีการ์ด (`colorPickUid`) + `client/src/data/shop.js` ยังมี cardColor/cardRemove + ร้านเด้งอัตโนมัติ — ล้าง/ทำใหม่ในขั้น 6 (ร้านบนแผนที่ + ปุ่มทิ้ง + ป้าย "อีก N เทิร์นย้าย")
-  - ⏭️ **ถัดไป ขั้น 5**: ต่อ BoardCanvas เข้า Game.jsx (หัวข้อด้านล่าง)
-  - ขั้น 5–6: ต่อ BoardCanvas เข้า Game.jsx (แถบลำดับเดิน, เดิน/ย้อน/ตี/รอ, คาดการณ์ผล, ระยะอันตราย, ป้ายระยะบนปุ่มสกิล, เลือกทิศสกิลแนว) — วิธีแปลง state → props ดูหัวข้อด้านล่าง
-  - ขั้น 7: ภูมิภาค II–VII — **ผู้ใช้ให้ Claude ออกแบบผังเอง และอยากได้ช่องพิเศษแบบ Fire Emblem** (ร่างใน GRID_PLAN §3.1 — ทำพรีวิวให้ผู้ใช้ดู/ยืนยันตัวเลขก่อนลงโค้ด) · ธีมภาพรายภูมิภาคใน boardDraw.js (ตอนนี้ทุกภูมิภาควาดปราสาทของ I)
-  - ขั้น 8: เอกสาร GAME_SYSTEM.md / skill add-character ให้ตรง (§2–§3 อัปเดตแล้ว)
-- **ตอนนี้หน้าจอเกมเดิม (Game.jsx) เล่นกับ server ใหม่ไม่ได้** (ยังอ่าน attackerId/SUMMARY/ATTACK แบบเดิม) จนกว่าขั้น 5 เสร็จ — ทดสอบผ่านเทสต์เป็นหลัก · พรีวิวที่ใช้ได้: `?board=1`, `?hud=1&game=1`
+- ตรวจล่าสุด: `npm test` **212/212** · build client ผ่าน · `npx eslint .` 0 error
+- **Overload Force ถอดออกทั้งระบบแล้ว (ผู้ใช้สั่ง — "ห้ามมี")** `2d12ab7` · yuna ไม่มีโค้ดเหลือ — **ห้ามใส่กลับทั้งคู่** · โฟลเดอร์สื่อ `/overload_force` ยังอยู่เพราะเพลงท่าไม้ตายมุยมิอยู่ในนั้น
+- **เกมกระดานแบบ Fire Emblem — GRID_PLAN §13 ลงครบ:**
+  - ✅ 1 `board.js` · ✅ 2 วงจรเทิร์น PLAYING → ORDER → ACTION → ATTACKING · ✅ 3 ระยะสกิล `area` · ✅ 4 ร้านบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน/Mark 42 (`2b92b94`)
+  - ✅ 5–6 หน้าจอกระดานในเกมจริง `client/src/board/BoardStage.jsx` (`ef4a3a2`) — โครง/การทำงานดู GAME_SYSTEM §17 · ผู้ใช้ลองเล่นกับบอทแล้ว เดิน/ตีใช้ได้
+  - ✅ 7 server: แผนที่ II–VII + ช่องพิเศษ (`a1dc9a8` merge `79a067a`) — ผัง + รายละเอียดที่ Claude ตัดสินเอง อยู่ใน GRID_PLAN §3.1–§3.2
+  - ⏳ 7 ภาพ: ธีมรายภูมิภาค + ภาพช่องพิเศษ + **หมุนกระดาน 4 มุม (ผู้ใช้ขอเพิ่ม)** ใน `boardDraw.js`/`BoardCanvas.jsx` — ทำโดย subagent ใน worktree (ดูหัวข้อ "งานถัดไป")
+  - ✅ 8 เอกสาร GAME_SYSTEM (§17 หน้าจอกระดาน) / GRID_PLAN / skill add-character + remove-character
+- มือถือ (`vp.w < 768`) ยังเป็นหน้าจอเดิมที่อ่าน SUMMARY/ATTACK — ตามกติกา CLAUDE.md ไม่ทำต่อ
 
-## ต่อ BoardCanvas เข้า Game.jsx (สรุปจากเอเจนต์ที่ทำตัววาด)
-- props: `map` (= `state.board` — heal ส่งเป็น array แล้วใน view.js) · `units` [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag }] · `highlights` { move, attack, skill, aoe, danger: ["x,y"], path: [{x,y}], target: {x,y}, push: {from,to,collide} } · `shopPos` · `night` · `lowQ` · `anim` ({kind:"move",id,path} | {kind:"push",id,from,to,collide}) + `onAnimDone` · `fx` [{ key, kind:"slash"|"float", x, y, text, color }] · `onTileClick` / `onUnitClick` / `onHoverTile`
-- tag: ช่วงจั่ว `{ backs: จำนวนไพ่, text: locked ? "พอ" : "" }` · หลังเปิดไพ่ = แต้ม หรือ `"แตก"`
-- กล่องแม่ต้อง positioned และมีขนาด · ย่อให้เห็นเฟรม 1280×720 ครบ · ขอบใกล้กระดาน ~73% ของความสูง (เหลือที่ให้ HUD ด้านล่าง) · `tileCenter` + `computeView` ใช้วาง DOM ทับช่อง
-- ข้อมูลจาก server ต่อผู้เล่น: `pos`, `mov` (เทิร์นนี้), `baseMov`, `range`, สกิล `character.<tier>.area` (range แปลงเป็นตัวเลขแล้ว) · ส่วนกลาง: `board`, `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `attack` (มี `counter`/`push`)
-- socket: `move {x,y}` · `undoMove` · `attack {targetId}` · `endAction` · `useSkill {tier,targets,dir}` (dir = up/down/left/right สำหรับสกิลแนว) · `buyShopItem {itemId}` · `useInventoryItem {uid,targetId,mode}` · `dropItem {uid}` · `mark42Control {action}`
-- ร้าน: `shopPos` ส่งเข้า BoardCanvas เป็น prop `shopPos` ได้เลย · ช่องร้านต้องไม่อยู่ในไฮไลต์เดิน (ส่ง blocked ให้ reachable ฝั่ง client ด้วย)
-- ระยะเดิน/อันตรายคำนวณฝั่ง client ได้ด้วยตรรกะเดียวกับ `server/board.js` (ไฟล์เป็น CommonJS — ถ้าจะใช้ร่วมให้ทำโมดูล ESM คู่ หรือ copy ฟังก์ชันที่ต้องใช้ แล้วมีเทสต์เทียบ)
+## งานถัดไป / รอผู้ใช้
+- รวมงานภาพ (ธีมภูมิภาค + หมุนกระดาน) → ตรวจภาพทุกภูมิภาค/ทุกมุม → push · BoardStage ส่ง prop `rotation` และเรียก `tileCenter(x, y, z, rotation)` ไว้แล้ว (ปุ่ม ⟲ ⟳ + คีย์ Q/E · localStorage `echo.boardRotation`)
+- ❓ ถามผู้ใช้: ตัวเลขช่องพิเศษ §3.1 (ลองเล่นแล้วยืนยัน) · หนามพิษตั้งพิษ 2 ในโค้ด (= พิษมีผล 1 เทิร์นจริง) โอเคไหม
+- ยังไม่มีแอนิเมชันเฉพาะ: น้ำวนดัน / ลาวา / พิษ / ไถลน้ำแข็งตอนถูกถอย (`attack.push.via`) — ตอนนี้มีแค่ตัวเลขลอย + ตำแหน่งกระโดด
+- UI ผู้เล่นที่ยังไม่ได้ออกแบบใหม่ (ผู้ใช้ยังไม่สั่ง): แผงตัวเราซ้ายล่างยังไม่โชว์ค่า "เดิน N / ระยะตี" · StatusModal · หน้าจบเกม
+- ระหว่างทดสอบ: `node scripts/dev-bots.js 3` + เปิด `http://localhost:5173/?autoplay=muimi` (เปิด server + client ด้วย launch config `server`/`client`) · ปิดพอร์ตทุกครั้งหลังทดสอบ (ผู้ใช้สั่ง)
 
 ## เรื่องค้างเล็กๆ ที่รู้แล้ว (ยังไม่แก้)
-- คอมเมนต์ค้าง: `SHOP_WEIGHTS` บอกรวม 97 (จริง 105) · `toggleReady` บอก "อย่างน้อย 2 คน" (โค้ดให้ 1)
-- โค้ดไม่มีผลแล้ว: สถานะ `manaLeech`/`manaRupture`/`drunk` ไม่มีใครสร้าง · กติกาวัน/คืนแบบไม่มีการเดินทาง (`morningBonusActive`, ภาษีกลางคืนเดิม) ไม่มีทางทำงานเพราะทุกโหมดเปิดการเดินทาง — **ห้ามลบระบบวัน/คืน (ผู้ใช้สั่ง)**
-- `tests/audio-policy.test.js` ยังป้อน gameState `SUMMARY`/`ATTACK` ให้ policy เพลงฝั่ง client — ปรับตอนทำขั้น 5
+- คอมเมนต์ค้าง: `toggleReady` บอก "อย่างน้อย 2 คน" (โค้ดให้ 1) · `characters.js` บอก `passive.trigger` = win/lose/attacked แต่ server ยิงแค่ `roundStart` (win/lose = เดินลำดับแรก/ท้าย ยังไม่มีใครยิง — ถ้าจะใช้ต้องเสียบใน `beginOrder`)
+- โค้ดไม่มีผลแล้ว: สถานะ `manaLeech`/`manaRupture`/`drunk` ไม่มีใครสร้าง · กติกาวัน/คืนแบบไม่มีการเดินทาง ไม่มีทางทำงานเพราะทุกโหมดเปิดการเดินทาง — **ห้ามลบระบบวัน/คืน (ผู้ใช้สั่ง)**
 - `p.journeyStunRound` ไม่ถูกรีเซ็ตใน `resetCombat`
+- โค้ดจอคอมเก่าใน Game.jsx ที่ไม่ได้ใช้แล้วแต่ยังเก็บไว้เพราะมือถือใช้: `SummaryTiers`, `AttackFx`, `AttackCall`, `MobileOpponent`, `isTargetable`/`resolveAttackPick`, ฉาก 2.5D `ArenaBackground`
 
 ## เคล็ดลับเครื่องมือที่ใช้ใน session นี้
 - **อย่าใช้ heredoc ใน Bash เขียนสคริปต์ที่มี `\\`** (Bash tool ยุบ backslash) — เขียนไฟล์ .js ด้วยเครื่องมือ Write ใน scratchpad แล้วค่อยรัน
