@@ -27,7 +27,7 @@ function dirToward(from, to) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
   return dy > 0 ? "down" : "up";
 }
-// ป้ายเหนือหัว: ช่วงจั่ว = หลังไพ่ + "พอ" · หลังเปิดไพ่ = แต้ม หรือ "แตก"
+// ป้ายในแถบลำดับเดิน: ช่วงจั่ว = "พอ" · หลังเปิดไพ่ = แต้ม หรือ "แตก" (ตัวหมากบนกระดานไม่มีป้าย — ข้อมูลซ้ำ ผู้ใช้สั่งเอาออก)
 function tagOf(p, phase) {
   if (phase === "PLAYING") return { backs: p.cardCount || 0, text: p.locked ? "พอ" : "" };
   if (p.score == null) return null;
@@ -286,9 +286,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       id: p.id, x: at.x, y: at.y, img: p.img, color: p.color, name: p.name,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
-      tag: tagOf(p, phase),
     };
-  }), [state.players, state.actorId, me, phase, hold]);
+  }), [state.players, state.actorId, me, hold]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
