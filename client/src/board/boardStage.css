@@ -8,6 +8,7 @@
 /* ---------- แถบลำดับเดิน (บนกลาง) ---------- */
 .bs-order {
   position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 20;
+  width: max-content; max-width: calc(100vw - 24px); /* ไม่ให้ชื่อถูกบีบเพราะ left: 50% (กว้างได้แค่ครึ่งจอ) */
   display: flex; gap: 4px; padding: 4px 6px; pointer-events: auto;
   background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
 }
@@ -23,6 +24,10 @@
 .bs-order-item[data-cur="true"] img { box-shadow: 0 0 0 3px #f0c868, 0 0 14px #f0c868; }
 .bs-order-item[data-cur="true"] .bs-order-name { color: #fff; }
 .bs-order-item[data-done="true"] { opacity: .42; }
+/* จอแคบ/คนเยอะ: แถบลำดับเดินชนแถบบนซ้าย → ลงมาใต้แถบบน (BoardStage วัดแล้วตั้ง data-order-low) · ปุ่ม/ป้ายช่องเลื่อนตาม */
+.bs-root[data-order-low="true"] .bs-order { top: var(--bs-order-top, 54px); }
+.bs-root[data-order-low="true"] .bs-tools { top: calc(var(--bs-order-top, 54px) + 50px); }
+.bs-root[data-order-low="true"] .bs-tile { top: calc(var(--bs-order-top, 54px) + 50px); }
 
 /* ---------- แบนเนอร์ลำดับเดิน ---------- */
 .bs-banner {

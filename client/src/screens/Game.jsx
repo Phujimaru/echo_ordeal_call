@@ -1198,7 +1198,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, my
               <img src="/characters/Mark42/mark42.webp" alt="" className="h-10 w-10 rounded object-cover" />
               <div className="min-w-0 flex-1">
                 <div className="av-heading text-sm">เกราะ Mark 42 — {suitOut.self ? "สวมอยู่ที่ตัวเอง" : `สวมอยู่ที่ ${suitOut.wearerName}`}</div>
-                <div className="text-xs" style={{ color: "rgba(234,243,252,.62)" }}>เกราะชุดเหลือ {suitOut.armor}/7 · คนใส่ถอดเองไม่ได้ เจ้าของเท่านั้นที่ถอด/เรียกคืน/ระเบิดได้</div>
+                <div className="text-xs" style={{ color: "rgba(234,243,252,.62)" }}>เกราะชุด {suitOut.armor}/7</div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1230,7 +1230,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, my
                         {gunOpen ? "ยกเลิก" : "ยิง"}
                       </AvButton>
                     ) : isSuit ? (
-                      <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>{suitBlock || "เลือกวิธีใช้ด้านล่าง"}</span>
+                      suitBlock ? <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>{suitBlock}</span> : null
                     ) : isAmmo ? (
                       <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>ใช้ผ่านปืน</span>
                     ) : (

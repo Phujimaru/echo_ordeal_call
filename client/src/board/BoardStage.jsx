@@ -8,7 +8,7 @@
 //   · ฉากตีบนกระดาน (ฟัน → สวน → ถอย/ชน) แทน AttackFx เต็มจอ
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
 import * as Rules from "./boardRules";
 import { computeView, tileCenter } from "./boardDraw";
@@ -260,6 +260,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (pickInfo) {
       if (pickInfo.skill) h.skill = pickInfo.skill;
       if (pickInfo.aoe) h.aoe = pickInfo.aoe;
+      // ชี้คนที่เลือกได้ = ไฮไลต์ช่องของคนนั้น (คนนอกระยะไม่ขึ้น — กดไม่ได้)
+      if (pickInfo.valid && hoverUnit && hoverUnit.pos && pickInfo.valid.has(hoverUnit.id)) h.target = { x: hoverUnit.pos.x, y: hoverUnit.pos.y };
       return h;
     }
     if (myTurn && myReach) {
@@ -288,6 +290,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     return h;
   }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked]);
+  // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
+  const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
   // ---------- ตัวละครบนกระดาน ----------
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos).map((p) => {
@@ -296,8 +300,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       id: p.id, x: at.x, y: at.y, img: p.img, color: p.color, name: p.name,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
+      dim: !!pickValid && !pickValid.has(p.id),
     };
-  }), [state.players, state.actorId, me, hold]);
+  }), [state.players, state.actorId, me, hold, pickValid]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -363,9 +368,26 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     : state.turnOrder;
   const actorIdx = state.actorId ? order.indexOf(state.actorId) : -1;
 
+  // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
+  //  วัดใหม่เมื่อจอ/รายชื่อ/ข้อความแถบบนเปลี่ยน (เทียบแค่แนวนอน ตำแหน่งแนวตั้งไม่มีผล) · setState เฉพาะตอนค่าเปลี่ยน
+  const orderRef = useRef(null);
+  const [orderLow, setOrderLow] = useState(0); // 0 = ที่เดิม · ตัวเลข = ระยะจากขอบบน (ใต้แถบบนซ้าย)
+  const orderSig = `${vp ? vp.w : 0}x${vp ? vp.h : 0}|${order.join(",")}|${phase}|${state.roundNumber}|${state.journey ? state.journey.name : ""}`;
+  useLayoutEffect(() => {
+    const el = orderRef.current;
+    const top = document.querySelector(".hud-top");
+    let low = 0;
+    if (el && top) {
+      const a = el.getBoundingClientRect(), b = top.getBoundingClientRect();
+      if (b.width > 0 && a.left < b.right + 8 && a.right > b.left - 8) low = Math.round(b.bottom + 6);
+    }
+    setOrderLow(low);
+  }, [orderSig, map]);
+
   if (!map) return null;
   return (
-    <div className="bs-root" data-hidden={hidden ? "true" : "false"}>
+    <div className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
+      style={orderLow ? { "--bs-order-top": `${orderLow}px` } : undefined}>
       <BoardCanvas
         map={state.board}
         units={units}
@@ -383,7 +405,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       />
 
       {/* แถบลำดับเดิน */}
-      <div className="bs-order" data-phase={phase}>
+      <div className="bs-order" data-phase={phase} ref={orderRef}>
         {order.map((id, i) => {
           const p = byId[id];
           if (!p) return null;
@@ -459,7 +481,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       {/* หน้าต่างคาดการณ์ (แบบ FE) */}
       {plan && (
         <div className="bs-fc">
-          <FcSide p={me} label="เรา" dmg={forecast ? forecast.dmg : null} take={plan.counter && forecast ? forecast.back : 0} />
+          {/* ฝั่งเรา: โดนสวน + ถอยชน −1 (ชนรวมในขีดที่จะเสียด้วย แบบหน้าต่างคาดการณ์ของ FE) */}
+          <FcSide p={me} label="เรา" take={(plan.counter && forecast ? forecast.back || 0 : 0) + (plan.push && plan.push.collide ? 1 : 0)} />
           <div className="bs-fc-mid">
             <span>{forecast && forecast.dmg != null ? `-${forecast.dmg}` : "?"}</span>
             <span className="bs-fc-arrow">⚔</span>
