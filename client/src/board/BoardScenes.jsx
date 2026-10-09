@@ -6,7 +6,7 @@
 //  ทุกฉากออกแบบบนเวที 1920 × 1080 แล้วย่อ/ขยายให้พอดีจอ (--k) · กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น
 // ============================================================
 import { useEffect, useRef, useState } from "react";
-import { faceStyle, isBleed } from "./charFace";
+import { bigArtStyle, faceStyle, isBleed } from "./charFace";
 import "./boardScenes.css";
 
 const hideBroken = (e) => { e.currentTarget.style.visibility = "hidden"; };
@@ -247,8 +247,9 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
   }, [onConfirm, onCancel]);
   return (
     <Stage k={k} className={`fd-screen ${lethal ? "lethal" : ""}`}>
-      <div className={`fd-art l ${isBleed(me) ? "bleed" : ""}`}><img src={me.img} alt="" onError={hideBroken} /></div>
-      <div className={`fd-art r ${isBleed(foe) ? "bleed" : ""}`}><img src={foe.img} alt="" onError={hideBroken} /></div>
+      {/* รูปใหญ่: หัวสูงเท่ากันทุกตัวละคร + หน้าอยู่ตำแหน่งเดียวกัน (bigArtStyle) */}
+      <div className={`fd-art l ${isBleed(me) ? "bleed" : ""}`}><img src={me.img} alt="" style={bigArtStyle(me, { cx: 400 })} onError={hideBroken} /></div>
+      <div className={`fd-art r ${isBleed(foe) ? "bleed" : ""}`}><img src={foe.img} alt="" style={bigArtStyle(foe, { cx: 320 })} onError={hideBroken} /></div>
       <div className="fd-fade" />
       <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={dmg} hit={hit} crit={crit} acc={accurate} lethal={false} />
       <FdSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={bHit} crit={bCrit} acc={false} lethal={lethal} />

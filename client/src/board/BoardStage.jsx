@@ -22,7 +22,7 @@ import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
-import { nextZoom } from "./boardGeo";
+import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
@@ -83,13 +83,21 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     try { localStorage.setItem("echo.boardRotation", String(n)); } catch { /* ไม่มีที่เก็บ */ }
     return n;
   }), []);
-  // ซูม 3 ระดับ: 1 = มุมใกล้ (ค่าเริ่ม — ผู้ใช้ตัดสิน 2026-10-09) · 0 = มุมปกติ (เห็นทั้งกระดาน) · 2 = มองจากด้านบน (bird's-eye)
-  //  จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน / ปุ่ม ＋ (ใกล้ขึ้น) － (ไกลขึ้น)
+  // ซูม 2 ระดับ: 1 = มุมใกล้ (ค่าเริ่ม — ผู้ใช้ตัดสิน 2026-10-09) · 0 = เห็นทั้งกระดาน — จำไว้ในเครื่อง · ล้อเมาส์ / ปุ่ม ＋ －
+  //  มุมมอง (แยกจากซูม — ผู้ใช้สั่ง): "tilt" = เอียง 32° · "top" = มองจากด้านบน — ปุ่มสลับ · ซูม/เลื่อน/หมุนได้ทั้งสองมุม
+  const [view, setViewState] = useState(() => {
+    try { return localStorage.getItem("echo.boardView") === "top" || localStorage.getItem("echo.boardZoom") === "2" ? "top" : "tilt"; } catch { return "tilt"; }
+  });
+  const toggleView = useCallback(() => setViewState((v) => {
+    const n = v === "top" ? "tilt" : "top";
+    try { localStorage.setItem("echo.boardView", n); } catch { /* ไม่มีที่เก็บ */ }
+    return n;
+  }), []);
   const [zoom, setZoomState] = useState(() => {
-    try { const v = localStorage.getItem("echo.boardZoom"); return v === "0" ? 0 : v === "2" ? 2 : 1; } catch { return 1; }
+    try { return localStorage.getItem("echo.boardZoom") === "0" ? 0 : 1; } catch { return 1; }
   });
   const setZoom = useCallback((z) => {
-    const n = z === 1 || z === 2 ? z : 0;
+    const n = z ? 1 : 0;
     setZoomState(n);
     try { localStorage.setItem("echo.boardZoom", String(n)); } catch { /* ไม่มีที่เก็บ */ }
   }, []);
@@ -480,6 +488,31 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shopPos, state.shopTurnsLeft]);
 
+  // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
+  //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js
+  const boardArea = state.board ? state.board.area : 0;
+  const [shown, setShown] = useState(() => ({ board: state.board, fly: state.board && shouldLandOnMount(state.board.area) ? "in" : null, seq: 0 }));
+  if (state.board && shown.board && boardArea !== shown.board.area && shown.fly !== "out" && shown.fly !== "wait") {
+    setShown((v) => ({ ...v, fly: "out", seq: v.seq + 1 }));
+  }
+  useEffect(() => {
+    if (shown.fly === "in") announceArenaLand();
+    if (!shown.fly || shown.fly === "wait") return undefined;
+    const t = setTimeout(() => setShown((v) => ({ ...v, fly: v.fly === "out" ? "wait" : null })), shown.fly === "out" ? 750 : 1100);
+    return () => clearTimeout(t);
+  }, [shown.fly, shown.seq]);
+  useEffect(() => {
+    if (shown.fly !== "out" && shown.fly !== "wait") return undefined;
+    let done = false;
+    const land = () => { if (done) return; done = true; setShown((v) => ({ board: state.board, fly: "in", seq: v.seq + 1 })); };
+    const off = onArenaLandRequest(land);
+    const t = setTimeout(land, 9000);
+    return () => { off(); clearTimeout(t); };
+  }, [shown.fly === "out" || shown.fly === "wait", boardArea]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownArea = shown.board ? shown.board.area : 0;
+  useEffect(() => { noteArenaShown(shownArea); return () => noteArenaShown(shownArea); }, [shownArea]);
+  const displayBoard = shown.fly === "out" || shown.fly === "wait" ? shown.board : state.board;
+
   // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
   const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080
   const seat = [...state.players].filter((p) => p.alive || p.score != null).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id);
@@ -527,10 +560,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   if (!map) return null;
   return (
     <div className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
-      data-fc={fcId ? "true" : "false"} data-shake={shake % 2 ? "true" : "false"}
+      data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"}
       style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null) }}>
       <BoardCanvas
-        map={state.board}
+        map={displayBoard}
         units={units}
         highlights={highlights}
         shopPos={shopPos}
@@ -538,6 +571,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         lowQ={lowQ}
         rotation={rotation}
         zoom={zoom}
+        view={view}
         onZoomChange={setZoom}
         focus={focus}
         cinema={cinema}
@@ -589,9 +623,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
         <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
         <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom === 1}
-          onClick={() => { clickSound(); const n = nextZoom(zoom, 1); if (n === 1 && me && me.pos) look(me.pos); setZoom(n); }}>＋</button>
-        <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 2} data-on={zoom === 2 ? "true" : "false"}
-          onClick={() => { clickSound(); setZoom(nextZoom(zoom, -1)); }}>－</button>
+          onClick={() => { clickSound(); if (me && me.pos) look(me.pos); setZoom(1); }}>＋</button>
+        <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 0}
+          onClick={() => { clickSound(); setZoom(0); }}>－</button>
+        <button type="button" className="bs-tool bs-view" title={view === "top" ? "มุมเอียง" : "มุมบน"} data-on={view === "top" ? "true" : "false"}
+          onClick={() => { clickSound(); toggleView(); }}>
+          {view === "top"
+            ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 L9 7 H15 L19 18 Z" /><path d="M7 13 H17 M12 7 V18" /></svg>
+            : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /><path d="M4 12 H20 M12 4 V20" /></svg>}
+        </button>
         <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
           ระยะอันตราย
         </button>

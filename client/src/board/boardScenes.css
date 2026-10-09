@@ -124,11 +124,9 @@
 .fd-screen { z-index: 55; }
 .fd-screen .bsx-in { pointer-events: none; }
 .fd-art { position: absolute; bottom: 0; height: 1080px; width: 720px; overflow: hidden; }
-.fd-art img { position: absolute; bottom: -60px; height: 1000px; width: auto; max-width: none; }
+.fd-art img { position: absolute; }
 .fd-art.l { left: -40px; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); animation: fdArtL .42s cubic-bezier(.2,.9,.3,1) both; }
-.fd-art.l img { left: -20px; }
 .fd-art.r { right: -40px; animation: fdArtR .42s cubic-bezier(.2,.9,.3,1) both; }
-.fd-art.r img { right: -20px; }
 .fd-art.bleed img { -webkit-mask-image: radial-gradient(ellipse 50% 50% at 55% 45%, #000 50%, transparent 100%); mask-image: radial-gradient(ellipse 50% 50% at 55% 45%, #000 50%, transparent 100%); }
 @keyframes fdArtL { from { opacity: 0; transform: translateX(-160px); } }
 @keyframes fdArtR { from { opacity: 0; transform: translateX(160px); } }

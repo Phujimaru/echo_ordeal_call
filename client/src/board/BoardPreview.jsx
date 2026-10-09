@@ -182,7 +182,7 @@ const btn = (on) => ({
 export default function BoardPreview() {
   const [area, setAreaState] = useState(() => qInt("area", 1, 7, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
-  const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน
+  const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
@@ -373,7 +373,7 @@ export default function BoardPreview() {
         highlights={highlights}
         shopPos={M.shop}
         rotation={rotation}
-        zoom={zoom}
+        zoom={zoom === 1 ? 1 : 0} view={zoom === 2 ? "top" : "tilt"}
         onZoomChange={changeZoom}
         focus={focus}
         shopLabel={3}

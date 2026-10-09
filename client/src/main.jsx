@@ -25,8 +25,13 @@ const BoardPreview = import.meta.env.DEV && hudQ.has("board")
   ? React.lazy(() => import("./board/BoardPreview.jsx"))
   : null;
 
+// ?victory=1|team|draw = หน้าดูหน้าจบเกม (เฉพาะ dev) — ดู components/VictoryPreview.jsx
+const VictoryPreview = import.meta.env.DEV && hudQ.has("victory")
+  ? React.lazy(() => import("./components/VictoryPreview.jsx"))
+  : null;
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
+    {VictoryPreview ? <React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
   </React.StrictMode>
 );

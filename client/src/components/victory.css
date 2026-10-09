@@ -1,0 +1,266 @@
+/* ============================================================
+   หน้าจบเกม ORDEAL CALL (VictoryScreen.jsx) — คลาสขึ้นต้น vic- ทั้งหมด (CSS โหลดทั้งแอป ห้ามชนชื่อ)
+   ขาวอมฟ้า + กริด + ลูกโลกโครงลวด · ฟ้า/ฟ้าอ่อนเป็นหลัก · ม่วง ECHO เป็นสีเน้นเท่านั้น
+   เวที 1920 × 1080 ย่อด้วย --k · ห้าม letter-spacing / uppercase กับข้อความไทย (ใช้กับ .vic-wm / .vic-round เท่านั้น)
+   ============================================================ */
+.vic-root {
+  position: fixed; inset: 0; z-index: 60; overflow: hidden; color: #1c3f6e;
+  font: 300 15px/1.5 var(--oc-f-body);
+}
+.vic-bg {
+  position: absolute; inset: 0;
+  background: radial-gradient(70% 70% at 50% 44%, #fff 0%, #f7fafd 46%, #dce7f3 100%);
+  animation: vic-open .7s cubic-bezier(.6, 0, .2, 1) both;
+}
+/* กริดสองชั้น: เส้นเล็ก 48px + เส้นหลัก 240px */
+.vic-bg::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(61, 139, 217, .065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 139, 217, .065) 1px, transparent 1px),
+    linear-gradient(rgba(61, 139, 217, .11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 139, 217, .11) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 240px 240px, 240px 240px;
+  background-position: center;
+}
+/* ขอบจออมฟ้า + แสงม่วงจาง ๆ ใต้ผู้ชนะ */
+.vic-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(38% 30% at 50% 46%, rgba(201, 154, 214, .18), transparent 70%),
+    radial-gradient(120% 100% at 50% 50%, transparent 60%, rgba(127, 184, 230, .28) 100%);
+}
+/* ลายรังผึ้งฟ้าจาง ๆ สองข้างจอ (จางเข้าหากลาง) */
+.vic-comb {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%233d8bd9' stroke-opacity='.22' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.35) 16%, transparent 30%, transparent 70%, rgba(0,0,0,.35) 84%, #000 100%);
+  mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.35) 16%, transparent 30%, transparent 70%, rgba(0,0,0,.35) 84%, #000 100%);
+  animation: vic-fade 1.2s ease .6s both, vic-comb 40s linear infinite;
+}
+@keyframes vic-comb { to { background-position: 0 -400px; } }
+@keyframes vic-open { from { clip-path: circle(0% at 50% 45%); } to { clip-path: circle(90% at 50% 45%); } }
+
+.vic-tick { position: absolute; z-index: 3; width: 34px; height: 34px; border: 2px solid #7fb8e6; animation: vic-fade .5s ease .5s both; }
+.vic-tl { top: 22px; left: 22px; border-right: 0; border-bottom: 0; }
+.vic-tr { top: 22px; right: 22px; border-left: 0; border-bottom: 0; }
+.vic-bl { bottom: 22px; left: 22px; border-right: 0; border-top: 0; }
+.vic-br { bottom: 22px; right: 22px; border-left: 0; border-top: 0; }
+
+.vic-stage {
+  position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--k, 1)); transform-origin: 50% 50%;
+}
+
+/* ---------- ลูกโลกโครงลวด + วงโคจรพื้นหลัง ---------- */
+.vic-globe { position: absolute; left: 960px; top: 560px; width: 1320px; height: 1320px; transform: translate(-50%, -50%); opacity: .5; animation: vic-fade 1.2s ease .3s both; }
+.vic-globe svg { width: 100%; height: 100%; animation: vic-spin 160s linear infinite; }
+.vic-globe ellipse, .vic-globe circle, .vic-globe line { fill: none; stroke: rgba(61, 139, 217, .2); stroke-width: .5; }
+.vic-sky { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; animation: vic-fade 1.4s ease .5s both; }
+.vic-sky path { fill: none; }
+.vic-sky-a { stroke: rgba(61, 139, 217, .3); stroke-width: 1.2; stroke-dasharray: 2 10; animation: vic-flow 6s linear infinite; }
+.vic-sky-b { stroke: rgba(127, 184, 230, .38); stroke-width: 1; stroke-dasharray: 22 14; animation: vic-flow 9s linear infinite reverse; }
+.vic-sat { fill: #fff; stroke: #3d8bd9; stroke-width: 2; filter: drop-shadow(0 0 6px rgba(61, 139, 217, .8)); }
+.vic-sat-echo { stroke: #9b4f96; filter: drop-shadow(0 0 6px rgba(155, 79, 150, .7)); }
+@keyframes vic-flow { to { stroke-dashoffset: -144; } }
+@keyframes vic-spin { to { transform: rotate(360deg); } }
+@keyframes vic-fade { from { opacity: 0; } }
+
+/* แสงรัศมีหมุนช้าหลังผู้ชนะ (ฟ้าอ่อน) */
+.vic-rays {
+  position: absolute; left: 960px; top: 455px; width: 1500px; height: 1500px; transform: translate(-50%, -50%);
+  background: repeating-conic-gradient(from 0deg, rgba(127, 184, 230, .22) 0deg 1.4deg, transparent 1.4deg 9deg);
+  -webkit-mask-image: radial-gradient(circle, #000 4%, transparent 40%); mask-image: radial-gradient(circle, #000 4%, transparent 40%);
+  animation: vic-fade 1s ease .8s both, vic-spin 120s linear infinite;
+}
+
+/* เส้นสแกนตอนเปิดหน้า */
+.vic-scan {
+  position: absolute; left: -400px; right: -400px; height: 3px; top: -10px; z-index: 6; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #3d8bd9 30%, #9b4f96 50%, #3d8bd9 70%, transparent);
+  box-shadow: 0 0 24px 6px rgba(61, 139, 217, .35);
+  animation: vic-scan 1.25s cubic-bezier(.5, 0, .5, 1) .25s both;
+}
+@keyframes vic-scan { 0% { top: -10px; opacity: 0; } 8% { opacity: 1; } 85% { opacity: .9; } 100% { top: 1090px; opacity: 0; } }
+
+/* ละอองลอยขึ้น */
+.vic-mote {
+  position: absolute; bottom: -20px; transform: rotate(45deg); pointer-events: none;
+  background: #fff; box-shadow: inset 0 0 0 1.5px #7fb8e6;
+  animation: vic-rise linear infinite;
+}
+.vic-mote[data-tone="1"] { background: #bee3f8; box-shadow: 0 0 8px rgba(127, 184, 230, .8); }
+.vic-mote[data-tone="2"] { background: #c99ad6; box-shadow: 0 0 8px rgba(155, 79, 150, .55); }
+@keyframes vic-rise {
+  0% { transform: translate3d(0, 0, 0) rotate(45deg); opacity: 0; }
+  12% { opacity: .9; }
+  100% { transform: translate3d(var(--dx, 0), -1120px, 0) rotate(225deg); opacity: 0; }
+}
+
+.vic-round { position: absolute; top: 34px; right: 74px; font: 400 15px/1 var(--oc-f-logo); letter-spacing: .3em; color: #4f6e95; animation: vic-fade .5s ease .6s both; }
+
+/* ---------- หัวเรื่อง ---------- */
+.vic-head { position: absolute; left: 0; right: 0; top: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; z-index: 4; }
+.vic-wm {
+  position: absolute; left: 0; right: 0; top: -8px; pointer-events: none; white-space: nowrap;
+  font: 400 156px/1 var(--oc-f-logo); letter-spacing: .3em; text-indent: .3em; text-transform: uppercase;
+  color: transparent; -webkit-text-stroke: 1.5px rgba(61, 139, 217, .16);
+  animation: vic-wm 1.1s cubic-bezier(.2, .8, .2, 1) .2s both;
+}
+@keyframes vic-wm { from { opacity: 0; letter-spacing: .6em; } }
+.vic-chip {
+  position: relative; margin-top: 22px; padding: 7px 24px 9px;
+  font: 600 20px/1 var(--oc-f-ui); color: #fff; background: #9b4f96;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+  animation: vic-pop .45s cubic-bezier(.2, 1.5, .4, 1) .45s both;
+}
+.vic-title {
+  position: relative; margin: 4px 0 0; max-width: 1300px;
+  font: 700 96px/1.12 var(--oc-f-ui); color: #1c3f6e; white-space: nowrap; overflow: visible;
+  text-shadow: 0 2px 0 #fff, 0 10px 30px rgba(61, 139, 217, .25);
+  animation: vic-drop .6s cubic-bezier(.2, .9, .3, 1) .35s both;
+}
+.vic-title::before, .vic-title::after {
+  content: ""; position: absolute; top: 56%; width: 240px; height: 2px;
+  background: linear-gradient(90deg, transparent, #3d8bd9); transform-origin: right center;
+  animation: vic-line .6s ease .7s both;
+}
+.vic-title::before { right: calc(100% + 40px); }
+.vic-title::after { left: calc(100% + 40px); background: linear-gradient(270deg, transparent, #3d8bd9); transform-origin: left center; }
+.vic-dia { position: absolute; top: calc(56% - 6px); width: 13px; height: 13px; background: #9b4f96; transform: rotate(45deg); box-shadow: 0 0 0 3px #fff, 0 0 0 4.5px #c99ad6; }
+.vic-dia-l { right: calc(100% + 18px); }
+.vic-dia-r { left: calc(100% + 18px); }
+@keyframes vic-drop { from { opacity: 0; transform: translateY(-34px); } }
+@keyframes vic-line { from { opacity: 0; scale: 0 1; } }
+@keyframes vic-pop { from { opacity: 0; transform: scale(.3); } }
+
+/* ---------- เส้นวงโคจรหลัก ---------- */
+.vic-orbit { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; z-index: 1; }
+.vic-orbit path { fill: none; }
+.vic-orb-back { stroke: rgba(61, 139, 217, .4); stroke-width: 1.4; stroke-dasharray: 3 9; animation: vic-fade .8s ease .9s both; }
+.vic-orb-front { stroke: url(#vic-orbit-g); stroke-width: 3.5; stroke-dasharray: 1; animation: vic-draw 1.1s cubic-bezier(.45, 0, .2, 1) .55s both; filter: drop-shadow(0 0 6px rgba(155, 79, 150, .35)); }
+.vic-orb-echo { stroke: rgba(127, 184, 230, .55); stroke-width: 1; stroke-dasharray: 2 7; animation: vic-fade .8s ease 1.2s both; }
+.vic-orb-low { stroke: rgba(61, 139, 217, .32); stroke-width: 1.4; stroke-dasharray: 1; animation: vic-draw 1s ease 1.3s both; }
+.vic-node { fill: #fff; stroke: #9b4f96; stroke-width: 2.5; animation: vic-fade .4s ease 1.5s both; }
+@keyframes vic-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* ไม่มีผู้ชนะ (เสมอ) = กรอบหกเหลี่ยมว่าง */
+.vic-empty { position: absolute; left: 860px; top: 340px; width: 200px; height: 229px; overflow: visible; animation: vic-fade .8s ease .8s both; }
+.vic-empty polygon { fill: rgba(255, 255, 255, .6); stroke: #7fb8e6; stroke-width: 2; stroke-dasharray: 6 8; vector-effect: non-scaling-stroke; }
+
+/* ---------- ผู้ชนะ (หกเหลี่ยมใหญ่) ---------- */
+.vic-win { position: absolute; z-index: 3; }
+.vic-halo {
+  position: absolute; left: 50%; top: 0; width: 200%; aspect-ratio: 1; transform: translate(-50%, -22%);
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(190, 227, 248, .55) 45%, rgba(201, 154, 214, .22) 68%, transparent);
+  animation: vic-fade .8s ease calc(.8s + var(--d)) both, vic-breathe 4s ease-in-out calc(1.6s + var(--d)) infinite;
+}
+@keyframes vic-breathe { 50% { opacity: .7; scale: 1.05; } }
+.vic-hexw {
+  position: relative; width: 100%;
+  filter: drop-shadow(0 28px 30px rgba(28, 63, 110, .3));
+  animation: vic-land .7s cubic-bezier(.2, 1.35, .4, 1) calc(.75s + var(--d)) both;
+}
+@keyframes vic-land { from { opacity: 0; transform: translateY(-160px) scale(.55) rotate(-30deg); } }
+.vic-fr {
+  position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(160deg, #fff 0%, #bee3f8 30%, var(--pc) 62%, #9b4f96 100%);
+}
+.vic-fa {
+  position: absolute; inset: 8px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #fff, color-mix(in srgb, var(--pc) 28%, #dce7f3));
+}
+.vic-fa img, .vic-mfa img { user-select: none; pointer-events: none; }
+.vic-gloss {
+  position: absolute; inset: 8px; pointer-events: none; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .55) 48%, transparent 58%) no-repeat;
+  background-size: 300% 100%; background-position: 120% 0;
+  animation: vic-shine 1.1s ease calc(1.35s + var(--d)) both;
+}
+@keyframes vic-shine { from { background-position: 120% 0; } to { background-position: -60% 0; } }
+.vic-initial { position: absolute; inset: 0; display: grid; place-items: center; font: 700 96px/1 var(--oc-f-ui); color: var(--pc); }
+/* หน้าปัดขีดวัดหมุนช้ารอบผู้ชนะ (ฟ้า + ส่วนโค้งม่วง) */
+.vic-dial { position: absolute; left: 50%; top: 50%; width: 178%; aspect-ratio: 1; transform: translate(-50%, -50%); overflow: visible; pointer-events: none; animation: vic-dial-in .9s cubic-bezier(.2, .8, .2, 1) calc(1s + var(--d)) both; }
+.vic-win[data-multi="true"] .vic-dial { width: 140%; }
+.vic-dial g { transform-origin: 0 0; animation: vic-spin 60s linear infinite; }
+.vic-dial circle { fill: none; }
+.vic-dial .t1 { stroke: rgba(61, 139, 217, .45); stroke-width: 3; stroke-dasharray: .4 4.6; }
+.vic-dial .t2 { stroke: rgba(61, 139, 217, .22); stroke-width: .5; }
+.vic-dial .t3 { stroke: #9b4f96; stroke-width: 1.2; stroke-dasharray: 70 480; stroke-linecap: round; opacity: .75; }
+.vic-dial .t4 { stroke: #7fb8e6; stroke-width: 1.2; stroke-dasharray: 40 520; stroke-dashoffset: -270; stroke-linecap: round; }
+@keyframes vic-dial-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.7) rotate(-60deg); } }
+.vic-ring { position: absolute; overflow: visible; pointer-events: none; }
+.vic-ring polygon { fill: none; vector-effect: non-scaling-stroke; }
+.vic-ring-a { inset: -22px; animation: vic-fade .6s ease calc(1.1s + var(--d)) both, vic-spin 18s linear infinite; }
+.vic-ring-a polygon { stroke: #3d8bd9; stroke-width: 1.6; stroke-dasharray: 5 9; }
+.vic-ring-b { inset: -44px; animation: vic-fade .6s ease calc(1.25s + var(--d)) both, vic-spin 30s linear infinite reverse; }
+.vic-ring-b polygon { stroke: #c99ad6; stroke-width: 1.2; stroke-dasharray: 2 12; }
+.vic-crown {
+  position: absolute; left: 50%; top: -74px; width: 84px; height: 63px; overflow: visible; transform: translateX(-50%);
+  filter: drop-shadow(0 0 10px rgba(127, 184, 230, .9)) drop-shadow(0 6px 10px rgba(155, 79, 150, .35));
+  animation: vic-crown .6s cubic-bezier(.2, 1.6, .4, 1) calc(1.3s + var(--d)) both;
+}
+@keyframes vic-crown { from { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0) rotate(-40deg); } }
+
+.vic-plate {
+  position: relative; margin: 26px auto 0; width: calc(100% + 40px); left: -20px; box-sizing: border-box;
+  padding: 14px 20px 13px; text-align: center; background: rgba(255, 255, 255, .94); color: #1c3f6e;
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+  filter: drop-shadow(0 14px 22px rgba(28, 63, 110, .22));
+  animation: vic-up .5s ease calc(1.2s + var(--d)) both;
+}
+.vic-plate::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, transparent, var(--pc) 20%, #9b4f96 50%, var(--pc) 80%, transparent); }
+.vic-plate::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 60%; height: 2px; transform: translateX(-50%); background: linear-gradient(90deg, transparent, #7fb8e6, transparent); }
+@keyframes vic-up { from { opacity: 0; transform: translateY(30px); } }
+.vic-name { font: 700 32px/1.15 var(--oc-f-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vic-sub { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 3px; min-height: 22px; }
+.vic-ch { font: 400 16px/1.3 var(--oc-f-body); color: #4f6e95; }
+.vic-you { font: 600 13px/1 var(--oc-f-ui); color: #fff; background: #9b4f96; padding: 4px 9px 5px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+
+/* ---------- คนอื่น (หกเหลี่ยมเล็ก) ---------- */
+.vic-rest { position: absolute; left: 0; right: 0; top: 770px; display: flex; justify-content: center; align-items: flex-end; gap: 70px; z-index: 3; }
+.vic-grp { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vic-grp-lb { font: 600 16px/1 var(--oc-f-ui); color: #4f6e95; display: flex; align-items: center; gap: 10px; animation: vic-fade .5s ease 1.5s both; }
+.vic-grp-lb::before, .vic-grp-lb::after { content: ""; width: 40px; height: 1.5px; background: linear-gradient(90deg, transparent, #7fb8e6); }
+.vic-grp-lb::after { transform: scaleX(-1); }
+.vic-grp-lb[data-win="true"] { color: #9b4f96; }
+.vic-grp-row { display: flex; gap: 26px; }
+.vic-mini { width: 150px; display: flex; flex-direction: column; align-items: center; animation: vic-mland .55s cubic-bezier(.2, 1.3, .4, 1) calc(1.55s + var(--d)) both; }
+@keyframes vic-mland { from { opacity: 0; transform: translateY(-50px) scale(.6) rotate(-20deg); } }
+.vic-mhex { position: relative; width: 84px; height: 96px; filter: drop-shadow(0 12px 14px rgba(28, 63, 110, .25)); }
+.vic-mfr { position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, #fff, var(--pc) 55%, color-mix(in srgb, var(--pc) 60%, #1c3f6e)); }
+.vic-mfa { position: absolute; inset: 4px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); overflow: hidden; background: #dce7f3; }
+.vic-mfa .vic-initial { font-size: 36px; }
+.vic-mx { position: absolute; right: -6px; bottom: 4px; width: 26px; height: 26px; background: #fff; border-radius: 50%; box-shadow: 0 0 0 2px #8ba3c2; }
+.vic-mx path { fill: none; stroke: #8ba3c2; stroke-width: 2.6; stroke-linecap: round; }
+.vic-mini[data-dead="true"] .vic-mfr { background: linear-gradient(160deg, #fff, #b8c8dc 55%, #8ba3c2); }
+.vic-mini[data-dead="true"] .vic-mfa img { filter: grayscale(1) contrast(.95) brightness(1.06); opacity: .8; }
+.vic-mname { margin-top: 8px; max-width: 150px; font: 700 20px/1.2 var(--oc-f-ui); color: #1c3f6e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.vic-mini[data-dead="true"] .vic-mname { color: #4f6e95; }
+.vic-mdot { flex: none; width: 8px; height: 8px; background: #9b4f96; transform: rotate(45deg); }
+.vic-mch { font: 400 13px/1.3 var(--oc-f-body); color: #8ba3c2; white-space: nowrap; }
+
+/* ---------- ปุ่มกลับห้องรอ ---------- */
+.vic-back {
+  position: absolute; left: 50%; top: 972px; transform: translateX(-50%); z-index: 5;
+  appearance: none; border: 0; cursor: pointer; height: 60px; padding: 0 44px;
+  display: inline-flex; align-items: center; gap: 12px;
+  font: 600 22px/1 var(--oc-f-ui); color: #fff;
+  background: linear-gradient(115deg, #b46aae, #9b4f96 45%, #6e2c7a);
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .3);
+  animation: vic-btn .5s ease 1.9s both;
+  transition: filter .2s;
+}
+.vic-back svg { width: 22px; height: 22px; }
+.vic-back svg path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.vic-back:hover { filter: brightness(1.12); }
+.vic-back:active { translate: 0 1px; }
+.vic-back:focus-visible { outline: 2px solid #3d8bd9; outline-offset: 4px; }
+@keyframes vic-btn { from { opacity: 0; translate: 0 18px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vic-root *, .vic-root *::before, .vic-root *::after, .vic-bg { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; }
+  .vic-mote { display: none; }
+}

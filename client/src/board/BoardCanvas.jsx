@@ -14,9 +14,9 @@
 //               เปลี่ยนค่า = หมุนนุ่มๆ ≈250ms (lowQ = ทันที) · กล้องจัดกลาง/ย่อพอดีจาก map.cols × map.rows หลังหมุนเอง
 //               (กระดานจัตุรัส เช่น 14 × 14 = ทุกมุมกรอบเท่ากัน) · มุมใกล้ = หมุนรอบจุดกลางของส่วนที่มองเห็น
 //   zoom        0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ขยาย ZOOM_K = 1.6 เท่า เลื่อนดูได้ทั้งสนาม) — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
-//               2 = มองจากด้านบน (bird's-eye · กล้องตั้งฉาก 90° เห็นทั้งกระดาน — ลำดับจากใกล้ไปไกล: 1 → 0 → 2)
+//   view        "tilt" (ค่าเริ่ม · กล้องเอียง 32°) | "top" = มองจากด้านบน 90° — แยกจากซูม: มุมบนก็ซูม/เลื่อน/หมุนได้เหมือนเดิม
 //               มุมใกล้: ลากเมาส์ซ้ายบนกระดาน (เกิน 6px = ลาก ไม่นับเป็นคลิก) / ลากปุ่มขวา-กลาง / แตะลาก / ปุ่มลูกศร = เลื่อนกล้อง
-//   onZoomChange(0|1|2)  ล้อเมาส์ขึ้น = ใกล้ขึ้นหนึ่งขั้น (ซูมเข้าหาจุดใต้เมาส์) · ลง = ไกลขึ้นหนึ่งขั้น — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
+//   onZoomChange(0|1)  ล้อเมาส์ขึ้น = 1 (ซูมเข้าหาจุดใต้เมาส์) · ลง = 0 — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
 //   focus       {x,y} — เปลี่ยนอ็อบเจกต์ = ถ้าช่องนั้นอยู่นอกส่วนที่มองเห็น (มุมใกล้) เลื่อนกล้องนุ่มๆ ไปให้อยู่กลาง ·
 //               ใช้เป็นจุดกลางตอนกดซูมเข้าด้วยปุ่มด้วย (ซูมด้วยล้อ = จุดใต้เมาส์) · มุมปกติไม่มีผล
 //   shopLabel   string|number|null — ป้าย "🏪 N" เหนือแผงร้าน (วาดในแคนวาส ตามซูม/เลื่อน/หมุนเอง)
@@ -39,7 +39,7 @@ import {
   unproject, ZOOM_K,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
-import { PITCH_BIRD, PITCH_NORMAL, nextZoom, setPitch } from "./boardGeo";
+import { PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
 
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
@@ -192,7 +192,18 @@ export default function BoardCanvas(props) {
         else { turning = true; mix = ease(pr); st.turn = st.turnFrom + (st.turnTo - st.turnFrom) * mix; }
       }
       // --- มุมกล้อง: มองจากด้านบน = 90° (ชั้นอบแยกตามมุม)
-      const pitch = p.zoom === 2 ? PITCH_BIRD : PITCH_NORMAL;
+      const pitch = p.view === "top" ? PITCH_BIRD : PITCH_NORMAL;
+      if (pitch !== st.pitch) {
+        // เปลี่ยนมุมมอง: กล้องมุมใกล้คงจุดกลางบนกระดานไว้ (ตำแหน่งบนจอเปลี่ยนตามมุม)
+        const was = st.pitch;
+        st.pitch = pitch;
+        if (was != null && st.cam.z > 1.001 && st.info) {
+          setPitch(was); setCamera(st.info, st.turn);
+          const b0 = computeView(st.size.w, st.size.h), gp = unproject(st.cam.cx, camEyeY(b0, st.cam.z, st.cam.cy));
+          setPitch(pitch); setCamera(st.info, st.turn);
+          if (gp) { const [sx, sy] = project(gp.x, gp.y); st.cam = { z: st.cam.z, ...camFromEye(b0, st.cam.z, sx, sy) }; st.camAnim = null; }
+        }
+      }
       setPitch(pitch);
       // --- กล้องมุมใกล้ (ซูม/เลื่อน) — คำนวณในพิกัดตรรกะของเฟรมปกติ
       setCamera(info, st.turn);
@@ -386,8 +397,8 @@ export default function BoardCanvas(props) {
       const pp = propsRef.current, cb = pp.onZoomChange;
       if (typeof cb !== "function" || e.ctrlKey || !e.deltaY) return;
       e.preventDefault();
-      const cur = pp.zoom === 1 || pp.zoom === 2 ? pp.zoom : 0;
-      const want = nextZoom(cur, e.deltaY < 0 ? 1 : -1);
+      const cur = pp.zoom === 1 ? 1 : 0;
+      const want = e.deltaY < 0 ? 1 : 0;
       if (want === cur) return;
       if (want === 1 && st.view) {
         const r = cv.getBoundingClientRect(), [lx, ly] = toLogical(st.view, e.clientX - r.left, e.clientY - r.top);
