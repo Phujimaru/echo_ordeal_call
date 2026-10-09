@@ -2,7 +2,7 @@
 //  ฉากเต็มจอของระบบกระดาน (ดีไซน์ที่ผู้ใช้อนุมัติ 2026-10-09 — ต้นแบบ .claude/plans/game-ui-redesign.html)
 //   · OrderCall    — เปิดไพ่ · ลำดับเดิน (ช่วง ORDER) ธีมขาวน้ำแข็ง ORDEAL CALL: ตัวละครหกเหลี่ยมบนเส้นโคจร → นับแต้ม → สลับที่เรียงตามแต้ม
 //   · TurnCall     — ฉากตาเดินแบบ A "ประตูหกเหลี่ยม" ทุกครั้งที่ขึ้นตาคนใหม่ (ตาคนอื่นเร็วกว่า)
-//   · ForecastScreen — หน้าคาดการณ์ผลการตีแบบ Fire Emblem Engage (แทน HUD ทั้งจอ) + ปุ่มยืนยัน/ย้อน
+//   · ForecastScreen — หน้าคาดการณ์ผลการตี (แทน HUD ทั้งจอ · แบบ D ไม่มีกล่อง — ผู้ใช้เลือก 2026-10-09) + ปุ่มยืนยัน/ย้อน
 //  ทุกฉากออกแบบบนเวที 1920 × 1080 แล้วย่อ/ขยายให้พอดีจอ (--k) · กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น
 // ============================================================
 import { useEffect, useRef, useState } from "react";
@@ -188,44 +188,44 @@ const AIM = <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" 
 const CRIT = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L28 18 L42 12 L32 24 L42 36 L28 30 L24 44 L20 30 L6 36 L16 24 L6 12 L20 18 Z" /></svg>;
 const SKULL = <svg viewBox="0 0 56 56" aria-hidden="true"><path fillRule="evenodd" d="M28 12c-9 0-15 6-15 14 0 5 2 8 5 10v5h20v-5c3-2 5-5 5-10 0-8-6-14-15-14z M22 21.5a3.5 3.5 0 1 0 0.01 0z M34 21.5a3.5 3.5 0 1 0 0.01 0z" /><rect x="24" y="42" width="3" height="5" /><rect x="29" y="42" width="3" height="5" /></svg>;
 
-function Bar({ max, now, after, cls }) {
+// แถบช่องเฉียง: now = ค่าตอนนี้ · after = หลังโดน (ช่องที่จะเสียกะพริบ)
+function Pips({ max, now, after, ar }) {
   const n = Math.max(0, Math.min(40, max || 0));
   return (
-    <div className={`fx-bar ${cls || ""}`}>
+    <div className={`fd-pips ${ar ? "fd-pips-ar" : ""}`}>
       {Array.from({ length: n }, (_, i) => <i key={i} className={`${i < now ? "on" : ""} ${i < now && i >= after ? "lose" : ""}`} />)}
     </div>
   );
 }
-function FxSide({ side, p, label, take, dmg, hit, crit, acc }) {
+// ฝั่งหนึ่ง (แบบ D ที่ผู้ใช้เลือก 2026-10-09 — ไม่มีกล่อง): ชื่อ + เส้นสี · เลือด (ตัวเลขใหญ่ + ช่อง) · เกราะ (ตัวเลข + ช่อง) · ⚔ ◎ ✦
+function FdSide({ side, p, label, take, dmg, hit, crit, acc, lethal }) {
   const after = afterHit(p, take || 0);
-  const hpMax = p.maxHp || Math.max(p.hp || 0, 1), arMax = p.maxArmor || 0;
-  const ko = !!take && after.hp === 0;
+  const hp = p.hp || 0, ar = p.armor || 0;
+  const hpMax = p.maxHp || Math.max(hp, 1), arMax = p.maxArmor || 0;
+  const hpLoss = take > 0 && after.hp !== hp, arLoss = take > 0 && after.armor !== ar;
+  const stats = [
+    <span key="d">{SWORD}{dmg ?? "?"}</span>,
+    <span key="h" className={acc ? "acc" : ""}>{AIM}{hit}%</span>,
+    <span key="c" className={crit ? "" : "z"}>{CRIT}{crit}%</span>,
+  ];
   return (
-    <div className={`fx-side ${side}`} style={{ "--c": p.color || "#3d8bd9" }}>
-      <div className="fx-name">{label}<small>{p.character?.name || ""}</small></div>
-      <div className="fx-plate">
-        <div className="fx-hp">
-          <span className="ic">♥</span>
-          <span className={`big ${ko ? "ko" : ""}`}>{p.hp ?? 0}</span>
-          <div className="fx-hpbar">
-            <Bar max={hpMax} now={p.hp || 0} after={after.hp} />
-            {take > 0 && after.hp !== (p.hp || 0) && <span className="fx-after" style={{ left: `${(after.hp / hpMax) * 100}%` }}>{after.hp}</span>}
-          </div>
-          {side === "r" && <span className="fx-skull">{SKULL}</span>}
-        </div>
-        {arMax > 0 && (
-          <div className="fx-row">
-            <span className="ic">⛨</span>
-            <span className="val">{p.armor ?? 0}{take > 0 && after.armor !== (p.armor || 0) && <span className="to">▸{after.armor}</span>}</span>
-            <Bar max={arMax} now={p.armor || 0} after={after.armor} cls="fx-ar" />
-          </div>
-        )}
-        <div className="fx-trio">
-          <span className="fx-cell">{SWORD}<b>{dmg ?? "?"}</b></span>
-          <span className={`fx-cell ${acc ? "acc" : ""}`}>{AIM}<b>{hit}<small>%</small></b></span>
-          <span className={`fx-cell crit ${crit ? "" : "zero"}`}>{CRIT}<b>{crit}<small>%</small></b></span>
-        </div>
+    <div className={`fd-side ${side}`} style={{ "--c": p.color || (side === "l" ? "#9b4f96" : "#d2455b") }}>
+      <div className="fd-nm">{label}<small>{p.character?.name || ""}</small></div>
+      <div className="fd-rule" />
+      <div className="fd-hp">
+        <span className={`n ${lethal ? "ko" : ""}`}>{hp}</span>
+        {hpLoss && <span className="to">▸{after.hp}</span>}
+        <Pips max={hpMax} now={hp} after={after.hp} />
+        {lethal && <span className="fd-skull">{SKULL}</span>}
       </div>
+      {arMax > 0 && (
+        <div className="fd-ar">
+          <span className="ic">⛨</span><span className="n">{ar}</span>
+          {arLoss && <span className="to">▸{after.armor}</span>}
+          <Pips max={arMax} now={ar} after={after.armor} ar />
+        </div>
+      )}
+      <div className="fd-row">{side === "r" ? stats.reverse() : stats}</div>
     </div>
   );
 }
@@ -246,22 +246,18 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
     return () => window.removeEventListener("keydown", onKey);
   }, [onConfirm, onCancel]);
   return (
-    <>
-      <div className="fx-shade-full" />
-      <Stage k={k} className={`fx-screen ${lethal ? "lethal" : ""}`}>
-        <div className={`fx-art l ${isBleed(me) ? "bleed" : ""}`} style={{ "--c": me.color || "#9b4f96" }}><div className="glow" /><img src={me.img} alt="" onError={hideBroken} /></div>
-        <div className={`fx-art r ${isBleed(foe) ? "bleed" : ""}`} style={{ "--c": foe.color || "#d2455b" }}><div className="glow" /><img src={foe.img} alt="" onError={hideBroken} /></div>
-        <FxSide side="l" p={me} label="คุณ" take={backDmg} dmg={dmg} hit={hit} crit={crit} acc={accurate} />
-        <div className="fx-mid">
-          <div className="fx-btns">
-            <button type="button" className="fx-go" onClick={onConfirm}>{SWORD}โจมตี</button>
-            <button type="button" className="fx-no" onClick={onCancel}>ย้อน</button>
-          </div>
-          <div className="fx-arr" style={{ top: backDmg ? 168 : 196, "--a": "#c99ad6" }}><span className="ln" /><b>{dmg ?? "?"}</b><span className="pc">{hit}%</span></div>
-          {backDmg > 0 && <div className="fx-arr fx-back" style={{ top: 228, "--a": "#ff8ea0" }}><span className="ln" /><b>{backDmg}</b><span className="pc">{bHit}%</span></div>}
-        </div>
-        <FxSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={counter ? bHit : bHit} crit={bCrit} acc={false} />
-      </Stage>
-    </>
+    <Stage k={k} className={`fd-screen ${lethal ? "lethal" : ""}`}>
+      <div className={`fd-art l ${isBleed(me) ? "bleed" : ""}`}><img src={me.img} alt="" onError={hideBroken} /></div>
+      <div className={`fd-art r ${isBleed(foe) ? "bleed" : ""}`}><img src={foe.img} alt="" onError={hideBroken} /></div>
+      <div className="fd-fade" />
+      <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={dmg} hit={hit} crit={crit} acc={accurate} lethal={false} />
+      <FdSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={bHit} crit={bCrit} acc={false} lethal={lethal} />
+      <div className="fd-go">
+        <button type="button" className="y" onClick={onConfirm}>{SWORD}โจมตี</button>
+        <button type="button" className="n" onClick={onCancel}>ย้อน</button>
+      </div>
+      <div className="fd-arr" style={{ bottom: backDmg ? 110 : 76 }}><span className="ln" /><b>{dmg ?? "?"}</b><small>{hit}%</small></div>
+      {backDmg > 0 && <div className="fd-arr back" style={{ bottom: 52 }}><small>{bHit}%</small><b>{backDmg}</b><span className="ln" /></div>}
+    </Stage>
   );
 }

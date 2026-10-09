@@ -824,3 +824,4 @@
 .bag-btn.ghost { height: 46px; font-size: 18px; background: transparent; box-shadow: inset 0 0 0 1px rgba(127,184,230,.35); color: #bee3f8; }
 .bag-btn.sm { height: 38px; padding: 0 14px; font-size: 16px; }
 .bag-btn:disabled { filter: grayscale(.85) brightness(.6); cursor: default; transform: none; }
+.deck-drawer[data-away="true"] { opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }

@@ -2164,7 +2164,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
-      <div className="deck-drawer" data-open={deckTab ? "true" : "false"}>
+      <div className="deck-drawer" data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
         <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
         <button type="button" className="deck-drawer-tab" aria-expanded={deckTab} aria-label="กองการ์ดกลาง" onClick={() => { clickSound(); setDeckTab((v) => !v); }}>
           <span className="deck-drawer-ico" aria-hidden="true" /><span className="deck-drawer-arrow" aria-hidden="true">{deckTab ? "◂" : "▸"}</span>
@@ -2193,7 +2193,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {me && (
         <SelfHud
           hidden={hudAway}
-          noPeek={fcOpen}
+          noPeek={fcOpen || (!!state.board && phase === "ATTACKING")}
           lowQ={lowQ}
           zoom={hudZ}
           panel={
