@@ -14,6 +14,7 @@ import {
 } from "./diveKit";
 import { DiveStreaks, DiveReticle, RegionTag, DiveImpact, Chrome } from "./DiveFx";
 import { requestArenaLand } from "../../journey/arena/arenaLandBus";
+import { holdBoard } from "../../board/boardPause";
 import "./dive.css";
 
 // สัดส่วนเวลา (คูณ D)
@@ -255,13 +256,15 @@ export default function RegionTravel({ from, to, durationMs, lowQ = false, onDon
   };
 
   const crash = phase >= 4;
+  // กระดานข้างใต้ถูกพื้นขาวทึบบังตั้งแต่ถอยออกจนถึงจังหวะชน → พักวาดกระดาน (ไม่ให้แย่งเครื่องกับลูกโลก)
+  //  เฟส 4 (ชน/เผย) ปล่อยให้วาดต่อก่อนพื้นขาวหาย
+  useEffect(() => (crash ? undefined : holdBoard()), [crash]);
   return (
     <div
       className={`ocd ocd-travel ocd-p${phase}${crash ? " is-crash" : ""}${lowQ ? " is-lowq" : ""}`}
       style={{ "--rev": `${Math.round((1 - T.crash) * D)}ms`, "--in": `${Math.round(Math.min(700, T.back * D * 0.5))}ms` }}
     >
-      {/* ม่านพร่าสนามใช้แค่ช่วงถอยออก (เฟส 0) — หลังจากนั้นพื้นขาว .ocd-bg ทึบบังสนามแล้ว
-          ถ้าค้างไว้ backdrop-filter ต้องเบลอสนามที่ยังขยับอยู่ข้างใต้ใหม่ทุกเฟรมทั้งฉาก (กินเครื่อง/เฟรมตก) */}
+      {/* ม่านขาวโปร่งใช้แค่ช่วงถอยออก (เฟส 0) — หลังจากนั้นพื้นขาว .ocd-bg ทึบบังสนามแล้ว */}
       {!lowQ && phase === 0 && <div className="ocd-travel-veil" aria-hidden="true" />}
       <div className="ocd-bg" aria-hidden="true" />
       <div className="ocd-globe" ref={globeWrapRef}>

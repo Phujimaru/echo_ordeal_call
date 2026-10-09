@@ -33,7 +33,9 @@ import {
   mapSignature, normColor, normRot, pickTile, prepareHighlights, prepareMap, project, rgbString, setCamera, toLogical,
   unproject, ZOOM_K,
 } from "./boardDraw";
+import { boardPaused } from "./boardPause";
 
+const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
 const PUSH_MS = 240;   // ถอย 1 ช่อง
 const BUMP_MS = 280;   // ถอยชน (ขยับไปนิดแล้วเด้งกลับ)
@@ -119,8 +121,17 @@ export default function BoardCanvas(props) {
       raf = requestAnimationFrame(tick);
       const p = propsRef.current;
       const lowQ = !!p.lowQ, night = !!p.night;
-      if (lowQ && now - st.lastDraw < 32) return; // lowQ ≈ 30 fps
-      st.lastDraw = now;
+      // จำกัดเฟรม: ปกติ 60 · lowQ 30 — จอ 120/144Hz ไม่ต้องวาดทั้งกระดานใหม่เกินจำเป็น (วาดสดทุกชิ้นทุกเฟรม กิน CPU มาก)
+      //  พัก (ฉากทึบบังกระดาน ดู boardPause.js): ไม่วาดเฟรม · หลังพักได้สักพัก (ฉากที่บังผ่านช่วงหนักตอนเริ่มไปแล้ว)
+      //  ค่อยอบชั้นนิ่งของแผนที่ใหม่ไว้ล่วงหน้าเป็นระยะ — ตอนฉากเปิดเผยกระดานจะได้ไม่ต้องอบในเฟรมนั้น
+      const paused = boardPaused();
+      if (!paused) st.pausedAt = 0;
+      else if (!st.pausedAt) st.pausedAt = now;
+      if (paused && now - st.pausedAt < PAUSE_BAKE_AFTER) return;
+      const minGap = paused ? 250 : lowQ ? 1000 / 30 : 1000 / 60;
+      const gap = now - st.lastDraw;
+      if (gap < minGap - 1) return;
+      st.lastDraw = gap < minGap * 2 ? now - (gap % minGap) : now;
 
       // --- แผนที่ (อบใหม่เมื่อเนื้อหาเปลี่ยนจริง ไม่ใช่แค่อ็อบเจกต์ใหม่จาก server)
       if (p.map !== st.mapRef) {
@@ -318,6 +329,7 @@ export default function BoardCanvas(props) {
         });
       }
 
+      if (paused) return;
       st.boxes = drawFrame(g, {
         info, view, dpr, bake, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,

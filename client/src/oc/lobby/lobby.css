@@ -15,7 +15,8 @@
 .ocl-view, .ocl-ghosts { position: absolute; inset: 0; pointer-events: none; }
 .ocl-ghost { position: absolute; inset: 0; pointer-events: none !important; animation: ocl-leave 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 .ocl-ghost * { pointer-events: none !important; animation: none !important; transition: none !important; }
-@keyframes ocl-leave { to { opacity: 0; filter: blur(3px); transform: scale(0.985); } }
+/* ไม่เบลอ: ชั้นนี้กว้างเต็มจอ — blur ที่ขยับทุกเฟรมกิน GPU หนักตรงจังหวะสลับหน้า */
+@keyframes ocl-leave { to { opacity: 0; transform: scale(0.985); } }
 @keyframes ocl-fade { from { opacity: 0; } }
 
 /* ---------- ห้องรอ: ที่นั่งรอบลูกโลก ---------- */

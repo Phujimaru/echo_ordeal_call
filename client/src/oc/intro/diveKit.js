@@ -144,7 +144,9 @@ export function createDiveCamera(core, { lowQ = false, wrapEl = null } = {}) {
       if (wrap && !REDUCED) {
         const z = clamp01((d - blurFrom) / (1 - blurFrom));
         wrap.style.transform = z > 0 && scaleWrap ? `scale(${(1 + z * 0.7).toFixed(3)})` : "";
-        if (!lowQ) wrap.style.filter = z > 0 ? `blur(${(z * 5).toFixed(2)}px) brightness(${(1 + z * 0.35).toFixed(3)})` : "";
+        // สว่างขึ้นอย่างเดียว ไม่เบลอ — blur บน canvas เต็มจอที่ค่าเปลี่ยนทุกเฟรม = GPU เบลอทั้งจอใหม่ทุกเฟรม
+        //  ตรงช่วงก่อนชนพอดี (เครื่องสเปกต่ำเฟรมตก) · เส้นความเร็ว + ขยายกรอบยังให้ความรู้สึกพุ่งอยู่
+        if (!lowQ) wrap.style.filter = z > 0 ? `brightness(${(1 + z * 0.35).toFixed(3)})` : "";
       }
     },
   };

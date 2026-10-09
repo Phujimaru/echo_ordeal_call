@@ -58,30 +58,35 @@ function fbm(x, y, z) {
   return s / n;
 }
 
-function paintEarth(e) {
-  const d = e.img.data, { land, reg, edge } = e;
-  for (let y = 0; y < TH; y++) {
-    const lat = 90 - ((y + 0.5) / TH) * 180;
-    const latLine = Math.abs(lat - Math.round(lat / 15) * 15) < 0.16;
-    const widen = Math.max(1, 1 / Math.max(0.15, Math.sin(((y + 0.5) / TH) * Math.PI)));
-    for (let x = 0; x < TW; x++) {
-      const k = y * TW + x, i = k * 4, h = land[k];
-      const lon = ((x + 0.5) / TW) * 360;
-      const lonLine = Math.abs(lon - Math.round(lon / 15) * 15) < 0.16 * widen;
-      let R, G, B;
-      if (h > 0) {
-        R = 253; G = 254; B = 255;
-        if (h > 0.03 && (h * 16) % 1 < 0.07) { R *= 0.93; G *= 0.93; B *= 0.93; } // เส้นชั้นความสูง
-        if (edge[k]) { R = 180; G = 208; B = 236; }
-      } else {
-        R = 226; G = 237; B = 248;
-        if (latLine || lonLine) { R = 196; G = 218; B = 240; }
-        if (edge[k] && (x + y) % 6 < 3) { R = 204; G = 222; B = 241; }
-      }
-      if (Math.abs(h) < 0.012) { R = 111; G = 168; B = 221; } // ชายฝั่ง
-      d[i] = R; d[i + 1] = G; d[i + 2] = B; d[i + 3] = 255;
+// ระบายสีแถวเดียวลง e.img (ยังไม่ส่งขึ้น canvas)
+function paintRow(e, y) {
+  const d = e.img.data, { land, edge } = e;
+  const lat = 90 - ((y + 0.5) / TH) * 180;
+  const latLine = Math.abs(lat - Math.round(lat / 15) * 15) < 0.16;
+  const widen = Math.max(1, 1 / Math.max(0.15, Math.sin(((y + 0.5) / TH) * Math.PI)));
+  for (let x = 0; x < TW; x++) {
+    const k = y * TW + x, i = k * 4, h = land[k];
+    const lon = ((x + 0.5) / TW) * 360;
+    const lonLine = Math.abs(lon - Math.round(lon / 15) * 15) < 0.16 * widen;
+    let R, G, B;
+    if (h > 0) {
+      R = 253; G = 254; B = 255;
+      if (h > 0.03 && (h * 16) % 1 < 0.07) { R *= 0.93; G *= 0.93; B *= 0.93; } // เส้นชั้นความสูง
+      if (edge[k]) { R = 180; G = 208; B = 236; }
+    } else {
+      R = 226; G = 237; B = 248;
+      if (latLine || lonLine) { R = 196; G = 218; B = 240; }
+      if (edge[k] && (x + y) % 6 < 3) { R = 204; G = 222; B = 241; }
     }
+    if (Math.abs(h) < 0.012) { R = 111; G = 168; B = 221; } // ชายฝั่ง
+    d[i] = R; d[i + 1] = G; d[i + 2] = B; d[i + 3] = 255;
   }
+}
+function paintEarth(e) {
+  for (let y = 0; y < TH; y++) paintRow(e, y);
+  flushEarth(e);
+}
+function flushEarth(e) {
   e.ctx.putImageData(e.img, 0, 0);
   e.textures.forEach((t) => { t.needsUpdate = true; });
 }
@@ -98,14 +103,29 @@ export function getEarth(onProgress) {
   const e = earth = {
     canvas, ctx, img: ctx.createImageData(TW, TH), TW, TH,
     land: new Float32Array(TW * TH).fill(-1), reg: new Uint8Array(TW * TH), edge: new Uint8Array(TW * TH),
-    textures: new Set(), listeners: new Set(onProgress ? [onProgress] : []), done: false, row: 0,
+    textures: new Set(), listeners: new Set(onProgress ? [onProgress] : []), done: false, row: 0, fin: 0,
   };
   paintEarth(e); // มหาสมุทร + เส้นกริดไปก่อน ระหว่างรอทวีป
   const dirs = REGION_GEO.map((g) => dirFromLonLat(g.lon, g.lat));
   e.ready = new Promise((resolve) => {
+    // แบ่งทำตามเวลา (~6ms ต่อครั้ง) ไม่ใช่ตามจำนวนแถว — เดิมทีละ 36 แถว = ก้อนละ 20–90ms บนเครื่องสเปกต่ำ
+    //  ติดกันหลายสิบก้อน ลูกโลกที่กำลังถอยออกตอนเข้าห้องจึงกระตุกทั้งช่วง
+    //  ขอบภูมิภาค + ระบายสี ทำตามไปทีละแถวด้วย (แถวที่แถวถัดไปคำนวณแล้ว) — ตอนจบเหลือแค่ส่งภาพขึ้น canvas
+    const SLICE_MS = 6;
+    const finishRows = (upTo) => {
+      for (; e.fin < upTo; e.fin++) {
+        const y = e.fin;
+        if (y >= 1 && y < TH - 1) for (let x = 0; x < TW; x++) {
+          const k = y * TW + x, r = e.reg[k];
+          if (e.reg[y * TW + ((x + 1) % TW)] !== r || e.reg[k + TW] !== r) e.edge[k] = 1;
+        }
+        paintRow(e, y);
+      }
+    };
     const step = () => {
-      const end = Math.min(TH, e.row + 36);
-      for (let y = e.row; y < end; y++) {
+      const t0 = performance.now();
+      let y = e.row;
+      for (; y < TH && (y === e.row || performance.now() - t0 < SLICE_MS); y++) {
         const theta = ((y + 0.5) / TH) * Math.PI, st = Math.sin(theta), ct = Math.cos(theta);
         for (let x = 0; x < TW; x++) {
           const phi = ((x + 0.5) / TW) * Math.PI * 2, dx = -Math.cos(phi) * st, dy = ct, dz = Math.sin(phi) * st;
@@ -119,14 +139,11 @@ export function getEarth(onProgress) {
           e.reg[k] = bi; e.land[k] = fbm(dx, dy, dz) + bump - 0.6;
         }
       }
-      e.row = end;
+      e.row = y;
+      finishRows(e.row < TH ? e.row - 1 : TH);
       e.listeners.forEach((fn) => fn(e.row / TH));
       if (e.row < TH) { setTimeout(step, 0); return; }
-      for (let y = 1; y < TH - 1; y++) for (let x = 0; x < TW; x++) {
-        const k = y * TW + x, r = e.reg[k];
-        if (e.reg[y * TW + ((x + 1) % TW)] !== r || e.reg[k + TW] !== r) e.edge[k] = 1;
-      }
-      paintEarth(e);
+      flushEarth(e);
       e.done = true;
       e.listeners.forEach((fn) => fn(1));
       e.listeners.clear();
@@ -149,6 +166,9 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 export function createGlobe(canvas, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // ไม่ถามผลคอมไพล์ shader ทีละตัว — ถ้าถาม three ต้องรอ GPU คอมไพล์เสร็จแบบ sync (Windows/ANGLE ช้ามาก
+  //  = ฉากลูกโลกค้างตอนเพิ่งสร้าง) · ไม่ถาม = ไดรเวอร์คอมไพล์คู่ขนานไปได้ (shader ของเราคงที่ ไม่ต้องตรวจทุกครั้ง)
+  renderer.debug.checkShaderErrors = false;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   camera.position.set(0, 0, 6);
@@ -357,6 +377,8 @@ export function createGlobe(canvas, opts = {}) {
       e.textures.delete(tex); tex.dispose();
       scene.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => { if (x.map && x.map !== tex) x.map.dispose(); x.dispose(); }); });
       renderer.dispose();
+      // ไม่เรียก renderer.forceContextLoss(): วัดแล้วบล็อกเธรดหลัก ~200ms (เครื่องช้า) ตรงจังหวะส่งต่อเข้ากระดานพอดี
+      //  dispose() คืนเท็กซ์เจอร์/บัฟเฟอร์/shader แล้ว ตัว context เปล่าปล่อยให้ GC เก็บเอง
     },
   };
   return core;

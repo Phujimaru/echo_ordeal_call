@@ -19,6 +19,7 @@ import { SkillSlot } from "./hud/SkillSlot";
 import { SelfHud, HudPanel, HudStatusDrawer, HudCenter, HudRight, HudTopBar } from "./hud/SelfHud";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
+import { holdBoard } from "../board/boardPause";
 
 const P_DISPLAY = "var(--font-p-display)";
 const TEAM_COLORS = { A: "#22d3ee", B: "#f97316", C: "#a3e635" };
@@ -86,6 +87,7 @@ function resolveAttackPick(id, c) {
 function Cutscene({ cs }) {
   const ref = useRef(null);
   const [introDone, setIntroDone] = useState(false);
+  useEffect(() => holdBoard(), []); // วีดีโอทึบเต็มจอบังกระดาน → พักวาดกระดานให้เครื่องถอดรหัสวีดีโอได้เต็มที่
   useEffect(() => {
     const v = ref.current;
     if (!v) return;

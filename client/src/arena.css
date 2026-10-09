@@ -699,31 +699,34 @@
   border-bottom: 22px solid transparent;
   filter: drop-shadow(0 0 12px rgba(255, 150, 110, 0.8));
 }
+/* ลูกศรเลื่อนด้วย transform (ไม่แตะ left/right = ไม่ต้องคำนวณ layout ใหม่ทุกเฟรม) — ตำแหน่งหยุดคือ 24vw */
 .ac-chev-l {
+  left: 24vw;
   border-left: 30px solid var(--av-gold-lit);
   animation: acChevL 2.2s cubic-bezier(0.3, 0, 0.3, 1) both;
 }
 .ac-chev-r {
+  right: 24vw;
   border-right: 30px solid var(--av-gold-lit);
   animation: acChevR 2.2s cubic-bezier(0.3, 0, 0.3, 1) both;
 }
 @keyframes acChevL {
-  0% { left: -12vw; opacity: 0; }
+  0% { transform: translateX(-36vw); opacity: 0; }
   18% { opacity: 1; }
-  44%, 58% { left: 24vw; opacity: 0.9; }
-  100% { left: 30vw; opacity: 0; }
+  44%, 58% { transform: translateX(0); opacity: 0.9; }
+  100% { transform: translateX(6vw); opacity: 0; }
 }
 @keyframes acChevR {
-  0% { right: -12vw; opacity: 0; }
+  0% { transform: translateX(36vw); opacity: 0; }
   18% { opacity: 1; }
-  44%, 58% { right: 24vw; opacity: 0.9; }
-  100% { right: 30vw; opacity: 0; }
+  44%, 58% { transform: translateX(0); opacity: 0.9; }
+  100% { transform: translateX(-6vw); opacity: 0; }
 }
 
 .ac-text { animation: acText 2.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes acText {
-  0% { opacity: 0; transform: scale(1.5); filter: blur(16px); }
-  22% { opacity: 1; transform: scale(1); filter: blur(0); }
+  0% { opacity: 0; transform: scale(1.5); }
+  22% { opacity: 1; transform: scale(1); }
   32% { transform: scale(1.05); }
   60% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.1); }
