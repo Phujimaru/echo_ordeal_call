@@ -494,7 +494,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     setCall({ id: state.actorId, key: callKey });
   }
   const endCall = useCallback(() => setCall(null), []);
-  useEffect(() => { if (call && call.id === (me && me.id)) playSfx("trun_change"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
+  // เสียงฉากตาเดิน: ตาเรา = trun_change · ตาคนอื่น = notificate (ผู้ใช้ให้ไฟล์มา 2026-10-09)
+  useEffect(() => { if (call) playSfx(call.id === (me && me.id) ? "trun_change" : "notificate"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- แถบลำดับเดิน ----------
   const order = phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length

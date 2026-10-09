@@ -41,7 +41,7 @@ export default function App() {
 
   // เสียงที่ดังบ่อยที่สุดในเกม: โหลดไว้ตั้งแต่เปิดหน้า ไม่ให้ไปสะดุดกลางแมตช์
   useEffect(() => installClickSound(), []); // เสียงคลิกทุกการกดทั้งเกม
-  useEffect(() => { prewarmSfx(["action_button", "change_cutscene", "trun_change", "buy_something"]); }, []);
+  useEffect(() => { prewarmSfx(["action_button", "change_cutscene", "trun_change", "buy_something", "notificate"]); }, []);
   // dev: ?autoplay=<characterId> — เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa อัตโนมัติ (ทดสอบกระดานคู่กับ scripts/dev-bots.js)
   useEffect(() => {
     const ch = import.meta.env.DEV ? new URLSearchParams(location.search).get("autoplay") : null;
