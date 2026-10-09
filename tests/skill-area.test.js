@@ -21,7 +21,7 @@ function setup(list, mode = 'ffa') {
   for (const [id, , x, y] of list) {
     const p = engine.players[id];
     p.pos = { x, y }; p.hp = 5; p.armor = 0; p.shield = 0; p.skillPoints = 8; p.skillUsedRound = false;
-    p.statuses = {}; p.statusAmt = {}; p.evadeStacks = [];
+    p.statuses = {}; p.statusAmt = {};
   }
   return engine.players;
 }
@@ -127,7 +127,7 @@ test('คลื่นดาบมุยมิ: ต้องเลือกทิ
 
 test('คลื่นดาบมุยมิ: ศัตรูในแนวหลบได้ทุกคน = เสียดาบสะบั้น + เข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ', () => {
   let P = setup([['M', 'muimi', 7, 9], ['E', 'dummy', 7, 8]]);
-  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100; P.E.evadeStacks = [{ turns: 2 }];
+  engine.applyEvade(P.E, 100);
   Math.random = () => 0;
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
@@ -136,7 +136,7 @@ test('คลื่นดาบมุยมิ: ศัตรูในแนวห
   assert.ok(muimi.ultCooldownLeft(engine, P.M) > 0, 'เข้าคูลดาวน์ทันที');
 
   P = setup([['M', 'muimi', 7, 9], ['E', 'dummy', 7, 8], ['G', 'dummy', 6, 7]]);
-  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100; P.E.evadeStacks = [{ turns: 2 }];
+  engine.applyEvade(P.E, 100);
   Math.random = () => 0;
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
@@ -146,7 +146,7 @@ test('คลื่นดาบมุยมิ: ศัตรูในแนวห
 
 test('คลื่นดาบมุยมิ: หลบหลีกหลบได้ · ไม่โดนเพื่อนร่วมทีม', () => {
   const P = setup([['M', 'muimi', 7, 9, 'A'], ['F', 'dummy', 7, 8, 'A'], ['E', 'dummy', 8, 7, 'B'], ['G', 'dummy', 6, 7, 'B']], 'duo');
-  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100; P.E.evadeStacks = [{ turns: 2 }];
+  engine.applyEvade(P.E, 100);
   Math.random = () => 0;
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });

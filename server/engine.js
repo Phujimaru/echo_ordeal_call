@@ -9,8 +9,8 @@ const {
   resistActive, BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP, cleanseDebuffs, cleanseOneStep,
   cleanseLatestDebuff, applyPoison, poisonAtkPenalty, tickPoison, applyShock,
   tickShock, applyCurse, tickCurseOnSkill, MEND_MAX_TURNS, applyMend, tickMend, blindActive,
-  noHealActive, invertActive, HBLEED_MAX, bleedActive, applyBleed, EVADE_STACK_MAX,
-  EVADE_STACK_TURNS, grantEvadeStack, consumeEvadeStack, accurateActive,
+  noHealActive, invertActive, HBLEED_MAX, bleedActive, applyBleed, EVADE_TURNS,
+  applyEvade, accurateActive,
 } = require("../characters/_universal_status");
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../characters/_universal_status");
 const Journey = require("../characters/_journey");
@@ -207,10 +207,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   HBLEED_MAX,
   bleedActive,
   applyBleed, // "เลือดไหล" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
-  EVADE_STACK_MAX,
-  EVADE_STACK_TURNS,
-  grantEvadeStack,
-  consumeEvadeStack,
+  EVADE_TURNS,
+  applyEvade, // "หลบหลีก" (สถานะ Universal): 1 เทิร์นเสมอ · ไม่ซ้อน (ได้ซ้ำ = รีเฟรช · % ใช้ค่ามากสุด)
   healHp: combat.healHp,
   healArmor: combat.healArmor,
   healOverflow: combat.healOverflow,

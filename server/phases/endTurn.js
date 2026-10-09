@@ -6,7 +6,6 @@ Object.assign(module.exports, {
 });
 
 const CHAR_HOOKS = require("../../characters/index");
-const { tickEvadeStacks } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
 const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, TRANSITION_TIME } = require("../constants");
 const match = require("../match");
@@ -27,15 +26,10 @@ function endTurn() {
   match.action = null;
 
   for (const p of Object.values(match.players)) {
-    tickEvadeStacks(engine, p);
-  }
-
-  for (const p of Object.values(match.players)) {
     for (const k of Object.keys(p.statuses || {})) {
       if (k === "hbleed") continue;  // เลือดไหล (patch 2.5): ลดลงเองในตอนต้นเทิร์นหลังสร้างผล (tickBleed) ไม่ลดซ้ำที่นี่
       if (k === "hburn") continue;   // ลุกไหม้: ลดลงเองในตอนต้นเทิร์นหลังสร้างผล ไม่ลดซ้ำที่นี่
       if (k === "fortune") continue; // โชคลาภ: คงอยู่จนกว่าจะจั่วไพ่ครั้งถัดไป
-      if (k === "evade") continue;   // หลบหลีก (สถานะ Universal): p.statuses.evade เป็นแค่ mirror ของ p.evadeStacks.length — ตัวจริงหมดอายุผ่าน tickEvadeStacks (ดูด้านบน)
       if (k === "empower") continue; // เสริมพลัง: คงอยู่จนกว่าจะได้โจมตี (ไม่ซ้อนทับ)
       // หลับไหล: เทิร์นที่เพิ่งโดนกล่อม ยังไม่เริ่มนับ (เริ่มหลับจริงเทิร์นถัดไป)
       if (k === "sleep" && p.sleepFresh) { p.sleepFresh = false; continue; }

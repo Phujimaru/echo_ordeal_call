@@ -1,6 +1,6 @@
 // หน้าต่างคาดการณ์ (GRID_PLAN §6): โอกาสโดน/คริติคอลของตีปกติ — estimateHitOn / estimateCritOf + state.forecast
 //  สูตรเดียวกับ strike(): แม่นยำ = 100 · ไม่งั้นคูณโอกาสรอด หลบหลีก × ช่องที่เป้ายืน × ป่าไม้ต้องสาปกลางวัน
-//  ค่าประเมินต้องไม่ทอย (Math.random) และไม่แตะสถานะ (สแตคหลบหลีกยังอยู่ครบ)
+//  ค่าประเมินต้องไม่ทอย (Math.random) และไม่แตะสถานะ (หลบหลีกยังอยู่ครบ)
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -47,19 +47,19 @@ test('ค่าเริ่มต้น: เป้ายืนบนพื้น
   assert.equal(attack.estimateCritOf(P.A, P.B), 0);
 });
 
-test('หลบหลีก 50% + พุ่มดอกไม้สูง 20% → โดน 40 (0.5 × 0.8) · ไม่ใช้สแตคหลบหลีก', () => {
+test('หลบหลีก 50% + พุ่มดอกไม้สูง 20% → โดน 40 (0.5 × 0.8) · ไม่แตะหลบหลีก', () => {
   // ภูมิภาค II (6,4) พุ่มดอกไม้สูง
   const P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
-  P.B.statuses.evade = 1; P.B.statusAmt.evade = 50; P.B.evadeStacks = [2];
+  engine.applyEvade(P.B, 50);
   noRandom();
   assert.equal(attack.estimateHitOn(P.A, P.B), 40);
-  assert.equal(P.B.statuses.evade, 1, 'ประเมินแล้วสแตคหลบหลีกต้องยังอยู่');
-  assert.deepEqual(P.B.evadeStacks, [2]);
+  assert.equal(P.B.statuses.evade, 1, 'ประเมินแล้วหลบหลีกต้องยังอยู่');
+  assert.equal(P.B.statusAmt.evade, 50);
   // หลบหลีกไม่ระบุ % = 100 → โดนไม่ได้เลย
   delete P.B.statusAmt.evade;
   assert.equal(attack.estimateHitOn(P.A, P.B), 0);
   // ช่องอย่างเดียว
-  P.B.statuses = {}; P.B.evadeStacks = [];
+  P.B.statuses = {};
   assert.equal(attack.estimateHitOn(P.A, P.B), 80);
 });
 

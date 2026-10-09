@@ -63,8 +63,8 @@ function statusValue(it, raw) {
   const v = it.v || 0;
   const isRaw = !!raw && it.key in raw;
   if (v >= 99) parts.push("ถาวร");
-  else if (v > 1 && !String(it.label).includes(String(v))) {
-    parts.push(isRaw && !PERMANENT_STATUS_KEYS.has(it.key) ? `${v} เทิร์น` : `×${v}`);
+  else if ((v > 1 || it.turns) && !String(it.label).includes(String(v))) {
+    parts.push((isRaw && !PERMANENT_STATUS_KEYS.has(it.key)) || it.turns ? `${v} เทิร์น` : `×${v}`);
   }
   return parts.join(" · ");
 }

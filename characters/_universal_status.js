@@ -17,11 +17,10 @@
 //  บัฟ (ต่อ): netramana (เนตรมณะ: โจมตีปกติมีโอกาสสังหารทันที NETRAMANA_KILL_CHANCE — ดู netramanaActive)
 //  จำนวน (amount) ของสถานะเก็บแยกใน p.statusAmt[key] — p.statuses[key] เก็บจำนวนเทิร์น/ครั้งตามเดิม
 //
-//  evade (หลบหลีก) เป็นกรณีพิเศษ ไม่ผ่าน applyBuff/statusAmtOf แบบตัวอื่น: แต่ละสแตคมีอายุของตัวเอง
-//  EVADE_STACK_TURNS เทิร์น หมดอายุแยกจากกัน (ไม่ต่ออายุกันเองเมื่อได้สแตคใหม่) ซ้อนพร้อมกันได้สูงสุด
-//  EVADE_STACK_MAX สแตค — เก็บจริงใน p.evadeStacks (array ของจำนวนเทิร์นที่เหลือต่อสแตค) ส่วน
-//  p.statuses.evade เป็นแค่ mirror ของ p.evadeStacks.length ไว้ให้โค้ดอื่นอ่านจำนวนสแตคได้แบบเดิม
-//  ใช้ grantEvadeStack/consumeEvadeStack/tickEvadeStacks จัดการ ห้ามแก้ p.statuses.evade ตรงๆ
+//  evade (หลบหลีก): หลบได้ทุกครั้งที่ถูกโจมตีตลอดเทิร์น (ไม่มีการใช้หมดเมื่อถูกเลือกเป็นเป้า)
+//  ไม่ซ้อนทับ — ได้ซ้ำขณะยังติดอยู่ = รีเฟรชกลับเป็น EVADE_TURNS (1) เทิร์น · % ใช้ค่ามากสุด
+//  อยู่ 1 เทิร์นเสมอ หมดอายุตามลูปลดเทิร์นกลางของ endTurn เหมือนบัฟ 1 เทิร์นตัวอื่น (เช่น ยาต้านสถานะ)
+//  ใส่ผ่าน applyEvade() เท่านั้น (applyBuff(p, "evade", ...) ก็ส่งต่อมาที่นี่ให้เอง)
 // ============================================================
 
 const SPELLBURDEN_MAX = 2; // ภาระเวท: ซ้อนทับได้สูงสุด 2 (เพิ่มค่าใช้พลังงานได้ไม่เกิน 2 หน่วย)
@@ -94,11 +93,12 @@ function stripLatestBuff(p) {
   delete p.statuses[best.key];
   if (p.statusAmt) delete p.statusAmt[best.key];
   if (p.statusAt) delete p.statusAt[best.key];
-  if (best.key === "evade") p.evadeStacks = []; // หลบหลีก: p.statuses.evade เป็นแค่เงาของ evadeStacks
   return { key: best.key, label: BUFF_LABEL[best.key] || best.key };
 }
 
 function applyBuff(p, key, amount, turns) {
+  // หลบหลีกมีกติกาของตัวเอง (1 เทิร์นเสมอ · ไม่ซ้อน) — ไม่ว่าผู้ให้จะส่งกี่เทิร์นมา
+  if (key === "evade") { applyEvade(p, amount); return; }
   //  ประทับลำดับไว้ให้บัฟ (stripLatestBuff ต้องรู้ว่าเป้าหมายเพิ่งได้บัฟไหนมาล่าสุด)
   //  และดีบัฟที่ล้างได้ (ล้างดีบัฟ "ที่โดนล่าสุด" ของนกจาบยามเช้า โอเบรอนฤดูร้อน — cleanseLatestDebuff)
   if (BUFF_KEYS.includes(key) || BASIC_DEBUFF_CLEAR.includes(key) || SOFT_DEBUFF_STEP.includes(key)) {
@@ -474,50 +474,29 @@ function netramanaActive(p) {
   return !!p && ((p.statuses && p.statuses.netramana) || 0) > 0;
 }
 
-const EVADE_STACK_MAX = 3;   // หลบหลีก: สะสมสแตคพร้อมกันได้สูงสุด 3
-const EVADE_STACK_TURNS = 2; // หลบหลีก: แต่ละสแตคมีอายุของตัวเอง 2 เทิร์น แล้วหมดไปเอง (ไม่เกี่ยวกับสแตคอื่น ไม่ต่ออายุกันเอง)
+// ---------- "หลบหลีก" (evade, สถานะ Universal) ----------
+//  ระหว่างที่ติดอยู่ ทุกการโจมตีที่หลบหลีกมีผล (ตีปกติ/ตีสวน/สกิลที่ตีด้วยพลังโจมตี) ทอยหลบตาม % ทุกครั้ง
+//  ไม่มีอะไรถูกใช้หมดเมื่อถูกเลือกเป็นเป้า · "แม่นยำ" ของผู้ตียังเจาะได้ (จุดทอยอยู่ที่ server/phases/attack.js)
+//  p.statuses.evade = เทิร์นที่เหลือ (= 1) · p.statusAmt.evade = % หลบ
+const EVADE_TURNS = 1;
 
-// ให้สแตคหลบหลีกใหม่ 1 สแตค (อายุ EVADE_STACK_TURNS เทิร์นของตัวเอง) — ไม่เกิน EVADE_STACK_MAX สแตคพร้อมกัน
-// คืน true ถ้าให้สำเร็จ, false ถ้าเต็มเพดานอยู่แล้ว (ไม่ต่ออายุสแตคเดิมที่มีอยู่)
-//  turns = อายุของสแตคนี้ (ค่าเริ่มต้น EVADE_STACK_TURNS)
-function grantEvadeStack(p, turns = EVADE_STACK_TURNS) {
-  p.evadeStacks = p.evadeStacks || [];
-  if (p.evadeStacks.length >= EVADE_STACK_MAX) return false;
-  p.evadeStacks.push(turns);
-  p.statuses.evade = p.evadeStacks.length;
-  return true;
-}
-
-// ใช้สแตคหลบหลีก 1 สแตค (เอาอันที่ใกล้หมดอายุที่สุดออกก่อน) — เรียกตอนถูกเลือกเป็นเป้าโจมตี ไม่ว่าหลบพ้นหรือไม่
-function consumeEvadeStack(p) {
-  if (!Array.isArray(p.evadeStacks) || !p.evadeStacks.length) return;
-  let minIdx = 0;
-  for (let i = 1; i < p.evadeStacks.length; i++) {
-    if (p.evadeStacks[i] < p.evadeStacks[minIdx]) minIdx = i;
-  }
-  p.evadeStacks.splice(minIdx, 1);
-  p.statuses.evade = p.evadeStacks.length;
-  if (!p.evadeStacks.length) {
-    delete p.statuses.evade;
-    if (p.statusAmt) delete p.statusAmt.evade;
-  }
-}
-
-// เรียกทุกจบเทิร์นต่อผู้เล่น — แต่ละสแตคนับถอยหลังอายุของตัวเอง หมดอายุอันไหนก็หายไปเฉพาะอันนั้น
-function tickEvadeStacks(engine, p) {
-  if (!Array.isArray(p.evadeStacks) || !p.evadeStacks.length) return;
-  const before = p.evadeStacks.length;
-  p.evadeStacks = p.evadeStacks.map((t) => t - 1).filter((t) => t > 0);
-  p.statuses.evade = p.evadeStacks.length;
-  if (!p.evadeStacks.length) delete p.statuses.evade;
-  if (p.evadeStacks.length < before) {
-    engine.log(`💨 ${p.name} หลบหลีกบางส่วนหมดอายุ (ครบ ${EVADE_STACK_TURNS} เทิร์น) — เหลือ ${p.evadeStacks.length}/${EVADE_STACK_MAX} ครั้ง`);
-  }
+// ให้/รีเฟรช "หลบหลีก" — ไม่ซ้อน: ติดอยู่แล้วได้ซ้ำ = กลับเป็น EVADE_TURNS เทิร์น
+//  pct ไม่ระบุ = 100% · ได้ % สูงกว่าเดิมใช้ค่าสูงกว่า ต่ำกว่าคงค่าเดิมไว้ · คืน % ที่มีผลหลังให้
+function applyEvade(p, pct) {
+  if (!p || !p.statuses) return 0;
+  const want = Math.min(100, Math.max(1, Math.round(Number(pct)) || 100));
+  const cur = (p.statuses.evade || 0) > 0 ? (statusAmtOf(p, "evade") || 100) : 0;
+  p.statusAt = p.statusAt || {};
+  p.statusAt.evade = ++buffSeq; // stripLatestBuff ต้องรู้ว่าเพิ่งได้บัฟนี้มาล่าสุด
+  p.statuses.evade = EVADE_TURNS;
+  p.statusAmt = p.statusAmt || {};
+  p.statusAmt.evade = Math.max(cur, want);
+  return p.statusAmt.evade;
 }
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ต้องตรงกับรายการ `continue;` ในลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js)
 //  และกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "evade", "empower"]);
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower"]);
 
 module.exports = {
   SPELLBURDEN_MAX,
@@ -563,9 +542,6 @@ module.exports = {
   netramanaActive,
   NUMB_FAIL_CHANCE,
   numbFizzles,
-  EVADE_STACK_MAX,
-  EVADE_STACK_TURNS,
-  grantEvadeStack,
-  consumeEvadeStack,
-  tickEvadeStacks,
+  EVADE_TURNS,
+  applyEvade,
 };

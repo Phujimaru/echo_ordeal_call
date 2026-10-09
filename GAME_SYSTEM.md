@@ -287,7 +287,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - `p.statuses[key]` = **จำนวนเทิร์นที่เหลือ** (หรือจำนวนสแตค แล้วแต่ key)
 - `p.statusAmt[key]` = **ขนาดของผล** (เช่น guard 2 = ลดดาเมจ 2) — อ่านด้วย `statusAmtOf(p,key)` เสมอ
 - ลดเทิร์นทั้งหมดที่ลูปใน `endTurn()` (`server/phases/endTurn.js`) — **key ที่ไม่ควรลดเทิร์นต้อง `continue;` ในลูปนั้นเอง**
-  ตอนนี้ข้าม: `hbleed`/`hburn` (ลดเองตอนติกต้นเทิร์น) · `fortune` (หมดเมื่อจั่ว) · `evade` (mirror ของ `p.evadeStacks`) · `empower` (หมดเมื่อโจมตี) ·
+  ตอนนี้ข้าม: `hbleed`/`hburn` (ลดเองตอนติกต้นเทิร์น) · `fortune` (หมดเมื่อจั่ว) · `empower` (หมดเมื่อโจมตี) ·
   `sleep` เทิร์นแรก (`p.sleepFresh`) — ตรงกับ `NO_TICK_STATUS` ใน `_universal_status.js` · หมดอายุแล้วล้าง `statusAmt` ให้เอง
   · สถานะหมดอายุที่ต้องมีผลตามมา เรียกฮุคในลูปนี้ (ตอนนี้: `muimiTower` → `muimi.onUltExpire`)
 
@@ -328,7 +328,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - **ล้างดีบัฟ "ที่โดนล่าสุด"** `cleanseLatestDebuff(p)` (นกจาบยามเช้าของโอเบรอน): `applyBuff`/`applyDebuff`/`applyBleed` ประทับ `p.statusAt` ให้ทั้งบัฟและดีบัฟที่ล้างได้
   ดีบัฟที่เขียน `p.statuses` ตรงๆ ไม่มีตรา = ถือว่าเก่ากว่า · `SOFT_DEBUFF_STEP` ลดทีละ 1 ที่เหลือล้างทั้งก้อน
 - `applyDebuff()` คืน `false` ถ้าโดน `resist` กัน (wrapper ใน `combat.js` คืน `false` ด้วยถ้าเป็นเพื่อนร่วมทีม) — `cleanseDebuffs` ล้าง `BASIC_DEBUFF_CLEAR` ทั้งหมด + `SOFT_DEBUFF_STEP` ทีละ 1
-- **`evade` เป็นกรณีพิเศษ**: ตัวจริงอยู่ใน `p.evadeStacks` (array อายุต่อสแตค, สูงสุด 3 สแตค × 2 เทิร์น) — `p.statuses.evade` เป็นแค่ mirror ใช้ `grantEvadeStack`/`consumeEvadeStack`/`tickEvadeStacks` เท่านั้น ห้ามแตะตรงๆ
+- **`evade` (หลบหลีก)**: ใส่ผ่าน `applyEvade(p, pct)` (`engine.applyEvade` · `applyBuff(p, "evade", …)` ก็ส่งต่อให้) — `p.statuses.evade` = 1 เทิร์นเสมอ · `p.statusAmt.evade` = % (ไม่ระบุ = 100)
+  ไม่ซ้อน: ได้ซ้ำขณะติด = รีเฟรชเป็น 1 เทิร์น · % ใช้ค่ามากสุด · ทอยหลบทุกครั้งที่ถูกโจมตี (`strike`/`skillStrike`) ไม่มีอะไรถูกใช้หมด · หมดอายุที่ลูป `endTurn` ตามปกติ (จบเทิร์นที่ได้รับ เหมือนยาต้านสถานะ 1 เทิร์น)
 - ตาบอด (`blind`) ทำงานที่ `buildStateFor()`: ผู้ชมที่ตาบอดไม่เห็นไพ่/แต้ม/เลือด/เกราะ/แต้มสกิลของทุกคน (ค่า `null` / `-1`)
 
 ---
@@ -549,7 +550,7 @@ module.exports = {
 3. **โรลโอกาสต้องอยู่ที่จุดตัดสินจริง** — ถ้าโรลทีหลังจุดที่สุ่มผู้ชนะจากการเสมอไปแล้ว (เช่นใน `afterSummary()`) โอกาสจริงจะถูกหารด้วยจำนวนคนที่เสมอ → โรลใน `resolveRound()`
 4. **`withEffectSource`** ต้องห่อทุก handler ที่ก่อเอฟเฟกต์ ไม่งั้น friendly-fire / แหล่งที่มาดาเมจพัง · callback หลังวีดีโอ (`pausePlayingForCutscene(after)`) ต้องห่อซ้ำ
    · กลับกัน ผลเสียที่ **ตั้งใจ** ให้ลงเพื่อนร่วมทีมได้ (นกจาบยามเช้า) ต้อง **ไม่** มีต้นตอ
-5. **ห้ามแก้ `p.hp` / `p.armor` / `p.statuses.evade` ตรงๆ** — ใช้ primitive ที่ให้ไว้ (Mark 42 / เลือดชั่วคราว / mirror ผูกอยู่) · ข้อยกเว้นที่มีอยู่: หลับไหลหักเลือดตรง (ค้างที่ 1)
+5. **ห้ามแก้ `p.hp` / `p.armor` / `p.statuses.evade` ตรงๆ** — ใช้ primitive ที่ให้ไว้ (Mark 42 / เลือดชั่วคราว / `applyEvade` คุมกติกา 1 เทิร์น·ไม่ซ้อน) · ข้อยกเว้นที่มีอยู่: หลับไหลหักเลือดตรง (ค้างที่ 1)
 6. **`isNormalAttack`** ให้ `true` เฉพาะจาก `doAttack()` เท่านั้น
 7. **`p.seen[key]` vs `p.cutsceneShown[key]`** — อันแรกกันเอฟเฟกต์ afterReveal ทำงานซ้ำ (ล้างเมื่อสถานะหมด) อันหลังกันวีดีโอเล่นซ้ำทั้งเกม คนละเรื่องกัน
 8. `process.on("uncaughtException")` ใน `server.js` เป็น **ตาข่ายสำรอง** (ติดตั้งเฉพาะตอนรันเป็น main — ตอนเทสต์ require ต้องให้ error ระเบิดออกมา) ไม่ใช่ที่จัดการ error — handler ต้อง try/catch เอง (`safeOn`/`onPlayerEvent` ทำให้แล้ว)

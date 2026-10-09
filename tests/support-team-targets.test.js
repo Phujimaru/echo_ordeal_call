@@ -24,7 +24,7 @@ function setup(mode, supportId) {
   engine.setGameState('PLAYING');
   for (const p of Object.values(engine.players)) {
     p.locked = false; p.skillPoints = 8; p.skillUsedRound = false;
-    p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.evadeStacks = [];
+    p.hp = 3; p.armor = 3; p.shield = 0; p.statuses = {}; p.statusAmt = {};
     p.cards = [{ value: 5, color: 'red' }, { value: 4, color: 'blue' }];
   }
   // ยืนใกล้กันกลางกระดาน — ทุกคนอยู่ในระยะสกิล (ระยะบัฟของโอเบรอน = ระยะเดิน 4)

@@ -35,7 +35,7 @@ function mk(id, characterId, position, teamId = null) {
   return {
     id, name: id, characterId, position, teamId, alive: true, connected: true,
     hp: 4, armor: 0, shield: 0, skillPoints: 4, statuses: {}, statusAmt: {},
-    seen: {}, cutsceneShown: {}, cards: [], inventory: [], evadeStacks: [],
+    seen: {}, cutsceneShown: {}, cards: [], inventory: [],
     locked: false, busted: false, result: null,
     dmgArmor: 0, dmgHp: 0, gainedSkill: 0, skillUsedRound: false,
     transformAt: 0,

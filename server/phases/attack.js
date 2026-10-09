@@ -8,7 +8,7 @@ Object.assign(module.exports, {
 
 const CHAR_HOOKS = require("../../characters/index");
 const {
-  statusAmtOf, poisonAtkPenalty, invertActive, consumeEvadeStack, accurateActive,
+  statusAmtOf, poisonAtkPenalty, invertActive, accurateActive,
 } = require("../../characters/_universal_status");
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../../characters/_universal_status");
 const Mark42 = require("../../characters/_mark42");
@@ -82,7 +82,7 @@ function estimateAttackOn(attacker, target) {
   } catch { return null; }
 }
 
-// ประเมินโอกาสตีปกติ "โดน" (%) — อ่านด่านพลาดเดียวกับ strike() ตามลำดับ แต่ไม่ทอย/ไม่ใช้สแตคหลบหลีก
+// ประเมินโอกาสตีปกติ "โดน" (%) — อ่านด่านพลาดเดียวกับ strike() ตามลำดับ แต่ไม่ทอย/ไม่แตะสถานะ
 //  แม่นยำ = 100 (เจาะการหลบหลีกทุกแบบ) · ไม่งั้นคูณโอกาสรอดแต่ละด่าน:
 //  หลบหลีกของเป้า (statusAmt หรือ 100%) × ช่องที่เป้ายืน (พุ่มดอกไม้สูง/ป่าทึบ) × ป่าไม้ต้องสาปกลางวัน
 //  ไม่นับเนตรมณะ (สังหารทันทีไม่ใช่การพลาด) · คืนจำนวนเต็ม 0–100 · พัง = null
@@ -116,21 +116,20 @@ function strike(attacker, target, { counter = false } = {}) {
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
 
-  // หลบหลีก (สถานะพื้นฐาน patch 2.0.8): หลบการโดนโจมตีตาม % ที่ระบุ
-  //  (ไม่ระบุ = 100%) — ซ้อนทับได้ หมดไปทีละ 1 ครั้งเมื่อถูกเลือกโจมตี ไม่ว่าหลบพ้นหรือไม่
+  // หลบหลีก (สถานะ Universal): หลบการโดนโจมตีตาม % ที่ระบุ (ไม่ระบุ = 100%)
+  //  ทอยทุกครั้งที่ถูกโจมตีตลอดเทิร์นที่ติดอยู่ — ไม่มีอะไรถูกใช้หมด (หมดอายุตามเทิร์นที่ endTurn)
   if (!accurate && (target.statuses.evade || 0) > 0) {
     const evadePct = statusAmtOf(target, "evade") || 100;
-    consumeEvadeStack(target);
     if (Math.random() * 100 < evadePct) {
       // patch 2.1.3.5: ถูกโจมตีไม่ได้แต้มสกิลอีกต่อไป (แม้หลบพ้น)
       target.wasAttacked = true;
-      match.lastLog.push(`💨 หลบหลีก! ${target.name} หลบการ${verb}ของ ${attacker.name} ได้ (${evadePct}%) — เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง`);
+      match.lastLog.push(`💨 หลบหลีก! ${target.name} หลบการ${verb}ของ ${attacker.name} ได้ (${evadePct}%)`);
       return {
         dmg: 0, dodge: true, kill: false,
         skills: [{ name: `หลบหลีก (${evadePct}%)`, img: null, by: target.name, color: lobby.colorOf(target), side: "def" }],
       };
     }
-    match.lastLog.push(`💨 ${target.name} พยายามหลบ (${evadePct}%) แต่ไม่พ้น — การโจมตีดำเนินต่อ (เหลือหลบหลีกอีก ${target.statuses.evade || 0} ครั้ง)`);
+    match.lastLog.push(`💨 ${target.name} พยายามหลบ (${evadePct}%) แต่ไม่พ้น — การโจมตีดำเนินต่อ`);
   }
   // ช่องพิเศษ (GRID_PLAN §3.1): เป้ายืนในพุ่มดอกไม้สูง/ป่าทึบ หลบได้อีก 20% (ทอยแยกหลังสถานะหลบหลีก · แม่นยำเจาะได้)
   const cover = !accurate && terrainCoverDodge(target);
@@ -241,7 +240,6 @@ function skillStrike(attacker, target, reason) {
   target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
   if (!accurate && (target.statuses.evade || 0) > 0) {
     const evadePct = statusAmtOf(target, "evade") || 100;
-    consumeEvadeStack(target);
     if (Math.random() * 100 < evadePct) {
       match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
       return { dmg: 0, dodge: true, kill: false };
