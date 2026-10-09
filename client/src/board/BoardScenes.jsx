@@ -61,19 +61,19 @@ export function OrderCall({ k, round, seat, order, byId, myId, lowQ }) {
   }, [n, lowQ]);
   const sorted = stage >= 2;
   return (
-    <Stage k={k} className="oc-call" style={{ "--n": n }}>
-      <div className="oc-bg" data-out={stage >= 4 ? "true" : "false"}>
-        <div className="oc-globe"><svg viewBox="-100 -100 200 200" aria-hidden="true"><circle r="98" /><ellipse rx="98" ry="30" /><ellipse rx="98" ry="62" /><ellipse rx="30" ry="98" /><ellipse rx="62" ry="98" /><ellipse rx="86" ry="98" /><line x1="-98" y1="0" x2="98" y2="0" /><line x1="0" y1="-98" x2="0" y2="98" /></svg></div>
-        <div className="oc-scan" />
-        <i className="oc-tick tl" /><i className="oc-tick tr" /><i className="oc-tick bl" /><i className="oc-tick br" />
-        <svg className="oc-orbit" viewBox="0 0 1920 1080" aria-hidden="true">
-          <defs><linearGradient id="ocg" x1="0" x2="1"><stop offset="0" stopColor="#3d8bd9" stopOpacity="0" /><stop offset=".2" stopColor="#3d8bd9" /><stop offset=".5" stopColor="#9b4f96" /><stop offset=".8" stopColor="#3d8bd9" /><stop offset="1" stopColor="#3d8bd9" stopOpacity="0" /></linearGradient></defs>
+    <Stage k={k} className="toc-call" style={{ "--n": n }}>
+      <div className="toc-bg" data-out={stage >= 4 ? "true" : "false"}>
+        <div className="toc-globe"><svg viewBox="-100 -100 200 200" aria-hidden="true"><circle r="98" /><ellipse rx="98" ry="30" /><ellipse rx="98" ry="62" /><ellipse rx="30" ry="98" /><ellipse rx="62" ry="98" /><ellipse rx="86" ry="98" /><line x1="-98" y1="0" x2="98" y2="0" /><line x1="0" y1="-98" x2="0" y2="98" /></svg></div>
+        <div className="toc-scan" />
+        <i className="toc-tick tl" /><i className="toc-tick tr" /><i className="toc-tick bl" /><i className="toc-tick br" />
+        <svg className="toc-orbit" viewBox="0 0 1920 1080" aria-hidden="true">
+          <defs><linearGradient id="tocg" x1="0" x2="1"><stop offset="0" stopColor="#3d8bd9" stopOpacity="0" /><stop offset=".2" stopColor="#3d8bd9" /><stop offset=".5" stopColor="#9b4f96" /><stop offset=".8" stopColor="#3d8bd9" /><stop offset="1" stopColor="#3d8bd9" stopOpacity="0" /></linearGradient></defs>
           <path className="o1" d="M40 600 Q960 380 1880 600" />
           <path className="o2" d="M40 616 Q960 396 1880 616" />
         </svg>
-        <div className="oc-head">
-          <div className="oc-lat">Round {String(round).padStart(2, "0")} · Turn Order</div>
-          <h1><i className="oc-dia l" />ลำดับเดิน<i className="oc-dia r" /></h1>
+        <div className="toc-head">
+          <div className="toc-lat">Round {String(round).padStart(2, "0")} · Turn Order</div>
+          <h1><i className="toc-dia l" />ลำดับเดิน<i className="toc-dia r" /></h1>
         </div>
       </div>
       {seat.map((id, si) => {
@@ -84,27 +84,27 @@ export function OrderCall({ k, round, seat, order, byId, myId, lowQ }) {
         const bust = !!p.busted;
         const first = oi === 0;
         return (
-          <div key={id} className="oc-col" data-bust={bust && stage >= 1 ? "true" : "false"} data-first={first && stage >= 3 ? "true" : "false"} data-out={stage >= 4 ? "true" : "false"}
+          <div key={id} className="toc-col" data-bust={bust && stage >= 1 ? "true" : "false"} data-first={first && stage >= 3 ? "true" : "false"} data-out={stage >= 4 ? "true" : "false"}
             style={{ "--pc": p.color || "#3d8bd9", "--d": `${si * 90}ms`, "--od": `${(oi >= 0 ? oi : si) * 60}ms`, transform: `translate(${at.x}px, ${at.y}px)`, transitionDelay: sorted ? `${(oi >= 0 ? oi : si) * 40}ms` : "0ms" }}>
-            <div className="oc-rk" data-on={stage >= 3 ? "true" : "false"} style={{ animationDelay: `${(oi >= 0 ? oi : 0) * 110}ms` }}>{oi + 1}</div>
-            <div className="oc-hexw">
-              <svg className="oc-ring" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX_PTS} /></svg>
-              <div className="oc-fr" />
-              <div className="oc-fa"><img src={p.img} alt="" style={faceStyle(p)} onError={hideBroken} /></div>
-              <svg className="oc-crack" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><path d="M48 0 L42 30 L58 46 L40 70 L52 114 M58 46 L84 52 L100 44 M42 30 L18 26" /></svg>
-              {first && stage >= 3 && <div className="oc-crown">👑</div>}
-              {bust && stage >= 1 && <div className="oc-stamp" style={{ animationDelay: `${si * 320 + 430}ms` }}>แตก</div>}
+            <div className="toc-rk" data-on={stage >= 3 ? "true" : "false"} style={{ animationDelay: `${(oi >= 0 ? oi : 0) * 110}ms` }}>{oi + 1}</div>
+            <div className="toc-hexw">
+              <svg className="toc-ring" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX_PTS} /></svg>
+              <div className="toc-fr" />
+              <div className="toc-fa"><img src={p.img} alt="" style={faceStyle(p)} onError={hideBroken} /></div>
+              <svg className="toc-crack" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><path d="M48 0 L42 30 L58 46 L40 70 L52 114 M58 46 L84 52 L100 44 M42 30 L18 26" /></svg>
+              {first && stage >= 3 && <div className="toc-crown">👑</div>}
+              {bust && stage >= 1 && <div className="toc-stamp" style={{ animationDelay: `${si * 320 + 430}ms` }}>แตก</div>}
             </div>
-            {stage >= 3 && <div className="oc-rew" data-neg={bust ? "true" : "false"} style={{ animationDelay: `${(oi >= 0 ? oi : 0) * 110 + 300}ms` }}>{bust ? "−1 ช่อง" : first ? "+2 เหรียญ" : "+1 เหรียญ"}</div>}
-            <div className="oc-plate">
-              <div className="oc-name">{id === myId ? "คุณ" : p.name}</div>
-              <div className="oc-ch">{p.character?.name || ""}</div>
-              <div className="oc-pts"><span className="oc-pv"><RevealScore p={p} si={si} run={stage >= 1} /></span><small>แต้ม</small></div>
+            {stage >= 3 && <div className="toc-rew" data-neg={bust ? "true" : "false"} style={{ animationDelay: `${(oi >= 0 ? oi : 0) * 110 + 300}ms` }}>{bust ? "−1 ช่อง" : first ? "+2 เหรียญ" : "+1 เหรียญ"}</div>}
+            <div className="toc-plate">
+              <div className="toc-name">{id === myId ? "คุณ" : p.name}</div>
+              <div className="toc-ch">{p.character?.name || ""}</div>
+              <div className="toc-pts"><span className="toc-pv"><RevealScore p={p} si={si} run={stage >= 1} /></span><small>แต้ม</small></div>
             </div>
           </div>
         );
       })}
-      <div className="oc-flash" data-on={stage === 3 ? "true" : "false"} />
+      <div className="toc-flash" data-on={stage === 3 ? "true" : "false"} />
     </Stage>
   );
 }
@@ -258,7 +258,7 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
             <button type="button" className="fx-no" onClick={onCancel}>ย้อน</button>
           </div>
           <div className="fx-arr" style={{ top: backDmg ? 168 : 196, "--a": "#c99ad6" }}><span className="ln" /><b>{dmg ?? "?"}</b><span className="pc">{hit}%</span></div>
-          {backDmg > 0 && <div className="fx-arr back" style={{ top: 228, "--a": "#ff8ea0" }}><span className="ln" /><b>{backDmg}</b><span className="pc">{bHit}%</span></div>}
+          {backDmg > 0 && <div className="fx-arr fx-back" style={{ top: 228, "--a": "#ff8ea0" }}><span className="ln" /><b>{backDmg}</b><span className="pc">{bHit}%</span></div>}
         </div>
         <FxSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={counter ? bHit : bHit} crit={bCrit} acc={false} />
       </Stage>

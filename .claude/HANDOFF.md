@@ -18,6 +18,8 @@
 - มือถือ (`vp.w < 768`) ยังเป็นหน้าจอเดิมที่อ่าน SUMMARY/ATTACK — ตามกติกา CLAUDE.md ไม่ทำต่อ
 
 ## งานถัดไป / รอผู้ใช้
+- ✅ **2026-10-09 ปล่อย 5.3.2 (แก้บั๊ก):** ลูกโลก/วงแหวนหน้าเลือกลำดับ/เลือกตัวลากหมุนไม่ได้ — CSS ฉากลำดับเดินใช้คลาส `.oc-globe`/`.oc-tick` ชนธีม ORDEAL CALL (CSS ของ Game โหลดทั้งแอป) → เปลี่ยนเป็น `toc-*` และ `.pc-hex` → `dpc-*`
+  · **กับดัก:** คลาส `oc-*` เป็นของธีมกลาง (`oc/theme.css`) ห้ามใช้ในคอมโพเนนต์อื่น · CSS ทุกไฟล์โหลดรวมทั้งแอป ตั้งชื่อคลาส/keyframes ให้มี prefix เฉพาะเสมอ
 - ✅ **2026-10-09 ปล่อย 5.3.1:** เสียงฉากตาเดิน — ตาเรา `effect_sound/notificate_mine.mp3` · ตาคนอื่น `effect_sound/notificate.mp3` (ไฟล์จากผู้ใช้)
 - ✅ **2026-10-09 ปล่อย 5.3.0: UI ในเกมแบบใหม่ทั้งหมด** (ต้นแบบที่ผู้ใช้อนุมัติ [.claude/plans/game-ui-redesign.html](plans/game-ui-redesign.html) — สรุปใน GRID_PLAN §11) · server: คาดการณ์มี `hit/crit/backHit/backCrit` + ORDER 6.5 วิ (`ORDER_TIME_MS`) · กฎใหม่ใน CLAUDE.md: ห้ามมีข้อความอธิบายใน UI
   · ดูต้นแบบ: launch config `plans` (python http.server :5180) → `/.claude/plans/game-ui-redesign.html`

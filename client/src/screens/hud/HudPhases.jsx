@@ -96,14 +96,14 @@ export function WatchChip({ name, color }) {
 const HEX = "50,0 100,28.5 100,85.5 50,114 0,85.5 0,28.5";
 export function PhaseCall({ round }) {
   return (
-    <div className="pc-call" aria-hidden="true">
-      <div className="pc-veil" />
-      <svg className="pc-hex h1" viewBox="0 0 100 114" preserveAspectRatio="none"><polygon points={HEX} /></svg>
-      <svg className="pc-hex h2" viewBox="0 0 100 114" preserveAspectRatio="none"><polygon points={HEX} /></svg>
-      <div className="pc-in">
-        <div className="pc-fan"><i /><i /><i /></div>
-        <i className="pc-l l" /><i className="pc-l r" />
-        <span className="pc-lat">Draw Phase · Round {String(round || 1).padStart(2, "0")}</span>
+    <div className="dpc-call" aria-hidden="true">
+      <div className="dpc-veil" />
+      <svg className="dpc-hex h1" viewBox="0 0 100 114" preserveAspectRatio="none"><polygon points={HEX} /></svg>
+      <svg className="dpc-hex h2" viewBox="0 0 100 114" preserveAspectRatio="none"><polygon points={HEX} /></svg>
+      <div className="dpc-in">
+        <div className="dpc-fan"><i /><i /><i /></div>
+        <i className="dpc-l l" /><i className="dpc-l r" />
+        <span className="dpc-lat">Draw Phase · Round {String(round || 1).padStart(2, "0")}</span>
         <b>ช่วงจั่วไพ่</b>
       </div>
     </div>

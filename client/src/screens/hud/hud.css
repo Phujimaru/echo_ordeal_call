@@ -736,26 +736,26 @@
 @keyframes hwPulse { 50% { transform: scale(.6); opacity: .5; } }
 
 /* ---------- ฉากเปิดช่วงจั่วไพ่ ---------- */
-.pc-call { position: fixed; inset: 0; z-index: 45; pointer-events: none; display: grid; place-items: center; animation: pcOut 2s ease both; }
-@keyframes pcOut { 0%, 78% { opacity: 1; } 100% { opacity: 0; } }
-.pc-veil { position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(12,29,60,.6), rgba(12,29,60,.15) 70%, transparent); animation: pcFade .3s ease both; }
-@keyframes pcFade { from { opacity: 0; } }
-.pc-hex { position: absolute; left: 50%; top: 50%; width: 30vh; height: 34vh; margin: -17vh 0 0 -15vh; overflow: visible; opacity: 0; animation: pcHex 1.3s cubic-bezier(.2,.8,.3,1) both; }
-.pc-hex.h2 { animation-delay: .16s; --s: 3.2; --r: -20deg; }
-.pc-hex polygon { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 8px #7fb8e6); }
-@keyframes pcHex { 0% { opacity: 0; transform: scale(.2) rotate(-30deg); } 45% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(var(--s, 2.2)) rotate(var(--r, 20deg)); } }
-.pc-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; }
-.pc-in b { font: 700 6.2vh/1.15 "Chakra Petch", Kanit, sans-serif; text-shadow: 0 4px 30px rgba(18,38,72,.9); animation: pcTitle .42s ease .12s both; }
-@keyframes pcTitle { from { opacity: 0; transform: translateY(20px); filter: blur(8px); } }
-.pc-lat { font: 400 1.4vh/1 Michroma, sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #bee3f8; text-shadow: 0 2px 10px rgba(18,38,72,1); animation: pcLat .6s ease .08s both; }
-@keyframes pcLat { from { opacity: 0; letter-spacing: 1em; } }
-.pc-l { position: absolute; top: 62%; height: 2px; width: 26vh; background: linear-gradient(90deg, transparent, #fff); box-shadow: 0 0 12px #7fb8e6; transform-origin: right; animation: pcLine .6s ease .15s both; }
-.pc-l.l { right: calc(100% + 2.4vh); }
-.pc-l.r { left: calc(100% + 2.4vh); background: linear-gradient(90deg, #fff, transparent); transform-origin: left; }
-@keyframes pcLine { from { transform: scaleX(0); } }
-.pc-fan { position: relative; width: 9vh; height: 6.4vh; margin-bottom: .4vh; }
-.pc-fan i { position: absolute; left: 3.1vh; bottom: 0; width: 3vh; height: 4.3vh; border: 2px solid #fff; background: linear-gradient(160deg, rgba(201,154,214,.8), rgba(61,139,217,.8)); transform-origin: 50% 120%; transform: rotate(var(--a)); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); animation: pcCard .5s cubic-bezier(.2,1.5,.4,1) both; }
-.pc-fan i:nth-child(1) { --a: -22deg; animation-delay: .1s; }
-.pc-fan i:nth-child(2) { --a: 0deg; animation-delay: .17s; }
-.pc-fan i:nth-child(3) { --a: 22deg; animation-delay: .24s; }
-@keyframes pcCard { from { opacity: 0; transform: translateY(30px) rotate(0); } }
+.dpc-call { position: fixed; inset: 0; z-index: 45; pointer-events: none; display: grid; place-items: center; animation: dpcOut 2s ease both; }
+@keyframes dpcOut { 0%, 78% { opacity: 1; } 100% { opacity: 0; } }
+.dpc-veil { position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(12,29,60,.6), rgba(12,29,60,.15) 70%, transparent); animation: dpcFade .3s ease both; }
+@keyframes dpcFade { from { opacity: 0; } }
+.dpc-hex { position: absolute; left: 50%; top: 50%; width: 30vh; height: 34vh; margin: -17vh 0 0 -15vh; overflow: visible; opacity: 0; animation: dpcHex 1.3s cubic-bezier(.2,.8,.3,1) both; }
+.dpc-hex.h2 { animation-delay: .16s; --s: 3.2; --r: -20deg; }
+.dpc-hex polygon { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 8px #7fb8e6); }
+@keyframes dpcHex { 0% { opacity: 0; transform: scale(.2) rotate(-30deg); } 45% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(var(--s, 2.2)) rotate(var(--r, 20deg)); } }
+.dpc-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; }
+.dpc-in b { font: 700 6.2vh/1.15 "Chakra Petch", Kanit, sans-serif; text-shadow: 0 4px 30px rgba(18,38,72,.9); animation: dpcTitle .42s ease .12s both; }
+@keyframes dpcTitle { from { opacity: 0; transform: translateY(20px); filter: blur(8px); } }
+.dpc-lat { font: 400 1.4vh/1 Michroma, sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #bee3f8; text-shadow: 0 2px 10px rgba(18,38,72,1); animation: dpcLat .6s ease .08s both; }
+@keyframes dpcLat { from { opacity: 0; letter-spacing: 1em; } }
+.dpc-l { position: absolute; top: 62%; height: 2px; width: 26vh; background: linear-gradient(90deg, transparent, #fff); box-shadow: 0 0 12px #7fb8e6; transform-origin: right; animation: dpcLine .6s ease .15s both; }
+.dpc-l.l { right: calc(100% + 2.4vh); }
+.dpc-l.r { left: calc(100% + 2.4vh); background: linear-gradient(90deg, #fff, transparent); transform-origin: left; }
+@keyframes dpcLine { from { transform: scaleX(0); } }
+.dpc-fan { position: relative; width: 9vh; height: 6.4vh; margin-bottom: .4vh; }
+.dpc-fan i { position: absolute; left: 3.1vh; bottom: 0; width: 3vh; height: 4.3vh; border: 2px solid #fff; background: linear-gradient(160deg, rgba(201,154,214,.8), rgba(61,139,217,.8)); transform-origin: 50% 120%; transform: rotate(var(--a)); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); animation: dpcCard .5s cubic-bezier(.2,1.5,.4,1) both; }
+.dpc-fan i:nth-child(1) { --a: -22deg; animation-delay: .1s; }
+.dpc-fan i:nth-child(2) { --a: 0deg; animation-delay: .17s; }
+.dpc-fan i:nth-child(3) { --a: 22deg; animation-delay: .24s; }
+@keyframes dpcCard { from { opacity: 0; transform: translateY(30px) rotate(0); } }
