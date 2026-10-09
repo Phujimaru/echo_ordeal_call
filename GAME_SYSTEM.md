@@ -106,7 +106,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 
 ```
 dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
-                                         shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 5 เทิร์น (ไม่งั้น refreshShopForJourney)
+                                         shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 6 เทิร์น (ไม่งั้น refreshShopForJourney)
                                          ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
@@ -385,7 +385,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
 - **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน (`openShop()`) ตั้งที่ `match.shopPos`
   - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (5) นับจาก `shopOpenedRound`
-    → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 6, 11, 16 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 6, 11, 16 … พอดี — ทั้งคู่ 5 เทิร์น)
+    → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 7, 13, 19 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 7, 13, 19 … พอดี — ทั้งคู่ 6 เทิร์น)
   - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
   - ซื้อได้เมื่อ **ยืนติดร้าน** (`board.nearShop` ระยะ 1) ในตาตัวเอง · ซื้อแล้วเดินไม่ได้อีก (`lockMove`) · ซื้อหลายชิ้นได้
   - state: `shopPos` · `shopTurnsLeft` (ร้านอยู่จุดนี้อีกกี่เทิร์น รวมเทิร์นนี้ — บนจอเขียน "เหลือ N เทิร์น" · ตั้งใหม่ = "ปรากฏ" ห้ามใช้คำว่า "ย้าย") · `bagSlots` · `gutsRange`
@@ -430,10 +430,12 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 โมดูลกลาง [characters/_journey.js](characters/_journey.js) (require ตรงเหมือน `_mark42` — ไม่ใช่ตัวละคร) · เทสต์ [tests/journey.test.js](tests/journey.test.js)
 - `Journey.active(engine)` = `gameMode` เป็น ffa/duo/trio (ทุกโหมดที่มีตอนนี้)
-- ภูมิภาค = `areaOf(roundNumber)` เปลี่ยนทุก `AREA_TURNS` (5 · เดิม 10 — ผู้ใช้สั่งลด 2026-10-09) เทิร์น: ภูมิภาคใหม่เริ่มเทิร์น 6, 11, 16, 21, 26, 31 แล้วค้างที่ 7 ถาวร — **ไม่มี state แยก**
-  กลางวัน/กลางคืนอ่านจาก `isNightRound()` — วงจรวัน/คืน (3) ไม่ลงล็อกกับภูมิภาค (5) แต่ละภูมิภาคจึงแบ่งวัน/คืนไม่เท่ากัน:
-  I 1–5 (วัน 1–3 · คืน 4–5) · II 6–10 (คืน 6 · วัน 7–9 · คืน 10) · III 11–15 (คืน 11–12 · วัน 13–15) · IV 16–20 (คืน 16–18 · วัน 19–20) · V 21–25 (วัน 21 · คืน 22–24 · วัน 25) · VI 26–30 (วัน 26–27 · คืน 28–30) · VII 31+ (วัน 31–33 · คืน 34–36 …)
-  · client: `JOURNEY_TURNS_PER_AREA` ใน `client/src/journey/areas.js` ต้องตรง `AREA_TURNS` (ป้ายช่วงเทิร์นหน้าเลือกโหมด `ModeVote.jsx`)
+- ภูมิภาคเปลี่ยนทุก `AREA_TURNS` = 6 เทิร์น (= กลางวัน 3 + กลางคืน 3 พอดี · ผู้ใช้สั่ง 2026-10-09 — เดิม 5 ทำให้ย้ายกลางรอบวัน/คืน): ภูมิภาคใหม่เริ่มเทิร์น 7, 13, 19, … ไปจนจบเกม
+  **ลำดับสุ่ม (ผู้ใช้สั่ง 2026-10-09)**: เทิร์น 1–6 = ภูมิภาค I เสมอ (ฐาน) · ทุกครั้งที่ข้าม `Journey.pickNextArea(from)` สุ่มจาก II–VII ไม่ซ้ำภูมิภาคที่อยู่ (ไม่กลับ I · ไม่มีภูมิภาคถาวร)
+  state: `match.journeyArea` (ภูมิภาคปัจจุบัน — อ่านผ่าน `Journey.areaNow(engine)` / `engine.journeyArea`) + `match.journeyRoute` (ที่ผ่านมาตามลำดับ) · ตั้งใน `startMatch()`/`backToLobby()` · ข้ามใน `maybeJourneyAdvance()` เมื่อ `Journey.legEnds(round)`
+  เทสต์ตั้งภูมิภาคเองด้วย `engine.setJourneyArea(n)` (เลขเทิร์นไม่บอกภูมิภาคแล้ว)
+  กลางวัน/กลางคืนอ่านจาก `isNightRound()` — ทุกภูมิภาคเริ่มด้วยกลางวัน 3 เทิร์นแล้วกลางคืน 3 เทิร์น
+  · client: `JOURNEY_TURNS_PER_AREA` ใน `client/src/journey/areas.js` ต้องตรง `AREA_TURNS` (ป้ายเส้นทางหน้าเลือกโหมด `ModeVote.jsx`: I = เทิร์น 1–6 · อื่น = สุ่ม)
 - ผลของภูมิภาค **แทน** กฎวัน/คืนเดิม: `Journey.nightTaxOn()` (เหลือแค่ภูมิภาค 1 กลางคืน) · `Journey.skillBonus()` (1 กลางวันเทิร์นคู่ / 7 ทุกเทิร์น)
 - จุดเสียบใน engine (ชื่อฟังก์ชันใน `_journey.js` → ที่เรียก):
   `skillTax` → `useSkill()` **และ** `showCost()` ใน `buildStateFor` (ต้องคิดเหมือนกัน — สกิลราคา 0 ไม่โดน) ·
@@ -445,9 +447,10 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   `goldBonus` + `onEndTurn` → `endTurn()` (หลังลูปลดเทิร์นสถานะ ก่อนกวาดคนตาย — สตั้น/ผุพังที่ติดจึงมีผลเต็มเทิร์นหน้า) · `armorRegenDue` → `dealRound()` ·
   `journeyGiftItem` (ทุ่งดอกไม้ กลางวัน) → `grantInventoryItem`
 - ความเสียหายจากสนาม (`fieldDamage`) ลดเกราะก่อน + ท่อตายชุดเดียวกับพิษร้าย และตั้ง `_statusDamage`
-- **ฉากเดินทาง** (5.1: บนลูกโลก — `client/src/oc/intro/MatchIntro.jsx` เปิดแมตช์+ดิ่ง, `RegionTravel.jsx` เปลี่ยนภูมิภาค): server พักเฟส CUTSCENE (ไม่มีคลิป) — `journeyScene` `{ seq, active, mode, area, fromArea }`
+- **ฉากเดินทาง** (5.1: บนลูกโลก — `client/src/oc/intro/MatchIntro.jsx` เปิดแมตช์+ดิ่ง, `RegionTravel.jsx` เปลี่ยนภูมิภาค): server พักเฟส CUTSCENE (ไม่มีคลิป) — `journeyScene` `{ seq, active, mode, area, fromArea, route }` (`route` = ภูมิภาคที่ผ่านมาก่อนปลายทาง — ฉากวาดเส้นทางเก่าค้างไว้)
   · `start` = ต่อท้าย `gameIntroHoldSeconds()` ใน `startMatch()` (+`JOURNEY_START_SECONDS` 6 — client ดิ่งต่อจากฉากเปิดตัวที่ `onOutro`) · `advance` = `maybeJourneyAdvance()` ใน `server/phases/endTurn.js`
-  ก่อนเทิร์นแรกของภูมิภาคใหม่ (+`JOURNEY_ADVANCE_SECONDS` 7) · เทสต์ที่ต้องการเทิร์น 1 ทันทีตั้ง env `JOURNEY_START_SECONDS=0`
+  ก่อนเทิร์นแรกของภูมิภาคใหม่ (+`JOURNEY_ADVANCE_SECONDS` 9) · เทสต์ที่ต้องการเทิร์น 1 ทันทีตั้ง env `JOURNEY_START_SECONDS=0`
+  · `RegionTravel` (≈8.4 วิ): ซูมออก → **สุ่ม** (หมุด II–VII ยกเว้นต้นทางติดไฟสลับ ช้าลงจนล็อกปลายทาง · ป้ายเลขโรมัน+ชื่อสลับตาม · โลกเอียงตามหมุด · เส้นประเส้นทางโผล่หลังล็อกเท่านั้น) → เส้นวิ่งไปปลายทาง → ดิ่งลง
   · `state.journey` (`Journey.publicInfo`) ระหว่างฉาก advance แสดงภูมิภาค **ปลายทาง** แล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากเดินทาง)
 - เพลง: `journey_<area>_<day|night>` ใน `client/src/audio.js` (5.1 เลิกใช้เพลง `journey_map` ระหว่างฉากเดินทาง — เล่นเพลงภูมิภาคปลายทางทันที · เปิดแมตช์ยังเป็น `lobby5`) — ไฟล์อยู่ `client/public/journey/` (R2)
 
@@ -613,7 +616,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
   `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|gun|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
-- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=11` เริ่มแมตช์ที่เทิร์น/ภูมิภาคนั้น (ภูมิภาคละ 5 เทิร์น: 6 = II · 11 = III · 16 = IV · 21 = V · 26 = VI · 31 = VII) · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
+- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=13` เริ่มแมตช์ที่เทิร์นนั้น (เกิน 6 = สุ่มภูมิภาค II–VII เหมือนเกมจริง) · `ECHO_DEV_START_AREA=3` บังคับภูมิภาคเริ่ม · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
   `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มยิงปืน/ใช้สกิล/ไอเทม/ซื้อของ)
 - **กระดาน 14×14 ทุกภูมิภาค** (ผู้ใช้ตัดสิน 2026-10-09) · กล้องจัดกลาง/ย่อจาก `map.cols×rows` เอง
 - ซูม: `BoardCanvas` prop `zoom` 0|1 (มุมใกล้ ×1.6) + `onZoomChange` (ล้อเมาส์) + `focus` {x,y} (เลื่อนกล้องไปหา ถ้าอยู่นอกจอ) · โหมดใกล้: ลากเมาส์/ปุ่มขวา/ลูกศรเลื่อนดู · ปุ่ม ＋/－ ใน BoardStage · จำใน localStorage `echo.boardZoom` · ป้ายร้าน "🏪 N" วาดในแคนวาส (`shopLabel`) · dev: `?board=1&sq=1`, `window.__boardFocus(x,y)`

@@ -250,6 +250,10 @@ function devStartRound() {
   const n = Math.floor(Number(process.env.ECHO_DEV_START_ROUND));
   return Number.isFinite(n) && n > 1 ? n : 1;
 }
+function devStartArea() {
+  const n = Math.floor(Number(process.env.ECHO_DEV_START_AREA));
+  return Number.isFinite(n) && n >= 1 && n <= Journey.AREA_COUNT ? n : 0;
+}
 
 function startMatch() {
   if (!teamModeActive()) {
@@ -263,13 +267,15 @@ function startMatch() {
   if (process.env.ECHO_DEV_RICH === "1") {
     for (const p of Object.values(match.players)) { p.gold = shop.goldCapOf(p); p.skillPoints = combat.maxSkillOf(p); }
   }
-  // เครื่องมือ dev: ECHO_DEV_START_ROUND=11 = เริ่มแมตช์ที่เทิร์นนั้น (11 = ภูมิภาค III · ภูมิภาคละ 5 เทิร์น) (ทดสอบภูมิภาค II–VII โดยไม่ต้องเล่นยาว)
-  //  ไม่ตั้ง env = เริ่มเทิร์น 1 ภูมิภาค I ตามปกติ
+  // เครื่องมือ dev: ECHO_DEV_START_ROUND=13 = เริ่มแมตช์ที่เทิร์นนั้น · ECHO_DEV_START_AREA=3 = เริ่มที่ภูมิภาคนั้น
+  //  (ทดสอบภูมิภาค II–VII โดยไม่ต้องเล่นยาว · ตั้งแค่เทิร์นเกิน 6 = สุ่มภูมิภาคเหมือนเกมจริง) · ไม่ตั้ง env = เริ่มเทิร์น 1 ภูมิภาค I ตามปกติ
   const startRound = devStartRound();
   match.roundNumber = startRound - 1;
   match.cycleShift = 0;
   match.journeyScene = null;
-  const startArea = Journey.areaOf(startRound);
+  const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
+  match.journeyArea = startArea;
+  match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
   action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
@@ -322,6 +328,8 @@ function backToLobby() {
   match.roundNumber = 0;
   match.cycleShift = 0;
   match.journeyScene = null;
+  match.journeyArea = 1;
+  match.journeyRoute = [1];
   match.lastLog = [];
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;

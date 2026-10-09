@@ -4,7 +4,7 @@
 //  กดที่ว่าง / Esc = เลิกดู: แผงเลื่อนออก เส้นทางหาย โลกกลับไปมุมภาพรวม
 //  ท่าพัก (ไม่ได้เลือกดูโหมดไหน): หมุด "อิสระ" อยู่กลางโลกหันตรงหน้า · หน้านี้โลกไม่หมุนเอง (ออกจากหน้าแล้วคืนค่า)
 //  ย้อนกลับ = กลับห้องรอ (modeBackToLobby — ทุกคนยกเลิกพร้อม) ไม่ใช่ออกจากห้อง
-//  โหมดที่มีการเดินทาง (อิสระ/คู่หู/สหายทั้ง 3 เอ๋ย) แสดงเส้นทางภูมิภาค I→VII บนโลก (ดูอย่างเดียว)
+//  โหมดที่มีการเดินทาง (อิสระ/คู่หู/สหายทั้ง 3 เอ๋ย) แสดงเส้นทางจากภูมิภาค I แยกไป II–VII บนโลก (ภูมิภาคถัดไปสุ่ม · ดูอย่างเดียว)
 //  ป้ายชื่อโหมดแต่ละโหมดมีกรอบของตัวเอง (lobby.css .ocl-modetag[data-mode]) · หน้านี้ไม่มีอีโมต
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { socket } from "../../socket";
@@ -21,7 +21,7 @@ const JOURNEY = new Set(["ffa", "duo", "trio"]);
 const ORDER = ["ffa", "duo", "trio"];
 
 const modeTitle = (m) => MODE_TITLES[m] || m;
-const turnRange = (i, n) => (i === n - 1 ? `เทิร์น ${i * T + 1} ขึ้นไป` : `เทิร์น ${i * T + 1}–${i * T + T}`);
+const turnRange = (i) => (i === 0 ? `เทิร์น 1–${T}` : "สุ่ม");
 
 function useOptions(state) {
   const count = state.players.length;
@@ -110,7 +110,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
       const f = s.markers[s.focus];
       if (f) f.ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 3));
       if (s.curve && token.visible) {
-        token.position.copy(s.curve.getPointAt((((clock * 0.08) % 1) + 1) % 1)).multiplyScalar(1.02); // clock ติดลบได้ในเฟรมแรก
+        token.position.copy(s.curve.getPointAt((((clock * 0.04) % 1) + 1) % 1)).multiplyScalar(1.02); // clock ติดลบได้ในเฟรมแรก
         token.rotation.y += dt * 2;
       }
       for (const mode of ORDER) {
@@ -186,12 +186,16 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
     s.curve = null;
     s.token.visible = false;
     if (JOURNEY.has(focus)) {
+      // ภูมิภาค I → แต่ละภูมิภาค → กลับ I (ดาวกระจาย) — เส้นเดียวต่อกัน ให้หมุดวิ่งวนไปทุกปลายทางที่สุ่มได้
       let pts = [];
-      for (let i = 0; i < s.areaDirs.length - 1; i++) {
-        const a = s.areaDirs[i], b = s.areaDirs[i + 1], seg = [];
-        for (let t = 0; t <= 1.0001; t += 1 / 40) seg.push(a.clone().lerp(b, t).normalize().multiplyScalar(1 + 0.1 * Math.sin(Math.PI * t)));
-        if (pts.length) seg.shift();
-        pts = pts.concat(seg);
+      const hub = s.areaDirs[0];
+      for (let i = 1; i < s.areaDirs.length; i++) {
+        for (const [a, b] of [[hub, s.areaDirs[i]], [s.areaDirs[i], hub]]) {
+          const seg = [];
+          for (let t = 0; t <= 1.0001; t += 1 / 40) seg.push(a.clone().lerp(b, t).normalize().multiplyScalar(1 + 0.1 * Math.sin(Math.PI * t)));
+          if (pts.length) seg.shift();
+          pts = pts.concat(seg);
+        }
       }
       s.curve = new THREE.CatmullRomCurve3(pts);
       s.route = new THREE.Mesh(
@@ -260,7 +264,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
                     <li key={a.id} className={i === 0 ? "first" : ""}>
                       <span className="n oc-latin">{a.numeral}</span>
                       <span>{a.short}</span>
-                      <span className="tt">{turnRange(i, JOURNEY_AREAS.length)}</span>
+                      <span className="tt">{turnRange(i)}</span>
                     </li>
                   ))}
                 </ol>

@@ -161,6 +161,25 @@
 @keyframes ocd-travel-globe-in { from { opacity: 0; } }
 .ocd-travel.is-crash .ocd-bg, .ocd-travel.is-crash .ocd-globe, .ocd-travel.is-crash .ocd-chrome { animation: ocd-hide 0.01s linear calc(var(--rev) * 0.07) both; }
 
+/* ---------- ฉากเปลี่ยนภูมิภาค: ป้ายสุ่ม (เลขโรมัน + ชื่อ สลับตามหมุดที่ติดไฟ แล้วล็อกที่ปลายทาง) ---------- */
+.ocd-roulette {
+  position: absolute; left: 50%; top: 6%; z-index: 4; pointer-events: none;
+  transform: translateX(-50%); opacity: 0; transition: opacity 0.35s ease;
+}
+.ocd-roulette.on { opacity: 1; }
+.ocd-rou-in { --ac: var(--oc-azure); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ocd-rou-in b {
+  min-width: 2.6em; padding: 6px 14px 5px; text-align: center;
+  font: 400 clamp(22px, 2.4vw, 34px)/1 var(--oc-f-logo); color: var(--ac);
+  border: 1.5px solid var(--ac); border-radius: 4px; background: rgba(255, 255, 255, 0.82);
+}
+.ocd-rou-in span { font: 600 clamp(15px, 1.4vw, 20px)/1.3 var(--oc-f-ui); color: var(--oc-ink); white-space: nowrap; }
+.ocd-rou-in.hop b { animation: ocd-rou-hop 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.ocd-rou-in.lock b { background: var(--ac); color: #fff; box-shadow: 0 0 0 6px color-mix(in srgb, var(--ac) 22%, transparent), 0 0 28px var(--ac); }
+.ocd-rou-in.lock.hop b { animation: ocd-rou-lock 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes ocd-rou-hop { from { transform: translateY(-6px) scale(0.92); opacity: 0.4; } }
+@keyframes ocd-rou-lock { 0% { transform: scale(0.85); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
 @media (prefers-reduced-motion: reduce) {
   .ocd *, .ocd *::before, .ocd *::after { transition-duration: 0.01ms !important; }
   .ocd-streaks, .ocd-shock { display: none; }

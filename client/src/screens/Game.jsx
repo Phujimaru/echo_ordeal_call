@@ -1042,7 +1042,7 @@ function ItemIcon({ info, className = "" }) {
   return <span className={`shrink-0 ${className}`}>{info.icon}</span>;
 }
 
-// ร้านค้ามายา: ร้านเดียว 15 ช่อง ตั้งบนแผนที่ — ย้ายจุด + สุ่มของใหม่ทุก 5 เทิร์น (GRID_PLAN §8.1)
+// ร้านค้ามายา: ร้านเดียว 15 ช่อง ตั้งบนแผนที่ — ย้ายจุด + สุ่มของใหม่ทุก 6 เทิร์น (GRID_PLAN §8.1)
 //  กริดขยายออกด้านข้าง (สูงสุด 5 คอลัมน์ = 3 แถว) ไม่ให้โมดัลยืดลงจนต้อง scroll แนวตั้ง
 function ShopHerald() {
   const sparks = Array.from({ length: 14 }, (_, i) => {

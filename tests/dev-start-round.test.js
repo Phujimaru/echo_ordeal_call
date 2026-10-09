@@ -20,6 +20,7 @@ function start() {
 
 test.after(() => {
   delete process.env.ECHO_DEV_START_ROUND;
+  delete process.env.ECHO_DEV_START_AREA;
   delete process.env.ECHO_DEV_RICH;
   engine.clearPhaseTimer();
   for (const id of Object.keys(engine.players)) delete engine.players[id];
@@ -34,15 +35,27 @@ test('ไม่ตั้ง env: เริ่มเทิร์น 1 บนก�
   assert.equal(A.gold, 0);
 });
 
-test('ECHO_DEV_START_ROUND=11: เทิร์นแรกคือ 11 บนกระดานภูมิภาค III · ECHO_DEV_RICH=1 เหรียญ/แต้มเต็ม', () => {
-  process.env.ECHO_DEV_START_ROUND = '11';
+test('ECHO_DEV_START_ROUND=13 + ECHO_DEV_START_AREA=3: เทิร์นแรกคือ 13 บนกระดานภูมิภาค III · ECHO_DEV_RICH=1 เหรียญ/แต้มเต็ม', () => {
+  process.env.ECHO_DEV_START_ROUND = '13';
+  process.env.ECHO_DEV_START_AREA = '3';
   process.env.ECHO_DEV_RICH = '1';
   const { A, B } = start();
-  assert.equal(engine.roundNumber, 11);
+  assert.equal(engine.roundNumber, 13);
   assert.equal(engine.buildStateFor('A').board.area, 3);
+  assert.deepEqual(engine.journeyRoute, [1, 3]);
   for (const p of [A, B]) {
     assert.ok(p.pos, 'ได้จุดเกิดบนกระดานภูมิภาคใหม่');
     assert.equal(p.gold, 30);
     assert.equal(p.skillPoints, engine.maxSkillOf(p));
   }
+});
+
+test('ECHO_DEV_START_ROUND=13 อย่างเดียว: ภูมิภาคสุ่มจาก II–VII เหมือนเกมจริง', () => {
+  process.env.ECHO_DEV_START_ROUND = '13';
+  delete process.env.ECHO_DEV_START_AREA;
+  delete process.env.ECHO_DEV_RICH;
+  start();
+  const area = engine.buildStateFor('A').board.area;
+  assert.ok(area >= 2 && area <= 7);
+  assert.equal(engine.journeyArea, area);
 });

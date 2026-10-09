@@ -25,7 +25,7 @@ const MAX_SKILL = 8;
 const GOLD_MAX = 30;             // เพดานเหรียญต่อผู้เล่น
 const GOLD_PER_TURN = 1;         // เหรียญที่ได้ทุกจบเทิร์น (ทุกคน)
 const GOLD_FIRST_BONUS = 1;      // เหรียญเพิ่มให้คนเดินลำดับแรก (รวมกับของทุกคน = 2)
-const SHOP_INTERVAL_TURNS = 5;   // ร้านค้าตั้งบนแผนที่ 5 เทิร์น แล้วย้ายจุด + สุ่มของใหม่ (GRID_PLAN §8.1)
+const SHOP_INTERVAL_TURNS = 6;   // ร้านค้าตั้งบนแผนที่ 6 เทิร์น (= AREA_TURNS) แล้วย้ายจุด + สุ่มของใหม่ (GRID_PLAN §8.1)
 const BAG_SLOTS = 5;             // กระเป๋า 5 ช่อง — ไอเทมทุกชิ้นกิน 1 ช่อง (ปืน กระสุนแต่ละนัด ชุด Mark 42 ที่ยังไม่ได้ใส่)
 const SHOP_MAX_ITEMS = 15;       // จำนวนสินค้าสูงสุดต่อรอบร้านค้า (เดิม 6 -> 9 -> 15 หลังรวมร้านลุงเท่งเข้ามา)
 const SHOP_FORTUNE_PRICE = 5;
@@ -82,11 +82,11 @@ const CYCLE_TURNS = 3;
 const TRANSFORMS = require("../characters/_transforms")();
 
 // ฉากแผนที่การเดินทาง (characters/_journey.js): server พักเกมในเฟส CUTSCENE (ไม่มีคลิป) ให้ทุกคนดูพร้อมกัน
-//  start = หลังฉากเปิดตัวผู้เล่นตอนเริ่มเกม · advance = ก่อนเข้าเทิร์นแรกของภูมิภาคใหม่ (6, 11, …, 31)
-//  ความยาวฝั่ง client: start 7 วิ · advance 6 วิ (+1 วิเผื่อเน็ตหน่วง) — เทสต์ย่อได้ผ่าน env
+//  start = หลังฉากเปิดตัวผู้เล่นตอนเริ่มเกม · advance = ก่อนเข้าเทิร์นแรกของภูมิภาคใหม่ (7, 13, …, 37)
+//  ความยาวฝั่ง client: start 7 วิ · advance 8.4 วิ (สุ่ม + เดินทาง · +0.6 วิเผื่อเน็ตหน่วง) — เทสต์ย่อได้ผ่าน env
 //  start เริ่มตั้งแต่ฉากเปิดตัว "เริ่มปิดฉาก" (1 วิสุดท้ายของ gameIntroHoldSeconds + ส่วนเผื่อ ~1 วิ) จึงบวกเพิ่มแค่ 6 วิ
 const JOURNEY_START_SECONDS = Math.max(0, Number(process.env.JOURNEY_START_SECONDS ?? 6));
-const JOURNEY_ADVANCE_SECONDS = Math.max(0, Number(process.env.JOURNEY_ADVANCE_SECONDS ?? 7));
+const JOURNEY_ADVANCE_SECONDS = Math.max(0, Number(process.env.JOURNEY_ADVANCE_SECONDS ?? 9)); // เดิม 7 — +2 วิ ให้ฉากสุ่มภูมิภาค
 const TEAM_IDS = ["A", "B", "C"];
 
 const RESYNC_EVERY = 10; // ทุกกี่วินาทีถึงจะ broadcast state ตัวเต็ม (นอกนั้นส่งแค่ "tick")

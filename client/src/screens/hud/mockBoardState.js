@@ -134,8 +134,8 @@ function boardPublic(area) {
   return { area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal], spawns: m.spawns, shopSpots: m.shopSpots };
 }
 
-// เทิร์นที่ตรงกับภูมิภาค + กลางวัน/กลางคืน (ภูมิภาคละ 5 เทิร์น · สลับวัน/คืนทุก 3 เทิร์น) — [กลางวัน, กลางคืน]
-const ROUND_FOR = { 1: [2, 4], 2: [8, 10], 3: [13, 11], 4: [19, 17], 5: [21, 23], 6: [26, 29], 7: [31, 34] };
+// เทิร์นที่ตรงกับภูมิภาค + กลางวัน/กลางคืน (ภูมิภาคละ 6 เทิร์น · สลับวัน/คืนทุก 3 เทิร์น) — [กลางวัน, กลางคืน]
+const ROUND_FOR = { 1: [2, 5], 2: [8, 11], 3: [14, 17], 4: [20, 23], 5: [26, 29], 6: [32, 35], 7: [38, 41] };
 function roundFor(area, night) {
   return ROUND_FOR[area][night ? 1 : 0];
 }
@@ -350,7 +350,7 @@ export function buildMockState(opts) {
   const o = { gameState, area, night, team: !!opts.team };
   const a = AREAS[area - 1];
   const players = ROSTER.map((r) => playerPublic(r, o));
-  // ร้านตั้งครั้งแรกเทิร์น 1 ย้ายทุก 5 เทิร์น
+  // ร้านตั้งครั้งแรกเทิร์น 1 ย้ายทุก 6 เทิร์น
   const round = roundFor(area, night);
   const s = {
     gameState,
@@ -365,7 +365,7 @@ export function buildMockState(opts) {
     cycle: night ? "night" : "day",
     journey: {
       area, night, name: a.name, passive: a.passive, day: a.day, nightDesc: a.night,
-      turnsLeft: area < 7 ? 5 - ((round - 1) % 5) : null,
+      turnsLeft: area < 7 ? 6 - ((round - 1) % 6) : null,
       scene: null,
     },
     maxPlayers: 7,

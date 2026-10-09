@@ -134,7 +134,7 @@ export default function App() {
       if (jScene?.active && jScene.seq !== journeySeqRef.current) {
         journeySeqRef.current = jScene.seq;
         if (jScene.mode === "start") pendingJourneyRef.current = jScene;
-        else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, durationMs: journeyDurationMs(s.timeLeft, 6000) });
+        else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
       if (!wasInMatch && nowInMatch) {
         curtainRef.current?.skip("gameintro");
@@ -437,6 +437,7 @@ export default function App() {
           key={travel.seq}
           from={travel.fromArea}
           to={travel.area}
+          route={travel.route}
           durationMs={travel.durationMs}
           lowQ={lowQ}
           onDone={finishTravel}

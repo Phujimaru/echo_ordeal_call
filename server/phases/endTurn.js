@@ -57,7 +57,7 @@ function endTurn() {
   const dayBonus = Journey.skillBonus(engine, dayNight.morningBonusActive(match.roundNumber)); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
   for (const p of combat.alivePlayers()) combat.addSkill(p, 1 + dayBonus);
   if (dayBonus) match.lastLog.push(Journey.active(engine)
-    ? `🗺️ ${Journey.AREAS[Journey.areaOf(match.roundNumber) - 1].name} — ทุกคนได้แต้มสกิลเพิ่ม +${dayBonus}`
+    ? `🗺️ ${Journey.AREAS[Journey.areaNow(engine) - 1].name} — ทุกคนได้แต้มสกิลเพิ่ม +${dayBonus}`
     : "☀️ จบเทิร์นช่วงกลางวัน — ทุกคนได้แต้มสกิลเพิ่ม +1");
   // ระบบเหรียญ (patch 2.2 full): จบเทิร์น +1 เหรียญให้ทุกคน (เพดาน 30 — เต็มแล้วไม่ได้เพิ่มจน spending ลดลง)
   //  คนเดินลำดับแรกได้เพิ่มอีกตอนจัดลำดับ (phases/action.js beginOrder)
@@ -115,13 +115,15 @@ function gameOver() {
   return true;
 }
 
-// การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากเดินทางบนลูกโลก
+// การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
 function maybeJourneyAdvance() {
-  if (!Journey.active(engine)) return false;
-  const from = Journey.areaOf(match.roundNumber);
-  const to = Journey.areaOf(match.roundNumber + 1);
-  if (to <= from) return false;
-  match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "advance", area: to, fromArea: from };
+  if (!Journey.active(engine) || !Journey.legEnds(match.roundNumber)) return false;
+  const from = Journey.areaNow(engine);
+  const to = Journey.pickNextArea(from);
+  const route = [...match.journeyRoute]; // เส้นทางที่ผ่านมา (ถึงต้นทาง) — ฉากวาดค้างไว้บนโลก
+  match.journeyArea = to;
+  match.journeyRoute.push(to);
+  match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "advance", area: to, fromArea: from, route };
   match.lastLog.push(`🗺️ ออกเดินทางต่อ — มุ่งหน้าสู่ภูมิภาคที่ ${to} ${Journey.AREAS[to - 1].name}`);
   action.placeOnBoard(to); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด (GRID_PLAN §3)
   match.cutsceneInfo = null;

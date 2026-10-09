@@ -12,8 +12,10 @@ const match = {
   teamCount: 0,
   winningTeamId: null,
   modeVotes: {},
-  journeyScene: null, // { seq, active, mode: "start" | "advance", area, fromArea }
+  journeyScene: null, // { seq, active, mode: "start" | "advance", area, fromArea, route? }
   journeySceneSeq: 0,
+  journeyArea: 1,     // ภูมิภาคปัจจุบัน (การเดินทาง) — เริ่ม 1 เสมอ แล้วสุ่มทุก AREA_TURNS เทิร์น
+  journeyRoute: [1],  // ภูมิภาคที่ผ่านมาตามลำดับ (รวมที่อยู่ตอนนี้) — ฉากเปลี่ยนภูมิภาควาดเส้นทางเก่าจากตรงนี้
   effectSourceId: null,
   timeLeft: 0,
   phaseTimerId: null,

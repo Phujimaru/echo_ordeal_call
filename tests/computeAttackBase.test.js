@@ -51,14 +51,14 @@ test('mark42Atk: +1 while wearing the suit, none once the wearer is down', () =>
 
 // ---------- ผลสนามการเดินทาง ----------
 test('journeyAtk: ป่าไม้ต้องสาปกลางวัน / จุดสิ้นสุดของโลกกลางคืน +1 · ภูมิภาคอื่นไม่บวก', () => {
-  const at = (roundNumber, night) => ({ __proto__: engine, gameMode: 'ffa', roundNumber, isNightRound: () => night });
-  assert.equal(base({}, {}, at(11, false)), 2, 'ภูมิภาค 3 กลางวัน');
-  assert.equal(base({}, {}, at(11, true)), 1, 'ภูมิภาค 3 กลางคืน');
-  assert.equal(base({}, {}, at(31, true)), 2, 'ภูมิภาค 7 กลางคืน');
+  const at = (journeyArea, night) => ({ __proto__: engine, gameMode: 'ffa', roundNumber: 1, journeyArea, isNightRound: () => night });
+  assert.equal(base({}, {}, at(3, false)), 2, 'ภูมิภาค 3 กลางวัน');
+  assert.equal(base({}, {}, at(3, true)), 1, 'ภูมิภาค 3 กลางคืน');
+  assert.equal(base({}, {}, at(7, true)), 2, 'ภูมิภาค 7 กลางคืน');
   assert.equal(base({}, {}, at(1, false)), 1, 'ภูมิภาค 1');
   const attacker = mkPlayer();
   const target = mkPlayer();
-  assert.equal(computeAttackBase(at(11, false), attacker, target).journeyAtkFx.amount, 1);
+  assert.equal(computeAttackBase(at(3, false), attacker, target).journeyAtkFx.amount, 1);
 });
 
 // ---------- บัฟของโอเบรอน: ใครติดสถานะก็ได้พลังโจมตี ----------

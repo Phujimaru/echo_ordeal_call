@@ -73,21 +73,22 @@ test('แม่นยำ: เจาะการหลบหลีกทุกแ
 
 test('ผลสนาม: ป่าไม้ต้องสาปกลางวันพลาด 40% → โดน 60 · อาณาจักรน้ำแข็งกลางวัน คริ 20', () => {
   const P = setup(2, { A: { x: 7, y: 3 }, B: { x: 6, y: 3 } });
-  const round = engine.roundNumber;
+  const round = engine.roundNumber, area = engine.journeyArea;
   try {
     engine.setRoundNumber(13);
+    engine.setJourneyArea(3);
     assert.deepEqual(Journey.current(engine), { area: 3, night: false });
     noRandom();
     assert.equal(Journey.attackMissPct(engine), Journey.FOREST_ATK_MISS_PCT);
     assert.equal(attack.estimateHitOn(P.A, P.B), 100 - Journey.FOREST_ATK_MISS_PCT);
     assert.equal(attack.estimateCritOf(P.A, P.B), 0);
     Math.random = realRandom;
-    engine.setRoundNumber(26);
+    engine.setJourneyArea(6);
     assert.deepEqual(Journey.current(engine), { area: 6, night: false });
     noRandom();
     assert.equal(attack.estimateHitOn(P.A, P.B), 100);
     assert.equal(attack.estimateCritOf(P.A, P.B), Journey.ICE_CRIT_PCT);
-  } finally { engine.setRoundNumber(round); }
+  } finally { engine.setRoundNumber(round); engine.setJourneyArea(area); }
 });
 
 test('state.forecast: คนที่กำลังเดินเห็น { dmg, back, hit, crit, backHit, backCrit } ต่อศัตรู', () => {

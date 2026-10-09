@@ -2,15 +2,15 @@
 //  การเดินทาง (Journey) — ระบบสนามของโหมดสงครามทั่วไป (ffa / duo / trio)
 //  ไฟล์นี้ไม่ใช่ตัวละคร (ไม่อยู่ใน CHAR_HOOKS) — server.js require ตรงเหมือน _mark42
 //
-//  เดินทางผ่าน 7 ภูมิภาค เปลี่ยนภูมิภาคทุก AREA_TURNS (5) เทิร์น — ถึงภูมิภาคที่ 7 แล้วอยู่ที่นั่นถาวร
-//  แต่ละภูมิภาคมีผลประจำภูมิภาค (ทั้ง 5 เทิร์น) + ผลกลางวัน + ผลกลางคืน (กลางวัน/กลางคืนไม่ทับกัน)
+//  เริ่มที่ภูมิภาค 1 เสมอ แล้วเปลี่ยนภูมิภาคทุก AREA_TURNS (6) เทิร์น — ภูมิภาคถัดไปสุ่มจาก 2–7 (ไม่ซ้ำที่อยู่ตอนนี้) ไปจนจบเกม
+//  แต่ละภูมิภาคมีผลประจำภูมิภาค (ทั้ง 6 เทิร์น) + ผลกลางวัน + ผลกลางคืน (กลางวัน/กลางคืนไม่ทับกัน)
 //  ผลของภูมิภาค "แทน" กฎกลางวัน/กลางคืนเดิมทั้งหมด (โบนัสแต้มเช้าคู่ / ภาษีสกิลกลางคืน) —
 //
-//  ภูมิภาคคำนวณจาก roundNumber ล้วน ไม่มี state แยก
+//  ภูมิภาคปัจจุบัน = engine.journeyArea (สุ่มตอนข้ามภูมิภาค — phases/endTurn.js maybeJourneyAdvance)
 //  กลางวัน/กลางคืนอ่านจาก engine.isNightRound()
 // ============================================================
 
-const AREA_TURNS = 5;  // เดิม 10 — ภูมิภาคใหม่เริ่มเทิร์น 6, 11, 16, … ตรงจังหวะร้านค้าปรากฏ (SHOP_INTERVAL_TURNS)
+const AREA_TURNS = 6;  // = กลางวัน 3 + กลางคืน 3 (CYCLE_TURNS × 2 · เดิม 5) — ภูมิภาคใหม่เริ่มเทิร์น 7, 13, 19, … ตรงจังหวะร้านค้าปรากฏ (SHOP_INTERVAL_TURNS)
 const AREA_COUNT = 7;
 
 // ตัวเลขบาลานซ์ (ดูเหตุผลใน GAME_SYSTEM.md หัวข้อ "การเดินทาง")
@@ -77,15 +77,24 @@ const roll = (pct) => Math.random() * 100 < pct;
 function active(engine) {
   return ["ffa", "duo", "trio"].includes(engine.gameMode);
 }
-function areaOf(round) {
-  const r = Math.max(1, Number(round) || 1);
-  return Math.min(AREA_COUNT, Math.floor((r - 1) / AREA_TURNS) + 1);
+function areaNow(engine) {
+  return Math.min(AREA_COUNT, Math.max(1, Number(engine.journeyArea) || 1));
+}
+// จบเทิร์นนี้แล้วข้ามภูมิภาค (เทิร์นสุดท้ายของภูมิภาค = 6, 12, 18, …)
+function legEnds(round) {
+  return round > 0 && round % AREA_TURNS === 0;
+}
+// สุ่มภูมิภาคถัดไป: 2–7 (ภูมิภาค 1 เป็นจุดเริ่มต้นเท่านั้น) ไม่ซ้ำภูมิภาคที่อยู่ตอนนี้
+function pickNextArea(from) {
+  const pool = [];
+  for (let a = 2; a <= AREA_COUNT; a++) if (a !== from) pool.push(a);
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 // ภูมิภาค/ช่วงเวลาของเทิร์นปัจจุบัน — null = ไม่ได้อยู่ในโหมดที่มีการเดินทาง
 function current(engine) {
   if (!active(engine)) return null;
   const round = engine.roundNumber;
-  return { area: areaOf(round), night: !!engine.isNightRound(round) };
+  return { area: areaNow(engine), night: !!engine.isNightRound(round) };
 }
 function is(engine, area, half) {
   const c = current(engine);
@@ -99,7 +108,7 @@ module.exports = {
   AREA_TURNS, AREA_COUNT, AREAS,
   MEADOW_GIFT_PCT, MEADOW_NIGHT_STOCK, FOREST_ATK_MISS_PCT, FOREST_SKILL_MISS_PCT, FOREST_DOT_PCT,
   WHIRL_SHOP_MIN_PRICE, WHIRL_TOLL_PCT, WHIRL_TOLL_GOLD, DESERT_REFUND, ICE_CRIT_PCT, ICE_STUN_PCT, END_DECAY_PCT,
-  active, areaOf, current, is,
+  active, areaNow, legEnds, pickNextArea, current, is,
 
   // ---------- กฎวัน/คืนเดิมที่ภูมิภาคเข้ามาแทน ----------
   // ภาษีสกิลกลางคืน (สุ่มพื้นฐาน/รอง +1) — ในการเดินทางเหลือเฉพาะ 1 กลางคืน
@@ -250,14 +259,14 @@ module.exports = {
     if (!active(engine)) return null;
     // ระหว่างฉากเดินทางไปภูมิภาคใหม่ ให้ client เห็นภูมิภาคปลายทางแล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากแผนที่)
     const round = scene && scene.active && scene.mode === "advance" ? engine.roundNumber + 1 : engine.roundNumber;
-    const area = areaOf(round);
+    const area = areaNow(engine); // ตั้งเป็นภูมิภาคปลายทางตั้งแต่เริ่มฉากแล้ว
     const night = !!engine.isNightRound(round);
     const a = AREAS[area - 1];
-    const turnInArea = area < AREA_COUNT ? ((Math.max(1, round) - 1) % AREA_TURNS) + 1 : null;
+    const turnInArea = ((Math.max(1, round) - 1) % AREA_TURNS) + 1;
     return {
       area, night, name: a.name, passive: a.passive, day: a.day, nightDesc: a.night,
-      turnsLeft: turnInArea ? AREA_TURNS - turnInArea + 1 : null, // เทิร์นที่เหลือในภูมิภาคนี้ (ภูมิภาค 7 = ไม่มีที่สิ้นสุด)
-      scene: scene ? { seq: scene.seq, active: !!scene.active, mode: scene.mode, area: scene.area, fromArea: scene.fromArea } : null,
+      turnsLeft: AREA_TURNS - turnInArea + 1, // เทิร์นที่เหลือในภูมิภาคนี้
+      scene: scene ? { seq: scene.seq, active: !!scene.active, mode: scene.mode, area: scene.area, fromArea: scene.fromArea, route: scene.route || null } : null,
     };
   },
 };

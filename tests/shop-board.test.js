@@ -43,32 +43,32 @@ function giveAmmo(p, ammo, seen = true) {
 const isSpot = (pos) => SPOTS.some((s) => s.x === pos.x && s.y === pos.y);
 
 // ---------- ร้านตั้ง / ย้าย ----------
-test('ร้านค้า: ต้นเกมตั้งบนจุดร้านค้าพร้อมของ 15 ชิ้น · อยู่ 5 เทิร์น แล้วย้ายจุดใหม่ + สุ่มของใหม่', () => {
+test('ร้านค้า: ต้นเกมตั้งบนจุดร้านค้าพร้อมของ 15 ชิ้น · อยู่ 6 เทิร์น แล้วย้ายจุดใหม่ + สุ่มของใหม่', () => {
   engine.maybeMoveShop();
   const first = engine.shopPos;
   assert.ok(first && isSpot(first));
   assert.equal(engine.shopItems.length, 15);
-  assert.equal(engine.shopTurnsLeft(), 5);
+  assert.equal(engine.shopTurnsLeft(), 6);
   const ids = engine.shopItems.map((it) => it.id).join();
-  for (let r = 2; r <= 5; r++) {
+  for (let r = 2; r <= 6; r++) {
     engine.setRoundNumber(r);
     engine.maybeMoveShop();
     assert.deepEqual(engine.shopPos, first, `เทิร์น ${r} ยังอยู่ที่เดิม`);
     assert.equal(engine.shopItems.map((it) => it.id).join(), ids, 'ของชุดเดิม');
-    assert.equal(engine.shopTurnsLeft(), 6 - r);
+    assert.equal(engine.shopTurnsLeft(), 7 - r);
   }
-  engine.setRoundNumber(6);
+  engine.setRoundNumber(7);
   engine.maybeMoveShop();
   assert.ok(isSpot(engine.shopPos));
   assert.notDeepEqual(engine.shopPos, first, 'ไม่ซ้ำจุดเดิม');
   assert.notEqual(engine.shopItems.map((it) => it.id).join(), ids, 'สุ่มของใหม่');
-  assert.equal(engine.shopTurnsLeft(), 5);
+  assert.equal(engine.shopTurnsLeft(), 6);
 });
 
 test('ร้านค้า: ย้ายไม่ลงจุดที่มีคนยืน · เปลี่ยนภูมิภาค (placeOnBoard) = ตั้งใหม่ทันทีเทิร์นถัดไป', () => {
   engine.setShopPos({ ...SPOTS[0] });
   for (const s of SPOTS.slice(1, 5)) mkPlayer(s); // ยืนทับ 4 จุด เหลือว่างจุดเดียว (SPOTS[5])
-  engine.setRoundNumber(20); // ห่างจากเทิร์นที่ร้านตั้ง (เทสต์ก่อนหน้า) เกิน 5 แน่นอน → ถึงกำหนดย้าย
+  engine.setRoundNumber(20); // ห่างจากเทิร์นที่ร้านตั้ง (เทสต์ก่อนหน้า) เกิน 6 แน่นอน → ถึงกำหนดย้าย
   engine.maybeMoveShop();
   assert.deepEqual(engine.shopPos, { ...SPOTS[5] });
 
@@ -76,7 +76,7 @@ test('ร้านค้า: ย้ายไม่ลงจุดที่มี
   engine.placeOnBoard(1);
   assert.equal(engine.shopPos, null, 'ยกร้านออกตอนเปลี่ยนแผนที่');
   engine.maybeMoveShop();
-  assert.ok(isSpot(engine.shopPos), 'ไม่ต้องรอครบ 5 เทิร์น');
+  assert.ok(isSpot(engine.shopPos), 'ไม่ต้องรอครบ 6 เทิร์น');
 });
 
 test('ร้านค้ากินช่อง: เดินทับ/ผ่านไม่ได้ (อ้อมได้) · ถอยหลังตีสวนชนร้าน = ชน −1', () => {

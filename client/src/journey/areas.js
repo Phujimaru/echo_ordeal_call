@@ -1,6 +1,6 @@
 // ============================================================
 //  ข้อมูลแสดงผลของ 7 ภูมิภาคในระบบ "การเดินทาง" (Journey)
-//  ภูมิภาคเปลี่ยนทุก 5 เทิร์น: 1–5 = ภูมิภาค 1, 6–10 = 2, … 31+ = 7 ตลอดไป (ต้องตรง AREA_TURNS ใน characters/_journey.js)
+//  ภูมิภาคเปลี่ยนทุก 6 เทิร์น (ต้องตรง AREA_TURNS ใน characters/_journey.js): 1–6 = ภูมิภาค 1 เสมอ แล้วสุ่มจาก 2–7 (server ส่งมาใน state.journey)
 //  ใช้ร่วมกันระหว่าง JourneyBackdrop / HUD / ฉากเดินทางบนลูกโลก (oc/intro: MatchIntro, RegionTravel)
 //  icon = คีย์ตราสัญลักษณ์เดิม (ตอนนี้ไม่มีที่ใช้แล้ว เก็บไว้เผื่อ HUD)
 // ============================================================
@@ -16,13 +16,7 @@ export const JOURNEY_AREAS = [
 ];
 
 export const JOURNEY_AREA_COUNT = JOURNEY_AREAS.length;
-export const JOURNEY_TURNS_PER_AREA = 5;
-
-/** ภูมิภาค (1..7) จากเลขเทิร์น (เริ่มที่ 1) */
-export function journeyAreaForTurn(turn) {
-  const t = Math.max(1, Math.floor(Number(turn) || 1));
-  return Math.min(JOURNEY_AREA_COUNT, Math.floor((t - 1) / JOURNEY_TURNS_PER_AREA) + 1);
-}
+export const JOURNEY_TURNS_PER_AREA = 6;
 
 /** บีบค่าให้อยู่ในช่วง 1..7 */
 export function clampJourneyArea(area) {

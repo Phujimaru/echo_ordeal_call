@@ -90,6 +90,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get roundNumber() { return match.roundNumber; },
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
+  get journeyArea() { return match.journeyArea; },
+  get journeyRoute() { return match.journeyRoute; },
+  setJourneyArea(v) { match.journeyArea = v; }, // เทสต์ตั้งภูมิภาคเอง (เกมจริงสุ่มใน phases/endTurn.js)
   setCycleShift(v) { match.cycleShift = Number(v) || 0; }, // เทสต์ตั้งช่วงเวลาเองได้
   // ---------- กระดาน (GRID_PLAN.md) — เทสต์ขับตาเดินผ่านตรงนี้ ----------
   get board() { return match.board; },
