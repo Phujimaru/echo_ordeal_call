@@ -655,3 +655,107 @@
   font: 600 12px/1.35 Kanit, sans-serif; white-space: nowrap;
 }
 .hud-hand-note[data-tone="me"] { color: #f0c868; }
+
+/* ============================================================
+   HUD แยกตามช่วง (HudPhases.jsx) — ดีไซน์ 2026-10-09 · หน่วยฐาน 1440 × 810 (ขยายด้วย --hud-k)
+   data-mode ของ .hud-dock: draw = ช่วงจั่ว (เหลือแค่ไพ่/แต้ม/จั่ว-พอ) · turn = ตาเรา · watch = ตาคนอื่น/ช่วงอื่น
+   ============================================================ */
+.hud-dock[data-mode="draw"] .hud-left, .hud-dock[data-mode="draw"] .hud-right, .hud-dock[data-mode="draw"] .hud-drawer-zone { display: none; }
+.hud-dock[data-mode="draw"] .hud-center { bottom: 0; }
+.hud-dock[data-mode="draw"]::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(220px * var(--hud-k, 1)); pointer-events: none; background: linear-gradient(0deg, rgba(10,24,48,.5), rgba(10,24,48,.18) 55%, transparent); }
+.hud-dock[data-mode="watch"] .hud-left { scale: calc(var(--hud-k, 1) * .86); }
+
+/* ---------- ช่วงจั่ว ---------- */
+.dd { display: flex; align-items: flex-end; gap: 30px; }
+.dd-cards { position: relative; width: 300px; height: 168px; margin-bottom: -12px; }
+.dd-card { position: absolute; bottom: 0; transition: left .45s cubic-bezier(.2,.9,.3,1.15), transform .45s cubic-bezier(.2,.9,.3,1.15); }
+.dd-card > div { transform: scale(1.3); transform-origin: 50% 100%; transition: transform .15s; }
+.dd-card:hover { z-index: 3; }
+.dd-card:hover > div { transform: scale(1.4) translateY(-22px); }
+.dd-card-bust { filter: grayscale(1); opacity: .6; }
+.dd-blind { position: absolute; left: 50%; bottom: 40px; translate: -50% 0; font-size: 44px; }
+.dd-dial { position: relative; width: 196px; height: 196px; margin-bottom: 22px; flex: none; }
+.dd-dial svg { position: absolute; inset: 0; overflow: visible; }
+.dd-dial .disc { fill: url(#ddd); }
+.dd-dial .trk { fill: none; stroke: rgba(18,38,72,.72); stroke-width: 22; }
+.dd-dial .zone { fill: none; stroke: rgba(224,165,38,.55); stroke-width: 22; }
+.dd-dial .val { fill: none; stroke: url(#ddg); stroke-width: 22; transition: stroke-dashoffset .7s cubic-bezier(.2,.9,.3,1.1), stroke .3s; }
+.dd-dial .tick line { stroke: rgba(255,255,255,.55); stroke-width: 2; }
+.dd-dial[data-bust="true"] .val { stroke: #d2455b; }
+.dd-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+.dd-num small { font: 500 12px/1 Kanit, sans-serif; color: #9db8da; }
+.dd-num b { font: 700 74px/1 "Chakra Petch", sans-serif; text-shadow: 0 0 22px rgba(127,184,230,.6); margin-top: 3px; }
+.dd-num span { font: 400 11px/1 Michroma, sans-serif; letter-spacing: .2em; color: #7fb8e6; margin-top: 2px; }
+.dd-dial[data-zone="true"] .dd-num span { color: #e0a526; }
+.dd-dial[data-bust="true"] .dd-num b { color: #ff8095; font-size: 54px; text-shadow: 0 0 24px rgba(210,69,91,.9); }
+.dd-btns { display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+.dd-btn { position: relative; width: 200px; height: 62px; border: 0; cursor: pointer; color: #fff; text-align: left; display: flex; align-items: center; gap: 14px; padding: 0 20px;
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); transition: transform .15s, filter .2s; font-family: Kanit, sans-serif; }
+.dd-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+.dd-btn b { display: block; font: 700 28px/1 "Chakra Petch", Kanit, sans-serif; }
+.dd-btn .lat { display: block; margin-top: 4px; font: 400 9px/1 Michroma, sans-serif; letter-spacing: .22em; opacity: .8; }
+.dd-btn .ico { width: 36px; height: 40px; flex: none; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: rgba(255,255,255,.2); display: grid; place-items: center; font: 700 18px/1 "Chakra Petch", sans-serif; }
+.dd-btn.draw { background: linear-gradient(120deg, #b866b1, #9b4f96 40%, #6e2c7a); box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
+.dd-btn.stand { background: linear-gradient(120deg, #69aef0, #3d8bd9 45%, #1f5fa5); }
+.dd-btn:disabled { filter: grayscale(.8) brightness(.7); cursor: default; }
+
+/* ---------- ตาของเรา: สกิล + ช่องคำสั่ง ---------- */
+.hc { display: flex; align-items: flex-end; gap: 14px; }
+.hc-skills { margin: 0; }
+.hc-col { display: flex; flex-direction: column; gap: 9px; width: 248px; }
+.hc-btn { position: relative; display: flex; align-items: center; gap: 12px; height: 62px; padding: 0 18px; border: 0; cursor: pointer; color: #fff; text-align: left; font-family: Kanit, sans-serif;
+  background: rgba(16,34,66,.94); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); transition: transform .15s, filter .2s; }
+.hc-btn:hover:not(:disabled) { transform: translateX(-3px); filter: brightness(1.15); }
+.hc-btn b { display: block; font: 700 22px/1.1 "Chakra Petch", Kanit, sans-serif; white-space: nowrap; }
+.hc-btn .ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; }
+.hc-btn .ico svg { width: 100%; height: 100%; overflow: visible; }
+.hc-btn .ico svg * { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.hc-btn.atk { height: 78px; background: linear-gradient(115deg, #ef6a80, #d2455b 45%, #8e2238); }
+.hc-btn.atk b { font-size: 29px; }
+.hc-btn.atk .ico { width: 42px; height: 42px; }
+.hc-btn.atk[data-off="true"] { background: rgba(16,34,66,.72); box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); cursor: not-allowed; filter: none; }
+.hc-btn.atk[data-off="true"] b, .hc-btn.atk[data-off="true"] .ico { color: rgba(255,255,255,.4); }
+.hc-btn.shop { background: linear-gradient(115deg, #f3c252, #e0a526 50%, #9b6b06); color: #2c1d00; animation: hcPop .5s cubic-bezier(.2,1.5,.4,1) both; }
+.hc-btn.shop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-120%); animation: hcShine 2.4s .6s infinite; }
+@keyframes hcShine { 40%, 100% { transform: translateX(120%); } }
+@keyframes hcPop { from { transform: translateX(46px) scale(.8); opacity: 0; } }
+.hc-btn.bag .ico { width: 42px; height: 42px; color: #bee3f8; }
+.hc-row { display: flex; gap: 8px; }
+.hc-row .hc-btn { flex: 1; height: 54px; justify-content: center; padding: 0 8px; }
+.hc-row .hc-btn b { font-size: 19px; }
+.hc-btn.end { background: linear-gradient(115deg, #69aef0, #3d8bd9 50%, #1f5fa5); }
+.hc-btn:disabled { filter: grayscale(.9) brightness(.65); cursor: default; }
+.hc-solo { width: 220px; height: 70px; }
+.hc-solo b { font-size: 24px; }
+
+/* ---------- ตาคนอื่น ---------- */
+.hw-chip { display: flex; align-items: center; gap: 12px; padding: 11px 26px; margin-bottom: 8px; color: #fff; white-space: nowrap; background: rgba(16,34,66,.94);
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%); }
+.hw-chip b { font: 700 21px/1 "Chakra Petch", Kanit, sans-serif; }
+.hw-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pc); box-shadow: 0 0 10px var(--pc); animation: hwPulse 1.2s infinite; }
+@keyframes hwPulse { 50% { transform: scale(.6); opacity: .5; } }
+
+/* ---------- ฉากเปิดช่วงจั่วไพ่ ---------- */
+.pc-call { position: fixed; inset: 0; z-index: 45; pointer-events: none; display: grid; place-items: center; animation: pcOut 2s ease both; }
+@keyframes pcOut { 0%, 78% { opacity: 1; } 100% { opacity: 0; } }
+.pc-veil { position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(12,29,60,.6), rgba(12,29,60,.15) 70%, transparent); animation: pcFade .3s ease both; }
+@keyframes pcFade { from { opacity: 0; } }
+.pc-hex { position: absolute; left: 50%; top: 50%; width: 30vh; height: 34vh; margin: -17vh 0 0 -15vh; overflow: visible; opacity: 0; animation: pcHex 1.3s cubic-bezier(.2,.8,.3,1) both; }
+.pc-hex.h2 { animation-delay: .16s; --s: 3.2; --r: -20deg; }
+.pc-hex polygon { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 8px #7fb8e6); }
+@keyframes pcHex { 0% { opacity: 0; transform: scale(.2) rotate(-30deg); } 45% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(var(--s, 2.2)) rotate(var(--r, 20deg)); } }
+.pc-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; }
+.pc-in b { font: 700 6.2vh/1.15 "Chakra Petch", Kanit, sans-serif; text-shadow: 0 4px 30px rgba(18,38,72,.9); animation: pcTitle .42s ease .12s both; }
+@keyframes pcTitle { from { opacity: 0; transform: translateY(20px); filter: blur(8px); } }
+.pc-lat { font: 400 1.4vh/1 Michroma, sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #bee3f8; text-shadow: 0 2px 10px rgba(18,38,72,1); animation: pcLat .6s ease .08s both; }
+@keyframes pcLat { from { opacity: 0; letter-spacing: 1em; } }
+.pc-l { position: absolute; top: 62%; height: 2px; width: 26vh; background: linear-gradient(90deg, transparent, #fff); box-shadow: 0 0 12px #7fb8e6; transform-origin: right; animation: pcLine .6s ease .15s both; }
+.pc-l.l { right: calc(100% + 2.4vh); }
+.pc-l.r { left: calc(100% + 2.4vh); background: linear-gradient(90deg, #fff, transparent); transform-origin: left; }
+@keyframes pcLine { from { transform: scaleX(0); } }
+.pc-fan { position: relative; width: 9vh; height: 6.4vh; margin-bottom: .4vh; }
+.pc-fan i { position: absolute; left: 3.1vh; bottom: 0; width: 3vh; height: 4.3vh; border: 2px solid #fff; background: linear-gradient(160deg, rgba(201,154,214,.8), rgba(61,139,217,.8)); transform-origin: 50% 120%; transform: rotate(var(--a)); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); animation: pcCard .5s cubic-bezier(.2,1.5,.4,1) both; }
+.pc-fan i:nth-child(1) { --a: -22deg; animation-delay: .1s; }
+.pc-fan i:nth-child(2) { --a: 0deg; animation-delay: .17s; }
+.pc-fan i:nth-child(3) { --a: 22deg; animation-delay: .24s; }
+@keyframes pcCard { from { opacity: 0; transform: translateY(30px) rotate(0); } }

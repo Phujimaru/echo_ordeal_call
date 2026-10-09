@@ -288,7 +288,8 @@ export default function App() {
       playSfx("trun_change");
     }
     // เข้าเฟสโจมตี -> เสียง attack (เสียงโจมตีเฉพาะตัวถ้ามี)
-    if (sounds.attack) {
+    // ระบบกระดาน (จอคอม): BoardStage เล่นเสียงเองที่จังหวะปะทะของฉากตี — ที่นี่เล่นเฉพาะโหมดเดิม/มือถือ
+    if (sounds.attack && !(state?.board && window.innerWidth >= 768)) {
       playSfx(state?.attack?.byAttackSound || "attack");
     }
   }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, introOn]);

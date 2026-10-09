@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine, resolveRound } = require('../server.js');
 const action = require('../server/phases/action.js');
-const { GOLD_FIRST_BONUS } = require('../server/constants.js');
+const { GOLD_FIRST_BONUS, ORDER_TIME, ORDER_TIME_MS } = require('../server/constants.js');
 
 const blank = (id, characterId, position) => ({
   id, name: id, position, characterId, alive: true, connected: true, cards: [], statuses: {}, statusAmt: {},
@@ -99,4 +99,28 @@ test('ช่วงจั่ว: ระยะเดิน (mov) ของคน�
   assert.equal(movSeen('B', 'A'), action.baseMovOf(A), 'คนอื่นเห็นระยะเดินปกติจนกว่าจะเปิดไพ่');
   engine.setGameState('ORDER');
   assert.equal(movSeen('B', 'A'), action.baseMovOf(A) - 1, 'เปิดไพ่แล้วเห็นค่าจริง');
+});
+
+test('เฟสลำดับเดิน (ORDER) ยาว 6.5 วิ (ฉากลำดับเดินเต็มจอฝั่ง client) แล้วเข้าตาเดินของคนแรก', (t) => {
+  assert.equal(ORDER_TIME_MS, 6500);
+  assert.equal(ORDER_TIME, 6.5);
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  try {
+    const { A, B, C } = setup();
+    A.cards = [{ value: 5, color: 'blue' }];
+    B.cards = [{ value: 10, color: 'red' }];
+    C.cards = [{ value: 8, color: 'yellow' }];
+    resolveRound();
+    assert.equal(engine.gameState, 'ORDER');
+    assert.equal(engine.timeLeft, 7, 'นับถอยหลังเป็นจำนวนเต็ม (ปัดขึ้น)');
+    // เดินนาฬิกาทีละช่วง (mock timers ไม่นับ setInterval ที่ตั้งกลาง tick ก้อนเดียวตามเวลาจริง)
+    t.mock.timers.tick(500);
+    assert.equal(engine.timeLeft, 6);
+    for (let i = 0; i < 5; i++) t.mock.timers.tick(1000);
+    t.mock.timers.tick(999);
+    assert.equal(engine.gameState, 'ORDER', 'ยังไม่ครบ 6.5 วิ (6.499 วิ)');
+    t.mock.timers.tick(1);
+    assert.equal(engine.gameState, 'ACTION', 'ครบ 6.5 วิ → ตาเดินของคนแรก');
+    assert.equal(engine.actorId, 'B');
+  } finally { engine.clearPhaseTimer(); t.mock.timers.reset(); }
 });

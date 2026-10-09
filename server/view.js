@@ -54,13 +54,19 @@ function boardPublic() {
 }
 
 // คาดการณ์ผลการตีปกติของคนที่กำลังเดิน (หน้าต่างคาดการณ์แบบ Fire Emblem — GRID_PLAN §6)
-//  { [targetId]: { dmg: เราตีเขา, back: เขาสวนเรา } } — พลังโจมตีก่อนหักเกราะ/หลบ (ไม่สุ่ม ไม่แตะสถานะ)
+//  { [targetId]: { dmg: เราตีเขา, back: เขาสวนเรา, hit, crit, backHit, backCrit } } — พลังโจมตีก่อนหักเกราะ/หลบ
+//  + โอกาสโดน/คริติคอล (%) ทั้งสองฝั่ง (ไม่สุ่ม ไม่แตะสถานะ — attackPhase.estimateHitOn/estimateCritOf)
 function forecastFor(viewer) {
   if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
   const out = {};
   for (const t of combat.alivePlayers()) {
     if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t)) continue;
-    out[t.id] = { dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer) };
+    out[t.id] = {
+      dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer),
+      // โอกาสโดน/คริติคอล (% จำนวนเต็ม 0–100) — back* = ฝั่งเป้าตีสวนกลับ (มีผลเฉพาะเป้าที่ตีสวนได้)
+      hit: attackPhase.estimateHitOn(viewer, t), crit: attackPhase.estimateCritOf(viewer, t),
+      backHit: attackPhase.estimateHitOn(t, viewer), backCrit: attackPhase.estimateCritOf(t, viewer),
+    };
   }
   return out;
 }

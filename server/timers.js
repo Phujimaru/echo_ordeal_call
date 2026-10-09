@@ -14,10 +14,13 @@ function clearPhaseTimer() {
   if (match.phaseTimerId) clearInterval(match.phaseTimerId);
   match.phaseTimerId = null;
 }
+// seconds เป็นเศษได้ (เช่น ORDER 6.5 วิ): timeLeft ปัดขึ้นเป็นจำนวนเต็ม แล้ว tick แรกมาหลังเศษนั้น (500ms)
+//  จากนั้นนับถอยหลังทีละ 1 วิตามเดิม → หมดเวลาพอดี seconds · จำนวนเต็มทำงานแบบเดิมทุกอย่าง
 function startPhaseTimer(seconds, onExpire) {
   clearPhaseTimer();
-  match.timeLeft = seconds;
-  match.phaseTimerId = setInterval(() => {
+  const fracMs = Math.round((seconds - Math.floor(seconds)) * 1000);
+  match.timeLeft = Math.ceil(seconds);
+  const tick = () => {
     match.timeLeft--;
     if (match.timeLeft <= 0) { clearPhaseTimer(); onExpire(); }
     // ทุกวินาที client ต้องการแค่ตัวเลขนับถอยหลัง — ส่ง "tick" (ไม่กี่ไบต์) แทน state ตัวเต็ม
@@ -26,7 +29,14 @@ function startPhaseTimer(seconds, onExpire) {
     //  แล้วลืมเรียก broadcastState() เอง (เดิมตัวจับเวลากลบให้ภายใน 1 วิ)
     else if (match.timeLeft % RESYNC_EVERY === 0) view.broadcastState();
     else io.emit("tick", match.timeLeft);
-  }, 1000);
+  };
+  if (fracMs <= 0) { match.phaseTimerId = setInterval(tick, 1000); return; }
+  // clearInterval (clearPhaseTimer) ล้าง setTimeout ได้ด้วยใน Node
+  const first = setTimeout(() => {
+    tick();
+    if (match.phaseTimerId === first) match.phaseTimerId = setInterval(tick, 1000); // ยังเป็นตัวจับเวลาของเรา (ไม่หมด/ไม่ถูกแทน)
+  }, fracMs);
+  match.phaseTimerId = first;
 }
 // เวลาของเฟสจั่วการ์ดในเทิร์นนี้
 function cardPhaseSeconds() {

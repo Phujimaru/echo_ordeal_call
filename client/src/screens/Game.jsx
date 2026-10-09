@@ -16,7 +16,8 @@ import { AvModal, AvButton } from "../components/avalon";
 import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
-import { SelfHud, HudPanel, HudStatusDrawer, HudCenter, HudRight, HudTopBar } from "./hud/SelfHud";
+import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
+import { DrawDock, HudCommand, BagButton, WatchChip, PhaseCall } from "./hud/HudPhases";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
 import { holdBoard } from "../board/boardPause";
@@ -1608,6 +1609,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [gunSel, setGunSel] = useState(null);                // ปืนหน่วย GUTS Select: กระสุนที่เลือกไว้ รอจิ้มเป้าหมายบนกระดาน (เลือกตัวเองไม่ได้)
   // จอคอม (ระบบกระดาน): โหมดเลือกเป้า/ทิศบนกระดาน — { kind: "skill", tier } | { kind: "gun", item } | { kind: "suit", uid, mode }
   const [pickReq, setPickReq] = useState(null);
+  // ปุ่ม "โจมตี" (ดีไซน์ใหม่): ศัตรูที่ตีถึงมาจาก BoardStage · กดแล้วเพิ่มเลข = BoardStage เปิดหน้าคาดการณ์ · fcOpen = ซ่อน HUD ทั้งหมด
+  const [attackables, setAttackables] = useState([]);
+  const [atkSignal, setAtkSignal] = useState(0);
+  const [fcOpen, setFcOpen] = useState(false);
   // ---------- คิวฉากประกาศ ----------
   //  ฉากประกาศทุกอันกินจอเต็มใบ เดิมต่างคนต่างมีตัวตั้งเวลาของตัวเอง ไม่มีใครรู้จักกัน จึงทับกันได้
   //  ที่ชนบ่อยที่สุด: วงจรกลางวัน-กลางคืนสลับทุก 3 เทิร์น แล้วเด้งพร้อม "เริ่มจั่วการ์ด" ที่ต้นเทิร์นพอดี
@@ -2137,16 +2142,21 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ---- จอคอม/แท็บเล็ต: กระดานเดินได้แบบ Fire Emblem (GRID_PLAN §11) ----
   //  กระดาน/ตัวละคร/แถบลำดับเดิน/คาดการณ์ อยู่ใน board/BoardStage.jsx · ไฟล์นี้คุม HUD ล่าง + เงื่อนไขกดได้/ไม่ได้
   //  กำลังเลือกเป้าบนกระดาน → แผงตัวเราเลื่อนลงพ้นจอ ไม่บังกระดาน
-  const hudAway = !!me && !!boardPick;
+  // ฉากตีบนกระดาน (กล้องซูมเข้าคู่) = HUD หลบทั้งหมด
+  const hudAway = !!me && (!!boardPick || fcOpen || (!!state.board && phase === "ATTACKING"));
   // ขนาด UI แผงตัวเรา: ออกแบบที่หน่วยฐาน 1440×810 แล้วขยายตามจอ (1080p = ×1.333)
   //  ความกว้างฐานขั้นต่ำ 1376 = ซ้าย+กลาง+ขวาเรียงได้ไม่ชนกัน (จอแคบ/4:3 จึงย่อตามความกว้าง)
   const hudZ = Math.min(1.6, Math.max(0.6, Math.min(vp.h / 810, vp.w / 1376)));
   const inBoardTurn = phase === "ORDER" || phase === "ACTION" || phase === "ATTACKING";
+  // HUD แยกตามช่วง: ช่วงจั่ว = เหลือแค่ไพ่/แต้ม/จั่ว-พอ · ตาเรา = สกิล + ช่องคำสั่ง · อื่นๆ = ดูอย่างเดียว (+ ป้ายตาของใคร)
+  const hudMode = phase === "PLAYING" ? "draw" : myTurn ? "turn" : "watch";
+  const watchActor = (phase === "ACTION" || phase === "ATTACKING") && state.actorId && state.actorId !== me?.id ? state.players.find((p) => p.id === state.actorId) : null;
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
       {state.board ? (
-        <BoardStage state={state} me={me} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther} />
+        <BoardStage state={state} me={me} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther}
+          atkSignal={atkSignal} onAttackables={setAttackables} onOverlay={setFcOpen} />
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
@@ -2160,7 +2170,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}
 
       {/* แถบซ้ายบน: กลางวัน/คืน · รอบ · เวลา · ภูมิภาค */}
-      <HudTopBar
+      {!fcOpen && !(state.board && phase === "ATTACKING") && <HudTopBar
         night={nightNow}
         round={phase === "PLAYING" || inBoardTurn ? state.roundNumber : null}
         timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
@@ -2169,7 +2179,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           : null}
         onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
         zoom={hudZ}
-      />
+      />}
 
       {/* ---------- แผงตัวเรา (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------
           ซ้ายล่าง = แผงผู้เล่น · ขอบซ้าย = ลิ้นชักสถานะ · กลางล่าง = แต้ม · มือไพ่ · จั่ว/พอ (ช่วงจั่ว) หรือ ย้อน/รอ (ตาเดิน)
@@ -2177,6 +2187,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {me && (
         <SelfHud
           hidden={hudAway}
+          noPeek={fcOpen}
           lowQ={lowQ}
           zoom={hudZ}
           panel={
@@ -2207,74 +2218,28 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               onOpenAll={() => { clickSound(); setStatusViewId(me.id); }}
             />
           }
-          center={
-            <HudCenter
+          mode={hudMode}
+          center={hudMode === "draw" ? (
+            <DrawDock
+              cards={me.cards}
               score={me.score}
               busted={me.busted}
               handRef={selfHandRef}
-              hand={me.cards === null ? (
-                // ตาบอด: การ์ด/แต้มของตัวเองก็ถูกซ่อน
-                <span className="hud-hand-note">🌑 ???</span>
-              ) : myTurn ? (
-                <span className="hud-hand-note" data-tone="me">ตาของคุณ</span>
-              ) : phase !== "PLAYING" && phase !== "TRANSITION" ? (
-                <span className="hud-hand-note" data-tone={me.busted ? "bad" : undefined}>{me.busted ? "แตก" : "เปิดไพ่แล้ว"}</span>
-              ) : me.cards && me.cards.length ? (
-                // ถือการ์ดแบบพัดสไตล์ UNO — บีบระยะซ้อนอัตโนมัติตามจำนวนใบให้พอดีพื้นที่เสมอ (ห้ามเกิด scroll เด็ดขาด)
-                <div className="flex items-center pl-1 pr-4">
-                  {(() => {
-                    const CARD_W = 80; // ความกว้างการ์ด size="lg"
-                    const FAN_AREA_W = 230; // พื้นที่กางพัดตายตัว ไม่ล้นออกกรอบแน่นอน
-                    const n = me.cards.length;
-                    const step = n > 1 ? Math.max(16, Math.min(CARD_W, (FAN_AREA_W - CARD_W) / (n - 1))) : 0;
-                    const mid = (n - 1) / 2;
-                    return me.cards.map((c, i) => {
-                      const off = i - mid;
-                      return (
-                        <div
-                          key={i}
-                          className="relative shrink-0 group hover:z-30"
-                          style={{
-                            marginLeft: i === 0 ? 0 : -(CARD_W - step),
-                            transform: `rotate(${off * 6}deg) translateY(${Math.abs(off) * 4}px)`,
-                          }}
-                        >
-                          <div className={`transition-transform duration-150 group-hover:-translate-y-6 group-hover:scale-110 ${me.busted ? "grayscale opacity-60" : ""}`}>
-                            <Card value={c.value} color={c.color} special={c.special} size="lg" />
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              ) : (
-                <span className="hud-hand-note">ยังไม่จั่วไพ่</span>
-              )}
-              draw={inBoardTurn ? {
-                label: "ย้อน",
-                disabled: !(myTurn && state.action.moved && !state.action.locked),
-                onClick: () => { clickSound(); socket.emit("undoMove"); },
-              } : {
+              draw={{
                 disabled: state.deckEmpty || !(phase === "PLAYING" && me.alive && !done) || me.atCap || noDraw,
                 onClick: () => { clickSound(); socket.emit("hit"); },
               }}
-              reveal={inBoardTurn ? {
-                label: "รอ",
-                disabled: !myTurn,
-                onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); },
-              } : {
-                label: "พอ",
+              stand={{
+                done: !!me.locked,
                 disabled: !(phase === "PLAYING" && me.alive && !done),
                 onClick: () => { clickSound(); socket.emit("lock"); },
               }}
             />
-          }
-          right={
-            <HudRight
-              bagCount={me.inventory?.length || 0}
-              onBag={() => { clickSound(); setBagOpen(true); }}
-              gold={me.gold ?? 0}
-              onShop={() => { clickSound(); setShopOpen(true); }}
+          ) : hudMode === "watch" && watchActor ? (
+            <WatchChip name={watchActor.name} color={watchActor.color} />
+          ) : <span />}
+          right={hudMode === "turn" ? (
+            <HudCommand
               skills={
                 <>
                   <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !isMuimi && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
@@ -2282,13 +2247,18 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />
                 </>
               }
+              attack={{ disabled: !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
+              shop={nearShop ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
+              onBag={() => { clickSound(); setBagOpen(true); }}
+              undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
+              end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
             />
-          }
+          ) : hudMode === "watch" ? <BagButton onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
         />
       )}
 
       {/* ---------- อนิเมชันเปลี่ยนเฟส ---------- */}
-      {scene?.kind === "draw" && <DrawCall key={scene.id} />}
+      {scene?.kind === "draw" && (state.board ? <PhaseCall key={scene.id} round={state.roundNumber} /> : <DrawCall key={scene.id} />)}
 
       {/* ---------- overlay ที่ใช้ร่วมกับมือถือ (ฉากตีวาดบนกระดานแทน AttackFx) ---------- */}
       <OverlayLayer boardFx phase={phase} attack={state.attack} csSkipped={csSkipped} flash={flash} notice={notice} cycleFx={scene?.kind === "cycle" ? { ...scene.data, id: scene.id } : null} />

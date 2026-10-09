@@ -64,7 +64,7 @@ export function setCamera(info, turn) {
 //  cam = { z, cx, cy } — z = ขยายกี่เท่า · (cx, cy) = จุดตรรกะ (ของเฟรมปกติ) ที่อยู่กลางจอ · base = computeView(w, h) ไม่มี cam
 export const ZOOM_K = 1.6;   // มุมใกล้ = ขยาย 1.6 เท่า
 const PAN_M = 30;            // เลื่อนเลยขอบกระดานได้เท่านี้ (ตรรกะ)
-const TOP_UI = 50;           // แถบลำดับเดินด้านบน (ตรรกะที่ z = 1)
+const TOP_UI = 130;          // แถบลำดับเดินด้านบน (ตรรกะที่ z = 1) — แถบหกเหลี่ยมแบบใหม่สูงกว่าเดิม
 // กรอบของกระดานบนจอ (ตรรกะ · กล้องปัจจุบัน) รวมความสูงของของบนแถวไกล
 export function boardBox(info) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -570,9 +570,9 @@ function drawHighlights(g, info, hl, hover, now) {
     g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 2; g.stroke();
   }
 }
-function floatText(g, x, y, text, color, p, size = 24) {
+function floatText(g, x, y, text, color, p, size = 24, z0 = 2.4) {
   if (p <= 0 || p >= 1) return;
-  const [sx, sy] = P(x + 0.5, y + 0.5, 2.4 + p * 0.7);
+  const [sx, sy] = P(x + 0.5, y + 0.5, z0 + p * 0.7);
   g.save(); g.globalAlpha = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
   g.font = `700 ${size}px ${/^[0-9+\-−\s]+$/.test(text) ? F_UI : F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
   g.lineWidth = 5; g.strokeStyle = "rgba(10,20,40,.85)"; g.lineJoin = "round"; g.strokeText(text, sx, sy); g.fillStyle = color; g.fillText(text, sx, sy);
@@ -585,7 +585,26 @@ function slashFx(g, x, y, p, rgb) {
   g.beginPath(); g.moveTo(cx - s * 0.55, cy - s * 0.45 + p * 10); g.lineTo(cx + s * 0.55, cy + s * 0.35 + p * 10); g.stroke();
   g.strokeStyle = `rgba(${rgb},${1 - p})`; g.lineWidth = 3; g.beginPath(); g.ellipse(cx, cy, s * (0.2 + p * 0.8), s * (0.14 + p * 0.5), 0, 0, 7); g.stroke();
 }
-export const FX_DUR = { slash: 420, float: 1300 };
+// แสงแตกตอนปะทะ (ฉากตีแบบใหม่): วงแหวนขยาย + ดาว 8 แฉก + รัศมี 14 เส้น — rgb = สีผู้ตี
+function burstFx(g, x, y, p, rgb) {
+  if (p <= 0 || p >= 1) return;
+  const [cx, cy, s] = P(x + 0.5, y + 0.5, 1.1);
+  const e = 1 - Math.pow(1 - p, 3), a = p < 0.35 ? 1 : 1 - (p - 0.35) / 0.65;
+  g.save(); g.globalAlpha = a; g.lineCap = "round";
+  g.strokeStyle = "#ffffff"; g.lineWidth = 6 * (1 - p) + 1;
+  g.beginPath(); g.ellipse(cx, cy, s * (0.25 + e * 1.1), s * (0.18 + e * 0.75), 0, 0, 7); g.stroke();
+  for (let i = 0; i < 14; i++) {
+    const t = i / 14 * Math.PI * 2 + (i % 2) * 0.12, r0 = s * (0.2 + e * 0.35), r1 = s * (0.55 + e * (i % 2 ? 0.95 : 1.35));
+    g.strokeStyle = i % 3 ? "rgba(255,255,255,1)" : `rgba(${rgb},1)`; g.lineWidth = (i % 2 ? 3 : 5) * (1 - p * 0.6);
+    g.beginPath(); g.moveTo(cx + Math.cos(t) * r0, cy + Math.sin(t) * r0 * 0.75); g.lineTo(cx + Math.cos(t) * r1, cy + Math.sin(t) * r1 * 0.75); g.stroke();
+  }
+  const k = s * 0.42 * (1 - p * 0.6);
+  g.fillStyle = "#ffffff"; g.beginPath();
+  for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2, r = i % 2 ? k * 0.32 : k; g.lineTo(cx + Math.cos(t) * r, cy + Math.sin(t) * r * 0.85); }
+  g.closePath(); g.fill();
+  g.restore();
+}
+export const FX_DUR = { slash: 420, float: 1300, burst: 560 };
 
 
 // =================================================================== frame
@@ -682,7 +701,8 @@ export function drawFrame(g, st, now) {
   for (const e of fx) {
     const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
     if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
-    else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24);
+    else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
+    else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);
   g.setTransform(1, 0, 0, 1, 0, 0);

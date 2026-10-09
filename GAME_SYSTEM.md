@@ -90,7 +90,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 | `TEAM_SETUP` | เลือกทีม A/B/C + ยืนยัน — ทีมเต็มครบและยืนยันหมด → `startMatch()` · `teamBackToMode` ถอยกลับ | – |
 | `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
 | `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` | ตาม `seconds` ของแต่ละคลิป/ฉาก |
-| `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 2s → `nextActor` |
+| `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 6.5s (`ORDER_TIME_MS` 6500) → `nextActor` |
 | `ACTION` | ตาเดินของ `match.actorId`: เดิน 1 ครั้ง (ย้อนได้) · สกิล/ไอเทม/ซื้อของ (ทำแล้วเดินไม่ได้อีก) · โจมตีหรือ "รอ" = จบตา | `ACTION_TIME` 60s → `finishActor` |
 | `ATTACKING` | ฉากตี/ตีสวน/ถอย ของคนที่กำลังเดิน (`state.attack` = `lastAttack` มี `counter`/`push`) แล้ว `runCutsceneQueue(finishActor)` | `ATTACKFX_TIME` 3s (+2 มีป้ายสกิล · +2 มีตีสวน) |
 | `TRANSITION` | แบนเนอร์ "รอบที่ N" | `TRANSITION_TIME` 3s |
@@ -117,7 +117,7 @@ lock(id)               phases/draw.js    "เปิดไพ่" = พร้อ�
 checkAllLocked()       phases/draw.js    ผู้รอดทุกคน locked && ไม่มี QTE ค้าง → resolveRound()
 resolveRound()         phases/summary.js ล็อกทุกคน → sweepQte() → (ไม่มีผู้ชนะ/ผู้แพ้ · แต้มต่ำสุดไม่เสียเลือด) → afterResolve()
 afterResolve()         phases/summary.js คัตซีน afterReveal ที่ค้าง (TRANSFORMS) → runCutsceneQueue(action.beginOrder)
-beginOrder()           phases/action.js  turnOrderOf(): แต้มมากก่อน · เท่ากันสุ่ม · ไพ่แตกท้ายแถว → คนแรกเหรียญ +1 → ORDER 2s → nextActor
+beginOrder()           phases/action.js  turnOrderOf(): แต้มมากก่อน · เท่ากันสุ่ม · ไพ่แตกท้ายแถว → คนแรกเหรียญ +1 → ORDER 6.5s → nextActor
 nextActor()            phases/action.js  คนถัดไปในแถว (ข้ามคนตาย/สตั้น/หลับ) → ACTION 60s · หมดแถว → endTurn()
    ↓ (คนที่กำลังเดินกด — ทุกอย่างเช็ค canAct(p))
 moveTo / undoMove      phases/action.js  BFS ใน board.js (เดิน movOf(p) = mov − ไพ่แตก) · ย้อนได้จนกว่า action.locked
@@ -481,7 +481,7 @@ safeOn:        reconnectSession {sessionToken}   reserve {position}   join {name
 
 | event | เนื้อหา |
 |---|---|
-| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING · กระดาน: `board` (แผนที่ภูมิภาค + `special`/`flow`/`healKind`), `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `forecast` (คนที่กำลังเดิน: {[id]:{dmg,back}}), `shopPos`, `shopTurnsLeft`, `bagSlots`, `gutsRange`, ต่อผู้เล่น `pos`/`mov`/`baseMov`/`range` |
+| `state` | **snapshot ทั้งเกม ต่อผู้ชมแต่ละคน** — `buildStateFor(viewerId)` (`server/view.js`) ซ่อนไพ่/แต้มคนอื่นตอน PLAYING · กระดาน: `board` (แผนที่ภูมิภาค + `special`/`flow`/`healKind`), `turnOrder`, `actorId`, `action` {from,moved,locked,path}, `forecast` (คนที่กำลังเดิน: {[id]:{dmg,back,hit,crit,backHit,backCrit}} — hit/crit เป็น % จาก `estimateHitOn`/`estimateCritOf`), `shopPos`, `shopTurnsLeft`, `bagSlots`, `gutsRange`, ต่อผู้เล่น `pos`/`mov`/`baseMov`/`range` |
 | `tick` | ตัวเลขเวลาที่เหลือทุกวินาที (state ตัวเต็มส่งทุก `RESYNC_EVERY` วิ) |
 | `roster` / `positions` / `takenChars` | หน้า setup/lobby (ส่งตอนเชื่อมต่อ + `broadcastPositions()`) |
 | `joined` / `reconnected` / `sessionExpired` / `sessionInUse` | session (`sessionToken`) |

@@ -3,7 +3,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   attackableTargets, attackSoundOf, computeAttackBase,
-  estimateAttackOn, strike, skillStrike, doAttack, boardAttack, gunAttack,
+  estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, doAttack, boardAttack, gunAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -79,6 +79,31 @@ function estimateAttackOn(attacker, target) {
   try {
     const c = computeAttackBase(engine, attacker, target);
     return Math.max(0, c.base || 0);
+  } catch { return null; }
+}
+
+// ประเมินโอกาสตีปกติ "โดน" (%) — อ่านด่านพลาดเดียวกับ strike() ตามลำดับ แต่ไม่ทอย/ไม่ใช้สแตคหลบหลีก
+//  แม่นยำ = 100 (เจาะการหลบหลีกทุกแบบ) · ไม่งั้นคูณโอกาสรอดแต่ละด่าน:
+//  หลบหลีกของเป้า (statusAmt หรือ 100%) × ช่องที่เป้ายืน (พุ่มดอกไม้สูง/ป่าทึบ) × ป่าไม้ต้องสาปกลางวัน
+//  ไม่นับเนตรมณะ (สังหารทันทีไม่ใช่การพลาด) · คืนจำนวนเต็ม 0–100 · พัง = null
+function estimateHitOn(attacker, target) {
+  try {
+    if (accurateActive(attacker)) return 100;
+    const pct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+    const evadePct = (target.statuses.evade || 0) > 0 ? pct(statusAmtOf(target, "evade") || 100) : 0;
+    const cover = target.pos ? Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y) : null;
+    const coverPct = cover ? pct(cover.pct) : 0;
+    const missPct = pct(Journey.attackMissPct(engine));
+    const hit = (100 - evadePct) * (100 - coverPct) * (100 - missPct) / 10000;
+    return Math.round(hit);
+  } catch { return null; }
+}
+
+// ประเมินโอกาสคริติคอล (%) ของตีปกติ — อัตราเดียวกับที่ Journey.applyCrit ใช้ใน strike() (สนาม + 0 จากบัฟอื่น)
+//  ไม่ทอย · คืนจำนวนเต็ม 0–100 · พัง = null
+function estimateCritOf(attacker, target) {
+  try {
+    return Math.round(Math.min(100, Math.max(0, Journey.critBonus(engine) + 0)));
   } catch { return null; }
 }
 

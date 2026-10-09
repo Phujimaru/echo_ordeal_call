@@ -338,7 +338,8 @@ export function HudRight({ extras, bagCount = 0, onBag, gold = 0, onShop, skills
 const EDGE_L = 18; // ระยะขอบ (หน่วยฐาน)
 const EDGE_R = 20;
 const GAP = 16;
-export function SelfHud({ hidden = false, lowQ = false, zoom = 1, panel, center, right, drawer }) {
+//  mode = "draw" (ช่วงจั่ว: เหลือแค่กลุ่มกลาง) | "turn" (ตาเรา) | "watch" (ตาคนอื่น/ช่วงอื่น — แผงซ้ายย่อ)
+export function SelfHud({ hidden = false, noPeek = false, lowQ = false, zoom = 1, mode = "turn", panel, center, right, drawer }) {
   const dockRef = useRef(null);
   const leftRef = useRef(null);
   const centerRef = useRef(null);
@@ -390,6 +391,7 @@ export function SelfHud({ hidden = false, lowQ = false, zoom = 1, panel, center,
         ref={dockRef}
         className="hud-dock"
         data-away={away ? "true" : "false"}
+        data-mode={mode}
         data-instant={lowQ ? "true" : "false"}
         aria-hidden={away ? "true" : undefined}
         style={{ "--hud-k": k, "--hud-panel-h": `${m.leftH}px` }}
@@ -399,7 +401,7 @@ export function SelfHud({ hidden = false, lowQ = false, zoom = 1, panel, center,
         <div ref={centerRef} className="hud-grp hud-center" style={cx != null ? { left: cx } : undefined}>{center}</div>
         <div ref={rightRef} className="hud-grp hud-right">{right}</div>
       </div>
-      {hidden && (
+      {hidden && !noPeek && (
         <button type="button" className="hud-peek" style={{ "--hud-k": k }} data-peek={peek ? "true" : "false"} onClick={() => setPeek((v) => !v)} aria-expanded={peek} aria-label={peek ? "ซ่อนแผงผู้เล่น" : "แสดงแผงผู้เล่น"}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>

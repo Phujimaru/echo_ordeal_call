@@ -570,7 +570,7 @@
 .sh {
   --rot: 1;
   position: fixed;
-  top: 9vh;
+  top: 26vh; /* ใต้แถบลำดับเดินแบบใหม่ (หกเหลี่ยมใหญ่ สูง ≈ 24vh) */
   left: 0;
   right: 0;
   z-index: 42;

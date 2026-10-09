@@ -20,8 +20,12 @@
 //               ใช้เป็นจุดกลางตอนกดซูมเข้าด้วยปุ่มด้วย (ซูมด้วยล้อ = จุดใต้เมาส์) · มุมปกติไม่มีผล
 //   shopLabel   string|number|null — ป้าย "🏪 N" เหนือแผงร้าน (วาดในแคนวาส ตามซูม/เลื่อน/หมุนเอง)
 //   map.special { "x,y": "flowers"|"forest"|"thorns"|"shallow"|"whirl"|"quicksand"|"ice"|"lava"|"power" } · map.flow { "x,y": "up"|"down"|"left"|"right" }
-//   anim        { kind: "move", id, path } | { kind: "push", id, from, to, collide } — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
-//   fx          [{ key, kind: "slash"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
+//   anim        { kind: "move", id, path } | { kind: "push", id, from, to, collide }
+//               | { kind: "lunge", id, from, to, hitId } (ง้าง → พุ่งเข้าหาเป้า → กลับที่เดิม · จังหวะชน = เป้า hitId สั่น)
+//               — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
+//   fx          [{ key, kind: "slash"|"burst"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
+//   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
+//               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -39,6 +43,9 @@ const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนา�
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
 const PUSH_MS = 240;   // ถอย 1 ช่อง
 const BUMP_MS = 280;   // ถอยชน (ขยับไปนิดแล้วเด้งกลับ)
+const LUNGE_MS = 620;  // พุ่งชน (ง้าง 40% → พุ่ง → ชน ที่ 62% → กลับ)
+const LUNGE_HIT = 0.62;
+const CINEMA_MS = 520; // กล้องฉากตี ซูมเข้า/ออก
 const TURN_MS = 250;   // หมุนมุมมอง 90°
 const ZOOM_MS = 280;   // ซูมเข้า/ออก
 const FOCUS_MS = 420;  // เลื่อนกล้องตามตัวละคร
@@ -57,6 +64,16 @@ function animPose(a, t) {
     const f = p * (pts.length - 1), i = Math.floor(f), k = f - i, A = pts[i], B = pts[i + 1];
     return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, ox: 0, oy: 0, done: false };
   }
+  if (a.kind === "lunge") {
+    const { from, to } = a, p = Math.min(1, t / LUNGE_MS);
+    const reach = Math.max(0, Math.hypot(to.x - from.x, to.y - from.y) - 0.55);
+    const ux = (to.x - from.x) / (Math.hypot(to.x - from.x, to.y - from.y) || 1), uy = (to.y - from.y) / (Math.hypot(to.x - from.x, to.y - from.y) || 1);
+    let d;
+    if (p < 0.4) d = -0.22 * Math.sin((p / 0.4) * Math.PI / 2);                       // ง้าง
+    else if (p < LUNGE_HIT) { const q = (p - 0.4) / (LUNGE_HIT - 0.4); d = -0.22 + (reach + 0.22) * q * q; } // พุ่ง (เร่ง)
+    else { const q = (p - LUNGE_HIT) / (1 - LUNGE_HIT); d = reach * (1 - (1 - Math.pow(1 - q, 3))); }   // กลับ
+    return { x: from.x, y: from.y, ox: ux * d, oy: uy * d, done: p >= 1, hitAt: LUNGE_MS * LUNGE_HIT, hitId: a.hitId };
+  }
   // push
   const { from, to } = a;
   if (a.collide) {
@@ -70,12 +87,13 @@ function animPose(a, t) {
 }
 function animFinal(a) {
   if (a.kind === "move") return a.path[a.path.length - 1];
+  if (a.kind === "lunge") return a.from;
   return a.collide ? a.from : a.to;
 }
 function validAnim(a) {
   if (!a || a.id == null) return false;
   if (a.kind === "move") return Array.isArray(a.path) && a.path.length > 0;
-  if (a.kind === "push") return !!(a.from && a.to);
+  if (a.kind === "push" || a.kind === "lunge") return !!(a.from && a.to);
   return false;
 }
 
@@ -99,6 +117,7 @@ export default function BoardCanvas(props) {
       // กล้อง: cam = { z, cx, cy } ตอนนี้ · zoomLv = prop zoom ล่าสุด · camAnim = เลื่อน/ซูมนุ่มๆ · pivot = จุดบนกระดานที่หมุนรอบ
       cam: { z: 1, cx: LW / 2, cy: LH / 2 }, zoomLv: null, camAnim: null, pivot: null,
       zoomAnchor: null, focusRef: undefined, keys: new Set(), drag: null, suppressClick: false,
+      cinemaRef: null, cinemaBack: null, // กล้องฉากตี: ค่า prop ล่าสุด · กล้องก่อนเข้าฉาก (คืนค่าตอนจบ)
     };
   }
   useLayoutEffect(() => { propsRef.current = props; });
@@ -180,7 +199,24 @@ export default function BoardCanvas(props) {
       };
       const focusPt = (f) => (f && Number.isFinite(f.x) && Number.isFinite(f.y) ? project(f.x + 0.5, f.y + 0.5) : null);
       const zl = p.zoom ? 1 : 0;
-      if (zl !== st.zoomLv) {
+      // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
+      const cin = p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
+      if (cin !== st.cinemaRef) {
+        const was = st.cinemaRef;
+        st.cinemaRef = cin;
+        if (cin) {
+          if (!was) st.cinemaBack = st.camAnim ? { ...st.camAnim.to } : { ...st.cam };
+          const [ax, ay] = project(cin.a.x + 0.5, cin.a.y + 0.5), [bx, by] = project(cin.b.x + 0.5, cin.b.y + 0.5);
+          const z = Math.max(1, cin.z || 2);
+          startAnim(clampCam(info, base, { z, cx: (ax + bx) / 2, cy: (ay + by) / 2 - 18 / z }), CINEMA_MS);
+        } else if (st.cinemaBack) {
+          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: ZOOM_K, cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
+          st.cinemaBack = null; st.zoomLv = zl;
+          startAnim(clampCam(info, base, back), CINEMA_MS);
+        }
+      }
+      if (st.cinemaRef) { st.focusRef = p.focus; }
+      else if (zl !== st.zoomLv) {
         const first = st.zoomLv === null;
         st.zoomLv = zl;
         let to;
@@ -272,7 +308,7 @@ export default function BoardCanvas(props) {
       let pose = null;
       if (an && !an.invalid && !an.missing) {
         pose = animPose(an.obj, now - an.t0);
-        if (pose.hitAt != null && !an.hit && now - an.t0 >= pose.hitAt) { an.hit = true; st.hitT.set(an.obj.id, now); }
+        if (pose.hitAt != null && !an.hit && now - an.t0 >= pose.hitAt) { an.hit = true; st.hitT.set(pose.hitId != null ? pose.hitId : an.obj.id, now); }
       }
       if (an && !an.done && (an.invalid || an.missing || (pose && pose.done))) {
         an.done = true;
@@ -286,7 +322,7 @@ export default function BoardCanvas(props) {
           if (!f || f.key == null || st.fxSeen.has(f.key)) continue;
           st.fxSeen.add(f.key);
           const item = { ...f, t0: now };
-          if (f.kind === "slash") {
+          if (f.kind === "slash" || f.kind === "burst") {
             const hitU = units.find((u) => u.x === f.x && u.y === f.y && u.alive !== false);
             if (hitU) st.hitT.set(hitU.id, now);
             if (!item.rgb) item.rgb = f.color ? rgbString(f.color) : "255,255,255";
@@ -313,12 +349,12 @@ export default function BoardCanvas(props) {
           }
         }
         const k = key(u.x, u.y);
-        let reticle = null, alpha = 1;
+        let reticle = null, alpha = u.alpha == null ? 1 : u.alpha;
         if (!u.isMe && !u.isActor) {
           if (hl.aoe.has(k)) reticle = "aoe";
           else if (hl.skill.has(k)) reticle = "skill";
           else if (hl.attack.has(k) || (hl.target && hl.target.x === u.x && hl.target.y === u.y)) reticle = "attack";
-          else if (targeting) alpha = 0.5;
+          else if (targeting) alpha *= 0.5;
         }
         list.push({
           id: u.id, rx, ry, ox, oy, color: normColor(u.color), img: u.img, name: u.name,

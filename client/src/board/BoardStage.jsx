@@ -4,18 +4,24 @@
 //   · ตาของเรา: ฟ้า = เดินถึง · แดง = เดินแล้วตีถึง · ชี้ศัตรู = แผนเดินเข้าไปตี + หน้าต่างคาดการณ์ + ลูกศรถอย
 //   · โหมดเลือกเป้า (pick) จาก Game.jsx: สกิล target / aoe / line · ปืน GUTS · Mark 42
 //   · นอกตาเรา: ชี้ตัวละคร = เห็นระยะเดิน/ตีของคนนั้น · กดตัวละคร = ดูสถานะ
-//   · แถบลำดับเดินด้านบน · แบนเนอร์ "ลำดับเดิน" ตอน ORDER · ปุ่มระยะอันตราย · ป้ายข้อมูลช่อง · ป้ายร้านค้า (วาดในแคนวาส)
+//   · แถบลำดับเดินด้านบน (หกเหลี่ยมใหญ่บนเส้นโคจร) · ฉากลำดับเดินเต็มจอตอน ORDER · ฉากตาเดิน (แบบ A) ทุกครั้งที่ขึ้นตาใหม่
+//   · กดศัตรู / ปุ่มโจมตี = หน้าคาดการณ์เต็มจอ (แทน HUD) → ยืนยัน = เดินเข้าไปตี · ฉากตี: กล้องซูมเข้าคู่ · หมากพุ่งชน · ปะทะ + เสียง
+//   · ตาของเรา: W A S D (ตำแหน่งปุ่ม — แป้นไทยก็ใช้ได้) เลื่อนช่องเป้าหมายตามมุมกล้อง · Enter/Space = เดิน/เปิดหน้าคาดการณ์ · Esc = ยกเลิก
+//   · ปุ่มระยะอันตราย · ป้ายข้อมูลช่อง · ป้ายร้านค้า (วาดในแคนวาส)
 //   · กล้อง: หมุน ⟲ ⟳ (Q/E) · ซูม ＋/－ (ล้อเมาส์) มุมปกติ/มุมใกล้ — จำไว้ในเครื่อง · มุมใกล้: ลาก/ลูกศรเลื่อนดู
 //     เริ่มตาใคร/ตี/เดิน/เลือดเปลี่ยน → ส่ง focus ให้ BoardCanvas เลื่อนตามถ้าอยู่นอกจอ
-//   · ฉากตีบนกระดาน (ฟัน → สวน → ถอย/ชน) แทน AttackFx เต็มจอ
+//   · ฉากตีบนกระดาน (พุ่งชน → ปะทะ → สวน → ถอย/ชน) แทน AttackFx เต็มจอ — เสียงตีเล่นที่จังหวะปะทะ (App ไม่เล่นซ้ำในโหมดกระดาน)
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
+import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
+import { faceStyle } from "./charFace";
 import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
@@ -28,20 +34,21 @@ function dirToward(from, to) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
   return dy > 0 ? "down" : "up";
 }
-// ป้ายในแถบลำดับเดิน: ช่วงจั่ว = "พอ" · หลังเปิดไพ่ = แต้ม หรือ "แตก" (ตัวหมากบนกระดานไม่มีป้าย — ข้อมูลซ้ำ ผู้ใช้สั่งเอาออก)
-function tagOf(p, phase) {
-  if (phase === "PLAYING") return { backs: p.cardCount || 0, text: p.locked ? "พอ" : "" };
-  if (p.score == null) return null;
-  return p.busted ? "แตก" : String(p.score);
+// ทิศบนจอ → ทิศบนกระดาน ตามมุมที่หมุน (rotation = จำนวน 90° ตามเข็ม · เหมือน boardGeo.toView)
+//  ขวาบนจอ = (cos, −sin) · ลงล่างจอ (เข้าหากล้อง) = (sin, cos)
+function screenDir(rotation, code) {
+  const a = (rotation % 4) * Math.PI / 2, c = Math.round(Math.cos(a)), sn = Math.round(Math.sin(a));
+  if (code === "KeyD") return { x: c, y: -sn };
+  if (code === "KeyA") return { x: -c, y: sn };
+  if (code === "KeyS") return { x: sn, y: c };
+  if (code === "KeyW") return { x: -sn, y: -c };
+  return null;
 }
-// ความเสียหาย n หน่วย ลงเกราะก่อน → { hp, armor } ที่เหลือ
-function afterHit(p, n) {
-  const armor = p.armor || 0, hp = p.hp || 0;
-  const toArmor = Math.min(armor, n);
-  return { armor: armor - toArmor, hp: Math.max(0, hp - (n - toArmor)) };
-}
+const HEX_PTS = "50,0 100,28.5 100,85.5 50,114 0,85.5 0,28.5";
 
-export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden }) {
+//  props เพิ่ม (ดีไซน์ UI ใหม่): atkSignal = ตัวเลขเปลี่ยน = ปุ่ม "โจมตี" ถูกกด · onAttackables(ids) = ศัตรูที่ตาเราตีถึง (เดินแล้วตีได้)
+//   onOverlay(bool) = หน้าคาดการณ์เปิด/ปิด (Game ซ่อน HUD ทั้งหมด) · onCall(bool) = ฉากเต็มจอกำลังเล่น
+export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay }) {
   const phase = state.gameState;
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
@@ -75,9 +82,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     try { localStorage.setItem("echo.boardRotation", String(n)); } catch { /* ไม่มีที่เก็บ */ }
     return n;
   }), []);
-  // ซูม 2 ระดับ: 0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ — จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน/ปุ่ม ＋－
+  // ซูม 2 ระดับ: 0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ค่าเริ่ม — ผู้ใช้ตัดสิน 2026-10-09) — จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน/ปุ่ม ＋－
   const [zoom, setZoomState] = useState(() => {
-    try { return localStorage.getItem("echo.boardZoom") === "1" ? 1 : 0; } catch { return 0; }
+    try { return localStorage.getItem("echo.boardZoom") === "0" ? 0 : 1; } catch { return 1; }
   });
   const setZoom = useCallback((z) => {
     const n = z ? 1 : 0;
@@ -115,10 +122,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return Rules.reachable(map, unitOf(me), mov, ruleUnits, { isAlly, blocked });
   }, [myTurn, canMove, map, me, ruleUnits, isAlly, blocked]);
 
-  // แผนตีศัตรูที่ชี้อยู่: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน
-  const plan = useMemo(() => {
-    if (!myTurn || pick || !myReach || !hoverUnit || !isEnemy(hoverUnit) || !hoverUnit.pos) return null;
-    const foe = hoverUnit;
+  // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
+  const planFor = useCallback((foe) => {
+    if (!myTurn || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
@@ -141,7 +147,27 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
     }
     return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push };
-  }, [myTurn, pick, myReach, hoverUnit, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : null), [planFor, hoverUnit]);
+  // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
+  const attackables = useMemo(() => {
+    if (!myTurn || pick) return [];
+    return state.players.map((p) => planFor(p)).filter(Boolean).sort((a, b) => (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0)).map((pl) => pl.foe.id);
+  }, [myTurn, pick, state.players, planFor]);
+  const atkSig = attackables.join(",");
+  useEffect(() => { if (onAttackables) onAttackables(atkSig ? atkSig.split(",") : []); }, [atkSig]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------- หน้าคาดการณ์เต็มจอ (กดศัตรู / ปุ่มโจมตี) ----------
+  const [fcId, setFcId] = useState(null);
+  const fcFoe = fcId ? byId[fcId] : null;
+  const fcPlan = fcFoe ? planFor(fcFoe) : null;
+  if (fcId && !fcPlan) setFcId(null); // หมดตา/เป้าหลุดระยะ = ปิดเอง
+  useEffect(() => { if (onOverlay) onOverlay(!!fcId); }, [fcId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [seenAtkSignal, setSeenAtkSignal] = useState(atkSignal);
+  if (atkSignal !== seenAtkSignal) {
+    setSeenAtkSignal(atkSignal);
+    if (attackables.length) setFcId(attackables[0]);
+  }
 
   // ---------- โหมดเลือกเป้า (สกิล/ปืน/Mark 42) ----------
   const pickInfo = useMemo(() => {
@@ -181,6 +207,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const fxSeq = useRef(0);
   const pushFx = useCallback((list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxSeq.current }))]), []);
   const [hold, setHold] = useState({}); // id → ช่องที่ค้างไว้ระหว่างฉากตี (ก่อนแอนิเมชันถอยเริ่ม)
+  const [cinema, setCinema] = useState(null); // กล้องฉากตี { a, b, z }
+  const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
+  const [shake, setShake] = useState(0);      // จอสั่น/แฟลช (เลขเปลี่ยน = เล่นใหม่)
+  const prevPlayers = useRef({});
   const prevPos = useRef({});
   const prevVit = useRef({});
   const seenAttack = useRef(null);
@@ -195,6 +225,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (freshAtk) seenAttack.current = freshAtk.id;
     const nextPos = {}, nextVit = {};
     for (const p of state.players) { nextPos[p.id] = p.pos ? { ...p.pos } : null; nextVit[p.id] = (p.hp || 0) + (p.armor || 0); }
+    const lastPlayers = prevPlayers.current;
+    prevPlayers.current = Object.fromEntries(state.players.map((p) => [p.id, p]));
     if (!seeded.current) { seeded.current = true; prevPos.current = nextPos; prevVit.current = nextVit; return; }
 
     // เดิน: ตำแหน่งคนที่กำลังเดินเปลี่ยนตามเส้นทางของตานี้
@@ -207,7 +239,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         look(now);
       }
     }
-    // ฉากตี: ฟัน → (สวน) → ถอย/ชน
+    // ฉากตี (ดีไซน์ใหม่): กล้องซูมเข้าคู่ → หมากพุ่งชน → ปะทะ (แสงแตก + จอสั่น/แฟลช + เลขดาเมจ + เสียงตี) → (สวน) → ถอย/ชน → กล้องคืน
+    //  ยิงปืน = ไม่พุ่ง (ยิงจากที่ยืน) · lowQ = ไม่ซูม/ไม่พุ่ง (ปะทะทันที)
     const involved = new Set();
     if (freshAtk) {
       const a = freshAtk;
@@ -215,26 +248,40 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const tPos = nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
-      // เสียงตีจังหวะแรก App เล่นให้แล้ว (createPhaseSoundTracker) — ที่นี่เล่นเฉพาะเสียงตีสวน
+      const melee = !a.gun && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const ZOOM_IN = lowQ ? 0 : 480;
+      const HIT = ZOOM_IN + (melee && !lowQ ? 385 : 120);
+      // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
+      if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
+        const t = lastPlayers[a.targetId];
+        setGhost({ id: t.id, x: tPos.x, y: tPos.y, img: t.img, color: t.color, name: t.name, hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0 });
+        later(HIT + 380, () => setGhost(null));
+      }
       if (tPos) {
         look(tPos);
-        const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง")
-          : a.dodge ? "หลบ" : `-${a.dmg}`;
-        pushFx([
-          { kind: "slash", x: tPos.x, y: tPos.y, color: a.byColor },
-          { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : undefined, size: a.gun ? 20 : undefined },
-          ...(a.kill ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22 }] : []),
-        ]);
+        if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
+        if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
+        later(HIT, () => {
+          playSfx(a.byAttackSound || "attack");
+          setShake((n) => n + 1);
+          const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
+          pushFx([
+            { kind: a.dodge ? "slash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor },
+            { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : undefined, size: a.gun ? 20 : 30, z: lowQ ? 2.4 : 1.5 },
+            ...(a.kill ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+          ]);
+        });
       }
-      let t = 0;
+      let t = HIT;
       if (a.counter && fromPos) {
-        t = 560;
+        t = HIT + 640;
         const c = a.counter;
         later(t, () => {
           playSfx(c.byAttackSound || "attack");
+          setShake((n) => n + 1);
           pushFx([
-            { kind: "slash", x: fromPos.x, y: fromPos.y, color: c.byColor },
-            { kind: "float", x: fromPos.x, y: fromPos.y, text: c.dodge ? "หลบ" : `สวน -${c.dmg}`, color: "#ffb0a8", size: 22 },
+            { kind: c.dodge ? "slash" : "burst", x: fromPos.x, y: fromPos.y, color: c.byColor },
+            { kind: "float", x: fromPos.x, y: fromPos.y, text: c.dodge ? "หลบ" : `สวน -${c.dmg}`, color: "#ffb0a8", size: 24 },
           ]);
         });
       }
@@ -245,6 +292,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (a.push.collide) pushFx([{ kind: "float", x: a.push.from.x, y: a.push.from.y, text: "ชน -1", color: "#ffc56b", size: 22 }]);
         });
       }
+      if (!lowQ) later(t + (a.push ? 900 : 1000), () => setCinema(null));
     }
     // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
     let hurtPos = null;
@@ -333,7 +381,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       dim: !!pickValid && !pickValid.has(p.id),
     };
-  }), [state.players, state.actorId, me, hold, pickValid]);
+  }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : []),
+  [state.players, state.actorId, me, hold, pickValid, ghost]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -346,10 +395,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(pickInfo.dir); }
       return;
     }
-    if (myTurn && !busy && !pendingAttack.current && plan && plan.foe.id === id) {
+    if (myTurn && !busy && !pendingAttack.current && planFor(p)) {
       clickSound();
-      if (samePos(plan.stand, me.pos)) socket.emit("attack", { targetId: id });
-      else { pendingAttack.current = id; socket.emit("move", { x: plan.stand.x, y: plan.stand.y }); }
+      setFcId(id);
       return;
     }
     if (onInspect) onInspect(id);
@@ -367,6 +415,59 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     clickSound();
     socket.emit("move", { x, y });
   };
+  // ยืนยันโจมตีจากหน้าคาดการณ์: ยืนติดเป้าแล้ว = ตีเลย · ยังไม่ติด = เดินไปช่องยืนก่อน แล้วตีเมื่อแอนิเมชันเดินจบ
+  const confirmAttack = useCallback(() => {
+    const pl = fcPlan;
+    setFcId(null);
+    if (!pl || !myTurn || pendingAttack.current) return;
+    clickSound();
+    if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: pl.foe.id });
+    else { pendingAttack.current = pl.foe.id; socket.emit("move", { x: pl.stand.x, y: pl.stand.y }); }
+  }, [fcPlan, myTurn, me]);
+  const cancelForecast = useCallback(() => { clickSound(); setFcId(null); }, []);
+
+  // ---------- เดินด้วยคีย์บอร์ด (ตาของเรา) ----------
+  //  W A S D อ่านจากตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็ใช้ได้ · เลื่อนช่องเป้าหมาย (ช่องที่เดินถึง หรือศัตรูที่ตีถึง) ตามทิศบนจอ
+  //  Enter / Space = เดินไปช่องนั้น (ทับศัตรู = เปิดหน้าคาดการณ์) · Esc = ยกเลิก · เมาส์ขยับ = กลับไปใช้ตำแหน่งเมาส์
+  const [kbCur, setKbCur] = useState(null);
+  const kbKey = `${myTurn}|${state.actorId}|${action && action.moved}`;
+  const [kbFor, setKbFor] = useState(kbKey);
+  if (kbKey !== kbFor) { setKbFor(kbKey); setKbCur(null); }
+  useEffect(() => {
+    if (!myTurn || pick || fcId) return undefined;
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
+      const cur = kbCur || (hover && hover) || (me && me.pos) || null;
+      const dir = screenDir(rotation, e.code);
+      if (dir && cur) {
+        e.preventDefault();
+        // ก้าวไปทางนั้นจนเจอช่องที่ไปได้ (ข้ามช่องที่เดินไม่ถึง สูงสุด 6 ช่อง)
+        for (let i = 1; i <= 6; i++) {
+          const nx = cur.x + dir.x * i, ny = cur.y + dir.y * i;
+          if (!Rules.inBounds(map, nx, ny)) break;
+          const reach = myReach && myReach.has(key(nx, ny));
+          const foe = state.players.find((p) => p.alive && p.pos && p.pos.x === nx && p.pos.y === ny);
+          if (reach || (foe && planFor(foe)) || (me.pos && nx === me.pos.x && ny === me.pos.y)) {
+            const t = { x: nx, y: ny };
+            setKbCur(t); setHover(t); look(t);
+            break;
+          }
+        }
+        return;
+      }
+      if ((e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") && kbCur) {
+        e.preventDefault();
+        const foe = state.players.find((p) => p.alive && samePos(p.pos, kbCur));
+        if (foe && foe.id !== me.id) { if (planFor(foe)) { clickSound(); setFcId(foe.id); } return; }
+        if (canMove && myReach && myReach.has(key(kbCur.x, kbCur.y)) && !samePos(kbCur, me.pos) && !anim) { clickSound(); socket.emit("move", { x: kbCur.x, y: kbCur.y }); setKbCur(null); }
+        return;
+      }
+      if (e.code === "Escape" && kbCur) { setKbCur(null); setHover(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [myTurn, pick, fcId, kbCur, hover, me, rotation, map, myReach, state.players, planFor, canMove, anim, look]);
+
   // Esc = ออกจากโหมดเลือกเป้า
   useEffect(() => {
     if (!pick || !pick.onCancel) return undefined;
@@ -382,35 +483,54 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shopPos, state.shopTurnsLeft]);
 
-  // ---------- หน้าต่างคาดการณ์ ----------
-  const forecast = plan && state.forecast ? state.forecast[plan.foe.id] : null;
+  // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
+  const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080
+  const seat = [...state.players].filter((p) => p.alive || p.score != null).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id);
+  const [call, setCall] = useState(null); // { id, key }
+  const callKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : "";
+  const [calledKey, setCalledKey] = useState("");
+  if (callKey && callKey !== calledKey) {
+    setCalledKey(callKey);
+    setCall({ id: state.actorId, key: callKey });
+  }
+  const endCall = useCallback(() => setCall(null), []);
+  useEffect(() => { if (call && call.id === (me && me.id)) playSfx("trun_change"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- แถบลำดับเดิน ----------
   const order = phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
     ? [...state.players].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
     : state.turnOrder;
-  const actorIdx = state.actorId ? order.indexOf(state.actorId) : -1;
+  const actor = state.actorId ? byId[state.actorId] : null;
 
   // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
   //  วัดใหม่เมื่อจอ/รายชื่อ/ข้อความแถบบนเปลี่ยน (เทียบแค่แนวนอน ตำแหน่งแนวตั้งไม่มีผล) · setState เฉพาะตอนค่าเปลี่ยน
   const orderRef = useRef(null);
   const [orderLow, setOrderLow] = useState(0); // 0 = ที่เดิม · ตัวเลข = ระยะจากขอบบน (ใต้แถบบนซ้าย)
+  const [orderDx, setOrderDx] = useState(0);   // ชนแถบบนซ้ายแต่เลื่อนขวาแล้วยังพ้นปุ่มกล้อง = เลื่อนขวาแทนการลงล่าง (ไม่บังกระดาน)
   const orderSig = `${vp ? vp.w : 0}x${vp ? vp.h : 0}|${order.join(",")}|${phase}|${state.roundNumber}|${state.journey ? state.journey.name : ""}`;
   useLayoutEffect(() => {
     const el = orderRef.current;
     const top = document.querySelector(".hud-top");
-    let low = 0;
+    let low = 0, dx = 0;
     if (el && top) {
       const a = el.getBoundingClientRect(), b = top.getBoundingClientRect();
-      if (b.width > 0 && a.left < b.right + 8 && a.right > b.left - 8) low = Math.round(b.bottom + 6);
+      const left = a.left - orderDx, right = a.right - orderDx; // ตำแหน่งตอนยังไม่เลื่อน
+      if (b.width > 0 && left < b.right + 8 && right > b.left - 8) {
+        const need = b.right + 12 - left, tools = document.querySelector(".bs-tools");
+        const limit = tools ? tools.getBoundingClientRect().left - 8 : window.innerWidth - 8;
+        if (right + need <= limit) dx = Math.round(need);
+        else low = Math.round(b.bottom + 6);
+      }
     }
     setOrderLow(low);
-  }, [orderSig, map]);
+    setOrderDx(dx);
+  }, [orderSig, map, state.actorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!map) return null;
   return (
     <div className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
-      style={orderLow ? { "--bs-order-top": `${orderLow}px` } : undefined}>
+      data-fc={fcId ? "true" : "false"} data-shake={shake % 2 ? "true" : "false"}
+      style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null) }}>
       <BoardCanvas
         map={state.board}
         units={units}
@@ -422,6 +542,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         zoom={zoom}
         onZoomChange={setZoom}
         focus={focus}
+        cinema={cinema}
         shopLabel={state.shopTurnsLeft > 0 ? state.shopTurnsLeft : null}
         anim={anim}
         fx={fx}
@@ -431,46 +552,32 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
       />
 
-      {/* แถบลำดับเดิน */}
-      <div className="bs-order" data-phase={phase} ref={orderRef}>
-        {order.map((id, i) => {
-          const p = byId[id];
-          if (!p) return null;
-          const done = phase !== "PLAYING" && actorIdx >= 0 && i < actorIdx;
-          const cur = id === state.actorId;
-          const tag = tagOf(p, phase);
-          return (
-            <div key={id} className="bs-order-item" data-cur={cur ? "true" : "false"} data-done={done || !p.alive ? "true" : "false"} style={{ "--bs-c": p.color }}
-              ref={(el) => registerOther && registerOther(id, el)}>
-              <img src={p.img} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
-              <span className="bs-order-name">{p.name}</span>
-              {typeof tag === "string" ? <span className="bs-order-tag" data-bust={tag === "แตก" ? "true" : "false"}>{tag}</span>
-                : tag && tag.text ? <span className="bs-order-tag">{tag.text}</span> : null}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* แบนเนอร์ลำดับเดิน (ORDER ~2 วิ) */}
-      {phase === "ORDER" && (
-        <div className="bs-banner" key={`order-${state.roundNumber}`}>
-          <div className="bs-banner-title">ลำดับเดิน</div>
-          <div className="bs-banner-row">
-            {order.map((id, i) => {
-              const p = byId[id];
-              if (!p) return null;
-              const tag = tagOf(p, phase);
-              return (
-                <div key={id} className="bs-banner-item" style={{ "--bs-c": p.color, animationDelay: `${i * 0.08}s` }}>
-                  <span className="bs-banner-n">{i + 1}</span>
-                  <img src={p.img} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
-                  <span className="bs-banner-name">{p.name}</span>
-                  {typeof tag === "string" && <span className="bs-order-tag" data-bust={tag === "แตก" ? "true" : "false"}>{tag}</span>}
-                </div>
-              );
-            })}
+      {/* คนที่กำลังเดิน (บนกลาง) — แทนแถบลำดับทุกคน (ผู้ใช้สั่ง 2026-10-09: เหลือเฉพาะคนที่เดินตอนนี้ + รูปโปรไฟล์) · ช่วงอื่นไม่มี */}
+      {actor && (phase === "ACTION" || phase === "ATTACKING") && (
+        <div className="bs-actor" key={`actor-${actor.id}-${state.roundNumber}`} ref={orderRef} style={{ "--bs-c": actor.color || "#7fb8e6" }}>
+          <div className="bs-actor-hexw" ref={(el) => registerOther && registerOther(actor.id, el)}>
+            <svg className="bs-actor-ring" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX_PTS} /></svg>
+            <div className="bs-actor-frame" />
+            <div className="bs-actor-face"><img src={actor.img} alt="" style={faceStyle(actor)} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /></div>
           </div>
+          <div className="bs-actor-plate">
+            <b>{me && actor.id === me.id ? "คุณ" : actor.name}</b>
+            {actor.character && actor.character.name && <small>{actor.character.name}</small>}
+          </div>
+          <span className="bs-actor-pts" data-bust={actor.busted ? "true" : "false"}>{actor.busted ? "แตก" : actor.score ?? "?"}</span>
         </div>
+      )}
+
+      {/* ฉากลำดับเดินเต็มจอ (ORDER ~6.5 วิ) */}
+      {/* ฉากเต็มจอทั้งหมดไปอยู่ที่ <body> (ทับ HUD ทุกชั้น) */}
+      {phase === "ORDER" && createPortal(
+        <OrderCall key={`order-${state.roundNumber}`} k={sk} round={state.roundNumber} seat={seat.filter((id) => order.includes(id))} order={order} byId={byId} myId={me && me.id} lowQ={lowQ} />,
+        document.body,
+      )}
+      {/* ฉากตาเดิน (แบบ A ประตูหกเหลี่ยม) */}
+      {call && phase === "ACTION" && byId[call.id] && createPortal(
+        <TurnCall key={call.key} k={sk} p={byId[call.id]} rank={Math.max(1, order.indexOf(call.id) + 1)} isMe={!!me && call.id === me.id} onDone={endCall} />,
+        document.body,
       )}
 
       {/* โหมดเลือกเป้า */}
@@ -502,39 +609,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         </div>
       )}
 
-      {/* หน้าต่างคาดการณ์ (แบบ FE) */}
-      {plan && (
-        <div className="bs-fc">
-          {/* ฝั่งเรา: โดนสวน + ถอยชน −1 (ชนรวมในขีดที่จะเสียด้วย แบบหน้าต่างคาดการณ์ของ FE) */}
-          <FcSide p={me} label="เรา" take={(plan.counter && forecast ? forecast.back || 0 : 0) + (plan.push && plan.push.collide ? 1 : 0)} />
-          <div className="bs-fc-mid">
-            <span>{forecast && forecast.dmg != null ? `-${forecast.dmg}` : "?"}</span>
-            <span className="bs-fc-arrow">⚔</span>
-            {plan.counter && <span>{forecast && forecast.back != null ? `สวน -${forecast.back}` : "สวน"}</span>}
-            {plan.push && <span className="bs-fc-push">{plan.push.collide ? "ชน -1" : "ถอย 1"}</span>}
-          </div>
-          <FcSide p={plan.foe} label="เป้า" take={forecast ? forecast.dmg : 0} right />
-        </div>
+      {/* หน้าคาดการณ์ผลการตี (แทน HUD ทั้งจอ) */}
+      {fcPlan && me && createPortal(
+        <ForecastScreen
+          k={sk} me={me} foe={fcPlan.foe}
+          fc={state.forecast ? state.forecast[fcPlan.foe.id] : null}
+          counter={!!fcPlan.counter}
+          accurate={!!(me.statuses && me.statuses.accurate > 0)}
+          onConfirm={confirmAttack} onCancel={cancelForecast}
+        />,
+        document.body,
       )}
-    </div>
-  );
-}
-
-// ฝั่งหนึ่งของหน้าต่างคาดการณ์: รูป · ชื่อ · เลือด/เกราะ ตอนนี้ → หลังโดน
-function FcSide({ p, label, take, right }) {
-  if (!p) return null;
-  const after = afterHit(p, take || 0);
-  return (
-    <div className="bs-fc-side" data-right={right ? "true" : "false"} style={{ "--bs-c": p.color }}>
-      <img src={p.img} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
-      <div className="bs-fc-info">
-        <div className="bs-fc-label">{label}</div>
-        <div className="bs-fc-name">{p.name}</div>
-        <div className="bs-fc-vit">
-          <span className="bs-fc-hp">♥ {p.hp ?? "?"}{take ? <b> → {after.hp}</b> : null}</span>
-          <span className="bs-fc-ar">⛨ {p.armor ?? "?"}{take ? <b> → {after.armor}</b> : null}</span>
-        </div>
-      </div>
+      {shake > 0 && !lowQ && <div className="bs-flash" key={`flash-${shake}`} />}
     </div>
   );
 }

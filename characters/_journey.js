@@ -144,10 +144,15 @@ module.exports = {
   // 3 กลางวัน: โจมตีพลาด — จบหมัดเหมือนด่านหลบหลีก (การ์ดสรุป dodge: true)
   // คืนการ์ดเหตุผล { name, img } ถ้าพลาด (คนเรียกใส่ลงฉากตีเอง) · ไม่พลาด = false
   tryAttackMiss(engine, attacker, target) {
-    if (!is(engine, 3, "day") || !roll(FOREST_ATK_MISS_PCT)) return false;
+    const pct = this.attackMissPct(engine);
+    if (!pct || !roll(pct)) return false;
     target.wasAttacked = true;
     engine.log(`🌲 ป่าไม้ต้องสาป — ${attacker.name} โจมตี ${target.name} พลาดเป้า! (${FOREST_ATK_MISS_PCT}%)`);
     return { name: `ป่าไม้ต้องสาป — พลาดเป้า (${FOREST_ATK_MISS_PCT}%)`, img: null };
+  },
+  // โอกาสโจมตีปกติพลาดจากสนาม (%) ไม่ทอย — ใช้ทั้ง tryAttackMiss และหน้าต่างคาดการณ์ (estimateHitOn)
+  attackMissPct(engine) {
+    return is(engine, 3, "day") ? FOREST_ATK_MISS_PCT : 0;
   },
   // พลังโจมตีที่ภูมิภาคให้ (3 กลางวัน: ตีโดนแรงขึ้น +1 · 7 กลางคืน: ทุกคน +1)
   attackBonus(engine) {
