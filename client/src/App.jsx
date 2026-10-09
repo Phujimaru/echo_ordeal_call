@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { publishTick, getTickSeconds } from "./tickStore";
-import { socket } from "./socket";
+import { socket, connectData } from "./socket";
 import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound } from "./audio";
 import { musicForState, createPhaseSoundTracker, isMatchPhase } from "./audioPolicy";
 import Setup from "./screens/Setup";
@@ -213,6 +213,10 @@ export default function App() {
     socket.on("inProgress", onInProgress);
     socket.on("positionTaken", onPosTaken);
     if (socket.connected) onConnect();
+    // ข้อมูลตอนเชื่อมต่อที่มาถึงก่อนผูก listener (ดู connectData ใน socket.js)
+    if (connectData.roster) onRoster(connectData.roster);
+    if (connectData.positions) onPositions(connectData.positions);
+    if (connectData.takenChars) onTakenChars(connectData.takenChars);
     return () => {
       socket.off("state", onState);
       socket.off("tick", onTick);
