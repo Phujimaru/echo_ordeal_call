@@ -49,7 +49,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 **ระดับตัวละคร**
 - `mov` — ระยะเดิน · ไม่ใส่ = `DEFAULT_MOV` (4, `server/constants.js`) · ตอนนี้ทุกตัว 4
   - `action.baseMovOf(p)` = ค่า `mov` ดิบ ("ระยะเดินปกติสูงสุด") · `action.movOf(p)` = หักไพ่แตก −1 แล้ว (ใช้เดินจริง)
-- `range: [rmin, rmax]` — ระยะตีปกติ · ไม่ใส่ = `DEFAULT_RANGE` `[1, 1]` · ตอนนี้ทุกตัวประชิด `[1, 1]`
+- `range: [rmin, rmax]` — ระยะตีปกติ · ไม่ใส่ = `DEFAULT_RANGE` `[1, 1]` · ตอนนี้ทุกตัวประชิด `[1, 1]` ยกเว้นนักบินปริศนา `[1, 4]` (ยิงลำแสง — ฮุค `attackBeam`)
   - ตัวระยะไกล เช่น `[2, 2]` = ตีได้เฉพาะห่าง 2 ช่อง (แบบธนู) → ตัวประชิดที่โดนยิงจากห่าง 2 **สวนไม่ได้** และตัวนี้ก็สวนคนที่ตีประชิดไม่ได้
   - ตัวละครใหม่ที่ไม่ใช่ `[1, 1]` ถามผู้ใช้ก่อนเสมอ (แผนระบุว่าตอนนี้ทุกตัวประชิด)
 
@@ -111,6 +111,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ด่านเงื่อนไขก่อนหักแต้ม | `canUseSkill(engine, p, tier, targets)` (targets ผ่าน `resolveArea` แล้ว) | `server/skills.js` `useSkill()` |
 | ลงผลสกิล | `applyInstantSkill(engine, p, tier, targets, opts)` (คืนข้อความต่อท้าย skillFlash ได้ · `opts.dir` = ทิศของ `line`) | `server/skills.js` |
 | ราคาเปลี่ยนตามสถานะ | `skillCost(p, tier, base)` (useSkill + ป้ายราคาใช้ตัวเดียวกัน) | `server/skills.js` · `server/view.js` |
+| พื้นที่สกิลเปลี่ยนตามสถานะ | `skillArea(p, tier, area)` (useSkill + ปุ่ม/โหมดเลือกเป้าใช้ตัวเดียวกัน — มุยมิ: ดาบสนิมระหว่างดาบสะบั้น) | `server/skills.js` · `server/view.js` |
+| ตีปกติเป็นลำแสง (ฉากตี) | `attackBeam(p)` → ความยาวช่อง (การ์ดฉากตี `byBeam`) | `strikeCard()` — `server/phases/attack.js` |
 | ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
 | เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p)` | `combat.maxHpOf`/`maxArmorOf` |
 | ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind)` (`act`/`hit`/`bump`) + `logCut(p, round)` | `server/visibility.js` |

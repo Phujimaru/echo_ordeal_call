@@ -44,12 +44,15 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · ไม่มีท่าไม้ตาย · Beam Magnum แนว 6×1 (สกิลโจมตี) · unique', () => {
+test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · ไม่มีท่าไม้ตาย · ตีปกติระยะ 1–4 · Beam Magnum แนว 8×1 (สกิลโจมตี) · unique', () => {
   const ch = CHAR_BY_ID.sliver_bullet;
   assert.equal(ch.ultimate, null);
   assert.equal(ch.unique, true);
   assert.deepEqual(ch.basic.area, { kind: 'self' });
-  assert.deepEqual(ch.secondary.area, { kind: 'line', len: 6, width: 1, hostile: true });
+  assert.deepEqual(ch.secondary.area, { kind: 'line', len: 8, width: 1, hostile: true });
+  assert.deepEqual(ch.range, [1, 4]);
+  assert.equal(pilot.SHOT_LEN, ch.range[1], 'ลำแสงตีปกติยาวเท่าระยะตี');
+  assert.match(ch.secondary.desc, /8×1/);
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(engine.maxHpOf(P.S), 5);
   assert.equal(engine.maxArmorOf(P.S), 2);
@@ -155,8 +158,8 @@ test('เปลี่ยนชิ้นส่วน: มีแขน 3 แต้
   assert.deepEqual(calls.sfx, [{ sound: 'sliver_reload', onlyFor: ['S'] }]);
 });
 
-test('Beam Magnum: แนว 6×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · หลบไม่ได้) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
-  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 7, 5], ['D', 'dummy', 8, 5]]);
+test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · หลบไม่ได้) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
+  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 9, 5], ['D', 'dummy', 10, 5]]);
   P.B.armor = 1; P.B.hp = 7;
   P.C.statuses.evade = 1; P.C.statusAmt.evade = 100; // หลบหลีก 100% ก็หลบไม่ได้
   Math.random = () => 0;
@@ -166,12 +169,13 @@ test('Beam Magnum: แนว 6×1 ทะลุศัตรูทุกคน ด
   assert.equal(P.B.armor, 0);
   assert.equal(P.B.hp, 4, 'เกราะ 1 + เลือด 3');
   assert.equal(P.C.hp + P.C.armor, 10 - 4);
-  assert.equal(P.D.hp + P.D.armor, 10, 'ช่องที่ 7 นอกแนว');
+  assert.equal(P.D.hp + P.D.armor, 10, 'ช่องที่ 9 นอกแนว');
   assert.equal(P.S.sliver.arm, false);
   assert.equal(P.S.sliver.hidden, false);
   assert.equal(P.S.skillUsedRound, true);
   assert.deepEqual(calls.queue.map((c) => c.key), ['sliverBeam']);
-  assert.deepEqual(calls.fx, [{ event: 'beamFx', payload: { from: { x: 1, y: 5 }, dir: 'right', len: 6, color: engine.colorOf(P.S) } }]);
+  assert.deepEqual(calls.fx, [{ event: 'beamFx', payload: { from: { x: 1, y: 5 }, dir: 'right', len: 8, color: engine.colorOf(P.S) } }]);
+  assert.deepEqual(calls.sfx.map((c) => c.sound), ['sliver_shot'], 'มีคลิปก็จบด้วยเสียงยิง');
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
   assert.equal(engine.actorId, 'S');
   // ไม่มีแขน = กดไม่ได้ (ไม่เสียแต้ม) · ปุ่มล็อก
@@ -179,11 +183,12 @@ test('Beam Magnum: แนว 6×1 ทะลุศัตรูทุกคน ด
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(P.S.skillPoints, 4);
   assert.equal(view('S', 'S').skillLocks.secondary.locked, true);
-  // ครั้งที่สอง: ไม่มีคลิป ใช้เสียงยิงแทน
+  // ครั้งที่สอง: ไม่มีคลิป แต่ยังมีเสียงยิง + ลำแสง
   P.S.sliver.arm = true;
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(calls.queue.length, 1);
-  assert.ok(calls.sfx.some((c) => c.sound === 'sliver_shot'));
+  assert.equal(calls.sfx.filter((c) => c.sound === 'sliver_shot').length, 2);
+  assert.equal(calls.fx.length, 2);
 });
 
 test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · โหมดทีมไม่โดนเพื่อน · ไม่เลือกทิศ = กดไม่ได้', () => {
@@ -206,4 +211,21 @@ test('ตีปกติใช้เสียงยิงของนักบ�
   const attack = require('../../server/phases/attack.js');
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 2, 5]]);
   assert.equal(attack.attackSoundOf(P.S), 'sliver_shot');
+});
+
+test('ตีปกติ: ระยะ 1–4 ยิงจากที่ยืน (ห่าง 5 ตีไม่ได้) · ฉากตีเป็นลำแสงยาว 4 ช่อง', () => {
+  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 6, 5]]);
+  engine.setActor('S');
+  engine.action.locked = true; // ล็อกการเดิน — ต้องตีจากช่องที่ยืนเท่านั้น
+  assert.equal(engine.attackTarget('S', 'C'), false, 'ห่าง 5');
+  assert.equal(engine.attackTarget('S', 'B'), true, 'ห่าง 4');
+  engine.clearPhaseTimer();
+  assert.equal(engine.lastAttack.byBeam, 4);
+  assert.ok(P.B.hp + P.B.armor < 10);
+  const D = setup([['D', 'dummy', 1, 5], ['E', 'dummy', 2, 5]]);
+  engine.setActor('D');
+  assert.equal(engine.attackTarget('D', 'E'), true);
+  engine.clearPhaseTimer();
+  assert.equal(engine.lastAttack.byBeam, 0, 'ตัวอื่นไม่มีลำแสง');
+  assert.ok(D.E);
 });

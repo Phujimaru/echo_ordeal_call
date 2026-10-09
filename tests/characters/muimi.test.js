@@ -110,7 +110,7 @@ test('ดาบสนิมกับดาบสะบั้นล็อกก�
   assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), false);
   delete m.statuses.muimiRusty;
   m.statuses.muimiTower = 2;
-  assert.equal(muimi.canUseSkill(engine, m, 'secondary'), false);
+  assert.equal(muimi.canUseSkill(engine, m, 'secondary'), true, 'ระหว่างดาบสะบั้นดาบสนิมกดได้ (เป็นคลื่นดาบ)');
   assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), false, 'ระหว่างดาบสะบั้นกดท่าไม้ตายซ้ำไม่ได้');
   delete m.statuses.muimiTower;
   assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), true);

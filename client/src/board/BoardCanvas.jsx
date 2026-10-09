@@ -38,7 +38,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, inCamView, key, LH, LW,
-  mapSignature, normColor, normRot, pickTile, prepareBeam, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
+  mapSignature, normColor, normRot, pickTile, prepareBeam, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
   setCamera, toLogical, unproject, ZOOM_K,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
@@ -356,7 +356,16 @@ export default function BoardCanvas(props) {
             Object.assign(item, beamColors(f.color));
             item.beam.tiles.forEach((t, i) => {
               const hu = units.find((u) => u.x === t.x && u.y === t.y && u.alive !== false);
-              if (hu) st.hitT.set(hu.id, now + item.beam.hits[i]);
+              if (hu && (f.hitId == null || hu.id === f.hitId)) st.hitT.set(hu.id, now + item.beam.hits[i]); // hitId = ลำแสงตีปกติ สั่นเฉพาะเป้า
+            });
+          }
+          if (f.kind === "quake") {
+            item.quake = info ? prepareQuake(f, info.cols, info.rows) : null;
+            if (!item.quake) continue;
+            item.dur = item.quake.dur;
+            item.quake.tiles.forEach((t, i) => {
+              const hu = units.find((u) => u.x === t.x && u.y === t.y && u.alive !== false);
+              if (hu) st.hitT.set(hu.id, now + item.quake.hits[i]);
             });
           }
           if (f.kind === "slash" || f.kind === "burst") {
@@ -368,7 +377,7 @@ export default function BoardCanvas(props) {
         }
         if (st.fxSeen.size > 400) st.fxSeen = new Set([...st.fxSeen].slice(-200));
       }
-      st.fxActive = st.fxActive.filter((f) => now - f.t0 < (FX_DUR[f.kind] || 1000));
+      st.fxActive = st.fxActive.filter((f) => now - f.t0 < (f.dur || FX_DUR[f.kind] || 1000));
 
       // --- ตัวละครพร้อมวาด
       const targeting = hl.skill.size > 0 || hl.aoe.size > 0;

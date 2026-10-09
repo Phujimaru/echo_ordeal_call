@@ -632,7 +632,9 @@ const BEAM_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const HELIX = { r: 0.17, twist: 3.3, step: 0.06, spin: 0.02 }; // รัศมี (ช่อง) · rad ต่อช่อง · ระยะจุดตัวอย่าง · rad ต่อ ms
 const RED = "235,28,48", RED_HI = "255,120,120", WHITE_RED = "255,215,215";
 // ช่องที่ลำแสงผ่าน (เริ่มช่องติดคนยิง · ตัดที่ขอบกระดาน) + เวลาที่ปลายลำแสงถึงกลางแต่ละช่อง (ms นับจากเริ่ม fx)
+//  f.to = ช่องเป้า (ตีปกติของนักบินปริศนา) → ยิงเฉียงตรงไปหาเป้าได้ ยาว len ช่อง แทนการเลือก 4 ทิศ
 export function prepareBeam(f, cols, rows) {
+  if (f && f.to) return prepareAimedBeam(f, cols, rows);
   const v = BEAM_DIRS[f && f.dir];
   if (!v || !Number.isFinite(f.x) || !Number.isFinite(f.y)) return null;
   const len = Math.max(1, Math.min(64, Math.floor(+f.len) || 6));
@@ -646,6 +648,33 @@ export function prepareBeam(f, cols, rows) {
   const { charge: C, extend: E } = BEAM_T;
   const hits = tiles.map((_, i) => {
     const q = Math.min(1, (i + 1 - MUZZLE) / reach); // ระยะถึงกลางช่อง (สัดส่วน) → เวลาจาก ease-out ย้อนกลับ
+    return C + (REDUCED ? 0 : E * (1 - Math.cbrt(1 - q)));
+  });
+  return { v, tiles, hits, reach };
+}
+// ลำแสงเล็งเป้า: แนวจากกลางช่องคนยิง → กลางช่องเป้า ยาว len ช่อง (ถึงขอบไกล len + 0.5) · ตัดที่ขอบกระดาน
+//  ช่องที่ผ่าน = ไล่จุดตามแนวทีละ 0.05 ช่อง · เวลาถึงแต่ละช่อง = ระยะฉายกลางช่องบนแนว
+function prepareAimedBeam(f, cols, rows) {
+  const { x, y, to } = f;
+  if (![x, y, to.x, to.y].every(Number.isFinite)) return null;
+  const dx = to.x - x, dy = to.y - y, L = Math.hypot(dx, dy);
+  if (L < 0.5) return null;
+  const v = [dx / L, dy / L];
+  const len = Math.max(1, Math.min(64, Math.floor(+f.len) || 4));
+  const cx = x + 0.5, cy = y + 0.5, seen = new Set(), tiles = [];
+  let end = len + 0.5;
+  for (let d = 0.05; d <= len + 0.5; d += 0.05) {
+    const px = cx + v[0] * d, py = cy + v[1] * d;
+    if (px < 0 || py < 0 || px >= cols || py >= rows) { end = d; break; }
+    const tx = Math.floor(px), ty = Math.floor(py), k = tx + "," + ty;
+    if ((tx === x && ty === y) || seen.has(k)) continue;
+    seen.add(k); tiles.push({ x: tx, y: ty });
+  }
+  const reach = Math.max(0.2, end - MUZZLE);
+  const { charge: C, extend: E } = BEAM_T;
+  const hits = tiles.map((t) => {
+    const d = (t.x + 0.5 - cx) * v[0] + (t.y + 0.5 - cy) * v[1];
+    const q = Math.max(0, Math.min(1, (d - MUZZLE) / reach));
     return C + (REDUCED ? 0 : E * (1 - Math.cbrt(1 - q)));
   });
   return { v, tiles, hits, reach };
@@ -778,7 +807,134 @@ function beamFx(g, e, now, lowQ) {
   }
   g.restore();
 }
-export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40 };
+// =================================================================== คลื่นดาบถล่ม (มุยมิ)
+//  fx { kind: "quake", x, y (ช่องมุยมิ), dir, len, width, quake: prepareQuake(...) }
+//  ทุกช่องในแนว len×width: ดาบแสงร่วงจากฟ้าปักพื้น → พื้นระเบิด (แฟลช + คลื่นกระแทก + รอยแยกลาวา + เศษหินกระเด็น + ฝุ่นไฟ)
+//  ไล่จากแถวใกล้ตัว → ไกล (ทีละแถว QUAKE_T.stagger) · ใบดาบค้างปักพื้นแล้วจางไป
+//  lowQ = ไม่มีเศษหิน/รอยแยก/ฝุ่น · ลดการเคลื่อนไหว = ไม่มีดาบร่วง ระเบิดทันที
+export const QUAKE_T = { fall: 230, stagger: 80, after: 820 };
+const GOLD = "255,214,120", GOLD_HI = "255,246,215";
+// เลขสุ่มคงที่ต่อช่อง (เอฟเฟกต์ไม่กระตุกเปลี่ยนทุกเฟรม)
+function hash01(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+export function prepareQuake(f, cols, rows) {
+  const v = BEAM_DIRS[f && f.dir];
+  if (!v || !Number.isFinite(f.x) || !Number.isFinite(f.y)) return null;
+  const len = Math.max(1, Math.min(16, Math.floor(+f.len) || 4)), half = Math.floor((Math.floor(+f.width) || 3) / 2);
+  const [fx, fy] = v, sx = -fy, sy = fx, fall = REDUCED ? 0 : QUAKE_T.fall;
+  const tiles = [];
+  for (let i = 1; i <= len; i++) {
+    for (let j = -half; j <= half; j++) {
+      const x = f.x + fx * i + sx * j, y = f.y + fy * i + sy * j;
+      if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+      const seed = i * 7.3 + j * 3.1;
+      tiles.push({ x, y, seed, at: (i - 1) * QUAKE_T.stagger + Math.abs(j) * 25 + hash01(seed) * 30, lean: (hash01(seed + 9) - 0.5) * 0.5 });
+    }
+  }
+  if (!tiles.length) return null;
+  const hits = tiles.map((t) => t.at + fall);
+  return { tiles, hits, fall, dur: Math.max(...hits) + QUAKE_T.after + 40 };
+}
+// ลูกไฟ (วาดทับแบบปกติ — เห็นชัดบนพื้นสว่าง ไม่ขาวโพลนแบบ lighter)
+function fireball(g, x, y, r, a) {
+  if (r <= 0 || a <= 0) return;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, `rgba(255,250,225,${a})`);
+  gr.addColorStop(0.25, `rgba(255,196,70,${a})`);
+  gr.addColorStop(0.55, `rgba(240,92,24,${0.85 * a})`);
+  gr.addColorStop(1, "rgba(150,30,10,0)");
+  g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function quakeFx(g, e, now, lowQ) {
+  const Q = e.quake;
+  if (!Q) return;
+  const t = now - e.t0;
+  if (t < 0 || t > Q.dur) return;
+  const still = lowQ || REDUCED, A = QUAKE_T.after;
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  // ชั้นพื้น (หลุมไหม้ + รอยแยก + คลื่นกระแทก) วาดก่อนทุกช่อง แล้วค่อยวาดของที่ลอย (ดาบ/ไฟ/เศษหิน)
+  Q.tiles.forEach((tl, i) => {
+    const age = t - Q.hits[i];
+    if (age < 0 || age > A) return;
+    const q = age / A, k = 1 - q, cx = tl.x + 0.5, cy = tl.y + 0.5;
+    g.globalCompositeOperation = "source-over";
+    quad(g, tl.x, tl.y, 0.03); g.fillStyle = `rgba(48,18,6,${0.55 * k})`; g.fill();
+    gEllipse(g, cx, cy, 0.34, 0, 24); g.fillStyle = `rgba(20,6,2,${0.5 * k})`; g.fill();
+    if (!still) {
+      const s0 = P(cx, cy);
+      g.lineWidth = Math.max(1.5, s0[2] * 0.045);
+      g.strokeStyle = `rgba(255,${120 + 80 * k},40,${k})`;
+      for (let c = 0; c < 6; c++) {
+        const th = (c / 6) * Math.PI * 2 + hash01(tl.seed + c) * 0.8, r = Math.min(1, age / 140) * (0.36 + hash01(tl.seed + c + 20) * 0.14);
+        const m = P(cx + Math.cos(th + 0.3) * r * 0.5, cy + Math.sin(th + 0.3) * r * 0.5), o = P(cx + Math.cos(th) * r, cy + Math.sin(th) * r);
+        g.beginPath(); g.moveTo(s0[0], s0[1]); g.lineTo(m[0], m[1]); g.lineTo(o[0], o[1]); g.stroke();
+      }
+    }
+    const ring = Math.min(1, age / 380);
+    if (ring < 1) {
+      const sc = P(cx, cy)[2];
+      g.strokeStyle = `rgba(255,170,60,${0.95 * (1 - ring)})`; g.lineWidth = Math.max(1.5, sc * 0.08 * (1 - ring));
+      gEllipse(g, cx, cy, 0.2 + ring * 0.85, 0, 28); g.stroke();
+    }
+  });
+  Q.tiles.forEach((tl, i) => {
+    const age = t - Q.hits[i]; // < 0 = ดาบกำลังร่วง · ≥ 0 = หลังปักพื้น
+    const cx = tl.x + 0.5, cy = tl.y + 0.5;
+    if (age < 0) {
+      const f = 1 + age / Math.max(1, Q.fall); // 0 → 1 ตอนร่วง
+      if (f < 0) return;
+      const z = 7 * (1 - f * f);
+      g.globalCompositeOperation = "source-over";
+      gEllipse(g, cx, cy, 0.16 + 0.24 * f, 0, 20); g.fillStyle = `rgba(30,8,0,${0.2 + 0.4 * f})`; g.fill();
+      // ดาบแสง (ปลายลง) + หางไฟยาวด้านบน
+      const off = tl.lean * (1 - f);
+      const tip = P(cx + off, cy, z), hilt = P(cx + off * 1.4, cy, z + 1.5), trail = P(cx + off * 2.6, cy, z + 4.2);
+      if (!lowQ) taper(g, hilt, trail, 0.3, "rgba(240,110,30,0.35)");
+      taper(g, tip, hilt, 0.22, "rgba(235,120,30,0.95)");
+      taper(g, tip, hilt, 0.12, `rgba(${GOLD},1)`);
+      taper(g, tip, hilt, 0.045, `rgba(${GOLD_HI},1)`);
+      return;
+    }
+    if (age > A) return;
+    const q = age / A, k = 1 - q;
+    // ใบดาบปักพื้น จางลง
+    if (!REDUCED && q < 0.7) {
+      const a = 1 - q / 0.7, base = P(cx, cy, -0.1), top = P(cx + tl.lean * 0.2, cy, 1.05);
+      g.globalCompositeOperation = "source-over";
+      taper(g, base, top, 0.18, `rgba(220,110,30,${0.85 * a})`);
+      taper(g, base, top, 0.08, `rgba(${GOLD_HI},${a})`);
+    }
+    // ระเบิด: ลูกไฟพองแล้วยุบ + เสาไฟพุ่ง + แฟลชขาวสั้นๆ
+    const [sx0, sy0, sc] = P(cx, cy, 0.35);
+    if (age < 420) {
+      const p = age / 420, puff = Math.sin(Math.min(1, p * 1.6) * Math.PI / 2);
+      g.globalCompositeOperation = "source-over";
+      fireball(g, sx0, sy0, sc * (0.35 + 0.55 * puff), 1 - p * p);
+      if (!lowQ && p < 0.6) taper(g, P(cx, cy, 0), P(cx, cy, 1.4 + p * 2.2), 0.5 * (1 - p / 0.6), `rgba(255,150,50,${0.75 * (1 - p / 0.6)})`);
+      if (age < 120) { g.globalCompositeOperation = "lighter"; glow(g, sx0, sy0, sc * 0.6, GOLD_HI, 1 - age / 120); }
+    }
+    if (still) return;
+    // เศษหิน + ประกายไฟกระเด็น (โค้งพาราโบลา)
+    const s = age / 1000;
+    for (let d = 0; d < 8; d++) {
+      const r1 = hash01(tl.seed * 3 + d), r2 = hash01(tl.seed * 5 + d + 1);
+      const th = r1 * Math.PI * 2, sp = 0.9 + r2 * 1.4, vz = 3 + r2 * 3.5;
+      const z = vz * s - 9 * s * s;
+      if (z < -0.05) continue;
+      const [px, py, ps] = P(cx + Math.cos(th) * sp * s, cy + Math.sin(th) * sp * s, z);
+      g.globalCompositeOperation = "source-over";
+      g.fillStyle = d % 3 === 0 ? `rgba(255,190,80,${k})` : `rgba(62,40,26,${k})`;
+      g.beginPath(); g.arc(px, py, Math.max(1.5, ps * (d % 3 === 0 ? 0.035 : 0.06)), 0, Math.PI * 2); g.fill();
+    }
+    // ควันฝุ่นลอยขึ้น
+    if (age > 120) {
+      const [dx0, dy0, ds] = P(cx, cy, 0.5 + q * 1.2);
+      g.globalCompositeOperation = "source-over";
+      glow(g, dx0, dy0, ds * (0.35 + q * 0.55), "92,74,62", 0.45 * k);
+    }
+  });
+  g.restore();
+}
+export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200 };
 
 
 // =================================================================== frame
@@ -877,6 +1033,7 @@ export function drawFrame(g, st, now) {
     if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
     else if (e.kind === "beam") beamFx(g, e, now, lowQ);
+    else if (e.kind === "quake") quakeFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);

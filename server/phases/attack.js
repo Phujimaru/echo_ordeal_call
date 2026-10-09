@@ -36,6 +36,11 @@ function attackSoundOf(attacker) {
   if (attacker.characterId === "sliver_bullet") return CHAR_HOOKS.sliver_bullet.attackSound(attacker);
   return undefined;
 }
+// ลำแสงตีปกติ (ฮุค attackBeam ของตัวละคร) — ความยาวลำแสงเป็นช่อง · 0 = ตีแบบปกติ (พุ่งชน/ฟัน)
+function attackBeamOf(attacker) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  return (hook && hook.attackBeam && hook.attackBeam(attacker)) || 0;
+}
 
 // สูตรคำนวณพลังโจมตีพื้นฐาน — ดึงออกมาจาก doAttack() ให้ทดสอบแยกได้ (ดู tests/computeAttackBase.test.js)
 //  ตัวละครเติมพลังโจมตีของตัวเองผ่าน characters/<id>.js's damageBonus()/attackBaseOverride()
@@ -276,6 +281,7 @@ function strikeCard(attacker, target, res) {
     byId: attacker.id, targetId: target.id,
     byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
+    byBeam: attackBeamOf(attacker), // ตีปกติเป็นลำแสง (ความยาวเป็นช่อง · 0 = ไม่มี) — นักบินปริศนา
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
     dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, skills: res.skills || [],
   };

@@ -154,3 +154,49 @@ test('คลื่นดาบมุยมิ: หลบหลีกหลบไ
   assert.equal(P.E.hp, 5, 'หลบหลีก 100%');
   assert.equal(P.G.hp, 1);
 });
+
+test('ดาบสนิมระหว่างดาบสะบั้น: 6 แต้ม · คลื่นดาบแนว 4×3 แรงเท่าท่าไม้ตาย (1+3) · ไม่ได้สถานะใดเพิ่ม · ปกติยังเป็น self 4 แต้ม', () => {
+  const P = setup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8], ['B', 'dummy', 6, 5], ['C', 'dummy', 7, 4]]);
+  let me = engine.buildStateFor('M').players.find((p) => p.id === 'M');
+  assert.deepEqual(me.character.secondary.area, { kind: 'self' });
+  assert.equal(me.character.secondary.cost, 4);
+  P.M.statuses.muimiTower = 2;
+  me = engine.buildStateFor('M').players.find((p) => p.id === 'M');
+  assert.deepEqual(me.character.secondary.area, muimi.WAVE_AREA);
+  assert.deepEqual(muimi.WAVE_AREA, require('../characters.js').CHAR_BY_ID.muimi.ultimate.area, 'คลื่นเท่าท่าไม้ตาย');
+  assert.equal(me.character.secondary.cost, 6);
+  const fx = [];
+  const realFx = engine.boardFx;
+  engine.boardFx = (event, payload) => fx.push({ event, payload });
+  try {
+    engine.setActor('M');
+    engine.useSkill('M', 'secondary', [], {});
+    assert.equal(P.M.skillPoints, 8, 'ไม่เลือกทิศ = กดไม่ได้');
+    engine.useSkill('M', 'secondary', [], { dir: 'up' });
+  } finally {
+    engine.boardFx = realFx;
+  }
+  assert.equal(P.M.skillPoints, 2);
+  assert.equal(P.A.hp, 1, 'ดาเมจ 1 + 3');
+  assert.equal(P.B.hp, 1);
+  assert.equal(P.C.hp, 5, 'ยาวเกิน 4 ช่อง');
+  assert.equal(P.M.statuses.muimiTower, 2, 'ไม่ยืดดาบสะบั้น');
+  assert.equal(P.M.statuses.muimiRusty, undefined, 'ไม่ได้ดาบเก่าๆ');
+  assert.equal(P.M.statuses.resist, undefined, 'ไม่ได้ต้านสถานะ');
+  assert.deepEqual(fx, [{ event: 'quakeFx', payload: { from: { x: 7, y: 9 }, dir: 'up', len: 4, width: 3, color: engine.colorOf(P.M) } }]);
+  assert.equal(engine.action.locked, true);
+});
+
+test('ท่าไม้ตายมุยมิ: พื้นระเบิดบนกระดาน (quakeFx) ตามแนวที่เลือก', () => {
+  const P = setup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8]]);
+  const fx = [];
+  const realFx = engine.boardFx;
+  engine.boardFx = (event, payload) => fx.push({ event, payload });
+  try {
+    engine.setActor('M');
+    engine.useSkill('M', 'ultimate', [], { dir: 'left' });
+  } finally {
+    engine.boardFx = realFx;
+  }
+  assert.deepEqual(fx, [{ event: 'quakeFx', payload: { from: { x: 7, y: 9 }, dir: 'left', len: 4, width: 3, color: engine.colorOf(P.M) } }]);
+});

@@ -164,6 +164,12 @@ function buildStateFor(viewerId) {
             + Journey.skillTax(engine, baseCost), // การเดินทาง (ป่าไม้ต้องสาป) — ต้องตรงกับ useSkill()
         );
       };
+      // พื้นที่ที่เปลี่ยนตามสถานะ (skillArea) — ต้องตรงกับ useSkill()
+      if (hook && hook.skillArea) {
+        for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
+          if (s) s.area = hook.skillArea(p, tierName, s.area) || s.area;
+        }
+      }
       // ระยะสกิลที่ client วาด: range "mov" แปลงเป็นตัวเลขของผู้เล่นคนนี้
       for (const s of [basicPub, secondaryPub, ultimatePub]) {
         if (s && s.area && s.area.range === "mov") s.area = { ...s.area, range: action.areaRange(p, s.area) };

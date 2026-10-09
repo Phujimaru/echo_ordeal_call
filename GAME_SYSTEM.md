@@ -243,7 +243,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
 **มุยมิ (`muimi` · ง่าย)** — `characters/muimi.js` · เทสต์ [tests/characters/muimi.test.js](tests/characters/muimi.test.js)
 - **เสบียงฉุกเฉิน** (basic · 0 แต้ม): 1 ครั้ง/เทิร์น รวม 2 ครั้งต่อเกม (`p.muimiEmergencyUses`/`p.muimiEmergencyUsedRound`) ฟื้นเลือด 2 + แต้มสกิล 2
   · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota`) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2`)
-- **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ใช้ไม่ได้ระหว่าง "ดาบสะบั้น"
+- **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ระหว่าง "ดาบสะบั้น" = 6 แต้ม คลื่นดาบแนว 4×3 แรงเท่าท่าไม้ตาย ไม่ได้สถานะเพิ่ม (`skillArea`/`skillCost` — GRID_PLAN §7.3)
 - **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
   - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → คลื่นดาบแนว 4×3 (GRID_PLAN §7.3) ลงผลหลังวีดีโอผ่าน `engine.skillStrike` ·
     พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` เช็ค `waveStriker`)

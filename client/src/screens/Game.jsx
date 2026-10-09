@@ -1741,7 +1741,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // free = ช่องนี้ไม่กินโควตา 1 สกิล/เทิร์น — skillUsed แล้วยังกดได้
   const giftFree = (t) => !!(giftLocks[t] && giftLocks[t].free);
   const muimiBasicLocked = isMuimi && ((me?.muimiEmergencyUses || 0) <= 0 || !!me?.muimiEmergencyUsed);
-  const muimiSecLocked = isMuimi && (me?.statuses?.muimiTower || 0) > 0;
   const muimiUltLocked = isMuimi && ((me?.statuses?.muimiRusty || 0) > 0 || (me?.statuses?.muimiTower || 0) > 0 || muimiUltCd > 0);
 
   // สกิลช่วงจั่วการ์ด: server แจ้งมา -> เด้งทันที (ไม่ตัดเข้าจอดำ) แล้วหายเอง
@@ -2036,7 +2035,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   <SkillSlot label="สกิลพื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} disabled={!me.alive || phase !== "PLAYING" || done || noSkill || (me.skillUsed && !isMuimi) || muimiBasicLocked} onUse={requestSkillUse} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
                 </div>
                 <div className="-translate-y-2">
-                  <SkillSlot label="สกิลรอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} disabled={done || phase !== "PLAYING" || noSkill || me.skillUsed || muimiSecLocked} onUse={requestSkillUse} />
+                  <SkillSlot label="สกิลรอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} disabled={done || phase !== "PLAYING" || noSkill || me.skillUsed} onUse={requestSkillUse} />
                 </div>
                 <div className="translate-y-1.5">
                   <SkillSlot label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} disabled={done || phase !== "PLAYING" || noSkill || me.skillUsed || muimiUltLocked} onUse={requestSkillUse} cooldown={muimiUltCd} />
@@ -2252,7 +2251,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               skills={
                 <>
                   <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !basicFree && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
-                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("secondary")) || muimiSecLocked || giftLocked("secondary") || noTargetInRange(ch?.secondary?.area)} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
+                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("secondary")) || giftLocked("secondary") || noTargetInRange(ch?.secondary?.area)} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }

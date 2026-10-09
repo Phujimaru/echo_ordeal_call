@@ -22,7 +22,7 @@ import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
-import { BEAM_T } from "./boardDraw";
+import { BEAM_T, QUAKE_T } from "./boardDraw";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -259,9 +259,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const tPos = nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
-      const melee = !a.gun && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
+      const beam = !a.gun && a.byBeam > 0 && fromPos && tPos;
+      const melee = !a.gun && !beam && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
-      const HIT = ZOOM_IN + (melee && !lowQ ? 385 : 120);
+      const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : melee && !lowQ ? 385 : 120);
+      if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId }]));
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
@@ -287,6 +290,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (a.counter && fromPos) {
         t = HIT + 640;
         const c = a.counter;
+        if (c.byBeam > 0 && tPos) later(t - BEAM_T.charge - BEAM_T.extend, () => pushFx([{ kind: "beam", x: tPos.x, y: tPos.y, to: fromPos, len: c.byBeam, hitId: c.targetId }]));
         later(t, () => {
           playSfx(c.byAttackSound || "attack");
           setShake((n) => n + 1);
@@ -345,6 +349,26 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("beamFx", onBeam);
     return () => socket.off("beamFx", onBeam);
+  }, [pushFx, look, lowQ]);
+
+  // คลื่นดาบถล่ม (มุยมิ: ท่าไม้ตาย / ดาบสนิมระหว่างดาบสะบั้น) — { from, dir, len, width, color } · กล้องตามกลางแนว · จอสั่นตอนดาบแถวแรก/แถวท้ายปักพื้น
+  useEffect(() => {
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const onQuake = (b) => {
+      const v = b && DIRS[b.dir];
+      if (!v || !b.from || !Number.isFinite(b.from.x) || !Number.isFinite(b.from.y)) return;
+      const len = Number(b.len) || 4;
+      pushFx([{ kind: "quake", x: b.from.x, y: b.from.y, dir: b.dir, len, width: b.width, color: b.color }]);
+      const bd = boardRef.current || {}, half = Math.ceil(len / 2);
+      const cl = (n, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), n));
+      look({ x: cl(b.from.x + v[0] * half, bd.cols), y: cl(b.from.y + v[1] * half, bd.rows) });
+      if (!lowQ) {
+        timers.current.push(setTimeout(() => setShake((n) => n + 1), QUAKE_T.fall));
+        if (len > 1) timers.current.push(setTimeout(() => setShake((n) => n + 1), QUAKE_T.fall + (len - 1) * QUAKE_T.stagger));
+      }
+    };
+    socket.on("quakeFx", onQuake);
+    return () => socket.off("quakeFx", onQuake);
   }, [pushFx, look, lowQ]);
 
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี

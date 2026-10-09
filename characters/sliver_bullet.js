@@ -6,9 +6,10 @@
 //  สกิลพื้นฐาน เปลี่ยนชิ้นส่วน (ไม่กินโควตาสกิล · ไม่ทำให้ปรากฏตัว)
 //    ไม่มีแขน: 2 แต้ม → ได้แขน + ฟื้นพลังชีวิต 1 · มีแขน: 3 แต้ม → ฟื้นพลังชีวิต 2 (ราคาผ่าน skillCost — useSkill/view ใช้สูตรเดียวกัน)
 //    คลิปครั้งแรกต่อเกม · ครั้งต่อไปการ์ดแจ้งเตือน + เสียง · ระหว่างล่องหน คลิป/การ์ด/เสียงเฉพาะตัวเอง + เพื่อนร่วมทีม
-//  สกิลรอง Beam Magnum (4 แต้ม · ต้องมีแขน · เสียแขน · ปรากฏตัว) — แนว 6×1 ทะลุโดนศัตรูทุกคนในแนว
+//  ตีปกติ: ระยะ [1, 4] (เท่าระยะเดิน) ยิงจากที่ยืน — ฉากตีวาดลำแสงยาว SHOT_LEN ช่องไปทางเป้า (attackBeam)
+//  สกิลรอง Beam Magnum (4 แต้ม · ต้องมีแขน · เสียแขน · ปรากฏตัว) — แนว 8×1 ทะลุโดนศัตรูทุกคนในแนว
 //    ดาเมจ 4 แบบไอเทม (เหมือนกระสุน Nursedessei: เกราะรับก่อน · หลบหลีก/ช่องหลบใช้ไม่ได้ · ไม่บวกเปราะบาง) · ไม่จบตา (ตีปกติต่อได้)
-//    คลิปครั้งแรกต่อเกม · ครั้งต่อไปเสียงยิง · ลำแสงบนกระดาน (beamFx) + ดาเมจลง "หลังคลิปจบ"
+//    คลิปครั้งแรกต่อเกม · ลำแสงบนกระดาน (beamFx) + เสียงยิง + ดาเมจลง "หลังคลิปจบ" (มีคลิปก็จบด้วยเสียงยิง — ผู้ใช้สั่ง)
 //  สกิลติดตัว ซุ่มโจมตี (ล่องหน — ระบบมองเห็นกลางอยู่ server/visibility.js)
 //    เงื่อนไข: ffa = ผู้เล่นที่ยังรอด (รวมตัวเอง) ≥ 3 · โหมดทีม = เพื่อนร่วมทีมที่ยังรอด ≥ 2 (duo ไม่เข้าเงื่อนไข)
 //    เริ่มเกม/ต้นเทิร์นที่ไม่ได้ปรากฏตัวอยู่ = ล่องหน · ศัตรูมองไม่เห็นเลย (พุ่มหญ้าผืนเดียวกันก็ไม่เห็น)
@@ -40,7 +41,8 @@ const COST_ARM = 3;
 const HEAL_NO_ARM = 1;
 const HEAL_ARM = 2;
 const BEAM_DMG = 4;
-const BEAM_LEN = 6;
+const BEAM_LEN = 8;
+const SHOT_LEN = 4; // ลำแสงตีปกติ = ระยะตี [1, 4] (ผู้ใช้สั่ง 2026-10-09)
 const REVEAL_TURNS = 2;
 const FFA_MIN_ALIVE = 3;
 const TEAM_MIN_MATES = 2;
@@ -88,7 +90,7 @@ function reveal(engine, p, turns) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, SFX, CUT, HP, ARMOR, COST_NO_ARM, COST_ARM, HEAL_NO_ARM, HEAL_ARM, BEAM_DMG, BEAM_LEN, REVEAL_TURNS,
+  IMG, VIDEO, SFX, CUT, HP, ARMOR, COST_NO_ARM, COST_ARM, HEAL_NO_ARM, HEAL_ARM, BEAM_DMG, BEAM_LEN, SHOT_LEN, REVEAL_TURNS,
   isPilot, conditionHolds,
 
   maxHp() { return HP; },
@@ -96,6 +98,7 @@ module.exports = {
   resetCombat(p) { p.sliver = isPilot(p) ? fresh() : null; },
   displayImg(p) { return isPilot(p) ? IMG.base : null; },
   attackSound(p) { return isPilot(p) ? SFX.shot : undefined; },
+  attackBeam(p) { return isPilot(p) ? SHOT_LEN : 0; },
 
   // ---------- ซุ่มโจมตี ----------
   stealthed(p) { return isPilot(p) && !!p.sliver && p.sliver.hidden; },
@@ -172,7 +175,7 @@ module.exports = {
       // ลำแสง + ดาเมจลงหลังคลิปจบ (ไม่มีคลิป = ทันที)
       engine.deferAfterCutscene(() => {
         if (from) engine.boardFx("beamFx", { from, dir, len: BEAM_LEN, color: engine.colorOf(p) });
-        if (!video) engine.sfx(SFX.shot);
+        engine.sfx(SFX.shot);
         for (const id of targets || []) {
           const t = engine.players[id];
           if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;

@@ -55,7 +55,9 @@ function useSkill(id, tier, targets, opts = {}) {
   const st = skill.effect && !Array.isArray(skill.effect) && skill.effect.type === "status" ? skill.effect.status : null;
 
   // ระยะบนกระดาน (GRID_PLAN §7): เป้านอกระยะ/ไม่ได้เลือกทิศ = กดไม่ได้ · ได้รายชื่อผู้โดนจริงส่งต่อให้ hook
-  targets = action.resolveArea(p, skill.area, targets, opts.dir);
+  //  skillArea = พื้นที่เปลี่ยนตามสถานะ (มุยมิ: ดาบสนิมระหว่างดาบสะบั้น = คลื่นดาบแนว) — ต้องตรงกับ buildStateFor
+  const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area) : skill.area;
+  targets = action.resolveArea(p, area, targets, opts.dir);
   if (!targets) return;
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
@@ -113,7 +115,7 @@ function useSkill(id, tier, targets, opts = {}) {
   // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
   if ((targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
-  if (skill.area && skill.area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
+  if (area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
   combat.applyEffect(p, skill.effect);

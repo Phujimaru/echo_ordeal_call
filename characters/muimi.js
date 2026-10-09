@@ -13,6 +13,10 @@ const RESIST_TURNS = 3;
 const TOWER_ATK_BONUS = 1;
 const WAVE_ATK_BONUS = 3;
 const ULT_COOLDOWN_TURNS = 3;
+// ดาบสนิมระหว่างดาบสะบั้น (ผู้ใช้สั่ง 2026-10-09): กดได้ ราคา 4 → 6 · เปลี่ยนผลเป็นคลื่นดาบแนวเดียวกับท่าไม้ตาย แรงเท่ากัน
+//  แต่ไม่ได้สถานะใดๆ (ไม่ได้ดาบเก่าๆ / ไม่ยืดดาบสะบั้น / ไม่ได้ต้านสถานะ) และไม่มีกติกา "หลบหมด = เสียท่าไม้ตาย"
+const WAVE_AREA = { kind: "line", len: 4, width: 3, hostile: true }; // ต้องตรงกับ ultimate.area ใน characters.js
+const TOWER_SEC_COST = 6;
 
 const IMG = {
   base: "/characters/muimi/muimi.webp",
@@ -29,6 +33,27 @@ function towerActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiT
 // มุยมิที่กำลังปล่อยคลื่นดาบอยู่ (ตั้งเฉพาะช่วงลูปคลื่นดาบ) — damageBonus ใช้ WAVE_ATK_BONUS แทน TOWER_ATK_BONUS
 let waveStriker = null;
 
+// คลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว (ท่าไม้ตาย + ดาบสนิมระหว่างดาบสะบั้น) — คืนจำนวนศัตรูที่ฟัน/โดน
+//  เอฟเฟกต์บนกระดาน (quakeFx: ของถล่มลงทุกช่องในแนว + พื้นระเบิด) + เสียงฟัน ลงพร้อมดาเมจ
+function swordWave(engine, p, targets, dir, name) {
+  let tried = 0, hits = 0;
+  if (p.pos && dir) engine.boardFx("quakeFx", { from: { ...p.pos }, dir, len: WAVE_AREA.len, width: WAVE_AREA.width, color: engine.colorOf(p) });
+  waveStriker = p;
+  try {
+    for (const id of targets || []) {
+      const t = engine.players[id];
+      if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
+      tried++;
+      const res = engine.skillStrike(p, t, name);
+      if (!res.dodge) hits++;
+    }
+  } finally {
+    waveStriker = null;
+  }
+  engine.sfx("muimi_ub_hit");
+  return { tried, hits };
+}
+
 module.exports = {
   id: ID,
   IMG,
@@ -39,6 +64,8 @@ module.exports = {
   TOWER_ATK_BONUS,
   WAVE_ATK_BONUS,
   ULT_COOLDOWN_TURNS,
+  WAVE_AREA,
+  TOWER_SEC_COST,
 
   rustyActive,
   towerActive,
@@ -52,13 +79,15 @@ module.exports = {
 
   displayImg(p) { return towerActive(p) ? IMG.ultimate : null; },
 
+  skillCost(p, tier, base) { return tier === "secondary" && towerActive(p) ? TOWER_SEC_COST : base; },
+  skillArea(p, tier, area) { return tier === "secondary" && towerActive(p) ? WAVE_AREA : area; },
+
   canUseSkill(engine, p, tier) {
     if (!isMuimi(p)) return true;
     if (tier === "basic") {
       return (p.muimiEmergencyUses || 0) > 0 && p.muimiEmergencyUsedRound !== engine.roundNumber;
     }
-    if (tier === "secondary") return !towerActive(p);
-    // ระหว่างดาบสะบั้นกดซ้ำไม่ได้ (ผู้ใช้สั่ง)
+    // ระหว่างดาบสะบั้นท่าไม้ตายกดซ้ำไม่ได้ (ผู้ใช้สั่ง) · ดาบสนิมกดได้ = คลื่นดาบ (skillArea/skillCost)
     if (tier === "ultimate") return !rustyActive(p) && !towerActive(p) && this.ultCooldownLeft(engine, p) <= 0;
     return true;
   },
@@ -79,7 +108,7 @@ module.exports = {
     return Math.max(0, (p.muimiUltLock || 0) - engine.roundNumber + 1);
   },
 
-  applyInstantSkill(engine, p, tier, targets) {
+  applyInstantSkill(engine, p, tier, targets, opts = {}) {
     p.statuses ||= {};
     if (tier === "basic") {
       p.muimiEmergencyUses = Math.max(0, (p.muimiEmergencyUses || 0) - 1);
@@ -90,6 +119,11 @@ module.exports = {
       const sp = p.skillPoints - before;
       engine.log(`🍖 ${p.name} ใช้เสบียงฉุกเฉิน — ฟื้นพลังชีวิต +${hp} และแต้มสกิล +${sp} (เหลือ ${p.muimiEmergencyUses} ครั้ง)`);
       return ` — พลังชีวิต +${hp} · แต้มสกิล +${sp}`;
+    }
+    if (tier === "secondary" && towerActive(p)) {
+      engine.log(`🌊 ${p.name} ดาบสนิม — ปล่อยคลื่นดาบ`);
+      engine.deferAfterCutscene(() => { swordWave(engine, p, targets, opts.dir, "คลื่นดาบ"); });
+      return " — คลื่นดาบ";
     }
     if (tier === "secondary") {
       p.statuses.muimiRusty = RUSTY_TURNS;
@@ -112,20 +146,7 @@ module.exports = {
       //  มีศัตรูในแนวแต่หลบได้ทุกคน = เสียท่าไม้ตาย (ดาบสะบั้น + ต้านสถานะที่ได้) และเข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ
       //  แนวว่างไม่มีศัตรู = ได้ดาบสะบั้นตามปกติ (ไม่มีใครหลบ)
       engine.deferAfterCutscene(() => {
-        let tried = 0, hits = 0;
-        waveStriker = p;
-        try {
-          for (const id of targets || []) {
-            const t = engine.players[id];
-            if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
-            tried++;
-            const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
-            if (!res.dodge) hits++;
-          }
-        } finally {
-          waveStriker = null;
-        }
-        engine.sfx("muimi_ub_hit");
+        const { tried, hits } = swordWave(engine, p, targets, opts.dir, "คลื่นดาบสะบั้น");
         if (tried > 0 && hits === 0) {
           delete p.statuses.muimiTower;
           if (resistBefore > 0) p.statuses.resist = resistBefore; else delete p.statuses.resist;
