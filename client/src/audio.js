@@ -43,6 +43,7 @@ const FILES = {
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
   notificate: "/effect_sound/notificate.mp3", // ฉากตาเดินของคนอื่น (ระบบกระดาน)
+  notificate_mine: "/effect_sound/notificate_mine.mp3", // ฉากตาเดินของเรา (ระบบกระดาน)
 };
 
 // เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (ตอนนี้ยังไม่มีเพลงที่ใช้)
