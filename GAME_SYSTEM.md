@@ -244,11 +244,12 @@ cost = min(SKILL_COST_MAX /* 8 */,
   · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota`) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2`)
 - **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ใช้ไม่ได้ระหว่าง "ดาบสะบั้น"
 - **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
-  - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → จะเปลี่ยนเป็นคลื่นดาบแนว 4×3 (GRID_PLAN §7.3 — ยังไม่ลงโค้ด)
-  - ระหว่างดาบสะบั้น: พลังโจมตี +3 (`damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
+  - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → คลื่นดาบแนว 4×3 (GRID_PLAN §7.3) ลงผลหลังวีดีโอผ่าน `engine.skillStrike` ·
+    พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` เช็ค `waveStriker`)
+  - ระหว่างดาบสะบั้น: ตีปกติพลังโจมตี +1 (`TOWER_ATK_BONUS` ผ่าน `damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
     ภาพบนสนาม/เพลงสกิลเปลี่ยน (`displayImg`, `activeSkillMusic` → `"muimi"`) ·
     เสียงตีปกติ `muimi_ub_hit` (ปกติ `muimi_normal_hit` — `attackSoundOf`)
-  - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 5 เทิร์น (`p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
+  - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 3 เทิร์น (`ULT_COOLDOWN_TURNS` → `p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
   - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักเฟสจั่วไพ่
 - ~~หัวใจนักสู้~~ (passive2) ถอดออกแล้ว (ผู้ใช้ตัดสิน — GRID_PLAN §7.1)
 
@@ -377,7 +378,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
 - **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน (`openShop()`) ตั้งที่ `match.shopPos`
   - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (5) นับจาก `shopOpenedRound`
-    → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 6, 11 … (ตรงกับจังหวะเปลี่ยนภูมิภาค)
+    → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 6, 11, 16 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 6, 11, 16 … พอดี — ทั้งคู่ 5 เทิร์น)
   - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
   - ซื้อได้เมื่อ **ยืนติดร้าน** (`board.nearShop` ระยะ 1) ในตาตัวเอง · ซื้อแล้วเดินไม่ได้อีก (`lockMove`) · ซื้อหลายชิ้นได้
   - state: `shopPos` · `shopTurnsLeft` (ร้านอยู่จุดนี้อีกกี่เทิร์น รวมเทิร์นนี้ — บนจอเขียน "เหลือ N เทิร์น" · ตั้งใหม่ = "ปรากฏ" ห้ามใช้คำว่า "ย้าย") · `bagSlots` · `gutsRange`
@@ -411,7 +412,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 ## 10. กลางวัน/กลางคืน
 
-- สลับทุก **5 เทิร์น** (`CYCLE_TURNS`) เริ่มเกมเป็นกลางวัน — `isNightRound(n)` (`server/dayNight.js`) · แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน
+- สลับทุก **3 เทิร์น** (`CYCLE_TURNS` · เดิม 5 — ผู้ใช้สั่งลด 2026-10-09) เริ่มเกมเป็นกลางวัน: วัน 1–3 · คืน 4–6 · วัน 7–9 … — `isNightRound(n)` (`server/dayNight.js`) · แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน
 - **ทุกโหมดที่เหลือ (ffa/duo/trio) มีการเดินทาง** → ผลของภูมิภาค **แทน** กฎวัน/คืนเดิมทั้งหมด (ข้อ 10.1)
   กฎเดิมยังอยู่ในโค้ดเป็นค่า fallback เมื่อ `Journey.active()` เป็น false (ตอนนี้ไม่มีโหมดไหนเข้าทางนั้น):
   กลางวัน = จบเทิร์นแต้มสกิล +1 เฉพาะเช้าที่ 2, 4, 6, … (`morningBonusActive`) · กลางคืน = สุ่ม basic/secondary ของแต่ละคนแพงขึ้น +1 (`p.nightTaxTier`)
@@ -422,8 +423,10 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 โมดูลกลาง [characters/_journey.js](characters/_journey.js) (require ตรงเหมือน `_mark42` — ไม่ใช่ตัวละคร) · เทสต์ [tests/journey.test.js](tests/journey.test.js)
 - `Journey.active(engine)` = `gameMode` เป็น ffa/duo/trio (ทุกโหมดที่มีตอนนี้)
-- ภูมิภาค = `areaOf(roundNumber)` เปลี่ยนทุก `AREA_TURNS` (10) เทิร์น ค้างที่ 7 ถาวร — **ไม่มี state แยก**
-  กลางวัน/กลางคืนอ่านจาก `isNightRound()` (เทิร์น 1-5 ของภูมิภาคกลางวัน 6-10 กลางคืน)
+- ภูมิภาค = `areaOf(roundNumber)` เปลี่ยนทุก `AREA_TURNS` (5 · เดิม 10 — ผู้ใช้สั่งลด 2026-10-09) เทิร์น: ภูมิภาคใหม่เริ่มเทิร์น 6, 11, 16, 21, 26, 31 แล้วค้างที่ 7 ถาวร — **ไม่มี state แยก**
+  กลางวัน/กลางคืนอ่านจาก `isNightRound()` — วงจรวัน/คืน (3) ไม่ลงล็อกกับภูมิภาค (5) แต่ละภูมิภาคจึงแบ่งวัน/คืนไม่เท่ากัน:
+  I 1–5 (วัน 1–3 · คืน 4–5) · II 6–10 (คืน 6 · วัน 7–9 · คืน 10) · III 11–15 (คืน 11–12 · วัน 13–15) · IV 16–20 (คืน 16–18 · วัน 19–20) · V 21–25 (วัน 21 · คืน 22–24 · วัน 25) · VI 26–30 (วัน 26–27 · คืน 28–30) · VII 31+ (วัน 31–33 · คืน 34–36 …)
+  · client: `JOURNEY_TURNS_PER_AREA` ใน `client/src/journey/areas.js` ต้องตรง `AREA_TURNS` (ป้ายช่วงเทิร์นหน้าเลือกโหมด `ModeVote.jsx`)
 - ผลของภูมิภาค **แทน** กฎวัน/คืนเดิม: `Journey.nightTaxOn()` (เหลือแค่ภูมิภาค 1 กลางคืน) · `Journey.skillBonus()` (1 กลางวันเทิร์นคู่ / 7 ทุกเทิร์น)
 - จุดเสียบใน engine (ชื่อฟังก์ชันใน `_journey.js` → ที่เรียก):
   `skillTax` → `useSkill()` **และ** `showCost()` ใน `buildStateFor` (ต้องคิดเหมือนกัน — สกิลราคา 0 ไม่โดน) ·
@@ -596,7 +599,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
   `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|gun|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
-- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=21` เริ่มแมตช์ที่เทิร์น/ภูมิภาคนั้น · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
+- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=11` เริ่มแมตช์ที่เทิร์น/ภูมิภาคนั้น (ภูมิภาคละ 5 เทิร์น: 6 = II · 11 = III · 16 = IV · 21 = V · 26 = VI · 31 = VII) · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
   `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มยิงปืน/ใช้สกิล/ไอเทม/ซื้อของ)
 - **กระดาน 14×14 ทุกภูมิภาค** (ผู้ใช้ตัดสิน 2026-10-09) · กล้องจัดกลาง/ย่อจาก `map.cols×rows` เอง
 - ซูม: `BoardCanvas` prop `zoom` 0|1 (มุมใกล้ ×1.6) + `onZoomChange` (ล้อเมาส์) + `focus` {x,y} (เลื่อนกล้องไปหา ถ้าอยู่นอกจอ) · โหมดใกล้: ลากเมาส์/ปุ่มขวา/ลูกศรเลื่อนดู · ปุ่ม ＋/－ ใน BoardStage · จำใน localStorage `echo.boardZoom` · ป้ายร้าน "🏪 N" วาดในแคนวาส (`shopLabel`) · dev: `?board=1&sq=1`, `window.__boardFocus(x,y)`

@@ -116,7 +116,18 @@ test('ดาบสนิมกับดาบสะบั้นล็อกก�
   assert.equal(muimi.canUseSkill(engine, m, 'ultimate'), true);
 });
 
-test('ดาบสะบั้นหมดลงแล้วคูลดาวน์ 5 เทิร์น ก่อนใช้ท่าไม้ตายซ้ำได้', () => {
+test('ค่าบาลานซ์ (เนิฟ): ตีปกติระหว่างดาบสะบั้น +1 · คลื่นดาบ +3 · ฟื้น 2 · คูลดาวน์ 3 — คำอธิบายสกิลตรงกับค่า', () => {
+  assert.equal(muimi.TOWER_ATK_BONUS, 1);
+  assert.equal(muimi.WAVE_ATK_BONUS, 3);
+  assert.equal(muimi.ULT_COOLDOWN_TURNS, 3);
+  const desc = CHAR_BY_ID.muimi.ultimate.desc;
+  assert.match(desc, new RegExp(`โจมตีพื้นฐาน \\+${muimi.TOWER_ATK_BONUS} `));
+  assert.match(desc, new RegExp(`เท่าพลังโจมตี \\+${muimi.WAVE_ATK_BONUS} `));
+  assert.match(desc, /ฟื้นพลังชีวิต 2/);
+  assert.match(desc, new RegExp(`รอ ${muimi.ULT_COOLDOWN_TURNS} เทิร์น`));
+});
+
+test('ดาบสะบั้นหมดลงแล้วคูลดาวน์ 3 เทิร์น ก่อนใช้ท่าไม้ตายซ้ำได้', () => {
   const { m } = setup();
   engine.setRoundNumber(10);
   muimi.onUltExpire(engine, m);
@@ -166,7 +177,7 @@ test('คัตซีนท่าไม้ตายเผื่อเวลา�
   assert.equal(short.music, 'muimi');
 });
 
-test('ดาบเก่าๆ ฟื้น 1/1 ส่วนดาบสะบั้นเพิ่มโจมตี 3 ฟื้นชีวิต 2 และยืดเวลา 1 เทิร์น', () => {
+test('ดาบเก่าๆ ฟื้น 1/1 ส่วนดาบสะบั้นเพิ่มโจมตี 1 ฟื้นชีวิต 2 และยืดเวลา 1 เทิร์น', () => {
   const { m, a } = setup();
   m.hp = 2;
   m.skillPoints = 2;
@@ -179,7 +190,7 @@ test('ดาบเก่าๆ ฟื้น 1/1 ส่วนดาบสะบ�
   delete m.statuses.muimiRusty;
   m.statuses.muimiTower = 2;
   m.hp = 2;
-  assert.equal(computeAttackBase(engine, m, a).base, 4, 'ฐาน 1 + ดาบสะบั้น 3');
+  assert.equal(computeAttackBase(engine, m, a).base, 2, 'ฐาน 1 + ดาบสะบั้น 1 (เนิฟจาก +3)');
   const tower = muimi.onAttackLanded(engine, m);
   assert.equal(tower.hp, 2);
   assert.equal(tower.extended, true);

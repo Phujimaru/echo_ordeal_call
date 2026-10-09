@@ -247,7 +247,7 @@ io.on('connection', (socket) => {
   // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
   onPlayerEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
-  onPlayerEvent(socket, 'move', (id, { x, y } = {}) => action.moveTo(id, x, y), 8);
+  onPlayerEvent(socket, 'move', (id, { x, y, step } = {}) => action.moveTo(id, x, y, { step: step === true }), 12);
   onPlayerEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
   onPlayerEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
   onPlayerEvent(socket, 'endAction', (id) => action.waitAction(id), 4);

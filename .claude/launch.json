@@ -40,7 +40,7 @@
       ],
       "port": 3000,
       "env": {
-        "ECHO_DEV_START_ROUND": "51",
+        "ECHO_DEV_START_ROUND": "26",
         "ECHO_DEV_ACTION_TIME": "600"
       }
     }

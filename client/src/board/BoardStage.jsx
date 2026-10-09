@@ -22,6 +22,7 @@ import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
+import { nextZoom } from "./boardGeo";
 import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
@@ -82,12 +83,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     try { localStorage.setItem("echo.boardRotation", String(n)); } catch { /* ไม่มีที่เก็บ */ }
     return n;
   }), []);
-  // ซูม 2 ระดับ: 0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ค่าเริ่ม — ผู้ใช้ตัดสิน 2026-10-09) — จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน/ปุ่ม ＋－
+  // ซูม 3 ระดับ: 1 = มุมใกล้ (ค่าเริ่ม — ผู้ใช้ตัดสิน 2026-10-09) · 0 = มุมปกติ (เห็นทั้งกระดาน) · 2 = มองจากด้านบน (bird's-eye)
+  //  จำไว้ในเครื่องผู้เล่น · ล้อเมาส์บนกระดาน / ปุ่ม ＋ (ใกล้ขึ้น) － (ไกลขึ้น)
   const [zoom, setZoomState] = useState(() => {
-    try { return localStorage.getItem("echo.boardZoom") === "0" ? 0 : 1; } catch { return 1; }
+    try { const v = localStorage.getItem("echo.boardZoom"); return v === "0" ? 0 : v === "2" ? 2 : 1; } catch { return 1; }
   });
   const setZoom = useCallback((z) => {
-    const n = z ? 1 : 0;
+    const n = z === 1 || z === 2 ? z : 0;
     setZoomState(n);
     try { localStorage.setItem("echo.boardZoom", String(n)); } catch { /* ไม่มีที่เก็บ */ }
   }, []);
@@ -327,6 +329,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ตานี้จบ/เปลี่ยนคน = ล้างตีค้าง
   useEffect(() => { if (!myTurn) pendingAttack.current = null; }, [myTurn]);
 
+  // ช่องที่ไปได้จากจุดเริ่มตา (เดินทีละช่องด้วย W A S D · ไฮไลต์ฟ้าหลังขยับแล้ว)
+  const startReach = useMemo(() => {
+    if (!myTurn || !map || !action || action.locked || !action.from) return null;
+    return Rules.reachable(map, { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null }, me.mov || 0, ruleUnits, { isAlly, blocked });
+  }, [myTurn, map, action, me, ruleUnits, isAlly, blocked]);
+
   // ---------- ไฮไลต์ ----------
   const highlights = useMemo(() => {
     const h = {};
@@ -345,6 +353,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, { isAlly, blocked });
         h.move = [...z.move];
         h.attack = [...z.threat];
+      } else if (startReach) {
+        // ขยับแล้วแต่ยังไม่ล็อก (เดินด้วยคีย์บอร์ดต่อได้): ฟ้า = ช่องที่ไปได้จากจุดเริ่มตา · แดง = ตีถึงจากช่องที่ยืน
+        h.move = [...startReach.keys()];
+        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       } else {
         h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       }
@@ -368,7 +380,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked]);
+  }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked]);
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
@@ -427,53 +439,38 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const cancelForecast = useCallback(() => { clickSound(); setFcId(null); }, []);
 
   // ---------- เดินด้วยคีย์บอร์ด (ตาของเรา) ----------
-  //  W A S D อ่านจากตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็ใช้ได้ · เลื่อนช่องเป้าหมาย (ช่องที่เดินถึง หรือศัตรูที่ตีถึง) ตามทิศบนจอ
-  //  Enter / Space = เดินไปช่องนั้น (ทับศัตรู = เปิดหน้าคาดการณ์) · Esc = ยกเลิก · เมาส์ขยับ = กลับไปใช้ตำแหน่งเมาส์
-  const [kbCur, setKbCur] = useState(null);
-  const kbKey = `${myTurn}|${state.actorId}|${action && action.moved}`;
-  const [kbFor, setKbFor] = useState(kbKey);
-  if (kbKey !== kbFor) { setKbFor(kbKey); setKbCur(null); }
+  //  W A S D อ่านจากตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็ใช้ได้ · กดแล้วตัวละครก้าวทันที 1 ช่องตามทิศบนจอ (ไม่มีเส้นนำทาง)
+  //  ไปได้ทุกช่องที่อยู่ในระยะเดินจากจุดเริ่มตา (server ตรวจซ้ำ — move { step: true }) · ใช้สกิล/ไอเทม/ซื้อ/ตีแล้ว = ล็อก
+  const stepSent = useRef(null); // ก้าวที่ส่งไปแล้วแต่ state ยังไม่กลับมา (กันส่งซ้ำจากตำแหน่งเก่า)
   useEffect(() => {
     if (!myTurn || pick || fcId) return undefined;
     const onKey = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
-      const cur = kbCur || (hover && hover) || (me && me.pos) || null;
       const dir = screenDir(rotation, e.code);
-      if (dir && cur) {
-        e.preventDefault();
-        // ก้าวไปทางนั้นจนเจอช่องที่ไปได้ (ข้ามช่องที่เดินไม่ถึง สูงสุด 6 ช่อง)
-        for (let i = 1; i <= 6; i++) {
-          const nx = cur.x + dir.x * i, ny = cur.y + dir.y * i;
-          if (!Rules.inBounds(map, nx, ny)) break;
-          const reach = myReach && myReach.has(key(nx, ny));
-          const foe = state.players.find((p) => p.alive && p.pos && p.pos.x === nx && p.pos.y === ny);
-          if (reach || (foe && planFor(foe)) || (me.pos && nx === me.pos.x && ny === me.pos.y)) {
-            const t = { x: nx, y: ny };
-            setKbCur(t); setHover(t); look(t);
-            break;
-          }
-        }
-        return;
-      }
-      if ((e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") && kbCur) {
-        e.preventDefault();
-        const foe = state.players.find((p) => p.alive && samePos(p.pos, kbCur));
-        if (foe && foe.id !== me.id) { if (planFor(foe)) { clickSound(); setFcId(foe.id); } return; }
-        if (canMove && myReach && myReach.has(key(kbCur.x, kbCur.y)) && !samePos(kbCur, me.pos) && !anim) { clickSound(); socket.emit("move", { x: kbCur.x, y: kbCur.y }); setKbCur(null); }
-        return;
-      }
-      if (e.code === "Escape" && kbCur) { setKbCur(null); setHover(null); }
+      if (!dir) return;
+      e.preventDefault();
+      const sent = stepSent.current;
+      if (sent && (samePos(me.pos, sent.to) || performance.now() - sent.t > 700)) stepSent.current = null;
+      if (!startReach || !me.pos || stepSent.current) return;
+      const to = { x: me.pos.x + dir.x, y: me.pos.y + dir.y };
+      if (!startReach.has(key(to.x, to.y))) return;
+      stepSent.current = { to, t: performance.now() };
+      look(to);
+      socket.emit("move", { x: to.x, y: to.y, step: true });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [myTurn, pick, fcId, kbCur, hover, me, rotation, map, myReach, state.players, planFor, canMove, anim, look]);
+  }, [myTurn, pick, fcId, me, rotation, startReach, look]);
 
-  // Esc = ออกจากโหมดเลือกเป้า
+  // โหมดเลือกเป้า (ผู้ใช้สั่ง 2026-10-09): เลือกเป้า = คลิกคน/ตัวเองบนกระดาน · สกิลหมู่ = คลิกในพื้นที่ซ้ำเพื่อใช้
+  //  ยกเลิก = ปุ่มยกเลิกกลางล่าง / Esc / คลิกขวา
   useEffect(() => {
     if (!pick || !pick.onCancel) return undefined;
     const onKey = (e) => { if (e.key === "Escape") pick.onCancel(); };
+    const onCtx = (e) => { e.preventDefault(); pick.onCancel(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("contextmenu", onCtx);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("contextmenu", onCtx); };
   }, [pick]);
 
   // ---------- ป้ายข้อมูลช่อง ----------
@@ -581,22 +578,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         document.body,
       )}
 
-      {/* โหมดเลือกเป้า */}
-      {pick && (
-        <div className="bs-pick">
-          <span className="bs-pick-label">{pick.label}</span>
-          {pick.kind === "aoe" && <button type="button" className="bs-btn bs-btn-gold" onClick={() => { clickSound(); pick.onConfirm(); }}>ใช้</button>}
-          {pick.kind === "target" && pickInfo && pickInfo.valid.size === 0 && <span className="bs-pick-none">ไม่มีเป้าในระยะ</span>}
-          <button type="button" className="bs-btn" onClick={() => { clickSound(); pick.onCancel(); }}>ยกเลิก</button>
-        </div>
+
+      {/* โหมดเลือกเป้า: เหลือแค่ปุ่มยกเลิก (ผู้ใช้สั่ง — เลือก/ใช้ทำบนกระดาน) */}
+      {pick && pick.onCancel && (
+        <button type="button" className="bs-cancel" onClick={() => { clickSound(); pick.onCancel(); }}>✕ ยกเลิก</button>
       )}
 
       {/* ปุ่มระยะอันตราย + หมุนกระดาน + ซูม */}
       <div className="bs-tools">
         <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
         <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
-        <button type="button" className="bs-tool" data-on={zoom ? "true" : "false"} title={zoom ? "ซูมออก" : "ซูมเข้า"}
-          onClick={() => { clickSound(); if (!zoom && me && me.pos) look(me.pos); setZoom(zoom ? 0 : 1); }}>{zoom ? "－" : "＋"}</button>
+        <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom === 1}
+          onClick={() => { clickSound(); const n = nextZoom(zoom, 1); if (n === 1 && me && me.pos) look(me.pos); setZoom(n); }}>＋</button>
+        <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 2} data-on={zoom === 2 ? "true" : "false"}
+          onClick={() => { clickSound(); setZoom(nextZoom(zoom, -1)); }}>－</button>
         <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
           ระยะอันตราย
         </button>

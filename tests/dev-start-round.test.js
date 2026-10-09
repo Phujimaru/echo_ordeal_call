@@ -34,11 +34,11 @@ test('ไม่ตั้ง env: เริ่มเทิร์น 1 บนก�
   assert.equal(A.gold, 0);
 });
 
-test('ECHO_DEV_START_ROUND=21: เทิร์นแรกคือ 21 บนกระดานภูมิภาค III · ECHO_DEV_RICH=1 เหรียญ/แต้มเต็ม', () => {
-  process.env.ECHO_DEV_START_ROUND = '21';
+test('ECHO_DEV_START_ROUND=11: เทิร์นแรกคือ 11 บนกระดานภูมิภาค III · ECHO_DEV_RICH=1 เหรียญ/แต้มเต็ม', () => {
+  process.env.ECHO_DEV_START_ROUND = '11';
   process.env.ECHO_DEV_RICH = '1';
   const { A, B } = start();
-  assert.equal(engine.roundNumber, 21);
+  assert.equal(engine.roundNumber, 11);
   assert.equal(engine.buildStateFor('A').board.area, 3);
   for (const p of [A, B]) {
     assert.ok(p.pos, 'ได้จุดเกิดบนกระดานภูมิภาคใหม่');

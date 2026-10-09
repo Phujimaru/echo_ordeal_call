@@ -14,8 +14,9 @@
 //               เปลี่ยนค่า = หมุนนุ่มๆ ≈250ms (lowQ = ทันที) · กล้องจัดกลาง/ย่อพอดีจาก map.cols × map.rows หลังหมุนเอง
 //               (กระดานจัตุรัส เช่น 14 × 14 = ทุกมุมกรอบเท่ากัน) · มุมใกล้ = หมุนรอบจุดกลางของส่วนที่มองเห็น
 //   zoom        0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ขยาย ZOOM_K = 1.6 เท่า เลื่อนดูได้ทั้งสนาม) — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
+//               2 = มองจากด้านบน (bird's-eye · กล้องตั้งฉาก 90° เห็นทั้งกระดาน — ลำดับจากใกล้ไปไกล: 1 → 0 → 2)
 //               มุมใกล้: ลากเมาส์ซ้ายบนกระดาน (เกิน 6px = ลาก ไม่นับเป็นคลิก) / ลากปุ่มขวา-กลาง / แตะลาก / ปุ่มลูกศร = เลื่อนกล้อง
-//   onZoomChange(0|1)  ล้อเมาส์ขึ้น = 1 (ซูมเข้าหาจุดใต้เมาส์) · ลง = 0 — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
+//   onZoomChange(0|1|2)  ล้อเมาส์ขึ้น = ใกล้ขึ้นหนึ่งขั้น (ซูมเข้าหาจุดใต้เมาส์) · ลง = ไกลขึ้นหนึ่งขั้น — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
 //   focus       {x,y} — เปลี่ยนอ็อบเจกต์ = ถ้าช่องนั้นอยู่นอกส่วนที่มองเห็น (มุมใกล้) เลื่อนกล้องนุ่มๆ ไปให้อยู่กลาง ·
 //               ใช้เป็นจุดกลางตอนกดซูมเข้าด้วยปุ่มด้วย (ซูมด้วยล้อ = จุดใต้เมาส์) · มุมปกติไม่มีผล
 //   shopLabel   string|number|null — ป้าย "🏪 N" เหนือแผงร้าน (วาดในแคนวาส ตามซูม/เลื่อน/หมุนเอง)
@@ -38,6 +39,7 @@ import {
   unproject, ZOOM_K,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
+import { PITCH_BIRD, PITCH_NORMAL, nextZoom, setPitch } from "./boardGeo";
 
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
@@ -189,6 +191,9 @@ export default function BoardCanvas(props) {
         if (pr >= 1) { st.turnTo = ((st.turnTo % 4) + 4) % 4; st.turn = st.turnFrom = st.turnTo; }
         else { turning = true; mix = ease(pr); st.turn = st.turnFrom + (st.turnTo - st.turnFrom) * mix; }
       }
+      // --- มุมกล้อง: มองจากด้านบน = 90° (ชั้นอบแยกตามมุม)
+      const pitch = p.zoom === 2 ? PITCH_BIRD : PITCH_NORMAL;
+      setPitch(pitch);
       // --- กล้องมุมใกล้ (ซูม/เลื่อน) — คำนวณในพิกัดตรรกะของเฟรมปกติ
       setCamera(info, st.turn);
       const dt = Math.min(50, now - (st.lastT || now));
@@ -198,7 +203,7 @@ export default function BoardCanvas(props) {
         st.camAnim = { from: { ...st.cam }, to, t0: now, dur };
       };
       const focusPt = (f) => (f && Number.isFinite(f.x) && Number.isFinite(f.y) ? project(f.x + 0.5, f.y + 0.5) : null);
-      const zl = p.zoom ? 1 : 0;
+      const zl = p.zoom === 1 ? 1 : 0;
       // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
       const cin = p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
       if (cin !== st.cinemaRef) {
@@ -264,7 +269,7 @@ export default function BoardCanvas(props) {
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
-        const par = normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}`;
+        const par = normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}`;
         let sc = st.scenes.get(sk);
         if (!sc) {
           sc = bakeScene(info, base, res, night, lowQ, par);
@@ -278,7 +283,7 @@ export default function BoardCanvas(props) {
       const scFrom = turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
       if (!turning) {
-        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${normRot(st.turn)}`;
+        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${normRot(st.turn)}|${pitch}`;
         boardCv = st.boards.get(bk);
         if (!boardCv) {
           boardCv = bakeBoard(info, base, res, night, normRot(st.turn));
@@ -381,9 +386,10 @@ export default function BoardCanvas(props) {
       const pp = propsRef.current, cb = pp.onZoomChange;
       if (typeof cb !== "function" || e.ctrlKey || !e.deltaY) return;
       e.preventDefault();
-      const want = e.deltaY < 0 ? 1 : 0;
-      if (want === (pp.zoom ? 1 : 0)) return;
-      if (want && st.view) {
+      const cur = pp.zoom === 1 || pp.zoom === 2 ? pp.zoom : 0;
+      const want = nextZoom(cur, e.deltaY < 0 ? 1 : -1);
+      if (want === cur) return;
+      if (want === 1 && st.view) {
         const r = cv.getBoundingClientRect(), [lx, ly] = toLogical(st.view, e.clientX - r.left, e.clientY - r.top);
         st.zoomAnchor = { lx, ly, t: performance.now() };
       }
@@ -393,7 +399,7 @@ export default function BoardCanvas(props) {
     // ปุ่มลูกศร = เลื่อนกล้อง (มุมใกล้เท่านั้น · ค้างไว้ = เลื่อนต่อเนื่อง)
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKeyDown = (e) => {
-      if (!ARROWS[e.code] || !propsRef.current.zoom || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!ARROWS[e.code] || propsRef.current.zoom !== 1 || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด
       if (!e.repeat && !st.keys.has(e.code)) {
@@ -451,7 +457,7 @@ export default function BoardCanvas(props) {
   const onPointerDown = (e) => {
     const st = S.current;
     st.suppressClick = false;
-    if (!propsRef.current.zoom || e.button > 2) return;
+    if (propsRef.current.zoom !== 1 || e.button > 2) return;
     if (e.button === 1) e.preventDefault(); // กันเมาส์กลางเลื่อนหน้าอัตโนมัติ
     st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button };
     try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
@@ -469,7 +475,7 @@ export default function BoardCanvas(props) {
     setHover(tile, unit ? unit.id : null);
     const p = propsRef.current, hl = st.hl, k = tile ? key(tile.x, tile.y) : null;
     const hot = !!unit || (k && (hl.move.has(k) || hl.attack.has(k) || hl.skill.has(k) || hl.aoe.has(k)));
-    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : p.zoom ? "grab" : "default";
+    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : p.zoom === 1 ? "grab" : "default";
   };
   useLayoutEffect(() => {
     S.current.refreshHover = () => { const st = S.current; if (st.ptr && !(st.drag && st.drag.moved)) hoverAt(st.ptr); };
@@ -503,7 +509,7 @@ export default function BoardCanvas(props) {
     <div ref={wrapRef} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas
         ref={cvRef}
-        style={{ display: "block", width: "100%", height: "100%", touchAction: props.zoom ? "none" : "manipulation" }}
+        style={{ display: "block", width: "100%", height: "100%", touchAction: props.zoom === 1 ? "none" : "manipulation" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

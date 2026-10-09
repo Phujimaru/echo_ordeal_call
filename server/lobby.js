@@ -262,7 +262,7 @@ function startMatch() {
   if (process.env.ECHO_DEV_RICH === "1") {
     for (const p of Object.values(match.players)) { p.gold = shop.goldCapOf(p); p.skillPoints = combat.maxSkillOf(p); }
   }
-  // เครื่องมือ dev: ECHO_DEV_START_ROUND=21 = เริ่มแมตช์ที่เทิร์นนั้น (ทดสอบภูมิภาค II–VII โดยไม่ต้องเล่นยาว)
+  // เครื่องมือ dev: ECHO_DEV_START_ROUND=11 = เริ่มแมตช์ที่เทิร์นนั้น (11 = ภูมิภาค III · ภูมิภาคละ 5 เทิร์น) (ทดสอบภูมิภาค II–VII โดยไม่ต้องเล่นยาว)
   //  ไม่ตั้ง env = เริ่มเทิร์น 1 ภูมิภาค I ตามปกติ
   const startRound = devStartRound();
   match.roundNumber = startRound - 1;

@@ -27,7 +27,7 @@ const CHARS = {
     },
     ultimate: {
       name: "ดาบสะบั้นหอคอยสวรรค์", cost: 8, img: "/characters/muimi/muimi_skill3.webp", area: { kind: "line", len: 4, width: 3 },
-      desc: "เลือกทิศ: ได้ “ดาบสะบั้น” 2 เทิร์น (โจมตีพื้นฐาน +3 · ตีปกติฟื้นพลังชีวิต 2) แล้วปล่อยคลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว เท่าพลังโจมตี (เกราะรับก่อน · หลบได้ · ไม่โดนเพื่อน) · ได้ต้านสถานะผิดปกติ 3 เทิร์น · ใช้ไม่ได้ระหว่าง “ดาบเก่าๆ” · หมดแล้วรอ 5 เทิร์นถึงใช้ซ้ำได้",
+      desc: "เลือกทิศ: ได้ “ดาบสะบั้น” 2 เทิร์น (โจมตีพื้นฐาน +1 · ตีปกติฟื้นพลังชีวิต 2) แล้วปล่อยคลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว เท่าพลังโจมตี +3 (เกราะรับก่อน · หลบได้ · ไม่โดนเพื่อน) · ได้ต้านสถานะผิดปกติ 3 เทิร์น · ใช้ไม่ได้ระหว่าง “ดาบเก่าๆ” · หมดแล้วรอ 3 เทิร์นถึงใช้ซ้ำได้",
     },
   },
   oberon_summer: {
@@ -134,9 +134,10 @@ function boardPublic(area) {
   return { area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal], spawns: m.spawns, shopSpots: m.shopSpots };
 }
 
-// เทิร์นที่ตรงกับภูมิภาค + กลางวัน/กลางคืน (ภูมิภาคละ 10 เทิร์น · สลับวัน/คืนทุก 5 เทิร์น)
+// เทิร์นที่ตรงกับภูมิภาค + กลางวัน/กลางคืน (ภูมิภาคละ 5 เทิร์น · สลับวัน/คืนทุก 3 เทิร์น) — [กลางวัน, กลางคืน]
+const ROUND_FOR = { 1: [2, 4], 2: [8, 10], 3: [13, 11], 4: [19, 17], 5: [21, 23], 6: [26, 29], 7: [31, 34] };
 function roundFor(area, night) {
-  return (area - 1) * 10 + (night ? 7 : 3);
+  return ROUND_FOR[area][night ? 1 : 0];
 }
 
 // พลังโจมตีปกติแบบคร่าวๆ (ฐาน 1 + โจมตีขึ้น) — ใช้แทน estimateAttackOn ของ server
@@ -364,7 +365,7 @@ export function buildMockState(opts) {
     cycle: night ? "night" : "day",
     journey: {
       area, night, name: a.name, passive: a.passive, day: a.day, nightDesc: a.night,
-      turnsLeft: area < 7 ? 10 - ((round - 1) % 10) : null,
+      turnsLeft: area < 7 ? 5 - ((round - 1) % 5) : null,
       scene: null,
     },
     maxPlayers: 7,
@@ -449,11 +450,19 @@ export function simulateEmit(prev, ev, payload = {}) {
       me.locked = true;
       return { state: s };
     case "move": {
-      if (!myTurn || prev.action.moved || prev.action.locked) return { state: prev };
-      const reach = Rules.reachable(map, { id: me.id, ...me.pos }, me.mov, units(s), { isAlly: (a, b) => teamMode(s) && a.teamId && a.teamId === b.teamId, blocked: blockedOf(s) });
+      // step = เดินทีละช่องด้วย W A S D (เหมือน server/phases/action.js moveTo)
+      const step = payload.step === true;
+      if (!myTurn || prev.action.locked || (prev.action.moved && !step)) return { state: prev };
+      if (step && Rules.dist(me.pos, payload) !== 1) return { state: prev };
+      const reach = Rules.reachable(map, { id: me.id, ...s.action.from }, me.mov, units(s), { isAlly: (a, b) => teamMode(s) && a.teamId && a.teamId === b.teamId, blocked: blockedOf(s) });
       const node = reach.get(Rules.key(payload.x, payload.y));
-      if (!node || node.d === 0) return { state: prev };
-      s.action.path = Rules.pathTo(reach, payload.x, payload.y);
+      if (!node) return { state: prev };
+      if (node.d === 0) {
+        if (!step || !prev.action.moved) return { state: prev };
+        me.pos = { ...s.action.from }; s.action.moved = false; s.action.path = null;
+        return { state: s };
+      }
+      s.action.path = step ? [{ ...me.pos }, { x: payload.x, y: payload.y }] : Rules.pathTo(reach, payload.x, payload.y);
       me.pos = { x: payload.x, y: payload.y };
       s.action.moved = true;
       return { state: s };

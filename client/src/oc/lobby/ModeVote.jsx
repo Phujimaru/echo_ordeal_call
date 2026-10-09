@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { dirFromLonLat, regionDir, COLORS } from "../../globe/globeCore";
-import { JOURNEY_AREAS } from "../../journey/areas";
+import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas";
 import { OcButton, OcPanel } from "../ui";
 
 const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย" };
@@ -21,7 +21,7 @@ const JOURNEY = new Set(["ffa", "duo", "trio"]);
 const ORDER = ["ffa", "duo", "trio"];
 
 const modeTitle = (m) => MODE_TITLES[m] || m;
-const turnRange = (i, n) => (i === n - 1 ? `เทิร์น ${i * 10 + 1} ขึ้นไป` : `เทิร์น ${i * 10 + 1}–${i * 10 + 10}`);
+const turnRange = (i, n) => (i === n - 1 ? `เทิร์น ${i * T + 1} ขึ้นไป` : `เทิร์น ${i * T + 1}–${i * T + T}`);
 
 function useOptions(state) {
   const count = state.players.length;

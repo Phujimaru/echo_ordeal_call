@@ -17,7 +17,8 @@ import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
-import { DrawDock, HudCommand, BagButton, WatchChip, PhaseCall } from "./hud/HudPhases";
+import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
+import BagScreen from "./hud/BagScreen";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
 import { holdBoard } from "../board/boardPause";
@@ -644,7 +645,7 @@ function ModalMounts({
   statusView, statusViewIsSelf, onCloseStatus,
   shopOpen, shop, onCloseShop, shopBlock, shopTurnsLeft,
   bagOpen, onCloseBag, players, gameState, roundNumber, onPickGunAmmo,
-  myTurn, bagSlots, onPickSuit,
+  myTurn, bagSlots, onPickSuit, newBag = false,
   skillConfirm, onConfirmSkill, onCancelSkill,
 }) {
   return (
@@ -652,7 +653,8 @@ function ModalMounts({
       {showChar && ch && <CharModal ch={ch} me={me} onClose={onCloseChar} />}
       {statusView && <StatusModal p={statusView} statusOnly={statusViewIsSelf} onClose={onCloseStatus} />}
       {shopOpen && <ShopModal shop={shop} me={me} block={shopBlock} turnsLeft={shopTurnsLeft} onClose={onCloseShop} />}
-      {bagOpen && <InventoryModal me={me} players={players} gameState={gameState} roundNumber={roundNumber} onPickGunAmmo={onPickGunAmmo} myTurn={myTurn} bagSlots={bagSlots} onPickSuit={onPickSuit} onClose={onCloseBag} />}
+      {bagOpen && newBag && <BagScreen me={me} players={players} roundNumber={roundNumber} myTurn={myTurn} bagSlots={bagSlots} onPickGunAmmo={onPickGunAmmo} onPickSuit={onPickSuit} onClose={onCloseBag} />}
+      {bagOpen && !newBag && <InventoryModal me={me} players={players} gameState={gameState} roundNumber={roundNumber} onPickGunAmmo={onPickGunAmmo} myTurn={myTurn} bagSlots={bagSlots} onPickSuit={onPickSuit} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <GutsVideoPreloader me={me} players={players} />
     </>
@@ -776,7 +778,7 @@ const STATUS_INFO = {
   netramana:   { icon: "✨", label: "เนตรมณะ", cls: "bg-echo-ice text-gray-900", desc: "เนตรมณะ: ตีปกติ 20% สังหารทันที · เป็นบัฟ (ยาต้านสถานะล้างไม่ได้) · ซ้อนกับโอกาสสังหารของตัวละครได้" },
   stagger: { icon: "🫨", label: "ชะงัก", cls: "bg-echo-hp", desc: "ชะงัก: ฟื้นฟูแต้มสกิลไม่ได้ทุกช่องทาง ตามจำนวนเทิร์นที่เหลือ" },
   muimiRusty: { icon: "🗡️", label: "ดาบเก่าๆ", cls: "bg-echo-armor", desc: "ดาบเก่าๆ: เมื่อโจมตีปกติจะฟื้นพลังชีวิต 1 หน่วย และแต้มสกิล 1 หน่วย — ระหว่างสถานะนี้ใช้ดาบสะบั้นหอคอยสวรรค์ไม่ได้" },
-  muimiTower: { icon: "⚔️", label: "ดาบสะบั้น", cls: "bg-echo-ice text-gray-900", desc: "ดาบสะบั้น: โจมตีพื้นฐาน +3 · ตีปกติฟื้นพลังชีวิต 2 และยืดสถานะ +1 เทิร์น" },
+  muimiTower: { icon: "⚔️", label: "ดาบสะบั้น", cls: "bg-echo-ice text-gray-900", desc: "ดาบสะบั้น: โจมตีพื้นฐาน +1 · ตีปกติฟื้นพลังชีวิต 2 และยืดสถานะ +1 เทิร์น" },
   mend:      { icon: "💚", label: "เยียวยา", cls: "bg-echo-armor", desc: "เยียวยา: ต้นเทิร์นฟื้นพลังชีวิตเท่ากับจำนวนหน่วยที่ระบุ (1 หน่วย = 1 พลังชีวิต) — ซ้อนทับจำนวนเทิร์นได้สูงสุด 5 เทิร์น" },
   blind:     { icon: "🕶️", label: "ตาบอด", cls: "bg-echo-hp", desc: "ตาบอด: มองไม่เห็นอะไรเลยทั้งเทิร์น — ไพ่ แต้ม พลังงาน พลังชีวิต และเกราะของทุกคนรวมทั้งของตัวเอง ถูกปิดหมด" },
   // โอเบรอน (ฤดูร้อน)
@@ -798,7 +800,7 @@ function statusEntries(p, full) {
     out.push({ key: k, v, amt, ...info });
   }
   if ((p.muimiUltCd || 0) > 0) {
-    out.push({ key: "muimiUltCd", v: p.muimiUltCd, icon: "⏳", label: `ดาบสะบั้นพักฟื้น ${p.muimiUltCd} เทิร์น`, cls: "bg-white/20", desc: "ดาบสะบั้นหมดเวลาแล้ว — ต้องรอให้ครบ 5 เทิร์นจึงใช้ดาบสะบั้นหอคอยสวรรค์ซ้ำได้ (ตัวเลขนี้ขึ้นทับบนการ์ดสกิลด้วย) · คุณเห็นอยู่คนเดียว" });
+    out.push({ key: "muimiUltCd", v: p.muimiUltCd, icon: "⏳", label: `ดาบสะบั้นพักฟื้น ${p.muimiUltCd} เทิร์น`, cls: "bg-white/20", desc: "ดาบสะบั้นหมดเวลาแล้ว — ต้องรอให้ครบ 3 เทิร์นจึงใช้ดาบสะบั้นหอคอยสวรรค์ซ้ำได้ (ตัวเลขนี้ขึ้นทับบนการ์ดสกิลด้วย) · คุณเห็นอยู่คนเดียว" });
   }
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
@@ -1121,7 +1123,8 @@ function ShopModal({ shop, me, block, turnsLeft, onClose }) {
                 >
                   <ItemIcon info={info} className="text-3xl h-12 w-12" />
                   <div className="av-heading text-xs leading-tight">{info.label(it)}</div>
-                  <div className="text-[11px] leading-snug line-clamp-3" style={{ color: "rgba(234,243,252,.6)" }}>{info.desc}</div>
+                  {/* คำอธิบายย่อ (ผู้ใช้สั่ง 2026-10-09 · ฉบับเต็มชี้ค้างดูได้) */}
+                  {info.short && <div className="text-xs leading-snug" style={{ color: "rgba(234,243,252,.68)" }} title={info.desc}>{info.short}</div>}
                   <div className="mt-auto w-full flex flex-col items-center gap-2 pt-2">
                     <div className="av-label" style={{ fontSize: "0.7rem" }}>
                       🪙 {it.price}
@@ -1634,6 +1637,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
+  const [deckTab, setDeckTab] = useState(false);     // แถบกองการ์ดกลาง (จอคอม): หุบไว้เป็นค่าเริ่ม
   const shopAutoShown = useRef(-1);                  // จำรอบร้านค้าที่เด้งอัตโนมัติไปแล้ว (กันเด้งซ้ำ)
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
@@ -2148,9 +2152,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  ความกว้างฐานขั้นต่ำ 1376 = ซ้าย+กลาง+ขวาเรียงได้ไม่ชนกัน (จอแคบ/4:3 จึงย่อตามความกว้าง)
   const hudZ = Math.min(1.6, Math.max(0.6, Math.min(vp.h / 810, vp.w / 1376)));
   const inBoardTurn = phase === "ORDER" || phase === "ACTION" || phase === "ATTACKING";
-  // HUD แยกตามช่วง: ช่วงจั่ว = เหลือแค่ไพ่/แต้ม/จั่ว-พอ · ตาเรา = สกิล + ช่องคำสั่ง · อื่นๆ = ดูอย่างเดียว (+ ป้ายตาของใคร)
+  // HUD แยกตามช่วง: ช่วงจั่ว = เหลือแค่ไพ่/แต้ม/จั่ว-พอ · ตาเรา = สกิล + ช่องคำสั่ง · อื่นๆ = ดูอย่างเดียว (คนที่กำลังเดินแสดงที่บนกลางแล้ว — ไม่ซ้ำข้างล่าง)
   const hudMode = phase === "PLAYING" ? "draw" : myTurn ? "turn" : "watch";
-  const watchActor = (phase === "ACTION" || phase === "ATTACKING") && state.actorId && state.actorId !== me?.id ? state.players.find((p) => p.id === state.actorId) : null;
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
@@ -2160,9 +2163,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
-      {/* กองการ์ดกลาง: ขอบซ้ายกลางจอ (การ์ดบินออกจากตรงนี้ไปมือเรา/แถบลำดับเดิน) */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-[18]">
-        <DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} />
+      {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
+      <div className="deck-drawer" data-open={deckTab ? "true" : "false"}>
+        <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
+        <button type="button" className="deck-drawer-tab" aria-expanded={deckTab} aria-label="กองการ์ดกลาง" onClick={() => { clickSound(); setDeckTab((v) => !v); }}>
+          <span className="deck-drawer-ico" aria-hidden="true" /><span className="deck-drawer-arrow" aria-hidden="true">{deckTab ? "◂" : "▸"}</span>
+        </button>
       </div>
       {deckOpen && <DeckLedgerModal ledger={state.deckLedger || []} onClose={() => setDeckOpen(false)} />}
 
@@ -2235,8 +2241,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 onClick: () => { clickSound(); socket.emit("lock"); },
               }}
             />
-          ) : hudMode === "watch" && watchActor ? (
-            <WatchChip name={watchActor.name} color={watchActor.color} />
           ) : <span />}
           right={hudMode === "turn" ? (
             <HudCommand
@@ -2280,7 +2284,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
         shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
-        myTurn={myTurn} bagSlots={state.bagSlots} onPickSuit={startSuitPick}
+        myTurn={myTurn} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}

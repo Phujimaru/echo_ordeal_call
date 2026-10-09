@@ -118,6 +118,9 @@ test('คลื่นดาบมุยมิ: ต้องเลือกทิ
   assert.equal(P.B.hp, 1, 'แนวกว้าง 3 · ยาว 4 (y 8..5)');
   assert.equal(P.C.hp, 5, 'ยาวเกิน 4 ช่อง');
   assert.equal(P.D.hp, 5, 'นอกแนวด้านข้าง');
+  // เนิฟ: โบนัส +3 เป็นของคลื่นดาบเท่านั้น — ตีปกติหลังจากนั้นระหว่างดาบสะบั้นได้แค่ +1
+  assert.equal(engine.attackPowerAgainst(P.M, P.D), 1 + muimi.TOWER_ATK_BONUS);
+  assert.equal(muimi.TOWER_ATK_BONUS, 1);
   assert.equal(engine.action.locked, true);
   assert.equal(engine.moveTo('M', 7, 10), false);
 });

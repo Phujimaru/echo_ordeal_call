@@ -75,14 +75,14 @@ test('ผลสนาม: ป่าไม้ต้องสาปกลางว
   const P = setup(2, { A: { x: 7, y: 3 }, B: { x: 6, y: 3 } });
   const round = engine.roundNumber;
   try {
-    engine.setRoundNumber(21);
+    engine.setRoundNumber(13);
     assert.deepEqual(Journey.current(engine), { area: 3, night: false });
     noRandom();
     assert.equal(Journey.attackMissPct(engine), Journey.FOREST_ATK_MISS_PCT);
     assert.equal(attack.estimateHitOn(P.A, P.B), 100 - Journey.FOREST_ATK_MISS_PCT);
     assert.equal(attack.estimateCritOf(P.A, P.B), 0);
     Math.random = realRandom;
-    engine.setRoundNumber(51);
+    engine.setRoundNumber(26);
     assert.deepEqual(Journey.current(engine), { area: 6, night: false });
     noRandom();
     assert.equal(attack.estimateHitOn(P.A, P.B), 100);

@@ -116,7 +116,7 @@ export default function HudPreview() {
             night={night}
             round={3}
             timer={<MockTimer />}
-            journey={{ ...a, name: a.name, turnsLeft: 7 }}
+            journey={{ ...a, name: a.name, turnsLeft: 3 }}
             onJourney={() => {}}
           />
           {target && (

@@ -23,12 +23,21 @@ export const parseKey = (k) => String(k).split(",").map(Number);
 //    - ฉาก (x, y)        = กรอบสี่เหลี่ยมตามแนวจอขนาดเท่ากระดานหลังหมุน (มุม 0 = เหมือนพิกัดกระดาน) · PS(x, y, z)
 //                          ใช้กับของรอบนอก (ลายพื้น ต้นไม้ข้างกระดาน) ที่ไม่หมุนตามกระดาน
 //  ซูม/เลื่อนกล้อง (มุมใกล้) ไม่ยุ่งกับไฟล์นี้ — เป็นการขยายภาพ 2 มิติทั้งเฟรมใน computeView (cam)
-const PITCH = 32 * Math.PI / 180, SN = Math.sin(PITCH), CS = Math.cos(PITCH); // ผู้ใช้เลือก 32° (2026-10-09 · เดิม 38°) = เงยขึ้น เห็นมิติลึกกว่า
+//  มุมกล้อง: ปกติ 32° (ผู้ใช้เลือก 2026-10-09 · เดิม 38°) · มุมมองจากด้านบน (bird's-eye) = 90° — setPitch() สลับได้ระหว่างเล่น
+export const PITCH_NORMAL = 32, PITCH_BIRD = 90;
+let PITCH_DEG = PITCH_NORMAL, SN = 0, CS = 0, FOC0 = 0, FAR0 = 0;
 const CAM_D = 22;
 export const NEAR_Y = 528;
 export const OX = 640;
 // ขอบไกลของกระดานลึก 12 ช่อง (ครึ่งลึก 6) ตามต้นแบบ 16 × 12 — กระดานที่ลึกกว่ายอมให้ขอบไกลสูงขึ้นช่องละ 7.5 px แล้วย่อกล้องให้พอดี
-const FOC0 = 66.25 * (CAM_D - 6 * CS), FAR0 = NEAR_Y - 6 * SN * 66.25 - 6 * SN * FOC0 / (CAM_D + 6 * CS);
+function setTrig() {
+  const a = PITCH_DEG * Math.PI / 180;
+  SN = Math.sin(a); CS = Math.abs(Math.cos(a)) < 1e-9 ? 0 : Math.cos(a);
+  FOC0 = 66.25 * (CAM_D - 6 * CS); FAR0 = NEAR_Y - 6 * SN * 66.25 - 6 * SN * FOC0 / (CAM_D + 6 * CS);
+}
+setTrig();
+// มองจากด้านบน: ขอบไกลอยู่สูงขึ้นมาใต้แถบบน (กระดานเป็นสี่เหลี่ยมตรงๆ ใช้ความสูงจอได้เต็มกว่า)
+const BIRD_FAR_Y = 70;
 // ขอบใกล้กว้างได้ไม่เกินนี้ (กระดานกว้างมาก = ย่อกล้องเพิ่ม ขอบไกลต่ำลง) · 16 × 12 = 1060 ไม่ถึง
 const MAX_NEAR_W = 1140;
 let BC = 16, BR = 12, TH = 0, cT = 1, sT = 0, HCe = 8, HRe = 6, FOC = FOC0, OY = NEAR_Y - 6 * SN * 66.25;
@@ -39,9 +48,18 @@ function fit() {
   if (Math.abs(sT) < 1e-9) sT = 0;
   HCe = Math.abs(cT) * BC / 2 + Math.abs(sT) * BR / 2;
   HRe = Math.abs(sT) * BC / 2 + Math.abs(cT) * BR / 2;
-  const dn = Math.max(1, CAM_D - HRe * CS), df = CAM_D + HRe * CS, farY = FAR0 - (HRe - 6) * 7.5;
+  const dn = Math.max(1, CAM_D - HRe * CS), df = CAM_D + HRe * CS, farY = PITCH_DEG >= 80 ? BIRD_FAR_Y : FAR0 - (HRe - 6) * 7.5;
   FOC = Math.min((NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df)), MAX_NEAR_W * dn / (2 * HCe));
   OY = NEAR_Y - HRe * SN * FOC / dn;
+}
+// มุมกล้อง (องศา) — 32 = ปกติ · 90 = มองจากด้านบน
+export function setPitch(deg) { if (deg !== PITCH_DEG) { PITCH_DEG = deg; setTrig(); fit(); } }
+export const pitchOf = () => PITCH_DEG;
+// ขั้นซูมของกล้อง จากไกลไปใกล้: มองจากด้านบน (2) → ปกติ (0) → ใกล้ (1) · dir +1 = ใกล้ขึ้น · −1 = ไกลขึ้น
+export const ZOOM_ORDER = [2, 0, 1];
+export function nextZoom(cur, dir) {
+  const i = ZOOM_ORDER.indexOf(cur), j = Math.max(0, Math.min(ZOOM_ORDER.length - 1, (i < 0 ? 1 : i) + dir));
+  return ZOOM_ORDER[j];
 }
 // ขนาดกระดาน (ช่อง) — อ่านจากแผนที่ (map.cols × map.rows)
 export function setBoardSize(cols, rows) { if (cols !== BC || rows !== BR) { BC = cols; BR = rows; fit(); } }

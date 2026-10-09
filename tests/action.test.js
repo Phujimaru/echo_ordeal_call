@@ -81,6 +81,23 @@ test('ตาเดิน: เดินได้ไม่เกินระยะ
   assert.equal(engine.moveTo('A', 6, 8), true, 'ย้อนแล้วเลือกใหม่ได้');
 });
 
+test('ตาเดิน: เดินทีละช่องด้วยคีย์บอร์ด (step) — อยู่ในระยะจากจุดเริ่มตา · กลับจุดเริ่ม = ย้อน', () => {
+  const P = setup();
+  P.A.pos = { x: 7, y: 9 }; P.B.pos = { x: 0, y: 4 }; P.C.pos = { x: 13, y: 4 };
+  startActions(['A', 'B', 'C']);
+  const step = (x, y) => engine.moveTo('A', x, y, { step: true });
+  assert.equal(step(7, 7), false, 'step ต้องเป็นช่องติดกัน');
+  for (let y = 8; y >= 5; y--) assert.equal(step(7, y), true, `ก้าวไป y=${y}`);
+  assert.deepEqual(P.A.pos, { x: 7, y: 5 });
+  assert.deepEqual(engine.action.path, [{ x: 7, y: 6 }, { x: 7, y: 5 }], 'เส้นทางแอนิเมชัน = ก้าวล่าสุด');
+  assert.equal(step(7, 4), false, 'เกินระยะเดิน 4 จากจุดเริ่มตา');
+  assert.equal(step(7, 6), true, 'ถอยกลับได้');
+  assert.equal(engine.moveTo('A', 7, 5), false, 'เดินแบบคลิกหลังขยับแล้วยังทำไม่ได้ (ต้องย้อนก่อน)');
+  for (let y = 7; y <= 9; y++) assert.equal(step(7, y), true);
+  assert.deepEqual(P.A.pos, { x: 7, y: 9 });
+  assert.equal(engine.action.moved, false, 'กลับจุดเริ่ม = ย้อนการเดิน');
+});
+
 test('ตาเดิน: ใช้สกิลแล้วเดินไม่ได้อีก (ยังโจมตีได้) · ย้อนการเดินก็ไม่ได้', () => {
   const P = setup(['A', 'B'], 'oberon_summer');
   P.A.pos = { x: 7, y: 9 }; P.B.pos = { x: 7, y: 7 };

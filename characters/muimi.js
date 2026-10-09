@@ -8,8 +8,11 @@ const EMERGENCY_USES = 2;
 const RUSTY_TURNS = 3;
 const TOWER_TURNS = 2;
 const RESIST_TURNS = 3;
-const TOWER_ATK_BONUS = 3;
-const ULT_COOLDOWN_TURNS = 5;
+// เนิฟ (ผู้ใช้สั่ง 2026-10-09): ตีปกติระหว่างดาบสะบั้น +3 → +1 · คูลดาวน์ท่าไม้ตาย 5 → 3 เทิร์น
+//  คลื่นดาบยังแรงเท่าเดิม (ฐาน 1 + 3 = 4) จึงแยกโบนัสของคลื่นออกจากโบนัสตีปกติ
+const TOWER_ATK_BONUS = 1;
+const WAVE_ATK_BONUS = 3;
+const ULT_COOLDOWN_TURNS = 3;
 
 const IMG = {
   base: "/characters/muimi/muimi.webp",
@@ -23,6 +26,9 @@ function isMuimi(p) { return !!p && p.characterId === ID; }
 function rustyActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiRusty) || 0) > 0; }
 function towerActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiTower) || 0) > 0; }
 
+// มุยมิที่กำลังปล่อยคลื่นดาบอยู่ (ตั้งเฉพาะช่วงลูปคลื่นดาบ) — damageBonus ใช้ WAVE_ATK_BONUS แทน TOWER_ATK_BONUS
+let waveStriker = null;
+
 module.exports = {
   id: ID,
   IMG,
@@ -31,6 +37,7 @@ module.exports = {
   TOWER_TURNS,
   RESIST_TURNS,
   TOWER_ATK_BONUS,
+  WAVE_ATK_BONUS,
   ULT_COOLDOWN_TURNS,
 
   rustyActive,
@@ -101,17 +108,22 @@ module.exports = {
       if (clip) { p.cutsceneShown[clip] = true; engine.queueCutscene(p, clip); }
       else engine.notifyTransform(p, "muimiUltimateShort");
       engine.log(`⚔️ ${p.name} ได้รับสถานะ “ดาบสะบั้น” ${TOWER_TURNS} เทิร์น และ “ต้านสถานะผิดปกติ” ${RESIST_TURNS} เทิร์น`);
-      // คลื่นดาบแนว 4×3 (GRID_PLAN §7.3): ลงผล "หลังวีดีโอจบ" พร้อมเสียงฟัน · พลังโจมตีรวม +3 ของดาบสะบั้นแล้ว · เฉพาะศัตรู
+      // คลื่นดาบแนว 4×3 (GRID_PLAN §7.3): ลงผล "หลังวีดีโอจบ" พร้อมเสียงฟัน · พลังโจมตี +WAVE_ATK_BONUS (แทน +TOWER_ATK_BONUS ของตีปกติ) · เฉพาะศัตรู
       //  มีศัตรูในแนวแต่หลบได้ทุกคน = เสียท่าไม้ตาย (ดาบสะบั้น + ต้านสถานะที่ได้) และเข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ
       //  แนวว่างไม่มีศัตรู = ได้ดาบสะบั้นตามปกติ (ไม่มีใครหลบ)
       engine.deferAfterCutscene(() => {
         let tried = 0, hits = 0;
-        for (const id of targets || []) {
-          const t = engine.players[id];
-          if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
-          tried++;
-          const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
-          if (!res.dodge) hits++;
+        waveStriker = p;
+        try {
+          for (const id of targets || []) {
+            const t = engine.players[id];
+            if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
+            tried++;
+            const res = engine.skillStrike(p, t, "คลื่นดาบสะบั้น");
+            if (!res.dodge) hits++;
+          }
+        } finally {
+          waveStriker = null;
         }
         engine.sfx("muimi_ub_hit");
         if (tried > 0 && hits === 0) {
@@ -127,6 +139,8 @@ module.exports = {
   },
 
   damageBonus(engine, attacker, target, ctx) {
+    // คลื่นดาบ: ไม่ใช่ตีปกติ จึงไม่ใส่ ctx.muimiTowerAtk (ป้ายนั้นใช้ในฉากตีปกติ)
+    if (isMuimi(attacker) && waveStriker === attacker) return WAVE_ATK_BONUS;
     if (!towerActive(attacker)) return 0;
     ctx.muimiTowerAtk = TOWER_ATK_BONUS;
     return TOWER_ATK_BONUS;

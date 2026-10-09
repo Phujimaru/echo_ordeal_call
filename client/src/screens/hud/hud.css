@@ -728,13 +728,6 @@
 .hc-solo { width: 220px; height: 70px; }
 .hc-solo b { font-size: 24px; }
 
-/* ---------- ตาคนอื่น ---------- */
-.hw-chip { display: flex; align-items: center; gap: 12px; padding: 11px 26px; margin-bottom: 8px; color: #fff; white-space: nowrap; background: rgba(16,34,66,.94);
-  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%); }
-.hw-chip b { font: 700 21px/1 "Chakra Petch", Kanit, sans-serif; }
-.hw-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pc); box-shadow: 0 0 10px var(--pc); animation: hwPulse 1.2s infinite; }
-@keyframes hwPulse { 50% { transform: scale(.6); opacity: .5; } }
-
 /* ---------- ฉากเปิดช่วงจั่วไพ่ ---------- */
 .dpc-call { position: fixed; inset: 0; z-index: 45; pointer-events: none; display: grid; place-items: center; animation: dpcOut 2s ease both; }
 @keyframes dpcOut { 0%, 78% { opacity: 1; } 100% { opacity: 0; } }
@@ -759,3 +752,75 @@
 .dpc-fan i:nth-child(2) { --a: 0deg; animation-delay: .17s; }
 .dpc-fan i:nth-child(3) { --a: 22deg; animation-delay: .24s; }
 @keyframes dpcCard { from { opacity: 0; transform: translateY(30px) rotate(0); } }
+
+/* ---------- กองการ์ดกลาง (จอคอม): แถบสไลด์ขอบซ้าย ค่าเริ่ม = หุบ · แท็บใหญ่พอกดง่าย (ผู้ใช้สั่ง) ---------- */
+.deck-drawer { position: absolute; left: 0; top: 50%; z-index: 18; display: flex; align-items: center; translate: 0 -50%; transform: translateX(-86px); transition: transform .35s cubic-bezier(.2,.9,.3,1); pointer-events: none; }
+.deck-drawer[data-open="true"] { transform: none; }
+.deck-drawer-pile { padding: 12px 12px 12px 16px; background: rgba(16,34,66,.92); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); pointer-events: auto; }
+.deck-drawer-tab { pointer-events: auto; width: 52px; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 0; cursor: pointer; color: #bee3f8;
+  background: linear-gradient(180deg, rgba(36,64,110,.95), rgba(16,34,66,.95)); box-shadow: inset -2px 0 0 rgba(127,184,230,.5);
+  clip-path: polygon(0 0, 100% 12px, 100% calc(100% - 12px), 0 100%); transition: background .2s, color .2s; }
+.deck-drawer-tab:hover { background: linear-gradient(180deg, rgba(61,95,143,.98), rgba(36,64,110,.98)); color: #fff; }
+.deck-drawer-ico { position: relative; width: 22px; height: 30px; border: 2.5px solid currentColor; border-radius: 4px; background: rgba(16,34,66,.9); }
+.deck-drawer-ico::before { content: ""; position: absolute; left: 4px; top: -8px; width: 22px; height: 30px; border: 2.5px solid currentColor; border-radius: 4px; opacity: .55; z-index: -1; }
+.deck-drawer-arrow { font-size: 16px; line-height: 1; }
+
+/* ============================================================
+   กระเป๋าแบบใหม่ (BagScreen.jsx) — ขนาดคงที่บนเวที 1920 × 1080 (ย่อด้วย --k) · กระจกกรมท่า ORDEAL CALL
+   ============================================================ */
+.bag-veil { position: fixed; inset: 0; z-index: 50; background: radial-gradient(70% 70% at 50% 50%, rgba(6,14,32,.55), rgba(6,14,32,.82)); animation: bagFade .2s ease both; }
+@keyframes bagFade { from { opacity: 0; } }
+.bag-stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--k, 1)); pointer-events: none; }
+.bag-panel { position: absolute; left: 400px; top: 200px; width: 1120px; height: 680px; pointer-events: auto; color: #eaf3fc; font-family: Kanit, "Chakra Petch", sans-serif;
+  background: linear-gradient(160deg, rgba(22,44,84,.97), rgba(10,24,50,.98)); clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px);
+  box-shadow: inset 0 0 0 1px rgba(127,184,230,.35); animation: bagIn .28s cubic-bezier(.2,1.1,.4,1) both; display: flex; flex-direction: column; }
+@keyframes bagIn { from { opacity: 0; transform: translateY(30px) scale(.97); } }
+.bag-panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(127,184,230,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(127,184,230,.05) 1px, transparent 1px); background-size: 40px 40px; }
+.bag-panel::after { content: ""; position: absolute; left: 28px; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, #7fb8e6, #c99ad6 55%, transparent); }
+.bag-head { position: relative; display: flex; align-items: center; gap: 16px; height: 92px; padding: 0 30px 0 40px; border-bottom: 1px solid rgba(127,184,230,.2); flex: none; }
+.bag-head-ico { width: 54px; height: 62px; display: grid; place-items: center; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, #7fb8e6, #3d8bd9 55%, #1f4f8f); }
+.bag-head-ico svg { width: 30px; height: 30px; }
+.bag-head-ico svg * { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.bag-title { font: 700 36px/1 "Chakra Petch", Kanit, sans-serif; }
+.bag-lat { font: 400 13px/1 Michroma, sans-serif; letter-spacing: .26em; text-transform: uppercase; color: #7fb8e6; margin-top: 8px; }
+.bag-x { margin-left: auto; width: 48px; height: 48px; border: 0; cursor: pointer; color: #bee3f8; font-size: 22px; background: rgba(127,184,230,.12); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+.bag-x:hover { background: rgba(127,184,230,.28); color: #fff; }
+.bag-suit { position: relative; display: flex; align-items: center; gap: 14px; margin: 18px 40px 0; padding: 10px 16px; background: rgba(249,115,22,.12); box-shadow: inset 3px 0 0 #f97316; flex: none; }
+.bag-suit img { width: 44px; height: 44px; object-fit: cover; }
+.bag-suit b { font: 700 20px/1 "Chakra Petch", sans-serif; }
+.bag-suit-who { font-size: 18px; color: #ffd0a8; }
+.bag-suit-ar { font: 600 18px/1 "Chakra Petch", sans-serif; color: #a8d6ff; }
+.bag-suit-btns { margin-left: auto; display: flex; gap: 8px; }
+.bag-body { position: relative; flex: 1; display: flex; gap: 30px; padding: 30px 40px 36px; min-height: 0; }
+.bag-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 228px; gap: 18px; align-content: start; }
+.bag-slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 0; cursor: pointer; color: #eaf3fc;
+  background: linear-gradient(170deg, rgba(127,184,230,.12), rgba(127,184,230,.04)); clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+  box-shadow: inset 0 0 0 1px rgba(127,184,230,.28); transition: transform .15s, background .2s, box-shadow .2s; }
+.bag-slot:hover { transform: translateY(-3px); background: linear-gradient(170deg, rgba(127,184,230,.22), rgba(127,184,230,.08)); }
+.bag-slot[data-sel="true"] { background: linear-gradient(170deg, rgba(201,154,214,.32), rgba(61,139,217,.14)); box-shadow: inset 0 0 0 2px #c99ad6, 0 0 24px rgba(201,154,214,.35); }
+.bag-slot-img { width: 116px; height: 116px; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0,0,0,.4)); }
+.bag-slot .bag-emoji { font-size: 76px; line-height: 116px; height: 116px; }
+.bag-slot-name { max-width: 90%; font: 600 18px/1.2 "Chakra Petch", Kanit, sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bag-slot.empty { cursor: default; background: transparent; box-shadow: none; outline: 2px dashed rgba(127,184,230,.22); outline-offset: -8px; }
+.bag-slot.empty:hover { transform: none; }
+.bag-slot.empty i, .bag-detail-none i { width: 44px; height: 50px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: rgba(127,184,230,.1); }
+.bag-detail { width: 380px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 24px 26px; background: rgba(6,16,36,.55); clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px)); box-shadow: inset 0 0 0 1px rgba(127,184,230,.2); }
+.bag-detail[data-empty="true"] { justify-content: center; }
+.bag-detail-art { width: 190px; height: 190px; display: grid; place-items: center; background: radial-gradient(circle, rgba(201,154,214,.28), transparent 70%); }
+.bag-detail-img { width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 12px 18px rgba(0,0,0,.45)); }
+.bag-detail-art .bag-emoji { font-size: 110px; line-height: 1; }
+.bag-detail-name { margin-top: 10px; font: 700 28px/1.2 "Chakra Petch", Kanit, sans-serif; text-align: center; }
+.bag-detail-short { margin-top: 8px; padding: 6px 14px; font: 500 18px/1.2 Kanit, sans-serif; color: #bee3f8; background: rgba(127,184,230,.12); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.bag-ammo { margin-top: 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+.bag-ammo-btn { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; cursor: pointer; color: #eaf3fc; background: rgba(127,184,230,.12); text-align: left; font: 500 15px/1.15 Kanit, sans-serif; box-shadow: inset 0 0 0 1px rgba(127,184,230,.25); }
+.bag-ammo-btn:hover { background: rgba(201,154,214,.25); }
+.bag-ammo-img { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.bag-actions { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.bag-btn { height: 58px; border: 0; cursor: pointer; color: #fff; font: 700 22px/1 "Chakra Petch", Kanit, sans-serif; background: rgba(127,184,230,.16);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); transition: filter .15s, transform .15s; }
+.bag-btn:hover:not(:disabled) { filter: brightness(1.18); transform: translateY(-1px); }
+.bag-btn.primary { background: linear-gradient(115deg, #b866b1, #9b4f96 45%, #6e2c7a); }
+.bag-btn.warn { background: linear-gradient(115deg, #ef6a80, #d2455b 50%, #8e2238); }
+.bag-btn.ghost { height: 46px; font-size: 18px; background: transparent; box-shadow: inset 0 0 0 1px rgba(127,184,230,.35); color: #bee3f8; }
+.bag-btn.sm { height: 38px; padding: 0 14px; font-size: 16px; }
+.bag-btn:disabled { filter: grayscale(.85) brightness(.6); cursor: default; transform: none; }

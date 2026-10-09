@@ -188,14 +188,24 @@ function canAct(p) {
 function lockMove(p) {
   if (canAct(p)) match.action.locked = true;
 }
-function moveTo(id, x, y) {
+//  step = เดินทีละช่องด้วยคีย์บอร์ด (W A S D): ไปช่องติดกันได้เรื่อยๆ ตราบที่ช่องนั้นอยู่ในระยะเดินจาก "จุดเริ่มตา" (action.from)
+//   — เหมือนลากเคอร์เซอร์แบบ Fire Emblem แต่ตัวละครเดินตามทันที · กลับมาจุดเริ่ม = เท่ากับย้อน · ยังใช้ได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
+function moveTo(id, x, y, { step = false } = {}) {
   const p = match.players[id];
-  if (!canAct(p) || match.action.moved || match.action.locked) return false;
+  if (!canAct(p) || match.action.locked) return false;
+  if (match.action.moved && !step) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-  const reach = Board.reachable(boardMap(), { id: p.id, ...p.pos }, movOf(p), boardUnits(), { isAlly: unitAlly, blocked: boardBlocked() });
+  if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
+  const origin = match.action.from;
+  const reach = Board.reachable(boardMap(), { id: p.id, ...origin }, movOf(p), boardUnits(), { isAlly: unitAlly, blocked: boardBlocked() });
   const node = reach.get(Board.key(x, y));
-  if (!node || node.d === 0) return false;
-  match.action.path = Board.pathTo(reach, x, y);
+  if (!node) return false;
+  if (node.d === 0) {
+    if (!step || !match.action.moved) return false;
+    return undoMove(id);
+  }
+  const prev = { ...p.pos };
+  match.action.path = step ? [prev, { x, y }] : Board.pathTo(reach, x, y);
   p.pos = { x, y };
   match.action.moved = true;
   view.broadcastState();

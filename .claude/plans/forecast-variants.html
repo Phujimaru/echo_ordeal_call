@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>หน้าคาดการณ์ — 3 แบบ</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
+<style>
+/* ต้นแบบหน้าคาดการณ์ผลการตี 3 แบบ — เวที 1920 × 1080 · ?v=a|b|c */
+:root { --me:#9b4f96; --foe:#d2455b; --navy:rgba(14,32,66,.95); --ink:#eaf3fc; --mute:#9db8da; --gold:#ffd36a;
+  --hex:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); --f-ui:"Chakra Petch","Kanit",sans-serif; --f-b:"Kanit","Chakra Petch",sans-serif; --f-l:"Michroma",sans-serif; }
+* { box-sizing:border-box; margin:0; }
+html,body { height:100%; background:#0b1730; overflow:hidden; font-family:var(--f-b); color:var(--ink); }
+#stage { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform-origin:50% 50%; overflow:hidden; }
+#bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.v { position:absolute; inset:0; display:none; }
+body[data-v="a"] .va, body[data-v="b"] .vb, body[data-v="c"] .vc { display:block; }
+.lat { font-family:var(--f-l); letter-spacing:.24em; text-transform:uppercase; }
+svg.i { width:28px; height:28px; } svg.i * { fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
+.pips { display:flex; gap:5px; } .pips i { width:26px; height:16px; transform:skewX(-20deg); background:rgba(255,255,255,.14); }
+.pips i.on { background:linear-gradient(180deg,#ff9aab,#d2455b); } .pips.ar i.on { background:linear-gradient(180deg,#a8d6ff,#3d8bd9); }
+.pips i.lose { background:#fff; box-shadow:0 0 10px #fff; animation:bl .8s infinite; } @keyframes bl { 50% { opacity:.2; } }
+.hexp { position:relative; clip-path:var(--hex); background:linear-gradient(160deg,#fff,var(--c) 45%,color-mix(in srgb,var(--c) 50%,#000)); }
+.hexp > div { position:absolute; inset:5px; clip-path:var(--hex); overflow:hidden; background:#dfe9f5; }
+.hexp img { position:absolute; max-width:none; }
+
+/* ================= A · ดวล 2 การ์ด (Duel Cards) ================= */
+.va .shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(8,18,40,.78),transparent 30%,transparent 70%,rgba(8,18,40,.78)); }
+.va .card { position:absolute; top:150px; width:460px; height:780px; clip-path:polygon(40px 0,100% 0,100% calc(100% - 40px),calc(100% - 40px) 100%,0 100%,0 40px); background:var(--navy); box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--c) 70%,transparent); }
+.va .card.l { left:70px; --c:var(--me); } .va .card.r { right:70px; --c:var(--foe); }
+.va .art { position:absolute; inset:0 0 330px; overflow:hidden; }
+.va .art img { position:absolute; left:50%; top:-10px; height:560px; transform:translateX(-50%); }
+.va .art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 45%,rgba(14,32,66,1)); }
+.va .card::before { content:""; position:absolute; left:40px; right:0; top:0; height:5px; background:linear-gradient(90deg,var(--c),transparent); z-index:2; }
+.va .nm { position:absolute; left:34px; right:34px; top:400px; }
+.va .nm b { display:block; font:700 46px/1.1 var(--f-ui); } .va .nm small { font:400 20px var(--f-b); color:var(--mute); }
+.va .hp { position:absolute; left:34px; right:34px; top:500px; display:flex; align-items:center; gap:18px; }
+.va .hp .n { font:700 78px/1 var(--f-ui); } .va .hp .to { font:700 40px var(--f-ui); color:var(--gold); }
+.va .ar { position:absolute; left:34px; right:34px; top:600px; display:flex; align-items:center; gap:14px; font:700 28px var(--f-ui); }
+.va .trio { position:absolute; left:0; right:0; bottom:0; height:90px; display:flex; border-top:1px solid rgba(127,184,230,.2); }
+.va .trio span { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; font:700 32px var(--f-ui); }
+.va .trio span + span { border-left:1px solid rgba(127,184,230,.2); }
+.va .mid { position:absolute; left:50%; top:610px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:14px; }
+.va .vs { width:190px; height:216px; display:grid; place-items:center; clip-path:var(--hex); background:linear-gradient(160deg,#fff,#c99ad6 40%,#6e2c7a); }
+.va .vs div { text-align:center; } .va .vs b { display:block; font:700 84px/1 var(--f-ui); color:#fff; text-shadow:0 4px 18px rgba(0,0,0,.4); } .va .vs small { font:600 20px var(--f-ui); color:#fff; }
+.va .go { width:300px; height:76px; border:0; color:#fff; font:700 34px var(--f-ui); background:linear-gradient(115deg,#ef6a80,#d2455b 45%,#8e2238); clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%); }
+.va .no { width:160px; height:46px; border:0; color:#fff; font:600 20px var(--f-ui); background:var(--navy); clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%); }
+
+/* ================= B · แยกจอเฉียง (Versus Split) ================= */
+.vb .half { position:absolute; top:0; bottom:0; width:1100px; overflow:hidden; }
+.vb .half.l { left:0; clip-path:polygon(0 0,100% 0,62% 100%,0 100%); background:linear-gradient(120deg,rgba(110,44,122,.92),rgba(40,16,60,.86)); }
+.vb .half.r { right:0; clip-path:polygon(38% 0,100% 0,100% 100%,0 100%); background:linear-gradient(240deg,rgba(142,34,56,.92),rgba(50,10,22,.86)); }
+.vb .half img { position:absolute; bottom:-40px; height:1060px; opacity:.95; }
+.vb .half.l img { left:-30px; } .vb .half.r img { right:-120px; }
+.vb .half::after { content:""; position:absolute; inset:0; background:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px,transparent 2px 22px); }
+.vb .slash { position:absolute; left:820px; top:-40px; width:12px; height:1160px; background:linear-gradient(180deg,transparent,#fff 20%,#fff 80%,transparent); transform:rotate(19.5deg); box-shadow:0 0 30px #fff,0 0 60px #c99ad6; }
+.vb .st { position:absolute; top:640px; width:560px; }
+.vb .st.l { left:60px; } .vb .st.r { right:60px; text-align:right; }
+.vb .st .nm { font:700 64px/1 var(--f-ui); text-shadow:0 4px 20px rgba(0,0,0,.5); } .vb .st .ch { font:400 22px var(--f-b); color:rgba(255,255,255,.75); margin-top:6px; }
+.vb .row { display:flex; align-items:center; gap:16px; margin-top:22px; } .vb .st.r .row { justify-content:flex-end; }
+.vb .row .n { font:700 70px/1 var(--f-ui); } .vb .row .to { font:700 38px var(--f-ui); color:var(--gold); }
+.vb .chips { display:flex; gap:12px; margin-top:18px; } .vb .st.r .chips { justify-content:flex-end; }
+.vb .chips span { display:flex; align-items:center; gap:8px; padding:8px 14px; font:700 24px var(--f-ui); background:rgba(0,0,0,.3); clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.vb .dmg { position:absolute; left:50%; top:390px; transform:translateX(-50%) rotate(-6deg); text-align:center; }
+.vb .dmg b { display:block; font:italic 700 220px/1 var(--f-ui); color:#fff; -webkit-text-stroke:6px #6e2c7a; paint-order:stroke; text-shadow:0 10px 40px rgba(0,0,0,.6); }
+.vb .dmg span { font:700 30px var(--f-ui); background:#fff; color:#6e2c7a; padding:6px 16px; }
+.vb .go { position:absolute; left:50%; bottom:60px; transform:translateX(-50%); display:flex; gap:14px; }
+.vb .go button { height:74px; border:0; font:700 32px var(--f-ui); color:#fff; clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%); }
+.vb .go .y { width:300px; background:linear-gradient(115deg,#fff,#f0e3f6); color:#6e2c7a; } .vb .go .n { width:170px; background:rgba(0,0,0,.45); }
+.vb .tag { position:absolute; top:44px; font-size:18px; color:rgba(255,255,255,.7); } .vb .tag.l { left:60px; } .vb .tag.r { right:60px; }
+
+/* ================= C · แถบล่างกระชับ (Compact Ribbon) ================= */
+.vc .ribbon { position:absolute; left:50%; bottom:40px; transform:translateX(-50%); display:flex; align-items:stretch; height:200px; filter:drop-shadow(0 18px 30px rgba(0,0,0,.5)); }
+.vc .side { width:640px; display:flex; align-items:center; gap:24px; padding:0 30px; background:var(--navy); }
+.vc .side.l { clip-path:polygon(28px 0,100% 0,100% 100%,0 100%,0 28px); box-shadow:inset 6px 0 0 var(--me); }
+.vc .side.r { clip-path:polygon(0 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%); box-shadow:inset -6px 0 0 var(--foe); flex-direction:row-reverse; text-align:right; }
+.vc .hexp { width:132px; height:152px; flex:none; }
+.vc .info { flex:1; } .vc .info b { display:block; font:700 32px/1.1 var(--f-ui); } .vc .info small { font:400 16px var(--f-b); color:var(--mute); }
+.vc .line { display:flex; align-items:center; gap:12px; margin-top:12px; } .vc .side.r .line { flex-direction:row-reverse; }
+.vc .line .n { font:700 44px/1 var(--f-ui); min-width:56px; } .vc .line .to { font:700 26px var(--f-ui); color:var(--gold); }
+.vc .mini { display:flex; gap:20px; margin-top:12px; font:700 22px var(--f-ui); color:var(--mute); } .vc .side.r .mini { justify-content:flex-end; }
+.vc .mini span { display:flex; align-items:center; gap:6px; } .vc .mini svg.i { width:22px; height:22px; }
+.vc .core { width:300px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:linear-gradient(180deg,#24104a,#12264a); position:relative; }
+.vc .core .dm { display:flex; align-items:center; gap:14px; font:700 64px/1 var(--f-ui); }
+.vc .core .dm svg.i { width:44px; height:44px; color:#c99ad6; }
+.vc .core .hc { font:600 18px var(--f-ui); color:var(--mute); }
+.vc .core button { width:240px; height:54px; border:0; font:700 26px var(--f-ui); color:#fff; background:linear-gradient(115deg,#ef6a80,#d2455b 45%,#8e2238); clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%); }
+.vc .esc { position:absolute; left:50%; bottom:256px; transform:translateX(-50%); font:600 18px var(--f-ui); background:var(--navy); padding:8px 18px; clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%); }
+.vc .aim { position:absolute; left:1345px; top:340px; width:180px; height:180px; margin:-90px; border:4px dashed #ff5a72; border-radius:50%; animation:sp 6s linear infinite; }
+@keyframes sp { to { transform:rotate(360deg); } }
+.vc .arrow { position:absolute; left:960px; top:330px; width:330px; height:6px; background:linear-gradient(90deg,transparent,#c99ad6,#fff); transform:rotate(1deg); }
+
+.lbl { position:absolute; left:24px; top:20px; z-index:9; font:600 18px var(--f-ui); background:rgba(0,0,0,.6); padding:6px 14px; }
+</style>
+</head>
+<body data-v="a">
+<div id="stage">
+  <img id="bg" src="game-ui/board-move-near32.jpg" alt="">
+
+  <!-- A -->
+  <div class="v va">
+    <div class="shade"></div>
+    <div class="card l"><div class="art"><img src="../../client/public/characters/muimi/muimi.webp" alt=""></div>
+      <div class="nm"><b>คุณ</b><small>มุยมิ</small></div>
+      <div class="hp"><span class="n">5</span><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+      <div class="ar"><span>⛨ 2</span><div class="pips ar"><i class="on"></i><i class="on"></i><i></i></div></div>
+      <div class="trio"><span><svg class="i" viewBox="0 0 48 48"><path d="M10 38 L34 14 L38 6 L30 10 L6 34"/><path d="M8 28 L20 40 M4 44 L10 38"/></svg>2</span><span>◎ 100%</span><span style="opacity:.45">✦ 0%</span></div>
+    </div>
+    <div class="card r"><div class="art"><img src="../../client/public/characters/oberon(summer)/oberon_summer.webp" alt=""></div>
+      <div class="nm"><b>ฟ้าใส</b><small>โอเบรอน (ฤดูร้อน)</small></div>
+      <div class="hp"><span class="n">6</span><span class="to">▸ 5</span></div>
+      <div class="hp" style="top:590px"><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on lose"></i><i></i></div></div>
+      <div class="ar" style="top:650px"><span>⛨ 1 <span style="color:var(--gold)">▸ 0</span></span><div class="pips ar"><i class="on lose"></i><i></i><i></i></div></div>
+      <div class="trio"><span><svg class="i" viewBox="0 0 48 48"><path d="M10 38 L34 14 L38 6 L30 10 L6 34"/><path d="M8 28 L20 40 M4 44 L10 38"/></svg>1</span><span>◎ 100%</span><span style="opacity:.45">✦ 0%</span></div>
+    </div>
+    <div class="mid"><div class="vs"><div><b>−2</b><small>100%</small></div></div><button class="go">⚔ โจมตี</button><button class="no">ย้อน</button></div>
+  </div>
+
+  <!-- B -->
+  <div class="v vb">
+    <div class="half l"><img src="../../client/public/characters/muimi/muimi.webp" alt=""></div>
+    <div class="half r"><img src="../../client/public/characters/oberon(summer)/oberon_summer.webp" alt=""></div>
+    <div class="slash"></div>
+    <div class="tag l lat">Attacker</div><div class="tag r lat">Target</div>
+    <div class="st l"><div class="nm">คุณ</div><div class="ch">มุยมิ</div>
+      <div class="row"><span class="n">♥ 5</span><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+      <div class="chips"><span>⛨ 2</span><span>◎ 100%</span><span style="opacity:.5">✦ 0%</span></div></div>
+    <div class="st r"><div class="nm">ฟ้าใส</div><div class="ch">โอเบรอน (ฤดูร้อน)</div>
+      <div class="row"><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on lose"></i><i></i></div><span class="to">▸5</span><span class="n">6 ♥</span></div>
+      <div class="chips"><span>⛨ 1 ▸ 0</span><span>⚔ 1</span><span>◎ 100%</span></div></div>
+    <div class="dmg"><b>−2</b><span>◎ 100% · ✦ 0%</span></div>
+    <div class="go"><button class="n">ย้อน</button><button class="y">⚔ โจมตี</button></div>
+  </div>
+
+  <!-- C -->
+  <div class="v vc">
+    <div class="arrow"></div><div class="aim"></div>
+    <div class="esc">Esc · ย้อน</div>
+    <div class="ribbon">
+      <div class="side l">
+        <div class="hexp" style="--c:var(--me)"><div><img src="../../client/public/characters/muimi/muimi.webp" style="width:220%;left:-96%;top:-6%" alt=""></div></div>
+        <div class="info"><b>คุณ</b><small>มุยมิ</small>
+          <div class="line"><span class="n">5</span><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          <div class="mini"><span>⛨ 2</span><span>◎ 100%</span><span>✦ 0%</span></div></div>
+      </div>
+      <div class="core">
+        <div class="dm"><svg class="i" viewBox="0 0 48 48"><path d="M10 38 L34 14 L38 6 L30 10 L6 34"/><path d="M8 28 L20 40 M4 44 L10 38"/></svg>−2</div>
+        <div class="hc">◎ 100% · ✦ 0%</div>
+        <button>โจมตี</button>
+      </div>
+      <div class="side r">
+        <div class="hexp" style="--c:var(--foe)"><div><img src="../../client/public/characters/oberon(summer)/oberon_summer.webp" style="width:150%;left:-46%;top:-12%" alt=""></div></div>
+        <div class="info"><b>ฟ้าใส</b><small>โอเบรอน (ฤดูร้อน)</small>
+          <div class="line"><span class="n">6</span><span class="to">▸5</span><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on lose"></i><i></i></div></div>
+          <div class="mini"><span>⛨ 1▸0</span><span>⚔ 1</span><span>◎ 100%</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const q = new URLSearchParams(location.search).get("v"); if (q) document.body.dataset.v = q;
+const st = document.getElementById("stage");
+const fit = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); st.style.transform = `translate(-50%,-50%) scale(${k})`; };
+addEventListener("resize", fit); fit();
+addEventListener("keydown", (e) => { if ("abc".includes(e.key)) document.body.dataset.v = e.key; });
+</script>
+</body>
+</html>

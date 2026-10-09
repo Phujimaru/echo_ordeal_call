@@ -1,7 +1,7 @@
 // HUD แยกตามช่วง (ดีไซน์ที่ผู้ใช้อนุมัติ 2026-10-09 — ต้นแบบ .claude/plans/game-ui-redesign.html)
 //  · DrawDock   — ช่วงจั่ว: เห็นแค่ไพ่ในมือ · หน้าปัดแต้ม 0–21 · ปุ่ม จั่ว / พอ (ชิดขอบล่างจอ ไพ่จมขอบจอเหมือนถือในมือ)
 //  · HudCommand — ตาของเรา: สกิล 3 ช่อง + ช่องคำสั่ง (โจมตี · ร้านค้า [เฉพาะยืนติดร้าน] · กระเป๋า · ย้อน / จบตา)
-//  · WatchChip  — ตาคนอื่น: ป้าย "ตาของ X" กลางล่าง · BagButton = เปิดดูกระเป๋า
+//  · BagButton  — ตาคนอื่น: เปิดดูกระเป๋า (คนที่กำลังเดินแสดงที่บนกลางของกระดาน)
 //  · PhaseCall  — ฉากเปิดช่วงจั่วไพ่ (หกเหลี่ยมขยาย + ไพ่ 3 ใบ)
 //  กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น · หน่วยออกแบบ = ฐาน 1440 × 810 (ขยายด้วย --hud-k ของ SelfHud)
 import Card from "../../components/Card";
@@ -85,11 +85,6 @@ export function HudCommand({ skills, attack, shop, onBag, undo, end }) {
 }
 export function BagButton({ onClick }) {
   return <button type="button" className="hc-btn bag hc-solo" onClick={onClick}><span className="ico">{BAG}</span><b>กระเป๋า</b></button>;
-}
-
-// ---------- ตาคนอื่น ----------
-export function WatchChip({ name, color }) {
-  return <div className="hw-chip" style={{ "--pc": color || "#7fb8e6" }}><i className="dot" /><b>ตาของ {name}</b></div>;
 }
 
 // ---------- ฉากเปิดช่วงจั่วไพ่ ----------
