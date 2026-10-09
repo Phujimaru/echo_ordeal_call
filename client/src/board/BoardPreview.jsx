@@ -8,6 +8,8 @@
 //  ปุ่ม: ภูมิภาค I–VII · หมุน ⟲/⟳ · ซูม ＋/－ (ล้อเมาส์) · 14×14 · กลางคืน · ประหยัดสเปก (lowQ) · ระยะอันตราย ·
 //   โหมด เดิน / สกิลระยะ 3 / ตีหมู่ 5 · แผงล่างซ้ายบอกช่องที่ชี้/คลิกล่าสุด (ตรวจการเลือกช่องตอนซูม/หมุน)
 //  คอนโซล: window.__boardFocus(x, y) = ส่ง focus ให้ BoardCanvas (มุมใกล้เลื่อนตามถ้าช่องนั้นอยู่นอกจอ)
+//   window.__boardFx([{ kind: "beam", x, y, dir: "up", len: 6, color: "#ff5fb4" }]) = เล่นเอฟเฟกต์ (เช่นลำแสง Beam Magnum)
+//   window.__boardCloak(id, true) = วาดตัวละครนั้นแบบซ่อนตัว (เงาจาง)
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
@@ -214,6 +216,11 @@ export default function BoardPreview() {
   const busy = !!anim;
 
   const pushFx = (list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxId.current }))]);
+  useEffect(() => {
+    window.__boardFx = (list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxId.current }))]);
+    window.__boardCloak = (id, on = true) => setUnitsState((us) => us.map((u) => (u.id === id ? { ...u, cloak: !!on } : u)));
+    return () => { delete window.__boardFx; delete window.__boardCloak; };
+  }, []);
 
   // เป้าที่ชี้อยู่ (ศัตรูในช่องแดง/ติดตัว) → ช่องยืนตี + พรีวิวถอย
   const plan = useMemo(() => {

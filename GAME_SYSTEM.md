@@ -50,6 +50,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `combat.js` | `maxHpOf`/`maxArmorOf`/`maxSkillOf`, `healHp`/`healArmor`/`healOverflow`, `loseHp`/`loseArmor`, `damageSoft`, `dealDirect`/`dealMixed`/`dealArmorOnly`, `adjustIncomingDamage` (ภายใน), `instantDeath`, บัฟ/ดีบัฟ wrapper, `sameTeam`/`friendlyEffectBlocked`/`withEffectSource`, `addSkill`, `voidUltimateOnBust`, `resetCombat` |
 | `skills.js` | `useSkill` — ด่านเช็ค/คิดราคา/หักแต้ม แล้วเรียก hook ของตัวละคร |
 | `shop.js` | เหรียญ (`addGold`), ร้านค้ามายาบนแผนที่ (`maybeMoveShop`/`relocateShop`, `openShop`, `refreshShopForJourney`, `buyShopItem`), กระเป๋า (`bagFull`, `dropItem`, `grantInventoryItem`), ไอเทม (`useInventoryItem`), ปืน GUTS (`fireGuts`, `gutsFireTargetOf`, `applyGutsBullet`) |
+| `visibility.js` | **ใครมองเห็นใคร** (พุ่มหญ้า GRID_PLAN §3.3 + ล่องหนของตัวละคร §7.5): `hiddenFrom(viewer, target)`, `concealed`, `exposeBush`, `onHostileAct` (ตี/ยิง/ไอเทมใส่คนอื่น), `onAreaHit` (สกิล `area.hostile`), `onBump` (เดินชน), `filterLog` · ผู้ใช้: `view` (pos null/เส้นทาง/บันทึก/คาดการณ์), `action.moveTo` (หยุดก่อนชน), `action.attackTarget`/`resolveArea`, `shop` (ปืน/Mark 42), `skills` |
 | `view.js` | `displayImg`, `buildStateFor`, `broadcastState`, `broadcastPositions`, `takenUniqueChars` (`activeSkillMusic` ภายใน) |
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
@@ -252,6 +253,11 @@ cost = min(SKILL_COST_MAX /* 8 */,
   - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 3 เทิร์น (`ULT_COOLDOWN_TURNS` → `p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
   - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักเฟสจั่วไพ่
 - ~~หัวใจนักสู้~~ (passive2) ถอดออกแล้ว (ผู้ใช้ตัดสิน — GRID_PLAN §7.1)
+
+**นักบินปริศนา (`sliver_bullet` · ง่าย · unique)** — `characters/sliver_bullet.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.5 · เทสต์ [tests/characters/sliver_bullet.test.js](tests/characters/sliver_bullet.test.js)
+- สถานะทั้งหมดอยู่ `p.sliver` (`arm` · `hidden` · `revealUntil` เลขรอบที่ปรากฏถึง · `logCut`/`logRound`) — ล้างใน `resetCombat`
+- ล่องหนคิดที่ `refresh` (เริ่มแมตช์ + ต้นเทิร์น) · ปรากฏผ่าน `onReveal` ที่ `server/visibility.js` เรียก · ศัตรูได้ `pos: null` (`buildStateFor`) — ระบบมองเห็นเดียวกับพุ่มหญ้า [tests/visibility.test.js](tests/visibility.test.js)
+- Beam Magnum ลงดาเมจด้วย `dealMixed` ตรง (แบบกระสุน Nursedessei) ใน `deferAfterCutscene` + `engine.boardFx("beamFx", { from, dir, len, color })` ให้ client วาดลำแสง
 
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
 - **ม่านแห่งราตรี** (basic · 2): ทุกคน (duo/trio = ตัวเอง + เพื่อนร่วมทีม) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
@@ -515,7 +521,14 @@ module.exports = {
   canUseSkill(engine, p, tier, targets) { return true; },        // ด่านก่อนหักแต้ม (useSkill)
   ignoresTurnQuota(p, tier) { return false; },                   // กดได้แม้ใช้โควตาเทิร์นไปแล้ว
   skipsTurnQuota(p, tier) { return false; },                     // กดแล้วไม่กินโควตาเทิร์น
-  applyInstantSkill(engine, p, tier, targets) { return ""; },    // ลงผลสกิล — คืนข้อความต่อท้ายป้าย skillFlash
+  applyInstantSkill(engine, p, tier, targets, opts) { return ""; }, // ลงผลสกิล — คืนข้อความต่อท้ายป้าย skillFlash · opts.dir = ทิศของสกิล line
+  skillCost(p, tier, base) { return base; },                     // ราคาที่เปลี่ยนตามสถานะ (useSkill + ป้ายราคาใน buildStateFor ใช้ตัวเดียวกัน)
+  silentFlash(p, tier) { return false; },                        // true = ไม่ขึ้นป้าย skillFlash กลาง / ไม่บันทึก roundSkills
+  maxHp(p) {}, maxArmor(p) {},                                   // เลือด/เกราะสูงสุดเฉพาะตัว (ไม่มี = MAX_HP 7 / MAX_ARMOR 3)
+  stealthed(p) { return false; },                                // ล่องหน — ศัตรูมองไม่เห็น (server/visibility.js)
+  onReveal(engine, p, kind) {},                                  // "act" ตัวเองโจมตี · "hit" อยู่ในสกิลโจมตีพื้นที่ · "bump" ถูกเดินชน
+  logCut(p, round) { return 0; },                                // index บันทึกที่ปรากฏตัว — บรรทัดก่อนหน้าที่มีชื่อซ่อนจากศัตรู
+  publicState(engine, p, viewer) {},                             // ข้อมูลเฉพาะตัว → state.players[].sliver (ตอนนี้เฉพาะนักบินปริศนา)
   skillSound(p, tier) { return null; },                          // คีย์เสียงของป้าย skillFlash
   skillLocks(engine, p) { return undefined; },                   // ล็อก/คูลดาวน์รายช่อง → state.players[].skillLocks
   displayImg(p) { return null; },                                // ภาพบนสนาม (null = ภาพประจำตัว)
@@ -533,7 +546,7 @@ module.exports = {
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
 `muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
 `oberon_summer.onRoundStartTick` (ลูปของ `dealRound`) · `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) · `oberon_summer.onEndTurn` (`endTurn`) ·
-`resetCombat` ทั้งสองตัว (`combat.resetCombat`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
+`resetCombat` ทุกตัว (`combat.resetCombat`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `onDeath` (`instantDeath`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
 
 **กฎเหล็ก**
 1. เข้าถึง state ผ่าน `engine.*` เท่านั้น (`engine.log`, `engine.healHp`, `engine.dealMixed`, `engine.players`, …)

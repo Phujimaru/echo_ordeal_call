@@ -122,6 +122,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   attackableTargets: attack.attackableTargets,
   pushCutsceneRaw(entry) { match.cutsceneQueue.push(entry); },
   log(msg) { match.lastLog.push(msg); },
+  get lastLogLength() { return match.lastLog.length; },
+  // เอฟเฟกต์บนกระดานที่ทุกคนเห็น (เช่น beamFx ลำแสง Beam Magnum) — client วาดเองตาม event
+  boardFx(event, payload) { io.emit(event, payload); },
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },
   // เสียงสั้นๆ ที่ทุกคนได้ยิน (ไม่มีป้าย) — onlyFor (ไม่บังคับ): array ของ playerId ที่ได้ยิน

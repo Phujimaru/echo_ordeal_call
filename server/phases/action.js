@@ -23,6 +23,7 @@ const lobby = require("../lobby");
 const shop = require("../shop");
 const timers = require("../timers");
 const view = require("../view");
+const Visibility = require("../visibility");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 function boardMap() {
@@ -83,6 +84,7 @@ function areaRange(p, area) {
 // ตรวจระยะสกิลบนกระดาน แล้วคืนรายชื่อผู้โดน (playerId[]) ที่ส่งต่อให้ hook ของตัวละคร — null = ใช้ไม่ได้
 //  self: ไม่สนเป้า · target: เป้า 1 คนในระยะ (self = เลือกตัวเองได้) · aoe: ทุกคนในรัศมี (self = รวมตัวเอง)
 //  line: เลือกทิศ (dir) — ทุกคนในแนว len×width · การคัดเพื่อน/ศัตรูเป็นหน้าที่ของ hook (บางท่าใช้กับศัตรูได้)
+//  การมองเห็น (server/visibility.js): เล็งคนที่มองไม่เห็นไม่ได้ · พื้นที่ที่ไม่ใช่สกิลโจมตี (ไม่มี area.hostile) ไม่โดนคนที่มองไม่เห็น
 function resolveArea(p, area, targets, dir) {
   const kind = (area && area.kind) || "self";
   if (kind === "self" || kind === "field") return Array.isArray(targets) ? targets : [];
@@ -92,9 +94,10 @@ function resolveArea(p, area, targets, dir) {
     const t = match.players[Array.isArray(targets) ? targets[0] : null];
     if (!t || !t.alive || !t.pos) return null;
     if (t.id === p.id) return area.self ? [t.id] : null;
+    if (Visibility.hiddenFrom(p, t)) return null;
     return Board.dist(p.pos, t.pos) <= range ? [t.id] : null;
   }
-  const units = boardUnits();
+  const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   if (kind === "aoe") {
     const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range)).map((u) => u.id);
     return area.self ? [p.id, ...ids] : ids;
@@ -197,7 +200,10 @@ function moveTo(id, x, y, { step = false } = {}) {
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
   const origin = match.action.from;
-  const reach = Board.reachable(boardMap(), { id: p.id, ...origin }, movOf(p), boardUnits(), { isAlly: unitAlly, blocked: boardBlocked() });
+  // คิดเส้นทางจากเท่าที่ผู้เดินมองเห็น — คนที่มองไม่เห็น (ล่องหน/พุ่มหญ้า) ไม่ขวางตอนวางเส้นทาง แต่ชนจริงตอนเดิน (ด้านล่าง)
+  const all = boardUnits();
+  const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
+  const reach = Board.reachable(boardMap(), { id: p.id, ...origin }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked() });
   const node = reach.get(Board.key(x, y));
   if (!node) return false;
   if (node.d === 0) {
@@ -205,7 +211,25 @@ function moveTo(id, x, y, { step = false } = {}) {
     return undoMove(id);
   }
   const prev = { ...p.pos };
-  match.action.path = step ? [prev, { x, y }] : Board.pathTo(reach, x, y);
+  const path = step ? [prev, { x, y }] : Board.pathTo(reach, x, y);
+  // ซุ่มโจมตีแบบ Fire Emblem: เดินชนคนที่มองไม่เห็น = หยุดช่องก่อนหน้า (ถอยไปช่องว่างช่องล่าสุดถ้าช่องนั้นมีเพื่อนยืน)
+  //  การเดินของตานี้จบทันที (ย้อน/เดินต่อไม่ได้) แต่ยังโจมตี/ใช้สกิลได้ · คนล่องหนที่ถูกชนปรากฏตัว (Visibility.onBump)
+  const bumpIdx = path.findIndex((t, i) => i > 0 && all.some((u) => u.id !== p.id && u.x === t.x && u.y === t.y && !seen.includes(u)));
+  if (bumpIdx > 0) {
+    const hidden = all.find((u) => u.x === path[bumpIdx].x && u.y === path[bumpIdx].y);
+    let stop = bumpIdx - 1;
+    while (stop > 0 && all.some((u) => u.id !== p.id && u.x === path[stop].x && u.y === path[stop].y)) stop--;
+    const walked = path.slice(0, stop + 1);
+    p.pos = { ...walked[walked.length - 1] };
+    match.action.path = walked.length > 1 ? walked : null;
+    match.action.moved = match.action.moved || walked.length > 1;
+    match.action.locked = true;
+    match.action.ambush = { x: path[bumpIdx].x, y: path[bumpIdx].y };
+    Visibility.onBump(p, match.players[hidden.id]);
+    view.broadcastState();
+    return true;
+  }
+  match.action.path = path;
   p.pos = { x, y };
   match.action.moved = true;
   view.broadcastState();
@@ -227,9 +251,11 @@ function attackTarget(id, targetId) {
   const target = match.players[targetId];
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
+  if (Visibility.hiddenFrom(p, target)) return false; // มองไม่เห็น = ตีไม่ได้
   if (!Board.inRange(rangeOf(p), Board.dist(p.pos, target.pos))) return false;
   timers.clearPhaseTimer();
   match.action.locked = true;
+  Visibility.onHostileAct(p); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   attack.boardAttack(p, target, finishActor);
   return true;
 }

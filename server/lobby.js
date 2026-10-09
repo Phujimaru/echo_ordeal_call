@@ -10,6 +10,7 @@ Object.assign(module.exports, {
 
 const { POSITION_COLORS } = require("../characters");
 const Journey = require("../characters/_journey");
+const CHAR_HOOKS = require("../characters/index");
 const {
   JOURNEY_START_SECONDS, RESERVATION_TTL_MS, TEAM_IDS,
 } = require("./constants");
@@ -270,6 +271,7 @@ function startMatch() {
   match.journeyScene = null;
   const startArea = Journey.areaOf(startRound);
   action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
+  CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
   match.cutsceneQueue = [];
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก

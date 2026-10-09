@@ -35,6 +35,7 @@ function dealRound() {
   match.cutsceneInfo = null;
   match.lastAttack = null;
   match.roundSkills = [];
+  CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: หมดเวลาปรากฏตัว (2 เทิร์น) = ล่องหนอีกครั้ง
   // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 5 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้
   shop.maybeMoveShop();
   const prevNight = dayNight.isNightRound(match.roundNumber - 1);

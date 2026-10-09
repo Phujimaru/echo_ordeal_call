@@ -39,7 +39,7 @@ test('ข้อมูลระยะสกิล: มุยมิ self/self/แ�
   const { CHAR_BY_ID } = require('../characters.js');
   const m = CHAR_BY_ID.muimi, o = CHAR_BY_ID.oberon_summer;
   assert.deepEqual([m.basic.area.kind, m.secondary.area.kind], ['self', 'self']);
-  assert.deepEqual(m.ultimate.area, { kind: 'line', len: 4, width: 3 });
+  assert.deepEqual(m.ultimate.area, { kind: 'line', len: 4, width: 3, hostile: true });
   for (const t of ['basic', 'secondary', 'ultimate']) assert.equal(o[t].area.range, 'mov');
   assert.equal(o.basic.area.kind, 'aoe');
   for (const ch of [m, o]) for (const t of ['basic', 'secondary', 'ultimate']) assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก/);

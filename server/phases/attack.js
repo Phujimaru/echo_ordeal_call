@@ -33,6 +33,7 @@ function attackableTargets(atkId) {
 function attackSoundOf(attacker) {
   if (!attacker) return undefined;
   if (attacker.characterId === "muimi") return CHAR_HOOKS.muimi.towerActive(attacker) ? "muimi_ub_hit" : "muimi_normal_hit";
+  if (attacker.characterId === "sliver_bullet") return CHAR_HOOKS.sliver_bullet.attackSound(attacker);
   return undefined;
 }
 

@@ -22,6 +22,7 @@ import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
+import { BEAM_T } from "./boardDraw";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -327,6 +328,25 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     prevVit.current = nextVit;
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps -- เทียบกับ state ก่อนหน้าเท่านั้น
 
+  // ลำแสง Beam Magnum (นักบินปริศนา) — server ส่งให้ทุกคน { from, dir, len, color } · ลำแสงเริ่มช่องติด from
+  //  กล้องมุมใกล้ตามกลางแนวถ้าอยู่นอกจอ · จังหวะยิง (หลังชาร์จ) = จอสั่น/แฟลช
+  const boardRef = useRef(state.board);
+  useLayoutEffect(() => { boardRef.current = state.board; });
+  useEffect(() => {
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const onBeam = (b) => {
+      const v = b && DIRS[b.dir];
+      if (!v || !b.from || !Number.isFinite(b.from.x) || !Number.isFinite(b.from.y)) return;
+      pushFx([{ kind: "beam", x: b.from.x, y: b.from.y, dir: b.dir, len: b.len, color: b.color }]);
+      const bd = boardRef.current || {}, half = Math.ceil((Number(b.len) || 6) / 2);
+      const cl = (n, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), n));
+      look({ x: cl(b.from.x + v[0] * half, bd.cols), y: cl(b.from.y + v[1] * half, bd.rows) });
+      if (!lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), BEAM_T.charge));
+    };
+    socket.on("beamFx", onBeam);
+    return () => socket.off("beamFx", onBeam);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const onAnimDone = useCallback(() => {
@@ -400,6 +420,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       dim: !!pickValid && !pickValid.has(p.id),
+      // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
+      cloak: !!p.veiled,
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : []),
   [state.players, state.actorId, me, hold, pickValid, ghost]);

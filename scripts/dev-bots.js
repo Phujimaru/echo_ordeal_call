@@ -11,7 +11,7 @@ const Board = require("../server/board");
 const N = Math.max(1, Math.min(6, Number(process.argv[2]) || 3));
 const URL = process.argv[3] || "http://localhost:3000";
 const MODE = ["ffa", "duo", "trio"].includes(process.argv[4]) ? process.argv[4] : "ffa";
-const CHARS = ["oberon_summer", "muimi"];
+const CHARS = ["oberon_summer", "muimi", "sliver_bullet"];
 const COLORS = ["#C0392B", "#2E9E4B", "#E5B33B", "#9B4F96", "#E86A2B", "#1C3F6E"];
 const TEAMS = ["A", "B", "C"];
 const chance = (pct) => Math.random() * 100 < pct;
@@ -62,6 +62,7 @@ function bot(i) {
     const teamMode = st.gameMode === "duo" || st.gameMode === "trio";
     const ally = (p) => teamMode && me.teamId && p.teamId === me.teamId;
     const map = { ...st.board, heal: new Set(st.board.heal) };
+    // คนที่ server ไม่ส่งตำแหน่งมา (pos: null — นักบินปริศนาซ่อนตัว / ศัตรูในพุ่มไม้) = มองไม่เห็น ไม่นับเป็นเป้า/สิ่งกีดขวาง
     const units = st.players.filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null }));
     const foes = st.players.filter((p) => p.alive && p.pos && p.id !== me.id && !ally(p));
     if (!foes.length) { send("endAction"); return; }
@@ -106,7 +107,9 @@ function bot(i) {
     if (!tried.skill && !me.skillUsed && chance(45)) {
       tried.skill = true;
       const ch = me.character || {};
-      const tiers = ["basic", "secondary", "ultimate"].filter((t) => ch[t] && (ch[t].cost || 0) <= (me.skillPoints || 0));
+      // ท่าที่ไม่มี (ultimate: null) / ล็อก / คูลดาวน์ = ข้าม
+      const lock = (t) => { const l = (me.skillLocks || {})[t]; return !!l && (!!l.locked || (l.cd || 0) > 0); };
+      const tiers = ["basic", "secondary", "ultimate"].filter((t) => ch[t] && !lock(t) && (ch[t].cost || 0) <= (me.skillPoints || 0));
       const tier = tiers.length ? pickOne(tiers) : null;
       const a = tier ? ch[tier].area || { kind: "self" } : null;
       if (a && a.kind === "line") {

@@ -25,6 +25,7 @@ const combat = require("./combat");
 const cutscene = require("./cutscene");
 const timers = require("./timers");
 const view = require("./view");
+const Visibility = require("./visibility");
 
 // เพดานเหรียญรายบุคคล
 function goldCapOf(p) {
@@ -232,9 +233,12 @@ function useInventoryItem(id, uid, opts = {}) {
   const item = p.inventory[idx];
   // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด (ต้องยืนติดกัน) ----------
   if (item.type === "mark42") {
+    const other = opts.targetId && opts.targetId !== p.id ? match.players[opts.targetId] : null;
+    if (other && Visibility.hiddenFrom(p, other)) return; // มองไม่เห็น = ส่งชุดให้ไม่ได้
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
     action.lockMove(p);
+    if (other) Visibility.onHostileAct(p); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
     p.inventory.splice(idx, 1);
     characterRules.mark42Run(p, plan, null);
     return;
@@ -274,6 +278,7 @@ function fireGuts(p, idx, item, targetId) {
   match.action.locked = true;
   p.gutsShotTurn = match.roundNumber;
   p.inventory.splice(idx, 1);
+  Visibility.onHostileAct(p); // ยิงจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   match.lastLog.push(`🔫 ${p.name} ยิง ${GUTS_AMMO[item.ammo].name} ใส่ ${target.name}!`);
   // วีดีโอเต็มจอของกระสุนแต่ละแบบเล่นครั้งเดียวต่อเกม "ต่อผู้ยิงแต่ละคน" (เก็บใน p.cutsceneShown เหมือน
   //  วีดีโอแปลงร่างของตัวละคร — รีเซ็ตทุกแมตช์ใหม่ใน resetCombat) ครั้งต่อไปเป็นการ์ดแจ้งเตือนเล็ก ไม่หยุดกระดาน
@@ -297,6 +302,7 @@ function gutsFireTargetOf(p, item, targetId) {
   if (!GUTS_AMMO[item.ammo]) return null;
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
+  if (Visibility.hiddenFrom(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
   if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(p.pos, target.pos))) return null;
   return target;
 }

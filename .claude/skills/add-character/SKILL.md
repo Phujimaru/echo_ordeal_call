@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` และ `oberon_summer` — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -68,6 +68,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - **`field` ตอนนี้ไม่มีสกิลไหนใช้** (เก็บไว้สำหรับอนาคต) — สเปกที่เขียน "ศัตรูทุกคน" ให้ถามผู้ใช้ว่าจะเป็น `aoe` รัศมีเท่าไร
 - **ไม่มีความสามารถที่ทำให้ไพ่แตก** (กฎผู้ใช้) — สเปกเก่าที่มี "ทำให้ไพ่แตก" ต้องถามว่าจะแทนด้วยอะไร (ต้นแบบ: ท่าไม้ตายมุยมิเปลี่ยนเป็นคลื่นดาบ `line` 4×3 — §7.3)
 - `effect` ใน `characters.js` (`combat.applyEffect`) **ลงกับผู้ใช้เองเท่านั้น** — สกิลที่โดนคนอื่นต้อง `effect: null` แล้วเขียนใน hook
+- **`area.hostile: true` = สกิลโจมตี** — โดนคนที่มองไม่เห็นในพื้นที่ด้วย (คนในพุ่มหญ้า/ล่องหน) และคนล่องหนที่โดนปรากฏตัว · ไม่ใส่ = คนที่ผู้ใช้มองไม่เห็นหลุดจากพื้นที่ (ใช้กับบัฟ) · `target` เล็งคนที่มองไม่เห็นไม่ได้เสมอ (GRID_PLAN §3.3)
 - `instant: true` = เด้งป้าย `skillFlash` ให้ทุกคนเห็นทันทีตอนกด (ทุกสกิลตอนนี้ตั้งไว้ — ตั้งเหมือนกัน)
 
 ## กติกาตาเดินที่สกิลต้องเคารพ (GRID_PLAN §4, §7)
@@ -108,7 +109,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ต้องการ | ฮุค | เรียกจาก |
 |---|---|---|
 | ด่านเงื่อนไขก่อนหักแต้ม | `canUseSkill(engine, p, tier, targets)` (targets ผ่าน `resolveArea` แล้ว) | `server/skills.js` `useSkill()` |
-| ลงผลสกิล | `applyInstantSkill(engine, p, tier, targets)` (คืนข้อความต่อท้าย skillFlash ได้) | `server/skills.js` |
+| ลงผลสกิล | `applyInstantSkill(engine, p, tier, targets, opts)` (คืนข้อความต่อท้าย skillFlash ได้ · `opts.dir` = ทิศของ `line`) | `server/skills.js` |
+| ราคาเปลี่ยนตามสถานะ | `skillCost(p, tier, base)` (useSkill + ป้ายราคาใช้ตัวเดียวกัน) | `server/skills.js` · `server/view.js` |
+| ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
+| เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p)` | `combat.maxHpOf`/`maxArmorOf` |
+| ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind)` (`act`/`hit`/`bump`) + `logCut(p, round)` | `server/visibility.js` |
 | สกิลไม่นับโควตา / ไม่กินโควตา | `ignoresTurnQuota(p, tier)` / `skipsTurnQuota(p, tier)` | `server/skills.js` |
 | เสียงตอนใช้สกิล | `skillSound(p, tier)` | `server/skills.js` |
 | ล็อก/คูลดาวน์รายช่องให้ client | `skillLocks(engine, p)` | `server/view.js` |
@@ -216,6 +221,9 @@ description: เพิ่มตัวละครใหม่หรือรื�
 
 **12. `buildStateFor(viewerId)` เป็น per-viewer** — ถ้าต้องซ่อนข้อมูลจากคนอื่น ทำได้ที่นี่
 แต่ `lastLog` กับ `io.emit("skillFlash")` เป็นก้อนเดียวส่งทุกคน ซ่อนรายคนไม่ได้
+
+**13a. การมองเห็น (`server/visibility.js`)** — ทางกดใหม่ที่เล็งคนอื่น (socket/ไอเทม) ต้องเช็ค `Visibility.hiddenFrom(p, target)` และเรียก `Visibility.onHostileAct(p)` ตอนโจมตี
+ไม่งั้นตีคนในพุ่ม/คนล่องหนได้ หรือคนในพุ่มตีแล้วไม่โผล่ · แก้ `server/board.js` แล้วต้องรัน `node scripts/gen-board-rules.js` (เทสต์ `board-rules-sync`)
 
 **13. ไม่ต้องทำหน้าจอมือถือ** (CLAUDE.md) — โมดัล/ฉากใหม่เสียบเฉพาะจอคอม/แท็บเล็ต
 

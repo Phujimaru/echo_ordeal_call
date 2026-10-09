@@ -20,6 +20,7 @@ const cutscene = require("./cutscene");
 const action = require("./phases/action");
 const lobby = require("./lobby");
 const view = require("./view");
+const Visibility = require("./visibility");
 
 function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
@@ -33,7 +34,9 @@ function useSkill(id, tier, targets, opts = {}) {
   if (!skill) return;
   if ((p.statuses.noskill || 0) > 0) return; // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้
 
-  let cost = skill.cost;
+  const hook = CHAR_HOOKS[p.characterId];
+  // ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน) — ต้องตรงกับ showCost() ใน buildStateFor
+  let cost = hook && hook.skillCost ? hook.skillCost(p, tier, skill.cost) : skill.cost;
   // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ (พื้นฐาน/รอง อย่างใดอย่างหนึ่ง) ใช้แต้มมากขึ้น +1 — ไม่มีผลกับท่าไม้ตาย
   //  (เพดาน SKILL_COST_MAX คิดรวมทีเดียวกับภาระเวทด้านล่าง)
   const nightTax = p.nightTaxTier === tier ? 1 : 0;
@@ -56,7 +59,6 @@ function useSkill(id, tier, targets, opts = {}) {
   if (!targets) return;
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
-  const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets)) return;
   // โควตาสกิลหลัก 1 อันต่อเทิร์น — ignoresTurnQuota = กดได้แม้ใช้โควตาไปแล้ว (มุยมิ: เสบียงฉุกเฉิน)
   //  skipsTurnQuota = กดแล้วไม่กินโควตา (มุยมิ: เสบียงฉุกเฉิน · โอเบรอน: นกจาบยามเช้า)
@@ -106,18 +108,24 @@ function useSkill(id, tier, targets, opts = {}) {
   // ผลของสกิลที่ตัวละครเขียนเองในโมดูล (effect: null ใน characters.js) — คืนข้อความต่อท้ายป้ายเด้ง
   let flashSuffix = "";
   match.afterCutscene = []; // ผลที่ hook ขอให้เกิด "หลังคลิปจบ" (engine.deferAfterCutscene) — เช่นคลื่นดาบมุยมิ
-  if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets) || "";
+  if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets, opts) || "";
   const deferred = match.afterCutscene.splice(0);
+  // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น
+  //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
+  if ((targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
+  if (skill.area && skill.area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
   combat.applyEffect(p, skill.effect);
 
   // สกิลช่วงจั่วการ์ด (instant): เด้งโชว์ทันทีบนกระดานของทุกคน ไม่ต้องรอเปิดไพ่/ไม่ตัดจอดำ
-  if (skill.instant) {
+  // silentFlash: สกิลที่มีคลิป/การ์ดแจ้งเตือนของตัวเอง (ต้องเงียบระหว่างล่องหน) — ไม่ขึ้นป้ายกลาง ไม่บันทึก roundSkills
+  const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier));
+  if (skill.instant && !silent) {
     const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
     io.emit("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound });
   }
-  match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
+  if (!silent) match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
 
   // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
   if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }

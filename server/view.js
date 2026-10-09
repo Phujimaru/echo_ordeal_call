@@ -20,6 +20,7 @@ const action = require("./phases/action");
 const attackPhase = require("./phases/attack");
 const lobby = require("./lobby");
 const shop = require("./shop");
+const Visibility = require("./visibility");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -60,7 +61,7 @@ function forecastFor(viewer) {
   if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
   const out = {};
   for (const t of combat.alivePlayers()) {
-    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t)) continue;
+    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || Visibility.hiddenFrom(viewer, t)) continue;
     out[t.id] = {
       dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer),
       // โอกาสโดน/คริติคอล (% จำนวนเต็ม 0–100) — back* = ฝั่งเป้าตีสวนกลับ (มีผลเฉพาะเป้าที่ตีสวนได้)
@@ -94,6 +95,8 @@ function buildStateFor(viewerId) {
   // สมุดการ์ดกองกลาง: การ์ดทั้ง 43 ใบตามลำดับคงที่ + ใบไหนถูกจั่วไปแล้วในรอบนี้ (centralDeck สับใหม่ทุกรอบ — สมุดนี้จึงนับเฉพาะรอบปัจจุบัน)
   const remainingCardKeys = new Set(match.centralDeck.map(cardDeck.cardKey));
   const deckLedger = cardDeck.canonicalDeckCards().map((c) => ({ ...c, drawn: !remainingCardKeys.has(cardDeck.cardKey(c)) }));
+  // คนที่กำลังเดินซึ่งผู้ชมคนนี้มองไม่เห็น (ล่องหน/พุ่มหญ้า) — ไม่ส่งเส้นทาง/ช่องเริ่มตา (server/visibility.js)
+  const actorUnseen = Visibility.hiddenFrom(viewer, match.players[match.actorId]);
   return {
     gameState: match.gameState,
     gameMode: match.gameMode,
@@ -116,14 +119,14 @@ function buildStateFor(viewerId) {
     turnOrder: match.turnOrder,
     forecast: forecastFor(viewer), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
     actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,
-    action: match.gameState === "ACTION" && match.action ? { from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null } : null,
+    action: match.gameState === "ACTION" && match.action && !actorUnseen ? { from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null } : null,
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
     cutscene: (match.gameState === "CUTSCENE" && match.cutsceneInfo && (!match.cutsceneInfo.onlyFor || match.cutsceneInfo.onlyFor.includes(viewerId)))
       ? match.cutsceneInfo : null,
     attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
-    log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? match.lastLog : [],
+    log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : [],
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
     shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
     shopTurnsLeft: shop.shopTurnsLeft(), // อีกกี่เทิร์นร้านย้าย (รวมเทิร์นนี้)
@@ -140,6 +143,9 @@ function buildStateFor(viewerId) {
       // "เปิดแต้ม" (promo, สถานะ Universal): แต้มการ์ดของคนติดสถานะถูกเปิดเผยให้ทุกคนเห็น
       const promoShow = (p.statuses.promo || 0) > 0;
       const ch = CHAR_BY_ID[p.characterId] || {};
+      const hook = CHAR_HOOKS[p.characterId];
+      // การมองเห็น: ผู้ชมคนนี้มองไม่เห็น p (ล่องหน/พุ่มหญ้า) = ไม่ส่งตำแหน่ง
+      const unseen = Visibility.hiddenFrom(viewer, p);
       const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
       const basicPub = pub(ch.basic);
       const secondaryPub = pub(ch.secondary);
@@ -151,7 +157,7 @@ function buildStateFor(viewerId) {
       //  ซ้อนกับกระแสเวท/ภาระเวทได้ แต่ตัวปรับขาขึ้นรวมกันแล้วต้องไม่ดันราคาเกิน SKILL_COST_MAX
       //  (สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้วจะไม่แพงขึ้นไปอีก — ต้องตรงกับ useSkill() เป๊ะ)
       const showCost = (pub, tierName) => {
-        const baseCost = pub.cost;
+        const baseCost = hook && hook.skillCost ? hook.skillCost(p, tierName, pub.cost) : pub.cost; // ต้องตรงกับ useSkill()
         return Math.min(
           SKILL_COST_MAX,
           Math.max(0, baseCost - spellflowAmt) + spellburdenAmt + (p.nightTaxTier === tierName ? 1 : 0)
@@ -231,7 +237,10 @@ function buildStateFor(viewerId) {
         dmgHp: p.dmgHp, dmgArmor: p.dmgArmor, gainedSkill: p.gainedSkill,
         wasAttacked: p.wasAttacked,
         // กระดาน: ตำแหน่ง + ระยะเดิน (เทิร์นนี้ / ปกติสูงสุด) + ระยะตี — ทุกคนเห็น (ใช้วาดระยะอันตราย)
-        pos: p.pos || null,
+        pos: unseen ? null : (p.pos || null),
+        // หมากโปร่งแสง: ศัตรูบางคนมองไม่เห็นคนนี้อยู่ (ส่งเฉพาะผู้ชมที่ยังเห็น — ตัวเอง/เพื่อนร่วมทีม/คนในพุ่มเดียวกัน)
+        veiled: !unseen && Visibility.concealed(p),
+        sliver: hook && hook.publicState ? hook.publicState(engine, p, viewer) : undefined, // นักบินปริศนา: แขน / ล่องหน
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),

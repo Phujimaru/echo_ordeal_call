@@ -39,6 +39,9 @@ const FILES = {
   oberon_summer_skill1: "/characters/oberon(summer)/oberon_summer_skill1.m4a",
   oberon_summer_skill2: "/characters/oberon(summer)/oberon_summer_skill2.m4a",
   oberon_summer_skill3: "/characters/oberon(summer)/oberon_summer_skill3.m4a",
+  // นักบินปริศนา (sliver_bullet): บรรจุแขนใหม่ · ยิง (ตีปกติ + Beam Magnum)
+  sliver_reload: "/characters/sliver_bullet/sliver_bullet_reload_arm.m4a",
+  sliver_shot: "/characters/sliver_bullet/sliver_bullet.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

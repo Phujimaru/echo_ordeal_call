@@ -11,6 +11,8 @@
 //    { kind: "target", range, self? }                เลือก 1 คนในระยะ (self = เลือกตัวเองได้)
 //    { kind: "aoe", range, self? }                   ทุกคนในรัศมีรอบตัว (ข้าวหลามตัด)
 //    { kind: "line", len, width }                    เลือกทิศ — แนวยาว len กว้าง width จากช่องติดตัว
+//    hostile: true = สกิลโจมตี — โดนคนที่มองไม่เห็นในพื้นที่ด้วย และคนล่องหนที่โดนปรากฏตัว (server/visibility.js)
+//      ไม่ใส่ = คนที่ผู้ใช้มองไม่เห็นหลุดจากพื้นที่ (บัฟ/ฟื้นฟู)
 //    range: "mov" = เท่าระยะเดินปกติสูงสุดของผู้ใช้
 //
 //  effect รองรับ (ยิงใส่ตัวเองก่อนใน milestone นี้ — สกิลใส่คู่ต่อสู้ค่อยเพิ่มทีหลัง):
@@ -62,7 +64,7 @@ const CHARACTERS = [
     ultimate: {
       name: "ดาบสะบั้นหอคอยสวรรค์",
       desc: "เลือกทิศ: ได้ “ดาบสะบั้น” 2 เทิร์น (โจมตีพื้นฐาน +1 · ตีปกติฟื้นพลังชีวิต 2) แล้วปล่อยคลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว เท่าพลังโจมตี +3 (เกราะรับก่อน · หลบได้ · ไม่โดนเพื่อน) · ได้ต้านสถานะผิดปกติ 3 เทิร์น · ใช้ไม่ได้ระหว่าง “ดาบเก่าๆ” · หมดแล้วรอ 3 เทิร์นถึงใช้ซ้ำได้",
-      area: { kind: "line", len: 4, width: 3 },
+      area: { kind: "line", len: 4, width: 3, hostile: true },
       cost: 8,
       img: "/characters/muimi/muimi_skill3.webp",
       instant: true,
@@ -110,6 +112,42 @@ const CHARACTERS = [
       instant: true,
       effect: null,
     },
+  },
+  {
+    // ---------- นักบินปริศนา (Silver Bullet) — ง่าย · unique — ดู characters/sliver_bullet.js ----------
+    //  id สะกด "sliver_bullet" ตามโฟลเดอร์สื่อเดิม · พลังชีวิต 5 / เกราะ 2 (sliver_bullet.maxHp/maxArmor)
+    //  basic.cost 2 = ราคาตอนไม่มีแขน · มีแขน = 3 (sliver_bullet.skillCost — useSkill/buildStateFor สูตรเดียวกัน)
+    id: "sliver_bullet",
+    name: "นักบินปริศนา",
+    avatar: 0,
+    difficulty: "easy",
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม
+    img: "/characters/sliver_bullet/sliver_bullet_banagher.png",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "ซุ่มโจมตี",
+      desc: "ผู้เล่นที่ยังรอด 3 คนขึ้นไป (โหมดทีม: เพื่อนร่วมทีม 2 คนขึ้นไป): ล่องหน ศัตรูมองไม่เห็นและเล็งไม่ได้ · ปรากฏตัว 2 เทิร์นเมื่อ ตีปกติ · ยิงปืน · ใช้ไอเทมใส่คนอื่น · Beam Magnum · อยู่ในพื้นที่สกิลโจมตีของศัตรู · ศัตรูเดินชน",
+    },
+    basic: {
+      name: "เปลี่ยนชิ้นส่วน",
+      desc: "ไม่นับเป็นการใช้สกิล · ไม่มีแขน (2 แต้ม): ได้แขนใหม่ · ฟื้นพลังชีวิต 1 · มีแขน (3 แต้ม): ฟื้นพลังชีวิต 2",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/sliver_bullet/sliver_bullet_skill1.png",
+      instant: true,
+      effect: null, // จัดการใน characters/sliver_bullet.js
+    },
+    secondary: {
+      name: "Beam Magnum",
+      desc: "ต้องมีแขน · เสียแขน: เลือกทิศ ยิงทะลุศัตรูทุกคนในแนว 6×1 ความเสียหาย 4 (เกราะรับก่อน · หลบไม่ได้)",
+      area: { kind: "line", len: 6, width: 1, hostile: true },
+      cost: 4,
+      img: "/characters/sliver_bullet/sliver_bullet_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: null,
   },
 ];
 

@@ -24,12 +24,13 @@ const key = (x, y) => `${x},${y}`;
 //   evade = ยืนอยู่แล้วหลบหลีกการโจมตีปกติ/ตีสวน/สกิลที่ตีด้วยพลังโจมตี +N% (แม่นยำเจาะได้ — phases/attack.js)
 //   stop  = เดินเข้าแล้วหยุดทันที (ก้าวที่เหลือหายหมด) · slide = เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิม
 //   atk   = ยืนอยู่แล้วพลังโจมตี +N (computeAttackBase) · end = ผลตอนจบตาบนช่องนี้ (endTurnTile)
+//   bush  = พุ่มหญ้า: ยืนอยู่แล้วศัตรูมองไม่เห็น ยกเว้นคนที่ยืนในพุ่มผืนเดียวกัน (bushPatchOf — server/visibility.js)
 //  heal / oasis = จุดฟื้นฟู (map.heal) — ชื่อตามภูมิภาค (map.healKind)
 const TERRAIN_INFO = {
   heal: { name: "วงเวทฟื้นฟู", icon: "✨", desc: "จบตา ฟื้นพลังชีวิต +1" },
   oasis: { name: "โอเอซิส", icon: "🌴", desc: "จบตา ฟื้นพลังชีวิต +1" },
-  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20%", cost: 2, evade: 20 },
-  forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดิน 2 ก้าว · หลบหลีก +20%", cost: 2, evade: 20 },
+  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
+  forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
   thorns: { name: "หนามพิษ", icon: "🥀", desc: "จบตา ติดพิษร้าย 1 เทิร์น", end: "thorns", poison: 1 },
   shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดิน 2 ก้าว", cost: 2 },
   whirl: { name: "น้ำวน", icon: "🌀", desc: "จบตา ถูกดัน 1 ช่องตามกระแส", end: "whirl" },
@@ -230,6 +231,37 @@ function terrainEvade(map, x, y) {
 function terrainAtk(map, x, y) {
   const info = TERRAIN_INFO[specialAt(map, x, y)];
   return (info && info.atk) || 0;
+}
+// พุ่มหญ้า: เลขผืนของช่องนี้ (ช่อง bush ที่ต่อกัน 4 ทิศ = ผืนเดียวกัน) · ไม่ใช่พุ่ม = null
+//  คิดครั้งเดียวต่อแผนที่แล้วเก็บไว้ (แผนที่เป็นค่าคงที่)
+const bushCache = new WeakMap();
+function bushPatchOf(map, x, y) {
+  let patches = bushCache.get(map);
+  if (!patches) {
+    patches = new Map();
+    const isBush = (bx, by) => { const info = TERRAIN_INFO[specialAt(map, bx, by)]; return !!(info && info.bush); };
+    let next = 0;
+    for (let sy = 0; sy < map.rows; sy++) {
+      for (let sx = 0; sx < map.cols; sx++) {
+        if (!isBush(sx, sy) || patches.has(key(sx, sy))) continue;
+        const id = next++;
+        const stack = [[sx, sy]];
+        patches.set(key(sx, sy), id);
+        while (stack.length) {
+          const [cx, cy] = stack.pop();
+          for (const [dx, dy] of DIRS) {
+            const nx = cx + dx, ny = cy + dy;
+            if (!inBounds(map, nx, ny) || !isBush(nx, ny) || patches.has(key(nx, ny))) continue;
+            patches.set(key(nx, ny), id);
+            stack.push([nx, ny]);
+          }
+        }
+      }
+    }
+    bushCache.set(map, patches);
+  }
+  const id = patches.get(key(x, y));
+  return id === undefined ? null : id;
 }
 // ข้อมูลช่องสำหรับป้ายบนหน้าจอ → { kind, name, icon, desc } · พื้นธรรมดา/สิ่งกีดขวาง = null
 function tileInfo(map, x, y) {
@@ -473,7 +505,7 @@ function normalizeMap(pub) {
 export {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
-  specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile,
+  specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf,
   reachable, pathTo,
   tilesInRange, aoeTiles, lineTiles, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,

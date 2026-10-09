@@ -25,9 +25,10 @@ const cardDeck = require("./deck");
 const lobby = require("./lobby");
 const qteSystem = require("./qte");
 
-// เลือดจริงสูงสุดของผู้เล่น
+// เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
-  return MAX_HP;
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return hook && hook.maxHp ? hook.maxHp(p) : MAX_HP;
 }
 // ฟื้นเลือดจริงแบบเคารพสถานะ "ไม่ใช้งานต่อ" / "ไร้ทางเยียวยา" — คืนจำนวนที่ฟื้นได้จริง
 // ผกผัน (patch 2.2.1): การฟื้นเลือดกลับกลายเป็นเสียเลือดแทน (ไม่สนเกราะ)
@@ -108,9 +109,10 @@ const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
   "oblada", "hburn", "invert", "manaSeal", "manaRupture", "manaLeech",
   "numb", // เหน็บชา
 ];
-// เกราะสูงสุดของผู้เล่น
+// เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
-  return MAX_ARMOR;
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return hook && hook.maxArmor ? hook.maxArmor(p) : MAX_ARMOR;
 }
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
 // force = true: ข้ามระบบกันตายทั้งหมด (เช่นเกราะ Mark 42) — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
@@ -120,6 +122,7 @@ function instantDeath(p, force) {
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
   qteSystem.clearQte(p); // ตกรอบแล้ว QTE ที่ค้างอยู่ต้องหายไปด้วย (ไม่งั้นค้างข้ามการชุบชีวิต/ย้อนเวลา)
+  CHAR_HOOKS.sliver_bullet.onDeath(engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
 }
 
 // สรุปผลหลังดาเมจจากสกิลของโมดูลตัวละคร/ไอเทม: ตกรอบทันทีเมื่อ HP หมด
@@ -287,6 +290,8 @@ function resetCombat(p) {
   CHAR_HOOKS.oberon_summer.resetCombat(p);  // โอเบรอน (ฤดูร้อน): คูลดาวน์/ล็อกรายช่อง + สตั้นที่จองไว้ (ติดที่เป้าหมาย)
   Mark42.resetCombat(p); // เกราะ Mark 42: ชุดที่ใส่อยู่ / ชุดที่ส่งออกไป / คูลดาวน์ซื้อ
   CHAR_HOOKS.muimi.resetCombat(p); // มุยมิ: โควตาเสบียง / จำนวนครั้งท่าไม้ตาย
+  CHAR_HOOKS.sliver_bullet.resetCombat(p); // นักบินปริศนา: แขน / ล่องหน
+  p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)
   // เลือด/เกราะเริ่มเกม: คำนวณหลังรีเซ็ต statuses แล้วเท่านั้น

@@ -341,9 +341,10 @@ test('เปลี่ยนภูมิภาค: mapOf/boardMap ได้แผ
 });
 
 test('ทุ่งดอกไม้: เป้าในพุ่มดอกไม้หลบการโจมตีปกติได้ 20% · ไม่พ้น = โดนตามปกติ', () => {
-  // (6,4) พุ่มดอกไม้ · (6,3) พื้น
+  // (6,4) พุ่มดอกไม้ · (6,3) พื้น — B อยู่ในพุ่ม A มองไม่เห็น (server/visibility.js) จึงตั้งให้ B โผล่เทิร์นนี้ (ตีจากพุ่มมาแล้ว)
   let P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
+  P.B.exposedRound = engine.roundNumber;
   Math.random = () => 0; // ทอยหลบพ้น
   const hpB = P.B.hp;
   assert.equal(engine.attackTarget('A', 'B'), true);
@@ -355,6 +356,7 @@ test('ทุ่งดอกไม้: เป้าในพุ่มดอกไ
 
   P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
+  P.B.exposedRound = engine.roundNumber;
   Math.random = () => 0.5; // 50 ≥ 20 → ไม่พ้น
   engine.attackTarget('A', 'B');
   engine.clearPhaseTimer();
@@ -374,6 +376,7 @@ test('ทุ่งดอกไม้: ผู้ตียืนในพุ่ม
 
   P = setup(2, { A: { x: 6, y: 3 }, B: { x: 6, y: 4 } });
   startActions(['A', 'B']);
+  P.B.exposedRound = engine.roundNumber;
   P.A.statuses.accurate = 1;
   Math.random = () => 0;
   engine.attackTarget('A', 'B');

@@ -5,7 +5,8 @@
 //  props
 //   map         { area, cols, rows, terrain: { "x,y": "tree"|"pillar"|"banner"|"hedge"|… }, heal: ["x,y"…], spawns: [{x,y}], shopSpots }
 //               (= state.board · heal รับได้ทั้ง array ของ "x,y" / [x,y] / {x,y} และ Set · ชนิดสิ่งกีดขวางที่ไม่รู้จัก = ก้อนหิน)
-//   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive? }]
+//   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive?, alpha?, cloak? }]
+//               cloak = ซ่อนจากศัตรูอยู่ (เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน) → วาดจางแบบเงา + แถบแสงพาดช้าๆ
 //               tag = ป้ายเหนือหัว: "18" / "พอ" / "แตก" (แตก = ป้ายแดง) หรือ { text, bust, backs } · alive === false = ไม่วาด
 //   highlights  { move, attack, skill, aoe, danger: ["x,y"…], path: [{x,y}…], target?: {x,y}, push?: { from, to, collide } } — ไม่ใส่ได้ทุกช่อง
 //   shopPos     {x,y} | null — แผงร้านค้ามายา
@@ -13,7 +14,7 @@
 //   rotation    0|1|2|3 = หมุนมุมมองทีละ 90° ตามเข็มนาฬิกา (ค่าเริ่ม 0) — หมุนแค่ภาพ ทุก prop และคอลแบ็กยังเป็นพิกัดกระดานเดิม
 //               เปลี่ยนค่า = หมุนนุ่มๆ ≈250ms (lowQ = ทันที) · กล้องจัดกลาง/ย่อพอดีจาก map.cols × map.rows หลังหมุนเอง
 //               (กระดานจัตุรัส เช่น 14 × 14 = ทุกมุมกรอบเท่ากัน) · มุมใกล้ = หมุนรอบจุดกลางของส่วนที่มองเห็น
-//   zoom        0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ขยาย ZOOM_K = 1.6 เท่า เลื่อนดูได้ทั้งสนาม) — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
+//   zoom        0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ขยาย ZOOM_K = 1.6 เท่า · มองจากด้านบน ZOOM_K_TOP = 2.6 เท่า เลื่อนดูได้ทั้งสนาม) — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
 //   view        "tilt" (ค่าเริ่ม · กล้องเอียง 32°) | "top" = มองจากด้านบน 90° — แยกจากซูม: มุมบนก็ซูม/เลื่อน/หมุนได้เหมือนเดิม
 //               มุมใกล้: ลากเมาส์ซ้ายบนกระดาน (เกิน 6px = ลาก ไม่นับเป็นคลิก) / ลากปุ่มขวา-กลาง / แตะลาก / ปุ่มลูกศร = เลื่อนกล้อง
 //   onZoomChange(0|1)  ล้อเมาส์ขึ้น = 1 (ซูมเข้าหาจุดใต้เมาส์) · ลง = 0 — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
@@ -25,6 +26,8 @@
 //               | { kind: "lunge", id, from, to, hitId } (ง้าง → พุ่งเข้าหาเป้า → กลับที่เดิม · จังหวะชน = เป้า hitId สั่น)
 //               — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
 //   fx          [{ key, kind: "slash"|"burst"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
+//               | { key, kind: "beam", x, y (ช่องคนยิง), dir: "up"|"down"|"left"|"right", len, color } — ลำแสง Beam Magnum
+//                 เริ่มช่องติดคนยิงยาว len ช่อง (ตัดที่ขอบกระดาน) · ตัวที่ยืนในแนวสั่นตอนลำแสงถึง
 //   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
 //               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
@@ -34,9 +37,9 @@
 // ============================================================
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  bakeBoard, bakeScene, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, inCamView, key, LH, LW,
-  mapSignature, normColor, normRot, pickTile, prepareHighlights, prepareMap, project, rgbString, setCamera, toLogical,
-  unproject, ZOOM_K,
+  bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, inCamView, key, LH, LW,
+  mapSignature, normColor, normRot, pickTile, prepareBeam, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
+  setCamera, toLogical, unproject, ZOOM_K,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
 import { PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
@@ -51,6 +54,9 @@ const CINEMA_MS = 520; // กล้องฉากตี ซูมเข้า/�
 const TURN_MS = 250;   // หมุนมุมมอง 90°
 const ZOOM_MS = 280;   // ซูมเข้า/ออก
 const FOCUS_MS = 420;  // เลื่อนกล้องตามตัวละคร
+// มองจากด้านบน: ช่องเล็กกว่ามุมเอียง (~33 px ตรรกะ ทุกแถว เทียบมุมเอียงกลางกระดาน ~44 px) → มุมใกล้ต้องขยายมากกว่า (ผู้ใช้สั่ง 2026-10-09)
+const ZOOM_K_TOP = 2.6;
+const zoomKOf = (pitch) => (pitch === PITCH_BIRD ? ZOOM_K_TOP : ZOOM_K);
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
@@ -226,18 +232,24 @@ export default function BoardCanvas(props) {
           const z = Math.max(1, cin.z || 2);
           startAnim(clampCam(info, base, { z, cx: (ax + bx) / 2, cy: (ay + by) / 2 - 18 / z }), CINEMA_MS);
         } else if (st.cinemaBack) {
-          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: ZOOM_K, cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
+          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: zoomKOf(pitch), cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
           st.cinemaBack = null; st.zoomLv = zl;
           startAnim(clampCam(info, base, back), CINEMA_MS);
         }
       }
       if (st.cinemaRef) { st.focusRef = p.focus; }
+      else if (zl && st.zoomLv === 1 && st.zoomPitch !== pitch) {
+        // สลับมุมมองระหว่างมุมใกล้: คงจุดกลางไว้ ปรับขนาดขยายตามมุมใหม่
+        st.zoomPitch = pitch;
+        startAnim(clampCam(info, base, { z: zoomKOf(pitch), cx: st.cam.cx, cy: st.cam.cy }), ZOOM_MS);
+      }
       else if (zl !== st.zoomLv) {
         const first = st.zoomLv === null;
         st.zoomLv = zl;
+        st.zoomPitch = pitch;
         let to;
         if (zl) {
-          const z1 = ZOOM_K, a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
+          const z1 = zoomKOf(pitch), a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
           if (a) {
             // ล้อเมาส์: จุดใต้เมาส์อยู่ที่เดิมบนจอ
             const r = st.cam.z / z1;
@@ -276,7 +288,7 @@ export default function BoardCanvas(props) {
       const view = st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base;
       st.view = view;
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
-      const res = lowQ || !zl ? dpr : Math.round(Math.min(2, dpr * ZOOM_K) * 100) / 100;
+      const res = lowQ || !zl ? dpr : Math.round(Math.min(2, dpr * zoomKOf(pitch)) * 100) / 100;
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
@@ -338,6 +350,15 @@ export default function BoardCanvas(props) {
           if (!f || f.key == null || st.fxSeen.has(f.key)) continue;
           st.fxSeen.add(f.key);
           const item = { ...f, t0: now };
+          if (f.kind === "beam") {
+            item.beam = info ? prepareBeam(f, info.cols, info.rows) : null;
+            if (!item.beam) continue;
+            Object.assign(item, beamColors(f.color));
+            item.beam.tiles.forEach((t, i) => {
+              const hu = units.find((u) => u.x === t.x && u.y === t.y && u.alive !== false);
+              if (hu) st.hitT.set(hu.id, now + item.beam.hits[i]);
+            });
+          }
           if (f.kind === "slash" || f.kind === "burst") {
             const hitU = units.find((u) => u.x === f.x && u.y === f.y && u.alive !== false);
             if (hitU) st.hitT.set(hitU.id, now);
@@ -366,6 +387,7 @@ export default function BoardCanvas(props) {
         }
         const k = key(u.x, u.y);
         let reticle = null, alpha = u.alpha == null ? 1 : u.alpha;
+        if (u.cloak) alpha *= lowQ || reducedMotion() ? 0.45 : 0.45 + 0.06 * Math.sin(now / 420);
         if (!u.isMe && !u.isActor) {
           if (hl.aoe.has(k)) reticle = "aoe";
           else if (hl.skill.has(k)) reticle = "skill";
@@ -375,7 +397,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.tag, reticle, alpha,
+          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
           hitT: st.hitT.get(u.id) || 0,
           hovered: !!hov && st.hoverUnit === u.id,
         });

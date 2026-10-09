@@ -1022,7 +1022,8 @@ const ITEM_PRELOAD_IMGS = ["/item/guts_select_gun/guts_gun.webp", ...Object.valu
 function GutsVideoPreloader({ me, players }) {
   const ammoTypes = [...new Set((me?.inventory || []).filter((it) => it.type === "gutsAmmo").map((it) => it.ammo))];
   const preloadMuimi = (players || []).some((p) => p.character?.id === "muimi");
-  if (!ammoTypes.length && !preloadMuimi) return null;
+  const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1030,6 +1031,8 @@ function GutsVideoPreloader({ me, players }) {
       ))}
       {preloadMuimi && <video src="/characters/muimi/muimi_skill3.mp4" preload="auto" muted playsInline />}
       {preloadMuimi && <video src="/characters/muimi/muimi_skill3_short.mp4" preload="auto" muted playsInline />}
+      {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill1.mp4" preload="auto" muted playsInline />}
+      {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill2.mp4" preload="auto" muted playsInline />}
     </div>
   );
 }
@@ -1729,6 +1732,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ห้ามใช้สกิลเทิร์นนี้
   const noSkill = !!(me && me.statuses?.noskill);
   const isMuimi = ch?.id === "muimi"; // เสบียงฉุกเฉินไม่นับเป็นการใช้สกิลหลักของเทิร์น
+  const basicFree = isMuimi || ch?.id === "sliver_bullet"; // สกิลพื้นฐานที่กดได้แม้ใช้โควตาเทิร์นแล้ว (เสบียงฉุกเฉิน · เปลี่ยนชิ้นส่วน)
   const muimiUltCd = isMuimi ? (me?.muimiUltCd || 0) : 0;
   // โอเบรอน (ฤดูร้อน): server ส่งล็อก/คูลดาวน์รายช่องมาเป็นก้อนกลาง (skillLocks)
   const giftLocks = me?.skillLocks || {};
@@ -2247,9 +2251,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !isMuimi && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
+                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !basicFree && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
                   <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("secondary")) || muimiSecLocked || giftLocked("secondary") || noTargetInRange(ch?.secondary?.area)} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
-                  <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />
+                  {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
               attack={{ disabled: !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
