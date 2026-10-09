@@ -244,9 +244,12 @@ function buildStateFor(viewerId) {
         wasAttacked: p.wasAttacked,
         // กระดาน: ตำแหน่ง + ระยะเดิน (เทิร์นนี้ / ปกติสูงสุด) + ระยะตี — ทุกคนเห็น (ใช้วาดระยะอันตราย)
         pos: unseen ? null : (p.pos || null),
+        size: action.sizeOf(p), // ตัวใหญ่ (Echo ขยายร่าง): กิน size×size ช่อง · pos = ช่องมุมบนซ้าย
+        smash: action.smashes(p), // ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (client คิดระยะเดินให้ตรง server)
         // หมากโปร่งแสง: ศัตรูบางคนมองไม่เห็นคนนี้อยู่ (ส่งเฉพาะผู้ชมที่ยังเห็น — ตัวเอง/เพื่อนร่วมทีม/คนในพุ่มเดียวกัน)
         veiled: !unseen && Visibility.concealed(p),
         sliver: hook && hook.publicState ? hook.publicState(engine, p, viewer) : undefined, // นักบินปริศนา: แขน / ล่องหน
+        echo: hook && hook.echoState ? hook.echoState(engine, p) : undefined, // Echo: ขยายร่าง / ราชินี / คูลดาวน์มหึมา
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),

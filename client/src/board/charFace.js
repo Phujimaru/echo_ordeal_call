@@ -5,6 +5,7 @@
 const FACE = {
   muimi: { fx: 0.665, fy: 0.135, ar: 523 / 376, zf: 2.2, zb: 1.3, hs: 0.17 },
   oberon_summer: { fx: 0.64, fy: 0.26, ar: 875 / 512, zf: 1.5, zb: 1.15, hs: 0.23, bleed: true },
+  echo: { fx: 0.55, fy: 0.31, ar: 1080 / 933, zf: 1.6, zb: 1.1, hs: 0.36, bleed: true },
 };
 export const charKey = (p) => (p && (p.character?.id || p.charId || p.characterId)) || "";
 // สไตล์ <img> ให้หน้าตัวละครอยู่ที่ (50%, cy%) ของกรอบ (box = กว้าง/สูงของกรอบ) — ไม่รู้จักตัวละคร = cover ชิดบน

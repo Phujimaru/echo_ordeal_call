@@ -5,7 +5,9 @@
 //
 //  พิกัด: x = คอลัมน์ 0..COLS-1 (ซ้าย→ขวา) · y = แถว 0..ROWS-1 (ไกล→ใกล้กล้อง)
 //  ระยะทุกอย่างนับแบบแมนฮัตตัน (|dx| + |dy|) ไม่มีแนวทแยง — เดิน ตี สกิล ตีหมู่ ใช้การนับเดียวกัน
-//  unit = { id, x, y, alive, teamId? } — ผู้เล่นบนกระดาน (ข้อมูลอื่นไม่จำเป็นสำหรับไฟล์นี้)
+//  unit = { id, x, y, alive, teamId?, size? } — ผู้เล่นบนกระดาน (ข้อมูลอื่นไม่จำเป็นสำหรับไฟล์นี้)
+//  ตัวใหญ่ (size = N → กิน N×N ช่อง · Echo ขยายร่าง): (x, y) = ช่องมุมบนซ้าย · ระยะนับจากขอบตัวที่ใกล้สุด (dist)
+//   ช่องไหนของตัวก็โดนตี/โดนพื้นที่สกิลได้ · เดินแบบตัวใหญ่ใน reachableBig
 // ============================================================
 
 const COLS = 14; // กระดานจัตุรัส 14×14 ทุกภูมิภาค (ผู้ใช้ตัดสิน 2026-10-09)
@@ -268,15 +270,39 @@ function tileInfo(map, x, y) {
   const info = TERRAIN_INFO[kind];
   return info ? { kind, name: info.name, icon: info.icon, desc: info.desc } : null;
 }
+// ---------- ตัวใหญ่ (หลายช่อง) ----------
+// ขนาดตัว (ด้านละกี่ช่อง) — ไม่ระบุ = 1
+function sizeOf(u) {
+  return Math.max(1, (u && u.size) | 0);
+}
+// ผู้เล่น (p.pos + p.boardSize) → กล่องที่ dist ใช้ { x, y, size } · ไม่อยู่บนกระดาน = null
+function boxOf(p) {
+  return p && p.pos ? { x: p.pos.x, y: p.pos.y, size: Math.max(1, p.boardSize | 0) } : null;
+}
+// ช่องทั้งหมดที่ตัวขนาด size ยืนที่มุม (x, y) กินอยู่
+function footprint(x, y, size = 1) {
+  const out = [];
+  for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) out.push({ x: x + dx, y: y + dy });
+  return out;
+}
+// ช่อง (x, y) อยู่ในตัวของ u ไหม
+function covers(u, x, y) {
+  const s = sizeOf(u);
+  return x >= u.x && x < u.x + s && y >= u.y && y < u.y + s;
+}
+// ระยะแมนฮัตตันระหว่างขอบที่ใกล้สุดของสองกล่อง (ตัว 1 ช่อง = |dx| + |dy| ตามเดิม · ทับกัน = 0)
 function dist(a, b) {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const as = sizeOf(a), bs = sizeOf(b);
+  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
+  const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
+  return dx + dy;
 }
 // range = [rmin, rmax] (ตีปกติ) — ประชิด = [1, 1] · ธนู = [2, 2]
 function inRange(range, d) {
   return d >= range[0] && d <= range[1];
 }
 function unitAt(units, x, y) {
-  return units.find((u) => u.alive && u.x === x && u.y === y) || null;
+  return units.find((u) => u.alive && covers(u, x, y)) || null;
 }
 
 // ช่องนี้ว่างให้ไถล/ถูกดันเข้าไปไหม: ในกระดาน ไม่ใช่สิ่งกีดขวาง/blocked และไม่มีใครยืน (ยกเว้น selfId)
@@ -295,7 +321,9 @@ function freeTile(map, x, y, units, selfId, blocked) {
 //   - น้ำแข็ง (slide): เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิมโดยไม่เสียก้าว ถ้าช่องนั้นว่าง (ไม่มีใครยืน)
 //     → ช่องน้ำแข็งเป็นแค่ทางผ่าน (อยู่ใน prev ให้ pathTo วาดการไถล) · ไถลไม่ได้ = หยุดบนน้ำแข็ง
 //     ช่องที่ไถลไปลงไม่ไถลซ้ำ และไม่เสียค่าเดินของช่องนั้น
-function reachable(map, unit, mov, units, { isAlly = () => false, blocked = null } = {}) {
+function reachable(map, unit, mov, units, opts = {}) {
+  if (sizeOf(unit) > 1) return reachableBig(map, unit, mov, units, opts);
+  const { isAlly = () => false, blocked = null } = opts;
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
   const best = new Map([[key(unit.x, unit.y), start]]); // ช่องที่ไปยืนได้ระหว่างทาง (รวมช่องที่มีเพื่อนยืน) → โหนดที่ใช้ก้าวน้อยสุด
   const stops = new Map([[key(unit.x, unit.y), start]]);
@@ -334,6 +362,121 @@ function reachable(map, unit, mov, units, { isAlly = () => false, blocked = null
   }
   return stops;
 }
+// ตัวใหญ่ (size > 1) ตรวจว่ายืนที่มุม (x, y) ได้ไหม → null = ไม่ได้ · { ally, rubble }
+//  ทั้งตัวต้องอยู่ในกระดาน · ไม่ทับ blocked (ร้านค้า) · ไม่ทับศัตรู (ทับเพื่อน = ผ่านได้แต่หยุดไม่ได้ → ally)
+//  สิ่งกีดขวาง: smash = พังได้ (ทับได้ · rubble = มีของต้องพัง) · ไม่ smash = ยืนไม่ได้
+function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null, smash = false } = {}) {
+  const s = sizeOf(unit);
+  if (x < 0 || y < 0 || x + s > map.cols || y + s > map.rows) return null;
+  let rubble = false, ally = false;
+  for (const t of footprint(x, y, s)) {
+    const k = key(t.x, t.y);
+    if (blocked && blocked.has(k)) return null;
+    if (map.terrain[k]) { if (!smash) return null; rubble = true; }
+  }
+  const box = { x, y, size: s };
+  for (const o of units) {
+    if (!o.alive || o.id === unit.id || dist(box, o) > 0) continue;
+    if (!isAlly(unit, o)) return null;
+    ally = true;
+  }
+  return { ally, rubble };
+}
+// การเดินของตัวใหญ่ (GRID_PLAN — Echo ขยายร่าง) · คืนรูปเดียวกับ reachable (คีย์ = ช่องมุมบนซ้าย)
+//  ก้าวละ 1 ช่องทั้งตัว · ไม่สนค่าเดิน/ทรายดูด/น้ำแข็งของช่องพิเศษ (ก้าวข้ามได้)
+//  smash: เดินพังสิ่งกีดขวางได้ — ก้าวที่ขอบหน้าตัวชนของใหม่ กินเพิ่ม 1 ก้าว
+function reachableBig(map, unit, mov, units, opts = {}) {
+  const s = sizeOf(unit);
+  const start = { x: unit.x, y: unit.y, d: 0, prev: null };
+  const best = new Map([[key(unit.x, unit.y), start]]);
+  const stops = new Map([[key(unit.x, unit.y), start]]);
+  const buckets = [[start]];
+  for (let d = 0; d < buckets.length; d++) {
+    for (const cur of buckets[d] || []) {
+      if (best.get(key(cur.x, cur.y)) !== cur) continue;
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const fit = bigFits(map, unit, nx, ny, units, opts);
+        if (!fit) continue;
+        // ขอบหน้าตัว (แถว/คอลัมน์ที่เพิ่งก้าวเข้า) มีสิ่งกีดขวาง = ต้องพัง +1 ก้าว
+        let edge = false;
+        if (fit.rubble) {
+          for (let i = 0; i < s && !edge; i++) {
+            const ex = dx > 0 ? nx + s - 1 : dx < 0 ? nx : nx + i;
+            const ey = dy > 0 ? ny + s - 1 : dy < 0 ? ny : ny + i;
+            if (map.terrain[key(ex, ey)]) edge = true;
+          }
+        }
+        const nd = cur.d + 1 + (edge ? 1 : 0);
+        if (nd > mov) continue;
+        const k = key(nx, ny);
+        const old = best.get(k);
+        if (old && old.d <= nd) continue;
+        const node = { x: nx, y: ny, d: nd, prev: cur };
+        best.set(k, node);
+        (buckets[nd] ||= []).push(node);
+        if (!fit.ally) stops.set(k, node);
+      }
+    }
+  }
+  return stops;
+}
+// ขยายร่าง: หามุมใหม่ของตัวขนาด newSize ที่ครอบตัวเดิมไว้ทั้งหมด → { x, y, displaced: [id], rubble: ["x,y"] } · ไม่มีที่ = null
+//  เลือกมุมที่ไล่คนออกน้อยสุด → พังของน้อยสุด → ใกล้กลางตัวเดิมสุด · คนในช่องใหม่ = ถูกผลักออก (pushOutTile)
+//  smash = พังสิ่งกีดขวางได้ (ไม่ได้ = ช่องใหม่ต้องไม่มีสิ่งกีดขวาง) · blocked (ร้านค้า) ทับไม่ได้เสมอ
+function growPlan(map, unit, newSize, units, { blocked = null, smash = false } = {}) {
+  const s0 = sizeOf(unit), grow = newSize - s0;
+  if (grow <= 0) return null;
+  let best = null;
+  for (let oy = -grow; oy <= 0; oy++) {
+    for (let ox = -grow; ox <= 0; ox++) {
+      const x = unit.x + ox, y = unit.y + oy;
+      if (x < 0 || y < 0 || x + newSize > map.cols || y + newSize > map.rows) continue;
+      const tiles = footprint(x, y, newSize);
+      if (blocked && tiles.some((t) => blocked.has(key(t.x, t.y)))) continue;
+      const rubble = tiles.filter((t) => map.terrain[key(t.x, t.y)]).map((t) => key(t.x, t.y));
+      if (rubble.length && !smash) continue;
+      const box = { x, y, size: newSize };
+      const displaced = units.filter((o) => o.alive && o.id !== unit.id && dist(box, o) === 0).map((o) => o.id);
+      const off = Math.abs(ox * 2 + grow) + Math.abs(oy * 2 + grow);
+      const score = displaced.length * 100 + rubble.length * 10 + off;
+      if (!best || score < best.score) best = { x, y, displaced, rubble, score };
+    }
+  }
+  if (!best) return null;
+  return { x: best.x, y: best.y, displaced: best.displaced, rubble: best.rubble };
+}
+// ช่องว่างที่ใกล้ from ที่สุดนอกกล่อง avoid (ถูกผลักออกตอนตัวใหญ่ขยาย) — ไม่ใช่สิ่งกีดขวาง/blocked/ไม่มีคน · ไม่มีเลย = null
+//  ระยะเท่ากันเลือกช่องที่ห่างกลางกล่องมากกว่า (ผลักออกไปข้างนอก)
+function pushOutTile(map, from, avoid, units, { selfId = null, blocked = null } = {}) {
+  const ac = { x: avoid.x + (sizeOf(avoid) - 1) / 2, y: avoid.y + (sizeOf(avoid) - 1) / 2 };
+  let best = null;
+  for (let y = 0; y < map.rows; y++) {
+    for (let x = 0; x < map.cols; x++) {
+      if (covers(avoid, x, y) || !freeTile(map, x, y, units, selfId, blocked)) continue;
+      const d = Math.abs(x - from.x) + Math.abs(y - from.y);
+      const away = Math.abs(x - ac.x) + Math.abs(y - ac.y);
+      if (!best || d < best.d || (d === best.d && away > best.away)) best = { x, y, d, away };
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null;
+}
+// วางตัวใหญ่ใกล้จุด near (เปลี่ยนภูมิภาค/จุดเกิด): มุมที่ใกล้ near สุดซึ่งยืนได้โดยไม่ทับใคร → { x, y, rubble } · ไม่มี = null
+function placeBig(map, size, near, units, { selfId = null, blocked = null, smash = false } = {}) {
+  let best = null;
+  const unit = { id: selfId, x: 0, y: 0, size };
+  for (let y = 0; y + size <= map.rows; y++) {
+    for (let x = 0; x + size <= map.cols; x++) {
+      const fit = bigFits(map, unit, x, y, units, { blocked, smash });
+      if (!fit || fit.ally) continue;
+      const d = dist({ x, y, size }, near);
+      if (!best || d < best.d) best = { x, y, d };
+    }
+  }
+  if (!best) return null;
+  const rubble = footprint(best.x, best.y, size).filter((t) => map.terrain[key(t.x, t.y)]).map((t) => key(t.x, t.y));
+  return { x: best.x, y: best.y, rubble };
+}
 // เส้นทางจากช่องเริ่มถึงช่องปลาย (รวมทั้งสองปลาย) · ไปไม่ถึง = null
 function pathTo(reach, x, y) {
   let node = reach.get(key(x, y));
@@ -344,20 +487,20 @@ function pathTo(reach, x, y) {
 }
 
 // ---------- ระยะ / พื้นที่ ----------
-// ช่องในกระดานที่ห่างจาก (x, y) อยู่ในช่วง [rmin, rmax]
-function tilesInRange(map, x, y, range) {
+// ช่องในกระดานที่ห่างจาก (x, y) อยู่ในช่วง [rmin, rmax] · size = ตัวใหญ่ (นับจากขอบตัว — ช่องในตัวเองห่าง 0)
+function tilesInRange(map, x, y, range, size = 1) {
   const out = [];
-  for (let dx = -range[1]; dx <= range[1]; dx++) {
-    for (let dy = -range[1]; dy <= range[1]; dy++) {
-      const d = Math.abs(dx) + Math.abs(dy);
-      if (inRange(range, d) && inBounds(map, x + dx, y + dy)) out.push({ x: x + dx, y: y + dy });
+  const box = { x, y, size };
+  for (let tx = x - range[1]; tx <= x + size - 1 + range[1]; tx++) {
+    for (let ty = y - range[1]; ty <= y + size - 1 + range[1]; ty++) {
+      if (inRange(range, dist(box, { x: tx, y: ty })) && inBounds(map, tx, ty)) out.push({ x: tx, y: ty });
     }
   }
   return out;
 }
 // สกิลตีหมู่ "รอบตัว N" = ข้าวหลามตัดรัศมี N (ไม่รวมช่องที่ยืน)
-function aoeTiles(map, x, y, radius) {
-  return tilesInRange(map, x, y, [1, radius]);
+function aoeTiles(map, x, y, radius, size = 1) {
+  return tilesInRange(map, x, y, [1, radius], size);
 }
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
 //  width ควรเป็นเลขคี่ (4×3 = ท่าไม้ตายมุยมิ)
@@ -376,14 +519,15 @@ function lineTiles(map, x, y, dir, len, width) {
   }
   return out;
 }
-// ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา
+// ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา (ตัวใหญ่ = ช่องไหนของตัวโดนก็นับ)
 function unitsOnTiles(units, tiles) {
   const set = new Set(tiles.map((t) => key(t.x, t.y)));
-  return units.filter((u) => u.alive && set.has(key(u.x, u.y)));
+  return units.filter((u) => u.alive && footprint(u.x, u.y, sizeOf(u)).some((t) => set.has(key(t.x, t.y))));
 }
 // เป้าที่ตีปกติได้จากช่อง (x, y) ด้วยระยะ range (ไม่รวมตัวเองและพวกเดียวกัน)
 function attackTargets(attacker, x, y, range, units, { isAlly = () => false } = {}) {
-  return units.filter((u) => u.alive && u.id !== attacker.id && !isAlly(attacker, u) && inRange(range, dist({ x, y }, u)));
+  const from = { x, y, size: sizeOf(attacker) };
+  return units.filter((u) => u.alive && u.id !== attacker.id && !isAlly(attacker, u) && inRange(range, dist(from, u)));
 }
 
 // ---------- ตีสวน / ถอย ----------
@@ -436,12 +580,15 @@ function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = 
 // ---------- ระยะอันตราย ----------
 // ช่องทั้งหมดที่ unit "เดินแล้วตีถึง" ในตาเดียว (ไฮไลต์แดงตอนเลือกเดิน / ปุ่มระยะอันตราย)
 //  คืน { move: Set<key>, threat: Set<key> } — threat ไม่รวมช่องที่เดินถึงได้อยู่แล้ว
+//  ตัวใหญ่: move = ทุกช่องที่ตัวไปทับได้ (รวมทั้งตัว ไม่ใช่แค่มุม)
 function threatZone(map, unit, mov, range, units, opts = {}) {
   const reach = reachable(map, unit, mov, units, opts);
-  const move = new Set(reach.keys());
+  const s = sizeOf(unit);
+  const move = new Set();
+  for (const n of reach.values()) for (const t of footprint(n.x, n.y, s)) move.add(key(t.x, t.y));
   const threat = new Set();
   for (const n of reach.values()) {
-    for (const t of tilesInRange(map, n.x, n.y, range)) {
+    for (const t of tilesInRange(map, n.x, n.y, range, s)) {
       const k = key(t.x, t.y);
       if (!move.has(k)) threat.add(k);
     }
@@ -494,8 +641,9 @@ function nearShop(pos, shopPos) {
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
+  sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf,
-  reachable, pathTo,
+  reachable, reachableBig, pathTo,
   tilesInRange, aoeTiles, lineTiles, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,

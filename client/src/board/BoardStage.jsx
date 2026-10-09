@@ -28,6 +28,17 @@ import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
 const samePos = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
+// ตัวใหญ่ (Echo ขยายร่าง): ผู้เล่น → กล่อง { x, y, size } · ช่องนี้อยู่ในตัวของ p ไหม
+const sizeOfP = (p) => Math.max(1, (p && p.size) | 0);
+const boxOfP = (p) => (p && p.pos ? { x: p.pos.x, y: p.pos.y, size: sizeOfP(p) } : null);
+const onBody = (p, t) => !!p && !!p.pos && !!t && Rules.covers(boxOfP(p), t.x, t.y);
+// รูป 4 ทิศของตัวใหญ่บนกระดาน (หน้า/ข้าง/หลัง · มุมบน) — ตัวละครที่ไม่มีในนี้ใช้หมากหกเหลี่ยมเสมอ
+const BIG_ART = {
+  echo: {
+    front: "/characters/echo/echo_front.webp", side: "/characters/echo/echo_side.webp",
+    back: "/characters/echo/echo_back.webp", top: "/characters/echo/echo_top.webp",
+  },
+};
 // ทิศจากช่องเราไปช่องที่ชี้ (แกนที่ห่างกว่า) — ใช้กับสกิลแนว
 function dirToward(from, to) {
   if (!from || !to) return null;
@@ -61,11 +72,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
   const byId = useMemo(() => Object.fromEntries(state.players.map((p) => [p.id, p])), [state.players]);
   const ruleUnits = useMemo(
-    () => state.players.filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null })),
+    () => state.players.filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) })),
     [state.players],
   );
   const isAlly = useCallback((a, b) => teamMode && !!a.teamId && a.teamId === b.teamId, [teamMode]);
-  const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null } : null);
+  const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) } : null);
+  // ตัวเลือกของกติกาเดินต่อคน: smash = ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (server ส่งมา)
+  const optsOf = (p) => ({ isAlly, blocked, smash: !!(p && p.smash) });
   const isEnemy = (p) => !!p && !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
 
   const action = state.action;
@@ -116,7 +129,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [rotate]);
-  const hoverUnit = hover ? state.players.find((p) => p.alive && samePos(p.pos, hover)) : null;
+  const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover)) : null;
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
@@ -130,8 +143,22 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const myReach = useMemo(() => {
     if (!myTurn || !map) return null;
     const mov = canMove ? (me.mov || 0) : 0;
-    return Rules.reachable(map, unitOf(me), mov, ruleUnits, { isAlly, blocked });
-  }, [myTurn, canMove, map, me, ruleUnits, isAlly, blocked]);
+    return Rules.reachable(map, unitOf(me), mov, ruleUnits, optsOf(me));
+  }, [myTurn, canMove, map, me, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ช่องที่ชี้ → ช่องมุมบนซ้ายที่จะเดินไป (ตัว 1 ช่อง = ช่องนั้นเอง) · ตัวใหญ่: ให้กลางตัวอยู่ที่ช่องที่ชี้ ไม่ได้ = มุมที่ตัวครอบช่องนั้นและเดินน้อยสุด
+  const anchorFor = useCallback((t) => {
+    if (!t || !myReach) return null;
+    const s = sizeOfP(me);
+    if (s <= 1) { const n = myReach.get(key(t.x, t.y)); return n && n.d > 0 ? n : null; }
+    const c = Math.floor((s - 1) / 2), want = myReach.get(key(t.x - c, t.y - c));
+    if (want && want.d > 0) return want;
+    let best = null;
+    for (const n of myReach.values()) {
+      if (n.d === 0 || !Rules.covers({ x: n.x, y: n.y, size: s }, t.x, t.y)) continue;
+      if (!best || n.d < best.d) best = n;
+    }
+    return best;
+  }, [myReach, me]);
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
@@ -139,7 +166,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
-      if (!Rules.inRange(range, Rules.dist(n, foe.pos))) continue;
+      if (!Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
       if (!best || n.d < best.d) best = n;
     }
     if (!best) return null;
@@ -184,13 +211,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const pickInfo = useMemo(() => {
     if (!pick || !me || !me.pos || !map) return null;
     if (pick.kind === "target") {
-      const tiles = Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range);
+      const tiles = Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range, sizeOfP(me));
       const keys = new Set(tiles.map((t) => key(t.x, t.y)));
-      if (pick.self) keys.add(key(me.pos.x, me.pos.y));
-      const valid = new Set(state.players.filter((p) => p.alive && p.pos && keys.has(key(p.pos.x, p.pos.y)) && (!pick.allow || pick.allow(p))).map((p) => p.id));
+      if (pick.self) for (const t of Rules.footprint(me.pos.x, me.pos.y, sizeOfP(me))) keys.add(key(t.x, t.y));
+      const inKeys = (p) => Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => keys.has(key(t.x, t.y)));
+      const valid = new Set(state.players.filter((p) => p.alive && p.pos && inKeys(p) && (!pick.allow || pick.allow(p))).map((p) => p.id));
       return { skill: [...keys], valid };
     }
-    if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius).map((t) => key(t.x, t.y)) };
+    if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
       const dir = dirToward(me.pos, hover) || pick.lastDir || "up";
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width).map((t) => key(t.x, t.y)) };
@@ -204,7 +232,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const out = new Set();
     for (const p of state.players) {
       if (!p.alive || !p.pos || !isEnemy(p)) continue;
-      const z = Rules.threatZone(map, unitOf(p), p.mov || 0, p.range || [1, 1], ruleUnits, { isAlly, blocked });
+      const z = Rules.threatZone(map, unitOf(p), p.mov || 0, p.range || [1, 1], ruleUnits, optsOf(p));
       for (const k of z.move) out.add(k);
       for (const k of z.threat) out.add(k);
     }
@@ -222,6 +250,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
   const [shake, setShake] = useState(0);      // จอสั่น/แฟลช (เลขเปลี่ยน = เล่นใหม่)
   const prevPlayers = useRef({});
+  const [faces, setFaces] = useState({}); // id → { x, y } ทิศที่หันหน้า (ก้าวสุดท้ายที่เดิน · เริ่มต้น = หันเข้าหากล้อง)
   const prevPos = useRef({});
   const prevVit = useRef({});
   const seenAttack = useRef(null);
@@ -247,6 +276,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
       if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
         anims.push({ kind: "move", id, path, seq: ++fxSeq.current });
+        const a = path[path.length - 2], b = path[path.length - 1];
+        setFaces((f) => ({ ...f, [id]: { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) } }));
         look(now);
       }
     }
@@ -371,6 +402,28 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("quakeFx", onQuake);
   }, [pushFx, look, lowQ]);
 
+  // ขยายร่าง (Echo): { id, from, to, at, prev, pushed, smashed } — 1 → 2 = ทะลุออกจากกรอบหกเหลี่ยม · ขั้นต่อไป = แรงกระแทกรอบตัว
+  //  ของที่พังตอนขยาย = ของแตก · กล้องตามตัว · จอสั่น
+  useEffect(() => {
+    const onGrow = (g) => {
+      if (!g || !g.at || !Number.isFinite(g.at.x) || !Number.isFinite(g.at.y)) return;
+      const p = (prevPlayers.current || {})[g.id];
+      pushFx([{ kind: "grow", id: g.id, x: g.at.x, y: g.at.y, from: g.from | 0, to: g.to | 0, color: p && p.color }]);
+      if (g.smashed && g.smashed.length) pushFx([{ kind: "smash", tiles: g.smashed }]);
+      look({ x: g.at.x + ((g.to | 0) - 1) / 2, y: g.at.y + ((g.to | 0) - 1) / 2 });
+      if (!lowQ && g.to > g.from) timers.current.push(setTimeout(() => setShake((n) => n + 1), g.from <= 1 ? 520 : 260));
+      playSfx(g.to > g.from ? "attack" : "notificate");
+    };
+    const onSmash = (m) => {
+      if (!m || !Array.isArray(m.tiles) || !m.tiles.length) return;
+      pushFx([{ kind: "smash", tiles: m.tiles }]);
+      if (!lowQ) setShake((n) => n + 1);
+    };
+    socket.on("growFx", onGrow);
+    socket.on("smashFx", onSmash);
+    return () => { socket.off("growFx", onGrow); socket.off("smashFx", onSmash); };
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const onAnimDone = useCallback(() => {
@@ -384,8 +437,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ช่องที่ไปได้จากจุดเริ่มตา (เดินทีละช่องด้วย W A S D · ไฮไลต์ฟ้าหลังขยับแล้ว)
   const startReach = useMemo(() => {
     if (!myTurn || !map || !action || action.locked || !action.from) return null;
-    return Rules.reachable(map, { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null }, me.mov || 0, ruleUnits, { isAlly, blocked });
-  }, [myTurn, map, action, me, ruleUnits, isAlly, blocked]);
+    return Rules.reachable(map, { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null, size: sizeOfP(me) }, me.mov || 0, ruleUnits, optsOf(me));
+  }, [myTurn, map, action, me, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- ไฮไลต์ ----------
   const highlights = useMemo(() => {
@@ -396,43 +449,45 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (pickInfo.skill) h.skill = pickInfo.skill;
       if (pickInfo.aoe) h.aoe = pickInfo.aoe;
       // ชี้คนที่เลือกได้ = ไฮไลต์ช่องของคนนั้น (คนนอกระยะไม่ขึ้น — กดไม่ได้)
-      if (pickInfo.valid && hoverUnit && hoverUnit.pos && pickInfo.valid.has(hoverUnit.id)) h.target = { x: hoverUnit.pos.x, y: hoverUnit.pos.y };
+      if (pickInfo.valid && hoverUnit && hoverUnit.pos && pickInfo.valid.has(hoverUnit.id)) h.target = { ...boxOfP(hoverUnit) };
       return h;
     }
     if (myTurn && myReach) {
       const range = me.range || [1, 1];
       if (canMove) {
-        const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, { isAlly, blocked });
+        const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, optsOf(me));
         h.move = [...z.move];
         h.attack = [...z.threat];
       } else if (startReach) {
         // ขยับแล้วแต่ยังไม่ล็อก (เดินด้วยคีย์บอร์ดต่อได้): ฟ้า = ช่องที่ไปได้จากจุดเริ่มตา · แดง = ตีถึงจากช่องที่ยืน
-        h.move = [...startReach.keys()];
-        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
+        h.move = [...new Set([...startReach.values()].flatMap((n) => Rules.footprint(n.x, n.y, sizeOfP(me)).map((t) => key(t.x, t.y))))];
+        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range, sizeOfP(me)).map((t) => key(t.x, t.y));
       } else {
-        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
+        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range, sizeOfP(me)).map((t) => key(t.x, t.y));
       }
+      const goal = hover && canMove && !hoverUnit ? anchorFor(hover) : null;
       if (plan) {
         if (plan.path && plan.path.length > 1) h.path = plan.path;
-        h.target = { x: plan.foe.pos.x, y: plan.foe.pos.y };
+        h.target = { ...boxOfP(plan.foe) };
         if (plan.push) h.push = plan.push;
-      } else if (hover && canMove && myReach.has(key(hover.x, hover.y))) {
-        h.path = Rules.pathTo(myReach, hover.x, hover.y);
+      } else if (goal) {
+        h.path = Rules.pathTo(myReach, goal.x, goal.y);
+        if (sizeOfP(me) > 1) h.ghost = Rules.footprint(goal.x, goal.y, sizeOfP(me)).map((t) => key(t.x, t.y));
       } else if (hoverUnit && hoverUnit.pos && isEnemy(hoverUnit)) {
         // ชี้ศัตรูที่ตาเราเดินไปตีไม่ถึง = เห็นระยะเดิน+ตีของศัตรูตัวนั้น (แบบ FE)
-        const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, { isAlly, blocked });
+        const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
         h.danger = [...new Set([...(h.danger || []), ...z.move, ...z.threat])];
       }
       return h;
     }
     // นอกตาเรา: ชี้ตัวละคร = ระยะเดิน/ตีของคนนั้น (แบบ FE)
     if (hoverUnit && hoverUnit.pos && map) {
-      const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, { isAlly, blocked });
+      const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
       h.move = [...z.move];
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked]);
+  }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
@@ -441,6 +496,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const at = hold[p.id] || p.pos;
     return {
       id: p.id, x: at.x, y: at.y, img: p.img, color: p.color, name: p.name,
+      size: sizeOfP(p), art: (p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       dim: !!pickValid && !pickValid.has(p.id),
@@ -448,7 +504,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       cloak: !!p.veiled,
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : []),
-  [state.players, state.actorId, me, hold, pickValid, ghost]);
+  [state.players, state.actorId, me, hold, pickValid, ghost, faces]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -457,7 +513,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!p) return;
     if (pick) {
       if (pick.kind === "target" && pickInfo && pickInfo.valid.has(id)) { clickSound(); pick.onPick(id); }
-      else if (pick.kind === "aoe" && pickInfo && pickInfo.aoe.includes(key(p.pos.x, p.pos.y))) { clickSound(); pick.onConfirm(); }
+      else if (pick.kind === "aoe" && pickInfo && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => pickInfo.aoe.includes(key(t.x, t.y)))) { clickSound(); pick.onConfirm(); }
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(pickInfo.dir); }
       return;
     }
@@ -476,10 +532,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return;
     }
     if (!myTurn || busy || !canMove || !myReach) return;
-    const n = myReach.get(k);
-    if (!n || n.d === 0) return;
+    const n = anchorFor({ x, y });
+    if (!n) return;
     clickSound();
-    socket.emit("move", { x, y });
+    socket.emit("move", { x: n.x, y: n.y });
   };
   // ยืนยันโจมตีจากหน้าคาดการณ์: ยืนติดเป้าแล้ว = ตีเลย · ยังไม่ติด = เดินไปช่องยืนก่อน แล้วตีเมื่อแอนิเมชันเดินจบ
   const confirmAttack = useCallback(() => {

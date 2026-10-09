@@ -200,7 +200,7 @@ function buyShopItem(id, itemId) {
   if (!p || !p.alive) return;
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
-  if (!p.pos || !Board.nearShop(p.pos, match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
+  if (!p.pos || !Board.nearShop(Board.boxOf(p), match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
   if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = match.shopItems.find((it) => it.id === itemId);
   if (!item || item.sold) return;
@@ -303,7 +303,7 @@ function gutsFireTargetOf(p, item, targetId) {
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
   if (Visibility.hiddenFrom(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
-  if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(p.pos, target.pos))) return null;
+  if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(Board.boxOf(p), Board.boxOf(target)))) return null;
   return target;
 }
 // ให้ผลของกระสุน — เรียกหลังวีดีโอจบเท่านั้น (ดู pausePlayingForCutscene)

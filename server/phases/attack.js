@@ -61,7 +61,8 @@ function computeAttackBase(engine, attacker, target) {
   // โอเบรอน (ฤดูร้อน): บัฟพลังโจมตีที่แจกให้คนอื่น — ungated ใครติดสถานะก็ได้
   const giftAtk = CHAR_HOOKS.oberon_summer.atkBonus(attacker);
   // ช่องพิเศษ (GRID_PLAN §3.1): ยืนบนแท่นพลัง พลังโจมตี +1 — ungated ใครยืนก็ได้
-  const terrainAtk = attacker.pos ? Board.terrainAtk(action.boardMap(), attacker.pos.x, attacker.pos.y) : 0;
+  //  ตัวใหญ่ (Echo ขยายร่าง) ไม่ได้โบนัสจากช่องที่ยืน
+  const terrainAtk = attacker.pos && action.sizeOf(attacker) <= 1 ? Board.terrainAtk(action.boardMap(), attacker.pos.x, attacker.pos.y) : 0;
   const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
@@ -73,7 +74,7 @@ function computeAttackBase(engine, attacker, target) {
 // ทอยหลบจากช่องที่เป้ายืน (พุ่มดอกไม้สูง/ป่าทึบ — GRID_PLAN §3.1) → หลบพ้น = ข้อมูลช่อง { name, icon, pct } · ไม่พ้น/ไม่มี = null
 //  ทอยเฉพาะตอนเป้ายืนบนช่องที่หลบได้ (ช่องอื่นไม่แตะ Math.random) · ผู้เรียกเช็ค "แม่นยำ" เอง
 function terrainCoverDodge(target) {
-  if (!target || !target.pos) return null;
+  if (!target || !target.pos || action.sizeOf(target) > 1) return null; // ตัวใหญ่หลบในพุ่มไม่ได้
   const cover = Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y);
   return cover && Math.random() * 100 < cover.pct ? cover : null;
 }
@@ -97,7 +98,7 @@ function estimateHitOn(attacker, target) {
     if (accurateActive(attacker)) return 100;
     const pct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
     const evadePct = (target.statuses.evade || 0) > 0 ? pct(statusAmtOf(target, "evade") || 100) : 0;
-    const cover = target.pos ? Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y) : null;
+    const cover = target.pos && action.sizeOf(target) <= 1 ? Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y) : null;
     const coverPct = cover ? pct(cover.pct) : 0;
     const missPct = pct(Journey.attackMissPct(engine));
     const hit = (100 - evadePct) * (100 - coverPct) * (100 - missPct) / 10000;
@@ -158,6 +159,21 @@ function strike(attacker, target, { counter = false } = {}) {
     return {
       dmg: 0, dodge: false, kill: !target.alive,
       skills: [{ name: "เนตรมณะ — สังหารทันที", img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
+    };
+  }
+
+  // โอกาสสังหารทันทีเฉพาะตัวละคร (ฮุค killChance — Echo ขยายร่างครบ 10 ระดับ 5%)
+  const hookKill = CHAR_HOOKS[attacker.characterId] && CHAR_HOOKS[attacker.characterId].killChance
+    ? CHAR_HOOKS[attacker.characterId].killChance(attacker) : 0;
+  if (hookKill > 0 && Math.random() < hookKill) {
+    combat.instantDeath(target);
+    target.wasAttacked = true;
+    match.lastLog.push(!target.alive
+      ? `💀 ${attacker.name} สังหาร ${target.name} ทันที (โอกาส ${Math.round(hookKill * 100)}%)`
+      : `💀 ${attacker.name} พยายามสังหาร ${target.name} ทันที — แต่ ${target.name} รอดไปได้!`);
+    return {
+      dmg: 0, dodge: false, kill: !target.alive,
+      skills: [{ name: `สังหารทันที (${Math.round(hookKill * 100)}%)`, img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
     };
   }
 

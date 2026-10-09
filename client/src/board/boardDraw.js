@@ -20,7 +20,7 @@
 // ============================================================
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
-  quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
+  pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
 } from "./boardGeo";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
@@ -503,6 +503,221 @@ function drawUnit(g, u, now, boxes) {
 }
 
 
+// =================================================================== ตัวใหญ่ (Echo ขยายร่าง)
+//  u.size = ด้านละกี่ช่อง (u.rx, u.ry = มุมบนซ้าย) · u.art = { front, side, back, top } · u.face = { x, y } ทิศที่หันหน้า (ไม่มี = หันเข้ากล้องตอนมุม 0)
+//  มุมเอียง: เลือกรูปหน้า/ข้าง/หลังตามทิศที่หันเทียบกับกล้อง (ข้างซ้าย = กลับด้านรูปข้าง) · มุมบน: รูปมุมบนวางราบหมุนตามทิศที่หัน
+//  u.grow = { t0, from, to } — กำลังเปลี่ยนขนาด: ขนาดบนจอค่อยๆ เด้งจากขนาดเดิมไปขนาดใหม่ (GROW_MS)
+export const GROW_MS = 1100;
+const BREAK_AT = 0.36; // 1 → ใหญ่: ช่วงแรกหกเหลี่ยมสั่น/ร้าว แล้วแตกออก รูปเต็มตัวเด้งออกมา
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const easeOutBack = (t) => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+// ขนาดบนจอตอนนี้ (หน่วยช่อง) — ระหว่างขยาย/หด ค่อยๆ เปลี่ยน · 1 → ใหญ่ เริ่มจากตัวเล็ก (0.35) หลังกรอบแตก
+export function bigDrawSize(u, now) {
+  const gr = u.grow;
+  if (!gr) return u.size;
+  const t = clamp01((now - gr.t0) / GROW_MS);
+  if (gr.from <= 1 && gr.to > 1) {
+    if (t < BREAK_AT) return 0;
+    const k = (t - BREAK_AT) / (1 - BREAK_AT);
+    return 0.35 + (gr.to - 0.35) * easeOutBack(clamp01(k / 0.7));
+  }
+  if (gr.to <= 1) return gr.from + (0.35 - gr.from) * clamp01(t / 0.55);
+  return gr.from + (gr.to - gr.from) * easeOutBack(clamp01(t / 0.6));
+}
+function bigImgOf(u) {
+  const art = u.art || {};
+  if (pitchOf() >= 80) return { url: art.top || art.front, top: true, flip: false };
+  const f = u.face || { x: 0, y: 1 }, ax = viewAxes();
+  const fd = f.x * ax.fx + f.y * ax.fy, rd = f.x * ax.rx + f.y * ax.ry;
+  if (fd > 0.5) return { url: art.front, top: false, flip: false };
+  if (fd < -0.5) return { url: art.back || art.front, top: false, flip: false };
+  return { url: art.side || art.front, top: false, flip: rd < 0 };
+}
+function footQuad(g, x, y, s, inset) {
+  const a = P(x + inset, y + inset), b = P(x + s - inset, y + inset), c = P(x + s - inset, y + s - inset), d = P(x + inset, y + s - inset);
+  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
+}
+function drawBigUnit(g, u, now, boxes) {
+  let jx = 0, jy = 0;
+  const hitAge = u.hitT ? now - u.hitT : 1e9;
+  if (hitAge >= 0 && hitAge < 300) { const k = 1 - hitAge / 300; jx = (Math.random() - 0.5) * 0.16 * k; jy = (Math.random() - 0.5) * 0.1 * k; }
+  const n = u.size, es = Math.max(0.35, bigDrawSize(u, now));
+  const x0 = u.rx + (u.ox || 0) + jx, y0 = u.ry + (u.oy || 0) + jy;
+  const cx = x0 + n / 2, cy = y0 + n / 2;
+  const a = u.alpha == null ? 1 : u.alpha;
+  g.save(); g.globalAlpha = a;
+  // ฐาน: พื้นทั้งตัวเรืองสีประจำที่นั่ง
+  const shrinkTo1 = u.grow && u.grow.to <= 1;
+  if (!shrinkTo1) {
+    footQuad(g, x0, y0, n, 0.06); g.fillStyle = hexA(u.color, 0.22); g.fill();
+    g.strokeStyle = hexA(u.color, 0.95); g.lineWidth = 2.5; g.stroke();
+    if (u.isMe) { footQuad(g, x0, y0, n, -0.04); g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; g.stroke(); }
+    if (u.isActor) {
+      const p = (now / 1100) % 1;
+      g.globalAlpha = a * (1 - p); footQuad(g, x0, y0, n, -0.06 - p * 0.35); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.globalAlpha = a;
+    }
+  }
+  const [bx, by, s] = P(cx, cy);
+  gEllipse(g, cx + 0.06, cy + 0.08, es * 0.42, 0, 36); g.fillStyle = "rgba(0,0,0,.25)"; g.fill();
+  const pick = bigImgOf(u), e = getImg(pick.url);
+  let top, left, right;
+  if (e && e.ok) {
+    const iw = e.img.naturalWidth, ih = e.img.naturalHeight;
+    if (pick.top) {
+      // มุมบน: วางราบบนตัวทั้งก้อน หมุนให้เท้าชี้ไปทางที่หัน
+      const f = u.face || { x: 0, y: 1 }, q = P(cx + f.x, cy + f.y);
+      const ang = Math.atan2(q[1] - by, q[0] - bx) - Math.PI / 2;
+      const k = (es * s * 1.12) / Math.max(iw, ih), w = iw * k, h = ih * k;
+      g.save(); g.translate(bx, by); g.rotate(ang); g.drawImage(e.img, -w / 2, -h / 2, w, h); g.restore();
+      top = by - Math.max(w, h) / 2; left = bx - Math.max(w, h) / 2; right = bx + Math.max(w, h) / 2;
+    } else {
+      // มุมเอียง: รูปตั้ง เท้าอยู่ค่อนไปทางขอบหน้าของตัว
+      const h = es * s * 1.32, w = h * iw / ih, foot = by + s * es * 0.28 + (u.isActor ? Math.sin(now / 280) * s * 0.03 : 0);
+      g.save(); g.translate(bx, foot);
+      if (pick.flip) g.scale(-1, 1);
+      g.drawImage(e.img, -w / 2, -h, w, h);
+      if (hitAge >= 0 && hitAge < 150) { g.globalCompositeOperation = "source-atop"; g.fillStyle = `rgba(255,255,255,${0.75 * (1 - hitAge / 150)})`; g.fillRect(-w / 2, -h, w, h); }
+      g.restore();
+      top = foot - h; left = bx - w / 2; right = bx + w / 2;
+    }
+  } else {
+    // รูปยังไม่โหลด: หกเหลี่ยมขยายตามตัว
+    const r = s * 0.4 * es;
+    unitHex(g, u, bx, by - r, r);
+    top = by - r * 2; left = bx - r; right = bx + r;
+  }
+  if (u.cloak && !REDUCED) { g.globalAlpha = a * 0.35; footQuad(g, x0, y0, n, 0.1); g.fillStyle = "rgba(220,240,255,.5)"; g.fill(); g.globalAlpha = a; }
+  // แถบเลือด (ตัวใหญ่มีเลือดมาก — แถบยาวตามตัว)
+  const maxHp = Math.max(1, u.maxHp | 0 || 10), maxAr = Math.max(0, u.maxArmor | 0);
+  const nT = Math.min(32, maxHp + maxAr), hpN = Math.min(maxHp, nT);
+  const pw = Math.max(80, Math.min(260, es * s * 0.95, nT * 9)), ph = 10, px = bx - pw / 2, py = top - ph - 8;
+  g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(px, py, pw, ph);
+  const tw = (pw - 6) / nT;
+  for (let i = 0; i < nT; i++) {
+    const arm = i >= hpN, on = arm ? i - hpN < (u.armor | 0) : i < (u.hp | 0);
+    g.fillStyle = on ? (arm ? "#7fbef5" : "#ef5a6a") : "rgba(255,255,255,.12)";
+    g.fillRect(px + 3 + i * tw, py + 2, Math.max(1, tw - 1), ph - 4);
+  }
+  if (u.hovered && u.name) {
+    g.font = `600 13px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const nw = g.measureText(u.name).width + 14;
+    g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(bx - nw / 2, py - 24, nw, 19);
+    g.fillStyle = "#ffffff"; g.fillText(u.name, bx, py - 14); g.textBaseline = "alphabetic";
+  }
+  if (u.isMe) {
+    g.font = `600 11px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const mw = g.measureText("คุณ").width + 10, mx = px - mw / 2 - 4, my = py + ph / 2;
+    g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8, mw, 16);
+    g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
+  }
+  if (u.isActor) {
+    const ay = py - 10 + Math.sin(now / 200) * 3;
+    g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 9, ay - 10); g.lineTo(bx + 9, ay - 10); g.lineTo(bx, ay); g.closePath(); g.fill();
+  }
+  if (u.reticle) drawReticle(g, bx, (top + by) / 2, Math.max(20, (by - top) * 0.45), u.reticle, now);
+  g.restore();
+  if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: left - 4, y0: top - 4, x1: right + 4, y1: by + s * es * 0.35 });
+}
+// หมากตัวเดียว: ตัวใหญ่ที่มีรูป 4 ทิศ = drawBigUnit · ระหว่างขยาย/หดข้ามขนาด 1 เลือกตามจังหวะ
+function drawAnyUnit(g, u, now, boxes) {
+  const gr = u.grow, t = gr ? clamp01((now - gr.t0) / GROW_MS) : 1;
+  if (u.size > 1 && u.art) {
+    if (gr && gr.from <= 1 && t < BREAK_AT) {
+      // ก่อนกรอบแตก: หกเหลี่ยมเดิมสั่นแรงขึ้นเรื่อยๆ กลางตัวใหม่
+      const k = t / BREAK_AT, sh = 0.05 + k * 0.12, mid = (u.size - 1) / 2;
+      drawUnit(g, { ...u, rx: u.rx + mid + (Math.random() - 0.5) * sh, ry: u.ry + mid + (Math.random() - 0.5) * sh }, now, boxes);
+      return;
+    }
+    drawBigUnit(g, u, now, boxes);
+    return;
+  }
+  if (u.art && gr && gr.from > 1 && gr.to <= 1 && t < 0.55) { drawBigUnit(g, { ...u, size: gr.from, rx: u.rx - Math.floor((gr.from - 1) / 2), ry: u.ry - Math.floor((gr.from - 1) / 2) }, now, boxes); return; }
+  drawUnit(g, u, now, boxes);
+}
+// เอฟเฟกต์ขยายร่าง (ทุกคนเห็น) — e = { x, y (มุมบนซ้ายตัวใหม่), from, to, color }
+//  1 → ใหญ่: แสงวาบ + เศษกรอบหกเหลี่ยมกระเด็นออก · ใหญ่ขึ้น: คลื่นกระแทกบนพื้นรอบตัว + ฝุ่น · หดตัว: ประกายไหลเข้าหาตัว
+function growFx(g, e, now) {
+  const t = (now - e.t0) / GROW_MS;
+  if (t <= 0 || t >= 1) return;
+  const n = Math.max(1, e.to | 0), cx = e.x + n / 2, cy = e.y + n / 2;
+  const rgb = rgbOf(normColor(e.color || "#9B4F96")).join(",");
+  g.save();
+  if (e.from <= 1 && e.to > 1) {
+    const k = (t - BREAK_AT) / (1 - BREAK_AT);
+    if (k > 0) {
+      const [hx, hy, s] = P(cx, cy, 0.86);
+      const fl = clamp01(1 - k / 0.35);
+      if (fl > 0) { g.globalAlpha = fl; g.fillStyle = "#ffffff"; g.beginPath(); g.arc(hx, hy, s * (0.4 + k * 2.4), 0, 7); g.fill(); }
+      for (let i = 0; i < 12; i++) {
+        const ang = i / 12 * Math.PI * 2 + 0.3, d = s * (0.3 + k * 2.2), rot = k * (i % 2 ? 6 : -5);
+        const sx = hx + Math.cos(ang) * d, sy = hy + Math.sin(ang) * d * 0.8 + k * k * s * 1.2;
+        g.globalAlpha = clamp01(1 - k * 1.1);
+        g.save(); g.translate(sx, sy); g.rotate(ang + rot);
+        g.fillStyle = i % 3 ? "#0d1c36" : `rgb(${rgb})`; g.strokeStyle = `rgba(${rgb},1)`; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(0, -s * 0.16); g.lineTo(s * 0.12, s * 0.1); g.lineTo(-s * 0.1, s * 0.08); g.closePath(); g.fill(); g.stroke();
+        g.restore();
+      }
+      for (let i = 0; i < 18; i++) {
+        const ang = i * 2.39, d = s * (0.2 + k * (1.4 + (i % 4) * 0.4));
+        g.globalAlpha = clamp01(1 - k) * 0.9; g.fillStyle = i % 2 ? "#ffffff" : `rgb(${rgb})`;
+        g.beginPath(); g.arc(hx + Math.cos(ang) * d, hy + Math.sin(ang) * d * 0.7 - k * s * 0.6, 2.4, 0, 7); g.fill();
+      }
+    }
+  } else if (e.to > e.from) {
+    for (let r = 0; r < 2; r++) {
+      const k = clamp01(t * 1.5 - r * 0.25);
+      if (k <= 0 || k >= 1) continue;
+      g.globalAlpha = (1 - k) * 0.9; g.strokeStyle = r ? "#ffffff" : `rgba(${rgb},1)`; g.lineWidth = 6 * (1 - k) + 1;
+      footQuad(g, e.x, e.y, n, -k * 1.6); g.stroke();
+    }
+    for (let i = 0; i < 16; i++) {
+      const side = i % 4, f = ((i * 0.37) % 1);
+      const px = side === 0 ? e.x + f * n : side === 1 ? e.x + n : side === 2 ? e.x + f * n : e.x;
+      const py = side === 0 ? e.y : side === 1 ? e.y + f * n : side === 2 ? e.y + n : e.y + f * n;
+      const k = clamp01(t * 1.3);
+      const [dx, dy, s] = P(px, py, k * 0.5);
+      g.globalAlpha = (1 - k) * 0.55; g.fillStyle = "rgba(200,190,180,1)";
+      g.beginPath(); g.ellipse(dx, dy, s * (0.12 + k * 0.3), s * (0.08 + k * 0.18), 0, 0, 7); g.fill();
+    }
+  } else {
+    const [hx, hy, s] = P(cx, cy, 0.6);
+    for (let i = 0; i < 20; i++) {
+      const ang = i * 2.39, d = s * (e.from * 0.8) * (1 - t);
+      g.globalAlpha = Math.sin(t * Math.PI) * 0.9; g.fillStyle = i % 2 ? "#ffffff" : `rgb(${rgb})`;
+      g.beginPath(); g.arc(hx + Math.cos(ang) * d, hy + Math.sin(ang) * d * 0.7, 2.6, 0, 7); g.fill();
+    }
+  }
+  g.restore();
+}
+// สิ่งกีดขวางแตก (Echo เดิน/ขยายตัวพัง) — e.tiles = [{ x, y, kind, step }] · ไล่ตามลำดับก้าว (SMASH_STEP ms ต่อก้าว)
+const SMASH_STEP = 110, SMASH_MS = 900;
+export const smashDur = (tiles) => SMASH_MS + Math.max(0, ...(tiles || []).map((t) => t.step | 0)) * SMASH_STEP;
+const WOODY = /tree|pine|stump|deadtree|windmill|fence|hedge|banner|cactus/;
+function smashFx(g, e, now) {
+  for (const t of e.tiles || []) {
+    const k = (now - e.t0 - (t.step | 0) * SMASH_STEP) / SMASH_MS;
+    if (k <= 0 || k >= 1) continue;
+    const wood = WOODY.test(String(t.kind || "")), base = wood ? [122, 86, 52] : [138, 140, 150];
+    const [gx, gy, s] = P(t.x + 0.5, t.y + 0.5);
+    g.save();
+    g.globalAlpha = (1 - k) * 0.6; g.fillStyle = "rgba(210,200,185,1)";
+    g.beginPath(); g.ellipse(gx, gy, s * (0.3 + k * 0.7), s * (0.18 + k * 0.4), 0, 0, 7); g.fill();
+    for (let i = 0; i < 8; i++) {
+      const ang = i / 8 * Math.PI * 2 + t.x * 0.7, sp = 0.35 + (i % 3) * 0.2;
+      const px = t.x + 0.5 + Math.cos(ang) * sp * k * 1.3, py = t.y + 0.5 + Math.sin(ang) * sp * k * 1.3;
+      const z = 1.6 * k * (1 - k) * (1 + (i % 2)) + 0.1;
+      const [sx, sy, ss] = P(px, py, z);
+      const sh = 0.75 + (i % 3) * 0.12;
+      g.globalAlpha = clamp01(1.2 - k);
+      g.fillStyle = `rgb(${base.map((v) => Math.round(v * sh)).join(",")})`;
+      g.save(); g.translate(sx, sy); g.rotate(k * 8 + i);
+      g.fillRect(-ss * 0.07, -ss * 0.05, ss * 0.14, ss * 0.1);
+      g.restore();
+    }
+    g.restore();
+  }
+}
+
 // =================================================================== overlays
 function tileFill(g, x, y, fill, stroke, inset = 0.06) {
   quad(g, x, y, inset); g.fillStyle = fill; g.fill();
@@ -540,6 +755,8 @@ export function prepareHighlights(h) {
     move: toSet(h.move), attack: toSet(h.attack), skill: toSet(h.skill), aoe: toSet(h.aoe), danger: toSet(h.danger),
     path: ptList(h.path),
     target: h.target ? normPt(h.target) : null,
+    targetSize: h.target ? Math.max(1, h.target.size | 0) : 1,
+    ghost: toSet(h.ghost), // ตัวใหญ่: ตัวทั้งก้อนที่จะไปยืน (ชี้ช่องที่จะเดินไป)
     push: h.push && h.push.from && h.push.to ? { from: normPt(h.push.from), to: normPt(h.push.to), collide: !!h.push.collide } : null,
   };
 }
@@ -555,7 +772,16 @@ function drawHighlights(g, info, hl, hover, now) {
     for (const k of hl.aoe) { const [x, y] = parseKey(k); if (inB(info, x, y)) tileFill(g, x, y, OV.aoe[0], null, 0.03); }
     g.save(); g.globalAlpha = 0.75 + 0.25 * Math.sin(now / 260); outlineSet(g, hl.aoe, OV.aoe[1], 3); g.restore();
   }
-  if (hl.target && inB(info, hl.target.x, hl.target.y)) tileFill(g, hl.target.x, hl.target.y, "rgba(224,86,79,.55)", "#ffb0a8");
+  if (hl.ghost.size) {
+    for (const k of hl.ghost) { const [x, y] = parseKey(k); if (inB(info, x, y)) tileFill(g, x, y, "rgba(255,255,255,.16)", null, 0.03); }
+    outlineSet(g, hl.ghost, "rgba(255,255,255,.95)", 2.5);
+  }
+  if (hl.target) {
+    for (let dy = 0; dy < hl.targetSize; dy++) for (let dx = 0; dx < hl.targetSize; dx++) {
+      const tx = hl.target.x + dx, ty = hl.target.y + dy;
+      if (inB(info, tx, ty)) tileFill(g, tx, ty, "rgba(224,86,79,.55)", "#ffb0a8");
+    }
+  }
   if (hl.push) {
     const { from, to, collide } = hl.push;
     if (collide) {
@@ -934,7 +1160,7 @@ function quakeFx(g, e, now, lowQ) {
   });
   g.restore();
 }
-export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200 };
+export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS };
 
 
 // =================================================================== frame
@@ -985,7 +1211,8 @@ export function drawFrame(g, st, now) {
   drawHighlights(g, info, hl, hover, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
-  const uv = units.map((u) => toView(u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0)));
+  // ตัวใหญ่: จุดกลางตัว (เรียงความลึก/จางสิ่งกีดขวางที่อยู่หลัง)
+  const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
   const behind = (x, y) => {
     const [vx, vy] = toView(x + 0.5, y + 0.5);
     return uv.some(([ux, uy]) => Math.abs(ux - vx) < 0.9 && uy < vy && uy >= vy - 2.2);
@@ -1001,7 +1228,7 @@ export function drawFrame(g, st, now) {
     items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });
   }
   const boxes = [];
-  units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawUnit(g, u, now, boxes) }));
+  units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawAnyUnit(g, u, now, boxes) }));
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
@@ -1034,6 +1261,8 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
     else if (e.kind === "beam") beamFx(g, e, now, lowQ);
     else if (e.kind === "quake") quakeFx(g, e, now, lowQ);
+    else if (e.kind === "grow") growFx(g, e, now);
+    else if (e.kind === "smash") smashFx(g, e, now);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);

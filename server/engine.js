@@ -101,6 +101,10 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get action() { return match.action; },
   placeOnBoard: action.placeOnBoard,
   boardMap: action.boardMap,
+  boardUnits: action.boardUnits,
+  sizeOf: action.sizeOf,
+  // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง) — ผลักคนที่ขวาง · พังสิ่งกีดขวาง · ส่ง growFx (action.resizeUnit)
+  resizeUnit: action.resizeUnit,
   movOf: action.movOf,
   baseMovOf: action.baseMovOf,
   rangeOf: action.rangeOf,

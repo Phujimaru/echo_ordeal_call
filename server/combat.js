@@ -123,6 +123,9 @@ function instantDeath(p, force) {
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
   qteSystem.clearQte(p); // ตกรอบแล้ว QTE ที่ค้างอยู่ต้องหายไปด้วย (ไม่งั้นค้างข้ามการชุบชีวิต/ย้อนเวลา)
   CHAR_HOOKS.sliver_bullet.onDeath(engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
+  // Echo (การกลืนกินระดับ EX): ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง)
+  const killer = match.effectSourceId && match.players[match.effectSourceId];
+  if (killer) CHAR_HOOKS.echo.onKill(engine, killer, p);
 }
 
 // สรุปผลหลังดาเมจจากสกิลของโมดูลตัวละคร/ไอเทม: ตกรอบทันทีเมื่อ HP หมด
@@ -291,6 +294,8 @@ function resetCombat(p) {
   Mark42.resetCombat(p); // เกราะ Mark 42: ชุดที่ใส่อยู่ / ชุดที่ส่งออกไป / คูลดาวน์ซื้อ
   CHAR_HOOKS.muimi.resetCombat(p); // มุยมิ: โควตาเสบียง / จำนวนครั้งท่าไม้ตาย
   CHAR_HOOKS.sliver_bullet.resetCombat(p); // นักบินปริศนา: แขน / ล่องหน
+  p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
+  CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)

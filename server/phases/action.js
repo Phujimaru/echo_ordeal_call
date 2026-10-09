@@ -8,9 +8,11 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, counters, tileEndEffect,
+  sizeOf, boxOf, resizeUnit, breakObstacles, smashes,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
+const CHAR_HOOKS = require("../../characters/index");
 const Status = require("../../characters/_universal_status");
 const { ACTION_TIME, ORDER_TIME, GOLD_FIRST_BONUS, DEFAULT_MOV, DEFAULT_RANGE } = require("../constants");
 const Board = require("../board");
@@ -24,16 +26,55 @@ const shop = require("../shop");
 const timers = require("../timers");
 const view = require("../view");
 const Visibility = require("../visibility");
+const { engine } = require("../engine");
 
 // ---------- ตำแหน่งบนกระดาน ----------
+//  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
+//  แผนที่ที่ใช้จริง = แผนที่ภูมิภาคหักช่องที่พังออก (แคชตาม brokenVer · client ได้ terrain ชุดนี้ไปวาด)
 function boardMap() {
-  return Board.mapOf(match.board ? match.board.area : 1);
+  const base = Board.mapOf(match.board ? match.board.area : 1);
+  const b = match.board;
+  if (!b || !b.broken || !b.broken.length) return base;
+  if (b.mapCache && b.mapCache.ver === b.brokenVer && b.mapCache.base === base) return b.mapCache.map;
+  const terrain = { ...base.terrain };
+  for (const k of b.broken) delete terrain[k];
+  const map = { ...base, terrain };
+  b.mapCache = { ver: b.brokenVer, base, map };
+  return map;
 }
-// ผู้เล่นที่ยังอยู่และยืนบนกระดาน ในรูปที่ board.js ใช้ ({ id, x, y, alive, teamId })
+// พังสิ่งกีดขวางชุดนี้ (ช่องที่ไม่มีของข้าม) → คืนรายการ { x, y, kind } ที่พังจริง
+function breakObstacles(keys) {
+  if (!match.board || !keys || !keys.length) return [];
+  const map = boardMap();
+  const out = [];
+  for (const k of keys) {
+    const kind = map.terrain[k];
+    if (!kind) continue;
+    (match.board.broken ||= []).push(k);
+    const [x, y] = k.split(",").map(Number);
+    out.push({ x, y, kind });
+  }
+  if (out.length) match.board.brokenVer = (match.board.brokenVer || 0) + 1;
+  return out;
+}
+function restoreObstacles(keys) {
+  if (!match.board || !match.board.broken || !keys || !keys.length) return;
+  const drop = new Set(keys);
+  match.board.broken = match.board.broken.filter((k) => !drop.has(k));
+  match.board.brokenVer = (match.board.brokenVer || 0) + 1;
+}
+// ขนาดตัวบนกระดาน (ด้านละกี่ช่อง) — ตัวละครทั่วไป 1 · Echo ขยายร่างตั้ง p.boardSize ผ่าน resizeUnit
+function sizeOf(p) {
+  return Math.max(1, (p && p.boardSize) | 0);
+}
+function boxOf(p) {
+  return Board.boxOf(p);
+}
+// ผู้เล่นที่ยังอยู่และยืนบนกระดาน ในรูปที่ board.js ใช้ ({ id, x, y, alive, teamId, size })
 function boardUnits() {
   return combat.alivePlayers()
     .filter((p) => p.pos)
-    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null }));
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOf(p) }));
 }
 // ช่องที่ยืน/เดินผ่าน/ถอยเข้าไม่ได้นอกจากสิ่งกีดขวางของแผนที่: แผงร้านค้ามายา (GRID_PLAN §8.1)
 function boardBlocked() {
@@ -44,7 +85,11 @@ function unitAlly(a, b) {
   return combat.sameTeam(match.players[a.id], match.players[b.id]);
 }
 // ระยะเดินปกติสูงสุด (ก่อนหักโทษ) — บัฟของโอเบรอนใช้ค่านี้เป็นระยะส่ง (GRID_PLAN §5)
+//  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (Echo: ตัวใหญ่ขึ้น เดินได้น้อยลง)
 function baseMovOf(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const own = hook && hook.mov ? hook.mov(p) : null;
+  if (Number.isFinite(own)) return own;
   const ch = CHAR_BY_ID[p.characterId];
   return ch && Number.isFinite(ch.mov) ? ch.mov : DEFAULT_MOV;
 }
@@ -60,13 +105,22 @@ function counters(p) {
   const ch = CHAR_BY_ID[p.characterId];
   return !!(ch && ch.counter);
 }
-// ระยะโจมตีปกติ [rmin, rmax]
+// ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (Echo: ตัวใหญ่ขึ้น ตีไกลขึ้น)
 function rangeOf(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const own = hook && hook.range ? hook.range(p) : null;
+  if (Array.isArray(own)) return own;
   const ch = CHAR_BY_ID[p.characterId];
   return ch && Array.isArray(ch.range) ? ch.range : DEFAULT_RANGE;
 }
+// ตัวใหญ่ตั้งแต่ขนาดนี้ เดิน/ขยายตัวพังสิ่งกีดขวางได้ (ผู้ใช้ตัดสิน: 3×3)
+function smashes(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.smashes && hook.smashes(p));
+}
 // เริ่มเกม/เปลี่ยนภูมิภาค: ตั้งแผนที่แล้วแจกจุดเกิดให้ทุกคนที่ยังอยู่ (คนตกรอบไม่มีที่ยืน)
 //  ร้านค้าถูกยกออก — ต้นเทิร์นถัดไป (dealRound) สุ่มจุดใหม่บนแผนที่นี้พร้อมของใหม่ (GRID_PLAN §3)
+//  ตัวใหญ่: วางใกล้จุดเกิดของตัวเองให้ทั้งตัวลงได้โดยไม่ทับใคร (พังสิ่งกีดขวางได้ = พังของใต้ตัว)
 function placeOnBoard(area) {
   match.board = { area };
   match.shopPos = null;
@@ -74,6 +128,65 @@ function placeOnBoard(area) {
   const alive = combat.alivePlayers();
   const spawns = Board.assignSpawns(map, alive.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
   for (const p of Object.values(match.players)) p.pos = p.alive && spawns[p.id] ? { ...spawns[p.id] } : null;
+  for (const p of alive) {
+    if (!p.pos || sizeOf(p) <= 1) continue;
+    const near = { ...p.pos };
+    p.pos = null; // ไม่นับตัวเองตอนหาที่
+    const spot = Board.placeBig(boardMap(), sizeOf(p), near, boardUnits(), { selfId: p.id, smash: smashes(p) });
+    if (!spot) { p.boardSize = 1; p.pos = near; continue; } // ไม่มีที่พอ (ไม่ควรเกิด) = ลงจุดเกิดแบบตัวเล็ก
+    breakObstacles(spot.rubble);
+    p.pos = { x: spot.x, y: spot.y };
+  }
+}
+// เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง/คืนร่าง) → คืนขนาดที่เป็นจริง
+//  หดตัว: ยืนกลางตัวเดิม · ขยายตัว: มุมใหม่ครอบตัวเดิม (Board.growPlan) — คนในช่องที่ขยายทับถูกผลักออกไปช่องว่างใกล้สุด
+//   ศัตรูที่ถูกผลักเสียพลังชีวิต 1 (ลดเกราะก่อน · ผู้ใช้สั่ง) · เพื่อนร่วมทีมถูกผลักเฉยๆ · พังสิ่งกีดขวางใต้ตัวใหม่ได้ถ้า smashes
+//   ไม่มีที่ให้ขยาย (ร้านค้า/ขอบกระดานขวาง) = ค้างขนาดเดิมไว้ก่อน (ผู้เรียกลองใหม่ทีหลัง)
+//  ส่ง boardFx "growFx" ให้ client เล่นเอฟเฟกต์ (ขนาดเดิม → ใหม่ · คนที่ถูกผลัก · ของที่พัง)
+function resizeUnit(p, newSize) {
+  const from = sizeOf(p);
+  newSize = Math.max(1, newSize | 0);
+  if (!p || !p.alive || !p.pos || newSize === from) { if (p && !p.pos) p.boardSize = newSize; return sizeOf(p); }
+  const map = boardMap();
+  const fromPos = { ...p.pos };
+  if (newSize < from) {
+    const off = Math.floor((from - newSize) / 2);
+    p.pos = { x: p.pos.x + off, y: p.pos.y + off };
+    p.boardSize = newSize;
+    engine.boardFx("growFx", { id: p.id, from, to: newSize, at: { ...p.pos }, prev: fromPos, pushed: [], smashed: [] });
+    return newSize;
+  }
+  const plan = Board.growPlan(map, { id: p.id, x: p.pos.x, y: p.pos.y, size: from }, newSize, boardUnits(),
+    { blocked: boardBlocked(), smash: newSize >= 3 && smashes({ ...p, boardSize: newSize }) });
+  if (!plan) return from;
+  const smashed = breakObstacles(plan.rubble);
+  p.pos = { x: plan.x, y: plan.y };
+  p.boardSize = newSize;
+  const box = { x: plan.x, y: plan.y, size: newSize };
+  const pushed = [];
+  combat.withEffectSource(p, () => {
+    for (const id of plan.displaced) {
+      const o = match.players[id];
+      if (!o || !o.alive || !o.pos) continue;
+      const before = { ...o.pos };
+      const to = Board.pushOutTile(boardMap(), before, box, boardUnits().filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked() });
+      if (to) o.pos = { x: to.x, y: to.y };
+      const enemy = !combat.sameTeam(p, o);
+      let dealt = 0;
+      if (enemy) {
+        const vit = (o.hp || 0) + (o.armor || 0);
+        o.wasAttacked = true;
+        combat.dealMixed(o, 1, false);
+        dealt = Math.max(0, vit - ((o.hp || 0) + (o.armor || 0)));
+        if (o.alive && o.hp <= 0) combat.instantDeath(o);
+      }
+      match.lastLog.push(`💢 ${o.name} ถูก ${p.name} ที่ขยายร่างผลักออก${enemy ? ` -${dealt} (ลดเกราะก่อน)` : ""}`);
+      if (!o.alive) { o.pos = null; match.lastLog.push(`💀 ${o.name} เลือดจริงหมด ตกรอบ!`); }
+      pushed.push({ id: o.id, from: before, to: o.pos ? { ...o.pos } : null, dmg: dealt });
+    }
+  });
+  engine.boardFx("growFx", { id: p.id, from, to: newSize, at: { ...p.pos }, prev: fromPos, pushed, smashed });
+  return newSize;
 }
 
 // ระยะของสกิล (area.range) — "mov" = ระยะเดินปกติสูงสุดของผู้ใช้ (บัฟของโอเบรอน — ผู้ใช้ตัดสิน)
@@ -95,11 +208,11 @@ function resolveArea(p, area, targets, dir) {
     if (!t || !t.alive || !t.pos) return null;
     if (t.id === p.id) return area.self ? [t.id] : null;
     if (Visibility.hiddenFrom(p, t)) return null;
-    return Board.dist(p.pos, t.pos) <= range ? [t.id] : null;
+    return Board.dist(boxOf(p), boxOf(t)) <= range ? [t.id] : null;
   }
   const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   if (kind === "aoe") {
-    const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range)).map((u) => u.id);
+    const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range, sizeOf(p))).map((u) => u.id);
     return area.self ? [p.id, ...ids] : ids;
   }
   if (kind === "line") {
@@ -200,27 +313,32 @@ function moveTo(id, x, y, { step = false } = {}) {
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
   const origin = match.action.from;
+  const s = sizeOf(p);
   // คิดเส้นทางจากเท่าที่ผู้เดินมองเห็น — คนที่มองไม่เห็น (ล่องหน/พุ่มหญ้า) ไม่ขวางตอนวางเส้นทาง แต่ชนจริงตอนเดิน (ด้านล่าง)
+  //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
-  const reach = Board.reachable(boardMap(), { id: p.id, ...origin }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked() });
+  const reach = Board.reachable(boardMap(), { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(), smash: smashes(p) });
   const node = reach.get(Board.key(x, y));
   if (!node) return false;
   if (node.d === 0) {
     if (!step || !match.action.moved) return false;
     return undoMove(id);
   }
-  const prev = { ...p.pos };
+  const prev = { x: p.pos.x, y: p.pos.y };
   const path = step ? [prev, { x, y }] : Board.pathTo(reach, x, y);
+  const bodyAt = (t) => ({ x: t.x, y: t.y, size: s });
   // ซุ่มโจมตีแบบ Fire Emblem: เดินชนคนที่มองไม่เห็น = หยุดช่องก่อนหน้า (ถอยไปช่องว่างช่องล่าสุดถ้าช่องนั้นมีเพื่อนยืน)
   //  การเดินของตานี้จบทันที (ย้อน/เดินต่อไม่ได้) แต่ยังโจมตี/ใช้สกิลได้ · คนล่องหนที่ถูกชนปรากฏตัว (Visibility.onBump)
-  const bumpIdx = path.findIndex((t, i) => i > 0 && all.some((u) => u.id !== p.id && u.x === t.x && u.y === t.y && !seen.includes(u)));
+  const hiddenAt = (t) => all.find((u) => u.id !== p.id && !seen.includes(u) && Board.dist(bodyAt(t), u) === 0);
+  const bumpIdx = path.findIndex((t, i) => i > 0 && hiddenAt(t));
   if (bumpIdx > 0) {
-    const hidden = all.find((u) => u.x === path[bumpIdx].x && u.y === path[bumpIdx].y);
+    const hidden = hiddenAt(path[bumpIdx]);
     let stop = bumpIdx - 1;
-    while (stop > 0 && all.some((u) => u.id !== p.id && u.x === path[stop].x && u.y === path[stop].y)) stop--;
+    while (stop > 0 && all.some((u) => u.id !== p.id && Board.dist(bodyAt(path[stop]), u) === 0)) stop--;
     const walked = path.slice(0, stop + 1);
-    p.pos = { ...walked[walked.length - 1] };
+    p.pos = { x: walked[walked.length - 1].x, y: walked[walked.length - 1].y };
+    smashAlong(p, walked);
     match.action.path = walked.length > 1 ? walked : null;
     match.action.moved = match.action.moved || walked.length > 1;
     match.action.locked = true;
@@ -231,15 +349,35 @@ function moveTo(id, x, y, { step = false } = {}) {
   }
   match.action.path = path;
   p.pos = { x, y };
+  smashAlong(p, path);
   match.action.moved = true;
   view.broadcastState();
   return true;
 }
-// ย้อนกลับช่องเดิม — ได้จนกว่าจะใช้สกิล/ไอเทม/ซื้อของ/โจมตี
+// ตัวใหญ่เดินพังสิ่งกีดขวาง: ของที่ตัวทับตลอดเส้นทางพังหมด (จำไว้ใน action.smashed — กดย้อนแล้วกลับมาครบ)
+//  ส่ง boardFx "smashFx" ให้ client เล่นของแตก (ช่อง + ชนิดของ + ลำดับก้าว)
+function smashAlong(p, path) {
+  if (!smashes(p) || !path || path.length < 2) return;
+  const s = sizeOf(p), map = boardMap(), keys = [], step = {};
+  path.forEach((t, i) => {
+    for (const f of Board.footprint(t.x, t.y, s)) {
+      const k = Board.key(f.x, f.y);
+      if (map.terrain[k] && !(k in step)) { keys.push(k); step[k] = i; }
+    }
+  });
+  const broke = breakObstacles(keys);
+  if (!broke.length) return;
+  match.action.smashed = [...(match.action.smashed || []), ...broke.map((b) => Board.key(b.x, b.y))];
+  match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${broke.length} ช่อง`);
+  engine.boardFx("smashFx", { id: p.id, tiles: broke.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
+}
+// ย้อนกลับช่องเดิม — ได้จนกว่าจะใช้สกิล/ไอเทม/ซื้อของ/โจมตี · ของที่เดินพังไปกลับมาครบ
 function undoMove(id) {
   const p = match.players[id];
   if (!canAct(p) || !match.action.moved || match.action.locked) return false;
-  p.pos = { ...match.action.from };
+  p.pos = { x: match.action.from.x, y: match.action.from.y };
+  restoreObstacles(match.action.smashed);
+  match.action.smashed = null;
   match.action.moved = false;
   match.action.path = null;
   view.broadcastState();
@@ -252,7 +390,7 @@ function attackTarget(id, targetId) {
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
   if (Visibility.hiddenFrom(p, target)) return false; // มองไม่เห็น = ตีไม่ได้
-  if (!Board.inRange(rangeOf(p), Board.dist(p.pos, target.pos))) return false;
+  if (!Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)))) return false;
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
@@ -271,7 +409,8 @@ function finishActor() {
   timers.clearPhaseTimer();
   const p = match.players[match.actorId];
   const map = boardMap();
-  if (p && p.alive && p.pos && Board.isHeal(map, p.pos.x, p.pos.y) && combat.healHp(p, 1) > 0) {
+  // ตัวใหญ่: ช่องไหนของตัวทับจุดฟื้นฟูก็ได้ (ฟื้นครั้งเดียว)
+  if (p && p.alive && p.pos && Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).some((t) => Board.isHeal(map, t.x, t.y)) && combat.healHp(p, 1) > 0) {
     const heal = Board.TERRAIN_INFO[map.healKind || "heal"];
     match.lastLog.push(`${heal.icon} ${p.name} ยืนบน${heal.name} — ฟื้นพลังชีวิต +1`);
   }
@@ -281,8 +420,16 @@ function finishActor() {
 }
 // ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น
 //  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้)
+//  ตัวใหญ่: ทับหนามพิษ/ลาวาช่องไหนก็โดน (ครั้งเดียวต่อจบตา · ลาวาก่อน) · น้ำวนดันตัวใหญ่ไม่ได้
 function tileEndEffect(p) {
-  const fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked() });
+  let fx;
+  if (sizeOf(p) > 1) {
+    const map = boardMap();
+    const kinds = Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).map((t) => Board.endTurnTile(map, t.x, t.y, []) || null).filter(Boolean);
+    fx = kinds.find((f) => f.kind === "lava") || kinds.find((f) => f.kind === "thorns") || null;
+  } else {
+    fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked() });
+  }
   if (!fx) return null;
   const info = Board.TERRAIN_INFO[fx.kind];
   if (fx.kind === "thorns") {

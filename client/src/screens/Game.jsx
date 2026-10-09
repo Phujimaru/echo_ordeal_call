@@ -787,6 +787,9 @@ const STATUS_INFO = {
   obsDream:    { icon: "💤", label: "จุดจบของความฝัน", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่ม 4 ในตาเดินถัดไป จบเทิร์นนั้นแล้วติดสตั้น 3 เทิร์น" },
   obsLark:     { icon: "🐦", label: "นกจาบยามเช้า", cls: "bg-echo-magenta", desc: "ต้นเทิร์นหน้าเสียพลังชีวิต 2 ทะลุเกราะ กันด้วยต้านสถานะไม่ได้" },
   oblada:   { icon: "🎵", label: "สิ่งแปลกปลอม", cls: "bg-echo-hp", desc: "เสียพลังชีวิต 1 ทุก 2 เทิร์น เกราะรับก่อน" },
+  // Echo
+  echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
+  echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
   // ---------- สถานะ Universal (patch 2.2.1) ----------
   invert:     { icon: "🔄", label: "ผกผัน", cls: "bg-echo-hp", desc: "การฟื้นพลังชีวิตและเกราะกลายเป็นเสียแทน และพลังโจมตีที่เพิ่มกลายเป็นลดแทน" },
   decay:      { icon: "🥀", label: "ผุพัง", cls: "bg-echo-hp", desc: "ฟื้นเกราะไม่ได้" },
@@ -800,6 +803,10 @@ function statusEntries(p, full) {
     const amt = (p.statusAmt || {})[k] || 0; // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8)
     out.push({ key: k, v, amt, ...info });
   }
+  // Echo: ขยายร่าง (ถาวร) · คูลดาวน์มหึมา · พลังโจมตีจากการกลืนกิน
+  if (p.echo && p.echo.stacks > 0) out.push({ key: "echoGrow", v: p.echo.stacks, icon: "🌌", label: "ขยายร่าง", cls: "bg-echo-magenta", desc: "เลือดสูงสุดเพิ่ม 2 ต่อระดับ อยู่ถาวรจนกว่าจะใช้ Overwrite" });
+  if (p.echo && p.echo.giantCd > 0) out.push({ key: "echoGiantCd", v: p.echo.giantCd, turns: true, icon: "⏳", label: "มหึมาพักฟื้น", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้มหึมาได้อีก" });
+  if (p.echo && p.echo.kills > 0) out.push({ key: "echoKills", v: p.echo.kills, icon: "🍽️", label: "การกลืนกิน", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ ถาวร" });
   if ((p.muimiUltCd || 0) > 0) {
     out.push({ key: "muimiUltCd", v: p.muimiUltCd, turns: true, icon: "⏳", label: "ดาบสะบั้นพักฟื้น", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }

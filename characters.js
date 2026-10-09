@@ -149,6 +149,45 @@ const CHARACTERS = [
     },
     ultimate: null,
   },
+  {
+    // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
+    //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
+    //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)
+    id: "echo",
+    name: "Echo",
+    avatar: 0,
+    difficulty: "special",
+    img: "/characters/echo/echo.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "เหล่าสหายตัวน้อยเอ๋ย",
+      desc: "ขยายร่างไม่เกิน 4 ระดับ: คุ้มครอง (ดาเมจที่ได้รับ −1) · 5 ระดับขึ้นไป: พลังโจมตี +1 · ครบ 10 ระดับ: พลังโจมตี +1 อีก และตีปกติมีโอกาสสังหาร 5% · ต้นเทิร์นมีโอกาส 20% ได้ต้านสถานะผิดปกติ 1 เทิร์น · ตัวใหญ่ตามเลือดสูงสุด 15/20/25/30 = 2×2/3×3/4×4/5×5 (ระยะตี 2/2/3/3 · เดินได้น้อยลง · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวาง · ขยายตัวผลักคนที่ขวางออก ศัตรูเสียหาย 1)",
+    },
+    passive2: {
+      name: "การกลืนกินระดับ EX",
+      desc: "สังหารผู้เล่นอื่นได้ พลังโจมตี +1 ถาวร",
+    },
+    basic: {
+      name: "มหึมา",
+      desc: "ได้ “ราชินีแห่ง Echo” 10 เทิร์น (ล้างไม่ได้): ขยายร่าง +1 ทันที และทุกต้นเทิร์น · ขยายร่างแต่ละระดับ เลือดสูงสุด +2 และฟื้นพลังชีวิต 2 (สูงสุด 10 ระดับ · อยู่ถาวรจนกว่าจะใช้ Overwrite) · คูลดาวน์ 12 เทิร์น",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/echo/echo_front.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/echo.js
+    },
+    secondary: {
+      name: "Overwrite",
+      desc: "ต้องมีขยายร่าง: ล้างขยายร่างทั้งหมดและ “ราชินีแห่ง Echo” · ทุก 2 ระดับที่ล้าง คูลดาวน์มหึมา −1 และพลังโจมตี +1 (2 เทิร์น) · ฟื้นพลังชีวิต 5",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/echo/echo_top.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: null,
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
@@ -176,6 +215,7 @@ function publicRoster() {
     hidden: !!c.hidden,
     difficulty: c.difficulty || "easy", // ความยากในการเล่น (ใช้แบ่งหน้าเลือกตัวละคร)
     passive: c.passive ? { name: c.passive.name, desc: c.passive.desc } : null,
+    passive2: c.passive2 ? { name: c.passive2.name, desc: c.passive2.desc } : null,
     basic: pub(c.basic),
     secondary: pub(c.secondary),
     ultimate: pub(c.ultimate),

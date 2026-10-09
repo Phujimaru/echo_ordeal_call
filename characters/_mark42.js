@@ -29,9 +29,11 @@ const VIDEO = {
   bomb: `${DIR}/mark42_bomb.mp4`,
 };
 
+const Board = require("../server/board");
+
 const suited = (p) => !!p && !!p.mark42 && p.alive !== false;
-// ยืนติดกัน (ระยะแมนฮัตตัน 1) — ใส่ให้ / ระเบิดใส่ / เรียกคืน
-const adjacent = (a, b) => !!a && !!b && !!a.pos && !!b.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
+// ยืนติดกัน (ระยะแมนฮัตตัน 1 · ตัวใหญ่นับจากขอบตัว) — ใส่ให้ / ระเบิดใส่ / เรียกคืน
+const adjacent = (a, b) => !!a && !!b && !!a.pos && !!b.pos && Board.dist(Board.boxOf(a), Board.boxOf(b)) === 1;
 
 module.exports = {
   SUIT_ARMOR, SUIT_ATK, BOMB_DMG, BREAK_BUY_LOCK, PRICE, IMG, VIDEO,

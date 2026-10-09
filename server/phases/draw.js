@@ -59,6 +59,7 @@ function dealRound() {
     }
 
     CHAR_HOOKS.oberon_summer.onRoundStartTick(engine, p);  // นกจาบยามเช้า: เป้าหมายเสียพลังชีวิต 2 ทะลุเกราะ
+    CHAR_HOOKS.echo.onRoundStartTick(engine, p);           // Echo: ราชินีขยายร่าง +1 · คุ้มครอง · ต้านสถานะ 20% · ขนาดตัว
 
     // ---------- สิ่งแปลกปลอม (oblada, สถานะ Universal): ดาเมจ 1 ทุก 2 เทิร์น — ทำงานตอนเวลาคงเหลือเป็นเลขคี่ ----------
     {

@@ -27,6 +27,7 @@ function stealthed(p) {
 function inBush(p) {
   if (!p || !p.alive || !p.pos || !match.board) return false;
   if (p.exposedRound === match.roundNumber) return false;
+  if ((p.boardSize | 0) > 1) return false; // ตัวใหญ่ (Echo ขยายร่าง) ซ่อนในพุ่มไม่ได้
   const map = Board.mapOf(match.board.area);
   return Board.bushPatchOf(map, p.pos.x, p.pos.y) !== null;
 }

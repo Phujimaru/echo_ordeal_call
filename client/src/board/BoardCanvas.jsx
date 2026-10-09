@@ -37,11 +37,13 @@
 // ============================================================
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, inCamView, key, LH, LW,
+  bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
   setCamera, toLogical, unproject, ZOOM_K,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
+// ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
+const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
 import { PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
 
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
@@ -120,6 +122,7 @@ export default function BoardCanvas(props) {
       anim: null,            // { obj, t0, startX, startY, done, hit }
       fxSeen: new Set(), fxRef: undefined, fxActive: [],
       hitT: new Map(),       // id → เวลาโดนตี (สั่น/แฟลช)
+      grow: new Map(),       // id → { t0, from, to } กำลังเปลี่ยนขนาด (Echo ขยายร่าง)
       hover: null, hoverUnit: null, boxes: [], view: null, base: null, lastDraw: 0, lastT: 0,
       boards: new Map(),     // key → ชั้นกระดานอบแล้ว (เก็บไม่เกิน 2 — ปกติ/มุมใกล้)
       // กล้อง: cam = { z, cx, cy } ตอนนี้ · zoomLv = prop zoom ล่าสุด · camAnim = เลื่อน/ซูมนุ่มๆ · pivot = จุดบนกระดานที่หมุนรอบ
@@ -355,7 +358,7 @@ export default function BoardCanvas(props) {
             if (!item.beam) continue;
             Object.assign(item, beamColors(f.color));
             item.beam.tiles.forEach((t, i) => {
-              const hu = units.find((u) => u.x === t.x && u.y === t.y && u.alive !== false);
+              const hu = units.find((u) => onBody(u, t.x, t.y) && u.alive !== false);
               if (hu && (f.hitId == null || hu.id === f.hitId)) st.hitT.set(hu.id, now + item.beam.hits[i]); // hitId = ลำแสงตีปกติ สั่นเฉพาะเป้า
             });
           }
@@ -364,15 +367,17 @@ export default function BoardCanvas(props) {
             if (!item.quake) continue;
             item.dur = item.quake.dur;
             item.quake.tiles.forEach((t, i) => {
-              const hu = units.find((u) => u.x === t.x && u.y === t.y && u.alive !== false);
+              const hu = units.find((u) => onBody(u, t.x, t.y) && u.alive !== false);
               if (hu) st.hitT.set(hu.id, now + item.quake.hits[i]);
             });
           }
           if (f.kind === "slash" || f.kind === "burst") {
-            const hitU = units.find((u) => u.x === f.x && u.y === f.y && u.alive !== false);
+            const hitU = units.find((u) => onBody(u, f.x, f.y) && u.alive !== false);
             if (hitU) st.hitT.set(hitU.id, now);
             if (!item.rgb) item.rgb = f.color ? rgbString(f.color) : "255,255,255";
           }
+          if (f.kind === "grow" && f.id != null) st.grow.set(f.id, { t0: now, from: f.from | 0, to: f.to | 0 });
+          if (f.kind === "smash") item.dur = smashDur(f.tiles);
           st.fxActive.push(item);
         }
         if (st.fxSeen.size > 400) st.fxSeen = new Set([...st.fxSeen].slice(-200));
@@ -394,13 +399,15 @@ export default function BoardCanvas(props) {
             if ((u.x === an.startX && u.y === an.startY) || (u.x === fin.x && u.y === fin.y)) { rx = fin.x; ry = fin.y; }
           }
         }
-        const k = key(u.x, u.y);
+        const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
+        // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
+        const any = (set) => { if (us <= 1) return set.has(k); for (let dy = 0; dy < us; dy++) for (let dx = 0; dx < us; dx++) if (set.has(key(u.x + dx, u.y + dy))) return true; return false; };
         let reticle = null, alpha = u.alpha == null ? 1 : u.alpha;
         if (u.cloak) alpha *= lowQ || reducedMotion() ? 0.45 : 0.45 + 0.06 * Math.sin(now / 420);
         if (!u.isMe && !u.isActor) {
-          if (hl.aoe.has(k)) reticle = "aoe";
-          else if (hl.skill.has(k)) reticle = "skill";
-          else if (hl.attack.has(k) || (hl.target && hl.target.x === u.x && hl.target.y === u.y)) reticle = "attack";
+          if (any(hl.aoe)) reticle = "aoe";
+          else if (any(hl.skill)) reticle = "skill";
+          else if (any(hl.attack) || (hl.target && hl.target.x === u.x && hl.target.y === u.y)) reticle = "attack";
           else if (targeting) alpha *= 0.5;
         }
         list.push({
@@ -408,6 +415,8 @@ export default function BoardCanvas(props) {
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
           isMe: !!u.isMe, isActor: !!u.isActor, tag: u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
           hitT: st.hitT.get(u.id) || 0,
+          size: us, art: u.art || null, face: u.face || null,
+          grow: (() => { const gr = st.grow.get(u.id); if (gr && now - gr.t0 > GROW_MS) { st.grow.delete(u.id); return null; } return gr || null; })(),
           hovered: !!hov && st.hoverUnit === u.id,
         });
       }
@@ -478,7 +487,7 @@ export default function BoardCanvas(props) {
     if (tile) {
       // กล่องรูปตัวหมากสูงทับ 1–2 ช่องด้านหลัง: คนที่ยืนบนช่องใต้เมาส์ชนะเสมอ ·
       //  ช่องว่างที่กดได้ (เดิน/สกิล/ตีหมู่) ชนะกล่องของตัวที่ยืนช่องอื่น — ไม่งั้นเดินถอยไปทางหลังตัวเองไม่ได้
-      const onTile = units.find((u) => u.alive !== false && u.x === tile.x && u.y === tile.y) || null;
+      const onTile = units.find((u) => u.alive !== false && onBody(u, tile.x, tile.y)) || null;
       const k = key(tile.x, tile.y), hl = st.hl;
       if (onTile) unit = onTile;
       else if (unit && (hl.move.has(k) || hl.skill.has(k) || hl.aoe.has(k))) unit = null;
