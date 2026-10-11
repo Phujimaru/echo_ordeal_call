@@ -99,6 +99,14 @@ module.exports = {
   mov(p) { return isEcho(p) ? MOV_BY_SIZE[boardSize(p)] : null; },
   range(p) { return isEcho(p) ? RANGE_BY_SIZE[boardSize(p)] : null; },
   smashes(p) { return isEcho(p) && boardSize(p) >= SMASH_SIZE; },
+  // ท่าตีปกติบนกระดาน (ผู้ใช้ตัดสิน): 1×1 = คลื่นเสียง · 2×2–3×3 = ผมฟาด · 4×4–5×5 = ห่าง 1–2 ช่องผมฟาด / ห่าง 3 ช่องปาหิน
+  attackStyle(p, dist) {
+    if (!isEcho(p)) return null;
+    const n = boardSize(p);
+    if (n <= 1) return "echo";
+    if (n >= 4 && dist >= 3) return "rock";
+    return "hair";
+  },
 
   // ---------- ต้นเทิร์น (dealRound) ----------
   //  ราชินี: ขยายร่าง +1 · คุ้มครองต่ออายุ · ต้านสถานะ 20% · ขนาดตัวที่ค้างไว้ลองขยายใหม่

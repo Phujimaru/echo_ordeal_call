@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Rebirth</title>
+<!-- ต้นแบบฉากท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (~16 วิ) — เปิดผ่าน server "plans" (ราก repo) · ใช้ลูกโลกจริงของเกม client/src/globe/globeCore.js
+     ลำดับ: กระดานถอยออก → ลูกโลก → Echo ประคองโลก (ฟ้ากลายเป็นอวกาศม่วง) → ชื่อท่า → ชาร์จพลัง (พลังไหลเข้า · สายฟ้า · รอยร้าว)
+            → บีบ → ระเบิดเป็นเสี่ยง (3 มิติ) → เศษลอยช้า → ดูดกลับมาประกอบ (ชิ้นสุดท้าย = ภูมิภาคใหม่) → Echo สลายเป็นประกาย
+            → โลกหมุนไปภูมิภาคใหม่ + ชื่อภูมิภาค → ดิ่งลง → แฟลช → กระดานใหม่
+     รูป: echo-rebirth/hold.jpg · squeeze.jpg (พื้นเขียว + ลูกกลมเหลือง) — ตัดพื้นเขียว/เจาะลูกกลมในเบราว์เซอร์ แล้ววางลูกโลกให้ตรงลูกกลมเอง -->
+<style>
+  :root { --violet: #9b4f96; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0820; font-family: "Kanit", "Chakra Petch", sans-serif; }
+  #stage { position: fixed; inset: 0; overflow: hidden; }
+  #bg { position: absolute; inset: 0; }
+  canvas.layer, .art { position: absolute; left: 0; top: 0; }
+  canvas.layer { width: 100%; height: 100%; }
+  .art { transform-origin: 0 0; pointer-events: none; will-change: transform, opacity; z-index: 2; }
+  #fx { z-index: 4; pointer-events: none; }
+  #globe { z-index: 1; }
+  #ringFront { z-index: 3; pointer-events: none; }
+  #title { z-index: 5; position: absolute; left: 0; right: 0; top: 7%; text-align: center; color: #fff; pointer-events: none; opacity: 0;
+    font-weight: 700; letter-spacing: .12em; font-size: clamp(34px, 6vw, 92px);
+    text-shadow: 0 0 18px #c99ad6, 0 0 42px #9b4f96, 0 0 90px #6d3fb8; }
+  #title small { display: block; font-size: .28em; letter-spacing: .6em; font-weight: 500; color: #e9d6ff; margin-top: .3em; }
+  #tag { z-index: 5; position: absolute; left: 0; right: 0; bottom: 16%; text-align: center; color: #fff; pointer-events: none; opacity: 0;
+    font-weight: 600; font-size: clamp(22px, 3.2vw, 46px); letter-spacing: .08em; text-shadow: 0 2px 14px rgba(20,10,60,.9), 0 0 30px #7f6bd8; }
+  #tag small { display: block; font-size: .5em; letter-spacing: .5em; color: #d9c8ff; }
+  .bar { position: fixed; right: 16px; bottom: 16px; display: flex; gap: 8px; z-index: 50; }
+  .bar button { font: inherit; font-size: 15px; color: #e8ddff; background: rgba(30,18,70,.75); border: 1px solid rgba(201,154,214,.55);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  .bar button.on { background: rgba(155,79,150,.6); }
+  #clock { position: fixed; left: 16px; bottom: 16px; color: rgba(232,221,255,.6); font: 13px "Chakra Petch", monospace; z-index: 50; }
+</style>
+<script type="importmap">{ "imports": { "three": "/client/node_modules/three/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <canvas id="stars" class="layer"></canvas>
+  <canvas id="board" class="layer"></canvas>
+  <canvas id="globe" class="layer"></canvas>
+  <canvas id="artHold" class="art"></canvas>
+  <canvas id="artSqueeze" class="art"></canvas>
+  <canvas id="ringFront" class="layer"></canvas>
+  <canvas id="fx" class="layer"></canvas>
+  <div id="tag"></div>
+</div>
+<div id="clock"></div>
+<div class="bar"><button id="play">▶</button><button id="slow">ช้า</button></div>
+<script type="module">
+import * as THREE from "three";
+import { createGlobe, getEarth, regionDir } from "/client/src/globe/globeCore.js";
+
+// ---------------- ค่าคงที่ของฉาก ----------------
+const FROM = 1, TO = 4; // ภูมิภาคเดิม → ภูมิภาคใหม่ (ตัวอย่าง)
+const AREAS = ["อาณาจักรแห่งจุดเริ่มต้น", "ทุ่งดอกไม้", "ป่าไม้ต้องสาป", "คลื่นวงวนน้ำ", "ทะเลทราย", "อาณาจักรน้ำแข็ง", "จุดสิ้นสุดของโลก"];
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
+const BOARD_COL = [["#7fb862", "#8ac46c"], ["#9cc95e", "#b3d873"], ["#4f7a4a", "#5e8a57"], ["#5fa3c9", "#6fb3d6"], ["#d8b878", "#e4c88c"], ["#bfe0f0", "#d3ecf7"], ["#5b3b3b", "#6b4545"]];
+// เวลา (วินาที)
+// เวลาเสมือน (วินาที) — ช่วงหยุดค้างก่อนระเบิด (FREEZE) ไม่นับ: เวลาจริง = เวลาเสมือน + FREEZE.len หลังจุดนั้น
+const T = {
+  boardOut: [0, 1.5], reveal: [2.0, 4.4],
+  rings: [4.4, 7.5], ringIn: [4.4, 5.0], tighten: [5.8, 7.0], stamp: [7.0, 7.4], // วงกฎของเกมล้อม → หดรัด → ประทับเป็นรอยร้าว
+  leak: [7.2, 8.05], squeeze: 7.6, vacuum: [7.75, 8.05], boom: 8.05,              // แสงทะลักจากรอยร้าว · บีบ (นิ้วยุบ) · ดูดแสงเข้า
+  drift: [8.05, 10.6], back: [10.6, 12.5], last: [12.5, 13.0], dissolve: [13.0, 14.0], focus: [13.2, 14.4],
+  tag: [13.9, 15.4], dive: [14.6, 15.7], flash: 15.7, end: 16.6,
+};
+const FREEZE = { at: 8.05, len: 0.4 }; // ภาพหยุดนิ่งเงียบๆ ก่อนระเบิด
+// แบบ A: หัวใจเรืองแสง → ยิงลำแสงขึ้นฟ้า → ลำแสงยักษ์ฟาดลงเฉียงจากมุมบนขวาใส่ผิวโลก (ไม่พาดผ่านหน้า/มือ)
+//  → หลุมเรืองแสง + คลื่นกระแทกวิ่งรอบผิวโลก + รอยร้าวลามออกจากจุดที่โดน
+const TA = { gather: [4.4, 5.0], up: [5.0, 5.35], strike: [5.3, 6.6], hit: 5.35 };
+let VARIANT = ({ a: "A", d: "D" })[new URLSearchParams(location.search).get("fx")] || "C";
+// แบบ C (เลือกแล้ว): รวมพลังจนเหมือนจะระเบิดโลก — 3 ขั้น: เริ่มรวม → อวกาศถูกดูดเข้า → ใกล้ทนไม่ไหว (โลกเต้นตุบถี่ขึ้น) · ไม่มีแสงที่ปอยผม (ผู้ใช้สั่ง)
+const TC = { start: 4.4, pull: 5.2, over: 6.4 };
+// จังหวะโลกเต้น (วินาที): ถี่ขึ้นเรื่อยๆ จนบีบ
+const BEATS = (() => { const out = []; let b = 5.5, gap = 0.85; while (b < 8.0) { out.push(b); b += gap; gap = Math.max(0.16, gap * 0.8); } return out; })();
+function beatPulse(t) { let p = 0; for (const b of BEATS) if (t >= b) p = Math.max(p, Math.exp(-(t - b) / 0.12)); return p; }
+function chargeLevel(t) { return 0.2 * span(t, TC.start, TC.pull) + 0.45 * span(t, TC.pull, TC.over) + 0.35 * span(t, TC.over, T.boom); }
+let lastG = { x: 0, y: 0, r: 100 }; // ตำแหน่งโลกบนจอของเฟรมก่อน (ดาวที่ถูกดูดใช้)
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const span = (t, a, b) => clamp01((t - a) / (b - a));
+const lerp = (a, b, t) => a + (b - a) * t;
+const eOut = (t) => 1 - Math.pow(1 - t, 3);
+const eIn = (t) => t * t * t;
+const eIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const eBack = (t) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+function rng(seed) {
+  // ผสมเลข seed ก่อน (seed ติดกันต้องได้ลำดับที่ไม่คล้ายกัน)
+  let s = Math.imul((seed | 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0; s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35) >>> 0; s = (s ^ (s >>> 16)) >>> 0 || 1;
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+}
+
+// ---------------- รูป Echo: ตัดพื้นเขียว + เจาะลูกกลมเหลือง → { canvas, cx, cy, r } (พิกัดรูป) ----------------
+function loadImg(src) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; }); }
+async function keyArt(src, cv) {
+  const img = await loadImg(src);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d"); g.drawImage(img, 0, 0);
+  const id = g.getImageData(0, 0, w, h), a = id.data;
+  let minx = w, maxx = 0, miny = h;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4, r = a[i], gg = a[i + 1], b = a[i + 2];
+    const gdom = gg - Math.max(r, b), yel = Math.min(r, gg) - b;
+    if (yel > 140 && r > 180) { if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; }
+    const al = Math.min(clamp01((60 - gdom) / 38), clamp01((110 - yel) / 55));
+    if (gdom > 0) a[i + 1] = Math.max(r, b) + (gg - Math.max(r, b)) * 0.15;
+    a[i + 3] = Math.round(al * 255);
+  }
+  g.putImageData(id, 0, 0);
+  const r = (maxx - minx) / 2;
+  return { cv, w, h, cx: (minx + maxx) / 2, cy: miny + r, r };
+}
+
+// ---------------- พื้นหลัง/ดาว ----------------
+const bg = document.getElementById("bg");
+const starsCv = document.getElementById("stars"), sg = starsCv.getContext("2d");
+const STARS = Array.from({ length: 260 }, (_, i) => { const R = rng(i + 7); return { x: R(), y: R(), r: 0.4 + R() * 1.6, p: R() * 6.28, s: 0.5 + R() }; });
+
+// ---------------- กระดานจำลอง (ต้น/ท้ายฉาก) ----------------
+const boardCv = document.getElementById("board"), bgx = boardCv.getContext("2d");
+const echoImg = new Image(); echoImg.src = "/client/public/characters/echo/echo_front.webp";
+function drawBoard(W, H, area, k, alpha) {
+  bgx.clearRect(0, 0, W, H);
+  if (alpha <= 0) return;
+  bgx.save(); bgx.globalAlpha = alpha;
+  const cx = W / 2, cy = H * 0.55;
+  bgx.translate(cx, cy); bgx.scale(k, k);
+  const N = 14, tw = Math.min(W, H) * 0.075, col = BOARD_COL[area - 1];
+  bgx.fillStyle = "#cfe6c8"; bgx.fillRect(-W, -H, W * 2, H * 2);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const p = (X, Y) => { const d = 1 + (Y - N / 2) * 0.03; return [(X - N / 2) * tw * d, (Y - N / 2) * tw * 0.62]; };
+    const A = p(x, y), B = p(x + 1, y), C = p(x + 1, y + 1), D = p(x, y + 1);
+    bgx.beginPath(); bgx.moveTo(...A); bgx.lineTo(...B); bgx.lineTo(...C); bgx.lineTo(...D); bgx.closePath();
+    bgx.fillStyle = col[(x + y) % 2]; bgx.fill();
+  }
+  if (echoImg.complete && echoImg.naturalWidth) { const h = tw * 3.4, w = h * echoImg.naturalWidth / echoImg.naturalHeight; bgx.drawImage(echoImg, -w / 2, -h * 0.85, w, h); }
+  bgx.restore();
+}
+
+// ---------------- ลูกโลก + เศษ ----------------
+const globeCv = document.getElementById("globe");
+const core = createGlobe(globeCv, { drag: false, sand: true, autoSpin: 0, layout: { x: 0, y: 0, s: 1 } });
+const earth = getEarth();
+
+// เศษโลก: ทรงยี่สิบหน้าละเอียด → จับกลุ่มสามเหลี่ยมตามจุดตั้งต้นสุ่ม (โวโรนอยบนผิวทรงกลม) ~90 ชิ้น · uv แบบเดียวกับ SphereGeometry
+const shardTex = new THREE.CanvasTexture(earth.canvas); shardTex.colorSpace = THREE.SRGBColorSpace; shardTex.wrapS = THREE.RepeatWrapping;
+earth.textures.add(shardTex);
+const shards = []; const shardGroup = new THREE.Group(); shardGroup.visible = false; core.spin.add(shardGroup);
+const crackGroup = new THREE.Group(); core.spin.add(crackGroup);
+// แกนพลังกลางโลก (เห็นตอนแตก แล้วค่อยหรี่ · สว่างอีกครั้งตอนประกอบใกล้เสร็จ)
+const coreGlow = new THREE.Mesh(new THREE.SphereGeometry(0.62, 32, 24), new THREE.MeshBasicMaterial({ color: 0xf2d9ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+core.world.add(coreGlow);
+const NEW_DIR = regionDir(TO - 1);
+function uvOf(v) {
+  const theta = Math.acos(Math.max(-1, Math.min(1, v.y)));
+  let phi = Math.atan2(v.z, -v.x); if (phi < 0) phi += Math.PI * 2;
+  return [phi / (Math.PI * 2), 1 - theta / Math.PI];
+}
+{
+  const ico = new THREE.IcosahedronGeometry(1, 9).toNonIndexed();
+  const P = ico.getAttribute("position");
+  const R = rng(42), K = 90, seeds = [];
+  for (let i = 0; i < K; i++) { const y = 1 - (i + 0.5) / K * 2, r = Math.sqrt(1 - y * y), ph = i * 2.39996 + R() * 0.5; seeds.push(new THREE.Vector3(Math.cos(ph) * r, y, Math.sin(ph) * r).normalize()); }
+  const groups = Array.from({ length: K }, () => []);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), m = new THREE.Vector3();
+  for (let f = 0; f < P.count; f += 3) {
+    a.fromBufferAttribute(P, f); b.fromBufferAttribute(P, f + 1); c.fromBufferAttribute(P, f + 2);
+    m.copy(a).add(b).add(c).normalize();
+    let bi = 0, bd = -2; for (let s = 0; s < K; s++) { const d = m.dot(seeds[s]) + (R() - 0.5) * 0.004; if (d > bd) { bd = d; bi = s; } }
+    groups[bi].push(a.clone(), b.clone(), c.clone());
+  }
+  // ชิ้นที่ครอบภูมิภาคใหม่ = ชิ้นสุดท้าย
+  let lastIdx = 0, lastD = -2; seeds.forEach((s, i) => { const d = s.dot(NEW_DIR); if (d > lastD) { lastD = d; lastIdx = i; } });
+  groups.forEach((tris, gi) => {
+    if (!tris.length) return;
+    const cen = new THREE.Vector3(); tris.forEach((v) => cen.add(v)); cen.divideScalar(tris.length);
+    const pos = [], uv = [], back = [];
+    for (let i = 0; i < tris.length; i += 3) {
+      const t3 = [tris[i], tris[i + 1], tris[i + 2]], uvs = t3.map(uvOf);
+      const us = uvs.map((q) => q[0]); if (Math.max(...us) - Math.min(...us) > 0.5) uvs.forEach((q) => { if (q[0] < 0.5) q[0] += 1; });
+      t3.forEach((v, k) => { pos.push(v.x - cen.x, v.y - cen.y, v.z - cen.z); uv.push(...uvs[k]); });
+      // ด้านในของเศษ (ผิวหินม่วงเข้ม)
+      [t3[0], t3[2], t3[1]].forEach((v) => { const w = v.clone().multiplyScalar(0.82); back.push(w.x - cen.x, w.y - cen.y, w.z - cen.z); });
+    }
+    const gTop = new THREE.BufferGeometry(); gTop.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); gTop.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); gTop.computeVertexNormals();
+    const gBack = new THREE.BufferGeometry(); gBack.setAttribute("position", new THREE.Float32BufferAttribute(back, 3)); gBack.computeVertexNormals();
+    const isLast = gi === lastIdx;
+    const mat = new THREE.MeshLambertMaterial({ map: shardTex, emissive: new THREE.Color(isLast ? 0xffd27a : 0x9b4f96), emissiveIntensity: 0 });
+    const top = new THREE.Mesh(gTop, mat);
+    const bot = new THREE.Mesh(gBack, new THREE.MeshBasicMaterial({ color: 0x7b45d6 })); // ด้านในเศษ = เนื้อโลกเรืองม่วง
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(gTop, 12), new THREE.LineBasicMaterial({ color: isLast ? 0xffe2a0 : 0xe2b8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const g = new THREE.Group(); g.add(top, bot, edges); g.position.copy(cen); shardGroup.add(g);
+    // รอยร้าวบนโลกก่อนแตก = ขอบของเศษชิ้นเดิมวางทับผิวโลก
+    const crack = new THREE.LineSegments(edges.geometry, new THREE.LineBasicMaterial({ color: 0xf0c8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    crack.position.copy(cen).multiplyScalar(1.004); crack.scale.setScalar(1.004); crackGroup.add(crack);
+    const R2 = rng(gi * 131 + 9);
+    shards.push({
+      g, mat, edges, crack, cen, isLast,
+      dir: cen.clone().normalize(),
+      speed: 1.4 + R2() * 2.2, spinAxis: new THREE.Vector3(R2() - 0.5, R2() - 0.5, R2() - 0.5).normalize(), spinSpeed: 1 + R2() * 4,
+      wob: new THREE.Vector3(R2() - 0.5, R2() - 0.5, R2() - 0.5).multiplyScalar(0.8),
+      back0: T.back[0] + R2() * (T.back[1] - T.back[0] - 0.7), // เวลาเริ่มดูดกลับ (สุ่มไล่กัน)
+    });
+  });
+}
+const yawFor = (d) => -Math.atan2(d.x, d.z);
+const pitchFor = (d) => Math.max(-0.6, Math.min(0.6, Math.asin(Math.max(-1, Math.min(1, d.y)))));
+const FROM_DIR = regionDir(FROM - 1);
+let yawA = yawFor(FROM_DIR), yawB = yawFor(NEW_DIR);
+while (yawB - yawA > Math.PI) yawB -= Math.PI * 2; while (yawB - yawA < -Math.PI) yawB += Math.PI * 2;
+
+// สถานะเศษตามเวลา (ไม่มีสถานะสะสม — กรอเวลาได้)
+const q = new THREE.Quaternion(), tmpV = new THREE.Vector3();
+function placeShard(s, t) {
+  const te = Math.max(0, t - T.boom);
+  const drift = (x) => (1 - Math.exp(-x * 2.4)) / 2.4 + x * 0.05; // พุ่งแรงแล้วค่อยๆ ลอยช้า
+  const back0 = s.isLast ? T.last[0] : s.back0, back1 = s.isLast ? T.last[1] : back0 + 0.7;
+  const tStop = Math.min(te, back0 - T.boom);
+  const d = drift(tStop) * s.speed * (s.isLast ? 0.9 : 1);
+  const ex = s.cen.clone().addScaledVector(s.dir, d).addScaledVector(s.wob, d * 0.35);
+  const ang = s.spinSpeed * (tStop + 0.3 * Math.sin(tStop * 2));
+  if (t < back0) {
+    s.g.position.copy(ex); s.g.quaternion.setFromAxisAngle(s.spinAxis, ang); return 0;
+  }
+  const k = span(t, back0, back1), e = s.isLast ? eIn(k) : eIO(k);
+  s.g.position.lerpVectors(ex, s.cen, e);
+  q.setFromAxisAngle(s.spinAxis, ang * (1 - e)); s.g.quaternion.copy(q);
+  return k;
+}
+
+// ---------------- วงกฎของเกม (3 มิติ) ----------------
+//  แถบอักษรไพ่/อักษรเวทพันรอบโลก 3 วง เอียงคนละแกน · ครึ่งหน้า (z > 0) วาดบนแคนวาสชั้นบนสุดเหนือตัว Echo
+//  ครึ่งหลังวาดกับลูกโลก (หลังมือ/ตัว) — แยกด้วย clipping plane ที่ z = 0 ของโลก
+core.renderer.localClippingEnabled = true;
+const ringCv = document.getElementById("ringFront");
+const ringR = new THREE.WebGLRenderer({ canvas: ringCv, alpha: true, antialias: true });
+ringR.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); ringR.localClippingEnabled = true;
+const PLANE_BACK = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), PLANE_FRONT = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+function glyphTex(seed, gold) {
+  const c = document.createElement("canvas"); c.width = 2048; c.height = 128;
+  const g = c.getContext("2d"), R = rng(seed);
+  g.fillStyle = gold ? "rgba(255,210,120,.16)" : "rgba(190,140,255,.16)"; g.fillRect(0, 8, 2048, 112);
+  g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(0, 10); g.lineTo(2048, 10); g.moveTo(0, 118); g.lineTo(2048, 118); g.stroke();
+  g.lineWidth = 1.5; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(0, 22); g.lineTo(2048, 22); g.moveTo(0, 106); g.lineTo(2048, 106); g.stroke(); g.setLineDash([]);
+  const TOK = ["♠", "A", "♥", "K", "♦", "Q", "♣", "J", "21", "✦", "10", "7", "Ⅲ", "Ⅶ", "♛", "∞"];
+  g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+  for (let x = 40; x < 2048; x += 96) {
+    const tk = TOK[Math.floor(R() * TOK.length)];
+    g.font = `700 ${tk.length > 1 ? 50 : 62}px "Chakra Petch", "Segoe UI Symbol", serif`;
+    g.fillText(tk, x, 66);
+    g.beginPath(); g.moveTo(x + 48, 56); g.lineTo(x + 54, 64); g.lineTo(x + 48, 72); g.lineTo(x + 42, 64); g.closePath(); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.x = 3;
+  return t;
+}
+function bandGeometry(inner, outer, n = 256) {
+  const pos = [], uv = [], idx = [];
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2, c = Math.cos(a), s2 = Math.sin(a);
+    pos.push(c * inner, 0, s2 * inner, c * outer, 0, s2 * outer);
+    uv.push(i / n, 0, i / n, 1);
+    if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  return g;
+}
+const RINGS = [
+  { tilt: new THREE.Euler(1.05, 0, 0.18), speed: 0.7, gold: false, delay: 0 },
+  { tilt: new THREE.Euler(1.3, 0, -0.75), speed: -0.9, gold: true, delay: 0.15 },
+  { tilt: new THREE.Euler(0.75, 0, 1.0), speed: 0.55, gold: false, delay: 0.3 },
+].map((r, i) => {
+  const mat = new THREE.MeshBasicMaterial({ map: glyphTex(i * 97 + 5, r.gold), color: r.gold ? 0xffd88a : 0xe0c4ff, transparent: true, opacity: 0,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, clippingPlanes: [PLANE_BACK] });
+  const mesh = new THREE.Mesh(bandGeometry(1, 1.17), mat);
+  const grp = new THREE.Group(); grp.rotation.copy(r.tilt); grp.add(mesh); core.world.add(grp); grp.visible = false;
+  return { ...r, mat, mesh, grp };
+});
+// ครึ่งหน้าของวง: ซ่อนของอื่นในฉาก วาดลงแคนวาสชั้นบน แล้วคืนค่า
+function renderRingFront(any) {
+  const ctx = ringR.getContext(); ringR.setClearColor(0x000000, 0);
+  if (!any) { ringR.clear(); return; }
+  const hide = [core.tilt, coreGlow, core.sand].filter(Boolean), was = hide.map((o) => o.visible);
+  hide.forEach((o) => { o.visible = false; });
+  RINGS.forEach((r) => { r.mat.clippingPlanes = [PLANE_FRONT]; });
+  ringR.render(core.scene, core.camera);
+  RINGS.forEach((r) => { r.mat.clippingPlanes = [PLANE_BACK]; });
+  hide.forEach((o, i) => { o.visible = was[i]; });
+  void ctx;
+}
+// แบบ A: จุดที่ลำแสงโดน (ทิศในระบบโลก/กล้อง — ซ้ายบนด้านหน้า) · วงคลื่นกระแทกวิ่งบนผิวโลก
+const IMPACT_W = new THREE.Vector3(0.42, 0.5, 0.76).normalize(); // ขวาบนด้านหน้า (ว่างจากมือทั้งสองข้าง)
+const SHOCK_N = 160;
+const shockGeo = new THREE.BufferGeometry(); shockGeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(SHOCK_N * 3), 3));
+const shocks = [0, 1].map((i) => {
+  const l = new THREE.LineLoop(shockGeo.clone(), new THREE.LineBasicMaterial({ color: i ? 0xffffff : 0xd9a8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  l.visible = false; core.spin.add(l); return l;
+});
+function impactLocal() { return IMPACT_W.clone().applyQuaternion(core.spin.getWorldQuaternion(new THREE.Quaternion()).invert()); }
+function setShock(line, a, theta) {
+  const u = new THREE.Vector3(0, 1, 0).cross(a); if (u.lengthSq() < 1e-6) u.set(1, 0, 0); u.normalize();
+  const v = a.clone().cross(u).normalize(), p = line.geometry.getAttribute("position"), R = 1.006;
+  for (let i = 0; i < SHOCK_N; i++) {
+    const ph = (i / SHOCK_N) * Math.PI * 2, c = Math.cos(theta), sn = Math.sin(theta);
+    p.setXYZ(i, (a.x * c + (u.x * Math.cos(ph) + v.x * Math.sin(ph)) * sn) * R, (a.y * c + (u.y * Math.cos(ph) + v.y * Math.sin(ph)) * sn) * R, (a.z * c + (u.z * Math.cos(ph) + v.z * Math.sin(ph)) * sn) * R);
+  }
+  p.needsUpdate = true;
+}
+
+// รอยบุ๋มใต้นิ้ว: ดันผิวโลกตรงจุดที่นิ้วแตะเข้าข้างใน (ทิศในจอ: มือซ้ายบนซ้าย · มือขวาขวาล่าง)
+const gPos = core.globe.geometry.getAttribute("position"), gBase = gPos.array.slice();
+const TOUCH = [new THREE.Vector3(-0.8, 0.6, 0.55).normalize(), new THREE.Vector3(0.96, -0.27, 0.55).normalize()];
+const TOUCH_SCREEN = [[-0.8, -0.6], [0.96, 0.27]]; // ทิศบนจอ (y ลง) ของปลายนิ้ว — วงคลื่นเล็กๆ
+let dentOn = false;
+function dentGlobe(amt) {
+  if (amt <= 0.001) { if (dentOn) { gPos.array.set(gBase); gPos.needsUpdate = true; core.globe.geometry.computeVertexNormals(); dentOn = false; } return; }
+  dentOn = true;
+  const inv = core.spin.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const loc = TOUCH.map((d) => d.clone().applyQuaternion(inv));
+  const a = gPos.array;
+  for (let i = 0; i < a.length; i += 3) {
+    const x = gBase[i], y = gBase[i + 1], z = gBase[i + 2];
+    let r = 1;
+    for (const c of loc) { const d = x * c.x + y * c.y + z * c.z; r -= amt * Math.exp(-(1 - d) / 0.018); }
+    a[i] = x * r; a[i + 1] = y * r; a[i + 2] = z * r;
+  }
+  gPos.needsUpdate = true; core.globe.geometry.computeVertexNormals();
+}
+
+// ---------------- รูป Echo ----------------
+const artHold = document.getElementById("artHold"), artSq = document.getElementById("artSqueeze");
+let ART = null;
+// วางรูปให้ลูกกลมเหลืองตรงกับลูกโลกบนจอ (cx, cy, r = px บนจอ)
+function placeArt(el, A, cx, cy, r, extraScale = 1) {
+  const k = (r / A.r) * extraScale;
+  el.style.width = A.w + "px"; el.style.height = A.h + "px";
+  el.style.transform = `translate(${cx - A.cx * k}px, ${cy - A.cy * k}px) scale(${k})`;
+}
+
+// ---------------- เอฟเฟกต์ 2 มิติ ----------------
+const fxCv = document.getElementById("fx"), fx = fxCv.getContext("2d");
+function bolt(x0, y0, x1, y1, seed, jag) {
+  const R = rng(seed), n = 9, pts = [[x0, y0]];
+  for (let i = 1; i < n; i++) { const u = i / n; pts.push([lerp(x0, x1, u) + (R() - 0.5) * jag, lerp(y0, y1, u) + (R() - 0.5) * jag]); }
+  pts.push([x1, y1]);
+  fx.beginPath(); pts.forEach(([x, y], i) => (i ? fx.lineTo(x, y) : fx.moveTo(x, y))); fx.stroke();
+}
+function star4(x, y, r, a) {
+  fx.save(); fx.globalAlpha = a; fx.fillStyle = "#fff"; fx.beginPath();
+  for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2, rr = i % 2 ? r * 0.18 : r; fx.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr); }
+  fx.closePath(); fx.fill(); fx.restore();
+}
+
+// ---------------- เวลา/ลูป ----------------
+let t0 = performance.now(), slow = false, seek = null, playing = true, tNow = 0, lastNow = performance.now();
+const clockEl = document.getElementById("clock"), tagEl = document.getElementById("tag");
+tagEl.innerHTML = `${AREAS[TO - 1]}<small>${ROMAN[TO - 1]}</small>`;
+let W = innerWidth, H = innerHeight;
+function resize() { W = innerWidth; H = innerHeight; for (const c of [starsCv, boardCv, fxCv]) { c.width = W * devicePixelRatio; c.height = H * devicePixelRatio; } ringR.setSize(W, H, false); }
+addEventListener("resize", resize); resize();
+const stage = document.getElementById("stage");
+
+core.onFrame(() => {
+  const now = performance.now(), dt = (now - lastNow) / 1000; lastNow = now;
+  if (seek == null && playing) tNow += dt * (slow ? 0.3 : 1);
+  const t = seek != null ? seek : tNow;
+  if (t > T.end + FREEZE.len + 1.5 && seek == null) { tNow = 0; }
+  clockEl.textContent = t.toFixed(2) + "s";
+  const frozen = t >= FREEZE.at && t < FREEZE.at + FREEZE.len;
+  const vt = t < FREEZE.at ? t : frozen ? FREEZE.at - 0.001 : t - FREEZE.len;
+  if (!frozen) wallLive = now / 1000;
+  render(vt, wallLive, frozen ? (t - FREEZE.at) / FREEZE.len : -1);
+});
+let wallLive = performance.now() / 1000;
+
+function render(t, wall, freezeK) {
+  const dpr = devicePixelRatio, frozen = freezeK >= 0;
+  // หยุดค้าง: ภาพนิ่ง สีซีด คอนทราสต์สูง ซูมเข้าช้าๆ (ตึงก่อนระเบิด)
+  stage.style.filter = frozen ? `saturate(${1 - 0.6 * freezeK}) contrast(${1 + 0.25 * freezeK}) brightness(${1 - 0.15 * freezeK})` : "";
+  // --- พื้นหลัง: ฟ้าขาวของ ORDEAL CALL → อวกาศม่วง (Echo ยึดฉาก) → กลับฟ้าตอนดิ่ง
+  const dark = Math.min(span(t, 1.6, 4.0), 1 - span(t, T.dive[0], T.flash));
+  bg.style.background = `radial-gradient(ellipse 80% 70% at 50% 60%, rgb(${lerp(230, 46, dark)},${lerp(240, 22, dark)},${lerp(250, 92, dark)}) 0%, rgb(${lerp(205, 12, dark)},${lerp(224, 8, dark)},${lerp(244, 34, dark)}) 100%)`;
+  sg.setTransform(dpr, 0, 0, dpr, 0, 0); sg.clearRect(0, 0, W, H);
+  const pullK = VARIANT === "C" && t < T.boom ? span(t, TC.pull - 0.4, TC.over) * 0.85 + span(t, TC.over, T.boom) * 0.15 : 0;
+  for (const s of STARS) {
+    const x0 = s.x * W, y0 = s.y * H;
+    if (pullK > 0) {
+      // ดาวถูกดึงเข้าหาโลก: วนเป็นรอบ (หลุดเข้าไปแล้วโผล่ที่เดิม) · หางยาวตามความเร็ว
+      const ph = (wall * (0.35 + 0.5 * s.s) * pullK + s.p) % 1, e = eIn(ph) * pullK;
+      const x = lerp(x0, lastG.x, e), y = lerp(y0, lastG.y, e), tx = lerp(x0, lastG.x, Math.max(0, e - 0.08 * pullK)), ty = lerp(y0, lastG.y, Math.max(0, e - 0.08 * pullK));
+      sg.globalAlpha = dark * (0.4 + 0.6 * ph); sg.strokeStyle = s.r > 1.2 ? "#ffffff" : "#d9b8ff"; sg.lineWidth = s.r;
+      sg.beginPath(); sg.moveTo(tx, ty); sg.lineTo(x, y); sg.stroke();
+      continue;
+    }
+    sg.globalAlpha = dark * (0.35 + 0.65 * Math.abs(Math.sin(wall * s.s + s.p))); sg.fillStyle = "#fff"; sg.beginPath(); sg.arc(x0, y0, s.r, 0, 7); sg.fill();
+  }
+  sg.globalAlpha = 1;
+
+  // --- กระดาน (เริ่ม: ถอยออกหดเข้าหาโลก · จบ: กระดานใหม่ค่อยๆ เผย)
+  bgx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (t < T.boardOut[1]) { const k = eIn(span(t, 0.2, T.boardOut[1])); drawBoard(W, H, FROM, lerp(1, 0.04, k), 1 - span(t, 0.9, T.boardOut[1])); }
+  else if (t > T.flash) { const k = eOut(span(t, T.flash, T.end)); drawBoard(W, H, TO, lerp(1.5, 1, k), k); }
+  else drawBoard(W, H, 1, 1, 0);
+
+  // --- ลูกโลก: ตำแหน่ง/ขนาด/การหมุน กำหนดตามเวลาทั้งหมด
+  let s = 1, y = 0;
+  if (t < T.reveal[0]) s = lerp(1.9, 1.0, eOut(span(t, 0.2, 2.0)));
+  else if (t < T.focus[0]) { const k = eIO(span(t, T.reveal[0], T.reveal[1])); s = lerp(1.0, 0.6, k); y = lerp(0, -0.78, k); }
+  else if (t < T.dive[0]) { const k = eIO(span(t, T.focus[0], T.focus[1])); s = lerp(0.6, 1.0, k); y = lerp(-0.78, 0, k); }
+  else { const k = eIn(span(t, T.dive[0], T.flash)); s = lerp(1.0, 9, k); }
+  // ลอยหายใจเบาๆ ระหว่างที่ Echo ถือ
+  const hold = span(t, T.reveal[0], T.reveal[1]) * (1 - span(t, T.focus[0], T.focus[1]));
+  y += Math.sin(wall * 1.4) * 0.02 * hold;
+  // สั่นตอนชาร์จ/บีบ/ระเบิด
+  const shake = frozen ? 0 : VARIANT === "C" ? (t < T.boom ? Math.pow(chargeLevel(t), 2) * 12 + beatPulse(t) * 7 : 0) + (t >= T.boom ? Math.max(0, 1 - (t - T.boom) / 0.6) * 24 : 0) + (t > T.last[1] && t < T.last[1] + 0.3 ? 8 : 0) : (VARIANT === "A" ? (t > TA.hit && t < TA.strike[1] ? 10 * (1 - span(t, TA.hit, TA.strike[1])) + 3 : 0) + Math.pow(span(t, T.squeeze - 0.4, T.boom), 2) * 8 : Math.pow(span(t, T.tighten[0], T.boom), 2) * 8) + (t >= T.boom ? Math.max(0, 1 - (t - T.boom) / 0.6) * 24 : 0) + (t > T.last[1] && t < T.last[1] + 0.3 ? 8 : 0);
+  const fz = frozen ? 1 + 0.035 * eOut(freezeK) : 1;
+  stage.style.transform = `translate(${shake > 0.2 ? (Math.random() - 0.5) * shake : 0}px, ${shake > 0.2 ? (Math.random() - 0.5) * shake : 0}px) scale(${fz})`;
+  core.setLayout({ x: 0, y, s }, true);
+  core.world.scale.setScalar(s); core.world.position.set(0, y, 0);
+  // บีบ: โลกบุบเข้าแนวนอน
+  const sq = span(t, T.squeeze, T.boom) * (t < T.boom ? 1 : 0);
+  core.world.scale.x *= 1 - 0.08 * sq; core.world.scale.y *= 1 + 0.04 * sq;
+  if (VARIANT === "C" && t < T.boom) { const bp = 1 + 0.045 * beatPulse(t); core.world.scale.multiplyScalar(bp); }
+  // หมุน: หันภูมิภาคเดิม (หมุนช้า) → ระหว่างแตกหยุด → หันภูมิภาคใหม่
+  const yaw = t < T.focus[0] ? yawA + t * 0.06 : lerp(yawA + T.focus[0] * 0.06, yawB, eIO(span(t, T.focus[0], T.focus[1])));
+  const pitch = t < T.focus[0] ? pitchFor(FROM_DIR) * 0.6 : lerp(pitchFor(FROM_DIR) * 0.6, pitchFor(NEW_DIR), eIO(span(t, T.focus[0], T.focus[1])));
+  core.spin.rotation.y = yaw; core.tilt.rotation.x = pitch;
+  globeCv.style.opacity = String(clamp01(span(t, 0.1, 0.9)));
+
+  // --- แตก / ประกอบ
+  const broken = t >= T.boom && t < T.last[1];
+  shardGroup.visible = broken;
+  core.globe.visible = !broken;
+  core.spin.children.forEach((o) => { if (o.isLineSegments && o !== crackGroup) o.visible = !broken; });
+  core.halo.visible = !broken;
+  coreGlow.visible = broken;
+  if (broken) { const k = t - T.boom; coreGlow.material.opacity = Math.max(0.22, 1 - k / 1.6) * 0.95 + span(t, T.back[1] - 0.6, T.last[1]) * 0.8; coreGlow.scale.setScalar(1 + Math.sin(wall * 5) * 0.04 + span(t, T.back[0], T.last[1]) * -0.3); }
+  // รอยร้าว: D = เกิดตอนวงกฎประทับลงผิวโลก · A = ลามออกจากจุดที่ลำแสงโดน (ตามระยะเชิงมุม)
+  const crackA = t < T.boom ? (VARIANT === "C" ? Math.min(1, Math.pow(span(t, TC.pull + 0.3, T.boom), 1.1) + beatPulse(t) * 0.5 * span(t, TC.pull, TC.over)) : VARIANT === "D" ? Math.pow(span(t, T.stamp[0], T.boom), 0.7) : span(t, TA.hit, T.squeeze) * 0.9 + span(t, T.squeeze, T.boom) * 0.1) : 0;
+  const aLoc = VARIANT === "A" ? impactLocal() : null;
+  // วงกฎ: ลงมาจากวงใหญ่ → ล้อมหมุน → หดรัด (หมุนเร็วขึ้น) → ประทับ (แฟลช) แล้วจาง
+  let ringAny = false;
+  for (const r of RINGS) {
+    const tin = span(t, T.ringIn[0] + r.delay, T.ringIn[1] + r.delay), tig = eIn(span(t, T.tighten[0] + r.delay * 0.5, T.tighten[1])), st = span(t, T.stamp[0], T.stamp[1]);
+    const R = lerp(3.4, 2.3, eOut(tin)) * (1 + 0.02 * Math.sin(wall * 3 + r.delay * 9)) * (1 - tig) + 1.08 * tig - 0.08 * st;
+    const op = t < T.ringIn[0] + r.delay || t > T.rings[1] ? 0 : tin * (1 + 0.8 * Math.sin(st * Math.PI)) * (1 - span(t, T.stamp[1] - 0.1, T.rings[1]));
+    r.grp.visible = VARIANT === "D" && op > 0.01; ringAny ||= r.grp.visible;
+    r.mesh.scale.setScalar(R);
+    r.mesh.rotation.y = r.speed * (t - T.ringIn[0]) * (1 + 4 * tig);
+    r.mat.opacity = Math.min(1, op);
+  }
+  // แบบ A: คลื่นกระแทก 2 วงวิ่งรอบผิวโลกจากจุดที่โดน
+  shocks.forEach((l, i) => {
+    const k = (t - TA.hit - i * 0.18) / 1.3;
+    l.visible = VARIANT === "A" && k > 0 && k < 1 && t < T.boom;
+    if (!l.visible) return;
+    setShock(l, aLoc, 0.05 + eOut(k) * 2.9);
+    l.material.opacity = (1 - k) * 0.95;
+  });
+  // บีบ: ผิวโลกยุบใต้นิ้ว
+  dentGlobe(t < T.boom ? 0.11 * eOut(span(t, T.squeeze, T.boom)) : 0);
+  // ชาร์จ: ผิวโลกหม่นลงเป็นม่วง (รอยร้าวสว่างตัดกับผิว)
+  const dim = crackA * 0.75;
+  core.globe.material.color.setRGB(1 - dim * 0.55, 1 - dim * 0.7, 1 - dim * 0.35);
+  for (const sh of shards) {
+    let ca = crackA;
+    if (aLoc && t < T.boom) { const ang = Math.acos(Math.max(-1, Math.min(1, sh.dir.dot(aLoc)))); ca = clamp01((t - TA.hit - ang * 0.6) / 0.35) * (0.7 + 0.3 * span(t, T.squeeze, T.boom)); }
+    sh.crack.material.opacity = ca * (0.55 + 0.45 * Math.sin(wall * 9 + sh.cen.x * 7));
+    if (!broken) continue;
+    const back = placeShard(sh, t);
+    const glow = sh.isLast ? 0.6 + 0.4 * Math.sin(wall * 6) : Math.max(0, 1 - (t - T.boom) / 1.2) * 0.9 + back * 0.6;
+    sh.mat.emissiveIntensity = glow; sh.edges.material.opacity = sh.isLast ? 1 : Math.max(0.25, 1 - (t - T.boom) / 1.5);
+  }
+  // ระหว่างเศษบิน: ลูกโลกอยู่หน้ารูป Echo (แฟลชบังจังหวะสลับ) · ก่อนแตก: อยู่หลังมือ
+  globeCv.style.zIndex = t >= T.boom && t < T.dissolve[1] ? "3" : "1";
+
+  // --- จอ: จุดศูนย์กลาง/รัศมีโลกบนจอ (px)
+  const cpx = core.project(new THREE.Vector3(0, y, 0)), epx = core.project(new THREE.Vector3(s, y, 0));
+  const gcx = cpx.x, gcy = cpx.y, gr = Math.abs(epx.x - cpx.x) * 1.02;
+
+  // --- รูป Echo
+  if (ART) {
+    const show = eOut(span(t, T.reveal[0] + 0.3, T.reveal[1])) * (1 - span(t, T.dissolve[0], T.dissolve[1]));
+    const rise = (1 - eOut(span(t, T.reveal[0] + 0.3, T.reveal[1]))) * 0.06; // ค่อยๆ ลอยขึ้นจากด้านล่าง
+    const dz = 1 + span(t, T.dissolve[0], T.dissolve[1]) * 0.08;
+    const swapS = span(t, T.squeeze, T.squeeze + 0.12) * (1 - span(t, T.boom + 0.6, T.boom + 1.0));
+    placeArt(artHold, ART.hold, gcx, gcy + rise * H, gr, dz);
+    placeArt(artSq, ART.squeeze, gcx, gcy + rise * H, gr, dz);
+    artHold.style.opacity = String(show * (1 - swapS));
+    artSq.style.opacity = String(show * swapS);
+    const blur = span(t, T.dissolve[0], T.dissolve[1]) * 8;
+    artHold.style.filter = artSq.style.filter = `drop-shadow(0 0 ${8 + 24 * dark}px rgba(201,154,214,${0.35 + 0.45 * span(t, T.rings[0], T.boom)})) blur(${blur}px)`;
+  }
+
+  // --- ชื่อท่า / ชื่อภูมิภาค
+  const ta = span(t, T.tag[0], T.tag[0] + 0.4) * (1 - span(t, T.tag[1] - 0.4, T.tag[1]));
+  tagEl.style.opacity = String(ta); tagEl.style.transform = `translateY(${(1 - eOut(span(t, T.tag[0], T.tag[0] + 0.5))) * 20}px)`;
+
+  // --- เอฟเฟกต์ 2 มิติ
+  fx.setTransform(dpr, 0, 0, dpr, 0, 0); fx.clearRect(0, 0, W, H);
+  fx.globalCompositeOperation = "lighter";
+  // แบบ A: หัวใจรวมแสง → ยิงขึ้นฟ้า → ลำแสงยักษ์ฟาดลงเฉียงใส่โลก + หลุมเรืองแสง
+  if (ART && VARIANT === "A" && t > TA.gather[0] && t < TA.strike[1] + 0.3) {
+    const hx = gcx - 0.12 * gr, hy = gcy - 3.72 * gr;
+    const ga = span(t, TA.gather[0], TA.gather[1]) * (1 - span(t, TA.up[0], TA.up[0] + 0.25));
+    if (ga > 0) {
+      const gl0 = fx.createRadialGradient(hx, hy, 0, hx, hy, gr * (0.2 + 0.5 * ga)); gl0.addColorStop(0, `rgba(255,255,255,${ga})`); gl0.addColorStop(0.35, `rgba(226,170,255,${0.8 * ga})`); gl0.addColorStop(1, "rgba(155,79,150,0)");
+      fx.globalAlpha = 1; fx.fillStyle = gl0; fx.beginPath(); fx.arc(hx, hy, gr * (0.2 + 0.5 * ga), 0, 7); fx.fill();
+      for (let i = 0; i < 40; i++) { const R = rng(i * 41 + 3), an = R() * 6.28, ph = (wall * (1.2 + R()) + R()) % 1, d = gr * lerp(1.6, 0.05, eIn(ph)); fx.globalAlpha = ga * ph; fx.fillStyle = i % 2 ? "#fff" : "#e2b8ff"; fx.beginPath(); fx.arc(hx + Math.cos(an) * d, hy + Math.sin(an) * d, 1.5 + ph * 2, 0, 7); fx.fill(); }
+    }
+    // ยิงขึ้นฟ้า
+    const up = span(t, TA.up[0], TA.up[1]);
+    if (up > 0 && up < 1) {
+      const top = lerp(hy, -40, eOut(Math.min(1, up * 2.2))), wdt = gr * 0.12 * (1 - up * 0.6);
+      const g1 = fx.createLinearGradient(hx - wdt, 0, hx + wdt, 0); g1.addColorStop(0, "rgba(155,79,150,0)"); g1.addColorStop(0.5, `rgba(255,255,255,${1 - up * 0.5})`); g1.addColorStop(1, "rgba(155,79,150,0)");
+      fx.globalAlpha = 1; fx.fillStyle = g1; fx.fillRect(hx - wdt, top, wdt * 2, hy - top);
+    }
+    // ลำแสงยักษ์ฟาดลง (เฉียงจากมุมบนซ้ายนอกจอ) · กว้างสุดตอนกระแทก แล้วค่อยๆ หรี่
+    const sk = span(t, TA.strike[0], TA.strike[1]);
+    if (sk > 0 && sk < 1) {
+      const ip = core.project(IMPACT_W.clone().multiplyScalar(s * 1.0).add(new THREE.Vector3(0, y, 0)));
+      const ox = gcx + Math.max(W, H) * 0.55, oy = -H * 0.25;
+      const head = eOut(span(t, TA.strike[0], TA.hit + 0.02)), ex = lerp(ox, ip.x, head), ey = lerp(oy, ip.y, head);
+      const wd = gr * (0.42 * Math.sin(Math.min(1, sk * 1.6) * Math.PI * 0.5) * (1 - span(t, TA.strike[1] - 0.5, TA.strike[1]))) * (0.9 + 0.1 * Math.sin(wall * 40));
+      const ang = Math.atan2(ey - oy, ex - ox), nx = -Math.sin(ang), ny = Math.cos(ang);
+      for (const [w2, col] of [[wd * 1.9, "rgba(155,79,150,0.35)"], [wd, "rgba(214,160,255,0.85)"], [wd * 0.42, "rgba(255,255,255,1)"]]) {
+        fx.globalAlpha = 1; fx.fillStyle = col;
+        fx.beginPath(); fx.moveTo(ox + nx * w2, oy + ny * w2); fx.lineTo(ex + nx * w2 * 0.8, ey + ny * w2 * 0.8); fx.lineTo(ex - nx * w2 * 0.8, ey - ny * w2 * 0.8); fx.lineTo(ox - nx * w2, oy - ny * w2); fx.closePath(); fx.fill();
+      }
+      // เกลียวพลังพันลำแสง
+      fx.strokeStyle = "#ffffff"; fx.lineWidth = 2;
+      for (let j = 0; j < 2; j++) {
+        fx.globalAlpha = 0.7; fx.beginPath();
+        for (let i = 0; i <= 40; i++) { const u = i / 40, px = lerp(ox, ex, u), py = lerp(oy, ey, u), off = Math.sin(u * 24 - wall * 30 + j * Math.PI) * wd * 0.9; if (i) fx.lineTo(px + nx * off, py + ny * off); else fx.moveTo(px + nx * off, py + ny * off); }
+        fx.stroke();
+      }
+      if (t > TA.hit) {
+        // หลุมเรืองแสงตรงจุดที่โดน + แฟลชจังหวะกระแทก + ประกายกระเด็น
+        const hk = t - TA.hit, pul = 0.8 + 0.2 * Math.sin(wall * 30);
+        const cr = fx.createRadialGradient(ip.x, ip.y, 0, ip.x, ip.y, gr * 0.7 * pul); cr.addColorStop(0, "rgba(255,255,255,1)"); cr.addColorStop(0.3, "rgba(230,180,255,.85)"); cr.addColorStop(1, "rgba(155,79,150,0)");
+        fx.globalAlpha = 1 - span(t, TA.strike[1] - 0.4, TA.strike[1] + 0.3) * 0.6; fx.fillStyle = cr; fx.beginPath(); fx.arc(ip.x, ip.y, gr * 0.7, 0, 7); fx.fill();
+        if (hk < 0.25) { fx.globalCompositeOperation = "source-over"; fx.globalAlpha = (1 - hk / 0.25) * 0.75; fx.fillStyle = "#fff"; fx.fillRect(0, 0, W, H); fx.globalCompositeOperation = "lighter"; }
+        for (let i = 0; i < 30; i++) { const R = rng(i * 23 + Math.floor(wall * 12)), an = ang + Math.PI + (R() - 0.5) * 2.4, d = gr * (0.2 + R() * 0.9); fx.globalAlpha = 0.8 * R(); fx.fillStyle = i % 2 ? "#fff" : "#e2b8ff"; fx.beginPath(); fx.arc(ip.x + Math.cos(an) * d, ip.y + Math.sin(an) * d, 1.5 + R() * 2.5, 0, 7); fx.fill(); }
+      }
+    }
+  }
+  // แบบ C: รวมพลังจนเหมือนจะระเบิดโลก
+  if (VARIANT === "C" && t > TC.start && t < T.boom) {
+    const I = chargeLevel(t), bp = beatPulse(t), R0 = Math.max(W, H) * 0.95;
+    // แขนพลังเกลียวยักษ์ 4 แขน หมุนดูดเข้าโลก (หนาที่ขอบนอก เรียวเข้าหาโลก)
+    const armA = span(t, TC.pull - 0.3, TC.over);
+    if (armA > 0) {
+      for (let a = 0; a < 4; a++) {
+        const rot = wall * (1.1 + I * 2.2) + a * Math.PI / 2;
+        for (let pass = 0; pass < 2; pass++) {
+          fx.beginPath();
+          for (let i = 0; i <= 90; i++) {
+            const th = (i / 90) * Math.PI * 2.6, r = gr * 1.05 + (R0 - gr) * Math.exp(-th * 0.75);
+            const x = gcx + Math.cos(rot - th) * r, y = gcy + Math.sin(rot - th) * r * 0.82;
+            if (i) fx.lineTo(x, y); else fx.moveTo(x, y);
+          }
+          fx.globalAlpha = armA * (pass ? 0.9 : 0.35) * (0.7 + 0.3 * bp);
+          fx.strokeStyle = pass ? "#f3e2ff" : "#9b4f96"; fx.lineWidth = pass ? 2 + 3 * I : 14 + 26 * I;
+          fx.stroke();
+        }
+      }
+    }
+    // อนุภาคไหลเข้าเป็นเกลียว (เยอะและเร็วขึ้นตามพลัง)
+    const np = Math.round(80 + 340 * I);
+    for (let i = 0; i < np; i++) {
+      const Rr = rng(i * 7 + 3), sp = 0.4 + Rr() * 0.8 + I * 1.4, ph = (wall * sp + Rr()) % 1, ang = Rr() * 6.28 + ph * (3 + I * 3);
+      const d = lerp(R0, gr * 1.02, eIn(ph)), x = gcx + Math.cos(ang) * d, yy = gcy + Math.sin(ang) * d * 0.85;
+      fx.globalAlpha = Math.min(1, 0.25 + I) * (0.3 + 0.7 * ph); fx.fillStyle = i % 4 ? "#c99ad6" : "#ffffff";
+      fx.beginPath(); fx.arc(x, yy, 1 + 2.6 * ph * (0.5 + I), 0, 7); fx.fill();
+    }
+    // ออร่ารอบโลก (ใหญ่ขึ้นตามพลัง · วาบตามจังหวะเต้น)
+    // ไม่ทับตัวลูกโลก (ข้างในวงโปร่ง) — ให้เห็นรอยร้าวเรืองชัด
+    const ro = gr * (1.5 + 1.6 * I + bp * 0.6), gl = fx.createRadialGradient(gcx, gcy, 0, gcx, gcy, ro), q0 = gr * 0.96 / ro;
+    gl.addColorStop(0, "rgba(214,160,255,0)"); gl.addColorStop(q0, "rgba(214,160,255,0)");
+    gl.addColorStop(Math.min(0.99, q0 + 0.04), `rgba(214,160,255,${0.3 + 0.35 * I + 0.25 * bp})`); gl.addColorStop(1, "rgba(155,79,150,0)");
+    fx.globalAlpha = 1; fx.fillStyle = gl; fx.fillRect(0, 0, W, H);
+    // คลื่นแสงทุกครั้งที่โลกเต้น
+    for (const b of BEATS) {
+      const k = (t - b) / 0.9; if (k <= 0 || k >= 1) continue;
+      fx.globalAlpha = (1 - k) * 0.8; fx.strokeStyle = "#f3e2ff"; fx.lineWidth = 8 * (1 - k) + 1;
+      fx.beginPath(); fx.ellipse(gcx, gcy, gr * (1.02 + k * 2.4), gr * (1.02 + k * 2.4) * 0.85, 0, 0, 7); fx.stroke();
+    }
+    // สายฟ้าฟาดออกจากโลกไปในอวกาศ (ช่วงใกล้ทนไม่ไหว)
+    const lz = span(t, TC.over - 0.6, T.boom);
+    if (lz > 0) {
+      const nb = Math.round(2 + lz * 10), seed = Math.floor(wall * 12);
+      fx.strokeStyle = "#f6ecff"; fx.shadowColor = "#c99ad6"; fx.shadowBlur = 14;
+      for (let i = 0; i < nb; i++) {
+        const Rr = rng(seed * 53 + i), a0 = Rr() * 6.28, r1 = gr * (1.6 + Rr() * 2.6 * lz);
+        fx.lineWidth = 1.5 + Rr() * 3 * lz; fx.globalAlpha = 0.5 + 0.5 * Rr();
+        bolt(gcx + Math.cos(a0) * gr, gcy + Math.sin(a0) * gr, gcx + Math.cos(a0 + (Rr() - 0.5) * 0.6) * r1, gcy + Math.sin(a0 + (Rr() - 0.5) * 0.6) * r1 * 0.85, seed * 9 + i, gr * 0.25);
+      }
+      fx.shadowBlur = 0;
+    }
+    // ขอบจอเรืองม่วงเต้นตามจังหวะ
+    fx.globalCompositeOperation = "source-over";
+    const vg = fx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(60,16,90,${0.35 * I + 0.25 * bp * I})`);
+    fx.globalAlpha = 1; fx.fillStyle = vg; fx.fillRect(0, 0, W, H);
+    fx.globalCompositeOperation = "lighter";
+  }
+  lastG = { x: gcx, y: gcy, r: gr };
+  // ประกายตา (ตอนเริ่มร่ายวงกฎ)
+  if (ART && t > T.rings[0] && t < T.rings[0] + 1) {
+    const A = ART.hold, k = gr / A.r, eyeA = Math.sin(span(t, T.rings[0], T.rings[0] + 1) * Math.PI);
+    for (const ex of [-0.22, 0.28]) star4(gcx + ex * A.r * k, gcy - 2.31 * A.r * k, gr * 0.2 * eyeA, eyeA);
+  }
+  const ch = span(t, T.rings[0], T.boom);
+  if (ch > 0 && t < T.boom) {
+    // ออร่ารอบโลก (แรงขึ้นตอนบีบ)
+    const au = 0.35 * ch + 0.4 * span(t, T.squeeze, T.boom);
+    const gl = fx.createRadialGradient(gcx, gcy, gr * 0.8, gcx, gcy, gr * (1.6 + ch));
+    gl.addColorStop(0, `rgba(201,154,214,${au})`); gl.addColorStop(1, "rgba(155,79,150,0)");
+    fx.globalAlpha = 1; fx.fillStyle = gl; fx.fillRect(0, 0, W, H);
+  }
+  // แสงทะลักจากรอยร้าว: ลำแสงขาวม่วงพุ่งออกจากผิวโลก (ยิ่งใกล้แตกยิ่งเยอะ/ยาว)
+  const lk = span(t, T.leak[0], T.boom);
+  if (lk > 0 && t < T.boom) {
+    const n = Math.round(6 + lk * 34), seed = Math.floor(wall * 10);
+    for (let i = 0; i < n; i++) {
+      const R = rng(i * 29 + 11), a = R() * 6.28, rr = Math.sqrt(R()) * 0.92;
+      const px = gcx + Math.cos(a) * rr * gr, py = gcy + Math.sin(a) * rr * gr;
+      const dx = Math.cos(a), dy = Math.sin(a), len = gr * (0.25 + R() * 1.4) * (0.3 + lk) * (0.75 + 0.25 * rng(seed + i)());
+      const g2 = fx.createLinearGradient(px, py, px + dx * len, py + dy * len);
+      g2.addColorStop(0, `rgba(255,255,255,${0.95 * lk})`); g2.addColorStop(0.4, `rgba(226,184,255,${0.6 * lk})`); g2.addColorStop(1, "rgba(155,79,150,0)");
+      fx.strokeStyle = g2; fx.lineWidth = 1.5 + R() * 4 * lk; fx.globalAlpha = 1;
+      fx.beginPath(); fx.moveTo(px, py); fx.lineTo(px + dx * len, py + dy * len); fx.stroke();
+    }
+  }
+  // บีบ: คลื่นวงเล็กออกจากปลายนิ้ว + สายฟ้ารอบมือ
+  const sqk = span(t, T.squeeze, T.boom);
+  if (sqk > 0 && t < T.boom) {
+    for (const [ux, uy] of TOUCH_SCREEN) {
+      const l = Math.hypot(ux, uy), cx = gcx + (ux / l) * gr * 0.93, cy = gcy + (uy / l) * gr * 0.93;
+      for (let r = 0; r < 3; r++) { const ph = ((wall * 2.2) + r / 3) % 1; fx.globalAlpha = sqk * (1 - ph) * 0.9; fx.strokeStyle = "#f3e2ff"; fx.lineWidth = 2.5; fx.beginPath(); fx.ellipse(cx, cy, gr * (0.05 + ph * 0.22), gr * (0.05 + ph * 0.22) * 0.7, 0, 0, 7); fx.stroke(); }
+    }
+    const nb = Math.round(2 + sqk * 8), seed = Math.floor(wall * 14);
+    fx.strokeStyle = "#f3e2ff"; fx.lineWidth = 1.5 + sqk * 2; fx.shadowColor = "#c99ad6"; fx.shadowBlur = 12;
+    for (let i = 0; i < nb; i++) {
+      const R = rng(seed * 31 + i), a0 = R() * 6.28, a1 = a0 + (R() - 0.5) * 2.2, r0 = gr * (1 + R() * 0.05), r1 = gr * (1.15 + R() * 0.5 * sqk);
+      fx.globalAlpha = 0.5 + 0.5 * R(); bolt(gcx + Math.cos(a0) * r0, gcy + Math.sin(a0) * r0, gcx + Math.cos(a1) * r1, gcy + Math.sin(a1) * r1, seed * 7 + i, gr * 0.12);
+    }
+    fx.shadowBlur = 0;
+  }
+  // ดูดแสงเข้า (สุญญากาศ): เส้นแสงจากขอบจอพุ่งเข้าหาโลก · จอรอบนอกมืดลง
+  const vk = span(t, T.vacuum[0], T.boom);
+  if (vk > 0 && (t < T.boom || frozen)) {
+    for (let i = 0; i < 80; i++) {
+      const R = rng(i * 13 + 77), an = R() * 6.28, ph = frozen ? 0.55 + R() * 0.3 : (wall * (2 + R() * 2) + R()) % 1;
+      const r0 = lerp(Math.max(W, H) * 0.75, gr * 1.1, eIn(ph)), len = gr * (0.2 + 0.8 * ph) * vk;
+      fx.globalAlpha = vk * ph; fx.strokeStyle = i % 3 ? "#e2b8ff" : "#ffffff"; fx.lineWidth = 1 + ph * 2.5;
+      fx.beginPath(); fx.moveTo(gcx + Math.cos(an) * r0, gcy + Math.sin(an) * r0 * 0.85); fx.lineTo(gcx + Math.cos(an) * (r0 + len), gcy + Math.sin(an) * (r0 + len) * 0.85); fx.stroke();
+    }
+    fx.globalCompositeOperation = "source-over";
+    const vg = fx.createRadialGradient(gcx, gcy, gr * 1.4, gcx, gcy, Math.max(W, H) * 0.8);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(6,2,20,${0.55 * vk})`);
+    fx.globalAlpha = 1; fx.fillStyle = vg; fx.fillRect(0, 0, W, H);
+    fx.globalCompositeOperation = "lighter";
+  }
+  // ระเบิด: แฟลช + วงกระแทก 3 ชั้น + ประกายกระจาย
+  if (t >= T.boom && t < T.boom + 2.2) {
+    const k = t - T.boom;
+    const fl = Math.max(0, 1 - k / 0.35);
+    if (fl > 0) { fx.globalCompositeOperation = "source-over"; fx.globalAlpha = fl; fx.fillStyle = "#fff"; fx.fillRect(0, 0, W, H); fx.globalCompositeOperation = "lighter"; }
+    for (let r = 0; r < 3; r++) {
+      const kk = clamp01((k - r * 0.12) / 1.4); if (kk <= 0 || kk >= 1) continue;
+      fx.globalAlpha = (1 - kk) * 0.9; fx.strokeStyle = r === 1 ? "#ffffff" : "#c99ad6"; fx.lineWidth = 18 * (1 - kk) + 2;
+      fx.beginPath(); fx.ellipse(gcx, gcy, gr * (1 + kk * 5), gr * (1 + kk * 5) * 0.72, 0, 0, 7); fx.stroke();
+    }
+    for (let i = 0; i < 90; i++) { const R = rng(i * 13 + 1), an = R() * 6.28, d = gr * (0.5 + eOut(clamp01(k / 1.6)) * (2 + R() * 6)); fx.globalAlpha = clamp01(1 - k / 2); fx.fillStyle = i % 2 ? "#fff" : "#e2b8ff"; fx.beginPath(); fx.arc(gcx + Math.cos(an) * d, gcy + Math.sin(an) * d * 0.8, 1.5 + R() * 3, 0, 7); fx.fill(); }
+  }
+  // ประกอบเสร็จ: คลื่นแสงทอง (ชิ้นสุดท้ายเสียบ)
+  if (t >= T.last[1] && t < T.last[1] + 1.4) {
+    const k = (t - T.last[1]) / 1.4;
+    fx.globalAlpha = (1 - k) * 0.95; fx.strokeStyle = "#ffe2a0"; fx.lineWidth = 10 * (1 - k) + 1;
+    fx.beginPath(); fx.arc(gcx, gcy, gr * (1 + k * 2.2), 0, 7); fx.stroke();
+    const gl = fx.createRadialGradient(gcx, gcy, gr * 0.9, gcx, gcy, gr * 1.8); gl.addColorStop(0, `rgba(255,226,160,${0.55 * (1 - k)})`); gl.addColorStop(1, "rgba(255,226,160,0)");
+    fx.fillStyle = gl; fx.globalAlpha = 1; fx.fillRect(0, 0, W, H);
+  }
+  // ภูมิภาคใหม่เรืองทอง (จุดที่ชิ้นสุดท้ายเสียบ) จนถึงตอนดิ่ง
+  if (t >= T.last[1] - 0.1 && t < T.flash) {
+    const wp = core.spin.localToWorld(NEW_DIR.clone()), sp = core.project(wp), face = core.facing(NEW_DIR);
+    if (face > 0) {
+      const a = Math.min(1, (t - T.last[1] + 0.1) / 0.3) * Math.min(1, face * 2), pul = 0.5 + 0.5 * Math.sin(wall * 6);
+      const rr = gr * (0.16 + 0.04 * pul);
+      const gl = fx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, rr * 2.6); gl.addColorStop(0, `rgba(255,226,160,${0.9 * a})`); gl.addColorStop(1, "rgba(255,200,110,0)");
+      fx.globalAlpha = 1; fx.fillStyle = gl; fx.beginPath(); fx.arc(sp.x, sp.y, rr * 2.6, 0, 7); fx.fill();
+      fx.strokeStyle = "#ffe2a0"; fx.lineWidth = 3; fx.globalAlpha = a;
+      for (let i = 0; i < 2; i++) { const ph = ((wall * 0.9) + i * 0.5) % 1; fx.globalAlpha = a * (1 - ph); fx.beginPath(); fx.ellipse(sp.x, sp.y, rr * (1 + ph * 2.5), rr * (1 + ph * 2.5) * 0.8, 0, 0, 7); fx.stroke(); }
+    }
+  }
+  // Echo สลายเป็นประกายลอยขึ้น
+  if (ART && t >= T.dissolve[0] && t < T.dissolve[1] + 0.6) {
+    const k = (t - T.dissolve[0]) / (T.dissolve[1] - T.dissolve[0] + 0.6), A = ART.hold, kk = gr / A.r;
+    for (let i = 0; i < 160; i++) {
+      const R = rng(i * 17 + 5), x = gcx + (R() - 0.5) * A.w * kk * 0.7, y0 = gcy - A.cy * kk + R() * A.h * kk * 0.85;
+      fx.globalAlpha = Math.sin(k * Math.PI) * (0.4 + 0.6 * R()); fx.fillStyle = i % 3 ? "#d9b8ff" : "#fff";
+      fx.beginPath(); fx.arc(x + Math.sin(wall * 2 + i) * 6, y0 - eOut(k) * H * (0.15 + R() * 0.25), 1.2 + R() * 2.5, 0, 7); fx.fill();
+    }
+  }
+  // ดิ่ง: เส้นความเร็วพุ่งออกจากกลางจอ + แฟลชปลายทาง
+  if (t >= T.dive[0] && t < T.flash + 0.5) {
+    const k = span(t, T.dive[0], T.flash);
+    for (let i = 0; i < 70; i++) {
+      const R = rng(i * 5 + 2), an = R() * 6.28, ph = (wall * (1.5 + R() * 2) + R()) % 1, r0 = lerp(40, Math.max(W, H) * 0.8, ph), len = 40 + 260 * ph * k;
+      fx.globalAlpha = k * ph * 0.8; fx.strokeStyle = "#ffffff"; fx.lineWidth = 1 + ph * 2;
+      fx.beginPath(); fx.moveTo(W / 2 + Math.cos(an) * r0, H / 2 + Math.sin(an) * r0); fx.lineTo(W / 2 + Math.cos(an) * (r0 + len), H / 2 + Math.sin(an) * (r0 + len)); fx.stroke();
+    }
+    const fl = t > T.flash - 0.15 ? clamp01(1 - Math.abs(t - T.flash) / 0.35) : 0;
+    if (fl > 0) { fx.globalCompositeOperation = "source-over"; fx.globalAlpha = fl; fx.fillStyle = "#fff"; fx.fillRect(0, 0, W, H); }
+  }
+  fx.globalAlpha = 1; fx.globalCompositeOperation = "source-over";
+  renderRingFront(ringAny);
+}
+
+// ---------------- เริ่ม ----------------
+Promise.all([earth.ready, keyArt("echo-rebirth/hold.jpg", artHold), keyArt("echo-rebirth/squeeze.jpg", artSq)]).then(([, hold, squeeze]) => {
+  ART = { hold, squeeze };
+  tNow = 0; playing = true;
+});
+window.__variant = (v) => { VARIANT = v; };
+document.getElementById("play").onclick = () => { seek = null; tNow = 0; playing = true; };
+document.getElementById("slow").onclick = (e) => { slow = !slow; e.currentTarget.classList.toggle("on", slow); };
+// ตรวจภาพนิ่ง: window.__seek(วินาที) · window.__seek(null) = เล่นต่อ
+window.__seek = (v) => { seek = v; };
+window.__art = () => ART && { hold: { cx: ART.hold.cx, cy: ART.hold.cy, r: ART.hold.r, w: ART.hold.w }, squeeze: { cx: ART.squeeze.cx, cy: ART.squeeze.cy, r: ART.squeeze.r, w: ART.squeeze.w } };
+</script>
+</body>
+</html>

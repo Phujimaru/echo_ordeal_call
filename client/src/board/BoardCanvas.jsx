@@ -48,6 +48,9 @@ import { PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
 
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
+// เดินกระโดด (Echo — a.hop = ขนาดตัว): ช่องละ 1 กระโดด · ตัวใหญ่ช้าและหนักกว่า · ยุบตัวตอนลงพื้น
+const HOP_MS = (n) => (n > 1 ? 250 + n * 20 : 200);
+const HOP_Z = (n) => (n > 1 ? 0.22 + n * 0.05 : 0.32);
 const PUSH_MS = 240;   // ถอย 1 ช่อง
 const BUMP_MS = 280;   // ถอยชน (ขยับไปนิดแล้วเด้งกลับ)
 const LUNGE_MS = 620;  // พุ่งชน (ง้าง 40% → พุ่ง → ชน ที่ 62% → กลับ)
@@ -68,11 +71,15 @@ const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
 // ตำแหน่งระหว่างเล่นแอนิเมชัน → { x, y, ox, oy, done, hitAt? }
 function animPose(a, t) {
   if (a.kind === "move") {
-    const pts = a.path;
-    const dur = Math.max(1, pts.length - 1) * STEP_MS, p = Math.min(1, t / dur);
+    const pts = a.path, hop = a.hop | 0;
+    const dur = Math.max(1, pts.length - 1) * (hop ? HOP_MS(hop) : STEP_MS), p = Math.min(1, t / dur);
     if (pts.length < 2 || p >= 1) { const e = pts[pts.length - 1]; return { x: e.x, y: e.y, ox: 0, oy: 0, done: p >= 1 || pts.length < 2 }; }
     const f = p * (pts.length - 1), i = Math.floor(f), k = f - i, A = pts[i], B = pts[i + 1];
-    return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, ox: 0, oy: 0, done: false };
+    if (!hop) return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, ox: 0, oy: 0, done: false };
+    // กระโดด: ย่อตัว (0–15%) → ลอยโค้ง → ลงพื้นยุบ (85–100%)
+    const air = Math.min(1, Math.max(0, (k - 0.15) / 0.7)), m = air * air * (3 - 2 * air);
+    const sq = k < 0.15 ? 0.1 * Math.sin((k / 0.15) * Math.PI) : k > 0.85 ? 0.14 * Math.sin(((k - 0.85) / 0.15) * Math.PI) : -0.05 * Math.sin(air * Math.PI);
+    return { x: A.x + (B.x - A.x) * m, y: A.y + (B.y - A.y) * m, ox: 0, oy: 0, hz: Math.sin(air * Math.PI) * HOP_Z(hop), sq, done: false };
   }
   if (a.kind === "lunge") {
     const { from, to } = a, p = Math.min(1, t / LUNGE_MS);
@@ -390,9 +397,9 @@ export default function BoardCanvas(props) {
       const list = [];
       for (const u of units) {
         if (!u || u.alive === false || !Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
-        let rx = u.x, ry = u.y, ox = 0, oy = 0;
+        let rx = u.x, ry = u.y, ox = 0, oy = 0, hz = 0, sq = 0;
         if (an && !an.invalid && !an.missing && an.obj.id === u.id) {
-          if (!an.done && pose) { rx = pose.x; ry = pose.y; ox = pose.ox; oy = pose.oy; }
+          if (!an.done && pose) { rx = pose.x; ry = pose.y; ox = pose.ox; oy = pose.oy; hz = pose.hz || 0; sq = pose.sq || 0; }
           else {
             // จบแล้วแต่ state ยังไม่อัปเดต → ค้างที่ปลายทาง (กันเด้งกลับที่เดิม)
             const fin = animFinal(an.obj);
@@ -411,7 +418,7 @@ export default function BoardCanvas(props) {
           else if (targeting) alpha *= 0.5;
         }
         list.push({
-          id: u.id, rx, ry, ox, oy, color: normColor(u.color), img: u.img, name: u.name,
+          id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
           isMe: !!u.isMe, isActor: !!u.isActor, tag: u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
           hitT: st.hitT.get(u.id) || 0,

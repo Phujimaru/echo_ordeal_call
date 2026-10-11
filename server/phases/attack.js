@@ -42,6 +42,13 @@ function attackBeamOf(attacker) {
   return (hook && hook.attackBeam && hook.attackBeam(attacker)) || 0;
 }
 
+// ท่าตีปกติเฉพาะตัว (ฮุค attackStyle — Echo: คลื่นเสียง / ผมฟาด / ปาหิน ตามร่างและระยะ) · null = ตีแบบปกติ (พุ่งชน)
+function attackStyleOf(attacker, target) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  if (!hook || !hook.attackStyle || !attacker.pos || !target || !target.pos) return null;
+  return hook.attackStyle(attacker, Board.dist(Board.boxOf(attacker), Board.boxOf(target))) || null;
+}
+
 // สูตรคำนวณพลังโจมตีพื้นฐาน — ดึงออกมาจาก doAttack() ให้ทดสอบแยกได้ (ดู tests/computeAttackBase.test.js)
 //  ตัวละครเติมพลังโจมตีของตัวเองผ่าน characters/<id>.js's damageBonus()/attackBaseOverride()
 //  (ใส่ข้อมูลไว้แสดงผลใน ctx ได้ เช่น ctx.muimiTowerAtk)
@@ -298,6 +305,8 @@ function strikeCard(attacker, target, res) {
     byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
     byBeam: attackBeamOf(attacker), // ตีปกติเป็นลำแสง (ความยาวเป็นช่อง · 0 = ไม่มี) — นักบินปริศนา
+    byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน
+    bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
     dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, skills: res.skills || [],
   };

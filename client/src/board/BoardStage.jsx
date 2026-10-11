@@ -22,7 +22,7 @@ import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
-import { BEAM_T, QUAKE_T } from "./boardDraw";
+import { BEAM_T, QUAKE_T, STYLE_HIT } from "./boardDraw";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -275,7 +275,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (state.actorId && path && path.length > 1) {
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
       if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
-        anims.push({ kind: "move", id, path, seq: ++fxSeq.current });
+        // Echo เดินกระโดดดึ๋งๆ ทีละช่อง (ตัวใหญ่กระโดดช้าและหนักกว่า)
+        const mover = state.players.find((q) => q.id === id);
+        const hop = mover && mover.character && BIG_ART[mover.character.id] ? sizeOfP(mover) : 0;
+        anims.push({ kind: "move", id, path, hop, seq: ++fxSeq.current });
         const a = path[path.length - 2], b = path[path.length - 1];
         setFaces((f) => ({ ...f, [id]: { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) } }));
         look(now);
@@ -292,10 +295,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
       const beam = !a.gun && a.byBeam > 0 && fromPos && tPos;
-      const melee = !a.gun && !beam && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      // ท่าตีเฉพาะตัว (Echo: คลื่นเสียง / ผมฟาด / ปาหิน) — ตีจากที่ยืน เอฟเฟกต์วิ่งจากตัวไปหาเป้า
+      const style = !a.gun && !beam && a.byStyle && STYLE_HIT[a.byStyle] && fromPos && tPos ? a.byStyle : null;
+      const melee = !a.gun && !beam && !style && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
-      const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : melee && !lowQ ? 385 : 120);
+      const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId }]));
+      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor }]));
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];

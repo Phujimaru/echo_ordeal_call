@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Attack FX</title>
+<!-- ต้นแบบท่าตีปกติของ Echo (ร่างใหญ่): ปาหิน / ผมฟาด — เปิดผ่าน server "plans" (ราก repo) เพื่อโหลดรูปจริงใน client/public -->
+<style>
+  :root { --bg: #0d1c36; --panel: #12264a; --line: #7fb8e6; --gold: #f0c868; --ink: #dbe8f7; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: "Kanit", "Chakra Petch", sans-serif; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  .bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 14px; align-items: center;
+    background: rgba(18,38,74,.92); border: 1px solid rgba(127,184,230,.45); border-radius: 12px; padding: 10px 14px; }
+  .grp { display: flex; gap: 6px; }
+  button { font: inherit; font-size: 15px; white-space: nowrap; color: var(--ink); background: transparent; border: 1px solid rgba(127,184,230,.5);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button.on { background: rgba(240,200,104,.18); border-color: var(--gold); color: #fff3c8; }
+  button.go { background: #6d3fb8; border-color: #b590f0; color: #fff; padding: 8px 18px; font-size: 16px; }
+  button.go:hover { background: #7f4fd0; }
+  .sep { width: 1px; align-self: stretch; background: rgba(127,184,230,.3); }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="bar">
+  <div class="grp" id="sizes"></div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button class="go" data-fx="rock">ปาหิน</button>
+    <button class="go" data-fx="hair">ผมฟาด</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp"><button id="slow">ช้า</button></div>
+</div>
+<script>
+const ART = {
+  front: "/client/public/characters/echo/echo_front.webp",
+  cover: "/client/public/characters/echo/echo.webp",
+  foe: "/client/public/characters/muimi/muimi.webp",
+};
+const imgs = {};
+for (const [k, u] of Object.entries(ART)) { const i = new Image(); i.src = u; imgs[k] = i; }
+const ok = (i) => i && i.complete && i.naturalWidth > 0;
+
+const cv = document.getElementById("cv"), g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; }
+addEventListener("resize", resize); resize();
+
+// ---------- กระดาน (มุมเอียงแบบง่าย) ----------
+const COLS = 12, ROWS = 8;
+const RANGE = { 1: 1, 2: 2, 3: 2, 4: 3, 5: 3 };
+let size = 3, slow = false;
+let T = 60, OX = 0, OY = 0;
+const SQ = 0.62; // ย่อแกนลึก (มุมเอียง)
+function layout() {
+  T = Math.min(W / (COLS + 1), (H - 140) / (ROWS * SQ + 4));
+  OX = (W - COLS * T) / 2; OY = H * 0.5 - (ROWS * T * SQ) / 2 + T * 0.9;
+}
+// พื้น (x, y) สูง z (หน่วยช่อง) → จอ
+const P = (x, y, z = 0) => [OX + x * T, OY + y * T * SQ - z * T * 0.85];
+function echoBox() { const y = Math.max(0, Math.round((ROWS - size) / 2)); return { x: 1, y, n: size }; }
+function foeTile() { const b = echoBox(); return { x: Math.min(COLS - 1, b.x + b.n - 1 + RANGE[size]), y: b.y + Math.floor((b.n - 1) / 2) }; }
+
+function tile(x, y, fill, stroke) {
+  const a = P(x, y), b = P(x + 1, y), c = P(x + 1, y + 1), d = P(x, y + 1);
+  g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.lineTo(...c); g.lineTo(...d); g.closePath();
+  g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
+}
+function board() {
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#9fd0ee"); sky.addColorStop(0.35, "#cfe9d6"); sky.addColorStop(1, "#5f9c55");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) tile(x, y, (x + y) % 2 ? "#78b35f" : "#83bd68", "rgba(40,70,30,.25)");
+  const b = echoBox(), f = foeTile();
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const dx = Math.max(0, b.x - x, x - (b.x + b.n - 1)), dy = Math.max(0, b.y - y, y - (b.y + b.n - 1));
+    const d = dx + dy;
+    if (d >= 1 && d <= RANGE[size]) tile(x, y, "rgba(224,86,79,.28)", "rgba(255,160,150,.6)");
+  }
+  tile(f.x, f.y, "rgba(224,86,79,.5)", "#ffb0a8");
+}
+
+// ---------- ตัวละคร ----------
+function hexPath(cx, cy, r) { const ry = r * 0.866; g.beginPath(); g.moveTo(cx - r, cy); g.lineTo(cx - r / 2, cy - ry); g.lineTo(cx + r / 2, cy - ry); g.lineTo(cx + r, cy); g.lineTo(cx + r / 2, cy + ry); g.lineTo(cx - r / 2, cy + ry); g.closePath(); }
+function hexUnit(x, y, img, color, shake) {
+  const [bx, by] = P(x + 0.5 + shake, y + 0.5);
+  g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(bx, by + 3, T * 0.36, T * 0.36 * SQ, 0, 0, 7); g.fill();
+  g.fillStyle = color; g.beginPath(); g.ellipse(bx, by, T * 0.32, T * 0.32 * SQ, 0, 0, 7); g.fill();
+  const r = T * 0.4, hy = by - T * 0.86;
+  g.fillStyle = color; g.fillRect(bx - 2, hy, 4, by - hy);
+  hexPath(bx, hy, r + 3); g.fillStyle = "#0d1c36"; g.fill();
+  hexPath(bx, hy, r + 1.5); g.strokeStyle = color; g.lineWidth = 3; g.stroke();
+  g.save(); hexPath(bx, hy, r - 1); g.clip();
+  if (ok(img)) { const iw = img.naturalWidth, ih = img.naturalHeight, s = (r * 2) / Math.min(iw, ih * 0.87); g.drawImage(img, bx - iw * s / 2, hy - r * 0.87 - ih * s * 0.06, iw * s, ih * s); }
+  g.restore();
+  return [bx, hy];
+}
+// Echo ร่างใหญ่ — คืนจุดมือ/หัว/ผม ให้เอฟเฟกต์ใช้
+function echoUnit(t) {
+  const b = echoBox();
+  if (b.n <= 1) { const [hx, hy] = hexUnit(b.x, b.y, imgs.cover, "#9B4F96", 0); return { hand: [hx + T * 0.3, hy], head: [hx, hy - T * 0.2], hair: [hx, hy + T * 0.1], scale: 1 }; }
+  const cx = b.x + b.n / 2, cy = b.y + b.n / 2;
+  const a = P(b.x, b.y), c = P(b.x + b.n, b.y + b.n);
+  g.fillStyle = "rgba(155,79,150,.22)"; g.fillRect(a[0] + 3, a[1] + 2, c[0] - a[0] - 6, c[1] - a[1] - 4);
+  g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; g.strokeRect(a[0] + 3, a[1] + 2, c[0] - a[0] - 6, c[1] - a[1] - 4);
+  const [bx, by] = P(cx, cy);
+  g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(bx, by, b.n * T * 0.42, b.n * T * 0.42 * SQ, 0, 0, 7); g.fill();
+  const img = imgs.front, h = b.n * T * 1.32, w = ok(img) ? h * img.naturalWidth / img.naturalHeight : h * 0.72;
+  const lean = t.lean || 0, foot = by + T * b.n * 0.28 * SQ;
+  g.save(); g.translate(bx, foot); g.rotate(lean * 0.06);
+  if (ok(img)) g.drawImage(img, -w / 2, -h, w, h);
+  g.restore();
+  return {
+    hand: [bx + w * 0.22, foot - h * 0.42],   // มือขวา (บนเข่า)
+    head: [bx, foot - h * 0.84],
+    hair: [bx + w * 0.3, foot - h * 0.55],    // ปลายผมด้านขวา
+    scale: b.n,
+  };
+}
+
+// ---------- เอฟเฟกต์ ----------
+let fx = null; // { kind, t0 }
+const DUR = { rock: 1500, hair: 1500 };
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t) => t * t * t;
+const lerp = (a, b, t) => a + (b - a) * t;
+function rngOf(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
+
+// หินรูปทรงไม่สม่ำเสมอ (สุ่มคงที่ต่อขนาด)
+function rockShape(r, seed) { const R = rngOf(seed), pts = []; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; pts.push([Math.cos(a) * r * (0.72 + R() * 0.38), Math.sin(a) * r * (0.72 + R() * 0.38)]); } return pts; }
+function drawRock(x, y, r, rot, seed, alpha = 1) {
+  const pts = rockShape(r, seed);
+  g.save(); g.translate(x, y); g.rotate(rot); g.globalAlpha = alpha;
+  g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath();
+  const gr = g.createLinearGradient(-r, -r, r, r); gr.addColorStop(0, "#b9b6c2"); gr.addColorStop(1, "#5d5a68");
+  g.fillStyle = gr; g.fill(); g.strokeStyle = "#2d2240"; g.lineWidth = Math.max(1.5, r * 0.08); g.stroke();
+  g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = Math.max(1, r * 0.06);
+  g.beginPath(); g.moveTo(-r * 0.35, -r * 0.2); g.lineTo(r * 0.05, -r * 0.45); g.stroke();
+  g.beginPath(); g.moveTo(r * 0.1, r * 0.15); g.lineTo(r * 0.4, r * 0.35); g.stroke();
+  g.restore();
+}
+// ปาหิน: หยิบ (หินโผล่ที่มือ ยกขึ้น) → ลอยโค้ง (หมุน · เงาบนพื้นวิ่งตาม) → ตกแตก (เศษ + ฝุ่น + รอยร้าว)
+//  ใหญ่ขึ้นตามร่าง: ก้อนใหญ่ขึ้น ลอยสูงขึ้น เศษเยอะขึ้น
+function rockFx(t, E, foe) {
+  const n = E.scale, r = T * (0.16 + n * 0.09), seed = 7 + n;
+  const LIFT = 0.18, HIT = 0.55;
+  const [tx, ty] = P(foe.x + 0.5, foe.y + 0.5), top = [tx, ty - T * 0.35];
+  if (t < LIFT) {
+    const k = easeOut(t / LIFT);
+    drawRock(E.hand[0], E.hand[1] - k * T * 0.5, r * (0.5 + 0.5 * k), -k * 0.6, seed);
+    return { lean: -k };
+  }
+  if (t < HIT) {
+    const k = (t - LIFT) / (HIT - LIFT), e = k;
+    const sx = E.hand[0], sy = E.hand[1] - T * 0.5;
+    const x = lerp(sx, top[0], e), base = lerp(sy, top[1], e), arc = Math.sin(e * Math.PI) * T * (1.2 + n * 0.45);
+    // เงาวิ่งบนพื้น (เล็ก → ใหญ่ขึ้นตอนใกล้ตก)
+    const gx = lerp(E.hand[0], tx, e), gy = lerp(P(0, echoBox().y + echoBox().n / 2)[1], ty, e);
+    g.fillStyle = `rgba(0,0,0,${0.12 + 0.22 * e})`; g.beginPath(); g.ellipse(gx, gy, r * (0.6 + 0.5 * e), r * (0.6 + 0.5 * e) * SQ, 0, 0, 7); g.fill();
+    // ทางลม
+    for (let i = 1; i <= 4; i++) {
+      const e2 = Math.max(0, e - i * 0.05), x2 = lerp(sx, top[0], e2), y2 = lerp(sy, top[1], e2) - Math.sin(e2 * Math.PI) * T * (1.2 + n * 0.45);
+      g.fillStyle = `rgba(255,255,255,${0.28 - i * 0.06})`; g.beginPath(); g.arc(x2, y2, r * (0.55 - i * 0.08), 0, 7); g.fill();
+    }
+    drawRock(x, base - arc, r, 1 + k * 7, seed);
+    return { lean: 1 - k };
+  }
+  const k = (t - HIT) / (1 - HIT);
+  // ฝุ่นวงรี
+  g.fillStyle = `rgba(214,200,180,${0.55 * (1 - k)})`; g.beginPath(); g.ellipse(tx, ty, T * (0.4 + k * (0.6 + n * 0.2)), T * (0.4 + k * (0.6 + n * 0.2)) * SQ, 0, 0, 7); g.fill();
+  // รอยร้าวบนพื้น
+  g.strokeStyle = `rgba(60,40,30,${0.7 * (1 - k * 0.8)})`; g.lineWidth = 2;
+  const R = rngOf(99);
+  for (let i = 0; i < 5 + n; i++) {
+    const a = i / (5 + n) * Math.PI * 2 + R(), L = T * (0.35 + R() * 0.3 + n * 0.08) * Math.min(1, k * 4);
+    g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + Math.cos(a) * L * 0.5, ty + Math.sin(a) * L * 0.5 * SQ + R() * 3); g.lineTo(tx + Math.cos(a + 0.2) * L, ty + Math.sin(a + 0.2) * L * SQ); g.stroke();
+  }
+  // แฟลช
+  if (k < 0.15) { g.fillStyle = `rgba(255,255,255,${0.9 * (1 - k / 0.15)})`; g.beginPath(); g.arc(top[0], top[1], r * (1.2 + k * 8), 0, 7); g.fill(); }
+  // เศษหิน
+  const RR = rngOf(5 + n);
+  for (let i = 0; i < 7 + n * 2; i++) {
+    const a = RR() * Math.PI * 2, sp = (0.6 + RR() * 1.1) * T * (0.7 + n * 0.12), up = (0.8 + RR()) * T * (0.9 + n * 0.2);
+    const x = tx + Math.cos(a) * sp * k, y = ty + Math.sin(a) * sp * k * SQ - (up * k - up * 1.6 * k * k);
+    drawRock(x, Math.min(y, ty + Math.sin(a) * sp * k * SQ), r * (0.18 + RR() * 0.2), k * 9 + i, 30 + i, clamp01(1.3 - k));
+  }
+  return { hit: k, shake: k < 0.25 ? (1 - k / 0.25) * (3 + n * 1.5) : 0 };
+}
+
+// ผมฟาด: ผมสายยาวพุ่งออกจากตัวเป็นคลื่น → ยกสูง → ฟาดลงเป้า (พื้นแตก + ประกายม่วง) → หดกลับ
+//  จำนวนสายตามร่าง: 1×1 = 1 · 2–3 = 2 · 4–5 = 3 · ยาว/หนาขึ้นตามร่าง
+function strand(path, w0, w1, alpha) {
+  // ริบบิ้นเรียว: path = [[x,y]...] → ขอบซ้าย/ขวาตามเส้นตั้งฉาก
+  const L = [], Rt = [];
+  for (let i = 0; i < path.length; i++) {
+    const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+    let nx = -(b[1] - a[1]), ny = b[0] - a[0]; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    const u = i / (path.length - 1), w = lerp(w0, w1, u) * (1 - 0.15 * Math.sin(u * 9));
+    L.push([path[i][0] + nx * w, path[i][1] + ny * w]); Rt.push([path[i][0] - nx * w, path[i][1] - ny * w]);
+  }
+  g.save(); g.globalAlpha = alpha;
+  g.beginPath(); L.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+  for (let i = Rt.length - 1; i >= 0; i--) g.lineTo(Rt[i][0], Rt[i][1]);
+  g.closePath();
+  const s = path[0], e = path[path.length - 1], gr = g.createLinearGradient(s[0], s[1], e[0], e[1]);
+  gr.addColorStop(0, "#d79cf4"); gr.addColorStop(0.55, "#a68af0"); gr.addColorStop(1, "#6f6ae8");
+  g.fillStyle = gr; g.fill(); g.strokeStyle = "#4a1f78"; g.lineWidth = 2; g.lineJoin = "round"; g.stroke();
+  // เส้นผมด้านใน
+  g.strokeStyle = "rgba(255,240,255,.45)"; g.lineWidth = 1.2;
+  g.beginPath(); path.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+  g.restore();
+}
+function hairFx(t, E, foe, now) {
+  const n = E.scale, count = n <= 1 ? 1 : n <= 3 ? 2 : 3;
+  const OUT = 0.32, RISE = 0.42, SLAM = 0.5, BACK = 0.78;
+  const [tx, ty] = P(foe.x + 0.5, foe.y + 0.5);
+  let reach, lift, alpha = 1;
+  if (t < OUT) { reach = easeOut(t / OUT) * 0.85; lift = 0.6 * (t / OUT); }
+  else if (t < RISE) { reach = 0.85 + 0.1 * ((t - OUT) / (RISE - OUT)); lift = 0.6 + 0.6 * ((t - OUT) / (RISE - OUT)); }
+  else if (t < SLAM) { const k = easeIn((t - RISE) / (SLAM - RISE)); reach = 0.95 + 0.05 * k; lift = 1.2 * (1 - k); }
+  else if (t < BACK) { reach = 1; lift = 0; }
+  else { const k = (t - BACK) / (1 - BACK); reach = 1 - easeOut(k); lift = 0.3 * k; alpha = 1 - k * 0.4; }
+  // แต่ละสาย = ช่อผม 3 เส้นหยักคนละจังหวะ (เส้นกลางหนา · ข้างบาง) ปลายม้วนเป็นก้นหอยตอนถึงเป้า
+  //  โคนสายเริ่มจากขอบผมด้านขวาที่ระดับต่างกัน (ผมที่สยายอยู่ข้างตัวพุ่งออกไป)
+  const sx = E.hair[0], sy = E.hair[1];
+  const amp = T * (0.14 + n * 0.03);
+  for (let s = 0; s < count; s++) {
+    const off = (s - (count - 1) / 2);
+    const ox = sx - off * T * 0.12 * n * 0.4, oy = sy + off * T * 0.35 * n * 0.35;
+    const ex = tx + off * T * 0.3, ey = ty - T * 0.1 + off * T * 0.12 * SQ;
+    const mx = lerp(ox, ex, 0.45), my = Math.min(oy, ey) - T * (0.8 + n * 0.3) * (0.35 + lift) - off * T * 0.25;
+    for (const b of [-1, 1, 0]) {
+      const pts = [], N = 40, steps = Math.max(2, Math.round(N * reach));
+      for (let i = 0; i <= steps; i++) {
+        const u = i / N;
+        const bx = (1 - u) * (1 - u) * ox + 2 * u * (1 - u) * (mx + b * T * 0.12) + u * u * ex;
+        const by = (1 - u) * (1 - u) * oy + 2 * u * (1 - u) * (my + b * T * 0.08) + u * u * ey;
+        const w = Math.sin(u * 8.5 - now / 85 + s * 1.7 + b * 0.9) * amp * Math.sin(Math.min(1, u * 1.4) * Math.PI) * (b ? 0.8 : 1);
+        pts.push([bx + w * 0.35, by + w]);
+      }
+      // ปลายม้วน (เมื่อยื่นสุดแล้ว)
+      if (reach > 0.92 && pts.length > 3) {
+        const [ax, ay] = pts[pts.length - 2], [lx, ly] = pts[pts.length - 1];
+        const dir = Math.atan2(ly - ay, lx - ax), r0 = T * (0.16 + n * 0.03) * (b ? 0.7 : 1), side = b < 0 ? -1 : 1;
+        const cx = lx + Math.cos(dir + side * Math.PI / 2) * r0, cy = ly + Math.sin(dir + side * Math.PI / 2) * r0;
+        for (let j = 1; j <= 12; j++) {
+          const a = dir - side * Math.PI / 2 + side * j * 0.45, rr = r0 * (1 - j / 16);
+          pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+        }
+      }
+      const base = T * (0.09 + n * 0.028) * (b ? 0.6 : 1);
+      strand(pts, base, base * 0.18, alpha * (b ? 0.92 : 1));
+    }
+  }
+  if (t >= SLAM && t < 0.95) {
+    const k = (t - SLAM) / (0.95 - SLAM);
+    if (k < 0.2) { g.fillStyle = `rgba(255,255,255,${0.85 * (1 - k / 0.2)})`; g.beginPath(); g.ellipse(tx, ty, T * (0.4 + k * 3), T * (0.4 + k * 3) * SQ, 0, 0, 7); g.fill(); }
+    // คลื่นกระแทกม่วง
+    g.strokeStyle = `rgba(190,140,255,${0.8 * (1 - k)})`; g.lineWidth = 5 * (1 - k) + 1;
+    g.beginPath(); g.ellipse(tx, ty, T * (0.3 + k * (1 + n * 0.25)), T * (0.3 + k * (1 + n * 0.25)) * SQ, 0, 0, 7); g.stroke();
+    // รอยแตก
+    const R = rngOf(42);
+    g.strokeStyle = `rgba(60,30,80,${0.75 * (1 - k * 0.7)})`; g.lineWidth = 2;
+    for (let i = 0; i < 4 + n; i++) {
+      const a = i / (4 + n) * Math.PI * 2 + R(), L = T * (0.4 + R() * 0.3 + n * 0.1) * Math.min(1, k * 5);
+      g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + Math.cos(a) * L * 0.55, ty + Math.sin(a) * L * 0.55 * SQ + 2); g.lineTo(tx + Math.cos(a - 0.25) * L, ty + Math.sin(a - 0.25) * L * SQ); g.stroke();
+    }
+    // ประกาย/กลีบผมปลิว
+    const RR = rngOf(11 + n);
+    for (let i = 0; i < 10 + n * 3; i++) {
+      const a = RR() * Math.PI * 2, d = T * (0.3 + RR() * (0.9 + n * 0.2)) * easeOut(k);
+      g.fillStyle = i % 3 ? `rgba(215,156,244,${1 - k})` : `rgba(255,255,255,${1 - k})`;
+      g.beginPath(); g.arc(tx + Math.cos(a) * d, ty + Math.sin(a) * d * SQ - k * T * 0.6 * RR(), 2 + RR() * 2.5, 0, 7); g.fill();
+    }
+    return { hit: k, shake: k < 0.25 ? (1 - k / 0.25) * (3 + n * 1.5) : 0 };
+  }
+  return {};
+}
+
+// ---------- ลูปวาด ----------
+function floatText(x, y, text, k) {
+  if (k <= 0 || k >= 1) return;
+  g.save(); g.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+  g.font = `700 ${Math.round(T * 0.5)}px "Chakra Petch", sans-serif`; g.textAlign = "center";
+  g.lineWidth = 5; g.strokeStyle = "rgba(10,20,40,.85)"; g.strokeText(text, x, y - k * T * 0.6); g.fillStyle = "#fff"; g.fillText(text, x, y - k * T * 0.6);
+  g.restore();
+}
+let clockNow = performance.now(), clockT = 0, last = performance.now();
+function frame(now) {
+  const dt = now - last; last = now;
+  clockT += slow ? dt * 0.3 : dt;
+  const T0 = window.__freezeT != null ? window.__freezeT : clockT;
+  layout();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  let res = {};
+  const prog = fx ? clamp01((T0 - fx.t0) / DUR[fx.kind]) : null;
+  // จอสั่น (คิดจากผลเฟรมก่อน)
+  const sh = frame.shake || 0;
+  g.save(); if (sh) g.translate((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+  board();
+  const foe = foeTile();
+  // วาดตามความลึก: เป้าอยู่แถวกลางตัว Echo → วาด Echo ก่อน
+  const E = echoUnit({ lean: frame.lean || 0 });
+  const hitK = frame.hit;
+  const fshake = hitK != null && hitK < 0.3 ? (Math.random() - 0.5) * 0.12 * (1 - hitK / 0.3) : 0;
+  const [fx0, fy0] = hexUnit(foe.x, foe.y, imgs.foe, "#2E9E4B", fshake);
+  if (hitK != null && hitK < 0.15) { hexPath(fx0, fy0, T * 0.4); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitK / 0.15)})`; g.fill(); }
+  if (fx && prog < 1) res = fx.kind === "rock" ? rockFx(prog, E, foe) : hairFx(prog, E, foe, T0);
+  if (res.hit != null) floatText(fx0, fy0 - T * 0.5, `-${2 + Math.ceil(size / 2)}`, res.hit);
+  g.restore();
+  frame.shake = res.shake || 0; frame.lean = res.lean || 0; frame.hit = res.hit;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- ปุ่ม ----------
+const sizesEl = document.getElementById("sizes");
+for (let n = 1; n <= 5; n++) {
+  const b = document.createElement("button"); b.textContent = `${n}×${n}`; b.dataset.n = n;
+  b.onclick = () => { size = n; fx = null; paint(); };
+  sizesEl.appendChild(b);
+}
+function paint() { for (const b of sizesEl.children) b.classList.toggle("on", +b.dataset.n === size); document.getElementById("slow").classList.toggle("on", slow); }
+paint();
+for (const b of document.querySelectorAll("[data-fx]")) b.onclick = () => { fx = { kind: b.dataset.fx, t0: clockT }; };
+document.getElementById("slow").onclick = () => { slow = !slow; paint(); };
+// ตรวจภาพนิ่ง: window.__show("rock"|"hair", ขนาด, ความคืบหน้า 0–1)
+window.__show = (kind, n, p) => { size = n; paint(); fx = { kind, t0: 0 }; window.__freezeT = p * DUR[kind]; };
+window.__play = () => { window.__freezeT = null; };
+</script>
+</body>
+</html>

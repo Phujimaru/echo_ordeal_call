@@ -153,10 +153,12 @@ const CHARACTERS = [
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)
+    //  ล็อกไว้ยังไม่ให้เล่น (ผู้ใช้สั่ง 2026-10-11) — ลบ locked ออกเพื่อปลดล็อก
     id: "echo",
     name: "Echo",
     avatar: 0,
     difficulty: "special",
+    locked: true,
     img: "/characters/echo/echo.webp",
     mov: 4,
     range: [1, 1],

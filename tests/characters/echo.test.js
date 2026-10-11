@@ -272,3 +272,31 @@ test('กระดาน (ฟังก์ชันล้วน): dist นับ�
   assert.ok(reach.has('2,1'), 'ขึ้นบนได้');
   assert.ok(!reach.has('3,2'), 'ขวามีพุ่มไม้ (3,3) ขวางตัว 2×2');
 });
+
+test('ท่าตีปกติ: 1×1 คลื่นเสียง · 2×2–3×3 ผมฟาด · 4×4–5×5 ห่าง ≤ 2 ผมฟาด / ห่าง 3 ปาหิน (การ์ดฉากตีส่ง byStyle)', () => {
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 1 }, 1), 'echo');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 2 }, 2), 'hair');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 3 }, 1), 'hair');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 4 }, 2), 'hair');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 4 }, 3), 'rock');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 5 }, 1), 'hair');
+  assert.equal(echo.attackStyle({ characterId: 'echo', boardSize: 5 }, 3), 'rock');
+  const P = setup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]]);
+  grow(P.E, 8); // 4×4
+  const box = { ...P.E.pos, size: 4 };
+  P.B.pos = { x: box.x + 4 + 2, y: box.y }; // ห่างขอบ 3
+  engine.setActor('E');
+  assert.equal(engine.attackTarget('E', 'B'), true);
+  assert.equal(engine.lastAttack.byStyle, 'rock');
+  assert.equal(engine.lastAttack.bySize, 4);
+  engine.clearPhaseTimer();
+  const Q = setup([['E', 'echo', 2, 2], ['B', 'dummy', 3, 2]]);
+  engine.setActor('E');
+  engine.attackTarget('E', 'B');
+  assert.equal(engine.lastAttack.byStyle, 'echo');
+  const R = setup([['M', 'muimi', 2, 2], ['B', 'dummy', 3, 2]]);
+  engine.setActor('M');
+  engine.attackTarget('M', 'B');
+  assert.equal(engine.lastAttack.byStyle, null, 'ตัวอื่นพุ่งชนตามเดิม');
+  assert.ok(Q && R);
+});
