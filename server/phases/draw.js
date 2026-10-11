@@ -21,10 +21,12 @@ const shop = require("../shop");
 const summary = require("./summary");
 const timers = require("../timers");
 const view = require("../view");
+const Zero = require("../zeroTime");
 
 function dealRound() {
   timers.clearPhaseTimer();
   match.roundNumber++;
+  if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
   match.lastLog = [];
   match.turnOrder = [];
@@ -37,8 +39,9 @@ function dealRound() {
   match.roundSkills = [];
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: หมดเวลาปรากฏตัว (2 เทิร์น) = ล่องหนอีกครั้ง
   // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 6 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้
-  shop.maybeMoveShop();
-  const prevNight = dayNight.isNightRound(match.roundNumber - 1);
+  if (!Zero.active()) shop.maybeMoveShop(); // ห่วงเวลาซีโร่: ร้านปิด (กลับมาที่เดิมตอนปลดผนึก)
+  const world = Zero.worldRound();
+  const prevNight = dayNight.isNightRound(world - 1);
 
   for (const p of Object.values(match.players)) {
     combat.resetRoundDisplay(p);
@@ -48,7 +51,7 @@ function dealRound() {
 
     // กลางคืน (patch 2.1.7): สุ่มใหม่ทุกเทิร์นว่าสกิลพื้นฐานหรือสกิลรอง (อย่างใดอย่างหนึ่ง) จะใช้แต้มมากขึ้น — ไม่มีผลกับท่าไม้ตาย
     //  การเดินทาง: ภาษีนี้เหลือเฉพาะ "อาณาจักรแห่งจุดเริ่มต้น" กลางคืน (ภูมิภาคอื่นใช้ผลของภูมิภาคแทน)
-    if (Journey.nightTaxOn(engine, dayNight.isNightRound(match.roundNumber))) {
+    if (!Zero.active() && Journey.nightTaxOn(engine, dayNight.isNightRound(world))) {
       const ch0 = CHAR_BY_ID[p.characterId];
       const taxCandidates = [];
       if (ch0 && ch0.basic) taxCandidates.push("basic");
@@ -93,7 +96,8 @@ function dealRound() {
 
     // เกราะฟื้น 1 หน่วยทุก 2 เทิร์น (รอบเลขคู่) — เหมือนกันทั้งกลางวัน/กลางคืน (ยกเลิกโบนัสฟื้นทุกเทิร์นตอนกลางคืน patch 2.1.7)
     //  ผุพัง (สถานะ Universal): เกราะไม่ฟื้นระหว่างมีผล · การเดินทาง: ภูมิภาค 5-7 เกราะฟื้นทุกเทิร์น (Journey.armorRegenDue)
-    if (!((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, match.roundNumber)) combat.healArmor(p, 1);
+    //  ห่วงเวลาซีโร่: เกราะไม่ฟื้น
+    if (!Zero.active() && !((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, world)) combat.healArmor(p, 1);
     // ตื่นขึ้น (awaken, สถานะ Universal): ฟื้นพลังชีวิตเทิร์นละ 1 หน่วย
     if ((p.statuses.awaken || 0) > 0 && combat.healHp(p, 1) > 0) {
       match.lastLog.push(`⏰ ${p.name} การตื่นขึ้น — ฟื้นพลังชีวิต +1`);
@@ -141,10 +145,13 @@ function dealRound() {
   }
 
   // สลับช่วงเวลากลางวัน/กลางคืน — แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน
-  const night = dayNight.isNightRound(match.roundNumber);
-  if (match.roundNumber > 1 && night !== prevNight) {
+  const night = dayNight.isNightRound(world);
+  if (!Zero.active() && world > 1 && night !== prevNight) {
     match.lastLog.push(night ? "🌙 ราตรีมาเยือน — สุ่มสกิลพื้นฐาน/สกิลรองแพงขึ้น +1 ทุกเทิร์น" : "☀️ ฟ้าสางแล้ว — จบเทิร์นได้แต้มสกิลเพิ่ม +1");
   }
+
+  // ห่วงเวลาซีโร่: ของฟื้นพลังชีวิต 1 ชิ้น · เฟส 4 ฟ้าผ่า 3 จุด
+  Zero.onRoundStart();
 
   match.gameState = "PLAYING";
   timers.startPhaseTimer(timers.cardPhaseSeconds(), summary.resolveRound);

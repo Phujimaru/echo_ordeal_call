@@ -60,6 +60,10 @@
 .bs-tool:hover { background: #24406e; }
 .bs-tool[data-on="true"] { background: #3d5f8f; border-color: #f0c868; }
 .bs-tool:disabled { opacity: .4; cursor: default; }
+/* ระดับซูม (ผู้ใช้สั่ง 2026-10-11): ขีดระหว่างปุ่ม ＋ / － บอกว่าซูมอยู่ระดับไหน */
+.bs-zoom-lv { display: flex; flex-direction: column-reverse; justify-content: center; gap: 3px; padding: 0 2px; }
+.bs-zoom-lv i { display: block; width: 6px; height: 4px; background: rgba(255,255,255,.22); }
+.bs-zoom-lv i[data-on="true"] { background: #f0c868; }
 .bs-view { display: grid; place-items: center; }
 .bs-view svg { width: 18px; height: 18px; } .bs-view svg * { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
 .bs-danger {

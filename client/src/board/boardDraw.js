@@ -24,6 +24,7 @@ import {
 } from "./boardGeo";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
+import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -67,6 +68,10 @@ export function setCamera(info, turn) {
 // =================================================================== กล้องมุมใกล้ (ซูม/เลื่อน)
 //  cam = { z, cx, cy } — z = ขยายกี่เท่า · (cx, cy) = จุดตรรกะ (ของเฟรมปกติ) ที่อยู่กลางจอ · base = computeView(w, h) ไม่มี cam
 export const ZOOM_K = 1.6;   // มุมใกล้ = ขยาย 1.6 เท่า
+// ระดับซูม (ผู้ใช้สั่ง 2026-10-11 — ปรับทีละขั้น): ตัวคูณต่อระดับ 0..ZOOM_STEPS−1 · มุมบนขยายมากกว่า (ช่องเล็กกว่ามุมเอียง)
+export const ZOOM_LEVELS = { tilt: [1, 1.3, ZOOM_K, 1.95, 2.4], top: [1, 1.6, 2.1, 2.6, 3.25] };
+export const ZOOM_STEPS = 5;
+export const clampZoom = (lv) => Math.max(0, Math.min(ZOOM_STEPS - 1, Math.round(Number(lv) || 0)));
 const PAN_M = 30;            // เลื่อนเลยขอบกระดานได้เท่านี้ (ตรรกะ)
 const TOP_UI = 130;          // แถบลำดับเดินด้านบน (ตรรกะที่ z = 1) — แถบหกเหลี่ยมแบบใหม่สูงกว่าเดิม
 // กรอบของกระดานบนจอ (ตรรกะ · กล้องปัจจุบัน) รวมความสูงของของบนแถวไกล
@@ -263,6 +268,8 @@ function drawBoardLayer(g, info, view, night) {
   for (let y = 0; y <= ROWS; y++) { const a = P(0, y), b = P(COLS, y); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
   g.strokeStyle = C.border; g.lineWidth = 2;
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
+  // ลายบนพื้นกระดานของธีม (ห่วงเวลาซีโร่: วงเวท + อักษรมิโกะ + ขอบทอง)
+  if (T.deco) T.deco({ g, C, night, info, R: rngSeq(41), VX0, VY0, VX1, VY1, VW });
   // แสงแดด / ความมืด (ทับทั้งจอ รวมฉากหลัง)
   const gr = g.createLinearGradient(VX0, VY0, VX1, VY1);
   gr.addColorStop(0, C.light[0]); gr.addColorStop(0.45, "rgba(255,255,255,0)"); gr.addColorStop(1, C.light[1]);
@@ -1358,7 +1365,7 @@ function quakeFx(g, e, now, lowQ) {
   });
   g.restore();
 }
-export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS, ...STYLE_MS };
+export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS, ...STYLE_MS, ...ZERO_FX_DUR };
 
 
 // =================================================================== frame
@@ -1387,7 +1394,8 @@ export function drawFrame(g, st, now) {
     } else blit(bake.scene);
   }
   L();
-  const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {} };
+  // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
+  const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
   if (T.animBack) T.animBack(g, f, lowQ ? 0 : now);
   if (bake && bake.board) { blit(bake.board); L(); }
   else drawBoardLayer(g, info, bv, night);
@@ -1407,6 +1415,8 @@ export function drawFrame(g, st, now) {
   for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
   if (info.heal.length && !pz) animHeal(g, info, { night, C, area: info.area }, tA);
   drawHighlights(g, info, hl, hover, now);
+  // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
+  if (T.overBoard) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
   // ตัวใหญ่: จุดกลางตัว (เรียงความลึก/จางสิ่งกีดขวางที่อยู่หลัง)
@@ -1415,10 +1425,10 @@ export function drawFrame(g, st, now) {
     const [vx, vy] = toView(x + 0.5, y + 0.5);
     return uv.some(([ux, uy]) => Math.abs(ux - vx) < 0.9 && uy < vy && uy >= vy - 2.2);
   };
-  const octx = { area: info.area, C, night, cols: info.cols };
+  const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
   for (const t of info.terrain) {
     const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
-    const f0 = () => drawObstacle(g, t, octx, now);
+    const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0 });
   }
   if (shopPos && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
@@ -1464,6 +1474,8 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "echo") echoFx(g, e, now);
     else if (e.kind === "hair") hairFx(g, e, now);
     else if (e.kind === "rock") rockFx(g, e, now);
+    else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
+    else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);

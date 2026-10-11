@@ -14,6 +14,7 @@
 // ============================================================
 import { LW, OX, P, PS, depthOf, gPoly, glow, rng, sceneSize, unprojectScene, viewAxes } from "./boardGeo";
 import { cactusShape, deadTreeShape, drawTree, pineShape, prism, SNOW_PINE, windmillSails } from "./boardProps";
+import { ZERO_THEMES } from "./zeroTheme";
 
 const TAU = Math.PI * 2;
 // วงรีบนพื้นในพิกัดฉาก
@@ -1006,6 +1007,8 @@ const T7 = {
 
 const THEMES = { 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7 };
 for (const a of Object.keys(THEMES)) THEMES[a].pal = PAL[a];
+// ห่วงเวลาซีโร่ (area 8–11 = ระดับ 1–4) — ธีมมีจานสีของตัวเอง (zeroTheme.js)
+Object.assign(THEMES, ZERO_THEMES);
 
 // ธีมของภูมิภาค (ไม่รู้จัก = ภูมิภาค I)
 export function themeOf(area) { return THEMES[area] || THEMES[1]; }

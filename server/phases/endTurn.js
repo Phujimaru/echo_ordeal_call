@@ -19,6 +19,7 @@ const lobby = require("../lobby");
 const shop = require("../shop");
 const timers = require("../timers");
 const view = require("../view");
+const Zero = require("../zeroTime");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -54,7 +55,7 @@ function endTurn() {
 
   // จบเทิร์นรอบนั้น +1 — ช่วงกลางวันได้แต้มสกิลเพิ่มอีก +1 (ระบบกลางวัน/กลางคืน)
   //  การเดินทาง: โบนัสนี้มาจากภูมิภาคแทน (1 กลางวัน = จบเทิร์นเลขคู่ · 7 = ทุกเทิร์น) — Journey.skillBonus
-  const dayBonus = Journey.skillBonus(engine, dayNight.morningBonusActive(match.roundNumber)); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
+  const dayBonus = Zero.active() ? 0 : Journey.skillBonus(engine, dayNight.morningBonusActive(Zero.worldRound())); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
   for (const p of combat.alivePlayers()) combat.addSkill(p, 1 + dayBonus);
   if (dayBonus) match.lastLog.push(Journey.active(engine)
     ? `🗺️ ${Journey.AREAS[Journey.areaNow(engine) - 1].name} — ทุกคนได้แต้มสกิลเพิ่ม +${dayBonus}`
@@ -66,6 +67,8 @@ function endTurn() {
   // การเดินทาง: ผลจบเทิร์นของภูมิภาค (ของฟรี / เสียเหรียญ / ความเสียหายจากสนาม / สตั้น / ผุพัง)
   //  อยู่หลังลูปลดเทิร์นสถานะ (สตั้น/ผุพังที่ติดตรงนี้จึงมีผลเต็มเทิร์นหน้า) และก่อนด่านกวาดคนตายด้านล่าง
   Journey.onEndTurn(engine);
+  // ห่วงเวลาซีโร่: บัฟเฟส (แต้มสกิล/เหรียญ) + ห่วงเวลากัดกินทุกคน −1
+  Zero.onEndTurn();
   // โอเบรอน (ฤดูร้อน): สตั้นจากจุดจบของความฝัน (ต้องอยู่หลังลูปลดเทิร์น = เต็ม 3 เทิร์นถัดไป) + สกิลติดตัวหน้าไหว้หลังหลอก
   CHAR_HOOKS.oberon_summer.onEndTurn(engine);
 
@@ -82,6 +85,8 @@ function endTurn() {
     if (gameOver()) return;
     // การเดินทาง: ข้ามเข้าภูมิภาคใหม่ -> ฉากแผนที่ก่อนแจกไพ่เทิร์นแรกของภูมิภาค
     if (maybeJourneyAdvance()) return;
+    // ห่วงเวลาซีโร่: เทิร์นถัดไปเป็นกลางคืน (ตั้งแต่เทิร์น 10) สุ่ม 30% ครั้งเดียวต่อเกม
+    if (Zero.maybeEnter()) return;
     match.gameState = "TRANSITION";
     timers.startPhaseTimer(TRANSITION_TIME, draw.dealRound);
     view.broadcastState();
@@ -117,7 +122,7 @@ function gameOver() {
 
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
 function maybeJourneyAdvance() {
-  if (!Journey.active(engine) || !Journey.legEnds(match.roundNumber)) return false;
+  if (Zero.active() || !Journey.active(engine) || !Journey.legEnds(Zero.worldRound())) return false;
   const from = Journey.areaNow(engine);
   const to = Journey.pickNextArea(from);
   const route = [...match.journeyRoute]; // เส้นทางที่ผ่านมา (ถึงต้นทาง) — ฉากวาดค้างไว้บนโลก

@@ -41,6 +41,11 @@ const match = {
   roundSkills: [],     // สกิลที่ใช้ในรอบ (เก็บประวัติ — instant เด้งตอนใช้ / หลังเปิดไพ่โชว์ตอนโจมตี)
   shopItems: [],       // ร้านค้ามายา: สินค้าส่วนกลางของจุดปัจจุบัน (15 ชิ้น สุ่มใหม่ทุกครั้งที่ร้านย้าย)
   shopRoundSeq: 0,     // ลำดับรอบร้านค้า (ใช้สร้าง id สินค้าไม่ให้ซ้ำกันข้ามรอบ)
+  // ---------- ห่วงเวลาซีโร่ (server/zeroTime.js · GRID_PLAN §8.2) ----------
+  zero: null,          // ระหว่างอยู่ในห่วงเวลา: { saved, seals, pickups, pending, enteredRound } · null = ไม่ได้อยู่
+  zeroUsed: false,     // เกิดไปแล้วในเกมนี้ (ครั้งเดียวต่อเกม)
+  zeroFrozen: 0,       // จำนวนเทิร์นที่อยู่ในห่วงเวลา — เวลาโลก = roundNumber − zeroFrozen (กลางวัน/กลางคืน · ภูมิภาค · ร้าน)
+  zeroScene: null,     // ฉากที่ client เล่นระหว่างพักเกม { seq, active, mode: "enter" | "break" | "release", stage, seal, breakerId }
 };
 
 module.exports = match;

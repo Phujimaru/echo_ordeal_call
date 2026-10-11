@@ -14,6 +14,7 @@ const lobby = require("./lobby");
 const summary = require("./phases/summary");
 const timers = require("./timers");
 const view = require("./view");
+const Zero = require("./zeroTime");
 
 // ============================================================
 //  cutscene
@@ -66,6 +67,11 @@ function pausePlayingForCutscene(after) {
   timers.clearPhaseTimer();
   runCutsceneQueue(() => {
     if (after) after();
+    // ห่วงเวลาซีโร่: ผลหลังคลิปทุบผนึกแตก = เล่นฉากผนึกก่อนกลับเฟสเดิม
+    if (Zero.hasPendingBreak()) { Zero.runPendingBreak(resume); return; }
+    resume();
+  });
+  function resume() {
     if (inAction) {
       // ศัตรูหมดแล้ว (เช่นคลื่นดาบ/ระเบิดฆ่าคนสุดท้าย) = จบเกมทันที
       if (endTurnPhase.gameOver()) return;
@@ -81,7 +87,7 @@ function pausePlayingForCutscene(after) {
     timers.startPhaseTimer(remain, summary.resolveRound);
     view.broadcastState();
     draw.checkAllLocked();
-  });
+  }
 }
 function runCutsceneQueue(onDone) {
   if (match.cutsceneQueue.length === 0) { match.cutsceneInfo = null; onDone(); return; }

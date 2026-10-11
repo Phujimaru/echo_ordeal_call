@@ -3,6 +3,7 @@
 //  คอมโพเนนต์ในไฟล์นี้วาดอย่างเดียว — เงื่อนไขกดได้/ไม่ได้ทั้งหมดส่งมาจาก GameBoard (Game.jsx) ผ่าน props
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PERMANENT_STATUS_KEYS } from "../../data/permanentStatus";
+import { ZeroIcon } from "../../board/BoardScenes";
 import "./hud.css";
 
 // สีประจำหมวดสถานะ (จาก cls ของ STATUS_INFO) — ใช้ย้อมช่องไอคอนกับตัวเลข
@@ -94,12 +95,52 @@ function Cells({ n, on, color, h, solidOver = 16 }) {
   );
 }
 
+// เหรียญทอง (ใช้ซ้ำได้ทั้ง HUD)
+export function CoinIcon({ size = 22 }) {
+  return (
+    <svg className="hud-coin-ico" viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <circle cx="12" cy="12" r="10.5" fill="#a8781f" />
+      <circle cx="12" cy="11.4" r="9.6" fill="#f0c868" />
+      <circle cx="12" cy="11.4" r="6.4" fill="none" stroke="#b8862a" strokeWidth="1.6" />
+      <path d="M12 7.6v7.6M9.8 9.6h4.4M9.8 13.2h4.4" stroke="#8a5f14" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M6.2 8.4a7 7 0 0 1 4-3.4" fill="none" stroke="#fff4c8" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// แถบเหรียญ: ต่อใต้แผงแต้มสกิล · เหรียญเปลี่ยน = ตัวเลขเด้ง + ป้าย +N / −N ลอยขึ้น
+function GoldStrip({ gold = 0, goldMax = 0 }) {
+  const [prev, setPrev] = useState(gold);
+  const [bump, setBump] = useState(null);
+  if (prev !== gold) {
+    setPrev(gold);
+    setBump({ id: (bump ? bump.id : 0) + 1, d: gold - prev });
+  }
+  const full = goldMax > 0 && gold >= goldMax;
+  return (
+    <section className="hud-gold-strip" data-full={full ? "true" : "false"} aria-label="เหรียญ" title={goldMax > 0 ? `เหรียญ ${gold}/${goldMax}` : `เหรียญ ${gold}`}>
+      <span key={bump ? `c${bump.id}` : "c"} className="hud-gold-coin" data-bump={bump ? "true" : "false"}><CoinIcon size={26} /></span>
+      <span className="hud-gold-label">เหรียญ</span>
+      {goldMax > 0 ? <Cells n={goldMax} on={gold} color="linear-gradient(180deg, #ffe9a8, #d9a93f)" h={10} /> : <span className="hud-gold-fill" />}
+      <span className="hud-gold-num">
+        <b key={bump ? `n${bump.id}` : "n"} data-bump={bump ? (bump.d > 0 ? "up" : "down") : "false"}>{gold}</b>
+        {goldMax > 0 && <span>/{goldMax}</span>}
+        {bump && bump.d !== 0 && (
+          <i key={`f${bump.id}`} className="hud-gold-float" data-neg={bump.d < 0 ? "true" : "false"} aria-hidden="true">
+            {bump.d > 0 ? `+${bump.d}` : `−${-bump.d}`}
+          </i>
+        )}
+      </span>
+    </section>
+  );
+}
+
 // ---------- ซ้ายล่าง: แผงตัวละคร (ดีไซน์ E1 ปรับ) ----------
 //  รูปหกเหลี่ยมด้านแบน (ขอบทอง→ฟ้า) เกยซ้ายของแผงเฉียง · ชื่อ+ทีม+ป้ายตัวละคร · เลือด/เกราะเป็นช่องเฉียงนับได้
 //  ใต้แผง: แผงแต้มสกิล (ม่วง) + แถบทรัพยากรตัวละคร ต่อชิดใต้แผงตัวละครเป็นแท่งเดียวกัน (ไม่มีช่องว่าง ขอบซ้าย/ขวาตรงกัน)
 //   แต่ละกล่องยังมีสี/ขอบของตัวเอง — ผู้ใช้: "ติดกันแต่ไม่รวมกัน" · รูปหกเหลี่ยมเกยทับทั้งแท่ง
 //  รายการสถานะอยู่ในลิ้นชักซ้าย (HudStatusDrawer)
-export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, statuses = [], rawStatuses }) {
+export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, gold = null, goldMax = 0, statuses = [], rawStatuses }) {
   const [openKey, setOpenKey] = useState(null);
   const { res } = splitEntries(statuses, rawStatuses);
   const toggle = (k) => setOpenKey((o) => (o === k ? null : k));
@@ -132,6 +173,7 @@ export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, t
             </span>
             <span className="hud-sp-num">{sp}<span>/{spMax}</span></span>
           </section>
+          {gold != null && <GoldStrip gold={gold} goldMax={goldMax} />}
           {res.map((it) => (
             <ResourceRow key={it.key} it={it} open={openKey === it.key} onToggle={() => toggle(it.key)} />
           ))}
@@ -323,7 +365,7 @@ export function HudRight({ extras, bagCount = 0, onBag, gold = 0, onShop, skills
         <button type="button" className="hud-shop" onClick={onShop}>
           <ShopIcon />
           <span>ร้านค้า</span>
-          <span className="hud-shop-gold"><span className="hud-coin" aria-hidden="true">฿</span>{gold}</span>
+          <span className="hud-shop-gold"><CoinIcon size={20} />{gold}</span>
         </button>
       </div>
       <div className="hud-skills">{skills}</div>
@@ -426,18 +468,49 @@ function MoonIcon() {
     </svg>
   );
 }
-export function HudTopBar({ night, round, timer, journey, onJourney, zoom = 1 }) {
-  if (round == null && !journey) return null;
+// ห่วงเวลาซีโร่ (zero.active): แทนป้ายภูมิภาค — ผนึก 4 อัน (ชมพู = ยังอยู่) · บัฟสะสม · ท่าไม้ตายล็อก · กดไม่ได้
+function ZeroChip({ zero }) {
+  const seals = Array.isArray(zero.seals) ? [...zero.seals].sort((a, b) => a.i - b.i) : [];
+  const bp = zero.buffPhase || 0;
   return (
-    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }}>
-      <span className="hud-top-cycle" title={night ? "กลางคืน" : "กลางวัน"}>{night ? <MoonIcon /> : <SunIcon />}</span>
+    <div className="hud-top-region hud-top-zero">
+      <span className="hud-top-gem hud-zero-gem"><span>0</span></span>
+      <span className="hud-top-text">
+        <span className="hud-top-name">ห่วงเวลาซีโร่</span>
+        <span className="hud-top-sub">เฟส {zero.stage}</span>
+      </span>
+      <span className="hud-zero-info">
+        <span className="hud-zero-seals">
+          {seals.map((s) => <i key={s.i} data-on={s.broken ? "false" : "true"} />)}
+        </span>
+        <span className="hud-zero-buffs">
+          {bp >= 1 && <span><ZeroIcon name="skill" /><b>+1</b></span>}
+          {bp >= 2 && <span><ZeroIcon name="coin" /><b>+1</b></span>}
+          {zero.atk > 0 && <span><ZeroIcon name="sword" /><b>+{zero.atk}</b></span>}
+          <span className="hud-zero-lock"><ZeroIcon name="lock" /></span>
+        </span>
+      </span>
+    </div>
+  );
+}
+export function HudTopBar({ night, round, timer, journey, onJourney, zero, zoom = 1 }) {
+  const zeroOn = !!(zero && zero.active);
+  if (round == null && !journey && !zeroOn) return null;
+  return (
+    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"}>
+      <span className="hud-top-cycle" title={zeroOn ? undefined : night ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : night ? <MoonIcon /> : <SunIcon />}</span>
       {round != null && (
         <>
           <span className="hud-top-round"><span className="hud-top-k">รอบที่</span><span className="hud-top-n">{round}</span></span>
           {timer}
         </>
       )}
-      {journey && (
+      {zeroOn ? (
+        <>
+          {round != null && <span className="hud-top-div" aria-hidden="true" />}
+          <ZeroChip zero={zero} />
+        </>
+      ) : journey && (
         <>
           {round != null && <span className="hud-top-div" aria-hidden="true" />}
           <button type="button" className="hud-top-region" onClick={onJourney} title="ผลของภูมิภาคนี้">

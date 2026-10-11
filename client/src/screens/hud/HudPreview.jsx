@@ -148,6 +148,8 @@ export default function HudPreview() {
                 rawStatuses={raw}
                 sp={5}
                 spMax={num("spmax", 8)}
+                gold={num("gold", 12)}
+                goldMax={num("goldmax", 30)}
               />
             }
             drawer={

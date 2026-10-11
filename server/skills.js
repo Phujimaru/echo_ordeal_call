@@ -21,6 +21,8 @@ const action = require("./phases/action");
 const lobby = require("./lobby");
 const view = require("./view");
 const Visibility = require("./visibility");
+const timers = require("./timers");
+const Zero = require("./zeroTime");
 
 function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
@@ -33,6 +35,7 @@ function useSkill(id, tier, targets, opts = {}) {
   const skill = ch && ch[tier];
   if (!skill) return;
   if ((p.statuses.noskill || 0) > 0) return; // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้
+  if (tier === "ultimate" && Zero.ultLocked()) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก
 
   const hook = CHAR_HOOKS[p.characterId];
   // ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน) — ต้องตรงกับ showCost() ใน buildStateFor
@@ -59,6 +62,8 @@ function useSkill(id, tier, targets, opts = {}) {
   const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area) : skill.area;
   targets = action.resolveArea(p, area, targets, opts.dir);
   if (!targets) return;
+  // ห่วงเวลาซีโร่: สกิลโจมตีพื้นที่ที่คลุมผนึกมิโกะ = ลงผนึกด้วย (หลังผลของสกิล)
+  const sealTiles = area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir) : [];
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
   if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets)) return;
@@ -116,6 +121,7 @@ function useSkill(id, tier, targets, opts = {}) {
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
   if ((targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
   if (area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
+  if (sealTiles.length) deferred.push(() => Zero.hitSealsInArea(p, sealTiles));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
   combat.applyEffect(p, skill.effect);
@@ -133,5 +139,18 @@ function useSkill(id, tier, targets, opts = {}) {
   if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }
   runDeferred();
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
+  // ห่วงเวลาซีโร่: สกิลทุบผนึกแตก = ฉากผนึกแตก/ปลดผนึก แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
+  if (Zero.hasPendingBreak()) {
+    const remain = Math.max(3, match.timeLeft);
+    Zero.runPendingBreak(() => {
+      if (endTurnPhase.gameOver()) return;
+      const actor = match.players[match.actorId];
+      if (!actor || !actor.alive) { action.finishActor(); return; }
+      match.gameState = "ACTION";
+      timers.startPhaseTimer(remain, action.finishActor);
+      view.broadcastState();
+    });
+    return;
+  }
   view.broadcastState();
 }

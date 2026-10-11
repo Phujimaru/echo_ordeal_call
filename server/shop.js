@@ -26,6 +26,7 @@ const cutscene = require("./cutscene");
 const timers = require("./timers");
 const view = require("./view");
 const Visibility = require("./visibility");
+const Zero = require("./zeroTime");
 
 // เพดานเหรียญรายบุคคล
 function goldCapOf(p) {
@@ -139,12 +140,12 @@ function journeyGiftItem() {
 // ร้านตั้งอยู่ SHOP_INTERVAL_TURNS เทิร์น แล้วย้ายไปจุดร้านค้าอื่นแบบสุ่ม (ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) พร้อมสุ่มของใหม่
 //  ยังไม่มีที่ตั้ง = เริ่มเกม / เพิ่งเปลี่ยนภูมิภาค (placeOnBoard ล้าง shopPos) → ตั้งทันทีตอนต้นเทิร์น
 function shopDue() {
-  return !match.shopPos || match.roundNumber - match.shopOpenedRound >= SHOP_INTERVAL_TURNS;
+  return !match.shopPos || Zero.worldRound() - match.shopOpenedRound >= SHOP_INTERVAL_TURNS;
 }
 function relocateShop() {
   const prev = match.shopPos;
   match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits(), prev);
-  match.shopOpenedRound = match.roundNumber;
+  match.shopOpenedRound = Zero.worldRound(); // เวลาโลก (ห่วงเวลาซีโร่ไม่นับ)
   openShop();
 }
 // ต้นเทิร์น (dealRound): ครบกำหนดย้าย = ย้าย + ของใหม่ · ไม่งั้นแค่คิดผลของภูมิภาคต่อร้านใหม่ตามช่วงเวลา
@@ -154,7 +155,7 @@ function maybeMoveShop() {
 }
 // อีกกี่เทิร์นร้านย้าย (นับเทิร์นนี้ด้วย — 1 = เทิร์นสุดท้ายที่จุดนี้)
 function shopTurnsLeft() {
-  return match.shopPos ? Math.max(1, match.shopOpenedRound + SHOP_INTERVAL_TURNS - match.roundNumber) : 0;
+  return match.shopPos ? Math.max(1, match.shopOpenedRound + SHOP_INTERVAL_TURNS - Zero.worldRound()) : 0;
 }
 
 // ---------- กระเป๋า 5 ช่อง ----------

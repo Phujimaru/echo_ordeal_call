@@ -14,10 +14,11 @@
 //   rotation    0|1|2|3 = หมุนมุมมองทีละ 90° ตามเข็มนาฬิกา (ค่าเริ่ม 0) — หมุนแค่ภาพ ทุก prop และคอลแบ็กยังเป็นพิกัดกระดานเดิม
 //               เปลี่ยนค่า = หมุนนุ่มๆ ≈250ms (lowQ = ทันที) · กล้องจัดกลาง/ย่อพอดีจาก map.cols × map.rows หลังหมุนเอง
 //               (กระดานจัตุรัส เช่น 14 × 14 = ทุกมุมกรอบเท่ากัน) · มุมใกล้ = หมุนรอบจุดกลางของส่วนที่มองเห็น
-//   zoom        0 = มุมปกติ (เห็นทั้งกระดาน) · 1 = มุมใกล้ (ขยาย ZOOM_K = 1.6 เท่า · มองจากด้านบน ZOOM_K_TOP = 2.6 เท่า เลื่อนดูได้ทั้งสนาม) — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
+//   zoom        ระดับซูม 0..ZOOM_STEPS−1 (ผู้ใช้สั่ง 2026-10-11 — เดิมมีแค่ย่อสุด/ซูมสุด): 0 = เห็นทั้งกระดาน · ยิ่งมากยิ่งใกล้
+//               (ตัวคูณต่อระดับ ZOOM_LEVELS — มุมบนขยายมากกว่าเพราะช่องเล็กกว่า) · เลื่อนดูได้ทั้งสนามเมื่อ > 0 — เปลี่ยน = ซูมนุ่มๆ (lowQ = ทันที)
 //   view        "tilt" (ค่าเริ่ม · กล้องเอียง 32°) | "top" = มองจากด้านบน 90° — แยกจากซูม: มุมบนก็ซูม/เลื่อน/หมุนได้เหมือนเดิม
 //               มุมใกล้: ลากเมาส์ซ้ายบนกระดาน (เกิน 6px = ลาก ไม่นับเป็นคลิก) / ลากปุ่มขวา-กลาง / แตะลาก / ปุ่มลูกศร = เลื่อนกล้อง
-//   onZoomChange(0|1)  ล้อเมาส์ขึ้น = 1 (ซูมเข้าหาจุดใต้เมาส์) · ลง = 0 — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
+//   onZoomChange(level)  ล้อเมาส์ขึ้น = ใกล้ขึ้น 1 ระดับ (ซูมเข้าหาจุดใต้เมาส์) · ลง = ไกลขึ้น 1 ระดับ — ไม่ส่งมา = ล้อเมาส์ไม่ทำอะไร (zoom เป็น prop ควบคุมจากแม่)
 //   focus       {x,y} — เปลี่ยนอ็อบเจกต์ = ถ้าช่องนั้นอยู่นอกส่วนที่มองเห็น (มุมใกล้) เลื่อนกล้องนุ่มๆ ไปให้อยู่กลาง ·
 //               ใช้เป็นจุดกลางตอนกดซูมเข้าด้วยปุ่มด้วย (ซูมด้วยล้อ = จุดใต้เมาส์) · มุมปกติไม่มีผล
 //   shopLabel   string|number|null — ป้าย "🏪 N" เหนือแผงร้าน (วาดในแคนวาส ตามซูม/เลื่อน/หมุนเอง)
@@ -31,6 +32,9 @@
 //   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
 //               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
+//   zero        state.zero (ห่วงเวลาซีโร่: { stage, seals, pickups }) — ผนึก/โซ่/ของฟื้นพลังชีวิตบนสนาม area 8–11
+//   zeroScene   { seq, mode: "enter"|"break"|"release", stage, seal } | null — seq ใหม่ = เล่นฉากเปลี่ยนผ่าน:
+//               จับภาพเฟรมล่าสุดไว้ (สนามเดิม) แล้วเผยเฟรมใหม่ใต้คลื่น (เข้า/เปลี่ยนเฟส) หรือแตกเป็นเศษกระจก (ปลดผนึก) — zeroTheme.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
 //   ป้ายที่ต้องเกาะช่องให้วาดในแคนวาสแทน (เช่น shopLabel)
@@ -39,12 +43,18 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
-  setCamera, toLogical, unproject, ZOOM_K,
+  setCamera, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
+import {
+  easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
+} from "./zeroTheme";
 // ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
-import { PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
+import { P as projectZ, PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
+
+// ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
+const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
 
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
@@ -59,14 +69,70 @@ const CINEMA_MS = 520; // กล้องฉากตี ซูมเข้า/�
 const TURN_MS = 250;   // หมุนมุมมอง 90°
 const ZOOM_MS = 280;   // ซูมเข้า/ออก
 const FOCUS_MS = 420;  // เลื่อนกล้องตามตัวละคร
-// มองจากด้านบน: ช่องเล็กกว่ามุมเอียง (~33 px ตรรกะ ทุกแถว เทียบมุมเอียงกลางกระดาน ~44 px) → มุมใกล้ต้องขยายมากกว่า (ผู้ใช้สั่ง 2026-10-09)
-const ZOOM_K_TOP = 2.6;
-const zoomKOf = (pitch) => (pitch === PITCH_BIRD ? ZOOM_K_TOP : ZOOM_K);
+// มองจากด้านบน: ช่องเล็กกว่ามุมเอียง (~33 px ตรรกะ ทุกแถว เทียบมุมเอียงกลางกระดาน ~44 px) → ตัวคูณแต่ละระดับมากกว่า (ZOOM_LEVELS.top ใน boardDraw.js)
+const zoomKOf = (pitch, lv) => (pitch === PITCH_BIRD ? ZOOM_LEVELS.top : ZOOM_LEVELS.tilt)[clampZoom(lv)];
+const ZOOM_WHEEL_GAP = 130; // ล้อเมาส์/ทัชแพดยิงถี่ — ขยับได้ระดับละครั้งต่อช่วงนี้ (ms)
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+
+// ฉากห่วงเวลาซีโร่ (zs = { mode, stage, seal, t0, snap }) — zb = เฟรมใหม่ · snap = ภาพนิ่งสนามเดิม
+//  enter   0–0.8s เวลาหยุด (สีจาง) · 0.8s ลำแสงกลางสนาม · 1.8–3.4s คลื่นกลืนสนาม → เผยห่วงเวลา (โซ่/ผนึกค่อยๆ โผล่ — enterAnim)
+//  break   คลื่นจากผนึกที่แตก 0.8–2.1s → สนามระดับใหม่
+//  release รอยร้าวทั้งจอจากผนึกสุดท้าย → แสงวาบ 1.45s → ห่วงเวลาแตกเป็นเศษกระจกร่วง เผยสนามเดิม
+function drawZeroScene(g, zs, zb, view, dpr, info, lowQ, now) {
+  const t = (now - zs.t0) / 1000;
+  const L = () => g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
+  const I = () => g.setTransform(1, 0, 0, 1, 0, 0);
+  const cx = info.cols / 2, cy = info.rows / 2;
+  const [sxC, syC] = ZERO_CORNERS[zs.seal] || ZERO_CORNERS[0];
+  const reveal = (ox, oy, r) => {
+    if (r <= 0) return;
+    g.save(); L(); zeroWavePath(g, ox, oy, r, info.rows); g.clip(); I(); g.drawImage(zb, 0, 0); g.restore();
+  };
+  g.save();
+  if (zs.mode === "enter") {
+    I();
+    const gray = segT(t, 0, 0.8);
+    if (!lowQ && "filter" in g) g.filter = `grayscale(${gray}) brightness(${1 - 0.12 * gray})`;
+    g.drawImage(zs.snap, 0, 0);
+    g.filter = "none";
+    const r = 15 * easeInOut(segT(t, 1.8, 3.4));
+    reveal(cx, cy, r);
+    L();
+    zeroWaveRing(g, cx, cy, r, r > 0 ? 1 - segT(t, 3.0, 3.5) : 0, "255,140,210");
+    zeroBeam(g, cx, cy, 1 - Math.pow(1 - segT(t, 0.8, 1.5), 3), segT(t, 1.5, 1.9) * (1 - segT(t, 3.0, 3.6)), segT(t, 0.8, 0.9) * (1 - segT(t, 3.2, 3.8)));
+  } else if (zs.mode === "break") {
+    I(); g.drawImage(zs.snap, 0, 0);
+    const r = 24 * easeInOut(segT(t, 0.8, 2.1));
+    reveal(sxC + 0.5, syC + 0.5, r);
+    L(); zeroWaveRing(g, sxC + 0.5, syC + 0.5, r, r > 0 ? 1 - segT(t, 1.8, 2.2) : 0, zeroAccent(zs.stage));
+  } else {
+    // release: ภาพนิ่ง (ห่วงเวลา) ใช้กล้องของผนึกสุดท้ายเดิม — แผนที่ 14×14 เท่ากันทุกภูมิภาค
+    const [ox, oy] = projectZ(sxC + 0.5, syC + 0.5, SEAL_Z);
+    if (t < 1.45) {
+      I(); g.drawImage(zs.snap, 0, 0);
+      L(); zeroCracks(g, ox, oy, 1 - Math.pow(1 - segT(t, 0.9, 1.42), 3));
+    } else {
+      I(); g.drawImage(zb, 0, 0);
+      L();
+      if (!zs.shards) {
+        // ภาพนิ่ง + รอยร้าวเต็ม ณ ตอนแตก
+        const c2 = document.createElement("canvas"); c2.width = zs.snap.width; c2.height = zs.snap.height;
+        const x2 = c2.getContext("2d"); x2.drawImage(zs.snap, 0, 0);
+        x2.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy); zeroCracks(x2, ox, oy, 1);
+        zs.img = c2; zs.shards = makeShards(view, ox, oy);
+      }
+      if (!lowQ) drawShards(g, zs.shards, zs.img, view, t - 1.45);
+    }
+    const f = Math.max(0, 1 - Math.abs(t - 1.45) / 0.45);
+    if (f > 0) { I(); g.fillStyle = `rgba(255,240,250,${f})`; g.fillRect(0, 0, zb.width, zb.height); }
+  }
+  g.restore();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+}
 
 // ตำแหน่งระหว่างเล่นแอนิเมชัน → { x, y, ox, oy, done, hitAt? }
 function animPose(a, t) {
@@ -123,7 +189,7 @@ export default function BoardCanvas(props) {
   if (S.current === null) {
     S.current = {
       size: { w: 0, h: 0 }, mapRef: undefined, sig: "", info: null,
-      scenes: new Map(),     // key → { scene, fore, marks } (เก็บไม่เกิน 3)
+      scenes: new Map(),     // key → { scene, fore, marks } (เก็บไม่เกิน 6 — ห่วงเวลาซีโร่ 4 ระดับ + สนามเดิมที่ต้องกลับไป)
       rotTarget: null, turn: 0, turnFrom: 0, turnTo: 0, turnT0: 0, // มุมมอง (หน่วย 90° ต่อเนื่อง)
       hlRef: undefined, hl: prepareHighlights(null),
       anim: null,            // { obj, t0, startX, startY, done, hit }
@@ -131,7 +197,7 @@ export default function BoardCanvas(props) {
       hitT: new Map(),       // id → เวลาโดนตี (สั่น/แฟลช)
       grow: new Map(),       // id → { t0, from, to } กำลังเปลี่ยนขนาด (Echo ขยายร่าง)
       hover: null, hoverUnit: null, boxes: [], view: null, base: null, lastDraw: 0, lastT: 0,
-      boards: new Map(),     // key → ชั้นกระดานอบแล้ว (เก็บไม่เกิน 2 — ปกติ/มุมใกล้)
+      boards: new Map(),     // key → ชั้นกระดานอบแล้ว (เก็บไม่เกิน 6 — ปกติ/มุมใกล้ · ห่วงเวลาซีโร่ 4 ระดับ + สนามเดิม)
       // กล้อง: cam = { z, cx, cy } ตอนนี้ · zoomLv = prop zoom ล่าสุด · camAnim = เลื่อน/ซูมนุ่มๆ · pivot = จุดบนกระดานที่หมุนรอบ
       cam: { z: 1, cx: LW / 2, cy: LH / 2 }, zoomLv: null, camAnim: null, pivot: null,
       zoomAnchor: null, focusRef: undefined, keys: new Set(), drag: null, suppressClick: false,
@@ -230,7 +296,7 @@ export default function BoardCanvas(props) {
         st.camAnim = { from: { ...st.cam }, to, t0: now, dur };
       };
       const focusPt = (f) => (f && Number.isFinite(f.x) && Number.isFinite(f.y) ? project(f.x + 0.5, f.y + 0.5) : null);
-      const zl = p.zoom === 1 ? 1 : 0;
+      const zl = clampZoom(p.zoom);
       // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
       const cin = p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
       if (cin !== st.cinemaRef) {
@@ -242,16 +308,16 @@ export default function BoardCanvas(props) {
           const z = Math.max(1, cin.z || 2);
           startAnim(clampCam(info, base, { z, cx: (ax + bx) / 2, cy: (ay + by) / 2 - 18 / z }), CINEMA_MS);
         } else if (st.cinemaBack) {
-          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: zoomKOf(pitch), cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
+          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: zoomKOf(pitch, zl), cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
           st.cinemaBack = null; st.zoomLv = zl;
           startAnim(clampCam(info, base, back), CINEMA_MS);
         }
       }
       if (st.cinemaRef) { st.focusRef = p.focus; }
-      else if (zl && st.zoomLv === 1 && st.zoomPitch !== pitch) {
+      else if (zl && st.zoomLv === zl && st.zoomPitch !== pitch) {
         // สลับมุมมองระหว่างมุมใกล้: คงจุดกลางไว้ ปรับขนาดขยายตามมุมใหม่
         st.zoomPitch = pitch;
-        startAnim(clampCam(info, base, { z: zoomKOf(pitch), cx: st.cam.cx, cy: st.cam.cy }), ZOOM_MS);
+        startAnim(clampCam(info, base, { z: zoomKOf(pitch, zl), cx: st.cam.cx, cy: st.cam.cy }), ZOOM_MS);
       }
       else if (zl !== st.zoomLv) {
         const first = st.zoomLv === null;
@@ -259,13 +325,15 @@ export default function BoardCanvas(props) {
         st.zoomPitch = pitch;
         let to;
         if (zl) {
-          const z1 = zoomKOf(pitch), a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
+          const z1 = zoomKOf(pitch, zl), a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
+          const from = st.camAnim ? st.camAnim.to : st.cam;
           if (a) {
             // ล้อเมาส์: จุดใต้เมาส์อยู่ที่เดิมบนจอ
-            const r = st.cam.z / z1;
-            to = { z: z1, cx: a.lx - r * (a.lx - st.cam.cx), cy: a.ly - r * (a.ly - st.cam.cy) };
-          } else if (fp) to = { z: z1, ...camFromEye(base, z1, fp[0], fp[1]) };
-          else to = { z: z1, cx: st.cam.cx, cy: st.cam.cy };
+            const r = from.z / z1;
+            to = { z: z1, cx: a.lx - r * (a.lx - from.cx), cy: a.ly - r * (a.ly - from.cy) };
+          } else if (from.z > 1.001) to = { z: z1, cx: from.cx, cy: from.cy }; // เปลี่ยนระดับระหว่างซูมอยู่ = คงจุดกลางเดิม
+          else if (fp) to = { z: z1, ...camFromEye(base, z1, fp[0], fp[1]) };
+          else to = { z: z1, cx: from.cx, cy: from.cy };
         } else to = { z: 1, cx: LW / 2, cy: LH / 2 };
         st.zoomAnchor = null; st.pivot = null;
         to = clampCam(info, base, to);
@@ -298,7 +366,8 @@ export default function BoardCanvas(props) {
       const view = st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base;
       st.view = view;
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
-      const res = lowQ || !zl ? dpr : Math.round(Math.min(2, dpr * zoomKOf(pitch)) * 100) / 100;
+      //  ทุกระดับที่ซูมอยู่ใช้ชั้นอบความละเอียดเดียว (ของระดับสูงสุด) — เปลี่ยนระดับไม่ต้องอบใหม่
+      const res = lowQ || !zl ? dpr : Math.round(Math.min(2, dpr * zoomKOf(pitch, ZOOM_STEPS - 1)) * 100) / 100;
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
@@ -307,7 +376,7 @@ export default function BoardCanvas(props) {
         if (!sc) {
           sc = bakeScene(info, base, res, night, lowQ, par);
           st.scenes.set(sk, sc);
-          if (st.scenes.size > 4) st.scenes.delete(st.scenes.keys().next().value);
+          if (st.scenes.size > 6) st.scenes.delete(st.scenes.keys().next().value);
           if (turning) st.turnT0 = performance.now() - (now - st.turnT0); // ไม่นับเวลาอบเข้าไปในแอนิเมชัน
         }
         return sc;
@@ -321,7 +390,7 @@ export default function BoardCanvas(props) {
         if (!boardCv) {
           boardCv = bakeBoard(info, base, res, night, normRot(st.turn));
           st.boards.set(bk, boardCv);
-          if (st.boards.size > 2) st.boards.delete(st.boards.keys().next().value);
+          if (st.boards.size > 6) st.boards.delete(st.boards.keys().next().value);
         }
       }
       const tB = performance.now() - tB0;
@@ -428,11 +497,34 @@ export default function BoardCanvas(props) {
         });
       }
 
+      // --- ฉากห่วงเวลาซีโร่: seq ใหม่ = จับภาพเฟรมล่าสุด (สนามก่อนเปลี่ยน) ไว้ก่อนวาดเฟรมใหม่
+      const zsP = p.zeroScene && p.zeroScene.seq != null ? p.zeroScene : null;
+      if (zsP && zsP.seq !== st.zsSeq) {
+        st.zsSeq = zsP.seq;
+        const snap = document.createElement("canvas");
+        snap.width = cv.width; snap.height = cv.height;
+        if (cv.width > 1 && cv.height > 1) snap.getContext("2d").drawImage(cv, 0, 0);
+        st.zs = { mode: zsP.mode, stage: zsP.stage || 1, seal: zsP.seal | 0, t0: now, snap, shards: null };
+      }
+      const zs = st.zs && now - st.zs.t0 < (ZERO_SCENE_MS[st.zs.mode] || 0) ? st.zs : null;
+      if (!zs && st.zs) st.zs = null;
+      const zeroAnim = zs && zs.mode === "enter" ? enterAnim(now - zs.t0) : null;
+
       if (paused) return;
-      st.boxes = drawFrame(g, {
+      const frame = (target) => drawFrame(target, {
         info, view, dpr, bake, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT,
       }, now);
+      if (!zs) st.boxes = frame(g);
+      else {
+        // เฟรมใหม่วาดลงชั้นแยก แล้วประกอบกับภาพนิ่งของสนามเดิมตามจังหวะฉาก
+        if (!st.zbuf) st.zbuf = document.createElement("canvas");
+        const zb = st.zbuf;
+        if (zb.width !== cv.width || zb.height !== cv.height) { zb.width = cv.width; zb.height = cv.height; }
+        st.boxes = frame(zb.getContext("2d"));
+        drawZeroScene(g, zs, zb, view, dpr, info, lowQ, now);
+      }
       // กล้องขยับ (ซูม/เลื่อน/หมุน) ใต้เมาส์ที่อยู่นิ่ง → ช่องที่ชี้เปลี่ยน
       const vs = `${view.k}|${view.ox}|${view.oy}|${st.turn}`;
       if (vs !== st.viewSig) { st.viewSig = vs; if (st.refreshHover) st.refreshHover(); }
@@ -444,10 +536,13 @@ export default function BoardCanvas(props) {
       const pp = propsRef.current, cb = pp.onZoomChange;
       if (typeof cb !== "function" || e.ctrlKey || !e.deltaY) return;
       e.preventDefault();
-      const cur = pp.zoom === 1 ? 1 : 0;
-      const want = e.deltaY < 0 ? 1 : 0;
+      const cur = clampZoom(pp.zoom);
+      const want = clampZoom(cur + (e.deltaY < 0 ? 1 : -1));
       if (want === cur) return;
-      if (want === 1 && st.view) {
+      const tNow = performance.now();
+      if (st.wheelAt && tNow - st.wheelAt < ZOOM_WHEEL_GAP) return;
+      st.wheelAt = tNow;
+      if (want > 0 && st.view) {
         const r = cv.getBoundingClientRect(), [lx, ly] = toLogical(st.view, e.clientX - r.left, e.clientY - r.top);
         st.zoomAnchor = { lx, ly, t: performance.now() };
       }
@@ -457,7 +552,7 @@ export default function BoardCanvas(props) {
     // ปุ่มลูกศร = เลื่อนกล้อง (มุมใกล้เท่านั้น · ค้างไว้ = เลื่อนต่อเนื่อง)
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKeyDown = (e) => {
-      if (!ARROWS[e.code] || propsRef.current.zoom !== 1 || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!ARROWS[e.code] || !(clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด
       if (!e.repeat && !st.keys.has(e.code)) {
@@ -491,6 +586,15 @@ export default function BoardCanvas(props) {
     let unit = null;
     for (const b of st.boxes) { if (lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1) { unit = units.find((u) => u.id === b.id) || null; if (unit) break; } }
     let tile = pickTile(st.info, lx, ly);
+    // ห่วงเวลาซีโร่: กดที่ตัวผนึก (ลอยเหนือแท่น) = ช่องของผนึกนั้น
+    const zp = propsRef.current.zero;
+    if (!unit && zp && Array.isArray(zp.seals)) {
+      for (const sl of zp.seals) {
+        if (sl.broken) continue;
+        const [sx, sy, s] = projectZ(sl.x + 0.5, sl.y + 0.5, SEAL_Z);
+        if (Math.hypot(lx - sx, ly - sy) < s * 1.1) { tile = { x: sl.x, y: sl.y }; break; }
+      }
+    }
     if (tile) {
       // กล่องรูปตัวหมากสูงทับ 1–2 ช่องด้านหลัง: คนที่ยืนบนช่องใต้เมาส์ชนะเสมอ ·
       //  ช่องว่างที่กดได้ (เดิน/สกิล/ตีหมู่) ชนะกล่องของตัวที่ยืนช่องอื่น — ไม่งั้นเดินถอยไปทางหลังตัวเองไม่ได้
@@ -515,7 +619,7 @@ export default function BoardCanvas(props) {
   const onPointerDown = (e) => {
     const st = S.current;
     st.suppressClick = false;
-    if (propsRef.current.zoom !== 1 || e.button > 2) return;
+    if (!(clampZoom(propsRef.current.zoom) > 0) || e.button > 2) return;
     if (e.button === 1) e.preventDefault(); // กันเมาส์กลางเลื่อนหน้าอัตโนมัติ
     st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button };
     try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
@@ -533,7 +637,7 @@ export default function BoardCanvas(props) {
     setHover(tile, unit ? unit.id : null);
     const p = propsRef.current, hl = st.hl, k = tile ? key(tile.x, tile.y) : null;
     const hot = !!unit || (k && (hl.move.has(k) || hl.attack.has(k) || hl.skill.has(k) || hl.aoe.has(k)));
-    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : p.zoom === 1 ? "grab" : "default";
+    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : clampZoom(p.zoom) > 0 ? "grab" : "default";
   };
   useLayoutEffect(() => {
     S.current.refreshHover = () => { const st = S.current; if (st.ptr && !(st.drag && st.drag.moved)) hoverAt(st.ptr); };
@@ -567,7 +671,7 @@ export default function BoardCanvas(props) {
     <div ref={wrapRef} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas
         ref={cvRef}
-        style={{ display: "block", width: "100%", height: "100%", touchAction: props.zoom === 1 ? "none" : "manipulation" }}
+        style={{ display: "block", width: "100%", height: "100%", touchAction: clampZoom(props.zoom) > 0 ? "none" : "manipulation" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

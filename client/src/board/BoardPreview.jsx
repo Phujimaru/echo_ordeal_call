@@ -15,8 +15,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
 import { MAPS } from "./boardRules";
 
-const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก" };
-const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
+const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "Z1", "Z2", "Z3", "Z4"];
 const SPECIAL_NAMES = {
   flowers: "พุ่มดอกไม้สูง", forest: "ป่าทึบ", thorns: "หนามพิษ", shallow: "น้ำตื้น", whirl: "น้ำวน", quicksand: "ทรายดูด",
   ice: "น้ำแข็งลื่น", lava: "ลาวา", power: "แท่นพลัง",
@@ -182,13 +182,13 @@ const btn = (on) => ({
 });
 
 export default function BoardPreview() {
-  const [area, setAreaState] = useState(() => qInt("area", 1, 7, 1));
+  const [area, setAreaState] = useState(() => qInt("area", 1, 11, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
-  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 7, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 11, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;
@@ -350,7 +350,7 @@ export default function BoardPreview() {
     for (const [k, v] of Object.entries(extra)) { if (v) q.set(k, "1"); else q.delete(k); }
     history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
   };
-  const changeZoom = (z) => { setZoom(z); syncUrl(area, rotation, night, { zoom: z }); };
+  const changeZoom = (z) => { const v = z > 0 ? 1 : 0; setZoom(v); syncUrl(area, rotation, night, { zoom: v }); };
   const toggleSq = () => {
     const v = !sq, m = mapFor(area, v);
     setSq(v); setAnim(null); after.current = null; setMode("move");
@@ -372,6 +372,21 @@ export default function BoardPreview() {
     map.heal.includes(key(hover.x, hover.y)) && (area === 5 ? "โอเอซิส (ฟื้นฟู)" : "จุดฟื้นฟู"),
   ].filter(Boolean).join(" · ") : "";
 
+  // ห่วงเวลาซีโร่ (area 8–11): ผนึก 4 มุม (ระดับ N = แตกไป N−1 อัน) + ของฟื้นพลังชีวิต 1 ชิ้น
+  //  คอนโซล: window.__zeroScene("enter" | "break" | "release", ผนึก 0–3) · window.__zeroBolt() = ฟ้าผ่า 3 จุด
+  const zeroStage = area >= 8 ? area - 7 : 0;
+  const zeroMock = useMemo(() => (zeroStage ? {
+    active: true, stage: zeroStage,
+    seals: [[0, 0], [13, 0], [13, 13], [0, 13]].map(([x, y], i) => ({ i, x, y, hp: i === 3 ? 2 : 3, armor: i === 3 ? 0 : 2, maxHp: 3, maxArmor: 2, broken: i < zeroStage - 1 })),
+    pickups: [{ x: 7, y: 11 }],
+  } : null), [zeroStage]);
+  const [zeroScene, setZeroScene] = useState(null);
+  useEffect(() => {
+    window.__zeroScene = (mode = "enter", seal = 0) => setZeroScene((z) => ({ seq: (z ? z.seq : 0) + 1, mode, stage: zeroStage || 1, seal }));
+    window.__zeroBolt = () => setFx((f) => [...f, { key: "bolt" + Date.now(), kind: "zeroBolt", tiles: [{ x: 3, y: 4 }, { x: 8, y: 9 }, { x: 11, y: 2 }] }]);
+    return () => { delete window.__zeroScene; delete window.__zeroBolt; };
+  }, [zeroStage]);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
       <BoardCanvas
@@ -380,7 +395,7 @@ export default function BoardPreview() {
         highlights={highlights}
         shopPos={M.shop}
         rotation={rotation}
-        zoom={zoom === 1 ? 1 : 0} view={zoom === 2 ? "top" : "tilt"}
+        zoom={zoom === 1 ? 2 : 0} view={zoom === 2 ? "top" : "tilt"}
         onZoomChange={changeZoom}
         focus={focus}
         shopLabel={3}
@@ -388,13 +403,15 @@ export default function BoardPreview() {
         lowQ={lowQ}
         anim={anim}
         fx={fx}
+        zero={zeroMock}
+        zeroScene={zeroScene}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
       />
       <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 760 }}>
-        {[1, 2, 3, 4, 5, 6, 7].map((a) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((a) => (
           <button key={a} style={btn(area === a)} title={AREA_NAMES[a]} onClick={() => setArea(a)}>{ROMAN[a]}</button>
         ))}
         <span style={{ width: 8 }} />

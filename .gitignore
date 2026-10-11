@@ -25,3 +25,6 @@ client/public/journey/
 desktop/dist/
 desktop/build/
 .claude/worktrees/
+
+# เพลงห่วงเวลาซีโร่ 3 เฟส — เก็บบน R2 เหมือนสื่ออื่น
+client/public/zero_time/

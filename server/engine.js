@@ -88,6 +88,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   //  ในจังหวะที่ไม่มีพารามิเตอร์ผู้กระทำส่งมาให้ (เช่น adjustIncomingDamage) อ่านตรงนี้
   get effectSourceId() { return match.effectSourceId; },
   get roundNumber() { return match.roundNumber; },
+  // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้ — server/zeroTime.js) · ผลภูมิภาค/กลางวันกลางคืนอ่านค่านี้
+  get worldRound() { return match.roundNumber - (match.zeroFrozen || 0); },
+  zeroActive() { return !!match.zero; },
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
   get journeyArea() { return match.journeyArea; },

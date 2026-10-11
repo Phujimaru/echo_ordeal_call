@@ -10,6 +10,10 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว
   //  เพลงประจำภูมิภาคใหม่จึงเริ่มตั้งแต่ฉากเริ่ม (App ขยับ cycleSeq เมื่อภูมิภาค/ช่วงเวลาเปลี่ยน)
   const journey = state?.journey;
+  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เพลงตามระดับ เล่นเสมอ — เพลงท่าไม้ตาย/เพลงอื่นทับไม่ได้ (ผู้ใช้สั่ง)
+  //  ฉากปลดผนึก (zero.active = false) = กลับเพลงภูมิภาค
+  const zero = state?.zero;
+  if (zero && zero.active && isMatchPhase(phase)) return { name: `zero_${Math.min(4, Math.max(1, zero.stage || 1))}` };
   if (state?.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
   // ระบบกระดาน: ทุกคนได้ตีในตาของตัวเอง — ฉากตี (ATTACKING) ไม่สลับไปเพลงช่วงโจมตีแล้ว (สลับไปมาทุกตา = รก)
   if (isMatchPhase(phase)) {

@@ -18,6 +18,8 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LINE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 const key = (x, y) => `${x},${y}`;
+// สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้) — ผนึกมิโกะของห่วงเวลาซีโร่ (GRID_PLAN §8.2)
+const UNBREAKABLE = new Set(["seal"]);
 
 // ---------- ช่องพิเศษ (GRID_PLAN §3.1 — แนว Fire Emblem) ----------
 //  ยืน/เดินผ่านได้ทุกชนิด (ต่างจากสิ่งกีดขวาง) · ไม่มีผลกับระยะตี/สกิล
@@ -196,6 +198,25 @@ const MAPS = {
   }),
 };
 
+// ---------- ห่วงเวลาซีโร่ (GRID_PLAN §8.2) ----------
+//  สนามเฉพาะ 14×14 ไม่มีสิ่งกีดขวางอื่นนอกจากผนึกมิโกะ 4 มุม (พังไม่ได้ด้วยการเดิน/ขยายร่าง — ตีได้อย่างเดียว ที่ server/zeroTime.js)
+//  area 8–11 = ระดับ 1–4 (ผนึกแตก 0–3 อัน) ผังเดียวกัน — ต่างกันแค่หน้าตาที่ client วาด (ยิ่งใกล้ปลดผนึกยิ่งมืด)
+//  ผนึก: 0 = มุมไกลซ้าย (เหนือ) · 1 = มุมไกลขวา (ตะวันออก) · 2 = มุมใกล้ขวา (ใต้) · 3 = มุมใกล้ซ้าย (ตะวันตก)
+const ZERO_AREA = 8;
+const ZERO_STAGES = 4;
+const ZERO_SEALS = [[0, 0], [13, 0], [13, 13], [0, 13]];
+const isZeroArea = (area) => Number(area) >= ZERO_AREA && Number(area) < ZERO_AREA + ZERO_STAGES;
+for (let i = 0; i < ZERO_STAGES; i++) {
+  MAPS[ZERO_AREA + i] = buildMap({
+    area: ZERO_AREA + i,
+    name: "ห่วงเวลาซีโร่",
+    terrain: { seal: ZERO_SEALS },
+    heal: [],
+    spawns: [[4, 1], [9, 1], [1, 6], [12, 7], [3, 12], [7, 12], [10, 12]],
+    shopSpots: [],
+  });
+}
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -373,7 +394,7 @@ function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null,
   for (const t of footprint(x, y, s)) {
     const k = key(t.x, t.y);
     if (blocked && blocked.has(k)) return null;
-    if (map.terrain[k]) { if (!smash) return null; rubble = true; }
+    if (map.terrain[k]) { if (!smash || UNBREAKABLE.has(map.terrain[k])) return null; rubble = true; }
   }
   const box = { x, y, size: s };
   for (const o of units) {
@@ -437,6 +458,7 @@ function growPlan(map, unit, newSize, units, { blocked = null, smash = false } =
       if (blocked && tiles.some((t) => blocked.has(key(t.x, t.y)))) continue;
       const rubble = tiles.filter((t) => map.terrain[key(t.x, t.y)]).map((t) => key(t.x, t.y));
       if (rubble.length && !smash) continue;
+      if (rubble.some((k) => UNBREAKABLE.has(map.terrain[k]))) continue;
       const box = { x, y, size: newSize };
       const displaced = units.filter((o) => o.alive && o.id !== unit.id && dist(box, o) === 0).map((o) => o.id);
       const off = Math.abs(ox * 2 + grow) + Math.abs(oy * 2 + grow);
@@ -650,7 +672,7 @@ function normalizeMap(pub) {
 }
 
 export {
-  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO,
+  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf,

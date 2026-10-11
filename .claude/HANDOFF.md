@@ -22,7 +22,7 @@
 ### ⏳ ค้างอยู่ — Echo (อัปเดต 2026-10-11)
 **0. Echo ล็อกอยู่ (`characters.js` echo `locked: true` · ผู้ใช้สั่ง 2026-10-11)** — หน้าเลือกตัวขึ้น "ยังไม่ปลดล็อก" · server `join` ตกไปตัวแรกที่เล่นได้ · ปลดล็อกเมื่อผู้ใช้สั่งเท่านั้น (ลบบรรทัด `locked`)
 
-**1. commit + push แล้ว (2026-10-11 · ยังไม่ปล่อยเวอร์ชัน — เลขถัดไปที่เสนอ 5.6.4)**
+**1. ปล่อยใน 5.6.4 แล้ว (2026-10-11)**
 - **ท่าตีปกติของ Echo** (ผู้ใช้ตัดสิน): 1×1 = คลื่นเสียง · 2×2–3×3 = ผมฟาด · 4×4–5×5 = เป้าห่าง ≤ 2 ผมฟาด / ห่าง 3 ปาหิน
   · server: ฮุค `attackStyle(p, dist)` ใน `characters/echo.js` → `attackStyleOf` ใน `server/phases/attack.js` → การ์ดฉากตีมี `byStyle` + `bySize`
   · client: `BoardStage.jsx` (ตีจากที่ยืน ไม่พุ่งชน · `STYLE_HIT`) · `boardDraw.js` (`echoFx` / `hairFx` / `rockFx` / `impactFx`) · ต้นแบบ `.claude/plans/echo-attack-fx.html`

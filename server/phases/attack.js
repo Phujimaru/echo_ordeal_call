@@ -2,7 +2,7 @@
 //  ใครเรียกได้ตอนไหน (ตาเดิน/ระยะ) ตัดสินที่ phases/action.js — ไฟล์นี้แค่ลงผล
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  attackableTargets, attackSoundOf, computeAttackBase,
+  attackableTargets, attackSoundOf, computeAttackBase, strikeCard,
   estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, doAttack, boardAttack, gunAttack,
 });
 
@@ -23,6 +23,7 @@ const action = require("./action");
 const lobby = require("../lobby");
 const timers = require("../timers");
 const view = require("../view");
+const Zero = require("../zeroTime");
 
 function attackableTargets(atkId) {
   const attacker = match.players[atkId];
@@ -70,10 +71,13 @@ function computeAttackBase(engine, attacker, target) {
   // ช่องพิเศษ (GRID_PLAN §3.1): ยืนบนแท่นพลัง พลังโจมตี +1 — ungated ใครยืนก็ได้
   //  ตัวใหญ่ (Echo ขยายร่าง) ไม่ได้โบนัสจากช่องที่ยืน
   const terrainAtk = attacker.pos && action.sizeOf(attacker) <= 1 ? Board.terrainAtk(action.boardMap(), attacker.pos.x, attacker.pos.y) : 0;
-  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
+  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เฟส 3 +1 · เฟส 4 +2 — ทุกคน ungated
+  const zeroAtkFx = Zero.attackBonus();
+  const zeroAtk = zeroAtkFx ? zeroAtkFx.amount : 0;
+  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + zeroAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
-    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk,
+    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx,
     ...hookCtx,
   };
 }
@@ -190,7 +194,7 @@ function strike(attacker, target, { counter = false } = {}) {
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
-  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, muimiTowerAtk } = atkCtx;
+  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   let dmg = base;
@@ -237,6 +241,7 @@ function strike(attacker, target, { counter = false } = {}) {
   const defFx = (name, img = view.displayImg(target)) => addFx({ name, img, by: target.name, color: lobby.colorOf(target) }, "def");
   if (mark42Atk > 0) atkFx(`เกราะ Mark 42 +${mark42Atk}`, Mark42.IMG.suit);
   if (journeyAtkFx) atkFx(journeyAtkFx.name, null);
+  if (zeroAtkFx) atkFx(zeroAtkFx.name, null);
   if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
   for (const name of CHAR_HOOKS.oberon_summer.atkFx(attacker)) atkFx(name, CHAR_HOOKS.oberon_summer.IMG.base);
   if (journeyCritFx.crit) atkFx(`คริติคอล ×2 (${journeyCritFx.pct}%)`, null);

@@ -6,7 +6,7 @@
 >
 > **ระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาที่ผู้ใช้ตัดสินอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) · ลงครบแล้ว:
 > กระดาน + ช่องพิเศษ `server/board.js` · วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
-> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS / Mark 42 (§9) · หน้าจอกระดานฝั่ง client (§17) · **Overload Force ถอดออกแล้ว — ห้ามมี**
+> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS / Mark 42 (§9) · หน้าจอกระดานฝั่ง client (§17) · ห่วงเวลาซีโร่ (§18) · **Overload Force ถอดออกแล้ว — ห้ามมี**
 
 ---
 
@@ -42,7 +42,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `app.js` | Express + HTTP + Socket.IO (`app`, `server`, `io`), redirect ไฟล์สื่อไป R2 |
 | `mediaDirs.js` | รายชื่อโฟลเดอร์สื่อบน R2 (ใช้ร่วมกับ `app.js` และ `desktop/` ที่แคชไฟล์ในเครื่อง) |
 | `constants.js` | ค่าคงที่ทั้งหมด (`CARD_TIME`, `MAX_HP`, ราคาร้านค้า `SHOP_*`/`GUTS_*`, `CYCLE_TURNS`, `JOURNEY_*_SECONDS`, `TRANSFORMS` ฯลฯ) |
-| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `shopPos`, `journeyScene` … |
+| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `shopPos`, `journeyScene`, `zero`/`zeroUsed`/`zeroFrozen`/`zeroScene` (§18) … |
 | `engine.js` | `engine` object |
 | `lobby.js` | สี/ตำแหน่ง/จองที่นั่ง, โหวตโหมด (`modeOptionsFor`, `voteGameMode`), จัดทีม, `checkLobbyReady`, `startSoloTest`, `startMatch`, `backToLobby`, `relayLobbyEmote`, `remainingTeamWinInfo` |
 | `timers.js` | `startPhaseTimer`/`clearPhaseTimer`, `cardPhaseSeconds` (= `CARD_TIME` เสมอ) |
@@ -55,6 +55,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
+| `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
@@ -80,7 +81,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 
 ```
 LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING (จั่ว/พอ)
-      → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค)
+      → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค / ฉากเข้าห่วงเวลาซีโร่)
       → (วน PLAYING) → GAMEOVER → LOBBY
 ```
 
@@ -90,7 +91,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 | `TEAM_MODE` | โหวตโหมด ffa / duo / trio (ปุ่มเทาเมื่อจำนวนคนไม่ผ่าน `validGameMode`) · โหวตครบและมีอันดับหนึ่งเดี่ยว → `startTeamSetup` (ffa เข้า `startMatch` ทันที) · `modeBackToLobby` ถอยกลับห้องรอ | – |
 | `TEAM_SETUP` | เลือกทีม A/B/C + ยืนยัน — ทีมเต็มครบและยืนยันหมด → `startMatch()` · `teamBackToMode` ถอยกลับ | – |
 | `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
-| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` | ตาม `seconds` ของแต่ละคลิป/ฉาก |
+| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ห่วงเวลาซีโร่ `match.zeroScene` (เข้า 8.5 · ผนึกแตก 3.6 · ปลดผนึก 5 — §18) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
 | `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 6.5s (`ORDER_TIME_MS` 6500) → `nextActor` |
 | `ACTION` | ตาเดินของ `match.actorId`: เดิน 1 ครั้ง (ย้อนได้) · สกิล/ไอเทม/ซื้อของ (ทำแล้วเดินไม่ได้อีก) · โจมตีหรือ "รอ" = จบตา | `ACTION_TIME` 60s → `finishActor` |
 | `ATTACKING` | ฉากตี/ตีสวน/ถอย ของคนที่กำลังเดิน (`state.attack` = `lastAttack` มี `counter`/`push`) แล้ว `runCutsceneQueue(finishActor)` | `ATTACKFX_TIME` 3s (+2 มีป้ายสกิล · +2 มีตีสวน) |
@@ -105,12 +106,12 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 ## 3. วงจร 1 รอบ (call chain ที่ต้องจำ)
 
 ```
-dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
-                                         shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 6 เทิร์น (ไม่งั้น refreshShopForJourney)
-                                         ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ
+dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++ (ห่วงเวลาซีโร่: zeroFrozen++ ด้วย), สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
+                                         shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 6 เทิร์น (ไม่งั้น refreshShopForJourney) — ข้ามระหว่างห่วงเวลา
+                                         ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ (ห่วงเวลา = ไม่ฟื้น)
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
-                                         หลังลูป: PLAYING (+ เล่นคิวคัตซีนถ้ามี)
+                                         หลังลูป: Zero.onRoundStart() (ของฟื้นพลังชีวิต · ฟ้าผ่าเฟส 4) → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
    ↓ (ผู้เล่นกด)
 hit(id)                phases/draw.js    จั่ว 1 ใบ (เช็ค nodraw/เพดานแต้ม/โชคลาภ/สภาพชา) → checkAllLocked()
 lock(id)               phases/draw.js    "เปิดไพ่" = พร้อม — ยิง applyLockColorTriggers() ก่อนล็อก
@@ -125,10 +126,12 @@ moveTo / undoMove      phases/action.js  BFS ใน board.js (เดิน movOf
 useSkill / useInventoryItem / buyShopItem / mark42Control   ทำแล้ว lockMove(p) = เดินไม่ได้อีก
 attackTarget(id,t)     phases/action.js  เป้าในระยะ rangeOf(p) → attack.boardAttack(): strike → (เป้ารอด+ตีถึง) ตีสวน
                                          → pushback ถอย 1 ช่อง/ชน −1 → ATTACKING → runCutsceneQueue(finishActor)
-waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → nextActor()
-endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, Journey.onEndTurn, oberon_summer.onEndTurn,
+                                         · เป้า "seal:N" = Zero.attackSeal() (ฉากตี → ฉากผนึกแตก/ปลดผนึก → finishActor)
+waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → tileEndEffect → Zero.collectPickup → nextActor()
+endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, Journey.onEndTurn, Zero.onEndTurn, oberon_summer.onEndTurn,
                                          กวาดคนเลือดหมด (หายจากกระดาน) → runCutsceneQueue → gameOver() / maybeJourneyAdvance()
-                                         (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่) / TRANSITION → dealRound()
+                                         (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่) / Zero.maybeEnter() (ฉากเข้า → dealRound)
+                                         / TRANSITION → dealRound()
 ```
 
 **จุดพลาดที่เจอบ่อย**: `dealRound()` ล้าง `cutsceneQueue` ทิ้ง — โค้ดที่คิววีดีโอไว้ต้องอยู่ **หลัง** บรรทัดนั้นเสมอ
@@ -342,7 +345,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 ## 8. คัตซีน / แปลงร่าง
 
-- **เสียงฝั่ง client:** `audioPolicy.js` กำหนดลำดับคัตซีน/เสียงพากย์ → เพลงสกิล → เพลงช่วงโจมตี (`battle_phase`) → เพลงภูมิภาค ของทุกโหมด
+- **เสียงฝั่ง client:** `audioPolicy.js` กำหนดลำดับคัตซีน/เสียงพากย์ → เพลงห่วงเวลาซีโร่ (§18) → เพลงสกิล → เพลงช่วงโจมตี (`battle_phase`) → เพลงภูมิภาค ของทุกโหมด
   คัตซีนที่ถูกซ่อนจากผู้ชมไม่หยุดเพลงของผู้ชมคนนั้น · โหมดประหยัดเล่นเพลงต่อได้เมื่อข้ามวิดีโอ
   `playCutsceneVideo()` พักเพลงด้วย `suspendMusic()` จนกว่าจะออกจากคลิป และคืนเสียงหลัง autoplay บังคับปิดเสียงเมื่อผู้เล่นคลิก/กดแป้นพิมพ์
   เสียงพากย์ประกาศร่างต้องหยุดเมื่อออกจากฉาก · เสียงจบเทิร์นติดตามจาก PLAYING ผ่านคัตซีนถึง SUMMARY และเสียงโจมตีนับตาม `attack.id`
@@ -384,7 +387,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   - **ทุกการได้รับเหรียญต้องผ่าน `addGold(p, n)`** (`server/shop.js`, เปิดให้ hook ผ่าน `engine.addGold`) — จุดเดียวที่บังคับเพดานรายบุคคล
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
 - **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน (`openShop()`) ตั้งที่ `match.shopPos`
-  - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (5) นับจาก `shopOpenedRound`
+  - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (6) นับจาก `shopOpenedRound` (เวลาโลก — ห่วงเวลาซีโร่ไม่นับ)
     → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 7, 13, 19 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 7, 13, 19 … พอดี — ทั้งคู่ 6 เทิร์น)
   - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
   - ซื้อได้เมื่อ **ยืนติดร้าน** (`board.nearShop` ระยะ 1) ในตาตัวเอง · ซื้อแล้วเดินไม่ได้อีก (`lockMove`) · ซื้อหลายชิ้นได้
@@ -424,6 +427,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   กฎเดิมยังอยู่ในโค้ดเป็นค่า fallback เมื่อ `Journey.active()` เป็น false (ตอนนี้ไม่มีโหมดไหนเข้าทางนั้น):
   กลางวัน = จบเทิร์นแต้มสกิล +1 เฉพาะเช้าที่ 2, 4, 6, … (`morningBonusActive`) · กลางคืน = สุ่ม basic/secondary ของแต่ละคนแพงขึ้น +1 (`p.nightTaxTier`)
 - **เกราะฟื้น +1 ทุกเทิร์นเลขคู่** เหมือนกันทั้งวัน/คืน (บล็อกโดย `decay`) — ภูมิภาค 5-7 ฟื้นทุกเทิร์น (`Journey.armorRegenDue`)
+- **ห่วงเวลาซีโร่หยุดกลางวัน/กลางคืน** (§18): วัน/คืน · ภูมิภาค · ร้านค้า อ่าน **เวลาโลก** `Zero.worldRound()` / `engine.worldRound` (= `roundNumber − zeroFrozen`) ไม่ใช่ `roundNumber` ·
+  ระหว่างอยู่ข้างในไม่มีผลวัน/คืนเลย (`Journey.current()` = null · ไม่มีภาษีกลางคืน/แต้มเช้า/แบนเนอร์)
 - `cycleShift` = ตัวเลื่อนวงจรทั้งเกม (`engine.setCycleShift` ใช้ในเทสต์) — ถ้าจะเลื่อนวงจร **ต้องคำนวณใหม่ตรงๆ ห้ามบวกสะสม** (บวกคงที่ทำให้เกิดวันแทรกกลางคืนสั้นๆ)
 
 ### 10.1 การเดินทาง 7 ภูมิภาค (ffa / duo / trio)
@@ -590,7 +595,7 @@ npm test    # node --test "tests/**/*.test.js"
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
 - กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
-- ระบบกลางที่มีเทสต์แยก: `journey` · `mark42` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `journey` · `zeroTime` · `mark42` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
 
 ---
 
@@ -616,8 +621,47 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
   `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|gun|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
-- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=13` เริ่มแมตช์ที่เทิร์นนั้น (เกิน 6 = สุ่มภูมิภาค II–VII เหมือนเกมจริง) · `ECHO_DEV_START_AREA=3` บังคับภูมิภาคเริ่ม · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
+- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=13` เริ่มแมตช์ที่เทิร์นนั้น (เกิน 6 = สุ่มภูมิภาค II–VII เหมือนเกมจริง) · `ECHO_DEV_START_AREA=3` บังคับภูมิภาคเริ่ม · `ECHO_DEV_RICH=1` เหรียญ 30 + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน · `ECHO_DEV_ZERO=1` ห่วงเวลาซีโร่เกิดแน่นอนที่กลางคืนแรก (§18) ·
   `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มยิงปืน/ใช้สกิล/ไอเทม/ซื้อของ)
 - **กระดาน 14×14 ทุกภูมิภาค** (ผู้ใช้ตัดสิน 2026-10-09) · กล้องจัดกลาง/ย่อจาก `map.cols×rows` เอง
 - ซูม: `BoardCanvas` prop `zoom` 0|1 (มุมใกล้ ×1.6) + `onZoomChange` (ล้อเมาส์) + `focus` {x,y} (เลื่อนกล้องไปหา ถ้าอยู่นอกจอ) · โหมดใกล้: ลากเมาส์/ปุ่มขวา/ลูกศรเลื่อนดู · ปุ่ม ＋/－ ใน BoardStage · จำใน localStorage `echo.boardZoom` · ป้ายร้าน "🏪 N" วาดในแคนวาส (`shopLabel`) · dev: `?board=1&sq=1`, `window.__boardFocus(x,y)`
 - หมุนกระดาน: `BoardCanvas` prop `rotation` 0–3 (ภาพอย่างเดียว พิกัด/คอลแบ็กเป็นพิกัดกระดานเสมอ) · คีย์ใช้ `e.code` KeyQ/KeyE (แป้นโหมดไทยใช้ได้) · ตัววาดแยก `boardGeo.js` (กล้อง/หมุน) · `boardProps.js` (สิ่งกีดขวาง/ช่องพิเศษ) · `regionThemes.js` (ธีม 7 ภูมิภาค)
+
+---
+
+## 18. ห่วงเวลาซีโร่ (Zero Time)
+
+โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
+client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
+- **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
+  → ทอย `ZERO_CHANCE` 30% · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
+  · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)
+- **เข้า** (`enter`): เก็บ `saved` { board, shopPos, positions } → `placeOnBoard(ZERO_AREA)` สุ่มจุดเกิดบนสนามเฉพาะ (ร้านถูกยกออก) → ฉาก `enter` → `dealRound()`
+- **เวลาโลก vs `roundNumber`**: `worldRound = roundNumber − zeroFrozen` (`Zero.worldRound()` / `engine.worldRound`) — `dealRound` บวก `zeroFrozen` ทุกเทิร์นที่อยู่ข้างใน
+  · ใช้เวลาโลก: กลางวัน/กลางคืน (`dealRound`, `endTurn` แต้มเช้า, `buildStateFor` `cycle`) · ภูมิภาค (`legEnds` ใน `maybeJourneyAdvance`, `Journey.current`/`skillBonus`/`publicInfo`) ·
+    ร้านค้า (`shopDue`/`relocateShop`/`shopTurnsLeft`) · การทอยเกิด
+  · **คงใช้ `roundNumber`**: สถานะ/คูลดาวน์ทั้งหมด (คูลดาวน์ท่าไม้ตาย/สกิลของตัวละคร, `mark42BuyLock`, ปรากฏตัวของนักบิน, คำสาป ฯลฯ) — นับต่อตามปกติระหว่างอยู่ข้างใน
+- **state ใน `match.js`**: `zero` { saved, seals[{x,y,hp,armor,broken}], pickups[{x,y}], pending[{i,by}], enteredRound, bolt } (null = ไม่ได้อยู่) ·
+  `zeroUsed` · `zeroFrozen` · `zeroScene` { seq, active, mode, stage, seal, breakerId }
+  → client ได้ `state.zero` (`publicInfo`): { active, stage, buffPhase, seals[{i,x,y,hp,armor,maxHp,maxArmor,broken}], pickups, atk, scene } ·
+  ฉากปลดผนึก = { active: false, scene } · `skillLocks.ultimate.locked` = true ทุกตัว (`zeroLocks` ใน `view.js`)
+- **ข้างใน**: ผลภูมิภาค/วัน-คืนปิด (`Journey.current()` = null) · ร้านปิด (`maybeMoveShop` ข้าม · `shopPos` null) · **ท่าไม้ตายล็อก** (`useSkill` → `ultLocked`) ·
+  **เกราะไม่ฟื้น** (`dealRound`) · จบเทิร์นทุกคนเสีย `DRAIN` 1 (`onEndTurn` → `fieldHit`: ลดเกราะก่อน · ตายได้ · `_statusDamage`)
+- **เฟส** = ผนึกแตก + 1 (`stage()` 1–4 · บัฟทุกคน สะสม): 1 แต้มสกิล +1/เทิร์น · 2 เหรียญ +1/เทิร์น (`onEndTurn`) ·
+  3 พลังโจมตี +1 · 4 (เหลือผนึกเดียว) +2 (`attackBonus` → `computeAttackBase` `zeroAtkFx` ungated + ป้ายสกิลในฉากตี)
+  · เฟส 4: ต้นเทิร์น (`onRoundStart` — หลังสถานะต้นเทิร์น) ฟ้าผ่า `BOLT_COUNT` 3 ช่องสุ่ม เสีย `BOLT_DMG` 2 → `engine.boardFx("zeroBolt", {tiles, hits})`
+- **ของฟื้นพลังชีวิต**: `onRoundStart` เกิด 1 ชิ้นบนช่องว่าง (ไม่เกิน `PICKUP_MAX` 4) · จบตาบนช่อง = เก็บ +`PICKUP_HEAL` 2 (`finishActor` → `collectPickup` · ตัวใหญ่ช่องไหนก็ได้)
+- **ผนึกมิโกะ** 4 มุม (`Board.ZERO_SEALS` [0,0] [13,0] [13,13] [0,13] = เหนือ/ตะวันออก/ใต้/ตะวันตก) พลังชีวิต `SEAL_HP` 3 เกราะ `SEAL_ARMOR` 2 · ลดเกราะก่อน · ไม่หลบ ไม่สวน
+  · สนาม `ZERO_AREA` 8–11 ใน `server/board.js` (ผังเดียวกัน — ระดับ 1–4 ต่างแค่หน้าตาฝั่ง client) · terrain `seal` อยู่ใน `UNBREAKABLE`:
+    ตัวใหญ่เดิน/ขยายทับไม่ได้ (`bigFits`/`growPlan`/`breakObstacles` ข้าม) · แตกแล้วแท่นยังเป็นสิ่งกีดขวาง
+  · ตีปกติ: `attackTarget(id, "seal:N")` → `canHitSeal` (ระยะ `rangeOf`) → `attackSeal` (ท่อพลังโจมตีเดียวกับตีคน ใช้เสริมพลัง) → ATTACKING → `runPendingBreak(finishActor)`
+  · สกิลโจมตีพื้นที่ (`area.hostile` aoe/line): `useSkill` เก็บ `action.areaTiles` แล้ว `hitSealsInArea` หลังผลสกิล (deferred) — ดาเมจ = พลังโจมตีไม่รวมเสริมพลัง
+    → แตก = `runPendingBreak` แล้วกลับ ACTION ด้วยเวลาที่เหลือ (ขั้นต่ำ 3 วิ) · สกิลมีคลิป: `pausePlayingForCutscene` เล่นฉากผนึกก่อนกลับเฟสเดิม
+- **ฉาก** (`playScene`: CUTSCENE + `cutsceneInfo = null` แบบฉากเดินทาง) — server พักรอ `ENTER_SECONDS` 8.5 · `BREAK_SECONDS` 3.6 · `RELEASE_SECONDS` 5
+  (ต้องตรงความยาวฉากฝั่ง client) · `enter` ลำแสง → คลื่น → โซ่ → ผนึก · `break` ผนึกแตก + `match.board.area` = `ZERO_AREA + stage − 1` · `release` มิติแตกกลับสนามเดิม
+- **ปลดผนึก** (`release` — อันสุดท้ายแตก): คืน `board`/`shopPos` · `match.zero = null` (บัฟหมด) · วางทุกคนที่ตำแหน่งเดิม (ไม่ว่าง → ช่องว่างใกล้สุด `spotNear` ·
+  ตัวใหญ่วางไม่ได้ = หดเหลือ 1 ช่อง) · ทุกคนเสีย `RELEASE_DMG` 2 ยกเว้นคนทุบอันสุดท้าย · ปลดกลางเทิร์น = คนที่เหลือเดินต่อบนสนามเดิม
+  คนทุบเดินต่อไม่ได้ (`action.locked`) · เวลาโลกเดินต่อจากที่หยุด (เข้าตอนจบเทิร์น 9 → ออกมาเทิร์นถัดไปเป็นเทิร์น 10 กลางคืน)
+- **เพลง** (`client/src/audioPolicy.js`): `state.zero.active` = `zero_<stage>` (1–4) **ชนะเพลงสกิล/ท่าไม้ตาย** (ผู้ใช้สั่ง — วีดีโอคัตซีนยังพักเพลงตามปกติ) · ฉากปลดผนึกกลับเพลงภูมิภาค ·
+  ไฟล์ `/zero_time/phase1..4.mp3` + `thunder.mp3` (`zero_thunder` — ฟ้าผ่า) อยู่ R2 (`mediaDirs.js` `zero_time`) ·
+  `LOUDNESS_GAIN` phase1 0.55 · phase2 0.56 · phase3 0.58 · phase4 0.6 (ไฟล์ดัง −8.7 ถึง −9.5 LUFS — ลดให้ไม่กลบเสียงกด/เอฟเฟกต์) · thunder ไม่ลด

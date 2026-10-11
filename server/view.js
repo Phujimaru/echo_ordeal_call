@@ -21,6 +21,7 @@ const attackPhase = require("./phases/attack");
 const lobby = require("./lobby");
 const shop = require("./shop");
 const Visibility = require("./visibility");
+const Zero = require("./zeroTime");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -89,7 +90,7 @@ function buildStateFor(viewerId) {
   // คัตซีนที่แทรกกลางช่วงจั่ว (ยังมีคนไม่กด "พอ") ยังห้ามเปิดแต้ม — คัตซีนหลังเปิดไพ่ทุกคนล็อกแล้ว
   const drawingCutscene = match.gameState === "CUTSCENE" && combat.alivePlayers().some((p) => !p.locked);
   const revealAll = !drawingCutscene && match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
-  const nightNow = dayNight.isNightRound(match.roundNumber);
+  const nightNow = dayNight.isNightRound(Zero.worldRound()); // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้)
   const sm = activeSkillMusic();
   const viewer = match.players[viewerId];
   // สมุดการ์ดกองกลาง: การ์ดทั้ง 43 ใบตามลำดับคงที่ + ใบไหนถูกจั่วไปแล้วในรอบนี้ (centralDeck สับใหม่ทุกรอบ — สมุดนี้จึงนับเฉพาะรอบปัจจุบัน)
@@ -112,6 +113,8 @@ function buildStateFor(viewerId) {
     cycle: nightNow ? "night" : "day", // กลางวัน/กลางคืน
     // การเดินทาง (ffa/duo/trio): ภูมิภาค + กลางวัน/กลางคืน + คำอธิบายผลสนาม + ฉากแผนที่ที่กำลังพักเกมรอ
     journey: Journey.publicInfo(engine, match.journeyScene),
+    // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): ระดับ · ผนึก 4 มุม · ของฟื้นพลังชีวิต · ฉากที่กำลังพักเกมรอ — null = ไม่ได้อยู่
+    zero: Zero.publicInfo(),
     maxPlayers: MAX_PLAYERS,
     youId: viewerId,
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
@@ -187,8 +190,8 @@ function buildStateFor(viewerId) {
         teamId: p.teamId || null,
         teamConfirmed: !!p.teamConfirmed,
         // คูลดาวน์/ล็อกรายช่องของตัวละคร (โอเบรอน) — client ใช้ทำปุ่มเทา + ตัวเลขคูลดาวน์
-        skillLocks: CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
-          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p) : undefined,
+        skillLocks: zeroLocks(CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
+          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p) : undefined),
         modeVote: p.modeVote || null,
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,
@@ -259,6 +262,11 @@ function buildStateFor(viewerId) {
   };
 }
 
+// ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)
+function zeroLocks(locks) {
+  if (!Zero.ultLocked()) return locks;
+  return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
+}
 function broadcastState() {
   for (const id of Object.keys(match.players)) io.to(id).emit("state", buildStateFor(id));
 }

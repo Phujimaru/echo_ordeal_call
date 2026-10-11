@@ -25,6 +25,7 @@ const shop = require("./shop");
 const socketLayer = require("./socket");
 const timers = require("./timers");
 const view = require("./view");
+const Zero = require("./zeroTime");
 
 // สีประจำตัว: ผู้เล่นปรับเองได้ตอนตั้งค่าก่อนเข้าเกม — ไม่ได้ตั้งไว้ก็ใช้สีประจำตำแหน่งเดิม
 const CUSTOM_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -273,6 +274,7 @@ function startMatch() {
   match.roundNumber = startRound - 1;
   match.cycleShift = 0;
   match.journeyScene = null;
+  Zero.reset(); // ห่วงเวลาซีโร่: ยังไม่เกิด (ครั้งเดียวต่อเกม)
   const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
   match.journeyArea = startArea;
   match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
@@ -330,6 +332,7 @@ function backToLobby() {
   match.journeyScene = null;
   match.journeyArea = 1;
   match.journeyRoute = [1];
+  Zero.reset();
   match.lastLog = [];
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;

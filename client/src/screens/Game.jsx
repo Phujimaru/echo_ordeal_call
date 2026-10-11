@@ -2195,6 +2195,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : null}
         onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
+        zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         zoom={hudZ}
       />}
 
@@ -2217,6 +2218,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}
+              gold={me.gold || 0}
+              goldMax={me.goldMax || 0}
               vitals={<div className="hud-vitals">
                   <StatRow big kind="hp" value={me.hp} max={me.maxHp} extra={me.tempHp || 0} extraLabel="เลือดชั่วคราว" />
                   <StatRow big kind="ar" value={me.armor} max={me.maxArmor} />

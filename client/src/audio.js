@@ -47,6 +47,12 @@ const FILES = {
   attack: "/effect_sound/attack.wav",
   notificate: "/effect_sound/notificate.mp3", // ฉากตาเดินของคนอื่น (ระบบกระดาน)
   notificate_mine: "/effect_sound/notificate_mine.mp3", // ฉากตาเดินของเรา (ระบบกระดาน)
+  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2 · ผู้ใช้ส่งมา 2026-10-11): เพลงตามระดับ (1 ผนึกครบ … 4 เหลือผนึกเดียว) — ห้ามเพลงอื่นทับ · ฟ้าผ่าเฟส 4
+  zero_1: "/zero_time/phase1.mp3",
+  zero_2: "/zero_time/phase2.mp3",
+  zero_3: "/zero_time/phase3.mp3",
+  zero_4: "/zero_time/phase4.mp3",
+  zero_thunder: "/zero_time/thunder.mp3",
 };
 
 // เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (ตอนนี้ยังไม่มีเพลงที่ใช้)
@@ -90,6 +96,12 @@ const LOUDNESS_GAIN = {
   "/theme_song/main_home_4.0.mp3": 0.69,
   "/theme_song/main5.0.mp3": 0.85, // -11.7 LUFS
   "/theme_song/lobby5.0.mp3": 1, // -15.7 LUFS (เบากว่าเป้าเล็กน้อย ดันได้สุด 1)
+  // ห่วงเวลาซีโร่ (วัด ffmpeg ebur128 · ไฟล์ดังมาก -8.7 ถึง -9.5 LUFS) — ลดลงให้อยู่ระดับเพลงพื้นหลัง ไม่กลบเสียงกด/เอฟเฟกต์ (ผู้ใช้สั่ง)
+  //  thunder.mp3 = -15.7 dBFS เบากว่าเป้าอยู่แล้ว (ไม่อยู่ในตาราง)
+  "/zero_time/phase1.mp3": 0.55,
+  "/zero_time/phase2.mp3": 0.56,
+  "/zero_time/phase3.mp3": 0.58,
+  "/zero_time/phase4.mp3": 0.6,
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }
 export function soundGain(name) { return pathGain(FILES[name]); }

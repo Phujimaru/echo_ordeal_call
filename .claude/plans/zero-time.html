@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zero Time</title>
+<!-- ต้นแบบฉาก "ห่วงเวลาซีโร่" (GRID_PLAN §8.2) — เปิดผ่าน server "plans" (ราก repo) เพื่อโหลดรูป/เพลงจริงใน client/public
+     กล้อง/กระดานเหมือน client/src/board/boardGeo.js (เอียง 32° · 14 × 14)
+     อ้างอิงภาพจากเรื่อง (ผู้ใช้ส่งมา 2026-10-11): พื้นเป็นกระจกเงาสะท้อนฟ้า · ฟ้าพาสเทล/จักรวาลม่วง + กาแล็กซี + เมฆแบบอนิเมะ ·
+       โซ่ = ชิ้นทองรูปดาวแฉกเรียงเป็นแนวโค้ง
+     ระดับ (stage) = ผนึกแตกแล้ว + 1: 1 ฟ้าพาสเทลสว่าง · 2 จักรวาลม่วง · 3 มืดลง · 4 (เหลือผนึกเดียว) มืดหม่นสุด — เพลง phase1..4 ตามระดับ
+     ลำดับฉากเข้า: เวลาหยุด (สีจาง) → ลำแสงกลางสนาม → คลื่นกลืนสนาม → โซ่ทองพุ่งล้อมขอบสนาม → ผนึกมิโกะ 4 มุมติดไฟ + โซ่พันไขว้ → ชื่อ + เฟส 1
+     ผนึก (อักษรฟินิเชียนตามเรื่อง): มุมไกลซ้าย = เหนือ Nun · มุมไกลขวา = ตะวันออก Heth · มุมใกล้ขวา = ใต้ Waw · มุมใกล้ซ้าย = ตะวันตก Mem -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Kanit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #07060c; --ink: #f1e9f4; --line: rgba(255,170,220,.45); --pink: #ff7ac8; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: "Kanit", "Chakra Petch", sans-serif; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  .bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;
+    background: rgba(20,14,26,.9); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .grp { display: flex; gap: 6px; }
+  button { font: inherit; font-size: 15px; white-space: nowrap; color: var(--ink); background: transparent; border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:disabled { opacity: .35; cursor: default; }
+  button.go { background: #8a2f6c; border-color: #ff9fd6; color: #fff; }
+  button.on { background: rgba(255,122,200,.2); border-color: var(--pink); }
+  .sep { width: 1px; align-self: stretch; background: var(--line); }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="bar">
+  <button class="go" id="enter">เข้าห่วงเวลา</button>
+  <div class="sep"></div>
+  <div class="grp" id="seals"></div>
+  <div class="sep"></div>
+  <div class="grp"><button id="music" class="on">เพลง</button><button id="slow">ช้า</button><button id="reset">รีเซ็ต</button></div>
+</div>
+<script>
+// =================================================================== กล้อง (พอร์ตจาก boardGeo.js · หมุน 0)
+const LW = 1280, LH = 720, BC = 14, BR = 14;
+const PITCH = 32, CAM_D = 22, NEAR_Y = 528, OXC = 640;
+const SN = Math.sin(PITCH * Math.PI / 180), CS = Math.cos(PITCH * Math.PI / 180);
+const HCe = BC / 2, HRe = BR / 2;
+const FOC = (() => {
+  const foc0 = 66.25 * (CAM_D - 6 * CS);
+  const far0 = NEAR_Y - 6 * SN * 66.25 - 6 * SN * foc0 / (CAM_D + 6 * CS);
+  const dn = CAM_D - HRe * CS, df = CAM_D + HRe * CS, farY = far0 - (HRe - 6) * 7.5;
+  return Math.min((NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df)), 1140 * dn / (2 * HCe));
+})();
+const OY = NEAR_Y - HRe * SN * FOC / (CAM_D - HRe * CS);
+// กระดาน (x, y, สูง z) → [sx, sy, สเกล]
+function P(x, y, z = 0) {
+  const X = x - HCe, Y = y - HRe, depth = CAM_D - Y * CS - z * SN, s = FOC / depth;
+  return [OXC + X * s, OY + (Y * SN - z * CS) * s, s];
+}
+function quad(g, x, y, inset = 0, z = 0) {
+  const a = P(x + inset, y + inset, z), b = P(x + 1 - inset, y + inset, z), c = P(x + 1 - inset, y + 1 - inset, z), d = P(x + inset, y + 1 - inset, z);
+  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
+}
+function gEllipse(g, cx, cy, r, z = 0, n = 64) {
+  g.beginPath();
+  for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, p = P(cx + Math.cos(a) * r, cy + Math.sin(a) * r, z); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }
+  g.closePath();
+}
+function gLine(g, x1, y1, x2, y2, z = 0) { const a = P(x1, y1, z), b = P(x2, y2, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+function rng(seed) { seed = Math.abs(Math.floor(seed)) % 2147483646 || 1; return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const seg = (t, a, b) => clamp01((t - a) / (b - a));
+const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+const easeInOut = (k) => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const easeBack = (k) => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+function glow(g, x, y, r, rgb, a) {
+  if (r <= 0 || a <= 0) return;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function hull(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+// พื้นที่บนจอที่คลื่นวงกลม (ศูนย์ cx, cy รัศมี r ช่อง) กลืนแล้ว — วงบนพื้น + วงเดียวกันที่สูง 3 ช่อง
+function wavePath(g, cx, cy, r) {
+  const pts = [];
+  for (let i = 0; i < 72; i++) {
+    const a = i / 72 * Math.PI * 2, x = cx + Math.cos(a) * r, y = Math.min(HRe + 12, cy + Math.sin(a) * r);
+    pts.push(P(x, y, 0), P(x, y, 3));
+  }
+  const h = hull(pts);
+  g.beginPath(); h.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+}
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(",");
+
+// =================================================================== ข้อมูลฉาก
+const ART = {
+  muimi: "/client/public/characters/muimi/muimi.webp",
+  oberon: "/client/public/characters/oberon(summer)/oberon_summer.webp",
+  pilot: "/client/public/characters/sliver_bullet/sliver_bullet.png",
+  echo: "/client/public/characters/echo/echo_front.webp",
+};
+const imgs = {};
+for (const [k, u] of Object.entries(ART)) { const i = new Image(); i.src = encodeURI(u); imgs[k] = i; }
+const imgOk = (i) => i && i.complete && i.naturalWidth > 0;
+const CHARS = [
+  { id: "muimi", col: "#e05a4f", home: [3, 9], zero: [5, 6] },
+  { id: "oberon", col: "#f0c868", home: [10, 5], zero: [9, 8] },
+  { id: "pilot", col: "#5fb4ff", home: [6, 3], zero: [3, 11] },
+  { id: "echo", col: "#9a7cff", home: [9, 10], zero: [11, 3] },
+];
+const ROCKS = [[2, 4], [11, 2], [12, 10], [5, 12], [7, 6]];
+const SEALS = [
+  { name: "เหนือ", tile: [0, 0], glyph: "nun" },
+  { name: "ตะวันออก", tile: [13, 0], glyph: "heth" },
+  { name: "ใต้", tile: [13, 13], glyph: "waw" },
+  { name: "ตะวันตก", tile: [0, 13], glyph: "mem" },
+];
+const SEAL_Z = 1.75;
+const GLYPHS = {
+  nun: [[[-0.55, -0.82], [-0.12, -0.38], [0.32, -0.84], [0.06, 0.86]]],
+  heth: [[[-0.42, -0.86], [-0.42, 0.86]], [[0.42, -0.86], [0.42, 0.86]], [[-0.42, -0.42], [0.42, -0.42]], [[-0.42, 0.02], [0.42, 0.02]], [[-0.42, 0.46], [0.42, 0.46]]],
+  waw: [[[0.08, 0.86], [0.08, -0.2], [0.5, -0.72]], [[0.08, -0.2], [-0.38, -0.66], [-0.6, -0.42], [-0.4, -0.2]]],
+  mem: [[[-0.8, -0.5], [-0.5, -0.84], [-0.2, -0.42], [0.1, -0.84], [0.42, -0.42], [0.14, 0.86]]],
+};
+// หน้าตาแต่ละระดับ — ยิ่งใกล้ปลดผนึกยิ่งมืดหม่น (ผู้ใช้สั่ง)
+//  sky = [กลาง, ขอบ] (ภาพสะท้อนบนพื้นกระจก) · cloud = [ฐาน, ไฮไลต์, เงา] · gal = สีกาแล็กซี (ใน→นอก) + ความเข้ม
+const ST = {
+  1: { sky: ["#f8cfe2", "#7fb2ea"], band: "#9a7ac8", cloud: ["#fdf0f6", "#ffffff", "#b79bd6"], gal: null, galA: 0, stars: .35, starCol: "255,255,255",
+       stone: ["#eee8f5", "#e6def0"], seam: "rgba(110,80,140,.2)", face: ["#ddd2ea", "#8a78a6"], gold: "#d4a02e", inlay: "255,120,200",
+       ringCol: "#e8bb4a", ringGlow: "255,225,150", rays: "255,255,255", raysA: .1, acc: "255,105,190", mote: "white", vig: 0 },
+  2: { sky: ["#b02ca4", "#1e0640"], band: null, cloud: ["#ddd64c", "#f6f28e", "#9c9a2c"], gal: ["#fffbe0", "#ffd26a", "#ff6ab8", "#8a5aff", "#40e0ff"], galA: 1, stars: 1, starCol: "255,255,255",
+       stone: ["#2e1a48", "#28163f"], seam: "rgba(255,220,255,.1)", face: ["#3c2458", "#120818"], gold: "#f0c24a", inlay: "255,110,220",
+       ringCol: "#f2c64a", ringGlow: "255,200,120", rays: "255,170,255", raysA: .08, acc: "255,95,200", mote: "star", vig: .15 },
+  3: { sky: ["#4c1236", "#0a0418"], band: null, cloud: ["#7a5a3c", "#9c7a4c", "#3a2228"], gal: ["#ffd8c0", "#e0704a", "#a02a50", "#4a1a5a", "#2a2a6a"], galA: .5, stars: .55, starCol: "255,200,210",
+       stone: ["#24101a", "#1e0d16"], seam: "rgba(255,160,160,.08)", face: ["#2c1218", "#080305"], gold: "#b8883a", inlay: "255,90,100",
+       ringCol: "#b8883a", ringGlow: "255,130,90", rays: "255,120,90", raysA: .06, acc: "255,80,120", mote: "ember", vig: .45 },
+  4: { sky: ["#2a0810", "#020103"], band: null, cloud: ["#2c1a20", "#40242a", "#100a0c"], gal: ["#ff9a8a", "#a02a30", "#4a0a14", "#200610", "#100408"], galA: .28, stars: .2, starCol: "255,150,150",
+       stone: ["#120608", "#0e0506"], seam: "rgba(255,60,60,.07)", face: ["#180608", "#020101"], gold: "#8a5a2a", inlay: "255,45,55",
+       ringCol: "#7a4a24", ringGlow: "255,50,40", rays: "255,40,40", raysA: .05, acc: "255,50,60", mote: "ash", vig: .75 },
+};
+const CENTER = [7, 7];
+const RIM_R = 12.7;
+
+// =================================================================== โซ่ทอง (ชิ้นทองรูปดาวแฉกเรียงเป็นแนวโค้ง — ตามภาพในเรื่อง)
+const GOLD = (() => {
+  const c = document.createElement("canvas"); c.width = 120; c.height = 64;
+  const g = c.getContext("2d"), cx = 60, cy = 32; g.translate(cx, cy); g.scale(.92, .92); g.translate(-cx, -cy);
+  // ตัวอ้วน 8 แฉก: แฉกยาวตามแนวโซ่ · แฉกเฉียง · แฉกตั้งฉาก · ร่องตื้น (ชิ้นทองตันแบบในเรื่อง)
+  const R = [56, 22, 34, 21, 27, 21, 34, 22, 56, 22, 34, 21, 27, 21, 34, 22];
+  g.beginPath();
+  R.forEach((r, k) => { const a = k / R.length * Math.PI * 2; const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * .82; k ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.closePath();
+  const gr = g.createLinearGradient(20, 6, 100, 58);
+  gr.addColorStop(0, "#fff7c4"); gr.addColorStop(.38, "#f4cc52"); gr.addColorStop(.7, "#c48a1e"); gr.addColorStop(1, "#7a4c08");
+  g.fillStyle = gr; g.fill();
+  g.strokeStyle = "#4e3004"; g.lineWidth = 3; g.lineJoin = "round"; g.stroke();
+  g.strokeStyle = "rgba(255,252,220,.85)"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(14, cy - 1); g.lineTo(106, cy - 1); g.stroke();
+  g.beginPath(); g.moveTo(cx, cy - 22); g.lineTo(cx, cy + 22); g.strokeStyle = "rgba(255,240,180,.6)"; g.lineWidth = 1.5; g.stroke();
+  g.fillStyle = "#fffbe0"; g.beginPath(); g.arc(cx, cy, 4.5, 0, Math.PI * 2); g.fill();
+  return c;
+})();
+// เส้นโซ่บนจอ: pts = [[sx, sy, s], …] (หนาแน่น) → วางชิ้นทองตามความยาว · prog = สัดส่วนที่โผล่แล้ว
+function chainPieces(pts, size = .5) {
+  const out = []; let acc = 0, next = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, y1, s1] = pts[i], [x2, y2] = pts[i + 1], L = Math.hypot(x2 - x1, y2 - y1), a = Math.atan2(y2 - y1, x2 - x1);
+    while (next <= acc + L) {
+      const k = (next - acc) / (L || 1), L0 = size * s1;
+      out.push({ x: x1 + (x2 - x1) * k, y: y1 + (y2 - y1) * k, a, L: L0 });
+      next += L0 * 1.05;
+    }
+    acc += L;
+  }
+  return out;
+}
+function drawGoldChain(c, pieces, prog = 1, tipGlow = true) {
+  const n = Math.round(pieces.length * prog);
+  if (n <= 0) return;
+  c.save();
+  c.globalCompositeOperation = "lighter";
+  for (let i = 0; i < n; i += 2) glow(c, pieces[i].x, pieces[i].y, pieces[i].L * .9, "255,200,80", .16);
+  c.globalCompositeOperation = "source-over";
+  for (let i = 0; i < n; i++) {
+    const p = pieces[i], w = (i % 2 ? .12 : -.12);
+    c.save(); c.translate(p.x, p.y); c.rotate(p.a + w); c.drawImage(GOLD, -p.L / 2, -p.L * .27, p.L, p.L * .54); c.restore();
+  }
+  if (tipGlow && prog < 1) { const p = pieces[n - 1]; glow(c, p.x, p.y, p.L * 2.2, "255,230,150", .9); }
+  c.restore();
+}
+// โซ่ขอบสนาม e0..e3: ผนึก i → ผนึก i+1 (นอกกระดานเล็กน้อย โค้งย้อยลง)
+function sealPos(i) { const [x, y] = SEALS[i].tile; return [x + 0.5, y + 0.5]; }
+function edgePieces(k) {
+  // โซ่ขอบสนาม: ยึดที่หัวแท่นใต้ผนึก (ไม่บังสัญลักษณ์) โค้งย้อยเป็นราวรอบเวที
+  const out = (p) => [p[0] + (p[0] < 7 ? -0.45 : 0.45), p[1] + (p[1] < 7 ? -0.45 : 0.45)];
+  const [ax, ay] = out(sealPos(k)), [bx, by] = out(sealPos((k + 1) % 4));
+  const pts = [];
+  for (let i = 0; i <= 80; i++) { const t = i / 80; pts.push(P(ax + (bx - ax) * t, ay + (by - ay) * t, PED_H - .4 * 4 * t * (1 - t))); }
+  return chainPieces(pts, .8);
+}
+// วงโซ่ทองโคจรรอบนอกหนามผนึก (ไม่ผ่านหน้าสัญลักษณ์)
+function haloPieces(i, sx, sy, R, s) {
+  const pts = [], rr = R * 1.66, rot = time * .3 + i;
+  for (let j = 0; j <= 56; j++) { const a = rot + j / 56 * Math.PI * 2; pts.push([sx + Math.cos(a) * rr, sy + Math.sin(a) * rr * .9, s]); }
+  return chainPieces(pts, .42);
+}
+// =================================================================== สถานะ
+const cv = document.getElementById("cv"), g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, view = { k: 1, ox: 0, oy: 0 };
+const layers = [0, 1].map(() => document.createElement("canvas"));
+const snap = document.createElement("canvas");
+let bgCache = {};
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  for (const c of [cv, ...layers, snap]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  const k = Math.min(W / LW, H / LH);
+  view = { k, ox: (W - LW * k) / 2, oy: (H - LH * k) / 2 };
+  bgCache = {};
+}
+addEventListener("resize", resize); resize();
+const setView = (c, sx = 0, sy = 0) => c.setTransform(DPR * view.k, 0, 0, DPR * view.k, DPR * (view.ox + sx), DPR * (view.oy + sy));
+const visRect = () => [-view.ox / view.k, -view.oy / view.k, W / view.k, H / view.k];
+
+let speed = 1, time = 0, ffTime = 0;
+let last = performance.now();
+const st = { mode: "normal", t: 0, broken: [false, false, false, false], snapped: new Set(), breakIdx: -1, breaker: null,
+  flash: 0, shake: 0, shards: null, parts: [] };
+const brokenN = () => st.broken.filter(Boolean).length;
+const stage = () => Math.min(4, brokenN() + 1);
+const buffPhase = () => Math.min(3, brokenN() + 1);
+function resetAll() {
+  Object.assign(st, { mode: "normal", t: 0, broken: [false, false, false, false], snapped: new Set(), breakIdx: -1, breaker: null,
+    flash: 0, shake: 0, shards: null, parts: [] });
+  syncButtons();
+}
+
+// =================================================================== ของร่วม
+function drawToken(c, ch, x, y, alpha = 1) {
+  if (alpha <= 0) return;
+  c.save(); c.globalAlpha *= alpha;
+  const [gx, gy, gs] = P(x + .5, y + .5, 0);
+  c.fillStyle = "rgba(0,0,0,.35)"; c.beginPath(); c.ellipse(gx, gy, .36 * gs, .36 * gs * SN, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = ch.col; c.lineWidth = .05 * gs; c.beginPath(); c.ellipse(gx, gy, .4 * gs, .4 * gs * SN, 0, 0, Math.PI * 2); c.stroke();
+  const [hx, hy, hs] = P(x + .5, y + .5, .95), r = .42 * hs;
+  c.strokeStyle = "rgba(255,255,255,.3)"; c.lineWidth = .03 * hs; c.beginPath(); c.moveTo(gx, gy); c.lineTo(hx, hy + r); c.stroke();
+  c.save(); c.beginPath(); c.arc(hx, hy, r, 0, Math.PI * 2); c.clip();
+  c.fillStyle = "#1b1622"; c.fillRect(hx - r, hy - r, r * 2, r * 2);
+  const im = imgs[ch.id];
+  if (imgOk(im)) { const side = Math.min(im.naturalWidth * .62, im.naturalHeight), sx = (im.naturalWidth - side) / 2, sy = im.naturalHeight * .05; c.drawImage(im, sx, sy, side, side, hx - r, hy - r, r * 2, r * 2); }
+  c.restore();
+  c.strokeStyle = ch.col; c.lineWidth = .07 * hs; c.beginPath(); c.arc(hx, hy, r, 0, Math.PI * 2); c.stroke();
+  c.restore();
+}
+function drawBox(c, x, y, h, top, side, front) {
+  const L = x > 6.5 ? 1 : 0, R = x < 6.5 ? 1 : 0, p = (dx, dy, z) => P(x + dx, y + dy, z);
+  const poly = (pts, col) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fillStyle = col; c.fill(); };
+  if (L) poly([p(.1, .1, 0), p(.1, .9, 0), p(.1, .9, h), p(.1, .1, h)], side);
+  if (R) poly([p(.9, .1, 0), p(.9, .9, 0), p(.9, .9, h), p(.9, .1, h)], side);
+  poly([p(.1, .9, 0), p(.9, .9, 0), p(.9, .9, h), p(.1, .9, h)], front);
+  poly([p(.1, .1, h), p(.9, .1, h), p(.9, .9, h), p(.1, .9, h)], top);
+}
+
+// =================================================================== สนามปกติ (กลางคืน ด่าน I แบบย่อ)
+const rFF = rng(97), rGR = rng(31);
+const FF = Array.from({ length: 28 }, () => { const r = rFF; return { x: r() * 16 - 1, y: r() * 16 - 1, z: .4 + r() * 1.6, p: r() * 9, sp: .5 + r() }; });
+const GRASS = Array.from({ length: 160 }, () => { const r = rGR; return [r() * 40 - 13, r() * 30 - 14, .3 + r() * .8]; });
+function renderNormal(c, gray, tokens = true) {
+  c.save(); c.filter = gray > 0 ? `grayscale(${gray}) brightness(${1 - .12 * gray})` : "none";
+  const [vx, vy, vw, vh] = visRect();
+  const bg = c.createLinearGradient(0, vy, 0, vy + vh); bg.addColorStop(0, "#0c1a16"); bg.addColorStop(1, "#16291f");
+  c.fillStyle = bg; c.fillRect(vx, vy, vw, vh);
+  for (const [x, y, k] of GRASS) { if (x > -0.5 && x < 14.5 && y > -0.5 && y < 14.5) continue; const [sx, sy, s] = P(x, y); c.fillStyle = `rgba(40,70,48,${.35 * k})`; c.beginPath(); c.ellipse(sx, sy, .5 * s, .2 * s, 0, 0, Math.PI * 2); c.fill(); }
+  for (let y = 0; y < BR; y++) for (let x = 0; x < BC; x++) { quad(c, x, y); c.fillStyle = (x + y) % 2 ? "#2c4a37" : "#305040"; c.fill(); c.strokeStyle = "rgba(10,25,15,.35)"; c.lineWidth = 1; c.stroke(); }
+  const items = [];
+  for (const [x, y] of ROCKS) items.push({ d: y, f: () => drawBox(c, x, y, .7, "#5c6670", "#3c444c", "#454e57") });
+  if (tokens) for (const ch of CHARS) items.push({ d: ch.home[1] + .5, f: () => drawToken(c, ch, ch.home[0], ch.home[1]) });
+  items.sort((a, b) => a.d - b.d).forEach((o) => o.f());
+  for (const f of FF) {
+    const x = f.x + Math.sin(ffTime * f.sp + f.p) * .4, y = f.y + Math.cos(ffTime * f.sp * .8 + f.p) * .4, z = f.z + Math.sin(ffTime * 1.3 + f.p) * .2;
+    const [sx, sy, s] = P(x, y, z), tw = .5 + .5 * Math.sin(ffTime * 3 + f.p * 2);
+    glow(c, sx, sy, .25 * s, "220,255,150", .5 * tw); c.fillStyle = `rgba(240,255,200,${.9 * tw})`; c.fillRect(sx - 1, sy - 1, 2, 2);
+  }
+  c.restore();
+}
+
+// =================================================================== ห่วงเวลาซีโร่ — ทะเลกระจก (ต่ำกว่าเวที) + เวทีลอย (วาดครั้งเดียวต่อระดับ แล้วเก็บไว้)
+const SEA_Z = -0.95, SLAB = 0.8, PED_H = 0.75;
+const PS = (x, y) => P(x, y, SEA_Z);
+const rSK = rng(53), rGA = rng(71), rCL = rng(13), rMO = rng(29), rTI = rng(5);
+const GSTARS = Array.from({ length: 700 }, () => { const a = rSK() * Math.PI * 2, r = 2 + Math.sqrt(rSK()) * 30; return [7 + Math.cos(a) * r, 7 + Math.sin(a) * r * .9, rSK(), rSK() * 9]; });
+const GALAXY = (() => {
+  const out = [], G = [-4.5, -6.5], RG = 7.5;
+  for (let k = 0; k < 2600; k++) {
+    const r = Math.pow(rGA(), .75) * RG, arm = (k % 3) * Math.PI * 2 / 3, n = (rGA() + rGA() + rGA() - 1.5) * .45;
+    const a = arm + r * .85 + n, x = G[0] + Math.cos(a) * r, y = G[1] + Math.sin(a) * r * .8;
+    out.push([x, y, r / RG, rGA()]);
+  }
+  return { pts: out, c: G, r: RG };
+})();
+const CLOUDS = [[-4, 2.5, 2.4], [18, -1.5, 2.8], [19.5, 9.5, 2.2], [-5.5, 12.5, 2.6], [2.5, 18, 2.5], [12.5, 19, 2.9], [9.5, -7.5, 2.4], [-1.5, -4, 1.7], [16.5, 16, 1.9]]
+  .map(([x, y, r]) => ({ x, y, r, puffs: Array.from({ length: 10 }, () => { const a = rCL() * Math.PI * 2, d = rCL() * r * .62; return [x + Math.cos(a) * d * 1.3, y + Math.sin(a) * d * .7, r * (.32 + rCL() * .3)]; }) }));
+const TILE_N = Array.from({ length: BC * BR }, () => rTI());
+const HALFTONE = (() => { const c = document.createElement("canvas"); c.width = c.height = 6; const g = c.getContext("2d"); g.fillStyle = "rgba(0,0,0,.22)"; g.beginPath(); g.arc(3, 3, 1.15, 0, Math.PI * 2); g.fill(); return c; })();
+function cloudPath(c, puffs, dx = 0, dy = 0, k = 1) {
+  c.beginPath();
+  for (const [x, y, r] of puffs) { const [sx, sy, s] = PS(x + dx, y + dy); c.moveTo(sx + r * k * s, sy); c.ellipse(sx, sy, r * k * s, r * k * s * .62, 0, 0, Math.PI * 2); }
+}
+function lerpCol(cols, t) {
+  const n = cols.length - 1, i = Math.min(n - 1, Math.floor(t * n)), k = t * n - i;
+  const a = hex(cols[i]).split(",").map(Number), b = hex(cols[i + 1]).split(",").map(Number);
+  return a.map((v, j) => Math.round(v + (b[j] - v) * k)).join(",");
+}
+const newLayer = () => { const cvs = document.createElement("canvas"); cvs.width = cv.width; cvs.height = cv.height; const c = cvs.getContext("2d"); setView(c); return [cvs, c]; };
+function polyZ(c, pts) { c.beginPath(); pts.forEach(([x, y, z], i) => { const p = P(x, y, z); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); }
+// ทะเลกระจกสะท้อนฟ้า
+function buildSea(sv) {
+  const S = ST[sv], [cvs, c] = newLayer();
+  const [vx, vy, vw, vh] = visRect(), [ccx, ccy] = P(7, 7);
+  const bg = c.createRadialGradient(ccx, ccy - 60, 30, ccx, ccy, 950);
+  bg.addColorStop(0, S.sky[0]); bg.addColorStop(1, S.sky[1]);
+  c.fillStyle = bg; c.fillRect(vx, vy, vw, vh);
+  if (S.band) { c.save(); c.globalAlpha = .55; for (let k = 0; k < 40; k++) { const a = k / 40 * Math.PI * 2, [sx, sy, s] = PS(7 + Math.cos(a) * (RIM_R + 1.6), 7 + Math.sin(a) * (RIM_R + 1.6)); c.fillStyle = S.band; c.beginPath(); c.ellipse(sx, sy, 1.6 * s, .7 * s, 0, 0, Math.PI * 2); c.fill(); } c.restore(); }
+  for (const [x, y, k] of GSTARS) { const [sx, sy, s] = PS(x, y); const r = (k > .92 ? .05 : .025) * s; c.fillStyle = `rgba(${S.starCol},${S.stars * (.35 + .65 * k)})`; c.fillRect(sx - r, sy - r * .7, r * 2, r * 1.4); }
+  if (S.gal) {
+    const [gx, gy, gs] = PS(GALAXY.c[0], GALAXY.c[1]);
+    c.save(); c.globalCompositeOperation = "lighter";
+    glow(c, gx, gy, 5 * gs, lerpCol(S.gal, .2), .45 * S.galA);
+    for (const [x, y, t, q] of GALAXY.pts) { const [sx, sy, s] = PS(x, y); c.fillStyle = `rgba(${lerpCol(S.gal, Math.min(1, t * 1.1))},${(.25 + .4 * q) * S.galA})`; const r = (.05 + .07 * q) * s; c.fillRect(sx - r, sy - r * .6, r * 2, r * 1.2); }
+    glow(c, gx, gy, 1.6 * gs, "255,250,225", .9 * S.galA);
+    c.restore();
+  }
+  const [cb, ch, cs] = S.cloud;
+  for (const cl of CLOUDS) {
+    cloudPath(c, cl.puffs, 0, .22 * cl.r); c.fillStyle = cs; c.fill();
+    cloudPath(c, cl.puffs); c.fillStyle = cb; c.fill();
+    c.save(); cloudPath(c, cl.puffs); c.clip(); c.fillStyle = c.createPattern(HALFTONE, "repeat"); c.fillRect(vx, vy, vw, vh); c.restore();
+    cloudPath(c, cl.puffs, -.08 * cl.r, -.14 * cl.r, .66); c.fillStyle = ch; c.fill();
+  }
+  c.save(); c.globalAlpha = sv === 1 ? .25 : .12;
+  for (let k = -6; k < 8; k++) { const a = PS(-6 + k * 4, -8), b = PS(4 + k * 4, 24); const gr = c.createLinearGradient(a[0], a[1], b[0], b[1]); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(.5, "rgba(255,255,255,.35)"); gr.addColorStop(1, "rgba(255,255,255,0)"); c.strokeStyle = gr; c.lineWidth = 18; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+  c.restore();
+  // ขอบเวทีวงใหญ่ (แถบมืดแบบในเรื่อง)
+  gEllipse(c, 7, 7, RIM_R, SEA_Z, 160); c.strokeStyle = S.rim || "#120818"; c.lineWidth = 12; c.stroke();
+  gEllipse(c, 7, 7, RIM_R - .28, SEA_Z, 160); c.strokeStyle = `rgba(${S.acc},.5)`; c.lineWidth = 1.5; c.stroke();
+  // แสงใต้เวที + เงาสะท้อนหน้าเวทีบนผิวกระจก
+  const [ux, uy, us] = PS(7, 9);
+  c.save(); c.globalCompositeOperation = "lighter"; c.translate(ux, uy); c.scale(1, .45); glow(c, 0, 0, 10 * us, S.inlay, .32); c.restore();
+  const mz = (z) => 2 * SEA_Z - z;
+  polyZ(c, [[0, 14, mz(-SLAB)], [14, 14, mz(-SLAB)], [14, 14, mz(0)], [0, 14, mz(0)]]);
+  const [, ra] = P(0, 14, mz(-SLAB)), [, rb] = P(0, 14, mz(0));
+  const rg = c.createLinearGradient(0, ra, 0, rb); rg.addColorStop(0, hexA(S.face[1], .55)); rg.addColorStop(1, hexA(S.face[0], .08));
+  c.fillStyle = rg; c.fill();
+  gLine(c, 0, 14, 14, 14, mz(-.04)); c.strokeStyle = hexA(S.gold, .3); c.lineWidth = 2; c.stroke();
+  if (S.vig > 0) { const vg = c.createRadialGradient(ccx, ccy, 200, ccx, ccy, 900); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(0,0,0,${S.vig})`); c.fillStyle = vg; c.fillRect(vx, vy, vw, vh); }
+  return cvs;
+}
+const hexA = (h, a) => `rgba(${hex(h)},${a})`;
+// ลายวงเวทสลักบนพื้นเวที (ทองฝัง + เรืองแสง)
+function inlay(c, S) {
+  const ring = (r, w) => { gEllipse(c, 7, 7, r, 0, 160); c.lineWidth = w; c.stroke(); };
+  c.save();
+  c.strokeStyle = S.gold; c.shadowColor = `rgba(${S.inlay},.9)`; c.shadowBlur = 10; c.lineJoin = "round";
+  ring(6.55, 3); ring(6.2, 1.4); ring(3.45, 2.4); ring(3.15, 1.2); ring(1.1, 1.6);
+  for (const off of [0, Math.PI / 4]) { // ดาว 8 แฉก (สี่เหลี่ยม 2 ชั้น)
+    c.beginPath();
+    for (let k = 0; k <= 4; k++) { const a = off + k * Math.PI / 2, p = P(7 + Math.cos(a) * 6.2, 7 + Math.sin(a) * 6.2); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
+    c.lineWidth = 1.8; c.stroke();
+  }
+  for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2, r2 = k % 4 ? 3.32 : 3.45; gLine(c, 7 + Math.cos(a) * 3.15, 7 + Math.sin(a) * 3.15, 7 + Math.cos(a) * r2, 7 + Math.sin(a) * r2); c.lineWidth = 1.2; c.stroke(); }
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; gLine(c, 7 + Math.cos(a) * 1.1, 7 + Math.sin(a) * 1.1, 7 + Math.cos(a) * 3.15, 7 + Math.sin(a) * 3.15); c.lineWidth = .8; c.globalAlpha = .55; c.stroke(); c.globalAlpha = 1; }
+  // อักษรมิโกะ 4 ตัวบนพื้น (ทิศเดียวกับผนึก: เหนือ = ไกล)
+  const marks = [[7, 2.35, "nun"], [11.65, 7, "heth"], [7, 11.65, "waw"], [2.35, 7, "mem"]];
+  for (const [x, y, gname] of marks) {
+    gEllipse(c, x, y, .78, 0, 48); c.lineWidth = 2; c.stroke();
+    gEllipse(c, x, y, .64, 0, 48); c.lineWidth = 1; c.stroke();
+    c.beginPath(); for (const pl of GLYPHS[gname]) pl.forEach(([gx, gy], i) => { const p = P(x + gx * .48, y + gy * .48); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
+    c.strokeStyle = `rgba(${S.inlay},1)`; c.lineWidth = 2.6; c.lineCap = "round"; c.stroke(); c.strokeStyle = S.gold;
+  }
+  c.restore();
+}
+function drawPedestal(c, tx, ty, S) {
+  const r = .3, h = PED_H;
+  gEllipse(c, tx, ty, .5, 0, 40); c.fillStyle = S.face[1]; c.fill(); c.strokeStyle = S.gold; c.lineWidth = 2; c.stroke();
+  const bl = P(tx - r, ty, 0), br = P(tx + r, ty, 0), tl = P(tx - r, ty, h), tr = P(tx + r, ty, h);
+  const gr = c.createLinearGradient(bl[0], 0, br[0], 0); gr.addColorStop(0, "#5a3c10"); gr.addColorStop(.35, S.gold); gr.addColorStop(.55, "#fff2c0"); gr.addColorStop(1, "#6a4810");
+  c.beginPath(); c.moveTo(bl[0], bl[1]); c.lineTo(br[0], br[1]); c.lineTo(tr[0], tr[1]); c.lineTo(tl[0], tl[1]); c.closePath(); c.fillStyle = gr; c.fill();
+  gEllipse(c, tx, ty, r * 1.25, h, 40); c.fillStyle = "#fff0b8"; c.fill(); c.strokeStyle = "#6a4810"; c.lineWidth = 1.5; c.stroke();
+  gEllipse(c, tx, ty, r * .8, h + .01, 40); c.fillStyle = `rgba(${S.inlay},.85)`; c.fill();
+}
+// เวทีลอย: หน้าเวที (ขลิบทอง) + พื้นหินขัดเงา + ลายวงเวท + แท่นผนึก 4 มุม
+function buildStage(sv) {
+  const S = ST[sv], [cvs, c] = newLayer();
+  // หน้าเวทีฝั่งใกล้
+  polyZ(c, [[0, 14, 0], [14, 14, 0], [14, 14, -SLAB], [0, 14, -SLAB]]);
+  const [, fa] = P(0, 14, 0), [, fb] = P(0, 14, -SLAB);
+  const fg = c.createLinearGradient(0, fa, 0, fb); fg.addColorStop(0, S.face[0]); fg.addColorStop(1, S.face[1]);
+  c.fillStyle = fg; c.fill();
+  for (const z of [-.06, -SLAB + .08]) { gLine(c, 0, 14, 14, 14, z); c.strokeStyle = S.gold; c.lineWidth = 3; c.stroke(); }
+  for (let x = .5; x < 14; x += 1) {
+    const m = P(x, 14, -SLAB / 2), s = m[2] * .13;
+    c.beginPath(); c.moveTo(m[0], m[1] - s); c.lineTo(m[0] + s * 1.6, m[1]); c.lineTo(m[0], m[1] + s); c.lineTo(m[0] - s * 1.6, m[1]); c.closePath(); c.fillStyle = S.gold; c.fill();
+  }
+  // พื้นหิน: ช่องละสีต่างกันเล็กน้อย + รอยต่อจาง
+  for (let y = 0; y < BR; y++) for (let x = 0; x < BC; x++) {
+    const n = TILE_N[y * BC + x];
+    quad(c, x, y); c.fillStyle = S.stone[(x + y) % 2]; c.fill();
+    c.fillStyle = `rgba(255,255,255,${(n - .5) * .05 + .02})`; c.fill();
+    c.strokeStyle = S.seam; c.lineWidth = 1; c.stroke();
+  }
+  inlay(c, S);
+  // ขอบทองรอบพื้น
+  c.save(); c.strokeStyle = S.gold; c.shadowColor = `rgba(${S.inlay},.8)`; c.shadowBlur = 8;
+  for (const [ins, w] of [[0, 4], [.14, 1.5]]) { polyZ(c, [[ins, ins, 0], [14 - ins, ins, 0], [14 - ins, 14 - ins, 0], [ins, 14 - ins, 0]]); c.lineWidth = w; c.stroke(); }
+  c.restore();
+  // เงามันวาวเฉียง
+  c.save(); polyZ(c, [[0, 0, 0], [14, 0, 0], [14, 14, 0], [0, 14, 0]]); c.clip();
+  const a = P(0, 0), b = P(14, 14), sh = c.createLinearGradient(a[0], a[1], b[0], b[1]);
+  sh.addColorStop(0, "rgba(255,255,255,0)"); sh.addColorStop(.42, "rgba(255,255,255,0)"); sh.addColorStop(.5, `rgba(255,255,255,${sv === 1 ? .22 : .07})`); sh.addColorStop(.58, "rgba(255,255,255,0)");
+  c.fillStyle = sh; c.fillRect(a[0] - 400, a[1] - 100, 2000, 1000); c.restore();
+  for (let i = 0; i < 4; i++) { const [x, y] = sealPos(i); drawPedestal(c, x, y, S); }
+  return cvs;
+}
+// แคชผูกกับขนาดแคนวาส (แท็บซ่อน = ขนาด 0 → ห้ามเก็บ)
+function cached(key, build) {
+  const hit = bgCache[key];
+  if (hit && hit.width === cv.width && hit.height === cv.height) return hit;
+  return (bgCache[key] = build());
+}
+function seaFor(sv) { return cached("sea" + sv, () => buildSea(sv)); }
+function stageFor(sv) { return cached("stage" + sv, () => buildStage(sv)); }
+
+// วงแหวนทองยักษ์โคจรรอบเวที (ครึ่งหลังวาดก่อนเวที · ครึ่งหน้าวาดทับ)
+const RINGS = [{ R: 11.2, z: 1.3, tx: .13, ty: .05, sp: .07, beads: 20 }, { R: 12.5, z: 2.6, tx: -.07, ty: .11, sp: -.05, beads: 26 }];
+function ringPoint(rg, th) {
+  const x = Math.cos(th) * rg.R, y = Math.sin(th) * rg.R;
+  const y2 = y * Math.cos(rg.tx), z2 = y * Math.sin(rg.tx);
+  const x3 = x * Math.cos(rg.ty) + z2 * Math.sin(rg.ty), z3 = -x * Math.sin(rg.ty) + z2 * Math.cos(rg.ty);
+  return [7 + x3, 7 + y2, rg.z + z3];
+}
+function drawRings(c, S, front) {
+  c.save(); c.lineCap = "round"; if (front) c.globalAlpha = .5; // ครึ่งหน้าจางลง ไม่แย่งสายตาจากสนาม
+  for (const rg of RINGS) {
+    const n = 140;
+    for (let i = 0; i < n; i++) {
+      const a = ringPoint(rg, i / n * Math.PI * 2), b = ringPoint(rg, (i + 1) / n * Math.PI * 2);
+      if ((a[1] > 7) !== front) continue;
+      const pa = P(a[0], a[1], a[2]), pb = P(b[0], b[1], b[2]);
+      c.beginPath(); c.moveTo(pa[0], pa[1]); c.lineTo(pb[0], pb[1]);
+      c.strokeStyle = `rgba(${S.ringGlow},.22)`; c.lineWidth = .26 * pa[2]; c.stroke();
+      c.strokeStyle = S.ringCol; c.lineWidth = .07 * pa[2]; c.stroke();
+      c.strokeStyle = "rgba(255,250,220,.7)"; c.lineWidth = .02 * pa[2]; c.stroke();
+    }
+    for (let k = 0; k < rg.beads; k++) {
+      const th = k / rg.beads * Math.PI * 2 + time * rg.sp, p = ringPoint(rg, th);
+      if ((p[1] > 7) !== front) continue;
+      const q = ringPoint(rg, th + .01), pp = P(p[0], p[1], p[2]), qq = P(q[0], q[1], q[2]), L = .75 * pp[2];
+      c.save(); c.translate(pp[0], pp[1]); c.rotate(Math.atan2(qq[1] - pp[1], qq[0] - pp[0])); c.drawImage(GOLD, -L / 2, -L * .27, L, L * .54); c.restore();
+    }
+  }
+  c.restore();
+}
+// ลำแสงจากฟ้า
+function drawRays(c, S) {
+  const [vx, vy, vw, vh] = visRect();
+  c.save(); c.globalCompositeOperation = "lighter";
+  for (let k = 0; k < 5; k++) {
+    const x0 = vx + vw * (.08 + .2 * k) + Math.sin(time * .25 + k * 1.7) * 50, w = 40 + 30 * (k % 2);
+    const gr = c.createLinearGradient(0, vy, 0, vy + vh); gr.addColorStop(0, `rgba(${S.rays},${S.raysA * (.6 + .4 * Math.sin(time * .7 + k))})`); gr.addColorStop(1, `rgba(${S.rays},0)`);
+    c.fillStyle = gr; c.beginPath(); c.moveTo(x0 - w, vy); c.lineTo(x0 + w, vy); c.lineTo(x0 + w * 6 + 160, vy + vh); c.lineTo(x0 + w * 2 + 160, vy + vh); c.closePath(); c.fill();
+  }
+  c.restore();
+}
+
+const MOTES = Array.from({ length: 140 }, () => { const r = rMO; return { x: r() * 18 - 2, y: r() * 18 - 2, z: .2 + r() * 5, p: r() * 9, s: .5 + r() }; });
+function drawGlyph(c, name, cx, cy, sc, lw, rgb, a) {
+  c.save(); c.lineCap = "round"; c.lineJoin = "round";
+  const path = () => { c.beginPath(); for (const pl of GLYPHS[name]) pl.forEach(([x, y], i) => i ? c.lineTo(cx + x * sc, cy + y * sc) : c.moveTo(cx + x * sc, cy + y * sc)); };
+  c.shadowColor = `rgba(${rgb},${a})`; c.shadowBlur = lw * 2.2;
+  path(); c.strokeStyle = `rgba(${rgb},${.55 * a})`; c.lineWidth = lw; c.stroke();
+  c.shadowBlur = 0; path(); c.strokeStyle = `rgba(255,240,250,${a})`; c.lineWidth = lw * .34; c.stroke();
+  c.restore();
+}
+// ผนึก: เสาแสงพุ่งขึ้นฟ้า + วงแหวนหนามลอยเหนือแท่น + วงโซ่ทองโคจรรอบนอก (wrap 0..1)
+function drawSeal(c, i, S, o) {
+  const prog = o.prog, crack = o.crack || 0;
+  if (prog <= 0) return;
+  const [tx, ty] = sealPos(i), rot = time * .35 + i;
+  const shake = o.shake || 0, jx = (Math.random() - .5) * shake, jy = (Math.random() - .5) * shake;
+  const bob = Math.sin(time * 1.6 + i) * .06;
+  const [px, py] = P(tx, ty, PED_H), [sx0, sy0, s] = P(tx, ty, SEAL_Z + bob), sx = sx0 + jx, sy = sy0 + jy;
+  const R = .8 * s * easeBack(clamp01(prog));
+  c.save();
+  // เสาแสงขึ้นฟ้า
+  c.save(); c.globalCompositeOperation = "lighter";
+  const top = visRect()[1], w = .46 * s * (.85 + .15 * Math.sin(time * 3 + i)) * prog;
+  let gr = c.createLinearGradient(0, py, 0, top); gr.addColorStop(0, `rgba(${S.acc},${.55 * prog})`); gr.addColorStop(.5, `rgba(${S.acc},${.18 * prog})`); gr.addColorStop(1, `rgba(${S.acc},0)`);
+  c.fillStyle = gr; c.fillRect(sx - w, top, w * 2, py - top);
+  gr = c.createLinearGradient(0, py, 0, top); gr.addColorStop(0, `rgba(255,255,255,${.6 * prog})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = gr; c.fillRect(sx - w * .14, top, w * .28, py - top);
+  c.restore();
+  glow(c, sx, sy, R * 2.1, S.acc, .35 * prog);
+  const N = 54;
+  for (let k = 0; k < N; k++) {
+    const a = k / N * Math.PI * 2 + rot * .4, len = R * (k % 3 === 0 ? .42 : k % 3 === 1 ? .24 : .3), ww = .045;
+    c.beginPath(); c.moveTo(sx + Math.cos(a - ww) * R * .98, sy + Math.sin(a - ww) * R * .98);
+    c.lineTo(sx + Math.cos(a) * (R + len), sy + Math.sin(a) * (R + len)); c.lineTo(sx + Math.cos(a + ww) * R * .98, sy + Math.sin(a + ww) * R * .98); c.closePath();
+    c.fillStyle = k % 3 === 0 ? `rgba(255,236,248,${.9 * prog})` : `rgba(210,190,215,${.75 * prog})`; c.fill();
+  }
+  const disc = c.createRadialGradient(sx, sy, 0, sx, sy, R);
+  disc.addColorStop(0, "rgba(60,30,50,.96)"); disc.addColorStop(1, "rgba(24,14,22,.96)");
+  c.fillStyle = disc; c.beginPath(); c.arc(sx, sy, R, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = `rgba(255,230,245,${prog})`; c.lineWidth = .06 * s; c.stroke();
+  c.strokeStyle = `rgba(${S.acc},${.7 * prog})`; c.lineWidth = .025 * s; c.beginPath(); c.arc(sx, sy, R * .84, 0, Math.PI * 2); c.stroke();
+  drawGlyph(c, SEALS[i].glyph, sx, sy, R * .6, .2 * s, S.acc, prog * (.8 + .2 * Math.sin(time * 4 + i)));
+  if (crack > 0) {
+    const r = rng(i * 999 + 1);
+    c.strokeStyle = "rgba(255,255,255,.95)"; c.lineWidth = .03 * s; c.shadowColor = "#fff"; c.shadowBlur = 8;
+    for (let k = 0; k < 7; k++) {
+      let a = r() * Math.PI * 2, qx = sx, qy = sy; const L = R * 1.15 * clamp01(crack * 1.4 - k * .08);
+      c.beginPath(); c.moveTo(qx, qy);
+      for (let j = 0; j < 4; j++) { a += (r() - .5) * .9; qx += Math.cos(a) * L / 4; qy += Math.sin(a) * L / 4; c.lineTo(qx, qy); }
+      c.stroke();
+    }
+    c.shadowBlur = 0;
+  }
+  // วงโซ่ทองโคจรรอบนอกหนาม
+  const wrap = o.wrap ?? 1;
+  if (wrap > 0 && !st.snapped.has("w" + i)) drawGoldChain(c, haloPieces(i, sx, sy, R, s), easeOut(wrap));
+  if (o.pips) {
+    const hp = o.hp ?? 3, ar = o.ar ?? 2, qy = sy - R * 1.66 - .32 * s;
+    for (let k = 0; k < 5; k++) {
+      const qx = sx + (k - 2) * .24 * s, on = k < 3 ? k < hp : k - 3 < ar, d = .08 * s;
+      c.beginPath(); c.moveTo(qx, qy - d); c.lineTo(qx + d, qy); c.lineTo(qx, qy + d); c.lineTo(qx - d, qy); c.closePath();
+      c.fillStyle = on ? (k < 3 ? "#ff5f7a" : "#7fb8ff") : "rgba(255,255,255,.15)"; c.fill();
+      c.strokeStyle = "rgba(0,0,0,.5)"; c.lineWidth = 1; c.stroke();
+    }
+  }
+  c.restore();
+}
+// o: { sv, seals[4], sealFx[4], wraps[4], edges{e0..e3: prog}, tokens, lunge, pickup, pips }
+function renderZero(c, o) {
+  const S = ST[o.sv];
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(seaFor(o.sv), 0, 0); c.restore();
+  if (S.stars > .3) for (let k = 0; k < 80; k++) { const [x, y, , p] = GSTARS[k * 7]; const [sx, sy, s] = PS(x, y), tw = Math.max(0, Math.sin(time * 2 + p * 3)); if (tw > .6) { c.fillStyle = `rgba(${S.starCol},${S.stars * (tw - .6) * 2.5})`; const r = .07 * s; c.fillRect(sx - r * 2, sy - .5, r * 4, 1); c.fillRect(sx - .5, sy - r * 2, 1, r * 4); } }
+  if (o.sv === 4) { const [ccx, ccy] = P(7, 7); glow(c, ccx, ccy, 700, "120,10,20", .18 + .08 * Math.sin(time * 1.5)); }
+  drawRings(c, S, false);
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(stageFor(o.sv), 0, 0); c.restore();
+  // วงเวทกลางพื้นเต้นเบาๆ
+  { const [ccx, ccy, s] = P(7, 7); c.save(); c.globalCompositeOperation = "lighter"; c.translate(ccx, ccy); c.scale(1, SN * 1.15); glow(c, 0, 0, 6.6 * s, S.inlay, .1 + .06 * Math.sin(time * 1.8)); c.restore(); }
+  if (o.edges) for (const [id, p] of Object.entries(o.edges)) if (!st.snapped.has(id)) drawGoldChain(c, edgePieces(+id[1]), p);
+  const items = [];
+  for (let i = 0; i < 4; i++) {
+    const fx = (o.sealFx && o.sealFx[i]) || null;
+    if (st.broken[i] && !fx) continue;
+    items.push({ d: sealPos(i)[1], f: () => drawSeal(c, i, S, { prog: o.seals ? o.seals[i] : 1, wrap: o.wraps ? o.wraps[i] : 1, pips: o.pips, ...(fx || {}) }) });
+  }
+  if (o.tokens > 0) for (const ch of CHARS) {
+    let [x, y] = ch.zero;
+    if (o.lunge && o.lunge.id === ch.id) { x += o.lunge.dx * o.lunge.k; y += o.lunge.dy * o.lunge.k; }
+    items.push({ d: y + .5, f: () => {
+      drawToken(c, ch, x, y, o.tokens);
+      if (o.tokens < 1) { const [sx, sy, s] = P(x + .5, y + .5, .6); glow(c, sx, sy, 1.6 * s * (1 - o.tokens) + .2 * s, S.acc, 1 - o.tokens); }
+    } });
+  }
+  if (o.pickup) items.push({ d: 11.5, f: () => {
+    const [sx, sy, s] = P(9.5, 11.5, .55 + Math.sin(time * 2.2) * .12), [gx, gy] = P(9.5, 11.5);
+    c.fillStyle = "rgba(0,0,0,.3)"; c.beginPath(); c.ellipse(gx, gy, .22 * s, .08 * s, 0, 0, Math.PI * 2); c.fill();
+    glow(c, sx, sy, .7 * s, "120,255,170", .55);
+    const a = .1 * s, b = .3 * s; c.fillStyle = "#c8ffd8"; c.fillRect(sx - a, sy - b, a * 2, b * 2); c.fillRect(sx - b, sy - a, b * 2, a * 2);
+  } });
+  items.sort((a, b) => a.d - b.d).forEach((it) => it.f());
+  drawRings(c, S, true);
+  for (const m of MOTES) {
+    let { x, y, z } = m, col, size = 1;
+    if (S.mote === "white") { z = (m.z + time * .15 * m.s) % 5.2; col = "255,255,255"; }
+    else if (S.mote === "star") { col = "255,240,255"; }
+    else if (S.mote === "ember") { z = (m.z + time * .4 * m.s) % 5.2; col = "255,120,80"; }
+    else { z = 5.2 - ((5.2 - m.z + time * .3 * m.s) % 5.2); x += Math.sin(time * .5 + m.p) * .4; col = m.s > 1.2 ? "255,60,60" : "120,110,120"; size = 1.5; }
+    const [sx, sy, s] = P(x, y, z), tw = .4 + .6 * Math.abs(Math.sin(time * 1.4 + m.p));
+    c.fillStyle = `rgba(${col},${.8 * tw})`; c.fillRect(sx - size, sy - size, size * 2, size * 2);
+    if (m.s > 1.3 && S.mote !== "ash") glow(c, sx, sy, .12 * s, col, .35 * tw);
+  }
+  drawRays(c, S);
+}
+// =================================================================== HUD / ป้าย
+function iconSkill(c, x, y, r, col) { c.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 - Math.PI / 2, rr = k % 2 ? r * .42 : r; k ? c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.closePath(); c.fillStyle = col; c.fill(); }
+function iconCoin(c, x, y, r) { c.fillStyle = "#f0c868"; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.strokeStyle = "#a0782a"; c.lineWidth = r * .18; c.beginPath(); c.arc(x, y, r * .6, 0, Math.PI * 2); c.stroke(); }
+function iconSword(c, x, y, r) { c.save(); c.translate(x, y); c.rotate(-Math.PI / 4); c.fillStyle = "#e8eef8"; c.fillRect(-r * .13, -r, r * .26, r * 1.35); c.fillStyle = "#ff6f6f"; c.fillRect(-r * .5, r * .35, r, r * .18); c.fillRect(-r * .12, r * .5, r * .24, r * .45); c.restore(); }
+function iconLock(c, x, y, r) { c.strokeStyle = "#ffb3dc"; c.lineWidth = r * .22; c.beginPath(); c.arc(x, y - r * .2, r * .45, Math.PI, 0); c.stroke(); c.fillStyle = "#ffb3dc"; c.fillRect(x - r * .7, y - r * .2, r * 1.4, r * 1.05); }
+const BUFF_ICONS = [(c, x, y, r) => iconSkill(c, x, y, r, "#ff9be0"), iconCoin, iconSword];
+function drawHud(c, a) {
+  if (a <= 0) return;
+  c.save(); c.globalAlpha = a;
+  c.fillStyle = "rgba(16,10,18,.8)"; c.strokeStyle = "rgba(255,150,210,.5)"; c.lineWidth = 1.5;
+  c.beginPath(); c.roundRect(22, 20, 250, 92, 10); c.fill(); c.stroke();
+  c.font = "800 26px Kanit"; c.fillStyle = "#fff"; c.textBaseline = "middle"; c.fillText(`เฟส ${stage()}`, 38, 46);
+  for (let i = 0; i < 4; i++) { const x = 160 + i * 24, y = 46, d = 8; c.beginPath(); c.moveTo(x, y - d); c.lineTo(x + d, y); c.lineTo(x, y + d); c.lineTo(x - d, y); c.closePath(); c.fillStyle = st.broken[i] ? "rgba(255,255,255,.15)" : "#ff7ac8"; c.fill(); }
+  c.font = "700 17px Chakra Petch";
+  for (let k = 0; k < buffPhase(); k++) { const x = 44 + k * 58; BUFF_ICONS[k](c, x, 86, 10); c.fillStyle = "#fff"; c.fillText("+1", x + 15, 87); }
+  iconLock(c, 228, 86, 10);
+  c.restore();
+}
+function drawTitle(c, k, big, phase) {
+  if (k <= 0 || k >= 1) return;
+  const a = Math.min(1, k / .15, (1 - k) / .2), w = 900 * easeOut(Math.min(1, k / .25));
+  c.save(); c.globalAlpha = a;
+  const y = big ? 300 : 260;
+  const band = c.createLinearGradient(640 - w / 2, 0, 640 + w / 2, 0);
+  band.addColorStop(0, "rgba(10,4,12,0)"); band.addColorStop(.5, "rgba(10,4,12,.72)"); band.addColorStop(1, "rgba(10,4,12,0)");
+  c.fillStyle = band; c.fillRect(640 - w / 2, y - (big ? 70 : 46), w, big ? 150 : 98);
+  c.fillStyle = "rgba(255,210,120,.9)"; c.fillRect(640 - w / 2, y - (big ? 70 : 46), w, 1.5); c.fillRect(640 - w / 2, y + (big ? 80 : 52), w, 1.5);
+  c.textAlign = "center"; c.textBaseline = "middle";
+  if (big) {
+    c.font = "800 64px Kanit"; c.letterSpacing = `${(1 - easeOut(Math.min(1, k / .4))) * 30 + 4}px`;
+    c.shadowColor = "#ff5fb4"; c.shadowBlur = 24; c.fillStyle = "#fff"; c.fillText("ห่วงเวลาซีโร่", 640, y - 12);
+    c.shadowBlur = 0; c.letterSpacing = "2px";
+  }
+  c.font = `800 ${big ? 30 : 46}px Kanit`; c.fillStyle = "#ffd6ee";
+  const ty = big ? y + 48 : y, buff = phase <= 3;
+  c.fillText(`เฟส ${phase}`, buff ? 640 - 34 : 640, ty);
+  if (buff) {
+    BUFF_ICONS[phase - 1](c, 640 + 52, ty, big ? 14 : 20);
+    c.font = `700 ${big ? 24 : 34}px Chakra Petch`; c.fillStyle = "#fff"; c.fillText("+1", 640 + (big ? 84 : 96), ty + 1);
+  }
+  c.restore();
+}
+
+// =================================================================== อนุภาค
+function burst(x, y, s, n, rgb) {
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2, v = (150 + Math.random() * 520) * s / 60;
+    st.parts.push({ kind: "shard", x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, g: 700, rot: Math.random() * 6, vr: (Math.random() - .5) * 14,
+      size: (4 + Math.random() * 10) * s / 60, life: 0, max: .9 + Math.random() * .7, col: Math.random() < .5 ? "#fff" : `rgb(${rgb})` });
+  }
+}
+function snapPieces(pieces) {
+  for (const p of pieces) st.parts.push({ kind: "gold", x: p.x, y: p.y, vx: (Math.random() - .5) * 160, vy: -80 - Math.random() * 160, g: 950, rot: p.a, vr: (Math.random() - .5) * 12, size: p.L, life: 0, max: 1 + Math.random() * .6 });
+}
+function snapEdge(k) { const id = "e" + k; if (st.snapped.has(id)) return; snapPieces(edgePieces(k)); st.snapped.add(id); }
+function snapWrap(i) {
+  const id = "w" + i; if (st.snapped.has(id)) return;
+  const [tx, ty] = sealPos(i), [sx, sy, s] = P(tx, ty, SEAL_Z), R = .8 * s;
+  snapPieces(haloPieces(i, sx, sy, R, s)); st.snapped.add(id);
+}
+function drawParts(c, dt) {
+  for (const p of st.parts) {
+    p.life += dt; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    const a = 1 - p.life / p.max; if (a <= 0) continue;
+    c.save(); c.globalAlpha = a; c.translate(p.x, p.y); c.rotate(p.rot);
+    if (p.kind === "shard") { c.beginPath(); c.moveTo(0, -p.size); c.lineTo(p.size * .5, p.size * .6); c.lineTo(-p.size * .4, p.size * .4); c.closePath(); c.fillStyle = p.col; c.fill(); }
+    else c.drawImage(GOLD, -p.size / 2, -p.size * .27, p.size, p.size * .54);
+    c.restore();
+  }
+  st.parts = st.parts.filter((p) => p.life < p.max);
+}
+
+// =================================================================== เพลง 4 ระดับ (ในเกมจริง: ห้ามเพลงอื่นทับ รวมเพลงท่าไม้ตาย · แต่ไม่กลบเสียงกด/เอฟเฟกต์)
+const MUSIC = [1, 2, 3, 4].map((n) => { const a = new Audio(`/client/public/zero_time/phase${n}.mp3`); a.loop = true; a.volume = 0; a.preload = "auto"; return a; });
+let musicOn = true, musicWant = 0;
+function setMusic(n) {
+  musicWant = n;
+  const a = MUSIC[n - 1];
+  if (n && musicOn && a.paused) { a.currentTime = 0; a.play().catch(() => {}); }
+}
+function tickMusic(dt) {
+  MUSIC.forEach((a, i) => {
+    const target = musicOn && musicWant === i + 1 ? .45 : 0, step = dt / speed * 1.2;
+    a.volume = Math.max(0, Math.min(1, a.volume + Math.sign(target - a.volume) * Math.min(Math.abs(target - a.volume), step)));
+    if (target === 0 && a.volume <= .001 && !a.paused) a.pause();
+  });
+}
+
+// =================================================================== ลำดับฉาก
+const ENTER_T = 8.0, BREAK_T = 3.3, RELEASE_T = 4.6;
+const EDGES = ["e0", "e1", "e2", "e3"];
+function liveEdges() { const o = {}; for (const id of EDGES) if (!st.snapped.has(id)) o[id] = 1; return o; }
+function nearestTo(i) {
+  const [sx, sy] = sealPos(i); let best = null, bd = 1e9;
+  for (const ch of CHARS) { const d = Math.hypot(ch.zero[0] + .5 - sx, ch.zero[1] + .5 - sy); if (d < bd) { bd = d; best = ch; } }
+  return best;
+}
+function startBreak(i) {
+  if (st.mode !== "zero" || st.broken[i]) return;
+  st.breakIdx = i; st.breaker = nearestTo(i); st.t = 0; st.fired = false; st.fromStage = stage();
+  st.mode = brokenN() === 3 ? "release" : "break";
+  syncButtons();
+}
+function shatterSeal(i, n) {
+  const [x, y] = sealPos(i), [sx, sy, s] = P(x, y, SEAL_Z);
+  st.broken[i] = true; burst(sx, sy, s, n, ST[st.fromStage].acc);
+  snapWrap(i); snapEdge(i); snapEdge((i + 3) % 4);
+}
+function update(dt) {
+  if (st.mode === "zero" && musicWant !== stage()) setMusic(stage());
+  tickMusic(dt);
+  st.t += dt;
+  if (st.flash > 0) st.flash = Math.max(0, st.flash - dt * 2.2);
+  if (st.shake > 0) st.shake = Math.max(0, st.shake - dt * 30);
+  if (st.mode === "enter") {
+    if (!st.fired && st.t > 1.8) { st.fired = true; setMusic(1); }
+    if (st.t >= ENTER_T) { st.mode = "zero"; st.t = 0; syncButtons(); }
+  } else if (st.mode === "break") {
+    if (!st.fired && st.t >= .7) { st.fired = true; shatterSeal(st.breakIdx, 46); st.flash = .55; st.shake = 14; setMusic(stage()); }
+    if (st.t >= BREAK_T) { st.mode = "zero"; st.t = 0; syncButtons(); }
+  } else if (st.mode === "release") {
+    if (!st.fired && st.t >= .7) { st.fired = true; shatterSeal(st.breakIdx, 60); for (let k = 0; k < 4; k++) snapEdge(k); st.flash = .5; st.shake = 18; }
+    if (st.t >= 1.45 && musicWant) setMusic(0);
+    if (!st.shards && st.t >= 1.45) makeShards();
+    if (st.t >= RELEASE_T) resetAll();
+  }
+  if (st.mode === "normal" || (st.mode === "release" && st.t > 1.45)) ffTime += dt;
+}
+function crackOrigin() { const [x, y] = sealPos(st.breakIdx), p = P(x, y, SEAL_Z); return [p[0], p[1]]; }
+function makeShards() {
+  const sc = snap.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, snap.width, snap.height);
+  sc.drawImage(layers[0], 0, 0);
+  setView(sc); drawScreenCracks(sc, 1);
+  const [vx, vy, vw, vh] = visRect(), nx = 9, ny = 6, r = rng(77), pts = [];
+  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+    const edge = i === 0 || j === 0 || i === nx || j === ny;
+    pts.push([vx + vw * i / nx + (edge ? 0 : (r() - .5) * vw / nx * .7), vy + vh * j / ny + (edge ? 0 : (r() - .5) * vh / ny * .7)]);
+  }
+  const [cx, cy] = crackOrigin();
+  st.shards = [];
+  const add = (a, b, d) => {
+    const mx = (a[0] + b[0] + d[0]) / 3, my = (a[1] + b[1] + d[1]) / 3, dx = mx - cx, dy = my - cy, L = Math.hypot(dx, dy) || 1;
+    st.shards.push({ pts: [a, b, d], mx, my, vx: dx / L * (120 + r() * 260), vy: dy / L * (80 + r() * 200) - 160, vr: (r() - .5) * 2.4, delay: L / 2400 });
+  };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const a = pts[j * (nx + 1) + i], b = pts[j * (nx + 1) + i + 1], d = pts[(j + 1) * (nx + 1) + i + 1], e = pts[(j + 1) * (nx + 1) + i];
+    if ((i + j) % 2) { add(a, b, d); add(a, d, e); } else { add(a, b, e); add(b, d, e); }
+  }
+}
+function drawScreenCracks(c, k) {
+  if (k <= 0) return;
+  const [cx, cy] = crackOrigin(), r = rng(9001);
+  c.save(); c.strokeStyle = "rgba(255,255,255,.95)"; c.shadowColor = "#ffb3e0"; c.shadowBlur = 12; c.lineWidth = 2.2;
+  for (let n = 0; n < 16; n++) {
+    let a = n / 16 * Math.PI * 2 + r() * .3, px = cx, py = cy; const L = (500 + r() * 900) * k;
+    c.beginPath(); c.moveTo(px, py);
+    for (let j = 0; j < 7; j++) { a += (r() - .5) * .5; px += Math.cos(a) * L / 7; py += Math.sin(a) * L / 7; c.lineTo(px, py); }
+    c.stroke();
+  }
+  c.restore();
+}
+
+// =================================================================== วาดเฟรม
+function compositeLayer(src) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(src, 0, 0); g.restore(); }
+function prepLayer(i) { const c = layers[i].getContext("2d"); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, layers[i].width, layers[i].height); setView(c); return c; }
+function zeroOpts(extra = {}) { return { sv: stage(), edges: liveEdges(), tokens: 1, pickup: true, pips: true, ...extra }; }
+function beam(c, h, w, a) {
+  if (a <= 0) return;
+  const [bx, by, s] = P(CENTER[0], CENTER[1], 0), [, ty] = P(CENTER[0], CENTER[1], 26 * h);
+  c.save(); c.globalCompositeOperation = "lighter";
+  const W1 = (14 + 40 * w) * s / 60;
+  const gr = c.createLinearGradient(bx - W1, 0, bx + W1, 0);
+  gr.addColorStop(0, "rgba(255,90,180,0)"); gr.addColorStop(.5, `rgba(255,120,200,${.55 * a})`); gr.addColorStop(1, "rgba(255,90,180,0)");
+  c.fillStyle = gr; c.fillRect(bx - W1, ty, W1 * 2, by - ty);
+  const W2 = (2 + 6 * w) * s / 60;
+  c.fillStyle = `rgba(255,255,255,${a})`; c.fillRect(bx - W2, ty, W2 * 2, by - ty);
+  c.fillStyle = `rgba(255,170,225,${.7 * a})`; c.beginPath(); c.ellipse(bx, by, (1.2 + 2 * w) * s, (1.2 + 2 * w) * s * SN, 0, 0, Math.PI * 2); c.fill();
+  glow(c, bx, by, (2 + 3 * w) * s, "255,150,215", .6 * a);
+  c.restore();
+}
+function waveRing(c, cx, cy, r, a, rgb) {
+  if (a <= 0) return;
+  c.save(); c.globalCompositeOperation = "lighter";
+  for (const [z, al, lw] of [[0, 1, 7], [.35, .55, 4], [.9, .35, 3], [1.7, .2, 2], [2.8, .1, 2]]) {
+    gEllipse(c, cx, cy, r, z, 96); c.strokeStyle = `rgba(${rgb},${al * a})`; c.lineWidth = lw; c.stroke();
+  }
+  gEllipse(c, cx, cy, r, 0, 96); c.strokeStyle = `rgba(255,255,255,${.8 * a})`; c.lineWidth = 2; c.stroke();
+  c.restore();
+}
+function sealFxAt(t, i) {
+  const fx = []; fx[i] = { crack: seg(t, .2, .7), shake: 6 * seg(t, .1, .7), hp: Math.ceil(3 * (1 - seg(t, .45, .68))), ar: Math.ceil(2 * (1 - seg(t, .2, .42))) };
+  return fx;
+}
+function lungeAt(t) {
+  const ch = st.breaker, [sx, sy] = sealPos(st.breakIdx);
+  return { id: ch.id, dx: Math.sign(sx - ch.zero[0] - .5) * .35, dy: Math.sign(sy - ch.zero[1] - .5) * .35, k: Math.sin(seg(t, .35, .85) * Math.PI) };
+}
+function render(dt) {
+  const shx = (Math.random() - .5) * st.shake, shy = (Math.random() - .5) * st.shake;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#07060c"; g.fillRect(0, 0, cv.width, cv.height);
+  setView(g, shx, shy);
+  const t = st.t;
+  if (st.mode === "normal") {
+    renderNormal(g, 0);
+  } else if (st.mode === "enter") {
+    // 0–0.8 เวลาหยุด · 0.8–1.6 ลำแสง · 1.8–3.4 คลื่น · 3.4–4.6 โซ่ทองล้อมขอบ · 4.3–5.2 ผนึก · 5.0–5.8 โซ่พันผนึก · 5.6–7.9 ชื่อ
+    renderNormal(g, seg(t, 0, .8));
+    const r = 15 * easeInOut(seg(t, 1.8, 3.4));
+    if (r > 0) {
+      const edges = {}; for (let i = 0; i < 4; i++) edges["e" + i] = easeInOut(seg(t, 3.4 + i * .12, 4.5 + i * .12));
+      const z = prepLayer(0);
+      renderZero(z, { sv: 1, edges, tokens: seg(t, 3.2, 3.8), pickup: t > 5.6, pips: t > 5.6,
+        seals: [0, 1, 2, 3].map((i) => seg(t, 4.3 + i * .18, 4.8 + i * .18)), wraps: [0, 1, 2, 3].map((i) => seg(t, 5.0 + i * .12, 5.6 + i * .12)) });
+      g.save(); wavePath(g, CENTER[0], CENTER[1], r); g.clip(); compositeLayer(layers[0]); g.restore();
+      waveRing(g, CENTER[0], CENTER[1], r, 1 - seg(t, 3.0, 3.5), "255,140,210");
+    }
+    const bh = easeOut(seg(t, .8, 1.5)), bw = seg(t, 1.5, 1.9) * (1 - seg(t, 3.0, 3.6)), ba = seg(t, .8, .9) * (1 - seg(t, 3.2, 3.8));
+    beam(g, bh, bw, ba);
+    for (let i = 0; i < 4; i++) if (!(st.ign & (1 << i)) && t >= 4.45 + i * .18) { st.ign |= 1 << i; const [x, y] = sealPos(i), [sx, sy, s] = P(x, y, SEAL_Z); burst(sx, sy, s, 14, "255,122,200"); st.shake = 6; }
+    if (!(st.ign & 16) && t >= 5.65) { st.ign |= 16; st.shake = 9; }
+    drawParts(g, dt);
+    drawHud(g, seg(t, 6.6, 7.4));
+    drawTitle(g, seg(t, 5.6, 7.9), true, 1);
+  } else if (st.mode === "zero") {
+    renderZero(g, zeroOpts());
+    drawParts(g, dt);
+    drawHud(g, 1);
+  } else if (st.mode === "break") {
+    const i = st.breakIdx, [sx, sy] = sealPos(i), lunge = lungeAt(t);
+    const oldL = prepLayer(0); renderZero(oldL, zeroOpts({ sv: st.fromStage, lunge, sealFx: t < .7 ? sealFxAt(t, i) : null }));
+    compositeLayer(layers[0]);
+    const r = 24 * easeInOut(seg(t, .8, 2.1));
+    if (r > 0) {
+      const nl = prepLayer(1), nv = st.fromStage + 1;
+      renderZero(nl, zeroOpts({ sv: nv, lunge }));
+      g.save(); wavePath(g, sx, sy, r); g.clip(); compositeLayer(layers[1]); g.restore();
+      waveRing(g, sx, sy, r, 1 - seg(t, 1.8, 2.2), ST[nv].acc);
+    }
+    drawParts(g, dt);
+    drawHud(g, 1);
+    drawTitle(g, seg(t, 1.5, 3.3), false, st.fromStage + 1);
+  } else if (st.mode === "release") {
+    const i = st.breakIdx, ch = st.breaker;
+    if (t < 1.45) {
+      const z = prepLayer(0);
+      renderZero(z, zeroOpts({ sv: 4, lunge: lungeAt(t), sealFx: t < .7 ? sealFxAt(t, i) : null }));
+      compositeLayer(layers[0]);
+      drawScreenCracks(g, easeOut(seg(t, .9, 1.42)));
+      drawParts(g, dt);
+      drawHud(g, 1 - seg(t, 1.0, 1.4));
+      g.save(); g.globalCompositeOperation = "lighter"; const [cx, cy] = crackOrigin(); glow(g, cx, cy, 1400 * seg(t, 1.1, 1.45), "255,220,245", seg(t, 1.1, 1.45)); g.restore();
+    } else {
+      renderNormal(g, 0, false);
+      for (const c of CHARS) drawToken(g, c, c.home[0], c.home[1], seg(t, 1.6, 2.1));
+      const k = t - 1.45;
+      for (const sh of st.shards || []) {
+        const tt = Math.max(0, k - sh.delay), dx = sh.vx * tt, dy = sh.vy * tt + 900 * tt * tt, rot = sh.vr * tt;
+        const a = 1 - clamp01(tt / 1.3); if (a <= 0) continue;
+        g.save(); g.globalAlpha = a;
+        g.translate(sh.mx + dx, sh.my + dy); g.rotate(rot); g.translate(-sh.mx, -sh.my);
+        g.beginPath(); sh.pts.forEach((p, j) => j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip();
+        const [vx, vy, vw, vh] = visRect(); g.drawImage(snap, vx, vy, vw, vh);
+        g.strokeStyle = "rgba(255,220,240,.8)"; g.lineWidth = 2; g.stroke();
+        g.restore();
+      }
+      drawParts(g, dt);
+      // ความเสียหาย 2 ทุกคน ยกเว้นคนทุบผนึกสุดท้าย
+      const dk = seg(t, 2.3, 4.2);
+      if (dk > 0 && dk < 1) for (const c of CHARS) {
+        const [hx, hy, s] = P(c.home[0] + .5, c.home[1] + .5, 1.6 + dk * .8), a = Math.min(1, dk / .1, (1 - dk) / .25);
+        g.save(); g.globalAlpha = a; g.textAlign = "center"; g.textBaseline = "middle";
+        if (c === ch) {
+          g.strokeStyle = "#ff9fd6"; g.lineWidth = 3; g.shadowColor = "#ff5fb4"; g.shadowBlur = 14;
+          const [px, py, ps] = P(c.home[0] + .5, c.home[1] + .5, .95); g.beginPath(); g.arc(px, py, .62 * ps * (1 + .1 * Math.sin(t * 12)), 0, Math.PI * 2); g.stroke();
+        } else {
+          g.font = `800 ${Math.round(.62 * s)}px Chakra Petch`; g.lineWidth = 5; g.strokeStyle = "#2a0710"; g.strokeText("-2", hx, hy); g.fillStyle = "#ff5f6f"; g.fillText("-2", hx, hy);
+        }
+        g.restore();
+      }
+    }
+  }
+  if (st.flash > 0 || (st.mode === "release" && t > 1.2 && t < 2.2)) {
+    const f = Math.max(st.flash, st.mode === "release" ? Math.max(0, 1 - Math.abs(t - 1.45) / .45) : 0);
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,240,250,${f})`; g.fillRect(0, 0, cv.width, cv.height); g.restore();
+  }
+}
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000) * speed; last = now; time += dt;
+  if (cv.width !== Math.round(innerWidth * DPR) || cv.height !== Math.round(innerHeight * DPR)) resize();
+  update(dt); if (cv.width > 0 && cv.height > 0) render(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// =================================================================== ปุ่ม (เฉพาะหน้าต้นแบบ)
+const sealBox = document.getElementById("seals");
+const sealBtns = SEALS.map((s, i) => { const b = document.createElement("button"); b.textContent = s.name; b.onclick = () => startBreak(i); sealBox.appendChild(b); return b; });
+const enterBtn = document.getElementById("enter"), slowBtn = document.getElementById("slow"), musicBtn = document.getElementById("music");
+function syncButtons() {
+  enterBtn.disabled = st.mode !== "normal";
+  sealBtns.forEach((b, i) => { b.disabled = st.mode !== "zero" || st.broken[i]; });
+}
+enterBtn.onclick = () => { if (st.mode !== "normal") return; st.mode = "enter"; st.t = 0; st.fired = false; st.ign = 0; syncButtons(); };
+slowBtn.onclick = () => { speed = speed === 1 ? .35 : 1; slowBtn.classList.toggle("on", speed !== 1); };
+document.getElementById("reset").onclick = () => { resetAll(); setMusic(0); };
+musicBtn.onclick = () => { musicOn = !musicOn; musicBtn.classList.toggle("on", musicOn); if (musicOn && musicWant) { const n = musicWant; musicWant = 0; setMusic(n); } };
+cv.addEventListener("click", (e) => {
+  if (st.mode !== "zero") return;
+  const lx = (e.clientX - view.ox) / view.k, ly = (e.clientY - view.oy) / view.k;
+  for (let i = 0; i < 4; i++) {
+    if (st.broken[i]) continue;
+    const [x, y] = sealPos(i), [sx, sy, s] = P(x, y, SEAL_Z);
+    if (Math.hypot(lx - sx, ly - sy) < 1.1 * s) { startBreak(i); return; }
+  }
+});
+// ?at=1..4 — ข้ามไประดับนั้นทันที (ตรวจภาพ)
+const q = new URLSearchParams(location.search);
+if (q.get("at")) {
+  st.mode = "zero";
+  const n = Math.max(1, Math.min(4, +q.get("at") || 1));
+  for (let i = 0; i < n - 1; i++) { st.broken[i] = true; st.snapped.add("w" + i); st.snapped.add("e" + i); st.snapped.add("e" + ((i + 3) % 4)); }
+}
+syncButtons();
+</script>
+</body>
+</html>

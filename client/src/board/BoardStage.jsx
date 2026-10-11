@@ -16,11 +16,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
+import { clampZoom, ZOOM_STEPS } from "./boardDraw";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
 import { GUTS_AMMO_INFO } from "../data/shop";
-import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
+import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
+import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
 import { BEAM_T, QUAKE_T, STYLE_HIT } from "./boardDraw";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
@@ -58,6 +60,9 @@ function screenDir(rotation, code) {
   return null;
 }
 const HEX_PTS = "50,0 100,28.5 100,85.5 50,114 0,85.5 0,28.5";
+// ห่วงเวลาซีโร่: เป้า "seal:N" → N (อื่น = -1)
+const sealIdx = (id) => (typeof id === "string" && id.startsWith("seal:") && Number.isInteger(Number(id.slice(5))) ? Number(id.slice(5)) : -1);
+const sealOf = (z, i) => (z && Array.isArray(z.seals) ? z.seals.find((s) => s.i === i) || null : null);
 
 //  props เพิ่ม (ดีไซน์ UI ใหม่): atkSignal = ตัวเลขเปลี่ยน = ปุ่ม "โจมตี" ถูกกด · onAttackables(ids) = ศัตรูที่ตาเราตีถึง (เดินแล้วตีได้)
 //   onOverlay(bool) = หน้าคาดการณ์เปิด/ปิด (Game ซ่อน HUD ทั้งหมด) · onCall(bool) = ฉากเต็มจอกำลังเล่น
@@ -107,13 +112,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     try { localStorage.setItem("echo.boardView", n); } catch { /* ไม่มีที่เก็บ */ }
     return n;
   }), []);
+  // ระดับซูม 0..ZOOM_STEPS−1 (ผู้ใช้สั่ง 2026-10-11 — ปรับทีละขั้น ไม่ใช่แค่ย่อสุด/ซูมสุด) · จำไว้ใน echo.boardZoomLv
+  //  ค่าเริ่ม = 2 (เท่ามุมใกล้เดิม) · เครื่องที่เคยตั้งแบบเก่า echo.boardZoom = "0" → 0
   const [zoom, setZoomState] = useState(() => {
-    try { return localStorage.getItem("echo.boardZoom") === "0" ? 0 : 1; } catch { return 1; }
+    try {
+      const lv = localStorage.getItem("echo.boardZoomLv");
+      if (lv != null && lv !== "") return clampZoom(lv);
+      return localStorage.getItem("echo.boardZoom") === "0" ? 0 : 2;
+    } catch { return 2; }
   });
   const setZoom = useCallback((z) => {
-    const n = z ? 1 : 0;
+    const n = clampZoom(z);
     setZoomState(n);
-    try { localStorage.setItem("echo.boardZoom", String(n)); } catch { /* ไม่มีที่เก็บ */ }
+    try { localStorage.setItem("echo.boardZoomLv", String(n)); } catch { /* ไม่มีที่เก็บ */ }
   }, []);
   // จุดที่กล้องมุมใกล้ควรเห็น (อ็อบเจกต์ใหม่ = เลื่อนไปถ้าอยู่นอกจอ)
   const [focus, setFocus] = useState(() => (me && me.pos ? { x: me.pos.x, y: me.pos.y } : null));
@@ -130,6 +141,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => window.removeEventListener("keydown", onKey);
   }, [rotate]);
   const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover)) : null;
+  // ห่วงเวลาซีโร่: ผนึกที่ยังไม่แตก = เป้าตีได้ (หน่วยเทียม — ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย ไม่มีหน้าคาดการณ์)
+  const zero = state.zero || null;
+  const sealFoes = useMemo(() => (zero && zero.active && Array.isArray(zero.seals)
+    ? zero.seals.filter((s) => !s.broken).map((s) => ({ id: `seal:${s.i}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSeal: true, name: "ผนึก" }))
+    : []), [zero]);
+  const hoverSeal = hover && !hoverUnit ? sealFoes.find((s) => samePos(s.pos, hover)) || null : null;
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
@@ -186,7 +203,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push };
   }, [myTurn, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : null), [planFor, hoverUnit]);
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : null), [planFor, hoverUnit, hoverSeal]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
@@ -250,6 +267,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
   const [shake, setShake] = useState(0);      // จอสั่น/แฟลช (เลขเปลี่ยน = เล่นใหม่)
   const prevPlayers = useRef({});
+  const prevZero = useRef(state.zero || null);
+  const [sealHold, setSealHold] = useState(null); // ผนึกที่แตกจากการตี — วาดค้างไว้จนถึงจังหวะปะทะ
   const [faces, setFaces] = useState({}); // id → { x, y } ทิศที่หันหน้า (ก้าวสุดท้ายที่เดิน · เริ่มต้น = หันเข้าหากล้อง)
   const prevPos = useRef({});
   const prevVit = useRef({});
@@ -267,6 +286,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const p of state.players) { nextPos[p.id] = p.pos ? { ...p.pos } : null; nextVit[p.id] = (p.hp || 0) + (p.armor || 0); }
     const lastPlayers = prevPlayers.current;
     prevPlayers.current = Object.fromEntries(state.players.map((p) => [p.id, p]));
+    const zNow = state.zero || null, zPrev = prevZero.current;
+    prevZero.current = zNow;
     if (!seeded.current) { seeded.current = true; prevPos.current = nextPos; prevVit.current = nextVit; return; }
 
     // เดิน: ตำแหน่งคนที่กำลังเดินเปลี่ยนตามเส้นทางของตานี้
@@ -290,7 +311,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (freshAtk) {
       const a = freshAtk;
       involved.add(a.byId); involved.add(a.targetId);
-      const tPos = nextPos[a.targetId] || prevPos.current[a.targetId];
+      // ตีผนึก (ห่วงเวลาซีโร่): ตำแหน่งเป้า = ช่องผนึก · แตก = วาดค้างไว้ถึงจังหวะปะทะแล้วค่อยแตก
+      const sI = Number.isInteger(a.seal) ? a.seal : sealIdx(a.targetId);
+      const sealT = sI >= 0 ? sealOf(zNow, sI) || sealOf(zPrev, sI) : null;
+      const sealBroke = !!(sealT && a.kill);
+      const sealStage = (zPrev && zPrev.stage) || (zNow && zNow.stage) || 1;
+      if (sealBroke) setSealHold(sI);
+      const tPos = sealT ? { x: sealT.x, y: sealT.y } : nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
@@ -319,8 +346,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           pushFx([
             { kind: a.dodge ? "slash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor },
             { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : undefined, size: a.gun ? 20 : 30, z: lowQ ? 2.4 : 1.5 },
-            ...(a.kill ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(a.kill && !sealT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
+          if (sealBroke) {
+            setSealHold((h) => (h === sI ? null : h));
+            pushFx([{ kind: "sealBreak", x: tPos.x, y: tPos.y, i: sI, stage: sealStage }]);
+            if (a.byAttackSound && a.byAttackSound !== "attack") playSfx("attack");
+          }
         });
       }
       let t = HIT;
@@ -345,6 +377,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         });
       }
       if (!lowQ) later(t + (a.push ? 900 : 1000), () => setCinema(null));
+    }
+    // ผนึกแตกนอกฉากตี (สกิลพื้นที่) = แตกทันที
+    if (zNow && zPrev && Array.isArray(zNow.seals) && Array.isArray(zPrev.seals)) {
+      const atkSeal = freshAtk ? (Number.isInteger(freshAtk.seal) ? freshAtk.seal : sealIdx(freshAtk.targetId)) : -1;
+      for (const s of zNow.seals) {
+        const was = sealOf(zPrev, s.i);
+        if (!s.broken || !was || was.broken || s.i === atkSeal) continue;
+        pushFx([{ kind: "sealBreak", x: s.x, y: s.y, i: s.i, stage: zPrev.stage || 1 }]);
+        look(s);
+        if (!lowQ) setShake((n) => n + 1);
+      }
     }
     // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
     let hurtPos = null;
@@ -428,6 +471,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("growFx", onGrow);
     socket.on("smashFx", onSmash);
     return () => { socket.off("growFx", onGrow); socket.off("smashFx", onSmash); };
+  }, [pushFx, look, lowQ]);
+
+  // ฟ้าผ่า (ห่วงเวลาซีโร่ เฟส 4 · ต้นเทิร์น): { tiles: [{x,y}×3], hits } · กล้องตามสายแรก · จอสั่น
+  useEffect(() => {
+    const onBolt = (b) => {
+      const tiles = b && Array.isArray(b.tiles) ? b.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)) : [];
+      if (!tiles.length) return;
+      pushFx([{ kind: "zeroBolt", tiles }]);
+      playSfx("zero_thunder");
+      look(tiles[0]);
+      if (!lowQ) setShake((n) => n + 1);
+    };
+    socket.on("zeroBolt", onBolt);
+    return () => socket.off("zeroBolt", onBolt);
   }, [pushFx, look, lowQ]);
 
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
@@ -537,6 +594,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(dirToward(me.pos, { x, y }) || pickInfo.dir); }
       return;
     }
+    // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
+    const seal = sealFoes.find((s) => s.pos.x === x && s.pos.y === y);
+    if (seal) {
+      if (!myTurn || busy || pendingAttack.current) return;
+      const pl = planFor(seal);
+      if (!pl) return;
+      clickSound();
+      if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: seal.id });
+      else { pendingAttack.current = seal.id; socket.emit("move", { x: pl.stand.x, y: pl.stand.y }); }
+      return;
+    }
     if (!myTurn || busy || !canMove || !myReach) return;
     const n = anchorFor({ x, y });
     if (!n) return;
@@ -601,7 +669,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const boardArea = state.board ? state.board.area : 0;
   const [shown, setShown] = useState(() => ({ board: state.board, fly: state.board && shouldLandOnMount(state.board.area) ? "in" : null, seq: 0 }));
   if (state.board && shown.board && boardArea !== shown.board.area && shown.fly !== "out" && shown.fly !== "wait") {
-    setShown((v) => ({ ...v, fly: "out", seq: v.seq + 1 }));
+    // เข้า/ออก/เปลี่ยนระดับห่วงเวลาซีโร่ = ไม่บินไปลูกโลก (BoardCanvas เล่นฉากเปลี่ยนผ่านเอง)
+    if (isZeroArea(boardArea) || isZeroArea(shown.board.area)) setShown((v) => ({ board: state.board, fly: null, seq: v.seq + 1 }));
+    else setShown((v) => ({ ...v, fly: "out", seq: v.seq + 1 }));
   }
   useEffect(() => {
     if (shown.fly === "in") announceArenaLand();
@@ -634,6 +704,29 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const endCall = useCallback(() => setCall(null), []);
   // เสียงฉากตาเดิน (ผู้ใช้ให้ไฟล์มา 2026-10-09): ตาเรา = notificate_mine · ตาคนอื่น = notificate
   useEffect(() => { if (call) playSfx(call.id === (me && me.id) ? "notificate_mine" : "notificate"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------- ฉากห่วงเวลาซีโร่ (ป้ายชื่อ/เฟส · เสียง) — ภาพบนกระดาน BoardCanvas เล่นเองจาก zeroScene ----------
+  const zScene = zero && zero.scene ? zero.scene : null;
+  const [zCall, setZCall] = useState(null); // { seq, mode, stage }
+  const [zSeenSeq, setZSeenSeq] = useState(0);
+  if (zScene && zScene.seq !== zSeenSeq) {
+    setZSeenSeq(zScene.seq);
+    setZCall({ seq: zScene.seq, mode: zScene.mode, stage: zScene.stage });
+  }
+  const endZCall = useCallback(() => setZCall(null), []);
+  const zCallSeq = zCall ? zCall.seq : 0;
+  useEffect(() => {
+    if (!zCall) return undefined;
+    if (zCall.mode === "enter") playSfx("change_cutscene");
+    if (zCall.mode !== "release") return undefined;
+    const t = setTimeout(() => playSfx("attack"), 1450);
+    return () => clearTimeout(t);
+  }, [zCallSeq]); // eslint-disable-line react-hooks/exhaustive-deps -- เล่นครั้งเดียวต่อฉาก
+  // ผนึกที่แตกจากการตีวาดค้างไว้จนถึงจังหวะปะทะ
+  const zeroProp = useMemo(() => {
+    if (!zero || sealHold == null || !Array.isArray(zero.seals)) return zero;
+    return { ...zero, seals: zero.seals.map((s) => (s.i === sealHold ? { ...s, broken: false } : s)) };
+  }, [zero, sealHold]);
 
   // ---------- แถบลำดับเดิน ----------
   const order = phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
@@ -686,6 +779,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         shopLabel={state.shopTurnsLeft > 0 ? state.shopTurnsLeft : null}
         anim={anim}
         fx={fx}
+        zero={zeroProp}
+        zeroScene={zScene}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
@@ -721,6 +816,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       )}
 
 
+      {/* ฉากห่วงเวลาซีโร่: ชื่อ + เฟส + บัฟ */}
+      {zCall && (zCall.mode === "enter" || zCall.mode === "break") && createPortal(
+        <ZeroCall key={`zero-${zCall.seq}`} k={sk} mode={zCall.mode} stage={zCall.stage} onDone={endZCall} />,
+        document.body,
+      )}
+
       {/* โหมดเลือกเป้า: เหลือแค่ปุ่มยกเลิก (ผู้ใช้สั่ง — เลือก/ใช้ทำบนกระดาน) */}
       {pick && pick.onCancel && (
         <button type="button" className="bs-cancel" onClick={() => { clickSound(); pick.onCancel(); }}>✕ ยกเลิก</button>
@@ -730,10 +831,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       <div className="bs-tools">
         <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
         <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
-        <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom === 1}
-          onClick={() => { clickSound(); if (me && me.pos) look(me.pos); setZoom(1); }}>＋</button>
+        <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom >= ZOOM_STEPS - 1}
+          onClick={() => { clickSound(); if (zoom === 0 && me && me.pos) look(me.pos); setZoom(zoom + 1); }}>＋</button>
+        <span className="bs-zoom-lv" aria-hidden="true">{[...Array(ZOOM_STEPS - 1)].map((_, i) => <i key={i} data-on={i < zoom ? "true" : "false"} />)}</span>
         <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 0}
-          onClick={() => { clickSound(); setZoom(0); }}>－</button>
+          onClick={() => { clickSound(); setZoom(zoom - 1); }}>－</button>
         <button type="button" className="bs-tool bs-view" title={view === "top" ? "มุมเอียง" : "มุมบน"} data-on={view === "top" ? "true" : "false"}
           onClick={() => { clickSound(); toggleView(); }}>
           {view === "top"

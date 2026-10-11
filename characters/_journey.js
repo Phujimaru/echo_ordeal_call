@@ -93,8 +93,14 @@ function pickNextArea(from) {
 // ภูมิภาค/ช่วงเวลาของเทิร์นปัจจุบัน — null = ไม่ได้อยู่ในโหมดที่มีการเดินทาง
 function current(engine) {
   if (!active(engine)) return null;
-  const round = engine.roundNumber;
+  // ห่วงเวลาซีโร่: ผลภูมิภาค/กลางวันกลางคืนปิดทั้งหมด (server/zeroTime.js)
+  if (engine.zeroActive && engine.zeroActive()) return null;
+  const round = worldRoundOf(engine);
   return { area: areaNow(engine), night: !!engine.isNightRound(round) };
+}
+// เวลาโลก (ห่วงเวลาซีโร่หยุดไว้) — engine จำลองในเทสต์ไม่มี worldRound = ใช้ roundNumber
+function worldRoundOf(engine) {
+  return Number.isFinite(engine.worldRound) ? engine.worldRound : engine.roundNumber;
 }
 function is(engine, area, half) {
   const c = current(engine);
@@ -119,7 +125,7 @@ module.exports = {
   skillBonus(engine, legacyMorning) {
     if (!active(engine)) return legacyMorning ? 1 : 0;
     let n = 0;
-    if (is(engine, 1, "day") && engine.roundNumber % 2 === 0) n += 1;
+    if (is(engine, 1, "day") && worldRoundOf(engine) % 2 === 0) n += 1;
     if (is(engine, 7)) n += 1;
     return n;
   },
@@ -258,7 +264,7 @@ module.exports = {
   publicInfo(engine, scene) {
     if (!active(engine)) return null;
     // ระหว่างฉากเดินทางไปภูมิภาคใหม่ ให้ client เห็นภูมิภาคปลายทางแล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากแผนที่)
-    const round = scene && scene.active && scene.mode === "advance" ? engine.roundNumber + 1 : engine.roundNumber;
+    const round = scene && scene.active && scene.mode === "advance" ? worldRoundOf(engine) + 1 : worldRoundOf(engine);
     const area = areaNow(engine); // ตั้งเป็นภูมิภาคปลายทางตั้งแต่เริ่มฉากแล้ว
     const night = !!engine.isNightRound(round);
     const a = AREAS[area - 1];

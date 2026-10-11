@@ -7,7 +7,7 @@
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
-  removeFromOrder, hasActed, areaRange, resolveArea, counters, tileEndEffect,
+  removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes,
 });
 
@@ -27,6 +27,7 @@ const timers = require("../timers");
 const view = require("../view");
 const Visibility = require("../visibility");
 const { engine } = require("../engine");
+const Zero = require("../zeroTime");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -49,7 +50,7 @@ function breakObstacles(keys) {
   const out = [];
   for (const k of keys) {
     const kind = map.terrain[k];
-    if (!kind) continue;
+    if (!kind || Board.UNBREAKABLE.has(kind)) continue; // ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
     (match.board.broken ||= []).push(k);
     const [x, y] = k.split(",").map(Number);
     out.push({ x, y, kind });
@@ -222,6 +223,14 @@ function resolveArea(p, area, targets, dir) {
   }
   return null;
 }
+// ช่องที่สกิลพื้นที่คลุม (aoe / line) — ใช้ลงผลกับผนึกมิโกะ (ห่วงเวลาซีโร่) · ชนิดอื่น = []
+function areaTiles(p, area, dir) {
+  const kind = (area && area.kind) || "self";
+  if (!p || !p.pos) return [];
+  if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p));
+  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1);
+  return [];
+}
 
 // ---------- ลำดับเดิน ----------
 // แต้มมากเดินก่อน · เท่ากันสุ่ม · ไพ่แตกไปท้ายแถว (หลายคนสุ่มกันเอง)
@@ -386,6 +395,16 @@ function undoMove(id) {
 // โจมตีปกติ: เป้าต้องอยู่ในระยะจากช่องที่ยืน · ตีแล้วจบตา (หลังฉากตี/สวน/ถอย)
 function attackTarget(id, targetId) {
   const p = match.players[id];
+  // ห่วงเวลาซีโร่: ตีผนึกมิโกะ ("seal:N") — ระยะเหมือนตีคน
+  const seal = Zero.sealIndexOf(targetId);
+  if (seal >= 0) {
+    if (!canAct(p) || !Zero.canHitSeal(p, seal)) return false;
+    timers.clearPhaseTimer();
+    match.action.locked = true;
+    Visibility.onHostileAct(p);
+    Zero.attackSeal(p, seal, finishActor);
+    return true;
+  }
   const target = match.players[targetId];
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
@@ -415,6 +434,7 @@ function finishActor() {
     match.lastLog.push(`${heal.icon} ${p.name} ยืนบน${heal.name} — ฟื้นพลังชีวิต +1`);
   }
   if (p && p.alive && p.pos) tileEndEffect(p);
+  if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
   match.action = null;
   nextActor();
 }

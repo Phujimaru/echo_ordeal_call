@@ -192,6 +192,28 @@
 @keyframes fdLine { from { clip-path: inset(0 100% 0 0); } }
 @keyframes fdNum { from { opacity: 0; transform: scale(2); } }
 
+/* ---------------------------------------------------------- ZeroCall (ห่วงเวลาซีโร่ — ต้นแบบ .claude/plans/zero-time.html drawTitle)
+   แถบมืดจางสองข้าง + เส้นทองบน/ล่างขยายจากกลางออกซ้าย/ขวา · ชื่อชมพูเรือง · เฟส + ไอคอนบัฟ +1
+   ห้าม letter-spacing กับภาษาไทย — ใช้ซูม/เบลอแทน */
+.zc-call { z-index: 57; }
+.zc-card { position: absolute; left: 285px; width: 1350px; top: 345px; height: 225px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #fff;
+  opacity: 0; animation: zcCard var(--zc-t, 2s) linear var(--zc-d, 0ms) both; }
+.zc-call.small .zc-card { top: 316px; height: 148px; }
+.zc-band, .zc-line { position: absolute; left: 0; right: 0; transform-origin: 50% 50%; animation: zcOpen var(--zc-t, 2s) linear var(--zc-d, 0ms) both; }
+.zc-band { top: 0; bottom: 0; background: linear-gradient(90deg, rgba(10,4,12,0), rgba(10,4,12,.72) 50%, rgba(10,4,12,0)); }
+.zc-line { height: 2px; background: linear-gradient(90deg, rgba(255,210,120,0), rgba(255,210,120,.95) 18%, rgba(255,210,120,.95) 82%, rgba(255,210,120,0)); box-shadow: 0 0 12px rgba(255,200,110,.55); }
+.zc-line.t { top: 0; } .zc-line.b { bottom: 0; }
+.zc-title { position: relative; font: 800 96px/1.1 Kanit, var(--oc-f-ui); text-shadow: 0 0 24px #ff5fb4, 0 0 52px rgba(255,95,180,.55); white-space: nowrap; animation: zcTitle var(--zc-t, 2s) linear var(--zc-d, 0ms) both; }
+.zc-phase { position: relative; display: flex; align-items: center; gap: 26px; font: 800 45px/1.15 Kanit, var(--oc-f-ui); color: #ffd6ee; white-space: nowrap; }
+.zc-call.small .zc-phase { font-size: 69px; gap: 34px; }
+.zc-buff { display: inline-flex; align-items: center; gap: 12px; font: 700 36px/1 "Chakra Petch", var(--oc-f-ui); color: #fff; }
+.zc-call.small .zc-buff { font-size: 51px; gap: 16px; }
+.zc-buff svg { width: 42px; height: 42px; flex: none; filter: drop-shadow(0 0 8px rgba(255,122,200,.6)); }
+.zc-call.small .zc-buff svg { width: 60px; height: 60px; }
+@keyframes zcCard { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes zcOpen { 0% { transform: scaleX(0); animation-timing-function: cubic-bezier(.2,.8,.3,1); } 25%, 100% { transform: scaleX(1); } }
+@keyframes zcTitle { 0% { transform: scale(1.18); filter: blur(10px); animation-timing-function: cubic-bezier(.2,.8,.3,1); } 40%, 100% { transform: none; filter: none; } }
+
 /* ---------------------------------------------------------- ฉากตี: จอสั่น + แฟลชตอนปะทะ */
 .bs-root[data-shake="true"] > div:first-child { animation: bsShake .36s linear; }
 @keyframes bsShake { 0% { translate: 0 0; } 20% { translate: 14px -8px; } 40% { translate: -12px 7px; } 60% { translate: 8px 5px; } 80% { translate: -5px -3px; } 100% { translate: 0 0; } }
@@ -200,4 +222,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .toc-call *, .tc-call *, .fd-screen * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+  .zc-band, .zc-line, .zc-title { animation: none !important; }
 }

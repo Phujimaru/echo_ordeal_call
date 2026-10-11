@@ -3,6 +3,7 @@
 //   · OrderCall    — เปิดไพ่ · ลำดับเดิน (ช่วง ORDER) ธีมขาวน้ำแข็ง ORDEAL CALL: ตัวละครหกเหลี่ยมบนเส้นโคจร → นับแต้ม → สลับที่เรียงตามแต้ม
 //   · TurnCall     — ฉากตาเดินแบบ A "ประตูหกเหลี่ยม" ทุกครั้งที่ขึ้นตาคนใหม่ (ตาคนอื่นเร็วกว่า)
 //   · ForecastScreen — หน้าคาดการณ์ผลการตี (แทน HUD ทั้งจอ · แบบ D ไม่มีกล่อง — ผู้ใช้เลือก 2026-10-09) + ปุ่มยืนยัน/ย้อน
+//   · ZeroCall     — ป้ายห่วงเวลาซีโร่ (ชื่อ + เฟส + บัฟ) ตอนเข้า/ผนึกแตก
 //  ทุกฉากออกแบบบนเวที 1920 × 1080 แล้วย่อ/ขยายให้พอดีจอ (--k) · กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น
 // ============================================================
 import { useEffect, useRef, useState } from "react";
@@ -259,6 +260,60 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
       </div>
       <div className="fd-arr" style={{ bottom: backDmg ? 110 : 76 }}><span className="ln" /><b>{dmg ?? "?"}</b><small>{hit}%</small></div>
       {backDmg > 0 && <div className="fd-arr back" style={{ bottom: 52 }}><small>{bHit}%</small><b>{backDmg}</b><span className="ln" /></div>}
+    </Stage>
+  );
+}
+
+// ============================================================
+//  ZeroCall — ป้ายห่วงเวลาซีโร่ (ภาพสนามเล่นใน BoardCanvas · ป้ายนี้วางทับตามจังหวะฉาก)
+//   enter = "ห่วงเวลาซีโร่" + เฟส 1 ✦+1 (5.6–7.9 วิ) · break = เฟส N + บัฟของเฟสนั้น (1.5–3.3 วิ) · release = ไม่มีป้าย
+// ============================================================
+const ZERO_ICONS = {
+  skill: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L14.97 9.03 L22 12 L14.97 14.97 L12 22 L9.03 14.97 L2 12 L9.03 9.03 Z" fill="#ff9be0" /></svg>,
+  coin: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f0c868" /><circle cx="12" cy="12" r="6" fill="none" stroke="#a0782a" strokeWidth="1.8" /></svg>,
+  sword: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <g transform="translate(12 12) rotate(-45)">
+        <rect x="-1.3" y="-10" width="2.6" height="13.5" fill="#e8eef8" />
+        <rect x="-5" y="3.5" width="10" height="1.8" fill="#ff6f6f" />
+        <rect x="-1.2" y="5" width="2.4" height="4.5" fill="#ff6f6f" />
+      </g>
+    </svg>
+  ),
+  lock: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 10.5 V8 a4.5 4.5 0 0 1 9 0 V10.5" fill="none" stroke="#ffb3dc" strokeWidth="2.4" /><rect x="5" y="10.5" width="14" height="10.5" rx="1.5" fill="#ffb3dc" /></svg>,
+  hourglass: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 2.5 H18 M6 21.5 H18" stroke="#ffb3dc" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7.5 3 C7.5 8 11 10 11 12 C11 14 7.5 16 7.5 21 H16.5 C16.5 16 13 14 13 12 C13 10 16.5 8 16.5 3 Z" fill="none" stroke="#ffb3dc" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9.5 19.5 C10 17 12 16 12 14.5 C12 16 14 17 14.5 19.5 Z M9.8 6.5 H14.2 C13.6 8 12.4 9 12 10 C11.6 9 10.4 8 9.8 6.5 Z" fill="#ff7ac8" />
+    </svg>
+  ),
+};
+export function ZeroIcon({ name }) { return ZERO_ICONS[name] || null; }
+// บัฟที่ได้ตอนขึ้นเฟส: 1 แต้มสกิล · 2 เหรียญ · 3–4 พลังโจมตี
+const ZERO_PHASE_ICON = { 1: "skill", 2: "coin", 3: "sword", 4: "sword" };
+const ZC_SPAN = { enter: [5600, 7900], break: [1500, 3300] };
+export function ZeroCall({ k, mode, stage, onDone }) {
+  const span = ZC_SPAN[mode] || null;
+  useEffect(() => {
+    const t = setTimeout(() => onDone && onDone(), span ? span[1] + 100 : 0);
+    return () => clearTimeout(t);
+  }, [span, onDone]);
+  if (!span) return null;
+  const big = mode === "enter";
+  const phase = big ? 1 : Math.max(1, Math.min(4, stage | 0 || 1));
+  const icon = ZERO_ICONS[ZERO_PHASE_ICON[phase]];
+  return (
+    <Stage k={k} className={`zc-call ${big ? "big" : "small"}`} style={{ "--zc-d": `${span[0]}ms`, "--zc-t": `${span[1] - span[0]}ms` }}>
+      <div className="zc-card">
+        <i className="zc-band" />
+        <i className="zc-line t" /><i className="zc-line b" />
+        {big && <div className="zc-title">ห่วงเวลาซีโร่</div>}
+        <div className="zc-phase">
+          <span>เฟส {phase}</span>
+          {icon && <span className="zc-buff">{icon}<b>+1</b></span>}
+        </div>
+      </div>
     </Stage>
   );
 }
