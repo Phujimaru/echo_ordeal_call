@@ -422,7 +422,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
           pushFx([
             { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
-            { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : undefined, size: a.gun ? 20 : 30, z: lowQ ? 2.4 : 1.5 },
+            { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.gun ? 20 : a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 },
+            // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
+            ...(a.crit && !a.dodge && !a.gun ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
             ...(a.kill && !sealT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (sealBroke) {

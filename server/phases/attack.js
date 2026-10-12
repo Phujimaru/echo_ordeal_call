@@ -278,7 +278,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (discord) defFx("ขัดแย้ง (+1 ดาเมจ)");
   if (fragileAmt > 0) defFx(`เปราะบาง (+${fragileAmt} ดาเมจ)`);
 
-  return { dmg, dodge: false, kill: !target.alive, skills: fxSkills };
+  return { dmg, dodge: false, kill: !target.alive, crit: !!journeyCritFx.crit, skills: fxSkills };
 }
 
 // ดาเมจจากสกิลที่ "ตีด้วยพลังโจมตี" (เช่นคลื่นดาบของมุยมิ) — ไม่ทะลุอะไรเลย (GRID_PLAN §7.3):
@@ -338,7 +338,7 @@ function strikeCard(attacker, target, res) {
     byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน
     bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
-    dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, skills: res.skills || [],
+    dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, crit: !!res.crit, skills: res.skills || [], // crit = คริติคอลติด (ฉากบนกระดานขึ้นป้าย)
   };
 }
 

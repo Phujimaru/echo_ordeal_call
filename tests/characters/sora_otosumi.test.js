@@ -173,24 +173,39 @@ test('คริติคอล 20% เฉพาะร่าง My-Th (ตีป�
   assert.equal(mid - vit(P.B), 2, 'ทอยเกิน 20% = ไม่คริ');
 });
 
-test('ปืน: ระยะตี 1–2 · ลำแสงสีฟ้ายาว 2 · เสียงปืน · ตีโดน = ดึงเป้าเข้าประชิดหลังฉากตี', (t) => {
+test('ปืน: ระยะตี 1–3 · ลำแสงสีฟ้ายาว 3 · เสียงปืน · ตีโดน = ดึงเป้าเข้าประชิดหลังฉากตี · ฐาน 1 ไม่มีโบนัสมีด', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 3, 5], ['C', 'dummy', 4, 5]]);
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 5, 5]]);
   myth(P.S, true);
-  Math.random = () => 0.99;
-  assert.deepEqual(view('S', 'S').range, [1, 2]);
+  Math.random = () => 0.99; // ไม่คริ
+  assert.deepEqual(view('S', 'S').range, [1, 3]);
+  assert.equal(engine.attackPowerAgainst(P.S, P.B), 1, 'หน้าต่างคาดการณ์ = 1');
   engine.setActor('S');
   engine.action.locked = true;
-  assert.equal(engine.attackTarget('S', 'C'), false, 'ห่าง 3');
-  assert.equal(engine.attackTarget('S', 'B'), true, 'ห่าง 2');
-  assert.equal(engine.lastAttack.byBeam, 2);
+  assert.equal(engine.attackTarget('S', 'C'), false, 'ห่าง 4');
+  assert.equal(engine.attackTarget('S', 'B'), true, 'ห่าง 3');
+  assert.equal(engine.lastAttack.byBeam, 3);
   assert.equal(engine.lastAttack.byBeamTone, 'blue');
   assert.equal(engine.lastAttack.byAttackSound, 'sora_hit_gun');
   assert.equal(engine.lastAttack.byHitFx, null);
-  assert.deepEqual(P.B.pos, { x: 3, y: 5 }, 'ระหว่างฉากตียังไม่ขยับ');
+  assert.equal(engine.lastAttack.crit, false);
+  assert.deepEqual(P.B.pos, { x: 4, y: 5 }, 'ระหว่างฉากตียังไม่ขยับ');
   assert.equal(vit(P.B), 9, 'ปืนไม่มีโบนัสมีด');
   flush(t, 6000);
   assert.deepEqual(P.B.pos, { x: 2, y: 5 }, 'ดึงมาช่องติดตัว');
+});
+
+test('ปืน: คริติคอล 20% ทำให้ตี 1 กลายเป็น 2 — การ์ดฉากตีบอก crit ให้ client ขึ้นป้าย', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 3, 5]]);
+  myth(P.S, true);
+  Math.random = () => 0.1;
+  engine.setActor('S');
+  engine.attackTarget('S', 'B');
+  assert.equal(vit(P.B), 8);
+  assert.equal(engine.lastAttack.dmg, 2);
+  assert.equal(engine.lastAttack.crit, true);
+  flush(t, 6000);
 });
 
 test('ปืน: เป้าเฉียงดึงมาช่องติดตัวที่ว่าง · ช่องไม่ว่าง = ไม่ดึง · หลบพ้น/ตาย/ตัวใหญ่ = ไม่ดึง', (t) => {
