@@ -239,6 +239,57 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- Ice Spike — ระดับยาก — ดู characters/ice_spike.js + server/ice.js (GRID_PLAN §7.9) ----------
+    //  ตีปกติไม่ได้ (range [1, 0] = ไม่มีช่องที่ตีถึง) · ดาเมจมาจากการไถลชนเท่านั้น
+    //  สกิลชนิด tile = เลือกช่องบนกระดาน (place: ice / spike / any · square = กรอบรอบช่องที่เลือก)
+    id: "ice_spike",
+    name: "Ice Spike",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/ice_spike/ice_spike.webp",
+    mov: 4,
+    range: [1, 0],
+    passive: {
+      name: "ฝีก้าวของธารน้ำแข็ง",
+      desc: "ทุกช่องที่เดินหรือไถลผ่านกลายเป็นธารน้ำแข็ง 6 เทิร์น (เหยียบซ้ำ = นับใหม่) · เดินเข้าน้ำแข็ง = ไถลไปทิศเดิมจนสุดแนวแล้วหยุดเดิน · ตีปกติไม่ได้",
+    },
+    passive2: {
+      name: "แรงปะทะเหมันต์",
+      desc: "ไถลชนศัตรู: ความเสียหายเท่าจำนวนช่องที่ไถล (สูงสุด 4 · ไม่ติดคริติคอล ไม่รับบัฟพลังโจมตี · หลบไม่ได้) แล้วเป้ากระเด็นไปตามทิศ 1 ช่อง · ไถลชนตอนเดิน = นับเป็นการโจมตี จบตา",
+    },
+    passive3: {
+      name: "การฟื้นฟูแห่งเหมันต์",
+      desc: "ได้รับความเสียหายสะสมครบ 3 (รวมเกราะ): ผลักศัตรูทั้ง 8 ช่องรอบตัวออก 1 ช่อง และติดเชื่องช้า 3 เทิร์น · ไถลครบทุก 2 ช่องในครั้งเดียว: ฟื้นพลังชีวิต 1 และแต้มสกิล 1",
+    },
+    basic: {
+      name: "Glacial Path",
+      desc: "ไม่จำกัดครั้ง · ใช้ก่อนเดินแล้วยังเดินได้: สร้างธารน้ำแข็ง 1 ช่องในระยะ 6 (6 เทิร์น)",
+      area: { kind: "tile", range: 6, place: "ice" },
+      cost: 1,
+      img: "/characters/ice_spike/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/ice_spike.js
+    },
+    secondary: {
+      name: "หนามน้ำแข็ง",
+      desc: "เทิร์นละ 1 ครั้ง · ใช้ก่อนเดินแล้วยังเดินได้: หนามน้ำแข็ง Lv1 1 ช่องในระยะ 6 (3 เทิร์น · เดินผ่านไม่ได้ · ตีได้ เกราะแตก = ลด Lv) · วางบนน้ำแข็ง = Lv2 · วางทับคน: ผลักไปทิศที่เลือก 1 ช่อง + เชื่องช้า 3 เทิร์น · ไถลชนหนาม: เสียหายเท่า Lv + เชื่องช้า 3 เทิร์น หนามลด 1 Lv (หนามตัวเอง: แต้มสกิล +2 แทน)",
+      area: { kind: "tile", range: 6, place: "spike", hostile: true },
+      cost: 2,
+      img: "/characters/ice_spike/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "คุกน้ำแข็ง",
+      desc: "หลังเดินเท่านั้น · เลือกกรอบ 5×5 ในระยะ 6: ศัตรูในกรอบเชื่องช้า 3 เทิร์น · หนามในกรอบ +1 Lv · ต้นตาเดินถัดไป: ธารน้ำแข็ง 3×3 กลางกรอบ และหนาม Lv1 รอบขอบ 16 ช่อง (คนบนขอบถูกผลักเข้ากรอบ) (คูลดาวน์ 5 เทิร์น)",
+      area: { kind: "tile", range: 6, place: "any", square: 5, hostile: true },
+      cost: 5,
+      img: "/characters/ice_spike/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)
@@ -307,6 +358,7 @@ function publicRoster() {
     difficulty: c.difficulty || "easy", // ความยากในการเล่น (ใช้แบ่งหน้าเลือกตัวละคร)
     passive: c.passive ? { name: c.passive.name, desc: c.passive.desc } : null,
     passive2: c.passive2 ? { name: c.passive2.name, desc: c.passive2.desc } : null,
+    passive3: c.passive3 ? { name: c.passive3.name, desc: c.passive3.desc } : null, // Ice Spike
     basic: pub(c.basic),
     secondary: pub(c.secondary),
     ultimate: pub(c.ultimate),

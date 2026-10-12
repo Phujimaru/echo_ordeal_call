@@ -20,6 +20,7 @@ const shop = require("../shop");
 const timers = require("../timers");
 const view = require("../view");
 const Zero = require("../zeroTime");
+const Ice = require("../ice");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -75,6 +76,8 @@ function endTurn() {
   CHAR_HOOKS.sora_otosumi.onEndTurn(engine);
   // ไรโด ฮิคารุ: Strium Brace · Tiga/กิงกะหมดเวลา (คืนร่าง + คูลดาวน์) · เคมูล่องหน
   CHAR_HOOKS.raido_hikaru.onEndTurn(engine);
+  // น้ำแข็ง/หนามน้ำแข็ง (Ice Spike): นับเวลาที่เหลือ หมดแล้วหาย
+  Ice.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {

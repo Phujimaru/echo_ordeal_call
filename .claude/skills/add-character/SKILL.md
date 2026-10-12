@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) · `ice_spike` (ตีปกติไม่ได้ · สกิลเลือกช่อง `tile` · วางของบนกระดาน (น้ำแข็ง/หนาม) · ไถล/ผลัก/ชน · สถานะเชื่องช้า · ท่าออกผลต้นตาเดินถัดไป · ระบบกลาง `server/ice.js` GAME_SYSTEM §19) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -62,6 +62,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | `aoe` | `range`, `self?` | ทุกคนในรัศมี `range` รอบตัว (ข้าวหลามตัด ไม่รวมช่องตัวเอง) · `self: true` = รวมตัวเอง | "รอบตัว N" |
 | `line` | `len`, `width` | เลือกทิศ 1 ใน 4 → สี่เหลี่ยมยาว `len` เริ่มจากช่องติดตัว กว้าง `width` (ใช้เลขคี่ กลางตรงแนวตัวเรา) · ไม่รวมตัวเอง | "ทิศทาง L×W" |
 | `field` | – | ทุกคนไม่สนตำแหน่ง | "ทั้งสนาม" |
+| `tile` | `range`, `square?`, `place` | เลือก **ช่อง** บนกระดานในระยะ (รวมช่องที่ยืน) · `square: 5` = กรอบ 5×5 รอบช่องนั้น · `place` (`ice`/`spike`/`any`) บอก client ว่าช่องไหนกดได้ · hook ได้ `opts.tile` (+ `opts.dir` ถ้า client ให้เลือกทิศ) · `targets` = คนบนช่อง/ในกรอบ | "ระยะ N" |
 
 - `range` เป็นตัวเลข หรือ `"mov"` = เท่าระยะเดินปกติสูงสุดของผู้ใช้ (`action.areaRange` → `baseMovOf`) — `buildStateFor` แปลงเป็นตัวเลขก่อนส่งให้ client
 - **กฎผู้ใช้: บัฟ/ฟื้นฟู/มอบผลให้คนอื่น ต้องมีระยะเสมอ** → ใช้ `target` หรือ `aoe` เท่านั้น ห้าม `field`
@@ -135,6 +136,13 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | โบนัส/หักพลังโจมตี | `damageBonus(engine, attacker, target, ctx)` · แทนฐานทั้งหมด `attackBaseOverride` | `computeAttackBase()` — `server/phases/attack.js` |
 | หลบ/ลดดาเมจ | `adjustIncomingDamage(engine, p, n, isNormalAttack, kind)` | `server/combat.js` |
 | ผล QTE | `onQteDone(engine, p, ok, qte)` | `server/qte.js` |
+| ใช้สกิลแล้วยังเดินได้ (ใช้ก่อนเดิน) | `keepsMove(engine, p, tier)` → true = ไม่ `lockMove` (Ice Spike: เฉพาะตอนยังไม่เดิน) | `server/skills.js` |
+| ผลต้นตาเดินของตัวเอง | `onActorStart(engine, p)` (ถึงคิวแล้ว ก่อนเช็คสตั้น — ท่าที่ "ออกผลตาเดินถัดไป") | `nextActor()` — `server/phases/action.js` |
+| ผลหลังเดิน (ทุกช่องที่เดิน/ไถลผ่าน) | `afterWalk(engine, p, tiles, ctx)` → บันทึกไว้ย้อนตอนกดย้อนการเดิน | `moveTo()` |
+| ผลเมื่อเสียพลังชีวิต/เกราะ (ทุกทาง) | `onDamageTaken(engine, p, n)` | `combat.loseHp` / `loseArmor` |
+| ไถลบนน้ำแข็ง (ระบบกลาง `server/ice.js`) | `onSlide(engine, p, n, ctx)` · `slideStrike(engine, p, target, n, ctx)` (ไถลชนศัตรู — ลงดาเมจเอง · เดินชน = จบตา) · `ownSpike(engine, p, ctx)` | `Ice.resolveEntry` |
+| วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit / applySlow / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 | `server/ice.js` |
+| ตีปกติไม่ได้ | `range: [1, 0]` ใน `characters.js` (ไม่มีช่องที่ตีถึง — ปืน GUTS ยังยิงได้) | – |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):
 
@@ -239,6 +247,12 @@ description: เพิ่มตัวละครใหม่หรือรื�
 
 **13a. การมองเห็น (`server/visibility.js`)** — ทางกดใหม่ที่เล็งคนอื่น (socket/ไอเทม) ต้องเช็ค `Visibility.hiddenFrom(p, target)` และเรียก `Visibility.onHostileAct(p)` ตอนโจมตี
 ไม่งั้นตีคนในพุ่ม/คนล่องหนได้ หรือคนในพุ่มตีแล้วไม่โผล่ · แก้ `server/board.js` แล้วต้องรัน `node scripts/gen-board-rules.js` (เทสต์ `board-rules-sync`)
+
+**13b. ของที่ขยับตัวคนนอกการเดินปกติ (ผลัก/ไถล) ต้องส่งเหตุการณ์ให้ client** — `engine.ice.pushUnit`/`resolveEntry` ใส่ `knock`/`slide` ให้เอง ·
+ถ้าเขียนการขยับเองแล้วส่ง `iceFx` ชุดที่มีคนนั้นอยู่ แต่ไม่มีเหตุการณ์ขยับ client จะค้างตัวไว้ที่เดิมจนจบชุดแล้วกระโดด
+
+**14. `Object.assign(module.exports, {...})` บนสุดของไฟล์ใช้ได้กับ function declaration เท่านั้น** — `const` ที่ใส่ไว้ตรงนั้นพังทั้งเซิร์ฟเวอร์
+(`Cannot access ... before initialization`) ให้ export ค่าคงที่หลังบรรทัดที่ประกาศ (ดู `server/ice.js`)
 
 **13. ไม่ต้องทำหน้าจอมือถือ** (CLAUDE.md) — โมดัล/ฉากใหม่เสียบเฉพาะจอคอม/แท็บเล็ต
 

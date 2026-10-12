@@ -26,6 +26,7 @@ import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
 import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
+import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -65,6 +66,23 @@ const HEX_PTS = "50,0 100,28.5 100,85.5 50,114 0,85.5 0,28.5";
 // ห่วงเวลาซีโร่: เป้า "seal:N" → N (อื่น = -1)
 const sealIdx = (id) => (typeof id === "string" && id.startsWith("seal:") && Number.isInteger(Number(id.slice(5))) ? Number(id.slice(5)) : -1);
 const sealOf = (z, i) => (z && Array.isArray(z.seals) ? z.seals.find((s) => s.i === i) || null : null);
+// หนามน้ำแข็ง (Ice Spike): เป้า "spike:x,y" → { x, y } (อื่น = null) · Lv ของช่องจาก terrain ของกระดาน
+const spikeOfId = (id) => {
+  const m = typeof id === "string" ? /^spike:(-?\d+),(-?\d+)$/.exec(id) : null;
+  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+};
+const boardSpikeLv = (b, k) => iceSpikeLv(b && b.terrain ? b.terrain[k] : null);
+const ICE_DIRS = [["up", 0, -1], ["down", 0, 1], ["left", -1, 0], ["right", 1, 0]];
+// กรอบสี่เหลี่ยม n×n รอบช่องกลาง (x, y) — ตัดขอบกระดาน
+function squareKeys(map, x, y, n) {
+  const out = [], h = Math.floor(n / 2);
+  for (let dy = -h; dy < n - h; dy++) for (let dx = -h; dx < n - h; dx++) {
+    const tx = x + dx, ty = y + dy;
+    if (tx >= 0 && ty >= 0 && tx < map.cols && ty < map.rows) out.push(key(tx, ty));
+  }
+  return out;
+}
+const ENERGY_C = "#7fd3ff"; // เลขแต้มสกิล (พลังงาน)
 
 //  props เพิ่ม (ดีไซน์ UI ใหม่): atkSignal = ตัวเลขเปลี่ยน = ปุ่ม "โจมตี" ถูกกด · onAttackables(ids) = ศัตรูที่ตาเราตีถึง (เดินแล้วตีได้)
 //   onOverlay(bool) = หน้าคาดการณ์เปิด/ปิด (Game ซ่อน HUD ทั้งหมด) · onCall(bool) = ฉากเต็มจอกำลังเล่น
@@ -152,6 +170,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     ? zero.seals.filter((s) => !s.broken).map((s) => ({ id: `seal:${s.i}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSeal: true, name: "ผนึก" }))
     : []), [zero]);
   const hoverSeal = hover && !hoverUnit ? sealFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  // หนามน้ำแข็ง (Ice Spike): ทุกคนตีได้ — หน่วยเทียมแบบเดียวกับผนึก (ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย)
+  const board = state.board || null;
+  const spikeList = useMemo(() => (board && Array.isArray(board.spikes)
+    ? board.spikes.filter((s) => s && Number.isFinite(s.x) && Number.isFinite(s.y)) : []), [board]);
+  const spikeFoes = useMemo(() => spikeList.map((s) => ({ id: `spike:${s.x},${s.y}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSpike: true, name: `หนามน้ำแข็ง Lv.${s.lv}` })), [spikeList]);
+  const hoverSpike = hover && !hoverUnit && !hoverSeal ? spikeFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
+  useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
@@ -210,7 +236,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : null), [planFor, hoverUnit, hoverSeal]);
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : null), [planFor, hoverUnit, hoverSeal, hoverSpike]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
@@ -247,8 +273,47 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     }
+    if (pick.kind === "tile") {
+      // เลือกช่อง (Ice Spike · contract §2): ระยะแมนฮัตตันจากขอบตัว ≤ range (รวมช่องที่ยืน)
+      //  ice = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน และไม่ใช่น้ำแข็งของแผนที่เดิม · spike = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน · คน: 1×1 + ข้างๆ ว่างอย่างน้อย 1 · any = ทุกช่อง
+      const own = new Set(((board && board.ice) || []).map((t) => key(t.x, t.y)));
+      const ok = (t) => {
+        if (pick.place === "any") return true;
+        if (Rules.isObstacle(map, t.x, t.y, blocked)) return false;
+        const k = key(t.x, t.y);
+        if (pick.place === "ice") return !(map.special[k] === "ice" && !own.has(k));
+        const u = Rules.unitAt(ruleUnits, t.x, t.y);
+        if (!u) return true;
+        return sizeOfP(u) <= 1 && ICE_DIRS.some(([, dx, dy]) => Rules.freeTile(map, t.x + dx, t.y + dy, ruleUnits, u.id, blocked));
+      };
+      const valid = Rules.tilesInRange(map, me.pos.x, me.pos.y, [0, pick.range | 0], sizeOfP(me)).filter(ok).map((t) => key(t.x, t.y));
+      return { tile: true, skill: valid, validSet: new Set(valid) };
+    }
     return null;
-  }, [pick, me, map, hover, state.players]);
+  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked]);
+  // วางหนามทับคน: เลือกทิศผลัก (ลูกศร 4 ทิศรอบคนนั้น · ทิศที่ช่องปลายไม่ว่าง = กดไม่ได้)
+  const pickSig = pick ? `${pick.kind}|${pick.label || ""}|${pick.place || ""}` : "";
+  const [dirPick, setDirPick] = useState(null); // { sig, x, y, arrows: [{ x, y, dir, ok }] }
+  if (dirPick && dirPick.sig !== pickSig) setDirPick(null);
+  const pickTileAt = (x, y) => {
+    if (!pick || pick.kind !== "tile" || !pickInfo || !pickInfo.tile) return;
+    if (dirPick) {
+      const ar = dirPick.arrows.find((a) => a.x === x && a.y === y);
+      if (ar && ar.ok) { clickSound(); setDirPick(null); pick.onPick({ x: dirPick.x, y: dirPick.y }, ar.dir); }
+      else if (!(x === dirPick.x && y === dirPick.y)) setDirPick(null);
+      return;
+    }
+    if (!pickInfo.validSet.has(key(x, y))) return;
+    clickSound();
+    const u = pick.place === "spike" ? Rules.unitAt(ruleUnits, x, y) : null;
+    if (u) {
+      const arrows = ICE_DIRS.map(([dir, dx, dy]) => ({ x: x + dx, y: y + dy, dir, ok: Rules.freeTile(map, x + dx, y + dy, ruleUnits, u.id, blocked) }))
+        .filter((a) => a.x >= 0 && a.y >= 0 && a.x < map.cols && a.y < map.rows);
+      setDirPick({ sig: pickSig, x, y, arrows });
+      return;
+    }
+    pick.onPick({ x, y });
+  };
 
   // ---------- ระยะอันตราย: ช่องที่ศัตรูทุกคนเดินแล้วตีถึง ----------
   const dangerKeys = useMemo(() => {
@@ -289,6 +354,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
+  // Ice Spike (socket "iceFx" — contract §4): เล่นเหตุการณ์ตามลำดับ · server ส่ง state ผลสุดท้ายตามมาทันที จึงต้องค้างภาพไว้
+  //  iceHold = id → ช่องที่แสดง (ตำแหน่งก่อนเหตุการณ์ → ปลายแอนิเมชันล่าสุดของคนนั้น) · iceLv = "x,y" → Lv หนามที่แสดง (0 = ซ่อน)
+  //  iceMask = "x,y" → ช่องพิเศษเดิม (ซ่อนน้ำแข็งใหม่จนเหตุการณ์ถึง) · iceGhosts = id → ภาพผู้เล่นก่อนตาย (วาดจนถึงจังหวะตาย)
+  const [iceHold, setIceHold] = useState({});
+  const [iceLv, setIceLv] = useState(null);
+  const [iceMask, setIceMask] = useState(null);
+  const [iceGhosts, setIceGhosts] = useState({});
+  const iceRun = useRef(null); // { ids, active, gotState, done, pos, snap, snd }
+  const iceSeen = useRef(null);
+  const prevBoard = useRef(state.board || null);
 
   useEffect(() => {
     const atk = phase === "ATTACKING" ? state.attack : null;
@@ -305,6 +380,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const freshDash = dash && dash.seq !== seenDash.current && Array.isArray(dash.path) && dash.path.length && dash.id != null ? dash : null;
     if (dash) seenDash.current = dash.seq;
     const anims = [];
+    // Ice Spike: คนที่อยู่ในเหตุการณ์ iceFx ที่กำลังเล่น (หรือยังรอ state ผลสุดท้าย) — ไม่เลื่อน/ไม่ขึ้นเลข/ไม่ระเบิดซ้ำ (เล่นจากเหตุการณ์แทน)
+    const ir = iceRun.current, iceIds = ir && (ir.active || !ir.gotState) ? ir.ids : null;
+    const iceSkip = (id) => !!iceIds && iceIds.has(id);
+    if (ir) ir.gotState = true;
+    const spikeDone = new Set(); // ช่องหนามที่ฉากตีจัดการแล้ว
     // ตกรอบ = ระเบิดการ์ตูน + รูปปลิวหมุนขึ้นฟ้า (ผู้ใช้สั่ง) — ฉากตี/ฉากพุ่งระเบิดตรงจังหวะปะทะ · ทางอื่น (สกิล/ลำแสง/ช่องพิเศษ) ระเบิดทันที
     const boomed = new Set();
     const deathBoom = (t, at) => {
@@ -384,7 +464,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
     // เดิน: ตำแหน่งคนที่กำลังเดินเปลี่ยนตามเส้นทางของตานี้
     const path = state.action && state.action.path;
-    if (state.actorId && path && path.length > 1 && !dashMoved.has(state.actorId)) {
+    if (state.actorId && path && path.length > 1 && !dashMoved.has(state.actorId) && !iceSkip(state.actorId)) {
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
       if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
         // Echo เดินกระโดดดึ๋งๆ ทีละช่อง (ตัวใหญ่กระโดดช้าและหนักกว่า)
@@ -411,7 +491,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const sealBroke = !!(sealT && a.kill);
       const sealStage = (zPrev && zPrev.stage) || (zNow && zNow.stage) || 1;
       if (sealBroke) setSealHold(sI);
-      const tPos = sealT ? { x: sealT.x, y: sealT.y } : nextPos[a.targetId] || prevPos.current[a.targetId];
+      // ตีหนามน้ำแข็ง: ตำแหน่งเป้า = ช่องหนาม · Lv ลด/แตก = วาดหนามเดิมค้างไว้ถึงจังหวะปะทะ
+      const spikeT = a.spike && Number.isFinite(a.spike.x) && Number.isFinite(a.spike.y) ? { x: a.spike.x, y: a.spike.y } : spikeOfId(a.targetId);
+      const spikeK = spikeT ? key(spikeT.x, spikeT.y) : null;
+      const spikeWas = spikeK ? boardSpikeLv(prevBoard.current, spikeK) : 0, spikeNow = spikeK ? boardSpikeLv(state.board, spikeK) : 0;
+      if (spikeK) spikeDone.add(spikeK);
+      if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) setIceLv((m) => ({ ...(m || {}), [spikeK]: spikeWas }));
+      const tPos = sealT ? { x: sealT.x, y: sealT.y } : spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
@@ -464,8 +550,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.gun ? 20 : a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 },
             // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
             ...(a.crit && !a.dodge && !a.gun ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
-            ...(a.kill && !sealT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(a.kill && !sealT && !spikeT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
+          if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) {
+            setIceLv((m) => { if (!m || !(spikeK in m)) return m; const n = { ...m }; delete n[spikeK]; return Object.keys(n).length ? n : null; });
+            pushFx([{ kind: "iceSpikeBreak", x: tPos.x, y: tPos.y, lv: spikeNow }]);
+            playSfx("is_skill_2_broke");
+          }
           if (sealBroke) {
             setSealHold((h) => (h === sI ? null : h));
             pushFx([{ kind: "sealBreak", x: tPos.x, y: tPos.y, i: sI, stage: sealStage }]);
@@ -511,10 +602,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ) setShake((n) => n + 1);
       }
     }
+    // หนามน้ำแข็งลด Lv/หายนอกฉากตีและนอกเหตุการณ์ iceFx (สกิลพื้นที่ตีโดน / หมดเวลา) = แตกทันที
+    const pb = prevBoard.current, nb = state.board;
+    if (pb && nb && pb.area === nb.area && !iceIds) {
+      let broke = false;
+      for (const [k, kind] of Object.entries(pb.terrain || {})) {
+        const was = iceSpikeLv(kind), now = boardSpikeLv(nb, k);
+        if (!was || now >= was || spikeDone.has(k)) continue;
+        const [x, y] = k.split(",").map(Number), old = (pb.spikes || []).find((sp) => sp.x === x && sp.y === y);
+        pushFx([{ kind: "iceSpikeBreak", x, y, lv: now }]);
+        if (!(now === 0 && old && old.left <= 1)) broke = true; // หมดเวลา = แตกเงียบ
+      }
+      if (broke) playSfx("is_skill_2_broke");
+    }
     // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
     let hurtPos = null;
     for (const p of state.players) {
-      if (involved.has(p.id) || !p.pos) continue;
+      if (involved.has(p.id) || !p.pos || iceSkip(p.id)) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
       const df = dashFloat[p.id], at = df ? df.at : p.pos;
       const fl = d < 0 ? [{ kind: "float", x: at.x, y: at.y, text: `${d}` }] : d > 0 ? [{ kind: "float", x: at.x, y: at.y, text: `+${d}`, color: "#8ff0b0" }] : null;
@@ -525,14 +629,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (hurtPos && !freshAtk) look(hurtPos);
     for (const p of state.players) {
       const was = lastPlayers[p.id];
-      if (!was || !was.alive || !was.pos || p.alive || boomed.has(p.id)) continue;
+      if (!was || !was.alive || !was.pos || p.alive || boomed.has(p.id) || iceSkip(p.id)) continue;
       deathBoom(was, was.pos);
     }
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
     //  ถูก Strium Ray ผลัก (server แจ้งปลายทางมาก่อนทาง hikaruPush) = เลื่อนไปไกลเท่าไรก็ได้
     for (const p of state.players) {
       const before = prevPos.current[p.id], now = nextPos[p.id];
-      if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || anims.some((a) => a.id === p.id)) continue;
+      if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || iceSkip(p.id) || anims.some((a) => a.id === p.id)) continue;
       const hp = hkPushTo.current[p.id];
       if (hp && samePos(now, hp.to)) {
         delete hkPushTo.current[p.id];
@@ -546,6 +650,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (anims.length) setAnimQ((q) => [...q, ...anims]);
     prevPos.current = nextPos;
     prevVit.current = nextVit;
+    prevBoard.current = state.board || null;
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps -- เทียบกับ state ก่อนหน้าเท่านั้น
 
   // ลำแสง Beam Magnum (นักบินปริศนา) — server ส่งให้ทุกคน { from, dir, len, color } · ลำแสงเริ่มช่องติด from
@@ -651,6 +756,249 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("zeroBolt", onBolt);
   }, [pushFx, look, lowQ]);
 
+  // ---------- Ice Spike: เหตุการณ์บนกระดาน (socket "iceFx" { seq, events } — .claude/plans/ice-spike-contract.md §4) ----------
+  //  เล่นตามลำดับ: เหตุการณ์ที่ขยับตัว (walk/slide/knock) = คิวแอนิเมชัน (ต่อเหตุการณ์ถัดไปเมื่อแอนิเมชันนั้นจบ — anim.then)
+  //  เหตุการณ์อื่น = เกิดทันทีแล้วรอสั้นๆ (ค้างภาพตอนชนเต็ม/ฉากคุก) · จบทั้งชุด = ปล่อยภาพที่ค้างไว้ให้ตรง state ผลสุดท้าย
+  const byIdRef = useRef(byId);
+  useLayoutEffect(() => { byIdRef.current = byId; });
+  const finishIce = (run) => {
+    if (!run || run.done) return;
+    run.done = true; run.active = false;
+    clearTimeout(run.safety);
+    if (iceRun.current !== run) return;
+    setIceHold({}); setIceLv(null); setIceMask(null); setIceGhosts({});
+  };
+  const startIce = (events) => {
+    if (iceRun.current && !iceRun.current.done) finishIce(iceRun.current);
+    const bd = boardRef.current || {}, pl = prevPlayers.current || {};
+    const run = { ids: new Set(), active: true, gotState: false, done: false, pos: {}, snap: {}, snd: {}, lv: {} };
+    iceRun.current = run;
+    const ok = (t) => !!t && Number.isFinite(t.x) && Number.isFinite(t.y);
+    const pts = (list) => (Array.isArray(list) ? list.filter(ok).map((t) => ({ x: t.x, y: t.y })) : []);
+    const lvMap = {}, mask = {}, hold = {}, ghosts = {};
+    const noteLv = (x, y) => { const k = key(x, y); if (!(k in lvMap)) lvMap[k] = boardSpikeLv(bd, k); };
+    const noteIce = (t) => { if (!ok(t)) return; const k = key(t.x, t.y), was = (bd.special || {})[k] || null; if (was !== "ice" && !(k in mask)) mask[k] = was; };
+    for (const ev of events) {
+      if (!ev || typeof ev !== "object") continue;
+      for (const id of [ev.id, ev.by]) {
+        const p = id != null ? pl[id] : null;
+        if (!p || run.ids.has(id)) continue;
+        run.ids.add(id);
+        if (p.alive && p.pos) { run.pos[id] = { x: p.pos.x, y: p.pos.y }; hold[id] = run.pos[id]; run.snap[id] = p; ghosts[id] = p; }
+      }
+      if ((ev.kind === "spike" || ev.kind === "spikeUp" || ev.kind === "spikeDown") && ok(ev)) noteLv(ev.x, ev.y);
+      if (ev.kind === "lay") for (const t of pts(ev.tiles)) noteIce(t);
+      if (ev.kind === "prison") { for (const t of pts(ev.ice)) noteIce(t); for (const t of pts(ev.ring)) noteLv(t.x, t.y); }
+    }
+    Object.assign(run.lv, lvMap);
+    setIceHold(hold);
+    setIceLv(Object.keys(lvMap).length ? lvMap : null);
+    setIceMask(Object.keys(mask).length ? mask : null);
+    setIceGhosts(ghosts);
+    run.safety = setTimeout(() => finishIce(run), 30000); // กันค้าง (แอนิเมชันไม่จบ ฯลฯ)
+    const live = () => !run.done && iceRun.current === run;
+    // เสียงซ้ำในเวลาใกล้กัน (ติดเชื่องช้าหลายคนพร้อมกัน) = ดังครั้งเดียว
+    const sfx = (name) => { const t = performance.now(); if (run.snd[name] && t - run.snd[name] < 110) return; run.snd[name] = t; playSfx(name); };
+    const pick2 = (a, b) => (Math.random() < 0.5 ? a : b);
+    const setLv = (x, y, lv) => { const k = key(x, y); run.lv[k] = lv; setIceLv((m) => ({ ...(m || {}), [k]: lv })); };
+    const reveal = (list) => {
+      const ks = list.filter(ok).map((t) => key(t.x, t.y));
+      setIceMask((m) => { if (!m) return m; const n = { ...m }; for (const k of ks) delete n[k]; return Object.keys(n).length ? n : null; });
+    };
+    const shake = (amp) => { if (!lowQ) pushFx([{ kind: "iceShake", x: 0, y: 0, amp }]); };
+    const posOf = (id) => run.pos[id] || (byIdRef.current[id] && byIdRef.current[id].pos) || null;
+    const die = (id, at) => {
+      const t = run.snap[id];
+      if (!t || !at) return;
+      pushFx([
+        { kind: "float", x: at.x, y: at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 },
+        { kind: "deathBoom", x: at.x, y: at.y, size: sizeOfP(t), img: t.img, color: t.color, name: t.name },
+      ]);
+      playSfx("death_boom");
+      if (!lowQ) setShake((n) => n + 1);
+      setIceGhosts((g) => { if (!g[id]) return g; const n = { ...g }; delete n[id]; return n; });
+    };
+    const float = (at, text, color, dy = 0, size = 28) => { if (at) pushFx([{ kind: "float", x: at.x, y: at.y + dy, text, ...(color ? { color } : {}), size, z: lowQ ? 2.4 : 1.5 }]); };
+    let step = () => {};
+    const enqueue = (a, end) => {
+      setAnimQ((q) => [...q, { ...a, seq: ++fxSeq.current, iceRun: run, iceHoldEnd: end, then: () => { run.pos[a.id] = end; step(); } }]);
+      return "anim";
+    };
+    const face = (id, a, b) => { if (a && b && (a.x !== b.x || a.y !== b.y)) setFaces((f) => ({ ...f, [id]: { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) } })); };
+    // คืนค่า: "anim" = รอแอนิเมชันจบ · ตัวเลข = รอกี่ ms ก่อนเหตุการณ์ถัดไป
+    const fire = (ev) => {
+      if (!ev || typeof ev !== "object") return 0;
+      const id = ev.id;
+      switch (ev.kind) {
+        case "walk": {
+          const path = pts(ev.path);
+          if (path.length < 2 || !run.pos[id]) { if (path.length) run.pos[id] = path[path.length - 1]; return 0; }
+          const mover = byIdRef.current[id], hop = mover && mover.character && BIG_ART[mover.character.id] ? sizeOfP(mover) : 0;
+          const end = path[path.length - 1];
+          face(id, path[path.length - 2], end);
+          look(end);
+          return enqueue({ kind: "move", id, path, hop }, end);
+        }
+        case "slide": {
+          let path = pts(ev.path);
+          const cur = run.pos[id];
+          if (cur && path.length && !samePos(cur, path[0])) path = [cur, ...path];
+          if (path.length < 2 || !cur) { if (path.length) run.pos[id] = path[path.length - 1]; return 0; }
+          const end = path[path.length - 1], dur = iceTrailDur(path, ICE_T.slideStep);
+          pushFx([{ kind: "iceTrail", path, step: ICE_T.slideStep, dur, len: dur }]);
+          sfx(pick2("is_slide_1", "is_slide_2"));
+          face(id, path[path.length - 2], end);
+          look(end);
+          return enqueue({ kind: "move", id, path, stepMs: ICE_T.slideStep }, end);
+        }
+        case "knock": {
+          if (!ok(ev.from) || !ok(ev.to) || !run.pos[id]) return 0;
+          const from = { x: ev.from.x, y: ev.from.y }, to = { x: ev.to.x, y: ev.to.y };
+          return enqueue({ kind: "push", id, from, to, collide: !!ev.collide }, ev.collide ? from : to);
+        }
+        case "hit": {
+          const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
+          if (!at) return 0;
+          const dmg = Math.max(0, ev.dmg | 0);
+          pushFx([{ kind: "iceHit", x: at.x, y: at.y, dmg, max: !!ev.max, hitIds: id != null ? [id] : [] }]);
+          if (dmg > 0) float(at, `-${dmg}`, ev.max ? "#d8f2ff" : undefined, 0, ev.max ? 40 : 30);
+          sfx(ev.max ? "is_hit_max" : pick2("is_hit", "is_hit_alt"));
+          shake(2.5 + dmg * 1.8 + (ev.max ? 4 : 0));
+          if (ev.max && !lowQ) setShake((n) => n + 1);
+          look(at);
+          if (ev.kill) die(id, at);
+          return ev.max ? ICE_T.hitStop : 90;
+        }
+        case "bump": {
+          const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
+          if (!at) return 0;
+          pushFx([{ kind: "iceBump", x: at.x, y: at.y, hitIds: id != null ? [id] : [] }]);
+          sfx("is_bump");
+          shake(2);
+          return 60;
+        }
+        case "spike": {
+          if (!ok(ev)) return 0;
+          const who = ev.by != null ? ev.by : id, at = posOf(who), lvTo = Math.max(0, ev.lvTo | 0);
+          setLv(ev.x, ev.y, lvTo);
+          pushFx([{ kind: "iceSpikeBreak", x: ev.x, y: ev.y, lv: lvTo, hitIds: who != null ? [who] : [] }]);
+          sfx("is_skill_2_broke");
+          if (ev.own) { float(at, `+${ev.energy || 2}`, ENERGY_C); sfx("is_spike_self"); }
+          else if (ev.dmg > 0) float(at, `-${ev.dmg}`);
+          shake(3);
+          if (ev.kill) die(who, at);
+          return 80;
+        }
+        case "slow": {
+          const at = posOf(id);
+          if (at) pushFx([{ kind: "iceSlow", x: at.x, y: at.y }]);
+          sfx("is_slow");
+          return 0;
+        }
+        case "regen": {
+          const at = posOf(id);
+          if (!at) return 0;
+          pushFx([{ kind: "iceRegen", x: at.x, y: at.y }]);
+          if (ev.hp > 0) float(at, `+${ev.hp}`, "#8ff0b0");
+          if (ev.sp > 0) float(at, `+${ev.sp}`, ENERGY_C, -0.55, 24);
+          sfx("is_regen");
+          return 0;
+        }
+        case "spikeUp": {
+          if (!ok(ev)) return 0;
+          const lv = Math.max(1, ev.lv | 0);
+          setLv(ev.x, ev.y, lv);
+          pushFx([{ kind: "iceSpikeUp", x: ev.x, y: ev.y, lv, from: ev.from | 0 }]);
+          sfx("is_skill_2");
+          look(ev);
+          return 140;
+        }
+        case "spikeDown": {
+          if (!ok(ev)) return 0;
+          const lv = Math.max(0, ev.lv | 0);
+          setLv(ev.x, ev.y, lv);
+          pushFx([{ kind: "iceSpikeBreak", x: ev.x, y: ev.y, lv }]);
+          sfx("is_skill_2_broke");
+          return 0;
+        }
+        case "lay": {
+          const tiles = pts(ev.tiles);
+          if (!tiles.length) return 0;
+          reveal(tiles);
+          pushFx(tiles.map((t, i) => { const delay = Math.min(i * ICE_T.layStep, 600); return { kind: "iceLay", x: t.x, y: t.y, delay, dur: 560 + delay }; }));
+          const n = Math.min(4, tiles.length), gap = n > 1 ? Math.min(600, (tiles.length - 1) * ICE_T.layStep) / (n - 1) : 0;
+          for (let k = 0; k < n; k++) later(Math.round(k * Math.max(110, gap)), () => { if (live()) playSfx(pick2("is_gp_1", "is_gp_2")); });
+          return 0;
+        }
+        case "burst": {
+          const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
+          if (!at) return 0;
+          pushFx([{ kind: "iceBurst", x: at.x, y: at.y }]);
+          sfx("is_burst");
+          shake(6);
+          look(at);
+          return 180;
+        }
+        case "prisonMark": {
+          if (!ok(ev)) return 0;
+          pushFx([{ kind: "icePrisonMark", x: ev.x, y: ev.y, size: ev.size || 5 }]);
+          sfx("is_prison_mark");
+          look(ev);
+          return 0;
+        }
+        case "prison": {
+          if (!ok(ev)) return 0;
+          const c = { x: ev.x, y: ev.y };
+          look(c);
+          playSfx("is_ult");
+          pushFx([{ kind: "icePrison", x: c.x, y: c.y }]);
+          shake(5);
+          const ice = pts(ev.ice);
+          later(ICE_T.prisonIce, () => { if (live()) reveal(ice); });
+          // หนามโผล่ไล่วนรอบกรอบทีละอัน (เรียงตามมุมรอบช่องกลาง)
+          const ring = (Array.isArray(ev.ring) ? ev.ring.filter(ok) : [])
+            .map((r) => ({ x: r.x, y: r.y, lv: Math.max(1, r.lv | 0), a: Math.atan2(r.y - c.y, r.x - c.x) }))
+            .sort((p, q) => p.a - q.a);
+          ring.forEach((r, k) => later(ICE_T.prisonIce + k * ICE_T.prisonRing, () => {
+            if (!live()) return;
+            const from = run.lv[key(r.x, r.y)] || 0;
+            setLv(r.x, r.y, r.lv);
+            pushFx([{ kind: "iceSpikeUp", x: r.x, y: r.y, lv: r.lv, from }]);
+            if (k % 4 === 0) playSfx("is_skill_2");
+          }));
+          const tail = ICE_T.prisonIce + ring.length * ICE_T.prisonRing;
+          later(tail, () => { if (live()) shake(7); });
+          return tail + ICE_T.prisonTail;
+        }
+        default:
+          return 0;
+      }
+    };
+    let i = 0;
+    step = () => {
+      if (!live()) return;
+      while (i < events.length) {
+        const w = fire(events[i++]);
+        if (w === "anim") return;
+        if (w > 0) { later(w, step); return; }
+      }
+      finishIce(run);
+    };
+    step();
+  };
+  const startIceRef = useRef(startIce);
+  useLayoutEffect(() => { startIceRef.current = startIce; });
+  useEffect(() => {
+    const onIce = (m) => {
+      if (!m || !Array.isArray(m.events) || !m.events.length) return;
+      if (m.seq != null && m.seq === iceSeen.current) return;
+      iceSeen.current = m.seq;
+      startIceRef.current(m.events);
+    };
+    socket.on("iceFx", onIce);
+    return () => socket.off("iceFx", onIce);
+  }, []);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -660,7 +1008,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const cur = animRef.current, dh = dashHold.current;
     if (cur && cur.holdEnd && dh && !dh.done && dh.seq === cur.dashSeq) setHold((h) => ({ ...h, [cur.id]: cur.holdEnd }));
     if (cur && cur.releaseHold) setHold((h) => { if (!h[cur.id]) return h; const n = { ...h }; delete n[cur.id]; return n; });
+    // Ice Spike: จบแอนิเมชันของเหตุการณ์ = ค้างตัวไว้ปลายทาง (state ผลสุดท้ายมาก่อนแล้ว) แล้วเล่นเหตุการณ์ถัดไป
+    if (cur && cur.iceRun && !cur.iceRun.done && cur.iceHoldEnd) setIceHold((h) => ({ ...h, [cur.id]: cur.iceHoldEnd }));
     setAnimQ((q) => q.slice(1));
+    if (cur && typeof cur.then === "function") cur.then();
     const pa = pendingAttack.current;
     if (pa) { pendingAttack.current = null; socket.emit("attack", { targetId: pa }); }
   }, []);
@@ -678,6 +1029,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const h = {};
     if (dangerKeys) h.danger = dangerKeys;
     if (anim) return h;
+    if (pickInfo && pickInfo.tile) {
+      // เลือกช่อง (Ice Spike): ม่วง = ช่องที่เลือกได้ · ชี้ = ช่องนั้น (คุก = กรอบ 5×5) · เลือกทิศผลัก = ลูกศร 4 ทิศ
+      if (dirPick) {
+        h.arrows = dirPick.arrows;
+        h.skill = dirPick.arrows.filter((a) => a.ok).map((a) => key(a.x, a.y));
+        h.aoe = [key(dirPick.x, dirPick.y)];
+        return h;
+      }
+      h.skill = pickInfo.skill;
+      if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) h.aoe = pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
+      return h;
+    }
     if (pickInfo) {
       if (pickInfo.skill) h.skill = pickInfo.skill;
       if (pickInfo.aoe) h.aoe = pickInfo.aoe;
@@ -721,13 +1084,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
   // ---------- ตัวละครบนกระดาน ----------
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos).map((p) => {
-    const at = hold[p.id] || p.pos;
+    const at = iceHold[p.id] || hold[p.id] || p.pos;
     return {
       id: p.id, x: at.x, y: at.y, img: p.img, color: p.color, name: p.name,
       size: sizeOfP(p), art: (p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
@@ -737,8 +1100,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
       cloak: !!p.veiled,
     };
-  }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : []),
-  [state.players, state.actorId, me, hold, pickValid, ghost, faces]);
+  }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
+    // Ice Spike: คนที่ตายระหว่างเหตุการณ์ iceFx — วาดค้างไว้ (ตามตำแหน่งที่แสดง) จนถึงจังหวะตาย
+    .concat(Object.values(iceGhosts).filter((t) => t && t.pos && !state.players.some((p) => p.id === t.id && p.alive && p.pos)).map((t) => {
+      const at = iceHold[t.id] || t.pos;
+      return {
+        id: t.id, x: at.x, y: at.y, img: t.img, color: t.color, name: t.name, size: sizeOfP(t), art: (t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
+        hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
+      };
+    })),
+  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -746,6 +1117,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const p = byId[id];
     if (!p) return;
     if (pick) {
+      if (pick.kind === "tile") { const t = hover && onBody(p, hover) ? hover : p.pos; pickTileAt(t.x, t.y); return; }
       if (pick.kind === "target" && pickInfo && pickInfo.valid.has(id)) { clickSound(); pick.onPick(id); }
       else if (pick.kind === "aoe" && pickInfo && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => pickInfo.aoe.includes(key(t.x, t.y)))) { clickSound(); pick.onConfirm(); }
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(pickInfo.dir); }
@@ -761,12 +1133,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const onTileClick = (x, y) => {
     const k = key(x, y);
     if (pick) {
+      if (pick.kind === "tile") { pickTileAt(x, y); return; }
       if (pick.kind === "aoe" && pickInfo && pickInfo.aoe.includes(k)) { clickSound(); pick.onConfirm(); }
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(dirToward(me.pos, { x, y }, sizeOfP(me)) || pickInfo.dir); }
       return;
     }
     // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
-    const seal = sealFoes.find((s) => s.pos.x === x && s.pos.y === y);
+    // หนามน้ำแข็ง (Ice Spike) ใช้ทางเดียวกัน
+    const seal = sealFoes.find((s) => s.pos.x === x && s.pos.y === y) || spikeFoes.find((s) => s.pos.x === x && s.pos.y === y);
     if (seal) {
       if (!myTurn || busy || pendingAttack.current) return;
       const pl = planFor(seal);
@@ -821,19 +1195,26 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  ยกเลิก = ปุ่มยกเลิกกลางล่าง / Esc / คลิกขวา
   useEffect(() => {
     if (!pick || !pick.onCancel) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") pick.onCancel(); };
-    const onCtx = (e) => { e.preventDefault(); pick.onCancel(); };
+    // เลือกทิศผลักอยู่ (Ice Spike) = ถอยกลับไปเลือกช่องก่อน
+    const back = () => { if (dirPick) setDirPick(null); else pick.onCancel(); };
+    const onKey = (e) => { if (e.key === "Escape") back(); };
+    const onCtx = (e) => { e.preventDefault(); back(); };
     window.addEventListener("keydown", onKey);
     window.addEventListener("contextmenu", onCtx);
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("contextmenu", onCtx); };
-  }, [pick]);
+  }, [pick, dirPick]);
 
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
     if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `เหลือ ${state.shopTurnsLeft} เทิร์น` : "" };
+    // Ice Spike: หนามน้ำแข็ง · ธารน้ำแข็ง (น้ำแข็งที่สร้างระหว่างเกม)
+    const sp = spikeList.find((t) => samePos(t, hover));
+    if (sp) return { icon: "❄️", name: `หนามน้ำแข็ง Lv.${sp.lv}`, desc: `เกราะ ${sp.armor ?? 0}/${sp.maxArmor ?? 0} · เหลือ ${sp.left ?? 0} เทิร์น` };
+    const ic = board && Array.isArray(board.ice) ? board.ice.find((t) => samePos(t, hover)) : null;
+    if (ic) return { icon: "🧊", name: "ธารน้ำแข็ง", desc: `เหลือ ${ic.left ?? 0} เทิร์น` };
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shopPos, state.shopTurnsLeft]);
+  }, [hover, map, shopPos, state.shopTurnsLeft, spikeList, board]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js
@@ -860,7 +1241,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [shown.fly === "out" || shown.fly === "wait", boardArea]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownArea = shown.board ? shown.board.area : 0;
   useEffect(() => { noteArenaShown(shownArea); return () => noteArenaShown(shownArea); }, [shownArea]);
-  const displayBoard = shown.fly === "out" || shown.fly === "wait" ? shown.board : state.board;
+  const baseBoard = shown.fly === "out" || shown.fly === "wait" ? shown.board : state.board;
+  // Ice Spike: น้ำแข็งใหม่ที่เหตุการณ์ยังเล่นไม่ถึง = แสดงช่องพิเศษเดิมไว้ก่อน
+  const displayBoard = useMemo(() => {
+    if (!baseBoard || !iceMask) return baseBoard;
+    const sp = { ...(baseBoard.special || {}) };
+    for (const [k, was] of Object.entries(iceMask)) { if (was) sp[k] = was; else delete sp[k]; }
+    return { ...baseBoard, special: sp };
+  }, [baseBoard, iceMask]);
+  const prisons = board && Array.isArray(board.prisons) && board.prisons.length ? board.prisons : null;
+  const iceProp = useMemo(() => (iceLv || prisons ? { lv: iceLv, prisons } : null), [iceLv, prisons]);
 
   // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
   const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080
@@ -952,6 +1342,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         fx={fx}
         zero={zeroProp}
         zeroScene={zScene}
+        ice={iceProp}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}

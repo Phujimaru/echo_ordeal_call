@@ -55,6 +55,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
+| `ice.js` | **น้ำแข็ง/หนามน้ำแข็ง/ไถล/ผลัก/เชื่องช้า** (§19 · Ice Spike + น้ำแข็งภูมิภาค VI): ชั้นที่สร้างระหว่างเกม (`layIce`/`undoLay`, `placeSpike`/`raiseSpike`/`lowerSpike`/`damageSpike`, `overlayOf`, `publicInfo`), `resolveEntry` (ไถล+ชน), `pushUnit`, `applySlow`, ตีหนาม (`attackSpike`, `hitSpikesInArea`), ระเบิดสะสมดาเมจ (`noteHurt`/`flushBursts`), คุกรอช่วงที่ 2 (`addPrison`/`takePrisons`), `onEndTurn` |
 | `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
@@ -573,6 +574,12 @@ module.exports = {
   onStrikeLanded(engine, attacker, target, { counter }) { return []; }, // ตีปกติลง (รวมทุกคนในแนว) → ชื่อป้ายในฉากตี (ฮิคารุ: ติดสถานะตามร่าง)
   attackStyle(p, dist) { return null; },                         // ท่าตีบนกระดาน → การ์ดฉากตี byStyle (Echo: echo/hair/rock · ฮิคารุ: hk*)
   skillArea(p, tier, area) { return area; },                     // พื้นที่สกิลตามสถานะ (useSkill + ปุ่มใช้ตัวเดียวกัน)
+  keepsMove(engine, p, tier) { return false; },                  // true = ใช้สกิลนี้แล้วยังเดินได้ (ไม่ lockMove — Ice Spike ก่อนเดิน)
+  onActorStart(engine, p) {},                                    // ต้นตาเดินของ p (nextActor — ก่อนเช็คสตั้น · Ice Spike: คุกน้ำแข็งช่วงที่ 2)
+  afterWalk(engine, p, tiles, ctx) { return []; },               // หลังเดิน/ไถล (tiles = ทุกช่องที่ผ่าน) → บันทึกไว้ย้อน (Ice.layIce) · ctx = เหตุการณ์ iceFx
+  onDamageTaken(engine, p, n) {},                                // เสียพลังชีวิต/เกราะ/เลือดชั่วคราว 1 หน่วย (combat.loseHp/loseArmor)
+  onSlide(engine, p, n, ctx) {}, slideStrike(engine, p, u, n, ctx) {}, ownSpike(engine, p, ctx) { return 0; },
+                                                                 // ระบบไถล (server/ice.js §19): ไถลเสร็จ · ไถลชนศัตรู (ลงดาเมจเอง) · ชนหนามตัวเอง (คืนแต้มที่ได้)
   // hburnImmune / hburnHeals / hburnLabel · hbleedImmune / hbleedHeals / hbleedLabel / hbleedHarmless (ข้อ 7)
 
   // ---- ที่เหลือคือ method ที่ server/ เรียกเองแบบเจาะจง: CHAR_HOOKS.<id>.<method>(engine, ...) ----
@@ -583,7 +590,7 @@ module.exports = {
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
 `muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
 `oberon_summer.onRoundStartTick` (ลูปของ `dealRound`) · `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) · `oberon_summer.onEndTurn` (`endTurn`) ·
-`resetCombat` ทุกตัว (`combat.resetCombat`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `onDeath` (`instantDeath`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
+`ice_spike.isIceSpike` (`buildStateFor` ฟิลด์ `iceHurt`) · `resetCombat` ทุกตัว (`combat.resetCombat`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `onDeath` (`instantDeath`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
 
 **กฎเหล็ก**
 1. เข้าถึง state ผ่าน `engine.*` เท่านั้น (`engine.log`, `engine.healHp`, `engine.dealMixed`, `engine.players`, …)
@@ -695,3 +702,25 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เพลง** (`client/src/audioPolicy.js`): `state.zero.active` = `zero_<stage>` (1–4) **ชนะเพลงสกิล/ท่าไม้ตาย** (ผู้ใช้สั่ง — วีดีโอคัตซีนยังพักเพลงตามปกติ) · ฉากปลดผนึกกลับเพลงภูมิภาค ·
   ไฟล์ `/zero_time/phase1..4.mp3` + `thunder.mp3` (`zero_thunder` — ฟ้าผ่า) อยู่ R2 (`mediaDirs.js` `zero_time`) ·
   `LOUDNESS_GAIN` phase1 0.55 · phase2 0.56 · phase3 0.58 · phase4 0.6 (ไฟล์ดัง −8.7 ถึง −9.5 LUFS — ลดให้ไม่กลบเสียงกด/เอฟเฟกต์) · thunder ไม่ลด
+
+---
+
+## 19. น้ำแข็ง / หนามน้ำแข็ง / ไถล (`server/ice.js` — Ice Spike · GRID_PLAN §7.9)
+
+ระบบกลาง ตัวละครอื่นใช้ซ้ำได้ผ่าน `engine.ice.*` · รูปข้อมูล client ↔ server: `.claude/plans/ice-spike-contract.md`
+- **กติกาไถล (ทุกน้ำแข็ง รวมภูมิภาค VI)** อยู่ใน `server/board.js`: `isIce` · `slideLine(map, x, y, dx, dy, units, selfId, blocked)` = ไถลจนสุดแนว หยุดบนช่องน้ำแข็งช่องสุดท้าย
+  (ช่องถัดไปไม่ว่าง = หยุดก่อน · ทแยงได้) คืน `{ x, y, tiles, hit }` · `reachable`: เดินเข้าน้ำแข็ง = โหนดปลาย `slide: true` (เดินต่อไม่ได้) · `pushback` ไถลต่อ
+- **ชั้นที่สร้างระหว่างเกม** `match.board.ice` / `spikes` / `prisons` + `iceVer` → `action.boardMap()` รวมเข้าแผนที่ (หนาม = terrain `icespike<lv>` · น้ำแข็ง = special `ice` ทับช่องพิเศษเดิม)
+  — กติกาเดิน/ระยะ/วาดทุกอย่างใช้ของเดิมได้เลย · เปลี่ยนภูมิภาค = `placeOnBoard` ตั้ง `match.board` ใหม่ ชั้นหายเอง · `onEndTurn` นับ `left` ลง
+- **เดิน** (`action.moveTo`): ช่องน้ำแข็งแรกในเส้นทาง = จุดเริ่มไถล → `Ice.resolveEntry` (ตำแหน่งจริงทุกคน) · ไถลแล้ว `action.locked` · ไถลชนด้วยฮุค `slideStrike` = จบตา (ATTACKING ตาม `fxSeconds`)
+  · เดินทีละก้าวเข้าน้ำแข็งก็ไถล · ก้าวกลับช่องเริ่มตา = ย้อนเสมอ · ฮุค `afterWalk` (วางน้ำแข็ง) ย้อนได้ด้วย `action.iceUndo`
+- **ชน** (`impact`): คน — ฮุค `slideStrike` ของผู้ไถล (ศัตรูเท่านั้น) แล้วเป้ากระเด็น 1 ช่อง · ไม่มีฮุค = เป้ากระเด็นไม่เสียเลือด · เพื่อน = หยุดเฉยๆ ·
+  หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` · `pushUnit` = ผลัก 1 ช่อง (ตัวใหญ่/ไม่ว่าง = เด้ง) ลงน้ำแข็ง = ไถลต่อ (ทอดสูงสุด 12)
+- **เชื่องช้า** `statuses.slow` (`Ice.applySlow`: −1 เดินใน `action.movOf` · ไม่ซ้อน · 3 เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
+- **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 2, 2] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
+  สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ตัวใหญ่เดินพังได้ (`breakObstacles` → `smashedSpikes` ย้อนได้)
+- **สกิลเลือกช่อง** `area.kind: "tile"` (`range`, `square?`, `place` ให้ client) — socket `useSkill { tile: { x, y }, dir? }` → `resolveArea(p, area, targets, dir, tile)` / `areaTiles(..., tile)` / `engine.tileArea`
+- **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`)
+- **เหตุการณ์ให้ client**: `Ice.begin()` → ใส่ `ctx.events` → `Ice.flush(ctx)` = socket `iceFx { seq, events }` (ชนิดเหตุการณ์: contract §4) ·
+  client ค้างตำแหน่งคนในชุดไว้จนแอนิเมชันของคนนั้นเล่นถึง — **ทุกการขยับตัวที่อยู่ในชุดต้องมีเหตุการณ์ walk/slide/knock** ไม่งั้นตัวค้างที่เดิมจนจบชุด
+

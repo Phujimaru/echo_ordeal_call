@@ -26,6 +26,7 @@ import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle,
 import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
+import { ICE_FX_DUR, drawIceSpike, drawPickArrows, drawPrisons, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -179,7 +180,7 @@ export function prepareMap(map) {
     plaza = { x: cx, y: cy, r1: 3.45 * sc, r2: 2.25 * sc, sc };
   }
   return {
-    cols, rows, area, terrain, heal, plaza, spawns: ptList(map && map.spawns), special,
+    cols, rows, area, terrain, terrainKind: tMap, heal, plaza, spawns: ptList(map && map.spawns), special,
     healClusters: healClusters(heal), lavaTiles: special.filter((s) => s.kind === "lava"),
   };
 }
@@ -1059,6 +1060,8 @@ export function prepareHighlights(h) {
     targetSize: h.target ? Math.max(1, h.target.size | 0) : 1,
     ghost: toSet(h.ghost), // ตัวใหญ่: ตัวทั้งก้อนที่จะไปยืน (ชี้ช่องที่จะเดินไป)
     push: h.push && h.push.from && h.push.to ? { from: normPt(h.push.from), to: normPt(h.push.to), collide: !!h.push.collide } : null,
+    // Ice Spike วางหนามทับคน: ลูกศร 4 ทิศ [{ x, y, dir, ok }]
+    arrows: Array.isArray(h.arrows) ? h.arrows.filter((a) => a && Number.isFinite(a.x) && Number.isFinite(a.y)) : null,
   };
 }
 function drawHighlights(g, info, hl, hover, now) {
@@ -1110,6 +1113,7 @@ function drawHighlights(g, info, hl, hover, now) {
     quad(g, hover.x, hover.y, 0.03); g.fillStyle = "rgba(255,255,255,.12)"; g.fill();
     g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 2; g.stroke();
   }
+  if (hl.arrows) drawPickArrows(g, hl.arrows, hover, now);
 }
 function floatText(g, x, y, text, color, p, size = 24, z0 = 2.4) {
   if (p <= 0 || p >= 1) return;
@@ -1748,7 +1752,7 @@ function boomFx(g, e, now, lowQ) {
 
 export const FX_DUR = {
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR,
 };
 
 
@@ -1798,6 +1802,9 @@ export function drawFrame(g, st, now) {
   const tA = lowQ ? 0 : now;
   for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
   if (info.heal.length && !pz) animHeal(g, info, { night, C, area: info.area }, tA);
+  // Ice Spike: คุกน้ำแข็งช่วงที่ 1 (กรอบ 5×5 เรืองแสง) — ice = { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) }, prisons }
+  const ice = st.ice || null;
+  if (ice && ice.prisons) drawPrisons(g, ice.prisons, info, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -1810,10 +1817,25 @@ export function drawFrame(g, st, now) {
     return uv.some(([ux, uy]) => Math.abs(ux - vx) < 0.9 && uy < vy && uy >= vy - 2.2);
   };
   const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
+  // หนามน้ำแข็ง: Lv ที่แสดง = ค่าที่ BoardStage ค้างไว้ระหว่างเล่นเหตุการณ์ (ice.lv) หรือ terrain · พุ่งขึ้นจากพื้นตาม fx iceSpikeUp
+  const iceLv = ice && ice.lv ? ice.lv : null;
+  const pushSpike = (x, y, lv) => {
+    if (!(lv > 0)) return;
+    const fade = behind(x, y);
+    items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => drawIceSpike(g, x, y, lv, { rise: iceSpikeRise(fx, x, y, now), alpha: fade ? 0.45 : 1 }) });
+  };
   for (const t of info.terrain) {
+    const sLv = iceSpikeLv(t.kind);
+    if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
     const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
     const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0 });
+  }
+  // หนามที่ server เอาออกแล้วแต่ยังค้างไว้ (แตกตอนเหตุการณ์ถึง) / ยังไม่อยู่ใน terrain
+  if (iceLv) for (const [k, lv] of Object.entries(iceLv)) {
+    if (!(lv > 0)) continue;
+    const [x, y] = parseKey(k);
+    if (!iceSpikeLv(String((info.terrainKind && info.terrainKind[k]) || ""))) pushSpike(x, y, lv);
   }
   if (shopPos && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
     const { x, y } = shopPos, fade = behind(x, y);
@@ -1870,6 +1892,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
+    else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }

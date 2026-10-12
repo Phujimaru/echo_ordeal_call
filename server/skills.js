@@ -23,6 +23,7 @@ const view = require("./view");
 const Visibility = require("./visibility");
 const timers = require("./timers");
 const Zero = require("./zeroTime");
+const Ice = require("./ice");
 
 function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
@@ -60,10 +61,12 @@ function useSkill(id, tier, targets, opts = {}) {
   // ระยะบนกระดาน (GRID_PLAN §7): เป้านอกระยะ/ไม่ได้เลือกทิศ = กดไม่ได้ · ได้รายชื่อผู้โดนจริงส่งต่อให้ hook
   //  skillArea = พื้นที่เปลี่ยนตามสถานะ (มุยมิ: ดาบสนิมระหว่างดาบสะบั้น = คลื่นดาบแนว) — ต้องตรงกับ buildStateFor
   const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area) : skill.area;
-  targets = action.resolveArea(p, area, targets, opts.dir);
+  targets = action.resolveArea(p, area, targets, opts.dir, opts.tile);
   if (!targets) return;
   // ห่วงเวลาซีโร่: สกิลโจมตีพื้นที่ที่คลุมผนึกมิโกะ = ลงผนึกด้วย (หลังผลของสกิล)
-  const sealTiles = area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir) : [];
+  const sealTiles = area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
+  // หนามน้ำแข็ง (Ice Spike): สกิลโจมตีพื้นที่ที่คลุมหนาม = ลงหนามด้วย (ยกเว้นสกิลชนิด tile ซึ่งจัดการหนามเอง)
+  const spikeTiles = area && area.hostile && area.kind !== "tile" ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
   //  opts = ตัวเลือกจาก client (ไรโด ฮิคารุ: opts.form = ร่างที่เลือกใน UltraLive)
@@ -77,7 +80,8 @@ function useSkill(id, tier, targets, opts = {}) {
   if (tier === "ultimate" && st && (p.statuses[st] || 0) > 0) return;
 
   p.skillPoints -= cost;
-  action.lockMove(p);
+  // ใช้สกิลแล้วเดินไม่ได้อีก — ฮุค keepsMove = สกิลที่ใช้ก่อนเดินแล้วยังเดินได้ (Ice Spike: ธารน้ำแข็ง/หนามน้ำแข็ง ก่อนขยับ)
+  if (!(hook && hook.keepsMove && hook.keepsMove(engine, p, tier))) action.lockMove(p);
   if (blessFree) {
     p.statuses.freecast--;
     if (p.statuses.freecast <= 0) delete p.statuses.freecast;
@@ -123,6 +127,7 @@ function useSkill(id, tier, targets, opts = {}) {
   if ((targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
   if (area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
   if (sealTiles.length) deferred.push(() => Zero.hitSealsInArea(p, sealTiles));
+  if (spikeTiles.length) deferred.push(() => Ice.hitSpikesInArea(p, spikeTiles));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
   combat.applyEffect(p, skill.effect);

@@ -9,6 +9,7 @@ const sliver_bullet = require("./sliver_bullet"); // นักบินปริ
 const echo = require("./echo"); // Echo — พิเศษ (ขยายร่างบนกระดาน)
 const sora_otosumi = require("./sora_otosumi"); // โซระ โอโตสุมิ — ระดับง่าย (แปลงร่าง My-Th)
 const raido_hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ — ระดับกลาง (UltraLive / Ultraman Ginga)
+const ice_spike = require("./ice_spike"); // Ice Spike — ระดับยาก (ธารน้ำแข็ง / ไถลชน / หนามน้ำแข็ง)
 
 const CHARACTER_MODULES = [
   muimi,
@@ -17,6 +18,7 @@ const CHARACTER_MODULES = [
   echo,
   sora_otosumi,
   raido_hikaru,
+  ice_spike,
 ];
 
 const CHAR_HOOKS = {};

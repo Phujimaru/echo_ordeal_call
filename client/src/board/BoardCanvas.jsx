@@ -35,6 +35,8 @@
 //   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
 //               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
+//   ice         Ice Spike: { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) }, prisons: [{ x, y, size }] } | null (ดู iceFx.js)
+//               fx ของ Ice Spike: ice* (iceFx.js) · iceShake { amp } = จอสั่นแบบเลื่อนกล้อง (แรงตาม amp · lowQ/ลดการเคลื่อนไหว = ไม่สั่น)
 //   zero        state.zero (ห่วงเวลาซีโร่: { stage, seals, pickups }) — ผนึก/โซ่/ของฟื้นพลังชีวิตบนสนาม area 8–11
 //   zeroScene   { seq, mode: "enter"|"break"|"release", stage, seal } | null — seq ใหม่ = เล่นฉากเปลี่ยนผ่าน:
 //               จับภาพเฟรมล่าสุดไว้ (สนามเดิม) แล้วเผยเฟรมใหม่ใต้คลื่น (เข้า/เปลี่ยนเฟส) หรือแตกเป็นเศษกระจก (ปลดผนึก) — zeroTheme.js
@@ -50,6 +52,7 @@ import {
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
 import { hkBeamHitMs } from "./hikaruFx";
+import { iceShakeOffset } from "./iceFx";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
 } from "./zeroTheme";
@@ -550,8 +553,12 @@ export default function BoardCanvas(props) {
       const zeroAnim = zs && zs.mode === "enter" ? enterAnim(now - zs.t0) : null;
 
       if (paused) return;
+      // จอสั่นของ Ice Spike: เลื่อนภาพทั้งเฟรม (ไม่กระทบการเลือกช่อง — st.view ยังเป็นมุมจริง)
+      const shk = iceShakeOffset(st.fxActive, now, lowQ);
+      //  ขยาย 3% รอบกลางจอระหว่างสั่น — ขอบภาพไม่โผล่
+      const dView = shk ? { ...view, k: view.k * 1.03, ox: w / 2 + (view.ox - w / 2) * 1.03 + shk[0] * view.k, oy: h / 2 + (view.oy - h / 2) * 1.03 + shk[1] * view.k } : view;
       const frame = (target) => drawFrame(target, {
-        info, view, dpr, bake, turn: st.turn, night, lowQ, units: list, hl,
+        info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT,
       }, now);

@@ -10,6 +10,7 @@
 //  คอนโซล: window.__boardFocus(x, y) = ส่ง focus ให้ BoardCanvas (มุมใกล้เลื่อนตามถ้าช่องนั้นอยู่นอกจอ)
 //   window.__boardFx([{ kind: "beam", x, y, dir: "up", len: 6, color: "#ff5fb4" }]) = เล่นเอฟเฟกต์ (เช่นลำแสง Beam Magnum)
 //   window.__boardCloak(id, true) = วาดตัวละครนั้นแบบซ่อนตัว (เงาจาง)
+//   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง + คุก 5×5 (Ice Spike) · window.__boardIce({ lv, prisons }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
@@ -206,6 +207,15 @@ export default function BoardPreview() {
   const [log, setLog] = useState("คลิกช่องฟ้าเพื่อเดิน · คลิกศัตรูในช่องแดงเพื่อตี");
   const [lastClick, setLastClick] = useState(null);
   const [focus, setFocus] = useState(null);
+  // Ice Spike (?ice=1): หนาม/น้ำแข็ง/คุกจำลอง
+  const iceOn = Q.get("ice") === "1";
+  const [iceMock, setIceMock] = useState(() => (iceOn ? { lv: null, prisons: [{ x: 8, y: 8, size: 5 }] } : null));
+  useEffect(() => { window.__boardIce = (v) => setIceMock(v || null); return () => { delete window.__boardIce; }; }, []);
+  const iceMap = useMemo(() => (!iceOn ? map : {
+    ...map,
+    terrain: { ...map.terrain, "3,4": "icespike1", "4,4": "icespike2", "5,4": "icespike3" },
+    special: { ...map.special, "3,6": "ice", "4,6": "ice", "5,6": "ice", "6,6": "ice" },
+  }), [map, iceOn]);
   // ทดสอบกล้องตามตัวละครจากคอนโซล: window.__boardFocus(x, y)
   useEffect(() => { window.__boardFocus = (x, y) => setFocus({ x, y }); return () => { delete window.__boardFocus; }; }, []);
   const after = useRef(null);   // งานต่อหลังแอนิเมชันจบ
@@ -390,7 +400,8 @@ export default function BoardPreview() {
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
       <BoardCanvas
-        map={map}
+        map={iceMap}
+        ice={iceMock}
         units={viewUnits}
         highlights={highlights}
         shopPos={M.shop}

@@ -25,7 +25,7 @@ const UNBREAKABLE = new Set(["seal"]);
 //  name/icon/desc = ป้ายข้อมูลช่องบนหน้าจอ · ตัวเลขกติกา:
 //   cost  = ก้าวที่ใช้เดินเข้าช่องนี้ (ไม่ระบุ = 1)
 //   evade = ยืนอยู่แล้วหลบหลีกการโจมตีปกติ/ตีสวน/สกิลที่ตีด้วยพลังโจมตี +N% (แม่นยำเจาะได้ — phases/attack.js)
-//   stop  = เดินเข้าแล้วหยุดทันที (ก้าวที่เหลือหายหมด) · slide = เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิม
+//   stop  = เดินเข้าแล้วหยุดทันที (ก้าวที่เหลือหายหมด) · slide = เดินเข้าแล้วไถลไปทิศเดิมจนสุดแนวน้ำแข็ง (จบการเดิน — slideLine)
 //   atk   = ยืนอยู่แล้วพลังโจมตี +N (computeAttackBase) · end = ผลตอนจบตาบนช่องนี้ (endTurnTile)
 //   bush  = พุ่มหญ้า: ยืนอยู่แล้วศัตรูมองไม่เห็น ยกเว้นคนที่ยืนในพุ่มผืนเดียวกัน (bushPatchOf — server/visibility.js)
 //  heal / oasis = จุดฟื้นฟู (map.heal) — ชื่อตามภูมิภาค (map.healKind)
@@ -38,7 +38,7 @@ const TERRAIN_INFO = {
   shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดิน 2 ก้าว", cost: 2 },
   whirl: { name: "น้ำวน", icon: "🌀", desc: "จบตา ถูกดัน 1 ช่องตามกระแส", end: "whirl" },
   quicksand: { name: "ทรายดูด", icon: "⏳", desc: "เดินเข้าแล้วหยุด", stop: true },
-  ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "ไถลต่อ 1 ช่อง", slide: true },
+  ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "ไถลจนสุดแนว", slide: true },
   lava: { name: "ลาวา", icon: "🌋", desc: "จบตา เสียหาย 1", end: "lava", dmg: 1 },
   power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
 };
@@ -84,7 +84,8 @@ function buildMap({ area, name, terrain, special = {}, heal, healKind = "heal", 
 //   → จบตาในแม่น้ำโดนดูดเข้าหาซากเรือ · ข้ามแบบไม่เสี่ยงต้องอ้อมไปท่าน้ำตื้น (ก้าว 2) ที่คอลัมน์ 2 และ 11
 // V ทะเลทราย: วิหารร้างกลางแผนที่ล้อมโอเอซิส 4 ช่อง · ประตูบน/ล่างเป็นทรายดูด 2 ชั้น ประตูซ้าย/ขวาเป็นพื้น
 //   แต่หน้าประตูข้างมีแนวทรายดูดตั้งขวาง (อ้อมหัว/ท้ายแนว)
-// VI อาณาจักรน้ำแข็ง: ทะเลสาบน้ำแข็งใหญ่กลางแผนที่ (ไถล) · ก้อนน้ำแข็ง 4 ก้อนในทะเลสาบไว้หยุดไถล
+// VI อาณาจักรน้ำแข็ง: แนวน้ำแข็งกว้าง 1 ช่อง ยาว 4–5 ช่อง กระจายทั่วแผนที่ (ไถลจนสุดแนว) · กลางแผนที่เป็นกังหัน 4 แนวชนก้อนน้ำแข็ง 2 ก้อน
+//   แนวมุมชนต้นสน/หิน/ก้อนน้ำแข็ง หรือไถลออกไปถึงขอบกระดาน · ทุกช่องน้ำแข็งเป็นจุดหยุดได้ (เข้าจากด้านข้าง)
 // VII จุดสิ้นสุดของโลก: ธารลาวา 4 สายไหลจากขอบ (แนวทแยง) ลงบ่อลาวากลางแผนที่ → แบ่งแผนที่เป็น 4 ฝั่ง ข้ามได้ทางสะพานสายละ 1 จุด
 //   แท่นพลัง 2 ช่องกลางแท่นบูชา (ล้อมลาวา ช่องเข้าซ้าย/ขวา) + ริมขอบ 2 ช่อง
 const MAPS = {
@@ -169,15 +170,15 @@ const MAPS = {
     name: "อาณาจักรน้ำแข็ง",
     terrain: {
       pine: [[0, 0], [1, 0], [12, 0], [13, 0], [0, 1], [13, 1], [0, 12], [13, 12], [0, 13], [1, 13], [12, 13], [13, 13]],
-      rock: [[1, 3], [12, 3], [1, 10], [12, 10]],
-      iceblock: [[5, 4], [8, 4], [5, 9], [8, 9]],
+      rock: [[11, 5], [2, 8]],
+      iceblock: [[5, 1], [7, 6], [6, 7], [8, 12]],
     },
     special: {
-      ice: [[5, 2], [6, 2], [7, 2], [8, 2], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [3, 4], [4, 4], [6, 4], [7, 4], [9, 4], [10, 4], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [3, 9], [4, 9], [6, 9], [7, 9], [9, 9], [10, 9], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [5, 11], [6, 11], [7, 11], [8, 11]],
+      ice: [[11, 0], [1, 1], [2, 1], [3, 1], [4, 1], [11, 1], [7, 2], [11, 2], [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [7, 3], [11, 3], [7, 4], [11, 4], [7, 5], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [6, 8], [2, 9], [6, 9], [2, 10], [6, 10], [9, 10], [10, 10], [11, 10], [12, 10], [13, 10], [2, 11], [6, 11], [2, 12], [9, 12], [10, 12], [11, 12], [12, 12], [2, 13]],
     },
     heal: [],
     spawns: [[4, 0], [9, 0], [0, 6], [13, 6], [3, 13], [6, 13], [10, 13]],
-    shopSpots: [[3, 2], [10, 2], [3, 11], [10, 11]],
+    shopSpots: [[9, 3], [3, 4], [10, 9], [4, 10]],
   }),
   7: buildMap({
     area: 7,
@@ -333,15 +334,41 @@ function freeTile(map, x, y, units, selfId, blocked) {
   return !other || other.id === selfId;
 }
 
+// ---------- น้ำแข็ง (ผู้ใช้ตัดสิน 2026-10-12 — GRID_PLAN §7.9 · ใช้กับน้ำแข็งทุกแบบ: ภูมิภาค VI + ธารน้ำแข็งของ Ice Spike) ----------
+// ช่องนี้เป็นน้ำแข็งที่ไถลได้ไหม (มีสิ่งกีดขวาง/หนามน้ำแข็งทับ = ไม่ใช่)
+function isIce(map, x, y) {
+  return inBounds(map, x, y) && specialAt(map, x, y) === "ice" && !map.terrain[key(x, y)];
+}
+// ไถลจากช่องน้ำแข็ง (x, y) ที่เพิ่งเข้ามา ไปทาง (dx, dy) จนสุดแนวน้ำแข็ง — หยุดบนช่องน้ำแข็งช่องสุดท้าย
+//  ช่องน้ำแข็งถัดไปไม่ว่าง (คน/ร้านค้า) = หยุดก่อน · ทแยงได้ (ผลักทแยง)
+//  คืน { x, y (ช่องที่หยุด), tiles (ช่องน้ำแข็งที่ผ่านรวมช่องแรก — ยาว = ระยะไถล), hit } · hit = ของที่ช่องถัดจากช่องที่หยุด:
+//   { kind: "unit", id, x, y } | { kind: "obstacle", terrain, x, y } | null (พื้นว่าง/ขอบกระดาน/ร้านค้า)
+function slideLine(map, x, y, dx, dy, units, selfId, blocked) {
+  const tiles = [{ x, y }];
+  let cx = x, cy = y;
+  while (isIce(map, cx + dx, cy + dy) && freeTile(map, cx + dx, cy + dy, units, selfId, blocked) && tiles.length < map.cols + map.rows) {
+    cx += dx; cy += dy;
+    tiles.push({ x: cx, y: cy });
+  }
+  const nx = cx + dx, ny = cy + dy;
+  let hit = null;
+  if (inBounds(map, nx, ny)) {
+    const u = unitAt(units, nx, ny);
+    if (u && u.id !== selfId) hit = { kind: "unit", id: u.id, x: nx, y: ny };
+    else if (map.terrain[key(nx, ny)]) hit = { kind: "obstacle", terrain: map.terrain[key(nx, ny)], x: nx, y: ny };
+  }
+  return { x: cx, y: cy, tiles, hit };
+}
+
 // ---------- การเดิน ----------
 // หาช่องที่เดินถึงไม่เกิน mov ก้าว (4 ทิศ) · คืน Map<key, { x, y, d, prev }> ของช่องที่ "หยุดได้" รวมช่องเริ่ม
 //  เดินผ่านพวกเดียวกันได้ (isAlly) แต่หยุดทับไม่ได้ · ผ่านศัตรูไม่ได้ · ผ่านสิ่งกีดขวาง/blocked ไม่ได้
 //  ช่องพิเศษ (TERRAIN_INFO): ค่าเดินรายช่อง 1 หรือ 2 → Dijkstra แบบถังตามจำนวนก้าว (ก้าวน้อยสุดชนะ เท่ากัน = เจอก่อนชนะ)
 //   - เดินเข้าช่อง cost 2 ต้องเหลือก้าวพอ
 //   - ทรายดูด (stop): หยุดได้แต่เดินต่อจากช่องนั้นไม่ได้ (ยืนอยู่บนทรายดูดตั้งแต่ต้นตา = เดินออกได้ตามปกติ)
-//   - น้ำแข็ง (slide): เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิมโดยไม่เสียก้าว ถ้าช่องนั้นว่าง (ไม่มีใครยืน)
-//     → ช่องน้ำแข็งเป็นแค่ทางผ่าน (อยู่ใน prev ให้ pathTo วาดการไถล) · ไถลไม่ได้ = หยุดบนน้ำแข็ง
-//     ช่องที่ไถลไปลงไม่ไถลซ้ำ และไม่เสียค่าเดินของช่องนั้น
+//   - น้ำแข็ง (slide — GRID_PLAN §7.9): เดินเข้าแล้วไถลไปทิศที่เข้ามาจนสุดแนวน้ำแข็ง (slideLine) ไม่เสียก้าวเพิ่ม
+//     → ไถลแล้วจบการเดิน (โหนดปลาย slide: true เดินต่อไม่ได้) · ช่องที่ไถลผ่านอยู่ใน prev ให้ pathTo วาดการไถล
+//     ช่องน้ำแข็งที่มีเพื่อนยืน = เข้าไม่ได้ · เดินออกจากน้ำแข็ง (ช่องเริ่ม) ไปพื้นธรรมดาไม่ไถล
 function reachable(map, unit, mov, units, opts = {}) {
   if (sizeOf(unit) > 1) return reachableBig(map, unit, mov, units, opts);
   const { isAlly = () => false, blocked = null } = opts;
@@ -364,6 +391,7 @@ function reachable(map, unit, mov, units, opts = {}) {
   for (let d = 0; d < buckets.length; d++) {
     for (const cur of buckets[d] || []) {
       if (best.get(key(cur.x, cur.y)) !== cur) continue; // มีทางที่ใช้ก้าวน้อยกว่าแล้ว
+      if (cur.slide) continue; // ไถลมาแล้ว = จบการเดิน
       if (cur !== start && specialAt(map, cur.x, cur.y) === "quicksand") continue; // ทรายดูด: หยุดทันที
       for (const [dx, dy] of DIRS) {
         const nx = cur.x + dx, ny = cur.y + dy;
@@ -373,8 +401,13 @@ function reachable(map, unit, mov, units, opts = {}) {
         const nd = cur.d + moveCost(map, nx, ny);
         if (nd > mov) continue;
         const node = { x: nx, y: ny, d: nd, prev: cur };
-        if (specialAt(map, nx, ny) === "ice" && freeTile(map, nx + dx, ny + dy, units, unit.id, blocked)) {
-          visit({ x: nx + dx, y: ny + dy, d: nd, prev: node }); // ไถลต่อ 1 ช่อง
+        if (isIce(map, nx, ny)) {
+          if (other) continue; // เพื่อนยืนบนน้ำแข็ง = เข้าไม่ได้
+          const s = slideLine(map, nx, ny, dx, dy, units, unit.id, blocked);
+          let end = node;
+          for (const t of s.tiles.slice(1)) end = { x: t.x, y: t.y, d: nd, prev: end };
+          end.slide = true;
+          visit(end);
         } else {
           visit(node);
         }
@@ -610,7 +643,7 @@ function canCounter(defenderRange, attackerPos, defenderPos) {
 // หลังโดนสวน ผู้ตีถอย 1 ช่องออกจากผู้สวน
 //  ทิศ: ตามแกนที่ห่างกันมากกว่า · ห่างเท่ากัน (แนวทแยง) ลองแกนตั้งก่อนแล้วแกนนอน
 //  ไม่มีช่องว่างให้ถอย (สิ่งกีดขวาง/ขอบ/ตัวละคร/blocked) = ไม่ขยับ และ collide = true (ชน −1)
-//  ถอยลงน้ำแข็ง = ไถลต่ออีก 1 ช่องในทิศเดิมถ้าว่าง (รวมถอย 2 ช่อง) → มี via = ช่องน้ำแข็งที่ไถลผ่าน (ไม่ไถล = ไม่มี via)
+//  ถอยลงน้ำแข็ง = ไถลต่อจนสุดแนวน้ำแข็ง (slideLine) → มี via = ช่องน้ำแข็งช่องแรก (ไม่ไถล = ไม่มี via)
 function pushback(map, attackerPos, defenderPos, units, { selfId = null, blocked = null } = {}) {
   const dx = attackerPos.x - defenderPos.x, dy = attackerPos.y - defenderPos.y;
   const sx = Math.sign(dx), sy = Math.sign(dy);
@@ -621,8 +654,9 @@ function pushback(map, attackerPos, defenderPos, units, { selfId = null, blocked
   const dir = dirs.find(([ux, uy]) => freeTile(map, attackerPos.x + ux, attackerPos.y + uy, units, selfId, blocked));
   if (!dir) return { x: attackerPos.x, y: attackerPos.y, moved: false, collide: true };
   const nx = attackerPos.x + dir[0], ny = attackerPos.y + dir[1];
-  if (specialAt(map, nx, ny) === "ice" && freeTile(map, nx + dir[0], ny + dir[1], units, selfId, blocked)) {
-    return { x: nx + dir[0], y: ny + dir[1], moved: true, collide: false, via: { x: nx, y: ny } };
+  if (isIce(map, nx, ny)) {
+    const s = slideLine(map, nx, ny, dir[0], dir[1], units, selfId, blocked);
+    if (s.tiles.length > 1) return { x: s.x, y: s.y, moved: true, collide: false, via: { x: nx, y: ny } };
   }
   return { x: nx, y: ny, moved: true, collide: false };
 }
@@ -715,7 +749,7 @@ module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
-  specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf,
+  specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
   reachable, reachableBig, pathTo,
   tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,

@@ -35,6 +35,7 @@ const shop = require("./shop");
 const skills = require("./skills");
 const timers = require("./timers");
 const view = require("./view");
+const Ice = require("./ice");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -104,6 +105,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get action() { return match.action; },
   placeOnBoard: action.placeOnBoard,
   boardMap: action.boardMap,
+  ice: Ice, // ธารน้ำแข็ง / หนามน้ำแข็ง / ไถล / ผลัก / เชื่องช้า (server/ice.js — Ice Spike + น้ำแข็งภูมิภาค VI)
+  tileArea: action.tileArea, // ช่องที่สกิลชนิด tile คลุม (ช่องเดียว / กรอบ square×square)
   boardUnits: action.boardUnits,
   sizeOf: action.sizeOf,
   // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง) — ผลักคนที่ขวาง · พังสิ่งกีดขวาง · ส่ง growFx (action.resizeUnit)

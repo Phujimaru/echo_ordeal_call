@@ -53,7 +53,8 @@ test('boardRules.js: ช่องพิเศษ (น้ำแข็ง/ทร�
     { name: 'น้ำแข็งไถลไม่ได้', map: mk({ '5,5': 'ice' }, { '6,5': 'rock' }), mov: 2, units: [me, { id: 'b', x: 4, y: 3, alive: true }] },
     { name: 'ทรายดูด', map: mk({ '5,5': 'quicksand', '4,6': 'quicksand' }), mov: 4, units: [me] },
     { name: 'ค่าเดิน 2', map: mk({ '5,5': 'flowers', '5,4': 'forest', '5,6': 'shallow', '6,5': 'shallow' }), mov: 4, units: [me] },
-    { name: 'ทะเลสาบน้ำแข็งจริง', map: Server.MAPS[6], mov: 5, units: [{ id: 'a', x: 2, y: 4, alive: true }] },
+    { name: 'น้ำแข็งแนวยาว มีคนยืนกลางแนว', map: mk({ '5,5': 'ice', '6,5': 'ice', '7,5': 'ice', '8,5': 'ice', '5,6': 'ice' }), mov: 3, units: [me, { id: 'b', x: 8, y: 5, alive: true }] },
+    { name: 'แผนที่น้ำแข็งจริง', map: Server.MAPS[6], mov: 5, units: [{ id: 'a', x: 5, y: 3, alive: true }, { id: 'b', x: 7, y: 9, alive: true }] },
   ];
   for (const c of cases) {
     const r1 = Server.reachable(c.map, c.units[0], c.mov, c.units);
@@ -65,4 +66,12 @@ test('boardRules.js: ช่องพิเศษ (น้ำแข็ง/ทร�
     Client.pushback(Client.normalizeMap(pub(ice)), { x: 5, y: 5 }, { x: 4, y: 5 }, []),
     Server.pushback(ice, { x: 5, y: 5 }, { x: 4, y: 5 }, []),
   );
+  const lane = mk({ '6,5': 'ice', '7,5': 'ice', '8,5': 'ice', '7,6': 'ice', '8,7': 'ice' }, { '9,5': 'rock' });
+  for (const [x, y, dx, dy] of [[6, 5, 1, 0], [7, 5, 0, 1], [7, 6, 1, 1], [8, 5, -1, 0]]) {
+    assert.deepEqual(
+      Client.slideLine(Client.normalizeMap(pub(lane)), x, y, dx, dy, [me], 'a', null),
+      Server.slideLine(lane, x, y, dx, dy, [me], 'a', null),
+      `slideLine ${x},${y}`,
+    );
+  }
 });

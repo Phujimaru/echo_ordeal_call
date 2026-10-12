@@ -156,8 +156,14 @@ function loseHp(p) {
   if (friendlyEffectBlocked(p)) return;
   // เกราะ Mark 42: เส้นทางที่เรียก loseHp ตรงๆ (ไม่ผ่านท่อดาเมจ) ก็ลงชุดแทน
   if (Mark42.absorb(engine, p, 1)) return;
-  if ((p.tempHp || 0) > 0) { p.tempHp--; return; }
+  if ((p.tempHp || 0) > 0) { p.tempHp--; tookDamage(p); return; }
   p.hp--; p.dmgHp++;
+  tookDamage(p);
+}
+// เสียพลังชีวิต/เกราะ 1 หน่วย (ทุกช่องทาง) → ฮุค onDamageTaken ของตัวละคร (Ice Spike: สะสมไว้ระเบิด)
+function tookDamage(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onDamageTaken) hook.onDamageTaken(engine, p, 1);
 }
 
 function loseArmor(p) {
@@ -168,6 +174,7 @@ function loseArmor(p) {
   // ไรโด ฮิคารุ (ร่าง UltraLive): เกราะที่เสียไปกลายเป็นฟื้นพลังชีวิต
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onArmorLost) hook.onArmorLost(engine, p);
+  tookDamage(p);
 }
 // ดาเมจแพ้จั่ว/ไพ่แตก 1 หน่วย: โล่ -> เกราะ -> เลือด
 function damageSoft(p) {
@@ -301,6 +308,7 @@ function resetCombat(p) {
   CHAR_HOOKS.sora_otosumi.resetCombat(p); // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
   CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
   CHAR_HOOKS.raido_hikaru.resetCombat(p); // ไรโด ฮิคารุ: ร่าง UltraLive / กิงกะ / Strium Brace (ก่อนคิดเกราะเริ่มเกม)
+  CHAR_HOOKS.ice_spike.resetCombat(p); // Ice Spike: ดาเมจสะสม / โควตาหนาม / คูลดาวน์คุก
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)

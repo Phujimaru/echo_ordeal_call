@@ -22,6 +22,7 @@ const lobby = require("./lobby");
 const shop = require("./shop");
 const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
+const Ice = require("./ice");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -51,6 +52,7 @@ function boardPublic() {
   return {
     area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal],
     special: m.special || {}, flow: m.flow || {}, healKind: m.healKind || "heal",
+    ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike)
     spawns: m.spawns, shopSpots: m.shopSpots,
   };
 }
@@ -200,6 +202,7 @@ function buildStateFor(viewerId) {
         skillLocks: zeroLocks(CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
           ? CHAR_HOOKS[p.characterId].skillLocks(engine, p) : undefined),
         modeVote: p.modeVote || null,
+        iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,
         result: p.result,
@@ -246,6 +249,7 @@ function buildStateFor(viewerId) {
           name: ch.name,
           passive: ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
           passive2: ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
+          passive3: ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike)
           basic: basicPub,
           secondary: secondaryPub,
           ultimate: ultimatePub,

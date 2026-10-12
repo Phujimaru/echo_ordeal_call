@@ -30,7 +30,7 @@ const mix = (a, b, e) => a + (b - a) * e;
 const DIFFICULTY_GROUPS = [
   { key: "easy", label: "ง่าย", color: "#2E9E4B", order: ["muimi", "sliver_bullet", "sora_otosumi"] },
   { key: "medium", label: "กลาง", color: "#E5B33B", order: ["oberon_summer", "raido_hikaru"] },
-  { key: "hard", label: "ยาก", color: "#C0392B", order: [] },
+  { key: "hard", label: "ยาก", color: "#C0392B", order: ["ice_spike"] },
   { key: "fun", label: "เอาฮา", color: "#9B4F96", order: [] },
   { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo"] },
 ];
@@ -112,6 +112,7 @@ function skillRows(sel) {
   const push = (label, s) => s && skills.push({ label, skill: s });
   push("ติดตัว", sel.passive);
   push("ติดตัว 2", sel.passive2);
+  push("ติดตัว 3", sel.passive3);
   push("สกิลพื้นฐาน", sel.basic);
   push("สกิลรอง", sel.secondary);
   push("ท่าไม้ตาย", sel.ultimate);

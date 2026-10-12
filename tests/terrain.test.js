@@ -91,23 +91,21 @@ test('TERRAIN_INFO: มีป้ายข้อมูลครบทุกชน
   assert.equal(Board.tileInfo(Board.MAPS[2], 6, 3), null, 'พื้นธรรมดาไม่มีป้าย');
 });
 
-// ช่องที่ "เข้าไปได้" จากจุดหนึ่ง (ไม่สนคน): ช่องที่หยุดได้ + ช่องน้ำแข็งที่ไถลผ่าน (อยู่ใน prev)
+// ช่องที่ "หยุดได้" จากจุดหนึ่ง (ไม่สนคน · ก้าวไม่จำกัด)
+//  น้ำแข็ง (§7.9) ไถลจนสุดแนว → ช่องกลางแนวเป็นแค่ทางผ่านเมื่อเข้าตามแนว แต่แนวน้ำแข็งของภูมิภาค VI กว้าง 1 ช่อง
+//  → เดินเข้าจากด้านข้างแล้วหยุดบนช่องนั้นได้ทุกช่อง จึงบังคับให้ทุกช่อง (รวมน้ำแข็ง) เป็นจุดหยุดได้
 function coverage(map, from, blocked = null) {
-  const reach = Board.reachable(map, u('walker', from.x, from.y), 999, [], { blocked });
-  const entered = new Set();
-  for (const n of reach.values()) for (let c = n; c; c = c.prev) entered.add(K(c.x, c.y));
-  return { stops: new Set(reach.keys()), entered };
+  return new Set(Board.reachable(map, u('walker', from.x, from.y), 999, [], { blocked }).keys());
 }
-test('แผนที่ I–VII: ทุกช่องที่ไม่ใช่สิ่งกีดขวางเดินถึงได้จากทุกจุดเกิด (แม้ร้านค้าตั้งอยู่จุดไหนก็ตาม)', () => {
+test('แผนที่ I–VII: ทุกช่องที่ไม่ใช่สิ่งกีดขวางเดินไปหยุดได้จากทุกจุดเกิด รวมช่องน้ำแข็ง (แม้ร้านค้าตั้งอยู่จุดไหนก็ตาม)', () => {
   for (const m of Object.values(Board.MAPS)) {
     const check = (from, blocked) => {
-      const { stops, entered } = coverage(m, from, blocked);
+      const stops = coverage(m, from, blocked);
       for (let x = 0; x < m.cols; x++) {
         for (let y = 0; y < m.rows; y++) {
           const k = K(x, y);
           if (m.terrain[k] || (blocked && blocked.has(k))) continue;
-          assert.ok(entered.has(k), `ภูมิภาค ${m.area}: ${k} เดินไม่ถึงจาก ${K(from.x, from.y)}`);
-          if (Board.specialAt(m, x, y) !== 'ice') assert.ok(stops.has(k), `ภูมิภาค ${m.area}: ${k} หยุดไม่ได้`);
+          assert.ok(stops.has(k), `ภูมิภาค ${m.area}: ${k} หยุดไม่ได้จาก ${K(from.x, from.y)}`);
         }
       }
     };
@@ -179,12 +177,41 @@ test('ช่องอันตรายวางขวางทางหลั�
   for (const area of [3, 4, 5, 7]) assert.ok(Object.values(Board.MAPS[area].special).some((kind) => HAZARDS.has(kind)), `ภูมิภาค ${area}`);
 });
 
-test('ช่องเดินช้า/น้ำแข็งคลุมพื้นที่จริงจัง: ดอกไม้ ป่าทึบ น้ำตื้น ≥ 20 ช่อง · ทะเลสาบน้ำแข็ง ≥ 40 ช่อง', () => {
+test('ช่องเดินช้า/น้ำแข็งคลุมพื้นที่จริงจัง: ดอกไม้ ป่าทึบ น้ำตื้น ≥ 20 ช่อง · น้ำแข็ง 35–55 ช่อง', () => {
   const count = (area, kind) => Object.values(Board.MAPS[area].special).filter((k) => k === kind).length;
   assert.ok(count(2, 'flowers') >= 20);
   assert.ok(count(3, 'forest') >= 20);
   assert.ok(count(4, 'shallow') >= 20);
-  assert.ok(count(6, 'ice') >= 40);
+  assert.ok(count(6, 'ice') >= 35 && count(6, 'ice') <= 55, `น้ำแข็ง ${count(6, 'ice')} ช่อง`);
+});
+
+test('ภูมิภาค VI: น้ำแข็งกระจายทั่วแผนที่ (ไม่กระจุกกลาง) · แนวน้ำแข็งยาว ≥ 4 ช่องหลายแนวทั้งแนวตั้งและแนวนอน', () => {
+  const m = Board.MAPS[6];
+  const ice = (x, y) => Board.isIce(m, x, y);
+  // ทุกมุมของแผนที่ (7×7) มีน้ำแข็ง ≥ 8 ช่อง
+  for (const [qx, qy] of [[0, 0], [7, 0], [0, 7], [7, 7]]) {
+    let n = 0;
+    for (let x = qx; x < qx + 7; x++) for (let y = qy; y < qy + 7; y++) if (ice(x, y)) n++;
+    assert.ok(n >= 8, `มุม ${qx},${qy} มีน้ำแข็ง ${n} ช่อง`);
+  }
+  // ไม่มีน้ำแข็งเต็มบล็อก 3×3 (ทะเลสาบผืนใหญ่ = ไถลยาวจนกลางแนวหยุดไม่ได้)
+  for (let x = 0; x + 2 < m.cols; x++) {
+    for (let y = 0; y + 2 < m.rows; y++) {
+      let all = true;
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (!ice(x + i, y + j)) all = false;
+      assert.ok(!all, `น้ำแข็งเต็มบล็อก 3×3 ที่ ${K(x, y)}`);
+    }
+  }
+  // แนวน้ำแข็งยาว ≥ 4 ช่อง (นับจากหัวแนว)
+  const lanes = { h: 0, v: 0 };
+  for (let x = 0; x < m.cols; x++) {
+    for (let y = 0; y < m.rows; y++) {
+      if (!ice(x, y)) continue;
+      if (!ice(x - 1, y) && Board.slideLine(m, x, y, 1, 0, []).tiles.length >= 4) lanes.h++;
+      if (!ice(x, y - 1) && Board.slideLine(m, x, y, 0, 1, []).tiles.length >= 4) lanes.v++;
+    }
+  }
+  assert.ok(lanes.h >= 3 && lanes.v >= 3, `แนวนอน ${lanes.h} · แนวตั้ง ${lanes.v}`);
 });
 
 // ---------- ค่าเดิน ----------
@@ -216,61 +243,110 @@ test('ทรายดูด: เดินเข้าแล้วหยุดท
   assert.equal(Board.reachable(m, stuck, 2, [stuck]).get('7,5').d, 2);
 });
 
-test('น้ำแข็ง: เดินเข้าแล้วไถลต่อ 1 ช่องในทิศเดิมไม่เสียก้าว · ช่องน้ำแข็งเป็นทางผ่าน · เส้นทางมีทั้งสองช่อง', () => {
-  const m = mapWith({ '5,5': 'ice' });
+// น้ำแข็ง (ผู้ใช้ตัดสิน 2026-10-12 — GRID_PLAN §7.9): เดินเข้าแล้วไถลไปทิศที่เข้าจนสุดแนวน้ำแข็ง แล้วจบการเดิน
+const LANE = { '5,5': 'ice', '6,5': 'ice', '7,5': 'ice', '8,5': 'ice' }; // แนวนอน (5..8, 5)
+test('น้ำแข็ง: เดินเข้าแล้วไถลไปทิศเดิมจนสุดแนว ไม่เสียก้าวเพิ่ม · ช่องกลางแนวเป็นทางผ่าน · เส้นทางมีทุกช่องที่ไถลผ่าน', () => {
+  const m = mapWith(LANE);
   const me = u('A', 4, 5);
   const reach = Board.reachable(m, me, 1, [me]);
-  assert.ok(!reach.has('5,5'), 'หยุดบนน้ำแข็งไม่ได้เมื่อไถลได้');
-  assert.equal(reach.get('6,5').d, 1);
-  assert.deepEqual(path(reach, 6, 5), ['4,5', '5,5', '6,5']);
-  // เข้าจากด้านบน → ไถลลง
-  const top = u('A', 5, 4);
-  assert.deepEqual(path(Board.reachable(m, top, 1, [top]), 5, 6), ['5,4', '5,5', '5,6']);
-  // ไถลไปลงช่อง cost 2 ไม่เสียค่าเดินของช่องนั้น
-  const m2 = mapWith({ '5,5': 'ice', '6,5': 'flowers' });
-  assert.equal(Board.reachable(m2, me, 1, [me]).get('6,5').d, 1);
-  // ไถลไปลงน้ำแข็งอีกช่อง = หยุด (ไม่ไถลซ้ำ)
-  const m3 = mapWith({ '5,5': 'ice', '6,5': 'ice' });
-  const r3 = Board.reachable(m3, me, 1, [me]);
-  assert.ok(r3.has('6,5') && !r3.has('7,5'));
-  // ยืนบนน้ำแข็งแล้วเดินออก ไม่ไถล
-  const onIce = u('A', 5, 5);
-  assert.equal(Board.reachable(m, onIce, 1, [onIce]).get('5,4').d, 1);
+  for (const k of ['5,5', '6,5', '7,5']) assert.ok(!reach.has(k), `${k} หยุดไม่ได้เมื่อเข้าตามแนว`);
+  assert.equal(reach.get('8,5').d, 1);
+  assert.equal(reach.get('8,5').slide, true);
+  assert.deepEqual(path(reach, 8, 5), ['4,5', '5,5', '6,5', '7,5', '8,5']);
+  // ไถลจากอีกฝั่ง → หยุดหัวแนว
+  const right = u('A', 9, 5);
+  assert.deepEqual(path(Board.reachable(m, right, 1, [right]), 5, 5), ['9,5', '8,5', '7,5', '6,5', '5,5']);
+  // เข้าจากด้านข้าง (แนวกว้าง 1 ช่อง) → ช่องถัดไปไม่ใช่น้ำแข็ง = หยุดบนช่องนั้นเลย
+  const top = u('A', 6, 4);
+  const rt = Board.reachable(m, top, 1, [top]);
+  assert.equal(rt.get('6,5').d, 1);
+  assert.deepEqual(path(rt, 6, 5), ['6,4', '6,5']);
+  assert.ok(!rt.has('6,6'));
+  // แนวตั้ง
+  const col = mapWith({ '3,2': 'ice', '3,3': 'ice', '3,4': 'ice' });
+  const up = u('A', 3, 1);
+  assert.deepEqual(path(Board.reachable(col, up, 1, [up]), 3, 4), ['3,1', '3,2', '3,3', '3,4']);
 });
 
-test('น้ำแข็ง: ไถลไม่ได้ (สิ่งกีดขวาง/ขอบ/คน/ร้านค้า) = หยุดบนน้ำแข็ง', () => {
+test('น้ำแข็ง: ไถลแล้วจบการเดิน — ก้าวเหลือก็เดินต่อจากปลายแนวไม่ได้ · ยืนบนน้ำแข็งแล้วเดินออกไปพื้นไม่ไถล', () => {
+  const m = mapWith(LANE);
   const me = u('A', 4, 5);
-  const wall = mapWith({ '5,5': 'ice' }, { '6,5': 'rock' });
-  assert.equal(Board.reachable(wall, me, 1, [me]).get('5,5').d, 1);
-  const edge = mapWith({ '13,5': 'ice' });
-  const e = u('A', 12, 5);
-  assert.ok(Board.reachable(edge, e, 1, [e]).has('13,5'));
-  const m = mapWith({ '5,5': 'ice' });
-  const foe = u('B', 6, 5);
-  assert.ok(Board.reachable(m, me, 1, [me, foe]).has('5,5'), 'ศัตรูขวาง');
-  const ally = u('C', 6, 5);
-  assert.ok(Board.reachable(m, me, 1, [me, ally], { isAlly: () => true }).has('5,5'), 'เพื่อนยืนขวางก็หยุดบนน้ำแข็ง');
-  assert.ok(Board.reachable(m, me, 1, [me], { blocked: new Set(['6,5']) }).has('5,5'), 'แผงร้านค้า');
-  // เพื่อนยืนบนน้ำแข็ง: เดินผ่านแล้วไถลต่อได้
-  const onIce = u('C', 5, 5);
-  const r = Board.reachable(m, me, 1, [me, onIce], { isAlly: () => true });
-  assert.ok(r.has('6,5') && !r.has('5,5'));
+  const reach = Board.reachable(m, me, 4, [me]);
+  assert.equal(reach.get('8,5').d, 1);
+  for (const n of reach.values()) assert.ok(!(n.prev && n.prev.slide), `${K(n.x, n.y)} เดินต่อจากปลายไถล`);
+  assert.ok(!reach.has('9,5'), '(9,5) ต้องอ้อมแนวน้ำแข็ง = 7 ก้าว');
+  // ยืนบนน้ำแข็งตั้งแต่ต้นตา: เดินออกไปพื้นไม่ไถล · ก้าวไปน้ำแข็งช่องข้างๆ = ไถลต่อตามแนว
+  const onIce = u('A', 6, 5);
+  const r = Board.reachable(m, onIce, 2, [onIce]);
+  assert.equal(r.get('6,4').d, 1);
+  assert.equal(r.get('6,3').d, 2);
+  assert.equal(r.get('8,5').d, 1);
+  assert.ok(!r.has('7,5'));
+  assert.equal(r.get('5,5').d, 1);
 });
 
-test('ถอยบนน้ำแข็ง: ไถลรวม 2 ช่อง (via = ช่องน้ำแข็ง) · ช่องถัดไปไม่ว่าง = หยุดบนน้ำแข็ง', () => {
-  const m = mapWith({ '6,5': 'ice' });
-  assert.deepEqual(Board.pushback(m, { x: 5, y: 5 }, { x: 4, y: 5 }, []), { x: 7, y: 5, moved: true, collide: false, via: { x: 6, y: 5 } });
-  const wall = mapWith({ '6,5': 'ice' }, { '7,5': 'rock' });
+test('น้ำแข็ง: ไถลหยุดบนน้ำแข็งช่องสุดท้ายที่ว่าง — ก่อนสิ่งกีดขวาง/คน/ร้านค้า · ไถลถึงขอบกระดาน', () => {
+  const me = u('A', 4, 5);
+  const wall = mapWith(LANE, { '7,5': 'rock' }); // หินทับกลางแนว = ไม่ใช่น้ำแข็ง
+  assert.equal(Board.reachable(wall, me, 1, [me]).get('6,5').d, 1);
+  const edge = mapWith({ '10,5': 'ice', '11,5': 'ice', '12,5': 'ice', '13,5': 'ice' });
+  const e = u('A', 9, 5);
+  const re = Board.reachable(edge, e, 1, [e]);
+  assert.ok(re.has('13,5') && !re.has('10,5'));
+  const m = mapWith(LANE);
+  const foe = u('B', 7, 5);
+  const rf = Board.reachable(m, me, 1, [me, foe]);
+  assert.ok(rf.has('6,5') && !rf.has('8,5'), 'ศัตรูยืนกลางแนว');
+  const ally = u('C', 7, 5);
+  const ra = Board.reachable(m, me, 1, [me, ally], { isAlly: () => true });
+  assert.ok(ra.has('6,5') && !ra.has('8,5'), 'เพื่อนยืนกลางแนวก็หยุดก่อน');
+  const rs = Board.reachable(m, me, 1, [me], { blocked: new Set(['7,5']) });
+  assert.ok(rs.has('6,5') && !rs.has('8,5'), 'แผงร้านค้า');
+  // เพื่อนยืนบนน้ำแข็งช่องแรก = เข้าแนวนี้ไม่ได้
+  const first = u('C', 5, 5);
+  const r1 = Board.reachable(m, me, 1, [me, first], { isAlly: () => true });
+  for (const k of ['5,5', '6,5', '7,5', '8,5']) assert.ok(!r1.has(k), k);
+});
+
+test('slideLine: ช่องที่หยุด · ช่องที่ผ่าน · ของที่ชน (คน/สิ่งกีดขวาง/ไม่มี) · ทแยงได้', () => {
+  const m = mapWith(LANE, { '9,5': 'rock' });
+  assert.deepEqual(Board.slideLine(m, 5, 5, 1, 0, []), {
+    x: 8, y: 5, tiles: [{ x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }], hit: { kind: 'obstacle', terrain: 'rock', x: 9, y: 5 },
+  });
+  const s = Board.slideLine(m, 5, 5, 1, 0, [u('X', 7, 5)]);
+  assert.deepEqual([s.x, s.y, s.tiles.length, s.hit], [6, 5, 2, { kind: 'unit', id: 'X', x: 7, y: 5 }]);
+  assert.equal(Board.slideLine(m, 5, 5, 1, 0, [u('A', 7, 5)], 'A').x, 8, 'ตัวเองไม่ขวาง');
+  assert.equal(Board.slideLine(m, 8, 5, -1, 0, []).hit, null, 'สุดแนวเป็นพื้นว่าง');
+  assert.equal(Board.slideLine(mapWith({ '12,5': 'ice', '13,5': 'ice' }), 12, 5, 1, 0, []).hit, null, 'ขอบกระดาน');
+  assert.equal(Board.slideLine(m, 5, 5, 1, 0, [], null, new Set(['7,5'])).x, 6, 'ร้านค้าขวาง');
+  // ทแยง (ผลักทแยง)
+  const diag = mapWith({ '5,5': 'ice', '6,6': 'ice', '7,7': 'ice' });
+  const d = Board.slideLine(diag, 5, 5, 1, 1, []);
+  assert.deepEqual([d.x, d.y, d.tiles.length], [7, 7, 3]);
+  // ช่องที่มีสิ่งกีดขวางทับไม่นับเป็นน้ำแข็ง
+  assert.equal(Board.isIce(mapWith({ '5,5': 'ice' }, { '5,5': 'icespike1' }), 5, 5), false);
+});
+
+test('ถอยลงน้ำแข็ง: ไถลต่อจนสุดแนว (via = ช่องน้ำแข็งช่องแรก) · ช่องถัดไปไม่ว่าง = หยุดก่อน', () => {
+  const m = mapWith({ '6,5': 'ice', '7,5': 'ice', '8,5': 'ice', '9,5': 'ice' });
+  assert.deepEqual(Board.pushback(m, { x: 5, y: 5 }, { x: 4, y: 5 }, []), { x: 9, y: 5, moved: true, collide: false, via: { x: 6, y: 5 } });
+  assert.deepEqual(Board.pushback(m, { x: 5, y: 5 }, { x: 4, y: 5 }, [u('X', 8, 5)]), { x: 7, y: 5, moved: true, collide: false, via: { x: 6, y: 5 } });
+  // ไถลไม่ได้เลย (ช่องน้ำแข็งช่องแรกเป็นช่องสุดท้าย) = ไม่มี via
+  const wall = mapWith({ '6,5': 'ice', '7,5': 'ice' }, { '7,5': 'rock' });
   assert.deepEqual(Board.pushback(wall, { x: 5, y: 5 }, { x: 4, y: 5 }, []), { x: 6, y: 5, moved: true, collide: false });
-  const body = Board.pushback(m, { x: 5, y: 5 }, { x: 4, y: 5 }, [u('X', 7, 5)]);
-  assert.deepEqual([body.x, body.y, body.via], [6, 5, undefined]);
+  const single = mapWith({ '6,5': 'ice' });
+  assert.deepEqual(Board.pushback(single, { x: 5, y: 5 }, { x: 4, y: 5 }, []), { x: 6, y: 5, moved: true, collide: false });
+  // แนวตั้ง
+  const col = mapWith({ '5,6': 'ice', '5,7': 'ice', '5,8': 'ice' });
+  assert.deepEqual(Board.pushback(col, { x: 5, y: 5 }, { x: 5, y: 4 }, []), { x: 5, y: 8, moved: true, collide: false, via: { x: 5, y: 6 } });
 });
 
 test('ระยะอันตรายใช้กติกาช่องพิเศษ (แผนที่น้ำแข็งจริง)', () => {
   const m = Board.MAPS[6];
-  const me = u('A', 2, 4); // ริมทะเลสาบ: (3,4) น้ำแข็ง → ไถลไปลง (4,4) (น้ำแข็งอีกช่อง = หยุด)
-  const { move } = Board.threatZone(m, me, 1, [1, 1], [me]);
-  assert.ok(move.has('4,4') && !move.has('3,4'));
+  const me = u('A', 5, 3); // แนวน้ำแข็ง (0..4, 3) → เดินเข้าทางซ้ายไถลไปถึงขอบ (0,3)
+  const { move, threat } = Board.threatZone(m, me, 1, [1, 1], [me]);
+  assert.ok(move.has('0,3') && !move.has('4,3') && !move.has('1,3'));
+  assert.ok(threat.has('0,4') && threat.has('0,2'));
 });
 
 // ---------- ผลตอนจบตา (ฟังก์ชันล้วน) ----------
@@ -475,29 +551,33 @@ test('ทะเลทราย: จบตาบนโอเอซิส ฟื�
   assert.match(lastLogs(), /ยืนบนโอเอซิส — ฟื้นพลังชีวิต \+1/);
 });
 
-test('น้ำแข็ง (engine): เดินเข้าน้ำแข็งแล้วไถล · path มีช่องน้ำแข็ง', () => {
-  // (2,4) พื้น → (3,4) น้ำแข็ง → ไถลไป (4,4) (น้ำแข็งอีกช่อง = หยุด ไม่ไถลซ้ำ) ภูมิภาค VI
-  const P = setup(6, { A: { x: 2, y: 4 }, B: { x: 13, y: 6 } });
+test('น้ำแข็ง (engine): เดินเข้าน้ำแข็งแล้วไถลจนสุดแนว · path มีทุกช่องที่ไถลผ่าน · ไถลแล้วเดินต่อไม่ได้', () => {
+  // ภูมิภาค VI: (5,3) พื้น → (4,3) น้ำแข็ง → ไถลซ้ายตามแนว (0..4, 3) ไปหยุดที่ขอบ (0,3)
+  const P = setup(6, { A: { x: 5, y: 3 }, B: { x: 13, y: 6 } });
   startActions(['A', 'B']);
-  // (3,4) หยุดตรงๆ ไม่ได้ (เดินเข้าแล้วไถลไป (4,4)) — ไปลงได้แค่ทางอ้อมที่ไถลมาจากช่องอื่น
+  // (4,3) หยุดตรงๆ ไม่ได้ (เข้าตามแนวแล้วไถลไปถึงขอบ) — ไปลงได้แค่ทางอ้อมที่เข้าจากด้านข้าง
   const reach = Board.reachable(engine.boardMap(), { id: 'A', ...P.A.pos }, engine.movOf(P.A), [{ id: 'A', ...P.A.pos, alive: true }]);
-  assert.ok(reach.get('3,4').d > 1);
-  assert.equal(reach.get('4,4').d, 1);
-  assert.equal(engine.moveTo('A', 4, 4), true);
-  assert.deepEqual(P.A.pos, { x: 4, y: 4 });
-  assert.deepEqual(engine.action.path, [{ x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 }]);
+  assert.ok(reach.get('4,3').d > 1);
+  assert.equal(reach.get('0,3').d, 1);
+  assert.equal(engine.moveTo('A', 0, 3), true);
+  assert.deepEqual(P.A.pos, { x: 0, y: 3 });
+  assert.deepEqual(engine.action.path, [{ x: 5, y: 3 }, { x: 4, y: 3 }, { x: 3, y: 3 }, { x: 2, y: 3 }, { x: 1, y: 3 }, { x: 0, y: 3 }]);
+  // ไถลแล้วจบการเดิน (ต้องรอ moveTo ของ server/phases/action.js ล็อกการเดินหลังไถล)
+  assert.equal(engine.action.locked, true);
+  assert.equal(engine.moveTo('A', 0, 4, { step: true }), false);
+  assert.deepEqual(P.A.pos, { x: 0, y: 3 });
 });
 
-test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง ไถลรวม 2 ช่อง', () => {
-  // A (4,2) ตี B (3,2) → ถอยขวาไป (5,2) น้ำแข็ง → ไถลไป (6,2)
-  const P = setup(6, { A: { x: 4, y: 2 }, B: { x: 3, y: 2 } });
+test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง ไถลต่อจนสุดแนว', () => {
+  // ภูมิภาค VI: A (5,3) ตี B (6,3) → ถอยซ้ายไป (4,3) น้ำแข็ง → ไถลตามแนวไปหยุดที่ขอบ (0,3)
+  const P = setup(6, { A: { x: 5, y: 3 }, B: { x: 6, y: 3 } });
   P.B.counterBack = true;
   startActions(['A', 'B']);
   engine.attackTarget('A', 'B');
   engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 6, y: 2 });
-  assert.deepEqual(engine.lastAttack.push.via, { x: 5, y: 2 });
-  assert.deepEqual(engine.lastAttack.push.to, { x: 6, y: 2 });
+  assert.deepEqual(P.A.pos, { x: 0, y: 3 });
+  assert.deepEqual(engine.lastAttack.push.via, { x: 4, y: 3 });
+  assert.deepEqual(engine.lastAttack.push.to, { x: 0, y: 3 });
   assert.equal(engine.lastAttack.push.collide, false);
   assert.ok(action.tileEndEffect); // ส่งออกให้ไฟล์อื่น/เทสต์เรียกได้
 });

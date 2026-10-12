@@ -789,6 +789,8 @@ const STATUS_INFO = {
   obsDream:    { icon: "💤", label: "จุดจบของความฝัน", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่ม 4 ในตาเดินถัดไป จบเทิร์นนั้นแล้วติดสตั้น 3 เทิร์น" },
   obsLark:     { icon: "🐦", label: "นกจาบยามเช้า", cls: "bg-echo-magenta", desc: "ต้นเทิร์นหน้าเสียพลังชีวิต 2 ทะลุเกราะ กันด้วยต้านสถานะไม่ได้" },
   oblada:   { icon: "🎵", label: "สิ่งแปลกปลอม", cls: "bg-echo-hp", desc: "เสียพลังชีวิต 1 ทุก 2 เทิร์น เกราะรับก่อน" },
+  // Ice Spike
+  slow:          { icon: "❄️", label: "เชื่องช้า", cls: "bg-echo-ice text-gray-900", desc: "ระยะเดิน −1" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
   hikaruTiga:    { icon: "🔆", label: "Ultraman Tiga", cls: "bg-fuchsia-400 text-gray-900", desc: "" },
@@ -831,6 +833,8 @@ function statusEntries(p, full) {
     if (h.tigaCd > 0) out.push({ key: "hikaruTigaCd", v: h.tigaCd, turns: true, icon: "⏳", label: "Ultraman Tiga", cls: "bg-white/20", desc: "" });
     if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "" });
   }
+  // Ice Spike: ดาเมจสะสมก่อนระเบิด (ติดตัว 3)
+  if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "" });
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
     desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
@@ -1723,7 +1727,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const shopBlock = !myTurn ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
-    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? `ระยะ ${a.range}` : a.kind === "field" ? "ทั้งสนาม" : "";
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
     && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
@@ -1834,7 +1838,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     // จอคอม (ระบบกระดาน): สกิลที่มีระยะ → เลือกเป้า/ทิศบนกระดานก่อน · self → ใช้ทันที (GRID_PLAN §7.2)
     if (vp.w >= 768) {
       const kind = ch?.[tier]?.area?.kind || "self";
-      if (kind === "target" || kind === "aoe" || kind === "line") { setPickReq({ kind: "skill", tier }); return; }
+      if (kind === "target" || kind === "aoe" || kind === "line" || kind === "tile") { setPickReq({ kind: "skill", tier }); return; }
       socket.emit("useSkill", { tier });
       return;
     }
@@ -1891,6 +1895,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id] }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier }); done(); }, onCancel: done };
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir }); done(); }, onCancel: done };
+      // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, label, onPick: (tile, dir) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}) }); done(); }, onCancel: done };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
