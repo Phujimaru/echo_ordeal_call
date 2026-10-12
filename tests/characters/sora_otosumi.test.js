@@ -364,18 +364,19 @@ test('Mouse Separade: พังสิ่งกีดขวางที่พุ�
   assert.ok(P.S.pos.x > rx - 2, 'พุ่งออกไป');
 });
 
-test('เพื่อคุณหนู: ร่างโซระครบ 3 เทิร์น ฟื้น 2 · แปลงร่างแล้วนับใหม่ · เทิร์นที่คืนร่างไม่นับ · ร่าง My-Th ไม่ฟื้น', () => {
+test('เพื่อคุณหนู: ร่างโซระครบ 2 เทิร์น ฟื้น 2 · แปลงร่างแล้วนับใหม่ · เทิร์นที่คืนร่างไม่นับ · ร่าง My-Th ไม่ฟื้น', () => {
   const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 8, 5]]);
   P.S.hp = 2;
   const tick = () => { sora.onEndTurn(engine); engine.setRoundNumber(engine.roundNumber + 1); };
-  tick(); tick();
+  tick();
   assert.equal(P.S.hp, 2);
-  assert.equal(view('S', 'S').sora.calm, 2);
+  assert.equal(view('S', 'S').sora.calm, 1);
+  assert.equal(view('S', 'S').sora.calmMax, 2);
   tick();
   assert.equal(P.S.hp, 4);
   assert.equal(P.S.sora.calm, 0);
-  // นับไป 2 แล้วแปลงร่าง = เริ่มใหม่
-  tick(); tick();
+  // นับไป 1 แล้วแปลงร่าง = เริ่มใหม่
+  tick();
   engine.setActor('S');
   engine.useSkill('S', 'basic', []);
   tick(); tick(); tick();
@@ -384,6 +385,8 @@ test('เพื่อคุณหนู: ร่างโซระครบ 3 เ
   engine.useSkill('S', 'basic', []); // คืนร่าง (เทิร์นนี้ไม่นับ)
   tick();
   assert.equal(P.S.sora.calm, 0);
-  tick(); tick(); tick();
+  tick();
+  assert.equal(P.S.hp, 4);
+  tick();
   assert.equal(P.S.hp, 6);
 });
