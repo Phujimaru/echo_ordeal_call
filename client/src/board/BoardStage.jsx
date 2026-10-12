@@ -310,13 +310,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const s0 = pts[0], end = pts[pts.length - 1], size = sizeOfP(byId[id]);
       if (s0 && d.wheel) {
         // เฟสวิ่ง: กรงจักรหนูที่ช่องเริ่ม (WHEEL_MS) → พุ่งตามเส้นทาง (DASH_STEP_MS ต่อช่อง) → ค้างที่ปลายทางจน server ย้ายตัวจริง
-        const dir = { x: end.x - s0.x, y: end.y - s0.y };
+        // ทิศจาก server (ทิศที่เลือก) — เป้ายืนติดตัว = เส้นทางยาว 0 ช่อง ใช้เส้นทางเดาทิศไม่ได้
+        const dir = d.dir && Number.isFinite(d.dir.x) && Number.isFinite(d.dir.y) ? { x: d.dir.x, y: d.dir.y } : { x: end.x - s0.x, y: end.y - s0.y };
         dashSkip.current[id] = end;
         dashHold.current = { seq: d.seq, id, from: s0, done: false };
-        anims.push({ kind: "wheel", id, at: s0, ms: SORA_T.wheel, dir, seq: ++fxSeq.current });
+        anims.push({ kind: "wheel", id, at: s0, ms: SORA_T.wheel, dir, lunge: pts.length <= 1, seq: ++fxSeq.current });
         if (pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, holdEnd: end, dashSeq: d.seq, seq: ++fxSeq.current });
         pushFx([
-          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, dur: SORA_T.wheel },
+          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, spin: SORA_T.wheel, path: pts, step: SORA_T.step, dur: SORA_T.wheel + Math.max(0, pts.length - 1) * SORA_T.step + 160 },
           ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step) }] : []),
         ]);
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));

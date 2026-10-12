@@ -155,7 +155,9 @@ function animPose(a, t) {
     const T = a.ms > 0 ? a.ms : SORA_T.wheel, p = Math.min(1, t / T), at = a.at;
     if (reducedMotion()) return { x: at.x, y: at.y, ox: 0, oy: 0, done: p >= 1 };
     const tt = Math.min(t, T), ph = 0.012 * tt + 0.033 * tt * tt * tt / (3 * T * T), b = Math.abs(Math.sin(ph));
-    const dl = Math.hypot(a.dir && a.dir.x, a.dir && a.dir.y) || 1, lean = 0.06 * p;
+    // lunge = เป้ายืนติดตัว (ไม่มีทางพุ่ง): ช่วงท้ายพุ่งเข้าหาเป้าครึ่งช่องไปพร้อมล้อ (ตรงกับ wheelAt ใน boardDraw.js)
+    const lunge = a.lunge ? 0.45 * Math.sin(Math.min(1, Math.max(0, (t - (T - 260)) / 260)) * Math.PI / 2) : 0;
+    const dl = Math.hypot(a.dir && a.dir.x, a.dir && a.dir.y) || 1, lean = 0.06 * p + lunge;
     return { x: at.x, y: at.y, ox: a.dir ? (a.dir.x / dl) * lean : 0, oy: a.dir ? (a.dir.y / dl) * lean : 0, hz: b * 0.07, sq: 0.06 * (1 - b) - 0.02, done: p >= 1 };
   }
   if (a.kind === "fling") {

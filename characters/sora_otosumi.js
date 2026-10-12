@@ -50,6 +50,9 @@ const WHEEL_MS = 1400;
 const DASH_STEP_MS = 90;
 const BOOM_SECONDS = 1.4;
 
+// ทิศที่เลือก → เวกเตอร์ (ส่งให้ client หันวงล้อ/ตัวละคร — เป้ายืนติดตัว = เส้นทางพุ่งยาว 0 ช่อง เดาทิศจากเส้นทางไม่ได้)
+const DIR_VEC = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+
 const isSora = (p) => !!p && p.characterId === ID;
 function fresh() {
   return {
@@ -123,7 +126,7 @@ function charge(engine, p, dir) {
   const land = landIndex(engine, p, passed);
   const runTo = hit && !big ? passed.length - 1 : land;
   const path = [start, ...passed.slice(0, runTo + 1).map((t) => ({ x: t.x, y: t.y }))];
-  engine.setDash({ id: p.id, path, wheel: true });
+  engine.setDash({ id: p.id, path, wheel: true, dir: DIR_VEC[dir] || null });
   const seconds = (WHEEL_MS + Math.max(0, path.length - 1) * DASH_STEP_MS) / 1000 + 0.3;
   engine.skillBeat(seconds, () => {
     const broke = smashPassed(engine, p, passed.slice(0, runTo + 1));

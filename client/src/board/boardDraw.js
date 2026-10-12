@@ -1437,23 +1437,39 @@ function mythSlashFx(g, e, now, lowQ) {
   g.restore();
 }
 
-//  fx { kind: "soraWheel", x, y (ช่องโซระ), size, dir: { x, y } (ทิศพุ่ง), dur } — กรงจักรหนู: ล้อตั้งตรงครอบตัว ระนาบล้อตามทิศพุ่ง
+//  fx { kind: "soraWheel", x, y (ช่องโซระ), size, dir: { x, y } (ทิศพุ่ง), spin (ms หมุนอยู่กับที่), path, step, dur } — กรงจักรหนู: ล้อตั้งตรงครอบตัว ระนาบล้อตามทิศพุ่ง
+//   หมุนอยู่กับที่ spin ms แล้วกลิ้งไปกับตัวตาม path (step ms ต่อช่อง — ตรงกับ anim move) · ไม่มีทางให้กลิ้ง (เป้าติดตัว) = ล้อพุ่งเข้าหาเป้าครึ่งช่องตอนท้าย
 //   ขอบล้อ 2 วง (ฟ้า/เงิน) + ซี่ล้อ + ขั้นบันไดเชื่อมสองวง + เพลา + ขาตั้ง · หมุนเร็วขึ้นเรื่อยๆ (ใต้เท้าหมุนถอยหลัง = คนวิ่งไปข้างหน้า)
 //   เส้นความเร็ว/ประกายพุ่งออกด้านหลัง · ช่วงท้ายแสงวาบ = พุ่งออก
 //   วาด 2 รอบผ่านรายการเรียงความลึกของ drawFrame: ครึ่งหลัง (ก่อนตัวละคร) · ครึ่งหน้า (หลังตัวละคร) — เห็นตัวอยู่ในล้อจริง
 //  lowQ = ไม่มีชั้นเรือง/เงาซี่/ประกาย/เส้นความเร็ว · ลดการเคลื่อนไหว = ล้อนิ่ง ไม่มีประกาย
 const WH = { R: 0.8, W: 0.8, z: 0.84, rim: 36, rungs: 14, spokes: 6 };
+// ตำแหน่งล้อ (มุมบนซ้าย) ที่เวลา t: ช่องเริ่มระหว่างหมุนอยู่กับที่ → กลิ้งไปกับตัวตามเส้นทาง · ไม่มีเส้นทาง = พุ่งเข้าหาเป้าครึ่งช่องช่วงท้าย
+function wheelAt(e, t, still) {
+  const T = e.dur || SORA_T.wheel, W = Math.min(T, e.spin || T);
+  const pts = Array.isArray(e.path) && e.path.length > 1 ? e.path : null;
+  if (pts && t > W) {
+    const f = Math.min(pts.length - 1, (t - W) / (e.step || SORA_T.step)), i = Math.min(pts.length - 2, Math.floor(f)), q = f - i;
+    return [pts[i].x + (pts[i + 1].x - pts[i].x) * q, pts[i].y + (pts[i + 1].y - pts[i].y) * q];
+  }
+  const dl = Math.hypot(e.dir && e.dir.x, e.dir && e.dir.y) || 0;
+  if (pts || !dl || still) return [e.x, e.y];
+  const q = Math.max(0, (t - (W - 260)) / 260), lunge = 0.45 * Math.sin(Math.min(1, q) * Math.PI / 2);
+  return [e.x + (e.dir.x / dl) * lunge, e.y + (e.dir.y / dl) * lunge];
+}
 function wheelFx(g, e, now, lowQ, front) {
-  const T = e.dur || SORA_T.wheel, t = now - e.t0;
+  const T = e.dur || SORA_T.wheel, W = Math.min(T, e.spin || T), t = now - e.t0;
   if (t < 0 || t > T) return;
-  const n = Math.max(1, e.size | 0), still = lowQ || REDUCED, k = t / T;
+  const n = Math.max(1, e.size | 0), still = lowQ || REDUCED, k = Math.min(1, t / W);
   const dl = Math.hypot(e.dir && e.dir.x, e.dir && e.dir.y) || 0;
   const dx = dl ? e.dir.x / dl : 1, dy = dl ? e.dir.y / dl : 0, ax = -dy, ay = dx;
-  const out = Math.max(0, (t - (T - 160)) / 160); // ช่วงพุ่งออก: ล้อขยาย + จาง
+  const out = Math.max(0, (t - (T - 160)) / 160); // ปลายทาง: ล้อขยาย + จาง
   const sc = (still ? 1 : easeOutBack(Math.min(1, t / 200))) * (1 + out * 0.3) * n, A = 1 - out;
   if (A <= 0 || sc <= 0) return;
-  const cx = e.x + n / 2, cy = e.y + n / 2, R = WH.R * sc, hw = (WH.W / 2) * sc, zc = WH.z * n;
-  const T3 = 3 * T * T, spin = REDUCED ? 0 : 0.003 * t + (0.05 - 0.003) * t * t * t / T3;
+  const [px, py] = wheelAt(e, t, still);
+  const cx = px + n / 2, cy = py + n / 2, R = WH.R * sc, hw = (WH.W / 2) * sc, zc = WH.z * n;
+  // หมุนเร่งขึ้นจนครบ W แล้วหมุนเต็มที่ต่อระหว่างกลิ้ง
+  const tw = Math.min(t, W), spin = REDUCED ? 0 : 0.003 * tw + (0.05 - 0.003) * tw * tw * tw / (3 * W * W) + 0.05 * Math.max(0, t - W);
   const Q = (th, side) => P(cx + dx * Math.cos(th) * R + ax * side * hw, cy + dy * Math.cos(th) * R + ay * side * hw, zc + Math.sin(th) * R);
   const hub = (side, f = 1) => P(cx + ax * side * hw * f, cy + ay * side * hw * f, zc);
   const C0 = P(cx, cy, zc), ref = C0[2];
@@ -1712,7 +1728,7 @@ export function drawFrame(g, st, now) {
   // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
   for (const e of fx) {
     if (e.kind !== "soraWheel") continue;
-    const h = Math.max(1, e.size | 0) / 2, d = depthOf(e.x + h, e.y + h);
+    const h = Math.max(1, e.size | 0) / 2, [wx, wy] = wheelAt(e, now - e.t0, lowQ || REDUCED), d = depthOf(wx + h, wy + h);
     items.push({ d: d - 0.003, f: () => wheelFx(g, e, now, lowQ, false) }, { d: d + 0.003, f: () => wheelFx(g, e, now, lowQ, true) });
   }
   items.sort((a, b) => a.d - b.d);

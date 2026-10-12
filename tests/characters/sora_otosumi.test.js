@@ -245,6 +245,7 @@ test('Mouse Separade: ชนศัตรูคนแรก → คลิปช�
   assert.equal(engine.gameState, 'ATTACKING', 'พักตาเดินให้กระดานเล่นวงล้อ + พุ่ง');
   assert.deepEqual(engine.buildStateFor('S').dash.path, [{ x: 1, y: 5 }, { x: 2, y: 5 }]);
   assert.equal(engine.buildStateFor('S').dash.wheel, true);
+  assert.deepEqual(engine.buildStateFor('S').dash.dir, { x: 1, y: 0 }, 'ทิศที่เลือกให้ client หันวงล้อ');
   assert.deepEqual(P.S.pos, { x: 1, y: 5 }, 'ตำแหน่งจริงยังไม่ขยับ');
   flush(t, 6000);
   assert.deepEqual(calls.queue, ['soraUlt', 'soraHit']);
