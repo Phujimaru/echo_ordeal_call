@@ -9,7 +9,7 @@ const {
   resistActive, BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP, cleanseDebuffs, cleanseOneStep,
   cleanseLatestDebuff, applyPoison, poisonAtkPenalty, tickPoison, applyShock,
   tickShock, applyCurse, tickCurseOnSkill, MEND_MAX_TURNS, applyMend, tickMend, blindActive,
-  noHealActive, invertActive, HBLEED_MAX, bleedActive, applyBleed, EVADE_TURNS,
+  noHealActive, invertActive, HBLEED_MAX, bleedActive, applyBleed, applyBurn, EVADE_TURNS,
   applyEvade, accurateActive,
 } = require("../characters/_universal_status");
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../characters/_universal_status");
@@ -111,6 +111,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
   chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)
+  areaTiles: action.areaTiles,           // ช่องที่สกิลพื้นที่คลุม (aoe / line — ตัวใหญ่ออกจากกลางด้านหน้า)
   // การพุ่งบนกระดาน — client เล่นแอนิเมชันตาม seq ใหม่ { id, path, wheel?, swap?: { id, from, to }, boom? }
   setDash(d) { match.dash = d ? { seq: ++match.dashSeq, ...d } : null; },
   movOf: action.movOf,
@@ -226,6 +227,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   HBLEED_MAX,
   bleedActive,
   applyBleed, // "เลือดไหล" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
+  applyBurn,  // "ลุกไหม้" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
   EVADE_TURNS,
   applyEvade, // "หลบหลีก" (สถานะ Universal): 1 เทิร์นเสมอ · ไม่ซ้อน (ได้ซ้ำ = รีเฟรช · % ใช้ค่ามากสุด)
   healHp: combat.healHp,

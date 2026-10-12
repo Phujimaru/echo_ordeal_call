@@ -73,6 +73,8 @@ function endTurn() {
   CHAR_HOOKS.oberon_summer.onEndTurn(engine);
   // โซระ: เพื่อคุณหนู — ร่างโซระต่อเนื่องครบ 3 เทิร์น ฟื้นพลังชีวิต 2
   CHAR_HOOKS.sora_otosumi.onEndTurn(engine);
+  // ไรโด ฮิคารุ: Strium Brace · Tiga/กิงกะหมดเวลา (คืนร่าง + คูลดาวน์) · เคมูล่องหน
+  CHAR_HOOKS.raido_hikaru.onEndTurn(engine);
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {

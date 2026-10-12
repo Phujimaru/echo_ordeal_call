@@ -390,6 +390,17 @@ function tickBurn(engine, p) {
   p.statuses.hburn = Math.max(0, p.statuses.hburn - 1);
   if (p.statuses.hburn <= 0) delete p.statuses.hburn;
 }
+// ใส่ "ลุกไหม้" n หน่วย (เพดาน HBURN_MAX) — คืนจำนวนที่ติดเพิ่มจริง, 0 = โดนต้านสถานะกันไว้/เต็มเพดานแล้ว
+const HBURN_MAX = 6;
+function applyBurn(p, n) {
+  if (!p || !(n > 0)) return 0;
+  if (resistActive(p)) return 0;
+  const before = (p.statuses.hburn || 0);
+  p.statuses.hburn = Math.min(HBURN_MAX, before + n);
+  p.statusAt = p.statusAt || {};
+  p.statusAt.hburn = ++buffSeq; // ตราเวลาให้ "ล้างดีบัฟที่โดนล่าสุด" (cleanseLatestDebuff)
+  return p.statuses.hburn - before;
+}
 
 // ---------- "เลือดไหล" (hbleed, สถานะ Universal patch 2.5) ----------
 //  กลไกหลักเหมือน "ลุกไหม้" ทุกอย่าง: ทำดาเมจ 1 หน่วยทุกต้นเทิร์น (ลดเกราะก่อน) แล้วลดจำนวนลง 1
@@ -533,6 +544,8 @@ module.exports = {
   noHealActive,
   invertActive,
   tickBurn,
+  HBURN_MAX,
+  applyBurn,
   HBLEED_MAX,
   bleedActive,
   applyBleed,

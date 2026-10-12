@@ -66,7 +66,8 @@ function useSkill(id, tier, targets, opts = {}) {
   const sealTiles = area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir) : [];
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
-  if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets)) return;
+  //  opts = ตัวเลือกจาก client (ไรโด ฮิคารุ: opts.form = ร่างที่เลือกใน UltraLive)
+  if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets, opts)) return;
   // โควตาสกิลหลัก 1 อันต่อเทิร์น — ignoresTurnQuota = กดได้แม้ใช้โควตาไปแล้ว (มุยมิ: เสบียงฉุกเฉิน)
   //  skipsTurnQuota = กดแล้วไม่กินโควตา (มุยมิ: เสบียงฉุกเฉิน · โอเบรอน: นกจาบยามเช้า)
   const ignoresQuota = !!(hook && hook.ignoresTurnQuota && hook.ignoresTurnQuota(p, tier));

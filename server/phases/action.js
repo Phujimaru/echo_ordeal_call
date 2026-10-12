@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles,
+  sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -113,6 +113,26 @@ function rangeOf(p) {
   if (Array.isArray(own)) return own;
   const ch = CHAR_BY_ID[p.characterId];
   return ch && Array.isArray(ch.range) ? ch.range : DEFAULT_RANGE;
+}
+// ตีปกติแบบแนวตรง (ฮุค attackLane — ไรโด ฮิคารุ: แบล็คคิง / กิงกะ): ตีได้เฉพาะแนวตรงจากขอบตัว · ทุกคนในแนวโดน
+function lanes(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.attackLane && hook.attackLane(p));
+}
+// เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
+function canStrike(p, target) {
+  if (!p || !p.pos || !target || !target.pos) return false;
+  if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target));
+  return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
+}
+// ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
+function laneVictims(p, target) {
+  if (!lanes(p) || !p.pos || !target || !target.pos) return null;
+  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target));
+  if (!lane) return null;
+  const ids = Board.unitsOnTiles(boardUnits(), lane.tiles).map((u) => u.id)
+    .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
+  return { ids, tiles: lane.tiles.map((t) => ({ x: t.x, y: t.y })) };
 }
 // ตัวใหญ่ตั้งแต่ขนาดนี้ เดิน/ขยายตัวพังสิ่งกีดขวางได้ (ผู้ใช้ตัดสิน: 3×3)
 function smashes(p) {
@@ -239,7 +259,7 @@ function resolveArea(p, area, targets, dir) {
   }
   if (kind === "line") {
     if (!Board.LINE_DIRS[dir]) return null;
-    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1);
+    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p));
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
@@ -249,7 +269,7 @@ function areaTiles(p, area, dir) {
   const kind = (area && area.kind) || "self";
   if (!p || !p.pos) return [];
   if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p));
-  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1);
+  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p));
   return [];
 }
 
@@ -430,7 +450,7 @@ function attackTarget(id, targetId) {
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
   if (Visibility.hiddenFrom(p, target)) return false; // มองไม่เห็น = ตีไม่ได้
-  if (!Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)))) return false;
+  if (!canStrike(p, target)) return false;
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว

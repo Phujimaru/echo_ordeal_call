@@ -269,6 +269,14 @@ cost = min(SKILL_COST_MAX /* 8 */,
   · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
   · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
 
+**ไรโด ฮิคารุ (`raido_hikaru` · กลาง)** — `characters/raido_hikaru.js` (กติกาเต็มหัวไฟล์) · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.8 · เทสต์ [tests/characters/raido_hikaru.test.js](tests/characters/raido_hikaru.test.js)
+- สถานะอยู่ `p.hikaru` (`form` ร่าง UltraLive · `formRound` · `armorReady`/`tigaReady`/`gingaReady` เลขรอบที่ใช้ได้อีก · `accUntil` แม่นยำเดิมก่อนเข้า Tiga · `ginga` · `strium` · `brace` · `kemurCalm`/`kemurSnap`/`hidden` ล่องหนร่างเคมู · `logCut`/`logRound`) — ล้างใน `resetCombat`
+- จุดเสียบเจาะจง: `resetCombat` · `onEndTurn` (`endTurn` ต่อจากโซระ: Brace → Tiga หมด → กิงกะหมด → นับเคมู) · `onRoundStartTick` (`dealRound` — กิงกะที่ขยายตัวไม่สำเร็จลองใหม่) · `buildStateFor` ส่ง `hikaru: hikaruState(...)` (ร่าง · ปุ่ม 7 ร่าง `{ key, name, img, locked, cd }` · Brace · คูลดาวน์)
+- UltraLive ส่ง `useSkill { tier: "basic", form }` (`socket.js` ส่ง `form` ต่อใน opts · `canUseSkill` ได้ `opts` เป็นพารามิเตอร์ที่ 5) · client เปิดตัวเลือกร่าง `client/src/screens/hud/HikaruForms.jsx`
+- ตีปกติแนวตรง (แบล็คคิง / กิงกะ — ฮุค `attackLane`): `action.canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · `zeroTime.canHitSeal` รองรับ
+- ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(1.6)` → ดาเมจ 2 (`dealMixed` · หลบไม่ได้) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat`
+- เอฟเฟกต์บนกระดานทั้งหมดอยู่ `client/src/board/hikaruFx.js` (ท่าตีตามร่าง `hk*` รวมเข้า `STYLE_MS`/`STYLE_HIT_P` ของ `boardDraw.js` · ปะทะ `hkHit` + `hitIds` · ลำแสง `hkCross`/`hkStriumRay`) · ตัวใหญ่ไม่มีรูป 4 ทิศ = หมากหกเหลี่ยมขยาย (`drawAnyUnit` → `drawUnit` `u.k`)
+
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
 - **ม่านแห่งราตรี** (basic · 2): ทุกคน (duo/trio = ตัวเอง + เพื่อนร่วมทีม) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
 - **นกจาบยามเช้า** (secondary · 4): เลือก 1 คน **ใครก็ได้รวมศัตรู** ฟื้นเลือด 5 + ต้านสถานะ 2 เทิร์น + `cleanseLatestDebuff` 1 อย่าง ·
@@ -331,6 +339,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - **ผลข้างเคียงที่ต่างจากลุกไหม้**: ระหว่างติดอยู่ การฟื้นพลังชีวิตเหลือครึ่ง (`bleedHealPenalty` ใน `healHp()`) — ฟื้น 1 หน่วยไม่ถูกลด
 - ฮุครายตัวละคร (ไม่ต้องแก้ `_universal_status.js`): `hbleedImmune(p)` / `hbleedHeals(p)` / `hbleedLabel(p)` / `hbleedHarmless(p)`
   (`hbleedHarmless` คุมเฉพาะการลดครึ่งของ `healHp`) · ลุกไหม้มีชุดเดียวกัน `hburnImmune` / `hburnHeals` / `hburnLabel` — ตัวละครปัจจุบันไม่ได้ใช้
+- **ลุกไหม้ใส่ผ่าน `engine.applyBurn(p, n)`** เหมือนกัน (เคารพ `resist` + เพดาน `HBURN_MAX = 6` + ประทับ `statusAt` · คืนจำนวนที่ติดเพิ่มจริง) — ไรโด ฮิคารุใช้ (คิงแพนด้อน · สโตเรี่ยม · ท่าไม้ตาย)
 
 **ภาระเวท (`spellburden`) — กฎกลาง ห้าม bypass** (ตอนนี้ไม่มีตัวละครที่มอบ — ระบบยังอยู่และมีเทสต์)
 ทุกแหล่งต้องเรียก **`engine.applySpellburden(p, turns)`** เท่านั้น (`_universal_status.js` → wrapper ใน `server/combat.js`)
@@ -533,13 +542,14 @@ module.exports = {
   id: "<characterId>",                     // ต้องตรงกับ id ใน characters.js
 
   // ---- ฮุคกลาง: engine เรียกให้ทุกตัวละครอัตโนมัติถ้ามี (ไม่ต้องแก้ server/) ----
-  canUseSkill(engine, p, tier, targets) { return true; },        // ด่านก่อนหักแต้ม (useSkill)
+  canUseSkill(engine, p, tier, targets, opts) { return true; },  // ด่านก่อนหักแต้ม (useSkill) · opts = ตัวเลือกจาก client (ฮิคารุ: opts.form)
   ignoresTurnQuota(p, tier) { return false; },                   // กดได้แม้ใช้โควตาเทิร์นไปแล้ว
   skipsTurnQuota(p, tier) { return false; },                     // กดแล้วไม่กินโควตาเทิร์น
   applyInstantSkill(engine, p, tier, targets, opts) { return ""; }, // ลงผลสกิล — คืนข้อความต่อท้ายป้าย skillFlash · opts.dir = ทิศของสกิล line
   skillCost(p, tier, base) { return base; },                     // ราคาที่เปลี่ยนตามสถานะ (useSkill + ป้ายราคาใน buildStateFor ใช้ตัวเดียวกัน)
   silentFlash(p, tier) { return false; },                        // true = ไม่ขึ้นป้าย skillFlash กลาง / ไม่บันทึก roundSkills
-  maxHp(p) {}, maxArmor(p) {},                                   // เลือด/เกราะสูงสุดเฉพาะตัว (ไม่มี = MAX_HP 7 / MAX_ARMOR 3)
+  maxHp(p) {}, maxArmor(p, base) {},                             // เลือด/เกราะสูงสุดเฉพาะตัว (ไม่มี = MAX_HP 7 / MAX_ARMOR 3 · base = MAX_ARMOR)
+  onArmorLost(engine, p) {},                                     // เกราะลด 1 หน่วย (combat.loseArmor — ทุกทางที่ทำเกราะลด · ฮิคารุ: ฟื้นพลังชีวิต 1)
   stealthed(p) { return false; },                                // ล่องหน — ศัตรูมองไม่เห็น (server/visibility.js)
   onReveal(engine, p, kind) {},                                  // "act" ตัวเองโจมตี · "hit" อยู่ในสกิลโจมตีพื้นที่ · "bump" ถูกเดินชน
   logCut(p, round) { return 0; },                                // index บันทึกที่ปรากฏตัว — บรรทัดก่อนหน้าที่มีชื่อซ่อนจากศัตรู
@@ -558,6 +568,10 @@ module.exports = {
                                                                  // ฉากตีปกติ: เสียง · ลำแสง (ยาว/สี "blue") · เอฟเฟกต์ปะทะ ("mythSlash") → การ์ดฉากตี
   attackFxNames(attacker, atkCtx) { return []; },                // ป้ายโบนัสใต้ฉากตี (อ่าน ctx ที่ damageBonus ใส่ไว้)
   afterBoardAttack(engine, attacker, target, res) { return null; }, // ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้า)
+  attackLane(p) { return false; },                               // ตีปกติแนวตรงจากขอบตัว — ทุกศัตรูในแนวโดน (action.lanes · ฮิคารุ: แบล็คคิง/กิงกะ)
+  onStrikeLanded(engine, attacker, target, { counter }) { return []; }, // ตีปกติลง (รวมทุกคนในแนว) → ชื่อป้ายในฉากตี (ฮิคารุ: ติดสถานะตามร่าง)
+  attackStyle(p, dist) { return null; },                         // ท่าตีบนกระดาน → การ์ดฉากตี byStyle (Echo: echo/hair/rock · ฮิคารุ: hk*)
+  skillArea(p, tier, area) { return area; },                     // พื้นที่สกิลตามสถานะ (useSkill + ปุ่มใช้ตัวเดียวกัน)
   // hburnImmune / hburnHeals / hburnLabel · hbleedImmune / hbleedHeals / hbleedLabel / hbleedHarmless (ข้อ 7)
 
   // ---- ที่เหลือคือ method ที่ server/ เรียกเองแบบเจาะจง: CHAR_HOOKS.<id>.<method>(engine, ...) ----

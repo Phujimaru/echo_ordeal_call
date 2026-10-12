@@ -19,6 +19,7 @@ import { SkillSlot } from "./hud/SkillSlot";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
+import HikaruForms from "./hud/HikaruForms";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
 import { holdBoard } from "../board/boardPause";
@@ -787,6 +788,9 @@ const STATUS_INFO = {
   obsDream:    { icon: "💤", label: "จุดจบของความฝัน", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่ม 4 ในตาเดินถัดไป จบเทิร์นนั้นแล้วติดสตั้น 3 เทิร์น" },
   obsLark:     { icon: "🐦", label: "นกจาบยามเช้า", cls: "bg-echo-magenta", desc: "ต้นเทิร์นหน้าเสียพลังชีวิต 2 ทะลุเกราะ กันด้วยต้านสถานะไม่ได้" },
   oblada:   { icon: "🎵", label: "สิ่งแปลกปลอม", cls: "bg-echo-hp", desc: "เสียพลังชีวิต 1 ทุก 2 เทิร์น เกราะรับก่อน" },
+  // ไรโด ฮิคารุ
+  hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
+  hikaruTiga:    { icon: "🔆", label: "Ultraman Tiga", cls: "bg-fuchsia-400 text-gray-900", desc: "" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -816,6 +820,16 @@ function statusEntries(p, full) {
     out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900", desc: "" });
   }
   if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
+  // ไรโด ฮิคารุ: ร่าง UltraLive (Tiga มีป้ายสถานะนับเทิร์นแล้ว) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
+  if (p.hikaru) {
+    const h = p.hikaru;
+    if (h.form && h.form !== "tiga") out.push({ key: "hikaruForm", v: 1, icon: "🔆", label: h.formName, cls: "bg-amber-300 text-gray-900", desc: "" });
+    if (h.ginga && h.strium) out.push({ key: "hikaruStrium", v: 1, icon: "🌈", label: "Strium", cls: "bg-orange-400 text-gray-900", desc: "" });
+    if (!h.strium && h.brace > 0) out.push({ key: "hikaruBrace", v: 1, icon: "🌈", label: `Strium Brace ${h.brace}/${h.braceMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
+    if (h.kemurCalm > 0) out.push({ key: "hikaruKemur", v: 1, icon: "🌫️", label: `${h.kemurCalm}/${h.kemurMax}`, cls: "bg-purple-300 text-gray-900", desc: "" });
+    if (h.tigaCd > 0) out.push({ key: "hikaruTigaCd", v: h.tigaCd, turns: true, icon: "⏳", label: "Ultraman Tiga", cls: "bg-white/20", desc: "" });
+    if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "" });
+  }
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
     desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
@@ -1030,6 +1044,9 @@ function SkillConfirmModal({ confirm, onConfirm, onCancel }) {
 // ---------- ร้านค้ามายา + คลังผู้เล่น (patch 2.2 full) ----------
 // รูปไอคอนไอเทมทั้งหมด: ดึงมาแคชไว้ตั้งแต่เข้าเกม (ไฟล์เล็ก) กันไอคอนโหลดช้าตอนเปิดร้าน/กระเป๋าครั้งแรก
 const ITEM_PRELOAD_IMGS = ["/item/guts_select_gun/guts_gun.webp", ...Object.values(GUTS_AMMO_INFO).map((a) => a.img)];
+// ไรโด ฮิคารุ: คลิปทุกตัว (เล่นครั้งเดียวต่อเกม — characters/_transforms.js)
+const HIKARU_CLIPS = ["form_blackking", "form_thunderdarambia", "form_kemurjin", "form_kingpandon", "form_doragory", "form_tiga",
+  "hikaru_skill2", "hikaru_strium", "hikaru_skill3", "hikaru_strium_ray"];
 // วีดีโอกระสุนที่ผู้เล่นถืออยู่: โหลดล่วงหน้าไว้ในเบื้องหลัง (ไฟล์ 5-16MB) — ไม่งั้นตอนยิงจริงวีดีโอจะขึ้นช้า
 //  แล้วโดนเวลาคัตซีนฝั่ง server ตัดจบก่อนวีดีโอเล่นจบ
 function GutsVideoPreloader({ me, players }) {
@@ -1037,7 +1054,8 @@ function GutsVideoPreloader({ me, players }) {
   const preloadMuimi = (players || []).some((p) => p.character?.id === "muimi");
   const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
   const preloadSora = (players || []).some((p) => p.character?.id === "sora_otosumi");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora) return null;
+  const preloadHikaru = (players || []).some((p) => p.character?.id === "raido_hikaru");
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1050,6 +1068,7 @@ function GutsVideoPreloader({ me, players }) {
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill1.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
+      {preloadHikaru && HIKARU_CLIPS.map((f) => <video key={f} src={`/characters/raido_hikaru/${f}.mp4`} preload="auto" muted playsInline />)}
     </div>
   );
 }
@@ -1824,8 +1843,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ป๊อปอัปยืนยันก่อนใช้สกิล (patch UX): กดช่องสกิล -> ถามยืนยันก่อนเสมอ ค่อยเรียก skill(tier) จริงตอนกด "ใช้งาน"
   //  เก็บข้อมูลสกิล/ลำดับ/แต้มที่ใช้จริง (หลังหักส่วนลด) ไว้โชว์ในป๊อปอัป — ยกเลิกแล้วไม่มีอะไรเกิดขึ้น
   const [skillConfirm, setSkillConfirm] = useState(null); // { tier, skillData, label, useCost }
+  const [hkForms, setHkForms] = useState(false); // ไรโด ฮิคารุ: ตัวเลือกร่าง UltraLive เปิดอยู่
+  if (hkForms && !myTurn) setHkForms(false); // หมดตาเรา = ปิดตัวเลือกร่าง
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
   const requestSkillUse = (tier, skillData, label, useCost) => {
+    // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
+    if (ch?.id === "raido_hikaru" && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
     if (!skillConfirmOn) { skill(tier); return; }
     setSkillConfirm({ tier, skillData, label, useCost });
   };
@@ -2311,6 +2334,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         myTurn={myTurn} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
+      {hkForms && me?.hikaru && (
+        <HikaruForms hikaru={me.hikaru} onClose={() => setHkForms(false)} onPick={(form) => { setHkForms(false); socket.emit("useSkill", { tier: "basic", form }); }} />
+      )}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
     </div>

@@ -49,6 +49,7 @@ import {
   setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
+import { hkBeamHitMs } from "./hikaruFx";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
 } from "./zeroTheme";
@@ -185,7 +186,7 @@ function animPose(a, t) {
     const e = 0.25 * (1 - Math.pow(1 - Math.max(0, b), 2));
     return { x: from.x, y: from.y, ox: (to.x - from.x) * e, oy: (to.y - from.y) * e, done: p >= 1, hitAt: 90 };
   }
-  const p = Math.min(1, t / PUSH_MS), e = 1 - Math.pow(1 - p, 3);
+  const p = Math.min(1, t / (a.ms > 0 ? a.ms : PUSH_MS)), e = 1 - Math.pow(1 - p, 3); // ms = ถูกผลักไกล (Strium Ray)
   return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, ox: 0, oy: 0, done: p >= 1 };
 }
 function animFinal(a) {
@@ -481,6 +482,15 @@ export default function BoardCanvas(props) {
             if (hitU) { st.hitT.set(hitU.id, now); item.hitU = hitU.id; }
           }
           if (f.kind === "grow" && f.id != null) st.grow.set(f.id, { t0: now, from: f.from | 0, to: f.to | 0 });
+          // ปะทะที่บอกเป้าเอง (ไรโด ฮิคารุ hkHit: ทุกคนที่โดนในแนว) = สั่น/แฟลชพร้อมกัน
+          if (Array.isArray(f.hitIds)) for (const id of f.hitIds) st.hitT.set(id, now + (f.hitDelay | 0));
+          // ลำแสงท่าไม้ตายฮิคารุ: คนในช่องที่ลำแสงวิ่งถึงสั่นตามจังหวะ
+          if ((f.kind === "hkCross" || f.kind === "hkStriumRay") && Array.isArray(f.tiles)) {
+            for (const t of f.tiles) {
+              const hu = units.find((u) => onBody(u, t.x, t.y) && u.alive !== false && u.id !== f.id);
+              if (hu) st.hitT.set(hu.id, now + hkBeamHitMs(f, t));
+            }
+          }
           if (f.kind === "smash") item.dur = smashDur(f.tiles);
           st.fxActive.push(item);
         }

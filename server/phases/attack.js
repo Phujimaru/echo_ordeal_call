@@ -23,6 +23,7 @@ const action = require("./action");
 const lobby = require("../lobby");
 const timers = require("../timers");
 const view = require("../view");
+const Visibility = require("../visibility");
 const Zero = require("../zeroTime");
 
 function attackableTargets(atkId) {
@@ -239,6 +240,9 @@ function strike(attacker, target, { counter = false } = {}) {
   }
   target.wasAttacked = true;
   match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (ลดเกราะก่อน)`);
+  // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
+  const landedHook = CHAR_HOOKS[attacker.characterId];
+  const landedFx = landedHook && landedHook.onStrikeLanded && target.alive ? landedHook.onStrikeLanded(engine, attacker, target, { counter }) || [] : [];
   // เลือดหมดจากการตี = ตกรอบทันที (เดิมกวาดตอนจบเทิร์น — บนกระดานคนตายต้องหายจากช่องก่อนตีสวน/คนถัดไป)
   if (target.alive && target.hp <= 0) {
     combat.instantDeath(target);
@@ -260,6 +264,7 @@ function strike(attacker, target, { counter = false } = {}) {
     const hook = CHAR_HOOKS[attacker.characterId];
     if (hook && hook.attackFxNames) for (const name of hook.attackFxNames(attacker, atkCtx)) atkFx(name);
   }
+  for (const name of landedFx) atkFx(name);
   if (journeyCritFx.crit) atkFx(`คริติคอล ×2 (${journeyCritFx.pct}%)`, null);
   if (accurate) atkFx("แม่นยำ — เจาะการหลบหลีก");
   if (empowerAtk) atkFx("เสริมพลัง +1");
@@ -356,9 +361,22 @@ function doAttack(byId, targetId) {
 // โจมตีบนกระดาน (GRID_PLAN §6): ตี → ถ้าเป้ายังรอดและตีถึงเรา = ตีสวน → ผู้ตีถอย 1 ช่อง (ชนของ = เสีย 1)
 //  จบฉาก (ATTACKING) แล้วเรียก done (= จบตาของผู้ตี)
 //  ฮุค afterBoardAttack(engine, attacker, target, res) → ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้าเข้าประชิด)
+//  ตีแนวตรง (action.lanes — ไรโด ฮิคารุ): ศัตรูคนอื่นในแนวเดียวกันโดนตีปกติด้วย (card.extra) · ตีสวนได้แค่เป้าหลัก
 function boardAttack(attacker, target, done) {
+  const lane = action.laneVictims(attacker, target);
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
+  if (lane) {
+    card.byLane = lane.tiles;
+    card.extra = [];
+    for (const id of lane.ids) {
+      const o = match.players[id];
+      if (!o || !o.alive || !attacker.alive) continue;
+      const r = strike(attacker, o);
+      card.extra.push({ targetId: o.id, targetName: o.name, dmg: r.dmg, dodge: !!r.dodge, kill: !!r.kill, crit: !!r.crit });
+    }
+    Visibility.onAreaHit(attacker, lane.ids); // คนล่องหนในแนวโดน = ปรากฏตัว
+  }
   counterAndPush(attacker, target, card);
   const hook = CHAR_HOOKS[attacker.characterId];
   const after = hook && hook.afterBoardAttack ? hook.afterBoardAttack(engine, attacker, target, first) : null;
@@ -400,6 +418,7 @@ function counterAndPush(attacker, target, card) {
 function playAttackCard(card, attacker, target, done) {
   // คนตกรอบหายจากกระดาน
   for (const p of [attacker, target]) if (!p.alive) p.pos = null;
+  for (const e of card.extra || []) { const o = match.players[e.targetId]; if (o && !o.alive) o.pos = null; }
   // มีข้อมูลสกิลให้อ่าน / มีตีสวน -> ยืดเวลาฉากให้อ่านทัน · คัตซีนที่ค้างคิวเล่นต่อหลังฉากตี
   const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0);
   card.fxMs = fxSeconds * 1000;

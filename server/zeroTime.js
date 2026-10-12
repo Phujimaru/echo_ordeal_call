@@ -204,7 +204,10 @@ function sealUnit(i) {
 function canHitSeal(p, i) {
   if (!match.zero || i < 0 || !p || !p.pos) return false;
   const s = match.zero.seals[i];
-  return !!s && !s.broken && Board.inRange(action.rangeOf(p), Board.dist(action.boxOf(p), { x: s.x, y: s.y }));
+  if (!s || s.broken) return false;
+  // ตีปกติแบบแนวตรง (ไรโด ฮิคารุ) = ผนึกต้องอยู่ในแนว
+  if (action.lanes(p)) return !!Board.laneOf(action.boardMap(), p.pos.x, p.pos.y, action.sizeOf(p), action.rangeOf(p), { x: s.x, y: s.y, size: 1 });
+  return Board.inRange(action.rangeOf(p), Board.dist(action.boxOf(p), { x: s.x, y: s.y }));
 }
 // พลังโจมตีที่ลงผนึก: ท่อเดียวกับตีปกติ (ฐาน + โบนัส + เสริมพลัง − อ่อนแอ/พิษ · ผกผัน) — ผนึกไม่หลบ/ไม่มีบัฟป้องกัน
 function sealDamage(attacker, i, { normal = true } = {}) {

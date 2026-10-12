@@ -112,7 +112,7 @@ const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
-  return hook && hook.maxArmor ? hook.maxArmor(p) : MAX_ARMOR;
+  return hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR;
 }
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
 // force = true: ข้ามระบบกันตายทั้งหมด (เช่นเกราะ Mark 42) — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
@@ -165,6 +165,9 @@ function loseArmor(p) {
   // เกราะ Mark 42: ล้าง/สลายเกราะ ลงเกราะชุดแทนเกราะจริงที่ซ่อนอยู่ข้างใต้
   if (Mark42.absorb(engine, p, 1)) return;
   p.armor--; p.dmgArmor++;
+  // ไรโด ฮิคารุ (ร่าง UltraLive): เกราะที่เสียไปกลายเป็นฟื้นพลังชีวิต
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onArmorLost) hook.onArmorLost(engine, p);
 }
 // ดาเมจแพ้จั่ว/ไพ่แตก 1 หน่วย: โล่ -> เกราะ -> เลือด
 function damageSoft(p) {
@@ -297,6 +300,7 @@ function resetCombat(p) {
   p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
   CHAR_HOOKS.sora_otosumi.resetCombat(p); // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
   CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
+  CHAR_HOOKS.raido_hikaru.resetCombat(p); // ไรโด ฮิคารุ: ร่าง UltraLive / กิงกะ / Strium Brace (ก่อนคิดเกราะเริ่มเกม)
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)

@@ -192,6 +192,53 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- ไรโด ฮิคารุ — ระดับกลาง — ดู characters/raido_hikaru.js ----------
+    //  ร่าง UltraLive 6 ร่าง (ระยะ/แนวตี/เกราะผ่านฮุค range/attackLane/maxArmor) · Ultraman Ginga ตัว 3×3
+    //  ท่าไม้ตายสลับตามร่าง: Ginga Cross Shoot (4 แต้ม · 5×1) ⇄ Strium Ray (6 แต้ม · 5×3) — skillCost/skillArea/skillPub
+    id: "raido_hikaru",
+    name: "ไรโด ฮิคารุ",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/raido_hikaru/hikaru.jpg",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Strium Brace",
+      desc: "จบเทิร์นในร่างกิงกะช่วงกลางวันครบ 10 เทิร์น (รวมทั้งเกม): กลายเป็นกิงกะสโตเรี่ยมทันที และ Ultraman Ginga ครั้งต่อไปเป็นสโตเรี่ยมเสมอ · สโตเรี่ยม: ตีปกติ +1 อีก และติดลุกไหม้ 1 · ท่าไม้ตายเป็น Strium Ray",
+    },
+    passive2: {
+      name: "ร่าง UltraLive",
+      desc: "ทุกร่าง: เกราะสูงสุด +2 · เข้าร่างฟื้นเกราะ 2 (ฟื้นอีกได้หลัง 5 เทิร์น) · เกราะลดเท่าไร ฟื้นพลังชีวิตเท่านั้น · แบล็คคิง: ตีปกติแนวตรง 1×3 โดนทุกศัตรูในแนว · ทันเดอร์ดารัมเบีย: ตีปกติติดช็อต 1 เทิร์น · มนุษย์ดาวเคมู: ตีปกติติดพิษร้าย 1 เทิร์น · ไม่ถูกโจมตีและไม่เสียหาย 2 เทิร์นติด = ล่องหนเทิร์นถัดไป 1 เทิร์น · คิงแพนด้อน: ระยะตี 3 · ตีปกติติดลุกไหม้ 1 · ดอรากอรี่: ตีปกติติดเลือดไหล 1 · Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 เทิร์นแล้วคืนร่างเอง (เรียกซ้ำได้หลังร่างจบ 5 เทิร์น)",
+    },
+    basic: {
+      name: "UltraLive",
+      desc: "ไม่นับเป็นการใช้สกิล · เทิร์นละ 1 ครั้ง: เปลี่ยนเป็น 1 ใน 6 ร่าง หรือคืนร่าง · ร่างอยู่จนกว่าจะเปลี่ยนหรือคืนร่าง · ใช้ไม่ได้ระหว่างร่างกิงกะ",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/raido_hikaru/hikaru_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/raido_hikaru.js
+    },
+    secondary: {
+      name: "Ultraman Ginga",
+      desc: "ร่างปกติ: แปลงเป็น Ultraman Ginga 5 เทิร์น · ตัว 3×3 (ทับศัตรู = ผลักออก เสียหาย 1) · เดิน 3 พังสิ่งกีดขวางที่ผ่าน · ตีปกติ +1 แนวตรง 1×3 โดนทุกศัตรูในแนว · คูลดาวน์ 3 เทิร์น",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/raido_hikaru/hikaru_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Ginga Cross Shoot",
+      desc: "ร่างกิงกะ · เลือกทิศ: ลำแสงแนว 5×1 ใส่ศัตรูทุกคนในแนว ความเสียหาย 2 (เกราะรับก่อน · หลบไม่ได้) · ลุกไหม้ 2",
+      area: { kind: "line", len: 5, width: 1, hostile: true },
+      cost: 4,
+      img: "/characters/raido_hikaru/hikaru_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)

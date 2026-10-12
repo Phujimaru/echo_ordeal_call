@@ -526,20 +526,67 @@ function aoeTiles(map, x, y, radius, size = 1) {
 }
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
 //  width ควรเป็นเลขคี่ (4×3 = ท่าไม้ตายมุยมิ)
-function lineTiles(map, x, y, dir, len, width) {
+//  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
+function lineTiles(map, x, y, dir, len, width, size = 1) {
   const v = LINE_DIRS[dir];
   if (!v) return [];
   const [fx, fy] = v;
   const sx = -fy, sy = fx; // แกนขวาง (ตั้งฉากกับทิศ)
   const half = Math.floor(width / 2);
+  const n = Math.max(1, size | 0), c = Math.floor((n - 1) / 2);
+  const cx = x + c, cy = y + c;
+  const edge = fx + fy > 0 ? n - 1 - c : c; // จากกลางตัวถึงขอบด้านที่หัน
   const out = [];
   for (let i = 1; i <= len; i++) {
     for (let j = -half; j <= half; j++) {
-      const tx = x + fx * i + sx * j, ty = y + fy * i + sy * j;
+      const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
       if (inBounds(map, tx, ty)) out.push({ x: tx, y: ty });
     }
   }
   return out;
+}
+// ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ "1×3"): ตีได้เฉพาะช่องที่อยู่แนวตรงจากขอบตัว 4 ทิศ ห่าง range[0]..range[1]
+//  ตัวใหญ่ = ทุกแถว/คอลัมน์ที่ตัวกิน (ช่องหน้าแต่ละช่องของขอบเป็น 1 แนว)
+//  คืน [{ dir, j (ช่องที่เท่าไรของขอบ), tiles: [{ x, y, i }] }] — tiles ตัดที่ขอบกระดาน
+function laneSets(map, x, y, size, range) {
+  const n = Math.max(1, size | 0), out = [];
+  for (const [dir, [fx, fy]] of Object.entries(LINE_DIRS)) {
+    for (let j = 0; j < n; j++) {
+      // ช่องขอบตัวด้านที่หัน (j = ลำดับตามแกนขวาง)
+      const ex = fx > 0 ? x + n - 1 : fx < 0 ? x : x + j;
+      const ey = fy > 0 ? y + n - 1 : fy < 0 ? y : y + j;
+      const tiles = [];
+      for (let i = range[0]; i <= range[1]; i++) {
+        const tx = ex + fx * i, ty = ey + fy * i;
+        if (inBounds(map, tx, ty)) tiles.push({ x: tx, y: ty, i });
+      }
+      out.push({ dir, j, tiles });
+    }
+  }
+  return out;
+}
+// ช่องทั้งหมดที่ตีแบบแนวตรงถึง (ไฮไลต์แดง / ระยะอันตราย)
+function laneTiles(map, x, y, size, range) {
+  const seen = new Set(), out = [];
+  for (const l of laneSets(map, x, y, size, range)) {
+    for (const t of l.tiles) { const k = key(t.x, t.y); if (!seen.has(k)) { seen.add(k); out.push({ x: t.x, y: t.y }); } }
+  }
+  return out;
+}
+// แนวที่เป้า (กล่อง { x, y, size }) อยู่ — ไม่อยู่แนวไหน = null · ตัวใหญ่ทับหลายแนว = แนวที่ใกล้กลางตัวผู้ตีสุด
+//  คืน { dir, j, tiles } (tiles = ทั้งแนว ห่าง 1..range[1] — ทุกคนในนี้โดน)
+function laneOf(map, x, y, size, range, target) {
+  if (!target) return null;
+  const n = Math.max(1, size | 0), mid = (n - 1) / 2;
+  let best = null;
+  for (const l of laneSets(map, x, y, n, range)) {
+    if (!l.tiles.some((t) => covers(target, t.x, t.y))) continue;
+    const off = Math.abs(l.j - mid);
+    if (!best || off < best.off) best = { ...l, off };
+  }
+  if (!best) return null;
+  const full = laneSets(map, x, y, n, [1, range[1]]).find((l) => l.dir === best.dir && l.j === best.j);
+  return { dir: best.dir, j: best.j, tiles: full.tiles };
 }
 // ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา (ตัวใหญ่ = ช่องไหนของตัวโดนก็นับ)
 function unitsOnTiles(units, tiles) {
@@ -603,6 +650,7 @@ function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = 
 // ช่องทั้งหมดที่ unit "เดินแล้วตีถึง" ในตาเดียว (ไฮไลต์แดงตอนเลือกเดิน / ปุ่มระยะอันตราย)
 //  คืน { move: Set<key>, threat: Set<key> } — threat ไม่รวมช่องที่เดินถึงได้อยู่แล้ว
 //  ตัวใหญ่: move = ทุกช่องที่ตัวไปทับได้ (รวมทั้งตัว ไม่ใช่แค่มุม)
+//  opts.lane = ตีแบบแนวตรง (laneTiles) แทนข้าวหลามตัด
 function threatZone(map, unit, mov, range, units, opts = {}) {
   const reach = reachable(map, unit, mov, units, opts);
   const s = sizeOf(unit);
@@ -610,7 +658,7 @@ function threatZone(map, unit, mov, range, units, opts = {}) {
   for (const n of reach.values()) for (const t of footprint(n.x, n.y, s)) move.add(key(t.x, t.y));
   const threat = new Set();
   for (const n of reach.values()) {
-    for (const t of tilesInRange(map, n.x, n.y, range, s)) {
+    for (const t of opts.lane ? laneTiles(map, n.x, n.y, s, range) : tilesInRange(map, n.x, n.y, range, s)) {
       const k = key(t.x, t.y);
       if (!move.has(k)) threat.add(k);
     }
@@ -666,7 +714,7 @@ module.exports = {
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf,
   reachable, reachableBig, pathTo,
-  tilesInRange, aoeTiles, lineTiles, unitsOnTiles, attackTargets,
+  tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,
 };

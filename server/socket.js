@@ -240,7 +240,7 @@ io.on('connection', (socket) => {
 
   onPlayerEvent(socket, 'hit', (id) => draw.hit(id), 8);
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
-  onPlayerEvent(socket, 'useSkill', (id, { tier, targets, dir } = {}) => skills.useSkill(id, tier, targets, { dir }), 12);
+  onPlayerEvent(socket, 'useSkill', (id, { tier, targets, dir, form } = {}) => skills.useSkill(id, tier, targets, { dir, form: typeof form === 'string' ? form : undefined }), 12);
   onPlayerEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
   onPlayerEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
   onPlayerEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)

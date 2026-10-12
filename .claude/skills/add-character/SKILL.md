@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -121,7 +121,12 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ชื่อ/รูปปุ่มสกิลตามสถานะ | `skillPub(p, tier)` → ฟิลด์ที่ทับ | `server/view.js` |
 | ฉากสกิลหลายจังหวะ (พักให้กระดานเล่นเอฟเฟกต์ → คลิป → ผล) | `engine.skillBeat(sec, fn)` + `deferAfterCutscene` + `queueCutscene` (ต้นแบบ Mouse Separade ของโซระ) | `cutscene.runSkillFlow` |
 | ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
-| เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p)` | `combat.maxHpOf`/`maxArmorOf` |
+| เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p, base)` (base = MAX_ARMOR) | `combat.maxHpOf`/`maxArmorOf` |
+| ผลเมื่อเกราะลด (ทุกทาง) | `onArmorLost(engine, p)` (ฮิคารุ: ฟื้นพลังชีวิต 1) | `combat.loseArmor` |
+| ตีปกติแนวตรงโดนทุกคนในแนว | `attackLane(p)` → true (ระยะจาก `range` · client ได้ `lane` ไปคิดไฮไลต์/แผนเดินเอง) | `action.canStrike` / `laneVictims` → `attack.boardAttack` (`card.extra`) |
+| ผลเมื่อตีปกติลง (เฉพาะตัวผู้ตี) | `onStrikeLanded(engine, attacker, target, { counter })` → ชื่อป้ายฉากตี | `strike()` |
+| ท่าตีบนกระดานเฉพาะตัว | `attackStyle(p, dist)` → คีย์ fx (ต้องมีตัววาดใน `boardDraw.js` / `hikaruFx.js` + `STYLE_MS`) | `strikeCard()` |
+| ตัวเลือกเพิ่มจาก client (เช่นเลือกร่าง) | `canUseSkill(engine, p, tier, targets, opts)` / `applyInstantSkill(..., opts)` — socket `useSkill` ส่ง `form` ต่อให้แล้ว · ฟิลด์ใหม่ต้องเพิ่มใน `server/socket.js` | `server/skills.js` |
 | ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind)` (`act`/`hit`/`bump`) + `logCut(p, round)` | `server/visibility.js` |
 | สกิลไม่นับโควตา / ไม่กินโควตา | `ignoresTurnQuota(p, tier)` / `skipsTurnQuota(p, tier)` | `server/skills.js` |
 | เสียงตอนใช้สกิล | `skillSound(p, tier)` | `server/skills.js` |
@@ -169,6 +174,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
   ถ้าสเปกบอก "เมื่อโจมตี" ต้องถามว่านับตอนตีสวนไหม
 - **สกิลที่ฟันด้วยพลังโจมตีให้ใช้ `engine.skillStrike(p, t, "ชื่อท่า")`** (`attack.skillStrike`) — ไม่มีตีสวน/ถอย ไม่จบตา
   คิดหลบหลีก (แม่นยำเจาะได้) · คุ้มครอง · ขัดแย้ง · เปราะบาง · เกราะ/โล่รับก่อน · ไม่ใช้เสริมพลัง ไม่ติดผลตีปกติ · ตายแล้วล้าง `pos` ให้
+- ใส่ลุกไหม้/เลือดไหล ผ่าน `engine.applyBurn` / `engine.applyBleed` เท่านั้น (เคารพต้านสถานะ + เพดาน)
 - `engine.doAttack()` = ตีแบบไม่มีกระดาน (ไม่มีสวน/ถอย/ฉาก) ไว้ให้เทสต์ท่อดาเมจ — ห้ามใช้ในสกิลแทนการตีบนกระดาน
 
 ## ฝั่ง client

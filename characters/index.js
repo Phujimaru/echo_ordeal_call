@@ -8,6 +8,7 @@ const oberon_summer = require("./oberon_summer"); // โอเบรอน (ฤ�
 const sliver_bullet = require("./sliver_bullet"); // นักบินปริศนา — ระดับง่าย · unique
 const echo = require("./echo"); // Echo — พิเศษ (ขยายร่างบนกระดาน)
 const sora_otosumi = require("./sora_otosumi"); // โซระ โอโตสุมิ — ระดับง่าย (แปลงร่าง My-Th)
+const raido_hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ — ระดับกลาง (UltraLive / Ultraman Ginga)
 
 const CHARACTER_MODULES = [
   muimi,
@@ -15,6 +16,7 @@ const CHARACTER_MODULES = [
   sliver_bullet,
   echo,
   sora_otosumi,
+  raido_hikaru,
 ];
 
 const CHAR_HOOKS = {};

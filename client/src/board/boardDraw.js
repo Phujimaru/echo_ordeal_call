@@ -25,6 +25,7 @@ import {
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
+import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -443,25 +444,27 @@ function drawUnit(g, u, now, boxes) {
   const wx = u.rx + 0.5 + (u.ox || 0) + jx, wy = u.ry + 0.5 + (u.oy || 0) + jy;
   const [bx, by, s] = P(wx, wy);
   const a = u.alpha == null ? 1 : u.alpha;
+  // K = ขยายหมากหกเหลี่ยม (ตัวใหญ่ที่ไม่มีรูป 4 ทิศ — กิงกะของไรโด ฮิคารุ) · ตัวปกติ = 1
+  const K = u.k || 1;
   g.save(); g.globalAlpha = a;
   // ฐานแบบที่นั่ง (ทรงกระบอก)
-  gEllipse(g, wx + 0.05, wy + 0.07, 0.36, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
+  gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
   const P1 = P(wx, wy, 0.12);
-  gEllipse(g, wx, wy, 0.32, 0, 28); g.fillStyle = shadeHex(u.color, -0.25); g.fill();
-  gEllipse(g, wx, wy, 0.32, 0.12, 28); g.fillStyle = u.color; g.fill();
+  gEllipse(g, wx, wy, 0.32 * K, 0, 28); g.fillStyle = shadeHex(u.color, -0.25); g.fill();
+  gEllipse(g, wx, wy, 0.32 * K, 0.12, 28); g.fillStyle = u.color; g.fill();
   g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 2; g.stroke();
   if (u.isMe) {
     // ตัวเรา: วงทองคู่รอบฐาน
-    g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; gEllipse(g, wx, wy, 0.43, 0.02, 32); g.stroke();
-    g.lineWidth = 1; gEllipse(g, wx, wy, 0.48, 0.02, 32); g.stroke();
+    g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; gEllipse(g, wx, wy, 0.43 * K, 0.02, 32); g.stroke();
+    g.lineWidth = 1; gEllipse(g, wx, wy, 0.48 * K, 0.02, 32); g.stroke();
   }
   if (u.isActor) {
     const p = (now / 1100) % 1;
-    g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, 0.4 + p * 0.4, 0.12, 28); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.globalAlpha = a;
+    g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.4 + p * 0.4) * K, 0.12, 28); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.globalAlpha = a;
   }
   // ลำแสงจากฐานขึ้นรูป
   // hz = ลอยขึ้นระหว่างเดินกระโดด (หน่วยช่อง) · sq = ยุบ/ยืดตัว (Echo)
-  const hexR = s * 0.4, hy = by - s * 0.86 + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
+  const hexR = s * 0.4 * K, hy = by - s * 0.86 * K + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
   g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy);
@@ -632,6 +635,13 @@ function drawBigUnit(g, u, now, boxes) {
 // หมากตัวเดียว: ตัวใหญ่ที่มีรูป 4 ทิศ = drawBigUnit · ระหว่างขยาย/หดข้ามขนาด 1 เลือกตามจังหวะ
 function drawAnyUnit(g, u, now, boxes) {
   const gr = u.grow, t = gr ? clamp01((now - gr.t0) / GROW_MS) : 1;
+  // ตัวใหญ่ที่ไม่มีรูป 4 ทิศ (กิงกะของไรโด ฮิคารุ): หมากหกเหลี่ยมขยายครอบทั้งตัว กลางตัว · ระหว่างขยาย/หด ค่อยๆ เปลี่ยนขนาด
+  if (!u.art && (u.size > 1 || (gr && gr.from > 1 && t < 0.55))) {
+    const n = u.size > 1 ? u.size : gr.from, es = gr ? Math.max(1, bigDrawSize(u, now)) : n;
+    const c = u.size > 1 ? (u.size - 1) / 2 : 0; // หดแล้ว: server วางตัวเล็กไว้กลางตัวเดิมอยู่แล้ว
+    drawUnit(g, { ...u, rx: u.rx + c, ry: u.ry + c, k: 1 + (es - 1) * 0.6 }, now, boxes);
+    return;
+  }
   if (u.size > 1 && u.art) {
     if (gr && gr.from <= 1 && t < BREAK_AT) {
       // ก่อนกรอบแตก: หกเหลี่ยมเดิมสั่นแรงขึ้นเรื่อยๆ กลางตัวใหม่
@@ -733,8 +743,9 @@ function smashFx(g, e, now) {
 //  fx { kind: "echo" | "hair" | "rock", x, y (มุมบนซ้ายผู้ตี), size, to: { x, y } (มุมบนซ้ายเป้า), toSize, color }
 //  1×1 = คลื่นเสียง (วงเสียงวิ่งไปกระแทก แล้วสะท้อนกลับ) · 2×2–3×3 = ผมฟาด · 4×4–5×5 = ห่าง ≤ 2 ผมฟาด / ห่าง 3 ปาหิน
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400 };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55 };
+//  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1652,7 +1663,7 @@ function boomFx(g, e, now, lowQ) {
 
 export const FX_DUR = {
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...STYLE_MS, ...ZERO_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR,
 };
 
 
@@ -1773,6 +1784,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "rock") rockFx(g, e, now);
     else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
+    else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);

@@ -25,6 +25,7 @@ import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
 import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
+import { HK_BEAM, HK_PUSH_MS, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -41,10 +42,11 @@ const BIG_ART = {
     back: "/characters/echo/echo_back.webp", top: "/characters/echo/echo_top.webp",
   },
 };
-// ทิศจากช่องเราไปช่องที่ชี้ (แกนที่ห่างกว่า) — ใช้กับสกิลแนว
-function dirToward(from, to) {
+// ทิศจากช่องเราไปช่องที่ชี้ (แกนที่ห่างกว่า) — ใช้กับสกิลแนว · size = ตัวใหญ่ (นับจากกลางตัว)
+function dirToward(from, to, size = 1) {
   if (!from || !to) return null;
-  const dx = to.x - from.x, dy = to.y - from.y;
+  const c = (Math.max(1, size | 0) - 1) / 2;
+  const dx = to.x - (from.x + c), dy = to.y - (from.y + c);
   if (!dx && !dy) return null;
   if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
   return dy > 0 ? "down" : "up";
@@ -83,7 +85,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const isAlly = useCallback((a, b) => teamMode && !!a.teamId && a.teamId === b.teamId, [teamMode]);
   const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) } : null);
   // ตัวเลือกของกติกาเดินต่อคน: smash = ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (server ส่งมา)
-  const optsOf = (p) => ({ isAlly, blocked, smash: !!(p && p.smash) });
+  //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
+  const optsOf = (p) => ({ isAlly, blocked, smash: !!(p && p.smash), lane: !!(p && p.lane) });
+  // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
+  const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   const isEnemy = (p) => !!p && !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
 
   const action = state.action;
@@ -183,11 +188,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
-      if (!Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
+      if (me.lane ? !Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe)) : !Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
       if (!best || n.d < best.d) best = n;
     }
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
+    // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
+    const lane = me.lane ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe)) : null;
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
@@ -201,7 +208,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         push.to = Math.abs(stand.x - foe.pos.x) >= Math.abs(stand.y - foe.pos.y) && dx ? { x: stand.x + dx, y: stand.y } : { x: stand.x, y: stand.y + (dy || 1) };
       }
     }
-    return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push };
+    return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : null), [planFor, hoverUnit, hoverSeal]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
@@ -237,8 +244,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
-      const dir = dirToward(me.pos, hover) || pick.lastDir || "up";
-      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width).map((t) => key(t.x, t.y)) };
+      const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
+      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     }
     return null;
   }, [pick, me, map, hover, state.players]);
@@ -278,6 +285,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const dashHold = useRef(null);
   const dashSkip = useRef({});
   const seeded = useRef(false);
+  const hkPushTo = useRef({}); // ไรโด ฮิคารุ (Strium Ray): id → { from, to } ปลายทางที่ถูกผลัก (มาก่อน state ใหม่)
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
@@ -384,6 +392,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (freshAtk) {
       const a = freshAtk;
       involved.add(a.byId); involved.add(a.targetId);
+      // ตีแนวตรง (ไรโด ฮิคารุ): ศัตรูคนอื่นในแนวโดนด้วย — เลขดาเมจ/สั่นขึ้นพร้อมเป้าหลักที่จังหวะปะทะ
+      const extras = (Array.isArray(a.extra) ? a.extra : []).map((e) => ({ ...e, at: nextPos[e.targetId] || prevPos.current[e.targetId] || null })).filter((e) => e.at);
+      for (const e of extras) involved.add(e.targetId);
       // ตีผนึก (ห่วงเวลาซีโร่): ตำแหน่งเป้า = ช่องผนึก · แตก = วาดค้างไว้ถึงจังหวะปะทะแล้วค่อยแตก
       const sI = Number.isInteger(a.seal) ? a.seal : sealIdx(a.targetId);
       const sealT = sI >= 0 ? sealOf(zNow, sI) || sealOf(zPrev, sI) : null;
@@ -404,7 +415,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // มีดโซระ (byHitFx "mythSlash"): พุ่งชนแบบเดิม · เสียงเริ่มก่อนปะทะ (ฟันแรกในเสียงตรงจังหวะปะทะ) · ฟันฟ้า 2 ครั้งแทนแสงแตก
       const myth = a.byHitFx === "mythSlash";
       if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
-      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor }]));
+      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null }]));
+      // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
+      const hk = !!style && isHikaruFx(style);
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
@@ -421,7 +434,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
           pushFx([
-            { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
+            hk && !a.dodge
+              ? { kind: "hkHit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), tone: HK_TONE[style], hitIds: [a.targetId, ...extras.filter((e) => !e.dodge).map((e) => e.targetId)] }
+              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
+            ...extras.flatMap((e) => [
+              e.dodge ? { kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor } : hk ? { kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] } : { kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor },
+              { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
+              ...(e.kill ? [{ kind: "float", x: e.at.x, y: e.at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22, z: lowQ ? 2.4 : 1.5 }] : []),
+            ]),
             { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.gun ? 20 : a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 },
             // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
             ...(a.crit && !a.dodge && !a.gun ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
@@ -485,9 +505,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     if (hurtPos && !freshAtk) look(hurtPos);
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
+    //  ถูก Strium Ray ผลัก (server แจ้งปลายทางมาก่อนทาง hikaruPush) = เลื่อนไปไกลเท่าไรก็ได้
     for (const p of state.players) {
       const before = prevPos.current[p.id], now = nextPos[p.id];
       if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || anims.some((a) => a.id === p.id)) continue;
+      const hp = hkPushTo.current[p.id];
+      if (hp && samePos(now, hp.to)) {
+        delete hkPushTo.current[p.id];
+        anims.push({ kind: "push", id: p.id, from: before, to: now, collide: false, ms: HK_PUSH_MS, seq: ++fxSeq.current });
+        continue;
+      }
       if (Math.abs(before.x - now.x) + Math.abs(before.y - now.y) > 2) continue; // ไกลกว่านั้น = วางใหม่ (เปลี่ยนภูมิภาค/ย้อนการเดิน)
       if (p.id === state.actorId && !(state.action && state.action.moved)) continue; // กดย้อน = กลับที่เดิมทันที
       anims.push({ kind: "push", id: p.id, from: before, to: now, collide: false, seq: ++fxSeq.current });
@@ -534,6 +561,34 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("quakeFx", onQuake);
     return () => socket.off("quakeFx", onQuake);
+  }, [pushFx, look, lowQ]);
+
+  // ท่าไม้ตายไรโด ฮิคารุ: { id, kind: "cross" | "ray", from, size, dir, len, width, tiles } — ชาร์จที่หน้าตัว → ลำแสงวิ่งถึงปลาย (= ดาเมจลง)
+  //  กล้องตามกลางแนว · จอสั่นตอนลำแสงปล่อย/ถึงปลาย · hikaruPush { moves: [{ id, from, to }] } = คนที่ถูกผลัก (เลื่อนตามเมื่อ state มาถึง)
+  useEffect(() => {
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const onBeam = (b) => {
+      const v = b && DIRS[b.dir];
+      if (!v || !b.from || !Number.isFinite(b.from.x) || !Number.isFinite(b.from.y)) return;
+      const n = Math.max(1, b.size | 0), len = Number(b.len) || 5;
+      pushFx([{ kind: b.kind === "ray" ? "hkStriumRay" : "hkCross", id: b.id, x: b.from.x, y: b.from.y, size: n, dir: b.dir, len, width: Number(b.width) || 1, tiles: Array.isArray(b.tiles) ? b.tiles : [] }]);
+      const bd = boardRef.current || {}, c = (n - 1) / 2, reach = n / 2 + len / 2;
+      const cl = (q, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), q));
+      look({ x: cl(Math.round(b.from.x + c + v[0] * reach), bd.cols), y: cl(Math.round(b.from.y + c + v[1] * reach), bd.rows) });
+      playSfx("attack");
+      if (!lowQ) {
+        timers.current.push(setTimeout(() => setShake((k) => k + 1), HK_BEAM.charge));
+        timers.current.push(setTimeout(() => { setShake((k) => k + 1); playSfx("attack"); }, HK_BEAM.reach));
+      }
+    };
+    const onPush = (m) => {
+      for (const mv of (m && Array.isArray(m.moves) ? m.moves : [])) {
+        if (mv && mv.id != null && mv.to && Number.isFinite(mv.to.x) && Number.isFinite(mv.to.y)) hkPushTo.current[mv.id] = mv;
+      }
+    };
+    socket.on("hikaruBeam", onBeam);
+    socket.on("hikaruPush", onPush);
+    return () => { socket.off("hikaruBeam", onBeam); socket.off("hikaruPush", onPush); };
   }, [pushFx, look, lowQ]);
 
   // ขยายร่าง (Echo): { id, from, to, at, prev, pushed, smashed } — 1 → 2 = ทะลุออกจากกรอบหกเหลี่ยม · ขั้นต่อไป = แรงกระแทกรอบตัว
@@ -615,14 +670,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       } else if (startReach) {
         // ขยับแล้วแต่ยังไม่ล็อก (เดินด้วยคีย์บอร์ดต่อได้): ฟ้า = ช่องที่ไปได้จากจุดเริ่มตา · แดง = ตีถึงจากช่องที่ยืน
         h.move = [...new Set([...startReach.values()].flatMap((n) => Rules.footprint(n.x, n.y, sizeOfP(me)).map((t) => key(t.x, t.y))))];
-        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range, sizeOfP(me)).map((t) => key(t.x, t.y));
+        h.attack = strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       } else {
-        h.attack = Rules.tilesInRange(map, me.pos.x, me.pos.y, range, sizeOfP(me)).map((t) => key(t.x, t.y));
+        h.attack = strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       }
       const goal = hover && canMove && !hoverUnit ? anchorFor(hover) : null;
       if (plan) {
         if (plan.path && plan.path.length > 1) h.path = plan.path;
         h.target = { ...boxOfP(plan.foe) };
+        if (plan.lane) h.aoe = plan.lane;
         if (plan.push) h.push = plan.push;
       } else if (goal) {
         h.path = Rules.pathTo(myReach, goal.x, goal.y);
@@ -682,7 +738,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const k = key(x, y);
     if (pick) {
       if (pick.kind === "aoe" && pickInfo && pickInfo.aoe.includes(k)) { clickSound(); pick.onConfirm(); }
-      else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(dirToward(me.pos, { x, y }) || pickInfo.dir); }
+      else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(dirToward(me.pos, { x, y }, sizeOfP(me)) || pickInfo.dir); }
       return;
     }
     // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
