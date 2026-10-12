@@ -155,7 +155,7 @@ test('คลื่นดาบมุยมิ: หลบหลีกหลบไ
   assert.equal(P.G.hp, 1);
 });
 
-test('ดาบสนิมระหว่างดาบสะบั้น: 6 แต้ม · คลื่นดาบแนว 4×3 แรงเท่าท่าไม้ตาย (1+3) · ไม่ได้สถานะใดเพิ่ม · ปกติยังเป็น self 4 แต้ม', () => {
+test('ดาบสนิมระหว่างดาบสะบั้น: 4 แต้ม · คลื่นดาบแนว 4×3 ดาเมจ 2 (1+1) · ไม่ได้สถานะใดเพิ่ม · ปกติยังเป็น self 4 แต้ม', () => {
   const P = setup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8], ['B', 'dummy', 6, 5], ['C', 'dummy', 7, 4]]);
   let me = engine.buildStateFor('M').players.find((p) => p.id === 'M');
   assert.deepEqual(me.character.secondary.area, { kind: 'self' });
@@ -164,7 +164,7 @@ test('ดาบสนิมระหว่างดาบสะบั้น: 6 �
   me = engine.buildStateFor('M').players.find((p) => p.id === 'M');
   assert.deepEqual(me.character.secondary.area, muimi.WAVE_AREA);
   assert.deepEqual(muimi.WAVE_AREA, require('../characters.js').CHAR_BY_ID.muimi.ultimate.area, 'คลื่นเท่าท่าไม้ตาย');
-  assert.equal(me.character.secondary.cost, 6);
+  assert.equal(me.character.secondary.cost, 4);
   const fx = [];
   const realFx = engine.boardFx;
   engine.boardFx = (event, payload) => fx.push({ event, payload });
@@ -176,9 +176,9 @@ test('ดาบสนิมระหว่างดาบสะบั้น: 6 �
   } finally {
     engine.boardFx = realFx;
   }
-  assert.equal(P.M.skillPoints, 2);
-  assert.equal(P.A.hp, 1, 'ดาเมจ 1 + 3');
-  assert.equal(P.B.hp, 1);
+  assert.equal(P.M.skillPoints, 4);
+  assert.equal(P.A.hp, 3, 'ดาเมจ 1 + 1');
+  assert.equal(P.B.hp, 3);
   assert.equal(P.C.hp, 5, 'ยาวเกิน 4 ช่อง');
   assert.equal(P.M.statuses.muimiTower, 2, 'ไม่ยืดดาบสะบั้น');
   assert.equal(P.M.statuses.muimiRusty, undefined, 'ไม่ได้ดาบเก่าๆ');

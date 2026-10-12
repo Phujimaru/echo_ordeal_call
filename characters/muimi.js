@@ -13,10 +13,12 @@ const RESIST_TURNS = 3;
 const TOWER_ATK_BONUS = 1;
 const WAVE_ATK_BONUS = 3;
 const ULT_COOLDOWN_TURNS = 3;
-// ดาบสนิมระหว่างดาบสะบั้น (ผู้ใช้สั่ง 2026-10-09): กดได้ ราคา 4 → 6 · เปลี่ยนผลเป็นคลื่นดาบแนวเดียวกับท่าไม้ตาย แรงเท่ากัน
+// ดาบสนิมระหว่างดาบสะบั้น (ผู้ใช้สั่ง 2026-10-09): กดได้ · เปลี่ยนผลเป็นคลื่นดาบแนวเดียวกับท่าไม้ตาย (ราคา/แรงดู TOWER_SEC_COST)
 //  แต่ไม่ได้สถานะใดๆ (ไม่ได้ดาบเก่าๆ / ไม่ยืดดาบสะบั้น / ไม่ได้ต้านสถานะ) และไม่มีกติกา "หลบหมด = เสียท่าไม้ตาย"
 const WAVE_AREA = { kind: "line", len: 4, width: 3, hostile: true }; // ต้องตรงกับ ultimate.area ใน characters.js
-const TOWER_SEC_COST = 6;
+// ผู้ใช้สั่ง 2026-10-12: ดาบสนิมระหว่างดาบสะบั้น 6 → 4 แต้ม · ดาเมจ 4 → 2 (ฐาน 1 + 1) — แยกโบนัสจากคลื่นของท่าไม้ตาย
+const TOWER_SEC_COST = 4;
+const SEC_WAVE_ATK_BONUS = 1;
 
 const IMG = {
   base: "/characters/muimi/muimi.webp",
@@ -30,15 +32,17 @@ function isMuimi(p) { return !!p && p.characterId === ID; }
 function rustyActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiRusty) || 0) > 0; }
 function towerActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiTower) || 0) > 0; }
 
-// มุยมิที่กำลังปล่อยคลื่นดาบอยู่ (ตั้งเฉพาะช่วงลูปคลื่นดาบ) — damageBonus ใช้ WAVE_ATK_BONUS แทน TOWER_ATK_BONUS
+// มุยมิที่กำลังปล่อยคลื่นดาบอยู่ (ตั้งเฉพาะช่วงลูปคลื่นดาบ) — damageBonus ใช้โบนัสของคลื่น (waveBonus) แทน TOWER_ATK_BONUS
 let waveStriker = null;
+let waveBonus = WAVE_ATK_BONUS;
 
 // คลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว (ท่าไม้ตาย + ดาบสนิมระหว่างดาบสะบั้น) — คืนจำนวนศัตรูที่ฟัน/โดน
 //  เอฟเฟกต์บนกระดาน (quakeFx: ของถล่มลงทุกช่องในแนว + พื้นระเบิด) + เสียงฟัน ลงพร้อมดาเมจ
-function swordWave(engine, p, targets, dir, name) {
+function swordWave(engine, p, targets, dir, name, bonus = WAVE_ATK_BONUS) {
   let tried = 0, hits = 0;
   if (p.pos && dir) engine.boardFx("quakeFx", { from: { ...p.pos }, dir, len: WAVE_AREA.len, width: WAVE_AREA.width, color: engine.colorOf(p) });
   waveStriker = p;
+  waveBonus = bonus;
   try {
     for (const id of targets || []) {
       const t = engine.players[id];
@@ -66,6 +70,7 @@ module.exports = {
   ULT_COOLDOWN_TURNS,
   WAVE_AREA,
   TOWER_SEC_COST,
+  SEC_WAVE_ATK_BONUS,
 
   rustyActive,
   towerActive,
@@ -122,7 +127,7 @@ module.exports = {
     }
     if (tier === "secondary" && towerActive(p)) {
       engine.log(`🌊 ${p.name} ดาบสนิม — ปล่อยคลื่นดาบ`);
-      engine.deferAfterCutscene(() => { swordWave(engine, p, targets, opts.dir, "คลื่นดาบ"); });
+      engine.deferAfterCutscene(() => { swordWave(engine, p, targets, opts.dir, "คลื่นดาบ", SEC_WAVE_ATK_BONUS); });
       return " — คลื่นดาบ";
     }
     if (tier === "secondary") {
@@ -161,7 +166,7 @@ module.exports = {
 
   damageBonus(engine, attacker, target, ctx) {
     // คลื่นดาบ: ไม่ใช่ตีปกติ จึงไม่ใส่ ctx.muimiTowerAtk (ป้ายนั้นใช้ในฉากตีปกติ)
-    if (isMuimi(attacker) && waveStriker === attacker) return WAVE_ATK_BONUS;
+    if (isMuimi(attacker) && waveStriker === attacker) return waveBonus;
     if (!towerActive(attacker)) return 0;
     ctx.muimiTowerAtk = TOWER_ATK_BONUS;
     return TOWER_ATK_BONUS;

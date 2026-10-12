@@ -125,6 +125,12 @@ test('ค่าบาลานซ์ (เนิฟ): ตีปกติระห
   assert.match(desc, new RegExp(`เท่าพลังโจมตี \\+${muimi.WAVE_ATK_BONUS} `));
   assert.match(desc, /ฟื้นพลังชีวิต 2/);
   assert.match(desc, new RegExp(`รอ ${muimi.ULT_COOLDOWN_TURNS} เทิร์น`));
+  // ดาบสนิมระหว่างดาบสะบั้น (ผู้ใช้สั่ง 2026-10-12): 4 แต้ม · ดาเมจ 1 + 1
+  assert.equal(muimi.TOWER_SEC_COST, 4);
+  assert.equal(muimi.SEC_WAVE_ATK_BONUS, 1);
+  const sec = CHAR_BY_ID.muimi.secondary.desc;
+  assert.match(sec, new RegExp(`\\(${muimi.TOWER_SEC_COST} แต้ม\\)`));
+  assert.match(sec, new RegExp(`เท่าพลังโจมตี \\+${muimi.SEC_WAVE_ATK_BONUS} `));
 });
 
 test('ดาบสะบั้นหมดลงแล้วคูลดาวน์ 3 เทิร์น ก่อนใช้ท่าไม้ตายซ้ำได้', () => {
