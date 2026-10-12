@@ -11,6 +11,7 @@ import VolumeControl from "./components/VolumeControl";
 import TransitionCurtain from "./components/TransitionCurtain";
 import MatchIntro from "./oc/intro/MatchIntro";
 import RegionTravel from "./oc/intro/RegionTravel";
+import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
 import { OcScreen } from "./oc/ui";
 import { SharedGlobeStage } from "./globe/SharedGlobe";
@@ -71,6 +72,7 @@ export default function App() {
   // การเดินทาง: ฉากลูกโลก (start = ช่วงดิ่งของ MatchIntro · advance = ฉากเปลี่ยนภูมิภาค RegionTravel) — server พักเกมรอไว้แล้ว
   //  ความยาวฉากคิดจากเวลาที่เหลือของช่วงพัก (timeLeft) ทุกเครื่องจึงจบพร้อมกันแม้ฉากเปิดตัวของแต่ละเครื่องจะจบไม่พร้อมกัน
   const [travel, setTravel] = useState(null); // ฉาก advance: { seq, area, fromArea, durationMs }
+  const [rebirth, setRebirth] = useState(null); // ท่าไม้ตาย Echo (mode "rebirth"): { seq, area, fromArea, endsInMs } — ดู oc/intro/EchoRebirth
   const journeySeqRef = useRef(null);      // ฉากที่เล่น/จองไว้แล้ว (กันเล่นซ้ำจากบรอดแคสต์ถัดๆ ไป)
   const pendingJourneyRef = useRef(null);  // ฉาก start ที่รอช่วงเปิดตัวผู้เล่นจบก่อน
   const journeyStateRef = useRef(null);    // ก้อน journey ล่าสุด (startPendingJourney อ่านว่าช่วงพักยังไม่หมด)
@@ -124,6 +126,7 @@ export default function App() {
       const nowInMatch = matchStates.has(s.gameState);
       if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(s.gameState)) {
         setTravel(null);
+        setRebirth(null);
         setIntro(null);
         setShowIntro(false);
         pendingJourneyRef.current = null;
@@ -134,6 +137,7 @@ export default function App() {
       if (jScene?.active && jScene.seq !== journeySeqRef.current) {
         journeySeqRef.current = jScene.seq;
         if (jScene.mode === "start") pendingJourneyRef.current = jScene;
+        else if (jScene.mode === "rebirth") setRebirth({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, endsInMs: (Number(s.timeLeft) || 18) * 1000 });
         else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
       if (!wasInMatch && nowInMatch) {
@@ -357,6 +361,7 @@ export default function App() {
     setIntro(null);
   };
   const finishTravel = () => setTravel(null);
+  const finishRebirth = () => setRebirth(null);
 
   let screen;
   let screenKey;
@@ -441,6 +446,17 @@ export default function App() {
           durationMs={travel.durationMs}
           lowQ={lowQ}
           onDone={finishTravel}
+        />
+      )}
+      {rebirth && !intro && stage === "connected" && (
+        <EchoRebirth
+          key={rebirth.seq}
+          from={rebirth.fromArea}
+          to={rebirth.area}
+          endsInMs={rebirth.endsInMs}
+          waiting={!!(state?.journey?.scene?.active && state.journey.scene.seq === rebirth.seq)}
+          lowQ={lowQ}
+          onDone={finishRebirth}
         />
       )}
     </SharedGlobeStage>

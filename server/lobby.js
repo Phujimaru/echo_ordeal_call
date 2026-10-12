@@ -273,6 +273,7 @@ function startMatch() {
   const startRound = devStartRound();
   match.roundNumber = startRound - 1;
   match.cycleShift = 0;
+  match.legStart = 1;
   match.journeyScene = null;
   Zero.reset(); // ห่วงเวลาซีโร่: ยังไม่เกิด (ครั้งเดียวต่อเกม)
   const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
@@ -331,6 +332,7 @@ function backToLobby() {
   match.action = null;
   match.roundNumber = 0;
   match.cycleShift = 0;
+  match.legStart = 1;
   match.journeyScene = null;
   match.journeyArea = 1;
   match.journeyRoute = [1];

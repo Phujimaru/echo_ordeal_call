@@ -64,7 +64,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `phases/summary.js` | `resolveRound` (เปิดไพ่), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
 | `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
 | `phases/attack.js` | `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `strike` (ตี 1 ครั้ง), `boardAttack` (ตี → สวน → ถอย), `doAttack` (ตี 1 ครั้งไม่มีกระดาน), `attackSoundOf` |
-| `phases/endTurn.js` | `endTurn` + `gameOver()` (ตัดสินจบเกม) + `maybeJourneyAdvance()` (ฉากเปลี่ยนภูมิภาค) — สองตัวหลังใช้ภายในไฟล์ |
+| `phases/endTurn.js` | `endTurn` + `gameOver()` (ตัดสินจบเกม) + `maybeJourneyAdvance()` (ฉากเปลี่ยนภูมิภาค — ใช้ภายในไฟล์) + `journeyRebirth()` (ท่าไม้ตาย Echo ก่อกำเนิดใหม่ — `engine.journeyRebirth`) |
 
 **กติกาเวลาแก้โค้ดใน server/**
 - สถานะแมตช์อ่าน/เขียนผ่าน `match.<ชื่อ>` เสมอ (`match.gameState = "ACTION"`) — ห้าม destructure ออกมาเก็บ ค่าจะไม่อัปเดต
@@ -92,7 +92,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 | `TEAM_MODE` | โหวตโหมด ffa / duo / trio (ปุ่มเทาเมื่อจำนวนคนไม่ผ่าน `validGameMode`) · โหวตครบและมีอันดับหนึ่งเดี่ยว → `startTeamSetup` (ffa เข้า `startMatch` ทันที) · `modeBackToLobby` ถอยกลับห้องรอ | – |
 | `TEAM_SETUP` | เลือกทีม A/B/C + ยืนยัน — ทีมเต็มครบและยืนยันหมด → `startMatch()` · `teamBackToMode` ถอยกลับ | – |
 | `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
-| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ห่วงเวลาซีโร่ `match.zeroScene` (เข้า 8.5 · ผนึกแตก 3.6 · ปลดผนึก 5 — §18) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
+| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ฉากโลกแตกของ Echo `REBIRTH_SECONDS` 18 (ในตาเดินของ Echo — จบฉากแล้ว `finishActor`) · ห่วงเวลาซีโร่ `match.zeroScene` (เข้า 8.5 · ผนึกแตก 3.6 · ปลดผนึก 5 — §18) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
 | `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 6.5s (`ORDER_TIME_MS` 6500) → `nextActor` |
 | `ACTION` | ตาเดินของ `match.actorId`: เดิน 1 ครั้ง (ย้อนได้) · สกิล/ไอเทม/ซื้อของ (ทำแล้วเดินไม่ได้อีก) · โจมตีหรือ "รอ" = จบตา | `ACTION_TIME` 60s → `finishActor` |
 | `ATTACKING` | ฉากตี/ตีสวน/ถอย ของคนที่กำลังเดิน (`state.attack` = `lastAttack` มี `counter`/`push`) แล้ว `runCutsceneQueue(finishActor)` | `ATTACKFX_TIME` 3s (+2 มีป้ายสกิล · +2 มีตีสวน) |
@@ -406,6 +406,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
 - **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา 15 ช่อง สุ่มล้วน (`openShop()`) ตั้งที่ `match.shopPos`
   - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (6) นับจาก `shopOpenedRound` (เวลาโลก — ห่วงเวลาซีโร่ไม่นับ)
+    · ก่อกำเนิดใหม่ของ Echo เรียก `relocateShop()` ทันทีกลางเทิร์น (`shopOpenedRound` = เทิร์นนั้น → นับ 6 เทิร์นใหม่ ตรงกับภูมิภาคใหม่)
     → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มของใหม่ · เทิร์น 1, 7, 13, 19 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 7, 13, 19 … พอดี — ทั้งคู่ 6 เทิร์น)
   - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
   - ซื้อได้เมื่อ **ยืนติดร้าน** (`board.nearShop` ระยะ 1) ในตาตัวเอง · ซื้อแล้วเดินไม่ได้อีก (`lockMove`) · ซื้อหลายชิ้นได้
@@ -448,6 +449,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - **ห่วงเวลาซีโร่หยุดกลางวัน/กลางคืน** (§18): วัน/คืน · ภูมิภาค · ร้านค้า อ่าน **เวลาโลก** `Zero.worldRound()` / `engine.worldRound` (= `roundNumber − zeroFrozen`) ไม่ใช่ `roundNumber` ·
   ระหว่างอยู่ข้างในไม่มีผลวัน/คืนเลย (`Journey.current()` = null · ไม่มีภาษีกลางคืน/แต้มเช้า/แบนเนอร์)
 - `cycleShift` = ตัวเลื่อนวงจรทั้งเกม (`engine.setCycleShift` ใช้ในเทสต์) — ถ้าจะเลื่อนวงจร **ต้องคำนวณใหม่ตรงๆ ห้ามบวกสะสม** (บวกคงที่ทำให้เกิดวันแทรกกลางคืนสั้นๆ)
+  · ก่อกำเนิดใหม่ของ Echo ตั้ง `cycleShift = เวลาโลก − 1` (เทิร์นที่ใช้ท่า = กลางวันแรก) · รีเซ็ตเป็น 0 ใน `startMatch()`/`backToLobby()`
 
 ### 10.1 การเดินทาง 7 ภูมิภาค (ffa / duo / trio)
 
@@ -455,7 +457,11 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - `Journey.active(engine)` = `gameMode` เป็น ffa/duo/trio (ทุกโหมดที่มีตอนนี้)
 - ภูมิภาคเปลี่ยนทุก `AREA_TURNS` = 6 เทิร์น (= กลางวัน 3 + กลางคืน 3 พอดี · ผู้ใช้สั่ง 2026-10-09 — เดิม 5 ทำให้ย้ายกลางรอบวัน/คืน): ภูมิภาคใหม่เริ่มเทิร์น 7, 13, 19, … ไปจนจบเกม
   **ลำดับสุ่ม (ผู้ใช้สั่ง 2026-10-09)**: เทิร์น 1–6 = ภูมิภาค I เสมอ (ฐาน) · ทุกครั้งที่ข้าม `Journey.pickNextArea(from)` สุ่มจาก II–VII ไม่ซ้ำภูมิภาคที่อยู่ (ไม่กลับ I · ไม่มีภูมิภาคถาวร)
-  state: `match.journeyArea` (ภูมิภาคปัจจุบัน — อ่านผ่าน `Journey.areaNow(engine)` / `engine.journeyArea`) + `match.journeyRoute` (ที่ผ่านมาตามลำดับ) · ตั้งใน `startMatch()`/`backToLobby()` · ข้ามใน `maybeJourneyAdvance()` เมื่อ `Journey.legEnds(round)`
+  state: `match.journeyArea` (ภูมิภาคปัจจุบัน — อ่านผ่าน `Journey.areaNow(engine)` / `engine.journeyArea`) + `match.journeyRoute` (ที่ผ่านมาตามลำดับ) · ตั้งใน `startMatch()`/`backToLobby()` · ข้ามใน `maybeJourneyAdvance()` เมื่อ `Journey.legEnds(round, match.legStart)`
+  **`match.legStart`** (`engine.legStart` · ค่าเริ่ม 1 · รีเซ็ตใน `startMatch()`/`backToLobby()`) = เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ — `legEnds(round, legStart)` = `(round − legStart + 1) % AREA_TURNS === 0` ·
+  `turnInArea(round, legStart)` → `publicInfo.turnsLeft` (HUD) · ทุกตัวนับเป็น **เวลาโลก** (`Zero.worldRound()`) · ข้ามภูมิภาคปกติไม่ต้องแตะ legStart (นับ modulo ต่อเนื่อง)
+  · **ก่อกำเนิดใหม่ (ท่าไม้ตาย Echo)** เริ่มภูมิภาคใหม่กลางเทิร์น: `legStart = เวลาโลก` + `cycleShift = เวลาโลก − 1` + `relocateShop()` → เทิร์นที่ใช้ = เทิร์นที่ 1 (กลางวัน) อยู่ครบ 6 เทิร์น ·
+    ใช้ในเทิร์นที่เคยเป็นเทิร์นสุดท้าย (6, 12, …) ไม่ข้ามภูมิภาคซ้ำตอนจบเทิร์น (legEnds นับจาก legStart ใหม่แล้ว)
   เทสต์ตั้งภูมิภาคเองด้วย `engine.setJourneyArea(n)` (เลขเทิร์นไม่บอกภูมิภาคแล้ว)
   กลางวัน/กลางคืนอ่านจาก `isNightRound()` — ทุกภูมิภาคเริ่มด้วยกลางวัน 3 เทิร์นแล้วกลางคืน 3 เทิร์น
   · client: `JOURNEY_TURNS_PER_AREA` ใน `client/src/journey/areas.js` ต้องตรง `AREA_TURNS` (ป้ายเส้นทางหน้าเลือกโหมด `ModeVote.jsx`: I = เทิร์น 1–6 · อื่น = สุ่ม)
@@ -473,6 +479,11 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - **ฉากเดินทาง** (5.1: บนลูกโลก — `client/src/oc/intro/MatchIntro.jsx` เปิดแมตช์+ดิ่ง, `RegionTravel.jsx` เปลี่ยนภูมิภาค): server พักเฟส CUTSCENE (ไม่มีคลิป) — `journeyScene` `{ seq, active, mode, area, fromArea, route }` (`route` = ภูมิภาคที่ผ่านมาก่อนปลายทาง — ฉากวาดเส้นทางเก่าค้างไว้)
   · `start` = ต่อท้าย `gameIntroHoldSeconds()` ใน `startMatch()` (+`JOURNEY_START_SECONDS` 6 — client ดิ่งต่อจากฉากเปิดตัวที่ `onOutro`) · `advance` = `maybeJourneyAdvance()` ใน `server/phases/endTurn.js`
   ก่อนเทิร์นแรกของภูมิภาคใหม่ (+`JOURNEY_ADVANCE_SECONDS` 9) · เทสต์ที่ต้องการเทิร์น 1 ทันทีตั้ง env `JOURNEY_START_SECONDS=0`
+  · `rebirth` = ท่าไม้ตาย Echo ก่อกำเนิดใหม่ (`journeyRebirth()` ใน `server/phases/endTurn.js` — เรียกจาก `applyInstantSkill` ผ่าน `engine.journeyRebirth(p, impact)`):
+    สุ่ม `to` ไว้ก่อน → `journeyScene = { seq, active: true, mode: "rebirth", area: to, fromArea, route: [...journeyRoute], casterId }` · CUTSCENE `REBIRTH_SECONDS` 18 ·
+    **ระหว่างฉาก `journeyArea`/กระดานยังเป็นภูมิภาคเดิม** (`publicInfo` ไม่นับ rebirth เป็น advance · client ไม่เปิด `RegionTravel` ให้ mode นี้) ·
+    หมดเวลา: `impact()` (ศัตรูเสีย 2 ในนามของ Echo) → ศัตรูหมด = `gameOver()` ไม่เปลี่ยนภูมิภาค → ไม่งั้น `journeyArea`/route → `placeOnBoard(to)` → `legStart`/`cycleShift`/`relocateShop()` → `active = false` → `finishActor()`
+    (`useSkill` เห็นเฟส CUTSCENE หลังผลสกิลแล้วแค่บรอดแคสต์)
   · `RegionTravel` (≈8.4 วิ): ซูมออก → **สุ่ม** (หมุด II–VII ยกเว้นต้นทางติดไฟสลับ ช้าลงจนล็อกปลายทาง · ป้ายเลขโรมัน+ชื่อสลับตาม · โลกเอียงตามหมุด · เส้นประเส้นทางโผล่หลังล็อกเท่านั้น) → เส้นวิ่งไปปลายทาง → ดิ่งลง
   · `state.journey` (`Journey.publicInfo`) ระหว่างฉาก advance แสดงภูมิภาค **ปลายทาง** แล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากเดินทาง)
 - เพลง: `journey_<area>_<day|night>` ใน `client/src/audio.js` (5.1 เลิกใช้เพลง `journey_map` ระหว่างฉากเดินทาง — เล่นเพลงภูมิภาคปลายทางทันที · เปิดแมตช์ยังเป็น `lobby5`) — ไฟล์อยู่ `client/public/journey/` (R2)

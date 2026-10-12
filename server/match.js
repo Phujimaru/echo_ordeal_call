@@ -2,7 +2,8 @@
 //  ทุกไฟล์ใน server/ อ่าน/เขียนผ่าน match.<ชื่อ> — ห้าม destructure ออกมาเก็บไว้ (ค่าจะไม่อัปเดตตาม)
 
 const match = {
-  cycleShift: 0, // เลื่อนวงจรกลางวัน/กลางคืนทั้งเกม (เทสต์ตั้งผ่าน engine.setCycleShift)
+  cycleShift: 0, // เลื่อนวงจรกลางวัน/กลางคืนทั้งเกม (เทสต์ตั้งผ่าน engine.setCycleShift · ก่อกำเนิดใหม่ของ Echo ตั้ง = เทิร์นที่ใช้ − 1)
+  legStart: 1,   // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea) — ก่อกำเนิดใหม่ของ Echo ตั้ง = เทิร์นที่ใช้
 
   // ---------- สถานะเกมส่วนกลาง ----------
   players: {},
@@ -12,7 +13,7 @@ const match = {
   teamCount: 0,
   winningTeamId: null,
   modeVotes: {},
-  journeyScene: null, // { seq, active, mode: "start" | "advance", area, fromArea, route? }
+  journeyScene: null, // { seq, active, mode: "start" | "advance" | "rebirth", area, fromArea, route?, casterId? (rebirth) }
   journeySceneSeq: 0,
   journeyArea: 1,     // ภูมิภาคปัจจุบัน (การเดินทาง) — เริ่ม 1 เสมอ แล้วสุ่มทุก AREA_TURNS เทิร์น
   journeyRoute: [1],  // ภูมิภาคที่ผ่านมาตามลำดับ (รวมที่อยู่ตอนนี้) — ฉากเปลี่ยนภูมิภาควาดเส้นทางเก่าจากตรงนี้

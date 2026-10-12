@@ -27,7 +27,7 @@ import { faceStyle } from "./charFace";
 import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
-import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
+import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
@@ -502,6 +502,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const tPos = sealT ? { x: sealT.x, y: sealT.y } : spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
+      // คนตีหันหน้าเข้าหาเป้า (ตัวใหญ่ใช้รูปหน้า/ข้าง/หลังตามทิศ) · มีสวนกลับ = เป้าหันกลับมาด้วย
+      if (fromPos && tPos) {
+        const faceTo = (p, q, sp, sq) => {
+          const dx = (q.x + sq / 2) - (p.x + sp / 2), dy = (q.y + sq / 2) - (p.y + sp / 2);
+          return Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) };
+        };
+        const sa = sizeOfP(byId[a.byId]), st = sizeOfP(byId[a.targetId]);
+        setFaces((f) => ({
+          ...f,
+          [a.byId]: faceTo(fromPos, tPos, sa, st),
+          ...(a.counter ? { [a.targetId]: faceTo(tPos, fromPos, st, sa) } : {}),
+        }));
+      }
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
       const beam = !a.gun && a.byBeam > 0 && fromPos && tPos;
       // ท่าตีเฉพาะตัว (Echo: คลื่นเสียง / ผมฟาด / ปาหิน) — ตีจากที่ยืน เอฟเฟกต์วิ่งจากตัวไปหาเป้า
@@ -1238,9 +1251,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     let done = false;
     const land = () => { if (done) return; done = true; setShown((v) => ({ board: state.board, fly: "in", seq: v.seq + 1 })); };
     const off = onArenaLandRequest(land);
-    const t = setTimeout(land, 9000);
+    const t = setTimeout(land, shown.hold ? 30000 : 9000);
     return () => { off(); clearTimeout(t); };
   }, [shown.fly === "out" || shown.fly === "wait", boardArea]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ท่าไม้ตาย Echo (EchoRebirth): ถอยออกตอนเริ่มฉากทั้งที่ภูมิภาคยังไม่เปลี่ยน แล้วค้างซ่อนจนฉากสั่งลง (hold = รอนานกว่าปกติ)
+  useEffect(() => onArenaLeaveRequest(() => setShown((v) => (v.fly === "out" || v.fly === "wait" ? v : { ...v, fly: "out", hold: true, seq: v.seq + 1 }))), []);
   const shownArea = shown.board ? shown.board.area : 0;
   useEffect(() => { noteArenaShown(shownArea); return () => noteArenaShown(shownArea); }, [shownArea]);
   const baseBoard = shown.fly === "out" || shown.fly === "wait" ? shown.board : state.board;

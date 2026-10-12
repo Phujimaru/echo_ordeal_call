@@ -146,6 +146,8 @@ function useSkill(id, tier, targets, opts = {}) {
   runDeferred();
   // ผลขอฉากต่อ (engine.skillBeat / คลิปที่คิวระหว่างผล) = พักตาเดินเล่นให้จบ แล้วกลับมาด้วยเวลาที่เหลือ
   if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
+  // สกิลพักเกมเล่นฉากเองแล้ว (Echo ก่อกำเนิดใหม่ — engine.journeyRebirth ตั้ง CUTSCENE + ตัวจับเวลาไว้) = แค่บรอดแคสต์
+  if (match.gameState === "CUTSCENE") { view.broadcastState(); return; }
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
   // ห่วงเวลาซีโร่: สกิลทุบผนึกแตก = ฉากผนึกแตก/ปลดผนึก แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
   if (Zero.hasPendingBreak()) {

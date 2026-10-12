@@ -292,13 +292,13 @@ const CHARACTERS = [
   {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
-    //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)
-    //  ล็อกไว้ยังไม่ให้เล่น (ผู้ใช้สั่ง 2026-10-11) — ลบ locked ออกเพื่อปลดล็อก
+    //  ท่าไม้ตาย "ก่อกำเนิดใหม่" (ผู้ใช้ตัดสิน 2026-10-10) — ฉากโลกแตก + เปลี่ยนภูมิภาค/นับเวลาใหม่ (server/phases/endTurn.js journeyRebirth)
+    //  ปลดล็อกแล้ว — เลือกได้แค่ 1 คนต่อเกม (ผู้ใช้สั่ง 2026-10-12)
     id: "echo",
     name: "Echo",
     avatar: 0,
     difficulty: "special",
-    locked: true,
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม
     img: "/characters/echo/echo.webp",
     mov: 4,
     range: [1, 1],
@@ -328,7 +328,15 @@ const CHARACTERS = [
       instant: true,
       effect: null,
     },
-    ultimate: null,
+    ultimate: {
+      name: "ก่อกำเนิดใหม่",
+      desc: "ต้องมีเลือดสูงสุด 30: ศัตรูทุกคนเสียหาย 2 (เกราะรับก่อน · ไม่โดนเพื่อน) · ไปภูมิภาคใหม่ทันที ทุกคนกลับจุดเกิด · เทิร์นนี้เป็นเทิร์นแรกของภูมิภาค (กลางวัน · อยู่ 6 เทิร์น) · ร้านค้าปรากฏจุดใหม่ · จบตาเดินทันที (คูลดาวน์ 5 เทิร์น)",
+      area: { kind: "self" },
+      cost: 6,
+      img: "/characters/echo/echo_front.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/echo.js + server/phases/endTurn.js journeyRebirth
+    },
   },
 ];
 

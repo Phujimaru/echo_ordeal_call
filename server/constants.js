@@ -87,6 +87,9 @@ const TRANSFORMS = require("../characters/_transforms")();
 //  start เริ่มตั้งแต่ฉากเปิดตัว "เริ่มปิดฉาก" (1 วิสุดท้ายของ gameIntroHoldSeconds + ส่วนเผื่อ ~1 วิ) จึงบวกเพิ่มแค่ 6 วิ
 const JOURNEY_START_SECONDS = Math.max(0, Number(process.env.JOURNEY_START_SECONDS ?? 6));
 const JOURNEY_ADVANCE_SECONDS = Math.max(0, Number(process.env.JOURNEY_ADVANCE_SECONDS ?? 9)); // เดิม 7 — +2 วิ ให้ฉากสุ่มภูมิภาค
+// ท่าไม้ตาย Echo "ก่อกำเนิดใหม่": พักเกม (CUTSCENE · journeyScene mode "rebirth") ตามความยาวฉากโลกแตกฝั่ง client (~17 วิ + เผื่อ)
+//  ความเสียหาย + เปลี่ยนภูมิภาคลงตอนหมดเวลานี้ (phases/endTurn.js journeyRebirth)
+const REBIRTH_SECONDS = 18;
 const TEAM_IDS = ["A", "B", "C"];
 
 const RESYNC_EVERY = 10; // ทุกกี่วินาทีถึงจะ broadcast state ตัวเต็ม (นอกนั้นส่งแค่ "tick")
@@ -100,5 +103,5 @@ module.exports = {
   SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS, GUTS_RANGE,
   GUTS_NURSE_DMG, GUTS_AMMO, GUTS_AMMO_IDS, SHOP_MAX_GUNS, SHOP_MAX_MARK42, SHOP_AMMO_WEIGHTS,
   SHOP_WEIGHTS, TEMP_HP_TURNS, CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
-  TEAM_IDS, RESYNC_EVERY,
+  REBIRTH_SECONDS, TEAM_IDS, RESYNC_EVERY,
 };

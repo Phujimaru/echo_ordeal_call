@@ -80,6 +80,8 @@ const FILES = {
   is_burst: "/characters/ice_spike/sfx/is_burst.mp3",
   is_regen: "/characters/ice_spike/sfx/is_regen.mp3",
   is_spike_self: "/characters/ice_spike/sfx/is_spike_self.mp3",
+  // Echo: เพลงฉากท่าไม้ตาย "ก่อกำเนิดใหม่" (oc/intro/EchoRebirth — เล่นผ่าน playSceneMusic)
+  echo_queen: "/characters/echo/echo_queen_theme.mp3",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -141,6 +143,7 @@ const LOUDNESS_GAIN = {
   "/zero_time/phase2.mp3": 0.56,
   "/zero_time/phase3.mp3": 0.58,
   "/zero_time/phase4.mp3": 0.6,
+  "/characters/echo/echo_queen_theme.mp3": 0.65, // -10.2 LUFS (ffmpeg ebur128 ช่วง 20 วิแรก)
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }
 export function soundGain(name) { return pathGain(FILES[name]); }
@@ -503,5 +506,60 @@ export function playCutsceneVideo(video) {
       window.removeEventListener("keydown", restoreSound);
     }
     releaseMusic();
+  };
+}
+
+// เพลงประจำฉากของ client เอง (ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" — ฉากไม่มีวีดีโอ): พักเพลงพื้นหลังทั้งหมดแล้วเล่นเพลงนี้แทน
+//  ตามหลอดเสียง (ปิดเสียง = เงียบ) · from = เริ่มจากวินาทีที่เท่าไร (เข้ากลางฉาก)
+//  fadeOut(ms) = ค่อยๆ เบาลงแล้วหยุด แล้วคืนเพลงพื้นหลัง (เพลงที่ App สั่งไว้ล่าสุดเล่นต่อ) · stop() = หยุดทันที
+export function playSceneMusic(name, { from = 0 } = {}) {
+  if (!FILES[name]) return { fadeOut() {}, stop() {} };
+  const path = FILES[name];
+  const releaseMusic = suspendMusic();
+  const a = new Audio(path);
+  let k = 1, done = false, awaiting = false, raf = 0, fadeTimer = 0;
+  const setVol = () => { a.volume = Math.max(0, Math.min(1, MUSIC_BASE * pathGain(path) * masterGain() * k)); };
+  setVol();
+  if (from > 0) {
+    const seek = () => { try { a.currentTime = from; } catch { /* ยังไม่มี metadata */ } };
+    if (a.readyState >= 1) seek(); else a.addEventListener("loadedmetadata", seek, { once: true });
+  }
+  const unsubscribe = onVolumeChange(setVol);
+  const play = () => a.play().then(() => { if (done) a.pause(); });
+  // เบราว์เซอร์ยังไม่ให้เล่นเสียงเอง -> ลองใหม่เมื่อผู้เล่นแตะจอ/กดปุ่มครั้งแรก
+  const retry = () => { if (done || !awaiting) return; awaiting = false; play().catch(() => { awaiting = true; }); };
+  if (typeof window !== "undefined") {
+    window.addEventListener("pointerdown", retry);
+    window.addEventListener("keydown", retry);
+  }
+  play().catch(() => { if (!done) awaiting = true; });
+  const stop = () => {
+    if (done) return;
+    done = true;
+    cancelAnimationFrame(raf);
+    clearTimeout(fadeTimer);
+    a.pause();
+    unsubscribe();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("pointerdown", retry);
+      window.removeEventListener("keydown", retry);
+    }
+    releaseMusic();
+  };
+  return {
+    fadeOut(ms = 800) {
+      if (done) return;
+      cancelAnimationFrame(raf);
+      clearTimeout(fadeTimer);
+      const k0 = k, t0 = performance.now();
+      const step = (now) => {
+        k = k0 * Math.max(0, 1 - (now - t0) / ms);
+        setVol();
+        if (k <= 0) stop(); else raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+      fadeTimer = setTimeout(stop, ms + 80); // แท็บถูกซ่อน (rAF หยุด) ก็ต้องหยุดเพลง/คืนเพลงพื้นหลังตามเวลา
+    },
+    stop,
   };
 }

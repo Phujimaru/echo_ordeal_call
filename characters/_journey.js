@@ -7,7 +7,8 @@
 //  ผลของภูมิภาค "แทน" กฎกลางวัน/กลางคืนเดิมทั้งหมด (โบนัสแต้มเช้าคู่ / ภาษีสกิลกลางคืน) —
 //
 //  ภูมิภาคปัจจุบัน = engine.journeyArea (สุ่มตอนข้ามภูมิภาค — phases/endTurn.js maybeJourneyAdvance)
-//  กลางวัน/กลางคืนอ่านจาก engine.isNightRound()
+//  กลางวัน/กลางคืนอ่านจาก engine.isNightRound() · เทิร์นในภูมิภาคนับจาก engine.legStart (ค่าเริ่ม 1 —
+//  ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" เริ่มภูมิภาคใหม่กลางทาง: phases/endTurn.js journeyRebirth)
 // ============================================================
 
 const AREA_TURNS = 6;  // = กลางวัน 3 + กลางคืน 3 (CYCLE_TURNS × 2 · เดิม 5) — ภูมิภาคใหม่เริ่มเทิร์น 7, 13, 19, … ตรงจังหวะร้านค้าปรากฏ (SHOP_INTERVAL_TURNS)
@@ -80,9 +81,16 @@ function active(engine) {
 function areaNow(engine) {
   return Math.min(AREA_COUNT, Math.max(1, Number(engine.journeyArea) || 1));
 }
-// จบเทิร์นนี้แล้วข้ามภูมิภาค (เทิร์นสุดท้ายของภูมิภาค = 6, 12, 18, …)
-function legEnds(round) {
-  return round > 0 && round % AREA_TURNS === 0;
+// จบเทิร์นนี้แล้วข้ามภูมิภาค — นับจาก legStart (เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ · ค่าเริ่ม 1 = เทิร์นสุดท้าย 6, 12, 18, …)
+//  ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" ตั้ง legStart = เทิร์นที่ใช้ท่า (phases/endTurn.js journeyRebirth) → ภูมิภาคใหม่อยู่ครบ AREA_TURNS นับจากเทิร์นนั้น
+function legEnds(round, legStart = 1) {
+  const start = Number(legStart) || 1;
+  return round >= start && (round - start + 1) % AREA_TURNS === 0;
+}
+// เทิร์นที่เท่าไรของภูมิภาคนี้ (1 = เทิร์นแรก … AREA_TURNS = เทิร์นสุดท้าย)
+function turnInArea(round, legStart = 1) {
+  const start = Number(legStart) || 1;
+  return ((Math.max(start, round) - start) % AREA_TURNS) + 1;
 }
 // สุ่มภูมิภาคถัดไป: 2–7 (ภูมิภาค 1 เป็นจุดเริ่มต้นเท่านั้น) ไม่ซ้ำภูมิภาคที่อยู่ตอนนี้
 function pickNextArea(from) {
@@ -114,7 +122,7 @@ module.exports = {
   AREA_TURNS, AREA_COUNT, AREAS,
   MEADOW_GIFT_PCT, MEADOW_NIGHT_STOCK, FOREST_ATK_MISS_PCT, FOREST_SKILL_MISS_PCT, FOREST_DOT_PCT,
   WHIRL_SHOP_MIN_PRICE, WHIRL_TOLL_PCT, WHIRL_TOLL_GOLD, DESERT_REFUND, ICE_CRIT_PCT, ICE_STUN_PCT, END_DECAY_PCT,
-  active, areaNow, legEnds, pickNextArea, current, is,
+  active, areaNow, legEnds, turnInArea, pickNextArea, current, is,
 
   // ---------- กฎวัน/คืนเดิมที่ภูมิภาคเข้ามาแทน ----------
   // ภาษีสกิลกลางคืน (สุ่มพื้นฐาน/รอง +1) — ในการเดินทางเหลือเฉพาะ 1 กลางคืน
@@ -263,16 +271,20 @@ module.exports = {
   // ---------- ข้อมูลที่ส่งให้ client ----------
   publicInfo(engine, scene) {
     if (!active(engine)) return null;
-    // ระหว่างฉากเดินทางไปภูมิภาคใหม่ ให้ client เห็นภูมิภาคปลายทางแล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากแผนที่)
+    // ระหว่างฉากเดินทางไปภูมิภาคใหม่ (advance) ให้ client เห็นภูมิภาคปลายทางแล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากแผนที่)
+    //  ฉาก "rebirth" (ท่าไม้ตาย Echo) ไม่ใช่: ภูมิภาค/กระดานเปลี่ยนตอนฉากจบ — ระหว่างฉาก client ยังเห็นภูมิภาคเดิม
     const round = scene && scene.active && scene.mode === "advance" ? worldRoundOf(engine) + 1 : worldRoundOf(engine);
-    const area = areaNow(engine); // ตั้งเป็นภูมิภาคปลายทางตั้งแต่เริ่มฉากแล้ว
+    const area = areaNow(engine); // advance: ตั้งเป็นภูมิภาคปลายทางตั้งแต่เริ่มฉากแล้ว
     const night = !!engine.isNightRound(round);
     const a = AREAS[area - 1];
-    const turnInArea = ((Math.max(1, round) - 1) % AREA_TURNS) + 1;
+    const turn = turnInArea(round, engine.legStart);
     return {
       area, night, name: a.name, passive: a.passive, day: a.day, nightDesc: a.night,
-      turnsLeft: AREA_TURNS - turnInArea + 1, // เทิร์นที่เหลือในภูมิภาคนี้
-      scene: scene ? { seq: scene.seq, active: !!scene.active, mode: scene.mode, area: scene.area, fromArea: scene.fromArea, route: scene.route || null } : null,
+      turnsLeft: AREA_TURNS - turn + 1, // เทิร์นที่เหลือในภูมิภาคนี้
+      scene: scene ? {
+        seq: scene.seq, active: !!scene.active, mode: scene.mode, area: scene.area, fromArea: scene.fromArea, route: scene.route || null,
+        casterId: scene.casterId || null, // rebirth: คนใช้ท่า
+      } : null,
     };
   },
 };

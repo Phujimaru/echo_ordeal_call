@@ -24,6 +24,19 @@ export function onArenaLandRequest(fn) {
   return () => requests.delete(fn);
 }
 
+// ท่าไม้ตาย Echo (oc/intro/EchoRebirth): กระดานถอยออกตอนเริ่มฉาก ทั้งที่ภูมิภาคยังไม่เปลี่ยน (server เปลี่ยนตอนฉากจบ)
+//  แล้วค้างซ่อนไว้จนฉากสั่ง requestArenaLand() ใต้แฟลช
+const leaves = new Set();
+
+export function requestArenaLeave() {
+  leaves.forEach((fn) => fn());
+}
+
+export function onArenaLeaveRequest(fn) {
+  leaves.add(fn);
+  return () => leaves.delete(fn);
+}
+
 export function announceArenaLand() {
   landSeq += 1;
   landAt = performance.now();

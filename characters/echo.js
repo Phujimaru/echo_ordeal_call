@@ -6,10 +6,14 @@
 //    → ได้ขยายร่าง +1 ทันที และ +1 ทุกต้นเทิร์นที่ยังเป็นราชินี · ขยายร่างคงอยู่ถาวรจนกว่าจะใช้ Overwrite
 //  สกิลรอง Overwrite (0 แต้ม · ต้องมีขยายร่าง): ล้างขยายร่างทั้งหมด + ราชินี · ทุก 2 ระดับที่ล้าง = คูลดาวน์มหึมา −1
 //    และพลังโจมตี +1 (2 เทิร์น — เทิร์นนี้ + เทิร์นหน้า) · ฟื้นพลังชีวิต 5 (หลังเลือดสูงสุดลดกลับ)
-//  ท่าไม้ตาย นี่มันเกมของฉัน — ปิดไว้ก่อน (ผู้ใช้สั่ง · characters.js ultimate: null)
+//  ท่าไม้ตาย ก่อกำเนิดใหม่ (6 แต้ม · ผู้ใช้ตัดสิน 2026-10-10): ใช้ได้เมื่อเลือดสูงสุด 30 (ขยายร่างครบ 10) · คูลดาวน์ 5 เทิร์น
+//    ฉากโลกแตก (เฉพาะ Echo) → ศัตรูทุกคนเสียหาย 2 (ลดเกราะก่อน · ฆ่าได้ · โหมดทีมไม่โดนเพื่อน · หลบไม่ได้)
+//    → สุ่มภูมิภาคใหม่ทันที ทุกคนไปจุดเกิด · เทิร์นที่ใช้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (กลางวัน · อยู่ครบ 6 เทิร์น) · ร้านค้าตั้งใหม่นับใหม่
+//    → ตาเดินของ Echo จบทันที (ตีต่อไม่ได้) · ขยายร่าง/เลือด 30 ยังอยู่ · ศัตรูหมด = จบเกมทันที ไม่เปลี่ยนภูมิภาค
+//    (ฉาก/เปลี่ยนภูมิภาค/นับเวลาใหม่ = engine.journeyRebirth — server/phases/endTurn.js)
 //  ติดตัว เหล่าสหายตัวน้อยเอ๋ย: ขยายร่าง ≤ 4 = คุ้มครอง (ดาเมจที่ได้รับ −1) · ≥ 5 = พลังโจมตี +1
 //    · ครบ 10 = พลังโจมตี +1 อีก และตีปกติมีโอกาสสังหาร 5% · ต้นเทิร์นมีโอกาส 20% ได้ต้านสถานะผิดปกติ 1 เทิร์น
-//    (สเปกระดับ 5 เขียน "จะได้รับ ___ และพลังโจมตีเพิ่มขึ้นอีก 1" — คำหายไป ลงแค่พลังโจมตี +1 ไว้ก่อน)
+//    (สเปกระดับ 5 เขียน "จะได้รับ ___ และพลังโจมตีเพิ่มขึ้นอีก 1" — ผู้ใช้ตัดสิน 2026-10-12: พลังโจมตี +1 อย่างเดียว · คุ้มครอง/ระยะเดินคงตามนี้)
 //  ติดตัว 2 การกลืนกินระดับ EX: สังหารผู้เล่นอื่นได้ = พลังโจมตี +1 ถาวร (นับทุกทางที่เป็นต้นเหตุ — combat.instantDeath)
 //
 //  ร่างบนกระดาน (ผู้ใช้ตัดสิน — นับจากเลือดสูงสุด):
@@ -17,6 +21,8 @@
 //    ตัวใหญ่ขึ้น เดินได้น้อยลง (MOV_BY_SIZE) · ตั้งแต่ 3×3 เดิน/ขยายตัวพังสิ่งกีดขวาง · ขยายตัวทับใคร = ผลักออก + ศัตรูเสีย 1
 //    (เปลี่ยนขนาดจริงผ่าน engine.resizeUnit — server/phases/action.js)
 // ============================================================
+
+const Journey = require("./_journey");
 
 const ID = "echo";
 const DIR = "/characters/echo";
@@ -40,6 +46,9 @@ const GUARD_MAX_STACKS = 4;
 const ATK_STACKS_1 = 5;
 const KILL_CHANCE = 0.05;
 const RESIST_CHANCE = 0.2;
+const ULT_CD = 5;
+const ULT_DMG = 2;
+const ULT_NAME = "ก่อกำเนิดใหม่";
 // เลือดสูงสุด → ขนาดตัว (ด้านละกี่ช่อง)
 const SIZE_STEPS = [[30, 5], [25, 4], [20, 3], [15, 2]];
 const MOV_BY_SIZE = { 1: 4, 2: 3, 3: 3, 4: 2, 5: 2 };
@@ -48,7 +57,7 @@ const SMASH_SIZE = 3;
 
 const isEcho = (p) => !!p && p.characterId === ID;
 function fresh() {
-  return { stacks: 0, giantReady: 0, kills: 0, guardOwn: false };
+  return { stacks: 0, giantReady: 0, ultReady: 0, kills: 0, guardOwn: false };
 }
 function st(p) { return p.echo || (p.echo = fresh()); }
 const maxHpFor = (stacks) => BASE_HP + HP_PER_STACK * stacks;
@@ -58,6 +67,8 @@ function sizeForHp(maxHp) {
 }
 const boardSize = (p) => Math.max(1, (p && p.boardSize) | 0);
 const queenActive = (p) => (p.statuses.echoQueen || 0) > 0;
+// ท่าไม้ตายต้องเลือดสูงสุด 30 (ขยายร่างครบ 10)
+const fullSize = (engine, p) => engine.maxHpOf(p) >= maxHpFor(MAX_STACKS);
 
 // คุ้มครองจากสกิลติดตัว: ขยายร่าง ≤ 4 ต่ออายุทีละเทิร์น (ห้ามใส่เลขเทิร์นยาวแทนความถาวร) · เกิน 4 = เอาออก (เฉพาะที่ตัวเองใส่)
 function refreshGuard(p) {
@@ -91,6 +102,7 @@ function gainStack(engine, p) {
 module.exports = {
   id: ID,
   IMG, BASE_HP, MAX_STACKS, QUEEN_TURNS, GIANT_CD, OW_HEAL, KILL_CHANCE, RESIST_CHANCE, MOV_BY_SIZE, RANGE_BY_SIZE, SMASH_SIZE,
+  ULT_CD, ULT_DMG,
   isEcho, sizeForHp,
 
   maxHp(p) { return isEcho(p) ? maxHpFor(st(p).stacks) : undefined; },
@@ -146,8 +158,11 @@ module.exports = {
     const s = st(p);
     if (tier === "basic") return !queenActive(p) && engine.roundNumber >= s.giantReady;
     if (tier === "secondary") return s.stacks > 0;
+    if (tier === "ultimate") return fullSize(engine, p) && engine.roundNumber >= s.ultReady && Journey.active(engine);
     return false;
   },
+  // ก่อกำเนิดใหม่: ฉากโลกแตกเป็นตัวประกาศท่าเอง (ห้ามมีชื่อท่าบนจอ — ผู้ใช้สั่ง) = ไม่ขึ้นป้ายสกิลกลาง
+  silentFlash(p, tier) { return isEcho(p) && tier === "ultimate"; },
   applyInstantSkill(engine, p, tier) {
     if (!isEcho(p)) return "";
     const s = st(p);
@@ -175,6 +190,13 @@ module.exports = {
       engine.log(`🔄 ${p.name} ใช้ Overwrite — ล้างขยายร่าง ${cleared} ระดับ${pairs ? ` · พลังโจมตี +${pairs} ${OW_ATK_TURNS} เทิร์น · คูลดาวน์มหึมา −${pairs}` : ""} · ฟื้นพลังชีวิต +${healed}`);
       return "";
     }
+    if (tier === "ultimate") {
+      s.ultReady = engine.roundNumber + ULT_CD;
+      engine.log(`🌍 ${p.name} ใช้ ${ULT_NAME}`);
+      // ความเสียหายลงตอนฉากจบ (ก่อนเปลี่ยนภูมิภาค) — journeyRebirth เรียกในนามของ Echo (effectSource)
+      engine.journeyRebirth(p, () => rebirthHit(engine, p));
+      return "";
+    }
     return "";
   },
   skillLocks(engine, p) {
@@ -183,7 +205,7 @@ module.exports = {
     return {
       basic: { cd: Math.max(0, s.giantReady - engine.roundNumber), locked: queenActive(p) },
       secondary: { locked: s.stacks <= 0 },
-      ultimate: { locked: true },
+      ultimate: { cd: Math.max(0, s.ultReady - engine.roundNumber), locked: !fullSize(engine, p) },
     };
   },
 
@@ -194,3 +216,21 @@ module.exports = {
     return { stacks: s.stacks, max: MAX_STACKS, kills: s.kills, giantCd: Math.max(0, s.giantReady - engine.roundNumber) };
   },
 };
+
+// ก่อกำเนิดใหม่: ศัตรูทุกคนเสียหาย ULT_DMG (ลดเกราะก่อน · ฆ่าได้ · หลบไม่ได้ · โหมดทีมไม่โดนเพื่อน)
+//  เรียกในนามของ Echo (withEffectSource) → ใครตาย = การกลืนกินระดับ EX ผ่าน combat.instantDeath
+function rebirthHit(engine, p) {
+  for (const t of engine.alivePlayers()) {
+    if (t.id === p.id || engine.sameTeam(p, t)) continue;
+    t.wasAttacked = true;
+    const before = (t.hp || 0) + (t.armor || 0);
+    engine.dealMixed(t, ULT_DMG);
+    if (t.alive && t.hp <= 0) engine.instantDeath(t);
+    const dealt = Math.max(0, before - ((t.hp || 0) + (t.armor || 0)));
+    engine.log(`🌍 ${ULT_NAME} → ${t.name} -${dealt} (ลดเกราะก่อน)`);
+    if (!t.alive) {
+      t.pos = null;
+      engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`);
+    }
+  }
+}

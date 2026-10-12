@@ -3,11 +3,12 @@
 Object.assign(module.exports, {
   gameOver,
   endTurn,
+  journeyRebirth,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
 const Journey = require("../../characters/_journey");
-const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, TRANSITION_TIME } = require("../constants");
+const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME } = require("../constants");
 const match = require("../match");
 const { engine } = require("../engine");
 const combat = require("../combat");
@@ -129,7 +130,7 @@ function gameOver() {
 
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
 function maybeJourneyAdvance() {
-  if (Zero.active() || !Journey.active(engine) || !Journey.legEnds(Zero.worldRound())) return false;
+  if (Zero.active() || !Journey.active(engine) || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
   const from = Journey.areaNow(engine);
   const to = Journey.pickNextArea(from);
   const route = [...match.journeyRoute]; // เส้นทางที่ผ่านมา (ถึงต้นทาง) — ฉากวาดค้างไว้บนโลก
@@ -143,4 +144,41 @@ function maybeJourneyAdvance() {
   timers.startPhaseTimer(JOURNEY_ADVANCE_SECONDS, () => { match.journeyScene.active = false; draw.dealRound(); });
   view.broadcastState();
   return true;
+}
+
+// ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (characters/echo.js): สุ่มภูมิภาคปลายทางไว้ก่อน → พักเกม CUTSCENE ให้ client เล่นฉากโลกแตก
+//  (journeyScene mode "rebirth" — ระหว่างฉาก client ยังเห็นภูมิภาค/กระดานเดิม · Journey.publicInfo ไม่นับเป็น advance)
+//  ฉากจบ: impact() (ความเสียหายของท่า ในนามคนใช้ — การกลืนกินระดับ EX นับผ่าน effectSource) → ศัตรูหมด = จบเกมทันที ไม่เปลี่ยนภูมิภาค
+//   → ไม่งั้นเปลี่ยนภูมิภาค + ทุกคนไปจุดเกิด + นับเวลาใหม่หมด: เทิร์นนี้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (legStart) และเป็นกลางวัน (cycleShift)
+//     ร้านค้าตั้งจุดใหม่ สุ่มของใหม่ นับ 6 เทิร์นใหม่ → ตาเดินของคนใช้จบทันที (finishActor) · คนที่ยังไม่เดินเดินต่อบนแผนที่ใหม่
+//  เรียกจาก applyInstantSkill (ระหว่าง useSkill — server/skills.js เห็นเฟส CUTSCENE แล้วแค่บรอดแคสต์)
+function journeyRebirth(p, impact) {
+  if (!p || !Journey.active(engine)) return false;
+  const from = Journey.areaNow(engine);
+  const to = Journey.pickNextArea(from);
+  const casterId = p.id;
+  const scene = { seq: ++match.journeySceneSeq, active: true, mode: "rebirth", area: to, fromArea: from, route: [...match.journeyRoute], casterId };
+  match.journeyScene = scene;
+  match.cutsceneInfo = null;
+  match.gameState = "CUTSCENE";
+  timers.startPhaseTimer(REBIRTH_SECONDS, () => finishRebirth(scene, impact));
+  return true;
+}
+function finishRebirth(scene, impact) {
+  const caster = match.players[scene.casterId];
+  scene.active = false;
+  if (impact && caster) combat.withEffectSource(caster, impact);
+  for (const o of Object.values(match.players)) if (!o.alive) o.pos = null; // คนตกรอบหายจากกระดาน
+  if (gameOver()) return; // ศัตรูหมด = จบเกมทันที ไม่ต้องเปลี่ยนภูมิภาค
+  const to = scene.area;
+  const world = Zero.worldRound();
+  match.journeyArea = to;
+  match.journeyRoute.push(to);
+  action.placeOnBoard(to); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด (ยกร้านออก)
+  match.legStart = world;      // เทิร์นนี้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (Journey.legEnds/turnInArea)
+  match.cycleShift = world - 1; // เทิร์นนี้ = กลางวันแรก (ตั้งค่าใหม่ตรงๆ ห้ามบวกสะสม — GAME_SYSTEM §10)
+  for (const o of Object.values(match.players)) o.nightTaxTier = null; // ภาษีกลางคืนที่สุ่มไว้ต้นเทิร์นเป็นของภูมิภาคเดิม
+  shop.relocateShop(); // ร้านตั้งจุดใหม่ + ของใหม่ · shopOpenedRound = เทิร์นนี้
+  match.lastLog.push(`🌍 โลกถือกำเนิดใหม่ — มาถึงภูมิภาคที่ ${to} ${Journey.AREAS[to - 1].name}`);
+  action.finishActor(); // ตาเดินของคนใช้จบทันที (ตีต่อไม่ได้) → คนถัดไป / จบเทิร์น (บรอดแคสต์ในนั้น)
 }

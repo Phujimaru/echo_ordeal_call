@@ -122,6 +122,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ชื่อ/รูปปุ่มสกิลตามสถานะ | `skillPub(p, tier)` → ฟิลด์ที่ทับ | `server/view.js` |
 | ฉากสกิลหลายจังหวะ (พักให้กระดานเล่นเอฟเฟกต์ → คลิป → ผล) | `engine.skillBeat(sec, fn)` + `deferAfterCutscene` + `queueCutscene` (ต้นแบบ Mouse Separade ของโซระ) | `cutscene.runSkillFlow` |
 | ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
+| ท่าที่เปลี่ยนภูมิภาคทันที + นับเวลาใหม่ (ฉากเฉพาะตัว) | `engine.journeyRebirth(p, impact)` → ฉาก CUTSCENE `journey.scene.mode: "rebirth"` 18 วิ แล้ว impact() → ภูมิภาคใหม่ + `legStart`/`cycleShift`/ร้านรีเซ็ต + จบตา (ต้นแบบ ก่อกำเนิดใหม่ของ Echo · ฉากโลกแตกห้ามใช้กับตัวอื่น) | `server/phases/endTurn.js` |
 | เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p, base)` (base = MAX_ARMOR) | `combat.maxHpOf`/`maxArmorOf` |
 | ผลเมื่อเกราะลด (ทุกทาง) | `onArmorLost(engine, p)` (ฮิคารุ: ฟื้นพลังชีวิต 1) | `combat.loseArmor` |
 | ตีปกติแนวตรงโดนทุกคนในแนว | `attackLane(p)` → true (ระยะจาก `range` · client ได้ `lane` ไปคิดไฮไลต์/แผนเดินเอง) | `action.canStrike` / `laneVictims` → `attack.boardAttack` (`card.extra`) |

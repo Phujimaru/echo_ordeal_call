@@ -1,0 +1,29 @@
+/* ============================================================
+   ฉากท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (EchoRebirth.jsx) — เฉพาะ Echo
+   z 65 = เหนือกระดาน ใต้ปุ่มเสียง (70) เหมือนฉากลูกโลกอื่น · ทุกค่าที่ขยับตามเวลาตั้งจาก JS ทุกเฟรม
+   ชั้นใน .erb-stage: พื้นหลัง → ดาว → ลูกโลก (z 1 หลังรูป · z 3 ตอนเศษบิน) → รูป Echo (z 2) → เอฟเฟกต์ → ชื่อภูมิภาค
+   ห้าม letter-spacing / uppercase กับข้อความไทย
+   ============================================================ */
+.erb {
+  position: fixed; inset: 0; z-index: 65; overflow: hidden; pointer-events: auto; user-select: none;
+  background: transparent;
+}
+.erb.is-out { pointer-events: none; }
+.erb-stage { position: absolute; inset: 0; overflow: hidden; transform-origin: 50% 50%; }
+.erb-bg { position: absolute; inset: 0; opacity: 0; background: #e6f0fa; }
+.erb-layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.erb-globe { position: absolute; inset: 0; z-index: 1; }
+.erb-art {
+  position: absolute; left: 0; top: 0; z-index: 2; max-width: none; transform-origin: 0 0; opacity: 0;
+  pointer-events: none; will-change: transform, opacity;
+}
+.erb-fx { z-index: 4; }
+.erb-tag {
+  position: absolute; left: 0; right: 0; bottom: 16%; z-index: 5; opacity: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; color: #fff; text-align: center;
+  text-shadow: 0 2px 14px rgba(20, 10, 60, 0.9), 0 0 30px #7f6bd8;
+}
+.erb-tag b { font: 600 clamp(26px, 3.2vw, 46px)/1.25 var(--oc-f-ui); }
+.erb-tag i { font: 400 clamp(13px, 1.3vw, 19px)/1 var(--oc-f-logo); font-style: normal; letter-spacing: 0.5em; color: var(--ac, #ffe2a0); }
+.erb-flash { position: absolute; inset: 0; z-index: 10; background: #fff; opacity: 0; pointer-events: none; }
+.erb.is-out .erb-flash { opacity: 0 !important; transition: opacity 0.9s ease 0.12s; }

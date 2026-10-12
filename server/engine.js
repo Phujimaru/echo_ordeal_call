@@ -94,6 +94,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   zeroActive() { return !!match.zero; },
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
+  get legStart() { return match.legStart; }, // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea)
   get journeyArea() { return match.journeyArea; },
   get journeyRoute() { return match.journeyRoute; },
   setJourneyArea(v) { match.journeyArea = v; }, // เทสต์ตั้งภูมิภาคเอง (เกมจริงสุ่มใน phases/endTurn.js)
@@ -165,6 +166,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   nextTransformCounter() { return ++match.transformCounter; },
   startMatch: lobby.startMatch,
   endTurn: endTurnPhase.endTurn,
+  // ท่าไม้ตาย Echo "ก่อกำเนิดใหม่": พักเกมเล่นฉาก (journeyScene mode "rebirth") → impact() → เปลี่ยนภูมิภาค + นับเวลาใหม่ → จบตา
+  //  ใช้ได้เฉพาะใน applyInstantSkill (useSkill เห็นเฟส CUTSCENE แล้วแค่บรอดแคสต์) — phases/endTurn.js
+  journeyRebirth: endTurnPhase.journeyRebirth,
   doAttack: attack.doAttack,
   useSkill: skills.useSkill,
   alivePlayers: combat.alivePlayers,

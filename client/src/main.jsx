@@ -30,8 +30,18 @@ const VictoryPreview = import.meta.env.DEV && hudQ.has("victory")
   ? React.lazy(() => import("./components/VictoryPreview.jsx"))
   : null;
 
+// ?travel=3-5 = หน้าดูฉากเปลี่ยนภูมิภาค (เฉพาะ dev) — ดู oc/intro/TravelPreview.jsx
+const TravelPreview = import.meta.env.DEV && hudQ.has("travel")
+  ? React.lazy(() => import("./oc/intro/TravelPreview.jsx"))
+  : null;
+
+// ?rebirth=1..7 = หน้าดูฉากท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (เฉพาะ dev) — ดู oc/intro/EchoRebirthPreview.jsx
+const RebirthPreview = import.meta.env.DEV && hudQ.has("rebirth")
+  ? React.lazy(() => import("./oc/intro/EchoRebirthPreview.jsx"))
+  : null;
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {VictoryPreview ? <React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
+    {RebirthPreview ? <React.Suspense fallback={null}><RebirthPreview /></React.Suspense> : TravelPreview ? <React.Suspense fallback={null}><TravelPreview /></React.Suspense> : VictoryPreview ?<React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
   </React.StrictMode>
 );

@@ -47,10 +47,14 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { fx.length = 0; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: พลังชีวิต 10 ไม่มีเกราะ · หมวดพิเศษ · ท่าไม้ตายปิดไว้ · สกิลใช้กับตัวเอง 0 แต้ม · เริ่ม 1×1 เดิน 4 ตี 1', () => {
+test('ข้อมูล: พลังชีวิต 10 ไม่มีเกราะ · หมวดพิเศษ · สกิลใช้กับตัวเอง 0 แต้ม · ท่าไม้ตาย 6 แต้ม · เริ่ม 1×1 เดิน 4 ตี 1', () => {
   const ch = CHAR_BY_ID.echo;
   assert.equal(ch.difficulty, 'special');
-  assert.equal(ch.ultimate, null);
+  assert.equal(ch.unique, true, 'เลือกได้คนเดียวต่อเกม');
+  assert.ok(!ch.locked, 'ปลดล็อกแล้ว');
+  assert.equal(ch.ultimate.name, 'ก่อกำเนิดใหม่');
+  assert.equal(ch.ultimate.cost, 6);
+  assert.deepEqual(ch.ultimate.area, { kind: 'self' });
   assert.deepEqual(ch.basic.area, { kind: 'self' });
   assert.deepEqual(ch.secondary.area, { kind: 'self' });
   assert.equal(ch.basic.cost, 0);
@@ -299,4 +303,177 @@ test('ท่าตีปกติ: 1×1 คลื่นเสียง · 2×2�
   engine.attackTarget('M', 'B');
   assert.equal(engine.lastAttack.byStyle, null, 'ตัวอื่นพุ่งชนตามเดิม');
   assert.ok(Q && R);
+});
+
+// ---------- ท่าไม้ตาย ก่อกำเนิดใหม่ ----------
+const { REBIRTH_SECONDS } = require('../../server/constants.js');
+const Journey = require('../../characters/_journey.js');
+// ไล่ฉากโลกแตกให้จบพอดี (ตัวจับเวลาเฟสนับทีละ 1 วิ) — ตาเดินของคนถัดไป (60 วิ) ยังไม่หมด
+const runScene = (t) => { for (let i = 0; i < REBIRTH_SECONDS; i++) t.mock.timers.tick(1000); };
+const ultLocks = (id) => engine.buildStateFor(id).players.find((p) => p.id === id).skillLocks.ultimate;
+// Echo ขยายร่างครบ 10 (5×5) ที่มุมซ้ายบน · ตาเดินของ Echo · คนถัดไปในลำดับ = next (ตาของ Echo จบแล้วต้องไปคนนี้)
+function rebirthSetup(list, { round = 4, next = 'B', mode = 'ffa' } = {}) {
+  const P = setup(list, mode);
+  grow(P.E, 10);
+  engine.setRoundNumber(round);
+  engine.setJourneyArea(1);
+  engine.maybeMoveShop();
+  engine.turnOrder.length = 0;
+  if (next) engine.turnOrder.push(next);
+  engine.setActor('E');
+  return P;
+}
+// ใช้ท่า (สุ่มภูมิภาคปลายทาง = 2 ตายตัว)
+function useUlt() {
+  Math.random = () => 0;
+  try { engine.useSkill('E', 'ultimate', []); } finally { Math.random = realRandom; }
+}
+
+test('ก่อกำเนิดใหม่: ใช้ได้เมื่อเลือดสูงสุด 30 เท่านั้น · ไม่ครบ = กดไม่ได้ ไม่เสียแต้ม', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]]);
+  grow(P.E, 9);
+  assert.equal(engine.maxHpOf(P.E), 28);
+  engine.setActor('E');
+  assert.equal(ultLocks('E').locked, true);
+  engine.useSkill('E', 'ultimate', []);
+  assert.equal(P.E.skillPoints, 8, 'ไม่เสียแต้ม');
+  assert.equal(engine.gameState, 'ACTION');
+  grow(P.E, 10);
+  assert.equal(engine.maxHpOf(P.E), 30);
+  assert.equal(ultLocks('E').locked, false);
+  assert.equal(ultLocks('E').cd, 0);
+  useUlt();
+  assert.equal(P.E.skillPoints, 2, '6 แต้ม');
+  assert.equal(engine.gameState, 'CUTSCENE');
+});
+
+test('ก่อกำเนิดใหม่: ฉาก rebirth (ระหว่างฉาก client ยังเห็นภูมิภาคเดิม) → ศัตรูทุกคนเสียหาย 2 → ภูมิภาคใหม่ ทุกคนไปจุดเกิด → ตาของ Echo จบ · ขยายร่างยังอยู่', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12], ['C', 'dummy', 12, 8]]);
+  P.C.armor = 1;
+  useUlt();
+  assert.equal(engine.gameState, 'CUTSCENE');
+  const scene = engine.buildStateFor('B').journey.scene;
+  assert.deepEqual(scene, { seq: scene.seq, active: true, mode: 'rebirth', area: 2, fromArea: 1, route: [1], casterId: 'E' });
+  assert.equal(engine.buildStateFor('B').journey.area, 1, 'ระหว่างฉากยังเป็นภูมิภาคเดิม');
+  assert.equal(engine.board.area, 1);
+  assert.equal(P.B.armor + P.B.hp, 10, 'ความเสียหายลงหลังฉาก');
+  assert.equal(engine.timeLeft, REBIRTH_SECONDS);
+
+  runScene(t);
+  assert.equal(P.B.armor, 1, 'เกราะรับก่อน');
+  assert.equal(P.B.hp, 7);
+  assert.equal(P.C.armor, 0);
+  assert.equal(P.C.hp, 6, 'เกราะหมดแล้วเลือดรับต่อ');
+  assert.equal(P.E.hp, 30, 'Echo ไม่โดน');
+  assert.equal(engine.journeyArea, 2);
+  assert.deepEqual(engine.journeyRoute, [1, 2]);
+  assert.equal(engine.board.area, 2);
+  assert.equal(engine.buildStateFor('B').journey.scene.active, false);
+  assert.equal(engine.buildStateFor('B').journey.area, 2);
+  for (const id of ['E', 'B', 'C']) assert.ok(engine.players[id].pos, `${id} อยู่บนกระดานใหม่`);
+  assert.equal(P.E.echo.stacks, 10, 'ขยายร่างยังอยู่');
+  assert.equal(engine.maxHpOf(P.E), 30);
+  assert.equal(engine.sizeOf(P.E), 5);
+  assert.equal(engine.gameState, 'ACTION');
+  assert.equal(engine.actorId, 'B', 'ตาของ Echo จบทันที (ตีต่อไม่ได้)');
+  assert.equal(engine.attackTarget('E', 'B'), false);
+});
+
+test('ก่อกำเนิดใหม่: เทิร์นที่ใช้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (กลางวัน) · อยู่ครบ 6 เทิร์นนับจากเทิร์นนั้น · ร้านค้าปรากฏใหม่นับ 6 เทิร์นใหม่', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]], { round: 5 });
+  assert.equal(engine.isNightRound(5), true, 'ภูมิภาคเดิม: เทิร์น 5 กลางคืน');
+  const shopBefore = engine.shopItems;
+  useUlt();
+  runScene(t);
+  assert.equal(engine.legStart, 5);
+  // กลางวัน 5–7 · กลางคืน 8–10 · ภูมิภาคจบหลังเทิร์น 10
+  assert.deepEqual([5, 6, 7, 8, 10, 11].map((r) => engine.isNightRound(r)), [false, false, false, true, true, false]);
+  assert.deepEqual([5, 6, 9, 10].map((r) => Journey.legEnds(r, engine.legStart)), [false, false, false, true]);
+  const pub = engine.buildStateFor('B').journey;
+  assert.equal(pub.night, false, 'กลางวัน');
+  assert.equal(pub.turnsLeft, 6, 'เทิร์นแรกของภูมิภาคใหม่');
+  assert.ok(engine.shopPos, 'ร้านค้าตั้งบนแผนที่ใหม่');
+  assert.notEqual(engine.shopItems, shopBefore, 'ของใหม่');
+  assert.equal(engine.shopTurnsLeft(), 6, 'ร้านนับ 6 เทิร์นใหม่');
+  // เทิร์น 9: ยังไม่ข้ามภูมิภาค · ร้านเหลือ 2
+  engine.setRoundNumber(9);
+  assert.equal(engine.buildStateFor('B').journey.turnsLeft, 2);
+  assert.equal(engine.shopTurnsLeft(), 2);
+  engine.endTurn();
+  assert.equal(engine.gameState, 'TRANSITION', 'จบเทิร์น 9 ไม่ข้ามภูมิภาค');
+  assert.equal(engine.journeyArea, 2);
+  // เทิร์น 10 = เทิร์นสุดท้าย (ครบ 6) → จบเทิร์นแล้วข้ามภูมิภาค
+  engine.clearPhaseTimer();
+  engine.setRoundNumber(10);
+  assert.equal(engine.buildStateFor('B').journey.turnsLeft, 1);
+  assert.equal(engine.shopTurnsLeft(), 1);
+  engine.endTurn();
+  assert.equal(engine.gameState, 'CUTSCENE');
+  assert.equal(engine.buildStateFor('B').journey.scene.mode, 'advance');
+  assert.notEqual(engine.journeyArea, 2);
+});
+
+test('ก่อกำเนิดใหม่: คูลดาวน์ 5 เทิร์น', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]], { round: 2 });
+  useUlt();
+  runScene(t);
+  assert.equal(ultLocks('E').cd, 5);
+  P.E.skillPoints = 8;
+  P.E.skillUsedRound = false;
+  for (const [round, ok] of [[3, false], [6, false], [7, true]]) {
+    engine.setRoundNumber(round);
+    assert.equal(echo.canUseSkill(engine, P.E, 'ultimate'), ok, `เทิร์น ${round}`);
+  }
+  engine.setRoundNumber(6);
+  engine.setActor('E');
+  engine.useSkill('E', 'ultimate', []);
+  assert.equal(P.E.skillPoints, 8, 'ติดคูลดาวน์ = กดไม่ได้ ไม่เสียแต้ม');
+  assert.equal(engine.gameState, 'ACTION');
+});
+
+test('ก่อกำเนิดใหม่: ใช้ในเทิร์นสุดท้ายของภูมิภาค (เทิร์น 6) = ไม่เปลี่ยนภูมิภาคซ้ำตอนจบเทิร์น', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]], { round: 6 });
+  assert.equal(Journey.legEnds(6, engine.legStart), true, 'ก่อนใช้ เทิร์น 6 = เทิร์นสุดท้าย');
+  useUlt();
+  runScene(t);
+  assert.equal(engine.journeyArea, 2);
+  assert.equal(engine.actorId, 'B');
+  engine.finishActor(); // B จบตา → หมดแถว → จบเทิร์น 6
+  assert.equal(engine.gameState, 'TRANSITION', 'ไม่มีฉากเปลี่ยนภูมิภาคซ้อน');
+  assert.equal(engine.journeyArea, 2);
+  assert.deepEqual(engine.journeyRoute, [1, 2]);
+  assert.equal(engine.buildStateFor('B').journey.scene.mode, 'rebirth');
+});
+
+test('ก่อกำเนิดใหม่: โหมดทีม — เพื่อนร่วมทีมไม่โดน', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = rebirthSetup([['E', 'echo', 2, 2, 'A'], ['M', 'dummy', 12, 2, 'A'], ['B', 'dummy', 12, 12, 'B'], ['C', 'dummy', 12, 8, 'B']], { mode: 'duo' });
+  const before = Object.fromEntries(['M', 'B', 'C'].map((id) => [id, P[id].hp + P[id].armor]));
+  useUlt();
+  runScene(t);
+  assert.equal(P.M.hp + P.M.armor, before.M, 'เพื่อนไม่เสีย');
+  assert.equal(P.B.hp + P.B.armor, before.B - 2);
+  assert.equal(P.C.hp + P.C.armor, before.C - 2);
+  assert.equal(engine.journeyArea, 2);
+});
+
+test('ก่อกำเนิดใหม่: ศัตรูตายหมด = จบเกมทันที ไม่เปลี่ยนภูมิภาค · นับการกลืนกินระดับ EX', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]]);
+  P.B.hp = 2; P.B.armor = 0;
+  useUlt();
+  runScene(t);
+  assert.equal(P.B.alive, false);
+  assert.equal(P.B.pos, null);
+  assert.equal(P.E.echo.kills, 1, 'การกลืนกินระดับ EX');
+  assert.equal(engine.gameState, 'GAMEOVER');
+  assert.equal(engine.journeyArea, 1, 'ไม่เปลี่ยนภูมิภาค');
+  assert.deepEqual(engine.journeyRoute, [1]);
+  assert.equal(engine.board.area, 1);
+  assert.equal(engine.buildStateFor('E').journey.scene.active, false);
 });

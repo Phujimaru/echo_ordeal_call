@@ -54,7 +54,10 @@ test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
 test.after(() => { engine.clearPhaseTimer(); for (const id of Object.keys(engine.players)) delete engine.players[id]; });
 
 test('ภูมิภาคเปลี่ยนทุก 6 เทิร์น · กลางวัน/กลางคืนสลับทุก 3 เทิร์น (ทุกภูมิภาคเริ่มด้วยกลางวัน)', () => {
-  assert.deepEqual([1, 5, 6, 7, 12, 18, 36, 42].map(Journey.legEnds), [false, false, true, false, true, true, true, true]);
+  assert.deepEqual([1, 5, 6, 7, 12, 18, 36, 42].map((r) => Journey.legEnds(r)), [false, false, true, false, true, true, true, true]);
+  // นับจาก legStart (ก่อกำเนิดใหม่ของ Echo เริ่มภูมิภาคใหม่กลางทาง): เริ่ม 4 = เทิร์นสุดท้าย 9, 15, …
+  assert.deepEqual([3, 4, 6, 8, 9, 12, 15].map((r) => Journey.legEnds(r, 4)), [false, false, false, false, true, false, true]);
+  assert.deepEqual([4, 5, 9, 10].map((r) => Journey.turnInArea(r, 4)), [1, 2, 6, 1]);
   setup();
   // กลางวัน 1-3 · กลางคืน 4-6 · กลางวัน 7-9 · กลางคืน 10-12 …
   assert.deepEqual([1, 3, 4, 6, 7, 9, 10, 12, 13].map((r) => engine.isNightRound(r)), [false, false, true, true, false, false, true, true, false]);
