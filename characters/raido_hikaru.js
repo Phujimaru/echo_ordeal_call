@@ -40,13 +40,14 @@ const VIDEO = {
   ray: `${DIR}/hikaru_strium_ray.mp4`,
 };
 // ร่าง UltraLive (เรียงตามปุ่ม) — cut = คีย์คลิปใน characters/_transforms.js · style = ท่าตีปกติบนกระดาน (client/src/board/hikaruFx.js)
+//  sfx = เสียงตีปกติ (คีย์ใน client/src/audio.js)
 const FORMS = {
-  blackking: { name: "แบล็คคิง", img: `${DIR}/form_blackking.jpg`, video: `${DIR}/form_blackking.mp4`, cut: "hkBlackKing", style: "hkBlack" },
-  thunder: { name: "ทันเดอร์ดารัมเบีย", img: `${DIR}/form_thunderdarambia.webp`, video: `${DIR}/form_thunderdarambia.mp4`, cut: "hkThunder", style: "hkThunder" },
-  kemur: { name: "มนุษย์ดาวเคมู", img: `${DIR}/form_kemurjin.webp`, video: `${DIR}/form_kemurjin.mp4`, cut: "hkKemur", style: "hkKemur" },
-  pandon: { name: "คิงแพนด้อน", img: `${DIR}/form_kingpandon.webp`, video: `${DIR}/form_kingpandon.mp4`, cut: "hkPandon", style: "hkPandon" },
-  doragory: { name: "ดอรากอรี่", img: `${DIR}/form_doragory.webp`, video: `${DIR}/form_doragory.mp4`, cut: "hkDoragory", style: "hkDoragory" },
-  tiga: { name: "Ultraman Tiga", img: `${DIR}/form_tiga.jpg`, video: `${DIR}/form_tiga.mp4`, cut: "hkTiga", style: "hkTiga" },
+  blackking: { name: "แบล็คคิง", img: `${DIR}/form_blackking.jpg`, video: `${DIR}/form_blackking.mp4`, cut: "hkBlackKing", style: "hkBlack", sfx: "hk_black" },
+  thunder: { name: "ทันเดอร์ดารัมเบีย", img: `${DIR}/form_thunderdarambia.webp`, video: `${DIR}/form_thunderdarambia.mp4`, cut: "hkThunder", style: "hkThunder", sfx: "hk_thunder" },
+  kemur: { name: "มนุษย์ดาวเคมู", img: `${DIR}/form_kemurjin.webp`, video: `${DIR}/form_kemurjin.mp4`, cut: "hkKemur", style: "hkKemur", sfx: "hk_kemur" },
+  pandon: { name: "คิงแพนด้อน", img: `${DIR}/form_kingpandon.webp`, video: `${DIR}/form_kingpandon.mp4`, cut: "hkPandon", style: "hkPandon", sfx: "hk_pandon" },
+  doragory: { name: "ดอรากอรี่", img: `${DIR}/form_doragory.webp`, video: `${DIR}/form_doragory.mp4`, cut: "hkDoragory", style: "hkDoragory", sfx: "hk_doragory" },
+  tiga: { name: "Ultraman Tiga", img: `${DIR}/form_tiga.jpg`, video: `${DIR}/form_tiga.mp4`, cut: "hkTiga", style: "hkTiga", sfx: "hk_tiga" },
 };
 const FORM_KEYS = Object.keys(FORMS);
 const NORMAL = "normal"; // ปุ่ม "คืนร่าง"
@@ -321,6 +322,12 @@ module.exports = {
     if (f === "doragory") return [engine.applyBleed(target, 1) ? "ดอรากอรี่ — เลือดไหล +1" : "เลือดไหล — ต้านได้"];
     if (striumOn(attacker)) return [engine.applyBurn(target, 1) ? "กิงกะสโตเรี่ยม — ลุกไหม้ +1" : "ลุกไหม้ — ต้านได้"];
     return [];
+  },
+  // เสียงตีปกติตามร่าง · ร่างปกติ = เสียงกลาง
+  attackSound(p) {
+    if (!isHikaru(p)) return undefined;
+    if (gingaOn(p)) return striumOn(p) ? "hk_strium" : "hk_ginga";
+    return inForm(p) ? FORMS[formOf(p)].sfx : undefined;
   },
   // ท่าตีบนกระดาน (client/src/board/hikaruFx.js) · ร่างปกติ = พุ่งชนแบบเดิม
   attackStyle(p) {

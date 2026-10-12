@@ -434,6 +434,16 @@ test('Strium Ray: 6 แต้ม · แนว 5×3 · ดาเมจ 2 + ลุ
   assert.equal(engine.gameState, 'ACTION');
 });
 
+test('เสียงตีปกติ: ตามร่าง / กิงกะ / สโตเรี่ยม · ร่างปกติใช้เสียงกลาง (การ์ดฉากตี byAttackSound)', () => {
+  const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 8, 5]]);
+  assert.equal(hk.attackSound(P.H), undefined);
+  for (const key of hk.FORM_KEYS) { P.H.hikaru.form = key; assert.equal(hk.attackSound(P.H), hk.FORMS[key].sfx); }
+  P.H.hikaru.form = null; P.H.hikaru.ginga = true;
+  assert.equal(hk.attackSound(P.H), 'hk_ginga');
+  P.H.hikaru.strium = true;
+  assert.equal(hk.attackSound(P.H), 'hk_strium');
+});
+
 test('กระดาน (ฟังก์ชันล้วน): lineTiles ตัวใหญ่ออกจากกลางด้านหน้า · laneOf หาแนวที่เป้าอยู่ (ตัวใหญ่ = ทุกแถวที่ตัวกิน)', () => {
   const map = Board.mapOf(1);
   assert.deepEqual(Board.lineTiles(map, 2, 2, 'up', 2, 1, 3), [{ x: 3, y: 1 }, { x: 3, y: 0 }]);

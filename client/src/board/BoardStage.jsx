@@ -25,7 +25,7 @@ import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
 import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
-import { HK_BEAM, HK_PUSH_MS, HK_TONE, isHikaruFx } from "./hikaruFx";
+import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -418,6 +418,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
+      // เสียงของท่าฮิคารุเริ่มก่อนปะทะ (ช่วงดังสุดของไฟล์ตรงจังหวะปะทะ)
+      if (hk && tPos) later(Math.max(ZOOM_IN, HIT - (HK_SFX_LEAD[style] || 0)), () => playSfx(a.byAttackSound || "attack"));
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
@@ -429,7 +431,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
-          if (!myth) playSfx(a.byAttackSound || "attack");
+          if (!myth && !hk) playSfx(a.byAttackSound || "attack");
           setShake((n) => n + 1);
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
@@ -575,10 +577,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const bd = boardRef.current || {}, c = (n - 1) / 2, reach = n / 2 + len / 2;
       const cl = (q, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), q));
       look({ x: cl(Math.round(b.from.x + c + v[0] * reach), bd.cols), y: cl(Math.round(b.from.y + c + v[1] * reach), bd.rows) });
-      playSfx("attack");
+      playSfx(b.kind === "ray" ? "hk_ray" : "hk_cross"); // ช่วงดังสุดของไฟล์ ≈ จังหวะลำแสงปล่อย (HK_BEAM.charge)
       if (!lowQ) {
         timers.current.push(setTimeout(() => setShake((k) => k + 1), HK_BEAM.charge));
-        timers.current.push(setTimeout(() => { setShake((k) => k + 1); playSfx("attack"); }, HK_BEAM.reach));
+        timers.current.push(setTimeout(() => setShake((k) => k + 1), HK_BEAM.reach));
       }
     };
     const onPush = (m) => {

@@ -26,6 +26,8 @@ export const HK_HIT_P = { hkBlack: 0.46, hkThunder: 0.5, hkKemur: 0.55, hkPandon
 // ท่าไม้ตาย: ชาร์จ → ลำแสงวิ่งถึงปลาย (reach — ตรงกับ server BEAM_SECONDS 1.6 วิ) → ค้าง → จาง
 export const HK_BEAM = { charge: 650, travel: 550, reach: 1200, hold: 650, fade: 350 };
 export const HK_PUSH_MS = 650;
+// เสียงตีปกติเริ่มก่อนจังหวะปะทะกี่ ms (ช่วงดังสุดของไฟล์ใน sfx/ ตรงกับจังหวะปะทะ — เสียงยาวที่มีช่วงสะสมพลังเริ่มก่อน)
+export const HK_SFX_LEAD = { hkBlack: 800, hkThunder: 800, hkKemur: 0, hkPandon: 600, hkDoragory: 100, hkTiga: 400, hkGinga: 900, hkStrium: 100 };
 export const HK_FX_DUR = {
   ...HK_MS,
   hkHit: 600,
