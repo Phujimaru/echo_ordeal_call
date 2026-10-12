@@ -114,21 +114,23 @@ function rangeOf(p) {
   const ch = CHAR_BY_ID[p.characterId];
   return ch && Array.isArray(ch.range) ? ch.range : DEFAULT_RANGE;
 }
-// ตีปกติแบบแนวตรง (ฮุค attackLane — ไรโด ฮิคารุ: แบล็คคิง / กิงกะ): ตีได้เฉพาะแนวตรงจากขอบตัว · ทุกคนในแนวโดน
+// ตีปกติแบบแนวตรง (ฮุค attackLane — ไรโด ฮิคารุ): ตีได้เฉพาะแนวตรงจากขอบตัว · ทุกคนในแนวโดน
+//  คืน false | true (แนวตรงยาวตามระยะ — แบล็คคิง) | "face" (ทั้งด้านของตัวที่เป้าอยู่ — กิงกะ)
 function lanes(p) {
   const hook = CHAR_HOOKS[p.characterId];
-  return !!(hook && hook.attackLane && hook.attackLane(p));
+  const mode = hook && hook.attackLane ? hook.attackLane(p) : false;
+  return mode === "face" ? "face" : !!mode;
 }
 // เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
-  if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target));
+  if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
 }
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
 function laneVictims(p, target) {
   if (!lanes(p) || !p.pos || !target || !target.pos) return null;
-  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target));
+  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   if (!lane) return null;
   const ids = Board.unitsOnTiles(boardUnits(), lane.tiles).map((u) => u.id)
     .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));

@@ -188,13 +188,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
-      if (me.lane ? !Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe)) : !Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
+      if (me.lane ? !Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : !Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
       if (!best || n.d < best.d) best = n;
     }
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
     // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
-    const lane = me.lane ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe)) : null;
+    const lane = me.lane ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : null;
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;

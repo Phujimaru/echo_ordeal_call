@@ -7,8 +7,8 @@
 //    hkPandon   คิงแพนด้อน: ลูกไฟคู่ (สองหัว) โค้งเข้าหาเป้า → ระเบิดไฟ + ประกายไฟ
 //    hkDoragory ดอรากอรี่: รอยกรงเล็บแดง 3 เส้นกวาดผ่านเป้า + หยดเลือด
 //    hkTiga     Ultraman Tiga: จานแสงหมุนแดง-ม่วง-เงินพุ่งเข้าเป้า → แสงแตกหลายสี
-//    hkGinga    กิงกะ: คริสตัลฟ้าเรืองที่ตัว → ลำแสงฟ้าวิ่งตามแนว + ประกายทุกช่อง
-//    hkStrium   กิงกะสโตเรี่ยม: คลื่นเปลวไฟฟ้าแดงวิ่งตามแนว + ประกายรุ้ง
+//    hkGinga    กิงกะ: คริสตัลบนตัวเรือง → คลื่นพลังฟ้ากว้างเท่าด้านตัวพุ่งใส่ช่องที่ติด → เสาแสง + คริสตัลแตกทุกช่อง
+//    hkStrium   กิงกะสโตเรี่ยม: แบบเดียวกันแต่เป็นเปลวไฟแดง + ประกายรุ้ง
 //  จังหวะปะทะ (เป้าทุกคนในแนวสั่น · BoardStage ขึ้นเลข/เสียงตรงนั้น): hkHit { x, y, size, tone, hitIds }
 //  ท่าไม้ตาย (socket "hikaruBeam"): hkCross ลำแสงหนาฟ้า-ขาว 5×1 + วงคริสตัลเต้นตามแนว · hkStriumRay ลำแสงรุ้งกว้าง 5×3 + เส้นความเร็ว
 //    fx { x, y, size, dir, len, width, tiles: [{ x, y }] } — ดาเมจลงหลังลำแสงวิ่งถึง (server BEAM_SECONDS = HK_BEAM.reach)
@@ -23,11 +23,11 @@ const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 // ระยะเวลาแต่ละท่า (ms) · จังหวะปะทะเป็นสัดส่วนของเวลา (รวมเข้า STYLE_MS / STYLE_HIT_P ใน boardDraw.js)
 export const HK_MS = { hkBlack: 1250, hkThunder: 1150, hkKemur: 1250, hkPandon: 1250, hkDoragory: 1000, hkTiga: 1150, hkGinga: 1250, hkStrium: 1250 };
 export const HK_HIT_P = { hkBlack: 0.46, hkThunder: 0.5, hkKemur: 0.55, hkPandon: 0.55, hkDoragory: 0.42, hkTiga: 0.5, hkGinga: 0.46, hkStrium: 0.46 };
-// ท่าไม้ตาย: ชาร์จ → ลำแสงวิ่งถึงปลาย (reach — ตรงกับ server BEAM_SECONDS 1.6 วิ) → ค้าง → จาง
-export const HK_BEAM = { charge: 650, travel: 550, reach: 1200, hold: 650, fade: 350 };
+// ท่าไม้ตาย: ชาร์จ → ลำแสงวิ่งถึงปลาย (reach — server ลงดาเมจที่ BEAM_SECONDS 1.9 วิ) → ค้าง → จาง
+export const HK_BEAM = { charge: 900, reach: 1500, hold: 900, fade: 400 };
 export const HK_PUSH_MS = 650;
 // เสียงตีปกติเริ่มก่อนจังหวะปะทะกี่ ms (ช่วงดังสุดของไฟล์ใน sfx/ ตรงกับจังหวะปะทะ — เสียงยาวที่มีช่วงสะสมพลังเริ่มก่อน)
-export const HK_SFX_LEAD = { hkBlack: 800, hkThunder: 800, hkKemur: 0, hkPandon: 600, hkDoragory: 100, hkTiga: 400, hkGinga: 900, hkStrium: 100 };
+export const HK_SFX_LEAD = { hkBlack: 800, hkThunder: 800, hkKemur: 0, hkPandon: 600, hkDoragory: 100, hkTiga: 400, hkGinga: 900, hkStrium: 200 };
 export const HK_FX_DUR = {
   ...HK_MS,
   hkHit: 600,
@@ -307,52 +307,76 @@ function tigaFx(g, e, t, now, lowQ) {
 }
 // ---------------------------------------------------------------- กิงกะ / สโตเรี่ยม (ตามแนว)
 function laneBeam(g, e, t, now, lowQ, strium) {
-  const HIT = strium ? HK_HIT_P.hkStrium : HK_HIT_P.hkGinga, tiles = laneOf(e), n = tiles.length;
-  const [ax, ay] = mid(e.x, e.y, e.size), A = P(ax, ay, 0.9 * Math.max(1, e.size || 1) * 0.6);
+  const HIT = strium ? HK_HIT_P.hkStrium : HK_HIT_P.hkGinga, tiles = laneOf(e);
+  const n = Math.max(1, e.size | 0), [ax, ay] = mid(e.x, e.y, n);
   const core = strium ? "255,120,60" : "90,190,255", hot = strium ? "255,230,150" : "215,245,255";
+  const cols = strium ? RAINBOW : ["160,225,255", "255,255,255", "120,200,255"];
+  // ทิศของด้านที่ตี (จากกลางตัวไปกลางกลุ่มช่องที่โดน) · ขอบตัวด้านนั้น · ความกว้างของด้าน
+  const fx = tiles.reduce((s, c) => s + c.x + 0.5, 0) / tiles.length, fy = tiles.reduce((s, c) => s + c.y + 0.5, 0) / tiles.length;
+  const ddx = fx - ax, ddy = fy - ay;
+  const v = Math.abs(ddx) >= Math.abs(ddy) ? [Math.sign(ddx) || 1, 0] : [0, Math.sign(ddy) || 1];
+  const sx = -v[1], sy = v[0], half = n / 2, ex = ax + v[0] * half, ey = ay + v[1] * half;
+  const W = Math.max(1, tiles.length) + 0.4, BODY = P(ax, ay, 0.9 * n * 0.55);
+  const quadAt = (d0, d1, w, z, col, a) => {
+    const hw = w / 2, p = (d, o) => P(ex + v[0] * d + sx * o, ey + v[1] * d + sy * o, z);
+    const A = p(d0, -hw), B = p(d1, -hw), C = p(d1, hw), D = p(d0, hw);
+    g.fillStyle = `rgba(${col},${a})`; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.lineTo(C[0], C[1]); g.lineTo(D[0], D[1]); g.closePath(); g.fill();
+  };
   g.save();
-  // ปลุกพลัง: คริสตัลบนตัวเรือง
-  if (t < 0.3) {
-    const k = t / 0.3;
+  if (t < HIT) {
+    // 1) ปลุกพลัง: คริสตัลบนตัวเรืองจ้าขึ้นเรื่อยๆ + ประกายวิ่งเข้าหาตัว
+    const k = clamp01(t / HIT);
     g.globalCompositeOperation = "lighter";
-    glow(g, A[0], A[1], A[2] * (0.4 + 0.5 * k), core, 0.4 + 0.5 * k);
-    glow(g, A[0], A[1], A[2] * 0.25, "255,255,255", k);
-    g.globalCompositeOperation = "source-over";
-  }
-  const last = tiles[n - 1];
-  if (last) {
-    const head = clamp01((t - 0.18) / (HIT - 0.18)), fade = t > 0.72 ? 1 - (t - 0.72) / 0.28 : 1;
-    if (head > 0 && fade > 0) {
-      const [lx, ly] = mid(last.x, last.y, 1);
-      const Bp = P(lerp(ax, lx, easeOut3(head)), lerp(ay, ly, easeOut3(head)), 0.55);
-      const A2 = P(ax, ay, 0.55);
-      g.lineCap = "round";
-      g.globalCompositeOperation = "lighter";
-      for (const [w, col, a] of [[0.55, core, 0.25], [0.24, core, 0.75], [0.09, hot, 1]]) {
-        g.strokeStyle = `rgba(${col},${a * fade})`; g.lineWidth = Math.max(1.5, A2[2] * w);
-        g.beginPath(); g.moveTo(A2[0], A2[1]); g.lineTo(Bp[0], Bp[1]); g.stroke();
+    glow(g, BODY[0], BODY[1], BODY[2] * (0.5 + 0.9 * k), core, 0.35 + 0.5 * k);
+    glow(g, BODY[0], BODY[1], BODY[2] * (0.18 + 0.3 * k), "255,255,255", 0.4 + 0.6 * k);
+    if (!lowQ && !REDUCED) {
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + now / 260, r = BODY[2] * 1.8 * (1 - k) + BODY[2] * 0.3;
+        g.fillStyle = `rgba(${cols[i % cols.length]},${0.4 + 0.6 * k})`;
+        g.beginPath(); g.arc(BODY[0] + Math.cos(a) * r, BODY[1] + Math.sin(a) * r * 0.6, 2 + 2.5 * k, 0, 7); g.fill();
       }
-      if (strium && !lowQ) {
-        // เปลวไฟเลียตามแนว
-        const R = rngOf(Math.floor(now / 60));
-        for (let i = 0; i < 10; i++) {
-          const u = R() * easeOut3(head), C = P(lerp(ax, lx, u), lerp(ay, ly, u), 0.4 + R() * 0.5);
-          glow(g, C[0], C[1], C[2] * (0.12 + R() * 0.12), i % 2 ? "255,90,30" : "255,190,70", 0.7 * fade);
+    }
+    // 2) คลื่นพลังกว้างเท่าด้านตัว พุ่งออกจากขอบตัวไปถึงช่องที่ติด
+    const go = clamp01((t - HIT * 0.55) / (HIT * 0.45));
+    if (go > 0) {
+      const reach = 1.05 * easeOut3(go);
+      quadAt(0, reach, W + 0.3, 0.05, core, 0.28);
+      quadAt(0, reach, W, 0.45, core, 0.55);
+      quadAt(Math.max(0, reach - 0.35), reach, W, 0.5, hot, 0.9);
+    }
+    g.globalCompositeOperation = "source-over";
+  } else {
+    // 3) ปะทะ: แผ่นแสงระเบิดทั้งด้าน + เสาแสงพุ่งขึ้นทุกช่อง + คริสตัลแตกกระจาย
+    const k = (t - HIT) / (1 - HIT), fade = 1 - k;
+    g.globalCompositeOperation = "lighter";
+    quadAt(0, 1.1 + k * 0.5, W + k * 0.6, 0.05, core, 0.35 * fade);
+    for (const tl of tiles) {
+      const [cx, cy] = mid(tl.x, tl.y, 1), G = P(cx, cy, 0.1), T = P(cx, cy, 1.6 + k * 1.2);
+      const w = G[2] * 0.42 * fade;
+      const gr = g.createLinearGradient(G[0], G[1], T[0], T[1]);
+      gr.addColorStop(0, `rgba(${hot},${0.9 * fade})`); gr.addColorStop(1, `rgba(${core},0)`);
+      g.fillStyle = gr; g.fillRect(G[0] - w / 2, T[1], w, G[1] - T[1]);
+      glow(g, G[0], G[1], G[2] * (0.5 + k * 0.6), hot, 0.9 * fade);
+    }
+    if (k < 0.25) glow(g, BODY[0], BODY[1], BODY[2] * 2.2, "255,255,255", 0.6 * (1 - k / 0.25));
+    g.globalCompositeOperation = "source-over";
+    for (const tl of tiles) {
+      const [cx, cy] = mid(tl.x, tl.y, 1), C = P(cx, cy, 0.4);
+      ring(g, cx, cy, clamp01(k * 1.3), core, 0.2, 0.9, 5);
+      if (!lowQ) {
+        ring(g, cx, cy, clamp01(k * 1.3 - 0.15), "255,255,255", 0.15, 0.7, 3);
+        sparks(g, C[0], C[1], C[2] * 1.3, k, 14, cols, (tl.x * 13 + tl.y * 7) | 0);
+        // เศษคริสตัล (ข้าวหลามตัด) ปลิว
+        const R = rngOf(tl.x * 31 + tl.y * 17 + (strium ? 5 : 0));
+        for (let i = 0; i < 6; i++) {
+          const a = R() * Math.PI * 2, d = C[2] * (0.3 + R() * 0.9) * easeOut3(k), h = C[2] * (0.08 + R() * 0.06);
+          const x = C[0] + Math.cos(a) * d, y = C[1] + Math.sin(a) * d * 0.6 - k * C[2] * 0.5;
+          g.fillStyle = `rgba(${cols[i % cols.length]},${fade})`;
+          g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + h * 0.5, y); g.lineTo(x, y + h); g.lineTo(x - h * 0.5, y); g.closePath(); g.fill();
         }
       }
-      g.globalCompositeOperation = "source-over";
     }
   }
-  tiles.forEach((tl, i) => {
-    const t0 = laneT(i, n, 0.18, HIT);
-    if (t < t0) return;
-    const k = clamp01((t - t0) / 0.3);
-    if (k >= 1) return;
-    const [cx, cy] = mid(tl.x, tl.y, 1), C = P(cx, cy, 0.4);
-    quad(g, tl.x, tl.y, 0.1); g.fillStyle = `rgba(${core},${0.25 * (1 - k)})`; g.fill();
-    ring(g, cx, cy, k, core, 0.15, 0.55, 3);
-    if (!lowQ) sparks(g, C[0], C[1], C[2], k, 8, strium ? RAINBOW : ["180,230,255", "255,255,255"], 40 + i);
-  });
   g.restore();
 }
 
@@ -376,86 +400,125 @@ function ultBeam(g, e, now, lowQ, ray) {
   if (!v) return;
   const n = Math.max(1, e.size | 0), [cx, cy] = mid(e.x, e.y, n);
   const half = n / 2, ox = cx + v[0] * half, oy = cy + v[1] * half; // ขอบหน้าตัว
-  const len = Math.max(1, e.len | 0), width = Math.max(1, e.width | 0);
+  const width = Math.max(1, e.width | 0);
+  // ความยาวจริง = ถึงช่องไกลสุดที่อยู่ในกระดาน (server ตัดขอบให้แล้ว) — ไม่วาดเลยขอบกระดาน
+  const tl0 = Array.isArray(e.tiles) ? e.tiles : [];
+  const far = tl0.reduce((m, c) => Math.max(m, (c.x + 0.5 - ox) * v[0] + (c.y + 0.5 - oy) * v[1] + 0.5), 0);
+  const len = tl0.length ? Math.min(Math.max(1, e.len | 0), far) : 0.35;
   const ex = ox + v[0] * len, ey = oy + v[1] * len;
-  const Z = 0.75, A = P(ox, oy, Z);
+  const Z = 0.75, A = P(ox, oy, Z), BODY = P(cx, cy, 0.9 * n * 0.55);
   const fadeK = t > RE + HO ? 1 - (t - RE - HO) / FA : 1;
   const core = ray ? "255,140,90" : "120,200,255", hot = ray ? "255,240,200" : "235,250,255";
+  const cols = ray ? RAINBOW : ["160,225,255", "255,255,255", "110,190,255"];
+  const sx = -v[1], sy = v[0];
+  const still = lowQ || REDUCED;
   g.save();
-  // ชาร์จ: แสงรวมตัวที่หน้าตัว (+ คริสตัลหมุน)
-  if (t < CH) {
-    const k = t / CH;
+  // ---- ชาร์จ: คริสตัลบนตัวเรือง → เศษคริสตัลหมุนรวมที่หน้าตัว + วงเวทบนพื้น ----
+  if (t < CH + 200) {
+    const k = clamp01(t / CH), out = t > CH ? 1 - (t - CH) / 200 : 1;
     g.globalCompositeOperation = "lighter";
-    glow(g, A[0], A[1], A[2] * (0.4 + 0.9 * k), core, 0.3 + 0.6 * k);
-    glow(g, A[0], A[1], A[2] * (0.15 + 0.3 * k), "255,255,255", 0.5 + 0.5 * k);
-    if (!lowQ) {
-      for (let i = 0; i < 10; i++) {
-        const a = (i / 10) * Math.PI * 2 + now / 200, r = A[2] * 1.4 * (1 - k);
-        g.fillStyle = `rgba(${ray ? RAINBOW[i % 6] : "200,240,255"},${0.5 + 0.5 * k})`;
-        g.beginPath(); g.arc(A[0] + Math.cos(a) * r, A[1] + Math.sin(a) * r * 0.6, 2 + k * 2, 0, 7); g.fill();
+    glow(g, BODY[0], BODY[1], BODY[2] * (0.6 + 1.2 * k), core, (0.3 + 0.5 * k) * out);
+    for (let r = 0; r < 2; r++) {
+      const R0 = (0.6 + r * 0.45) * (0.4 + 0.6 * easeOut3(k)) * Math.max(1, width * 0.7), spin = still ? 0 : now / (r ? -500 : 380);
+      const c0 = ox + v[0] * 0.5, c1 = oy + v[1] * 0.5;
+      g.strokeStyle = `rgba(${r ? hot : core},${(0.8 - r * 0.25) * out})`; g.lineWidth = 2.5 - r;
+      g.beginPath();
+      for (let j = 0; j <= 48; j++) {
+        const a = (j / 48) * Math.PI * 2 + spin, p = P(c0 + Math.cos(a) * R0, c1 + Math.sin(a) * R0, 0.03);
+        if (j) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
+      }
+      g.stroke();
+      if (!lowQ) for (let j = 0; j < 6; j++) {
+        const a = (j / 6) * Math.PI * 2 + spin, p = P(c0 + Math.cos(a) * R0, c1 + Math.sin(a) * R0, 0.03);
+        g.fillStyle = `rgba(${hot},${out})`; g.beginPath(); g.arc(p[0], p[1], 2.5, 0, 7); g.fill();
       }
     }
+    const shards = lowQ ? 6 : 14;
+    for (let i = 0; i < shards; i++) {
+      const a = (i / shards) * Math.PI * 2 + (still ? 0 : now / 220), r = A[2] * (2.2 * (1 - easeOut3(k)) + 0.25);
+      const x = A[0] + Math.cos(a) * r, y = A[1] + Math.sin(a) * r * 0.55, h = A[2] * (0.1 + 0.05 * k);
+      g.fillStyle = `rgba(${cols[i % cols.length]},${(0.5 + 0.5 * k) * out})`;
+      g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + h * 0.45, y); g.lineTo(x, y + h); g.lineTo(x - h * 0.45, y); g.closePath(); g.fill();
+    }
+    glow(g, A[0], A[1], A[2] * (0.3 + 1.1 * k), core, (0.4 + 0.5 * k) * out);
+    glow(g, A[0], A[1], A[2] * (0.12 + 0.45 * k), "255,255,255", (0.6 + 0.4 * k) * out);
     g.globalCompositeOperation = "source-over";
   }
+  // ---- ลำแสง ----
   if (t >= CH && fadeK > 0) {
     const front = REDUCED ? 1 : easeOut3(clamp01((t - CH) / (RE - CH)));
     const bx = lerp(ox, ex, front), by = lerp(oy, ey, front);
-    const sx = -v[1], sy = v[0];
-    // ช่องที่ลำแสงผ่านแล้ว: พื้นเรือง
+    const pulse = still ? 1 : 0.85 + 0.15 * Math.sin(now / 38);
+    const wob = still ? 0 : Math.sin(now / 45) * 0.05;
+    // ช่องที่ลำแสงผ่าน: พื้นไหม้เรือง
     for (const tl of e.tiles || []) {
       const d = (tl.x + 0.5 - ox) * v[0] + (tl.y + 0.5 - oy) * v[1];
       if (d > len * front + 0.1) continue;
-      quad(g, tl.x, tl.y, 0.06); g.fillStyle = `rgba(${core},${0.28 * fadeK})`; g.fill();
+      quad(g, tl.x, tl.y, 0.04); g.fillStyle = `rgba(${core},${0.32 * fadeK})`; g.fill();
     }
     g.globalCompositeOperation = "lighter";
-    // ตัวลำแสง: แผ่นกว้าง width ช่อง (แบนตามพื้นที่ความสูง Z) — ซ้อนเรือง/แกน
     const slab = (w, z, col, a) => {
       const hw = w / 2;
       const p1 = P(ox + sx * hw, oy + sy * hw, z), p2 = P(bx + sx * hw, by + sy * hw, z), p3 = P(bx - sx * hw, by - sy * hw, z), p4 = P(ox - sx * hw, oy - sy * hw, z);
       g.fillStyle = `rgba(${col},${a})`; g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
     };
-    const wob = REDUCED ? 0 : Math.sin(now / 45) * 0.04;
     if (ray) {
-      // รุ้ง: แถบสีเรียงขวางลำแสง
+      // รุ้ง: แถบสีเรียงขวางลำแสง + แกนขาวร้อน
       const bands = lowQ ? 3 : RAINBOW.length;
+      if (!lowQ) slab(width + 1.2, Z, "255,160,120", 0.18 * fadeK);
       for (let i = 0; i < bands; i++) {
-        const off = ((i + 0.5) / bands - 0.5) * width, hw = width / bands / 2 + 0.02;
+        const off = ((i + 0.5) / bands - 0.5) * width, hw = width / bands / 2 + 0.03;
         const col = RAINBOW[Math.floor(i * RAINBOW.length / bands)];
         const p1 = P(ox + sx * (off - hw), oy + sy * (off - hw), Z), p2 = P(bx + sx * (off - hw), by + sy * (off - hw), Z);
         const p3 = P(bx + sx * (off + hw), by + sy * (off + hw), Z), p4 = P(ox + sx * (off + hw), oy + sy * (off + hw), Z);
-        g.fillStyle = `rgba(${col},${0.45 * fadeK})`; g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
+        g.fillStyle = `rgba(${col},${0.5 * fadeK * pulse})`; g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(p3[0], p3[1]); g.lineTo(p4[0], p4[1]); g.closePath(); g.fill();
       }
-      slab(width * 0.45 + wob, Z, hot, 0.55 * fadeK);
-      slab(width * 0.15, Z, "255,255,255", 0.9 * fadeK);
+      slab(width * 0.5 + wob, Z, hot, 0.6 * fadeK * pulse);
+      slab(width * 0.18, Z, "255,255,255", 0.95 * fadeK);
     } else {
-      slab(1.0 + wob, Z, core, 0.3 * fadeK);
-      slab(0.5 + wob, Z, core, 0.7 * fadeK);
-      slab(0.2, Z, "255,255,255", fadeK);
+      if (!lowQ) slab(2.0 + wob, Z, core, 0.14 * fadeK);
+      slab(1.25 + wob, Z, core, 0.32 * fadeK * pulse);
+      slab(0.7 + wob, Z, core, 0.7 * fadeK * pulse);
+      slab(0.32, Z, hot, 0.95 * fadeK);
+      slab(0.12, Z, "255,255,255", fadeK);
     }
     const Bp = P(bx, by, Z);
-    glow(g, Bp[0], Bp[1], Bp[2] * (ray ? 1.1 : 0.7), hot, 0.85 * fadeK);
-    glow(g, A[0], A[1], A[2] * 0.7, "255,255,255", 0.8 * fadeK);
+    // หัวลำแสง/ปากลำแสง: แสงจ้า + แฉกเลนส์
+    glow(g, Bp[0], Bp[1], Bp[2] * (ray ? 1.5 : 1.1) * pulse, hot, 0.9 * fadeK);
+    glow(g, A[0], A[1], A[2] * 1.0 * pulse, "255,255,255", 0.85 * fadeK);
+    if (!lowQ) {
+      g.strokeStyle = `rgba(255,255,255,${0.75 * fadeK})`; g.lineWidth = 2;
+      for (const [hx, hy, L] of [[Bp[0], Bp[1], Bp[2] * 1.6], [A[0], A[1], A[2] * 1.2]]) {
+        g.beginPath(); g.moveTo(hx - L, hy); g.lineTo(hx + L, hy); g.moveTo(hx, hy - L * 0.6); g.lineTo(hx, hy + L * 0.6); g.stroke();
+      }
+    }
+    // ปลายลำแสง (ถึงแล้ว): ระเบิดแสง + วงกระแทกบนพื้นซ้อนกัน
+    if (front >= 0.999) {
+      const k = clamp01((t - RE) / (HO + FA));
+      glow(g, Bp[0], Bp[1], Bp[2] * (1.4 + k * 1.2), core, 0.6 * (1 - k));
+      g.globalCompositeOperation = "source-over";
+      for (let i = 0; i < (lowQ ? 1 : 3); i++) ring(g, ex - v[0] * 0.5, ey - v[1] * 0.5, clamp01(k * 1.6 - i * 0.18), i === 1 ? "255,255,255" : core, 0.3, 1.2 + width * 0.4, 6);
+    }
     g.globalCompositeOperation = "source-over";
-    if (!lowQ && !REDUCED) {
-      if (ray) {
-        // เส้นความเร็ววิ่งตามลำแสง
-        g.lineCap = "round";
-        const R = rngOf(13);
-        for (let i = 0; i < 16; i++) {
-          const off = (R() - 0.5) * width * 1.1, sp = (now / 3 + R() * 1000) % 1000 / 1000;
-          const u0 = sp * len * front, u1 = Math.min(len * front, u0 + 0.9);
-          const q0 = P(ox + v[0] * u0 + sx * off, oy + v[1] * u0 + sy * off, Z + (R() - 0.5) * 0.5), q1 = P(ox + v[0] * u1 + sx * off, oy + v[1] * u1 + sy * off, Z);
-          g.strokeStyle = `rgba(255,255,255,${0.7 * fadeK})`; g.lineWidth = 1.5;
-          g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.stroke();
-        }
-      } else {
-        // วงคริสตัลเต้นตามแนว
+    if (!still) {
+      // พลังงานไหลตามลำแสง + วงคริสตัลเต้น (Cross Shoot) + ประกายปลิวออกด้านข้าง
+      g.lineCap = "round";
+      const R = rngOf(13);
+      const streaks = ray ? 18 : 12;
+      for (let i = 0; i < streaks; i++) {
+        const off = (R() - 0.5) * width * (ray ? 1.1 : 0.8), sp = ((now / 2.5 + R() * 1000) % 1000) / 1000;
+        const u0 = sp * len * front, u1 = Math.min(len * front, u0 + 0.8);
+        const q0 = P(ox + v[0] * u0 + sx * off, oy + v[1] * u0 + sy * off, Z + (R() - 0.5) * 0.4), q1 = P(ox + v[0] * u1 + sx * off, oy + v[1] * u1 + sy * off, Z);
+        g.strokeStyle = `rgba(255,255,255,${0.75 * fadeK})`; g.lineWidth = 1.6;
+        g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.stroke();
+      }
+      if (!ray) {
         for (let i = 1; i <= len; i++) {
           const u = i - 0.5;
           if (u > len * front) break;
-          const ph = (now / 260 + i * 0.35) % 1, C = [ox + v[0] * u, oy + v[1] * u];
-          g.strokeStyle = `rgba(200,240,255,${0.8 * fadeK * (1 - ph)})`; g.lineWidth = 2.5;
-          const r = 0.25 + ph * 0.35;
+          const ph = (now / 240 + i * 0.35) % 1, C = [ox + v[0] * u, oy + v[1] * u];
+          g.strokeStyle = `rgba(200,240,255,${0.85 * fadeK * (1 - ph)})`; g.lineWidth = 3;
+          const r = 0.3 + ph * 0.45;
           g.beginPath();
           for (let j = 0; j <= 6; j++) {
             const a = (j / 6) * Math.PI * 2, p = P(C[0] + sx * Math.cos(a) * r, C[1] + sy * Math.cos(a) * r, Z + Math.sin(a) * r);
@@ -463,6 +526,13 @@ function ultBeam(g, e, now, lowQ, ray) {
           }
           g.stroke();
         }
+      }
+      const RS = rngOf(Math.floor(now / 50));
+      for (let i = 0; i < 14; i++) {
+        const u = RS() * len * front, side = RS() < 0.5 ? -1 : 1, off = side * (width / 2 + RS() * 0.6);
+        const C = P(ox + v[0] * u + sx * off, oy + v[1] * u + sy * off, Z + (RS() - 0.3) * 0.8);
+        g.fillStyle = `rgba(${cols[i % cols.length]},${0.9 * fadeK})`;
+        g.beginPath(); g.arc(C[0], C[1], 1.5 + RS() * 2.5, 0, 7); g.fill();
       }
     }
   }
@@ -493,7 +563,9 @@ export function hkBeamHitMs(e, tile) {
   if (!v) return HK_BEAM.reach;
   const n = Math.max(1, e.size | 0), [cx, cy] = mid(e.x, e.y, n), half = n / 2;
   const d = (tile.x + 0.5 - (cx + v[0] * half)) * v[0] + (tile.y + 0.5 - (cy + v[1] * half)) * v[1];
-  const q = clamp01(d / Math.max(1, e.len | 0));
+  const tl0 = Array.isArray(e.tiles) ? e.tiles : [], ox = cx + v[0] * half, oy = cy + v[1] * half;
+  const far = tl0.reduce((m, c) => Math.max(m, (c.x + 0.5 - ox) * v[0] + (c.y + 0.5 - oy) * v[1] + 0.5), 0);
+  const q = clamp01(d / Math.max(0.35, Math.min(Math.max(1, e.len | 0), far))); // ความยาวเดียวกับที่ ultBeam วาด
   // ผกผันของ easeOut3: เวลาที่ front = q
   return HK_BEAM.charge + (REDUCED ? 0 : (HK_BEAM.reach - HK_BEAM.charge) * (1 - Math.cbrt(1 - q)));
 }

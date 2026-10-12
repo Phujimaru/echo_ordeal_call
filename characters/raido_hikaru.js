@@ -3,6 +3,7 @@
 //
 //  ค่าพื้นฐาน: เลือด 7 / เกราะ 3 (ค่ามาตรฐาน) · เดิน 4 · ตีประชิด [1, 1]
 //  สกิลพื้นฐาน UltraLive (0 แต้ม · ไม่นับเป็นการใช้สกิล): เลือก 1 ใน 6 ร่าง หรือ "คืนร่าง" · เทิร์นละ 1 ครั้ง · ใช้ไม่ได้ระหว่างร่างกิงกะ
+//    ทุกร่างตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง — แบบกิงกะ) · คืนร่าง = กลับ 1×1
 //    ทุกร่าง: เกราะสูงสุด +2 · เข้าร่างฟื้นเกราะ 2 (ฟื้นได้อีกเมื่อผ่านไป 5 เทิร์น) · เกราะลดเท่าไร ฟื้นพลังชีวิตเท่านั้น
 //    คืนร่าง = ตัดเกราะส่วนเกินเพดาน
 //    แบล็คคิง: ตีปกติแนวตรง 1×3 โดนทุกศัตรูในแนว · ทันเดอร์ดารัมเบีย: ตีปกติติดช็อต 1 เทิร์น
@@ -10,7 +11,7 @@
 //    คิงแพนด้อน: ระยะตี [1, 3] · ตีปกติติดลุกไหม้ 1 · ดอรากอรี่: ตีปกติติดเลือดไหล 1
 //    Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · อยู่ 3 เทิร์นแล้วคืนร่างเอง · ร่างจบแล้วเรียกซ้ำได้อีกหลัง 5 เทิร์น
 //  สกิลรอง Ultraman Ginga (4 แต้ม · ร่างปกติเท่านั้น): 5 เทิร์น · ตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง)
-//    ตีปกติ +1 แนวตรง 1×3 · หมดแล้วคูลดาวน์ 3 เทิร์น
+//    ตีปกติ +1 ช่องติดตัวทั้งด้าน 1×3 (ศัตรูทุกคนที่ติดด้านนั้น) · หมดแล้วคูลดาวน์ 3 เทิร์น
 //  ท่าไม้ตาย (ร่างกิงกะเท่านั้น · ลำแสงหลบไม่ได้): Ginga Cross Shoot (4 แต้ม) แนว 5×1 ดาเมจ 2 + ลุกไหม้ 2
 //    กิงกะสโตเรี่ยม → Strium Ray (6 แต้ม) แนว 5×3 ดาเมจ 2 + ลุกไหม้ 3 + ผลักไปสุดปลายลำแสง
 //  ติดตัว Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวันครบ 10 เทิร์น (รวมทั้งเกม · ห่วงเวลาซีโร่ไม่นับ)
@@ -56,7 +57,8 @@ const CUT = { ginga: "hkGinga", strium: "hkStrium", cross: "hkCross", ray: "hkSt
 const FORM_ARMOR = 2;      // เกราะสูงสุด +2 ระหว่างร่าง 1–6
 const FORM_ARMOR_HEAL = 2; // เข้าร่างฟื้นเกราะ 2
 const ARMOR_HEAL_CD = 5;   // ฟื้นเกราะตอนเข้าร่างได้อีกเมื่อผ่านไป 5 เทิร์น
-const LANE_RANGE = [1, 3]; // แบล็คคิง / กิงกะ: แนวตรงยาว 3 จากขอบตัว
+const LANE_RANGE = [1, 3]; // แบล็คคิง: แนวตรงยาว 3 จากขอบตัว
+const FACE_RANGE = [1, 1]; // กิงกะ: ช่องติดตัวทั้งด้าน (กว้างเท่าตัว 3 ช่อง — ผู้ใช้สั่ง 2026-10-12: ตีแค่ระยะตัว)
 const PANDON_RANGE = [1, 3];
 const TIGA_TURNS = 3;
 const TIGA_CD = 5;
@@ -64,7 +66,7 @@ const TIGA_ATK = 1;
 const KEMUR_CALM = 2;      // เทิร์นติดที่ไม่โดนอะไรเลย → ล่องหน
 const GINGA_TURNS = 5;
 const GINGA_CD = 3;
-const GINGA_SIZE = 3;
+const GINGA_SIZE = 3;      // ตัวใหญ่ทั้งร่าง UltraLive และกิงกะ (ผู้ใช้สั่ง 2026-10-12)
 const GINGA_MOV = 3;       // เท่า Echo ตัว 3×3
 const GINGA_ATK = 1;
 const STRIUM_ATK = 1;      // บวกเพิ่มจากกิงกะ (รวม +2)
@@ -78,7 +80,7 @@ const RAY_COST = 6;
 const CROSS_AREA = { kind: "line", len: BEAM_LEN, width: 1, hostile: true };
 const RAY_AREA = { kind: "line", len: BEAM_LEN, width: 3, hostile: true };
 // จังหวะบนกระดาน (ต้องตรงกับ client/src/board/hikaruFx.js — HK_BEAM_MS / HK_PUSH_MS)
-const BEAM_SECONDS = 1.6;
+const BEAM_SECONDS = 1.9;
 const PUSH_SECONDS = 0.9;
 const LINE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
@@ -106,6 +108,7 @@ const formOf = (p) => (isHikaru(p) ? st(p).form : null);
 const inForm = (p) => !!formOf(p);
 const gingaOn = (p) => isHikaru(p) && !!st(p).ginga;
 const striumOn = (p) => gingaOn(p) && !!st(p).strium;
+const bigOn = (p) => inForm(p) || gingaOn(p); // ตัว 3×3
 const boardSize = (p) => Math.max(1, (p && p.boardSize) | 0);
 const left = (ready, round) => Math.max(0, (ready || 0) - round);
 
@@ -159,6 +162,7 @@ function setForm(engine, p, key) {
   if (key === NORMAL) {
     s.form = null;
     capArmor(engine, p);
+    if (p.alive) engine.resizeUnit(p, 1);
     engine.log(`🔆 ${p.name} คืนร่าง`);
     return " — คืนร่าง";
   }
@@ -178,6 +182,8 @@ function setForm(engine, p, key) {
     s.armorReady = engine.roundNumber + ARMOR_HEAL_CD;
   }
   engine.triggerCutscene(p, f.cut);
+  // ร่าง UltraLive ตัว 3×3 (ผู้ใช้สั่ง) — ขยายหลังคลิป · เปลี่ยนร่างต่อร่าง = ขนาดเดิม · ขยายไม่ได้ = ลองใหม่ต้นเทิร์น
+  if (boardSize(p) !== GINGA_SIZE) engine.deferAfterCutscene(() => { if (p.alive && bigOn(p)) engine.resizeUnit(p, GINGA_SIZE); });
   engine.log(`🔆 ${p.name} UltraLive — ${f.name}${healed ? ` · ฟื้นเกราะ +${healed}` : ""}`);
   return ` — ${f.name}`;
 }
@@ -190,7 +196,7 @@ function startGinga(engine, p) {
   engine.triggerCutscene(p, s.strium ? CUT.strium : CUT.ginga);
   engine.log(`✨ ${p.name} แปลงร่างเป็น Ultraman Ginga${s.strium ? " Strium" : ""} ${GINGA_TURNS} เทิร์น`);
   // ขยายตัวหลังคลิป (ทับศัตรู = ผลักออก เสีย 1) · ขยายไม่ได้ = ลองใหม่ต้นเทิร์น (onRoundStartTick)
-  engine.deferAfterCutscene(() => { if (p.alive && st(p).ginga) engine.resizeUnit(p, GINGA_SIZE); });
+  engine.deferAfterCutscene(() => { if (p.alive && bigOn(p)) engine.resizeUnit(p, GINGA_SIZE); });
 }
 function endGinga(engine, p) {
   const s = st(p);
@@ -283,14 +289,18 @@ module.exports = {
 
   // ---------- ค่าบนกระดาน ----------
   maxArmor(p, base) { return inForm(p) ? base + FORM_ARMOR : base; },
-  mov(p) { return gingaOn(p) ? GINGA_MOV : null; },
+  mov(p) { return bigOn(p) ? GINGA_MOV : null; },
   range(p) {
-    if (gingaOn(p) || formOf(p) === "blackking") return LANE_RANGE;
+    if (gingaOn(p)) return FACE_RANGE;
+    if (formOf(p) === "blackking") return LANE_RANGE;
     if (formOf(p) === "pandon") return PANDON_RANGE;
     return null;
   },
-  attackLane(p) { return gingaOn(p) || formOf(p) === "blackking"; },
-  smashes(p) { return gingaOn(p) && boardSize(p) >= GINGA_SIZE; },
+  attackLane(p) {
+    if (gingaOn(p)) return "face";
+    return formOf(p) === "blackking";
+  },
+  smashes(p) { return bigOn(p) && boardSize(p) >= GINGA_SIZE; },
 
   // เกราะลด 1 = ฟื้นพลังชีวิต 1 (ร่าง 1–6 · combat.loseArmor)
   onArmorLost(engine, p) {
@@ -407,8 +417,8 @@ module.exports = {
 
   // ---------- ต้นเทิร์น (dealRound): กิงกะที่ขยายตัวไม่สำเร็จ ลองใหม่ ----------
   onRoundStartTick(engine, p) {
-    if (!gingaOn(p) || !p.alive || !p.pos) return;
-    if (boardSize(p) !== GINGA_SIZE) engine.resizeUnit(p, GINGA_SIZE);
+    if (!bigOn(p) || !p.alive || !p.pos) return;
+    if (boardSize(p) !== GINGA_SIZE) engine.resizeUnit(p, GINGA_SIZE); // ร่าง UltraLive / กิงกะ ที่ขยายตัวไม่สำเร็จ
   },
 
   // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ): Brace → Tiga หมด → กิงกะหมด → เคมู ----------
@@ -429,6 +439,7 @@ module.exports = {
         leaveTiga(engine, p, true);
         s.form = null;
         capArmor(engine, p);
+        engine.resizeUnit(p, 1);
         engine.log(`🔆 ${p.name} — Ultraman Tiga หมดเวลา คืนร่างปกติ`);
       }
       if (s.ginga && !((p.statuses.hikaruGinga || 0) > 0)) endGinga(engine, p);

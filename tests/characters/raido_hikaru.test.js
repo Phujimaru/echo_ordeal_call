@@ -251,7 +251,7 @@ test('มนุษย์ดาวเคมู: ไม่ถูกโจมตี
   // ล่องหนแล้วตีออกไป = ปรากฏตัว
   P.H.hikaru.hidden = true;
   engine.setActor('H');
-  P.B.pos = { x: 2, y: 5 };
+  P.B.pos = { x: P.H.pos.x + engine.sizeOf(P.H), y: P.H.pos.y }; // ติดขอบขวาของตัว (ร่างเคมูตัว 3×3)
   engine.attackTarget('H', 'B');
   assert.equal(P.H.hikaru.hidden, false);
   engine.clearPhaseTimer();
@@ -290,7 +290,7 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   assert.equal(view('H', 'H').hikaru.tigaCd, 6);
 });
 
-test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่านั้น · ตัว 3×3 เดิน 3 · ตีปกติ +1 แนว 1×3 · 5 เทิร์นแล้วหดกลับ · คูลดาวน์ 3 · UltraLive ใช้ไม่ได้ระหว่างกิงกะ', () => {
+test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่านั้น · ตัว 3×3 เดิน 3 · ตีปกติ +1 ทั้งด้าน 1×3 · 5 เทิร์นแล้วหดกลับ · คูลดาวน์ 3 · UltraLive ใช้ไม่ได้ระหว่างกิงกะ', () => {
   const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
   engine.setActor('H');
   form('H', 'thunder');
@@ -309,7 +309,7 @@ test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่าน�
   assert.equal(engine.displayImg(P.H), hk.IMG.ginga);
   assert.ok(calls.fx.some((f) => f.event === 'growFx'));
   const v = view('H', 'H');
-  assert.equal(v.lane, true);
+  assert.equal(v.lane, 'face');
   assert.equal(v.skillLocks.basic.locked, true);
   assert.equal(v.skillLocks.ultimate.locked, false);
   passTurn();
@@ -335,23 +335,54 @@ test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่าน�
   assert.equal(P.H.hikaru.ginga, true);
 });
 
-test('กิงกะ: ตีแนวจากขอบตัว 3×3 โดนทุกศัตรูในแนวเดียวกัน', (t) => {
+test('กิงกะ: ตีแค่ช่องติดตัว · โดนศัตรูทุกคนที่ติดด้านที่ตี (1×3) · ห่าง 2 ช่องตีไม่ได้', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   Math.random = () => 0.99;
-  const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 4, 8], ['C', 'dummy', 6, 8]]);
+  const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 1], ['C', 'dummy', 12, 2], ['D', 'dummy', 12, 3], ['E', 'dummy', 13, 13]]);
   engine.setActor('H');
   engine.useSkill('H', 'secondary', []);
   assert.equal(engine.sizeOf(P.H), 3);
+  assert.deepEqual(engine.rangeOf(P.H), [1, 1]);
   const box = { ...P.H.pos };
-  P.B.pos = { x: box.x + 3, y: box.y + 1 };
-  P.C.pos = { x: box.x + 5, y: box.y + 1 };
+  P.B.pos = { x: box.x + 3, y: box.y };     // ติดด้านขวา แถวบน
+  P.C.pos = { x: box.x + 3, y: box.y + 2 }; // ติดด้านขวา แถวล่าง
+  P.D.pos = { x: box.x + 4, y: box.y + 1 }; // ห่าง 2 ช่อง
+  P.E.pos = { x: box.x + 1, y: box.y + 3 }; // ติดด้านล่าง (คนละด้าน)
   engine.setActor('H');
   engine.action.locked = true;
-  assert.equal(engine.attackTarget('H', 'C'), true);
-  assert.equal(vit(P.C), 8, 'กิงกะ +1');
-  assert.equal(vit(P.B), 8, 'คนหน้าในแนวโดนด้วย');
+  assert.equal(engine.attackTarget('H', 'D'), false, 'ห่าง 2 ช่องตีไม่ได้');
+  assert.equal(engine.attackTarget('H', 'B'), true);
+  assert.equal(vit(P.B), 8, 'กิงกะ +1');
+  assert.equal(vit(P.C), 8, 'ติดด้านเดียวกันโดนด้วย');
+  assert.equal(vit(P.D), 10);
+  assert.equal(vit(P.E), 10, 'คนละด้านไม่โดน');
   assert.equal(engine.lastAttack.byStyle, 'hkGinga');
+  assert.equal(engine.lastAttack.byLane.length, 3);
   flush(t, 8000);
+});
+
+test('ร่าง UltraLive ตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง) · เปลี่ยนร่างต่อร่างขนาดเดิม · คืนร่าง / Tiga หมดเวลา = กลับ 1×1', () => {
+  const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 1]]);
+  engine.setActor('H');
+  form('H', 'pandon');
+  assert.equal(engine.sizeOf(P.H), 3);
+  assert.equal(engine.baseMovOf(P.H), 3);
+  assert.equal(view('H', 'H').smash, true);
+  passTurn();
+  engine.setActor('H');
+  form('H', 'tiga');
+  assert.equal(engine.sizeOf(P.H), 3, 'เปลี่ยนร่างต่อร่าง');
+  passTurn(); passTurn(); passTurn();
+  assert.equal(P.H.hikaru.form, null);
+  assert.equal(engine.sizeOf(P.H), 1, 'Tiga หมดเวลา = ตัวเล็ก');
+  assert.equal(engine.baseMovOf(P.H), 4);
+  engine.setActor('H');
+  form('H', 'doragory');
+  assert.equal(engine.sizeOf(P.H), 3);
+  passTurn();
+  engine.setActor('H');
+  form('H', hk.NORMAL);
+  assert.equal(engine.sizeOf(P.H), 1, 'คืนร่าง = ตัวเล็ก');
 });
 
 test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · แนว 5×1 จากกลางด้านหน้าตัว · ดาเมจ 2 หลบไม่ได้ + ลุกไหม้ 2 · ไม่โดนเพื่อน · ลำแสงก่อนดาเมจ', (t) => {

@@ -273,7 +273,8 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - สถานะอยู่ `p.hikaru` (`form` ร่าง UltraLive · `formRound` · `armorReady`/`tigaReady`/`gingaReady` เลขรอบที่ใช้ได้อีก · `accUntil` แม่นยำเดิมก่อนเข้า Tiga · `ginga` · `strium` · `brace` · `kemurCalm`/`kemurSnap`/`hidden` ล่องหนร่างเคมู · `logCut`/`logRound`) — ล้างใน `resetCombat`
 - จุดเสียบเจาะจง: `resetCombat` · `onEndTurn` (`endTurn` ต่อจากโซระ: Brace → Tiga หมด → กิงกะหมด → นับเคมู) · `onRoundStartTick` (`dealRound` — กิงกะที่ขยายตัวไม่สำเร็จลองใหม่) · `buildStateFor` ส่ง `hikaru: hikaruState(...)` (ร่าง · ปุ่ม 7 ร่าง `{ key, name, img, locked, cd }` · Brace · คูลดาวน์)
 - UltraLive ส่ง `useSkill { tier: "basic", form }` (`socket.js` ส่ง `form` ต่อใน opts · `canUseSkill` ได้ `opts` เป็นพารามิเตอร์ที่ 5) · client เปิดตัวเลือกร่าง `client/src/screens/hud/HikaruForms.jsx`
-- ตีปกติแนวตรง (แบล็คคิง / กิงกะ — ฮุค `attackLane`): `action.canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · `zeroTime.canHitSeal` รองรับ
+- ตีปกติแนวตรง (ฮุค `attackLane` → `true` = แนวยาวตามระยะ (แบล็คคิง) · `"face"` = ช่องติดตัวทั้งด้าน (กิงกะ)): `action.lanes` / `canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf(..., face)` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · `zeroTime.canHitSeal` รองรับ · client ได้ `lane` (true/"face"/false)
+- ร่าง UltraLive ทุกร่างและกิงกะเป็นตัว 3×3 (`engine.resizeUnit` หลังคลิป · คืนร่าง/Tiga หมด = 1×1)
 - ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(1.6)` → ดาเมจ 2 (`dealMixed` · หลบไม่ได้) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat`
 - เอฟเฟกต์บนกระดานทั้งหมดอยู่ `client/src/board/hikaruFx.js` (ท่าตีตามร่าง `hk*` รวมเข้า `STYLE_MS`/`STYLE_HIT_P` ของ `boardDraw.js` · ปะทะ `hkHit` + `hitIds` · ลำแสง `hkCross`/`hkStriumRay`) · ตัวใหญ่ไม่มีรูป 4 ทิศ = หมากหกเหลี่ยมขยาย (`drawAnyUnit` → `drawUnit` `u.k`)
 
@@ -568,7 +569,7 @@ module.exports = {
                                                                  // ฉากตีปกติ: เสียง · ลำแสง (ยาว/สี "blue") · เอฟเฟกต์ปะทะ ("mythSlash") → การ์ดฉากตี
   attackFxNames(attacker, atkCtx) { return []; },                // ป้ายโบนัสใต้ฉากตี (อ่าน ctx ที่ damageBonus ใส่ไว้)
   afterBoardAttack(engine, attacker, target, res) { return null; }, // ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้า)
-  attackLane(p) { return false; },                               // ตีปกติแนวตรงจากขอบตัว — ทุกศัตรูในแนวโดน (action.lanes · ฮิคารุ: แบล็คคิง/กิงกะ)
+  attackLane(p) { return false; },                               // ตีปกติแนวตรงจากขอบตัว — ทุกศัตรูในแนวโดน · "face" = ช่องติดตัวทั้งด้าน (action.lanes · ฮิคารุ: แบล็คคิง / กิงกะ)
   onStrikeLanded(engine, attacker, target, { counter }) { return []; }, // ตีปกติลง (รวมทุกคนในแนว) → ชื่อป้ายในฉากตี (ฮิคารุ: ติดสถานะตามร่าง)
   attackStyle(p, dist) { return null; },                         // ท่าตีบนกระดาน → การ์ดฉากตี byStyle (Echo: echo/hair/rock · ฮิคารุ: hk*)
   skillArea(p, tier, area) { return area; },                     // พื้นที่สกิลตามสถานะ (useSkill + ปุ่มใช้ตัวเดียวกัน)
