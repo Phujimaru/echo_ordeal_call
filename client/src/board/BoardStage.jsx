@@ -418,7 +418,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ]);
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(s0);
-        later(SORA_T.wheel, () => { look(end); if (!lowQ) setShake((n) => n + 1); });
+        playSfx("sora_squeak");
+        playSfx("sora_wheel"); // ยาวเท่าช่วงปั่นจักร (SORA_T.wheel)
+        later(SORA_T.wheel, () => { look(end); playSfx("sora_dash"); if (!lowQ) setShake((n) => n + 1); });
       } else if (s0) {
         // เฟสชน (หลังวิดีโอ): โซระเข้าช่องเป้า · เป้าถูกเหวี่ยงไปช่องเริ่ม (swap) · ระเบิดฟ้าที่ช่องเป้า
         const moveMs = pts.length > 1 ? (pts.length - 1) * SORA_T.step : 0;

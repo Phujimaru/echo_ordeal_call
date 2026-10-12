@@ -47,6 +47,10 @@ const FILES = {
   sora_hit_gun: "/characters/sora_otosumi/sora_hit_gun.m4a",
   sora_skill2_knife: "/characters/sora_otosumi/sora_skill2_knife.m4a",
   sora_skill2_gun: "/characters/sora_otosumi/sora_skill2_gun.m4a",
+  // ท่าไม้ตาย Mouse Separade บนกระดาน (Mixkit — ผู้ใช้อนุญาต 2026-10-12): หนูร้อง + ปั่นจักร (SORA_T.wheel) · พุ่งออกตัว
+  sora_squeak: "/characters/sora_otosumi/sora_squeak.mp3",
+  sora_wheel: "/characters/sora_otosumi/sora_wheel.mp3",
+  sora_dash: "/characters/sora_otosumi/sora_dash.mp3",
   // ไรโด ฮิคารุ — เสียงตีปกติตามร่าง / ท่าไม้ตาย (Mixkit ฟรี · ตัดให้พอดีจังหวะแล้ว — ต้นฉบับอยู่ .claude/plans/raido-hikaru-sfx-src/)
   hk_black: "/characters/raido_hikaru/sfx/hk_black.mp3",
   hk_thunder: "/characters/raido_hikaru/sfx/hk_thunder.mp3",
