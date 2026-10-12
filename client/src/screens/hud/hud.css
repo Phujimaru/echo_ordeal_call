@@ -367,13 +367,11 @@
 .hud-drawer-tab {
   pointer-events: auto;
   flex: none;
-  align-self: flex-end;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 40px;
   padding: 0 16px 0 12px;
-  margin-left: 6px;
   border: 1px solid rgba(127, 184, 230, 0.45);
   border-left: 0;
   background: rgba(12, 28, 58, 0.9);
@@ -382,7 +380,10 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.hud-drawer[data-open="false"] .hud-drawer-tab { margin-left: 0; }
+/* คอลัมน์ข้างลิ้นชัก: ป้ายเหรียญ + แท็บสถานะ กว้างเท่ากัน (stretch) */
+.hud-drawer-side { flex: none; align-self: flex-end; display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-left: 6px; }
+.hud-drawer[data-open="false"] .hud-drawer-side { margin-left: 0; }
+.hud-drawer-side[data-tight="true"] { flex-direction: row-reverse; align-items: flex-end; }
 .hud-drawer-tab:hover { color: #ffffff; filter: brightness(1.15); }
 .hud-drawer-tab:focus-visible { outline: 2px solid #bee3f8; outline-offset: 2px; }
 .hud-drawer-count {
@@ -520,38 +521,47 @@
 .hud-sp-num { flex: none; font: 700 22px/1 "Chakra Petch", sans-serif; color: #ecd0f7; font-variant-numeric: tabular-nums; }
 .hud-sp-num > span { font-size: 15px; color: #b9a3c8; }
 
-/* แถบเหรียญ: ต่อใต้แผงแต้มสกิล (ทอง) · เหรียญเปลี่ยน = เลขเด้ง + ป้าย +N/−N ลอย */
-.hud-gold-strip {
+/* ป้ายเหรียญ: เหนือแท็บสถานะ ทรงเดียวกับแท็บ (ทอง) · "สูงสุดแล้ว" จองที่ไว้เสมอ (ไม่เต็ม = ซ่อน) กล่องจึงไม่หด
+   เหรียญเปลี่ยน = เลขเด้ง + ป้าย +N/−N ลอย */
+.hud-gold-chip {
+  pointer-events: auto;
   position: relative;
-  margin: 0;
-  height: 42px;
+  flex: none;
   box-sizing: border-box;
-  padding: 0 40px 0 108px;
+  height: 40px;
+  padding: 0 16px 0 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: linear-gradient(90deg, rgba(78, 56, 14, 0.95), rgba(34, 26, 12, 0.92));
-  box-shadow: inset 0 1px 0 rgba(240, 200, 104, 0.45);
-  border: 1px solid rgba(240, 200, 104, 0.5);
-  border-top: 0 !important;
+  gap: 8px;
+  isolation: isolate;
   color: #f6dc94;
+  white-space: nowrap;
 }
+/* พื้นตัดมุมอยู่ใน ::before — ป้าย +N ลอยพ้นกล่องได้ไม่โดนตัด */
+.hud-gold-chip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(78, 56, 14, 0.95), rgba(34, 26, 12, 0.92));
+  border: 1px solid rgba(240, 200, 104, 0.5);
+  border-left: 0;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.hud-gold-max { flex: none; font: 500 15px/1 Kanit, sans-serif; color: #fff3c4; }
+.hud-gold-chip[data-full="false"] .hud-gold-max { visibility: hidden; }
 .hud-gold-coin { flex: none; display: grid; place-items: center; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)); }
 .hud-gold-coin[data-bump="true"] { animation: hudCoinFlip 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-.hud-gold-label { flex: none; font: 500 16px/1 Kanit, sans-serif; color: #e9c977; white-space: nowrap; }
-.hud-gold-strip .hud-cells { flex: 1; min-width: 0; }
-.hud-gold-strip .hud-cells > span { clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
-.hud-gold-fill { flex: 1; }
 .hud-gold-num { position: relative; flex: none; display: flex; align-items: baseline; font: 700 22px/1 "Chakra Petch", sans-serif; color: #ffe08a; font-variant-numeric: tabular-nums; }
 .hud-gold-num > b { display: inline-block; font-weight: 700; transform-origin: 50% 70%; }
-.hud-gold-num > span { font-size: 15px; color: #c9a95e; }
-.hud-gold-strip[data-full="true"] .hud-gold-num > b { color: #fff3c4; text-shadow: 0 0 10px rgba(240, 200, 104, 0.8); }
+.hud-gold-chip[data-full="true"] .hud-gold-num > b { color: #fff3c4; text-shadow: 0 0 10px rgba(240, 200, 104, 0.8); }
 .hud-gold-num > b[data-bump="up"] { animation: hudGoldPop 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.3); }
 .hud-gold-num > b[data-bump="down"] { animation: hudGoldDip 0.55s ease-out; }
 .hud-gold-float {
   position: absolute;
-  right: calc(100% + 8px);
-  top: 50%;
+  left: 50%;
+  top: -6px;
+  translate: -50% 0;
   font: 700 18px/1 "Chakra Petch", sans-serif;
   font-style: normal;
   color: #ffe08a;

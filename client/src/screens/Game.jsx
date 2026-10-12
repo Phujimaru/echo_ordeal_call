@@ -2228,8 +2228,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}
-              gold={me.gold || 0}
-              goldMax={me.goldMax || 0}
               vitals={<div className="hud-vitals">
                   <StatRow big kind="hp" value={me.hp} max={me.maxHp} extra={me.tempHp || 0} extraLabel="เลือดชั่วคราว" />
                   <StatRow big kind="ar" value={me.armor} max={me.maxArmor} />
@@ -2243,6 +2241,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudStatusDrawer
               statuses={meStatuses}
               rawStatuses={me.statuses || {}}
+              gold={me.gold || 0}
+              goldMax={me.goldMax || 0}
               lowQ={lowQ}
               statusAlt={null}
               onOpenAll={() => { clickSound(); setStatusViewId(me.id); }}

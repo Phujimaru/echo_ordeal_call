@@ -108,8 +108,9 @@ export function CoinIcon({ size = 22 }) {
   );
 }
 
-// แถบเหรียญ: ต่อใต้แผงแต้มสกิล · เหรียญเปลี่ยน = ตัวเลขเด้ง + ป้าย +N / −N ลอยขึ้น
-function GoldStrip({ gold = 0, goldMax = 0 }) {
+// ป้ายเหรียญ: เหนือแท็บสถานะ (ขอบซ้าย) · ไอคอน + จำนวน · เต็ม = + "สูงสุดแล้ว" (จองที่ไว้เสมอ กล่องจึงไม่หด)
+//  เหรียญเปลี่ยน = ตัวเลขเด้ง + ป้าย +N / −N ลอยขึ้น
+function GoldChip({ chipRef, gold = 0, goldMax = 0 }) {
   const [prev, setPrev] = useState(gold);
   const [bump, setBump] = useState(null);
   if (prev !== gold) {
@@ -117,30 +118,29 @@ function GoldStrip({ gold = 0, goldMax = 0 }) {
     setBump({ id: (bump ? bump.id : 0) + 1, d: gold - prev });
   }
   const full = goldMax > 0 && gold >= goldMax;
+  const digits = Math.max(String(gold).length, String(goldMax).length);
   return (
-    <section className="hud-gold-strip" data-full={full ? "true" : "false"} aria-label="เหรียญ" title={goldMax > 0 ? `เหรียญ ${gold}/${goldMax}` : `เหรียญ ${gold}`}>
-      <span key={bump ? `c${bump.id}` : "c"} className="hud-gold-coin" data-bump={bump ? "true" : "false"}><CoinIcon size={26} /></span>
-      <span className="hud-gold-label">เหรียญ</span>
-      {goldMax > 0 ? <Cells n={goldMax} on={gold} color="linear-gradient(180deg, #ffe9a8, #d9a93f)" h={10} /> : <span className="hud-gold-fill" />}
-      <span className="hud-gold-num">
+    <section ref={chipRef} className="hud-gold-chip" data-full={full ? "true" : "false"} aria-label={full ? `เหรียญ ${gold} สูงสุดแล้ว` : `เหรียญ ${gold}`} title={goldMax > 0 ? `เหรียญ ${gold}/${goldMax}` : `เหรียญ ${gold}`}>
+      <span key={bump ? `c${bump.id}` : "c"} className="hud-gold-coin" data-bump={bump ? "true" : "false"}><CoinIcon size={24} /></span>
+      <span className="hud-gold-num" style={{ minWidth: `${digits}ch` }}>
         <b key={bump ? `n${bump.id}` : "n"} data-bump={bump ? (bump.d > 0 ? "up" : "down") : "false"}>{gold}</b>
-        {goldMax > 0 && <span>/{goldMax}</span>}
         {bump && bump.d !== 0 && (
           <i key={`f${bump.id}`} className="hud-gold-float" data-neg={bump.d < 0 ? "true" : "false"} aria-hidden="true">
             {bump.d > 0 ? `+${bump.d}` : `−${-bump.d}`}
           </i>
         )}
       </span>
+      {goldMax > 0 && <span className="hud-gold-max" aria-hidden="true">สูงสุดแล้ว</span>}
     </section>
   );
 }
 
 // ---------- ซ้ายล่าง: แผงตัวละคร (ดีไซน์ E1 ปรับ) ----------
 //  รูปหกเหลี่ยมด้านแบน (ขอบทอง→ฟ้า) เกยซ้ายของแผงเฉียง · ชื่อ+ทีม+ป้ายตัวละคร · เลือด/เกราะเป็นช่องเฉียงนับได้
-//  ใต้แผง: แผงแต้มสกิล (ม่วง) + แถบทรัพยากรตัวละคร ต่อชิดใต้แผงตัวละครเป็นแท่งเดียวกัน (ไม่มีช่องว่าง ขอบซ้าย/ขวาตรงกัน)
+//  ใต้แผง: แผงแต้มสกิล (ม่วง) + แถบทรัพยากรตัวละคร (เหรียญอยู่เหนือแท็บสถานะ — GoldChip) ต่อชิดใต้แผงตัวละครเป็นแท่งเดียวกัน (ไม่มีช่องว่าง ขอบซ้าย/ขวาตรงกัน)
 //   แต่ละกล่องยังมีสี/ขอบของตัวเอง — ผู้ใช้: "ติดกันแต่ไม่รวมกัน" · รูปหกเหลี่ยมเกยทับทั้งแท่ง
 //  รายการสถานะอยู่ในลิ้นชักซ้าย (HudStatusDrawer)
-export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, gold = null, goldMax = 0, statuses = [], rawStatuses }) {
+export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, statuses = [], rawStatuses }) {
   const [openKey, setOpenKey] = useState(null);
   const { res } = splitEntries(statuses, rawStatuses);
   const toggle = (k) => setOpenKey((o) => (o === k ? null : k));
@@ -173,7 +173,6 @@ export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, t
             </span>
             <span className="hud-sp-num">{sp}<span>/{spMax}</span></span>
           </section>
-          {gold != null && <GoldStrip gold={gold} goldMax={goldMax} />}
           {res.map((it) => (
             <ResourceRow key={it.key} it={it} open={openKey === it.key} onToggle={() => toggle(it.key)} />
           ))}
@@ -185,14 +184,36 @@ export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, t
 
 // ---------- ลิ้นชักสถานะ (ชิดขอบซ้ายจอ) ----------
 //  ปิด = เหลือแท็บเล็กติดขอบซ้าย (ไอคอน + จำนวน) · กดแท็บ = สไลด์ออกจากซ้าย · กดซ้ำ/ปุ่มปิด/Esc = สไลด์กลับ
+//  เหนือแท็บ = ป้ายเหรียญ (gold != null) เลื่อนไปพร้อมแท็บ · ห้ามสูงเกินปุ่มกองการ์ดกลาง (.deck-drawer) — ที่ไม่พอ = ย้ายไปข้างแท็บ
 //  ในลิ้นชักเป็นรายการแนวตั้งเลื่อนลงอย่างเดียว แตะแถวกางรายละเอียด · ความสูงพอดีเนื้อหา ไม่เกินพื้นที่เหนือแผงผู้เล่น
-export function HudStatusDrawer({ statuses = [], rawStatuses, statusAlt, onOpenAll, lowQ = false, defaultOpen = false, defaultOpenKey = null }) {
+export function HudStatusDrawer({ statuses = [], rawStatuses, gold = null, goldMax = 0, statusAlt, onOpenAll, lowQ = false, defaultOpen = false, defaultOpenKey = null }) {
   const [open, setOpen] = useState(defaultOpen);
   const [openKey, setOpenKey] = useState(defaultOpenKey);
   const panelRef = useRef(null);
 
   const tabRef = useRef(null);
+  const drawerRef = useRef(null);
+  const chipRef = useRef(null);
+  const [tight, setTight] = useState(false);
   const { list } = splitEntries(statuses, rawStatuses);
+  // ถ้าวางป้ายเหรียญเหนือแท็บแล้วสูงเกินขอบล่างปุ่มกองการ์ดกลาง → วางข้างแท็บแทน (แผงตัวละครสูงขึ้นเพราะแถบทรัพยากร)
+  const hasGold = gold != null;
+  useLayoutEffect(() => {
+    const drawer = drawerRef.current;
+    if (!hasGold || !drawer || typeof ResizeObserver === "undefined") return undefined;
+    const check = () => {
+      const tab = tabRef.current, chip = chipRef.current, deck = document.querySelector(".deck-drawer");
+      if (!tab || !chip || !deck) return setTight(false);
+      const t = tab.getBoundingClientRect(), c = chip.getBoundingClientRect();
+      const k = t.height / 40; // แท็บสูง 40 หน่วยฐาน
+      setTight(t.top - 6 * k - c.height < deck.getBoundingClientRect().bottom);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(drawer);
+    window.addEventListener("resize", check);
+    return () => { ro.disconnect(); window.removeEventListener("resize", check); };
+  }, [hasGold]);
   const toggle = (k) => setOpenKey((o) => (o === k ? null : k));
   // ปิดอยู่ = เนื้อหาในลิ้นชักห้ามรับโฟกัส (อยู่นอกจอ)
   useLayoutEffect(() => {
@@ -214,7 +235,7 @@ export function HudStatusDrawer({ statuses = [], rawStatuses, statusAlt, onOpenA
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
   return (
-    <div className="hud-drawer" data-open={open ? "true" : "false"} data-instant={lowQ ? "true" : "false"}>
+    <div ref={drawerRef} className="hud-drawer" data-open={open ? "true" : "false"} data-instant={lowQ ? "true" : "false"}>
       <section ref={panelRef} id="hud-status-drawer" className="hud-drawer-panel hud-glass" aria-label="สถานะ">
         <div className="hud-st-head">
           <span className="hud-st-title">สถานะ</span>
@@ -232,19 +253,22 @@ export function HudStatusDrawer({ statuses = [], rawStatuses, statusAlt, onOpenA
         </div>
         {statusAlt || <StatusList items={list} raw={rawStatuses} openKey={openKey} onToggle={toggle} />}
       </section>
-      <button
-        ref={tabRef}
-        type="button"
-        className="hud-drawer-tab"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls="hud-status-drawer"
-        aria-label={open ? "ปิดสถานะ" : `สถานะ ${list.length}`}
-        title="สถานะ"
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
-        <span className="hud-drawer-count">{list.length}</span>
-      </button>
+      <div className="hud-drawer-side" data-tight={tight ? "true" : "false"}>
+        {hasGold && <GoldChip chipRef={chipRef} gold={gold} goldMax={goldMax} />}
+        <button
+          ref={tabRef}
+          type="button"
+          className="hud-drawer-tab"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls="hud-status-drawer"
+          aria-label={open ? "ปิดสถานะ" : `สถานะ ${list.length}`}
+          title="สถานะ"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
+          <span className="hud-drawer-count">{list.length}</span>
+        </button>
+      </div>
     </div>
   );
 }
