@@ -42,6 +42,11 @@ const FILES = {
   // นักบินปริศนา (sliver_bullet): บรรจุแขนใหม่ · ยิง (ตีปกติ + Beam Magnum)
   sliver_reload: "/characters/sliver_bullet/sliver_bullet_reload_arm.m4a",
   sliver_shot: "/characters/sliver_bullet/sliver_bullet.m4a",
+  // โซระ โอโตสุมิ: ตีปกติมีด (ฟัน 2 ครั้ง — ครั้งแรก ~0.25 วิ ครั้งสอง ~1.0 วิ) / ปืน · สลับ My-Th Edge เป็นมีด / ปืน
+  sora_hit_knife: "/characters/sora_otosumi/sora_hit_knife.m4a",
+  sora_hit_gun: "/characters/sora_otosumi/sora_hit_gun.m4a",
+  sora_skill2_knife: "/characters/sora_otosumi/sora_skill2_knife.m4a",
+  sora_skill2_gun: "/characters/sora_otosumi/sora_skill2_gun.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

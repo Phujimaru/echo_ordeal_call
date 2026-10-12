@@ -295,6 +295,7 @@ function resetCombat(p) {
   CHAR_HOOKS.muimi.resetCombat(p); // มุยมิ: โควตาเสบียง / จำนวนครั้งท่าไม้ตาย
   CHAR_HOOKS.sliver_bullet.resetCombat(p); // นักบินปริศนา: แขน / ล่องหน
   p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
+  CHAR_HOOKS.sora_otosumi.resetCombat(p); // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
   CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)

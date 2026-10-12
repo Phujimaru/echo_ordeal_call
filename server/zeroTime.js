@@ -35,6 +35,8 @@ const timers = require("./timers");
 const view = require("./view");
 const { statusAmtOf, poisonAtkPenalty, invertActive } = require("../characters/_universal_status");
 
+// ปิดไว้ (ผู้ใช้สั่ง 2026-10-12) — เก็บระบบไว้ใช้ในอนาคต · true = กลับมาสุ่มเกิดตามปกติ (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
+const ZERO_ENABLED = false;
 const ZERO_START_ROUND = 10; // เริ่มสุ่มตั้งแต่กลางคืนช่วงที่ 2 (เทิร์น 10–12)
 const ZERO_CHANCE = 30;      // % ต่อเทิร์นกลางคืน
 const SEAL_HP = 3, SEAL_ARMOR = 2;
@@ -46,7 +48,7 @@ const BOLT_COUNT = 3, BOLT_DMG = 2; // เฟส 4: ฟ้าผ่าต้น�
 // ความยาวฉากที่ server พักเกมรอ (วินาที) — ต้องพอดีกับฉากฝั่ง client (client/src/board/zeroScene.js)
 const ENTER_SECONDS = 8.5, BREAK_SECONDS = 3.6, RELEASE_SECONDS = 5;
 const SEAL_NAMES = ["ทิศเหนือ", "ทิศตะวันออก", "ทิศใต้", "ทิศตะวันตก"];
-Object.assign(module.exports, { ZERO_START_ROUND, ZERO_CHANCE, SEAL_HP, SEAL_ARMOR, PICKUP_HEAL, DRAIN, RELEASE_DMG, BOLT_COUNT, BOLT_DMG });
+Object.assign(module.exports, { ZERO_ENABLED, ZERO_START_ROUND, ZERO_CHANCE, SEAL_HP, SEAL_ARMOR, PICKUP_HEAL, DRAIN, RELEASE_DMG, BOLT_COUNT, BOLT_DMG });
 
 const roll = (pct) => Math.random() * 100 < pct;
 
@@ -72,6 +74,7 @@ function devSealHp() { const n = Math.floor(Number(process.env.ECHO_DEV_ZERO_SEA
 // เรียกจาก endTurn (หลังตัดสินจบเกม/ข้ามภูมิภาค) — true = เข้าห่วงเวลาแล้ว (ผู้เรียกไม่ต้องไปต่อ)
 function maybeEnter() {
   if (match.zeroUsed || match.zero) return false;
+  if (!module.exports.ZERO_ENABLED && !devForce()) return false; // อ่านผ่าน exports ให้เทสต์เปิดได้
   const next = worldRound() + 1;
   if (!dayNight.isNightRound(next)) return false;
   if (devForce()) return enter();

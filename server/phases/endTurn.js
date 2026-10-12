@@ -71,6 +71,8 @@ function endTurn() {
   Zero.onEndTurn();
   // โอเบรอน (ฤดูร้อน): สตั้นจากจุดจบของความฝัน (ต้องอยู่หลังลูปลดเทิร์น = เต็ม 3 เทิร์นถัดไป) + สกิลติดตัวหน้าไหว้หลังหลอก
   CHAR_HOOKS.oberon_summer.onEndTurn(engine);
+  // โซระ: เพื่อคุณหนู — ร่างโซระต่อเนื่องครบ 3 เทิร์น ฟื้นพลังชีวิต 2
+  CHAR_HOOKS.sora_otosumi.onEndTurn(engine);
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {

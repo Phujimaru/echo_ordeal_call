@@ -282,6 +282,8 @@ function startMatch() {
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
   match.cutsceneQueue = [];
+  match.skillBeats = [];
+  match.dash = null;
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   const journeyStart = Journey.active(engine) && JOURNEY_START_SECONDS > 0;

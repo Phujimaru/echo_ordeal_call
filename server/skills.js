@@ -138,6 +138,8 @@ function useSkill(id, tier, targets, opts = {}) {
   // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
   if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }
   runDeferred();
+  // ผลขอฉากต่อ (engine.skillBeat / คลิปที่คิวระหว่างผล) = พักตาเดินเล่นให้จบ แล้วกลับมาด้วยเวลาที่เหลือ
+  if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
   // ห่วงเวลาซีโร่: สกิลทุบผนึกแตก = ฉากผนึกแตก/ปลดผนึก แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
   if (Zero.hasPendingBreak()) {

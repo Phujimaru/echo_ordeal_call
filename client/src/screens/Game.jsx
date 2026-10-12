@@ -810,6 +810,12 @@ function statusEntries(p, full) {
   if ((p.muimiUltCd || 0) > 0) {
     out.push({ key: "muimiUltCd", v: p.muimiUltCd, turns: true, icon: "⏳", label: "ดาบสะบั้นพักฟื้น", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
+  // โซระ: ร่าง My-Th + อาวุธที่ถือ · ร่างโซระนับเทิร์นเพื่อคุณหนู
+  if (p.sora && p.sora.myth) {
+    out.push({ key: "soraMyth", v: 1, icon: "🐭", label: "Kamen Rider My-Th", cls: "bg-sky-500 text-gray-900", desc: "" });
+    out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900", desc: "" });
+  }
+  if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
     desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
@@ -1030,7 +1036,8 @@ function GutsVideoPreloader({ me, players }) {
   const ammoTypes = [...new Set((me?.inventory || []).filter((it) => it.type === "gutsAmmo").map((it) => it.ammo))];
   const preloadMuimi = (players || []).some((p) => p.character?.id === "muimi");
   const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver) return null;
+  const preloadSora = (players || []).some((p) => p.character?.id === "sora_otosumi");
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1040,6 +1047,9 @@ function GutsVideoPreloader({ me, players }) {
       {preloadMuimi && <video src="/characters/muimi/muimi_skill3_short.mp4" preload="auto" muted playsInline />}
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill1.mp4" preload="auto" muted playsInline />}
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill2.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/sora_skill1.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
     </div>
   );
 }

@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, smashes,
+  sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -188,6 +188,27 @@ function resizeUnit(p, newSize) {
   });
   engine.boardFx("growFx", { id: p.id, from, to: newSize, at: { ...p.pos }, prev: fromPos, pushed, smashed });
   return newSize;
+}
+
+// ช่องนี้ยืนได้ไหม: ในกระดาน ไม่ใช่สิ่งกีดขวาง/ร้านค้า และไม่มีใครยืน (ยกเว้น selfId)
+function tileFree(x, y, selfId = null) {
+  return Board.freeTile(boardMap(), x, y, boardUnits(), selfId, boardBlocked());
+}
+// ช่องตามแนวพุ่งตรงจากตัว (โซระ: Mouse Separade) ทีละช่องไม่เกิน len · ตัดที่ขอบกระดาน
+//  ต่อช่อง { x, y, obstacle: ชนิดสิ่งกีดขวาง | null, wall: พังไม่ได้ (ผนึกมิโกะ), shop, unitId: คนที่ยืน (ไม่นับตัวเอง · รวมคนที่มองไม่เห็น) }
+function chargeTiles(p, dir, len) {
+  const v = Board.LINE_DIRS[dir];
+  if (!v || !p || !p.pos) return [];
+  const map = boardMap(), units = boardUnits().filter((u) => u.id !== p.id), blocked = boardBlocked();
+  const out = [];
+  for (let i = 1; i <= len; i++) {
+    const x = p.pos.x + v[0] * i, y = p.pos.y + v[1] * i;
+    if (!Board.inBounds(map, x, y)) break;
+    const k = Board.key(x, y), obstacle = map.terrain[k] || null;
+    const u = Board.unitAt(units, x, y);
+    out.push({ x, y, obstacle, wall: !!obstacle && Board.UNBREAKABLE.has(obstacle), shop: !!(blocked && blocked.has(k)), unitId: u ? u.id : null });
+  }
+  return out;
 }
 
 // ระยะของสกิล (area.range) — "mov" = ระยะเดินปกติสูงสุดของผู้ใช้ (บัฟของโอเบรอน — ผู้ใช้ตัดสิน)

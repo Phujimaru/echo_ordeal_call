@@ -23,12 +23,15 @@
 //               ใช้เป็นจุดกลางตอนกดซูมเข้าด้วยปุ่มด้วย (ซูมด้วยล้อ = จุดใต้เมาส์) · มุมปกติไม่มีผล
 //   shopLabel   string|number|null — ป้าย "🏪 N" เหนือแผงร้าน (วาดในแคนวาส ตามซูม/เลื่อน/หมุนเอง)
 //   map.special { "x,y": "flowers"|"forest"|"thorns"|"shallow"|"whirl"|"quicksand"|"ice"|"lava"|"power" } · map.flow { "x,y": "up"|"down"|"left"|"right" }
-//   anim        { kind: "move", id, path } | { kind: "push", id, from, to, collide }
+//   anim        { kind: "move", id, path, stepMs? (ms ต่อช่อง — ไม่ใส่ = STEP_MS) } | { kind: "push", id, from, to, collide }
 //               | { kind: "lunge", id, from, to, hitId } (ง้าง → พุ่งเข้าหาเป้า → กลับที่เดิม · จังหวะชน = เป้า hitId สั่น)
+//               | { kind: "wheel", id, at, ms, dir } (โซระวิ่งในกรงจักร: ยืนที่ at เด้งถี่ขึ้นเรื่อยๆ ms มิลลิวินาที)
+//               | { kind: "fling", id, from, to, ms? } (ถูกเหวี่ยงลอยโค้งไปตกที่ to — ไกลได้หลายช่อง · ลงพื้น = สั่น)
 //               — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
 //   fx          [{ key, kind: "slash"|"burst"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
 //               | { key, kind: "beam", x, y (ช่องคนยิง), dir: "up"|"down"|"left"|"right", len, color } — ลำแสง Beam Magnum
-//                 เริ่มช่องติดคนยิงยาว len ช่อง (ตัดที่ขอบกระดาน) · ตัวที่ยืนในแนวสั่นตอนลำแสงถึง
+//                 เริ่มช่องติดคนยิงยาว len ช่อง (ตัดที่ขอบกระดาน) · ตัวที่ยืนในแนวสั่นตอนลำแสงถึง · tone: "blue" = ปืนโซระ
+//               | โซระ: "mythSlash" (ฟันมีด 2 ครั้ง — เป้าสั่น 2 จังหวะ) · "soraWheel" · "soraDash" · "soraBoom" (ดู boardDraw.js · dur = ระยะเล่นถ้าส่งมา)
 //   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
 //               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
@@ -43,7 +46,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
-  setCamera, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
+  setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
 import {
@@ -138,7 +141,7 @@ function drawZeroScene(g, zs, zb, view, dpr, info, lowQ, now) {
 function animPose(a, t) {
   if (a.kind === "move") {
     const pts = a.path, hop = a.hop | 0;
-    const dur = Math.max(1, pts.length - 1) * (hop ? HOP_MS(hop) : STEP_MS), p = Math.min(1, t / dur);
+    const dur = Math.max(1, pts.length - 1) * (hop ? HOP_MS(hop) : a.stepMs > 0 ? a.stepMs : STEP_MS), p = Math.min(1, t / dur);
     if (pts.length < 2 || p >= 1) { const e = pts[pts.length - 1]; return { x: e.x, y: e.y, ox: 0, oy: 0, done: p >= 1 || pts.length < 2 }; }
     const f = p * (pts.length - 1), i = Math.floor(f), k = f - i, A = pts[i], B = pts[i + 1];
     if (!hop) return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, ox: 0, oy: 0, done: false };
@@ -146,6 +149,21 @@ function animPose(a, t) {
     const air = Math.min(1, Math.max(0, (k - 0.15) / 0.7)), m = air * air * (3 - 2 * air);
     const sq = k < 0.15 ? 0.1 * Math.sin((k / 0.15) * Math.PI) : k > 0.85 ? 0.14 * Math.sin(((k - 0.85) / 0.15) * Math.PI) : -0.05 * Math.sin(air * Math.PI);
     return { x: A.x + (B.x - A.x) * m, y: A.y + (B.y - A.y) * m, ox: 0, oy: 0, hz: Math.sin(air * Math.PI) * HOP_Z(hop), sq, done: false };
+  }
+  if (a.kind === "wheel") {
+    // วิ่งในกรงจักร: เด้งขึ้นลงถี่ขึ้นตามความเร็วล้อ (เร่งแบบเดียวกับ wheelFx) + เอนไปทางพุ่งนิดๆ · ลดการเคลื่อนไหว = ยืนนิ่ง
+    const T = a.ms > 0 ? a.ms : SORA_T.wheel, p = Math.min(1, t / T), at = a.at;
+    if (reducedMotion()) return { x: at.x, y: at.y, ox: 0, oy: 0, done: p >= 1 };
+    const tt = Math.min(t, T), ph = 0.012 * tt + 0.033 * tt * tt * tt / (3 * T * T), b = Math.abs(Math.sin(ph));
+    const dl = Math.hypot(a.dir && a.dir.x, a.dir && a.dir.y) || 1, lean = 0.06 * p;
+    return { x: at.x, y: at.y, ox: a.dir ? (a.dir.x / dl) * lean : 0, oy: a.dir ? (a.dir.y / dl) * lean : 0, hz: b * 0.07, sq: 0.06 * (1 - b) - 0.02, done: p >= 1 };
+  }
+  if (a.kind === "fling") {
+    // ถูกเหวี่ยง: ลอยโค้ง (สูงตามระยะ) + ยืด/หดสลับเหมือนหมุนคว้าง · ลงพื้น = สั่น
+    const { from, to } = a, D = Math.hypot(to.x - from.x, to.y - from.y), T = a.ms > 0 ? a.ms : 280 + D * 70;
+    const p = Math.min(1, t / T), e = 1 - Math.pow(1 - p, 2);
+    const sq = reducedMotion() ? 0 : Math.sin(p * Math.PI * 4) * 0.14 * (1 - p);
+    return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, ox: 0, oy: 0, hz: Math.sin(p * Math.PI) * (0.3 + D * 0.12), sq, done: p >= 1, hitAt: T * 0.96 };
   }
   if (a.kind === "lunge") {
     const { from, to } = a, p = Math.min(1, t / LUNGE_MS);
@@ -170,13 +188,16 @@ function animPose(a, t) {
 }
 function animFinal(a) {
   if (a.kind === "move") return a.path[a.path.length - 1];
+  if (a.kind === "wheel") return a.at;
+  if (a.kind === "fling") return a.to;
   if (a.kind === "lunge") return a.from;
   return a.collide ? a.from : a.to;
 }
 function validAnim(a) {
   if (!a || a.id == null) return false;
   if (a.kind === "move") return Array.isArray(a.path) && a.path.length > 0;
-  if (a.kind === "push" || a.kind === "lunge") return !!(a.from && a.to);
+  if (a.kind === "push" || a.kind === "lunge" || a.kind === "fling") return !!(a.from && a.to);
+  if (a.kind === "wheel") return !!a.at;
   return false;
 }
 
@@ -452,6 +473,11 @@ export default function BoardCanvas(props) {
             if (hitU) st.hitT.set(hitU.id, now);
             if (!item.rgb) item.rgb = f.color ? rgbString(f.color) : "255,255,255";
           }
+          // ฟันมีดโซระ: เป้าสั่นตอนฟันแรก (ตอนนี้) + ฟันที่สอง (ดูด้านล่าง)
+          if (f.kind === "mythSlash") {
+            const hitU = units.find((u) => onBody(u, f.x, f.y) && u.alive !== false);
+            if (hitU) { st.hitT.set(hitU.id, now); item.hitU = hitU.id; }
+          }
           if (f.kind === "grow" && f.id != null) st.grow.set(f.id, { t0: now, from: f.from | 0, to: f.to | 0 });
           if (f.kind === "smash") item.dur = smashDur(f.tiles);
           st.fxActive.push(item);
@@ -459,6 +485,7 @@ export default function BoardCanvas(props) {
         if (st.fxSeen.size > 400) st.fxSeen = new Set([...st.fxSeen].slice(-200));
       }
       st.fxActive = st.fxActive.filter((f) => now - f.t0 < (f.dur || FX_DUR[f.kind] || 1000));
+      for (const f of st.fxActive) if (f.hitU != null && !f.hit2 && now - f.t0 >= SORA_T.slash2) { f.hit2 = true; st.hitT.set(f.hitU, now); }
 
       // --- ตัวละครพร้อมวาด
       const targeting = hl.skill.size > 0 || hl.aoe.size > 0;

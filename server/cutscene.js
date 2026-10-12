@@ -1,7 +1,7 @@
 // คิวคัตซีน/วีดีโอแปลงร่าง
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  triggerCutscene, queueCutscene, notifyTransform, pausePlayingForCutscene, runCutsceneQueue,
+  triggerCutscene, queueCutscene, notifyTransform, pausePlayingForCutscene, runCutsceneQueue, runSkillFlow,
 });
 
 const { io } = require("./app");
@@ -9,6 +9,7 @@ const { TRANSFORMS } = require("./constants");
 const match = require("./match");
 const endTurnPhase = require("./phases/endTurn");
 const action = require("./phases/action");
+const combat = require("./combat");
 const draw = require("./phases/draw");
 const lobby = require("./lobby");
 const summary = require("./phases/summary");
@@ -67,9 +68,12 @@ function pausePlayingForCutscene(after) {
   timers.clearPhaseTimer();
   runCutsceneQueue(() => {
     if (after) after();
-    // ห่วงเวลาซีโร่: ผลหลังคลิปทุบผนึกแตก = เล่นฉากผนึกก่อนกลับเฟสเดิม
-    if (Zero.hasPendingBreak()) { Zero.runPendingBreak(resume); return; }
-    resume();
+    // ผลหลังคลิปขอฉากต่อ (engine.skillBeat / คลิปถัดไป — โซระ: วงล้อ → พุ่ง → คลิปชน → ระเบิด) = เล่นให้จบก่อน
+    runSkillFlow(() => {
+      // ห่วงเวลาซีโร่: ผลหลังคลิปทุบผนึกแตก = เล่นฉากผนึกก่อนกลับเฟสเดิม
+      if (Zero.hasPendingBreak()) { Zero.runPendingBreak(resume); return; }
+      resume();
+    });
   });
   function resume() {
     if (inAction) {
@@ -88,6 +92,31 @@ function pausePlayingForCutscene(after) {
     view.broadcastState();
     draw.checkAllLocked();
   }
+}
+// ฉากต่อเนื่องของสกิล — ไล่ทำจนไม่มีอะไรค้าง แล้วเรียก onDone:
+//  คลิปที่คิวไว้ → ผลหลังคลิป (match.afterCutscene) · จังหวะพัก (match.skillBeats: { seconds, fn }) = เฟส ATTACKING
+//  (ปิดการกด — กระดานเล่นเอฟเฟกต์) ครบเวลาแล้วเรียก fn · fn คิวคลิป/ผลหลังคลิป/จังหวะถัดไปได้อีก
+//  ผลทุกก้อนทำในนามคนที่กำลังเดิน (withEffectSource) · จบเกมกลางทาง = หยุด
+function runSkillFlow(onDone) {
+  const runFns = (fns) => {
+    const actor = match.players[match.actorId];
+    for (const fn of fns) actor ? combat.withEffectSource(actor, fn) : fn();
+  };
+  if (match.gameState === "GAMEOVER") return;
+  if (match.cutsceneQueue.length) {
+    const after = match.afterCutscene.splice(0);
+    runCutsceneQueue(() => { runFns(after); runSkillFlow(onDone); });
+    return;
+  }
+  if (match.afterCutscene.length) { runFns(match.afterCutscene.splice(0)); runSkillFlow(onDone); return; }
+  if (match.skillBeats.length) {
+    const beat = match.skillBeats.shift();
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(beat.seconds, () => { runFns([beat.fn]); runSkillFlow(onDone); });
+    view.broadcastState();
+    return;
+  }
+  onDone();
 }
 function runCutsceneQueue(onDone) {
   if (match.cutsceneQueue.length === 0) { match.cutsceneInfo = null; onDone(); return; }

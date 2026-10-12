@@ -3,7 +3,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   attackableTargets, attackSoundOf, computeAttackBase, strikeCard,
-  estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, doAttack, boardAttack, gunAttack,
+  estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, skillDodge, doAttack, boardAttack, gunAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -34,13 +34,24 @@ function attackableTargets(atkId) {
 function attackSoundOf(attacker) {
   if (!attacker) return undefined;
   if (attacker.characterId === "muimi") return CHAR_HOOKS.muimi.towerActive(attacker) ? "muimi_ub_hit" : "muimi_normal_hit";
-  if (attacker.characterId === "sliver_bullet") return CHAR_HOOKS.sliver_bullet.attackSound(attacker);
-  return undefined;
+  const hook = CHAR_HOOKS[attacker.characterId];
+  return hook && hook.attackSound ? hook.attackSound(attacker) : undefined; // นักบินปริศนา · โซระ (มีด/ปืน)
+}
+// อัตราคริติคอลเฉพาะตัว (%) ของผู้ตี (ฮุค critPct — โซระ: ร่าง My-Th 20%) — รวมกับคริของสนามแล้วทอยครั้งเดียว
+function ownCritPct(attacker) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  return (hook && hook.critPct && hook.critPct(attacker)) || 0;
 }
 // ลำแสงตีปกติ (ฮุค attackBeam ของตัวละคร) — ความยาวลำแสงเป็นช่อง · 0 = ตีแบบปกติ (พุ่งชน/ฟัน)
 function attackBeamOf(attacker) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
   return (hook && hook.attackBeam && hook.attackBeam(attacker)) || 0;
+}
+
+// ค่าจากฮุคแบบไม่มีพารามิเตอร์อื่น (ไม่มีฮุค/ไม่มีค่า = null)
+function hookOf(attacker, name) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  return (hook && hook[name] && hook[name](attacker)) || null;
 }
 
 // ท่าตีปกติเฉพาะตัว (ฮุค attackStyle — Echo: คลื่นเสียง / ผมฟาด / ปาหิน ตามร่างและระยะ) · null = ตีแบบปกติ (พุ่งชน)
@@ -117,11 +128,11 @@ function estimateHitOn(attacker, target) {
   } catch { return null; }
 }
 
-// ประเมินโอกาสคริติคอล (%) ของตีปกติ — อัตราเดียวกับที่ Journey.applyCrit ใช้ใน strike() (สนาม + 0 จากบัฟอื่น)
+// ประเมินโอกาสคริติคอล (%) ของตีปกติ — อัตราเดียวกับที่ Journey.applyCrit ใช้ใน strike() (สนาม + คริเฉพาะตัว)
 //  ไม่ทอย · คืนจำนวนเต็ม 0–100 · พัง = null
 function estimateCritOf(attacker, target) {
   try {
-    return Math.round(Math.min(100, Math.max(0, Journey.critBonus(engine) + 0)));
+    return Math.round(Math.min(100, Math.max(0, Journey.critBonus(engine) + ownCritPct(attacker))));
   } catch { return null; }
 }
 
@@ -215,7 +226,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (fragileAmt > 0) dmg += fragileAmt;
   // การเดินทาง (อาณาจักรน้ำแข็ง กลางวัน): คริติคอล 20% ×2
   const journeyCritFx = {};
-  dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, 0);
+  dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
 
   const shieldBefore = target.shield;
   combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
@@ -244,6 +255,11 @@ function strike(attacker, target, { counter = false } = {}) {
   if (zeroAtkFx) atkFx(zeroAtkFx.name, null);
   if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
   for (const name of CHAR_HOOKS.oberon_summer.atkFx(attacker)) atkFx(name, CHAR_HOOKS.oberon_summer.IMG.base);
+  // ป้ายโบนัสเฉพาะตัวของผู้ตี (ฮุค attackFxNames — โซระ: มีด +1)
+  {
+    const hook = CHAR_HOOKS[attacker.characterId];
+    if (hook && hook.attackFxNames) for (const name of hook.attackFxNames(attacker, atkCtx)) atkFx(name);
+  }
   if (journeyCritFx.crit) atkFx(`คริติคอล ×2 (${journeyCritFx.pct}%)`, null);
   if (accurate) atkFx("แม่นยำ — เจาะการหลบหลีก");
   if (empowerAtk) atkFx("เสริมพลัง +1");
@@ -270,20 +286,8 @@ function strike(attacker, target, { counter = false } = {}) {
 //  ต่างจากตีปกติ: ไม่นับเป็นการโจมตีปกติ (ไม่ตีสวน · ไม่ใช้เสริมพลัง · ไม่ติดผลตีปกติของตัวละคร · ไม่มีเนตรมณะ/ป่าพลาดเป้า)
 //  คืน { dmg, dodge, kill }
 function skillStrike(attacker, target, reason) {
-  const accurate = accurateActive(attacker);
   target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
-  if (!accurate && (target.statuses.evade || 0) > 0) {
-    const evadePct = statusAmtOf(target, "evade") || 100;
-    if (Math.random() * 100 < evadePct) {
-      match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
-      return { dmg: 0, dodge: true, kill: false };
-    }
-  }
-  const cover = !accurate && terrainCoverDodge(target); // พุ่มดอกไม้สูง/ป่าทึบ +20%
-  if (cover) {
-    match.lastLog.push(`${cover.icon} ${target.name} หลบ${reason}ใน${cover.name}ได้ (${cover.pct}%)`);
-    return { dmg: 0, dodge: true, kill: false };
-  }
+  if (skillDodge(attacker, target, reason)) return { dmg: 0, dodge: true, kill: false };
   const atkCtx = computeAttackBase(engine, attacker, target);
   let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
@@ -303,13 +307,34 @@ function skillStrike(attacker, target, reason) {
   return { dmg, dodge: false, kill: !target.alive };
 }
 
+// ทอยหลบสกิลที่หลบได้: หลบหลีก (สถานะ) แล้วช่องที่ยืน (พุ่มดอกไม้สูง/ป่าทึบ) · แม่นยำเจาะได้ → true = หลบพ้น (บันทึก log ให้)
+//  skillStrike ใช้ · ดาเมจสกิลตายตัวที่สเปกบอกว่า "หลบได้" เรียกตรง (engine.skillDodge — โซระ: Mouse Separade)
+function skillDodge(attacker, target, reason) {
+  if (accurateActive(attacker)) return false;
+  if ((target.statuses.evade || 0) > 0) {
+    const evadePct = statusAmtOf(target, "evade") || 100;
+    if (Math.random() * 100 < evadePct) {
+      match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
+      return true;
+    }
+  }
+  const cover = terrainCoverDodge(target); // พุ่มดอกไม้สูง/ป่าทึบ +20%
+  if (cover) {
+    match.lastLog.push(`${cover.icon} ${target.name} หลบ${reason}ใน${cover.name}ได้ (${cover.pct}%)`);
+    return true;
+  }
+  return false;
+}
+
 // การ์ดฉากตี 1 จังหวะ (ตี หรือ ตีสวน) — client วาดใครตีใคร + เหตุผลดาเมจ
 function strikeCard(attacker, target, res) {
   return {
     byId: attacker.id, targetId: target.id,
     byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
-    byBeam: attackBeamOf(attacker), // ตีปกติเป็นลำแสง (ความยาวเป็นช่อง · 0 = ไม่มี) — นักบินปริศนา
+    byBeam: attackBeamOf(attacker), // ตีปกติเป็นลำแสง (ความยาวเป็นช่อง · 0 = ไม่มี) — นักบินปริศนา · โซระ (ปืน)
+    byBeamTone: hookOf(attacker, "attackBeamTone"), // สีลำแสง "blue" (โซระ) · null = ขาวแดงเดิม
+    byHitFx: hookOf(attacker, "attackHitFx"), // เอฟเฟกต์จังหวะปะทะ "mythSlash" (โซระ มีด) · null = แสงแตกเดิม
     byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน
     bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
@@ -330,11 +355,14 @@ function doAttack(byId, targetId) {
 
 // โจมตีบนกระดาน (GRID_PLAN §6): ตี → ถ้าเป้ายังรอดและตีถึงเรา = ตีสวน → ผู้ตีถอย 1 ช่อง (ชนของ = เสีย 1)
 //  จบฉาก (ATTACKING) แล้วเรียก done (= จบตาของผู้ตี)
+//  ฮุค afterBoardAttack(engine, attacker, target, res) → ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้าเข้าประชิด)
 function boardAttack(attacker, target, done) {
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
   counterAndPush(attacker, target, card);
-  playAttackCard(card, attacker, target, done);
+  const hook = CHAR_HOOKS[attacker.characterId];
+  const after = hook && hook.afterBoardAttack ? hook.afterBoardAttack(engine, attacker, target, first) : null;
+  playAttackCard(card, attacker, target, after ? () => { combat.withEffectSource(attacker, after); done(); } : done);
 }
 // ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
 //  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)

@@ -129,6 +129,7 @@ function buildStateFor(viewerId) {
     cutscene: (match.gameState === "CUTSCENE" && match.cutsceneInfo && (!match.cutsceneInfo.onlyFor || match.cutsceneInfo.onlyFor.includes(viewerId)))
       ? match.cutsceneInfo : null,
     attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
+    dash: match.dash, // การพุ่งล่าสุดบนกระดาน (โซระ: Mouse Separade) — client เล่นตาม seq ใหม่
     log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : [],
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
     shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
@@ -171,6 +172,12 @@ function buildStateFor(viewerId) {
       if (hook && hook.skillArea) {
         for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
           if (s) s.area = hook.skillArea(p, tierName, s.area) || s.area;
+        }
+      }
+      // หน้าตาปุ่มที่เปลี่ยนตามสถานะ (ฮุค skillPub → ฟิลด์ที่ทับ — โซระ: รูปปุ่มแปลงร่าง / ชื่ออาวุธ)
+      if (hook && hook.skillPub) {
+        for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
+          if (s) Object.assign(s, hook.skillPub(p, tierName) || {});
         }
       }
       // ระยะสกิลที่ client วาด: range "mov" แปลงเป็นตัวเลขของผู้เล่นคนนี้
@@ -253,6 +260,7 @@ function buildStateFor(viewerId) {
         veiled: !unseen && Visibility.concealed(p),
         sliver: hook && hook.publicState ? hook.publicState(engine, p, viewer) : undefined, // นักบินปริศนา: แขน / ล่องหน
         echo: hook && hook.echoState ? hook.echoState(engine, p) : undefined, // Echo: ขยายร่าง / ราชินี / คูลดาวน์มหึมา
+        sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),

@@ -108,6 +108,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   sizeOf: action.sizeOf,
   // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง) — ผลักคนที่ขวาง · พังสิ่งกีดขวาง · ส่ง growFx (action.resizeUnit)
   resizeUnit: action.resizeUnit,
+  breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
+  tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
+  chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)
+  // การพุ่งบนกระดาน — client เล่นแอนิเมชันตาม seq ใหม่ { id, path, wheel?, swap?: { id, from, to }, boom? }
+  setDash(d) { match.dash = d ? { seq: ++match.dashSeq, ...d } : null; },
   movOf: action.movOf,
   baseMovOf: action.baseMovOf,
   rangeOf: action.rangeOf,
@@ -120,6 +125,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   finishActor: action.finishActor,
   hasActed: action.hasActed,
   skillStrike: attack.skillStrike,
+  skillDodge: attack.skillDodge, // ทอยหลบสกิลดาเมจตายตัวที่หลบได้ (หลบหลีก + พุ่มดอกไม้สูง/ป่าทึบ · แม่นยำเจาะ) → true = หลบพ้น
   // เทสต์: ให้ผู้เล่นคนนี้อยู่ในตาเดินของตัวเองทันที (ข้ามช่วงจั่วไพ่/ลำดับเดิน) — ไม่ตั้งตัวจับเวลา
   setActor(id) {
     const p = match.players[id];
@@ -243,6 +249,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   notifyTransform: cutscene.notifyTransform,
   // ให้ผลของสกิลเกิดหลังคลิปที่คิวไว้จบ (ไม่มีคลิป = เกิดทันทีหลัง hook) — ใช้ได้เฉพาะใน applyInstantSkill
   deferAfterCutscene(fn) { match.afterCutscene.push(fn); },
+  // พักตาเดิน seconds วิ (เฟส ATTACKING — กระดานเล่นเอฟเฟกต์ ปิดการกด) แล้วค่อยเรียก fn — ใช้ในผลของสกิล (cutscene.runSkillFlow)
+  skillBeat(seconds, fn) { match.skillBeats.push({ seconds, fn }); },
   runCutsceneQueue: cutscene.runCutsceneQueue,
   pausePlayingForCutscene: cutscene.pausePlayingForCutscene,
   startPhaseTimer: timers.startPhaseTimer,

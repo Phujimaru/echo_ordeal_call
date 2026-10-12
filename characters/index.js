@@ -7,12 +7,14 @@ const muimi = require("./muimi"); // มุยมิ — ระดับง่�
 const oberon_summer = require("./oberon_summer"); // โอเบรอน (ฤดูร้อน) — ระดับกลาง
 const sliver_bullet = require("./sliver_bullet"); // นักบินปริศนา — ระดับง่าย · unique
 const echo = require("./echo"); // Echo — พิเศษ (ขยายร่างบนกระดาน)
+const sora_otosumi = require("./sora_otosumi"); // โซระ โอโตสุมิ — ระดับง่าย (แปลงร่าง My-Th)
 
 const CHARACTER_MODULES = [
   muimi,
   oberon_summer,
   sliver_bullet,
   echo,
+  sora_otosumi,
 ];
 
 const CHAR_HOOKS = {};

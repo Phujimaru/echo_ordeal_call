@@ -24,7 +24,7 @@ import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
-import { BEAM_T, QUAKE_T, STYLE_HIT } from "./boardDraw";
+import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import "./boardStage.css";
 
@@ -273,6 +273,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const prevPos = useRef({});
   const prevVit = useRef({});
   const seenAttack = useRef(null);
+  // ท่าไม้ตายโซระ (state.dash): seq ล่าสุดที่เห็น · ตัวที่ค้างไว้ปลายทางพุ่ง { seq, id, from, done } · id → ช่องปลายทาง (ข้ามแอนิเมชันเลื่อนอัตโนมัติ)
+  const seenDash = useRef(null);
+  const dashHold = useRef(null);
+  const dashSkip = useRef({});
   const seeded = useRef(false);
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -288,12 +292,80 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     prevPlayers.current = Object.fromEntries(state.players.map((p) => [p.id, p]));
     const zNow = state.zero || null, zPrev = prevZero.current;
     prevZero.current = zNow;
-    if (!seeded.current) { seeded.current = true; prevPos.current = nextPos; prevVit.current = nextVit; return; }
+    const dash = state.dash && state.dash.seq != null ? state.dash : null;
+    if (!seeded.current) { seeded.current = true; prevPos.current = nextPos; prevVit.current = nextVit; seenDash.current = dash ? dash.seq : null; return; }
+    const freshDash = dash && dash.seq !== seenDash.current && Array.isArray(dash.path) && dash.path.length && dash.id != null ? dash : null;
+    if (dash) seenDash.current = dash.seq;
+    const anims = [];
+    // ปล่อยตัวที่ค้างไว้ปลายทางพุ่ง: server ย้ายตัวจริงแล้ว (ไม่อยู่ช่องเริ่ม) หรือมีฉากพุ่งใหม่
+    const dh = dashHold.current;
+    if (dh && !dh.done && (freshDash || !samePos(nextPos[dh.id], dh.from))) {
+      dh.done = true;
+      setHold((h) => { if (!h[dh.id]) return h; const n = { ...h }; delete n[dh.id]; return n; });
+    }
+    // ท่าไม้ตายโซระ (Mouse Separade) — ตัวที่ขยับเพราะฉากพุ่ง (ทั้งเฟสวิ่ง/ชน) ไม่ต้องเลื่อนอัตโนมัติ (เลขดาเมจยังขึ้นตามปกติ)
+    const dashFloat = {}; // id → { ms, at } เลื่อนเลขดาเมจไปขึ้นตอนระเบิด
+    if (freshDash) {
+      const d = freshDash, id = d.id, pts = d.path.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y }));
+      const s0 = pts[0], end = pts[pts.length - 1], size = sizeOfP(byId[id]);
+      if (s0 && d.wheel) {
+        // เฟสวิ่ง: กรงจักรหนูที่ช่องเริ่ม (WHEEL_MS) → พุ่งตามเส้นทาง (DASH_STEP_MS ต่อช่อง) → ค้างที่ปลายทางจน server ย้ายตัวจริง
+        const dir = { x: end.x - s0.x, y: end.y - s0.y };
+        dashSkip.current[id] = end;
+        dashHold.current = { seq: d.seq, id, from: s0, done: false };
+        anims.push({ kind: "wheel", id, at: s0, ms: SORA_T.wheel, dir, seq: ++fxSeq.current });
+        if (pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, holdEnd: end, dashSeq: d.seq, seq: ++fxSeq.current });
+        pushFx([
+          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, dur: SORA_T.wheel },
+          ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step) }] : []),
+        ]);
+        if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
+        look(s0);
+        later(SORA_T.wheel, () => { look(end); if (!lowQ) setShake((n) => n + 1); });
+      } else if (s0) {
+        // เฟสชน (หลังวิดีโอ): โซระเข้าช่องเป้า · เป้าถูกเหวี่ยงไปช่องเริ่ม (swap) · ระเบิดฟ้าที่ช่องเป้า
+        const moveMs = pts.length > 1 ? (pts.length - 1) * SORA_T.step : 0;
+        dashSkip.current[id] = end;
+        if (pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, seq: ++fxSeq.current });
+        const sw = d.swap && d.swap.id != null && d.swap.from && d.swap.to ? d.swap : null;
+        const boom = d.boom && Number.isFinite(d.boom.x) && Number.isFinite(d.boom.y) ? d.boom : end;
+        const bSize = Math.max(1, d.boomSize | 0);
+        if (sw && nextPos[sw.id]) {
+          dashSkip.current[sw.id] = sw.to;
+          setHold((h) => ({ ...h, [sw.id]: sw.from }));
+          anims.push({ kind: "fling", id: sw.id, from: { x: sw.from.x, y: sw.from.y }, to: { x: sw.to.x, y: sw.to.y }, releaseHold: true, seq: ++fxSeq.current });
+          dashFloat[sw.id] = { ms: moveMs + 60, at: boom };
+        }
+        // เป้าตกรอบ (server เอาออกแล้ว) = วาดค้างไว้ถึงตอนระเบิด + เลขดาเมจ/ตกรอบ
+        const dead = sw ? null : Object.values(lastPlayers).find((t) => t && t.id !== id && t.pos && !nextPos[t.id] && Rules.covers(boxOfP(t), boom.x, boom.y));
+        if (dead) {
+          setGhost({ id: dead.id, x: dead.pos.x, y: dead.pos.y, img: dead.img, color: dead.color, name: dead.name, hp: dead.hp ?? 0, maxHp: dead.maxHp ?? 0, armor: dead.armor ?? 0, maxArmor: dead.maxArmor ?? 0, size: sizeOfP(dead) });
+          later(moveMs + 260, () => setGhost(null));
+        }
+        if (nextPos[id]) dashFloat[id] = { ms: moveMs + 60, at: nextPos[id] };
+        const lost = dead ? (nextVit[dead.id] ?? 0) - (prevVit.current[dead.id] ?? 0) : 0;
+        look(boom);
+        later(moveMs, () => {
+          pushFx([
+            { kind: "soraBoom", x: boom.x, y: boom.y, size: bSize },
+            ...(dead && lost < 0 ? [{ kind: "float", x: boom.x, y: boom.y, text: `${lost}`, size: 30, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(dead ? [{ kind: "float", x: boom.x, y: boom.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+          ]);
+          if (!lowQ) setShake((n) => n + 1);
+        });
+      }
+    }
+    // ตัวที่ถึงปลายทางของฉากพุ่งแล้ว (ใช้ครั้งเดียว)
+    const dashMoved = new Set();
+    for (const [id, to] of Object.entries(dashSkip.current)) {
+      const before = prevPos.current[id], now = nextPos[id];
+      if (!now) { delete dashSkip.current[id]; continue; }
+      if (before && !samePos(before, now) && samePos(now, to)) { dashMoved.add(id); delete dashSkip.current[id]; }
+    }
 
     // เดิน: ตำแหน่งคนที่กำลังเดินเปลี่ยนตามเส้นทางของตานี้
-    const anims = [];
     const path = state.action && state.action.path;
-    if (state.actorId && path && path.length > 1) {
+    if (state.actorId && path && path.length > 1 && !dashMoved.has(state.actorId)) {
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
       if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
         // Echo เดินกระโดดดึ๋งๆ ทีละช่อง (ตัวใหญ่กระโดดช้าและหนักกว่า)
@@ -327,7 +399,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const melee = !a.gun && !beam && !style && fromPos && tPos && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
-      if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId }]));
+      if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
+      // มีดโซระ (byHitFx "mythSlash"): พุ่งชนแบบเดิม · เสียงเริ่มก่อนปะทะ (ฟันแรกในเสียงตรงจังหวะปะทะ) · ฟันฟ้า 2 ครั้งแทนแสงแตก
+      const myth = a.byHitFx === "mythSlash";
+      if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor }]));
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
@@ -340,11 +415,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
-          playSfx(a.byAttackSound || "attack");
+          if (!myth) playSfx(a.byAttackSound || "attack");
           setShake((n) => n + 1);
+          if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
           pushFx([
-            { kind: a.dodge ? "slash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor },
+            { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
             { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : undefined, size: a.gun ? 20 : 30, z: lowQ ? 2.4 : 1.5 },
             ...(a.kill && !sealT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
@@ -359,12 +435,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (a.counter && fromPos) {
         t = HIT + 640;
         const c = a.counter;
-        if (c.byBeam > 0 && tPos) later(t - BEAM_T.charge - BEAM_T.extend, () => pushFx([{ kind: "beam", x: tPos.x, y: tPos.y, to: fromPos, len: c.byBeam, hitId: c.targetId }]));
+        if (c.byBeam > 0 && tPos) later(t - BEAM_T.charge - BEAM_T.extend, () => pushFx([{ kind: "beam", x: tPos.x, y: tPos.y, to: fromPos, len: c.byBeam, hitId: c.targetId, tone: c.byBeamTone || null }]));
+        const cMyth = c.byHitFx === "mythSlash";
+        if (cMyth) later(Math.max(0, t - SORA_T.lead), () => playSfx(c.byAttackSound || "attack"));
         later(t, () => {
-          playSfx(c.byAttackSound || "attack");
+          if (!cMyth) playSfx(c.byAttackSound || "attack");
           setShake((n) => n + 1);
+          if (cMyth && !c.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           pushFx([
-            { kind: c.dodge ? "slash" : "burst", x: fromPos.x, y: fromPos.y, color: c.byColor },
+            { kind: c.dodge ? "slash" : cMyth ? "mythSlash" : "burst", x: fromPos.x, y: fromPos.y, color: c.byColor, size: sizeOfP(byId[c.targetId]) },
             { kind: "float", x: fromPos.x, y: fromPos.y, text: c.dodge ? "หลบ" : `สวน -${c.dmg}`, color: "#ffb0a8", size: 24 },
           ]);
         });
@@ -376,7 +455,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (a.push.collide) pushFx([{ kind: "float", x: a.push.from.x, y: a.push.from.y, text: "ชน -1", color: "#ffc56b", size: 22 }]);
         });
       }
-      if (!lowQ) later(t + (a.push ? 900 : 1000), () => setCinema(null));
+      const slashTail = myth || (a.counter && a.counter.byHitFx === "mythSlash") ? SORA_T.slash2 : 0;
+      if (!lowQ) later(t + slashTail + (a.push ? 900 : 1000), () => setCinema(null));
     }
     // ผนึกแตกนอกฉากตี (สกิลพื้นที่) = แตกทันที
     if (zNow && zPrev && Array.isArray(zNow.seals) && Array.isArray(zPrev.seals)) {
@@ -394,15 +474,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const p of state.players) {
       if (involved.has(p.id) || !p.pos) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
-      if (d < 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `${d}` }]);
-      else if (d > 0) pushFx([{ kind: "float", x: p.pos.x, y: p.pos.y, text: `+${d}`, color: "#8ff0b0" }]);
+      const df = dashFloat[p.id], at = df ? df.at : p.pos;
+      const fl = d < 0 ? [{ kind: "float", x: at.x, y: at.y, text: `${d}` }] : d > 0 ? [{ kind: "float", x: at.x, y: at.y, text: `+${d}`, color: "#8ff0b0" }] : null;
+      if (fl && df) later(df.ms, () => pushFx(fl));
+      else if (fl) pushFx(fl);
       if (d && !hurtPos) hurtPos = p.pos;
     }
     if (hurtPos && !freshAtk) look(hurtPos);
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
     for (const p of state.players) {
       const before = prevPos.current[p.id], now = nextPos[p.id];
-      if (!before || !now || samePos(before, now) || involved.has(p.id) || anims.some((a) => a.id === p.id)) continue;
+      if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || anims.some((a) => a.id === p.id)) continue;
       if (Math.abs(before.x - now.x) + Math.abs(before.y - now.y) > 2) continue; // ไกลกว่านั้น = วางใหม่ (เปลี่ยนภูมิภาค/ย้อนการเดิน)
       if (p.id === state.actorId && !(state.action && state.action.moved)) continue; // กดย้อน = กลับที่เดิมทันที
       anims.push({ kind: "push", id: p.id, from: before, to: now, collide: false, seq: ++fxSeq.current });
@@ -421,7 +503,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const onBeam = (b) => {
       const v = b && DIRS[b.dir];
       if (!v || !b.from || !Number.isFinite(b.from.x) || !Number.isFinite(b.from.y)) return;
-      pushFx([{ kind: "beam", x: b.from.x, y: b.from.y, dir: b.dir, len: b.len, color: b.color }]);
+      pushFx([{ kind: "beam", x: b.from.x, y: b.from.y, dir: b.dir, len: b.len, color: b.color, tone: b.tone || null }]);
       const bd = boardRef.current || {}, half = Math.ceil((Number(b.len) || 6) / 2);
       const cl = (n, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), n));
       look({ x: cl(b.from.x + v[0] * half, bd.cols), y: cl(b.from.y + v[1] * half, bd.rows) });
@@ -489,7 +571,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
+  const animRef = useRef(null);
+  useLayoutEffect(() => { animRef.current = anim; });
   const onAnimDone = useCallback(() => {
+    // ฉากพุ่งโซระ: พุ่งจบ = ค้างตัวไว้ปลายทาง (server ยังไม่ย้าย) · ถูกเหวี่ยงลงพื้น = ปล่อยตัวที่ค้างไว้ช่องเดิม
+    const cur = animRef.current, dh = dashHold.current;
+    if (cur && cur.holdEnd && dh && !dh.done && dh.seq === cur.dashSeq) setHold((h) => ({ ...h, [cur.id]: cur.holdEnd }));
+    if (cur && cur.releaseHold) setHold((h) => { if (!h[cur.id]) return h; const n = { ...h }; delete n[cur.id]; return n; });
     setAnimQ((q) => q.slice(1));
     const pa = pendingAttack.current;
     if (pa) { pendingAttack.current = null; socket.emit("attack", { targetId: pa }); }

@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -112,7 +112,14 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ลงผลสกิล | `applyInstantSkill(engine, p, tier, targets, opts)` (คืนข้อความต่อท้าย skillFlash ได้ · `opts.dir` = ทิศของ `line`) | `server/skills.js` |
 | ราคาเปลี่ยนตามสถานะ | `skillCost(p, tier, base)` (useSkill + ป้ายราคาใช้ตัวเดียวกัน) | `server/skills.js` · `server/view.js` |
 | พื้นที่สกิลเปลี่ยนตามสถานะ | `skillArea(p, tier, area)` (useSkill + ปุ่ม/โหมดเลือกเป้าใช้ตัวเดียวกัน — มุยมิ: ดาบสนิมระหว่างดาบสะบั้น) | `server/skills.js` · `server/view.js` |
-| ตีปกติเป็นลำแสง (ฉากตี) | `attackBeam(p)` → ความยาวช่อง (การ์ดฉากตี `byBeam`) | `strikeCard()` — `server/phases/attack.js` |
+| ตีปกติเป็นลำแสง (ฉากตี) | `attackBeam(p)` → ความยาวช่อง (การ์ดฉากตี `byBeam`) · สี `attackBeamTone(p)` → `"blue"` | `strikeCard()` — `server/phases/attack.js` |
+| เอฟเฟกต์ปะทะ/เสียงตีปกติเฉพาะตัว | `attackHitFx(p)` → `"mythSlash"` (โซระ) · `attackSound(p)` | `strikeCard()` / `attackSoundOf()` |
+| ระยะตีตามสถานะ | `range(p)` → `[rmin, rmax]` (โซระ: ปืน `[1, 2]`) | `action.rangeOf` |
+| อัตราคริเฉพาะตัว | `critPct(p)` → % (รวมคริสนาม ทอยครั้งเดียว · หน้าต่างคาดการณ์ด้วย) | `strike()` / `estimateCritOf()` |
+| ป้ายโบนัสใต้ฉากตี | `attackFxNames(attacker, atkCtx)` | `strike()` |
+| ผลหลังฉากตีปกติ (ก่อนจบตา) | `afterBoardAttack(engine, attacker, target, res)` → ฟังก์ชัน | `boardAttack()` |
+| ชื่อ/รูปปุ่มสกิลตามสถานะ | `skillPub(p, tier)` → ฟิลด์ที่ทับ | `server/view.js` |
+| ฉากสกิลหลายจังหวะ (พักให้กระดานเล่นเอฟเฟกต์ → คลิป → ผล) | `engine.skillBeat(sec, fn)` + `deferAfterCutscene` + `queueCutscene` (ต้นแบบ Mouse Separade ของโซระ) | `cutscene.runSkillFlow` |
 | ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
 | เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p)` | `combat.maxHpOf`/`maxArmorOf` |
 | ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind)` (`act`/`hit`/`bump`) + `logCut(p, round)` | `server/visibility.js` |

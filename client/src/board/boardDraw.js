@@ -1051,7 +1051,7 @@ function burstFx(g, x, y, p, rgb) {
 }
 
 // =================================================================== Beam Magnum (นักบินปริศนา)
-//  fx { kind: "beam", x, y (ช่องคนยิง), dir: up|down|left|right, len, beam: prepareBeam(...) }
+//  fx { kind: "beam", x, y (ช่องคนยิง), dir: up|down|left|right, len, beam: prepareBeam(...), tone? ("blue" = ปืนโซระ — ดู BEAM_TONES) }
 //  ลำแสงเกลียว ขาวผสมแดง (ผู้ใช้สั่ง — ไม่ใช้สีผู้เล่น): แกนขาวร้อน + เกลียวแดง 2 เส้นพันรอบแกน หมุนไหลไปข้างหน้า + เรืองแดงรอบนอก
 //  ชาร์จที่ปากกระบอก → ลำแสงพุ่งไปสุดแนว (ease-out) → ค้าง → จาง (เกลียวคลายออก) · ช่องที่ลำแสงผ่าน = แฟลชบนพื้น
 //  ทุกจุดคิดในพิกัดโลก (แกนลอยสูง BEAM_Z · เกลียวหมุนในระนาบตั้งฉากกับแนวยิง) แล้วฉายด้วยกล้อง — ถูกทุกมุมหมุน/ซูม/มุมบน
@@ -1062,6 +1062,12 @@ const BEAM_Z = 0.62, MUZZLE = 0.3, IMPACT_MS = 280;
 const BEAM_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const HELIX = { r: 0.17, twist: 3.3, step: 0.06, spin: 0.02 }; // รัศมี (ช่อง) · rad ต่อช่อง · ระยะจุดตัวอย่าง · rad ต่อ ms
 const RED = "235,28,48", RED_HI = "255,120,120", WHITE_RED = "255,215,215";
+// โทนลำแสง (fx.tone): ไม่ใส่ = ขาวผสมแดง (นักบินปริศนา) · "blue" = ปืนโซระ (แกนขาว · เกลียวฟ้า · เรืองน้ำเงินเข้ม)
+//  c = เกลียว/พื้น · glow = เรืองรอบนอก · hi = ไฮไลต์เกลียว/ประกาย · hot = รัศมีแกนร้อน
+const BEAM_TONES = {
+  red: { c: RED, glow: RED, hi: RED_HI, hot: WHITE_RED },
+  blue: { c: "70,175,255", glow: "28,72,235", hi: "175,232,255", hot: "220,244,255" },
+};
 // ช่องที่ลำแสงผ่าน (เริ่มช่องติดคนยิง · ตัดที่ขอบกระดาน) + เวลาที่ปลายลำแสงถึงกลางแต่ละช่อง (ms นับจากเริ่ม fx)
 //  f.to = ช่องเป้า (ตีปกติของนักบินปริศนา) → ยิงเฉียงตรงไปหาเป้าได้ ยาว len ช่อง แทนการเลือก 4 ทิศ
 export function prepareBeam(f, cols, rows) {
@@ -1156,6 +1162,7 @@ function strokeHelix(g, pts, front, w, color) {
 function beamFx(g, e, now, lowQ) {
   const B = e.beam;
   if (!B) return;
+  const K = BEAM_TONES[e.tone] || BEAM_TONES.red;
   const { charge: C, extend: E, hold: H, fade: F } = BEAM_T, t = now - e.t0;
   if (t < 0 || t > C + E + H + F) return;
   const [dx, dy] = B.v;
@@ -1169,16 +1176,16 @@ function beamFx(g, e, now, lowQ) {
     const age = t - B.hits[i];
     if (age < 0) return;
     g.globalCompositeOperation = "source-over";
-    quad(g, tl.x, tl.y, 0.1); g.fillStyle = `rgba(${RED},${0.22 * fadeK})`; g.fill();
+    quad(g, tl.x, tl.y, 0.1); g.fillStyle = `rgba(${K.c},${0.22 * fadeK})`; g.fill();
     if (age < IMPACT_MS) {
       const q = age / IMPACT_MS, a = 1 - q;
       g.globalCompositeOperation = "lighter";
       gEllipse(g, tl.x + 0.5, tl.y + 0.5, 0.16 + q * 0.32, 0, 24); g.fillStyle = `rgba(255,255,255,${0.7 * a})`; g.fill();
       const [sx, sy, sc] = P(tl.x + 0.5, tl.y + 0.5, BEAM_Z);
-      glow(g, sx, sy, sc * (0.35 + q * 0.4), WHITE_RED, 0.85 * a);
+      glow(g, sx, sy, sc * (0.35 + q * 0.4), K.hot, 0.85 * a);
       if (!still) {
         g.globalCompositeOperation = "source-over";
-        g.strokeStyle = `rgba(${RED_HI},${a})`; g.lineWidth = 2;
+        g.strokeStyle = `rgba(${K.hi},${a})`; g.lineWidth = 2;
         for (let k = 0; k < 5; k++) {
           const th = (k / 5) * Math.PI * 2 + i * 1.7, r0 = sc * 0.12, r1 = sc * (0.2 + q * 0.45);
           g.beginPath(); g.moveTo(sx + Math.cos(th) * r0, sy + Math.sin(th) * r0 * 0.7); g.lineTo(sx + Math.cos(th) * r1, sy + Math.sin(th) * r1 * 0.7); g.stroke();
@@ -1190,12 +1197,12 @@ function beamFx(g, e, now, lowQ) {
   if (t < C) {
     const p = t / C;
     g.globalCompositeOperation = "source-over";
-    glow(g, A[0], A[1], A[2] * (0.25 + 0.55 * p), RED, 0.3 + 0.45 * p);
+    glow(g, A[0], A[1], A[2] * (0.25 + 0.55 * p), K.glow, 0.3 + 0.45 * p);
     g.globalCompositeOperation = "lighter";
     glow(g, A[0], A[1], A[2] * (0.08 + 0.22 * p), "255,255,255", 0.5 + 0.5 * p);
     if (!still) {
       g.globalCompositeOperation = "source-over";
-      g.fillStyle = `rgba(${RED_HI},${0.4 + 0.6 * p})`;
+      g.fillStyle = `rgba(${K.hi},${0.4 + 0.6 * p})`;
       for (let k = 0; k < 8; k++) {
         const th = (k / 8) * Math.PI * 2 + now / 260, r = A[2] * 0.75 * (1 - p);
         g.beginPath(); g.arc(A[0] + Math.cos(th) * r, A[1] + Math.sin(th) * r * 0.75, 1.6 + p * 1.6, 0, Math.PI * 2); g.fill();
@@ -1206,7 +1213,7 @@ function beamFx(g, e, now, lowQ) {
     g.globalCompositeOperation = "lighter";
     glow(g, A[0], A[1], A[2] * (0.6 + q * 0.6), "255,255,255", a);
     g.globalCompositeOperation = "source-over";
-    g.strokeStyle = `rgba(${RED},${a})`; g.lineWidth = 3 * a + 1;
+    g.strokeStyle = `rgba(${K.c},${a})`; g.lineWidth = 3 * a + 1;
     g.beginPath(); g.ellipse(A[0], A[1], A[2] * (0.25 + q * 0.7), A[2] * (0.18 + q * 0.5), 0, 0, Math.PI * 2); g.stroke();
   }
   // ตัวลำแสง: เรืองแดงรอบนอก → เกลียวด้านหลัง → แกนขาว → เกลียวด้านหน้า
@@ -1219,21 +1226,21 @@ function beamFx(g, e, now, lowQ) {
     const strands = (lowQ ? [0] : [0, 1]).map((k) => helixPts(ax, ay, dx, dy, dist, phase, k, rK));
     const side = (isFront) => {
       for (const pts of strands) {
-        if (!lowQ) strokeHelix(g, pts, isFront, 0.11, `rgba(${RED},${0.3 * fadeK})`);
-        strokeHelix(g, pts, isFront, 0.045, `rgba(${RED},${0.95 * fadeK})`);
-        if (!lowQ) strokeHelix(g, pts, isFront, 0.016, `rgba(${RED_HI},${0.9 * fadeK})`);
+        if (!lowQ) strokeHelix(g, pts, isFront, 0.11, `rgba(${K.glow},${0.3 * fadeK})`);
+        strokeHelix(g, pts, isFront, 0.045, `rgba(${K.c},${0.95 * fadeK})`);
+        if (!lowQ) strokeHelix(g, pts, isFront, 0.016, `rgba(${K.hi},${0.9 * fadeK})`);
       }
     };
     g.globalCompositeOperation = "source-over";
-    if (!lowQ) taper(g, A, Bp, 0.6 * wK * rK, `rgba(${RED},${0.16 * fadeK})`);
+    if (!lowQ) taper(g, A, Bp, 0.6 * wK * rK, `rgba(${K.glow},${0.16 * fadeK})`);
     side(false);
     g.globalCompositeOperation = "lighter";
-    taper(g, A, Bp, 0.17 * wK, `rgba(${WHITE_RED},${0.55 * fadeK})`);
+    taper(g, A, Bp, 0.17 * wK, `rgba(${K.hot},${0.55 * fadeK})`);
     taper(g, A, Bp, 0.075 * wK, `rgba(255,255,255,${fadeK})`);
     g.globalCompositeOperation = "source-over";
     side(true);
     g.globalCompositeOperation = "lighter";
-    glow(g, Bp[0], Bp[1], Bp[2] * 0.42 * wK, WHITE_RED, 0.8 * fadeK);
+    glow(g, Bp[0], Bp[1], Bp[2] * 0.42 * wK, K.hot, 0.8 * fadeK);
     glow(g, A[0], A[1], A[2] * 0.4 * wK, "255,255,255", 0.7 * fadeK);
   }
   g.restore();
@@ -1365,7 +1372,272 @@ function quakeFx(g, e, now, lowQ) {
   });
   g.restore();
 }
-export const FX_DUR = { slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS, ...STYLE_MS, ...ZERO_FX_DUR };
+// =================================================================== โซระ โอโตสุมิ (ธีมหนู Myth)
+//  SORA_T.wheel / step ต้องตรงกับ characters/sora_otosumi.js (WHEEL_MS / DASH_STEP_MS) — server หยุดเกมรอตามค่านี้
+//   lead = เล่นเสียงมีดก่อนจังหวะปะทะ (เสียงฟันแรกอยู่ที่ ~0.25 วิ) · slash2 = ฟันแรก → ฟันที่สอง · boom = ระยะระเบิดฟ้า
+export const SORA_T = { wheel: 1400, step: 90, lead: 250, slash2: 750, boom: 1200 };
+const SKY = "80,185,255", SKY_HI = "185,235,255", DEEP = "28,72,235", ICE = "225,246,255", STEEL = "196,212,232";
+const h01 = (n) => { const s = Math.sin(n * 91.7 + 47.3) * 43758.5453; return s - Math.floor(s); };
+
+//  fx { kind: "mythSlash", x, y (มุมบนซ้ายเป้า), size } — ฟันมีด 2 ครั้ง: ครั้งแรกที่ t0 (จังหวะปะทะ) · ครั้งที่สอง t0 + SORA_T.slash2 ไขว้กันเป็นรูป X
+//   แต่ละครั้ง = เสี้ยวพระจันทร์ฟ้ากวาดเร็ว (แกนขาว + เรืองน้ำเงิน) + เส้นคม + แฟลช + ประกายแตก แล้วหางหดจางไป
+//  lowQ = ไม่มีชั้นเรือง/ประกาย · ลดการเคลื่อนไหว = ขึ้นเต็มทันที ไม่มีประกายกระเด็น
+const SL_SWEEP = 110, SL_LIFE = 500;
+// เสี้ยวโค้ง: วงกลมรัศมี R (ท้องโค้งผ่านจุด cx, cy) กาง span rad · วาดช่วง u0..u1 (0..1) · หนาสุด W กลางเสี้ยว
+function crescent(g, cx, cy, R, rot, span, u0, u1, W, fill) {
+  if (u1 - u0 < 0.01) return;
+  const c = Math.cos(rot), s = Math.sin(rot), N = 22, out = [], inn = [];
+  for (let i = 0; i <= N; i++) {
+    const u = u0 + (u1 - u0) * i / N, a = -Math.PI / 2 - span / 2 + span * u, w = W * Math.pow(Math.max(0, Math.sin(Math.PI * u)), 0.7);
+    for (const [arr, r] of [[out, R + w * 0.6], [inn, R - w * 0.4]]) {
+      const lx = Math.cos(a) * r, ly = R + Math.sin(a) * r;
+      arr.push([cx + lx * c - ly * s, cy + lx * s + ly * c]);
+    }
+  }
+  g.beginPath(); out.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+  for (let i = inn.length - 1; i >= 0; i--) g.lineTo(inn[i][0], inn[i][1]);
+  g.closePath(); g.fillStyle = fill; g.fill();
+}
+function mythSlashFx(g, e, now, lowQ) {
+  const t = now - e.t0, n = Math.max(1, e.size | 0), still = lowQ || REDUCED;
+  const [cx, cy, s0] = P(e.x + n / 2, e.y + n / 2, 0.85 + (n - 1) * 0.4);
+  const S = s0 * 1.2 * (1 + (n - 1) * 0.5), R = S * 0.62, span = 2.0;
+  g.save(); g.lineCap = "round";
+  // [มุมเอียง, กวาดกลับทาง?] — ฟันแรก "\" ซ้าย→ขวา · ฟันสอง "/" ขวา→ซ้าย (ไขว้เป็น X)
+  [[0.62, false], [-0.7, true]].forEach(([rot, rev], k) => {
+    const age = t - k * SORA_T.slash2;
+    if (age < 0 || age > SL_LIFE) return;
+    const sw = REDUCED ? 1 : easeOut3(Math.min(1, age / SL_SWEEP));
+    const fade = age < SL_SWEEP ? 1 : Math.pow(1 - (age - SL_SWEEP) / (SL_LIFE - SL_SWEEP), 1.4);
+    const tail = REDUCED ? 0 : 0.7 * (1 - fade);
+    const [u0, u1] = rev ? [1 - sw, 1 - tail] : [tail, sw];
+    const wK = 0.45 + 0.55 * fade;
+    if (!lowQ) { g.globalCompositeOperation = "lighter"; crescent(g, cx, cy, R, rot, span, u0, u1, S * 0.38 * wK, `rgba(${DEEP},${0.5 * fade})`); }
+    g.globalCompositeOperation = "source-over";
+    crescent(g, cx, cy, R, rot, span, u0, u1, S * 0.2 * wK, `rgba(${SKY},${0.95 * fade})`);
+    g.globalCompositeOperation = "lighter";
+    crescent(g, cx, cy, R, rot, span, u0, u1, S * 0.085 * wK, `rgba(255,255,255,${fade})`);
+    // เส้นคมยาวทะลุตามแนวฟัน
+    const L = S * 0.95 * sw, ca = Math.cos(rot), sa = Math.sin(rot);
+    g.strokeStyle = `rgba(${ICE},${0.85 * fade})`; g.lineWidth = Math.max(1.2, S * 0.025 * fade);
+    g.beginPath(); g.moveTo(cx - ca * L, cy - sa * L - R * 0.05); g.lineTo(cx + ca * L, cy + sa * L - R * 0.05); g.stroke();
+    if (age < 170) glow(g, cx, cy - R * 0.1, S * (0.5 + age / 170 * 0.5), ICE, 0.9 * (1 - age / 170));
+    g.globalCompositeOperation = "source-over";
+    if (still) return;
+    // ประกายแตกออกตามแนวฟัน (ตกลงนิดๆ)
+    const q = age / SL_LIFE;
+    for (let i = 0; i < 10; i++) {
+      const side = i % 2 ? 1 : -1, th = rot + (side < 0 ? Math.PI : 0) + (h01(i + k * 13) - 0.5) * 1.1;
+      const d = S * (0.2 + (0.6 + h01(i * 3 + k) * 0.7) * easeOut3(q));
+      const px = cx + Math.cos(th) * d, py = cy + Math.sin(th) * d + S * 0.5 * q * q;
+      g.fillStyle = i % 3 ? `rgba(${SKY_HI},${1 - q})` : `rgba(255,255,255,${1 - q})`;
+      g.beginPath(); g.arc(px, py, Math.max(0.8, (1.6 + h01(i + 7) * 2) * (1 - q)), 0, 7); g.fill();
+    }
+  });
+  g.restore();
+}
+
+//  fx { kind: "soraWheel", x, y (ช่องโซระ), size, dir: { x, y } (ทิศพุ่ง), dur } — กรงจักรหนู: ล้อตั้งตรงครอบตัว ระนาบล้อตามทิศพุ่ง
+//   ขอบล้อ 2 วง (ฟ้า/เงิน) + ซี่ล้อ + ขั้นบันไดเชื่อมสองวง + เพลา + ขาตั้ง · หมุนเร็วขึ้นเรื่อยๆ (ใต้เท้าหมุนถอยหลัง = คนวิ่งไปข้างหน้า)
+//   เส้นความเร็ว/ประกายพุ่งออกด้านหลัง · ช่วงท้ายแสงวาบ = พุ่งออก
+//   วาด 2 รอบผ่านรายการเรียงความลึกของ drawFrame: ครึ่งหลัง (ก่อนตัวละคร) · ครึ่งหน้า (หลังตัวละคร) — เห็นตัวอยู่ในล้อจริง
+//  lowQ = ไม่มีชั้นเรือง/เงาซี่/ประกาย/เส้นความเร็ว · ลดการเคลื่อนไหว = ล้อนิ่ง ไม่มีประกาย
+const WH = { R: 0.8, W: 0.8, z: 0.84, rim: 36, rungs: 14, spokes: 6 };
+function wheelFx(g, e, now, lowQ, front) {
+  const T = e.dur || SORA_T.wheel, t = now - e.t0;
+  if (t < 0 || t > T) return;
+  const n = Math.max(1, e.size | 0), still = lowQ || REDUCED, k = t / T;
+  const dl = Math.hypot(e.dir && e.dir.x, e.dir && e.dir.y) || 0;
+  const dx = dl ? e.dir.x / dl : 1, dy = dl ? e.dir.y / dl : 0, ax = -dy, ay = dx;
+  const out = Math.max(0, (t - (T - 160)) / 160); // ช่วงพุ่งออก: ล้อขยาย + จาง
+  const sc = (still ? 1 : easeOutBack(Math.min(1, t / 200))) * (1 + out * 0.3) * n, A = 1 - out;
+  if (A <= 0 || sc <= 0) return;
+  const cx = e.x + n / 2, cy = e.y + n / 2, R = WH.R * sc, hw = (WH.W / 2) * sc, zc = WH.z * n;
+  const T3 = 3 * T * T, spin = REDUCED ? 0 : 0.003 * t + (0.05 - 0.003) * t * t * t / T3;
+  const Q = (th, side) => P(cx + dx * Math.cos(th) * R + ax * side * hw, cy + dy * Math.cos(th) * R + ay * side * hw, zc + Math.sin(th) * R);
+  const hub = (side, f = 1) => P(cx + ax * side * hw * f, cy + ay * side * hw * f, zc);
+  const C0 = P(cx, cy, zc), ref = C0[2];
+  const isF = (a, b) => (a[2] + b[2]) / 2 >= ref;
+  // เส้นชุดเดียวกัน → path เดียว (เฉพาะช่วงที่อยู่ด้านเดียวกับ front)
+  const stroke = (segs, w, color) => {
+    g.beginPath();
+    for (const [a, b] of segs) if (isF(a, b) === front) { g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+    g.strokeStyle = color; g.lineWidth = Math.max(1, ref * w); g.stroke();
+  };
+  const rim = [], rungs = [], ghosts = [], spokes = [], legs = [];
+  for (const side of [-1, 1]) {
+    const pts = [];
+    for (let i = 0; i <= WH.rim; i++) pts.push(Q((i / WH.rim) * Math.PI * 2, side));
+    for (let i = 0; i < WH.rim; i++) rim.push([pts[i], pts[i + 1]]);
+    const h = hub(side);
+    for (let i = 0; i < WH.spokes; i++) spokes.push([h, Q((i / WH.spokes) * Math.PI * 2 - spin, side)]);
+    // ขาตั้ง: จากดุมล้อลงพื้นสองขา (ไม่หมุน)
+    for (const f of [-1, 1]) legs.push([hub(side, 1.12), P(cx + dx * f * R * 0.62 + ax * side * hw * 1.2, cy + dy * f * R * 0.62 + ay * side * hw * 1.2, 0)]);
+  }
+  for (let i = 0; i < WH.rungs; i++) {
+    const th = (i / WH.rungs) * Math.PI * 2 - spin;
+    rungs.push([Q(th, -1), Q(th, 1)]);
+    if (!still && k > 0.35) for (const lag of [0.07, 0.14]) ghosts.push([Q(th + lag * k * 2, -1), Q(th + lag * k * 2, 1)]);
+  }
+  g.save(); g.lineCap = "round";
+  if (!front) {
+    // พื้นเรืองใต้ล้อ + พลังงานในล้อ (หลังตัวละคร)
+    gEllipse(g, cx, cy, R * 0.95, 0.01, 32); g.fillStyle = `rgba(${SKY},${(0.12 + 0.2 * k) * A})`; g.fill();
+    if (!lowQ) { g.globalCompositeOperation = "lighter"; glow(g, C0[0], C0[1], Math.max(1, ref * R * 1.15), DEEP, (0.12 + 0.3 * k) * A); g.globalCompositeOperation = "source-over"; }
+  }
+  stroke(legs, 0.045, `rgba(110,128,160,${A})`);
+  stroke([[hub(-1, 1.12), hub(1, 1.12)]], 0.04, `rgba(${STEEL},${A})`);
+  stroke(spokes, 0.024, `rgba(${STEEL},${0.9 * A})`);
+  if (ghosts.length) stroke(ghosts, 0.02, `rgba(${SKY},${0.28 * k * A})`);
+  stroke(rungs, 0.022, `rgba(${k > 0.6 ? SKY_HI : STEEL},${0.9 * A})`);
+  if (!lowQ) { g.globalCompositeOperation = "lighter"; stroke(rim, 0.13, `rgba(${DEEP},${(0.25 + 0.35 * k) * A})`); }
+  g.globalCompositeOperation = "source-over";
+  stroke(rim, 0.05, `rgba(${SKY},${0.95 * A})`);
+  g.globalCompositeOperation = "lighter";
+  stroke(rim, 0.018, `rgba(${ICE},${A})`);
+  g.globalCompositeOperation = "source-over";
+  if (front) {
+    // ดุมล้อสองข้าง
+    for (const side of [-1, 1]) { const h = hub(side); g.fillStyle = `rgba(${ICE},${A})`; g.beginPath(); g.arc(h[0], h[1], Math.max(1.5, ref * 0.05), 0, 7); g.fill(); }
+    if (!still) {
+      g.globalCompositeOperation = "lighter";
+      // เส้นความเร็วพุ่งออกด้านหลังล้อ (ยาวขึ้นตามความเร็ว)
+      g.strokeStyle = `rgba(${SKY_HI},${0.75 * k * A})`;
+      for (let i = 0; i < 7; i++) {
+        const ph = (now / 140 + i * 0.37) % 1, off = R * 0.9 + ph * 1.3 * n, len = (0.25 + 0.6 * k) * n, z = zc + (h01(i) - 0.5) * R * 1.4, sd = (h01(i + 5) - 0.5) * hw * 2.2;
+        const a = P(cx - dx * off + ax * sd, cy - dy * off + ay * sd, z), b = P(cx - dx * (off + len) + ax * sd, cy - dy * (off + len) + ay * sd, z);
+        g.lineWidth = Math.max(1, a[2] * 0.02 * (1 - ph)); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      }
+      // ประกายจากใต้ล้อกระเด็นไปด้านหลัง
+      for (let j = 0; j < 10; j++) {
+        const ph = (t / 240 + j / 10) % 1, d = R * 0.2 + ph * (0.4 + 0.9 * k) * n, sd = (h01(j + 21) - 0.5) * hw * 1.6;
+        const p = P(cx - dx * d + ax * sd, cy - dy * d + ay * sd, 0.05 + 1.3 * ph * (1 - ph) * (0.4 + h01(j + 3)) * n);
+        g.fillStyle = `rgba(${j % 3 ? SKY_HI : "255,255,255"},${(1 - ph) * k * A})`;
+        g.beginPath(); g.arc(p[0], p[1], Math.max(0.8, p[2] * 0.03 * (1 - ph)), 0, 7); g.fill();
+      }
+    }
+    // แสงวาบตอนพุ่งออก
+    const fl = Math.max(0, (t - (T - 260)) / 260);
+    if (fl > 0) { g.globalCompositeOperation = "lighter"; glow(g, C0[0], C0[1], Math.max(1, ref * R * (0.8 + fl)), ICE, 0.75 * Math.sin(fl * Math.PI)); }
+  }
+  g.restore();
+}
+
+//  fx { kind: "soraDash", path: [{x,y}…], step (ms ต่อช่อง), delay (ms ก่อนเริ่ม), size } — เงาตามตัวสีฟ้าตามเส้นทางพุ่ง
+//   ตรงจังหวะ anim { kind: "move", stepMs } (หัว = ตำแหน่งตัว) · ริบบอนแสงหาง ~2.6 ช่อง + หกเหลี่ยมเงา 3 ชั้น + เส้นความเร็วบนพื้น
+//   ถึงปลายทางแล้วหางหดเข้าหาตัว + จาง (DASH_FADE)
+//  lowQ = ไม่มีชั้นเรือง/เส้นบนพื้น · ลดการเคลื่อนไหว = ไม่มีหกเหลี่ยมเงา
+const DASH_TAIL = 2.6, DASH_FADE = 420;
+export const dashDur = (path, step) => Math.max(1, (Array.isArray(path) ? path.length : 1) - 1) * (step || SORA_T.step) + DASH_FADE;
+function dashFx(g, e, now, lowQ) {
+  const pts = e.path, step = e.step || SORA_T.step;
+  if (!Array.isArray(pts) || pts.length < 2) return;
+  const t = now - e.t0 - (e.delay || 0), n = pts.length - 1, run = n * step, sz = Math.max(1, e.size | 0);
+  if (t < 0 || t > run + DASH_FADE) return;
+  const head = Math.min(n, t / step), fade = t > run ? 1 - (t - run) / DASH_FADE : 1;
+  const tail = Math.max(0, head - DASH_TAIL * (t > run ? fade : Math.min(1, t / (step * 2))));
+  if (head - tail < 0.02) return;
+  const at = (f) => { const i = Math.min(n - 1, Math.floor(f)), q = f - i, A = pts[i], B = pts[i + 1]; return [A.x + (B.x - A.x) * q + sz / 2, A.y + (B.y - A.y) * q + sz / 2]; };
+  // จุดกลางหกเหลี่ยมหมาก (สูงเท่า drawUnit)
+  const hp = (f) => { const [wx, wy] = at(f), [bx, by, s] = P(wx, wy); return [bx, by - s * 0.86 * sz, s]; };
+  const M = 18, rib = [];
+  for (let i = 0; i <= M; i++) rib.push(hp(tail + (head - tail) * i / M));
+  g.save(); g.lineCap = "round";
+  const layer = (wk, color, aK) => {
+    for (let i = 1; i <= M; i++) {
+      const u = i / M, a = rib[i - 1], b = rib[i];
+      g.strokeStyle = `rgba(${color},${aK * fade * u})`; g.lineWidth = Math.max(1, b[2] * wk * u * sz);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+  };
+  if (!lowQ) {
+    // เส้นความเร็วบนพื้น 2 เส้นขนาบ
+    const [hx, hy] = at(head), [tx, ty] = at(tail), L = Math.hypot(hx - tx, hy - ty) || 1, nx = -(hy - ty) / L, ny = (hx - tx) / L;
+    g.strokeStyle = `rgba(${SKY_HI},${0.55 * fade})`;
+    for (const f of [-0.28, 0.28]) {
+      const a = P(tx + nx * f * sz, ty + ny * f * sz, 0.02), b = P(hx + nx * f * sz, hy + ny * f * sz, 0.02);
+      g.lineWidth = Math.max(1, b[2] * 0.025); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    g.globalCompositeOperation = "lighter";
+    layer(0.8, DEEP, 0.45);
+  }
+  g.globalCompositeOperation = "source-over";
+  layer(0.42, SKY, 0.8);
+  g.globalCompositeOperation = "lighter";
+  layer(0.13, "255,255,255", 0.9);
+  g.globalCompositeOperation = "source-over";
+  if (!REDUCED) {
+    [0.55, 1.1, 1.65].forEach((lag, i) => {
+      const f = head - lag;
+      if (f < tail) return;
+      const [x, y, s] = hp(f), r = s * 0.4 * sz, a = (0.34 - i * 0.09) * fade;
+      hexPath(g, x, y, r); g.fillStyle = `rgba(${SKY},${a * 0.6})`; g.fill();
+      g.strokeStyle = `rgba(${SKY_HI},${a * 1.4})`; g.lineWidth = 1.5; g.stroke();
+    });
+  }
+  if (t < run) { const [x, y, s] = hp(head); g.globalCompositeOperation = "lighter"; glow(g, x, y, Math.max(1, s * 0.6 * sz), ICE, 0.55); }
+  g.restore();
+}
+
+//  fx { kind: "soraBoom", x, y (มุมบนซ้ายเป้า), size } — ระเบิดตูมสีฟ้า (ขยายตามขนาดเป้า)
+//   แฟลชขาวฟ้า → ลูกพลาสมาฟ้าพองแล้วยุบ + เสาแสงพุ่ง → คลื่นกระแทก 3 วงบนพื้น + รอยไหม้ → ประกาย/เศษพื้นกระเด็น → ควันฟ้าลอยจาง
+//  lowQ = คลื่นวงเดียว ไม่มีเสาแสง/เศษ/ควัน · ลดการเคลื่อนไหว = ไม่มีเศษกระเด็น
+function plasma(g, x, y, r, a) {
+  if (r <= 0 || a <= 0) return;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, `rgba(255,255,255,${a})`);
+  gr.addColorStop(0.22, `rgba(${ICE},${a})`);
+  gr.addColorStop(0.5, `rgba(70,165,255,${0.85 * a})`);
+  gr.addColorStop(1, "rgba(20,40,170,0)");
+  g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function boomFx(g, e, now, lowQ) {
+  const t = now - e.t0, D = SORA_T.boom;
+  if (t < 0 || t > D) return;
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, K = 0.8 + n * 0.45, still = lowQ || REDUCED;
+  const q = t / D, k = 1 - q;
+  g.save(); g.lineCap = "round";
+  gEllipse(g, cx, cy, 0.5 * K, 0, 32); g.fillStyle = `rgba(8,22,70,${0.5 * k})`; g.fill();
+  const sc0 = P(cx, cy)[2];
+  (lowQ ? [0] : [0, 90, 200]).forEach((d0, i) => {
+    const r = (t - d0) / 560;
+    if (r <= 0 || r >= 1) return;
+    g.strokeStyle = `rgba(${i === 1 ? ICE : SKY},${0.95 * (1 - r)})`; g.lineWidth = Math.max(1.5, sc0 * 0.1 * K * (1 - r));
+    gEllipse(g, cx, cy, 0.3 * K + easeOut3(r) * (1.4 * K + 0.4), 0.03, 44); g.stroke();
+  });
+  const B = P(cx, cy, 0.45 * K);
+  if (!lowQ && t < 440) {
+    const p = t / 440;
+    g.globalCompositeOperation = "lighter";
+    taper(g, P(cx, cy, 0), P(cx, cy, (1.2 + p * 2.6) * K), 0.6 * K * (1 - p), `rgba(${SKY},${0.75 * (1 - p)})`);
+    taper(g, P(cx, cy, 0), P(cx, cy, (1 + p * 2.2) * K), 0.22 * K * (1 - p), `rgba(255,255,255,${0.9 * (1 - p)})`);
+    g.globalCompositeOperation = "source-over";
+  }
+  if (t < 680) {
+    const p = t / 680, puff = Math.sin(Math.min(1, p * 1.6) * Math.PI / 2);
+    plasma(g, B[0], B[1], B[2] * K * (0.4 + 0.7 * puff) * (1 - 0.25 * p), 1 - p * p);
+  }
+  if (t < 170) { g.globalCompositeOperation = "lighter"; glow(g, B[0], B[1], Math.max(1, B[2] * K * 1.4), ICE, 1 - t / 170); g.globalCompositeOperation = "source-over"; }
+  if (!still) {
+    const s = t / 1000;
+    for (let d = 0; d < 14 + n * 4; d++) {
+      const r1 = h01(d * 3 + 1), r2 = h01(d * 5 + 2), th = r1 * Math.PI * 2, sp = (1 + r2 * 1.6) * K, vz = (3 + r2 * 3.5) * K;
+      const z = vz * s - 9 * s * s;
+      if (z < -0.05) continue;
+      const [px, py, ps] = P(cx + Math.cos(th) * sp * s, cy + Math.sin(th) * sp * s, z);
+      const spark = d % 3 !== 0;
+      g.fillStyle = spark ? `rgba(${d % 2 ? SKY_HI : "255,255,255"},${k})` : `rgba(40,52,78,${k})`;
+      g.beginPath(); g.arc(px, py, Math.max(1.2, ps * (spark ? 0.03 : 0.055)), 0, 7); g.fill();
+    }
+  }
+  if (!lowQ && t > 220) { const [sx, sy, ss] = P(cx, cy, (0.6 + q * 1.4) * K); glow(g, sx, sy, Math.max(1, ss * K * (0.4 + q * 0.6)), "90,130,190", 0.42 * k); }
+  g.restore();
+}
+
+export const FX_DUR = {
+  slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...STYLE_MS, ...ZERO_FX_DUR,
+};
 
 
 // =================================================================== frame
@@ -1437,6 +1709,12 @@ export function drawFrame(g, st, now) {
   }
   const boxes = [];
   units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawAnyUnit(g, u, now, boxes) }));
+  // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
+  for (const e of fx) {
+    if (e.kind !== "soraWheel") continue;
+    const h = Math.max(1, e.size | 0) / 2, d = depthOf(e.x + h, e.y + h);
+    items.push({ d: d - 0.003, f: () => wheelFx(g, e, now, lowQ, false) }, { d: d + 0.003, f: () => wheelFx(g, e, now, lowQ, true) });
+  }
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
@@ -1469,6 +1747,9 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
     else if (e.kind === "beam") beamFx(g, e, now, lowQ);
     else if (e.kind === "quake") quakeFx(g, e, now, lowQ);
+    else if (e.kind === "mythSlash") mythSlashFx(g, e, now, lowQ);
+    else if (e.kind === "soraDash") dashFx(g, e, now, lowQ);
+    else if (e.kind === "soraBoom") boomFx(g, e, now, lowQ);
     else if (e.kind === "grow") growFx(g, e, now);
     else if (e.kind === "smash") smashFx(g, e, now);
     else if (e.kind === "echo") echoFx(g, e, now);

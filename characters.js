@@ -150,6 +150,48 @@ const CHARACTERS = [
     ultimate: null,
   },
   {
+    // ---------- โซระ โอโตสุมิ — ระดับง่าย — ดู characters/sora_otosumi.js (GRID_PLAN §7.7) ----------
+    //  ร่างโซระ ⇄ Kamen Rider My-Th · อาวุธมีด/ปืน (ปืน = ระยะตี [1, 2] ผ่านฮุค range) · ท่าไม้ตายพุ่งชนสลับที่
+    id: "sora_otosumi",
+    name: "โซระ โอโตสุมิ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/sora_otosumi/sora.jpg",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "เพื่อคุณหนู",
+      desc: "ร่างโซระ: อยู่ต่อเนื่องครบ 3 เทิร์น ฟื้นพลังชีวิต 2 (แปลงร่างแล้วนับใหม่) · ร่าง Kamen Rider My-Th: อัตราคริติคอล 20% (ตีปกติ)",
+    },
+    basic: {
+      name: "แปลงร่าง",
+      desc: "ไม่นับเป็นการใช้สกิล · เทิร์นละ 1 ครั้ง: สลับร่างโซระ ⇄ Kamen Rider My-Th",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/sora_otosumi/sora_skill1.jpg",
+      instant: true,
+      effect: null, // จัดการใน characters/sora_otosumi.js
+    },
+    secondary: {
+      name: "My-Th Edge",
+      desc: "ร่าง My-Th · ไม่นับเป็นการใช้สกิล · เทิร์นละ 1 ครั้ง: สลับอาวุธ · มีด: ตีปกติ +1 · ปืน: ระยะตี 2 ตีโดนแล้วดึงเป้าเข้าประชิด (ช่องไม่ว่าง = ไม่ดึง)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/sora_otosumi/sora_skill2.jpg",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Mouse Separade",
+      desc: "ร่าง My-Th · เลือกทิศ: พุ่งสุดแนว 4×1 พังสิ่งกีดขวางที่ผ่าน · ชนศัตรูคนแรกที่หลบไม่พ้น: ความเสียหาย 3 แล้วสลับที่ (เป้าไปช่องที่เราออกตัว)",
+      area: { kind: "line", len: 4, width: 1, hostile: true },
+      cost: 4,
+      img: "/characters/sora_otosumi/sora_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "นี่มันเกมของฉัน" ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-10-09)

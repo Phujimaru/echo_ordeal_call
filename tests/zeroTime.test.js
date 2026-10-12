@@ -59,7 +59,17 @@ const vit = (p) => (p.hp || 0) + (p.armor || 0);
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); delete process.env.ECHO_DEV_ZERO; });
 test.after(() => { engine.clearPhaseTimer(); Zero.reset(); for (const id of Object.keys(engine.players)) delete engine.players[id]; });
 
-test('เกิด: เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 30% · ครั้งเดียวต่อเกม', () => {
+test('ปิดอยู่: ไม่เกิดเลยแม้ทอยผ่าน', () => {
+  setup();
+  engine.setRoundNumber(9);
+  assert.equal(Zero.ZERO_ENABLED, false);
+  assert.equal(withRandom(0, () => Zero.maybeEnter()), false);
+  assert.ok(!Zero.active());
+});
+
+test('เกิด: เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 30% · ครั้งเดียวต่อเกม', (t) => {
+  Zero.ZERO_ENABLED = true;
+  t.after(() => { Zero.ZERO_ENABLED = false; });
   setup();
   engine.setRoundNumber(3); // ถัดไป = 4 กลางคืนแรก — ยังไม่ถึงเทิร์น 10
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);

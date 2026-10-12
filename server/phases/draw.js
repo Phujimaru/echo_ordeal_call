@@ -36,6 +36,8 @@ function dealRound() {
   match.cutsceneQueue = []; // ล้างคิวเก่าก่อนเสมอ — ต้องอยู่ก่อน CHAR_HOOKS ด้านล่างทั้งหมด ไม่งั้นคัตซีนที่เพิ่งคิวไว้จะโดนล้างทิ้งไปด้วย
   match.cutsceneInfo = null;
   match.lastAttack = null;
+  match.skillBeats = [];
+  match.dash = null;
   match.roundSkills = [];
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: หมดเวลาปรากฏตัว (2 เทิร์น) = ล่องหนอีกครั้ง
   // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 6 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้

@@ -262,6 +262,13 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - ล่องหนคิดที่ `refresh` (เริ่มแมตช์ + ต้นเทิร์น) · ปรากฏผ่าน `onReveal` ที่ `server/visibility.js` เรียก · ศัตรูได้ `pos: null` (`buildStateFor`) — ระบบมองเห็นเดียวกับพุ่มหญ้า [tests/visibility.test.js](tests/visibility.test.js)
 - Beam Magnum ลงดาเมจด้วย `dealMixed` ตรง (แบบกระสุน Nursedessei) ใน `deferAfterCutscene` + `engine.boardFx("beamFx", { from, dir, len, color })` ให้ client วาดลำแสง
 
+**โซระ โอโตสุมิ (`sora_otosumi` · ง่าย)** — `characters/sora_otosumi.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.7 · เทสต์ [tests/characters/sora_otosumi.test.js](tests/characters/sora_otosumi.test.js)
+- สถานะอยู่ `p.sora` (`myth` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
+- ตีปกติผ่านฮุคกลางทั้งหมด (`range` · `damageBonus` · `critPct` · `attackBeam`/`attackBeamTone`/`attackHitFx`/`attackSound` · `afterBoardAttack`) ไม่มีจุดเรียกเจาะจง
+- Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat`
+  · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
+  · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
+
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
 - **ม่านแห่งราตรี** (basic · 2): ทุกคน (duo/trio = ตัวเอง + เพื่อนร่วมทีม) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
 - **นกจาบยามเช้า** (secondary · 4): เลือก 1 คน **ใครก็ได้รวมศัตรู** ฟื้นเลือด 5 + ต้านสถานะ 2 เทิร์น + `cleanseLatestDebuff` 1 อย่าง ·
@@ -544,6 +551,13 @@ module.exports = {
   attackBaseOverride(engine, attacker, target, ctx) { return 1; }, // แทนที่พลังโจมตีฐาน
   adjustIncomingDamage(engine, p, n, isNormalAttack, kind) { return n; }, // ปรับดาเมจขาเข้า (ไม่รวม damageSoft)
   onQteDone(engine, p, ok, qte) {},                              // ผล QTE (tag = id ตัวละคร)
+  skillPub(p, tier) { return null; },                            // ฟิลด์ที่ทับบนปุ่มสกิล (ชื่อ/รูปตามสถานะ) — buildStateFor
+  range(p) { return null; }, mov(p) { return null; },            // ระยะตี/เดินตามสถานะ (null = ค่าใน characters.js)
+  critPct(p) { return 0; },                                      // อัตราคริเฉพาะตัว (%) ของตีปกติ — รวมกับคริสนามแล้วทอยครั้งเดียว
+  attackSound(p) {}, attackBeam(p) { return 0; }, attackBeamTone(p) { return null; }, attackHitFx(p) { return null; },
+                                                                 // ฉากตีปกติ: เสียง · ลำแสง (ยาว/สี "blue") · เอฟเฟกต์ปะทะ ("mythSlash") → การ์ดฉากตี
+  attackFxNames(attacker, atkCtx) { return []; },                // ป้ายโบนัสใต้ฉากตี (อ่าน ctx ที่ damageBonus ใส่ไว้)
+  afterBoardAttack(engine, attacker, target, res) { return null; }, // ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้า)
   // hburnImmune / hburnHeals / hburnLabel · hbleedImmune / hbleedHeals / hbleedLabel / hbleedHarmless (ข้อ 7)
 
   // ---- ที่เหลือคือ method ที่ server/ เรียกเองแบบเจาะจง: CHAR_HOOKS.<id>.<method>(engine, ...) ----
@@ -633,6 +647,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
 client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
+- **ปิดอยู่** (2026-10-12): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ระบบทั้งหมดยังอยู่ครบ เปิดกลับได้ด้วยค่าเดียว
 - **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
   → ทอย `ZERO_CHANCE` 30% · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
   · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)
