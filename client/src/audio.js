@@ -61,6 +61,7 @@ const FILES = {
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
+  death_boom: "/effect_sound/death_boom.mp3", // ตกรอบบนกระดาน: ระเบิด (Mixkit ฟรี — Fire spell with explosion)
   notificate: "/effect_sound/notificate.mp3", // ฉากตาเดินของคนอื่น (ระบบกระดาน)
   notificate_mine: "/effect_sound/notificate_mine.mp3", // ฉากตาเดินของเรา (ระบบกระดาน)
   // ห่วงเวลาซีโร่ (GRID_PLAN §8.2 · ผู้ใช้ส่งมา 2026-10-11): เพลงตามระดับ (1 ผนึกครบ … 4 เหลือผนึกเดียว) — ห้ามเพลงอื่นทับ · ฟ้าผ่าเฟส 4

@@ -305,6 +305,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const freshDash = dash && dash.seq !== seenDash.current && Array.isArray(dash.path) && dash.path.length && dash.id != null ? dash : null;
     if (dash) seenDash.current = dash.seq;
     const anims = [];
+    // ตกรอบ = ระเบิดการ์ตูน + รูปปลิวหมุนขึ้นฟ้า (ผู้ใช้สั่ง) — ฉากตี/ฉากพุ่งระเบิดตรงจังหวะปะทะ · ทางอื่น (สกิล/ลำแสง/ช่องพิเศษ) ระเบิดทันที
+    const boomed = new Set();
+    const deathBoom = (t, at) => {
+      if (!t || !at) return;
+      pushFx([{ kind: "deathBoom", x: at.x, y: at.y, size: sizeOfP(t), img: t.img, color: t.color, name: t.name }]);
+      playSfx("death_boom");
+      if (!lowQ) setShake((n) => n + 1);
+    };
     // ปล่อยตัวที่ค้างไว้ปลายทางพุ่ง: server ย้ายตัวจริงแล้ว (ไม่อยู่ช่องเริ่ม) หรือมีฉากพุ่งใหม่
     const dh = dashHold.current;
     if (dh && !dh.done && (freshDash || !samePos(nextPos[dh.id], dh.from))) {
@@ -349,7 +357,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         const dead = sw ? null : Object.values(lastPlayers).find((t) => t && t.id !== id && t.pos && !nextPos[t.id] && Rules.covers(boxOfP(t), boom.x, boom.y));
         if (dead) {
           setGhost({ id: dead.id, x: dead.pos.x, y: dead.pos.y, img: dead.img, color: dead.color, name: dead.name, hp: dead.hp ?? 0, maxHp: dead.maxHp ?? 0, armor: dead.armor ?? 0, maxArmor: dead.maxArmor ?? 0, size: sizeOfP(dead) });
-          later(moveMs + 260, () => setGhost(null));
+          later(moveMs + 40, () => setGhost(null));
+          boomed.add(dead.id);
         }
         if (nextPos[id]) dashFloat[id] = { ms: moveMs + 60, at: nextPos[id] };
         const lost = dead ? (nextVit[dead.id] ?? 0) - (prevVit.current[dead.id] ?? 0) : 0;
@@ -361,6 +370,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             ...(dead ? [{ kind: "float", x: boom.x, y: boom.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (!lowQ) setShake((n) => n + 1);
+          if (dead) deathBoom(dead, dead.pos);
         });
       }
     }
@@ -424,8 +434,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
         setGhost({ id: t.id, x: tPos.x, y: tPos.y, img: t.img, color: t.color, name: t.name, hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0 });
-        later(HIT + 380, () => setGhost(null));
+        later(HIT + 40, () => setGhost(null));
       }
+      // ตกรอบในฉากตี (เป้าหลัก + คนอื่นในแนว) = ระเบิดตอนปะทะ
+      const deadInAtk = [
+        ...(a.kill && tPos && !sealT && lastPlayers[a.targetId] ? [{ t: lastPlayers[a.targetId], at: tPos }] : []),
+        ...extras.filter((e) => e.kill && lastPlayers[e.targetId]).map((e) => ({ t: lastPlayers[e.targetId], at: e.at })),
+      ];
+      for (const d of deadInAtk) boomed.add(d.t.id);
+      if (deadInAtk.length) later(HIT, () => deadInAtk.forEach((d) => deathBoom(d.t, d.at)));
       if (tPos) {
         look(tPos);
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
@@ -506,6 +523,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (d && !hurtPos) hurtPos = p.pos;
     }
     if (hurtPos && !freshAtk) look(hurtPos);
+    for (const p of state.players) {
+      const was = lastPlayers[p.id];
+      if (!was || !was.alive || !was.pos || p.alive || boomed.has(p.id)) continue;
+      deathBoom(was, was.pos);
+    }
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
     //  ถูก Strium Ray ผลัก (server แจ้งปลายทางมาก่อนทาง hikaruPush) = เลื่อนไปไกลเท่าไรก็ได้
     for (const p of state.players) {

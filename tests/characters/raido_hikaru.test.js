@@ -169,6 +169,25 @@ test('ทุกร่าง: เกราะลดเท่าไร ฟื้�
   assert.equal(P.H.hp, 5, 'ดาเมจทะลุเกราะ (เกราะไม่ลด) ไม่ฟื้น');
 });
 
+test('ร่าง UltraLive โดนตีปกติ 2: เลือดเต็ม = เกราะลด 2 เต็มๆ · เลือดไม่เต็ม = เกราะยังลด 2 แต่ฟื้นเลือดตามที่เกราะลด (ไม่ลดดาเมจ)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  Math.random = () => 0.99;
+  for (const hp of [7, 6]) {
+    const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 6, 8]]);
+    engine.setActor('H');
+    form('H', 'thunder');
+    P.H.hp = hp;
+    P.B.pos = { x: P.H.pos.x + 3, y: P.H.pos.y + 1 };
+    P.B.statuses.might = 3; P.B.statusAmt.might = 1;
+    engine.setActor('B');
+    assert.equal(engine.attackTarget('B', 'H'), true);
+    assert.equal(engine.lastAttack.dmg, 2);
+    assert.equal(P.H.armor, 3, 'เกราะลด 2');
+    assert.equal(P.H.hp, Math.min(7, hp + 2), 'ฟื้นเลือดเท่าที่เกราะลด (ไม่เกินสูงสุด)');
+    flush(t, 8000);
+  }
+});
+
 test('แบล็คคิง: ตีปกติแนวตรง 1×3 โดนทุกศัตรูในแนว · เป้านอกแนว (เฉียง) ตีไม่ได้ · ไม่โดนเพื่อนร่วมทีม', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   Math.random = () => 0.99;

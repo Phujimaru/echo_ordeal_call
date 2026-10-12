@@ -22,6 +22,7 @@ import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
+import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
 
 const P_DISPLAY = "var(--font-p-display)";
@@ -1715,8 +1716,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
   const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
-  const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  const nearShop = !!(me?.pos && state.shopPos && manhattan(me.pos, state.shopPos) === 1);
+  // ยืนติดร้าน (ระยะ 1) — ตัวใหญ่ (Echo / ร่างใหญ่ของไรโด ฮิคารุ) นับจากขอบตัวทุกช่อง ตรงกับ server Board.nearShop(boxOf)
+  const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
+  const nearShop = !!(me?.pos && state.shopPos && Rules.dist(boxOfP(me), state.shopPos) === 1);
   const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
   const shopBlock = !myTurn ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
@@ -1724,7 +1726,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "field" ? "ทั้งสนาม" : "";
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
-    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && manhattan(p.pos, me.pos) <= (a.range || 0));
+    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
   const enemyOf = (p) => !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
   // เข้าช่วงโจมตี -> ฉากประกาศ "เริ่มโจมตีได้" + เสียงเปลี่ยนช่วง (ไม่บังการกดเลือกเป้า)
   useEffect(() => {

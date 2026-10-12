@@ -934,6 +934,91 @@ function rockFx(g, e, now) {
   g.restore();
 }
 
+// =================================================================== ตกรอบ (ผู้ใช้สั่ง: ระเบิดให้ตลก)
+//  fx { kind: "deathBoom", x, y (มุมบนซ้ายตัวที่ตาย), size, img, color, name }
+//  แฟลช → ลูกไฟพองเป็นก้อนเมฆ + ดาวแฉกการ์ตูน + วงกระแทก → ควันลอย · รูปหกเหลี่ยมของคนตายหมุนคว้างปลิวขึ้นฟ้าแล้ววิ้งหายไป
+export const DEATH_BOOM_MS = 1700;
+export function deathBoomFx(g, e, now, lowQ) {
+  const t = now - e.t0;
+  if (t < 0 || t > DEATH_BOOM_MS) return;
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2;
+  const [bx, by, s] = P(cx, cy, 0.35 * n);
+  const S = s * n;
+  g.save();
+  // วงกระแทกบนพื้น
+  const kr = clamp01(t / 520);
+  if (kr < 1) {
+    g.strokeStyle = `rgba(255,190,90,${0.9 * (1 - kr)})`; g.lineWidth = 6 * (1 - kr) + 1;
+    gEllipse(g, cx, cy, (0.4 + kr * 1.4) * n, 0.02, 36); g.stroke();
+  }
+  // ควันเทาลอยขึ้น (หลังลูกไฟ)
+  if (!lowQ && t > 250) {
+    const ks = clamp01((t - 250) / (DEATH_BOOM_MS - 250));
+    for (let i = 0; i < 7; i++) {
+      const a = i * 2.39, d = S * (0.25 + 0.35 * ks) * (0.6 + (i % 3) * 0.2);
+      const x = bx + Math.cos(a) * d, y = by - S * (0.2 + ks * 0.9) + Math.sin(a) * d * 0.4;
+      g.fillStyle = `rgba(${110 + i * 8},${105 + i * 8},${115 + i * 8},${0.55 * (1 - ks)})`;
+      g.beginPath(); g.arc(x, y, S * (0.22 + ks * 0.25), 0, 7); g.fill();
+    }
+  }
+  // ลูกไฟพองเป็นก้อนเมฆ (ส้ม → เหลือง → ขาว)
+  const kf = clamp01(t / 900);
+  if (kf < 1) {
+    const grow = easeOutBack(clamp01(kf / 0.35)), fade = kf < 0.55 ? 1 : 1 - (kf - 0.55) / 0.45;
+    for (let i = 0; i < 9; i++) {
+      const a = i * 0.7 + 0.3, d = S * 0.32 * grow * (i ? 1 : 0);
+      const r = S * (0.3 + (i % 3) * 0.06) * grow;
+      const x = bx + Math.cos(a) * d, y = by - S * 0.15 + Math.sin(a) * d * 0.7;
+      g.fillStyle = `rgba(${i % 2 ? "255,120,40" : "255,170,50"},${0.95 * fade})`;
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    }
+    g.fillStyle = `rgba(255,236,140,${fade})`; g.beginPath(); g.arc(bx, by - S * 0.15, S * 0.32 * grow, 0, 7); g.fill();
+    g.fillStyle = `rgba(255,255,240,${fade})`; g.beginPath(); g.arc(bx, by - S * 0.15, S * 0.16 * grow, 0, 7); g.fill();
+  }
+  // ดาวแฉกการ์ตูน (ป๊อปแล้วหด)
+  if (t < 650) {
+    const kp = t / 650, sc = kp < 0.25 ? easeOutBack(kp / 0.25) : 1 - (kp - 0.25) / 0.75 * 0.4, a = kp < 0.25 ? 1 : 1 - (kp - 0.25) / 0.75;
+    const R1 = S * 0.95 * sc, R0 = R1 * 0.5, spikes = 11;
+    g.beginPath();
+    for (let i = 0; i <= spikes * 2; i++) {
+      const ang = (i / (spikes * 2)) * Math.PI * 2 + 0.2, r = i % 2 ? R0 : R1 * (0.85 + 0.15 * ((i * 7) % 3) / 2);
+      const x = bx + Math.cos(ang) * r, y = by - S * 0.15 + Math.sin(ang) * r * 0.85;
+      if (i) g.lineTo(x, y); else g.moveTo(x, y);
+    }
+    g.closePath();
+    g.globalAlpha = a; g.fillStyle = "#ffe14a"; g.fill(); g.strokeStyle = "#d8261c"; g.lineWidth = 4; g.stroke(); g.globalAlpha = 1;
+  }
+  // แฟลชขาว
+  if (t < 140) { g.fillStyle = `rgba(255,255,255,${0.9 * (1 - t / 140)})`; g.beginPath(); g.arc(bx, by - S * 0.15, S * (0.5 + t / 140 * 0.8), 0, 7); g.fill(); }
+  // เศษกระเด็น
+  if (!lowQ && t < 900) {
+    const kd = t / 900;
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + 0.4, sp = S * (0.6 + (i % 4) * 0.25), up = S * (0.5 + (i % 3) * 0.3);
+      const x = bx + Math.cos(a) * sp * kd, y = by - S * 0.1 + Math.sin(a) * sp * kd * 0.6 - (up * kd - up * 1.7 * kd * kd);
+      g.fillStyle = i % 3 ? `rgba(255,${140 + (i % 4) * 25},40,${1 - kd})` : `rgba(80,70,70,${1 - kd})`;
+      g.fillRect(x - 3, y - 3, 6, 6);
+    }
+  }
+  // รูปคนตายหมุนคว้างปลิวขึ้นฟ้า แล้ววิ้ง!
+  const FLY = 1250;
+  if (t < FLY) {
+    const kq = t / FLY, side = (Math.abs(e.x * 7 + e.y * 3) % 2) ? 1 : -1;
+    const hx = bx + side * S * 1.6 * kq, hy = by - s * 0.9 - S * 3.2 * kq + S * 1.2 * kq * kq;
+    const r = s * 0.4 * (1 - 0.6 * kq) * Math.min(1.6, 0.8 + n * 0.25);
+    g.save(); g.translate(hx, hy); g.rotate(side * kq * Math.PI * 5);
+    unitHex(g, { img: e.img, color: normColor(e.color), name: e.name }, 0, 0, r, 1 - Math.max(0, kq - 0.8) / 0.2);
+    g.restore();
+  } else {
+    const kt = (t - FLY) / (DEATH_BOOM_MS - FLY), side = (Math.abs(e.x * 7 + e.y * 3) % 2) ? 1 : -1;
+    const hx = bx + side * S * 1.6, hy = by - s * 0.9 - S * 2.0, R = s * 0.35 * Math.sin(kt * Math.PI);
+    g.strokeStyle = `rgba(255,255,255,${1 - kt})`; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(hx - R, hy); g.lineTo(hx + R, hy); g.moveTo(hx, hy - R); g.lineTo(hx, hy + R);
+    g.moveTo(hx - R * 0.5, hy - R * 0.5); g.lineTo(hx + R * 0.5, hy + R * 0.5); g.moveTo(hx + R * 0.5, hy - R * 0.5); g.lineTo(hx - R * 0.5, hy + R * 0.5); g.stroke();
+  }
+  g.restore();
+}
+
 // =================================================================== overlays
 function tileFill(g, x, y, fill, stroke, inset = 0.06) {
   quad(g, x, y, inset); g.fillStyle = fill; g.fill();
@@ -1663,7 +1748,7 @@ function boomFx(g, e, now, lowQ) {
 
 export const FX_DUR = {
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR,
 };
 
 
@@ -1785,6 +1870,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
+    else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
   if (bake && bake.fore) blit(bake.fore);
