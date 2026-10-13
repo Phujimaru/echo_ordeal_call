@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) · `ice_spike` (ตีปกติไม่ได้ · สกิลเลือกช่อง `tile` · วางของบนกระดาน (น้ำแข็ง/หนาม) · ไถล/ผลัก/ชน · สถานะเชื่องช้า · ท่าออกผลต้นตาเดินถัดไป · ระบบกลาง `server/ice.js` GAME_SYSTEM §19) — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) · `kate` + `emiliko` (ผู้เล่น 1 คนคุม 2 ตัว · ปุ่มหลายตัวเลือก · เดินต่อหลังจบตา · พื้นเปียก · พื้นที่ขัง/บังสายตา · ดาเมจตายตัว — GAME_SYSTEM §20) · `ice_spike` (ตีปกติไม่ได้ · สกิลเลือกช่อง `tile` · วางของบนกระดาน (น้ำแข็ง/หนาม) · ไถล/ผลัก/ชน · สถานะเชื่องช้า · ท่าออกผลต้นตาเดินถัดไป · ระบบกลาง `server/ice.js` GAME_SYSTEM §19) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -144,6 +144,13 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ไถลบนน้ำแข็ง (ระบบกลาง `server/ice.js`) | `onSlide(engine, p, n, ctx)` · `slideStrike(engine, p, target, n, ctx)` (ไถลชนศัตรู — ลงดาเมจเอง · เดินชน = จบตา) · `ownSpike(engine, p, ctx)` | `Ice.resolveEntry` |
 | วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit / applySlow / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 | `server/ice.js` |
 | ตีปกติไม่ได้ | `range: [1, 0]` ใน `characters.js` (ไม่มีช่องที่ตีถึง — ปืน GUTS ยังยิงได้) | – |
+| ผู้เล่น 1 คนคุม 2 ตัว | `duo: "<id ตัวที่สอง>"` ใน characters.js (ตัวที่สอง `hidden: true`) — ระบบกลาง `server/duo.js` (GAME_SYSTEM §20 · ต้นแบบ เคท & เอมิลิโกะ) | `lobby.startMatch` |
+| สลับตัว/ตัวอีกตัวของฝ่าย | `engine.duo.switchTo / canSwitchTo / unitDone / otherUnit / moved` | `server/duo.js` |
+| เดินต่อหลังตี/รอ (canto) | `cantoMov(engine, p)` → ระยะ · `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น | `action.finishActor` |
+| ปุ่มหลายตัวเลือก | `skillPub` คืน `choices` · client ส่ง `form` · `skillCost/skillArea/keepsMove/skipsTurnQuota/ignoresTurnQuota/silentFlash/skillSound` ได้ `opts` | `server/skills.js` |
+| ดาเมจตายตัวของตีปกติ (ไม่รับบัฟ) | `fixedStrikeDamage(engine, attacker, target)` → ตัวเลข | `attack.strike` |
+| ไถลชนแบบมีเงื่อนไข | `slideStrikes(engine, p)` · `slideStrike` คืน `{ attack: false, knock: false }` | `Ice.impact` |
+| พื้นเปียก / พื้นที่ขัง+บังสายตา | `engine.ice.layWet / dryWet` · `engine.soot.cast / strikeInside / inStormOf / trapOf` | `server/ice.js` · `server/soot.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):
 

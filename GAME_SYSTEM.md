@@ -735,3 +735,19 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เหตุการณ์ให้ client**: `Ice.begin()` → ใส่ `ctx.events` → `Ice.flush(ctx)` = socket `iceFx { seq, events }` (ชนิดเหตุการณ์: contract §4) ·
   client ค้างตำแหน่งคนในชุดไว้จนแอนิเมชันของคนนั้นเล่นถึง — **ทุกการขยับตัวที่อยู่ในชุดต้องมีเหตุการณ์ walk/slide/knock** ไม่งั้นตัวค้างที่เดิมจนจบชุด
 
+## 20. ระบบคู่ / ม่านแดง / พื้นเปียก (`server/duo.js` · `server/soot.js` — เคท & เอมิลิโกะ · GRID_PLAN §7.10)
+- **ระบบคู่** (ตัวละครที่มี `duo: "<id ตัวที่สอง>"` ใน characters.js): `Duo.setup()` ตอน `startMatch` สร้างระเบียน `<id>~duo` ใน `match.players` (`duoOf` = เจ้าของ · เจ้าของได้ `duoWith`) · `Duo.teardown()` ตอนกลับห้องรอ
+  - ใช้ร่วม (getter/setter บนระเบียนคู่): `skillPoints gold inventory cards gutsShotTurn` · คู่ `locked` ตลอด ไม่จั่วไพ่ ไม่อยู่ใน `turnOrder` ไม่มี socket (`broadcastState` ข้าม)
+  - `Duo.sideKey(p)` = id เจ้าของ → `combat.sameTeam` / `lobby.isAlly` = true เสมอ · จบเกมนับต่อฝ่าย (`Duo.sideCount`) · `Duo.cardHolders()` = ผู้ถือไพ่ที่ยังอยู่ (ใช้แทน alivePlayers ในช่วงจั่ว/เปิดไพ่/ลำดับเดิน/แต้มและเหรียญจบเทิร์น)
+  - ตาเดิน `match.duo = { ownerId, acts, done }` · `Duo.switchTo(u)` (เก็บ action ของตัวเดิม · เดินแล้ว = locked) · `finishActor` → ตัวถัดไปของฝ่าย (`Duo.nextUnit`) ด้วยเวลาที่เหลือ (`match.actionLeft` — `timers.clearPhaseTimer` จดไว้) · หมดเวลา = `action.actionTimeUp` (ทุกที่ที่ตั้งตัวจับเวลาตาเดินต้องใช้ตัวนี้ ไม่ใช่ finishActor)
+  - socket คำสั่งตาเดิน (`onUnitEvent`) ส่งไปตัวที่คุม `Duo.controlledId` · state ได้ `controlId`, `duo`, `players[].duoOf/duoWith/corpse`
+  - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`)
+  - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom`)
+- **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
+- **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active }]` → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
+- **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
+- **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
+- **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
+- **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
+- **มองไม่ออก** (`shadowMask` · DEBUFF_KEYS): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
+
