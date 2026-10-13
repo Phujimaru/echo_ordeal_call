@@ -797,7 +797,6 @@ const STATUS_INFO = {
   shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
-  hikaruTiga:    { icon: "🔆", label: "Ultraman Tiga", cls: "bg-fuchsia-400 text-gray-900", desc: "" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -809,7 +808,7 @@ const STATUS_INFO = {
 function statusEntries(p, full) {
   const out = [];
   for (const [k, v] of Object.entries(p.statuses || {})) {
-    if (!(v > 0)) continue;
+    if (!(v > 0) || k === "hikaruForm") continue; // ร่าง UltraLive โชว์ชื่อร่างแทน (บล็อกฮิคารุด้านล่าง)
     const info = STATUS_INFO[k] || { icon: "✦", label: k, cls: "bg-white/20", desc: "" };
     const amt = (p.statusAmt || {})[k] || 0; // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8)
     out.push({ key: k, v, amt, ...info });
@@ -827,14 +826,13 @@ function statusEntries(p, full) {
     out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900", desc: "" });
   }
   if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
-  // ไรโด ฮิคารุ: ร่าง UltraLive (Tiga มีป้ายสถานะนับเทิร์นแล้ว) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
+  // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
-    if (h.form && h.form !== "tiga") out.push({ key: "hikaruForm", v: 1, icon: "🔆", label: h.formName, cls: "bg-amber-300 text-gray-900", desc: "" });
+    if (h.form) out.push({ key: "hikaruForm", v: h.formLeft || 1, icon: "🔆", label: h.formName, cls: "bg-amber-300 text-gray-900", desc: "" });
     if (h.ginga && h.strium) out.push({ key: "hikaruStrium", v: 1, icon: "🌈", label: "Strium", cls: "bg-orange-400 text-gray-900", desc: "" });
     if (!h.strium && h.brace > 0) out.push({ key: "hikaruBrace", v: 1, icon: "🌈", label: `Strium Brace ${h.brace}/${h.braceMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
     if (h.kemurCalm > 0) out.push({ key: "hikaruKemur", v: 1, icon: "🌫️", label: `${h.kemurCalm}/${h.kemurMax}`, cls: "bg-purple-300 text-gray-900", desc: "" });
-    if (h.tigaCd > 0) out.push({ key: "hikaruTigaCd", v: h.tigaCd, turns: true, icon: "⏳", label: "Ultraman Tiga", cls: "bg-white/20", desc: "" });
     if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "" });
   }
   // Ice Spike: ดาเมจสะสมก่อนระเบิด (ติดตัว 3)

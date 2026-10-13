@@ -9,7 +9,8 @@
 //    แบล็คคิง: ตีปกติแนวตรง 1×3 โดนทุกศัตรูในแนว · ทันเดอร์ดารัมเบีย: ตีปกติติดช็อต 1 เทิร์น
 //    มนุษย์ดาวเคมู: ตีปกติติดพิษร้าย 1 เทิร์น · ไม่ถูกโจมตี/ไม่เสียหาย 2 เทิร์นติด = เทิร์นถัดไปล่องหน 1 เทิร์น
 //    คิงแพนด้อน: ระยะตี [1, 3] · ตีปกติติดลุกไหม้ 1 · ดอรากอรี่: ตีปกติติดเลือดไหล 1
-//    Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · อยู่ 3 เทิร์นแล้วคืนร่างเอง · ร่างจบแล้วเรียกซ้ำได้อีกหลัง 5 เทิร์น
+//    Ultraman Tiga: พลังโจมตี +1 · แม่นยำ
+//    ทุกร่างอยู่ 3 เทิร์นแล้วคืนร่างเอง · ร่างจบ (หมดเวลา / เปลี่ยนร่าง / คืนร่าง) = ร่างนั้นคูลดาวน์ 5 เทิร์น แยกรายร่าง (ผู้ใช้สั่ง 2026-10-14)
 //  สกิลรอง Ultraman Ginga (4 แต้ม · ร่างปกติเท่านั้น): 5 เทิร์น · ตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง)
 //    ตีปกติ +1 ช่องติดตัวทั้งด้าน 1×3 (ศัตรูทุกคนที่ติดด้านนั้น) · หมดแล้วคูลดาวน์ 3 เทิร์น
 //  ท่าไม้ตาย (ร่างกิงกะเท่านั้น · ลำแสงหลบไม่ได้): Ginga Cross Shoot (4 แต้ม) แนว 5×1 ดาเมจ 2 + ลุกไหม้ 2
@@ -19,8 +20,7 @@
 //    = กลายเป็นกิงกะสโตเรี่ยมทันที และกดกิงกะครั้งต่อไปเป็นสโตเรี่ยมเสมอ · สโตเรี่ยม: ตีปกติ +1 อีก + ติดลุกไหม้ 1
 //  คลิปทุกตัวเล่นครั้งเดียวต่อเกม (engine.triggerCutscene — ครั้งต่อไปเป็นการ์ดแจ้งเตือน)
 //
-//  Claude ตัดสินเอง (บอกผู้ใช้แล้ว): คูลดาวน์ Tiga นับหลังร่างจบ (รวมเปลี่ยนร่างออกก่อนเวลา) ·
-//    ช็อต/พิษร้ายจากตีปกติเก็บ 2 เทิร์นในโค้ด (จบเทิร์นนี้ลด 1 = มีผลเต็ม 1 เทิร์นถัดไป แบบหนามพิษ)
+//  Claude ตัดสินเอง (บอกผู้ใช้แล้ว): ช็อต/พิษร้ายจากตีปกติเก็บ 2 เทิร์นในโค้ด (จบเทิร์นนี้ลด 1 = มีผลเต็ม 1 เทิร์นถัดไป แบบหนามพิษ)
 // ============================================================
 
 const ID = "raido_hikaru";
@@ -61,8 +61,8 @@ const ARMOR_HEAL_CD = 5;   // ฟื้นเกราะตอนเข้า�
 const LANE_RANGE = [1, 3]; // แบล็คคิง: แนวตรงยาว 3 จากขอบตัว
 const FACE_RANGE = [1, 1]; // กิงกะ: ช่องติดตัวทั้งด้าน (กว้างเท่าตัว 3 ช่อง — ผู้ใช้สั่ง 2026-10-12: ตีแค่ระยะตัว)
 const PANDON_RANGE = [1, 3];
-const TIGA_TURNS = 3;
-const TIGA_CD = 5;
+const FORM_TURNS = 3;      // ทุกร่างอยู่ 3 เทิร์น (สถานะ hikaruForm)
+const FORM_CD = 5;         // ร่างจบแล้วร่างนั้นเรียกซ้ำได้อีกหลัง 5 เทิร์น (แยกรายร่าง)
 const TIGA_ATK = 1;
 const KEMUR_CALM = 2;      // เทิร์นติดที่ไม่โดนอะไรเลย → ล่องหน
 const GINGA_TURNS = 5;
@@ -91,7 +91,7 @@ function fresh() {
     form: null,       // ร่าง UltraLive ปัจจุบัน (คีย์ใน FORMS) · null = ร่างปกติ
     formRound: 0,     // เทิร์นที่เปลี่ยน/คืนร่างล่าสุด (เทิร์นละ 1 ครั้ง)
     armorReady: 0,    // ฟื้นเกราะตอนเข้าร่างได้อีกเมื่อ roundNumber >= ค่านี้
-    tigaReady: 0,     // เรียก Tiga ได้อีกเมื่อ roundNumber >= ค่านี้
+    formReady: {},    // คีย์ร่าง → เรียกร่างนั้นได้อีกเมื่อ roundNumber >= ค่านี้
     accUntil: 0,      // แม่นยำที่มีอยู่ก่อนเข้า Tiga อยู่ถึงเทิร์นไหน (คืนให้ตอนออกจากร่าง)
     ginga: false,
     gingaReady: 0,
@@ -118,7 +118,7 @@ const left = (ready, round) => Math.max(0, (ready || 0) - round);
 function giveTigaAccuracy(engine, p) {
   const s = st(p), cur = p.statuses.accurate || 0;
   s.accUntil = cur > 0 ? engine.roundNumber + cur - 1 : 0;
-  p.statuses.accurate = Math.max(cur, TIGA_TURNS);
+  p.statuses.accurate = Math.max(cur, FORM_TURNS);
 }
 function stripTigaAccuracy(engine, p, atEnd) {
   const s = st(p);
@@ -129,12 +129,15 @@ function stripTigaAccuracy(engine, p, atEnd) {
   if (keep > 0) p.statuses.accurate = keep;
   else delete p.statuses.accurate;
 }
-// ออกจากร่าง Tiga (หมดเวลา / เปลี่ยนร่าง / คืนร่าง) → คูลดาวน์เริ่มนับจากเทิร์นถัดไป
-function leaveTiga(engine, p, atEnd) {
-  const s = st(p);
-  delete p.statuses.hikaruTiga;
-  stripTigaAccuracy(engine, p, atEnd);
-  s.tigaReady = engine.roundNumber + 1 + TIGA_CD;
+const formCd = (s, key, round) => left((s.formReady || {})[key], round);
+// ออกจากร่าง UltraLive (หมดเวลา / เปลี่ยนร่าง / คืนร่าง) → ร่างนั้นคูลดาวน์ทันที เริ่มนับจากเทิร์นถัดไป · ไม่แตะ s.form
+function leaveForm(engine, p, atEnd) {
+  const s = st(p), key = s.form;
+  if (!key) return;
+  delete p.statuses.hikaruForm;
+  if (key === "tiga") stripTigaAccuracy(engine, p, atEnd);
+  if (key === "kemur") leaveKemur(engine, p);
+  (s.formReady || (s.formReady = {}))[key] = engine.roundNumber + 1 + FORM_CD;
 }
 function leaveKemur(engine, p) {
   const s = st(p);
@@ -156,9 +159,8 @@ function capArmor(engine, p) {
 
 // เปลี่ยนร่าง UltraLive (key ใน FORMS หรือ NORMAL = คืนร่าง)
 function setForm(engine, p, key) {
-  const s = st(p), prev = s.form;
-  if (prev === "tiga") leaveTiga(engine, p, false);
-  if (prev === "kemur") leaveKemur(engine, p);
+  const s = st(p);
+  leaveForm(engine, p, false);
   s.formRound = engine.roundNumber;
   if (key === NORMAL) {
     s.form = null;
@@ -169,10 +171,8 @@ function setForm(engine, p, key) {
   }
   const f = FORMS[key];
   s.form = key;
-  if (key === "tiga") {
-    p.statuses.hikaruTiga = TIGA_TURNS;
-    giveTigaAccuracy(engine, p);
-  }
+  p.statuses.hikaruForm = FORM_TURNS;
+  if (key === "tiga") giveTigaAccuracy(engine, p);
   if (key === "kemur") {
     s.kemurCalm = 0;
     s.kemurSnap = { hp: p.dmgHp || 0, armor: p.dmgArmor || 0, attacked: !!p.wasAttacked };
@@ -288,7 +288,7 @@ function fireBeam(engine, p, ray, dir, targets) {
 module.exports = {
   id: ID,
   IMG, VIDEO, FORMS, FORM_KEYS, NORMAL, CUT,
-  FORM_ARMOR, FORM_ARMOR_HEAL, ARMOR_HEAL_CD, TIGA_TURNS, TIGA_CD, KEMUR_CALM,
+  FORM_ARMOR, FORM_ARMOR_HEAL, ARMOR_HEAL_CD, FORM_TURNS, FORM_CD, KEMUR_CALM,
   GINGA_TURNS, GINGA_CD, GINGA_SIZE, GINGA_MOV, BRACE_MAX, BEAM_LEN, BEAM_DMG, CROSS_BURN, RAY_BURN, CROSS_COST, RAY_COST,
   BEAM_SECONDS, PUSH_SECONDS,
   isHikaru, formOf, gingaOn, striumOn,
@@ -399,7 +399,7 @@ module.exports = {
       const key = opts.form;
       if (key === NORMAL) return !!s.form;
       if (!FORMS[key] || key === s.form) return false;
-      return key !== "tiga" || r >= s.tigaReady;
+      return formCd(s, key, r) === 0;
     }
     if (tier === "secondary") return !s.form && !s.ginga && r >= s.gingaReady;
     if (tier === "ultimate") return s.ginga;
@@ -434,19 +434,20 @@ module.exports = {
     if (boardSize(p) !== GINGA_SIZE) engine.resizeUnit(p, GINGA_SIZE); // ร่าง UltraLive / กิงกะ ที่ขยายตัวไม่สำเร็จ
   },
 
-  // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ): Brace → Tiga หมด → กิงกะหมด → เคมู ----------
+  // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ): Brace → ร่าง UltraLive หมด → กิงกะหมด → เคมู ----------
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isHikaru(p) || !p.alive) continue;
       const s = st(p);
       // Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวัน (ห่วงเวลาซีโร่ไม่นับ)
       if (s.ginga && braceTick(engine, p) && (p.statuses.hikaruGinga || 0) > 0) engine.triggerCutscene(p, CUT.strium);
-      if (s.form === "tiga" && !((p.statuses.hikaruTiga || 0) > 0)) {
-        leaveTiga(engine, p, true);
+      if (s.form && !((p.statuses.hikaruForm || 0) > 0)) {
+        const name = FORMS[s.form].name;
+        leaveForm(engine, p, true);
         s.form = null;
         capArmor(engine, p);
         engine.resizeUnit(p, 1);
-        engine.log(`🔆 ${p.name} — Ultraman Tiga หมดเวลา คืนร่างปกติ`);
+        engine.log(`🔆 ${p.name} — ${name} หมดเวลา คืนร่างปกติ`);
       }
       if (s.ginga && !((p.statuses.hikaruGinga || 0) > 0)) endGinga(engine, p);
       if (s.form === "kemur") {
@@ -470,14 +471,14 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     const changed = s.formRound === r || s.ginga;
     const forms = FORM_KEYS.map((key) => {
-      const cd = key === "tiga" ? left(s.tigaReady, r) : 0;
+      const cd = formCd(s, key, r);
       return { key, name: FORMS[key].name, img: FORMS[key].img, cd, locked: changed || s.form === key || cd > 0 };
     });
     forms.push({ key: NORMAL, name: "คืนร่าง", img: IMG.base, cd: 0, locked: changed || !s.form });
     return {
-      form: s.form, formName: s.form ? FORMS[s.form].name : null, forms,
+      form: s.form, formName: s.form ? FORMS[s.form].name : null, formLeft: s.form ? p.statuses.hikaruForm || 0 : 0, forms,
       ginga: !!s.ginga, strium: !!s.strium, brace: s.brace, braceMax: BRACE_MAX,
-      armorCd: left(s.armorReady, r), tigaCd: left(s.tigaReady, r), gingaCd: left(s.gingaReady, r),
+      armorCd: left(s.armorReady, r), gingaCd: left(s.gingaReady, r),
       kemurCalm: s.form === "kemur" ? s.kemurCalm : 0, kemurMax: KEMUR_CALM,
     };
   },

@@ -35,6 +35,7 @@ function setup(list, mode = 'ffa') {
 const view = (viewerId, id) => engine.buildStateFor(viewerId).players.find((p) => p.id === id);
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
 const form = (id, key) => engine.useSkill(id, 'basic', [], { form: key });
+const formCd = (key, id = 'H') => view(id, id).hikaru.forms.find((f) => f.key === key).cd;
 // จบเทิร์นแบบไม่ผ่านฉาก/การเดินทาง: ลดเทิร์นสถานะ (เหมือน endTurn) → ฮุคจบเทิร์น → ขึ้นเทิร์นใหม่ (ล้างค่าแสดงผลรอบ)
 function passTurn() {
   for (const p of Object.values(engine.players)) {
@@ -252,6 +253,7 @@ test('มนุษย์ดาวเคมู: ไม่ถูกโจมตี
   P.H.wasAttacked = true; P.H.dmgArmor = 1; // โดนก่อนเข้าร่างในเทิร์นนี้
   engine.setActor('H');
   form('H', 'kemur');
+  P.H.statuses.hikaruForm = 99; // แยกเทสต์กติกาเคมูออกจากเวลาร่าง 3 เทิร์น
   passTurn();
   assert.equal(P.H.hikaru.kemurCalm, 1, 'เทิร์นที่เข้าร่างนับได้');
   // เทิร์น 2 โดนตี = นับใหม่
@@ -274,13 +276,27 @@ test('มนุษย์ดาวเคมู: ไม่ถูกโจมตี
   engine.attackTarget('H', 'B');
   assert.equal(P.H.hikaru.hidden, false);
   engine.clearPhaseTimer();
+  // ภายในเวลาร่าง 3 เทิร์น: เงียบ 2 เทิร์นแรก = ล่องหนเทิร์นที่ 3 · ร่างหมดตอนจบเทิร์นนั้น = ปรากฏตัว
+  passTurn();
+  engine.setActor('H');
+  form('H', 'normal');
+  passTurn();
+  P.H.hikaru.formReady = {}; // ข้ามคูลดาวน์เคมู
+  P.H.wasAttacked = false; P.H.dmgArmor = 0; P.H.dmgHp = 0;
+  engine.setActor('H');
+  form('H', 'kemur');
+  passTurn(); passTurn();
+  assert.equal(P.H.hikaru.hidden, true);
+  passTurn();
+  assert.equal(P.H.hikaru.form, null);
+  assert.equal(P.H.hikaru.hidden, false);
 });
 
-test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 เทิร์นแล้วคืนร่างเอง · คูลดาวน์ 5 เทิร์นหลังร่างจบ · ออกก่อนเวลาก็เริ่มคูลดาวน์', () => {
+test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 เทิร์นแล้วคืนร่างเอง · คูลดาวน์ 5 เทิร์นหลังร่างจบ · ออกก่อนเวลาก็เริ่มคูลดาวน์ · ถอดแม่นยำเฉพาะของร่าง', () => {
   const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 2, 5]]);
   engine.setActor('H');
   form('H', 'tiga');
-  assert.equal(P.H.statuses.hikaruTiga, 3);
+  assert.equal(P.H.statuses.hikaruForm, 3);
   assert.ok(engine.accurateActive(P.H));
   assert.equal(engine.attackPowerAgainst(P.H, P.B), 2);
   passTurn(); passTurn();
@@ -290,7 +306,7 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   assert.equal(P.H.statuses.accurate, undefined, 'ถอดแม่นยำ');
   assert.equal(engine.maxArmorOf(P.H), 3);
   const r = engine.roundNumber;
-  assert.equal(view('H', 'H').hikaru.tigaCd, 5);
+  assert.equal(formCd('tiga'), 5);
   engine.setActor('H');
   form('H', 'tiga');
   assert.equal(P.H.hikaru.form, null, 'ติดคูลดาวน์');
@@ -304,9 +320,53 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   passTurn();
   engine.setActor('H');
   form('H', 'thunder');
-  assert.equal(P.H.statuses.hikaruTiga, undefined);
+  assert.equal(P.H.statuses.hikaruForm, 3, 'ร่างใหม่นับเวลาของตัวเอง');
   assert.equal(P.H.statuses.accurate, 4, 'แม่นยำเดิมยังเหลือ');
-  assert.equal(view('H', 'H').hikaru.tigaCd, 6);
+  assert.equal(formCd('tiga'), 6);
+});
+
+test('ทุกร่าง: อยู่ 3 เทิร์นแล้วคืนร่างเอง · ร่างจบ = ร่างนั้นคูลดาวน์ 5 แยกรายร่าง · เปลี่ยนร่าง/คืนร่างระหว่างทาง = ร่างเดิมคูลดาวน์ทันที', () => {
+  const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 12, 5]]);
+  engine.setActor('H');
+  form('H', 'thunder');
+  assert.equal(P.H.statuses.hikaruForm, 3);
+  assert.equal(view('H', 'H').hikaru.formLeft, 3);
+  passTurn(); passTurn();
+  assert.equal(P.H.hikaru.form, 'thunder');
+  assert.equal(view('H', 'H').hikaru.formLeft, 1);
+  passTurn();
+  assert.equal(P.H.hikaru.form, null, 'ครบ 3 เทิร์น คืนร่างเอง');
+  assert.equal(engine.sizeOf(P.H), 1);
+  assert.equal(P.H.statuses.hikaruForm, undefined);
+  assert.equal(formCd('thunder'), 5);
+  assert.equal(formCd('pandon'), 0, 'ร่างอื่นไม่ติดคูลดาวน์');
+  engine.setActor('H');
+  form('H', 'thunder');
+  assert.equal(P.H.hikaru.form, null, 'ร่างที่เพิ่งจบติดคูลดาวน์');
+  // เปลี่ยนร่างระหว่างทาง = ร่างเดิมคูลดาวน์ทันที · ร่างใหม่นับ 3 เทิร์นของตัวเอง
+  form('H', 'pandon');
+  assert.equal(P.H.hikaru.form, 'pandon');
+  passTurn();
+  engine.setActor('H');
+  form('H', 'doragory');
+  assert.equal(P.H.hikaru.form, 'doragory');
+  assert.equal(P.H.statuses.hikaruForm, 3);
+  assert.equal(formCd('pandon'), 6, 'คูลดาวน์เริ่มเทิร์นถัดไป');
+  assert.equal(formCd('thunder'), 4, 'นับแยกรายร่าง');
+  // คืนร่างระหว่างทาง = ร่างเดิมคูลดาวน์ทันที
+  passTurn();
+  engine.setActor('H');
+  form('H', 'normal');
+  assert.equal(P.H.hikaru.form, null);
+  assert.equal(P.H.statuses.hikaruForm, undefined);
+  assert.equal(formCd('doragory'), 6);
+  const forms = view('H', 'H').hikaru.forms;
+  assert.ok(forms.find((f) => f.key === 'doragory').locked);
+  // หมดคูลดาวน์แล้วเรียกได้อีก
+  engine.setRoundNumber(engine.roundNumber + 6);
+  engine.setActor('H');
+  form('H', 'doragory');
+  assert.equal(P.H.hikaru.form, 'doragory');
 });
 
 test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่านั้น · ตัว 3×3 เดิน 3 · ตีปกติ +1 ทั้งด้าน 1×3 · 5 เทิร์นแล้วหดกลับ · คูลดาวน์ 3 · UltraLive ใช้ไม่ได้ระหว่างกิงกะ', () => {
@@ -539,7 +599,7 @@ test('จบเทิร์นจริง (engine.endTurn): ฮุคต่อ�
   Math.random = () => 0.99;
   engine.setActor('H');
   form('H', 'tiga');
-  P.H.statuses.hikaruTiga = 1;
+  P.H.statuses.hikaruForm = 1;
   engine.endTurn();
   engine.clearPhaseTimer();
   assert.equal(P.H.hikaru.form, null);
