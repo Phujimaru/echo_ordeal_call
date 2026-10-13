@@ -20,6 +20,8 @@ import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
+import SkillChoices from "./hud/SkillChoices";
+import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { clickSound, playSfx, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
 import * as Rules from "../board/boardRules";
@@ -1705,33 +1707,41 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     const t = setTimeout(() => setSceneQ((q) => q.slice(1)), SCENE_MS[scene.kind] || 2000);
     return () => clearTimeout(t);
   }, [scene, sceneBlocked]);
-  const me = state.players.find((p) => p.id === state.youId);
-  const others = state.players.filter((p) => p.id !== state.youId);
+  // ระบบคู่ (เคท & เอมิลิโกะ): hand = ระเบียนผู้เล่น (ไพ่/แต้ม/จั่ว) · me = ตัวที่คุมอยู่ (controlId — แผงตัวเรา/สกิล/ระยะเดิน)
+  //  ตัวละครทั่วไป controlId = youId → hand กับ me เป็นตัวเดียวกัน
+  const hand = state.players.find((p) => p.id === state.youId);
+  const me = (state.controlId && state.players.find((p) => p.id === state.controlId)) || hand;
+  const roster = rosterOf(state.players); // ผู้เล่นจริง (ตัดตัวที่สองของระบบคู่)
+  const duoUnits = hand && hand.duoWith ? unitsOfSide(hand, state.players) : null;
+  const handAlive = !!hand && sideAlive(hand, state.players);
+  const others = roster.filter((p) => p.id !== state.youId);
   const arenaJourney = state.journey;
   const seatOthers = others;
   const iAmAttacker = phase === "ATTACK" && state.attackerId === state.youId;
   const attacker = state.players.find((p) => p.id === state.attackerId);
-  const rankedTiers = rankTiers(state.players);
+  const rankedTiers = rankTiers(rosterAlive(state.players));
   const summaryWinners = rankedTiers[0]?.players || [];
   const summaryLosers = rankedTiers.slice(1).flatMap((t) => t.players);
-  const done = me && (me.locked || !me.alive);
+  const done = hand && (hand.locked || !handAlive);
   const ch = me?.character;
   const meStatuses = me ? statusEntries(me) : []; // รายการสถานะของตัวเอง — ใช้ในกล่อง "สถานะ" ของแผง HUD (เรียงลงล่างเรื่อยๆ ตามลำดับที่ติด)
   // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
   const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
+  // เอมิลิโกะเดินต่อหลังจบตา: ได้แค่เดิน/ย้อน/รอ (+ กระจกเงา)
+  const canto = myTurn && !!state.action.canto;
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // ยืนติดร้าน (ระยะ 1) — ตัวใหญ่ (Echo / ร่างใหญ่ของไรโด ฮิคารุ) นับจากขอบตัวทุกช่อง ตรงกับ server Board.nearShop(boxOf)
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
   const nearShop = !!(me?.pos && state.shopPos && Rules.dist(boxOfP(me), state.shopPos) === 1);
   const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
-  const shopBlock = !myTurn ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
     : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? `ระยะ ${a.range}` : a.kind === "field" ? "ทั้งสนาม" : "";
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
     && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
-  const enemyOf = (p) => !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
+  const enemyOf = (p) => !!me && p.id !== me.id && !sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId);
   // เข้าช่วงโจมตี -> ฉากประกาศ "เริ่มโจมตีได้" + เสียงเปลี่ยนช่วง (ไม่บังการกดเลือกเป้า)
   useEffect(() => {
     if (phase !== "ATTACK") return;
@@ -1851,10 +1861,24 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [skillConfirm, setSkillConfirm] = useState(null); // { tier, skillData, label, useCost }
   const [hkForms, setHkForms] = useState(false); // ไรโด ฮิคารุ: ตัวเลือกร่าง UltraLive เปิดอยู่
   if (hkForms && !myTurn) setHkForms(false); // หมดตาเรา = ปิดตัวเลือกร่าง
+  // ปุ่มสกิลแบบหลายตัวเลือก (skill.choices — เคท/เอมิลิโกะ): tier ที่ตัวเลือกเปิดอยู่ · หมดตา/สลับตัว = ปิด
+  const [choiceOpen, setChoiceOpen] = useState(null); // { tier, unit }
+  if (choiceOpen && (!myTurn || canto || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
+  // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
+  const choiceFree = (c) => (c.free != null ? !!c.free : (c.cost || 0) === 0);
+  // เลือกตัวเลือกแล้ว: self = ใช้ทันที · มีระยะ = เข้าโหมดเลือกเป้า/ทิศบนกระดานตามพื้นที่ของตัวเลือก
+  const pickChoice = (tier, c) => {
+    setChoiceOpen(null);
+    const a = c.area || { kind: "self" };
+    if (a.kind === "target" || a.kind === "aoe" || a.kind === "line" || a.kind === "tile") { setPickReq({ kind: "skill", tier, form: c.key, area: a, name: c.name }); return; }
+    socket.emit("useSkill", { tier, form: c.key });
+  };
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
     if (ch?.id === "raido_hikaru" && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
+    // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
+    if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     if (!skillConfirmOn) { skill(tier); return; }
     setSkillConfirm({ tier, skillData, label, useCost });
   };
@@ -1881,22 +1905,24 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (!pickReq) return;
     const gone = (pickReq.kind === "gun" && !(me?.inventory || []).some((it) => it.uid === pickReq.item.uid))
       || (pickReq.kind === "suit" && !(me?.inventory || []).some((it) => it.uid === pickReq.uid));
-    if (!myTurn || gone) setPickReq(null);
-  }, [pickReq, myTurn, me?.inventory]);
+    if (!myTurn || canto || gone) setPickReq(null);
+  }, [pickReq, myTurn, canto, me?.inventory]);
   // โหมดเลือกเป้าที่ส่งให้ BoardStage
   let boardPick = null;
   if (pickReq && me) {
     const done = () => setPickReq(null);
     if (pickReq.kind === "skill") {
       const s = ch?.[pickReq.tier];
-      const a = s?.area || {};
-      const label = `${s?.name || ""} · ${areaText(a)}`;
+      // ตัวเลือกของปุ่มหลายตัวเลือก: พื้นที่/ชื่อของตัวเลือก + ส่ง form ไปด้วย
+      const a = pickReq.area || s?.area || {};
+      const label = `${pickReq.name || s?.name || ""} · ${areaText(a)}`;
       const tier = pickReq.tier;
-      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id] }); done(); }, onCancel: done };
-      else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier }); done(); }, onCancel: done };
-      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir }); done(); }, onCancel: done };
+      const f = pickReq.form ? { form: pickReq.form } : {};
+      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
+      else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
+      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, label, onPick: (tile, dir) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}) }); done(); }, onCancel: done };
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, label, onPick: (tile, dir) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
@@ -2206,6 +2232,30 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const inBoardTurn = phase === "ORDER" || phase === "ACTION" || phase === "ATTACKING";
   // HUD แยกตามช่วง: ช่วงจั่ว = เหลือแค่ไพ่/แต้ม/จั่ว-พอ · ตาเรา = สกิล + ช่องคำสั่ง · อื่นๆ = ดูอย่างเดียว (คนที่กำลังเดินแสดงที่บนกลางแล้ว — ไม่ซ้ำข้างล่าง)
   const hudMode = phase === "PLAYING" ? "draw" : myTurn ? "turn" : "watch";
+  // ---------- ระบบคู่: ปุ่มเลือกตัว (รูปเล็ก 2 ตัวเหนือรูปหลัก) · กดอีกตัว = กระจกเงา (useSkill basic) ----------
+  const duoDone = new Set((state.duo && state.duo.done) || []);
+  const mirrorLocked = !!(me?.skillLocks?.basic?.locked);
+  const canSwitchTo = (u) => !!duoUnits && myTurn && !noSkill && !mirrorLocked && u.id !== me.id && u.alive && !!u.pos && !duoDone.has(u.id);
+  const duoMirror = !!duoUnits && duoUnits.some((u) => u.id !== me?.id && u.alive); // ปุ่มพื้นฐาน = กระจกเงา (ไม่กินโควตา)
+  const duoPick = duoUnits && duoUnits.length > 1 ? duoUnits.map((u) => ({
+    id: u.id,
+    node: <Portrait key={u.id} p={u} className="w-full h-full" rounded="" />,
+    active: u.id === me?.id,
+    done: duoDone.has(u.id),
+    dead: !u.alive,
+    onClick: canSwitchTo(u) ? () => { clickSound(); socket.emit("useSkill", { tier: "basic" }); } : null,
+  })) : null;
+  // ปุ่มหลายตัวเลือก: ตัวเลือกนี้ใช้ได้ตอนนี้ไหม (แต้ม · โควตา · มีเป้าในระยะ · ล็อก)
+  const choiceOk = (c) => !c.locked && !c.active && (me?.skillPoints || 0) >= (c.cost || 0) && (!me?.skillUsed || choiceFree(c)) && !noTargetInRange(c.area);
+  const slotOff = (tier) => {
+    const s = ch?.[tier];
+    if (!myTurn || noSkill || giftLocked(tier)) return true;
+    if (canto && tier !== "basic") return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน
+    if (s?.choices) return !s.choices.some(choiceOk);
+    if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
+    if (tier === "ultimate") return (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || noTargetInRange(s?.area);
+    return (me.skillUsed && !giftFree(tier)) || noTargetInRange(s?.area);
+  };
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
@@ -2251,8 +2301,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           zoom={hudZ}
           panel={
             <HudPanel
-              portrait={<Portrait p={me} className="w-full h-full" rounded="" />}
+              portrait={<Portrait key={me.id} p={me} className="w-full h-full" rounded="" />}
               hexPortrait={true}
+              duo={duoPick}
               name={me.character.name}
               onName={() => { clickSound(); setShowChar(true); }}
               teamId={me.teamId}
@@ -2282,17 +2333,17 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           mode={hudMode}
           center={hudMode === "draw" ? (
             <DrawDock
-              cards={me.cards}
-              score={me.score}
-              busted={me.busted}
+              cards={hand.cards}
+              score={hand.score}
+              busted={hand.busted}
               handRef={selfHandRef}
               draw={{
-                disabled: state.deckEmpty || !(phase === "PLAYING" && me.alive && !done) || me.atCap || noDraw,
+                disabled: state.deckEmpty || !(phase === "PLAYING" && handAlive && !done) || hand.atCap || noDraw,
                 onClick: () => { clickSound(); socket.emit("hit"); },
               }}
               stand={{
-                done: !!me.locked,
-                disabled: !(phase === "PLAYING" && me.alive && !done),
+                done: !!hand.locked,
+                disabled: !(phase === "PLAYING" && handAlive && !done),
                 onClick: () => { clickSound(); socket.emit("lock"); },
               }}
             />
@@ -2301,13 +2352,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !basicFree && !giftFree("basic")) || muimiBasicLocked || giftLocked("basic") || noTargetInRange(ch?.basic?.area)} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
-                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("secondary")) || giftLocked("secondary") || noTargetInRange(ch?.secondary?.area)} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
-                  {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={!myTurn || noSkill || (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || giftLocked("ultimate") || noTargetInRange(ch?.ultimate?.area)} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
+                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
+                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
+                  {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
-              attack={{ disabled: !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
-              shop={nearShop ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
+              attack={{ disabled: canto || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
+              shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
@@ -2336,14 +2387,23 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ---------- modal รายละเอียดตัวละคร / ดูสถานะผู้เล่น / ร้าน / กระเป๋า ---------- */}
       <ModalMounts
         showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
-        statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
+        statusView={statusView} statusViewIsSelf={!!statusView && sameSide(statusView, hand)} onCloseStatus={() => setStatusViewId(null)}
         shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
-        myTurn={myTurn} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
+        myTurn={myTurn && !canto} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
       {hkForms && me?.hikaru && (
         <HikaruForms hikaru={me.hikaru} onClose={() => setHkForms(false)} onPick={(form) => { setHkForms(false); socket.emit("useSkill", { tier: "basic", form }); }} />
+      )}
+      {choiceOpen && ch?.[choiceOpen.tier]?.choices && (
+        <SkillChoices
+          title={ch[choiceOpen.tier].name}
+          choices={ch[choiceOpen.tier].choices}
+          isOk={choiceOk}
+          onClose={() => setChoiceOpen(null)}
+          onPick={(c) => pickChoice(choiceOpen.tier, c)}
+        />
       )}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}

@@ -4,9 +4,12 @@
 import * as Rules from "../../board/boardRules.js";
 
 // ---------- ข้อมูลคงที่ (คัดจาก characters.js / characters/_journey.js / server/constants.js) ----------
+const KE = "/characters/kate_emiliko";
 const IMG = {
   muimi: "/characters/muimi/muimi.webp",
   oberon_summer: "/characters/oberon(summer)/oberon_summer.webp",
+  kate: `${KE}/kate.webp`,
+  emiliko: `${KE}/emiliko.webp`,
 };
 const SKILL_COST_MAX = 8;
 const BASE_MOV = 4; // มุยมิ/โอเบรอน เดิน 4 (GRID_PLAN §5)
@@ -47,6 +50,38 @@ const CHARS = {
       desc: "คูลดาวน์ 5 เทิร์น: 1 คนในระยะเดิน (รวมตัวเอง) โจมตี +4 จนจบตาเดินถัดไปของเป้า · จากนั้นขึ้นเทิร์นใหม่เป้าสตั้น 3 เทิร์น (ต้านได้)",
     },
   },
+};
+
+// ระบบคู่ (?duo=1): เรา = เคท + ตัวที่สอง เอมิลิโกะ (characters/kate_emiliko.js — ปุ่มรองแบบหลายตัวเลือก)
+const MIRROR = { name: "กระจกเงา", cost: 0, img: `${KE}/mirror.jpg`, area: { kind: "self" }, desc: "" };
+const REVIVE = { name: "ตื่นขึ้นอีกครั้ง", cost: 6, img: `${KE}/revive.jpg`, area: { kind: "self" }, desc: "" };
+CHARS.kate = {
+  id: "kate", name: "เคท", img: IMG.kate, passive: { name: "เงาในพายุเขม่า", desc: "" }, passive2: { name: "เคท & เอมิลิโกะ", desc: "" },
+  basic: MIRROR,
+  secondary: {
+    name: "เขม่าควัน", cost: 0, img: `${KE}/whip.jpg`, area: { kind: "self" }, desc: "",
+    choices: [
+      { key: "whip", name: "แส้เขม่า", img: `${KE}/whip.jpg`, cost: 2, area: { kind: "target", range: 3 } },
+      { key: "hold", name: "ดาบเขม่า", img: `${KE}/sword.png`, cost: 0, area: { kind: "self" } },
+      { key: "give", name: "ส่งดาบเขม่า", img: `${KE}/sword.png`, cost: 0, area: { kind: "target", range: 4 } },
+      { key: "wings", name: "ปีกเขม่า", img: `${KE}/wings.jpg`, cost: 4, area: { kind: "line", len: 4, width: 1 } },
+    ],
+  },
+  ultimate: { name: "ระบำเขม่า", cost: 6, img: `${KE}/storm.avif`, area: { kind: "tile", range: 4, place: "any" }, desc: "" },
+};
+const WEAPON_CHOICES = [
+  { key: "mop", name: "ไม้ถูพื้น", img: `${KE}/mop.jpg` },
+  { key: "vase", name: "แจกันใส่น้ำ", img: `${KE}/vase.jpg` },
+  { key: "vacuum", name: "เครื่องดูดฝุ่น", img: `${KE}/vacuum.jpg` },
+];
+CHARS.emiliko = {
+  id: "emiliko", name: "เอมิลิโกะ", img: IMG.emiliko, passive: { name: "กำลังใจเต็มเปี่ยม", desc: "" }, passive2: { name: "เคท & เอมิลิโกะ", desc: "" },
+  basic: MIRROR,
+  secondary: {
+    name: "เครื่องมือทำความสะอาด", cost: 0, img: `${KE}/tools.jpg`, area: { kind: "self" }, desc: "",
+    choices: WEAPON_CHOICES.map((w) => ({ ...w, cost: 0, area: { kind: "self" }, active: w.key === "mop" })),
+  },
+  ultimate: { name: "ร่าเริงสุดๆ", cost: 6, img: `${KE}/cheer.jpg`, area: { kind: "line", len: 4, width: 3 }, desc: "" },
 };
 
 // การเดินทาง 7 ภูมิภาค (characters/_journey.js AREAS)
@@ -237,16 +272,53 @@ function ledger() {
   return out;
 }
 
+// ระบบคู่ (?duo=1): ตัวที่สอง "p0~duo" (เอมิลิโกะ) ข้างเรา + พื้นเปียก 3 ช่อง · corpse=1 = เคทล้ม (ร่างค้าง · คุมเอมิลิโกะ)
+//  masked=1 = เราติด "มองไม่ออก" (หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน)
+function addDuo(s, opts) {
+  const me = s.players.find((p) => p.id === ME);
+  const map = Rules.mapOf(s.board.area);
+  const free = (x, y) => !Rules.isObstacle(map, x, y) && !Rules.isHeal(map, x, y) && !s.players.some((p) => samePos(p.pos, { x, y }));
+  const at = freeNeighbor(s, me.pos) || { x: me.pos.x, y: me.pos.y + 1 };
+  const emi = {
+    ...clone(me), id: `${ME}~duo`, name: "เอมิลิโกะ", img: IMG.emiliko, duoOf: ME, duoWith: null,
+    character: clone(CHARS.emiliko), pos: at, hp: 3, maxHp: 3, armor: 2, maxArmor: 2, mov: 3, baseMov: 3, locked: true, statuses: {}, statusAmt: {},
+  };
+  me.duoWith = emi.id;
+  me.hp = 3; me.maxHp = 3; me.maxArmor = 2; me.maxSkill = 16; me.skillPoints = 10;
+  emi.maxSkill = 16; emi.skillPoints = 10;
+  s.players.splice(1, 0, emi);
+  s.controlId = ME;
+  // พื้นเปียก: แถวว่าง 3 ช่องใต้/เหนือเรา
+  const wet = [];
+  for (const dy of [2, -2, 3, -3]) {
+    const y = me.pos.y + dy, row = [-1, 0, 1].map((dx) => ({ x: me.pos.x + dx, y }));
+    if (row.every((t) => free(t.x, t.y))) { wet.push(...row); break; }
+  }
+  s.board.special = { ...(s.board.special || {}) };
+  for (const t of wet) s.board.special[Rules.key(t.x, t.y)] = "wet";
+  s.board.wet = wet;
+  if (opts.corpse) {
+    me.corpse = { ...me.pos }; me.alive = false; me.pos = null; me.hp = 0; me.armor = 0;
+    emi.character.basic = REVIVE;
+    s.controlId = emi.id;
+  }
+  if (opts.masked) {
+    s.masked = true;
+    for (const p of s.players) if (p.id !== ME && p.duoOf !== ME) Object.assign(p, { masked: true, name: "", img: null, color: "#ffffff" });
+  }
+}
+
 // ตั้งตาเดินให้ actorId (ACTION ยังไม่เดิน)
 function startTurn(s, actorId) {
   const a = s.players.find((p) => p.id === actorId);
   s.gameState = "ACTION";
   s.actorId = actorId;
+  s.duo = a.duoOf || a.duoWith ? { ownerId: a.duoOf || a.id, done: [] } : null;
   s.action = { from: { ...a.pos }, moved: false, locked: false, path: null };
   s.attack = null;
   s.log = [];
   s.timeLeft = 60;
-  s.forecast = forecastFor(s, s.youId);
+  s.forecast = forecastFor(s, s.controlId || s.youId);
   return s;
 }
 
@@ -349,7 +421,8 @@ export function buildMockState(opts) {
   const gameState = scn === "playing" ? "PLAYING" : scn === "order" ? "ORDER" : "ACTION";
   const o = { gameState, area, night, team: !!opts.team };
   const a = AREAS[area - 1];
-  const players = ROSTER.map((r) => playerPublic(r, o));
+  const roster = opts.duo ? ROSTER.map((r) => (r.id === ME ? { ...r, char: "kate" } : r)) : ROSTER;
+  const players = roster.map((r) => playerPublic(r, o));
   // ร้านตั้งครั้งแรกเทิร์น 1 ย้ายทุก 6 เทิร์น
   const round = roundFor(area, night);
   const s = {
@@ -388,6 +461,7 @@ export function buildMockState(opts) {
     players,
   };
   const byId = (id) => s.players.find((p) => p.id === id);
+  if (opts.duo) addDuo(s, opts);
   if (gameState === "ORDER") {
     const names = s.turnOrder.map((id) => byId(id).name);
     s.log = [
@@ -399,7 +473,7 @@ export function buildMockState(opts) {
     ];
   }
   // เรา = ลำดับ 2 (ฟ้าใส 19 แต้มเดินก่อน) · ตาคนอื่น = ตาของฟ้าใส
-  if (scn === "my" || scn === "moved" || scn === "attack" || scn === "collide" || scn === "gun") startTurn(s, ME);
+  if (scn === "my" || scn === "moved" || scn === "attack" || scn === "collide" || scn === "gun") startTurn(s, s.controlId || ME);
   if (scn === "other") startTurn(s, "p1");
   const me = byId(ME);
   if (scn === "moved" || scn === "attack") {
@@ -414,8 +488,9 @@ export function buildMockState(opts) {
     byId("p4").pos = { x: 9, y: 6 };
     s.action.from = { ...me.pos };
   }
-  if (opts.shopNear) s.shopPos = freeNeighbor(s, me.pos) || s.shopPos;
-  if (s.gameState === "ACTION") s.forecast = forecastFor(s, s.youId);
+  if (s.masked) s.turnOrder = [];
+  if (opts.shopNear && me.pos) s.shopPos = freeNeighbor(s, me.pos) || s.shopPos;
+  if (s.gameState === "ACTION") s.forecast = forecastFor(s, s.controlId || s.youId);
   if (scn === "attack") return simulateAttack(s, ME, "p1");
   if (scn === "collide") return simulateAttack(s, ME, "p4");
   if (scn === "gun") return simulateAttack(s, ME, "p1", "thunder"); // ยิงจากระยะ 3 — ฟ้าใสตีถึงแค่ 1 จึงไม่สวน
@@ -425,9 +500,10 @@ export function buildMockState(opts) {
 // จำลองผลของ socket.emit — คืน state ใหม่ ({ state, after }) หรือ null ถ้าไม่รู้จักเหตุการณ์นี้
 //  after = "attack" เมื่อเกิดฉากตีจากการกด (หน้า preview ใช้นับเวลาแล้วไปตาถัดไป)
 export function simulateEmit(prev, ev, payload = {}) {
-  const myTurn = prev.gameState === "ACTION" && prev.actorId === prev.youId && !!prev.action;
+  const ctl = prev.controlId || prev.youId; // ระบบคู่: ตัวที่คุมอยู่ (ไพ่ยังอยู่กับ youId)
+  const myTurn = prev.gameState === "ACTION" && prev.actorId === ctl && !!prev.action;
   const s = clone(prev);
-  const me = s.players.find((p) => p.id === s.youId);
+  const me = s.players.find((p) => p.id === (ev === "hit" || ev === "lock" ? s.youId : ctl));
   const map = Rules.mapOf(s.board.area);
   const lockMove = () => { if (s.action) s.action.locked = true; };
   switch (ev) {
@@ -486,6 +562,24 @@ export function simulateEmit(prev, ev, payload = {}) {
       if (!myTurn) return { state: prev };
       const sk = me.character[payload.tier];
       if (!sk || me.skillPoints < sk.cost) return { state: prev };
+      // ระบบคู่: กระจกเงา = สลับตัว (ไม่กินโควตา ไม่ล็อกเดิน) · ปุ่มหลายตัวเลือก = form
+      const mate = s.players.find((p) => p.id !== me.id && (p.duoOf === me.id || p.id === me.duoOf));
+      if (payload.tier === "basic" && sk.name === MIRROR.name && mate && mate.alive) {
+        if (s.action && s.action.moved) s.action.locked = true;
+        s.controlId = mate.id;
+        s.actorId = mate.id;
+        s.action = { from: { ...mate.pos }, moved: false, locked: false, path: null };
+        return { state: s };
+      }
+      if (payload.form && sk.choices) {
+        const c = sk.choices.find((x) => x.key === payload.form);
+        if (!c || me.skillPoints < c.cost) return { state: prev };
+        if (me.character.id === "emiliko") { for (const x of sk.choices) x.active = x.key === payload.form; return { state: s }; }
+        me.skillPoints -= c.cost;
+        if (mate) mate.skillPoints = me.skillPoints;
+        if (c.cost > 0) { me.skillUsed = true; lockMove(); }
+        return { state: s };
+      }
       me.skillPoints -= sk.cost;
       if (payload.tier !== "basic") me.skillUsed = true;
       lockMove();

@@ -80,8 +80,31 @@ const FILES = {
   is_burst: "/characters/ice_spike/sfx/is_burst.mp3",
   is_regen: "/characters/ice_spike/sfx/is_regen.mp3",
   is_spike_self: "/characters/ice_spike/sfx/is_spike_self.mp3",
+  // เคท & เอมิลิโกะ — สังเคราะห์ด้วยโค้ดทั้งหมด (node scripts/gen-kate-sfx.js · ไม่มีไฟล์ต้นฉบับ) · ตัวเลือก Mixkit ที่ดีกว่า: .claude/plans/kate-emiliko-sfx-candidates.md
+  ke_mirror: "/characters/kate_emiliko/sfx/ke_mirror.mp3",
+  ke_revive: "/characters/kate_emiliko/sfx/ke_revive.mp3",
+  ke_w_mop: "/characters/kate_emiliko/sfx/ke_w_mop.mp3",
+  ke_w_vase: "/characters/kate_emiliko/sfx/ke_w_vase.mp3",
+  ke_w_vacuum: "/characters/kate_emiliko/sfx/ke_w_vacuum.mp3",
+  ke_w_sword: "/characters/kate_emiliko/sfx/ke_w_sword.mp3",
+  ke_sword: "/characters/kate_emiliko/sfx/ke_sword.mp3",
+  ke_whip: "/characters/kate_emiliko/sfx/ke_whip.mp3",
+  ke_wings: "/characters/kate_emiliko/sfx/ke_wings.mp3",
+  ke_storm: "/characters/kate_emiliko/sfx/ke_storm.mp3",
+  ke_storm_tick: "/characters/kate_emiliko/sfx/ke_storm_tick.mp3",
+  ke_masked: "/characters/kate_emiliko/sfx/ke_masked.mp3",
+  ke_hit_mop: "/characters/kate_emiliko/sfx/ke_hit_mop.mp3",
+  ke_hit_vase: "/characters/kate_emiliko/sfx/ke_hit_vase.mp3",
+  ke_hit_vacuum: "/characters/kate_emiliko/sfx/ke_hit_vacuum.mp3",
+  ke_hit_sword: "/characters/kate_emiliko/sfx/ke_hit_sword.mp3",
+  ke_hit_kate: "/characters/kate_emiliko/sfx/ke_hit_kate.mp3",
+  ke_cheer: "/characters/kate_emiliko/sfx/ke_cheer.mp3",
+  ke_splash: "/characters/kate_emiliko/sfx/ke_splash.mp3",
+  ke_slide: "/characters/kate_emiliko/sfx/ke_slide.mp3",
   // Echo: เพลงฉากท่าไม้ตาย "ก่อกำเนิดใหม่" (oc/intro/EchoRebirth — เล่นผ่าน playSceneMusic)
   echo_queen: "/characters/echo/echo_queen_theme.mp3",
+  // เคท: เพลงระหว่างมีม่านแดง (state.skillMusic "kate_storm") — intro ครั้งเดียว → loop วน (MUSIC_SEQUENCES) · ไฟล์ -14.4 LUFS ไม่ต้องลด
+  kate_storm: "/characters/kate_emiliko/kate_theme_intro.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -96,8 +119,11 @@ const FILES = {
   zero_thunder: "/zero_time/thunder.mp3",
 };
 
-// เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (ตอนนี้ยังไม่มีเพลงที่ใช้)
-const MUSIC_SEQUENCES = {};
+// เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (FILES[name] = intro)
+//  intro กับ loop เป็นคนละ element (loop โหลดรอไว้ระหว่าง intro) แล้วสลับก่อน intro จบเล็กน้อย = ต่อกันไม่มีช่องเงียบ (ดู getMusic)
+const MUSIC_SEQUENCES = {
+  kate_storm: ["/characters/kate_emiliko/kate_theme_intro.m4a", "/characters/kate_emiliko/kate_theme_loop.mp3"],
+};
 
 // เพลงที่อยู่กลุ่มเดียวกัน = สลับไฟล์กันแล้ว "เล่นต่อจากตำแหน่งเดิม" (เช่นเพลงกลางวัน/กลางคืนของท่าเดียวกัน)
 //  key = ชื่อเพลงใน FILES · value = ชื่อกลุ่ม — ตอนนี้ยังไม่มีเพลงที่ใช้
@@ -154,7 +180,16 @@ const musicSuspensions = new Set();
 const MUSIC_TRACK_SCALE = {
   // การเดินทาง ภูมิภาค 2 กลางคืน: ไฟล์เบากว่าเพลงอื่น ~5 dB (-19 เทียบ -14 dBFS) — ดันขึ้นให้เท่ากัน (ชนเพดาน volume 1 เมื่อหลอดเสียงสูง)
   journey_2_night: 1.78,
+  // เพลงม่านแดงของเคท: ห้ามมีอะไรกลบ (ผู้ใช้สั่ง) — ดันเต็มหลอด (0.75 × 1.34 ≈ 1 × หลอดเสียง) ดู FEATURED_MUSIC
+  kate_storm: 1.34,
 };
+// เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
+//  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
+const FEATURED_MUSIC = { kate_storm: 0.55 };
+function sfxDuck() {
+  const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
+  return d ?? 1;
+}
 // "หรี่เพลงหลัก" (patch 3.4.2): ระหว่างมีลูปเสียงเฉพาะกิจเล่นอยู่
 //  เพลง BGM ปกติจะถูกหรี่ลงแทนที่จะหยุด เพราะเอฟเฟกต์เพลงใน App.jsx สั่งเล่นซ้ำทุกครั้งที่ state เปลี่ยน
 //  (ถ้าใช้ pause จะถูกสั่ง play() กลับมาทันทีในบรอดแคสต์ถัดไป)
@@ -165,7 +200,7 @@ function musicPath(name) {
   return sequence ? sequence[musicCache[name]?._echoSequenceStage || 0] : FILES[name];
 }
 function trackVolume(name) {
-  return Math.min(1, MUSIC_BASE * pathGain(musicPath(name)) * (MUSIC_TRACK_SCALE[name] ?? 1) * masterGain() * musicDuck);
+  return Math.min(1, MUSIC_BASE * pathGain(musicPath(name)) * (MUSIC_TRACK_SCALE[name] ?? 1) * masterGain() * (FEATURED_MUSIC[name] ? 1 : musicDuck));
 }
 
 // ---------- master volume (จำค่าไว้ใน localStorage) ----------
@@ -200,28 +235,58 @@ let currentMusic = null;
 // -> seq ใหม่ (เปิดท่าครั้งใหม่ / คนอื่นเปิดท่าเพลงเดียวกันทับ) = เริ่มจากต้น
 const musicSeq = {};
 const musicCache = {};
+// เพลง intro → loop (MUSIC_SEQUENCES): สอง element ต่อเพลง [intro, loop] · musicCache[name] = ตัวที่ใช้อยู่ (_echoSequenceStage 0/1)
+const seqEls = {};
+function musicTrack(name, src, loop, stage) {
+  const a = new Audio(src);
+  a.loop = loop;
+  a._echoSequenceStage = stage;
+  a.addEventListener("playing", () => {
+    // A delayed play() must not revive a track after a cutscene or another song took over.
+    if (currentMusic !== name || musicSuspensions.size || musicCache[name] !== a) a.pause();
+  });
+  return a;
+}
+// กลับไปต้น intro (stage 0) / ไปช่วง loop (stage 1)
+function seqStage(name, stage) {
+  const els = seqEls[name];
+  if (!els) return;
+  clearTimeout(els[0]._echoSwap);
+  if (stage === 0) { els[1].pause(); try { els[1].currentTime = 0; } catch { /* ยังไม่มี metadata */ } }
+  musicCache[name] = els[stage];
+}
 function getMusic(name) {
   if (!musicCache[name]) {
     const sequence = MUSIC_SEQUENCES[name];
-    const a = new Audio(sequence ? sequence[0] : FILES[name]);
-    a.loop = !sequence;
-    a._echoSequenceStage = 0;
-    a.addEventListener("playing", () => {
-      // A delayed play() must not revive a track after a cutscene or another song took over.
-      if (currentMusic !== name || musicSuspensions.size) a.pause();
-    });
     if (sequence) {
-      a.addEventListener("ended", () => {
-        if (currentMusic !== name || musicSuspensions.size) return;
-        a._echoSequenceStage = 1;
-        a.src = sequence[1];
-        a.loop = true;
-        a.currentTime = 0;
-        a.volume = trackVolume(name); // ไฟล์ช่วงถัดไปดังไม่เท่าไฟล์แรก
-        playCurrentMusic(name, a);
-      });
+      const intro = musicTrack(name, sequence[0], false, 0), loop = musicTrack(name, sequence[1], true, 1);
+      loop.preload = "auto"; // โหลดรอไว้ระหว่าง intro
+      seqEls[name] = [intro, loop];
+      // ต่อ loop ก่อน intro จบ ~60ms (ปล่อย intro เล่นหางจนจบเอง) — ended ของบางเบราว์เซอร์มาช้า = เงียบเป็นช่วง
+      const toLoop = () => {
+        clearTimeout(intro._echoSwap);
+        if (musicCache[name] !== intro || currentMusic !== name || musicSuspensions.size) return;
+        seqStage(name, 1);
+        try { loop.currentTime = 0; } catch { /* ยังไม่มี metadata */ }
+        loop.volume = trackVolume(name); // ไฟล์ช่วงถัดไปดังไม่เท่าไฟล์แรก
+        playCurrentMusic(name, loop);
+      };
+      // ตั้งเวลาสลับจากเวลาที่เหลือจริง · ตื่นมาแล้วยังไม่ถึง (สะดุดโหลด/กระโดด) = ตั้งใหม่
+      const arm = () => {
+        clearTimeout(intro._echoSwap);
+        if (intro.paused || musicCache[name] !== intro || !isFinite(intro.duration)) return;
+        const left = intro.duration - intro.currentTime;
+        if (left <= 0.08) toLoop();
+        else intro._echoSwap = setTimeout(arm, Math.max(15, (left - 0.06) * 1000));
+      };
+      intro.addEventListener("playing", arm);
+      intro.addEventListener("seeked", arm);
+      intro.addEventListener("pause", () => clearTimeout(intro._echoSwap));
+      intro.addEventListener("ended", toLoop);
+      musicCache[name] = intro;
+    } else {
+      musicCache[name] = musicTrack(name, FILES[name], true, 0);
     }
-    musicCache[name] = a;
   }
   musicCache[name].volume = trackVolume(name);
   return musicCache[name];
@@ -282,7 +347,7 @@ export function suspendMusic() {
 // เพลงทั่วไป (main_home) ไม่ส่ง seq -> เล่นต่อจากจุดเดิม (เฉพาะในแมตช์)
 export function playMusic(name, seq) {
   if (!FILES[name]) return;
-  const a = getMusic(name);
+  let a = getMusic(name);
   // สลับเพลงภายในกลุ่มเดียวกัน (MUSIC_POSITION_GROUPS): จำตำแหน่งเพลงเดิมไว้เล่นต่อ
   const group = MUSIC_POSITION_GROUPS[name];
   let carryPos = null;
@@ -294,12 +359,7 @@ export function playMusic(name, seq) {
   const isNewSeq = seq != null && seq !== musicSeq[name];
   if (isNewSeq) {
     musicSeq[name] = seq;
-    const sequence = MUSIC_SEQUENCES[name];
-    if (sequence && a._echoSequenceStage !== 0) {
-      a.src = sequence[0];
-      a.loop = false;
-      a._echoSequenceStage = 0;
-    }
+    if (seqEls[name] && a._echoSequenceStage !== 0) { seqStage(name, 0); a = getMusic(name); } // intro → loop: กลับไปต้น intro
     a.currentTime = 0; // การเปิดร่างครั้งใหม่ (กดใหม่/โดนคนอื่นทับ) -> เริ่มจากต้น
   }
   if (carryPos != null) {
@@ -320,8 +380,10 @@ export function stopMusicExcept(keep) {
   for (const [name, a] of Object.entries(musicCache)) {
     if (name === keep) continue;
     if (!a.paused) a.pause();
+    if (seqEls[name]) for (const el of seqEls[name]) if (!el.paused) el.pause(); // หาง intro ที่ยังเล่นอยู่หลังต่อ loop
   }
   if (currentMusic !== keep) currentMusic = musicCache[keep] ? keep : null;
+  if (loopSfx) loopSfx.volume = loopVolume(loopSfx._echoName); // เพลงเด่นเริ่ม/จบ = ลูปเสียงเบาลง/กลับปกติ
 }
 export function stopMusic() {
   stopMusicExcept(null);
@@ -331,13 +393,8 @@ export function resetMusicPositions() {
   stopLoopSfx();
   for (const [name, a] of Object.entries(musicCache)) {
     a.pause();
-    const sequence = MUSIC_SEQUENCES[name];
-    if (sequence) {
-      a.src = sequence[0];
-      a.loop = false;
-      a._echoSequenceStage = 0;
-    }
-    a.currentTime = 0;
+    if (seqEls[name]) { seqEls[name][0].pause(); seqStage(name, 0); }
+    musicCache[name].currentTime = 0;
   }
   for (const k of Object.keys(musicSeq)) delete musicSeq[k];
   currentMusic = null;
@@ -383,11 +440,18 @@ export function prewarmSfx(names) {
   }
 }
 
+// โหลดเพลงไว้ล่วงหน้า (ยังไม่เล่น) — เพลงไฟล์ใหญ่ที่ต้องดังทันทีตอนเริ่มฉาก (เพลงม่านแดงของเคท: intro + loop)
+export function prewarmMusic(name) {
+  if (FILES[name]) getMusic(name);
+}
+
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
-export function playSfx(name) {
+//  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
+export function playSfx(name, opts) {
   if (!FILES[name]) return null;
   const a = takeVoice(name);
-  const base = name === "action_button" ? CLICK_BASE : SFX_BASE * soundGain(name);
+  const gain = opts && Number.isFinite(opts.gain) ? Math.max(0, opts.gain) : 1;
+  const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * soundGain(name) * gain * sfxDuck());
   a.volume = base * masterGain();
   a._echoPlay = ++playSeq;
   activeSfx.set(a, base);
@@ -432,7 +496,7 @@ export function installClickSound(root = typeof document !== "undefined" ? docum
 //  ระหว่างเล่น เพลงหลักจะถูกหรี่ลงเหลือ DUCK_LEVEL แทนการหยุด — ดูคอมเมนต์ที่ musicDuck
 const DUCK_LEVEL = 0.25;
 // ลูปเสียงเฉพาะกิจทำหน้าที่แทนเพลงประกอบ -> ใช้ระดับเดียวกับเพลง
-function loopVolume(name) { return MUSIC_BASE * soundGain(name) * masterGain(); }
+function loopVolume(name) { return MUSIC_BASE * soundGain(name) * masterGain() * sfxDuck(); }
 export function startLoopSfx(name) {
   if (!FILES[name]) return null;
   stopLoopSfx();

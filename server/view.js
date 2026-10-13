@@ -149,7 +149,8 @@ function buildStateFor(viewerId) {
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
     cutscene: (match.gameState === "CUTSCENE" && match.cutsceneInfo && (!match.cutsceneInfo.onlyFor || match.cutsceneInfo.onlyFor.includes(viewerId)))
       ? match.cutsceneInfo : null,
-    attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
+    // ฉากตีที่ผู้ชมมองไม่เห็นทั้งคนตีและเป้า (สู้กันในม่านแดง / พุ่มหญ้า) = ไม่ส่ง
+    attack: match.gameState === "ATTACKING" && !attackUnseen(viewer, match.lastAttack) ? match.lastAttack : null,
     dash: match.dash, // การพุ่งล่าสุดบนกระดาน (โซระ: Mouse Separade) — client เล่นตาม seq ใหม่
     log: masked ? [] : ((match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : []),
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
@@ -331,4 +332,11 @@ function takenUniqueChars() {
       .filter((p) => (CHAR_BY_ID[p.characterId] || {}).unique)
       .map((p) => p.characterId)
   )];
+}
+// ผู้ชมมองไม่เห็นทั้งคนตีและเป้าของฉากตีนี้ (ม่านแดงของเคท — สู้กันข้างในคนนอกไม่เห็น)
+function attackUnseen(viewer, card) {
+  if (!viewer || !card || !card.byId || !card.targetId) return false;
+  const by = match.players[card.byId], t = match.players[card.targetId];
+  if (!by || !t) return false;
+  return Visibility.hiddenFrom(viewer, by) && Visibility.hiddenFrom(viewer, t);
 }

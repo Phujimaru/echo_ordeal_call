@@ -621,6 +621,31 @@ export function bakeSpecial(g, sp, ctx) {
       g.restore();
       return;
     }
+    case "wet": {
+      // พื้นเปียก (แจกันใส่น้ำของเอมิลิโกะ): แอ่งน้ำขอบไม่เรียบบนพื้นเดิม + ขอบเข้ม + แถบเงามัน
+      const R = rng(x * 41 + y * 73 + 11), pts = [];
+      for (let k = 0; k < 10; k++) {
+        const an = k / 10 * TAU, rr = 0.36 + R() * 0.1;
+        pts.push([x + 0.5 + Math.cos(an) * rr, y + 0.5 + Math.sin(an) * rr * 0.92]);
+      }
+      gPoly(g, pts);
+      const a = P(x, y), b = P(x + 1, y + 1), gr = g.createLinearGradient(a[0], a[1], b[0], b[1]);
+      gr.addColorStop(0, night ? "rgba(96,150,210,.62)" : "rgba(150,212,245,.7)");
+      gr.addColorStop(1, night ? "rgba(48,92,150,.7)" : "rgba(86,160,214,.72)");
+      g.fillStyle = gr; g.fill();
+      g.strokeStyle = night ? "rgba(20,44,80,.55)" : "rgba(40,96,150,.45)"; g.lineWidth = 1.5; g.stroke();
+      // หยดน้ำกระเซ็นรอบแอ่ง
+      g.fillStyle = night ? "rgba(110,160,215,.55)" : "rgba(140,205,240,.7)";
+      for (let i = 0; i < 4; i++) {
+        const an = R() * TAU, p = P(x + 0.5 + Math.cos(an) * 0.46, y + 0.5 + Math.sin(an) * 0.44);
+        g.beginPath(); g.ellipse(p[0], p[1], p[2] * 0.035, p[2] * 0.02, 0, 0, TAU); g.fill();
+      }
+      g.save(); gPoly(g, pts); g.clip();
+      g.strokeStyle = night ? "rgba(220,240,255,.45)" : "rgba(255,255,255,.75)"; g.lineWidth = Math.max(1.5, s * 0.045);
+      const p0 = P(x + 0.28, y + 0.5), p1 = P(x + 0.5, y + 0.28); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
+      g.restore();
+      return;
+    }
     case "lava": {
       quad(g, x, y, 0.01);
       const gr = g.createRadialGradient(cx, cy, 0, cx, cy, s * 0.62);
@@ -729,6 +754,19 @@ export function animSpecial(g, sp, ctx, t) {
       const u = ph * 1.6 - 0.3, p0 = P(x + u - 0.3, y + 1), p1 = P(x + u + 0.3, y);
       g.strokeStyle = `rgba(255,255,255,${0.6 * Math.sin(ph * Math.PI)})`; g.lineWidth = s * 0.12; g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
       g.restore();
+      return;
+    }
+    case "wet": {
+      // พื้นเปียก: วงน้ำกระเพื่อมขยายเป็นระยะ + ประกายบนผิวน้ำ (lowQ = นิ่ง)
+      if (lowQ) return;
+      const ph = (t / 2400 + x * 0.29 + y * 0.17) % 1.6;
+      if (ph < 1) {
+        g.strokeStyle = night ? `rgba(200,230,255,${0.5 * (1 - ph)})` : `rgba(255,255,255,${0.7 * (1 - ph)})`; g.lineWidth = 1.3;
+        gEllipse(g, x + 0.5, y + 0.5, 0.06 + ph * 0.3, 0, 24); g.stroke();
+      }
+      const tw = 0.5 + 0.5 * Math.sin(t / 520 + x * 2.1 + y * 1.3);
+      const sp = P(x + 0.4, y + 0.38);
+      g.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * tw})`; g.beginPath(); g.arc(sp[0], sp[1], Math.max(1.2, sp[2] * 0.025), 0, TAU); g.fill();
       return;
     }
     case "lava": {

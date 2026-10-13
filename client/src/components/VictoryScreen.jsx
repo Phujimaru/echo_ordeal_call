@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { clickSound } from "../audio";
 import { faceStyle } from "../board/charFace";
+import { rosterAlive } from "../duo";
 import "./victory.css";
 
 // หน้าจบเกม (ORDEAL CALL) — ออกแบบบนเวที 1920 × 1080 แล้วย่อ/ขยายด้วย --k (พื้นหลัง/ขีดมุมเต็มจอจริง)
@@ -105,19 +106,21 @@ export default function VictoryScreen({ state, onBackToLobby }) {
     []
   );
 
+  // ระบบคู่: ตัวที่สองไม่ใช่ผู้เล่นแยก · เจ้าของที่ล้มแต่คู่ยังรอด = ยังรอด
+  const players = useMemo(() => rosterAlive(state.players), [state.players]);
   const { heading, winners } = useMemo(() => {
     if (state.gameMode !== "ffa" && state.winningTeamId) {
-      const ws = state.players.filter((p) => p.alive && p.teamId === state.winningTeamId);
+      const ws = players.filter((p) => p.alive && p.teamId === state.winningTeamId);
       return { heading: `ทีม ${state.winningTeamId}`, winners: ws };
     }
-    const c = state.players.find((p) => p.alive);
+    const c = players.find((p) => p.alive);
     return { heading: c ? c.name : "จบเกม", winners: c ? [c] : [] };
-  }, [state.gameMode, state.winningTeamId, state.players]);
+  }, [state.gameMode, state.winningTeamId, players]);
 
   // คนที่เหลือ: รอดก่อน แล้วตามที่นั่ง · โหมดทีม = จัดกลุ่มตามทีม (ทีมที่ชนะก่อน)
   const groups = useMemo(() => {
     const winIds = new Set(winners.map((p) => p.id));
-    const rest = state.players
+    const rest = players
       .filter((p) => !winIds.has(p.id))
       .sort((a, b) => (b.alive ? 1 : 0) - (a.alive ? 1 : 0) || (a.position || 0) - (b.position || 0));
     const teamMode = state.gameMode !== "ffa" && rest.some((p) => p.teamId);
@@ -126,7 +129,7 @@ export default function VictoryScreen({ state, onBackToLobby }) {
       (b === state.winningTeamId ? 1 : 0) - (a === state.winningTeamId ? 1 : 0) || String(a).localeCompare(String(b))
     );
     return ids.map((id) => ({ id, players: rest.filter((p) => (p.teamId || "") === id) }));
-  }, [state.players, state.gameMode, state.winningTeamId, winners]);
+  }, [players, state.gameMode, state.winningTeamId, winners]);
 
   const lay = WIN_LAYOUT[Math.min(3, Math.max(1, winners.length))];
   const wGap = winners.length > 3 ? Math.min(lay.gap, 1500 / (winners.length - 1)) : lay.gap;

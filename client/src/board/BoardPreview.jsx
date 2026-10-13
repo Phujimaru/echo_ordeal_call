@@ -10,11 +10,16 @@
 //  คอนโซล: window.__boardFocus(x, y) = ส่ง focus ให้ BoardCanvas (มุมใกล้เลื่อนตามถ้าช่องนั้นอยู่นอกจอ)
 //   window.__boardFx([{ kind: "beam", x, y, dir: "up", len: 6, color: "#ff5fb4" }]) = เล่นเอฟเฟกต์ (เช่นลำแสง Beam Magnum)
 //   window.__boardCloak(id, true) = วาดตัวละครนั้นแบบซ่อนตัว (เงาจาง)
+//   ?storm=1 / ปุ่ม "ระบำเขม่า" = ฉากร่าย + ม่านแดง 8×8 (เคท) · window.__kateStorm(x, y) ร่ายรอบช่อง (x, y) · window.__kateStormClear() = ม่านหาย (จาง)
+//   ปุ่ม "มองจากนอก" = ผู้ร่ายเป็นศัตรู (ตัวเรา "me" ยืนนอกม่าน → เห็นโดมเขม่าทึบ) · ปิด = เราเป็นผู้ร่าย (เห็นข้างใน) · ?stormout=1
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง + คุก 5×5 (Ice Spike) · window.__boardIce({ lv, prisons }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
+import KateStorm from "../oc/intro/KateStorm";
+import { castStorm } from "./sootStorm";
 import { MAPS } from "./boardRules";
+import ShadowFxDev from "./ShadowFxDev"; // ?ke=1 = ปุ่มเล่นเอฟเฟกต์เคท & เอมิลิโกะ
 
 const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
 const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "Z1", "Z2", "Z3", "Z4"];
@@ -96,7 +101,9 @@ const MOV = 4;
 const Q = new URLSearchParams(location.search);
 const qInt = (name, lo, hi, def) => { const v = parseInt(Q.get(name), 10); return v >= lo && v <= hi ? v : def; };
 
-const initialUnits = () => [
+const KE_DEV = Q.get("ke") === "1";
+const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : baseUnits());
+const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
   { id: "p3", name: "มุยมิ (บอท)", img: MUIMI, color: "#9B4F96", x: 11, y: 5, hp: 7, maxHp: 7, armor: 3, maxArmor: 3, tag: "แตก" },
@@ -391,6 +398,24 @@ export default function BoardPreview() {
     pickups: [{ x: 7, y: 11 }],
   } : null), [zeroStage]);
   const [zeroScene, setZeroScene] = useState(null);
+  // ม่านแดง (เคท): ฉากร่าย + ม่านบนกระดาน · กล้องซูมตามฉาก (prop cinema)
+  const [storms, setStorms] = useState(null);
+  const [stormOut, setStormOut] = useState(() => Q.get("stormout") === "1");
+  const toggleStormOut = () => { const v = !stormOut; setStormOut(v); setStorms((ss) => (ss ? ss.map((x) => ({ ...x, owner: v ? "foe" : "me" })) : ss)); };
+  const [cinema, setCinema] = useState(null);
+  const castDemo = (cx = Math.floor(map.cols / 2), cy = Math.floor(map.rows / 2)) => {
+    const r = { x0: Math.max(0, cx - 4), y0: Math.max(0, cy - 4), x1: Math.min(map.cols - 1, cx + 3), y1: Math.min(map.rows - 1, cy + 3) };
+    castStorm({ by: "me", ...r, center: { x: cx, y: cy } });
+    setStorms([{ ...r, owner: stormOut ? "foe" : "me", left: 3 }]);
+  };
+  const castRef = useRef(castDemo);
+  useEffect(() => { castRef.current = castDemo; });
+  useEffect(() => {
+    window.__kateStorm = (x, y) => castRef.current(x, y);
+    window.__kateStormClear = () => setStorms(null);
+    if (Q.get("storm") === "1") { const t = setTimeout(() => castRef.current(), 600); return () => { clearTimeout(t); delete window.__kateStorm; delete window.__kateStormClear; }; }
+    return () => { delete window.__kateStorm; delete window.__kateStormClear; };
+  }, []);
   useEffect(() => {
     window.__zeroScene = (mode = "enter", seal = 0) => setZeroScene((z) => ({ seq: (z ? z.seq : 0) + 1, mode, stage: zeroStage || 1, seal }));
     window.__zeroBolt = () => setFx((f) => [...f, { key: "bolt" + Date.now(), kind: "zeroBolt", tiles: [{ x: 3, y: 4 }, { x: 8, y: 9 }, { x: 11, y: 2 }] }]);
@@ -416,6 +441,8 @@ export default function BoardPreview() {
         fx={fx}
         zero={zeroMock}
         zeroScene={zeroScene}
+        storms={storms}
+        cinema={cinema}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
@@ -438,7 +465,11 @@ export default function BoardPreview() {
         <button style={btn(mode === "skill")} onClick={() => setMode("skill")}>สกิล ระยะ 3</button>
         <button style={btn(mode === "aoe")} onClick={() => setMode("aoe")}>ตีหมู่ รอบตัว 5</button>
         <button style={btn(false)} onClick={reset}>รีเซ็ต</button>
+        <button style={btn(!!storms)} onClick={() => (storms ? setStorms(null) : castDemo())}>ระบำเขม่า</button>
+        <button style={btn(stormOut)} onClick={toggleStormOut}>มองจากนอก</button>
       </div>
+      <KateStorm lowQ={lowQ} onCinema={setCinema} />
+      {KE_DEV && <ShadowFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>
         <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""} · {map.cols} × {map.rows}{zoom ? " · มุมใกล้" : ""}</div>
         <div>คนเดิน: <b>{actor.name}</b> (เดิน {MOV}) · โหมด: {mode === "move" ? "เดิน" : mode === "skill" ? "สกิลระยะ 3" : "ตีหมู่ 5"}</div>

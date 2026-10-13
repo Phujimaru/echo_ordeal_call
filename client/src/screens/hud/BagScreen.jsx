@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { shopInfoOf } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
+import { sameSide } from "../../duo";
 
 function useStageK() {
   const calc = () => Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -41,7 +42,8 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   const suitOut = me?.mark42Owned || null;
   const suitWearer = suitOut ? (players || []).find((p) => p.id === suitOut.wearerId) : null;
   const ammoItems = items.filter((it) => it.type === "gutsAmmo");
-  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && !(me?.teamId && p.teamId === me.teamId));
+  // เป้ายิง = ศัตรู (ไม่นับอีกตัวของระบบคู่ฝ่ายเรา)
+  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && !sameSide(p, me) && !(me?.teamId && p.teamId === me.teamId));
   const canFire = myTurn && (me?.gutsShotTurn || 0) !== roundNumber && ammoItems.length > 0 && targets.length > 0;
 
   const emit = (ev, data) => { clickSound(); socket.emit(ev, data); };

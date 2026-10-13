@@ -7,6 +7,8 @@
 //               (= state.board · heal รับได้ทั้ง array ของ "x,y" / [x,y] / {x,y} และ Set · ชนิดสิ่งกีดขวางที่ไม่รู้จัก = ก้อนหิน)
 //   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive?, alpha?, cloak? }]
 //               cloak = ซ่อนจากศัตรูอยู่ (เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน) → วาดจางแบบเงา + แถบแสงพาดช้าๆ
+//               wings = เคทยืนในม่านแดงของตัวเอง → ปีกเขม่ากางค้างหลังหมาก (shadowFx.js drawIdleWings) · fx ke* ย้ายหมากเองได้ (shadowPose)
+//               masked = ผู้ชมติด "มองไม่ออก" → หมากขาวล้วน ไม่มีรูป/ชื่อ/แถบเลือด · corpse = ร่างล้มของระบบคู่ (เงาราบบนช่อง)
 //               tag = ป้ายเหนือหัว: "18" / "พอ" / "แตก" (แตก = ป้ายแดง) หรือ { text, bust, backs } · alive === false = ไม่วาด
 //   highlights  { move, attack, skill, aoe, danger: ["x,y"…], path: [{x,y}…], target?: {x,y}, push?: { from, to, collide } } — ไม่ใส่ได้ทุกช่อง
 //   shopPos     {x,y} | null — แผงร้านค้ามายา
@@ -40,6 +42,7 @@
 //   zero        state.zero (ห่วงเวลาซีโร่: { stage, seals, pickups }) — ผนึก/โซ่/ของฟื้นพลังชีวิตบนสนาม area 8–11
 //   zeroScene   { seq, mode: "enter"|"break"|"release", stage, seal } | null — seq ใหม่ = เล่นฉากเปลี่ยนผ่าน:
 //               จับภาพเฟรมล่าสุดไว้ (สนามเดิม) แล้วเผยเฟรมใหม่ใต้คลื่น (เข้า/เปลี่ยนเฟส) หรือแตกเป็นเศษกระจก (ปลดผนึก) — zeroTheme.js
+//   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
 //   ป้ายที่ต้องเกาะช่องให้วาดในแคนวาสแทน (เช่น shopLabel)
@@ -53,6 +56,8 @@ import {
 import { boardPaused } from "./boardPause";
 import { hkBeamHitMs } from "./hikaruFx";
 import { iceShakeOffset } from "./iceFx";
+import { shadowPose } from "./shadowFx";
+import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
 } from "./zeroTheme";
@@ -517,12 +522,15 @@ export default function BoardCanvas(props) {
             if ((u.x === an.startX && u.y === an.startY) || (u.x === fin.x && u.y === fin.y)) { rx = fin.x; ry = fin.y; }
           }
         }
+        // ฉากของเคท & เอมิลิโกะ (บิน/ถูกดึง/พุ่ง/ฟื้น) ย้ายหมากเอง — ทับแอนิเมชันอื่น
+        const sp = u.corpse ? null : shadowPose(st.fxActive, u.id, now);
+        if (sp) { rx = sp.x; ry = sp.y; ox = 0; oy = 0; hz = sp.hz || 0; sq = sp.sq || 0; }
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
         const any = (set) => { if (us <= 1) return set.has(k); for (let dy = 0; dy < us; dy++) for (let dx = 0; dx < us; dx++) if (set.has(key(u.x + dx, u.y + dy))) return true; return false; };
         let reticle = null, alpha = u.alpha == null ? 1 : u.alpha;
         if (u.cloak) alpha *= lowQ || reducedMotion() ? 0.45 : 0.45 + 0.06 * Math.sin(now / 420);
-        if (!u.isMe && !u.isActor) {
+        if (!u.isMe && !u.isActor && !u.corpse) {
           if (any(hl.aoe)) reticle = "aoe";
           else if (any(hl.skill)) reticle = "skill";
           else if (any(hl.attack) || (hl.target && hl.target.x === u.x && hl.target.y === u.y)) reticle = "attack";
@@ -531,12 +539,17 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
+          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
+          masked: !!u.masked, corpse: !!u.corpse, // มองไม่ออก = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
           grow: (() => { const gr = st.grow.get(u.id); if (gr && now - gr.t0 > GROW_MS) { st.grow.delete(u.id); return null; } return gr || null; })(),
           hovered: !!hov && st.hoverUnit === u.id,
         });
+        // เคท: wings = ปีกค้างในม่านแดง · fly = กำลังบิน (ไม่มีแท่งต่อลงพื้น) · alpha ของฉากฟื้น
+        const lu = list[list.length - 1];
+        if (u.wings) lu.wings = true;
+        if (sp) { if (sp.fly) lu.fly = true; if (sp.alpha != null) lu.alpha *= sp.alpha; }
       }
 
       // --- ฉากห่วงเวลาซีโร่: seq ใหม่ = จับภาพเฟรมล่าสุด (สนามก่อนเปลี่ยน) ไว้ก่อนวาดเฟรมใหม่
@@ -554,13 +567,15 @@ export default function BoardCanvas(props) {
 
       if (paused) return;
       // จอสั่นของ Ice Spike: เลื่อนภาพทั้งเฟรม (ไม่กระทบการเลือกช่อง — st.view ยังเป็นมุมจริง)
-      const shk = iceShakeOffset(st.fxActive, now, lowQ);
+      const shk = iceShakeOffset(st.fxActive, now, lowQ) || stormShakeOffset(now, lowQ);
+      // ม่านแดง (เคท): จำม่านที่หายไว้เล่นตอนจาง — sootStorm.js
+      const storms = syncStorms(st.stormMem || (st.stormMem = new Map()), p.storms, list, now);
       //  ขยาย 3% รอบกลางจอระหว่างสั่น — ขอบภาพไม่โผล่
       const dView = shk ? { ...view, k: view.k * 1.03, ox: w / 2 + (view.ox - w / 2) * 1.03 + shk[0] * view.k, oy: h / 2 + (view.oy - h / 2) * 1.03 + shk[1] * view.k } : view;
       const frame = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms,
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

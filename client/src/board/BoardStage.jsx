@@ -27,7 +27,10 @@ import { faceStyle } from "./charFace";
 import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
+import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
+import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
+import KateStorm from "../oc/intro/KateStorm";
 import "./boardStage.css";
 
 const key = (x, y) => `${x},${y}`;
@@ -91,7 +94,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   const shopPos = state.shopPos || null;
-  const blocked = useMemo(() => (shopPos ? new Set([key(shopPos.x, shopPos.y)]) : null), [shopPos]);
+  // ร่างของตัวที่ล้ม (ระบบคู่ — p.corpse): ขวางช่อง เดินข้ามได้ หยุดทับไม่ได้ → อยู่ทั้งใน blocked และ hop (ตรงกับ server)
+  const corpseSig = state.players.filter((p) => p.corpse && Number.isFinite(p.corpse.x) && Number.isFinite(p.corpse.y)).map((p) => `${p.id}@${key(p.corpse.x, p.corpse.y)}`).join("|");
+  const corpses = useMemo(() => (corpseSig ? corpseSig.split("|").map((s) => { const [id, k] = s.split("@"); const [x, y] = k.split(",").map(Number); return { id, x, y }; }) : []), [corpseSig]);
+  const hop = useMemo(() => (corpses.length ? new Set(corpses.map((c) => key(c.x, c.y))) : null), [corpses]);
+  const blocked = useMemo(() => {
+    if (!shopPos && !hop) return null;
+    const b = new Set(hop || []);
+    if (shopPos) b.add(key(shopPos.x, shopPos.y));
+    return b;
+  }, [shopPos, hop]);
   const night = state.cycle === "night";
 
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
@@ -104,14 +116,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) } : null);
   // ตัวเลือกของกติกาเดินต่อคน: smash = ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (server ส่งมา)
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
-  const optsOf = (p) => ({ isAlly, blocked, smash: !!(p && p.smash), lane: !!(p && p.lane) });
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane) });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
-  const isEnemy = (p) => !!p && !!me && p.id !== me.id && !(teamMode && me.teamId && p.teamId === me.teamId);
+  const isEnemy = (p) => !!p && !!me && p.id !== me.id && !sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId);
 
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
   const canMove = myTurn && !action.moved && !action.locked;
+  const canto = myTurn && !!action.canto; // เอมิลิโกะเดินต่อหลังจบตา: เดินได้อย่างเดียว (ตีไม่ได้)
+  const masked = !!state.masked; // ผู้ชมติด "มองไม่ออก": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
 
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
   const [hover, setHover] = useState(null);
@@ -210,7 +224,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
-    if (!myTurn || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
+    if (!myTurn || canto || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
@@ -235,7 +249,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
     }
     return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
-  }, [myTurn, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, canto, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : null), [planFor, hoverUnit, hoverSeal, hoverSpike]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
@@ -351,6 +365,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const dashSkip = useRef({});
   const seeded = useRef(false);
   const hkPushTo = useRef({}); // ไรโด ฮิคารุ (Strium Ray): id → { from, to } ปลายทางที่ถูกผลัก (มาก่อน state ใหม่)
+  const shadowBusy = useRef({}); // เคท & เอมิลิโกะ: id → เวลา (performance.now) ที่ฉาก shadowFx ย้ายตัวนี้เองจบ — ไม่เลื่อน/ไม่ไถลซ้ำ
+  const isShadowBusy = (id) => (shadowBusy.current[id] || 0) > performance.now();
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
@@ -380,6 +396,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const freshDash = dash && dash.seq !== seenDash.current && Array.isArray(dash.path) && dash.path.length && dash.id != null ? dash : null;
     if (dash) seenDash.current = dash.seq;
     const anims = [];
+    // ระบบคู่: ตัวที่ล้มแต่อีกตัวของฝ่ายยังรอด = ยังไม่ตกรอบ (ไม่ขึ้นป้าย "ตกรอบ")
+    const sideStays = (id) => { const t = state.players.find((p) => p.id === id); return !!t && sideAlive(t, state.players); };
     // Ice Spike: คนที่อยู่ในเหตุการณ์ iceFx ที่กำลังเล่น (หรือยังรอ state ผลสุดท้าย) — ไม่เลื่อน/ไม่ขึ้นเลข/ไม่ระเบิดซ้ำ (เล่นจากเหตุการณ์แทน)
     const ir = iceRun.current, iceIds = ir && (ir.active || !ir.gotState) ? ir.ids : null;
     const iceSkip = (id) => !!iceIds && iceIds.has(id);
@@ -560,12 +578,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             ...extras.flatMap((e) => [
               e.dodge ? { kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor } : hk ? { kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] } : { kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor },
               { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
-              ...(e.kill ? [{ kind: "float", x: e.at.x, y: e.at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22, z: lowQ ? 2.4 : 1.5 }] : []),
+              ...(e.kill && !sideStays(e.targetId) ? [{ kind: "float", x: e.at.x, y: e.at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22, z: lowQ ? 2.4 : 1.5 }] : []),
             ]),
             { kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.gun ? 20 : a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 },
             // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
             ...(a.crit && !a.dodge && !a.gun ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
-            ...(a.kill && !sealT && !spikeT ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(a.kill && !sealT && !spikeT && !sideStays(a.targetId) ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) {
             setIceLv((m) => { if (!m || !(spikeK in m)) return m; const n = { ...m }; delete n[spikeK]; return Object.keys(n).length ? n : null; });
@@ -651,7 +669,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     //  ถูก Strium Ray ผลัก (server แจ้งปลายทางมาก่อนทาง hikaruPush) = เลื่อนไปไกลเท่าไรก็ได้
     for (const p of state.players) {
       const before = prevPos.current[p.id], now = nextPos[p.id];
-      if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || iceSkip(p.id) || anims.some((a) => a.id === p.id)) continue;
+      if (!before || !now || samePos(before, now) || involved.has(p.id) || dashMoved.has(p.id) || iceSkip(p.id) || isShadowBusy(p.id) || anims.some((a) => a.id === p.id)) continue;
       const hp = hkPushTo.current[p.id];
       if (hp && samePos(now, hp.to)) {
         delete hkPushTo.current[p.id];
@@ -803,6 +821,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
       if ((ev.kind === "spike" || ev.kind === "spikeUp" || ev.kind === "spikeDown") && ok(ev)) noteLv(ev.x, ev.y);
       if (ev.kind === "lay") for (const t of pts(ev.tiles)) noteIce(t);
+      // พื้นเปียก (เอมิลิโกะ): ช่องเปียกใหม่ซ่อนไว้จนน้ำกระเซ็นถึง · ช่องที่ถูแห้งยังเปียกจนไม้ถูผ่าน
+      if (ev.kind === "wet" || ev.kind === "dry") for (const t of pts(ev.tiles)) {
+        const k = key(t.x, t.y), was = (bd.special || {})[k] || null;
+        if (!(k in mask) && (ev.kind === "wet" ? was !== "wet" : was === "wet")) mask[k] = ev.kind === "wet" ? was : "wet";
+      }
       if (ev.kind === "prison") { for (const t of pts(ev.ice)) noteIce(t); for (const t of pts(ev.ring)) noteLv(t.x, t.y); }
     }
     Object.assign(run.lv, lvMap);
@@ -860,8 +883,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (cur && path.length && !samePos(cur, path[0])) path = [cur, ...path];
           if (path.length < 2 || !cur) { if (path.length) run.pos[id] = path[path.length - 1]; return 0; }
           const end = path[path.length - 1], dur = iceTrailDur(path, ICE_T.slideStep);
-          pushFx([{ kind: "iceTrail", path, step: ICE_T.slideStep, dur, len: dur }]);
-          sfx(pick2("is_slide_1", "is_slide_2"));
+          // ฉาก shadowFx ย้ายตัวนี้อยู่แล้ว (แส้เขม่าพุ่ง) = ไม่ไถลซ้ำ
+          if (isShadowBusy(id)) { run.pos[id] = end; setIceHold((h) => ({ ...h, [id]: end })); return 0; }
+          // ไถลบนพื้นเปียก / เอมิลิโกะถือไม้ถูพื้น = ทางน้ำ (เสียงไม้ถูพื้น server เล่นเอง)
+          const spOf = (b, t) => ((b && b.special) || {})[key(t.x, t.y)];
+          const mopper = byIdRef.current[id] && byIdRef.current[id].shadow && byIdRef.current[id].shadow.weapon === "mop";
+          const water = path.some((t) => spOf(bd, t) === "wet" || spOf(boardRef.current, t) === "wet") || (mopper && !path.some((t) => spOf(bd, t) === "ice"));
+          pushFx([{ kind: water ? "keWetTrail" : "iceTrail", path, step: ICE_T.slideStep, dur, len: dur }]);
+          if (!water) sfx(pick2("is_slide_1", "is_slide_2"));
+          else if (!mopper) sfx("ke_slide");
           face(id, path[path.length - 2], end);
           look(end);
           return enqueue({ kind: "move", id, path, stepMs: ICE_T.slideStep }, end);
@@ -875,9 +905,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
           if (!at) return 0;
           const dmg = Math.max(0, ev.dmg | 0);
-          pushFx([{ kind: "iceHit", x: at.x, y: at.y, dmg, max: !!ev.max, hitIds: id != null ? [id] : [] }]);
+          const mop = ev.style === "mop"; // ไม้ถูพื้นไถลชน (เอมิลิโกะ)
+          pushFx([{ kind: mop ? "keMopHit" : "iceHit", x: at.x, y: at.y, dmg, max: !!ev.max, hitIds: id != null ? [id] : [] }]);
           if (dmg > 0) float(at, `-${dmg}`, ev.max ? "#d8f2ff" : undefined, 0, ev.max ? 40 : 30);
-          sfx(ev.max ? "is_hit_max" : pick2("is_hit", "is_hit_alt"));
+          sfx(mop ? "ke_hit_mop" : ev.max ? "is_hit_max" : pick2("is_hit", "is_hit_alt"));
           shake(2.5 + dmg * 1.8 + (ev.max ? 4 : 0));
           if (ev.max && !lowQ) setShake((n) => n + 1);
           look(at);
@@ -934,6 +965,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           setLv(ev.x, ev.y, lv);
           pushFx([{ kind: "iceSpikeBreak", x: ev.x, y: ev.y, lv }]);
           sfx("is_skill_2_broke");
+          return 0;
+        }
+        // เอมิลิโกะ: น้ำกระเซ็นเป็นพื้นเปียก / ไม้ถูพื้นเช็ดแห้ง (เสียงน้ำ server เล่นเอง)
+        case "wet":
+        case "dry": {
+          const tiles = pts(ev.tiles);
+          if (!tiles.length) return 0;
+          reveal(tiles);
+          pushFx(ev.kind === "wet" ? wetTileFx(tiles) : dryTileFx(tiles));
           return 0;
         }
         case "lay": {
@@ -1014,6 +1054,32 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("iceFx", onIce);
   }, []);
 
+  // ---------- เคท & เอมิลิโกะ: socket "shadowFx" (สัญญา .claude/plans/kate-emiliko-contract.md · ตัววาด shadowFx.js) ----------
+  //  "storm" (ฉากท่าไม้ตายเคท) อยู่ที่อื่น — shadowEventFx ข้ามให้เอง
+  useEffect(() => {
+    const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id]; return p && p.pos ? p.pos : null; };
+    const idsOn = (tiles, owner) => {
+      const ks = new Set(tiles.map((t) => key(t.x, t.y))), me0 = byIdRef.current[owner];
+      return Object.values(byIdRef.current).filter((p) => p && p.alive && p.pos && p.id !== owner && p.duoOf !== owner && p.duoWith !== owner
+        && !(me0 && (me0.duoOf === p.id || me0.duoWith === p.id))
+        && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => ks.has(key(t.x, t.y)))).map((p) => p.id);
+    };
+    const onShadow = (ev) => {
+      const out = shadowEventFx(ev, { posOf, idsOn });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      pushFx(out.fx);
+      const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+      for (const [name, ms] of out.sfx) at(ms, () => playSfx(name));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
+    };
+    socket.on("shadowFx", onShadow);
+    return () => socket.off("shadowFx", onShadow);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1068,12 +1134,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (canMove) {
         const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, optsOf(me));
         h.move = [...z.move];
-        h.attack = [...z.threat];
+        h.attack = canto ? [] : [...z.threat];
       } else if (startReach) {
         // ขยับแล้วแต่ยังไม่ล็อก (เดินด้วยคีย์บอร์ดต่อได้): ฟ้า = ช่องที่ไปได้จากจุดเริ่มตา · แดง = ตีถึงจากช่องที่ยืน
         h.move = [...new Set([...startReach.values()].flatMap((n) => Rules.footprint(n.x, n.y, sizeOfP(me)).map((t) => key(t.x, t.y))))];
-        h.attack = strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
-      } else {
+        h.attack = canto ? [] : strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
+      } else if (!canto) {
         h.attack = strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       }
       const goal = hover && canMove && !hoverUnit ? anchorFor(hover) : null;
@@ -1099,23 +1165,31 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, canto, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
   // ---------- ตัวละครบนกระดาน ----------
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos).map((p) => {
     const at = iceHold[p.id] || hold[p.id] || p.pos;
+    const mk = !!p.masked; // "มองไม่ออก": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
     return {
-      id: p.id, x: at.x, y: at.y, img: p.img, color: p.color, name: p.name,
-      size: sizeOfP(p), art: (p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
+      id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
+      size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       dim: !!pickValid && !pickValid.has(p.id),
       // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
       cloak: !!p.veiled,
+      // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มองไม่ออก = ไม่เห็น)
+      wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
+    // ร่างของตัวที่ล้ม (ระบบคู่): เงาร่างล้มบนช่อง (id "corpse:<id>" — คลิก = คลิกช่อง)
+    .concat(corpses.map((c) => {
+      const p = byId[c.id] || {};
+      return { id: `corpse:${c.id}`, corpse: true, x: c.x, y: c.y, img: p.masked ? null : p.img, color: p.masked ? "#ffffff" : p.color, name: "", size: 1, isMe: false, isActor: false, teamId: null, hp: 0, maxHp: 0, armor: 0, maxArmor: 0 };
+    }))
     // Ice Spike: คนที่ตายระหว่างเหตุการณ์ iceFx — วาดค้างไว้ (ตามตำแหน่งที่แสดง) จนถึงจังหวะตาย
     .concat(Object.values(iceGhosts).filter((t) => t && t.pos && !state.players.some((p) => p.id === t.id && p.alive && p.pos)).map((t) => {
       const at = iceHold[t.id] || t.pos;
@@ -1124,11 +1198,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
       };
     })),
-  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts]);
+  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, corpses, byId]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
   const onUnitClick = (id) => {
+    const cp = typeof id === "string" && id.startsWith("corpse:") ? corpses.find((c) => `corpse:${c.id}` === id) : null;
+    if (cp) { onTileClick(cp.x, cp.y); return; } // ร่าง = ช่องธรรมดา (เลือกช่อง/เดิน)
     const p = byId[id];
     if (!p) return;
     if (pick) {
@@ -1143,7 +1219,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       setFcId(id);
       return;
     }
-    if (onInspect) onInspect(id);
+    if (onInspect && !(p.masked && !sameSide(p, me))) onInspect(id); // มองไม่ออก = ดูสถานะไม่ได้
   };
   const onTileClick = (x, y) => {
     const k = key(x, y);
@@ -1271,9 +1347,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
   const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080
-  const seat = [...state.players].filter((p) => p.alive || p.score != null).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id);
+  const roster = rosterAlive(state.players); // ผู้เล่นจริง (ตัวที่สองของระบบคู่ไม่นับในลำดับ · เจ้าของที่ล้มแต่คู่ยังรอด = ยังอยู่)
+  const seat = [...roster].filter((p) => p.alive || p.score != null).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id);
   const [call, setCall] = useState(null); // { id, key }
-  const callKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : "";
+  // ระบบคู่: สลับตัวในตาเดียวกัน (กระจกเงา) ไม่ขึ้นฉากตาเดินซ้ำ — นับตาตามฝ่าย · ฉากใช้เจ้าของฝ่าย
+  const actorSide = state.actorId ? sideOf(byId[state.actorId]) || state.actorId : null;
+  const callKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${actorSide}` : "";
   const [calledKey, setCalledKey] = useState("");
   if (callKey && callKey !== calledKey) {
     setCalledKey(callKey);
@@ -1281,7 +1360,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }
   const endCall = useCallback(() => setCall(null), []);
   // เสียงฉากตาเดิน (ผู้ใช้ให้ไฟล์มา 2026-10-09): ตาเรา = notificate_mine · ตาคนอื่น = notificate
-  useEffect(() => { if (call) playSfx(call.id === (me && me.id) ? "notificate_mine" : "notificate"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (call) playSfx(me && sameSide(byId[call.id] || { id: call.id }, me) ? "notificate_mine" : "notificate"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- ฉากห่วงเวลาซีโร่ (ป้ายชื่อ/เฟส · เสียง) — ภาพบนกระดาน BoardCanvas เล่นเองจาก zeroScene ----------
   const zScene = zero && zero.scene ? zero.scene : null;
@@ -1307,9 +1386,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [zero, sealHold]);
 
   // ---------- แถบลำดับเดิน ----------
-  const order = phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
-    ? [...state.players].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
-    : state.turnOrder;
+  // มองไม่ออก (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
+  const order = masked ? []
+    : phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
+      ? [...roster].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
+      : state.turnOrder;
   const actor = state.actorId ? byId[state.actorId] : null;
 
   // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
@@ -1360,6 +1441,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         zero={zeroProp}
         zeroScene={zScene}
         ice={iceProp}
+        storms={state.board ? state.board.storms : null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
@@ -1367,7 +1449,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       />
 
       {/* คนที่กำลังเดิน (บนกลาง) — แทนแถบลำดับทุกคน (ผู้ใช้สั่ง 2026-10-09: เหลือเฉพาะคนที่เดินตอนนี้ + รูปโปรไฟล์) · ช่วงอื่นไม่มี */}
-      {actor && (phase === "ACTION" || phase === "ATTACKING") && (
+      {actor && (phase === "ACTION" || phase === "ATTACKING") && !(actor.masked && !sameSide(actor, me)) && (
         <div className="bs-actor" key={`actor-${actor.id}-${state.roundNumber}`} ref={orderRef} style={{ "--bs-c": actor.color || "#7fb8e6" }}>
           <div className="bs-actor-hexw" ref={(el) => registerOther && registerOther(actor.id, el)}>
             <svg className="bs-actor-ring" viewBox="0 0 100 114" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX_PTS} /></svg>
@@ -1375,7 +1457,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             <div className="bs-actor-face"><img src={actor.img} alt="" style={faceStyle(actor)} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /></div>
           </div>
           <div className="bs-actor-plate">
-            <b>{me && actor.id === me.id ? "คุณ" : actor.name}</b>
+            <b>{me && sameSide(actor, me) ? "คุณ" : actor.name}</b>
             {actor.character && actor.character.name && <small>{actor.character.name}</small>}
           </div>
           <span className="bs-actor-pts" data-bust={actor.busted ? "true" : "false"}>{actor.busted ? "แตก" : actor.score ?? "?"}</span>
@@ -1384,13 +1466,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
       {/* ฉากลำดับเดินเต็มจอ (ORDER ~6.5 วิ) */}
       {/* ฉากเต็มจอทั้งหมดไปอยู่ที่ <body> (ทับ HUD ทุกชั้น) */}
-      {phase === "ORDER" && createPortal(
+      {phase === "ORDER" && !masked && createPortal(
         <OrderCall key={`order-${state.roundNumber}`} k={sk} round={state.roundNumber} seat={seat.filter((id) => order.includes(id))} order={order} byId={byId} myId={me && me.id} lowQ={lowQ} />,
         document.body,
       )}
       {/* ฉากตาเดิน (แบบ A ประตูหกเหลี่ยม) */}
-      {call && phase === "ACTION" && byId[call.id] && createPortal(
-        <TurnCall key={call.key} k={sk} p={byId[call.id]} rank={Math.max(1, order.indexOf(call.id) + 1)} isMe={!!me && call.id === me.id} onDone={endCall} />,
+      {call && phase === "ACTION" && byId[call.id] && !(masked && byId[call.id].masked) && createPortal(
+        <TurnCall key={call.key} k={sk} p={byId[call.id]} rank={Math.max(1, order.indexOf(sideOf(byId[call.id])) + 1)} isMe={!!me && sameSide(byId[call.id], me)} onDone={endCall} />,
         document.body,
       )}
 
@@ -1446,6 +1528,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         document.body,
       )}
       {shake > 0 && !lowQ && <div className="bs-flash" key={`flash-${shake}`} />}
+      {/* ฉากร่ายระบำเขม่า (เคท · shadowFx kind "storm") — เต็มจอ + กล้องซูมพื้นที่ม่านแดง */}
+      <KateStorm lowQ={lowQ} socket={socket} onCinema={setCinema} warm={state.players.some((p) => p.character && p.character.id === "kate")} />
     </div>
   );
 }

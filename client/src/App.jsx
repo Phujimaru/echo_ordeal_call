@@ -16,6 +16,7 @@ import { ghostScreen } from "./oc/intro/screenGhost";
 import { OcScreen } from "./oc/ui";
 import { SharedGlobeStage } from "./globe/SharedGlobe";
 import { GLOBE_SCREENS } from "./components/TransitionCurtain";
+import { rosterOf } from "./duo";
 
 const SESSION_KEY = 'echo_session';
 
@@ -143,7 +144,7 @@ export default function App() {
       if (!wasInMatch && nowInMatch) {
         curtainRef.current?.skip("gameintro");
         ghostScreen(".ocl"); // หน้าเลือกโหมด/จัดทีมจางหายแทนการหายวับ (ลูกโลกอยู่ต่อในฉากเปิดแมตช์)
-        setIntro({ key: Date.now(), players: s.players, area: s.journey?.scene?.area || 1 });
+        setIntro({ key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1 });
         setShowIntro(true);
       }
       prevGameStateRef.current = s.gameState;

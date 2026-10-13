@@ -422,6 +422,24 @@
 .hud-portrait-hex img { object-fit: cover; object-position: 50% 15%; }
 .hud-portrait-hex:hover { filter: brightness(1.08); }
 .hud-portrait-twins { width: 190px; height: 166px; display: grid; place-items: center; }
+/* ระบบคู่ (เคท & เอมิลิโกะ): รูปเล็ก 2 ตัวเหนือรูปหลัก · ตัวที่คุม = กรอบทองใหญ่กว่า · จบตา = จาง · ล้ม = ขาวดำ · กดอีกตัว = สลับ */
+.hud-duo { position: absolute; left: 22px; bottom: calc(100% + 6px); z-index: 3; display: flex; align-items: flex-end; gap: 6px; filter: drop-shadow(0 6px 12px rgba(3, 10, 24, 0.55)); }
+.hud-duo-unit {
+  position: relative; display: block; width: 64px; height: 56px; padding: 0; border: 0;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: linear-gradient(160deg, #a9d4f5, #3d8bd9);
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+.hud-duo-unit .hud-hexframe-dark { inset: 3px; }
+.hud-duo-unit .hud-hexframe-in { inset: 6px; }
+.hud-duo-unit .hud-hexframe-in > * { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+.hud-duo-unit img { object-fit: cover; object-position: 50% 15%; }
+.hud-duo-unit[data-active="true"] { width: 78px; height: 68px; background: linear-gradient(160deg, #ffe08a, #f0c868 45%, #c4902a); }
+.hud-duo-unit[data-done="true"] { opacity: 0.45; }
+.hud-duo-unit[data-dead="true"] { filter: grayscale(1) brightness(0.55); opacity: 0.7; }
+.hud-duo-unit:not(:disabled) { cursor: pointer; }
+.hud-duo-unit:not(:disabled):hover { transform: translateY(-3px); filter: brightness(1.12); }
+@media (prefers-reduced-motion: reduce) { .hud-duo-unit { transition: none; } .hud-duo-unit:not(:disabled):hover { transform: none; } }
 
 /* แท่งเดียวกัน: แผงตัวละคร → แต้มสกิล → ทรัพยากร ต่อชิดกันไม่มีช่องว่าง · ปลายเฉียงอยู่ที่กล่องล่างสุดเท่านั้น */
 .hud-prof-stack { margin: 12px 0 0 92px; display: flex; flex-direction: column; }

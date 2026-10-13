@@ -195,7 +195,7 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
       if (!isPair(p)) return null;
       if (tier === "basic") return "ke_revive";
       if (tier === "secondary") return opts && opts.form === "wings" ? "ke_wings" : opts && opts.form === "whip" ? "ke_whip" : null;
-      if (tier === "ultimate") return isKate(p) ? "ke_storm" : "ke_cheer";
+      if (tier === "ultimate") return isKate(p) ? null : "ke_cheer"; // เสียงระบำเขม่าเล่นในฉาก KateStorm (client) เองใต้เพลง
       return null;
     },
     WEAPONS,

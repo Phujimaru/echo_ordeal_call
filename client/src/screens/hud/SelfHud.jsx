@@ -140,13 +140,26 @@ function GoldChip({ chipRef, gold = 0, goldMax = 0 }) {
 //  ใต้แผง: แผงแต้มสกิล (ม่วง) + แถบทรัพยากรตัวละคร (เหรียญอยู่เหนือแท็บสถานะ — GoldChip) ต่อชิดใต้แผงตัวละครเป็นแท่งเดียวกัน (ไม่มีช่องว่าง ขอบซ้าย/ขวาตรงกัน)
 //   แต่ละกล่องยังมีสี/ขอบของตัวเอง — ผู้ใช้: "ติดกันแต่ไม่รวมกัน" · รูปหกเหลี่ยมเกยทับทั้งแท่ง
 //  รายการสถานะอยู่ในลิ้นชักซ้าย (HudStatusDrawer)
-export function HudPanel({ portrait, hexPortrait = true, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, statuses = [], rawStatuses }) {
+//  duo = ระบบคู่ (เคท & เอมิลิโกะ): [{ id, node, active, done, dead, onClick }] — รูปเล็กเรียงเหนือรูปหลัก
+//   ตัวที่คุมอยู่ = กรอบทอง · จบตาแล้ว = จาง · ล้ม = ขาวดำ · onClick = สลับไปคุมตัวนั้น (null = กดไม่ได้)
+export function HudPanel({ portrait, hexPortrait = true, duo = null, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, statuses = [], rawStatuses }) {
   const [openKey, setOpenKey] = useState(null);
   const { res } = splitEntries(statuses, rawStatuses);
   const toggle = (k) => setOpenKey((o) => (o === k ? null : k));
   return (
     <div className="hud-prof">
       <div className="hud-prof-top">
+        {duo && duo.length > 1 && (
+          <div className="hud-duo" role="group">
+            {duo.map((u) => (
+              <button key={u.id} type="button" className="hud-duo-unit" disabled={!u.onClick} onClick={u.onClick || undefined}
+                data-active={u.active ? "true" : "false"} data-done={u.done ? "true" : "false"} data-dead={u.dead ? "true" : "false"}>
+                <span className="hud-hexframe-dark" aria-hidden="true" />
+                <span className="hud-hexframe-in">{u.node}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="hud-prof-portrait">
           {hexPortrait ? (
             <button type="button" className="hud-portrait-hex" onClick={onName} aria-label="รายละเอียดตัวละคร">

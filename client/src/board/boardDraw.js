@@ -27,6 +27,8 @@ import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, drawPrisons, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
+import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
+import { clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -378,8 +380,9 @@ function unitHex(g, u, cx, cy, r, alpha = 1) {
   hexPath(g, cx, cy, r + 3); g.fillStyle = "#0d1c36"; g.fill();
   hexPath(g, cx, cy, r + 1.5); g.strokeStyle = u.color; g.lineWidth = 3; g.stroke();
   g.save(); hexPath(g, cx, cy, r - 1); g.clip();
-  const e = getImg(u.img);
-  if (e && e.ok) cover(g, e.img, cx - r, cy - r * 0.87, r * 2, r * 1.74, 0.08);
+  const e = u.masked ? null : getImg(u.img);
+  if (u.masked) { g.fillStyle = "#ffffff"; g.fillRect(cx - r, cy - r, r * 2, r * 2); } // มองไม่ออก: ขาวล้วน
+  else if (e && e.ok) cover(g, e.img, cx - r, cy - r * 0.87, r * 2, r * 1.74, 0.08);
   else {
     // รูปโหลดไม่ขึ้น/ยังโหลดอยู่ → แผ่นสีประจำที่นั่ง + ตัวอักษรแรกของชื่อ
     const gr = g.createRadialGradient(cx - r * 0.3, cy - r * 0.4, r * 0.1, cx, cy, r * 1.1);
@@ -468,7 +471,7 @@ function drawUnit(g, u, now, boxes) {
   const hexR = s * 0.4 * K, hy = by - s * 0.86 * K + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
-  g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy);
+  if (!u.fly) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
   if (u.isActor) {
     const gl = g.createRadialGradient(bx, hy, hexR * 0.6, bx, hy, hexR * 1.7);
     gl.addColorStop(0, "rgba(255,255,255,.35)"); gl.addColorStop(1, "rgba(255,255,255,0)");
@@ -479,7 +482,12 @@ function drawUnit(g, u, now, boxes) {
   if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
   if (u.cloak && !REDUCED) cloakShimmer(g, bx, hy, hexR, now);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
-  // แผ่นเลือด/เกราะขนาดเล็ก
+  // แผ่นเลือด/เกราะขนาดเล็ก (มองไม่ออก = ไม่มี)
+  if (u.masked) {
+    g.restore();
+    if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
+    return;
+  }
   const maxHp = Math.max(1, u.maxHp | 0 || 7), maxAr = Math.max(0, u.maxArmor == null ? 3 : u.maxArmor | 0);
   const nT = Math.min(16, maxHp + maxAr), hpN = Math.min(maxHp, nT), arN = nT - hpN;
   const pw = Math.max(54, s * 1.0, nT * 6), ph = 9, px = bx - pw / 2, py = hy + hexR * 0.87 + 3;
@@ -634,7 +642,42 @@ function drawBigUnit(g, u, now, boxes) {
   if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: left - 4, y0: top - 4, x1: right + 4, y1: by + s * es * 0.35 });
 }
 // หมากตัวเดียว: ตัวใหญ่ที่มีรูป 4 ทิศ = drawBigUnit · ระหว่างขยาย/หดข้ามขนาด 1 เลือกตามจังหวะ
+// ร่างของตัวที่ล้ม (ระบบคู่ — เคท & เอมิลิโกะ): เงาร่างนอนราบบนช่อง · ขวางช่องแต่เดินข้ามได้
+//  ปื้นเขม่าบนพื้น → หกเหลี่ยมรูปตัวละครนอนเอียง (มืด/ขาวดำ) → ควันเขม่าลอยช้าๆ (ปิดเมื่อ reduced motion)
+function drawCorpse(g, u, now, boxes) {
+  const wx = u.rx + 0.5 + (u.ox || 0), wy = u.ry + 0.5 + (u.oy || 0);
+  const [bx, by, s] = P(wx, wy);
+  const a = u.alpha == null ? 1 : u.alpha;
+  g.save(); g.globalAlpha = a;
+  gEllipse(g, wx, wy, 0.44, 0, 28); g.fillStyle = "rgba(8,6,16,.5)"; g.fill();
+  gEllipse(g, wx, wy, 0.3, 0, 24); g.fillStyle = "rgba(8,6,16,.4)"; g.fill();
+  const r = s * 0.34, cy = by - s * 0.07;
+  g.save(); g.translate(bx, cy); g.rotate(-0.32); g.scale(1, 0.46);
+  hexPath(g, 0, 0, r + 3); g.fillStyle = "#07060d"; g.fill();
+  hexPath(g, 0, 0, r + 1.5); g.strokeStyle = hexA(u.color || "#7f8aa6", 0.55); g.lineWidth = 2.5; g.stroke();
+  g.save(); hexPath(g, 0, 0, r - 1); g.clip();
+  const e = getImg(u.img);
+  if (e && e.ok) {
+    if ("filter" in g) g.filter = "grayscale(1) brightness(.4)";
+    cover(g, e.img, -r, -r * 0.87, r * 2, r * 1.74, 0.08);
+    if ("filter" in g) g.filter = "none";
+  } else { g.fillStyle = "#1a1726"; g.fillRect(-r, -r, r * 2, r * 2); }
+  g.fillStyle = "rgba(10,8,22,.45)"; g.fillRect(-r, -r, r * 2, r * 2);
+  g.restore();
+  g.restore();
+  if (!REDUCED) {
+    for (let i = 0; i < 3; i++) {
+      const ph = (now / 2600 + i / 3 + (u.rx * 0.37 + u.ry * 0.21)) % 1;
+      const px = bx + (i - 1) * s * 0.16 + Math.sin(ph * 6 + i) * s * 0.04, py = cy - ph * s * 0.5;
+      g.globalAlpha = a * 0.5 * Math.sin(ph * Math.PI);
+      g.fillStyle = "#14101f"; g.beginPath(); g.arc(px, py, s * (0.035 + ph * 0.05), 0, Math.PI * 2); g.fill();
+    }
+  }
+  g.restore();
+  if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - r - 4, y0: cy - r * 0.6, x1: bx + r + 4, y1: by + s * 0.2 });
+}
 function drawAnyUnit(g, u, now, boxes) {
+  if (u.corpse) { drawCorpse(g, u, now, boxes); return; }
   const gr = u.grow, t = gr ? clamp01((now - gr.t0) / GROW_MS) : 1;
   // ตัวใหญ่ที่ไม่มีรูป 4 ทิศ (กิงกะของไรโด ฮิคารุ): หมากหกเหลี่ยมขยายครอบทั้งตัว กลางตัว · ระหว่างขยาย/หด ค่อยๆ เปลี่ยนขนาด
   if (!u.art && (u.size > 1 || (gr && gr.from > 1 && t < 0.55))) {
@@ -745,8 +788,9 @@ function smashFx(g, e, now) {
 //  1×1 = คลื่นเสียง (วงเสียงวิ่งไปกระแทก แล้วสะท้อนกลับ) · 2×2–3×3 = ผมฟาด · 4×4–5×5 = ห่าง ≤ 2 ผมฟาด / ห่าง 3 ปาหิน
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P };
+//  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1752,7 +1796,7 @@ function boomFx(g, e, now, lowQ) {
 
 export const FX_DUR = {
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
 };
 
 
@@ -1805,6 +1849,9 @@ export function drawFrame(g, st, now) {
   // Ice Spike: คุกน้ำแข็งช่วงที่ 1 (กรอบ 5×5 เรืองแสง) — ice = { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) }, prisons }
   const ice = st.ice || null;
   if (ice && ice.prisons) drawPrisons(g, ice.prisons, info, now, lowQ);
+  // ม่านแดง (ระบำเขม่า · เคท): พื้นมืด → ม่านรอบขอบเรียงความลึกกับตัวละคร → เขม่าในอากาศ — sootStorm.js
+  const storms = st.storms && st.storms.length ? st.storms : null;
+  if (storms) drawStormGround(g, storms, info, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -1849,13 +1896,25 @@ export function drawFrame(g, st, now) {
     const h = Math.max(1, e.size | 0) / 2, [wx, wy] = wheelAt(e, now - e.t0, lowQ || REDUCED), d = depthOf(wx + h, wy + h);
     items.push({ d: d - 0.003, f: () => wheelFx(g, e, now, lowQ, false) }, { d: d + 0.003, f: () => wheelFx(g, e, now, lowQ, true) });
   }
+  // เคท: ปีกเขม่า (ฉากบิน + ปีกค้างในม่านแดง u.wings) วาดหลังหมากของตัวเอง
+  for (const e of fx) {
+    const d = isShadowFx(e.kind) ? shadowBackDepth(e, now) : null;
+    if (d != null) items.push({ d, f: () => shadowFx(g, e, now, lowQ, true, units) });
+  }
+  for (const u of units) {
+    const d = idleWingsDepth(u, fx, now);
+    if (d != null) items.push({ d, f: () => drawIdleWings(g, u, now, lowQ) });
+  }
+  if (storms) stormWallItems(items, g, storms, info, now, lowQ);
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
+  if (storms) drawStormAir(g, storms, info, now, lowQ);
   if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
     drawShopLabel(g, shopPos.x, shopPos.y, `🏪 ${st.shopLabel}`);
   }
-  // อนุภาค (ข้ามเมื่อ lowQ)
+  // อนุภาค (ข้ามเมื่อ lowQ) — ไม่วาดทับโดมเขม่าของม่านแดง (คนนอกต้องมองไม่เห็นข้างใน)
   if (!lowQ) {
+    const domeClip = storms ? clipOutDomes(g, storms) : false;
     if (pz) {
       for (let i = 0; i < 18; i++) {
         const a = i * 2.4, r = (i % 6) / 6 * 1.6 * pz.sc, ph = (now / (2000 + i * 170) + i * 0.37) % 1;
@@ -1873,6 +1932,7 @@ export function drawFrame(g, st, now) {
       g.globalAlpha = 1;
     }
     if (T.ambient) { g.save(); T.ambient(g, f, now); g.restore(); }
+    if (domeClip) g.restore();
   }
   // เอฟเฟกต์ครั้งเดียว
   for (const e of fx) {
@@ -1893,6 +1953,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
+    else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }

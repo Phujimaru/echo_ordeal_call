@@ -30,6 +30,10 @@ function readOpts() {
     lowQ: q.get("lowq") === "1",
     team: q.get("team") === "1",
     shopNear: q.get("shop") === "1",
+    // ระบบคู่ (เคท & เอมิลิโกะ): duo=1 · corpse=1 (เคทล้ม) · masked=1 (มองไม่ออก) — อ่านจาก URL อย่างเดียว
+    duo: q.get("duo") === "1",
+    corpse: q.get("corpse") === "1",
+    masked: q.get("masked") === "1",
   };
 }
 // เขียนค่ากลับลง URL (คง hud=1&game=1 และพารามิเตอร์อื่นที่ไม่ใช่ของแถบนี้ไว้)
@@ -42,6 +46,7 @@ function writeOpts(o) {
   set("lowq", o.lowQ ? "1" : "");
   set("team", o.team ? "1" : "");
   set("shop", o.shopNear ? "1" : "");
+  set("duo", o.duo ? "1" : "");
   history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
 }
 
@@ -133,6 +138,7 @@ export default function GamePreview() {
               <Toggle label="กลางคืน" on={opts.night} set={(v) => pick({ night: v })} />
               <Toggle label="ทีม (duo)" on={opts.team} set={(v) => pick({ team: v })} />
               <Toggle label="ร้านติดเรา" on={opts.shopNear} set={(v) => pick({ shopNear: v })} />
+              <Toggle label="เคท & เอมิลิโกะ" on={opts.duo} set={(v) => pick({ duo: v })} />
               <Toggle label="lowQ" on={opts.lowQ} set={(v) => setOpts((o) => ({ ...o, lowQ: v }))} />
               <button type="button" style={btn(false)} onClick={() => { setSeq((n) => n + 1); setRemount((n) => n + 1); }}>
                 รีเซ็ตฉาก

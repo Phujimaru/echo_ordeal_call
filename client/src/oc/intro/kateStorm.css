@@ -1,0 +1,105 @@
+/* ============================================================
+   ฉากร่าย "ระบำเขม่า" (KateStorm.jsx) — z 65 = เหนือกระดาน/HUD ใต้ปุ่มเสียง (70) เหมือนฉาก Echo
+   ทุกค่าที่ขยับตามเวลาตั้งจาก JS ทุกเฟรม (transform/opacity เท่านั้น) · ไม่รับการกด (กระดานพักตาเดินอยู่แล้ว)
+   ชั้น: จอมืด → ม่านซ้าย/ขวา → สปอตไลต์ → เงาเคท → แถบภาพสกิล → เขม่า (แคนวาส) → ชื่อท่า → ม่านบน → แฟลช
+   ห้าม letter-spacing / uppercase กับข้อความไทย
+   ============================================================ */
+.ks { position: fixed; inset: 0; z-index: 65; overflow: hidden; pointer-events: none; user-select: none; contain: strict; }
+.ks-stage { position: absolute; inset: 0; will-change: transform; }
+.ks-veil {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse 70% 65% at 50% 52%, rgba(46, 0, 10, 0.55) 0%, rgba(12, 0, 4, 0.9) 70%, #050003 100%);
+}
+
+/* ม่านกำมะหยี่แดง (ลายพับ + เงาบน/ล่าง + ขอบทองด้านใน + ระบายทองที่ชาย) */
+.ks-curtain {
+  position: absolute; top: -2%; bottom: -2%; width: 54%;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.7) 100%),
+    repeating-linear-gradient(90deg, #36020a 0, #760a1a 1.5vw, #b8182c 2.6vw, #d0263a 3vw, #82101f 3.9vw, #36020a 5.2vw);
+  will-change: transform; transform: translateX(-101%);
+}
+.ks-l { left: 0; transform-origin: 0 0; box-shadow: 1.5vw 0 3vw rgba(0, 0, 0, 0.65); }
+.ks-r { right: 0; transform-origin: 100% 0; transform: translateX(101%); box-shadow: -1.5vw 0 3vw rgba(0, 0, 0, 0.65); }
+.ks-curtain::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 0.9vw;
+  background: linear-gradient(90deg, #5a3a0c, #f0cd74 45%, #a87420 70%, #4a2e08);
+}
+.ks-l::after { right: 0; }
+.ks-r::after { left: 0; }
+.ks-curtain::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 2%; height: 4.2vh;
+  background:
+    linear-gradient(180deg, #e4bd5c, #8d6218) top / 100% 32% no-repeat,
+    repeating-linear-gradient(90deg, #e9c66c 0 3px, #9b6d1d 3px 5px, transparent 5px 10px) bottom / 100% 68% no-repeat;
+}
+
+/* ม่านบน (ระบายโค้ง) */
+.ks-valance {
+  position: absolute; left: -2%; right: -2%; top: 0; height: 15vh; transform: translateY(-105%); will-change: transform;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.35)),
+    repeating-linear-gradient(90deg, #4a0410 0, #9c1226 1.2vw, #c92034 1.9vw, #7a0b1a 2.8vw, #4a0410 3.6vw);
+  -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0, #000 97%, transparent 100%) 0 0 / 14.3% 100% repeat-x;
+  mask: radial-gradient(ellipse 50% 100% at 50% 0, #000 97%, transparent 100%) 0 0 / 14.3% 100% repeat-x;
+  filter: drop-shadow(0 0.6vh 0 #c99b3e);
+}
+
+/* สปอตไลต์ (กรวยแสงจากบน + วงบนม่าน) */
+.ks-spot { position: absolute; inset: 0; opacity: 0; mix-blend-mode: screen; }
+.ks-spot::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 228, 200, 0.32), rgba(255, 200, 170, 0.06));
+  clip-path: polygon(45% 0, 55% 0, 74% 100%, 26% 100%);
+}
+.ks-spot::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 22vw 38vh at 50% 54%, rgba(255, 232, 205, 0.62) 0%, rgba(255, 190, 160, 0.2) 55%, rgba(255, 160, 140, 0) 78%);
+}
+
+/* เงาเคท (ภาพพื้นขาว → multiply = พื้นกลืนกับม่าน เหลือเงาดำ/ชุดแดง) */
+.ks-kate {
+  position: absolute; left: 50%; top: 54%; width: min(52vh, 38vw); height: auto; opacity: 0;
+  transform: translate(-50%, -50%); will-change: transform, opacity; mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 98%);
+  mask-image: linear-gradient(180deg, #000 72%, transparent 98%);
+}
+
+/* แถบภาพสกิล (เอียง · ขอบทอง/แดง) */
+.ks-band {
+  position: absolute; left: -6%; right: -6%; top: 52%; height: 44vh; overflow: hidden; opacity: 0;
+  transform: translateY(-50%) rotate(-5deg) scaleY(0.001); will-change: transform;
+  border-top: 0.5vh solid #e6bd60; border-bottom: 0.5vh solid #e6bd60;
+  box-shadow: 0 0 0 0.45vh #7a0a1a, 0 2vh 5vh rgba(0, 0, 0, 0.8);
+  background: #0a0205;
+}
+.ks-band img {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%;
+  transform: rotate(5deg) scale(1.3); will-change: transform;
+}
+.ks-band::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(10, 0, 4, 0.75), rgba(10, 0, 4, 0) 18%, rgba(10, 0, 4, 0) 82%, rgba(10, 0, 4, 0.75));
+}
+
+.ks-soot { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ks[data-lowq="true"] .ks-soot { opacity: 0.9; }
+
+/* ชื่อท่า */
+.ks-title {
+  position: absolute; left: 50%; top: 70%; opacity: 0; white-space: nowrap; will-change: transform, opacity;
+  transform: translate(-50%, -50%) rotate(-5deg);
+  font: 800 clamp(44px, 6.6vw, 118px)/1.1 "Kanit", var(--oc-f-body, sans-serif);
+  color: #fff4f0;
+  text-shadow: 0 0.4vh 0 #4a0010, 0 0 2.2vh #ff2440, 0 0 5vh rgba(255, 30, 60, 0.7);
+  -webkit-text-stroke: 1px rgba(30, 0, 8, 0.7);
+}
+
+.ks-flash {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse at 50% 52%, rgba(255, 236, 230, 0.95), rgba(255, 40, 70, 0.6) 45%, rgba(80, 0, 16, 0) 85%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ks-soot { display: none; }
+}
