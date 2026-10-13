@@ -8,7 +8,7 @@
 //    keRevive     ตื่นขึ้นอีกครั้ง: เขม่าวนเข้ากลางช่อง + เสาแสง → ตัวค่อยๆ ปรากฏ
 //    keWeapon     เปลี่ยนอาวุธ: ฟอง/ประกายป๊อป + ไอคอนอาวุธลอยเหนือหัว
 //    keSwordPass  ดาบเขม่า: ลอยหมุนจากมือเดิมไปมือใหม่ (ไม่มีมือเดิม = ก่อตัวจากเขม่า) + ประกายวาบ
-//    keMasked     มองไม่ออก: ควันขาวฟุ้งคลุมเป้า
+//    keMasked     มืดบอด: ควันขาวฟุ้งคลุมเป้า
 //    keCheer      ร่าเริงสุดๆ (ท่าไม้ตายเอมิลิโกะ) บนพื้นที่ 4×3 ตามอาวุธ — ดาเมจลงที่ CHEER_HIT (server skillBeat 1.1 วิ)
 //    keCheerDash  ไม้ถูพื้นพุ่งตาม: คลื่นน้ำตามทาง + น้ำกระจายปลายทาง (ตัวเลื่อนตามเหตุการณ์ slide ของ iceFx)
 //    keTick       ม่านแดงต้นเทิร์น: หนามเขม่าแดงแทงขึ้นจากพื้นใต้ตัวที่โดน
@@ -478,6 +478,17 @@ function rrect(g, x, y, w, h, r) {
 function drawTool(g, kind, x, y, r, rot = 0) {
   g.save(); g.translate(x, y); if (rot) g.rotate(rot);
   g.lineCap = "round"; g.lineJoin = "round";
+  if (kind === "bread") { // ขนมปังก้อนกลม (ของประจำตัวเอมิลิโกะ) — ก้อนน้ำตาลทอง + รอยกรีด
+    g.beginPath(); g.ellipse(0, r * 0.1, r * 0.8, r * 0.62, 0, 0, Math.PI * 2);
+    const gr = g.createRadialGradient(-r * 0.25, -r * 0.2, r * 0.1, 0, r * 0.1, r * 0.85);
+    gr.addColorStop(0, "#f2c17a"); gr.addColorStop(0.6, "#c8803a"); gr.addColorStop(1, "#7d4a1e");
+    g.fillStyle = gr; g.fill(); g.strokeStyle = "#5a3313"; g.lineWidth = Math.max(1.2, r * 0.07); g.stroke();
+    g.strokeStyle = "#fbe3b5"; g.lineWidth = Math.max(1, r * 0.09);
+    g.beginPath(); g.moveTo(-r * 0.42, -r * 0.05); g.quadraticCurveTo(-r * 0.1, -r * 0.3, r * 0.3, -r * 0.18); g.stroke();
+    g.beginPath(); g.moveTo(-r * 0.3, r * 0.28); g.quadraticCurveTo(r * 0.05, r * 0.05, r * 0.45, r * 0.18); g.stroke();
+    g.restore();
+    return;
+  }
   if (kind === "vase") {
     g.beginPath();
     g.moveTo(-r * 0.2, -r * 0.78); g.lineTo(r * 0.2, -r * 0.78);
@@ -526,9 +537,9 @@ function drawTool(g, kind, x, y, r, rot = 0) {
   }
   g.restore();
 }
-const TOOL_RGB = { mop: "120,200,255", vase: "70,130,220", vacuum: "190,60,80", sword: "200,30,45" };
+const TOOL_RGB = { mop: "120,200,255", vase: "70,130,220", vacuum: "190,60,80", sword: "200,30,45", bread: "242,180,110" };
 
-// ---------------------------------------------------------------- กระจกเงา / ฟื้น / อาวุธ / ดาบ / มองไม่ออก
+// ---------------------------------------------------------------- กระจกเงา / ฟื้น / อาวุธ / ดาบ / มืดบอด
 function pane(g, x, yb, w, h, a, shine) {
   if (a <= 0.01 || h < 2) return;
   const path = () => { g.beginPath(); g.moveTo(x - w / 2, yb); g.lineTo(x - w / 2, yb - h + w / 2); g.arc(x, yb - h + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w / 2, yb); g.closePath(); };
@@ -1367,6 +1378,13 @@ export function shadowEventFx(ev, ctx = {}) {
       if (!at) break;
       const from = ev.from != null && ev.from !== holder ? posOf(ev.from) : null;
       out.fx.push({ kind: "keSwordPass", x: at.x, y: at.y, from, dur: SH_FX_DUR.keSwordPass });
+      break;
+    }
+    case "bread": { // ขนมปังของเอมิลิโกะ (กินเอง / ป้อนเคท) — ประกายป๊อป + ขนมปังลอยขึ้นที่ตัวที่ได้กิน
+      const at = posOf(ev.id);
+      if (!at) break;
+      out.fx.push({ kind: "keWeapon", x: at.x, y: at.y, weapon: "bread", dur: SH_FX_DUR.keWeapon });
+      out.fx.push({ kind: "float", x: at.x, y: at.y, text: "🍞", size: 34 });
       break;
     }
     case "masked": {

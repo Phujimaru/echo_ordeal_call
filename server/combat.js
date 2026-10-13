@@ -113,7 +113,7 @@ const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
   "energy", "nohealing", "weak", "fragile", "spellburden",
   "oblada", "hburn", "invert", "manaSeal", "manaRupture", "manaLeech",
   "numb", // เหน็บชา
-  "shadowMask", // มองไม่ออก (ติดตัวเคทในระบำเขม่า)
+  "shadowMask", // มืดบอด (ติดตัวเคทในระบำเขม่า)
 ];
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
@@ -317,6 +317,7 @@ function resetCombat(p) {
   CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
   CHAR_HOOKS.raido_hikaru.resetCombat(p); // ไรโด ฮิคารุ: ร่าง UltraLive / กิงกะ / Strium Brace (ก่อนคิดเกราะเริ่มเกม)
   CHAR_HOOKS.ice_spike.resetCombat(p); // Ice Spike: ดาเมจสะสม / โควตาหนาม / คูลดาวน์คุก
+  CHAR_HOOKS.kate.resetCombat(p); // เคท & เอมิลิโกะ: อาวุธ/ดาบเขม่า/ร่าง · เอมิลิโกะได้ขนมปัง (หลังล้างกระเป๋าแล้ว)
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)

@@ -573,7 +573,7 @@ function SummaryTiers({ winners, losers, compact }) {
           <div key={p.id} className="sum-win w-full" style={{ animationDelay: `${i * 0.13}s` }}>
             <Laurel size={compact ? 190 : 250} />
             <img
-              src={p.img}
+              src={p.character?.cover || p.img}
               alt=""
               className="rounded-full object-cover shrink-0 relative"
               style={{ width: winAvatar, height: winAvatar, border: `2px solid ${p.color}`, boxShadow: `0 0 22px -4px ${p.color}` }}
@@ -599,7 +599,7 @@ function SummaryTiers({ winners, losers, compact }) {
                   {i + 2}
                 </span>
                 <img
-                  src={p.img}
+                  src={p.character?.cover || p.img}
                   alt=""
                   className="rounded-full object-cover grayscale shrink-0"
                   style={{ width: loseAvatar, height: loseAvatar, border: `1px solid ${p.color}` }}
@@ -793,6 +793,8 @@ const STATUS_INFO = {
   oblada:   { icon: "🎵", label: "สิ่งแปลกปลอม", cls: "bg-echo-hp", desc: "เสียพลังชีวิต 1 ทุก 2 เทิร์น เกราะรับก่อน" },
   // Ice Spike
   slow:          { icon: "❄️", label: "เชื่องช้า", cls: "bg-echo-ice text-gray-900", desc: "ระยะเดิน −1" },
+  // เคท & เอมิลิโกะ
+  shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
   hikaruTiga:    { icon: "🔆", label: "Ultraman Tiga", cls: "bg-fuchsia-400 text-gray-900", desc: "" },

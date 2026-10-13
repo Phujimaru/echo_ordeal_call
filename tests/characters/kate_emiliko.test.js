@@ -383,7 +383,7 @@ test('ระบำเขม่า: ม่านแดง 8×8 รอบช่อ
   assert.equal(Soot.storms().length, 0);
 });
 
-test('ติดตัวเคท: ตีปกติในม่านแดง → เป้ามองไม่ออก (เห็นหมากคนอื่นเป็นสีขาว ไม่มีลำดับเดิน)', () => {
+test('ติดตัวเคท: ตีปกติในม่านแดง → เป้ามืดบอด (เห็นหมากคนอื่นเป็นสีขาว ไม่มีลำดับเดิน)', () => {
   const P = setup([['K', 'kate', 4, 4], [E, null, 4, 3], ['B', 'dummy', 5, 4], ['C', 'dummy', 12, 12]]);
   Soot.cast(P.K, engine.tileArea({ kind: 'tile', square: 8 }, { x: 5, y: 5 }));
   engine.doAttack('K', 'B');
@@ -432,4 +432,30 @@ test('ม่านแดง: เอฟเฟกต์/ป้ายสกิล�
     view.emitBoardFx('shadowFx', { kind: 'storm', x0: 1, y0: 1, x1: 8, y1: 8 });
     assert.equal(sent.length, 3, 'ร่ายม่าน ทุกคนเห็น');
   } finally { io.to = saved.to; io.emit = saved.emit; }
+});
+
+test('ขนมปัง (เอมิลิโกะ): เริ่มเกมมี 3 ครั้ง ไม่กินช่องกระเป๋า · กินเอง/ป้อนเคทที่ยืนติดกัน ฟื้นพลังชีวิต 2 เกราะ 1 · หมดแล้วหาย · ทิ้งไม่ได้', () => {
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  const bread = P.K.inventory.find((it) => it.type === 'kebread');
+  assert.ok(bread, 'ได้ขนมปังตอนเริ่มเกม');
+  assert.equal(bread.uses, 3);
+  assert.equal(engine.bagFull(P.K), false);
+  startTurn('K');
+  engine.useSkill('K', 'basic', []);
+  P.K.hp = 1; P.K.armor = 0; P[E].hp = 1; P[E].armor = 0;
+  engine.useInventoryItem(E, bread.uid, { targetId: 'K' });
+  assert.deepEqual([P.K.hp, P.K.armor, bread.uses], [3, 1, 2], 'ป้อนเคท');
+  M.action.locked = false;
+  engine.useInventoryItem(E, bread.uid, {});
+  assert.deepEqual([P[E].hp, P[E].armor, bread.uses], [3, 1, 1], 'กินเอง');
+  assert.equal(engine.dropItem(E, bread.uid), false, 'ทิ้งไม่ได้');
+  P.K.pos = { x: 8, y: 8 };
+  M.action.locked = false;
+  engine.useInventoryItem(E, bread.uid, { targetId: 'K' });
+  assert.equal(bread.uses, 1, 'เคทไม่ได้ยืนติด = ป้อนไม่ได้');
+  engine.useInventoryItem(E, bread.uid, {});
+  assert.equal(P.K.inventory.some((it) => it.type === 'kebread'), false, 'หมดแล้วหาย');
+  // เคทใช้เองไม่ได้
+  const st = engine.buildStateFor('K');
+  assert.ok(st.players.find((p) => p.id === E).character.secondary.choices.every((c) => c.desc), 'ทุกตัวเลือกมีคำอธิบาย');
 });

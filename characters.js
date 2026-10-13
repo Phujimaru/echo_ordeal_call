@@ -349,11 +349,12 @@ const CHARACTERS = [
     avatar: 0,
     difficulty: "hard",
     img: "/characters/kate_emiliko/kate.webp",
+    cover: "/characters/kate_emiliko/cover.jpg", // ภาพปก: หน้าเลือกตัวละคร + หน้าสรุป (ผู้ใช้สั่ง 2026-10-14) — ในเกมยังใช้ img
     mov: 4,
     range: [1, 1],
     passive: {
       name: "เงาในพายุเขม่า",
-      desc: "ในระบำเขม่า: เดิน 6 · ตีปกติทำให้เป้า “มองไม่ออก” 1 เทิร์น (หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน)",
+      desc: "ในระบำเขม่า: เดิน 6 · ตีปกติทำให้เป้า “มืดบอด” 1 เทิร์น (หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน)",
     },
     passive2: {
       name: "เคท & เอมิลิโกะ",
@@ -455,7 +456,7 @@ function publicRoster() {
     id: c.id,
     name: c.rosterName || c.name, // เคท & เอมิลิโกะ: การ์ดเลือกตัวละครใช้ชื่อคู่
     avatar: c.avatar,
-    img: c.img,
+    img: c.cover || c.img, // ภาพปก (เคท & เอมิลิโกะ) ใช้แทนบนหน้าเลือกตัวละคร
     locked: !!c.locked,
     hidden: !!c.hidden,
     difficulty: c.difficulty || "easy", // ความยากในการเล่น (ใช้แบ่งหน้าเลือกตัวละคร)

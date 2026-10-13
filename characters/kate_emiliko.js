@@ -10,7 +10,7 @@
 //    ติดตัว กำลังใจเต็มเปี่ยม: ตี/รอแล้วเดินต่อได้ 2 (ฮุค cantoMov — phases/action.js)
 //    ท่าไม้ตาย ร่าเริงสุดๆ (6): แนว 4×3 ตามอาวุธ
 //  เคท: เดิน 4 (ในระบำเขม่า 6) · รอง = เลือกใช้ แส้เขม่า (2) / ดาบเขม่า (0 · ถือ/ให้/เรียกคืน) / ปีกเขม่า (4)
-//    ท่าไม้ตาย ระบำเขม่า (6): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามองไม่ออก 1 เทิร์น
+//    ท่าไม้ตาย ระบำเขม่า (6): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามืดบอด 1 เทิร์น
 // ============================================================
 
 const KATE = "kate";
@@ -31,6 +31,8 @@ const IMG = {
   vase: `${DIR}/vase.jpg`,
   vacuum: `${DIR}/vacuum.jpg`,
   cheer: `${DIR}/cheer.jpg`,
+  bread: `${DIR}/bread.jpg`,
+  cover: `${DIR}/cover.jpg`,
 };
 // เพลงท่าไม้ตายเคท (ระบำเขม่า): intro เล่นครั้งเดียว แล้ววน loop จนพายุหมด
 const MUSIC = { intro: `${DIR}/kate_theme_intro.m4a`, loop: `${DIR}/kate_theme_loop.mp3` };
@@ -43,23 +45,25 @@ const REVIVE_COST = 6;
 const REVIVE_RANGE = 4;
 const REVIVE_HP = 3;
 const CANTO_MOV = 2;
+const BREAD_USES = 3;
 const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
 
 // อาวุธของเอมิลิโกะ (เรียงตามปุ่ม) — ดาบเขม่าเลือกได้เมื่อเคทส่งให้แล้วเท่านั้น
+// desc = คำอธิบายย่อตอนชี้เมาส์ที่ตัวเลือก (ผู้ใช้สั่ง 2026-10-14)
 const WEAPONS = {
-  mop: { name: "ไม้ถูพื้น", img: IMG.mop },
-  vase: { name: "แจกันใส่น้ำ", img: IMG.vase },
-  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum },
-  sword: { name: "ดาบเขม่า", img: IMG.sword },
+  mop: { name: "ไม้ถูพื้น", img: IMG.mop, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 2 · ทางที่ไถลผ่านแห้ง" },
+  vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางที่ถูกผลักเป็นพื้นเปียก" },
+  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว" },
+  sword: { name: "ดาบเขม่า", img: IMG.sword, desc: "พลังโจมตี +2" },
 };
 const WEAPON_KEYS = Object.keys(WEAPONS);
 // ตัวเลือกของเขม่าควัน (เคท)
 const SOOT = {
-  whip: { name: "แส้เขม่า", img: IMG.whip, cost: 2, area: { kind: "target", range: 3 } },
-  hold: { name: "ดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "self" } },
-  give: { name: "ส่งดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "target", range: 4 } },
-  recall: { name: "เรียกดาบคืน", img: IMG.sword, cost: 0, area: { kind: "self" } },
-  wings: { name: "ปีกเขม่า", img: IMG.wings, cost: 4, area: { kind: "line", len: 4, width: 1 } },
+  whip: { name: "แส้เขม่า", img: IMG.whip, cost: 2, area: { kind: "target", range: 3 }, desc: "ระยะ 3 · เอมิลิโกะ = ดึงมาติดตัว · ศัตรู = พุ่งเข้าประชิด ความเสียหาย 1" },
+  hold: { name: "ดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "ถือดาบเอง พลังโจมตี +1" },
+  give: { name: "ส่งดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "target", range: 4 }, desc: "ส่งดาบให้เอมิลิโกะในระยะ 4 · เอมิลิโกะเลือกใช้ได้ พลังโจมตี +2" },
+  recall: { name: "เรียกดาบคืน", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "เอาดาบคืนจากเอมิลิโกะ พลังโจมตี +1" },
+  wings: { name: "ปีกเขม่า", img: IMG.wings, cost: 4, area: { kind: "line", len: 4, width: 1 }, desc: "เลือกทิศ บิน 4 ช่องข้ามทุกอย่าง · พาเอมิลิโกะที่ติดตัวไปด้วย" },
 };
 
 // ฮุคที่ server เรียกโดยไม่ส่ง engine (mov / skillCost / skillPub) อ่านผ่านตัวนี้ (require ตอนเรียก — กัน require วน)
@@ -143,6 +147,10 @@ const shared = {
     if (!isPair(p)) return;
     p.shadow = isKate(p) ? fresh() : undefined;
     p.corpse = null;
+    // ขนมปัง (ของประจำตัวเอมิลิโกะ · 3 ครั้ง · ไม่กินช่องกระเป๋า) — กระเป๋าใช้ร่วมกับเคท จึงใส่ตอนรีเซ็ตเอมิลิโกะ (หลังล้างกระเป๋าแล้ว)
+    if (isEmi(p) && Array.isArray(p.inventory) && !p.inventory.some((it) => it.type === "kebread")) {
+      p.inventory.push({ uid: `kebread_${p.id}`, type: "kebread", uses: BREAD_USES, price: 0 });
+    }
   },
   // ระยะเดิน: ในระบำเขม่า เคท 6 · เอมิลิโกะ 4
   mov(p) {
@@ -174,7 +182,7 @@ const shared = {
 // ---------- เคท ----------
 const kate = {
   id: KATE,
-  IMG, WEAPONS, SOOT, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV,
+  IMG, WEAPONS, SOOT, BREAD_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV,
   isKate, isEmi, isPair, weaponOf, inStorm,
   ...shared,
   skillCost(p, tier, base, opts) {
@@ -271,9 +279,9 @@ function choicesOf(engine, p) {
   if (isEmi(p)) {
     const s = st(engine, p);
     return WEAPON_KEYS.filter((k) => k !== "sword" || s.sword === "emi")
-      .map((k) => ({ key: k, name: WEAPONS[k].name, img: WEAPONS[k].img, cost: 0, area: { kind: "self" }, active: s.weapon === k }));
+      .map((k) => ({ key: k, name: WEAPONS[k].name, img: WEAPONS[k].img, desc: WEAPONS[k].desc, cost: 0, area: { kind: "self" }, active: s.weapon === k }));
   }
-  return sootChoiceKeys(engine, p).map((k) => ({ key: k, name: SOOT[k].name, img: SOOT[k].img, cost: SOOT[k].cost, area: SOOT[k].area }));
+  return sootChoiceKeys(engine, p).map((k) => ({ key: k, name: SOOT[k].name, img: SOOT[k].img, desc: SOOT[k].desc, cost: SOOT[k].cost, area: SOOT[k].area }));
 }
 function sootAllowed(engine, p, form, targets) {
   if (!SOOT[form] || !sootChoiceKeys(engine, p).includes(form)) return false;

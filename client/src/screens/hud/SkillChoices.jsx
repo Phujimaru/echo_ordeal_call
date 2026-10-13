@@ -1,10 +1,12 @@
 // ปุ่มสกิลแบบหลายตัวเลือก (skill.choices จาก server — เคท: เขม่าควัน · เอมิลิโกะ: อาวุธ) — จอคอม/แท็บเล็ต
 //  choices = [{ key, name, img, cost, area, active?, locked? }] · isOk(c) = ใช้ได้ตอนนี้ไหม · onPick(c) = เลือก (การเลือก = การยืนยัน)
-//  ปุ่มมีแค่รูป ชื่อ และแต้ม (ห้ามมีคำอธิบาย) · Esc / คลิกนอกกรอบ / คลิกขวา = ปิด
-import { useEffect } from "react";
+//  ปุ่มมีแค่รูป ชื่อ และแต้ม · ชี้เมาส์ค้าง = คำอธิบายย่อของตัวเลือก (c.desc — ผู้ใช้สั่ง 2026-10-14) · Esc / คลิกนอกกรอบ / คลิกขวา = ปิด
+import { useEffect, useState } from "react";
 import { clickSound } from "../../audio";
 
 export default function SkillChoices({ title, choices = [], isOk = () => true, onPick, onClose }) {
+  const [hover, setHover] = useState(null); // key ของตัวเลือกที่ชี้อยู่
+  const tip = choices.find((c) => c.key === hover && c.desc);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     const onCtx = (e) => { e.preventDefault(); onClose(); };
@@ -21,8 +23,9 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
             const on = !!c.active;
             const off = !on && !isOk(c); // ตัวที่ถืออยู่ = กรอบทอง (กดซ้ำไม่ได้ แต่ไม่จาง)
             return (
+              // ห่อด้วย div: ปุ่มที่ disabled ไม่ส่ง mouseenter — ตัวเลือกที่กดไม่ได้ก็ยังชี้ดูคำอธิบายได้
+              <div key={c.key} onMouseEnter={() => setHover(c.key)} onMouseLeave={() => setHover((h) => (h === c.key ? null : h))}>
               <button
-                key={c.key}
                 type="button"
                 disabled={off || on}
                 onClick={() => { clickSound(); onPick(c); }}
@@ -36,8 +39,12 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                   {(c.cost || 0) > 0 && <span className="shrink-0 text-xs font-black text-sky-200">◆{c.cost}</span>}
                 </div>
               </button>
+              </div>
             );
           })}
+        </div>
+        <div className={`max-w-[640px] min-h-[3.25rem] px-4 py-2 rounded-xl text-center text-[15px] leading-snug text-white bg-black/55 border border-white/10 transition-opacity duration-150 ${tip ? "opacity-100" : "opacity-0"}`} aria-live="polite">
+          {tip ? tip.desc : ""}
         </div>
       </div>
     </div>

@@ -24,7 +24,7 @@
 | `ke_wings` | กางปีกบิน (เน้น) | Fly wings movement | 2697 | 0:05 | https://mixkit.co/free-sound-effects/wings/ | ตัด ~1.5 วิ · ซ้อน Flying fast swoosh (1469) ตอนพุ่งได้ |
 | `ke_storm` | ระบำเขม่า (สำคัญสุด) | Storm coming whoosh | 2408 | 0:04 | https://mixkit.co/free-sound-effects/discover/storm/ | ตัด ~3 วิ · สำรอง: Cinematic whoosh magic gust (2343, 0:07) / Storm vortex (2410) |
 | `ke_storm_tick` | พายุต้นเทิร์น | Storm wind | 2411 | 0:02 | https://mixkit.co/free-sound-effects/wind/ | ตัด ~0.6 วิ · สำรอง: Dark storm wind (2413) |
-| `ke_masked` | มองไม่ออก | Ghostly whoosh passing | 2623 | 0:03 | https://mixkit.co/free-sound-effects/discover/whoosh/ | ตัด ~1 วิ · สำรอง: Terror sweep of darkness (2630) |
+| `ke_masked` | มืดบอด | Ghostly whoosh passing | 2623 | 0:03 | https://mixkit.co/free-sound-effects/discover/whoosh/ | ตัด ~1 วิ · สำรอง: Terror sweep of darkness (2630) |
 | `ke_hit_mop` | ตีด้วยไม้ถูพื้น | Fish flapping | 2457 | 0:01 | https://mixkit.co/free-sound-effects/splash/ | เสียงเปียกตบ · สำรอง: Short slap or clap (2167) |
 | `ke_hit_vase` | ตีด้วยแจกัน | Glass break with hammer thud | 759 | 0:01 | https://mixkit.co/free-sound-effects/glass/ | ซ้อนกับ Water splash (1311) ได้ |
 | `ke_hit_vacuum` | ตีด้วยเครื่องดูดฝุ่น | Vacuum swoosh transition | 1465 | 0:02 | https://mixkit.co/free-sound-effects/discover/vacuum/ | |

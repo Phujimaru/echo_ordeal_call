@@ -101,7 +101,7 @@ export default function ShadowFxDev({ units, setUnits, pushFx, setFocus, map }) 
       ["แส้ดึง", whipPull], ["แส้พุ่ง", () => whipDash(false)], ["แส้พุ่ง หลบ", () => whipDash(true)]],
     [["กระจกเงา", () => play({ kind: "mirror", from: "me", to: "emi", at: { x: K().x, y: K().y } })], ["ฟื้น", () => play({ kind: "revive", by: "me", id: "emi", at: { x: get("emi").x, y: get("emi").y } })],
       ["ดาบ ถือ", () => play({ kind: "sword", id: "me", holder: "me" })], ["ดาบ ส่ง", () => play({ kind: "sword", id: "me", holder: "emi", from: "me" })], ["ดาบ คืน", () => play({ kind: "sword", id: "me", holder: "me", from: "emi" })],
-      ["มองไม่ออก", () => play({ kind: "masked", id: F0().id })], ["ม่านแดง ทิก", () => play({ kind: "stormTick", hits: foes().slice(0, 2).map((u) => ({ id: u.id, dmg: 1 })) })]],
+      ["มืดบอด", () => play({ kind: "masked", id: F0().id })], ["ม่านแดง ทิก", () => play({ kind: "stormTick", hits: foes().slice(0, 2).map((u) => ({ id: u.id, dmg: 1 })) })]],
     [...["mop", "vase", "vacuum", "sword"].map((w) => [`อาวุธ ${w}`, () => play({ kind: "weapon", id: "emi", weapon: w })]),
       ...["mop", "vase", "vacuum", "sword"].map((w) => [`ร่าเริง ${w}`, () => cheer(w)])],
     [["เปียก", () => pushFx(wetTileFx(frontTiles()))], ["ถูแห้ง", () => pushFx(dryTileFx(frontTiles()))], ["ไม้ถูชน", () => { const f = F0(); pushFx([{ kind: "keMopHit", x: f.x, y: f.y, dmg: 2, hitIds: [f.id] }]); }],

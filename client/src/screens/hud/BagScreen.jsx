@@ -28,7 +28,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
   const [gunOpen, setGunOpen] = useState(false);
   const sel = items.find((it) => it.uid === selUid) || items[0] || null;
-  const slots = Math.max(bagSlots, items.length);
+  const slots = Math.max(bagSlots + (items.some((it) => it.type === "kebread") ? 1 : 0), items.length); // ขนมปังเอมิลิโกะไม่กินช่อง
 
   // Esc = ปิด
   useEffect(() => {
@@ -61,6 +61,17 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
           <button type="button" className="bag-btn primary" disabled={!myTurn || !!me?.mark42} onClick={() => emit("useInventoryItem", { uid: sel.uid, mode: "self" })}>ใส่ให้ตัวเอง</button>
           <button type="button" className="bag-btn" disabled={!myTurn || !suitTargets.length} onClick={() => { clickSound(); onPickSuit(sel.uid, "give"); }}>ใส่ให้ผู้เล่นอื่น</button>
           <button type="button" className="bag-btn warn" disabled={!myTurn || !suitTargets.length} onClick={() => { clickSound(); onPickSuit(sel.uid, "bomb"); }}>ใส่แล้วระเบิด</button>
+        </>
+      );
+    } else if (type === "kebread") {
+      // ขนมปังของเอมิลิโกะ: กินเอง / ป้อนเคทที่ยืนติดกัน (คุมเอมิลิโกะอยู่เท่านั้น)
+      const isEmi = me?.character?.id === "emiliko";
+      const kate = isEmi ? (players || []).find((p) => p.id === me.duoOf) : null;
+      const canFeed = !!kate && kate.alive && adjacent(me, kate);
+      actions = (
+        <>
+          <button type="button" className="bag-btn primary" disabled={!myTurn || !isEmi} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>กิน</button>
+          <button type="button" className="bag-btn" disabled={!myTurn || !canFeed} onClick={() => emit("useInventoryItem", { uid: sel.uid, targetId: kate.id })}>ป้อนเคท</button>
         </>
       );
     } else if (type !== "gutsAmmo") {
@@ -131,7 +142,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
                   ) : null}
                   <div className="bag-actions">
                     {actions}
-                    <button type="button" className="bag-btn ghost" disabled={!myTurn} onClick={() => emit("dropItem", { uid: sel.uid })}>ทิ้ง</button>
+                    {sel.type !== "kebread" && <button type="button" className="bag-btn ghost" disabled={!myTurn} onClick={() => emit("dropItem", { uid: sel.uid })}>ทิ้ง</button>}
                   </div>
                 </>
               ) : (

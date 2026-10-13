@@ -273,7 +273,7 @@ function ledger() {
 }
 
 // ระบบคู่ (?duo=1): ตัวที่สอง "p0~duo" (เอมิลิโกะ) ข้างเรา + พื้นเปียก 3 ช่อง · corpse=1 = เคทล้ม (ร่างค้าง · คุมเอมิลิโกะ)
-//  masked=1 = เราติด "มองไม่ออก" (หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน)
+//  masked=1 = เราติด "มืดบอด" (หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน)
 function addDuo(s, opts) {
   const me = s.players.find((p) => p.id === ME);
   const map = Rules.mapOf(s.board.area);

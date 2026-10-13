@@ -8,7 +8,7 @@
 //   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive?, alpha?, cloak? }]
 //               cloak = ซ่อนจากศัตรูอยู่ (เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน) → วาดจางแบบเงา + แถบแสงพาดช้าๆ
 //               wings = เคทยืนในม่านแดงของตัวเอง → ปีกเขม่ากางค้างหลังหมาก (shadowFx.js drawIdleWings) · fx ke* ย้ายหมากเองได้ (shadowPose)
-//               masked = ผู้ชมติด "มองไม่ออก" → หมากขาวล้วน ไม่มีรูป/ชื่อ/แถบเลือด · corpse = ร่างล้มของระบบคู่ (เงาราบบนช่อง)
+//               masked = ผู้ชมติด "มืดบอด" → หมากขาวล้วน ไม่มีรูป/ชื่อ/แถบเลือด · corpse = ร่างล้มของระบบคู่ (เงาราบบนช่อง)
 //               tag = ป้ายเหนือหัว: "18" / "พอ" / "แตก" (แตก = ป้ายแดง) หรือ { text, bust, backs } · alive === false = ไม่วาด
 //   highlights  { move, attack, skill, aoe, danger: ["x,y"…], path: [{x,y}…], target?: {x,y}, push?: { from, to, collide } } — ไม่ใส่ได้ทุกช่อง
 //   shopPos     {x,y} | null — แผงร้านค้ามายา
@@ -540,7 +540,7 @@ export default function BoardCanvas(props) {
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
           isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
-          masked: !!u.masked, corpse: !!u.corpse, // มองไม่ออก = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
+          masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
           grow: (() => { const gr = st.grow.get(u.id); if (gr && now - gr.t0 > GROW_MS) { st.grow.delete(u.id); return null; } return gr || null; })(),

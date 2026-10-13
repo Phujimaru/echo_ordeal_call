@@ -110,7 +110,7 @@ function buildStateFor(viewerId) {
   const deckLedger = cardDeck.canonicalDeckCards().map((c) => ({ ...c, drawn: !remainingCardKeys.has(cardDeck.cardKey(c)) }));
   // คนที่กำลังเดินซึ่งผู้ชมคนนี้มองไม่เห็น (ล่องหน/พุ่มหญ้า) — ไม่ส่งเส้นทาง/ช่องเริ่มตา (server/visibility.js)
   const actorUnseen = Visibility.hiddenFrom(viewer, match.players[match.actorId]);
-  // "มองไม่ออก" (ติดตัวเคทในระบำเขม่า): ผู้ชมที่ติด (ตัวไหนของฝ่ายก็ได้) เห็นหมากคนอื่นเป็นสีขาว ไม่มีชื่อ/ภาพ/ลำดับเดิน
+  // "มืดบอด" (ติดตัวเคทในระบำเขม่า): ผู้ชมที่ติด (ตัวไหนของฝ่ายก็ได้) เห็นหมากคนอื่นเป็นสีขาว ไม่มีชื่อ/ภาพ/ลำดับเดิน
   const masked = !!viewer && match.gameState !== "GAMEOVER" && Duo.unitsOf(viewer).some((u) => u.alive && (u.statuses.shadowMask || 0) > 0);
   return {
     gameState: match.gameState,
@@ -270,7 +270,8 @@ function buildStateFor(viewerId) {
         character: {
           id: ch.id,
           // ภาพประจำตัวละคร (ไม่ผูกกับร่าง/แฝดที่กำลังคุมอยู่) — ฉากเปิดตัวตอนแมตช์เริ่มใช้ภาพนี้
-          img: ch.img,
+          img: ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
+          cover: ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน
           name: ch.name,
           passive: ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
           passive2: ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
@@ -301,7 +302,7 @@ function buildStateFor(viewerId) {
     }).map((o) => (masked && Duo.sideKey(match.players[o.id]) !== viewerId ? maskPub(o) : o)),
   };
 }
-// "มองไม่ออก": หมากของคนอื่นเหลือแค่ตำแหน่ง — สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข
+// "มืดบอด": หมากของคนอื่นเหลือแค่ตำแหน่ง — สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข
 function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,

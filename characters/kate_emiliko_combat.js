@@ -2,7 +2,7 @@
 //  เคท & เอมิลิโกะ — ส่วนการต่อสู้ (ต่อท้ายฮุคใน characters/kate_emiliko.js)
 //   เอมิลิโกะ: ไม้ถูพื้น (ไถลบนพื้นเปียกชน 2 · ถูแห้ง) · แจกัน (ตีผลัก 3 + พื้นเปียก) · เครื่องดูดฝุ่น (ระยะ 3 · ดาเมจ = ระยะ · ดูด)
 //              ดาบเขม่า (+2) · ท่าไม้ตาย ร่าเริงสุดๆ (แนว 4×3 ตามอาวุธ)
-//   เคท: ดาบเขม่า (+1) · แส้เขม่า · ปีกเขม่า · ท่าไม้ตาย ระบำเขม่า (server/soot.js) · ติดตัว: ในม่านตีแล้วเป้า "มองไม่ออก"
+//   เคท: ดาบเขม่า (+1) · แส้เขม่า · ปีกเขม่า · ท่าไม้ตาย ระบำเขม่า (server/soot.js) · ติดตัว: ในม่านตีแล้วเป้า "มืดบอด"
 //  การขยับคน (ผลัก/ดูด/ไถล) ส่งเป็น iceFx (server/ice.js) — client เล่นตามลำดับ · ท่าใหญ่ส่ง shadowFx
 //  Claude ตัดสินเอง (บอกผู้ใช้): ชนตอนถูกผลัก = เป้าเสีย 1 และคนที่ถูกชน (ถ้าเป็นศัตรู) เสีย 1 ด้วย · ตัวใหญ่ไม่ถูกผลัก/ดูด
 //   ทางที่ถูกผลัก = ช่องออกตัวถึงช่องก่อนช่องที่หยุด · ไม้ถูพื้นท่าไม้ตาย: ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ช่องที่ 5) ดาเมจ 2 หลบไม่ได้
@@ -19,6 +19,8 @@ const CHEER_LEN = 4;
 const WHIP_DMG = 1;
 const WINGS_LEN = 4;
 const MASK_KEY = "shadowMask";
+const BREAD_HP = 2;
+const BREAD_ARMOR = 1;
 
 const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -141,15 +143,15 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
       const engine = require("../server/engine").engine;
       return `ke_hit_${weapon(engine, p) || "mop"}`;
     },
-    // ติดตัวเคท: ตีปกติในม่านแดงของตัวเอง → เป้า "มองไม่ออก" 1 เทิร์น (ต้านสถานะได้)
+    // ติดตัวเคท: ตีปกติในม่านแดงของตัวเอง → เป้า "มืดบอด" 1 เทิร์น (ต้านสถานะได้)
     onStrikeLanded(engine, attacker, target) {
       if (!isKate(attacker) || !engine.soot.inStormOf(attacker) || !target.alive) return [];
       const acted = engine.hasActed(target.id) || engine.actorId === target.id;
       if (!engine.applyDebuff(target, MASK_KEY, 1, 1 + (acted ? 1 : 0))) return [];
-      engine.log(`🌫️ ${target.name} มองไม่ออก — ใครเป็นใคร`);
+      engine.log(`🌫️ ${target.name} มืดบอด — ใครเป็นใคร`);
       engine.boardFx("shadowFx", { kind: "masked", id: target.id });
       engine.sfx("ke_masked");
-      return ["มองไม่ออก"];
+      return ["มืดบอด"];
     },
     // แจกัน: ผลักเป้า 3 ช่อง (ทางเป็นพื้นเปียก) · เครื่องดูดฝุ่น: ดูดเป้ามาติดตัว
     afterBoardAttack(engine, attacker, target, res) {
@@ -190,6 +192,23 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
       const dried = engine.ice.dryWet(ev.path);
       if (dried.length) ctx.events.push({ kind: "dry", tiles: dried });
       engine.sfx("ke_slide");
+    },
+    // ขนมปัง (ของประจำตัวเอมิลิโกะ · shop.useInventoryItem): กินเอง หรือป้อนเคทที่ยืนติดกัน → ฟื้นพลังชีวิต 2 เกราะ 1
+    useBread(engine, p, item, opts = {}) {
+      if (!isEmi(p) || !item || !(item.uses > 0)) return false;
+      let t = p;
+      if (opts.targetId && opts.targetId !== p.id) {
+        const mate = mateOf(engine, p);
+        if (!mate || opts.targetId !== mate.id || !mate.alive || !mate.pos || !p.pos || dist(p.pos, mate.pos) !== 1) return false;
+        t = mate;
+      }
+      const hp = engine.healHp(t, BREAD_HP);
+      const ar = engine.healArmor(t, BREAD_ARMOR);
+      item.uses -= 1;
+      engine.log(`🍞 ${p.name} ${t === p ? "กินขนมปัง" : `ป้อนขนมปังให้ ${t.name}`} — ฟื้นพลังชีวิต +${hp} เกราะ +${ar} (เหลือ ${item.uses})`);
+      engine.boardFx("shadowFx", { kind: "bread", by: p.id, id: t.id });
+      engine.sfx("ke_revive");
+      return true;
     },
     skillSound(p, tier, opts) {
       if (!isPair(p)) return null;

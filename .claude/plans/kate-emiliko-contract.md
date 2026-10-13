@@ -20,7 +20,7 @@ Worktree: `C:\Echo\.claude\worktrees\kate-emiliko` (branch `kate-emiliko`) · se
   - `character.basic` เปลี่ยนเป็น "ตื่นขึ้นอีกครั้ง" (cost 6, img revive.jpg) เมื่ออีกตัวล้ม · `skillLocks.basic.locked` = กดไม่ได้
 - `board.wet = [{x,y}]` พื้นเปียก (special "wet" ใน terrain/special ด้วย — กติกาไถลเหมือนน้ำแข็ง)
 - `board.storms = [{ x0, y0, x1, y1, owner, left }]` ม่านแดง (ระบำเขม่า · 8×8 · อยู่ 3 เทิร์น) — วาดค้างบนกระดานตลอดที่ยังอยู่
-- `state.masked = true` → ผู้ชมคนนี้ติด "มองไม่ออก": หมากทุกตัวยกเว้นของตัวเอง (ทั้งคู่) ได้ `masked: true, name: "", img: null, color: "#ffffff"` · `turnOrder: []`
+- `state.masked = true` → ผู้ชมคนนี้ติด "มืดบอด": หมากทุกตัวยกเว้นของตัวเอง (ทั้งคู่) ได้ `masked: true, name: "", img: null, color: "#ffffff"` · `turnOrder: []`
   → client วาดหมากพวกนั้นเป็นสีขาวล้วน ไม่มีชื่อ/ภาพ/ลำดับ
 - `skillMusic: "kate_storm"` ระหว่างมีม่านแดงของเคทอยู่ (เปลี่ยน skillMusicSeq = ครั้งใหม่): เล่น intro ครั้งเดียว ต่อด้วย loop วนจนเพลงเปลี่ยน
 
@@ -34,7 +34,7 @@ Worktree: `C:\Echo\.claude\worktrees\kate-emiliko` (branch `kate-emiliko`) · se
   - `wings` `{ id, from, to, dir, carry: { id, from, to } | null }` เคทกางปีกบิน (ข้ามทุกอย่าง) — **ท่าที่ผู้ใช้เน้น: ปีกเขม่าใหญ่ ขนนกเขม่าปลิว เงาบนพื้น**
   - `storm` `{ by, x0, y0, x1, y1, center }` ร่ายระบำเขม่า — **ท่าที่สำคัญที่สุด ต้องอลังการ** (server พักตาเดิน ~4 วิ ให้ฉากเล่น)
   - `stormTick` `{ hits: [{ id, dmg }] }` ดาเมจพายุต้นเทิร์น
-  - `masked` `{ id }` เป้าติด "มองไม่ออก"
+  - `masked` `{ id }` เป้าติด "มืดบอด"
   - `cheer` `{ id, weapon, dir, tiles: [{x,y}], dash: { from, to } | null }` ท่าไม้ตายเอมิลิโกะ (ผลัก/ดูดตามมาเป็น iceFx)
 - `iceFx` (ระบบเดิม client/src/board/iceFx.js) เพิ่ม kind: `wet { tiles }` (ช่องเปียกใหม่) · `dry { tiles }` (ไม้ถูพื้นถูแห้ง) · `hit` มี `style: "mop"` ได้ · `knock` ใช้กับผลัก/ดูด
 - ฉากตีปกติ (`state.attack` card) `byStyle`: `keMop` `keVase` `keVacuum` `keSword` (เอมิลิโกะตามอาวุธ) · `keKate` (เคท — กรงเล็บเขม่า) — ต้องมีตัววาด + STYLE_MS แบบ hikaruFx.js

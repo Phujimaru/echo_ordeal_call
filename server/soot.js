@@ -24,7 +24,7 @@ function active() { return storms().length > 0; }
 function inside(s, pos) { return !!pos && pos.x >= s.x0 && pos.x <= s.x1 && pos.y >= s.y0 && pos.y <= s.y1; }
 // ม่านที่ p ยืนอยู่ข้างใน (ตัวแรกที่เจอ) · ไม่อยู่ = null
 function stormOf(p) { return (p && p.pos && storms().find((s) => inside(s, p.pos))) || null; }
-// p อยู่ในม่านของฝ่ายตัวเองไหม (ติดตัวเคท: เดิน 6/4 · ตีปกติทำให้มองไม่ออก)
+// p อยู่ในม่านของฝ่ายตัวเองไหม (ติดตัวเคท: เดิน 6/4 · ตีปกติทำให้มืดบอด)
 function ownStorm(p) { return !!(p && p.pos && storms().some((s) => s.side === Duo.sideKey(p) && inside(s, p.pos))); }
 // ม่านที่ขัง p อยู่ (ข้างในม่านของฝ่ายอื่น) · ไม่ถูกขัง = null
 function trapOf(p) { return (p && p.pos && p.alive && storms().find((s) => s.side !== Duo.sideKey(p) && inside(s, p.pos))) || null; }

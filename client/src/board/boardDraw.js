@@ -381,7 +381,7 @@ function unitHex(g, u, cx, cy, r, alpha = 1) {
   hexPath(g, cx, cy, r + 1.5); g.strokeStyle = u.color; g.lineWidth = 3; g.stroke();
   g.save(); hexPath(g, cx, cy, r - 1); g.clip();
   const e = u.masked ? null : getImg(u.img);
-  if (u.masked) { g.fillStyle = "#ffffff"; g.fillRect(cx - r, cy - r, r * 2, r * 2); } // มองไม่ออก: ขาวล้วน
+  if (u.masked) { g.fillStyle = "#ffffff"; g.fillRect(cx - r, cy - r, r * 2, r * 2); } // มืดบอด: ขาวล้วน
   else if (e && e.ok) cover(g, e.img, cx - r, cy - r * 0.87, r * 2, r * 1.74, 0.08);
   else {
     // รูปโหลดไม่ขึ้น/ยังโหลดอยู่ → แผ่นสีประจำที่นั่ง + ตัวอักษรแรกของชื่อ
@@ -482,7 +482,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
   if (u.cloak && !REDUCED) cloakShimmer(g, bx, hy, hexR, now);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
-  // แผ่นเลือด/เกราะขนาดเล็ก (มองไม่ออก = ไม่มี)
+  // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี)
   if (u.masked) {
     g.restore();
     if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });

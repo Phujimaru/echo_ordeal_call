@@ -749,5 +749,5 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
 - **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
-- **มองไม่ออก** (`shadowMask` · DEBUFF_KEYS): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
+- **มืดบอด** (`shadowMask` · DEBUFF_KEYS): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 

@@ -125,7 +125,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
   const canMove = myTurn && !action.moved && !action.locked;
   const canto = myTurn && !!action.canto; // เอมิลิโกะเดินต่อหลังจบตา: เดินได้อย่างเดียว (ตีไม่ได้)
-  const masked = !!state.masked; // ผู้ชมติด "มองไม่ออก": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
+  const masked = !!state.masked; // ผู้ชมติด "มืดบอด": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
 
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
   const [hover, setHover] = useState(null);
@@ -1172,7 +1172,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- ตัวละครบนกระดาน ----------
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos).map((p) => {
     const at = iceHold[p.id] || hold[p.id] || p.pos;
-    const mk = !!p.masked; // "มองไม่ออก": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
+    const mk = !!p.masked; // "มืดบอด": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
     return {
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
@@ -1181,7 +1181,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       dim: !!pickValid && !pickValid.has(p.id),
       // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
       cloak: !!p.veiled,
-      // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มองไม่ออก = ไม่เห็น)
+      // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
@@ -1219,7 +1219,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       setFcId(id);
       return;
     }
-    if (onInspect && !(p.masked && !sameSide(p, me))) onInspect(id); // มองไม่ออก = ดูสถานะไม่ได้
+    if (onInspect && !(p.masked && !sameSide(p, me))) onInspect(id); // มืดบอด = ดูสถานะไม่ได้
   };
   const onTileClick = (x, y) => {
     const k = key(x, y);
@@ -1386,7 +1386,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [zero, sealHold]);
 
   // ---------- แถบลำดับเดิน ----------
-  // มองไม่ออก (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
+  // มืดบอด (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
   const order = masked ? []
     : phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
       ? [...roster].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)

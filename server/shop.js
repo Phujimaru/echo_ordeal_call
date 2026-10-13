@@ -7,6 +7,7 @@ Object.assign(module.exports, {
   cardLabel, useInventoryItem, gutsFireTargetOf, applyGutsBullet,
 });
 
+const CHAR_HOOKS = require("../characters/index");
 const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const {
@@ -81,6 +82,7 @@ function shopItemName(item) {
   if (item.type === "gutsGun") return "ปืนหน่วย GUTS Select";
   if (item.type === "mark42") return "เกราะ Mark 42";
   if (item.type === "gutsAmmo") return (GUTS_AMMO[item.ammo] || {}).name || "กระสุน";
+  if (item.type === "kebread") return "ขนมปัง";
   return "สินค้า";
 }
 // เปิดร้านค้ามายา: สุ่มสินค้าใหม่ทั้งหมด SHOP_MAX_ITEMS ช่อง (สินค้าประเภทเดียวกันขึ้นซ้ำได้)
@@ -159,8 +161,9 @@ function shopTurnsLeft() {
 }
 
 // ---------- กระเป๋า 5 ช่อง ----------
+//  ขนมปังของเอมิลิโกะ (ของประจำตัว) ไม่กินช่อง
 function bagFull(p) {
-  return (p.inventory || []).length >= BAG_SLOTS;
+  return (p.inventory || []).filter((it) => it.type !== "kebread").length >= BAG_SLOTS;
 }
 // ทิ้งของ: เฉพาะตาตัวเอง · ไม่นับเป็นการใช้ (ยังเดิน/ย้อนได้)
 function dropItem(id, uid) {
@@ -168,6 +171,7 @@ function dropItem(id, uid) {
   if (!action.canAct(p)) return false;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return false;
+  if (p.inventory[idx].type === "kebread") return false; // ขนมปังของเอมิลิโกะทิ้งไม่ได้
   const [item] = p.inventory.splice(idx, 1);
   match.lastLog.push(`🗑️ ${p.name} ทิ้ง ${shopItemName(item)}`);
   view.broadcastState();
@@ -242,6 +246,15 @@ function useInventoryItem(id, uid, opts = {}) {
     if (other) Visibility.onHostileAct(p); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
     p.inventory.splice(idx, 1);
     characterRules.mark42Run(p, plan, null);
+    return;
+  }
+  // ---------- ขนมปัง (ของประจำตัวเอมิลิโกะ · characters/kate_emiliko_combat.js): กินเอง / ป้อนเคทที่ยืนติดกัน ----------
+  if (item.type === "kebread") {
+    const hook = CHAR_HOOKS[p.characterId];
+    if (!hook || !hook.useBread || !hook.useBread(engine, p, item, opts)) return;
+    action.lockMove(p);
+    if (!(item.uses > 0)) p.inventory.splice(p.inventory.indexOf(item), 1);
+    view.broadcastState();
     return;
   }
   // ---------- ปืน GUTS: นับเป็นการโจมตีของตา (จบตา) ----------
