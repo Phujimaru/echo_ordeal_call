@@ -29,18 +29,20 @@ function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
   if (!match.effectSourceId && p) return combat.withEffectSource(p, () => useSkill(id, tier, targets, opts));
   if (!p || !p.alive) return;
-  // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7) — ใช้แล้วเดินไม่ได้อีก แต่ยังโจมตีได้
-  if (!action.canAct(p)) return;
   if (!["basic", "secondary", "ultimate"].includes(tier)) return;
   const ch = CHAR_BY_ID[p.characterId];
   const skill = ch && ch[tier];
   if (!skill) return;
+  const hook = CHAR_HOOKS[p.characterId];
+  // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7) — ใช้แล้วเดินไม่ได้อีก แต่ยังโจมตีได้
+  //  ระหว่างเดินต่อหลังจบตา (canto) กดได้เฉพาะสกิลที่ฮุค cantoSkill อนุญาต (กระจกเงา)
+  if (!action.canAct(p, { move: !!(hook && hook.cantoSkill && hook.cantoSkill(p, tier)) })) return;
   if ((p.statuses.noskill || 0) > 0) return; // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้
   if (tier === "ultimate" && Zero.ultLocked()) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก
 
-  const hook = CHAR_HOOKS[p.characterId];
   // ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน) — ต้องตรงกับ showCost() ใน buildStateFor
-  let cost = hook && hook.skillCost ? hook.skillCost(p, tier, skill.cost) : skill.cost;
+  //  opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก — ราคา/พื้นที่ต่างกันต่อตัวเลือก)
+  let cost = hook && hook.skillCost ? hook.skillCost(p, tier, skill.cost, opts) : skill.cost;
   // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ (พื้นฐาน/รอง อย่างใดอย่างหนึ่ง) ใช้แต้มมากขึ้น +1 — ไม่มีผลกับท่าไม้ตาย
   //  (เพดาน SKILL_COST_MAX คิดรวมทีเดียวกับภาระเวทด้านล่าง)
   const nightTax = p.nightTaxTier === tier ? 1 : 0;
@@ -60,7 +62,7 @@ function useSkill(id, tier, targets, opts = {}) {
 
   // ระยะบนกระดาน (GRID_PLAN §7): เป้านอกระยะ/ไม่ได้เลือกทิศ = กดไม่ได้ · ได้รายชื่อผู้โดนจริงส่งต่อให้ hook
   //  skillArea = พื้นที่เปลี่ยนตามสถานะ (มุยมิ: ดาบสนิมระหว่างดาบสะบั้น = คลื่นดาบแนว) — ต้องตรงกับ buildStateFor
-  const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area) : skill.area;
+  const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area, opts) : skill.area;
   targets = action.resolveArea(p, area, targets, opts.dir, opts.tile);
   if (!targets) return;
   // ห่วงเวลาซีโร่: สกิลโจมตีพื้นที่ที่คลุมผนึกมิโกะ = ลงผนึกด้วย (หลังผลของสกิล)
@@ -73,15 +75,15 @@ function useSkill(id, tier, targets, opts = {}) {
   if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets, opts)) return;
   // โควตาสกิลหลัก 1 อันต่อเทิร์น — ignoresTurnQuota = กดได้แม้ใช้โควตาไปแล้ว (มุยมิ: เสบียงฉุกเฉิน)
   //  skipsTurnQuota = กดแล้วไม่กินโควตา (มุยมิ: เสบียงฉุกเฉิน · โอเบรอน: นกจาบยามเช้า)
-  const ignoresQuota = !!(hook && hook.ignoresTurnQuota && hook.ignoresTurnQuota(p, tier));
-  const skipsQuota = !!(hook && hook.skipsTurnQuota && hook.skipsTurnQuota(p, tier));
+  const ignoresQuota = !!(hook && hook.ignoresTurnQuota && hook.ignoresTurnQuota(p, tier, opts));
+  const skipsQuota = !!(hook && hook.skipsTurnQuota && hook.skipsTurnQuota(p, tier, opts));
   if (p.skillUsedRound && !ignoresQuota) return; // ใช้สกิลได้เพียง 1 อันต่อเทิร์น (ซ้ำ/ซ้อนไม่ได้)
   // ท่าไม้ตาย: กดซ้ำไม่ได้จนกว่าผลจะหมดเวลา
   if (tier === "ultimate" && st && (p.statuses[st] || 0) > 0) return;
 
   p.skillPoints -= cost;
   // ใช้สกิลแล้วเดินไม่ได้อีก — ฮุค keepsMove = สกิลที่ใช้ก่อนเดินแล้วยังเดินได้ (Ice Spike: ธารน้ำแข็ง/หนามน้ำแข็ง ก่อนขยับ)
-  if (!(hook && hook.keepsMove && hook.keepsMove(engine, p, tier))) action.lockMove(p);
+  if (!(hook && hook.keepsMove && hook.keepsMove(engine, p, tier, opts))) action.lockMove(p);
   if (blessFree) {
     p.statuses.freecast--;
     if (p.statuses.freecast <= 0) delete p.statuses.freecast;
@@ -134,7 +136,7 @@ function useSkill(id, tier, targets, opts = {}) {
 
   // สกิลช่วงจั่วการ์ด (instant): เด้งโชว์ทันทีบนกระดานของทุกคน ไม่ต้องรอเปิดไพ่/ไม่ตัดจอดำ
   // silentFlash: สกิลที่มีคลิป/การ์ดแจ้งเตือนของตัวเอง (ต้องเงียบระหว่างล่องหน) — ไม่ขึ้นป้ายกลาง ไม่บันทึก roundSkills
-  const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier));
+  const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier, opts));
   if (skill.instant && !silent) {
     const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
     io.emit("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound });
@@ -157,7 +159,7 @@ function useSkill(id, tier, targets, opts = {}) {
       const actor = match.players[match.actorId];
       if (!actor || !actor.alive) { action.finishActor(); return; }
       match.gameState = "ACTION";
-      timers.startPhaseTimer(remain, action.finishActor);
+      timers.startPhaseTimer(remain, action.actionTimeUp);
       view.broadcastState();
     });
     return;

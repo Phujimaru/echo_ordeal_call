@@ -20,6 +20,7 @@ const shop = require("./shop");
 const skills = require("./skills");
 const timers = require("./timers");
 const view = require("./view");
+const Duo = require("./duo");
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
 const sessions = new Map();          // sessionToken -> playerId
@@ -120,6 +121,10 @@ function onPlayerEvent(socket, event, handler, limit = 20, windowMs = 1000) {
     handler(playerId, payload);
   });
 }
+// คำสั่งตาเดินของ "ตัวบนกระดาน" — ระบบคู่ (server/duo.js): ส่งไปที่ตัวที่ผู้เล่นคุมอยู่ตอนนี้
+function onUnitEvent(socket, event, handler, limit = 20, windowMs = 1000) {
+  onPlayerEvent(socket, event, (playerId, payload) => handler(Duo.controlledId(playerId), payload), limit, windowMs);
+}
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join
 function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, ch }) {
@@ -188,7 +193,8 @@ io.on('connection', (socket) => {
     lobby.releaseReservation(socket.id);
     let ch = CHAR_BY_ID[characterId];
     // ตัวละครที่ยังล็อกอยู่ / id ไม่รู้จัก — ตกไปใช้ตัวแรกที่เล่นได้
-    if (!ch || ch.locked) ch = CHARACTERS.find((c) => !c.locked) || CHARACTERS[0];
+    //  hidden = เลือกเองไม่ได้ (เอมิลิโกะ — ตัวที่สองของเคท)
+    if (!ch || ch.locked || ch.hidden) ch = CHARACTERS.find((c) => !c.locked && !c.hidden) || CHARACTERS[0];
     // ตัวละคร unique: เลือกได้แค่ 1 คนต่อเกม — ปฏิเสธการเข้าร่วมแทนการสลับตัวให้เงียบๆ
     //  (ฝั่ง client ปิดการ์ดไว้ตั้งแต่หน้าเลือกตัวละครผ่าน event "takenChars" — ด่านนี้กันเคสกดพร้อมกันเป๊ะ)
     if (ch.unique && Object.values(match.players).some((o) => o.characterId === ch.id)) {
@@ -240,20 +246,20 @@ io.on('connection', (socket) => {
 
   onPlayerEvent(socket, 'hit', (id) => draw.hit(id), 8);
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
-  onPlayerEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile } = {}) => skills.useSkill(id, tier, targets, {
+  onUnitEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile } = {}) => skills.useSkill(id, tier, targets, {
     dir, form: typeof form === 'string' ? form : undefined,
     tile: tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : undefined, // สกิลเลือกช่อง (Ice Spike)
   }), 12);
-  onPlayerEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
-  onPlayerEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
-  onPlayerEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
+  onUnitEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
+  onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
+  onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
   // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
-  onPlayerEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
+  onUnitEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
-  onPlayerEvent(socket, 'move', (id, { x, y, step } = {}) => action.moveTo(id, x, y, { step: step === true }), 12);
-  onPlayerEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
-  onPlayerEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
-  onPlayerEvent(socket, 'endAction', (id) => action.waitAction(id), 4);
+  onUnitEvent(socket, 'move', (id, { x, y, step } = {}) => action.moveTo(id, x, y, { step: step === true }), 12);
+  onUnitEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
+  onUnitEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
+  onUnitEvent(socket, 'endAction', (id) => action.waitAction(id), 4);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);

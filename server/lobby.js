@@ -26,6 +26,7 @@ const socketLayer = require("./socket");
 const timers = require("./timers");
 const view = require("./view");
 const Zero = require("./zeroTime");
+const Duo = require("./duo");
 
 // สีประจำตัว: ผู้เล่นปรับเองได้ตอนตั้งค่าก่อนเข้าเกม — ไม่ได้ตั้งไว้ก็ใช้สีประจำตำแหน่งเดิม
 const CUSTOM_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -42,6 +43,7 @@ function teamModeActive() {
 // "เป็นพวกเดียวกัน" สำหรับการมอบผลดี (ซัพพอร์ต) — duo/trio: ทีมเดียวกัน
 function isAlly(a, b) {
   if (!a || !b || a.id === b.id) return false;
+  if (Duo.sideKey(a) === Duo.sideKey(b)) return true; // ระบบคู่: สองตัวของผู้เล่นคนเดียวกัน
   return !!(teamModeActive() && a.teamId && b.teamId && a.teamId === b.teamId);
 }
 function pregameStateActive() {
@@ -180,7 +182,7 @@ function maybeStartTeamMatch() {
 function aliveTeamIds(list = combat.alivePlayers()) {
   return [...new Set(list.map((p) => p.teamId).filter(Boolean))];
 }
-function remainingTeamWinInfo(stillAlive = combat.alivePlayers(), total = Object.keys(match.players).length) {
+function remainingTeamWinInfo(stillAlive = combat.alivePlayers(), total = Duo.sideCount(Object.values(match.players))) {
   if (!teamModeActive() || total < 2) return { over: false, teamId: null };
   const aliveTeams = aliveTeamIds(stillAlive);
   return aliveTeams.length <= 1 ? { over: true, teamId: aliveTeams[0] || null } : { over: false, teamId: null };
@@ -263,6 +265,7 @@ function startMatch() {
     match.teamCount = 0;
   }
   match.winningTeamId = null;
+  Duo.setup(); // ระบบคู่ (เคท & เอมิลิโกะ): สร้างตัวที่สองของผู้เล่นที่เลือกตัวละครแบบคู่
   for (const p of Object.values(match.players)) combat.resetCombat(p);
   // เครื่องมือ dev: ECHO_DEV_RICH=1 = เริ่มแมตช์ด้วยเหรียญเต็มเพดาน + แต้มสกิลเต็ม (ทดสอบร้าน/ท่าไม้ตายได้ทันที) · ไม่ตั้ง = ปกติ
   if (process.env.ECHO_DEV_RICH === "1") {
@@ -340,6 +343,7 @@ function backToLobby() {
   match.lastLog = [];
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;
+  Duo.teardown(); // ระบบคู่: ตัวที่สองหายไปจนกว่าจะเริ่มแมตช์ใหม่
   for (const p of Object.values(match.players)) {
     p.cards = []; p.locked = false; p.busted = false; p.result = null; p.pos = null;
     combat.resetRoundDisplay(p);

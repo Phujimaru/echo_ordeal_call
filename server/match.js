@@ -26,6 +26,8 @@ const match = {
   actorIndex: -1,
   actorId: null,       // คนที่กำลังเดิน (ACTION / ATTACKING)
   action: null,        // { from, moved, locked, path } ของตาเดินปัจจุบัน
+  actionLeft: 0,       // เวลาที่เหลือของตาเดินตอนถูกพัก (ตี/ฉากสกิล) — ระบบคู่/เดินต่อหลังจบตาเล่นต่อด้วยค่านี้
+  duo: null,           // ตาของฝ่ายคู่ที่กำลังเล่น { ownerId, acts: { id: action }, done: { id: true } } — server/duo.js
   afterCutscene: [],   // ผลของสกิลที่รอลงหลังคลิปจบ (engine.deferAfterCutscene — ใช้ใน useSkill)
   skillBeats: [],      // จังหวะพักตาเดินให้กระดานเล่นเอฟเฟกต์สกิลก่อนผลถัดไป (engine.skillBeat — cutscene.runSkillFlow)
   dash: null,          // การพุ่งล่าสุดบนกระดาน { seq, id, path, wheel, swap } — client เล่นแอนิเมชันตาม seq ใหม่

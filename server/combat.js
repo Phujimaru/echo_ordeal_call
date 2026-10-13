@@ -24,6 +24,7 @@ const { engine } = require("./engine");
 const cardDeck = require("./deck");
 const lobby = require("./lobby");
 const qteSystem = require("./qte");
+const Duo = require("./duo");
 
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
@@ -63,12 +64,16 @@ function healArmor(p, amount) {
   if (heal > 0) p.armor += heal;
   return heal;
 }
-// พลังงานสูงสุดของผู้เล่น
+// พลังงานสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxSkill (เคท & เอมิลิโกะ: 16 ใช้ร่วมกัน)
 function maxSkillOf(p) {
-  return MAX_SKILL;
+  const hook = p && CHAR_HOOKS[p.characterId];
+  const own = hook && hook.maxSkill ? hook.maxSkill(p) : null;
+  return Number.isFinite(own) ? own : MAX_SKILL;
 }
 
+// ระบบคู่ (server/duo.js): สองตัวของผู้เล่นคนเดียวกันเป็นฝ่ายเดียวกันเสมอ (ทุกโหมด)
 function sameTeam(a, b) {
+  if (a && b && a.id !== b.id && Duo.sideKey(a) === Duo.sideKey(b)) return true;
   return !!(lobby.teamModeActive() && a && b && a.id !== b.id && a.teamId && b.teamId && a.teamId === b.teamId);
 }
 function friendlyEffectBlocked(target) {
@@ -121,6 +126,8 @@ function instantDeath(p, force) {
   // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
+  Duo.onDeath(p); // ระบบคู่: ล้มขณะอีกตัวยังอยู่ = ทิ้งร่างไว้ (ตกรอบทั้งฝ่าย = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
+  if (Duo.isOwner(p) && Duo.sideAlive(p)) { p.result = null; p.locked = match.gameState !== "PLAYING"; }
   qteSystem.clearQte(p); // ตกรอบแล้ว QTE ที่ค้างอยู่ต้องหายไปด้วย (ไม่งั้นค้างข้ามการชุบชีวิต/ย้อนเวลา)
   CHAR_HOOKS.sliver_bullet.onDeath(engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
   // Echo (การกลืนกินระดับ EX): ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง)

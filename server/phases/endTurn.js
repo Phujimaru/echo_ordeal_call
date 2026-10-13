@@ -22,6 +22,7 @@ const timers = require("../timers");
 const view = require("../view");
 const Zero = require("../zeroTime");
 const Ice = require("../ice");
+const Duo = require("../duo");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -58,13 +59,18 @@ function endTurn() {
   // จบเทิร์นรอบนั้น +1 — ช่วงกลางวันได้แต้มสกิลเพิ่มอีก +1 (ระบบกลางวัน/กลางคืน)
   //  การเดินทาง: โบนัสนี้มาจากภูมิภาคแทน (1 กลางวัน = จบเทิร์นเลขคู่ · 7 = ทุกเทิร์น) — Journey.skillBonus
   const dayBonus = Zero.active() ? 0 : Journey.skillBonus(engine, dayNight.morningBonusActive(Zero.worldRound())); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
-  for (const p of combat.alivePlayers()) combat.addSkill(p, 1 + dayBonus);
+  //  ระบบคู่: แต้มใช้ร่วมกัน — ฟื้นครั้งเดียวต่อฝ่ายตามฮุค skillRegen (เคท & เอมิลิโกะ: 2)
+  for (const p of Duo.cardHolders()) {
+    const hook = CHAR_HOOKS[p.characterId];
+    const regen = hook && hook.skillRegen ? hook.skillRegen(p) : 1;
+    combat.addSkill(Duo.cardUnit(p), regen + dayBonus);
+  }
   if (dayBonus) match.lastLog.push(Journey.active(engine)
     ? `🗺️ ${Journey.AREAS[Journey.areaNow(engine) - 1].name} — ทุกคนได้แต้มสกิลเพิ่ม +${dayBonus}`
     : "☀️ จบเทิร์นช่วงกลางวัน — ทุกคนได้แต้มสกิลเพิ่ม +1");
   // ระบบเหรียญ (patch 2.2 full): จบเทิร์น +1 เหรียญให้ทุกคน (เพดาน 30 — เต็มแล้วไม่ได้เพิ่มจน spending ลดลง)
   //  คนเดินลำดับแรกได้เพิ่มอีกตอนจัดลำดับ (phases/action.js beginOrder)
-  for (const p of combat.alivePlayers()) shop.addGold(p, GOLD_PER_TURN + Journey.goldBonus(engine));
+  for (const p of Duo.cardHolders()) shop.addGold(p, GOLD_PER_TURN + Journey.goldBonus(engine)); // ระบบคู่: เหรียญร่วมกัน = ครั้งเดียวต่อฝ่าย
 
   // การเดินทาง: ผลจบเทิร์นของภูมิภาค (ของฟรี / เสียเหรียญ / ความเสียหายจากสนาม / สตั้น / ผุพัง)
   //  อยู่หลังลูปลดเทิร์นสถานะ (สตั้น/ผุพังที่ติดตรงนี้จึงมีผลเต็มเทิร์นหน้า) และก่อนด่านกวาดคนตายด้านล่าง
@@ -104,19 +110,20 @@ function endTurn() {
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
   const stillAlive = combat.alivePlayers();
-  const total = Object.keys(match.players).length;
+  const total = Duo.sideCount(Object.values(match.players)); // ระบบคู่: นับต่อฝ่าย (สองตัวของผู้เล่นคนเดียวกัน = 1)
+  const sidesLeft = Duo.sideCount(stillAlive);
   const teamWin = lobby.remainingTeamWinInfo(stillAlive, total);
   if (teamWin.over) {
     match.winningTeamId = teamWin.teamId;
     if (match.winningTeamId) {
-      const winners = stillAlive.filter((p) => p.teamId === match.winningTeamId).map((p) => p.name).join(" & ");
+      const winners = [...new Set(stillAlive.filter((p) => p.teamId === match.winningTeamId).map((p) => Duo.ownerOf(p).name))].join(" & ");
       match.lastLog.push(`🏆 Team ${match.winningTeamId} (${winners}) ชนะ!`);
     } else {
       match.lastLog.push("ไม่มีทีมที่รอด — เสมอ");
     }
-  } else if (!lobby.teamModeActive() && total >= 2 && stillAlive.length <= 1) {
+  } else if (!lobby.teamModeActive() && total >= 2 && sidesLeft <= 1) {
     match.winningTeamId = null;
-    if (stillAlive.length === 1) match.lastLog.push(`🏆 ${stillAlive[0].name} คือผู้ชนะคนสุดท้าย!`);
+    if (sidesLeft === 1) match.lastLog.push(`🏆 ${Duo.ownerOf(stillAlive[0]).name} คือผู้ชนะคนสุดท้าย!`);
     else match.lastLog.push("ไม่มีผู้รอด — เสมอ");
   } else {
     return false;

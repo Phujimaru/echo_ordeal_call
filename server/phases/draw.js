@@ -22,6 +22,7 @@ const summary = require("./summary");
 const timers = require("../timers");
 const view = require("../view");
 const Zero = require("../zeroTime");
+const Duo = require("../duo");
 
 function dealRound() {
   timers.clearPhaseTimer();
@@ -33,6 +34,7 @@ function dealRound() {
   match.actorIndex = -1;
   match.actorId = null;
   match.action = null;
+  match.duo = null;
   match.cutsceneQueue = []; // ล้างคิวเก่าก่อนเสมอ — ต้องอยู่ก่อน CHAR_HOOKS ด้านล่างทั้งหมด ไม่งั้นคัตซีนที่เพิ่งคิวไว้จะโดนล้างทิ้งไปด้วย
   match.cutsceneInfo = null;
   match.lastAttack = null;
@@ -49,7 +51,13 @@ function dealRound() {
     combat.resetRoundDisplay(p);
     p.shield = 0;
     p.skillUsedRound = false; // เทิร์นใหม่ ใช้สกิลได้อีก 1 อัน
-    if (!p.alive) { p.cards = []; p.locked = true; p.busted = false; continue; }
+    // ระบบคู่ (server/duo.js): ตัวที่สองไม่จั่วไพ่ (ไพ่อยู่กับเจ้าของ) · เจ้าของที่ล้มขณะคู่ยังอยู่ = ยังจั่ว/เปิดไพ่ได้
+    const cardHolder = !Duo.isPartner(p);
+    if (!p.alive) {
+      if (Duo.inGame(p)) dealHand(p);
+      else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
+      continue;
+    }
 
     // กลางคืน (patch 2.1.7): สุ่มใหม่ทุกเทิร์นว่าสกิลพื้นฐานหรือสกิลรอง (อย่างใดอย่างหนึ่ง) จะใช้แต้มมากขึ้น — ไม่มีผลกับท่าไม้ตาย
     //  การเดินทาง: ภาษีนี้เหลือเฉพาะ "อาณาจักรแห่งจุดเริ่มต้น" กลางคืน (ภูมิภาคอื่นใช้ผลของภูมิภาคแทน)
@@ -77,9 +85,9 @@ function dealRound() {
         if (p.alive && p.hp <= 0) {
           combat.instantDeath(p);
           if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
-          p.cards = [];
-          p.locked = true;
-          p.busted = false;
+          if (!p.alive) p.pos = null;
+          if (Duo.inGame(p)) dealHand(p);
+          else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
           continue;
         }
       }
@@ -114,18 +122,15 @@ function dealRound() {
     tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase
     // ช็อต (สถานะ Universal): โรล 15% ติดสตั้น — ต้องอยู่ก่อนบล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะเลื่อนไปมีผลเทิร์นถัดไป
     tickShock(engine, p);
-    p.cards = [];
-    p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; // นับจำนวนครั้งที่ทริกเกอร์สีนั้นทำงานไปแล้วในรอบนี้
     p.statusAmt.cardAtkBonus = 0; // พลังโจมตีจากการ์ดแดง — รีเซ็ตทุกรอบ
-    { const c = cardDeck.drawInitialCard(p); if (c) { p.cards.push(c); cardDeck.onCardDrawn(p, c); } }
-    p.locked = false;
-    p.busted = false;
+    if (cardHolder) dealHand(p);
+    else { p.locked = true; p.busted = false; p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; }
     p.result = null;
 
     // หลับไหล (สถานะพื้นฐาน): ออกการกระทำใดๆ ไม่ได้ทั้งเทิร์น
     // และเสียพลังชีวิตแบบไม่สนเกราะเทิร์นละ 1 หน่วย — หักได้เรื่อยๆ แต่ห้ามตาย (ค้างที่ 1 หน่วย)
     if ((p.statuses.sleep || 0) > 0) {
-      p.locked = true;
+      if (!Duo.isOwner(p) || !Duo.partnerOf(p).alive) p.locked = true; // ระบบคู่: อีกตัวยังขยับได้ = ผู้เล่นยังจั่วไพ่ได้
       if (p.hp > 1) { p.hp--; p.dmgHp++; }
       match.lastLog.push(`💤 ${p.name} หลับไหล — ขยับไม่ได้ (เหลืออีก ${p.statuses.sleep} เทิร์น)`);
     }
@@ -142,7 +147,7 @@ function dealRound() {
     }
     // สตั้น (สถานะพื้นฐาน patch 2.0.8): ทำอะไรไม่ได้จนจบเทิร์นหรือจนกว่าดีบัฟจะหมดเวลา
     if ((p.statuses.stun || 0) > 0) {
-      p.locked = true;
+      if (!Duo.isOwner(p) || !Duo.partnerOf(p).alive) p.locked = true;
       match.lastLog.push(`😵 ${p.name} ติดสถานะสตั้น — ขยับไม่ได้ทั้งเทิร์น! (เหลืออีก ${p.statuses.stun} เทิร์น)`);
     }
   }
@@ -164,9 +169,18 @@ function dealRound() {
   checkAllLocked();
 }
 
+// แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)
+function dealHand(p) {
+  p.cards = [];
+  p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; // นับจำนวนครั้งที่ทริกเกอร์สีนั้นทำงานไปแล้วในรอบนี้
+  p.statusAmt.cardAtkBonus = 0;
+  { const c = cardDeck.drawInitialCard(p); if (c) { p.cards.push(c); cardDeck.onCardDrawn(p, c); } }
+  p.locked = false;
+  p.busted = false;
+}
 function hit(id) {
   const p = match.players[id];
-  if (match.gameState !== "PLAYING" || !p || !p.alive || p.locked) return;
+  if (match.gameState !== "PLAYING" || !p || !Duo.inGame(p) || p.locked) return;
   if (match.centralDeck.length === 0) return; // กองร่วมหมดแล้ว ทุกคนจั่วเพิ่มไม่ได้
   if ((p.statuses.nodraw || 0) > 0) return; // ห้ามจั่ว: เทิร์นนี้จั่วเพิ่มไม่ได้
   if (cardDeck.scoreOf(p) >= cardDeck.scoreCap(p)) return; // แต้มเต็มเพดาน (เช่น 21 พอดี) = จั่วไม่ได้ รอผู้ใช้ใช้สกิล/เปิดไพ่เอง
@@ -217,7 +231,7 @@ function hit(id) {
 }
 function lock(id) {
   const p = match.players[id];
-  if (match.gameState !== "PLAYING" || !p || !p.alive || p.locked) return;
+  if (match.gameState !== "PLAYING" || !p || !Duo.inGame(p) || p.locked) return;
   cardDeck.applyLockColorTriggers(p);
   p.locked = true;
   view.broadcastState();
@@ -227,5 +241,5 @@ function checkAllLocked() {
   if (match.gameState !== "PLAYING") return;
   // QTE ที่ยังเล่นไม่จบ — คนอื่นจั่ว/เปิดไพ่ได้ตามปกติ แค่ยังไม่สรุปรอบให้
   // ถ้าไม่เหลือใครรอดเลยก็ต้องสรุปผลด้วยเช่นกัน ไม่งั้นเกมค้าง
-  if (combat.alivePlayers().every((p) => p.locked) && !qteSystem.qtePending()) summary.resolveRound();
+  if (Duo.cardHolders().every((p) => p.locked) && !qteSystem.qtePending()) summary.resolveRound();
 }

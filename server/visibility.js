@@ -15,6 +15,7 @@ const Board = require("./board");
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
+const Duo = require("./duo");
 
 function hookOf(p) { return p ? CHAR_HOOKS[p.characterId] : null; }
 
@@ -36,7 +37,15 @@ function concealed(p) {
   return stealthed(p) || inBush(p);
 }
 // viewer มองไม่เห็น target ไหม — viewer ไม่มี (ผู้ชมนอกเกม/เทสต์) = เห็น
+//  ระบบคู่ (server/duo.js): สองตัวของผู้เล่นคนเดียวกันมองร่วมกัน — ตัวไหนเห็นก็เห็น
 function hiddenFrom(viewer, target) {
+  if (viewer && (viewer.duoWith || viewer.duoOf)) {
+    const eyes = Duo.unitsOf(viewer).filter((u) => u.alive && u.pos);
+    if (eyes.length) return eyes.every((u) => hiddenFromOne(u, target));
+  }
+  return hiddenFromOne(viewer, target);
+}
+function hiddenFromOne(viewer, target) {
   if (!viewer || !target || viewer.id === target.id) return false;
   if (match.gameState === "GAMEOVER") return false;
   if (!target.alive || !target.pos) return false;

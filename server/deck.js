@@ -9,6 +9,7 @@ Object.assign(module.exports, {
 const match = require("./match");
 const combat = require("./combat");
 const shop = require("./shop");
+const Duo = require("./duo");
 
 // ============================================================
 //  การ์ด — กองกลางร่วม 43 ใบ (เลข 1-10 x 4 สี = 40 + King/Queen/Joker อย่างละ 1)
@@ -39,7 +40,7 @@ function drawFromCentralDeck(predicate) {
   return match.centralDeck.splice(idx, 1)[0];
 }
 function drawCardFor(p) {
-  if (!p || !p.alive) return null;
+  if (!p || !(p.alive || Duo.inGame(p))) return null; // ระบบคู่: เจ้าของที่ล้มขณะคู่ยังอยู่ยังจั่วได้
   return drawFromCentralDeck(null);
 }
 // แจกเริ่มรอบ: จั่วจากกองกลางเหมือนกัน แต่ห้ามได้การ์ดพิเศษ (King/Queen/Joker)
@@ -75,7 +76,8 @@ function checkBlueTrigger(p) {
   const shouldHave = Math.floor(blueCount / 3);
   while (p.colorTrigger.blue < shouldHave) {
     p.colorTrigger.blue++;
-    combat.applyBuff(p, "resist", 1, 1);
+    // ระบบคู่: ไพ่ของผู้เล่นมีผลกับทุกตัวที่ยังอยู่
+    for (const u of Duo.unitsOf(p)) if (u.alive) combat.applyBuff(u, "resist", 1, 1);
     match.lastLog.push(`🔵 ${p.name} ครบไพ่ฟ้า 3 ใบ — ได้รับต้านสถานะผิดปกติทันที!`);
   }
 }
@@ -86,7 +88,7 @@ function applySpecialCardEffect(p, card) {
     const g = shop.addGold(p, 10);
     match.lastLog.push(g > 0 ? `👑 ${p.name} จั่วได้การ์ดราชา — ได้เหรียญ +${g}!` : `👑 ${p.name} จั่วได้การ์ดราชา — เหรียญเต็มแล้ว`);
   } else if (card.special === "queen") {
-    p.statuses.freecast = 1; // ใช้สกิลครั้งถัดไปไม่เสียแต้ม — หายเมื่อจบเทิร์นถ้าไม่ได้ใช้
+    Duo.cardUnit(p).statuses.freecast = 1; // ระบบคู่: ตัวแรกที่ยังอยู่ // ใช้สกิลครั้งถัดไปไม่เสียแต้ม — หายเมื่อจบเทิร์นถ้าไม่ได้ใช้
     match.lastLog.push(`👸 ${p.name} จั่วได้การ์ดราชินี — ใช้สกิลได้ฟรี 1 ครั้งในเทิร์นนี้!`);
   }
 }
@@ -101,17 +103,21 @@ function applyLockColorTriggers(p) {
   for (const color of ["red", "green", "yellow"]) {
     const n = Math.floor(p.cards.filter((c) => c.color === color).length / 3);
     if (n <= 0) continue;
+    // ระบบคู่: แดง/เขียวลงทุกตัวที่ยังอยู่ · เหลือง = แต้มสกิลที่ใช้ร่วมกัน (ครั้งเดียว)
+    const units = Duo.unitsOf(p).filter((u) => u.alive);
     if (color === "red") {
-      p.statusAmt.cardAtkBonus = (p.statusAmt.cardAtkBonus || 0) + n;
+      for (const u of units) u.statusAmt.cardAtkBonus = (u.statusAmt.cardAtkBonus || 0) + n;
       match.lastLog.push(`🔴 ${p.name} ครบไพ่แดง 3 ใบ — พลังโจมตีรอบนี้ +${n}`);
     } else if (color === "green") {
-      for (let i = 0; i < n; i++) {
-        const h = combat.healHp(p, 1);
-        if (h > 0) match.lastLog.push(`🟢 ${p.name} ครบไพ่เขียว 3 ใบ — ฟื้นพลังชีวิต +${h}`);
+      for (const u of units) {
+        for (let i = 0; i < n; i++) {
+          const h = combat.healHp(u, 1);
+          if (h > 0) match.lastLog.push(`🟢 ${u.name} ครบไพ่เขียว 3 ใบ — ฟื้นพลังชีวิต +${h}`);
+        }
       }
     } else if (color === "yellow") {
       const gain = n * YELLOW_CARD_SKILL_BONUS;
-      combat.addSkill(p, gain, "card");
+      combat.addSkill(Duo.cardUnit(p), gain, "card");
       match.lastLog.push(`🟡 ${p.name} ครบไพ่เหลือง 3 ใบ — แต้มสกิล +${gain}`);
     }
   }

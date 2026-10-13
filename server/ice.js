@@ -144,7 +144,7 @@ function placeSpike(x, y, owner, lv = 1) {
   const k = K(x, y);
   const map = action.boardMap();
   let level = lv;
-  if (Board.isIce(map, x, y)) level += 1;
+  if (Board.specialAt(map, x, y) === "ice" && Board.isIce(map, x, y)) level += 1; // น้ำแข็งเท่านั้น (พื้นเปียกไม่นับ)
   if (b.ice && b.ice[k]) delete b.ice[k];
   b.spikes ||= {};
   level = Math.min(3, level);

@@ -36,6 +36,7 @@ const skills = require("./skills");
 const timers = require("./timers");
 const view = require("./view");
 const Ice = require("./ice");
+const Duo = require("./duo");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -112,6 +113,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   sizeOf: action.sizeOf,
   // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง) — ผลักคนที่ขวาง · พังสิ่งกีดขวาง · ส่ง growFx (action.resizeUnit)
   resizeUnit: action.resizeUnit,
+  // ระบบคู่ (server/duo.js — เคท & เอมิลิโกะ): สลับตัวที่คุม / ตัวที่จบตาแล้ว / ตัวอีกตัวของฝ่าย
+  duo: { switchTo: Duo.switchTo, canSwitchTo: Duo.canSwitchTo, unitDone: Duo.unitDone, otherUnit: Duo.otherUnit, ownerOf: Duo.ownerOf, unitsOf: Duo.unitsOf },
+  nearFreeTile: action.nearFreeTile, // ช่องว่างใกล้ pos ที่สุด (วงข้าวหลามตัดออกไป)
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
   chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)

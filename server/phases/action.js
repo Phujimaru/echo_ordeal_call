@@ -9,6 +9,7 @@ Object.assign(module.exports, {
   beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
+  actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -29,6 +30,7 @@ const Visibility = require("../visibility");
 const { engine } = require("../engine");
 const Zero = require("../zeroTime");
 const Ice = require("../ice");
+const Duo = require("../duo");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -96,8 +98,18 @@ function boardUnits() {
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOf(p) }));
 }
 // ช่องที่ยืน/เดินผ่าน/ถอยเข้าไม่ได้นอกจากสิ่งกีดขวางของแผนที่: แผงร้านค้ามายา (GRID_PLAN §8.1)
+//  + ร่างของตัวที่ล้มในระบบคู่ (server/duo.js — เดินข้ามได้ผ่าน hopTiles แต่ยืน/ไถล/ถูกผลักเข้าไม่ได้)
 function boardBlocked() {
-  return match.shopPos ? new Set([Board.key(match.shopPos.x, match.shopPos.y)]) : null;
+  const corpses = Duo.corpseKeys();
+  if (!match.shopPos && !corpses.length) return null;
+  const out = new Set(corpses);
+  if (match.shopPos) out.add(Board.key(match.shopPos.x, match.shopPos.y));
+  return out;
+}
+// ร่างที่เดินข้ามได้ (Board.reachable opts.hop) · ไม่มี = null
+function hopTiles() {
+  const keys = Duo.corpseKeys();
+  return keys.length ? new Set(keys) : null;
 }
 // พวกเดียวกัน (โหมดทีม) — เดินผ่านกันได้ ตีกันไม่ได้
 function unitAlly(a, b) {
@@ -113,7 +125,9 @@ function baseMovOf(p) {
   return ch && Number.isFinite(ch.mov) ? ch.mov : DEFAULT_MOV;
 }
 // ระยะเดินเทิร์นนี้: ไพ่แตก −1 · เชื่องช้า −1 (Ice Spike — ไม่ซ้อน)
+//  เดินต่อหลังจบตา (canto — ฮุค cantoMov · เอมิลิโกะ) = ค่าของฮุคตรงๆ
 function movOf(p) {
+  if (match.action && match.action.canto && match.actorId === p.id) return match.action.cantoMov || 0;
   return Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0));
 }
 // ตีสวนได้ไหม (ผู้ใช้ตัดสิน 2026-10-09: เลิกตีสวนแบบ FE แล้ว — เก็บกลไกไว้ให้ตัวละคร "สะท้อน" ในอนาคต)
@@ -167,8 +181,16 @@ function placeOnBoard(area) {
   match.shopPos = null;
   const map = boardMap();
   const alive = combat.alivePlayers();
-  const spawns = Board.assignSpawns(map, alive.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
+  // ระบบคู่: จุดเกิดแจกต่อฝ่าย (ตัวแรกที่ยังอยู่) · อีกตัวลงช่องว่างติดกัน
+  const leads = alive.filter((p) => Duo.unitsOf(p).find((u) => u.alive) === p);
+  const spawns = Board.assignSpawns(map, leads.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
   for (const p of Object.values(match.players)) p.pos = p.alive && spawns[p.id] ? { ...spawns[p.id] } : null;
+  for (const p of alive) {
+    if (p.pos) continue;
+    const lead = Duo.unitsOf(p).find((u) => u.alive && u.pos);
+    if (lead) p.pos = nearFreeTile(lead.pos);
+  }
+  Duo.placeCorpses((x, y) => tileFree(x, y));
   for (const p of alive) {
     if (!p.pos || sizeOf(p) <= 1) continue;
     const near = { ...p.pos };
@@ -178,6 +200,16 @@ function placeOnBoard(area) {
     breakObstacles(spot.rubble);
     p.pos = { x: spot.x, y: spot.y };
   }
+}
+// ช่องว่างที่ใกล้ pos ที่สุด (ไล่วงข้าวหลามตัดออกไป) — ไม่มีเลย = null
+function nearFreeTile(pos, selfId = null) {
+  for (let r = 1; r <= 6; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const w = r - Math.abs(dy);
+      for (const dx of w ? [-w, w] : [0]) if (tileFree(pos.x + dx, pos.y + dy, selfId)) return { x: pos.x + dx, y: pos.y + dy };
+    }
+  }
+  return null;
 }
 // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง/คืนร่าง) → คืนขนาดที่เป็นจริง
 //  หดตัว: ยืนกลางตัวเดิม · ขยายตัว: มุมใหม่ครอบตัวเดิม (Board.growPlan) — คนในช่องที่ขยายทับถูกผลักออกไปช่องว่างใกล้สุด
@@ -296,9 +328,10 @@ function tileOf(tile) {
   return { x: tile.x, y: tile.y };
 }
 // ช่องที่สกิล tile คลุม: ช่องเดียว หรือกรอบ square×square รอบช่องกลาง (ตัดขอบกระดาน)
+//  ขนาดคู่ (ระบำเขม่า 8×8) = ช่องที่เลือกอยู่กลางค่อนซ้ายบน (−n/2 … +n/2−1)
 function tileArea(area, t) {
-  const n = Math.max(1, (area && area.square) | 0), h = Math.floor(n / 2), map = boardMap(), out = [];
-  for (let y = t.y - h; y <= t.y + h; y++) for (let x = t.x - h; x <= t.x + h; x++) if (Board.inBounds(map, x, y)) out.push({ x, y });
+  const n = Math.max(1, (area && area.square) | 0), lo = Math.floor(n / 2), hi = n - 1 - lo, map = boardMap(), out = [];
+  for (let y = t.y - lo; y <= t.y + hi; y++) for (let x = t.x - lo; x <= t.x + hi; x++) if (Board.inBounds(map, x, y)) out.push({ x, y });
   return out;
 }
 // ช่องที่สกิลพื้นที่คลุม (aoe / line / tile) — ใช้ลงผลกับผนึกมิโกะ (ห่วงเวลาซีโร่) / หนามน้ำแข็ง · ชนิดอื่น = []
@@ -320,11 +353,13 @@ function turnOrderOf(players, rng = Math.random) {
 }
 function beginOrder() {
   timers.clearPhaseTimer();
-  const alive = combat.alivePlayers().filter((p) => p.pos);
+  // ระบบคู่: ลำดับเดินต่อผู้เล่น (ไพ่ของเจ้าของ) — ฝ่ายที่ยังมีตัวบนกระดาน
+  const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && u.pos));
   match.turnOrder = turnOrderOf(alive);
   match.actorIndex = -1;
   match.actorId = null;
   match.action = null;
+  match.duo = null;
   // เหรียญ: ทุกคน +1 ตอนจบเทิร์น (endTurn) · คนเดินลำดับแรกได้เพิ่มอีก (รวม 2)
   const first = match.players[match.turnOrder[0]];
   if (first) {
@@ -354,22 +389,31 @@ function nextActor() {
       endTurnPhase.endTurn();
       return;
     }
-    const p = match.players[id];
-    if (!p || !p.alive || !p.pos) continue;
+    const owner = match.players[id];
+    if (!owner) continue;
+    // ระบบคู่ (server/duo.js): ตาของผู้เล่น = ทุกตัวของฝ่าย (ตัวละครทั่วไปมีตัวเดียว)
+    let units = Duo.unitsOf(owner).filter((u) => u.alive && u.pos);
+    if (!units.length) continue;
     // ผลต้นตาเดิน (ถึงคิวแล้ว — รวมคนที่ถูกข้ามตาเพราะสตั้น) · Ice Spike: คุกน้ำแข็งช่วงที่ 2
-    const startHook = CHAR_HOOKS[p.characterId];
-    if (startHook && startHook.onActorStart) combat.withEffectSource(p, () => startHook.onActorStart(engine, p));
-    if (endTurnPhase.gameOver()) return;
-    if (!p.alive || !p.pos) continue;
-    // สตั้น / หลับไหล: ข้ามทั้งตา (เดินก็ไม่ได้) · เทิร์นที่เพิ่งโดนกล่อม (sleepFresh) ยังขยับได้
-    if ((p.statuses.stun || 0) > 0 || ((p.statuses.sleep || 0) > 0 && !p.sleepFresh)) {
-      match.lastLog.push(`😵 ${p.name} ขยับไม่ได้ — ข้ามตาเดิน`);
-      continue;
+    for (const u of units) {
+      const startHook = CHAR_HOOKS[u.characterId];
+      if (startHook && startHook.onActorStart && u.alive && u.pos) combat.withEffectSource(u, () => startHook.onActorStart(engine, u));
     }
-    match.actorId = id;
-    match.action = { from: { ...p.pos }, moved: false, locked: false };
+    if (endTurnPhase.gameOver()) return;
+    units = units.filter((u) => u.alive && u.pos);
+    // สตั้น / หลับไหล: ข้ามทั้งตา (เดินก็ไม่ได้) · เทิร์นที่เพิ่งโดนกล่อม (sleepFresh) ยังขยับได้
+    for (const u of units) if (stuck(u)) match.lastLog.push(`😵 ${u.name} ขยับไม่ได้ — ข้ามตาเดิน`);
+    units = units.filter((u) => !stuck(u));
+    if (!units.length) continue;
+    const secs = actionSeconds();
+    if (owner.duoWith) Duo.startTurn(owner, units, secs);
+    else {
+      match.duo = null;
+      match.actorId = id;
+      match.action = { from: { ...owner.pos }, moved: false, locked: false };
+    }
     match.gameState = "ACTION";
-    timers.startPhaseTimer(actionSeconds(), finishActor);
+    timers.startPhaseTimer(secs, actionTimeUp);
     view.broadcastState();
     return;
   }
@@ -377,21 +421,36 @@ function nextActor() {
 // ผู้เล่นออกจากเกมกลางเทิร์น: ถ้าเป็นคนที่กำลังเดิน ข้ามไปคนถัดไปเลย
 //  (กำลังเล่นฉากตีอยู่ = ปล่อยให้ตัวจับเวลาของฉากพาไปคนถัดไปเอง ไม่งั้นข้ามสองคน)
 function removeFromOrder(playerId) {
-  if (match.actorId === playerId && match.gameState === "ACTION") nextActor();
+  const mine = match.actorId === playerId || (match.duo && match.duo.ownerId === playerId);
+  if (mine && match.gameState === "ACTION") { match.duo = null; nextActor(); }
+}
+// ติดสตั้น / หลับไหล (เทิร์นที่เพิ่งโดนกล่อมยังขยับได้) = ข้ามตา
+function stuck(p) {
+  return ((p.statuses.stun || 0) > 0) || ((p.statuses.sleep || 0) > 0 && !p.sleepFresh);
+}
+// หมดเวลาตาเดิน (ตัวจับเวลาของเฟส ACTION) — ระบบคู่: จบตาของทั้งฝ่ายทันที · ไม่ได้เดินต่อ (canto)
+function actionTimeUp() {
+  if (match.action) match.action.expired = true;
+  finishActor();
 }
 
 // เดินไปแล้วในเทิร์นนี้ไหม (ตาของคนนี้ผ่านไปแล้ว — ไม่นับคนที่กำลังเดินอยู่)
+//  ระบบคู่: นับตามลำดับของเจ้าของ · ตาของฝ่ายนี้กำลังเล่น = ตัวที่จบแล้ว (ตี/รอ) นับว่าเดินแล้ว
 function hasActed(id) {
-  const idx = match.turnOrder.indexOf(id);
+  const side = Duo.sideKey(match.players[id]) || id;
+  const idx = match.turnOrder.indexOf(side);
   if (idx < 0) return false;
   if (idx === match.actorIndex && match.actorId === id) return false;
+  if (idx === match.actorIndex && match.duo && match.duo.ownerId === side) return !!match.duo.done[id];
   return idx <= match.actorIndex;
 }
 
 // ---------- ตาเดิน ----------
 // เป็นตาของคนนี้และกดอะไรได้อยู่ไหม (ระหว่างฉากตี/คัตซีน = ไม่ได้)
-function canAct(p) {
-  return !!p && p.alive && match.gameState === "ACTION" && match.actorId === p.id && !!match.action;
+//  เดินต่อหลังจบตา (canto — เอมิลิโกะ): ได้แค่เดิน/ย้อน/รอ (move: true) · อย่างอื่นกดไม่ได้
+function canAct(p, { move = false } = {}) {
+  if (!p || !p.alive || match.gameState !== "ACTION" || match.actorId !== p.id || !match.action) return false;
+  return move || !match.action.canto;
 }
 // ใช้สกิล/ไอเทม/ซื้อของแล้ว เดินไม่ได้อีก (ยังโจมตีปกติได้) — GRID_PLAN §4 กฎพื้นฐาน
 function lockMove(p) {
@@ -401,7 +460,7 @@ function lockMove(p) {
 //   — เหมือนลากเคอร์เซอร์แบบ Fire Emblem แต่ตัวละครเดินตามทันที · กลับมาจุดเริ่ม = เท่ากับย้อน · ยังใช้ได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
 function moveTo(id, x, y, { step = false } = {}) {
   const p = match.players[id];
-  if (!canAct(p) || match.action.locked) return false;
+  if (!canAct(p, { move: true }) || match.action.locked) return false;
   if (match.action.moved && !step) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
@@ -412,7 +471,7 @@ function moveTo(id, x, y, { step = false } = {}) {
   //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
-  const reach = Board.reachable(map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(), smash: smashes(p) });
+  const reach = Board.reachable(map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(), hop: hopTiles(), smash: smashes(p) });
   const prev = { x: p.pos.x, y: p.pos.y };
   // เดินทีละช่องเข้าน้ำแข็ง: ช่องนั้นเป็นจุดเริ่มไถล (ไม่ใช่ช่องที่หยุดได้ จึงไม่อยู่ใน reach) — ตรวจก้าวจากช่องที่ยืนเอง
   //  ก้าวกลับช่องเริ่มตา = ย้อนการเดินเสมอ (Ice Spike วางน้ำแข็งไว้ที่ช่องเริ่มแล้วก็ตาม)
@@ -519,7 +578,7 @@ function smashAlong(p, path) {
 // ย้อนกลับช่องเดิม — ได้จนกว่าจะใช้สกิล/ไอเทม/ซื้อของ/โจมตี · ของที่เดินพังไปกลับมาครบ
 function undoMove(id) {
   const p = match.players[id];
-  if (!canAct(p) || !match.action.moved || match.action.locked) return false;
+  if (!canAct(p, { move: true }) || !match.action.moved || match.action.locked) return false;
   p.pos = { x: match.action.from.x, y: match.action.from.y };
   restoreObstacles(match.action.smashed);
   match.action.smashed = null;
@@ -567,15 +626,57 @@ function attackTarget(id, targetId) {
 // "รอ" = จบตาโดยไม่โจมตี
 function waitAction(id) {
   const p = match.players[id];
-  if (!canAct(p)) return false;
+  if (!canAct(p, { move: true })) return false;
   finishActor();
   return true;
 }
 // จบตาของคนที่กำลังเดิน: ผลของช่อง (จุดฟื้นฟู / ช่องพิเศษ) แล้วไปคนถัดไป
+//  ระบบคู่ (server/duo.js): ตัวนี้จบ → ยังมีอีกตัว = สลับไปคุมต่อด้วยเวลาที่เหลือ · หมดเวลา = จบทั้งฝ่าย
+//  เดินต่อหลังจบตา (ฮุค cantoMov — เอมิลิโกะ): ตี/รอแล้วได้เดินอีก N ช่องก่อนจบจริง (หมดเวลา = ไม่ได้)
 function finishActor() {
+  const expired = !!(match.action && match.action.expired);
   timers.clearPhaseTimer();
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
   const p = match.players[match.actorId];
+  if (!expired && startCanto(p)) return;
+  endUnitTile(p);
+  if (match.duo) {
+    if (endTurnPhase.gameOver()) return;
+    Duo.unitDone(p);
+    const next = expired ? null : Duo.nextUnit();
+    if (next) {
+      Duo.switchTo(next);
+      resumeAction();
+      return;
+    }
+    // หมดเวลา: ตัวที่สลับออกไปก่อนแล้วยังไม่จบ ได้ผลของช่องที่ยืนด้วย
+    const owner = match.players[match.duo.ownerId];
+    if (expired) for (const u of Duo.unitsOf(owner)) if (!match.duo.done[u.id] && (!p || u.id !== p.id)) endUnitTile(u);
+    match.duo = null;
+  }
+  match.action = null;
+  nextActor();
+}
+// กลับเข้าตาเดิน (ระบบคู่สลับตัว / เดินต่อหลังจบตา) ด้วยเวลาที่เหลือของตานี้
+//  (match.actionLeft = เวลาที่เหลือตอนตาถูกพัก — timers.clearPhaseTimer จดไว้ระหว่างเฟส ACTION)
+function resumeAction() {
+  match.gameState = "ACTION";
+  timers.startPhaseTimer(Math.max(3, match.actionLeft || 0), actionTimeUp);
+  view.broadcastState();
+}
+// เดินต่อหลังจบตา (canto): ฮุค cantoMov(engine, p) → ระยะ · ครั้งเดียวต่อตา · ทำได้แค่เดิน/ย้อน/รอ
+function startCanto(p) {
+  if (!p || !p.alive || !p.pos || !match.action || match.action.canto) return false;
+  const hook = CHAR_HOOKS[p.characterId];
+  const n = hook && hook.cantoMov ? hook.cantoMov(engine, p) : 0;
+  if (!(n > 0)) return false;
+  if (endTurnPhase.gameOver()) return true;
+  match.action = { from: { ...p.pos }, moved: false, locked: false, canto: true, cantoMov: n };
+  resumeAction();
+  return true;
+}
+// ผลของช่องที่ยืนตอนจบตาของตัวนี้ (จุดฟื้นฟู / ช่องพิเศษ / ของในห่วงเวลาซีโร่)
+function endUnitTile(p) {
   const map = boardMap();
   // ตัวใหญ่: ช่องไหนของตัวทับจุดฟื้นฟูก็ได้ (ฟื้นครั้งเดียว)
   if (p && p.alive && p.pos && Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).some((t) => Board.isHeal(map, t.x, t.y)) && combat.healHp(p, 1) > 0) {
@@ -584,8 +685,6 @@ function finishActor() {
   }
   if (p && p.alive && p.pos) tileEndEffect(p);
   if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
-  match.action = null;
-  nextActor();
 }
 // ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น
 //  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้)

@@ -23,6 +23,7 @@ const shop = require("./shop");
 const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
 const Ice = require("./ice");
+const Duo = require("./duo");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -90,11 +91,14 @@ function publicStatuses(p) {
 }
 function buildStateFor(viewerId) {
   // คัตซีนที่แทรกกลางช่วงจั่ว (ยังมีคนไม่กด "พอ") ยังห้ามเปิดแต้ม — คัตซีนหลังเปิดไพ่ทุกคนล็อกแล้ว
-  const drawingCutscene = match.gameState === "CUTSCENE" && combat.alivePlayers().some((p) => !p.locked);
+  const drawingCutscene = match.gameState === "CUTSCENE" && Duo.cardHolders().some((p) => !p.locked);
   const revealAll = !drawingCutscene && match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
   const nightNow = dayNight.isNightRound(Zero.worldRound()); // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้)
   const sm = activeSkillMusic();
   const viewer = match.players[viewerId];
+  // ระบบคู่ (server/duo.js): ตัวที่ผู้เล่นคนนี้คุมอยู่ — แผงตัวเรา/ปุ่มสกิล/คาดการณ์ผลใช้ตัวนี้
+  const controlId = viewer ? Duo.controlledId(viewerId) : null;
+  const unit = (controlId && match.players[controlId]) || viewer;
   // สมุดการ์ดกองกลาง: การ์ดทั้ง 43 ใบตามลำดับคงที่ + ใบไหนถูกจั่วไปแล้วในรอบนี้ (centralDeck สับใหม่ทุกรอบ — สมุดนี้จึงนับเฉพาะรอบปัจจุบัน)
   const remainingCardKeys = new Set(match.centralDeck.map(cardDeck.cardKey));
   const deckLedger = cardDeck.canonicalDeckCards().map((c) => ({ ...c, drawn: !remainingCardKeys.has(cardDeck.cardKey(c)) }));
@@ -119,12 +123,18 @@ function buildStateFor(viewerId) {
     zero: Zero.publicInfo(),
     maxPlayers: MAX_PLAYERS,
     youId: viewerId,
+    controlId, // ระบบคู่: ตัวที่คุมอยู่ (ตัวละครทั่วไป = youId)
+    // ระบบคู่: ตาของฝ่ายคู่ที่กำลังเล่น — ตัวที่จบแล้ว (สลับกลับไม่ได้) · ตัวที่ยังไม่ได้เดิน
+    duo: match.duo ? { ownerId: match.duo.ownerId, done: Object.keys(match.duo.done) } : null,
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     turnOrder: match.turnOrder,
-    forecast: forecastFor(viewer), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
+    forecast: forecastFor(unit), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
     actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,
-    action: match.gameState === "ACTION" && match.action && !actorUnseen ? { from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null } : null,
+    action: match.gameState === "ACTION" && match.action && !actorUnseen ? {
+      from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null,
+      canto: !!match.action.canto, // เดินต่อหลังจบตา (เอมิลิโกะ): ได้แค่เดิน/ย้อน/รอ
+    } : null,
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
@@ -140,7 +150,7 @@ function buildStateFor(viewerId) {
     gutsRange: GUTS_RANGE,
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
     players: Object.values(match.players).map((p) => {
-      const mine = p.id === viewerId;
+      const mine = p.id === viewerId || Duo.sideKey(p) === viewerId; // ระบบคู่: ตัวที่สองก็เป็น "ของเรา"
       const show = mine || revealAll;
       // โหมดทีม (duo/trio): เพื่อนร่วมทีมเห็นแต้มการ์ดกันตลอดเวลา — ศัตรูยังถูกซ่อนตามปกติ
       const teamReveal = !!viewer && lobby.isAlly(viewer, p);
@@ -192,6 +202,11 @@ function buildStateFor(viewerId) {
       return {
         id: p.id,
         name: p.name,
+        // ระบบคู่: duoOf = ตัวที่สองของผู้เล่นคนนี้ (ไม่ใช่ผู้เล่นแยก — client ไม่นับในรายชื่อผู้เล่น) · duoWith = id ตัวที่สอง
+        //  corpse = ช่องร่างของตัวที่ล้มขณะอีกตัวยังอยู่ (ขวางช่อง เดินข้ามได้)
+        duoOf: p.duoOf || null,
+        duoWith: p.duoWith || null,
+        corpse: Duo.corpseOf(p) && Duo.sideAlive(p) ? Duo.corpseOf(p) : null,
         avatar: p.avatar,
         img: displayImg(p),
         position: p.position,
@@ -282,7 +297,7 @@ function zeroLocks(locks) {
   return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
 }
 function broadcastState() {
-  for (const id of Object.keys(match.players)) io.to(id).emit("state", buildStateFor(id));
+  for (const p of Object.values(match.players)) if (!p.duoOf) io.to(p.id).emit("state", buildStateFor(p.id)); // ตัวที่สองของระบบคู่ไม่มี socket
 }
 function broadcastPositions() {
   const taken = takenUniqueChars();

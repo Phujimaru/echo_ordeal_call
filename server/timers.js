@@ -11,6 +11,8 @@ const match = require("./match");
 const view = require("./view");
 
 function clearPhaseTimer() {
+  // ตาเดินถูกพัก (ตี/ฉากสกิล/จบตัว) — จดเวลาที่เหลือไว้ให้ระบบคู่/เดินต่อหลังจบตากลับมาเล่นต่อ (action.resumeAction)
+  if (match.gameState === "ACTION" && match.phaseTimerId) match.actionLeft = match.timeLeft;
   if (match.phaseTimerId) clearInterval(match.phaseTimerId);
   match.phaseTimerId = null;
 }

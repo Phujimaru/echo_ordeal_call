@@ -40,6 +40,7 @@ const TERRAIN_INFO = {
   whirl: { name: "น้ำวน", icon: "🌀", desc: "จบตา ถูกดัน 1 ช่องตามกระแส", end: "whirl" },
   quicksand: { name: "ทรายดูด", icon: "⏳", desc: "เดินเข้าแล้วหยุด", stop: true },
   ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "ไถลจนสุดแนว", slide: true },
+  wet: { name: "พื้นเปียก", icon: "💦", desc: "ไถลจนสุดแนว", slide: true }, // แจกันใส่น้ำของเอมิลิโกะ (server/wet.js) — กติกาไถลเดียวกับน้ำแข็ง
   lava: { name: "ลาวา", icon: "🌋", desc: "จบตา เสียหาย 1", end: "lava", dmg: 1 },
   power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
 };
@@ -336,9 +337,11 @@ function freeTile(map, x, y, units, selfId, blocked) {
 }
 
 // ---------- น้ำแข็ง (ผู้ใช้ตัดสิน 2026-10-12 — GRID_PLAN §7.9 · ใช้กับน้ำแข็งทุกแบบ: ภูมิภาค VI + ธารน้ำแข็งของ Ice Spike) ----------
-// ช่องนี้เป็นน้ำแข็งที่ไถลได้ไหม (มีสิ่งกีดขวาง/หนามน้ำแข็งทับ = ไม่ใช่)
+// ช่องนี้ไถลได้ไหม: น้ำแข็ง หรือพื้นเปียก (TERRAIN_INFO slide) · มีสิ่งกีดขวาง/หนามน้ำแข็งทับ = ไม่ใช่
 function isIce(map, x, y) {
-  return inBounds(map, x, y) && specialAt(map, x, y) === "ice" && !map.terrain[key(x, y)];
+  if (!inBounds(map, x, y) || map.terrain[key(x, y)]) return false;
+  const info = TERRAIN_INFO[specialAt(map, x, y)];
+  return !!(info && info.slide);
 }
 // ไถลจากช่องน้ำแข็ง (x, y) ที่เพิ่งเข้ามา ไปทาง (dx, dy) จนสุดแนวน้ำแข็ง — หยุดบนช่องน้ำแข็งช่องสุดท้าย
 //  ช่องน้ำแข็งถัดไปไม่ว่าง (คน/ร้านค้า) = หยุดก่อน · ทแยงได้ (ผลักทแยง)
@@ -367,12 +370,13 @@ function slideLine(map, x, y, dx, dy, units, selfId, blocked) {
 //  ช่องพิเศษ (TERRAIN_INFO): ค่าเดินรายช่อง 1 หรือ 2 → Dijkstra แบบถังตามจำนวนก้าว (ก้าวน้อยสุดชนะ เท่ากัน = เจอก่อนชนะ)
 //   - เดินเข้าช่อง cost 2 ต้องเหลือก้าวพอ
 //   - ทรายดูด (stop): หยุดได้แต่เดินต่อจากช่องนั้นไม่ได้ (ยืนอยู่บนทรายดูดตั้งแต่ต้นตา = เดินออกได้ตามปกติ)
+//   - opts.hop = ชุด key ของร่างตัวที่ล้ม (ระบบคู่ — server/duo.js · อยู่ใน blocked ด้วย): เดินข้ามได้ หยุดทับไม่ได้
 //   - น้ำแข็ง (slide — GRID_PLAN §7.9): เดินเข้าแล้วไถลไปทิศที่เข้ามาจนสุดแนวน้ำแข็ง (slideLine) ไม่เสียก้าวเพิ่ม
 //     → ไถลแล้วจบการเดิน (โหนดปลาย slide: true เดินต่อไม่ได้) · ช่องที่ไถลผ่านอยู่ใน prev ให้ pathTo วาดการไถล
 //     ช่องน้ำแข็งที่มีเพื่อนยืน = เข้าไม่ได้ · เดินออกจากน้ำแข็ง (ช่องเริ่ม) ไปพื้นธรรมดาไม่ไถล
 function reachable(map, unit, mov, units, opts = {}) {
   if (sizeOf(unit) > 1) return reachableBig(map, unit, mov, units, opts);
-  const { isAlly = () => false, blocked = null } = opts;
+  const { isAlly = () => false, blocked = null, hop = null } = opts;
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
   const best = new Map([[key(unit.x, unit.y), start]]); // ช่องที่ไปยืนได้ระหว่างทาง (รวมช่องที่มีเพื่อนยืน) → โหนดที่ใช้ก้าวน้อยสุด
   const stops = new Map([[key(unit.x, unit.y), start]]);
@@ -387,7 +391,7 @@ function reachable(map, unit, mov, units, opts = {}) {
     if (old && old.d <= node.d) return;
     best.set(k, node);
     (buckets[node.d] ||= []).push(node);
-    if (!occupant(node.x, node.y)) stops.set(k, node); // ช่องที่มีเพื่อนยืนอยู่ = ผ่านได้แต่หยุดไม่ได้
+    if (!occupant(node.x, node.y) && !(hop && hop.has(k))) stops.set(k, node); // ช่องที่มีเพื่อนยืนอยู่ / ร่าง (hop) = ผ่านได้แต่หยุดไม่ได้
   };
   for (let d = 0; d < buckets.length; d++) {
     for (const cur of buckets[d] || []) {
@@ -396,7 +400,7 @@ function reachable(map, unit, mov, units, opts = {}) {
       if (cur !== start && specialAt(map, cur.x, cur.y) === "quicksand") continue; // ทรายดูด: หยุดทันที
       for (const [dx, dy] of DIRS) {
         const nx = cur.x + dx, ny = cur.y + dy;
-        if (isObstacle(map, nx, ny, blocked)) continue;
+        if (isObstacle(map, nx, ny, blocked) && !(hop && hop.has(key(nx, ny)))) continue; // ร่าง (ระบบคู่) = กระโดดข้ามได้
         const other = occupant(nx, ny);
         if (other && !isAlly(unit, other)) continue; // ศัตรูขวางทาง
         const nd = cur.d + moveCost(map, nx, ny);

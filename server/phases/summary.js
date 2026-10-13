@@ -14,11 +14,13 @@ const cutscene = require("../cutscene");
 const cardDeck = require("../deck");
 const qteSystem = require("../qte");
 const timers = require("../timers");
+const Duo = require("../duo");
 
 function resolveRound() {
   timers.clearPhaseTimer();
   // หมดเวลาช่วงจั่ว: คนที่ยังไม่กด "พอ" ได้ผลไพ่สี 3 ใบเหมือนกดเอง (เดิมหลุดไป) แล้วค่อยล็อก
-  for (const p of combat.alivePlayers()) {
+  //  ระบบคู่: ผู้ถือไพ่ = เจ้าของ (ล้มอยู่ก็ยังถือ ถ้าคู่ยังรอด) — ตัวที่สองไม่มีไพ่ของตัวเอง
+  for (const p of Duo.cardHolders()) {
     if (!p.locked) cardDeck.applyLockColorTriggers(p);
     p.locked = true;
   }
@@ -26,7 +28,7 @@ function resolveRound() {
   // QTE ที่ยังเล่นไม่จบเมื่อถึงเวลาเปิดไพ่ = ถือว่าพลาด (แต้มเสียฟรี)
   qteSystem.sweepQte();
 
-  for (const p of combat.alivePlayers()) if (cardDeck.bustedOf(p)) match.lastLog.push(`💥 ${p.name} ไพ่แตก — เดินท้ายแถว และเดินได้น้อยลง 1 ช่อง`);
+  for (const p of Duo.cardHolders()) if (cardDeck.bustedOf(p)) match.lastLog.push(`💥 ${p.name} ไพ่แตก — เดินท้ายแถว และเดินได้น้อยลง 1 ช่อง`);
   afterResolve();
 }
 
