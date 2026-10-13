@@ -14,7 +14,8 @@
 //    ตีปกติ +1 ช่องติดตัวทั้งด้าน 1×3 (ศัตรูทุกคนที่ติดด้านนั้น) · หมดแล้วคูลดาวน์ 3 เทิร์น
 //  ท่าไม้ตาย (ร่างกิงกะเท่านั้น · ลำแสงหลบไม่ได้): Ginga Cross Shoot (4 แต้ม) แนว 5×1 ดาเมจ 2 + ลุกไหม้ 2
 //    กิงกะสโตเรี่ยม → Strium Ray (6 แต้ม) แนว 5×3 ดาเมจ 2 + ลุกไหม้ 3 + ผลักไปสุดปลายลำแสง
-//  ติดตัว Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวันครบ 10 เทิร์น (รวมทั้งเกม · ห่วงเวลาซีโร่ไม่นับ)
+//  ติดตัว Strium Brace: สะสมครบ 5 (รวมทั้งเกม · ห่วงเวลาซีโร่ไม่นับ — ผู้ใช้สั่งลดจาก 10 เมื่อ 2026-10-13)
+//    +1 ทุกครั้งที่จบเทิร์นในร่างกิงกะช่วงกลางวัน · +1 ทันทีตอนกดแปลงร่างกิงกะช่วงกลางวัน
 //    = กลายเป็นกิงกะสโตเรี่ยมทันที และกดกิงกะครั้งต่อไปเป็นสโตเรี่ยมเสมอ · สโตเรี่ยม: ตีปกติ +1 อีก + ติดลุกไหม้ 1
 //  คลิปทุกตัวเล่นครั้งเดียวต่อเกม (engine.triggerCutscene — ครั้งต่อไปเป็นการ์ดแจ้งเตือน)
 //
@@ -70,7 +71,7 @@ const GINGA_SIZE = 3;      // ตัวใหญ่ทั้งร่าง Ultr
 const GINGA_MOV = 3;       // เท่า Echo ตัว 3×3
 const GINGA_ATK = 1;
 const STRIUM_ATK = 1;      // บวกเพิ่มจากกิงกะ (รวม +2)
-const BRACE_MAX = 10;
+const BRACE_MAX = 5;
 const BEAM_LEN = 5;
 const BEAM_DMG = 2;
 const CROSS_BURN = 2;
@@ -189,8 +190,20 @@ function setForm(engine, p, key) {
 }
 
 // ---------- Ultraman Ginga ----------
+// Strium Brace +1 (กลางวัน · ห่วงเวลาซีโร่ไม่นับ) — ครบแล้วเป็นสโตเรี่ยม · คืน true ถ้าเพิ่งครบ
+function braceTick(engine, p) {
+  const s = st(p);
+  if (s.strium || engine.zeroActive() || engine.isNightRound(engine.worldRound)) return false;
+  s.brace = Math.min(BRACE_MAX, s.brace + 1);
+  if (s.brace < BRACE_MAX) return false;
+  s.strium = true;
+  engine.log(`🌈 ${p.name} — Strium Brace ครบ ${BRACE_MAX}: กลายเป็นกิงกะสโตเรี่ยม!`);
+  return true;
+}
+
 function startGinga(engine, p) {
   const s = st(p);
+  braceTick(engine, p); // แปลงร่างกลางวัน = +1 ทันที (ครบพอดี = แปลงเป็นสโตเรี่ยมเลย)
   s.ginga = true;
   p.statuses.hikaruGinga = GINGA_TURNS;
   engine.triggerCutscene(p, s.strium ? CUT.strium : CUT.ginga);
@@ -427,14 +440,7 @@ module.exports = {
       if (!isHikaru(p) || !p.alive) continue;
       const s = st(p);
       // Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวัน (ห่วงเวลาซีโร่ไม่นับ)
-      if (s.ginga && !s.strium && !engine.zeroActive() && !engine.isNightRound(engine.worldRound)) {
-        s.brace = Math.min(BRACE_MAX, s.brace + 1);
-        if (s.brace >= BRACE_MAX) {
-          s.strium = true;
-          engine.log(`🌈 ${p.name} — Strium Brace ครบ ${BRACE_MAX}: กลายเป็นกิงกะสโตเรี่ยม!`);
-          if ((p.statuses.hikaruGinga || 0) > 0) engine.triggerCutscene(p, CUT.strium);
-        }
-      }
+      if (s.ginga && braceTick(engine, p) && (p.statuses.hikaruGinga || 0) > 0) engine.triggerCutscene(p, CUT.strium);
       if (s.form === "tiga" && !((p.statuses.hikaruTiga || 0) > 0)) {
         leaveTiga(engine, p, true);
         s.form = null;

@@ -52,14 +52,14 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: ระดับง่าย · เดิน 4 ตีประชิด · แปลงร่าง/My-Th Edge 0 แต้ม · Mouse Separade 4 แต้ม แนว 4×1 (สกิลโจมตี)', () => {
+test('ข้อมูล: ระดับง่าย · เดิน 4 ตีประชิด · แปลงร่าง/My-Th Edge 0 แต้ม · Mouse Separade 6 แต้ม แนว 4×1 (สกิลโจมตี)', () => {
   const ch = CHAR_BY_ID.sora_otosumi;
   assert.equal(ch.difficulty, 'easy');
   assert.equal(ch.mov, 4);
   assert.deepEqual(ch.range, [1, 1]);
   assert.equal(ch.basic.cost, 0);
   assert.equal(ch.secondary.cost, 0);
-  assert.equal(ch.ultimate.cost, 4);
+  assert.equal(ch.ultimate.cost, 6);
   assert.deepEqual(ch.basic.area, { kind: 'self' });
   assert.deepEqual(ch.ultimate.area, { kind: 'line', len: 4, width: 1, hostile: true });
   assert.equal(sora.ULT_LEN, ch.ultimate.area.len);
@@ -255,7 +255,7 @@ test('Mouse Separade: ชนศัตรูคนแรก → คลิปช�
   Math.random = () => 0.99;
   engine.setActor('S');
   engine.useSkill('S', 'ultimate', [], { dir: 'right' });
-  assert.equal(P.S.skillPoints, 4);
+  assert.equal(P.S.skillPoints, 2);
   assert.equal(P.S.skillUsedRound, true);
   assert.equal(engine.gameState, 'ATTACKING', 'พักตาเดินให้กระดานเล่นวงล้อ + พุ่ง');
   assert.deepEqual(engine.buildStateFor('S').dash.path, [{ x: 1, y: 5 }, { x: 2, y: 5 }]);
@@ -277,12 +277,39 @@ test('Mouse Separade: ชนศัตรูคนแรก → คลิปช�
   assert.equal(engine.actorId, 'S');
   // ครั้งที่สอง: ไม่มีคลิปท่าไม้ตาย แต่คลิปชนยังเล่น
   calls.queue = [];
-  P.S.skillUsedRound = false;
+  P.S.skillUsedRound = false; P.S.sora.ultReady = 0; P.S.skillPoints = 8;
   engine.useSkill('S', 'ultimate', [], { dir: 'right' });
   flush(t, 6000);
   assert.deepEqual(calls.queue, ['soraHit']);
   assert.deepEqual(P.S.pos, { x: 4, y: 5 }, 'ชน C (B ไปอยู่หลังแล้ว)');
   assert.deepEqual(P.C.pos, { x: 3, y: 5 });
+});
+
+test('Mouse Separade: คูลดาวน์ 2 เทิร์น — กดเทิร์น N ได้อีกเทิร์น N+3 (ไม่เสียแต้มตอนติดคูลดาวน์)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 12, 12]]);
+  myth(P.S);
+  engine.setRoundNumber(2);
+  engine.setActor('S');
+  engine.useSkill('S', 'ultimate', [], { dir: 'right' });
+  flush(t, 6000);
+  assert.equal(P.S.skillPoints, 2);
+  assert.equal(view('S', 'S').skillLocks.ultimate.cd, 2);
+  for (const [round, cd] of [[3, 2], [4, 1]]) {
+    engine.setRoundNumber(round);
+    P.S.skillUsedRound = false; P.S.skillPoints = 8;
+    engine.setActor('S');
+    assert.equal(view('S', 'S').skillLocks.ultimate.cd, cd);
+    engine.useSkill('S', 'ultimate', [], { dir: 'left' });
+    assert.equal(P.S.skillPoints, 8, `เทิร์น ${round} ยังติดคูลดาวน์`);
+  }
+  engine.setRoundNumber(5);
+  P.S.skillUsedRound = false;
+  engine.setActor('S');
+  assert.equal(view('S', 'S').skillLocks.ultimate.cd, 0);
+  engine.useSkill('S', 'ultimate', [], { dir: 'left' });
+  flush(t, 6000);
+  assert.equal(P.S.skillPoints, 2, 'เทิร์น N+3 กดได้');
 });
 
 test('Mouse Separade: หลบพ้น = ทะลุไปชนคนถัดไป · เพื่อนร่วมทีม = ทะลุ · ไม่ชนใคร = หยุดสุดแนว (ช่องไม่ว่างถอยมา)', (t) => {

@@ -7,7 +7,8 @@
 //  สกิลรอง My-Th Edge (0 แต้ม · ร่าง My-Th เท่านั้น): สลับมีด ⇄ ปืน · เทิร์นละ 1 ครั้ง · ไม่นับเป็นการใช้สกิล · อาวุธค้างตามที่เลือกไว้ (ไม่รีเซ็ตตอนคืนร่าง)
 //    มีด (เริ่มต้น): ตีปกติ +1 · ฉากตีเป็นรอยฟันสีฟ้า
 //    ปืน: ระยะตี [1, 3] · ลำแสงสีฟ้า · ตีโดนและเป้ารอด = ดึงเป้าเข้าประชิด (ช่องติดตัวที่ใกล้เป้าสุดซึ่งว่าง · ไม่ว่าง = ไม่ดึง · ดึง Echo ไม่ได้)
-//  ท่าไม้ตาย Mouse Separade (4 แต้ม · ร่าง My-Th เท่านั้น): เลือกทิศ แนว 4×1
+//  ท่าไม้ตาย Mouse Separade (6 แต้ม · ร่าง My-Th เท่านั้น · คูลดาวน์ 2 เทิร์น — ผู้ใช้สั่ง 2026-10-13): เลือกทิศ แนว 4×1
+//    กดเทิร์น N → ข้ามเทิร์น N+1, N+2 → กดได้อีกเทิร์น N+3
 //    คลิปครั้งแรกต่อเกม → วงล้อหนูหมุน → พุ่งตรงไปสุดแนว (พังสิ่งกีดขวางที่ผ่าน · ผนึกมิโกะ = หยุดหน้าผนึก)
 //    ศัตรูคนแรกในแนวที่หลบไม่พ้น (หลบหลีก/พุ่มดอกไม้สูง/ป่าทึบ · แม่นยำเจาะ) = ชน → คลิปชน (ทุกครั้ง) → ระเบิดสีฟ้า
 //      ความเสียหาย 3 (เกราะรับก่อน · ฆ่าได้) แล้วสลับที่: เราไปยืนช่องของเป้า · เป้าถูกโยนไปช่องที่เราออกตัว (เป้าตาย = ไม่มีการโยน)
@@ -45,6 +46,7 @@ const REGEN_TURNS = 2; // ผู้ใช้สั่ง 2026-10-12 (เดิ�
 const REGEN_HP = 2;
 const ULT_LEN = 4;
 const ULT_DMG = 3;
+const ULT_CD = 2;
 // จังหวะบนกระดาน (ต้องตรงกับ client/src/board — SORA_T ใน boardDraw.js)
 const WHEEL_MS = 1400;
 const DASH_STEP_MS = 90;
@@ -61,6 +63,7 @@ function fresh() {
     formRound: 0,   // เทิร์นที่กดแปลงร่างล่าสุด (เทิร์นละ 1 ครั้ง)
     weaponRound: 0, // เทิร์นที่สลับอาวุธล่าสุด (เทิร์นละ 1 ครั้ง)
     calm: 0,        // เทิร์นที่อยู่ร่างโซระต่อเนื่อง (ครบ REGEN_TURNS = ฟื้น)
+    ultReady: 0,    // Mouse Separade: กดได้อีกเมื่อ roundNumber >= ค่านี้
   };
 }
 function st(p) { return p.sora || (p.sora = fresh()); }
@@ -168,7 +171,7 @@ function impact(engine, p, t, start, stop, big) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, SFX, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, REGEN_HP, ULT_LEN, ULT_DMG,
+  IMG, VIDEO, CUT, SFX, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, REGEN_HP, ULT_LEN, ULT_DMG, ULT_CD,
   WHEEL_MS, DASH_STEP_MS,
   isSora, mythOn, gunOn,
 
@@ -203,7 +206,7 @@ module.exports = {
     const s = st(p);
     if (tier === "basic") return s.formRound !== engine.roundNumber;
     if (tier === "secondary") return s.myth && s.weaponRound !== engine.roundNumber;
-    if (tier === "ultimate") return s.myth;
+    if (tier === "ultimate") return s.myth && engine.roundNumber >= s.ultReady;
     return false;
   },
   // แปลงร่าง / สลับอาวุธ ไม่นับเป็นการใช้สกิล (ผู้ใช้ตัดสิน) — กดแล้วยังใช้ท่าไม้ตายได้ในเทิร์นเดียวกัน
@@ -241,6 +244,7 @@ module.exports = {
       return "";
     }
     if (tier === "ultimate") {
+      s.ultReady = engine.roundNumber + 1 + ULT_CD;
       if (!p.cutsceneShown[CUT.ult]) {
         p.cutsceneShown[CUT.ult] = true;
         engine.queueCutscene(p, CUT.ult);
@@ -278,7 +282,8 @@ module.exports = {
     return {
       basic: { locked: s.formRound === r, free: true }, // free = ไม่กินโควตาสกิลของเทิร์น (ปุ่มยังกดได้หลังใช้สกิลอื่น)
       secondary: { locked: !s.myth || s.weaponRound === r, free: true },
-      ultimate: { locked: !s.myth },
+      // เทิร์นที่กดเอง = โควตาสกิลล็อกอยู่แล้ว → โชว์ไม่เกิน ULT_CD
+      ultimate: { locked: !s.myth, cd: Math.min(ULT_CD, Math.max(0, s.ultReady - r)) },
     };
   },
 };

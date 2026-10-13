@@ -432,7 +432,7 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
 });
 
-test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 10 = สโตเรี่ยมทันที (กลางคืน/ห่วงเวลาไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
+test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืน/ห่วงเวลาไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
   const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
   const s = P.H.hikaru;
   s.ginga = true; P.H.statuses.hikaruGinga = 99; P.H.boardSize = 3;
@@ -440,8 +440,8 @@ test('Strium Brace: จบเทิร์นในกิงกะกลางว
   hk.onEndTurn(engine);
   assert.equal(s.brace, 0, 'กลางคืนไม่นับ');
   engine.setRoundNumber(1);
-  for (let i = 0; i < 9; i++) hk.onEndTurn(engine);
-  assert.equal(s.brace, 9);
+  for (let i = 0; i < 4; i++) hk.onEndTurn(engine);
+  assert.equal(s.brace, 4);
   assert.equal(s.strium, false);
   hk.onEndTurn(engine);
   assert.equal(s.strium, true);
@@ -461,6 +461,34 @@ test('Strium Brace: จบเทิร์นในกิงกะกลางว
   engine.useSkill('H', 'secondary', []);
   assert.ok(hk.striumOn(P.H));
   assert.deepEqual(calls.cut.slice(-1), ['hkStrium']);
+});
+
+test('Strium Brace: แปลงร่างกิงกะกลางวัน +1 ทันที (กลางคืนไม่นับ) · ครบพอดีตอนแปลง = เป็นสโตเรี่ยมเลย', () => {
+  const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
+  const s = P.H.hikaru;
+  engine.setRoundNumber(4); // กลางคืน
+  engine.setActor('H');
+  engine.useSkill('H', 'secondary', []);
+  assert.equal(s.ginga, true);
+  assert.equal(s.brace, 0, 'กลางคืนไม่นับ');
+  // กลางวัน
+  s.ginga = false; delete P.H.statuses.hikaruGinga; P.H.boardSize = 1; s.gingaReady = 0;
+  engine.setRoundNumber(1);
+  P.H.skillUsedRound = false; P.H.skillPoints = 8;
+  engine.setActor('H');
+  engine.useSkill('H', 'secondary', []);
+  assert.equal(s.brace, 1);
+  assert.equal(s.strium, false);
+  // เหลือ 1 → แปลงร่างแล้วครบ = สโตเรี่ยมทันที (คลิปสโตเรี่ยม)
+  s.ginga = false; delete P.H.statuses.hikaruGinga; P.H.boardSize = 1; s.gingaReady = 0;
+  s.brace = hk.BRACE_MAX - 1;
+  P.H.skillUsedRound = false; P.H.skillPoints = 8;
+  calls.cut = [];
+  engine.setActor('H');
+  engine.useSkill('H', 'secondary', []);
+  assert.equal(s.brace, hk.BRACE_MAX);
+  assert.ok(hk.striumOn(P.H));
+  assert.deepEqual(calls.cut, ['hkStrium']);
 });
 
 test('Strium Ray: 6 แต้ม · แนว 5×3 · ดาเมจ 2 + ลุกไหม้ 3 · ผลักไปสุดปลายลำแสงในคอลัมน์ตัวเอง · ขวาง = หยุดก่อน · ตัวใหญ่ไม่ถูกผลัก', (t) => {
