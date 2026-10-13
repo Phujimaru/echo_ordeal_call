@@ -1879,7 +1879,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (ch?.id === "raido_hikaru" && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
-    if (!skillConfirmOn) { skill(tier); return; }
+    // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า
+    const quickSwitch = tier === "basic" && (me?.duoWith || me?.duoOf) && !ch?.basic?.cost;
+    if (!skillConfirmOn || quickSwitch) { skill(tier); return; }
     setSkillConfirm({ tier, skillData, label, useCost });
   };
   const cancelSkillConfirm = () => { clickSound(); setSkillConfirm(null); };
