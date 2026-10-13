@@ -535,7 +535,7 @@ function moveTo(id, x, y, { step = false } = {}) {
   if (own) match.action.path = [...walk, ...own.path.slice(1)];
   afterWalk(p, walk, ctx);
   Ice.flush(ctx);
-  const struck = ctx.strikes.some((h) => h.by === p.id);
+  const struck = ctx.strikes.some((h) => h.by === p.id && h.attack !== false); // ไม้ถูพื้น (เอมิลิโกะ) ไม่นับเป็นการโจมตี
   if (struck || !p.alive) {
     if (struck) { p.didAttackRound = true; Visibility.onHostileAct(p); }
     timers.clearPhaseTimer();

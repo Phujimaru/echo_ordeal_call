@@ -23,6 +23,7 @@ Object.assign(module.exports, {
   begin, flush, fxSeconds, resolveEntry, pushUnit, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, bump,
   noteHurt, flushBursts, burstNow, canLay, canSpike, addPrison, takePrisons,
+  wetAt, layWet, dryWet,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -51,12 +52,16 @@ const bumpVer = () => { match.board.iceVer = (match.board.iceVer || 0) + 1; };
 const hookOf = (p) => (p && CHAR_HOOKS[p.characterId]) || null;
 
 // ---------- ชั้นบนแผนที่ ----------
+//  พื้นเปียก (แจกันใส่น้ำของเอมิลิโกะ): match.board.wet = { "x,y": true } — ถาวรจนกว่าไม้ถูพื้นจะถูทับ (dryWet) / เปลี่ยนภูมิภาค
+//   special "wet" (Board.TERRAIN_INFO slide) = ไถลแบบเดียวกับน้ำแข็งทุกอย่าง · น้ำแข็งทับอยู่ = เป็นน้ำแข็ง
 function hasOverlay(b) {
-  return !!b && ((b.ice && Object.keys(b.ice).length > 0) || (b.spikes && Object.keys(b.spikes).length > 0));
+  return !!b && ((b.ice && Object.keys(b.ice).length > 0) || (b.spikes && Object.keys(b.spikes).length > 0)
+    || (b.wet && Object.keys(b.wet).length > 0));
 }
 // รวมชั้นเข้าแผนที่ (เรียกจาก action.boardMap — terrain ส่งมาเป็นสำเนาแล้ว)
 function overlayOf(b, terrain, special) {
   const sp = { ...special };
+  for (const k of Object.keys(b.wet || {})) if (!terrain[k] && sp[k] !== "ice") sp[k] = "wet";
   for (const k of Object.keys(b.ice || {})) if (!terrain[k]) sp[k] = "ice";
   for (const [k, s] of Object.entries(b.spikes || {})) terrain[k] = `icespike${s.lv}`;
   return { terrain, special: sp };
@@ -68,7 +73,38 @@ function publicInfo() {
     ice: Object.entries(b.ice || {}).map(([k, r]) => ({ ...parseKey(k), left: r.left, owner: r.owner })),
     spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner })),
     prisons: (b.prisons || []).map((r) => ({ x: r.x, y: r.y, size: 5, owner: r.owner })),
+    wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
+}
+function wetAt(x, y) { return !!(match.board && match.board.wet && match.board.wet[K(x, y)]); }
+// ทำให้ช่องเปียก (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/น้ำแข็ง/ในกระดาน) → ช่องที่เปียกใหม่จริง [{ x, y }]
+function layWet(tiles) {
+  if (!match.board || !Array.isArray(tiles)) return [];
+  const map = action.boardMap();
+  const out = [];
+  for (const t of tiles) {
+    if (!t || !Board.inBounds(map, t.x, t.y) || map.terrain[K(t.x, t.y)]) continue;
+    if (Board.specialAt(map, t.x, t.y) === "ice") continue;
+    if (match.shopPos && match.shopPos.x === t.x && match.shopPos.y === t.y) continue;
+    const k = K(t.x, t.y);
+    if ((match.board.wet ||= {})[k]) continue;
+    match.board.wet[k] = true;
+    out.push({ x: t.x, y: t.y });
+  }
+  if (out.length) bumpVer();
+  return out;
+}
+// ไม้ถูพื้นถูทับ = แห้ง → ช่องที่แห้งจริง [{ x, y }]
+function dryWet(tiles) {
+  const b = match.board;
+  if (!b || !b.wet || !Array.isArray(tiles)) return [];
+  const out = [];
+  for (const t of tiles) {
+    const k = t && K(t.x, t.y);
+    if (k && b.wet[k]) { delete b.wet[k]; out.push({ x: t.x, y: t.y }); }
+  }
+  if (out.length) bumpVer();
+  return out;
 }
 function iceAt(x, y) { return (match.board && match.board.ice && match.board.ice[K(x, y)]) || null; }
 function spikeAt(x, y) { return (match.board && match.board.spikes && match.board.spikes[K(x, y)]) || null; }
@@ -254,15 +290,19 @@ function impact(p, hit, dir, n, ctx) {
     const hook = hookOf(p);
     const enemy = !combat.sameTeam(p, u);
     if (!enemy) { ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y, ally: true }); return; }
-    if (hook && hook.slideStrike) {
+    // ฮุค slideStrikes(p) = ไถลชนแล้วลงดาเมจไหมตอนนี้ (เอมิลิโกะ: ถือไม้ถูพื้นอยู่) · ไม่มี = ทุกครั้ง (Ice Spike)
+    //  slideStrike คืน { attack: false } = ไม่นับเป็นการโจมตี (ไม่จบตา) · { knock: false } = เป้าไม่กระเด็น
+    if (hook && hook.slideStrike && (!hook.slideStrikes || hook.slideStrikes(engine, p))) {
       const before = (u.hp || 0) + (u.armor || 0);
-      combat.withEffectSource(p, () => hook.slideStrike(engine, p, u, n, ctx));
+      let res = null;
+      combat.withEffectSource(p, () => { res = hook.slideStrike(engine, p, u, n, ctx) || null; });
       const dmg = Math.max(0, before - ((u.hp || 0) + (u.armor || 0)));
       if (u.alive && u.hp <= 0) combat.instantDeath(u);
       const kill = !u.alive;
-      ctx.events.push({ kind: "hit", id: u.id, by: p.id, x: hit.x, y: hit.y, dmg, kill, max: n >= 4 });
-      ctx.strikes.push({ by: p.id, target: u.id, dmg });
+      ctx.events.push({ kind: "hit", id: u.id, by: p.id, x: hit.x, y: hit.y, dmg, kill, max: n >= 4, style: (res && res.style) || null });
+      ctx.strikes.push({ by: p.id, target: u.id, dmg, attack: !(res && res.attack === false) });
       if (kill) { u.pos = null; match.lastLog.push(`💀 ${u.name} เลือดจริงหมด ตกรอบ!`); return; }
+      if (res && res.knock === false) return;
     } else {
       ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y });
     }

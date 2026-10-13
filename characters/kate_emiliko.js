@@ -17,21 +17,23 @@ const KATE = "kate";
 const EMI = "emiliko";
 const DIR = "/characters/kate_emiliko";
 const IMG = {
-  kate: `${DIR}/kate.svg`,
-  emiliko: `${DIR}/emiliko.svg`,
-  mirror: `${DIR}/mirror.svg`,
-  revive: `${DIR}/revive.svg`,
-  soot: `${DIR}/soot.svg`,
-  whip: `${DIR}/whip.svg`,
-  sword: `${DIR}/sword.svg`,
-  wings: `${DIR}/wings.svg`,
-  storm: `${DIR}/storm.svg`,
-  tools: `${DIR}/tools.svg`,
-  mop: `${DIR}/mop.svg`,
-  vase: `${DIR}/vase.svg`,
-  vacuum: `${DIR}/vacuum.svg`,
-  cheer: `${DIR}/cheer.svg`,
+  kate: `${DIR}/kate.webp`,
+  emiliko: `${DIR}/emiliko.webp`,
+  mirror: `${DIR}/mirror.jpg`,
+  revive: `${DIR}/revive.jpg`,
+  soot: `${DIR}/whip.jpg`,
+  whip: `${DIR}/whip.jpg`,
+  sword: `${DIR}/sword.png`,
+  wings: `${DIR}/wings.jpg`,
+  storm: `${DIR}/storm.avif`,
+  tools: `${DIR}/tools.jpg`,
+  mop: `${DIR}/mop.jpg`,
+  vase: `${DIR}/vase.jpg`,
+  vacuum: `${DIR}/vacuum.jpg`,
+  cheer: `${DIR}/cheer.jpg`,
 };
+// เพลงท่าไม้ตายเคท (ระบำเขม่า): intro เล่นครั้งเดียว แล้ววน loop จนพายุหมด
+const MUSIC = { intro: `${DIR}/kate_theme_intro.m4a`, loop: `${DIR}/kate_theme_loop.mp3` };
 
 const MAX_HP = 3;
 const MAX_ARMOR = 2;
@@ -313,4 +315,4 @@ const emiliko = {
   id: EMI,
 };
 
-module.exports = { kate, emiliko, KATE, EMI, IMG, WEAPONS, SOOT };
+module.exports = { kate, emiliko, KATE, EMI, IMG, MUSIC, WEAPONS, SOOT };
