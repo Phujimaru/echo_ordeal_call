@@ -96,7 +96,7 @@ function useSkill(id, tier, targets, opts = {}) {
   // "เหน็บชา" (สถานะ Universal): 30% สกิลไม่ทำงาน แต่แต้มสกิล/โควตาของเทิร์นถูกใช้ไปแล้วตามเดิม
   if (numbFizzles(p)) {
     match.lastLog.push(`🫨 ${p.name} เหน็บชา — ${skill.name} ไม่ทำงาน! (แต้มสกิลถูกหักไปแล้ว)`);
-    io.emit("skillFlash", { name: `${skill.name} — เหน็บชา สกิลไม่ทำงาน`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) });
+    view.emitVisible("skillFlash", { name: `${skill.name} — เหน็บชา สกิลไม่ทำงาน`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) }, p);
     view.broadcastState();
     return;
   }
@@ -106,7 +106,7 @@ function useSkill(id, tier, targets, opts = {}) {
     p.skillPoints += cost;
     if (blessFree) p.statuses.freecast = (p.statuses.freecast || 0) + 1;
     match.lastLog.push(`🌲 ป่าไม้ต้องสาป — ${skill.name} ของ ${p.name} พลาดเป้า! (ได้แต้มสกิลคืน ${cost})`);
-    io.emit("skillFlash", { name: `${skill.name} — พลาดเป้า (ป่าไม้ต้องสาป)`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) });
+    view.emitVisible("skillFlash", { name: `${skill.name} — พลาดเป้า (ป่าไม้ต้องสาป)`, img: skill.img || null, by: p.name, color: lobby.colorOf(p) }, p);
     view.broadcastState();
     return;
   }
@@ -139,7 +139,7 @@ function useSkill(id, tier, targets, opts = {}) {
   const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier, opts));
   if (skill.instant && !silent) {
     const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier, opts) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
-    io.emit("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound });
+    view.emitVisible("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound }, p);
   }
   if (!silent) match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
 

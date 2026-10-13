@@ -408,3 +408,28 @@ test('ร่าเริงสุดๆ (ไม้ถูพื้น): ผลั
   assert.deepEqual(P[E].pos, { x: 6, y: 5 });
   assert.equal(engine.boardMap().special['3,5'], 'wet');
 });
+
+test('ม่านแดง: เอฟเฟกต์/ป้ายสกิลที่เกิดข้างในไม่ส่งให้คนนอก · ฝ่ายเคทและคนในยังได้', () => {
+  const P = setup([['K', 'kate', 4, 4], [E, null, 4, 5], ['B', 'dummy', 6, 6], ['C', 'dummy', 12, 12]]);
+  Soot.cast(P.K, engine.tileArea({ kind: 'tile', square: 8 }, { x: 5, y: 5 }));
+  const view = require('../../server/view.js');
+  const { io } = require('../../server/app.js');
+  const sent = [];
+  const saved = { to: io.to, emit: io.emit };
+  io.to = (id) => ({ emit: (ev, payload) => sent.push({ id, ev, payload }) });
+  io.emit = (ev, payload) => sent.push({ id: '*', ev, payload });
+  try {
+    view.emitBoardFx('iceFx', { seq: 1, events: [{ kind: 'knock', id: 'B', from: { x: 6, y: 6 }, to: { x: 7, y: 6 } }, { kind: 'wet', tiles: [{ x: 12, y: 11 }] }] });
+    const forC = sent.find((s) => s.id === 'C');
+    assert.equal(forC.payload.events.length, 1, 'คนนอกได้แค่เหตุการณ์นอกม่าน');
+    assert.equal(forC.payload.events[0].kind, 'wet');
+    assert.equal(sent.find((s) => s.id === 'K').payload.events.length, 2, 'ฝ่ายเคทเห็นหมด');
+    assert.equal(sent.find((s) => s.id === 'B').payload.events.length, 1, 'คนในไม่เห็นข้างนอก');
+    sent.length = 0;
+    view.emitVisible('skillFlash', { name: 'x' }, P.B);
+    assert.deepEqual(sent.map((s) => s.id).sort(), ['B', 'K']);
+    sent.length = 0;
+    view.emitBoardFx('shadowFx', { kind: 'storm', x0: 1, y0: 1, x1: 8, y1: 8 });
+    assert.equal(sent.length, 3, 'ร่ายม่าน ทุกคนเห็น');
+  } finally { io.to = saved.to; io.emit = saved.emit; }
+});

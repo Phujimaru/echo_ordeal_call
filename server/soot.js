@@ -86,6 +86,18 @@ function onEndTurn() {
   for (const s of b.storms) s.left -= 1;
   b.storms = b.storms.filter((s) => s.left > 0);
 }
+// ช่อง pos ถูกม่านบังจาก viewer ไหม (อยู่คนละฝั่งของม่าน — ฝ่ายผู้ร่ายเห็นทุกช่อง) · viewer อยู่ข้างใน = ตัวไหนของฝ่ายก็ได้
+function tileHiddenFrom(viewer, pos) {
+  if (!viewer || !pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
+  const eyes = Duo.unitsOf(viewer).filter((u) => u.alive && u.pos);
+  for (const s of storms()) {
+    if (s.side === Duo.sideKey(viewer)) continue;
+    const inViewer = eyes.some((u) => inside(s, u.pos));
+    if (inside(s, pos) !== inViewer) return true;
+  }
+  return false;
+}
+Object.assign(module.exports, { tileHiddenFrom });
 function publicInfo() {
   return storms().map((s) => ({ x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, owner: s.owner, left: s.left }));
 }

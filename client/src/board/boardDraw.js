@@ -28,7 +28,7 @@ import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme"
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, drawPrisons, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
-import { clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
+import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -1910,7 +1910,10 @@ export function drawFrame(g, st, now) {
   for (const it of items) it.f();
   if (storms) drawStormAir(g, storms, info, now, lowQ);
   if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
+    // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
+    const hide = storms && behindDome(storms, shopPos.x, shopPos.y) && clipOutDomes(g, storms);
     drawShopLabel(g, shopPos.x, shopPos.y, `🏪 ${st.shopLabel}`);
+    if (hide) g.restore();
   }
   // อนุภาค (ข้ามเมื่อ lowQ) — ไม่วาดทับโดมเขม่าของม่านแดง (คนนอกต้องมองไม่เห็นข้างใน)
   if (!lowQ) {

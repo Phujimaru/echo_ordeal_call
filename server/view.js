@@ -1,7 +1,7 @@
 // สร้างสถานะที่ส่งให้ผู้เล่นแต่ละคน + broadcast
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  displayImg, buildStateFor, broadcastState, broadcastPositions, takenUniqueChars,
+  displayImg, buildStateFor, broadcastState, broadcastPositions, takenUniqueChars, emitBoardFx, emitVisible,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -340,3 +340,51 @@ function attackUnseen(viewer, card) {
   if (!by || !t) return false;
   return Visibility.hiddenFrom(viewer, by) && Visibility.hiddenFrom(viewer, t);
 }
+
+// ---------- เอฟเฟกต์บนกระดานที่ผู้ชมบางคนมองไม่เห็น (ม่านแดงของเคท — สู้กันข้างในคนนอกไม่เห็น) ----------
+//  ไม่มีม่าน = ส่งทุกคนเหมือนเดิม · มีม่าน = ส่งรายผู้เล่น ตัดเหตุการณ์ที่มีคน/ช่องที่ผู้ชมคนนั้นมองไม่เห็น
+const FX_POS_KEYS = ["at", "from", "to", "hitAt", "center"];
+const FX_LIST_KEYS = ["path", "tiles"];
+const FX_ID_KEYS = ["id", "by", "target"];
+function fxHidden(viewer, ev) {
+  if (!ev || typeof ev !== "object") return false;
+  if (ev.kind === "storm") return false; // ร่ายม่าน — ทุกคนเห็นม่านปิดลง
+  for (const k of FX_ID_KEYS) {
+    const u = typeof ev[k] === "string" ? match.players[ev[k]] : null;
+    if (u && Visibility.hiddenFrom(viewer, u)) return true;
+  }
+  if (Number.isFinite(ev.x) && Number.isFinite(ev.y) && Soot.tileHiddenFrom(viewer, ev)) return true;
+  for (const k of FX_POS_KEYS) if (ev[k] && Soot.tileHiddenFrom(viewer, ev[k])) return true;
+  for (const k of FX_LIST_KEYS) if (Array.isArray(ev[k]) && ev[k].some((t) => Soot.tileHiddenFrom(viewer, t))) return true;
+  if (ev.carry && fxHidden(viewer, ev.carry)) return true;
+  return false;
+}
+function fxFor(viewer, event, payload) {
+  if (event === "iceFx") {
+    const events = (payload.events || []).filter((e) => !fxHidden(viewer, e));
+    return events.length ? { ...payload, events } : null;
+  }
+  if (event === "shadowFx" && payload && payload.kind === "stormTick") {
+    const hits = (payload.hits || []).filter((h) => !fxHidden(viewer, h));
+    return hits.length ? { ...payload, hits } : null;
+  }
+  return fxHidden(viewer, payload) ? null : payload;
+}
+function emitBoardFx(event, payload) {
+  if (!Soot.active() || (event !== "iceFx" && event !== "shadowFx")) { io.emit(event, payload); return; }
+  for (const p of Object.values(match.players)) {
+    if (p.duoOf) continue;
+    const out = fxFor(p, event, payload);
+    if (out) io.to(p.id).emit(event, out);
+  }
+}
+// ส่งเหตุการณ์ที่มีผู้กระทำ (ป้ายสกิล) — ผู้ชมที่มองไม่เห็นผู้กระทำ (อยู่ในม่านแดงคนละฝั่ง) ไม่ได้รับ
+function emitVisible(event, payload, actor) {
+  if (!Soot.active() || !actor) { io.emit(event, payload); return; }
+  for (const p of Object.values(match.players)) {
+    if (p.duoOf) continue;
+    if (Visibility.hiddenFrom(p, actor)) continue;
+    io.to(p.id).emit(event, payload);
+  }
+}
+

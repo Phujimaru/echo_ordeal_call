@@ -180,6 +180,7 @@ export function stormWallItems(items, g, storms, info, now, lowQ) {
     if (st.dome && st.domeK > 0) {
       dDome = Math.max(depthOf(b.X0, b.Y0), depthOf(b.X1, b.Y0), depthOf(b.X1, b.Y1), depthOf(b.X0, b.Y1)) + 0.0005;
       items.push({ d: dDome, f: () => drawDome(g, b, st, now, lowQ) });
+      st.domeDepth = dDome; // ป้ายที่วาดทีหลัง (ร้านค้า) เช็คว่าอยู่หลังโดมไหม — behindDome
     }
     // ขอบ 4 ด้าน: จุดเริ่ม → ทิศเดิน · ความยาว (ช่อง)
     const edges = [
@@ -268,6 +269,11 @@ function drawDome(g, b, st, now, lowQ) {
   g.save(); g.globalAlpha = a; path(); g.lineJoin = "round";
   g.strokeStyle = "rgba(150,14,34,0.55)"; g.lineWidth = 3; g.stroke();
   g.restore();
+}
+// ช่อง (x, y) อยู่หลังโดมของคนนอกไหม (ลึกกว่าขอบใกล้สุดของโดม) — ป้ายเหนือช่องนั้นต้องถูกโดมบัง
+export function behindDome(storms, x, y) {
+  const d = depthOf(x + 0.5, y + 0.5);
+  return !!storms && storms.some((st) => st.dome && st.domeK > 0 && st.fade > 0 && Number.isFinite(st.domeDepth) && d < st.domeDepth);
 }
 // ตัดพื้นที่โดมออกจาก clip (g.save() แล้ว — ผู้เรียก restore เองเมื่อได้ true) · ใช้กับอนุภาคฉากที่วาดหลังตัวละคร
 export function clipOutDomes(g, storms) {
