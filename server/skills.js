@@ -138,7 +138,7 @@ function useSkill(id, tier, targets, opts = {}) {
   // silentFlash: สกิลที่มีคลิป/การ์ดแจ้งเตือนของตัวเอง (ต้องเงียบระหว่างล่องหน) — ไม่ขึ้นป้ายกลาง ไม่บันทึก roundSkills
   const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier, opts));
   if (skill.instant && !silent) {
-    const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
+    const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier, opts) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
     io.emit("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound });
   }
   if (!silent) match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });

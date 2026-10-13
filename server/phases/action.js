@@ -31,6 +31,7 @@ const { engine } = require("../engine");
 const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
+const Soot = require("../soot");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -99,12 +100,14 @@ function boardUnits() {
 }
 // ช่องที่ยืน/เดินผ่าน/ถอยเข้าไม่ได้นอกจากสิ่งกีดขวางของแผนที่: แผงร้านค้ามายา (GRID_PLAN §8.1)
 //  + ร่างของตัวที่ล้มในระบบคู่ (server/duo.js — เดินข้ามได้ผ่าน hopTiles แต่ยืน/ไถล/ถูกผลักเข้าไม่ได้)
-function boardBlocked() {
+//  selfId = ตัวที่กำลังขยับ: ถูกขังในม่านแดง (server/soot.js — ระบำเขม่า) = ช่องนอกม่านเข้าไม่ได้ด้วย (Set-like: .has)
+function boardBlocked(selfId = null) {
   const corpses = Duo.corpseKeys();
-  if (!match.shopPos && !corpses.length) return null;
+  const trap = selfId ? Soot.blockedFor(match.players[selfId]) : null;
+  if (!match.shopPos && !corpses.length && !trap) return null;
   const out = new Set(corpses);
   if (match.shopPos) out.add(Board.key(match.shopPos.x, match.shopPos.y));
-  return out;
+  return trap ? { has: (k) => out.has(k) || trap.has(k) } : out;
 }
 // ร่างที่เดินข้ามได้ (Board.reachable opts.hop) · ไม่มี = null
 function hopTiles() {
@@ -242,7 +245,7 @@ function resizeUnit(p, newSize) {
       const o = match.players[id];
       if (!o || !o.alive || !o.pos) continue;
       const before = { ...o.pos };
-      const to = Board.pushOutTile(boardMap(), before, box, boardUnits().filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked() });
+      const to = Board.pushOutTile(boardMap(), before, box, boardUnits().filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked(o.id) });
       if (to) o.pos = { x: to.x, y: to.y };
       const enemy = !combat.sameTeam(p, o);
       let dealt = 0;
@@ -264,7 +267,7 @@ function resizeUnit(p, newSize) {
 
 // ช่องนี้ยืนได้ไหม: ในกระดาน ไม่ใช่สิ่งกีดขวาง/ร้านค้า และไม่มีใครยืน (ยกเว้น selfId)
 function tileFree(x, y, selfId = null) {
-  return Board.freeTile(boardMap(), x, y, boardUnits(), selfId, boardBlocked());
+  return Board.freeTile(boardMap(), x, y, boardUnits(), selfId, boardBlocked(selfId));
 }
 // ช่องตามแนวพุ่งตรงจากตัว (โซระ: Mouse Separade) ทีละช่องไม่เกิน len · ตัดที่ขอบกระดาน
 //  ต่อช่อง { x, y, obstacle: ชนิดสิ่งกีดขวาง | null, wall: พังไม่ได้ (ผนึกมิโกะ), shop, unitId: คนที่ยืน (ไม่นับตัวเอง · รวมคนที่มองไม่เห็น) }
@@ -471,7 +474,7 @@ function moveTo(id, x, y, { step = false } = {}) {
   //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
-  const reach = Board.reachable(map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(), hop: hopTiles(), smash: smashes(p) });
+  const reach = Board.reachable(map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
   const prev = { x: p.pos.x, y: p.pos.y };
   // เดินทีละช่องเข้าน้ำแข็ง: ช่องนั้นเป็นจุดเริ่มไถล (ไม่ใช่ช่องที่หยุดได้ จึงไม่อยู่ใน reach) — ตรวจก้าวจากช่องที่ยืนเอง
   //  ก้าวกลับช่องเริ่มตา = ย้อนการเดินเสมอ (Ice Spike วางน้ำแข็งไว้ที่ช่องเริ่มแล้วก็ตาม)
@@ -479,7 +482,7 @@ function moveTo(id, x, y, { step = false } = {}) {
   const stepIce = step && s <= 1 && Board.isIce(map, x, y);
   if (stepIce) {
     const at = reach.get(Board.key(prev.x, prev.y));
-    if (!at || at.d + Board.moveCost(map, x, y) > movOf(p) || !Board.freeTile(map, x, y, seen, p.id, boardBlocked())) return false;
+    if (!at || at.d + Board.moveCost(map, x, y) > movOf(p) || !Board.freeTile(map, x, y, seen, p.id, boardBlocked(p.id))) return false;
   } else {
     const node = reach.get(Board.key(x, y));
     if (!node) return false;
@@ -696,7 +699,7 @@ function tileEndEffect(p) {
     const kinds = Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).map((t) => Board.endTurnTile(map, t.x, t.y, []) || null).filter(Boolean);
     fx = kinds.find((f) => f.kind === "lava") || kinds.find((f) => f.kind === "thorns") || null;
   } else {
-    fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked() });
+    fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked(p.id) });
   }
   if (!fx) return null;
   const info = Board.TERRAIN_INFO[fx.kind];

@@ -23,6 +23,7 @@ const view = require("../view");
 const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
+const Soot = require("../soot");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -85,6 +86,8 @@ function endTurn() {
   CHAR_HOOKS.raido_hikaru.onEndTurn(engine);
   // น้ำแข็ง/หนามน้ำแข็ง (Ice Spike): นับเวลาที่เหลือ หมดแล้วหาย
   Ice.onEndTurn();
+  // ระบำเขม่า (เคท): ม่านแดงนับเวลา หมดแล้วหาย
+  Soot.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {

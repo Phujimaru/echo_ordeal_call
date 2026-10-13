@@ -113,6 +113,7 @@ const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
   "energy", "nohealing", "weak", "fragile", "spellburden",
   "oblada", "hburn", "invert", "manaSeal", "manaRupture", "manaLeech",
   "numb", // เหน็บชา
+  "shadowMask", // มองไม่ออก (ติดตัวเคทในระบำเขม่า)
 ];
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {

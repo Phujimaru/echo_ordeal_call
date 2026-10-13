@@ -16,6 +16,7 @@ const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
 const Duo = require("./duo");
+const Soot = require("./soot");
 
 function hookOf(p) { return p ? CHAR_HOOKS[p.characterId] : null; }
 
@@ -51,6 +52,7 @@ function hiddenFromOne(viewer, target) {
   if (!target.alive || !target.pos) return false;
   if (combat.sameTeam(viewer, target)) return false;
   if (stealthed(target)) return true;
+  if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
   if (!inBush(target)) return false;
   if (!viewer.alive || !viewer.pos) return true;
   const map = Board.mapOf(match.board.area);

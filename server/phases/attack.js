@@ -107,6 +107,9 @@ function terrainCoverDodge(target) {
 //  (สังหารทันที/หลบหลีก/ลดดาเมจฝั่งรับ) ไม่ถูกนับ · ห่อ try/catch กันโค้ดตัวละครพัง
 function estimateAttackOn(attacker, target) {
   try {
+    const hook = CHAR_HOOKS[attacker.characterId];
+    const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target) : null;
+    if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
     return Math.max(0, c.base || 0);
   } catch { return null; }
@@ -209,12 +212,17 @@ function strike(attacker, target, { counter = false } = {}) {
   const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
-  let dmg = base;
+  // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
+  //  (คุ้มครอง/ขัดแย้ง/เปราะบางของเป้ายังมีผล)
+  const fixedHook = CHAR_HOOKS[attacker.characterId];
+  const fixed = fixedHook && fixedHook.fixedStrikeDamage ? fixedHook.fixedStrikeDamage(engine, attacker, target) : null;
+  const isFixed = Number.isFinite(fixed);
+  let dmg = isFixed ? fixed : base;
   // เสริมพลัง / อ่อนแอ (สถานะพื้นฐาน patch 2.0.8): เพิ่ม/ลดดาเมจที่ทำได้ตามจำนวนที่ระบุ
-  const mightAtk = statusAmtOf(attacker, "might");
+  const mightAtk = isFixed ? 0 : statusAmtOf(attacker, "might");
   if (mightAtk > 0) dmg += mightAtk;
   //  "พิษร้าย" หักพลังโจมตีเหมือน "อ่อนแอ" — ซ้อนกันได้ จึงรวมกันก่อนหักทีเดียว
-  const weakAtk = statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker);
+  const weakAtk = isFixed ? 0 : statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker);
   if (weakAtk > 0) dmg = Math.max(0, dmg - weakAtk);
   // คุ้มครอง (สถานะพื้นฐาน): ความเสียหายที่ได้รับลดลงตามจำนวนที่ระบุ (ไม่ระบุ = 1)
   const guardAmt = (target.statuses.guard || 0) > 0 ? (statusAmtOf(target, "guard") || 1) : 0;
@@ -227,7 +235,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (fragileAmt > 0) dmg += fragileAmt;
   // การเดินทาง (อาณาจักรน้ำแข็ง กลางวัน): คริติคอล 20% ×2
   const journeyCritFx = {};
-  dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
+  if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
 
   const shieldBefore = target.shield;
   combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
@@ -397,7 +405,7 @@ function counterAndPush(attacker, target, card) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     if (attacker.alive) {
-      const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked() });
+      const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked(attacker.id) });
       // via = ช่องน้ำแข็งที่ไถลผ่าน (ถอยบนน้ำแข็ง = 2 ช่อง) — client วาดการไถลผ่านช่องนี้
       card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide, via: push.via || null };
       if (push.moved) {

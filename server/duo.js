@@ -16,7 +16,7 @@
 Object.assign(module.exports, {
   isPartner, isOwner, ownerOf, partnerOf, unitsOf, sideKey, sideAlive, inGame, cardUnit, cardHolders,
   sideCount, setup, teardown, controlledId, startTurn, switchTo, canSwitchTo, nextUnit, unitDone, otherUnit,
-  corpseKeys, corpseOf, placeCorpses, reviveAt, onDeath, clearSide,
+  moved, corpseKeys, corpseOf, placeCorpses, reviveAt, onDeath, clearSide,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -141,6 +141,12 @@ function switchTo(u) {
   match.action = d.acts[u.id] || freshAction(u);
   delete d.acts[u.id];
   return true;
+}
+// ตัวของฝ่ายนี้ถูกย้ายโดยสกิล (แส้/ปีกของเคท) ระหว่างตาเดิน — ตาที่เก็บไว้ (ยังไม่เดิน) เริ่มเดินจากช่องใหม่
+function moved(u) {
+  const d = match.duo;
+  const a = d && d.acts[u.id];
+  if (a && !a.moved && u.pos) a.from = { ...u.pos };
 }
 // ตัวที่กำลังคุมจบแล้ว (ตี/รอ)
 function unitDone(p) {

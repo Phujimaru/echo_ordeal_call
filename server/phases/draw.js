@@ -23,6 +23,7 @@ const timers = require("../timers");
 const view = require("../view");
 const Zero = require("../zeroTime");
 const Duo = require("../duo");
+const Soot = require("../soot");
 
 function dealRound() {
   timers.clearPhaseTimer();
@@ -160,6 +161,11 @@ function dealRound() {
 
   // ห่วงเวลาซีโร่: ของฟื้นพลังชีวิต 1 ชิ้น · เฟส 4 ฟ้าผ่า 3 จุด
   Zero.onRoundStart();
+  // ระบำเขม่า (เคท): ม่านแดงที่ยังอยู่ ศัตรูข้างในเสียหาย 1 ทุกต้นเทิร์น
+  if (Soot.active()) {
+    const hits = Soot.tickRound();
+    if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
+  }
 
   match.gameState = "PLAYING";
   timers.startPhaseTimer(timers.cardPhaseSeconds(), summary.resolveRound);

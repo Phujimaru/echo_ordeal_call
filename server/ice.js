@@ -274,7 +274,7 @@ function resolveEntry(p, dir, ctx) {
   const map = action.boardMap();
   if (!Board.isIce(map, p.pos.x, p.pos.y)) return;
   ctx.depth++;
-  const s = Board.slideLine(map, p.pos.x, p.pos.y, dir.x, dir.y, units(), p.id, action.boardBlocked());
+  const s = Board.slideLine(map, p.pos.x, p.pos.y, dir.x, dir.y, units(), p.id, action.boardBlocked(p.id));
   p.pos = { x: s.x, y: s.y };
   const n = s.tiles.length;
   ctx.events.push({ kind: "slide", id: p.id, path: s.tiles.map((t) => ({ x: t.x, y: t.y })), n });

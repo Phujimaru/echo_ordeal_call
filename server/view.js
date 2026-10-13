@@ -24,6 +24,7 @@ const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
 const Ice = require("./ice");
 const Duo = require("./duo");
+const Soot = require("./soot");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -42,6 +43,10 @@ function activeSkillMusic() {
       if (!best || (p.transformAt || 0) > best.at) best = { music: "muimi", at: p.transformAt || 0 };
     }
   }
+  // ระบำเขม่า (เคท): เพลง intro → loop ตลอดที่ม่านแดงยังอยู่ (client เล่น intro ครั้งเดียวต่อ seq แล้ววน loop)
+  for (const s of Soot.storms()) {
+    if (!best || (s.seq || 0) > best.at) best = { music: "kate_storm", at: s.seq || 0 };
+  }
   return best;
 }
 
@@ -53,7 +58,8 @@ function boardPublic() {
   return {
     area: match.board.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal],
     special: m.special || {}, flow: m.flow || {}, healKind: m.healKind || "heal",
-    ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike)
+    ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike) / พื้นเปียก (เอมิลิโกะ)
+    storms: Soot.publicInfo(), // ม่านแดง (ระบำเขม่า — เคท)
     spawns: m.spawns, shopSpots: m.shopSpots,
   };
 }
@@ -104,6 +110,8 @@ function buildStateFor(viewerId) {
   const deckLedger = cardDeck.canonicalDeckCards().map((c) => ({ ...c, drawn: !remainingCardKeys.has(cardDeck.cardKey(c)) }));
   // คนที่กำลังเดินซึ่งผู้ชมคนนี้มองไม่เห็น (ล่องหน/พุ่มหญ้า) — ไม่ส่งเส้นทาง/ช่องเริ่มตา (server/visibility.js)
   const actorUnseen = Visibility.hiddenFrom(viewer, match.players[match.actorId]);
+  // "มองไม่ออก" (ติดตัวเคทในระบำเขม่า): ผู้ชมที่ติด (ตัวไหนของฝ่ายก็ได้) เห็นหมากคนอื่นเป็นสีขาว ไม่มีชื่อ/ภาพ/ลำดับเดิน
+  const masked = !!viewer && match.gameState !== "GAMEOVER" && Duo.unitsOf(viewer).some((u) => u.alive && (u.statuses.shadowMask || 0) > 0);
   return {
     gameState: match.gameState,
     gameMode: match.gameMode,
@@ -128,7 +136,8 @@ function buildStateFor(viewerId) {
     duo: match.duo ? { ownerId: match.duo.ownerId, done: Object.keys(match.duo.done) } : null,
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
-    turnOrder: match.turnOrder,
+    turnOrder: masked ? [] : match.turnOrder,
+    masked,
     forecast: forecastFor(unit), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
     actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,
     action: match.gameState === "ACTION" && match.action && !actorUnseen ? {
@@ -142,7 +151,7 @@ function buildStateFor(viewerId) {
       ? match.cutsceneInfo : null,
     attack: match.gameState === "ATTACKING" ? match.lastAttack : null,
     dash: match.dash, // การพุ่งล่าสุดบนกระดาน (โซระ: Mouse Separade) — client เล่นตาม seq ใหม่
-    log: (match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : [],
+    log: masked ? [] : ((match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : []),
     shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
     shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
     shopTurnsLeft: shop.shopTurnsLeft(), // อีกกี่เทิร์นร้านย้าย (รวมเทิร์นนี้)
@@ -281,13 +290,22 @@ function buildStateFor(viewerId) {
         echo: hook && hook.echoState ? hook.echoState(engine, p) : undefined, // Echo: ขยายร่าง / ราชินี / คูลดาวน์มหึมา
         sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์
+        shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),
         lane: action.lanes(p), // ตีปกติแบบแนวตรง (ไรโด ฮิคารุ): true = แนวยาวตามระยะ (แบล็คคิง) · "face" = ทั้งด้านของตัว (กิงกะ)
         counter: action.counters(p), // ตีสวนได้ไหม (ตอนนี้ไม่มีใคร — เผื่อตัวละครสะท้อน)
       };
-    }),
+    }).map((o) => (masked && Duo.sideKey(match.players[o.id]) !== viewerId ? maskPub(o) : o)),
+  };
+}
+// "มองไม่ออก": หมากของคนอื่นเหลือแค่ตำแหน่ง — สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข
+function maskPub(o) {
+  return {
+    ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
+    hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined,
   };
 }
 

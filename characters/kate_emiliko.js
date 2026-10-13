@@ -224,6 +224,7 @@ const kate = {
       return "";
     }
     if (tier === "secondary" && isKate(p)) return sootSkill(engine, p, opts.form, targets, opts);
+    if (tier === "ultimate") return require("./kate_emiliko_combat").ultimate(engine, p, targets, opts, { st: st(engine, p) });
     return "";
   },
   // ปุ่มกระจกเงาเปลี่ยนเป็นตื่นขึ้นอีกครั้งเมื่ออีกตัวล้ม · ปุ่มรองแบบหลายตัวเลือก (choices)
@@ -306,13 +307,16 @@ function sootSkill(engine, p, form, targets, opts) {
     engine.sfx("ke_sword");
     return "";
   }
+  if (form === "whip") return require("./kate_emiliko_combat").whip(engine, p, engine.players[targets[0]], { st: st(engine, p), mate: m });
+  if (form === "wings") return require("./kate_emiliko_combat").wings(engine, p, opts.dir, m);
   return "";
 }
 
 // ---------- เอมิลิโกะ ----------
-const emiliko = {
-  ...kate,
-  id: EMI,
-};
+const emiliko = { ...kate, id: EMI };
 
 module.exports = { kate, emiliko, KATE, EMI, IMG, MUSIC, WEAPONS, SOOT };
+// ฮุคส่วนการต่อสู้ (อาวุธ / แส้ / ปีก / ม่านแดง / ท่าไม้ตาย) — ต่อท้ายทั้งสองตัว (characters/kate_emiliko_combat.js)
+const combat = require("./kate_emiliko_combat");
+Object.assign(kate, combat.hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS, IMG, E }));
+Object.assign(emiliko, combat.hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS, IMG, E }), { id: EMI });
