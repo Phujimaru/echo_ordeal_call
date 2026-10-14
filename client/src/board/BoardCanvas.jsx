@@ -37,7 +37,7 @@
 //   cinema      { a: {x,y}, b: {x,y}, z } | null — กล้องฉากตี: ซูมเข้ากลางระหว่างสองช่อง (z เท่า) · กลับเป็น null = คืนกล้องเดิม
 //               ระหว่างนี้ไม่สนใจ focus/ซูม (จำค่าซูมล่าสุดไว้ใช้ตอนคืน)
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
-//   ice         Ice Spike: { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) }, prisons: [{ x, y, size }] } | null (ดู iceFx.js)
+//   ice         Ice Spike: { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } | null (ดู iceFx.js)
 //               fx ของ Ice Spike: ice* (iceFx.js) · iceShake { amp } = จอสั่นแบบเลื่อนกล้อง (แรงตาม amp · lowQ/ลดการเคลื่อนไหว = ไม่สั่น)
 //   zero        state.zero (ห่วงเวลาซีโร่: { stage, seals, pickups }) — ผนึก/โซ่/ของฟื้นพลังชีวิตบนสนาม area 8–11
 //   zeroScene   { seq, mode: "enter"|"break"|"release", stage, seal } | null — seq ใหม่ = เล่นฉากเปลี่ยนผ่าน:

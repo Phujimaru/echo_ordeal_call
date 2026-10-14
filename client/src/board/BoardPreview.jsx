@@ -12,7 +12,7 @@
 //   window.__boardCloak(id, true) = วาดตัวละครนั้นแบบซ่อนตัว (เงาจาง)
 //   ?storm=1 / ปุ่ม "ระบำเขม่า" = ฉากร่าย + ม่านแดง 8×8 (เคท) · window.__kateStorm(x, y) ร่ายรอบช่อง (x, y) · window.__kateStormClear() = ม่านหาย (จาง)
 //   ปุ่ม "มองจากนอก" = ผู้ร่ายเป็นศัตรู (ตัวเรา "me" ยืนนอกม่าน → เห็นโดมเขม่าทึบ) · ปิด = เราเป็นผู้ร่าย (เห็นข้างใน) · ?stormout=1
-//   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง + คุก 5×5 (Ice Spike) · window.__boardIce({ lv, prisons }) = prop ice ของ BoardCanvas
+//   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
@@ -216,7 +216,7 @@ export default function BoardPreview() {
   const [focus, setFocus] = useState(null);
   // Ice Spike (?ice=1): หนาม/น้ำแข็ง/คุกจำลอง
   const iceOn = Q.get("ice") === "1";
-  const [iceMock, setIceMock] = useState(() => (iceOn ? { lv: null, prisons: [{ x: 8, y: 8, size: 5 }] } : null));
+  const [iceMock, setIceMock] = useState(() => (iceOn ? { lv: null } : null));
   useEffect(() => { window.__boardIce = (v) => setIceMock(v || null); return () => { delete window.__boardIce; }; }, []);
   const iceMap = useMemo(() => (!iceOn ? map : {
     ...map,

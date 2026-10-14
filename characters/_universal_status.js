@@ -39,6 +39,8 @@ const BUFF_KEYS = [
   "guard",     // คุ้มครอง
   "fortune",   // โชคลาภ
   "mend",      // เยียวยา
+  "spRegen",   // ฟื้นพลัง (ต้นเทิร์นแต้มสกิล +1 ทีละขั้น)
+  "iceSurge",  // Ice Surge (Ice Spike — ระยะสกิลทั้งสนาม · หนามถูกลง 1 ไม่จำกัดครั้ง)
   "might",     // เสริมพลัง (พลังโจมตี +N)
   "empower",   // เสริมพลัง
   "evade",     // หลบหลีก
@@ -280,6 +282,24 @@ function tickMend(engine, p) {
   return got;
 }
 
+// "ฟื้นพลัง" (spRegen — ผู้ใช้สั่ง 2026-10-14 คู่กับ Ice Surge ของ Ice Spike): ต้นเทิร์นแต้มสกิล +1 ทีละขั้น
+//  statuses.spRegen = ขั้นที่เหลือ (สแตค — ไม่ลดตอนจบเทิร์น อยู่ใน NO_TICK_STATUS · ลดตอนติก) · ได้ใหม่ = นับใหม่เป็นจำนวนขั้นนั้น (ไม่บวกเพิ่ม)
+//  เป็นบัฟ (BUFF_KEYS — ปาด/ล้างได้ตามกติกากลาง) · ฟื้นผ่าน addSkill จึงเคารพผนึกพลังงาน/ชะงัก
+function applySpRegen(p, stacks) {
+  if (!p) return;
+  applyBuff(p, "spRegen", null, Math.max(1, stacks | 0));
+}
+function tickSpRegen(engine, p) {
+  if (!p || !p.alive || !(((p.statuses && p.statuses.spRegen) || 0) > 0)) return 0;
+  const before = p.skillPoints;
+  engine.addSkill(p, 1, "passive");
+  p.statuses.spRegen -= 1;
+  if (p.statuses.spRegen <= 0) delete p.statuses.spRegen;
+  const got = p.skillPoints - before;
+  engine.log(`🔷 ${p.name} ฟื้นพลัง — แต้มสกิล +${got} (เหลืออีก ${p.statuses.spRegen || 0} ขั้น)`);
+  return got;
+}
+
 // "ตาบอด" (blind, สถานะ Universal patch 3.4): มองไม่เห็นอะไรเลยทั้งเทิร์น — ไพ่ แต้ม พลังงาน พลังชีวิต ของทุกคนรวมทั้งของตัวเอง
 //  ตัวสถานะเป็นดีบัฟพื้นฐานธรรมดา (ต้าน/ล้างได้) — จุดทำงานจริงอยู่ที่ buildStateFor() ของ server/view.js
 function blindActive(p) {
@@ -491,11 +511,13 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower"]);
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen"]);
 
 module.exports = {
   SPELLBURDEN_MAX,
   NO_TICK_STATUS,
+  applySpRegen,
+  tickSpRegen,
   statusAmtOf,
   applyBuff,
   BUFF_KEYS,

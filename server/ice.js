@@ -5,7 +5,6 @@
 //  ชั้นที่สร้างระหว่างเกม (หายเมื่อเปลี่ยนภูมิภาค — placeOnBoard ตั้ง match.board ใหม่):
 //   match.board.ice    = { "x,y": { left, owner } }              ธารน้ำแข็ง (special "ice" ทับช่องพิเศษเดิม)
 //   match.board.spikes = { "x,y": { lv, armor, left, owner } }   หนามน้ำแข็ง (สิ่งกีดขวาง terrain "icespike<lv>")
-//   match.board.prisons = [{ x, y, owner, round }]               คุกน้ำแข็งที่รอช่วงที่ 2 (ช่องกลาง)
 //   match.board.iceVer = เลขรุ่น (action.boardMap แคชตามนี้)
 //  left = เทิร์นที่เหลือ (ลดตอนจบเทิร์น — onEndTurn · 0 = หาย)
 //
@@ -24,7 +23,7 @@ Object.assign(module.exports, {
   layIce, undoLay, placeSpike, raiseSpike, damageSpike, removeSpike, restoreSpike,
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn,
-  noteHurt, flushBursts, canLay, canSpike, addPrison, takePrisons,
+  noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
   wetAt, layWet, dryWet,
 });
 
@@ -43,10 +42,9 @@ const attack = require("./phases/attack");
 
 const ICE_TURNS = 6;               // ธารน้ำแข็งอยู่ 6 เทิร์น
 const SPIKE_TURNS = 3;             // หนามน้ำแข็งอยู่ 3 เทิร์น (Lv ขึ้น = นับใหม่)
-const SPIKE_ARMOR = [0, 1, 2, 2];  // เกราะตาม Lv (ผู้ใช้ยืนยัน Lv3 = 2)
+const SPIKE_ARMOR = [0, 1, 1, 1];  // เกราะตาม Lv — ทุก Lv = 1 (ผู้ใช้ปรับสมดุล 2026-10-14 · เดิม 1/2/2)
 const SLOW_TURNS = 3;              // เชื่องช้า 3 เทิร์น
 const MAX_CHAIN = 12;              // กันไถล/กระเด็นเป็นทอดไม่รู้จบ
-const PRISON_SIZE = 5;             // คุกน้ำแข็ง 5×5 รอบช่องกลาง (ข้อมูลให้ client วาด)
 
 const K = Board.key;
 const parseKey = (k) => { const [x, y] = k.split(",").map(Number); return { x, y }; };
@@ -82,7 +80,6 @@ function publicInfo() {
   return {
     ice: Object.entries(b.ice || {}).map(([k, r]) => ({ ...parseKey(k), left: r.left, owner: r.owner })),
     spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner })),
-    prisons: (b.prisons || []).map((r) => ({ x: r.x, y: r.y, size: PRISON_SIZE, owner: r.owner })),
     wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
 }
@@ -152,15 +149,14 @@ function canSpike(x, y, dir) {
   if (!action.tileFree(x + v[0], y + v[1], u.id)) return null;
   return { unit: match.players[u.id] };
 }
-// คุกน้ำแข็งที่รอช่วงที่ 2
-function addPrison(rec) { (match.board.prisons ||= []).push(rec); }
-// ดึงคุกที่ถึงเวลาของเจ้าของคนนี้ออกจากรายการ (สร้างก่อนเทิร์นนี้)
-function takePrisons(ownerId, round) {
-  const b = match.board;
-  if (!b || !b.prisons || !b.prisons.length) return [];
-  const due = b.prisons.filter((r) => r.owner === ownerId && r.round < round);
-  b.prisons = b.prisons.filter((r) => !due.includes(r));
-  return due;
+// หนามน้ำแข็งทุกอันบนสนาม +1 Lv (ของทุกเจ้าของ · Ice Surge) → [{ x, y, lv, from }] เฉพาะที่ขึ้นจริง (Lv3 อยู่แล้ว = นับเวลาใหม่แต่ไม่อยู่ในรายการ)
+function raiseAllSpikes() {
+  const out = [];
+  for (const k of Object.keys((match.board && match.board.spikes) || {})) {
+    const r = raiseSpike(k);
+    if (r && r.lv > r.from) out.push(r);
+  }
+  return out;
 }
 // ย้อนการวาง (กดย้อนการเดิน) — ลำดับย้อนหลัง
 function undoLay(records) {
@@ -259,7 +255,7 @@ function fxSeconds(ctx) {
     else if (e.kind === "knock") ms += 260;
     else if (e.kind === "hit") ms += e.max ? 700 : 450;
     else if (e.kind === "spike" || e.kind === "bump") ms += 350;
-    else if (e.kind === "prison") ms += 2200;
+    else if (e.kind === "surge") ms += 1200;
     else if (e.kind === "burst") ms += 600;
   }
   return Math.max(1.2, Math.min(8, ms / 1000 + 0.8));
@@ -299,7 +295,7 @@ function impact(p, hit, dir, n, ctx) {
       const dmg = Math.max(0, before - ((u.hp || 0) + (u.armor || 0)));
       if (u.alive && u.hp <= 0) combat.instantDeath(u);
       const kill = !u.alive;
-      ctx.events.push({ kind: "hit", id: u.id, by: p.id, x: hit.x, y: hit.y, dmg, kill, max: n >= 4, style: (res && res.style) || null });
+      ctx.events.push({ kind: "hit", id: u.id, by: p.id, x: hit.x, y: hit.y, dmg, kill, max: n >= (hook.STRIKE_MAX || 4), style: (res && res.style) || null });
       ctx.strikes.push({ by: p.id, target: u.id, dmg, attack: !(res && res.attack === false) });
       if (kill) { u.pos = null; match.lastLog.push(`💀 ${u.name} เลือดจริงหมด ตกรอบ!`); return; }
       if (res && res.knock === false) return;
@@ -459,8 +455,6 @@ function onEndTurn() {
   // นับลงอย่างเดียวแผนที่ไม่เปลี่ยน — bumpVer (ล้างแคช action.boardMap) เฉพาะตอนมีของหาย
   for (const [k, r] of Object.entries(b.ice || {})) { r.left -= 1; if (r.left <= 0) { delete b.ice[k]; changed = true; } }
   for (const [k, s] of Object.entries(b.spikes || {})) { s.left -= 1; if (s.left <= 0) { delete b.spikes[k]; changed = true; } }
-  // คุกที่เจ้าของตกรอบแล้ว = ยกเลิก
-  if (b.prisons) b.prisons = b.prisons.filter((r) => match.players[r.owner] && match.players[r.owner].alive);
   if (changed) bumpVer();
 }
 

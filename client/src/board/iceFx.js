@@ -2,7 +2,6 @@
 //  เอฟเฟกต์บนกระดานของ Ice Spike (characters/ice_spike.js · GRID_PLAN §7.9 · .claude/plans/ice-spike-contract.md)
 //  ของที่อยู่บนกระดาน (วาดทุกเฟรมใน boardDraw.drawFrame)
 //    drawIceSpike   หนามน้ำแข็ง Lv1–3 (terrain "icespike1|2|3") — มุมเอียง = รูปตั้ง spike{lv}_b · มุมบน = รูปราบ spike{lv}_t · ป้าย Lv
-//    drawPrisons    คุกน้ำแข็งช่วงที่ 1 (state.board.prisons) — กรอบ 5×5 เรืองแสงเต้นช้าๆ
 //    drawPickArrows ลูกศร 4 ทิศรอบคนที่ถูกวางหนามทับ (โหมดเลือกทิศผลัก)
 //  เอฟเฟกต์ครั้งเดียว (fx.kind — BoardStage ส่งตามเหตุการณ์ socket "iceFx")
 //    iceLay        น้ำแข็งเกิดบนช่อง (เกล็ดแผ่จากกลางช่อง)
@@ -14,8 +13,7 @@
 //    iceSlow       ติดเชื่องช้า: เกล็ดน้ำแข็งเกาะรอบตัว
 //    iceRegen      ฟื้นจากไถล: ประกายเขียว-ฟ้าลอยขึ้น
 //    iceBurst      ติดตัว 3: วงคลื่นน้ำแข็งแผ่ 8 ช่องรอบตัว
-//    icePrisonMark คุกช่วงที่ 1: เส้นกรอบ 5×5 วิ่งรอบ + แสงวาบ
-//    icePrison     คุกช่วงที่ 2: คลื่นน้ำแข็งแผ่ 3×3
+//    iceSurge      ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว + เสาแสงเย็น + ประกาย
 //    iceShake      ไม่วาด — จอสั่น (BoardCanvas เลื่อนกล้องตาม iceShakeOffset) { amp }
 //  วาดด้วย canvas ล้วน · lowQ = ตัดอนุภาค/เรืองซ้อน · ลดการเคลื่อนไหว = ไม่สั่น/ไม่เต้น
 // ============================================================
@@ -29,10 +27,10 @@ const easeOutBack = (t) => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1,
 function rngOf(seed) { let s = Math.abs(seed | 0) % 2147483646 || 1; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
 
 // จังหวะ (ms) — BoardStage ใช้คิวแอนิเมชัน/รอเหตุการณ์ถัดไป
-export const ICE_T = { slideStep: 62, hitStop: 190, layStep: 45, prisonIce: 260, prisonRing: 70, prisonTail: 360 };
+export const ICE_T = { slideStep: 62, hitStop: 190, layStep: 45, surge: 520 };
 export const ICE_FX_DUR = {
   iceLay: 560, iceTrail: 1200, iceHit: 760, iceBump: 440, iceSpikeUp: 620, iceSpikeBreak: 700,
-  iceSlow: 950, iceRegen: 1000, iceBurst: 820, icePrisonMark: 1000, icePrison: 1500, iceShake: 420,
+  iceSlow: 950, iceRegen: 1000, iceBurst: 820, iceSurge: 1600, iceShake: 420,
 };
 export const isIceFx = (kind) => typeof kind === "string" && (kind in ICE_FX_DUR);
 // ระยะเล่นของหางไถล (ตามความยาวเส้นทาง)
@@ -107,40 +105,6 @@ export function drawIceSpike(g, x, y, lv, o = {}) {
     g.strokeStyle = `rgb(${LV_RGB[lv - 1]})`; g.lineWidth = 1.6; g.stroke();
     g.fillStyle = "#e9f6ff"; g.font = `700 ${Math.round(r * 1.25)}px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(lv), badgeX, badgeY + 0.5);
-    g.restore();
-  }
-}
-
-// ---------- คุกน้ำแข็งช่วงที่ 1 (ค้างจนช่วงที่ 2) ----------
-function squarePath(g, x0, y0, n, z = 0) {
-  const a = P(x0, y0, z), b = P(x0 + n, y0, z), c = P(x0 + n, y0 + n, z), d = P(x0, y0 + n, z);
-  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
-}
-export function drawPrisons(g, prisons, info, now, lowQ) {
-  if (!Array.isArray(prisons) || !prisons.length) return;
-  const still = lowQ || REDUCED;
-  for (const pr of prisons) {
-    if (!pr || !Number.isFinite(pr.x) || !Number.isFinite(pr.y)) continue;
-    const n = Math.max(1, pr.size | 0 || 5), h = Math.floor(n / 2);
-    const x0 = Math.max(0, pr.x - h), y0 = Math.max(0, pr.y - h);
-    const x1 = Math.min(info.cols, pr.x - h + n), y1 = Math.min(info.rows, pr.y - h + n);
-    const pulse = still ? 0.7 : 0.55 + 0.45 * Math.sin(now / 380);
-    const corners = [P(x0, y0), P(x1, y0), P(x1, y1), P(x0, y1)];
-    const path = () => { g.beginPath(); corners.forEach((c, i) => (i ? g.lineTo(c[0], c[1]) : g.moveTo(c[0], c[1]))); g.closePath(); };
-    g.save();
-    path(); g.fillStyle = `rgba(150,215,255,${0.06 + 0.06 * pulse})`; g.fill();
-    if (!lowQ) { path(); g.strokeStyle = `rgba(120,200,255,${0.25 * pulse})`; g.lineWidth = 12; g.lineJoin = "round"; g.stroke(); }
-    // ขอบน้ำเงินเข้มใต้เส้นขาว — เห็นชัดบนพื้นหิมะ/น้ำแข็ง (ภูมิภาค VI)
-    path(); g.strokeStyle = `rgba(30,95,190,${0.55 + 0.3 * pulse})`; g.lineWidth = 5.5; g.lineJoin = "round"; g.stroke();
-    path(); g.strokeStyle = `rgba(200,240,255,${0.6 + 0.4 * pulse})`; g.lineWidth = 3; g.lineJoin = "round"; g.stroke();
-    if (!still) { path(); g.setLineDash([10, 12]); g.lineDashOffset = -now / 40; g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1.4; g.stroke(); g.setLineDash([]); }
-    // ผลึกเล็กที่มุม
-    for (const c of corners) {
-      const r = c[2] * 0.14;
-      g.fillStyle = `rgba(230,248,255,${0.7 + 0.3 * pulse})`; g.beginPath();
-      for (let i = 0; i < 8; i++) { const an = i / 8 * TAU, rr = i % 2 ? r * 0.35 : r; g.lineTo(c[0] + Math.cos(an) * rr, c[1] + Math.sin(an) * rr * 0.8); }
-      g.closePath(); g.fill();
-    }
     g.restore();
   }
 }
@@ -342,32 +306,32 @@ export function iceFx(g, e, now, lowQ) {
       burstShards(g, cx, cy, 0.4, 14, 1.4, t, T, e.x * 19 + e.y * 23 + 5, 0.09, lowQ);
       return;
     }
-    case "icePrisonMark": {
-      const n = Math.max(1, e.size | 0 || 5), h = Math.floor(n / 2), x0 = e.x - h, y0 = e.y - h, q = easeOut3(clamp01(t / 520));
+    case "iceSurge": {
+      // คลื่นวงกลม 3 ชั้นแผ่ออกไปทั้งสนาม (รัศมีสูงสุด ~8 ช่อง) + เสาแสงเย็นที่ตัว + เกล็ดลอยขึ้น
+      const cx = e.x + 0.5, cy = e.y + 0.5, T = ICE_FX_DUR.iceSurge;
       g.save();
-      // เส้นกรอบวิ่งรอบจากมุม (ยาวตาม q)
-      const c = [[x0, y0], [x0 + n, y0], [x0 + n, y0 + n], [x0, y0 + n], [x0, y0]];
-      g.strokeStyle = `rgba(235,250,255,${1 - clamp01((t - 600) / 400)})`; g.lineWidth = 4; g.lineCap = "round";
-      g.beginPath();
-      let left = q * 4;
-      for (let i = 0; i < 4 && left > 0; i++) {
-        const u = Math.min(1, left), a = P(c[i][0], c[i][1], 0.02), b = P(c[i][0] + (c[i + 1][0] - c[i][0]) * u, c[i][1] + (c[i + 1][1] - c[i][1]) * u, 0.02);
-        if (i === 0) g.moveTo(a[0], a[1]);
-        g.lineTo(b[0], b[1]); left -= 1;
+      const rings = lowQ ? 1 : 3;
+      for (let i = 0; i < rings; i++) {
+        const q = clamp01((t - i * 170) / (T - 420));
+        if (q <= 0 || q >= 1) continue;
+        const r = 0.6 + 8 * easeOut3(q), a = 1 - q;
+        g.beginPath();
+        for (let k = 0; k <= 48; k++) { const an = k / 48 * TAU, pt = P(cx + Math.cos(an) * r, cy + Math.sin(an) * r, 0.03); if (k) g.lineTo(pt[0], pt[1]); else g.moveTo(pt[0], pt[1]); }
+        g.closePath();
+        if (i === 0) { g.fillStyle = `rgba(185,230,255,${0.16 * a})`; g.fill(); }
+        g.strokeStyle = `rgba(${i === 1 ? "140,205,255" : "245,252,255"},${0.95 * a})`; g.lineWidth = (i === 0 ? 5 : 3) * a + 1; g.stroke();
       }
-      g.stroke();
-      if (t > 480) { squarePath(g, x0, y0, n, 0.02); g.fillStyle = `rgba(200,240,255,${0.3 * (1 - clamp01((t - 480) / 500))})`; g.fill(); }
+      const col = 1 - clamp01((t - 300) / 900);
+      if (col > 0) {
+        const [bx, by, s] = P(cx, cy, 0), [, ty] = P(cx, cy, 3.2);
+        const w = s * 0.55 * (0.6 + 0.4 * col);
+        const gr = g.createLinearGradient(bx, by, bx, ty);
+        gr.addColorStop(0, `rgba(210,240,255,${0.75 * col})`); gr.addColorStop(1, "rgba(210,240,255,0)");
+        g.fillStyle = gr; g.fillRect(bx - w / 2, ty, w, by - ty);
+        if (!lowQ) glow(g, bx, by - s * 0.4, s * 2.2, "160,215,255", 0.6 * col);
+      }
       g.restore();
-      return;
-    }
-    case "icePrison": {
-      const cx = e.x + 0.5, cy = e.y + 0.5, q = easeOut3(clamp01(t / 500));
-      g.save();
-      squarePath(g, e.x - 1 + (1 - q) * 1.5, e.y - 1 + (1 - q) * 1.5, Math.max(0.01, 3 * q), 0.03);
-      g.fillStyle = `rgba(225,248,255,${0.55 * (1 - p)})`; g.fill();
-      g.strokeStyle = `rgba(255,255,255,${1 - p})`; g.lineWidth = 3; g.stroke();
-      if (!lowQ) { const [sx, sy, s] = P(cx, cy, 0.8); glow(g, sx, sy, s * 2.4, "170,220,255", 0.55 * (1 - p)); }
-      g.restore();
+      if (!lowQ) burstShards(g, cx, cy, 0.5, 26, 2.2, t, T, e.x * 31 + e.y * 17 + 3, 0.12, lowQ);
       return;
     }
     default:

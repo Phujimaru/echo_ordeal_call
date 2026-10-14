@@ -830,7 +830,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         const k = key(t.x, t.y), was = (bd.special || {})[k] || null;
         if (!(k in mask) && (ev.kind === "wet" ? was !== "wet" : was === "wet")) mask[k] = ev.kind === "wet" ? was : "wet";
       }
-      if (ev.kind === "prison") { for (const t of pts(ev.ice)) noteIce(t); for (const t of pts(ev.ring)) noteLv(t.x, t.y); }
     }
     Object.assign(run.lv, lvMap);
     setIceHold(hold);
@@ -998,36 +997,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           look(at);
           return 180;
         }
-        case "prisonMark": {
-          if (!ok(ev)) return 0;
-          pushFx([{ kind: "icePrisonMark", x: ev.x, y: ev.y, size: ev.size || 5 }]);
-          sfx("is_prison_mark");
-          look(ev);
-          return 0;
-        }
-        case "prison": {
-          if (!ok(ev)) return 0;
-          const c = { x: ev.x, y: ev.y };
-          look(c);
+        case "surge": {
+          // ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว · หนามที่ขึ้น Lv ตามมาเป็น spikeUp
+          const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
+          if (!at) return 0;
+          look(at);
           playSfx("is_ult");
-          pushFx([{ kind: "icePrison", x: c.x, y: c.y }]);
-          shake(5);
-          const ice = pts(ev.ice);
-          later(ICE_T.prisonIce, () => { if (live()) reveal(ice); });
-          // หนามโผล่ไล่วนรอบกรอบทีละอัน (เรียงตามมุมรอบช่องกลาง)
-          const ring = (Array.isArray(ev.ring) ? ev.ring.filter(ok) : [])
-            .map((r) => ({ x: r.x, y: r.y, lv: Math.max(1, r.lv | 0), a: Math.atan2(r.y - c.y, r.x - c.x) }))
-            .sort((p, q) => p.a - q.a);
-          ring.forEach((r, k) => later(ICE_T.prisonIce + k * ICE_T.prisonRing, () => {
-            if (!live()) return;
-            const from = run.lv[key(r.x, r.y)] || 0;
-            setLv(r.x, r.y, r.lv);
-            pushFx([{ kind: "iceSpikeUp", x: r.x, y: r.y, lv: r.lv, from }]);
-            if (k % 4 === 0) playSfx("is_skill_2");
-          }));
-          const tail = ICE_T.prisonIce + ring.length * ICE_T.prisonRing;
-          later(tail, () => { if (live()) shake(7); });
-          return tail + ICE_T.prisonTail;
+          pushFx([{ kind: "iceSurge", x: at.x, y: at.y }]);
+          shake(7);
+          return ICE_T.surge;
         }
         default:
           return 0;
@@ -1346,8 +1324,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const [k, was] of Object.entries(iceMask)) { if (was) sp[k] = was; else delete sp[k]; }
     return { ...baseBoard, special: sp };
   }, [baseBoard, iceMask]);
-  const prisons = board && Array.isArray(board.prisons) && board.prisons.length ? board.prisons : null;
-  const iceProp = useMemo(() => (iceLv || prisons ? { lv: iceLv, prisons } : null), [iceLv, prisons]);
+  const iceProp = useMemo(() => (iceLv ? { lv: iceLv } : null), [iceLv]);
 
   // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
   const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080

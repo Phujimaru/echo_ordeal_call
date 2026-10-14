@@ -82,17 +82,17 @@ function boardSetup(list) {
   queued = [];
   return engine.players;
 }
-// หนามน้ำแข็ง Lv3 (เกราะ 2 → Lv2 เกราะ 2 → Lv1 เกราะ 1) — คืนเกราะรวมที่เหลือทุกระดับ (ไม่เหลือ = 0)
+// หนามน้ำแข็ง Lv3 (เกราะ 1 ทุก Lv — Lv3 → Lv2 → Lv1) — คืนเกราะรวมที่เหลือทุกระดับ (ไม่เหลือ = 0)
 function lv3Spike(x, y) {
   Ice.placeSpike(x, y, null, 1);
   Ice.raiseSpike(`${x},${y}`); Ice.raiseSpike(`${x},${y}`);
   assert.equal(Ice.spikeAt(x, y).lv, 3);
   return () => {
     const s = Ice.spikeAt(x, y);
-    return s ? s.armor + [0, 0, 1, 3][s.lv] : 0;
+    return s ? s.armor + (s.lv - 1) : 0;
   };
 }
-const LV3_TOTAL = 2 + 2 + 1; // Lv3 ต้องโดนรวม 5 ถึงหาย
+const LV3_TOTAL = 1 + 1 + 1; // Lv3 ต้องโดนรวม 3 ถึงหาย — ดาเมจที่เกินจากนี้วัดไม่ได้ (เทียบด้วย Math.min)
 
 test('ข้อมูลตัวละครมุยมิเป็นระดับง่าย ใช้ชื่อสถานะภาษาไทย และมีสกิลครบตามค่าใช้', () => {
   const c = CHAR_BY_ID.muimi;
@@ -296,7 +296,7 @@ test('คลื่นดาบท่าไม้ตาย ทุบหนาม�
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
   const toPlayer = 5 - P.A.hp;
   assert.equal(toPlayer, 1 + muimi.WAVE_ATK_BONUS);
-  assert.equal(LV3_TOTAL - left(), toPlayer, 'หนามโดนเท่าผู้เล่นในแนวเดียวกัน');
+  assert.equal(LV3_TOTAL - left(), Math.min(LV3_TOTAL, toPlayer), 'หนามโดนเท่าผู้เล่นในแนวเดียวกัน');
   assert.equal(engine.attackPowerAgainst(P.M, P.D), 1 + muimi.TOWER_ATK_BONUS, 'ค่าประเมินใส่ผู้เล่นไม่โดนโบนัสคลื่นลากตาม');
   await Promise.resolve();
   assert.equal(P.M.muimiWave, undefined, 'ล้างเครื่องหมายคลื่นหลังชุดผลจบ');
@@ -311,7 +311,7 @@ test('คลื่นดาบท่าไม้ตายถูกหลบห�
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
   assert.equal(P.E.hp, 5, 'หลบหมด');
   assert.equal(P.M.statuses.muimiTower, undefined);
-  assert.equal(LV3_TOTAL - left(), 1 + muimi.WAVE_ATK_BONUS);
+  assert.equal(LV3_TOTAL - left(), Math.min(LV3_TOTAL, 1 + muimi.WAVE_ATK_BONUS));
 });
 
 test('คลื่นดาบของดาบสนิม (ระหว่างดาบสะบั้น): หนามน้ำแข็งโดนเท่าผู้เล่นในแนว', () => {
@@ -322,7 +322,7 @@ test('คลื่นดาบของดาบสนิม (ระหว่า
   engine.useSkill('M', 'secondary', [], { dir: 'up' });
   const toPlayer = 5 - P.A.hp;
   assert.equal(toPlayer, 1 + muimi.SEC_WAVE_ATK_BONUS);
-  assert.equal(LV3_TOTAL - left(), toPlayer);
+  assert.equal(LV3_TOTAL - left(), Math.min(LV3_TOTAL, toPlayer));
 });
 
 // ห่วงเวลาซีโร่ล็อกท่าไม้ตายทุกตัว — คลื่นที่ถึงผนึกได้จริงมีแค่ดาบสนิมระหว่างดาบสะบั้น

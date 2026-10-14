@@ -785,6 +785,8 @@ const STATUS_INFO = {
   muimiRusty: { icon: "🗡️", label: "ดาบเก่าๆ", cls: "bg-echo-armor", desc: "ตีปกติโดนแล้วฟื้นพลังชีวิต 1 และแต้มสกิล 1 ระหว่างนี้ใช้ท่าไม้ตายไม่ได้" },
   muimiTower: { icon: "⚔️", label: "ดาบสะบั้น", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่ม 1 ตีปกติโดนแล้วฟื้นพลังชีวิต 2 และสถานะนี้อยู่นานขึ้น 1 เทิร์น" },
   mend:      { icon: "💚", label: "เยียวยา", cls: "bg-echo-armor", desc: "ต้นเทิร์นฟื้นพลังชีวิตตามจำนวนที่ระบุ" },
+  spRegen:   { icon: "🔷", label: "ฟื้นพลัง", cls: "bg-echo-armor", desc: "ต้นเทิร์นแต้มสกิล +1 ต่อขั้น" },
+  iceSurge:  { icon: "🌨️", label: "Ice Surge", cls: "bg-echo-ice text-gray-900", desc: "ธารน้ำแข็งและหนามน้ำแข็งระยะทั้งสนาม · หนามใช้แต้มลดลง 1 ไม่จำกัดครั้ง" },
   blind:     { icon: "🕶️", label: "ตาบอด", cls: "bg-echo-hp", desc: "มองไม่เห็นไพ่ แต้ม พลังชีวิต และเกราะของทุกคน รวมถึงของตัวเอง" },
   // โอเบรอน (ฤดูร้อน)
   obsVeil:     { icon: "🌙", label: "ม่านแห่งราตรี", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
@@ -1737,7 +1739,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
-    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? `ระยะ ${a.range}` : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
     && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));

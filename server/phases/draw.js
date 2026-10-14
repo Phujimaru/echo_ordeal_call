@@ -7,7 +7,7 @@ Object.assign(module.exports, {
 const { CHAR_BY_ID } = require("../../characters");
 const CHAR_HOOKS = require("../../characters/index");
 const {
-  tickPoison, tickShock, tickMend, tickBurn, tickBleed,
+  tickPoison, tickShock, tickMend, tickSpRegen, tickBurn, tickBleed,
 } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
 const match = require("../match");
@@ -140,6 +140,8 @@ function dealRound() {
     // ---------- "เยียวยา" (สถานะ Universal patch 3.4): ฟื้นพลังชีวิตต่อเทิร์นตามจำนวนหน่วย ----------
     //  วางไว้ที่นี่ (ต้นเทิร์น) เหมือนลุกไหม้/เลือดไหล การลดเทิร์นทำที่ลูปกลางของ endTurn ตามปกติ
     tickMend(engine, p);
+    // "ฟื้นพลัง" (Ice Surge ของ Ice Spike): ต้นเทิร์นแต้มสกิล +1 ทีละขั้น
+    tickSpRegen(engine, p);
     // Gargorgon Ray (ปืนหน่วย GUTS Select): ผลหน่วง 1 เทิร์น — เช็คต้านสถานะตอนนี้ (เป้าหมายซื้อยาต้านมากันไว้ทัน)
     //  ต้องอยู่ "ก่อน" บล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะข้ามไปมีผลอีกเทิร์นหนึ่ง
     if (p.gutsGargorgonPending) {

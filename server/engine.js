@@ -12,7 +12,7 @@ const {
   noHealActive, invertActive, HBLEED_MAX, bleedActive, applyBleed, applyBurn, EVADE_TURNS,
   applyEvade, accurateActive,
 } = require("../characters/_universal_status");
-const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../characters/_universal_status");
+const { NETRAMANA_KILL_CHANCE, netramanaActive, applySpRegen } = require("../characters/_universal_status");
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
 const {
@@ -227,6 +227,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   applyCurse,      // "คำสาป" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะผิดปกติ)
   tickCurseOnSkill,
   MEND_MAX_TURNS,
+  applySpRegen, // "ฟื้นพลัง" (สแตค): ต้นเทิร์นแต้มสกิล +1 ทีละขั้น — ได้ใหม่ = นับใหม่
   applyMend, // "เยียวยา" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพเพดานเทิร์น)
   tickMend,
   blindActive,

@@ -8,7 +8,6 @@
 - `state.board.special["x,y"] = "ice"` — รวมน้ำแข็งที่สร้างระหว่างเกมแล้ว (ทับช่องพิเศษเดิมของช่องนั้น)
 - `state.board.spikes = [{ x, y, lv, armor, maxArmor, left, owner }]` — left = เทิร์นที่เหลือ · owner = playerId
 - `state.board.ice = [{ x, y, left, owner }]` — เฉพาะน้ำแข็งที่สร้างระหว่างเกม (น้ำแข็งของภูมิภาค VI ไม่อยู่ในนี้)
-- `state.board.prisons = [{ x, y, size: 5, owner }]` — คุกน้ำแข็งช่วงที่ 1 ที่รอช่วงที่ 2 (x, y = ช่องกลาง)
 - `players[].statuses.slow` (> 0 = เชื่องช้า · ระยะเดิน −1 · `players[].mov` หักให้แล้ว)
 - `players[].iceHurt` = ดาเมจสะสมของ Ice Spike (0–2) · ตัวอื่นไม่มีฟิลด์นี้
 - Ice Spike ตีปกติไม่ได้ → `range` = `[1, 0]` (ไม่มีช่องตีถึงเลย — โค้ดเดิมไม่ต้องแก้)
@@ -23,7 +22,8 @@
 - ช่องที่เลือกได้ = ระยะแมนฮัตตันจากขอบตัวผู้ใช้ ≤ range (รวมช่องที่ยืน) และอยู่ในกระดาน
 - `place: "ice"` (สกิลพื้นฐาน): ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า และไม่ใช่น้ำแข็งของแผนที่เดิม (น้ำแข็งที่สร้างระหว่างเกมวางซ้ำได้ = ต่อเวลา)
 - `place: "spike"` (สกิลรอง): ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · ช่องที่มีคน: ตัว 1×1 เท่านั้น และต้องมีช่องข้างๆ (4 ทิศ) ที่ว่างอย่างน้อย 1 → **กดช่องนั้นแล้วเข้าโหมดเลือกทิศผลัก** (ลูกศร 4 ทิศรอบตัวคนนั้น · ทิศที่ช่องปลายไม่ว่าง = กดไม่ได้)
-- `place: "any"` + `square: 5` (ท่าไม้ตาย): ช่องกลางที่ไหนก็ได้ในระยะ · ชี้แล้วโชว์กรอบ 5×5 รอบช่องนั้น
+- `square` (ไม่บังคับ): ชี้แล้วโชว์กรอบ square×square รอบช่องนั้น (ตอนนี้ไม่มีสกิลใช้ — ท่าไม้ตาย Ice Surge เป็น `self`)
+- ระหว่างบัฟ Ice Surge server ส่ง `area.range` = 99 (ทั้งสนาม · ปุ่มขึ้น "ทั้งสนาม") และราคาหนามที่ลดแล้ว
 - ส่ง: `socket.emit("useSkill", { tier, tile: { x, y }, dir })` (dir = "up"|"down"|"left"|"right" เฉพาะวางหนามทับคน)
 - server ตรวจซ้ำ — ไม่ผ่าน = เงียบ ไม่เสียแต้ม
 
@@ -52,12 +52,11 @@ server ลงผลทั้งหมดทันทีแล้วส่ง sta
 | `regen` | `id, hp, sp` | ฟื้นจากไถล: เลข `+hp` เขียว / `+sp` พลังงาน · เสียง `is_regen` |
 | `spikeUp` | `x, y, lv, from` | หนามโผล่/ขึ้น Lv (from 0 = ใหม่): พุ่งขึ้นจากพื้น + วงน้ำแข็ง · เสียง `skill_2` |
 | `spikeDown` | `x, y, lv, from` | หนามลด Lv / แตกจากการถูกตี (lv 0 = หาย): เศษแตก · เสียง `skill_2_broke` |
+| `surge` | `id, x, y` | ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว + เสาแสง · จอสั่น · เสียง `ult` · หนามที่ขึ้น Lv ตามมาเป็น `spikeUp` |
 | `burst` | `id, x, y` | ติดตัว 3: วงคลื่นน้ำแข็งแผ่จากตัว 8 ช่องรอบ · เสียง `is_burst` · จอสั่น |
-| `prisonMark` | `x, y, size, by` | คุกช่วงที่ 1: กรอบ 5×5 เรืองแสง · เสียง `is_prison_mark` |
-| `prison` | `x, y, by, ice: [{x,y}], ring: [{x,y,lv}]` | คุกช่วงที่ 2: กล้องไปที่กลาง · น้ำแข็งแผ่ 3×3 · หนามโผล่ไล่วนรอบกรอบทีละอัน · จอสั่น · เสียง `ult` |
 
 เสียง (มีไฟล์แล้วใน `client/public/characters/ice_spike/sfx/` — ใส่ใน `FILES` ของ `client/src/audio.js`):
-`gp_1 gp_2 slide_1 slide_2 skill_2 skill_2_broke ult` (ของผู้ใช้) · `is_hit is_hit_alt is_hit_max is_bump is_prison_mark is_slow is_burst is_regen is_spike_self` (Mixkit)
+`gp_1 gp_2 slide_1 slide_2 skill_2 skill_2_broke ult` (ของผู้ใช้) · `is_hit is_hit_alt is_hit_max is_bump is_slow is_burst is_regen is_spike_self` (Mixkit)
 
 ## 5. รูป (มีแล้วใน `client/public/characters/ice_spike/`)
 

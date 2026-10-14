@@ -26,7 +26,7 @@ import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle,
 import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
-import { ICE_FX_DUR, drawIceSpike, drawPickArrows, drawPrisons, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
+import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
@@ -1846,9 +1846,6 @@ export function drawFrame(g, st, now) {
   const tA = lowQ ? 0 : now;
   for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
   if (info.heal.length && !pz) animHeal(g, info, { night, C, area: info.area }, tA);
-  // Ice Spike: คุกน้ำแข็งช่วงที่ 1 (กรอบ 5×5 เรืองแสง) — ice = { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) }, prisons }
-  const ice = st.ice || null;
-  if (ice && ice.prisons) drawPrisons(g, ice.prisons, info, now, lowQ);
   // ม่านแดง (ระบำเขม่า · เคท): พื้นมืด → ม่านรอบขอบเรียงความลึกกับตัวละคร → เขม่าในอากาศ — sootStorm.js
   const storms = st.storms && st.storms.length ? st.storms : null;
   if (storms) drawStormGround(g, storms, info, now, lowQ);
@@ -1865,6 +1862,7 @@ export function drawFrame(g, st, now) {
   };
   const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
   // หนามน้ำแข็ง: Lv ที่แสดง = ค่าที่ BoardStage ค้างไว้ระหว่างเล่นเหตุการณ์ (ice.lv) หรือ terrain · พุ่งขึ้นจากพื้นตาม fx iceSpikeUp
+  const ice = st.ice || null; // { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } — BoardStage ค้างไว้ระหว่างเล่น iceFx
   const iceLv = ice && ice.lv ? ice.lv : null;
   const pushSpike = (x, y, lv) => {
     if (!(lv > 0)) return;

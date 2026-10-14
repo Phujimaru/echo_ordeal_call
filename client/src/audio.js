@@ -75,7 +75,6 @@ const FILES = {
   is_hit_alt: "/characters/ice_spike/sfx/is_hit_alt.mp3",
   is_hit_max: "/characters/ice_spike/sfx/is_hit_max.mp3",
   is_bump: "/characters/ice_spike/sfx/is_bump.mp3",
-  is_prison_mark: "/characters/ice_spike/sfx/is_prison_mark.mp3",
   is_slow: "/characters/ice_spike/sfx/is_slow.mp3",
   is_burst: "/characters/ice_spike/sfx/is_burst.mp3",
   is_regen: "/characters/ice_spike/sfx/is_regen.mp3",
