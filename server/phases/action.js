@@ -6,7 +6,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
-  beginOrder, nextActor, canAct, lockMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
+  beginOrder, nextActor, canAct, lockMove, lockStrike, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
@@ -459,6 +459,12 @@ function canAct(p, { move = false } = {}) {
 function lockMove(p) {
   if (canAct(p)) match.action.locked = true;
 }
+// เดินไม่ได้ ตีปกติไม่ได้ และไม่ได้เดินต่อหลังจบตา (ยังใช้สกิล/รอได้) — ขนมปังของเอมิลิโกะ
+function lockStrike(p) {
+  if (!canAct(p)) return;
+  match.action.locked = true;
+  match.action.noStrike = true;
+}
 //  step = เดินทีละช่องด้วยคีย์บอร์ด (W A S D): ไปช่องติดกันได้เรื่อยๆ ตราบที่ช่องนั้นอยู่ในระยะเดินจาก "จุดเริ่มตา" (action.from)
 //   — เหมือนลากเคอร์เซอร์แบบ Fire Emblem แต่ตัวละครเดินตามทันที · กลับมาจุดเริ่ม = เท่ากับย้อน · ยังใช้ได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
 function moveTo(id, x, y, { step = false } = {}) {
@@ -595,6 +601,13 @@ function undoMove(id) {
 // โจมตีปกติ: เป้าต้องอยู่ในระยะจากช่องที่ยืน · ตีแล้วจบตา (หลังฉากตี/สวน/ถอย)
 function attackTarget(id, targetId) {
   const p = match.players[id];
+  if (match.action && match.action.noStrike) return false; // lockStrike (ขนมปังของเอมิลิโกะ)
+  // ตีจบแล้ว (ก่อนจบตา): ฮุค afterStrike — เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง
+  const done = () => {
+    const hook = CHAR_HOOKS[p.characterId];
+    if (hook && hook.afterStrike) combat.withEffectSource(p, () => hook.afterStrike(engine, p));
+    finishActor();
+  };
   // ห่วงเวลาซีโร่: ตีผนึกมิโกะ ("seal:N") — ระยะเหมือนตีคน
   const seal = Zero.sealIndexOf(targetId);
   if (seal >= 0) {
@@ -602,7 +615,7 @@ function attackTarget(id, targetId) {
     timers.clearPhaseTimer();
     match.action.locked = true;
     Visibility.onHostileAct(p);
-    Zero.attackSeal(p, seal, finishActor);
+    Zero.attackSeal(p, seal, done);
     return true;
   }
   // หนามน้ำแข็ง ("spike:x,y" — Ice Spike): ทุกคนตีได้ · ระยะเหมือนตีคน
@@ -612,7 +625,7 @@ function attackTarget(id, targetId) {
     timers.clearPhaseTimer();
     match.action.locked = true;
     Visibility.onHostileAct(p);
-    Ice.attackSpike(p, spikeK, finishActor);
+    Ice.attackSpike(p, spikeK, done);
     return true;
   }
   const target = match.players[targetId];
@@ -623,7 +636,7 @@ function attackTarget(id, targetId) {
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
-  attack.boardAttack(p, target, finishActor);
+  attack.boardAttack(p, target, done);
   return true;
 }
 // "รอ" = จบตาโดยไม่โจมตี
@@ -669,7 +682,7 @@ function resumeAction() {
 }
 // เดินต่อหลังจบตา (canto): ฮุค cantoMov(engine, p) → ระยะ · ครั้งเดียวต่อตา · ทำได้แค่เดิน/ย้อน/รอ
 function startCanto(p) {
-  if (!p || !p.alive || !p.pos || !match.action || match.action.canto) return false;
+  if (!p || !p.alive || !p.pos || !match.action || match.action.canto || match.action.noStrike) return false;
   const hook = CHAR_HOOKS[p.characterId];
   const n = hook && hook.cantoMov ? hook.cantoMov(engine, p) : 0;
   if (!(n > 0)) return false;

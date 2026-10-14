@@ -2359,7 +2359,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
-              attack={{ disabled: canto || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
+              attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}

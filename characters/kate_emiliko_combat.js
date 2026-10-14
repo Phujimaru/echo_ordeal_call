@@ -7,6 +7,7 @@
 //  Claude ตัดสินเอง (บอกผู้ใช้): ชนตอนถูกผลัก = เป้าเสีย 1 และคนที่ถูกชน (ถ้าเป็นศัตรู) เสีย 1 ด้วย · ตัวใหญ่ไม่ถูกผลัก/ดูด
 //   ทางที่ถูกผลัก = ช่องออกตัวถึงช่องก่อนช่องที่หยุด · ไม้ถูพื้นท่าไม้ตาย: ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ช่องที่ 5) ดาเมจ 2 หลบไม่ได้
 //   แส้ใส่ศัตรู: ดาเมจ 1 (+1 ถ้าเคทถือดาบ) หลบได้ · เครื่องดูดฝุ่นหลบได้
+//   เครื่องดูดฝุ่นใช้ได้ 5 ครั้งต่อเกม (ผู้ใช้สั่ง 2026-10-14): ตีปกติ (ตีพลาด/ตีหนาม/ผนึกก็นับ) 1 · ท่าไม้ตาย 1 → หมด = กลับไปถือไม้ถูพื้น
 // ============================================================
 
 const MOP_DMG = 2;
@@ -92,6 +93,16 @@ function adjacentToward(engine, anchor, near, selfId) {
   return spots[0] || null;
 }
 // ย้ายคน from → to พร้อมเหตุการณ์ (ดูด/ดึง — ไม่ผ่านช่องกลาง)
+// ใช้เครื่องดูดฝุ่น 1 ครั้ง · หมด = กลับไปถือไม้ถูพื้น (เลือกเครื่องดูดฝุ่นใหม่ไม่ได้ — canUseSkill)
+function spendVacuum(engine, p, s) {
+  s.vacuumLeft = Math.max(0, (s.vacuumLeft || 0) - 1);
+  if (s.vacuumLeft > 0) { engine.log(`🔋 เครื่องดูดฝุ่นเหลือ ${s.vacuumLeft} ครั้ง`); return; }
+  s.weapon = "mop";
+  if (s.lastWeapon === "vacuum") s.lastWeapon = "mop";
+  engine.log(`🪫 ${p.name} เครื่องดูดฝุ่นพลังงานหมด — กลับไปถือไม้ถูพื้น`);
+  engine.boardFx("shadowFx", { kind: "weapon", id: p.id, weapon: "mop" });
+  engine.sfx("ke_w_mop");
+}
 function relocate(engine, u, to, ctx) {
   const from = { ...u.pos };
   u.pos = { ...to };
@@ -178,6 +189,10 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
         };
       }
       return null;
+    },
+    // ตีปกติจบ (action.attackTarget — ตีคน/หนาม/ผนึก): เครื่องดูดฝุ่นหัก 1 ครั้ง
+    afterStrike(engine, p) {
+      if (isEmi(p) && weapon(engine, p) === "vacuum") spendVacuum(engine, p, st(engine, p));
     },
     // ---------- ไม้ถูพื้น: ไถลบนพื้นเปียก ----------
     slideStrikes(engine, p) { return isEmi(p) && weapon(engine, p) === "mop"; },
@@ -370,8 +385,9 @@ function cheer(engine, p, targets, opts, s) {
     }
     engine.ice.flush(ctx);
     if (dash) engine.boardFx("shadowFx", { kind: "cheerDash", id: p.id, ...dash });
+    if (w === "vacuum") spendVacuum(engine, p, s);
   });
   return "";
 }
 
-module.exports = { hooks, whip, wings, ultimate, pushLine, MASK_KEY };
+module.exports = { hooks, whip, wings, ultimate, pushLine, spendVacuum, MASK_KEY };

@@ -124,7 +124,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
   const canMove = myTurn && !action.moved && !action.locked;
-  const canto = myTurn && !!action.canto; // เอมิลิโกะเดินต่อหลังจบตา: เดินได้อย่างเดียว (ตีไม่ได้)
+  // ตีปกติไม่ได้: เอมิลิโกะเดินต่อหลังจบตา (เดินได้อย่างเดียว) · กินขนมปังแล้ว (action.noStrike)
+  const strikeOff = myTurn && (!!action.canto || !!action.noStrike);
   const masked = !!state.masked; // ผู้ชมติด "มืดบอด": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
 
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
@@ -224,7 +225,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
-    if (!myTurn || canto || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
+    if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
     const range = me.range || [1, 1];
     let best = null;
     for (const n of myReach.values()) {
@@ -249,7 +250,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
     }
     return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
-  }, [myTurn, canto, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : null), [planFor, hoverUnit, hoverSeal, hoverSpike]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
@@ -1134,12 +1135,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (canMove) {
         const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, optsOf(me));
         h.move = [...z.move];
-        h.attack = canto ? [] : [...z.threat];
+        h.attack = strikeOff ? [] : [...z.threat];
       } else if (startReach) {
         // ขยับแล้วแต่ยังไม่ล็อก (เดินด้วยคีย์บอร์ดต่อได้): ฟ้า = ช่องที่ไปได้จากจุดเริ่มตา · แดง = ตีถึงจากช่องที่ยืน
         h.move = [...new Set([...startReach.values()].flatMap((n) => Rules.footprint(n.x, n.y, sizeOfP(me)).map((t) => key(t.x, t.y))))];
-        h.attack = canto ? [] : strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
-      } else if (!canto) {
+        h.attack = strikeOff ? [] : strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
+      } else if (!strikeOff) {
         h.attack = strikeTiles(me, me.pos.x, me.pos.y, range).map((t) => key(t.x, t.y));
       }
       const goal = hover && canMove && !hoverUnit ? anchorFor(hover) : null;
@@ -1165,7 +1166,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, canto, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, strikeOff, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 

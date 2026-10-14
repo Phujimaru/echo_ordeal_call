@@ -62,7 +62,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
 | `board.js` | **กระดาน (ฟังก์ชันล้วน)**: แผนที่ภูมิภาค I–VII (`MAPS`, `mapOf`) + ช่องพิเศษ (`TERRAIN_INFO`, `specialAt`, `moveCost`, `terrainEvade`, `terrainAtk`, `tileInfo`, `endTurnTile`), เดินแบบมีค่าเดิน/ทรายดูด/น้ำแข็ง (`reachable`/`pathTo`), ระยะ (`tilesInRange`/`aoeTiles`/`lineTiles`), `attackTargets`, `canCounter`, `pushback`, `threatZone`, `assignSpawns`, `pickShopSpot`, `nearShop` · **client ใช้สำเนาที่สร้างอัตโนมัติ** `client/src/board/boardRules.js` (`node scripts/gen-board-rules.js` — เทสต์ `board-rules-sync` ฟ้องถ้าไม่ตรง) |
 | `phases/summary.js` | `resolveRound` (เปิดไพ่), `afterResolve` (คัตซีนหลังเปิดไพ่ → `action.beginOrder`) |
-| `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
+| `phases/action.js` | **ลำดับเดิน + ตาเดิน**: `placeOnBoard`, `turnOrderOf`, `beginOrder`, `nextActor`, `canAct`, `lockMove`, `lockStrike`, `moveTo`, `undoMove`, `attackTarget`, `waitAction`, `finishActor`, `movOf`/`baseMovOf`/`rangeOf` |
 | `phases/attack.js` | `attackableTargets`, `computeAttackBase`, `estimateAttackOn`, `strike` (ตี 1 ครั้ง), `boardAttack` (ตี → สวน → ถอย), `doAttack` (ตี 1 ครั้งไม่มีกระดาน), `attackSoundOf` |
 | `phases/endTurn.js` | `endTurn` + `gameOver()` (ตัดสินจบเกม) + `maybeJourneyAdvance()` (ฉากเปลี่ยนภูมิภาค — ใช้ภายในไฟล์) + `journeyRebirth()` (ท่าไม้ตาย Echo ก่อกำเนิดใหม่ — `engine.journeyRebirth`) |
 
@@ -744,7 +744,9 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`)
   - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom`)
 - **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
-- **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active }]` → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
+- **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
+- **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง/ผนึก) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
+- **ห้ามตีปกติในตานี้**: `action.lockStrike(p)` = `locked` + `match.action.noStrike` (ตีไม่ได้ · ไม่ได้เดินต่อหลังจบตา · ยังใช้สกิล/รอ/สลับตัวได้) → state `action.noStrike` (client ซ่อนช่องตี/ปุ่มโจมตี) · ขนมปังของเอมิลิโกะ (กินเอง/ป้อนเคท)
 - **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`

@@ -143,6 +143,7 @@ function buildStateFor(viewerId) {
     action: match.gameState === "ACTION" && match.action && !actorUnseen ? {
       from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null,
       canto: !!match.action.canto, // เดินต่อหลังจบตา (เอมิลิโกะ): ได้แค่เดิน/ย้อน/รอ
+      noStrike: !!match.action.noStrike, // ตีปกติไม่ได้ในตานี้ (กินขนมปัง — action.lockStrike)
     } : null,
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่

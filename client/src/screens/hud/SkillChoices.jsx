@@ -1,5 +1,5 @@
 // ปุ่มสกิลแบบหลายตัวเลือก (skill.choices จาก server — เคท: เขม่าควัน · เอมิลิโกะ: อาวุธ) — จอคอม/แท็บเล็ต
-//  choices = [{ key, name, img, cost, area, active?, locked? }] · isOk(c) = ใช้ได้ตอนนี้ไหม · onPick(c) = เลือก (การเลือก = การยืนยัน)
+//  choices = [{ key, name, img, cost, area, active?, locked?, left? }] · left = ใช้ได้อีกกี่ครั้ง (เครื่องดูดฝุ่น) · isOk(c) = ใช้ได้ตอนนี้ไหม · onPick(c) = เลือก (การเลือก = การยืนยัน)
 //  ปุ่มมีแค่รูป ชื่อ และแต้ม · ชี้เมาส์ค้าง = คำอธิบายย่อของตัวเลือก (c.desc — ผู้ใช้สั่ง 2026-10-14) · Esc / คลิกนอกกรอบ / คลิกขวา = ปิด
 import { useEffect, useState } from "react";
 import { clickSound } from "../../audio";
@@ -37,6 +37,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
                   <span className="flex-1 text-sm font-bold text-white truncate">{c.name}</span>
                   {(c.cost || 0) > 0 && <span className="shrink-0 text-xs font-black text-sky-200">◆{c.cost}</span>}
+                  {c.left != null && <span className={`shrink-0 text-xs font-black ${c.left > 0 ? "text-emerald-200" : "text-rose-300"}`}>🔋{c.left}</span>}
                 </div>
               </button>
               </div>

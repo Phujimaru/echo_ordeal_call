@@ -46,6 +46,7 @@ const REVIVE_RANGE = 4;
 const REVIVE_HP = 3;
 const CANTO_MOV = 2;
 const BREAD_USES = 3;
+const VACUUM_USES = 5; // เครื่องดูดฝุ่น: ใช้ได้ 5 ครั้งต่อเกม (ตีปกติ 1 · ท่าไม้ตาย 1) หมดแล้วกลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้
 const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
 
 // อาวุธของเอมิลิโกะ (เรียงตามปุ่ม) — ดาบเขม่าเลือกได้เมื่อเคทส่งให้แล้วเท่านั้น
@@ -53,7 +54,7 @@ const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
 const WEAPONS = {
   mop: { name: "ไม้ถูพื้น", img: IMG.mop, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 2 · ทางที่ไถลผ่านแห้ง" },
   vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางที่ถูกผลักเป็นพื้นเปียก" },
-  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว" },
+  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว · 5 ครั้งต่อเกม หมดแล้วกลับเป็นไม้ถูพื้น" },
   sword: { name: "ดาบเขม่า", img: IMG.sword, desc: "พลังโจมตี +2" },
 };
 const WEAPON_KEYS = Object.keys(WEAPONS);
@@ -79,6 +80,7 @@ function fresh() {
     weapon: "mop",     // อาวุธที่เอมิลิโกะถืออยู่
     lastWeapon: "mop", // อาวุธก่อนถือดาบ (เรียกดาบคืน = กลับไปถืออันนี้)
     sword: null,       // ดาบเขม่าอยู่กับใคร: null (ยังไม่ชัก) | "kate" | "emi"
+    vacuumLeft: VACUUM_USES, // เครื่องดูดฝุ่นเหลือกี่ครั้ง (ต่อเกม — รีเซ็ตแค่ตอนเริ่มแมตช์)
   };
 }
 function ownerOf(engine, p) { return p.duoOf ? engine.players[p.duoOf] || p : p; }
@@ -182,7 +184,7 @@ const shared = {
 // ---------- เคท ----------
 const kate = {
   id: KATE,
-  IMG, WEAPONS, SOOT, BREAD_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV,
+  IMG, WEAPONS, SOOT, BREAD_USES, VACUUM_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV,
   isKate, isEmi, isPair, weaponOf, inStorm,
   ...shared,
   skillCost(p, tier, base, opts) {
@@ -206,6 +208,7 @@ const kate = {
     if (tier === "secondary" && isEmi(p)) {
       const w = opts.form;
       if (!WEAPONS[w] || w === st(engine, p).weapon) return false;
+      if (w === "vacuum" && !(st(engine, p).vacuumLeft > 0)) return false;
       return w !== "sword" || st(engine, p).sword === "emi";
     }
     if (tier === "secondary" && isKate(p)) return sootAllowed(engine, p, opts.form, targets);
@@ -261,7 +264,7 @@ const kate = {
   shadowState(engine, p) {
     if (!isPair(p)) return undefined;
     const s = st(engine, p);
-    return { weapon: s.weapon, sword: s.sword, inStorm: inStorm(engine, p) };
+    return { weapon: s.weapon, sword: s.sword, vacuumLeft: s.vacuumLeft, inStorm: inStorm(engine, p) };
   },
 };
 
@@ -279,7 +282,10 @@ function choicesOf(engine, p) {
   if (isEmi(p)) {
     const s = st(engine, p);
     return WEAPON_KEYS.filter((k) => k !== "sword" || s.sword === "emi")
-      .map((k) => ({ key: k, name: WEAPONS[k].name, img: WEAPONS[k].img, desc: WEAPONS[k].desc, cost: 0, area: { kind: "self" }, active: s.weapon === k }));
+      .map((k) => ({
+        key: k, name: WEAPONS[k].name, img: WEAPONS[k].img, desc: WEAPONS[k].desc, cost: 0, area: { kind: "self" }, active: s.weapon === k,
+        ...(k === "vacuum" ? { left: s.vacuumLeft, locked: !(s.vacuumLeft > 0) } : {}),
+      }));
   }
   return sootChoiceKeys(engine, p).map((k) => ({ key: k, name: SOOT[k].name, img: SOOT[k].img, desc: SOOT[k].desc, cost: SOOT[k].cost, area: SOOT[k].area }));
 }

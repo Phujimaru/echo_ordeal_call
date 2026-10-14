@@ -70,9 +70,9 @@ CHARS.kate = {
   ultimate: { name: "ระบำเขม่า", cost: 6, img: `${KE}/storm.avif`, area: { kind: "tile", range: 4, place: "any" }, desc: "" },
 };
 const WEAPON_CHOICES = [
-  { key: "mop", name: "ไม้ถูพื้น", img: `${KE}/mop.jpg` },
-  { key: "vase", name: "แจกันใส่น้ำ", img: `${KE}/vase.jpg` },
-  { key: "vacuum", name: "เครื่องดูดฝุ่น", img: `${KE}/vacuum.jpg` },
+  { key: "mop", name: "ไม้ถูพื้น", img: `${KE}/mop.jpg`, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 2 · ทางที่ไถลผ่านแห้ง" },
+  { key: "vase", name: "แจกันใส่น้ำ", img: `${KE}/vase.jpg`, desc: "ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางที่ถูกผลักเป็นพื้นเปียก" },
+  { key: "vacuum", name: "เครื่องดูดฝุ่น", img: `${KE}/vacuum.jpg`, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว · 5 ครั้งต่อเกม หมดแล้วกลับเป็นไม้ถูพื้น", left: 5 },
 ];
 CHARS.emiliko = {
   id: "emiliko", name: "เอมิลิโกะ", img: IMG.emiliko, passive: { name: "กำลังใจเต็มเปี่ยม", desc: "" }, passive2: { name: "เคท & เอมิลิโกะ", desc: "" },

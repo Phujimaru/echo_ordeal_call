@@ -252,7 +252,7 @@ function useInventoryItem(id, uid, opts = {}) {
   if (item.type === "kebread") {
     const hook = CHAR_HOOKS[p.characterId];
     if (!hook || !hook.useBread || !hook.useBread(engine, p, item, opts)) return;
-    action.lockMove(p);
+    action.lockStrike(p); // กินเอง/ป้อนเคท = เอมิลิโกะเดินต่อและตีปกติไม่ได้ในตานี้ (ผู้ใช้สั่ง 2026-10-14)
     if (!(item.uses > 0)) p.inventory.splice(p.inventory.indexOf(item), 1);
     view.broadcastState();
     return;

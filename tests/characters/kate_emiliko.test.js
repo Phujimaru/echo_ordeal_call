@@ -459,3 +459,67 @@ test('ขนมปัง (เอมิลิโกะ): เริ่มเกม
   const st = engine.buildStateFor('K');
   assert.ok(st.players.find((p) => p.id === E).character.secondary.choices.every((c) => c.desc), 'ทุกตัวเลือกมีคำอธิบาย');
 });
+
+// ฉากตีบนกระดานรอตัวจับเวลา — เก็บ callback ไว้เรียกเองให้จบทันที
+function strikeNow(id, targetId) {
+  const timers = require('../../server/timers.js');
+  const orig = timers.startPhaseTimer;
+  let fire = null;
+  timers.startPhaseTimer = (s, fn) => { fire = fn; };
+  try {
+    const ok = engine.attackTarget(id, targetId);
+    if (ok && fire) fire();
+    return ok;
+  } finally { timers.startPhaseTimer = orig; engine.clearPhaseTimer(); }
+}
+
+test('เครื่องดูดฝุ่น: ใช้ได้ 5 ครั้งต่อเกม (ตีปกติ 1 · ท่าไม้ตาย 1) · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้', () => {
+  const P = setup([['K', 'kate', 1, 1], [E, null, 3, 5], ['B', 'dummy', 5, 5]]);
+  assert.equal(P.K.shadow.vacuumLeft, 5);
+  P.B.hp = 99; P.B.armor = 0;
+  startTurn('K');
+  engine.useSkill('K', 'basic', []);
+  engine.useSkill(E, 'secondary', [], { form: 'vacuum' });
+  assert.equal(P.K.shadow.weapon, 'vacuum');
+  assert.equal(strikeNow(E, 'B'), true);
+  assert.equal(P.K.shadow.vacuumLeft, 4, 'ตีปกติ = 1 ครั้ง');
+  // ท่าไม้ตาย = 1 ครั้ง
+  KC.ultimate(engine, P[E], ['B'], { dir: 'right' }, { st: P.K.shadow });
+  runBeats();
+  assert.equal(P.K.shadow.vacuumLeft, 3, 'ท่าไม้ตาย = 1 ครั้ง');
+  // ตีพลาดก็นับ
+  P.K.shadow.vacuumLeft = 1;
+  hooks.emiliko.afterStrike(engine, P[E]);
+  assert.deepEqual([P.K.shadow.vacuumLeft, P.K.shadow.weapon, P.K.shadow.lastWeapon], [0, 'mop', 'mop'], 'หมด = ไม้ถูพื้น');
+  // เลือกใหม่ไม่ได้ · ปุ่มเทา
+  startTurn('K');
+  engine.useSkill('K', 'basic', []);
+  engine.useSkill(E, 'secondary', [], { form: 'vacuum' });
+  assert.equal(P.K.shadow.weapon, 'mop');
+  const ch = engine.buildStateFor('K').players.find((p) => p.id === E).character.secondary.choices.find((c) => c.key === 'vacuum');
+  assert.deepEqual([ch.left, ch.locked], [0, true]);
+  // อาวุธอื่นไม่หัก
+  P.K.shadow.vacuumLeft = 5;
+  engine.useSkill(E, 'secondary', [], { form: 'vase' });
+  hooks.emiliko.afterStrike(engine, P[E]);
+  assert.equal(P.K.shadow.vacuumLeft, 5);
+});
+
+test('ขนมปัง: กินเอง/ป้อนเคทแล้ว เอมิลิโกะเดินต่อและตีปกติไม่ได้ (รอแล้วไม่ได้เดินต่อ) · ยังสลับไปเคทได้', () => {
+  for (const feed of [false, true]) {
+    const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 5, 5]]);
+    const bread = P.K.inventory.find((it) => it.type === 'kebread');
+    startTurn('K');
+    engine.useSkill('K', 'basic', []);
+    engine.useInventoryItem(E, bread.uid, feed ? { targetId: 'K' } : {});
+    assert.equal(bread.uses, 2);
+    assert.equal(engine.buildStateFor('K').action.noStrike, true);
+    assert.equal(engine.moveTo(E, 4, 6), false, 'เดินไม่ได้');
+    assert.equal(strikeNow(E, 'B'), false, 'ตีไม่ได้');
+    engine.waitAction(E);
+    assert.notEqual(M.action && M.action.canto, true, 'ไม่ได้เดินต่อ');
+    assert.equal(M.actorId, 'K', 'สลับไปเคท');
+    assert.equal(strikeNow('K', 'B'), false, 'เคทยืนห่าง 2 ช่อง');
+    assert.equal(engine.buildStateFor('K').action.noStrike, false, 'เคทไม่ติดล็อก');
+  }
+});
