@@ -219,3 +219,79 @@ test('ระยะ: เรียกคืนต้องยืนติดกั
   assert.equal(C.mark42, null, 'สั่งระเบิดจากไกลได้');
   assert.equal(C.hp + C.armor, 8 - 2);
 });
+
+// ---------- ล่องหน (นักบินปริศนา) กับการสั่งชุด (ผู้ใช้ตัดสิน 2026-10-14) ----------
+//  สั่งชุดที่อยู่บนตัวคนอื่น (ระเบิด/เรียกคืน/ถอด) = ปรากฏตัวก่อนส่งอะไรออกไป · ทำกับตัวเอง = ยังล่องหน ป้าย/คลิปส่งเฉพาะคนที่เห็น
+const { io } = require('../server/app.js');
+function pilotSetup() {
+  for (const id of Object.keys(engine.players)) delete engine.players[id];
+  engine.players.S = blank('S', 'sliver_bullet', 1);
+  engine.players.B = blank('B', 'dummy', 2);
+  engine.players.C = blank('C', 'dummy', 3);
+  engine.setGameMode('ffa'); // ffa 3 คน = นักบินเริ่มเกมล่องหน
+  engine.startMatch();
+  engine.clearPhaseTimer();
+  engine.setGameState('PLAYING');
+  engine.setRoundNumber(5);
+  for (const p of Object.values(engine.players)) {
+    p.hp = 7; p.armor = 1; p.shield = 0; p.statuses = {}; p.statusAmt = {}; p.inventory = []; p.gold = 30;
+    Mark42.resetCombat(p);
+  }
+  engine.players.S.pos = { x: 5, y: 5 };
+  engine.players.B.pos = { x: 6, y: 5 };
+  engine.players.C.pos = { x: 12, y: 8 };
+  cutscenes.length = 0;
+  return engine.players;
+}
+// ดัก skillFlash: id '*' = ส่งทุกคน · hidden = นักบินยังล่องหนอยู่ตอนที่ส่ง
+function captureFlash(fn) {
+  const sent = [];
+  const saved = { to: io.to, emit: io.emit };
+  const S = engine.players.S;
+  io.emit = (ev, payload) => { if (ev === 'skillFlash') sent.push({ id: '*', payload, hidden: S.sliver.hidden }); };
+  io.to = (id) => ({ emit: (ev, payload) => { if (ev === 'skillFlash') sent.push({ id, payload, hidden: S.sliver.hidden }); } });
+  try { fn(); } finally { io.to = saved.to; io.emit = saved.emit; }
+  return sent;
+}
+
+for (const act of ['detonate', 'recall', 'remove']) {
+  test(`ล่องหน: สั่งชุดบนตัวคนอื่น (${act}) = นักบินปรากฏตัวก่อนป้ายสกิลออก`, () => {
+    const { S, B } = pilotSetup();
+    assert.equal(S.sliver.hidden, true, 'เริ่มล่องหน');
+    Mark42.equip(engine, S, B, Mark42.SUIT_ARMOR);
+    const sent = captureFlash(() => control('S', act));
+    assert.equal(B.mark42, null, 'คำสั่งทำงาน');
+    assert.equal(S.sliver.hidden, false, 'ปรากฏตัว');
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].id, '*', 'ปรากฏแล้ว = ทุกคนเห็นป้าย');
+    assert.equal(sent[0].hidden, false, 'ปรากฏตัวก่อนส่ง');
+  });
+}
+
+test('ล่องหน: ใส่ชุดเอง / ถอดจากตัวเอง = ไม่ปรากฏตัว · ป้ายและคลิปส่งเฉพาะคนที่เห็น (ชื่อไม่หลุด)', () => {
+  const { S } = pilotSetup();
+  const queued = [];
+  const savedQ = engine.queueCutscene;
+  engine.queueCutscene = (p, k, onlyFor) => queued.push({ k, onlyFor });
+  try {
+    giveSuit(S);
+    let sent = captureFlash(() => use(S, 'self'));
+    assert.ok(S.mark42, 'ใส่แล้ว');
+    assert.equal(S.sliver.hidden, true, 'ยังล่องหน');
+    assert.deepEqual(sent.map((s) => s.id), ['S'], 'ป้ายถึงแค่ตัวเอง');
+    assert.deepEqual(queued, [{ k: 'mark42Suitup', onlyFor: ['S'] }], 'คลิปเฉพาะตัวเอง');
+    sent = captureFlash(() => control('S', 'remove'));
+    assert.equal(S.mark42, null, 'ถอดแล้ว');
+    assert.equal(S.sliver.hidden, true, 'ยังล่องหน');
+    assert.deepEqual(sent.map((s) => s.id), ['S']);
+  } finally { engine.queueCutscene = savedQ; }
+});
+
+test('ล่องหน: ส่งชุดให้คนอื่นจากกระเป๋า = ปรากฏตัวก่อนป้ายสกิลออก (ทางเดิม)', () => {
+  const { S } = pilotSetup();
+  giveSuit(S);
+  const sent = captureFlash(() => use(S, 'give', 'B'));
+  assert.ok(engine.players.B.mark42);
+  assert.equal(S.sliver.hidden, false);
+  assert.deepEqual(sent.map((s) => [s.id, s.hidden]), [['*', false]]);
+});

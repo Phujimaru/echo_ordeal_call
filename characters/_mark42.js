@@ -7,6 +7,7 @@
 //  วีดีโอ: ใส่เอง / ใส่ให้ / เรียกคืน เล่นเต็มครั้งแรกครั้งเดียว (ต่อผู้เล่น — triggerCutscene) · ระเบิดเล่นทุกครั้ง
 //  ใส่แล้วอยู่ถาวรจนกว่าเจ้าของจะถอด/เรียกคืน/ระเบิด หรือชุดพังจากการต่อสู้ — คนใส่ถอดเองไม่ได้
 //  เจ้าของ (คนซื้อ) คุมชุดได้ตลอด: เรียกคืนมาใส่เอง · ถอดออก (ชุดกลับเข้ากระเป๋า) · สั่งระเบิดชุดที่อยู่บนตัวคนอื่น
+//    ระบบคู่ (server/duo.js): ชุดเป็นของทั้งฝ่าย — ตัวไหนของฝ่ายก็คุมได้ (ระยะ/ตาเดินนับจากตัวที่สั่ง · ผู้ใช้ตัดสิน 2026-10-14)
 //
 //  ใส่อยู่ = เกราะชุด 7 หน่วยเป็น "ชั้นแยก" (p.mark42.armor) รับความเสียหายทุกชนิดแทนตัวจริง
 //    เลือดและเกราะจริงไม่ถูกแตะเลยระหว่างใส่ -> ชุดพัง/ถอด = กลับร่างเดิมพร้อมค่าเดิมครบโดยธรรมชาติ
@@ -35,6 +36,8 @@ const Duo = require("../server/duo");
 const suited = (p) => !!p && !!p.mark42 && p.alive !== false;
 // ยืนติดกัน (ระยะแมนฮัตตัน 1 · ตัวใหญ่นับจากขอบตัว) — ใส่ให้ / ระเบิดใส่ / เรียกคืน
 const adjacent = (a, b) => !!a && !!b && !!a.pos && !!b.pos && Board.dist(Board.boxOf(a), Board.boxOf(b)) === 1;
+// ตัวของฝ่าย p ที่ถือสิทธิ์ชุดที่ออกไปอยู่ (mark42Owned) — ตัวละครทั่วไป = p เอง · ไม่มีชุดออกไป = null
+const holderOf = (p) => Duo.unitsOf(p).find((u) => !!u.mark42Owned) || null;
 
 module.exports = {
   SUIT_ARMOR, SUIT_ATK, BOMB_DMG, BREAK_BUY_LOCK, PRICE, IMG, VIDEO,
@@ -127,11 +130,17 @@ module.exports = {
 
   // ---------- เจ้าของคุมชุดที่ออกไปแล้ว ----------
   //  action: "recall" (เรียกคืนมาใส่เอง) · "remove" (ถอดออก กลับเข้ากระเป๋า) · "detonate" (ระเบิดชุดบนตัวคนอื่น)
+  //  p = ตัวที่สั่ง (ระบบคู่: ตัวไหนของฝ่ายก็ได้ — holderOf) · คืน plan + wearerId (ชุดอยู่บนตัวใคร — characterRules ใช้ตัดสินการปรากฏตัว)
   planControl(engine, p, action) {
-    const own = p.mark42Owned;
+    const holder = holderOf(p);
+    const own = holder && holder.mark42Owned;
     const w = own && engine.players[own.wearerId];
     if (!own) return null;
-    if (!w || !w.alive || !w.mark42 || w.mark42.ownerId !== p.id) { p.mark42Owned = null; return null; } // ชุดหายไปแล้ว (คนใส่ตาย ฯลฯ)
+    if (!w || !w.alive || !w.mark42 || w.mark42.ownerId !== holder.id) { holder.mark42Owned = null; return null; } // ชุดหายไปแล้ว (คนใส่ตาย ฯลฯ)
+    const plan = this.controlPlan(engine, p, holder, w, action);
+    return plan && { ...plan, wearerId: w.id };
+  },
+  controlPlan(engine, p, holder, w, action) {
     if (action === "remove") {
       if (engine.bagFull(p)) return null; // ชุดกลับเข้ากระเป๋า — กระเป๋าเต็ม = ถอดไม่ได้
       return {
@@ -139,7 +148,7 @@ module.exports = {
         after: () => {
           const armor = w.mark42 ? w.mark42.armor : SUIT_ARMOR;
           w.mark42 = null;
-          p.mark42Owned = null;
+          holder.mark42Owned = null;
           engine.grantInventoryItem(p, { type: "mark42", price: PRICE });
           const it = p.inventory[p.inventory.length - 1];
           if (it) it.armor = armor; // ชุดที่เสียหายแล้วกลับมาพร้อมเกราะที่เหลือ
@@ -156,6 +165,7 @@ module.exports = {
           if (!w.mark42 || p.mark42 || !p.alive) return;
           const armor = w.mark42.armor;
           w.mark42 = null;
+          holder.mark42Owned = null; // ระบบคู่: อีกตัวเรียกคืน = ตัวที่เรียกถือสิทธิ์แทน (equip)
           this.equip(engine, p, p, armor);
           engine.log(`🦾 ${p.name} เรียกเกราะ Mark 42 กลับจาก ${w.name} มาสวมเอง`);
         },
@@ -177,7 +187,8 @@ module.exports = {
     return { armor: p.mark42.armor, max: SUIT_ARMOR, ownerId: p.mark42.ownerId, ownerName: owner ? owner.name : "" };
   },
   privateState(engine, p) {
-    const own = p.mark42Owned;
+    const holder = holderOf(p);
+    const own = holder && holder.mark42Owned;
     const w = own && engine.players[own.wearerId];
     return {
       mark42Owned: w && w.mark42 ? { wearerId: w.id, wearerName: w.name, armor: w.mark42.armor, self: w.id === p.id } : null,

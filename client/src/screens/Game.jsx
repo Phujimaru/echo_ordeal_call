@@ -1784,7 +1784,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ห้ามใช้สกิลเทิร์นนี้
   const noSkill = !!(me && me.statuses?.noskill);
   const isMuimi = ch?.id === "muimi"; // เสบียงฉุกเฉินไม่นับเป็นการใช้สกิลหลักของเทิร์น
-  const basicFree = isMuimi || ch?.id === "sliver_bullet"; // สกิลพื้นฐานที่กดได้แม้ใช้โควตาเทิร์นแล้ว (เสบียงฉุกเฉิน · เปลี่ยนชิ้นส่วน)
+  const basicFree = isMuimi; // สกิลพื้นฐานที่กดได้แม้ใช้โควตาเทิร์นแล้ว (เสบียงฉุกเฉิน) — ตัวอื่นมาจาก skillLocks.basic.free
   const muimiUltCd = isMuimi ? (me?.muimiUltCd || 0) : 0;
   // โอเบรอน (ฤดูร้อน): server ส่งล็อก/คูลดาวน์รายช่องมาเป็นก้อนกลาง (skillLocks)
   const giftLocks = me?.skillLocks || {};
@@ -1876,7 +1876,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
-    if (ch?.id === "raido_hikaru" && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
+    if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า

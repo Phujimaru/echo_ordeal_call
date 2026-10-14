@@ -17,6 +17,11 @@
 //
 //  สถานะ: obsVeil (ม่านแห่งราตรี +1) · obsDream (+4 จนจบตาเดินถัดไปของเป้า — 1 หรือ 2 เทิร์น ล้างทิ้งที่ onEndTurn)
 //    · obsLark (เครื่องหมายรอเสียเลือด 2 — LARK_MARK_TURNS) — ทั้งหมดไม่อยู่ในรายการดีบัฟ จึงล้าง/ต้านไม่ได้
+//
+//  ใส่ซ้ำคนเดิม (โอเบรอนหลายคน หรือท่าเดิมลงซ้ำ) = "ทุกครั้งนับ" ผลเกิดเท่าจำนวนครั้ง ไม่เขียนทับกัน
+//    เก็บรายครั้งไว้ที่ตัวเป้า: t.obsVeilStack (เทิร์นที่เหลือของม่านแต่ละครั้ง) · t.obsLarkStack (จำนวนเครื่องหมายนกจาบที่รอลงผล)
+//    · t.obsDreamQueue (เทิร์นที่ได้ใช้บัฟของความฝันแต่ละครั้ง) — statuses/statusAmt ยังเป็นตัวที่ client อ่าน (เทิร์นที่เหลือ / ผลรวม)
+//    ม่าน 2 ครั้ง = +2 · นกจาบ 2 ครั้ง = ต้นเทิร์นเสีย 2 + 2 · ความฝัน 2 ครั้ง = +8 และถ้าจบพร้อมกัน สตั้น 3 + 3 เทิร์น
 // ============================================================
 
 const ID = "oberon_summer";
@@ -50,6 +55,10 @@ function pickTarget(engine, targets) {
   const t = engine.players[Array.isArray(targets) ? targets[0] : null];
   return t && t.alive ? t : null;
 }
+// จำนวนครั้งที่ยังมีผลอยู่ (อย่างน้อย 1 เมื่อสถานะติดอยู่ — สถานะที่ตั้งตรงๆ โดยไม่มีรายการครั้ง ยังนับเป็น 1 ครั้ง)
+const castsOf = (list) => Math.max(1, Array.isArray(list) ? list.length : 0);
+const veilAtkOf = (p) => ((p.statuses.obsVeil || 0) > 0 ? VEIL_ATK * castsOf(p.obsVeilStack) : 0);
+const dreamAtkOf = (p) => ((p.statuses.obsDream || 0) > 0 ? DREAM_ATK * castsOf(p.obsDreamQueue) : 0);
 
 module.exports = {
   id: ID,
@@ -60,19 +69,25 @@ module.exports = {
     p.obsVeilUntil = 0;     // ม่านแห่งราตรี: กดได้อีกเมื่อ roundNumber >= ค่านี้ (ผลบนตัวผู้เล่นหมดแล้ว)
     p.obsLarkRound = 0;     // นกจาบยามเช้า: เทิร์นที่กดล่าสุด (กดได้ 1 ครั้ง/เทิร์น)
     p.obsUltReady = 0;      // จุดจบของความฝัน: กดได้อีกเมื่อ roundNumber >= ค่านี้
-    p.obsDreamUseRound = 0;    // ที่ตัวเป้าหมาย: เทิร์นที่ได้ใช้บัฟ +4 — จบเทิร์นนั้นติดสตั้น 3 เทิร์น
+    p.obsDreamUseRound = 0;    // ที่ตัวเป้าหมาย: เทิร์นที่ได้ใช้บัฟ +4 ที่ใกล้ที่สุด (สรุปจาก obsDreamQueue) — จบเทิร์นนั้นติดสตั้น 3 เทิร์น
+    // ที่ตัวเป้าหมาย — รายครั้ง (ทุกครั้งนับ):
+    p.obsVeilStack = [];    // ม่านแห่งราตรี: เทิร์นที่เหลือของแต่ละครั้ง (+1 ต่อครั้ง)
+    p.obsLarkStack = 0;     // นกจาบยามเช้า: จำนวนเครื่องหมายที่รอลงผลต้นเทิร์นหน้า (เสีย 2 ต่อครั้ง)
+    p.obsDreamQueue = [];   // จุดจบของความฝัน: เทิร์นที่ได้ใช้บัฟของแต่ละครั้ง (+4 ต่อครั้ง · สตั้น 3 ต่อครั้ง)
   },
 
   // พลังโจมตีจากท่าของโอเบรอน (ungated — อ่านที่ computeAttackBase ใครติดก็ได้)
   atkBonus(p) {
     if (!p || !p.statuses) return 0;
-    return ((p.statuses.obsVeil || 0) > 0 ? VEIL_ATK : 0) + ((p.statuses.obsDream || 0) > 0 ? DREAM_ATK : 0);
+    return veilAtkOf(p) + dreamAtkOf(p);
   },
   atkFx(p) {
     if (!p || !p.statuses) return [];
     const out = [];
-    if ((p.statuses.obsVeil || 0) > 0) out.push(`ม่านแห่งราตรี +${VEIL_ATK}`);
-    if ((p.statuses.obsDream || 0) > 0) out.push(`จุดจบของความฝัน +${DREAM_ATK}`);
+    const veil = veilAtkOf(p);
+    const dream = dreamAtkOf(p);
+    if (veil > 0) out.push(`ม่านแห่งราตรี +${veil}`);
+    if (dream > 0) out.push(`จุดจบของความฝัน +${dream}`);
     return out;
   },
 
@@ -96,7 +111,11 @@ module.exports = {
       p.obsVeilUntil = round + VEIL_TURNS;
       const list = veilRecipients(engine, p, targets);
       for (const o of list) {
+        // ทุกครั้งนับ: ม่านจากโอเบรอนอีกคนที่ยังอยู่ ซ้อนเป็น +1 ต่อครั้ง (แต่ละครั้งหมดอายุของมันเอง)
+        const live = (o.statuses.obsVeil || 0) > 0 ? (o.obsVeilStack || []) : [];
         engine.applyBuff(o, "obsVeil", VEIL_ATK, VEIL_TURNS);
+        o.obsVeilStack = [...live, VEIL_TURNS];
+        o.statusAmt.obsVeil = VEIL_ATK * o.obsVeilStack.length;
         engine.healHp(o, VEIL_HEAL);
       }
       engine.log(`🌙 ${p.name} ม่านแห่งราตรี — ${list.length} คน พลังโจมตี +${VEIL_ATK} (${VEIL_TURNS} เทิร์น) และฟื้นพลังชีวิต +${VEIL_HEAL}`);
@@ -109,6 +128,9 @@ module.exports = {
       const healed = engine.healHp(t, LARK_HEAL);
       engine.applyBuff(t, "resist", 1, LARK_RESIST_TURNS);
       const cleansed = engine.cleanseLatestDebuff(t);
+      // ทุกครั้งนับ: เครื่องหมายที่ยังรอลงผลไม่ถูกเขียนทับ — ต้นเทิร์นหน้าเสีย 2 ต่อเครื่องหมาย
+      //  (statuses.obsLark = เทิร์นที่เหลือ ให้ client โชว์ป้ายเหมือนเดิม · จำนวนครั้งอยู่ที่ t.obsLarkStack)
+      t.obsLarkStack = ((t.statuses.obsLark || 0) > 0 ? Math.max(1, t.obsLarkStack || 0) : 0) + 1;
       t.statuses.obsLark = LARK_MARK_TURNS;
       engine.log(`🐦 ${p.name} นกจาบยามเช้า → ${t.name} ฟื้นพลังชีวิต +${healed} · ต้านสถานะผิดปกติ ${LARK_RESIST_TURNS} เทิร์น${cleansed ? " · ล้างสถานะผิดปกติที่โดนล่าสุด 1 อย่าง" : ""} (ต้นเทิร์นหน้าเสียพลังชีวิต ${LARK_DRAIN} ทะลุเกราะ)`);
       return ` → ${t.name}`;
@@ -119,8 +141,11 @@ module.exports = {
       p.obsUltReady = round + DREAM_COOLDOWN;
       // เป้าเดินไปแล้วในเทิร์นนี้ = ได้ใช้บัฟในตาเดินของเทิร์นหน้า (บัฟอยู่ 2 เทิร์น) · ยังไม่เดิน/ตัวเอง = เทิร์นนี้
       const later = engine.hasActed(t.id);
-      t.obsDreamUseRound = later ? round + 1 : round;
+      // ทุกครั้งนับ: ความฝันจากอีกครั้งที่ยังค้างไม่ถูกเขียนทับ — แต่ละครั้งมีเทิร์นใช้บัฟ/สตั้นของตัวเอง
+      t.obsDreamQueue = [...(t.obsDreamQueue || []), later ? round + 1 : round];
+      t.obsDreamUseRound = Math.min(...t.obsDreamQueue);
       engine.applyBuff(t, "obsDream", DREAM_ATK, later ? 2 : 1);
+      t.statusAmt.obsDream = DREAM_ATK * t.obsDreamQueue.length;
       engine.log(`💤 ${p.name} จุดจบของความฝัน → ${t.name} พลังโจมตี +${DREAM_ATK} ${later ? "ในตาเดินเทิร์นหน้า" : "ตาเดินนี้"} — จากนั้นจะติดสตั้น ${DREAM_STUN_TURNS} เทิร์น`);
       return ` → ${t.name}`;
     }
@@ -131,11 +156,17 @@ module.exports = {
   onRoundStartTick(engine, p) {
     if (!p.alive || !((p.statuses.obsLark || 0) > 0)) return;
     delete p.statuses.obsLark;
+    // ทุกครั้งนับ: ลงผลแยกทีละเครื่องหมาย (2 ครั้ง = เสีย 2 + 2)
+    const marks = Math.max(1, p.obsLarkStack || 0);
+    p.obsLarkStack = 0;
     // ไม่ผูก effectSource: ผลเสียของท่าต้องลงเพื่อนร่วมทีมได้ด้วย (friendlyEffectBlocked จะกันทิ้งถ้ามีต้นตอ)
     p._statusDamage = true;
-    engine.dealDirect(p, LARK_DRAIN);
+    for (let i = 0; i < marks; i++) {
+      if (i > 0 && p.hp <= 0) break; // ตายจากครั้งก่อนแล้ว
+      engine.dealDirect(p, LARK_DRAIN);
+    }
     p._statusDamage = false;
-    engine.log(`🐦 ${p.name} ผลของนกจาบยามเช้า — เสียพลังชีวิต ${LARK_DRAIN} (ทะลุเกราะ)`);
+    engine.log(`🐦 ${p.name} ผลของนกจาบยามเช้า — เสียพลังชีวิต ${marks > 1 ? `${LARK_DRAIN} × ${marks}` : LARK_DRAIN} (ทะลุเกราะ)`);
     if (p.alive && p.hp <= 0) {
       engine.instantDeath(p);
       if (!p.alive) engine.log(`💀 ${p.name} ตกรอบ!`);
@@ -144,12 +175,25 @@ module.exports = {
 
   // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ — สตั้นที่ติดตรงนี้จึงเต็ม 3 เทิร์นถัดไป) ----------
   onEndTurn(engine) {
+    const round = engine.roundNumber;
     for (const t of Object.values(engine.players)) {
-      if (!t.obsDreamUseRound || t.obsDreamUseRound !== engine.roundNumber) continue;
-      t.obsDreamUseRound = 0;
-      delete t.statuses.obsDream; // ตาเดินที่ได้ใช้บัฟผ่านไปแล้ว
+      // ม่านแห่งราตรี: นับเทิร์นที่เหลือรายครั้งให้ตรงกับลูปลดเทิร์นสถานะ (ครั้งที่หมดแล้วเลิกนับ +1)
+      if (Array.isArray(t.obsVeilStack) && t.obsVeilStack.length) {
+        t.obsVeilStack = t.obsVeilStack.map((n) => n - 1).filter((n) => n > 0);
+        if ((t.statuses.obsVeil || 0) > 0 && t.obsVeilStack.length) t.statusAmt.obsVeil = VEIL_ATK * t.obsVeilStack.length;
+      }
+      // จุดจบของความฝัน: ทุกครั้งที่ถึงเทิร์นใช้บัฟลงผลพร้อมกัน — สตั้นรวม 3 ต่อครั้ง · ครั้งที่ยังไม่ถึงค้างไว้ต่อ
+      const queue = Array.isArray(t.obsDreamQueue) && t.obsDreamQueue.length ? t.obsDreamQueue
+        : (t.obsDreamUseRound ? [t.obsDreamUseRound] : []);
+      const due = queue.filter((r) => r <= round).length;
+      if (!due) continue;
+      t.obsDreamQueue = queue.filter((r) => r > round);
+      t.obsDreamUseRound = t.obsDreamQueue.length ? Math.min(...t.obsDreamQueue) : 0;
+      if (t.obsDreamQueue.length) t.statusAmt.obsDream = DREAM_ATK * t.obsDreamQueue.length;
+      else { delete t.statuses.obsDream; if (t.statusAmt) delete t.statusAmt.obsDream; } // ตาเดินที่ได้ใช้บัฟผ่านไปแล้ว
       if (!t.alive) continue;
-      if (engine.applyDebuff(t, "stun", null, DREAM_STUN_TURNS)) engine.log(`💤 ${t.name} ความฝันจบลง — ติดสตั้น ${DREAM_STUN_TURNS} เทิร์น`);
+      const stun = DREAM_STUN_TURNS * due;
+      if (engine.applyDebuff(t, "stun", null, stun)) engine.log(`💤 ${t.name} ความฝันจบลง — ติดสตั้น ${stun} เทิร์น`);
       else engine.log(`💤 ${t.name} ต้านทานสตั้นจากจุดจบของความฝันได้ (ต้านสถานะผิดปกติ)`);
     }
     // สกิลติดตัว หน้าไหว้หลังหลอก: ไม่ถูกโจมตีปกติในเทิร์นนี้ -> แต้มสกิล +1 และเหรียญ +1

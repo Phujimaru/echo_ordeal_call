@@ -199,3 +199,137 @@ test('ม่านแห่งราตรี: ไม่มีรายชื่
   assert.equal(ob.applyInstantSkill(engine, O, 'secondary', ['nobody']), '');
   assert.equal(ob.applyInstantSkill(engine, O, 'ultimate', []), '');
 });
+
+// ---------- ทุกครั้งนับ: ใส่ซ้ำคนเดิม (โอเบรอนหลายคน / ท่าเดิมลงซ้ำ) ผลเกิดเท่าจำนวนครั้ง ไม่เขียนทับกัน ----------
+// M กลายเป็นโอเบรอนคนที่ 2 (ฮุคเดียวกัน · ฟิลด์ต่อคนจาก resetCombat ใน setup)
+function twoOberons(opts) {
+  const P = setup(opts);
+  P.M.characterId = 'oberon_summer';
+  return P;
+}
+function castAs(id, tier, targets) {
+  engine.players[id].skillUsedRound = false;
+  engine.setActor(id);
+  engine.useSkill(id, tier, targets);
+}
+
+test('นกจาบยามเช้า: โอเบรอน 2 คนใส่เป้าเดียวกัน = ต้นเทิร์นหน้าเสีย 2 + 2 = 4 ทะลุเกราะ', () => {
+  const { O, M, T } = twoOberons();
+  castAs('O', 'secondary', ['T']);
+  castAs('M', 'secondary', ['T']);
+  assert.equal(T.statuses.obsLark, ob.LARK_MARK_TURNS, 'ป้ายยังเป็นเทิร์นที่เหลือ (client อ่าน)');
+  assert.equal(T.obsLarkStack, 2);
+  T.hp = 6; T.armor = 3;
+  nextRound();
+  assert.equal(T.hp, 6 - 2 * ob.LARK_DRAIN);
+  assert.equal(T.armor >= 3, true, 'เกราะไม่ถูกแตะ');
+  assert.equal(T.statuses.obsLark, undefined);
+  assert.equal(T.obsLarkStack, 0);
+  assert.equal(O.alive && M.alive, true);
+});
+
+test('นกจาบยามเช้า: เครื่องหมายเดียว = เสีย 2 เท่าเดิม · ท่าเดิมลงซ้ำขณะเครื่องหมายยังรอ = นับ 2 ครั้ง', () => {
+  const { O, T } = setup();
+  engine.useSkill('O', 'secondary', ['T']);
+  assert.equal(T.obsLarkStack, 1);
+  T.hp = 6; T.armor = 3;
+  nextRound();
+  assert.equal(T.hp, 6 - ob.LARK_DRAIN, 'ครั้งเดียวเสีย 2');
+  // เครื่องหมายเก่าลงผลไปแล้ว — ครั้งใหม่เริ่มนับ 1
+  ob.applyInstantSkill(engine, O, 'secondary', ['T']);
+  assert.equal(T.obsLarkStack, 1);
+  // ลงซ้ำคนเดิมขณะเครื่องหมายยังรอ (ไม่ผ่านโควตา 1 ครั้ง/เทิร์น) = ทุกครั้งนับ
+  ob.applyInstantSkill(engine, O, 'secondary', ['T']);
+  assert.equal(T.obsLarkStack, 2);
+  T.hp = 6;
+  nextRound();
+  assert.equal(T.hp, 6 - 2 * ob.LARK_DRAIN);
+  // ตั้งป้ายตรงๆ โดยไม่มีจำนวนครั้ง = 1 ครั้ง
+  T.hp = 6; T.statuses.obsLark = 1; T.obsLarkStack = 0;
+  ob.onRoundStartTick(engine, T);
+  assert.equal(T.hp, 6 - ob.LARK_DRAIN);
+});
+
+test('จุดจบของความฝัน: 2 ครั้งเทิร์นเดียวกัน = +8 แล้วสตั้นรวม 3 + 3 เทิร์น (ไม่เขียนทับกัน)', () => {
+  const { M, T } = twoOberons();
+  castAs('O', 'ultimate', ['T']);
+  castAs('M', 'ultimate', ['T']);
+  assert.deepEqual(T.obsDreamQueue, [engine.roundNumber, engine.roundNumber]);
+  assert.equal(T.obsDreamUseRound, engine.roundNumber);
+  assert.equal(ob.atkBonus(T), 2 * ob.DREAM_ATK);
+  assert.equal(T.statusAmt.obsDream, 2 * ob.DREAM_ATK);
+  assert.deepEqual(ob.atkFx(T), [`จุดจบของความฝัน +${2 * ob.DREAM_ATK}`]);
+  assert.equal(ob.canUseSkill(engine, M, 'ultimate', ['T']), false, 'คูลดาวน์ของ M เอง');
+  nextRound();
+  assert.equal(T.statuses.obsDream, undefined);
+  assert.equal(T.statusAmt.obsDream, undefined);
+  assert.equal(T.statuses.stun, 2 * ob.DREAM_STUN_TURNS, 'สตั้น 2 ครั้งรวมกัน');
+  assert.deepEqual(T.obsDreamQueue, []);
+  assert.equal(T.obsDreamUseRound, 0);
+});
+
+test('จุดจบของความฝัน: ครั้งที่ 2 ค้างไปเทิร์นหน้า ไม่ลบสตั้น/บัฟของครั้งแรก · แต่ละครั้งลงผลตามเทิร์นของตัวเอง', () => {
+  const { T } = twoOberons();
+  const r0 = engine.roundNumber;
+  castAs('O', 'ultimate', ['T']); // T ยังไม่เดิน = ใช้บัฟเทิร์นนี้
+  const hasActed = engine.hasActed;
+  engine.hasActed = (id) => id === 'T'; // T เดินไปแล้ว = ครั้งของ M ไปใช้เทิร์นหน้า
+  try { castAs('M', 'ultimate', ['T']); } finally { engine.hasActed = hasActed; }
+  assert.deepEqual(T.obsDreamQueue, [r0, r0 + 1]);
+  assert.equal(T.obsDreamUseRound, r0, 'ครั้งที่ใกล้ที่สุดยังอยู่');
+  assert.equal(ob.atkBonus(T), 2 * ob.DREAM_ATK);
+  nextRound();
+  assert.equal(T.statuses.stun, ob.DREAM_STUN_TURNS, 'ครั้งแรกสตั้นตามเดิม');
+  assert.ok(T.statuses.obsDream > 0, 'บัฟครั้งที่ 2 ยังอยู่');
+  assert.equal(ob.atkBonus(T), ob.DREAM_ATK);
+  assert.equal(T.statusAmt.obsDream, ob.DREAM_ATK);
+  assert.equal(T.obsDreamUseRound, r0 + 1);
+  nextRound();
+  assert.equal(T.statuses.obsDream, undefined);
+  assert.ok(T.statuses.stun > 0, 'ครั้งที่ 2 ลงผลด้วย');
+  assert.deepEqual(T.obsDreamQueue, []);
+});
+
+test('จุดจบของความฝัน: ครั้งเดียว = +4 · statusAmt 4 · สตั้น 3 เท่าเดิม', () => {
+  const { T } = setup();
+  engine.useSkill('O', 'ultimate', ['T']);
+  assert.equal(ob.atkBonus(T), ob.DREAM_ATK);
+  assert.equal(T.statusAmt.obsDream, ob.DREAM_ATK);
+  nextRound();
+  assert.equal(T.statuses.stun, ob.DREAM_STUN_TURNS);
+});
+
+test('ม่านแห่งราตรี: โอเบรอน 2 คน = +1 ต่อครั้ง แต่ละครั้งหมดอายุของตัวเอง · ครั้งเดียว +1 เท่าเดิม', () => {
+  const { T } = twoOberons();
+  castAs('O', 'basic');
+  assert.equal(ob.atkBonus(T), ob.VEIL_ATK);
+  assert.equal(T.statusAmt.obsVeil, ob.VEIL_ATK);
+  nextRound();
+  castAs('M', 'basic');
+  assert.deepEqual(T.obsVeilStack, [ob.VEIL_TURNS - 1, ob.VEIL_TURNS]);
+  assert.equal(ob.atkBonus(T), 2 * ob.VEIL_ATK);
+  assert.equal(T.statusAmt.obsVeil, 2 * ob.VEIL_ATK);
+  assert.deepEqual(ob.atkFx(T), [`ม่านแห่งราตรี +${2 * ob.VEIL_ATK}`]);
+  nextRound();
+  assert.equal(ob.atkBonus(T), 2 * ob.VEIL_ATK);
+  nextRound(); // ครั้งของ O ครบ 3 เทิร์น
+  assert.equal(ob.atkBonus(T), ob.VEIL_ATK);
+  assert.equal(T.statusAmt.obsVeil, ob.VEIL_ATK);
+  assert.ok(T.statuses.obsVeil > 0);
+  nextRound();
+  assert.equal(T.statuses.obsVeil, undefined);
+  assert.equal(ob.atkBonus(T), 0);
+  assert.deepEqual(T.obsVeilStack, []);
+});
+
+test('resetCombat ล้างสถานะรายครั้งที่ตัวเป้า', () => {
+  const { T } = twoOberons();
+  castAs('O', 'basic');
+  castAs('O', 'secondary', ['T']);
+  castAs('M', 'ultimate', ['T']);
+  assert.equal(T.obsVeilStack.length, 1);
+  assert.equal(T.obsLarkStack, 1);
+  assert.equal(T.obsDreamQueue.length, 1);
+  ob.resetCombat(T);
+  assert.deepEqual([T.obsVeilStack, T.obsLarkStack, T.obsDreamQueue, T.obsDreamUseRound], [[], 0, [], 0]);
+});

@@ -413,9 +413,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!lowQ) setShake((n) => n + 1);
     };
     // ปล่อยตัวที่ค้างไว้ปลายทางพุ่ง: server ย้ายตัวจริงแล้ว (ไม่อยู่ช่องเริ่ม) หรือมีฉากพุ่งใหม่
+    //  หรือฉากสกิลจบไปแล้วโดยไม่มีเฟสชน (เป้าตกรอบ/หายไประหว่างคลิปชน — server ไม่ส่ง dash ใหม่ โซระยังอยู่ช่องเริ่ม) · dash ถูกล้าง
     const dh = dashHold.current;
-    if (dh && !dh.done && (freshDash || !samePos(nextPos[dh.id], dh.from))) {
+    const dashFlowOver = (phase !== "ATTACKING" && phase !== "CUTSCENE") || !dash || dash.seq !== dh?.seq;
+    if (dh && !dh.done && (freshDash || dashFlowOver || !samePos(nextPos[dh.id], dh.from))) {
       dh.done = true;
+      if (samePos(nextPos[dh.id], dh.from)) delete dashSkip.current[dh.id]; // ไม่ได้ย้ายจริง = ปลายทางพุ่งเดิมใช้ไม่ได้แล้ว
       setHold((h) => { if (!h[dh.id]) return h; const n = { ...h }; delete n[dh.id]; return n; });
     }
     // ท่าไม้ตายโซระ (Mouse Separade) — ตัวที่ขยับเพราะฉากพุ่ง (ทั้งเฟสวิ่ง/ชน) ไม่ต้องเลื่อนอัตโนมัติ (เลขดาเมจยังขึ้นตามปกติ)

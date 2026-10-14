@@ -298,6 +298,10 @@ cost = min(SKILL_COST_MAX /* 8 */,
   ปัก `t.obsDreamUseRound` (เทิร์นที่ได้ใช้บัฟ — เป้าเดินไปแล้ว = เทิร์นหน้า) → `onEndTurn` ของเทิร์นนั้น (หลังลูปลดเทิร์นสถานะ) ล้าง `obsDream`
   แล้วใส่สตั้น 3 เทิร์นผ่าน `applyDebuff` (ต้านได้) — อยู่หลังลูป สตั้นจึงเต็ม 3 เทิร์นถัดไป
 - **หน้าไหว้หลังหลอก** (passive): `onEndTurn` — โอเบรอนที่ `!p.wasAttacked` ทั้งเทิร์น ได้แต้มสกิล +1 และเหรียญ +1 (ถูกเลือกเป็นเป้าแม้หลบได้ก็นับว่าถูกโจมตี)
+- **ใส่ซ้ำคนเดิม = ทุกครั้งนับ** (โอเบรอนหลายคน/ท่าเดิมลงซ้ำ — ผลเกิดเท่าจำนวนครั้ง ไม่เขียนทับกัน) · เก็บรายครั้งที่ตัวเป้า ล้างใน `resetCombat`:
+  `t.obsVeilStack` (เทิร์นที่เหลือต่อครั้ง · ลดใน `onEndTurn` คู่กับลูปลดเทิร์น · +1 ต่อครั้ง) · `t.obsLarkStack` (จำนวนเครื่องหมาย · `onRoundStartTick` เรียก `dealDirect` 2 ทีละครั้ง) ·
+  `t.obsDreamQueue` (เทิร์นใช้บัฟต่อครั้ง · `t.obsDreamUseRound` = ค่าน้อยสุด · +4 ต่อครั้ง · ครั้งที่ถึงพร้อมกันสตั้นรวม 3 × จำนวน — ถึงคนละเทิร์นใช้ `applyDebuff` ตามปกติ)
+  · `statuses.*` ยังเป็นเทิร์นที่เหลือ (ป้าย client) · `statusAmt.obsVeil`/`obsDream` = ผลรวม · สถานะที่ตั้งตรงๆ ไม่มีรายการครั้ง = นับ 1 ครั้ง
 - `obsVeil`/`obsDream`/`obsLark` ไม่อยู่ใน `BUFF_KEYS`/`BASIC_DEBUFF_CLEAR` → ปาด/ล้าง/ต้านไม่ได้ · พลังโจมตีอ่านแบบ ungated ที่ `computeAttackBase` (`atkBonus`) + ป้าย `atkFx`
 - ล็อก/คูลดาวน์รายช่องส่งผ่าน `skillLocks` · เสียงกดสกิลรายช่อง `skillSound` (`oberon_summer_skill1-3`)
 - เลือกตัวละครซ้ำกันได้หลายคน — สถานะ/ตัวนับต้องแยกต่อคน: [tests/characters/duplicate-safety.test.js](tests/characters/duplicate-safety.test.js)
@@ -443,6 +447,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
     · **ห้ามใช้ `p.armor`** แทนชั้นนี้ (ค่าจริงต้องคงอยู่ข้างใต้) · หน้าจอแสดงเลือด 0/0 + เกราะชุด x/7 · พลังโจมตี +1 ที่ `computeAttackBase` · ภาพประจำตัวเป็นชุดเกราะ (`displayImg`)
   - เจ้าของ (`p.mark42Owned`) คุมชุดผ่าน socket `mark42Control` (recall / remove / detonate) — คนใส่ถอดเองไม่ได้ ·
     ใช้ไอเทมส่ง `mode` (`self` / `give` / `bomb`) ทาง `useInventoryItem` · วีดีโอก่อนแล้วผลเกิดหลังคลิป (`mark42Run` ใน `server/characterRules.js`)
+  - การมองเห็น: ส่งชุดให้/ระเบิดใส่/สั่งชุดที่อยู่บนตัวคนอื่น (`planControl` คืน `wearerId`) = `Visibility.onHostileAct` **ก่อน** `mark42Run` ·
+    ทำกับตัวเอง (ใส่เอง/ถอดจากตัวเอง) ไม่ปรากฏตัว — `mark42Run` ส่งป้าย/คลิปเฉพาะคนที่มองเห็นผู้ใช้ (`onlyFor` · ชื่อคนที่ซ่อนอยู่ไม่หลุด)
   - ชุดพังจากการต่อสู้ = เจ้าของซื้อใหม่ไม่ได้ 10 เทิร์น (`p.mark42BuyLock`) · ระเบิด/ถอด/เรียกคืนไม่ติดคูลดาวน์ · มีได้ชุดเดียวต่อคน
   - ระยะบนกระดาน: ใส่ให้ / ใส่แล้วระเบิด / เรียกคืน ต้อง **ยืนติดกัน** (ระยะ 1 — `adjacent` ใน `_mark42.js`) · ถอด / สั่งระเบิด สั่งจากไกลได้ (รีโมต)
   - เทสต์: [tests/mark42.test.js](tests/mark42.test.js) · ร้านค้า: [tests/shop.test.js](tests/shop.test.js) · ร้านบนแผนที่/กระเป๋า/ระยะปืน: [tests/shop-board.test.js](tests/shop-board.test.js)
@@ -765,6 +771,9 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom` — แผนที่/หมอก) · แต่การเล็ง/ตี/ยิง/ส่งชุด ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` = ม่านแดงนับจากตาของตัวนั้นเอง (ถูกขังในม่าน = เล็งคนนอกไม่ได้แม้อีกตัวอยู่ข้างนอก)
   - ตายต้นเทิร์นหลังแจกไพ่ (ฟ้าผ่าซีโร่ / ม่านแดง — `instantDeath` ล็อกเพราะยังไม่ PLAYING): `draw.reopenFallenOwners` เปิดให้เจ้าของที่อีกตัวยังรอดจั่วต่อ
   - เกราะ Mark 42 นับทั้งฝ่าย: `Mark42.ownsSuit / buyLockLeft` ดู `mark42Owned / mark42BuyLock` ของทุกตัว (`Duo.unitsOf`) — ฝ่ายหนึ่งมีชุดเดียว
+    · คุมชุดได้ทั้งฝ่าย: `planControl / privateState` หาตัวที่ถือ `mark42Owned` (`holderOf`) — ตัวไหนสั่งก็ได้ ระยะนับจากตัวที่สั่ง · เรียกคืน = ตัวที่เรียกถือสิทธิ์แทน
+  - สตั้น/หลับไหล: ตัวที่ติดถูกข้ามตา (`action.nextActor` · `Duo.canSwitchTo/nextUnit` เช็ค `stuck`) · ยังมีตัวที่ขยับได้ = จั่วปกติ ·
+    ทุกตัวที่ยังอยู่ติดหมด (ติดทั้งคู่ / ล้ม + ติด) = ไม่ได้จั่ว (`draw.lockStuckSides` — หลัง `reopenFallenOwners`)
 - **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
 - **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
 - **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง/ผนึก) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
@@ -772,7 +781,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
-- **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility — เล็ง/ตีใช้ `hiddenFromUnit`) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
+- **ม่านแดง** (`server/soot.js`): `match.board.storms` · ฝ่ายผู้ร่าย = ฝ่ายคู่ + เพื่อนร่วมทีม (`friendly` — `combat.sameTeam`: ไม่โดน ไม่ถูกขัง เห็นข้ามม่าน) · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility — เล็ง/ตีใช้ `hiddenFromUnit`) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
 - **แส้เขม่า** เล็งได้แค่เอมิลิโกะหรือศัตรู (`sootAllowed` — เพื่อนร่วมทีมโหมด duo/trio ไม่ได้)
 - **มืดบอด** (`shadowMask`): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 

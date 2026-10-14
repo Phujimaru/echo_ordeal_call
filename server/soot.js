@@ -2,6 +2,7 @@
 //  ระบำเขม่า — "ม่านแดง" (ท่าไม้ตายเคท · ผู้ใช้ตัดสิน 2026-10-13)
 //   match.board.storms = [{ x0, y0, x1, y1, owner, side, left }] — พื้นที่ 8×8 · อยู่ 3 เทิร์น (ลดตอนจบเทิร์น)
 //   - ร่ายแล้ว: ศัตรูของผู้ร่ายที่อยู่ข้างในเสียหาย 1 (เกราะรับก่อน · ฆ่าได้) ทันที และทุกต้นเทิร์นที่ม่านยังอยู่
+//   - ฝ่ายผู้ร่าย = ฝ่ายเดียวกัน (ระบบคู่) + เพื่อนร่วมทีม (โหมด duo/trio — combat.sameTeam · ผู้ใช้ตัดสิน 2026-10-14): ไม่โดน ไม่ถูกขัง เห็นทุกคน
 //   - ขัง: ทุกคนที่อยู่ข้างใน (ยกเว้นฝ่ายผู้ร่าย) ออกไม่ได้ — เดิน/ไถล/ถูกผลัก ข้ามขอบออกไปไม่ได้ · คนนอกเดินเข้ามาได้ (แล้วติด)
 //   - มองไม่เห็นข้ามม่าน: คนนอกไม่เห็นคนใน คนในไม่เห็นคนนอก (ฝ่ายผู้ร่ายเห็นทุกคน) · สกิลพื้นที่จากข้างนอกยังโดนคนใน
 //   - การสู้กันข้างในไม่ทำให้ใครโผล่ให้คนนอกเห็น (ม่านบังเอง ไม่เกี่ยวกับพุ่มหญ้า)
@@ -24,21 +25,28 @@ function active() { return storms().length > 0; }
 function inside(s, pos) { return !!pos && pos.x >= s.x0 && pos.x <= s.x1 && pos.y >= s.y0 && pos.y <= s.y1; }
 // ม่านที่ p ยืนอยู่ข้างใน (ตัวแรกที่เจอ) · ไม่อยู่ = null
 function stormOf(p) { return (p && p.pos && storms().find((s) => inside(s, p.pos))) || null; }
-// p อยู่ในม่านของฝ่ายตัวเองไหม (ติดตัวเคท: เดิน 6/4 · ตีปกติทำให้มืดบอด)
-function ownStorm(p) { return !!(p && p.pos && storms().some((s) => s.side === Duo.sideKey(p) && inside(s, p.pos))); }
+// p เป็นฝ่ายผู้ร่ายม่าน s ไหม — ตัวไหนของฝ่ายผู้ร่ายก็ได้ (ระบบคู่) หรือเพื่อนร่วมทีมของผู้ร่าย (โหมดทีม)
+function friendly(s, p) {
+  if (!p) return false;
+  if (Duo.sideKey(p) === s.side) return true;
+  const caster = match.players[s.owner] || match.players[s.side];
+  return !!(caster && combat.sameTeam(caster, p));
+}
+// p อยู่ในม่านของฝ่ายตัวเองไหม (ติดตัวเคท: เดิน 6/4 · ตีปกติทำให้มืดบอด) — ม่านของเพื่อนร่วมทีมก็นับ
+function ownStorm(p) { return !!(p && p.pos && storms().some((s) => friendly(s, p) && inside(s, p.pos))); }
 // ม่านที่ขัง p อยู่ (ข้างในม่านของฝ่ายอื่น) · ไม่ถูกขัง = null
-function trapOf(p) { return (p && p.pos && p.alive && storms().find((s) => s.side !== Duo.sideKey(p) && inside(s, p.pos))) || null; }
+function trapOf(p) { return (p && p.pos && p.alive && storms().find((s) => !friendly(s, p) && inside(s, p.pos))) || null; }
 // ช่องที่ p เข้าไม่ได้เพราะถูกขัง (Set-like — Board ใช้แค่ .has) · ไม่ถูกขัง = null
 function blockedFor(p) {
   const s = trapOf(p);
   if (!s) return null;
   return { has: (k) => { const [x, y] = k.split(",").map(Number); return !inside(s, { x, y }); } };
 }
-// viewer มองไม่เห็น target เพราะม่าน (อยู่คนละฝั่งของม่าน) — ฝ่ายผู้ร่ายเห็นทุกคน
+// viewer มองไม่เห็น target เพราะม่าน (อยู่คนละฝั่งของม่าน) — ฝ่ายผู้ร่าย (รวมเพื่อนร่วมทีม) เห็นทุกคน
 function hiddenByStorm(viewer, target) {
   if (!viewer || !target || !viewer.pos || !target.pos) return false;
   for (const s of storms()) {
-    if (s.side === Duo.sideKey(viewer)) continue;
+    if (friendly(s, viewer)) continue;
     if (inside(s, viewer.pos) !== inside(s, target.pos)) return true;
   }
   return false;
@@ -56,8 +64,7 @@ function strikeInside(s) {
   const out = [];
   const caster = match.players[s.owner] || match.players[s.side];
   for (const t of Object.values(match.players)) {
-    if (!t.alive || !t.pos || Duo.sideKey(t) === s.side || !inside(s, t.pos)) continue;
-    if (caster && combat.sameTeam(caster, t)) continue;
+    if (!t.alive || !t.pos || friendly(s, t) || !inside(s, t.pos)) continue;
     const vit = (t.hp || 0) + (t.armor || 0);
     const deal = () => combat.dealMixed(t, STORM_DMG, true);
     if (caster) combat.withEffectSource(caster, deal); else deal();
@@ -90,7 +97,7 @@ function tileHiddenFrom(viewer, pos) {
   if (!viewer || !pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
   const eyes = Duo.unitsOf(viewer).filter((u) => u.alive && u.pos);
   for (const s of storms()) {
-    if (s.side === Duo.sideKey(viewer)) continue;
+    if (friendly(s, viewer)) continue;
     const inViewer = eyes.some((u) => inside(s, u.pos));
     if (inside(s, pos) !== inViewer) return true;
   }

@@ -664,3 +664,174 @@ test('ห่วงเวลาซีโร่: ปลดผนึกแล้ว
   assert.ok(P.K.corpse, 'มีร่าง');
   assert.equal(Board.dist(P.K.corpse, P[E].pos), 1, 'ร่างติดเอมิลิโกะ');
 });
+
+// ---------- ม่านแดงในโหมดทีม (ผู้ใช้ตัดสิน 2026-10-14): เพื่อนร่วมทีมของเคท = ฝ่ายผู้ร่าย ----------
+const kateCurtain = (P) => Soot.cast(P.K, engine.tileArea({ kind: 'tile', square: 8 }, { x: 5, y: 5 }));
+
+for (const [mode, list] of [
+  ['duo', [['K', 'kate', 4, 4, 'A'], [E, null, 4, 3], ['F', 'dummy', 8, 6, 'A'], ['B', 'dummy', 6, 6, 'B'], ['C', 'dummy', 12, 12, 'B']]],
+  ['trio', [['K', 'kate', 4, 4, 'A'], [E, null, 4, 3], ['F', 'dummy', 8, 6, 'A'], ['G', 'dummy', 2, 6, 'A'],
+    ['B', 'dummy', 6, 6, 'B'], ['C', 'dummy', 12, 12, 'B'], ['D', 'dummy', 12, 10, 'B']]],
+]) {
+  test(`ม่านแดง (โหมด ${mode}): เพื่อนร่วมทีมของเคทไม่โดนพายุ · ไม่ถูกขัง · เห็นข้ามม่าน · ศัตรูยังโดนครบ`, () => {
+    const P = setup(list, mode);
+    const mates = list.filter(([id, , , , team]) => team === 'A' && id !== 'K').map(([id]) => id);
+    const s = kateCurtain(P);
+    const before = Object.fromEntries(Object.values(P).map((p) => [p.id, vit(p)]));
+    const hits = Soot.strikeInside(s).map((h) => h.id);
+    assert.deepEqual(hits, ['B'], 'พายุโดนแค่ศัตรูข้างใน');
+    for (const id of mates) assert.equal(vit(P[id]), before[id], `${id} ไม่เสีย`);
+    for (const t of Soot.tickRound()) assert.equal(t.id, 'B', 'ต้นเทิร์นก็ไม่โดนเพื่อน');
+    for (const id of mates) assert.equal(Soot.trapOf(P[id]), null, `${id} ไม่ถูกขัง`);
+    assert.ok(Soot.trapOf(P.B), 'ศัตรูยังถูกขัง');
+    // F ยืนขอบในม่าน (8,6) → เดินออกได้
+    engine.setActor('F');
+    assert.equal(engine.moveTo('F', 9, 6), true, 'เพื่อนร่วมทีมเดินออกจากม่านได้');
+    // เพื่อนร่วมทีมนอกม่านเห็นศัตรูข้างใน · ในม่านเห็นศัตรูนอกม่าน (เหมือนฝ่ายเคท)
+    assert.ok(engine.buildStateFor('F').players.find((p) => p.id === 'B').pos, 'นอกม่านเห็นคนใน');
+    assert.equal(Visibility.hiddenFromUnit(P.F, P.B), false);
+    assert.equal(Soot.tileHiddenFrom(P.F, { x: 5, y: 5 }), false);
+    P.F.pos = { x: 7, y: 7 };
+    assert.ok(engine.buildStateFor('F').players.find((p) => p.id === 'C').pos, 'ในม่านเห็นคนนอก');
+    assert.equal(Soot.tileHiddenFrom(P.F, { x: 12, y: 12 }), false);
+    // ศัตรูยังมองข้ามม่านไม่ได้
+    assert.equal(engine.buildStateFor('C').players.find((p) => p.id === 'K').pos, null, 'ศัตรูนอกม่านไม่เห็นคนใน');
+    assert.equal(engine.buildStateFor('C').players.find((p) => p.id === 'F').pos, null);
+  });
+}
+
+// ---------- สตั้น/หลับไหลกับระบบคู่ (ผู้ใช้ตัดสิน 2026-10-14) ----------
+//  ตัวหนึ่งติด อีกตัวปกติ = จั่วตามปกติ ตัวที่ติดถูกข้ามตา · ติดทั้งคู่ / ล้ม + ติด = ไม่ได้จั่ว (เหมือนผู้เล่นคนเดียวที่ติดสตั้น)
+function dealNow() {
+  engine.setRoundNumber(2); // เทิร์นถัดไป 3 = เกราะไม่ฟื้น
+  engine.setGameState('TRANSITION');
+  draw.dealRound();
+  engine.clearPhaseTimer();
+}
+
+test('ระบบคู่: เคทติดสตั้น เอมิลิโกะปกติ = ผู้เล่นจั่วได้ · ตาเดินข้ามเคท คุมได้แค่เอมิลิโกะ (สลับไปเคทไม่ได้)', () => {
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  P.K.statuses.stun = 2;
+  dealNow();
+  assert.equal(P.K.locked, false, 'ยังจั่วได้');
+  assert.equal(P.K.cards.length, 1);
+  engine.hit('K');
+  assert.equal(P.K.cards.length, 2);
+  startTurn('K');
+  assert.equal(engine.actorId, E, 'ข้ามเคท');
+  assert.equal(Duo.canSwitchTo(P.K), false);
+  engine.useSkill(E, 'basic', []);
+  assert.equal(engine.actorId, E, 'กระจกเงาสลับไปเคทที่ติดสตั้นไม่ได้');
+  assert.equal(engine.moveTo(E, 5, 5), true, 'เอมิลิโกะเดินได้');
+});
+
+test('ระบบคู่: เอมิลิโกะหลับ เคทปกติ = จั่วได้ · ตาเดินคุมแค่เคท', () => {
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  P[E].statuses.sleep = 2;
+  dealNow();
+  assert.equal(P.K.locked, false);
+  startTurn('K');
+  assert.equal(engine.actorId, 'K');
+  assert.equal(Duo.canSwitchTo(P[E]), false);
+  assert.equal(Duo.nextUnit(), null, 'จบตาเคทแล้วไม่มีตัวต่อ');
+});
+
+test('ระบบคู่: ติดทั้งคู่ (สตั้น + หลับ) = ไม่ได้จั่ว เหมือนผู้เล่นที่ติดสตั้น', () => {
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  P.K.statuses.stun = 2;
+  P[E].statuses.stun = 2;
+  dealNow();
+  assert.equal(P.K.locked, true, 'สตั้นทั้งคู่');
+  engine.hit('K');
+  assert.equal(P.K.cards.length, 1, 'จั่วเพิ่มไม่ได้');
+  // สตั้น + หลับ
+  const Q = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  Q.K.statuses.sleep = 2;
+  Q[E].statuses.stun = 2;
+  dealNow();
+  assert.equal(Q.K.locked, true, 'หลับ + สตั้น');
+});
+
+test('ระบบคู่: ตัวหนึ่งล้ม อีกตัวติดสตั้น/หลับ = ไม่ได้จั่ว · ล้ม + อีกตัวปกติ = จั่วได้', () => {
+  const fall = (u) => { u.hp = 0; u.alive = false; u.corpse = { ...u.pos }; u.pos = null; };
+  let P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  fall(P.K);
+  P[E].statuses.stun = 2;
+  dealNow();
+  assert.equal(P.K.locked, true, 'เคทล้ม เอมิลิโกะสตั้น');
+  P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  fall(P[E]);
+  P.K.statuses.sleep = 2;
+  dealNow();
+  assert.equal(P.K.locked, true, 'เอมิลิโกะล้ม เคทหลับ');
+  P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  fall(P.K);
+  dealNow();
+  assert.equal(P.K.locked, false, 'เคทล้ม เอมิลิโกะปกติ = ยังจั่วได้');
+});
+
+test('ระบบคู่: ต้นเทิร์นม่านแดงฆ่าเคท ขณะเอมิลิโกะติดสตั้น = ไม่ได้จั่ว (reopenFallenOwners ไม่เปิดคืน)', () => {
+  const P = setup([['K', 'kate', 4, 5], [E, null, 12, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 12, 12]]);
+  enemyCurtain(P);
+  P.K.hp = 1; P.K.armor = 0;
+  P[E].statuses.stun = 2;
+  dealNow();
+  assert.equal(P.K.alive, false);
+  assert.equal(P.K.locked, true);
+});
+
+// ---------- Mark 42 ของฝ่ายคู่: ตัวไหนของฝ่ายก็คุมชุดได้ (ผู้ใช้ตัดสิน 2026-10-14) ----------
+const { mark42Control } = require('../../server.js');
+function suitSetup() {
+  // เอมิลิโกะ (4,5) ติด B (5,5) · เคท (2,5) ไม่ติดใคร
+  const P = setup([['K', 'kate', 2, 5], [E, null, 4, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 12, 12]]);
+  for (const u of Object.values(P)) Mark42.resetCombat(u);
+  P.K.inventory = [];
+  Mark42.equip(engine, P.K, P.B, Mark42.SUIT_ARMOR); // เคทซื้อแล้วส่งให้ B
+  return P;
+}
+const control = (id, act) => { engine.setActor(id); mark42Control(id, act); };
+
+test('Mark 42 ระบบคู่: ชุดที่เคทซื้อ เอมิลิโกะสั่งระเบิด/ถอด/เรียกคืนได้ · ระยะนับจากตัวที่สั่ง', () => {
+  let P = suitSetup();
+  assert.equal(Mark42.privateState(engine, P[E]).mark42Owned.wearerId, 'B', 'เอมิลิโกะเห็นชุดของฝ่าย');
+  const before = vit(P.B);
+  control(E, 'detonate');
+  assert.equal(P.B.mark42, null);
+  assert.equal(vit(P.B), before - Mark42.BOMB_DMG);
+  assert.equal(P.K.mark42Owned, null, 'ชุดหมดจากฝ่าย');
+  assert.equal(Mark42.canBuy(engine, P[E]), true);
+  // ถอด: ชุดกลับเข้ากระเป๋าที่ใช้ร่วมกัน
+  P = suitSetup();
+  control(E, 'remove');
+  assert.equal(P.B.mark42, null);
+  assert.equal(P.K.mark42Owned, null);
+  assert.equal(P.K.inventory.filter((it) => it.type === 'mark42').length, 1);
+  // เรียกคืน: ตัวที่เรียกต้องยืนติดคนใส่ · เรียกแล้วสวมเอง ถือสิทธิ์แทน
+  P = suitSetup();
+  engine.setActor('K');
+  assert.equal(Mark42.planControl(engine, P.K, 'recall'), null, 'เคทไม่ได้ยืนติด B');
+  control(E, 'recall');
+  assert.equal(P.B.mark42, null);
+  assert.equal(P[E].mark42.ownerId, E);
+  assert.deepEqual(P[E].mark42Owned, { wearerId: E });
+  assert.equal(P.K.mark42Owned, null);
+  assert.equal(Mark42.privateState(engine, P.K).mark42Owned.wearerId, E, 'เคทยังเห็นชุดของฝ่าย');
+  assert.equal(Mark42.privateState(engine, P[E]).mark42Owned.self, true);
+  // ชุดบนตัวเอมิลิโกะ: เคทถอดได้
+  engine.setActor('K');
+  assert.ok(Mark42.planControl(engine, P.K, 'remove'));
+  // เคทล้มแล้ว เอมิลิโกะยังคุมชุดที่เคทซื้อได้
+  P = suitSetup();
+  P.K.alive = false; P.K.hp = 0; P.K.pos = null;
+  control(E, 'detonate');
+  assert.equal(P.B.mark42, null, 'ระเบิดได้แม้คนซื้อล้มแล้ว');
+});
+
+test('Mark 42 ระบบคู่: ผู้เล่นทั่วไปคุมชุดของคนอื่นไม่ได้ (ไม่เปลี่ยน)', () => {
+  const P = suitSetup();
+  engine.setActor('C');
+  assert.equal(Mark42.planControl(engine, P.C, 'detonate'), null);
+  assert.equal(Mark42.planControl(engine, P.B, 'remove'), null, 'คนใส่ถอดเองไม่ได้');
+  assert.equal(Mark42.privateState(engine, P.C).mark42Owned, null);
+});

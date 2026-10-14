@@ -11,7 +11,7 @@
 //    hkStrium   กิงกะสโตเรี่ยม: แบบเดียวกันแต่เป็นเปลวไฟแดง + ประกายรุ้ง
 //  จังหวะปะทะ (เป้าทุกคนในแนวสั่น · BoardStage ขึ้นเลข/เสียงตรงนั้น): hkHit { x, y, size, tone, hitIds }
 //  ท่าไม้ตาย (socket "hikaruBeam"): hkCross ลำแสงหนาฟ้า-ขาว 5×1 + วงคริสตัลเต้นตามแนว · hkStriumRay ลำแสงรุ้งกว้าง 5×3 + เส้นความเร็ว
-//    fx { x, y, size, dir, len, width, tiles: [{ x, y }] } — ดาเมจลงหลังลำแสงวิ่งถึง (server BEAM_SECONDS = HK_BEAM.reach)
+//    fx { x, y, size, dir, len, width, tiles: [{ x, y }] } — ดาเมจลงหลังลำแสงวิ่งถึง (server รอ ≥ HK_BEAM.reach — ดูข้างล่าง)
 //  วาดด้วย canvas ล้วน · lowQ = ตัดอนุภาค/เรืองซ้อน · ลดการเคลื่อนไหว = ไม่สั่น/ไม่มีอนุภาคลอย
 // ============================================================
 import { P, gEllipse, glow, quad } from "./boardGeo";
@@ -23,7 +23,9 @@ const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 // ระยะเวลาแต่ละท่า (ms) · จังหวะปะทะเป็นสัดส่วนของเวลา (รวมเข้า STYLE_MS / STYLE_HIT_P ใน boardDraw.js)
 export const HK_MS = { hkBlack: 1250, hkThunder: 1150, hkKemur: 1250, hkPandon: 1250, hkDoragory: 1000, hkTiga: 1150, hkGinga: 1250, hkStrium: 1250 };
 export const HK_HIT_P = { hkBlack: 0.46, hkThunder: 0.5, hkKemur: 0.55, hkPandon: 0.55, hkDoragory: 0.42, hkTiga: 0.5, hkGinga: 0.46, hkStrium: 0.46 };
-// ท่าไม้ตาย: ชาร์จ → ลำแสงวิ่งถึงปลาย (reach — server ลงดาเมจที่ BEAM_SECONDS 1.9 วิ) → ค้าง → จาง
+// ท่าไม้ตาย: ชาร์จ → ลำแสงวิ่งถึงปลาย (reach) → ค้าง → จาง · ทุกค่านับจากจังหวะเริ่ม (ms)
+//  สัญญากับ server (characters/raido_hikaru.js): เวลารอฝั่ง server ต้องไม่สั้นกว่าแอนิเมชันฝั่งนี้ — ยาวกว่าได้ (ตั้งใจเผื่อไว้)
+//  BEAM_SECONDS 1.9 วิ ≥ HK_BEAM.reach 1500 · PUSH_SECONDS 0.9 วิ ≥ HK_PUSH_MS 650
 export const HK_BEAM = { charge: 900, reach: 1500, hold: 900, fade: 400 };
 export const HK_PUSH_MS = 650;
 // เสียงตีปกติเริ่มก่อนจังหวะปะทะกี่ ms (ช่วงดังสุดของไฟล์ใน sfx/ ตรงกับจังหวะปะทะ — เสียงยาวที่มีช่วงสะสมพลังเริ่มก่อน)

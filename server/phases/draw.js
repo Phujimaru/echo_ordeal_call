@@ -132,7 +132,7 @@ function dealRound() {
     // หลับไหล (สถานะพื้นฐาน): ออกการกระทำใดๆ ไม่ได้ทั้งเทิร์น
     // และเสียพลังชีวิตแบบไม่สนเกราะเทิร์นละ 1 หน่วย — หักได้เรื่อยๆ แต่ห้ามตาย (ค้างที่ 1 หน่วย)
     if ((p.statuses.sleep || 0) > 0) {
-      if (!Duo.isOwner(p) || !Duo.partnerOf(p).alive) p.locked = true; // ระบบคู่: อีกตัวยังขยับได้ = ผู้เล่นยังจั่วไพ่ได้
+      if (!Duo.isOwner(p)) p.locked = true; // ระบบคู่: ตัดสินทั้งฝ่ายหลังลูป (lockStuckSides)
       if (p.hp > 1) { p.hp--; p.dmgHp++; }
       match.lastLog.push(`💤 ${p.name} หลับไหล — ขยับไม่ได้ (เหลืออีก ${p.statuses.sleep} เทิร์น)`);
     }
@@ -149,7 +149,7 @@ function dealRound() {
     }
     // สตั้น (สถานะพื้นฐาน patch 2.0.8): ทำอะไรไม่ได้จนจบเทิร์นหรือจนกว่าดีบัฟจะหมดเวลา
     if ((p.statuses.stun || 0) > 0) {
-      if (!Duo.isOwner(p) || !Duo.partnerOf(p).alive) p.locked = true;
+      if (!Duo.isOwner(p)) p.locked = true;
       match.lastLog.push(`😵 ${p.name} ติดสถานะสตั้น — ขยับไม่ได้ทั้งเทิร์น! (เหลืออีก ${p.statuses.stun} เทิร์น)`);
     }
   }
@@ -168,6 +168,7 @@ function dealRound() {
     if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
   }
   reopenFallenOwners();
+  lockStuckSides();
   // ผลต้นเทิร์นฆ่าศัตรูคนสุดท้าย = จบเกมทันที (ด่านเดียวกับ nextActor)
   if (endTurnPhase.gameOver()) return;
 
@@ -190,6 +191,17 @@ function skipFallen(p, cardHolder) {
 //  instantDeath ล็อกไว้เพราะไม่ใช่ช่วงจั่ว → เปิดให้จั่ว/เปิดไพ่ต่อ (เหมือนล้มในลูปต้นเทิร์น — skipFallen)
 function reopenFallenOwners() {
   for (const p of Duo.cardHolders()) if (!p.alive && p.locked) p.locked = false;
+}
+// ระบบคู่ — สตั้น/หลับไหล (ผู้ใช้ตัดสิน 2026-10-14): ยังมีตัวที่ขยับได้ = จั่วตามปกติ (ตัวที่ติดถูกข้ามตาเดิน — action.nextActor)
+//  ทุกตัวที่ยังอยู่ติดหมด (ติดทั้งคู่ / ตัวหนึ่งล้มอีกตัวติด) = เหมือนผู้เล่นคนเดียวที่ติดสตั้น/หลับไหล — ไม่ได้จั่ว
+//  หลัง reopenFallenOwners: เจ้าของที่ล้มต้นเทิร์นแต่คู่ติดสตั้นต้องกลับมาล็อก
+function lockStuckSides() {
+  const held = (u) => ((u.statuses.stun || 0) > 0) || ((u.statuses.sleep || 0) > 0);
+  for (const o of Duo.cardHolders()) {
+    if (!o.duoWith) continue;
+    const units = Duo.unitsOf(o).filter((u) => u.alive);
+    if (units.length && units.every(held)) o.locked = true;
+  }
 }
 // แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)
 function dealHand(p) {

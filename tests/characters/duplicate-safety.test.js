@@ -69,6 +69,28 @@ test('โอเบรอน 2 คน: หน้าไหว้หลังหล
   assert.deepEqual([c.skillPoints, c.gold], [4, 0]);
 });
 
+test('โอเบรอน 2 คน: ใส่ผลเป้าเดียวกันไม่เขียนทับกัน — ทุกครั้งนับ (นกจาบ 2 + 2 · ความฝัน +8 สตั้น 3 + 3 · ม่าน +2)', () => {
+  const a = player('oberon_summer');
+  const b = player('oberon_summer');
+  const larkT = player('dummy'); // เป้าไม่ผ่าน resetCombat ของโอเบรอน — ฟิลด์รายครั้งต้องเริ่มเองได้
+  const dreamT = player('dummy');
+  oberon.applyInstantSkill(engine, a, 'secondary', [larkT.id]);
+  oberon.applyInstantSkill(engine, b, 'secondary', [larkT.id]);
+  larkT.hp = 10;
+  oberon.onRoundStartTick(engine, larkT);
+  assert.equal(larkT.hp, 10 - 2 * oberon.LARK_DRAIN, 'เครื่องหมายของ a ไม่ถูก b เขียนทับ');
+  oberon.applyInstantSkill(engine, a, 'ultimate', [dreamT.id]);
+  oberon.applyInstantSkill(engine, b, 'ultimate', [dreamT.id]);
+  assert.equal(oberon.atkBonus(dreamT), 2 * oberon.DREAM_ATK);
+  oberon.onEndTurn(engine);
+  assert.equal(dreamT.statuses.stun, 2 * oberon.DREAM_STUN_TURNS, 'สตั้นของ a ไม่หาย');
+  assert.equal(dreamT.statuses.obsDream, undefined);
+  oberon.applyInstantSkill(engine, a, 'basic', [a.id, larkT.id]);
+  oberon.applyInstantSkill(engine, b, 'basic', [b.id, larkT.id]);
+  assert.equal(oberon.atkBonus(larkT), 2 * oberon.VEIL_ATK);
+  assert.equal(oberon.atkBonus(a), oberon.VEIL_ATK, 'ม่านของ b ไม่ถึง a');
+});
+
 test('มุยมิ 2 คน: เสบียงฉุกเฉินและคูลดาวน์ท่าไม้ตายนับแยกกัน', () => {
   const a = player('muimi');
   const b = player('muimi');
