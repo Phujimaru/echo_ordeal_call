@@ -372,6 +372,24 @@ test('Mouse Separade: ฆ่าได้ (เราไปยืนช่อง�
   assert.deepEqual(P.S.pos, { x: 2, y: 5 });
 });
 
+test('Mouse Separade: เป้าตกรอบระหว่างคลิปชน = หยุดที่ปลายทางพุ่ง (ช่องหน้าเป้า) · ไม่มีดาเมจ/สลับที่', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  Math.random = () => 0.99;
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
+  myth(P.S);
+  // คลิปชนเริ่ม → เป้าหายไประหว่างคลิป (ตกรอบจากอย่างอื่น)
+  engine.queueCutscene = (p, key) => { calls.queue.push(key); if (key === 'soraHit') { P.B.alive = false; P.B.pos = null; } };
+  try {
+    engine.setActor('S');
+    engine.useSkill('S', 'ultimate', [], { dir: 'right' });
+    flush(t, 6000);
+  } finally { engine.queueCutscene = (p, key) => calls.queue.push(key); }
+  assert.deepEqual(P.S.pos, { x: 3, y: 5 });
+  const dash = engine.buildStateFor('S').dash;
+  assert.deepEqual(dash.path, [{ x: 3, y: 5 }]);
+  assert.equal(dash.swap, undefined);
+});
+
 test('Mouse Separade: พังสิ่งกีดขวางที่พุ่งผ่าน · ไม่เลือกทิศ = กดไม่ได้ (ไม่เสียแต้ม)', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   // หาสิ่งกีดขวางที่มีช่องว่าง 2 ช่องทางซ้ายบนภูมิภาค I

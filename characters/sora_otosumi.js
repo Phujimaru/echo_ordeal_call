@@ -176,7 +176,8 @@ function pool(t) {
 }
 // คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่
 function impact(engine, p, t, start, stop, big) {
-  if (!p.alive || !t.alive || !t.pos) return;
+  if (!p.alive) return;
+  if (!t.alive || !t.pos) { settleAtStop(engine, p, stop, big); return; }
   const at = { ...t.pos };
   const before = pool(t);
   t.wasAttacked = true;
@@ -196,6 +197,12 @@ function impact(engine, p, t, start, stop, big) {
   }
   engine.setDash({ id: p.id, path: big ? [{ ...p.pos }] : [{ ...stop }, at], swap, boom: at, boomSize: (t.alive && engine.sizeOf(t)) || 1 });
   engine.skillBeat(BOOM_SECONDS, () => {});
+}
+// เป้าตกรอบ/หายไประหว่างคลิปชน (ผู้ใช้ตัดสิน): หยุดที่ปลายทางพุ่ง (ช่องที่ภาพค้างไว้) · ช่องนั้นไม่ว่าง = อยู่ที่เดิม
+//  ชนตัวใหญ่ = ตำแหน่งตั้งไว้แล้วตอนจบจังหวะพุ่ง
+function settleAtStop(engine, p, stop, big) {
+  if (!big && stop && engine.tileFree(stop.x, stop.y, p.id)) p.pos = { x: stop.x, y: stop.y };
+  engine.setDash({ id: p.id, path: [{ ...p.pos }] });
 }
 
 module.exports = {

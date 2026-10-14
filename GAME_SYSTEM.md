@@ -273,7 +273,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
 **โซระ โอโตสุมิ (`sora_otosumi` · ง่าย)** — `characters/sora_otosumi.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.7 · เทสต์ [tests/characters/sora_otosumi.test.js](tests/characters/sora_otosumi.test.js)
 - สถานะอยู่ `p.sora` (`myth` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ · `ultReady` เลขรอบที่กด Mouse Separade ได้อีก) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
 - ตีปกติผ่านฮุคกลางทั้งหมด (`range` · `damageBonus` · `critPct` · `attackBeam`/`attackBeamTone`/`attackHitFx`/`attackSound` · `afterBoardAttack`) ไม่มีจุดเรียกเจาะจง
-- Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat`
+- Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat` · เป้าตกรอบ/หายไประหว่างคลิปชน = โซระหยุดที่ปลายทางพุ่ง (ช่องหน้าเป้า · ไม่ว่าง = ที่เดิม — `settleAtStop`)
   · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
   · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
   · ผลของสกิลโจมตีพื้นที่เฉพาะช่องที่พุ่งผ่านจริง + ช่องที่ชน (ผู้ใช้ตัดสิน): ฮุค `ownsAreaHit` → `useSkill` ข้าม `exposeBush`/`onAreaHit`/`hitSealsInArea`/`hitSpikesInArea` ของทั้งแนว · โซระเรียก `skills.hitArea(p, tiles, ids)` เองในจังหวะพุ่ง (ก่อนพังของ) · ระหว่างนั้น `attackBaseOverride` = `ULT_DMG` และ `damageBonus` = 0 → ผนึก/หนามโดน 3 (ไม่มีโบนัสมีด)
@@ -300,7 +300,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - **หน้าไหว้หลังหลอก** (passive): `onEndTurn` — โอเบรอนที่ `!p.wasAttacked` ทั้งเทิร์น ได้แต้มสกิล +1 และเหรียญ +1 (ถูกเลือกเป็นเป้าแม้หลบได้ก็นับว่าถูกโจมตี)
 - **ใส่ซ้ำคนเดิม = ทุกครั้งนับ** (โอเบรอนหลายคน/ท่าเดิมลงซ้ำ — ผลเกิดเท่าจำนวนครั้ง ไม่เขียนทับกัน) · เก็บรายครั้งที่ตัวเป้า ล้างใน `resetCombat`:
   `t.obsVeilStack` (เทิร์นที่เหลือต่อครั้ง · ลดใน `onEndTurn` คู่กับลูปลดเทิร์น · +1 ต่อครั้ง) · `t.obsLarkStack` (จำนวนเครื่องหมาย · `onRoundStartTick` เรียก `dealDirect` 2 ทีละครั้ง) ·
-  `t.obsDreamQueue` (เทิร์นใช้บัฟต่อครั้ง · `t.obsDreamUseRound` = ค่าน้อยสุด · +4 ต่อครั้ง · ครั้งที่ถึงพร้อมกันสตั้นรวม 3 × จำนวน — ถึงคนละเทิร์นใช้ `applyDebuff` ตามปกติ)
+  `t.obsDreamQueue` (เทิร์นใช้บัฟต่อครั้ง · `t.obsDreamUseRound` = ค่าน้อยสุด · +4 ต่อครั้ง · ครั้งที่ถึงพร้อมกันสตั้นรวม 3 × จำนวน — สตั้นซ้อนบวกต่อจากเทิร์นที่ยังเหลือเสมอ ไม่รีเซ็ต)
   · `statuses.*` ยังเป็นเทิร์นที่เหลือ (ป้าย client) · `statusAmt.obsVeil`/`obsDream` = ผลรวม · สถานะที่ตั้งตรงๆ ไม่มีรายการครั้ง = นับ 1 ครั้ง
 - `obsVeil`/`obsDream`/`obsLark` ไม่อยู่ใน `BUFF_KEYS`/`BASIC_DEBUFF_CLEAR` → ปาด/ล้าง/ต้านไม่ได้ · พลังโจมตีอ่านแบบ ungated ที่ `computeAttackBase` (`atkBonus`) + ป้าย `atkFx`
 - ล็อก/คูลดาวน์รายช่องส่งผ่าน `skillLocks` · เสียงกดสกิลรายช่อง `skillSound` (`oberon_summer_skill1-3`)

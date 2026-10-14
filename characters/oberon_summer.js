@@ -192,8 +192,10 @@ module.exports = {
       if (t.obsDreamQueue.length) t.statusAmt.obsDream = DREAM_ATK * t.obsDreamQueue.length;
       else { delete t.statuses.obsDream; if (t.statusAmt) delete t.statusAmt.obsDream; } // ตาเดินที่ได้ใช้บัฟผ่านไปแล้ว
       if (!t.alive) continue;
+      // สตั้นซ้อน = บวกต่อจากเทิร์นที่ยังเหลือ (ผู้ใช้ตัดสิน — ไม่รีเซ็ตกลับเป็น 3)
       const stun = DREAM_STUN_TURNS * due;
-      if (engine.applyDebuff(t, "stun", null, stun)) engine.log(`💤 ${t.name} ความฝันจบลง — ติดสตั้น ${stun} เทิร์น`);
+      const left = t.statuses.stun || 0;
+      if (engine.applyDebuff(t, "stun", null, left + stun)) engine.log(`💤 ${t.name} ความฝันจบลง — ติดสตั้น ${stun} เทิร์น${left ? ` (รวม ${left + stun})` : ""}`);
       else engine.log(`💤 ${t.name} ต้านทานสตั้นจากจุดจบของความฝันได้ (ต้านสถานะผิดปกติ)`);
     }
     // สกิลติดตัว หน้าไหว้หลังหลอก: ไม่ถูกโจมตีปกติในเทิร์นนี้ -> แต้มสกิล +1 และเหรียญ +1

@@ -286,7 +286,8 @@ test('จุดจบของความฝัน: ครั้งที่ 2 
   assert.equal(T.obsDreamUseRound, r0 + 1);
   nextRound();
   assert.equal(T.statuses.obsDream, undefined);
-  assert.ok(T.statuses.stun > 0, 'ครั้งที่ 2 ลงผลด้วย');
+  // สตั้นซ้อน = บวกต่อ: ครั้งแรกเหลือ 2 (ลดไป 1 เทิร์น) + ครั้งที่ 2 อีก 3
+  assert.equal(T.statuses.stun, ob.DREAM_STUN_TURNS - 1 + ob.DREAM_STUN_TURNS, 'ครั้งที่ 2 บวกต่อจากที่เหลือ');
   assert.deepEqual(T.obsDreamQueue, []);
 });
 
