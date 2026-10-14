@@ -441,7 +441,31 @@ function cloakShimmer(g, cx, cy, r, now) {
   g.restore();
 }
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
+// หมอกดำแดงรอบตัว (กิระร่างราชาแมลงอวกาศ — ศัตรูช่องประชิดเสียหายทุกเทิร์น): พื้นแดงหม่นที่ช่องประชิด 4 ช่อง + ก้อนหมอกหมุนรอบตัว
+//  lowQ = ไม่มีก้อนหมอก · ลดการเคลื่อนไหว = หมอกนิ่ง
+function kiraAura(g, wx, wy, now, lowQ, alpha = 1) {
+  const t = REDUCED ? 0 : now, pulse = 0.75 + 0.25 * Math.sin(t / 520);
+  g.save();
+  g.globalAlpha = alpha; // จางตามตัวละคร (เลือกเป้า/เงา)
+  g.globalCompositeOperation = "source-over";
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const cx = wx + dx, cy = wy + dy;
+    gEllipse(g, cx, cy, 0.42, 0, 24); g.fillStyle = `rgba(90,6,14,${0.22 * pulse})`; g.fill();
+  }
+  gEllipse(g, wx, wy, 1.05, 0, 40); g.strokeStyle = `rgba(170,20,30,${0.45 * pulse})`; g.lineWidth = 2; g.stroke();
+  if (!lowQ) {
+    for (let i = 0; i < 9; i++) {
+      const th = (i / 9) * Math.PI * 2 + t / (1400 + i * 90), r = 0.55 + 0.25 * Math.sin(t / 700 + i * 1.7);
+      const z = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(t / 600 + i));
+      const [sx, sy, sc] = P(wx + Math.cos(th) * r, wy + Math.sin(th) * r, z);
+      glow(g, sx, sy, sc * (0.28 + 0.08 * Math.sin(t / 450 + i)), i % 3 ? "20,4,8" : "150,14,24", (i % 3 ? 0.45 : 0.4) * pulse);
+    }
+  }
+  g.restore();
+}
+
 function drawUnit(g, u, now, boxes) {
+  if (u.aura === "kira") kiraAura(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   let jx = 0, jy = 0;
   const hitAge = u.hitT ? now - u.hitT : 1e9;
   if (hitAge >= 0 && hitAge < 300) { const k = 1 - hitAge / 300; jx = (Math.random() - 0.5) * 0.12 * k; jy = (Math.random() - 0.5) * 0.08 * k; }
@@ -1211,6 +1235,7 @@ const RED = "235,28,48", RED_HI = "255,120,120", WHITE_RED = "255,215,215";
 const BEAM_TONES = {
   red: { c: RED, glow: RED, hi: RED_HI, hot: WHITE_RED },
   blue: { c: "70,175,255", glow: "28,72,235", hi: "175,232,255", hot: "220,244,255" },
+  dark: { c: "150,70,230", glow: "58,10,110", hi: "215,170,255", hot: "235,215,255" }, // กิระ ร่างราชาแมลงอวกาศ (ปาดคลื่น)
 };
 // ช่องที่ลำแสงผ่าน (เริ่มช่องติดคนยิง · ตัดที่ขอบกระดาน) + เวลาที่ปลายลำแสงถึงกลางแต่ละช่อง (ms นับจากเริ่ม fx)
 //  f.to = ช่องเป้า (ตีปกติของนักบินปริศนา) → ยิงเฉียงตรงไปหาเป้าได้ ยาว len ช่อง แทนการเลือก 4 ทิศ
@@ -1794,7 +1819,85 @@ function boomFx(g, e, now, lowQ) {
   g.restore();
 }
 
+// =================================================================== คลื่นความมืด (กิระ)
+//  fx { kind: "darkWave", x, y (ช่องกิระ), dir, len, width, dark: prepareDarkWave(...) }
+//  คลื่นม่วงดำม้วนไปข้างหน้าทีละแถว (DARK_T.step) · ทุกช่อง: เงามืดซึมพื้น → ยอดคลื่นยกตัวแล้วซัดลง (แฟลชม่วง) → หมอกดำจาง
+//  แถวข้าง (ช่อง 1 / 3) มีเส้นดูดเข้าหาแนวกลาง — การบีบตัวจริงตามมาเป็นเหตุการณ์ knock (iceFx) หลังคลื่นจบ
+//  lowQ = ไม่มีหมอก/เส้นดูด · ลดการเคลื่อนไหว = ไม่มียอดคลื่น
+export const DARK_T = { step: 110, rise: 260, after: 640 };
+const DARK = "120,40,200", DARK_HI = "205,150,255", DARK_DEEP = "26,6,48";
+export function prepareDarkWave(f, cols, rows) {
+  const v = BEAM_DIRS[f && f.dir];
+  if (!v || !Number.isFinite(f.x) || !Number.isFinite(f.y)) return null;
+  const len = Math.max(1, Math.min(16, Math.floor(+f.len) || 4)), half = Math.floor((Math.floor(+f.width) || 3) / 2);
+  const [fx, fy] = v, sx = -fy, sy = fx;
+  const tiles = [];
+  for (let i = 1; i <= len; i++) {
+    for (let j = -half; j <= half; j++) {
+      const x = f.x + fx * i + sx * j, y = f.y + fy * i + sy * j;
+      if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+      tiles.push({ x, y, j, sx, sy, seed: i * 5.7 + j * 2.3, at: (i - 1) * DARK_T.step + Math.abs(j) * 30 });
+    }
+  }
+  if (!tiles.length) return null;
+  const hits = tiles.map((t) => t.at + DARK_T.rise);
+  return { tiles, hits, dur: Math.max(...hits) + DARK_T.after + 40 };
+}
+function darkWaveFx(g, e, now, lowQ) {
+  const W = e.dark;
+  if (!W) return;
+  const t = now - e.t0;
+  if (t < 0 || t > W.dur) return;
+  const A = DARK_T.after, R = DARK_T.rise;
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  W.tiles.forEach((tl, i) => {
+    const age = t - tl.at;
+    if (age < 0 || age > R + A) return;
+    const cx = tl.x + 0.5, cy = tl.y + 0.5;
+    const hitAge = age - R, k = hitAge < 0 ? Math.min(1, age / R) : 1 - hitAge / A;
+    // เงามืดซึมพื้น
+    g.globalCompositeOperation = "source-over";
+    quad(g, tl.x, tl.y, 0.04); g.fillStyle = `rgba(${DARK_DEEP},${0.6 * k})`; g.fill();
+    quad(g, tl.x, tl.y, 0.18); g.fillStyle = `rgba(${DARK},${0.35 * k})`; g.fill();
+    // ยอดคลื่นยกตัว (ก่อนปะทะ)
+    if (hitAge < 0 && !REDUCED) {
+      const f = age / R, z = 0.2 + 1.1 * Math.sin(f * Math.PI / 2);
+      taper(g, P(cx, cy, 0), P(cx, cy, z), 0.7 * (0.5 + f * 0.5), `rgba(${DARK},${0.55 + 0.35 * f})`);
+      taper(g, P(cx, cy, z * 0.6), P(cx, cy, z), 0.3, `rgba(${DARK_HI},${0.7 * f})`);
+      return;
+    }
+    if (hitAge < 0) return;
+    const q = hitAge / A;
+    // แฟลชตอนซัดลง + วงคลื่นแผ่
+    const [sx0, sy0, sc] = P(cx, cy, 0.3);
+    if (hitAge < 160) { g.globalCompositeOperation = "lighter"; glow(g, sx0, sy0, sc * 0.7, DARK_HI, 0.9 * (1 - hitAge / 160)); }
+    const ring = Math.min(1, hitAge / 360);
+    if (ring < 1) {
+      g.globalCompositeOperation = "source-over";
+      g.strokeStyle = `rgba(${DARK_HI},${0.85 * (1 - ring)})`; g.lineWidth = Math.max(1.5, sc * 0.07 * (1 - ring));
+      gEllipse(g, cx, cy, 0.18 + ring * 0.7, 0, 28); g.stroke();
+    }
+    // แถวข้าง: เส้นดูดเข้าหาแนวกลาง
+    if (!lowQ && tl.j && q < 0.7) {
+      // o = ทิศเข้าหาแนวกลาง · f = ทิศคลื่น (เส้นเรียงตามแนวคลื่น 3 เส้น)
+      const a = 1 - q / 0.7, ox = -tl.sx * tl.j, oy = -tl.sy * tl.j, fx = tl.sy, fy = -tl.sx;
+      for (let d = 0; d < 3; d++) {
+        const off = (d - 1) * 0.22, bx = cx + fx * off - ox * 0.15, by = cy + fy * off - oy * 0.15, s = 0.15 + q * 0.55;
+        taper(g, P(bx, by, 0.25), P(bx + ox * s, by + oy * s, 0.25), 0.06, `rgba(${DARK_HI},${0.6 * a})`);
+      }
+    }
+    // หมอกดำลอยขึ้น
+    if (!lowQ) {
+      const [dx0, dy0, ds] = P(cx, cy, 0.4 + q * 1.1);
+      g.globalCompositeOperation = "source-over";
+      glow(g, dx0, dy0, ds * (0.3 + q * 0.5), "40,12,70", 0.5 * (1 - q));
+    }
+  });
+  g.restore();
+}
+
 export const FX_DUR = {
+  darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
 };
@@ -1942,6 +2045,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
     else if (e.kind === "beam") beamFx(g, e, now, lowQ);
     else if (e.kind === "quake") quakeFx(g, e, now, lowQ);
+    else if (e.kind === "darkWave") darkWaveFx(g, e, now, lowQ);
     else if (e.kind === "mythSlash") mythSlashFx(g, e, now, lowQ);
     else if (e.kind === "soraDash") dashFx(g, e, now, lowQ);
     else if (e.kind === "soraBoom") boomFx(g, e, now, lowQ);

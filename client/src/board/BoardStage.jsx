@@ -24,7 +24,7 @@ import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
-import { BEAM_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
+import { BEAM_T, DARK_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
@@ -728,6 +728,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("quakeFx", onQuake);
     return () => socket.off("quakeFx", onQuake);
   }, [pushFx, look, lowQ]);
+  // คลื่นความมืด (กิระ) — { from, dir, len, width, color } · กล้องตามกลางแนว · จอสั่นตอนแถวแรกซัดลง
+  useEffect(() => {
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const onDark = (b) => {
+      const v = b && DIRS[b.dir];
+      if (!v || !b.from || !Number.isFinite(b.from.x) || !Number.isFinite(b.from.y)) return;
+      const len = Number(b.len) || 4;
+      pushFx([{ kind: "darkWave", x: b.from.x, y: b.from.y, dir: b.dir, len, width: b.width, color: b.color }]);
+      playSfx("kira_wave");
+      const bd = boardRef.current || {}, half = Math.ceil(len / 2);
+      const cl = (n, hi) => Math.max(0, Math.min(Math.max(0, (hi || 1) - 1), n));
+      look({ x: cl(b.from.x + v[0] * half, bd.cols), y: cl(b.from.y + v[1] * half, bd.rows) });
+      if (!lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), DARK_T.rise));
+    };
+    socket.on("darkWaveFx", onDark);
+    return () => socket.off("darkWaveFx", onDark);
+  }, [pushFx, look, lowQ]);
 
   // ท่าไม้ตายไรโด ฮิคารุ: { id, kind: "cross" | "ray", from, size, dir, len, width, tiles } — ชาร์จที่หน้าตัว → ลำแสงวิ่งถึงปลาย (= ดาเมจลง)
   //  กล้องตามกลางแนว · จอสั่นตอนลำแสงปล่อย/ถึงปลาย · hikaruPush { moves: [{ id, from, to }] } = คนที่ถูกผลัก (เลื่อนตามเมื่อ state มาถึง)
@@ -1165,6 +1182,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       cloak: !!p.veiled,
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
+      aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
     // ร่างของตัวที่ล้ม (ระบบคู่): เงาร่างล้มบนช่อง (id "corpse:<id>" — คลิก = คลิกช่อง)

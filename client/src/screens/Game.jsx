@@ -797,6 +797,7 @@ const STATUS_INFO = {
   slow:          { icon: "❄️", label: "เชื่องช้า", cls: "bg-echo-ice text-gray-900", desc: "ระยะเดิน −1" },
   // เคท & เอมิลิโกะ
   shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
+  rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
   // Echo
@@ -828,6 +829,13 @@ function statusEntries(p, full) {
     out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900", desc: "" });
   }
   if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
+  // กิระ: ร่างราชาแมลงอวกาศ · นับเทิร์นร่างกิระ · อัฐิราชา (เทิร์นที่เหลือ)
+  if (p.kira) {
+    const k = p.kira;
+    if (k.king) out.push({ key: "kiraKing", v: 1, icon: "🪲", label: "ราชาแมลงอวกาศ", cls: "bg-violet-500 text-white", desc: "" });
+    if (!k.king && k.calm > 0) out.push({ key: "kiraCalm", v: 1, icon: "💚", label: `บดขยี้ส่วนเกิน ${k.calm}/${k.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
+    if (k.ult > 0) out.push({ key: "kiraUlt", v: k.ult, turns: true, icon: "🦴", label: "อัฐิราชา", cls: "bg-violet-900 text-white", desc: "" });
+  }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
@@ -1063,8 +1071,9 @@ function GutsVideoPreloader({ me, players }) {
   const preloadMuimi = (players || []).some((p) => p.character?.id === "muimi");
   const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
   const preloadSora = (players || []).some((p) => p.character?.id === "sora_otosumi");
+  const preloadKira = (players || []).some((p) => p.character?.id === "kira");
   const preloadHikaru = (players || []).some((p) => p.character?.id === "raido_hikaru");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru) return null;
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1075,6 +1084,7 @@ function GutsVideoPreloader({ me, players }) {
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill1.mp4" preload="auto" muted playsInline />}
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill2.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill1.mp4" preload="auto" muted playsInline />}
+      {preloadKira && <video src="/characters/kira/kira_skill1.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
       {preloadHikaru && HIKARU_CLIPS.map((f) => <video key={f} src={`/characters/raido_hikaru/${f}.mp4`} preload="auto" muted playsInline />)}

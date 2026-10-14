@@ -290,6 +290,48 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- กิระ (ราชาแมลงอวกาศ) — ระดับง่าย — ดู characters/kira.js ----------
+    //  ร่างกิระ ⇄ ราชาแมลงอวกาศ (ตีปกติแนวตรง 4×1 ผ่านฮุค range/attackLane) · ท่าไม้ตายตายแล้วฟื้น (ฮุค preventDeath)
+    id: "kira",
+    name: "กิระ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/kira/kira.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "บดขยี้ส่วนเกิน",
+      desc: "ร่างราชาแมลงอวกาศ: ตีปกติปาดคลื่นแนวตรง 4×1 จากตัว โดนศัตรูทุกคนในแนว · หมอกดำแดงรอบตัว: จบเทิร์น ศัตรูที่ประชิดตัวเสียหาย 1 (เกราะรับก่อน) · ร่างกิระ: อยู่ต่อเนื่องครบ 2 เทิร์น ฟื้นพลังชีวิต 2 และแต้มสกิล 1 (สลับร่างแล้วนับใหม่)",
+    },
+    basic: {
+      name: "สวมเกราะราชัน",
+      desc: "ไม่นับเป็นการใช้สกิล: สลับร่างกิระ ⇄ ราชาแมลงอวกาศ",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/kira/kira_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/kira.js
+    },
+    secondary: {
+      name: "คลื่นความมืด",
+      desc: "เลือกทิศ: คลื่นแนว 4×3 ศัตรูทุกคนในแนวเสียหาย 1 (เกราะรับก่อน · หลบไม่ได้) · คนที่อยู่แถวข้างถูกบีบเข้าแถวกลาง (ช่องไม่ว่าง = ช่องว่างที่ใกล้สุด) และเดินไม่ได้ 1 เทิร์น (ต้านได้)",
+      area: { kind: "line", len: 4, width: 3, hostile: true },
+      cost: 4,
+      img: "/characters/kira/kira_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "อัฐิราชา",
+      desc: "3 เทิร์น (รวมเทิร์นนี้): ตายแล้วฟื้นทันทีด้วยพลังชีวิต 1 ไม่จำกัดครั้ง · พลังโจมตี +2 · ใช้ได้ 2 ครั้งต่อเกม",
+      area: { kind: "self" },
+      cost: 8,
+      img: "/characters/kira/kira_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "ก่อกำเนิดใหม่" (ผู้ใช้ตัดสิน 2026-10-10) — ฉากโลกแตก + เปลี่ยนภูมิภาค/นับเวลาใหม่ (server/phases/endTurn.js journeyRebirth)

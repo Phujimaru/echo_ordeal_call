@@ -62,6 +62,18 @@ const FILES = {
   hk_strium: "/characters/raido_hikaru/sfx/hk_strium.mp3",
   hk_cross: "/characters/raido_hikaru/sfx/hk_cross.mp3",
   hk_ray: "/characters/raido_hikaru/sfx/hk_ray.mp3",
+  // กิระ (ราชาแมลงอวกาศ) — Mixkit ฟรี (ต้นฉบับ .claude/plans/kira-sfx-src/)
+  //  armor/unarmor/ult = ป้ายสกิล · hit/sweep = ตีปกติ (กิระ / ราชา) · wave = เอฟเฟกต์คลื่นความมืด · squeeze/regen/revive = server ส่ง sfx/ป้าย
+  kira_armor: "/characters/kira/sfx/kira_armor.mp3",
+  kira_unarmor: "/characters/kira/sfx/kira_unarmor.mp3",
+  kira_hit: "/characters/kira/sfx/kira_hit.mp3",
+  kira_sweep: "/characters/kira/sfx/kira_sweep.mp3",
+  kira_wave: "/characters/kira/sfx/kira_wave.mp3",
+  kira_squeeze: "/characters/kira/sfx/kira_squeeze.mp3",
+  kira_ult: "/characters/kira/sfx/kira_ult.mp3",
+  kira_revive: "/characters/kira/sfx/kira_revive.mp3",
+  kira_regen: "/characters/kira/sfx/kira_regen.mp3",
+  kira_king: "/characters/kira/kira_king_theme.mp3", // เพลงร่างราชาแมลงอวกาศ (Rcules no Inbou — ไฟล์จากผู้ใช้) เล่นค้างตลอดร่าง
   // Ice Spike — gp/slide/skill_2/skill_2_broke/ult = ไฟล์จากผู้ใช้ · is_* อื่น = Mixkit ฟรี (ต้นฉบับ .claude/plans/ice-spike-sfx-src/)
   //  เล่นตามเหตุการณ์ iceFx (BoardStage) · gp/slide สุ่ม 1/2
   is_gp_1: "/characters/ice_spike/sfx/gp_1.mp3",

@@ -43,6 +43,9 @@ function activeSkillMusic() {
     if (CHAR_HOOKS.muimi.towerActive(p)) {
       if (!best || (p.transformAt || 0) > best.at) best = { music: "muimi", at: p.transformAt || 0 };
     }
+    // กิระ: เพลงร่างราชาแมลงอวกาศเล่นค้างตลอดร่าง
+    const kira = match.gameState !== "GAMEOVER" ? CHAR_HOOKS.kira.kingMusic(p) : null; // จบเกมแล้วกลับเพลงปกติ (ร่างราชาอยู่ถาวร)
+    if (kira && (!best || kira.at > best.at)) best = kira;
   }
   // ระบำเขม่า (เคท): เพลง intro → loop ตลอดที่ม่านแดงยังอยู่ (client เล่น intro ครั้งเดียวต่อ seq แล้ววน loop)
   for (const s of Soot.storms()) {
@@ -285,6 +288,7 @@ function buildStateFor(viewerId) {
         sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
+        kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),

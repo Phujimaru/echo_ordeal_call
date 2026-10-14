@@ -147,6 +147,9 @@ function instantDeath(p, force) {
   if (friendlyEffectBlocked(p)) return;
   // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
+  // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
+  const deathHook = CHAR_HOOKS[p.characterId];
+  if (!force && deathHook && deathHook.preventDeath && deathHook.preventDeath(engine, p)) return;
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
   Duo.onDeath(p); // ระบบคู่: ล้มขณะอีกตัวยังอยู่ = ทิ้งร่างไว้ (ตกรอบทั้งฝ่าย = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
   if (Duo.isOwner(p) && Duo.sideAlive(p)) { p.result = null; p.locked = match.gameState !== "PLAYING"; }

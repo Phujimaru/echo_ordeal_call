@@ -87,9 +87,11 @@ function dealRound() {
         match.lastLog.push(`🌩️ ${p.name} ถูกสิ่งแปลกปลอมกัดกิน — รับความเสียหาย -${dotDmg}`);
         if (p.alive && p.hp <= 0) {
           combat.instantDeath(p);
-          if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
-          skipFallen(p, cardHolder);
-          continue;
+          if (!p.alive) { // ฟื้นได้ (อัฐิราชาของกิระ) = เล่นเทิร์นนี้ต่อตามปกติ
+            match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
+            skipFallen(p, cardHolder);
+            continue;
+          }
         }
       }
     }

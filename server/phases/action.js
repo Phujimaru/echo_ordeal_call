@@ -141,6 +141,7 @@ function baseMovOf(p) {
 // ระยะเดินเทิร์นนี้: ไพ่แตก −1 · เชื่องช้า −1 (Ice Spike — ไม่ซ้อน)
 //  เดินต่อหลังจบตา (canto — ฮุค cantoMov · เอมิลิโกะ) = ค่าของฮุคตรงๆ
 function movOf(p) {
+  if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
   if (match.action && match.action.canto && match.actorId === p.id) return match.action.cantoMov || 0;
   return Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0));
 }

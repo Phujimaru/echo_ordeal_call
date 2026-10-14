@@ -327,6 +327,7 @@ test('ท่าตีปกติ: 1×1 คลื่นเสียง · 2×2�
 // ---------- ท่าไม้ตาย ก่อกำเนิดใหม่ ----------
 const { REBIRTH_SECONDS } = require('../../server/constants.js');
 const Journey = require('../../characters/_journey.js');
+const Zero = require('../../server/zeroTime.js');
 // ไล่ฉากโลกแตกให้จบพอดี (ตัวจับเวลาเฟสนับทีละ 1 วิ) — ตาเดินของคนถัดไป (60 วิ) ยังไม่หมด
 const runScene = (t) => { for (let i = 0; i < REBIRTH_SECONDS; i++) t.mock.timers.tick(1000); };
 const ultLocks = (id) => engine.buildStateFor(id).players.find((p) => p.id === id).skillLocks.ultimate;
@@ -402,6 +403,9 @@ test('ก่อกำเนิดใหม่: ฉาก rebirth (ระหว�
 
 test('ก่อกำเนิดใหม่: เทิร์นที่ใช้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (กลางวัน) · อยู่ครบ 6 เทิร์นนับจากเทิร์นนั้น · ร้านค้าปรากฏใหม่นับ 6 เทิร์นใหม่', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  // จบเทิร์น 9 → เทิร์น 10 กลางคืน = ห่วงเวลาซีโร่สุ่มเกิดได้ — ปิดไว้ในเทสต์นี้ (ทดสอบแค่การนับภูมิภาค)
+  Zero.ZERO_ENABLED = false;
+  t.after(() => { Zero.ZERO_ENABLED = true; });
   rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]], { round: 5 });
   assert.equal(engine.isNightRound(5), true, 'ภูมิภาคเดิม: เทิร์น 5 กลางคืน');
   const shopBefore = engine.shopItems;

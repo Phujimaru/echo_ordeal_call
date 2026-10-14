@@ -11,6 +11,7 @@ const sora_otosumi = require("./sora_otosumi"); // โซระ โอโตส�
 const raido_hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ — ระดับกลาง (UltraLive / Ultraman Ginga)
 const ice_spike = require("./ice_spike"); // Ice Spike — ระดับยาก (ธารน้ำแข็ง / ไถลชน / หนามน้ำแข็ง)
 const { kate, emiliko } = require("./kate_emiliko"); // เคท & เอมิลิโกะ — ระดับยาก (ผู้เล่น 1 คนคุม 2 ตัว — server/duo.js)
+const kira = require("./kira"); // กิระ (ราชาแมลงอวกาศ) — ระดับง่าย (สวมเกราะราชัน / คลื่นความมืด / อัฐิราชา)
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
 //  โอเบรอนมาก่อนมุยมิ และโซระมาก่อน Echo ตามลำดับที่ server/ เคยเรียกตรงๆ — ตัวใหม่ต่อท้ายได้เลย
@@ -24,6 +25,7 @@ const CHARACTER_MODULES = [
   ice_spike,
   kate,
   emiliko,
+  kira,
 ];
 
 const CHAR_HOOKS = {};

@@ -6,6 +6,7 @@
 //   map         { area, cols, rows, terrain: { "x,y": "tree"|"pillar"|"banner"|"hedge"|… }, heal: ["x,y"…], spawns: [{x,y}], shopSpots }
 //               (= state.board · heal รับได้ทั้ง array ของ "x,y" / [x,y] / {x,y} และ Set · ชนิดสิ่งกีดขวางที่ไม่รู้จัก = ก้อนหิน)
 //   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive?, alpha?, cloak? }]
+//               aura = "kira" → หมอกดำแดงรอบตัว (กิระร่างราชาแมลงอวกาศ — boardDraw kiraAura)
 //               cloak = ซ่อนจากศัตรูอยู่ (เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน) → วาดจางแบบเงา + แถบแสงพาดช้าๆ
 //               wings = เคทยืนในม่านแดงของตัวเอง → ปีกเขม่ากางค้างหลังหมาก (shadowFx.js drawIdleWings) · fx ke* ย้ายหมากเองได้ (shadowPose)
 //               masked = ผู้ชมติด "มืดบอด" → หมากขาวล้วน ไม่มีรูป/ชื่อ/แถบเลือด · corpse = ร่างล้มของระบบคู่ (เงาราบบนช่อง)
@@ -50,7 +51,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
-  mapSignature, normColor, normRot, pickTile, prepareBeam, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
+  mapSignature, normColor, normRot, pickTile, prepareBeam, prepareDarkWave, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
   setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
@@ -479,6 +480,15 @@ export default function BoardCanvas(props) {
               if (hu) st.hitT.set(hu.id, now + item.quake.hits[i]);
             });
           }
+          if (f.kind === "darkWave") {
+            item.dark = info ? prepareDarkWave(f, info.cols, info.rows) : null;
+            if (!item.dark) continue;
+            item.dur = item.dark.dur;
+            item.dark.tiles.forEach((t, i) => {
+              const hu = units.find((u) => onBody(u, t.x, t.y) && u.alive !== false);
+              if (hu) st.hitT.set(hu.id, now + item.dark.hits[i]);
+            });
+          }
           if (f.kind === "slash" || f.kind === "burst") {
             const hitU = units.find((u) => onBody(u, f.x, f.y) && u.alive !== false);
             if (hitU) st.hitT.set(hitU.id, now);
@@ -539,7 +549,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ,
+          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

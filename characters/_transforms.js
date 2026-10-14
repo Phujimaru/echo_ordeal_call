@@ -10,6 +10,7 @@ const muimiImg = require("./muimi").IMG;   // มุยมิ: ใช้ path �
 const sliverChar = require("./sliver_bullet"); // นักบินปริศนา: วีดีโอเปลี่ยนชิ้นส่วน / Beam Magnum
 const mark42 = require("./_mark42"); // เกราะ Mark 42 (ไอเทมร้านค้า): path วีดีโอชุดเดียวกับไฟล์ระบบ
 const sora = require("./sora_otosumi"); // โซระ: คลิปแปลงร่าง / Mouse Separade / ชน
+const kira = require("./kira"); // กิระ: คลิปสวมเกราะราชัน (ครั้งแรกต่อเกม)
 const hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -39,6 +40,8 @@ module.exports = function buildTransforms() {
     hkStrium:    { img: hikaru.IMG.strium, video: hikaru.VIDEO.strium, title: "Ultraman Ginga Strium",  label: "แปลงร่าง",       seconds: 20, music: null, afterReveal: false },
     hkCross:     { img: hikaru.IMG.skill3, video: hikaru.VIDEO.cross,  title: "Ginga Cross Shoot",      label: "ปล่อยท่าไม้ตาย", seconds: 11, music: null, afterReveal: false },
     hkStriumRay: { img: hikaru.IMG.skill3Strium, video: hikaru.VIDEO.ray, title: "Strium Ray",          label: "ปล่อยท่าไม้ตาย", seconds: 18, music: null, afterReveal: false },
+    // กิระ — คลิปสวมเกราะราชันเล่นครั้งแรกที่เข้าร่างราชาแมลงอวกาศต่อเกม (kira.js คิวเอง) · ความยาวจริง 17.90 วิ ปัดขึ้น
+    kiraTransform: { img: kira.IMG.king, video: kira.VIDEO.transform, title: "ราชาแมลงอวกาศ", label: "สวมเกราะราชัน", seconds: 19, music: null, afterReveal: false },
     // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
     mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },
     mark42Recall:   { img: mark42.IMG.suit, video: mark42.VIDEO.recall,   title: "เกราะ Mark 42", label: "เรียกเกราะกลับมาสวม",  seconds: 24, music: null, afterReveal: false },

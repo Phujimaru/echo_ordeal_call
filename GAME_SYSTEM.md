@@ -579,6 +579,7 @@ module.exports = {
   silentFlash(p, tier) { return false; },                        // true = ไม่ขึ้นป้าย skillFlash กลาง / ไม่บันทึก roundSkills
   maxHp(p) {}, maxArmor(p, base) {},                             // เลือด/เกราะสูงสุดเฉพาะตัว (ไม่มี = MAX_HP 7 / MAX_ARMOR 3 · base = MAX_ARMOR)
   onArmorLost(engine, p) {},                                     // เกราะลด 1 หน่วย (combat.loseArmor — ทุกทางที่ทำเกราะลด · ฮิคารุ: ฟื้นพลังชีวิต 1)
+  preventDeath(engine, p) { return false; },                     // true = ไม่ตาย (combat.instantDeath — ทุกทางที่ตาย ยกเว้น force · ฮุคตั้งเลือดใหม่เอง · กิระ: อัฐิราชาฟื้นพลังชีวิต 1)
   stealthed(p) { return false; },                                // ล่องหน — ศัตรูมองไม่เห็น (server/visibility.js)
   onReveal(engine, p, kind) {},                                  // "act" ตัวเองโจมตี · "hit" อยู่ในสกิลโจมตีพื้นที่ · "bump" ถูกเดินชน
   logCut(p, round) { return 0; },                                // index บันทึกที่ปรากฏตัว — บรรทัดก่อนหน้าที่มีชื่อซ่อนจากศัตรู
@@ -702,7 +703,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
 client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
-- **ปิดอยู่** (2026-10-12): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ระบบทั้งหมดยังอยู่ครบ เปิดกลับได้ด้วยค่าเดียว
+- **เปิดใช้งาน** (เปิดกลับ 2026-10-14 · เคยปิด 2026-10-12): `ZERO_ENABLED = true` · ตั้ง `false` = `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`)
 - **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
   → ทอย `ZERO_CHANCE` 30% · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
   · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)
