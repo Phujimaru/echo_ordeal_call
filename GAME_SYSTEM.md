@@ -2,7 +2,7 @@
 
 > เอกสารนี้อธิบาย **การทำงานจริงของ engine** ไม่ใช่วิธีติดตั้ง/รัน (ดู [README.md](README.md))
 > อ้างอิงด้วยชื่อไฟล์/ชื่อฟังก์ชัน ไม่ใช้เลขบรรทัด — ค้นด้วยชื่อฟังก์ชันได้เสมอ · ตรวจกับโค้ดล่าสุดหลังย้ายจากโปรเจกต์เดิม
-> (ตัวละครที่มี: **มุยมิ** `muimi` + **โอเบรอน (ฤดูร้อน)** `oberon_summer` · โหมด: ffa / duo / trio)
+> (ตัวละครที่มี: รายการใน `characters/index.js` (`CHAR_HOOKS.MODULES`) — มุยมิ · โอเบรอน (ฤดูร้อน) · นักบินปริศนา · Echo · โซระ · ไรโด ฮิคารุ · Ice Spike · เคท & เอมิลิโกะ · โหมด: ffa / duo / trio)
 >
 > **ระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาที่ผู้ใช้ตัดสินอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) · ลงครบแล้ว:
 > กระดาน + ช่องพิเศษ `server/board.js` · วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
@@ -17,7 +17,7 @@ server.js                        จุดเริ่ม: ตาข่าย er
 server/                          เอนจินกลางทั้งหมด แยกตามระบบ (ตารางด้านล่าง)
 characters.js                    DATA ล้วน — roster/ชื่อสกิล/desc/cost/img + POSITION_COLORS + publicRoster()
 characters/index.js              มัดรวม CHAR_HOOKS = { [characterId]: module } — ตัวละครใหม่ต้อง require+push ที่นี่
-characters/<id>.js               LOGIC ของตัวละครนั้น (ตอนนี้ 2 ตัว: muimi, oberon_summer) — export { id, ...methods(engine, ...) }
+characters/<id>.js               LOGIC ของตัวละครนั้น (หนึ่งไฟล์ต่อตัว — รายชื่อใน characters/index.js) — export { id, ...methods(engine, ...) }
 characters/_universal_status.js  บัฟ/ดีบัฟกลาง (ส่วนใหญ่ pure function — tick* ที่ต้องลงดาเมจรับ engine เป็นพารามิเตอร์)
 characters/_transforms.js        ตาราง metadata คัตซีน (TRANSFORMS) — data ล้วน
 characters/_mark42.js            เกราะ Mark 42 (ไอเทมร้านค้า) — ระบบกลาง ไม่ใช่ตัวละคร (ไม่อยู่ใน CHAR_HOOKS, require ตรง)
@@ -50,7 +50,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `combat.js` | `maxHpOf`/`maxArmorOf`/`maxSkillOf`, `healHp`/`healArmor`/`healOverflow`, `loseHp`/`loseArmor`, `damageSoft`, `dealDirect`/`dealMixed`/`dealArmorOnly`, `adjustIncomingDamage` (ภายใน), `instantDeath`, บัฟ/ดีบัฟ wrapper, `sameTeam`/`friendlyEffectBlocked`/`withEffectSource`, `addSkill`, `voidUltimateOnBust`, `resetCombat` |
 | `skills.js` | `useSkill` — ด่านเช็ค/คิดราคา/หักแต้ม แล้วเรียก hook ของตัวละคร |
 | `shop.js` | เหรียญ (`addGold`), ร้านค้ามายาบนแผนที่ (`maybeMoveShop`/`relocateShop`, `openShop`, `refreshShopForJourney`, `buyShopItem`), กระเป๋า (`bagFull`, `dropItem`, `grantInventoryItem`), ไอเทม (`useInventoryItem`), ปืน GUTS (`fireGuts`, `gutsFireTargetOf`, `applyGutsBullet`) |
-| `visibility.js` | **ใครมองเห็นใคร** (พุ่มหญ้า GRID_PLAN §3.3 + ล่องหนของตัวละคร §7.5): `hiddenFrom(viewer, target)`, `concealed`, `exposeBush`, `onHostileAct` (ตี/ยิง/ไอเทมใส่คนอื่น), `onAreaHit` (สกิล `area.hostile`), `onBump` (เดินชน), `filterLog` · ผู้ใช้: `view` (pos null/เส้นทาง/บันทึก/คาดการณ์), `action.moveTo` (หยุดก่อนชน), `action.attackTarget`/`resolveArea`, `shop` (ปืน/Mark 42), `skills` |
+| `visibility.js` | **ใครมองเห็นใคร** (พุ่มหญ้า GRID_PLAN §3.3 + ล่องหนของตัวละคร §7.5): `hiddenFrom(viewer, target)`, `concealed`, `exposeBush`, `onHostileAct` (ตี/ยิง/ไอเทมใส่คนอื่น), `onAreaHit` (สกิล `area.hostile`), `onBump` (เดินชน), `filterLog` (+ `markTurn` ต้นตาเดิน: บรรทัดที่ฝ่ายผู้ตีก่อเองก่อนเป้าปรากฏตัว ฝ่ายนั้นยังเห็น), `hiddenFromUnit` (เล็งจากตาตัวที่ลงมือ — ม่านแดง) · ผู้ใช้: `view` (pos null/เส้นทาง/บันทึก/คาดการณ์ · มองไม่เห็น = `unseenPub` ซ่อนเลือด/เกราะ/แต้ม/สถานะ/ฟิลด์เฉพาะตัวด้วย), `action.moveTo` (หยุดก่อนชน), `action.attackTarget`/`resolveArea`, `shop` (ปืน/Mark 42), `skills` |
 | `view.js` | `displayImg`, `buildStateFor`, `broadcastState`, `broadcastPositions`, `takenUniqueChars` (`activeSkillMusic` ภายใน) |
 | `cutscene.js` | `triggerCutscene`, `queueCutscene`, `notifyTransform`, `pausePlayingForCutscene`, `runCutsceneQueue` |
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
@@ -109,7 +109,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 ```
 dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++ (ห่วงเวลาซีโร่: zeroFrozen++ ด้วย), สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
                                          shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 6 เทิร์น (ไม่งั้น refreshShopForJourney) — ข้ามระหว่างห่วงเวลา
-                                         ลูปต่อผู้เล่น: ภาษีกลางคืน → oberon_summer.onRoundStartTick → oblada/energy → ฟื้นเกราะ (ห่วงเวลา = ไม่ฟื้น)
+                                         ลูปต่อผู้เล่น: ภาษีกลางคืน → broadcastHook("onRoundStartTick") (ทุกตัวละครตาม CHAR_HOOKS.MODULES) → oblada/energy → ฟื้นเกราะ (ห่วงเวลา = ไม่ฟื้น)
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → Gargorgon → สตั้น
                                          หลังลูป: Zero.onRoundStart() (ของฟื้นพลังชีวิต · ฟ้าผ่าเฟส 4) → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
@@ -129,7 +129,7 @@ attackTarget(id,t)     phases/action.js  เป้าในระยะ rangeOf(
                                          → pushback ถอย 1 ช่อง/ชน −1 → ATTACKING → runCutsceneQueue(finishActor)
                                          · เป้า "seal:N" = Zero.attackSeal() (ฉากตี → ฉากผนึกแตก/ปลดผนึก → finishActor)
 waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → tileEndEffect → Zero.collectPickup → nextActor()
-endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, Journey.onEndTurn, Zero.onEndTurn, oberon_summer.onEndTurn,
+endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, Journey.onEndTurn, Zero.onEndTurn, broadcastHook("onEndTurn"),
                                          กวาดคนเลือดหมด (หายจากกระดาน) → runCutsceneQueue → gameOver() / maybeJourneyAdvance()
                                          (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่) / Zero.maybeEnter() (ฉากเข้า → dealRound)
                                          / TRANSITION → dealRound()
@@ -216,7 +216,7 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
    `Journey.skillMisses` (ป่าไม้ต้องสาป กลางวัน: คืนแต้ม แต่โควตาเสีย) → `Journey.skillRefund` (ทะเลทราย กลางคืน)
 7. `hook.applyInstantSkill(engine, p, tier, targets)` ลงผล — คืนข้อความต่อท้ายป้ายเด้ง · แล้ว `applyEffect(skill.effect)` (ตัวละครปัจจุบัน `effect: null` ทั้งหมด)
 8. `skill.instant` → `skillFlash` (เสียงจาก `hook.skillSound(p, tier)`) · บันทึก `roundSkills` · เช็คไพ่แตก → `voidUltimateOnBust`
-9. มีคัตซีนในคิว → `pausePlayingForCutscene()` (เล่นแล้วกลับมาจั่วต่อด้วยเวลาที่เหลือ)
+9. มีคัตซีนในคิว → `pausePlayingForCutscene()` (เล่นแล้วกลับมาตาเดินต่อ (เฟส ACTION) ด้วยเวลาที่เหลือ)
 
 **สูตรราคาจริง** (`useSkill` และ `showCost()` ใน `buildStateFor` ต้องคิดเหมือนกันเป๊ะ — ราคาบนปุ่ม = ราคาที่หักจริง)
 ```
@@ -246,47 +246,57 @@ cost = min(SKILL_COST_MAX /* 8 */,
 
 **มุยมิ (`muimi` · ง่าย)** — `characters/muimi.js` · เทสต์ [tests/characters/muimi.test.js](tests/characters/muimi.test.js)
 - **เสบียงฉุกเฉิน** (basic · 0 แต้ม): 1 ครั้ง/เทิร์น รวม 2 ครั้งต่อเกม (`p.muimiEmergencyUses`/`p.muimiEmergencyUsedRound`) ฟื้นเลือด 2 + แต้มสกิล 2
-  · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota`) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2`)
+  · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota` — ฟังก์ชันเดียวกัน) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2` = `EMERGENCY_USES` — เทสต์เช็คให้ตรงกัน)
 - **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ระหว่าง "ดาบสะบั้น" = 4 แต้ม คลื่นดาบแนว 4×3 พลังโจมตี +1 (ดาเมจ 2) ไม่ได้สถานะเพิ่ม (`skillArea`/`skillCost` — GRID_PLAN §7.3)
 - **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
   - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → คลื่นดาบแนว 4×3 (GRID_PLAN §7.3) ลงผลหลังวีดีโอผ่าน `engine.skillStrike` ·
-    พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` เช็ค `waveStriker`)
+    พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` อ่าน `p.muimiWave` ที่ `swordWave` ตั้ง)
+    · หนามน้ำแข็ง/ผนึกมิโกะในแนว (`Ice.hitSpikesInArea`/`Zero.hitSealsInArea` ที่ `useSkill` ต่อคิวหลังคลื่น) โดน **เท่าผู้เล่นในแนว** (ผู้ใช้สั่ง "ให้แรงเท่าตีคน")
+      ทั้งคลื่นท่าไม้ตาย (รวมกรณีหลบหมด) และคลื่นของดาบสนิม — `p.muimiWave` อยู่จนชุดผลหลังคลิปจบ (ล้างด้วย microtask)
+      หลังลูปฟันคนใช้กับเป้าที่ไม่ใช่ผู้เล่นเท่านั้น (ค่าประเมิน `attackPowerAgainst` ใส่ผู้เล่นไม่โดนลากตาม)
   - ระหว่างดาบสะบั้น: ตีปกติพลังโจมตี +1 (`TOWER_ATK_BONUS` ผ่าน `damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
     ภาพบนสนาม/เพลงสกิลเปลี่ยน (`displayImg`, `activeSkillMusic` → `"muimi"`) ·
-    เสียงตีปกติ `muimi_ub_hit` (ปกติ `muimi_normal_hit` — `attackSoundOf`)
+    เสียงตีปกติ `muimi_ub_hit` (ปกติ `muimi_normal_hit` — ฮุค `attackSound` ผ่าน `attackSoundOf`)
   - ดาบสะบั้นหมดอายุ (ลูปลดเทิร์นของ `endTurn`) → `onUltExpire` ล็อกท่าไม้ตาย 3 เทิร์น (`ULT_COOLDOWN_TURNS` → `p.muimiUltLock`) · ใช้ไม่ได้ระหว่าง "ดาบเก่าๆ"
-  - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักเฟสจั่วไพ่
+    · คลื่นถูกหลบหมดตั้งล็อกเดียวกันกลางเทิร์นที่กด — `ultLocked` (ล็อกจริง) แยกจาก `ultCooldownLeft` (ตัวเลขที่โชว์ `muimiUltCd`):
+      เทิร์นที่กดไม่โชว์ตัวเลข แล้ว 3 → 2 → 1 เหมือนหมดเวลาปกติ
+  - คลิป: ครั้งแรกต่อเกม `muimiUltimateFull` (24 วิ) ครั้งต่อไป `muimiUltimateShort` (12 วิ) — `queueCutscene` เล่นทุกครั้ง แล้ว `useSkill` พักตาเดิน (เฟส ACTION) เล่นคลิป แล้วลงคลื่นดาบ
 - ~~หัวใจนักสู้~~ (passive2) ถอดออกแล้ว (ผู้ใช้ตัดสิน — GRID_PLAN §7.1)
 
 **นักบินปริศนา (`sliver_bullet` · ง่าย · unique)** — `characters/sliver_bullet.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.5 · เทสต์ [tests/characters/sliver_bullet.test.js](tests/characters/sliver_bullet.test.js)
 - สถานะทั้งหมดอยู่ `p.sliver` (`arm` · `hidden` · `revealUntil` เลขรอบที่ปรากฏถึง · `logCut`/`logRound`) — ล้างใน `resetCombat`
 - ล่องหนคิดที่ `refresh` (เริ่มแมตช์ + ต้นเทิร์น) · ปรากฏผ่าน `onReveal` ที่ `server/visibility.js` เรียก · ศัตรูได้ `pos: null` (`buildStateFor`) — ระบบมองเห็นเดียวกับพุ่มหญ้า [tests/visibility.test.js](tests/visibility.test.js)
+  · ผู้ใช้ตัดสิน "ข้อมูลอื่นซ่อน": ผู้ชมที่มองไม่เห็น (`Visibility.hiddenFrom` — ล่องหน/พุ่มหญ้า/ม่านแดง) ได้ค่าซ่อนจาก `unseenPub` (`server/view.js`): `hp`/`maxHp`/`armor`/`maxArmor`/`shield`/`mark42` = null · `skillPoints` -1 · `statuses`/`statusAmt` {} · `skillLocks`/`sliver`/ก้อนตัวละครอื่น undefined · `img` ภาพตั้งต้น · ปุ่มสกิลราคาตั้งต้น (ไม่ผ่าน `skillCostOf`) — เปลี่ยนชิ้นส่วนลับๆ แล้วมุมมองศัตรูไม่ขยับ
+  · นักบินตายระหว่างล่องหน = `onDeath` เลิกล่องหนเงียบๆ (ไม่มีบันทึก "ปรากฏตัวบนสนาม!")
 - Beam Magnum ลงดาเมจด้วย `dealMixed` ตรง (แบบกระสุน Nursedessei) ใน `deferAfterCutscene` + `engine.boardFx("beamFx", { from, dir, len, color })` ให้ client วาดลำแสง
 
 **โซระ โอโตสุมิ (`sora_otosumi` · ง่าย)** — `characters/sora_otosumi.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.7 · เทสต์ [tests/characters/sora_otosumi.test.js](tests/characters/sora_otosumi.test.js)
-- สถานะอยู่ `p.sora` (`myth` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
+- สถานะอยู่ `p.sora` (`myth` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ · `ultReady` เลขรอบที่กด Mouse Separade ได้อีก) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
 - ตีปกติผ่านฮุคกลางทั้งหมด (`range` · `damageBonus` · `critPct` · `attackBeam`/`attackBeamTone`/`attackHitFx`/`attackSound` · `afterBoardAttack`) ไม่มีจุดเรียกเจาะจง
 - Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat`
   · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
   · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
+  · ผลของสกิลโจมตีพื้นที่เฉพาะช่องที่พุ่งผ่านจริง + ช่องที่ชน (ผู้ใช้ตัดสิน): ฮุค `ownsAreaHit` → `useSkill` ข้าม `exposeBush`/`onAreaHit`/`hitSealsInArea`/`hitSpikesInArea` ของทั้งแนว · โซระเรียก `skills.hitArea(p, tiles, ids)` เองในจังหวะพุ่ง (ก่อนพังของ) · ระหว่างนั้น `attackBaseOverride` = `ULT_DMG` และ `damageBonus` = 0 → ผนึก/หนามโดน 3 (ไม่มีโบนัสมีด)
 
 **ไรโด ฮิคารุ (`raido_hikaru` · กลาง)** — `characters/raido_hikaru.js` (กติกาเต็มหัวไฟล์) · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.8 · เทสต์ [tests/characters/raido_hikaru.test.js](tests/characters/raido_hikaru.test.js)
 - สถานะอยู่ `p.hikaru` (`form` ร่าง UltraLive · `formRound` · `armorReady`/`gingaReady` เลขรอบที่ใช้ได้อีก · `formReady` { ร่าง: เลขรอบ } คูลดาวน์รายร่าง · เวลาร่างที่เหลือ = สถานะ `hikaruForm` (3) · `accUntil` แม่นยำเดิมก่อนเข้า Tiga · `ginga` · `strium` · `brace` · `kemurCalm`/`kemurSnap`/`hidden` ล่องหนร่างเคมู · `logCut`/`logRound`) — ล้างใน `resetCombat`
-- จุดเสียบเจาะจง: `resetCombat` · `onEndTurn` (`endTurn` ต่อจากโซระ: Brace → ร่าง UltraLive หมด → กิงกะหมด → นับเคมู) · `onRoundStartTick` (`dealRound` — กิงกะที่ขยายตัวไม่สำเร็จลองใหม่) · `buildStateFor` ส่ง `hikaru: hikaruState(...)` (ร่าง · `formLeft` · ปุ่ม 7 ร่าง `{ key, name, img, locked, cd }` · Brace · คูลดาวน์)
+- จุดเสียบเจาะจง: `resetCombat` · `onEndTurn` (`endTurn` ต่อจากโซระ: Brace → ร่าง UltraLive หมด → กิงกะหมด → นับเคมู) · `onRoundStartTick` (`dealRound` — กิงกะที่ขยายตัวไม่สำเร็จลองใหม่) · `buildStateFor` ส่ง `hikaru: hikaruState(...)` (ร่าง · `formLeft` · ปุ่ม 7 ร่าง `{ key, name, img, locked, cd }` · Brace · `armorCd` — คูลดาวน์กิงกะส่งทาง `skillLocks.secondary.cd`)
+- ข้อมูลรายร่างอยู่ตาราง `FORMS` (`range` · `lane` · `atk` · `onHit { status, turns, label, name }`) — ฮุค `range` / `attackLane` / `damageBonus` / `onStrikeLanded` อ่านจากตาราง ไม่มี if รายร่าง
 - UltraLive ส่ง `useSkill { tier: "basic", form }` (`socket.js` ส่ง `form` ต่อใน opts · `canUseSkill` ได้ `opts` เป็นพารามิเตอร์ที่ 5) · client เปิดตัวเลือกร่าง `client/src/screens/hud/HikaruForms.jsx`
 - ตีปกติแนวตรง (ฮุค `attackLane` → `true` = แนวยาวตามระยะ (แบล็คคิง) · `"face"` = ช่องติดตัวทั้งด้าน (กิงกะ)): `action.lanes` / `canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf(..., face)` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · `zeroTime.canHitSeal` รองรับ · client ได้ `lane` (true/"face"/false)
 - ร่าง UltraLive ทุกร่างและกิงกะเป็นตัว 3×3 (`engine.resizeUnit` หลังคลิป · คืนร่าง/ร่างหมดเวลา = 1×1)
-- ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(1.6)` → ดาเมจ 2 (`dealMixed` · หลบไม่ได้) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat`
+- ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(BEAM_SECONDS = 1.9)` → ดาเมจ 2 (`dealMixed` · หลบไม่ได้ · กรองเป้าตอนลำแสงถึง) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat(PUSH_SECONDS = 0.9)` · จังหวะต้องไม่สั้นกว่า `HK_BEAM.reach` / `HK_PUSH_MS` ใน `hikaruFx.js`
 - เอฟเฟกต์บนกระดานทั้งหมดอยู่ `client/src/board/hikaruFx.js` (ท่าตีตามร่าง `hk*` รวมเข้า `STYLE_MS`/`STYLE_HIT_P` ของ `boardDraw.js` · ปะทะ `hkHit` + `hitIds` · ลำแสง `hkCross`/`hkStriumRay`) · ตัวใหญ่ไม่มีรูป 4 ทิศ = หมากหกเหลี่ยมขยาย (`drawAnyUnit` → `drawUnit` `u.k`)
 
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
-- **ม่านแห่งราตรี** (basic · 2): ทุกคน (duo/trio = ตัวเอง + เพื่อนร่วมทีม) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
+- **ม่านแห่งราตรี** (basic · 2): ทุกคนในรัศมี (`veilRecipients` — duo/trio = ตัวเอง + เพื่อนร่วมทีม · ไม่มีรายชื่อ = ตัวเองคนเดียว) ได้ `obsVeil` พลังโจมตี +1 3 เทิร์น + ฟื้นเลือด 1 · กดซ้ำไม่ได้จนผลหมด (`p.obsVeilUntil`)
 - **นกจาบยามเช้า** (secondary · 4): เลือก 1 คน **ใครก็ได้รวมศัตรู** ฟื้นเลือด 5 + ต้านสถานะ 2 เทิร์น + `cleanseLatestDebuff` 1 อย่าง ·
   ไม่กินโควตาเทิร์น (`skipsTurnQuota`) แต่กดได้ 1 ครั้ง/เทิร์น (`p.obsLarkRound`)
-  - ผลเสีย: ตั้ง `t.statuses.obsLark = 2` (ลูป `endTurn` ลดเหลือ 1) → ต้นเทิร์นถัดไป `onRoundStartTick` (ในลูปของ `dealRound`) เสียเลือด 2 ทะลุเกราะ
+  - ผลเสีย: ตั้ง `t.statuses.obsLark = LARK_MARK_TURNS` (2 — ลูป `endTurn` ลดเหลือ 1) → ต้นเทิร์นถัดไป `onRoundStartTick` (ในลูปของ `dealRound`) เสียเลือด 2 ทะลุเกราะ
     · **ไม่ห่อ `withEffectSource`** โดยตั้งใจ — มีต้นตอ = `friendlyEffectBlocked` จะกันไม่ให้ลงเพื่อนร่วมทีม · ตั้ง `_statusDamage` แทน
-- **จุดจบของความฝัน** (ultimate · 4 · คูลดาวน์ 5 — `p.obsUltReady`): เลือก 1 คน (รวมศัตรู/ตัวเอง) `obsDream` +4 เฉพาะเทิร์นนี้ ·
-  ปัก `t.obsDreamStunDue` → `onEndTurn` (หลังลูปลดเทิร์นสถานะ) ใส่สตั้น 3 เทิร์นผ่าน `applyDebuff` (ต้านได้) — อยู่หลังลูป สตั้นจึงเต็ม 3 เทิร์นถัดไป
+- **จุดจบของความฝัน** (ultimate · 4 · คูลดาวน์ 5 — `p.obsUltReady`): เลือก 1 คน (รวมศัตรู/ตัวเอง) `obsDream` +4 จนจบตาเดินถัดไปของเป้า ·
+  ปัก `t.obsDreamUseRound` (เทิร์นที่ได้ใช้บัฟ — เป้าเดินไปแล้ว = เทิร์นหน้า) → `onEndTurn` ของเทิร์นนั้น (หลังลูปลดเทิร์นสถานะ) ล้าง `obsDream`
+  แล้วใส่สตั้น 3 เทิร์นผ่าน `applyDebuff` (ต้านได้) — อยู่หลังลูป สตั้นจึงเต็ม 3 เทิร์นถัดไป
 - **หน้าไหว้หลังหลอก** (passive): `onEndTurn` — โอเบรอนที่ `!p.wasAttacked` ทั้งเทิร์น ได้แต้มสกิล +1 และเหรียญ +1 (ถูกเลือกเป็นเป้าแม้หลบได้ก็นับว่าถูกโจมตี)
 - `obsVeil`/`obsDream`/`obsLark` ไม่อยู่ใน `BUFF_KEYS`/`BASIC_DEBUFF_CLEAR` → ปาด/ล้าง/ต้านไม่ได้ · พลังโจมตีอ่านแบบ ungated ที่ `computeAttackBase` (`atkBonus`) + ป้าย `atkFx`
 - ล็อก/คูลดาวน์รายช่องส่งผ่าน `skillLocks` · เสียงกดสกิลรายช่อง `skillSound` (`oberon_summer_skill1-3`)
@@ -312,9 +322,9 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 - `p.statuses[key]` = **จำนวนเทิร์นที่เหลือ** (หรือจำนวนสแตค แล้วแต่ key)
 - `p.statusAmt[key]` = **ขนาดของผล** (เช่น guard 2 = ลดดาเมจ 2) — อ่านด้วย `statusAmtOf(p,key)` เสมอ
-- ลดเทิร์นทั้งหมดที่ลูปใน `endTurn()` (`server/phases/endTurn.js`) — **key ที่ไม่ควรลดเทิร์นต้อง `continue;` ในลูปนั้นเอง**
-  ตอนนี้ข้าม: `hbleed`/`hburn` (ลดเองตอนติกต้นเทิร์น) · `fortune` (หมดเมื่อจั่ว) · `empower` (หมดเมื่อโจมตี) ·
-  `sleep` เทิร์นแรก (`p.sleepFresh`) — ตรงกับ `NO_TICK_STATUS` ใน `_universal_status.js` · หมดอายุแล้วล้าง `statusAmt` ให้เอง
+- ลดเทิร์นทั้งหมดที่ลูปใน `endTurn()` (`server/phases/endTurn.js`) — **ลูปข้าม key ใน `NO_TICK_STATUS` (`_universal_status.js`) ให้เอง**
+  key ใหม่ที่ไม่ควรลดเทิร์นแค่เพิ่มในชุดนั้น · ตอนนี้: `hbleed`/`hburn` (ลดเองตอนติกต้นเทิร์น) · `fortune` (หมดเมื่อจั่ว) · `empower` (หมดเมื่อโจมตี)
+  · `sleep` เทิร์นแรก (`p.sleepFresh`) ข้ามในลูปเป็นกรณีพิเศษ · หมดอายุแล้วล้าง `statusAmt` ให้เอง
   · สถานะหมดอายุที่ต้องมีผลตามมา เรียกฮุคในลูปนี้ (ตอนนี้: `muimiTower` → `muimi.onUltExpire`)
 
 **บัฟกลาง** (`BUFF_KEYS` ใน `_universal_status.js` — `stripLatestBuff` ปาดได้): `resist` (ต้านสถานะ) · `guard` (คุ้มครอง) · `fortune` (โชคลาภ) ·
@@ -330,8 +340,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 > ⚠️ **กติกาการมอบผลให้ผู้เล่นคนอื่นตอนต้นเทิร์น** — `tickBurn()`/`tickBleed()`/`tickPoison()`/`tickShock()` และการแจกไพ่ใบแรก
 > ถูกเรียก **ในลูปต่อผู้เล่นของ `dealRound()`** ดังนั้นฮุคต้นเทิร์นที่แจกผล **ให้ผู้เล่นคนอื่น** ห้ามทำในลูปนั้น:
 > คนที่ลูปยังวนไม่ถึงจะโดนผลในเทิร์นเดียวกัน ส่วนคนที่วนผ่านไปแล้วต้องรอเทิร์นถัดไป = **ผลไม่เท่ากันตามลำดับที่นั่ง**
-> ให้จองไว้แล้วลงผลหลังลูปจบ (ต้นแบบ: `muimi.onRoundStartAfterLoop` ที่บังคับศัตรูไพ่แตกหลังแจกไพ่ใบแรกครบทั้งสนาม)
-> — ฮุคในลูป (`oberon_summer.onRoundStartTick`) ลงผลกับ **ตัวผู้เล่นคนนั้นเอง** เท่านั้น
+> ให้จองไว้แล้วลงผลหลังลูปจบ (เช่นแบบ `Zero.onRoundStart()` ที่ `dealRound` เรียกหลังลูป — ตอนนี้ไม่มีฮุคตัวละครหลังลูป ต้องเพิ่มจุดเรียกเอง)
+> — ฮุคในลูป (`onRoundStartTick` เช่นนกจาบยามเช้าของโอเบรอน) ลงผลกับ **ตัวผู้เล่นคนนั้นเอง** เท่านั้น
 > · ถ้าฮุคใช้ `withEffectSource` อยู่ ต้องเก็บผู้มอบไว้แล้วคืน source ตอนลงผลด้วย ไม่งั้น `friendlyEffectBlocked` ในโหมดทีมจะไม่ทำงาน
 
 **เลือดไหล (`hbleed`) — สถานะ Universal (patch 2.5)**
@@ -384,7 +394,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - `queueCutscene(p,key,onlyFor)` เข้าคิว (เล่นทุกครั้ง) · `triggerCutscene(p,key)` ครั้งแรกต่อเกมวีดีโอเต็ม ครั้งถัดไปแค่การ์ดแจ้งเตือน (`transformNotice` — ดู `p.cutsceneShown`)
   · key ที่ไม่มี `video` = แจ้งเตือนอย่างเดียว ไม่ตัดเข้า CUTSCENE
 - `runCutsceneQueue(onDone)` (`server/cutscene.js`) — ตั้ง `gameState = "CUTSCENE"` เล่นเรียงทีละคลิป แล้วเรียก `onDone`
-- `pausePlayingForCutscene(after)` — พักเฟสจั่วไพ่ เล่นคิวให้จบ เรียก `after` (ผลที่ต้องเกิด **หลัง** วีดีโอ เช่นกระสุน GUTS / Mark 42) แล้วกลับ PLAYING ด้วยเวลาที่เหลือ (ขั้นต่ำ 3 วิ)
+- `pausePlayingForCutscene(after)` — พักตาเดิน (เฟส ACTION) เล่นคิวให้จบ เรียก `after` (ผลที่ต้องเกิด **หลัง** วีดีโอ เช่นกระสุน GUTS / Mark 42) แล้วกลับ PLAYING ด้วยเวลาที่เหลือ (ขั้นต่ำ 3 วิ)
   · `after` ทำงานนอกขอบเขต `effectSourceId` เดิมแล้ว — ต้องห่อ `withEffectSource` ซ้ำเอง
 - **`onlyFor` (patch 2.8.1)** = array ของ `playerId` ที่เห็นคลิปนี้ · `buildStateFor(viewerId)` ส่ง `cutscene: null`
   ให้คนนอกลิสต์ (client วาดกระดานตามปกติแทน) แต่ **ทุกคนยังหยุดรอครบเวลาเดียวกัน** เกมจึงไม่หลุดซิงก์
@@ -469,8 +479,8 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - จุดเสียบใน engine (ชื่อฟังก์ชันใน `_journey.js` → ที่เรียก):
   `skillTax` → `useSkill()` **และ** `showCost()` ใน `buildStateFor` (ต้องคิดเหมือนกัน — สกิลราคา 0 ไม่โดน) ·
   `skillMisses`/`skillRefund` → `useSkill()` ถัดจากด่านเหน็บชา (พลาด = คืนแต้ม+การ์ดราชินี แต่เสียโควตาเทิร์น · แม่นยำ = ไม่พลาด) ·
-  `tryAttackMiss` → `doAttack()` หลังเนตรมณะ (แม่นยำเจาะได้) · `attackBonus` → `computeAttackBase()` (ungated) ·
-  `applyCrit` → `doAttack()` หลังตัวปรับดาเมจทุกตัว (`extraPct` เผื่ออัตราคริจากแหล่งอื่น — ทอยครั้งเดียว ×2 ไม่คูณซ้อน · ตัวละครที่มีระบบคริเองอ่าน `engine.critBonusFor(p)`) ·
+  `tryAttackMiss` → `strike()` หลังเนตรมณะ (แม่นยำเจาะได้) · `attackBonus` → `computeAttackBase()` (ungated) ·
+  `applyCrit` → `strike()` หลังตัวปรับดาเมจทุกตัว (`extraPct` เผื่ออัตราคริจากแหล่งอื่น — ทอยครั้งเดียว ×2 ไม่คูณซ้อน · ตัวละครที่มีระบบคริเองอ่าน `engine.critBonusFor(p)`) ·
   `dotBonus` → `engine.journeyDotBonus()` ใน tick ลุกไหม้/เลือดไหล/พิษร้าย ·
   `filterShopRoll`/`shopStock` → `openShop()`/`refreshShopForJourney()` (ช่องหลายชิ้นใช้ `stock`/`stockMax` — `sold` เป็น true ตอนหมดช่องเท่านั้น) ·
   `goldBonus` + `onEndTurn` → `endTurn()` (หลังลูปลดเทิร์นสถานะ ก่อนกวาดคนตาย — สตั้น/ผุพังที่ติดจึงมีผลเต็มเทิร์นหน้า) · `armorRegenDue` → `dealRound()` ·
@@ -585,6 +595,7 @@ module.exports = {
   onStrikeLanded(engine, attacker, target, { counter }) { return []; }, // ตีปกติลง (รวมทุกคนในแนว) → ชื่อป้ายในฉากตี (ฮิคารุ: ติดสถานะตามร่าง)
   attackStyle(p, dist) { return null; },                         // ท่าตีบนกระดาน → การ์ดฉากตี byStyle (Echo: echo/hair/rock · ฮิคารุ: hk*)
   skillArea(p, tier, area) { return area; },                     // พื้นที่สกิลตามสถานะ (useSkill + ปุ่มใช้ตัวเดียวกัน)
+  ownsAreaHit(p, tier, opts) { return false; },                  // true = useSkill ไม่ลงผลพื้นที่ hostile ทั้งแนว (พุ่มหญ้า/ล่องหน/ผนึก/หนาม) — ตัวละครเรียก skills.hitArea(p, tiles, ids) เองกับช่องที่โดนจริง (โซระ ท่าไม้ตาย)
   keepsMove(engine, p, tier) { return false; },                  // true = ใช้สกิลนี้แล้วยังเดินได้ (ไม่ lockMove — Ice Spike ก่อนเดิน)
   onActorStart(engine, p) {},                                    // ต้นตาเดินของ p (nextActor — ก่อนเช็คสตั้น · Ice Spike: คุกน้ำแข็งช่วงที่ 2)
   afterWalk(engine, p, tiles, ctx) { return []; },               // หลังเดิน/ไถล (tiles = ทุกช่องที่ผ่าน) → บันทึกไว้ย้อน (Ice.layIce) · ctx = เหตุการณ์ iceFx
@@ -604,7 +615,7 @@ module.exports = {
 ```
 
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
-`muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
+`muimi.onAttackLanded` / `towerActive` / `IMG` (`strike`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
 `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) ·
 `ice_spike.isIceSpike` (`buildStateFor` ฟิลด์ `iceHurt`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
 
@@ -628,7 +639,7 @@ module.exports = {
 7. **`p.seen[key]` vs `p.cutsceneShown[key]`** — อันแรกกันเอฟเฟกต์ afterReveal ทำงานซ้ำ (ล้างเมื่อสถานะหมด) อันหลังกันวีดีโอเล่นซ้ำทั้งเกม คนละเรื่องกัน
 8. `process.on("uncaughtException")` ใน `server.js` เป็น **ตาข่ายสำรอง** (ติดตั้งเฉพาะตอนรันเป็น main — ตอนเทสต์ require ต้องให้ error ระเบิดออกมา) ไม่ใช่ที่จัดการ error — handler ต้อง try/catch เอง (`safeOn`/`onPlayerEvent` ทำให้แล้ว)
 9. ไฟล์สื่อ (รูป/วีดีโอ/เพลง) ไม่ track ใน git — ไม่มีไฟล์ในเครื่อง client จะ fallback เป็นอีโมจิ (`client/src/data/avatars.js`)
-10. **ตัวละคร `unique`** (ตอนนี้ไม่มีตัวไหนตั้งไว้ — มุยมิ/โอเบรอนเลือกซ้ำได้) กันซ้ำ **2 ชั้น**: handler `join` ตอบ `characterTaken` และหน้าเลือกตัวละคร
+10. **ตัวละคร `unique`** (ตอนนี้: นักบินปริศนา `sliver_bullet` · Echo `echo` — ที่เหลือเลือกซ้ำได้) กันซ้ำ **2 ชั้น**: handler `join` ตอบ `characterTaken` และหน้าเลือกตัวละคร
     ปิดการ์ดจาก event `takenChars` — ตัว unique ใหม่แค่ใส่ `unique: true` ใน `characters.js` · ตัวที่เลือกซ้ำได้ต้องเก็บสถานะแยกต่อผู้เล่น (`duplicate-safety.test.js`)
 11. `resetCombat(p)` (`server/combat.js`) คือรายการฟิลด์ผู้เล่นทั้งหมด — **ฟิลด์ใหม่ของตัวละครต้องรีเซ็ตที่นี่** (และใส่ค่าเริ่มใน `newPlayerRecord`) ไม่งั้นค้างข้ามแมตช์
 12. **ราคาบนปุ่ม = ราคาที่หักจริง** — สูตรอยู่ที่ `skillCostOf()` (`server/skills.js`) ที่เดียว ใช้ทั้ง `useSkill` และ `showCost()` ใน `buildStateFor`
@@ -732,6 +743,10 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · เดินทีละก้าวเข้าน้ำแข็งก็ไถล · ก้าวกลับช่องเริ่มตา = ย้อนเสมอ · ฮุค `afterWalk` (วางน้ำแข็ง) ย้อนได้ด้วย `action.iceUndo`
 - **ชน** (`impact`): คน — ฮุค `slideStrike` ของผู้ไถล (ศัตรูเท่านั้น) แล้วเป้ากระเด็น 1 ช่อง · ไม่มีฮุค = เป้ากระเด็นไม่เสียเลือด · เพื่อน = หยุดเฉยๆ ·
   หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` · `pushUnit` = ผลัก 1 ช่อง (ตัวใหญ่/ไม่ว่าง = เด้ง) ลงน้ำแข็ง = ไถลต่อ (ทอดสูงสุด 12)
+  · ตายจากหนาม: `instantDeath` อยู่ใต้ต้นตอ = เจ้าของหนามด้วย → เจ้าของได้เครดิตสังหาร (ฮุค onKill)
+- **ผลัก/ดึงแบบบังคับลงน้ำแข็ง = ไถลต่อ** (ผู้ใช้ตัดสิน): ทุกที่ที่ตั้ง `pos` เองหลังผลัก/ดึง (Strium Ray, ปืนโซระดึง, ขยายร่างดันออก `resizeUnit`, น้ำวน, ถอยหลังตีสวน) เรียก
+  `Ice.forcedSlides(moves, source)` (`moves = [{ id, from?, to, dir }]` — 1×1 ที่ยืนบนน้ำแข็งเท่านั้น · มี `from` = ใส่ knock นำหน้า) หลังเอฟเฟกต์ผลักเล่นแล้ว → iceFx ชุดเดียว
+  · ก่อนส่งพิกัดให้ทุกคน (growFx / hikaruPush / iceFx) ตัวที่ถูกผลักต้อง `Ice.revealPushed(u)` ก่อน (ถูกดัน = เผยตัว: ออกจากพุ่ม + ฮุค onReveal "bump")
 - **เชื่องช้า** `statuses.slow` (`Ice.applySlow`: −1 เดินใน `action.movOf` · ไม่ซ้อน · 3 เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
 - **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 2, 2] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
   สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ตัวใหญ่เดินพังได้ (`breakObstacles` → `smashedSpikes` ย้อนได้)
@@ -746,8 +761,10 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   - `Duo.sideKey(p)` = id เจ้าของ → `combat.sameTeam` / `lobby.isAlly` = true เสมอ · จบเกมนับต่อฝ่าย (`Duo.sideCount`) · `Duo.cardHolders()` = ผู้ถือไพ่ที่ยังอยู่ (ใช้แทน alivePlayers ในช่วงจั่ว/เปิดไพ่/ลำดับเดิน/แต้มและเหรียญจบเทิร์น)
   - ตาเดิน `match.duo = { ownerId, acts, done }` · `Duo.switchTo(u)` (เก็บ action ของตัวเดิม · เดินแล้ว = locked) · `finishActor` → ตัวถัดไปของฝ่าย (`Duo.nextUnit`) ด้วยเวลาที่เหลือ (`match.actionLeft` — `timers.clearPhaseTimer` จดไว้) · หมดเวลา = `action.actionTimeUp` (ทุกที่ที่ตั้งตัวจับเวลาตาเดินต้องใช้ตัวนี้ ไม่ใช่ finishActor)
   - socket คำสั่งตาเดิน (`onUnitEvent`) ส่งไปตัวที่คุม `Duo.controlledId` · state ได้ `controlId`, `duo`, `players[].duoOf/duoWith/corpse`
-  - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`)
-  - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom`)
+  - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`) · ห่วงเวลาซีโร่: `enter` จำร่าง (`Duo.saveCorpses`) → `release` คืนช่องเดิม (`Duo.restoreCorpses`) ก่อนวางคน แล้ว `Duo.placeCorpses(free, true)` ให้ร่างที่ล้มข้างในลงข้างอีกตัว
+  - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom` — แผนที่/หมอก) · แต่การเล็ง/ตี/ยิง/ส่งชุด ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` = ม่านแดงนับจากตาของตัวนั้นเอง (ถูกขังในม่าน = เล็งคนนอกไม่ได้แม้อีกตัวอยู่ข้างนอก)
+  - ตายต้นเทิร์นหลังแจกไพ่ (ฟ้าผ่าซีโร่ / ม่านแดง — `instantDeath` ล็อกเพราะยังไม่ PLAYING): `draw.reopenFallenOwners` เปิดให้เจ้าของที่อีกตัวยังรอดจั่วต่อ
+  - เกราะ Mark 42 นับทั้งฝ่าย: `Mark42.ownsSuit / buyLockLeft` ดู `mark42Owned / mark42BuyLock` ของทุกตัว (`Duo.unitsOf`) — ฝ่ายหนึ่งมีชุดเดียว
 - **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
 - **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
 - **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง/ผนึก) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
@@ -755,6 +772,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
-- **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
+- **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility — เล็ง/ตีใช้ `hiddenFromUnit`) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
+- **แส้เขม่า** เล็งได้แค่เอมิลิโกะหรือศัตรู (`sootAllowed` — เพื่อนร่วมทีมโหมด duo/trio ไม่ได้)
 - **มืดบอด** (`shadowMask`): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 

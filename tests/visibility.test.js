@@ -64,6 +64,21 @@ test('พุ่มหญ้า: ศัตรูนอกพุ่ม/คนล�
   assert.deepEqual(view('A', 'B').pos, { x: 6, y: 4 }, 'เพื่อนร่วมทีม');
 });
 
+// ระบบเดียวกับล่องหนของนักบิน (view.js unseenPub) — มองไม่เห็น = ไม่รู้เลือด/เกราะ/แต้ม/สถานะ
+test('พุ่มหญ้า: ศัตรูที่มองไม่เห็นไม่ได้ข้อมูลเลือด/เกราะ/แต้ม/สถานะ · ผืนเดียวกัน/ตัวเองเห็นครบ · โผล่แล้วเห็นครบ', () => {
+  const P = setup([['B', 'dummy', 6, 4], ['A', 'dummy', 6, 3], ['C', 'dummy', 4, 6]]);
+  P.B.hp = 3; P.B.statuses.regen = 2;
+  const fromA = view('A', 'B');
+  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield', 'mark42']) assert.equal(fromA[k], null, k);
+  assert.equal(fromA.skillPoints, -1);
+  assert.deepEqual(fromA.statuses, {});
+  assert.equal(view('C', 'B').hp, 3, 'ผืนเดียวกัน');
+  assert.equal(view('B', 'B').skillPoints, 8, 'ตัวเอง');
+  P.B.exposedRound = engine.roundNumber;
+  assert.equal(view('A', 'B').hp, 3, 'โผล่');
+  assert.equal(view('A', 'B').statuses.regen, 2);
+});
+
 test('พุ่มหญ้า: ตีคนที่มองไม่เห็นไม่ได้ · ตีจากในพุ่ม = โผล่จนจบเทิร์น แล้วซ่อนอีกครั้งเทิร์นถัดไป', () => {
   const P = setup([['B', 'dummy', 6, 4], ['A', 'dummy', 6, 3], ['C', 'dummy', 12, 12]]);
   engine.setActor('A');

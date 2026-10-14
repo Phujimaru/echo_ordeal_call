@@ -239,7 +239,7 @@ function useInventoryItem(id, uid, opts = {}) {
   // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด (ต้องยืนติดกัน) ----------
   if (item.type === "mark42") {
     const other = opts.targetId && opts.targetId !== p.id ? match.players[opts.targetId] : null;
-    if (other && Visibility.hiddenFrom(p, other)) return; // มองไม่เห็น = ส่งชุดให้ไม่ได้
+    if (other && Visibility.hiddenFromUnit(p, other)) return; // มองไม่เห็น = ส่งชุดให้ไม่ได้
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
     action.lockMove(p);
@@ -316,7 +316,7 @@ function gutsFireTargetOf(p, item, targetId) {
   if (!GUTS_AMMO[item.ammo]) return null;
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
-  if (Visibility.hiddenFrom(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
+  if (Visibility.hiddenFromUnit(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
   if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(Board.boxOf(p), Board.boxOf(target)))) return null;
   return target;
 }

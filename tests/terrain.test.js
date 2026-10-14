@@ -568,16 +568,19 @@ test('น้ำแข็ง (engine): เดินเข้าน้ำแข็
   assert.deepEqual(P.A.pos, { x: 0, y: 3 });
 });
 
-test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง ไถลต่อจนสุดแนว', () => {
+test('ถอยบนน้ำแข็ง (engine): โดนสวนแล้วถอยลงน้ำแข็ง — ฉากตีถอย 1 ช่อง แล้วไถลต่อจนสุดแนวหลังฉากตี (Ice.forcedSlides)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   // ภูมิภาค VI: A (5,3) ตี B (6,3) → ถอยซ้ายไป (4,3) น้ำแข็ง → ไถลตามแนวไปหยุดที่ขอบ (0,3)
   const P = setup(6, { A: { x: 5, y: 3 }, B: { x: 6, y: 3 } });
   P.B.counterBack = true;
   startActions(['A', 'B']);
   engine.attackTarget('A', 'B');
-  engine.clearPhaseTimer();
-  assert.deepEqual(P.A.pos, { x: 0, y: 3 });
-  assert.deepEqual(engine.lastAttack.push.via, { x: 4, y: 3 });
-  assert.deepEqual(engine.lastAttack.push.to, { x: 0, y: 3 });
+  assert.deepEqual(P.A.pos, { x: 4, y: 3 }, 'ระหว่างฉากตี = ถอย 1 ช่อง');
+  assert.deepEqual(engine.lastAttack.push.to, { x: 4, y: 3 });
+  assert.equal(engine.lastAttack.push.via, null);
   assert.equal(engine.lastAttack.push.collide, false);
+  for (let i = 0; i < 100; i++) t.mock.timers.tick(100);
+  engine.clearPhaseTimer();
+  assert.deepEqual(P.A.pos, { x: 0, y: 3 }, 'จบฉากตี = ไถลต่อจนสุดแนว');
   assert.ok(action.tileEndEffect); // ส่งออกให้ไฟล์อื่น/เทสต์เรียกได้
 });

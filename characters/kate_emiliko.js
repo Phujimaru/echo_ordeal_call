@@ -13,6 +13,10 @@
 //    ท่าไม้ตาย ระบำเขม่า (6): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามืดบอด 1 เทิร์น
 // ============================================================
 
+const Board = require("../server/board");
+const Duo = require("../server/duo");
+const KC = require("./kate_emiliko_combat"); // ส่วนการต่อสู้ (อาวุธ / แส้ / ปีก / ม่านแดง / ท่าไม้ตาย)
+
 const KATE = "kate";
 const EMI = "emiliko";
 const DIR = "/characters/kate_emiliko";
@@ -34,8 +38,7 @@ const IMG = {
   bread: `${DIR}/bread.jpg`,
   cover: `${DIR}/cover.jpg`,
 };
-// เพลงท่าไม้ตายเคท (ระบำเขม่า): intro เล่นครั้งเดียว แล้ววน loop จนพายุหมด
-const MUSIC = { intro: `${DIR}/kate_theme_intro.m4a`, loop: `${DIR}/kate_theme_loop.mp3` };
+// เพลงท่าไม้ตายเคท (ระบำเขม่า — intro → loop จนพายุหมด) อยู่ที่ client/src/audio.js (MUSIC_SEQUENCES.kate_storm)
 
 const MAX_HP = 3;
 const MAX_ARMOR = 2;
@@ -48,6 +51,9 @@ const CANTO_MOV = 2;
 const BREAD_USES = 3;
 const VACUUM_USES = 5; // เครื่องดูดฝุ่น: ใช้ได้ 5 ครั้งต่อเกม (ตีปกติ 1 · ท่าไม้ตาย 1) หมดแล้วกลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้
 const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
+// ตัวเลือกดาบเขม่าของเคท: 0 แต้ม · ไม่กินโควตา · ไม่ล็อกการเดิน · ไม่ขึ้นป้ายกลาง
+const SWORD_FORMS = ["hold", "give", "recall"];
+const isSwordForm = (opts) => !!opts && SWORD_FORMS.includes(opts.form);
 
 // อาวุธของเอมิลิโกะ (เรียงตามปุ่ม) — ดาบเขม่าเลือกได้เมื่อเคทส่งให้แล้วเท่านั้น
 // desc = คำอธิบายย่อตอนชี้เมาส์ที่ตัวเลือก (ผู้ใช้สั่ง 2026-10-14)
@@ -67,7 +73,7 @@ const SOOT = {
   wings: { name: "ปีกเขม่า", img: IMG.wings, cost: 4, area: { kind: "line", len: 4, width: 1 }, desc: "เลือกทิศ บิน 4 ช่องข้ามทุกอย่าง · พาเอมิลิโกะที่ติดตัวไปด้วย" },
 };
 
-// ฮุคที่ server เรียกโดยไม่ส่ง engine (mov / skillCost / skillPub) อ่านผ่านตัวนี้ (require ตอนเรียก — กัน require วน)
+// ฮุคที่ server เรียกโดยไม่ส่ง engine (mov) อ่านผ่านตัวนี้ (require ตอนเรียก — กัน require วน)
 function E() { return require("../server/engine").engine; }
 
 const isKate = (p) => !!p && p.characterId === KATE;
@@ -83,37 +89,26 @@ function fresh() {
     vacuumLeft: VACUUM_USES, // เครื่องดูดฝุ่นเหลือกี่ครั้ง (ต่อเกม — รีเซ็ตแค่ตอนเริ่มแมตช์)
   };
 }
-function ownerOf(engine, p) { return p.duoOf ? engine.players[p.duoOf] || p : p; }
-function mateOf(engine, p) {
-  if (p.duoWith) return engine.players[p.duoWith] || null;
-  if (p.duoOf) return engine.players[p.duoOf] || null;
-  return null;
-}
-function st(engine, p) {
-  const o = ownerOf(engine, p);
+function st(p) {
+  const o = Duo.ownerOf(p);
   return o.shadow || (o.shadow = fresh());
 }
-const weaponOf = (engine, p) => (isEmi(p) ? st(engine, p).weapon : null);
+const weaponOf = (p) => (isEmi(p) ? st(p).weapon : null);
 
-// ---------- พายุเขม่า (ระบำเขม่า) — ช่องอยู่ในพายุไหม (ระบบกลางอยู่ server/soot.js ภายหลัง) ----------
+// ---------- ม่านแดง (ระบำเขม่า) — ยืนอยู่ในม่านของฝ่ายตัวเองไหม (server/soot.js — engine.soot.inStormOf = Soot.ownStorm) ----------
 function inStorm(engine, p) {
-  return !!(engine.soot && engine.soot.inStormOf && engine.soot.inStormOf(p));
+  return !!engine.soot.inStormOf(p);
 }
 
 // ---------- กระจกเงา / ตื่นขึ้นอีกครั้ง ----------
-const reviveMode = (engine, p) => {
-  const m = mateOf(engine, p);
+const reviveMode = (p) => {
+  const m = Duo.partnerOf(p);
   return !!m && !m.alive && !!m.corpse;
 };
-function reviveDist(p, m) {
-  if (!p.pos || !m || !m.corpse) return Infinity;
-  return Math.abs(p.pos.x - m.corpse.x) + Math.abs(p.pos.y - m.corpse.y);
-}
+const reviveDist = (p, m) => (p.pos && m && m.corpse ? Board.dist(p.pos, m.corpse) : Infinity);
 function revive(engine, p, m) {
-  const keys = new Set([`${m.corpse.x},${m.corpse.y}`]);
   // ร่างของตัวเองไม่นับว่าขวาง (ฟื้นลงช่องร่าง) — ช่องร่างไม่ว่างจริง = ช่องว่างใกล้สุด
-  const free = (x, y) => engine.tileFree(x, y, null) || (keys.has(`${x},${y}`) && freeIgnoringCorpse(engine, x, y));
-  const to = free(m.corpse.x, m.corpse.y) ? { ...m.corpse } : engine.nearFreeTile(m.corpse);
+  const to = freeIgnoringCorpse(engine, m.corpse.x, m.corpse.y) ? { ...m.corpse } : engine.nearFreeTile(m.corpse);
   if (!to) return false;
   m.corpse = null;
   m.alive = true;
@@ -161,24 +156,15 @@ const shared = {
   },
   // กระจกเงาสลับตัวได้ระหว่างเดินต่อของเอมิลิโกะ
   cantoSkill(p, tier) { return isPair(p) && tier === "basic"; },
+  // กระจกเงา (ไม่ใช่ตื่นขึ้นอีกครั้ง) · เลือกอาวุธ (เอมิลิโกะ) · ดาบเขม่า (เคท) = ไม่กินโควตา ไม่ล็อกการเดิน ไม่ขึ้นป้ายกลาง
   skipsTurnQuota(p, tier, opts) {
     if (!isPair(p)) return false;
-    if (tier === "basic") return !reviveMode(E(), p);
-    if (tier === "secondary") return isEmi(p) || (opts && ["hold", "give", "recall"].includes(opts.form));
-    return false;
+    if (tier === "basic") return !reviveMode(p);
+    return tier === "secondary" && (isEmi(p) || isSwordForm(opts));
   },
   ignoresTurnQuota(p, tier, opts) { return shared.skipsTurnQuota(p, tier, opts); },
-  keepsMove(engine, p, tier, opts) {
-    if (!isPair(p)) return false;
-    if (tier === "basic") return !reviveMode(engine, p);
-    if (tier === "secondary") return isEmi(p) || (!!opts && ["hold", "give", "recall"].includes(opts.form));
-    return false;
-  },
-  silentFlash(p, tier, opts) {
-    if (!isPair(p)) return false;
-    if (tier === "basic") return !reviveMode(E(), p);
-    return tier === "secondary" && (isEmi(p) || (!!opts && ["hold", "give", "recall"].includes(opts.form)));
-  },
+  keepsMove(engine, p, tier, opts) { return shared.skipsTurnQuota(p, tier, opts); },
+  silentFlash(p, tier, opts) { return shared.skipsTurnQuota(p, tier, opts); },
 };
 
 // ---------- เคท ----------
@@ -189,7 +175,7 @@ const kate = {
   ...shared,
   skillCost(p, tier, base, opts) {
     if (!isPair(p)) return base;
-    if (tier === "basic") return reviveMode(E(), p) ? REVIVE_COST : 0;
+    if (tier === "basic") return reviveMode(p) ? REVIVE_COST : 0;
     if (tier === "secondary" && isKate(p)) { const o = SOOT[opts && opts.form]; return o ? o.cost : base; }
     return base;
   },
@@ -200,16 +186,16 @@ const kate = {
   canUseSkill(engine, p, tier, targets, opts = {}) {
     if (!isPair(p)) return true;
     if (tier === "basic") {
-      const m = mateOf(engine, p);
+      const m = Duo.partnerOf(p);
       if (!m) return false;
-      if (reviveMode(engine, p)) return reviveDist(p, m) <= REVIVE_RANGE;
+      if (reviveMode(p)) return reviveDist(p, m) <= REVIVE_RANGE;
       return engine.duo.canSwitchTo(m);
     }
     if (tier === "secondary" && isEmi(p)) {
-      const w = opts.form;
-      if (!WEAPONS[w] || w === st(engine, p).weapon) return false;
-      if (w === "vacuum" && !(st(engine, p).vacuumLeft > 0)) return false;
-      return w !== "sword" || st(engine, p).sword === "emi";
+      const w = opts.form, s = st(p);
+      if (!WEAPONS[w] || w === s.weapon) return false;
+      if (w === "vacuum" && !(s.vacuumLeft > 0)) return false;
+      return w !== "sword" || s.sword === "emi";
     }
     if (tier === "secondary" && isKate(p)) return sootAllowed(engine, p, opts.form, targets);
     return true;
@@ -217,7 +203,7 @@ const kate = {
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isPair(p)) return "";
     if (tier === "basic") {
-      const m = mateOf(engine, p);
+      const m = Duo.partnerOf(p);
       if (m && !m.alive) { revive(engine, p, m); return ""; }
       const from = { ...p.pos };
       engine.duo.switchTo(m);
@@ -226,7 +212,7 @@ const kate = {
       return "";
     }
     if (tier === "secondary" && isEmi(p)) {
-      const s = st(engine, p);
+      const s = st(p);
       if (opts.form !== "sword") s.lastWeapon = opts.form;
       s.weapon = opts.form;
       engine.log(`🧹 ${p.name} เปลี่ยนเป็น${WEAPONS[s.weapon].name}`);
@@ -235,26 +221,26 @@ const kate = {
       return "";
     }
     if (tier === "secondary" && isKate(p)) return sootSkill(engine, p, opts.form, targets, opts);
-    if (tier === "ultimate") return require("./kate_emiliko_combat").ultimate(engine, p, targets, opts, { st: st(engine, p) });
+    // ท่าไม้ตาย: เคท ระบำเขม่า · เอมิลิโกะ ร่าเริงสุดๆ
+    if (tier === "ultimate") return isKate(p) ? KC.storm(engine, p, opts) : KC.cheer(engine, p, targets, opts, st(p));
     return "";
   },
   // ปุ่มกระจกเงาเปลี่ยนเป็นตื่นขึ้นอีกครั้งเมื่ออีกตัวล้ม · ปุ่มรองแบบหลายตัวเลือก (choices)
   skillPub(p, tier) {
     if (!isPair(p)) return null;
-    const engine = E();
-    if (tier === "basic" && reviveMode(engine, p)) {
+    if (tier === "basic" && reviveMode(p)) {
       return { name: "ตื่นขึ้นอีกครั้ง", img: IMG.revive, cost: REVIVE_COST, desc: `ฟื้นคืนชีพอีกตัวที่ร่าง พลังชีวิต ${REVIVE_HP} (ร่างต้องอยู่ในระยะ ${REVIVE_RANGE})` };
     }
-    if (tier === "secondary") return { choices: choicesOf(engine, p) };
+    if (tier === "secondary") return { choices: choicesOf(p) };
     return null;
   },
   // ปุ่มเทา: สลับไม่ได้ (อีกตัวจบแล้ว/สตั้น) · ร่างอยู่นอกระยะ
   skillLocks(engine, p) {
     if (!isPair(p)) return undefined;
-    const m = mateOf(engine, p);
+    const m = Duo.partnerOf(p);
     let basic = false;
     if (!m) basic = true;
-    else if (reviveMode(engine, p)) basic = reviveDist(p, m) > REVIVE_RANGE;
+    else if (reviveMode(p)) basic = reviveDist(p, m) > REVIVE_RANGE;
     else basic = !engine.duo.canSwitchTo(m);
     return basic ? { basic: { locked: true } } : undefined;
   },
@@ -263,14 +249,14 @@ const kate = {
   // ข้อมูลให้ client (แผงตัวเรา / ปุ่มเลือก)
   shadowState(engine, p) {
     if (!isPair(p)) return undefined;
-    const s = st(engine, p);
+    const s = st(p);
     return { weapon: s.weapon, sword: s.sword, vacuumLeft: s.vacuumLeft, inStorm: inStorm(engine, p) };
   },
 };
 
 // ---------- เขม่าควัน (เคท) ----------
-function sootChoiceKeys(engine, p) {
-  const s = st(engine, p);
+function sootChoiceKeys(p) {
+  const s = st(p);
   const keys = ["whip"];
   if (s.sword === null) keys.push("hold", "give");
   else if (s.sword === "kate") keys.push("give");
@@ -278,27 +264,31 @@ function sootChoiceKeys(engine, p) {
   keys.push("wings");
   return keys;
 }
-function choicesOf(engine, p) {
+function choicesOf(p) {
   if (isEmi(p)) {
-    const s = st(engine, p);
+    const s = st(p);
     return WEAPON_KEYS.filter((k) => k !== "sword" || s.sword === "emi")
       .map((k) => ({
         key: k, name: WEAPONS[k].name, img: WEAPONS[k].img, desc: WEAPONS[k].desc, cost: 0, area: { kind: "self" }, active: s.weapon === k,
         ...(k === "vacuum" ? { left: s.vacuumLeft, locked: !(s.vacuumLeft > 0) } : {}),
       }));
   }
-  return sootChoiceKeys(engine, p).map((k) => ({ key: k, name: SOOT[k].name, img: SOOT[k].img, desc: SOOT[k].desc, cost: SOOT[k].cost, area: SOOT[k].area }));
+  return sootChoiceKeys(p).map((k) => ({ key: k, name: SOOT[k].name, img: SOOT[k].img, desc: SOOT[k].desc, cost: SOOT[k].cost, area: SOOT[k].area }));
 }
 function sootAllowed(engine, p, form, targets) {
-  if (!SOOT[form] || !sootChoiceKeys(engine, p).includes(form)) return false;
-  const m = mateOf(engine, p);
+  if (!SOOT[form] || !sootChoiceKeys(p).includes(form)) return false;
+  const m = Duo.partnerOf(p);
   if (form === "give") return !!m && m.alive && targets[0] === m.id;
-  if (form === "whip") return targets.length === 1 && targets[0] !== p.id;
+  if (form === "whip") {
+    // แส้: เอมิลิโกะ (ดึงมา) หรือศัตรู (พุ่งเข้าใส่) เท่านั้น — เพื่อนร่วมทีม (โหมด duo/trio) เล็งไม่ได้
+    const t = targets.length === 1 ? engine.players[targets[0]] : null;
+    return !!t && t.id !== p.id && ((!!m && t.id === m.id) || !engine.sameTeam(p, t));
+  }
   return true;
 }
 function sootSkill(engine, p, form, targets, opts) {
-  const s = st(engine, p);
-  const m = mateOf(engine, p);
+  const s = st(p);
+  const m = Duo.partnerOf(p);
   if (form === "hold") {
     s.sword = "kate";
     engine.log(`🗡️ ${p.name} ชักดาบเขม่า — พลังโจมตี +1`);
@@ -321,16 +311,15 @@ function sootSkill(engine, p, form, targets, opts) {
     engine.sfx("ke_sword");
     return "";
   }
-  if (form === "whip") return require("./kate_emiliko_combat").whip(engine, p, engine.players[targets[0]], { st: st(engine, p), mate: m });
-  if (form === "wings") return require("./kate_emiliko_combat").wings(engine, p, opts.dir, m);
+  if (form === "whip") return KC.whip(engine, p, engine.players[targets[0]], { st: s, mate: m });
+  if (form === "wings") return KC.wings(engine, p, opts.dir, m);
   return "";
 }
+
+// ฮุคส่วนการต่อสู้ (ตีปกติตามอาวุธ / ไม้ถูพื้น / ขนมปัง / ติดตัวเคท) — ใช้ร่วมทั้งสองตัว (characters/kate_emiliko_combat.js)
+Object.assign(kate, KC.hooks({ isKate, isEmi, isPair, st, weaponOf }));
 
 // ---------- เอมิลิโกะ ----------
 const emiliko = { ...kate, id: EMI };
 
-module.exports = { kate, emiliko, KATE, EMI, IMG, MUSIC, WEAPONS, SOOT };
-// ฮุคส่วนการต่อสู้ (อาวุธ / แส้ / ปีก / ม่านแดง / ท่าไม้ตาย) — ต่อท้ายทั้งสองตัว (characters/kate_emiliko_combat.js)
-const combat = require("./kate_emiliko_combat");
-Object.assign(kate, combat.hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS, IMG, E }));
-Object.assign(emiliko, combat.hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS, IMG, E }), { id: EMI });
+module.exports = { kate, emiliko, KATE, EMI, WEAPONS, SOOT };

@@ -320,3 +320,98 @@ test('ระยะเดิน/แผนที่ฝั่ง client: state.boar
   assert.equal(b.special['2,2'], 'ice');
   assert.equal(engine.tileFree(6, 5), false);
 });
+
+test('หนาม: อยู่ 3 เทิร์น · ขึ้น Lv = นับ 3 เทิร์นใหม่', () => {
+  setup([['I', 'ice_spike', 3, 5], ['B', 'dummy', 12, 12]]);
+  Ice.placeSpike(6, 5, 'I', 1);
+  Ice.onEndTurn(); Ice.onEndTurn();
+  assert.equal(terrainAt(6, 5), 'icespike1');
+  Ice.raiseSpike('6,5');
+  assert.equal(Ice.spikeAt(6, 5).left, 3, 'ขึ้น Lv = นับใหม่');
+  Ice.onEndTurn(); Ice.onEndTurn();
+  assert.equal(terrainAt(6, 5), 'icespike2');
+  Ice.onEndTurn();
+  assert.equal(terrainAt(6, 5), undefined, 'ครบ 3 เทิร์น = หาย');
+});
+
+test('คุกน้ำแข็ง: Ice Spike ตกรอบก่อนช่วงที่ 2 = คุกยกเลิก', () => {
+  const P = setup([['I', 'ice_spike', 1, 9], ['E', 'dummy', 6, 9], ['Z', 'dummy', 12, 13]]);
+  engine.setActor('I');
+  engine.useSkill('I', 'ultimate', [], { tile: { x: 6, y: 9 } });
+  engine.clearPhaseTimer();
+  assert.equal(engine.board.prisons.length, 1);
+  engine.instantDeath(P.I);
+  Ice.onEndTurn();
+  assert.equal(engine.board.prisons.length, 0);
+  assert.equal(terrainAt(4, 7), undefined, 'ขอบไม่มีหนาม');
+  assert.equal(engine.boardMap().special['6,9'], undefined, 'กลางไม่มีน้ำแข็ง');
+});
+
+test('เปลี่ยนภูมิภาค (placeOnBoard) = ธารน้ำแข็ง/หนาม/คุกหายหมด', () => {
+  setup([['I', 'ice_spike', 3, 5], ['B', 'dummy', 12, 12]]);
+  Ice.layIce(2, 2, 'I');
+  Ice.placeSpike(6, 5, 'I', 1);
+  Ice.addPrison({ x: 6, y: 9, owner: 'I', round: engine.roundNumber });
+  engine.placeOnBoard(2);
+  assert.equal(Ice.iceAt(2, 2), null);
+  assert.equal(Ice.spikeAt(6, 5), null);
+  assert.equal(terrainAt(6, 5), undefined);
+  assert.equal(engine.boardMap().special['2,2'], undefined);
+  const b = engine.buildStateFor('I').board;
+  assert.deepEqual([b.ice, b.spikes, b.prisons], [[], [], []]);
+});
+
+test('Ice Spike สองคน: ไถลชนหนามของอีกคน = เสียเท่า Lv + เชื่องช้า (ไม่ได้แต้มแบบหนามตัวเอง)', () => {
+  const P = setup([['I', 'ice_spike', 1, 5], ['J', 'ice_spike', 12, 12]]);
+  lay([[2, 5], [3, 5]]);
+  Ice.placeSpike(4, 5, 'J', 1);
+  P.I.skillPoints = 1;
+  engine.setActor('I');
+  engine.moveTo('I', 3, 5);
+  assert.deepEqual(P.I.pos, { x: 3, y: 5 });
+  assert.equal(vit(P.I), 10 - 1, 'เสียเท่า Lv (เกราะก่อน)');
+  assert.equal(P.I.armor, 1);
+  assert.ok(P.I.statuses.slow > 0, 'หนามของอีกคน = เชื่องช้า');
+  assert.equal(P.I.skillPoints, 1 + 1, 'ไถล 2 ช่อง +1 เท่านั้น');
+  assert.equal(terrainAt(4, 5), undefined, 'Lv1 แตก');
+  assert.equal(fxEvents().find((e) => e.kind === 'spike').own, false);
+});
+
+test('ภูมิภาค VI: น้ำแข็งถาวร — วางธารน้ำแข็งทับไม่ได้ (ไม่เสียแต้ม) · หนามบนน้ำแข็งถาวร = Lv2', () => {
+  const P = setup([['I', 'ice_spike', 3, 5], ['B', 'dummy', 12, 12]]);
+  engine.setJourneyArea(6);
+  engine.placeOnBoard(6);
+  P.I.pos = { x: 4, y: 4 }; P.B.pos = { x: 12, y: 5 };
+  assert.equal(engine.boardMap().special['1,3'], 'ice');
+  assert.equal(Ice.layIce(1, 3, 'I'), null);
+  assert.equal(Ice.canLay(1, 3), false);
+  engine.setActor('I');
+  engine.useSkill('I', 'basic', [], { tile: { x: 1, y: 3 } });
+  assert.equal(P.I.skillPoints, 8, 'วางไม่ได้ = ไม่เสียแต้ม');
+  assert.equal(Ice.iceAt(1, 3), null);
+  engine.useSkill('I', 'secondary', [], { tile: { x: 2, y: 3 } });
+  assert.equal(terrainAt(2, 3), 'icespike2');
+  assert.equal(P.I.skillPoints, 6);
+});
+
+test('คุกน้ำแข็งช่วงที่ 2: ชิดขอบกระดาน = วางเฉพาะช่องในกระดาน · ตัวใหญ่บนขอบไม่ถูกผลัก (เว้นช่องนั้น)', () => {
+  const P = setup([['I', 'ice_spike', 6, 2], ['B', 'dummy', 8, 6], ['Z', 'dummy', 12, 13]]);
+  P.B.boardSize = 2; // (8,6)–(9,7) · ทับขอบขวาของกรอบรอบ (6,9) ที่ (8,7)
+  const round = engine.roundNumber;
+  Ice.addPrison({ x: 1, y: 6, owner: 'I', round }); // กรอบ x −1..3 · y 4..8 — คอลัมน์ซ้ายนอกกระดาน · ต้นไม้ (2,6) ในกลาง
+  Ice.addPrison({ x: 6, y: 9, owner: 'I', round }); // เสา (4,9) บนขอบซ้าย
+  engine.setRoundNumber(round + 1);
+  engine.setActor('I');
+  ice.onActorStart(engine, P.I);
+  assert.equal(engine.board.prisons.length, 0);
+  const [edge, big] = fxEvents().filter((e) => e.kind === 'prison');
+  assert.equal(edge.ice.length, 8, '3×3 เว้นต้นไม้');
+  assert.equal(edge.ring.length, 11, 'ขอบเฉพาะช่องในกระดาน');
+  for (const [x, y] of [[0, 4], [3, 4], [3, 8], [0, 8]]) assert.equal(terrainAt(x, y), 'icespike1', `${x},${y}`);
+  assert.equal(terrainAt(2, 6), 'tree');
+  assert.deepEqual(P.B.pos, { x: 8, y: 6 }, 'ตัวใหญ่ไม่ถูกผลัก');
+  assert.equal(terrainAt(8, 7), undefined, 'ช่องที่ตัวใหญ่ทับไม่มีหนาม');
+  assert.equal(terrainAt(8, 8), 'icespike1');
+  assert.equal(big.ring.length, 16 - 2, 'เว้นเสา + ตัวใหญ่');
+  assert.ok(!fxEvents().some((e) => e.kind === 'knock' && e.id === 'B'));
+});

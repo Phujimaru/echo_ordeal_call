@@ -14,13 +14,15 @@
 //           ผู้ไถลอื่น = เป้า (ศัตรู) กระเด็น 1 ช่องไม่เสียเลือด · เพื่อนร่วมทีม = หยุดเฉยๆ · ตัวใหญ่ไม่กระเด็น
 //   - ชนหนาม: เสียเท่า Lv (เกราะก่อน · ฆ่าได้) + เชื่องช้า · หนามลด 1 Lv — เจ้าของหนามชนเอง = ฮุค ownSpike (Ice Spike: แต้มสกิล +2)
 //   - กระเด็น/ถูกผลักลงน้ำแข็ง = ไถลต่อในทิศที่ถูกผลัก (เป็นทอด ไม่เกิน MAX_CHAIN)
+//   - แรงอื่นที่ย้ายตัวตรงๆ (Strium Ray / ปืนโซระดึง / ขยายร่างดันออก / น้ำวน / ถอยหลังตีสวน) ลงน้ำแข็ง = forcedSlides (ผู้ใช้ตัดสิน 2026-10-14)
+//   - ถูกผลัก/ถูกชน = เผยตัว (revealPushed — ผู้ใช้ตัดสิน 2026-10-14) ก่อนเหตุการณ์ที่มีพิกัดถูกส่ง
 //  ทุกเหตุการณ์บันทึกลง ctx.events แล้วส่ง socket "iceFx" { seq, events } ให้ client เล่นตามลำดับ
 //  (server ลงผลทั้งหมดทันที — client ค้างตำแหน่งไว้เล่นแอนิเมชัน · รูปข้อมูล: .claude/plans/ice-spike-contract.md)
 // ============================================================
 Object.assign(module.exports, {
   overlayOf, hasOverlay, publicInfo, iceAt, spikeAt, spikeKeyOf, isSpikeKind,
   layIce, undoLay, placeSpike, raiseSpike, damageSpike, removeSpike, restoreSpike,
-  begin, flush, fxSeconds, resolveEntry, pushUnit, applySlow, slowed,
+  begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn,
   noteHurt, flushBursts, canLay, canSpike, addPrison, takePrisons,
   wetAt, layWet, dryWet,
@@ -35,6 +37,7 @@ const { engine } = require("./engine");
 const combat = require("./combat");
 const timers = require("./timers");
 const view = require("./view");
+const Visibility = require("./visibility");
 const action = require("./phases/action");
 const attack = require("./phases/attack");
 
@@ -283,6 +286,7 @@ function impact(p, hit, dir, n, ctx) {
   if (hit.kind === "unit") {
     const u = match.players[hit.id];
     if (!u || !u.alive || !u.pos) return;
+    revealPushed(u); // ถูกชน = เผยตัว (เหตุการณ์ชนมีพิกัด)
     const hook = hookOf(p);
     const enemy = !combat.sameTeam(p, u);
     if (!enemy) { ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y, ally: true }); return; }
@@ -322,11 +326,14 @@ function spikeImpact(p, k, ctx) {
     match.lastLog.push(`🧊 ${p.name} ไถลชนหนามน้ำแข็งของตัวเอง — แต้มสกิล +${ev.energy}`);
   } else {
     const before = (p.hp || 0) + (p.armor || 0);
-    const deal = () => combat.dealMixed(p, lv, false);
+    // ตายจากหนาม = เจ้าของหนามเป็นผู้สังหาร (onKill) — ไม่ใช่ผู้ไถลเอง/ผู้ผลัก (ต้นตอที่ครอบอยู่ข้างนอก)
+    const deal = () => {
+      combat.dealMixed(p, lv, false);
+      ev.dmg = Math.max(0, before - ((p.hp || 0) + (p.armor || 0)));
+      if (p.alive && p.hp <= 0) combat.instantDeath(p);
+    };
     if (owner) combat.withEffectSource(owner, deal); else deal();
     p.wasAttacked = true;
-    ev.dmg = Math.max(0, before - ((p.hp || 0) + (p.armor || 0)));
-    if (p.alive && p.hp <= 0) combat.instantDeath(p);
     ev.kill = !p.alive;
     match.lastLog.push(`🧊 ${p.name} ไถลชนหนามน้ำแข็ง Lv.${lv} -${ev.dmg} (ลดเกราะก่อน)`);
   }
@@ -339,6 +346,7 @@ function spikeImpact(p, k, ctx) {
 //  คืน true = ขยับได้
 function pushUnit(u, dir, ctx) {
   if (!u || !u.alive || !u.pos) return false;
+  revealPushed(u);
   const from = { ...u.pos };
   if (action.sizeOf(u) > 1) { ctx.events.push({ kind: "knock", id: u.id, from, to: from, collide: true }); return false; }
   const to = { x: from.x + dir.x, y: from.y + dir.y };
@@ -350,6 +358,36 @@ function pushUnit(u, dir, ctx) {
   ctx.events.push({ kind: "knock", id: u.id, from, to: { ...to } });
   resolveEntry(u, dir, ctx);
   return true;
+}
+// ถูกแรงอื่นย้ายตัว (ตั้ง pos ตรงๆ ไปแล้ว) แล้วลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกย้าย + ชนตามกติกาไถลทุกอย่าง (ผู้ใช้ตัดสิน 2026-10-14 "ไถลต่อตามสเปก")
+//  moves = [{ id, from?, to, dir }] ตามลำดับที่ให้ไถล · to = ช่องที่ลง (ไม่อยู่ช่องนั้นแล้ว — ถูกชนกระเด็นไปก่อน/ตาย = ข้าม)
+//   dir = ทิศที่ถูกย้าย ({x, y} ใช้แค่เครื่องหมาย · ทแยงได้) · ตัวใหญ่ไม่ไถล (กฎเดิม)
+//   from = ช่องก่อนถูกย้าย → เหตุการณ์ knock (from → to) นำหน้าการไถล ให้ client เลื่อนจากช่องเดิมก่อน
+//    (ผู้เรียกที่ส่ง state ช่องที่ลงไปแล้ว + เล่นฉากผลักเอง เช่น Strium Ray = ไม่ต้องใส่)
+//  source = ผู้ผลัก (ต้นตอดาเมจ/เครดิตฆ่า · null = ธรรมชาติ เช่นน้ำวน) → ส่ง iceFx แล้วคืน ctx | null = ไม่มีใครไถล
+function forcedSlides(moves, source = null) {
+  const ctx = begin();
+  for (const m of moves || []) {
+    const u = m && match.players[m.id];
+    if (!u || !u.alive || !u.pos || !m.to || !m.dir || action.sizeOf(u) > 1) continue;
+    if (u.pos.x !== m.to.x || u.pos.y !== m.to.y) continue;
+    const dir = { x: Math.sign(m.dir.x), y: Math.sign(m.dir.y) };
+    if ((!dir.x && !dir.y) || !Board.isIce(action.boardMap(), u.pos.x, u.pos.y)) continue;
+    revealPushed(u);
+    if (m.from && (m.from.x !== u.pos.x || m.from.y !== u.pos.y)) ctx.events.push({ kind: "knock", id: u.id, from: { x: m.from.x, y: m.from.y }, to: { ...u.pos } });
+    if (source) combat.withEffectSource(source, () => resolveEntry(u, dir, ctx));
+    else resolveEntry(u, dir, ctx);
+  }
+  if (!ctx.events.length) return null;
+  flush(ctx);
+  return ctx;
+}
+// ถูกผลัก/ดึง/ชน = นับเป็นการชน (ซุ่มโจมตีแบบ FE): ล่องหน (นักบินปริศนา) ปรากฏตัว · ซ่อนในพุ่มหญ้า = โผล่จนจบเทิร์น
+//  ผู้ใช้ตัดสิน 2026-10-14 "ถูกดัน = เผยตัว" — เรียกก่อนส่งเหตุการณ์ที่มีพิกัดของคนนั้น (growFx / hikaruPush / iceFx) ไม่งั้นพิกัดหลุดตอนยังซ่อน
+function revealPushed(u) {
+  if (!u || !u.alive || !Visibility.concealed(u)) return;
+  if (Visibility.inBush(u)) Visibility.exposeBush(u);
+  Visibility.onBump(null, u);
 }
 
 // ---------- ตีหนาม (ทุกคนตีได้ — เหมือนผนึกห่วงเวลาซีโร่) ----------

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { engine } = require('../../server.js');
 const muimi = require('../../characters/muimi.js');
 const oberon = require('../../characters/oberon_summer.js');
+const sora = require('../../characters/sora_otosumi.js');
 
 const cutsceneFns = {
   triggerCutscene: engine.triggerCutscene,
@@ -34,6 +35,7 @@ function player(characterId, over = {}) {
   });
   if (characterId === 'muimi') muimi.resetCombat(p);
   if (characterId === 'oberon_summer') oberon.resetCombat(p);
+  if (characterId === 'sora_otosumi') sora.resetCombat(p);
   Object.assign(p, over);
   engine.players[id] = p;
   return p;
@@ -75,6 +77,23 @@ test('มุยมิ 2 คน: เสบียงฉุกเฉินและ
   assert.equal(b.muimiEmergencyUses, muimi.EMERGENCY_USES);
   assert.equal(muimi.canUseSkill(engine, b, 'basic'), true);
   muimi.onUltExpire(engine, a);
+  assert.equal(muimi.canUseSkill(engine, a, 'ultimate'), false);
+  assert.equal(muimi.canUseSkill(engine, b, 'ultimate'), true, 'คูลดาวน์ของอีกคนต้องไม่ติดมา');
+  engine.setRoundNumber(engine.roundNumber + 1); // ตัวเลขคูลดาวน์เริ่มโชว์เทิร์นถัดจากที่ตั้งล็อก
   assert.ok(muimi.ultCooldownLeft(engine, a) > 0);
-  assert.equal(muimi.ultCooldownLeft(engine, b), 0, 'คูลดาวน์ของอีกคนต้องไม่ติดมา');
+  assert.equal(muimi.ultCooldownLeft(engine, b), 0);
+});
+
+test('โซระ 2 คน: ร่าง/อาวุธ/โควตาเทิร์น/ตัวนับเพื่อคุณหนูของแต่ละคนแยกกัน', () => {
+  const a = player('sora_otosumi', { hp: 5 });
+  const b = player('sora_otosumi', { hp: 5 });
+  sora.applyInstantSkill(engine, a, 'basic');
+  sora.applyInstantSkill(engine, a, 'secondary');
+  assert.deepEqual([a.sora.myth, a.sora.gun], [true, true]);
+  assert.deepEqual([b.sora.myth, b.sora.gun], [false, false], 'ร่าง/อาวุธของอีกคนต้องไม่เปลี่ยนตาม');
+  assert.equal(sora.canUseSkill(engine, a, 'basic'), false);
+  assert.equal(sora.canUseSkill(engine, b, 'basic'), true, 'โควตาแปลงร่างของอีกคนต้องไม่ติดมา');
+  sora.onEndTurn(engine);
+  assert.equal(a.sora.calm, 0, 'ร่าง My-Th ไม่นับ');
+  assert.equal(b.sora.calm, 1);
 });

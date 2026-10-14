@@ -10,6 +10,9 @@
 //   เครื่องดูดฝุ่นใช้ได้ 5 ครั้งต่อเกม (ผู้ใช้สั่ง 2026-10-14): ตีปกติ (ตีพลาด/ตีหนาม/ผนึกก็นับ) 1 · ท่าไม้ตาย 1 → หมด = กลับไปถือไม้ถูพื้น
 // ============================================================
 
+const Board = require("../server/board");
+const Duo = require("../server/duo");
+
 const MOP_DMG = 2;
 const VASE_PUSH = 3;
 const COLLIDE_DMG = 1;
@@ -22,9 +25,13 @@ const WINGS_LEN = 4;
 const MASK_KEY = "shadowMask";
 const BREAD_HP = 2;
 const BREAD_ARMOR = 1;
+// เวลาฉาก (skillBeat — วินาทีก่อนผลลง/กลับมาคุมต่อ): ปีกเขม่าบิน · ม่านแดงปิดลง · ร่าเริงสุดๆ
+const WINGS_BEAT = 1.8;
+const STORM_BEAT = 4.2;
+const CHEER_BEAT = 1.1;
 
 const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
-const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+const { dist } = Board; // ระยะแมนฮัตตัน (ช่องเดี่ยว)
 
 // ---------- ตัวช่วย ----------
 // ความเสียหายตายตัว (เกราะรับก่อน · ฆ่าได้) ในนามของ by → ดาเมจที่ลงจริง
@@ -92,7 +99,6 @@ function adjacentToward(engine, anchor, near, selfId) {
     .sort((a, b) => dist(a, near) - dist(b, near));
   return spots[0] || null;
 }
-// ย้ายคน from → to พร้อมเหตุการณ์ (ดูด/ดึง — ไม่ผ่านช่องกลาง)
 // ใช้เครื่องดูดฝุ่น 1 ครั้ง · หมด = กลับไปถือไม้ถูพื้น (เลือกเครื่องดูดฝุ่นใหม่ไม่ได้ — canUseSkill)
 function spendVacuum(engine, p, s) {
   s.vacuumLeft = Math.max(0, (s.vacuumLeft || 0) - 1);
@@ -103,6 +109,7 @@ function spendVacuum(engine, p, s) {
   engine.boardFx("shadowFx", { kind: "weapon", id: p.id, weapon: "mop" });
   engine.sfx("ke_w_mop");
 }
+// ย้ายคน from → to พร้อมเหตุการณ์ (ดูด/ดึง — ไม่ผ่านช่องกลาง)
 function relocate(engine, u, to, ctx) {
   const from = { ...u.pos };
   u.pos = { ...to };
@@ -110,25 +117,22 @@ function relocate(engine, u, to, ctx) {
   engine.duo.moved(u);
 }
 
-function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
-  const weapon = (engine, p) => (isEmi(p) ? st(engine, p).weapon : null);
+// ฮุคตีปกติ/ติดตัวของทั้งสองตัว — st(p) = สถานะของคู่ (เก็บที่เคท) · weaponOf(p) = อาวุธที่เอมิลิโกะถือ (เคท = null)
+function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
   return {
     // ---------- ตีปกติ ----------
     range(p) {
-      if (!isEmi(p)) return null;
-      const engine = require("../server/engine").engine;
-      return weapon(engine, p) === "vacuum" ? VACUUM_RANGE : null;
+      return isEmi(p) && weaponOf(p) === "vacuum" ? VACUUM_RANGE : null;
     },
     damageBonus(engine, attacker) {
       if (!isPair(attacker)) return 0;
-      const s = st(engine, attacker);
+      const s = st(attacker);
       if (isKate(attacker)) return s.sword === "kate" ? SWORD_KATE : 0;
       return s.weapon === "sword" ? SWORD_EMI : 0;
     },
     attackFxNames(attacker) {
       if (!isPair(attacker)) return [];
-      const engine = require("../server/engine").engine;
-      const s = st(engine, attacker);
+      const s = st(attacker);
       if (isKate(attacker) && s.sword === "kate") return [`ดาบเขม่า +${SWORD_KATE}`];
       if (isEmi(attacker)) {
         if (s.weapon === "sword") return [`ดาบเขม่า +${SWORD_EMI}`];
@@ -139,20 +143,18 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
     },
     // เครื่องดูดฝุ่น: ดาเมจ = ระยะห่าง (ไม่รับบัฟ/คริติคอล)
     fixedStrikeDamage(engine, attacker, target) {
-      if (!isEmi(attacker) || weapon(engine, attacker) !== "vacuum" || !attacker.pos || !target.pos) return null;
+      if (!isEmi(attacker) || weaponOf(attacker) !== "vacuum" || !attacker.pos || !target.pos) return null;
       return engine.boxDist ? engine.boxDist(attacker, target) : dist(attacker.pos, target.pos);
     },
     attackStyle(p) {
       if (isKate(p)) return "keKate";
       if (!isEmi(p)) return null;
-      const engine = require("../server/engine").engine;
-      return { mop: "keMop", vase: "keVase", vacuum: "keVacuum", sword: "keSword" }[weapon(engine, p)] || "keMop";
+      return { mop: "keMop", vase: "keVase", vacuum: "keVacuum", sword: "keSword" }[weaponOf(p)] || "keMop";
     },
     attackSound(p) {
       if (isKate(p)) return "ke_hit_kate";
       if (!isEmi(p)) return undefined;
-      const engine = require("../server/engine").engine;
-      return `ke_hit_${weapon(engine, p) || "mop"}`;
+      return `ke_hit_${weaponOf(p) || "mop"}`;
     },
     // ติดตัวเคท: ตีปกติในม่านแดงของตัวเอง → เป้า "มืดบอด" 1 เทิร์น (ต้านสถานะได้)
     onStrikeLanded(engine, attacker, target) {
@@ -167,7 +169,7 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
     // แจกัน: ผลักเป้า 3 ช่อง (ทางเป็นพื้นเปียก) · เครื่องดูดฝุ่น: ดูดเป้ามาติดตัว
     afterBoardAttack(engine, attacker, target, res) {
       if (!isEmi(attacker) || !res || res.dodge || !target.alive || !target.pos || !attacker.pos) return null;
-      const w = weapon(engine, attacker);
+      const w = weaponOf(attacker);
       if (w === "vase") {
         return () => {
           if (!target.alive || !target.pos) return;
@@ -192,16 +194,16 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
     },
     // ตีปกติจบ (action.attackTarget — ตีคน/หนาม/ผนึก): เครื่องดูดฝุ่นหัก 1 ครั้ง
     afterStrike(engine, p) {
-      if (isEmi(p) && weapon(engine, p) === "vacuum") spendVacuum(engine, p, st(engine, p));
+      if (isEmi(p) && weaponOf(p) === "vacuum") spendVacuum(engine, p, st(p));
     },
     // ---------- ไม้ถูพื้น: ไถลบนพื้นเปียก ----------
-    slideStrikes(engine, p) { return isEmi(p) && weapon(engine, p) === "mop"; },
+    slideStrikes(engine, p) { return isEmi(p) && weaponOf(p) === "mop"; },
     slideStrike(engine, p, t) {
       hurt(engine, p, t, MOP_DMG, `🧹 ${p.name} ไม้ถูพื้นไถลชน`);
       return { attack: false, knock: false, style: "mop" };
     },
     onSlide(engine, p, n, ctx) {
-      if (!isEmi(p) || weapon(engine, p) !== "mop") return;
+      if (!isEmi(p) || weaponOf(p) !== "mop") return;
       const ev = [...ctx.events].reverse().find((e) => e.kind === "slide" && e.id === p.id);
       if (!ev) return;
       const dried = engine.ice.dryWet(ev.path);
@@ -213,7 +215,7 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
       if (!isEmi(p) || !item || !(item.uses > 0)) return false;
       let t = p;
       if (opts.targetId && opts.targetId !== p.id) {
-        const mate = mateOf(engine, p);
+        const mate = Duo.partnerOf(p);
         if (!mate || opts.targetId !== mate.id || !mate.alive || !mate.pos || !p.pos || dist(p.pos, mate.pos) !== 1) return false;
         t = mate;
       }
@@ -232,7 +234,6 @@ function hooks({ isKate, isEmi, isPair, st, mateOf, WEAPONS }) {
       if (tier === "ultimate") return isKate(p) ? null : "ke_cheer"; // เสียงระบำเขม่าเล่นในฉาก KateStorm (client) เองใต้เพลง
       return null;
     },
-    WEAPONS,
   };
 }
 
@@ -295,18 +296,12 @@ function wings(engine, p, dirKey, mate) {
   }
   engine.boardFx("shadowFx", { kind: "wings", id: p.id, from, to, dir: dirKey, carry: carry ? { id: carry.id, from: carryFrom, to: carryTo } : null });
   engine.log(`🪽 ${p.name} กางปีกเขม่าบินไป ${dist(from, to)} ช่อง${carry ? ` พา ${carry.name} ไปด้วย` : ""}`);
-  engine.skillBeat(1.8, () => {}); // ให้ฉากบินเล่นจบก่อนกลับมาคุมต่อ
+  engine.skillBeat(WINGS_BEAT, () => {}); // ให้ฉากบินเล่นจบก่อนกลับมาคุมต่อ
   return "";
 }
 
-// ---------- ท่าไม้ตาย ----------
-function ultimate(engine, p, targets, opts, { st: s }) {
-  if (isKateChar(p)) return storm(engine, p, opts);
-  return cheer(engine, p, targets, opts, s);
-}
-const isKateChar = (p) => p.characterId === "kate";
-
-// ระบำเขม่า: ม่านแดง 8×8 รอบช่องที่เลือก (ช่องกลางค่อนซ้ายบน) — ฉากใหญ่ ~4 วิ แล้วค่อยลงดาเมจ
+// ---------- ท่าไม้ตาย (kate_emiliko.js applyInstantSkill เลือกตามตัว) ----------
+// ระบำเขม่า (เคท): ม่านแดง 8×8 รอบช่องที่เลือก (ช่องกลางค่อนซ้ายบน) — ฉากใหญ่ ~4 วิ แล้วค่อยลงดาเมจ
 function storm(engine, p, opts) {
   const area = { kind: "tile", square: 8 };
   const tiles = engine.tileArea(area, opts.tile);
@@ -314,14 +309,14 @@ function storm(engine, p, opts) {
   if (!s) return "";
   engine.boardFx("shadowFx", { kind: "storm", by: p.id, x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, center: { ...opts.tile } });
   engine.log(`🌹 ${p.name} ระบำเขม่า — ม่านแดงปิดลง 3 เทิร์น`);
-  engine.skillBeat(4.2, () => {
+  engine.skillBeat(STORM_BEAT, () => {
     const hits = engine.soot.strikeInside(s);
     if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
   });
   return "";
 }
 
-// ร่าเริงสุดๆ: แนว 4×3 ตามอาวุธ
+// ร่าเริงสุดๆ (เอมิลิโกะ): แนว 4×3 ตามอาวุธ · s = สถานะของคู่ (st)
 function cheer(engine, p, targets, opts, s) {
   const v = DIRS[opts.dir];
   if (!v || !p.pos) return "";
@@ -331,7 +326,7 @@ function cheer(engine, p, targets, opts, s) {
   const along = (t) => (t.pos.x - p.pos.x) * v.x + (t.pos.y - p.pos.y) * v.y; // ระยะตามแนว (1..4)
   let dash = null;
   engine.boardFx("shadowFx", { kind: "cheer", id: p.id, weapon: w, dir: opts.dir, tiles, dash: null });
-  engine.skillBeat(1.1, () => {
+  engine.skillBeat(CHEER_BEAT, () => {
     const ctx = engine.ice.begin();
     const label = `✨ ${p.name} ร่าเริงสุดๆ`;
     if (w === "mop") {
@@ -390,4 +385,4 @@ function cheer(engine, p, targets, opts, s) {
   return "";
 }
 
-module.exports = { hooks, whip, wings, ultimate, pushLine, spendVacuum, MASK_KEY };
+module.exports = { hooks, whip, wings, storm, cheer };

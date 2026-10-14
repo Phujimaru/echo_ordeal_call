@@ -229,6 +229,7 @@ function nearFreeTile(pos, selfId = null) {
 //  หดตัว: ยืนกลางตัวเดิม · ขยายตัว: มุมใหม่ครอบตัวเดิม (Board.growPlan) — คนในช่องที่ขยายทับถูกผลักออกไปช่องว่างใกล้สุด
 //   ศัตรูที่ถูกผลักเสียพลังชีวิต 1 (ลดเกราะก่อน · ผู้ใช้สั่ง) · เพื่อนร่วมทีมถูกผลักเฉยๆ · พังสิ่งกีดขวางใต้ตัวใหม่ได้ถ้า smashes
 //   ไม่มีที่ให้ขยาย (ร้านค้า/ขอบกระดานขวาง) = ค้างขนาดเดิมไว้ก่อน (ผู้เรียกลองใหม่ทีหลัง)
+//   คนที่ถูกผลักเผยตัวก่อนส่ง growFx (Ice.revealPushed) · ถูกผลักลงน้ำแข็ง = ไถลต่อ (Ice.forcedSlides — iceFx ตามหลัง)
 //  ส่ง boardFx "growFx" ให้ client เล่นเอฟเฟกต์ (ขนาดเดิม → ใหม่ · คนที่ถูกผลัก · ของที่พัง)
 function resizeUnit(p, newSize) {
   const from = sizeOf(p);
@@ -251,13 +252,18 @@ function resizeUnit(p, newSize) {
   p.boardSize = newSize;
   const box = { x: plan.x, y: plan.y, size: newSize };
   const pushed = [];
+  const slides = [];
   combat.withEffectSource(p, () => {
     for (const id of plan.displaced) {
       const o = match.players[id];
       if (!o || !o.alive || !o.pos) continue;
+      Ice.revealPushed(o); // ถูกดัน = เผยตัว ก่อน growFx ส่งพิกัด (ผู้ใช้ตัดสิน 2026-10-14)
       const before = { ...o.pos };
       const to = Board.pushOutTile(boardMap(), before, box, boardUnits().filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked(o.id) });
-      if (to) o.pos = { x: to.x, y: to.y };
+      if (to) {
+        o.pos = { x: to.x, y: to.y };
+        slides.push({ id: o.id, from: before, to: { ...o.pos }, dir: { x: to.x - before.x, y: to.y - before.y } });
+      }
       const enemy = !combat.sameTeam(p, o);
       let dealt = 0;
       if (enemy) {
@@ -273,6 +279,7 @@ function resizeUnit(p, newSize) {
     }
   });
   engine.boardFx("growFx", { id: p.id, from, to: newSize, at: { ...p.pos }, prev: fromPos, pushed, smashed });
+  Ice.forcedSlides(slides, p); // ถูกดันลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกดัน + ชนตามกติกาไถล (iceFx ตามหลัง growFx)
   return newSize;
 }
 
@@ -321,10 +328,10 @@ function resolveArea(p, area, targets, dir, tile) {
     const t = match.players[Array.isArray(targets) ? targets[0] : null];
     if (!t || !t.alive || !t.pos) return null;
     if (t.id === p.id) return area.self ? [t.id] : null;
-    if (Visibility.hiddenFrom(p, t)) return null;
+    if (Visibility.hiddenFromUnit(p, t)) return null;
     return Board.dist(boxOf(p), boxOf(t)) <= range ? [t.id] : null;
   }
-  const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
+  const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFromUnit(p, match.players[u.id]));
   if (kind === "aoe") {
     const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range, sizeOf(p))).map((u) => u.id);
     return area.self ? [p.id, ...ids] : ids;
@@ -421,7 +428,7 @@ function nextActor() {
     units = units.filter((u) => !stuck(u));
     if (!units.length) continue;
     const secs = actionSeconds();
-    if (owner.duoWith) Duo.startTurn(owner, units, secs);
+    if (owner.duoWith) Duo.startTurn(owner, units);
     else {
       match.duo = null;
       match.actorId = id;
@@ -643,7 +650,7 @@ function attackTarget(id, targetId) {
   const target = match.players[targetId];
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
-  if (Visibility.hiddenFrom(p, target)) return false; // มองไม่เห็น = ตีไม่ได้
+  if (Visibility.hiddenFromUnit(p, target)) return false; // มองไม่เห็น = ตีไม่ได้ (ม่านแดง: นับจากตาของตัวที่ตีเอง)
   if (!canStrike(p, target)) return false;
   timers.clearPhaseTimer();
   match.action.locked = true;
@@ -715,7 +722,7 @@ function endUnitTile(p) {
   if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
 }
 // ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น
-//  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้)
+//  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้ · ลงน้ำแข็ง = ไถลต่อ)
 //  ตัวใหญ่: ทับหนามพิษ/ลาวาช่องไหนก็โดน (ครั้งเดียวต่อจบตา · ลาวาก่อน) · น้ำวนดันตัวใหญ่ไม่ได้
 function tileEndEffect(p) {
   let fx;
@@ -743,8 +750,12 @@ function tileEndEffect(p) {
     if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
   } else if (fx.kind === "whirl") {
     if (fx.to) {
+      const from = { ...p.pos };
       p.pos = { x: fx.to.x, y: fx.to.y };
       match.lastLog.push(`${info.icon} ${p.name} โดน${info.name}ดันไป 1 ช่อง`);
+      // ดันลงน้ำแข็ง = ไถลต่อตามกระแส + ชนตามกติกาไถล (ไม่มีผู้ผลัก — ชนหนามยังนับเจ้าของหนาม)
+      const v = Board.LINE_DIRS[fx.dir];
+      Ice.forcedSlides([{ id: p.id, from, to: { ...p.pos }, dir: { x: v[0], y: v[1] } }]);
     } else {
       match.lastLog.push(`${info.icon} ${p.name} อยู่ใน${info.name} แต่ช่องข้างหน้าไม่ว่าง — ไม่ขยับ`);
     }

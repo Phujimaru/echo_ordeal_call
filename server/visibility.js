@@ -7,7 +7,7 @@
 //  ผู้ชมที่มองไม่เห็นได้ pos = null และไม่เห็นเส้นทางเดิน/บันทึกที่มีชื่อเขา (view.js)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  stealthed, inBush, concealed, hiddenFrom, exposeBush, onHostileAct, onAreaHit, onBump, filterLog, markTurn,
+  stealthed, inBush, concealed, hiddenFrom, hiddenFromUnit, exposeBush, onHostileAct, onAreaHit, onBump, filterLog, markTurn,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -45,6 +45,11 @@ function hiddenFrom(viewer, target) {
     if (eyes.length) return eyes.every((u) => hiddenFromOne(u, target));
   }
   return hiddenFromOne(viewer, target);
+}
+// ตัวที่ลงมือ (เล็ง/ตี/ยิง/ส่งชุด) มองไม่เห็น target ไหม — เหมือน hiddenFrom แต่ม่านแดงนับจากตาของตัวนั้นเอง
+//  ระบบคู่: ถูกขังในม่าน (หรืออยู่นอกม่าน) = อีกตัวที่อยู่คนละฝั่งช่วยเล็งข้ามม่านไม่ได้ · แผนที่ที่ผู้เล่นเห็นยังรวมสายตา (hiddenFrom)
+function hiddenFromUnit(p, target) {
+  return hiddenFrom(p, target) || (hiddenFromOne(p, target) && Soot.hiddenByStorm(p, target));
 }
 function hiddenFromOne(viewer, target) {
   if (!viewer || !target || viewer.id === target.id) return false;

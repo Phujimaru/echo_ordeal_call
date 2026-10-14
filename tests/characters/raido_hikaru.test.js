@@ -79,7 +79,7 @@ test('ข้อมูล: ระดับกลาง · เลือด 7 เ�
   assert.deepEqual(ch.range, [1, 1]);
   assert.equal(ch.basic.cost, 0);
   assert.equal(ch.secondary.cost, 4);
-  assert.equal(ch.ultimate.cost, 4);
+  assert.equal(ch.ultimate.cost, hk.CROSS_COST);
   assert.deepEqual(ch.ultimate.area, { kind: 'line', len: 5, width: 1, hostile: true });
   for (const key of [...Object.values(hk.FORMS).map((f) => f.cut), ...Object.values(hk.CUT)]) {
     assert.ok(TRANSFORMS[key] && TRANSFORMS[key].video, `คลิป ${key}`);
@@ -132,9 +132,9 @@ test('ทุกร่าง: เกราะสูงสุด +2 · เข้�
   P.H.armor = 1;
   engine.setActor('H');
   form('H', 'doragory');
-  assert.equal(engine.maxArmorOf(P.H), 5);
-  assert.equal(P.H.armor, 3, 'ฟื้นเกราะ 2');
-  assert.equal(view('H', 'H').hikaru.armorCd, 5);
+  assert.equal(engine.maxArmorOf(P.H), 3 + hk.FORM_ARMOR);
+  assert.equal(P.H.armor, 1 + hk.FORM_ARMOR_HEAL, 'ฟื้นเกราะ 2');
+  assert.equal(view('H', 'H').hikaru.armorCd, hk.ARMOR_HEAL_CD);
   passTurn();
   engine.setActor('H');
   form('H', 'pandon');
@@ -145,7 +145,7 @@ test('ทุกร่าง: เกราะสูงสุด +2 · เข้�
   form('H', hk.NORMAL);
   assert.equal(P.H.armor, 3, 'คืนร่าง = ตัดเกราะส่วนเกิน');
   assert.equal(engine.maxArmorOf(P.H), 3);
-  engine.setRoundNumber(6);
+  engine.setRoundNumber(1 + hk.ARMOR_HEAL_CD);
   engine.setActor('H');
   P.H.armor = 1;
   form('H', 'thunder');
@@ -296,7 +296,7 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 2, 5]]);
   engine.setActor('H');
   form('H', 'tiga');
-  assert.equal(P.H.statuses.hikaruForm, 3);
+  assert.equal(P.H.statuses.hikaruForm, hk.FORM_TURNS);
   assert.ok(engine.accurateActive(P.H));
   assert.equal(engine.attackPowerAgainst(P.H, P.B), 2);
   passTurn(); passTurn();
@@ -306,11 +306,11 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   assert.equal(P.H.statuses.accurate, undefined, 'ถอดแม่นยำ');
   assert.equal(engine.maxArmorOf(P.H), 3);
   const r = engine.roundNumber;
-  assert.equal(formCd('tiga'), 5);
+  assert.equal(formCd('tiga'), hk.FORM_CD);
   engine.setActor('H');
   form('H', 'tiga');
   assert.equal(P.H.hikaru.form, null, 'ติดคูลดาวน์');
-  engine.setRoundNumber(r + 5);
+  engine.setRoundNumber(r + hk.FORM_CD);
   engine.setActor('H');
   P.H.statuses.accurate = 5; // แม่นยำจากที่อื่นก่อนเข้าร่าง
   form('H', 'tiga');
@@ -320,17 +320,17 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   passTurn();
   engine.setActor('H');
   form('H', 'thunder');
-  assert.equal(P.H.statuses.hikaruForm, 3, 'ร่างใหม่นับเวลาของตัวเอง');
+  assert.equal(P.H.statuses.hikaruForm, hk.FORM_TURNS, 'ร่างใหม่นับเวลาของตัวเอง');
   assert.equal(P.H.statuses.accurate, 4, 'แม่นยำเดิมยังเหลือ');
-  assert.equal(formCd('tiga'), 6);
+  assert.equal(formCd('tiga'), hk.FORM_CD + 1);
 });
 
 test('ทุกร่าง: อยู่ 3 เทิร์นแล้วคืนร่างเอง · ร่างจบ = ร่างนั้นคูลดาวน์ 5 แยกรายร่าง · เปลี่ยนร่าง/คืนร่างระหว่างทาง = ร่างเดิมคูลดาวน์ทันที', () => {
   const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 12, 5]]);
   engine.setActor('H');
   form('H', 'thunder');
-  assert.equal(P.H.statuses.hikaruForm, 3);
-  assert.equal(view('H', 'H').hikaru.formLeft, 3);
+  assert.equal(P.H.statuses.hikaruForm, hk.FORM_TURNS);
+  assert.equal(view('H', 'H').hikaru.formLeft, hk.FORM_TURNS);
   passTurn(); passTurn();
   assert.equal(P.H.hikaru.form, 'thunder');
   assert.equal(view('H', 'H').hikaru.formLeft, 1);
@@ -338,7 +338,7 @@ test('ทุกร่าง: อยู่ 3 เทิร์นแล้วคื
   assert.equal(P.H.hikaru.form, null, 'ครบ 3 เทิร์น คืนร่างเอง');
   assert.equal(engine.sizeOf(P.H), 1);
   assert.equal(P.H.statuses.hikaruForm, undefined);
-  assert.equal(formCd('thunder'), 5);
+  assert.equal(formCd('thunder'), hk.FORM_CD);
   assert.equal(formCd('pandon'), 0, 'ร่างอื่นไม่ติดคูลดาวน์');
   engine.setActor('H');
   form('H', 'thunder');
@@ -350,20 +350,20 @@ test('ทุกร่าง: อยู่ 3 เทิร์นแล้วคื
   engine.setActor('H');
   form('H', 'doragory');
   assert.equal(P.H.hikaru.form, 'doragory');
-  assert.equal(P.H.statuses.hikaruForm, 3);
-  assert.equal(formCd('pandon'), 6, 'คูลดาวน์เริ่มเทิร์นถัดไป');
-  assert.equal(formCd('thunder'), 4, 'นับแยกรายร่าง');
+  assert.equal(P.H.statuses.hikaruForm, hk.FORM_TURNS);
+  assert.equal(formCd('pandon'), hk.FORM_CD + 1, 'คูลดาวน์เริ่มเทิร์นถัดไป');
+  assert.equal(formCd('thunder'), hk.FORM_CD - 1, 'นับแยกรายร่าง');
   // คืนร่างระหว่างทาง = ร่างเดิมคูลดาวน์ทันที
   passTurn();
   engine.setActor('H');
   form('H', 'normal');
   assert.equal(P.H.hikaru.form, null);
   assert.equal(P.H.statuses.hikaruForm, undefined);
-  assert.equal(formCd('doragory'), 6);
+  assert.equal(formCd('doragory'), hk.FORM_CD + 1);
   const forms = view('H', 'H').hikaru.forms;
   assert.ok(forms.find((f) => f.key === 'doragory').locked);
   // หมดคูลดาวน์แล้วเรียกได้อีก
-  engine.setRoundNumber(engine.roundNumber + 6);
+  engine.setRoundNumber(engine.roundNumber + hk.FORM_CD + 1);
   engine.setActor('H');
   form('H', 'doragory');
   assert.equal(P.H.hikaru.form, 'doragory');
@@ -383,8 +383,8 @@ test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่าน�
   assert.equal(P.H.hikaru.ginga, true);
   assert.equal(P.H.skillPoints, 4);
   assert.deepEqual(calls.cut.slice(-1), ['hkGinga']);
-  assert.equal(engine.sizeOf(P.H), 3);
-  assert.equal(engine.baseMovOf(P.H), 3);
+  assert.equal(engine.sizeOf(P.H), hk.GINGA_SIZE);
+  assert.equal(engine.baseMovOf(P.H), hk.GINGA_MOV);
   assert.equal(engine.displayImg(P.H), hk.IMG.ginga);
   assert.ok(calls.fx.some((f) => f.event === 'growFx'));
   const v = view('H', 'H');
@@ -398,17 +398,17 @@ test('Ultraman Ginga: 4 แต้ม · ร่างปกติเท่าน�
   const B = P.B;
   B.pos = { x: P.H.pos.x + 3, y: P.H.pos.y + 1 };
   assert.equal(engine.attackPowerAgainst(P.H, B), 2);
-  passTurn(); passTurn(); passTurn();
+  for (let i = 2; i < hk.GINGA_TURNS; i++) passTurn();
   assert.equal(P.H.hikaru.ginga, true, 'ยังอยู่ 5 เทิร์น');
   passTurn();
   assert.equal(P.H.hikaru.ginga, false);
   assert.equal(engine.sizeOf(P.H), 1);
-  assert.equal(view('H', 'H').hikaru.gingaCd, 3);
+  assert.equal(view('H', 'H').skillLocks.secondary.cd, hk.GINGA_CD);
   engine.setActor('H');
   P.H.skillPoints = 8;
   engine.useSkill('H', 'secondary', []);
   assert.equal(P.H.hikaru.ginga, false, 'ติดคูลดาวน์');
-  engine.setRoundNumber(engine.roundNumber + 3);
+  engine.setRoundNumber(engine.roundNumber + hk.GINGA_CD);
   engine.setActor('H');
   engine.useSkill('H', 'secondary', []);
   assert.equal(P.H.hikaru.ginga, true);
@@ -440,20 +440,20 @@ test('กิงกะ: ตีแค่ช่องติดตัว · โด�
   flush(t, 8000);
 });
 
-test('ร่าง UltraLive ตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง) · เปลี่ยนร่างต่อร่างขนาดเดิม · คืนร่าง / Tiga หมดเวลา = กลับ 1×1', () => {
+test('ร่าง UltraLive ตัว 3×3 (เดิน 3 · เดินพังสิ่งกีดขวาง) · เปลี่ยนร่างต่อร่างขนาดเดิม · คืนร่าง / ร่างหมดเวลา = กลับ 1×1', () => {
   const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 1]]);
   engine.setActor('H');
   form('H', 'pandon');
-  assert.equal(engine.sizeOf(P.H), 3);
-  assert.equal(engine.baseMovOf(P.H), 3);
+  assert.equal(engine.sizeOf(P.H), hk.GINGA_SIZE);
+  assert.equal(engine.baseMovOf(P.H), hk.GINGA_MOV);
   assert.equal(view('H', 'H').smash, true);
   passTurn();
   engine.setActor('H');
   form('H', 'tiga');
-  assert.equal(engine.sizeOf(P.H), 3, 'เปลี่ยนร่างต่อร่าง');
-  passTurn(); passTurn(); passTurn();
+  assert.equal(engine.sizeOf(P.H), hk.GINGA_SIZE, 'เปลี่ยนร่างต่อร่าง');
+  for (let i = 0; i < hk.FORM_TURNS; i++) passTurn();
   assert.equal(P.H.hikaru.form, null);
-  assert.equal(engine.sizeOf(P.H), 1, 'Tiga หมดเวลา = ตัวเล็ก');
+  assert.equal(engine.sizeOf(P.H), 1, 'ร่างหมดเวลา = ตัวเล็ก');
   assert.equal(engine.baseMovOf(P.H), 4);
   engine.setActor('H');
   form('H', 'doragory');
@@ -475,7 +475,7 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
   engine.setActor('H');
   engine.useSkill('H', 'ultimate', [], { dir: 'right' });
-  assert.equal(P.H.skillPoints, 4);
+  assert.equal(P.H.skillPoints, 8 - hk.CROSS_COST);
   assert.deepEqual(calls.cut, ['hkCross']);
   const beam = calls.fx.find((f) => f.event === 'hikaruBeam');
   assert.ok(beam, 'ลำแสงบนกระดาน');
@@ -484,9 +484,9 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   assert.ok(beam.payload.tiles.every((c) => c.y === 8), 'กลางด้านหน้าตัว');
   assert.equal(vit(P.B), 10, 'ดาเมจลงหลังลำแสงวิ่งถึง');
   flush(t, 5000);
-  assert.equal(vit(P.B), 8, 'หลบไม่ได้');
-  assert.equal(P.B.statuses.hburn, 2);
-  assert.equal(vit(P.C), 8);
+  assert.equal(vit(P.B), 10 - hk.BEAM_DMG, 'หลบไม่ได้');
+  assert.equal(P.B.statuses.hburn, hk.CROSS_BURN);
+  assert.equal(vit(P.C), 10 - hk.BEAM_DMG);
   assert.equal(vit(P.F), 10, 'ไม่โดนเพื่อน');
   assert.equal(vit(P.G), 10, 'เกินแนว 5 ไม่โดน');
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
@@ -512,7 +512,7 @@ test('Strium Brace: จบเทิร์นในกิงกะกลางว
   assert.deepEqual(hk.onStrikeLanded(engine, P.H, P.B), ['กิงกะสโตเรี่ยม — ลุกไหม้ +1']);
   const v = view('H', 'H');
   assert.equal(v.character.ultimate.name, 'Strium Ray');
-  assert.equal(v.character.ultimate.cost, 6);
+  assert.equal(v.character.ultimate.cost, hk.RAY_COST);
   assert.deepEqual(v.character.ultimate.area, { kind: 'line', len: 5, width: 3, hostile: true });
   assert.equal(v.character.secondary.img, hk.IMG.skill2Strium);
   // หมดกิงกะ → กดใหม่ = สโตเรี่ยมเลย
@@ -559,11 +559,11 @@ test('Strium Ray: 6 แต้ม · แนว 5×3 · ดาเมจ 2 + ลุ
   P.E.boardSize = 2; P.E.pos = { x: 4, y: 5 };
   engine.setActor('H');
   engine.useSkill('H', 'ultimate', [], { dir: 'right' });
-  assert.equal(P.H.skillPoints, 2);
+  assert.equal(P.H.skillPoints, 8 - hk.RAY_COST);
   assert.deepEqual(calls.cut, ['hkStriumRay']);
   flush(t, 6000);
-  assert.equal(vit(P.B), 8);
-  assert.equal(P.B.statuses.hburn, 3);
+  assert.equal(vit(P.B), 10 - hk.BEAM_DMG);
+  assert.equal(P.B.statuses.hburn, hk.RAY_BURN);
   assert.deepEqual(P.B.pos, { x: 7, y: 7 }, 'ผลักไปสุดปลาย');
   assert.deepEqual(P.D.pos, { x: 7, y: 8 }, 'คนไกลสุดผลักก่อน');
   assert.deepEqual(P.C.pos, { x: 6, y: 8 }, 'ขวางอยู่ = หยุดก่อนถึง');
@@ -594,13 +594,58 @@ test('กระดาน (ฟังก์ชันล้วน): lineTiles ต�
   assert.equal(Board.laneOf(map, 2, 5, 1, [1, 3], { x: 3, y: 6, size: 1 }), null, 'เฉียงไม่อยู่ในแนว');
 });
 
-test('จบเทิร์นจริง (engine.endTurn): ฮุคต่อสายแล้ว — Tiga ครบเวลาคืนร่างเอง', () => {
-  const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 8, 5]]);
-  Math.random = () => 0.99;
+test('จบเทิร์นจริง (engine.endTurn): ฮุคต่อสายแล้ว — ร่าง UltraLive ครบเวลาคืนร่างเอง (ทุกร่าง)', () => {
+  for (const key of ['tiga', 'thunder']) {
+    const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 8, 5]]);
+    Math.random = () => 0.99;
+    engine.setActor('H');
+    form('H', key);
+    P.H.statuses.hikaruForm = 1;
+    const r = engine.roundNumber;
+    engine.endTurn();
+    engine.clearPhaseTimer();
+    assert.equal(P.H.hikaru.form, null, key);
+    assert.equal(P.H.hikaru.formReady[key], r + 1 + hk.FORM_CD, `${key} คูลดาวน์`);
+  }
+});
+
+test('ตายกลางร่าง UltraLive / กลางกิงกะ: จบเทิร์นไม่พัง · สถานะร่างไม่ถูกแตะ · ขนาดตัวค้างตามเดิม', () => {
+  for (const mode of ['form', 'ginga']) {
+    const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
+    engine.setActor('H');
+    if (mode === 'form') form('H', 'pandon');
+    else engine.useSkill('H', 'secondary', []);
+    assert.equal(engine.sizeOf(P.H), hk.GINGA_SIZE, mode);
+    P.H.statuses.hikaruForm = 1; P.H.statuses.hikaruGinga = 1; // หมดเวลาตอนจบเทิร์นนี้ถ้ายังมีชีวิต
+    P.H.alive = false; P.H.pos = null;
+    assert.doesNotThrow(() => { passTurn(); passTurn(); }, mode);
+    assert.equal(P.H.boardSize, hk.GINGA_SIZE, `${mode}: คนตายไม่หดตัว`);
+    if (mode === 'form') assert.equal(P.H.hikaru.form, 'pandon');
+    else assert.equal(P.H.hikaru.ginga, true);
+    assert.equal(hk.smashes(P.H), true);
+  }
+});
+
+test('ฮิคารุ 2 คนในเกมเดียว: คูลดาวน์ร่าง / เกราะ / กิงกะ แยกกัน', () => {
+  const P = setup([['H', 'raido_hikaru', 1, 5], ['K', 'raido_hikaru', 1, 13], ['B', 'dummy', 12, 2]]);
+  assert.notEqual(P.H.hikaru, P.K.hikaru);
   engine.setActor('H');
-  form('H', 'tiga');
-  P.H.statuses.hikaruForm = 1;
-  engine.endTurn();
-  engine.clearPhaseTimer();
+  form('H', 'thunder');
+  passTurn();
+  engine.setActor('H');
+  form('H', hk.NORMAL);
+  assert.equal(formCd('thunder', 'H'), hk.FORM_CD + 1);
+  assert.equal(formCd('thunder', 'K'), 0, 'อีกคนไม่ติดคูลดาวน์');
+  assert.equal(view('K', 'K').hikaru.armorCd, 0);
+  engine.setActor('K');
+  form('K', 'thunder');
+  assert.equal(P.K.hikaru.form, 'thunder');
   assert.equal(P.H.hikaru.form, null);
+  passTurn();
+  engine.setActor('H');
+  engine.useSkill('H', 'secondary', []);
+  assert.equal(P.H.hikaru.ginga, true);
+  assert.equal(P.K.hikaru.ginga, false);
+  assert.equal(view('K', 'K').skillLocks.basic.locked, false, 'กิงกะของอีกคนไม่ล็อก UltraLive');
+  assert.equal(view('K', 'K').skillLocks.secondary.cd, 0);
 });

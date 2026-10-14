@@ -99,7 +99,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - `aoe` → ทุกคนในรัศมี (+ ตัวเองไว้หน้าสุดถ้า `self: true`) · `line` → ทุกคนในแนว (ไม่รวมตัวเอง)
 - **คัดเพื่อน/ศัตรูเป็นหน้าที่ของ hook** — `resolveArea` คืนทุกคนในพื้นที่ทั้งเพื่อนและศัตรู:
   - ศัตรู: `engine.sameTeam(p, t)` = เพื่อนร่วมทีม (ข้าม) — ดูคลื่นดาบใน `characters/muimi.js`
-  - ผลดี: `engine.teamModeActive()` + `engine.isAlly(p, o)` — ดู `allies()` ใน `characters/oberon_summer.js` (ffa = ทุกคนในวงได้)
+  - ผลดี: `engine.teamModeActive()` + `engine.isAlly(p, o)` — ดู `veilRecipients()` ใน `characters/oberon_summer.js` (ffa = ทุกคนในวงได้)
 - socket `useSkill` รับ `{ tier, targets, dir }` · เทสต์เรียก `engine.useSkill(id, tier, targets, { dir })`
 
 ## จุดเสียบใน server/
@@ -108,6 +108,19 @@ description: เพิ่มตัวละครใหม่หรือรื�
 ฝั่ง `characters/<id>.js` เข้าถึงทุกอย่างผ่าน `engine.*` เท่านั้น (GAME_SYSTEM.md §14)
 
 **ฮุคกลาง** — server เรียกให้ทุกตัวละครอัตโนมัติ (`CHAR_HOOKS[p.characterId]`) แค่ export ในโมดูลก็ทำงาน:
+
+**ฮุค broadcast** — แค่ implement ในโมดูล **ไม่ต้องแก้ server/** (เลิกแปะบรรทัดเรียกเองแล้ว): engine วนเรียก **ทุกโมดูล** ตามลำดับ
+`CHAR_HOOKS.MODULES` (= `CHARACTER_MODULES` ใน `characters/index.js` — ตัวใหม่ต่อท้าย) ผ่าน `combat.broadcastHook`
+→ ฮุคถูกเรียกกับผู้เล่นทุกคน/ทุกตัวละคร **ต้องเช็คเองว่าเป็นตัวเองไหม** (`isX(p)`) · ทุกฮุคผ่าน `combat.runHook` = แยกความผิดพลาด
+(โยน error → `console.error` ชื่อตัวละคร + ชื่อฮุค แล้วข้าม ตัวอื่นยังทำงาน · แมตช์ไม่ค้าง)
+
+| ฮุค | จังหวะ |
+|---|---|
+| `resetCombat(p)` | `combat.resetCombat()` ทุกแมตช์ — ล้างฟิลด์เฉพาะตัว (+ ค่าเริ่มใน `newPlayerRecord` ของ `server/socket.js`) |
+| `onRoundStartTick(engine, p)` | ลูปต่อผู้เล่นของ `dealRound()` — ลงผลกับ `p` เท่านั้น (GAME_SYSTEM §7 กล่องเตือน) · `p` ตาย = ข้ามผลต้นเทิร์นที่เหลือ |
+| `onEndTurn(engine)` | `endTurn()` หลังลูปลดเทิร์นสถานะ (สตั้นที่ใส่ตรงนี้เต็มเทิร์นถัดไป) |
+| `onDeath(engine)` | `combat.instantDeath()` — มีคนตกรอบ |
+| `onKill(engine, killer, victim)` | **ไม่ broadcast** — เฉพาะโมดูลของผู้สังหาร (`match.effectSourceId`) ผ่าน `runHook` |
 
 | ต้องการ | ฮุค | เรียกจาก |
 |---|---|---|
@@ -136,7 +149,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | เสียงตอนใช้สกิล | `skillSound(p, tier)` | `server/skills.js` |
 | ล็อก/คูลดาวน์รายช่องให้ client | `skillLocks(engine, p)` | `server/view.js` |
 | เปลี่ยนรูปบนกระดาน | `displayImg(p)` | `server/view.js` |
-| โบนัส/หักพลังโจมตี | `damageBonus(engine, attacker, target, ctx)` · แทนฐานทั้งหมด `attackBaseOverride` | `computeAttackBase()` — `server/phases/attack.js` |
+| โบนัส/หักพลังโจมตี | `damageBonus(engine, attacker, target, ctx)` · แทนฐานทั้งหมด `attackBaseOverride` · สกิลพื้นที่ `hostile` ทุบหนามน้ำแข็ง/ผนึกด้วยท่อนี้ **หลัง** ผลของสกิล (`useSkill` ต่อคิวไว้) — โบนัสเฉพาะสกิลต้องยังอยู่ตอนนั้น (ต้นแบบ `p.muimiWave` ของมุยมิ) | `computeAttackBase()` — `server/phases/attack.js` |
 | หลบ/ลดดาเมจ | `adjustIncomingDamage(engine, p, n, isNormalAttack, kind)` | `server/combat.js` |
 | ผล QTE | `onQteDone(engine, p, ok, qte)` | `server/qte.js` |
 | ใช้สกิลแล้วยังเดินได้ (ใช้ก่อนเดิน) | `keepsMove(engine, p, tier)` → true = ไม่ `lockMove` (Ice Spike: เฉพาะตอนยังไม่เดิน) | `server/skills.js` |
@@ -153,19 +166,20 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ดาเมจตายตัวของตีปกติ (ไม่รับบัฟ) | `fixedStrikeDamage(engine, attacker, target)` → ตัวเลข | `attack.strike` |
 | ไถลชนแบบมีเงื่อนไข | `slideStrikes(engine, p)` · `slideStrike` คืน `{ attack: false, knock: false }` | `Ice.impact` |
 | พื้นเปียก / พื้นที่ขัง+บังสายตา | `engine.ice.layWet / dryWet` · `engine.soot.cast / strikeInside / inStormOf / trapOf` | `server/ice.js` · `server/soot.js` |
+| สกิลพื้นที่ที่โดนจริงน้อยกว่าพื้นที่ที่ประกาศ (พุ่งแล้วชนหยุด) | `ownsAreaHit(p, tier, opts)` → true แล้วเรียก `skills.hitArea(p, tiles, ids)` เองกับช่องที่โดนจริง ในจังหวะที่ผลลง (ต้นแบบ ท่าไม้ตายโซระ) | `server/skills.js` |
+| ผลัก/ดึงคน (ตั้ง `pos` เอง) | หลังเอฟเฟกต์ผลัก เรียก `Ice.forcedSlides(moves, source)` (ลงน้ำแข็ง = ไถลต่อ) · ก่อนส่งพิกัดให้ client เรียก `Ice.revealPushed(u)` (ถูกดัน = เผยตัว) — GAME_SYSTEM §19 | `server/ice.js` |
+| เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):
 
 | ต้องการ | จุดเสียบ (ตัวอย่างที่มีอยู่) |
 |---|---|
-| ล้างฟิลด์ทุกแมตช์ | `resetCombat(p)` — `server/combat.js` (`CHAR_HOOKS.muimi.resetCombat`) + ค่าเริ่มใน `newPlayerRecord` (`server/socket.js`) |
-| ผลต้นเทิร์น | ลูปต่อผู้เล่นใน `dealRound()` — `server/phases/draw.js` (`oberon_summer.onRoundStartTick`) |
-| ผลจบเทิร์น | `endTurn()` — `server/phases/endTurn.js` (`oberon_summer.onEndTurn` หลังลูปลดเทิร์น · `muimi.onUltExpire` ในลูป) |
+| ล้างฟิลด์ / ผลต้นเทิร์น / ผลจบเทิร์น | ไม่ต้องเสียบแล้ว — ใช้ฮุค broadcast ด้านบน (`resetCombat` / `onRoundStartTick` / `onEndTurn`) |
+| สถานะหมดอายุแล้วมีผลตามมา | ในลูปลดเทิร์นของ `endTurn()` — `server/phases/endTurn.js` (`muimi.onUltExpire`) |
 | ผลเมื่อตีปกติลง (รวมตีสวน) | `strike()` — `server/phases/attack.js` (`muimi.onAttackLanded`) |
 | ป้ายผลในฉากตี | `strike()` — `server/phases/attack.js` (`oberon_summer.atkFx`) |
 | พลังโจมตีจากบัฟที่แจกคนอื่น | `computeAttackBase()` (`oberon_summer.atkBonus`) — ไม่ผูก id ผู้ตี ใครติดสถานะก็ได้ |
-| เสียงตีปกติเฉพาะตัว | `attackSoundOf()` — `server/phases/attack.js` |
-| ผลตอนเริ่ม/จบตาเดินของคนหนึ่ง | `nextActor()` / `finishActor()` — `server/phases/action.js` (ตอนนี้มีแค่จุดฟื้นฟูใน `finishActor` — ยังไม่มีตัวละครเสียบ) |
+| ผลตอนจบตาเดินของคนหนึ่ง | `finishActor()` — `server/phases/action.js` (ตอนนี้มีแค่จุดฟื้นฟู — ยังไม่มีฮุคตัวละคร) · ต้นตาเดินใช้ฮุค `onActorStart` (ไม่ต้องเสียบ) |
 | ผลตามลำดับเดิน (คนแรก/คนท้าย) | `beginOrder()` — `server/phases/action.js` (เหรียญคนแรก `GOLD_FIRST_BONUS`) |
 | ข้อมูลส่งให้ client | `buildStateFor()` — `server/view.js` (ฟิลด์ `muimiEmergencyUses` ฯลฯ) |
 | เพลงสนามระหว่างสถานะ | `activeSkillMusic()` — `server/view.js` (`muimi.towerActive`) |

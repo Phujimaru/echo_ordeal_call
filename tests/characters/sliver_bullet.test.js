@@ -54,7 +54,7 @@ test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · 
   assert.deepEqual(ch.basic.area, { kind: 'self' });
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 8, width: 1, hostile: true });
   assert.deepEqual(ch.range, [1, 4]);
-  assert.equal(pilot.SHOT_LEN, ch.range[1], 'ลำแสงตีปกติยาวเท่าระยะตี');
+  assert.equal(pilot.attackBeam({ characterId: 'sliver_bullet' }), ch.range[1], 'ลำแสงตีปกติยาวเท่าระยะตี');
   assert.match(ch.secondary.desc, /8×1/);
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(engine.maxHpOf(P.S), 5);
@@ -70,7 +70,7 @@ test('ซุ่มโจมตี: ffa 3 คนขึ้นไป = เริ่
   assert.equal(P.S.sliver.hidden, true);
   const fromB = view('B', 'S');
   assert.equal(fromB.pos, null);
-  assert.equal(fromB.sliver.hidden, false, 'ศัตรูไม่รู้สถานะล่องหน');
+  assert.equal(fromB.sliver, undefined, 'ศัตรูไม่รู้สถานะล่องหน/แขน');
   assert.equal(fromB.veiled, false);
   const self = view('S', 'S');
   assert.deepEqual(self.pos, { x: 5, y: 5 });
@@ -91,6 +91,57 @@ test('ซุ่มโจมตี: ffa เหลือ 2 คน / โหมด d
   engine.instantDeath(P.C);
   assert.equal(P.S.sliver.hidden, false);
   assert.deepEqual(view('B', 'S').pos, { x: 5, y: 5 });
+});
+
+// ผู้ใช้ตัดสิน "ข้อมูลอื่นซ่อน": ศัตรูที่มองไม่เห็นไม่รู้เลือด/เกราะ/แต้ม/แขน/สถานะ — เปลี่ยนชิ้นส่วนลับๆ แล้วมุมมองศัตรูไม่ขยับ
+test('ซุ่มโจมตี: ศัตรูไม่เห็นข้อมูลอื่น · เปลี่ยนชิ้นส่วนระหว่างล่องหน = มุมมองศัตรูไม่เปลี่ยน · เพื่อน/ตัวเองเห็นครบ · ปรากฏตัวแล้วเห็นครบ', () => {
+  const P = setup([
+    ['S', 'sliver_bullet', 1, 5, 't1'], ['A', 'dummy', 3, 5, 't1'], ['A2', 'dummy', 4, 5, 't1'],
+    ['B', 'dummy', 8, 5, 't2'], ['C', 'dummy', 10, 5, 't2'], ['D', 'dummy', 12, 5, 't2'],
+  ], 'trio');
+  assert.equal(P.S.sliver.hidden, true, 'trio เพื่อน 2 คน = ล่องหน');
+  P.S.hp = 2; P.S.statuses.regen = 2;
+  engine.setActor('S');
+  const enemyBefore = view('B', 'S');
+  assert.equal(enemyBefore.pos, null);
+  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield', 'mark42']) assert.equal(enemyBefore[k], null, k);
+  assert.equal(enemyBefore.skillPoints, -1);
+  assert.deepEqual(enemyBefore.statuses, {});
+  assert.equal(enemyBefore.sliver, undefined);
+  assert.equal(enemyBefore.skillLocks, undefined);
+  assert.equal(enemyBefore.character.basic.cost, CHAR_BY_ID.sliver_bullet.basic.cost, 'ราคาตั้งต้น (ราคาจริงบอกว่ามีแขน)');
+  const mateBefore = view('A', 'S');
+  assert.equal(mateBefore.hp, 2);
+  assert.equal(mateBefore.sliver.hidden, true);
+  assert.equal(mateBefore.character.basic.cost, 3);
+  engine.useSkill('S', 'basic');
+  assert.equal(P.S.hp, 4);
+  assert.deepEqual(view('B', 'S'), enemyBefore, 'ศัตรูไม่เห็นอะไรเปลี่ยน');
+  assert.equal(view('A', 'S').hp, 4, 'เพื่อนร่วมทีมเห็น');
+  assert.equal(view('A', 'S').skillPoints, 5);
+  const self = view('S', 'S');
+  assert.equal(self.hp, 4);
+  assert.equal(self.skillPoints, 5);
+  assert.equal(self.sliver.arm, true);
+  assert.deepEqual(self.skillLocks.basic, { locked: false, free: true }, 'ไม่กินโควตา (client: giftFree)');
+  // ยิง Beam Magnum = ปรากฏตัว → ศัตรูเห็นครบ
+  engine.useSkill('S', 'secondary', [], { dir: 'right' });
+  const enemyAfter = view('B', 'S');
+  assert.deepEqual(enemyAfter.pos, { x: 1, y: 5 });
+  assert.equal(enemyAfter.hp, 4);
+  assert.equal(enemyAfter.skillPoints, 1);
+  assert.equal(enemyAfter.sliver.arm, false);
+  assert.equal(enemyAfter.statuses.regen, 2);
+});
+
+test('ซุ่มโจมตี: นักบินตายระหว่างล่องหน = เลิกล่องหนเงียบๆ (ไม่มีบันทึกปรากฏตัว)', () => {
+  const P = setup([['S', 'sliver_bullet', 5, 5], ['B', 'dummy', 7, 5], ['C', 'dummy', 9, 5]]);
+  assert.equal(P.S.sliver.hidden, true);
+  match.lastLog = [];
+  engine.instantDeath(P.S);
+  assert.equal(P.S.alive, false);
+  assert.equal(P.S.sliver.hidden, false);
+  assert.ok(!match.lastLog.some((l) => l.includes('ปรากฏตัวบนสนาม')), match.lastLog.join(' | '));
 });
 
 test('ซุ่มโจมตี: ตีปกติ = ปรากฏตัว 2 เทิร์น (เทิร์นนี้ + เทิร์นหน้า) แล้วล่องหนอีกครั้ง', () => {
@@ -233,6 +284,19 @@ test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · 
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(P.A.hp + P.A.armor, 10, 'เพื่อนไม่โดน');
   assert.equal(P.B.hp + P.B.armor, 6);
+});
+
+test('Beam Magnum: บันทึกดาเมจนับโล่/เกราะชุด Mark 42 ด้วย (ไม่ขึ้น -0)', () => {
+  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 3, 5], ['C', 'dummy', 5, 5]]);
+  P.B.shield = 2;
+  P.C.mark42 = { armor: 7, ownerId: 'C' };
+  engine.setActor('S');
+  match.lastLog = [];
+  engine.useSkill('S', 'secondary', [], { dir: 'right' });
+  assert.equal(P.B.shield, 0);
+  assert.equal(P.C.mark42.armor, 3);
+  assert.ok(match.lastLog.includes('💥 Beam Magnum → B -4 (ลดเกราะก่อน)'), match.lastLog.join(' | '));
+  assert.ok(match.lastLog.includes('💥 Beam Magnum → C -4 (ลดเกราะก่อน)'), match.lastLog.join(' | '));
 });
 
 test('ตีปกติใช้เสียงยิงของนักบิน', () => {

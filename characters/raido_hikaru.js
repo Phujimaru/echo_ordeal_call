@@ -41,30 +41,63 @@ const VIDEO = {
   cross: `${DIR}/hikaru_skill3.mp4`,
   ray: `${DIR}/hikaru_strium_ray.mp4`,
 };
-// ร่าง UltraLive (เรียงตามปุ่ม) — cut = คีย์คลิปใน characters/_transforms.js · style = ท่าตีปกติบนกระดาน (client/src/board/hikaruFx.js)
-//  sfx = เสียงตีปกติ (คีย์ใน client/src/audio.js)
-const FORMS = {
-  blackking: { name: "แบล็คคิง", img: `${DIR}/form_blackking.jpg`, video: `${DIR}/form_blackking.mp4`, cut: "hkBlackKing", style: "hkBlack", sfx: "hk_black" },
-  thunder: { name: "ทันเดอร์ดารัมเบีย", img: `${DIR}/form_thunderdarambia.webp`, video: `${DIR}/form_thunderdarambia.mp4`, cut: "hkThunder", style: "hkThunder", sfx: "hk_thunder" },
-  kemur: { name: "มนุษย์ดาวเคมู", img: `${DIR}/form_kemurjin.webp`, video: `${DIR}/form_kemurjin.mp4`, cut: "hkKemur", style: "hkKemur", sfx: "hk_kemur" },
-  pandon: { name: "คิงแพนด้อน", img: `${DIR}/form_kingpandon.webp`, video: `${DIR}/form_kingpandon.mp4`, cut: "hkPandon", style: "hkPandon", sfx: "hk_pandon" },
-  doragory: { name: "ดอรากอรี่", img: `${DIR}/form_doragory.webp`, video: `${DIR}/form_doragory.mp4`, cut: "hkDoragory", style: "hkDoragory", sfx: "hk_doragory" },
-  tiga: { name: "Ultraman Tiga", img: `${DIR}/form_tiga.jpg`, video: `${DIR}/form_tiga.mp4`, cut: "hkTiga", style: "hkTiga", sfx: "hk_tiga" },
-};
-const FORM_KEYS = Object.keys(FORMS);
-const NORMAL = "normal"; // ปุ่ม "คืนร่าง"
-const CUT = { ginga: "hkGinga", strium: "hkStrium", cross: "hkCross", ray: "hkStriumRay" };
-
 const FORM_ARMOR = 2;      // เกราะสูงสุด +2 ระหว่างร่าง 1–6
 const FORM_ARMOR_HEAL = 2; // เข้าร่างฟื้นเกราะ 2
 const ARMOR_HEAL_CD = 5;   // ฟื้นเกราะตอนเข้าร่างได้อีกเมื่อผ่านไป 5 เทิร์น
+const ARMOR_LOSS_HEAL = 1; // เกราะลด 1 หน่วย = ฟื้นพลังชีวิต 1 (ฮุค onArmorLost เรียกทีละหน่วย)
 const LANE_RANGE = [1, 3]; // แบล็คคิง: แนวตรงยาว 3 จากขอบตัว
 const FACE_RANGE = [1, 1]; // กิงกะ: ช่องติดตัวทั้งด้าน (กว้างเท่าตัว 3 ช่อง — ผู้ใช้สั่ง 2026-10-12: ตีแค่ระยะตัว)
 const PANDON_RANGE = [1, 3];
 const FORM_TURNS = 3;      // ทุกร่างอยู่ 3 เทิร์น (สถานะ hikaruForm)
 const FORM_CD = 5;         // ร่างจบแล้วร่างนั้นเรียกซ้ำได้อีกหลัง 5 เทิร์น (แยกรายร่าง)
 const TIGA_ATK = 1;
+// สถานะจากตีปกติ — ช็อต/พิษร้ายเก็บ 2 (จบเทิร์นนี้ลด 1 = มีผลเต็ม 1 เทิร์นถัดไป) · ลุกไหม้/เลือดไหลเป็นจำนวนกอง
+const THUNDER_SHOCK = 2;
+const KEMUR_POISON = 2;
+const PANDON_BURN = 1;
+const DORAGORY_BLEED = 1;
+const STRIUM_BURN = 1;
 const KEMUR_CALM = 2;      // เทิร์นติดที่ไม่โดนอะไรเลย → ล่องหน
+// ตีปกติลง → ติดสถานะ (onHit.status = คีย์ใน APPLY · label = ป้ายตอนติด · name = ชื่อสถานะในป้าย "ต้านได้")
+const APPLY = {
+  shock: (engine, t, n) => engine.applyShock(t, n),
+  poison: (engine, t, n) => engine.applyPoison(t, n),
+  burn: (engine, t, n) => engine.applyBurn(t, n),
+  bleed: (engine, t, n) => engine.applyBleed(t, n),
+};
+// ร่าง UltraLive (เรียงตามปุ่ม) — cut = คีย์คลิปใน characters/_transforms.js · style = ท่าตีปกติบนกระดาน (client/src/board/hikaruFx.js)
+//  sfx = เสียงตีปกติ (คีย์ใน client/src/audio.js) · range = ระยะตีแทนค่าตัวละคร · lane = ตีปกติแนวตรง · atk = พลังโจมตีเพิ่ม · onHit = ติดสถานะจากตีปกติ
+const FORMS = {
+  blackking: {
+    name: "แบล็คคิง", img: `${DIR}/form_blackking.jpg`, video: `${DIR}/form_blackking.mp4`, cut: "hkBlackKing", style: "hkBlack", sfx: "hk_black",
+    range: LANE_RANGE, lane: true,
+  },
+  thunder: {
+    name: "ทันเดอร์ดารัมเบีย", img: `${DIR}/form_thunderdarambia.webp`, video: `${DIR}/form_thunderdarambia.mp4`, cut: "hkThunder", style: "hkThunder", sfx: "hk_thunder",
+    onHit: { status: "shock", turns: THUNDER_SHOCK, label: "ทันเดอร์ดารัมเบีย — ช็อต", name: "ช็อต" },
+  },
+  kemur: {
+    name: "มนุษย์ดาวเคมู", img: `${DIR}/form_kemurjin.webp`, video: `${DIR}/form_kemurjin.mp4`, cut: "hkKemur", style: "hkKemur", sfx: "hk_kemur",
+    onHit: { status: "poison", turns: KEMUR_POISON, label: "มนุษย์ดาวเคมู — พิษร้าย", name: "พิษร้าย" },
+  },
+  pandon: {
+    name: "คิงแพนด้อน", img: `${DIR}/form_kingpandon.webp`, video: `${DIR}/form_kingpandon.mp4`, cut: "hkPandon", style: "hkPandon", sfx: "hk_pandon",
+    range: PANDON_RANGE,
+    onHit: { status: "burn", turns: PANDON_BURN, label: `คิงแพนด้อน — ลุกไหม้ +${PANDON_BURN}`, name: "ลุกไหม้" },
+  },
+  doragory: {
+    name: "ดอรากอรี่", img: `${DIR}/form_doragory.webp`, video: `${DIR}/form_doragory.mp4`, cut: "hkDoragory", style: "hkDoragory", sfx: "hk_doragory",
+    onHit: { status: "bleed", turns: DORAGORY_BLEED, label: `ดอรากอรี่ — เลือดไหล +${DORAGORY_BLEED}`, name: "เลือดไหล" },
+  },
+  tiga: {
+    name: "Ultraman Tiga", img: `${DIR}/form_tiga.jpg`, video: `${DIR}/form_tiga.mp4`, cut: "hkTiga", style: "hkTiga", sfx: "hk_tiga",
+    atk: TIGA_ATK,
+  },
+};
+const STRIUM_HIT = { status: "burn", turns: STRIUM_BURN, label: `กิงกะสโตเรี่ยม — ลุกไหม้ +${STRIUM_BURN}`, name: "ลุกไหม้" };
+const FORM_KEYS = Object.keys(FORMS);
+const NORMAL = "normal"; // ปุ่ม "คืนร่าง"
+const CUT = { ginga: "hkGinga", strium: "hkStrium", cross: "hkCross", ray: "hkStriumRay" };
 const GINGA_TURNS = 5;
 const GINGA_CD = 3;
 const GINGA_SIZE = 3;      // ตัวใหญ่ทั้งร่าง UltraLive และกิงกะ (ผู้ใช้สั่ง 2026-10-12)
@@ -80,7 +113,7 @@ const CROSS_COST = 4;
 const RAY_COST = 6;
 const CROSS_AREA = { kind: "line", len: BEAM_LEN, width: 1, hostile: true };
 const RAY_AREA = { kind: "line", len: BEAM_LEN, width: 3, hostile: true };
-// จังหวะบนกระดาน (ต้องตรงกับ client/src/board/hikaruFx.js — HK_BEAM_MS / HK_PUSH_MS)
+// จังหวะพักให้กระดานเล่นเอฟเฟกต์ (ต้องไม่สั้นกว่า client/src/board/hikaruFx.js — HK_BEAM.reach (ลำแสงวิ่งถึง) / HK_PUSH_MS)
 const BEAM_SECONDS = 1.9;
 const PUSH_SECONDS = 0.9;
 const LINE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -110,8 +143,12 @@ const inForm = (p) => !!formOf(p);
 const gingaOn = (p) => isHikaru(p) && !!st(p).ginga;
 const striumOn = (p) => gingaOn(p) && !!st(p).strium;
 const bigOn = (p) => inForm(p) || gingaOn(p); // ตัว 3×3
+// ขนาดตัว — ฮุค smashes ได้แค่ p (ไม่มี engine) · ที่มี engine ใช้ engine.sizeOf
 const boardSize = (p) => Math.max(1, (p && p.boardSize) | 0);
-const left = (ready, round) => Math.max(0, (ready || 0) - round);
+// คูลดาวน์ที่เหลือ: ใช้ได้อีกเมื่อ roundNumber >= ready
+const turnsLeft = (ready, round) => Math.max(0, (ready || 0) - round);
+// UltraLive กดไม่ได้: ร่างกิงกะ / เปลี่ยนร่างไปแล้วเทิร์นนี้
+const basicLocked = (s, round) => !!s.ginga || s.formRound === round;
 
 // ---------- แม่นยำของ Tiga ----------
 //  เข้าร่าง: แม่นยำ = max(เดิม, 3) · ออกจากร่าง: คืนเท่าที่แม่นยำเดิมยังเหลือ (atEnd = ออกตอนจบเทิร์น หลังลูปลดเทิร์นสถานะ)
@@ -129,7 +166,7 @@ function stripTigaAccuracy(engine, p, atEnd) {
   if (keep > 0) p.statuses.accurate = keep;
   else delete p.statuses.accurate;
 }
-const formCd = (s, key, round) => left((s.formReady || {})[key], round);
+const formCd = (s, key, round) => turnsLeft((s.formReady || {})[key], round);
 // ออกจากร่าง UltraLive (หมดเวลา / เปลี่ยนร่าง / คืนร่าง) → ร่างนั้นคูลดาวน์ทันที เริ่มนับจากเทิร์นถัดไป · ไม่แตะ s.form
 function leaveForm(engine, p, atEnd) {
   const s = st(p), key = s.form;
@@ -156,19 +193,24 @@ function reveal(engine, p) {
 function capArmor(engine, p) {
   p.armor = Math.min(p.armor, engine.maxArmorOf(p));
 }
+// กลับร่างปกติ (กดคืนร่าง / ร่างหมดเวลาตอนจบเทิร์น) — ร่างเดิมคูลดาวน์ · ตัดเกราะเกินเพดาน · ตัว 1×1 · ผู้เรียก log เอง
+function revertToNormal(engine, p, atEnd) {
+  leaveForm(engine, p, atEnd);
+  st(p).form = null;
+  capArmor(engine, p);
+  engine.resizeUnit(p, 1);
+}
 
 // เปลี่ยนร่าง UltraLive (key ใน FORMS หรือ NORMAL = คืนร่าง)
 function setForm(engine, p, key) {
   const s = st(p);
-  leaveForm(engine, p, false);
   s.formRound = engine.roundNumber;
   if (key === NORMAL) {
-    s.form = null;
-    capArmor(engine, p);
-    if (p.alive) engine.resizeUnit(p, 1);
+    revertToNormal(engine, p, false);
     engine.log(`🔆 ${p.name} คืนร่าง`);
     return " — คืนร่าง";
   }
+  leaveForm(engine, p, false);
   const f = FORMS[key];
   s.form = key;
   p.statuses.hikaruForm = FORM_TURNS;
@@ -184,7 +226,7 @@ function setForm(engine, p, key) {
   }
   engine.triggerCutscene(p, f.cut);
   // ร่าง UltraLive ตัว 3×3 (ผู้ใช้สั่ง) — ขยายหลังคลิป · เปลี่ยนร่างต่อร่าง = ขนาดเดิม · ขยายไม่ได้ = ลองใหม่ต้นเทิร์น
-  if (boardSize(p) !== GINGA_SIZE) engine.deferAfterCutscene(() => { if (p.alive && bigOn(p)) engine.resizeUnit(p, GINGA_SIZE); });
+  if (engine.sizeOf(p) !== GINGA_SIZE) engine.deferAfterCutscene(() => { if (p.alive && bigOn(p)) engine.resizeUnit(p, GINGA_SIZE); });
   engine.log(`🔆 ${p.name} UltraLive — ${f.name}${healed ? ` · ฟื้นเกราะ +${healed}` : ""}`);
   return ` — ${f.name}`;
 }
@@ -264,13 +306,19 @@ function beamHit(engine, p, ray, dir, ids, tiles) {
     const to = pushAlong(engine, t, dir, beamSet);
     if (to.x === t.pos.x && to.y === t.pos.y) continue;
     const dist = Math.abs(to.x - t.pos.x) + Math.abs(to.y - t.pos.y);
+    engine.ice.revealPushed(t); // ถูกผลัก = เผยตัว ก่อน hikaruPush ส่งพิกัด (ผู้ใช้ตัดสิน 2026-10-14)
     moves.push({ id: t.id, from: { ...t.pos }, to });
     t.pos = to;
     engine.log(`🌈 ${t.name} ถูก Strium Ray ผลักไป ${dist} ช่อง`);
   }
   if (moves.length) {
     engine.boardFx("hikaruPush", { id: p.id, moves });
-    engine.skillBeat(PUSH_SECONDS, () => {});
+    // ผลักจบแล้วค่อยไถล: ลงน้ำแข็ง = ไถลต่อตามทิศลำแสง + ชนตามกติกาไถล (คนไกลสุดก่อน) · มีไถล = พักให้กระดานเล่นจบ
+    const slides = moves.map((m) => ({ id: m.id, to: m.to, dir: { x: fx, y: fy } }));
+    engine.skillBeat(PUSH_SECONDS, () => {
+      const ctx = engine.ice.forcedSlides(slides, p);
+      if (ctx) engine.skillBeat(engine.ice.fxSeconds(ctx), () => {});
+    });
   }
 }
 function fireBeam(engine, p, ray, dir, targets) {
@@ -287,11 +335,11 @@ function fireBeam(engine, p, ray, dir, targets) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, FORMS, FORM_KEYS, NORMAL, CUT,
-  FORM_ARMOR, FORM_ARMOR_HEAL, ARMOR_HEAL_CD, FORM_TURNS, FORM_CD, KEMUR_CALM,
-  GINGA_TURNS, GINGA_CD, GINGA_SIZE, GINGA_MOV, BRACE_MAX, BEAM_LEN, BEAM_DMG, CROSS_BURN, RAY_BURN, CROSS_COST, RAY_COST,
-  BEAM_SECONDS, PUSH_SECONDS,
-  isHikaru, formOf, gingaOn, striumOn,
+  IMG, VIDEO, FORMS, FORM_KEYS, NORMAL, CUT, // characters/_transforms.js + เทสต์
+  // ค่าตัวเลขที่เทสต์อ้างอิง (ปรับสมดุลที่นี่ เทสต์ตามเอง)
+  FORM_ARMOR, FORM_ARMOR_HEAL, ARMOR_HEAL_CD, FORM_TURNS, FORM_CD,
+  GINGA_TURNS, GINGA_CD, GINGA_SIZE, GINGA_MOV, BRACE_MAX, BEAM_DMG, CROSS_BURN, RAY_BURN, CROSS_COST, RAY_COST,
+  striumOn,
 
   resetCombat(p) { p.hikaru = isHikaru(p) ? fresh() : null; },
   displayImg(p) {
@@ -305,27 +353,27 @@ module.exports = {
   mov(p) { return bigOn(p) ? GINGA_MOV : null; },
   range(p) {
     if (gingaOn(p)) return FACE_RANGE;
-    if (formOf(p) === "blackking") return LANE_RANGE;
-    if (formOf(p) === "pandon") return PANDON_RANGE;
-    return null;
+    const f = FORMS[formOf(p)];
+    return (f && f.range) || null;
   },
   attackLane(p) {
     if (gingaOn(p)) return "face";
-    return formOf(p) === "blackking";
+    const f = FORMS[formOf(p)];
+    return !!(f && f.lane);
   },
   smashes(p) { return bigOn(p) && boardSize(p) >= GINGA_SIZE; },
 
   // เกราะลด 1 = ฟื้นพลังชีวิต 1 (ร่าง 1–6 · combat.loseArmor)
   onArmorLost(engine, p) {
     if (!inForm(p) || !p.alive) return;
-    if (engine.healHp(p, 1) > 0) engine.log(`🔆 ${p.name} UltraLive — เกราะลด ฟื้นพลังชีวิต +1`);
+    if (engine.healHp(p, ARMOR_LOSS_HEAL) > 0) engine.log(`🔆 ${p.name} UltraLive — เกราะลด ฟื้นพลังชีวิต +${ARMOR_LOSS_HEAL}`);
   },
 
   // ---------- ตีปกติ ----------
   damageBonus(engine, attacker, target, ctx) {
     if (!isHikaru(attacker)) return 0;
-    let n = 0;
-    if (formOf(attacker) === "tiga") n += TIGA_ATK;
+    const f = FORMS[formOf(attacker)];
+    let n = (f && f.atk) || 0;
     if (gingaOn(attacker)) n += GINGA_ATK + (striumOn(attacker) ? STRIUM_ATK : 0);
     if (n) ctx.hikaruAtk = n;
     return n;
@@ -333,18 +381,16 @@ module.exports = {
   attackFxNames(attacker, atkCtx) {
     if (!atkCtx || !atkCtx.hikaruAtk) return [];
     if (gingaOn(attacker)) return [`${striumOn(attacker) ? "กิงกะสโตเรี่ยม" : "Ultraman Ginga"} +${atkCtx.hikaruAtk}`];
-    return [`Ultraman Tiga +${atkCtx.hikaruAtk}`];
+    const f = FORMS[formOf(attacker)];
+    return f ? [`${f.name} +${atkCtx.hikaruAtk}`] : []; // ร่างที่มี atk (Ultraman Tiga)
   },
-  // ตีปกติลง (รวมทุกคนในแนว) → ติดสถานะตามร่าง · คืนชื่อป้ายในฉากตี
+  // ตีปกติลง (รวมทุกคนในแนว) → ติดสถานะตามร่าง (FORMS.onHit · สโตเรี่ยม STRIUM_HIT) · คืนชื่อป้ายในฉากตี
   onStrikeLanded(engine, attacker, target) {
     if (!isHikaru(attacker) || !target.alive) return [];
-    const f = formOf(attacker);
-    if (f === "thunder") return [engine.applyShock(target, 2) ? "ทันเดอร์ดารัมเบีย — ช็อต" : "ช็อต — ต้านได้"];
-    if (f === "kemur") return [engine.applyPoison(target, 2) ? "มนุษย์ดาวเคมู — พิษร้าย" : "พิษร้าย — ต้านได้"];
-    if (f === "pandon") return [engine.applyBurn(target, 1) ? "คิงแพนด้อน — ลุกไหม้ +1" : "ลุกไหม้ — ต้านได้"];
-    if (f === "doragory") return [engine.applyBleed(target, 1) ? "ดอรากอรี่ — เลือดไหล +1" : "เลือดไหล — ต้านได้"];
-    if (striumOn(attacker)) return [engine.applyBurn(target, 1) ? "กิงกะสโตเรี่ยม — ลุกไหม้ +1" : "ลุกไหม้ — ต้านได้"];
-    return [];
+    const f = FORMS[formOf(attacker)];
+    const hit = (f && f.onHit) || (striumOn(attacker) ? STRIUM_HIT : null);
+    if (!hit) return [];
+    return [APPLY[hit.status](engine, target, hit.turns) ? hit.label : `${hit.name} — ต้านได้`];
   },
   // เสียงตีปกติตามร่าง · ร่างปกติ = เสียงกลาง
   attackSound(p) {
@@ -395,10 +441,10 @@ module.exports = {
     if (!isHikaru(p)) return true;
     const s = st(p), r = engine.roundNumber;
     if (tier === "basic") {
-      if (s.ginga || s.formRound === r) return false;
+      if (basicLocked(s, r)) return false;
       const key = opts.form;
       if (key === NORMAL) return !!s.form;
-      if (!FORMS[key] || key === s.form) return false;
+      if (!Object.hasOwn(FORMS, key) || key === s.form) return false;
       return formCd(s, key, r) === 0;
     }
     if (tier === "secondary") return !s.form && !s.ginga && r >= s.gingaReady;
@@ -415,13 +461,9 @@ module.exports = {
     if (tier === "secondary") { startGinga(engine, p); return s.strium ? " Strium" : ""; }
     if (tier === "ultimate") {
       const ray = striumOn(p);
-      const ids = (targets || []).filter((id) => {
-        const t = engine.players[id];
-        return t && t.alive && t.id !== p.id && !engine.sameTeam(p, t);
-      });
       engine.triggerCutscene(p, ray ? CUT.ray : CUT.cross);
       engine.log(`🌟 ${p.name} ใช้ ${ray ? "Strium Ray" : "Ginga Cross Shoot"}`);
-      const dir = opts.dir;
+      const dir = opts.dir, ids = [...(targets || [])]; // กรองเป้า (ตาย/ตัวเอง/เพื่อน) ตอนลำแสงถึงใน beamHit
       engine.deferAfterCutscene(() => fireBeam(engine, p, ray, dir, ids));
       return "";
     }
@@ -431,7 +473,7 @@ module.exports = {
   // ---------- ต้นเทิร์น (dealRound): กิงกะที่ขยายตัวไม่สำเร็จ ลองใหม่ ----------
   onRoundStartTick(engine, p) {
     if (!bigOn(p) || !p.alive || !p.pos) return;
-    if (boardSize(p) !== GINGA_SIZE) engine.resizeUnit(p, GINGA_SIZE); // ร่าง UltraLive / กิงกะ ที่ขยายตัวไม่สำเร็จ
+    if (engine.sizeOf(p) !== GINGA_SIZE) engine.resizeUnit(p, GINGA_SIZE); // ร่าง UltraLive / กิงกะ ที่ขยายตัวไม่สำเร็จ
   },
 
   // ---------- จบเทิร์น (หลังลูปลดเทิร์นสถานะ): Brace → ร่าง UltraLive หมด → กิงกะหมด → เคมู ----------
@@ -443,15 +485,12 @@ module.exports = {
       if (s.ginga && braceTick(engine, p) && (p.statuses.hikaruGinga || 0) > 0) engine.triggerCutscene(p, CUT.strium);
       if (s.form && !((p.statuses.hikaruForm || 0) > 0)) {
         const name = FORMS[s.form].name;
-        leaveForm(engine, p, true);
-        s.form = null;
-        capArmor(engine, p);
-        engine.resizeUnit(p, 1);
+        revertToNormal(engine, p, true);
         engine.log(`🔆 ${p.name} — ${name} หมดเวลา คืนร่างปกติ`);
       }
       if (s.ginga && !((p.statuses.hikaruGinga || 0) > 0)) endGinga(engine, p);
       if (s.form === "kemur") {
-        if (s.hidden) { reveal(engine, p); s.kemurCalm = 0; s.kemurSnap = null; continue; }
+        if (s.hidden) { leaveKemur(engine, p); continue; } // ล่องหนครบ 1 เทิร์น = ปรากฏตัว นับใหม่
         const snap = s.kemurSnap || { hp: 0, armor: 0, attacked: false };
         const hit = (p.dmgHp || 0) > snap.hp || (p.dmgArmor || 0) > snap.armor || (!!p.wasAttacked && !snap.attacked);
         s.kemurSnap = null;
@@ -469,7 +508,7 @@ module.exports = {
   hikaruState(engine, p) {
     if (!isHikaru(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
-    const changed = s.formRound === r || s.ginga;
+    const changed = basicLocked(s, r);
     const forms = FORM_KEYS.map((key) => {
       const cd = formCd(s, key, r);
       return { key, name: FORMS[key].name, img: FORMS[key].img, cd, locked: changed || s.form === key || cd > 0 };
@@ -478,7 +517,7 @@ module.exports = {
     return {
       form: s.form, formName: s.form ? FORMS[s.form].name : null, formLeft: s.form ? p.statuses.hikaruForm || 0 : 0, forms,
       ginga: !!s.ginga, strium: !!s.strium, brace: s.brace, braceMax: BRACE_MAX,
-      armorCd: left(s.armorReady, r), gingaCd: left(s.gingaReady, r),
+      armorCd: turnsLeft(s.armorReady, r), // คูลดาวน์กิงกะไปทาง skillLocks.secondary.cd
       kemurCalm: s.form === "kemur" ? s.kemurCalm : 0, kemurMax: KEMUR_CALM,
     };
   },
@@ -486,8 +525,8 @@ module.exports = {
     if (!isHikaru(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     return {
-      basic: { locked: s.ginga || s.formRound === r, free: true },
-      secondary: { cd: left(s.gingaReady, r), locked: !!s.form || s.ginga },
+      basic: { locked: basicLocked(s, r), free: true },
+      secondary: { cd: turnsLeft(s.gingaReady, r), locked: !!s.form || s.ginga },
       ultimate: { locked: !s.ginga },
     };
   },

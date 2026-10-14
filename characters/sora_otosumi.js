@@ -15,9 +15,13 @@
 //      ชน Echo (ตัวใหญ่) = ดาเมจ 3 แล้วหยุดหน้าตัว ไม่สลับที่
 //    หลบพ้น = ทะลุผ่านไปชนคนถัดไปได้ · เพื่อนร่วมทีม = ทะลุผ่าน · ไม่ชนใคร = หยุดสุดแนว (ช่องไม่ว่าง = ถอยมาช่องว่างก่อนหน้า)
 //    คริติคอลของร่าง My-Th ไม่ติดท่านี้ (ใช้กับตีปกติเท่านั้น)
+//    ผลของสกิลโจมตีพื้นที่ (คนล่องหนปรากฏ · ผนึกมิโกะ · หนามน้ำแข็ง) เฉพาะช่องที่พุ่งผ่านจริงจนถึงจุดชน (ผู้ใช้ตัดสิน)
+//      ลงตอนกระดานเล่นพุ่งจบ · ผนึก/หนามโดน 3 (ไม่มีโบนัสมีด)
 //  ติดตัว เพื่อคุณหนู: ร่างโซระต่อเนื่องครบ 2 เทิร์น = ฟื้นพลังชีวิต 2 (แปลงร่างแล้วนับใหม่ · เทิร์นที่เพิ่งคืนร่างไม่นับ)
 //    · ร่าง My-Th อัตราคริติคอล 20% (ตีปกติ — รวมกับคริของสนามแล้วทอยครั้งเดียว)
 // ============================================================
+
+const Board = require("../server/board");
 
 const ID = "sora_otosumi";
 const DIR = "/characters/sora_otosumi";
@@ -40,7 +44,7 @@ const SFX = { gun: "sora_hit_gun", knife: "sora_hit_knife", toGun: "sora_skill2_
 
 const KNIFE_BONUS = 1;
 const GUN_RANGE = [1, 3]; // ผู้ใช้สั่งเพิ่มจาก 2 (2026-10-12)
-const GUN_BEAM = 3;
+const GUN_BEAM = GUN_RANGE[1]; // ลำแสงยาวเท่าระยะตีไกลสุด
 const CRIT_PCT = 20;
 const REGEN_TURNS = 2; // ผู้ใช้สั่ง 2026-10-12 (เดิม 3)
 const REGEN_HP = 2;
@@ -51,9 +55,15 @@ const ULT_CD = 2;
 const WHEEL_MS = 1400;
 const DASH_STEP_MS = 90;
 const BOOM_SECONDS = 1.4;
+const DASH_PAD_SECONDS = 0.3; // เผื่อท้ายจังหวะพุ่งให้ภาพถึงช่องสุดท้ายก่อนผลลง
 
-// ทิศที่เลือก → เวกเตอร์ (ส่งให้ client หันวงล้อ/ตัวละคร — เป้ายืนติดตัว = เส้นทางพุ่งยาว 0 ช่อง เดาทิศจากเส้นทางไม่ได้)
-const DIR_VEC = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+// ทิศที่เลือก → เวกเตอร์ { x, y } (ส่งให้ client หันวงล้อ/ตัวละคร — เป้ายืนติดตัว = เส้นทางพุ่งยาว 0 ช่อง เดาทิศจากเส้นทางไม่ได้)
+function dirVec(dir) {
+  const v = Board.LINE_DIRS[dir];
+  return v ? { x: v[0], y: v[1] } : null;
+}
+// Mouse Separade กำลังลงผนึก/หนาม (id ของโซระ) — ฐานพลังโจมตี = ULT_DMG และไม่มีโบนัสมีด (ท่อ computeAttackBase ของ ice/zeroTime)
+let striking = null;
 
 const isSora = (p) => !!p && p.characterId === ID;
 function fresh() {
@@ -70,6 +80,8 @@ function st(p) { return p.sora || (p.sora = fresh()); }
 const mythOn = (p) => isSora(p) && !!st(p).myth;
 const gunOn = (p) => mythOn(p) && !!st(p).gun;
 const knifeOn = (p) => mythOn(p) && !st(p).gun;
+// แปลงร่าง / สลับอาวุธ = ไม่กินโควตาสกิลของเทิร์น และกดได้แม้ใช้โควตาไปแล้ว
+const freeTier = (p, tier) => isSora(p) && (tier === "basic" || tier === "secondary");
 
 // ---------- ปืน: ดึงเป้าเข้าประชิด ----------
 //  ช่องติดตัวเราที่ใกล้เป้าสุด (เป้าห่างแนวตรง 2 = ช่องกลาง · เฉียง = ช่องติดกันทั้งสองช่อง เลือกช่องว่างช่องแรก)
@@ -82,31 +94,43 @@ function pull(engine, p, t) {
     .filter((c) => Math.abs(t.pos.x - c.x) + Math.abs(t.pos.y - c.y) === dist - 1);
   const to = spots.find((c) => engine.tileFree(c.x, c.y, t.id));
   if (!to) { engine.log(`🔫 ${p.name} ดึง ${t.name} ไม่ได้ — ช่องข้างหน้าไม่ว่าง`); return; }
+  const from = { ...t.pos };
+  engine.ice.revealPushed(t); // ถูกดึง = เผยตัว (ผู้ใช้ตัดสิน 2026-10-14)
   t.pos = { x: to.x, y: to.y };
   engine.log(`🔫 ${p.name} ดึง ${t.name} เข้าประชิด`);
+  // ดึงลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกดึง + ชนตามกติกาไถล (ดึงแนวตรง = ไถลชนโซระเอง) — iceFx เลื่อนจากช่องเดิมก่อนแล้วไถล
+  engine.ice.forcedSlides([{ id: t.id, from, to: { ...t.pos }, dir: { x: to.x - from.x, y: to.y - from.y } }], p);
 }
 
 // ---------- Mouse Separade ----------
 //  ไล่ช่องตามแนว: ผนึกมิโกะ = หยุด · ศัตรูที่หลบไม่พ้น = ชน · หลบพ้น/เพื่อน/ร้านค้า = ทะลุ
+//  stop = ช่องที่ชน (ผนึก/เป้า) · ไม่มี = null
 function planCharge(engine, p, dir) {
   const tiles = engine.chargeTiles(p, dir, ULT_LEN);
   const passed = [];
   const dodged = new Set();
-  let hit = null;
+  let hit = null, stop = null;
   for (const t of tiles) {
-    if (t.wall) break;
+    if (t.wall) { stop = t; break; }
     const o = t.unitId ? engine.players[t.unitId] : null;
     if (o && o.alive && !engine.sameTeam(p, o) && !dodged.has(o.id)) {
       o.wasAttacked = true;
-      if (!engine.skillDodge(p, o, "Mouse Separade")) { hit = o; break; }
+      if (!engine.skillDodge(p, o, "Mouse Separade")) { hit = o; stop = t; break; }
       dodged.add(o.id);
     }
     passed.push(t);
   }
-  return { passed, hit };
+  return { passed, hit, stop };
+}
+// ผลของสกิลโจมตีพื้นที่บนช่องที่พุ่งผ่าน + ช่องที่ชน (server/skills.js hitArea — ฮุค ownsAreaHit)
+//  require ตอนเรียก: skills.js require โมดูลตัวละครตอนโหลด
+function hitCrossed(p, crossed) {
+  const ids = [...new Set(crossed.map((t) => t.unitId).filter(Boolean))];
+  striking = p.id;
+  try { require("../server/skills").hitArea(p, crossed, ids); } finally { striking = null; }
 }
 // ช่องที่หยุดได้: ไล่ถอยจากปลายทางมาหาช่องว่าง (ช่องที่มีสิ่งกีดขวางนับว่าว่าง — พังตอนพุ่งผ่าน) · ไม่มีเลย = ที่เดิม
-function landIndex(engine, p, passed) {
+function landIndex(passed) {
   for (let i = passed.length - 1; i >= 0; i--) {
     const t = passed[i];
     if (!t.unitId && !t.shop) return i;
@@ -122,16 +146,17 @@ function smashPassed(engine, p, passed) {
 function charge(engine, p, dir) {
   if (!p.alive || !p.pos) return;
   const start = { ...p.pos };
-  const { passed, hit } = planCharge(engine, p, dir);
+  const { passed, hit, stop: blocked } = planCharge(engine, p, dir);
   const big = hit && engine.sizeOf(hit) > 1;
   // ชนคน: ยืนช่องก่อนถึงเป้าระหว่างคลิปชน (ตำแหน่งจริงยังไม่ขยับ — client ค้างภาพไว้)
   //  ไม่ชน / ชนตัวใหญ่: หยุดช่องว่างสุดท้ายในแนวที่ผ่านมา
-  const land = landIndex(engine, p, passed);
+  const land = landIndex(passed);
   const runTo = hit && !big ? passed.length - 1 : land;
   const path = [start, ...passed.slice(0, runTo + 1).map((t) => ({ x: t.x, y: t.y }))];
-  engine.setDash({ id: p.id, path, wheel: true, dir: DIR_VEC[dir] || null });
-  const seconds = (WHEEL_MS + Math.max(0, path.length - 1) * DASH_STEP_MS) / 1000 + 0.3;
+  engine.setDash({ id: p.id, path, wheel: true, dir: dirVec(dir) });
+  const seconds = (WHEEL_MS + Math.max(0, path.length - 1) * DASH_STEP_MS) / 1000 + DASH_PAD_SECONDS;
   engine.skillBeat(seconds, () => {
+    hitCrossed(p, blocked ? [...passed, blocked] : passed); // ก่อนพัง — หนามที่พุ่งผ่านโดนดาเมจก่อนแตก
     const broke = smashPassed(engine, p, passed.slice(0, runTo + 1));
     if (broke.length) engine.boardFx("smashFx", { id: p.id, tiles: broke.map((b) => ({ ...b, step: 0 })) });
     if (!hit) {
@@ -145,15 +170,19 @@ function charge(engine, p, dir) {
     engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big));
   });
 }
+// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (แบบเดียวกับ sliver_bullet)
+function pool(t) {
+  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
+}
 // คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่
 function impact(engine, p, t, start, stop, big) {
   if (!p.alive || !t.alive || !t.pos) return;
   const at = { ...t.pos };
-  const before = (t.hp || 0) + (t.armor || 0);
+  const before = pool(t);
   t.wasAttacked = true;
   engine.dealMixed(t, ULT_DMG);
-  if (t.alive && t.hp <= 0) engine.instantDeath(t);
-  const dealt = Math.max(0, before - ((t.hp || 0) + (t.armor || 0)));
+  engine.resolveDamageAftermath(t);
+  const dealt = Math.max(0, before - pool(t));
   engine.log(`💥 Mouse Separade → ${t.name} -${dealt} (ลดเกราะก่อน)`);
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
   let swap = null;
@@ -171,17 +200,17 @@ function impact(engine, p, t, start, stop, big) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, SFX, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, REGEN_HP, ULT_LEN, ULT_DMG, ULT_CD,
-  WHEEL_MS, DASH_STEP_MS,
-  isSora, mythOn, gunOn,
+  IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD,
 
   resetCombat(p) { p.sora = isSora(p) ? fresh() : null; },
   displayImg(p) { return mythOn(p) ? IMG.myth : null; },
 
   // ---------- ตีปกติ ----------
   range(p) { return gunOn(p) ? GUN_RANGE : null; },
+  // Mouse Separade ลงผนึก/หนาม (hitCrossed): ฐาน = ULT_DMG · โบนัสมีดใช้กับตีปกติเท่านั้น
+  attackBaseOverride(engine, attacker) { return striking === attacker.id ? ULT_DMG : 1; },
   damageBonus(engine, attacker, target, ctx) {
-    if (!knifeOn(attacker)) return 0;
+    if (striking === attacker.id || !knifeOn(attacker)) return 0;
     ctx.soraKnife = KNIFE_BONUS;
     return KNIFE_BONUS;
   },
@@ -210,8 +239,10 @@ module.exports = {
     return false;
   },
   // แปลงร่าง / สลับอาวุธ ไม่นับเป็นการใช้สกิล (ผู้ใช้ตัดสิน) — กดแล้วยังใช้ท่าไม้ตายได้ในเทิร์นเดียวกัน
-  skipsTurnQuota(p, tier) { return isSora(p) && (tier === "basic" || tier === "secondary"); },
-  ignoresTurnQuota(p, tier) { return isSora(p) && (tier === "basic" || tier === "secondary"); },
+  skipsTurnQuota: freeTier,
+  ignoresTurnQuota: freeTier,
+  // Mouse Separade: ผลของสกิลโจมตีพื้นที่ลงเองเฉพาะช่องที่พุ่งผ่านจริง (hitCrossed)
+  ownsAreaHit(p, tier) { return isSora(p) && tier === "ultimate"; },
   skillSound(p, tier) {
     if (!isSora(p) || tier !== "secondary") return null;
     return st(p).gun ? SFX.toGun : SFX.toKnife; // เรียกหลังสลับแล้ว = เสียงของอาวุธที่ถืออยู่ตอนนี้
@@ -266,7 +297,7 @@ module.exports = {
       if (s.calm < REGEN_TURNS) continue;
       s.calm = 0;
       const healed = engine.healHp(p, REGEN_HP);
-      engine.log(`🐭 ${p.name} เพื่อคุณหนู — ฟื้นพลังชีวิต +${healed}`);
+      if (healed > 0) engine.log(`🐭 ${p.name} เพื่อคุณหนู — ฟื้นพลังชีวิต +${healed}`);
     }
   },
 

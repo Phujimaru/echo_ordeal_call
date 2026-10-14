@@ -23,16 +23,9 @@
 // ============================================================
 
 const Journey = require("./_journey");
+const { CHAR_BY_ID } = require("../characters.js"); // ข้อมูลไม่มี require ต่อ — ไม่วนกลับมาที่นี่
 
 const ID = "echo";
-const DIR = "/characters/echo";
-const IMG = {
-  cover: `${DIR}/echo.webp`,
-  front: `${DIR}/echo_front.webp`,
-  side: `${DIR}/echo_side.webp`,
-  back: `${DIR}/echo_back.webp`,
-  top: `${DIR}/echo_top.webp`,
-};
 
 const BASE_HP = 10;
 const HP_PER_STACK = 2;
@@ -48,7 +41,7 @@ const KILL_CHANCE = 0.05;
 const RESIST_CHANCE = 0.2;
 const ULT_CD = 5;
 const ULT_DMG = 2;
-const ULT_NAME = "ก่อกำเนิดใหม่";
+const ULT_NAME = CHAR_BY_ID[ID].ultimate.name; // ชื่อท่าใน log — ข้อมูลตัวละครเป็นต้นฉบับ
 // เลือดสูงสุด → ขนาดตัว (ด้านละกี่ช่อง)
 const SIZE_STEPS = [[30, 5], [25, 4], [20, 3], [15, 2]];
 const MOV_BY_SIZE = { 1: 4, 2: 3, 3: 3, 4: 2, 5: 2 };
@@ -65,12 +58,16 @@ function sizeForHp(maxHp) {
   for (const [hp, size] of SIZE_STEPS) if (maxHp >= hp) return size;
   return 1;
 }
-const boardSize = (p) => Math.max(1, (p && p.boardSize) | 0);
+// ขนาดตัวบนกระดาน (engine.sizeOf — สูตรเดียวกับ server/phases/action.js) · ฮุคบนกระดาน (mov/range/smashes/attackStyle)
+//  ไม่ได้รับ engine จึงดึงแบบ lazy: server/engine require characters/ อยู่แล้ว (require ตอนโหลดไฟล์ = วนกัน)
+const sizeOf = (p) => require("../server/engine").engine.sizeOf(p);
 const queenActive = (p) => (p.statuses.echoQueen || 0) > 0;
-// ท่าไม้ตายต้องเลือดสูงสุด 30 (ขยายร่างครบ 10)
-const fullSize = (engine, p) => engine.maxHpOf(p) >= maxHpFor(MAX_STACKS);
+// ท่าไม้ตายต้องเลือดสูงสุด 30 = ขยายร่างครบ 10
+const fullSize = (p) => st(p).stacks >= MAX_STACKS;
 
 // คุ้มครองจากสกิลติดตัว: ขยายร่าง ≤ 4 ต่ออายุทีละเทิร์น (ห้ามใส่เลขเทิร์นยาวแทนความถาวร) · เกิน 4 = เอาออก (เฉพาะที่ตัวเองใส่)
+//  สมมติฐาน: guard ที่เหลือ 1 เทิร์นตอนเอาออก = ของสกิลติดตัวนี้ (ต่ออายุทีละ 1) — คุ้มครองจากแหล่งอื่นที่บังเอิญเหลือ 1 เทิร์น
+//  พอดีจะถูกล้างไปด้วย (ยอมรับได้: เหลือแค่เทิร์นสุดท้าย) · แหล่งที่ยาวกว่านั้น (> 1) ไม่ถูกแตะ
 function refreshGuard(p) {
   const s = st(p);
   if (s.stacks <= GUARD_MAX_STACKS) {
@@ -85,7 +82,7 @@ function refreshGuard(p) {
 // ขนาดตัวตามเลือดสูงสุด — ขยายไม่ได้ (ไม่มีที่) = ค้างไว้ ลองใหม่ต้นเทิร์นถัดไป
 function syncSize(engine, p) {
   const want = sizeForHp(engine.maxHpOf(p));
-  if (boardSize(p) !== want) engine.resizeUnit(p, want);
+  if (engine.sizeOf(p) !== want) engine.resizeUnit(p, want);
 }
 // ขยายร่าง +1: เลือดสูงสุด +2 แล้วฟื้น 2 → ขนาดตัวตามเลือดสูงสุดใหม่
 function gainStack(engine, p) {
@@ -101,20 +98,20 @@ function gainStack(engine, p) {
 
 module.exports = {
   id: ID,
-  IMG, BASE_HP, MAX_STACKS, QUEEN_TURNS, GIANT_CD, OW_HEAL, KILL_CHANCE, RESIST_CHANCE, MOV_BY_SIZE, RANGE_BY_SIZE, SMASH_SIZE,
-  ULT_CD, ULT_DMG,
-  isEcho, sizeForHp,
+  BASE_HP, MAX_STACKS, QUEEN_TURNS, GIANT_CD, OW_HEAL, OW_ATK_TURNS, GUARD_MAX_STACKS, ATK_STACKS_1, KILL_CHANCE, RESIST_CHANCE,
+  MOV_BY_SIZE, RANGE_BY_SIZE, SMASH_SIZE, ULT_CD, ULT_DMG,
+  sizeForHp,
 
   maxHp(p) { return isEcho(p) ? maxHpFor(st(p).stacks) : undefined; },
   maxArmor() { return 0; },
   resetCombat(p) { p.echo = isEcho(p) ? fresh() : null; },
-  mov(p) { return isEcho(p) ? MOV_BY_SIZE[boardSize(p)] : null; },
-  range(p) { return isEcho(p) ? RANGE_BY_SIZE[boardSize(p)] : null; },
-  smashes(p) { return isEcho(p) && boardSize(p) >= SMASH_SIZE; },
+  mov(p) { return isEcho(p) ? MOV_BY_SIZE[sizeOf(p)] : null; },
+  range(p) { return isEcho(p) ? RANGE_BY_SIZE[sizeOf(p)] : null; },
+  smashes(p) { return isEcho(p) && sizeOf(p) >= SMASH_SIZE; },
   // ท่าตีปกติบนกระดาน (ผู้ใช้ตัดสิน): 1×1 = คลื่นเสียง · 2×2–3×3 = ผมฟาด · 4×4–5×5 = ห่าง 1–2 ช่องผมฟาด / ห่าง 3 ช่องปาหิน
   attackStyle(p, dist) {
     if (!isEcho(p)) return null;
-    const n = boardSize(p);
+    const n = sizeOf(p);
     if (n <= 1) return "echo";
     if (n >= 4 && dist >= 3) return "rock";
     return "hair";
@@ -124,12 +121,14 @@ module.exports = {
   //  ราชินี: ขยายร่าง +1 · คุ้มครองต่ออายุ · ต้านสถานะ 20% · ขนาดตัวที่ค้างไว้ลองขยายใหม่
   onRoundStartTick(engine, p) {
     if (!isEcho(p) || !p.alive) return;
-    if (queenActive(p)) gainStack(engine, p);
+    if (queenActive(p)) gainStack(engine, p); // ขยายแล้ว syncSize ในตัวแล้ว
     refreshGuard(p);
     if (Math.random() < RESIST_CHANCE) {
       p.statuses.resist = Math.max(p.statuses.resist || 0, 1);
       engine.log(`🛡️ ${p.name} — เหล่าสหายตัวน้อยเอ๋ย: ได้ต้านสถานะผิดปกติ 1 เทิร์น`);
     }
+    // เรียกซ้ำโดยตั้งใจ: ไม่มีราชินี (gainStack ไม่ทำงาน) หรือขยายตัวรอบก่อนไม่สำเร็จเพราะไม่มีที่ = ลองใหม่ทุกต้นเทิร์น
+    //  (ขนาดตรงแล้ว syncSize ไม่ทำอะไร)
     syncSize(engine, p);
   },
 
@@ -158,7 +157,7 @@ module.exports = {
     const s = st(p);
     if (tier === "basic") return !queenActive(p) && engine.roundNumber >= s.giantReady;
     if (tier === "secondary") return s.stacks > 0;
-    if (tier === "ultimate") return fullSize(engine, p) && engine.roundNumber >= s.ultReady && Journey.active(engine);
+    if (tier === "ultimate") return fullSize(p) && engine.roundNumber >= s.ultReady && Journey.active(engine);
     return false;
   },
   // ก่อกำเนิดใหม่: ฉากโลกแตกเป็นตัวประกาศท่าเอง (ห้ามมีชื่อท่าบนจอ — ผู้ใช้สั่ง) = ไม่ขึ้นป้ายสกิลกลาง
@@ -205,7 +204,7 @@ module.exports = {
     return {
       basic: { cd: Math.max(0, s.giantReady - engine.roundNumber), locked: queenActive(p) },
       secondary: { locked: s.stacks <= 0 },
-      ultimate: { cd: Math.max(0, s.ultReady - engine.roundNumber), locked: !fullSize(engine, p) },
+      ultimate: { cd: Math.max(0, s.ultReady - engine.roundNumber), locked: !fullSize(p) },
     };
   },
 
@@ -225,7 +224,7 @@ function rebirthHit(engine, p) {
     t.wasAttacked = true;
     const before = (t.hp || 0) + (t.armor || 0);
     engine.dealMixed(t, ULT_DMG);
-    if (t.alive && t.hp <= 0) engine.instantDeath(t);
+    engine.resolveDamageAftermath(t);
     const dealt = Math.max(0, before - ((t.hp || 0) + (t.armor || 0)));
     engine.log(`🌍 ${ULT_NAME} → ${t.name} -${dealt} (ลดเกราะก่อน)`);
     if (!t.alive) {

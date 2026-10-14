@@ -1,7 +1,7 @@
 // ใช้สกิล (useSkill)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  useSkill, skillCostOf,
+  useSkill, skillCostOf, hitArea,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -69,10 +69,12 @@ function useSkill(id, tier, targets, opts = {}) {
   const area = hook && hook.skillArea ? hook.skillArea(p, tier, skill.area, opts) : skill.area;
   targets = action.resolveArea(p, area, targets, opts.dir, opts.tile);
   if (!targets) return;
+  // ฮุค ownsAreaHit = ช่องที่โดนจริงรู้ทีหลัง ตัวละครเรียก hitArea เอง (โซระ: Mouse Separade เฉพาะช่องที่พุ่งผ่านจนถึงจุดชน)
+  const ownsAreaHit = !!(hook && hook.ownsAreaHit && hook.ownsAreaHit(p, tier, opts));
   // ห่วงเวลาซีโร่: สกิลโจมตีพื้นที่ที่คลุมผนึกมิโกะ = ลงผนึกด้วย (หลังผลของสกิล)
-  const sealTiles = area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
+  const sealTiles = !ownsAreaHit && area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
   // หนามน้ำแข็ง (Ice Spike): สกิลโจมตีพื้นที่ที่คลุมหนาม = ลงหนามด้วย (ยกเว้นสกิลชนิด tile ซึ่งจัดการหนามเอง)
-  const spikeTiles = area && area.hostile && area.kind !== "tile" ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
+  const spikeTiles = !ownsAreaHit && area && area.hostile && area.kind !== "tile" ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
 
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
   //  opts = ตัวเลือกจาก client (ไรโด ฮิคารุ: opts.form = ร่างที่เลือกใน UltraLive)
@@ -136,8 +138,8 @@ function useSkill(id, tier, targets, opts = {}) {
   const deferred = match.afterCutscene.splice(0);
   // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
-  if ((targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
-  if (area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
+  if (!ownsAreaHit && (targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
+  if (!ownsAreaHit && area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
   if (sealTiles.length) deferred.push(() => Zero.hitSealsInArea(p, sealTiles));
   if (spikeTiles.length) deferred.push(() => Ice.hitSpikesInArea(p, spikeTiles));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
@@ -175,4 +177,13 @@ function useSkill(id, tier, targets, opts = {}) {
     return;
   }
   view.broadcastState();
+}
+
+// ผลของสกิลโจมตีพื้นที่ (area.hostile) บนช่อง/คนที่โดนจริง — สำหรับตัวละครที่มีฮุค ownsAreaHit (useSkill ข้ามผลชุดเดียวกันให้)
+//  ids = คนบนช่องที่โดน (รวมคนที่มองไม่เห็น) · ใส่คนอื่นจากในพุ่ม = โผล่ · คนล่องหนปรากฏ · ลงผนึกมิโกะ · ลงหนามน้ำแข็ง
+function hitArea(p, tiles, ids) {
+  if ((ids || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
+  Visibility.onAreaHit(p, ids);
+  if (Zero.active()) Zero.hitSealsInArea(p, tiles);
+  Ice.hitSpikesInArea(p, tiles);
 }

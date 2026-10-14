@@ -496,3 +496,29 @@ test('ก่อกำเนิดใหม่: ศัตรูตายหมด
   assert.equal(engine.board.area, 1);
   assert.equal(engine.buildStateFor('E').journey.scene.active, false);
 });
+
+test('ค่าคงที่ตรงกับคำอธิบายสกิล · ตารางขนาดตัว → ระยะเดิน/ระยะตี/พังสิ่งกีดขวาง ตรงกับที่ engine ใช้', () => {
+  const ch = CHAR_BY_ID.echo;
+  const maxHp = echo.BASE_HP + 2 * echo.MAX_STACKS;
+  assert.match(ch.passive.desc, new RegExp(`ไม่เกิน ${echo.GUARD_MAX_STACKS} ระดับ`));
+  assert.match(ch.passive.desc, new RegExp(`${echo.ATK_STACKS_1} ระดับขึ้นไป`));
+  assert.match(ch.passive.desc, new RegExp(`ครบ ${echo.MAX_STACKS} ระดับ`));
+  assert.match(ch.passive.desc, new RegExp(`โอกาสสังหาร ${echo.KILL_CHANCE * 100}%`));
+  assert.match(ch.passive.desc, new RegExp(`โอกาส ${echo.RESIST_CHANCE * 100}% ได้ต้านสถานะ`));
+  assert.match(ch.basic.desc, new RegExp(`${echo.QUEEN_TURNS} เทิร์น`));
+  assert.match(ch.basic.desc, new RegExp(`คูลดาวน์ ${echo.GIANT_CD} เทิร์น`));
+  assert.match(ch.secondary.desc, new RegExp(`\\(${echo.OW_ATK_TURNS} เทิร์น\\)`));
+  assert.match(ch.secondary.desc, new RegExp(`ฟื้นพลังชีวิต ${echo.OW_HEAL}$`));
+  assert.match(ch.ultimate.desc, new RegExp(`เลือดสูงสุด ${maxHp}:`));
+  assert.match(ch.ultimate.desc, new RegExp(`เสียหาย ${echo.ULT_DMG} `));
+  assert.match(ch.ultimate.desc, new RegExp(`คูลดาวน์ ${echo.ULT_CD} เทิร์น`));
+  const P = setup([['E', 'echo', 5, 5], ['B', 'dummy', 12, 12]]);
+  for (const stacks of [0, 3, 5, 8, 10]) {
+    grow(P.E, stacks);
+    const n = engine.sizeOf(P.E);
+    assert.equal(engine.baseMovOf(P.E), echo.MOV_BY_SIZE[n], `ขนาด ${n}`);
+    assert.deepEqual(engine.rangeOf(P.E), echo.RANGE_BY_SIZE[n]);
+    assert.equal(echo.smashes(P.E), n >= echo.SMASH_SIZE);
+  }
+  assert.equal(engine.sizeOf(P.E), echo.sizeForHp(maxHp));
+});

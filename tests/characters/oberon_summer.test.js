@@ -5,15 +5,19 @@ const assert = require('node:assert/strict');
 const { engine } = require('../../server.js');
 const ob = require('../../characters/oberon_summer.js');
 const CHARACTERS = require('../../characters.js');
+const draw = require('../../server/phases/draw.js');
 
 const blank = (id, characterId, position, teamId = null) => ({
   id, name: id, position, characterId, alive: true, connected: true, cards: [], statuses: {}, statusAmt: {},
   seen: {}, cutsceneShown: {}, inventory: [], teamId,
 });
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-async function waitState(pred, ms = 8000) {
-  for (let i = 0; i < ms / 50; i++) { if (pred()) return true; await delay(50); }
-  return false;
+// จบเทิร์นแล้วขึ้นเทิร์นใหม่ทันที (ไม่รอตัวจับเวลาจริงของ TRANSITION/ฉากเปลี่ยนภูมิภาค) — ลูปลดเทิร์น/onEndTurn/onRoundStartTick ครบ
+function nextRound() {
+  const round = engine.roundNumber;
+  engine.setGameState('ATTACKING');
+  engine.endTurn(); engine.clearPhaseTimer();
+  draw.dealRound(); engine.clearPhaseTimer();
+  assert.equal(engine.roundNumber, round + 1);
 }
 
 // 'dummy' = ตัวละครสมมติไม่มีฮุค (ไม่มีการหลบแบบสุ่ม) — ใช้เป็นคู่ต่อสู้ได้โดยเทสต์ไม่แกว่ง
@@ -109,20 +113,18 @@ test('นกจาบยามเช้า: ฟื้น 5 · ต้านสถ
   assert.equal(O.statuses.obsVeil, 3, 'ยังกดท่าอื่นได้อีก 1 ครั้ง');
 });
 
-test('นกจาบยามเช้า: ต้นเทิร์นถัดไปเสียพลังชีวิต 2 ทะลุเกราะ · ต้านสถานะกันไม่ได้ · ตายได้', async () => {
+test('นกจาบยามเช้า: ต้นเทิร์นถัดไปเสียพลังชีวิต 2 ทะลุเกราะ · ต้านสถานะกันไม่ได้ · ตายได้', () => {
   const { O, T } = setup();
   engine.useSkill('O', 'secondary', ['T']);
-  T.hp = 2; T.armor = 3;
-  engine.setGameState('ATTACKING');
-  const round = engine.roundNumber;
-  engine.endTurn();
-  assert.ok(await waitState(() => engine.roundNumber === round + 1 && engine.gameState === 'PLAYING'));
+  assert.equal(T.statuses.obsLark, ob.LARK_MARK_TURNS);
+  T.hp = ob.LARK_DRAIN; T.armor = 3;
+  nextRound();
   assert.equal(T.armor >= 3, true, 'เกราะไม่ถูกแตะ');
   assert.equal(T.alive, false, 'เลือด 2 -> ตาย แม้มีต้านสถานะ');
   assert.equal(O.alive, true);
 });
 
-test('จุดจบของความฝัน: +4 เฉพาะเทิร์นนี้ แล้วสตั้น 3 เทิร์น · ต้านสถานะกันได้ · คูลดาวน์ 5 · เลือกศัตรูได้แม้โหมดทีม', async () => {
+test('จุดจบของความฝัน: +4 เฉพาะเทิร์นนี้ แล้วสตั้น 3 เทิร์น · ต้านสถานะกันได้ · คูลดาวน์ 5 · เลือกศัตรูได้แม้โหมดทีม', () => {
   const { O, T } = setup({ mode: 'duo', teams: true });
   const r0 = engine.roundNumber;
   engine.useSkill('O', 'ultimate', ['T']);
@@ -130,16 +132,12 @@ test('จุดจบของความฝัน: +4 เฉพาะเทิ
   assert.equal(ob.atkBonus(T), 4);
   assert.equal(O.obsUltReady, r0 + 5);
   let stunnedTurns = 0;
-  for (let i = 0; i < 4; i++) {
-    engine.setGameState('ATTACKING');
-    const round = engine.roundNumber;
-    engine.endTurn();
-    assert.ok(await waitState(() => engine.roundNumber === round + 1 && engine.gameState === 'PLAYING'));
-    engine.clearPhaseTimer();
+  for (let i = 0; i < ob.DREAM_STUN_TURNS + 1; i++) {
+    nextRound();
     if ((T.statuses.stun || 0) > 0) stunnedTurns++;
     if (i === 0) assert.equal(T.statuses.obsDream, undefined, '+4 หมดหลังจบเทิร์นที่กด');
   }
-  assert.equal(stunnedTurns, 3, 'สตั้นครบ 3 เทิร์นถัดไป');
+  assert.equal(stunnedTurns, ob.DREAM_STUN_TURNS, 'สตั้นครบ 3 เทิร์นถัดไป');
 
   // ต้านสถานะกันได้
   const { O: O2, M } = setup();
@@ -160,4 +158,44 @@ test('หน้าไหว้หลังหลอก: จบเทิร์น
   ob.onEndTurn(engine);
   assert.equal(O.skillPoints, 4, 'ถูกโจมตีแล้วไม่ได้โบนัส');
   assert.equal(T.gold || 0, 0, 'เฉพาะโอเบรอน');
+});
+
+test('ค่าคงที่ตรงกับคำอธิบายสกิล · เสียงกดสกิลรายช่อง', () => {
+  const c = CHARACTERS.CHAR_BY_ID.oberon_summer;
+  assert.match(c.basic.desc, new RegExp(`โจมตี \\+${ob.VEIL_ATK} นาน ${ob.VEIL_TURNS} เทิร์น และฟื้นพลังชีวิต ${ob.VEIL_HEAL}`));
+  assert.match(c.secondary.desc, new RegExp(`ฟื้นพลังชีวิต ${ob.LARK_HEAL} ได้ต้านสถานะผิดปกติ ${ob.LARK_RESIST_TURNS} เทิร์น`));
+  assert.match(c.secondary.desc, new RegExp(`เสียพลังชีวิต ${ob.LARK_DRAIN} `));
+  assert.match(c.ultimate.desc, new RegExp(`คูลดาวน์ ${ob.DREAM_COOLDOWN} เทิร์น`));
+  assert.match(c.ultimate.desc, new RegExp(`โจมตี \\+${ob.DREAM_ATK} `));
+  assert.match(c.ultimate.desc, new RegExp(`สตั้น ${ob.DREAM_STUN_TURNS} เทิร์น`));
+  for (const tier of ['basic', 'secondary', 'ultimate']) assert.equal(ob.skillSound(null, tier), ob.SOUND[tier]);
+  assert.equal(ob.skillSound(null, 'passive'), null);
+});
+
+test('skillLocks: ม่าน/ท่าไม้ตายนับคูลดาวน์ · นกจาบล็อกเฉพาะเทิร์นที่กด · ส่งถึง client', () => {
+  const { O } = setup();
+  const r0 = engine.roundNumber;
+  assert.deepEqual(ob.skillLocks(engine, O), { basic: { cd: 0 }, secondary: { locked: false }, ultimate: { cd: 0 } });
+  engine.useSkill('O', 'secondary', ['O']);
+  engine.useSkill('O', 'basic');
+  assert.deepEqual(ob.skillLocks(engine, O), { basic: { cd: ob.VEIL_TURNS }, secondary: { locked: true }, ultimate: { cd: 0 } });
+  O.skillUsedRound = false; O.skillPoints = 8;
+  engine.setActor('O');
+  engine.useSkill('O', 'ultimate', ['O']);
+  assert.equal(ob.skillLocks(engine, O).ultimate.cd, ob.DREAM_COOLDOWN);
+  const sent = engine.buildStateFor('O').players.find((p) => p.id === 'O').skillLocks;
+  assert.equal(sent.ultimate.cd, ob.DREAM_COOLDOWN);
+  engine.setRoundNumber(r0 + 1);
+  assert.deepEqual(ob.skillLocks(engine, O), { basic: { cd: ob.VEIL_TURNS - 1 }, secondary: { locked: false }, ultimate: { cd: ob.DREAM_COOLDOWN - 1 } });
+});
+
+test('ม่านแห่งราตรี: ไม่มีรายชื่อในรัศมี = ให้ตัวเองคนเดียว (ไม่แจกทั้งสนาม) · atkFx ไม่พังกับเป้าไม่มี statuses', () => {
+  const { O, M, T } = setup();
+  ob.applyInstantSkill(engine, O, 'basic', undefined);
+  assert.equal(O.statuses.obsVeil, ob.VEIL_TURNS);
+  assert.equal(M.statuses.obsVeil, undefined);
+  assert.equal(T.statuses.obsVeil, undefined);
+  assert.deepEqual(ob.atkFx({}), []);
+  assert.equal(ob.applyInstantSkill(engine, O, 'secondary', ['nobody']), '');
+  assert.equal(ob.applyInstantSkill(engine, O, 'ultimate', []), '');
 });

@@ -4,9 +4,15 @@
 
 const ID = "muimi";
 
-const EMERGENCY_USES = 2;
+const EMERGENCY_USES = 2; // ต้องตรงกับ basic.ammo ใน characters.js (เทสต์เช็คให้)
+const EMERGENCY_HEAL = 2;
+const EMERGENCY_SP = 2;
 const RUSTY_TURNS = 3;
+const RUSTY_HEAL = 1;     // ตีปกติโดนระหว่าง "ดาบเก่าๆ"
+const RUSTY_SP = 1;
 const TOWER_TURNS = 2;
+const TOWER_HEAL = 2;     // ตีปกติโดนระหว่าง "ดาบสะบั้น"
+const TOWER_EXTEND = 1;   // ...และยืดเวลาดาบสะบั้น +1 เทิร์น (สกิลติดตัว ใจที่ไม่ยอมแพ้)
 const RESIST_TURNS = 3;
 // เนิฟ (ผู้ใช้สั่ง 2026-10-09): ตีปกติระหว่างดาบสะบั้น +3 → +1 · คูลดาวน์ท่าไม้ตาย 5 → 3 เทิร์น
 //  คลื่นดาบยังแรงเท่าเดิม (ฐาน 1 + 3 = 4) จึงแยกโบนัสของคลื่นออกจากโบนัสตีปกติ
@@ -27,22 +33,40 @@ const IMG = {
   skill2: "/characters/muimi/muimi_skill2.png",
   skill3: "/characters/muimi/muimi_skill3.webp",
 };
+const SFX = { normal: "muimi_normal_hit", tower: "muimi_ub_hit" }; // คีย์ใน client/src/audio.js
 
 function isMuimi(p) { return !!p && p.characterId === ID; }
 function rustyActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiRusty) || 0) > 0; }
 function towerActive(p) { return isMuimi(p) && ((p.statuses && p.statuses.muimiTower) || 0) > 0; }
 
-// มุยมิที่กำลังปล่อยคลื่นดาบอยู่ (ตั้งเฉพาะช่วงลูปคลื่นดาบ) — damageBonus ใช้โบนัสของคลื่น (waveBonus) แทน TOWER_ATK_BONUS
-let waveStriker = null;
-let waveBonus = WAVE_ATK_BONUS;
+// ท่าไม้ตายถูกล็อกอยู่ไหม — p.muimiUltLock = เทิร์นสุดท้ายที่ยังใช้ไม่ได้ (onUltExpire / คลื่นดาบถูกหลบหมด)
+function ultLocked(engine, p) { return (p.muimiUltLock || 0) >= engine.roundNumber; }
+// ตั้งล็อกท่าไม้ตาย: นับ ULT_COOLDOWN_TURNS เทิร์นถัดจากเทิร์นนี้ (ไม่ย่นล็อกที่ยาวกว่าอยู่แล้ว)
+function lockUlt(engine, p) { p.muimiUltLock = Math.max(p.muimiUltLock || 0, engine.roundNumber + ULT_COOLDOWN_TURNS); }
+
+// สกิลที่ไม่นับโควตาสกิลหลักของเทิร์น (กดได้แม้ใช้โควตาไปแล้ว + กดแล้วไม่กินโควตา): เสบียงฉุกเฉิน
+const isQuotaFree = (p, tier) => isMuimi(p) && tier === "basic";
+
+// คลื่นดาบที่กำลังลงผล — p.muimiWave = { bonus, striking } บนตัวมุยมิ (ไม่ใช้ตัวแปรระดับโมดูล: ค้างข้ามแมตช์/เทสต์ได้)
+//  striking = ช่วงลูปฟันคน: ทุกเป้าใช้โบนัสคลื่นแทน TOWER_ATK_BONUS
+//  หลังลูป = เฉพาะเป้าที่ไม่ใช่ผู้เล่น — หนามน้ำแข็ง/ผนึกมิโกะในแนว (skills.js ต่อคิวไว้หลังคลื่น แล้วคิดดาเมจผ่าน computeAttackBase)
+//   จึงแรงเท่าตีคน (ผู้ใช้สั่ง "ให้แรงเท่าตีคน") แม้หลบหมดจนดาบสะบั้นหายไปแล้ว · ค่าประเมินพลังโจมตีใส่ผู้เล่นไม่โดนลากตาม
+//  ล้างทิ้งเมื่อชุดผลหลังคลิปจบ (microtask — ชุดผลรันต่อกันแบบ synchronous จึงไม่มีตีปกติแทรกได้)
+function waveBonusAgainst(engine, attacker, target) {
+  const wave = attacker.muimiWave;
+  if (!wave) return null;
+  const isPlayer = !!target && engine.players[target.id] === target;
+  return wave.striking || !isPlayer ? wave.bonus : null;
+}
 
 // คลื่นดาบแนว 4×3 ใส่ศัตรูทุกคนในแนว (ท่าไม้ตาย + ดาบสนิมระหว่างดาบสะบั้น) — คืนจำนวนศัตรูที่ฟัน/โดน
 //  เอฟเฟกต์บนกระดาน (quakeFx: ของถล่มลงทุกช่องในแนว + พื้นระเบิด) + เสียงฟัน ลงพร้อมดาเมจ
-function swordWave(engine, p, targets, dir, name, bonus = WAVE_ATK_BONUS) {
+function swordWave(engine, p, targets, dir, name, bonus) {
   let tried = 0, hits = 0;
   if (p.pos && dir) engine.boardFx("quakeFx", { from: { ...p.pos }, dir, len: WAVE_AREA.len, width: WAVE_AREA.width, color: engine.colorOf(p) });
-  waveStriker = p;
-  waveBonus = bonus;
+  const wave = { bonus, striking: true };
+  p.muimiWave = wave;
+  queueMicrotask(() => { if (p.muimiWave === wave) delete p.muimiWave; });
   try {
     for (const id of targets || []) {
       const t = engine.players[id];
@@ -52,9 +76,9 @@ function swordWave(engine, p, targets, dir, name, bonus = WAVE_ATK_BONUS) {
       if (!res.dodge) hits++;
     }
   } finally {
-    waveStriker = null;
+    wave.striking = false;
   }
-  engine.sfx("muimi_ub_hit");
+  engine.sfx(SFX.tower);
   return { tried, hits };
 }
 
@@ -62,6 +86,8 @@ module.exports = {
   id: ID,
   IMG,
   EMERGENCY_USES,
+  EMERGENCY_HEAL,
+  EMERGENCY_SP,
   RUSTY_TURNS,
   TOWER_TURNS,
   RESIST_TURNS,
@@ -79,9 +105,15 @@ module.exports = {
     p.muimiEmergencyUses = EMERGENCY_USES;
     p.muimiEmergencyUsedRound = 0;
     p.muimiUltLock = 0;
+    delete p.muimiWave;
   },
 
   displayImg(p) { return towerActive(p) ? IMG.ultimate : null; },
+  // เสียงตีปกติ (attackSoundOf): ระหว่างดาบสะบั้น = เสียงฟันของท่าไม้ตาย
+  attackSound(p) {
+    if (!isMuimi(p)) return undefined;
+    return towerActive(p) ? SFX.tower : SFX.normal;
+  },
 
   skillCost(p, tier, base) { return tier === "secondary" && towerActive(p) ? TOWER_SEC_COST : base; },
   skillArea(p, tier, area) { return tier === "secondary" && towerActive(p) ? WAVE_AREA : area; },
@@ -92,24 +124,27 @@ module.exports = {
       return (p.muimiEmergencyUses || 0) > 0 && p.muimiEmergencyUsedRound !== engine.roundNumber;
     }
     // ระหว่างดาบสะบั้นท่าไม้ตายกดซ้ำไม่ได้ (ผู้ใช้สั่ง) · ดาบสนิมกดได้ = คลื่นดาบ (skillArea/skillCost)
-    if (tier === "ultimate") return !rustyActive(p) && !towerActive(p) && this.ultCooldownLeft(engine, p) <= 0;
+    if (tier === "ultimate") return !rustyActive(p) && !towerActive(p) && !ultLocked(engine, p);
     return true;
   },
 
   // เสบียงฉุกเฉินไม่นับโควตาสกิลหลัก — กดได้แม้ใช้สกิลอื่นไปแล้ว และกดแล้วยังใช้สกิลอื่นได้อีก
-  skipsTurnQuota(p, tier) { return isMuimi(p) && tier === "basic"; },
-  ignoresTurnQuota(p, tier) { return isMuimi(p) && tier === "basic"; },
+  skipsTurnQuota: isQuotaFree,
+  ignoresTurnQuota: isQuotaFree,
 
   onUltExpire(engine, p) {
     if (!isMuimi(p)) return;
-    p.muimiUltLock = Math.max(p.muimiUltLock || 0, engine.roundNumber + ULT_COOLDOWN_TURNS);
+    lockUlt(engine, p);
     engine.log(`⏳ ${p.name} ดาบสะบั้นหมดเวลาแล้ว — ใช้ดาบสะบั้นหอคอยสวรรค์ซ้ำไม่ได้อีก ${ULT_COOLDOWN_TURNS} เทิร์น`);
   },
 
+  // ตัวเลขคูลดาวน์ที่แสดง (view.js muimiUltCd): 3 → 2 → 1 ในสามเทิร์นถัดจากเทิร์นที่ตั้งล็อก แล้วกดได้เทิร์นต่อจากนั้น
+  //  หมดเวลาตามปกติตั้งล็อกตอนจบเทิร์น · คลื่นดาบถูกหลบหมดตั้งล็อกกลางเทิร์นที่กด — เทิร์นนั้นล็อกจริง (ultLocked)
+  //  แต่ไม่โชว์ตัวเลข (ไม่งั้นขึ้น 4 — ปุ่มปิดอยู่แล้วเพราะเพิ่งใช้สกิลของเทิร์นไป) ทั้งสองทางจึงเห็น 3, 2, 1 เหมือนกัน
   ultCooldownLeft(engine, p) {
-    if (!isMuimi(p)) return 0;
-    // สถานะหมดตอนท้ายรอบ จึงบวก 1 เพื่อให้สามรอบถัดไปแสดง 3 -> 2 -> 1 และกดได้ในรอบต่อจากนั้น
-    return Math.max(0, (p.muimiUltLock || 0) - engine.roundNumber + 1);
+    if (!isMuimi(p) || !ultLocked(engine, p)) return 0;
+    const left = p.muimiUltLock - engine.roundNumber + 1;
+    return left > ULT_COOLDOWN_TURNS ? 0 : left;
   },
 
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
@@ -117,9 +152,9 @@ module.exports = {
     if (tier === "basic") {
       p.muimiEmergencyUses = Math.max(0, (p.muimiEmergencyUses || 0) - 1);
       p.muimiEmergencyUsedRound = engine.roundNumber;
-      const hp = engine.healHp(p, 2);
+      const hp = engine.healHp(p, EMERGENCY_HEAL);
       const before = p.skillPoints;
-      engine.addSkill(p, 2);
+      engine.addSkill(p, EMERGENCY_SP);
       const sp = p.skillPoints - before;
       engine.log(`🍖 ${p.name} ใช้เสบียงฉุกเฉิน — ฟื้นพลังชีวิต +${hp} และแต้มสกิล +${sp} (เหลือ ${p.muimiEmergencyUses} ครั้ง)`);
       return ` — พลังชีวิต +${hp} · แต้มสกิล +${sp}`;
@@ -137,6 +172,8 @@ module.exports = {
     if (tier === "ultimate") {
       const resistBefore = p.statuses.resist || 0;
       p.statuses.muimiTower = TOWER_TURNS;
+      // เขียน resist ตรงๆ (ไม่ผ่าน engine.applyBuff) โดยตั้งใจ: applyBuff ประทับ statusAt ทำให้ต้านสถานะนี้กลายเป็น
+      //  "บัฟล่าสุด" ที่ stripLatestBuff ดึงทิ้งก่อน — พฤติกรรมเดิมถือว่าเก่ากว่าบัฟอื่นเสมอ · หลบหมดคืนค่าเดิม (resistBefore)
       p.statuses.resist = Math.max(resistBefore, RESIST_TURNS);
       p.transformAt = engine.nextTransformCounter();
       // วีดีโอ (ผู้ใช้สั่ง): ฉบับเต็ม 1 ครั้ง ฉบับสั้น 1 ครั้ง ต่อแมตช์ — หลังจากนั้นเป็นการ์ดแจ้งเตือน ไม่หยุดเกม
@@ -149,11 +186,11 @@ module.exports = {
       //  มีศัตรูในแนวแต่หลบได้ทุกคน = เสียท่าไม้ตาย (ดาบสะบั้น + ต้านสถานะที่ได้) และเข้าคูลดาวน์ทันที · โดนอย่างน้อย 1 คน = ได้ตามปกติ
       //  แนวว่างไม่มีศัตรู = ได้ดาบสะบั้นตามปกติ (ไม่มีใครหลบ)
       engine.deferAfterCutscene(() => {
-        const { tried, hits } = swordWave(engine, p, targets, opts.dir, "คลื่นดาบสะบั้น");
+        const { tried, hits } = swordWave(engine, p, targets, opts.dir, "คลื่นดาบสะบั้น", WAVE_ATK_BONUS);
         if (tried > 0 && hits === 0) {
           delete p.statuses.muimiTower;
           if (resistBefore > 0) p.statuses.resist = resistBefore; else delete p.statuses.resist;
-          p.muimiUltLock = Math.max(p.muimiUltLock || 0, engine.roundNumber + ULT_COOLDOWN_TURNS);
+          lockUlt(engine, p);
           engine.log(`💨 คลื่นดาบของ ${p.name} ถูกหลบทั้งหมด — เสียดาบสะบั้น · ใช้ท่าไม้ตายซ้ำไม่ได้ ${ULT_COOLDOWN_TURNS} เทิร์น`);
         }
       });
@@ -163,8 +200,10 @@ module.exports = {
   },
 
   damageBonus(engine, attacker, target, ctx) {
+    if (!isMuimi(attacker)) return 0;
     // คลื่นดาบ: ไม่ใช่ตีปกติ จึงไม่ใส่ ctx.muimiTowerAtk (ป้ายนั้นใช้ในฉากตีปกติ)
-    if (isMuimi(attacker) && waveStriker === attacker) return waveBonus;
+    const wave = waveBonusAgainst(engine, attacker, target);
+    if (wave != null) return wave;
     if (!towerActive(attacker)) return 0;
     ctx.muimiTowerAtk = TOWER_ATK_BONUS;
     return TOWER_ATK_BONUS;
@@ -173,15 +212,15 @@ module.exports = {
   onAttackLanded(engine, attacker) {
     if (!isMuimi(attacker)) return null;
     if (towerActive(attacker)) {
-      const hp = engine.healHp(attacker, 2);
-      attacker.statuses.muimiTower++;
-      engine.log(`⚔️ ${attacker.name} ดาบสะบั้น — ฟื้นพลังชีวิต +${hp} และยืดเวลาท่าไม้ตาย +1 เทิร์น`);
+      const hp = engine.healHp(attacker, TOWER_HEAL);
+      attacker.statuses.muimiTower += TOWER_EXTEND;
+      engine.log(`⚔️ ${attacker.name} ดาบสะบั้น — ฟื้นพลังชีวิต +${hp} และยืดเวลาท่าไม้ตาย +${TOWER_EXTEND} เทิร์น`);
       return { mode: "tower", hp, sp: 0, extended: true };
     }
     if (rustyActive(attacker)) {
-      const hp = engine.healHp(attacker, 1);
+      const hp = engine.healHp(attacker, RUSTY_HEAL);
       const before = attacker.skillPoints;
-      engine.addSkill(attacker, 1);
+      engine.addSkill(attacker, RUSTY_SP);
       const sp = attacker.skillPoints - before;
       engine.log(`🗡️ ${attacker.name} ดาบเก่าๆ — ฟื้นพลังชีวิต +${hp} และแต้มสกิล +${sp}`);
       return { mode: "rusty", hp, sp, extended: false };

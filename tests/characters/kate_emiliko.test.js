@@ -400,7 +400,7 @@ test('ติดตัวเคท: ตีปกติในม่านแดง
 test('ร่าเริงสุดๆ (ไม้ถูพื้น): ผลักศัตรูในแนวไปพ้นปลายแนว -2 · เอมิลิโกะพุ่ง 4 ช่อง ทางที่พุ่งเปียก', () => {
   const P = setup([['K', 'kate', 1, 1], [E, null, 2, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 3, 6]]);
   const before = vit(P.B);
-  KC.ultimate(engine, P[E], ['B', 'C'], { dir: 'right' }, { st: P.K.shadow });
+  KC.cheer(engine, P[E], ['B', 'C'], { dir: 'right' }, P.K.shadow);
   runBeats();
   assert.equal(vit(P.B), before - 2);
   assert.deepEqual(P.B.pos, { x: 7, y: 5 }, 'ไปช่องที่ 5 นับจากเอมิลิโกะ');
@@ -484,7 +484,7 @@ test('เครื่องดูดฝุ่น: ใช้ได้ 5 ครั
   assert.equal(strikeNow(E, 'B'), true);
   assert.equal(P.K.shadow.vacuumLeft, 4, 'ตีปกติ = 1 ครั้ง');
   // ท่าไม้ตาย = 1 ครั้ง
-  KC.ultimate(engine, P[E], ['B'], { dir: 'right' }, { st: P.K.shadow });
+  KC.cheer(engine, P[E], ['B'], { dir: 'right' }, P.K.shadow);
   runBeats();
   assert.equal(P.K.shadow.vacuumLeft, 3, 'ท่าไม้ตาย = 1 ครั้ง');
   // ตีพลาดก็นับ
@@ -522,4 +522,145 @@ test('ขนมปัง: กินเอง/ป้อนเคทแล้ว �
     assert.equal(strikeNow('K', 'B'), false, 'เคทยืนห่าง 2 ช่อง');
     assert.equal(engine.buildStateFor('K').action.noStrike, false, 'เคทไม่ติดล็อก');
   }
+});
+
+// ---------- ความเสถียร (บั๊กที่เจอจาก probe — กติกาเดิมต้องเป็นจริง) ----------
+const Mark42 = require('../../characters/_mark42.js');
+const Visibility = require('../../server/visibility.js');
+const Zero = require('../../server/zeroTime.js');
+const Board = require('../../server/board.js');
+const draw = require('../../server/phases/draw.js');
+// ม่านแดงของ B (ศัตรู) ครอบ 1..8 × 1..8 — ขังเคท/เอมิลิโกะที่อยู่ข้างใน
+const enemyCurtain = (P) => Soot.cast(P.B, engine.tileArea({ kind: 'tile', square: 8 }, { x: 5, y: 5 }));
+
+test('Mark 42: ฝ่ายคู่มีชุดได้ชุดเดียว (GRID_PLAN §7.10) — อีกตัวสวมอยู่ = ซื้อไม่ได้ · ชุดพัง = คูลดาวน์ทั้งฝ่าย · ผู้เล่นทั่วไปไม่เกี่ยว', () => {
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  engine.setRoundNumber(5);
+  for (const u of [P.K, P[E], P.B]) Mark42.resetCombat(u);
+  assert.equal(Mark42.canBuy(engine, P[E]), true);
+  Mark42.equip(engine, P.K, P.K, Mark42.SUIT_ARMOR);
+  assert.equal(Mark42.canBuy(engine, P[E]), false, 'เคทสวมอยู่ เอมิลิโกะซื้อเพิ่มไม่ได้');
+  assert.equal(Mark42.canBuy(engine, P.K), false);
+  Mark42.breakSuit(engine, P.K, 'combat');
+  assert.equal(Mark42.buyLockLeft(engine, P[E]), 11, 'คูลดาวน์ของเคทนับทั้งฝ่าย');
+  assert.equal(Mark42.canBuy(engine, P[E]), false);
+  assert.equal(Mark42.canBuy(engine, P.B), true, 'ผู้เล่นทั่วไปไม่โดน');
+  engine.setRoundNumber(16);
+  assert.equal(Mark42.canBuy(engine, P[E]), true, 'พ้นคูลดาวน์');
+  // ชุดที่เอมิลิโกะส่งไปสวมให้ศัตรู = ฝ่ายนี้ยังมีชุดอยู่
+  Mark42.equip(engine, P[E], P.B, Mark42.SUIT_ARMOR);
+  assert.equal(Mark42.canBuy(engine, P.K), false);
+});
+
+test('ม่านแดง: ตัวที่ถูกขังในม่านศัตรูเล็ง/ตีคนนอกม่านไม่ได้ แม้อีกตัวอยู่ข้างนอก (ตีปกติ · แส้ · เครื่องดูดฝุ่น) · แผนที่ยังเห็นรวม', () => {
+  // เคทติดอยู่ขอบในม่าน (8,5) · C นอกม่านติดกัน (9,5) · เอมิลิโกะอยู่นอกม่านเห็น C
+  let P = setup([['K', 'kate', 8, 5], [E, null, 12, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
+  enemyCurtain(P);
+  assert.ok(engine.buildStateFor('K').players.find((p) => p.id === 'C').pos, 'แผนที่ของผู้เล่นยังรวมสายตาสองตัว');
+  assert.equal(Visibility.hiddenFromUnit(P.K, P.C), true);
+  assert.equal(Visibility.hiddenFromUnit(P.K, P.B), false, 'คนในม่านเดียวกันยังเห็นกัน');
+  startTurn('K');
+  const beforeC = vit(P.C);
+  assert.equal(engine.attackTarget('K', 'C'), false, 'ตีข้ามขอบม่านไม่ได้');
+  // แส้ (ระยะ 3) ใส่คนนอกม่าน
+  P.C.pos = { x: 10, y: 5 };
+  engine.useSkill('K', 'secondary', ['C'], { form: 'whip' });
+  assert.deepEqual(P.K.pos, { x: 8, y: 5 }, 'แส้ไม่พุ่งออกไป');
+  assert.equal(P.K.skillPoints, 8, 'ไม่เสียแต้ม');
+  assert.equal(vit(P.C), beforeC);
+  // เอมิลิโกะติดในม่าน (เครื่องดูดฝุ่นระยะ 3) · เคทอยู่นอกม่าน
+  P = setup([['K', 'kate', 12, 5], [E, null, 8, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 10, 5]]);
+  enemyCurtain(P);
+  P.K.shadow.weapon = 'vacuum';
+  startTurn('K');
+  engine.useSkill('K', 'basic', []);
+  assert.equal(engine.actorId, E);
+  assert.equal(strikeNow(E, 'C'), false, 'ดูดฝุ่นข้ามขอบม่านไม่ได้');
+  assert.equal(P.K.shadow.vacuumLeft, 5);
+});
+
+test('แส้เขม่า: เพื่อนร่วมทีม (โหมด duo) เล็งไม่ได้ — ไม่เสียแต้ม/ไม่พุ่ง/ไม่กินโควตา · เอมิลิโกะยังดึงได้', () => {
+  const P = setup([['K', 'kate', 3, 5, 'A'], [E, null, 3, 4], ['F', 'dummy', 5, 5, 'A'], ['B', 'dummy', 12, 5, 'B'], ['C', 'dummy', 12, 7, 'B']], 'duo');
+  startTurn('K');
+  engine.useSkill('K', 'secondary', ['F'], { form: 'whip' });
+  assert.deepEqual(P.K.pos, { x: 3, y: 5 });
+  assert.equal(P.K.skillPoints, 8);
+  assert.equal(P.K.skillUsedRound, false);
+  assert.ok(!P.F.wasAttacked);
+  engine.useSkill('K', 'secondary', [E], { form: 'whip' });
+  assert.equal(P.K.skillPoints, 6);
+});
+
+test('ต้นเทิร์น: ม่านแดงฆ่าเคทหลังแจกไพ่ (เอมิลิโกะยังอยู่) = ผู้เล่นยังจั่ว/เปิดไพ่ได้', () => {
+  const P = setup([['K', 'kate', 4, 5], [E, null, 12, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 12, 12]]);
+  enemyCurtain(P);
+  P.K.hp = 1; P.K.armor = 0;
+  engine.setRoundNumber(2); // เทิร์นถัดไป 3 = เกราะไม่ฟื้น
+  engine.setGameState('TRANSITION'); // จบเทิร์นก่อนหน้า (endTurn) → dealRound
+  draw.dealRound();
+  engine.clearPhaseTimer();
+  assert.equal(P.K.alive, false, 'พายุฆ่าเคท');
+  assert.equal(engine.gameState, 'PLAYING');
+  assert.equal(P.K.locked, false, 'ยังจั่วได้');
+  assert.equal(P.K.cards.length, 1);
+  engine.hit('K');
+  assert.equal(P.K.cards.length, 2);
+});
+
+// ห่วงเวลาซีโร่: เข้าที่เทิร์น 9 (ข้ามฉาก) · ปลดผนึกทันที (ไม่มีคนทุบ)
+function zeroEnter(deal = true) {
+  engine.setRoundNumber(9);
+  Zero.enter(); engine.clearPhaseTimer(); M.zeroScene.active = false;
+  if (deal) { draw.dealRound(); engine.clearPhaseTimer(); }
+}
+function zeroRelease() {
+  for (const s of M.zero.seals) s.broken = true;
+  M.zero.pending.push({ i: 3, by: null });
+  Zero.runPendingBreak(() => {});
+  engine.clearPhaseTimer();
+  M.zeroScene.active = false;
+}
+
+test('ต้นเทิร์น: ฟ้าผ่าห่วงเวลาซีโร่ (เฟส 4) ฆ่าเคท (เอมิลิโกะยังอยู่) = ผู้เล่นยังจั่วได้', (t) => {
+  t.after(() => Zero.reset());
+  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  zeroEnter(false);
+  for (const i of [0, 1, 2]) M.zero.seals[i].broken = true;
+  // สุ่ม = 0 → ฟ้าผ่าช่อง (1,0) (2,0) (3,0) (เหมือน tests/zeroTime.test.js)
+  P.K.pos = { x: 1, y: 0 }; P.K.hp = 1; P.K.armor = 0;
+  P[E].pos = { x: 8, y: 8 }; P.B.pos = { x: 9, y: 9 };
+  const realRandom = Math.random;
+  Math.random = () => 0;
+  try { draw.dealRound(); } finally { Math.random = realRandom; }
+  engine.clearPhaseTimer();
+  assert.equal(P.K.alive, false, 'ฟ้าผ่าเคท');
+  assert.equal(P.K.locked, false, 'ยังจั่วได้');
+  assert.equal(P.K.cards.length, 1);
+});
+
+test('ห่วงเวลาซีโร่: ปลดผนึกแล้วร่างกลับช่องเดิม · ร่างที่ล้มในสนามเฉพาะ = ลงข้างอีกตัวบนแผนที่เดิม', (t) => {
+  t.after(() => Zero.reset());
+  // ล้มก่อนเข้า: ร่างถูกยกไปสนามเฉพาะ แล้วต้องกลับที่เดิม
+  let P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  P.K.hp = 0; P.K.alive = false; P.K.corpse = { x: 3, y: 5 }; P.K.pos = null;
+  zeroEnter();
+  assert.ok(Zero.active());
+  zeroRelease();
+  assert.equal(Zero.active(), false);
+  assert.deepEqual(P[E].pos, { x: 4, y: 5 });
+  assert.deepEqual(P.K.corpse, { x: 3, y: 5 }, 'ร่างกลับช่องเดิม');
+  assert.equal(engine.tileFree(3, 5), false, 'ร่างยังขวางช่อง');
+  // ล้มในสนามเฉพาะ: ร่างลงข้างเอมิลิโกะบนแผนที่เดิม
+  Zero.reset();
+  P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
+  zeroEnter();
+  P.K.hp = 1; P.K.armor = 0;
+  engine.dealDirect(P.K, 1);
+  engine.resolveDamageAftermath(P.K);
+  P.K.pos = null;
+  assert.equal(P.K.alive, false);
+  zeroRelease();
+  assert.deepEqual(P[E].pos, { x: 4, y: 5 });
+  assert.ok(P.K.corpse, 'มีร่าง');
+  assert.equal(Board.dist(P.K.corpse, P[E].pos), 1, 'ร่างติดเอมิลิโกะ');
 });

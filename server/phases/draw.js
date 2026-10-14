@@ -167,6 +167,7 @@ function dealRound() {
     const hits = Soot.tickRound();
     if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
   }
+  reopenFallenOwners();
   // ผลต้นเทิร์นฆ่าศัตรูคนสุดท้าย = จบเกมทันที (ด่านเดียวกับ nextActor)
   if (endTurnPhase.gameOver()) return;
 
@@ -185,6 +186,11 @@ function skipFallen(p, cardHolder) {
   else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
 }
 
+// ระบบคู่: ฟ้าผ่าซีโร่ / ม่านแดง (หลังแจกไพ่แล้ว แต่ยังไม่ PLAYING) ฆ่าเจ้าของที่อีกตัวยังรอด —
+//  instantDeath ล็อกไว้เพราะไม่ใช่ช่วงจั่ว → เปิดให้จั่ว/เปิดไพ่ต่อ (เหมือนล้มในลูปต้นเทิร์น — skipFallen)
+function reopenFallenOwners() {
+  for (const p of Duo.cardHolders()) if (!p.alive && p.locked) p.locked = false;
+}
 // แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)
 function dealHand(p) {
   p.cards = [];

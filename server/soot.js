@@ -8,7 +8,8 @@
 //   เปลี่ยนภูมิภาค = ม่านหาย (match.board ใหม่)
 // ============================================================
 Object.assign(module.exports, {
-  storms, inside, stormOf, ownStorm, trapOf, blockedFor, hiddenByStorm, cast, tickRound, onEndTurn, publicInfo, active,
+  storms, stormOf, ownStorm, trapOf, blockedFor, hiddenByStorm, cast, strikeInside, tickRound, onEndTurn, publicInfo, active,
+  tileHiddenFrom,
 });
 
 const match = require("./match");
@@ -17,7 +18,6 @@ const Duo = require("./duo");
 
 const STORM_TURNS = 3;
 const STORM_DMG = 1;
-Object.assign(module.exports, { STORM_TURNS, STORM_DMG });
 
 function storms() { return (match.board && match.board.storms) || []; }
 function active() { return storms().length > 0; }
@@ -72,7 +72,6 @@ function strikeInside(s) {
   }
   return out;
 }
-Object.assign(module.exports, { strikeInside });
 // ต้นเทิร์น (phases/draw.js dealRound): ม่านที่ยังอยู่ลงดาเมจอีกครั้ง → [{ id, dmg, kill }]
 function tickRound() {
   const out = [];
@@ -97,7 +96,6 @@ function tileHiddenFrom(viewer, pos) {
   }
   return false;
 }
-Object.assign(module.exports, { tileHiddenFrom });
 function publicInfo() {
   return storms().map((s) => ({ x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, owner: s.owner, left: s.left }));
 }

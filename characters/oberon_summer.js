@@ -12,22 +12,17 @@
 //    เลือก 1 คนในระยะ (ใครก็ได้รวมตัวเอง ทุกโหมด) พลังโจมตี +4 จนจบตาเดินถัดไปของเป้า (GRID_PLAN §7.4)
 //    ให้ก่อนเป้าเดิน (หรือให้ตัวเอง) = ใช้ได้เทิร์นนี้ · ให้หลังเป้าเดินไปแล้ว = ใช้เทิร์นหน้า
 //    จบเทิร์นที่เป้าได้ใช้บัฟ -> ติดสตั้น 3 เทิร์น เริ่มเทิร์นถัดไป (ต้านสถานะผิดปกติกันได้)
-//  สกิลติดตัว หน้าไหว้หลังหลอก — จบเทิร์นที่ไม่ถูกโจมตีปกติเลย (ถูกเลือกเป็นเป้าก็นับว่าถูกโจมตี แม้หลบได้)
+//  สกิลติดตัว หน้าไหว้หลังหลอก — จบเทิร์นที่ไม่ถูกโจมตีเลย ทั้งตีปกติและสกิลแบบตี (p.wasAttacked — ถูกเลือกเป็นเป้าก็นับ แม้หลบได้)
 //    แต้มสกิล +1 และเหรียญ +1
 //
-//  สถานะ: obsVeil (ม่านแห่งราตรี +1) · obsDream (+4 เทิร์นเดียว) · obsLark (เครื่องหมายรอเสียเลือด 2 — ตั้ง 2
-//    เพราะลูปลดเทิร์นของ endTurn ลดไป 1 ก่อนถึงต้นเทิร์นถัดไป) — ทั้งหมดไม่อยู่ในรายการดีบัฟ จึงล้าง/ต้านไม่ได้
+//  สถานะ: obsVeil (ม่านแห่งราตรี +1) · obsDream (+4 จนจบตาเดินถัดไปของเป้า — 1 หรือ 2 เทิร์น ล้างทิ้งที่ onEndTurn)
+//    · obsLark (เครื่องหมายรอเสียเลือด 2 — LARK_MARK_TURNS) — ทั้งหมดไม่อยู่ในรายการดีบัฟ จึงล้าง/ต้านไม่ได้
 // ============================================================
 
 const ID = "oberon_summer";
 const DIR = "/characters/oberon(summer)";
-const OLD = "/characters/oberon"; // ภาพสกิลใช้ภาพตอนเช้าของโอเบรอนตัวเก่า (ภาพประจำตัวเป็นภาพใหม่)
-const IMG = {
-  base: `${DIR}/oberon_summer.webp`,
-  skill1: `${OLD}/oberon_skill1.jpg`,
-  skill2: `${OLD}/oberon_skill2.jpg`,
-  skill3: `${OLD}/oberon_skill3_morning.webp`,
-};
+// ภาพประจำตัว (ป้ายบัฟในฉากตี — phases/attack.js) · ภาพสกิลอยู่ใน characters.js (ภาพตอนเช้าของโอเบรอนตัวเก่า)
+const IMG = { base: `${DIR}/oberon_summer.webp` };
 const SOUND = { basic: "oberon_summer_skill1", secondary: "oberon_summer_skill2", ultimate: "oberon_summer_skill3" };
 
 const VEIL_ATK = 1;
@@ -36,17 +31,20 @@ const VEIL_HEAL = 1;
 const LARK_HEAL = 5;
 const LARK_RESIST_TURNS = 2;
 const LARK_DRAIN = 2;
+// เครื่องหมายนกจาบ: ลูปลดเทิร์นของ endTurn ลดเหลือ 1 → ต้นเทิร์นถัดไป (onRoundStartTick) เห็น > 0 แล้วลงผล
+const LARK_MARK_TURNS = 2;
 const DREAM_ATK = 4;
 const DREAM_STUN_TURNS = 3;
 const DREAM_COOLDOWN = 5;
 
 const isOberon = (p) => !!p && p.characterId === ID;
 
-// ผู้รับผลดี "ทุกคนในรัศมี": โหมดทีม = ตัวเอง + เพื่อนร่วมทีม · ffa = ทุกคน (ids = ผู้ที่อยู่ในรัศมีจาก server/skills.js)
-function allies(engine, src, ids) {
+// ผู้รับม่านแห่งราตรี "ทุกคนในรัศมี" — ids = ผู้ที่อยู่ในรัศมี (server/skills.js resolveArea ส่งมาเป็น array เสมอ)
+//  โหมดทีม = เฉพาะตัวเอง + เพื่อนร่วมทีม · ffa = ทุกคนในรัศมี · ไม่มีรายชื่อ = ตัวเองคนเดียว (ไม่แจกทั้งสนาม)
+function veilRecipients(engine, src, ids) {
   const teamish = engine.teamModeActive();
-  const inArea = Array.isArray(ids) ? new Set(ids) : null;
-  return engine.alivePlayers().filter((o) => (!inArea || inArea.has(o.id)) && (!teamish || o.id === src.id || engine.isAlly(src, o)));
+  const inArea = new Set(Array.isArray(ids) ? ids : [src.id]);
+  return engine.alivePlayers().filter((o) => inArea.has(o.id) && (!teamish || o.id === src.id || engine.isAlly(src, o)));
 }
 function pickTarget(engine, targets) {
   const t = engine.players[Array.isArray(targets) ? targets[0] : null];
@@ -56,7 +54,7 @@ function pickTarget(engine, targets) {
 module.exports = {
   id: ID,
   IMG, SOUND,
-  VEIL_ATK, VEIL_TURNS, LARK_HEAL, LARK_DRAIN, DREAM_ATK, DREAM_STUN_TURNS, DREAM_COOLDOWN,
+  VEIL_ATK, VEIL_TURNS, VEIL_HEAL, LARK_HEAL, LARK_RESIST_TURNS, LARK_DRAIN, LARK_MARK_TURNS, DREAM_ATK, DREAM_STUN_TURNS, DREAM_COOLDOWN,
 
   resetCombat(p) {
     p.obsVeilUntil = 0;     // ม่านแห่งราตรี: กดได้อีกเมื่อ roundNumber >= ค่านี้ (ผลบนตัวผู้เล่นหมดแล้ว)
@@ -71,6 +69,7 @@ module.exports = {
     return ((p.statuses.obsVeil || 0) > 0 ? VEIL_ATK : 0) + ((p.statuses.obsDream || 0) > 0 ? DREAM_ATK : 0);
   },
   atkFx(p) {
+    if (!p || !p.statuses) return [];
     const out = [];
     if ((p.statuses.obsVeil || 0) > 0) out.push(`ม่านแห่งราตรี +${VEIL_ATK}`);
     if ((p.statuses.obsDream || 0) > 0) out.push(`จุดจบของความฝัน +${DREAM_ATK}`);
@@ -86,7 +85,8 @@ module.exports = {
     return true;
   },
   // นกจาบยามเช้าไม่กินโควตาสกิลของเทิร์น (กดแล้วยังกดท่าอื่นได้อีก 1 ครั้ง)
-  skipsTurnQuota(p, tier) { return isOberon(p) && tier === "secondary"; },
+  //  (ฮุคถูกเรียกผ่าน CHAR_HOOKS[p.characterId] จึงเป็นโอเบรอนเสมอ ไม่ต้องเช็คตัวละครซ้ำ)
+  skipsTurnQuota(p, tier) { return tier === "secondary"; },
   skillSound(p, tier) { return SOUND[tier] || null; },
 
   // ---------- ลงผล ----------
@@ -94,7 +94,7 @@ module.exports = {
     const round = engine.roundNumber;
     if (tier === "basic") {
       p.obsVeilUntil = round + VEIL_TURNS;
-      const list = allies(engine, p, targets);
+      const list = veilRecipients(engine, p, targets);
       for (const o of list) {
         engine.applyBuff(o, "obsVeil", VEIL_ATK, VEIL_TURNS);
         engine.healHp(o, VEIL_HEAL);
@@ -104,16 +104,18 @@ module.exports = {
     }
     if (tier === "secondary") {
       const t = pickTarget(engine, targets);
+      if (!t) return ""; // canUseSkill กันไว้แล้ว — กันพังเผื่อเป้าหายระหว่างทาง
       p.obsLarkRound = round;
       const healed = engine.healHp(t, LARK_HEAL);
       engine.applyBuff(t, "resist", 1, LARK_RESIST_TURNS);
       const cleansed = engine.cleanseLatestDebuff(t);
-      t.statuses.obsLark = 2; // ลูป endTurn ลดเหลือ 1 -> ต้นเทิร์นถัดไปเห็น > 0 แล้วลงผล
+      t.statuses.obsLark = LARK_MARK_TURNS;
       engine.log(`🐦 ${p.name} นกจาบยามเช้า → ${t.name} ฟื้นพลังชีวิต +${healed} · ต้านสถานะผิดปกติ ${LARK_RESIST_TURNS} เทิร์น${cleansed ? " · ล้างสถานะผิดปกติที่โดนล่าสุด 1 อย่าง" : ""} (ต้นเทิร์นหน้าเสียพลังชีวิต ${LARK_DRAIN} ทะลุเกราะ)`);
       return ` → ${t.name}`;
     }
     if (tier === "ultimate") {
       const t = pickTarget(engine, targets);
+      if (!t) return ""; // canUseSkill กันไว้แล้ว — กันพังเผื่อเป้าหายระหว่างทาง
       p.obsUltReady = round + DREAM_COOLDOWN;
       // เป้าเดินไปแล้วในเทิร์นนี้ = ได้ใช้บัฟในตาเดินของเทิร์นหน้า (บัฟอยู่ 2 เทิร์น) · ยังไม่เดิน/ตัวเอง = เทิร์นนี้
       const later = engine.hasActed(t.id);

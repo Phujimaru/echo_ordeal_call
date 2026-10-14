@@ -16,8 +16,10 @@
 //    ปรากฏตัว: ตีปกติ / ยิงปืน / ไอเทมใส่คนอื่น / Beam Magnum ("act") · อยู่ในพื้นที่สกิลโจมตีของศัตรู ("hit") · ศัตรูเดินชน ("bump")
 //      → ปรากฏ 2 เทิร์น (เทิร์นนี้ + เทิร์นหน้า) แล้วล่องหนอีกครั้งต้นเทิร์นถัดไป
 //      "act" ระหว่างปรากฏอยู่ = นับ 2 เทิร์นใหม่ · "hit"/"bump" ระหว่างปรากฏอยู่ = ไม่นับเพิ่ม (ผู้ใช้ตัดสิน)
-//    เงื่อนไขหมด (มีคนตาย) = ปรากฏตัวถาวร
+//    เงื่อนไขหมด (มีคนตาย) = ปรากฏตัวถาวร · ระหว่างล่องหน ศัตรูไม่เห็นเลือด/เกราะ/แต้ม/แขน (server/view.js unseenPub)
 // ============================================================
+
+const { CHAR_BY_ID } = require("../characters.js"); // ข้อมูลไม่มี require ต่อ — ไม่วนกลับมาที่นี่
 
 const ID = "sliver_bullet";
 const DIR = "/characters/sliver_bullet";
@@ -41,8 +43,8 @@ const COST_ARM = 3;
 const HEAL_NO_ARM = 1;
 const HEAL_ARM = 2;
 const BEAM_DMG = 4;
-const BEAM_LEN = 8;
-const SHOT_LEN = 4; // ลำแสงตีปกติ = ระยะตี [1, 4] (ผู้ใช้สั่ง 2026-10-09)
+const BEAM_LEN = CHAR_BY_ID[ID].secondary.area.len; // ลำแสงบนกระดาน = แนว Beam Magnum (8×1)
+const SHOT_LEN = CHAR_BY_ID[ID].range[1]; // ลำแสงตีปกติ = ระยะตีไกลสุด [1, 4] (ผู้ใช้สั่ง 2026-10-09)
 const REVEAL_TURNS = 2;
 const FFA_MIN_ALIVE = 3;
 const TEAM_MIN_MATES = 2;
@@ -52,7 +54,7 @@ function fresh() {
   return {
     arm: true,
     hidden: false,
-    revealUntil: -1, // ปรากฏตัวถึงจบเทิร์นนี้ (เลขรอบ) — -1 = เริ่มเกมล่องหนทันที (startMatch ตั้งรอบ 0)
+    revealUntil: -1, // ปรากฏตัวถึงจบเทิร์นนี้ (เลขรอบ) — -1 = เริ่มเกมล่องหนทันที (startMatch ตั้งรอบ ≥ 0 · ECHO_DEV_START_ROUND − 1)
     logCut: 0,      // index ใน lastLog ตอนปรากฏตัวรอบนี้ — บรรทัดก่อนหน้าที่มีชื่อเขาซ่อนจากศัตรู
     logRound: 0,
   };
@@ -88,10 +90,14 @@ function reveal(engine, p, turns) {
   if (turns) s.revealUntil = Math.max(s.revealUntil, engine.roundNumber + turns - 1);
 }
 
+// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (ชุดรับแทนตัวจริง)
+function pool(t) {
+  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
+}
+
 module.exports = {
   id: ID,
-  IMG, VIDEO, SFX, CUT, HP, ARMOR, COST_NO_ARM, COST_ARM, HEAL_NO_ARM, HEAL_ARM, BEAM_DMG, BEAM_LEN, SHOT_LEN, REVEAL_TURNS,
-  isPilot, conditionHolds,
+  IMG, VIDEO, // คลิปเปลี่ยนชิ้นส่วน / Beam Magnum (characters/_transforms.js)
 
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
@@ -101,7 +107,7 @@ module.exports = {
   attackBeam(p) { return isPilot(p) ? SHOT_LEN : 0; },
 
   // ---------- ซุ่มโจมตี ----------
-  stealthed(p) { return isPilot(p) && !!p.sliver && p.sliver.hidden; },
+  stealthed(p) { return isPilot(p) && st(p).hidden; },
   // เริ่มเกม / ต้นเทิร์น: หมดเวลาปรากฏตัวแล้ว + เงื่อนไขจริง = ล่องหน
   refresh(engine) {
     for (const p of pilots(engine)) {
@@ -111,10 +117,13 @@ module.exports = {
       if (!s.hidden && engine.roundNumber > s.revealUntil) s.hidden = true;
     }
   },
-  // มีคนตาย: เงื่อนไขหมด = ปรากฏตัว
+  // มีคนตาย: เงื่อนไขหมด = ปรากฏตัว · นักบินตายเอง = เลิกล่องหนเงียบๆ (ไม่ขึ้น "ปรากฏตัวบนสนาม!")
   onDeath(engine) {
     for (const p of pilots(engine)) {
-      if (st(p).hidden && !conditionHolds(engine, p)) reveal(engine, p, 0);
+      const s = st(p);
+      if (!s.hidden) continue;
+      if (!p.alive) s.hidden = false;
+      else if (!conditionHolds(engine, p)) reveal(engine, p, 0);
     }
   },
   // kind: "act" = ตัวเองโจมตี (นับ 2 เทิร์นใหม่เสมอ) · "hit"/"bump" = ถูกพบ (นับเฉพาะตอนล่องหนอยู่)
@@ -134,11 +143,9 @@ module.exports = {
     if (!isPilot(p) || tier !== "basic") return base;
     return st(p).arm ? COST_ARM : COST_NO_ARM;
   },
+  // Beam Magnum ต้องมีแขน (ไม่มีท่าไม้ตาย — characters.js ultimate: null · useSkill ไม่ถึงฮุค)
   canUseSkill(engine, p, tier) {
-    if (!isPilot(p)) return true;
-    if (tier === "basic") return true;
-    if (tier === "secondary") return st(p).arm;
-    return false;
+    return !isPilot(p) || tier !== "secondary" || st(p).arm;
   },
   // เปลี่ยนชิ้นส่วนไม่กินโควตาสกิล (ผู้ใช้ตัดสิน) — กดแล้วยังยิง Beam Magnum ได้ในเทิร์นเดียวกัน
   skipsTurnQuota(p, tier) { return isPilot(p) && tier === "basic"; },
@@ -164,7 +171,7 @@ module.exports = {
       engine.log(`🔧 ${p.name} เปลี่ยนชิ้นส่วน — ${hadArm ? "" : "ได้แขนใหม่ · "}ฟื้นพลังชีวิต +${healed}`);
       return "";
     }
-    if (tier === "secondary") {
+    if (tier === "secondary") { // Beam Magnum
       s.arm = false;
       reveal(engine, p, REVEAL_TURNS);
       const video = !p.cutsceneShown[CUT.beam];
@@ -180,10 +187,10 @@ module.exports = {
           const t = engine.players[id];
           if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
           t.wasAttacked = true;
-          const before = (t.hp || 0) + (t.armor || 0);
+          const before = pool(t);
           engine.dealMixed(t, BEAM_DMG);
           if (t.alive && t.hp <= 0) engine.instantDeath(t);
-          const dealt = Math.max(0, before - ((t.hp || 0) + (t.armor || 0)));
+          const dealt = Math.max(0, before - pool(t));
           engine.log(`💥 Beam Magnum → ${t.name} -${dealt} (ลดเกราะก่อน)`);
           if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
         }
@@ -194,7 +201,7 @@ module.exports = {
   },
 
   // ---------- ข้อมูลให้ client ----------
-  //  hidden ส่งจริงเฉพาะตัวเอง + เพื่อนร่วมทีม (ศัตรูได้ false — และได้ pos = null อยู่แล้วตอนล่องหน)
+  //  hidden ส่งจริงเฉพาะตัวเอง + เพื่อนร่วมทีม · ศัตรูที่มองไม่เห็นไม่ได้ก้อนนี้เลย (view.js unseenPub — pos/แขน/เลือดซ่อนหมด)
   publicState(engine, p, viewer) {
     if (!isPilot(p)) return undefined;
     const s = st(p);
@@ -205,8 +212,9 @@ module.exports = {
       revealLeft: !s.hidden && s.revealUntil >= engine.roundNumber ? s.revealUntil - engine.roundNumber + 1 : 0,
     };
   },
+  // free = เปลี่ยนชิ้นส่วนไม่กินโควตาสกิลของเทิร์น (ปุ่มยังกดได้หลังใช้สกิลอื่น — แบบโซระ/ไรโด)
   skillLocks(engine, p) {
     if (!isPilot(p)) return undefined;
-    return { basic: { locked: false }, secondary: { locked: !st(p).arm }, ultimate: { locked: true } };
+    return { basic: { locked: false, free: true }, secondary: { locked: !st(p).arm } };
   },
 };

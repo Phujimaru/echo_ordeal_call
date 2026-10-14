@@ -24,6 +24,7 @@ const lobby = require("../lobby");
 const timers = require("../timers");
 const view = require("../view");
 const Visibility = require("../visibility");
+const Ice = require("../ice");
 const Zero = require("../zeroTime");
 
 function attackableTargets(atkId) {
@@ -34,9 +35,8 @@ function attackableTargets(atkId) {
 // เสียงโจมตีปกติเฉพาะตัวละคร (คีย์ใน client/src/audio.js) — undefined = ใช้เสียง "attack" กลาง
 function attackSoundOf(attacker) {
   if (!attacker) return undefined;
-  if (attacker.characterId === "muimi") return CHAR_HOOKS.muimi.towerActive(attacker) ? "muimi_ub_hit" : "muimi_normal_hit";
   const hook = CHAR_HOOKS[attacker.characterId];
-  return hook && hook.attackSound ? hook.attackSound(attacker) : undefined; // นักบินปริศนา · โซระ (มีด/ปืน)
+  return hook && hook.attackSound ? hook.attackSound(attacker) : undefined; // มุยมิ (ดาบสะบั้น) · นักบินปริศนา · โซระ (มีด/ปืน)
 }
 // อัตราคริติคอลเฉพาะตัว (%) ของผู้ตี (ฮุค critPct — โซระ: ร่าง My-Th 20%) — รวมกับคริของสนามแล้วทอยครั้งเดียว
 function ownCritPct(attacker) {
@@ -385,32 +385,43 @@ function boardAttack(attacker, target, done) {
     }
     Visibility.onAreaHit(attacker, lane.ids); // คนล่องหนในแนวโดน = ปรากฏตัว
   }
-  counterAndPush(attacker, target, card);
+  const slide = counterAndPush(attacker, target, card);
   const hook = CHAR_HOOKS[attacker.characterId];
   const after = hook && hook.afterBoardAttack ? hook.afterBoardAttack(engine, attacker, target, first) : null;
-  playAttackCard(card, attacker, target, after ? () => { combat.withEffectSource(attacker, after); done(); } : done);
+  playAttackCard(card, attacker, target, slideThen(slide, target, after ? () => { combat.withEffectSource(attacker, after); done(); } : done));
 }
 // ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
 //  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
 function gunAttack(shooter, target, ammo, done) {
   target.wasAttacked = true; // ถูกยิงนับว่าถูกโจมตี
   const card = { id: ++match.attackSeq, ...strikeCard(shooter, target, { dmg: 0, kill: !target.alive }), gun: ammo, counter: null, push: null };
-  counterAndPush(shooter, target, card);
-  playAttackCard(card, shooter, target, done);
+  const slide = counterAndPush(shooter, target, card);
+  playAttackCard(card, shooter, target, slideThen(slide, target, done));
+}
+// ถอยลงน้ำแข็ง: ไถลต่อหลังฉากตีจบ (ก่อนผลหลังฉากตี/จบตา) — ชนตามกติกาไถลทุกอย่าง · ต้นตอ = คนที่ตีสวน
+function slideThen(slide, by, done) {
+  if (!slide) return done;
+  return () => { Ice.forcedSlides([slide], by); done(); };
 }
 // เป้ารอด + มีความสามารถตีสวน (action.counters — ตอนนี้ไม่มีตัวละครไหนมี) + ผู้ตีอยู่ในระยะตีของเป้า
 //  → ตีสวน 1 ครั้ง แล้วผู้ตีถอย 1 ช่อง (ถอยไม่ได้ = ชน เสียเพิ่ม 1) — เขียนผลลง card
+//  คืน { id, to, dir } = ถอยลงน้ำแข็ง (ไถลต่อหลังฉากตี — slideThen) | null
 function counterAndPush(attacker, target, card) {
+  let slide = null;
   if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     if (attacker.alive) {
       const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked(attacker.id) });
-      // via = ช่องน้ำแข็งที่ไถลผ่าน (ถอยบนน้ำแข็ง = 2 ช่อง) — client วาดการไถลผ่านช่องนี้
-      card.push = { from: { ...attacker.pos }, to: { x: push.x, y: push.y }, collide: push.collide, via: push.via || null };
+      // ฉากตีเลื่อนแค่ช่องที่ถอยไป 1 ช่อง (push.via = ช่องน้ำแข็งแรกที่ถอยลง) · ไถลต่อ + ชนตามกติกาไถล = หลังฉากตี (Ice.forcedSlides
+      //  — ผู้ใช้ตัดสิน 2026-10-14 "ไถลต่อตามสเปก") · card.push.via = null เสมอ (การไถลเล่นทาง iceFx)
+      const to = push.via ? { ...push.via } : { x: push.x, y: push.y };
+      const from = { ...attacker.pos };
+      card.push = { from, to, collide: push.collide, via: null };
       if (push.moved) {
-        attacker.pos = { x: push.x, y: push.y };
-        match.lastLog.push(push.via ? `↩️🧊 ${attacker.name} ถอยบนน้ำแข็ง ไถลไป 2 ช่อง` : `↩️ ${attacker.name} ถอย 1 ช่อง`);
+        attacker.pos = { ...to };
+        match.lastLog.push(`↩️ ${attacker.name} ถอย 1 ช่อง`);
+        slide = { id: attacker.id, to: { ...to }, dir: { x: to.x - from.x, y: to.y - from.y } };
       } else {
         combat.dealMixed(attacker, 1, true);
         match.lastLog.push(`💥 ${attacker.name} ถอยชนสิ่งกีดขวาง — เสียเพิ่ม -1`);
@@ -421,6 +432,7 @@ function counterAndPush(attacker, target, card) {
       }
     }
   }
+  return slide;
 }
 // เล่นฉากตี (ATTACKING) แล้วเรียก done — คนตกรอบหายจากกระดานก่อน
 function playAttackCard(card, attacker, target, done) {

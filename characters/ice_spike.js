@@ -21,6 +21,8 @@
 //   Ice Spike ตาย/เปลี่ยนภูมิภาคก่อนช่วงที่ 2 = คุกยกเลิก · คูลดาวน์ 5: กดเทิร์น N กดได้อีกเทิร์น N + 5
 // ============================================================
 
+const Board = require("../server/board");
+
 const ID = "ice_spike";
 const DIR = "/characters/ice_spike";
 const IMG = { base: `${DIR}/ice_spike.webp`, skill1: `${DIR}/skill1.webp`, skill2: `${DIR}/skill2.webp`, skill3: `${DIR}/skill3.webp` };
@@ -32,7 +34,8 @@ const ULT_COOLDOWN = 5;
 const PRISON = 5;         // กรอบคุก 5×5
 
 const isIceSpike = (p) => !!p && p.characterId === ID;
-const DIRV = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+// คูลดาวน์ที่เหลือ (เทิร์น) จากเทิร์นที่กดได้อีก ready · 0 = กดได้
+const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
 
 module.exports = {
   id: ID,
@@ -72,60 +75,17 @@ module.exports = {
       if (p.iceSpikeRound === round) return false;
       return !!engine.ice.canSpike(t.x, t.y, opts.dir);
     }
-    if (tier === "ultimate") return round >= (p.iceUltReady || 0);
+    if (tier === "ultimate") return cdLeft(p.iceUltReady, round) === 0;
     return false;
   },
 
   // ---------- ลงผล ----------
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     const Ice = engine.ice;
-    const round = engine.roundNumber;
-    const t = opts.tile;
     const ctx = Ice.begin();
-    if (tier === "basic") {
-      Ice.layIce(t.x, t.y, p.id);
-      ctx.events.push({ kind: "lay", tiles: [{ x: t.x, y: t.y }], by: p.id });
-      engine.log(`🧊 ${p.name} Glacial Path — ธารน้ำแข็งที่ช่อง (${t.x}, ${t.y})`);
-    } else if (tier === "secondary") {
-      p.iceSpikeRound = round;
-      const chk = Ice.canSpike(t.x, t.y, opts.dir);
-      const u = chk && chk.unit;
-      const up = { kind: "spikeUp", x: t.x, y: t.y, lv: 1, from: 0 };
-      ctx.events.push(up);
-      if (u) {
-        engine.log(`🧊 ${p.name} หนามน้ำแข็ง — ${u.name} ถูกผลัก`);
-        Ice.pushUnit(u, DIRV[opts.dir], ctx);
-        if (u.id !== p.id && !engine.sameTeam(p, u) && u.alive && Ice.applySlow(u)) ctx.events.push({ kind: "slow", id: u.id });
-      }
-      const placed = Ice.placeSpike(t.x, t.y, p.id, 1);
-      up.lv = placed.lv;
-      engine.log(`🧊 ${p.name} หนามน้ำแข็ง Lv.${placed.lv}`);
-      // ผลักตัวเองไปไถลชนศัตรู = ดาเมจลง แต่จบตาไม่ได้กลางสกิล → ทำอย่างอื่นต่อไม่ได้แล้ว (ย้อน/เดิน/สกิล)
-      if (ctx.strikes.some((h) => h.by === p.id)) {
-        p.iceStruckRound = round;
-        if (engine.action) { engine.action.moved = true; engine.action.locked = true; }
-      }
-      if (u && u.id === p.id && engine.action) { engine.action.moved = true; engine.action.locked = true; }
-    } else if (tier === "ultimate") {
-      p.iceUltReady = round + ULT_COOLDOWN;
-      ctx.events.push({ kind: "prisonMark", x: t.x, y: t.y, size: PRISON, by: p.id });
-      const area = engine.tileArea({ square: PRISON }, t);
-      const keys = new Set(area.map((a) => `${a.x},${a.y}`));
-      let slowed = 0;
-      for (const o of engine.alivePlayers()) {
-        if (!o.pos || o.id === p.id || engine.sameTeam(p, o)) continue;
-        if (!bodyIn(engine, o, keys)) continue;
-        if (Ice.applySlow(o)) { slowed++; ctx.events.push({ kind: "slow", id: o.id }); }
-      }
-      for (const a of area) {
-        const k = `${a.x},${a.y}`;
-        if (!Ice.spikeAt(a.x, a.y)) continue;
-        const r = Ice.raiseSpike(k);
-        if (r) ctx.events.push({ kind: "spikeUp", ...r });
-      }
-      Ice.addPrison({ x: t.x, y: t.y, owner: p.id, round });
-      engine.log(`🧊 ${p.name} คุกน้ำแข็ง — ศัตรูในกรอบเชื่องช้า ${slowed} คน · ตาเดินถัดไปคุกปิด`);
-    }
+    if (tier === "basic") castGlacialPath(engine, p, opts.tile, ctx);
+    else if (tier === "secondary") castSpike(engine, p, opts.tile, opts.dir, ctx);
+    else if (tier === "ultimate") castPrison(engine, p, opts.tile, targets, ctx);
     Ice.flush(ctx);
     if (ctx.events.length > 1) engine.skillBeat(Math.min(3, Ice.fxSeconds(ctx)), () => {});
     return "";
@@ -199,61 +159,129 @@ module.exports = {
     return {
       basic: { locked: struck },
       secondary: { locked: struck || p.iceSpikeRound === round },
-      ultimate: { cd: Math.max(0, (p.iceUltReady || 0) - round), locked: struck },
+      ultimate: { cd: cdLeft(p.iceUltReady, round), locked: struck },
     };
   },
 };
 
-// ตัวของ o ทับช่องในชุด keys ไหม (ตัวใหญ่ = ช่องไหนก็ได้)
-function bodyIn(engine, o, keys) {
-  const n = engine.sizeOf(o);
-  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) if (keys.has(`${o.pos.x + dx},${o.pos.y + dy}`)) return true;
-  return false;
+// ---------- ลงผลสกิลทีละช่อง (applyInstantSkill) — ctx = ชุดเหตุการณ์ iceFx ของการกดครั้งนี้ ----------
+// พื้นฐาน Glacial Path: ธารน้ำแข็ง 1 ช่อง (canUseSkill เช็ค canLay แล้ว)
+function castGlacialPath(engine, p, t, ctx) {
+  engine.ice.layIce(t.x, t.y, p.id);
+  ctx.events.push({ kind: "lay", tiles: [{ x: t.x, y: t.y }], by: p.id });
+  engine.log(`🧊 ${p.name} Glacial Path — ธารน้ำแข็งที่ช่อง (${t.x}, ${t.y})`);
 }
 
-// คุกน้ำแข็งช่วงที่ 2: 3×3 กลาง = ธารน้ำแข็ง → ขอบ 16 ช่อง = หนาม Lv1 (น้ำแข็ง/หนามเดิม = Lv ขึ้น) → คนบนขอบถูกผลักเข้ากรอบ
-function closePrison(engine, p, r) {
+// รอง หนามน้ำแข็ง: มีคนยืน = ผลักไปทิศ dir ก่อน (ศัตรู + เชื่องช้า) แล้ววางหนามที่ช่องนั้น
+function castSpike(engine, p, t, dir, ctx) {
   const Ice = engine.ice;
-  const map = engine.boardMap();
-  const inB = (x, y) => x >= 0 && y >= 0 && x < map.cols && y < map.rows;
-  const ctx = Ice.begin();
+  const round = engine.roundNumber;
+  p.iceSpikeRound = round;
+  const chk = Ice.canSpike(t.x, t.y, dir);
+  const u = chk && chk.unit; // มีคน = canSpike ยืนยันทิศ dir แล้ว
+  const up = { kind: "spikeUp", x: t.x, y: t.y, lv: 1, from: 0 };
+  ctx.events.push(up);
+  if (u) {
+    engine.log(`🧊 ${p.name} หนามน้ำแข็ง — ${u.name} ถูกผลัก`);
+    const [dx, dy] = Board.LINE_DIRS[dir];
+    Ice.pushUnit(u, { x: dx, y: dy }, ctx);
+    if (u.id !== p.id && !engine.sameTeam(p, u) && u.alive && Ice.applySlow(u)) ctx.events.push({ kind: "slow", id: u.id });
+  }
+  const placed = Ice.placeSpike(t.x, t.y, p.id, 1);
+  up.lv = placed.lv;
+  engine.log(`🧊 ${p.name} หนามน้ำแข็ง Lv.${placed.lv}`);
+  // ผลักตัวเอง = เดินต่อไม่ได้ · ไถลไปชนศัตรูด้วย = ดาเมจลง แต่จบตาไม่ได้กลางสกิล → ทำอย่างอื่นต่อไม่ได้แล้ว (ย้อน/เดิน/สกิล)
+  const struck = ctx.strikes.some((h) => h.by === p.id);
+  if (struck) p.iceStruckRound = round;
+  if ((struck || (u && u.id === p.id)) && engine.action) { engine.action.moved = true; engine.action.locked = true; }
+}
+
+// ท่าไม้ตาย คุกน้ำแข็งช่วงที่ 1: ศัตรูในกรอบเชื่องช้า · หนามในกรอบ +1 Lv · มาร์กกรอบไว้รอช่วงที่ 2 (onActorStart)
+//  targets = คนที่ตัวทับกรอบ 5×5 (useSkill → resolveArea ชนิด tile · ตัวใหญ่ทับช่องไหนก็ได้)
+function castPrison(engine, p, t, targets, ctx) {
+  const Ice = engine.ice;
+  const round = engine.roundNumber;
+  p.iceUltReady = round + ULT_COOLDOWN;
+  ctx.events.push({ kind: "prisonMark", x: t.x, y: t.y, size: PRISON, by: p.id });
+  let slowed = 0;
+  for (const id of targets || []) {
+    const o = engine.players[id];
+    if (!o || o.id === p.id || engine.sameTeam(p, o)) continue;
+    if (Ice.applySlow(o)) { slowed++; ctx.events.push({ kind: "slow", id: o.id }); }
+  }
+  for (const a of engine.tileArea({ square: PRISON }, t)) {
+    if (!Ice.spikeAt(a.x, a.y)) continue;
+    const r = Ice.raiseSpike(Board.key(a.x, a.y));
+    if (r) ctx.events.push({ kind: "spikeUp", ...r });
+  }
+  Ice.addPrison({ x: t.x, y: t.y, owner: p.id, round });
+  engine.log(`🧊 ${p.name} คุกน้ำแข็ง — ศัตรูในกรอบเชื่องช้า ${slowed} คน · ตาเดินถัดไปคุกปิด`);
+}
+
+// ---------- คุกน้ำแข็งช่วงที่ 2 ----------
+// 3×3 กลาง = ธารน้ำแข็ง → ขอบ 16 ช่อง = หนาม Lv1 (น้ำแข็ง/หนามเดิม = Lv ขึ้น) → คนบนขอบถูกผลักเข้ากรอบ
+function closePrison(engine, p, r) {
+  const ctx = engine.ice.begin();
   const ev = { kind: "prison", x: r.x, y: r.y, by: p.id, ice: [], ring: [] };
   ctx.events.push(ev);
-  // ธารน้ำแข็ง 3×3 (ข้ามสิ่งกีดขวาง/หนาม/ร้านค้า)
+  layPrisonIce(engine, p, r, ev);
+  const later = placeRing(engine, p, r, ev);
+  pushInward(engine, p, r, later, ev, ctx);
+  engine.log(`🧊 ${p.name} คุกน้ำแข็งปิด — ธารน้ำแข็ง ${ev.ice.length} ช่อง · หนาม ${ev.ring.length} ช่อง`);
+  engine.ice.flush(ctx);
+}
+
+// ธารน้ำแข็ง 3×3 (ข้ามสิ่งกีดขวาง/หนาม/ร้านค้า) → ev.ice
+function layPrisonIce(engine, p, r, ev) {
+  const map = engine.boardMap();
   for (let y = r.y - 1; y <= r.y + 1; y++) {
-    for (let x = r.x - 1; x <= r.x + 1; x++) if (inB(x, y) && Ice.layIce(x, y, p.id)) ev.ice.push({ x, y });
+    for (let x = r.x - 1; x <= r.x + 1; x++) if (Board.inBounds(map, x, y) && engine.ice.layIce(x, y, p.id)) ev.ice.push({ x, y });
   }
-  // ขอบ 16 ช่อง ไล่ตามเข็มนาฬิกาจากมุมบนซ้าย (ลำดับที่หนามโผล่)
+}
+
+// ขอบ 16 ช่องของกรอบรอบ (cx, cy) ไล่ตามเข็มนาฬิกาจากมุมบนซ้าย (ลำดับที่หนามโผล่) — รวมช่องนอกกระดาน
+function prisonRing(cx, cy) {
   const h = Math.floor(PRISON / 2), ring = [];
-  for (let i = -h; i < h; i++) ring.push({ x: r.x + i, y: r.y - h });
-  for (let i = -h; i < h; i++) ring.push({ x: r.x + h, y: r.y + i });
-  for (let i = h; i > -h; i--) ring.push({ x: r.x + i, y: r.y + h });
-  for (let i = h; i > -h; i--) ring.push({ x: r.x - h, y: r.y + i });
-  const later = []; // ช่องที่มีคนยืน — ผลักเข้ากรอบก่อนแล้วค่อยวางหนาม
+  for (let i = -h; i < h; i++) ring.push({ x: cx + i, y: cy - h });
+  for (let i = -h; i < h; i++) ring.push({ x: cx + h, y: cy + i });
+  for (let i = h; i > -h; i--) ring.push({ x: cx + i, y: cy + h });
+  for (let i = h; i > -h; i--) ring.push({ x: cx - h, y: cy + i });
+  return ring;
+}
+
+// หนามรอบขอบ (หนามเดิม = Lv ขึ้น · ข้ามสิ่งกีดขวาง/ร้านค้า) → ev.ring
+//  คืนช่องที่มีคนยืน [{ t, id, big }] — ผลักเข้ากรอบก่อนแล้วค่อยวางหนาม (pushInward)
+function placeRing(engine, p, r, ev) {
+  const Ice = engine.ice;
+  const map = engine.boardMap();
   const units = engine.boardUnits();
-  for (const t of ring) {
-    if (!inB(t.x, t.y)) continue;
-    const k = `${t.x},${t.y}`;
-    const now = engine.boardMap();
+  const later = [];
+  for (const t of prisonRing(r.x, r.y)) {
+    if (!Board.inBounds(map, t.x, t.y)) continue;
+    const k = Board.key(t.x, t.y);
     if (Ice.spikeAt(t.x, t.y)) { const up = Ice.raiseSpike(k); if (up) ev.ring.push({ x: t.x, y: t.y, lv: up.lv }); continue; }
-    if (now.terrain[k]) continue; // สิ่งกีดขวางอื่น
+    if (engine.boardMap().terrain[k]) continue; // สิ่งกีดขวางอื่น
     if (engine.shopPos && engine.shopPos.x === t.x && engine.shopPos.y === t.y) continue;
-    const u = units.find((o) => o.alive && t.x >= o.x && t.x < o.x + (o.size || 1) && t.y >= o.y && t.y < o.y + (o.size || 1));
-    if (u) { later.push({ t, id: u.id, big: (u.size || 1) > 1 }); continue; }
+    const u = Board.unitAt(units, t.x, t.y);
+    if (u) { later.push({ t, id: u.id, big: u.size > 1 }); continue; }
     const s = Ice.placeSpike(t.x, t.y, p.id, 1);
     ev.ring.push({ x: t.x, y: t.y, lv: s.lv });
   }
+  return later;
+}
+
+// คนบนขอบถูกผลักเข้าหาช่องกลาง (มุม = ทแยง) · ขยับออกได้ = วางหนามที่ช่องเดิม → ev.ring
+function pushInward(engine, p, r, later, ev, ctx) {
+  const Ice = engine.ice;
   for (const l of later) {
     if (l.big) continue; // ตัวใหญ่ไม่ถูกผลัก — เว้นช่องนั้น
     const o = engine.players[l.id];
     if (!o || !o.alive || !o.pos || o.pos.x !== l.t.x || o.pos.y !== l.t.y) continue;
     const dir = { x: Math.sign(r.x - l.t.x), y: Math.sign(r.y - l.t.y) };
-    if (Ice.pushUnit(o, dir, ctx) && !Ice.spikeAt(l.t.x, l.t.y) && !engine.boardMap().terrain[`${l.t.x},${l.t.y}`]
+    if (Ice.pushUnit(o, dir, ctx) && !Ice.spikeAt(l.t.x, l.t.y) && !engine.boardMap().terrain[Board.key(l.t.x, l.t.y)]
       && engine.tileFree(l.t.x, l.t.y)) {
       const s = Ice.placeSpike(l.t.x, l.t.y, p.id, 1);
       ev.ring.push({ x: l.t.x, y: l.t.y, lv: s.lv });
     }
   }
-  engine.log(`🧊 ${p.name} คุกน้ำแข็งปิด — ธารน้ำแข็ง ${ev.ice.length} ช่อง · หนาม ${ev.ring.length} ช่อง`);
-  Ice.flush(ctx);
 }

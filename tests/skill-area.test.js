@@ -133,7 +133,7 @@ test('คลื่นดาบมุยมิ: ศัตรูในแนวห
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
   assert.equal(P.E.hp, 5, 'หลบหลีก 100%');
   assert.equal(P.M.statuses.muimiTower, undefined, 'หลบหมด = เสียดาบสะบั้น');
-  assert.ok(muimi.ultCooldownLeft(engine, P.M) > 0, 'เข้าคูลดาวน์ทันที');
+  assert.equal(muimi.canUseSkill(engine, P.M, 'ultimate'), false, 'เข้าคูลดาวน์ทันที (ตัวเลขเริ่มนับเทิร์นหน้า — muimi.test.js)');
 
   P = setup([['M', 'muimi', 7, 9], ['E', 'dummy', 7, 8], ['G', 'dummy', 6, 7]]);
   engine.applyEvade(P.E, 100);

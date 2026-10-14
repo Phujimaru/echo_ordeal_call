@@ -72,7 +72,7 @@ function forecastFor(viewer) {
   if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
   const out = {};
   for (const t of combat.alivePlayers()) {
-    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || Visibility.hiddenFrom(viewer, t)) continue;
+    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || Visibility.hiddenFromUnit(viewer, t)) continue;
     out[t.id] = {
       dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer),
       // โอกาสโดน/คริติคอล (% จำนวนเต็ม 0–100) — back* = ฝั่งเป้าตีสวนกลับ (มีผลเฉพาะเป้าที่ตีสวนได้)
@@ -172,22 +172,24 @@ function buildStateFor(viewerId) {
       const promoShow = (p.statuses.promo || 0) > 0;
       const ch = CHAR_BY_ID[p.characterId] || {};
       const hook = CHAR_HOOKS[p.characterId];
-      // การมองเห็น: ผู้ชมคนนี้มองไม่เห็น p (ล่องหน/พุ่มหญ้า) = ไม่ส่งตำแหน่ง
+      // การมองเห็น: ผู้ชมคนนี้มองไม่เห็น p (ล่องหน/พุ่มหญ้า/ม่านแดง) = ไม่ส่งตำแหน่ง + ซ่อนข้อมูลอื่น (unseenPub)
       const unseen = Visibility.hiddenFrom(viewer, p);
+      const secret = unseen && !mine;
       const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
       const basicPub = pub(ch.basic);
       const secondaryPub = pub(ch.secondary);
       const ultimatePub = pub(ch.ultimate);
       // ราคาบนปุ่ม = ราคาที่ useSkill() หักจริง (สูตรเดียวกัน — skills.skillCostOf: ฮุค skillCost · กลางคืน · การเดินทาง · กระแสเวท/ภาระเวท)
-      const showCost = (pub, tierName) => skills.skillCostOf(p, tierName, pub.cost);
+      //  คนที่มองไม่เห็น = ปุ่มตั้งต้นใน characters.js (ราคา/หน้าตาที่เปลี่ยนตามสถานะบอกใบ้ได้ — นักบิน: 3 แต้ม = มีแขน)
+      const showCost = (pub, tierName) => (secret ? pub.cost : skills.skillCostOf(p, tierName, pub.cost));
       // พื้นที่ที่เปลี่ยนตามสถานะ (skillArea) — ต้องตรงกับ useSkill()
-      if (hook && hook.skillArea) {
+      if (!secret && hook && hook.skillArea) {
         for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
           if (s) s.area = hook.skillArea(p, tierName, s.area) || s.area;
         }
       }
       // หน้าตาปุ่มที่เปลี่ยนตามสถานะ (ฮุค skillPub → ฟิลด์ที่ทับ — โซระ: รูปปุ่มแปลงร่าง / ชื่ออาวุธ)
-      if (hook && hook.skillPub) {
+      if (!secret && hook && hook.skillPub) {
         for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
           if (s) Object.assign(s, hook.skillPub(p, tierName) || {});
         }
@@ -199,7 +201,7 @@ function buildStateFor(viewerId) {
       if (basicPub) basicPub.cost = showCost(basicPub, "basic");
       if (secondaryPub) secondaryPub.cost = showCost(secondaryPub, "secondary");
       if (ultimatePub) ultimatePub.cost = showCost(ultimatePub, "ultimate");
-      return {
+      const out = {
         id: p.id,
         name: p.name,
         // ระบบคู่: duoOf = ตัวที่สองของผู้เล่นคนนี้ (ไม่ใช่ผู้เล่นแยก — client ไม่นับในรายชื่อผู้เล่น) · duoWith = id ตัวที่สอง
@@ -289,6 +291,7 @@ function buildStateFor(viewerId) {
         lane: action.lanes(p), // ตีปกติแบบแนวตรง (ไรโด ฮิคารุ): true = แนวยาวตามระยะ (แบล็คคิง) · "face" = ทั้งด้านของตัว (กิงกะ)
         counter: action.counters(p), // ตีสวนได้ไหม (ตอนนี้ไม่มีใคร — เผื่อตัวละครสะท้อน)
       };
+      return secret ? unseenPub(out, p) : out;
     }).map((o) => (masked && Duo.sideKey(match.players[o.id]) !== viewerId ? maskPub(o) : o)),
   };
 }
@@ -301,6 +304,17 @@ function maskPub(o) {
   };
 }
 
+// ผู้ชมมองไม่เห็นคนนี้ (ล่องหน/พุ่มหญ้า/ม่านแดง — ผู้ใช้ตัดสิน "ข้อมูลอื่นซ่อน"): ค่าที่เปลี่ยนได้ลับๆ ไม่ส่ง
+//  (นักบินเปลี่ยนชิ้นส่วนระหว่างล่องหน = เลือด/แต้ม/แขนเปลี่ยน) · ค่าซ่อนเดียวกับ "ตาบอด"/"มืดบอด" ที่ client รับอยู่แล้ว
+//  (null = แถบ "???" · skillPoints -1 · ข้อมูลเฉพาะตัวละคร undefined) · ภาพประจำตัวตั้งต้น (ไม่บอกร่าง/ชุด Mark 42)
+function unseenPub(o, p) {
+  return {
+    ...o, img: p.img, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
+    mark42: null, statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
+    muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
+    sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined,
+  };
+}
 // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)
 function zeroLocks(locks) {
   if (!Zero.ultLocked()) return locks;

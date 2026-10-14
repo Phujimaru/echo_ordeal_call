@@ -30,6 +30,7 @@ const VIDEO = {
 };
 
 const Board = require("../server/board");
+const Duo = require("../server/duo");
 
 const suited = (p) => !!p && !!p.mark42 && p.alive !== false;
 // ยืนติดกัน (ระยะแมนฮัตตัน 1 · ตัวใหญ่นับจากขอบตัว) — ใส่ให้ / ระเบิดใส่ / เรียกคืน
@@ -46,8 +47,12 @@ module.exports = {
   },
 
   // ---------- ซื้อ ----------
-  buyLockLeft(engine, p) { return Math.max(0, (p.mark42BuyLock || 0) - engine.roundNumber + 1); },
-  ownsSuit(p) { return !!p.mark42Owned || (p.inventory || []).some((it) => it.type === "mark42"); },
+  //  นับทั้งฝ่าย (ระบบคู่ — server/duo.js: กระเป๋าใช้ร่วมกันแต่ชุดที่ออกไป/คูลดาวน์อยู่ที่ตัวที่ซื้อ) = ฝ่ายหนึ่งมีชุดได้ชุดเดียว (GRID_PLAN §7.10)
+  buyLockLeft(engine, p) {
+    const lock = Math.max(0, ...Duo.unitsOf(p).map((u) => u.mark42BuyLock || 0));
+    return Math.max(0, lock - engine.roundNumber + 1);
+  },
+  ownsSuit(p) { return Duo.unitsOf(p).some((u) => !!u.mark42Owned) || (p.inventory || []).some((it) => it.type === "mark42"); },
   canBuy(engine, p) { return !this.ownsSuit(p) && this.buyLockLeft(engine, p) <= 0; },
 
   // ---------- ท่อดาเมจ ----------

@@ -26,6 +26,7 @@ const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
 const dayNight = require("./dayNight");
+const Duo = require("./duo");
 const action = require("./phases/action");
 const attack = require("./phases/attack");
 const draw = require("./phases/draw");
@@ -87,6 +88,7 @@ function enter() {
     board: match.board,
     shopPos: match.shopPos,
     positions: Object.fromEntries(alive.filter((p) => p.pos).map((p) => [p.id, { ...p.pos }])),
+    corpses: Duo.saveCorpses(), // ระบบคู่: ร่าง (placeOnBoard ย้ายร่างมาสนามเฉพาะ — ปลดผนึกต้องคืนช่องเดิม)
   };
   match.zeroUsed = true;
   match.zero = {
@@ -288,11 +290,16 @@ function release(last, done) {
   match.board = z.saved.board;
   match.shopPos = z.saved.shopPos;
   match.zero = null;
-  // วางคืนทีละคน (คนที่ตำแหน่งเดิมว่างก่อน)
+  // ร่าง (ระบบคู่) กลับช่องเดิมก่อน — คนที่วางคืนจะไม่ลงทับ
+  const corpses = z.saved.corpses || {};
+  Duo.restoreCorpses(corpses);
+  // วางคืนทีละคน (คนที่ตำแหน่งเดิมว่างก่อน · ฟื้นในสนามเฉพาะ = ลงใกล้ช่องร่างเดิม)
   const alive = combat.alivePlayers();
+  const want = (p) => z.saved.positions[p.id] || corpses[p.id];
   for (const p of alive) p.pos = null;
-  const order = [...alive].sort((a, b) => (z.saved.positions[a.id] ? 0 : 1) - (z.saved.positions[b.id] ? 0 : 1));
-  for (const p of order) p.pos = spotNear(p, z.saved.positions[p.id]);
+  const order = [...alive].sort((a, b) => (want(a) ? 0 : 1) - (want(b) ? 0 : 1));
+  for (const p of order) p.pos = spotNear(p, want(p));
+  Duo.placeCorpses((x, y) => action.tileFree(x, y), true); // ร่างที่ล้มในสนามเฉพาะ = ลงข้างอีกตัว
   if (match.action && match.actorId) {
     const a = match.players[match.actorId];
     if (a && a.pos) match.action = { ...match.action, from: { ...a.pos }, moved: true, locked: true, path: null };
