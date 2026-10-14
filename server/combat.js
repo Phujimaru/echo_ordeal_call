@@ -9,6 +9,7 @@ Object.assign(module.exports, {
   damageSoft, dealDirect, dealArmorOnly, dealMixed,
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
+  runHook, broadcastHook,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -103,18 +104,37 @@ function applySpellburden(p, turns) {
 }
 
 // ============================================================
+//  ฮุคตัวละคร: เรียกตัวเดียว (runHook) / กระจายทุกตัว (broadcastHook)
+// ============================================================
+// ฮุคที่โยน error ต้องไม่ลากทั้งแมตช์ค้าง (จุดเรียกส่วนใหญ่อยู่ใน callback ของตัวจับเวลาเฟส ซึ่งถูกล้างไปก่อนแล้ว)
+//  → log ชื่อตัวละคร + ชื่อฮุค แล้วทำงานต่อ · ไม่มีฮุคนั้น = ข้าม (คืน undefined)
+function runHook(mod, name, ...args) {
+  const fn = mod && mod[name];
+  if (typeof fn !== "function") return undefined;
+  try { return fn.apply(mod, args); }
+  catch (err) {
+    console.error(`[hook] ${mod.id}.${name} โยน error — ข้ามแล้วทำงานต่อ:`, err);
+    return undefined;
+  }
+}
+// เรียกฮุค name ของทุกตัวละครตามลำดับ CHAR_HOOKS.MODULES (characters/index.js) — ฮุคเช็คเองว่าเกี่ยวกับตัวเองไหม
+//  ฟังก์ชันเดียวกันเรียกครั้งเดียว (เคท & เอมิลิโกะใช้ฮุคร่วมกัน)
+function broadcastHook(name, ...args) {
+  const called = new Set();
+  for (const mod of CHAR_HOOKS.MODULES) {
+    const fn = mod[name];
+    if (typeof fn !== "function" || called.has(fn)) continue;
+    called.add(fn);
+    runHook(mod, name, ...args);
+  }
+}
+
+// ============================================================
 //  ต่อสู้ + เอฟเฟกต์สกิล
 // ============================================================
 // ผู้เล่นที่ยังรอด
 function alivePlayers() { return Object.values(match.players).filter((p) => p.alive); }
 
-// สถานะผิดปกติพื้นฐาน (ล้างออกได้ทั้งหมดด้วยผลล้างดีบัฟ)
-const DEBUFF_KEYS = ["discord", "sleep", "stun", "nodraw", "noskill",
-  "energy", "nohealing", "weak", "fragile", "spellburden",
-  "oblada", "hburn", "invert", "manaSeal", "manaRupture", "manaLeech",
-  "numb", // เหน็บชา
-  "shadowMask", // มืดบอด (ติดตัวเคทในระบำเขม่า)
-];
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
@@ -123,6 +143,7 @@ function maxArmorOf(p) {
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
 // force = true: ข้ามระบบกันตายทั้งหมด (เช่นเกราะ Mark 42) — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
 function instantDeath(p, force) {
+  if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
   if (friendlyEffectBlocked(p)) return;
   // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
@@ -130,10 +151,11 @@ function instantDeath(p, force) {
   Duo.onDeath(p); // ระบบคู่: ล้มขณะอีกตัวยังอยู่ = ทิ้งร่างไว้ (ตกรอบทั้งฝ่าย = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
   if (Duo.isOwner(p) && Duo.sideAlive(p)) { p.result = null; p.locked = match.gameState !== "PLAYING"; }
   qteSystem.clearQte(p); // ตกรอบแล้ว QTE ที่ค้างอยู่ต้องหายไปด้วย (ไม่งั้นค้างข้ามการชุบชีวิต/ย้อนเวลา)
-  CHAR_HOOKS.sliver_bullet.onDeath(engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
-  // Echo (การกลืนกินระดับ EX): ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง)
+  broadcastHook("onDeath", engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
+  // ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง) → ฮุค onKill ของตัวละครผู้สังหารเท่านั้น
+  //  (Echo — การกลืนกินระดับ EX)
   const killer = match.effectSourceId && match.players[match.effectSourceId];
-  if (killer) CHAR_HOOKS.echo.onKill(engine, killer, p);
+  if (killer) runHook(CHAR_HOOKS[killer.characterId], "onKill", engine, killer, p);
 }
 
 // สรุปผลหลังดาเมจจากสกิลของโมดูลตัวละคร/ไอเทม: ตกรอบทันทีเมื่อ HP หมด
@@ -308,16 +330,12 @@ function resetCombat(p) {
   p.tempHpTurns = 0;      // เลือดชั่วคราวหายเองเมื่อครบ 2 เทิร์น
   p.sleepFresh = false; // หลับไหล: เทิร์นที่เพิ่งโดนกล่อมยังไม่เริ่มนับ/ยังโจมตีได้
   p.curseHitRound = 0;  // "คำสาป": เทิร์นล่าสุดที่คำสาปกินเลือดไป (1 ครั้ง/เทิร์น)
-  CHAR_HOOKS.oberon_summer.resetCombat(p);  // โอเบรอน (ฤดูร้อน): คูลดาวน์/ล็อกรายช่อง + สตั้นที่จองไว้ (ติดที่เป้าหมาย)
   Mark42.resetCombat(p); // เกราะ Mark 42: ชุดที่ใส่อยู่ / ชุดที่ส่งออกไป / คูลดาวน์ซื้อ
-  CHAR_HOOKS.muimi.resetCombat(p); // มุยมิ: โควตาเสบียง / จำนวนครั้งท่าไม้ตาย
-  CHAR_HOOKS.sliver_bullet.resetCombat(p); // นักบินปริศนา: แขน / ล่องหน
   p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
-  CHAR_HOOKS.sora_otosumi.resetCombat(p); // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
-  CHAR_HOOKS.echo.resetCombat(p); // Echo: ขยายร่าง / คูลดาวน์มหึมา / จำนวนที่สังหาร (ก่อนคิดเลือดเริ่มเกม)
-  CHAR_HOOKS.raido_hikaru.resetCombat(p); // ไรโด ฮิคารุ: ร่าง UltraLive / กิงกะ / Strium Brace (ก่อนคิดเกราะเริ่มเกม)
-  CHAR_HOOKS.ice_spike.resetCombat(p); // Ice Spike: ดาเมจสะสม / โควตาหนาม / คูลดาวน์คุก
-  CHAR_HOOKS.kate.resetCombat(p); // เคท & เอมิลิโกะ: อาวุธ/ดาบเขม่า/ร่าง · เอมิลิโกะได้ขนมปัง (หลังล้างกระเป๋าแล้ว)
+  // ฟิลด์เฉพาะตัวของทุกตัวละคร (ฮุค resetCombat) — หลังล้างกระเป๋า (เอมิลิโกะได้ขนมปัง) · ก่อนคิดเลือด/เกราะเริ่มเกม (Echo/ฮิคารุ)
+  //  โอเบรอน: คูลดาวน์ + สตั้นที่จองไว้ (ติดที่เป้าหมาย) · มุยมิ: โควตาเสบียง · นักบินปริศนา: แขน/ล่องหน · โซระ: ร่าง/อาวุธ
+  //  Echo: ขยายร่าง/จำนวนที่สังหาร · ฮิคารุ: UltraLive/กิงกะ · Ice Spike: ดาเมจสะสม/โควตา · เคท & เอมิลิโกะ: อาวุธ/ดาบเขม่า/ร่าง
+  broadcastHook("resetCombat", p);
   p.exposedRound = 0; // พุ่มหญ้า: โผล่เพราะโจมตีจากในพุ่ม (เลขรอบ — server/visibility.js)
   p.nightTaxTier = null;        // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ใช้แต้มมากขึ้น +1 ("basic" | "secondary" | null)
   p.cutsceneShown = {}; // เล่นวีดีโอครั้งเดียวต่อเกม (per match)
@@ -325,5 +343,3 @@ function resetCombat(p) {
   p.hp = maxHpOf(p);
   p.armor = maxArmorOf(p);
 }
-
-Object.assign(module.exports, { DEBUFF_KEYS });

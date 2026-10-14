@@ -1,8 +1,8 @@
 ﻿// ============================================================
 //  บัฟ & ดีบัฟพื้นฐาน (universal) — ระบบสถานะที่ตัวละครไหนก็ใช้ร่วมกันได้
-//  ไฟล์นี้ไม่ใช่ "ตัวละคร" (จึงไม่มี id/ไม่ถูกลงทะเบียนใน CHAR_HOOKS) — เป็น pure function
-//  ล้วนๆ รับ player object เป็นพารามิเตอร์ตรงๆ ไม่ผูกกับ server.js/engine เลย
-//  server.js require() ไฟล์นี้โดยตรง และ expose ทุกตัวผ่าน engine ให้ characters/*.js เรียกใช้ได้
+//  ไฟล์นี้ไม่ใช่ "ตัวละคร" (จึงไม่มี id/ไม่ถูกลงทะเบียนใน CHAR_HOOKS) — รับ player object เป็นพารามิเตอร์ตรงๆ
+//  ฟังก์ชันใส่/ล้าง/ถามสถานะไม่แตะ engine · ส่วน tick*/tickCurseOnSkill รับ engine มาลงดาเมจ/ฮีล/log ผ่าน engine.*
+//  server/ (combat.js, phases/*.js, skills.js, view.js ฯลฯ) require ไฟล์นี้โดยตรง และ expose ผ่าน engine ให้ characters/*.js เรียกใช้ได้
 //
 //  บัฟ:   spellflow (กระแสเวท: ใช้สกิลเสียพลังงานลดลง N) / might (เสริมพลัง: ดาเมจที่ทำได้ +N)
 //         guard (คุ้มครอง: ดาเมจที่ได้รับ -N) / resist (ต้านสถานะผิดปกติ: ล้าง+ต้านดีบัฟพื้นฐาน)
@@ -12,7 +12,7 @@
 //         nodraw (ห้ามจั่ว) / noskill (ห้ามใช้สกิล) / nohealing (ไร้ทางเยียวยา: ฟื้นเลือดจริงไม่ได้)
 //         invert (ผกผัน: กลับด้านบัฟ/การฟื้นฟูทั้งหมด) / hburn (ลุกไหม้: ดาเมจ 1/เทิร์น สะสมได้ — ดู tickBurn)
 //         hbleed (เลือดไหล: ดาเมจ 1/เทิร์น สะสมได้ เหมือนลุกไหม้ + ทำให้การฟื้นพลังชีวิตเหลือครึ่ง — ดู tickBleed/bleedHealPenalty)
-//         chaa (สภาพชา: กดจั่วการ์ด 1 ครั้ง ได้ไพ่ 2 ใบ — จุดทำงานจริงอยู่ใน hit() ของ server.js)
+//         chaa (สภาพชา: กดจั่วการ์ด 1 ครั้ง ได้ไพ่ 2 ใบ — จุดทำงานจริงอยู่ใน hit() ของ server/phases/draw.js)
 //         curse (คำสาป: กดสกิลเมื่อไหร่เสียพลังชีวิต 1 หน่วย — 1 ครั้ง/เทิร์น ไม่กดสกิลก็หมดอายุไปเอง — ดู applyCurse/tickCurseOnSkill)
 //  บัฟ (ต่อ): netramana (เนตรมณะ: โจมตีปกติมีโอกาสสังหารทันที NETRAMANA_KILL_CHANCE — ดู netramanaActive)
 //  จำนวน (amount) ของสถานะเก็บแยกใน p.statusAmt[key] — p.statuses[key] เก็บจำนวนเทิร์น/ครั้งตามเดิม
@@ -31,7 +31,7 @@ function statusAmtOf(p, key) {
 }
 
 // ---------- ทะเบียนบัฟ (patch 4.5) ----------
-//  คู่กับรายการ DEBUFF_KEYS — ใช้ปาด "บัฟล่าสุด" ทิ้ง (stripLatestBuff)
+//  คู่กับรายการดีบัฟ BASIC_DEBUFF_CLEAR — ใช้ปาด "บัฟล่าสุด" ทิ้ง (stripLatestBuff)
 //  เก็บเฉพาะ "บัฟกลาง" ที่ใครก็ได้รับ — ไม่นับร่างแปลง/ฟอร์มประจำตัวของตัวละคร
 //  เพราะพวกนั้นคือตัวตนของร่าง ไม่ใช่ของแถมที่ปาดทิ้งได้
 const BUFF_KEYS = [
@@ -56,14 +56,6 @@ const BUFF_LABEL = {
 };
 // ตัวนับลำดับ — เดินหน้าอย่างเดียวทั้งเกม จึงเทียบข้ามผู้เล่นได้
 let buffSeq = 0;
-// ให้บัฟเฉพาะตัวที่เก็บนอก p.statuses ประทับตราเวลาจากตัวนับเดียวกัน (เทียบ "ล่าสุด" กับบัฟกลางได้)
-function nextBuffSeq() { return ++buffSeq; }
-
-// แหล่งบัฟเฉพาะตัวละครที่ "ถูกปาดได้" แต่ไม่ได้อยู่ใน p.statuses (เก็บใน p.<ตัวละคร>)
-//  src = { latest(p) -> { key, at, turns, label } | null, strip(p, key) -> label | null }
-//  ตัวละครลงทะเบียนตอน require — ไฟล์นี้ไม่ต้องรู้จักตัวละครใดเลย
-const BUFF_SOURCES = [];
-function registerBuffSource(src) { if (src && !BUFF_SOURCES.includes(src)) BUFF_SOURCES.push(src); }
 
 // ปาด "บัฟล่าสุด" ทิ้งหนึ่งตัว — คืน { key, label } หรือ null ถ้าไม่มีบัฟเลย
 //  ลำดับตัดสิน: ตราเวลามากสุดก่อน -> เทิร์นเหลือมากสุด -> ชื่อคีย์ (กันผลสุ่มระหว่างเทสต์)
@@ -79,15 +71,6 @@ function stripLatestBuff(p) {
       || (at === best.at && (turns > best.turns || (turns === best.turns && k < best.key)))) {
       best = { key: k, at, turns };
     }
-  }
-  // บัฟเฉพาะตัวจากแหล่งที่ลงทะเบียนไว้ — ใหม่กว่าบัฟกลางเมื่อไหร่ ปาดตัวนั้นแทน
-  for (const src of BUFF_SOURCES) {
-    const c = src.latest(p);
-    if (c && (!best || c.at > best.at)) best = { ...c, src };
-  }
-  if (best && best.src) {
-    const label = best.src.strip(p, best.key);
-    return { key: best.key, label: label || best.label || best.key };
   }
   if (!best) return null;
   delete p.statuses[best.key];
@@ -182,7 +165,7 @@ function cleanseDebuffs(p) {
 }
 
 // การเดินทาง (ป่าไม้ต้องสาป กลางคืน): ลุกไหม้/เลือดไหล/พิษร้าย มีโอกาสแรงขึ้น +1 ต่อการออกฤทธิ์
-//  ฮุคอยู่ที่ engine (server.js -> characters/_journey.js) — engine ปลอมในเทสต์ไม่มีฮุคนี้ = ไม่มีโบนัส
+//  ฮุคอยู่ที่ engine (server/engine.js -> characters/_journey.js) — engine ปลอมในเทสต์ไม่มีฮุคนี้ = ไม่มีโบนัส
 function dotFieldBonus(engine) {
   return (engine && typeof engine.journeyDotBonus === "function") ? (engine.journeyDotBonus() || 0) : 0;
 }
@@ -254,7 +237,7 @@ function applyCurse(p, turns) {
   return true;
 }
 
-// เรียกจาก useSkill() ของ server.js — หลังหักแต้มสกิลสำเร็จแล้ว
+// เรียกจาก useSkill() ของ server/skills.js — หลังหักแต้มสกิลสำเร็จแล้ว
 //  1 ครั้ง/เทิร์น: ตัวละครที่กดสกิลได้หลายช่องต่อเทิร์น (เช่น มุยมิ) จะเสียเลือดแค่หน่วยเดียว
 function tickCurseOnSkill(engine, p) {
   if (!p || !p.alive || !(((p.statuses && p.statuses.curse) || 0) > 0)) return false;
@@ -298,7 +281,7 @@ function tickMend(engine, p) {
 }
 
 // "ตาบอด" (blind, สถานะ Universal patch 3.4): มองไม่เห็นอะไรเลยทั้งเทิร์น — ไพ่ แต้ม พลังงาน พลังชีวิต ของทุกคนรวมทั้งของตัวเอง
-//  ตัวสถานะเป็นดีบัฟพื้นฐานธรรมดา (ต้าน/ล้างได้) — จุดทำงานจริงอยู่ที่ buildStateFor() ของ server.js
+//  ตัวสถานะเป็นดีบัฟพื้นฐานธรรมดา (ต้าน/ล้างได้) — จุดทำงานจริงอยู่ที่ buildStateFor() ของ server/view.js
 function blindActive(p) {
   return !!p && ((p.statuses && p.statuses.blind) || 0) > 0;
 }
@@ -427,7 +410,7 @@ function applyBleed(p, n) {
   return p.statuses.hbleed - before;
 }
 
-// จำนวนที่ฟื้นพลังชีวิตได้จริงหลังโดน "เลือดไหล" หักครึ่ง — ผู้เรียกคือ healHp() ใน server.js
+// จำนวนที่ฟื้นพลังชีวิตได้จริงหลังโดน "เลือดไหล" หักครึ่ง — ผู้เรียกคือ healHp() ใน server/combat.js
 //  amount <= 1 ไม่ลด · ปัดลง แต่ไม่ต่ำกว่า 1 (ฟื้น 2-3 -> 1)
 function bleedHealPenalty(engine, p, amount) {
   if (!bleedActive(p) || amount <= 1) return amount;
@@ -480,7 +463,7 @@ function numbFizzles(p) {
 
 // "เนตรมณะ" (netramana, สถานะ Universal patch 2.2.7):
 //  ผู้ที่ติดบัฟนี้ โจมตีปกติแล้วมีโอกาสสังหารเป้าหมายทันที 20% — ตัวละครไหนก็ติด/ให้ติดได้
-//  จุดโรลจริงอยู่ใน doAttack() ของ server/phases/attack.js (ต้องใช้ cutscene/lastAttack/เฟสโจมตี จึงเป็น pure predicate ที่นี่)
+//  จุดโรลจริงอยู่ใน strike() ของ server/phases/attack.js (ต้องใช้ cutscene/lastAttack/เฟสโจมตี จึงเป็น pure predicate ที่นี่)
 const NETRAMANA_KILL_CHANCE = 0.20;
 function netramanaActive(p) {
   return !!p && ((p.statuses && p.statuses.netramana) || 0) > 0;
@@ -506,8 +489,8 @@ function applyEvade(p, pct) {
   return p.statusAmt.evade;
 }
 
-// สถานะที่ "ไม่ลดเทิร์นเอง" — ต้องตรงกับรายการ `continue;` ในลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js)
-//  และกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
+// สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
+//  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
 const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower"]);
 
 module.exports = {
@@ -518,8 +501,6 @@ module.exports = {
   BUFF_KEYS,
   accurateActive,
   stripLatestBuff,
-  nextBuffSeq,
-  registerBuffSource,
   applyDebuff,
   setTurnsNoRefresh,
   applySpellburden,

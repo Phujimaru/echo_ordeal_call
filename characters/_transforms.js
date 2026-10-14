@@ -1,15 +1,15 @@
 // ============================================================
 //  TRANSFORMS — ตาราง cutscene metadata ต่อสถานะ (data ล้วนๆ ไม่มี logic)
-//  ย้ายออกมาจาก server.js เพื่อลดขนาดไฟล์หลัก — ยังคง require เป็น const เดียวใน server.js เหมือนเดิม
-//  รับ path รูปภาพที่ server.js ใช้ร่วมกับที่อื่น (เช่น displayImg) ผ่าน factory function กันค่าซ้ำสองที่
+//  server/constants.js require แล้วเรียก factory นี้ครั้งเดียว → TRANSFORMS (ใช้ร่วมกันทั้ง server/)
+//  path รูป/วีดีโอดึงจากโมดูลตัวละคร/ระบบ (เช่น IMG ของมุยมิ) กันค่าซ้ำสองที่
 //
 //  afterReveal = เล่นหลังเปิดไพ่ (ท่าไม้ตาย) | ntd/beat เล่นตอน trigger (โดนโจมตี/เลือดต่ำ)
 //  voice = เสียงพากย์เล่นต่อเมื่อวีดีโอจบ | music = เพลงสกิลที่ค้างหลัง cutscene
 // ============================================================
 const muimiImg = require("./muimi").IMG;   // มุยมิ: ใช้ path รูปจาก hook กลาง
 const sliverChar = require("./sliver_bullet"); // นักบินปริศนา: วีดีโอเปลี่ยนชิ้นส่วน / Beam Magnum
-const mark42 = require("./_mark42");
-const sora = require("./sora_otosumi"); // โซระ: คลิปแปลงร่าง / Mouse Separade / ชน // เกราะ Mark 42 (ไอเทมร้านค้า): path วีดีโอชุดเดียวกับไฟล์ระบบ
+const mark42 = require("./_mark42"); // เกราะ Mark 42 (ไอเทมร้านค้า): path วีดีโอชุดเดียวกับไฟล์ระบบ
+const sora = require("./sora_otosumi"); // โซระ: คลิปแปลงร่าง / Mouse Separade / ชน
 const hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {

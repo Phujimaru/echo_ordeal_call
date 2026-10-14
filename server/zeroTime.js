@@ -275,7 +275,9 @@ function runPendingBreak(done) {
   z.pending = [];
   if (z.seals.every((s) => s.broken)) { release(last, done); return; }
   const st = stage();
-  match.board = { area: Board.ZERO_AREA + st - 1 }; // ผังเดิม หน้าตาตามระดับ (ตำแหน่ง/ของบนสนามไม่เปลี่ยน)
+  // ผังเดิม หน้าตาตามระดับ — เปลี่ยนแค่ area (ตำแหน่ง/ของบนสนาม เช่นน้ำแข็ง/หนาม/ช่องที่พัง ไม่เปลี่ยน) · ล้างแคชแผนที่
+  match.board.area = Board.ZERO_AREA + st - 1;
+  delete match.board.mapCache;
   match.lastLog.push(`⏳ ห่วงเวลาซีโร่ — เฟส ${st}`);
   playScene({ mode: "break", stage: st, seal: last.i, breakerId: last.by }, BREAK_SECONDS, done);
 }

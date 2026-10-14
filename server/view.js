@@ -6,11 +6,11 @@ Object.assign(module.exports, {
 
 const { CHAR_BY_ID } = require("../characters");
 const CHAR_HOOKS = require("../characters/index");
-const { SPELLBURDEN_MAX, statusAmtOf, blindActive } = require("../characters/_universal_status");
+const { blindActive } = require("../characters/_universal_status");
 const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
-const { BAG_SLOTS, GUTS_RANGE, MAX_PLAYERS, SKILL_COST_MAX, TRANSFORMS } = require("./constants");
+const { BAG_SLOTS, GUTS_RANGE, MAX_PLAYERS, TRANSFORMS } = require("./constants");
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
@@ -25,6 +25,7 @@ const Zero = require("./zeroTime");
 const Ice = require("./ice");
 const Duo = require("./duo");
 const Soot = require("./soot");
+const skills = require("./skills");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -177,20 +178,8 @@ function buildStateFor(viewerId) {
       const basicPub = pub(ch.basic);
       const secondaryPub = pub(ch.secondary);
       const ultimatePub = pub(ch.ultimate);
-      // กระแสเวท/ภาระเวท (สถานะ Universal): ราคาที่โชว์บนปุ่มสกิลต้องตรงกับที่ useSkill() คิดจริง — ไม่งั้นจะโชว์ราคาเก่าทับกับผลกลางคืนไม่ถูกต้อง
-      const spellflowAmt = statusAmtOf(p, "spellflow");
-      const spellburdenAmt = Math.min(SPELLBURDEN_MAX, statusAmtOf(p, "spellburden"));
-      // กลางคืน (patch 2.1.7): สุ่มแล้วให้สกิลพื้นฐานหรือสกิลรอง (อย่างใดอย่างหนึ่ง) ใช้แต้มมากขึ้น +1 — ไม่มีผลกับท่าไม้ตาย
-      //  ซ้อนกับกระแสเวท/ภาระเวทได้ แต่ตัวปรับขาขึ้นรวมกันแล้วต้องไม่ดันราคาเกิน SKILL_COST_MAX
-      //  (สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้วจะไม่แพงขึ้นไปอีก — ต้องตรงกับ useSkill() เป๊ะ)
-      const showCost = (pub, tierName) => {
-        const baseCost = hook && hook.skillCost ? hook.skillCost(p, tierName, pub.cost) : pub.cost; // ต้องตรงกับ useSkill()
-        return Math.min(
-          SKILL_COST_MAX,
-          Math.max(0, baseCost - spellflowAmt) + spellburdenAmt + (p.nightTaxTier === tierName ? 1 : 0)
-            + Journey.skillTax(engine, baseCost), // การเดินทาง (ป่าไม้ต้องสาป) — ต้องตรงกับ useSkill()
-        );
-      };
+      // ราคาบนปุ่ม = ราคาที่ useSkill() หักจริง (สูตรเดียวกัน — skills.skillCostOf: ฮุค skillCost · กลางคืน · การเดินทาง · กระแสเวท/ภาระเวท)
+      const showCost = (pub, tierName) => skills.skillCostOf(p, tierName, pub.cost);
       // พื้นที่ที่เปลี่ยนตามสถานะ (skillArea) — ต้องตรงกับ useSkill()
       if (hook && hook.skillArea) {
         for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {

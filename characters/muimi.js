@@ -78,7 +78,6 @@ module.exports = {
   resetCombat(p) {
     p.muimiEmergencyUses = EMERGENCY_USES;
     p.muimiEmergencyUsedRound = 0;
-    p.muimiUltCasts = 0;
     p.muimiUltLock = 0;
   },
 
@@ -139,7 +138,6 @@ module.exports = {
       const resistBefore = p.statuses.resist || 0;
       p.statuses.muimiTower = TOWER_TURNS;
       p.statuses.resist = Math.max(resistBefore, RESIST_TURNS);
-      p.muimiUltCasts = (p.muimiUltCasts || 0) + 1;
       p.transformAt = engine.nextTransformCounter();
       // วีดีโอ (ผู้ใช้สั่ง): ฉบับเต็ม 1 ครั้ง ฉบับสั้น 1 ครั้ง ต่อแมตช์ — หลังจากนั้นเป็นการ์ดแจ้งเตือน ไม่หยุดเกม
       p.cutsceneShown ||= {};

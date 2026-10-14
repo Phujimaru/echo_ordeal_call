@@ -12,12 +12,14 @@ const raido_hikaru = require("./raido_hikaru"); // ไรโด ฮิคาร�
 const ice_spike = require("./ice_spike"); // Ice Spike — ระดับยาก (ธารน้ำแข็ง / ไถลชน / หนามน้ำแข็ง)
 const { kate, emiliko } = require("./kate_emiliko"); // เคท & เอมิลิโกะ — ระดับยาก (ผู้เล่น 1 คนคุม 2 ตัว — server/duo.js)
 
+// ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
+//  โอเบรอนมาก่อนมุยมิ และโซระมาก่อน Echo ตามลำดับที่ server/ เคยเรียกตรงๆ — ตัวใหม่ต่อท้ายได้เลย
 const CHARACTER_MODULES = [
-  muimi,
   oberon_summer,
+  muimi,
   sliver_bullet,
-  echo,
   sora_otosumi,
+  echo,
   raido_hikaru,
   ice_spike,
   kate,
@@ -26,5 +28,7 @@ const CHARACTER_MODULES = [
 
 const CHAR_HOOKS = {};
 for (const mod of CHARACTER_MODULES) CHAR_HOOKS[mod.id] = mod;
+// รายการตามลำดับ (ไม่ enumerable — CHAR_HOOKS ยังเป็นแผนที่ id → โมดูลล้วนๆ)
+Object.defineProperty(CHAR_HOOKS, "MODULES", { value: Object.freeze(CHARACTER_MODULES.slice()) });
 
 module.exports = CHAR_HOOKS;

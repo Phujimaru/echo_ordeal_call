@@ -5,6 +5,9 @@ const assert = require('node:assert/strict');
 const { engine } = require('../../server.js');
 const pilot = require('../../characters/sliver_bullet.js');
 const { CHAR_BY_ID } = require('../../characters.js');
+const match = require('../../server/match.js');
+const action = require('../../server/phases/action.js');
+const Visibility = require('../../server/visibility.js');
 
 const realRandom = Math.random;
 const blank = (id, characterId, position, teamId = null) => ({
@@ -122,6 +125,31 @@ test('ซุ่มโจมตี: โดนสกิลโจมตีแบบ
   // ตีเองระหว่างปรากฏ = นับ 2 เทิร์นใหม่
   pilot.onReveal(engine, P.S, 'act');
   assert.equal(P.S.sliver.revealUntil, 5);
+});
+
+// บันทึก: ดาเมจลงก่อน แล้วค่อยปรากฏตัว (logCut ชี้หลังบรรทัดนั้น) — ผู้โจมตีต้องยังเห็นบรรทัดดาเมจของตัวเอง
+test('ซุ่มโจมตี: สกิลพื้นที่โดนจนปรากฏตัว = ผู้ใช้ยังเห็นบรรทัดที่ตัวเองก่อในตานี้ · บรรทัดก่อนตานี้/คนอื่นยังถูกตัด', () => {
+  const P = setup([['S', 'sliver_bullet', 5, 5], ['M', 'muimi', 4, 5], ['C', 'dummy', 12, 5]]);
+  P.S.name = 'นักบินทดสอบ';
+  engine.setRoundNumber(3);
+  Math.random = () => 0.99; // ไม่หลบ
+  match.lastLog = ['🛩️ นักบินทดสอบ แอบซ่อมเครื่องก่อนตาของมุยมิ'];
+  match.turnOrder = ['M'];
+  match.actorIndex = -1;
+  action.nextActor(); // เริ่มตาของ M (จดจุดเริ่มตาในบันทึก)
+  engine.clearPhaseTimer();
+  assert.equal(match.actorId, 'M');
+  engine.useSkill('M', 'ultimate', [], { dir: 'right' });
+  assert.equal(P.S.sliver.hidden, false, 'ปรากฏตัว');
+  const reveal = match.lastLog.findIndex((l) => l.includes('ปรากฏตัวบนสนาม'));
+  const own = match.lastLog.slice(1, reveal).filter((l) => l.includes('นักบินทดสอบ'));
+  assert.ok(own.length, 'มีบรรทัดดาเมจที่มีชื่อนักบินก่อนปรากฏตัว');
+  const forM = Visibility.filterLog(match.lastLog, P.M);
+  for (const l of own) assert.ok(forM.includes(l), `ผู้ใช้เห็น: ${l}`);
+  assert.ok(!forM.includes(match.lastLog[0]), 'บรรทัดก่อนตาของผู้ใช้ยังถูกตัด');
+  const forC = Visibility.filterLog(match.lastLog, P.C);
+  for (const l of own) assert.ok(!forC.includes(l), `คนอื่นไม่เห็น: ${l}`);
+  assert.ok(forC.includes(match.lastLog[reveal]), 'บรรทัดปรากฏตัวทุกคนเห็น');
 });
 
 test('ซุ่มโจมตี: ศัตรูเดินชน = หยุดก่อนถึง การเดินจบ (ยังตีได้) และนักบินปรากฏตัว', () => {

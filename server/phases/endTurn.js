@@ -7,6 +7,7 @@ Object.assign(module.exports, {
 });
 
 const CHAR_HOOKS = require("../../characters/index");
+const { NO_TICK_STATUS } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
 const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME } = require("../constants");
 const match = require("../match");
@@ -32,10 +33,9 @@ function endTurn() {
 
   for (const p of Object.values(match.players)) {
     for (const k of Object.keys(p.statuses || {})) {
-      if (k === "hbleed") continue;  // เลือดไหล (patch 2.5): ลดลงเองในตอนต้นเทิร์นหลังสร้างผล (tickBleed) ไม่ลดซ้ำที่นี่
-      if (k === "hburn") continue;   // ลุกไหม้: ลดลงเองในตอนต้นเทิร์นหลังสร้างผล ไม่ลดซ้ำที่นี่
-      if (k === "fortune") continue; // โชคลาภ: คงอยู่จนกว่าจะจั่วไพ่ครั้งถัดไป
-      if (k === "empower") continue; // เสริมพลัง: คงอยู่จนกว่าจะได้โจมตี (ไม่ซ้อนทับ)
+      // สถานะที่ไม่ลดเทิร์นที่นี่ (NO_TICK_STATUS — characters/_universal_status.js):
+      //  เลือดไหล/ลุกไหม้ ลดเองตอนต้นเทิร์นหลังสร้างผล · โชคลาภ คงอยู่จนจั่วครั้งถัดไป · เสริมพลัง คงอยู่จนได้โจมตี
+      if (NO_TICK_STATUS.has(k)) continue;
       // หลับไหล: เทิร์นที่เพิ่งโดนกล่อม ยังไม่เริ่มนับ (เริ่มหลับจริงเทิร์นถัดไป)
       if (k === "sleep" && p.sleepFresh) { p.sleepFresh = false; continue; }
       p.statuses[k]--;
@@ -43,7 +43,7 @@ function endTurn() {
         delete p.statuses[k];
         if (p.statusAmt) delete p.statusAmt[k]; // ล้างจำนวน (amount) ของสถานะพื้นฐานที่หมดอายุ (patch 2.0.8)
         // มุยมิ: “ดาบสะบั้น” หมดเวลา -> เริ่มคูลดาวน์ท่าไม้ตาย
-        if (k === "muimiTower" && p.characterId === "muimi") CHAR_HOOKS.muimi.onUltExpire(engine, p);
+        if (k === "muimiTower" && p.characterId === "muimi" && p.alive) CHAR_HOOKS.muimi.onUltExpire(engine, p);
       }
     }
     for (const k of Object.keys(p.seen || {})) {
@@ -78,12 +78,10 @@ function endTurn() {
   Journey.onEndTurn(engine);
   // ห่วงเวลาซีโร่: บัฟเฟส (แต้มสกิล/เหรียญ) + ห่วงเวลากัดกินทุกคน −1
   Zero.onEndTurn();
-  // โอเบรอน (ฤดูร้อน): สตั้นจากจุดจบของความฝัน (ต้องอยู่หลังลูปลดเทิร์น = เต็ม 3 เทิร์นถัดไป) + สกิลติดตัวหน้าไหว้หลังหลอก
-  CHAR_HOOKS.oberon_summer.onEndTurn(engine);
-  // โซระ: เพื่อคุณหนู — ร่างโซระต่อเนื่องครบ 3 เทิร์น ฟื้นพลังชีวิต 2
-  CHAR_HOOKS.sora_otosumi.onEndTurn(engine);
-  // ไรโด ฮิคารุ: Strium Brace · Tiga/กิงกะหมดเวลา (คืนร่าง + คูลดาวน์) · เคมูล่องหน
-  CHAR_HOOKS.raido_hikaru.onEndTurn(engine);
+  // ฮุคจบเทิร์นของทุกตัวละคร (หลังลูปลดเทิร์น — สตั้นที่ติดตรงนี้จึงเต็มเทิร์นถัดไป)
+  //  โอเบรอน: สตั้นจากจุดจบของความฝัน + สกิลติดตัวหน้าไหว้หลังหลอก · โซระ: เพื่อคุณหนู (ร่างโซระครบ 3 เทิร์น ฟื้น 2)
+  //  ไรโด ฮิคารุ: Strium Brace · Tiga/กิงกะหมดเวลา (คืนร่าง + คูลดาวน์) · เคมูล่องหน
+  combat.broadcastHook("onEndTurn", engine);
   // น้ำแข็ง/หนามน้ำแข็ง (Ice Spike): นับเวลาที่เหลือ หมดแล้วหาย
   Ice.onEndTurn();
   // ระบำเขม่า (เคท): ม่านแดงนับเวลา หมดแล้วหาย

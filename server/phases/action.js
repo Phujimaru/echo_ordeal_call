@@ -38,19 +38,30 @@ const Soot = require("../soot");
 //  แผนที่ที่ใช้จริง = แผนที่ภูมิภาคหักช่องที่พังออก + ชั้นน้ำแข็ง/หนามที่สร้างระหว่างเกม (server/ice.js)
 //  แคชตาม brokenVer + iceVer · client ได้ terrain/special ชุดนี้ไปวาด
 function boardMap() {
-  const base = Board.mapOf(match.board ? match.board.area : 1);
   const b = match.board;
-  const broken = !!(b && b.broken && b.broken.length);
-  const overlay = Ice.hasOverlay(b);
-  if (!broken && !overlay) return base;
+  const base = Board.mapOf(b ? b.area : 1);
+  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b)) return base;
   const ver = `${b.brokenVer || 0}|${b.iceVer || 0}`;
   if (b.mapCache && b.mapCache.ver === ver && b.mapCache.base === base) return b.mapCache.map;
-  let terrain = { ...base.terrain }, special = base.special;
-  if (broken) for (const k of b.broken) delete terrain[k];
-  if (overlay) ({ terrain, special } = Ice.overlayOf(b, terrain, special));
-  const map = { ...base, terrain, special };
+  const map = layeredMap(b, base);
   b.mapCache = { ver, base, map };
   return map;
+}
+// แผนที่ภูมิภาค base + ช่องที่พัง + ชั้นน้ำแข็ง/หนามของ b (ไม่แคช)
+function layeredMap(b, base) {
+  let terrain = { ...base.terrain }, special = base.special;
+  if (b.broken && b.broken.length) for (const k of b.broken) delete terrain[k];
+  if (Ice.hasOverlay(b)) ({ terrain, special } = Ice.overlayOf(b, terrain, special));
+  return { ...base, terrain, special };
+}
+// แผนที่ที่ใช้ตรวจการเดินทีละก้าว: ไม่นับธารน้ำแข็งที่ฮุค afterWalk วางใหม่ในตานี้ (action.iceUndo — ช่องที่เดิมไม่มีน้ำแข็ง)
+//  ไม่งั้นรอยน้ำแข็งของ Ice Spike เองกลายเป็นโหนดไถลใน reachable แล้วตัดทางเดินต่อ · ผลของก้าวจริง (ไถล) ยังใช้ boardMap()
+function stepMap() {
+  const fresh = ((match.action && match.action.iceUndo) || []).filter((r) => r && !r.prev).map((r) => r.k);
+  if (!fresh.length || !match.board || !match.board.ice) return boardMap();
+  const ice = { ...match.board.ice };
+  for (const k of fresh) delete ice[k];
+  return layeredMap({ ...match.board, ice }, Board.mapOf(match.board.area));
 }
 // พังสิ่งกีดขวางชุดนี้ (ช่องที่ไม่มีของข้าม) → คืนรายการ { x, y, kind } ที่พังจริง
 function breakObstacles(keys) {
@@ -60,7 +71,7 @@ function breakObstacles(keys) {
   for (const k of keys) {
     const kind = map.terrain[k];
     if (!kind || Board.UNBREAKABLE.has(kind)) continue; // ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
-    if (/^icespike/.test(kind)) {
+    if (Ice.isSpikeKind(kind)) {
       // หนามน้ำแข็ง (Ice Spike): พังแล้วหายจากชั้นหนาม (เก็บไว้คืนตอนกดย้อนการเดิน)
       (match.board.smashedSpikes ||= {})[k] = Ice.removeSpike(k);
       const [x, y] = k.split(",").map(Number);
@@ -233,7 +244,7 @@ function resizeUnit(p, newSize) {
     return newSize;
   }
   const plan = Board.growPlan(map, { id: p.id, x: p.pos.x, y: p.pos.y, size: from }, newSize, boardUnits(),
-    { blocked: boardBlocked(), smash: newSize >= 3 && smashes({ ...p, boardSize: newSize }) });
+    { blocked: boardBlocked(), smash: smashes({ ...p, boardSize: newSize }) }); // ฮุค smashes ตรวจขนาดเอง (3×3 ขึ้นไป)
   if (!plan) return from;
   const smashed = breakObstacles(plan.rubble);
   p.pos = { x: plan.x, y: plan.y };
@@ -397,6 +408,7 @@ function nextActor() {
     // ระบบคู่ (server/duo.js): ตาของผู้เล่น = ทุกตัวของฝ่าย (ตัวละครทั่วไปมีตัวเดียว)
     let units = Duo.unitsOf(owner).filter((u) => u.alive && u.pos);
     if (!units.length) continue;
+    Visibility.markTurn(id); // บรรทัดที่ฝ่ายนี้ก่อในตานี้ (filterLog — คนล่องหนที่ถูกโจมตีพื้นที่จนปรากฏตัว)
     // ผลต้นตาเดิน (ถึงคิวแล้ว — รวมคนที่ถูกข้ามตาเพราะสตั้น) · Ice Spike: คุกน้ำแข็งช่วงที่ 2
     for (const u of units) {
       const startHook = CHAR_HOOKS[u.characterId];
@@ -480,7 +492,7 @@ function moveTo(id, x, y, { step = false } = {}) {
   //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
-  const reach = Board.reachable(map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
+  const reach = Board.reachable(step ? stepMap() : map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
   const prev = { x: p.pos.x, y: p.pos.y };
   // เดินทีละช่องเข้าน้ำแข็ง: ช่องนั้นเป็นจุดเริ่มไถล (ไม่ใช่ช่องที่หยุดได้ จึงไม่อยู่ใน reach) — ตรวจก้าวจากช่องที่ยืนเอง
   //  ก้าวกลับช่องเริ่มตา = ย้อนการเดินเสมอ (Ice Spike วางน้ำแข็งไว้ที่ช่องเริ่มแล้วก็ตาม)

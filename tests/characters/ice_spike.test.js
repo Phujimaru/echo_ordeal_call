@@ -91,6 +91,20 @@ test('ติดตัว 1: เดินผ่านช่องไหน (ร�
   assert.equal(engine.boardMap().special['10,4'], undefined);
 });
 
+test('ติดตัว 1: เดินทีละก้าว (W A S D) — รอยน้ำแข็งของตัวเองในตานี้ไม่ตัดทาง · เดินตรงได้ครบระยะ 4 · กดย้อน = น้ำแข็งหาย', () => {
+  const P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 10, 5]]);
+  engine.setActor('I');
+  for (const x of [2, 3, 4, 5]) assert.equal(engine.moveTo('I', x, 5, { step: true }), true, `ก้าวไป ${x},5`);
+  assert.deepEqual(P.I.pos, { x: 5, y: 5 });
+  assert.equal(engine.action.slid, undefined, 'ไม่ไถลบนรอยของตัวเอง');
+  for (const x of [1, 2, 3, 4, 5]) assert.equal(engine.boardMap().special[`${x},5`], 'ice', `ช่อง ${x},5`);
+  assert.equal(engine.moveTo('I', 6, 5, { step: true }), false, 'เกินระยะ 4');
+  // ย้อนการเดิน = กลับช่องเริ่ม น้ำแข็งที่วางในตานี้หายหมด
+  assert.equal(engine.undoMove('I'), true);
+  assert.deepEqual(P.I.pos, { x: 1, y: 5 });
+  for (const x of [1, 2, 3, 4, 5]) assert.equal(engine.boardMap().special[`${x},5`], undefined, `ช่อง ${x},5 หาย`);
+});
+
 test('ติดตัว 2: ไถลชนศัตรู = เสียหายเท่าระยะไถล (สูงสุด 4) แล้วเป้ากระเด็น 1 ช่อง · จบตา · ติดตัว 3: ไถลครบ 2 ช่อง ฟื้น 1/1', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 7, 5]]);

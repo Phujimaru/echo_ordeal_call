@@ -481,7 +481,8 @@ function reachableBig(map, unit, mov, units, opts = {}) {
   return stops;
 }
 // ขยายร่าง: หามุมใหม่ของตัวขนาด newSize ที่ครอบตัวเดิมไว้ทั้งหมด → { x, y, displaced: [id], rubble: ["x,y"] } · ไม่มีที่ = null
-//  เลือกมุมที่ไล่คนออกน้อยสุด → พังของน้อยสุด → ใกล้กลางตัวเดิมสุด · คนในช่องใหม่ = ถูกผลักออก (pushOutTile)
+//  เลือกมุมที่ไล่คนออกน้อยสุด → พังของน้อยสุด → ใกล้กลางตัวเดิมสุด · คนในช่องใหม่ = ถูกผลักออก (pushOutTile — ตัว 1 ช่องเท่านั้น
+//  มุมที่ทับตัวใหญ่อีกตัว = ข้าม · ไม่เหลือมุมเลย = null ให้ผู้เรียกลองใหม่ทีหลัง)
 //  smash = พังสิ่งกีดขวางได้ (ไม่ได้ = ช่องใหม่ต้องไม่มีสิ่งกีดขวาง) · blocked (ร้านค้า) ทับไม่ได้เสมอ
 function growPlan(map, unit, newSize, units, { blocked = null, smash = false } = {}) {
   const s0 = sizeOf(unit), grow = newSize - s0;
@@ -497,7 +498,9 @@ function growPlan(map, unit, newSize, units, { blocked = null, smash = false } =
       if (rubble.length && !smash) continue;
       if (rubble.some((k) => UNBREAKABLE.has(map.terrain[k]))) continue;
       const box = { x, y, size: newSize };
-      const displaced = units.filter((o) => o.alive && o.id !== unit.id && dist(box, o) === 0).map((o) => o.id);
+      const hit = units.filter((o) => o.alive && o.id !== unit.id && dist(box, o) === 0);
+      if (hit.some((o) => sizeOf(o) > 1)) continue; // ตัวใหญ่อีกตัวผลักออกไม่ได้ (pushOutTile หาที่ให้แค่ 1 ช่อง)
+      const displaced = hit.map((o) => o.id);
       const off = Math.abs(ox * 2 + grow) + Math.abs(oy * 2 + grow);
       const score = displaced.length * 100 + rubble.length * 10 + off;
       if (!best || score < best.score) best = { x, y, displaced, rubble, score };

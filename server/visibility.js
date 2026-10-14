@@ -7,7 +7,7 @@
 //  ผู้ชมที่มองไม่เห็นได้ pos = null และไม่เห็นเส้นทางเดิน/บันทึกที่มีชื่อเขา (view.js)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  stealthed, inBush, concealed, hiddenFrom, exposeBush, onHostileAct, onAreaHit, onBump, filterLog,
+  stealthed, inBush, concealed, hiddenFrom, exposeBush, onHostileAct, onAreaHit, onBump, filterLog, markTurn,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -29,7 +29,7 @@ function stealthed(p) {
 function inBush(p) {
   if (!p || !p.alive || !p.pos || !match.board) return false;
   if (p.exposedRound === match.roundNumber) return false;
-  if ((p.boardSize | 0) > 1) return false; // ตัวใหญ่ (Echo ขยายร่าง) ซ่อนในพุ่มไม่ได้
+  if (engine.sizeOf(p) > 1) return false; // ตัวใหญ่ (Echo ขยายร่าง) ซ่อนในพุ่มไม่ได้
   const map = Board.mapOf(match.board.area);
   return Board.bushPatchOf(map, p.pos.x, p.pos.y) !== null;
 }
@@ -70,12 +70,18 @@ function onHostileAct(p) {
   if (hook && hook.onReveal) hook.onReveal(engine, p, "act");
 }
 // สกิลพื้นที่แบบโจมตี (area.hostile) โดนใคร — คนล่องหนที่เป็นศัตรูของผู้ใช้ปรากฏตัว (hook onReveal "hit")
+//  บรรทัดที่ผู้ใช้ก่อไว้ในตาเดินนี้ก่อนปรากฏตัว (เช่นดาเมจของการโจมตีนี้เอง) ฝ่ายผู้ใช้ยังเห็นได้ (witness — filterLog)
 function onAreaHit(user, ids) {
+  const st = logState();
+  const side = Duo.sideKey(user);
+  const from = st.turnSide === side ? st.turnAt : null;
   for (const id of ids || []) {
     const t = match.players[id];
     if (!t || t.id === user.id || combat.sameTeam(user, t)) continue;
     const hook = hookOf(t);
-    if (hook && hook.onReveal) hook.onReveal(engine, t, "hit");
+    if (!hook || !hook.onReveal) continue;
+    if (from !== null && stealthed(t)) st.witness.push({ targetId: t.id, side, from, to: match.lastLog.length });
+    hook.onReveal(engine, t, "hit");
   }
 }
 // มีคนเดินมาชนช่องที่ยืนอยู่ (ซุ่มโจมตีแบบ FE) — คนล่องหนปรากฏตัว (พุ่มหญ้าไม่มีผลเพิ่ม)
@@ -83,17 +89,35 @@ function onBump(mover, t) {
   const hook = hookOf(t);
   if (hook && hook.onReveal) hook.onReveal(engine, t, "bump");
 }
+// สถานะของบันทึกรอบนี้ (ผูกกับอาร์เรย์ lastLog — ต้นเทิร์นสร้างอาร์เรย์ใหม่ = ล้างเอง)
+//  turnAt/turnSide = จุดเริ่มตาเดินปัจจุบัน (markTurn) · witness = [{ targetId, side, from, to }] ช่วงบรรทัดที่ฝ่าย side เห็นแม้ถูกตัด
+const logStates = new WeakMap();
+function logState() {
+  let st = logStates.get(match.lastLog);
+  if (!st) logStates.set(match.lastLog, (st = { turnAt: 0, turnSide: null, witness: [] }));
+  return st;
+}
+// เริ่มตาเดินของฝ่าย side (action.nextActor) — จดตำแหน่งบันทึกไว้
+function markTurn(side) {
+  const st = logState();
+  st.turnAt = match.lastLog.length;
+  st.turnSide = side;
+}
 // บันทึกที่ viewer เห็นได้: ตัดบรรทัดที่มีชื่อคนที่ viewer มองไม่เห็นอยู่ตอนนี้
 //  + บรรทัดก่อนตัวละครล่องหนปรากฏตัว (hook logCut = index ที่ปรากฏตัวในบันทึกรอบนี้)
+//   ยกเว้นบรรทัดที่ฝ่ายของ viewer ก่อเองในตาที่ทำให้ปรากฏตัว (witness — onAreaHit)
 function filterLog(lines, viewer) {
   if (!viewer || match.gameState === "GAMEOVER") return lines;
+  const witness = (logStates.get(lines) || { witness: [] }).witness;
+  const side = Duo.sideKey(viewer);
   let out = lines.map((line, i) => ({ line, i }));
   for (const p of Object.values(match.players)) {
     if (p.id === viewer.id || !p.name || combat.sameTeam(viewer, p)) continue;
     const hook = hookOf(p);
     const cut = hiddenFrom(viewer, p) ? Infinity : (hook && hook.logCut ? hook.logCut(p, match.roundNumber) : 0);
     if (!cut) continue;
-    out = out.filter(({ line, i }) => i >= cut || typeof line !== "string" || !line.includes(p.name));
+    const own = cut === Infinity ? [] : witness.filter((w) => w.targetId === p.id && w.side === side);
+    out = out.filter(({ line, i }) => i >= cut || typeof line !== "string" || !line.includes(p.name) || own.some((w) => i >= w.from && i < w.to));
   }
   return out.map(({ line }) => line);
 }

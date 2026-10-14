@@ -156,6 +156,25 @@ test('ขยายตัวโหมดทีม: เพื่อนร่วม
   assert.ok(g.payload.pushed.length >= 1);
 });
 
+test('ขยายตัว: มุมที่ต้องผลักตัวใหญ่อีกตัว = ข้าม (ไม่ทับกัน) · ไม่เหลือมุมเลย = ค้างขนาดเดิม', () => {
+  // มุมขวาล่าง: Echo (13,13) ขยายเป็น 3×3 ได้มุมเดียว (11,11) ซึ่งทับตัว 3×3 ที่ (11,10)
+  const P = setup([['E', 'echo', 13, 13], ['R', 'dummy', 11, 10], ['C', 'dummy', 2, 2]]);
+  P.R.boardSize = 3;
+  const before = P.R.hp + P.R.armor;
+  assert.equal(engine.resizeUnit(P.E, 3), 1, 'ไม่มีมุมให้ขยาย');
+  assert.equal(engine.sizeOf(P.E), 1);
+  assert.deepEqual(P.E.pos, { x: 13, y: 13 });
+  assert.deepEqual(P.R.pos, { x: 11, y: 10 }, 'ตัวใหญ่ไม่ถูกย้าย');
+  assert.equal(P.R.hp + P.R.armor, before, 'ไม่เสียเลือดจากการผลัก');
+  assert.ok(Board.dist(Board.boxOf(P.E), Board.boxOf(P.R)) > 0, 'ไม่ทับกัน');
+  // ยังมีมุมอื่น = เลือกมุมที่ไม่ทับตัวใหญ่
+  const Q = setup([['E', 'echo', 6, 6], ['R', 'dummy', 3, 5], ['C', 'dummy', 12, 12]]);
+  Q.R.boardSize = 3;
+  assert.equal(engine.resizeUnit(Q.E, 2), 2);
+  assert.ok(Board.dist(Board.boxOf(Q.E), Board.boxOf(Q.R)) > 0, 'ไม่ทับกัน');
+  assert.deepEqual(Q.R.pos, { x: 3, y: 5 });
+});
+
 test('ตัวใหญ่โดนตีได้ทุกช่อง · ระยะตีนับจากขอบตัว', () => {
   const P = setup([['E', 'echo', 5, 5], ['B', 'dummy', 8, 6], ['C', 'dummy', 12, 12]]);
   grow(P.E, 5); // 3×3

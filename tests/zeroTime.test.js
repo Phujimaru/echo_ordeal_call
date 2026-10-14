@@ -8,6 +8,8 @@ const match = require('../server/match.js');
 const Board = require('../server/board.js');
 const draw = require('../server/phases/draw.js');
 const attack = require('../server/phases/attack.js');
+const action = require('../server/phases/action.js');
+const Ice = require('../server/ice.js');
 const Journey = require('../characters/_journey.js');
 const { SHOP_INTERVAL_TURNS } = require('../server/constants.js');
 
@@ -157,6 +159,32 @@ test('ผนึก: เลือด 3 เกราะ 2 · ตีถึงตา
   assert.equal(Board.growPlan(Board.mapOf(Board.ZERO_AREA), { id: 'x', x: 0, y: 1, size: 1 }, 2, [], { smash: true }) !== null, true);
   const fit = Board.placeBig(Board.mapOf(Board.ZERO_AREA), 3, { x: 0, y: 0 }, [], { smash: true });
   assert.ok(Board.footprint(fit.x, fit.y, 3).every((t) => !(t.x === 0 && t.y === 0)), 'วางตัวใหญ่ไม่ทับผนึก');
+});
+
+test('ผนึกแตก: เปลี่ยนแค่หน้าตาสนาม — น้ำแข็ง/หนามน้ำแข็งที่วางไว้ในห่วงเวลายังอยู่ (แผนที่คิดใหม่)', () => {
+  setup();
+  enterAt(9);
+  const map = action.boardMap();
+  const free = [];
+  for (let y = 2; y < map.rows && free.length < 2; y++) {
+    for (let x = 2; x < map.cols && free.length < 2; x++) if (action.tileFree(x, y)) free.push({ x, y });
+  }
+  const [a, b] = free;
+  assert.ok(Ice.layIce(a.x, a.y, 'p0'), 'วางน้ำแข็งได้');
+  Ice.placeSpike(b.x, b.y, 'p0');
+  assert.ok(Board.isIce(action.boardMap(), a.x, a.y));
+  match.zero.seals[0].broken = true;
+  match.zero.pending.push({ i: 0, by: 'p0' });
+  Zero.runPendingBreak(() => {});
+  engine.clearPhaseTimer();
+  match.zeroScene.active = false;
+  assert.equal(match.board.area, Board.ZERO_AREA + 1);
+  assert.ok(Ice.iceAt(a.x, a.y), 'น้ำแข็งยังอยู่');
+  assert.ok(Ice.spikeAt(b.x, b.y), 'หนามยังอยู่');
+  const after = action.boardMap();
+  assert.equal(after.area, Board.ZERO_AREA + 1, 'แผนที่ใช้ผังระดับใหม่');
+  assert.ok(Board.isIce(after, a.x, a.y));
+  assert.match(after.terrain[Board.key(b.x, b.y)], /^icespike/);
 });
 
 test('เฟส 4: ฟ้าผ่าต้นเทิร์น 3 จุด เสีย 2', () => {

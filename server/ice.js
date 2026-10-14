@@ -18,11 +18,11 @@
 //  (server ลงผลทั้งหมดทันที — client ค้างตำแหน่งไว้เล่นแอนิเมชัน · รูปข้อมูล: .claude/plans/ice-spike-contract.md)
 // ============================================================
 Object.assign(module.exports, {
-  overlayOf, hasOverlay, publicInfo, iceAt, spikeAt, spikeKeyOf,
-  layIce, undoLay, placeSpike, raiseSpike, lowerSpike, damageSpike, removeSpike, restoreSpike,
+  overlayOf, hasOverlay, publicInfo, iceAt, spikeAt, spikeKeyOf, isSpikeKind,
+  layIce, undoLay, placeSpike, raiseSpike, damageSpike, removeSpike, restoreSpike,
   begin, flush, fxSeconds, resolveEntry, pushUnit, applySlow, slowed,
-  canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, bump,
-  noteHurt, flushBursts, burstNow, canLay, canSpike, addPrison, takePrisons,
+  canHitSpike, attackSpike, hitSpikesInArea, onEndTurn,
+  noteHurt, flushBursts, canLay, canSpike, addPrison, takePrisons,
   wetAt, layWet, dryWet,
 });
 
@@ -33,7 +33,6 @@ const Board = require("./board");
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
-const lobby = require("./lobby");
 const timers = require("./timers");
 const view = require("./view");
 const action = require("./phases/action");
@@ -44,12 +43,20 @@ const SPIKE_TURNS = 3;             // หนามน้ำแข็งอยู
 const SPIKE_ARMOR = [0, 1, 2, 2];  // เกราะตาม Lv (ผู้ใช้ยืนยัน Lv3 = 2)
 const SLOW_TURNS = 3;              // เชื่องช้า 3 เทิร์น
 const MAX_CHAIN = 12;              // กันไถล/กระเด็นเป็นทอดไม่รู้จบ
-Object.assign(module.exports, { ICE_TURNS, SPIKE_TURNS, SPIKE_ARMOR, SLOW_TURNS });
+const PRISON_SIZE = 5;             // คุกน้ำแข็ง 5×5 รอบช่องกลาง (ข้อมูลให้ client วาด)
 
 const K = Board.key;
 const parseKey = (k) => { const [x, y] = k.split(",").map(Number); return { x, y }; };
 const bumpVer = () => { match.board.iceVer = (match.board.iceVer || 0) + 1; };
 const hookOf = (p) => (p && CHAR_HOOKS[p.characterId]) || null;
+// terrain ของหนามน้ำแข็ง ("icespike<lv>")
+function isSpikeKind(kind) { return typeof kind === "string" && kind.startsWith("icespike"); }
+// ช่องในกระดานที่ไม่ใช่สิ่งกีดขวาง (รวมหนาม) และไม่ใช่ร้านค้า — ที่วางน้ำแข็ง/หนาม/พื้นเปียกได้
+function openTile(x, y) {
+  const map = action.boardMap();
+  if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return false;
+  return !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y);
+}
 
 // ---------- ชั้นบนแผนที่ ----------
 //  พื้นเปียก (แจกันใส่น้ำของเอมิลิโกะ): match.board.wet = { "x,y": true } — ถาวรจนกว่าไม้ถูพื้นจะถูทับ (dryWet) / เปลี่ยนภูมิภาค
@@ -72,7 +79,7 @@ function publicInfo() {
   return {
     ice: Object.entries(b.ice || {}).map(([k, r]) => ({ ...parseKey(k), left: r.left, owner: r.owner })),
     spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner })),
-    prisons: (b.prisons || []).map((r) => ({ x: r.x, y: r.y, size: 5, owner: r.owner })),
+    prisons: (b.prisons || []).map((r) => ({ x: r.x, y: r.y, size: PRISON_SIZE, owner: r.owner })),
     wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
 }
@@ -83,9 +90,7 @@ function layWet(tiles) {
   const map = action.boardMap();
   const out = [];
   for (const t of tiles) {
-    if (!t || !Board.inBounds(map, t.x, t.y) || map.terrain[K(t.x, t.y)]) continue;
-    if (Board.specialAt(map, t.x, t.y) === "ice") continue;
-    if (match.shopPos && match.shopPos.x === t.x && match.shopPos.y === t.y) continue;
+    if (!t || !openTile(t.x, t.y) || Board.specialAt(map, t.x, t.y) === "ice") continue;
     const k = K(t.x, t.y);
     if ((match.board.wet ||= {})[k]) continue;
     match.board.wet[k] = true;
@@ -117,10 +122,7 @@ function spikeKeyOf(targetId) {
 
 // วาง/ต่อเวลาธารน้ำแข็ง → บันทึกไว้ย้อน { k, prev } · วางไม่ได้ (สิ่งกีดขวาง/ร้านค้า/น้ำแข็งของแผนที่) = null
 function layIce(x, y, owner) {
-  if (!match.board) return null;
-  const map = action.boardMap();
-  if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return null;
-  if (match.shopPos && match.shopPos.x === x && match.shopPos.y === y) return null;
+  if (!match.board || !openTile(x, y)) return null;
   const base = Board.mapOf(match.board.area);
   if (Board.specialAt(base, x, y) === "ice") return null; // น้ำแข็งถาวรของภูมิภาค VI อยู่แล้ว
   const k = K(x, y);
@@ -133,19 +135,13 @@ function layIce(x, y, owner) {
 }
 // วางธารน้ำแข็งที่ช่องนี้ได้ไหม (สกิล): ในกระดาน · ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · ไม่ใช่น้ำแข็งถาวรของแผนที่
 function canLay(x, y) {
-  if (!match.board) return false;
-  const map = action.boardMap();
-  if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return false;
-  if (match.shopPos && match.shopPos.x === x && match.shopPos.y === y) return false;
+  if (!match.board || !openTile(x, y)) return false;
   return Board.specialAt(Board.mapOf(match.board.area), x, y) !== "ice";
 }
 // วางหนามที่ช่องนี้ได้ไหม: ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · มีคนยืน = ตัว 1×1 + ทิศผลัก dir ที่ช่องปลายว่าง
 //  คืน { unit: ผู้เล่นที่ยืน | null } · ไม่ได้ = null
 function canSpike(x, y, dir) {
-  if (!match.board) return null;
-  const map = action.boardMap();
-  if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return null;
-  if (match.shopPos && match.shopPos.x === x && match.shopPos.y === y) return null;
+  if (!match.board || !openTile(x, y)) return null;
   const u = Board.unitAt(action.boardUnits(), x, y);
   if (!u) return { unit: null };
   const v = Board.LINE_DIRS[dir];
@@ -309,7 +305,7 @@ function impact(p, hit, dir, n, ctx) {
     pushUnit(u, dir, ctx);
     return;
   }
-  if (hit.kind === "obstacle" && /^icespike/.test(hit.terrain)) spikeImpact(p, K(hit.x, hit.y), ctx);
+  if (hit.kind === "obstacle" && isSpikeKind(hit.terrain)) spikeImpact(p, K(hit.x, hit.y), ctx);
 }
 // ผู้ไถลชนหนาม: เสียเท่า Lv + เชื่องช้า · เจ้าของชนเอง = ฮุค ownSpike แทน · หนามลด 1 Lv
 function spikeImpact(p, k, ctx) {
@@ -355,8 +351,6 @@ function pushUnit(u, dir, ctx) {
   resolveEntry(u, dir, ctx);
   return true;
 }
-// คนอื่นถูกชนเฉยๆ (ไม่ผ่านการไถล) — เผื่อใช้ภายนอก
-function bump(u, dir, ctx) { return pushUnit(u, dir, ctx); }
 
 // ---------- ตีหนาม (ทุกคนตีได้ — เหมือนผนึกห่วงเวลาซีโร่) ----------
 function spikeUnit(k) {
@@ -424,8 +418,9 @@ function onEndTurn() {
   const b = match.board;
   if (!b) return;
   let changed = false;
-  for (const [k, r] of Object.entries(b.ice || {})) { r.left -= 1; if (r.left <= 0) delete b.ice[k]; changed = true; }
-  for (const [k, s] of Object.entries(b.spikes || {})) { s.left -= 1; if (s.left <= 0) delete b.spikes[k]; changed = true; }
+  // นับลงอย่างเดียวแผนที่ไม่เปลี่ยน — bumpVer (ล้างแคช action.boardMap) เฉพาะตอนมีของหาย
+  for (const [k, r] of Object.entries(b.ice || {})) { r.left -= 1; if (r.left <= 0) { delete b.ice[k]; changed = true; } }
+  for (const [k, s] of Object.entries(b.spikes || {})) { s.left -= 1; if (s.left <= 0) { delete b.spikes[k]; changed = true; } }
   // คุกที่เจ้าของตกรอบแล้ว = ยกเลิก
   if (b.prisons) b.prisons = b.prisons.filter((r) => match.players[r.owner] && match.players[r.owner].alive);
   if (changed) bumpVer();
@@ -475,6 +470,3 @@ function burstNow(p) {
   match.lastLog.push(`❄️ ${p.name} สะสมความเสียหายครบ ${BURST_AT} — ระเบิดน้ำแข็งผลักศัตรูรอบตัว ${near.length} คน`);
   flush(ctx);
 }
-
-// อ้างไว้กันลืม (ใช้ตอนรวมป้ายผู้ตี)
-void lobby;

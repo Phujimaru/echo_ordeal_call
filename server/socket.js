@@ -147,7 +147,7 @@ function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, c
     tempHp: 0, tempHpTurns: 0,
     sleepFresh: false,
     muimiEmergencyUses: CHAR_HOOKS.muimi.EMERGENCY_USES, muimiEmergencyUsedRound: 0,
-    muimiUltCasts: 0, muimiUltLock: 0,
+    muimiUltLock: 0,
     pos: null, // ตำแหน่งบนกระดาน { x, y } (แจกตอนเริ่มแมตช์ — phases/action.js placeOnBoard)
     dmgHp: 0, dmgArmor: 0, gainedSkill: 0,
     wasAttacked: false,

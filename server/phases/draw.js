@@ -15,6 +15,7 @@ const { engine } = require("../engine");
 const combat = require("../combat");
 const cutscene = require("../cutscene");
 const dayNight = require("../dayNight");
+const endTurnPhase = require("./endTurn");
 const cardDeck = require("../deck");
 const qteSystem = require("../qte");
 const shop = require("../shop");
@@ -72,9 +73,10 @@ function dealRound() {
       p.nightTaxTier = null;
     }
 
-    CHAR_HOOKS.oberon_summer.onRoundStartTick(engine, p);  // นกจาบยามเช้า: เป้าหมายเสียพลังชีวิต 2 ทะลุเกราะ
-    CHAR_HOOKS.echo.onRoundStartTick(engine, p);           // Echo: ราชินีขยายร่าง +1 · คุ้มครอง · ต้านสถานะ 20% · ขนาดตัว
-    CHAR_HOOKS.raido_hikaru.onRoundStartTick(engine, p);   // ไรโด ฮิคารุ: กิงกะที่ขยายตัวไม่สำเร็จ ลองใหม่
+    // ฮุคต้นเทิร์นของทุกตัวละคร — โอเบรอน: นกจาบยามเช้า (เป้าหมายเสียพลังชีวิต 2 ทะลุเกราะ)
+    //  Echo: ราชินีขยายร่าง +1 · คุ้มครอง · ต้านสถานะ 20% · ขนาดตัว · ไรโด ฮิคารุ: กิงกะที่ขยายตัวไม่สำเร็จ ลองใหม่
+    combat.broadcastHook("onRoundStartTick", engine, p);
+    if (!p.alive) { skipFallen(p, cardHolder); continue; }
 
     // ---------- สิ่งแปลกปลอม (oblada, สถานะ Universal): ดาเมจ 1 ทุก 2 เทิร์น — ทำงานตอนเวลาคงเหลือเป็นเลขคี่ ----------
     {
@@ -86,9 +88,7 @@ function dealRound() {
         if (p.alive && p.hp <= 0) {
           combat.instantDeath(p);
           if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
-          if (!p.alive) p.pos = null;
-          if (Duo.inGame(p)) dealHand(p);
-          else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
+          skipFallen(p, cardHolder);
           continue;
         }
       }
@@ -121,6 +121,7 @@ function dealRound() {
     // ---------- เลือดไหล (hbleed, สถานะ Universal patch 2.5): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 ----------
     tickBleed(engine, p);
     tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase
+    if (!p.alive) { skipFallen(p, cardHolder); continue; } // ตกรอบจากผลต้นเทิร์น = ไม่ได้ไพ่/ผลที่เหลือ
     // ช็อต (สถานะ Universal): โรล 15% ติดสตั้น — ต้องอยู่ก่อนบล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะเลื่อนไปมีผลเทิร์นถัดไป
     tickShock(engine, p);
     p.statusAmt.cardAtkBonus = 0; // พลังโจมตีจากการ์ดแดง — รีเซ็ตทุกรอบ
@@ -166,6 +167,8 @@ function dealRound() {
     const hits = Soot.tickRound();
     if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
   }
+  // ผลต้นเทิร์นฆ่าศัตรูคนสุดท้าย = จบเกมทันที (ด่านเดียวกับ nextActor)
+  if (endTurnPhase.gameOver()) return;
 
   match.gameState = "PLAYING";
   timers.startPhaseTimer(timers.cardPhaseSeconds(), summary.resolveRound);
@@ -173,6 +176,13 @@ function dealRound() {
   if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
   view.broadcastState();
   checkAllLocked();
+}
+
+// ตกรอบระหว่างผลต้นเทิร์น: หายจากกระดาน · ไม่ได้ไพ่ (ระบบคู่: อีกตัวยังรอด = เจ้าของยังจั่วได้)
+function skipFallen(p, cardHolder) {
+  if (!p.alive) p.pos = null;
+  if (Duo.inGame(p)) dealHand(p);
+  else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
 }
 
 // แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)

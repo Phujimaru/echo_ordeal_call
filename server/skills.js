@@ -1,7 +1,7 @@
 // ใช้สกิล (useSkill)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  useSkill,
+  useSkill, skillCostOf,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -10,7 +10,6 @@ const {
   SPELLBURDEN_MAX, statusAmtOf, tickCurseOnSkill, numbFizzles,
 } = require("../characters/_universal_status");
 const Journey = require("../characters/_journey");
-const { io } = require("./app");
 const { SKILL_COST_MAX } = require("./constants");
 const match = require("./match");
 const endTurnPhase = require("./phases/endTurn");
@@ -24,6 +23,22 @@ const Visibility = require("./visibility");
 const timers = require("./timers");
 const Zero = require("./zeroTime");
 const Ice = require("./ice");
+
+// ราคาสกิล 1 ช่องก่อนการ์ดราชินี — ใช้ทั้งตอนหักแต้มจริง (useSkill) และป้ายราคาบนปุ่ม (view.buildStateFor) · base = ราคาตั้งต้นของช่อง
+//  ฮุค skillCost: ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน)
+//  กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ (พื้นฐาน/รอง อย่างใดอย่างหนึ่ง) ใช้แต้มมากขึ้น +1 — ไม่มีผลกับท่าไม้ตาย
+//  การเดินทาง (ป่าไม้ต้องสาป): ทุกสกิลแพงขึ้น +1 — สกิลราคา 0 ยังฟรี
+//  กระแสเวท / ภาระเวท (สถานะพื้นฐาน patch 2.0.8): ใช้พลังงานลดลง/เพิ่มขึ้นตามจำนวนที่ระบุ
+//  ตัวปรับราคาขาขึ้นทั้งหมด (กลางคืน + การเดินทาง + ภาระเวท) รวมกันแล้วดันราคาได้ไม่เกิน SKILL_COST_MAX
+//   → สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้ว (เช่นท่าไม้ตาย 8) จะไม่แพงขึ้นไปอีก
+function skillCostOf(p, tier, base, opts) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const cost = hook && hook.skillCost ? hook.skillCost(p, tier, base, opts) : base;
+  const nightTax = p.nightTaxTier === tier ? 1 : 0;
+  const journeyTax = Journey.skillTax(engine, cost);
+  const spellburden = Math.min(SPELLBURDEN_MAX, statusAmtOf(p, "spellburden"));
+  return Math.min(SKILL_COST_MAX, Math.max(0, cost - statusAmtOf(p, "spellflow")) + nightTax + journeyTax + spellburden);
+}
 
 function useSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
@@ -40,19 +55,8 @@ function useSkill(id, tier, targets, opts = {}) {
   if ((p.statuses.noskill || 0) > 0) return; // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้
   if (tier === "ultimate" && Zero.ultLocked()) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก
 
-  // ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน) — ต้องตรงกับ showCost() ใน buildStateFor
-  //  opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก — ราคา/พื้นที่ต่างกันต่อตัวเลือก)
-  let cost = hook && hook.skillCost ? hook.skillCost(p, tier, skill.cost, opts) : skill.cost;
-  // กลางคืน (patch 2.1.7): สกิลที่สุ่มโดนคืนนี้ (พื้นฐาน/รอง อย่างใดอย่างหนึ่ง) ใช้แต้มมากขึ้น +1 — ไม่มีผลกับท่าไม้ตาย
-  //  (เพดาน SKILL_COST_MAX คิดรวมทีเดียวกับภาระเวทด้านล่าง)
-  const nightTax = p.nightTaxTier === tier ? 1 : 0;
-  // การเดินทาง (ป่าไม้ต้องสาป): ทุกสกิลแพงขึ้น +1 — สกิลราคา 0 ยังฟรี · ต้องตรงกับ showCost() ใน buildStateFor
-  const journeyTax = Journey.skillTax(engine, cost);
-  // กระแสเวท / ภาระเวท (สถานะพื้นฐาน patch 2.0.8): ใช้พลังงานลดลง/เพิ่มขึ้นตามจำนวนที่ระบุ
-  cost = Math.max(0, cost - statusAmtOf(p, "spellflow"));
-  //  ตัวปรับราคาขาขึ้นทั้งหมด (กลางคืน + ภาระเวท) รวมกันแล้วดันราคาได้ไม่เกิน SKILL_COST_MAX
-  //  → สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้ว (เช่นท่าไม้ตาย 8) จะไม่แพงขึ้นไปอีก
-  cost = Math.min(SKILL_COST_MAX, cost + nightTax + journeyTax + Math.min(SPELLBURDEN_MAX, statusAmtOf(p, "spellburden")));
+  // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)
+  let cost = skillCostOf(p, tier, skill.cost, opts);
   // การ์ดราชินี: ใช้สกิลไม่เสียแต้ม 1 ครั้ง — ใช้กับสกิลที่มีค่าใช้จ่ายเท่านั้น
   const blessFree = cost > 0 && (p.statuses.freecast || 0) > 0;
   if (blessFree) cost = 0;
@@ -93,6 +97,12 @@ function useSkill(id, tier, targets, opts = {}) {
   // "คำสาป" (สถานะ Universal): กดสกิลสำเร็จแล้ว = เสียพลังชีวิต 1 หน่วย (1 ครั้ง/เทิร์น)
   //  วางหลังหักแต้ม — กดไม่ผ่านเงื่อนไขด้านบนจะ return ไปก่อนถึงตรงนี้ คำสาปจึงไม่กินฟรี
   tickCurseOnSkill(engine, p);
+  // คำสาปกินจนตกรอบ = สกิลไม่ทำงาน (ฮุคของตัวละครไม่ต้องรับมือผู้ใช้ที่ตายไปแล้ว)
+  if (!p.alive) {
+    if (endTurnPhase.gameOver()) return;
+    view.broadcastState();
+    return;
+  }
   // "เหน็บชา" (สถานะ Universal): 30% สกิลไม่ทำงาน แต่แต้มสกิล/โควตาของเทิร์นถูกใช้ไปแล้วตามเดิม
   if (numbFizzles(p)) {
     match.lastLog.push(`🫨 ${p.name} เหน็บชา — ${skill.name} ไม่ทำงาน! (แต้มสกิลถูกหักไปแล้ว)`);

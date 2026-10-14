@@ -593,15 +593,20 @@ module.exports = {
                                                                  // ระบบไถล (server/ice.js §19): ไถลเสร็จ · ไถลชนศัตรู (ลงดาเมจเอง) · ชนหนามตัวเอง (คืนแต้มที่ได้)
   // hburnImmune / hburnHeals / hburnLabel · hbleedImmune / hbleedHeals / hbleedLabel / hbleedHarmless (ข้อ 7)
 
-  // ---- ที่เหลือคือ method ที่ server/ เรียกเองแบบเจาะจง: CHAR_HOOKS.<id>.<method>(engine, ...) ----
-  resetCombat(p) {},                       // ต้องเพิ่มการเรียกใน combat.resetCombat() เอง
+  // ---- ฮุค broadcast: engine เรียกทุกตัวละครตามลำดับ CHAR_HOOKS.MODULES (combat.broadcastHook) — ฮุคต้องเช็คเองว่าเป็นตัวเองไหม ----
+  resetCombat(p) {},                       // combat.resetCombat() — ล้างฟิลด์เฉพาะตัวทุกแมตช์
+  onRoundStartTick(engine, p) {},          // ลูปต่อผู้เล่นของ dealRound (p ตาย = ข้ามผลต้นเทิร์นที่เหลือ/ไม่ได้ไพ่)
+  onEndTurn(engine) {},                    // endTurn() หลังลูปลดเทิร์นสถานะ
+  onDeath(engine) {},                      // combat.instantDeath() — มีคนตกรอบ
+  onKill(engine, killer, victim) {},       // instantDeath → เฉพาะโมดูลของผู้สังหาร (match.effectSourceId)
+  //  ฮุคที่โยน error ถูก log (console.error ชื่อตัวละคร + ชื่อฮุค) แล้วข้าม — แมตช์ไม่ค้าง
 };
 ```
 
 **จุดที่ server เรียกตัวละครแบบเจาะจงตอนนี้** (ตัวละครใหม่ที่ต้องการจังหวะเดียวกันต้องเพิ่มบรรทัดเรียกเองที่จุดนั้น):
 `muimi.onAttackLanded` / `towerActive` / `IMG` (`doAttack`, `attackSoundOf`, `activeSkillMusic`) · `muimi.onUltExpire` (ลูปลดเทิร์นของ `endTurn`) ·
-`oberon_summer.onRoundStartTick` (ลูปของ `dealRound`) · `oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) · `oberon_summer.onEndTurn` (`endTurn`) ·
-`ice_spike.isIceSpike` (`buildStateFor` ฟิลด์ `iceHurt`) · `resetCombat` ทุกตัว (`combat.resetCombat`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `onDeath` (`instantDeath`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
+`oberon_summer.atkBonus`/`atkFx` (`computeAttackBase`/`doAttack`) ·
+`ice_spike.isIceSpike` (`buildStateFor` ฟิลด์ `iceHurt`) · `sliver_bullet.refresh` (`startMatch` + `dealRound`) / `attackSound` (`attackSoundOf`) · ฟิลด์ `muimi*` ใน `newPlayerRecord` (`server/socket.js`) และ `buildStateFor`
 
 **กฎเหล็ก**
 1. เข้าถึง state ผ่าน `engine.*` เท่านั้น (`engine.log`, `engine.healHp`, `engine.dealMixed`, `engine.players`, …)
@@ -614,7 +619,7 @@ module.exports = {
 ## 15. Gotchas ที่ควรจำก่อนแก้โค้ด
 
 1. **`dealRound()` ล้าง `cutsceneQueue`** — คิววีดีโอไว้ก่อนบรรทัดนั้น = หาย
-2. **ลูปลดเทิร์นสถานะใน `endTurn()`** — status key ใหม่ที่ไม่ควรลดเทิร์นต้องเพิ่ม `continue;` เอง ไม่งั้นหายเงียบ; ตรงข้าม key ที่ `continue` แล้วไม่มีใครลบทิ้ง = ค้างถาวรทั้งแมตช์
+2. **ลูปลดเทิร์นสถานะใน `endTurn()`** — status key ใหม่ที่ไม่ควรลดเทิร์นต้องเพิ่มใน `NO_TICK_STATUS` (`characters/_universal_status.js`) ไม่งั้นหายเงียบ; ตรงข้าม key ในชุดนั้นที่ไม่มีใครลบทิ้ง = ค้างถาวรทั้งแมตช์
 3. **โรลโอกาสต้องอยู่ที่จุดตัดสินจริง** — ถ้าโรลทีหลังจุดที่สุ่มผู้ชนะจากการเสมอไปแล้ว (เช่นใน `afterSummary()`) โอกาสจริงจะถูกหารด้วยจำนวนคนที่เสมอ → โรลใน `resolveRound()`
 4. **`withEffectSource`** ต้องห่อทุก handler ที่ก่อเอฟเฟกต์ ไม่งั้น friendly-fire / แหล่งที่มาดาเมจพัง · callback หลังวีดีโอ (`pausePlayingForCutscene(after)`) ต้องห่อซ้ำ
    · กลับกัน ผลเสียที่ **ตั้งใจ** ให้ลงเพื่อนร่วมทีมได้ (นกจาบยามเช้า) ต้อง **ไม่** มีต้นตอ
@@ -626,7 +631,7 @@ module.exports = {
 10. **ตัวละคร `unique`** (ตอนนี้ไม่มีตัวไหนตั้งไว้ — มุยมิ/โอเบรอนเลือกซ้ำได้) กันซ้ำ **2 ชั้น**: handler `join` ตอบ `characterTaken` และหน้าเลือกตัวละคร
     ปิดการ์ดจาก event `takenChars` — ตัว unique ใหม่แค่ใส่ `unique: true` ใน `characters.js` · ตัวที่เลือกซ้ำได้ต้องเก็บสถานะแยกต่อผู้เล่น (`duplicate-safety.test.js`)
 11. `resetCombat(p)` (`server/combat.js`) คือรายการฟิลด์ผู้เล่นทั้งหมด — **ฟิลด์ใหม่ของตัวละครต้องรีเซ็ตที่นี่** (และใส่ค่าเริ่มใน `newPlayerRecord`) ไม่งั้นค้างข้ามแมตช์
-12. **ราคาบนปุ่ม = ราคาที่หักจริง** — แก้สูตรราคาใน `useSkill` ต้องแก้ `showCost()` ใน `buildStateFor` ด้วยเสมอ (และกลับกัน)
+12. **ราคาบนปุ่ม = ราคาที่หักจริง** — สูตรอยู่ที่ `skillCostOf()` (`server/skills.js`) ที่เดียว ใช้ทั้ง `useSkill` และ `showCost()` ใน `buildStateFor`
 13. **ผลที่ "ต้องรอวีดีโอจบก่อน"** ใช้ `pausePlayingForCutscene(after)` ระหว่าง PLAYING — ลงผลก่อนแล้วค่อยเล่นคลิป ผู้เล่นจะเห็นเลือดลดก่อนวีดีโอ
 
 ---
@@ -751,5 +756,5 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
 - **ม่านแดง** (`server/soot.js`): `match.board.storms` · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
-- **มืดบอด** (`shadowMask` · DEBUFF_KEYS): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
+- **มืดบอด** (`shadowMask`): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 
