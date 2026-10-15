@@ -703,7 +703,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
 client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
-- **เปิดใช้งาน** (เปิดกลับ 2026-10-14 · เคยปิด 2026-10-12): `ZERO_ENABLED = true` · ตั้ง `false` = `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`)
+- **ปิดอยู่** (2026-10-12 · เปิดกลับใน 5.6.12 แล้วผู้ใช้สั่งปิดอีก 2026-10-15): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ระบบทั้งหมดยังอยู่ครบ เปิดกลับได้ด้วยค่าเดียว — ห้ามเปิดเองโดยไม่ได้รับคำสั่ง
 - **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
   → ทอย `ZERO_CHANCE` 30% · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
   · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)

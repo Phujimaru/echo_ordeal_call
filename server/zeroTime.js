@@ -36,8 +36,9 @@ const timers = require("./timers");
 const view = require("./view");
 const { statusAmtOf, poisonAtkPenalty, invertActive } = require("../characters/_universal_status");
 
-// เปิดใช้งาน (ผู้ใช้สั่งเปิดกลับ 2026-10-14 — เคยปิดไว้ 2026-10-12) · false = ไม่สุ่มเกิด (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
-const ZERO_ENABLED = true;
+// ปิดไว้ (ผู้ใช้สั่ง 2026-10-12 · เปิดกลับ 5.6.12 แล้วผู้ใช้สั่งปิดอีก 2026-10-15 — ห้ามเปิดเองโดยไม่ได้รับคำสั่ง)
+//  เก็บระบบไว้ใช้ในอนาคต · true = กลับมาสุ่มเกิดตามปกติ (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
+const ZERO_ENABLED = false;
 const ZERO_START_ROUND = 10; // เริ่มสุ่มตั้งแต่กลางคืนช่วงที่ 2 (เทิร์น 10–12)
 const ZERO_CHANCE = 30;      // % ต่อเทิร์นกลางคืน
 const SEAL_HP = 3, SEAL_ARMOR = 2;
