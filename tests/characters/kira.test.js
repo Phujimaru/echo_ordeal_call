@@ -51,6 +51,7 @@ test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engi
 
 test('ข้อมูล: ระดับง่าย · เดิน 4 ตีประชิด · 0 / 4 / 8 แต้ม · คลื่นความมืดแนว 4×3 (สกิลโจมตี)', () => {
   const ch = CHAR_BY_ID.kira;
+  assert.equal(ch.name, 'ราชาแมลงอวกาศ', 'ชื่อในหน้าเลือกตัว');
   assert.equal(ch.difficulty, 'easy');
   assert.equal(ch.mov, 4);
   assert.deepEqual(ch.range, [1, 1]);
@@ -107,8 +108,9 @@ test('บดขยี้ส่วนเกิน (ร่างราชา): ต
   assert.ok(vit(P.B) < b0);
   const card = engine.buildStateFor('K').attack;
   assert.equal(card.byAttackSound, 'kira_sweep');
-  assert.equal(card.byBeam, 4);
-  assert.equal(card.byBeamTone, 'dark');
+  assert.equal(card.byStyle, 'kiraSlash', 'คลื่นฟันดำขอบแดง');
+  assert.equal(card.byBeam, 0, 'ไม่ใช่ลำแสงแล้ว');
+  assert.ok(Array.isArray(card.byLane) && card.byLane.length === 4, 'ส่งช่องทั้งแนวให้ client วาดคลื่น');
   assert.equal(kira.attackSound({ characterId: 'kira', kira: { king: false } }), 'kira_hit');
 });
 
@@ -253,7 +255,7 @@ test('บดขยี้ส่วนเกิน (ร่างกิระ): ค
   assert.equal(P.K.hp, 7);
 });
 
-// ---------- ออร่าหมอกดำแดง / เพลงร่าง / คลิปแปลงร่าง / ถูกตรึง ----------
+// ---------- ออร่าหมอกดำแดง / เพลงอัฐิราชา / คลิปแปลงร่าง / ถูกตรึง ----------
 
 test('ออร่าหมอกดำแดง (ร่างราชา): จบเทิร์น ศัตรูประชิดเสียหาย 1 (เกราะก่อน · ฆ่าได้) · ห่าง 2 / เพื่อนไม่โดน · ร่างกิระไม่มีออร่า', () => {
   const P = setup([
@@ -293,25 +295,29 @@ test('ออร่าหมอกดำแดง: ไม่มีศัตรู
   assert.equal(calls.sfx.length, 0);
 });
 
-test('เพลงร่างราชา: ร่างราชาที่ยังมีชีวิต = kira_king · ร่างกิระ/ตาย = ไม่มี · สองคนเป็นราชา คนสวมทีหลังได้เพลง', () => {
+test('เพลงอัฐิราชา: เล่นเฉพาะระหว่างท่าไม้ตาย (ไม่เล่นตอนเปลี่ยนร่าง) · ทุกคนได้ยิน · สองคนเปิด คนเปิดทีหลังได้เพลง · หมดผล/ตาย = ไม่มี', () => {
   const P = setup([['K', 'kira', 2, 7], ['L', 'kira', 6, 8], ['B', 'dummy', 12, 12]]);
-  assert.equal(engine.buildStateFor('K').skillMusic, null, 'ร่างกิระไม่มีเพลง');
+  engine.setRoundNumber(5);
   engine.setActor('K');
   engine.useSkill('K', 'basic', []);
+  assert.equal(P.K.kira.king, true);
+  assert.equal(engine.buildStateFor('K').skillMusic, null, 'เปลี่ยนร่างเฉยๆ ไม่มีเพลง');
+  engine.useSkill('K', 'ultimate', []);
   const s = engine.buildStateFor('K');
   assert.equal(s.skillMusic, 'kira_king');
-  assert.equal(s.skillMusicSeq, P.K.kira.kingAt);
+  assert.equal(s.skillMusicSeq, P.K.kira.ultAt);
   assert.equal(engine.buildStateFor('B').skillMusic, 'kira_king', 'ทุกคนได้ยิน');
-  // สองคนเป็นราชา: kingAt มากกว่าชนะ
-  P.K.kira.kingAt = 100;
-  P.L.kira.king = true; P.L.kira.kingAt = 200;
+  // สองคนเปิด: ultAt มากกว่าชนะ
+  P.K.kira.ultAt = 100;
+  P.L.kira.ultUntil = 7; P.L.kira.ultAt = 200;
   assert.equal(engine.buildStateFor('K').skillMusicSeq, 200);
-  P.K.kira.kingAt = 300;
+  P.K.kira.ultAt = 300;
   assert.equal(engine.buildStateFor('K').skillMusicSeq, 300);
   // ตาย = ไม่นับ
   P.K.alive = false;
   assert.equal(engine.buildStateFor('B').skillMusicSeq, 200);
-  P.L.kira.king = false;
+  // หมดผล (เทิร์น 8) = ไม่มีเพลง
+  engine.setRoundNumber(8);
   assert.equal(engine.buildStateFor('B').skillMusic, null);
 });
 
@@ -420,11 +426,11 @@ test('คลื่นความมืด (กันเกมค้าง): ค
   assert.equal(engine.actorId, 'K');
 });
 
-test('เพลงร่างราชา: ลำดับใช้ตัวนับเดียวกับมุยมิ (ไม่ใช่เวลาจริง) · จบเกมแล้วไม่เล่นเพลงร่าง', () => {
+test('เพลงอัฐิราชา: ลำดับใช้ตัวนับเดียวกับมุยมิ (ไม่ใช่เวลาจริง) · จบเกมแล้วไม่เล่น', () => {
   const P = setup([['K', 'kira', 2, 7], ['B', 'dummy', 12, 12]]);
   engine.setActor('K');
-  engine.useSkill('K', 'basic', []);
-  assert.ok(P.K.kira.kingAt > 0 && P.K.kira.kingAt < 1e6, 'engine.nextTransformCounter');
+  engine.useSkill('K', 'ultimate', []);
+  assert.ok(P.K.kira.ultAt > 0 && P.K.kira.ultAt < 1e6, 'engine.nextTransformCounter');
   assert.equal(engine.buildStateFor('K').skillMusic, 'kira_king');
   engine.setGameState('GAMEOVER');
   assert.equal(engine.buildStateFor('K').skillMusic, null);

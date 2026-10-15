@@ -26,6 +26,7 @@ import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle,
 import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
+import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
@@ -441,31 +442,10 @@ function cloakShimmer(g, cx, cy, r, now) {
   g.restore();
 }
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
-// หมอกดำแดงรอบตัว (กิระร่างราชาแมลงอวกาศ — ศัตรูช่องประชิดเสียหายทุกเทิร์น): พื้นแดงหม่นที่ช่องประชิด 4 ช่อง + ก้อนหมอกหมุนรอบตัว
-//  lowQ = ไม่มีก้อนหมอก · ลดการเคลื่อนไหว = หมอกนิ่ง
-function kiraAura(g, wx, wy, now, lowQ, alpha = 1) {
-  const t = REDUCED ? 0 : now, pulse = 0.75 + 0.25 * Math.sin(t / 520);
-  g.save();
-  g.globalAlpha = alpha; // จางตามตัวละคร (เลือกเป้า/เงา)
-  g.globalCompositeOperation = "source-over";
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const cx = wx + dx, cy = wy + dy;
-    gEllipse(g, cx, cy, 0.42, 0, 24); g.fillStyle = `rgba(90,6,14,${0.22 * pulse})`; g.fill();
-  }
-  gEllipse(g, wx, wy, 1.05, 0, 40); g.strokeStyle = `rgba(170,20,30,${0.45 * pulse})`; g.lineWidth = 2; g.stroke();
-  if (!lowQ) {
-    for (let i = 0; i < 9; i++) {
-      const th = (i / 9) * Math.PI * 2 + t / (1400 + i * 90), r = 0.55 + 0.25 * Math.sin(t / 700 + i * 1.7);
-      const z = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(t / 600 + i));
-      const [sx, sy, sc] = P(wx + Math.cos(th) * r, wy + Math.sin(th) * r, z);
-      glow(g, sx, sy, sc * (0.28 + 0.08 * Math.sin(t / 450 + i)), i % 3 ? "20,4,8" : "150,14,24", (i % 3 ? 0.45 : 0.4) * pulse);
-    }
-  }
-  g.restore();
-}
-
 function drawUnit(g, u, now, boxes) {
-  if (u.aura === "kira") kiraAura(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
+  // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
+  const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
+  if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   let jx = 0, jy = 0;
   const hitAge = u.hitT ? now - u.hitT : 1e9;
   if (hitAge >= 0 && hitAge < 300) { const k = 1 - hitAge / 300; jx = (Math.random() - 0.5) * 0.12 * k; jy = (Math.random() - 0.5) * 0.08 * k; }
@@ -544,6 +524,7 @@ function drawUnit(g, u, now, boxes) {
   }
   if (u.reticle) drawReticle(g, bx, hy, hexR, u.reticle, now);
   g.restore();
+  if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
 }
 
@@ -813,8 +794,8 @@ function smashFx(g, e, now) {
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1235,7 +1216,6 @@ const RED = "235,28,48", RED_HI = "255,120,120", WHITE_RED = "255,215,215";
 const BEAM_TONES = {
   red: { c: RED, glow: RED, hi: RED_HI, hot: WHITE_RED },
   blue: { c: "70,175,255", glow: "28,72,235", hi: "175,232,255", hot: "220,244,255" },
-  dark: { c: "150,70,230", glow: "58,10,110", hi: "215,170,255", hot: "235,215,255" }, // กิระ ร่างราชาแมลงอวกาศ (ปาดคลื่น)
 };
 // ช่องที่ลำแสงผ่าน (เริ่มช่องติดคนยิง · ตัดที่ขอบกระดาน) + เวลาที่ปลายลำแสงถึงกลางแต่ละช่อง (ms นับจากเริ่ม fx)
 //  f.to = ช่องเป้า (ตีปกติของนักบินปริศนา) → ยิงเฉียงตรงไปหาเป้าได้ ยาว len ช่อง แทนการเลือก 4 ทิศ
@@ -1900,6 +1880,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
+  ...KIRA_FX_DUR,
 };
 
 
@@ -2057,6 +2038,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
+    else if (isKiraFx(e.kind)) kiraFx(g, e, now, lowQ);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

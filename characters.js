@@ -293,7 +293,7 @@ const CHARACTERS = [
     // ---------- กิระ (ราชาแมลงอวกาศ) — ระดับง่าย — ดู characters/kira.js ----------
     //  ร่างกิระ ⇄ ราชาแมลงอวกาศ (ตีปกติแนวตรง 4×1 ผ่านฮุค range/attackLane) · ท่าไม้ตายตายแล้วฟื้น (ฮุค preventDeath)
     id: "kira",
-    name: "กิระ",
+    name: "ราชาแมลงอวกาศ",
     avatar: 0,
     difficulty: "easy",
     img: "/characters/kira/kira.webp",

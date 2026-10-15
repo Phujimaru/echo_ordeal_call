@@ -43,8 +43,8 @@ function activeSkillMusic() {
     if (CHAR_HOOKS.muimi.towerActive(p)) {
       if (!best || (p.transformAt || 0) > best.at) best = { music: "muimi", at: p.transformAt || 0 };
     }
-    // กิระ: เพลงร่างราชาแมลงอวกาศเล่นค้างตลอดร่าง
-    const kira = match.gameState !== "GAMEOVER" ? CHAR_HOOKS.kira.kingMusic(p) : null; // จบเกมแล้วกลับเพลงปกติ (ร่างราชาอยู่ถาวร)
+    // กิระ: เพลงอัฐิราชาเล่นค้างตลอด 3 เทิร์นของท่าไม้ตาย
+    const kira = match.gameState !== "GAMEOVER" ? CHAR_HOOKS.kira.ultMusic(engine, p) : null; // กิระ: เพลงระหว่างอัฐิราชา · จบเกมแล้วกลับเพลงปกติ
     if (kira && (!best || kira.at > best.at)) best = kira;
   }
   // ระบำเขม่า (เคท): เพลง intro → loop ตลอดที่ม่านแดงยังอยู่ (client เล่น intro ครั้งเดียวต่อ seq แล้ววน loop)

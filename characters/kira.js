@@ -14,7 +14,8 @@
 //  ติดตัว บดขยี้ส่วนเกิน:
 //    ร่างราชาแมลงอวกาศ — ตีปกติปาดคลื่นแนวตรง 4×1 จากตัว โดนศัตรูทุกคนในแนว (ระบบแนวตรงเดียวกับแบล็คคิง — action.lanes)
 //      · ออร่าหมอกดำแดง (ผู้ใช้สั่ง 2026-10-14): จบเทิร์น ศัตรูทุกคนที่ประชิดตัวเสียหาย 1 (เกราะรับก่อน · หลบไม่ได้ · ฆ่าได้)
-//      · เพลง Rcules no Inbou เล่นค้างตลอดร่าง (view.activeSkillMusic) · คลิปแปลงร่างเล่นครั้งแรกต่อเกม
+//      · คลิปแปลงร่างเล่นครั้งแรกต่อเกม · ตีปกติเป็นคลื่นฟันดำขอบแดง (attackStyle "kiraSlash")
+//  เพลง Rcules no Inbou เล่นค้างระหว่างอัฐิราชา (view.activeSkillMusic — ผู้ใช้สั่ง 2026-10-15 · เดิมเล่นตลอดร่างราชา)
 //    ร่างกิระ — อยู่ต่อเนื่องครบ 2 เทิร์น ฟื้นพลังชีวิต 2 + แต้มสกิล 1 (สวมเกราะแล้วนับใหม่ · เทิร์นที่สลับร่างไม่นับ)
 // ============================================================
 
@@ -31,7 +32,7 @@ const IMG = {
 };
 const VIDEO = { transform: `${DIR}/kira_skill1.mp4` };
 const CUT = { transform: "kiraTransform" };
-const MUSIC = "kira_king"; // คีย์ใน client/src/audio.js (Rcules no Inbou)
+const MUSIC = "kira_king"; // คีย์ใน client/src/audio.js (Rcules no Inbou) — เล่นค้างระหว่างอัฐิราชา (ผู้ใช้สั่ง 2026-10-15 · เดิมเล่นตลอดร่างราชา)
 // เสียง (client/src/audio.js — ไฟล์อยู่ client/public/characters/kira/sfx/)
 const SFX = {
   armor: "kira_armor",     // สวมเกราะราชัน
@@ -68,7 +69,7 @@ const isKira = (p) => !!p && p.characterId === ID;
 function fresh() {
   return {
     king: false,
-    kingAt: 0,      // ลำดับการสวมเกราะล่าสุด (engine.nextTransformCounter — ตัวนับเดียวกับมุยมิ: คนเปิดทีหลังได้เพลง)
+    ultAt: 0,       // ลำดับการเปิดอัฐิราชาล่าสุด (engine.nextTransformCounter — ตัวนับเดียวกับมุยมิ: คนเปิดทีหลังได้เพลง)
     switchRound: 0, // เทิร์นที่สลับร่างล่าสุด (เทิร์นนั้นไม่นับการฟื้นของร่างกิระ)
     calm: 0,        // เทิร์นที่อยู่ร่างกิระต่อเนื่อง
     ultUses: 0,
@@ -207,8 +208,8 @@ module.exports = {
   // ---------- ตีปกติ ----------
   range(p) { return kingOn(p) ? KING_RANGE : null; },
   attackLane(p) { return kingOn(p); },
-  attackBeam(p) { return kingOn(p) ? KING_RANGE[1] : 0; },
-  attackBeamTone(p) { return kingOn(p) ? "dark" : null; },
+  // ท่าตีบนกระดาน: คลื่นฟันดำขอบแดงตามแนว (client/src/board/kiraFx.js — ผู้ใช้สั่ง 2026-10-15 · เดิมเป็นลำแสงม่วง)
+  attackStyle(p) { return kingOn(p) ? "kiraSlash" : null; },
   attackSound(p) {
     if (!isKira(p)) return undefined;
     return kingOn(p) ? SFX.sweep : SFX.hit;
@@ -261,7 +262,6 @@ module.exports = {
       s.king = !s.king;
       s.switchRound = engine.roundNumber;
       s.calm = 0;
-      if (s.king) s.kingAt = engine.nextTransformCounter();
       p.cutsceneShown ||= {};
       if (s.king && !p.cutsceneShown[CUT.transform]) {
         p.cutsceneShown[CUT.transform] = true;
@@ -277,6 +277,7 @@ module.exports = {
     if (tier === "ultimate") {
       s.ultUses++;
       s.ultUntil = engine.roundNumber + ULT_TURNS - 1;
+      s.ultAt = engine.nextTransformCounter();
       engine.log(`🦴 ${p.name} อัฐิราชา — ${ULT_TURNS} เทิร์น ตายแล้วฟื้น · พลังโจมตี +${ULT_ATK} (เหลือ ${ULT_USES - s.ultUses} ครั้ง)`);
       return "";
     }
@@ -302,8 +303,8 @@ module.exports = {
     }
   },
 
-  // เพลงร่างราชาแมลงอวกาศ (view.activeSkillMusic) → { music, at } | null
-  kingMusic(p) { return kingOn(p) && p.alive ? { music: MUSIC, at: st(p).kingAt || 0 } : null; },
+  // เพลงอัฐิราชา (view.activeSkillMusic) → { music, at } | null
+  ultMusic(engine, p) { return p.alive && ultOn(engine, p) ? { music: MUSIC, at: st(p).ultAt || 0 } : null; },
 
   // ---------- ข้อมูลให้ client ----------
   kiraState(engine, p) {

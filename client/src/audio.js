@@ -73,7 +73,7 @@ const FILES = {
   kira_ult: "/characters/kira/sfx/kira_ult.mp3",
   kira_revive: "/characters/kira/sfx/kira_revive.mp3",
   kira_regen: "/characters/kira/sfx/kira_regen.mp3",
-  kira_king: "/characters/kira/kira_king_theme.mp3", // เพลงร่างราชาแมลงอวกาศ (Rcules no Inbou — ไฟล์จากผู้ใช้) เล่นค้างตลอดร่าง
+  kira_king: "/characters/kira/kira_king_theme.mp3", // เพลงอัฐิราชา (Rcules no Inbou — ไฟล์จากผู้ใช้) เล่นค้างระหว่างท่าไม้ตาย
   // Ice Spike — gp/slide/skill_2/skill_2_broke/ult = ไฟล์จากผู้ใช้ · is_* อื่น = Mixkit ฟรี (ต้นฉบับ .claude/plans/ice-spike-sfx-src/)
   //  เล่นตามเหตุการณ์ iceFx (BoardStage) · gp/slide สุ่ม 1/2
   is_gp_1: "/characters/ice_spike/sfx/gp_1.mp3",
