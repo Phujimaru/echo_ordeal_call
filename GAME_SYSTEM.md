@@ -124,6 +124,8 @@ beginOrder()           phases/action.js  turnOrderOf(): แต้มมากก
 nextActor()            phases/action.js  คนถัดไปในแถว (ข้ามคนตาย/สตั้น/หลับ) → ACTION 60s · หมดแถว → endTurn()
    ↓ (คนที่กำลังเดินกด — ทุกอย่างเช็ค canAct(p))
 moveTo / undoMove      phases/action.js  BFS ใน board.js (เดิน movOf(p) = mov − ไพ่แตก) · ย้อนได้จนกว่า action.locked
+                                         · ทุกการเดินคิดจาก action.from บน startMap() (ถอดน้ำแข็ง/ของพังจากการเดินตานี้ — walkUndoPatch)
+                                         · เดินแล้วคลิกใหม่ = rewindWalk แล้วเดินใหม่จากจุดเริ่ม · คีย์บอร์ด = Board.stepPath (ลูกศร FE ต่อ action.trail)
 useSkill / useInventoryItem / buyShopItem / mark42Control   ทำแล้ว lockMove(p) = เดินไม่ได้อีก
 attackTarget(id,t)     phases/action.js  เป้าในระยะ rangeOf(p) → attack.boardAttack(): strike → (เป้ารอด+ตีถึง) ตีสวน
                                          → pushback ถอย 1 ช่อง/ชน −1 → ATTACKING → runCutsceneQueue(finishActor)
@@ -605,7 +607,7 @@ module.exports = {
   ownsAreaHit(p, tier, opts) { return false; },                  // true = useSkill ไม่ลงผลพื้นที่ hostile ทั้งแนว (พุ่มหญ้า/ล่องหน/ผนึก/หนาม) — ตัวละครเรียก skills.hitArea(p, tiles, ids) เองกับช่องที่โดนจริง (โซระ ท่าไม้ตาย)
   keepsMove(engine, p, tier) { return false; },                  // true = ใช้สกิลนี้แล้วยังเดินได้ (ไม่ lockMove — Ice Spike ก่อนเดิน)
   onActorStart(engine, p) {},                                    // ต้นตาเดินของ p (nextActor — ก่อนเช็คสตั้น · ท่าที่ "ออกผลตาเดินถัดไป")
-  afterWalk(engine, p, tiles, ctx) { return []; },               // หลังเดิน/ไถล (tiles = ทุกช่องที่ผ่าน) → บันทึกไว้ย้อน (Ice.layIce) · ctx = เหตุการณ์ iceFx
+  afterWalk(engine, p, tiles, ctx) { return []; },               // หลังเดิน/ไถล (tiles = ทุกช่องที่ผ่านจากจุดเริ่มตา — เรียกใหม่ทุกครั้งที่เดิน/ก้าว หลังถอดผลเดิมแล้ว) → บันทึกไว้ย้อน (Ice.layIce) · ctx = เหตุการณ์ iceFx
   onDamageTaken(engine, p, n) {},                                // เสียพลังชีวิต/เกราะ/เลือดชั่วคราว 1 หน่วย (combat.loseHp/loseArmor)
   onSlide(engine, p, n, ctx) {}, slideStrike(engine, p, u, n, ctx) {}, ownSpike(engine, p, ctx) { return 0; },
                                                                  // ระบบไถล (server/ice.js §19): ไถลเสร็จ · ไถลชนศัตรู (ลงดาเมจเอง) · ชนหนามตัวเอง (คืนแต้มที่ได้)
@@ -748,6 +750,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   — กติกาเดิน/ระยะ/วาดทุกอย่างใช้ของเดิมได้เลย · เปลี่ยนภูมิภาค = `placeOnBoard` ตั้ง `match.board` ใหม่ ชั้นหายเอง · `onEndTurn` นับ `left` ลง
 - **เดิน** (`action.moveTo`): ช่องน้ำแข็งแรกในเส้นทาง = จุดเริ่มไถล → `Ice.resolveEntry` (ตำแหน่งจริงทุกคน) · ไถลแล้ว `action.locked` · ไถลชนด้วยฮุค `slideStrike` = จบตา (ATTACKING ตาม `fxSeconds`)
   · เดินทีละก้าวเข้าน้ำแข็งก็ไถล · ก้าวกลับช่องเริ่มตา = ย้อนเสมอ · ฮุค `afterWalk` (วางน้ำแข็ง) ย้อนได้ด้วย `action.iceUndo`
+  · ทุกการเดินถอดผล `afterWalk` ของตานี้ออกก่อน (`rewindWalk`) แล้วเรียกใหม่ด้วยเส้นทางเต็มจากจุดเริ่มตา → น้ำแข็งที่ตัวเองเพิ่งเดินสร้างไม่ทำให้ไถล/ขวาง · เหตุการณ์ `lay` ส่งเฉพาะช่องใหม่
+  · client คิดเส้นทางบนแผนที่เดียวกันจาก `state.action.walkUndo` (`Board.patchMap`) + `state.action.trail`
 - **ชน** (`impact`): คน — ฮุค `slideStrike` ของผู้ไถล (ศัตรูเท่านั้น) แล้วเป้ากระเด็น 1 ช่อง · ไม่มีฮุค = เป้ากระเด็นไม่เสียเลือด · เพื่อน = หยุดเฉยๆ ·
   หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` · `pushUnit` = ผลัก 1 ช่อง (ตัวใหญ่/ไม่ว่าง = เด้ง) ลงน้ำแข็ง = ไถลต่อ (ทอดสูงสุด 12)
   · ตายจากหนาม: `instantDeath` อยู่ใต้ต้นตอ = เจ้าของหนามด้วย → เจ้าของได้เครดิตสังหาร (ฮุค onKill)

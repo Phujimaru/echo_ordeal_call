@@ -445,7 +445,6 @@ function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null,
 //  ก้าวละ 1 ช่องทั้งตัว · ไม่สนค่าเดิน/ทรายดูด/น้ำแข็งของช่องพิเศษ (ก้าวข้ามได้)
 //  smash: เดินพังสิ่งกีดขวางได้ — ก้าวที่ขอบหน้าตัวชนของใหม่ กินเพิ่ม 1 ก้าว
 function reachableBig(map, unit, mov, units, opts = {}) {
-  const s = sizeOf(unit);
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
   const best = new Map([[key(unit.x, unit.y), start]]);
   const stops = new Map([[key(unit.x, unit.y), start]]);
@@ -455,18 +454,9 @@ function reachableBig(map, unit, mov, units, opts = {}) {
       if (best.get(key(cur.x, cur.y)) !== cur) continue;
       for (const [dx, dy] of DIRS) {
         const nx = cur.x + dx, ny = cur.y + dy;
-        const fit = bigFits(map, unit, nx, ny, units, opts);
-        if (!fit) continue;
-        // ขอบหน้าตัว (แถว/คอลัมน์ที่เพิ่งก้าวเข้า) มีสิ่งกีดขวาง = ต้องพัง +1 ก้าว
-        let edge = false;
-        if (fit.rubble) {
-          for (let i = 0; i < s && !edge; i++) {
-            const ex = dx > 0 ? nx + s - 1 : dx < 0 ? nx : nx + i;
-            const ey = dy > 0 ? ny + s - 1 : dy < 0 ? ny : ny + i;
-            if (map.terrain[key(ex, ey)]) edge = true;
-          }
-        }
-        const nd = cur.d + 1 + (edge ? 1 : 0);
+        const st = bigStep(map, unit, nx, ny, dx, dy, units, opts);
+        if (!st) continue;
+        const nd = cur.d + st.cost;
         if (nd > mov) continue;
         const k = key(nx, ny);
         const old = best.get(k);
@@ -474,11 +464,85 @@ function reachableBig(map, unit, mov, units, opts = {}) {
         const node = { x: nx, y: ny, d: nd, prev: cur };
         best.set(k, node);
         (buckets[nd] ||= []).push(node);
-        if (!fit.ally) stops.set(k, node);
+        if (!st.ally) stops.set(k, node);
       }
     }
   }
   return stops;
+}
+// ตัวใหญ่ก้าว 1 ช่องทั้งตัวไปมุม (nx, ny) ในทิศ (dx, dy) → null = ไปไม่ได้ · { cost, ally }
+//  ขอบหน้าตัว (แถว/คอลัมน์ที่เพิ่งก้าวเข้า) มีสิ่งกีดขวาง = ต้องพัง +1 ก้าว
+function bigStep(map, unit, nx, ny, dx, dy, units, opts) {
+  const s = sizeOf(unit);
+  const fit = bigFits(map, unit, nx, ny, units, opts);
+  if (!fit) return null;
+  let edge = false;
+  if (fit.rubble) {
+    for (let i = 0; i < s && !edge; i++) {
+      const ex = dx > 0 ? nx + s - 1 : dx < 0 ? nx : nx + i;
+      const ey = dy > 0 ? ny + s - 1 : dy < 0 ? ny : ny + i;
+      if (map.terrain[key(ex, ey)]) edge = true;
+    }
+  }
+  return { cost: 1 + (edge ? 1 : 0), ally: fit.ally };
+}
+// ก้าวที่ใช้เดินตามเส้นทาง trail (ช่องแรก = ช่องเริ่ม · ทุกช่องติดกัน) ตามกติกาเดียวกับ reachable — เดินไม่ได้ = Infinity
+//  ช่องสุดท้ายต้องหยุดได้ (ไม่มีคนยืน) ยกเว้นเป็นน้ำแข็ง = จุดเริ่มไถล (ต้องว่าง)
+//  ระหว่างทาง: ผ่านเพื่อน/ร่าง (opts.hop) ได้ · ทรายดูด/น้ำแข็ง (ที่ไม่ใช่ช่องเริ่ม) = จบการเดินที่ช่องนั้น เดินต่อไม่ได้
+function trailCost(map, unit, trail, units, opts = {}) {
+  const { isAlly = () => false, blocked = null, hop = null } = opts;
+  const big = sizeOf(unit) > 1;
+  let d = 0;
+  for (let i = 1; i < trail.length; i++) {
+    const a = trail[i - 1], t = trail[i], last = i === trail.length - 1;
+    const dx = t.x - a.x, dy = t.y - a.y;
+    if (Math.abs(dx) + Math.abs(dy) !== 1) return Infinity;
+    if (big) {
+      const st = bigStep(map, unit, t.x, t.y, dx, dy, units, opts);
+      if (!st || (last && st.ally)) return Infinity;
+      d += st.cost;
+      continue;
+    }
+    if (i > 1 && (specialAt(map, a.x, a.y) === "quicksand" || isIce(map, a.x, a.y))) return Infinity;
+    const hopped = !!(hop && hop.has(key(t.x, t.y)));
+    if (hopped ? last : isObstacle(map, t.x, t.y, blocked)) return Infinity;
+    const o = unitAt(units, t.x, t.y);
+    if (o && o.id !== unit.id && (last || !isAlly(unit, o) || isIce(map, t.x, t.y))) return Infinity;
+    d += moveCost(map, t.x, t.y);
+  }
+  return d;
+}
+// เดินทีละช่อง (คีย์บอร์ด) แบบลูกศรของ Fire Emblem → เส้นทางใหม่จากช่องเริ่มตา (unit.x, unit.y) ถึง to · ไปไม่ได้ = null
+//  trail = เส้นทางที่เดินมาแล้วในตานี้ (ช่องเริ่ม → ช่องที่ยืน · ไม่มี = ยังไม่ขยับ)
+//  ก้าวกลับช่องที่เคยผ่าน = ตัดเส้นทางถึงช่องนั้น (กลับช่องเริ่ม = [ช่องเริ่ม]) · ต่อเส้นทางเดิมได้ไม่เกิน mov = ต่อ
+//  ต่อไม่ได้ = ทางที่ก้าวน้อยสุดจากช่องเริ่ม (ไม่รับทางที่ต้องไถลไปลง) · ก้าวเข้าน้ำแข็ง = ช่องสุดท้าย (ไถลต่อตอนเดินจริง)
+function stepPath(map, unit, mov, units, trail, to, opts = {}) {
+  const origin = { x: unit.x, y: unit.y };
+  const tr = Array.isArray(trail) && trail.length && trail[0].x === origin.x && trail[0].y === origin.y ? trail : [origin];
+  const cur = tr[tr.length - 1];
+  if (Math.abs(to.x - cur.x) + Math.abs(to.y - cur.y) !== 1) return null;
+  const back = tr.findIndex((t) => t.x === to.x && t.y === to.y);
+  if (back >= 0) return tr.slice(0, back + 1).map((t) => ({ x: t.x, y: t.y }));
+  const ext = [...tr.map((t) => ({ x: t.x, y: t.y })), { x: to.x, y: to.y }];
+  if (trailCost(map, unit, ext, units, opts) <= mov) return ext;
+  const reach = reachable(map, unit, mov, units, opts);
+  if (sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
+    const at = reach.get(key(cur.x, cur.y));
+    if (!at || at.slide) return null;
+    const via = [...pathTo(reach, cur.x, cur.y), { x: to.x, y: to.y }];
+    return trailCost(map, unit, via, units, opts) <= mov ? via : null;
+  }
+  const node = reach.get(key(to.x, to.y));
+  return node && node.d > 0 && !node.slide ? pathTo(reach, to.x, to.y) : null;
+}
+// แผนที่ที่แก้บางช่อง: patch = { terrain: { "x,y": ชนิด | null }, special: { "x,y": ชนิด | null } } (null = ไม่มี)
+//  ใช้ถอดผลการเดินของตานี้ออก (ธารน้ำแข็งที่ Ice Spike เดินสร้าง · ของที่ตัวใหญ่เดินพัง) ตอนคิดเส้นทางจากช่องเริ่มตา
+function patchMap(map, patch) {
+  if (!patch) return map;
+  const terrain = { ...map.terrain }, special = { ...map.special };
+  for (const [k, v] of Object.entries(patch.terrain || {})) { if (v) terrain[k] = v; else delete terrain[k]; }
+  for (const [k, v] of Object.entries(patch.special || {})) { if (v) special[k] = v; else delete special[k]; }
+  return { ...map, terrain, special };
 }
 // ขยายร่าง: หามุมใหม่ของตัวขนาด newSize ที่ครอบตัวเดิมไว้ทั้งหมด → { x, y, displaced: [id], rubble: ["x,y"] } · ไม่มีที่ = null
 //  เลือกมุมที่ไล่คนออกน้อยสุด → พังของน้อยสุด → ใกล้กลางตัวเดิมสุด · คนในช่องใหม่ = ถูกผลักออก (pushOutTile — ตัว 1 ช่องเท่านั้น
@@ -768,7 +832,7 @@ export {
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
-  reachable, reachableBig, pathTo,
+  reachable, reachableBig, pathTo, trailCost, stepPath, patchMap,
   tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,

@@ -75,7 +75,9 @@ test('ตาเดิน: เดินได้ไม่เกินระยะ
   assert.equal(engine.moveTo('A', 7, 4), false, 'ไกลเกินระยะเดิน 4');
   assert.equal(engine.moveTo('A', 7, 5), true);
   assert.deepEqual(P.A.pos, { x: 7, y: 5 });
-  assert.equal(engine.moveTo('A', 7, 6), false, 'เดินได้ครั้งเดียว');
+  assert.equal(engine.moveTo('A', 7, 4), false, 'เดินแล้วคลิกใหม่ ยังนับระยะจากจุดเริ่มตา');
+  assert.equal(engine.moveTo('A', 7, 6), true, 'เดินแล้วคลิกใหม่ = เดินใหม่จากจุดเริ่มตา');
+  assert.deepEqual(engine.action.path, [{ x: 7, y: 9 }, { x: 7, y: 8 }, { x: 7, y: 7 }, { x: 7, y: 6 }], 'ภาพเดินเริ่มจากจุดเริ่มตา');
   assert.equal(engine.undoMove('A'), true);
   assert.deepEqual(P.A.pos, { x: 7, y: 9 });
   assert.equal(engine.moveTo('A', 6, 8), true, 'ย้อนแล้วเลือกใหม่ได้');
@@ -92,7 +94,9 @@ test('ตาเดิน: เดินทีละช่องด้วยคี
   assert.deepEqual(engine.action.path, [{ x: 7, y: 6 }, { x: 7, y: 5 }], 'เส้นทางแอนิเมชัน = ก้าวล่าสุด');
   assert.equal(step(7, 4), false, 'เกินระยะเดิน 4 จากจุดเริ่มตา');
   assert.equal(step(7, 6), true, 'ถอยกลับได้');
-  assert.equal(engine.moveTo('A', 7, 5), false, 'เดินแบบคลิกหลังขยับแล้วยังทำไม่ได้ (ต้องย้อนก่อน)');
+  assert.equal(engine.moveTo('A', 8, 6), true, 'คลิกหลังเดินด้วยคีย์บอร์ด = เดินใหม่จากจุดเริ่มตา');
+  assert.equal(step(8, 5), false, 'ทางใหม่ใช้ครบ 4 ก้าวแล้ว');
+  assert.equal(step(7, 6), true);
   for (let y = 7; y <= 9; y++) assert.equal(step(7, y), true);
   assert.deepEqual(P.A.pos, { x: 7, y: 9 });
   assert.equal(engine.action.moved, false, 'กลับจุดเริ่ม = ย้อนการเดิน');

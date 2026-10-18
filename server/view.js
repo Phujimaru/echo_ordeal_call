@@ -148,6 +148,8 @@ function buildStateFor(viewerId) {
       from: match.action.from, moved: match.action.moved, locked: match.action.locked, path: match.action.path || null,
       canto: !!match.action.canto, // เดินต่อหลังจบตา (เอมิลิโกะ): ได้แค่เดิน/ย้อน/รอ
       noStrike: !!match.action.noStrike, // ตีปกติไม่ได้ในตานี้ (กินขนมปัง — action.lockStrike)
+      // เดินต่อ/เดินใหม่จากจุดเริ่มตา: เส้นทางที่เดินมา (ลูกศรคีย์บอร์ด) + แผนที่ตอนเริ่มตา (ถอดน้ำแข็ง/ของพังจากการเดินตานี้)
+      trail: match.action.trail || null, walkUndo: action.walkUndoPatch(),
     } : null,
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่

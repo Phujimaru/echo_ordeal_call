@@ -123,7 +123,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
-  const canMove = myTurn && !action.moved && !action.locked;
+  // เดินได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี) — เดินแล้วคลิก/กดใหม่ = เดินใหม่จากจุดเริ่มตา (server/phases/action.js moveTo)
+  const canMove = myTurn && !action.locked;
   // ตีปกติไม่ได้: เอมิลิโกะเดินต่อหลังจบตา (เดินได้อย่างเดียว) · กินขนมปังแล้ว (action.noStrike)
   const strikeOff = myTurn && (!!action.canto || !!action.noStrike);
   const masked = !!state.masked; // ผู้ชมติด "มืดบอด": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
@@ -203,34 +204,43 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }
 
   // ---------- ระยะเดินของเรา ----------
+  //  คิดจากจุดเริ่มตา (action.from) บนแผนที่ตอนเริ่มตา — ถอดน้ำแข็งที่ Ice Spike เดินสร้าง/ของที่ตัวใหญ่เดินพังในตานี้ออก (action.walkUndo)
+  const startMap = useMemo(() => (myTurn && map && action.walkUndo ? Rules.patchMap(map, action.walkUndo) : map), [myTurn, map, action]);
+  const originUnit = useMemo(() => (myTurn && action.from ? { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null, size: sizeOfP(me) } : null), [myTurn, action, me]);
   const myReach = useMemo(() => {
     if (!myTurn || !map) return null;
-    const mov = canMove ? (me.mov || 0) : 0;
-    return Rules.reachable(map, unitOf(me), mov, ruleUnits, optsOf(me));
-  }, [myTurn, canMove, map, me, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!canMove || !originUnit) return Rules.reachable(map, unitOf(me), 0, ruleUnits, optsOf(me));
+    return Rules.reachable(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me));
+  }, [myTurn, canMove, map, startMap, me, action, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   // ช่องที่ชี้ → ช่องมุมบนซ้ายที่จะเดินไป (ตัว 1 ช่อง = ช่องนั้นเอง) · ตัวใหญ่: ให้กลางตัวอยู่ที่ช่องที่ชี้ ไม่ได้ = มุมที่ตัวครอบช่องนั้นและเดินน้อยสุด
+  //  ช่องที่ยืนอยู่ = ไม่ใช่เป้าเดิน · เดินแล้วชี้จุดเริ่มตา = ย้อนการเดิน (server ย้อนให้)
   const anchorFor = useCallback((t) => {
     if (!t || !myReach) return null;
     const s = sizeOfP(me);
-    if (s <= 1) { const n = myReach.get(key(t.x, t.y)); return n && n.d > 0 ? n : null; }
+    const ok = (n) => !!n && !samePos(n, me.pos) && (n.d > 0 || !!(action && action.moved));
+    if (s <= 1) { const n = myReach.get(key(t.x, t.y)); return ok(n) ? n : null; }
     const c = Math.floor((s - 1) / 2), want = myReach.get(key(t.x - c, t.y - c));
-    if (want && want.d > 0) return want;
+    if (ok(want)) return want;
     let best = null;
     for (const n of myReach.values()) {
-      if (n.d === 0 || !Rules.covers({ x: n.x, y: n.y, size: s }, t.x, t.y)) continue;
+      if (!ok(n) || !Rules.covers({ x: n.x, y: n.y, size: s }, t.x, t.y)) continue;
       if (!best || n.d < best.d) best = n;
     }
     return best;
-  }, [myReach, me]);
+  }, [myReach, me, action]);
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
     if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
     const range = me.range || [1, 1];
-    let best = null;
-    for (const n of myReach.values()) {
-      if (me.lane ? !Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : !Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe)))) continue;
-      if (!best || n.d < best.d) best = n;
+    const hits = (n) => (me.lane ? !!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
+    let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
+    if (!best) {
+      for (const n of myReach.values()) {
+        if (!hits(n)) continue;
+        if (!best || n.d < best.d) best = n;
+      }
     }
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
@@ -249,7 +259,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         push.to = Math.abs(stand.x - foe.pos.x) >= Math.abs(stand.y - foe.pos.y) && dx ? { x: stand.x + dx, y: stand.y } : { x: stand.x, y: stand.y + (dy || 1) };
       }
     }
-    return { foe, stand, path: Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
+    return { foe, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : null), [planFor, hoverUnit, hoverSeal, hoverSpike]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
@@ -380,6 +390,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [iceGhosts, setIceGhosts] = useState({});
   const iceRun = useRef(null); // { ids, active, gotState, done, pos, snap, snd }
   const iceSeen = useRef(null);
+  const finishIceRef = useRef(null); // finishIce ล่าสุด (ประกาศทีหลัง — effect ด้านล่างเรียกผ่านตัวนี้)
   const prevBoard = useRef(state.board || null);
 
   useEffect(() => {
@@ -486,11 +497,21 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (before && !samePos(before, now) && samePos(now, to)) { dashMoved.add(id); delete dashSkip.current[id]; }
     }
 
+    // ย้อนการเดิน (ปุ่มย้อน / ก้าวหรือคลิกกลับจุดเริ่ม): ภาพเดินที่ยังค้างในคิวของคนนั้นทิ้งหมด — กลับที่เดิมทันที
+    const act = state.action;
+    if (state.actorId && act && !act.moved && act.from) {
+      const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
+      if (before && now && !samePos(before, now) && samePos(now, act.from)) {
+        setAnimQ((q) => q.filter((a) => !(a.id === id && a.kind === "move")));
+        if (ir && !ir.done && ir.ids.has(id) && finishIceRef.current) finishIceRef.current(ir);
+      }
+    }
     // เดิน: ตำแหน่งคนที่กำลังเดินเปลี่ยนตามเส้นทางของตานี้
-    const path = state.action && state.action.path;
+    //  เส้นทางเริ่มที่ช่องเดิม หรือเริ่มที่จุดเริ่มตา (เดินแล้วคลิกใหม่ = เดินใหม่จากจุดเริ่ม)
+    const path = act && act.path;
     if (state.actorId && path && path.length > 1 && !dashMoved.has(state.actorId) && !iceSkip(state.actorId)) {
       const id = state.actorId, before = prevPos.current[id], now = nextPos[id];
-      if (before && now && !samePos(before, now) && samePos(path[0], before) && samePos(path[path.length - 1], now)) {
+      if (before && now && !samePos(before, now) && (samePos(path[0], before) || samePos(path[0], act.from)) && samePos(path[path.length - 1], now)) {
         // Echo เดินกระโดดดึ๋งๆ ทีละช่อง (ตัวใหญ่กระโดดช้าและหนักกว่า)
         const mover = state.players.find((q) => q.id === id);
         const hop = mover && mover.character && BIG_ART[mover.character.id] ? sizeOfP(mover) : 0;
@@ -1041,7 +1062,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     step();
   };
   const startIceRef = useRef(startIce);
-  useLayoutEffect(() => { startIceRef.current = startIce; });
+  useLayoutEffect(() => { startIceRef.current = startIce; finishIceRef.current = finishIce; });
   useEffect(() => {
     const onIce = (m) => {
       if (!m || !Array.isArray(m.events) || !m.events.length) return;
@@ -1092,17 +1113,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (cur && cur.iceRun && !cur.iceRun.done && cur.iceHoldEnd) setIceHold((h) => ({ ...h, [cur.id]: cur.iceHoldEnd }));
     setAnimQ((q) => q.slice(1));
     if (cur && typeof cur.then === "function") cur.then();
-    const pa = pendingAttack.current;
-    if (pa) { pendingAttack.current = null; socket.emit("attack", { targetId: pa }); }
   }, []);
+  // เดินจบทั้งชุดแล้วค่อยตี (รวมไถลน้ำแข็งต่อจากเดิน — ชุด iceFx จบ = iceHold ถูกล้าง)
+  useEffect(() => {
+    if (anim || !pendingAttack.current) return;
+    if (iceRun.current && iceRun.current.active) return;
+    const pa = pendingAttack.current;
+    pendingAttack.current = null;
+    socket.emit("attack", { targetId: pa });
+  }, [anim, iceHold]);
   // ตานี้จบ/เปลี่ยนคน = ล้างตีค้าง
   useEffect(() => { if (!myTurn) pendingAttack.current = null; }, [myTurn]);
 
-  // ช่องที่ไปได้จากจุดเริ่มตา (เดินทีละช่องด้วย W A S D · ไฮไลต์ฟ้าหลังขยับแล้ว)
-  const startReach = useMemo(() => {
-    if (!myTurn || !map || !action || action.locked || !action.from) return null;
-    return Rules.reachable(map, { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null, size: sizeOfP(me) }, me.mov || 0, ruleUnits, optsOf(me));
-  }, [myTurn, map, action, me, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ช่องที่ไปได้จากจุดเริ่มตา (ไฮไลต์ฟ้าหลังขยับแล้ว) = myReach ตอนยังเดินได้
+  const startReach = canMove ? myReach : null;
 
   // ---------- ไฮไลต์ ----------
   const highlights = useMemo(() => {
@@ -1130,8 +1154,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     if (myTurn && myReach) {
       const range = me.range || [1, 1];
-      if (canMove) {
-        const z = Rules.threatZone(map, unitOf(me), me.mov || 0, range, ruleUnits, optsOf(me));
+      if (canMove && !action.moved) {
+        const z = Rules.threatZone(startMap, originUnit, me.mov || 0, range, ruleUnits, optsOf(me));
         h.move = [...z.move];
         h.attack = strikeOff ? [] : [...z.threat];
       } else if (startReach) {
@@ -1164,7 +1188,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, strikeOff, myReach, canMove, startReach, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, strikeOff, myReach, canMove, startReach, startMap, action, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
@@ -1271,16 +1295,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       e.preventDefault();
       const sent = stepSent.current;
       if (sent && (samePos(me.pos, sent.to) || performance.now() - sent.t > 700)) stepSent.current = null;
-      if (!startReach || !me.pos || stepSent.current) return;
+      if (!canMove || !originUnit || !me.pos || stepSent.current) return;
       const to = { x: me.pos.x + dir.x, y: me.pos.y + dir.y };
-      if (!startReach.has(key(to.x, to.y))) return;
+      // กติกาเดียวกับ server (Board.stepPath): ต่อเส้นทางที่เดินมา · ถอยกลับ = ตัดเส้นทาง · ก้าวเข้าน้ำแข็ง = ไถล
+      if (!Rules.stepPath(startMap, originUnit, me.mov || 0, ruleUnits, action.trail, to, optsOf(me))) return;
       stepSent.current = { to, t: performance.now() };
       look(to);
       socket.emit("move", { x: to.x, y: to.y, step: true });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [myTurn, pick, fcId, me, rotation, startReach, look]);
+  }, [myTurn, pick, fcId, me, rotation, canMove, startMap, action, ruleUnits, look]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // โหมดเลือกเป้า (ผู้ใช้สั่ง 2026-10-09): เลือกเป้า = คลิกคน/ตัวเองบนกระดาน · สกิลหมู่ = คลิกในพื้นที่ซ้ำเพื่อใช้
   //  ยกเลิก = ปุ่มยกเลิกกลางล่าง / Esc / คลิกขวา

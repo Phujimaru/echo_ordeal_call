@@ -10,6 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
+  walkUndoPatch, startMap,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -53,15 +54,6 @@ function layeredMap(b, base) {
   if (b.broken && b.broken.length) for (const k of b.broken) delete terrain[k];
   if (Ice.hasOverlay(b)) ({ terrain, special } = Ice.overlayOf(b, terrain, special));
   return { ...base, terrain, special };
-}
-// แผนที่ที่ใช้ตรวจการเดินทีละก้าว: ไม่นับธารน้ำแข็งที่ฮุค afterWalk วางใหม่ในตานี้ (action.iceUndo — ช่องที่เดิมไม่มีน้ำแข็ง)
-//  ไม่งั้นรอยน้ำแข็งของ Ice Spike เองกลายเป็นโหนดไถลใน reachable แล้วตัดทางเดินต่อ · ผลของก้าวจริง (ไถล) ยังใช้ boardMap()
-function stepMap() {
-  const fresh = ((match.action && match.action.iceUndo) || []).filter((r) => r && !r.prev).map((r) => r.k);
-  if (!fresh.length || !match.board || !match.board.ice) return boardMap();
-  const ice = { ...match.board.ice };
-  for (const k of fresh) delete ice[k];
-  return layeredMap({ ...match.board, ice }, Board.mapOf(match.board.area));
 }
 // พังสิ่งกีดขวางชุดนี้ (ช่องที่ไม่มีของข้าม) → คืนรายการ { x, y, kind } ที่พังจริง
 function breakObstacles(keys) {
@@ -157,7 +149,7 @@ function rebaseMove(p) {
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(boardMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -165,6 +157,7 @@ function rebaseMove(p) {
   a.from = { ...p.pos };
   a.moved = false;
   a.path = null;
+  a.trail = null;
   a.smashed = null;
   a.iceUndo = null;
   if (left <= 0) a.locked = true;
@@ -509,39 +502,70 @@ function lockStrike(p) {
   match.action.locked = true;
   match.action.noStrike = true;
 }
-//  step = เดินทีละช่องด้วยคีย์บอร์ด (W A S D): ไปช่องติดกันได้เรื่อยๆ ตราบที่ช่องนั้นอยู่ในระยะเดินจาก "จุดเริ่มตา" (action.from)
-//   — เหมือนลากเคอร์เซอร์แบบ Fire Emblem แต่ตัวละครเดินตามทันที · กลับมาจุดเริ่ม = เท่ากับย้อน · ยังใช้ได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
+// แผนที่ตอนเริ่มตาเดินนี้ = แผนที่ตอนนี้ถอดผลการเดินของตานี้ออก (ธารน้ำแข็งที่ Ice Spike เดินสร้าง · ของที่ตัวใหญ่เดินพัง)
+//  เส้นทาง/ระยะเดินจากจุดเริ่มตาคิดบนแผนที่นี้เสมอ — ไม่งั้นทางที่เพิ่งเดินกลายเป็นน้ำแข็ง/ทางโล่งแล้วคิดผิด
+//  walkUndoPatch ส่งให้ client ด้วย (state.action.walkUndo) ให้ไฮไลต์/เดินด้วยคีย์บอร์ดคิดตรงกับ server
+function walkUndoPatch() {
+  const a = match.action;
+  if (!a || !match.board || (!(a.iceUndo && a.iceUndo.length) && !(a.smashed && a.smashed.length))) return null;
+  const base = Board.mapOf(match.board.area);
+  const special = {}, terrain = {}, seenK = new Set();
+  for (const r of a.iceUndo || []) {
+    if (!r || seenK.has(r.k)) continue;
+    seenK.add(r.k);
+    if (!r.prev) special[r.k] = base.special[r.k] || null; // บันทึกแรกของช่อง = สภาพก่อนตานี้
+  }
+  const spikes = match.board.smashedSpikes || {};
+  for (const k of a.smashed || []) terrain[k] = spikes[k] ? `icespike${spikes[k].lv}` : base.terrain[k] || null;
+  return { terrain, special };
+}
+function startMap() {
+  return Board.patchMap(boardMap(), walkUndoPatch());
+}
+// วางเส้นทางเดินจากจุดเริ่มตา (action.from) ถึง (x, y) → path (ช่องเริ่ม → ปลาย) · ไม่ได้ = null
+//  คลิก = ทางที่ก้าวน้อยสุด · step (คีย์บอร์ด) = ลูกศรแบบ FE ต่อจากเส้นทางที่เดินมา (Board.stepPath)
+//  คิดจากเท่าที่ผู้เดินมองเห็น — คนที่มองไม่เห็น (ล่องหน/พุ่มหญ้า) ไม่ขวางตอนวางเส้นทาง แต่ชนจริงตอนเดิน (moveTo)
+//  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
+function planWalk(p, x, y, step) {
+  const a = match.action, map = startMap();
+  const seen = boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
+  const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) };
+  const last = a.trail && a.trail[a.trail.length - 1];
+  const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
+  if (step) return Board.stepPath(map, unit, movOf(p), seen, trail, { x, y }, opts);
+  const reach = Board.reachable(map, unit, movOf(p), seen, opts);
+  const node = reach.get(Board.key(x, y));
+  return node ? Board.pathTo(reach, x, y) : null;
+}
+// เดิน (ตาของตัวเอง · ยังไม่ล็อก): ทุกครั้งคิดเส้นทางใหม่จาก "จุดเริ่มตา" — เดินแล้วคลิก/กดใหม่ได้เรื่อยๆ จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
+//  คลิก = ไปช่องนั้นด้วยทางที่ก้าวน้อยสุด (เดินไปแล้ว = เริ่มใหม่จากจุดเริ่มตา)
+//  step = เดินทีละช่องด้วยคีย์บอร์ด (W A S D) แบบลูกศร FE — ตัวละครเดินตามทันที · กลับมาจุดเริ่ม (คลิกหรือก้าว) = ย้อนการเดิน
 function moveTo(id, x, y, { step = false } = {}) {
   const p = match.players[id];
   if (!canAct(p, { move: true }) || match.action.locked) return false;
-  if (match.action.moved && !step) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
-  const origin = match.action.from;
+  const act = match.action, origin = act.from;
+  if (x === origin.x && y === origin.y) return act.moved ? undoMove(id) : false;
+  if (!step && x === p.pos.x && y === p.pos.y) return false; // คลิกช่องที่ยืนอยู่
+  const path = planWalk(p, x, y, step);
+  if (!path) return false;
+  if (path.length < 2) return act.moved ? undoMove(id) : false;
+  const prev = { x: p.pos.x, y: p.pos.y };
+  // ผลการเดินที่แสดงอยู่แล้ว (เดินซ้ำทางเดิม = ไม่เล่นเอฟเฟกต์ซ้ำ) → ถอดการเดินเดิมออกก่อนเดินทางใหม่จากจุดเริ่ม
+  const had = { ice: new Set((act.iceUndo || []).filter(Boolean).map((r) => r.k)), smashed: new Set(act.smashed || []) };
+  if (act.moved) rewindWalk(p);
   const s = sizeOf(p);
   const map = boardMap();
-  // คิดเส้นทางจากเท่าที่ผู้เดินมองเห็น — คนที่มองไม่เห็น (ล่องหน/พุ่มหญ้า) ไม่ขวางตอนวางเส้นทาง แต่ชนจริงตอนเดิน (ด้านล่าง)
-  //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
-  const reach = Board.reachable(step ? stepMap() : map, { id: p.id, ...origin, size: s }, movOf(p), seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
-  const prev = { x: p.pos.x, y: p.pos.y };
-  // เดินทีละช่องเข้าน้ำแข็ง: ช่องนั้นเป็นจุดเริ่มไถล (ไม่ใช่ช่องที่หยุดได้ จึงไม่อยู่ใน reach) — ตรวจก้าวจากช่องที่ยืนเอง
-  //  ก้าวกลับช่องเริ่มตา = ย้อนการเดินเสมอ (Ice Spike วางน้ำแข็งไว้ที่ช่องเริ่มแล้วก็ตาม)
-  if (step && match.action.moved && x === origin.x && y === origin.y) return undoMove(id);
-  const stepIce = step && s <= 1 && Board.isIce(map, x, y);
-  if (stepIce) {
-    const at = reach.get(Board.key(prev.x, prev.y));
-    if (!at || at.d + Board.moveCost(map, x, y) > movOf(p) || !Board.freeTile(map, x, y, seen, p.id, boardBlocked(p.id))) return false;
-  } else {
-    const node = reach.get(Board.key(x, y));
-    if (!node) return false;
-    if (node.d === 0) {
-      if (!step || !match.action.moved) return false;
-      return undoMove(id);
-    }
-  }
-  const path = step ? [prev, { x, y }] : Board.pathTo(reach, x, y);
+  // ภาพเดิน: คลิก = ทั้งเส้นทางจากจุดเริ่มตา · คีย์บอร์ด = ก้าวนี้ก้าวเดียว (จากช่องที่ยืน)
+  const animOf = (walked) => {
+    const end = walked[walked.length - 1];
+    if (!step) return walked.length > 1 ? walked : null;
+    return end.x === prev.x && end.y === prev.y ? null : [prev, { x: end.x, y: end.y }];
+  };
   // น้ำแข็ง (GRID_PLAN §7.9): ช่องน้ำแข็งช่องแรกที่เดินเข้า = จุดเริ่มไถล — เดินจริงแค่ถึงช่องนั้น ที่เหลือคิดใหม่ด้วยตำแหน่งจริงของทุกคน
   const entry = s <= 1 ? path.findIndex((t, i) => i > 0 && Board.isIce(map, t.x, t.y)) : -1;
   const walk = entry > 0 ? path.slice(0, entry + 1) : path;
@@ -556,37 +580,39 @@ function moveTo(id, x, y, { step = false } = {}) {
     while (stop > 0 && all.some((u) => u.id !== p.id && Board.dist(bodyAt(walk[stop]), u) === 0)) stop--;
     const walked = walk.slice(0, stop + 1);
     p.pos = { x: walked[walked.length - 1].x, y: walked[walked.length - 1].y };
-    smashAlong(p, walked);
-    afterWalk(p, walked, null);
-    match.action.path = walked.length > 1 ? walked : null;
-    match.action.moved = match.action.moved || walked.length > 1;
-    match.action.locked = true;
-    match.action.ambush = { x: walk[bumpIdx].x, y: walk[bumpIdx].y };
+    smashAlong(p, walked, had.smashed);
+    act.path = animOf(walked);
+    afterWalk(p, walked, null, act.path, had.ice);
+    act.moved = walked.length > 1;
+    act.trail = walked;
+    act.locked = true;
+    act.ambush = { x: walk[bumpIdx].x, y: walk[bumpIdx].y };
     Visibility.onBump(p, match.players[hidden.id]);
     view.broadcastState();
     return true;
   }
   const end = walk[walk.length - 1];
-  match.action.path = walk;
+  act.path = animOf(walk);
+  act.trail = walk;
   p.pos = { x: end.x, y: end.y };
-  smashAlong(p, walk);
-  match.action.moved = true;
+  smashAlong(p, walk, had.smashed);
+  act.moved = true;
   if (entry <= 0) {
-    afterWalk(p, walk, null);
+    afterWalk(p, walk, null, act.path, had.ice);
     view.broadcastState();
     return true;
   }
   // ไถล → จบการเดิน (ย้อน/เดินต่อไม่ได้ · ยังใช้สกิล/โจมตีได้) · ไถลชนศัตรูด้วยฮุค slideStrike (Ice Spike) = นับเป็นการโจมตี จบตา
   const ctx = Ice.begin();
-  ctx.events.push({ kind: "walk", id: p.id, path: walk.map((t) => ({ x: t.x, y: t.y })) });
+  ctx.events.push({ kind: "walk", id: p.id, path: act.path.map((t) => ({ x: t.x, y: t.y })) });
   const a = walk[walk.length - 2];
   combat.withEffectSource(p, () => Ice.resolveEntry(p, { x: end.x - a.x, y: end.y - a.y }, ctx));
-  match.action.locked = true;
-  match.action.slid = true;
+  act.locked = true;
+  act.slid = true;
   // เส้นทางของตานี้ = เดิน + ไถลของตัวเอง (ฉากบนกระดานเล่นตาม iceFx · path ไว้ให้ส่วนอื่นอ่าน)
   const own = ctx.events.find((e) => e.kind === "slide" && e.id === p.id);
-  if (own) match.action.path = [...walk, ...own.path.slice(1)];
-  afterWalk(p, walk, ctx);
+  if (own) act.path = [...act.path, ...own.path.slice(1)];
+  afterWalk(p, walk, ctx, null, had.ice);
   Ice.flush(ctx);
   const struck = ctx.strikes.some((h) => h.by === p.id && h.attack !== false); // ไม้ถูพื้น (เอมิลิโกะ) ไม่นับเป็นการโจมตี
   if (struck || !p.alive) {
@@ -599,21 +625,26 @@ function moveTo(id, x, y, { step = false } = {}) {
   return true;
 }
 // หลังเดิน: ฮุค afterWalk ของตัวละคร (Ice Spike: ทุกช่องที่เดิน/ไถลผ่านกลายเป็นธารน้ำแข็ง) — คืนบันทึกไว้ย้อน
-//  ctx = เหตุการณ์ไถลของการเดินนี้ (ไม่ไถล = null → ส่ง iceFx แยกเฉพาะผลของฮุค)
-function afterWalk(p, walk, ctx) {
+//  ctx = เหตุการณ์ไถลของการเดินนี้ (ไม่ไถล = null → ส่ง iceFx แยกเฉพาะผลของฮุค · anim = ภาพเดินของเหตุการณ์ walk)
+//  hadIce = ช่องที่การเดินก่อนหน้าในตานี้ทำเป็นน้ำแข็งไว้แล้ว (ยังเห็นอยู่บนจอ) — ไม่เล่นภาพวางน้ำแข็งซ้ำ
+function afterWalk(p, walk, ctx, anim, hadIce) {
   const hook = CHAR_HOOKS[p.characterId];
   if (!hook || !hook.afterWalk || !p.alive) return;
   const own = ctx ? ctx : Ice.begin();
   // ไม่ไถล: ฉากเดินเล่นผ่าน iceFx ด้วย (client ค้างตำแหน่งคนในชุดเหตุการณ์ไว้ — ต้องมี walk ให้เดินจริง)
-  if (!ctx && walk.length > 1) own.events.push({ kind: "walk", id: p.id, path: walk.map((t) => ({ x: t.x, y: t.y })) });
+  if (!ctx && anim && anim.length > 1) own.events.push({ kind: "walk", id: p.id, path: anim.map((t) => ({ x: t.x, y: t.y })) });
   const slid = ctx ? ctx.events.filter((e) => e.kind === "slide" && e.id === p.id).flatMap((e) => e.path) : [];
   const recs = hook.afterWalk(engine, p, [...walk, ...slid], own) || [];
+  if (hadIce && hadIce.size) {
+    for (const e of own.events) if (e.kind === "lay") e.tiles = e.tiles.filter((t) => !hadIce.has(Board.key(t.x, t.y)));
+    own.events = own.events.filter((e) => e.kind !== "lay" || e.tiles.length);
+  }
   if (!match.action.locked) match.action.iceUndo = [...(match.action.iceUndo || []), ...recs];
   if (!ctx) Ice.flush(own);
 }
 // ตัวใหญ่เดินพังสิ่งกีดขวาง: ของที่ตัวทับตลอดเส้นทางพังหมด (จำไว้ใน action.smashed — กดย้อนแล้วกลับมาครบ)
-//  ส่ง boardFx "smashFx" ให้ client เล่นของแตก (ช่อง + ชนิดของ + ลำดับก้าว)
-function smashAlong(p, path) {
+//  ส่ง boardFx "smashFx" ให้ client เล่นของแตก (ช่อง + ชนิดของ + ลำดับก้าว) · had = ช่องที่พังไปแล้วในตานี้ (ไม่เล่น/ไม่จดซ้ำ)
+function smashAlong(p, path, had) {
   if (!smashes(p) || !path || path.length < 2) return;
   const s = sizeOf(p), map = boardMap(), keys = [], step = {};
   path.forEach((t, i) => {
@@ -625,20 +656,28 @@ function smashAlong(p, path) {
   const broke = breakObstacles(keys);
   if (!broke.length) return;
   match.action.smashed = [...(match.action.smashed || []), ...broke.map((b) => Board.key(b.x, b.y))];
-  match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${broke.length} ช่อง`);
-  engine.boardFx("smashFx", { id: p.id, tiles: broke.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
+  const fresh = had ? broke.filter((b) => !had.has(Board.key(b.x, b.y))) : broke;
+  if (!fresh.length) return;
+  match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${fresh.length} ช่อง`);
+  engine.boardFx("smashFx", { id: p.id, tiles: fresh.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
 }
-// ย้อนกลับช่องเดิม — ได้จนกว่าจะใช้สกิล/ไอเทม/ซื้อของ/โจมตี · ของที่เดินพังไปกลับมาครบ
+// ถอดการเดินของตานี้ออกทั้งหมด: กลับจุดเริ่มตา · ของที่เดินพังกลับมาครบ · ธารน้ำแข็งที่ Ice Spike เดินสร้างหาย
+function rewindWalk(p) {
+  const a = match.action;
+  p.pos = { x: a.from.x, y: a.from.y };
+  restoreObstacles(a.smashed);
+  a.smashed = null;
+  Ice.undoLay(a.iceUndo);
+  a.iceUndo = null;
+  a.moved = false;
+  a.path = null;
+  a.trail = null;
+}
+// ย้อนกลับช่องเดิม — ได้จนกว่าจะใช้สกิล/ไอเทม/ซื้อของ/โจมตี
 function undoMove(id) {
   const p = match.players[id];
   if (!canAct(p, { move: true }) || !match.action.moved || match.action.locked) return false;
-  p.pos = { x: match.action.from.x, y: match.action.from.y };
-  restoreObstacles(match.action.smashed);
-  match.action.smashed = null;
-  Ice.undoLay(match.action.iceUndo); // ธารน้ำแข็งที่ Ice Spike เดินสร้าง
-  match.action.iceUndo = null;
-  match.action.moved = false;
-  match.action.path = null;
+  rewindWalk(p);
   view.broadcastState();
   return true;
 }
