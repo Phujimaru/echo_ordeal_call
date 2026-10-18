@@ -6,7 +6,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
-  beginOrder, nextActor, canAct, lockMove, lockStrike, moveTo, undoMove, attackTarget, waitAction, finishActor,
+  beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
@@ -140,10 +140,34 @@ function baseMovOf(p) {
 }
 // ระยะเดินเทิร์นนี้: ไพ่แตก −1 · เชื่องช้า −1 (Ice Spike — ไม่ซ้อน)
 //  เดินต่อหลังจบตา (canto — ฮุค cantoMov · เอมิลิโกะ) = ค่าของฮุคตรงๆ
+//  ระยะที่เหลือหลังเดินแล้วสลับตัวออก (action.movLeft — rebaseMove) = ไม่เกินค่านี้
 function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
-  if (match.action && match.action.canto && match.actorId === p.id) return match.action.cantoMov || 0;
-  return Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0));
+  const a = match.action && match.actorId === p.id ? match.action : null;
+  if (a && a.canto) return a.cantoMov || 0;
+  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0));
+  return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
+}
+// ระบบคู่: ตัวที่คุมอยู่ (p · ตา = match.action) เดินแล้วกำลังสลับออก (กระจกเงา — Duo.switchTo)
+//  → ตาที่เก็บไว้เริ่มใหม่จากช่องที่ยืน ด้วยระยะที่เหลือ (ผู้ใช้สั่ง 2026-10-18 — เดิมสลับออก = เดินต่อไม่ได้)
+//  ย้อนได้แค่ถึงช่องที่สลับออก · ไถล/ชนจนหลุดระยะ = เหลือ 0
+function rebaseMove(p) {
+  const a = match.action;
+  if (!p || !p.pos || !a || !a.moved || match.actorId !== p.id) return;
+  const all = boardUnits();
+  const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
+  const budget = movOf(p);
+  const reach = Board.reachable(boardMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
+  const node = reach.get(Board.key(p.pos.x, p.pos.y));
+  const left = node ? Math.max(0, budget - node.d) : 0;
+  if (a.canto) a.cantoMov = left;
+  else a.movLeft = left;
+  a.from = { ...p.pos };
+  a.moved = false;
+  a.path = null;
+  a.smashed = null;
+  a.iceUndo = null;
+  if (left <= 0) a.locked = true;
 }
 // ตีสวนได้ไหม (ผู้ใช้ตัดสิน 2026-10-09: เลิกตีสวนแบบ FE แล้ว — เก็บกลไกไว้ให้ตัวละคร "สะท้อน" ในอนาคต)
 //  เปิดด้วยข้อมูลตัวละคร `counter: true` ใน characters.js หรือ p.counterBack (สถานะ/เทสต์)

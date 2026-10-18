@@ -128,13 +128,13 @@ function canSwitchTo(u) {
   return !!(d && u && u.id !== match.actorId && sideKey(u) === d.ownerId && !d.done[u.id] && u.alive && u.pos && !stuck(u));
 }
 function otherUnit(p) { return unitsOf(p).find((u) => u.id !== p.id) || null; }
-// สลับไปคุมตัว u (สกิลกระจกเงา) — เก็บสถานะตาของตัวเดิมไว้ · ตัวเดิมเดินแล้ว = เดิน/ย้อนอีกไม่ได้
+// สลับไปคุมตัว u (สกิลกระจกเงา) — เก็บสถานะตาของตัวเดิมไว้ · ตัวเดิมเดินแล้ว = กลับมาเดินต่อจากช่องที่ยืนด้วยระยะที่เหลือ (action.rebaseMove)
 function switchTo(u) {
   const d = match.duo;
   if (!canSwitchTo(u)) return false;
   const cur = match.action;
   if (cur && match.actorId) {
-    if (cur.moved) cur.locked = true;
+    if (cur.moved) require("./phases/action").rebaseMove(match.players[match.actorId]); // require ตอนเรียก — กัน require วน
     d.acts[match.actorId] = cur;
   }
   match.actorId = u.id;

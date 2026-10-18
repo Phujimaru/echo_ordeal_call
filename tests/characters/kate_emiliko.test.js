@@ -106,7 +106,7 @@ test('เริ่มแมตช์: ได้ตัวที่สองข้
   assert.equal(st.controlId, 'K');
 });
 
-test('ตาเดิน: คุมเคทก่อน · กระจกเงาสลับไม่กินโควตา/ไม่ล็อกเดิน · เดินแล้วสลับออก = เดินซ้ำไม่ได้ · ตี/รอแล้วสลับกลับไม่ได้', () => {
+test('ตาเดิน: คุมเคทก่อน · กระจกเงาสลับไม่กินโควตา/ไม่ล็อกเดิน · เดินแล้วสลับออก = กลับมาเดินต่อด้วยระยะที่เหลือ · ตี/รอแล้วสลับกลับไม่ได้', () => {
   const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
   startTurn('K');
   assert.equal(engine.actorId, 'K');
@@ -117,8 +117,19 @@ test('ตาเดิน: คุมเคทก่อน · กระจกเ�
   assert.equal(engine.moveTo(E, 5, 5), true, 'เอมิลิโกะเดินได้ (3)');
   engine.useSkill(E, 'basic', []);
   assert.equal(engine.actorId, 'K', 'สลับกลับเคท');
-  assert.equal(engine.moveTo('K', 2, 4), false, 'เคทเดินไปแล้ว เดินซ้ำไม่ได้');
-  assert.equal(engine.action.locked, true);
+  // เคทเดินไป 1 จาก 4 → กลับมาเดินต่อได้อีก 3 จากช่องที่ยืน
+  assert.deepEqual([engine.action.locked, engine.action.moved, engine.action.from], [false, false, { x: 3, y: 4 }]);
+  assert.equal(engine.movOf(P.K), 3);
+  assert.equal(engine.moveTo('K', 0, 3), false, 'ไกลเกินระยะที่เหลือ');
+  assert.equal(engine.moveTo('K', 1, 3), true, 'เดินต่อ 3 ช่อง');
+  assert.equal(engine.undoMove('K'), true);
+  assert.deepEqual(P.K.pos, { x: 3, y: 4 }, 'ย้อนได้แค่ถึงช่องที่สลับออก');
+  assert.equal(engine.moveTo('K', 1, 3), true);
+  // ใช้ระยะหมดแล้วสลับออก → กลับมาเดินไม่ได้
+  engine.useSkill('K', 'basic', []);
+  engine.useSkill(E, 'basic', []);
+  assert.equal(engine.actorId, 'K');
+  assert.equal(engine.action.locked, true, 'ระยะหมด');
   // เคทรอ = จบ → สลับไปเอมิลิโกะเอง
   engine.setTimeLeft(40);
   assert.equal(engine.waitAction('K'), true);
