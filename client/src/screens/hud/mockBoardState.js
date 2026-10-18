@@ -118,6 +118,7 @@ const LOCKED_IN_PLAYING = new Set(["p1", "p3"]);
 
 // ร้านค้ามายา 15 ช่อง (รูปเดียวกับ server/shop.js rollShopItem + id/sold/soldTo)
 const SHOP_ROLL = [
+  { type: "cardColor", price: 5 },
   { type: "fortune", price: 5 },
   { type: "resist", price: 5 },
   { type: "skillPoint", size: "small", value: 1, price: 2 },
@@ -141,6 +142,7 @@ const MY_BAG = [
   { uid: "inv_gun", type: "gutsGun", price: 15 },
   { uid: "inv_thunder", type: "gutsAmmo", ammo: "thunder", price: 5 },
   { uid: "inv_armor", type: "armor", value: 1, price: 3 },
+  { uid: "inv_color", type: "cardColor", price: 5 }, // ไอเทมช่วงจั่ว — ยาโชคลาภไม่มี (ดูกล่องสีเทา "เหลือ 0")
 ];
 
 // ---------- ฉาก ----------
@@ -503,7 +505,7 @@ export function simulateEmit(prev, ev, payload = {}) {
   const ctl = prev.controlId || prev.youId; // ระบบคู่: ตัวที่คุมอยู่ (ไพ่ยังอยู่กับ youId)
   const myTurn = prev.gameState === "ACTION" && prev.actorId === ctl && !!prev.action;
   const s = clone(prev);
-  const me = s.players.find((p) => p.id === (ev === "hit" || ev === "lock" ? s.youId : ctl));
+  const me = s.players.find((p) => p.id === (ev === "hit" || ev === "lock" || ev === "useDrawItem" ? s.youId : ctl));
   const map = Rules.mapOf(s.board.area);
   const lockMove = () => { if (s.action) s.action.locked = true; };
   switch (ev) {
@@ -519,6 +521,20 @@ export function simulateEmit(prev, ev, payload = {}) {
       me.busted = me.score > 21;
       me.atCap = me.score >= 21;
       if (me.busted) me.locked = true;
+      return { state: s };
+    }
+    case "useDrawItem": { // ไอเทมช่วงจั่ว (server/shop.js useDrawItem)
+      const it = s.gameState === "PLAYING" && !me.locked && (me.inventory || []).find((x) => x.uid === payload.uid);
+      if (!it) return { state: prev };
+      if (it.type === "fortune") {
+        if ((me.statuses.fortune || 0) >= 3) return { state: prev };
+        me.statuses.fortune = Math.min(3, (me.statuses.fortune || 0) + 2);
+      } else if (it.type === "cardColor") {
+        const c = me.cards[payload.cardIndex];
+        if (!c || c.special || c.color === payload.color) return { state: prev };
+        c.color = payload.color;
+      } else return { state: prev };
+      me.inventory = me.inventory.filter((x) => x.uid !== payload.uid);
       return { state: s };
     }
     case "lock": // พอ

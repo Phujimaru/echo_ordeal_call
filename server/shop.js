@@ -4,7 +4,7 @@ Object.assign(module.exports, {
   goldCapOf, addGold, rollShopItem, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, bagFull, dropItem,
   grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, buyShopItem,
-  cardLabel, useInventoryItem, gutsFireTargetOf, applyGutsBullet,
+  cardLabel, useInventoryItem, useDrawItem, gutsFireTargetOf, applyGutsBullet,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -13,10 +13,12 @@ const Journey = require("../characters/_journey");
 const {
   BAG_SLOTS, FORTUNE_MAX, GOLD_MAX, GUTS_AMMO, GUTS_AMMO_IDS, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG,
   GUTS_RANGE, SHOP_AMMO_WEIGHTS, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_INTERVAL_TURNS,
-  SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_MAX_GUNS, SHOP_MAX_ITEMS, SHOP_MAX_MARK42,
+  SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_MAX_GUNS, SHOP_MAX_ITEMS, SHOP_MAX_MARK42,
   SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_SKILL_SIZES, SHOP_WEIGHTS,
 } = require("./constants");
 const Board = require("./board");
+const cardDeck = require("./deck");
+const Duo = require("./duo");
 const match = require("./match");
 const { engine } = require("./engine");
 const action = require("./phases/action");
@@ -62,6 +64,7 @@ function rollShopItem(allowGun = true, allowMark42 = true) {
   if (!allowMark42) { weights.gutsAmmo += weights.mark42; weights.mark42 = 0; }
   if (!allowGun) { weights.gutsAmmo += weights.gutsGun; weights.gutsGun = 0; }
   const type = pickWeighted(Object.entries(weights).map(([key, w]) => ({ key, w })));
+  if (type === "cardColor") return { type: "cardColor", price: SHOP_CARD_COLOR_PRICE };
   if (type === "fortune") return { type: "fortune", price: SHOP_FORTUNE_PRICE };
   if (type === "resist") return { type: "resist", price: SHOP_RESIST_PRICE };
   if (type === "skillPoint") {
@@ -75,6 +78,7 @@ function rollShopItem(allowGun = true, allowMark42 = true) {
   return { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE };
 }
 function shopItemName(item) {
+  if (item.type === "cardColor") return "ยาเปลี่ยนสีการ์ด";
   if (item.type === "fortune") return "ยาโชคลาภ";
   if (item.type === "resist") return "ยาต้านสถานะ";
   if (item.type === "skillPoint") return `ยาฟื้นแต้มสกิล +${item.value}`;
@@ -133,6 +137,7 @@ function journeyGiftItem() {
   const pool = [
     { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE },
     { type: "skillPoint", size: small.size, value: small.amount, price: small.price },
+    { type: "cardColor", price: SHOP_CARD_COLOR_PRICE },
     { type: "fortune", price: SHOP_FORTUNE_PRICE },
     { type: "resist", price: SHOP_RESIST_PRICE },
   ].filter((it) => it.price <= 5);
@@ -262,10 +267,7 @@ function useInventoryItem(id, uid, opts = {}) {
     fireGuts(p, idx, item, opts.targetId);
     return;
   }
-  if (item.type === "fortune") {
-    p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);
-    match.lastLog.push(`🍀 ${p.name} ใช้ยาโชคลาภ — ได้โชคลาภ +${SHOP_FORTUNE_AMOUNT} จากคลัง`);
-  } else if (item.type === "resist") {
+  if (item.type === "resist") {
     p.statuses.resist = Math.max(p.statuses.resist || 0, SHOP_RESIST_TURNS);
     match.lastLog.push(`🛡️ ${p.name} ใช้ยาต้านสถานะ — ต้านสถานะผิดปกติ ${SHOP_RESIST_TURNS} เทิร์น จากคลัง`);
   } else if (item.type === "skillPoint") {
@@ -280,6 +282,35 @@ function useInventoryItem(id, uid, opts = {}) {
     return;
   }
   action.lockMove(p);
+  p.inventory.splice(idx, 1);
+  view.broadcastState();
+}
+// ---------- ไอเทมช่วงจั่วไพ่ (ผู้ใช้สั่ง 2026-10-18) ----------
+//  ยาโชคลาภ / ยาเปลี่ยนสีการ์ด ใช้ได้เฉพาะช่วงจั่วไพ่ ก่อนกด "พอ" — ใช้จากกล่องข้างปุ่มจั่ว (ตาเดินกดใช้ไม่ได้)
+//  ไม่ล็อกการเดิน · ระบบคู่: เจ้าของถือไพ่/กระเป๋า (กระเป๋าใช้ร่วมกัน — server/duo.js SHARED)
+const CARD_COLOR_NAME = { red: "สีแดง", blue: "สีฟ้า", green: "สีเขียว", yellow: "สีเหลือง" };
+function useDrawItem(id, uid, opts = {}) {
+  const p = match.players[id];
+  if (match.gameState !== "PLAYING" || !p || !Duo.inGame(p) || p.locked) return; // ติดสตั้น/หลับไหล = ล็อกอยู่แล้ว
+  const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
+  if (idx < 0) return;
+  const item = p.inventory[idx];
+  if (item.type === "fortune") {
+    if ((p.statuses.fortune || 0) >= FORTUNE_MAX) return; // เต็มเพดานแล้ว ไม่เสียของ
+    p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);
+    match.lastLog.push(`🍀 ${p.name} ใช้ยาโชคลาภ — ได้โชคลาภ +${SHOP_FORTUNE_AMOUNT}`);
+  } else if (item.type === "cardColor") {
+    const cardIndex = Number(opts.cardIndex);
+    const target = Number.isInteger(cardIndex) ? (p.cards || [])[cardIndex] : null;
+    // ต้องเป็นการ์ดเลข (ไม่ใช่การ์ดพิเศษ) + สีที่ถูกต้อง + ไม่ใช่สีเดิม
+    if (!target || target.special || !cardDeck.CARD_COLORS.includes(opts.color) || target.color === opts.color) return;
+    const oldColor = target.color;
+    target.color = opts.color;
+    cardDeck.checkBlueTrigger(p); // เผื่อเปลี่ยนแล้วครบฟ้า 3 ใบพอดี
+    match.lastLog.push(`🎨 ${p.name} ใช้ยาเปลี่ยนสีการ์ด — ไพ่ ${cardLabel(target)} จาก${CARD_COLOR_NAME[oldColor]}เป็น${CARD_COLOR_NAME[opts.color]}`);
+  } else {
+    return;
+  }
   p.inventory.splice(idx, 1);
   view.broadcastState();
 }

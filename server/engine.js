@@ -197,6 +197,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   openShop: shop.openShop,
   buyShopItem: shop.buyShopItem,
   useInventoryItem: shop.useInventoryItem,
+  useDrawItem: shop.useDrawItem,
   gutsFireTargetOf: shop.gutsFireTargetOf,
   applyGutsBullet: shop.applyGutsBullet,
   hasGutsGun: shop.hasGutsGun,

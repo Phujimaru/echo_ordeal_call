@@ -47,7 +47,7 @@ function giveAmmo(p, ammo) {
 }
 
 // ---------- การสุ่มสินค้า ----------
-const SHOP_TYPES = ['fortune', 'resist', 'skillPoint', 'armor', 'gutsGun', 'gutsAmmo', 'mark42'];  // เกราะ Mark 42 (characters/_mark42.js)
+const SHOP_TYPES = ['cardColor', 'fortune', 'resist', 'skillPoint', 'armor', 'gutsGun', 'gutsAmmo', 'mark42'];  // เกราะ Mark 42 (characters/_mark42.js)
 test('rollShopItem: ออกได้เฉพาะชนิดที่มีจริง และราคาปืน/กระสุนตรงกับตาราง', () => {
   for (let i = 0; i < 800; i++) {
     const it = engine.rollShopItem();
@@ -306,4 +306,46 @@ test('สภาพชา: กดจั่ว 1 ครั้ง ได้ไพ�
 
   engine.hit(chaa.id);
   assert.equal(chaa.cards.length, 2);
+});
+
+// ---------- ไอเทมช่วงจั่วไพ่: ยาโชคลาภ / ยาเปลี่ยนสีการ์ด (ผู้ใช้สั่ง 2026-10-18) ----------
+test('useDrawItem: ยาโชคลาภใช้ช่วงจั่วได้ (+2) · เต็มเพดานแล้วไม่เสียของ · กด "พอ" แล้วใช้ไม่ได้', () => {
+  const p = mkPlayer({ inventory: [{ uid: 'f1', type: 'fortune' }, { uid: 'f2', type: 'fortune' }] });
+  engine.useDrawItem(p.id, 'f1');
+  assert.equal(p.statuses.fortune, 2);
+  assert.equal(p.inventory.length, 1);
+  p.statuses.fortune = 3;
+  engine.useDrawItem(p.id, 'f2');
+  assert.equal(p.inventory.length, 1, 'โชคลาภเต็ม 3 แล้ว ไม่ควรเสียยา');
+  p.statuses.fortune = 0;
+  p.locked = true;
+  engine.useDrawItem(p.id, 'f2');
+  assert.equal(p.inventory.length, 1);
+});
+
+test('useDrawItem: ยาเปลี่ยนสีการ์ดเปลี่ยนสีการ์ดเลขได้ · การ์ดพิเศษ/สีเดิม/สีมั่วไม่เสียของ', () => {
+  const p = mkPlayer({
+    inventory: [{ uid: 'c1', type: 'cardColor' }],
+    cards: [{ value: 5, color: 'red' }, { special: 'king', color: null }],
+  });
+  engine.useDrawItem(p.id, 'c1', { cardIndex: 1, color: 'blue' });
+  engine.useDrawItem(p.id, 'c1', { cardIndex: 0, color: 'red' });
+  engine.useDrawItem(p.id, 'c1', { cardIndex: 0, color: 'purple' });
+  assert.equal(p.inventory.length, 1);
+  engine.useDrawItem(p.id, 'c1', { cardIndex: 0, color: 'green' });
+  assert.equal(p.cards[0].color, 'green');
+  assert.equal(p.inventory.length, 0);
+});
+
+test('useDrawItem: นอกช่วงจั่วไพ่ใช้ไม่ได้ · ตาเดินกด "ใช้" ยาช่วงจั่วจากกระเป๋าไม่ได้', () => {
+  const p = mkPlayer({ inventory: [{ uid: 'f1', type: 'fortune' }, { uid: 'c1', type: 'cardColor' }], cards: [{ value: 5, color: 'red' }] });
+  engine.setGameState('ACTION');
+  engine.useDrawItem(p.id, 'f1');
+  engine.useDrawItem(p.id, 'c1', { cardIndex: 0, color: 'blue' });
+  engine.setActor(p.id);
+  engine.useInventoryItem(p.id, 'f1');
+  engine.useInventoryItem(p.id, 'c1', { cardIndex: 0, color: 'blue' });
+  assert.equal(p.inventory.length, 2);
+  assert.equal(p.cards[0].color, 'red');
+  assert.ok(!p.statuses.fortune);
 });

@@ -136,13 +136,16 @@ test('กระเป๋า 5 ช่อง: เต็มแล้วซื้อ
   assert.equal(p.inventory.length, 5);
 });
 
-test('ถอดยาเปลี่ยนสีการ์ด/ยาลดไพ่ออกจากร้านและของฟรี', () => {
+test('ยาลดไพ่ถอดออกจากร้านและของฟรี · ยาเปลี่ยนสีการ์ดกลับมาแล้ว (ไอเทมช่วงจั่ว — ผู้ใช้สั่ง 2026-10-18)', () => {
+  let color = 0;
   for (let i = 0; i < 1500; i++) {
     const t = engine.rollShopItem().type;
-    assert.ok(t !== 'cardColor' && t !== 'cardRemove', t);
+    assert.ok(t !== 'cardRemove', t);
+    if (t === 'cardColor') color++;
     const g = engine.journeyGiftItem().type;
-    assert.ok(g !== 'cardColor' && g !== 'cardRemove', g);
+    assert.ok(g !== 'cardRemove', g);
   }
+  assert.ok(color > 0, 'ร้านควรสุ่มได้ยาเปลี่ยนสีการ์ด');
 });
 
 // ---------- ปืน GUTS ----------

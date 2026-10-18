@@ -798,6 +798,51 @@
 .dd-btn.stand { background: linear-gradient(120deg, #69aef0, #3d8bd9 45%, #1f5fa5); }
 .dd-btn:disabled { filter: grayscale(.8) brightness(.7); cursor: default; }
 
+/* กล่องไอเทมช่วงจั่ว — หกเหลี่ยม 2 ก้อน (ยาโชคลาภ เขียว · ยาเปลี่ยนสีการ์ด 4 สีการ์ด) · หมด = เทา */
+.ddi-box { display: flex; align-items: flex-end; gap: 10px; padding-bottom: 28px; }
+.ddi { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; color: #fff; font-family: Kanit, sans-serif; transition: transform .15s, filter .25s; }
+.ddi:nth-child(2) { margin-bottom: 34px; }
+.ddi:hover:not(:disabled) { transform: translateY(-3px); }
+.ddi-hex { position: relative; display: block; width: 112px; height: 128px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.ddi-in { position: absolute; inset: 4px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.ddi-ico { width: 44px; height: 44px; display: grid; place-items: center; }
+.ddi-ico svg { width: 100%; height: 100%; overflow: visible; }
+.ddi-n { font: 500 13px/1 Kanit, sans-serif; color: rgba(255,255,255,.85); white-space: nowrap; }
+.ddi-n b { font: 700 20px/1 "Chakra Petch", sans-serif; color: #fff; margin-left: 2px; }
+.ddi-name { font: 600 13px/1 Kanit, sans-serif; white-space: nowrap; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.ddi.fortune .ddi-hex { background: linear-gradient(160deg, #c8f7a6, #4fc27a 45%, #1d7a4d); }
+.ddi.fortune .ddi-in { background: radial-gradient(circle at 50% 35%, #2f9c63, #0f4a33 75%); }
+.ddi.fortune .ddi-ico circle { fill: #8ee59a; stroke: #e9ffd9; stroke-width: 1.6; }
+.ddi.fortune .ddi-ico .stem { fill: none; stroke: #e9ffd9; stroke-width: 3; stroke-linecap: round; }
+.ddi.fortune .ddi-name { color: #b9f2c4; }
+.ddi.color .ddi-hex { background: conic-gradient(from 30deg, #ef4444, #f59e0b, #fde047, #34d399, #38bdf8, #1d4ed8, #b91c1c, #ef4444); }
+.ddi.color .ddi-in { background: radial-gradient(circle at 50% 35%, #3a3f8f, #141a44 75%); }
+.ddi.color .ddi-ico path { stroke: rgba(255,255,255,.85); stroke-width: 1.6; stroke-linejoin: round; }
+.ddi.color .ddi-ico .c1 { fill: #ef4444; }
+.ddi.color .ddi-ico .c2 { fill: #38bdf8; }
+.ddi.color .ddi-ico .c3 { fill: #fde047; }
+.ddi.color .ddi-name { color: #f3d9ff; }
+.ddi[data-active="true"] .ddi-hex { animation: ddiGlow 1.1s ease-in-out infinite alternate; }
+.ddi[data-active="true"] { transform: translateY(-4px); }
+@keyframes ddiGlow { from { filter: brightness(1); } to { filter: brightness(1.45) saturate(1.2); } }
+.ddi[data-off="true"]:not([data-active="true"]) { filter: grayscale(1) brightness(.6); cursor: default; }
+.ddi[data-off="true"]:not([data-active="true"]) .ddi-name { color: rgba(255,255,255,.6); }
+/* โหมดยาเปลี่ยนสี: การ์ดเลขกดได้ · การ์ดพิเศษจาง · แผงเลือกสีหกเหลี่ยมเหนือการ์ดที่เลือก */
+.dd-card[data-pick="on"], .dd-card[data-pick="sel"] { cursor: pointer; }
+.dd-card[data-pick="on"] > div { filter: drop-shadow(0 0 10px rgba(243,217,255,.9)); }
+.dd-card[data-pick="sel"] { z-index: 4; }
+.dd-card[data-pick="sel"] > div { transform: scale(1.4) translateY(-22px); filter: drop-shadow(0 0 14px #fff); }
+.dd-card[data-pick="off"] > div { opacity: .4; filter: grayscale(.7); }
+.dd-swatches { position: absolute; bottom: 196px; z-index: 6; display: flex; gap: 6px; translate: -50% 0; padding: 8px 10px; background: rgba(10,24,48,.82); clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); animation: ddSwPop .25s cubic-bezier(.2,1.5,.4,1) both; }
+@keyframes ddSwPop { from { transform: scale(.7); opacity: 0; } }
+.dd-sw { width: 40px; height: 46px; border: 0; padding: 0; cursor: pointer; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); transition: transform .12s; }
+.dd-sw:hover:not(:disabled) { transform: scale(1.12); }
+.dd-sw:disabled { opacity: .25; cursor: default; }
+.dd-sw.red { background: linear-gradient(160deg, #f87171, #b91c1c); }
+.dd-sw.blue { background: linear-gradient(160deg, #38bdf8, #1d4ed8); }
+.dd-sw.green { background: linear-gradient(160deg, #34d399, #15803d); }
+.dd-sw.yellow { background: linear-gradient(160deg, #fde047, #f59e0b); }
+
 /* ---------- ตาของเรา: สกิล + ช่องคำสั่ง ---------- */
 .hc { display: flex; align-items: flex-end; gap: 14px; }
 .hc-skills { margin: 0; }

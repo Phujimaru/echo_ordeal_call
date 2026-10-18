@@ -28,6 +28,7 @@ const GOLD_FIRST_BONUS = 1;      // เหรียญเพิ่มให้�
 const SHOP_INTERVAL_TURNS = 6;   // ร้านค้าตั้งบนแผนที่ 6 เทิร์น (= AREA_TURNS) แล้วย้ายจุด + สุ่มของใหม่ (GRID_PLAN §8.1)
 const BAG_SLOTS = 5;             // กระเป๋า 5 ช่อง — ไอเทมทุกชิ้นกิน 1 ช่อง (ปืน กระสุนแต่ละนัด ชุด Mark 42 ที่ยังไม่ได้ใส่)
 const SHOP_MAX_ITEMS = 15;       // จำนวนสินค้าสูงสุดต่อรอบร้านค้า (เดิม 6 -> 9 -> 15 หลังรวมร้านลุงเท่งเข้ามา)
+const SHOP_CARD_COLOR_PRICE = 5; // ยาเปลี่ยนสีการ์ด: เลือกการ์ดเลข 1 ใบในมือ เปลี่ยนเป็นสีที่ต้องการ (ใช้ช่วงจั่วไพ่)
 const SHOP_FORTUNE_PRICE = 5;
 const SHOP_FORTUNE_AMOUNT = 2;   // ยาโชคลาภ: ได้โชคลาภ +2 หน่วยเมื่อใช้
 const FORTUNE_MAX = 3;           // โชคลาภ ซ้อนทับได้สูงสุด 3 ครั้ง
@@ -59,9 +60,10 @@ const SHOP_MAX_GUNS = 2;          // ปืนขึ้นได้สูงส�
 const SHOP_MAX_MARK42 = 2;        // เกราะ Mark 42: โอกาสออก/เพดานต่อรอบเท่าปืน GUTS (ที่เกินสุ่มเป็นกระสุนแทน)
 // น้ำหนักกระสุนธรรมดาภายในกลุ่ม "กระสุน" (รวม = SHOP_WEIGHTS.gutsAmmo)
 const SHOP_AMMO_WEIGHTS = { shockwave: 4, gargorgon: 4, thunder: 4, nurse: 2 };
-// ตารางโอกาสออกสินค้าต่อ 1 ช่องสุ่ม (รวม 78)
-//  ยาเปลี่ยนสีการ์ด / ยาลดไพ่ ถอดออกแล้ว (ใช้ได้แค่ช่วงจั่วไพ่ แต่ระบบกระดานใช้ของได้เฉพาะตาเดิน — GRID_PLAN §8.1)
+// ตารางโอกาสออกสินค้าต่อ 1 ช่องสุ่ม (รวม 93)
+//  ยาเปลี่ยนสีการ์ด / ยาโชคลาภ = ไอเทมช่วงจั่วไพ่ (ใช้จากกล่องข้างปุ่มจั่ว · ผู้ใช้สั่ง 2026-10-18) · ยาลดไพ่ถอดออกแล้ว
 const SHOP_WEIGHTS = {
+  cardColor: 15,
   fortune: 5,      // หายากสุด
   resist: 15,
   skillPoint: 14,  // แตกย่อยตาม SHOP_SKILL_SIZES.weight
@@ -98,7 +100,7 @@ module.exports = {
   SKILL_COST_MAX, MAX_PLAYERS, CARD_TIME,
   ORDER_TIME_MS, ORDER_TIME, ACTION_TIME, DEFAULT_MOV, DEFAULT_RANGE, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
   ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_FIRST_BONUS,
-  SHOP_INTERVAL_TURNS, BAG_SLOTS, SHOP_MAX_ITEMS, SHOP_FORTUNE_PRICE,
+  SHOP_INTERVAL_TURNS, BAG_SLOTS, SHOP_MAX_ITEMS, SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_PRICE,
   SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT,
   SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS, GUTS_RANGE,
   GUTS_NURSE_DMG, GUTS_AMMO, GUTS_AMMO_IDS, SHOP_MAX_GUNS, SHOP_MAX_MARK42, SHOP_AMMO_WEIGHTS,

@@ -1,4 +1,6 @@
 const SHOP_ITEM_INFO = {
+  // ไอเทมช่วงจั่วไพ่ (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด) ใช้จากกล่องหกเหลี่ยมข้างปุ่มจั่ว — กระเป๋าไม่มีปุ่มใช้
+  cardColor: { icon: "🎨", label: () => "ยาเปลี่ยนสีการ์ด", short: "เปลี่ยนสีการ์ด 1 ใบ", desc: "ช่วงจั่วไพ่: เลือกการ์ดเลข 1 ใบในมือ แล้วเปลี่ยนเป็นสีที่ต้องการ" },
   fortune: { icon: "🍀", label: () => "ยาโชคลาภ", short: "จั่วถัดไปได้ 19–21", desc: "ได้รับโชคลาภ +2 หน่วย — จั่วครั้งถัดไปจะปรับไพ่ที่จั่วให้แต้มรวมตกช่วง 19-21 ทันที แล้วหน่วยนั้นหายไป" },
   resist: { icon: "🛡️", label: () => "ยาต้านสถานะ", short: "กันสถานะ 1 เทิร์น", desc: "ต้านสถานะผิดปกติทุกประเภท 1 เทิร์น (ป้องกันล่วงหน้าเท่านั้น ไม่ใช่ยารักษา)" },
   skillPoint: { icon: "⚡", label: (it) => `ยาฟื้นแต้มสกิล +${it.value}`, short: "ฟื้นแต้มสกิล", desc: "ฟื้นแต้มสกิลทันที (เกินเพดานจะหายทิ้งส่วนที่เกิน)" },
@@ -24,6 +26,8 @@ export const GUTS_AMMO_INFO = {
   thunder:   { name: "Thunder Bullet",     img: "/item/guts_key/eleking_key.webp",   video: "/item/guts_key/thunder_boost.mp4",      short: "สภาพชา 2 เทิร์น", desc: "เป้าหมายติดสถานะ [สภาพชา] 2 เทิร์น — กดจั่ว 1 ครั้งได้ไพ่ 2 ใบ — ต้านทานได้" },
   nurse:     { name: "Nursedessei Cannon", img: "/item/guts_key/nurse_key.webp",     video: "/item/guts_key/nursedessei_cannon.mp4", short: "ดาเมจ 4 · ปืนพัง", desc: "ความเสียหาย 4 หน่วย (ลดเกราะก่อน) — ปืน GUTS Select จะพัง" },
 };
+
+export const DRAW_ITEM_TYPES = ["fortune", "cardColor"];
 
 export function shopInfoOf(it) {
   const base = SHOP_ITEM_INFO[it.type] || { icon: "✦", label: () => "สินค้า", desc: "" };

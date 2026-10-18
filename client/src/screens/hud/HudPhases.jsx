@@ -1,5 +1,6 @@
 // HUD แยกตามช่วง (ดีไซน์ที่ผู้ใช้อนุมัติ 2026-10-09 — ต้นแบบ .claude/plans/game-ui-redesign.html)
 //  · DrawDock   — ช่วงจั่ว: เห็นแค่ไพ่ในมือ · หน้าปัดแต้ม 0–21 · ปุ่ม จั่ว / พอ (ชิดขอบล่างจอ ไพ่จมขอบจอเหมือนถือในมือ)
+//                 + กล่องไอเทมช่วงจั่ว หกเหลี่ยม 2 ก้อน (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด — ผู้ใช้สั่ง 2026-10-18)
 //  · HudCommand — ตาของเรา: สกิล 3 ช่อง + ช่องคำสั่ง (โจมตี · ร้านค้า [เฉพาะยืนติดร้าน] · กระเป๋า · ย้อน / จบตา)
 //  · BagButton  — ตาคนอื่น: เปิดดูกระเป๋า (คนที่กำลังเดินแสดงที่บนกลางของกระดาน)
 //  · PhaseCall  — ฉากเปิดช่วงจั่วไพ่ (หกเหลี่ยมขยาย + ไพ่ 3 ใบ)
@@ -19,7 +20,9 @@ const TICKS = Array.from({ length: CAP + 1 }, (_, i) => {
 });
 
 // ---------- ช่วงจั่ว ----------
-export function DrawDock({ cards, score, busted, handRef, draw, stand }) {
+//  items = { fortune, color } จาก DrawItems · pick = โหมดยาเปลี่ยนสี { card, onCard(i), onColor(color) } หรือ null
+const CARD_COLORS = ["red", "blue", "green", "yellow"];
+export function DrawDock({ cards, score, busted, handRef, draw, stand, items, pick }) {
   const n = Array.isArray(cards) ? cards.length : 0;
   const val = Number.isFinite(score) ? score : 0;
   const frac = Math.max(0, Math.min(CAP, val)) / CAP;
@@ -30,12 +33,23 @@ export function DrawDock({ cards, score, busted, handRef, draw, stand }) {
       <div ref={handRef} className="dd-cards" data-n={n}>
         {cards === null ? <span className="dd-blind">🌑</span> : (cards || []).map((c, i) => {
           const off = i - (n - 1) / 2;
+          const left = `calc(50% + ${off * Math.min(74, 300 / Math.max(1, n))}px)`;
+          const can = !!pick && !c.special;
           return (
-            <div key={i} className="dd-card" style={{ left: `calc(50% + ${off * Math.min(74, 300 / Math.max(1, n))}px)`, transform: `translateX(-50%) translateY(${Math.abs(off) * 6}px) rotate(${off * 6}deg)` }}>
+            <div key={i} className="dd-card" data-pick={pick ? (can ? (pick.card === i ? "sel" : "on") : "off") : undefined}
+              style={{ left, transform: `translateX(-50%) translateY(${Math.abs(off) * 6}px) rotate(${off * 6}deg)` }}
+              onClick={can ? () => pick.onCard(i) : undefined}>
               <div className={busted ? "dd-card-bust" : ""}><Card value={c.value} color={c.color} special={c.special} size="lg" /></div>
             </div>
           );
         })}
+        {pick && Number.isInteger(pick.card) && cards && cards[pick.card] && (
+          <div className="dd-swatches" style={{ left: `calc(50% + ${(pick.card - (n - 1) / 2) * Math.min(74, 300 / Math.max(1, n))}px)` }}>
+            {CARD_COLORS.map((col) => (
+              <button key={col} type="button" className={`dd-sw ${col}`} aria-label={col} disabled={cards[pick.card].color === col} onClick={() => pick.onColor(col)} />
+            ))}
+          </div>
+        )}
       </div>
       <div className="dd-dial" data-bust={busted ? "true" : "false"} data-zone={zone ? "true" : "false"}>
         <svg viewBox="0 0 300 300" aria-hidden="true">
@@ -59,6 +73,33 @@ export function DrawDock({ cards, score, busted, handRef, draw, stand }) {
         <button type="button" className="dd-btn draw" disabled={draw.disabled} onClick={draw.onClick}><span className="ico">＋</span><span><b>จั่ว</b><span className="lat">Draw</span></span></button>
         <button type="button" className="dd-btn stand" disabled={stand.disabled} onClick={stand.onClick}><span className="ico">✋</span><span><b>{stand.done ? "พร้อม" : "พอ"}</b><span className="lat">Stand</span></span></button>
       </div>
+      {items && <DrawItems {...items} />}
+    </div>
+  );
+}
+
+// ---------- กล่องไอเทมช่วงจั่ว: หกเหลี่ยม 2 ก้อน (ดึงจำนวนจากกระเป๋า · ไม่มี = "เหลือ 0" สีเทา กดไม่ได้) ----------
+const CLOVER = <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="17" cy="17" r="8" /><circle cx="31" cy="17" r="8" /><circle cx="17" cy="31" r="8" /><circle cx="31" cy="31" r="8" /><path className="stem" d="M24 24 C28 32 30 38 36 44" /></svg>;
+const PALETTE = <svg viewBox="0 0 48 48" aria-hidden="true"><path className="c1" d="M24 4 L33 9 V19 L24 24 L15 19 V9 Z" /><path className="c2" d="M34 21 L43 26 V36 L34 41 L25 36 V26 Z" /><path className="c3" d="M14 21 L23 26 V36 L14 41 L5 36 V26 Z" /></svg>;
+function DrawItem({ kind, name, icon, it }) {
+  const off = !it.count || it.disabled;
+  return (
+    <button type="button" className={`ddi ${kind}`} data-off={off ? "true" : "false"} data-active={it.active ? "true" : "false"} disabled={off && !it.active} onClick={it.onClick}>
+      <span className="ddi-hex">
+        <span className="ddi-in">
+          <span className="ddi-ico">{icon}</span>
+          <span className="ddi-n">เหลือ <b>{it.count}</b></span>
+        </span>
+      </span>
+      <span className="ddi-name">{name}</span>
+    </button>
+  );
+}
+export function DrawItems({ fortune, color }) {
+  return (
+    <div className="ddi-box" aria-label="ไอเทม">
+      <DrawItem kind="fortune" name="ยาโชคลาภ" icon={CLOVER} it={fortune} />
+      <DrawItem kind="color" name="ยาเปลี่ยนสีการ์ด" icon={PALETTE} it={color} />
     </div>
   );
 }

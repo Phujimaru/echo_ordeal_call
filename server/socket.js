@@ -246,6 +246,8 @@ io.on('connection', (socket) => {
 
   onPlayerEvent(socket, 'hit', (id) => draw.hit(id), 8);
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
+  // ไอเทมช่วงจั่วไพ่ (ยาโชคลาภ / ยาเปลี่ยนสีการ์ด) — ผู้ถือไพ่ = เจ้าของ (ระบบคู่)
+  onPlayerEvent(socket, 'useDrawItem', (id, { uid, cardIndex, color } = {}) => shop.useDrawItem(id, uid, { cardIndex, color }), 8);
   onUnitEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile } = {}) => skills.useSkill(id, tier, targets, {
     dir, form: typeof form === 'string' ? form : undefined,
     tile: tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : undefined, // สกิลเลือกช่อง (Ice Spike)

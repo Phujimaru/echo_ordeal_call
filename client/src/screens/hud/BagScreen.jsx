@@ -2,7 +2,7 @@
 //  เวที 1920 × 1080 ย่อพอดีจอ · ซ้าย = ช่องกระเป๋าเต็มจำนวน (ช่องว่างเป็นกรอบเส้นประ) · ขวา = รายละเอียดของชิ้นที่เลือก + ปุ่มคำสั่ง
 //  เงื่อนไขทั้งหมดเหมือน InventoryModal เดิม (Game.jsx) — ใช้ได้เฉพาะตาตัวเอง = ปุ่มจาง ไม่มีข้อความบอก
 import { useEffect, useState } from "react";
-import { shopInfoOf } from "../../data/shop";
+import { shopInfoOf, DRAW_ITEM_TYPES } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
@@ -74,7 +74,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
           <button type="button" className="bag-btn" disabled={!myTurn || !canFeed} onClick={() => emit("useInventoryItem", { uid: sel.uid, targetId: kate.id })}>ป้อนเคท</button>
         </>
       );
-    } else if (type !== "gutsAmmo") {
+    } else if (type !== "gutsAmmo" && !DRAW_ITEM_TYPES.includes(type)) { // ยาช่วงจั่วไพ่ใช้จากกล่องข้างปุ่มจั่วเท่านั้น
       actions = <button type="button" className="bag-btn primary" disabled={!myTurn} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>ใช้</button>;
     }
   }

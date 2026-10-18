@@ -1686,6 +1686,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [statusViewId, setStatusViewId] = useState(null); // ดูสถานะผู้เล่นคนอื่น (แตะการ์ดตอนไม่ได้เลือกเป้า)
   const [bagOpen, setBagOpen] = useState(false);     // ร้านค้ามายา (patch 2.2 full): เปิดดูคลังของตัวเอง
   const [shopOpen, setShopOpen] = useState(false);
+  const [colorPick, setColorPick] = useState(null); // ยาเปลี่ยนสีการ์ดช่วงจั่ว: { uid, card } — card = index การ์ดที่เลือก (null = ยังไม่เลือก)
   // นับครั้งการแสดง ไม่ใช่ true/false — ค่าต้องเปลี่ยนทุกครั้งที่เข้าช่วง ไม่งั้น React ไม่ remount
   // แล้วอนิเมชันจะเล่นแค่ครั้งแรกครั้งเดียวตลอดทั้งแมตช์
   const [sceneQ, setSceneQ] = useState([]);
@@ -1735,6 +1736,20 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const summaryWinners = rankedTiers[0]?.players || [];
   const summaryLosers = rankedTiers.slice(1).flatMap((t) => t.players);
   const done = hand && (hand.locked || !handAlive);
+  // ---------- ไอเทมช่วงจั่ว (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด) — ดึงจากกระเป๋า · ใช้ได้ก่อนกด "พอ" ----------
+  const drawOpen = phase === "PLAYING" && handAlive && !done;
+  const bagOf = (type) => (hand?.inventory || []).filter((it) => it.type === type);
+  const fortuneItems = bagOf("fortune");
+  const colorItems = bagOf("cardColor");
+  const handNumberCards = Array.isArray(hand?.cards) && hand.cards.some((c) => !c.special);
+  const pickLive = !!colorPick && drawOpen && colorItems.some((it) => it.uid === colorPick.uid);
+  useEffect(() => { if (colorPick && !pickLive) setColorPick(null); }, [colorPick, pickLive]);
+  useEffect(() => {
+    if (!colorPick) return undefined;
+    const on = (e) => { if (e.key === "Escape") setColorPick(null); };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [colorPick]);
   const ch = me?.character;
   const meStatuses = me ? statusEntries(me) : []; // รายการสถานะของตัวเอง — ใช้ในกล่อง "สถานะ" ของแผง HUD (เรียงลงล่างเรื่อยๆ ตามลำดับที่ติด)
   // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
@@ -2358,8 +2373,26 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               stand={{
                 done: !!hand.locked,
                 disabled: !(phase === "PLAYING" && handAlive && !done),
-                onClick: () => { clickSound(); socket.emit("lock"); },
+                onClick: () => { clickSound(); setColorPick(null); socket.emit("lock"); },
               }}
+              items={{
+                fortune: {
+                  count: fortuneItems.length,
+                  disabled: !drawOpen || (hand.statuses?.fortune || 0) >= 3,
+                  onClick: () => { clickSound(); setColorPick(null); socket.emit("useDrawItem", { uid: fortuneItems[0]?.uid }); },
+                },
+                color: {
+                  count: colorItems.length,
+                  disabled: !drawOpen || !handNumberCards,
+                  active: pickLive,
+                  onClick: () => { clickSound(); setColorPick(pickLive ? null : { uid: colorItems[0]?.uid, card: null }); },
+                },
+              }}
+              pick={pickLive ? {
+                card: colorPick.card,
+                onCard: (i) => { clickSound(); setColorPick((cp) => cp && { ...cp, card: cp.card === i ? null : i }); },
+                onColor: (color) => { clickSound(); socket.emit("useDrawItem", { uid: colorPick.uid, cardIndex: colorPick.card, color }); setColorPick(null); },
+              } : null}
             />
           ) : <span />}
           right={hudMode === "turn" ? (
