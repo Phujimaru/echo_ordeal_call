@@ -39,6 +39,7 @@ const Ice = require("./ice");
 const Board = require("./board");
 const Duo = require("./duo");
 const Soot = require("./soot");
+const Ride = require("./ride");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -121,6 +122,10 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   isSlick(x, y) { return Board.isIce(action.boardMap(), x, y); },
   // ระบำเขม่า (server/soot.js — เคท): ม่านแดง 8×8 · ขัง · มองไม่เห็นข้ามม่าน · ดาเมจต้นเทิร์น
   soot: { inStormOf: Soot.ownStorm, stormOf: Soot.stormOf, trapOf: Soot.trapOf, cast: Soot.cast, strikeInside: Soot.strikeInside, storms: Soot.storms },
+  joinOrder: action.joinOrder, // ฟื้นคืนชีพกลางตาเดินแล้วได้เดินเทิร์นนี้ (ยูนะ)
+  corpseKept: Duo.corpseKept,   // ร่างนี้ยังอยู่บนกระดานไหม (ระบบคู่ / ศพค้าง — ฮุค keepsCorpses)
+  // ขี่ผู้เล่นอื่น (server/ride.js): ขี่อยู่ไหม / ตัวที่ถูกขี่ / คนที่ขี่ / ช่องจุดกลาง (ขี่ = ช่องของตัวที่ถูกขี่)
+  ride: { riding: Ride.riding, mountOf: Ride.mountOf, riderOf: Ride.riderOf, centerOf: Ride.centerOf, fall: Ride.fall },
   nearFreeTile: action.nearFreeTile, // ช่องว่างใกล้ pos ที่สุด (วงข้าวหลามตัดออกไป)
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)

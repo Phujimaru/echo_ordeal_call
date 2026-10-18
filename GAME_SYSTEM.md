@@ -616,12 +616,23 @@ module.exports = {
   onSlide(engine, p, n, ctx) {}, slideStrike(engine, p, u, n, ctx) {}, ownSpike(engine, p, ctx) { return 0; },
                                                                  // ระบบไถล (server/ice.js §19): ไถลเสร็จ · ไถลชนศัตรู (ลงดาเมจเอง) · ชนหนามตัวเอง (คืนแต้มที่ได้)
   // hburnImmune / hburnHeals / hburnLabel · hbleedImmune / hbleedHeals / hbleedLabel / hbleedHarmless (ข้อ 7)
+  // ---- ออร่า/ระบบกลางของยูนะ (§21) — ถูกถามกับ "ทุกคน" จากทุกโมดูล: ฮุคต้องเช็คเองว่าเกี่ยวกับใคร ----
+  auraAtk(engine, attacker) { return null; },        // { amount, name, img } พลังโจมตีจากออร่า (computeAttackBase · ป้ายฉากตี)
+  auraAccurate(p) { return false; },                 // "แม่นยำ" จากออร่า (_universal_status.accurateActive — ลงทะเบียนใน characters/index.js)
+  auraIncoming(engine, p, n) { return 0; },          // ส่วนต่างดาเมจที่ p ได้รับ (combat.adjustIncomingDamage — ทุกความเสียหาย หลังฮุคของเป้าเอง · ลดถึง 0 ได้)
+  skillMusic(engine, p) { return null; },            // { music, at } เพลงสนามจากคนนี้ (view.activeSkillMusic — at มากสุดชนะ)
+  // ---- เฉพาะตัวเอง ----
+  untouchable(engine, p) { return false; },          // ไม่มีดาเมจ/ดีบัฟจากคนอื่นแตะได้ (combat.applyDebuff / adjustIncomingDamage)
+  characterPub(engine, p) { return null; },          // { name, img } ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง → state.players[].character
+  keepsCorpses(p) { return false; },                 // ระหว่างที่คนนี้ยังอยู่ ทุกคนที่ตายทิ้งศพ (server/duo.js corpseKept)
+  canRide(engine, p) { return false; }, onMount(engine, p, mount, from) {}, onFall(engine, p, reason, base) {}, rideSound(p, kind) {},
+                                                     // ขี่ผู้เล่นอื่น (server/ride.js §21)
 
   // ---- ฮุค broadcast: engine เรียกทุกตัวละครตามลำดับ CHAR_HOOKS.MODULES (combat.broadcastHook) — ฮุคต้องเช็คเองว่าเป็นตัวเองไหม ----
   resetCombat(p) {},                       // combat.resetCombat() — ล้างฟิลด์เฉพาะตัวทุกแมตช์
   onRoundStartTick(engine, p) {},          // ลูปต่อผู้เล่นของ dealRound (p ตาย = ข้ามผลต้นเทิร์นที่เหลือ/ไม่ได้ไพ่)
   onEndTurn(engine) {},                    // endTurn() หลังลูปลดเทิร์นสถานะ
-  onDeath(engine) {},                      // combat.instantDeath() — มีคนตกรอบ
+  onDeath(engine, p) {},                   // combat.instantDeath() — มีคนตกรอบ (p = คนที่ตาย · pos ยังไม่ถูกล้าง)
   onKill(engine, killer, victim) {},       // instantDeath → เฉพาะโมดูลของผู้สังหาร (match.effectSourceId)
   //  ฮุคที่โยน error ถูก log (console.error ชื่อตัวละคร + ชื่อฮุค) แล้วข้าม — แมตช์ไม่ค้าง
 };
@@ -784,7 +795,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   - สตั้น/หลับไหล: ตัวที่ติดถูกข้ามตา (`action.nextActor` · `Duo.canSwitchTo/nextUnit` เช็ค `stuck`) · ยังมีตัวที่ขยับได้ = จั่วปกติ ·
     ทุกตัวที่ยังอยู่ติดหมด (ติดทั้งคู่ / ล้ม + ติด) = ไม่ได้จั่ว (`draw.lockStuckSides` — หลัง `reopenFallenOwners`)
 - **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
-- **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
+- **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` **บังคับทุกตัวเลือก** (กฎผู้ใช้ 2026-10-19) = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
 - **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง/ผนึก) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
 - **ห้ามตีปกติในตานี้**: `action.lockStrike(p)` = `locked` + `match.action.noStrike` (ตีไม่ได้ · ไม่ได้เดินต่อหลังจบตา · ยังใช้สกิล/รอ/สลับตัวได้) → state `action.noStrike` (client ซ่อนช่องตี/ปุ่มโจมตี) · ขนมปังของเอมิลิโกะ (กินเอง/ป้อนเคท)
 - **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
@@ -794,3 +805,21 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **แส้เขม่า** เล็งได้แค่เอมิลิโกะหรือศัตรู (`sootAllowed` — เพื่อนร่วมทีมโหมด duo/trio ไม่ได้)
 - **มืดบอด** (`shadowMask`): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 
+## 21. ศพค้าง / ขี่ผู้เล่นอื่น / วงออร่า (`server/ride.js` · `server/duo.js` — ยูนะ · ผู้ใช้ส่งสเปก 2026-10-18)
+- **ศพค้าง** (ฮุค `keepsCorpses(p)`): ระหว่างที่มีคนเก็บร่างยังอยู่ (`Duo.keeperAlive`) ทุกคนที่ตายได้ `p.corpse` (ช่องที่ตาย) — ขวางช่อง เดินข้ามได้ (กติกาเดียวกับร่างระบบคู่)
+  · `Duo.corpseKept(p)` = ร่างนี้ยังอยู่ (ระบบคู่ที่อีกตัวรอด หรือมีคนเก็บร่าง) → `corpseKeys` / `boardBlocked` / `hopTiles` / state `players[].corpse`
+  · คนเก็บร่างคนสุดท้ายตาย = ร่างที่ไม่ใช่ระบบคู่หายหมด · เปลี่ยนภูมิภาค = ศพลงช่องเดิมบนแผนที่ใหม่ (ไม่ว่าง = ช่องว่างใกล้สุด — `placeCorpses`) · `engine.corpseKept`
+- **ฟื้นแล้วได้เดินเทิร์นนี้**: `action.joinOrder(id)` / `engine.joinOrder` — ยังไม่ถึงคิว = รอคิวเดิม · เดินไปแล้ว/ไม่มีชื่อ = ย้ายไปท้ายแถว (`actorIndex` เลื่อนตาม)
+- **สกิลเลือกศพ**: `area { kind: "tile", range, place: "corpse" }` — client ไฮไลต์เฉพาะช่องศพในระยะ · `resolveArea` คืนคนบนช่อง (= `[]`) · ฮุคหา `opts.tile` เอง (ยูนะ: `corpseAt`)
+- **ขี่ผู้เล่นอื่น** (`server/ride.js`): `rider.mountId` = id ตัวที่ถูกขี่
+  · นอกตาเดินของตัวเอง `pos = null` (ไม่อยู่บนกระดาน → ไม่มีใครเล็ง/ตี · สกิลพื้นที่โดนแค่ตัวที่ถูกขี่ · ไม่ขวางช่อง) · `Ride.centerOf(p)` = ช่องจุดกลาง (ขี่ = ช่องของตัวที่ถูกขี่)
+  · `nextActor` → `Ride.seat` (pos = ช่องของตัวที่ถูกขี่ชั่วคราว — ใช้สกิล/ตีจากตรงนั้น) · `finishActor` → `Ride.unseat` (ไม่ได้ผลของช่อง) · `beginOrder` นับตัวที่ขี่ว่ายังอยู่บนกระดาน
+  · เดินออก = ลง (`moveTo` → `act.dismount`) · ย้อนกลับช่องเดิม = ขึ้นกลับ (`rewindWalk`) · เปลี่ยนภูมิภาค = ลงหมด (`Ride.clearAll` ใน `placeOnBoard`)
+  · ขอขี่: socket `rideAsk { targetId }` (ตาของตัวเอง ยังไม่ล็อก ติดกัน 1×1 ทั้งคู่ ฮุค `canRide`) → `match.rideAsk` → state `rideAsk` (คนขอ/เจ้าของตัวที่ถูกขอ — `mine`) → socket `rideAnswer { ok }` จากเจ้าของ · คำขอหมดอายุพร้อมจบตา
+  · ตัวที่ถูกขี่สั่งให้ลง: socket `rideDrop` (ตาของตัวเอง · ไม่กินอะไร) → `Ride.drop` → `fall(reason "drop")` (ยูนะ: ไม่ติดห้ามขี่) · client ปุ่ม "ให้ลง" (`HudCommand drop`)
+  · ยินยอม = ขึ้นหลัง + `action.locked` (ยังใช้สกิล/ตีได้) + ฮุค `onMount` · ร่วง: ตัวที่ถูกขี่ถูกตีปกติ (`strike` รวมหลบพ้น) / เสียหายจากผู้เล่นอื่น (`combat.tookDamage`) / ตาย (`Ride.onDeath` ใน `instantDeath`) → ช่องว่างใกล้สุด + ฮุค `onFall`
+  · client: `players[].ride` → BoardStage ไม่วาดตัวที่ขี่แยก แต่ส่ง `rider` ให้หมากตัวที่ถูกขี่ (`boardDraw` → `yunaFx.drawRider`) · ปุ่ม "ขี่" (`HudCommand ride`) · กล่องยินยอม (Game.jsx — `state.rideAsk.mine`)
+- **วงออร่า**: ฮุค `auraAtk` / `auraAccurate` / `auraIncoming` / `skillMusic` (§14) — ถามกับทุกคน · วาดวงบนพื้นด้วย prop `songs` ของ BoardCanvas (`[{ kind, x, y, r }]` — `yunaFx.drawYunaZones`)
+- **หายตัวแบบแตะไม่ได้**: `stealthed` + `onReveal` ว่าง + ฮุค `untouchable` (ไม่มีดาเมจ/ดีบัฟจากคนอื่น) — ยูนะ: เงาของเสียง
+- **ป้ายสกิลตามหน้าตาปุ่ม**: `skillPub` คืน `flash: true` = ป้าย skillFlash ใช้ชื่อ/รูปของปุ่มตอนกด (อ่านก่อนลงผล) แทนค่าใน characters.js
+- **ชื่อ/ปกตามร่าง**: ฮุค `characterPub` → `players[].character.name/img/cover` (ยูนะ ไอดอล = "ยูนะ" + ปกไอดอล)

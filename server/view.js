@@ -26,6 +26,7 @@ const Ice = require("./ice");
 const Duo = require("./duo");
 const Soot = require("./soot");
 const skills = require("./skills");
+const Ride = require("./ride");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -46,6 +47,16 @@ function activeSkillMusic() {
     // กิระ: เพลงอัฐิราชาเล่นค้างตลอด 3 เทิร์นของท่าไม้ตาย
     const kira = match.gameState !== "GAMEOVER" ? CHAR_HOOKS.kira.ultMusic(engine, p) : null; // กิระ: เพลงระหว่างอัฐิราชา · จบเกมแล้วกลับเพลงปกติ
     if (kira && (!best || kira.at > best.at)) best = kira;
+  }
+  // ฮุค skillMusic(engine, p) → { music, at } ของทุกโมดูล ถามกับทุกคนที่ยังอยู่ (ยูนะ: เพลงที่เปิด / ไอดอล / Longing ของคนที่ได้คำอวยพร)
+  if (match.gameState !== "GAMEOVER") {
+    for (const p of combat.alivePlayers()) {
+      for (const mod of CHAR_HOOKS.MODULES) {
+        if (typeof mod.skillMusic !== "function") continue;
+        const r = combat.runHook(mod, "skillMusic", engine, p);
+        if (r && r.music && (!best || (r.at || 0) > best.at)) best = { music: r.music, at: r.at || 0 };
+      }
+    }
   }
   // ระบำเขม่า (เคท): เพลง intro → loop ตลอดที่ม่านแดงยังอยู่ (client เล่น intro ครั้งเดียวต่อ seq แล้ววน loop)
   for (const s of Soot.storms()) {
@@ -151,6 +162,7 @@ function buildStateFor(viewerId) {
       // เดินต่อ/เดินใหม่จากจุดเริ่มตา: เส้นทางที่เดินมา (ลูกศรคีย์บอร์ด) + แผนที่ตอนเริ่มตา (ถอดน้ำแข็ง/ของพังจากการเดินตานี้)
       trail: match.action.trail || null, walkUndo: action.walkUndoPatch(),
     } : null,
+    rideAsk: Ride.publicAsk(viewerId), // คำขอขี่ที่รอตอบ (คนขอ / เจ้าของตัวที่ถูกขอเห็น — server/ride.js)
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
@@ -180,6 +192,7 @@ function buildStateFor(viewerId) {
       // การมองเห็น: ผู้ชมคนนี้มองไม่เห็น p (ล่องหน/พุ่มหญ้า/ม่านแดง) = ไม่ส่งตำแหน่ง + ซ่อนข้อมูลอื่น (unseenPub)
       const unseen = Visibility.hiddenFrom(viewer, p);
       const secret = unseen && !mine;
+      const charOver = !secret && hook && hook.characterPub ? hook.characterPub(engine, p) : null; // ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง
       const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
       const basicPub = pub(ch.basic);
       const secondaryPub = pub(ch.secondary);
@@ -213,7 +226,8 @@ function buildStateFor(viewerId) {
         //  corpse = ช่องร่างของตัวที่ล้มขณะอีกตัวยังอยู่ (ขวางช่อง เดินข้ามได้)
         duoOf: p.duoOf || null,
         duoWith: p.duoWith || null,
-        corpse: Duo.corpseOf(p) && Duo.sideAlive(p) ? Duo.corpseOf(p) : null,
+        corpse: Duo.corpseKept(p) ? Duo.corpseOf(p) : null, // + ศพค้าง (ยูนะ — ฮุค keepsCorpses)
+        ride: p.alive && p.mountId && match.players[p.mountId] ? p.mountId : null, // ขี่ผู้เล่นอื่น (server/ride.js): id ตัวที่ถูกขี่ — วาดบนหลัง
         avatar: p.avatar,
         img: displayImg(p),
         position: p.position,
@@ -267,9 +281,9 @@ function buildStateFor(viewerId) {
         character: {
           id: ch.id,
           // ภาพประจำตัวละคร (ไม่ผูกกับร่าง/แฝดที่กำลังคุมอยู่) — ฉากเปิดตัวตอนแมตช์เริ่มใช้ภาพนี้
-          img: ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
-          cover: ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน
-          name: ch.name,
+          img: (charOver && charOver.img) || ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
+          cover: (charOver && charOver.img) || ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน
+          name: (charOver && charOver.name) || ch.name, // ฮุค characterPub (ยูนะ: ร้อนแรงดังไฟ = "ยูนะ" + ปกไอดอล)
           passive: ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
           passive2: ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
           passive3: ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike)
@@ -291,6 +305,7 @@ function buildStateFor(viewerId) {
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
+        yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),
@@ -306,7 +321,7 @@ function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
     hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
-    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined,
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined,
   };
 }
 
@@ -318,7 +333,7 @@ function unseenPub(o, p) {
     ...o, img: p.img, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
     mark42: null, statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
     muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
-    sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined,
+    sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined,
   };
 }
 // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)

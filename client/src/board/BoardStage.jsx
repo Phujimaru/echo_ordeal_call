@@ -28,6 +28,7 @@ import { BEAM_T, DARK_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
 import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
+import { YUNA_EVENT_FX } from "./yunaFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -302,8 +303,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เลือกช่อง (Ice Spike · contract §2): ระยะแมนฮัตตันจากขอบตัว ≤ range (รวมช่องที่ยืน)
       //  ice = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน และไม่ใช่น้ำแข็งของแผนที่เดิม · spike = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน · คน: 1×1 + ข้างๆ ว่างอย่างน้อย 1 · any = ทุกช่อง
       const own = new Set(((board && board.ice) || []).map((t) => key(t.x, t.y)));
+      const corpseKeys = new Set(corpses.map((c) => key(c.x, c.y)));
       const ok = (t) => {
         if (pick.place === "any") return true;
+        if (pick.place === "corpse") return corpseKeys.has(key(t.x, t.y)); // ยูนะ: คำอวยพรสุดท้าย — เลือกศพ
         if (Rules.isObstacle(map, t.x, t.y, blocked)) return false;
         const k = key(t.x, t.y);
         if (pick.place === "ice") return !(map.special[k] === "ice" && !own.has(k));
@@ -315,7 +318,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return { tile: true, skill: valid, validSet: new Set(valid) };
     }
     return null;
-  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked]);
+  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked, corpses]);
   // วางหนามทับคน: เลือกทิศผลัก (ลูกศร 4 ทิศรอบคนนั้น · ทิศที่ช่องปลายไม่ว่าง = กดไม่ได้)
   const pickSig = pick ? `${pick.kind}|${pick.label || ""}|${pick.place || ""}` : "";
   const [dirPick, setDirPick] = useState(null); // { sig, x, y, arrows: [{ x, y, dir, ok }] }
@@ -767,6 +770,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("darkWaveFx", onDark);
   }, [pushFx, look, lowQ]);
 
+  // ยูนะ: socket "yunaFx" { kind, at, from, to, r, song, ... } → เอฟเฟกต์บนกระดาน (yunaFx.js) · เสียงมาจาก server (sfx / skillFlash)
+  useEffect(() => {
+    const onYuna = (e) => {
+      const kind = e && YUNA_EVENT_FX[e.kind];
+      if (!kind) return;
+      pushFx([{ ...e, kind, x: e.at ? e.at.x : e.to ? e.to.x : 0, y: e.at ? e.at.y : e.to ? e.to.y : 0 }]);
+      if ((e.kind === "revive" || e.kind === "idol") && e.at) look(e.at);
+      if (e.kind === "idol" && !lowQ) setShake((n) => n + 1);
+    };
+    socket.on("yunaFx", onYuna);
+    return () => socket.off("yunaFx", onYuna);
+  }, [pushFx, look, lowQ]);
+
   // ท่าไม้ตายไรโด ฮิคารุ: { id, kind: "cross" | "ray", from, size, dir, len, width, tiles } — ชาร์จที่หน้าตัว → ลำแสงวิ่งถึงปลาย (= ดาเมจลง)
   //  กล้องตามกลางแนว · จอสั่นตอนลำแสงปล่อย/ถึงปลาย · hikaruPush { moves: [{ id, from, to }] } = คนที่ถูกผลัก (เลื่อนตามเมื่อ state มาถึง)
   useEffect(() => {
@@ -1193,7 +1209,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
   // ---------- ตัวละครบนกระดาน ----------
-  const units = useMemo(() => state.players.filter((p) => p.alive && p.pos).map((p) => {
+  // ขี่ผู้เล่นอื่น (ยูนะ — p.ride = id ตัวที่ถูกขี่): ตัวที่ขี่ไม่วาดแยก (ตาของตัวเองมี pos = ช่องเดียวกัน) แต่วาดบนหลังตัวที่ถูกขี่
+  const riderOn = useMemo(() => {
+    const out = {};
+    for (const p of state.players) if (p.alive && p.ride) out[p.ride] = p;
+    return out;
+  }, [state.players]);
+  const units = useMemo(() => state.players.filter((p) => p.alive && p.pos && !p.ride).map((p) => {
     const at = iceHold[p.id] || hold[p.id] || p.pos;
     const mk = !!p.masked; // "มืดบอด": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
     return {
@@ -1207,6 +1229,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
+      rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
     // ร่างของตัวที่ล้ม (ระบบคู่): เงาร่างล้มบนช่อง (id "corpse:<id>" — คลิก = คลิกช่อง)
@@ -1222,7 +1245,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
       };
     })),
-  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, corpses, byId]);
+  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, corpses, byId, riderOn]);
+  // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
+  const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
+  const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1466,6 +1492,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         zeroScene={zScene}
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
+        songs={songs}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}

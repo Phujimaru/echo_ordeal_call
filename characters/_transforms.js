@@ -11,7 +11,8 @@ const sliverChar = require("./sliver_bullet"); // นักบินปริศ
 const mark42 = require("./_mark42"); // เกราะ Mark 42 (ไอเทมร้านค้า): path วีดีโอชุดเดียวกับไฟล์ระบบ
 const sora = require("./sora_otosumi"); // โซระ: คลิปแปลงร่าง / Mouse Separade / ชน
 const kira = require("./kira"); // กิระ: คลิปสวมเกราะราชัน (ครั้งแรกต่อเกม)
-const hikaru = require("./raido_hikaru"); // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
+const hikaru = require("./raido_hikaru");
+const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแรงดังไฟ (ทุกครั้งที่กด) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
   return {
@@ -42,6 +43,8 @@ module.exports = function buildTransforms() {
     hkStriumRay: { img: hikaru.IMG.skill3Strium, video: hikaru.VIDEO.ray, title: "Strium Ray",          label: "ปล่อยท่าไม้ตาย", seconds: 18, music: null, afterReveal: false },
     // กิระ — คลิปสวมเกราะราชันเล่นครั้งแรกที่เข้าร่างราชาแมลงอวกาศต่อเกม (kira.js คิวเอง) · ความยาวจริง 17.90 วิ ปัดขึ้น
     kiraTransform: { img: kira.IMG.king, video: kira.VIDEO.transform, title: "ราชาแมลงอวกาศ", label: "สวมเกราะราชัน", seconds: 19, music: null, afterReveal: false },
+    // ยูนะ — คลิปร้อนแรงดังไฟเล่นทุกครั้งที่กด (ผู้ใช้สั่ง) แล้วเพลง Break Beat Bark! (state.skillMusic "yuna_idol") · ความยาวจริง 9.10 วิ ปัดขึ้น
+    yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
     mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },
     mark42Recall:   { img: mark42.IMG.suit, video: mark42.VIDEO.recall,   title: "เกราะ Mark 42", label: "เรียกเกราะกลับมาสวม",  seconds: 24, music: null, afterReveal: false },

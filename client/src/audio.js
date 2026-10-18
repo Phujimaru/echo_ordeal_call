@@ -116,6 +116,29 @@ const FILES = {
   echo_queen: "/characters/echo/echo_queen_theme.mp3",
   // เคท: เพลงระหว่างมีม่านแดง (state.skillMusic "kate_storm") — intro ครั้งเดียว → loop วน (MUSIC_SEQUENCES) · ไฟล์ -14.4 LUFS ไม่ต้องลด
   kate_storm: "/characters/kate_emiliko/kate_theme_intro.m4a",
+  // ยูนะ — เสียงเฉพาะตัว (สังเคราะห์ด้วย ffmpeg ธีมดนตรี · .claude/plans/yuna-sfx.py) · เพลงจากผู้ใช้ (Downloads/yuna_new/song)
+  yuna_hit: "/characters/yuna/sfx/yuna_hit.mp3",
+  yuna_idol_hit: "/characters/yuna/sfx/yuna_idol_hit.mp3",
+  yuna_bless: "/characters/yuna/sfx/yuna_bless.mp3",
+  yuna_shadow: "/characters/yuna/sfx/yuna_shadow.mp3",
+  yuna_vanish: "/characters/yuna/sfx/yuna_vanish.mp3",
+  yuna_appear: "/characters/yuna/sfx/yuna_appear.mp3",
+  yuna_song_delete: "/characters/yuna/sfx/yuna_song_delete.mp3",
+  yuna_song_smile: "/characters/yuna/sfx/yuna_song_smile.mp3",
+  yuna_song_rest: "/characters/yuna/sfx/yuna_song_rest.mp3",
+  yuna_song_tick: "/characters/yuna/sfx/yuna_song_tick.mp3",
+  yuna_song_stop: "/characters/yuna/sfx/yuna_song_stop.mp3",
+  yuna_idol_cast: "/characters/yuna/sfx/yuna_idol_cast.mp3",
+  yuna_idol_end: "/characters/yuna/sfx/yuna_idol_end.mp3",
+  yuna_ride_ask: "/characters/yuna/sfx/yuna_ride_ask.mp3",
+  yuna_ride_no: "/characters/yuna/sfx/yuna_ride_no.mp3",
+  yuna_mount: "/characters/yuna/sfx/yuna_mount.mp3",
+  yuna_fall: "/characters/yuna/sfx/yuna_fall.mp3",
+  yuna_delete: "/characters/yuna/yuna_delete.mp3",   // บทเพลงแห่งชีวิต: Delete (เล่นค้างระหว่างเปิดเพลง)
+  yuna_smile: "/characters/yuna/yuna_smile.mp3",     // บทเพลงแห่งชีวิต: Smile for You
+  yuna_longing: "/characters/yuna/yuna_longing.mp3", // คำอวยพรสุดท้าย: เล่นจนคนที่ฟื้นตายอีกครั้งหรือบัฟหมด
+  // ร้อนแรงดังไฟ: Break Beat Bark! intro ครั้งเดียว → loop วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
+  yuna_idol: "/characters/yuna/yuna_idol_intro.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -134,6 +157,7 @@ const FILES = {
 //  intro กับ loop เป็นคนละ element (loop โหลดรอไว้ระหว่าง intro) แล้วสลับก่อน intro จบเล็กน้อย = ต่อกันไม่มีช่องเงียบ (ดู getMusic)
 const MUSIC_SEQUENCES = {
   kate_storm: ["/characters/kate_emiliko/kate_theme_intro.m4a", "/characters/kate_emiliko/kate_theme_loop.mp3"],
+  yuna_idol: ["/characters/yuna/yuna_idol_intro.m4a", "/characters/yuna/yuna_idol_loop.mp3"],
 };
 
 // เพลงที่อยู่กลุ่มเดียวกัน = สลับไฟล์กันแล้ว "เล่นต่อจากตำแหน่งเดิม" (เช่นเพลงกลางวัน/กลางคืนของท่าเดียวกัน)
@@ -181,6 +205,11 @@ const LOUDNESS_GAIN = {
   "/zero_time/phase3.mp3": 0.58,
   "/zero_time/phase4.mp3": 0.6,
   "/characters/echo/echo_queen_theme.mp3": 0.65, // -10.2 LUFS (ffmpeg ebur128 ช่วง 20 วิแรก)
+  // ยูนะ (ffmpeg ebur128 ช่วง 60 วิแรก) — Smile for You -14.8 / skill3.mp4 -13.9 อยู่ที่เป้าแล้ว
+  "/characters/yuna/yuna_delete.mp3": 0.58, // -9.2 LUFS
+  "/characters/yuna/yuna_longing.mp3": 0.63, // -10.0 LUFS
+  "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
+  "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }
 export function soundGain(name) { return pathGain(FILES[name]); }
@@ -193,10 +222,12 @@ const MUSIC_TRACK_SCALE = {
   journey_2_night: 1.78,
   // เพลงม่านแดงของเคท: ห้ามมีอะไรกลบ (ผู้ใช้สั่ง) — ดันเต็มหลอด (0.75 × 1.34 ≈ 1 × หลอดเสียง) ดู FEATURED_MUSIC
   kate_storm: 1.34,
+  // ร้อนแรงดังไฟของยูนะ: เพลงไอดอลต้องเด่นกว่าเพลงร้องปกติ (ผู้ใช้สั่ง "พิเศษและอลังการกว่า") — เต็มหลอดแบบม่านแดง
+  yuna_idol: 1.34,
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
-const FEATURED_MUSIC = { kate_storm: 0.55 };
+const FEATURED_MUSIC = { kate_storm: 0.55, yuna_idol: 0.6 };
 function sfxDuck() {
   const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
   return d ?? 1;

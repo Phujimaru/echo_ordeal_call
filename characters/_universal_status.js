@@ -470,8 +470,13 @@ function tickBleed(engine, p) {
 
 // "แม่นยำ" (accurate, บัฟ Universal): การโจมตี/ดาเมจของผู้ติดบัฟนี้เจาะการหลบหลีกทุกแบบ
 //  (สถานะหลบหลีก · ด่านหลบของตัวละคร/สนาม) — โล่กันครั้งไม่ใช่การหลบ จึงยังกันได้
+//  + แหล่งนอกสถานะ (ออร่า — ฮุค auraAccurate(p) ของตัวละคร · characters/index.js ลงทะเบียนผ่าน addAccurateSource · ยูนะ: ร้อนแรงดังไฟ)
+const accurateSources = [];
+function addAccurateSource(fn) { if (typeof fn === "function") accurateSources.push(fn); }
 function accurateActive(p) {
-  return !!p && ((p.statuses && p.statuses.accurate) || 0) > 0;
+  if (!p) return false;
+  if (((p.statuses && p.statuses.accurate) || 0) > 0) return true;
+  return accurateSources.some((fn) => { try { return !!fn(p); } catch { return false; } });
 }
 
 // "เหน็บชา" (numb, สถานะ Universal): กดสกิลแล้วมีโอกาส NUMB_FAIL_CHANCE ที่สกิลไม่ทำงาน
@@ -522,7 +527,7 @@ module.exports = {
   statusAmtOf,
   applyBuff,
   BUFF_KEYS,
-  accurateActive,
+  accurateActive, addAccurateSource,
   stripLatestBuff,
   applyDebuff,
   setTurnsNoRefresh,

@@ -26,6 +26,7 @@ const view = require("../view");
 const Visibility = require("../visibility");
 const Ice = require("../ice");
 const Zero = require("../zeroTime");
+const Ride = require("../ride");
 
 function attackableTargets(atkId) {
   const attacker = match.players[atkId];
@@ -86,10 +87,18 @@ function computeAttackBase(engine, attacker, target) {
   // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เฟส 3 +1 · เฟส 4 +2 — ทุกคน ungated
   const zeroAtkFx = Zero.attackBonus();
   const zeroAtk = zeroAtkFx ? zeroAtkFx.amount : 0;
-  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + zeroAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
+  // ออร่าพลังโจมตีจากคนอื่น/ตัวเอง (ฮุค auraAtk(engine, attacker) → { amount, name } — ยูนะ: ร้อนแรงดังไฟ / คำอวยพรสุดท้าย) — ungated
+  const auraAtkFx = [];
+  for (const mod of CHAR_HOOKS.MODULES) {
+    if (typeof mod.auraAtk !== "function") continue;
+    const r = combat.runHook(mod, "auraAtk", engine, attacker);
+    if (r && r.amount) auraAtkFx.push(r);
+  }
+  const auraAtk = auraAtkFx.reduce((n, r) => n + r.amount, 0);
+  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + zeroAtk + auraAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
-    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx,
+    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, auraAtkFx,
     ...hookCtx,
   };
 }
@@ -146,6 +155,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (!match.effectSourceId) return combat.withEffectSource(attacker, () => strike(attacker, target, { counter }));
   const verb = counter ? "ตีสวน" : "โจมตี";
   attacker.didAttackRound = true;
+  Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
 
@@ -209,7 +219,7 @@ function strike(attacker, target, { counter = false } = {}) {
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
-  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk } = atkCtx;
+  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk, auraAtkFx } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
@@ -266,6 +276,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (journeyAtkFx) atkFx(journeyAtkFx.name, null);
   if (zeroAtkFx) atkFx(zeroAtkFx.name, null);
   if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
+  for (const r of auraAtkFx || []) atkFx(r.name, r.img || null);
   for (const name of CHAR_HOOKS.oberon_summer.atkFx(attacker)) atkFx(name, CHAR_HOOKS.oberon_summer.IMG.base);
   // ป้ายโบนัสเฉพาะตัวของผู้ตี (ฮุค attackFxNames — โซระ: มีด +1)
   {

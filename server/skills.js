@@ -133,6 +133,11 @@ function useSkill(id, tier, targets, opts = {}) {
 
   // ผลของสกิลที่ตัวละครเขียนเองในโมดูล (effect: null ใน characters.js) — คืนข้อความต่อท้ายป้ายเด้ง
   let flashSuffix = "";
+  // ชื่อ/รูปบนป้ายสกิล = หน้าตาปุ่มตอนกด เมื่อฮุค skillPub ตั้ง flash: true (ยูนะ: ปุ่มกลายเป็น "เป็นส่วนหนึ่งของเงา")
+  //  อ่านก่อนลงผล (ผลเปลี่ยนหน้าตาปุ่มได้) · ไม่ตั้ง = ชื่อ/รูปใน characters.js ตามเดิม
+  const pubNow = hook && hook.skillPub ? hook.skillPub(p, tier) || {} : {};
+  const flashName = pubNow.flash && pubNow.name ? pubNow.name : skill.name;
+  const flashImg = pubNow.flash && pubNow.img ? pubNow.img : skill.img || null;
   match.afterCutscene = []; // ผลที่ hook ขอให้เกิด "หลังคลิปจบ" (engine.deferAfterCutscene) — เช่นคลื่นดาบมุยมิ
   if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets, opts) || "";
   const deferred = match.afterCutscene.splice(0);
@@ -151,9 +156,9 @@ function useSkill(id, tier, targets, opts = {}) {
   const silent = !!(hook && hook.silentFlash && hook.silentFlash(p, tier, opts));
   if (skill.instant && !silent) {
     const flashSound = hook && hook.skillSound ? hook.skillSound(p, tier, opts) : null; // เสียงประจำแต่ละช่อง (ถ้ามี)
-    view.emitVisible("skillFlash", { name: skill.name + flashSuffix, img: skill.img || null, by: p.name, color: lobby.colorOf(p), sound: flashSound }, p);
+    view.emitVisible("skillFlash", { name: flashName + flashSuffix, img: flashImg, by: p.name, color: lobby.colorOf(p), sound: flashSound }, p);
   }
-  if (!silent) match.roundSkills.push({ playerId: id, tier, name: skill.name, img: skill.img || null, status: st });
+  if (!silent) match.roundSkills.push({ playerId: id, tier, name: flashName, img: flashImg, status: st });
 
   // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
   if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }

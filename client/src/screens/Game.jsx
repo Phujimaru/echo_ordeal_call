@@ -798,6 +798,8 @@ const STATUS_INFO = {
   // เคท & เอมิลิโกะ
   shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
   rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "" },
+  yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "" },
+  yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
   // Echo
@@ -835,6 +837,16 @@ function statusEntries(p, full) {
     if (k.king) out.push({ key: "kiraKing", v: 1, icon: "🪲", label: "ราชาแมลงอวกาศ", cls: "bg-violet-500 text-white", desc: "" });
     if (!k.king && k.calm > 0) out.push({ key: "kiraCalm", v: 1, icon: "💚", label: `บดขยี้ส่วนเกิน ${k.calm}/${k.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
     if (k.ult > 0) out.push({ key: "kiraUlt", v: k.ult, turns: true, icon: "🦴", label: "อัฐิราชา", cls: "bg-violet-900 text-white", desc: "" });
+  }
+  // ยูนะ: เพลงที่เปิด · ยูนะ ไอดอล (เทิร์นที่เหลือ) · คูลดาวน์ · เงาของเสียง (รอ/ทำงาน)
+  if (p.yuna) {
+    const y = p.yuna;
+    if (y.idol > 0) out.push({ key: "yunaIdol", v: y.idol, turns: true, icon: "🔥", label: "ยูนะ ไอดอล", cls: "bg-fuchsia-500 text-white", desc: "" });
+    else if (y.song === "delete") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Delete", cls: "bg-rose-700 text-white", desc: "" });
+    else if (y.song === "smile") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Smile for You", cls: "bg-pink-300 text-gray-900", desc: "" });
+    if (y.ultCd > 0) out.push({ key: "yunaUltCd", v: y.ultCd, turns: true, icon: "⏳", label: "ร้อนแรงดังไฟ", cls: "bg-white/20", desc: "" });
+    if (y.vanish) out.push({ key: "yunaVanish", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-700 text-white", desc: "" });
+    else if (y.vanishNext) out.push({ key: "yunaVanishNext", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-300 text-gray-900", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
@@ -1072,8 +1084,9 @@ function GutsVideoPreloader({ me, players }) {
   const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
   const preloadSora = (players || []).some((p) => p.character?.id === "sora_otosumi");
   const preloadKira = (players || []).some((p) => p.character?.id === "kira");
+  const preloadYuna = (players || []).some((p) => p.character?.id === "yuna");
   const preloadHikaru = (players || []).some((p) => p.character?.id === "raido_hikaru");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira) return null;
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira && !preloadYuna) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1085,6 +1098,7 @@ function GutsVideoPreloader({ me, players }) {
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill2.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill1.mp4" preload="auto" muted playsInline />}
       {preloadKira && <video src="/characters/kira/kira_skill1.mp4" preload="auto" muted playsInline />}
+      {preloadYuna && <video src="/characters/yuna/yuna_skill3.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
       {preloadHikaru && HIKARU_CLIPS.map((f) => <video key={f} src={`/characters/raido_hikaru/${f}.mp4`} preload="auto" muted playsInline />)}
@@ -1955,6 +1969,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "ride") {
+      // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
+      boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
     } else if (pickReq.kind === "suit") {
       const { uid, mode } = pickReq;
       boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
@@ -2406,6 +2423,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               }
               attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
+              ride={me?.yuna && me.yuna.canRide && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
+              drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
@@ -2440,6 +2459,22 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         myTurn={myTurn && !canto} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
+      {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}
+      {state.rideAsk && state.rideAsk.mine && (
+        <div className="fixed inset-0 z-[60] grid place-items-center pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border-2 bg-black/85 px-5 py-4 shadow-2xl" style={{ borderColor: state.rideAsk.fromColor || "#f0c868" }}>
+            <img src={state.rideAsk.fromImg} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/30" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-2xl" aria-hidden="true">🎠</span>
+              <b className="text-white text-lg leading-none">{state.rideAsk.fromName}</b>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="w-14 h-14 rounded-xl bg-emerald-500 text-white text-2xl font-black" onClick={() => { clickSound(); socket.emit("rideAnswer", { ok: true }); }}>✓</button>
+              <button type="button" className="w-14 h-14 rounded-xl bg-rose-600 text-white text-2xl font-black" onClick={() => { clickSound(); socket.emit("rideAnswer", { ok: false }); }}>✕</button>
+            </div>
+          </div>
+        </div>
+      )}
       {hkForms && me?.hikaru && (
         <HikaruForms hikaru={me.hikaru} onClose={() => setHkForms(false)} onPick={(form) => { setHkForms(false); socket.emit("useSkill", { tier: "basic", form }); }} />
       )}

@@ -9,7 +9,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 `server/` เรียกผ่าน `CHAR_HOOKS` — เพิ่มตัวละครจึงไม่ต้องรื้อ engine แต่ต้องเสียบ
 ให้ครบทุกจุด ไม่งั้นสกิลจะ "เขียนแล้วไม่ทำงาน" แบบเงียบๆ
 
-> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) · `kate` + `emiliko` (ผู้เล่น 1 คนคุม 2 ตัว · ปุ่มหลายตัวเลือก · เดินต่อหลังจบตา · พื้นเปียก · พื้นที่ขัง/บังสายตา · ดาเมจตายตัว — GAME_SYSTEM §20) · `kira` (สองร่าง · ตีแนวตรง 4×1 + ท่าตีคลื่นฟัน `kiraSlash` · คลื่น `line` 4×3 ที่บีบคนแถวข้างเข้ากลาง (ส่ง `knock` ผ่าน `engine.ice.begin/flush` หลัง `skillBeat`) + สถานะ `rooted` เดินไม่ได้ · ฟื้นจากตายด้วย `preventDeath` · ออร่าควันวาดหน้า/หลังตัว (`aura` ใน BoardStage → `kiraAuraBack/Front`) · เพลงเฉพาะช่วงท่าไม้ตาย (`activeSkillMusic`) · เอฟเฟกต์ใน `client/src/board/kiraFx.js` + `darkWaveFx`) · `ice_spike` (ตีปกติไม่ได้ · สกิลเลือกช่อง `tile` · วางของบนกระดาน (น้ำแข็ง/หนาม) · ไถล/ผลัก/ชน · สถานะเชื่องช้า · ท่าออกผลต้นตาเดินถัดไป · ระบบกลาง `server/ice.js` GAME_SYSTEM §19) — ใช้เป็นต้นแบบ
+> ตัวละครที่มีตอนนี้: `muimi` · `oberon_summer` · `sliver_bullet` (เลือด/เกราะเฉพาะตัว · ราคาเปลี่ยนได้ · ล่องหน — ต้นแบบของฮุคพวกนี้) · `sora_otosumi` (สองร่าง · ตีปกติเปลี่ยนตามอาวุธ · ท่าพุ่งชนหลายจังหวะ) · `raido_hikaru` (เลือกร่างจากหลายปุ่ม · ตีปกติแนวตรงโดนหลายคน · ตัวใหญ่ชั่วคราว · ลำแสง+ผลัก · เอฟเฟกต์ท่าตีเฉพาะตัวใน `client/src/board/hikaruFx.js`) · `kate` + `emiliko` (ผู้เล่น 1 คนคุม 2 ตัว · ปุ่มหลายตัวเลือก · เดินต่อหลังจบตา · พื้นเปียก · พื้นที่ขัง/บังสายตา · ดาเมจตายตัว — GAME_SYSTEM §20) · `kira` (สองร่าง · ตีแนวตรง 4×1 + ท่าตีคลื่นฟัน `kiraSlash` · คลื่น `line` 4×3 ที่บีบคนแถวข้างเข้ากลาง (ส่ง `knock` ผ่าน `engine.ice.begin/flush` หลัง `skillBeat`) + สถานะ `rooted` เดินไม่ได้ · ฟื้นจากตายด้วย `preventDeath` · ออร่าควันวาดหน้า/หลังตัว (`aura` ใน BoardStage → `kiraAuraBack/Front`) · เพลงเฉพาะช่วงท่าไม้ตาย (`activeSkillMusic`) · เอฟเฟกต์ใน `client/src/board/kiraFx.js` + `darkWaveFx`) · `yuna` (วงออร่ารอบตัวตามระยะเดิน — ฮุค `auraAtk`/`auraAccurate`/`auraIncoming`/`skillMusic` ถามกับทุกคน · ศพค้าง `keepsCorpses` · สกิลเลือกศพ `place: "corpse"` + `engine.joinOrder` · ขี่ผู้เล่นอื่น `server/ride.js` · หายตัวแตะไม่ได้ `untouchable` · ชื่อ/ปกตามร่าง `characterPub` · เอฟเฟกต์ `client/src/board/yunaFx.js` — GAME_SYSTEM §21) · `ice_spike` (ตีปกติไม่ได้ · สกิลเลือกช่อง `tile` · วางของบนกระดาน (น้ำแข็ง/หนาม) · ไถล/ผลัก/ชน · สถานะเชื่องช้า · ท่าออกผลต้นตาเดินถัดไป · ระบบกลาง `server/ice.js` GAME_SYSTEM §19) — ใช้เป็นต้นแบบ
 > **เกมเป็นกระดานเดินได้แบบ Fire Emblem แล้ว** — กติกาที่ผู้ใช้ตัดสินอยู่ใน [GRID_PLAN.md](../../../GRID_PLAN.md) (§4–§8, §10)
 > ระบบเดิมที่ยังใช้อยู่ดู [GAME_SYSTEM.md](../../../GAME_SYSTEM.md) · ถ้าสองไฟล์นั้นขัดกับไฟล์นี้ ให้เชื่อสองไฟล์นั้น
 > เรื่องที่สเปก/แผนไม่ได้ระบุ ให้ทำแบบ Fire Emblem และถามผู้ใช้ก่อนตัดสินเรื่องใหญ่
@@ -119,7 +119,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | `resetCombat(p)` | `combat.resetCombat()` ทุกแมตช์ — ล้างฟิลด์เฉพาะตัว (+ ค่าเริ่มใน `newPlayerRecord` ของ `server/socket.js`) |
 | `onRoundStartTick(engine, p)` | ลูปต่อผู้เล่นของ `dealRound()` — ลงผลกับ `p` เท่านั้น (GAME_SYSTEM §7 กล่องเตือน) · `p` ตาย = ข้ามผลต้นเทิร์นที่เหลือ |
 | `onEndTurn(engine)` | `endTurn()` หลังลูปลดเทิร์นสถานะ (สตั้นที่ใส่ตรงนี้เต็มเทิร์นถัดไป) |
-| `onDeath(engine)` | `combat.instantDeath()` — มีคนตกรอบ |
+| `onDeath(engine, p)` | `combat.instantDeath()` — มีคนตกรอบ (`p` = คนที่ตาย · `pos` ยังไม่ถูกล้าง) |
+| `auraAtk(engine, attacker)` → `{ amount, name, img }` | `computeAttackBase` — พลังโจมตีจากออร่า (ยูนะ) |
+| `auraIncoming(engine, p, n)` → ส่วนต่าง | `combat.adjustIncomingDamage` — ทุกความเสียหายที่ p ได้รับ (ยูนะ: Delete +1 / Smile −1) |
+| `auraAccurate(p)` | `_universal_status.accurateActive` (ลงทะเบียนใน `characters/index.js`) |
+| `skillMusic(engine, p)` → `{ music, at }` | `view.activeSkillMusic` — ถามกับทุกคนที่ยังอยู่ · at มากสุดชนะ |
 | `onKill(engine, killer, victim)` | **ไม่ broadcast** — เฉพาะโมดูลของผู้สังหาร (`match.effectSourceId`) ผ่าน `runHook` |
 
 | ต้องการ | ฮุค | เรียกจาก |
@@ -138,6 +142,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ฉากสกิลหลายจังหวะ (พักให้กระดานเล่นเอฟเฟกต์ → คลิป → ผล) | `engine.skillBeat(sec, fn)` + `deferAfterCutscene` + `queueCutscene` (ต้นแบบ Mouse Separade ของโซระ) | `cutscene.runSkillFlow` |
 | ไม่ขึ้นป้ายสกิลกลาง | `silentFlash(p, tier)` | `server/skills.js` |
 | ท่าที่เปลี่ยนภูมิภาคทันที + นับเวลาใหม่ (ฉากเฉพาะตัว) | `engine.journeyRebirth(p, impact)` → ฉาก CUTSCENE `journey.scene.mode: "rebirth"` 18 วิ แล้ว impact() → ภูมิภาคใหม่ + `legStart`/`cycleShift`/ร้านรีเซ็ต + จบตา (ต้นแบบ ก่อกำเนิดใหม่ของ Echo · ฉากโลกแตกห้ามใช้กับตัวอื่น) | `server/phases/endTurn.js` |
+| ศพค้างระหว่างที่ตัวนี้อยู่ | `keepsCorpses(p)` (server/duo.js `corpseKept`) · ฟื้นศพ: `area { kind: "tile", place: "corpse" }` + `engine.joinOrder(id)` (ได้เดินเทิร์นนี้) | – |
+| ขี่ผู้เล่นอื่น | `canRide / onMount / onFall / rideSound` — ระบบกลาง `server/ride.js` (GAME_SYSTEM §21) | socket `rideAsk` / `rideAnswer` |
+| ไม่มีดาเมจ/ดีบัฟจากคนอื่นแตะได้ | `untouchable(engine, p)` | `combat.applyDebuff` / `adjustIncomingDamage` |
+| ชื่อ/ปกตัวละครตามร่าง | `characterPub(engine, p)` → `{ name, img }` | `server/view.js` |
+| ป้ายสกิลใช้ชื่อ/รูปของปุ่มตอนกด | `skillPub` คืน `flash: true` | `server/skills.js` |
 | เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p, base)` (base = MAX_ARMOR) | `combat.maxHpOf`/`maxArmorOf` |
 | ผลเมื่อเกราะลด (ทุกทาง) | `onArmorLost(engine, p)` (ฮิคารุ: ฟื้นพลังชีวิต 1) | `combat.loseArmor` |
 | กันตาย/ฟื้นทันที (ทุกทางที่ตาย) | `preventDeath(engine, p)` → true = ไม่ตาย (ฮุคตั้ง `p.hp` เอง · ข้ามเมื่อ `force`) — ผู้เรียก `instantDeath` ทุกจุดเช็ค `!p.alive` ก่อนเก็บกวาด จึงรอดได้ทุกทาง (กิระ: อัฐิราชา) | `combat.instantDeath` |
@@ -164,7 +173,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ผู้เล่น 1 คนคุม 2 ตัว | `duo: "<id ตัวที่สอง>"` ใน characters.js (ตัวที่สอง `hidden: true`) — ระบบกลาง `server/duo.js` (GAME_SYSTEM §20 · ต้นแบบ เคท & เอมิลิโกะ) | `lobby.startMatch` |
 | สลับตัว/ตัวอีกตัวของฝ่าย | `engine.duo.switchTo / canSwitchTo / unitDone / otherUnit / moved` | `server/duo.js` |
 | เดินต่อหลังตี/รอ (canto) | `cantoMov(engine, p)` → ระยะ · `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น | `action.finishActor` |
-| ปุ่มหลายตัวเลือก | `skillPub` คืน `choices` · client ส่ง `form` · `skillCost/skillArea/keepsMove/skipsTurnQuota/ignoresTurnQuota/silentFlash/skillSound` ได้ `opts` | `server/skills.js` |
+| ปุ่มหลายตัวเลือก (**ทุกตัวเลือกต้องมี `desc`** — ชี้เมาส์ค้างขึ้นคำอธิบาย · กฎผู้ใช้ 2026-10-19) | `skillPub` คืน `choices` · client ส่ง `form` · `skillCost/skillArea/keepsMove/skipsTurnQuota/ignoresTurnQuota/silentFlash/skillSound` ได้ `opts` | `server/skills.js` |
 | ดาเมจตายตัวของตีปกติ (ไม่รับบัฟ) | `fixedStrikeDamage(engine, attacker, target)` → ตัวเลข | `attack.strike` |
 | ไถลชนแบบมีเงื่อนไข | `slideStrikes(engine, p)` · `slideStrike` คืน `{ attack: false, knock: false }` | `Ice.impact` |
 | พื้นเปียก / พื้นที่ขัง+บังสายตา | `engine.ice.layWet / dryWet` · `engine.soot.cast / strikeInside / inStormOf / trapOf` | `server/ice.js` · `server/soot.js` |

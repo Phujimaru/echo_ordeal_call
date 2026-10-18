@@ -7,7 +7,7 @@
 Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
-  removeFromOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
+  removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
   walkUndoPatch, startMap,
@@ -33,6 +33,7 @@ const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
+const Ride = require("../ride");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -209,6 +210,7 @@ function smashes(p) {
 //  ร้านค้าถูกยกออก — ต้นเทิร์นถัดไป (dealRound) สุ่มจุดใหม่บนแผนที่นี้พร้อมของใหม่ (GRID_PLAN §3)
 //  ตัวใหญ่: วางใกล้จุดเกิดของตัวเองให้ทั้งตัวลงได้โดยไม่ทับใคร (พังสิ่งกีดขวางได้ = พังของใต้ตัว)
 function placeOnBoard(area) {
+  Ride.clearAll(); // ขี่ผู้เล่นอื่น: เปลี่ยนภูมิภาค = ลงจากหลังทุกคน (ได้จุดเกิดของตัวเอง)
   match.board = { area };
   match.shopPos = null;
   const map = boardMap();
@@ -393,7 +395,8 @@ function turnOrderOf(players, rng = Math.random) {
 function beginOrder() {
   timers.clearPhaseTimer();
   // ระบบคู่: ลำดับเดินต่อผู้เล่น (ไพ่ของเจ้าของ) — ฝ่ายที่ยังมีตัวบนกระดาน
-  const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && u.pos));
+  //  ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ไม่อยู่บนกระดาน (pos = null) แต่ยังได้ตาเดิน
+  const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && (u.pos || Ride.riding(u))));
   match.turnOrder = turnOrderOf(alive);
   match.actorIndex = -1;
   match.actorId = null;
@@ -431,6 +434,8 @@ function nextActor() {
     const owner = match.players[id];
     if (!owner) continue;
     // ระบบคู่ (server/duo.js): ตาของผู้เล่น = ทุกตัวของฝ่าย (ตัวละครทั่วไปมีตัวเดียว)
+    //  ขี่ผู้เล่นอื่น: ตาของตัวเอง = ลงมายืนช่องของตัวที่ถูกขี่ชั่วคราว (Ride.seat — จบตาขึ้นหลังต่อ)
+    for (const u of Duo.unitsOf(owner)) Ride.seat(u);
     let units = Duo.unitsOf(owner).filter((u) => u.alive && u.pos);
     if (!units.length) continue;
     Visibility.markTurn(id); // บรรทัดที่ฝ่ายนี้ก่อในตานี้ (filterLog — คนล่องหนที่ถูกโจมตีพื้นที่จนปรากฏตัว)
@@ -463,6 +468,18 @@ function nextActor() {
 function removeFromOrder(playerId) {
   const mine = match.actorId === playerId || (match.duo && match.duo.ownerId === playerId);
   if (mine && match.gameState === "ACTION") { match.duo = null; nextActor(); }
+}
+// ฟื้นคืนชีพกลางตาเดินแล้วได้เดินเทิร์นนี้ (ยูนะ: คำอวยพรสุดท้าย — ผู้ใช้ตัดสิน 2026-10-18)
+//  ยังไม่ถึงคิว = รอคิวเดิม · ไม่มีชื่อในลำดับ/เดินไปแล้ว = ต่อท้ายแถว (ย้ายออกจากที่เดิม — actorIndex เลื่อนตาม)
+function joinOrder(id) {
+  const p = match.players[id];
+  if (!p || match.gameState === "PLAYING" || match.gameState === "ORDER") return; // ช่วงจั่ว/ลำดับเดิน = ได้คิวตามไพ่อยู่แล้ว
+  const side = Duo.sideKey(p) || id;
+  const idx = match.turnOrder.indexOf(side);
+  if (idx > match.actorIndex) return;
+  if (idx === match.actorIndex && (match.actorId === id || (match.duo && match.duo.ownerId === side))) return; // ฝ่ายนี้กำลังเดินอยู่
+  if (idx >= 0) { match.turnOrder.splice(idx, 1); match.actorIndex--; }
+  match.turnOrder.push(side);
 }
 // ติดสตั้น / หลับไหล (เทิร์นที่เพิ่งโดนกล่อมยังขยับได้) = ข้ามตา
 function stuck(p) {
@@ -556,6 +573,8 @@ function moveTo(id, x, y, { step = false } = {}) {
   // ผลการเดินที่แสดงอยู่แล้ว (เดินซ้ำทางเดิม = ไม่เล่นเอฟเฟกต์ซ้ำ) → ถอดการเดินเดิมออกก่อนเดินทางใหม่จากจุดเริ่ม
   const had = { ice: new Set((act.iceUndo || []).filter(Boolean).map((r) => r.k)), smashed: new Set(act.smashed || []) };
   if (act.moved) rewindWalk(p);
+  // ขี่อยู่ (server/ride.js): เดินออกจากช่องของตัวที่ถูกขี่ = ลงจากหลัง (ย้อนการเดินกลับช่องเดิม = ขึ้นกลับ — rewindWalk)
+  if (p.mountId) { act.dismount = p.mountId; p.mountId = null; }
   const s = sizeOf(p);
   const map = boardMap();
   const all = boardUnits();
@@ -587,6 +606,7 @@ function moveTo(id, x, y, { step = false } = {}) {
     act.trail = walked;
     act.locked = true;
     act.ambush = { x: walk[bumpIdx].x, y: walk[bumpIdx].y };
+    if (act.dismount && p.pos.x === act.from.x && p.pos.y === act.from.y) { p.mountId = act.dismount; act.dismount = null; } // ชนตั้งแต่ก้าวแรก = ยังอยู่บนหลัง
     Visibility.onBump(p, match.players[hidden.id]);
     view.broadcastState();
     return true;
@@ -665,6 +685,11 @@ function smashAlong(p, path, had) {
 function rewindWalk(p) {
   const a = match.action;
   p.pos = { x: a.from.x, y: a.from.y };
+  if (a.dismount) {
+    const m = match.players[a.dismount];
+    if (m && m.alive && m.pos && m.pos.x === a.from.x && m.pos.y === a.from.y) p.mountId = m.id;
+    a.dismount = null;
+  }
   restoreObstacles(a.smashed);
   a.smashed = null;
   Ice.undoLay(a.iceUndo);
@@ -738,7 +763,9 @@ function finishActor() {
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
   const p = match.players[match.actorId];
   if (!expired && startCanto(p)) return;
-  endUnitTile(p);
+  Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
+  if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ
+  else endUnitTile(p);
   if (match.duo) {
     if (endTurnPhase.gameOver()) return;
     Duo.unitDone(p);

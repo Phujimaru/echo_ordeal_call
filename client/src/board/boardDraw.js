@@ -29,6 +29,7 @@ import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
+import { YUNA_FX_DUR, YUNA_HIT_P, YUNA_MS, drawRider, drawYunaZones, isYunaFx, yunaFx } from "./yunaFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -485,6 +486,8 @@ function drawUnit(g, u, now, boxes) {
   else unitHex(g, u, bx, hy, hexR);
   if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
   if (u.cloak && !REDUCED) cloakShimmer(g, bx, hy, hexR, now);
+  // ขี่ผู้เล่นอื่น (ยูนะ): ตัวที่ขี่วาดเป็นหมากเล็กบนหลัง
+  if (u.rider) drawRider(g, u.rider, bx, hy, hexR, now, unitHex, a);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี)
   if (u.masked) {
@@ -794,8 +797,8 @@ function smashFx(g, e, now) {
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1880,7 +1883,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR,
 };
 
 
@@ -1933,6 +1936,8 @@ export function drawFrame(g, st, now) {
   // ม่านแดง (ระบำเขม่า · เคท): พื้นมืด → ม่านรอบขอบเรียงความลึกกับตัวละคร → เขม่าในอากาศ — sootStorm.js
   const storms = st.storms && st.storms.length ? st.storms : null;
   if (storms) drawStormGround(g, storms, info, now, lowQ);
+  // วงเพลงของยูนะ (yunaFx.js) — บนพื้น ใต้ไฮไลต์
+  if (st.songs && st.songs.length) drawYunaZones(g, st.songs, info, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -2039,6 +2044,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (isKiraFx(e.kind)) kiraFx(g, e, now, lowQ);
+    else if (isYunaFx(e.kind)) yunaFx(g, e, now, lowQ);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

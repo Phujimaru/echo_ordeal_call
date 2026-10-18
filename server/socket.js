@@ -21,6 +21,7 @@ const skills = require("./skills");
 const timers = require("./timers");
 const view = require("./view");
 const Duo = require("./duo");
+const Ride = require("./ride");
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
 const sessions = new Map();          // sessionToken -> playerId
@@ -262,6 +263,10 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
   onUnitEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
   onUnitEvent(socket, 'endAction', (id) => action.waitAction(id), 4);
+  // ขี่ผู้เล่นอื่น (server/ride.js — ยูนะ): ขอขี่คนที่อยู่ติดกัน · เจ้าของตัวที่ถูกขอกดตอบ
+  onUnitEvent(socket, 'rideAsk', (id, { targetId } = {}) => Ride.ask(id, targetId), 6);
+  onPlayerEvent(socket, 'rideAnswer', (id, { ok } = {}) => Ride.answer(id, ok === true), 6);
+  onUnitEvent(socket, 'rideDrop', (id) => Ride.drop(id), 6); // ตัวที่ถูกขี่สั่งให้ลง (ตาของตัวเอง)
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);

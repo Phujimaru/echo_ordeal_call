@@ -864,6 +864,10 @@
 @keyframes hcShine { 40%, 100% { transform: translateX(120%); } }
 @keyframes hcPop { from { transform: translateX(46px) scale(.8); opacity: 0; } }
 .hc-btn.bag .ico { width: 42px; height: 42px; color: #bee3f8; }
+/* ยูนะ: ปุ่มขี่ (ขอขี่คนที่อยู่ติดกัน) */
+.hc-btn.ride { background: linear-gradient(115deg, #f7a8d2, #d863a5 50%, #8a2c6a); animation: hcPop .5s cubic-bezier(.2,1.5,.4,1) both; }
+.hc-btn.ride .ico { font-size: 30px; line-height: 1; display: grid; place-items: center; }
+.hc-btn.ride:disabled { background: rgba(16,34,66,.72); opacity: .55; cursor: not-allowed; }
 .hc-row { display: flex; gap: 8px; }
 .hc-row .hc-btn { flex: 1; height: 54px; justify-content: center; padding: 0 8px; }
 .hc-row .hc-btn b { font-size: 19px; }

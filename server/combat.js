@@ -26,6 +26,7 @@ const cardDeck = require("./deck");
 const lobby = require("./lobby");
 const qteSystem = require("./qte");
 const Duo = require("./duo");
+const Ride = require("./ride");
 
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
@@ -92,6 +93,7 @@ function applyBuff(p, key, amount, turns) {
 }
 function applyDebuff(p, key, amount, turns) {
   if (friendlyEffectBlocked(p)) return false;
+  if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น
   return rawApplyDebuff(p, key, amount, turns);
 }
 // ภาระเวท (spellburden) — จุดเดียวที่ทุกตัวละคร/ทุกเอฟเฟกต์ต้องใช้ใส่สถานะนี้
@@ -151,10 +153,12 @@ function instantDeath(p, force) {
   const deathHook = CHAR_HOOKS[p.characterId];
   if (!force && deathHook && deathHook.preventDeath && deathHook.preventDeath(engine, p)) return;
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
-  Duo.onDeath(p); // ระบบคู่: ล้มขณะอีกตัวยังอยู่ = ทิ้งร่างไว้ (ตกรอบทั้งฝ่าย = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
+  Ride.onDeath(p); // ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ตาย = ทิ้งศพที่ช่องของตัวที่ถูกขี่ · ตัวที่ถูกขี่ตาย = คนขี่ร่วง
+  Duo.onDeath(p); // ระบบคู่ / ศพค้าง (ยูนะ): ล้มแล้วทิ้งร่างไว้ (ไม่มีใครเก็บร่าง = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
   if (Duo.isOwner(p) && Duo.sideAlive(p)) { p.result = null; p.locked = match.gameState !== "PLAYING"; }
   qteSystem.clearQte(p); // ตกรอบแล้ว QTE ที่ค้างอยู่ต้องหายไปด้วย (ไม่งั้นค้างข้ามการชุบชีวิต/ย้อนเวลา)
-  broadcastHook("onDeath", engine); // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว
+  // นักบินปริศนา: คนในสนามเหลือน้อยกว่าเงื่อนไข = ปรากฏตัว · ยูนะ: ตายเองแล้วศพทุกศพหาย · p = คนที่ตาย
+  broadcastHook("onDeath", engine, p);
   // ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง) → ฮุค onKill ของตัวละครผู้สังหารเท่านั้น
   //  (Echo — การกลืนกินระดับ EX)
   const killer = match.effectSourceId && match.players[match.effectSourceId];
@@ -197,6 +201,15 @@ function loseHp(p) {
 function tookDamage(p) {
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onDamageTaken) hook.onDamageTaken(engine, p, 1);
+  // ถูกผู้เล่นอื่นทำให้เสียหาย = ถูกโจมตี — คนที่ขี่อยู่ร่วง (server/ride.js)
+  const src = match.effectSourceId && match.players[match.effectSourceId];
+  if (src && src.id !== p.id) Ride.onAttacked(p, src);
+}
+// ไม่มีอะไรจากคนอื่นแตะได้ (ดาเมจ/ดีบัฟ) — ฮุค untouchable(engine, p) ของตัวละคร (ยูนะ: เงาของเสียง)
+function untouchable(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  if (!hook || !hook.untouchable || !hook.untouchable(engine, p)) return false;
+  return !match.effectSourceId || match.effectSourceId !== p.id;
 }
 
 function loseArmor(p) {
@@ -222,8 +235,17 @@ function damageSoft(p) {
 function adjustIncomingDamage(p, n, isNormalAttack, kind) {
   // เกราะ Mark 42: ชุดรับความเสียหายทุกชนิดแทนตัวจริงทั้งก้อน (ส่วนเกินหายไปพร้อมชุด = แค่กลับร่างเดิม)
   if (n > 0 && Mark42.absorb(engine, p, n)) return 0;
+  if (n > 0 && untouchable(p)) return 0;
   const hook = CHAR_HOOKS[p && p.characterId];
-  return hook && hook.adjustIncomingDamage ? hook.adjustIncomingDamage(engine, p, n, isNormalAttack, kind) : n;
+  n = hook && hook.adjustIncomingDamage ? hook.adjustIncomingDamage(engine, p, n, isNormalAttack, kind) : n;
+  // ออร่าของคนอื่นที่เพิ่ม/ลดความเสียหายที่ได้รับ (ฮุค auraIncoming(engine, p, n) → ส่วนต่าง · ยูนะ: Delete +1 / Smile for You −1)
+  //  ทุกความเสียหาย (ตีปกติ · สกิล · ผลต่อเทิร์น) ที่ยังเหลือ > 0 หลังฮุคของเป้าเอง · ลดถึง 0 ได้
+  if (n > 0) {
+    let d = 0;
+    for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.auraIncoming === "function") d += runHook(mod, "auraIncoming", engine, p, n) || 0;
+    n = Math.max(0, n + d);
+  }
+  return n;
 }
 // ดาเมจทะลุเกราะ: ข้ามเกราะหลัก
 function dealDirect(p, n, isNormalAttack) {
