@@ -303,7 +303,7 @@ test('ขี่: คนที่ถูกขี่ถูกโจมตี = ย
   assert.ok(P.M.corpse, 'คนที่ถูกขี่ทิ้งศพ');
 });
 
-test('ขี่: คนที่ถูกขี่สั่งให้ลงได้ในตาของตัวเอง (ไม่ติดห้ามขี่) · นอกตาสั่งไม่ได้', () => {
+test('ขี่: คนที่ถูกขี่สั่งให้ลงได้ในตาของตัวเอง (ขี่ไม่ได้ 2 เทิร์น) · นอกตาสั่งไม่ได้', () => {
   const P = setup([['Y', 'yuna', 3, 7], ['M', 'dummy', 4, 7], ['B', 'dummy', 12, 12]]);
   P.Y.mountId = 'M'; P.Y.pos = null;
   engine.setActor('B');
@@ -313,7 +313,7 @@ test('ขี่: คนที่ถูกขี่สั่งให้ลงไ
   assert.equal(Ride.drop('M'), true);
   assert.equal(P.Y.mountId, null);
   assert.ok(P.Y.pos, 'ลงช่องข้างๆ');
-  assert.equal(P.Y.statuses.yunaNoRide, undefined, 'ไม่ติดห้ามขี่');
+  assert.equal(P.Y.statuses.yunaNoRide, 2, 'ถูกสั่งลง = ขี่ไม่ได้ 2 เทิร์น');
   assert.equal(engine.action.locked, false, 'ไม่ล็อกการเดินของคนที่ถูกขี่');
 });
 
@@ -348,4 +348,37 @@ test('ffa: ผลของวงลงทุกคนในวง ไม่ส�
   assert.equal(attack.computeAttackBase(engine, P.Y, P.F).base, 3);
   assert.equal(attack.computeAttackBase(engine, P.F, P.A).base, 1, 'นอกวงไม่ได้');
   assert.equal(accurateActive(P.G), true);
+});
+
+test('ขี่: สร้างความเสียหายได้ไม่เกินครั้งละ 2 (ตีปกติ/สกิล) · ลงแล้วไม่จำกัด', () => {
+  const P = setup([['Y', 'yuna', 3, 7], ['M', 'dummy', 4, 7], ['B', 'dummy', 5, 7]]);
+  P.Y.mountId = 'M'; P.Y.pos = { x: 4, y: 7 };
+  P.Y.yuna.ultUntil = engine.roundNumber + 2; // ไอดอล: พลังโจมตี 3
+  Math.random = () => 0.99;
+  const b0 = P.B.hp + P.B.armor;
+  const res = attack.strike(P.Y, P.B);
+  assert.equal(res.dmg, 2, 'ตัวเลขในฉากตี');
+  assert.equal(b0 - (P.B.hp + P.B.armor), 2);
+  const b1 = P.B.hp + P.B.armor;
+  engine.withEffectSource(P.Y, () => engine.dealMixed(P.B, 4));
+  assert.equal(b1 - (P.B.hp + P.B.armor), 2, 'ดาเมจสกิลก็ติดเพดาน');
+  P.Y.mountId = null;
+  P.B.hp = 7; P.B.armor = 3;
+  assert.equal(attack.strike(P.Y, P.B).dmg, 3, 'ลงแล้วไม่จำกัด');
+});
+
+test('ขี่: เดินลงจากหลัง = ตานั้นขึ้นใหม่ไม่ได้ · จบตาแล้วขี่ไม่ได้ 2 เทิร์น · ย้อนกลับขึ้นหลัง = ไม่ติด', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['Y', 'yuna', 5, 8], ['M', 'dummy', 5, 8], ['B', 'dummy', 12, 12]]);
+  P.Y.mountId = 'M'; P.Y.pos = null;
+  orderUpTo(t, ['Y', 'M', 'B'], 'Y');
+  assert.deepEqual(P.Y.pos, { x: 5, y: 8 });
+  assert.ok(engine.moveTo('Y', 4, 8));
+  assert.equal(Ride.ask('Y', 'M'), false, 'ตานี้ขึ้นใหม่ไม่ได้');
+  engine.undoMove('Y');
+  assert.equal(P.Y.mountId, 'M');
+  assert.ok(engine.moveTo('Y', 4, 8));
+  engine.finishActor();
+  assert.equal(P.Y.mountId, null);
+  assert.equal(P.Y.statuses.yunaNoRide, 2);
 });

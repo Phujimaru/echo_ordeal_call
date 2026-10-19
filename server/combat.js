@@ -9,7 +9,7 @@ Object.assign(module.exports, {
   damageSoft, dealDirect, dealArmorOnly, dealMixed,
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
-  runHook, broadcastHook,
+  runHook, broadcastHook, damageCapOf,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -245,7 +245,13 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
     for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.auraIncoming === "function") d += runHook(mod, "auraIncoming", engine, p, n) || 0;
     n = Math.max(0, n + d);
   }
-  return n;
+  return Math.min(n, damageCapOf(match.effectSourceId && match.players[match.effectSourceId]));
+}
+// เพดานความเสียหายต่อครั้งของผู้ลงมือ (ฮุค damageCap(engine, source) → ตัวเลข | null — ยูนะ: ขี่อยู่ไม่เกิน 2) · ไม่มี = ไม่จำกัด
+//  ใช้ทั้งท่อดาเมจ (หลังฮุคเป้า + ออร่า) และตัวเลขในฉากตีปกติ (attack.strike)
+function damageCapOf(source) {
+  const cap = source ? runHook(CHAR_HOOKS[source.characterId], "damageCap", engine, source) : null;
+  return Number.isFinite(cap) ? Math.max(0, cap) : Infinity;
 }
 // ดาเมจทะลุเกราะ: ข้ามเกราะหลัก
 function dealDirect(p, n, isNormalAttack) {

@@ -26,7 +26,8 @@
 //    - ระหว่างที่ยูนะยังอยู่ ทุกคนที่ตายทิ้งศพไว้ (ฮุค keepsCorpses — server/duo.js) ขวางทาง เดินข้ามได้ (ผู้ใช้ตัดสิน) · ยูนะตาย = ศพหาย
 //    - ขี่ผู้เล่นที่อยู่ติดกันเมื่ออีกฝ่ายยินยอม (server/ride.js — ฮุค canRide) · ถูกโจมตีไม่ได้ · สกิลพื้นที่โดนแค่คนที่ถูกขี่
 //      เดินออก = ลง · คนที่ถูกขี่ถูกโจมตี = ร่วงลงข้างๆ และขี่ไม่ได้ 3 เทิร์น (สถานะ yunaNoRide)
-//      คนที่ถูกขี่สั่งให้ลงได้ในตาของตัวเอง (socket rideDrop · ไม่ติดห้ามขี่ — ผู้ใช้ตัดสิน 2026-10-19)
+//      คนที่ถูกขี่สั่งให้ลงได้ในตาของตัวเอง (socket rideDrop) · ลงจากหลัง (เดินออก/ถูกสั่งลง) = ขี่ไม่ได้ 2 เทิร์น
+//      ขี่อยู่สร้างความเสียหายได้ไม่เกินครั้งละ 2 (ฮุค damageCap — ผู้ใช้สั่ง 2026-10-19)
 //    - ตายโดยยังไม่ใช้คำอวยพรสุดท้าย = ทำงานกับตัวเอง (ฮุค preventDeath) ได้ผลเหมือนฟื้นคนอื่นทุกอย่าง (ผู้ใช้ตัดสิน)
 // ============================================================
 
@@ -84,7 +85,9 @@ const ULT_TURNS = 5;
 const ULT_CD = 3;
 const ULT_ATK = 1;     // พวกเราในวง
 const ULT_ATK_SELF = 2;
-const NO_RIDE_TURNS = 3;
+const NO_RIDE_TURNS = 3;      // ร่วงเพราะคนที่ถูกขี่ถูกโจมตี/ตาย
+const DISMOUNT_CD = 2;        // ลงจากหลังเอง (เดินออก) / ถูกสั่งให้ลง — ขี่ซ้ำถี่ๆ ไม่ได้ (ผู้ใช้สั่ง 2026-10-19)
+const RIDE_DMG_CAP = 2;       // ขี่อยู่สร้างความเสียหายได้ไม่เกินครั้งละ 2 (ผู้ใช้สั่ง 2026-10-19)
 
 // ฝั่ง server — require ตอนเรียก (characters/index ← โมดูลนี้ ← server วนกัน)
 function E() { return require("../server/engine").engine; }
@@ -181,6 +184,13 @@ function revive(engine, p, d) {
   return true;
 }
 
+// ห้ามขี่ n เทิร์น (ค่ามากกว่าที่ติดอยู่ชนะ)
+function noRide(engine, p, n) {
+  if ((p.statuses.yunaNoRide || 0) >= n) return;
+  p.statuses.yunaNoRide = n;
+  engine.log(`💫 ${p.name} ขี่ใครไม่ได้ ${n} เทิร์น`);
+}
+
 // ---------- ข้อมูลออร่าให้ client (วาดวง) ----------
 function auraPub(engine, p) {
   const kind = auraKind(engine, p), c = centerOf(engine, p);
@@ -189,7 +199,7 @@ function auraPub(engine, p) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, MUSIC, SFX, BLESS_HP, BLESS_TURNS, BLESS_ATK, SHADOW_COST, SONG_COST, ULT_TURNS, ULT_CD, ULT_ATK, ULT_ATK_SELF, NO_RIDE_TURNS,
+  IMG, VIDEO, CUT, MUSIC, SFX, BLESS_HP, BLESS_TURNS, BLESS_ATK, SHADOW_COST, SONG_COST, ULT_TURNS, ULT_CD, ULT_ATK, ULT_ATK_SELF, NO_RIDE_TURNS, DISMOUNT_CD, RIDE_DMG_CAP,
   isYuna, ultOn, vanishOn, songOn, auraKind, inCircle,
 
   resetCombat(p) {
@@ -254,16 +264,20 @@ module.exports = {
     engine.boardFx("yunaFx", { kind: "mount", id: p.id, on: m.id, from, to: { ...m.pos }, color: engine.colorOf(p) });
     engine.sfx(SFX.mount);
   },
-  // ร่วง: ถูกโจมตี/คนที่ถูกขี่ตาย = ขี่ไม่ได้ 3 เทิร์น · ถูกสั่งให้ลง ("drop") = ขี่ใหม่ได้ทันที (ผู้ใช้ตัดสิน 2026-10-19)
+  // ร่วง: ถูกโจมตี/คนที่ถูกขี่ตาย = ขี่ไม่ได้ 3 เทิร์น · ถูกสั่งให้ลง ("drop") = 2 เทิร์น (ผู้ใช้สั่ง 2026-10-19 — เดิมขี่ใหม่ได้ทันที)
   onFall(engine, p, reason, base) {
     if (!isYuna(p)) return;
-    if (reason !== "drop") {
-      p.statuses.yunaNoRide = NO_RIDE_TURNS;
-      engine.log(`💫 ${p.name} ขี่ใครไม่ได้ ${NO_RIDE_TURNS} เทิร์น`);
-    }
+    noRide(engine, p, reason === "drop" ? DISMOUNT_CD : NO_RIDE_TURNS);
     if (p.pos) engine.boardFx("yunaFx", { kind: "fall", id: p.id, from: base ? { ...base } : null, to: { ...p.pos }, color: engine.colorOf(p) });
     engine.sfx(SFX.fall);
   },
+
+  // เดินลงจากหลังเอง (server/ride.js dismounted — จบตาที่เดินออก) = ขี่ไม่ได้ 2 เทิร์น
+  onDismount(engine, p) {
+    if (isYuna(p)) noRide(engine, p, DISMOUNT_CD);
+  },
+  // ขี่อยู่สร้างความเสียหายได้ไม่เกินครั้งละ 2 (ตีปกติ · สกิล · ทุกทาง — ฮุคกลาง damageCap)
+  damageCap(engine, p) { return isYuna(p) && engine.ride.riding(p) ? RIDE_DMG_CAP : null; },
 
   // ---------- ตายแล้วฟื้นเอง (คำอวยพรสุดท้ายที่ยังไม่ได้ใช้) ----------
   preventDeath(engine, p) {

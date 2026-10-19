@@ -11,7 +11,7 @@
 //  สั่งให้ลง (socket rideDrop — drop): ตัวที่ถูกขี่กดในตาเดินของตัวเอง (ไม่นับเป็นการกระทำ · ผู้ใช้ตัดสิน 2026-10-19) → fall(reason "drop")
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  mountOf, riderOf, riding, centerOf, seat, unseat, canAsk, ask, answer, cancelAsk, fall, drop, clearAll, onAttacked, onDeath, publicAsk,
+  mountOf, riderOf, riding, centerOf, seat, unseat, canAsk, ask, answer, cancelAsk, fall, drop, dismounted, clearAll, onAttacked, onDeath, publicAsk,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -62,7 +62,7 @@ function unseat(p) {
 // ขอขี่ได้ไหม (ไม่สนว่ามีคำขอค้างอยู่) — ตาของตัวเอง · ยังเดินได้ · ติดกัน · อีกฝ่ายว่าง
 function canAsk(p, t) {
   if (!p || !t || p.id === t.id || !t.alive || !t.pos || !p.pos) return false;
-  if (!action.canAct(p) || match.action.locked) return false;
+  if (!action.canAct(p) || match.action.locked || match.action.dismount) return false; // เพิ่งลงจากหลังตานี้ = ขึ้นใหม่ไม่ได้
   if (p.mountId || t.mountId || riderOf(t) || riderOf(p)) return false;
   const hook = hookOf(p);
   if (!hook || !hook.canRide || !hook.canRide(engine, p)) return false;
@@ -122,6 +122,11 @@ function fall(p, reason = "hit") {
   match.lastLog.push(`💫 ${p.name} ร่วงลงจากหลัง${m ? ` ${m.name}` : ""}`);
   const hook = hookOf(p);
   if (hook && hook.onFall) hook.onFall(engine, p, reason, base);
+}
+// ลงจากหลังเอง (เดินออกแล้วจบตา — action.finishActor) → ฮุค onDismount(engine, p, reason)
+function dismounted(p, reason = "walk") {
+  const hook = hookOf(p);
+  if (hook && hook.onDismount) hook.onDismount(engine, p, reason);
 }
 // ตัวที่ถูกขี่สั่งให้ลง (ตาเดินของตัวเอง · ไม่ล็อกการเดิน/ไม่กินอะไร)
 function drop(id) {

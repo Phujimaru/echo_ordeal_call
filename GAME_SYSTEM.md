@@ -625,7 +625,8 @@ module.exports = {
   untouchable(engine, p) { return false; },          // ไม่มีดาเมจ/ดีบัฟจากคนอื่นแตะได้ (combat.applyDebuff / adjustIncomingDamage)
   characterPub(engine, p) { return null; },          // { name, img } ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง → state.players[].character
   keepsCorpses(p) { return false; },                 // ระหว่างที่คนนี้ยังอยู่ ทุกคนที่ตายทิ้งศพ (server/duo.js corpseKept)
-  canRide(engine, p) { return false; }, onMount(engine, p, mount, from) {}, onFall(engine, p, reason, base) {}, rideSound(p, kind) {},
+  canRide(engine, p) { return false; }, onMount(engine, p, mount, from) {}, onFall(engine, p, reason, base) {}, onDismount(engine, p, reason) {}, rideSound(p, kind) {},
+  damageCap(engine, source) { return null; },        // เพดานความเสียหายต่อครั้งของผู้ลงมือ (combat.damageCapOf — ท่อดาเมจ + ฉากตี · ยูนะ: ขี่อยู่ไม่เกิน 2)
                                                      // ขี่ผู้เล่นอื่น (server/ride.js §21)
   canReapCorpse(engine, p, dead) { return false; }, reapCorpse(engine, p, dead) { return 1; },
                                                      // ตีปกติใส่ศพ "corpse:<id>" (action.attackTarget — §22) · reapCorpse ลงผลแล้วคืนวินาทีของฉาก ATTACKING ก่อนจบตา
@@ -819,7 +820,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ขี่ผู้เล่นอื่น** (`server/ride.js`): `rider.mountId` = id ตัวที่ถูกขี่
   · นอกตาเดินของตัวเอง `pos = null` (ไม่อยู่บนกระดาน → ไม่มีใครเล็ง/ตี · สกิลพื้นที่โดนแค่ตัวที่ถูกขี่ · ไม่ขวางช่อง) · `Ride.centerOf(p)` = ช่องจุดกลาง (ขี่ = ช่องของตัวที่ถูกขี่)
   · `nextActor` → `Ride.seat` (pos = ช่องของตัวที่ถูกขี่ชั่วคราว — ใช้สกิล/ตีจากตรงนั้น) · `finishActor` → `Ride.unseat` (ไม่ได้ผลของช่อง) · `beginOrder` นับตัวที่ขี่ว่ายังอยู่บนกระดาน
-  · เดินออก = ลง (`moveTo` → `act.dismount`) · ย้อนกลับช่องเดิม = ขึ้นกลับ (`rewindWalk`) · เปลี่ยนภูมิภาค = ลงหมด (`Ride.clearAll` ใน `placeOnBoard`)
+  · เดินออก = ลง (`moveTo` → `act.dismount` · ตานั้นขึ้นใหม่ไม่ได้ · จบตาแล้วยังลงอยู่ = `Ride.dismounted` → ฮุค `onDismount`) · ย้อนกลับช่องเดิม = ขึ้นกลับ (`rewindWalk`) · เปลี่ยนภูมิภาค = ลงหมด (`Ride.clearAll` ใน `placeOnBoard`)
   · ขอขี่: socket `rideAsk { targetId }` (ตาของตัวเอง ยังไม่ล็อก ติดกัน 1×1 ทั้งคู่ ฮุค `canRide`) → `match.rideAsk` → state `rideAsk` (คนขอ/เจ้าของตัวที่ถูกขอ — `mine`) → socket `rideAnswer { ok }` จากเจ้าของ · คำขอหมดอายุพร้อมจบตา
   · ตัวที่ถูกขี่สั่งให้ลง: socket `rideDrop` (ตาของตัวเอง · ไม่กินอะไร) → `Ride.drop` → `fall(reason "drop")` (ยูนะ: ไม่ติดห้ามขี่) · client ปุ่ม "ให้ลง" (`HudCommand drop`)
   · ยินยอม = ขึ้นหลัง + `action.locked` (ยังใช้สกิล/ตีได้) + ฮุค `onMount` · ร่วง: ตัวที่ถูกขี่ถูกตีปกติ (`strike` รวมหลบพ้น) / เสียหายจากผู้เล่นอื่น (`combat.tookDamage`) / ตาย (`Ride.onDeath` ใน `instantDeath`) → ช่องว่างใกล้สุด + ฮุค `onFall`

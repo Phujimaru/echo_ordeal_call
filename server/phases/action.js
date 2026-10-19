@@ -788,6 +788,7 @@ function finishActor() {
   const p = match.players[match.actorId];
   if (!expired && startCanto(p)) return;
   Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
+  if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)
   if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ
   else endUnitTile(p);
   if (match.duo) {

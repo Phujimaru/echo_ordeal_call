@@ -120,7 +120,7 @@ function estimateAttackOn(attacker, target) {
     const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target) : null;
     if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
-    return Math.max(0, c.base || 0);
+    return Math.max(0, Math.min(c.base || 0, combat.damageCapOf(attacker))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2)
   } catch { return null; }
 }
 
@@ -246,6 +246,8 @@ function strike(attacker, target, { counter = false } = {}) {
   // การเดินทาง (อาณาจักรน้ำแข็ง กลางวัน): คริติคอล 20% ×2
   const journeyCritFx = {};
   if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
+  // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
+  dmg = Math.min(dmg, combat.damageCapOf(attacker));
 
   const shieldBefore = target.shield;
   combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
