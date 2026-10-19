@@ -156,9 +156,6 @@ function dealRound() {
       if (!Duo.isOwner(p)) p.locked = true;
       match.lastLog.push(`😵 ${p.name} ติดสถานะสตั้น — ขยับไม่ได้ทั้งเทิร์น! (เหลืออีก ${p.statuses.stun} เทิร์น)`);
     }
-    // ฮุค holdsDraw: จั่วไม่ได้ทั้งช่วงจั่วไพ่ (ยืนที่ไพ่ใบแรก) — เกรย์: ชาร์จรองโกมิเนียต
-    const drawHook = CHAR_HOOKS[p.characterId];
-    if (cardHolder && drawHook && drawHook.holdsDraw && drawHook.holdsDraw(engine, p)) p.locked = true;
   }
 
   // สลับช่วงเวลากลางวัน/กลางคืน — แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน

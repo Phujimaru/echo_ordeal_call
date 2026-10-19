@@ -220,7 +220,7 @@ test('สัปเหร่อ: เกรย์ตาย ศพหายหม�
   assert.ok(R.K.corpse, 'เปลี่ยนภูมิภาค = ร่างกลับมา');
 });
 
-test('รองโกมิเนียต: 6 แต้ม · เลือกทิศ → คลิป intro · ชาร์จ: เดิน/ตี/สกิล/ปืน/จั่วไม่ได้ · เพลง · ทุกคนเห็นแนว', (t) => {
+test('รองโกมิเนียต: 6 แต้ม · เลือกทิศ → คลิป intro · ชาร์จ: เดิน/ตี/สกิล/ปืนไม่ได้ (จั่วได้) · เพลง · ทุกคนเห็นแนว', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gray', 3, 7], ['B', 'dummy', 8, 7], ['C', 'dummy', 4, 7]]);
   engine.setRoundNumber(4);
@@ -248,13 +248,13 @@ test('รองโกมิเนียต: 6 แต้ม · เลือกท
   assert.equal(new Set(st.charge.tiles.map((t) => t.y)).size, 7, 'กว้าง 7');
   assert.equal(engine.buildStateFor('B').skillMusic, 'gray_ult');
   assert.equal(view('G', 'G').skillLocks.ultimate.locked, true);
-  // เทิร์นถัดไป: ช่วงจั่วไพ่ล็อก (จั่วไม่ได้)
+  // เทิร์นถัดไป: ช่วงจั่วไพ่จั่วได้ตามปกติ (ผู้ใช้สั่ง)
   nextRound(t);
   assert.equal(engine.roundNumber, 5);
-  assert.equal(P.G.locked, true);
+  assert.equal(P.G.locked, false);
   const n = P.G.cards.length;
   engine.hit('G');
-  assert.equal(P.G.cards.length, n);
+  assert.equal(P.G.cards.length, n + 1);
 });
 
 test('รองโกมิเนียต: ยิงต้นตาเดินของเกรย์เทิร์น N+2 → คลิป final → ดาเมจ 5 +2/ศพ (ไม่รับบัฟ · เกราะก่อน · ไม่โดนพวก) · กลับตาเดิน · คูลดาวน์ 5', (t) => {
@@ -318,7 +318,6 @@ test('รองโกมิเนียต: เกรย์ตายระหว
   assert.ok(!calls.queue.includes('grayUltFinal'), 'ถูกข้ามตา = ยังไม่ยิง');
   nextRound(t);
   assert.equal(Q.G.gray.charge.fire, 7, 'เลื่อนไปเทิร์นหน้า');
-  assert.equal(Q.G.locked, true, 'ยังจั่วไม่ได้');
   Q.G.statuses = {};
   Q.G.pos = { x: 3, y: 7 }; Q.B.pos = { x: 9, y: 7 }; Q.C.pos = { x: 12, y: 12 }; // ครบช่วงภูมิภาค = จุดเกิดใหม่
   orderUpTo(t, ['G', 'C'], 'G');
@@ -391,21 +390,18 @@ test('คนเฝ้าสุสาน: เยียวยา 2 = ฟื้น�
   assert.equal(P.G.hp, 5);
 });
 
-test('รองโกมิเนียต: เทิร์นที่ยิง เกรย์เดินลำดับแรกเสมอ (ยิงทันที) · เทิร์นอื่นตามแต้มปกติ', (t) => {
+test('รองโกมิเนียต: เทิร์นที่ยิงเดินตามลำดับแต้มปกติ (ไม่ได้ลำดับแรก) แล้วยิงเมื่อถึงตา', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gray', 3, 7], ['B', 'dummy', 9, 7], ['C', 'dummy', 12, 12]]);
   const card = (v) => ({ value: v, color: 'red' });
   P.G.cards = [card(2)]; P.B.cards = [card(10), card(9)]; P.C.cards = [card(10), card(8)];
   P.G.gray.charge = { dir: 'right', cast: 4, fire: 6, at: 1 };
-  engine.setRoundNumber(5);
-  engine.beginOrder();
-  assert.notEqual(engine.turnOrder[0], 'G', 'เทิร์นชาร์จ = ตามแต้ม');
-  engine.clearPhaseTimer();
   engine.setRoundNumber(6);
   engine.beginOrder();
-  assert.equal(engine.turnOrder[0], 'G', 'เทิร์นยิง = ลำดับแรก');
-  assert.equal(engine.turnOrder.length, 3);
+  assert.deepEqual(engine.turnOrder, ['B', 'C', 'G'], 'แต้มน้อยเดินท้าย');
   flush(t, 6600);
-  assert.equal(engine.actorId, 'G');
-  assert.ok(calls.queue.includes('grayUltFinal'), 'ยิงทันทีตอนเริ่มเทิร์น');
+  assert.equal(engine.actorId, 'B');
+  assert.ok(!calls.queue.includes('grayUltFinal'), 'ยังไม่ถึงตาเกรย์');
+  while (engine.actorId !== 'G') engine.finishActor();
+  assert.ok(calls.queue.includes('grayUltFinal'), 'ถึงตาเกรย์ = ยิง');
 });

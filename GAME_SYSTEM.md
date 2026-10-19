@@ -631,7 +631,6 @@ module.exports = {
   canReapCorpse(engine, p, dead) { return false; }, reapCorpse(engine, p, dead) { return 1; },
                                                      // ตีปกติใส่ศพ "corpse:<id>" (action.attackTarget — §22) · reapCorpse ลงผลแล้วคืนวินาทีของฉาก ATTACKING ก่อนจบตา
   onActorReady(engine, p) {},                        // ตาเริ่มแล้ว (ACTION + นาฬิกา — nextActor) · ฉากต้นตาเดิน: queueCutscene/skillBeat แล้ว engine.pausePlayingForCutscene() (§22)
-  holdsDraw(engine, p) { return false; },            // จั่วไม่ได้ทั้งช่วงจั่วไพ่ (dealRound ตั้ง p.locked หลังแจกไพ่ใบแรก — เกรย์: ชาร์จ)
   blocksGuts(engine, p) { return false; },           // ยิงปืน GUTS ไม่ได้ (shop.gutsFireTargetOf)
 
   // ---- ฮุค broadcast: engine เรียกทุกตัวละครตามลำดับ CHAR_HOOKS.MODULES (combat.broadcastHook) — ฮุคต้องเช็คเองว่าเป็นตัวเองไหม ----
@@ -837,7 +836,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · client (`BoardStage.jsx`): `me.gray.reaper` = ศพเป็นเป้าตีปกติแบบเดียวกับหนาม/ผนึก (ระยะ [1, 1] เสมอ)
 - **ท่าที่ยิงตาเดินถัดๆ ไป**: กดแล้วเก็บสถานะชาร์จไว้ (เกรย์ `p.gray.charge { dir, cast, fire }`) · ฮุค `onActorReady` ของเทิร์นที่ต้องยิงคิวคลิป (`queueCutscene`) + ผลหลังคลิป (`deferAfterCutscene` → `skillBeat`) แล้วเรียก `engine.pausePlayingForCutscene()` → เล่นจบกลับเข้าตาเดินด้วยเวลาที่เหลือ
   · ผลระหว่างชาร์จที่ต้องเกิดตอนถึงคิว (แม้ถูกข้ามตา): ฮุค `onActorStart` (เกรย์: เทิร์น N+1 ตรึงศัตรูในแนวจนถึงตอนยิง)
-  · ระหว่างชาร์จ: ฮุค `mov` = 0 · `range` = `[1, 0]` · `canUseSkill` = false · `holdsDraw` · `blocksGuts` · ไอเทมอื่นใช้ได้
+  · ระหว่างชาร์จ: ฮุค `mov` = 0 · `range` = `[1, 0]` · `canUseSkill` = false · `blocksGuts` · ไอเทมอื่น/จั่วไพ่ได้
   · ถูกข้ามตา (สตั้น/หลับ) ในเทิร์นที่ต้องยิง = `onEndTurn` เลื่อนไปเทิร์นหน้า · ตาย = ยกเลิก (`onDeath`)
   · ผลพื้นที่ (โผล่จากพุ่ม/หนาม/ผนึก) ลงตอนยิง: ฮุค `ownsAreaHit` + `engine.hitArea(p, tiles, ids)`
 - **อาวุธสุ่มต่อการตี**: `strikeCard` เรียก `attackStyle` ก่อน `attackSound` — สุ่มอาวุธใน `attackStyle` แล้วให้เสียงอ่านอาวุธที่ได้ (เกรย์: ค้อน/เคียว · ระยะ 2 = ธนู)

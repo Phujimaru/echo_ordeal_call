@@ -398,9 +398,6 @@ function beginOrder() {
   //  ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ไม่อยู่บนกระดาน (pos = null) แต่ยังได้ตาเดิน
   const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && (u.pos || Ride.riding(u))));
   match.turnOrder = turnOrderOf(alive);
-  // ฮุค leadsOrder: เดินลำดับแรกของเทิร์นนี้ (เกรย์: เทิร์นที่ยิงรองโกมิเนียต — ยิงทันทีตอนเริ่มเทิร์น)
-  const leads = match.turnOrder.filter((id) => { const p = match.players[id], h = p && CHAR_HOOKS[p.characterId]; return !!(h && h.leadsOrder && h.leadsOrder(engine, p)); });
-  if (leads.length) match.turnOrder = [...leads, ...match.turnOrder.filter((id) => !leads.includes(id))];
   match.actorIndex = -1;
   match.actorId = null;
   match.action = null;
