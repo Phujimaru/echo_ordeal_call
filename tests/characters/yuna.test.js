@@ -144,7 +144,7 @@ test('ตายโดยยังไม่ใช้คำอวยพร = ฟ�
   assert.equal(P.Y.alive, false);
 });
 
-test('บทเพลงแห่งชีวิต: เลือกเพลง (ไม่กินโควตา ยังเดินได้) · Delete ศัตรูในวง +1 / พวกเรา SP +1 · จบเทิร์นเสีย 1 แต้ม', () => {
+test('บทเพลงแห่งชีวิต: เลือกเพลง (ไม่กินโควตา ยังเดินได้) · Delete ศัตรูในวง +1 / พวกเรา SP +1 · จบเทิร์นเสีย 2 แต้ม', () => {
   const P = setup([['Y', 'yuna', 3, 7], ['A', 'dummy', 5, 7], ['F', 'dummy', 12, 12]]);
   engine.setActor('Y');
   const ch = view('Y', 'Y').character.secondary;
@@ -162,10 +162,11 @@ test('บทเพลงแห่งชีวิต: เลือกเพลง
   const f0 = P.F.hp + P.F.armor;
   engine.dealMixed(P.F, 1);
   assert.equal(f0 - (P.F.hp + P.F.armor), 1);
-  // จบเทิร์น: ยูนะจ่าย 1 แล้วได้คืน 1 (พวกเราในวง = ตัวเองใน ffa)
+  // จบเทิร์น: ยูนะจ่าย 2 แล้วได้คืน 1 (พวกเราในวง = ตัวเองใน ffa)
+  assert.equal(yuna.SONG_COST, 2);
   P.Y.skillPoints = 3;
   yuna.onEndTurn(engine);
-  assert.equal(P.Y.skillPoints, 3);
+  assert.equal(P.Y.skillPoints, 2);
 });
 
 test('Smile for You: พวกเราในวงรับดาเมจ −1 (ถึง 0 ได้) + ฟื้นพลังชีวิต 1 · ศัตรูไม่ได้ · แต้มไม่พอ = เพลงหยุด', () => {
@@ -180,10 +181,10 @@ test('Smile for You: พวกเราในวงรับดาเมจ −1
   const e0 = P.E.hp + P.E.armor;
   engine.dealMixed(P.E, 1);
   assert.equal(e0 - (P.E.hp + P.E.armor), 1, 'ศัตรูไม่ได้ลด');
-  P.M.hp = 3; P.Y.skillPoints = 1;
+  P.M.hp = 3; P.Y.skillPoints = 3;
   yuna.onEndTurn(engine);
   assert.equal(P.M.hp, 4, 'ฟื้น 1');
-  assert.equal(P.Y.skillPoints, 0);
+  assert.equal(P.Y.skillPoints, 1, 'เสีย 2');
   yuna.onEndTurn(engine);
   assert.equal(P.Y.yuna.song, 'rest', 'จ่ายไม่ไหว เพลงหยุด');
   assert.equal(P.M.hp, 4);
