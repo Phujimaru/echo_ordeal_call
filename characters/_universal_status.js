@@ -259,6 +259,8 @@ function tickCurseOnSkill(engine, p) {
 
 // ---------- "เยียวยา" (mend, สถานะ Universal patch 3.4) ----------
 //  บัฟฟื้นฟูต่อเนื่อง: ต้นเทิร์นฟื้นพลังชีวิตเท่ากับจำนวนหน่วยที่ระบุ (1 หน่วย = 1 พลังชีวิต)
+//  statuses.mend = จำนวนครั้งที่เหลือ (สแตค — ไม่ลดตอนจบเทิร์น อยู่ใน NO_TICK_STATUS · ลดตอนติก)
+//   → เยียวยา 2 = ฟื้น 2 ครั้ง (ต้นเทิร์นถัดไป 2 เทิร์น) ไม่ว่าจะได้มาตอนไหนของเทิร์น (ผู้ใช้สั่ง 2026-10-19 — เดิมลดตอนจบเทิร์นที่ได้มาด้วย จึงฟื้นขาดไป 1 ครั้ง)
 //  "ซ้อนทับจำนวนเทิร์นได้ สูงสุด 5 เทิร์น" — ใส่ซ้ำคือ "บวกเทิร์นเข้าไป" (ไม่ใช่รีเฟรช) เพดาน MEND_MAX_TURNS
 //  ส่วนจำนวนหน่วยไม่สะสม ใช้ค่ามากสุดที่เคยได้รับ (แพทเทิร์นเดียวกับ applyBuff ของสถานะ amount อื่น)
 //  ตัวละครไหนก็ให้/ติดได้
@@ -273,13 +275,15 @@ function applyMend(p, amount, turns) {
   return p.statuses.mend - before;
 }
 
-// ติกต้นเทิร์นของ "เยียวยา" — ฟื้นพลังชีวิตตามจำนวนหน่วย (การลดเทิร์นทำที่ลูปกลางของ endTurn ตามปกติ)
+// ติกต้นเทิร์นของ "เยียวยา" — ฟื้นพลังชีวิตตามจำนวนหน่วย แล้วลดจำนวนครั้งที่เหลือ 1 (ลดแม้เลือดเต็ม)
 //  ใช้ engine.healHp จึงเคารพ "ไร้ทางเยียวยา"/"ผกผัน"/เลือดไหล ครบเหมือนการฟื้นเลือดช่องทางอื่น
 function tickMend(engine, p) {
   if (!p || !p.alive || !(((p.statuses && p.statuses.mend) || 0) > 0)) return 0;
   const amt = statusAmtOf(p, "mend") || 1;
   const got = engine.healHp(p, amt);
-  if (got > 0) engine.log(`💚 ${p.name} เยียวยา — ฟื้นพลังชีวิต +${got} (เหลืออีก ${p.statuses.mend} เทิร์น)`);
+  p.statuses.mend -= 1;
+  if (p.statuses.mend <= 0) delete p.statuses.mend;
+  if (got > 0) engine.log(`💚 ${p.name} เยียวยา — ฟื้นพลังชีวิต +${got} (เหลืออีก ${p.statuses.mend || 0} ครั้ง)`);
   return got;
 }
 
@@ -517,7 +521,7 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen"]);
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend"]);
 
 module.exports = {
   SPELLBURDEN_MAX,

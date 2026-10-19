@@ -334,7 +334,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   · สถานะหมดอายุที่ต้องมีผลตามมา เรียกฮุคในลูปนี้ (ตอนนี้: `muimiTower` → `muimi.onUltExpire`)
 
 **บัฟกลาง** (`BUFF_KEYS` ใน `_universal_status.js` — `stripLatestBuff` ปาดได้): `resist` (ต้านสถานะ) · `guard` (คุ้มครอง) · `fortune` (โชคลาภ) ·
-`mend` (เยียวยา) · `spRegen` (ฟื้นพลัง — สแตค ต้นเทิร์นแต้มสกิล +1 ทีละขั้น `tickSpRegen` ใน `dealRound`) · `iceSurge` (Ice Spike) · `might`/`empower` (เสริมพลัง) · `evade` (หลบหลีก) · `spellflow` (กระแสเวท) · `freecast` (การ์ดราชินี) · `awaken` (ตื่นขึ้น) ·
+`mend` (เยียวยา — สแตค ต้นเทิร์นฟื้นพลังชีวิตทีละครั้ง `tickMend` ใน `dealRound`) · `spRegen` (ฟื้นพลัง — สแตค ต้นเทิร์นแต้มสกิล +1 ทีละขั้น `tickSpRegen` ใน `dealRound`) · `iceSurge` (Ice Spike) · `might`/`empower` (เสริมพลัง) · `evade` (หลบหลีก) · `spellflow` (กระแสเวท) · `freecast` (การ์ดราชินี) · `awaken` (ตื่นขึ้น) ·
 `accurate` (แม่นยำ — เจาะการหลบทุกแบบ) · นอกรายการ: `netramana` (เนตรมณะ — โอกาสสังหาร 20% ตอนตีปกติ)
 
 **ดีบัฟกลาง** (`BASIC_DEBUFF_CLEAR` = ต้าน/ล้างได้ทั้งก้อน): `discord` · `sleep` · `stun` · `nodraw` · `noskill` · `weak` · `fragile` · `spellburden` (ภาระเวท — ดูกล่องด้านล่าง) ·

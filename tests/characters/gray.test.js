@@ -373,3 +373,39 @@ test('รองโกมิเนียต: ถึงตาเกรย์เท
   engine.finishActor();
   assert.equal(P.B.statuses.rooted, 1);
 });
+
+test('คนเฝ้าสุสาน: เยียวยา 2 = ฟื้นพลังชีวิต 1 ทุกต้นเทิร์น 2 ครั้ง (ไม่ลดตอนจบเทิร์นที่ใช้)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gray', 3, 7], ['B', 'dummy', 10, 7]]);
+  engine.setRoundNumber(3);
+  engine.setActor('G');
+  engine.useSkill('G', 'basic', []);
+  P.G.hp = 3;
+  nextRound(t);
+  assert.equal(P.G.hp, 4, 'ต้นเทิร์นแรก +1');
+  assert.equal(P.G.statuses.mend, 1, 'เหลืออีก 1 ครั้ง');
+  nextRound(t);
+  assert.equal(P.G.hp, 5, 'ต้นเทิร์นที่สอง +1');
+  assert.ok(!P.G.statuses.mend, 'หมดแล้ว');
+  nextRound(t);
+  assert.equal(P.G.hp, 5);
+});
+
+test('รองโกมิเนียต: เทิร์นที่ยิง เกรย์เดินลำดับแรกเสมอ (ยิงทันที) · เทิร์นอื่นตามแต้มปกติ', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gray', 3, 7], ['B', 'dummy', 9, 7], ['C', 'dummy', 12, 12]]);
+  const card = (v) => ({ value: v, color: 'red' });
+  P.G.cards = [card(2)]; P.B.cards = [card(10), card(9)]; P.C.cards = [card(10), card(8)];
+  P.G.gray.charge = { dir: 'right', cast: 4, fire: 6, at: 1 };
+  engine.setRoundNumber(5);
+  engine.beginOrder();
+  assert.notEqual(engine.turnOrder[0], 'G', 'เทิร์นชาร์จ = ตามแต้ม');
+  engine.clearPhaseTimer();
+  engine.setRoundNumber(6);
+  engine.beginOrder();
+  assert.equal(engine.turnOrder[0], 'G', 'เทิร์นยิง = ลำดับแรก');
+  assert.equal(engine.turnOrder.length, 3);
+  flush(t, 6600);
+  assert.equal(engine.actorId, 'G');
+  assert.ok(calls.queue.includes('grayUltFinal'), 'ยิงทันทีตอนเริ่มเทิร์น');
+});
