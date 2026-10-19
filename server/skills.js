@@ -86,6 +86,8 @@ function useSkill(id, tier, targets, opts = {}) {
   if (p.skillUsedRound && !ignoresQuota) return; // ใช้สกิลได้เพียง 1 อันต่อเทิร์น (ซ้ำ/ซ้อนไม่ได้)
   // ท่าไม้ตาย: กดซ้ำไม่ได้จนกว่าผลจะหมดเวลา
   if (tier === "ultimate" && st && (p.statuses[st] || 0) > 0) return;
+  // ฮุค endsTurn = ใช้แล้วจบตาเดินทันที (หลังผลลงครบ) — ตีปกติ/ใช้ไอเทม/ใช้สกิลต่อไม่ได้ (มุยมิ: ท่าไม้ตาย)
+  const endsTurn = !!(hook && hook.endsTurn && hook.endsTurn(engine, p, tier, opts));
 
   p.skillPoints -= cost;
   // ใช้สกิลแล้วเดินไม่ได้อีก — ฮุค keepsMove = สกิลที่ใช้ก่อนเดินแล้วยังเดินได้ (Ice Spike: ธารน้ำแข็ง/หนามน้ำแข็ง ก่อนขยับ)
@@ -161,10 +163,10 @@ function useSkill(id, tier, targets, opts = {}) {
   if (!silent) match.roundSkills.push({ playerId: id, tier, name: flashName, img: flashImg, status: st });
 
   // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
-  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined); return; }
+  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined, { endTurn: endsTurn }); return; }
   runDeferred();
   // ผลขอฉากต่อ (engine.skillBeat / คลิปที่คิวระหว่างผล) = พักตาเดินเล่นให้จบ แล้วกลับมาด้วยเวลาที่เหลือ
-  if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(); return; }
+  if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(undefined, { endTurn: endsTurn }); return; }
   // สกิลพักเกมเล่นฉากเองแล้ว (Echo ก่อกำเนิดใหม่ — engine.journeyRebirth ตั้ง CUTSCENE + ตัวจับเวลาไว้) = แค่บรอดแคสต์
   if (match.gameState === "CUTSCENE") { view.broadcastState(); return; }
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
@@ -174,13 +176,14 @@ function useSkill(id, tier, targets, opts = {}) {
     Zero.runPendingBreak(() => {
       if (endTurnPhase.gameOver()) return;
       const actor = match.players[match.actorId];
-      if (!actor || !actor.alive) { action.finishActor(); return; }
+      if (!actor || !actor.alive || endsTurn) { action.finishActor(); return; }
       match.gameState = "ACTION";
       timers.startPhaseTimer(remain, action.actionTimeUp);
       view.broadcastState();
     });
     return;
   }
+  if (endsTurn) { action.finishActor(); return; }
   view.broadcastState();
 }
 

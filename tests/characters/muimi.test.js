@@ -343,3 +343,54 @@ test('คลื่นดาบของดาบสนิม ทุบผนึ�
   assert.equal(toPlayer, 1 + muimi.SEC_WAVE_ATK_BONUS);
   assert.equal(10 - seal.hp, toPlayer);
 });
+
+// เนิฟ (ผู้ใช้สั่ง 2026-10-19): ท่าไม้ตายใช้แล้วจบตาเดินทันที — กันคอมโบประชิด คลื่นดาบ + ยา + ตีปกติในตาเดียว
+test('ท่าไม้ตายจบตาเดินทันทีหลังคลื่นดาบลง: ตีปกติ/ใช้ยา/เสบียงฉุกเฉินต่อไม่ได้', () => {
+  const P = boardSetup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8]]);
+  P.M.inventory = [{ uid: 'sp1', type: 'skillPoint', value: 4 }];
+  engine.setActor('M');
+  engine.useSkill('M', 'ultimate', [], { dir: 'up' });
+  assert.equal(P.A.hp, 5 - (1 + muimi.WAVE_ATK_BONUS), 'คลื่นดาบลงก่อนจบตา');
+  assert.ok(P.M.statuses.muimiTower > 0, 'ได้ดาบสะบั้น');
+  assert.notEqual(engine.actorId === 'M' && engine.gameState === 'ACTION', true, 'ตาเดินของมุยมิจบแล้ว');
+  const hpA = P.A.hp;
+  engine.attackTarget('M', 'A');
+  assert.equal(P.A.hp, hpA, 'ตีปกติต่อไม่ได้');
+  engine.useInventoryItem('M', 'sp1');
+  assert.equal(P.M.inventory.length, 1, 'ใช้ยาต่อไม่ได้');
+  const uses = P.M.muimiEmergencyUses;
+  engine.useSkill('M', 'basic');
+  assert.equal(P.M.muimiEmergencyUses, uses, 'เสบียงฉุกเฉินต่อไม่ได้');
+});
+
+test('ท่าไม้ตายที่มีคลิป: ระหว่างคลิปยังเป็นตาของมุยมิ · คลิปจบ คลื่นดาบลงแล้วจบตา (ไม่กลับเข้าตาเดิน)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const P = boardSetup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8]]);
+  engine.queueCutscene = () => engine.pushCutsceneRaw({ info: {}, seconds: 2 });
+  try {
+    engine.setActor('M');
+    engine.useSkill('M', 'ultimate', [], { dir: 'up' });
+    assert.equal(engine.gameState, 'CUTSCENE');
+    assert.equal(engine.actorId, 'M');
+    assert.equal(P.A.hp, 5, 'คลื่นดาบรอคลิปจบ');
+    t.mock.timers.tick(5000);
+    assert.equal(P.A.hp, 5 - (1 + muimi.WAVE_ATK_BONUS), 'คลื่นดาบลงหลังคลิป');
+    assert.notEqual(engine.actorId === 'M' && engine.gameState === 'ACTION', true, 'ไม่กลับเข้าตาเดินของมุยมิ');
+  } finally {
+    engine.queueCutscene = (p, key) => { queued.push(key); };
+    engine.clearPhaseTimer();
+  }
+});
+
+test('ดาบสนิม (คลื่นดาบระหว่างดาบสะบั้น) ไม่จบตา — ยังตีปกติต่อได้', () => {
+  const P = boardSetup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8]]);
+  P.M.statuses.muimiTower = 2;
+  engine.setActor('M');
+  engine.useSkill('M', 'secondary', [], { dir: 'up' });
+  assert.equal(engine.actorId, 'M');
+  assert.equal(engine.gameState, 'ACTION');
+  const hpA = P.A.hp;
+  assert.ok(hpA < 5, 'คลื่นดาบโดน');
+  engine.attackTarget('M', 'A');
+  assert.ok(P.A.hp < hpA, 'ตีปกติต่อได้');
+});

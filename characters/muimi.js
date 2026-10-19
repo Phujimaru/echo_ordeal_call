@@ -131,6 +131,9 @@ module.exports = {
   // เสบียงฉุกเฉินไม่นับโควตาสกิลหลัก — กดได้แม้ใช้สกิลอื่นไปแล้ว และกดแล้วยังใช้สกิลอื่นได้อีก
   skipsTurnQuota: isQuotaFree,
   ignoresTurnQuota: isQuotaFree,
+  // เนิฟ (ผู้ใช้สั่ง 2026-10-19): ท่าไม้ตายใช้แล้วจบตาเดินทันทีหลังคลื่นดาบลง — ตีปกติ/ใช้ยา/ใช้สกิลต่อในตานั้นไม่ได้
+  //  (กันคอมโบประชิด คลื่นดาบ + ตีปกติในตาเดียว)
+  endsTurn(engine, p, tier) { return isMuimi(p) && tier === "ultimate"; },
 
   onUltExpire(engine, p) {
     if (!isMuimi(p)) return;

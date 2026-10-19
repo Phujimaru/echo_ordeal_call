@@ -214,6 +214,7 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
 4. **โควตา 1 สกิลต่อเทิร์น** (`p.skillUsedRound`) — `hook.ignoresTurnQuota(p, tier)` = กดได้แม้ใช้โควตาไปแล้ว ·
    `hook.skipsTurnQuota(p, tier)` = กดแล้วไม่กินโควตา (มุยมิ "เสบียงฉุกเฉิน" ใช้ทั้งคู่ · โอเบรอน "นกจาบยามเช้า" ใช้แค่ skips)
 5. ท่าไม้ตายที่ `effect` เป็นสถานะ: กดซ้ำไม่ได้ระหว่างสถานะยังอยู่
+   · `hook.endsTurn(engine, p, tier, opts)` = ใช้แล้วจบตาเดินทันทีหลังผลลงครบ (รวมผลหลังคลิป/`skillBeat`) — `finishActor` แทนการกลับเข้าตา (มุยมิ: ท่าไม้ตาย)
 6. หักแต้ม → `tickCurseOnSkill` (คำสาป) → `numbFizzles` (เหน็บชา 30% ไม่ทำงาน — แต้ม/โควตาเสียแล้ว) →
    `Journey.skillMisses` (ป่าไม้ต้องสาป กลางวัน: คืนแต้ม แต่โควตาเสีย) → `Journey.skillRefund` (ทะเลทราย กลางคืน)
 7. `hook.applyInstantSkill(engine, p, tier, targets)` ลงผล — คืนข้อความต่อท้ายป้ายเด้ง · แล้ว `applyEffect(skill.effect)` (ตัวละครปัจจุบัน `effect: null` ทั้งหมด)
@@ -251,6 +252,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
   · ไม่นับเป็นการใช้สกิล (`ignoresTurnQuota` + `skipsTurnQuota` — ฟังก์ชันเดียวกัน) · ปุ่มฝั่ง client แสดงจำนวนครั้งจาก `muimiEmergencyUses`/`muimiEmergencyMax` (`ammo: 2` = `EMERGENCY_USES` — เทสต์เช็คให้ตรงกัน)
 - **ดาบสนิม** (secondary · 4): สถานะ `muimiRusty` ("ดาบเก่าๆ") 3 เทิร์น — ตีปกติโดนแล้วฟื้นเลือด 1 + แต้มสกิล 1 (`onAttackLanded`) · ระหว่าง "ดาบสะบั้น" = 4 แต้ม คลื่นดาบแนว 4×3 พลังโจมตี +1 (ดาเมจ 2) ไม่ได้สถานะเพิ่ม (`skillArea`/`skillCost` — GRID_PLAN §7.3)
 - **ดาบสะบั้นหอคอยสวรรค์** (ultimate · 8): `muimiTower` ("ดาบสะบั้น") 2 เทิร์น + ต้านสถานะ 3 เทิร์น
+  - **ใช้แล้วจบตาเดินทันที** หลังคลื่นดาบลง (ฮุค `endsTurn` — เนิฟ 2026-10-19 กันคอมโบประชิด คลื่นดาบ + ตีปกติในตาเดียว)
   - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → คลื่นดาบแนว 4×3 (GRID_PLAN §7.3) ลงผลหลังวีดีโอผ่าน `engine.skillStrike` ·
     พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` อ่าน `p.muimiWave` ที่ `swordWave` ตั้ง)
     · หนามน้ำแข็ง/ผนึกมิโกะในแนว (`Ice.hitSpikesInArea`/`Zero.hitSealsInArea` ที่ `useSkill` ต่อคิวหลังคลื่น) โดน **เท่าผู้เล่นในแนว** (ผู้ใช้สั่ง "ให้แรงเท่าตีคน")
@@ -580,6 +582,7 @@ module.exports = {
   canUseSkill(engine, p, tier, targets, opts) { return true; },  // ด่านก่อนหักแต้ม (useSkill) · opts = ตัวเลือกจาก client (ฮิคารุ: opts.form)
   ignoresTurnQuota(p, tier) { return false; },                   // กดได้แม้ใช้โควตาเทิร์นไปแล้ว
   skipsTurnQuota(p, tier) { return false; },                     // กดแล้วไม่กินโควตาเทิร์น
+  endsTurn(engine, p, tier, opts) { return false; },             // ใช้แล้วจบตาเดินทันที (หลังผล/คลิปจบ) — ตีปกติ/ไอเทม/สกิลต่อไม่ได้
   applyInstantSkill(engine, p, tier, targets, opts) { return ""; }, // ลงผลสกิล — คืนข้อความต่อท้ายป้าย skillFlash · opts.dir = ทิศของสกิล line
   skillCost(p, tier, base) { return base; },                     // ราคาที่เปลี่ยนตามสถานะ (useSkill + ป้ายราคาใน buildStateFor ใช้ตัวเดียวกัน)
   silentFlash(p, tier) { return false; },                        // true = ไม่ขึ้นป้าย skillFlash กลาง / ไม่บันทึก roundSkills

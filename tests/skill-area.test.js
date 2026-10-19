@@ -106,7 +106,7 @@ test('จุดจบของความฝัน: ให้หลังเป
   assert.ok(P.T.statuses.stun > 0);
 });
 
-test('คลื่นดาบมุยมิ: ต้องเลือกทิศ · โดนศัตรูทุกคนในแนว 4×3 เท่าพลังโจมตี (1+3) เกราะรับก่อน · คนนอกแนวไม่โดน · ใช้แล้วเดินไม่ได้', () => {
+test('คลื่นดาบมุยมิ: ต้องเลือกทิศ · โดนศัตรูทุกคนในแนว 4×3 เท่าพลังโจมตี (1+3) เกราะรับก่อน · คนนอกแนวไม่โดน · ใช้แล้วจบตาเดิน', () => {
   const P = setup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8], ['B', 'dummy', 6, 5], ['C', 'dummy', 7, 4], ['D', 'dummy', 9, 8]]);
   P.A.armor = 2;
   engine.setActor('M');
@@ -121,7 +121,8 @@ test('คลื่นดาบมุยมิ: ต้องเลือกทิ
   // เนิฟ: โบนัส +3 เป็นของคลื่นดาบเท่านั้น — ตีปกติหลังจากนั้นระหว่างดาบสะบั้นได้แค่ +1
   assert.equal(engine.attackPowerAgainst(P.M, P.D), 1 + muimi.TOWER_ATK_BONUS);
   assert.equal(muimi.TOWER_ATK_BONUS, 1);
-  assert.equal(engine.action.locked, true);
+  // เนิฟ 2026-10-19: ท่าไม้ตายจบตาเดินทันที — เดินต่อไม่ได้
+  assert.notEqual(engine.actorId === 'M' && engine.gameState === 'ACTION', true);
   assert.equal(engine.moveTo('M', 7, 10), false);
 });
 

@@ -264,7 +264,7 @@ test('ท่าไม้ตายล็อก: useSkill ultimate ใช้ไม
     m.skillPoints = 8; m.skillUsedRound = false;
     engine.setActor('p0');
     engine.useSkill('p0', 'ultimate', [], { dir: 'right' });
-    assert.equal(m.skillPoints, 0);
+    assert.ok((m.statuses.muimiTower || 0) > 0, 'กดได้ (ใช้แล้วจบตาเดิน — แต้มต้นเทิร์นใหม่อาจเข้ามาแล้ว จึงเช็คสถานะแทนแต้ม)');
   } finally { restore(); }
 });
 

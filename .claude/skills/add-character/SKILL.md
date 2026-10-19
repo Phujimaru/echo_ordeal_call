@@ -80,7 +80,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
   ต้องการให้ตีปกติไม่ได้ด้วย (และไม่ได้เดินต่อหลังจบตา) = `action.lockStrike(p)` แทน (ขนมปังของเอมิลิโกะ)
 - **ของที่ใช้ได้จำกัดครั้งด้วยการตีปกติ** — ฮุค `afterStrike(engine, p)` ถูกเรียกหลังตีปกติจบทุกแบบ (คน/หนาม/ผนึก) ก่อนจบตา (เครื่องดูดฝุ่นของเอมิลิโกะ)
 - **โควตา 1 สกิลต่อเทิร์นเหมือนเดิม** (`p.skillUsedRound`) · สกิลที่ไม่กินโควตาใช้ฮุค `skipsTurnQuota` / `ignoresTurnQuota`
-- **โจมตีปกติ = จบตา** · สกิลไม่จบตา — สกิลที่ "ตีแล้วจบตา" ต้องถามผู้ใช้ก่อน
+- **โจมตีปกติ = จบตา** · สกิลไม่จบตา — สกิลที่ "ตีแล้วจบตา" ต้องถามผู้ใช้ก่อน (ผู้ใช้สั่งแล้ว = ฮุค `endsTurn`)
 - **"เทิร์น" ≠ "ตาเดิน"**: เทิร์น = รอบทั้งวง (`dealRound` → `endTurn`, `engine.roundNumber`) · ตาเดิน = ตาของคนหนึ่งในเทิร์น (`nextActor` → `finishActor`)
   สถานะทุกตัวลดเทิร์นที่ `endTurn()` (ทีละเทิร์น ไม่ใช่ทีละตาเดิน)
 - ข้อความเก่าที่เขียนว่า **"ก่อนเปิดไพ่" / "หลังเปิดไพ่" / "ช่วงจั่วการ์ด"** ใช้ไม่ได้แล้ว — สกิลเกิดหลังเปิดไพ่เสมอ (ในตาเดิน)
@@ -161,6 +161,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตัวเลือกเพิ่มจาก client (เช่นเลือกร่าง) | `canUseSkill(engine, p, tier, targets, opts)` / `applyInstantSkill(..., opts)` — socket `useSkill` ส่ง `form` ต่อให้แล้ว · ฟิลด์ใหม่ต้องเพิ่มใน `server/socket.js` | `server/skills.js` |
 | ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind)` (`act`/`hit`/`bump`) + `logCut(p, round)` | `server/visibility.js` |
 | สกิลไม่นับโควตา / ไม่กินโควตา | `ignoresTurnQuota(p, tier)` / `skipsTurnQuota(p, tier)` | `server/skills.js` |
+| ใช้สกิลแล้วจบตาเดินทันที (หลังผล/คลิปจบ) | `endsTurn(engine, p, tier, opts)` → true (มุยมิ: ท่าไม้ตาย) | `server/skills.js` · `cutscene.pausePlayingForCutscene(after, { endTurn })` |
 | เสียงตอนใช้สกิล | `skillSound(p, tier)` | `server/skills.js` |
 | ล็อก/คูลดาวน์รายช่องให้ client | `skillLocks(engine, p)` | `server/view.js` |
 | เปลี่ยนรูปบนกระดาน | `displayImg(p)` | `server/view.js` |

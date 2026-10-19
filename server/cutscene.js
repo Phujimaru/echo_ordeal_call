@@ -62,7 +62,8 @@ function notifyTransform(p, key, onlyFor) {
 //  ช่วงจั่วไพ่ (PLAYING) หรือ ตาเดิน (ACTION — สกิล/ไอเทมที่มีคลิปในตาของตัวเอง)
 // after (ไม่บังคับ): งานที่ต้องทำ "หลังวีดีโอจบ" ก่อนกลับเข้าเฟสจั่วไพ่ — ใช้กับกระสุน GUTS Select
 //  ที่ต้องเล่นวีดีโอก่อนแล้วค่อยให้ผลเสียหาย/สถานะโผล่บนกระดาน (ไม่ใช่ลดเลือดไปตั้งแต่ก่อนวีดีโอเล่น)
-function pausePlayingForCutscene(after) {
+// opts.endTurn: ฉากจบแล้วจบตาเดินเลย ไม่กลับเข้าตา (สกิลที่ฮุค endsTurn — ท่าไม้ตายมุยมิ)
+function pausePlayingForCutscene(after, opts = {}) {
   const remain = Math.max(3, match.timeLeft);
   const inAction = match.gameState === "ACTION";
   timers.clearPhaseTimer();
@@ -81,7 +82,7 @@ function pausePlayingForCutscene(after) {
       if (endTurnPhase.gameOver()) return;
       // คนเดินอยู่ตกรอบระหว่างคลิป (เช่นระเบิดตัวเอง) = ไปคนถัดไปเลย
       const actor = match.players[match.actorId];
-      if (!actor || !actor.alive) { action.finishActor(); return; }
+      if (!actor || !actor.alive || opts.endTurn) { action.finishActor(); return; }
       match.gameState = "ACTION";
       timers.startPhaseTimer(remain, action.actionTimeUp);
       view.broadcastState();
