@@ -3,7 +3,8 @@
 //
 //  ค่าพื้นฐาน: เลือด/เกราะมาตรฐาน · ระยะเดิน 4 · ตีประชิด [1, 1] (ร่างไอดอล: ระยะตีเท่าระยะเดิน)
 //  วงเพลง = รัศมีระยะเดินปกติสูงสุด (แมนฮัตตัน) รอบตัว — เดินแล้ววงตามไป · ขี่อยู่ = รอบคนที่ถูกขี่ (Ride.centerOf)
-//   บัฟได้พวกเรา (ตัวเอง + เพื่อนร่วมทีม · ffa = ยูนะคนเดียว) · ดีบัฟลงศัตรู (ผู้ใช้ตัดสิน 2026-10-18) · ออกนอกวง = ไม่ได้อะไร
+//   duo/trio: บัฟได้พวกเรา (ตัวเอง + เพื่อนร่วมทีม) · ดีบัฟลงศัตรู (ผู้ใช้ตัดสิน 2026-10-18)
+//   ffa: ผลดีได้ทุกคนในวง · ผลเสียลงทุกคนในวงยกเว้นยูนะ (ผู้ใช้สั่ง 2026-10-19 — เดิมบัฟได้แค่ยูนะ) · ออกนอกวง = ไม่ได้อะไร
 //
 //  สกิลพื้นฐาน คำอวยพรสุดท้าย (0 แต้ม · 1 ครั้งต่อเกม): เลือกศพในระยะเดิน (area tile place "corpse") ฟื้นด้วยพลังชีวิต 3 เกราะ 0
 //    + พลังโจมตี +1 (สถานะ yunaBless) และต้านสถานะ 3 เทิร์น · ฟื้นแล้วได้เดินเทิร์นนี้ (action.joinOrder — ผู้ใช้ตัดสิน)
@@ -75,8 +76,8 @@ const SONG_NAME = { delete: "Delete", smile: "Smile for You", rest: "พัก�
 const SONG_IMG = { delete: IMG.bless, smile: IMG.shadow, rest: IMG.base };
 // คำอธิบายตอนชี้เมาส์บนตัวเลือก (ผู้ใช้สั่ง 2026-10-19 — ทุกสกิลแบบเลือกต้องมี)
 const SONG_DESC = {
-  delete: `วงรอบตัว (ระยะเดิน): ศัตรูในวงได้รับความเสียหาย +1 ทุกแบบ · พวกเราในวงฟื้นแต้มสกิล +1 ตอนจบเทิร์น · จบเทิร์นเสียแต้มสกิล ${SONG_COST} (ไม่พอ = เพลงหยุด)`,
-  smile: `วงรอบตัว (ระยะเดิน): พวกเราในวงได้รับความเสียหาย −1 ทุกแบบ · ฟื้นพลังชีวิต 1 ตอนจบเทิร์น · จบเทิร์นเสียแต้มสกิล ${SONG_COST} (ไม่พอ = เพลงหยุด)`,
+  delete: `วงรอบตัว (ระยะเดิน): ศัตรูในวงได้รับความเสียหาย +1 ทุกแบบ · พวกเราในวงฟื้นแต้มสกิล +1 ตอนจบเทิร์น (ffa: ทุกคนในวงได้ทั้งสองอย่าง ยกเว้นยูนะไม่โดนความเสียหาย +1) · จบเทิร์นเสียแต้มสกิล ${SONG_COST} (ไม่พอ = เพลงหยุด)`,
+  smile: `วงรอบตัว (ระยะเดิน): พวกเราในวงได้รับความเสียหาย −1 ทุกแบบ · ฟื้นพลังชีวิต 1 ตอนจบเทิร์น (ffa: ทุกคนในวง) · จบเทิร์นเสียแต้มสกิล ${SONG_COST} (ไม่พอ = เพลงหยุด)`,
   rest: "หยุดร้องเพลง · ไม่เสียแต้มสกิล",
 };
 const ULT_TURNS = 5;
@@ -130,11 +131,14 @@ function inCircle(engine, p, u) {
   return dx + dy <= radiusOf(engine, p);
 }
 const allyOf = (engine, p, u) => u.id === p.id || engine.sameTeam(p, u);
+// ใครได้ผลดี / ผลเสียของวงยูนะ p — duo/trio: พวกเรา / ศัตรู · ffa: ผลดีทุกคน · ผลเสียทุกคนยกเว้นยูนะเอง
+const getsGood = (engine, p, u) => (engine.teamModeActive() ? allyOf(engine, p, u) : true);
+const getsBad = (engine, p, u) => (engine.teamModeActive() ? !allyOf(engine, p, u) : u.id !== p.id);
 const yunas = (engine) => Object.values(engine.players).filter((p) => isYuna(p) && p.alive);
-// คนในวงของ p (ตามฝั่ง) — คนที่หายตัวด้วยเงาของเสียงไม่นับเป็นศัตรูในวง
-function circleUnits(engine, p, ally) {
-  return Object.values(engine.players).filter((u) => u.alive && allyOf(engine, p, u) === ally && inCircle(engine, p, u)
-    && (ally || !vanishOn(engine, u)));
+// คนในวงของ p ที่ได้ผลดี (good = true) / ผลเสีย — คนที่หายตัวด้วยเงาของเสียงไม่โดนผลเสีย
+function circleUnits(engine, p, good) {
+  return Object.values(engine.players).filter((u) => u.alive && inCircle(engine, p, u)
+    && (good ? getsGood(engine, p, u) : getsBad(engine, p, u) && !vanishOn(engine, u)));
 }
 
 // ---------- ศพ ----------
@@ -204,12 +208,12 @@ module.exports = {
   attackSound(p) { if (!isYuna(p)) return undefined; return ultOn(E(), p) ? SFX.idolHit : SFX.hit; },
 
   // ---------- ออร่า (ฮุคกลาง — ถูกถามกับทุกคน) ----------
-  // พลังโจมตี: ร้อนแรงดังไฟ (พวกเราในวง +1 · ยูนะ +2) + คำอวยพรสุดท้าย (+1 ระหว่างบัฟ)
+  // พลังโจมตี: ร้อนแรงดังไฟ (คนที่ได้ผลดีในวง +1 · ยูนะ +2) + คำอวยพรสุดท้าย (+1 ระหว่างบัฟ)
   auraAtk(engine, attacker) {
     let amount = 0;
     const names = [];
     for (const p of yunas(engine)) {
-      if (!ultOn(engine, p) || vanishOn(engine, p) || !allyOf(engine, p, attacker) || !inCircle(engine, p, attacker)) continue;
+      if (!ultOn(engine, p) || vanishOn(engine, p) || !getsGood(engine, p, attacker) || !inCircle(engine, p, attacker)) continue;
       const n = attacker.id === p.id ? ULT_ATK_SELF : ULT_ATK;
       if (n > amount) amount = n;
     }
@@ -220,17 +224,16 @@ module.exports = {
   },
   auraAccurate(u) {
     const engine = E();
-    return yunas(engine).some((p) => ultOn(engine, p) && !vanishOn(engine, p) && allyOf(engine, p, u) && inCircle(engine, p, u));
+    return yunas(engine).some((p) => ultOn(engine, p) && !vanishOn(engine, p) && getsGood(engine, p, u) && inCircle(engine, p, u));
   },
-  // ความเสียหายที่ได้รับ: Delete (ศัตรูในวง +1) · Smile for You (พวกเราในวง −1) — ไม่ซ้อนกันเองข้ามหลายยูนะ
+  // ความเสียหายที่ได้รับ: Delete (คนที่โดนผลเสียในวง +1) · Smile for You (คนที่ได้ผลดีในวง −1) — ไม่ซ้อนกันเองข้ามหลายยูนะ
   auraIncoming(engine, t) {
     let up = 0, down = 0;
     for (const p of yunas(engine)) {
       const s = songOn(engine, p);
       if (!s || !inCircle(engine, p, t)) continue;
-      const ally = allyOf(engine, p, t);
-      if (s === "delete" && !ally && !vanishOn(engine, t)) up = 1;
-      if (s === "smile" && ally) down = 1;
+      if (s === "delete" && getsBad(engine, p, t) && !vanishOn(engine, t)) up = 1;
+      if (s === "smile" && getsGood(engine, p, t)) down = 1;
     }
     return up - down;
   },

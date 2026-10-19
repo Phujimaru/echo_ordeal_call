@@ -162,7 +162,7 @@ test('บทเพลงแห่งชีวิต: เลือกเพลง
   const f0 = P.F.hp + P.F.armor;
   engine.dealMixed(P.F, 1);
   assert.equal(f0 - (P.F.hp + P.F.armor), 1);
-  // จบเทิร์น: ยูนะจ่าย 2 แล้วได้คืน 1 (พวกเราในวง = ตัวเองใน ffa)
+  // จบเทิร์น: ยูนะจ่าย 2 แล้วได้คืน 1 (ffa: ทุกคนในวงได้แต้ม +1)
   assert.equal(yuna.SONG_COST, 2);
   P.Y.skillPoints = 3;
   yuna.onEndTurn(engine);
@@ -315,4 +315,37 @@ test('ขี่: คนที่ถูกขี่สั่งให้ลงไ
   assert.ok(P.Y.pos, 'ลงช่องข้างๆ');
   assert.equal(P.Y.statuses.yunaNoRide, undefined, 'ไม่ติดห้ามขี่');
   assert.equal(engine.action.locked, false, 'ไม่ล็อกการเดินของคนที่ถูกขี่');
+});
+
+test('ffa: ผลของวงลงทุกคนในวง ไม่สนพวก — ผลดีทุกคน (รวมตัวใหญ่ 3×3) · ผลเสียทุกคนยกเว้นยูนะ', () => {
+  const P = setup([['Y', 'yuna', 3, 7], ['A', 'dummy', 5, 7], ['G', 'dummy', 4, 9], ['F', 'dummy', 12, 12]]);
+  P.G.boardSize = 3; // ตัวใหญ่: มุมบนซ้าย (4,9) ห่าง 3 ช่อง
+  engine.setActor('Y');
+  // Delete: คนอื่นในวง +1 · ยูนะไม่โดน · ทุกคนในวงได้แต้มสกิล +1
+  engine.useSkill('Y', 'secondary', [], { form: 'delete' });
+  for (const [id, want] of [['A', 2], ['G', 2], ['F', 1], ['Y', 1]]) {
+    const u = P[id], v0 = u.hp + u.armor;
+    engine.withEffectSource(id === 'F' ? P.A : P.F, () => engine.dealMixed(u, 1));
+    assert.equal(v0 - (u.hp + u.armor), want, `Delete ${id}`);
+  }
+  P.A.skillPoints = 0; P.G.skillPoints = 0; P.F.skillPoints = 0; P.Y.skillPoints = 5;
+  yuna.onEndTurn(engine);
+  assert.equal(P.A.skillPoints, 1);
+  assert.equal(P.G.skillPoints, 1, 'ตัวใหญ่ในวงได้');
+  assert.equal(P.F.skillPoints, 0, 'นอกวงไม่ได้');
+  // Smile for You: ทุกคนในวงรับดาเมจ −1
+  P.Y.yuna.song = 'smile';
+  for (const id of ['A', 'G', 'Y']) {
+    const u = P[id], v0 = u.hp + u.armor;
+    engine.withEffectSource(P.F, () => engine.dealMixed(u, 2));
+    assert.equal(v0 - (u.hp + u.armor), 1, `Smile ${id}`);
+  }
+  // ร้อนแรงดังไฟ: ทุกคนในวง +1 (ยูนะ +2) · แม่นยำ
+  P.Y.yuna.song = 'rest';
+  P.Y.yuna.ultUntil = engine.roundNumber + 2;
+  assert.equal(attack.computeAttackBase(engine, P.A, P.F).base, 2);
+  assert.equal(attack.computeAttackBase(engine, P.G, P.F).base, 2, 'ตัวใหญ่ได้');
+  assert.equal(attack.computeAttackBase(engine, P.Y, P.F).base, 3);
+  assert.equal(attack.computeAttackBase(engine, P.F, P.A).base, 1, 'นอกวงไม่ได้');
+  assert.equal(accurateActive(P.G), true);
 });
