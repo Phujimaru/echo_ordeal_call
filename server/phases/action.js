@@ -459,6 +459,13 @@ function nextActor() {
     }
     match.gameState = "ACTION";
     timers.startPhaseTimer(secs, actionTimeUp);
+    // ฮุค onActorReady: ตาเริ่มแล้ว (ACTION + นาฬิกา) — ฉากต้นตาเดินพักตาไว้เล่นคลิป/เอฟเฟกต์ได้ (engine.pausePlayingForCutscene
+    //  → กลับมาตาเดินด้วยเวลาที่เหลือ) · เกรย์: ปล่อยรองโกมิเนียตที่ชาร์จไว้
+    for (const u of units) {
+      const readyHook = CHAR_HOOKS[u.characterId];
+      if (readyHook && readyHook.onActorReady && u.alive && u.pos) combat.withEffectSource(u, () => readyHook.onActorReady(engine, u));
+    }
+    if (match.gameState !== "ACTION") return; // ฉากต้นตาเดินพักตาไว้แล้ว (บรอดแคสต์เอง)
     view.broadcastState();
     return;
   }
@@ -734,6 +741,20 @@ function attackTarget(id, targetId) {
     match.action.locked = true;
     Visibility.onHostileAct(p);
     Ice.attackSpike(p, spikeK, done);
+    return true;
+  }
+  // ศพ ("corpse:<id>" — เกรย์: สัปเหร่อ): ตีปกติใส่ศพที่ประชิด = เก็บศพ · ฮุค canReapCorpse / reapCorpse (คืนวินาทีของฉาก)
+  const dead = typeof targetId === "string" && targetId.startsWith("corpse:") ? match.players[targetId.slice(7)] : null;
+  if (dead) {
+    const hook = CHAR_HOOKS[p.characterId];
+    if (!canAct(p) || (match.action && match.action.noStrike) || !hook || !hook.canReapCorpse || !hook.canReapCorpse(engine, p, dead)) return false;
+    timers.clearPhaseTimer();
+    match.action.locked = true;
+    p.didAttackRound = true;
+    const secs = combat.withEffectSource(p, () => hook.reapCorpse(engine, p, dead));
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(Number(secs) > 0 ? secs : 1, done);
+    view.broadcastState();
     return true;
   }
   const target = match.players[targetId];

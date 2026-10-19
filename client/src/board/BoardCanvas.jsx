@@ -45,6 +45,8 @@
 //               จับภาพเฟรมล่าสุดไว้ (สนามเดิม) แล้วเผยเฟรมใหม่ใต้คลื่น (เข้า/เปลี่ยนเฟส) หรือแตกเป็นเศษกระจก (ปลดผนึก) — zeroTheme.js
 //   songs       [{ kind: "delete"|"smile"|"idol", x, y, r }] — วงเพลงของยูนะบนพื้น (yunaFx.js drawYunaZones)
 //               units[].rider = { img, color, name } → ตัวที่ขี่อยู่บนหลัง (ขี่ผู้เล่นอื่น — server/ride.js)
+//   grays       [{ id, x, y, size, dir, left, tiles }] — เกรย์กำลังชาร์จรองโกมิเนียต: สนามมืด + แนวลำแสงทอง + หอกลอยเหนือหัว (grayFx.js)
+//               fx ของเกรย์: gray* (grayFx.js — ท่าตีปกติ · keeper/grave/reap · grayBeam = ลำแสงรองโกมิเนียต)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -587,7 +589,7 @@ export default function BoardCanvas(props) {
       const frame = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null,
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

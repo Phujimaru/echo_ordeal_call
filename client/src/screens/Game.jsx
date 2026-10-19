@@ -848,6 +848,14 @@ function statusEntries(p, full) {
     if (y.vanish) out.push({ key: "yunaVanish", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-700 text-white", desc: "" });
     else if (y.vanishNext) out.push({ key: "yunaVanishNext", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-300 text-gray-900", desc: "" });
   }
+  // เกรย์: ศพที่เก็บ (พลังโจมตี) · จงบ้าคลั่ง · ชาร์จรองโกมิเนียต (เทิร์นที่เหลือก่อนยิง) · คูลดาวน์
+  if (p.gray) {
+    const g = p.gray;
+    if (g.souls > 0) out.push({ key: "graySouls", v: 1, icon: "⚰️", label: `สัปเหร่อ ${g.souls}/${g.soulsMax}`, cls: "bg-slate-500 text-white", desc: "" });
+    if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "" });
+    if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "" });
+    else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "" });
+  }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
@@ -1086,7 +1094,8 @@ function GutsVideoPreloader({ me, players }) {
   const preloadKira = (players || []).some((p) => p.character?.id === "kira");
   const preloadYuna = (players || []).some((p) => p.character?.id === "yuna");
   const preloadHikaru = (players || []).some((p) => p.character?.id === "raido_hikaru");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira && !preloadYuna) return null;
+  const preloadGray = (players || []).some((p) => p.character?.id === "gray");
+  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira && !preloadYuna && !preloadGray) return null;
   return (
     <div aria-hidden className="hidden">
       {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
@@ -1099,6 +1108,8 @@ function GutsVideoPreloader({ me, players }) {
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill1.mp4" preload="auto" muted playsInline />}
       {preloadKira && <video src="/characters/kira/kira_skill1.mp4" preload="auto" muted playsInline />}
       {preloadYuna && <video src="/characters/yuna/yuna_skill3.mp4" preload="auto" muted playsInline />}
+      {preloadGray && <video src="/characters/gray/gray_skill3_intro.mp4" preload="auto" muted playsInline />}
+      {preloadGray && <video src="/characters/gray/gray_skill3_final.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
       {preloadHikaru && HIKARU_CLIPS.map((f) => <video key={f} src={`/characters/raido_hikaru/${f}.mp4`} preload="auto" muted playsInline />)}
@@ -1245,6 +1256,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, my
   // เหตุผลที่ยิงไม่ได้ (โชว์ให้เห็นเลย ไม่ปล่อยให้กดแล้วเงียบ)
   const fireBlock =
     !myTurn ? "ยิงได้เฉพาะตาของคุณ"
+    : me?.gray?.charge ? "รองโกมิเนียต"
     : (me?.gutsShotTurn || 0) === roundNumber ? "ยิงไปแล้วในเทิร์นนี้ (1 นัด/เทิร์น)"
     : ammoItems.length === 0 ? "ไม่มีกระสุน — ซื้อได้ที่ร้านค้ามายา"
     : targets.length === 0 ? "ไม่มีเป้าหมายให้ยิง"

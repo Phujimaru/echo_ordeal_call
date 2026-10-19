@@ -344,6 +344,8 @@ function gutsFireTargetOf(p, item, targetId) {
   if (!action.canAct(p)) return null;
   if (!hasGutsWeapon(p)) return null;
   if (p.gutsShotTurn === match.roundNumber) return null;
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.blocksGuts && hook.blocksGuts(engine, p)) return null; // เกรย์: ชาร์จรองโกมิเนียตอยู่
   if (!GUTS_AMMO[item.ammo]) return null;
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;

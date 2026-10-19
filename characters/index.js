@@ -13,6 +13,7 @@ const ice_spike = require("./ice_spike"); // Ice Spike — ระดับยา
 const { kate, emiliko } = require("./kate_emiliko"); // เคท & เอมิลิโกะ — ระดับยาก (ผู้เล่น 1 คนคุม 2 ตัว — server/duo.js)
 const kira = require("./kira"); // กิระ (ราชาแมลงอวกาศ) — ระดับง่าย (สวมเกราะราชัน / คลื่นความมืด / อัฐิราชา)
 const yuna = require("./yuna"); // เด็กสาวเสื้อคลุมขาว (ยูนะ) — พิเศษ (วงเพลง / ศพค้าง / ขี่ผู้เล่นอื่น — server/ride.js)
+const gray = require("./gray"); // เกรย์ — ระดับกลาง (คนเฝ้าสุสาน / Grave / รองโกมิเนียต ชาร์จ 2 เทิร์น / เก็บศพ)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -29,6 +30,7 @@ const CHARACTER_MODULES = [
   emiliko,
   kira,
   yuna,
+  gray,
 ];
 
 const CHAR_HOOKS = {};

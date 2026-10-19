@@ -29,6 +29,7 @@ import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruF
 import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
+import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -215,6 +216,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     ? board.spikes.filter((s) => s && Number.isFinite(s.x) && Number.isFinite(s.y)) : []), [board]);
   const spikeFoes = useMemo(() => spikeList.map((s) => ({ id: `spike:${s.x},${s.y}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSpike: true, name: `หนามน้ำแข็ง Lv.${s.lv}` })), [spikeList]);
   const hoverSpike = hover && !hoverUnit && !hoverSeal ? spikeFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  // เกรย์ (สัปเหร่อ): ศพบนกระดาน = เป้าตีปกติ (เก็บศพ) — หน่วยเทียมแบบผนึก · ตีได้เฉพาะประชิด 1 ช่องเสมอ (planFor) · ไม่อยู่ในปุ่มโจมตี
+  const reaper = !!(me && me.gray && me.gray.reaper);
+  const corpseFoes = useMemo(() => (reaper ? corpses.map((c) => ({ id: `corpse:${c.id}`, pos: { x: c.x, y: c.y }, alive: true, size: 1, isCorpse: true, name: "ศพ" })) : []), [reaper, corpses]);
+  const hoverCorpse = hover && !hoverUnit && !hoverSeal && !hoverSpike ? corpseFoes.find((s) => samePos(s.pos, hover)) || null : null;
   const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
@@ -255,8 +260,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
     if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
-    const range = me.range || [1, 1];
-    const hits = (n) => (me.lane ? !!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    const range = foe.isCorpse ? [1, 1] : me.range || [1, 1];
+    const laneOn = !foe.isCorpse && me.lane;
+    const hits = (n) => (laneOn ? !!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
     if (!best) {
@@ -268,7 +274,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
     // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
-    const lane = me.lane ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : null;
+    const lane = laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : null;
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
@@ -284,7 +290,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     return { foe, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : null), [planFor, hoverUnit, hoverSeal, hoverSpike]);
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
@@ -618,6 +624,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
           if (!myth && !hk) playSfx(a.byAttackSound || "attack");
+          if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
           setShake((n) => n + 1);
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : `-${a.dmg}`;
@@ -803,6 +810,39 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("yunaFx", onYuna);
     return () => socket.off("yunaFx", onYuna);
+  }, [pushFx, look, lowQ]);
+
+  // เกรย์: socket "grayFx" { kind: keeper | grave | reap | beam, at, ... } → เอฟเฟกต์บนกระดาน (grayFx.js) · เสียง keeper/grave/reap มาจาก server
+  //  beam (รองโกมิเนียต): เสียงลำแสง + กล้องตามกลางแนว · ดาเมจลงที่ GRAY_BEAM.hit = คนในแนวสั่น + จอสั่น/แฟลช + กล้องสั่นแรง
+  const playersRef = useRef(state.players);
+  useLayoutEffect(() => { playersRef.current = state.players; });
+  useEffect(() => {
+    const onGray = (e) => {
+      const kind = e && GRAY_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      const f = { ...e, kind, x: e.at.x, y: e.at.y };
+      if (e.kind === "beam") {
+        const tiles = Array.isArray(e.tiles) ? e.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)) : [];
+        const set = new Set(tiles.map((t) => key(t.x, t.y)));
+        const list = playersRef.current, caster = list.find((p) => p.alive && p.pos && samePos(p.pos, e.at)) || null;
+        const ally = (p) => !!caster && (p.id === caster.id || sameSide(p, caster) || (!!caster.teamId && p.teamId === caster.teamId));
+        f.hitIds = list.filter((p) => p.alive && p.pos && !ally(p) && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => set.has(key(t.x, t.y)))).map((p) => p.id);
+        f.hitDelay = GRAY_BEAM.hit;
+        playSfx("gray_beam");
+        if (tiles.length) {
+          const xs = tiles.map((t) => t.x), ys = tiles.map((t) => t.y);
+          look({ x: Math.round((Math.min(...xs) + Math.max(...xs)) / 2), y: Math.round((Math.min(...ys) + Math.max(...ys)) / 2) });
+        } else look(e.at);
+        if (!lowQ) {
+          timers.current.push(setTimeout(() => setShake((n) => n + 1), GRAY_BEAM.hit));
+          timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 9, dur: 1100 }]), GRAY_BEAM.hit));
+          timers.current.push(setTimeout(() => setShake((n) => n + 1), GRAY_BEAM.hit + 650));
+        }
+      } else look(e.kind === "reap" && e.from ? e.from : e.at);
+      pushFx([f]);
+    };
+    socket.on("grayFx", onGray);
+    return () => socket.off("grayFx", onGray);
   }, [pushFx, look, lowQ]);
 
   // ท่าไม้ตายไรโด ฮิคารุ: { id, kind: "cross" | "ray", from, size, dir, len, width, tiles } — ชาร์จที่หน้าตัว → ลำแสงวิ่งถึงปลาย (= ดาเมจลง)
@@ -1284,6 +1324,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
+  // เกรย์ชาร์จรองโกมิเนียต (p.gray.charge) — ทุกคนเห็นแนวลำแสง + หอกเหนือหัว (grayFx.js drawGrayGround / drawGrayAir)
+  const graySig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.gray && p.gray.charge && Array.isArray(p.gray.charge.tiles))
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), dir: p.gray.charge.dir, left: p.gray.charge.left, tiles: p.gray.charge.tiles.map((t) => ({ x: t.x, y: t.y })) })));
+  const grays = useMemo(() => { const list = JSON.parse(graySig); return list.length ? list : null; }, [graySig]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1315,8 +1359,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return;
     }
     // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
-    // หนามน้ำแข็ง (Ice Spike) ใช้ทางเดียวกัน
-    const seal = sealFoes.find((s) => s.pos.x === x && s.pos.y === y) || spikeFoes.find((s) => s.pos.x === x && s.pos.y === y);
+    // หนามน้ำแข็ง (Ice Spike) · ศพ (เกรย์เก็บศพ) ใช้ทางเดียวกัน
+    const at = (s) => s.pos.x === x && s.pos.y === y;
+    const seal = sealFoes.find(at) || spikeFoes.find(at) || corpseFoes.find(at);
     if (seal) {
       if (!myTurn || busy || pendingAttack.current) return;
       const pl = planFor(seal);
@@ -1528,6 +1573,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
         songs={songs}
+        grays={grays}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}

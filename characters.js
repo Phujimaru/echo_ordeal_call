@@ -375,6 +375,49 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- เกรย์ — ระดับกลาง — ดู characters/gray.js ----------
+    //  ศพค้างบนกระดานระหว่างที่เกรย์ยังอยู่ (ฮุค keepsCorpses) · ตีปกติใส่ศพประชิด = เก็บศพ (action.attackTarget "corpse:<id>")
+    //  ท่าไม้ตายชาร์จ 2 เทิร์น ยิงต้นตาเดินของเทิร์น N+2 (ฮุค onActorReady)
+    id: "gray",
+    name: "เกรย์",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/gray/gray.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "สัปเหร่อ",
+      desc: "ผู้เล่นที่ตายทิ้งศพไว้บนสนาม · ตีปกติใส่ศพที่ประชิด = เก็บศพ (ฟื้นคืนชีพจากศพนั้นไม่ได้ · ศพเคท/เอมิลิโกะกลับมาเมื่อเปลี่ยนภูมิภาค): ฟื้นพลังชีวิต 2 · พลังโจมตี +1 ถาวร (สูงสุด +2) · รองโกมิเนียต +2 (สูงสุด 2 ศพ)",
+    },
+    basic: {
+      name: "คนเฝ้าสุสาน",
+      desc: "หลบหลีก 1 เทิร์น · เยียวยา (1) 2 เทิร์น (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 3,
+      img: "/characters/gray/gray_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/gray.js
+    },
+    secondary: {
+      name: "Grave",
+      desc: "ได้ “จงบ้าคลั่ง” 2 เทิร์น (รวมเทิร์นนี้): ระยะตีปกติ 2 ช่อง · อัตราคริติคอล +25% · ตีปกติติดถูกตรึง 1 เทิร์น (ต้านได้) (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 3,
+      img: "/characters/gray/gray_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "รองโกมิเนียต",
+      desc: "เลือกทิศ: ชาร์จ 2 เทิร์น (เดิน/จั่ว/ตีปกติ/ใช้สกิล/ยิงปืนไม่ได้ · ใช้ไอเทมได้) แล้วยิงต้นตาเดินของเทิร์นที่ 2 ถัดไป แนวยาวสุดสนาม กว้าง 7 · ศัตรูในแนวเสียหาย 5 +2 ต่อศพที่เก็บ (ไม่รับบัฟ · เกราะรับก่อน · หลบได้) · ตาย = ยกเลิก (คูลดาวน์ 5 เทิร์นหลังยิง)",
+      area: { kind: "line", len: 14, width: 7, hostile: true },
+      cost: 6,
+      img: "/characters/gray/gray_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "ก่อกำเนิดใหม่" (ผู้ใช้ตัดสิน 2026-10-10) — ฉากโลกแตก + เปลี่ยนภูมิภาค/นับเวลาใหม่ (server/phases/endTurn.js journeyRebirth)

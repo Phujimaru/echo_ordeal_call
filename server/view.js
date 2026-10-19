@@ -306,6 +306,7 @@ function buildStateFor(viewerId) {
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
+        gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),
@@ -321,7 +322,7 @@ function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
     hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
-    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined,
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined,
   };
 }
 
@@ -333,7 +334,7 @@ function unseenPub(o, p) {
     ...o, img: p.img, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
     mark42: null, statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
     muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
-    sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined,
+    sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
   };
 }
 // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)

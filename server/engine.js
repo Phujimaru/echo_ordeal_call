@@ -186,6 +186,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   journeyRebirth: endTurnPhase.journeyRebirth,
   doAttack: attack.doAttack,
   useSkill: skills.useSkill,
+  hitArea: skills.hitArea, // ผลของสกิลโจมตีพื้นที่บนช่องที่โดนจริง (ฮุค ownsAreaHit — โซระ / เกรย์: รองโกมิเนียตโดนตอนยิง)
   alivePlayers: combat.alivePlayers,
   isNightRound: dayNight.isNightRound,
   GOLD_MAX,

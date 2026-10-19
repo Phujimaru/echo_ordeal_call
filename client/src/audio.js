@@ -139,6 +139,17 @@ const FILES = {
   yuna_longing: "/characters/yuna/yuna_longing.mp3", // คำอวยพรสุดท้าย: เล่นจนคนที่ฟื้นตายอีกครั้งหรือบัฟหมด
   // ร้อนแรงดังไฟ: Break Beat Bark! intro ครั้งเดียว → loop วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   yuna_idol: "/characters/yuna/yuna_idol_intro.m4a",
+  // เกรย์ — ซ้อน Mixkit ที่มีอยู่ (kate-emiliko / ice-spike / raido-hikaru sfx-src) + สังเคราะห์ ffmpeg · สคริปต์ gray-sfx.py · mono -16..-18 LUFS
+  gray_scythe: "/characters/gray/sfx/gray_scythe.mp3", // ตีปกติ: เคียว
+  gray_hammer: "/characters/gray/sfx/gray_hammer.mp3", // ตีปกติ: ค้อน (ทุบพื้น ~0.3 วิ)
+  gray_bow: "/characters/gray/sfx/gray_bow.mp3",       // ตีปกติ: ธนู
+  gray_chains: "/characters/gray/sfx/gray_chains.mp3", // จงบ้าคลั่ง: โซ่ตรึง (ซ้อนกับเสียงอาวุธ)
+  gray_keeper: "/characters/gray/sfx/gray_keeper.mp3", // คนเฝ้าสุสาน
+  gray_grave: "/characters/gray/sfx/gray_grave.mp3",   // Grave
+  gray_reap: "/characters/gray/sfx/gray_reap.mp3",     // เก็บศพ
+  gray_beam: "/characters/gray/sfx/gray_beam.mp3",     // ลำแสงรองโกมิเนียต: ชาร์จ 0–1.6 วิ → ระเบิดที่ 1.6 วิ → หางครืนถึง 3.8 วิ
+  // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
+  gray_ult: "/characters/gray/gray_skill3_contro.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -158,6 +169,7 @@ const FILES = {
 const MUSIC_SEQUENCES = {
   kate_storm: ["/characters/kate_emiliko/kate_theme_intro.m4a", "/characters/kate_emiliko/kate_theme_loop.mp3"],
   yuna_idol: ["/characters/yuna/yuna_idol_intro.m4a", "/characters/yuna/yuna_idol_loop.mp3"],
+  gray_ult: ["/characters/gray/gray_skill3_contro.m4a", "/characters/gray/gray_skill3_standBy.m4a"],
 };
 
 // เพลงที่อยู่กลุ่มเดียวกัน = สลับไฟล์กันแล้ว "เล่นต่อจากตำแหน่งเดิม" (เช่นเพลงกลางวัน/กลางคืนของท่าเดียวกัน)
@@ -210,6 +222,7 @@ const LOUDNESS_GAIN = {
   "/characters/yuna/yuna_longing.mp3": 0.63, // -10.0 LUFS
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
+  // เกรย์ (ffmpeg ebur128 ทั้งไฟล์) — contro -14.6 / standBy -14.1 / skill3_intro.mp4 -16.2 / skill3_final.mp4 -15.5 อยู่ที่เป้าแล้ว ไม่อยู่ในตาราง
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }
 export function soundGain(name) { return pathGain(FILES[name]); }
@@ -224,10 +237,12 @@ const MUSIC_TRACK_SCALE = {
   kate_storm: 1.34,
   // ร้อนแรงดังไฟของยูนะ: เพลงไอดอลต้องเด่นกว่าเพลงร้องปกติ (ผู้ใช้สั่ง "พิเศษและอลังการกว่า") — เต็มหลอดแบบม่านแดง
   yuna_idol: 1.34,
+  // รองโกมิเนียตของเกรย์: เพลงชาร์จ 2 เทิร์นต้องครองฉาก — เต็มหลอดแบบม่านแดง
+  gray_ult: 1.34,
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
-const FEATURED_MUSIC = { kate_storm: 0.55, yuna_idol: 0.6 };
+const FEATURED_MUSIC = { kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
 function sfxDuck() {
   const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
   return d ?? 1;

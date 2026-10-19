@@ -355,11 +355,11 @@ function strikeCard(attacker, target, res) {
   return {
     byId: attacker.id, targetId: target.id,
     byName: attacker.name, byImg: view.displayImg(attacker), byColor: lobby.colorOf(attacker),
-    byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
     byBeam: attackBeamOf(attacker), // ตีปกติเป็นลำแสง (ความยาวเป็นช่อง · 0 = ไม่มี) — นักบินปริศนา · โซระ (ปืน)
     byBeamTone: hookOf(attacker, "attackBeamTone"), // สีลำแสง "blue" (โซระ) · null = ขาวแดงเดิม
     byHitFx: hookOf(attacker, "attackHitFx"), // เอฟเฟกต์จังหวะปะทะ "mythSlash" (โซระ มีด) · null = แสงแตกเดิม
-    byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน
+    byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน · ก่อน byAttackSound: เกรย์สุ่มอาวุธที่นี่แล้วเสียงตามอาวุธ
+    byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
     bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
     dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, crit: !!res.crit, skills: res.skills || [], // crit = คริติคอลติด (ฉากบนกระดานขึ้นป้าย)
