@@ -254,7 +254,7 @@ function fxSeconds(ctx) {
     else if (e.kind === "slide") ms += Math.max(0, e.path.length - 1) * 70 + 120;
     else if (e.kind === "knock") ms += 260;
     else if (e.kind === "hit") ms += e.max ? 700 : 450;
-    else if (e.kind === "spike" || e.kind === "bump") ms += 350;
+    else if (e.kind === "spike" || e.kind === "bump" || e.kind === "crash") ms += 350;
     else if (e.kind === "surge") ms += 1200;
     else if (e.kind === "burst") ms += 600;
   }

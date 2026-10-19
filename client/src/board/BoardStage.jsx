@@ -1002,6 +1002,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           shake(2);
           return 60;
         }
+        // Mouse Separade (โซระ): ตัวใหญ่ถูกผลักไปติดของ — x, y = มุมบนซ้ายของตัว
+        case "crash": {
+          const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
+          if (!at) return 0;
+          const n = run.snap[id] ? sizeOfP(run.snap[id]) : 1, mid = { x: at.x + (n - 1) / 2, y: at.y + (n - 1) / 2 };
+          pushFx([{ kind: "iceBump", x: mid.x, y: mid.y, hitIds: id != null ? [id] : [] }]);
+          if (ev.dmg > 0) float(mid, `-${ev.dmg}`, "#ffc56b", 0, 30);
+          sfx("is_bump");
+          shake(4);
+          look(mid);
+          if (ev.kill) die(id, at);
+          return 120;
+        }
         case "spike": {
           if (!ok(ev)) return 0;
           const who = ev.by != null ? ev.by : id, at = posOf(who), lvTo = Math.max(0, ev.lvTo | 0);

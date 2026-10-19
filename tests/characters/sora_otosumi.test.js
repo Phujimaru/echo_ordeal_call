@@ -348,7 +348,7 @@ test('Mouse Separade: หลบพ้น = ทะลุไปชนคนถั�
   assert.deepEqual(P.S.pos, { x: 5, y: 5 });
 });
 
-test('Mouse Separade: ฆ่าได้ (เราไปยืนช่องเป้า ไม่มีการโยน) · ชนตัวใหญ่ = ดาเมจแล้วหยุดหน้าตัว ไม่สลับที่', (t) => {
+test('Mouse Separade: ฆ่าได้ (เราไปยืนช่องเป้า ไม่มีการโยน)', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   Math.random = () => 0.99;
   let P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 3, 5], ['C', 'dummy', 12, 12]]);
@@ -361,15 +361,55 @@ test('Mouse Separade: ฆ่าได้ (เราไปยืนช่อง�
   assert.equal(P.B.pos, null);
   assert.deepEqual(P.S.pos, { x: 3, y: 5 });
   assert.equal(engine.buildStateFor('S').dash.swap, null);
-  P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 3, 4], ['C', 'dummy', 12, 12]]);
+});
+
+// ---------- ชนตัวใหญ่ (ผู้ใช้สั่ง 2026-10-19): ดาเมจ +1 · ผลักถอย 2 ช่อง · ติดของ = ชน -1 ----------
+//  ภูมิภาค I: แถว y = 7, 8 โล่งทั้งแถว · สิ่งกีดขวาง (4,9)
+const iceEvents = () => calls.fx.filter((f) => f.event === 'iceFx').flatMap((f) => f.payload.events);
+function bigCharge(t, list, size, dir, prep) {
+  if (!t.soraTimers) { t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] }); t.soraTimers = true; } // เรียกซ้ำในเทสต์เดียวกันได้
+  calls.fx = [];
+  Math.random = () => 0.99;
+  const P = setup(list);
   myth(P.S);
-  P.B.boardSize = 2; // (3,4)–(4,5)
+  P.B.boardSize = size;
+  if (prep) prep(P);
   engine.setActor('S');
-  engine.useSkill('S', 'ultimate', [], { dir: 'right' });
-  flush(t, 6000);
-  assert.equal(vit(P.B), 7);
-  assert.deepEqual(P.B.pos, { x: 3, y: 4 });
-  assert.deepEqual(P.S.pos, { x: 2, y: 5 });
+  engine.useSkill('S', 'ultimate', [], { dir });
+  flush(t, 12000);
+  return P;
+}
+test(`Mouse Separade: ชนตัวใหญ่ 3×3 = ดาเมจ ${sora.ULT_DMG + sora.BIG_BONUS} · หยุดหน้าตัว ไม่สลับที่ · ผลักถอย ${sora.BIG_PUSH} ช่อง`, (t) => {
+  const P = bigCharge(t, [['S', 'sora_otosumi', 1, 7], ['B', 'dummy', 3, 6], ['C', 'dummy', 12, 12]], 3, 'right'); // (3,6)–(5,8)
+  assert.equal(vit(P.B), 10 - 4);
+  assert.deepEqual(P.S.pos, { x: 2, y: 7 }, 'หยุดหน้าตัว');
+  assert.deepEqual(P.B.pos, { x: 5, y: 6 }, 'ถอย 2 ช่องตามทิศพุ่ง');
+  assert.equal(engine.buildStateFor('S').dash.swap, null);
+  const ev = iceEvents();
+  assert.deepEqual(ev, [{ kind: 'knock', id: 'B', from: { x: 3, y: 6 }, to: { x: 5, y: 6 } }]);
+  assert.equal(engine.gameState, 'ACTION');
+});
+test('Mouse Separade: ตัวใหญ่ถอยไปติดสิ่งกีดขวาง = หยุดตรงนั้น + ชน -1', (t) => {
+  const P = bigCharge(t, [['S', 'sora_otosumi', 5, 5], ['B', 'dummy', 4, 6], ['C', 'dummy', 12, 12]], 2, 'down'); // (4,6)–(5,7)
+  assert.equal(vit(P.B), 10 - 4 - sora.CRASH_DMG);
+  assert.deepEqual(P.B.pos, { x: 4, y: 7 }, 'ถอยได้ 1 ช่อง — ช่องถัดไปมีสิ่งกีดขวาง (4,9)');
+  const ev = iceEvents();
+  assert.deepEqual(ev.map((e) => e.kind), ['knock', 'knock', 'crash']);
+  assert.equal(ev[1].collide, true);
+  assert.deepEqual(ev[2], { kind: 'crash', id: 'B', x: 4, y: 7, dmg: 1, kill: false });
+});
+test('Mouse Separade: ตัวใหญ่ถอยไปติดคน = ชน -1 (คนที่ขวางไม่โดน) · ติดขอบกระดาน = ชน -1 ฆ่าได้', (t) => {
+  let P = bigCharge(t, [['S', 'sora_otosumi', 1, 8], ['B', 'dummy', 3, 7], ['C', 'dummy', 6, 7]], 2, 'right');
+  assert.deepEqual(P.B.pos, { x: 4, y: 7 });
+  assert.equal(vit(P.B), 10 - 5);
+  assert.equal(vit(P.C), 10, 'คนที่ขวางไม่เสียเลือด');
+  P = bigCharge(t, [['S', 'sora_otosumi', 10, 8], ['B', 'dummy', 12, 7], ['C', 'dummy', 1, 1]], 2, 'right', (Q) => { Q.B.hp = 5; Q.B.armor = 0; });
+  assert.equal(P.B.alive, false, 'ดาเมจ 4 เหลือ 1 → ชนขอบ -1 ตกรอบ');
+  assert.equal(P.B.pos, null);
+  assert.deepEqual(P.S.pos, { x: 11, y: 8 });
+  const ev = iceEvents();
+  assert.deepEqual(ev.map((e) => e.kind), ['knock', 'crash'], 'ไม่ขยับเลย = ชนอย่างเดียว');
+  assert.equal(ev[1].kill, true);
 });
 
 test('Mouse Separade: เป้าตกรอบระหว่างคลิปชน = หยุดที่ปลายทางพุ่ง (ช่องหน้าเป้า) · ไม่มีดาเมจ/สลับที่', (t) => {

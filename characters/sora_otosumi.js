@@ -12,7 +12,8 @@
 //    คลิปครั้งแรกต่อเกม → วงล้อหนูหมุน → พุ่งตรงไปสุดแนว (พังสิ่งกีดขวางที่ผ่าน · ผนึกมิโกะ = หยุดหน้าผนึก)
 //    ศัตรูคนแรกในแนวที่หลบไม่พ้น (หลบหลีก/พุ่มดอกไม้สูง/ป่าทึบ · แม่นยำเจาะ) = ชน → คลิปชน (ทุกครั้ง) → ระเบิดสีฟ้า
 //      ความเสียหาย 3 (เกราะรับก่อน · ฆ่าได้) แล้วสลับที่: เราไปยืนช่องของเป้า · เป้าถูกโยนไปช่องที่เราออกตัว (เป้าตาย = ไม่มีการโยน)
-//      ชน Echo (ตัวใหญ่) = ดาเมจ 3 แล้วหยุดหน้าตัว ไม่สลับที่
+//      ชนตัวใหญ่ (2×2 ขึ้นไป — Echo / กิงกะ) = ดาเมจ 4 (+1 — ผู้ใช้สั่ง 2026-10-19) แล้วหยุดหน้าตัว ไม่สลับที่
+//        ระเบิดจบ = ผลักเป้าถอยตามทิศพุ่ง 2 ช่อง (ทั้งตัว) · ติดสิ่งกีดขวาง/ขอบกระดาน/คน/ร้านค้า = หยุด + ชน -1 (เกราะก่อน · ฆ่าได้)
 //    หลบพ้น = ทะลุผ่านไปชนคนถัดไปได้ · เพื่อนร่วมทีม = ทะลุผ่าน · ไม่ชนใคร = หยุดสุดแนว (ช่องไม่ว่าง = ถอยมาช่องว่างก่อนหน้า)
 //    คริติคอลของร่าง My-Th ไม่ติดท่านี้ (ใช้กับตีปกติเท่านั้น)
 //    ผลของสกิลโจมตีพื้นที่ (คนล่องหนปรากฏ · ผนึกมิโกะ · หนามน้ำแข็ง) เฉพาะช่องที่พุ่งผ่านจริงจนถึงจุดชน (ผู้ใช้ตัดสิน)
@@ -51,6 +52,9 @@ const REGEN_HP = 2;
 const ULT_LEN = 4;
 const ULT_DMG = 3;
 const ULT_CD = 2;
+const BIG_BONUS = 1; // ชนตัวใหญ่ = ดาเมจ +1 (ผู้ใช้สั่ง 2026-10-19)
+const BIG_PUSH = 2;  // แล้วผลักถอย 2 ช่อง
+const CRASH_DMG = 1; // ถูกผลักไปติดของ = -1
 // จังหวะบนกระดาน (ต้องตรงกับ client/src/board — SORA_T ใน boardDraw.js)
 const WHEEL_MS = 1400;
 const DASH_STEP_MS = 90;
@@ -167,21 +171,21 @@ function charge(engine, p, dir) {
     if (big && land >= 0) p.pos = { x: passed[land].x, y: passed[land].y };
     engine.queueCutscene(p, CUT.hit);
     const stop = path[path.length - 1]; // ช่องที่ภาพค้างไว้ระหว่างคลิปชน (client ต่อแอนิเมชันจากตรงนี้)
-    engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big));
+    engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big, dir));
   });
 }
 // ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (แบบเดียวกับ sliver_bullet)
 function pool(t) {
   return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
 }
-// คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่
-function impact(engine, p, t, start, stop, big) {
+// คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่ · ตัวใหญ่ = ดาเมจ 4 แล้วผลักถอยหลังระเบิด (shove)
+function impact(engine, p, t, start, stop, big, dir) {
   if (!p.alive) return;
   if (!t.alive || !t.pos) { settleAtStop(engine, p, stop, big); return; }
   const at = { ...t.pos };
   const before = pool(t);
   t.wasAttacked = true;
-  engine.dealMixed(t, ULT_DMG);
+  engine.dealMixed(t, ULT_DMG + (big ? BIG_BONUS : 0));
   engine.resolveDamageAftermath(t);
   const dealt = Math.max(0, before - pool(t));
   engine.log(`💥 Mouse Separade → ${t.name} -${dealt} (ลดเกราะก่อน)`);
@@ -196,7 +200,41 @@ function impact(engine, p, t, start, stop, big) {
     p.pos = { ...at };
   }
   engine.setDash({ id: p.id, path: big ? [{ ...p.pos }] : [{ ...stop }, at], swap, boom: at, boomSize: (t.alive && engine.sizeOf(t)) || 1 });
-  engine.skillBeat(BOOM_SECONDS, () => {});
+  engine.skillBeat(BOOM_SECONDS, () => { if (big) shove(engine, p, t, dir); });
+}
+// ผลักตัวใหญ่ถอยตามทิศพุ่งทีละช่อง (ทั้งตัวต้องลงช่องว่าง — engine.tileFree) ไม่เกิน BIG_PUSH · ติด = ชน -1
+//  ภาพ = เหตุการณ์ iceFx (knock ถอย → knock collide + crash เลขดาเมจ) · ตัวใหญ่ไม่ไถลน้ำแข็ง (กฎเดิม)
+function shove(engine, p, t, dir) {
+  const v = Board.LINE_DIRS[dir];
+  if (!v || !t.alive || !t.pos) return;
+  const n = engine.sizeOf(t);
+  const from = { ...t.pos };
+  let crash = false;
+  for (let i = 0; i < BIG_PUSH; i++) {
+    const x = t.pos.x + v[0], y = t.pos.y + v[1];
+    if (!Board.footprint(x, y, n).every((c) => engine.tileFree(c.x, c.y, t.id))) { crash = true; break; }
+    t.pos = { x, y };
+  }
+  const ctx = engine.ice.begin();
+  if (t.pos.x !== from.x || t.pos.y !== from.y) {
+    ctx.events.push({ kind: "knock", id: t.id, from, to: { ...t.pos } });
+    engine.log(`🐭 ${t.name} ถูก Mouse Separade ผลักถอย ${Math.abs(t.pos.x - from.x) + Math.abs(t.pos.y - from.y)} ช่อง`);
+  }
+  if (crash) {
+    const at = { ...t.pos };
+    ctx.events.push({ kind: "knock", id: t.id, from: at, to: { x: at.x + v[0], y: at.y + v[1] }, collide: true });
+    const before = pool(t);
+    t.wasAttacked = true;
+    engine.dealMixed(t, CRASH_DMG);
+    engine.resolveDamageAftermath(t);
+    const dealt = Math.max(0, before - pool(t));
+    ctx.events.push({ kind: "crash", id: t.id, x: at.x, y: at.y, dmg: dealt, kill: !t.alive });
+    engine.log(`💢 ${t.name} ถูกผลักกระแทก -${dealt} (ลดเกราะก่อน)`);
+    if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
+  }
+  if (!ctx.events.length) return;
+  engine.ice.flush(ctx);
+  engine.skillBeat(engine.ice.fxSeconds(ctx), () => {});
 }
 // เป้าตกรอบ/หายไประหว่างคลิปชน (ผู้ใช้ตัดสิน): หยุดที่ปลายทางพุ่ง (ช่องที่ภาพค้างไว้) · ช่องนั้นไม่ว่าง = อยู่ที่เดิม
 //  ชนตัวใหญ่ = ตำแหน่งตั้งไว้แล้วตอนจบจังหวะพุ่ง
@@ -207,7 +245,7 @@ function settleAtStop(engine, p, stop, big) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD,
+  IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD, BIG_BONUS, BIG_PUSH, CRASH_DMG,
 
   resetCombat(p) { p.sora = isSora(p) ? fresh() : null; },
   displayImg(p) { return mythOn(p) ? IMG.myth : null; },
