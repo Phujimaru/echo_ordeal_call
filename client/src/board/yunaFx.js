@@ -8,7 +8,8 @@
 //   idol   = เวทีคอนเสิร์ต: พื้นช่องกระพริบสีตามจังหวะ สปอตไลต์หลายสีส่ายจากฟ้า เลเซอร์กวาด กระดาษสีโปรย
 //  ท่าตีปกติ (attackStyle — STYLE_MS ใน boardDraw):
 //   yunaNote = ร้องใส่เป้า: คลื่นเสียงโค้งหนาเรืองแสงซ้อนกันพุ่งเข้าเป้า + โน้ตตาม → ปะทะเป็นแสงวาบ คลื่นกระแทกบนพื้น โน้ตแตกกระจาย
-//   yunaIdol = ท่าไอดอล: ชาร์จ (เสาไฟสปอตไลต์ลงที่ยูนะ วงแสงหดเข้าตัว) → ปล่อยลำคลื่นเสียงสีรุ้งหนา + เลเซอร์จากเวทีบรรจบที่เป้า
+//   yunaIdol = ท่าไอดอล: ชาร์จ (เสาไฟสปอตไลต์ลงที่ยูนะ วงแสงหดเข้าตัว) → โน้ตสีรุ้งพุ่งโค้งเข้าเป้าคนเดียว + เลเซอร์จากเวทีบรรจบที่เป้า
+//              (ไม่มีลำ/คลื่นตามแนว — ตีโดนเป้าเดียว)
 //              → ระเบิดดาวขนาดใหญ่ วงกระแทก 3 ชั้น เสาแสงที่เป้า กระดาษสีกระจาย
 //  เหตุการณ์ (socket "yunaFx" → YUNA_EVENT_FX): revive · vanish/appear · shadow · song · idolOn/idolEnd · tick · mount · fall
 //  lowQ = ตัดอนุภาค/แท่ง/ลำแสงครึ่งหนึ่ง ไม่มีกลิตช์ · ลดการเคลื่อนไหว = วงนิ่ง (ไม่เต้น ไม่ส่าย) แต่เอฟเฟกต์ครั้งเดียวยังเล่น
@@ -448,23 +449,11 @@ function idolShot(g, e, now, lowQ) {
       }
     }
   }
-  // ยิง: ลำคลื่นเสียงสีรุ้งหนา (แกนขาว) + วงคลื่นวิ่งตามลำ + เลเซอร์จากเวที
+  // ยิง: กลุ่มโน้ตสีรุ้งพุ่งโค้งเข้าเป้าคนเดียว + เลเซอร์จากเวทีบรรจบที่เป้า
+  //  ไม่มีลำ/คลื่นวิ่งตามแนว — ตีปกติร่างไอดอลโดนแค่เป้าเดียว (ผู้ใช้สั่ง 2026-10-19 ให้เอาคลื่นออก)
   if (t >= CH && t < HIT + 0.12) {
     const k = clamp01((t - CH) / (HIT - CH)), head = easeOut3(k), fade = t < HIT ? 1 : 1 - (t - HIT) / 0.12;
-    const hx = A[0] + dx * head, hy = A[1] + dy * head, W = A[2] * 0.42;
-    for (let layer = 0; layer < 3; layer++) {
-      const gr = g.createLinearGradient(A[0], A[1], hx, hy);
-      gr.addColorStop(0, hsl(hue, 0.15 * fade)); gr.addColorStop(0.5, hsl(hue + 120, 0.5 * fade)); gr.addColorStop(1, hsl(hue + 240, 0.9 * fade));
-      g.strokeStyle = layer === 2 ? `rgba(255,255,255,${0.95 * fade})` : gr;
-      g.lineWidth = W * (1 - layer * 0.32);
-      g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(hx, hy); g.stroke();
-    }
-    const waves = lowQ ? 3 : 6;
-    for (let i = 0; i < waves; i++) {
-      const p = (((t * 9) + i / waves) % 1) * head;
-      soundArc(g, A[0] + dx * p, A[1] + dy * p, dx, dy, W * (1.1 + p * 0.6), SPOT[i % SPOT.length], 0.9 * fade, Math.max(3, W * 0.18));
-    }
-    addGlow(g, hx, hy, W * 2.2, "255,255,255", 0.8 * fade);
+    const W = A[2] * 0.42;
     if (!lowQ) {
       for (let i = 0; i < 4; i++) {
         const o = P(bx + (i < 2 ? -3.5 : 3.5), by - 3 + (i % 2) * 1.5, 5);
@@ -474,9 +463,14 @@ function idolShot(g, e, now, lowQ) {
         g.strokeStyle = `rgba(255,255,255,${0.9 * fade})`; g.lineWidth = 2; g.stroke();
       }
     }
-    for (let i = 0; i < (lowQ ? 4 : 10); i++) {
-      const p = hash01(i * 3.1) * head, side = (i % 2 ? 1 : -1) * W * (0.6 + hash01(i) * 1.2) * k;
-      noteGlyph(g, A[0] + dx * p + nx * side, A[1] + dy * p + ny * side, W * 0.85, hsl(hue + i * 36, fade, 70), i);
+    // โน้ตแต่ละตัวออกตัวช้าเร็วต่างกัน โค้งออกข้างแล้วบรรจบที่เป้า (หางแสงสั้นๆ)
+    for (let i = 0; i < (lowQ ? 4 : 8); i++) {
+      const kk = clamp01((t - CH - i * 0.012) / (HIT - CH)), p = easeOut3(kk);
+      if (kk <= 0) continue;
+      const bend = Math.sin(p * Math.PI) * W * (i % 2 ? 1 : -1) * (0.8 + hash01(i) * 1.2);
+      const x = A[0] + dx * p + nx * bend, y = A[1] + dy * p + ny * bend - Math.sin(p * Math.PI) * W * 0.8;
+      addGlow(g, x, y, W * 0.9, SPOT[i % SPOT.length], 0.55 * fade);
+      noteGlyph(g, x, y, W * 1.05, hsl(hue + i * 45, fade, 70), i);
     }
   }
   // ปะทะ: เสาแสงที่เป้า + สปอตไลต์ 3 ดวงรวมที่เป้า + ระเบิดดาว + กระดาษสี
