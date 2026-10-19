@@ -90,6 +90,28 @@ const ENERGY_C = "#7fd3ff"; // เลขแต้มสกิล (พลัง�
 
 //  props เพิ่ม (ดีไซน์ UI ใหม่): atkSignal = ตัวเลขเปลี่ยน = ปุ่ม "โจมตี" ถูกกด · onAttackables(ids) = ศัตรูที่ตาเราตีถึง (เดินแล้วตีได้)
 //   onOverlay(bool) = หน้าคาดการณ์เปิด/ปิด (Game ซ่อน HUD ทั้งหมด) · onCall(bool) = ฉากเต็มจอกำลังเล่น
+// ป้ายโบนัสในฉากตี — ผลที่มีต่อการตีครั้งนี้จาก server (การ์ดฉากตี skills: side "atk" = ฝั่งผู้ตี · "def" = ฝั่งเป้า)
+//  เช่น คริติคอล · แท่นพลัง · ม่านแห่งราตรี · มีด +1 · คุ้มครอง · เปราะบาง · ขึ้นตอนปะทะแล้วค้างจนจบฉาก
+function AttackTags({ a, byId }) {
+  const all = a.skills || [];
+  const atk = all.filter((s) => (s.side ? s.side === "atk" : s.by === a.byName));
+  const def = all.filter((s) => (s.side ? s.side === "def" : s.by !== a.byName));
+  if (!atk.length && !def.length) return null;
+  const col = (list, side, name, color) => list.length > 0 && (
+    <div className="bs-tags-col" data-side={side} style={{ "--bs-c": color || "#7fb8e6" }}>
+      <b className="bs-tags-name">{name}</b>
+      {list.map((s, i) => <span key={i} className="bs-tag" style={{ "--i": i }}>{s.name}</span>)}
+    </div>
+  );
+  const by = byId[a.byId], tg = byId[a.targetId];
+  return (
+    <div className="bs-tags" aria-live="polite">
+      {col(atk, "atk", a.byName, a.byColor || (by && by.color))}
+      {col(def, "def", a.targetName, a.targetColor || (tg && tg.color))}
+    </div>
+  );
+}
+
 export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay }) {
   const phase = state.gameState;
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
@@ -1566,6 +1588,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           {tileInfo.desc && <div className="bs-tile-desc">{tileInfo.desc}</div>}
         </div>
       )}
+
+      {/* ป้ายโบนัสในฉากตี (ฝั่งผู้ตี / ฝั่งเป้า) */}
+      {phase === "ATTACKING" && state.attack && <AttackTags key={`tags-${state.attack.id}`} a={state.attack} byId={byId} />}
 
       {/* หน้าคาดการณ์ผลการตี (แทน HUD ทั้งจอ) */}
       {fcPlan && me && createPortal(

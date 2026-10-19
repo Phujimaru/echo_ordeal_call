@@ -493,7 +493,16 @@ export function buildMockState(opts) {
   if (s.masked) s.turnOrder = [];
   if (opts.shopNear && me.pos) s.shopPos = freeNeighbor(s, me.pos) || s.shopPos;
   if (s.gameState === "ACTION") s.forecast = forecastFor(s, s.controlId || s.youId);
-  if (scn === "attack") return simulateAttack(s, ME, "p1");
+  if (scn === "attack") {
+    // ป้ายโบนัสในฉากตี (AttackTags) — ตัวอย่างผลทั้งสองฝั่งแบบที่ server strike() ใส่ใน skills
+    const r = simulateAttack(s, ME, "p1");
+    r.attack.crit = true;
+    r.attack.skills = [
+      { name: "คริติคอล ×2 (20%)", side: "atk" }, { name: "แท่นพลัง +1", side: "atk" }, { name: "My-Th Edge มีด +1", side: "atk" },
+      { name: "คุ้มครอง (ความเสียหายลด 1)", side: "def" },
+    ];
+    return r;
+  }
   if (scn === "collide") return simulateAttack(s, ME, "p4");
   if (scn === "gun") return simulateAttack(s, ME, "p1", "thunder"); // ยิงจากระยะ 3 — ฟ้าใสตีถึงแค่ 1 จึงไม่สวน
   return s;
