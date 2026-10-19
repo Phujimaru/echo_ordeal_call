@@ -260,7 +260,7 @@ test('รองโกมิเนียต: 6 แต้ม · เลือกท
 test('รองโกมิเนียต: ยิงต้นตาเดินของเกรย์เทิร์น N+2 → คลิป final → ดาเมจ 5 +2/ศพ (ไม่รับบัฟ · เกราะก่อน · ไม่โดนพวก) · กลับตาเดิน · คูลดาวน์ 5', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gray', 3, 7, 't1'], ['B', 'dummy', 9, 7, 't2'], ['C', 'dummy', 12, 4, 't2'], ['F', 'dummy', 6, 8, 't1'], ['D', 'dummy', 6, 2, 't2']], 'duo');
-  P.G.gray.souls = 1;
+  P.G.gray.souls = 2;
   P.G.statuses.empower = 1; P.G.statusAmt.might = 3; // บัฟพลังโจมตีไม่มีผล
   P.G.gray.charge = { dir: 'right', cast: 4, fire: 6, at: 1 };
   engine.setRoundNumber(6);
@@ -272,14 +272,16 @@ test('รองโกมิเนียต: ยิงต้นตาเดิน
   flush(t, 6000);
   const beam = calls.fx.find((f) => f.payload.kind === 'beam');
   assert.ok(beam, 'ลำแสงบนกระดาน');
-  assert.equal(vit(P.B), 12 - 7, '5 + 2 (1 ศพ)');
+  assert.equal(vit(P.B), 12 - 7, '5 + 1 ต่อศพ (2 ศพ) = 7');
   assert.equal(vit(P.C), 12 - 8, 'เปราะบาง +1');
+  P.G.gray.souls = 5;
+  assert.equal(gray.ULT_DMG + gray.SOUL_DMG * Math.min(gray.SOUL_MAX, P.G.gray.souls), 7, 'แรงสุด 7');
   assert.equal(vit(P.F), 12, 'พวกเดียวกันไม่โดน');
   assert.equal(vit(P.D), 12, 'นอกแนว (y 2 อยู่นอกกว้าง 7 รอบ y 7)');
   assert.equal(P.G.gray.charge, null);
   assert.equal(engine.gameState, 'ACTION', 'กลับตาเดิน');
   assert.equal(engine.actorId, 'G');
-  assert.equal(view('G', 'G').gray.ultCd, 5);
+  assert.equal(view('G', 'G').gray.ultCd, 3);
   assert.equal(engine.buildStateFor('G').skillMusic || null, null, 'เพลงหยุด');
 });
 
@@ -340,4 +342,34 @@ test('รองโกมิเนียต: คลิป intro / final เล่
     engine.clearPhaseTimer();
   }
   assert.deepEqual(calls.queue, ['grayUltIntro', 'grayUltFinal', 'grayUltIntro', 'grayUltFinal']);
+});
+
+test('รองโกมิเนียต: ถึงตาเกรย์เทิร์น N+1 ศัตรูในแนวติดถูกตรึงจนถึงตอนยิง · หนีออกในเทิร์น N = รอด · พวกเดียวกันไม่ติด · ต้านได้', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gray', 3, 7, 't1'], ['B', 'dummy', 9, 7, 't2'], ['C', 'dummy', 10, 6, 't2'], ['E', 'dummy', 8, 8, 't2'], ['F', 'dummy', 6, 8, 't1'], ['H', 'dummy', 12, 12, 't2']], 'duo');
+  engine.setRoundNumber(4);
+  engine.setActor('G');
+  engine.useSkill('G', 'ultimate', [], { dir: 'right' });
+  assert.equal(P.G.gray.charge.fire, 6, 'ยิงต้นตาเดินเทิร์น N+2');
+  assert.ok(!P.B.statuses.rooted, 'ตอนกดยังไม่ตรึง');
+  // เทิร์น N: E หนีออกจากแนว (ไปแถว y 12)
+  P.E.pos = { x: 8, y: 12 };
+  P.C.statuses.resist = 3;
+  engine.setRoundNumber(5);
+  calls.fx = []; calls.sfx = [];
+  // B เดินก่อนเกรย์ (เดินไปแล้ว) · เกรย์ถึงคิว = ตรึง
+  orderUpTo(t, ['B', 'G', 'H'], 'G');
+  assert.equal(P.B.statuses.rooted, 2, 'อยู่ถึงจบเทิร์นที่ยิง');
+  assert.ok(!P.C.statuses.rooted, 'ต้านได้');
+  assert.ok(!P.E.statuses.rooted, 'หนีออกแล้วรอด');
+  assert.ok(!P.F.statuses.rooted, 'พวกเดียวกันไม่ติด');
+  assert.ok(!P.H.statuses.rooted, 'นอกแนว');
+  assert.ok(calls.fx.some((f) => f.payload.kind === 'grave' && f.payload.id === 'B'), 'โซ่พันคนที่ถูกตรึง');
+  assert.ok(calls.sfx.includes('gray_chains'));
+  assert.ok(!calls.queue.includes('grayUltFinal'), 'เทิร์นชาร์จยังไม่ยิง');
+  assert.equal(engine.movOf(P.B), 0);
+  // ตรึงครั้งเดียวต่อการชาร์จ
+  P.B.statuses.rooted = 1;
+  engine.finishActor();
+  assert.equal(P.B.statuses.rooted, 1);
 });

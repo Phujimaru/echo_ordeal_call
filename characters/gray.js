@@ -8,18 +8,20 @@
 //  สกิลรอง Grave (3 แต้ม · คูลดาวน์ 2 เทิร์น): ได้ "จงบ้าคลั่ง" 2 เทิร์น (รวมเทิร์นนี้) — ระยะตีปกติ [1, 2]
 //    · อัตราคริติคอล +25% (ผู้ใช้สั่ง 2026-10-19 — บวกกับคริจากสนาม ทอยครั้งเดียว: ฮุค critPct)
 //    · ตีปกติลงติด "ถูกตรึง" 1 เทิร์น (สถานะเดียวกับคลื่นความมืดของกิระ — ต้าน/ล้างได้ · เป้าเดินไปแล้ว = ติดถึงเทิร์นหน้า)
-//  ท่าไม้ตาย รองโกมิเนียต (6 แต้ม · คูลดาวน์ 5 เทิร์นนับจากเทิร์นที่ยิง): เลือกทิศ แนวยาวสุดกระดาน กว้าง 7 (ผู้ใช้ปรับจาก 6 — 2026-10-19)
+//  ท่าไม้ตาย รองโกมิเนียต (6 แต้ม · คูลดาวน์ 3 เทิร์นนับจากเทิร์นที่ยิง — ผู้ใช้ปรับจาก 5): เลือกทิศ แนวยาวสุดกระดาน กว้าง 7 (ผู้ใช้ปรับจาก 6)
 //    กดเทิร์น N → คลิป intro → เพลง contro แล้ว standBy วน (client MUSIC_SEQUENCES "gray_ult") → ชาร์จ
-//    ต้นตาเดินของเกรย์ในเทิร์น N+2 (ผู้ใช้ตอบ ก.) → คลิป final → ลำแสงทองบนกระดาน → ดาเมจ
+//    ถึงตาเกรย์เทิร์น N+1 (ชาร์จ — ผู้ใช้สั่ง 2026-10-19): ศัตรูที่ยืนในแนวติด "ถูกตรึง" จนถึงตอนยิง (หนีออกในเทิร์น N ได้ = รอด)
+//      · ตรึงต้นตาเดิน (ฮุค onActorStart — ติดแม้เกรย์ถูกข้ามตา) · ต้านสถานะกันได้ · พวกเดียวกันไม่ติด
+//    ต้นตาเดินของเกรย์ในเทิร์น N+2 → คลิป final → ลำแสงทองบนกระดาน → ดาเมจ
 //    ระหว่างชาร์จ: เดิน/จั่ว/ตีปกติ/ใช้สกิล/ยิงปืน GUTS ไม่ได้ · ใช้ไอเทมอื่นได้ (ผู้ใช้สั่ง)
-//      สตั้น/หลับไม่ยกเลิก — ถูกข้ามตาในเทิร์นที่ต้องยิง = เลื่อนไปยิงตาเดินถัดไปที่ขยับได้ (ยังชาร์จต่อ) · ตาย = ยกเลิก ไม่คืนแต้ม
-//    ดาเมจ 5 (ผู้ใช้ปรับจาก 4) + 2 ต่อศพที่เก็บ (สูงสุด 2 ศพ) ตายตัว ไม่รับบัฟพลังโจมตี
+//      สตั้น/หลับไม่ยกเลิก — ถูกข้ามตาในเทิร์นที่ต้องยิง = เลื่อนไปยิงตาเดินถัดไปที่ขยับได้ (ยังชาร์จต่อ · คนในแนวถูกตรึงต่ออีกเทิร์น) · ตาย = ยกเลิก ไม่คืนแต้ม
+//    ดาเมจ 5 (ผู้ใช้ปรับจาก 4) + 1 ต่อศพที่เก็บ (สูงสุด 2 ศพ = 7 — ผู้ใช้ปรับจาก +2) ตายตัว ไม่รับบัฟพลังโจมตี
 //      · เกราะรับก่อน · ฆ่าได้ · หลบได้ (หลบหลีก/พุ่มไม้ — แม่นยำเจาะ) · คุ้มครองลด · เปราะบางเพิ่ม (ผู้ใช้สั่ง) · ไม่โดนพวกเดียวกัน
 //    แนวลำแสงยิงจากช่องที่ยืนตอนยิง (ปกติขยับไม่ได้อยู่แล้ว — ถูกผลัก/เปลี่ยนภูมิภาคก็ตามตัวไป) · ทุกคนเห็นแนวตลอดช่วงชาร์จ
 //  ติดตัว สัปเหร่อ:
 //    ระหว่างที่เกรย์ยังอยู่ ทุกคนที่ตายทิ้งศพไว้บนกระดาน (ฮุค keepsCorpses — server/duo.js เดียวกับยูนะ)
 //    ตีปกติใส่ศพที่ประชิด = เก็บศพ (จบตาแบบตีปกติ): ศพหายจากกระดาน (ฟื้นคืนชีพที่ใช้ศพทำไม่ได้แล้ว)
-//      · ฟื้นพลังชีวิต 2 · พลังโจมตี +1 ถาวร (สูงสุด +2) · รองโกมิเนียต +2 ต่อศพ (สูงสุด 2 ศพ)
+//      · ฟื้นพลังชีวิต 2 · พลังโจมตี +1 ถาวร (สูงสุด +2) · รองโกมิเนียต +1 ต่อศพ (สูงสุด 2 ศพ)
 //      · ศพเคท/เอมิลิโกะที่อีกตัวยังรอด เกิดใหม่ข้างตัวที่รอดเมื่อเปลี่ยนภูมิภาค (Duo.placeCorpses ทำอยู่แล้ว)
 // ============================================================
 const Board = require("../server/board");
@@ -56,11 +58,12 @@ const FRENZY_TURNS = 2;
 const FRENZY_RANGE = [1, 2];
 const FRENZY_CRIT = 25;
 const ROOT_TURNS = 1;
-const ULT_CD = 5;
+const ULT_CD = 3;
 const ULT_DELAY = 2; // ยิงต้นตาเดินของเทิร์น N+2
 const ULT_AREA = { kind: "line", len: 14, width: 7, hostile: true };
 const ULT_DMG = 5;
-const SOUL_DMG = 2;
+const SOUL_DMG = 1;
+const BIND_TURNS = 2; // ตรึงต้นตาเดินเทิร์น N+1 → อยู่ถึงจบเทิร์น N+2 (เทิร์นที่ยิง)
 const SOUL_MAX = 2;
 const REAP_HP = 2;
 // จังหวะบนกระดาน (ต้องตรงกับ client/src/board/grayFx.js — GRAY_BEAM)
@@ -115,6 +118,23 @@ function beamVictims(engine, p, tiles) {
     && Board.footprint(t.pos.x, t.pos.y, engine.sizeOf(t)).some((c) => set.has(Board.key(c.x, c.y))));
 }
 const ultDamage = (p) => ULT_DMG + SOUL_DMG * Math.min(SOUL_MAX, st(p).souls);
+// ชาร์จ (ถึงตาเกรย์เทิร์น N+1): ศัตรูในแนวถูกตรึงจนถึงตอนยิง — turns = เทิร์นที่ติด (นับเทิร์นนี้)
+function bind(engine, p, turns) {
+  if (!p.pos) return;
+  const s = st(p), c = s.charge;
+  const victims = beamVictims(engine, p, beamTiles(engine, p, c.dir)).filter((t) => !engine.sameTeam(p, t));
+  let n = 0;
+  engine.withEffectSource(p, () => {
+    for (const t of victims) {
+      if (engine.applyDebuff(t, "rooted", 1, turns)) {
+        n++;
+        engine.boardFx("grayFx", { kind: "grave", at: { ...t.pos }, id: t.id });
+        engine.log(`⛓️ ${t.name} ถูกตรึงในแนวรองโกมิเนียต`);
+      } else engine.log(`⛓️ ${t.name} ต้านการตรึงไว้ได้`);
+    }
+  });
+  if (n) engine.sfx(SFX.chains);
+}
 // ถึงเวลายิง (ต้นตาเดินของเกรย์ — ฮุค onActorReady): คลิป final → ลำแสง → ดาเมจ แล้วกลับเข้าตาเดินด้วยเวลาที่เหลือ
 function fire(engine, p) {
   const s = st(p), c = s.charge;
@@ -159,7 +179,7 @@ function beamHit(engine, p, dir, tiles) {
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, MUSIC, SFX, KEEPER_CD, MEND_AMT, MEND_TURNS, GRAVE_CD, FRENZY_TURNS, FRENZY_RANGE, ROOT_TURNS,
-  FRENZY_CRIT, ULT_CD, ULT_DELAY, ULT_AREA, ULT_DMG, SOUL_DMG, SOUL_MAX, REAP_HP,
+  FRENZY_CRIT, ULT_CD, ULT_DELAY, ULT_AREA, ULT_DMG, SOUL_DMG, SOUL_MAX, REAP_HP, BIND_TURNS,
   isGray, charging,
 
   resetCombat(p) { p.gray = isGray(p) ? fresh() : null; },
@@ -266,6 +286,14 @@ module.exports = {
     return "";
   },
 
+  // ถึงคิวเกรย์ (ก่อนเช็คสตั้น) เทิร์นชาร์จ: ตรึงศัตรูในแนว
+  onActorStart(engine, p) {
+    const c = st(p).charge;
+    if (c && !c.bound && engine.roundNumber >= c.cast + 1 && engine.roundNumber < c.fire) {
+      c.bound = true;
+      bind(engine, p, BIND_TURNS);
+    }
+  },
   // ต้นตาเดินของเกรย์ (ตั้งตา + นาฬิกาแล้ว — server/phases/action.js nextActor)
   onActorReady(engine, p) {
     const s = st(p);
@@ -283,6 +311,7 @@ module.exports = {
           s.charge.fire = engine.roundNumber + 1;
           s.ultReady = s.charge.fire + ULT_CD;
           engine.log(`✨ รองโกมิเนียตของ ${p.name} ยังรอปล่อย`);
+          bind(engine, p, 1); // หลังลูปลดเทิร์นสถานะ — คนในแนวติดถึงจบเทิร์นหน้า
         } else {
           s.charge = null;
           engine.log(`✨ รองโกมิเนียตของ ${p.name} สลายไป`);
