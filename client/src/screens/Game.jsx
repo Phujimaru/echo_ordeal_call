@@ -1782,6 +1782,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
     && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
+  // ยูนะ: มีคนที่ขี่ได้อยู่ติดกันไหม (ตัวเล็ก 1×1 · ไม่ได้ขี่/ถูกขี่อยู่) — ไม่มี = ไม่แสดงปุ่ม "ขี่" (ผู้ใช้สั่ง 2026-10-19)
+  const rideNear = !!me?.yuna?.canRide && !!me.pos && (state.players || []).some((p) => p.alive && p.pos && p.id !== me.id && !p.ride
+    && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.alive && o.ride === p.id)
+    && Math.abs(p.pos.x - me.pos.x) + Math.abs(p.pos.y - me.pos.y) === 1);
   const enemyOf = (p) => !!me && p.id !== me.id && !sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId);
   // เข้าช่วงโจมตี -> ฉากประกาศ "เริ่มโจมตีได้" + เสียงเปลี่ยนช่วง (ไม่บังการกดเลือกเป้า)
   useEffect(() => {
@@ -2423,7 +2427,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               }
               attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
-              ride={me?.yuna && me.yuna.canRide && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
+              ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
