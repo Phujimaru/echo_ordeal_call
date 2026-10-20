@@ -56,7 +56,7 @@ const VOICE_EVENT = {
 // จังหวะเอฟเฟกต์ (ms) — ต้องตรงกับ VAL_FX ใน client/src/board/valentineFx.js (GRID_PLAN §7.13)
 const VAL_FX = {
   veilIn: 1100, veilOut: 1000, shotBase: 260, shotPer: 220, reload: 700, parallelIn: 1800, doubleSpawn: 700,
-  doubleRunStep: 110, doubleRunBase: 200, menger: 1500, doubleBreak: 900, dimOut: 900, clones: 1400, cloneFade: 700,
+  doubleRunStep: 200, doubleRunBase: 400, menger: 1500, doubleBreak: 900, dimOut: 900, clones: 1400, cloneFade: 700,
   justice: 1600, gain: 600,
 };
 
@@ -69,7 +69,7 @@ const GUN = { ammo: 3, reload: 5, dmg: 1, len: 5 };
 const ULT_CD = 3;
 const DOUBLE = { hp: 3, armor: 2, mov: 5 };
 const PARALLEL = { cost: 6, len: 4, width: 3, dmg: 4 };
-const SELVES = { cost: 6, count: 3, hp: 1, armor: 1, range: [1, 2], dmg: 1, turns: 2 };
+const SELVES = { cost: 6, count: 3, hp: 1, armor: 1, range: [1, 2], dmg: 1, turns: 2, sight: 2 };
 const KNOW = { cost: 4, dmg: 2 };
 const JUSTICE = { cost: 4, hp: [2, 4], armor: [1, 3], sp: [2, 5] };
 
@@ -97,7 +97,7 @@ const ULTS = {
   },
   selves: {
     name: "แด่ตัวฉันทุกคน", cost: SELVES.cost, area: { kind: "self" },
-    desc: `เรียกวาเลนไทน์อีก ${SELVES.count} ตัวรอบตัว (พลังชีวิต ${SELVES.hp} · เกราะ ${SELVES.armor} · เดินเท่าตัวจริง · ตีปกติระยะ 2 ความเสียหาย ${SELVES.dmg} · ไม่มีสกิล/ไอเทม/ตีสวน) อยู่ถึงจบเทิร์นถัดไป · จบตาเดินทันที แล้วคุมร่างแยกทีละตัว (ตัวละ 20 วิ)`,
+    desc: `เรียกวาเลนไทน์อีก ${SELVES.count} ตัวรอบตัว (พลังชีวิต ${SELVES.hp} · เกราะ ${SELVES.armor} · เดินเท่าตัวจริง · ตีปกติระยะ 2 ความเสียหาย ${SELVES.dmg} · ซื้อของเข้ากระเป๋าตัวจริงได้ · เห็นคนล่องหนในระยะ ${SELVES.sight} · ไม่มีสกิล/ใช้ไอเทม/ตีสวน) อยู่ถึงจบเทิร์นถัดไป · จบตาเดินทันที แล้วคุมร่างแยกทีละตัว (ตัวละ 20 วิ)`,
   },
   know: {
     name: "รู้จักตัวเองอย่างแท้จริง", cost: KNOW.cost, area: { kind: "target", range: 4, cells: KNOW_CELLS, hostile: true },
@@ -275,7 +275,7 @@ function spawnDouble(engine, owner, t, mode) {
 }
 // ตัวเหมือนจบบทบาท (ชน / ถูกทำลาย / เป้าตาย): กระดานคู่ขนาน = เป้ากลับกระดานหลัก · ตัวเหมือนตัวสุดท้ายของมิติ = มิติปิด ทุกคนกลับ
 //  → วินาทีของฉากกลับกระดานหลัก (0 = ไม่มีใครย้าย)
-function endDouble(engine, owner, d, t) {
+function endDouble(engine, owner, d, t, delay = 0) {
   if (!d.summon || d.summon.mode !== "parallel") return 0;
   const dim = d.dim;
   const ids = [];
@@ -286,7 +286,7 @@ function endDouble(engine, owner, d, t) {
     if (owner && owner.valentine && owner.valentine.parallel === dim) owner.valentine.parallel = null;
   }
   if (!ids.length || !owner) return 0;
-  fx(engine, owner, "dimOut", { ids, dim });
+  fx(engine, owner, "dimOut", { ids, dim, ...(delay > 0 ? { delay } : null) });
   engine.log(`🇺🇸 กลับสู่กระดานหลัก — ${ids.map((id) => engine.players[id].name).join(", ")}`);
   return VAL_FX.dimOut / 1000;
 }
@@ -302,7 +302,7 @@ function bodyOf(engine, t) {
   const m = t.mountId && engine.players[t.mountId];
   return m && m.alive && m.pos ? Board.boxOf(m) : null;
 }
-function runDouble(engine, d, t) {
+function runDouble(engine, d, t, delay = 0) {
   const owner = ownerOf(engine, d);
   const tbox = t.alive ? bodyOf(engine, t) : null;
   if (!d.alive || !d.pos || !tbox || !engine.dim.same(d, t)) return 0; // คนละชั้น = รอ
@@ -319,15 +319,15 @@ function runDouble(engine, d, t) {
     if (best && (best.n.x !== d.pos.x || best.n.y !== d.pos.y)) {
       const path = Board.pathTo(reach, best.n.x, best.n.y).map(tile);
       d.pos = { x: best.n.x, y: best.n.y };
-      if (owner) fx(engine, owner, "doubleRun", { id: d.id, ownerId: owner.id, doubleId: d.id, path, targetId: t.id });
+      if (owner) fx(engine, owner, "doubleRun", { id: d.id, ownerId: owner.id, doubleId: d.id, path, targetId: t.id, ...(delay > 0 ? { delay } : null) });
       secs += (VAL_FX.doubleRunBase + VAL_FX.doubleRunStep * Math.max(1, path.length - 1)) / 1000;
     }
   }
-  if (Board.dist(Board.boxOf(d), tbox) === 1) secs += collide(engine, owner, d, t, tbox);
+  if (Board.dist(Board.boxOf(d), tbox) === 1) secs += collide(engine, owner, d, t, tbox, delay + Math.round(secs * 1000));
   return secs;
 }
 // ชน: กระดานคู่ขนาน 4 (เกราะก่อน) · รู้จักตัวเองฯ 2 ทะลุเกราะ · หลบไม่ได้ · ต้นตอ = ตัวเหมือน (ชั้นเดียวกับเป้า) → ตัวเหมือนสลาย
-function collide(engine, owner, d, t, tbox) {
+function collide(engine, owner, d, t, tbox, delay = 0) {
   const { dmg, pierce } = d.summon;
   const at = tile(d.pos), targetAt = tile(tbox || t.pos);
   const before = vit(t);
@@ -342,12 +342,13 @@ function collide(engine, owner, d, t, tbox) {
   const dealt = Math.max(0, before - vit(t));
   if (owner) closeWin(engine, owner, d);
   engine.log(`🧊 ตัวที่เหมือนกันชน ${t.name} -${dealt}${pierce ? " (ทะลุเกราะ)" : " (ลดเกราะก่อน)"}`);
-  if (owner) fx(engine, owner, "menger", { id: d.id, ownerId: owner.id, doubleId: d.id, targetId: t.id, at, targetAt, dmg: dealt > 0 ? dmg : 0, pierce: !!pierce });
-  engine.sfx(SFX.menger);
-  speak(engine, owner, VOICE_EVENT.meet);
+  if (owner) fx(engine, owner, "menger", { id: d.id, ownerId: owner.id, doubleId: d.id, targetId: t.id, at, targetAt, dmg: dealt > 0 ? dmg : 0, pierce: !!pierce, ...(delay > 0 ? { delay } : null) });
+  // เสียงตอนชนจริงบนจอ (หลังเดินถึง — ฉากล่าช้า delay ms)
+  const ring = () => { engine.sfx(SFX.menger); speak(engine, owner, VOICE_EVENT.meet); };
+  if (delay > 0) setTimeout(ring, delay).unref?.(); else ring();
   engine.summon.remove(d);
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
-  return VAL_FX.menger / 1000 + endDouble(engine, owner, d, t);
+  return VAL_FX.menger / 1000 + endDouble(engine, owner, d, t, delay + VAL_FX.menger);
 }
 
 // ---------- ท่าไม้ตาย ----------
@@ -378,6 +379,7 @@ function castSelves(engine, p) {
     const c = engine.summon.spawn(p, {
       kind: "clone", controlled: true, hp: SELVES.hp, armor: SELVES.armor, mov: engine.baseMovOf(p), range: SELVES.range,
       dim: p.dim || null, characterId: ID, name: p.name, img: IMG.base, until: engine.roundNumber + SELVES.turns - 1,
+      data: { sight: SELVES.sight }, // เห็นคนล่องหนในระยะนี้ (สายตาของฝ่ายวาเลนไทน์)
     });
     const at = freeNear(engine, c, p.pos, 1);
     if (!at) { engine.summon.remove(c); break; }
@@ -514,8 +516,9 @@ module.exports = {
     return false;
   },
   // ปุ่มออกจากมิติ: 0 แต้ม ไม่กินโควตา (ยังล็อกการเดินตามปกติ)
-  skipsTurnQuota(p, tier) { return tier === "basic" && inVeil(p); },
-  ignoresTurnQuota(p, tier) { return tier === "basic" && inVeil(p); },
+  // ปืน: กดได้หลายครั้งในตาเดียว (เท่าที่มีกระสุน) ไม่นับโควตาสกิล — กดแล้วเดินต่อไม่ได้ (ผู้ใช้สั่ง 2026-10-21) · ปุ่มออกจากมิติ = สวิตช์
+  skipsTurnQuota(p, tier) { return tier === "secondary" || (tier === "basic" && inVeil(p)); },
+  ignoresTurnQuota(p, tier) { return tier === "secondary" || (tier === "basic" && inVeil(p)); },
   // กดหลบสายตาก่อนเดิน = เดินในมิติต่อในตานั้นได้
   keepsMove(engine, p, tier) { return tier === "basic" && isVal(p) && !inVeil(p) && !!engine.action && !engine.action.moved; },
   endsTurn(engine, p, tier, opts = {}) { return isVal(p) && tier === "ultimate" && opts.form === "selves"; },
@@ -586,7 +589,7 @@ module.exports = {
   afterActorEnd(engine, p) {
     if (!p || p.summon) return 0;
     let secs = 0;
-    for (const d of doublesOn(engine, p.id)) secs += runDouble(engine, d, p);
+    for (const d of doublesOn(engine, p.id)) secs += runDouble(engine, d, p, Math.round(secs * 1000)); // หลายตัว = ทีละตัว (ฉากต่อกัน)
     return secs;
   },
   // สกิลติดตัว: ทำให้เป้าเสียหายจริง (ฮุค broadcast จาก combat.tookDamage) → +1 ครั้งเดียวต่อการโจมตี (คำสั่ง / ช่วงที่โมดูลเปิด)

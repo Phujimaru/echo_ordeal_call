@@ -436,7 +436,7 @@ function fxFor(viewer, event, payload) {
   return fxHidden(viewer, payload) ? null : payload;
 }
 function emitBoardFx(event, payload) {
-  if (!Soot.active() || (event !== "iceFx" && event !== "shadowFx")) { io.emit(event, payload); return; }
+  if (!(Soot.active() || Dim.active()) || (event !== "iceFx" && event !== "shadowFx")) { io.emit(event, payload); return; } // ม่านแดง / ชั้นมิติ = ตัดเหตุการณ์ที่ผู้ชมมองไม่เห็น
   for (const p of Object.values(match.players)) {
     if (p.duoOf || p.summon) continue;
     const out = fxFor(p, event, payload);
@@ -445,7 +445,7 @@ function emitBoardFx(event, payload) {
 }
 // ส่งเหตุการณ์ที่มีผู้กระทำ (ป้ายสกิล) — ผู้ชมที่มองไม่เห็นผู้กระทำ (อยู่ในม่านแดงคนละฝั่ง) ไม่ได้รับ
 function emitVisible(event, payload, actor) {
-  if (!Soot.active() || !actor) { io.emit(event, payload); return; }
+  if (!(Soot.active() || Dim.active()) || !actor) { io.emit(event, payload); return; }
   for (const p of Object.values(match.players)) {
     if (p.duoOf || p.summon) continue;
     if (Visibility.hiddenFrom(p, actor)) continue;

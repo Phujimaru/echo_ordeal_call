@@ -115,3 +115,42 @@ test('afterActorEnd: คืนวินาที = ค้างฉาก ATTACKI
     assert.notEqual(engine.actorId, 'A');
   } finally { mod.afterActorEnd = real; }
 });
+
+test('ชั้นมิติ: คนละชั้นมองไม่เห็นกัน (ไม่ส่งตำแหน่ง) · มิติเดินทะลุ (หลบสายตา) เห็นทุกคน — ผู้ใช้สั่ง 2026-10-21', () => {
+  const P = setup([['A', 'dummy', 2, 7], ['B', 'dummy', 6, 7]]);
+  engine.dim.enter(P.B, 'par:x:1');
+  assert.equal(engine.hiddenFrom(P.A, P.B), true);
+  assert.equal(engine.buildStateFor('A').players.find((p) => p.id === 'B').pos, null, 'คนข้างนอกไม่เห็นอีกมิติ');
+  assert.equal(engine.buildStateFor('B').players.find((p) => p.id === 'A').pos, null, 'คนข้างในก็ไม่เห็นข้างนอก');
+  engine.dim.enter(P.A, 'par:x:1');
+  assert.deepEqual(engine.buildStateFor('A').players.find((p) => p.id === 'B').pos, { x: 6, y: 7 }, 'ชั้นเดียวกันเห็น');
+  engine.dim.enter(P.A, 'veil:A', { ghost: true });
+  engine.dim.enter(P.B, null);
+  assert.equal(engine.hiddenFrom(P.A, P.B), false, 'มองจากมิติหลบสายตาเห็นกระดานหลัก');
+  assert.equal(engine.hiddenFrom(P.B, P.A), true, 'กระดานหลักไม่เห็นคนในมิติหลบสายตา');
+});
+
+test('ร่างแยก (คุมได้): ซื้อของเข้ากระเป๋า/ใช้เหรียญของเจ้าของ · ตัวเหมือนซื้อไม่ได้ · สายตาระยะใกล้ (summon.sight) เห็นคนในพุ่ม', () => {
+  const P = setup([['A', 'dummy', 2, 7], ['B', 'dummy', 12, 12]]);
+  P.A.gold = 10; P.A.inventory = [];
+  engine.setShopPos({ x: 6, y: 3 });
+  engine.setShopItems([{ id: 'shop_9_0', type: 'armor', value: 1, price: 3, sold: false, soldTo: null }]);
+  const c = engine.summon.spawn(P.A, { kind: 'clone', controlled: true, hp: 1, armor: 1, mov: 4, range: [1, 2], pos: { x: 5, y: 3 } });
+  const d = engine.summon.spawn(P.A, { kind: 'double', hp: 3, armor: 2, mov: 5, range: [1, 0], pos: { x: 7, y: 3 } });
+  engine.setActor(d.id);
+  engine.buyShopItem(d.id, 'shop_9_0');
+  assert.equal(P.A.inventory.length, 0, 'ตัวเหมือนซื้อไม่ได้');
+  engine.setActor(c.id);
+  engine.buyShopItem(c.id, 'shop_9_0');
+  assert.equal(P.A.inventory.length, 1, 'ของเข้ากระเป๋าตัวจริง');
+  assert.equal(P.A.gold, 7, 'จ่ายเหรียญตัวจริง');
+  // สายตา: ภูมิภาค II มีพุ่มดอกไม้ที่ (6,1)
+  engine.placeOnBoard(2);
+  engine.setShopPos(null);
+  P.A.pos = { x: 12, y: 12 }; P.B.pos = { x: 6, y: 1 };
+  const c2 = engine.summon.spawn(P.A, { kind: 'clone', controlled: true, hp: 1, armor: 1, mov: 4, range: [1, 2], pos: { x: 6, y: 4 }, data: { sight: 2 } });
+  assert.equal(engine.hiddenFrom(P.A, P.B), true, 'ไกลเกิน 2 = ยังซ่อนในพุ่ม');
+  c2.pos = { x: 6, y: 3 };
+  assert.equal(engine.hiddenFrom(P.A, P.B), false, 'ร่างแยกเข้าใกล้ (ระยะ 2) = ฝ่ายเจ้าของเห็นเป็นคนปกติ');
+  assert.equal(engine.hiddenFrom(c2, P.B), false);
+});

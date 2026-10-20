@@ -17,6 +17,7 @@ const { engine } = require("./engine");
 const combat = require("./combat");
 const Duo = require("./duo");
 const Soot = require("./soot");
+const Dim = require("./dimension");
 
 function hookOf(p) { return p ? CHAR_HOOKS[p.characterId] : null; }
 
@@ -43,9 +44,12 @@ function concealed(p) {
 }
 // viewer มองไม่เห็น target ไหม — viewer ไม่มี (ผู้ชมนอกเกม/เทสต์) = เห็น
 //  ระบบคู่ (server/duo.js): สองตัวของผู้เล่นคนเดียวกันมองร่วมกัน — ตัวไหนเห็นก็เห็น
+//  ยูนิตที่ถูกเรียกแบบคุมได้ (ร่างแยกของวาเลนไทน์ — server/summon.js) ก็เป็นสายตาของฝ่ายเจ้าของด้วย
 function hiddenFrom(viewer, target) {
-  if (viewer && (viewer.duoWith || viewer.duoOf)) {
-    const eyes = Duo.unitsOf(viewer).filter((u) => u.alive && u.pos);
+  const lead = viewer && viewer.summon && viewer.summon.controlled ? match.players[viewer.summon.ownerId] || viewer : viewer;
+  const team = lead ? Duo.turnUnits(lead) : [];
+  if (team.length > 1 || (viewer && viewer !== lead)) {
+    const eyes = team.filter((u) => u.alive && u.pos);
     if (eyes.length) return eyes.every((u) => hiddenFromOne(u, target));
   }
   return hiddenFromOne(viewer, target);
@@ -59,7 +63,10 @@ function hiddenFromOne(viewer, target) {
   if (!viewer || !target || viewer.id === target.id) return false;
   if (match.gameState === "GAMEOVER") return false;
   if (!target.alive || !target.pos) return false;
+  if (Dim.unseen(viewer, target)) return true; // ชั้นมิติ: คนละมิติมองไม่เห็นกัน (เพื่อนร่วมทีมก็ไม่เห็น)
   if (combat.sameTeam(viewer, target)) return false;
+  // สายตาระยะใกล้ของยูนิตที่ถูกเรียก (summon.sight — ร่างแยกของวาเลนไทน์ 2 ช่อง): เห็นคนล่องหน/ในพุ่ม/ในม่านที่อยู่ใกล้เป็นคนปกติ (ผู้ใช้สั่ง 2026-10-21)
+  if (viewer.summon && viewer.summon.sight > 0 && viewer.alive && viewer.pos && Board.dist(Board.boxOf(viewer), Board.boxOf(target)) <= viewer.summon.sight) return false;
   // ล่องหนที่คนใกล้ๆ มองเห็น (ฮุคของเป้า seenBy(engine, viewer, target) → true = viewer เห็น — เฟิร์น: ซ่อนเร้นมานา ศัตรูในระยะ 2)
   //  ข้ามแค่ล่องหนของตัวละคร · พุ่มหญ้า/ม่านแดงยังบังตามปกติ
   if (stealthed(target) && !seenBy(viewer, target)) return true;

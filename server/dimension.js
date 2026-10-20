@@ -11,7 +11,7 @@
 //  กลับกระดานหลัก: leave(p) = dim null แล้วช่องเดิมไม่ว่างบนกระดานหลัก → ช่องว่างใกล้สุด · placeOnBoard = ทุกคนกลับหลัก (resetAll)
 // ============================================================
 Object.assign(module.exports, {
-  layerOf, same, ghost, enter, leave, resetAll, refLayer, blocks, membersOf,
+  layerOf, same, ghost, enter, leave, resetAll, refLayer, blocks, membersOf, unseen, active,
 });
 
 const match = require("./match");
@@ -36,6 +36,15 @@ function refLayer(ref) {
   if (!p && ref == null) p = (match.effectSourceId && match.players[match.effectSourceId]) || (match.actorId && match.players[match.actorId]) || null;
   return layerOf(p);
 }
+// คนละชั้น = มองไม่เห็นกัน (ผู้ใช้สั่ง 2026-10-21: คนข้างนอกต้องไม่เห็นอีกมิติ) — ยกเว้นคนที่อยู่ในมิติเดินทะลุ (หลบสายตา) เห็นทุกคนตามปกติ
+//  viewer ไม่มี (ผู้ชมนอกเกม/เทสต์) = เห็น · ใช้ใน Visibility.hiddenFromOne (ตำแหน่ง/ข้อมูล/บันทึก/ฉากตี/เล็ง)
+function unseen(viewer, target) {
+  if (!viewer || !target || viewer.id === target.id) return false;
+  if (same(viewer, target)) return false;
+  return !ghost(viewer);
+}
+// มีใครอยู่นอกกระดานหลักไหม (ส่งเหตุการณ์รายผู้ชม — view.emitBoardFx / emitVisible)
+function active() { return Object.values(match.players).some((p) => p.alive && p.dim); }
 // ต้นตอ (effectSource) อยู่คนละชั้นกับเป้า = ผลไม่ถึง (ไม่มีต้นตอ = ผลสนาม ถึงทุกชั้น)
 function blocks(target) {
   const src = match.effectSourceId && match.players[match.effectSourceId];

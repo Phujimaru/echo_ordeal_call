@@ -32,7 +32,7 @@ const TAU = Math.PI * 2;
 // ---------- จังหวะ (ms) — สัญญากับ server (GRID_PLAN §7.13) ----------
 export const VAL_FX = {
   veilIn: 1100, veilOut: 1000, shot: 260, shotStep: 220, reload: 700, parallelIn: 1800, doubleSpawn: 700,
-  doubleRun: 200, doubleRunStep: 110, menger: 1500, doubleBreak: 900, dimOut: 900, clones: 1400, cloneFade: 700, justice: 1600, gain: 600,
+  doubleRun: 400, doubleRunStep: 200, menger: 1500, doubleBreak: 900, dimOut: 900, clones: 1400, cloneFade: 700, justice: 1600, gain: 600,
 };
 export const valShotsMs = (n) => VAL_FX.shot + VAL_FX.shotStep * Math.max(1, Number(n) || 1);
 export const valRunMs = (steps) => VAL_FX.doubleRun + VAL_FX.doubleRunStep * Math.max(0, Number(steps) || 0);
@@ -356,6 +356,7 @@ function sceneMod(e, id, t) {
     }
     case "valVeilOut": return e.id === id && t < VAL_FX.veilOut ? { hide: true } : null;
     case "valDoubleSpawn": return e.id === id ? revealMod(revealS(t), e.side) : null;
+    case "valDoubleRun": return e.id === id && e.pup && t < runEnd(e) ? { hide: true } : null;
     case "valClones": {
       const i = (e.spawns || []).findIndex((s) => s.id === id);
       if (i < 0) return null;
@@ -411,6 +412,16 @@ export function valentineMod(list, u, now) {
   }
   return m;
 }
+// เดินตามทางแบบคน (ก้าวละ doubleRunStep · ไม่กระโดด) — ช่วงแรก WALK_LEAD ยืนหันหาเป้า · null = เดินจบแล้ว
+const WALK_LEAD = 220;
+const runEnd = (e) => valRunMs(Math.max(1, (e.path || []).length - 1)); // = เวลาที่ server รอ (เดิน + หยุดยืน) — ฉากชนต่อทันที
+function walkAt(path, t) {
+  const steps = path.length - 1, run = steps * VAL_FX.doubleRunStep;
+  if (t < WALK_LEAD) return { x: path[0].x, y: path[0].y, hz: 0 };
+  if (t >= WALK_LEAD + run) return null;
+  const f = ((t - WALK_LEAD) / run) * steps, i = Math.min(steps - 1, Math.floor(f)), k = f - i, a = path[i], b = path[i + 1];
+  return { x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), hz: REDUCED ? 0 : Math.abs(Math.sin(Math.PI * k)) * 0.035 };
+}
 // หมากที่ฉากย้ายเอง: ตัวเหมือนวิ่งเข้าหา (doubleRun) — คืน { x, y, hz } | null · จบแล้วค้างปลายทางจน state มาถึง
 export function valentinePose(list, u, now) {
   if (!u || u.id == null || !Array.isArray(list)) return null;
@@ -418,13 +429,9 @@ export function valentinePose(list, u, now) {
     if (!e || e.kind !== "valDoubleRun" || e.id !== u.id) continue;
     const t = now - e.t0, path = e.path || [];
     if (t < 0 || t >= e.dur || path.length < 2) continue;
-    const steps = path.length - 1, run = steps * VAL_FX.doubleRunStep, w0 = VAL_FX.doubleRun * 0.5;
-    if (t < w0) { const q = t / w0; return { x: path[0].x, y: path[0].y, hz: REDUCED ? 0 : Math.sin(Math.PI * q) * 0.08 }; }
-    if (t < w0 + run) {
-      const f = ((t - w0) / run) * steps, i = Math.min(steps - 1, Math.floor(f)), k = f - i, a = path[i], b = path[i + 1];
-      return { x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), hz: REDUCED ? 0 : Math.abs(Math.sin(Math.PI * k)) * 0.14 };
-    }
-    const end = path[steps];
+    const at = walkAt(path, t);
+    if (at) return at;
+    const end = path[path.length - 1];
     if (samePt(u, path[0]) || samePt(u, end)) return { x: end.x, y: end.y, hz: 0 };
   }
   return null;
@@ -453,6 +460,9 @@ export function valentinePuppets(list, now, lowQ) {
     } else if (e.kind === "valCloneFade" && t < VAL_FX.cloneFade) {
       const S = coverS(t);
       if (S.clip < 1) for (const p of e.list || []) out.push(puppet(e, p, { clip: S.clip, sy: S.sy || 1, noBar: true }, { lowQ }));
+    } else if (e.kind === "valDoubleRun" && e.pup && t < runEnd(e)) {
+      const p = walkAt(e.path, t) || e.path[e.path.length - 1];
+      out.push(puppet(e, { ...e.pup, x: p.x, y: p.y }, null, { hz: p.hz || 0, lowQ }));
     } else if (e.kind === "valMenger" && e.pup && t < M.crumble1 + 80) {
       const n = mengerDoubleHoles(t), off = mengerSlide(t);
       out.push(puppet(e, e.pup, { holes: n > 0 ? { n, order: cellOrder(e.seedD, e.biasD) } : null }, { ox: off * e.slide[0], oy: off * e.slide[1], lowQ }));
@@ -1205,7 +1215,7 @@ function runFx(g, e, t, now, lowQ) {
   const path = e.path || [];
   if (path.length < 2 || t > valRunMs(path.length - 1) + 200) return;
   // ฝุ่นตามก้าว + เส้นตะเข็บจางตามทางวิ่ง
-  const steps = path.length - 1, w0 = VAL_FX.doubleRun * 0.5;
+  const steps = path.length - 1, w0 = WALK_LEAD;
   for (let i = 1; i <= steps; i++) {
     const age = t - (w0 + i * VAL_FX.doubleRunStep);
     if (age < 0 || age > 420) continue;
@@ -1452,13 +1462,13 @@ export function valentineEventFx(ev, ctx = {}) {
       if (start && (!path.length || !samePt(path[0], start))) path = [start, ...path];
       if (path.length < 2) break;
       const ms = valRunMs(path.length - 1);
-      out.fx.push({ kind: "valDoubleRun", id: ev.id, path, targetId: ev.targetId, dur: ms + HOLD });
+      out.fx.push({ kind: "valDoubleRun", id: ev.id, path, targetId: ev.targetId, dur: ms + HOLD, pup: snap(ev.id, path[0]) });
       out.busy.push({ id: ev.id, ms: ms + HOLD });
       out.look.push([path[path.length - 1], Math.round(ms * 0.5)]);
       break;
     }
     case "menger": {
-      const dAt = posOf(ev.id) || (okT(ev.at) ? ptOf(ev.at) : null), tAt = posOf(ev.targetId);
+      const dAt = (okT(ev.at) ? ptOf(ev.at) : null) || posOf(ev.id), tAt = (okT(ev.targetAt) ? ptOf(ev.targetAt) : null) || posOf(ev.targetId);
       if (!dAt || !tAt) break;
       const tl = lookOf(ev.targetId) || {}, l = Math.hypot(tAt.x - dAt.x, tAt.y - dAt.y) || 1;
       if (tl.img) imgEntry(tl.img);

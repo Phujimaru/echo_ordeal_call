@@ -213,7 +213,7 @@ function itemsBlocked(p) {
 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
-  if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ซื้อของไม่ได้
+  if (!p || !p.alive || (p.summon && !p.summon.controlled)) return; // ร่างแยกที่คุมได้ซื้อให้เจ้าของได้ (เหรียญ/กระเป๋าใช้ร่วม — ผู้ใช้สั่ง 2026-10-21) · ตัวเหมือนซื้อไม่ได้
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   if (itemsBlocked(p)) return;

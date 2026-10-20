@@ -28,10 +28,12 @@ export default function ValentineFxDev({ units, setUnits, pushFx, setFocus, map,
     sizeOf: () => 1,
     lookOf: (id) => { const u = get(id); return u ? { img: u.img, color: u.color, name: u.name, hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor, size: 1, summon: u.summon || null } : null; },
   };
+  // ev.delay = เริ่มฉากทีหลัง (แบบ BoardStage — จับภาพ/ตำแหน่งตอนเหตุการณ์มาถึง)
   const play = (ev) => {
     const out = valentineEventFx(ev, ctx);
-    pushFx(out.fx);
-    for (const [ms, list] of out.later) later(ms, () => pushFx(list));
+    const delay = Math.max(0, Number(ev.delay) || 0);
+    if (delay > 0) later(delay, () => pushFx(out.fx)); else pushFx(out.fx);
+    for (const [ms, list] of out.later) later(delay + ms, () => pushFx(list));
     if (out.look.length) setFocus(out.look[0][0]);
     return out;
   };
@@ -163,19 +165,19 @@ export default function ValentineFxDev({ units, setUnits, pushFx, setFocus, map,
     if (!goal) { if (man(dd, t) === 1) collide(dd, t); return; }
     const path = [];
     for (let c = goal; c; c = prev.get(`${c.x},${c.y}`)) path.unshift(c);
+    // แบบ server: วิ่ง + ชน ส่งพร้อมกัน (ชนมี delay = เวลาเดิน) แล้วตัวเหมือนหายจาก state ทันที (ภาพเดินวาดจากภาพที่จับไว้)
     play({ kind: "doubleRun", id: dd.id, path: path.slice(1), targetId: t.id });
-    patch(dd.id, { x: goal.x, y: goal.y });
-    later(valRunMs(path.length - 1), () => collide(get(dd.id), get(t.id)));
+    collide({ ...dd, x: goal.x, y: goal.y }, t, valRunMs(path.length - 1));
   };
-  const collide = (dd, t) => {
+  const collide = (dd, t, delay = 0) => {
     if (!dd || !t) return;
     const par = !!dd.dim;
-    play({ kind: "menger", id: dd.id, targetId: t.id, at: { x: dd.x, y: dd.y }, dmg: par ? 4 : 2, pierce: !par });
+    play({ kind: "menger", id: dd.id, targetId: t.id, at: { x: dd.x, y: dd.y }, targetAt: { x: t.x, y: t.y }, dmg: par ? 4 : 2, pierce: !par, delay });
     setUnits((us) => us.filter((u) => u.id !== dd.id));
-    later(1000, () => hurt(t.id, par ? 4 : 2));
-    later(VAL_FX.menger, () => play({ kind: "gain", id: "me", at: { x: V().x, y: V().y }, n: 1 }));
-    if (par && !doubles().some((x) => x.id !== dd.id && x.dim)) later(VAL_FX.menger, () => dimOut([t.id, "me"]));
-    else if (par) later(VAL_FX.menger, () => dimOut([t.id]));
+    later(delay + 1000, () => hurt(t.id, par ? 4 : 2));
+    later(delay + VAL_FX.menger, () => play({ kind: "gain", id: "me", at: { x: V().x, y: V().y }, n: 1 }));
+    if (par && !doubles().some((x) => x.id !== dd.id && x.dim)) later(delay + VAL_FX.menger, () => dimOut([t.id, "me"]));
+    else if (par) later(delay + VAL_FX.menger, () => dimOut([t.id]));
   };
   const breakDouble = () => {
     const dd = doubles()[0];

@@ -104,25 +104,29 @@ test('ระยะ/ตาเดิน: นอกตาตัวเองกด�
   assert.equal(P.V.skillPoints, 4, 'โล่กันหมด = ไม่ได้');
 });
 
-test('ปืนแห่งสันติภาพ: ยิง 3 นัดทิศเดียวกัน โดนศัตรูคนแรกทุกนัด · +1 ครั้งเดียว · กินโควตา + ล็อกการเดิน · หมด = รีโหลด 5 เทิร์น', (t) => {
+test('ปืนแห่งสันติภาพ: ยิงหลายนัดทิศเดียวกัน โดนศัตรูคนแรกทุกนัด · +1 ต่อการกด · ไม่นับโควตา กดซ้ำได้ + ล็อกการเดิน · หมด = รีโหลด 5 เทิร์น', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['V', 'funny_valentine', 2, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 6, 7]]);
   P.V.skillPoints = 0;
   engine.setActor('V');
-  engine.useSkill('V', 'secondary', [], { form: 's3', dir: 'right' });
-  assert.equal(vit(P.B), 10 - 3, 'B โดน 3 นัด');
+  engine.useSkill('V', 'secondary', [], { form: 's2', dir: 'right' });
+  assert.equal(vit(P.B), 10 - 2, 'B โดน 2 นัด');
   assert.equal(vit(P.C), 10, 'C ด้านหลังไม่โดน');
   assert.equal(P.V.skillPoints, 1, 'ยิงหลายนัดในการกดครั้งเดียว = +1');
-  assert.equal(P.V.valentine.ammo, 0);
-  assert.equal(P.V.valentine.reloadRound, 2 + 5);
-  assert.equal(P.V.skillUsedRound, true, 'กินโควตา');
+  assert.equal(P.V.skillUsedRound, false, 'ไม่นับโควตาสกิล (ผู้ใช้สั่ง 2026-10-21)');
   assert.equal(engine.action.locked, true, 'ยิงแล้วเดินไม่ได้');
   const shots = fxOf('shots')[0];
-  assert.equal(shots.shots.length, 3);
+  assert.equal(shots.shots.length, 2);
   assert.ok(shots.shots.every((s) => s.hitId === 'B' && !s.miss));
   assert.equal(engine.gameState, 'ATTACKING', 'พักฉากยิง');
   flush(t, 1200);
-  assert.equal(engine.gameState, 'ACTION', 'กลับเข้าตา (ตีปกติต่อได้)');
+  assert.equal(engine.gameState, 'ACTION', 'กลับเข้าตา (ตีปกติ/ยิงต่อได้)');
+  engine.useSkill('V', 'secondary', [], { form: 's1', dir: 'right' });
+  assert.equal(vit(P.B), 10 - 3, 'กดซ้ำในตาเดียวกันได้');
+  assert.equal(P.V.skillPoints, 2, 'กดครั้งที่สอง = +1 อีกครั้ง');
+  assert.equal(P.V.valentine.ammo, 0);
+  assert.equal(P.V.valentine.reloadRound, 2 + 5);
+  flush(t, 1200);
   assert.equal(view('V', 'V').skillLocks.secondary.locked, true);
   assert.equal(view('V', 'V').valentine.reloadCd, 5);
   engine.setRoundNumber(7);

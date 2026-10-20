@@ -1361,17 +1361,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const p = recOf(id);
       return p ? { img: p.img, color: p.color, name: p.name, hp: p.hp, maxHp: p.maxHp, armor: p.armor, maxArmor: p.maxArmor, size: sizeOfP(p), summon: p.summon || null } : null;
     };
+    //  ev.delay (ms) = ฉากนี้เริ่มทีหลัง (ตัวเหมือนเดินถึงก่อนค่อยชน · หลายตัวต่อกัน) — จับหน้าตา/ตำแหน่งตอนเหตุการณ์มาถึง (state ตามมาทันที)
     const onVal = (ev) => {
       const out = valentineEventFx(ev, { posOf, sizeOf, lookOf });
       if (!out.fx.length) return;
-      const t0 = performance.now();
+      const delay = Math.max(0, Number(ev && ev.delay) || 0);
+      const t0 = performance.now() + delay;
       for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
       for (const d of out.defer) diegoDefer.current[d.id] = Math.max(diegoDefer.current[d.id] || 0, t0 + d.ms);
-      pushFx(out.fx);
       const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
-      for (const [pos, ms] of out.look) at(ms, () => look(pos));
-      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
-      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
+      at(delay, () => pushFx(out.fx));
+      for (const [pos, ms] of out.look) at(delay + ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(delay + ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(delay + ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
     };
     socket.on("valentineFx", onVal);
     return () => socket.off("valentineFx", onVal);
