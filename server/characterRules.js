@@ -61,7 +61,7 @@ function mark42Run(p, plan, onUsed) {
 //  ชุดอยู่บนตัวคนอื่น (ระเบิด/เรียกคืน/ถอดจากคนอื่น) = ผู้สั่งปรากฏตัวก่อนส่งอะไรออกไป (เหมือนส่งชุดให้ — shop.useInventoryItem)
 function mark42Control(id, action) {
   const p = match.players[id];
-  if (!p || !p.alive || !actionPhase.canAct(p) || shop.asleep(p)) return;
+  if (!p || !p.alive || p.summon || !actionPhase.canAct(p) || shop.asleep(p)) return;
   const plan = Mark42.planControl(engine, p, action);
   if (!plan) { view.broadcastState(); return; }
   actionPhase.lockMove(p);
@@ -70,7 +70,7 @@ function mark42Control(id, action) {
 }
 // ผู้เล่นที่มองเห็น p (id สำหรับ io.to) — ทุกคนเห็น = undefined (ส่งทุกคนตามเดิม)
 function seenBy(p) {
-  const viewers = Object.values(match.players).filter((v) => !v.duoOf);
+  const viewers = Object.values(match.players).filter((v) => !v.duoOf && !v.summon);
   const out = viewers.filter((v) => !Visibility.hiddenFrom(v, p)).map((v) => v.id);
   return out.length === viewers.length ? undefined : out;
 }

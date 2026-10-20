@@ -541,7 +541,7 @@ function flushBursts() {
 function burstNow(p) {
   const ctx = begin();
   ctx.events.push({ kind: "burst", id: p.id, x: p.pos.x, y: p.pos.y });
-  const near = Object.values(match.players).filter((o) => o.alive && o.pos && o.id !== p.id && !combat.sameTeam(p, o)
+  const near = Object.values(match.players).filter((o) => o.alive && o.pos && o.id !== p.id && !combat.sameTeam(p, o) && (o.dim || null) === (p.dim || null) // ชั้นมิติ (server/dimension.js): คนละชั้นไม่โดน
     && Board.dist(action.boxOf(o), { x: p.pos.x - 1, y: p.pos.y - 1, size: 3 }) === 0);
   combat.withEffectSource(p, () => {
     for (const o of near) {

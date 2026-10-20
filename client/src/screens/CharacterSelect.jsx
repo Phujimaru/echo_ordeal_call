@@ -32,7 +32,7 @@ const DIFFICULTY_GROUPS = [
   { key: "medium", label: "กลาง", color: "#E5B33B", order: ["oberon_summer", "raido_hikaru", "gray"] },
   { key: "hard", label: "ยาก", color: "#C0392B", order: ["ice_spike", "kate", "gyro_zeppeli", "diego_alt"] },
   { key: "fun", label: "เอาฮา", color: "#9B4F96", order: [] },
-  { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo", "yuna"] },
+  { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo", "yuna", "funny_valentine"] },
 ];
 // ตัวที่ความยากไม่ตรงหมวดไหนเลย (ข้อมูลใหม่ที่ยังไม่ได้จัดหมวด) — รวมไว้วงสุดท้าย
 const OTHER_GROUP = { key: "_other", label: "อื่นๆ", color: "#8BA3C2", order: [] };

@@ -35,6 +35,9 @@ import { GYRO_FX_DUR, GYRO_RIDE_Z, gyroBallItems, gyroFx, gyroHorse, gyroUnitBac
 import {
   DIEGO_FX_DUR, DIEGO_RIDE_Z, diegoAmbientNow, diegoFireItems, diegoFx, diegoHorse, diegoTimeLayer, diegoUnitBack, diegoUnitFront, drawDiegoGround, isDiegoFx,
 } from "./diegoFx";
+import {
+  VAL_FX_DUR, VAL_HIT_P, VAL_MS, drawValUnit, isValentineFx, valentineDimLayer, valentineFlip, valentineFx, valentineItems, valentinePuppets,
+} from "./valentineFx";
 import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, drawFernGround, fernFx, isFernFx } from "./fernFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
@@ -507,8 +510,8 @@ function drawUnit(g, u, now, boxes) {
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
-  // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี)
-  if (u.masked) {
+  // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี · noBar = ฉากของวาเลนไทน์ซ่อนแถบไว้ชั่วคราว)
+  if (u.masked || u.noBar) {
     g.restore();
     if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
     return;
@@ -702,7 +705,12 @@ function drawCorpse(g, u, now, boxes) {
   g.restore();
   if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - r - 4, y0: cy - r * 0.6, x1: bx + r + 4, y1: by + s * 0.2 });
 }
+// ฟันนี่ วาเลนไทน์ (valentineFx.js): ฉากที่ตัด/บีบ/เจาะรูหมาก (valMod) · คนละโลก (ghostDim — โปร่ง ภาพซ้อน กดไม่ได้) · ตัวเหมือน (summon double — ตะเข็บ)
 function drawAnyUnit(g, u, now, boxes) {
+  if (u.valMod || u.ghostDim || (u.summon && u.summon.kind === "double")) { drawValUnit(g, u, now, (uu, withBox) => drawAnyUnitBase(g, uu, now, withBox ? boxes : null)); return; }
+  drawAnyUnitBase(g, u, now, boxes);
+}
+function drawAnyUnitBase(g, u, now, boxes) {
   if (u.corpse) { drawCorpse(g, u, now, boxes); return; }
   const gr = u.grow, t = gr ? clamp01((now - gr.t0) / GROW_MS) : 1;
   // ตัวใหญ่ที่ไม่มีรูป 4 ทิศ (กิงกะของไรโด ฮิคารุ): หมากหกเหลี่ยมขยายครอบทั้งตัว กลางตัว · ระหว่างขยาย/หด ค่อยๆ เปลี่ยนขนาด
@@ -815,8 +823,9 @@ function smashFx(g, e, now) {
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...FERN_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...FERN_HIT_P };
+//  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1901,7 +1910,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...FERN_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR,
 };
 
 
@@ -1911,6 +1920,7 @@ export const FX_DUR = {
 //   ferns? = เฟิร์นกำลังชาร์จ Orbital Cannon Zoltraak [{ id, x, y, size, charge }] (fernFx.js)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
+//   valentine? = { flags } ธงปักของวาเลนไทน์ · dimLayers? = [{ kind: "par"|"veil", k }] มุมมองของมิติ (valentineFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
 //   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
 //          view/res = เฟรมปกติ + ความละเอียดที่ใช้อบ (ไม่ใส่ = เท่ากับ view/dpr)
@@ -2029,6 +2039,10 @@ export function drawFrame(g, st, now) {
   if ((st.gyroBalls && st.gyroBalls.length) || fx.some((e) => e.kind === "gyroThrow")) gyroBallItems(items, g, st.gyroBalls, fx, now, lowQ);
   // เปลวไฟกองไฟของดิเอโก้ — เรียงความลึกกับตัวละคร
   if (dFx) diegoFireItems(items, g, dGround, fx, now, lowQ, amb);
+  // วาเลนไทน์: ธงปัก (โบกตลอด) + ผ้าในฉาก + ภาพที่จับไว้ของตัวที่หายจาก state แล้ว — เรียงความลึกกับตัวละคร
+  const vFlags = st.valentine && Array.isArray(st.valentine.flags) ? st.valentine.flags : null, vFx = fx.some((e) => isValentineFx(e.kind));
+  if (vFlags || vFx) valentineItems(items, g, vFlags, fx, now, lowQ);
+  if (vFx) for (const pu of valentinePuppets(fx, now, lowQ)) items.push({ d: depthOf(pu.rx + 0.5 + (pu.ox || 0), pu.ry + 0.5 + (pu.oy || 0)) + 0.0005, f: () => drawAnyUnit(g, pu, now, null) });
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (storms) drawStormAir(g, storms, info, now, lowQ);
@@ -2068,6 +2082,8 @@ export function drawFrame(g, st, now) {
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
   }
+  // มุมมองของมิติ (วาเลนไทน์): โลกคู่ขนาน = ซีดนิด ฟ้าจาง · มองจากหลังผ้า = ซีดเย็น ตัวเราสีปกติ
+  if (st.dimLayers && st.dimLayers.length) valentineDimLayer(g, { view, layers: st.dimLayers, now, lowQ, units, dpr, redraw: (u) => drawAnyUnit(g, u, now, null) });
   // เอฟเฟกต์ครั้งเดียว
   for (const e of fx) {
     const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
@@ -2092,12 +2108,15 @@ export function drawFrame(g, st, now) {
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
+    else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ, view);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);
     else if (e.kind === "float") floatText(g, e.x, e.y, String(e.text == null ? "" : e.text), e.color || "#ffffff", p, e.size || 24, e.z == null ? 2.4 : e.z);
   }
+  // พาข้ามโลก (วาเลนไทน์): พื้นที่ของแนวพลิกกลับหัวแล้วตั้งตรง
+  if (vFx) valentineFlip(g, fx, now, lowQ, view, dpr);
   if (bake && bake.fore) blit(bake.fore);
   g.setTransform(1, 0, 0, 1, 0, 0);
   boxes.sort((a, b) => b.d - a.d);

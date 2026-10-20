@@ -28,9 +28,12 @@ const qteSystem = require("./qte");
 const Duo = require("./duo");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const Dim = require("./dimension");
+const Summon = require("./summon");
 
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
+  if (p && p.summon && Number.isFinite(p.summon.maxHp)) return p.summon.maxHp; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[p.characterId];
   return hook && hook.maxHp ? hook.maxHp(p) : MAX_HP;
 }
@@ -94,6 +97,7 @@ function applyBuff(p, key, amount, turns) {
 }
 function applyDebuff(p, key, amount, turns) {
   if (friendlyEffectBlocked(p)) return false;
+  if (Dim.blocks(p)) return false; // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้น = ไม่ติด
   if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น
   return rawApplyDebuff(p, key, amount, turns);
 }
@@ -141,6 +145,7 @@ function alivePlayers() { return Object.values(match.players).filter((p) => p.al
 
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
+  if (p && p.summon && Number.isFinite(p.summon.maxArmor)) return p.summon.maxArmor; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[p.characterId];
   return hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR;
 }
@@ -150,6 +155,9 @@ function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
   if (friendlyEffectBlocked(p)) return;
   if (TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
+  // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
+  //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
+  if (p.summon) { Summon.onDeath(p); return; }
   // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
@@ -206,7 +214,12 @@ function tookDamage(p) {
   if (hook && hook.onDamageTaken) hook.onDamageTaken(engine, p, 1);
   // ถูกผู้เล่นอื่นทำให้เสียหาย = ถูกโจมตี — คนที่ขี่อยู่ร่วง (server/ride.js)
   const src = match.effectSourceId && match.players[match.effectSourceId];
-  if (src && src.id !== p.id) Ride.onAttacked(p, src);
+  if (src && src.id !== p.id) {
+    Ride.onAttacked(p, src);
+    // ฮุค broadcast onDamageDealt(engine, ต้นตอ, เป้า): ต้นตอทำให้เป้าเสียพลังชีวิต/เกราะ/เลือดชั่วคราวจริง 1 หน่วย
+    //  (วาเลนไทน์: สกิลติดตัว แต้มสกิล +1 ต่อการโจมตี 1 ครั้ง — แยกครั้งด้วย match.cmdSeq)
+    broadcastHook("onDamageDealt", engine, src, p);
+  }
 }
 // ไม่มีอะไรจากคนอื่นแตะได้ (ดาเมจ/ดีบัฟ) — ฮุค untouchable(engine, p) ของตัวละคร (ยูนะ: เงาของเสียง)
 function untouchable(p) {
@@ -243,6 +256,8 @@ function damageSoft(p) {
 }
 // kind = ช่องทางที่เรียกมา ("direct"/"armor"/"mixed") — ส่งต่อให้ hook ของตัวละครที่อยากรู้ช่องทาง
 function adjustIncomingDamage(p, n, isNormalAttack, kind) {
+  // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้นกับเป้า = ไม่มีผล (ผลสนามที่ไม่มีต้นตอยังโดน)
+  if (n > 0 && Dim.blocks(p)) return 0;
   // ตั้งรับด้วยการหยุดเวลา (ฮุค counterArmed — ดิเอโก้: เดอะเวิลด์) = ตัดการกระทำของผู้โจมตีทั้งก้อน (server/timeStop.js)
   if (n > 0) TimeStop.check(p, n);
   // ศัตรูทำให้เสียหาย = ถูกโจมตี (ฮุค onAttacked) · การโจมตีครั้งนี้ถูกกันทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = 0

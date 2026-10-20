@@ -38,12 +38,16 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   }, [onClose]);
 
   const adjacent = (a, b) => !!a?.pos && !!b?.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
-  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42 && adjacent(me, p));
+  // ชั้นมิติ (วาเลนไทน์): คนคนละชั้นกับเรา = ไม่ใช่เป้า · ยูนิตที่ถูกเรียก (p.summon) ใส่ชุดไม่ได้
+  const sameDim = (p) => (p.dim || null) === (me?.dim || null);
+  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42 && !p.summon && sameDim(p) && adjacent(me, p));
   const suitOut = me?.mark42Owned || null;
   const suitWearer = suitOut ? (players || []).find((p) => p.id === suitOut.wearerId) : null;
   const ammoItems = items.filter((it) => it.type === "gutsAmmo");
   // เป้ายิง = ศัตรู (ไม่นับอีกตัวของระบบคู่ฝ่ายเรา)
-  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && !sameSide(p, me) && !(me?.teamId && p.teamId === me.teamId));
+  //  ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง ยิงได้เสมอ
+  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && sameDim(p)
+    && (p.summon?.kind === "double" || (!sameSide(p, me) && !(me?.teamId && p.teamId === me.teamId))));
   const canFire = myTurn && (me?.gutsShotTurn || 0) !== roundNumber && ammoItems.length > 0 && targets.length > 0;
 
   const emit = (ev, data) => { clickSound(); socket.emit(ev, data); };

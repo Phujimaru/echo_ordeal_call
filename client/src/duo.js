@@ -8,8 +8,8 @@
 // id ฝ่าย (= id เจ้าของ) — ตัวละครทั่วไป = id ตัวเอง
 export const sideOf = (p) => (p ? p.duoOf || p.id : null);
 export const sameSide = (a, b) => !!a && !!b && sideOf(a) === sideOf(b);
-// ผู้เล่นจริงเท่านั้น (ตัดตัวที่สองของระบบคู่)
-export const rosterOf = (players) => (players || []).filter((p) => p && !p.duoOf);
+// ผู้เล่นจริงเท่านั้น (ตัดตัวที่สองของระบบคู่ + ยูนิตที่ถูกเรียก p.summon — ร่างแยก/ตัวที่เหมือนกันของวาเลนไทน์ · GRID_PLAN §7.13)
+export const rosterOf = (players) => (players || []).filter((p) => p && !p.duoOf && !p.summon);
 // ฝ่ายของ p ยังมีตัวรอดอยู่ไหม
 export function sideAlive(p, players) {
   if (!p) return false;

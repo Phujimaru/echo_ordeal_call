@@ -57,7 +57,7 @@ function dealRound() {
     p.shield = 0;
     p.skillUsedRound = false; // เทิร์นใหม่ ใช้สกิลได้อีก 1 อัน
     // ระบบคู่ (server/duo.js): ตัวที่สองไม่จั่วไพ่ (ไพ่อยู่กับเจ้าของ) · เจ้าของที่ล้มขณะคู่ยังอยู่ = ยังจั่ว/เปิดไพ่ได้
-    const cardHolder = !Duo.isPartner(p);
+    const cardHolder = !Duo.isPartner(p) && !p.summon; // ยูนิตที่ถูกเรียก (server/summon.js) ไม่ถือไพ่
     if (!p.alive) {
       if (Duo.inGame(p)) dealHand(p);
       else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }

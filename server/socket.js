@@ -21,6 +21,7 @@ const skills = require("./skills");
 const timers = require("./timers");
 const view = require("./view");
 const Duo = require("./duo");
+const Summon = require("./summon");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
 const { engine } = require("./engine");
@@ -82,6 +83,7 @@ function removeDisconnectedPlayer(playerId) {
   if (!p || p.connected) return;
   const wasPregame = lobby.pregameStateActive();
   forgetPlayerSession(p);
+  if (!wasPregame) Summon.ownerLeft(p); // ร่างแยก/ตัวเหมือนของคนนี้หาย · มิติที่เปิดไว้ปิด (server/summon.js)
   delete match.players[playerId];
   disconnectTimers.delete(playerId);
 
@@ -98,7 +100,7 @@ function removeDisconnectedPlayer(playerId) {
     view.broadcastPositions();
     return;
   }
-  if (match.gameState === 'ACTION' && match.actorId === playerId) action.removeFromOrder(playerId);
+  if (match.gameState === 'ACTION' && (match.actorId === playerId || (match.duo && match.duo.ownerId === playerId))) action.removeFromOrder(playerId); // + ตาของร่างแยก
   else if (match.gameState === 'PLAYING') { draw.checkAllLocked(); view.broadcastState(); }
   else view.broadcastState();
   view.broadcastPositions();

@@ -717,6 +717,14 @@
 .hud-skill[data-state="ready"] .hud-skill-hex { background: linear-gradient(160deg, #e6f4ff, #7fb8e6); }
 .hud-skill[data-tier="ultimate"][data-state="ready"] .hud-skill-hex { background: linear-gradient(160deg, #fff1b8, #f0c868); }
 .hud-skill[data-state="ready"]:hover { transform: translateY(-4px); filter: brightness(1.1); }
+/* ปุ่มทำงานอยู่ (skillPub active — กด = ออก): วงชมพูเต้นช้าๆ */
+.hud-skill[data-state="active"] .hud-skill-hex { background: linear-gradient(160deg, #ffe0f0, #e796bf); animation: hud-skill-active 1.6s ease-in-out infinite; }
+.hud-skill[data-state="active"]:hover { transform: translateY(-4px); filter: brightness(1.1); }
+@keyframes hud-skill-active {
+  0%, 100% { filter: drop-shadow(0 8px 14px rgba(3, 10, 24, 0.55)) drop-shadow(0 0 0 rgba(231, 150, 191, 0)); }
+  50% { filter: drop-shadow(0 8px 14px rgba(3, 10, 24, 0.55)) drop-shadow(0 0 12px rgba(231, 150, 191, 0.95)); }
+}
+@media (prefers-reduced-motion: reduce) { .hud-skill[data-state="active"] .hud-skill-hex { animation: none; filter: drop-shadow(0 0 10px rgba(231, 150, 191, 0.9)); } }
 .hud-skill:focus-visible { outline: 2px solid #bee3f8; outline-offset: 3px; }
 .hud-skill:disabled { cursor: not-allowed; }
 /* แต้มไม่พอ/ใช้ไม่ได้: จางเฉพาะตรา ป้ายชื่อยังอ่านออก */

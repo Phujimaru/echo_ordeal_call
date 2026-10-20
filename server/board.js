@@ -373,7 +373,9 @@ function slideLine(map, x, y, dx, dy, units, selfId, blocked) {
 //   - น้ำแข็ง (slide — GRID_PLAN §7.9): เดินเข้าแล้วไถลไปทิศที่เข้ามาจนสุดแนวน้ำแข็ง (slideLine) ไม่เสียก้าวเพิ่ม
 //     → ไถลแล้วจบการเดิน (โหนดปลาย slide: true เดินต่อไม่ได้) · ช่องที่ไถลผ่านอยู่ใน prev ให้ pathTo วาดการไถล
 //     ช่องน้ำแข็งที่มีเพื่อนยืน = เข้าไม่ได้ · เดินออกจากน้ำแข็ง (ช่องเริ่ม) ไปพื้นธรรมดาไม่ไถล
+//   - opts.ghost = เดินทะลุ (ชั้นมิติ server/dimension.js — หลบสายตาของวาเลนไทน์): ก้าวละ 1 ข้ามทุกอย่าง เหลือแค่ขอบกระดาน (reachableGhost)
 function reachable(map, unit, mov, units, opts = {}) {
+  if (opts.ghost) return reachableGhost(map, unit, mov);
   if (sizeOf(unit) > 1) return reachableBig(map, unit, mov, units, opts);
   const { isAlly = () => false, blocked = null, hop = null } = opts;
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
@@ -416,6 +418,24 @@ function reachable(map, unit, mov, units, opts = {}) {
           visit(node);
         }
       }
+    }
+  }
+  return stops;
+}
+// เดินทะลุ (opts.ghost): ทุกช่องในกระดานที่ห่างไม่เกิน mov ก้าว (4 ทิศ) — ไม่สนสิ่งกีดขวาง/คน/ร้าน/ค่าเดิน/น้ำแข็ง/ทรายดูด · หยุดได้ทุกช่อง
+function reachableGhost(map, unit, mov) {
+  const start = { x: unit.x, y: unit.y, d: 0, prev: null };
+  const stops = new Map([[key(unit.x, unit.y), start]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length; i++) {
+    const cur = queue[i];
+    if (cur.d >= mov) continue;
+    for (const [dx, dy] of DIRS) {
+      const nx = cur.x + dx, ny = cur.y + dy, k = key(nx, ny);
+      if (!inBounds(map, nx, ny) || stops.has(k)) continue;
+      const node = { x: nx, y: ny, d: cur.d + 1, prev: cur };
+      stops.set(k, node);
+      queue.push(node);
     }
   }
   return stops;
@@ -494,6 +514,13 @@ function bigStep(map, unit, nx, ny, dx, dy, units, opts) {
 //  ระหว่างทาง: ผ่านเพื่อน/ร่าง (opts.hop) ได้ · ทรายดูด/น้ำแข็ง (ที่ไม่ใช่ช่องเริ่ม) = จบการเดินที่ช่องนั้น เดินต่อไม่ได้
 function trailCost(map, unit, trail, units, opts = {}) {
   const { isAlly = () => false, blocked = null, hop = null } = opts;
+  if (opts.ghost) { // เดินทะลุ: ก้าวละ 1 · ต้องติดกันและอยู่ในกระดาน
+    for (let i = 1; i < trail.length; i++) {
+      const a = trail[i - 1], t = trail[i];
+      if (Math.abs(t.x - a.x) + Math.abs(t.y - a.y) !== 1 || !inBounds(map, t.x, t.y)) return Infinity;
+    }
+    return trail.length - 1;
+  }
   const big = sizeOf(unit) > 1;
   let d = 0;
   for (let i = 1; i < trail.length; i++) {
@@ -529,7 +556,7 @@ function stepPath(map, unit, mov, units, trail, to, opts = {}) {
   const ext = [...tr.map((t) => ({ x: t.x, y: t.y })), { x: to.x, y: to.y }];
   if (trailCost(map, unit, ext, units, opts) <= mov) return ext;
   const reach = reachable(map, unit, mov, units, opts);
-  if (sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
+  if (!opts.ghost && sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
     const at = reach.get(key(cur.x, cur.y));
     if (!at || at.slide) return null;
     const via = [...pathTo(reach, cur.x, cur.y), { x: to.x, y: to.y }];
@@ -825,7 +852,7 @@ module.exports = {
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
-  reachable, reachableBig, pathTo, trailCost, stepPath, patchMap,
+  reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
   tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,

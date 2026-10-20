@@ -33,6 +33,7 @@ import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_CANNON, FERN_EVENT_FX } from "./fernFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
+import { valentineEventFx } from "./valentineFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -44,6 +45,31 @@ const samePos = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
 const sizeOfP = (p) => Math.max(1, (p && p.size) | 0);
 const boxOfP = (p) => (p && p.pos ? { x: p.pos.x, y: p.pos.y, size: sizeOfP(p) } : null);
 const onBody = (p, t) => !!p && !!p.pos && !!t && Rules.covers(boxOfP(p), t.x, t.y);
+// ชั้นมิติ / ยูนิตที่ถูกเรียก (วาเลนไทน์ · GRID_PLAN §7.13): dim null = กระดานหลัก · "veil:" = หลบสายตา · "par:" = กระดานคู่ขนาน
+const dimOf = (p) => (p && p.dim) || null;
+const isDoubleP = (p) => !!(p && p.summon && p.summon.kind === "double");
+const veiledP = (p) => !!(p && p.valentine && p.valentine.veil);
+const teamOfP = (p) => (isDoubleP(p) ? null : (p && p.teamId) || null); // ตัวเหมือน = ไม่มีทีม (เดินผ่านไม่ได้ · ตีได้ทุกคน)
+const GHOST_ALPHA = 0.38; // คนคนละชั้นมิติ
+// เดินทะลุ (หลบสายตา): boardRules รองรับ opts.ghost แล้วหรือยัง (ทดลองเดินทะลุหินบนกระดาน 3×1)
+//  ยังไม่รองรับ = ใช้แผนที่โล่ง (ไม่มีสิ่งกีดขวาง/ช่องพิเศษ/ร้าน/ร่าง) แทน — เหลือแค่ขอบกระดานเหมือนกัน
+const GHOST_RULES = (() => {
+  try {
+    const m = Rules.normalizeMap({ cols: 3, rows: 1, terrain: { "1,0": "rock" } });
+    return Rules.reachable(m, { id: "t", x: 0, y: 0, alive: true }, 2, [], { ghost: true }).has("2,0");
+  } catch { return false; }
+})();
+const clearMap = (m) => (m ? { ...m, terrain: {}, special: {}, flow: {} } : m);
+// ระยะเดิน/ก้าวทีละช่อง ที่เข้าใจ ghost (ตัวเลือก optsOf)
+const reachOf = (m, u, mov, units, o) => (o && o.ghost && !GHOST_RULES
+  ? Rules.reachable(clearMap(m), u, mov, units, { ...o, blocked: null, hop: null })
+  : Rules.reachable(m, u, mov, units, o));
+const stepOf = (m, u, mov, units, trail, to, o) => (o && o.ghost && !GHOST_RULES
+  ? Rules.stepPath(clearMap(m), u, mov, units, trail, to, { ...o, blocked: null, hop: null })
+  : Rules.stepPath(m, u, mov, units, trail, to, o));
+const threatOf = (m, u, mov, range, units, o) => (o && o.ghost && !GHOST_RULES
+  ? Rules.threatZone(clearMap(m), u, mov, range, units, { ...o, blocked: null, hop: null })
+  : Rules.threatZone(m, u, mov, range, units, o));
 // รูป 4 ทิศของตัวใหญ่บนกระดาน (หน้า/ข้าง/หลัง · มุมบน) — ตัวละครที่ไม่มีในนี้ใช้หมากหกเหลี่ยมเสมอ
 const BIG_ART = {
   echo: {
@@ -145,25 +171,33 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
   const byId = useMemo(() => Object.fromEntries(state.players.map((p) => [p.id, p])), [state.players]);
+  // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): ชั้นของเรา = dim ของตัวที่คุม · คนคนละชั้น = ภาพโปร่ง กดไม่ได้
+  //  ไม่นับในระยะเดิน/ชนตอนวางแผนเดิน/ระยะอันตราย/เป้าตี/เป้าสกิล/คาดการณ์
+  const myDim = dimOf(me);
+  const sameDim = useCallback((p) => !!p && dimOf(p) === myDim, [myDim]);
   const ruleUnits = useMemo(
-    () => state.players.filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) })),
-    [state.players],
+    () => state.players.filter((p) => p.alive && p.pos && dimOf(p) === myDim).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: teamOfP(p), size: sizeOfP(p) })),
+    [state.players, myDim],
   );
   const isAlly = useCallback((a, b) => teamMode && !!a.teamId && a.teamId === b.teamId, [teamMode]);
-  const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOfP(p) } : null);
+  const unitOf = (p) => (p && p.pos ? { id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: teamOfP(p), size: sizeOfP(p) } : null);
   // ตัวเลือกของกติกาเดินต่อคน: smash = ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (server ส่งมา)
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane) });
+  //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
-  const isEnemy = (p) => !!p && !!me && p.id !== me.id && !sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId);
+  // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)
+  const isEnemy = (p) => !!p && !!me && p.id !== me.id && sameDim(p)
+    && (isDoubleP(p) || (!sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId)));
 
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
   // เดินได้จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี) — เดินแล้วคลิก/กดใหม่ = เดินใหม่จากจุดเริ่มตา (server/phases/action.js moveTo)
   const canMove = myTurn && !action.locked;
   // ตีปกติไม่ได้: เอมิลิโกะเดินต่อหลังจบตา (เดินได้อย่างเดียว) · กินขนมปังแล้ว (action.noStrike)
-  const strikeOff = myTurn && (!!action.canto || !!action.noStrike);
+  //  อยู่ในมิติหลบสายตา (วาเลนไทน์) — ทำอะไรใครไม่ได้
+  const strikeOff = myTurn && (!!action.canto || !!action.noStrike || veiledP(me));
   const masked = !!state.masked; // ผู้ชมติด "มืดบอด": หมากคนอื่นขาวล้วน · ไม่มีลำดับเดิน
 
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
@@ -216,7 +250,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [rotate]);
-  const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover)) : null;
+  const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover) && sameDim(p)) : null; // คนคนละชั้น = ชี้ไม่ติด
   // ห่วงเวลาซีโร่: ผนึกที่ยังไม่แตก = เป้าตีได้ (หน่วยเทียม — ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย ไม่มีหน้าคาดการณ์)
   const zero = state.zero || null;
   const sealFoes = useMemo(() => (zero && zero.active && Array.isArray(zero.seals)
@@ -254,8 +288,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const originUnit = useMemo(() => (myTurn && action.from ? { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null, size: sizeOfP(me) } : null), [myTurn, action, me]);
   const myReach = useMemo(() => {
     if (!myTurn || !map) return null;
-    if (!canMove || !originUnit) return Rules.reachable(map, unitOf(me), 0, ruleUnits, optsOf(me));
-    return Rules.reachable(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me));
+    if (!canMove || !originUnit) return reachOf(map, unitOf(me), 0, ruleUnits, optsOf(me));
+    return reachOf(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me));
   }, [myTurn, canMove, map, startMap, me, action, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   // ช่องที่ชี้ → ช่องมุมบนซ้ายที่จะเดินไป (ตัว 1 ช่อง = ช่องนั้นเอง) · ตัวใหญ่: ให้กลางตัวอยู่ที่ช่องที่ชี้ ไม่ได้ = มุมที่ตัวครอบช่องนั้นและเดินน้อยสุด
   //  ช่องที่ยืนอยู่ = ไม่ใช่เป้าเดิน · เดินแล้วชี้จุดเริ่มตา = ย้อนการเดิน (server ย้อนให้)
@@ -332,12 +366,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const pickInfo = useMemo(() => {
     if (!pick || !me || !me.pos || !map) return null;
     if (pick.kind === "target") {
-      // square = กรอบสี่เหลี่ยมรอบขอบตัว (ระยะเชบีเชฟ ≤ range · Orbital Cannon Zoltraak 7×7) · ปกติ = ข้าวหลามตัด
-      const tiles = pick.square ? squareRange(map, me.pos.x, me.pos.y, sizeOfP(me), pick.range) : Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range, sizeOfP(me));
+      // target รูปเฉพาะ (area.cells — วาเลนไทน์ "รู้จักตัวเองอย่างแท้จริง"): ช่องตามรูปนับจากช่องของเรา แทนการนับระยะ
+      const cells = Array.isArray(pick.cells) && pick.cells.length ? pick.cells : null;
+      const tiles = cells
+        ? cells.filter((c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])).map(([dx, dy]) => ({ x: me.pos.x + dx, y: me.pos.y + dy })).filter((t) => Rules.inBounds(map, t.x, t.y))
+        : pick.square ? squareRange(map, me.pos.x, me.pos.y, sizeOfP(me), pick.range) : Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range, sizeOfP(me));
       const keys = new Set(tiles.map((t) => key(t.x, t.y)));
       if (pick.self) for (const t of Rules.footprint(me.pos.x, me.pos.y, sizeOfP(me))) keys.add(key(t.x, t.y));
       const inKeys = (p) => Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => keys.has(key(t.x, t.y)));
-      const valid = new Set(state.players.filter((p) => p.alive && p.pos && inKeys(p) && (!pick.allow || pick.allow(p))).map((p) => p.id));
+      const valid = new Set(state.players.filter((p) => p.alive && p.pos && sameDim(p) && inKeys(p) && (!pick.allow || pick.allow(p))).map((p) => p.id));
       return { skill: [...keys], valid };
     }
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
@@ -366,7 +403,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return { tile: true, skill: valid, validSet: new Set(valid) };
     }
     return null;
-  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked, corpses]);
+  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked, corpses, sameDim]);
   // วางหนามทับคน: เลือกทิศผลัก (ลูกศร 4 ทิศรอบคนนั้น · ทิศที่ช่องปลายไม่ว่าง = กดไม่ได้)
   const pickSig = pick ? `${pick.kind}|${pick.label || ""}|${pick.place || ""}` : "";
   const [dirPick, setDirPick] = useState(null); // { sig, x, y, arrows: [{ x, y, dir, ok }] }
@@ -397,7 +434,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const out = new Set();
     for (const p of state.players) {
       if (!p.alive || !p.pos || !isEnemy(p)) continue;
-      const z = Rules.threatZone(map, unitOf(p), p.mov || 0, p.range || [1, 1], ruleUnits, optsOf(p));
+      const z = threatOf(map, unitOf(p), p.mov || 0, p.range || [1, 1], ruleUnits, optsOf(p));
       for (const k of z.move) out.add(k);
       for (const k of z.threat) out.add(k);
     }
@@ -465,7 +502,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (dash) seenDash.current = dash.seq;
     const anims = [];
     // ระบบคู่: ตัวที่ล้มแต่อีกตัวของฝ่ายยังรอด = ยังไม่ตกรอบ (ไม่ขึ้นป้าย "ตกรอบ")
-    const sideStays = (id) => { const t = state.players.find((p) => p.id === id); return !!t && sideAlive(t, state.players); };
+    //  ยูนิตที่ถูกเรียก (วาเลนไทน์) ไม่ใช่ผู้เล่น = ไม่มีป้าย "ตกรอบ"
+    const sideStays = (id) => { const t = state.players.find((p) => p.id === id) || lastPlayers[id]; return !!t && (!!t.summon || sideAlive(t, state.players)); };
     // Ice Spike: คนที่อยู่ในเหตุการณ์ iceFx ที่กำลังเล่น (หรือยังรอ state ผลสุดท้าย) — ไม่เลื่อน/ไม่ขึ้นเลข/ไม่ระเบิดซ้ำ (เล่นจากเหตุการณ์แทน)
     const ir = iceRun.current, iceIds = ir && (ir.active || !ir.gotState) ? ir.ids : null;
     const iceSkip = (id) => !!iceIds && iceIds.has(id);
@@ -474,7 +512,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ตกรอบ = ระเบิดการ์ตูน + รูปปลิวหมุนขึ้นฟ้า (ผู้ใช้สั่ง) — ฉากตี/ฉากพุ่งระเบิดตรงจังหวะปะทะ · ทางอื่น (สกิล/ลำแสง/ช่องพิเศษ) ระเบิดทันที
     const boomed = new Set();
     const deathBoom = (t, at) => {
-      if (!t || !at) return;
+      if (!t || !at || isDoubleP(t)) return; // ตัวที่เหมือนกันแตกเป็นลูกบาศก์ (valentineFx doubleBreak) แทน
       pushFx([{ kind: "deathBoom", x: at.x, y: at.y, size: sizeOfP(t), img: t.img, color: t.color, name: t.name }]);
       playSfx("death_boom");
       if (!lowQ) setShake((n) => n + 1);
@@ -855,7 +893,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         const set = new Set(tiles.map((t) => key(t.x, t.y)));
         const list = playersRef.current, caster = list.find((p) => p.alive && p.pos && samePos(p.pos, e.at)) || null;
         const ally = (p) => !!caster && (p.id === caster.id || sameSide(p, caster) || (!!caster.teamId && p.teamId === caster.teamId));
-        f.hitIds = list.filter((p) => p.alive && p.pos && !ally(p) && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => set.has(key(t.x, t.y)))).map((p) => p.id);
+        f.hitIds = list.filter((p) => p.alive && p.pos && !ally(p) && (!caster || dimOf(p) === dimOf(caster)) && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => set.has(key(t.x, t.y)))).map((p) => p.id);
         f.hitDelay = GRAY_BEAM.hit;
         playSfx("gray_beam");
         if (tiles.length) {
@@ -1310,6 +1348,33 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("diegoFx", onDiego);
   }, [pushFx, look, lowQ]);
 
+  // ฟันนี่ วาเลนไทน์ (D4C): socket "valentineFx" { kind, id, ... } → valentineFx.js (GRID_PLAN §7.13)
+  //  ตัวที่ฉากย้ายเอง (ตัวเหมือนวิ่ง · ตัวที่กำลังพัง) จดไว้ใน shadowBusy · เลขดาเมจรอขึ้นตอนกระสุน/เมนเจอร์ถึงตัว (diegoDefer — ใช้ร่วม)
+  //  lookOf = หน้าตาตอนเกิดเหตุการณ์ (ฉากวาดภาพที่จับไว้ของตัวที่ state เอาออก/ซ่อนแล้ว) · เสียงมาจาก server
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const lookOf = (id) => {
+      const p = recOf(id);
+      return p ? { img: p.img, color: p.color, name: p.name, hp: p.hp, maxHp: p.maxHp, armor: p.armor, maxArmor: p.maxArmor, size: sizeOfP(p), summon: p.summon || null } : null;
+    };
+    const onVal = (ev) => {
+      const out = valentineEventFx(ev, { posOf, sizeOf, lookOf });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      for (const d of out.defer) diegoDefer.current[d.id] = Math.max(diegoDefer.current[d.id] || 0, t0 + d.ms);
+      pushFx(out.fx);
+      const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
+    };
+    socket.on("valentineFx", onVal);
+    return () => socket.off("valentineFx", onVal);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1365,7 +1430,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (myTurn && myReach) {
       const range = me.range || [1, 1];
       if (canMove && !action.moved) {
-        const z = Rules.threatZone(startMap, originUnit, me.mov || 0, range, ruleUnits, optsOf(me));
+        const z = threatOf(startMap, originUnit, me.mov || 0, range, ruleUnits, optsOf(me));
         h.move = [...z.move];
         h.attack = strikeOff ? [] : [...z.threat];
       } else if (startReach) {
@@ -1386,14 +1451,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (sizeOfP(me) > 1) h.ghost = Rules.footprint(goal.x, goal.y, sizeOfP(me)).map((t) => key(t.x, t.y));
       } else if (hoverUnit && hoverUnit.pos && isEnemy(hoverUnit)) {
         // ชี้ศัตรูที่ตาเราเดินไปตีไม่ถึง = เห็นระยะเดิน+ตีของศัตรูตัวนั้น (แบบ FE)
-        const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
+        const z = threatOf(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
         h.danger = [...new Set([...(h.danger || []), ...z.move, ...z.threat])];
       }
       return h;
     }
     // นอกตาเรา: ชี้ตัวละคร = ระยะเดิน/ตีของคนนั้น (แบบ FE)
     if (hoverUnit && hoverUnit.pos && map) {
-      const z = Rules.threatZone(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
+      const z = threatOf(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
       h.move = [...z.move];
       h.attack = [...z.threat];
     }
@@ -1412,7 +1477,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos && !p.ride).map((p) => {
     const at = iceHold[p.id] || hold[p.id] || p.pos;
     const mk = !!p.masked; // "มืดบอด": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
+    const other = dimOf(p) !== myDim; // คนละชั้นมิติ (วาเลนไทน์) = ภาพโปร่ง (ghostDim — ประกายใน valentineFx) · กดไม่ได้
     return {
+      ...(other ? { alpha: GHOST_ALPHA, ghostDim: true } : null),
+      // ยูนิตที่ถูกเรียก (วาเลนไทน์): ร่างแยก clone / ตัวที่เหมือนกัน double (look = id เป้าที่เลียนหน้าตา)
+      summon: !mk && p.summon ? { kind: p.summon.kind, look: p.summon.look || null } : null,
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
@@ -1450,7 +1519,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn]);
+  [state.players, state.actorId, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
@@ -1481,6 +1550,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (cp) { onTileClick(cp.x, cp.y); return; } // ร่าง = ช่องธรรมดา (เลือกช่อง/เดิน)
     const p = byId[id];
     if (!p) return;
+    // คนคนละชั้นมิติ = กดตัวไม่ได้ (คลิก = คลิกช่องใต้ภาพโปร่ง — ชั้นเราเดินไปยืนช่องนั้นได้)
+    if (!sameDim(p)) { const t = hover && onBody(p, hover) ? hover : p.pos; if (t) onTileClick(t.x, t.y); return; }
     if (pick) {
       if (pick.kind === "tile") { const t = hover && onBody(p, hover) ? hover : p.pos; pickTileAt(t.x, t.y); return; }
       if (pick.kind === "target" && pickInfo && pickInfo.valid.has(id)) { clickSound(); pick.onPick(id); }
@@ -1549,7 +1620,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!canMove || !originUnit || !me.pos || stepSent.current) return;
       const to = { x: me.pos.x + dir.x, y: me.pos.y + dir.y };
       // กติกาเดียวกับ server (Board.stepPath): ต่อเส้นทางที่เดินมา · ถอยกลับ = ตัดเส้นทาง · ก้าวเข้าน้ำแข็ง = ไถล
-      if (!Rules.stepPath(startMap, originUnit, me.mov || 0, ruleUnits, action.trail, to, optsOf(me))) return;
+      if (!stepOf(startMap, originUnit, me.mov || 0, ruleUnits, action.trail, to, optsOf(me))) return;
       stepSent.current = { to, t: performance.now() };
       look(to);
       socket.emit("move", { x: to.x, y: to.y, step: true });
@@ -1723,6 +1794,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}
+        valentine={state.board && state.board.valentine ? state.board.valentine : null}
+        dimView={typeof myDim === "string" ? (myDim.startsWith("par") ? "par" : myDim.startsWith("veil") ? "veil" : null) : null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}

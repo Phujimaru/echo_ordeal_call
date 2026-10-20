@@ -64,7 +64,7 @@ function pilots(engine) { return Object.values(engine.players).filter(isPilot); 
 
 function conditionHolds(engine, p) {
   if (!p.alive) return false;
-  const living = Object.values(engine.players).filter((o) => o.alive);
+  const living = Object.values(engine.players).filter((o) => o.alive && !o.summon); // ยูนิตที่ถูกเรียกไม่นับเป็นผู้รอด
   if (engine.teamModeActive()) {
     if (!p.teamId) return false;
     return living.filter((o) => o.id !== p.id && o.teamId === p.teamId).length >= TEAM_MIN_MATES;

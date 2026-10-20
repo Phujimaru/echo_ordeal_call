@@ -84,6 +84,40 @@ CHARS.emiliko = {
   ultimate: { name: "ร่าเริงสุดๆ", cost: 6, img: `${KE}/cheer.jpg`, area: { kind: "line", len: 4, width: 3 }, desc: "" },
 };
 
+// ฟันนี่ วาเลนไทน์ (GRID_PLAN §7.13 · ?scn=valentine / valclone) — ปุ่มสกิลใช้ภาพปกจนกว่าผู้ใช้ส่งไอคอน
+IMG.funny_valentine = "/characters/funny_valentine/valentine.webp";
+// "รู้จักตัวเองอย่างแท้จริง": กรอบ 3×3 เริ่มช่องติดตัว ทั้ง 4 ทิศ (รวมกัน) — รูปเดียวกับ area.cells ที่ server ส่ง
+const KNOW_CELLS = (() => {
+  const out = new Map();
+  for (const [ax, ay] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    for (let i = 1; i <= 3; i++) for (let j = -1; j <= 1; j++) {
+      const dx = ax ? ax * i : j, dy = ay ? ay * i : j;
+      out.set(`${dx},${dy}`, [dx, dy]);
+    }
+  }
+  return [...out.values()];
+})();
+const VAL_GUN = { kind: "line", len: 5, width: 1 };
+const VAL_BASIC = { name: "หลบสายตา", cost: 4, img: IMG.funny_valentine, area: { kind: "self" }, desc: "" };
+CHARS.funny_valentine = {
+  id: "funny_valentine", name: "ฟันนี่ วาเลนไทน์", img: IMG.funny_valentine,
+  passive: { name: "สันติภาพและความยุติธรรม", desc: "" }, passive2: null,
+  basic: VAL_BASIC,
+  secondary: {
+    name: "ปืนแห่งสันติภาพ", cost: 0, img: IMG.funny_valentine, area: VAL_GUN, desc: "",
+    choices: [1, 2, 3].map((n) => ({ key: `s${n}`, name: `${n} นัด`, img: IMG.funny_valentine, cost: 0, area: VAL_GUN, desc: `ยิงแนว 5 ช่อง ${n} นัด โดนคนแรกในแนว นัดละ 1` })),
+  },
+  ultimate: {
+    name: "ธงชาติแห่งสันติภาพ", cost: 4, img: IMG.funny_valentine, area: { kind: "self" }, desc: "",
+    choices: [
+      { key: "parallel", name: "จงปลาบปลื้ม", img: IMG.funny_valentine, cost: 6, area: { kind: "line", len: 4, width: 3 }, desc: "ศัตรูในแนว 4×3 กับตัวเองไปกระดานคู่ขนาน · ศัตรูแต่ละคนได้ตัวที่เหมือนกัน ชนกัน = เสีย 4" },
+      { key: "selves", name: "แด่ตัวฉันทุกคน", img: IMG.funny_valentine, cost: 6, area: { kind: "self" }, desc: "เรียกวาเลนไทน์อีก 3 ตัว เลือด 1 เกราะ 1 ตีปกติ 1 · อยู่ 2 เทิร์น" },
+      { key: "know", name: "รู้จักตัวเองอย่างแท้จริง", img: IMG.funny_valentine, cost: 4, area: { kind: "target", cells: KNOW_CELLS }, desc: "ตัวที่เหมือนศัตรู 1 คนโผล่ ชนกัน = ดาเมจ 2 ทะลุเกราะ" },
+      { key: "justice", name: "ความยุติธรรมไม่มีวันตาย", img: IMG.funny_valentine, cost: 4, area: { kind: "self" }, desc: "สุ่มพลังชีวิต 2–4 เกราะ 1–3 แต้มสกิล 2–5 · ล้างสถานะทั้งหมด" },
+    ],
+  },
+};
+
 // การเดินทาง 7 ภูมิภาค (characters/_journey.js AREAS)
 const AREAS = [
   { name: "อาณาจักรแห่งจุดเริ่มต้น", passive: null, day: "จบเทิร์นเลขคู่ ได้แต้มสกิลเพิ่ม +1", night: "ทุกเทิร์นสุ่มสกิลพื้นฐานหรือสกิลรองของแต่ละคนให้ใช้แต้มเพิ่มขึ้น +1 (ไม่รวมท่าไม้ตาย)" },
@@ -156,6 +190,8 @@ export const SCENARIOS = [
   { id: "attack", label: "ตี + สวน + ถอย" },
   { id: "collide", label: "ตี + สวน + ชน" },
   { id: "gun", label: "ยิงปืน GUTS" },
+  { id: "valentine", label: "วาเลนไทน์ หลบสายตา" },
+  { id: "valclone", label: "วาเลนไทน์ ร่างแยก" },
 ];
 
 let attackSeq = 0;
@@ -188,14 +224,17 @@ function forecastFor(s, viewerId) {
   if (!viewer || !viewer.alive || s.gameState !== "ACTION" || s.actorId !== viewer.id) return null;
   const out = {};
   for (const t of s.players) {
-    if (t.id === viewer.id || !t.alive || !t.pos || isAlly(s, viewer, t)) continue;
+    if (t.id === viewer.id || !t.alive || !t.pos || isAlly(s, viewer, t) || (t.dim || null) !== (viewer.dim || null)) continue;
     out[t.id] = { dmg: atkOf(viewer), back: atkOf(t) };
   }
   return out;
 }
 
-function units(s) {
-  return s.players.filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null }));
+// ref = คนที่เดิน: นับเฉพาะคนชั้นมิติเดียวกัน (วาเลนไทน์ — action.boardUnits)
+function units(s, ref) {
+  const dim = ref ? ref.dim || null : null;
+  return s.players.filter((p) => p.alive && p.pos && (p.dim || null) === dim)
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.summon && p.summon.kind === "double" ? null : p.teamId || null }));
 }
 function blockedOf(s) {
   return s.shopPos ? new Set([Rules.key(s.shopPos.x, s.shopPos.y)]) : null;
@@ -308,6 +347,52 @@ function addDuo(s, opts) {
     s.masked = true;
     for (const p of s.players) if (p.id !== ME && p.duoOf !== ME) Object.assign(p, { masked: true, name: "", img: null, color: "#ffffff" });
   }
+}
+
+// วาเลนไทน์ (?scn=valentine / valclone): เรา = วาเลนไทน์ (ตีปกติ [1, 2]) · ตัวที่เหมือนกันของบอส (กระดานหลัก) · มิวมิว + ตัวที่เหมือนกันอยู่กระดานคู่ขนาน
+//  valentine = อยู่ในมิติหลบสายตา (ธงปักที่ช่องที่เข้า · ทุกคนเป็นภาพโปร่ง · เดินทะลุ) · valclone = คุมร่างแยกตัวที่ 2 (ตัวจริง + ร่างแรกเดินแล้ว)
+function addValentine(s, scn) {
+  const byId = (id) => s.players.find((p) => p.id === id);
+  const me = byId(ME), boss = byId("p4"), miu = byId("p3");
+  Object.assign(me, { range: [1, 2], hp: 6, maxHp: 7, armor: 3, maxArmor: 3, skillPoints: 6, dim: null, summon: null, muimiEmergencyUses: undefined, muimiEmergencyMax: undefined, muimiEmergencyUsed: undefined });
+  me.valentine = { ammo: 2, ammoMax: 3, reloadCd: 0, veil: null, veilCd: 0, ultCd: { parallel: 2, selves: 0, know: 0, justice: 0 }, parallel: null };
+  const ult = me.character.ultimate;
+  for (const c of ult.choices) { const cd = me.valentine.ultCd[c.key] || 0; if (cd > 0) Object.assign(c, { locked: true, left: cd }); }
+  me.character.secondary.choices = me.character.secondary.choices.map((c, i) => (i + 1 > me.valentine.ammo ? { ...c, locked: true } : c));
+  s.board.valentine = { flags: [] };
+  const lookLike = (t, id, at, dim) => ({
+    ...clone(t), id, cards: null, cardCount: 0, score: null, inventory: null, skillLocks: undefined, teamId: null, duoOf: undefined,
+    hp: 3, maxHp: 3, armor: 2, maxArmor: 2, mov: 5, baseMov: 5, range: [1, 1], statuses: {}, statusAmt: {}, pos: at, dim: dim || null,
+    summon: { kind: "double", ownerId: ME, look: t.id, targetId: t.id },
+  });
+  // บอส (กระดานหลัก) มีตัวที่เหมือนกันห่าง 2 ช่อง · มิวมิว + ตัวเหมือนอยู่กระดานคู่ขนาน
+  boss.pos = { x: 9, y: 10 };
+  const par = `par:${ME}:1`;
+  miu.dim = par;
+  s.players.push(lookLike(boss, `${ME}~s4`, { x: 7, y: 8 }));
+  s.players.push(lookLike(miu, `${ME}~s5`, { x: 12, y: 7 }, par));
+  if (scn === "valentine") {
+    s.board.valentine.flags.push({ x: me.pos.x, y: me.pos.y, ownerId: ME });
+    me.dim = `veil:${ME}`;
+    me.valentine.veil = { left: 2 };
+    me.character.basic = { ...VAL_BASIC, cost: 0, active: true };
+    // ในมิติ: ใช้ได้แค่ เดิน / กดออก / ความยุติธรรมไม่มีวันตาย (server ล็อกปืน + ท่าไม้ตายแบบอื่น)
+    me.skillLocks = { basic: { free: true }, secondary: { locked: true } };
+    for (const c of ult.choices) if (c.key !== "justice") c.locked = true;
+    return;
+  }
+  // ร่างแยก 3 ตัวรอบตัวจริง: ตัวจริง + ร่างแรกเดินแล้ว · คุมร่างที่ 2 (ไม่มีสกิล/ไอเทม · แต้มสกิลร่วม)
+  me.valentine.ultCd.selves = 3;
+  for (const c of ult.choices) if (c.key === "selves") Object.assign(c, { locked: true, left: 3 });
+  const spots = [{ x: 6, y: 9 }, { x: 4, y: 7 }, { x: 6, y: 8 }];
+  spots.forEach((at, i) => {
+    s.players.splice(1 + i, 0, {
+      ...clone(me), id: `${ME}~s${i + 1}`, duoOf: ME, cards: null, cardCount: 0, valentine: undefined,
+      hp: 1, maxHp: 1, armor: 1, maxArmor: 1, pos: at, dim: null, statuses: {}, statusAmt: {},
+      summon: { kind: "clone", ownerId: ME, until: s.roundNumber + 1 },
+      skillLocks: { basic: { locked: true }, secondary: { locked: true }, ultimate: { locked: true } },
+    });
+  });
 }
 
 // ตั้งตาเดินให้ actorId (ACTION ยังไม่เดิน)
@@ -423,7 +508,9 @@ export function buildMockState(opts) {
   const gameState = scn === "playing" ? "PLAYING" : scn === "order" ? "ORDER" : "ACTION";
   const o = { gameState, area, night, team: !!opts.team };
   const a = AREAS[area - 1];
-  const roster = opts.duo ? ROSTER.map((r) => (r.id === ME ? { ...r, char: "kate" } : r)) : ROSTER;
+  const valScn = scn === "valentine" || scn === "valclone";
+  const roster = opts.duo ? ROSTER.map((r) => (r.id === ME ? { ...r, char: "kate" } : r))
+    : valScn ? ROSTER.map((r) => (r.id === ME ? { ...r, char: "funny_valentine" } : r)) : ROSTER;
   const players = roster.map((r) => playerPublic(r, o));
   // ร้านตั้งครั้งแรกเทิร์น 1 ย้ายทุก 6 เทิร์น
   const round = roundFor(area, night);
@@ -464,6 +551,7 @@ export function buildMockState(opts) {
   };
   const byId = (id) => s.players.find((p) => p.id === id);
   if (opts.duo) addDuo(s, opts);
+  else if (valScn) addValentine(s, scn);
   if (gameState === "ORDER") {
     const names = s.turnOrder.map((id) => byId(id).name);
     s.log = [
@@ -477,6 +565,12 @@ export function buildMockState(opts) {
   // เรา = ลำดับ 2 (ฟ้าใส 19 แต้มเดินก่อน) · ตาคนอื่น = ตาของฟ้าใส
   if (scn === "my" || scn === "moved" || scn === "attack" || scn === "collide" || scn === "gun") startTurn(s, s.controlId || ME);
   if (scn === "other") startTurn(s, "p1");
+  if (scn === "valentine") startTurn(s, ME);
+  if (scn === "valclone") {
+    s.controlId = `${ME}~s2`;
+    startTurn(s, s.controlId);
+    s.duo = { ownerId: ME, done: [ME, `${ME}~s1`] };
+  }
   const me = byId(ME);
   if (scn === "moved" || scn === "attack") {
     // เดินจาก (5,7) ผ่านวงเวทไป (8,7) — ติดฟ้าใสที่ (9,7)
@@ -555,7 +649,9 @@ export function simulateEmit(prev, ev, payload = {}) {
       const step = payload.step === true;
       if (!myTurn || prev.action.locked || (prev.action.moved && !step)) return { state: prev };
       if (step && Rules.dist(me.pos, payload) !== 1) return { state: prev };
-      const reach = Rules.reachable(map, { id: me.id, ...s.action.from }, me.mov, units(s), { isAlly: (a, b) => teamMode(s) && a.teamId && a.teamId === b.teamId, blocked: blockedOf(s) });
+      // หลบสายตา (วาเลนไทน์): เดินทะลุ — แผนที่โล่ง เหลือแค่ขอบกระดาน
+      const veil = !!(me.valentine && me.valentine.veil);
+      const reach = Rules.reachable(veil ? { ...map, terrain: {}, special: {} } : map, { id: me.id, ...s.action.from }, me.mov, units(s, me), { isAlly: (a, b) => teamMode(s) && a.teamId && a.teamId === b.teamId, blocked: veil ? null : blockedOf(s), ghost: veil });
       const node = reach.get(Rules.key(payload.x, payload.y));
       if (!node) return { state: prev };
       if (node.d === 0) {
@@ -574,9 +670,17 @@ export function simulateEmit(prev, ev, payload = {}) {
       s.action.moved = false;
       s.action.path = null;
       return { state: s };
-    case "endAction":
+    case "endAction": {
       if (!myTurn) return { state: prev };
+      // ร่างแยก (วาเลนไทน์ · ระบบคู่): ไปร่างถัดไปที่ยังไม่เดิน · ครบ = ตาถัดไปของลำดับ
+      if (s.duo && me.summon) {
+        s.duo.done = [...(s.duo.done || []), me.id];
+        const next = s.players.find((p) => p.duoOf === s.duo.ownerId && p.alive && p.pos && !s.duo.done.includes(p.id));
+        if (next) { s.controlId = next.id; s.actorId = next.id; s.action = { from: { ...next.pos }, moved: false, locked: false, path: null }; return { state: s }; }
+        s.controlId = s.duo.ownerId; s.actorId = s.duo.ownerId; s.duo = null;
+      }
       return { state: nextTurn(s) };
+    }
     case "attack": {
       if (!myTurn) return { state: prev };
       const t = s.players.find((p) => p.id === payload.targetId);
@@ -587,6 +691,15 @@ export function simulateEmit(prev, ev, payload = {}) {
       if (!myTurn) return { state: prev };
       const sk = me.character[payload.tier];
       if (!sk || me.skillPoints < sk.cost) return { state: prev };
+      // วาเลนไทน์: ปุ่มหลบสายตาระหว่างอยู่ในมิติ = ออก (0 แต้ม · ไม่กินโควตา)
+      if (sk.active && me.valentine && me.valentine.veil) {
+        me.dim = null; me.valentine.veil = null; me.valentine.veilCd = 3;
+        me.character.basic = { ...VAL_BASIC }; me.skillLocks = undefined;
+        for (const c of me.character.ultimate.choices || []) c.locked = (me.valentine.ultCd[c.key] || 0) > 0;
+        if (s.board.valentine) s.board.valentine.flags = s.board.valentine.flags.filter((f) => f.ownerId !== me.id);
+        return { state: s };
+      }
+      if (me.summon) return { state: prev }; // ร่างแยกไม่มีสกิล
       // ระบบคู่: กระจกเงา = สลับตัว (ไม่กินโควตา ไม่ล็อกเดิน) · ปุ่มหลายตัวเลือก = form
       const mate = s.players.find((p) => p.id !== me.id && (p.duoOf === me.id || p.id === me.duoOf));
       if (payload.tier === "basic" && sk.name === MIRROR.name && mate && mate.alive) {

@@ -64,7 +64,7 @@ function snapshot() {
 function restore(snap) {
   for (const [id, p] of Object.entries(match.players)) {
     const s = snap.players[id];
-    if (!s) continue;
+    if (!s) { if (p.summon) delete match.players[id]; continue; } // ยูนิตที่ถูกเรียกระหว่างการกระทำที่ถูกตัด = หายไปด้วย
     for (const k of Object.keys(p)) if (!KEEP_PLAYER.has(k) && !(k in s)) delete p[k];
     Object.assign(p, s);
   }
@@ -99,6 +99,7 @@ let depth = 0;
 function guard(fn) {
   if (depth > 0) return fn();
   depth++;
+  match.cmdSeq = (match.cmdSeq || 0) + 1; // เลขคำสั่งของผู้เล่น (ชั้นนอกสุด) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
   match.commandSeq = (match.commandSeq || 0) + 1; // ลำดับคำสั่งของผู้เล่น (ฮุคแยก "การโจมตีครั้งเดียวกัน" — เฟิร์น: Defensive Magic)
   try {
     if (match.gameState === "ACTION") mark();

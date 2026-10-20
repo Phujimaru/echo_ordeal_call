@@ -28,6 +28,7 @@ const Soot = require("./soot");
 const skills = require("./skills");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const Dim = require("./dimension");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
@@ -97,7 +98,7 @@ function forecastFor(viewer) {
   if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
   const out = {};
   for (const t of combat.alivePlayers()) {
-    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || Visibility.hiddenFromUnit(viewer, t)) continue;
+    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || !Dim.same(viewer, t) || Visibility.hiddenFromUnit(viewer, t)) continue; // คนละชั้นมิติ = ไม่มีคาดการณ์
     out[t.id] = {
       dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer),
       // โอกาสโดน/คริติคอล (% จำนวนเต็ม 0–100) — back* = ฝั่งเป้าตีสวนกลับ (มีผลเฉพาะเป้าที่ตีสวนได้)
@@ -191,7 +192,8 @@ function buildStateFor(viewerId) {
     bagSlots: BAG_SLOTS,
     gutsRange: GUTS_RANGE,
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
-    players: Object.values(match.players).map((p) => {
+    // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว = ไม่ส่ง (ระเบียนรอลบตอนจบเทิร์น)
+    players: Object.values(match.players).filter((p) => !(p.summon && !p.alive)).map((p) => {
       const mine = p.id === viewerId || Duo.sideKey(p) === viewerId; // ระบบคู่: ตัวที่สองก็เป็น "ของเรา"
       const show = mine || revealAll;
       // โหมดทีม (duo/trio): เพื่อนร่วมทีมเห็นแต้มการ์ดกันตลอดเวลา — ศัตรูยังถูกซ่อนตามปกติ
@@ -237,7 +239,12 @@ function buildStateFor(viewerId) {
         name: p.name,
         // ระบบคู่: duoOf = ตัวที่สองของผู้เล่นคนนี้ (ไม่ใช่ผู้เล่นแยก — client ไม่นับในรายชื่อผู้เล่น) · duoWith = id ตัวที่สอง
         //  corpse = ช่องร่างของตัวที่ล้มขณะอีกตัวยังอยู่ (ขวางช่อง เดินข้ามได้)
-        duoOf: p.duoOf || null,
+        //  ร่างแยก (ยูนิตที่ถูกเรียกแบบคุมได้ — server/summon.js) ได้ duoOf = เจ้าของ ให้ client ใช้กลไกระบบคู่ (ไม่นับในรายชื่อ · ตัวที่คุม)
+        duoOf: p.duoOf || (p.summon && p.summon.controlled ? p.summon.ownerId : null),
+        // ชั้นมิติ (server/dimension.js): null = กระดานหลัก · คนคนละชั้นกับตัวที่คุม client วาดโปร่ง กดไม่ได้
+        dim: p.dim || null,
+        // ยูนิตที่ถูกเรียก: { kind: "clone" | "double", ownerId, look?, targetId?, until? }
+        summon: p.summon ? { kind: p.summon.kind, ownerId: p.summon.ownerId, look: p.summon.look || null, targetId: p.summon.targetId || null, until: p.summon.until == null ? null : p.summon.until } : null,
         duoWith: p.duoWith || null,
         corpse: Duo.corpseKept(p) ? Duo.corpseOf(p) : null, // + ศพค้าง (ยูนะ — ฮุค keepsCorpses)
         ride: p.alive && p.mountId && match.players[p.mountId] ? p.mountId : null, // ขี่ผู้เล่นอื่น (server/ride.js): id ตัวที่ถูกขี่ — วาดบนหลัง
@@ -322,6 +329,7 @@ function buildStateFor(viewerId) {
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
         gyro: hook && hook.gyroState ? hook.gyroState(engine, p) : undefined, // ไจโร: ลูกเหล็ก (บนพื้น/ในมือ) / สัดส่วนทองคำ / ม้า / เสริมท่าไม้ตาย (GRID_PLAN §7.11 สัญญาข้อมูล)
         diego: hook && hook.diegoState ? hook.diegoState(engine, p, viewer) : undefined, // ดิเอโก้: เล่ห์เหลี่ยม / กระสุน / เดอะเวิลด์ / ม้า / ตาข่าย (เจ้าของเห็น) — GRID_PLAN §7.12
+        valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / ชาร์จท่าไม้ตาย / Defensive Magic / ร่ายต่อเนื่อง — GRID_PLAN §7.14
         // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key }
         actions: mine && hook && hook.hudActions ? hook.hudActions(engine, p) || undefined : undefined,
@@ -332,6 +340,9 @@ function buildStateFor(viewerId) {
         counter: action.counters(p), // ตีสวนได้ไหม (ตอนนี้ไม่มีใคร — เผื่อตัวละครสะท้อน)
       };
       // หยุดเวลา: คนอื่นแสดงเลือด/เกราะ/สถานะเท่าตอนเริ่มหยุด (ดาเมจลงจริงแล้ว — โชว์ตอนเวลาเดินต่อ)
+      // ตัวที่เหมือนกัน (วาเลนไทน์): หน้าตา = เป้า (look)
+      const look = p.summon && p.summon.look ? match.players[p.summon.look] : null;
+      if (look) Object.assign(out, { name: look.name, img: displayImg(look), color: lobby.colorOf(look), character: { ...out.character, name: look.name, img: displayImg(look), cover: null } });
       const held = TimeStop.frozenView(p);
       if (held && !blackout) Object.assign(out, { hp: held.hp, armor: held.armor, shield: held.shield, tempHp: held.tempHp, statuses: show ? { ...held.statuses } : publicStatuses({ ...p, statuses: held.statuses }), statusAmt: held.statusAmt });
       return secret ? unseenPub(out, p) : out;
@@ -343,7 +354,7 @@ function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
     hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
-    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined,
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined, valentine: undefined,
   };
 }
 
@@ -370,7 +381,7 @@ function zeroLocks(locks) {
   return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
 }
 function broadcastState() {
-  for (const p of Object.values(match.players)) if (!p.duoOf) io.to(p.id).emit("state", buildStateFor(p.id)); // ตัวที่สองของระบบคู่ไม่มี socket
+  for (const p of Object.values(match.players)) if (!p.duoOf && !p.summon) io.to(p.id).emit("state", buildStateFor(p.id)); // ตัวที่สองของระบบคู่ / ยูนิตที่ถูกเรียก ไม่มี socket
 }
 function broadcastPositions() {
   const taken = takenUniqueChars();
@@ -427,7 +438,7 @@ function fxFor(viewer, event, payload) {
 function emitBoardFx(event, payload) {
   if (!Soot.active() || (event !== "iceFx" && event !== "shadowFx")) { io.emit(event, payload); return; }
   for (const p of Object.values(match.players)) {
-    if (p.duoOf) continue;
+    if (p.duoOf || p.summon) continue;
     const out = fxFor(p, event, payload);
     if (out) io.to(p.id).emit(event, out);
   }
@@ -436,7 +447,7 @@ function emitBoardFx(event, payload) {
 function emitVisible(event, payload, actor) {
   if (!Soot.active() || !actor) { io.emit(event, payload); return; }
   for (const p of Object.values(match.players)) {
-    if (p.duoOf) continue;
+    if (p.duoOf || p.summon) continue;
     if (Visibility.hiddenFrom(p, actor)) continue;
     io.to(p.id).emit(event, payload);
   }

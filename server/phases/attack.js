@@ -456,7 +456,7 @@ function slideThen(slide, by, done) {
 //  คืน { id, to, dir } = ถอยลงน้ำแข็ง (ไถลต่อหลังฉากตี — slideThen) | null
 function counterAndPush(attacker, target, card) {
   let slide = null;
-  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
+  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && (attacker.dim || null) === (target.dim || null) && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     strikeResolved(target, attacker, back, true);
