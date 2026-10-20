@@ -58,6 +58,20 @@
         "JOURNEY_START_SECONDS": "0",
         "ECHO_DEV_ZERO_SEAL_HP": "1"
       }
+    },
+    {
+      "name": "server-diego",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3000,
+      "env": {
+        "ECHO_DEV_START_ROUND": "3",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "ECHO_DEV_DIEGO_CUNNING": "10"
+      }
     }
   ]
 }

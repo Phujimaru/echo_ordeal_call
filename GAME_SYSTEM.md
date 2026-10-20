@@ -895,4 +895,5 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **กับดักล่องหน** (ตาข่าย — `p.diego.nets`): state เห็นเฉพาะเจ้าของ (`diegoState(engine, p, viewer)`) · เอฟเฟกต์วาง = `engine.boardFxTo([id], …)` (ส่งเฉพาะคน)
 - **ม้ากลาง** `characters/_horse.js` (`fresh / setMounted / absorb / action / toggle / cooldown`) — ดิเอโก้ใช้ · ไจโรยังมีโค้ดม้าของตัวเอง (กติกาเดียวกัน)
 - **ปุ่มหลายตัวเลือกที่ไม่กินโควตา + ไม่ล็อกการเดิน**: `skipsTurnQuota` + `ignoresTurnQuota` + `keepsMove` ของ tier นั้น · โควตาเฉพาะตัวนับใน `canUseSkill` (คลังเครื่องมือ 2 ครั้งต่อเทิร์น)
+- เสียงระหว่างหยุดเวลา: client (`Game.jsx`) เห็น `state.timeFreeze` = `suspendMusic()` (เพลงทุกเพลงหยุด) + `playLoop("diego_tick_loop")` (`audio.js` — เสียงวนตามระดับเสียงหลัก) · dev: `ECHO_DEV_DIEGO_CUNNING=10` เริ่มเกมพร้อมเล่ห์เหลี่ยม (launch `server-diego`)
 - เอฟเฟกต์: `engine.boardFx("diegoFx", { kind, id, color, … })` ตามสัญญา §7.12 · `frozen: true` = เกิดระหว่างหยุดเวลา (client ค้างของกลางอากาศจน `timeResume`)

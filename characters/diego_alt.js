@@ -115,9 +115,11 @@ const isDiego = (p) => !!p && p.characterId === ID;
 const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
 const tile = (t) => ({ x: t.x, y: t.y });
 
+// เครื่องมือ dev: ECHO_DEV_DIEGO_CUNNING=10 เริ่มเกมพร้อมเล่ห์เหลี่ยม (ทดสอบเดอะเวิลด์ในเกมจริง) · ไม่ตั้ง = 0
+const devCunning = () => Math.max(0, Math.min(10, Math.floor(Number(process.env.ECHO_DEV_DIEGO_CUNNING)) || 0));
 function fresh() {
   return {
-    cunning: 0,
+    cunning: devCunning(),
     ammo: GUN.ammo,
     reloadRound: 0,       // กระสุนหมด: เต็มอีกครั้งเมื่อ roundNumber >= ค่านี้
     aid: AID.uses,
@@ -444,7 +446,7 @@ function startStop(engine, p, kind, attackerId) {
   engine.sfx(SFX.stop);
   engine.sfx(VOICE_TRIGGER[kind], null, { voice: p.id });
   engine.log(kind === "counter" ? `⏱️ ${p.name} เดอะเวิลด์! — หยุดเวลา` : `⏱️ ${p.name} เดอะเวิลด์ — หยุดเวลาก่อนทุกคน`);
-  engine.skillBeat(DIEGO_FX.timeStop / 1000, () => engine.sfx(SFX.tick)); // เวลาหยุดสนิท = นาฬิกาเดิน
+  engine.skillBeat(DIEGO_FX.timeStop / 1000, () => {}); // นาฬิกาเดินวน = client เล่นเองตลอดที่ state.timeFreeze (Game.jsx)
   engine.pausePlayingForCutscene();
 }
 // เวลาเดินต่อ: ดาเมจ/การตายที่ค้างไว้ลงพร้อมกัน → วินาทีพักฉาก
