@@ -174,6 +174,32 @@ const FILES = {
   gyro_v_skill2: "/characters/gyro_zeppeli/voice/gyro_voice_skill2.m4a",
   gyro_v_skill3: "/characters/gyro_zeppeli/voice/gyro_voice_skill3.m4a",
   gyro_v2_skill3: "/characters/gyro_zeppeli/voice/gyro_voice2_skill3.m4a",
+  // ดิเอโก้ แบรนโด โลกคู่ขนาน (GRID_PLAN §7.12) — ท่อนตัดจากไฟล์ต้นฉบับที่ผู้ใช้ส่ง (THE WORLD HHA/GHA + time stop · ASB-R) ปรับดัง ~-10 LUFS
+  //  array = เสียงคล้ายกันหลายท่อน สุ่ม 1 ไฟล์ทุกครั้ง · ต้นฉบับ + หน้าฟัง Downloads\diego_alt\sfx · คีย์ที่ยังไม่มีไฟล์ (splash/match/net/shot/reload/heal/gallop) = ไม่มีเสียง
+  diego_throw: "/characters/diego_alt/sfx/diego_throw.mp3",
+  diego_explode: "/characters/diego_alt/sfx/diego_explode.mp3",
+  diego_fire: ["/characters/diego_alt/sfx/diego_fire_1.mp3", "/characters/diego_alt/sfx/diego_fire_2.mp3"],
+  diego_net_trap: "/characters/diego_alt/sfx/diego_net_trap.mp3",
+  diego_knife: ["/characters/diego_alt/sfx/diego_knife_1.mp3", "/characters/diego_alt/sfx/diego_knife_2.mp3"],
+  diego_empty: "/characters/diego_alt/sfx/diego_empty.mp3",
+  diego_world: "/characters/diego_alt/sfx/diego_world.mp3",
+  diego_stop: "/characters/diego_alt/sfx/diego_stop.mp3",
+  diego_tick: ["/characters/diego_alt/sfx/diego_tick_1.mp3", "/characters/diego_alt/sfx/diego_tick_2.mp3"],
+  diego_resume: ["/characters/diego_alt/sfx/diego_resume_1.mp3", "/characters/diego_alt/sfx/diego_resume_2.mp3"],
+  diego_crash: "/characters/diego_alt/sfx/diego_crash.mp3",
+  // เสียงพากย์ดิเอโก้ (server/voice.js) — ปรับดัง ~-10 LUFS แล้ว
+  diego_v_start1: "/characters/diego_alt/voice/diego_alt_start1.m4a",
+  diego_v_start2: "/characters/diego_alt/voice/diego_alt_start2.m4a",
+  diego_v_hit1: "/characters/diego_alt/voice/diego_alt_hit1.m4a",
+  diego_v_hitby1: "/characters/diego_alt/voice/diego_alt_hitby1.m4a",
+  diego_v_hitby2: "/characters/diego_alt/voice/diego_alt_hitby2.m4a",
+  diego_v_hitby3: "/characters/diego_alt/voice/diego_alt_hitby3.m4a",
+  diego_v_skill1_1: "/characters/diego_alt/voice/diego_alt_skill1_1.m4a",
+  diego_v_skill1_2: "/characters/diego_alt/voice/diego_alt_skill1_2.m4a",
+  diego_v_skill1_3: "/characters/diego_alt/voice/diego_alt_skill1_3.m4a",
+  diego_v_skill3: "/characters/diego_alt/voice/diego_alt_skill3.m4a",
+  diego_v_skill3_counter: "/characters/diego_alt/voice/diego_alt_skill3_counter_trigger.m4a",
+  diego_v_skill3_normal: "/characters/diego_alt/voice/diego_alt_skill3_normal_trigger.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -486,7 +512,14 @@ const sfxPool = new Map(); // ชื่อเสียง -> element ที่�
 const POOL_PER_SOUND = 4;  // เสียงเดียวกันซ้อนกันเกินนี้แทบไม่เกิด — ที่เกินปล่อยให้ GC เก็บ
 let playSeq = 0;
 
-function takeVoice(name) {
+// คีย์ที่เป็น array = สุ่ม 1 ไฟล์ทุกครั้งที่เล่น · pool แยกต่อไฟล์ (คีย์ "ชื่อ#ลำดับ")
+function sfxVariant(name) {
+  const f = FILES[name];
+  if (!Array.isArray(f)) return { key: name, path: f };
+  const i = Math.floor(Math.random() * f.length);
+  return { key: `${name}#${i}`, path: f[i] };
+}
+function takeVoice(name, path = FILES[name]) {
   const idle = sfxPool.get(name);
   if (idle && idle.length) {
     const a = idle.pop();
@@ -494,7 +527,7 @@ function takeVoice(name) {
     try { a.currentTime = 0; } catch { /* ยังโหลดไม่เสร็จ: เล่นจากต้นอยู่แล้ว */ }
     return a;
   }
-  const a = new Audio(FILES[name]);
+  const a = new Audio(path);
   a.preload = "auto";
   const release = () => {
     activeSfx.delete(a);
@@ -513,11 +546,15 @@ function takeVoice(name) {
 // โหลดเสียงที่ใช้บ่อยไว้ล่วงหน้า — ครั้งแรกที่เล่นคือครั้งที่กระตุกที่สุด (ต่อเน็ต + ถอดรหัส)
 export function prewarmSfx(names) {
   for (const name of names) {
-    if (!FILES[name] || sfxPool.has(name)) continue;
-    const a = takeVoice(name);
-    a._echoIdle = true;
-    sfxPool.set(name, [a]);
-    try { a.load(); } catch { /* เบราว์เซอร์บางตัวห้ามโหลดก่อนมี gesture */ }
+    if (!FILES[name]) continue;
+    const list = Array.isArray(FILES[name]) ? FILES[name].map((path, i) => [`${name}#${i}`, path]) : [[name, FILES[name]]];
+    for (const [k, path] of list) {
+      if (sfxPool.has(k)) continue;
+      const a = takeVoice(k, path);
+      a._echoIdle = true;
+      sfxPool.set(k, [a]);
+      try { a.load(); } catch { /* เบราว์เซอร์บางตัวห้ามโหลดก่อนมี gesture */ }
+    }
   }
 }
 
@@ -530,9 +567,9 @@ export function prewarmMusic(name) {
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 export function playSfx(name, opts) {
   if (!FILES[name]) return null;
-  const a = takeVoice(name);
+  const v = sfxVariant(name), a = takeVoice(v.key, v.path);
   const gain = opts && Number.isFinite(opts.gain) ? Math.max(0, opts.gain) : 1;
-  const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * soundGain(name) * gain * sfxDuck());
+  const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * pathGain(v.path) * gain * sfxDuck());
   a.volume = base * masterGain();
   a._echoPlay = ++playSeq;
   activeSfx.set(a, base);
