@@ -1,5 +1,5 @@
 // หน้าดูแผงตัวเรา (เฉพาะ dev ไม่ต่อ socket): ?hud=1
-//  พารามิเตอร์: st=0..14 (จำนวนสถานะ) · res=0 (ไม่มีทรัพยากรตัวละคร) · target=1 (กำลังเลือกเป้า → แผงเลื่อนลง)
+//  พารามิเตอร์: st=0..14 (จำนวนสถานะ) · res=0 (ไม่มีทรัพยากรตัวละคร) · res=num (ทรัพยากรตัวเลขล้วน 3 อย่าง) · target=1 (กำลังเลือกเป้า → แผงเลื่อนลง)
 //  drawer=1 (เปิดลิ้นชักสถานะ) · open=1 (กางรายละเอียดสถานะแถวแรก) · bust=1 · cards=0..6 · team=A · night=1 · arena=1..3 · n=0..6 · lowq=1
 import { useEffect, useMemo, useState } from "react";
 import ArenaScene from "../../journey/arena/ArenaScene";
@@ -31,6 +31,12 @@ const MOCK_STATUS = [
 const MOCK_RES = [
   { key: "kimScabbard", v: 1, icon: "🗡️", label: "Resentful Scabbard 42/100", cls: "bg-echo-ice text-gray-900", desc: "30+ ทำดาเมจฟื้นพลังชีวิต +1 · 55+ เลือดไหล/เหน็บชาที่มอบ +1 เทิร์น" },
   { key: "kimPoise", v: 1, icon: "🍃", label: "Poise 2/4", cls: "bg-echo-cyan text-gray-900", desc: "1 หน่วย = โอกาสคริติคอล 1.2%" },
+];
+// ทรัพยากรตัวเลขล้วน (res=num — แบบดิเอโก้: เล่ห์เหลี่ยม / กระสุน / ม้า) รวมในแถบเดียว
+const MOCK_RES_NUM = [
+  { key: "diegoCunning", v: 1, icon: "🧠", label: "7/10", cls: "bg-yellow-500 text-gray-900", desc: "" },
+  { key: "diegoAmmo", v: 1, icon: "🔫", label: "3/4", cls: "bg-stone-700 text-white", desc: "" },
+  { key: "diegoHorse", v: 1, icon: "🐎", label: "2/3", cls: "bg-amber-700 text-white", desc: "" },
 ];
 const SKILLS = {
   basic: { name: "เสบียงฉุกเฉิน", cost: 0, desc: "ฟื้นพลังชีวิตและแต้มสกิล", img: "/characters/muimi/muimi_skill1.webp" },
@@ -85,7 +91,7 @@ export default function HudPreview() {
   const designH = vp.h / scale;
   const hudK = Math.min(1.6, Math.max(0.6, Math.min(vp.h / 810, vp.w / 1376))) / scale;
 
-  const statuses = [...(withRes ? MOCK_RES : []), ...MOCK_STATUS.slice(0, stN)];
+  const statuses = [...(withRes ? (q.get("res") === "num" ? MOCK_RES_NUM : MOCK_RES) : []), ...MOCK_STATUS.slice(0, stN)];
   const raw = Object.fromEntries(MOCK_STATUS.filter((s) => s.key !== "tonkatsu").map((s) => [s.key, s.v]));
   const cards = Array.from({ length: nCards }, (_, i) => HAND[i % HAND.length]);
   const a = journeyArea(area);

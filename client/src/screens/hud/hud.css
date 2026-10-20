@@ -624,6 +624,24 @@
 .hud-res-num { flex: none; min-width: 40px; text-align: right; font: 700 15px/1 "Chakra Petch", sans-serif; color: var(--tone); font-variant-numeric: tabular-nums; }
 .hud-res-strip .hud-cells > span { clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
 .hud-res-desc { padding: 0 30px 10px 44px; font: 300 13px/1.45 Kanit, sans-serif; color: #b9cde6; }
+/* ทรัพยากรตัวเลขล้วนหลายอย่างในแถบเดียว (ResourcePack) — แผงสูงเท่าเดิมไม่ว่าจะกี่อย่าง */
+.hud-res-pack { border-left-color: rgba(127, 184, 230, 0.55); background: linear-gradient(90deg, rgba(20, 44, 82, 0.95), rgba(12, 28, 58, 0.9) 60%); }
+.hud-res-pack-row { display: flex; align-items: center; gap: 18px; min-height: 40px; padding: 4px 32px 4px 26px; box-sizing: border-box; } /* ใต้รูปหกเหลี่ยมแล้ว — ใช้ความกว้างเต็มแผง */
+.hud-res-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: default;
+}
+.hud-res-item[aria-expanded] { cursor: pointer; }
+.hud-res-item .hud-cells { flex: 1 1 auto; min-width: 12px; gap: 2px; }
+.hud-res-item .hud-res-num { min-width: 0; font-size: 14px; }
 
 /* ===== ขวาล่าง: กระเป๋า (ไอคอนล้วน ใหญ่) · ร้านค้า ===== */
 .hud-bag-row { display: flex; gap: 10px; align-items: stretch; }

@@ -51,7 +51,7 @@ function splitEntries(entries, raw) {
     const m = !(raw && it.key in raw) && COUNTER_RE.exec(it.label || "");
     if (m) {
       const label = it.label.replace(m[0], "").replace(/\s+/g, " ").replace(/^[\s·]+|[\s·]+$/g, "");
-      res.push({ ...it, short: thLabel(label || it.label), cur: Number(m[1]), max: Number(m[2]) });
+      res.push({ ...it, short: label ? thLabel(label) : "", cur: Number(m[1]), max: Number(m[2]) }); // ไม่มีชื่อ (ตัวเลขล้วน) = ""
     } else list.push(it);
   }
   return { res, list };
@@ -186,9 +186,12 @@ export function HudPanel({ portrait, hexPortrait = true, duo = null, name, onNam
             </span>
             <span className="hud-sp-num">{sp}<span>/{spMax}</span></span>
           </section>
-          {res.map((it) => (
+          {res.filter((it) => it.short).map((it) => (
             <ResourceRow key={it.key} it={it} open={openKey === it.key} onToggle={() => toggle(it.key)} />
           ))}
+          {res.some((it) => !it.short) && (
+            <ResourcePack items={res.filter((it) => !it.short)} openKey={openKey} onToggle={toggle} />
+          )}
         </div>
       </div>
     </div>
@@ -282,6 +285,30 @@ export function HudStatusDrawer({ statuses = [], rawStatuses, gold = null, goldM
           <span className="hud-drawer-count">{list.length}</span>
         </button>
       </div>
+    </div>
+  );
+}
+
+// ทรัพยากรที่เป็นตัวเลขล้วน (ไม่มีชื่อ — ไจโร/ดิเอโก้/Ice Spike): รวมในแถบเดียว เรียงกันตามแนวนอน (ไอคอน + ช่อง + ตัวเลข)
+//  แผงไม่สูงขึ้นตามจำนวนทรัพยากร · แตะรายการที่มีคำอธิบาย = กางใต้แถบ
+function ResourcePack({ items, openKey, onToggle }) {
+  const open = items.find((it) => it.key === openKey && it.desc);
+  return (
+    <div className="hud-res-strip hud-res-pack" data-open={open ? "true" : "false"}>
+      <div className="hud-res-pack-row">
+        {items.map((it) => {
+          const tone = toneOf(it.cls);
+          return (
+            <button key={it.key} type="button" className="hud-res-item" style={{ "--tone": tone }} title={`${it.cur}/${it.max}`}
+              onClick={it.desc ? () => onToggle(it.key) : undefined} aria-expanded={it.desc ? openKey === it.key : undefined}>
+              <IconTile icon={it.icon} tone={tone} size={24} />
+              <Cells n={it.max} on={it.cur} color={tone} h={8} solidOver={5} />
+              <span className="hud-res-num">{it.cur}/{it.max}</span>
+            </button>
+          );
+        })}
+      </div>
+      {open && <div className="hud-res-desc">{open.desc}</div>}
     </div>
   );
 }
