@@ -469,6 +469,27 @@ TRANSITION (แบนเนอร์เทิร์นถัดไป — เห
 - **เสียงพากย์** (ระบบ `server/voice.js`): `start1/2` สุ่มทุกครั้งที่ถึงตาเดิน · `hit1` ตอนตี · `hitby1–3` สุ่มตอนโดนตี · `skill1_1–3` สุ่มตอนใช้คลังเครื่องมือ · `skill3` ตอนกดเดอะเวิลด์ · `skill3_counter_trigger` ตอนหยุดเวลาแบบ counter · `skill3_normal_trigger` ตอนหยุดเวลาแบบปกติ
 - **เสียงเอฟเฟกต์** (ผู้ใช้ 2026-10-20): ท่อนใน `Downloads\diego_alt\sfx_candidates` · ตัดทิ้ง a03 a06 a10 a12_full a13_full a14_full b09 (ย้ายไป `rejected/`) · ที่เหลือ Claude เลือกใช้ตอนทำ ไม่ต้องใช้ครบ · เสียงคล้ายกันหลายท่อน = สุ่ม (หยุดเวลา · เวลาเดินต่อ · นาฬิกา · ยิง · ขว้างมีด · ระเบิด · ไฟ · ม้า · ชน)
 
+**ไฟล์ในเกม** (`client/public/characters/diego_alt/` — คัดลอกแล้ว 2026-10-20): `diego.png` · `sliver_bullet.png` · `diego_skill1.jpg` (คลังเครื่องมือ) · `diego_skill2.jpg` (ปืน · ย่อ 1280) · `diego_skill3.webp` (เดอะเวิลด์ · ย่อ 1280) · `diego_skill3.2.jpg` (กลอุบาย) · `diego_skill3.2_intro.mp4` · `diego_skill3.2_final.mp4` · `oil.jpg` `match.jpg` `net.jpg` `knife.jpg` `first_aid.jpg` · `voice/diego_alt_*.m4a` (12 ไฟล์ · ปรับดัง ~−10 LUFS แล้ว) · `sfx/*.mp3` (session เอฟเฟกต์ตัดจาก `sfx_candidates`)
+
+**สัญญาข้อมูล server ↔ client** (แบ่งงานสองฝั่ง — แก้ได้แต่ต้องแก้ตรงนี้ก่อน):
+- state `players[].diego` (ทุกคนเห็น ยกเว้น `nets` เห็นเฉพาะเจ้าของ): `{ cunning, cunningMax: 10, ammo, ammoMax: 4, reloadCd, firstAid, toolLeft, shot, worldArmed, worldCd, stopping, mounted, horseHp, horseCd, nets: [{ x, y }] | undefined }`
+  · `toolLeft` = คลังเครื่องมือเหลือกี่ครั้งตานี้ (`null` = ไม่จำกัด — หยุดเวลา) · `shot` = ยิงปืนไปแล้วในตานี้ · `reloadCd` = เทิร์นที่เหลือของรีโหลด (0 = ไม่ได้รีโหลด) · `stopping` = ดิเอโก้คนนี้กำลังหยุดเวลาอยู่
+- state `board.diego` (ทุกคนเห็น): `{ oil: [{ x, y }], fire: [{ x, y, left }], ash: [{ x, y }] }` — วาดค้างบนพื้นจากตรงนี้ (แอ่งน้ำมันเงาวาว · เปลวไฟเต้น · ขี้เถ้า)
+- state `timeFreeze` (บนสุด): `{ by: playerId } | null` — ระหว่างนี้กระดานเป็นโทนซีเปีย ยกเว้นหมากของ `by` (+ม้า) · เลือด/เกราะ/สถานะของคนอื่นใน state ค้างค่าตอนเริ่มหยุด (server ส่งให้แล้ว)
+- สถานะใหม่บนตัวคน: `oilSoaked` (ชุ่มน้ำมัน — หยดน้ำมันไหลจากตัว) · `diegoNet` (ติดตาข่าย — ลวดรัดตัว ระหว่างนี้ติด `rooted` ด้วย)
+- socket `diegoFx` (`engine.boardFx`) ทุกเหตุการณ์มี `id` (ดิเอโก้) + `color` · server ลงผลทันทีตอนส่ง แล้วพักฉากตาม `DIEGO_FX` ผ่าน `engine.skillBeat` · `frozen: true` = เกิดระหว่างหยุดเวลา → ของที่พุ่งไป **ค้างกลางอากาศหน้าเป้า** จนกว่าจะได้ `timeResume`:
+  `throw { item: "oil" | "match" | "net", from, to, frozen }` แกลลอน/ไม้ขีด/ตาข่ายลอยโค้งไปช่อง `to` (ตาข่าย = ส่งเฉพาะเจ้าของ) ·
+  `oil { at, tiles: [{x,y}], soaked: [id] }` สาดเป็นแอ่ง · `explode { at, tiles, hits: [id], frozen }` ลูกไฟระเบิดทั้งชุดช่อง (ไฟติดช่องเหล่านี้) ·
+  `ignite { targetId, turns, frozen }` ไม้ขีดติดตัวคน · `ash { tiles }` กองไฟมอดเป็นขี้เถ้า · `burn { targetId, at }` กองไฟเผาคนที่ยืนอยู่ต้นเทิร์น ·
+  `net { at, tiles }` (เจ้าของเท่านั้น) วางตาข่าย · `netTrap { targetId, from, to, tiles }` ตาข่ายโผล่รัดแล้วดึงเข้ากลาง (ทุกคนเห็น) ·
+  `knife { from, dir, to, hitId, frozen }` มีดพุ่งตรง · `shot { from, dir, to, hitId, frozen }` ปืนลูกโม่ · `reload { at }` รีโหลดเต็ม ·
+  `firstAid { at }` · `world { at }` กดเดอะเวิลด์ (สแตนด์แวบ) · `timeStop { at, mode: "counter" | "normal", attackerId }` วงขยาย + สีกลับ + ซีเปีย ·
+  `timeResume { at, hits: [{ id, dmg, kill }] }` วงหดกลับ สีกลับมา ของที่ค้างพุ่งเข้าเป้าพร้อมกัน แล้วเลขดาเมจขึ้น ·
+  `plot { from, dir, path: [{x,y}], hitId, push: { from, to } | null }` ซิลเวอร์ บูลเล็ตควบพุ่ง (ชน = แรงกระแทก + เลือดสาด) ·
+  `horse { at, mode: "mount" | "dismount" | "die" }` · `cunning { at, gain }` ประกายเล่ห์เหลี่ยม
+- จังหวะ (ms — ค่าคงที่ `DIEGO_FX` ใน `client/src/board/diegoFx.js` และ server รอตามนี้): `throw` 650 · `oil` 450 · `explode` 900 · `ignite` 450 · `netTrap` 700 · `knife` 450 · `shot` 380 · `firstAid` 600 · `world` 1300 · `timeStop` 2200 · `timeResume` 1500 · `plot` 600 + 90/ช่อง
+- เสียง: server เล่นผ่าน `engine.sfx` (คีย์ `diego_*` ใน `client/src/audio.js`) — client ฝั่งเอฟเฟกต์ไม่เล่นเสียงเอง · คีย์: `diego_throw` `diego_splash` `diego_match` `diego_explode` `diego_fire` `diego_net` `diego_net_trap` `diego_knife` `diego_shot` `diego_reload` `diego_empty` `diego_heal` `diego_world` `diego_stop` `diego_tick` `diego_resume` `diego_gallop` `diego_crash` (หลายไฟล์ต่อคีย์ = สุ่ม) · เสียงพากย์ `diego_v_*` (ตาราง §เสียงพากย์ด้านบน)
+
 **ระบบกลางใหม่ที่ต้องทำ** (จดลง `add-character` SKILL.md + GAME_SYSTEM.md ตอนลงโค้ด): ชั้นพื้นมีอายุ + ไฟลาม (น้ำมัน/ไฟ/ขี้เถ้า) · วัตถุบนช่องที่ล่องหนเห็นเฉพาะเจ้าของ + ดักกลางทางเดิน/การผลัก · **ยกเลิกการโจมตีที่กำลังลงผล + คืนแต้ม + จบตาผู้โจมตี + แทรกตาเดินกลางลำดับ** (เสี่ยงสุด) · ตาเดินพิเศษต้นเทิร์น · สกุลแต้มที่สอง · ม้ากลาง (ย้ายจากไจโร)
 
 ## 8. ผลกระทบกับระบบอื่น
