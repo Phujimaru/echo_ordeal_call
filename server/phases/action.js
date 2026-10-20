@@ -709,6 +709,7 @@ function walkTo(id, x, y, { step = false } = {}) {
     act.ambush = { x: walk[bumpIdx].x, y: walk[bumpIdx].y };
     if (act.dismount && p.pos.x === act.from.x && p.pos.y === act.from.y) { p.mountId = act.dismount; act.dismount = null; } // ชนตั้งแต่ก้าวแรก = ยังอยู่บนหลัง
     Visibility.onBump(p, match.players[hidden.id]);
+    trampleAlong(p, walked, act.path);
     view.broadcastState();
     return true;
   }
@@ -720,6 +721,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   act.moved = true;
   if (entry <= 0) {
     afterWalk(p, walk, null, act.path, had.ice);
+    trampleAlong(p, walk, act.path);
     view.broadcastState();
     return true;
   }
@@ -771,7 +773,7 @@ function smashAlong(p, path, had) {
   path.forEach((t, i) => {
     for (const f of Board.footprint(t.x, t.y, s)) {
       const k = Board.key(f.x, f.y);
-      if (map.terrain[k] && !(k in step)) { keys.push(k); step[k] = i; }
+      if (map.terrain[k] && !Ice.isSpikeKind(map.terrain[k]) && !(k in step)) { keys.push(k); step[k] = i; } // หนามน้ำแข็ง = เหยียบ (trampleAlong)
     }
   });
   const broke = breakObstacles(keys);
@@ -781,6 +783,44 @@ function smashAlong(p, path, had) {
   if (!fresh.length) return;
   match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${fresh.length} ช่อง`);
   engine.boardFx("smashFx", { id: p.id, tiles: fresh.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
+}
+// ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนามน้ำแข็ง (ผู้ใช้ปรับสมดุล 2026-10-20): หนามแตก + ดาเมจ/เชื่องช้า (Ice.trampleSpikes) · เดินต่อได้ไม่หยุดที่หนาม
+//  ผลลงจริงย้อนไม่ได้ → ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (rebaseMove — ย้อนได้แค่ถึงช่องนี้) ก่อนติดเชื่องช้า (ไม่ตัดระยะของตานี้)
+//  ฉาก iceFx: เดินถึงหนาม → หนามแตก → เดินต่อ (anim = ภาพเดินของการเดินนี้ · ต้องเป็นท้ายของ walked ไม่งั้นเดินจบก่อนแล้วแตกทีเดียว)
+//  ตายกลางทาง = จบตา (เหมือนไถลชนตาย) · คืน true = มีหนามถูกเหยียบ
+function trampleAlong(p, walked, anim) {
+  if (sizeOf(p) <= 1 || !walked || walked.length < 2 || !match.board || !match.board.spikes) return false;
+  const s = sizeOf(p), steps = [], seenK = new Set();
+  walked.forEach((t, i) => {
+    if (!i) return;
+    const keys = [];
+    for (const f of Board.footprint(t.x, t.y, s)) {
+      const k = Board.key(f.x, f.y);
+      if (!seenK.has(k) && Ice.spikeAt(f.x, f.y)) { seenK.add(k); keys.push(k); }
+    }
+    if (keys.length) steps.push({ i, keys });
+  });
+  if (!steps.length) return false;
+  if (!match.action.locked) rebaseMove(p);
+  const path = anim && anim.length > 1 ? anim : null;
+  const off = path ? walked.length - path.length : 0;
+  const suffix = !!path && off >= 0 && path.every((t, j) => t.x === walked[off + j].x && t.y === walked[off + j].y);
+  const ctx = Ice.begin();
+  if (path && !suffix) ctx.events.push({ kind: "walk", id: p.id, path: path.map((t) => ({ x: t.x, y: t.y })) });
+  let last = 0;
+  for (const st of steps) {
+    const ai = st.i - off;
+    if (suffix && ai > last) { ctx.events.push({ kind: "walk", id: p.id, path: path.slice(last, ai + 1).map((t) => ({ x: t.x, y: t.y })) }); last = ai; }
+    if (!Ice.trampleSpikes(p, st.keys, ctx)) break;
+  }
+  if (suffix && p.alive && last < path.length - 1) ctx.events.push({ kind: "walk", id: p.id, path: path.slice(last).map((t) => ({ x: t.x, y: t.y })) });
+  Ice.flush(ctx);
+  if (!p.alive) {
+    timers.clearPhaseTimer();
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(Ice.fxSeconds(ctx), finishActor);
+  }
+  return true;
 }
 // ช่องแรกบนทางเดิน (ไม่นับช่องเริ่ม) ที่มีกับดักของโมดูลไหน (ฮุค walkTrap(engine, p, tile) → ข้อมูลกับดัก | null) → { index, tile, mod, info } | null
 function walkTrapOf(p, walk) {
