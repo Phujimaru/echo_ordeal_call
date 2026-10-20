@@ -718,7 +718,9 @@ function breakerGeo(e) {
   // ช่องบนเส้นที่ตัวเป้าครอบช่อง q (ตัวใหญ่: path = มุมบนซ้าย · jumps/smashed = ช่องจริง) — ไม่เจอ = ช่องที่ใกล้สุด
   const near = (q) => { let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.abs(p.x + (n - 1) / 2 - q.x) + Math.abs(p.y + (n - 1) / 2 - q.y); if (d < bd) { bd = d; bi = i; } }); return bi; };
   const at = (q) => (idx(q) >= 0 ? idx(q) : near(q));
-  const jumps = [...new Set((Array.isArray(e.jumps) ? e.jumps.filter(okT) : []).map(at))];
+  // ช่องที่ตัวเป้าครอบตอนผ่าน (ไม่อยู่ใต้ตัวเลย = ข้าม · เช่น jumps ที่เลยปลายทาง เมื่อ server ถอยปลายกลับเพราะยืนไม่ได้)
+  const onPath = (q) => pts.findIndex((p) => q.x >= p.x && q.x < p.x + n && q.y >= p.y && q.y < p.y + n);
+  const jumps = [...new Set((Array.isArray(e.jumps) ? e.jumps.filter(okT) : []).map(onPath).filter((i) => i >= 0))];
   const smashed = (Array.isArray(e.smashed) ? e.smashed.filter(okT) : []).map((s) => ({ x: s.x, y: s.y, i: at(s) }));
   const steps = Math.max(0, pts.length - 1), len = GYRO_FX.breaker + GYRO_FX.breakerStep * steps;
   const shoves = (Array.isArray(e.shoves) ? e.shoves : []).filter((s) => s && s.id != null && okT(s.from) && okT(s.to)).map((s) => {
