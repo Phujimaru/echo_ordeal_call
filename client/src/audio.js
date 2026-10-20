@@ -175,7 +175,7 @@ const FILES = {
   gyro_v_skill3: "/characters/gyro_zeppeli/voice/gyro_voice_skill3.m4a",
   gyro_v2_skill3: "/characters/gyro_zeppeli/voice/gyro_voice2_skill3.m4a",
   // ดิเอโก้ แบรนโด โลกคู่ขนาน (GRID_PLAN §7.12) — ท่อนตัดจากไฟล์ต้นฉบับที่ผู้ใช้ส่ง (THE WORLD HHA/GHA + time stop · ASB-R) ปรับดัง ~-10 LUFS
-  //  array = เสียงคล้ายกันหลายท่อน สุ่ม 1 ไฟล์ทุกครั้ง · ต้นฉบับ + หน้าฟัง Downloads\diego_alt\sfx · คีย์ที่ยังไม่มีไฟล์ (splash/match/net/shot/reload/heal/gallop) = ไม่มีเสียง
+  //  array = เสียงคล้ายกันหลายท่อน สุ่ม 1 ไฟล์ทุกครั้ง · ต้นฉบับ + หน้าฟัง Downloads\diego_alt\sfx · คีย์ที่ยังไม่มีไฟล์ (splash/match/net/reload/heal/gallop) = ไม่มีเสียง
   diego_throw: "/characters/diego_alt/sfx/diego_throw.mp3",
   diego_explode: "/characters/diego_alt/sfx/diego_explode.mp3",
   diego_fire: ["/characters/diego_alt/sfx/diego_fire_1.mp3", "/characters/diego_alt/sfx/diego_fire_2.mp3"],
@@ -187,6 +187,7 @@ const FILES = {
   diego_tick: ["/characters/diego_alt/sfx/diego_tick_1.mp3", "/characters/diego_alt/sfx/diego_tick_2.mp3"],
   diego_resume: ["/characters/diego_alt/sfx/diego_resume_1.mp3", "/characters/diego_alt/sfx/diego_resume_2.mp3"],
   diego_crash: "/characters/diego_alt/sfx/diego_crash.mp3",
+  diego_shot: "/characters/diego_alt/sfx/diego_shot.mp3", // ปืนลูกโม่ — ผู้ใช้เลือก g1 (HHA/GHA 81.00–81.95)
   // เสียงพากย์ดิเอโก้ (server/voice.js) — ปรับดัง ~-10 LUFS แล้ว
   diego_v_start1: "/characters/diego_alt/voice/diego_alt_start1.m4a",
   diego_v_start2: "/characters/diego_alt/voice/diego_alt_start2.m4a",
