@@ -118,7 +118,7 @@ function terrainCoverDodge(target) {
 function estimateAttackOn(attacker, target) {
   try {
     const hook = CHAR_HOOKS[attacker.characterId];
-    const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target) : null;
+    const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target, { estimate: true }) : null;
     if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
     return Math.max(0, Math.min(c.base || 0, combat.damageCapOf(attacker))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2)
@@ -365,6 +365,7 @@ function strikeCard(attacker, target, res) {
     byHitFx: hookOf(attacker, "attackHitFx"), // เอฟเฟกต์จังหวะปะทะ "mythSlash" (โซระ มีด) · null = แสงแตกเดิม
     byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน · ก่อน byAttackSound: เกรย์สุ่มอาวุธที่นี่แล้วเสียงตามอาวุธ
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
+    byDeferDmg: !!hookOf(attacker, "deferStrikeDamage"), // ดาเมจไม่ลงตอนปะทะ (ไจโรตีเสริม: ลงตอนชนขอบ) — ไม่ขึ้นเลขที่ปะทะ
     bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),
     dmg: res.dmg, dodge: !!res.dodge, kill: !!res.kill, crit: !!res.crit, skills: res.skills || [], // crit = คริติคอลติด (ฉากบนกระดานขึ้นป้าย)
@@ -386,7 +387,8 @@ function doAttack(byId, targetId) {
 //  จบฉาก (ATTACKING) แล้วเรียก done (= จบตาของผู้ตี)
 //  ฮุค afterBoardAttack(engine, attacker, target, res) → ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้าเข้าประชิด)
 //  ตีแนวตรง (action.lanes — ไรโด ฮิคารุ): ศัตรูคนอื่นในแนวเดียวกันโดนตีปกติด้วย (card.extra) · ตีสวนได้แค่เป้าหลัก
-//  ฟังก์ชันจาก afterBoardAttack คืนตัวเลข = พักฉาก (ATTACKING) อีกกี่วินาทีก่อนจบตา (ไจโร: เป้ากระเด็นถึงขอบ)
+//  ฟังก์ชันจาก afterBoardAttack คืนตัวเลข = พักฉาก (ATTACKING) อีกกี่วินาทีก่อนจบตา
+//   หรือ { hold, land } = พัก hold วินาทีแล้วเรียก land() ก่อนจบตา (ไจโร: เป้ากระเด็นถึงขอบแล้วค่อยเสียดาเมจ)
 //  ฮุค onStrikeResolved(engine, ผู้ตี, เป้า, res, { counter }) = หลังตีปกติ/ตีสวน 1 ครั้ง (ก่อนถอย/ผลัก · เป้ายังอยู่ช่องเดิม)
 //   — ไจโร: ใช้ลูกเหล็ก (ลูกตกช่องเป้า) · ส่ง gyroFx "throw"
 function boardAttack(attacker, target, done) {
@@ -409,10 +411,12 @@ function boardAttack(attacker, target, done) {
   const hook = CHAR_HOOKS[attacker.characterId];
   const after = hook && hook.afterBoardAttack ? hook.afterBoardAttack(engine, attacker, target, first) : null;
   const finish = after ? () => {
-    const hold = combat.withEffectSource(attacker, after);
-    if (!(Number(hold) > 0) || match.gameState === "GAMEOVER") { done(); return; }
+    const r = combat.withEffectSource(attacker, after);
+    const hold = r && typeof r === "object" ? r.hold : r;
+    const land = r && typeof r === "object" && typeof r.land === "function" ? () => combat.withEffectSource(attacker, r.land) : null;
+    if (!(Number(hold) > 0) || match.gameState === "GAMEOVER") { if (land && match.gameState !== "GAMEOVER") land(); done(); return; }
     match.gameState = "ATTACKING";
-    timers.startPhaseTimer(Number(hold), done);
+    timers.startPhaseTimer(Number(hold), () => { if (land && match.gameState !== "GAMEOVER") land(); done(); });
     view.broadcastState();
   } : done;
   playAttackCard(card, attacker, target, slideThen(slide, target, finish));

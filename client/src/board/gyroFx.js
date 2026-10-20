@@ -27,7 +27,7 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 const TAU = Math.PI * 2;
 
 // ---------- จังหวะ (ms) — สัญญากับ server (GRID_PLAN §7.11) ----------
-export const GYRO_FX = { throw: 650, recall: 550, secret: 1600, secretOut: 750, secretBack: 850, golden: 1400, breaker: 300, breakerStep: 110 };
+export const GYRO_FX = { throw: 650, recall: 550, secret: 1600, secretOut: 750, secretBack: 850, golden: 1400, breaker: 800, breakerStep: 110 }; // breaker = ฉากระเบิดตอนลูกแตะก่อนเริ่มกระเด็น (ผู้ใช้สั่ง 2026-10-20)
 export const gyroBreakerMs = (dist) => GYRO_FX.breaker + GYRO_FX.breakerStep * Math.max(0, Number(dist) || 0);
 const HOLD = 2400; // หมากที่ฉากย้าย/ลูกที่ตก ค้างที่ปลายทางจน state มาถึง (ถ้า server อัปเดตหลังจบฉาก)
 const TH = { release: 110, hit: 430, bounce: 560 }; // ขว้าง: ปล่อยมือ · ถึงเป้า · ลูกตกถึงช่อง land
@@ -745,8 +745,8 @@ function breakerFx(g, e, t, now, lowQ, view) {
   if (t >= END) return;
   const n = G.n, c = (p) => cen(p, n), E = c(G.pts[0]), last = c(G.pts[G.steps]);
   g.save(); g.lineCap = "round"; g.lineJoin = "round";
-  // ระเบิดเขียวใหญ่ที่เป้า (ลูกทองห่อเขียวกระทบ)
-  const ex = t / 560;
+  // ระเบิดเขียวใหญ่ที่เป้า (ลูกทองห่อเขียวกระทบ) — เล่นจบก่อนเป้าเริ่มกระเด็น
+  const ex = t / (GYRO_FX.breaker - 60);
   if (ex < 1) {
     const [sx, sy, ss] = P(E[0], E[1], 0.6), a = 1 - ex;
     g.save(); g.globalCompositeOperation = "lighter";
@@ -834,6 +834,10 @@ function breakerFx(g, e, t, now, lowQ, view) {
   const la = t - G.len;
   if (la >= 0 && G.steps) {
     const q = la / BK.tail;
+    // ชนขอบ = จังหวะดาเมจลง: แสงเขียวแตกใหญ่ + แฟลช
+    const [lx, ly, ls] = P(last[0], last[1], 0.6);
+    greenBurst(g, lx, ly, ls * n, la, 460, 1.6, lowQ, 97, true);
+    if (la < 200) flashView(g, view, "150,255,120", 0.22 * (1 - la / 200));
     dustPuff(g, last[0], last[1], q * 1.4, lowQ ? 5 : 10, 0.7 * n, 1, 31);
     groundRing(g, last[0], last[1], (0.3 + 1.2 * easeOut3(q)) * n, 0.8 * (1 - q), GREEN_HI, 3 * (1 - q) + 1);
     goldenSpiral(g, last[0], last[1], 0.7 * n, 0.8, 0.8 * (1 - q), 1, lowQ);
@@ -1156,7 +1160,10 @@ export function gyroEventFx(ev, ctx = {}) {
       if (G.steps) out.look.push([G.pts[G.steps], GYRO_FX.breaker + Math.round((G.len - GYRO_FX.breaker) * 0.4)]);
       out.shake.push(0);
       out.later.push([0, [{ kind: "iceShake", x: 0, y: 0, amp: 8, dur: 520 }]]);
-      if (G.steps) { out.shake.push(G.len); out.later.push([G.len, [{ kind: "iceShake", x: 0, y: 0, amp: 5, dur: 380 }]]); }
+      if (G.steps) { out.shake.push(G.len); out.later.push([G.len, [{ kind: "iceShake", x: 0, y: 0, amp: 9, dur: 480 }]]); }
+      // ดาเมจขึ้นตอนชนขอบ (server ลงดาเมจจังหวะเดียวกัน — ไม่ขึ้นเลขตอนลูกแตะ)
+      const dmg = Math.max(0, Number(ev.dmg) | 0), end = G.pts[G.steps];
+      if (dmg > 0) out.later.push([G.len, [{ kind: "float", x: end.x, y: end.y, text: `-${dmg}`, size: 36, z: 1.5 }]]);
       const sm = G.smashed.map((s) => ({ x: s.x, y: s.y, kind: (typeof ctx.terrainAt === "function" && ctx.terrainAt(s.x, s.y)) || "rock", step: s.i }));
       if (sm.length) out.later.push([GYRO_FX.breaker, [{ kind: "smash", tiles: sm }]]);
       break;

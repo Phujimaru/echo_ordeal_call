@@ -272,8 +272,9 @@ test('การหมุนที่สมบูรณ์แบบ: 6 แต้�
   assert.equal(view('B', 'G').gyro.empowered, true);
   const b0 = vit(P.B);
   engine.attackTarget('G', 'B');
-  assert.equal(vit(P.B), b0 - 6, 'กระเด็น 8 ช่อง → ดาเมจสูงสุด 6');
+  assert.equal(vit(P.B), b0, 'ลูกแตะยังไม่เสีย — ดาเมจลงตอนชนขอบ');
   assert.equal(engine.buildStateFor('G').attack.byAttackSound, 'gyro_breaker');
+  assert.equal(engine.buildStateFor('G').attack.byDeferDmg, true, 'ไม่ขึ้นเลขดาเมจตอนลูกแตะ');
   assert.equal(fxOf('throw')[0].empowered, true);
   assert.equal(P.G.gyro.empowered, false, 'ใช้แล้วหมด');
   flush(t, 3100);
@@ -281,10 +282,12 @@ test('การหมุนที่สมบูรณ์แบบ: 6 แต้�
   const br = fxOf('breaker')[0];
   assert.deepEqual([br.targetId, br.from, br.to, br.dist, br.dmg], ['B', { x: 5, y: 8 }, { x: 13, y: 8 }, 8, 6]);
   assert.equal(br.path.length, 8);
-  assert.equal(P.B.statuses.rooted, 2, 'ยังไม่เดิน = 2 เทิร์น');
   assert.ok(sounds().includes('gyro_fly'));
   assert.equal(engine.gameState, 'ATTACKING', 'พักฉากตามระยะกระเด็น');
-  flush(t, 1300);
+  assert.equal(vit(P.B), b0, 'ระหว่างกระเด็นยังไม่เสีย');
+  flush(t, 1800);
+  assert.equal(vit(P.B), b0 - 6, 'ชนขอบ: กระเด็น 8 ช่อง → ดาเมจสูงสุด 6');
+  assert.equal(P.B.statuses.rooted, 2, 'ยังไม่เดิน = 2 เทิร์น');
   assert.equal(engine.actorId, 'C');
 });
 
@@ -297,7 +300,7 @@ test('การหมุนที่สมบูรณ์แบบ: ทิศ 8 
   orderUpTo(t, ['B', 'G', 'D'], 'G');
   const c0 = vit(P.C);
   engine.attackTarget('G', 'B');
-  flush(t, 3100);
+  flush(t, 6000); // ฉากตี + ระเบิดตอนลูกแตะ + กระเด็น 11 ช่อง แล้วดาเมจลงตอนชนขอบ
   const br = fxOf('breaker')[0];
   assert.deepEqual(br.smashed.map((s) => [s.x, s.y]).sort(), [[4, 9], [9, 9]], 'พังสิ่งกีดขวางตามทาง');
   assert.deepEqual(br.jumps, [{ x: 11, y: 9 }], 'ข้ามร้านค้า');
@@ -385,7 +388,7 @@ test('การหมุนทองคำ: ขี่ม้าเดิน = + �
   assert.equal(P.G.gyro.golden, 30, 'สูงสุด 30');
 });
 
-test('ม้าวาลคิรี: เลือด 3 รับก่อนเกราะ · ทะลุเกราะ = ทะลุม้า · ม้าตาย = ลงม้า เรียกไม่ได้ 2 เทิร์น แล้วกลับมาเต็ม 3', () => {
+test('ม้าวาลคิรี: เลือด 3 รับก่อนเกราะ · ทะลุเกราะ = ทะลุม้า · ม้าตาย = ลงม้า เรียกไม่ได้ 3 เทิร์น แล้วกลับมาเต็ม 3', () => {
   const P = setup([['G', 'gyro_zeppeli', 2, 7], ['B', 'dummy', 12, 12]]);
   engine.dealMixed(P.G, 2);
   assert.deepEqual([P.G.gyro.horseHp, P.G.armor, P.G.hp], [1, 2, 6]);
@@ -397,13 +400,13 @@ test('ม้าวาลคิรี: เลือด 3 รับก่อนเ
   assert.equal(fxOf('horse').at(-1).mode, 'die');
   assert.equal(engine.movOf(P.G), 4);
   assert.deepEqual(engine.rangeOf(P.G), [1, 4]);
-  assert.equal(view('B', 'G').gyro.horseCd, 2);
+  assert.equal(view('B', 'G').gyro.horseCd, 3);
   engine.setActor('G');
   assert.equal(gyro.charAction(engine, P.G, 'horse'), false, 'ยังเรียกไม่ได้');
   assert.equal(view('G', 'G').actions[0].disabled, true);
-  engine.setRoundNumber(3);
-  assert.equal(view('B', 'G').gyro.horseCd, 1);
   engine.setRoundNumber(4);
+  assert.equal(view('B', 'G').gyro.horseCd, 1);
+  engine.setRoundNumber(5);
   assert.equal(gyro.charAction(engine, P.G, 'horse'), true);
   assert.deepEqual([P.G.gyro.mounted, P.G.gyro.horseHp], [true, 3]);
 });

@@ -63,7 +63,7 @@ const RANGE = [1, 4];
 const RANGE_HORSE = [1, 5];
 const NO_STRIKE = [1, 0];
 const HORSE_HP = 3;
-const HORSE_CD = 2;          // ม้าตาย = เรียกไม่ได้ 2 เทิร์น
+const HORSE_CD = 3;          // ม้าตาย = เรียกไม่ได้ 3 เทิร์น (ผู้ใช้สั่ง 2026-10-20 — เดิม 2)
 const BALL_DMG = 1;          // กลับคืนเจ้าของ / วิชาลับ (ต่อขา)
 const RECALL_HEAL = 1;
 const RECALL_HEAL_MAX = 2;   // ต่อเทิร์น
@@ -77,7 +77,7 @@ const ROOT_TURNS = 2;
 const SHOVE_DMG = 1;
 const GOLDEN_MAX = 30;
 // จังหวะเอฟเฟกต์ (ms) — ต้องตรงกับ GYRO_FX ใน client/src/board/gyroFx.js (GRID_PLAN §7.11)
-const GYRO_FX = { throw: 650, recall: 550, secret: 1600, secretGo: 750, golden: 1400, breakerBase: 300, breakerPerTile: 110 };
+const GYRO_FX = { throw: 650, recall: 550, secret: 1600, secretGo: 750, golden: 1400, breakerBase: 800, breakerPerTile: 110 };
 
 const isGyro = (p) => !!p && p.characterId === ID;
 function fresh() {
@@ -258,25 +258,33 @@ function breaker(engine, p, t, pend) {
     u.pos = { ...m.to };
     shoves.push({ id: u.id, from: m.from, to: { ...m.to } });
     slides.push({ id: u.id, to: { ...m.to }, dir: m.dir });
-    if (!engine.sameTeam(p, u)) ballHit(engine, p, u, SHOVE_DMG, `${t.name} กระเด็นชน`);
-    else engine.log(`💨 ${u.name} ถูกดันหลบทาง`);
+    if (engine.sameTeam(p, u)) engine.log(`💨 ${u.name} ถูกดันหลบทาง`);
   }
   if (t.alive && t.pos) {
     engine.ice.revealPushed(t);
     t.pos = { ...plan.to };
-    root(engine, t);
   }
   const dist = plan.path.length;
+  const dmg = flightDamage(plan);
   engine.log(`🌀 ${t.name} กระเด็น ${dist} ช่อง`);
   fx(engine, p, "breaker", {
-    targetId: t.id, from, to: { ...plan.to }, path: plan.path.map(tile), dist, dmg: pend.breaker.dmg,
+    targetId: t.id, from, to: { ...plan.to }, path: plan.path.map(tile), dist, dmg,
     jumps: plan.jumps, smashed, shoves,
   });
   engine.sfx(SFX.fly);
   if (shoves.length) engine.sfx(SFX.shove);
   slides.push({ id: t.id, to: { ...plan.to }, dir });
   engine.ice.forcedSlides(slides, p);
-  return (GYRO_FX.breakerBase + GYRO_FX.breakerPerTile * dist) / 1000;
+  // ผู้ใช้สั่ง 2026-10-20: ลูกแตะ → เอฟเฟกต์ก่อน → กระเด็นถึงขอบ → แล้วค่อยเสียดาเมจ (ดาเมจ/ตรึง/คนที่ถูกชน ลงตอนจบฉากกระเด็น)
+  const hit = plan.shoves.filter((m) => !engine.sameTeam(p, engine.players[m.id] || {})).map((m) => m.id);
+  return {
+    hold: (GYRO_FX.breakerBase + GYRO_FX.breakerPerTile * dist) / 1000,
+    land: () => {
+      for (const id of hit) ballHit(engine, p, engine.players[id], SHOVE_DMG, `${t.name} กระเด็นชน`);
+      if (dmg > 0) ballHit(engine, p, t, dmg, "การหมุนที่สมบูรณ์แบบ");
+      if (t.alive && t.pos) root(engine, t);
+    },
+  };
 }
 // ตีโดน (ไม่เสริม) → ผลักเป้า 1 ช่องออกจากไจโร (ชน = ไม่ขยับ ไม่เสียเพิ่ม · ตัวใหญ่ไม่ขยับ · ลงน้ำแข็งไถลต่อ)
 function knockOne(engine, p, t, pend) {
@@ -409,11 +417,14 @@ module.exports = {
 
   // ---------- ตีปกติ / ตีสวน ----------
   // ตีเสริม: ดาเมจ = ช่องที่จะกระเด็น (≤ 6) ไม่รับบัฟ · เสริมใช้ได้เฉพาะตาเดินของตัวเอง (ตีสวนไม่เสริม)
-  fixedStrikeDamage(engine, attacker, target) {
+  //  ตีจริง = 0 ตอนปะทะ (ดาเมจลงตอนชนขอบ — breaker().land) · หน้าคาดการณ์ (estimate) = ดาเมจที่จะได้ตอนชนขอบ
+  fixedStrikeDamage(engine, attacker, target, ctx) {
     if (!isGyro(attacker) || !st(attacker).empowered || engine.actorId !== attacker.id || !attacker.pos || !target || !target.pos) return null;
+    if (!(ctx && ctx.estimate)) return 0;
     const dir = dir8(center(attacker.pos, engine.sizeOf(attacker)), center(target.pos, engine.sizeOf(target)));
     return flightDamage(planFlight(engine, target, dir));
   },
+  deferStrikeDamage(p) { return isGyro(p) && st(p).empowered; },
   // หลังตี/ตีสวน 1 ครั้ง (เป้ายังอยู่ช่องเดิม): ใช้ลูก 1 ลูก ลูกตกช่องเป้า · ส่ง throw
   onStrikeResolved(engine, attacker, target, res, { counter } = {}) {
     if (!isGyro(attacker) || !attacker.pos) return;

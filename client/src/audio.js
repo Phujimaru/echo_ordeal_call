@@ -151,6 +151,7 @@ const FILES = {
   // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
   // ไจโร เซปเปลี่ (GRID_PLAN §7.11) — เอฟเฟกต์ตัดจากไฟล์ต้นฉบับที่ผู้ใช้ส่ง (HHA / Ball Breaker) · gyro_spin เล่นครั้งเดียวต่อการขว้าง (ห้ามวน)
+  //  ไฟล์เสียง/เสียงพากย์ไจโรทำให้ดังที่ตัวไฟล์ ~-10 LUFS (ผู้ใช้สั่ง 2026-10-20: ต้องดังกว่าเพลงพื้นหลัง — เดิม -16 ถึง -21 จนแทบไม่ได้ยิน) · ต้นฉบับอยู่ Downloads\gyro
   gyro_spin: "/characters/gyro_zeppeli/sfx/gyro_spin.mp3",
   gyro_throw: "/characters/gyro_zeppeli/sfx/gyro_throw.mp3",
   gyro_hit: "/characters/gyro_zeppeli/sfx/gyro_hit.mp3",
