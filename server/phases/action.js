@@ -287,8 +287,8 @@ function resizeUnit(p, newSize) {
     engine.boardFx("growFx", { id: p.id, from, to: newSize, at: { ...p.pos }, prev: fromPos, pushed: [], smashed: [] });
     return newSize;
   }
-  const plan = Board.growPlan(map, { id: p.id, x: p.pos.x, y: p.pos.y, size: from }, newSize, boardUnits(),
-    { blocked: boardBlocked(), smash: smashes({ ...p, boardSize: newSize }) }); // ฮุค smashes ตรวจขนาดเอง (3×3 ขึ้นไป)
+  const plan = Board.growPlan(map, { id: p.id, x: p.pos.x, y: p.pos.y, size: from }, newSize, boardUnits(p),
+    { blocked: boardBlocked(p.id), smash: smashes({ ...p, boardSize: newSize }) }); // ฮุค smashes ตรวจขนาดเอง (3×3 ขึ้นไป)
   if (!plan) return from;
   const smashed = breakObstacles(plan.rubble);
   p.pos = { x: plan.x, y: plan.y };
@@ -302,7 +302,7 @@ function resizeUnit(p, newSize) {
       if (!o || !o.alive || !o.pos) continue;
       Ice.revealPushed(o); // ถูกดัน = เผยตัว ก่อน growFx ส่งพิกัด (ผู้ใช้ตัดสิน 2026-10-14)
       const before = { ...o.pos };
-      const to = Board.pushOutTile(boardMap(), before, box, boardUnits().filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked(o.id) });
+      const to = Board.pushOutTile(boardMap(), before, box, boardUnits(o).filter((u) => u.id !== o.id), { selfId: o.id, blocked: boardBlocked(o.id) });
       if (to) {
         o.pos = { x: to.x, y: to.y };
         slides.push({ id: o.id, from: before, to: { ...o.pos }, dir: { x: to.x - before.x, y: to.y - before.y } });

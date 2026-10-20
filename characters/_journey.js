@@ -221,7 +221,7 @@ module.exports = {
   onEndTurn(engine) {
     const c = current(engine);
     if (!c) return;
-    const alive = engine.alivePlayers();
+    const alive = engine.alivePlayers().filter((p) => !p.summon); // ยูนิตที่ถูกเรียก (ร่างแยก/ตัวเหมือน) ไม่ใช่ผู้เล่น — ไม่เก็บของ/ไม่จ่ายค่าผ่านทาง
     if (c.area === 2 && !c.night) {
       for (const p of alive) {
         if (!roll(MEADOW_GIFT_PCT)) continue;

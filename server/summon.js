@@ -14,12 +14,13 @@
 //  เปลี่ยนแผนที่ (placeOnBoard) / กลับห้องรอ (Duo.teardown) = ลบหมด
 // ============================================================
 Object.assign(module.exports, {
-  isSummon, spawn, remove, removeAll, sweep, ofOwner, controlledOf, onDeath,
+  isSummon, spawn, remove, removeAll, sweep, ofOwner, controlledOf, onDeath, ownerLeft,
 });
 
 const match = require("./match");
 
 const CONTROL_SECONDS = 20; // เวลาคุมต่อร่างแยก (GRID_PLAN §7.13 — Claude ตัดสิน)
+const EMPTY = { skillPoints: () => 0, gold: () => 0, inventory: () => [], cards: () => [], gutsShotTurn: () => 0 };
 const SHARED = ["skillPoints", "gold", "inventory", "cards", "gutsShotTurn"]; // แบบเดียวกับระบบคู่ (server/duo.js)
 Object.assign(module.exports, { CONTROL_SECONDS });
 
@@ -65,7 +66,7 @@ function spawn(owner, o = {}) {
     for (const k of SHARED) {
       Object.defineProperty(rec, k, {
         enumerable: true, configurable: true,
-        get() { const own = match.players[rec.summon.ownerId]; return own ? own[k] : undefined; },
+        get() { const own = match.players[rec.summon.ownerId]; return own ? own[k] : EMPTY[k](); }, // เจ้าของออกจากเกมแล้ว = ค่าว่าง (view ไม่พัง)
         set(v) { const own = match.players[rec.summon.ownerId]; if (own) own[k] = v; },
       });
     }
@@ -94,6 +95,17 @@ function onDeath(p) {
 // ลบระเบียนที่ตายแล้ว (จบเทิร์น)
 function sweep() {
   for (const p of Object.values(match.players)) if (p.summon && !p.alive && match.actorId !== p.id) delete match.players[p.id];
+}
+// เจ้าของออกจากเกมกลางแมตช์ (socket — หลุดเกินเวลารอ): ฮุค onDeath ของโมดูลเจ้าของเก็บกวาดของตัวเอง (วาเลนไทน์: ร่างแยก/ตัวเหมือน/มิติ)
+//  แล้วยูนิตที่เหลือของคนนี้หายเงียบๆ — ก่อนลบระเบียนเจ้าของ (ร่างแยกอ่านค่าผ่านเจ้าของ)
+function ownerLeft(owner) {
+  if (!owner) return;
+  const CHAR_HOOKS = require("../characters/index"); // require ตอนเรียก — กัน require วน
+  const combat = require("./combat");
+  const { engine } = require("./engine");
+  const hook = CHAR_HOOKS[owner.characterId];
+  if (owner.alive && hook && hook.onDeath) combat.runHook(hook, "onDeath", engine, owner);
+  for (const p of Object.values(match.players)) if (p.summon && p.summon.ownerId === owner.id) remove(p);
 }
 // ลบทั้งหมด (เปลี่ยนแผนที่ / กลับห้องรอ / เริ่มแมตช์ใหม่)
 function removeAll() {

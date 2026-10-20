@@ -55,7 +55,19 @@ function leave(p) {
   p.dimGhost = false;
   if (!p.alive || !p.pos) return { from, to: from, moved: false };
   const action = require("./phases/action"); // require ตอนเรียก — กัน require วน
-  if (!action.tileFree(p.pos.x, p.pos.y, p.id)) {
+  if (action.sizeOf(p) > 1) {
+    // ตัวใหญ่ (Echo ขยายร่าง): ทั้งตัวต้องลงได้ — ไม่ได้ = ที่ว่างใกล้สุดที่พอทั้งตัว (พังของใต้ตัวได้ถ้าเดินพังได้)
+    const Board = require("./board");
+    const units = action.boardUnits(p).filter((u) => u.id !== p.id);
+    const opts = { blocked: action.boardBlocked(p.id), smash: action.smashes(p) };
+    const fit = Board.bigFits(action.boardMap(), { id: p.id, x: p.pos.x, y: p.pos.y, size: action.sizeOf(p) }, p.pos.x, p.pos.y, units, opts);
+    if (!fit || fit.ally) {
+      const spot = Board.placeBig(action.boardMap(), action.sizeOf(p), p.pos, units, { selfId: p.id, ...opts });
+      if (spot) { action.breakObstacles(spot.rubble); p.pos = { x: spot.x, y: spot.y }; }
+    } else if (fit.rubble) {
+      action.breakObstacles(Board.footprint(p.pos.x, p.pos.y, action.sizeOf(p)).map((t) => Board.key(t.x, t.y)));
+    }
+  } else if (!action.tileFree(p.pos.x, p.pos.y, p.id)) {
     const to = action.nearFreeTile(p.pos, p.id);
     if (to) p.pos = { ...to };
   }

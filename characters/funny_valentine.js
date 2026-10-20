@@ -296,10 +296,16 @@ function breakDouble(engine, owner, d, at) {
   engine.sfx(SFX.menger);
 }
 // จบตาเดินของเป้า: วิ่งเข้าหาตามทางเดินจริง (ทางสั้นสุด · ไปไม่ถึง = เข้าใกล้สุด) · ถึงตัว (ระยะ 1) = ชน → วินาทีของฉาก
+// ช่องของเป้า — ขี่ผู้เล่นอื่นอยู่ (server/ride.js: นอกตาของตัวเอง pos = null) = ช่องของตัวที่ถูกขี่
+function bodyOf(engine, t) {
+  if (t.pos) return Board.boxOf(t);
+  const m = t.mountId && engine.players[t.mountId];
+  return m && m.alive && m.pos ? Board.boxOf(m) : null;
+}
 function runDouble(engine, d, t) {
   const owner = ownerOf(engine, d);
-  if (!d.alive || !d.pos || !t.alive || !t.pos || !engine.dim.same(d, t)) return 0; // คนละชั้น = รอ
-  const tbox = Board.boxOf(t);
+  const tbox = t.alive ? bodyOf(engine, t) : null;
+  if (!d.alive || !d.pos || !tbox || !engine.dim.same(d, t)) return 0; // คนละชั้น = รอ
   let secs = 0;
   if (Board.dist(Board.boxOf(d), tbox) !== 1) {
     const units = engine.boardUnits(d.id).filter((u) => u.id !== d.id);
@@ -317,15 +323,16 @@ function runDouble(engine, d, t) {
       secs += (VAL_FX.doubleRunBase + VAL_FX.doubleRunStep * Math.max(1, path.length - 1)) / 1000;
     }
   }
-  if (Board.dist(Board.boxOf(d), tbox) === 1) secs += collide(engine, owner, d, t);
+  if (Board.dist(Board.boxOf(d), tbox) === 1) secs += collide(engine, owner, d, t, tbox);
   return secs;
 }
 // ชน: กระดานคู่ขนาน 4 (เกราะก่อน) · รู้จักตัวเองฯ 2 ทะลุเกราะ · หลบไม่ได้ · ต้นตอ = ตัวเหมือน (ชั้นเดียวกับเป้า) → ตัวเหมือนสลาย
-function collide(engine, owner, d, t) {
+function collide(engine, owner, d, t, tbox) {
   const { dmg, pierce } = d.summon;
-  const at = tile(d.pos), targetAt = tile(t.pos);
+  const at = tile(d.pos), targetAt = tile(tbox || t.pos);
   const before = vit(t);
   if (owner) openWin(st(owner));
+  d.summon.colliding = true; // เป้าตายจากการชนนี้ = ฉากเมนเจอร์ของตัวนี้เอง (onDeath ของเป้าไม่ต้องสั่งแตกซ้ำ)
   engine.withEffectSource(d, () => {
     t.wasAttacked = true;
     if (pierce) engine.dealDirect(t, dmg, false);
@@ -623,6 +630,7 @@ module.exports = {
     if (!x || x.summon) return;
     // เป้าตาย = ตัวเหมือนหาย
     for (const d of doublesOn(engine, x.id)) {
+      if (d.summon.colliding) continue; // ตัวที่กำลังชนจัดการเอง (collide)
       const owner = ownerOf(engine, d);
       breakDouble(engine, owner, d, d.pos);
       engine.summon.remove(d);
