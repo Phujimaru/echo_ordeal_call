@@ -415,3 +415,24 @@ test('ดิเอโก้สองคน: ไฟของ A เผา B · ต
   assert.equal(P.A.diego.nets.length, 0);
   assert.equal(view('A', 'B').diego.nets, undefined);
 });
+
+test('เดอะเวิลด์ counter: ดาเมจที่ลงทีหลังในฉากสกิล (Mouse Separade ของโซระ) ก็ถูกตัด — ย้อนตำแหน่ง/แต้ม/คูลดาวน์', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['D', 'diego_alt', 5, 8], ['S', 'sora_otosumi', 2, 8], ['C', 'dummy', 12, 2]]);
+  P.D.diego.cunning = 5;
+  P.S.sora.myth = true;
+  orderUpTo(t, ['D', 'S', 'C'], 'D');
+  engine.useSkill('D', 'ultimate', []);
+  flush(t, 2000);
+  engine.finishActor();
+  assert.equal(engine.actorId, 'S');
+  const sp = P.S.skillPoints, d0 = vit(P.D);
+  engine.useSkill('S', 'ultimate', [], { dir: 'right' });
+  assert.ok(P.S.skillPoints < sp, 'จ่ายแต้มไปก่อน');
+  flush(t, 12000);
+  assert.equal(vit(P.D), d0, 'ไม่โดน');
+  assert.equal(P.S.skillPoints, sp, 'แต้มคืน');
+  assert.deepEqual(P.S.pos, { x: 2, y: 8 }, 'ตำแหน่งย้อนกลับ');
+  assert.equal(P.S.sora.ultReady, 0, 'คูลดาวน์ย้อน');
+  assert.ok(fxOf('timeStop').some((f) => f.attackerId === 'S'));
+});
