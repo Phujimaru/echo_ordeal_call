@@ -22,7 +22,7 @@ Object.assign(module.exports, {
   overlayOf, hasOverlay, publicInfo, iceAt, spikeAt, spikeKeyOf, isSpikeKind,
   layIce, undoLay, placeSpike, raiseSpike, damageSpike, removeSpike, restoreSpike,
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
-  canHitSpike, attackSpike, hitSpikesInArea, onEndTurn,
+  canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
   wetAt, layWet, dryWet,
 });
@@ -43,7 +43,10 @@ const attack = require("./phases/attack");
 const ICE_TURNS = 6;               // ธารน้ำแข็งอยู่ 6 เทิร์น
 const SPIKE_TURNS = 3;             // หนามน้ำแข็งอยู่ 3 เทิร์น (Lv ขึ้น = นับใหม่)
 const SPIKE_ARMOR = [0, 1, 1, 1];  // เกราะตาม Lv — ทุก Lv = 1 (ผู้ใช้ปรับสมดุล 2026-10-14 · เดิม 1/2/2)
-const SLOW_TURNS = 3;              // เชื่องช้า 3 เทิร์น
+const SLOW_TURNS = 3;              // เชื่องช้า 3 เทิร์น (วางหนามทับคน)
+const SPIKE_SLOW_TURNS = 1;        // ไถลชนหนาม / ตัวใหญ่เหยียบหนาม = เชื่องช้า 1 เทิร์น (ผู้ใช้ปรับสมดุล 2026-10-20 · เดิม 3)
+const BURST_SLOW_TURNS = 1;        // ระเบิดติดตัว 3 = เชื่องช้า 1 เทิร์น (ผู้ใช้ปรับสมดุล 2026-10-20 · เดิม 3)
+const BURST_PUSH = 2;              // ระเบิดติดตัว 3 ผลัก 2 ช่อง (ผู้ใช้ปรับสมดุล 2026-10-20 · เดิม 1)
 const MAX_CHAIN = 12;              // กันไถล/กระเด็นเป็นทอดไม่รู้จบ
 
 const K = Board.key;
@@ -233,11 +236,11 @@ function damageSpike(k, n) {
 }
 
 // ---------- เชื่องช้า ----------
-//  ระยะเดิน −1 (ไม่ซ้อน · ได้ใหม่ = นับ 3 เทิร์นใหม่) · คนที่เดินไปแล้วในเทิร์นนี้ (รวมคนที่กำลังเดิน) ได้ +1 = ครบ 3 ตาเดินถัดไป
-function applySlow(t) {
+//  ระยะเดิน −1 (ไม่ซ้อน · ได้ใหม่ = นับใหม่ตาม turns) · คนที่เดินไปแล้วในเทิร์นนี้ (รวมคนที่กำลังเดิน) ได้ +1 = ครบ turns ตาเดินถัดไป
+function applySlow(t, turns = SLOW_TURNS) {
   if (!t || !t.alive) return false;
   const acted = action.hasActed(t.id) || match.actorId === t.id;
-  return combat.applyDebuff(t, "slow", 1, SLOW_TURNS + (acted ? 1 : 0));
+  return combat.applyDebuff(t, "slow", 1, turns + (acted ? 1 : 0));
 }
 function slowed(p) { return ((p && p.statuses && p.statuses.slow) || 0) > 0; }
 
@@ -256,7 +259,7 @@ function fxSeconds(ctx) {
     else if (e.kind === "slide") ms += Math.max(0, e.path.length - 1) * 70 + 120;
     else if (e.kind === "knock") ms += 260;
     else if (e.kind === "hit") ms += e.max ? 700 : 450;
-    else if (e.kind === "spike" || e.kind === "bump" || e.kind === "crash") ms += 350;
+    else if (e.kind === "spike" || e.kind === "bump" || e.kind === "crash" || e.kind === "trample") ms += 350;
     else if (e.kind === "surge") ms += 1200;
     else if (e.kind === "burst") ms += 600;
   }
@@ -338,22 +341,55 @@ function spikeImpact(p, k, ctx) {
   lowerSpike(k);
   ctx.events.push(ev);
   if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); return; }
-  if (!own && applySlow(p)) ctx.events.push({ kind: "slow", id: p.id });
+  if (!own && applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
 }
-// ผลัก 1 ช่องตามทิศ dir ({x, y} — ทแยงได้) → ลงน้ำแข็ง = ไถลต่อ · ช่องปลายไม่ว่าง/ตัวใหญ่ = ไม่ขยับ (เด้ง)
-//  คืน true = ขยับได้
-function pushUnit(u, dir, ctx) {
+// ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนาม (ผู้ใช้ปรับสมดุล 2026-10-20): หนามแตกทันทีทุก Lv · เสียเท่า Lv − 1 (0/1/2 · เกราะก่อน · ฆ่าได้ ·
+//  เจ้าของหนามเป็นต้นตอ) + เชื่องช้า 1 เทิร์น · เดินต่อได้ (ไม่หยุดที่หนาม — ผู้เรียกจัดการตาเดินเอง: action.trampleAlong)
+//  keys = ช่องหนามตามลำดับที่เหยียบ → เหตุการณ์ "trample" ใน ctx · คืน true = ยังมีชีวิต
+function trampleSpikes(p, keys, ctx) {
+  for (const k of keys) {
+    if (!p.alive) break;
+    const s = removeSpike(k);
+    if (!s) continue;
+    const { x, y } = parseKey(k);
+    const owner = match.players[s.owner];
+    const ev = { kind: "trample", x, y, by: p.id, lv: s.lv, dmg: 0, kill: false };
+    const dmg = s.lv - 1;
+    if (dmg > 0) {
+      const before = (p.hp || 0) + (p.armor || 0);
+      const deal = () => {
+        combat.dealMixed(p, dmg, false);
+        ev.dmg = Math.max(0, before - ((p.hp || 0) + (p.armor || 0)));
+        if (p.alive && p.hp <= 0) combat.instantDeath(p);
+      };
+      if (owner) combat.withEffectSource(owner, deal); else deal();
+      p.wasAttacked = true;
+    }
+    ev.kill = !p.alive;
+    match.lastLog.push(`🧊 ${p.name} เหยียบหนามน้ำแข็ง Lv.${s.lv} — แตก${ev.dmg ? ` -${ev.dmg} (ลดเกราะก่อน)` : ""}`);
+    ctx.events.push(ev);
+    if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); break; }
+    if (applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
+  }
+  return p.alive;
+}
+// ผลัก n ช่อง (ค่าปกติ 1) ตามทิศ dir ({x, y} — ทแยงได้) ทีละช่อง → ลงน้ำแข็ง = ไถลต่อ (ช่องที่เหลือไม่ผลักต่อ)
+//  ช่องถัดไปไม่ว่าง = หยุดช่องก่อนหน้า (เด้ง) · ตัวใหญ่ = ไม่ขยับ · คืน true = ขยับได้อย่างน้อย 1 ช่อง
+function pushUnit(u, dir, ctx, n = 1) {
   if (!u || !u.alive || !u.pos) return false;
   revealPushed(u);
   const from = { ...u.pos };
   if (action.sizeOf(u) > 1) { ctx.events.push({ kind: "knock", id: u.id, from, to: from, collide: true }); return false; }
-  const to = { x: from.x + dir.x, y: from.y + dir.y };
-  if (!action.tileFree(to.x, to.y, u.id)) {
-    ctx.events.push({ kind: "knock", id: u.id, from, to: { x: from.x + dir.x, y: from.y + dir.y }, collide: true });
-    return false;
+  let cur = from, steps = 0, blocked = false;
+  while (steps < n) {
+    const to = { x: cur.x + dir.x, y: cur.y + dir.y };
+    if (!action.tileFree(to.x, to.y, u.id)) { blocked = true; break; }
+    cur = to; steps++;
+    if (Board.isIce(action.boardMap(), cur.x, cur.y)) break;
   }
-  u.pos = to;
-  ctx.events.push({ kind: "knock", id: u.id, from, to: { ...to } });
+  if (steps) { u.pos = { ...cur }; ctx.events.push({ kind: "knock", id: u.id, from, to: { ...cur } }); }
+  if (blocked) ctx.events.push({ kind: "knock", id: u.id, from: { ...cur }, to: { x: cur.x + dir.x, y: cur.y + dir.y }, collide: true });
+  if (!steps) return false;
   resolveEntry(u, dir, ctx);
   forcedMoved([u.id]);
   return true;
@@ -474,7 +510,7 @@ function onEndTurn() {
 }
 
 // ---------- ระเบิดรอบตัว (ติดตัว 3 ของ Ice Spike) ----------
-//  ดาเมจที่ได้รับสะสมครบ 3 (ทุกแบบ รวมเกราะ · เกินทบรอบหน้า) → ศัตรู 8 ช่องรอบตัวถูกผลักออก 1 ช่อง + เชื่องช้า
+//  ดาเมจที่ได้รับสะสมครบ 3 (ทุกแบบ รวมเกราะ · เกินทบรอบหน้า) → ศัตรู 8 ช่องรอบตัวถูกผลักออก 2 ช่อง + เชื่องช้า 1 เทิร์น
 //  ไม่ระเบิดกลางท่อดาเมจ (ตำแหน่งคนกำลังถูกใช้อยู่ในฉากตี) — จดไว้แล้วระเบิดเมื่อจบท่อนั้น:
 //   ระหว่างฉากตี (ATTACKING) = ตอนจบตา (action.finishActor) · อื่นๆ = หลังงานปัจจุบันจบ (setImmediate)
 const BURST_AT = 3;
@@ -510,8 +546,8 @@ function burstNow(p) {
   combat.withEffectSource(p, () => {
     for (const o of near) {
       const c = { x: o.pos.x + (action.sizeOf(o) - 1) / 2, y: o.pos.y + (action.sizeOf(o) - 1) / 2 };
-      pushUnit(o, { x: Math.sign(c.x - p.pos.x), y: Math.sign(c.y - p.pos.y) }, ctx);
-      if (o.alive && applySlow(o)) ctx.events.push({ kind: "slow", id: o.id });
+      pushUnit(o, { x: Math.sign(c.x - p.pos.x), y: Math.sign(c.y - p.pos.y) }, ctx, BURST_PUSH);
+      if (o.alive && applySlow(o, BURST_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: o.id });
     }
   });
   match.lastLog.push(`❄️ ${p.name} สะสมความเสียหายครบ ${BURST_AT} — ระเบิดน้ำแข็งผลักศัตรูรอบตัว ${near.length} คน`);

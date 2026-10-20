@@ -441,9 +441,12 @@ function reachableGhost(map, unit, mov) {
   }
   return stops;
 }
+// หนามน้ำแข็ง (Ice Spike — terrain "icespike<lv>"): ตัวใหญ่เหยียบได้ (หนามแตก — server/ice.js trampleSpikes · ผู้ใช้ปรับสมดุล 2026-10-20)
+//  ไม่ขวางทาง ไม่กินก้าวเพิ่มแบบพังของ (smash)
+const trampleKind = (kind) => typeof kind === "string" && kind.startsWith("icespike");
 // ตัวใหญ่ (size > 1) ตรวจว่ายืนที่มุม (x, y) ได้ไหม → null = ไม่ได้ · { ally, rubble }
 //  ทั้งตัวต้องอยู่ในกระดาน · ไม่ทับ blocked (ร้านค้า) · ไม่ทับศัตรู (ทับเพื่อน = ผ่านได้แต่หยุดไม่ได้ → ally)
-//  สิ่งกีดขวาง: smash = พังได้ (ทับได้ · rubble = มีของต้องพัง) · ไม่ smash = ยืนไม่ได้
+//  สิ่งกีดขวาง: smash = พังได้ (ทับได้ · rubble = มีของต้องพัง) · ไม่ smash = ยืนไม่ได้ · หนามน้ำแข็ง = เหยียบได้เสมอ (trampleKind)
 function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null, smash = false } = {}) {
   const s = sizeOf(unit);
   if (x < 0 || y < 0 || x + s > map.cols || y + s > map.rows) return null;
@@ -451,7 +454,7 @@ function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null,
   for (const t of footprint(x, y, s)) {
     const k = key(t.x, t.y);
     if (blocked && blocked.has(k)) return null;
-    if (map.terrain[k]) { if (!smash || UNBREAKABLE.has(map.terrain[k])) return null; rubble = true; }
+    if (map.terrain[k] && !trampleKind(map.terrain[k])) { if (!smash || UNBREAKABLE.has(map.terrain[k])) return null; rubble = true; }
   }
   const box = { x, y, size: s };
   for (const o of units) {
@@ -501,7 +504,8 @@ function bigStep(map, unit, nx, ny, dx, dy, units, opts) {
     for (let i = 0; i < s && !edge; i++) {
       const ex = dx > 0 ? nx + s - 1 : dx < 0 ? nx : nx + i;
       const ey = dy > 0 ? ny + s - 1 : dy < 0 ? ny : ny + i;
-      if (map.terrain[key(ex, ey)]) edge = true;
+      const kind = map.terrain[key(ex, ey)];
+      if (kind && !trampleKind(kind)) edge = true;
     }
   }
   return { cost: 1 + (edge ? 1 : 0), ally: fit.ally };

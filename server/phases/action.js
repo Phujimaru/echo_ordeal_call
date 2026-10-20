@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap,
+  walkUndoPatch, startMap, boxChebyshev,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -376,7 +376,9 @@ function resolveArea(p, area, targets, dir, tile) {
     if (Visibility.hiddenFromUnit(p, t)) return null;
     // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
     if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t) ? [t.id] : null;
-    return Board.dist(boxOf(p), boxOf(t)) <= range ? [t.id] : null;
+    // square: true = กรอบสี่เหลี่ยมรอบตัว (นับแบบเชบีเชฟ — range 3 = 7×7 · เฟิร์น: ยิง Orbital Cannon Zoltraak) · ไม่ใส่ = แมนฮัตตัน
+    const d = area.square ? boxChebyshev(boxOf(p), boxOf(t)) : Board.dist(boxOf(p), boxOf(t));
+    return d <= range ? [t.id] : null;
   }
   const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFromUnit(p, match.players[u.id]));
   if (kind === "aoe") {
@@ -394,6 +396,13 @@ function resolveArea(p, area, targets, dir, tile) {
 function cellsHit(p, cells, t) {
   const want = new Set(cells.filter((c) => Array.isArray(c)).map(([dx, dy]) => Board.key(p.pos.x + dx, p.pos.y + dy)));
   return Board.footprint(t.pos.x, t.pos.y, sizeOf(t)).some((c) => want.has(Board.key(c.x, c.y)));
+}
+// ระยะแบบเชบีเชฟระหว่างกรอบตัว (ช่องว่างตามแกนที่มากกว่า · ติดกัน/ทแยง = 1) — target ที่ square: true
+function boxChebyshev(a, b) {
+  const as = Math.max(1, a.size | 0), bs = Math.max(1, b.size | 0);
+  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
+  const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
+  return Math.max(dx, dy);
 }
 // ช่องที่เลือก (socket ส่ง { x, y }) → { x, y } จำนวนเต็ม · ไม่ถูกต้อง = null
 function tileOf(tile) {
@@ -722,6 +731,7 @@ function walkTo(id, x, y, { step = false } = {}) {
     act.ambush = { x: walk[bumpIdx].x, y: walk[bumpIdx].y };
     if (act.dismount && p.pos.x === act.from.x && p.pos.y === act.from.y) { p.mountId = act.dismount; act.dismount = null; } // ชนตั้งแต่ก้าวแรก = ยังอยู่บนหลัง
     Visibility.onBump(p, match.players[hidden.id]);
+    trampleAlong(p, walked, act.path);
     view.broadcastState();
     return true;
   }
@@ -733,6 +743,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   act.moved = true;
   if (entry <= 0) {
     afterWalk(p, walk, null, act.path, had.ice);
+    trampleAlong(p, walk, act.path);
     view.broadcastState();
     return true;
   }
@@ -784,7 +795,7 @@ function smashAlong(p, path, had) {
   path.forEach((t, i) => {
     for (const f of Board.footprint(t.x, t.y, s)) {
       const k = Board.key(f.x, f.y);
-      if (map.terrain[k] && !(k in step)) { keys.push(k); step[k] = i; }
+      if (map.terrain[k] && !Ice.isSpikeKind(map.terrain[k]) && !(k in step)) { keys.push(k); step[k] = i; } // หนามน้ำแข็ง = เหยียบ (trampleAlong)
     }
   });
   const broke = breakObstacles(keys);
@@ -794,6 +805,44 @@ function smashAlong(p, path, had) {
   if (!fresh.length) return;
   match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${fresh.length} ช่อง`);
   engine.boardFx("smashFx", { id: p.id, tiles: fresh.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
+}
+// ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนามน้ำแข็ง (ผู้ใช้ปรับสมดุล 2026-10-20): หนามแตก + ดาเมจ/เชื่องช้า (Ice.trampleSpikes) · เดินต่อได้ไม่หยุดที่หนาม
+//  ผลลงจริงย้อนไม่ได้ → ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (rebaseMove — ย้อนได้แค่ถึงช่องนี้) ก่อนติดเชื่องช้า (ไม่ตัดระยะของตานี้)
+//  ฉาก iceFx: เดินถึงหนาม → หนามแตก → เดินต่อ (anim = ภาพเดินของการเดินนี้ · ต้องเป็นท้ายของ walked ไม่งั้นเดินจบก่อนแล้วแตกทีเดียว)
+//  ตายกลางทาง = จบตา (เหมือนไถลชนตาย) · คืน true = มีหนามถูกเหยียบ
+function trampleAlong(p, walked, anim) {
+  if (sizeOf(p) <= 1 || !walked || walked.length < 2 || !match.board || !match.board.spikes) return false;
+  const s = sizeOf(p), steps = [], seenK = new Set();
+  walked.forEach((t, i) => {
+    if (!i) return;
+    const keys = [];
+    for (const f of Board.footprint(t.x, t.y, s)) {
+      const k = Board.key(f.x, f.y);
+      if (!seenK.has(k) && Ice.spikeAt(f.x, f.y)) { seenK.add(k); keys.push(k); }
+    }
+    if (keys.length) steps.push({ i, keys });
+  });
+  if (!steps.length) return false;
+  if (!match.action.locked) rebaseMove(p);
+  const path = anim && anim.length > 1 ? anim : null;
+  const off = path ? walked.length - path.length : 0;
+  const suffix = !!path && off >= 0 && path.every((t, j) => t.x === walked[off + j].x && t.y === walked[off + j].y);
+  const ctx = Ice.begin();
+  if (path && !suffix) ctx.events.push({ kind: "walk", id: p.id, path: path.map((t) => ({ x: t.x, y: t.y })) });
+  let last = 0;
+  for (const st of steps) {
+    const ai = st.i - off;
+    if (suffix && ai > last) { ctx.events.push({ kind: "walk", id: p.id, path: path.slice(last, ai + 1).map((t) => ({ x: t.x, y: t.y })) }); last = ai; }
+    if (!Ice.trampleSpikes(p, st.keys, ctx)) break;
+  }
+  if (suffix && p.alive && last < path.length - 1) ctx.events.push({ kind: "walk", id: p.id, path: path.slice(last).map((t) => ({ x: t.x, y: t.y })) });
+  Ice.flush(ctx);
+  if (!p.alive) {
+    timers.clearPhaseTimer();
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(Ice.fxSeconds(ctx), finishActor);
+  }
+  return true;
 }
 // ช่องแรกบนทางเดิน (ไม่นับช่องเริ่ม) ที่มีกับดักของโมดูลไหน (ฮุค walkTrap(engine, p, tile) → ข้อมูลกับดัก | null) → { index, tile, mod, info } | null
 function walkTrapOf(p, walk) {
@@ -842,6 +891,15 @@ function strikeTarget(id, targetId) {
   const done = () => {
     const hook = CHAR_HOOKS[p.characterId];
     if (hook && hook.afterStrike) combat.withEffectSource(p, () => hook.afterStrike(engine, p));
+    // ฮุค extraStrike(engine, p) → true = ตีครั้งนี้ไม่จบตา (ใช้ครั้งที่ตุนไว้ — เฟิร์น: ร่ายต่อเนื่อง) → กลับเข้าตาเดินด้วยเวลาที่เหลือ
+    //  (เดินยังล็อก · รอ/หมดเวลา = จบตาตามปกติ)
+    if (p.alive && p.pos && match.action && match.actorId === p.id && match.gameState !== "GAMEOVER" && hook && hook.extraStrike
+      && combat.withEffectSource(p, () => combat.runHook(hook, "extraStrike", engine, p))) {
+      if (endTurnPhase.gameOver()) return;
+      Ice.flushBursts();
+      resumeAction();
+      return;
+    }
     finishActor();
   };
   // ห่วงเวลาซีโร่: ตีผนึกมิโกะ ("seal:N") — ระยะเหมือนตีคน
@@ -928,8 +986,14 @@ function finishActor() {
         return;
       }
     }
-    // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
     const endHook = p && CHAR_HOOKS[p.characterId];
+    // ฮุค beforeActorEnd(engine, p) → true = ตัวละครพักตาเล่นฉากก่อนจบตา (ตั้งฉากเอง เช่น pausePlayingForCutscene(…, { endTurn: true })
+    //  แล้ว finishActor ถูกเรียกอีกครั้ง) · ครั้งเดียวต่อตา · รอ/หมดเวลาก็ถึง (เฟิร์น: ชาร์จครบ 3 เทิร์นไม่ยิง = ยิงเอง)
+    if (p && p.alive && match.action && !match.action.endScene && endHook && endHook.beforeActorEnd && match.gameState !== "GAMEOVER") {
+      match.action.endScene = true;
+      if (combat.withEffectSource(p, () => combat.runHook(endHook, "beforeActorEnd", engine, p))) return;
+    }
+    // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
     if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));
     Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
     if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)

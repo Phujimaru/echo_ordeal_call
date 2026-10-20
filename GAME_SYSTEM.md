@@ -57,8 +57,8 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
 | `ice.js` | **น้ำแข็ง/หนามน้ำแข็ง/ไถล/ผลัก/เชื่องช้า** (§19 · Ice Spike + น้ำแข็งภูมิภาค VI): ชั้นที่สร้างระหว่างเกม (`layIce`/`undoLay`, `placeSpike`/`raiseSpike`/`lowerSpike`/`damageSpike`, `overlayOf`, `publicInfo`), `resolveEntry` (ไถล+ชน), `pushUnit`, `applySlow`, ตีหนาม (`attackSpike`, `hitSpikesInArea`), ระเบิดสะสมดาเมจ (`noteHurt`/`flushBursts`), หนามทั้งสนาม +1 Lv (`raiseAllSpikes`), `onEndTurn` |
 | `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
-| `dimension.js` | **ชั้นมิติ** (§25): `layerOf`, `same`, `ghost`, `enter`, `leave` (กลับกระดานหลัก → ช่องว่างใกล้สุด), `resetAll`, `refLayer`, `blocks` (ต้นตอคนละชั้น), `membersOf` |
-| `summon.js` | **ยูนิตที่ถูกเรียก** (§25): `spawn`, `remove`, `removeAll`, `sweep`, `ofOwner`, `controlledOf`, `onDeath`, `CONTROL_SECONDS` |
+| `dimension.js` | **ชั้นมิติ** (§26): `layerOf`, `same`, `ghost`, `enter`, `leave` (กลับกระดานหลัก → ช่องว่างใกล้สุด), `resetAll`, `refLayer`, `blocks` (ต้นตอคนละชั้น), `membersOf` |
+| `summon.js` | **ยูนิตที่ถูกเรียก** (§26): `spawn`, `remove`, `removeAll`, `sweep`, `ofOwner`, `controlledOf`, `onDeath`, `CONTROL_SECONDS` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
@@ -791,16 +791,21 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · ทุกการเดินถอดผล `afterWalk` ของตานี้ออกก่อน (`rewindWalk`) แล้วเรียกใหม่ด้วยเส้นทางเต็มจากจุดเริ่มตา → น้ำแข็งที่ตัวเองเพิ่งเดินสร้างไม่ทำให้ไถล/ขวาง · เหตุการณ์ `lay` ส่งเฉพาะช่องใหม่
   · client คิดเส้นทางบนแผนที่เดียวกันจาก `state.action.walkUndo` (`Board.patchMap`) + `state.action.trail`
 - **ชน** (`impact`): คน — ฮุค `slideStrike` ของผู้ไถล (ศัตรูเท่านั้น) แล้วเป้ากระเด็น 1 ช่อง · ไม่มีฮุค = เป้ากระเด็นไม่เสียเลือด · เพื่อน = หยุดเฉยๆ ·
-  หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` · `pushUnit` = ผลัก 1 ช่อง (ตัวใหญ่/ไม่ว่าง = เด้ง) ลงน้ำแข็ง = ไถลต่อ (ทอดสูงสุด 12)
+  หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า 1 เทิร์น · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` ·
+  `pushUnit(u, dir, ctx, n = 1)` = ผลักทีละช่องสูงสุด n (ตัวใหญ่ = เด้ง · ช่องถัดไปไม่ว่าง = หยุดช่องก่อนหน้า + knock `collide`) ลงน้ำแข็ง = ไถลต่อแทนช่องที่เหลือ (ทอดสูงสุด 12)
   · ตายจากหนาม: `instantDeath` อยู่ใต้ต้นตอ = เจ้าของหนามด้วย → เจ้าของได้เครดิตสังหาร (ฮุค onKill)
 - **ผลัก/ดึงแบบบังคับลงน้ำแข็ง = ไถลต่อ** (ผู้ใช้ตัดสิน): ทุกที่ที่ตั้ง `pos` เองหลังผลัก/ดึง (Strium Ray, ปืนโซระดึง, ขยายร่างดันออก `resizeUnit`, น้ำวน, ถอยหลังตีสวน) เรียก
   `Ice.forcedSlides(moves, source)` (`moves = [{ id, from?, to, dir }]` — 1×1 ที่ยืนบนน้ำแข็งเท่านั้น · มี `from` = ใส่ knock นำหน้า) หลังเอฟเฟกต์ผลักเล่นแล้ว → iceFx ชุดเดียว
   · ก่อนส่งพิกัดให้ทุกคน (growFx / hikaruPush / iceFx) ตัวที่ถูกผลักต้อง `Ice.revealPushed(u)` ก่อน (ถูกดัน = เผยตัว: ออกจากพุ่ม + ฮุค onReveal "bump")
-- **เชื่องช้า** `statuses.slow` (`Ice.applySlow`: −1 เดินใน `action.movOf` · ไม่ซ้อน · 3 เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
+- **เชื่องช้า** `statuses.slow` (`Ice.applySlow(t, turns = 3)`: −1 เดินใน `action.movOf` · ไม่ซ้อน · turns เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
+  · 3 เทิร์น = วางหนามทับคน · 1 เทิร์น = ไถลชนหนาม / ตัวใหญ่เหยียบหนาม / ระเบิดติดตัว 3
 - **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 1, 1] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
-  สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ตัวใหญ่เดินพังได้ (`breakObstacles` → `smashedSpikes` ย้อนได้)
+  สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ขยายร่าง/วางตัวใหญ่ทับ = พัง (`breakObstacles` → `smashedSpikes`)
+  · **ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนามได้** (`Board.bigFits` ไม่นับหนามเป็นสิ่งกีดขวาง · ไม่กินก้าวพัง) → `action.trampleAlong` → `Ice.trampleSpikes`:
+    หนามแตกทุก Lv · เสีย Lv − 1 (ต้นตอ = เจ้าของหนาม · ฆ่าได้) + เชื่องช้า 1 เทิร์น · เดินต่อได้ — ผลย้อนไม่ได้ จึง `rebaseMove` (ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยก้าวที่เหลือ) ก่อนติดเชื่องช้า ·
+    iceFx = `walk` ถึงหนาม → `trample` → `walk` ต่อ · ตายกลางทาง = จบตา · `smashAlong` ไม่พังหนาม (ปล่อยให้เหยียบ)
 - **สกิลเลือกช่อง** `area.kind: "tile"` (`range`, `square?`, `place` ให้ client) — socket `useSkill { tile: { x, y }, dir? }` → `resolveArea(p, area, targets, dir, tile)` / `areaTiles(..., tile)` / `engine.tileArea`
-- **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`)
+- **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`) · ผลัก 2 ช่อง + เชื่องช้า 1 เทิร์น
 - **เหตุการณ์ให้ client**: `Ice.begin()` → ใส่ `ctx.events` → `Ice.flush(ctx)` = socket `iceFx { seq, events }` (ชนิดเหตุการณ์: contract §4) ·
   client ค้างตำแหน่งคนในชุดไว้จนแอนิเมชันของคนนั้นเล่นถึง — **ทุกการขยับตัวที่อยู่ในชุดต้องมีเหตุการณ์ walk/slide/knock** ไม่งั้นตัวค้างที่เดิมจนจบชุด
 
@@ -900,8 +905,24 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - เสียงระหว่างหยุดเวลา: client (`Game.jsx`) เห็น `state.timeFreeze` = `suspendMusic()` (เพลงทุกเพลงหยุด) + `playLoop("diego_tick_loop")` (`audio.js` — เสียงวนตามระดับเสียงหลัก) · dev: `ECHO_DEV_DIEGO_CUNNING=10` เริ่มเกมพร้อมเล่ห์เหลี่ยม (launch `server-diego`)
 - เอฟเฟกต์: `engine.boardFx("diegoFx", { kind, id, color, … })` ตามสัญญา §7.12 · `frozen: true` = เกิดระหว่างหยุดเวลา (client ค้างของกลางอากาศจน `timeResume`)
 
+## 25. แต้มสกิลเฉพาะตัว / ตีเพิ่มในตาเดิน / กันการโจมตีทั้งก้อน / ล่องหนที่คนใกล้เห็น / ท่าชาร์จวาร์ป (เฟิร์น — `characters/fern.js` · GRID_PLAN §7.14)
+
+- **กันการฟื้นแต้มสกิล**: ฮุค `blocksSkillGain(p, src)` → true = `combat.addSkill` ไม่เพิ่ม (src: `"item"` / `"card"` / `"passive"` / `"journey"` / ไม่ระบุ = จบเทิร์น·โบนัสกลางวัน·ซีโร่·ยูนะ) · `combat.skillGainBlocked(p, src)` ใช้ที่เงินคืนทะเลทราย (`skills.js`) · ฟื้นของตัวเองส่ง src เฉพาะ (เฟิร์น `"fern"`)
+- **ราคาฟรีจริง**: ฮุค `skillFree(p, tier, opts)` → true = `skillCostOf` คืน 0 ก่อนคิดภาษีกลางคืน/การเดินทาง/ภาระเวท (ยกเลิกโหมด · ยิงท่าที่ชาร์จไว้)
+- **ตีเพิ่มในตาเดิน**: ฮุค `extraStrike(engine, p)` → true (ฮุคหักครั้งที่ตุนไว้เอง) = ตีปกติจบแล้วกลับเข้าตาเดิน (`action.resumeAction` — เวลาที่เหลือ · เดินยังล็อก) แทน `finishActor` · เรียกใน `done` ของ `strikeTarget` หลัง `afterStrike`
+- **ฉากก่อนจบตา**: ฮุค `beforeActorEnd(engine, p)` → true = ตัวละครพักตาเล่นฉากเอง (`pausePlayingForCutscene(…, { endTurn: true })` แล้ว `finishActor` ถูกเรียกอีกครั้ง) · ครั้งเดียวต่อตา (`action.endScene`) · รอ/หมดเวลาก็ถึง
+- **ถูกโจมตี / กันทั้งก้อน**: ฮุคของเป้า `onAttacked(engine, p, attacker, kind)` (`combat.notifyAttacked`) ถูกเรียกที่ `strike()` ก่อนทอยหลบ ("strike" — รวมตีสวน/หลบพ้น) · `skillDodge` ("skill") · `gunAttack` ("gun") · `adjustIncomingDamage` เมื่อศัตรูทำให้เสียหาย ("damage") — ถูกเรียกซ้ำได้ในการโจมตีเดียว ฮุคต้องแยกเอง
+  - `blocksAttack(engine, p, attacker)` → `{ name, img }` = การโจมตีนี้เป็น 0 (`adjustIncomingDamage` คืน 0 · ฉากตีขึ้นเลข 0 + ป้ายฝั่งป้องกัน · `skillStrike` คืน `{ blocked: true }`)
+  - **การโจมตีครั้งเดียวกัน** = ผู้โจมตี + เทิร์น + คนที่กำลังเดิน + `engine.commandSeq` (`match.commandSeq` เพิ่มทุกคำสั่งผู้เล่นใน `TimeStop.guard` · ผลที่ลงทีหลังในฉากได้เลขเดิม · ต้นเทิร์น/ต้นตาเดินแยกด้วยคนที่กำลังเดิน)
+- **ล่องหนที่คนใกล้เห็น**: ฮุคของเป้า `seenBy(engine, viewer, target)` → true = ข้ามเช็ค `stealthed` ใน `hiddenFromOne` (พุ่มหญ้า/ม่านแดงยังบัง)
+- **จั่วไม่ได้**: ฮุค `holdsDraw(engine, p)` ใน `dealRound` หลังบล็อกสตั้น → `p.locked = true` (ยืนที่ไพ่ใบแรก)
+- **ซื้อ/ใช้ไอเทมไม่ได้**: ฮุค `blocksItems(engine, p)` (`shop.buyShopItem` / `useInventoryItem` — ทิ้งได้)
+- **พื้นที่สกิล**: `target` ที่ `square: true` = นับระยะแบบเชบีเชฟ (`action.boxChebyshev` — range 3 = กรอบ 7×7) · `tile` ที่ `place: "free"` = client ให้เลือกช่องว่าง (server ตรวจเองใน `canUseSkill`)
+- **ตีสวนแบบแนวตรง**: ผู้สวนที่มี `attackLane` สวนได้เฉพาะผู้ตีที่อยู่ในแนว (`action.canStrike`) · เปิดสวนด้วย `counter: true` ใน characters.js (เฟิร์นตัวเดียวตอนนี้)
+- `engine.hiddenFrom(viewer, t)` / `engine.hiddenFromUnit(p, t)` = การมองเห็นจาก `server/visibility.js` · `engine.commandSeq`
+- เอฟเฟกต์ `fernFx` (`client/src/board/fernFx.js`): `cast` · `conceal` (ฝ่ายตัวเอง) · `unveil` · `shield` (คนที่เห็นเฟิร์น) · `warpOut` · `warpIn` (ฝ่ายตัวเอง) · `reveal` · `cannon { from, to, dmg }` · `fizzle` — ทุกก้อนมี `id` · ตีปกติ `attackStyle` = `"fernZoltraak"`
 ---
-## 25. ชั้นมิติ / ยูนิตที่ถูกเรียก / ฮุคหลังจบตา / target รูปเฉพาะ (วาเลนไทน์ — `characters/funny_valentine.js` · `server/dimension.js` · `server/summon.js` · GRID_PLAN §7.13)
+## 26. ชั้นมิติ / ยูนิตที่ถูกเรียก / ฮุคหลังจบตา / target รูปเฉพาะ (วาเลนไทน์ — `characters/funny_valentine.js` · `server/dimension.js` · `server/summon.js` · GRID_PLAN §7.13)
 - **ชั้นมิติ** (`server/dimension.js`): `p.dim` = `null` (กระดานหลัก) | สตริง (`"veil:<id>"` / `"par:<id>:<n>"`) — แยกเฉพาะตัวคน · แผนที่/สิ่งกีดขวาง/ของบนพื้น/ร้าน/ร่าง ใช้ร่วมทุกชั้น
   · `action.boardUnits(ref)` = คนชั้นเดียวกับ `ref` (playerId / ผู้เล่น · ไม่ส่ง = ชั้นของ `effectSourceId` → `actorId` → หลัก · `"*"` = ทุกชั้น — หาช่องตั้งร้าน) → เดิน/ขวาง/สกิลพื้นที่/ผลัก/ไถล/ถอย แยกชั้นเอง · `tileFree(x, y, selfId)` / `nearFreeTile(pos, selfId)` นับตามชั้นของ selfId
   · เล็งต้องชั้นเดียวกัน: `resolveArea` target · `attackTarget` · ตีสวน · ปืน GUTS · ส่งชุด Mark 42 · ขี่ · คาดการณ์ผล (`forecastFor`)

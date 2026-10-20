@@ -35,6 +35,8 @@ const TimeStop = require("./timeStop");
 //   → สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้ว (เช่นท่าไม้ตาย 8) จะไม่แพงขึ้นไปอีก
 function skillCostOf(p, tier, base, opts) {
   const hook = CHAR_HOOKS[p.characterId];
+  // ฮุค skillFree(p, tier, opts) → true = กดฟรีจริง ไม่คิดภาษีกลางคืน/การเดินทาง/ภาระเวท (เฟิร์น: ยกเลิกซ่อนเร้นมานา · ยิงท่าไม้ตายที่ชาร์จไว้)
+  if (hook && hook.skillFree && hook.skillFree(p, tier, opts)) return 0;
   const cost = hook && hook.skillCost ? hook.skillCost(p, tier, base, opts) : base;
   const nightTax = p.nightTaxTier === tier ? 1 : 0;
   const journeyTax = Journey.skillTax(engine, cost);
@@ -133,7 +135,7 @@ function runSkill(id, tier, targets, opts = {}) {
   }
   // การเดินทาง (ทะเลทราย กลางคืน): ใช้สกิลได้แต้มคืน 2 — ไม่เกินที่จ่ายจริง (การ์ดราชินี/ราคา 0 จึงไม่ได้คืน)
   {
-    const refund = Journey.skillRefund(engine, cost);
+    const refund = combat.skillGainBlocked(p, "journey") ? 0 : Journey.skillRefund(engine, cost);
     if (refund > 0) {
       p.skillPoints = Math.min(combat.maxSkillOf(p), p.skillPoints + refund);
       match.lastLog.push(`🌙 ทะเลทรายยามค่ำคืน — ${p.name} ได้แต้มสกิลคืน +${refund}`);

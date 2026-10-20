@@ -9,7 +9,7 @@ Object.assign(module.exports, {
   damageSoft, dealDirect, dealArmorOnly, dealMixed,
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
-  runHook, broadcastHook, damageCapOf,
+  runHook, broadcastHook, damageCapOf, skillGainBlocked, notifyAttacked, attackBlocked,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -260,6 +260,14 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
   if (n > 0 && Dim.blocks(p)) return 0;
   // ตั้งรับด้วยการหยุดเวลา (ฮุค counterArmed — ดิเอโก้: เดอะเวิลด์) = ตัดการกระทำของผู้โจมตีทั้งก้อน (server/timeStop.js)
   if (n > 0) TimeStop.check(p, n);
+  // ศัตรูทำให้เสียหาย = ถูกโจมตี (ฮุค onAttacked) · การโจมตีครั้งนี้ถูกกันทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = 0
+  if (n > 0) {
+    const src = match.effectSourceId && match.players[match.effectSourceId];
+    if (src && src.id !== p.id && !sameTeam(src, p)) {
+      notifyAttacked(p, src, "damage");
+      if (attackBlocked(p, src)) return 0;
+    }
+  }
   // เกราะ Mark 42: ชุดรับความเสียหายทุกชนิดแทนตัวจริงทั้งก้อน (ส่วนเกินหายไปพร้อมชุด = แค่กลับร่างเดิม)
   if (n > 0 && Mark42.absorb(engine, p, n)) return 0;
   if (n > 0 && untouchable(p)) return 0;
@@ -279,6 +287,19 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
 function damageCapOf(source) {
   const cap = source ? runHook(CHAR_HOOKS[source.characterId], "damageCap", engine, source) : null;
   return Number.isFinite(cap) ? Math.max(0, cap) : Infinity;
+}
+// ศัตรูโจมตีใส่ p (ฮุคของเป้า onAttacked(engine, p, attacker, kind) — kind: "strike" ตีปกติ/ตีสวน (รวมหลบพ้น) ·
+//  "skill" สกิลที่ทอยหลบ (skillDodge) · "gun" ปืน GUTS · "damage" ดาเมจจากศัตรูทางอื่น) — เรียกซ้ำได้หลายครั้งต่อการโจมตีเดียว
+//  ฮุคต้องแยกเองว่าเป็นการโจมตีเดิมไหม (เฟิร์น: คีย์ ผู้โจมตี + เทิร์น + ตาเดิน + engine.commandSeq)
+function notifyAttacked(p, attacker, kind) {
+  if (!p || !p.alive || !attacker || attacker.id === p.id || sameTeam(attacker, p)) return;
+  runHook(CHAR_HOOKS[p.characterId], "onAttacked", engine, p, attacker, kind);
+}
+// การโจมตีของ attacker ที่กำลังลงผลใส่ p ถูกกันทั้งก้อนไหม (ฮุค blocksAttack(engine, p, attacker) → { name, img } | null)
+//  ท่อดาเมจคืน 0 · ฉากตีปกติ/skillStrike ขึ้นเลข 0 + ป้ายชื่อฝั่งป้องกัน
+function attackBlocked(p, attacker) {
+  if (!p || !attacker || attacker.id === p.id || sameTeam(attacker, p)) return null;
+  return runHook(CHAR_HOOKS[p.characterId], "blocksAttack", engine, p, attacker) || null;
 }
 // ดาเมจทะลุเกราะ: ข้ามเกราะหลัก
 function dealDirect(p, n, isNormalAttack) {
@@ -315,6 +336,7 @@ function dealMixed(p, n, isNormalAttack) { // เกราะก่อนแล�
 }
 // src = แหล่งที่มาของการฟื้นพลังงาน ("item" / "passive" / "card") — ใส่เฉพาะช่องทาง "ฟื้นฟู" จริงๆ
 function addSkill(p, n, src) {
+  if (skillGainBlocked(p, src)) return; // ฮุค blocksSkillGain (เฟิร์น: Energy ฟื้นจากซ่อนเร้นมานาเท่านั้น)
   // ชะงัก (Universal): ฟื้นฟูแต้มสกิลไม่ได้ทุกช่องทาง ระหว่างติดสถานะนี้
   if (((p.statuses && p.statuses.stagger) || 0) > 0) return;
   if (((p.statuses && p.statuses.manaSeal) || 0) > 0) return; // ผนึกพลังงาน (Universal): ฟื้นฟูแต้มสกิลไม่ได้ทุกช่องทาง
@@ -323,6 +345,11 @@ function addSkill(p, n, src) {
   p.gainedSkill += p.skillPoints - before;
 }
 
+// แต้มสกิลของ p ฟื้นจากแหล่ง src ไม่ได้ (ฮุค blocksSkillGain(p, src) — src: "item"/"passive"/"card"/"journey"/undefined = จบเทิร์น ฯลฯ)
+function skillGainBlocked(p, src) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.blocksSkillGain && hook.blocksSkillGain(p, src));
+}
 function applyEffect(p, effect) {
   if (!effect) return;
   if (Array.isArray(effect)) return effect.forEach((e) => applyOne(p, e));

@@ -47,6 +47,8 @@
 //               units[].rider = { img, color, name } → ตัวที่ขี่อยู่บนหลัง (ขี่ผู้เล่นอื่น — server/ride.js)
 //   grays       [{ id, x, y, size, dir, left, tiles }] — เกรย์กำลังชาร์จรองโกมิเนียต: สนามมืด + แนวลำแสงทอง + หอกลอยเหนือหัว (grayFx.js)
 //               fx ของเกรย์: gray* (grayFx.js — ท่าตีปกติ · keeper/grave/reap · grayBeam = ลำแสงรองโกมิเนียต)
+//   ferns       [{ id, x, y, size, charge }] — เฟิร์นกำลังชาร์จ Orbital Cannon Zoltraak: วงเวทใต้ตัว + ละอองมานาเหนือหัว (fernFx.js)
+//               fx ของเฟิร์น: fern* (fernFx.js — fernZoltraak ตีปกติ · เหตุการณ์ socket "fernFx" · fernCannon)
 //   gyroBalls   [{ owner, color, x, y, seq }] — ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ · gyroFx.js gyroBallItems)
 //               units[].gyro = { mounted, empowered, horseHp } — ม้าใต้หมาก / ออร่าทอง · fx gyro* ย้ายหมากเองได้ (gyroPose)
 //   diego       { oil: [{x,y}], fire: [{x,y,left}], ash: [{x,y}], nets: [{x,y,color}] } | null — ชั้นพื้นของดิเอโก้ แบรนโด (diegoFx.js)
@@ -637,7 +639,7 @@ export default function BoardCanvas(props) {
       const frame = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gyroBalls: p.gyroBalls || null,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
         valentine: p.valentine || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);

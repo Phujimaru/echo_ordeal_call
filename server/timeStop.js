@@ -100,6 +100,7 @@ function guard(fn) {
   if (depth > 0) return fn();
   depth++;
   match.cmdSeq = (match.cmdSeq || 0) + 1; // เลขคำสั่งของผู้เล่น (ชั้นนอกสุด) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
+  match.commandSeq = (match.commandSeq || 0) + 1; // ลำดับคำสั่งของผู้เล่น (ฮุคแยก "การโจมตีครั้งเดียวกัน" — เฟิร์น: Defensive Magic)
   try {
     if (match.gameState === "ACTION") mark();
     return fn();

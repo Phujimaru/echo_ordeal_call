@@ -150,6 +150,15 @@ const FILES = {
   gray_beam: "/characters/gray/sfx/gray_beam.mp3",     // ลำแสงรองโกมิเนียต: ชาร์จ 0–1.6 วิ → ระเบิดที่ 1.6 วิ → หางครืนถึง 3.8 วิ
   // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
+  // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
+  fern_zoltraak: "/characters/fern/sfx/fern_zoltraak.mp3", // ตีปกติ Zoltraak (ดังสุดช่วง 0–60 ms = จังหวะปะทะ)
+  fern_cast: "/characters/fern/sfx/fern_cast.mp3",         // ร่ายต่อเนื่อง
+  fern_conceal: "/characters/fern/sfx/fern_conceal.mp3",   // ซ่อนเร้นมานา
+  fern_unveil: "/characters/fern/sfx/fern_unveil.mp3",     // ออกจากซ่อนเร้น / ถูกเผยตัว
+  fern_shield: "/characters/fern/sfx/fern_shield.mp3",     // Defensive Magic กันได้
+  fern_teleport: "/characters/fern/sfx/fern_teleport.mp3", // ท่าไม้ตาย: วาร์ป
+  fern_charge: "/characters/fern/sfx/fern_charge.mp3",     // ชาร์จ / เผยตำแหน่งต้นเทิร์น (~1.5 วิ)
+  fern_cannon: "/characters/fern/sfx/fern_cannon.mp3",     // Orbital Cannon Zoltraak: ชาร์จ 0–1.4 วิ → ระเบิดที่ 1.4 วิ → หางถึง 2.2 วิ
   // ไจโร เซปเปลี่ (GRID_PLAN §7.11) — เอฟเฟกต์ตัดจากไฟล์ต้นฉบับที่ผู้ใช้ส่ง (HHA / Ball Breaker) · gyro_spin เล่นครั้งเดียวต่อการขว้าง (ห้ามวน)
   //  ไฟล์เสียง/เสียงพากย์ไจโรทำให้ดังที่ตัวไฟล์ ~-10 LUFS (ผู้ใช้สั่ง 2026-10-20: ต้องดังกว่าเพลงพื้นหลัง — เดิม -16 ถึง -21 จนแทบไม่ได้ยิน) · ต้นฉบับอยู่ Downloads\gyro
   gyro_spin: "/characters/gyro_zeppeli/sfx/gyro_spin.mp3",

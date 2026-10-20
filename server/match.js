@@ -49,7 +49,8 @@ const match = {
   cutsceneQueue: [],
   cutsceneInfo: null,
   cutsceneSeq: 0,      // id ต่อ cutscene (ให้ client remount วีดีโอ กันจอดำ)
-  attackSeq: 0,        // id ต่อ lastAttack (ให้ client remount ฉากโจมตี กันแอนิเมชันไม่เล่นซ้ำเวลาตี/เป้าหมาย/ดาเมจซ้ำกัน)
+  attackSeq: 0,
+  commandSeq: 0,       // ลำดับคำสั่งของผู้เล่นในตาเดิน (TimeStop.guard — useSkill / attackTarget / moveTo / ไอเทม) · ผลที่ลงทีหลังในฉากใช้เลขเดียวกัน        // id ต่อ lastAttack (ให้ client remount ฉากโจมตี กันแอนิเมชันไม่เล่นซ้ำเวลาตี/เป้าหมาย/ดาเมจซ้ำกัน)
   transformCounter: 0, // ลำดับการเปิดร่าง (ใช้เลือกเพลงตอนสวนท่ากัน)
   lastAttack: null,    // ข้อมูลการโจมตีล่าสุด (อนิเมชันใครตีใคร)
   roundSkills: [],     // สกิลที่ใช้ในรอบ (เก็บประวัติ — instant เด้งตอนใช้ / หลังเปิดไพ่โชว์ตอนโจมตี)

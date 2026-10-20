@@ -43,6 +43,7 @@ const Ride = require("./ride");
 const TimeStop = require("./timeStop");
 const Dim = require("./dimension");
 const Summon = require("./summon");
+const Visibility = require("./visibility");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -169,6 +170,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   pushCutsceneRaw(entry) { match.cutsceneQueue.push(entry); },
   log(msg) { match.lastLog.push(msg); },
   get lastLogLength() { return match.lastLog.length; },
+  // ลำดับคำสั่งของผู้เล่น (TimeStop.guard) — ผลที่ลงทีหลังในฉากของคำสั่งเดียวกันได้เลขเดิม (เฟิร์น: แยก "การโจมตีครั้งเดียวกัน")
+  get commandSeq() { return match.commandSeq || 0; },
+  // การมองเห็น (server/visibility.js): ผู้ชม viewer มองไม่เห็น target ไหม (ระบบคู่มองร่วมกัน) · hiddenFromUnit = ตัวที่ลงมือเล็ง/ตี
+  hiddenFrom(viewer, target) { return Visibility.hiddenFrom(viewer, target); },
+  hiddenFromUnit(viewer, target) { return Visibility.hiddenFromUnit(viewer, target); },
   // เอฟเฟกต์บนกระดานที่ทุกคนเห็น (เช่น beamFx ลำแสง Beam Magnum) — client วาดเองตาม event
   boardFx(event, payload) { view.emitBoardFx(event, payload); }, // ม่านแดง: ตัดเหตุการณ์ที่ผู้ชมมองไม่เห็น (view.emitBoardFx)
   boardFxTo(ids, event, payload) { for (const id of ids || []) io.to(id).emit(event, payload); }, // เฉพาะผู้ชมบางคน (ดิเอโก้: วางตาข่ายล่องหน — เจ้าของเห็น)

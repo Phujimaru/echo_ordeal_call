@@ -25,6 +25,10 @@ function stealthed(p) {
   const hook = hookOf(p);
   return !!(p && p.alive && hook && hook.stealthed && hook.stealthed(p));
 }
+function seenBy(viewer, target) {
+  const hook = hookOf(target);
+  return !!(hook && hook.seenBy && viewer && viewer.alive && viewer.pos && hook.seenBy(engine, viewer, target));
+}
 // ยืนในพุ่มหญ้าและยังไม่โผล่เทิร์นนี้
 function inBush(p) {
   if (!p || !p.alive || !p.pos || !match.board) return false;
@@ -56,7 +60,9 @@ function hiddenFromOne(viewer, target) {
   if (match.gameState === "GAMEOVER") return false;
   if (!target.alive || !target.pos) return false;
   if (combat.sameTeam(viewer, target)) return false;
-  if (stealthed(target)) return true;
+  // ล่องหนที่คนใกล้ๆ มองเห็น (ฮุคของเป้า seenBy(engine, viewer, target) → true = viewer เห็น — เฟิร์น: ซ่อนเร้นมานา ศัตรูในระยะ 2)
+  //  ข้ามแค่ล่องหนของตัวละคร · พุ่มหญ้า/ม่านแดงยังบังตามปกติ
+  if (stealthed(target) && !seenBy(viewer, target)) return true;
   if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
   if (!inBush(target)) return false;
   if (!viewer.alive || !viewer.pos) return true;

@@ -15,8 +15,9 @@ const kira = require("./kira"); // กิระ (ราชาแมลงอว�
 const yuna = require("./yuna"); // เด็กสาวเสื้อคลุมขาว (ยูนะ) — พิเศษ (วงเพลง / ศพค้าง / ขี่ผู้เล่นอื่น — server/ride.js)
 const gray = require("./gray"); // เกรย์ — ระดับกลาง (คนเฝ้าสุสาน / Grave / รองโกมิเนียต ชาร์จ 2 เทิร์น / เก็บศพ)
 const gyro_zeppeli = require("./gyro_zeppeli"); // ไจโร เซปเปลี่ — ระดับยาก (ลูกเหล็ก 2 ลูก / ม้าวาลคิรี / สัดส่วนทองคำ)
-const diego_alt = require("./diego_alt");
-const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js) // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก (คลังเครื่องมือ / ปืนลูกโม่ / เดอะเวิลด์ หยุดเวลา / ม้าซิลเวอร์ บูลเล็ต)
+const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก (คลังเครื่องมือ / ปืนลูกโม่ / เดอะเวิลด์ หยุดเวลา / ม้าซิลเวอร์ บูลเล็ต)
+const fern = require("./fern"); // เฟิร์น — ระดับง่าย (Zoltraak แนวตรง / Energy 10 / ซ่อนเร้นมานา / Orbital Cannon Zoltraak ชาร์จ 3 เทิร์น)
+const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -36,6 +37,7 @@ const CHARACTER_MODULES = [
   gray,
   gyro_zeppeli,
   diego_alt,
+  fern,
   funny_valentine,
 ];
 

@@ -205,12 +205,18 @@ function hasGutsWeapon(p) {
 // หลับไหล: "ออกการกระทำใดๆ ไม่ได้" — จั่ว/กดสกิลกันไว้ด้วย p.locked อยู่แล้ว
 //  แต่ร้านค้า/ไอเทมไม่ได้ผูกกับ p.locked ทั้งหมด (บางชนิดกดใช้นอกเฟสจั่วได้) จึงต้องมีด่านของตัวเอง
 function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; }
+// ฮุค blocksItems(engine, p) → true = ซื้อ/ใช้ไอเทมไม่ได้ (ทิ้งได้) — เฟิร์น: ระหว่างซ่อนเร้นมานา
+function itemsBlocked(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.blocksItems && hook.blocksItems(engine, p));
+}
 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
   if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ซื้อของไม่ได้
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
+  if (itemsBlocked(p)) return;
   if (!p.pos || !Board.nearShop(Board.boxOf(p), match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
   if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = match.shopItems.find((it) => it.id === itemId);
@@ -239,6 +245,7 @@ function useInventoryItem(id, uid, opts = {}) {
   if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ใช้ไอเทมไม่ได้
   if (!action.canAct(p)) return; // ใช้ของได้เฉพาะตาเดินของตัวเอง — ใช้แล้วเดินไม่ได้อีก (GRID_PLAN §8.1)
   if (asleep(p)) return; // หลับไหล: ใช้ไอเทมไม่ได้เลย (ยาโชคลาภ/ต้านสถานะ/แต้มสกิล/เกราะ เดิมไม่เช็ค p.locked จึงรั่ว)
+  if (itemsBlocked(p)) return;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];

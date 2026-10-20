@@ -106,7 +106,7 @@ test('ติดตัว 1: เดินทีละก้าว (W A S D) — �
   for (const x of [1, 2, 3, 4, 5]) assert.equal(engine.boardMap().special[`${x},5`], undefined, `ช่อง ${x},5 หาย`);
 });
 
-test('ติดตัว 2: ไถลชนศัตรู = เสียหายเท่าระยะไถล (สูงสุด 3) แล้วเป้ากระเด็น 1 ช่อง · จบตา · ติดตัว 3: ทุก 3 ช่อง พลังชีวิต +1 · ทุก 2 ช่อง แต้มสกิล +1', (t) => {
+test('ติดตัว 2: ไถลชนศัตรู = เสียหายเท่าระยะไถล (สูงสุด 3) แล้วเป้ากระเด็น 1 ช่อง · จบตา · ติดตัว 3: ทุก 4 ช่อง พลังชีวิต +1 · ทุก 2 ช่อง แต้มสกิล +1', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 7, 5]]);
   lay([[2, 5], [3, 5], [4, 5], [5, 5], [6, 5]]);
@@ -119,7 +119,7 @@ test('ติดตัว 2: ไถลชนศัตรู = เสียหา�
   assert.equal(P.B.armor, 0, 'ลดเกราะก่อน');
   assert.equal(P.B.hp, 7);
   assert.deepEqual(P.B.pos, { x: 8, y: 5 }, 'กระเด็น 1 ช่อง');
-  assert.equal(P.I.hp, 6, '5 ช่อง = พลังชีวิต +1 (ทุก 3)');
+  assert.equal(P.I.hp, 6, '5 ช่อง = พลังชีวิต +1 (ทุก 4)');
   assert.equal(P.I.skillPoints, 5, '5 ช่อง = แต้มสกิล +2 (ทุก 2)');
   assert.equal(engine.gameState, 'ATTACKING', 'ไถลชน = การโจมตี จบตา');
   const ev = fxEvents();
@@ -203,7 +203,7 @@ test('สกิลรอง: หนาม Lv1 (สิ่งกีดขวาง
   assert.equal(P.I.skillPoints, 8, 'ทับคนต้องเลือกทิศ');
 });
 
-test('ไถลชนหนาม: เสียเท่า Lv (เกราะก่อน) + เชื่องช้า · หนามลด 1 Lv · Ice Spike ชนหนามตัวเอง = แต้มสกิล +2 ไม่เสียหาย', () => {
+test('ไถลชนหนาม: เสียเท่า Lv (เกราะก่อน) + เชื่องช้า 1 เทิร์น · หนามลด 1 Lv · Ice Spike ชนหนามตัวเอง = แต้มสกิล +2 ไม่เสียหาย', () => {
   const P = setup([['A', 'dummy', 1, 5], ['I', 'ice_spike', 1, 8], ['C', 'dummy', 12, 13]]);
   lay([[2, 5], [3, 5]]);
   Ice.placeSpike(4, 5, 'I', 1);
@@ -212,7 +212,7 @@ test('ไถลชนหนาม: เสียเท่า Lv (เกราะ�
   engine.moveTo('A', 3, 5);
   assert.deepEqual(P.A.pos, { x: 3, y: 5 });
   assert.equal(vit(P.A), 10 - 2);
-  assert.ok(P.A.statuses.slow > 0);
+  assert.equal(P.A.statuses.slow, 1 + 1, 'เชื่องช้า 1 เทิร์น (กำลังเดิน +1)');
   assert.equal(terrainAt(4, 5), 'icespike1');
   // ของตัวเอง
   lay([[2, 8], [3, 8]]);
@@ -258,7 +258,7 @@ test('เชื่องช้า: −1 เดิน · ไม่ซ้อน ·
   assert.equal(Ice.applySlow(P.B), false);
 });
 
-test('ติดตัว 3: ดาเมจสะสมครบ 3 (รวมเกราะ · เกินทบ) = ศัตรู 8 ช่องรอบตัวถูกผลักออก + เชื่องช้า · เพื่อนไม่โดน', async () => {
+test('ติดตัว 3: ดาเมจสะสมครบ 3 (รวมเกราะ · เกินทบ) = ศัตรู 8 ช่องรอบตัวถูกผลักออก 2 ช่อง + เชื่องช้า 1 เทิร์น · เพื่อนไม่โดน', async () => {
   const P = setup([['I', 'ice_spike', 5, 5, 'A'], ['F', 'dummy', 4, 5, 'A'], ['E', 'dummy', 6, 6, 'B'], ['G', 'dummy', 5, 4, 'B']], 'duo');
   engine.setGameState('ACTION');
   engine.dealMixed(P.I, 2, false);
@@ -268,9 +268,10 @@ test('ติดตัว 3: ดาเมจสะสมครบ 3 (รวมเ
   engine.dealMixed(P.I, 2, false);
   await nextTick();
   assert.equal(P.I.iceHurt, 1, 'เกินทบ');
-  assert.deepEqual(P.E.pos, { x: 7, y: 7 }, 'ทแยง = ผลักทแยง');
-  assert.deepEqual(P.G.pos, { x: 5, y: 3 });
-  assert.ok(P.E.statuses.slow > 0 && P.G.statuses.slow > 0);
+  assert.deepEqual(P.E.pos, { x: 8, y: 8 }, 'ทแยง = ผลักทแยง 2 ช่อง');
+  assert.deepEqual(P.G.pos, { x: 5, y: 2 });
+  assert.equal(P.E.statuses.slow, 1);
+  assert.equal(P.G.statuses.slow, 1);
   assert.deepEqual(P.F.pos, { x: 4, y: 5 }, 'เพื่อนไม่โดน');
   assert.ok(fxEvents().some((e) => e.kind === 'burst'));
 });
@@ -380,7 +381,7 @@ test('ท่าไม้ตาย Ice Surge: 4 แต้ม · ใช้ก่�
   assert.equal(P.I.skillPoints, 4);
 });
 
-test('Ice Surge: ธารน้ำแข็ง/หนามระยะทั้งสนาม · หนามใช้ 1 แต้ม ไม่จำกัดครั้ง · หมดบัฟ = กลับปกติ', () => {
+test('Ice Surge: ธารน้ำแข็ง/หนามระยะทั้งสนาม · หนามใช้ 1 แต้ม เทิร์นละ 6 ครั้ง · หมดบัฟ = กลับปกติ', () => {
   const P = setup([['I', 'ice_spike', 0, 5], ['B', 'dummy', 12, 2]]);
   engine.setActor('I');
   engine.useSkill('I', 'basic', [], { tile: { x: 13, y: 13 } }); // ห่าง 21
@@ -388,13 +389,20 @@ test('Ice Surge: ธารน้ำแข็ง/หนามระยะทั�
   engine.applyBuff(P.I, 'iceSurge', null, 3);
   engine.useSkill('I', 'basic', [], { tile: { x: 13, y: 13 } });
   assert.equal(engine.boardMap().special['13,13'], 'ice');
+  P.I.skillPoints = 8;
   for (const x of [8, 9, 10, 11]) engine.useSkill('I', 'secondary', [], { tile: { x, y: 12 } });
   for (const x of [8, 9, 10, 11]) assert.equal(terrainAt(x, 12), 'icespike1', `หนาม ${x},12`);
-  assert.equal(P.I.skillPoints, 8 - 1 - 4, 'หนาม 1 แต้ม × 4 ครั้ง');
+  assert.equal(P.I.skillPoints, 8 - 4, 'หนาม 1 แต้ม × 4 ครั้ง');
   const pub = engine.buildStateFor('I').players.find((p) => p.id === 'I');
   assert.equal(pub.character.secondary.cost, 1);
   assert.equal(pub.character.secondary.area.range, ice.SURGE_RANGE);
   assert.equal(pub.skillLocks.secondary.locked, false);
+  for (const x of [8, 9]) engine.useSkill('I', 'secondary', [], { tile: { x, y: 13 } });
+  assert.equal(terrainAt(9, 13), 'icespike1', 'ครั้งที่ 6');
+  assert.equal(engine.buildStateFor('I').players.find((p) => p.id === 'I').skillLocks.secondary.locked, true);
+  engine.useSkill('I', 'secondary', [], { tile: { x: 10, y: 13 } });
+  assert.equal(terrainAt(10, 13), undefined, 'ครั้งที่ 7 ไม่ได้');
+  assert.equal(P.I.skillPoints, 8 - 6);
   // หมดบัฟ
   delete P.I.statuses.iceSurge;
   engine.setRoundNumber(engine.roundNumber + 1);
@@ -421,4 +429,61 @@ test('ฟื้นพลัง: ต้นเทิร์นแต้มสกิ
   Status.tickSpRegen(engine, P.I); Status.tickSpRegen(engine, P.I); Status.tickSpRegen(engine, P.I);
   assert.equal(P.I.statuses.spRegen, undefined);
   assert.equal(P.I.skillPoints, 1 + 5, 'จบเทิร์น +1 · ติก 5 ครั้ง');
+});
+
+test('ผลัก n ช่อง: ทีละช่อง · ช่องถัดไปไม่ว่าง = หยุดช่องก่อนหน้า (เด้ง) · ลงน้ำแข็ง = ไถลต่อแทน', () => {
+  const P = setup([['A', 'dummy', 2, 7], ['B', 'dummy', 5, 7], ['C', 'dummy', 2, 8]]);
+  let ctx = Ice.begin();
+  assert.equal(Ice.pushUnit(P.A, { x: 1, y: 0 }, ctx, 2), true);
+  assert.deepEqual(P.A.pos, { x: 4, y: 7 }, 'ผลัก 2 ช่อง');
+  ctx = Ice.begin();
+  assert.equal(Ice.pushUnit(P.A, { x: 1, y: 0 }, ctx, 2), false, 'ติดคนข้างหน้า');
+  assert.deepEqual(P.A.pos, { x: 4, y: 7 });
+  assert.equal(ctx.events.at(-1).collide, true);
+  lay([[3, 8], [4, 8], [5, 8], [6, 8]]);
+  ctx = Ice.begin();
+  Ice.pushUnit(P.C, { x: 1, y: 0 }, ctx, 2);
+  assert.deepEqual(P.C.pos, { x: 6, y: 8 }, 'ลงน้ำแข็งช่องแรก = ไถลจนสุดแนว');
+});
+
+test('ตัวใหญ่ 2×2 เหยียบหนาม: หนามแตกทุก Lv · เสีย Lv − 1 (เกราะก่อน) + เชื่องช้า 1 เทิร์น · เดินต่อได้ · ย้อนได้แค่ถึงช่องที่เหยียบ', () => {
+  const P = setup([['E', 'dummy', 1, 7], ['I', 'ice_spike', 12, 2], ['C', 'dummy', 12, 13]]);
+  P.E.boardSize = 2;
+  Ice.placeSpike(3, 7, 'I', 1); Ice.raiseSpike('3,7');   // Lv2
+  Ice.placeSpike(4, 8, 'I', 1); Ice.raiseSpike('4,8', 2); // Lv3
+  Ice.placeSpike(7, 7, 'I', 1);                          // Lv1
+  engine.setActor('E');
+  assert.equal(engine.moveTo('E', 4, 7), true, 'หนามไม่ขวางตัวใหญ่');
+  assert.deepEqual(P.E.pos, { x: 4, y: 7 }, 'เดินต่อไม่หยุดที่หนาม');
+  assert.equal(terrainAt(3, 7), undefined);
+  assert.equal(terrainAt(4, 8), undefined);
+  assert.equal(vit(P.E), 10 - 1 - 2, 'Lv2 = 1 · Lv3 = 2');
+  assert.equal(P.E.statuses.slow, 1 + 1, 'เชื่องช้า 1 เทิร์น (กำลังเดิน +1)');
+  const kinds = fxEvents().map((e) => e.kind);
+  assert.deepEqual(kinds, ['walk', 'trample', 'slow', 'walk', 'trample', 'slow', 'walk']);
+  assert.equal(engine.undoMove('E'), false, 'เหยียบแล้วย้อนไม่ได้');
+  assert.equal(engine.moveTo('E', 5, 7), true, 'ก้าวที่เหลือ 1 ยังเดินได้');
+  assert.equal(engine.moveTo('E', 6, 7), false, 'ก้าวหมด');
+  calls.fx = [];
+  P.E.hp = 1; P.E.armor = 0; P.E.statuses = {};
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor('E');
+  assert.equal(engine.moveTo('E', 7, 7), true);
+  assert.equal(terrainAt(7, 7), undefined, 'Lv1 แตก');
+  assert.equal(P.E.hp, 1, 'Lv1 = ไม่เสียหาย');
+  assert.equal(P.E.statuses.slow, 1 + 1);
+});
+
+test('ตัวใหญ่เหยียบหนามตาย = ตกรอบ จบตา', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const P = setup([['E', 'dummy', 1, 7], ['I', 'ice_spike', 12, 2], ['C', 'dummy', 12, 13]]);
+  P.E.boardSize = 2;
+  P.E.hp = 2; P.E.armor = 0;
+  Ice.placeSpike(3, 7, 'I', 1); Ice.raiseSpike('3,7', 2); // Lv3
+  engine.setActor('E');
+  assert.equal(engine.moveTo('E', 4, 7), true);
+  assert.equal(P.E.alive, false);
+  assert.equal(engine.gameState, 'ATTACKING');
+  const tr = fxEvents().find((e) => e.kind === 'trample');
+  assert.equal(tr.kill, true);
 });
