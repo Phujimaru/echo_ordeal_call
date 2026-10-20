@@ -343,34 +343,37 @@ test('รองโกมิเนียต: คลิป intro / final เล่
   assert.deepEqual(calls.queue, ['grayUltIntro', 'grayUltFinal', 'grayUltIntro', 'grayUltFinal']);
 });
 
-test('รองโกมิเนียต: ถึงตาเกรย์เทิร์น N+1 ศัตรูในแนวติดถูกตรึงจนถึงตอนยิง · หนีออกในเทิร์น N = รอด · พวกเดียวกันไม่ติด · ต้านได้', (t) => {
+test('รองโกมิเนียต: จบเทิร์นที่กด ศัตรูที่ยังอยู่ในแนวติดถูกตรึงจนถึงตอนยิง (เดินก่อนในเทิร์น N+1 ก็หนีไม่ได้) · หนีออกในเทิร์น N = รอด · พวกเดียวกันไม่ติด · ต้านได้', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gray', 3, 7, 't1'], ['B', 'dummy', 9, 7, 't2'], ['C', 'dummy', 10, 6, 't2'], ['E', 'dummy', 8, 8, 't2'], ['F', 'dummy', 6, 8, 't1'], ['H', 'dummy', 12, 12, 't2']], 'duo');
   engine.setRoundNumber(4);
   engine.setActor('G');
   engine.useSkill('G', 'ultimate', [], { dir: 'right' });
-  assert.equal(P.G.gray.charge.fire, 6, 'ยิงต้นตาเดินเทิร์น N+2');
+  assert.equal(P.G.gray.charge.fire, 6, 'ยิงตาเกรย์เทิร์น N+2');
   assert.ok(!P.B.statuses.rooted, 'ตอนกดยังไม่ตรึง');
   // เทิร์น N: E หนีออกจากแนว (ไปแถว y 12)
   P.E.pos = { x: 8, y: 12 };
   P.C.statuses.resist = 3;
-  engine.setRoundNumber(5);
   calls.fx = []; calls.sfx = [];
-  // B เดินก่อนเกรย์ (เดินไปแล้ว) · เกรย์ถึงคิว = ตรึง
-  orderUpTo(t, ['B', 'G', 'H'], 'G');
-  assert.equal(P.B.statuses.rooted, 2, 'อยู่ถึงจบเทิร์นที่ยิง');
+  nextRound(t); // จบเทิร์น N → ตรึง
+  assert.equal(engine.roundNumber, 5);
+  assert.equal(P.B.statuses.rooted, 2, 'ติดตลอดเทิร์น N+1 และ N+2');
   assert.ok(!P.C.statuses.rooted, 'ต้านได้');
-  assert.ok(!P.E.statuses.rooted, 'หนีออกแล้วรอด');
+  assert.ok(!P.E.statuses.rooted, 'หนีออกในเทิร์น N แล้วรอด');
   assert.ok(!P.F.statuses.rooted, 'พวกเดียวกันไม่ติด');
   assert.ok(!P.H.statuses.rooted, 'นอกแนว');
   assert.ok(calls.fx.some((f) => f.payload.kind === 'grave' && f.payload.id === 'B'), 'โซ่พันคนที่ถูกตรึง');
   assert.ok(calls.sfx.includes('gray_chains'));
+  // B จั่วชนะ ได้เดินก่อนเกรย์ในเทิร์น N+1 — ก็ยังเดินไม่ได้
+  P.B.pos = { x: 9, y: 7 };
+  orderUpTo(t, ['B', 'G', 'H'], 'B');
+  assert.equal(engine.movOf(P.B), 0, 'เดินก่อนก็หนีไม่ได้');
   assert.ok(!calls.queue.includes('grayUltFinal'), 'เทิร์นชาร์จยังไม่ยิง');
-  assert.equal(engine.movOf(P.B), 0);
-  // ตรึงครั้งเดียวต่อการชาร์จ
-  P.B.statuses.rooted = 1;
-  engine.finishActor();
-  assert.equal(P.B.statuses.rooted, 1);
+  // ตรึงครั้งเดียวต่อการชาร์จ (จบเทิร์น N+1 ไม่ตรึงซ้ำ)
+  engine.clearPhaseTimer();
+  nextRound(t);
+  assert.equal(engine.roundNumber, 6);
+  assert.equal(P.B.statuses.rooted, 1, 'ยังติดในเทิร์นที่ยิง');
 });
 
 test('คนเฝ้าสุสาน: เยียวยา 2 = ฟื้นพลังชีวิต 1 ทุกต้นเทิร์น 2 ครั้ง (ไม่ลดตอนจบเทิร์นที่ใช้)', (t) => {
