@@ -510,6 +510,49 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- ฟันนี่ วาเลนไทน์ — พิเศษ · unique — ดู characters/funny_valentine.js (GRID_PLAN §7.13) ----------
+    //  ระบบกลาง: ชั้นมิติ server/dimension.js · ยูนิตที่ถูกเรียก server/summon.js · ฮุค afterActorEnd · target รูปเฉพาะ (cells)
+    id: "funny_valentine",
+    name: "ฟันนี่ วาเลนไทน์",
+    avatar: 0,
+    difficulty: "special",
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม
+    img: "/characters/funny_valentine/valentine.webp",
+    mov: 4,
+    range: [1, 2],
+    passive: {
+      name: "สันติภาพและความยุติธรรม",
+      desc: "ทำความเสียหายใส่เป้า (ทุกรูปแบบ) = แต้มสกิล +1 ต่อการโจมตี 1 ครั้ง (ไม่นับจำนวนคนที่โดน · ยิงหลายนัดในการกดครั้งเดียว = +1) · ร่างแยกตีโดน / ตัวที่เหมือนกันชนเป้า ก็ได้",
+    },
+    basic: {
+      name: "หลบสายตา",
+      desc: "เข้าอีกมิติ 3 เทิร์น: ปักธงชาติที่ช่องที่เข้า (ผู้เล่นอื่นเห็นแค่ธง) · เดินทะลุทุกอย่าง ยกเว้นขอบกระดาน · ไม่โดนอะไร ทำอะไรใครไม่ได้ · แต้มสกิล +1 ต่อเทิร์น · ครบเวลา/กดอีกครั้ง (0 แต้ม) = โผล่ช่องที่ยืน (ไม่ว่าง = ช่องว่างใกล้สุด) · กดก่อนเดินยังเดินต่อได้ (คูลดาวน์ 3 เทิร์นนับจากตอนออก)",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/funny_valentine/funny_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/funny_valentine.js
+    },
+    secondary: {
+      name: "ปืนแห่งสันติภาพ",
+      desc: "3 นัด · เลือกยิง 1–3 นัด ทิศเดียวกัน แนว 5×1: ทุกนัดโดนศัตรูคนแรกในแนว ความเสียหาย 1 (เกราะรับก่อน · หลบได้) · ยิงหมด = รีโหลด 5 เทิร์น",
+      area: { kind: "line", len: 5, width: 1, hostile: true },
+      cost: 0,
+      img: "/characters/funny_valentine/funny_skill2.jpg",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ธงชาติแห่งสันติภาพ",
+      desc: "เลือก 1 แบบ: จงปลาบปลื้ม (6) · แด่ตัวฉันทุกคน (6) · รู้จักตัวเองอย่างแท้จริง (4) · ความยุติธรรมไม่มีวันตาย (4) (คูลดาวน์แยกกันแบบละ 3 เทิร์น)",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/funny_valentine/funny_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- Echo — พิเศษ — ดู characters/echo.js ----------
     //  พลังชีวิต 10 ไม่มีเกราะ (echo.maxHp/maxArmor) · ขนาดตัว/ระยะเดิน/ระยะตีบนกระดานเปลี่ยนตามเลือดสูงสุด (echo.mov/range)
     //  ท่าไม้ตาย "ก่อกำเนิดใหม่" (ผู้ใช้ตัดสิน 2026-10-10) — ฉากโลกแตก + เปลี่ยนภูมิภาค/นับเวลาใหม่ (server/phases/endTurn.js journeyRebirth)

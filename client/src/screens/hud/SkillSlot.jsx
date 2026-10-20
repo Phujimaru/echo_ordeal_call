@@ -29,7 +29,8 @@ export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, 
   // แผงล่างจอคอม: ตราหกเหลี่ยม (ดีไซน์ S2) — รูปสกิลในหกเหลี่ยมด้านแบน · ระดับ/ชื่อใต้รูป · ป้ายราคามุมขวาบน
   if (variant === "hud") {
     const cd = cooldown || 0;
-    const state = cd > 0 ? "cd" : usable ? "ready" : skill && !afford ? "nosp" : "off";
+    // active (skillPub — วาเลนไทน์ในมิติหลบสายตา): ปุ่มทำงานอยู่ · กด = ออก (0 แต้ม)
+    const state = cd > 0 ? "cd" : usable && skill.active ? "active" : usable ? "ready" : skill && !afford ? "nosp" : "off";
     return (
       <button
         type="button"

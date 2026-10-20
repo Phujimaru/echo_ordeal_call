@@ -57,6 +57,8 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
 | `ice.js` | **น้ำแข็ง/หนามน้ำแข็ง/ไถล/ผลัก/เชื่องช้า** (§19 · Ice Spike + น้ำแข็งภูมิภาค VI): ชั้นที่สร้างระหว่างเกม (`layIce`/`undoLay`, `placeSpike`/`raiseSpike`/`lowerSpike`/`damageSpike`, `overlayOf`, `publicInfo`), `resolveEntry` (ไถล+ชน), `pushUnit`, `applySlow`, ตีหนาม (`attackSpike`, `hitSpikesInArea`), ระเบิดสะสมดาเมจ (`noteHurt`/`flushBursts`), หนามทั้งสนาม +1 Lv (`raiseAllSpikes`), `onEndTurn` |
 | `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
+| `dimension.js` | **ชั้นมิติ** (§25): `layerOf`, `same`, `ghost`, `enter`, `leave` (กลับกระดานหลัก → ช่องว่างใกล้สุด), `resetAll`, `refLayer`, `blocks` (ต้นตอคนละชั้น), `membersOf` |
+| `summon.js` | **ยูนิตที่ถูกเรียก** (§25): `spawn`, `remove`, `removeAll`, `sweep`, `ofOwner`, `controlledOf`, `onDeath`, `CONTROL_SECONDS` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
@@ -897,3 +899,24 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ปุ่มหลายตัวเลือกที่ไม่กินโควตา + ไม่ล็อกการเดิน**: `skipsTurnQuota` + `ignoresTurnQuota` + `keepsMove` ของ tier นั้น · โควตาเฉพาะตัวนับใน `canUseSkill` (คลังเครื่องมือ 2 ครั้งต่อเทิร์น)
 - เสียงระหว่างหยุดเวลา: client (`Game.jsx`) เห็น `state.timeFreeze` = `suspendMusic()` (เพลงทุกเพลงหยุด) + `playLoop("diego_tick_loop")` (`audio.js` — เสียงวนตามระดับเสียงหลัก) · dev: `ECHO_DEV_DIEGO_CUNNING=10` เริ่มเกมพร้อมเล่ห์เหลี่ยม (launch `server-diego`)
 - เอฟเฟกต์: `engine.boardFx("diegoFx", { kind, id, color, … })` ตามสัญญา §7.12 · `frozen: true` = เกิดระหว่างหยุดเวลา (client ค้างของกลางอากาศจน `timeResume`)
+
+---
+## 25. ชั้นมิติ / ยูนิตที่ถูกเรียก / ฮุคหลังจบตา / target รูปเฉพาะ (วาเลนไทน์ — `characters/funny_valentine.js` · `server/dimension.js` · `server/summon.js` · GRID_PLAN §7.13)
+- **ชั้นมิติ** (`server/dimension.js`): `p.dim` = `null` (กระดานหลัก) | สตริง (`"veil:<id>"` / `"par:<id>:<n>"`) — แยกเฉพาะตัวคน · แผนที่/สิ่งกีดขวาง/ของบนพื้น/ร้าน/ร่าง ใช้ร่วมทุกชั้น
+  · `action.boardUnits(ref)` = คนชั้นเดียวกับ `ref` (playerId / ผู้เล่น · ไม่ส่ง = ชั้นของ `effectSourceId` → `actorId` → หลัก · `"*"` = ทุกชั้น — หาช่องตั้งร้าน) → เดิน/ขวาง/สกิลพื้นที่/ผลัก/ไถล/ถอย แยกชั้นเอง · `tileFree(x, y, selfId)` / `nearFreeTile(pos, selfId)` นับตามชั้นของ selfId
+  · เล็งต้องชั้นเดียวกัน: `resolveArea` target · `attackTarget` · ตีสวน · ปืน GUTS · ส่งชุด Mark 42 · ขี่ · คาดการณ์ผล (`forecastFor`)
+  · ตาข่ายกันเหนียว: `combat.adjustIncomingDamage` / `applyDebuff` — ต้นตอ (`effectSourceId`) คนละชั้นกับเป้า = ไม่มีผล · ไม่มีต้นตอ (ผลสนาม/ลุกไหม้ต่อเทิร์น) = ถึงทุกชั้น
+  · เดินทะลุ: `Dim.enter(p, dim, { ghost: true })` → `Board.reachable(..., { ghost: true })` (`reachableGhost` — ก้าวละ 1 เหลือแค่ขอบกระดาน · `trailCost`/`stepPath` รองรับ) · `walkTo` ไม่เหยียบน้ำแข็ง/กับดัก/ชนคนที่มองไม่เห็น · ไม่ได้ผลของช่องตอนจบตา · ไม่โดนโทษเดิน (`movPenalty`) · client ใช้ `boardRules.js` ชุดเดียวกัน
+  · ออก: `Dim.leave(p)` (ช่องเดิมไม่ว่างบนกระดานหลัก = `nearFreeTile`) · `placeOnBoard` = `Dim.resetAll()` · `engine.dim.{ layerOf, same, ghost, enter, leave, membersOf }` · state `players[].dim`
+- **ยูนิตที่ถูกเรียก** (`server/summon.js`): ระเบียนใน `match.players` id `<เจ้าของ>~s<n>` + `summon: { kind, ownerId, side, controlled, until, mov, range, maxHp, maxArmor, look, targetId, …data }`
+  · `Duo.sideKey` = `summon.side` (คุมได้ = ฝ่ายเจ้าของ · ไม่คุม = id ตัวเอง → ศัตรูของทุกคน) · `baseMovOf`/`rangeOf`/`maxHpOf`/`maxArmorOf` อ่าน `summon.*` ก่อนฮุค
+  · ไม่ถือไพ่ (`Duo.inGame` false · `dealRound` ไม่แจก · ไม่อยู่ใน `turnOrder` · ไม่ได้แต้ม/เหรียญจบเทิร์น) · ไม่มี socket (`broadcastState` / `emitBoardFx` / `emitVisible` / `seenBy` ข้าม) · ไม่นับฝ่าย/ผู้รอด (`Duo.sideCount` · `gameOver` · `aliveTeamIds`) · `filterLog` ไม่ตัดบันทึกตามชื่อยูนิต
+  · ตาย (`combat.instantDeath`): ไม่มีศพ/ขี่/QTE · **ไม่ยิง `onDeath`/`onKill`** ของตัวละคร → ฮุค `onSummonDeath(engine, เจ้าของ, ยูนิต)` ของโมดูลเจ้าของ · `Summon.remove(p)` = เอาออกเงียบๆ · ระเบียนที่ตายลบตอนจบเทิร์น (`sweep`) และไม่ส่งใน state
+  · คุมได้ (`controlled: true`): `skillPoints gold inventory cards gutsShotTurn` ใช้ร่วมกับเจ้าของ (getter แบบระบบคู่) · `Duo.turnUnits(owner)` = ตัวของฝ่าย + ยูนิตคุมได้ → `nextActor` เริ่ม `match.duo` เมื่อมีมากกว่า 1 ตัว · เรียกกลางตา = `finishActor` แปลงเป็นตาแบบระบบคู่ต่อทันที · ตัวละ `CONTROL_SECONDS` (20) · หมดเวลา = ไปยูนิตถัดไป (`Duo.nextUnit({ summonsOnly })`) · state `duoOf` = เจ้าของ
+  · ยูนิตใช้สกิล/ไอเทม/ปืน GUTS/ซื้อของ/ขี่/คุม Mark 42 ไม่ได้ · `placeOnBoard` / `Duo.teardown` ลบหมด · `TimeStop.restore` ลบยูนิตที่เกิดระหว่างการกระทำที่ถูกตัด
+  · `engine.summon.{ spawn, remove, ofOwner, controlledOf, CONTROL_SECONDS }` · state `players[].summon = { kind, ownerId, look, targetId, until }`
+- **ฮุคหลังจบตา** — broadcast `afterActorEnd(engine, p)` → วินาที (ค่ามากสุดของทุกโมดูล): `finishActor` หลังผลของช่อง ก่อนไปตัว/คนถัดไป (ทุกตัวของระบบคู่) · > 0 = ค้าง ATTACKING แล้วเรียก `finishActor` ซ้ำ — `match.action.endDone` กันผลจบตา (canto / outro / `onActorEnd` / ขี่ / ช่อง) ลงซ้ำ · ฮุคลงผลเองทันทีแล้วส่ง fx
+- **ฮุคดาเมจจริง** — broadcast `onDamageDealt(engine, ต้นตอ, เป้า)`: ทุกหน่วยที่เป้าเสียพลังชีวิต/เกราะ/เลือดชั่วคราวจริง (`combat.tookDamage` · ต้นตอ ≠ เป้า) · แยก "การโจมตี 1 ครั้ง" ด้วย `engine.cmdSeq` (`match.cmdSeq` +1 ต่อคำสั่งของผู้เล่นชั้นนอกสุด — `TimeStop.guard`)
+- **target รูปเฉพาะ**: `area: { kind: "target", cells: [[dx, dy], …] }` = เป้าต้องทับช่องตามรูปนับจากช่องผู้ใช้ (แทน `range` — ใส่ `range` ไว้เป็นป้าย) · view ส่ง `cells` ต่อ (client ไฮไลต์)
+- วาเลนไทน์: หลบสายตา = มิติ ghost + `stealthed` + `untouchable` · กระดานคู่ขนาน = มิติไม่ ghost (ศัตรูในแนว + ตัวเอง) · ตัวที่เหมือนกัน = ยูนิตไม่คุม (`characterId: "valentine_double"` ไม่มีฮุค · หน้าตาเป้าผ่าน `summon.look` → view ใช้ชื่อ/รูป/สีเป้า) วิ่ง+ชนใน `afterActorEnd` (ต้นตอ = ตัวเหมือน ชั้นเดียวกับเป้า) · ร่างแยก = ยูนิตคุมได้ `characterId` เดียวกับตัวจริง (ฮุคแยก `isVal` / `isValUnit`) · ธงชาติ = `boardPublic` → `state.board.valentine.flags`
+- เอฟเฟกต์ `engine.boardFx("valentineFx", { kind, id, … })` + `engine.skillBeat` ตาม `VAL_FX` (client `valentineFx.js`) · เสียง `val_*` / เสียงพากย์ `val_v_*` (GRID_PLAN §7.13)

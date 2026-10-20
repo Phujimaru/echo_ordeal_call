@@ -202,6 +202,26 @@ const FILES = {
   diego_v_skill3: "/characters/diego_alt/voice/diego_alt_skill3.m4a",
   diego_v_skill3_counter: "/characters/diego_alt/voice/diego_alt_skill3_counter_trigger.m4a",
   diego_v_skill3_normal: "/characters/diego_alt/voice/diego_alt_skill3_normal_trigger.m4a",
+  // ฟันนี่ วาเลนไทน์ (GRID_PLAN §7.13) — server เล่นผ่าน engine.sfx · ท่อนจาก "D4C Sound Design Concept" (ผู้ใช้ตัด a04/a06/a07 · ชุด b ใช้ได้ทั้งหมด)
+  //  หลายไฟล์ = สุ่ม · ปืน/มีด/กระสุนหมด = เสียงชุดดิเอโก้ (ปืนลูกโม่ที่ผู้ใช้เลือก) · ไม่มีไฟล์ = เงียบ (โหลดพลาดครั้งแรกแล้วข้ามไฟล์นั้น — missingSfx)
+  val_flag: "/characters/funny_valentine/sfx/val_flag.mp3",
+  val_veil_in: "/characters/funny_valentine/sfx/val_veil_in.mp3",
+  val_veil_out: ["/characters/funny_valentine/sfx/val_veil_out_1.mp3", "/characters/funny_valentine/sfx/val_veil_out_2.mp3"],
+  val_gun: "/characters/diego_alt/sfx/diego_shot.mp3",
+  val_knife: ["/characters/diego_alt/sfx/diego_knife_1.mp3", "/characters/diego_alt/sfx/diego_knife_2.mp3"],
+  val_reload: "/characters/funny_valentine/sfx/val_reload.mp3",
+  val_empty: "/characters/diego_alt/sfx/diego_empty.mp3",
+  val_parallel: ["/characters/funny_valentine/sfx/val_parallel_1.mp3", "/characters/funny_valentine/sfx/val_parallel_2.mp3"],
+  val_double: ["/characters/funny_valentine/sfx/val_double_1.mp3", "/characters/funny_valentine/sfx/val_double_2.mp3"],
+  val_menger: "/characters/funny_valentine/sfx/val_menger.mp3",
+  val_clones: "/characters/funny_valentine/sfx/val_clones.mp3",
+  val_justice: "/characters/funny_valentine/sfx/val_justice.mp3",
+  // เสียงพากย์ (ตัดจาก ASB-R ภาษาญี่ปุ่น — ตารางคำแปลใน Downloads\funny_valentine\voice\voices.json)
+  ...Object.fromEntries([
+    "turn1", "turn2", "turn3", "turn4", "strike1", "strike2", "strike3", "struck1", "struck2", "struck3",
+    "veil", "dojaan1", "dojaan2", "gun", "parallel1", "parallel2", "meet", "savor", "selves1", "selves2",
+    "clones_out", "know", "justice", "d4c", "death",
+  ].map((k) => [`val_v_${k}`, `/characters/funny_valentine/voice/val_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -521,6 +541,9 @@ function sfxVariant(name) {
   const i = Math.floor(Math.random() * f.length);
   return { key: `${name}#${i}`, path: f[i] };
 }
+// ไฟล์เสียงที่โหลดไม่ได้ (404 / dev server ส่ง index.html แทน = MEDIA_ERR_SRC_NOT_SUPPORTED) — ข้ามไม่โหลดซ้ำทุกครั้งที่เล่น
+//  เน็ตหลุดชั่วคราว (MEDIA_ERR_NETWORK) ไม่จด
+const missingSfx = new Set();
 function takeVoice(name, path = FILES[name]) {
   const idle = sfxPool.get(name);
   if (idle && idle.length) {
@@ -541,7 +564,7 @@ function takeVoice(name, path = FILES[name]) {
   };
   a.addEventListener("ended", release);
   a.addEventListener("pause", release);
-  a.addEventListener("error", release);
+  a.addEventListener("error", () => { if (a.error && a.error.code === 4) missingSfx.add(path); release(); });
   return a;
 }
 
@@ -583,7 +606,9 @@ export function playLoop(name) {
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 export function playSfx(name, opts) {
   if (!FILES[name]) return null;
-  const v = sfxVariant(name), a = takeVoice(v.key, v.path);
+  const v = sfxVariant(name);
+  if (missingSfx.has(v.path)) return null;
+  const a = takeVoice(v.key, v.path);
   const gain = opts && Number.isFinite(opts.gain) ? Math.max(0, opts.gain) : 1;
   const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * pathGain(v.path) * gain * sfxDuck());
   a.volume = base * masterGain();

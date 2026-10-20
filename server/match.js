@@ -33,6 +33,9 @@ const match = {
   dash: null,          // การพุ่งล่าสุดบนกระดาน { seq, id, path, wheel, swap } — client เล่นแอนิเมชันตาม seq ใหม่
   dashSeq: 0,
   rideAsk: null,
+  // ---------- ชั้นมิติ / ยูนิตที่ถูกเรียก (server/dimension.js · server/summon.js — วาเลนไทน์) ----------
+  summonSeq: 0,        // เลขต่อท้าย id ยูนิตที่ถูกเรียก (`<เจ้าของ>~s<n>`)
+  cmdSeq: 0,           // เลขคำสั่งของผู้เล่น (TimeStop.guard ชั้นนอกสุด +1) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
   // ---------- หยุดเวลา (server/timeStop.js — ดิเอโก้) ----------
   extraTurns: [],      // ตาเดินพิเศษที่รอคิว [{ id, kind }] — nextActor เล่นก่อนเลื่อนลำดับ
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }

@@ -30,6 +30,7 @@ const timers = require("./timers");
 const view = require("./view");
 const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
+const Dim = require("./dimension");
 
 // เพดานเหรียญรายบุคคล
 function goldCapOf(p) {
@@ -151,7 +152,7 @@ function shopDue() {
 }
 function relocateShop() {
   const prev = match.shopPos;
-  match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits(), prev);
+  match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits("*"), prev); // ร้านอยู่ทุกชั้นมิติ = เลี่ยงคนทุกชั้น
   match.shopOpenedRound = Zero.worldRound(); // เวลาโลก (ห่วงเวลาซีโร่ไม่นับ)
   openShop();
 }
@@ -207,7 +208,7 @@ function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; 
 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
-  if (!p || !p.alive) return;
+  if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ซื้อของไม่ได้
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   if (!p.pos || !Board.nearShop(Board.boxOf(p), match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
@@ -235,7 +236,7 @@ function cardLabel(c) {
 }
 function useInventoryItem(id, uid, opts = {}) {
   const p = match.players[id];
-  if (!p || !p.alive) return;
+  if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ใช้ไอเทมไม่ได้
   if (!action.canAct(p)) return; // ใช้ของได้เฉพาะตาเดินของตัวเอง — ใช้แล้วเดินไม่ได้อีก (GRID_PLAN §8.1)
   if (asleep(p)) return; // หลับไหล: ใช้ไอเทมไม่ได้เลย (ยาโชคลาภ/ต้านสถานะ/แต้มสกิล/เกราะ เดิมไม่เช็ค p.locked จึงรั่ว)
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
@@ -245,6 +246,7 @@ function useInventoryItem(id, uid, opts = {}) {
   if (item.type === "mark42") {
     const other = opts.targetId && opts.targetId !== p.id ? match.players[opts.targetId] : null;
     if (other && Visibility.hiddenFromUnit(p, other)) return; // มองไม่เห็น = ส่งชุดให้ไม่ได้
+    if (other && !Dim.same(p, other)) return; // ชั้นมิติ (server/dimension.js): คนละชั้นส่งชุดให้ไม่ได้
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
     action.lockMove(p);
@@ -341,7 +343,7 @@ function fireGuts(p, idx, item, targetId) {
 // ตรวจว่ายิงได้ไหม + คืนเป้าหมายที่ถูกต้อง (null = ยิงไม่ได้)
 //  ตาเดินของตัวเอง / ต้องมีปืน / 1 นัดต่อเทิร์น / เป้าเป็นศัตรูที่ยังอยู่ และห่างอยู่ในระยะ GUTS_RANGE
 function gutsFireTargetOf(p, item, targetId) {
-  if (!action.canAct(p)) return null;
+  if (!action.canAct(p) || p.summon) return null; // ยูนิตที่ถูกเรียก (ร่างแยก) ยิงไม่ได้
   if (!hasGutsWeapon(p)) return null;
   if (p.gutsShotTurn === match.roundNumber) return null;
   const hook = CHAR_HOOKS[p.characterId];
@@ -350,6 +352,7 @@ function gutsFireTargetOf(p, item, targetId) {
   const target = match.players[targetId];
   if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
   if (Visibility.hiddenFromUnit(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
+  if (!Dim.same(p, target)) return null; // ชั้นมิติ (server/dimension.js): คนละชั้นเล็งไม่ได้
   if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(Board.boxOf(p), Board.boxOf(target)))) return null;
   return target;
 }

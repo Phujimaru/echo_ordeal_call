@@ -25,6 +25,7 @@ const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
+const Summon = require("../summon");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -95,6 +96,7 @@ function endTurn() {
     }
     if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
   }
+  Summon.sweep(); // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว ลบระเบียน
 
   // เล่นฉากที่ค้างคิว (ถ้ามี) ให้จบก่อน แล้วค่อยสรุปจบเกม/ขึ้นรอบถัดไป
   cutscene.runCutsceneQueue(() => {
@@ -111,7 +113,7 @@ function endTurn() {
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
-  const stillAlive = combat.alivePlayers();
+  const stillAlive = combat.alivePlayers().filter((p) => !p.summon); // ยูนิตที่ถูกเรียก (server/summon.js) ไม่นับเป็นผู้รอด
   const total = Duo.sideCount(Object.values(match.players)); // ระบบคู่: นับต่อฝ่าย (สองตัวของผู้เล่นคนเดียวกัน = 1)
   const sidesLeft = Duo.sideCount(stillAlive);
   const teamWin = lobby.remainingTeamWinInfo(stillAlive, total);

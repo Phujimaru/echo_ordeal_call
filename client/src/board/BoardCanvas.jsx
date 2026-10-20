@@ -53,6 +53,10 @@
 //               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
+//   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
+//               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (โปร่ง + ภาพซ้อน · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
+//               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
+//   dimView     "par" | "veil" | null — ชั้นมิติของตัวที่เราคุม: โลกคู่ขนาน / มองจากมิติหลบสายตา (ค่อยๆ เปลี่ยน 600ms)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -70,10 +74,31 @@ import { iceShakeOffset } from "./iceFx";
 import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
+import { valentineMod, valentinePose } from "./valentineFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
 } from "./zeroTheme";
+// มุมมองของมิติ (วาเลนไทน์): dimView เปลี่ยน = ค่อยๆ เปลี่ยน · ฉากพาข้ามโลก/กลับโลกหลักกำลังเล่น = รอจังหวะในฉาก
+const DIM_FADE = 600;
+function dimLayersOf(st, kind, now) {
+  const want = kind === "par" || kind === "veil" ? kind : null;
+  if (!st.dimV) st.dimV = { kind: want, t0: -1e9, prev: null };
+  const d = st.dimV;
+  if (d.kind !== want) {
+    let t0 = now;
+    for (const e of st.fxActive || []) {
+      if (e.kind === "valParallel" && want === "par" && now - e.t0 < 1800) t0 = Math.max(t0, e.t0 + 1150);
+      if (e.kind === "valDimOut" && d.kind === "par" && now - e.t0 < 900) t0 = Math.max(t0, e.t0 + 300);
+      if (e.kind === "valVeilIn" && want === "veil" && now - e.t0 < 1100) t0 = Math.max(t0, e.t0 + 560);
+    }
+    st.dimV = { kind: want, t0, prev: d.kind, prevK: d.kind ? Math.min(1, Math.max(0, (now - d.t0) / DIM_FADE)) : 0 };
+  }
+  const c = st.dimV, k = Math.min(1, Math.max(0, (now - c.t0) / DIM_FADE)), out = [];
+  if (c.prev && k < 1) out.push({ kind: c.prev, k: c.prevK * (1 - Math.min(1, Math.max(0, (now - Math.min(c.t0, now)) / DIM_FADE))) });
+  if (c.kind) out.push({ kind: c.kind, k });
+  return out.length ? out : null;
+}
 // ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
 import { P as projectZ, PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
@@ -557,6 +582,10 @@ export default function BoardCanvas(props) {
         if (dp) { rx = dp.x; ry = dp.y; ox = 0; oy = 0; hz = dp.hz || 0; sq = dp.sq || 0; }
         const dgo = u.diego ? { ...u.diego, charge: !!(dp && dp.charge) } : null;
         if (dgo && (dgo.mounted || dgo.charge)) hz += DIEGO_RIDE_Z;
+        // ฉากของวาเลนไทน์: ตัวเหมือนวิ่งเข้าหาเป้า · ซ่อน/ตัด/บีบ/เจาะรูหมาก (valMod)
+        const vp = sp || gp || dp || u.corpse ? null : valentinePose(st.fxActive, u, now);
+        if (vp) { rx = vp.x; ry = vp.y; ox = 0; oy = 0; hz = vp.hz || 0; sq = 0; }
+        const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
         const any = (set) => { if (us <= 1) return set.has(k); for (let dy = 0; dy < us; dy++) for (let dx = 0; dx < us; dx++) if (set.has(key(u.x + dx, u.y + dy))) return true; return false; };
@@ -575,6 +604,7 @@ export default function BoardCanvas(props) {
           masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
+          valMod: vmod, ghostDim: !!u.ghostDim, summon: u.summon || null,
           grow: (() => { const gr = st.grow.get(u.id); if (gr && now - gr.t0 > GROW_MS) { st.grow.delete(u.id); return null; } return gr || null; })(),
           hovered: !!hov && st.hoverUnit === u.id,
         });
@@ -609,6 +639,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
+        valentine: p.valentine || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

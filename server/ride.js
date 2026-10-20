@@ -62,6 +62,7 @@ function unseat(p) {
 // ขอขี่ได้ไหม (ไม่สนว่ามีคำขอค้างอยู่) — ตาของตัวเอง · ยังเดินได้ · ติดกัน · อีกฝ่ายว่าง
 function canAsk(p, t) {
   if (!p || !t || p.id === t.id || !t.alive || !t.pos || !p.pos) return false;
+  if (p.summon || t.summon || (p.dim || null) !== (t.dim || null)) return false; // ยูนิตที่ถูกเรียก / คนละชั้นมิติ ขี่ไม่ได้
   if (!action.canAct(p) || match.action.locked || match.action.dismount) return false; // เพิ่งลงจากหลังตานี้ = ขึ้นใหม่ไม่ได้
   if (p.mountId || t.mountId || riderOf(t) || riderOf(p)) return false;
   const hook = hookOf(p);

@@ -882,6 +882,16 @@ function statusEntries(p, full) {
     else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "" });
     else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "" });
   }
+  // ฟันนี่ วาเลนไทน์: กระสุน (รีโหลด) · หลบสายตา (เทิร์นที่เหลือ / คูลดาวน์) · กระดานคู่ขนานเปิดอยู่ (ตัวเลข/ไอคอนเท่านั้น)
+  //  คูลดาวน์ท่าไม้ตายแต่ละแบบอยู่บนการ์ดตัวเลือก (locked + left จาก server)
+  if (p.valentine && p.valentine.ammo != null) {
+    const v = p.valentine;
+    if (v.ammo > 0) out.push({ key: "valAmmo", v: 1, icon: "🔫", label: `${v.ammo}/${v.ammoMax || 3}`, cls: "bg-pink-800 text-white", desc: "" });
+    else if (v.reloadCd > 0) out.push({ key: "valReload", v: v.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "" });
+    if (v.veil) out.push({ key: "valVeil", v: Math.max(1, v.veil.left || 0), turns: true, icon: "🚩", label: "หลบสายตา", cls: "bg-pink-300 text-gray-900", desc: "" });
+    else if (v.veilCd > 0) out.push({ key: "valVeilCd", v: v.veilCd, turns: true, icon: "⏳", label: "หลบสายตา", cls: "bg-white/20", desc: "" });
+    if (v.parallel) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "จงปลาบปลื้ม", cls: "bg-cyan-200 text-gray-900", desc: "" });
+  }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
@@ -1825,16 +1835,24 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
   const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
-  const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
+  //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
+  const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? `รอบตัว ${a.range}`
     : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
+  // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
+  const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
+  //  area.cells = ช่องตามรูปนับจากช่องของเรา: ต้องมีศัตรูยืนบนช่องนั้น
+  const onCells = (p, cells) => cells.some(([dx, dy]) => Rules.covers(boxOfP(p), me.pos.x + dx, me.pos.y + dy));
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
-    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
+    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && sameDim(p)
+      && (Array.isArray(a.cells) && a.cells.length ? enemyOf(p) && onCells(p, a.cells) : Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0)));
   // ยูนะ: มีคนที่ขี่ได้อยู่ติดกันไหม (ตัวเล็ก 1×1 · ไม่ได้ขี่/ถูกขี่อยู่) — ไม่มี = ไม่แสดงปุ่ม "ขี่" (ผู้ใช้สั่ง 2026-10-19)
-  const rideNear = !!me?.yuna?.canRide && !!me.pos && (state.players || []).some((p) => p.alive && p.pos && p.id !== me.id && !p.ride
+  const rideNear = !!me?.yuna?.canRide && !!me.pos && (state.players || []).some((p) => p.alive && p.pos && p.id !== me.id && !p.ride && !p.summon && sameDim(p)
     && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.alive && o.ride === p.id)
     && Math.abs(p.pos.x - me.pos.x) + Math.abs(p.pos.y - me.pos.y) === 1);
-  const enemyOf = (p) => !!me && p.id !== me.id && !sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId);
+  // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้
+  const enemyOf = (p) => !!me && p.id !== me.id && sameDim(p)
+    && (p.summon?.kind === "double" || (!sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId)));
   // เข้าช่วงโจมตี -> ฉากประกาศ "เริ่มโจมตีได้" + เสียงเปลี่ยนช่วง (ไม่บังการกดเลือกเป้า)
   useEffect(() => {
     if (phase !== "ATTACK") return;
@@ -1949,6 +1967,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     clickSound();
     // จอคอม (ระบบกระดาน): สกิลที่มีระยะ → เลือกเป้า/ทิศบนกระดานก่อน · self → ใช้ทันที (GRID_PLAN §7.2)
     if (vp.w >= 768) {
+      // ปุ่มที่ "ทำงานอยู่" (skillPub active — วาเลนไทน์ในมิติหลบสายตา: กด = ออก) ใช้ทันที ไม่เลือกเป้า
+      if (ch?.[tier]?.active) { socket.emit("useSkill", { tier }); return; }
       const kind = ch?.[tier]?.area?.kind || "self";
       if (kind === "target" || kind === "aoe" || kind === "line" || kind === "tile") { setPickReq({ kind: "skill", tier }); return; }
       socket.emit("useSkill", { tier });
@@ -1983,7 +2003,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า
     const quickSwitch = tier === "basic" && (me?.duoWith || me?.duoOf) && !ch?.basic?.cost;
-    if (!skillConfirmOn || quickSwitch) { skill(tier); return; }
+    // ปุ่มที่ทำงานอยู่ (กด = ออก · 0 แต้ม) ไม่ต้องยืนยัน
+    if (!skillConfirmOn || quickSwitch || ch?.[tier]?.active) { skill(tier); return; }
     setSkillConfirm({ tier, skillData, label, useCost });
   };
   const cancelSkillConfirm = () => { clickSound(); setSkillConfirm(null); };
@@ -2022,7 +2043,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const label = `${pickReq.name || s?.name || ""} · ${areaText(a)}`;
       const tier = pickReq.tier;
       const f = pickReq.form ? { form: pickReq.form } : {};
-      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
+      // area.cells (วาเลนไทน์ "รู้จักตัวเองอย่างแท้จริง") = เลือกศัตรูที่ยืนบนช่องตามรูป
+      const cells = Array.isArray(a.cells) && a.cells.length ? a.cells : null;
+      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, ...(cells ? { cells, allow: enemyOf } : null), label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
@@ -2032,10 +2055,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
-      boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
+      boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
     } else if (pickReq.kind === "suit") {
       const { uid, mode } = pickReq;
-      boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
+      boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && !p.summon && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
     }
   }
   const pickGunTarget = (id) => {
@@ -2358,6 +2381,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     const s = ch?.[tier];
     if (!myTurn || noSkill || giftLocked(tier)) return true;
     if (canto && tier !== "basic") return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน
+    if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return !s.choices.some(choiceOk);
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
     if (tier === "ultimate") return (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || noTargetInRange(s?.area);
@@ -2411,7 +2435,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               portrait={<Portrait key={me.id} p={me} className="w-full h-full" rounded="" />}
               hexPortrait={true}
               duo={duoPick}
-              name={me.character.name}
+              name={me.character?.name || me.name}
               onName={() => { clickSound(); setShowChar(true); }}
               teamId={me.teamId}
               teamColor={teamAccent(me.teamId)}
@@ -2518,7 +2542,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         statusView={statusView} statusViewIsSelf={!!statusView && sameSide(statusView, hand)} onCloseStatus={() => setStatusViewId(null)}
         shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
-        myTurn={myTurn && !canto} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
+        myTurn={myTurn && !canto && !me?.summon} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
       {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}

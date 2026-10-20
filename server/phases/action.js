@@ -36,6 +36,8 @@ const Soot = require("../soot");
 const Ride = require("../ride");
 const Voice = require("../voice");
 const TimeStop = require("../timeStop");
+const Dim = require("../dimension");
+const Summon = require("../summon");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -99,9 +101,13 @@ function boxOf(p) {
   return Board.boxOf(p);
 }
 // ผู้เล่นที่ยังอยู่และยืนบนกระดาน ในรูปที่ board.js ใช้ ({ id, x, y, alive, teamId, size })
-function boardUnits() {
+//  ชั้นมิติ (server/dimension.js): เฉพาะคนชั้นเดียวกับ ref (playerId / ผู้เล่น) · ไม่ส่ง = ชั้นของต้นตอ (effectSource) → คนที่กำลังเดิน → กระดานหลัก
+//  ref = "*" = ทุกชั้น (หาช่องตั้งร้านค้า)
+function boardUnits(ref) {
+  const all = ref === "*";
+  const layer = all ? null : Dim.refLayer(ref);
   return combat.alivePlayers()
-    .filter((p) => p.pos)
+    .filter((p) => p.pos && (all || Dim.layerOf(p) === layer))
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.teamId || null, size: sizeOf(p) }));
 }
 // ช่องที่ยืน/เดินผ่าน/ถอยเข้าไม่ได้นอกจากสิ่งกีดขวางของแผนที่: แผงร้านค้ามายา (GRID_PLAN §8.1)
@@ -127,6 +133,7 @@ function unitAlly(a, b) {
 // ระยะเดินปกติสูงสุด (ก่อนหักโทษ) — บัฟของโอเบรอนใช้ค่านี้เป็นระยะส่ง (GRID_PLAN §5)
 //  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (Echo: ตัวใหญ่ขึ้น เดินได้น้อยลง)
 function baseMovOf(p) {
+  if (p.summon && Number.isFinite(p.summon.mov)) return p.summon.mov; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.mov ? hook.mov(p) : null;
   if (Number.isFinite(own)) return own;
@@ -140,7 +147,7 @@ function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
-  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - movPenalty(p, a));
+  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (Dim.ghost(p) ? 0 : movPenalty(p, a)));
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
@@ -161,7 +168,7 @@ function rebaseMove(p) {
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -184,6 +191,7 @@ function counters(p) {
 }
 // ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (Echo: ตัวใหญ่ขึ้น ตีไกลขึ้น)
 function rangeOf(p) {
+  if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.range ? hook.range(p) : null;
   if (Array.isArray(own)) return own;
@@ -222,6 +230,8 @@ function smashes(p) {
 //  ตัวใหญ่: วางใกล้จุดเกิดของตัวเองให้ทั้งตัวลงได้โดยไม่ทับใคร (พังสิ่งกีดขวางได้ = พังของใต้ตัว)
 function placeOnBoard(area) {
   Ride.clearAll(); // ขี่ผู้เล่นอื่น: เปลี่ยนภูมิภาค = ลงจากหลังทุกคน (ได้จุดเกิดของตัวเอง)
+  Summon.removeAll(); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด
+  Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
   match.board = { area };
   match.shopPos = null;
   const map = boardMap();
@@ -317,8 +327,9 @@ function resizeUnit(p, newSize) {
 }
 
 // ช่องนี้ยืนได้ไหม: ในกระดาน ไม่ใช่สิ่งกีดขวาง/ร้านค้า และไม่มีใครยืน (ยกเว้น selfId)
+//  ชั้นมิติ: นับเฉพาะคนชั้นเดียวกับ selfId (ไม่ส่ง = ชั้นตั้งต้นของ boardUnits)
 function tileFree(x, y, selfId = null) {
-  return Board.freeTile(boardMap(), x, y, boardUnits(), selfId, boardBlocked(selfId));
+  return Board.freeTile(boardMap(), x, y, boardUnits(selfId || undefined), selfId, boardBlocked(selfId));
 }
 // ช่องตามแนวพุ่งตรงจากตัว (โซระ: Mouse Separade) ทีละช่องไม่เกิน len · ตัดที่ขอบกระดาน
 //  ต่อช่อง { x, y, obstacle: ชนิดสิ่งกีดขวาง | null, wall: พังไม่ได้ (ผนึกมิโกะ), shop, unitId: คนที่ยืน (ไม่นับตัวเอง · รวมคนที่มองไม่เห็น) }
@@ -361,7 +372,10 @@ function resolveArea(p, area, targets, dir, tile) {
     const t = match.players[Array.isArray(targets) ? targets[0] : null];
     if (!t || !t.alive || !t.pos) return null;
     if (t.id === p.id) return area.self ? [t.id] : null;
+    if (!Dim.same(p, t)) return null; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
     if (Visibility.hiddenFromUnit(p, t)) return null;
+    // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
+    if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t) ? [t.id] : null;
     return Board.dist(boxOf(p), boxOf(t)) <= range ? [t.id] : null;
   }
   const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFromUnit(p, match.players[u.id]));
@@ -375,6 +389,11 @@ function resolveArea(p, area, targets, dir, tile) {
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
+}
+// เป้า t ทับช่องตามรูป cells ([[dx, dy], …] นับจากช่องของ p) ไหม
+function cellsHit(p, cells, t) {
+  const want = new Set(cells.filter((c) => Array.isArray(c)).map(([dx, dy]) => Board.key(p.pos.x + dx, p.pos.y + dy)));
+  return Board.footprint(t.pos.x, t.pos.y, sizeOf(t)).some((c) => want.has(Board.key(c.x, c.y)));
 }
 // ช่องที่เลือก (socket ส่ง { x, y }) → { x, y } จำนวนเต็ม · ไม่ถูกต้อง = null
 function tileOf(tile) {
@@ -454,7 +473,8 @@ function nextActor() {
     // ระบบคู่ (server/duo.js): ตาของผู้เล่น = ทุกตัวของฝ่าย (ตัวละครทั่วไปมีตัวเดียว)
     //  ขี่ผู้เล่นอื่น: ตาของตัวเอง = ลงมายืนช่องของตัวที่ถูกขี่ชั่วคราว (Ride.seat — จบตาขึ้นหลังต่อ)
     for (const u of Duo.unitsOf(owner)) Ride.seat(u);
-    let units = Duo.unitsOf(owner).filter((u) => u.alive && u.pos);
+    // + ยูนิตที่ถูกเรียกแบบคุมได้ (ร่างแยก — server/summon.js) เดินต่อจากเจ้าของ
+    let units = Duo.turnUnits(owner).filter((u) => u.alive && u.pos);
     if (!units.length) continue;
     Visibility.markTurn(id); // บรรทัดที่ฝ่ายนี้ก่อในตานี้ (filterLog — คนล่องหนที่ถูกโจมตีพื้นที่จนปรากฏตัว)
     // ผลต้นตาเดิน (ถึงคิวแล้ว — รวมคนที่ถูกข้ามตาเพราะสตั้น) · Ice Spike: คุกน้ำแข็งช่วงที่ 2
@@ -468,8 +488,8 @@ function nextActor() {
     for (const u of units) if (stuck(u)) match.lastLog.push(`😵 ${u.name} ขยับไม่ได้ — ข้ามตาเดิน`);
     units = units.filter((u) => !stuck(u));
     if (!units.length) continue;
-    const secs = actionSeconds();
-    if (owner.duoWith) Duo.startTurn(owner, units);
+    const secs = units[0].summon ? Summon.CONTROL_SECONDS : actionSeconds();
+    if (owner.duoWith || units.length > 1 || units[0] !== owner) Duo.startTurn(owner, units);
     else {
       match.duo = null;
       match.actorId = id;
@@ -499,7 +519,7 @@ function runExtras() {
 //  ex.resume = ตาของคนที่ถูกแทรก (counter) — จบตาพิเศษแล้วกลับไปเล่นต่อ (resumeFrom) แทนการเลื่อนคิว
 function startExtra(ex) {
   const p = match.players[ex.id];
-  if (!p || !p.alive || !p.pos || stuck(p) || p.duoWith || p.duoOf) {
+  if (!p || !p.alive || !p.pos || stuck(p) || p.duoWith || p.duoOf || p.summon) {
     if (ex.resume) { resumeFrom(ex.resume); return true; }
     return false;
   }
@@ -620,7 +640,7 @@ function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
   const seen = boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p) };
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
   if (step) return Board.stepPath(map, unit, movOf(p), seen, trail, { x, y }, opts);
@@ -662,16 +682,18 @@ function walkTo(id, x, y, { step = false } = {}) {
     return end.x === prev.x && end.y === prev.y ? null : [prev, { x: end.x, y: end.y }];
   };
   // น้ำแข็ง (GRID_PLAN §7.9): ช่องน้ำแข็งช่องแรกที่เดินเข้า = จุดเริ่มไถล — เดินจริงแค่ถึงช่องนั้น ที่เหลือคิดใหม่ด้วยตำแหน่งจริงของทุกคน
-  const entry = s <= 1 ? path.findIndex((t, i) => i > 0 && Board.isIce(map, t.x, t.y)) : -1;
+  //  เดินทะลุ (ชั้นมิติ — Dim.ghost) ไม่เหยียบน้ำแข็ง/กับดัก ไม่ชนใคร
+  const ghost = Dim.ghost(p);
+  const entry = s <= 1 && !ghost ? path.findIndex((t, i) => i > 0 && Board.isIce(map, t.x, t.y)) : -1;
   const walk = entry > 0 ? path.slice(0, entry + 1) : path;
   const bodyAt = (t) => ({ x: t.x, y: t.y, size: s });
   // ซุ่มโจมตีแบบ Fire Emblem: เดินชนคนที่มองไม่เห็น = หยุดช่องก่อนหน้า (ถอยไปช่องว่างช่องล่าสุดถ้าช่องนั้นมีเพื่อนยืน)
   //  การเดินของตานี้จบทันที (ย้อน/เดินต่อไม่ได้) แต่ยังโจมตี/ใช้สกิลได้ · คนล่องหนที่ถูกชนปรากฏตัว (Visibility.onBump)
   const hiddenAt = (t) => all.find((u) => u.id !== p.id && !seen.includes(u) && Board.dist(bodyAt(t), u) === 0);
-  const bumpIdx = walk.findIndex((t, i) => i > 0 && hiddenAt(t));
+  const bumpIdx = ghost ? -1 : walk.findIndex((t, i) => i > 0 && hiddenAt(t));
   // กับดักบนทางเดิน (ฮุค broadcast walkTrap — ดิเอโก้: ตาข่ายล่องหน): เหยียบช่องแรกที่มีกับดัก = หยุดตรงนั้น การเดินของตานี้จบ
   //  (ย้อน/เดินต่อไม่ได้ · ยังโจมตี/ใช้สกิลได้) แล้วกับดักทำงาน (spring — ดึง/ตรึงเอง) · ก่อนชนคนที่มองไม่เห็นเท่านั้น
-  const trap = s <= 1 ? walkTrapOf(p, walk) : null;
+  const trap = s <= 1 && !ghost ? walkTrapOf(p, walk) : null;
   if (trap && (bumpIdx < 0 || trap.index < bumpIdx)) {
     const walked = walk.slice(0, trap.index + 1);
     p.pos = { x: walked[walked.length - 1].x, y: walked[walked.length - 1].y };
@@ -862,6 +884,7 @@ function strikeTarget(id, targetId) {
   const target = match.players[targetId];
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
   if (combat.sameTeam(p, target)) return false;
+  if (!Dim.same(p, target)) return false; // ชั้นมิติ (server/dimension.js): คนละชั้นตีกันไม่ได้
   if (Visibility.hiddenFromUnit(p, target)) return false; // มองไม่เห็น = ตีไม่ได้ (ม่านแดง: นับจากตาของตัวที่ตีเอง)
   if (!canStrike(p, target)) return false;
   timers.clearPhaseTimer();
@@ -890,33 +913,52 @@ function finishActor() {
   timers.clearPhaseTimer();
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
   const p = match.players[match.actorId];
-  if (!expired && startCanto(p)) return;
-  // ตาเดินพิเศษ: ฮุค extraTurnOutro(engine, p, kind) → วินาทีพักฉากก่อนจบตาจริง (ดิเอโก้: เวลาเดินต่อ — ดาเมจที่ค้างลงพร้อมกัน) · ครั้งเดียวต่อตา
-  if (p && match.action && match.action.extra && !match.action.outro) {
-    match.action.outro = true;
-    const hook = CHAR_HOOKS[p.characterId];
-    const secs = hook && hook.extraTurnOutro ? Number(combat.withEffectSource(p, () => combat.runHook(hook, "extraTurnOutro", engine, p, match.action.extra))) : 0;
-    if (secs > 0 && match.gameState !== "GAMEOVER") {
+  // ผลจบตาลงไปแล้ว (เรียกซ้ำหลังพักฉากของฮุค afterActorEnd) = ข้ามไปเลือกตัว/คนถัดไป
+  if (!(match.action && match.action.endDone)) {
+    if (!expired && startCanto(p)) return;
+    // ตาเดินพิเศษ: ฮุค extraTurnOutro(engine, p, kind) → วินาทีพักฉากก่อนจบตาจริง (ดิเอโก้: เวลาเดินต่อ — ดาเมจที่ค้างลงพร้อมกัน) · ครั้งเดียวต่อตา
+    if (p && match.action && match.action.extra && !match.action.outro) {
+      match.action.outro = true;
+      const hook = CHAR_HOOKS[p.characterId];
+      const secs = hook && hook.extraTurnOutro ? Number(combat.withEffectSource(p, () => combat.runHook(hook, "extraTurnOutro", engine, p, match.action.extra))) : 0;
+      if (secs > 0 && match.gameState !== "GAMEOVER") {
+        match.gameState = "ATTACKING";
+        timers.startPhaseTimer(secs, finishActor);
+        view.broadcastState();
+        return;
+      }
+    }
+    // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
+    const endHook = p && CHAR_HOOKS[p.characterId];
+    if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));
+    Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
+    if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)
+    if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ
+    else if (!Dim.ghost(p)) endUnitTile(p); // เดินทะลุ (ชั้นมิติ — หลบสายตา) = ไม่ได้ผลของช่อง
+    // ฮุค broadcast afterActorEnd(engine, p) → วินาที: ตาเดินของใครก็ได้จบ (หลังผลของช่อง ก่อนไปตัว/คนถัดไป)
+    //  > 0 = ค้างฉาก ATTACKING เท่านั้นแล้วมาต่อที่นี่ (วาเลนไทน์: ตัวที่เหมือนกันวิ่งเข้าหา + ชน) · ผลจบตาไม่ลงซ้ำ (endDone)
+    const hold = afterActorEnd(p);
+    if (!match.action) match.action = { from: p && p.pos ? { ...p.pos } : null, moved: false, locked: true, expired };
+    match.action.endDone = true;
+    if (hold > 0 && match.gameState !== "GAMEOVER") {
       match.gameState = "ATTACKING";
-      timers.startPhaseTimer(secs, finishActor);
+      timers.startPhaseTimer(hold, finishActor);
       view.broadcastState();
       return;
     }
   }
-  // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
-  const endHook = p && CHAR_HOOKS[p.characterId];
-  if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));
-  Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
-  if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)
-  if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ
-  else endUnitTile(p);
+  // ยูนิตที่ถูกเรียกแบบคุมได้ (ร่างแยก — server/summon.js) ที่ยังไม่ได้เดิน = ตาของฝ่ายนี้เล่นต่อแบบระบบคู่ (เรียกกลางตา → ตาเดียวกัน)
+  if (!match.duo && p && !p.summon && Duo.turnUnits(p).length > 1 && match.gameState !== "GAMEOVER") {
+    match.duo = { ownerId: Duo.sideKey(p), acts: {}, done: {} };
+  }
   if (match.duo) {
     if (endTurnPhase.gameOver()) return;
     Duo.unitDone(p);
-    const next = expired ? null : Duo.nextUnit();
+    // หมดเวลา = จบทั้งฝ่าย · ยกเว้นร่างแยก (ยูนิตที่ถูกเรียก) ที่ยังมีเวลาของตัวเอง
+    const next = Duo.nextUnit({ summonsOnly: expired });
     if (next) {
       Duo.switchTo(next);
-      resumeAction();
+      resumeAction(next.summon ? Summon.CONTROL_SECONDS : undefined);
       return;
     }
     // หมดเวลา: ตัวที่สลับออกไปก่อนแล้วยังไม่จบ ได้ผลของช่องที่ยืนด้วย
@@ -929,11 +971,24 @@ function finishActor() {
   if (resume) { resumeFrom(resume); return; } // ตาพิเศษที่แทรกกลางตาคนอื่น = กลับไปตานั้นต่อ
   nextActor();
 }
+// ฮุค broadcast afterActorEnd(engine, p) ของทุกโมดูล → วินาทีพักฉากรวม (ค่ามากสุด) · ฮุคลงผลเอง
+function afterActorEnd(p) {
+  if (!p) return 0;
+  let hold = 0;
+  const called = new Set();
+  for (const mod of CHAR_HOOKS.MODULES) {
+    if (typeof mod.afterActorEnd !== "function" || called.has(mod.afterActorEnd)) continue;
+    called.add(mod.afterActorEnd);
+    hold = Math.max(hold, Number(combat.runHook(mod, "afterActorEnd", engine, p)) || 0);
+  }
+  return hold;
+}
 // กลับเข้าตาเดิน (ระบบคู่สลับตัว / เดินต่อหลังจบตา) ด้วยเวลาที่เหลือของตานี้
 //  (match.actionLeft = เวลาที่เหลือตอนตาถูกพัก — timers.clearPhaseTimer จดไว้ระหว่างเฟส ACTION)
-function resumeAction() {
+//  secs = เวลาของตัวที่คุมต่อ (ร่างแยก — Summon.CONTROL_SECONDS) · ไม่ส่ง = เวลาที่เหลือ
+function resumeAction(secs) {
   match.gameState = "ACTION";
-  timers.startPhaseTimer(Math.max(3, match.actionLeft || 0), actionTimeUp);
+  timers.startPhaseTimer(secs > 0 ? secs : Math.max(3, match.actionLeft || 0), actionTimeUp);
   view.broadcastState();
 }
 // เดินต่อหลังจบตา (canto): ฮุค cantoMov(engine, p) → ระยะ · ครั้งเดียวต่อตา · ทำได้แค่เดิน/ย้อน/รอ

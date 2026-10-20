@@ -17,11 +17,13 @@ Object.assign(module.exports, {
   isPartner, isOwner, ownerOf, partnerOf, unitsOf, sideKey, sideAlive, inGame, cardUnit, cardHolders,
   sideCount, setup, teardown, controlledId, startTurn, switchTo, canSwitchTo, nextUnit, unitDone, otherUnit,
   moved, corpseKeys, corpseOf, corpseKept, keeperAlive, placeCorpses, saveCorpses, restoreCorpses, onDeath, clearSide,
+  turnUnits,
 });
 
 const { CHAR_BY_ID } = require("../characters");
 const Board = require("./board");
 const match = require("./match");
+const Summon = require("./summon");
 
 const SUFFIX = "~duo";
 // ฟิลด์ที่คู่ใช้ร่วมกับเจ้าของ (ทุกการอ่าน/เขียนบนระเบียนคู่ไปที่เจ้าของ)
@@ -44,18 +46,24 @@ function unitsOf(p) {
   const mate = o.duoWith ? match.players[o.duoWith] : null;
   return mate ? [o, mate] : [o];
 }
-// คีย์ของฝ่าย (นับผู้รอด/จบเกม) = id เจ้าของ
-function sideKey(p) { return p ? p.duoOf || p.id : null; }
+// คีย์ของฝ่าย (นับผู้รอด/จบเกม) = id เจ้าของ · ยูนิตที่ถูกเรียก (server/summon.js) = summon.side (ร่างแยก = เจ้าของ · ตัวเหมือน = ตัวเอง)
+function sideKey(p) { return p ? (p.summon ? p.summon.side : p.duoOf || p.id) : null; }
 function sideAlive(p) { return unitsOf(p).some((u) => u.alive); }
 // ผู้เล่นคนนี้ยังอยู่ในเกม (จั่ว/เปิดไพ่/เข้าลำดับเดินได้) — เจ้าของที่ล้มแต่คู่ยังอยู่ = ยังอยู่
-function inGame(p) { return !!p && !isPartner(p) && sideAlive(p); }
+function inGame(p) { return !!p && !p.summon && !isPartner(p) && sideAlive(p); }
 // ตัวที่รับผลของไพ่ที่ลงกับ "ผู้เล่น" (การ์ดราชินี ฯลฯ) — ตัวแรกที่ยังมีชีวิต
 function cardUnit(p) { return unitsOf(p).find((u) => u.alive) || ownerOf(p); }
 // ผู้ถือไพ่ทุกคนที่ยังอยู่ในเกม (ช่วงจั่ว/เปิดไพ่/ลำดับเดิน)
 function cardHolders() { return Object.values(match.players).filter(inGame); }
-// จำนวนฝ่ายที่ยังมีตัวรอด
+// จำนวนฝ่ายที่ยังมีตัวรอด — ยูนิตที่ถูกเรียกไม่นับ (server/summon.js)
 function sideCount(list) {
-  return new Set((list || Object.values(match.players).filter((p) => p.alive)).map(sideKey)).size;
+  return new Set((list || Object.values(match.players).filter((p) => p.alive)).filter((p) => !p.summon).map(sideKey)).size;
+}
+// ตัวที่ได้เดินในตาของผู้เล่นคนนี้ = ทุกตัวของฝ่าย (ระบบคู่) + ยูนิตที่ถูกเรียกแบบคุมได้ (ร่างแยก — server/summon.js) ต่อท้าย
+function turnUnits(p) {
+  const units = unitsOf(p);
+  const own = ownerOf(p);
+  return own ? [...units, ...Summon.controlledOf(own)] : units;
 }
 
 // ---------- สร้าง/ลบคู่ ----------
@@ -92,10 +100,10 @@ function setup() {
     match.players[id] = mate;
   }
 }
-// กลับห้องรอ / เริ่มแมตช์ใหม่: ลบคู่ทั้งหมด
+// กลับห้องรอ / เริ่มแมตช์ใหม่: ลบคู่ทั้งหมด (+ ยูนิตที่ถูกเรียก — server/summon.js)
 function teardown() {
   for (const p of Object.values(match.players)) {
-    if (p.duoOf) delete match.players[p.id];
+    if (p.duoOf || p.summon) delete match.players[p.id];
     else { delete p.duoWith; p.corpse = null; }
   }
   match.duo = null;
@@ -117,7 +125,7 @@ function freshAction(u) { return { from: { ...u.pos }, moved: false, locked: fal
 // เริ่มตาของฝ่ายคู่: units = ตัวที่ยังอยู่บนกระดาน (ผ่านด่านสตั้นแล้ว — ตัวแรกได้คุมก่อน)
 function startTurn(owner, units) {
   match.duo = { ownerId: owner.id, acts: {}, done: {} };
-  for (const u of unitsOf(owner)) if (!units.includes(u)) match.duo.done[u.id] = true;
+  for (const u of turnUnits(owner)) if (!units.includes(u)) match.duo.done[u.id] = true;
   const first = units[0];
   match.actorId = first.id;
   match.action = freshAction(first);
@@ -152,12 +160,12 @@ function moved(u) {
 function unitDone(p) {
   if (match.duo && p) match.duo.done[p.id] = true;
 }
-// ตัวถัดไปของฝ่ายนี้ที่ยังคุมได้ (ไม่มี = null)
-function nextUnit() {
+// ตัวถัดไปของฝ่ายนี้ที่ยังคุมได้ (ไม่มี = null) · summonsOnly = เฉพาะยูนิตที่ถูกเรียก (หมดเวลาตา — ร่างแยกยังได้ตาของตัวเอง)
+function nextUnit({ summonsOnly = false } = {}) {
   const d = match.duo;
   if (!d) return null;
   const owner = match.players[d.ownerId];
-  return unitsOf(owner).find((u) => !d.done[u.id] && u.id !== match.actorId && u.alive && u.pos && !stuck(u)) || null;
+  return turnUnits(owner).find((u) => !d.done[u.id] && u.id !== match.actorId && u.alive && u.pos && !stuck(u) && (!summonsOnly || u.summon)) || null;
 }
 
 // ---------- ร่าง (ตัวที่ล้มขณะอีกตัวยังอยู่) ----------
@@ -187,7 +195,7 @@ function corpseKeys() {
 // ล้มแล้ว: จำช่องไว้เป็นร่าง (ระบบคู่ที่อีกตัวรอด / มีคนเก็บร่าง) · ฝ่ายหมดแล้ว = ตกรอบ (ร่างหายถ้าไม่มีคนเก็บร่าง)
 //  คนเก็บร่างคนสุดท้ายตาย = ร่างของทุกคนที่ไม่ใช่ระบบคู่ที่ยังรอดหาย
 function onDeath(p) {
-  if (!p) return;
+  if (!p || p.summon) return; // ยูนิตที่ถูกเรียกไม่ทิ้งศพ
   const keep = keeperAlive();
   if (p.pos && (keep || (isPair(p) && sideAlive(p)))) p.corpse = { ...p.pos };
   if (isPair(p) && !sideAlive(p)) clearSide(p);

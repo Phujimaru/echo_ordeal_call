@@ -50,6 +50,7 @@ function runSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
   if (!match.effectSourceId && p) return combat.withEffectSource(p, () => runSkill(id, tier, targets, opts));
   if (!p || !p.alive) return;
+  if (p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก — server/summon.js) ใช้สกิลไม่ได้
   if (!["basic", "secondary", "ultimate"].includes(tier)) return;
   const ch = CHAR_BY_ID[p.characterId];
   const skill = ch && ch[tier];

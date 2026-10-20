@@ -41,6 +41,8 @@ const Duo = require("./duo");
 const Soot = require("./soot");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const Dim = require("./dimension");
+const Summon = require("./summon");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -128,6 +130,13 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // ขี่ผู้เล่นอื่น (server/ride.js): ขี่อยู่ไหม / ตัวที่ถูกขี่ / คนที่ขี่ / ช่องจุดกลาง (ขี่ = ช่องของตัวที่ถูกขี่)
   ride: { riding: Ride.riding, mountOf: Ride.mountOf, riderOf: Ride.riderOf, centerOf: Ride.centerOf, fall: Ride.fall },
   nearFreeTile: action.nearFreeTile, // ช่องว่างใกล้ pos ที่สุด (วงข้าวหลามตัดออกไป)
+  boardBlocked: action.boardBlocked, // ช่องที่ยืน/ผ่านไม่ได้นอกจากสิ่งกีดขวาง (ร้านค้า/ร่าง · selfId = ม่านแดงที่ขัง)
+  hopTiles: action.hopTiles,         // ร่างที่เดินข้ามได้ (Board.reachable opts.hop)
+  // ชั้นมิติ (server/dimension.js — วาเลนไทน์): p.dim · ชั้นเดียวกันไหม · เดินทะลุ · เข้า/ออก (ออก = ช่องว่างใกล้สุดบนกระดานหลัก)
+  dim: { layerOf: Dim.layerOf, same: Dim.same, ghost: Dim.ghost, enter: Dim.enter, leave: Dim.leave, membersOf: Dim.membersOf },
+  // ยูนิตที่ถูกเรียก (server/summon.js — วาเลนไทน์): เรียก / เอาออกเงียบๆ / ของเจ้าของ / ตัวที่คุมได้
+  summon: { spawn: Summon.spawn, remove: Summon.remove, ofOwner: Summon.ofOwner, controlledOf: Summon.controlledOf, CONTROL_SECONDS: Summon.CONTROL_SECONDS },
+  get cmdSeq() { return match.cmdSeq || 0; }, // เลขคำสั่งของผู้เล่น (TimeStop.guard) — แยก "การโจมตี 1 ครั้ง"
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
   chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)

@@ -117,7 +117,7 @@ function filterLog(lines, viewer) {
   const side = Duo.sideKey(viewer);
   let out = lines.map((line, i) => ({ line, i }));
   for (const p of Object.values(match.players)) {
-    if (p.id === viewer.id || !p.name || combat.sameTeam(viewer, p)) continue;
+    if (p.id === viewer.id || !p.name || p.summon || combat.sameTeam(viewer, p)) continue; // ยูนิตที่ถูกเรียก (ตัวเหมือนใช้ชื่อเป้า) ไม่ตัดบันทึก
     const hook = hookOf(p);
     const cut = hiddenFrom(viewer, p) ? Infinity : (hook && hook.logCut ? hook.logCut(p, match.roundNumber) : 0);
     if (!cut) continue;

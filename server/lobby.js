@@ -180,7 +180,7 @@ function maybeStartTeamMatch() {
   if (fullTeams && list.every((p) => p.teamId && p.teamConfirmed)) startMatch();
 }
 function aliveTeamIds(list = combat.alivePlayers()) {
-  return [...new Set(list.map((p) => p.teamId).filter(Boolean))];
+  return [...new Set(list.filter((p) => !p.summon).map((p) => p.teamId).filter(Boolean))]; // ยูนิตที่ถูกเรียกไม่นับ
 }
 function remainingTeamWinInfo(stillAlive = combat.alivePlayers(), total = Duo.sideCount(Object.values(match.players))) {
   if (!teamModeActive() || total < 2) return { over: false, teamId: null };
