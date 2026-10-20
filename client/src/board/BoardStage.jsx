@@ -30,6 +30,7 @@ import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
+import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -222,6 +223,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const hoverCorpse = hover && !hoverUnit && !hoverSeal && !hoverSpike ? corpseFoes.find((s) => samePos(s.pos, hover)) || null : null;
   const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
+  const hasGyro = state.players.some((p) => !!p.gyro);
+  useEffect(() => { if (hasGyro) preloadGyroArt(); }, [hasGyro]);
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
@@ -1191,6 +1194,28 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("shadowFx", onShadow);
   }, [pushFx, look, lowQ]);
 
+  // ไจโร: socket "gyroFx" { kind: throw | recall | secret | golden | breaker | horse | goldenTick, id, color, ... } → gyroFx.js
+  //  หมากที่ฉากย้ายเอง (ถูกดึง/กระเด็น/ดันออกข้าง) จดไว้ใน shadowBusy (ไม่เลื่อน/ไถลซ้ำตอน state มาถึง) · เสียงมาจาก server
+  useEffect(() => {
+    const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id]; return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(byIdRef.current[id]);
+    const idAt = (t) => { const p = Object.values(byIdRef.current).find((q) => q && q.alive && q.pos && Rules.covers(boxOfP(q), t.x, t.y)); return p ? p.id : null; };
+    const terrainAt = (x, y) => { const b = boardRef.current; return b && b.terrain ? b.terrain[key(x, y)] || null : null; };
+    const onGyro = (ev) => {
+      const out = gyroEventFx(ev, { posOf, sizeOf, idAt, terrainAt });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      pushFx(out.fx);
+      const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(lowQ ? list.filter((f) => f.kind !== "iceShake") : list));
+    };
+    socket.on("gyroFx", onGyro);
+    return () => socket.off("gyroFx", onGyro);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1304,6 +1329,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
+      // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)
+      gyro: !mk && p.gyro ? { mounted: !!p.gyro.mounted, empowered: !!p.gyro.empowered, horseHp: p.gyro.horseHp } : null,
       rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
@@ -1328,6 +1355,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const graySig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.gray && p.gray.charge && Array.isArray(p.gray.charge.tiles))
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), dir: p.gray.charge.dir, left: p.gray.charge.left, tiles: p.gray.charge.tiles.map((t) => ({ x: t.x, y: t.y })) })));
   const grays = useMemo(() => { const list = JSON.parse(graySig); return list.length ? list : null; }, [graySig]);
+  // ลูกเหล็กของไจโรบนพื้น (p.gyro.balls — ข้อมูลอยู่ที่ตัวผู้เล่น · ไจโรหลายคน = วงสีตามเจ้าของ) — gyroFx.js gyroBallItems
+  const ballSig = JSON.stringify(state.players.filter((p) => p.gyro && Array.isArray(p.gyro.balls) && p.gyro.balls.length)
+    .flatMap((p) => p.gyro.balls.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ owner: p.id, color: p.color, x: b.x, y: b.y, seq: b.seq | 0 }))));
+  const gyroBalls = useMemo(() => { const list = JSON.parse(ballSig); return list.length ? list : null; }, [ballSig]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1574,6 +1605,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         storms={state.board ? state.board.storms : null}
         songs={songs}
         grays={grays}
+        gyroBalls={gyroBalls}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}

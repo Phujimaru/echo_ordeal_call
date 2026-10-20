@@ -47,6 +47,8 @@
 //               units[].rider = { img, color, name } → ตัวที่ขี่อยู่บนหลัง (ขี่ผู้เล่นอื่น — server/ride.js)
 //   grays       [{ id, x, y, size, dir, left, tiles }] — เกรย์กำลังชาร์จรองโกมิเนียต: สนามมืด + แนวลำแสงทอง + หอกลอยเหนือหัว (grayFx.js)
 //               fx ของเกรย์: gray* (grayFx.js — ท่าตีปกติ · keeper/grave/reap · grayBeam = ลำแสงรองโกมิเนียต)
+//   gyroBalls   [{ owner, color, x, y, seq }] — ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ · gyroFx.js gyroBallItems)
+//               units[].gyro = { mounted, empowered, horseHp } — ม้าใต้หมาก / ออร่าทอง · fx gyro* ย้ายหมากเองได้ (gyroPose)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -62,6 +64,7 @@ import { boardPaused } from "./boardPause";
 import { hkBeamHitMs } from "./hikaruFx";
 import { iceShakeOffset } from "./iceFx";
 import { shadowPose } from "./shadowFx";
+import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
@@ -539,6 +542,11 @@ export default function BoardCanvas(props) {
         // ฉากของเคท & เอมิลิโกะ (บิน/ถูกดึง/พุ่ง/ฟื้น) ย้ายหมากเอง — ทับแอนิเมชันอื่น
         const sp = u.corpse ? null : shadowPose(st.fxActive, u.id, now);
         if (sp) { rx = sp.x; ry = sp.y; ox = 0; oy = 0; hz = sp.hz || 0; sq = sp.sq || 0; }
+        // ฉากของไจโร (ถูกดึง/กระเด็น/ดันออกข้าง) ย้ายหมากเอง — ค้างที่ปลายทางจน state มาถึง
+        const gp = sp || u.corpse ? null : gyroPose(st.fxActive, u, now);
+        if (gp) { rx = gp.x; ry = gp.y; ox = 0; oy = 0; hz = gp.hz || 0; sq = gp.sq || 0; }
+        // ไจโรขี่ม้า: หมากนั่งบนหลังม้า (ม้าวาดใต้หมาก — gyroFx.js gyroHorse)
+        if (u.gyro && u.gyro.mounted) hz += GYRO_RIDE_Z;
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
         const any = (set) => { if (us <= 1) return set.has(k); for (let dy = 0; dy < us; dy++) for (let dx = 0; dx < us; dx++) if (set.has(key(u.x + dx, u.y + dy))) return true; return false; };
@@ -553,7 +561,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, lowQ,
+          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, gyro: u.gyro || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
@@ -589,7 +597,7 @@ export default function BoardCanvas(props) {
       const frame = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gyroBalls: p.gyroBalls || null,
       }, now);
       if (!zs) st.boxes = frame(g);
       else {
