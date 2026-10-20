@@ -916,6 +916,5 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **จั่วไม่ได้**: ฮุค `holdsDraw(engine, p)` ใน `dealRound` หลังบล็อกสตั้น → `p.locked = true` (ยืนที่ไพ่ใบแรก)
 - **ซื้อ/ใช้ไอเทมไม่ได้**: ฮุค `blocksItems(engine, p)` (`shop.buyShopItem` / `useInventoryItem` — ทิ้งได้)
 - **พื้นที่สกิล**: `target` ที่ `square: true` = นับระยะแบบเชบีเชฟ (`action.boxChebyshev` — range 3 = กรอบ 7×7) · `tile` ที่ `place: "free"` = client ให้เลือกช่องว่าง (server ตรวจเองใน `canUseSkill`)
-- **ตีสวนแบบแนวตรง**: ผู้สวนที่มี `attackLane` สวนได้เฉพาะผู้ตีที่อยู่ในแนว (`action.canStrike`) · เปิดสวนด้วย `counter: true` ใน characters.js (เฟิร์นตัวเดียวตอนนี้)
 - `engine.hiddenFrom(viewer, t)` / `engine.hiddenFromUnit(p, t)` = การมองเห็นจาก `server/visibility.js` · `engine.commandSeq`
 - เอฟเฟกต์ `fernFx` (`client/src/board/fernFx.js`): `cast` · `conceal` (ฝ่ายตัวเอง) · `unveil` · `shield` (คนที่เห็นเฟิร์น) · `warpOut` · `warpIn` (ฝ่ายตัวเอง) · `reveal` · `cannon { from, to, dmg }` · `fizzle` — ทุกก้อนมี `id` · ตีปกติ `attackStyle` = `"fernZoltraak"`
