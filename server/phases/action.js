@@ -35,6 +35,7 @@ const Duo = require("../duo");
 const Soot = require("../soot");
 const Ride = require("../ride");
 const Voice = require("../voice");
+const TimeStop = require("../timeStop");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -139,8 +140,17 @@ function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
-  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0));
+  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - movPenalty(p, a));
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
+}
+// โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
+//  from = ช่องเริ่มตาเดิน (ไม่ได้อยู่ในตา = ช่องที่ยืน) · ซ้อนกับไพ่แตก/เชื่องช้าได้
+function movPenalty(p, a) {
+  const from = (a && a.from) || p.pos;
+  if (!from) return 0;
+  let n = 0;
+  for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.movPenalty === "function") n += Number(combat.runHook(mod, "movPenalty", engine, p, from)) || 0;
+  return Math.max(0, n);
 }
 // ระบบคู่: ตัวที่คุมอยู่ (p · ตา = match.action) เดินแล้วกำลังสลับออก (กระจกเงา — Duo.switchTo)
 //  → ตาที่เก็บไว้เริ่มใหม่จากช่องที่ยืน ด้วยระยะที่เหลือ (ผู้ใช้สั่ง 2026-10-18 — เดิมสลับออก = เดินต่อไม่ได้)
@@ -411,6 +421,8 @@ function beginOrder() {
     shop.addGold(first, GOLD_FIRST_BONUS);
     match.lastLog.push(`🥇 ${first.name} ได้เดินลำดับแรก — เหรียญ +${GOLD_FIRST_BONUS}`);
   }
+  // ฮุค broadcast onOrderBegin(engine): ลำดับเดินเทิร์นนี้เรียงแล้ว (ดิเอโก้: เดอะเวิลด์ที่ไม่ถูกตี = ตาหยุดเวลาก่อนทุกคน — TimeStop.queueExtra)
+  combat.broadcastHook("onOrderBegin", engine);
   match.gameState = "ORDER";
   timers.startPhaseTimer(ORDER_TIME, nextActor);
   view.broadcastState();
@@ -425,6 +437,9 @@ function nextActor() {
   timers.clearPhaseTimer();
   // ศัตรูคนสุดท้ายตายกลางเทิร์น = จบเกมทันที ไม่ต้องรอคนที่เหลือเดิน (ผู้ใช้ตัดสิน 2026-10-09)
   if (endTurnPhase.gameOver()) return;
+  TimeStop.clearMark();
+  // ตาเดินพิเศษที่รอคิว (หยุดเวลา — server/timeStop.js) เล่นก่อนเลื่อนลำดับ · จบแล้วกลับมาที่นี่ต่อ
+  for (let ex = TimeStop.takeExtra(); ex; ex = TimeStop.takeExtra()) if (startExtra(ex)) return;
   for (;;) {
     match.actorIndex++;
     const id = match.turnOrder[match.actorIndex];
@@ -462,6 +477,7 @@ function nextActor() {
     }
     match.gameState = "ACTION";
     timers.startPhaseTimer(secs, actionTimeUp);
+    TimeStop.mark(); // จุดย้อนของตานี้ (ฉากต้นตาเดินที่โจมตีคนที่ตั้งรับด้วยการหยุดเวลา)
     for (const u of units) Voice.play(u, "turn"); // เสียงพากย์ต้นตาเดิน (server/voice.js — ไจโร: start_1/2)
     // ฮุค onActorReady: ตาเริ่มแล้ว (ACTION + นาฬิกา) — ฉากต้นตาเดินพักตาไว้เล่นคลิป/เอฟเฟกต์ได้ (engine.pausePlayingForCutscene
     //  → กลับมาตาเดินด้วยเวลาที่เหลือ) · เกรย์: ปล่อยรองโกมิเนียตที่ชาร์จไว้
@@ -473,6 +489,22 @@ function nextActor() {
     view.broadcastState();
     return;
   }
+}
+// ตาเดินพิเศษ (TimeStop.queueExtra — ดิเอโก้: หยุดเวลา): ตาใหม่เต็มๆ ของ ex.id โดยไม่เลื่อนลำดับเดิน · เล่นไม่ได้ (ตาย/ไม่อยู่บนกระดาน/ติดสตั้น) = false
+//  ฮุค onExtraTurn(engine, p, kind) หลังตั้งตา+นาฬิกา (พักตาเล่นฉากได้แบบ onActorReady)
+function startExtra(ex) {
+  const p = match.players[ex.id];
+  if (!p || !p.alive || !p.pos || stuck(p) || p.duoWith || p.duoOf) return false;
+  match.duo = null;
+  match.actorId = p.id;
+  match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind };
+  match.gameState = "ACTION";
+  timers.startPhaseTimer(actionSeconds(), actionTimeUp);
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onExtraTurn) combat.withEffectSource(p, () => combat.runHook(hook, "onExtraTurn", engine, p, ex.kind));
+  if (match.gameState !== "ACTION") return true; // ฉากต้นตาพักไว้แล้ว (บรอดแคสต์เอง)
+  view.broadcastState();
+  return true;
 }
 // ผู้เล่นออกจากเกมกลางเทิร์น: ถ้าเป็นคนที่กำลังเดิน ข้ามไปคนถัดไปเลย
 //  (กำลังเล่นฉากตีอยู่ = ปล่อยให้ตัวจับเวลาของฉากพาไปคนถัดไปเอง ไม่งั้นข้ามสองคน)
@@ -569,7 +601,10 @@ function planWalk(p, x, y, step) {
 // เดิน (ตาของตัวเอง · ยังไม่ล็อก): ทุกครั้งคิดเส้นทางใหม่จาก "จุดเริ่มตา" — เดินแล้วคลิก/กดใหม่ได้เรื่อยๆ จนกว่าจะล็อก (ใช้สกิล/ไอเทม/ซื้อ/ตี)
 //  คลิก = ไปช่องนั้นด้วยทางที่ก้าวน้อยสุด (เดินไปแล้ว = เริ่มใหม่จากจุดเริ่มตา)
 //  step = เดินทีละช่องด้วยคีย์บอร์ด (W A S D) แบบลูกศร FE — ตัวละครเดินตามทันที · กลับมาจุดเริ่ม (คลิกหรือก้าว) = ย้อนการเดิน
-function moveTo(id, x, y, { step = false } = {}) {
+function moveTo(id, x, y, opts = {}) {
+  return TimeStop.guard(() => walkTo(id, x, y, opts));
+}
+function walkTo(id, x, y, { step = false } = {}) {
   const p = match.players[id];
   if (!canAct(p, { move: true }) || match.action.locked) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
@@ -604,6 +639,22 @@ function moveTo(id, x, y, { step = false } = {}) {
   //  การเดินของตานี้จบทันที (ย้อน/เดินต่อไม่ได้) แต่ยังโจมตี/ใช้สกิลได้ · คนล่องหนที่ถูกชนปรากฏตัว (Visibility.onBump)
   const hiddenAt = (t) => all.find((u) => u.id !== p.id && !seen.includes(u) && Board.dist(bodyAt(t), u) === 0);
   const bumpIdx = walk.findIndex((t, i) => i > 0 && hiddenAt(t));
+  // กับดักบนทางเดิน (ฮุค broadcast walkTrap — ดิเอโก้: ตาข่ายล่องหน): เหยียบช่องแรกที่มีกับดัก = หยุดตรงนั้น การเดินของตานี้จบ
+  //  (ย้อน/เดินต่อไม่ได้ · ยังโจมตี/ใช้สกิลได้) แล้วกับดักทำงาน (spring — ดึง/ตรึงเอง) · ก่อนชนคนที่มองไม่เห็นเท่านั้น
+  const trap = s <= 1 ? walkTrapOf(p, walk) : null;
+  if (trap && (bumpIdx < 0 || trap.index < bumpIdx)) {
+    const walked = walk.slice(0, trap.index + 1);
+    p.pos = { x: walked[walked.length - 1].x, y: walked[walked.length - 1].y };
+    smashAlong(p, walked, had.smashed);
+    act.path = animOf(walked);
+    afterWalk(p, walked, null, act.path, had.ice);
+    act.moved = true;
+    act.trail = walked;
+    act.locked = true;
+    combat.runHook(trap.mod, "springTrap", engine, p, trap.tile, trap.info);
+    view.broadcastState();
+    return true;
+  }
   if (bumpIdx > 0) {
     const hidden = hiddenAt(walk[bumpIdx]);
     let stop = bumpIdx - 1;
@@ -692,6 +743,17 @@ function smashAlong(p, path, had) {
   match.lastLog.push(`💥 ${p.name} เดินพังสิ่งกีดขวาง ${fresh.length} ช่อง`);
   engine.boardFx("smashFx", { id: p.id, tiles: fresh.map((b) => ({ ...b, step: step[Board.key(b.x, b.y)] })) });
 }
+// ช่องแรกบนทางเดิน (ไม่นับช่องเริ่ม) ที่มีกับดักของโมดูลไหน (ฮุค walkTrap(engine, p, tile) → ข้อมูลกับดัก | null) → { index, tile, mod, info } | null
+function walkTrapOf(p, walk) {
+  for (let i = 1; i < walk.length; i++) {
+    for (const mod of CHAR_HOOKS.MODULES) {
+      if (typeof mod.walkTrap !== "function" || typeof mod.springTrap !== "function") continue;
+      const info = combat.runHook(mod, "walkTrap", engine, p, { x: walk[i].x, y: walk[i].y });
+      if (info) return { index: i, tile: { x: walk[i].x, y: walk[i].y }, mod, info };
+    }
+  }
+  return null;
+}
 // ถอดการเดินของตานี้ออกทั้งหมด: กลับจุดเริ่มตา · ของที่เดินพังกลับมาครบ · ธารน้ำแข็งที่ Ice Spike เดินสร้างหาย
 function rewindWalk(p) {
   const a = match.action;
@@ -719,6 +781,9 @@ function undoMove(id) {
 }
 // โจมตีปกติ: เป้าต้องอยู่ในระยะจากช่องที่ยืน · ตีแล้วจบตา (หลังฉากตี/สวน/ถอย)
 function attackTarget(id, targetId) {
+  return TimeStop.guard(() => strikeTarget(id, targetId));
+}
+function strikeTarget(id, targetId) {
   const p = match.players[id];
   if (match.action && match.action.noStrike) return false; // lockStrike (ขนมปังของเอมิลิโกะ)
   // ตีจบแล้ว (ก่อนจบตา): ฮุค afterStrike — เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง
@@ -796,6 +861,18 @@ function finishActor() {
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
   const p = match.players[match.actorId];
   if (!expired && startCanto(p)) return;
+  // ตาเดินพิเศษ: ฮุค extraTurnOutro(engine, p, kind) → วินาทีพักฉากก่อนจบตาจริง (ดิเอโก้: เวลาเดินต่อ — ดาเมจที่ค้างลงพร้อมกัน) · ครั้งเดียวต่อตา
+  if (p && match.action && match.action.extra && !match.action.outro) {
+    match.action.outro = true;
+    const hook = CHAR_HOOKS[p.characterId];
+    const secs = hook && hook.extraTurnOutro ? Number(combat.withEffectSource(p, () => combat.runHook(hook, "extraTurnOutro", engine, p, match.action.extra))) : 0;
+    if (secs > 0 && match.gameState !== "GAMEOVER") {
+      match.gameState = "ATTACKING";
+      timers.startPhaseTimer(secs, finishActor);
+      view.broadcastState();
+      return;
+    }
+  }
   // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
   const endHook = p && CHAR_HOOKS[p.characterId];
   if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));

@@ -24,6 +24,7 @@ const timers = require("./timers");
 const Zero = require("./zeroTime");
 const Ice = require("./ice");
 const Voice = require("./voice");
+const TimeStop = require("./timeStop");
 
 // ราคาสกิล 1 ช่องก่อนการ์ดราชินี — ใช้ทั้งตอนหักแต้มจริง (useSkill) และป้ายราคาบนปุ่ม (view.buildStateFor) · base = ราคาตั้งต้นของช่อง
 //  ฮุค skillCost: ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน)
@@ -41,9 +42,13 @@ function skillCostOf(p, tier, base, opts) {
   return Math.min(SKILL_COST_MAX, Math.max(0, cost - statusAmtOf(p, "spellflow")) + nightTax + journeyTax + spellburden);
 }
 
+// หยุดเวลา (server/timeStop.js): คำสั่งของผู้เล่นในตาเดิน — จดจุดย้อนไว้ ถูกตัด = ย้อนทั้งก้อน
 function useSkill(id, tier, targets, opts = {}) {
+  return TimeStop.guard(() => runSkill(id, tier, targets, opts));
+}
+function runSkill(id, tier, targets, opts = {}) {
   const p = match.players[id];
-  if (!match.effectSourceId && p) return combat.withEffectSource(p, () => useSkill(id, tier, targets, opts));
+  if (!match.effectSourceId && p) return combat.withEffectSource(p, () => runSkill(id, tier, targets, opts));
   if (!p || !p.alive) return;
   if (!["basic", "secondary", "ultimate"].includes(tier)) return;
   const ch = CHAR_BY_ID[p.characterId];

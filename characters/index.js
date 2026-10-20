@@ -15,6 +15,7 @@ const kira = require("./kira"); // กิระ (ราชาแมลงอว�
 const yuna = require("./yuna"); // เด็กสาวเสื้อคลุมขาว (ยูนะ) — พิเศษ (วงเพลง / ศพค้าง / ขี่ผู้เล่นอื่น — server/ride.js)
 const gray = require("./gray"); // เกรย์ — ระดับกลาง (คนเฝ้าสุสาน / Grave / รองโกมิเนียต ชาร์จ 2 เทิร์น / เก็บศพ)
 const gyro_zeppeli = require("./gyro_zeppeli"); // ไจโร เซปเปลี่ — ระดับยาก (ลูกเหล็ก 2 ลูก / ม้าวาลคิรี / สัดส่วนทองคำ)
+const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก (คลังเครื่องมือ / ปืนลูกโม่ / เดอะเวิลด์ หยุดเวลา / ม้าซิลเวอร์ บูลเล็ต)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -33,6 +34,7 @@ const CHARACTER_MODULES = [
   yuna,
   gray,
   gyro_zeppeli,
+  diego_alt,
 ];
 
 const CHAR_HOOKS = {};

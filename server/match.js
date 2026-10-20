@@ -32,7 +32,11 @@ const match = {
   skillBeats: [],      // จังหวะพักตาเดินให้กระดานเล่นเอฟเฟกต์สกิลก่อนผลถัดไป (engine.skillBeat — cutscene.runSkillFlow)
   dash: null,          // การพุ่งล่าสุดบนกระดาน { seq, id, path, wheel, swap } — client เล่นแอนิเมชันตาม seq ใหม่
   dashSeq: 0,
-  rideAsk: null,       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
+  rideAsk: null,
+  // ---------- หยุดเวลา (server/timeStop.js — ดิเอโก้) ----------
+  extraTurns: [],      // ตาเดินพิเศษที่รอคิว [{ id, kind }] — nextActor เล่นก่อนเลื่อนลำดับ
+  timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
+  tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
   shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)
   shopOpenedRound: 0,  // เทิร์นที่ร้านมาตั้งจุดนี้ — ครบ SHOP_INTERVAL_TURNS แล้วย้าย
   roundNumber: 0,

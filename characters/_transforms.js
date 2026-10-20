@@ -13,6 +13,7 @@ const sora = require("./sora_otosumi"); // โซระ: คลิปแปล�
 const kira = require("./kira"); // กิระ: คลิปสวมเกราะราชัน (ครั้งแรกต่อเกม)
 const hikaru = require("./raido_hikaru");
 const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแรงดังไฟ (ทุกครั้งที่กด)
+const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -30,6 +31,9 @@ module.exports = function buildTransforms() {
     soraTransform: { img: sora.IMG.myth,   video: sora.VIDEO.transform, title: "Kamen Rider My-Th", label: "แปลงร่าง", seconds: 21, music: null, afterReveal: false },
     soraUlt:       { img: sora.IMG.skill3, video: sora.VIDEO.ult,       title: "Mouse Separade",    label: "ปล่อยท่าไม้ตาย", seconds: 13, music: null, afterReveal: false },
     soraHit:       { img: sora.IMG.skill3, video: sora.VIDEO.hit,       title: "Mouse Separade",    label: "พุ่งชน", seconds: 9, music: null, afterReveal: false, noIntro: true },
+    // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — เป็นไปดั่งกลอุบาย: intro ทุกครั้งก่อนพุ่ง · final ทุกครั้งที่ชน (ผู้ใช้สั่ง 2026-10-20) · ความยาวจริง 1.17 / 5.43 วิ
+    diegoPlotIntro: { img: diego.IMG.plot, video: diego.VIDEO.intro, title: "เป็นไปดั่งกลอุบาย", label: "ปล่อยท่าไม้ตาย", seconds: 2, music: null, afterReveal: false, noIntro: true },
+    diegoPlotFinal: { img: diego.IMG.plot, video: diego.VIDEO.final, title: "เป็นไปดั่งกลอุบาย", label: "พุ่งชน", seconds: 6, music: null, afterReveal: false, noIntro: true },
     // ไรโด ฮิคารุ — ทุกคลิปเล่นครั้งเดียวต่อเกม (triggerCutscene · ผู้ใช้สั่ง) · ครั้งต่อไปเป็นการ์ดแจ้งเตือน
     //  ความยาวจริง (ffprobe) 13.03 / 9.03 / 3.47 / 13.30 / 11.33 / 18.40 / 20.33 / 18.87 / 10.00 / 16.87 วิ — ปัดขึ้น +1
     hkBlackKing: { img: hikaru.FORMS.blackking.img, video: hikaru.FORMS.blackking.video, title: "แบล็คคิง",          label: "UltraLive", seconds: 15, music: null, afterReveal: false },

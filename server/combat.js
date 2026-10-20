@@ -27,6 +27,7 @@ const lobby = require("./lobby");
 const qteSystem = require("./qte");
 const Duo = require("./duo");
 const Ride = require("./ride");
+const TimeStop = require("./timeStop");
 
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
@@ -115,6 +116,7 @@ function runHook(mod, name, ...args) {
   if (typeof fn !== "function") return undefined;
   try { return fn.apply(mod, args); }
   catch (err) {
+    if (TimeStop.isInterrupt(err)) throw err; // หยุดเวลาตัดการโจมตี (server/timeStop.js) — ต้องทะลุขึ้นไปถึงจุดรับคำสั่ง
     console.error(`[hook] ${mod.id}.${name} โยน error — ข้ามแล้วทำงานต่อ:`, err);
     return undefined;
   }
@@ -147,6 +149,7 @@ function maxArmorOf(p) {
 function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
   if (friendlyEffectBlocked(p)) return;
+  if (TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
   // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
@@ -240,6 +243,8 @@ function damageSoft(p) {
 }
 // kind = ช่องทางที่เรียกมา ("direct"/"armor"/"mixed") — ส่งต่อให้ hook ของตัวละครที่อยากรู้ช่องทาง
 function adjustIncomingDamage(p, n, isNormalAttack, kind) {
+  // ตั้งรับด้วยการหยุดเวลา (ฮุค counterArmed — ดิเอโก้: เดอะเวิลด์) = ตัดการกระทำของผู้โจมตีทั้งก้อน (server/timeStop.js)
+  if (n > 0) TimeStop.check(p, n);
   // เกราะ Mark 42: ชุดรับความเสียหายทุกชนิดแทนตัวจริงทั้งก้อน (ส่วนเกินหายไปพร้อมชุด = แค่กลับร่างเดิม)
   if (n > 0 && Mark42.absorb(engine, p, n)) return 0;
   if (n > 0 && untouchable(p)) return 0;

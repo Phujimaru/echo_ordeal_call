@@ -9,6 +9,7 @@ const { io } = require("./app");
 const { CARD_TIME, RESYNC_EVERY } = require("./constants");
 const match = require("./match");
 const view = require("./view");
+const TimeStop = require("./timeStop");
 
 function clearPhaseTimer() {
   // ตาเดินถูกพัก (ตี/ฉากสกิล/จบตัว) — จดเวลาที่เหลือไว้ให้ระบบคู่/เดินต่อหลังจบตากลับมาเล่นต่อ (action.resumeAction)
@@ -24,7 +25,11 @@ function startPhaseTimer(seconds, onExpire) {
   match.timeLeft = Math.ceil(seconds);
   const tick = () => {
     match.timeLeft--;
-    if (match.timeLeft <= 0) { clearPhaseTimer(); onExpire(); }
+    if (match.timeLeft <= 0) {
+      clearPhaseTimer();
+      // ผลที่ลงทีหลังในฉาก (สกิล/ตีปกติ) ถูกหยุดเวลาตัด = ย้อนไปจุดเริ่มคำสั่งของตานี้ (server/timeStop.js)
+      try { onExpire(); } catch (err) { if (!TimeStop.catchInterrupt(err)) throw err; }
+    }
     // ทุกวินาที client ต้องการแค่ตัวเลขนับถอยหลัง — ส่ง "tick" (ไม่กี่ไบต์) แทน state ตัวเต็ม
     //  (state ตัวเต็มมีคำอธิบายสกิลของผู้เล่นทุกคน ~10 KB/คน = bandwidth มหาศาลถ้ายิงทุกวินาที)
     //  ยังคง broadcast ตัวเต็มทุก ๆ RESYNC_EVERY วิ เป็นตาข่ายกันเหนียว เผื่อมีจุดไหนแก้ state

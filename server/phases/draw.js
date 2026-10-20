@@ -43,6 +43,9 @@ function dealRound() {
   match.skillBeats = [];
   match.dash = null;
   match.roundSkills = [];
+  match.extraTurns = []; // หยุดเวลา (server/timeStop.js): คิวตาเดินพิเศษเริ่มใหม่ทุกเทิร์น (ปกติ = beginOrder จองใหม่)
+  match.timeFreeze = null;
+  match.tsSnap = null;
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: หมดเวลาปรากฏตัว (2 เทิร์น) = ล่องหนอีกครั้ง
   // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 6 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้
   if (!Zero.active()) shop.maybeMoveShop(); // ห่วงเวลาซีโร่: ร้านปิด (กลับมาที่เดิมตอนปลดผนึก)

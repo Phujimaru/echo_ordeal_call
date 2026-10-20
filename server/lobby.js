@@ -288,6 +288,7 @@ function startMatch() {
   match.cutsceneQueue = [];
   match.skillBeats = [];
   match.dash = null;
+  match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; // หยุดเวลา (server/timeStop.js)
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   const journeyStart = Journey.active(engine) && JOURNEY_START_SECONDS > 0;

@@ -40,6 +40,7 @@ const Board = require("./board");
 const Duo = require("./duo");
 const Soot = require("./soot");
 const Ride = require("./ride");
+const TimeStop = require("./timeStop");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -161,6 +162,12 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get lastLogLength() { return match.lastLog.length; },
   // เอฟเฟกต์บนกระดานที่ทุกคนเห็น (เช่น beamFx ลำแสง Beam Magnum) — client วาดเองตาม event
   boardFx(event, payload) { view.emitBoardFx(event, payload); }, // ม่านแดง: ตัดเหตุการณ์ที่ผู้ชมมองไม่เห็น (view.emitBoardFx)
+  boardFxTo(ids, event, payload) { for (const id of ids || []) io.to(id).emit(event, payload); }, // เฉพาะผู้ชมบางคน (ดิเอโก้: วางตาข่ายล่องหน — เจ้าของเห็น)
+  // หยุดเวลา (server/timeStop.js): ตาเดินพิเศษ / ค้างการตาย+ค่าที่ผู้ชมเห็น / เวลาเดินต่อ
+  timeStop: {
+    queueExtra: TimeStop.queueExtra, extraKind: TimeStop.extraKind,
+    freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
+  },
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },
   // เสียงสั้นๆ ที่ทุกคนได้ยิน (ไม่มีป้าย) — onlyFor (ไม่บังคับ): array ของ playerId ที่ได้ยิน

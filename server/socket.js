@@ -22,6 +22,7 @@ const timers = require("./timers");
 const view = require("./view");
 const Duo = require("./duo");
 const Ride = require("./ride");
+const TimeStop = require("./timeStop");
 const { engine } = require("./engine");
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
@@ -124,8 +125,9 @@ function onPlayerEvent(socket, event, handler, limit = 20, windowMs = 1000) {
   });
 }
 // คำสั่งตาเดินของ "ตัวบนกระดาน" — ระบบคู่ (server/duo.js): ส่งไปที่ตัวที่ผู้เล่นคุมอยู่ตอนนี้
+//  หยุดเวลา (server/timeStop.js): ทุกคำสั่งจดจุดย้อนไว้ — ถูกตัด = ย้อนทั้งก้อน แล้วผู้สั่งจบตา
 function onUnitEvent(socket, event, handler, limit = 20, windowMs = 1000) {
-  onPlayerEvent(socket, event, (playerId, payload) => handler(Duo.controlledId(playerId), payload), limit, windowMs);
+  onPlayerEvent(socket, event, (playerId, payload) => TimeStop.guard(() => handler(Duo.controlledId(playerId), payload)), limit, windowMs);
 }
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join

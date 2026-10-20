@@ -54,7 +54,8 @@ function snapshot() {
   const m = {};
   for (const k of Object.keys(match)) {
     if (SKIP_MATCH.has(k)) continue;
-    if (k === "board" && match.board) { const { mapCache, ...b } = match.board; m.board = clonePlain(b); continue; }
+    // แคชแผนที่ (action.boardMap) ไม่ย้อน — สร้างใหม่เองตามเลขรุ่น
+    if (k === "board" && match.board) { const b = { ...match.board }; delete b.mapCache; m.board = clonePlain(b); continue; }
     m[k] = clonePlain(match[k]);
   }
   return { players, m };

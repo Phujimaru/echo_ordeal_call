@@ -355,7 +355,16 @@ function pushUnit(u, dir, ctx) {
   u.pos = to;
   ctx.events.push({ kind: "knock", id: u.id, from, to: { ...to } });
   resolveEntry(u, dir, ctx);
+  forcedMoved([u.id]);
   return true;
+}
+// ถูกผลัก/ดึง/ไถลไปลงช่องใหม่ (ทุกแรงที่ผ่าน pushUnit / forcedSlides) → ฮุค broadcast onForcedMove(engine, u)
+//  ดิเอโก้: ถูกผลักเข้าตาข่าย = ตาข่ายทำงาน
+function forcedMoved(ids) {
+  for (const id of ids) {
+    const u = match.players[id];
+    if (u && u.alive && u.pos) combat.broadcastHook("onForcedMove", engine, u);
+  }
 }
 // ถูกแรงอื่นย้ายตัว (ตั้ง pos ตรงๆ ไปแล้ว) แล้วลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกย้าย + ชนตามกติกาไถลทุกอย่าง (ผู้ใช้ตัดสิน 2026-10-14 "ไถลต่อตามสเปก")
 //  moves = [{ id, from?, to, dir }] ตามลำดับที่ให้ไถล · to = ช่องที่ลง (ไม่อยู่ช่องนั้นแล้ว — ถูกชนกระเด็นไปก่อน/ตาย = ข้าม)
@@ -365,8 +374,10 @@ function pushUnit(u, dir, ctx) {
 //  source = ผู้ผลัก (ต้นตอดาเมจ/เครดิตฆ่า · null = ธรรมชาติ เช่นน้ำวน) → ส่ง iceFx แล้วคืน ctx | null = ไม่มีใครไถล
 function forcedSlides(moves, source = null) {
   const ctx = begin();
+  const moved = [];
   for (const m of moves || []) {
     const u = m && match.players[m.id];
+    if (u && m.to) moved.push(u.id);
     if (!u || !u.alive || !u.pos || !m.to || !m.dir || action.sizeOf(u) > 1) continue;
     if (u.pos.x !== m.to.x || u.pos.y !== m.to.y) continue;
     const dir = { x: Math.sign(m.dir.x), y: Math.sign(m.dir.y) };
@@ -376,8 +387,10 @@ function forcedSlides(moves, source = null) {
     if (source) combat.withEffectSource(source, () => resolveEntry(u, dir, ctx));
     else resolveEntry(u, dir, ctx);
   }
-  if (!ctx.events.length) return null;
+  const settle = () => { if (source) combat.withEffectSource(source, () => forcedMoved(moved)); else forcedMoved(moved); };
+  if (!ctx.events.length) { settle(); return null; }
   flush(ctx);
+  settle();
   return ctx;
 }
 // ถูกผลัก/ดึง/ชน = นับเป็นการชน (ซุ่มโจมตีแบบ FE): ล่องหน (นักบินปริศนา) ปรากฏตัว · ซ่อนในพุ่มหญ้า = โผล่จนจบเทิร์น
