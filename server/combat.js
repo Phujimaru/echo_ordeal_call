@@ -222,12 +222,19 @@ function loseArmor(p) {
   if (hook && hook.onArmorLost) hook.onArmorLost(engine, p);
   tookDamage(p);
 }
+// ชั้นรับดาเมจก่อนเกราะของตัวละคร (ฮุค absorbDamage(engine, p) → true = รับไว้ 1 หน่วย — ไจโร: ม้าวาลคิรี)
+//  อยู่หลังโล่ ก่อนเกราะ · ดาเมจทะลุเกราะ (dealDirect) ข้ามชั้นนี้
+function layerAbsorb(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.absorbDamage && runHook(hook, "absorbDamage", engine, p));
+}
 // ดาเมจแพ้จั่ว/ไพ่แตก 1 หน่วย: โล่ -> เกราะ -> เลือด
 function damageSoft(p) {
   if (!p.alive || friendlyEffectBlocked(p)) return;
   // เกราะ Mark 42: ดาเมจแพ้จั่วลงชุดแทนตัวจริง
   if (Mark42.absorb(engine, p, 1)) return;
   if (p.shield > 0) { p.shield--; return; }
+  if (layerAbsorb(p)) return;
   if (p.armor > 0) loseArmor(p);
   else loseHp(p);
 }
@@ -270,6 +277,7 @@ function dealArmorOnly(p, n, isNormalAttack) {
   if (n <= 0) return;
   for (let i = 0; i < n; i++) {
     if (p.shield > 0) { p.shield--; continue; }
+    if (layerAbsorb(p)) continue;
     if (p.armor > 0) loseArmor(p);
   }
 }
@@ -280,6 +288,7 @@ function dealMixed(p, n, isNormalAttack) { // เกราะก่อนแล�
   for (let i = 0; i < n; i++) {
     if (!p.alive) return;
     if (p.shield > 0) { p.shield--; continue; }
+    if (layerAbsorb(p)) continue;
     if (p.armor > 0) loseArmor(p);
     else loseHp(p);
   }

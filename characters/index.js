@@ -14,6 +14,7 @@ const { kate, emiliko } = require("./kate_emiliko"); // เคท & เอมิ
 const kira = require("./kira"); // กิระ (ราชาแมลงอวกาศ) — ระดับง่าย (สวมเกราะราชัน / คลื่นความมืด / อัฐิราชา)
 const yuna = require("./yuna"); // เด็กสาวเสื้อคลุมขาว (ยูนะ) — พิเศษ (วงเพลง / ศพค้าง / ขี่ผู้เล่นอื่น — server/ride.js)
 const gray = require("./gray"); // เกรย์ — ระดับกลาง (คนเฝ้าสุสาน / Grave / รองโกมิเนียต ชาร์จ 2 เทิร์น / เก็บศพ)
+const gyro_zeppeli = require("./gyro_zeppeli"); // ไจโร เซปเปลี่ — ระดับยาก (ลูกเหล็ก 2 ลูก / ม้าวาลคิรี / สัดส่วนทองคำ)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -31,6 +32,7 @@ const CHARACTER_MODULES = [
   kira,
   yuna,
   gray,
+  gyro_zeppeli,
 ];
 
 const CHAR_HOOKS = {};

@@ -22,7 +22,7 @@ import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
-import { clickSound, playSfx, playCutsceneVideo } from "../audio";
+import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo } from "../audio";
 import BoardStage from "../board/BoardStage";
 import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
@@ -855,6 +855,16 @@ function statusEntries(p, full) {
     if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "" });
     if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "" });
     else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "" });
+  }
+  // ไจโร: ลูกเหล็กในมือ · สัดส่วนทองคำ · ม้า (พลังชีวิตม้า / รอเรียก) · เสริมท่าไม้ตาย · คูลดาวน์ (ตัวเลข/ไอคอนเท่านั้น)
+  if (p.gyro && p.gyro.hand != null) {
+    const g = p.gyro;
+    out.push({ key: "gyroBalls", v: 1, icon: "🟢", label: `${g.hand}/2`, cls: "bg-emerald-600 text-white", desc: "" });
+    out.push({ key: "gyroGolden", v: 1, icon: "🌀", label: `${g.golden}/30`, cls: "bg-amber-300 text-gray-900", desc: "" });
+    if (g.mounted) out.push({ key: "gyroHorse", v: 1, icon: "🐎", label: `${g.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "" });
+    else if (g.horseCd > 0) out.push({ key: "gyroHorseCd", v: g.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "" });
+    if (g.empowered) out.push({ key: "gyroEmpowered", v: 1, icon: "✨", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-yellow-400 text-gray-900", desc: "" });
+    else if (g.ultCd > 0) out.push({ key: "gyroUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-white/20", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
@@ -1888,8 +1898,17 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     return () => socket.off("transformNotice", onNotice);
   }, []);
   // เสียงสั้นๆ จาก server ที่ทุกคนได้ยิน (ไม่มีป้าย)
+  //  f.voice = เสียงพากย์ของผู้เล่นคนนั้น (server/voice.js) — ตัดประโยคเก่าของคนเดียวกันก่อนพูดประโยคใหม่ (ไม่พูดซ้อนกัน)
   useEffect(() => {
-    const onSfx = (f) => { if (f?.sound) playSfx(f.sound); };
+    const voices = new Map();
+    const onSfx = (f) => {
+      if (!f?.sound) return;
+      if (!f.voice) { playSfx(f.sound); return; }
+      const prev = voices.get(f.voice);
+      if (prev) stopSfx(prev.a, prev.id);
+      const a = playSfx(f.sound);
+      if (a) voices.set(f.voice, { a, id: sfxPlayId(a) });
+    };
     socket.on("sfx", onSfx);
     return () => socket.off("sfx", onSfx);
   }, []);
@@ -2441,6 +2460,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
+              extra={(me?.actions || []).map((x) => ({ ...x, disabled: !!x.disabled || canto, onClick: () => { clickSound(); socket.emit("charAction", { key: x.key }); } }))}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}

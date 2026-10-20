@@ -164,10 +164,12 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },
   // เสียงสั้นๆ ที่ทุกคนได้ยิน (ไม่มีป้าย) — onlyFor (ไม่บังคับ): array ของ playerId ที่ได้ยิน
-  sfx(sound, onlyFor) {
+  //  extra (ไม่บังคับ): ฟิลด์เพิ่มใน payload — { voice: playerId } = เสียงพากย์ (server/voice.js — client ตัดเสียงพากย์เก่าของคนนั้น)
+  sfx(sound, onlyFor, extra) {
     if (!sound) return;
-    if (Array.isArray(onlyFor)) { for (const id of onlyFor) io.to(id).emit("sfx", { sound }); return; }
-    io.emit("sfx", { sound });
+    const payload = extra ? { ...extra, sound } : { sound };
+    if (Array.isArray(onlyFor)) { for (const id of onlyFor) io.to(id).emit("sfx", payload); return; }
+    io.emit("sfx", payload);
   },
   // ผู้ลงมือของดาเมจก้อนนี้ติด "แม่นยำ" ไหม — ด่านหลบดาเมจจากสกิลของตัวละครใช้เช็ค
   sourceAccurate() { return !!match.effectSourceId && accurateActive(match.players[match.effectSourceId]); },

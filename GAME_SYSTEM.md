@@ -164,7 +164,8 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
 **ค่าคงที่ฐาน**: `MAX_HP = 7` · `MAX_ARMOR = 3` · `MAX_SKILL = 8` · `MAX_PLAYERS = 7` (patch 2.8)
 (`maxHpOf`/`maxArmorOf`/`maxSkillOf` คืนค่าคงที่ทุกคน — ตัวละครที่มีเพดานต่างออกไปต้องเพิ่มเงื่อนไขในฟังก์ชันเหล่านี้)
 
-**ลำดับการรับดาเมจ**: เกราะ Mark 42 (ถ้าใส่อยู่) → `shield` (กันครั้ง) → `armor` (เกราะ) → `tempHp` (เลือดชั่วคราว) → `hp` (เลือดจริง) — hp ถึง 0 = ตกรอบ
+**ลำดับการรับดาเมจ**: เกราะ Mark 42 (ถ้าใส่อยู่) → `shield` (กันครั้ง) → ชั้นของตัวละคร (ฮุค `absorbDamage` — ไจโร: ม้าวาลคิรี · §23) → `armor` (เกราะ) → `tempHp` (เลือดชั่วคราว) → `hp` (เลือดจริง) — hp ถึง 0 = ตกรอบ
+· ชั้นของตัวละครอยู่ใน `dealMixed` / `dealArmorOnly` / `damageSoft` · `dealDirect` (ทะลุเกราะ) ข้ามชั้นนี้
 
 | ฟังก์ชัน | พฤติกรรม |
 |---|---|
@@ -195,6 +196,7 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
 **ไม่มีดาเมจแพ้รอบแล้ว** — แต้มใช้จัดลำดับเดินเท่านั้น (GRID_PLAN §10)
 **ตีบนกระดาน** (`boardAttack`): `strike` (ท่อข้างบน — เลือดหมดตกรอบทันที) → ถ้าเป้ารอดและผู้ตีอยู่ใน `rangeOf(เป้า)` → `strike` ตีสวน
 → ผู้ตีถอย `Board.pushback` 1 ช่อง (ทางตัน = ไม่ขยับ + `dealMixed` 1 "ชน −1") · `doAttack(by, target)` = ตี 1 ครั้งไม่มีกระดาน (เทสต์/โค้ดตัวละคร)
+· หลังตี/ตีสวนแต่ละครั้ง (ก่อนถอย/ผลัก): ฮุค `onStrikeResolved` ของผู้ตี · ผู้สวนมีฮุค `counterPush` = กำหนดการถอยเอง (ไม่ถอยซ้อน) · ฟังก์ชันจาก `afterBoardAttack` คืนตัวเลข = พักฉากอีกกี่วินาทีก่อนจบตา (§23)
 
 ---
 
@@ -635,6 +637,15 @@ module.exports = {
                                                      // ตีปกติใส่ศพ "corpse:<id>" (action.attackTarget — §22) · reapCorpse ลงผลแล้วคืนวินาทีของฉาก ATTACKING ก่อนจบตา
   onActorReady(engine, p) {},                        // ตาเริ่มแล้ว (ACTION + นาฬิกา — nextActor) · ฉากต้นตาเดิน: queueCutscene/skillBeat แล้ว engine.pausePlayingForCutscene() (§22)
   blocksGuts(engine, p) { return false; },           // ยิงปืน GUTS ไม่ได้ (shop.gutsFireTargetOf)
+  // ---- ไจโร (§23) ----
+  voiceLines(p) { return null; },                    // { turn, strike, struck, basic, secondary, ultimate: [คีย์เสียง…] } เสียงพากย์ตามเหตุการณ์ (server/voice.js)
+  absorbDamage(engine, p) { return false; },         // true = ชั้นของตัวละครรับดาเมจ 1 หน่วยไว้ (หลังโล่ ก่อนเกราะ · ทะลุเกราะข้าม)
+  onStrikeResolved(engine, attacker, target, res, { counter }) {}, // หลังตีปกติ/ตีสวน 1 ครั้ง (attack.boardAttack / counterAndPush — เป้ายังอยู่ช่องเดิม)
+  counterPush(engine, counterer, attacker, res) { return null; }, // ผู้สวนกำหนดการถอยของผู้ตีเอง → { push } (null = ถอยปกติ ชน −1)
+  onStrikeObject(engine, p, at) {},                  // ตีปกติใส่ผนึกมิโกะ/หนามน้ำแข็ง (action.attackTarget) ก่อนลงผล
+  onActorEnd(engine, p) {},                          // ตาเดินของ p จบจริง (finishActor — หลังเดินต่อ ก่อนผลของช่อง)
+  hudActions(engine, p) { return undefined; },       // ปุ่มพิเศษบน HUD [{ key, icon, name, on, cd, disabled }] → state.players[].actions (เจ้าตัวเห็น)
+  charAction(engine, p, key) { return false; },      // กดปุ่มพิเศษ (socket charAction { key }) — เช็คตาเดิน + บรอดแคสต์เอง
 
   // ---- ฮุค broadcast: engine เรียกทุกตัวละครตามลำดับ CHAR_HOOKS.MODULES (combat.broadcastHook) — ฮุคต้องเช็คเองว่าเป็นตัวเองไหม ----
   resetCombat(p) {},                       // combat.resetCombat() — ล้างฟิลด์เฉพาะตัวทุกแมตช์
@@ -642,6 +653,7 @@ module.exports = {
   onEndTurn(engine) {},                    // endTurn() หลังลูปลดเทิร์นสถานะ
   onDeath(engine, p) {},                   // combat.instantDeath() — มีคนตกรอบ (p = คนที่ตาย · pos ยังไม่ถูกล้าง)
   onKill(engine, killer, victim) {},       // instantDeath → เฉพาะโมดูลของผู้สังหาร (match.effectSourceId)
+  onBoardPlaced(engine) {},                // action.placeOnBoard — แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค/ห่วงเวลาซีโร่) · ไจโร: ลูกบนพื้นกลับมือ
   //  ฮุคที่โยน error ถูก log (console.error ชื่อตัวละคร + ชื่อฮุค) แล้วข้าม — แมตช์ไม่ค้าง
 };
 ```
@@ -843,3 +855,21 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · ถูกข้ามตา (สตั้น/หลับ) ในเทิร์นที่ต้องยิง = `onEndTurn` เลื่อนไปเทิร์นหน้า · ตาย = ยกเลิก (`onDeath`)
   · ผลพื้นที่ (โผล่จากพุ่ม/หนาม/ผนึก) ลงตอนยิง: ฮุค `ownsAreaHit` + `engine.hitArea(p, tiles, ids)`
 - **อาวุธสุ่มต่อการตี**: `strikeCard` เรียก `attackStyle` ก่อน `attackSound` — สุ่มอาวุธใน `attackStyle` แล้วให้เสียงอ่านอาวุธที่ได้ (เกรย์: ค้อน/เคียว · ระยะ 2 = ธนู)
+
+---
+## 23. เสียงพากย์ตามเหตุการณ์ / ของบนกระดานของผู้เล่น / ชั้นเลือดม้า / กระเด็นถึงขอบ (ไจโร — `characters/gyro_zeppeli.js` · `server/voice.js` · GRID_PLAN §7.11)
+- **เสียงพากย์ตามเหตุการณ์** (`server/voice.js` — ระบบกลาง): ฮุค `voiceLines(p)` → `{ turn, strike, struck, basic, secondary, ultimate: [คีย์เสียง…] }` (คีย์ใน `client/src/audio.js` FILES)
+  · `turn` = ถึงตาเดิน (`nextActor` — ตาที่ถูกข้ามไม่ดัง) · `strike` = ตีปกติ/ตีสวน (`attack.strike` รวมพลาด) · `struck` = โดนตีแล้วไม่หลบ · tier = ใช้สกิลสำเร็จ (`skills.useSkill` หลังลงผล)
+  · หลายคีย์ = สุ่ม 1 ทุกครั้ง (คีย์เดียว/ไม่มีฮุค = ไม่แตะ `Math.random`) · ส่ง `sfx { sound, voice: playerId }` (`engine.sfx(sound, onlyFor, extra)`) → client ตัดประโยคเก่าของคนเดียวกันก่อนพูดใหม่ (Game.jsx `onSfx`)
+- **ทรัพยากรที่ตีปกติต้องใช้**: ฮุค `range` คืน `[1, 0]` เมื่อหมด (ไม่มีช่องที่ตีถึง → ตีสวนก็ไม่ได้ · ปืน GUTS ยังยิงได้) · ใช้ทรัพยากรใน `onStrikeResolved` (ตีคน/ตีสวน) + `onStrikeObject` (ตีผนึก/หนาม)
+- **วัตถุบนกระดานที่เป็นของผู้เล่น** (ลูกเหล็ก): เก็บที่ตัวผู้เล่น (`p.gyro.balls [{ x, y, seq }]`) ไม่ใช่ตารางกลางรายช่อง — หลายคนตกช่องเดียวกันได้ · ไม่ขวางทาง · ตาย (`onDeath`) / เปลี่ยนแผนที่ (`onBoardPlaced`) ล้างเฉพาะของคนนั้น · state `players[].gyro` (ผู้ชมที่มองไม่เห็นเจ้าของยังเห็นลูก)
+- **ชั้นเลือดรับดาเมจก่อนเกราะ**: ฮุค `absorbDamage(engine, p)` → true = รับ 1 หน่วย (`combat.layerAbsorb` — หลังโล่ ก่อนเกราะ ใน `dealMixed`/`dealArmorOnly`/`damageSoft` · `dealDirect` ข้าม) · ไจโร: ม้าเลือด 3 ตาย = ลงม้า + เรียกไม่ได้ 2 เทิร์น
+- **ตีสวนแล้วผลักแทนถอย**: ฮุค `counterPush` ของผู้สวน → `{ push }` = ผู้ตีขยับ `Board.pushback` 1 ช่องเมื่อ push (ชน = ไม่ขยับ ไม่เสียเพิ่ม · `card.push = null`) — ไม่ถอยซ้อน · ผลักเป้าหลังฉากตี = `afterBoardAttack` → `engine.ice.pushUnit` (iceFx `knock` · ลงน้ำแข็งไถลต่อ)
+- **เส้นทแยงแบบแตะทุกช่อง**: `touchLine(a, b)` (ลูกวิ่งกลับ) — เส้นผ่านมุมพอดี = ได้ทั้งสองช่องข้างมุม · รวมปลายทั้งสอง
+- **กระเด็นถึงขอบ** (`planFlight` — วางแผนบนสำเนาตำแหน่ง ไม่แตะเกม จึงใช้คิดดาเมจล่วงหน้าใน `fixedStrikeDamage` / หน้าต่างคาดการณ์ได้): ทิศ 1 ใน 8 (`dir8`) · ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = `engine.breakObstacles` · พังไม่ได้ (ผนึก/ร้านค้า/ร่าง) = ลอยข้าม (`jumps`)
+  · คนขวาง = ดันออกข้างตั้งฉากกับทิศ (ช่องว่างใกล้สุด) · สองข้างไม่ว่าง = ดันนำหน้า (ดันต่อไม่ได้ = เป้าหยุด) · ช่องสุดท้ายยืนไม่ได้ = ถอยกลับตามทาง · ลงน้ำแข็ง = `Ice.forcedSlides`
+  · พักฉากหลังฉากตี: ฟังก์ชันจาก `afterBoardAttack` คืนวินาที (300 + 110 ms/ช่อง) → `boardAttack` ค้าง ATTACKING แล้วค่อยจบตา
+- **ปุ่มพิเศษบน HUD** (ไม่ใช่ช่องสกิล): ฮุค `hudActions` → `players[].actions` (เจ้าตัวเห็น) → `HudCommand extra` · กด = socket `charAction { key }` → ฮุค `charAction` (เช็คตาเดิน + บรอดแคสต์เอง · ไม่ล็อกการเดิน ไม่กินโควตา)
+- **นับเดินตรงจาก afterWalk**: บันทึกย้อน `{ undo: fn }` (`Ice.undoLay` เรียก fn · `walkUndoPatch` ข้ามบันทึกที่ไม่มี `k`) — ฮุคถูกเรียกใหม่ทุกครั้งด้วยเส้นทางเต็มหลังย้อนผลเดิม จึงคิดจากค่าก่อนเดินได้เสมอ
+- **จบตาเดินของตัวเอง**: ฮุค `onActorEnd(engine, p)` (`finishActor` — หลังเดินต่อ ก่อนผลของช่อง) · ไจโร: เสริมท่าไม้ตายที่ไม่ได้ตีหมดลง
+- เอฟเฟกต์: `engine.boardFx("gyroFx", { kind, id, color, … })` ตามสัญญา §7.11 (`horse` ใช้ `mode`) · server ลงผลทันทีตอนส่ง แล้วพักฉากตาม `GYRO_FX` ผ่าน `engine.skillBeat` — client ค้างภาพเอง (`client/src/board/gyroFx.js`)

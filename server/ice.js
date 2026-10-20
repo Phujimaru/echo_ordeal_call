@@ -159,10 +159,12 @@ function raiseAllSpikes() {
   return out;
 }
 // ย้อนการวาง (กดย้อนการเดิน) — ลำดับย้อนหลัง
+//  บันทึกจากฮุค afterWalk ที่ไม่ใช่น้ำแข็ง = { undo: fn } (ไจโร: คืนสัดส่วนทองคำ) — เรียก fn
 function undoLay(records) {
   if (!match.board || !Array.isArray(records) || !records.length) return;
   for (const r of [...records].reverse()) {
     if (!r) continue;
+    if (typeof r.undo === "function") { r.undo(); continue; }
     if (r.prev) match.board.ice[r.k] = r.prev;
     else if (match.board.ice) delete match.board.ice[r.k];
   }

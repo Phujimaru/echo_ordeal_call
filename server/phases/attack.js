@@ -27,6 +27,7 @@ const Visibility = require("../visibility");
 const Ice = require("../ice");
 const Zero = require("../zeroTime");
 const Ride = require("../ride");
+const Voice = require("../voice");
 
 function attackableTargets(atkId) {
   const attacker = match.players[atkId];
@@ -155,6 +156,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (!match.effectSourceId) return combat.withEffectSource(attacker, () => strike(attacker, target, { counter }));
   const verb = counter ? "ตีสวน" : "โจมตี";
   attacker.didAttackRound = true;
+  Voice.play(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
@@ -259,6 +261,7 @@ function strike(attacker, target, { counter = false } = {}) {
     match.lastLog.push(`💪 ${attacker.name} เสริมพลัง — การโจมตีนี้ +1 (บัฟหมดลง)`);
   }
   target.wasAttacked = true;
+  Voice.play(target, "struck"); // เสียงพากย์ตอนโดนตี (ไจโร: hitby_1)
   match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (ลดเกราะก่อน)`);
   // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
   const landedHook = CHAR_HOOKS[attacker.characterId];
@@ -383,10 +386,14 @@ function doAttack(byId, targetId) {
 //  จบฉาก (ATTACKING) แล้วเรียก done (= จบตาของผู้ตี)
 //  ฮุค afterBoardAttack(engine, attacker, target, res) → ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้าเข้าประชิด)
 //  ตีแนวตรง (action.lanes — ไรโด ฮิคารุ): ศัตรูคนอื่นในแนวเดียวกันโดนตีปกติด้วย (card.extra) · ตีสวนได้แค่เป้าหลัก
+//  ฟังก์ชันจาก afterBoardAttack คืนตัวเลข = พักฉาก (ATTACKING) อีกกี่วินาทีก่อนจบตา (ไจโร: เป้ากระเด็นถึงขอบ)
+//  ฮุค onStrikeResolved(engine, ผู้ตี, เป้า, res, { counter }) = หลังตีปกติ/ตีสวน 1 ครั้ง (ก่อนถอย/ผลัก · เป้ายังอยู่ช่องเดิม)
+//   — ไจโร: ใช้ลูกเหล็ก (ลูกตกช่องเป้า) · ส่ง gyroFx "throw"
 function boardAttack(attacker, target, done) {
   const lane = action.laneVictims(attacker, target);
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
+  strikeResolved(attacker, target, first, false);
   if (lane) {
     card.byLane = lane.tiles;
     card.extra = [];
@@ -401,7 +408,18 @@ function boardAttack(attacker, target, done) {
   const slide = counterAndPush(attacker, target, card);
   const hook = CHAR_HOOKS[attacker.characterId];
   const after = hook && hook.afterBoardAttack ? hook.afterBoardAttack(engine, attacker, target, first) : null;
-  playAttackCard(card, attacker, target, slideThen(slide, target, after ? () => { combat.withEffectSource(attacker, after); done(); } : done));
+  const finish = after ? () => {
+    const hold = combat.withEffectSource(attacker, after);
+    if (!(Number(hold) > 0) || match.gameState === "GAMEOVER") { done(); return; }
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(Number(hold), done);
+    view.broadcastState();
+  } : done;
+  playAttackCard(card, attacker, target, slideThen(slide, target, finish));
+}
+function strikeResolved(attacker, target, res, counter) {
+  const hook = CHAR_HOOKS[attacker.characterId];
+  if (hook && hook.onStrikeResolved) combat.withEffectSource(attacker, () => combat.runHook(hook, "onStrikeResolved", engine, attacker, target, res, { counter }));
 }
 // ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
 //  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
@@ -424,7 +442,12 @@ function counterAndPush(attacker, target, card) {
   if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
-    if (attacker.alive) {
+    strikeResolved(target, attacker, back, true);
+    // ฮุค counterPush(engine, ผู้สวน, ผู้ตี, res) → { push } = ผู้สวนกำหนดการถอยเอง แทนการถอยปกติ (ไม่ถอยซ้อน)
+    //  ไจโร: ลูกเหล็กผลักผู้ตี 1 ช่อง (push = ตีสวนโดน) · ชนอะไร = ไม่ขยับ ไม่เสียเพิ่ม · ไม่มีฮุค/null = ถอยปกติ (ชน −1)
+    const cHook = CHAR_HOOKS[target.characterId];
+    const own = cHook && cHook.counterPush ? combat.runHook(cHook, "counterPush", engine, target, attacker, back) || null : null;
+    if (attacker.alive && (!own || own.push)) {
       const push = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked(attacker.id) });
       // ฉากตีเลื่อนแค่ช่องที่ถอยไป 1 ช่อง (push.via = ช่องน้ำแข็งแรกที่ถอยลง) · ไถลต่อ + ชนตามกติกาไถล = หลังฉากตี (Ice.forcedSlides
       //  — ผู้ใช้ตัดสิน 2026-10-14 "ไถลต่อตามสเปก") · card.push.via = null เสมอ (การไถลเล่นทาง iceFx)
@@ -435,6 +458,8 @@ function counterAndPush(attacker, target, card) {
         attacker.pos = { ...to };
         match.lastLog.push(`↩️ ${attacker.name} ถอย 1 ช่อง`);
         slide = { id: attacker.id, to: { ...to }, dir: { x: to.x - from.x, y: to.y - from.y } };
+      } else if (own) {
+        card.push = null; // ผลักของผู้สวนชนอะไร = ไม่ขยับ ไม่เสียเพิ่ม
       } else {
         combat.dealMixed(attacker, 1, true);
         match.lastLog.push(`💥 ${attacker.name} ถอยชนสิ่งกีดขวาง — เสียเพิ่ม -1`);

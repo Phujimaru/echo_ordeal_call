@@ -34,6 +34,7 @@ const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
 const Ride = require("../ride");
+const Voice = require("../voice");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -234,6 +235,8 @@ function placeOnBoard(area) {
     breakObstacles(spot.rubble);
     p.pos = { x: spot.x, y: spot.y };
   }
+  // ฮุค broadcast onBoardPlaced(engine): แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค/ห่วงเวลาซีโร่) — ไจโร: ลูกเหล็กบนพื้นกลับมือ
+  combat.broadcastHook("onBoardPlaced", engine);
 }
 // ช่องว่างที่ใกล้ pos ที่สุด (ไล่วงข้าวหลามตัดออกไป) — ไม่มีเลย = null
 function nearFreeTile(pos, selfId = null) {
@@ -459,6 +462,7 @@ function nextActor() {
     }
     match.gameState = "ACTION";
     timers.startPhaseTimer(secs, actionTimeUp);
+    for (const u of units) Voice.play(u, "turn"); // เสียงพากย์ต้นตาเดิน (server/voice.js — ไจโร: start_1/2)
     // ฮุค onActorReady: ตาเริ่มแล้ว (ACTION + นาฬิกา) — ฉากต้นตาเดินพักตาไว้เล่นคลิป/เอฟเฟกต์ได้ (engine.pausePlayingForCutscene
     //  → กลับมาตาเดินด้วยเวลาที่เหลือ) · เกรย์: ปล่อยรองโกมิเนียตที่ชาร์จไว้
     for (const u of units) {
@@ -535,7 +539,7 @@ function walkUndoPatch() {
   const base = Board.mapOf(match.board.area);
   const special = {}, terrain = {}, seenK = new Set();
   for (const r of a.iceUndo || []) {
-    if (!r || seenK.has(r.k)) continue;
+    if (!r || !r.k || seenK.has(r.k)) continue; // บันทึกที่ไม่ใช่ช่องน้ำแข็ง (r.undo — ไจโร: สัดส่วนทองคำ) ไม่แตะแผนที่
     seenK.add(r.k);
     if (!r.prev) special[r.k] = base.special[r.k] || null; // บันทึกแรกของช่อง = สภาพก่อนตานี้
   }
@@ -730,6 +734,7 @@ function attackTarget(id, targetId) {
     timers.clearPhaseTimer();
     match.action.locked = true;
     Visibility.onHostileAct(p);
+    strikeObject(p, Zero.sealUnit(seal).pos);
     Zero.attackSeal(p, seal, done);
     return true;
   }
@@ -740,6 +745,8 @@ function attackTarget(id, targetId) {
     timers.clearPhaseTimer();
     match.action.locked = true;
     Visibility.onHostileAct(p);
+    const [sx, sy] = spikeK.split(",").map(Number);
+    strikeObject(p, { x: sx, y: sy });
     Ice.attackSpike(p, spikeK, done);
     return true;
   }
@@ -768,6 +775,11 @@ function attackTarget(id, targetId) {
   attack.boardAttack(p, target, done);
   return true;
 }
+// ตีปกติใส่ของบนกระดาน (ผนึกมิโกะ / หนามน้ำแข็ง) — ฮุค onStrikeObject(engine, p, at) ก่อนลงผล (ไจโร: ใช้ลูกเหล็ก ลูกตกช่องนั้น)
+function strikeObject(p, at) {
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onStrikeObject) combat.withEffectSource(p, () => combat.runHook(hook, "onStrikeObject", engine, p, { x: at.x, y: at.y }));
+}
 // "รอ" = จบตาโดยไม่โจมตี
 function waitAction(id) {
   const p = match.players[id];
@@ -784,6 +796,9 @@ function finishActor() {
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
   const p = match.players[match.actorId];
   if (!expired && startCanto(p)) return;
+  // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
+  const endHook = p && CHAR_HOOKS[p.characterId];
+  if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));
   Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
   if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)
   if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ

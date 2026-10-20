@@ -23,6 +23,7 @@ const Visibility = require("./visibility");
 const timers = require("./timers");
 const Zero = require("./zeroTime");
 const Ice = require("./ice");
+const Voice = require("./voice");
 
 // ราคาสกิล 1 ช่องก่อนการ์ดราชินี — ใช้ทั้งตอนหักแต้มจริง (useSkill) และป้ายราคาบนปุ่ม (view.buildStateFor) · base = ราคาตั้งต้นของช่อง
 //  ฮุค skillCost: ราคาที่เปลี่ยนตามสถานะของตัวละคร (นักบินปริศนา: เปลี่ยนชิ้นส่วน 2/3 ตามแขน)
@@ -142,6 +143,7 @@ function useSkill(id, tier, targets, opts = {}) {
   const flashImg = pubNow.flash && pubNow.img ? pubNow.img : skill.img || null;
   match.afterCutscene = []; // ผลที่ hook ขอให้เกิด "หลังคลิปจบ" (engine.deferAfterCutscene) — เช่นคลื่นดาบมุยมิ
   if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets, opts) || "";
+  Voice.play(p, tier); // เสียงพากย์ตามช่องสกิล (server/voice.js — ไจโร: skill1/2 · ท่าไม้ตายสุ่ม 2 ไฟล์)
   const deferred = match.afterCutscene.splice(0);
   // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
