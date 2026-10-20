@@ -249,7 +249,7 @@ function buildStateFor(viewerId) {
         teamConfirmed: !!p.teamConfirmed,
         // คูลดาวน์/ล็อกรายช่องของตัวละคร (โอเบรอน) — client ใช้ทำปุ่มเทา + ตัวเลขคูลดาวน์
         skillLocks: zeroLocks(CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
-          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p) : undefined),
+          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
         locked: p.locked,

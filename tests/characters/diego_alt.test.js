@@ -47,7 +47,7 @@ test.before(() => {
   engine.queueCutscene = (p, key) => calls.cut.push(key);
   engine.skillFlash = () => {};
   engine.notifyTransform = () => {};
-  engine.sfx = (s, onlyFor, extra) => calls.sfx.push({ s, voice: extra && extra.voice });
+  engine.sfx = (s, onlyFor, extra) => calls.sfx.push({ s, voice: extra && extra.voice, onlyFor: onlyFor || null });
   engine.boardFx = (event, payload) => calls.fx.push({ event, payload });
   engine.boardFxTo = (ids, event, payload) => calls.private.push({ ids, event, payload });
 });
@@ -283,7 +283,14 @@ test('เดอะเวิลด์ counter: ศัตรูตีโดน = �
   flush(t, 2000);
   assert.equal(P.D.diego.cunning, 1, 'เล่ห์เหลี่ยม −5');
   assert.equal(P.D.skillPoints, 8, 'ไม่ใช้แต้มสกิล');
-  assert.equal(view('B', 'D').diego.worldArmed, true);
+  assert.equal(view('D', 'D').diego.worldArmed, true);
+  // ศัตรูไม่รู้ว่ากดแล้ว (ผู้ใช้สั่ง): ไม่มีเอฟเฟกต์/เสียงถึงศัตรู · สถานะ/เล่ห์เหลี่ยม/คูลดาวน์ซ่อน
+  assert.equal(view('B', 'D').diego.worldArmed, null);
+  assert.equal(view('B', 'D').diego.cunning, null);
+  assert.equal(view('B', 'D').skillLocks, undefined);
+  assert.ok(!fxOf('world').length, 'ไม่ broadcast');
+  assert.ok(calls.private.some((c) => c.payload.kind === 'world' && c.ids.length === 1 && c.ids[0] === 'D'));
+  assert.ok(calls.sfx.filter((c) => c.s === 'diego_world' || c.s === 'diego_v_skill3').every((c) => c.onlyFor && c.onlyFor.length === 1 && c.onlyFor[0] === 'D'));
   engine.finishActor();
   assert.equal(engine.actorId, 'B');
   const d0 = vit(P.D);

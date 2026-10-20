@@ -58,9 +58,9 @@ const VOICE = {
   struck: ["diego_v_hitby1", "diego_v_hitby2", "diego_v_hitby3"],
   basic: ["diego_v_skill1_1", "diego_v_skill1_2", "diego_v_skill1_3"],
   secondary: [],
-  ultimate: ["diego_v_skill3"],
+  ultimate: [], // กดเดอะเวิลด์ = ได้ยินเฉพาะฝ่ายตัวเอง (VOICE_WORLD — ส่งเองใน applyInstantSkill)
 };
-const VOICE_STOPPING = { ...VOICE, ultimate: [] };
+const VOICE_WORLD = "diego_v_skill3";
 const VOICE_TRIGGER = { counter: "diego_v_skill3_counter", normal: "diego_v_skill3_normal" };
 
 const HP = 6;
@@ -138,6 +138,9 @@ const horseCfg = { ...HORSE, fx: (engine, p, mode) => fx(engine, p, "horse", { a
 // ศัตรูของดิเอโก้ (ไม่ใช่ตัวเอง/เพื่อนร่วมทีม)
 const foe = (engine, p, t) => !!t && t.alive && t.id !== p.id && !engine.sameTeam(p, t);
 const stopping = (p) => isDiego(p) && !!st(p).stopping;
+// ฝ่ายเดียวกับดิเอโก้ (ตัวเอง + เพื่อนร่วมทีม) — กดเดอะเวิลด์แล้วศัตรูต้องไม่รู้ (ผู้ใช้สั่ง 2026-10-20)
+const sideIds = (engine, p) => Object.values(engine.players).filter((o) => o.id === p.id || engine.sameTeam(p, o)).map((o) => o.id);
+const allyView = (engine, p, viewer) => !!viewer && (viewer.id === p.id || engine.sameTeam(p, viewer));
 function addCunning(engine, p, n) {
   const s = st(p);
   const before = s.cunning;
@@ -520,7 +523,7 @@ module.exports = {
   maxArmor() { return ARMOR; },
   mov(p) { return isDiego(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
   range(p) { return isDiego(p) ? RANGE : null; },
-  voiceLines(p) { return isDiego(p) ? (st(p).stopping ? VOICE_STOPPING : VOICE) : null; },
+  voiceLines(p) { return isDiego(p) ? VOICE : null; },
   // ตีปกติระหว่างหยุดเวลา: ไม่ขึ้นเลขตอนปะทะ (ดาเมจโชว์ตอนเวลาเดินต่อ)
   deferStrikeDamage(p) { return stopping(p); },
 
@@ -594,21 +597,26 @@ module.exports = {
       return "";
     }
     if (tier === "ultimate") {
+      // ศัตรูไม่รู้ว่ากดแล้ว: เอฟเฟกต์/เสียง/เสียงพากย์ส่งเฉพาะฝ่ายตัวเอง · ไม่ขึ้นป้ายสกิล (silentFlash) · ไม่ลง log
+      //  ไม่พักฉาก (การพักฉากบอกใบ้ได้) · ศัตรูเห็นเล่ห์เหลี่ยม/คูลดาวน์เป็น null (diegoState / skillLocks)
       s.cunning -= WORLD.cunning;
       s.armedRound = engine.roundNumber;
       s.worldReady = engine.roundNumber + WORLD.cd;
-      fx(engine, p, "world", { at: { ...p.pos } });
-      engine.sfx(SFX.world);
-      engine.log(`⏱️ ${p.name} เดอะเวิลด์ (เล่ห์เหลี่ยม −${WORLD.cunning})`);
-      engine.skillBeat(DIEGO_FX.world / 1000, () => {});
+      const side = sideIds(engine, p);
+      engine.boardFxTo(side, "diegoFx", { kind: "world", id: p.id, color: engine.colorOf(p), at: { ...p.pos } });
+      engine.sfx(SFX.world, side);
+      engine.sfx(VOICE_WORLD, side, { voice: p.id });
       return "";
     }
     return "";
   },
-  skillLocks(engine, p) {
+  // กดเดอะเวิลด์: ไม่ขึ้นป้ายสกิลให้ใครเห็น (ศัตรูต้องไม่รู้)
+  silentFlash(p, tier) { return isDiego(p) && tier === "ultimate" && !st(p).stopping; },
+  skillLocks(engine, p, viewer) {
     if (!isDiego(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     const left = toolLeft(engine, p);
+    if (viewer && !allyView(engine, p, viewer) && !s.stopping) return undefined; // ศัตรูไม่เห็นคูลดาวน์/ล็อก (บอกใบ้เดอะเวิลด์)
     return {
       basic: { cd: 0, locked: left !== null && left <= 0, free: true },
       secondary: { cd: s.ammo > 0 ? 0 : cdLeft(s.reloadRound, r), locked: s.ammo <= 0 || shotUsed(engine, p), free: true },
@@ -733,11 +741,13 @@ module.exports = {
     if (!isDiego(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     const mine = !!viewer && (viewer.id === p.id);
+    const ally = allyView(engine, p, viewer);
     return {
-      cunning: s.cunning, cunningMax: CUNNING_MAX,
+      // ศัตรู: เล่ห์เหลี่ยม/เดอะเวิลด์เป็น null (เล่ห์เหลี่ยมลด 5 = บอกใบ้ว่ากดแล้ว)
+      cunning: ally ? s.cunning : null, cunningMax: CUNNING_MAX,
       ammo: s.ammo, ammoMax: GUN.ammo, reloadCd: s.ammo > 0 ? 0 : cdLeft(s.reloadRound, r),
       firstAid: s.aid, toolLeft: toolLeft(engine, p), shot: shotUsed(engine, p),
-      worldArmed: s.armedRound === r, worldCd: cdLeft(s.worldReady, r), stopping: !!s.stopping,
+      worldArmed: ally ? s.armedRound === r : null, worldCd: ally ? cdLeft(s.worldReady, r) : null, stopping: !!s.stopping,
       mounted: s.mounted, horseHp: s.horseHp, horseCd: Horse.cooldown(engine, s),
       nets: mine ? s.nets.map((n) => ({ x: n.x, y: n.y })) : undefined,
     };
