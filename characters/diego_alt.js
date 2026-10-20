@@ -82,7 +82,8 @@ const KNIFE = { len: 4, dmg: 1, cost: 2, stopCost: 1 };
 const AID = { uses: 2, hp: 2, armor: 1 };
 const GUN = { ammo: 4, reload: 5, dmg: 1, len: 5 };
 const WORLD = { cunning: 5, cd: 3 };
-const PLOT = { cost: 4, ammo: 2, len: 4, dmg: 4, push: 2, bleed: 2 };
+const PLOT = { cost: 4, ammo: 1, len: 4, dmg: 4, push: 2, bleed: 2 }; // กระสุน 1 นัด (ผู้ใช้สั่ง 2026-10-20 — เดิม 2)
+const STOP_SKILLS = 5; // ตาหยุดเวลา: กดสกิลรวมกันได้ 5 ครั้ง (ทุกช่อง) แทนตีปกติ/โควตาเดิม (ผู้ใช้สั่ง 2026-10-20)
 const CUNNING_MAX = 10;
 const HORSE = { hp: 3, cd: 3, name: "ซิลเวอร์ บูลเล็ต" };
 // จังหวะเอฟเฟกต์ (ms) — ต้องตรงกับ DIEGO_FX ใน client/src/board/diegoFx.js (GRID_PLAN §7.12)
@@ -125,7 +126,7 @@ function fresh() {
     armedRound: 0,        // กดเดอะเวิลด์เทิร์นนี้ (ตั้งรับจนจบเทิร์น)
     pendingNormal: false, // ไม่โดนตี → ตาหยุดเวลาต้นเทิร์นหน้า
     worldReady: 0,        // คูลดาวน์เดอะเวิลด์ (กดได้อีกเมื่อ roundNumber >= ค่านี้)
-    stopping: false, stopKind: null, stopShot: false, savedQuota: false,
+    stopping: false, stopKind: null, stopUses: 0, savedQuota: false,
     nets: [], netSeq: 0,  // ตาข่ายบนกระดาน [{ x, y, seq }] (ช่องกลาง)
     ...Horse.fresh(HORSE),
   };
@@ -329,12 +330,13 @@ function firstAid(engine, p) {
   engine.log(`🩹 ${p.name} เครื่องปฐมพยาบาล — พลังชีวิต +${hp} · เกราะ +${ar} (เหลือ ${s.aid} ครั้ง)`);
   return DIEGO_FX.firstAid / 1000;
 }
-// โควตาคลังเครื่องมือของเทิร์นนี้ (ตาหยุดเวลาไม่จำกัด) → ใช้ได้อีกกี่ครั้ง | null = ไม่จำกัด
+// โควตาคลังเครื่องมือของเทิร์นนี้ → ใช้ได้อีกกี่ครั้ง · ตาหยุดเวลา = สกิลที่กดได้อีก (รวมทุกช่อง)
 function toolLeft(engine, p) {
   const s = st(p);
-  if (s.stopping) return null;
+  if (s.stopping) return stopLeft(p);
   return TOOL_PER_TURN - (s.toolRound === engine.roundNumber ? s.toolUsed : 0);
 }
+const stopLeft = (p) => Math.max(0, STOP_SKILLS - (st(p).stopUses || 0));
 function toolOk(engine, p, key) {
   const s = st(p);
   if (!TOOLS[key]) return false;
@@ -402,9 +404,10 @@ function spring(engine, u, info) {
 }
 
 // ---------- ปืนลูกโม่ ----------
+// ตาปกติ: ตาละ 1 นัด · ตาหยุดเวลา: ยิงได้ตามโควตาสกิล 5 ครั้ง (ไม่จำกัดนัดต่อตา)
 function shotUsed(engine, p) {
   const s = st(p);
-  return s.stopping ? s.stopShot : s.shotRound === engine.roundNumber;
+  return s.stopping ? stopLeft(p) <= 0 : s.shotRound === engine.roundNumber;
 }
 function spendAmmo(engine, p, n) {
   const s = st(p);
@@ -417,7 +420,7 @@ function spendAmmo(engine, p, n) {
 }
 function shoot(engine, p, dir) {
   const s = st(p);
-  if (s.stopping) s.stopShot = true; else s.shotRound = engine.roundNumber;
+  if (!s.stopping) s.shotRound = engine.roundNumber;
   spendAmmo(engine, p, 1);
   const { hit, end, tiles } = lineShot(engine, p, dir, GUN.len);
   if (hit) hurt(engine, p, hit, GUN.dmg, `${p.name} ปืนลูกโม่`);
@@ -433,7 +436,7 @@ function startStop(engine, p, kind, attackerId) {
   const s = st(p);
   s.stopping = true;
   s.stopKind = kind;
-  s.stopShot = false;
+  s.stopUses = 0;
   s.savedQuota = !!p.skillUsedRound;
   p.skillUsedRound = false; // ตาใหม่เต็มๆ
   engine.timeStop.freeze(p.id);
@@ -522,7 +525,9 @@ module.exports = {
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
   mov(p) { return isDiego(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
-  range(p) { return isDiego(p) ? RANGE : null; },
+  // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล 5 ครั้ง — ผู้ใช้สั่ง) · ปืน GUTS ก็ไม่ได้
+  range(p) { return isDiego(p) ? (st(p).stopping ? [1, 0] : RANGE) : null; },
+  blocksGuts(engine, p) { return stopping(p); },
   voiceLines(p) { return isDiego(p) ? VOICE : null; },
   // ตีปกติระหว่างหยุดเวลา: ไม่ขึ้นเลขตอนปะทะ (ดาเมจโชว์ตอนเวลาเดินต่อ)
   deferStrikeDamage(p) { return stopping(p); },
@@ -572,14 +577,15 @@ module.exports = {
     if (tier === "basic") return toolOk(engine, p, opts.form) && (TOOLS[opts.form].area.kind !== "tile" || !!opts.tile);
     if (tier === "secondary") return s.ammo > 0 && !shotUsed(engine, p);
     if (tier === "ultimate") {
-      if (s.stopping) return s.ammo >= PLOT.ammo && s.mounted; // กลอุบาย: ต้องขี่ม้า (ผู้ใช้สั่ง 2026-10-20)
+      if (s.stopping) return stopLeft(p) > 0 && s.ammo >= PLOT.ammo && s.mounted; // กลอุบาย: ต้องขี่ม้า (ผู้ใช้สั่ง 2026-10-20)
       return s.cunning >= WORLD.cunning && cdLeft(s.worldReady, engine.roundNumber) === 0 && s.armedRound !== engine.roundNumber;
     }
     return false;
   },
   // คลังเครื่องมือ / ปืน: ไม่กินโควตาสกิล · คลังเครื่องมือไม่ล็อกการเดิน (ปืนล็อก)
-  skipsTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary"); },
-  ignoresTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary"); },
+  //  ตาหยุดเวลา: ทุกช่องใช้โควตา 5 ครั้งของตัวเองแทน (canUseSkill)
+  skipsTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary" || st(p).stopping); },
+  ignoresTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary" || st(p).stopping); },
   keepsMove(engine, p, tier) { return isDiego(p) && tier === "basic"; },
   // กลอุบาย: ใช้แล้วเวลาเดินต่อ + จบตา · ผลของสกิลโจมตีพื้นที่ลงเองตามทางที่พุ่งจริง (hitArea)
   endsTurn(engine, p, tier) { return isDiego(p) && tier === "ultimate" && st(p).stopping; },
@@ -587,6 +593,7 @@ module.exports = {
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isDiego(p)) return "";
     const s = st(p);
+    if (s.stopping) s.stopUses = (s.stopUses || 0) + 1; // โควตาตาหยุดเวลา (ทุกช่อง)
     if (tier === "basic") { useTool(engine, p, opts.form, targets, opts); return ` — ${TOOLS[opts.form].name}`; }
     if (tier === "secondary") { shoot(engine, p, opts.dir); return ""; }
     if (tier === "ultimate" && s.stopping) {
@@ -621,7 +628,7 @@ module.exports = {
       basic: { cd: 0, locked: left !== null && left <= 0, free: true },
       secondary: { cd: s.ammo > 0 ? 0 : cdLeft(s.reloadRound, r), locked: s.ammo <= 0 || shotUsed(engine, p), free: true },
       ultimate: s.stopping
-        ? { cd: 0, locked: s.ammo < PLOT.ammo || !s.mounted }
+        ? { cd: 0, locked: stopLeft(p) <= 0 || s.ammo < PLOT.ammo || !s.mounted }
         : { cd: cdLeft(s.worldReady, r), locked: s.cunning < WORLD.cunning || s.armedRound === r },
     };
   },

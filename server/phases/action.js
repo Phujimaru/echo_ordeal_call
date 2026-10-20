@@ -9,7 +9,7 @@ Object.assign(module.exports, {
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
-  actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction,
+  actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap,
 });
 
@@ -439,7 +439,7 @@ function nextActor() {
   if (endTurnPhase.gameOver()) return;
   TimeStop.clearMark();
   // ตาเดินพิเศษที่รอคิว (หยุดเวลา — server/timeStop.js) เล่นก่อนเลื่อนลำดับ · จบแล้วกลับมาที่นี่ต่อ
-  for (let ex = TimeStop.takeExtra(); ex; ex = TimeStop.takeExtra()) if (startExtra(ex)) return;
+  if (runExtras()) return;
   for (;;) {
     match.actorIndex++;
     const id = match.turnOrder[match.actorIndex];
@@ -492,12 +492,20 @@ function nextActor() {
 }
 // ตาเดินพิเศษ (TimeStop.queueExtra — ดิเอโก้: หยุดเวลา): ตาใหม่เต็มๆ ของ ex.id โดยไม่เลื่อนลำดับเดิน · เล่นไม่ได้ (ตาย/ไม่อยู่บนกระดาน/ติดสตั้น) = false
 //  ฮุค onExtraTurn(engine, p, kind) หลังตั้งตา+นาฬิกา (พักตาเล่นฉากได้แบบ onActorReady)
+function runExtras() {
+  for (let ex = TimeStop.takeExtra(); ex; ex = TimeStop.takeExtra()) if (startExtra(ex)) return true;
+  return false;
+}
+//  ex.resume = ตาของคนที่ถูกแทรก (counter) — จบตาพิเศษแล้วกลับไปเล่นต่อ (resumeFrom) แทนการเลื่อนคิว
 function startExtra(ex) {
   const p = match.players[ex.id];
-  if (!p || !p.alive || !p.pos || stuck(p) || p.duoWith || p.duoOf) return false;
+  if (!p || !p.alive || !p.pos || stuck(p) || p.duoWith || p.duoOf) {
+    if (ex.resume) { resumeFrom(ex.resume); return true; }
+    return false;
+  }
   match.duo = null;
   match.actorId = p.id;
-  match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind };
+  match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind, resume: ex.resume || null };
   match.gameState = "ACTION";
   timers.startPhaseTimer(actionSeconds(), actionTimeUp);
   const hook = CHAR_HOOKS[p.characterId];
@@ -505,6 +513,28 @@ function startExtra(ex) {
   if (match.gameState !== "ACTION") return true; // ฉากต้นตาพักไว้แล้ว (บรอดแคสต์เอง)
   view.broadcastState();
   return true;
+}
+// กลับเข้าตาที่ถูกแทรก (ตาพิเศษ counter จบ): ตา/ระบบคู่/เวลาที่เหลือเดิม · ระหว่างนั้นถูกย้ายตำแหน่ง = เดินต่อไม่ได้แล้ว
+//  ตายระหว่างตาที่แทรก = จบตานั้น (finishActor)
+function resumeFrom(r) {
+  if (endTurnPhase.gameOver()) return;
+  match.actorId = r.actorId;
+  match.action = r.action;
+  match.duo = r.duo;
+  const p = match.players[r.actorId];
+  if (!p || !p.alive || !p.pos || !match.action) {
+    if (match.action) match.action.expired = true;
+    finishActor();
+    return;
+  }
+  const a = match.action;
+  if (r.at && (p.pos.x !== r.at.x || p.pos.y !== r.at.y)) {
+    a.from = { ...p.pos }; a.moved = false; a.path = null; a.trail = null; a.locked = true;
+  }
+  match.gameState = "ACTION";
+  timers.startPhaseTimer(r.left || actionSeconds(), actionTimeUp);
+  TimeStop.mark();
+  view.broadcastState();
 }
 // ผู้เล่นออกจากเกมกลางเทิร์น: ถ้าเป็นคนที่กำลังเดิน ข้ามไปคนถัดไปเลย
 //  (กำลังเล่นฉากตีอยู่ = ปล่อยให้ตัวจับเวลาของฉากพาไปคนถัดไปเอง ไม่งั้นข้ามสองคน)
@@ -894,7 +924,9 @@ function finishActor() {
     if (expired) for (const u of Duo.unitsOf(owner)) if (!match.duo.done[u.id] && (!p || u.id !== p.id)) endUnitTile(u);
     match.duo = null;
   }
+  const resume = match.action && match.action.resume;
   match.action = null;
+  if (resume) { resumeFrom(resume); return; } // ตาพิเศษที่แทรกกลางตาคนอื่น = กลับไปตานั้นต่อ
   nextActor();
 }
 // กลับเข้าตาเดิน (ระบบคู่สลับตัว / เดินต่อหลังจบตา) ด้วยเวลาที่เหลือของตานี้

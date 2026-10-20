@@ -126,6 +126,8 @@ function catchInterrupt(err) {
   const snap = match.tsSnap;
   match.tsSnap = null;
   if (!snap) return true;
+  // เวลาที่เหลือของตาผู้โจมตี (ถูกตัดระหว่างฉาก = เวลาที่จดไว้ตอนตาถูกพัก)
+  const left = match.gameState === "ACTION" ? match.timeLeft : match.actionLeft;
   timers.clearPhaseTimer();
   restore(snap.data);
   match.effectSourceId = null;
@@ -134,9 +136,15 @@ function catchInterrupt(err) {
   const defender = match.players[err.defenderId];
   const attacker = match.players[err.attackerId];
   if (defender) combat.runHook(CHAR_HOOKS[defender.characterId], "onCounterStop", engine, defender, attacker);
-  // ผู้โจมตีจบตาทันที (หมดเวลา = ไม่ได้เดินต่อ · ระบบคู่จบทั้งฝ่าย)
-  if (match.action) match.action.expired = true;
-  require("./phases/action").finishActor();
+  // ผู้ใช้สั่ง 2026-10-20: ไม่จบตาผู้โจมตี — ตาพิเศษแทรกกลางทาง แล้วกลับมาตาเดิมของผู้โจมตีต่อด้วยเวลาที่เหลือ
+  const resume = {
+    actorId: match.actorId, action: match.action, duo: match.duo, left: Math.max(3, Number(left) || 0),
+    at: attacker && attacker.pos ? { ...attacker.pos } : null,
+  };
+  const ex = (match.extraTurns || []).find((e) => defender && e.id === defender.id && !e.resume);
+  if (ex) ex.resume = resume;
+  const action = require("./phases/action");
+  if (!action.runExtras()) action.resumeFrom(resume);
   return true;
 }
 
