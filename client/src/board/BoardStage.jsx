@@ -954,7 +954,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         run.ids.add(id);
         if (p.alive && p.pos) { run.pos[id] = { x: p.pos.x, y: p.pos.y }; hold[id] = run.pos[id]; run.snap[id] = p; ghosts[id] = p; }
       }
-      if ((ev.kind === "spike" || ev.kind === "spikeUp" || ev.kind === "spikeDown") && ok(ev)) noteLv(ev.x, ev.y);
+      if ((ev.kind === "spike" || ev.kind === "spikeUp" || ev.kind === "spikeDown" || ev.kind === "trample") && ok(ev)) noteLv(ev.x, ev.y);
       if (ev.kind === "lay") for (const t of pts(ev.tiles)) noteIce(t);
       // พื้นเปียก (เอมิลิโกะ): ช่องเปียกใหม่ซ่อนไว้จนน้ำกระเซ็นถึง · ช่องที่ถูแห้งยังเปียกจนไม้ถูผ่าน
       if (ev.kind === "wet" || ev.kind === "dry") for (const t of pts(ev.tiles)) {
@@ -1080,6 +1080,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           else if (ev.dmg > 0) float(at, `-${ev.dmg}`);
           shake(3);
           if (ev.kill) die(who, at);
+          return 80;
+        }
+        // ตัวใหญ่เดินเหยียบหนาม: หนามแตกทันที · ดาเมจขึ้นที่ช่องหนาม (x, y)
+        case "trample": {
+          if (!ok(ev)) return 0;
+          const at = { x: ev.x, y: ev.y };
+          setLv(ev.x, ev.y, 0);
+          pushFx([{ kind: "iceSpikeBreak", x: ev.x, y: ev.y, lv: 0, hitIds: ev.by != null ? [ev.by] : [] }]);
+          sfx("is_skill_2_broke");
+          if (ev.dmg > 0) float(at, `-${ev.dmg}`);
+          shake(2 + Math.max(0, ev.dmg | 0) * 1.5);
+          if (ev.kill) die(ev.by, posOf(ev.by));
           return 80;
         }
         case "slow": {

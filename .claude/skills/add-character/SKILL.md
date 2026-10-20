@@ -190,7 +190,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ผลหลังเดิน (ทุกช่องที่เดิน/ไถลผ่าน) | `afterWalk(engine, p, tiles, ctx)` → บันทึกไว้ย้อนตอนกดย้อนการเดิน · **ถูกเรียกใหม่ทุกครั้งที่เดิน/ก้าว ด้วยเส้นทางเต็มจากจุดเริ่มตา** หลัง server ถอดผลเดิมด้วยบันทึกนั้นแล้ว — ผลที่ไม่คืนบันทึกจะซ้อนทุกก้าว | `moveTo()` |
 | ผลเมื่อเสียพลังชีวิต/เกราะ (ทุกทาง) | `onDamageTaken(engine, p, n)` | `combat.loseHp` / `loseArmor` |
 | ไถลบนน้ำแข็ง (ระบบกลาง `server/ice.js`) | `onSlide(engine, p, n, ctx)` · `slideStrike(engine, p, target, n, ctx)` (ไถลชนศัตรู — ลงดาเมจเอง · เดินชน = จบตา) · `ownSpike(engine, p, ctx)` | `Ice.resolveEntry` |
-| วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit / applySlow / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 | `server/ice.js` |
+| วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit(u, dir, ctx, n = 1) / applySlow(t, turns = 3) / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 · ตัวใหญ่ 2×2 ขึ้นไปเดินเหยียบหนามน้ำแข็งได้ (`trampleSpikes` — ตัวใหญ่ใหม่ได้กติกานี้เอง) | `server/ice.js` |
 | ตีปกติไม่ได้ | `range: [1, 0]` ใน `characters.js` (ไม่มีช่องที่ตีถึง — ปืน GUTS ยังยิงได้) | – |
 | ผู้เล่น 1 คนคุม 2 ตัว | `duo: "<id ตัวที่สอง>"` ใน characters.js (ตัวที่สอง `hidden: true`) — ระบบกลาง `server/duo.js` (GAME_SYSTEM §20 · ต้นแบบ เคท & เอมิลิโกะ) | `lobby.startMatch` |
 | สลับตัว/ตัวอีกตัวของฝ่าย | `engine.duo.switchTo / canSwitchTo / unitDone / otherUnit / moved` | `server/duo.js` |

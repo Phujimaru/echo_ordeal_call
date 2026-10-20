@@ -1,19 +1,20 @@
 // ============================================================
-//  Ice Spike — ระดับยาก · id "ice_spike" · กติกาที่ผู้ใช้ตัดสิน: GRID_PLAN §7.9 (2026-10-12 · ปรับสมดุล 2026-10-14)
+//  Ice Spike — ระดับยาก · id "ice_spike" · กติกาที่ผู้ใช้ตัดสิน: GRID_PLAN §7.9 (2026-10-12 · ปรับสมดุล 2026-10-14 · 2026-10-20)
 //  ระบบกลางที่ใช้: server/ice.js (ธารน้ำแข็ง/หนาม/ไถล/ผลัก/เชื่องช้า) — เรียกผ่าน engine.ice
 //
 //  ค่าพื้นฐาน: เลือด 8 / เกราะ 2 · เดิน 4 · พลังโจมตี 0 · ตีปกติไม่ได้ (range [1, 0] ใน characters.js · ปืน GUTS ยิงได้)
 //  ติดตัว 1 ฝีก้าวของธารน้ำแข็ง: ทุกช่องที่เดิน/ไถลผ่าน (รวมช่องออกตัว) = ธารน้ำแข็ง 6 เทิร์น (เหยียบซ้ำ = นับใหม่)
 //  ติดตัว 2 แรงปะทะเหมันต์: ไถลชนศัตรู = ความเสียหายเท่าระยะไถล (สูงสุด 3 · ไม่ติดคริ ไม่รับบัฟพลังโจมตี · หลบไม่ได้)
 //    แล้วเป้ากระเด็นตามทิศ 1 ช่อง · ไถลชนตอนเดินในตาตัวเอง = นับเป็นการโจมตี จบตา
-//  ติดตัว 3 การฟื้นฟูแห่งเหมันต์: ดาเมจที่ได้รับสะสมครบ 3 = ระเบิดผลักศัตรู 8 ช่องรอบตัว + เชื่องช้า (server/ice.js burst)
-//    ไถลครั้งเดียว: ครบทุก 3 ช่อง = ฟื้นพลังชีวิต +1 · ครบทุก 2 ช่อง = แต้มสกิล +1
+//  ติดตัว 3 การฟื้นฟูแห่งเหมันต์: ดาเมจที่ได้รับสะสมครบ 3 = ระเบิดผลักศัตรู 8 ช่องรอบตัว 2 ช่อง + เชื่องช้า 1 เทิร์น (server/ice.js burst)
+//    ไถลครั้งเดียว: ครบทุก 4 ช่อง = ฟื้นพลังชีวิต +1 · ครบทุก 2 ช่อง = แต้มสกิล +1
 //  พื้นฐาน Glacial Path (1 แต้ม · ไม่จำกัดครั้ง · ก่อน/หลังเดิน): ธารน้ำแข็ง 1 ช่องในระยะ 8
 //  รอง หนามน้ำแข็ง (2 แต้ม · เทิร์นละ 2 ครั้ง · ก่อน/หลังเดิน): หนาม Lv1 ในระยะ 8 (บนน้ำแข็ง = Lv2 · เกราะ 1 ทุก Lv)
-//    วางทับคน = ผลักไปทิศที่เลือก 1 ช่อง + เชื่องช้า (ตัวเอง: ผลักแต่ไม่เชื่องช้า)
+//    วางทับคน = ผลักไปทิศที่เลือก 1 ช่อง + เชื่องช้า 3 เทิร์น (ตัวเอง: ผลักแต่ไม่เชื่องช้า) · ไถลชนหนาม = เชื่องช้า 1 เทิร์น
+//    ตัวใหญ่ (2×2 ขึ้นไป) เหยียบหนาม = หนามแตก + เสีย 0/1/2 ตาม Lv + เชื่องช้า 1 เทิร์น · เดินต่อได้ (server/ice.js trampleSpikes)
 //  ท่าไม้ตาย Ice Surge น้ำแข็งโถมกระหน่ำ (4 แต้ม · คูลดาวน์ 6 · ก่อน/หลังเดิน · ตัวเอง):
 //    หนามทุกอันบนสนาม +1 Lv · ได้ "Ice Surge" 3 เทิร์น + "ฟื้นพลัง" 3 ขั้น (ต้นเทิร์นแต้มสกิล +1)
-//    ระหว่าง Ice Surge: ธารน้ำแข็ง/หนามน้ำแข็ง ระยะทั้งสนาม · หนามใช้แต้มลดลง 1 และไม่จำกัดครั้ง
+//    ระหว่าง Ice Surge: ธารน้ำแข็ง/หนามน้ำแข็ง ระยะทั้งสนาม · หนามใช้แต้มลดลง 1 และเทิร์นละ 6 ครั้ง (เนิฟ 2026-10-20 — เดิมไม่จำกัด)
 //
 //  Claude ตัดสินเอง (บอกผู้ใช้แล้ว — GRID_PLAN §7.9): ไถลชนเพื่อนร่วมทีม = หยุดเฉยๆ · ไถลชนตัวใหญ่ = ดาเมจแต่ไม่กระเด็น ·
 //   ไถลชนจากการถูกผลักด้วยสกิลตัวเอง = ดาเมจลงแต่ไม่จบตา (ทำอย่างอื่นต่อไม่ได้แล้ว) · ระเบิดครั้งเดียวต่อดาเมจหนึ่งก้อน (เศษทบ) ·
@@ -27,10 +28,11 @@ const DIR = "/characters/ice_spike";
 const IMG = { base: `${DIR}/ice_spike.webp`, skill1: `${DIR}/skill1.webp`, skill2: `${DIR}/skill2.webp`, skill3: `${DIR}/skill3.webp` };
 
 const STRIKE_MAX = 3;     // โบนัสความเสียหายจากระยะไถลสูงสุด (เดิม 4 — เนิฟ 2026-10-14)
-const REGEN_HP_EVERY = 3; // ไถลครบทุก 3 ช่อง = พลังชีวิต +1
+const REGEN_HP_EVERY = 4; // ไถลครบทุก 4 ช่อง = พลังชีวิต +1 (ปรับสมดุล 2026-10-20 — เดิม 3)
 const REGEN_SP_EVERY = 2; // ไถลครบทุก 2 ช่อง = แต้มสกิล +1
 const OWN_SPIKE_SP = 2;   // ชนหนามตัวเอง = แต้มสกิล +2
-const SPIKE_PER_TURN = 2; // หนามน้ำแข็งเทิร์นละ 2 ครั้ง (Ice Surge = ไม่จำกัด)
+const SPIKE_PER_TURN = 2; // หนามน้ำแข็งเทิร์นละ 2 ครั้ง
+const SURGE_SPIKE_PER_TURN = 6; // ระหว่าง Ice Surge เทิร์นละ 6 ครั้ง (เนิฟ 2026-10-20 — เดิมไม่จำกัด)
 const ULT_COOLDOWN = 6;
 const SURGE_TURNS = 3;    // บัฟ Ice Surge
 const SURGE_REGEN = 3;    // ฟื้นพลัง 3 ขั้น
@@ -41,12 +43,14 @@ const isIceSpike = (p) => !!p && p.characterId === ID;
 const surging = (p) => !!p && ((p.statuses && p.statuses.iceSurge) || 0) > 0;
 // หนามน้ำแข็งที่ใช้ไปแล้วในเทิร์นนี้
 const spikesUsed = (p, round) => (p.iceSpikeRound === round ? p.iceSpikeUses || 0 : 0);
+// โควตาหนามต่อเทิร์นตอนนี้ (นับรวมที่ใช้ก่อนกด Ice Surge ในเทิร์นเดียวกัน)
+const spikeLimit = (p) => (surging(p) ? SURGE_SPIKE_PER_TURN : SPIKE_PER_TURN);
 // คูลดาวน์ที่เหลือ (เทิร์น) จากเทิร์นที่กดได้อีก ready · 0 = กดได้
 const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
 
 module.exports = {
   id: ID,
-  IMG, STRIKE_MAX, REGEN_HP_EVERY, REGEN_SP_EVERY, OWN_SPIKE_SP, SPIKE_PER_TURN, ULT_COOLDOWN, SURGE_TURNS, SURGE_REGEN, SURGE_RANGE,
+  IMG, STRIKE_MAX, REGEN_HP_EVERY, REGEN_SP_EVERY, OWN_SPIKE_SP, SPIKE_PER_TURN, SURGE_SPIKE_PER_TURN, ULT_COOLDOWN, SURGE_TURNS, SURGE_REGEN, SURGE_RANGE,
   isIceSpike, surging,
 
   // เลือด 8 / เกราะ 2 · พลังโจมตีพื้นฐาน 0
@@ -57,7 +61,7 @@ module.exports = {
   resetCombat(p) {
     p.iceHurt = 0;          // ดาเมจที่ได้รับสะสม (ครบ 3 = ระเบิด)
     p.iceSpikeRound = 0;    // หนามน้ำแข็ง: เทิร์นที่ใช้ล่าสุด
-    p.iceSpikeUses = 0;     //  … จำนวนครั้งในเทิร์นนั้น (เทิร์นละ 2 · Ice Surge ไม่จำกัด)
+    p.iceSpikeUses = 0;     //  … จำนวนครั้งในเทิร์นนั้น (เทิร์นละ 2 · Ice Surge เทิร์นละ 6)
     p.iceUltReady = 0;      // Ice Surge: กดได้อีกเมื่อ roundNumber >= ค่านี้
     p.iceStruckRound = 0;   // เทิร์นที่ไถลชนศัตรูด้วยสกิลแล้ว (ทำอย่างอื่นต่อไม่ได้)
   },
@@ -88,7 +92,7 @@ module.exports = {
     if (!t) return false;
     if (tier === "basic") return engine.ice.canLay(t.x, t.y);
     if (tier === "secondary") {
-      if (!surging(p) && spikesUsed(p, round) >= SPIKE_PER_TURN) return false;
+      if (spikesUsed(p, round) >= spikeLimit(p)) return false;
       return !!engine.ice.canSpike(t.x, t.y, opts.dir);
     }
     return false;
@@ -167,7 +171,7 @@ module.exports = {
     const struck = p.iceStruckRound === round;
     return {
       basic: { locked: struck },
-      secondary: { locked: struck || (!surging(p) && spikesUsed(p, round) >= SPIKE_PER_TURN) },
+      secondary: { locked: struck || spikesUsed(p, round) >= spikeLimit(p) },
       ultimate: { cd: cdLeft(p.iceUltReady, round), locked: struck },
     };
   },

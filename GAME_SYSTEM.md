@@ -789,16 +789,21 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · ทุกการเดินถอดผล `afterWalk` ของตานี้ออกก่อน (`rewindWalk`) แล้วเรียกใหม่ด้วยเส้นทางเต็มจากจุดเริ่มตา → น้ำแข็งที่ตัวเองเพิ่งเดินสร้างไม่ทำให้ไถล/ขวาง · เหตุการณ์ `lay` ส่งเฉพาะช่องใหม่
   · client คิดเส้นทางบนแผนที่เดียวกันจาก `state.action.walkUndo` (`Board.patchMap`) + `state.action.trail`
 - **ชน** (`impact`): คน — ฮุค `slideStrike` ของผู้ไถล (ศัตรูเท่านั้น) แล้วเป้ากระเด็น 1 ช่อง · ไม่มีฮุค = เป้ากระเด็นไม่เสียเลือด · เพื่อน = หยุดเฉยๆ ·
-  หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` · `pushUnit` = ผลัก 1 ช่อง (ตัวใหญ่/ไม่ว่าง = เด้ง) ลงน้ำแข็ง = ไถลต่อ (ทอดสูงสุด 12)
+  หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า 1 เทิร์น · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` ·
+  `pushUnit(u, dir, ctx, n = 1)` = ผลักทีละช่องสูงสุด n (ตัวใหญ่ = เด้ง · ช่องถัดไปไม่ว่าง = หยุดช่องก่อนหน้า + knock `collide`) ลงน้ำแข็ง = ไถลต่อแทนช่องที่เหลือ (ทอดสูงสุด 12)
   · ตายจากหนาม: `instantDeath` อยู่ใต้ต้นตอ = เจ้าของหนามด้วย → เจ้าของได้เครดิตสังหาร (ฮุค onKill)
 - **ผลัก/ดึงแบบบังคับลงน้ำแข็ง = ไถลต่อ** (ผู้ใช้ตัดสิน): ทุกที่ที่ตั้ง `pos` เองหลังผลัก/ดึง (Strium Ray, ปืนโซระดึง, ขยายร่างดันออก `resizeUnit`, น้ำวน, ถอยหลังตีสวน) เรียก
   `Ice.forcedSlides(moves, source)` (`moves = [{ id, from?, to, dir }]` — 1×1 ที่ยืนบนน้ำแข็งเท่านั้น · มี `from` = ใส่ knock นำหน้า) หลังเอฟเฟกต์ผลักเล่นแล้ว → iceFx ชุดเดียว
   · ก่อนส่งพิกัดให้ทุกคน (growFx / hikaruPush / iceFx) ตัวที่ถูกผลักต้อง `Ice.revealPushed(u)` ก่อน (ถูกดัน = เผยตัว: ออกจากพุ่ม + ฮุค onReveal "bump")
-- **เชื่องช้า** `statuses.slow` (`Ice.applySlow`: −1 เดินใน `action.movOf` · ไม่ซ้อน · 3 เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
+- **เชื่องช้า** `statuses.slow` (`Ice.applySlow(t, turns = 3)`: −1 เดินใน `action.movOf` · ไม่ซ้อน · turns เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
+  · 3 เทิร์น = วางหนามทับคน · 1 เทิร์น = ไถลชนหนาม / ตัวใหญ่เหยียบหนาม / ระเบิดติดตัว 3
 - **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 1, 1] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
-  สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ตัวใหญ่เดินพังได้ (`breakObstacles` → `smashedSpikes` ย้อนได้)
+  สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ขยายร่าง/วางตัวใหญ่ทับ = พัง (`breakObstacles` → `smashedSpikes`)
+  · **ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนามได้** (`Board.bigFits` ไม่นับหนามเป็นสิ่งกีดขวาง · ไม่กินก้าวพัง) → `action.trampleAlong` → `Ice.trampleSpikes`:
+    หนามแตกทุก Lv · เสีย Lv − 1 (ต้นตอ = เจ้าของหนาม · ฆ่าได้) + เชื่องช้า 1 เทิร์น · เดินต่อได้ — ผลย้อนไม่ได้ จึง `rebaseMove` (ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยก้าวที่เหลือ) ก่อนติดเชื่องช้า ·
+    iceFx = `walk` ถึงหนาม → `trample` → `walk` ต่อ · ตายกลางทาง = จบตา · `smashAlong` ไม่พังหนาม (ปล่อยให้เหยียบ)
 - **สกิลเลือกช่อง** `area.kind: "tile"` (`range`, `square?`, `place` ให้ client) — socket `useSkill { tile: { x, y }, dir? }` → `resolveArea(p, area, targets, dir, tile)` / `areaTiles(..., tile)` / `engine.tileArea`
-- **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`)
+- **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`) · ผลัก 2 ช่อง + เชื่องช้า 1 เทิร์น
 - **เหตุการณ์ให้ client**: `Ice.begin()` → ใส่ `ctx.events` → `Ice.flush(ctx)` = socket `iceFx { seq, events }` (ชนิดเหตุการณ์: contract §4) ·
   client ค้างตำแหน่งคนในชุดไว้จนแอนิเมชันของคนนั้นเล่นถึง — **ทุกการขยับตัวที่อยู่ในชุดต้องมีเหตุการณ์ walk/slide/knock** ไม่งั้นตัวค้างที่เดิมจนจบชุด
 
