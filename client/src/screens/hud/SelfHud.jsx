@@ -142,7 +142,7 @@ function GoldChip({ chipRef, gold = 0, goldMax = 0 }) {
 //  รายการสถานะอยู่ในลิ้นชักซ้าย (HudStatusDrawer)
 //  duo = ระบบคู่ (เคท & เอมิลิโกะ): [{ id, node, active, done, dead, onClick }] — รูปเล็กเรียงเหนือรูปหลัก
 //   ตัวที่คุมอยู่ = กรอบทอง · จบตาแล้ว = จาง · ล้ม = ขาวดำ · onClick = สลับไปคุมตัวนั้น (null = กดไม่ได้)
-export function HudPanel({ portrait, hexPortrait = true, duo = null, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, statuses = [], rawStatuses }) {
+export function HudPanel({ portrait, hexPortrait = true, duo = null, name, onName, teamId, teamColor, chips, vitals, sp = 0, spMax = 0, spLabel = "แต้มสกิล", statuses = [], rawStatuses }) {
   const [openKey, setOpenKey] = useState(null);
   const { res } = splitEntries(statuses, rawStatuses);
   const toggle = (k) => setOpenKey((o) => (o === k ? null : k));
@@ -179,8 +179,8 @@ export function HudPanel({ portrait, hexPortrait = true, duo = null, name, onNam
             </div>
             {vitals}
           </section>
-          <section className="hud-sp-strip" aria-label="แต้มสกิล" title={`แต้มสกิล ${sp}/${spMax}`}>
-            <span className="hud-sp-label">แต้มสกิล</span>
+          <section className="hud-sp-strip" aria-label={spLabel} title={`${spLabel} ${sp}/${spMax}`}>
+            <span className="hud-sp-label">{spLabel}</span>
             <span className="hud-pips">
               {Array.from({ length: spMax }, (_, i) => <span key={i} data-on={i < sp ? "true" : "false"} />)}
             </span>

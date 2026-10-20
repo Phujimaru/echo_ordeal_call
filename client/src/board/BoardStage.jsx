@@ -30,6 +30,7 @@ import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
+import { FERN_CANNON, FERN_EVENT_FX, isFernFx } from "./fernFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
@@ -86,6 +87,16 @@ function squareKeys(map, x, y, n) {
   for (let dy = -h; dy < n - h; dy++) for (let dx = -h; dx < n - h; dx++) {
     const tx = x + dx, ty = y + dy;
     if (tx >= 0 && ty >= 0 && tx < map.cols && ty < map.rows) out.push(key(tx, ty));
+  }
+  return out;
+}
+// ช่องที่ระยะเชบีเชฟจากกล่องตัว (x, y, size) อยู่ใน range = [min, max] — กรอบ (2·max+size)² ตัดขอบกระดาน
+function squareRange(map, x, y, size, range) {
+  const out = [], lo = range[0] | 0, hi = range[1] | 0;
+  for (let ty = y - hi; ty <= y + size - 1 + hi; ty++) for (let tx = x - hi; tx <= x + size - 1 + hi; tx++) {
+    if (tx < 0 || ty < 0 || tx >= map.cols || ty >= map.rows) continue;
+    const d = Math.max(0, x - tx, tx - (x + size - 1), y - ty, ty - (y + size - 1));
+    if (d >= lo && d <= hi) out.push({ x: tx, y: ty });
   }
   return out;
 }
@@ -321,7 +332,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const pickInfo = useMemo(() => {
     if (!pick || !me || !me.pos || !map) return null;
     if (pick.kind === "target") {
-      const tiles = Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range, sizeOfP(me));
+      // square = กรอบสี่เหลี่ยมรอบขอบตัว (ระยะเชบีเชฟ ≤ range · Orbital Cannon Zoltraak 7×7) · ปกติ = ข้าวหลามตัด
+      const tiles = pick.square ? squareRange(map, me.pos.x, me.pos.y, sizeOfP(me), pick.range) : Rules.tilesInRange(map, me.pos.x, me.pos.y, pick.range, sizeOfP(me));
       const keys = new Set(tiles.map((t) => key(t.x, t.y)));
       if (pick.self) for (const t of Rules.footprint(me.pos.x, me.pos.y, sizeOfP(me))) keys.add(key(t.x, t.y));
       const inKeys = (p) => Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => keys.has(key(t.x, t.y)));
@@ -340,6 +352,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const corpseKeys = new Set(corpses.map((c) => key(c.x, c.y)));
       const ok = (t) => {
         if (pick.place === "any") return true;
+        // free = ช่องว่าง: ไม่ใช่สิ่งกีดขวาง/ร้าน และไม่มีใครที่เรามองเห็นยืนอยู่ (เฟิร์น: Orbital Cannon Zoltraak วาร์ป)
+        if (pick.place === "free") return !Rules.isObstacle(map, t.x, t.y, blocked) && !Rules.unitAt(ruleUnits, t.x, t.y);
         if (pick.place === "corpse") return corpseKeys.has(key(t.x, t.y)); // ยูนะ: คำอวยพรสุดท้าย — เลือกศพ
         if (Rules.isObstacle(map, t.x, t.y, blocked)) return false;
         const k = key(t.x, t.y);
@@ -671,6 +685,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         t = HIT + 640;
         const c = a.counter;
         if (c.byBeam > 0 && tPos) later(t - BEAM_T.charge - BEAM_T.extend, () => pushFx([{ kind: "beam", x: tPos.x, y: tPos.y, to: fromPos, len: c.byBeam, hitId: c.targetId, tone: c.byBeamTone || null }]));
+        // เฟิร์นตีสวนด้วย Zoltraak: ลำแสงจากช่องเป้า (ผู้สวน) ไปหาผู้ตี — ถึงปลายตรงจังหวะสวน
+        if (c.byStyle && isFernFx(c.byStyle) && STYLE_HIT[c.byStyle] && tPos) later(Math.max(0, t - STYLE_HIT[c.byStyle]), () => pushFx([{ kind: c.byStyle, x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), to: { x: fromPos.x, y: fromPos.y }, toSize: sizeOfP(byId[a.byId]), color: c.byColor, lane: null }]));
         const cMyth = c.byHitFx === "mythSlash";
         if (cMyth) later(Math.max(0, t - SORA_T.lead), () => playSfx(c.byAttackSound || "attack"));
         later(t, () => {
@@ -858,6 +874,32 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("grayFx", onGray);
     return () => socket.off("grayFx", onGray);
+  }, [pushFx, look, lowQ]);
+
+  // เฟิร์น: socket "fernFx" { kind: cast | conceal | unveil | shield | warpOut | warpIn | reveal | fizzle | cannon, at | from+to, ... } → fernFx.js
+  //  เสียงมาจาก server (engine.sfx ส่งพร้อมเหตุการณ์ — characters/fern.js) · cannon: กล้องตามเป้า · ดาเมจลงที่ FERN_CANNON.hit = เป้าสั่น + จอสั่น/แฟลช
+  useEffect(() => {
+    const ok = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
+    const onFern = (e) => {
+      const kind = e && FERN_EVENT_FX[e.kind];
+      if (!kind) return;
+      const at = e.kind === "cannon" ? (ok(e.to) ? e.to : e.from) : e.at;
+      if (!ok(at)) return;
+      const f = { ...e, kind, x: at.x, y: at.y };
+      if (e.kind === "cannon") {
+        const list = playersRef.current;
+        const victim = e.target != null ? e.target : (list.find((p) => p.alive && p.pos && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => samePos(t, at))) || {}).id;
+        if (victim != null) { f.hitIds = [victim]; f.hitDelay = FERN_CANNON.hit; }
+        look(at);
+        if (!lowQ) {
+          timers.current.push(setTimeout(() => setShake((n) => n + 1), FERN_CANNON.hit));
+          timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 10, dur: 900 }]), FERN_CANNON.hit));
+        }
+      } else if (e.kind !== "conceal") look(at);
+      pushFx([f]);
+    };
+    socket.on("fernFx", onFern);
+    return () => socket.off("fernFx", onFern);
   }, [pushFx, look, lowQ]);
 
   // ท่าไม้ตายไรโด ฮิคารุ: { id, kind: "cross" | "ray", from, size, dir, len, width, tiles } — ชาร์จที่หน้าตัว → ลำแสงวิ่งถึงปลาย (= ดาเมจลง)
@@ -1406,6 +1448,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const graySig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.gray && p.gray.charge && Array.isArray(p.gray.charge.tiles))
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), dir: p.gray.charge.dir, left: p.gray.charge.left, tiles: p.gray.charge.tiles.map((t) => ({ x: t.x, y: t.y })) })));
   const grays = useMemo(() => { const list = JSON.parse(graySig); return list.length ? list : null; }, [graySig]);
+  // เฟิร์นชาร์จ Orbital Cannon Zoltraak (p.fern.charge 0..3 · null = ไม่ชาร์จ) — วงเวทใต้ตัว + ละอองมานา (fernFx.js) · เห็นเฉพาะตอนมีตำแหน่งบนกระดาน
+  const fernSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.fern && p.fern.charge != null)
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), charge: Number(p.fern.charge) || 0 })));
+  const ferns = useMemo(() => { const list = JSON.parse(fernSig); return list.length ? list : null; }, [fernSig]);
   // ลูกเหล็กของไจโรบนพื้น (p.gyro.balls — ข้อมูลอยู่ที่ตัวผู้เล่น · ไจโรหลายคน = วงสีตามเจ้าของ) — gyroFx.js gyroBallItems
   const ballSig = JSON.stringify(state.players.filter((p) => p.gyro && Array.isArray(p.gyro.balls) && p.gyro.balls.length)
     .flatMap((p) => p.gyro.balls.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ owner: p.id, color: p.color, x: b.x, y: b.y, seq: b.seq | 0 }))));
@@ -1663,6 +1709,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         storms={state.board ? state.board.storms : null}
         songs={songs}
         grays={grays}
+        ferns={ferns}
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}

@@ -654,6 +654,53 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- เฟิร์น — ระดับง่าย — ดู characters/fern.js (GRID_PLAN §7.14) ----------
+    //  พลังชีวิต 5 เกราะ 2 (ฮุค maxHp/maxArmor) · Energy = แต้มสกิล เพดาน 10 เริ่มเต็ม · ตีปกติแนวตรง 3 ช่อง (attackLane) · ตีสวนได้
+    id: "fern",
+    name: "เฟิร์น",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/fern/fern.webp",
+    mov: 3,
+    range: [1, 3],
+    counter: true,
+    passive: {
+      name: "Defensive Magic",
+      desc: "ศัตรูโจมตีใส่ (ตีปกติ/ตีสวน/ปืน/สกิล — ไม่นับลุกไหม้/เลือดไหล) = กันดาเมจของการโจมตีนั้นทั้งหมด 1 ครั้ง · กันได้ = ไม่นับว่าถูกโจมตี (คูลดาวน์ 2 เทิร์น)",
+    },
+    passive2: {
+      name: "Zoltraak",
+      desc: "Energy สูงสุด 10 (เริ่มเกมเต็ม · ฟื้นได้จากซ่อนเร้นมานาเท่านั้น) · ตีปกติ: ลำแสงแนวตรง 3 ช่อง ทะลุสิ่งกีดขวาง ศัตรูทุกคนในแนวเสียหาย 2 · ใช้ 2 Energy ต่อการตี (ตีสวนก็ใช้ · ไม่ถึง 2 = ตี/ตีสวนไม่ได้)",
+    },
+    basic: {
+      name: "ร่ายต่อเนื่อง",
+      desc: "ตีปกติเพิ่ม 1 ครั้งในตาเดินนี้ (ตีแล้วยังไม่จบตา) · กดได้ 2 ครั้งต่อตาเดิน (ครั้งที่ 2 ไม่นับโควตาสกิล) · ใช้แล้วเทิร์นถัดไปกดไม่ได้",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/fern/fern_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/fern.js
+    },
+    secondary: {
+      name: "ซ่อนเร้นมานา",
+      desc: "ล่องหนอยู่กับที่ (ศัตรูในระยะ 2 มองเห็น) · Energy +3 แล้ว +1 ทุกต้นเทิร์น · ฟื้นพลังชีวิต 1 ทุก 2 เทิร์น · ทำอะไรไม่ได้นอกจากกดอีกครั้งเพื่อยกเลิก (ฟรี) · ถูกศัตรูโจมตี = หลุด + สตั้นเทิร์นหน้า (ไม่นับโควตาสกิล) (คูลดาวน์ 3 เทิร์นหลังออก)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/fern/fern_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Orbital Cannon Zoltraak",
+      desc: "วาร์ปไปช่องว่างช่องไหนก็ได้ + ล่องหน แล้วชาร์จ (จั่ว/เดิน/ตีปกติ/สกิลอื่นไม่ได้ · ต้นเทิร์นศัตรูเห็นตัวจนถึงตาตัวเอง) · ตาเดิน 1–3 เทิร์นถัดไป: ยิงศัตรู 1 คนในกรอบ 7×7 รอบตัว เสียหาย 3/4/5 (หลบไม่ได้ · เกราะรับก่อน) · เทิร์นที่ 3 ไม่ยิง = ยิงคนใกล้สุดเอง · ถูกศัตรูโจมตี = ยกเลิก (คูลดาวน์ 4 เทิร์น)",
+      area: { kind: "tile", range: 99, place: "free", hostile: false },
+      cost: 4,
+      img: "/characters/fern/fern_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

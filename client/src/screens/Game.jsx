@@ -812,6 +812,11 @@ const STATUS_INFO = {
   invert:     { icon: "🔄", label: "ผกผัน", cls: "bg-echo-hp", desc: "การฟื้นพลังชีวิตและเกราะกลายเป็นเสียแทน และพลังโจมตีที่เพิ่มกลายเป็นลดแทน" },
   decay:      { icon: "🥀", label: "ผุพัง", cls: "bg-echo-hp", desc: "ฟื้นเกราะไม่ได้" },
 };
+// ระยะเชบีเชฟระหว่างกล่อง { x, y, size } (กรอบสี่เหลี่ยม — area.square ของสกิลเลือกเป้า)
+function chebDist(a, b) {
+  const as = a.size || 1, bs = b.size || 1;
+  return Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1), a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
+}
 // รวมสถานะทั้งหมดของผู้เล่นเป็นรายการเดียว — full = รวมของที่โชว์แยกที่อื่นด้วย (โล่/เลือดชั่วคราว)
 function statusEntries(p, full) {
   const out = [];
@@ -881,6 +886,18 @@ function statusEntries(p, full) {
     if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "" });
     else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "" });
     else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "" });
+  }
+  // เฟิร์น: ซ่อนเร้นมานา · ชาร์จ Orbital Cannon Zoltraak (เทิร์นที่ชาร์จแล้ว 0..3) · Defensive Magic คูลดาวน์ · ตีที่เหลือ/ร่ายต่อเนื่อง (ตัวเลข/ไอคอนเท่านั้น)
+  if (p.fern) {
+    const f = p.fern;
+    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "" });
+    else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "" });
+    if (f.charge != null) out.push({ key: "fernCharge", v: 1, icon: "🌕", label: `Orbital Cannon ${f.charge}/3`, cls: "bg-sky-200 text-gray-900", desc: "" });
+    else if (f.ultCd > 0) out.push({ key: "fernUltCd", v: f.ultCd, turns: true, icon: "⏳", label: "Orbital Cannon", cls: "bg-white/20", desc: "" });
+    if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "⏳", cls: "bg-white/20", desc: "" });
+    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "Defensive Magic", cls: "bg-cyan-300 text-gray-900", desc: "" });
+    if (f.extra > 0) out.push({ key: "fernExtra", v: 1, icon: "✨", label: `+${f.extra}`, cls: "bg-violet-400 text-white", desc: "" });
+    if (f.basicLeft != null && f.basicLeft > 0 && f.basicLeft < 2) out.push({ key: "fernBasicLeft", v: 1, icon: "🔁", label: `${f.basicLeft}/2`, cls: "bg-violet-200 text-gray-900", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
@@ -1825,11 +1842,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
   const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
-  const areaText = (a) => !a ? "" : a.kind === "target" ? `ระยะ ${a.range}` : a.kind === "aoe" ? `รอบตัว ${a.range}`
+  //  target + square = กรอบ (2·range+1)² รอบตัว (ระยะเชบีเชฟ — Orbital Cannon Zoltraak ของเฟิร์น 7×7)
+  const areaText = (a) => !a ? "" : a.kind === "target" ? (a.square ? `${a.range * 2 + 1}×${a.range * 2 + 1}` : `ระยะ ${a.range}`) : a.kind === "aoe" ? `รอบตัว ${a.range}`
     : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
   const noTargetInRange = (a) => !!a && a.kind === "target" && !a.self && !!me?.pos
-    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && Rules.dist(boxOfP(p), boxOfP(me)) <= (a.range || 0));
+    && !state.players.some((p) => p.alive && p.pos && p.id !== me.id && (a.square ? chebDist(boxOfP(p), boxOfP(me)) : Rules.dist(boxOfP(p), boxOfP(me))) <= (a.range || 0));
   // ยูนะ: มีคนที่ขี่ได้อยู่ติดกันไหม (ตัวเล็ก 1×1 · ไม่ได้ขี่/ถูกขี่อยู่) — ไม่มี = ไม่แสดงปุ่ม "ขี่" (ผู้ใช้สั่ง 2026-10-19)
   const rideNear = !!me?.yuna?.canRide && !!me.pos && (state.players || []).some((p) => p.alive && p.pos && p.id !== me.id && !p.ride
     && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.alive && o.ride === p.id)
@@ -2022,7 +2040,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const label = `${pickReq.name || s?.name || ""} · ${areaText(a)}`;
       const tier = pickReq.tier;
       const f = pickReq.form ? { form: pickReq.form } : {};
-      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
+      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, square: !!a.square, ...(a.hostile && !a.self ? { allow: enemyOf } : {}), label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
@@ -2417,6 +2435,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}
+              spLabel={me.character?.id === "fern" ? "Energy" : undefined}
               vitals={<div className="hud-vitals">
                   <StatRow big kind="hp" value={me.hp} max={me.maxHp} extra={me.tempHp || 0} extraLabel="เลือดชั่วคราว" />
                   <StatRow big kind="ar" value={me.armor} max={me.maxArmor} />

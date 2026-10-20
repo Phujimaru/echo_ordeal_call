@@ -897,3 +897,20 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ปุ่มหลายตัวเลือกที่ไม่กินโควตา + ไม่ล็อกการเดิน**: `skipsTurnQuota` + `ignoresTurnQuota` + `keepsMove` ของ tier นั้น · โควตาเฉพาะตัวนับใน `canUseSkill` (คลังเครื่องมือ 2 ครั้งต่อเทิร์น)
 - เสียงระหว่างหยุดเวลา: client (`Game.jsx`) เห็น `state.timeFreeze` = `suspendMusic()` (เพลงทุกเพลงหยุด) + `playLoop("diego_tick_loop")` (`audio.js` — เสียงวนตามระดับเสียงหลัก) · dev: `ECHO_DEV_DIEGO_CUNNING=10` เริ่มเกมพร้อมเล่ห์เหลี่ยม (launch `server-diego`)
 - เอฟเฟกต์: `engine.boardFx("diegoFx", { kind, id, color, … })` ตามสัญญา §7.12 · `frozen: true` = เกิดระหว่างหยุดเวลา (client ค้างของกลางอากาศจน `timeResume`)
+
+## 25. แต้มสกิลเฉพาะตัว / ตีเพิ่มในตาเดิน / กันการโจมตีทั้งก้อน / ล่องหนที่คนใกล้เห็น / ท่าชาร์จวาร์ป (เฟิร์น — `characters/fern.js` · GRID_PLAN §7.14)
+
+- **กันการฟื้นแต้มสกิล**: ฮุค `blocksSkillGain(p, src)` → true = `combat.addSkill` ไม่เพิ่ม (src: `"item"` / `"card"` / `"passive"` / `"journey"` / ไม่ระบุ = จบเทิร์น·โบนัสกลางวัน·ซีโร่·ยูนะ) · `combat.skillGainBlocked(p, src)` ใช้ที่เงินคืนทะเลทราย (`skills.js`) · ฟื้นของตัวเองส่ง src เฉพาะ (เฟิร์น `"fern"`)
+- **ราคาฟรีจริง**: ฮุค `skillFree(p, tier, opts)` → true = `skillCostOf` คืน 0 ก่อนคิดภาษีกลางคืน/การเดินทาง/ภาระเวท (ยกเลิกโหมด · ยิงท่าที่ชาร์จไว้)
+- **ตีเพิ่มในตาเดิน**: ฮุค `extraStrike(engine, p)` → true (ฮุคหักครั้งที่ตุนไว้เอง) = ตีปกติจบแล้วกลับเข้าตาเดิน (`action.resumeAction` — เวลาที่เหลือ · เดินยังล็อก) แทน `finishActor` · เรียกใน `done` ของ `strikeTarget` หลัง `afterStrike`
+- **ฉากก่อนจบตา**: ฮุค `beforeActorEnd(engine, p)` → true = ตัวละครพักตาเล่นฉากเอง (`pausePlayingForCutscene(…, { endTurn: true })` แล้ว `finishActor` ถูกเรียกอีกครั้ง) · ครั้งเดียวต่อตา (`action.endScene`) · รอ/หมดเวลาก็ถึง
+- **ถูกโจมตี / กันทั้งก้อน**: ฮุคของเป้า `onAttacked(engine, p, attacker, kind)` (`combat.notifyAttacked`) ถูกเรียกที่ `strike()` ก่อนทอยหลบ ("strike" — รวมตีสวน/หลบพ้น) · `skillDodge` ("skill") · `gunAttack` ("gun") · `adjustIncomingDamage` เมื่อศัตรูทำให้เสียหาย ("damage") — ถูกเรียกซ้ำได้ในการโจมตีเดียว ฮุคต้องแยกเอง
+  - `blocksAttack(engine, p, attacker)` → `{ name, img }` = การโจมตีนี้เป็น 0 (`adjustIncomingDamage` คืน 0 · ฉากตีขึ้นเลข 0 + ป้ายฝั่งป้องกัน · `skillStrike` คืน `{ blocked: true }`)
+  - **การโจมตีครั้งเดียวกัน** = ผู้โจมตี + เทิร์น + คนที่กำลังเดิน + `engine.commandSeq` (`match.commandSeq` เพิ่มทุกคำสั่งผู้เล่นใน `TimeStop.guard` · ผลที่ลงทีหลังในฉากได้เลขเดิม · ต้นเทิร์น/ต้นตาเดินแยกด้วยคนที่กำลังเดิน)
+- **ล่องหนที่คนใกล้เห็น**: ฮุคของเป้า `seenBy(engine, viewer, target)` → true = ข้ามเช็ค `stealthed` ใน `hiddenFromOne` (พุ่มหญ้า/ม่านแดงยังบัง)
+- **จั่วไม่ได้**: ฮุค `holdsDraw(engine, p)` ใน `dealRound` หลังบล็อกสตั้น → `p.locked = true` (ยืนที่ไพ่ใบแรก)
+- **ซื้อ/ใช้ไอเทมไม่ได้**: ฮุค `blocksItems(engine, p)` (`shop.buyShopItem` / `useInventoryItem` — ทิ้งได้)
+- **พื้นที่สกิล**: `target` ที่ `square: true` = นับระยะแบบเชบีเชฟ (`action.boxChebyshev` — range 3 = กรอบ 7×7) · `tile` ที่ `place: "free"` = client ให้เลือกช่องว่าง (server ตรวจเองใน `canUseSkill`)
+- **ตีสวนแบบแนวตรง**: ผู้สวนที่มี `attackLane` สวนได้เฉพาะผู้ตีที่อยู่ในแนว (`action.canStrike`) · เปิดสวนด้วย `counter: true` ใน characters.js (เฟิร์นตัวเดียวตอนนี้)
+- `engine.hiddenFrom(viewer, t)` / `engine.hiddenFromUnit(p, t)` = การมองเห็นจาก `server/visibility.js` · `engine.commandSeq`
+- เอฟเฟกต์ `fernFx` (`client/src/board/fernFx.js`): `cast` · `conceal` (ฝ่ายตัวเอง) · `unveil` · `shield` (คนที่เห็นเฟิร์น) · `warpOut` · `warpIn` (ฝ่ายตัวเอง) · `reveal` · `cannon { from, to, dmg }` · `fizzle` — ทุกก้อนมี `id` · ตีปกติ `attackStyle` = `"fernZoltraak"`

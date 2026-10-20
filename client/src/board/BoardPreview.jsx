@@ -15,6 +15,7 @@
 //   window.__boardSongs([{ kind, x, y, r }]) = วงเพลงของยูนะ (delete / smile / idol)
 //   ?gyro=1 = ไจโร เซปเปลี่ (ขี่ม้า) + ไจโรคนที่ 2 · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "gyroFx" (GyroFxDev.jsx)
 //   ?diego=1 = ดิเอโก้ แบรนโด โลกคู่ขนาน (ขี่ซิลเวอร์ บูลเล็ต) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "diegoFx" + หยุดเวลา (DiegoFxDev.jsx)
+//   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak + ชั้นชาร์จ 0..3 (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import { MAPS } from "./boardRules";
 import ShadowFxDev from "./ShadowFxDev"; // ?ke=1 = ปุ่มเล่นเอฟเฟกต์เคท & เอมิลิโกะ
 import GyroFxDev from "./GyroFxDev"; // ?gyro=1 = ปุ่มเล่นเอฟเฟกต์ไจโร เซปเปลี่
 import DiegoFxDev from "./DiegoFxDev"; // ?diego=1 = ปุ่มเล่นเอฟเฟกต์ดิเอโก้ แบรนโด
+import FernFxDev from "./FernFxDev"; // ?fern=1 = ปุ่มเล่นเอฟเฟกต์เฟิร์น
 
 const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
 const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "Z1", "Z2", "Z3", "Z4"];
@@ -109,7 +111,9 @@ const qInt = (name, lo, hi, def) => { const v = parseInt(Q.get(name), 10); retur
 const KE_DEV = Q.get("ke") === "1";
 const GYRO_DEV = Q.get("gyro") === "1";
 const DIEGO_DEV = Q.get("diego") === "1";
-const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits()) : baseUnits());
+const FERN_DEV = Q.get("fern") === "1";
+const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
+  : FERN_DEV ? FernFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -232,6 +236,8 @@ export default function BoardPreview() {
   // ดิเอโก้ (?diego=1): ชั้นพื้นจำลอง { oil, fire, ash, nets } (prop diego) · หยุดเวลา { by } (prop timeFreeze)
   const [diegoGround, setDiegoGround] = useState(null);
   const [timeFreeze, setTimeFreeze] = useState(null);
+  // เฟิร์น (?fern=1): ชาร์จจำลอง { charge } | null → prop ferns (ตามช่องของ "me")
+  const [fernCharge, setFernCharge] = useState(null);
   useEffect(() => { window.__boardSongs = (v) => setSongsMock(v && v.length ? v : null); return () => { delete window.__boardSongs; }; }, []);
   const iceMap = useMemo(() => (!iceOn ? map : {
     ...map,
@@ -296,6 +302,8 @@ export default function BoardPreview() {
     return h;
   }, [M, danger, busy, mode, R, plan, hover, actor, units]);
 
+  const fernMe = units.find((u) => u.id === "me");
+  const fernMock = fernCharge && fernMe ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1, charge: fernCharge.charge }] : null;
   const viewUnits = units.map((u) => ({ ...u, isMe: u.id === "me", isActor: u.id === actor.id, teamId: null }));
 
   const walk = (path, then) => {
@@ -461,6 +469,7 @@ export default function BoardPreview() {
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={timeFreeze}
+        ferns={fernMock}
         cinema={cinema}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
@@ -490,6 +499,7 @@ export default function BoardPreview() {
       <KateStorm lowQ={lowQ} onCinema={setCinema} />
       {KE_DEV && <ShadowFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {DIEGO_DEV && <DiegoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} ground={diegoGround} setGround={setDiegoGround} freeze={timeFreeze} setFreeze={setTimeFreeze} />}
+      {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernCharge} setFerns={setFernCharge} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>
         <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""} · {map.cols} × {map.rows}{zoom ? " · มุมใกล้" : ""}</div>

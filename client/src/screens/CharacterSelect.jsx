@@ -28,7 +28,7 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const mix = (a, b, e) => a + (b - a) * e;
 
 const DIFFICULTY_GROUPS = [
-  { key: "easy", label: "ง่าย", color: "#2E9E4B", order: ["muimi", "sliver_bullet", "sora_otosumi", "kira"] },
+  { key: "easy", label: "ง่าย", color: "#2E9E4B", order: ["muimi", "sliver_bullet", "sora_otosumi", "kira", "fern"] },
   { key: "medium", label: "กลาง", color: "#E5B33B", order: ["oberon_summer", "raido_hikaru", "gray"] },
   { key: "hard", label: "ยาก", color: "#C0392B", order: ["ice_spike", "kate", "gyro_zeppeli", "diego_alt"] },
   { key: "fun", label: "เอาฮา", color: "#9B4F96", order: [] },

@@ -35,6 +35,7 @@ import { GYRO_FX_DUR, GYRO_RIDE_Z, gyroBallItems, gyroFx, gyroHorse, gyroUnitBac
 import {
   DIEGO_FX_DUR, DIEGO_RIDE_Z, diegoAmbientNow, diegoFireItems, diegoFx, diegoHorse, diegoTimeLayer, diegoUnitBack, diegoUnitFront, drawDiegoGround, isDiegoFx,
 } from "./diegoFx";
+import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, drawFernGround, fernFx, isFernFx } from "./fernFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -814,8 +815,8 @@ function smashFx(g, e, now) {
 //  STYLE_HIT = ms จากเริ่มเอฟเฟกต์ถึงจังหวะปะทะ (BoardStage เล่นเสียง/ตัวเลข/จอสั่นตรงนั้น)
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...FERN_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...FERN_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1900,13 +1901,14 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...FERN_FX_DUR,
 };
 
 
 // =================================================================== frame
 //  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, shopLabel?, hover, fx (กำลังเล่น) }
 //   grays? = รองโกมิเนียตที่กำลังชาร์จ [{ id, x, y, size, dir, left, tiles }] (grayFx.js)
+//   ferns? = เฟิร์นกำลังชาร์จ Orbital Cannon Zoltraak [{ id, x, y, size, charge }] (fernFx.js)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
@@ -1959,6 +1961,9 @@ export function drawFrame(g, st, now) {
   // เกรย์ชาร์จรองโกมิเนียต / กำลังยิง (grayFx.js): สนามมืดลง + แนวลำแสงสีทอง — ใต้ไฮไลต์และตัวละคร
   const grays = st.grays && st.grays.length ? st.grays : null;
   if (grays || fx.some((e) => e.kind === "grayBeam")) drawGrayGround(g, grays, fx, view, now, lowQ);
+  // เฟิร์นชาร์จ Orbital Cannon Zoltraak (fernFx.js): วงเวทใต้ตัว · สนามมืดระหว่างยิง — ใต้ไฮไลต์และตัวละคร
+  const ferns = st.ferns && st.ferns.length ? st.ferns : null;
+  if (ferns || fx.some((e) => e.kind === "fernCannon")) drawFernGround(g, ferns, fx, view, now, lowQ);
   // วงเพลงของยูนะ (yunaFx.js) — บนพื้น ใต้ไฮไลต์
   if (st.songs && st.songs.length) drawYunaZones(g, st.songs, info, now, lowQ);
   // ดิเอโก้ (diegoFx.js): แอ่งน้ำมัน · พื้นไหม้ · ขี้เถ้า · ตาข่ายของเรา — ใต้ไฮไลต์ · ระหว่างหยุดเวลาทุกอย่างหยุดขยับ (amb)
@@ -2057,6 +2062,8 @@ export function drawFrame(g, st, now) {
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
   if (grays) drawGrayAir(g, grays, units, now, lowQ);
+  // ละอองมานาวนเข้าหาเฟิร์น + ลูกแสงตามจำนวนเทิร์นที่ชาร์จ (ทับตัวละคร)
+  if (ferns) drawFernAir(g, ferns, units, now, lowQ);
   // หยุดเวลา (เดอะเวิลด์): ซีเปีย + แถบสีกลับด้านที่ขอบวง → วาดดิเอโก้ (+ม้า) ซ้ำให้สีปกติ — ใต้เอฟเฟกต์ครั้งเดียว (ของที่ค้างกลางอากาศยังมีสี)
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
@@ -2085,6 +2092,7 @@ export function drawFrame(g, st, now) {
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
+    else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ, view);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

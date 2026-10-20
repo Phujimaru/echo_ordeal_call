@@ -99,6 +99,7 @@ let depth = 0;
 function guard(fn) {
   if (depth > 0) return fn();
   depth++;
+  match.commandSeq = (match.commandSeq || 0) + 1; // ลำดับคำสั่งของผู้เล่น (ฮุคแยก "การโจมตีครั้งเดียวกัน" — เฟิร์น: Defensive Magic)
   try {
     if (match.gameState === "ACTION") mark();
     return fn();

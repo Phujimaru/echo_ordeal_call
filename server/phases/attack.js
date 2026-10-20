@@ -158,6 +158,7 @@ function strike(attacker, target, { counter = false } = {}) {
   attacker.didAttackRound = true;
   Voice.play(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
+  combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: Defensive Magic / หลุดซ่อนเร้น/ชาร์จ) — ก่อนทอยหลบ
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
 
@@ -250,6 +251,9 @@ function strike(attacker, target, { counter = false } = {}) {
   if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
   // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
   dmg = Math.min(dmg, combat.damageCapOf(attacker));
+  // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
+  const blockFx = combat.attackBlocked(target, attacker);
+  if (blockFx) dmg = 0;
 
   const shieldBefore = target.shield;
   combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
@@ -302,6 +306,7 @@ function strike(attacker, target, { counter = false } = {}) {
       : `ดาบเก่าๆ — ฟื้นพลังชีวิต +${muimiAttackFx.hp} · แต้มสกิล +${muimiAttackFx.sp}`,
     muimiAttackFx.mode === "tower" ? CHAR_HOOKS.muimi.IMG.skill3 : CHAR_HOOKS.muimi.IMG.skill2,
   );
+  if (blockFx) defFx(blockFx.name, blockFx.img || view.displayImg(target));
   if (shieldBefore > target.shield) defFx("โล่ป้องกัน (กันความเสียหาย)", null);
   if (guardAmt > 0) defFx(`คุ้มครอง (ความเสียหายลด ${guardAmt})`);
   if (discord) defFx("ขัดแย้ง (+1 ดาเมจ)");
@@ -317,6 +322,12 @@ function strike(attacker, target, { counter = false } = {}) {
 function skillStrike(attacker, target, reason) {
   target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
   if (skillDodge(attacker, target, reason)) return { dmg: 0, dodge: true, kill: false };
+  // เป้ากันการโจมตีนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic)
+  const blockFx = combat.attackBlocked(target, attacker);
+  if (blockFx) {
+    match.lastLog.push(`🛡️ ${target.name} ${blockFx.name} — กัน${reason}ของ ${attacker.name}`);
+    return { dmg: 0, dodge: false, kill: false, blocked: true };
+  }
   const atkCtx = computeAttackBase(engine, attacker, target);
   let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
@@ -339,6 +350,7 @@ function skillStrike(attacker, target, reason) {
 // ทอยหลบสกิลที่หลบได้: หลบหลีก (สถานะ) แล้วช่องที่ยืน (พุ่มดอกไม้สูง/ป่าทึบ) · แม่นยำเจาะได้ → true = หลบพ้น (บันทึก log ให้)
 //  skillStrike ใช้ · ดาเมจสกิลตายตัวที่สเปกบอกว่า "หลบได้" เรียกตรง (engine.skillDodge — โซระ: Mouse Separade)
 function skillDodge(attacker, target, reason) {
+  combat.notifyAttacked(target, attacker, "skill"); // ถูกสกิลโจมตี (รวมหลบพ้น) — ฮุคของเป้า onAttacked ก่อนทอยหลบ
   if (accurateActive(attacker)) return false;
   if ((target.statuses.evade || 0) > 0) {
     const evadePct = statusAmtOf(target, "evade") || 100;
@@ -429,6 +441,7 @@ function strikeResolved(attacker, target, res, counter) {
 //  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
 function gunAttack(shooter, target, ammo, done) {
   target.wasAttacked = true; // ถูกยิงนับว่าถูกโจมตี
+  combat.notifyAttacked(target, shooter, "gun");
   const card = { id: ++match.attackSeq, ...strikeCard(shooter, target, { dmg: 0, kill: !target.alive }), gun: ammo, counter: null, push: null };
   const slide = counterAndPush(shooter, target, card);
   playAttackCard(card, shooter, target, slideThen(slide, target, done));
@@ -443,7 +456,9 @@ function slideThen(slide, by, done) {
 //  คืน { id, to, dir } = ถอยลงน้ำแข็ง (ไถลต่อหลังฉากตี — slideThen) | null
 function counterAndPush(attacker, target, card) {
   let slide = null;
-  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
+  // ผู้สวนที่ตีแนวตรง (ฮุค attackLane — เฟิร์น) สวนได้เฉพาะผู้ตีที่อยู่ในแนวของตัว (action.canStrike)
+  const reach = () => (action.lanes(target) ? action.canStrike(target, attacker) : Board.canCounter(action.rangeOf(target), attacker.pos, target.pos));
+  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && reach()) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     strikeResolved(target, attacker, back, true);
