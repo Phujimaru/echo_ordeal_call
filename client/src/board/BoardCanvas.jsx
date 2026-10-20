@@ -49,6 +49,10 @@
 //               fx ของเกรย์: gray* (grayFx.js — ท่าตีปกติ · keeper/grave/reap · grayBeam = ลำแสงรองโกมิเนียต)
 //   gyroBalls   [{ owner, color, x, y, seq }] — ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ · gyroFx.js gyroBallItems)
 //               units[].gyro = { mounted, empowered, horseHp } — ม้าใต้หมาก / ออร่าทอง · fx gyro* ย้ายหมากเองได้ (gyroPose)
+//   diego       { oil: [{x,y}], fire: [{x,y,left}], ash: [{x,y}], nets: [{x,y,color}] } | null — ชั้นพื้นของดิเอโก้ แบรนโด (diegoFx.js)
+//               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
+//               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
+//   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -65,6 +69,7 @@ import { hkBeamHitMs } from "./hikaruFx";
 import { iceShakeOffset } from "./iceFx";
 import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
+import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
@@ -547,6 +552,11 @@ export default function BoardCanvas(props) {
         if (gp) { rx = gp.x; ry = gp.y; ox = 0; oy = 0; hz = gp.hz || 0; sq = gp.sq || 0; }
         // ไจโรขี่ม้า: หมากนั่งบนหลังม้า (ม้าวาดใต้หมาก — gyroFx.js gyroHorse)
         if (u.gyro && u.gyro.mounted) hz += GYRO_RIDE_Z;
+        // ฉากของดิเอโก้ (ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น) · ขี่ซิลเวอร์ บูลเล็ต/กำลังควบ = นั่งบนหลังม้า
+        const dp = sp || gp || u.corpse ? null : diegoPose(st.fxActive, u, now);
+        if (dp) { rx = dp.x; ry = dp.y; ox = 0; oy = 0; hz = dp.hz || 0; sq = dp.sq || 0; }
+        const dgo = u.diego ? { ...u.diego, charge: !!(dp && dp.charge) } : null;
+        if (dgo && (dgo.mounted || dgo.charge)) hz += DIEGO_RIDE_Z;
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
         const any = (set) => { if (us <= 1) return set.has(k); for (let dy = 0; dy < us; dy++) for (let dx = 0; dx < us; dx++) if (set.has(key(u.x + dx, u.y + dy))) return true; return false; };
@@ -561,7 +571,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, gyro: u.gyro || null, lowQ,
+          isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
@@ -598,6 +608,7 @@ export default function BoardCanvas(props) {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gyroBalls: p.gyroBalls || null,
+        diego: p.diego || null, timeFreeze: p.timeFreeze || null,
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

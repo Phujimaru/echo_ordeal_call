@@ -32,6 +32,9 @@ import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, 
 import { YUNA_FX_DUR, YUNA_HIT_P, YUNA_MS, drawRider, drawYunaZones, isYunaFx, yunaFx } from "./yunaFx";
 import { GRAY_FX_DUR, GRAY_HIT_P, GRAY_MS, drawGrayAir, drawGrayGround, grayFx, isGrayFx } from "./grayFx";
 import { GYRO_FX_DUR, GYRO_RIDE_Z, gyroBallItems, gyroFx, gyroHorse, gyroUnitBack, gyroUnitFront, isGyroFx } from "./gyroFx";
+import {
+  DIEGO_FX_DUR, DIEGO_RIDE_Z, diegoAmbientNow, diegoFireItems, diegoFx, diegoHorse, diegoTimeLayer, diegoUnitBack, diegoUnitFront, drawDiegoGround, isDiegoFx,
+} from "./diegoFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -460,6 +463,8 @@ function drawUnit(g, u, now, boxes) {
   g.save(); g.globalAlpha = a;
   // ไจโร (gyroFx.js): ฝุ่นกีบ · เสริมพลัง = เกลียวทองคำใต้ตัว + เปลวออร่าครึ่งหลัง
   if (u.gyro) gyroUnitBack(g, u, now, wx, wy);
+  // ดิเอโก้ (diegoFx.js): ฝุ่นกีบซิลเวอร์ บูลเล็ต
+  if (u.diego) diegoUnitBack(g, u, now, wx, wy);
   // ฐานแบบที่นั่ง (ทรงกระบอก)
   gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
   const P1 = P(wx, wy, 0.12);
@@ -488,6 +493,8 @@ function drawUnit(g, u, now, boxes) {
   }
   // ไจโรขี่ม้า: ม้าวาลคิรีบังเสา หมากนั่งบนหลัง (hz รวม GYRO_RIDE_Z แล้ว) · เพิ่งลง/ม้าตาย = ม้าถอยออก/สลายใต้หมาก
   if (u.gyro) gyroHorse(g, u, now, wx, wy, (u.hz || 0) - (u.gyro.mounted ? GYRO_RIDE_Z : 0));
+  // ดิเอโก้ขี่ซิลเวอร์ บูลเล็ต (หรือกำลังควบกลอุบาย — charge) · เพิ่งลง/ม้าตาย = ม้าถอยออก/สลาย
+  if (u.diego) diegoHorse(g, u, now, wx, wy, (u.hz || 0) - (u.diego.mounted || u.diego.charge ? DIEGO_RIDE_Z : 0));
   if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
   else unitHex(g, u, bx, hy, hexR);
   if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
@@ -496,6 +503,8 @@ function drawUnit(g, u, now, boxes) {
   if (u.rider) drawRider(g, u.rider, bx, hy, hexR, now, unitHex, a);
   // ไจโรเสริมพลัง: เปลวออร่าครึ่งหน้า + อนุภาคทองวนแขน + ลูกทองในมือ
   if (u.gyro) gyroUnitFront(g, u, now, wx, wy, bx, hy, hexR);
+  // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
+  if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี)
   if (u.masked) {
@@ -1891,7 +1900,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR,
 };
 
 
@@ -1899,6 +1908,7 @@ export const FX_DUR = {
 //  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, shopLabel?, hover, fx (กำลังเล่น) }
 //   grays? = รองโกมิเนียตที่กำลังชาร์จ [{ id, x, y, size, dir, left, tiles }] (grayFx.js)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
+//   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
 //   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
 //          view/res = เฟรมปกติ + ความละเอียดที่ใช้อบ (ไม่ใส่ = เท่ากับ view/dpr)
@@ -1951,6 +1961,10 @@ export function drawFrame(g, st, now) {
   if (grays || fx.some((e) => e.kind === "grayBeam")) drawGrayGround(g, grays, fx, view, now, lowQ);
   // วงเพลงของยูนะ (yunaFx.js) — บนพื้น ใต้ไฮไลต์
   if (st.songs && st.songs.length) drawYunaZones(g, st.songs, info, now, lowQ);
+  // ดิเอโก้ (diegoFx.js): แอ่งน้ำมัน · พื้นไหม้ · ขี้เถ้า · ตาข่ายของเรา — ใต้ไฮไลต์ · ระหว่างหยุดเวลาทุกอย่างหยุดขยับ (amb)
+  const amb = diegoAmbientNow(st.timeFreeze || null, now);
+  const dGround = st.diego || null, dFx = dGround || fx.some((e) => isDiegoFx(e.kind));
+  if (dFx) drawDiegoGround(g, dGround, fx, now, lowQ, amb);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -2008,6 +2022,8 @@ export function drawFrame(g, st, now) {
   if (storms) stormWallItems(items, g, storms, info, now, lowQ);
   // ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ) — เรียงความลึกกับตัวละคร
   if ((st.gyroBalls && st.gyroBalls.length) || fx.some((e) => e.kind === "gyroThrow")) gyroBallItems(items, g, st.gyroBalls, fx, now, lowQ);
+  // เปลวไฟกองไฟของดิเอโก้ — เรียงความลึกกับตัวละคร
+  if (dFx) diegoFireItems(items, g, dGround, fx, now, lowQ, amb);
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (storms) drawStormAir(g, storms, info, now, lowQ);
@@ -2041,6 +2057,10 @@ export function drawFrame(g, st, now) {
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
   if (grays) drawGrayAir(g, grays, units, now, lowQ);
+  // หยุดเวลา (เดอะเวิลด์): ซีเปีย + แถบสีกลับด้านที่ขอบวง → วาดดิเอโก้ (+ม้า) ซ้ำให้สีปกติ — ใต้เอฟเฟกต์ครั้งเดียว (ของที่ค้างกลางอากาศยังมีสี)
+  if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
+    diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
+  }
   // เอฟเฟกต์ครั้งเดียว
   for (const e of fx) {
     const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
@@ -2064,6 +2084,7 @@ export function drawFrame(g, st, now) {
     else if (isYunaFx(e.kind)) yunaFx(g, e, now, lowQ);
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
+    else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

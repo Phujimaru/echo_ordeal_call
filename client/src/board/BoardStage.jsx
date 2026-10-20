@@ -31,6 +31,7 @@ import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
+import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -225,6 +226,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   const hasGyro = state.players.some((p) => !!p.gyro);
   useEffect(() => { if (hasGyro) preloadGyroArt(); }, [hasGyro]);
+  const hasDiego = state.players.some((p) => !!p.diego);
+  useEffect(() => { if (hasDiego) preloadDiegoArt(); }, [hasDiego]);
   // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
@@ -412,6 +415,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const hkPushTo = useRef({}); // ไรโด ฮิคารุ (Strium Ray): id → { from, to } ปลายทางที่ถูกผลัก (มาก่อน state ใหม่)
   const shadowBusy = useRef({}); // เคท & เอมิลิโกะ: id → เวลา (performance.now) ที่ฉาก shadowFx ย้ายตัวนี้เองจบ — ไม่เลื่อน/ไม่ไถลซ้ำ
   const isShadowBusy = (id) => (shadowBusy.current[id] || 0) > performance.now();
+  // ดิเอโก้ (socket "diegoFx"): id → เวลา (performance.now) ที่ของที่ขว้าง/ยิงถึงตัว — เลขดาเมจจาก state รอขึ้นตอนนั้น
+  //  diegoGhosts = id → ภาพผู้เล่นก่อนตาย (ตกรอบตอนเวลาเดินต่อ — วาดค้างจนของที่ค้างกลางอากาศพุ่งถึง แล้วค่อยระเบิดตกรอบ)
+  const diegoDefer = useRef({});
+  const [diegoGhosts, setDiegoGhosts] = useState({});
+  const diegoDeferMs = (id) => Math.max(0, (diegoDefer.current[id] || 0) - performance.now());
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
@@ -714,7 +722,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const p of state.players) {
       if (involved.has(p.id) || !p.pos || iceSkip(p.id)) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
-      const df = dashFloat[p.id], at = df ? df.at : p.pos;
+      const df = dashFloat[p.id] || (d < 0 && diegoDeferMs(p.id) > 0 ? { ms: diegoDeferMs(p.id), at: p.pos } : null), at = df ? df.at : p.pos;
       const fl = d < 0 ? [{ kind: "float", x: at.x, y: at.y, text: `${d}` }] : d > 0 ? [{ kind: "float", x: at.x, y: at.y, text: `+${d}`, color: "#8ff0b0" }] : null;
       if (fl && df) later(df.ms, () => pushFx(fl));
       else if (fl) pushFx(fl);
@@ -724,6 +732,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const p of state.players) {
       const was = lastPlayers[p.id];
       if (!was || !was.alive || !was.pos || p.alive || boomed.has(p.id) || iceSkip(p.id)) continue;
+      // ตกรอบตอนเวลาเดินต่อ (ดิเอโก้): ระเบิดตอนของที่ค้างกลางอากาศพุ่งถึง (ร่างค้างไว้ใน diegoGhosts)
+      const dms = diegoDeferMs(p.id);
+      if (dms > 0) { later(dms, () => { deathBoom(was, was.pos); setDiegoGhosts((g) => { if (!g[p.id]) return g; const n = { ...g }; delete n[p.id]; return n; }); }); continue; }
       deathBoom(was, was.pos);
     }
     // ขยับเองนอกการเดิน/ฉากตี (น้ำวนดัน ฯลฯ) ระยะ 1–2 ช่อง = เลื่อนไปแทนการกระโดด
@@ -1217,6 +1228,36 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("gyroFx", onGyro);
   }, [pushFx, look, lowQ]);
 
+  // ดิเอโก้ แบรนโด (โลกคู่ขนาน): socket "diegoFx" { kind, id, color, frozen?, ... } → diegoFx.js (GRID_PLAN §7.12)
+  //  หมากที่ฉากย้ายเอง (ตาข่ายดึง · ควบกลอุบาย · กระเด็น) จดไว้ใน shadowBusy · เลขดาเมจรอขึ้นตอนของถึงตัว (diegoDefer)
+  //  ตกรอบตอนเวลาเดินต่อ = วาดร่างค้าง (diegoGhosts) จนของที่ค้างกลางอากาศพุ่งถึง · เสียงมาจาก server
+  useEffect(() => {
+    const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id]; return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(byIdRef.current[id]);
+    const idAt = (t) => { const p = Object.values(byIdRef.current).find((q) => q && q.alive && q.pos && Rules.covers(boxOfP(q), t.x, t.y)); return p ? p.id : null; };
+    const onDiego = (ev) => {
+      const out = diegoEventFx(ev, { posOf, sizeOf, idAt });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      for (const d of out.defer) diegoDefer.current[d.id] = Math.max(diegoDefer.current[d.id] || 0, t0 + d.ms);
+      if (out.ghosts.length) {
+        const add = {};
+        for (const gh of out.ghosts) { const p = byIdRef.current[gh.id]; if (p && p.pos) add[gh.id] = { ...p }; }
+        setDiegoGhosts((g) => ({ ...g, ...add }));
+        // กันค้าง: ไม่มีใครตกรอบจริง (state ไม่เปลี่ยน) = เอาร่างออกเมื่อเลยจังหวะ
+        for (const gh of out.ghosts) timers.current.push(setTimeout(() => setDiegoGhosts((g) => { if (!g[gh.id]) return g; const n = { ...g }; delete n[gh.id]; return n; }), gh.ms + 1500));
+      }
+      pushFx(out.fx);
+      const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(lowQ ? list.filter((f) => f.kind !== "iceShake") : list));
+    };
+    socket.on("diegoFx", onDiego);
+    return () => socket.off("diegoFx", onDiego);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1332,6 +1373,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)
       gyro: !mk && p.gyro ? { mounted: !!p.gyro.mounted, empowered: !!p.gyro.empowered, horseHp: p.gyro.horseHp } : null,
+      // ดิเอโก้: ซิลเวอร์ บูลเล็ตใต้หมาก (mounted) · ม้าโดนตี = แวบ · ชุ่มน้ำมัน/ติดตาข่าย = หยดน้ำมัน/ลวดรัดตัว (ใครก็ติดได้) — diegoFx.js
+      diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
+      dstat: !mk && p.statuses && (p.statuses.oilSoaked > 0 || p.statuses.diegoNet > 0) ? { soaked: p.statuses.oilSoaked > 0, netted: p.statuses.diegoNet > 0 } : null,
       rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };
   }).concat(ghost && !state.players.some((p) => p.id === ghost.id && p.alive && p.pos) ? [{ ...ghost, isMe: false, isActor: false, teamId: null }] : [])
@@ -1347,8 +1391,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         id: t.id, x: at.x, y: at.y, img: t.img, color: t.color, name: t.name, size: sizeOfP(t), art: (t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
         hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
       };
-    })),
-  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, corpses, byId, riderOn]);
+    }))
+    // ดิเอโก้: คนที่ตกรอบตอนเวลาเดินต่อ — วาดค้างจนของที่ค้างกลางอากาศพุ่งถึง
+    .concat(Object.values(diegoGhosts).filter((t) => t && t.pos && !iceGhosts[t.id] && !state.players.some((p) => p.id === t.id && p.alive && p.pos)).map((t) => ({
+      id: t.id, x: t.pos.x, y: t.pos.y, img: t.masked ? null : t.img, color: t.masked ? "#ffffff" : t.color, name: t.masked ? "" : t.name, masked: !!t.masked,
+      size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
+      hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
+    }))),
+  [state.players, state.actorId, me, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
@@ -1360,6 +1410,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const ballSig = JSON.stringify(state.players.filter((p) => p.gyro && Array.isArray(p.gyro.balls) && p.gyro.balls.length)
     .flatMap((p) => p.gyro.balls.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ owner: p.id, color: p.color, x: b.x, y: b.y, seq: b.seq | 0 }))));
   const gyroBalls = useMemo(() => { const list = JSON.parse(ballSig); return list.length ? list : null; }, [ballSig]);
+  // ดิเอโก้: ชั้นพื้น board.diego (น้ำมัน/ไฟ/ขี้เถ้า — ทุกคนเห็น) + ตาข่าย (server ส่ง nets ให้เจ้าของเท่านั้น · สีตามเจ้าของ)
+  const dBoard = state.board && state.board.diego ? state.board.diego : null;
+  const diegoSig = JSON.stringify({
+    oil: dBoard && Array.isArray(dBoard.oil) ? dBoard.oil : [], fire: dBoard && Array.isArray(dBoard.fire) ? dBoard.fire : [], ash: dBoard && Array.isArray(dBoard.ash) ? dBoard.ash : [],
+    nets: state.players.filter((p) => p.diego && Array.isArray(p.diego.nets)).flatMap((p) => p.diego.nets.filter((n) => n && Number.isFinite(n.x) && Number.isFinite(n.y)).map((n) => ({ x: n.x, y: n.y, color: p.color }))),
+  });
+  const diegoGround = useMemo(() => { const d = JSON.parse(diegoSig); return d.oil.length || d.fire.length || d.ash.length || d.nets.length ? d : null; }, [diegoSig]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1607,6 +1664,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         songs={songs}
         grays={grays}
         gyroBalls={gyroBalls}
+        diego={diegoGround}
+        timeFreeze={state.timeFreeze || null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
