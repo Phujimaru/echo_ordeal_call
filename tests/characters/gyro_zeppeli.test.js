@@ -82,7 +82,7 @@ test('ข้อมูล: ระดับยาก · พลังชีวิ�
   assert.deepEqual(g, { balls: [], hand: 2, golden: 0, mounted: true, horseHp: 3, horseCd: 0, empowered: false, ultCd: 0 });
 });
 
-test('ตีปกติ: ใช้ลูก 1 ลูก ลูกตกช่องเป้า · ส่ง throw · ตีโดนผลักเป้า 1 ช่องหลังฉากตี · เสียงพากย์ตอนตี/โดนตี', (t) => {
+test('ตีปกติ: ใช้ลูก 1 ลูก ลูกตกช่องที่เป้าถูกผลักไป · ส่ง throw · ตีโดนผลักเป้า 1 ช่องหลังฉากตี · เสียงพากย์ตอนตี/โดนตี', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gyro_zeppeli', 2, 7], ['B', 'gyro_zeppeli', 7, 8], ['C', 'dummy', 12, 2]]);
   P.B.pos = { x: 5, y: 7 };
@@ -90,13 +90,13 @@ test('ตีปกติ: ใช้ลูก 1 ลูก ลูกตกช่�
   calls.sfx = [];
   const b0 = vit(P.B) + P.B.gyro.horseHp;
   assert.equal(engine.attackTarget('G', 'B'), true, 'ห่าง 3 ตีได้');
-  assert.deepEqual(P.G.gyro.balls.map((b) => [b.x, b.y]), [[5, 7]], 'ลูกตกช่องที่เป้ายืน');
+  assert.deepEqual(P.G.gyro.balls.map((b) => [b.x, b.y]), [[6, 7]], 'ลูกตกช่องที่เป้าจะถูกผลักไป');
   assert.equal(gyro.hand(P.G), 1);
   assert.equal(vit(P.B) + P.B.gyro.horseHp, b0 - 1);
   const th = fxOf('throw')[0];
   assert.equal(th.id, 'G');
   assert.ok(th.color);
-  assert.deepEqual([th.from, th.to, th.land, th.hit, th.counter, th.empowered], [{ x: 2, y: 7 }, { x: 5, y: 7 }, { x: 5, y: 7 }, true, false, false]);
+  assert.deepEqual([th.from, th.to, th.land, th.hit, th.counter, th.empowered], [{ x: 2, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 }, true, false, false]);
   assert.ok(sounds().includes('gyro_throw') && sounds().includes('gyro_spin'));
   assert.equal(sounds().filter((s) => s === 'gyro_spin').length, 1, 'ลูกหมุนเล่นครั้งเดียว');
   assert.ok(calls.sfx.some((c) => c.voice === 'G' && gyro.VOICE.strike.includes(c.s)), 'เสียงพากย์ไจโรตี');
@@ -105,8 +105,14 @@ test('ตีปกติ: ใช้ลูก 1 ลูก ลูกตกช่�
   assert.deepEqual(P.B.pos, { x: 5, y: 7 }, 'ยังไม่ผลักระหว่างฉากตี');
   flush(t, 3200);
   assert.deepEqual(P.B.pos, { x: 6, y: 7 }, 'ผลักออกจากไจโร 1 ช่อง');
-  assert.deepEqual(P.G.gyro.balls.map((b) => [b.x, b.y]), [[5, 7]], 'เป้าเดินหนี/ถูกผลัก ลูกค้างช่องเดิม');
+  assert.deepEqual(P.G.gyro.balls.map((b) => [b.x, b.y]), [[6, 7]], 'ลูกอยู่ช่องเดียวกับเป้าหลังผลัก');
   assert.equal(engine.actorId, 'C', 'จบตา');
+  // เรียกคืนแล้วโดนเป้าที่ยืนบนลูก (ผู้ใช้สั่ง 2026-10-20)
+  const b1 = vit(P.B) + P.B.gyro.horseHp;
+  engine.setActor('G');
+  engine.useSkill('G', 'basic', []);
+  assert.equal(vit(P.B) + P.B.gyro.horseHp, b1 - 1, 'เรียกคืน = เป้าบนช่องลูกโดน 1');
+  flush(t, 1000);
 });
 
 test('ตีปกติ: ระยะ 5 ตอนขี่ม้า (4 ตอนไม่ขี่) · ไม่มีลูกในมือ = ตีไม่ได้', () => {
@@ -143,6 +149,7 @@ test('ตีปกติ: หลบพ้น = ลูกตกช่องเป
   engine.attackTarget('G', 'B');
   flush(t, 3200);
   assert.deepEqual(Q.B.pos, { x: 8, y: 2 }, 'ชนสิ่งกีดขวาง = ไม่ขยับ');
+  assert.deepEqual(Q.G.gyro.balls.map((b) => [b.x, b.y]), [[8, 2]], 'ผลักไม่ได้ = ลูกตกช่องเป้า');
   assert.equal(vit(Q.B), q0 - 1, 'ไม่เสียเพิ่ม');
 });
 
@@ -157,6 +164,7 @@ test('ตีสวน: เป้าสวนได้ก่อนถูกผล
   assert.deepEqual(card.push.to, { x: 3, y: 8 }, 'ไจโรถอยปกติ');
   flush(t, 6000);
   assert.deepEqual(P.B.pos, { x: 6, y: 8 }, 'เป้าถูกผลักหลังฉากสวน');
+  assert.deepEqual(P.G.gyro.balls.map((b) => [b.x, b.y]), [[6, 8]], 'ลูกอยู่ช่องที่เป้าถูกผลักไป');
 });
 
 test('กลับคืนเจ้าของ: 0 แต้ม · ลูกเก่าสุด · เส้นแตะทุกช่อง (ทแยง) ศัตรูบนเส้น −1 · ฟื้น 1 เทิร์นละ ≤ 2 · ไม่ล็อกเดิน ไม่กินโควตา', (t) => {

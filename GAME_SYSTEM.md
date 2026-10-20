@@ -642,6 +642,7 @@ module.exports = {
   absorbDamage(engine, p) { return false; },         // true = ชั้นของตัวละครรับดาเมจ 1 หน่วยไว้ (หลังโล่ ก่อนเกราะ · ทะลุเกราะข้าม)
   onStrikeResolved(engine, attacker, target, res, { counter }) {}, // หลังตีปกติ/ตีสวน 1 ครั้ง (attack.boardAttack / counterAndPush — เป้ายังอยู่ช่องเดิม)
   counterPush(engine, counterer, attacker, res) { return null; }, // ผู้สวนกำหนดการถอยของผู้ตีเอง → { push } (null = ถอยปกติ ชน −1)
+  afterCounterPush(engine, counterer, attacker, res) {},        // หลังผลัก/ถอยของการสวน (ขยับหรือไม่ก็ตาม) — ไจโร: ลูกตกช่องที่ผู้ตีถูกผลักไป
   onStrikeObject(engine, p, at) {},                  // ตีปกติใส่ผนึกมิโกะ/หนามน้ำแข็ง (action.attackTarget) ก่อนลงผล
   onActorEnd(engine, p) {},                          // ตาเดินของ p จบจริง (finishActor — หลังเดินต่อ ก่อนผลของช่อง)
   hudActions(engine, p) { return undefined; },       // ปุ่มพิเศษบน HUD [{ key, icon, name, on, cd, disabled }] → state.players[].actions (เจ้าตัวเห็น)
@@ -865,6 +866,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **วัตถุบนกระดานที่เป็นของผู้เล่น** (ลูกเหล็ก): เก็บที่ตัวผู้เล่น (`p.gyro.balls [{ x, y, seq }]`) ไม่ใช่ตารางกลางรายช่อง — หลายคนตกช่องเดียวกันได้ · ไม่ขวางทาง · ตาย (`onDeath`) / เปลี่ยนแผนที่ (`onBoardPlaced`) ล้างเฉพาะของคนนั้น · state `players[].gyro` (ผู้ชมที่มองไม่เห็นเจ้าของยังเห็นลูก)
 - **ชั้นเลือดรับดาเมจก่อนเกราะ**: ฮุค `absorbDamage(engine, p)` → true = รับ 1 หน่วย (`combat.layerAbsorb` — หลังโล่ ก่อนเกราะ ใน `dealMixed`/`dealArmorOnly`/`damageSoft` · `dealDirect` ข้าม) · ไจโร: ม้าเลือด 3 ตาย = ลงม้า + เรียกไม่ได้ 3 เทิร์น
 - **ตีสวนแล้วผลักแทนถอย**: ฮุค `counterPush` ของผู้สวน → `{ push }` = ผู้ตีขยับ `Board.pushback` 1 ช่องเมื่อ push (ชน = ไม่ขยับ ไม่เสียเพิ่ม · `card.push = null`) — ไม่ถอยซ้อน · ผลักเป้าหลังฉากตี = `afterBoardAttack` → `engine.ice.pushUnit` (iceFx `knock` · ลงน้ำแข็งไถลต่อ)
+  · ลูกตกช่องที่เป้าถูกผลักไป: ตีเอง = ทำนายช่องผลักตอน `onStrikeResolved` (`knockLand` → throw `land`) แล้ว `settleBall` ย้ายไปช่องจริงหลังผลัก/ไถล · ตีสวน = รอฮุค `afterCounterPush` แล้วค่อยส่ง throw (`land` = ช่องหลังผลัก)
 - **เส้นทแยงแบบแตะทุกช่อง**: `touchLine(a, b)` (ลูกวิ่งกลับ) — เส้นผ่านมุมพอดี = ได้ทั้งสองช่องข้างมุม · รวมปลายทั้งสอง
 - **กระเด็นถึงขอบ** (`planFlight` — วางแผนบนสำเนาตำแหน่ง ไม่แตะเกม จึงใช้คิดดาเมจล่วงหน้าใน `fixedStrikeDamage` / หน้าต่างคาดการณ์ได้): ทิศ 1 ใน 8 (`dir8`) · ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = `engine.breakObstacles` · พังไม่ได้ (ผนึก/ร้านค้า/ร่าง) = ลอยข้าม (`jumps`)
   · คนขวาง = ดันออกข้างตั้งฉากกับทิศ (ช่องว่างใกล้สุด) · สองข้างไม่ว่าง = ดันนำหน้า (ดันต่อไม่ได้ = เป้าหยุด) · ช่องสุดท้ายยืนไม่ได้ = ถอยกลับตามทาง · ลงน้ำแข็ง = `Ice.forcedSlides`

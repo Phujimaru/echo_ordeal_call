@@ -146,10 +146,11 @@ function orderTo(t, ids, actorId) {
 test('ไจโร 2 คน: ข้อมูลเก็บที่ตัวผู้เล่น · ลูกของสองคนตกช่องเดียวกันได้ · ลูกเก่าสุดนับตาม seq ของเจ้าของ · เรียกคืนได้เฉพาะลูกตัวเอง', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = board([['A', 'gyro_zeppeli', 2, 7], ['B', 'gyro_zeppeli', 2, 8], ['T', 'dummy', 5, 7], ['U', 'dummy', 12, 2]]);
-  gyro.onStrikeResolved(engine, P.A, P.T, { dmg: 1 }, {});
-  gyro.onStrikeResolved(engine, P.B, P.T, { dmg: 1 }, {});
+  // หลบพ้น = ลูกตกช่องเป้า (ไม่มีการผลักมาย้ายลูก)
+  gyro.onStrikeResolved(engine, P.A, P.T, { dmg: 0, dodge: true }, {});
+  gyro.onStrikeResolved(engine, P.B, P.T, { dmg: 0, dodge: true }, {});
   P.T.pos = { x: 6, y: 2 };
-  gyro.onStrikeResolved(engine, P.B, P.T, { dmg: 1 }, {});
+  gyro.onStrikeResolved(engine, P.B, P.T, { dmg: 0, dodge: true }, {});
   assert.deepEqual(P.A.gyro.balls, [{ x: 5, y: 7, seq: 1 }]);
   assert.deepEqual(P.B.gyro.balls, [{ x: 5, y: 7, seq: 1 }, { x: 6, y: 2, seq: 2 }], 'ช่องเดียวกันไม่ทับกัน · seq ของ B นับเอง');
   assert.equal(gyro.hand(P.A), 1);
@@ -208,8 +209,9 @@ test('ไจโร 2 คน: A ตี B แล้ว B สวน — ใช้�
   engine.attackTarget('A', 'B');
   const card = engine.buildStateFor('A').attack;
   assert.ok(card.counter, 'B สวน (ระยะของ B ถึง A)');
-  assert.deepEqual(P.A.gyro.balls.map((b) => [b.x, b.y]), [[5, 8]], 'ลูกของ A ตกช่อง B');
-  assert.deepEqual(P.B.gyro.balls.map((b) => [b.x, b.y]), [[2, 8]], 'ลูกของ B ตกช่อง A');
+  assert.deepEqual(P.A.gyro.balls.map((b) => [b.x, b.y]), [[6, 8]], 'ลูกของ A ตกช่องที่ B จะถูกผลักไป');
+  assert.deepEqual(P.B.gyro.balls.map((b) => [b.x, b.y]), [[1, 8]], 'ลูกของ B ตกช่องที่ A ถูกผลักไป');
+  assert.equal(P.B.gyro.counterFx, null, 'ส่ง throw ของการสวนแล้ว');
   assert.deepEqual(card.push, { from: { x: 2, y: 8 }, to: { x: 1, y: 8 }, collide: false, via: null }, 'ถูกผลัก 1 ช่อง ไม่ถอยซ้อน');
   assert.deepEqual(P.A.pos, { x: 1, y: 8 });
   assert.equal(vitOf(P.A), a0, 'สวนลงม้าของ A ก่อน · ผลักไม่เสียเพิ่ม');

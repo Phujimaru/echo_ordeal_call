@@ -473,6 +473,8 @@ function counterAndPush(attacker, target, card) {
         }
       }
     }
+    // ฮุค afterCounterPush(engine, ผู้สวน, ผู้ตี, res) = หลังผลัก/ถอยของการสวน (ขยับหรือไม่ก็ตาม) — ไจโร: ลูกตกช่องที่ผู้ตีถูกผลักไป
+    if (cHook && cHook.afterCounterPush) combat.withEffectSource(target, () => combat.runHook(cHook, "afterCounterPush", engine, target, attacker, back));
   }
   return slide;
 }

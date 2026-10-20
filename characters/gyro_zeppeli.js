@@ -94,6 +94,7 @@ function fresh() {
     healed: 0,
     walkGolden: 0,       // ทองคำหลังการเดินครั้งล่าสุดของตานี้ (ประกายทองตอนได้เพิ่ม)
     pending: null,       // ตีปกติที่รอผลหลังฉาก { targetId, from, to, hit, breaker: { dir, dmg } }
+    counterFx: null,     // ตีสวน: throw ที่รอส่งหลังผลักผู้ตี (afterCounterPush)
   };
 }
 function st(p) { return p.gyro || (p.gyro = fresh()); }
@@ -287,14 +288,35 @@ function breaker(engine, p, t, pend) {
   };
 }
 // ตีโดน (ไม่เสริม) → ผลักเป้า 1 ช่องออกจากไจโร (ชน = ไม่ขยับ ไม่เสียเพิ่ม · ตัวใหญ่ไม่ขยับ · ลงน้ำแข็งไถลต่อ)
+function knockDir(engine, from, fromSize, t) {
+  const dirs = pushDirs(center(from, fromSize), center(t.pos, engine.sizeOf(t)));
+  if (!dirs.length) return null;
+  return dirs.find((v) => engine.tileFree(t.pos.x + v.x, t.pos.y + v.y, t.id)) || dirs[0];
+}
+// ช่องที่ลูกจะตก = ช่องที่เป้าจะถูกผลักไป 1 ช่อง (ผู้ใช้สั่ง 2026-10-20 — เรียกคืนแล้วโดนเป้า) · ผลักไม่ได้ = ช่องเดิม
+function knockLand(engine, p, t) {
+  const at = landTile(engine, p, t);
+  if (engine.sizeOf(t) > 1) return at;
+  const d = knockDir(engine, p.pos, engine.sizeOf(p), t);
+  return d && engine.tileFree(t.pos.x + d.x, t.pos.y + d.y, t.id) ? { x: t.pos.x + d.x, y: t.pos.y + d.y } : at;
+}
+// ลูกที่ตกพร้อมการผลัก (ball.stick = id เป้า) → ย้ายไปช่องที่เป้าอยู่จริงหลังผลัก/ไถลจบ
+function settleBall(engine, p, t) {
+  const b = st(p).balls.find((x) => x.stick === t.id);
+  if (!b) return null;
+  delete b.stick;
+  if (t.alive && t.pos) { const at = landTile(engine, p, t); b.x = at.x; b.y = at.y; }
+  return b;
+}
 function knockOne(engine, p, t, pend) {
-  if (!t.alive || !t.pos) return;
-  const dirs = pushDirs(center(pend.from, engine.sizeOf(p)), center(t.pos, engine.sizeOf(t)));
-  if (!dirs.length) return;
-  const d = dirs.find((v) => engine.tileFree(t.pos.x + v.x, t.pos.y + v.y, t.id)) || dirs[0];
-  const ctx = engine.ice.begin();
-  if (engine.ice.pushUnit(t, d, ctx)) engine.log(`↩️ ${t.name} ถูกลูกเหล็กผลัก 1 ช่อง`);
-  engine.ice.flush(ctx);
+  if (!t.alive || !t.pos) { settleBall(engine, p, t); return; }
+  const d = knockDir(engine, pend.from, engine.sizeOf(p), t);
+  if (d) {
+    const ctx = engine.ice.begin();
+    if (engine.ice.pushUnit(t, d, ctx)) engine.log(`↩️ ${t.name} ถูกลูกเหล็กผลัก 1 ช่อง`);
+    engine.ice.flush(ctx);
+  }
+  settleBall(engine, p, t);
 }
 
 // ---------- วิชาลับไจโร ----------
@@ -429,10 +451,13 @@ module.exports = {
   onStrikeResolved(engine, attacker, target, res, { counter } = {}) {
     if (!isGyro(attacker) || !attacker.pos) return;
     const s = st(attacker);
-    const at = target.pos ? landTile(engine, attacker, target) : null;
     const empowered = !counter && s.empowered;
-    if (at) dropBall(attacker, at);
     const hit = !(res && res.dodge);
+    // ตีโดน (ไม่เสริม) = ลูกตกช่องที่เป้าถูกผลักไป · ตีสวน = รู้ช่องหลังผลัก (afterCounterPush) · หลบ/เสริม/ตาย = ช่องเป้า
+    const pushes = hit && !empowered && target.alive && target.pos;
+    const at = !target.pos ? null : pushes && !counter ? knockLand(engine, attacker, target) : landTile(engine, attacker, target);
+    const ball = at ? dropBall(attacker, at) : null;
+    if (ball && pushes) ball.stick = target.id;
     s.pending = null;
     if (!counter) {
       s.pending = { targetId: target.id, from: { ...attacker.pos }, hit };
@@ -442,7 +467,22 @@ module.exports = {
         s.empowered = false;
       }
     }
-    fx(engine, attacker, "throw", { from: { ...attacker.pos }, to: target.pos ? { ...target.pos } : at, land: at, hit, counter: !!counter, empowered });
+    const throwFx = { from: { ...attacker.pos }, to: target.pos ? { ...target.pos } : at, land: at, hit, counter: !!counter, empowered };
+    if (counter && ball && ball.stick) { s.counterFx = throwFx; return; } // ส่งหลังผลัก (afterCounterPush) — land = ช่องหลังผลัก
+    fx(engine, attacker, "throw", throwFx);
+    engine.sfx(SFX.throw);
+    engine.sfx(SFX.spin);
+  },
+  // ไจโรตีสวนแล้วผู้ตีถูกผลัก (หรือไม่ขยับ) → ลูกไปตกช่องที่ผู้ตีอยู่ · ส่ง throw
+  afterCounterPush(engine, counterer, attacker) {
+    if (!isGyro(counterer)) return;
+    const s = st(counterer);
+    const b = settleBall(engine, counterer, attacker);
+    const f = s.counterFx;
+    s.counterFx = null;
+    if (!f) return;
+    if (b) f.land = tile(b);
+    fx(engine, counterer, "throw", f);
     engine.sfx(SFX.throw);
     engine.sfx(SFX.spin);
   },
@@ -455,7 +495,7 @@ module.exports = {
     if (!isGyro(attacker)) return null;
     const pend = st(attacker).pending;
     st(attacker).pending = null;
-    if (!pend || pend.targetId !== target.id || !pend.hit || !res || res.dodge) return null;
+    if (!pend || pend.targetId !== target.id || !pend.hit || !res || res.dodge) { settleBall(engine, attacker, target); return null; }
     if (pend.breaker) return () => (target.alive && target.pos ? breaker(engine, attacker, target, pend) : 0);
     return () => { knockOne(engine, attacker, target, pend); };
   },
