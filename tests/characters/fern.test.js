@@ -66,13 +66,13 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: ง่าย · พลังชีวิต 5 เกราะ 2 · เดิน 3 · ตีแนวตรง [1, 3] · ตีสวนได้ · 2 / 0 / 4 Energy · Energy 10 เริ่มเต็ม', () => {
+test('ข้อมูล: ง่าย · พลังชีวิต 5 เกราะ 2 · เดิน 3 · ตีแนวตรง [1, 3] · ไม่มีตีสวน · 2 / 0 / 4 Energy · Energy 10 เริ่มเต็ม', () => {
   const ch = CHAR_BY_ID.fern;
   assert.equal(ch.name, 'เฟิร์น');
   assert.equal(ch.difficulty, 'easy');
   assert.equal(ch.mov, 3);
   assert.deepEqual(ch.range, [1, 3]);
-  assert.equal(ch.counter, true);
+  assert.ok(!ch.counter, 'ตีสวนปิดทั้งเกม (GRID_PLAN §6)');
   assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [2, 0, 4]);
   assert.deepEqual(ch.ultimate.area, { kind: 'tile', range: 99, place: 'free', hostile: false });
   for (const t of ['basic', 'secondary', 'ultimate']) assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก/);
@@ -126,20 +126,16 @@ test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโ
   assert.equal(strikeNow('F', 'B'), false, 'Energy 1 = ตีไม่ได้');
 });
 
-test('ตีสวน: ศัตรูตีประชิด = เฟิร์นสวน เสีย 2 Energy · Energy ไม่ถึง 2 = ไม่สวน', () => {
+test('ไม่มีตีสวน: ศัตรูตีประชิด = เฟิร์นไม่สวน ไม่เสีย Energy', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
   P.B.hp = 10; P.B.armor = 0;
   P.F.hp = 5; P.F.armor = 2;
   P.F.fern.shieldReady = 99;
   engine.setActor('B');
   assert.equal(strikeNow('B', 'F'), true);
-  assert.equal(P.F.skillPoints, 8, 'ตีสวนเสีย 2');
-  assert.equal(P.B.hp, 8, 'สวน 2');
-  P.F.skillPoints = 1;
-  engine.setActor('B');
-  strikeNow('B', 'F');
-  assert.equal(P.F.skillPoints, 1);
-  assert.equal(P.B.hp, 8, 'ไม่สวน');
+  assert.equal(P.F.skillPoints, 10, 'ไม่เสีย Energy');
+  assert.equal(P.B.hp, 10, 'ไม่สวน');
+  assert.equal(engine.lastAttack.counter, null);
 });
 
 test('ร่ายต่อเนื่อง: ตีแล้วไม่จบตา · 2 ครั้ง = ตี 3 ครั้ง · ครั้งที่ 3 กดไม่ได้ · เทิร์นถัดไปล็อก · N+2 กดได้', () => {
@@ -190,7 +186,6 @@ test('ร่ายต่อเนื่อง: ที่ตุนไว้หา
 
 test('Defensive Magic: กันการโจมตีทั้งก้อน (ฉากตีขึ้น 0) · คูลดาวน์ 2 เทิร์น · หลายจังหวะในคำสั่งเดียว = กันหมด', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 9, 7]]);
-  P.F.skillPoints = 0; // ไม่สวน
   engine.setActor('B');
   assert.equal(strikeNow('B', 'F'), true);
   assert.equal(vit(P.F), 7, 'กันหมด');

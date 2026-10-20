@@ -30,7 +30,7 @@ import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
-import { FERN_CANNON, FERN_EVENT_FX, isFernFx } from "./fernFx";
+import { FERN_CANNON, FERN_EVENT_FX } from "./fernFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -723,8 +723,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         t = HIT + 640;
         const c = a.counter;
         if (c.byBeam > 0 && tPos) later(t - BEAM_T.charge - BEAM_T.extend, () => pushFx([{ kind: "beam", x: tPos.x, y: tPos.y, to: fromPos, len: c.byBeam, hitId: c.targetId, tone: c.byBeamTone || null }]));
-        // เฟิร์นตีสวนด้วย Zoltraak: ลำแสงจากช่องเป้า (ผู้สวน) ไปหาผู้ตี — ถึงปลายตรงจังหวะสวน
-        if (c.byStyle && isFernFx(c.byStyle) && STYLE_HIT[c.byStyle] && tPos) later(Math.max(0, t - STYLE_HIT[c.byStyle]), () => pushFx([{ kind: c.byStyle, x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), to: { x: fromPos.x, y: fromPos.y }, toSize: sizeOfP(byId[a.byId]), color: c.byColor, lane: null }]));
         const cMyth = c.byHitFx === "mythSlash";
         if (cMyth) later(Math.max(0, t - SORA_T.lead), () => playSfx(c.byAttackSound || "attack"));
         later(t, () => {
