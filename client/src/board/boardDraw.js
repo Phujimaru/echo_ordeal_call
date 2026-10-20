@@ -36,7 +36,7 @@ import {
   DIEGO_FX_DUR, DIEGO_RIDE_Z, diegoAmbientNow, diegoFireItems, diegoFx, diegoHorse, diegoTimeLayer, diegoUnitBack, diegoUnitFront, drawDiegoGround, isDiegoFx,
 } from "./diegoFx";
 import {
-  VAL_FX_DUR, VAL_HIT_P, VAL_MS, drawValUnit, isValentineFx, valentineDimLayer, valentineFlip, valentineFx, valentineItems, valentinePuppets,
+  VAL_FX_DUR, VAL_HIT_P, VAL_MS, drawValUnit, isValentineFx, valentineDimGround, valentineDimLayer, valentineFlip, valentineFx, valentineItems, valentinePuppets,
 } from "./valentineFx";
 import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, drawFernGround, fernFx, isFernFx } from "./fernFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
@@ -705,7 +705,7 @@ function drawCorpse(g, u, now, boxes) {
   g.restore();
   if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - r - 4, y0: cy - r * 0.6, x1: bx + r + 4, y1: by + s * 0.2 });
 }
-// ฟันนี่ วาเลนไทน์ (valentineFx.js): ฉากที่ตัด/บีบ/เจาะรูหมาก (valMod) · คนละโลก (ghostDim — โปร่ง ภาพซ้อน กดไม่ได้) · ตัวเหมือน (summon double — ตะเข็บ)
+// ฟันนี่ วาเลนไทน์ (valentineFx.js): ฉากที่ตัด/บีบ/เจาะรู/พลิกหมาก (valMod) · คนละโลก (ghostDim — โปร่ง กดไม่ได้) · ตัวเหมือน (summon double — ตะเข็บ)
 function drawAnyUnit(g, u, now, boxes) {
   if (u.valMod || u.ghostDim || (u.summon && u.summon.kind === "double")) { drawValUnit(g, u, now, (uu, withBox) => drawAnyUnitBase(g, uu, now, withBox ? boxes : null)); return; }
   drawAnyUnitBase(g, u, now, boxes);
@@ -1980,6 +1980,8 @@ export function drawFrame(g, st, now) {
   const amb = diegoAmbientNow(st.timeFreeze || null, now);
   const dGround = st.diego || null, dFx = dGround || fx.some((e) => isDiegoFx(e.kind));
   if (dFx) drawDiegoGround(g, dGround, fx, now, lowQ, amb);
+  // โลกคู่ขนาน (วาเลนไทน์): ตะเข็บบางรอบขอบกระดาน — บนพื้น ใต้ไฮไลต์
+  if (st.dimLayers && st.dimLayers.length) valentineDimGround(g, info, st.dimLayers, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -2082,7 +2084,7 @@ export function drawFrame(g, st, now) {
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
   }
-  // มุมมองของมิติ (วาเลนไทน์): โลกคู่ขนาน = ซีดนิด ฟ้าจาง · มองจากหลังผ้า = ซีดเย็น ตัวเราสีปกติ
+  // มุมมองของมิติ (วาเลนไทน์): มองจากหลังผ้า = ซีดลง ขอบน้ำเงินจาง ตัวเราสีปกติ (โลกคู่ขนานไม่เปลี่ยนสี)
   if (st.dimLayers && st.dimLayers.length) valentineDimLayer(g, { view, layers: st.dimLayers, now, lowQ, units, dpr, redraw: (u) => drawAnyUnit(g, u, now, null) });
   // เอฟเฟกต์ครั้งเดียว
   for (const e of fx) {

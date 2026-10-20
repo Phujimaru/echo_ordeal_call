@@ -895,8 +895,9 @@ function statusEntries(p, full) {
     else if (v.reloadCd > 0) out.push({ key: "valReload", v: v.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "" });
     if (v.veil) out.push({ key: "valVeil", v: Math.max(1, v.veil.left || 0), turns: true, icon: "🚩", label: "หลบสายตา", cls: "bg-pink-300 text-gray-900", desc: "" });
     else if (v.veilCd > 0) out.push({ key: "valVeilCd", v: v.veilCd, turns: true, icon: "⏳", label: "หลบสายตา", cls: "bg-white/20", desc: "" });
-    if (v.parallel) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "จงปลาบปลื้ม", cls: "bg-cyan-200 text-gray-900", desc: "" });
   }
+  // อยู่ในกระดานคู่ขนาน (ชั้นมิติ "par:" — ท่าไม้ตายของวาเลนไทน์): ทุกคนในมิติเห็นป้ายนี้ (หน้าตากระดานเหมือนปกติ — ผู้ใช้ 2026-10-21)
+  if (typeof p.dim === "string" && p.dim.startsWith("par:")) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "กระดานคู่ขนาน", cls: "bg-cyan-200 text-gray-900", desc: "" });
   // เฟิร์น: ซ่อนเร้นมานา · ชาร์จ Orbital Cannon Zoltraak (เทิร์นที่ชาร์จแล้ว 0..3) · Defensive Magic คูลดาวน์ · ตีที่เหลือ/ร่ายต่อเนื่อง (ตัวเลข/ไอคอนเท่านั้น)
   if (p.fern) {
     const f = p.fern;

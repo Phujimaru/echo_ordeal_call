@@ -12,15 +12,16 @@
 //   reload     valReload     ลูกโม่ 6 รังเหนือหัว กระสุนทองเข้าทีละนัด → หมุนปิด
 //   parallelIn valParallel   ธงผืนใหญ่ปลิวไปคลุมแนว 4×3 → พื้นที่พลิกกลับหัวแล้วตั้งตรง (valentineFlip) → คนใน ids วูบฟ้าย้ายโลก
 //   doubleSpawn valDoubleSpawn ผ้าตั้งขึ้นจากพื้น → เลื่อนออกข้าง ตัวเหมือนก้าวออกมา → ผ้าตกหาย
-//   doubleRun  valDoubleRun  ตัวเหมือนวิ่งตามทาง (valentinePose) · menger valMenger ลูกบาศก์เจาะรูลอกจากทั้งคู่พุ่งชนกัน → ตัวเหมือนพังเป็นก้อน
-//   doubleBreak valDoubleBreak ตัวเหมือนแตกเป็นลูกบาศก์ · dimOut valDimOut ผ้าปัดผ่านตัว กลับโลกหลัก
+//   doubleRun  valDoubleRun  ตัวเหมือนเดินตามทาง (valentinePose) · menger valMenger ไถลเข้าหากัน → ตัวเหมือนกลายเป็นเมนเจอร์สปันจ์ก้อนเดียว
+//              หมุนนิด → แยก 20 ก้อนพุ่งเข้าเป้า วาบสี่เหลี่ยมขาว → เป้ากะพริบ + เลขดาเมจ (M.hit)
+//   doubleBreak valDoubleBreak ตัวเหมือนแตกเป็นลูกบาศก์ · dimOut valDimOut พลิกกลับหัวแบบการ์ดแล้วตั้งตรง + ธงผืนเล็กปลิวผ่าน กลับโลกหลัก
 //   clones     valClones     ธงหมุนรอบตัว → วาเลนไทน์อีก 3 คนก้าวออกจากหลังธงที่ช่องเกิด · cloneFade valCloneFade ผ้าตกคลุมแล้วหาย
 //   justice    valJustice    ผ้าพันรอบตัวหมุน → แสงวาบ → ผ้าคลาย เผยวาเลนไทน์อีกคน (แถบเลือดขึ้นหลังผ้าคลาย)
 //   gain       valGain       ประกายเล็กๆ + ตะเข็บรอบฐาน (แต้มสกิลจากติดตัว)
 //  ตีปกติ (attackStyle): valKnife ระยะ 1 = ปลายมีดวาบ → ฟันโค้งขาวขอบชมพูบานเย็น → ตะเข็บประค้าง · valGun ระยะ 2 = ลูกโม่ยิง 1 นัด
 //  ภาพค้างจาก state: board.valentine.flags = ธงปักโบกตลอด (valentineItems — เรียงความลึกกับตัวละคร)
-//   · units[].ghostDim = คนละโลก: โปร่ง + ภาพซ้อนเหลื่อม + ขอบฟ้า/ชมพู · units[].summon.kind "double" = ตะเข็บกระพริบรอบหมาก + สีเหลื่อมนิด
-//   · dimView "par" = โลกคู่ขนาน (ซีดนิด + ฟ้าจาง + ภาพซ้อนบาง) · "veil" = มองจากหลังผ้า (ซีด เย็น ลายแถบธงจางมาก) — valentineDimLayer
+//   · units[].ghostDim = คนละโลก: ภาพโปร่งภาพเดียว (server ซ่อนตัวคนละชั้นอยู่แล้ว — เห็นได้แค่ตอนมองจากหลังผ้า) · units[].summon.kind "double" = ตะเข็บกระพริบรอบหมาก + สีเหลื่อมนิด
+//   · dimView "par" = โลกคู่ขนาน (หน้าตาเหมือนกระดานหลัก + ตะเข็บชมพูบางรอบขอบ — valentineDimGround) · "veil" = มองจากหลังผ้า (ซีดลง ขอบน้ำเงินจาง) — valentineDimLayer
 //  หมากในฉาก: valentineMod (ซ่อน/ตัดภาพ/บีบ/เจาะรู/แฟลช) · valentinePuppets = ภาพที่จับไว้ตอนเกิดเหตุการณ์ (ตัวที่หายจาก state แล้ว)
 //  lowQ = ตัดอนุภาค/ภาพซ้อน/การพลิก · ลดการเคลื่อนไหว = ธงหยุดโบก ไม่พลิกพื้นที่ · ไม่เล่นเสียง (server เล่นเอง)
 // ============================================================
@@ -44,7 +45,9 @@ const SHOT_T0 = 120, SHOT_FLY = 70; // ปืนแห่งสันติภ�
 const HOLD = 2400;  // หมากที่ฉากย้าย ค้างที่ปลายทางจน state มาถึง
 const TAIL = 320;   // หลบสายตา: ตัวจริงค่อยๆ ปรากฏหลังฉาก (คนที่ยังเห็นตัว เช่นเจ้าของ)
 const PING_MS = 120;
-const M = { peel: 16, peelGap: 34, peelFly: 270, crumble0: 640, crumble1: 1050, hit: 1000, life: 520 }; // เมนเจอร์
+// เมนเจอร์ (ตัวเหมือนชนเป้า): ไถลเข้าหากัน → ตัวเหมือนกลายเป็นลูกบาศก์เมนเจอร์ก้อนเดียว → หมุน → แยก 20 ก้อนพุ่งเข้าเป้า → เลขดาเมจ (hit)
+const M = { slide: 300, pull: 0.3, pullT: 0.1, morph0: 230, morph1: 450, split0: 760, split1: 860, fly0: 840, flyGap: 7, fly: 160, hit: 1000, back0: 1100, back1: 1400 };
+const CRUMBLE_LIFE = 520; // ทำลายตัวเหมือน: อายุลูกบาศก์ที่ร่วง
 export const VAL_FX_DUR = {
   ...VAL_MS,
   valVeilIn: VAL_FX.veilIn + TAIL, valVeilOut: VAL_FX.veilOut, valShots: valShotsMs(3) + 400, valReload: VAL_FX.reload,
@@ -340,12 +343,15 @@ const cloneStart = (i) => CL.first + i * CL.gap;
 const JU = { rise: 300, wrap: 960, flash: 1060, unwrap: 1400 };
 // พาข้ามโลก
 const PA = { fly: 420, settle: 640, lift0: 640, lift1: 900, flip0: 700, flip1: 1400, shim: 1250 };
-// ออกจากโลกคู่ขนาน: ผ้าปัดผ่านตัว
-const DO = { s0: 120, s1: 720 };
+// ออกจากโลกคู่ขนาน: ทีละตัว (เหลื่อมกัน gap) พลิกกลับหัวแล้วตั้งตรงใน span · ธงผืนเล็กปลิวผ่านช่วงเดียวกัน
+const DO = { f0: 140, span: 520, gap: 70 };
+const dimOutGap = (e) => { const n = (e.ids || []).length; return n > 1 ? Math.min(DO.gap, (VAL_FX.dimOut - 60 - DO.f0 - DO.span) / (n - 1)) : 0; };
+const dimOutQ = (e, i, t) => { const t0 = DO.f0 + i * dimOutGap(e); return seg(t, t0, t0 + DO.span); };
 
 // ============================================================ หมากในฉาก (BoardCanvas / boardDraw)
 //  mod = { hide, a (คูณความทึบ), clip (0..1 ตัดจากหัวลงมา), sy (บีบแนวตั้งรอบเท้า), side: { f, keep } (เผยแนวนอน),
-//          holes: { n, order } (เจาะรูเมนเจอร์), white (0..1), tint: { rgb, a }, noBar, echo (ภาพซ้อน) }
+//          holes: { n, order } (เจาะรูลูกบาศก์ — ทำลายตัวเหมือน), white (0..1), tint: { rgb, a }, noBar, echo (ภาพซ้อน),
+//          ox/oy (เลื่อน หน่วยช่อง), scale (ย่อรอบกลางหกเหลี่ยม), fy (พลิกหกเหลี่ยมแนวตั้งรอบกลางรูป 1 → −1 = กลับหัว) }
 //  ค่า mod ไม่ขึ้นกับกล้อง (สัดส่วนของตัวหมาก) — คิดได้ก่อน drawFrame ตั้งกล้อง
 function sceneMod(e, id, t) {
   switch (e.kind) {
@@ -365,9 +371,17 @@ function sceneMod(e, id, t) {
     case "valCloneFade": return (e.list || []).some((p) => p.id === id) ? { hide: true } : null;
     case "valMenger": {
       if (e.id === id) return { hide: true };
-      if (e.targetId !== id) return null;
-      const n = mengerTargetHoles(t);
-      return n > 0 ? { holes: { n, order: cellOrder(e.seedT, e.biasT) } } : null;
+      if (e.targetId !== id || !e.slide) return null;
+      // เป้าไถลเข้าหาตัวเหมือนนิดหน่อย → โดนลูกบาศก์ = กะพริบสั้นๆ (ไม่มีรูค้าง) → ถอยกลับที่
+      const pull = -M.pullT * easeOut2(seg(t, 0, M.slide)) * (1 - easeInOut(seg(t, M.back0, M.back1)));
+      const m = { ox: pull * e.slide[0], oy: pull * e.slide[1] };
+      const f0 = mengerFirstHit(e);
+      if (t >= f0 && t < f0 + 240) {
+        const q = (t - f0) / 240;
+        m.white = 0.75 * (1 - q) * (REDUCED || ((t - f0) / 55 | 0) % 2 === 0 ? 1 : 0.25);
+        if (!REDUCED) m.a = ((t - f0) / 55 | 0) % 2 === 1 ? 0.55 + 0.45 * q : 1;
+      }
+      return m;
     }
     case "valDoubleBreak": return e.id === id ? { hide: true } : null;
     case "valJustice": {
@@ -381,10 +395,12 @@ function sceneMod(e, id, t) {
       return k > 0.01 ? { tint: { rgb: CYAN, a: 0.32 * k }, echo: k } : null;
     }
     case "valDimOut": {
+      // กลับโลกหลัก: พลิกกลับหัวแบบการ์ด (กลับหัว → ตั้งตรง) ขณะธงผืนเล็กปลิวผ่าน — ภาพกลับของตอนพาข้ามโลก
       const i = (e.ids || []).indexOf(id);
-      if (i < 0) return null;
-      const k = Math.sin(Math.PI * seg(t, DO.s0 + 120, DO.s1 + 80));
-      return k > 0.01 ? { tint: { rgb: CYAN, a: 0.32 * k }, echo: k } : null;
+      if (i < 0 || REDUCED) return null;
+      const q = dimOutQ(e, i, t);
+      if (q <= 0 || q >= 1) return null;
+      return { fy: Math.cos(TAU * easeInOut(q)), noBar: true };
     }
     default: return null;
   }
@@ -463,9 +479,10 @@ export function valentinePuppets(list, now, lowQ) {
     } else if (e.kind === "valDoubleRun" && e.pup && t < runEnd(e)) {
       const p = walkAt(e.path, t) || e.path[e.path.length - 1];
       out.push(puppet(e, { ...e.pup, x: p.x, y: p.y }, null, { hz: p.hz || 0, lowQ }));
-    } else if (e.kind === "valMenger" && e.pup && t < M.crumble1 + 80) {
-      const n = mengerDoubleHoles(t), off = mengerSlide(t);
-      out.push(puppet(e, e.pup, { holes: n > 0 ? { n, order: cellOrder(e.seedD, e.biasD) } : null }, { ox: off * e.slide[0], oy: off * e.slide[1], lowQ }));
+    } else if (e.kind === "valMenger" && e.pup && t < M.morph1) {
+      // ตัวเหมือนไถลเข้าหาเป้า → หดเข้ากลางหกเหลี่ยมแล้วจาง (ลูกบาศก์ใน mengerFx โตขึ้นแทนที่)
+      const off = mengerPull(t), k = easeIn2(seg(t, M.morph0, M.morph1));
+      out.push(puppet(e, e.pup, { scale: 1 - 0.3 * k, a: 1 - k }, { ox: off * e.slide[0], oy: off * e.slide[1], lowQ }));
     } else if (e.kind === "valDoubleBreak" && e.pup && t < BR.c1 + 60) {
       const n = breakHoles(t);
       out.push(puppet(e, e.pup, { holes: n > 0 ? { n, order: cellOrder(e.seed, 0) } : null, white: 1 - seg(t, 0, 160), noBar: t > 120 }, { lowQ }));
@@ -508,20 +525,8 @@ function cellSolid(B, c) {
   if (y > B.by - B.s * 0.2) return (dx / (B.s * 0.36)) ** 2 + ((y - B.by + B.s * 0.05) / (B.s * 0.2)) ** 2 <= 1.2; // ฐาน
   return dx <= R.w * 0.6; // เสา
 }
-const NP = (lowQ) => (lowQ ? M.peel / 2 : M.peel);
-const peelT = (m) => 40 + m * M.peelGap;
-function mengerDoubleHoles(t) {
-  let n = 0;
-  for (let m = 0; m < M.peel; m++) if (t >= peelT(m)) n++;
-  if (t >= M.crumble0) n += Math.floor((NCELL - M.peel) * seg(t, M.crumble0, M.crumble1));
-  return Math.min(NCELL, n);
-}
-function mengerTargetHoles(t) {
-  let n = 0;
-  for (let m = 0; m < M.peel; m++) if (t >= peelT(m)) n++;
-  return Math.round(n * (1 - seg(t, M.hit + 40, M.hit + 360)));
-}
-const mengerSlide = (t) => 0.22 * easeIn2(seg(t, 420, M.crumble0)); // ตัวเหมือนไถลเข้าหาเป้า (หน่วยช่อง)
+const mengerPull = (t) => M.pull * easeInOut(seg(t, 0, M.slide)); // ตัวเหมือนไถลเข้าหาเป้า (หน่วยช่อง)
+const mengerFirstHit = () => M.fly0 + M.fly;                      // ก้อนแรกถึงเป้า (= M.hit)
 const BR = { c0: 70, c1: 560 }; // แตกสลาย: ช่องแรก/สุดท้ายหลุด
 const breakHoles = (t) => Math.floor(NCELL * seg(t, BR.c0, BR.c1));
 // สีของช่องจากรูปจริง (ในกรอบหกเหลี่ยม) ไม่งั้นสีประจำตัว
@@ -560,28 +565,20 @@ function mengerCube(g, x, y, sz, rot, rgb, a, lowQ) {
   g.strokeStyle = `rgba(${INK},.9)`; g.lineWidth = Math.max(0.7, sz * 0.07); g.stroke();
   g.restore();
 }
-// แสงวาบสี่เหลี่ยมเล็ก (ลูกบาศก์ชนกันแล้วหาย)
-function squarePop(g, x, y, s, age) {
-  if (age < 0 || age > 110) return;
-  const q = age / 110, r = s * (0.35 + 0.9 * q);
-  g.save(); g.translate(x, y); g.rotate(0.785);
-  g.strokeStyle = `rgba(255,255,255,${0.95 * (1 - q)})`; g.lineWidth = 1.4; g.strokeRect(-r, -r, r * 2, r * 2);
-  g.fillStyle = `rgba(255,255,255,${0.7 * (1 - q)})`; g.fillRect(-r * 0.45, -r * 0.45, r * 0.9, r * 0.9);
-  g.restore();
-}
-
 // ============================================================ ชิ้นวาดหมากที่มี valMod / คนละโลก / ตัวเหมือน (boardDraw drawAnyUnit)
 //  draw(u, withBoxes) = วาดหมากแบบปกติ · ตัวคนละโลก (ghostDim) ไม่ส่งกล่องคลิก (กดไม่ได้)
 export function drawValUnit(g, u, now, draw) {
   const m = u.valMod || null;
   if (m && m.hide) return;
-  const n = Math.max(1, u.size | 0), B = unitBox(u.rx + (u.ox || 0), u.ry + (u.oy || 0), n, u.hz || 0, u.k || 1);
+  const ox = (u.ox || 0) + ((m && m.ox) || 0), oy = (u.oy || 0) + ((m && m.oy) || 0);
+  const n = Math.max(1, u.size | 0), B = unitBox(u.rx + ox, u.ry + oy, n, u.hz || 0, u.k || 1);
   const base = u.alpha == null ? 1 : u.alpha, a = base * (m && m.a != null ? clamp01(m.a) : 1);
   if (a <= 0.01) return;
-  const uu = { ...u, alpha: a, valMod: null, ghostDim: false, summon: null, noBar: !!(m && m.noBar) || u.noBar };
+  const uu = { ...u, ox, oy, alpha: a, valMod: null, ghostDim: false, summon: null, noBar: !!(m && m.noBar) || u.noBar };
   g.save();
   if (m) {
     if (m.sy != null && m.sy !== 1) { g.translate(B.bx, B.by); g.scale(1 + (1 - m.sy) * 0.18, m.sy); g.translate(-B.bx, -B.by); }
+    if (m.scale != null && m.scale !== 1) { g.translate(B.bx, B.hy); g.scale(m.scale, m.scale); g.translate(-B.bx, -B.hy); }
     const clip = m.clip > 0, side = m.side && m.side.f < 1, holes = m.holes && m.holes.n > 0;
     if (clip || side || holes) {
       const L = B.l - 30, R = B.r + 30, T = B.top - 60, Bo = B.bottom + 24;
@@ -599,32 +596,37 @@ export function drawValUnit(g, u, now, draw) {
   }
   const ghost = !!u.ghostDim, dbl = !!(u.summon && u.summon.kind === "double");
   const t = REDUCED ? 0 : now;
-  // คนละโลก: ภาพซ้อนเหลื่อม (อีกโลกทับกัน)
-  if ((ghost || (m && m.echo > 0.01)) && !u.lowQ) {
-    const k = ghost ? 1 : m.echo, d = (2.5 + Math.sin(t / 640) * 1.2) * k;
-    g.save(); g.translate(d, -d * 0.35); draw({ ...uu, alpha: a * (ghost ? 0.42 : 0.35 * k), hitT: 0, tag: null, isActor: false }, false); g.restore();
+  // ภาพซ้อนเหลื่อมตอนย้ายโลก (พาข้ามโลก) — คนละโลก (ghostDim) = ภาพโปร่งภาพเดียว ไม่มีภาพซ้อน
+  if (!ghost && m && m.echo > 0.01 && !u.lowQ) {
+    const k = m.echo, d = (2.5 + Math.sin(t / 640) * 1.2) * k;
+    g.save(); g.translate(d, -d * 0.35); draw({ ...uu, alpha: a * 0.35 * k, hitT: 0, tag: null, isActor: false }, false); g.restore();
   }
-  if (dbl && !u.lowQ && "filter" in g) {
-    g.filter = `hue-rotate(${(Math.sin(t / 900) * 9).toFixed(1)}deg) saturate(1.06)`;
-    draw(uu, !ghost);
-    g.filter = "none";
-  } else draw(uu, !ghost);
+  const drawMain = (vv, box) => {
+    if (dbl && !u.lowQ && "filter" in g) {
+      g.filter = `hue-rotate(${(Math.sin(t / 900) * 9).toFixed(1)}deg) saturate(1.06)`;
+      draw(vv, box);
+      g.filter = "none";
+    } else draw(vv, box);
+  };
+  if (m && m.fy != null && m.fy !== 1) {
+    // การ์ดพลิก: เฉพาะหกเหลี่ยมพลิกรอบแกนนอนผ่านกลางรูป (1 → 0 → −1 กลับหัว → 1) · เสา/ฐานอยู่กับพื้นตามเดิม
+    const cut = B.hy + B.hexR * 0.87 + 3, f = Math.sign(m.fy) * Math.max(0.03, Math.abs(m.fy));
+    g.save(); g.beginPath(); g.rect(B.l - 40, cut, B.r - B.l + 80, B.bottom + 40 - cut); g.clip(); drawMain(uu, !ghost); g.restore();
+    g.save(); g.beginPath(); g.rect(B.l - 40, B.top - 80, B.r - B.l + 80, cut - B.top + 80); g.clip();
+    g.translate(B.bx, B.hy); g.scale(1 + 0.12 * (1 - Math.abs(m.fy)), f); g.translate(-B.bx, -B.hy);
+    g.beginPath(); g.rect(B.l - 40, B.top - 80, B.r - B.l + 80, cut - B.top + 80); g.clip(); // ตัดเสา/ฐานออกจากภาพที่พลิก
+    drawMain(uu, false);
+    g.restore();
+  } else drawMain(uu, !ghost);
   // แฟลชขาว (สลับร่าง) / สีวูบ (ย้ายโลก)
   const flash = (alphaK, style) => {
     g.save(); hexPath(g, B.bx, B.hy, B.hexR - 1); g.fillStyle = style; g.globalAlpha = alphaK; g.fill();
-    if (n === 1) { gEllipse(g, u.rx + (u.ox || 0) + 0.5, u.ry + (u.oy || 0) + 0.5, 0.32, 0.12, 24); g.fill(); }
+    if (n === 1) { gEllipse(g, u.rx + ox + 0.5, u.ry + oy + 0.5, 0.32, 0.12, 24); g.fill(); }
     g.restore();
   };
   if (m && m.white > 0.01) flash(Math.min(1, m.white) * a, "#ffffff");
   if (m && m.tint && m.tint.a > 0.01) {
     g.save(); g.globalCompositeOperation = "lighter"; flash(m.tint.a * a, `rgb(${m.tint.rgb})`); g.restore();
-  }
-  // ขอบฟ้า/ชมพูบานเย็นเหลื่อมกัน (คนละโลก)
-  if (ghost) {
-    const d = 2 + Math.sin(t / 700) * 1.2, ga = (u.lowQ ? 0.4 : 0.32 + 0.12 * Math.sin(t / 380)) * Math.min(1, base / 0.38);
-    g.lineWidth = 1.6;
-    hexPath(g, B.bx + d, B.hy, B.hexR + 2); g.strokeStyle = `rgba(${CYAN},${ga})`; g.stroke();
-    hexPath(g, B.bx - d, B.hy, B.hexR + 2); g.strokeStyle = `rgba(${FUCH},${ga * 0.85})`; g.stroke();
   }
   // ตัวเหมือน: ตะเข็บ D4C รอบหมาก กระพริบเบาๆ
   if (dbl) stitchHex(g, B.bx, B.hy, B.hexR + 4.5, a * (u.lowQ ? 0.6 : 0.5 + 0.22 * (0.5 + 0.5 * Math.sin(t / 430)) + (hash01(Math.floor(t / 95)) > 0.94 ? 0.28 : 0)), t, u.lowQ);
@@ -679,6 +681,7 @@ export function valentineItems(items, g, flags, fx, now, lowQ) {
       case "valCloneFade": for (const p of e.list || []) coverItems(items, g, p, t, now, lowQ); break;
       case "valJustice": justiceItems(items, g, e, t, now, lowQ); break;
       case "valDimOut": dimOutItems(items, g, e, t, now, lowQ); break;
+      case "valMenger": if (okT(e.dAt) && e.slide && t < VAL_FX.menger) { const o = mengerPull(t); items.push({ d: depthOf(e.dAt.x + 0.5 + o * e.slide[0], e.dAt.y + 0.5 + o * e.slide[1]) - 0.001, f: () => mengerDraw(g, e, t, lowQ, "shadow") }); } break;
       default:
     }
   }
@@ -843,20 +846,26 @@ function justiceItems(items, g, e, t, now, lowQ) {
     z0: 0.02 + un * 1.1, z1: lerp(0.15, 1.5, rise) + un * 1.2, a: clamp01(t / 70) * (1 - un), white, wave: 0.8,
   }, now, lowQ);
 }
+// กลับโลกหลัก: ธงผืนเล็ก (ไม่มีเสา) ปลิวผ่านหน้าตัวจากซ้ายไปขวา ขณะตัวพลิกกลับหัวแล้วตั้งตรง (valDimOut ใน sceneMod)
 function dimOutItems(items, g, e, t, now, lowQ) {
-  if (t < DO.s0 || t > DO.s1 + 60) return;
   (e.at || []).forEach((p, i) => {
     if (!okT(p)) return;
-    const q = easeInOut(seg(t, DO.s0 + i * 40, DO.s1 + i * 40));
+    const q = dimOutQ(e, i, t);
     if (q <= 0 || q >= 1) return;
-    items.push({
-      d: dTile(p, p.size || 1) + 0.004,
-      f: () => {
-        const B = unitBox(p.x, p.y, p.size || 1), W = Math.max(B.s * 1.18, (B.r - B.l) * 0.95);
-        drawCloth(g, sheetFor(B, 1.02, 1.08, now, { round: 0.5, dx: lerp(-W * 1.15, W * 1.15, q), amp: 1.5 }), { lowQ, alpha: Math.sin(Math.PI * q) * 1.3, shade: (u) => Math.sin(u * 7 - now / 70) * 0.6 });
-      },
-    });
+    items.push({ d: dTile(p, p.size || 1) + 0.004, f: () => drawFlyingFlag(g, unitBox(p.x, p.y, p.size || 1), q, now, lowQ, i) });
   });
+}
+function drawFlyingFlag(g, B, q, now, lowQ, seed = 0) {
+  const W = Math.max(26, B.s * 0.62), H = W * 0.56, span = (B.r - B.l) * 0.5 + W * 0.75;
+  const k = easeInOut(q), x = B.bx + lerp(-span, span, k), y = B.hy + B.hexR * 0.15 - Math.sin(Math.PI * k) * B.s * 0.14;
+  const rot = lerp(0.22, -0.18, k), cr = Math.cos(rot), sr = Math.sin(rot), ph = (flutterT(now) * TAU) / 300 + seed;
+  // ด้านเสา (u = 0) นำหน้าไปทางขวา · ปลายธงสะบัดตามหลัง
+  const map = (u, v) => {
+    const w = Math.sin(u * 5.2 - ph + v * 0.7);
+    const lx = (0.5 - u) * W * (1 - 0.08 * u) + W * 0.05 * u * Math.cos(u * 5.2 - ph), ly = (v - 0.5) * H * (1 - 0.1 * u) + H * 0.16 * u * w;
+    return [x + lx * cr - ly * sr, y + lx * sr + ly * cr];
+  };
+  drawCloth(g, map, { lowQ, alpha: clamp01(Math.min(q, 1 - q) * 7), shade: (u) => Math.cos(u * 5.2 - ph) * Math.min(1, u * 2.4) * 0.8 });
 }
 
 // ============================================================ ปืนลูกโม่ / มีด (จุดจอ)
@@ -1162,24 +1171,8 @@ function parallelFx(g, e, t, now, lowQ) {
     }
   }
 }
-// ลูกบาศก์ที่ลอกออก (เมนเจอร์) — B = กรอบตัว · order = ลำดับช่อง · m = ลำดับที่ · พุ่งเข้าจุด X (จุดจอ)
-function peelCubes(g, B, order, img, color, t, X, lowQ, seed) {
-  const np = NP(lowQ), fb = rgbOf(normColor(color));
-  for (let m = 0; m < np; m++) {
-    const mm = lowQ ? m * 2 : m, t0 = peelT(mm), age = t - t0;
-    if (age < 0) continue;
-    const c = order[mm];
-    if (!cellSolid(B, c)) continue;
-    const R = cellRect(B, c), x0 = R.x + R.w / 2, y0 = R.y + R.h / 2, col = cellColor(B, c, img, fb);
-    if (age < M.peelFly) {
-      const q = easeIn2(age / M.peelFly), wob = Math.sin(age / 40 + mm) * R.w * 0.3 * (1 - q);
-      const x = lerp(x0, X[0], q), y = lerp(y0, X[1], q) - Math.sin(Math.PI * q) * B.s * 0.18 + wob;
-      mengerCube(g, x, y, Math.max(R.w, R.h) * (1 - 0.3 * q), (age / 90) * (mm % 2 ? 1 : -1) + seed, col, 1, lowQ);
-    } else squarePop(g, X[0] + (hash01(mm + seed) - 0.5) * B.s * 0.12, X[1] + (hash01(mm + seed + 3) - 0.5) * B.s * 0.12, R.w * 0.6, age - M.peelFly);
-  }
-}
 // ลูกบาศก์ที่ร่วงออกจากตัวที่พัง: ช่อง from..to ของลำดับ หลุดตามเวลา tOf(m) แล้วกระเด็นออก + ตก (gravity)
-function crumbleCubes(g, B, order, img, color, t, m0, m1, tOf, lowQ, seed, life = M.life) {
+function crumbleCubes(g, B, order, img, color, t, m0, m1, tOf, lowQ, seed, life = CRUMBLE_LIFE) {
   const fb = rgbOf(normColor(color)), step = lowQ ? 2 : 1;
   for (let m = m0; m < m1; m += step) {
     const age = t - tOf(m);
@@ -1193,18 +1186,114 @@ function crumbleCubes(g, B, order, img, color, t, m0, m1, tOf, lowQ, seed, life 
     mengerCube(g, x, y, Math.max(R.w, R.h) * (1 - 0.45 * q), (hash01(m + 11) - 0.5) * 2 + s * 9 * (m % 2 ? 1 : -1), cellColor(B, c, img, fb), 1 - easeIn2(q), lowQ);
   }
 }
-function mengerFx(g, e, t, now, lowQ) {
-  if (!okT(e.dAt) || !okT(e.tAt) || t >= VAL_FX.menger) return;
-  const off = mengerSlide(t), D = unitBox(e.dAt.x + off * e.slide[0], e.dAt.y + off * e.slide[1], (e.pup && e.pup.size) || 1), T = unitBox(e.tAt.x, e.tAt.y, e.tSize || 1);
-  const X = [(D.bx + T.bx) / 2, (D.hy + T.hy) / 2];
-  const pd = e.pup || {}, oD = cellOrder(e.seedD, e.biasD), oT = cellOrder(e.seedT, e.biasT);
-  peelCubes(g, D, oD, pd.img, pd.color, t, X, lowQ, 1);
-  peelCubes(g, T, oT, e.tImg, e.tColor, t, X, lowQ, 2);
-  // ตัวเหมือนพังเป็นก้อน
-  const tOf = (m) => M.crumble0 + ((m - M.peel) / Math.max(1, NCELL - M.peel)) * (M.crumble1 - M.crumble0);
-  crumbleCubes(g, D, oD, pd.img, pd.color, t, M.peel, NCELL, tOf, lowQ, 5);
-  // ปะทะ (ดาเมจ): วาบขาวเล็กที่เป้า
-  if (t >= M.hit && t < M.hit + 200) { g.save(); g.globalCompositeOperation = "lighter"; glow(g, T.bx, T.hy, T.s * 0.6, "255,255,255", 0.6 * (1 - (t - M.hit) / 200)); g.restore(); }
+// ---------- เมนเจอร์สปันจ์ระดับ 1 (3 มิติ ฉายตั้งฉาก): 27 ก้อน − กลางหน้า 6 − กลางก้อน 1 = 20 ก้อนย่อย ----------
+//  ตัวเหมือนทั้งตัวกลายเป็นลูกบาศก์ก้อนเดียว (สีจากรูปตัวเอง ขอบหมึก) → หมุนนิด → แยก 20 ก้อนพุ่งเข้าเป้า → วาบสี่เหลี่ยมขาวเล็กๆ
+//  ไม่มีแสงเรือง (ต้นฉบับ = เนื้อหลุดเป็นก้อน)
+const SPONGE = [];
+for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) if ((i === 1) + (j === 1) + (k === 1) < 2) SPONGE.push([(i - 1) / 3, (j - 1) / 3, (k - 1) / 3]);
+const CUBE_FACES = [];
+for (let a = 0; a < 3; a++) for (const sg of [1, -1]) {
+  const b = (a + 1) % 3, c = (a + 2) % 3, n = [0, 0, 0];
+  n[a] = sg;
+  CUBE_FACES.push({ n, cs: [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([p, q]) => { const v = [0, 0, 0]; v[a] = sg; v[b] = p; v[c] = q; return v; }) });
+}
+const LIGHT = (() => { const v = [-0.42, 0.8, 0.43], l = Math.hypot(v[0], v[1], v[2]); return v.map((x) => x / l); })();
+const YAW0 = 0.62, PITCH0 = 0.52; // มุมพักของก้อน (เห็นหน้าบน + สองข้าง)
+// หมุน: ส่าย (yaw รอบแกนตั้ง) แล้วก้ม (pitch) · rot3 คืน [x, y ขึ้นบนจอ, z เข้าหากล้อง]
+const rotOf = (yaw, pitch) => ({ cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pitch), sp: Math.sin(pitch) });
+function rot3(v, R) {
+  const x = v[0] * R.cy + v[2] * R.sy, z = -v[0] * R.sy + v[2] * R.cy;
+  return [x, v[1] * R.cp - z * R.sp, v[1] * R.sp + z * R.cp];
+}
+const easeOutBack = (t) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+const shadeRgb = (rgb, k, w = 0) => `rgb(${rgb.map((v) => Math.max(0, Math.min(255, Math.round(lerp(v * k, 255, w))))).join(",")})`;
+// ก้อนเดียว (จุดจอ cx, cy · h = ครึ่งด้าน px · R = การหมุน) — วาดเฉพาะหน้าที่หันเข้ากล้อง · รูกลางหน้า (ระดับ 2) เมื่อใหญ่พอ · ขอบหมึก
+function drawSubCube(g, cx, cy, h, R, rgb, o) {
+  if (h < 0.4) return;
+  for (const F of CUBE_FACES) {
+    const nn = rot3(F.n, R);
+    if (nn[2] <= 0.015) continue;
+    const pts = F.cs.map((c) => { const r = rot3(c, R); return [cx + r[0] * h, cy - r[1] * h]; });
+    const lit = 0.52 + 0.6 * Math.max(0, nn[0] * LIGHT[0] + nn[1] * LIGHT[1] + nn[2] * LIGHT[2]);
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < 4; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath();
+    g.fillStyle = shadeRgb(rgb, lit, o.white || 0); g.fill();
+    g.strokeStyle = `rgba(${INK},${o.ink})`; g.lineWidth = o.lw; g.stroke();
+    if (o.detail && h > 9) {
+      const p = (s, t) => [lerp(lerp(pts[0][0], pts[1][0], s), lerp(pts[3][0], pts[2][0], s), t), lerp(lerp(pts[0][1], pts[1][1], s), lerp(pts[3][1], pts[2][1], s), t)];
+      const q = [p(1 / 3, 1 / 3), p(2 / 3, 1 / 3), p(2 / 3, 2 / 3), p(1 / 3, 2 / 3)];
+      g.beginPath(); g.moveTo(q[0][0], q[0][1]); for (let i = 1; i < 4; i++) g.lineTo(q[i][0], q[i][1]); g.closePath();
+      g.fillStyle = `rgba(${INK},${0.55 + 0.3 * (1 - nn[2])})`; g.fill();
+    }
+  }
+}
+// สีของก้อนย่อย = สีรูปตัวเหมือนตรงตำแหน่งนั้น (ฉายจากหน้าตรงตอนมุมพัก) · รูปยังไม่โหลด = สีประจำตัวไล่อ่อนเข้ม
+//  ดึงเข้าหาสีเฉลี่ยครึ่งหนึ่ง (อ่านเป็นก้อนเดียว มีลายจากรูปจางๆ) + ยกความสว่าง
+function spongeColors(pd) {
+  const R0 = rotOf(YAW0, PITCH0), fb = rgbOf(normColor(pd.color || "#888888"));
+  const raw = SPONGE.map((c, i) => {
+    const r = rot3(c, R0), pc = portraitAt(pd.img, clamp01(0.5 + r[0] / 1.25), clamp01(0.5 - r[1] / 1.25));
+    return pc || fb.map((x) => x * (0.82 + 0.34 * hash01(i * 7.7 + 3)));
+  });
+  const avg = [0, 1, 2].map((ch) => raw.reduce((a, c) => a + c[ch], 0) / raw.length);
+  const mean = (avg[0] + avg[1] + avg[2]) / 3, lift = mean < 120 ? 1 + (120 - mean) / 160 : 1.05;
+  return raw.map((c) => c.map((v, ch) => Math.min(255, lerp(v, avg[ch], 0.45) * lift)));
+}
+// วาบสี่เหลี่ยมขาวเล็ก (ก้อนเข้าเป้าแล้วหาย)
+function squarePop(g, x, y, s, age, rot = 0) {
+  if (age < 0 || age > 120) return;
+  const q = age / 120, r = s * (0.45 + 0.8 * easeOut2(q));
+  g.save(); g.translate(x, y); g.rotate(rot);
+  g.strokeStyle = `rgba(255,255,255,${0.95 * (1 - q)})`; g.lineWidth = Math.max(1, 1.6 * (1 - q));
+  g.strokeRect(-r, -r, r * 2, r * 2);
+  if (q < 0.5) { g.fillStyle = `rgba(255,255,255,${0.9 * (1 - q * 2)})`; g.fillRect(-r * 0.5, -r * 0.5, r, r); }
+  g.restore();
+}
+// part "shadow" = เงาบนพื้น (เรียงความลึกที่ช่องตัวเหมือน — valentineItems) · "cube" = ลูกบาศก์ + วาบที่เป้า (ทับตัวละคร — valentineFx
+//  ตัวเหมือนมักยืนหลังเป้าพอดี ถ้าเรียงความลึกก้อนจะถูกเป้าบังมิด)
+function mengerFx(g, e, t, now, lowQ) { mengerDraw(g, e, t, lowQ, "cube"); }
+function mengerDraw(g, e, t, lowQ, part) {
+  if (!okT(e.dAt) || !okT(e.tAt) || !e.slide || t < M.morph0 || t >= VAL_FX.menger) return;
+  const n = (e.pup && e.pup.size) || 1, off = mengerPull(t), dx = e.dAt.x + off * e.slide[0], dy = e.dAt.y + off * e.slide[1];
+  const D = unitBox(dx, dy, n);
+  const pt = -M.pullT * easeOut2(seg(t, 0, M.slide)) * (1 - easeInOut(seg(t, M.back0, M.back1)));
+  const T = unitBox(e.tAt.x + pt * e.slide[0], e.tAt.y + pt * e.slide[1], e.tSize || 1);
+  const E = Math.max(D.hexR, 14) * 1.9; // ด้านของลูกบาศก์ทั้งก้อน (px)
+  const grow = seg(t, M.morph0, M.morph1), sc = lerp(0.55, 1, easeOutBack(grow)), appear = clamp01(grow * 5);
+  const spin = REDUCED ? 0 : easeInOut(seg(t, M.morph0 + 60, M.split0)) * (Math.PI / 2) + Math.max(0, t - M.split0) * 0.0009; // หมุนหนึ่งในสี่รอบ (กลับมาเป็นมุมสามส่วนสี่เดิม)
+  const R = rotOf(YAW0 + spin, PITCH0), split = easeOut2(seg(t, M.split0, M.split1));
+  const cx = D.bx, cy = D.hy - E * 0.3 * easeOut2(grow) + (REDUCED ? 0 : Math.sin(Math.max(0, t - M.morph1) / 150) * E * 0.015);
+  const cols = spongeColors(e.pup || {});
+  const o = { ink: 0.88, lw: Math.max(0.7, E * 0.02), detail: !lowQ, white: 0.55 * (1 - easeOut2(seg(t, M.morph0, M.morph1 + 40))) };
+  // ลำดับที่พุ่งออก: ก้อนฝั่งที่หันเข้าหาเป้าไปก่อน (คิดครั้งเดียว)
+  if (!e._rank) {
+    const vx = T.bx - cx, vy = T.hy - cy, l = Math.hypot(vx, vy) || 1;
+    const by = SPONGE.map((c, i) => { const r = rot3(c, R); return { i, d: -(r[0] * vx - r[1] * vy) / l + hash01(i * 3.3 + 1) * 0.15 }; }).sort((a, b) => a.d - b.d);
+    e._rank = new Array(SPONGE.length);
+    by.forEach((b, k) => { e._rank[b.i] = k; });
+  }
+  // เงาบนพื้นใต้ก้อน (ยังรวมกันอยู่)
+  const sa = 0.24 * appear * (1 - split);
+  if (part === "shadow") { if (sa > 0.01) { gEllipse(g, dx + 0.5, dy + 0.5, 0.3 * sc, 0, 24); g.fillStyle = `rgba(0,0,0,${sa})`; g.fill(); } return; }
+  const list = SPONGE.map((c, i) => ({ c, i, r: rot3(c, R) })).sort((a, b) => a.r[2] - b.r[2]), pops = [];
+  g.save(); g.lineJoin = "round";
+  for (const { c, i, r } of list) {
+    const k = e._rank[i], s0 = M.fly0 + k * M.flyGap, q = seg(t, s0, s0 + M.fly);
+    const X = [T.bx + (hash01(i * 3 + 1) - 0.5) * T.hexR * 0.9, T.hy + (hash01(i * 5 + 2) - 0.5) * T.hexR * 0.8];
+    if (q >= 1) { pops.push([X[0], X[1], t - (s0 + M.fly), (hash01(i) - 0.5) * 0.5]); continue; }
+    const l = Math.hypot(c[0], c[1], c[2]) || 1;
+    let x = cx + (r[0] * sc + (r[0] / l) * 0.2 * split) * E, y = cy - (r[1] * sc + (r[1] / l) * 0.2 * split) * E, h = (E / 6) * sc, RR = R;
+    if (q > 0) {
+      const kk = easeIn2(q);
+      x = lerp(x, X[0], kk); y = lerp(y, X[1], kk) - Math.sin(Math.PI * q) * E * 0.22;
+      h *= 1 - 0.5 * kk;
+      if (!REDUCED) RR = rotOf(YAW0 + spin + q * 1.8 * (i % 2 ? 1 : -1), PITCH0 + q * 0.5);
+    }
+    g.globalAlpha = appear;
+    drawSubCube(g, x, y, h, RR, cols[i], o);
+  }
+  g.globalAlpha = 1;
+  for (const p of pops) squarePop(g, p[0], p[1], E / 6, p[2], p[3]);
+  g.restore();
 }
 function breakFx(g, e, t, now, lowQ) {
   if (!okT(e.at) || t >= VAL_FX.doubleBreak) return;
@@ -1331,54 +1420,58 @@ export function valentineFlip(g, fx, now, lowQ, view, dpr) {
   }
 }
 
-// ============================================================ ชั้นมุมมองของมิติ (boardDraw — หลังตัวละคร ก่อนเอฟเฟกต์ครั้งเดียว)
-//  layers = [{ kind: "par" | "veil", k: 0..1 }] (BoardCanvas ค่อยๆ เปลี่ยน) · redraw(u) = วาดหมากของเราซ้ำให้สีปกติ (มุมมองหลังผ้า)
+// ============================================================ ชั้นมุมมองของมิติ
+//  layers = [{ kind: "par" | "veil", k: 0..1 }] (BoardCanvas ค่อยๆ เปลี่ยน)
+//  "par" โลกคู่ขนาน = กระดานหน้าตาเหมือนโลกหลักทุกอย่าง (ต้นฉบับ: แทบเหมือนกันทุกประการ) — มีแค่ตะเข็บชมพูบานเย็นบางๆ รอบขอบกระดาน (valentineDimGround · บนพื้น ใต้ตัวละคร)
+//  "veil" มองจากหลังผ้า = ซีดลง + ขอบจอน้ำเงินธงจางๆ · ตัวเราสีปกติ (valentineDimLayer · หลังตัวละคร)
+export function valentineDimGround(g, info, layers, now, lowQ) {
+  if (!Array.isArray(layers) || !info || !(info.cols > 0) || !(info.rows > 0)) return;
+  const L = layers.find((l) => l.kind === "par");
+  const k = L ? clamp01(L.k) : 0;
+  if (k <= 0.01) return;
+  const W = info.cols, H = info.rows, ins = 0.16, t = REDUCED ? 0 : now;
+  const corners = [[ins, ins], [W - ins, ins], [W - ins, H - ins], [ins, H - ins]];
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  // แนวตะเข็บ (เส้นประบาง)
+  g.beginPath();
+  corners.forEach(([x, y], i) => { const q = P(x, y, 0.01); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+  g.closePath();
+  g.setLineDash([5, 4]); g.lineDashOffset = -t / 220;
+  g.strokeStyle = `rgba(${FUCH},${0.72 * k})`; g.lineWidth = 1.6; g.stroke(); g.setLineDash([]);
+  // ฝีเข็มแบบลูกเบสบอล (บั้ง V ไขว้แนวตะเข็บ บนพื้น) เลื่อนช้าๆ
+  if (!lowQ) {
+    const step = 0.42, off = ((t / 2600) % 1) * step, w = 0.1;
+    g.beginPath();
+    for (let e = 0; e < 4; e++) {
+      const [ax, ay] = corners[e], [bx, by] = corners[(e + 1) % 4], len = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / len, uy = (by - ay) / len, nx = -uy, ny = ux;
+      for (let d = off + step / 2; d < len - 0.05; d += step) {
+        const x = ax + ux * d, y = ay + uy * d;
+        const p0 = P(x - nx * w - ux * w * 0.8, y - ny * w - uy * w * 0.8, 0.01), p1 = P(x, y, 0.01), p2 = P(x + nx * w - ux * w * 0.8, y + ny * w - uy * w * 0.8, 0.01);
+        g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]);
+      }
+    }
+    g.strokeStyle = `rgba(${FUCH},${0.6 * k})`; g.lineWidth = 1.2; g.stroke();
+  }
+  g.restore();
+}
 export function valentineDimLayer(g, o) {
-  const { view, layers, now, lowQ, units, redraw, dpr } = o;
+  const { view, layers, lowQ, units, redraw } = o;
   if (!Array.isArray(layers)) return;
-  const rect = viewRect(view), t = REDUCED ? 0 : now;
+  const rect = viewRect(view);
   for (const L of layers) {
     const k = clamp01(L.k);
-    if (k <= 0.01) continue;
+    if (k <= 0.01 || L.kind !== "veil") continue;
     g.save();
-    if (L.kind === "par") {
-      // โลกคู่ขนาน: ซีดนิด + ฟ้าจาง + ขอบจอฟ้า/ชมพู + ภาพซ้อนบางๆ (สองโลกทับกัน)
-      if (!lowQ) { g.globalCompositeOperation = "saturation"; g.globalAlpha = 0.1 * k; g.fillStyle = "rgb(128,128,128)"; g.fillRect(...rect); }
-      g.globalCompositeOperation = "screen"; g.globalAlpha = 1; g.fillStyle = `rgba(${CYAN},${0.06 * k})`; g.fillRect(...rect);
-      const cx = rect[0] + rect[2] / 2, cy = rect[1] + rect[3] / 2, R = Math.hypot(rect[2], rect[3]) / 2;
-      const vg = g.createRadialGradient(cx, cy, R * 0.55, cx, cy, R);
-      vg.addColorStop(0, `rgba(${CYAN},0)`); vg.addColorStop(0.75, `rgba(${CYAN},${0.08 * k})`); vg.addColorStop(1, `rgba(${FUCH},${0.1 * k})`);
-      g.fillStyle = vg; g.fillRect(...rect);
-      if (!lowQ && g.canvas && dpr) {
-        g.setTransform(1, 0, 0, 1, 0, 0);
-        g.globalCompositeOperation = "screen"; g.globalAlpha = 0.07 * k;
-        const d = (3 + Math.sin(t / 1300) * 1.2) * dpr;
-        g.drawImage(g.canvas, d, -d * 0.4);
-      }
-    } else if (L.kind === "veil") {
-      // มองจากหลังผ้า: ซีด เย็น ทึบลงนิด · ลายแถบธงจางมากโบกช้าๆ · ขอบจอน้ำเงินธง
-      g.globalCompositeOperation = "saturation"; g.globalAlpha = (lowQ ? 0.3 : 0.38) * k; g.fillStyle = "rgb(128,128,128)"; g.fillRect(...rect);
-      g.globalCompositeOperation = "multiply"; g.globalAlpha = 0.5 * k; g.fillStyle = "rgb(196,204,226)"; g.fillRect(...rect);
-      g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
-      if (!lowQ) {
-        const sh = rect[3] / 13;
-        g.fillStyle = `rgba(178,34,52,${0.035 * k})`;
-        for (let j = 0; j < 13; j += 2) {
-          g.beginPath();
-          const y0 = rect[1] + j * sh;
-          for (let i = 0; i <= 16; i++) { const x = rect[0] + (rect[2] * i) / 16, y = y0 + Math.sin(i * 0.8 - t / 900) * sh * 0.25; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
-          for (let i = 16; i >= 0; i--) { const x = rect[0] + (rect[2] * i) / 16, y = y0 + sh + Math.sin(i * 0.8 - t / 900) * sh * 0.25; g.lineTo(x, y); }
-          g.closePath(); g.fill();
-        }
-      }
-      const cx = rect[0] + rect[2] / 2, cy = rect[1] + rect[3] / 2, R = Math.hypot(rect[2], rect[3]) / 2;
-      const vg = g.createRadialGradient(cx, cy, R * 0.45, cx, cy, R);
-      vg.addColorStop(0, "rgba(60,59,110,0)"); vg.addColorStop(1, `rgba(60,59,110,${0.42 * k})`);
-      g.fillStyle = vg; g.fillRect(...rect);
-    }
+    // มองจากหลังผ้า: ซีดลงพอรู้ว่าอยู่คนละชั้น (ไม่คูณสีทับ — ไม่ขุ่น) · ขอบจอน้ำเงินธงจางๆ
+    g.globalCompositeOperation = "saturation"; g.globalAlpha = (lowQ ? 0.28 : 0.34) * k; g.fillStyle = "rgb(128,128,128)"; g.fillRect(...rect);
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
+    const cx = rect[0] + rect[2] / 2, cy = rect[1] + rect[3] / 2, R = Math.hypot(rect[2], rect[3]) / 2;
+    const vg = g.createRadialGradient(cx, cy, R * 0.5, cx, cy, R);
+    vg.addColorStop(0, "rgba(60,59,110,0)"); vg.addColorStop(1, `rgba(60,59,110,${0.34 * k})`);
+    g.fillStyle = vg; g.fillRect(...rect);
     g.restore();
-    // มองจากหลังผ้า: ตัวเราสีปกติ (วาดซ้ำทับ)
-    if (L.kind === "veil" && k > 0.5 && typeof redraw === "function") for (const u of units || []) if (u.isMe) redraw(u);
+    // ตัวเราสีปกติ (วาดซ้ำทับ)
+    if (k > 0.5 && typeof redraw === "function") for (const u of units || []) if (u.isMe) redraw(u);
   }
 }
 
@@ -1472,17 +1565,15 @@ export function valentineEventFx(ev, ctx = {}) {
       if (!dAt || !tAt) break;
       const tl = lookOf(ev.targetId) || {}, l = Math.hypot(tAt.x - dAt.x, tAt.y - dAt.y) || 1;
       if (tl.img) imgEntry(tl.img);
-      const sd = P(dAt.x + 0.5, dAt.y + 0.5), st = P(tAt.x + 0.5, tAt.y + 0.5), bl = Math.hypot(st[0] - sd[0], st[1] - sd[1]) || 1;
-      const bias = [(st[0] - sd[0]) / bl, (st[1] - sd[1]) / bl];
       out.fx.push({
         kind: "valMenger", id: ev.id, targetId: ev.targetId, dAt, tAt, tSize: sizeOf(ev.targetId), tImg: tl.img || null, tColor: tl.color || "#888888",
-        pup: snap(ev.id, dAt), dmg: ev.dmg, pierce: !!ev.pierce, seedD: seed, seedT: seed + 500, biasD: bias, biasT: [-bias[0], -bias[1]], slide: [(tAt.x - dAt.x) / l, (tAt.y - dAt.y) / l],
+        pup: snap(ev.id, dAt), dmg: ev.dmg, pierce: !!ev.pierce, slide: [(tAt.x - dAt.x) / l, (tAt.y - dAt.y) / l],
       });
       out.busy.push({ id: ev.id, ms: VAL_FX.menger + HOLD });
-      ping(ev.targetId, M.crumble0); ping(ev.targetId, M.hit);
+      ping(ev.targetId, M.hit);
       out.defer.push({ id: ev.targetId, ms: M.hit });
       out.look.push([tAt, 0]);
-      out.shake.push(M.crumble0);
+      out.shake.push(M.hit);
       break;
     }
     case "doubleBreak": {

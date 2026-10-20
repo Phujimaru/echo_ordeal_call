@@ -56,7 +56,7 @@
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
-//               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (โปร่ง + ภาพซ้อน · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
+//               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (ภาพโปร่งภาพเดียว · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
 //   dimView     "par" | "veil" | null — ชั้นมิติของตัวที่เราคุม: โลกคู่ขนาน / มองจากมิติหลบสายตา (ค่อยๆ เปลี่ยน 600ms)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
