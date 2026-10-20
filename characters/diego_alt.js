@@ -48,7 +48,8 @@ const CUT = { intro: "diegoPlotIntro", final: "diegoPlotFinal" };
 const SFX = {
   throw: "diego_throw", splash: "diego_splash", match: "diego_match", explode: "diego_explode", fire: "diego_fire",
   net: "diego_net", netTrap: "diego_net_trap", knife: "diego_knife", shot: "diego_shot", reload: "diego_reload",
-  heal: "diego_heal", world: "diego_world", stop: "diego_stop", resume: "diego_resume", gallop: "diego_gallop", crash: "diego_crash",
+  heal: "diego_heal", world: "diego_world", stop: "diego_stop", tick: "diego_tick", resume: "diego_resume", gallop: "diego_gallop", crash: "diego_crash",
+  empty: "diego_empty",
 };
 // เสียงพากย์ตามเหตุการณ์ (server/voice.js) — สุ่ม 1 คีย์ต่อครั้ง · ช่วงหยุดเวลาท่าไม้ตายมีคลิปพูดเอง
 const VOICE = {
@@ -407,6 +408,7 @@ function spendAmmo(engine, p, n) {
   s.ammo = Math.max(0, s.ammo - n);
   if (s.ammo <= 0) {
     s.reloadRound = engine.roundNumber + GUN.reload;
+    engine.sfx(SFX.empty);
     engine.log(`🔫 ${p.name} กระสุนหมด — รีโหลด ${GUN.reload} เทิร์น`);
   }
 }
@@ -436,7 +438,7 @@ function startStop(engine, p, kind, attackerId) {
   engine.sfx(SFX.stop);
   engine.sfx(VOICE_TRIGGER[kind], null, { voice: p.id });
   engine.log(kind === "counter" ? `⏱️ ${p.name} เดอะเวิลด์! — หยุดเวลา` : `⏱️ ${p.name} เดอะเวิลด์ — หยุดเวลาก่อนทุกคน`);
-  engine.skillBeat(DIEGO_FX.timeStop / 1000, () => {});
+  engine.skillBeat(DIEGO_FX.timeStop / 1000, () => engine.sfx(SFX.tick)); // เวลาหยุดสนิท = นาฬิกาเดิน
   engine.pausePlayingForCutscene();
 }
 // เวลาเดินต่อ: ดาเมจ/การตายที่ค้างไว้ลงพร้อมกัน → วินาทีพักฉาก
