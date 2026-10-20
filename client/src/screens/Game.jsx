@@ -798,6 +798,9 @@ const STATUS_INFO = {
   // เคท & เอมิลิโกะ
   shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
   rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "" },
+  // ดิเอโก้ แบรนโด (โลกคู่ขนาน)
+  oilSoaked:     { icon: "🛢️", label: "ชุ่มน้ำมัน", cls: "bg-amber-800 text-white", desc: "" },
+  diegoNet:      { icon: "🕸️", label: "ติดตาข่าย", cls: "bg-stone-500 text-white", desc: "" },
   yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "" },
   yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "" },
   // ไรโด ฮิคารุ
@@ -865,6 +868,18 @@ function statusEntries(p, full) {
     else if (g.horseCd > 0) out.push({ key: "gyroHorseCd", v: g.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "" });
     if (g.empowered) out.push({ key: "gyroEmpowered", v: 1, icon: "✨", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-yellow-400 text-gray-900", desc: "" });
     else if (g.ultCd > 0) out.push({ key: "gyroUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-white/20", desc: "" });
+  }
+  // ดิเอโก้: เล่ห์เหลี่ยม · กระสุน (รีโหลด) · ม้า · เดอะเวิลด์ (ตั้งรับ / หยุดเวลา / คูลดาวน์) (ตัวเลข/ไอคอนเท่านั้น)
+  if (p.diego && p.diego.cunning != null) {
+    const d = p.diego;
+    out.push({ key: "diegoCunning", v: 1, icon: "🧠", label: `${d.cunning}/${d.cunningMax}`, cls: "bg-yellow-500 text-gray-900", desc: "" });
+    if (d.ammo > 0) out.push({ key: "diegoAmmo", v: 1, icon: "🔫", label: `${d.ammo}/${d.ammoMax}`, cls: "bg-stone-700 text-white", desc: "" });
+    else if (d.reloadCd > 0) out.push({ key: "diegoReload", v: d.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "" });
+    if (d.mounted) out.push({ key: "diegoHorse", v: 1, icon: "🐎", label: `${d.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "" });
+    else if (d.horseCd > 0) out.push({ key: "diegoHorseCd", v: d.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "" });
+    if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "" });
+    else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "" });
+    else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {

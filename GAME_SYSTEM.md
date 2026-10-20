@@ -874,3 +874,22 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **นับเดินตรงจาก afterWalk**: บันทึกย้อน `{ undo: fn }` (`Ice.undoLay` เรียก fn · `walkUndoPatch` ข้ามบันทึกที่ไม่มี `k`) — ฮุคถูกเรียกใหม่ทุกครั้งด้วยเส้นทางเต็มหลังย้อนผลเดิม จึงคิดจากค่าก่อนเดินได้เสมอ
 - **จบตาเดินของตัวเอง**: ฮุค `onActorEnd(engine, p)` (`finishActor` — หลังเดินต่อ ก่อนผลของช่อง) · ไจโร: เสริมท่าไม้ตายที่ไม่ได้ตีหมดลง
 - เอฟเฟกต์: `engine.boardFx("gyroFx", { kind, id, color, … })` ตามสัญญา §7.11 (`horse` ใช้ `mode`) · server ลงผลทันทีตอนส่ง แล้วพักฉากตาม `GYRO_FX` ผ่าน `engine.skillBeat` — client ค้างภาพเอง (`client/src/board/gyroFx.js`)
+
+---
+## 24. หยุดเวลา / ตัดการโจมตี / ตาเดินพิเศษ / ชั้นพื้นมีอายุ / กับดักล่องหน (ดิเอโก้ — `characters/diego_alt.js` · `server/timeStop.js` · GRID_PLAN §7.12)
+- **ตัดการโจมตีทั้งก้อน** (`server/timeStop.js`): ฮุค `counterArmed(engine, p)` = ตั้งรับ · `combat.adjustIncomingDamage` เรียก `TimeStop.check` → ศัตรูที่เป็นฝ่ายของคนที่กำลังเดิน (`effectSourceId`) ทำให้ p เสียหาย > 0 = โยน `TimeStopInterrupt`
+  · จุดย้อน: `TimeStop.mark()` จด snapshot (`structuredClone` ของ `match` + ผู้เล่นทุกคน ยกเว้นตัวจับเวลา/คิวฉาก/ฟิลด์การเชื่อมต่อ) — ต้นตาเดิน (`nextActor`) + ต้นคำสั่ง (`TimeStop.guard` ห่อ `useSkill` / `attackTarget` / `moveTo` / socket `onUnitEvent` ทุกคำสั่ง) · จดเฉพาะตอนมีคนตั้งรับเป็นศัตรูของคนที่เดิน (ไม่มี = ไม่จด ไม่ตัด)
+  · จับการตัด: `guard` + `timers.tick` (ผลที่ลงทีหลังในฉาก) → `catchInterrupt`: ย้อนสถานะ (คงตัวอ็อบเจกต์ผู้เล่นเดิม) · ล้างคิวฉาก · ฮุค `onCounterStop(engine, ผู้ตั้งรับ, ผู้โจมตี)` · ผู้โจมตีจบตา (`action.expired` = ไม่ได้เดินต่อ)
+  · `combat.runHook` โยนการตัดต่อขึ้นไป (ไม่กลืน) · เทสต์ที่เรียก `doAttack` ตรงๆ ไม่มีจุดย้อน = ไม่ตัด
+- **ตาเดินพิเศษ**: `engine.timeStop.queueExtra(id, kind)` → `nextActor` เล่นก่อนเลื่อนลำดับ (`actorIndex` ไม่ขยับ — จบแล้วไปคนถัดไปของลำดับเดิม) · `match.action.extra = kind`
+  · ฮุค `onExtraTurn(engine, p, kind)` หลังตั้งตา+นาฬิกา (พักฉากด้วย `skillBeat` + `pausePlayingForCutscene` ได้) · `extraTurnOutro(engine, p, kind)` → วินาทีพักฉากก่อนจบตาจริง (ครั้งเดียว — `finishActor` เรียกซ้ำหลังฉาก)
+  · ฮุค broadcast `onOrderBegin(engine)` (`beginOrder` หลังเรียงลำดับ) — จองตาพิเศษต้นเทิร์น · `match.extraTurns` ล้างทุก `dealRound`
+- **หยุดเวลา (ดาเมจลงตอนเวลาเดินต่อ)**: `engine.timeStop.freeze(byId)` จดเลือด/เกราะ/โล่/สถานะของทุกคน · ระหว่างนั้น `combat.instantDeath` ค้างการตาย (`holdsDeath`) · `view` ส่งค่าที่จดไว้แทนค่าจริง (`frozenView`) + `state.timeFreeze = { by }`
+  · `unfreeze()` → คนที่เลือดหมดตกรอบพร้อมกัน (ในนามผู้หยุด) → `[{ id, dmg, kill }]` · ระหว่างหยุดไม่มีใครตั้งรับได้ (`check` ข้าม)
+- **ฮุคใหม่ (broadcast — ถามทุกโมดูล)**: `movPenalty(engine, p, from)` → โทษระยะเดิน (`action.movOf` · from = ช่องเริ่มตา) · `walkTrap(engine, p, tile)` → ข้อมูลกับดัก + `springTrap(engine, p, tile, info)` (เดินเหยียบ = หยุดช่องนั้น การเดินจบ — ก่อนชนคนที่มองไม่เห็น)
+  · `onForcedMove(engine, u)` (`Ice.pushUnit` / `Ice.forcedSlides` ทุกการย้าย ไม่ว่าจะลงน้ำแข็งไหม) · `boardPublic(engine)` → คีย์ที่รวมเข้า `state.board`
+- **ชั้นพื้นมีอายุ** (`match.board.diego = { oil, fire, ash }` "x,y" → { owner, until }): หายเองเมื่อเปลี่ยนแผนที่ · ไฟลาม = BFS แอ่งน้ำมันติดกัน 4 ทิศ · ต้นเทิร์นยืนบนกองไฟ = `onRoundStartTick` (ลงกับ p เอง)
+- **กับดักล่องหน** (ตาข่าย — `p.diego.nets`): state เห็นเฉพาะเจ้าของ (`diegoState(engine, p, viewer)`) · เอฟเฟกต์วาง = `engine.boardFxTo([id], …)` (ส่งเฉพาะคน)
+- **ม้ากลาง** `characters/_horse.js` (`fresh / setMounted / absorb / action / toggle / cooldown`) — ดิเอโก้ใช้ · ไจโรยังมีโค้ดม้าของตัวเอง (กติกาเดียวกัน)
+- **ปุ่มหลายตัวเลือกที่ไม่กินโควตา + ไม่ล็อกการเดิน**: `skipsTurnQuota` + `ignoresTurnQuota` + `keepsMove` ของ tier นั้น · โควตาเฉพาะตัวนับใน `canUseSkill` (คลังเครื่องมือ 2 ครั้งต่อเทิร์น)
+- เอฟเฟกต์: `engine.boardFx("diegoFx", { kind, id, color, … })` ตามสัญญา §7.12 · `frozen: true` = เกิดระหว่างหยุดเวลา (client ค้างของกลางอากาศจน `timeResume`)
