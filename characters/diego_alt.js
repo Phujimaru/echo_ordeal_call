@@ -16,7 +16,7 @@
 //  เดอะเวิลด์ (ท่าไม้ตาย · เล่ห์เหลี่ยม 5 · คูลดาวน์ 3): ตั้งรับจนจบเทิร์น — ศัตรูทำให้เสียหาย = ยกเลิกการกระทำทั้งก้อน + ผู้โจมตีจบตา
 //    + ตาหยุดเวลาทันที (server/timeStop.js) · ไม่โดนตี = ตาหยุดเวลาต้นเทิร์นถัดไปก่อนทุกคน (แม้ไพ่แตก · ตาปกติยังอยู่)
 //    ตาหยุดเวลา = ตาใหม่เต็มๆ + คลังเครื่องมือไม่จำกัด + มีด 1 แต้ม + ปืนอีก 1 นัด · ดาเมจ/สถานะที่ทำใส่คนอื่นลงตอนเวลาเดินต่อ
-//  เป็นไปดั่งกลอุบาย (ท่าไม้ตายในตาหยุดเวลาเท่านั้น · 4 แต้ม + กระสุน 2): พุ่ง 4×1 · ชนศัตรูคนแรก −4 + กระเด็น 2 ช่อง + เลือดไหล 2
+//  เป็นไปดั่งกลอุบาย (ท่าไม้ตายในตาหยุดเวลาเท่านั้น · 4 แต้ม + กระสุน 2 · ต้องขี่ม้า): พุ่ง 4×1 · ชนศัตรูคนแรก −4 + กระเด็น 2 ช่อง + เลือดไหล 2
 //    · ใช้แล้วเวลาเดินต่อ + จบตา · คลิป intro ทุกครั้ง · ชน = คลิป final
 //  อัจฉริยะ จอมวางแผน (ติดตัว): เล่ห์เหลี่ยม สูงสุด 10 · +1 ต่อการใช้คลังเครื่องมือ · +1 ต่อเหตุการณ์ (ชุ่มน้ำมัน/ระเบิด/ตาข่ายดักติด/กองไฟเผาศัตรู)
 //  ม้าคู่ใจ ซิลเวอร์ บูลเล็ต (ติดตัว · characters/_horse.js): เลือด 3 รับก่อนเกราะ · เดิน +1 · ตาย = เรียกไม่ได้ 3 เทิร์น
@@ -106,7 +106,7 @@ const TOOLS = {
 const TOOL_KEYS = Object.keys(TOOLS);
 const PLOT_SKILL = {
   name: "เป็นไปดั่งกลอุบาย", img: IMG.plot, cost: PLOT.cost, area: { kind: "line", len: PLOT.len, width: 1, hostile: true },
-  desc: `กระสุน ${PLOT.ammo} นัด · เลือกทิศ พุ่ง ${PLOT.len} ช่อง: ชนศัตรูคนแรก ความเสียหาย ${PLOT.dmg} + กระเด็น ${PLOT.push} ช่อง + เลือดไหล ${PLOT.bleed} · เวลาเดินต่อแล้วจบตาเดิน`,
+  desc: `ขี่ม้า · กระสุน ${PLOT.ammo} นัด · เลือกทิศ พุ่ง ${PLOT.len} ช่อง: ชนศัตรูคนแรก ความเสียหาย ${PLOT.dmg} + กระเด็น ${PLOT.push} ช่อง + เลือดไหล ${PLOT.bleed} · เวลาเดินต่อแล้วจบตาเดิน`,
 };
 
 const K = Board.key;
@@ -569,7 +569,7 @@ module.exports = {
     if (tier === "basic") return toolOk(engine, p, opts.form) && (TOOLS[opts.form].area.kind !== "tile" || !!opts.tile);
     if (tier === "secondary") return s.ammo > 0 && !shotUsed(engine, p);
     if (tier === "ultimate") {
-      if (s.stopping) return s.ammo >= PLOT.ammo;
+      if (s.stopping) return s.ammo >= PLOT.ammo && s.mounted; // กลอุบาย: ต้องขี่ม้า (ผู้ใช้สั่ง 2026-10-20)
       return s.cunning >= WORLD.cunning && cdLeft(s.worldReady, engine.roundNumber) === 0 && s.armedRound !== engine.roundNumber;
     }
     return false;
@@ -613,7 +613,7 @@ module.exports = {
       basic: { cd: 0, locked: left !== null && left <= 0, free: true },
       secondary: { cd: s.ammo > 0 ? 0 : cdLeft(s.reloadRound, r), locked: s.ammo <= 0 || shotUsed(engine, p), free: true },
       ultimate: s.stopping
-        ? { cd: 0, locked: s.ammo < PLOT.ammo }
+        ? { cd: 0, locked: s.ammo < PLOT.ammo || !s.mounted }
         : { cd: cdLeft(s.worldReady, r), locked: s.cunning < WORLD.cunning || s.armedRound === r },
     };
   },

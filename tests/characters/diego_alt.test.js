@@ -375,6 +375,11 @@ test('เป็นไปดั่งกลอุบาย: เฉพาะตา
   assert.equal(view('D', 'D').character.ultimate.name, 'เป็นไปดั่งกลอุบาย');
   const b0 = vit(P.B);
   calls.cut = [];
+  P.D.diego.mounted = false;
+  engine.useSkill('D', 'ultimate', [], { dir: 'right' });
+  assert.deepEqual(calls.cut, [], 'ไม่ได้ขี่ม้า = ใช้ไม่ได้');
+  assert.equal(view('D', 'D').skillLocks.ultimate.locked, true);
+  P.D.diego.mounted = true;
   engine.useSkill('D', 'ultimate', [], { dir: 'right' });
   assert.deepEqual(calls.cut, ['diegoPlotIntro']);
   flush(t, 4000);
