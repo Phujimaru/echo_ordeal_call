@@ -421,7 +421,7 @@ TRANSITION (แบนเนอร์เทิร์นถัดไป — เห
   - socket `gyroFx` (`engine.boardFx`) ทุกเหตุการณ์มี `id` (ไจโร) + `color` (`engine.colorOf`):
     `throw { from, to, land, hit, counter, empowered }` ลูกบินไปเป้า · `land` = ช่องที่ลูกค้าง ·
     `recall { from, to, path: [{x,y}], hits: [id] }` ลูกวิ่งกลับ (path แตะทุกช่อง รวมทแยง) ·
-    `secret { from, dir, len, tiles, hits: [id], pulls: [{ id, from, to }] }` สกิลรอง ไป–กลับ–ดึง ·
+    `secret { from, dir, len, tiles, hits: [id], pulls: [{ id, from, to }] }` สกิลรอง ไป–กลับ–ดึง · `secretHit { targetId, at, dmg, leg: "out" | "back" }` ดาเมจแต่ละครั้งตอนลูกผ่าน (ผู้ใช้สั่ง 2026-10-20 — ลงทีละครั้งให้เห็นเลข 2 ครั้ง · server จับเวลาตาม `SEC_T` = `SC` ใน gyroFx.js) ·
     `golden { at }` กดท่าไม้ตาย (ชาร์จหมุนทองคำ) ·
     `breaker { targetId, from, to, path, dist, dmg, jumps: [{x,y}], smashed: [{x,y}], shoves: [{ id, from, to }] }` ตีเสริมโดน → กระเด็นถึงขอบ ·
     `horse { at, mode: "mount" | "dismount" | "die" }` (ชนิดย่อยอยู่ที่ `mode` — `kind` ของ payload คือ "horse") · `goldenTick { at, gain }`

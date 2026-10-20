@@ -874,6 +874,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · ตอนลูกแตะ: `fixedStrikeDamage(..., ctx)` คืน 0 (ctx.estimate = หน้าคาดการณ์ → ดาเมจจริงที่จะได้) · ฮุค `deferStrikeDamage(p)` → การ์ดฉากตี `byDeferDmg` = client ไม่ขึ้นเลขตอนปะทะ
 - **ปุ่มพิเศษบน HUD** (ไม่ใช่ช่องสกิล): ฮุค `hudActions` → `players[].actions` (เจ้าตัวเห็น) → `HudCommand extra` · กด = socket `charAction { key }` → ฮุค `charAction` (เช็คตาเดิน + บรอดแคสต์เอง · ไม่ล็อกการเดิน ไม่กินโควตา)
 - **นับเดินตรงจาก afterWalk**: บันทึกย้อน `{ undo: fn }` (`Ice.undoLay` เรียก fn · `walkUndoPatch` ข้ามบันทึกที่ไม่มี `k`) — ฮุคถูกเรียกใหม่ทุกครั้งด้วยเส้นทางเต็มหลังย้อนผลเดิม จึงคิดจากค่าก่อนเดินได้เสมอ
+- **ดาเมจตามจังหวะเอฟเฟกต์** (วิชาลับไจโร): จับเวลาที่ลูกผ่านแต่ละคนด้วยสูตรเดียวกับ client (`SEC_T` = `SC` ใน gyroFx.js) แล้วเรียง `engine.skillBeat` เป็นช่วงต่อกัน (เวลาเท่ากันรวมเป็นจังหวะเดียว — `startPhaseTimer(0)` = รอ 1 วิ ห้ามส่ง 0) · ลงดาเมจแล้วส่ง `secretHit` ให้ client ขึ้นเลข
 - **จบตาเดินของตัวเอง**: ฮุค `onActorEnd(engine, p)` (`finishActor` — หลังเดินต่อ ก่อนผลของช่อง) · ไจโร: เสริมท่าไม้ตายที่ไม่ได้ตีหมดลง
 - เอฟเฟกต์: `engine.boardFx("gyroFx", { kind, id, color, … })` ตามสัญญา §7.11 (`horse` ใช้ `mode`) · server ลงผลทันทีตอนส่ง แล้วพักฉากตาม `GYRO_FX` ผ่าน `engine.skillBeat` — client ค้างภาพเอง (`client/src/board/gyroFx.js`)
 

@@ -225,7 +225,17 @@ test('วิชาลับไจโร: 4 แต้ม + ทองคำ 5 · �
   engine.useSkill('G', 'secondary', [], { dir: 'right' });
   assert.equal(P.G.skillPoints, 4);
   assert.equal(P.G.gyro.golden, 2);
-  assert.deepEqual([vit(P.B), vit(P.C), vit(P.D), vit(P.E)], [v0.B - 2, v0.C - 2, v0.D, v0.E], 'แนว x = 3..10 · นอกแนวไม่โดน');
+  assert.deepEqual([vit(P.B), vit(P.C)], [v0.B, v0.C], 'ยังไม่ลงตอนกด — ลงตามจังหวะลูก');
+  assert.equal(engine.gameState, 'ATTACKING', 'พักฉากเล่นเอฟเฟกต์');
+  t.mock.timers.tick(400); // ลูกขาไปผ่าน B (ใกล้) แล้ว ยังไม่ถึง C
+  assert.deepEqual([vit(P.B), vit(P.C)], [v0.B - 1, v0.C], 'ขาไปผ่าน B ก่อน');
+  t.mock.timers.tick(500); // ขาไปผ่าน C แล้ว ยังไม่วกกลับถึงใคร
+  assert.deepEqual([vit(P.B), vit(P.C)], [v0.B - 1, v0.C - 1], 'ขาไปโดนครบ');
+  flush(t, 1500); // ตัวจับเวลาจำลองเลื่อนจังหวะที่ตั้งระหว่าง tick ไปรอบถัดไป — รอให้ฉากจบ
+  assert.deepEqual([vit(P.B), vit(P.C), vit(P.D), vit(P.E)], [v0.B - 2, v0.C - 2, v0.D, v0.E], 'ขากลับอีกครั้ง · แนว x = 3..10 · นอกแนวไม่โดน');
+  const sh = fxOf('secretHit');
+  assert.deepEqual(sh.map((h) => [h.targetId, h.leg, h.dmg]), [['B', 'out', 1], ['C', 'out', 1], ['C', 'back', 1], ['B', 'back', 1]], 'เลขขึ้นทีละครั้ง: ไปใกล้→ไกล · กลับไกล→ใกล้');
+  assert.deepEqual(sh[0].at, { x: 6, y: 8 }, 'ขึ้นที่ช่องเดิมก่อนถูกดึง');
   assert.deepEqual(P.B.pos, { x: 3, y: 8 }, 'ใกล้สุด: ดึงจนติดไจโร (3 ช่อง)');
   assert.deepEqual(P.C.pos, { x: 5, y: 8 }, 'ดึง 4 ช่อง');
   assert.equal(gyro.hand(P.G), 2, 'ไม่เสียลูก');
@@ -236,11 +246,8 @@ test('วิชาลับไจโร: 4 แต้ม + ทองคำ 5 · �
   assert.deepEqual(s.pulls, [{ id: 'B', from: { x: 6, y: 8 }, to: { x: 3, y: 8 } }, { id: 'C', from: { x: 9, y: 8 }, to: { x: 5, y: 8 } }]);
   assert.ok(sounds().includes('gyro_secret'));
   assert.ok(calls.sfx.some((c) => c.voice === 'G' && c.s === 'gyro_v_skill2'));
-  assert.equal(engine.gameState, 'ATTACKING', 'พักฉากเล่นเอฟเฟกต์');
-  flush(t, 900);
-  assert.ok(sounds().includes('gyro_secret_return'), 'เสียงขากลับที่ 0.75 วิ');
-  flush(t, 1200);
-  assert.equal(engine.gameState, 'ACTION');
+  assert.ok(sounds().includes('gyro_secret_return'), 'เสียงขากลับ');
+  assert.equal(engine.gameState, 'ACTION', 'จบฉากแล้วกลับเข้าตาเดิน');
   assert.equal(engine.action.locked, true, 'ใช้สกิลแล้วเดินไม่ได้');
 });
 

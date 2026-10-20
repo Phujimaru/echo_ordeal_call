@@ -1139,6 +1139,13 @@ export function gyroEventFx(ev, ctx = {}) {
       if (G.pulls.length) out.shake.push(SC.back);
       break;
     }
+    // วิชาลับ: ดาเมจลงทีละครั้งตามจังหวะลูกผ่าน (server ส่งตอนลง) → เลขลอย −1 ที่ช่องเดิมของศัตรู
+    case "secretHit": {
+      if (!okT(ev.at)) break;
+      const dmg = Math.max(0, Number(ev.dmg) | 0);
+      if (dmg > 0) out.fx.push({ kind: "float", x: ev.at.x, y: ev.at.y - (ev.leg === "back" ? 0.35 : 0), text: `-${dmg}`, size: 28, z: 1.5 });
+      break;
+    }
     case "golden": {
       if (!okT(ev.at)) break;
       out.fx.push({ ...base, kind: "gyroGolden", at: ptOf(ev.at), size: sizeOf(ev.id), dur: GYRO_FX_DUR.gyroGolden });

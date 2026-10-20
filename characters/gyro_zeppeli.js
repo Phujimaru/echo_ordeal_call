@@ -320,16 +320,31 @@ function knockOne(engine, p, t, pend) {
 }
 
 // ---------- วิชาลับไจโร ----------
+// เวลาที่ลูกผ่านระยะ d (ms) — ต้องตรงกับ secretGeo/SC ใน client/src/board/gyroFx.js
+const SEC_T = { spin: 140, out: 700, hover: 880, back: 1480 };
+function secretClock(engine, p, tiles, v) {
+  const A = [p.pos.x + 0.5, p.pos.y + 0.5], H = 0.25;
+  const along = (x, y) => (x - A[0]) * v[0] + (y - A[1]) * v[1];
+  const D = tiles.length ? Math.max(1, ...tiles.map((c) => along(c.x + 0.5, c.y + 0.5))) : SECRET_AREA.len;
+  const c01 = (x) => Math.max(0, Math.min(1, x));
+  return {
+    d: (t) => { const n = engine.sizeOf(t); return along(t.pos.x + n / 2, t.pos.y + n / 2); },
+    outT: (d) => SEC_T.spin + (SEC_T.out - SEC_T.spin) * (1 - Math.pow(1 - c01((d - H) / Math.max(0.01, D - H)), 1 / 2.2)),
+    backT: (d) => SEC_T.hover + (SEC_T.back - SEC_T.hover) * Math.pow(c01((D - d) / Math.max(0.01, D - H)), 1 / 1.7),
+  };
+}
 function secret(engine, p, targets, dirKey) {
   const v = Board.LINE_DIRS[dirKey];
   const tiles = engine.areaTiles(p, SECRET_AREA, dirKey).map(tile);
   const foes = (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && t.pos && t.id !== p.id && !engine.sameTeam(p, t));
-  const hits = [];
+  const hits = foes.map((t) => t.id);
+  // ดาเมจลงทีละครั้งตามจังหวะลูก (ผู้ใช้สั่ง 2026-10-20): −1 ตอนลูกขาไปผ่าน · −1 ตอนลูกขากลับผ่าน (ช่องเดิมก่อนถูกดึง) → secretHit ขึ้นเลข
+  const clock = secretClock(engine, p, tiles, v);
+  const legs = [];
   for (const t of foes) {
-    ballHit(engine, p, t, BALL_DMG, `${p.name} วิชาลับไจโร (ขาไป)`);
-    hits.push(t.id);
+    const d = clock.d(t), at = { ...t.pos };
+    legs.push({ ms: clock.outT(d), t, at, leg: "out" }, { ms: clock.backT(d), t, at, leg: "back" });
   }
-  for (const t of foes) if (t.alive) ballHit(engine, p, t, BALL_DMG, `${p.name} วิชาลับไจโร (ขากลับ)`);
   // ดึงเข้าหาไจโร 4 ช่อง — คนใกล้ก่อน · ติดอะไรหยุดตรงนั้น · ตัวใหญ่ไม่ถูกดึง
   const back = { x: -v[0], y: -v[1] };
   const pulls = [];
@@ -353,9 +368,24 @@ function secret(engine, p, targets, dirKey) {
   engine.sfx(SFX.throw);
   engine.sfx(SFX.spin);
   engine.sfx(SFX.secret);
-  engine.skillBeat(GYRO_FX.secretGo / 1000, () => engine.sfx(SFX.secretReturn));
-  engine.skillBeat((GYRO_FX.secret - GYRO_FX.secretGo) / 1000, () => {
-    engine.ice.forcedSlides(pulls.map((m) => ({ id: m.id, to: m.to, dir: back })), p);
+  // จังหวะเรียงตามเวลา: ลูกผ่านศัตรูแต่ละคน (ขาไป/ขากลับ) + เสียงขากลับ → จบฉากแล้วไถลคนที่ถูกดึงลงน้ำแข็ง
+  const beats = [...legs, { ms: GYRO_FX.secretGo, sound: true }].sort((a, b) => a.ms - b.ms);
+  let now = 0;
+  for (let i = 0; i < beats.length;) {
+    const ms = beats[i].ms, group = [];
+    while (i < beats.length && beats[i].ms - ms < 1) group.push(beats[i++]);
+    engine.skillBeat(Math.max(0, ms - now) / 1000, () => {
+      for (const b of group) {
+        if (b.sound) { engine.sfx(SFX.secretReturn); continue; }
+        if (!b.t.alive) continue; // ตายตั้งแต่ขาไป = ขากลับไม่โดน
+        ballHit(engine, p, b.t, BALL_DMG, `${p.name} วิชาลับไจโร (${b.leg === "out" ? "ขาไป" : "ขากลับ"})`);
+        fx(engine, p, "secretHit", { targetId: b.t.id, at: b.at, dmg: BALL_DMG, leg: b.leg });
+      }
+    });
+    now = ms;
+  }
+  engine.skillBeat(Math.max(0, GYRO_FX.secret - now) / 1000, () => {
+    engine.ice.forcedSlides(pulls.filter((m) => engine.players[m.id] && engine.players[m.id].alive).map((m) => ({ id: m.id, to: m.to, dir: back })), p);
   });
 }
 
