@@ -44,9 +44,9 @@ const cutscene = require("./cutscene");
 const CHAR_HOOKS = require("../characters/index");
 const { statusAmtOf, poisonAtkPenalty, invertActive } = require("../characters/_universal_status");
 
-// เปิดอยู่ (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · ผู้ใช้สั่งเปิดกลับ 2026-10-21 พร้อมทาคุโตะ — โอกาส 5%)
-//  false = ไม่เกิดเลย (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
-const ZERO_ENABLED = true;
+// ปิดอยู่ (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · เปิด 5.6.24 พร้อมทาคุโตะ · ผู้ใช้สั่งปิดอีก 2026-10-22 พร้อมปิดทาคุโตะ)
+//  ห้ามเปิดเองโดยไม่ได้รับคำสั่ง · true = สุ่มเกิด 5% (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้) · โค้ดช่วงมิติพังทลาย/ฮุคทาคุโตะเก็บไว้
+const ZERO_ENABLED = false;
 const ZERO_START_ROUND = 10; // เริ่มสุ่มตั้งแต่กลางคืนช่วงที่ 2 (เทิร์น 10–12)
 const ZERO_CHANCE = 5;       // % ต่อเทิร์นกลางคืน (+ ฮุค zeroChanceBonus — ทาคุโตะ +45)
 const SEAL_HP = 3, SEAL_ARMOR = 2;

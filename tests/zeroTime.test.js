@@ -61,17 +61,17 @@ const vit = (p) => (p.hp || 0) + (p.armor || 0);
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); delete process.env.ECHO_DEV_ZERO; });
 test.after(() => { engine.clearPhaseTimer(); Zero.reset(); for (const id of Object.keys(engine.players)) delete engine.players[id]; });
 
-test('ปิด (ZERO_ENABLED = false): ไม่เกิดเลยแม้ทอยผ่าน', (t) => {
-  Zero.ZERO_ENABLED = false;
-  t.after(() => { Zero.ZERO_ENABLED = true; });
+test('ปิดอยู่ (ZERO_ENABLED = false — ผู้ใช้สั่ง 2026-10-22): ไม่เกิดเลยแม้ทอยผ่าน', () => {
+  assert.equal(Zero.ZERO_ENABLED, false);
   setup();
   engine.setRoundNumber(9);
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);
   assert.ok(!Zero.active());
 });
 
-test('เกิด: เปิดอยู่ · เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 5% · ครั้งเดียวต่อเกม', () => {
-  assert.equal(Zero.ZERO_ENABLED, true);
+test('เกิด (เปิด): เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 5% · ครั้งเดียวต่อเกม', (t) => {
+  Zero.ZERO_ENABLED = true;
+  t.after(() => { Zero.ZERO_ENABLED = false; });
   setup();
   engine.setRoundNumber(3); // ถัดไป = 4 กลางคืนแรก — ยังไม่ถึงเทิร์น 10
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);

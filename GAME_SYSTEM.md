@@ -743,7 +743,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
 client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
-- **เปิดอยู่ 5%** (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · ผู้ใช้สั่งเปิดกลับ 2026-10-21 พร้อมทาคุโตะ): `ZERO_ENABLED = true` · `false` = `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`)
+- **ปิดอยู่** (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · เปิด 5.6.24 ที่ 5% · **ผู้ใช้สั่งปิดอีก 2026-10-22**): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ห้ามเปิดเองโดยไม่ได้รับคำสั่ง
   · เทสต์ที่จบเทิร์น 9+ ด้วย Math.random จริงอาจสุ่มติด — ปิด `Zero.ZERO_ENABLED` ในเทสต์นั้น (ดู echo.test.js ก่อกำเนิดใหม่) · ฮุคตัวละคร/ช่วงมิติพังทลาย ดู §28
 - **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
   → ทอย `Zero.chance()` = `ZERO_CHANCE` 5% + ฮุค `zeroChanceBonus` (ทาคุโตะ +45) · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`

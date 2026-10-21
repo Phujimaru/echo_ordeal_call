@@ -90,6 +90,7 @@ test('ข้อมูล: พิเศษ · unique · เดิน 5 · รา�
   assert.equal(ch.name, 'ซึนาชิ ทาคุโตะ');
   assert.equal(ch.difficulty, 'special');
   assert.equal(ch.unique, true);
+  assert.equal(ch.hidden, true, 'ปิดใช้งาน (ผู้ใช้สั่ง 2026-10-22) — ไม่ขึ้นหน้าเลือกตัวละคร');
   assert.equal(ch.mov, 5);
   assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [2, 4, 6]);
   assert.deepEqual(ch.secondary.area, takuto.FLASH_AREA);
@@ -110,9 +111,10 @@ test('ร่างคน: เดิน 5 ตัว 1×1 · ใช้สกิล
   assert.ok(locks.basic.locked && locks.secondary.locked && locks.ultimate.locked);
 });
 
-test('ห่วงเวลาซีโร่เปิดอยู่: 5% · มีทาคุโตะที่ยังอยู่ +45% (ตายแล้วหาย)', () => {
+test('ห่วงเวลาซีโร่ (ตอนเปิด): 5% · มีทาคุโตะที่ยังอยู่ +45% (ตายแล้วหาย)', (t) => {
+  Zero.ZERO_ENABLED = true; // ปิดอยู่ในเกมจริง (ผู้ใช้สั่ง 2026-10-22)
+  t.after(() => { Zero.ZERO_ENABLED = false; });
   const P = setup([['T', 'takuto', 3, 7], ['B', 'dummy', 9, 7]], { zero: false });
-  assert.equal(Zero.ZERO_ENABLED, true);
   assert.equal(Zero.ZERO_CHANCE, 5);
   assert.equal(Zero.chance(), 50);
   P.T.alive = false;
