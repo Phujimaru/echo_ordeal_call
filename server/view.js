@@ -228,8 +228,12 @@ function buildStateFor(viewerId) {
         }
       }
       // ระยะสกิลที่ client วาด: range "mov" แปลงเป็นตัวเลขของผู้เล่นคนนี้
+      //  รวมพื้นที่ของตัวเลือกในปุ่มหลายตัวเลือก (choices — เซลิน: คฑาแห่งการเยียวยา/กีดกัน ระยะเดิน)
+      const movArea = (a) => (a && a.range === "mov" ? { ...a, range: action.areaRange(p, a) } : a);
       for (const s of [basicPub, secondaryPub, ultimatePub]) {
-        if (s && s.area && s.area.range === "mov") s.area = { ...s.area, range: action.areaRange(p, s.area) };
+        if (!s) continue;
+        s.area = movArea(s.area);
+        if (Array.isArray(s.choices)) s.choices = s.choices.map((c) => (c && c.area && c.area.range === "mov" ? { ...c, area: movArea(c.area) } : c));
       }
       if (basicPub) basicPub.cost = showCost(basicPub, "basic");
       if (secondaryPub) secondaryPub.cost = showCost(secondaryPub, "secondary");

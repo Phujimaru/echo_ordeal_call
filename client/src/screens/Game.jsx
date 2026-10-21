@@ -2419,7 +2419,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const slotOff = (tier) => {
     const s = ch?.[tier];
     if (!myTurn || noSkill || giftLocked(tier)) return true;
-    if (canto && tier !== "basic") return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน
+    if (canto && (tier !== "basic" || me?.celine)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return !s.choices.some(choiceOk);
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);

@@ -16,8 +16,9 @@
 //    ดาบ (ประชิด): ดาบเล็ก หลบหลีกเฉพาะตัว 5% + ตี/รอแล้วเดินต่อได้อีกรอบ (canto — ทำได้แค่เดิน/รอ) · ดาบมังกรแดง คริ 50% ·
 //      ดาบใหญ่ พลังโจมตี +1 + ผลัก 1 ช่อง
 //    สื่อเวทย์ (ระยะ 1–3): ไฟ ลุกไหม้ 1 · ลม ผลัก 2 ช่อง ชนสิ่งกีดขวาง/ขอบ/คน = เสียหายเพิ่ม 1 · ไฟฟ้า ช็อต 2 เทิร์น
-//  สวนดอกไม้ของฉัน (ท่าไม้ตาย · 6 · กินโควตา · ใช้แล้วยังเดินได้): บัฟราชาดอกไม้ 3 เทิร์น (statuses.celineKing)
-//    — เดินตามช่องดอกไม้ไม่เสียก้าว (Board opts.flowerWalk) · คริของตีปกติ/ฟื้นฟู ×3 · กดเทิร์น N → กดได้อีก N+6
+//  สวนดอกไม้ของฉัน (ท่าไม้ตาย · 6 · กินโควตา · ใช้แล้วยังเดินได้): บัฟราชาดอกไม้ 5 เทิร์น (statuses.celineKing · บัฟ 2026-10-21 — เดิม 3)
+//    — เดินตามช่องดอกไม้ไม่เสียก้าว (Board opts.flowerWalk) · อัตราคริ +50% · คริของตีปกติ/ฟื้นฟู ×3 · ต้นเทิร์นแต้มสกิล +1
+//    · กดเทิร์น N → กดได้อีก N+8 (คูลดาวน์ 3 นับหลังบัฟหมด)
 //  เวลาน้ำชา (ติดตัว): ยืนในพุ่ม (ของใครก็ได้) — เข้าพุ่มในตาตัวเอง = ฟื้น 1 ตอนจบตา · ยังอยู่ต่อ = ฟื้น 1 ต้นเทิร์น · ในพุ่มคริ +20%
 //    ติดคริได้ทุกอย่างของความอ่อนโยน/ความแข็งกร้าว ยกเว้นกำแพง พุ่ม และการเคลื่อนย้าย (ผู้ใช้ตัดสิน) — ฟื้นฟูคริ = ×2 (×3 ราชาดอกไม้)
 //  สวนดอกไม้ (ติดตัว 2): ทุกช่องที่เดินผ่าน (รวมช่องออกตัว/ปลาย) เกิดพุ่มใต้เท้า 3 เทิร์น (afterWalk — ย้อนการเดินได้)
@@ -63,8 +64,10 @@ const SWAP_RANGE = 5;
 const SWAP_CD = 3;
 const BLOOM_TURNS = 5;  // คฑาแห่งการรังสรรค์
 const TRAIL_TURNS = 3;  // รอยเท้า (สวนดอกไม้)
-const ULT_TURNS = 3;
-const ULT_CD = 6;       // กดเทิร์น N → กดได้อีก N+6 (คูลดาวน์ 3 นับหลังบัฟ 3 เทิร์นหมด — ผู้ใช้ตัดสิน 2026-10-21)
+const ULT_TURNS = 5;     // บัฟ 2026-10-21 (เดิม 3)
+const ULT_CD = ULT_TURNS + 3; // กดเทิร์น N → กดได้อีก N+8 (คูลดาวน์ 3 นับหลังบัฟหมด — ผู้ใช้ตัดสิน 2026-10-21)
+const KING_CRIT = 50;   // ราชาดอกไม้: อัตราคริ +50%
+const KING_SP = 1;      // ราชาดอกไม้: ต้นเทิร์นแต้มสกิล +1
 const BUSH_CRIT = 20;
 const TEA_HEAL = 1;
 const KING = "celineKing";
@@ -84,15 +87,15 @@ const STYLE = { dagger: "celineDagger", dragon: "celineDragon", great: "celineGr
 
 const MOV_AREA = "mov";
 const TENDER = {
-  heal: { name: "คฑาแห่งการเยียวยา", cost: 2, area: { kind: "target", range: MOV_AREA, self: true },
+  heal: { name: "คฑาแห่งการเยียวยา", short: "เยียวยา", cost: 2, area: { kind: "target", range: MOV_AREA, self: true },
     desc: `1 คนในระยะเดิน (รวมตัวเอง · ศัตรูได้): ฟื้นพลังชีวิต ${HEAL_AMT} + ล้างดีบัฟ 1 อย่าง · เซลินได้ด้วย (เลือกตัวเอง = ครั้งเดียว) · ติดคริได้ (ใช้ครบ ${HEAL_LIMIT} ครั้ง คูลดาวน์ ${HEAL_CD} เทิร์น)` },
-  wall: { name: "คฑาแห่งการกีดกัน", cost: 3, area: { kind: "tile", range: MOV_AREA, place: "wall", rect: [WALL_LEN, 1] },
+  wall: { name: "คฑาแห่งการกีดกัน", short: "กีดกัน", cost: 3, area: { kind: "tile", range: MOV_AREA, place: "wall", rect: [WALL_LEN, 1] },
     desc: `กำแพงน้ำแข็ง 3×1 หมุนได้ ช่องกลางในระยะเดิน: กันทางเดินจนตาเดินถัดไปของเซลิน · โดนโจมตีครั้งเดียวแตก · วางทับคน = ผลัก 1 ช่อง (ใช้ครบ ${WALL_LIMIT} ครั้ง คูลดาวน์ ${WALL_CD} เทิร์น)` },
-  swap: { name: "คฑาแห่งการเคลื่อนย้าย", cost: 3, area: { kind: "target", range: SWAP_RANGE },
+  swap: { name: "คฑาแห่งการเคลื่อนย้าย", short: "เคลื่อนย้าย", cost: 3, area: { kind: "target", range: SWAP_RANGE },
     desc: `สลับตำแหน่งกับ 1 คนในระยะ ${SWAP_RANGE} (ตัว 2×2 ขึ้นไปไม่ได้) (คูลดาวน์ ${SWAP_CD} เทิร์น)` },
-  pair: { name: "คฑาแห่งการเคลื่อนย้าย — จับคู่", cost: 3, area: { kind: "target", range: SWAP_RANGE, count: 2 },
+  pair: { name: "คฑาแห่งการเคลื่อนย้าย — จับคู่", short: "จับคู่", cost: 3, area: { kind: "target", range: SWAP_RANGE, count: 2 },
     desc: `เลือก 2 คนในระยะ ${SWAP_RANGE} สลับตำแหน่งกัน (ตัว 2×2 ขึ้นไปไม่ได้) (คูลดาวน์ ${SWAP_CD} เทิร์น ร่วมกับสลับตัวเอง)` },
-  bloom: { name: "คฑาแห่งการรังสรรค์", cost: 1, area: { kind: "tile", range: 26, place: "bloom" },
+  bloom: { name: "คฑาแห่งการรังสรรค์", short: "รังสรรค์", cost: 1, area: { kind: "tile", range: 26, place: "bloom" },
     desc: `พุ่มดอกไม้ 1 ช่องที่ไหนก็ได้บนแผนที่ อยู่ ${BLOOM_TURNS} เทิร์น` },
 };
 const TENDER_KEYS = Object.keys(TENDER);
@@ -130,9 +133,9 @@ function inBloom(engine, p) {
   if (!p || !p.alive || !p.pos || engine.sizeOf(p) > 1) return false;
   return Board.bushPatchOf(engine.boardMap(), p.pos.x, p.pos.y) !== null;
 }
-// อัตราคริของเซลิน (%) ไม่รวมคริสนาม: ดาบมังกรแดง 50 · ในพุ่ม +20
+// อัตราคริของเซลิน (%) ไม่รวมคริสนาม: ดาบมังกรแดง 50 · ในพุ่ม +20 · ราชาดอกไม้ +50
 function ownCrit(engine, p) {
-  return (weaponOf(p).crit || 0) + (inBloom(engine, p) ? BUSH_CRIT : 0);
+  return (weaponOf(p).crit || 0) + (inBloom(engine, p) ? BUSH_CRIT : 0) + (kingOn(p) ? KING_CRIT : 0);
 }
 // ทอยคริของการรักษา (อัตราเดียวกับตีปกติ: สนาม + เฉพาะตัว) → ตัวคูณ (1 = ไม่ติด)
 function healCrit(engine, p) {
@@ -285,7 +288,7 @@ function pushAfter(engine, p, t, w) {
 module.exports = {
   id: ID,
   IMG, ICON, VIDEO, CUT, FX, VOICE, HP, ARMOR, TENDER, TENDER_KEYS, TENDER_PER_TURN, WEAPONS, WEAPON_KEYS, STYLE,
-  HEAL_AMT, HEAL_LIMIT, HEAL_CD, WALL_LIMIT, WALL_CD, SWAP_RANGE, SWAP_CD, BLOOM_TURNS, TRAIL_TURNS, ULT_TURNS, ULT_CD, BUSH_CRIT, KING,
+  HEAL_AMT, HEAL_LIMIT, HEAL_CD, WALL_LIMIT, WALL_CD, SWAP_RANGE, SWAP_CD, BLOOM_TURNS, TRAIL_TURNS, ULT_TURNS, ULT_CD, BUSH_CRIT, KING, KING_CRIT, KING_SP,
   isCeline, kingOn, inBloom, wallPlan,
 
   resetCombat(p) { p.celine = isCeline(p) ? fresh() : null; },
@@ -378,8 +381,9 @@ module.exports = {
       const count = { heal: HEAL_LIMIT - s.healCount, wall: WALL_LIMIT - s.wallCount };
       return {
         choices: TENDER_KEYS.map((k) => ({
-          key: k, name: TENDER[k].name, img: ICON(ICON_OF[k]), desc: TENDER[k].desc, area: TENDER[k].area, cost: TENDER[k].cost,
+          key: k, name: TENDER[k].short, img: ICON(ICON_OF[k]), desc: `${TENDER[k].name}: ${TENDER[k].desc}`, area: TENDER[k].area, cost: TENDER[k].cost,
           cd: cd[k], ...(count[k] != null ? { left: count[k] } : {}), locked: left <= 0 || cd[k] > 0,
+          free: true, // ไม่กินโควตาสกิล — client ไม่ล็อกตัวเลือกหลังใช้ท่าไม้ตาย
         })),
       };
     }
@@ -387,7 +391,7 @@ module.exports = {
       return {
         choices: WEAPON_KEYS.map((k) => ({
           key: k, name: WEAPONS[k].name, img: ICON(k), desc: WEAPONS[k].desc, area: { kind: "self" }, cost: 0,
-          on: s.weapon === k, locked: s.weapon === k,
+          on: s.weapon === k, locked: s.weapon === k, free: true,
         })),
       };
     }
@@ -462,9 +466,16 @@ module.exports = {
 
   // ---------- จังหวะเทิร์น/ตาเดิน ----------
   // เวลาน้ำชา: ต้นเทิร์นยังยืนในพุ่ม = ฟื้น 1
+  //  ราชาดอกไม้: ต้นเทิร์นแต้มสกิล +1 (ระหว่างบัฟ)
   onRoundStartTick(engine, p) {
-    if (!isCeline(p) || !p.alive || !inBloom(engine, p)) return;
-    teaTime(engine, p);
+    if (!isCeline(p) || !p.alive) return;
+    if (kingOn(p)) {
+      const before = p.skillPoints || 0;
+      engine.addSkill(p, KING_SP, "passive");
+      const got = (p.skillPoints || 0) - before;
+      if (got > 0) engine.log(`👑 ${p.name} ราชาดอกไม้ — แต้มสกิล +${got}`);
+    }
+    if (inBloom(engine, p)) teaTime(engine, p);
   },
   onActorStart(engine, p) {
     if (!isCeline(p)) return;

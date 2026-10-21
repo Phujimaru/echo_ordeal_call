@@ -287,32 +287,64 @@ test('ดาบเล็ก: หลบหลีกเฉพาะตัว 5% ·
   assert.equal(celine.ownEvade(P.C), 0);
 });
 
-test('สวนดอกไม้ของฉัน: ราชาดอกไม้ 3 เทิร์น · เดินตามดอกไม้ไม่เสียก้าว · คริ ×3 · กดเทิร์น N → ได้อีก N+6 · ยังเดินได้', () => {
+test('สวนดอกไม้ของฉัน: ราชาดอกไม้ 5 เทิร์น · เดินตามดอกไม้ไม่เสียก้าว · คริ +50% ×3 · ต้นเทิร์นแต้มสกิล +1 · กดเทิร์น N → ได้อีก N+8 · ยังเดินได้', () => {
   const P = setup([['C', 'celine', 0, 7], ['B', 'dummy', 12, 8]]);
   const path = []; for (let x = 1; x <= 9; x++) path.push({ x, y: 7 });
   Flora.lay(engine.boardMap(), path, 'C', 5, { made: true });
   engine.setActor('C');
   assert.equal(action.flowerWalk(P.C), false);
+  P.C.pos = { x: 0, y: 9 }; // นอกพุ่ม — อัตราคริไม่รวมเวลาน้ำชา
+  const critBefore = celine.critPct(P.C);
+  P.C.pos = { x: 0, y: 7 };
   engine.useSkill('C', 'ultimate', []);
   assert.equal(P.C.skillPoints, 2);
-  assert.equal(P.C.statuses.celineKing, 3);
+  assert.equal(P.C.statuses.celineKing, 5);
   assert.equal(celine.critMult(P.C), 3);
+  P.C.pos = { x: 0, y: 9 };
+  assert.equal(celine.critPct(P.C), critBefore + 50, 'อัตราคริ +50%');
+  P.C.pos = { x: 0, y: 7 };
   assert.equal(engine.action.locked, false, 'กดแล้วยังเดินได้');
   assert.ok(view('C', 'C').flowerWalk);
   assert.ok(engine.moveTo('C', 9, 7), 'เดิน 9 ช่องตามดอกไม้ (ปกติเดินได้ 4)');
   assert.ok(calls.notice.includes('celineUlt'));
-  for (const r of [5, 6, 7, 8, 9]) {
+  // ต้นเทิร์นระหว่างบัฟ: แต้มสกิล +1
+  P.C.skillPoints = 2;
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.skillPoints, 3);
+  for (const r of [5, 6, 7, 8, 9, 10, 11]) {
     engine.setRoundNumber(r);
     P.C.skillUsedRound = false; P.C.skillPoints = 8;
-    if (r >= 7) delete P.C.statuses.celineKing;
+    if (r >= 9) delete P.C.statuses.celineKing;
     engine.setActor('C');
     engine.useSkill('C', 'ultimate', []);
     assert.equal(P.C.skillPoints, 8, `เทิร์น ${r} ยังกดไม่ได้`);
   }
-  engine.setRoundNumber(10);
+  delete P.C.statuses.celineKing;
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.skillPoints, 8, 'บัฟหมด = ไม่ได้แต้มเพิ่ม');
+  engine.setRoundNumber(12);
   engine.setActor('C');
   engine.useSkill('C', 'ultimate', []);
-  assert.equal(P.C.skillPoints, 2, 'เทิร์น N+6 กดได้');
+  assert.equal(P.C.skillPoints, 2, 'เทิร์น N+8 กดได้');
+});
+
+test('ปุ่มหลายตัวเลือกที่ client ได้: ระยะเดินแปลงเป็นตัวเลข · ชื่อสั้น · ไม่กินโควตา · ปุ่มพื้นฐานราคา 0', () => {
+  const P = setup([['C', 'celine', 2, 7], ['B', 'dummy', 12, 8]]);
+  const basic = view('C', 'C').character.basic;
+  assert.equal(basic.cost, 0);
+  const by = Object.fromEntries(basic.choices.map((c) => [c.key, c]));
+  assert.equal(by.heal.area.range, 4, 'range "mov" → ระยะเดิน');
+  assert.equal(by.wall.area.range, 4);
+  assert.deepEqual(basic.choices.map((c) => c.name), ['เยียวยา', 'กีดกัน', 'เคลื่อนย้าย', 'จับคู่', 'รังสรรค์']);
+  assert.ok(basic.choices.every((c) => c.free === true));
+  assert.ok(view('C', 'C').character.secondary.choices.every((c) => c.free === true));
+  // ใช้ท่าไม้ตาย (กินโควตา) แล้ว ความอ่อนโยนยังกดได้
+  engine.setActor('C');
+  P.C.skillPoints = 8;
+  engine.useSkill('C', 'ultimate', []);
+  assert.equal(P.C.skillUsedRound, true);
+  tender('C', 'heal', ['C']);
+  assert.equal(P.C.skillPoints, 0, 'เยียวยาหลังท่าไม้ตายได้');
 });
 
 test('เวลาน้ำชา: ต้นเทิร์นยังอยู่ในพุ่ม = ฟื้น 1 · เข้าพุ่มในตาตัวเอง = ฟื้นตอนจบตา', () => {
