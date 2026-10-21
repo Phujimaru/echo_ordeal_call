@@ -310,6 +310,9 @@
 .hud-zero-buffs svg { width: 14px; height: 14px; flex: none; }
 .hud-zero-buffs b { font: 600 12px/1 "Chakra Petch", sans-serif; color: #fff; }
 .hud-zero-lock { opacity: 0.85; }
+.hud-zero-left svg { width: 16px; height: 16px; }
+.hud-zero-left b { font-size: 15px; color: #ff9ab0; text-shadow: 0 0 6px rgba(255,60,90,.8); }
+.hud-top-zero[data-collapse="true"] .hud-zero-gem { filter: saturate(.35) brightness(.8); }
 @media (prefers-reduced-motion: reduce) { .hud-zero-hg { animation: none; } }
 
 /* ---------- ลิ้นชักสถานะ (ชิดขอบซ้ายจอ เหนือแผงผู้เล่น) ---------- */
@@ -894,6 +897,7 @@
 .hc-btn.ride { background: linear-gradient(115deg, #f7a8d2, #d863a5 50%, #8a2c6a); animation: hcPop .5s cubic-bezier(.2,1.5,.4,1) both; }
 .hc-btn.ride .ico { font-size: 30px; line-height: 1; display: grid; place-items: center; }
 .hc-btn.ride:disabled { background: rgba(16,34,66,.72); opacity: .55; cursor: not-allowed; }
+.hc-btn.ride[data-on="true"] { box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255,170,220,.85); filter: brightness(1.12); }
 .hc-row { display: flex; gap: 8px; }
 .hc-row .hc-btn { flex: 1; height: 54px; justify-content: center; padding: 0 8px; }
 .hc-row .hc-btn b { font-size: 19px; }

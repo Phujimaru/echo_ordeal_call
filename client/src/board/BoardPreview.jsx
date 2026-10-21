@@ -17,6 +17,7 @@
 //   ?diego=1 = ดิเอโก้ แบรนโด โลกคู่ขนาน (ขี่ซิลเวอร์ บูลเล็ต) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "diegoFx" + หยุดเวลา (DiegoFxDev.jsx)
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
+//   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
@@ -31,6 +32,7 @@ import DiegoFxDev from "./DiegoFxDev"; // ?diego=1 = ปุ่มเล่นเ
 import ValentineFxDev from "./ValentineFxDev"; // ?valentine=1 = ปุ่มเล่นเอฟเฟกต์ฟันนี่ วาเลนไทน์
 import FernFxDev from "./FernFxDev"; // ?fern=1 = ปุ่มเล่นเอฟเฟกต์เฟิร์น
 import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่นเอฟเฟกต์เซลิน
+import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
 const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
 const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "Z1", "Z2", "Z3", "Z4"];
@@ -118,8 +120,10 @@ const DIEGO_DEV = Q.get("diego") === "1";
 const VAL_DEV = Q.get("valentine") === "1";
 const FERN_DEV = Q.get("fern") === "1";
 const CELINE_DEV = Q.get("celine") === "1";
+const TAKUTO_DEV = Q.get("takuto") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
-  : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits()) : baseUnits());
+  : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
+  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -249,6 +253,9 @@ export default function BoardPreview() {
   const [fernGlow, setFernGlow] = useState(null);
   // เซลิน (?celine=1): พุ่มดอกไม้ [{ x, y, left, made }] → special "bloom" · กำแพง [{ x, y }] → terrain "icewall" · ราชาดอกไม้ (me)
   const [celDev, setCelDev] = useState({ flora: [], walls: [], king: false });
+  // ทาคุโตะ (?takuto=1): ดาบลอย/ออร่า { emerald, sapphire, judgment, collapse } → prop takutos · ช่วงมิติพังทลาย (เทิร์นที่เหลือ) → zero.collapse
+  const [tkSwords, setTkSwords] = useState({ emerald: true, sapphire: true, judgment: false, collapse: false });
+  const [tkCollapse, setTkCollapse] = useState(null);
   useEffect(() => { window.__boardSongs = (v) => setSongsMock(v && v.length ? v : null); return () => { delete window.__boardSongs; }; }, []);
   const iceMap0 = useMemo(() => (!iceOn ? map : {
     ...map,
@@ -321,6 +328,8 @@ export default function BoardPreview() {
   const fernMe = units.find((u) => u.id === "me");
   const celineMock = CELINE_DEV && fernMe && (celDev.flora.length || celDev.king)
     ? { flora: celDev.flora, kings: celDev.king ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1 }] : [] } : null;
+  const takutoMock = TAKUTO_DEV && fernMe && (tkSwords.emerald || tkSwords.sapphire || tkSwords.judgment || tkSwords.collapse)
+    ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: fernMe.size || 1, ...tkSwords }] : null;
   const fernMock = fernGlow && fernMe && (fernGlow.empowered || fernGlow.boost) ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1, empowered: !!fernGlow.empowered, boost: !!fernGlow.boost }] : null;
   const viewUnits = units.map((u) => ({ ...u, isMe: u.id === "me", isActor: u.id === actor.id, teamId: null }));
 
@@ -435,9 +444,10 @@ export default function BoardPreview() {
   const zeroStage = area >= 8 ? area - 7 : 0;
   const zeroMock = useMemo(() => (zeroStage ? {
     active: true, stage: zeroStage,
-    seals: [[0, 0], [13, 0], [13, 13], [0, 13]].map(([x, y], i) => ({ i, x, y, hp: i === 3 ? 2 : 3, armor: i === 3 ? 0 : 2, maxHp: 3, maxArmor: 2, broken: i < zeroStage - 1 })),
-    pickups: [{ x: 7, y: 11 }],
-  } : null), [zeroStage]);
+    seals: [[0, 0], [13, 0], [13, 13], [0, 13]].map(([x, y], i) => ({ i, x, y, hp: i === 3 ? 2 : 3, armor: i === 3 ? 0 : 2, maxHp: 3, maxArmor: 2, broken: i < zeroStage - 1 || tkCollapse != null })),
+    pickups: tkCollapse != null ? [] : [{ x: 7, y: 11 }],
+    ...(tkCollapse != null ? { collapse: { left: tkCollapse, total: 5, seq: 1 } } : {}),
+  } : null), [zeroStage, tkCollapse]);
   const [zeroScene, setZeroScene] = useState(null);
   // ม่านแดง (เคท): ฉากร่าย + ม่านบนกระดาน · กล้องซูมตามฉาก (prop cinema)
   const [storms, setStorms] = useState(null);
@@ -491,6 +501,7 @@ export default function BoardPreview() {
         dimView={dimView}
         ferns={fernMock}
         celine={celineMock}
+        takutos={takutoMock}
         cinema={cinema}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
@@ -522,6 +533,7 @@ export default function BoardPreview() {
       {DIEGO_DEV && <DiegoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} ground={diegoGround} setGround={setDiegoGround} freeze={timeFreeze} setFreeze={setTimeFreeze} />}
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
+      {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>

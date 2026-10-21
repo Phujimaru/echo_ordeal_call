@@ -57,6 +57,8 @@
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
+//   takutos     [{ id, x, y, size, emerald, sapphire, judgment, collapse }] — ทาวเบิร์นของทาคุโตะ: ดาบลอยข้างตัว / ดาบแห่งการพิพากษาพาดหลัง / ออร่าแดงช่วงพังทลาย
+//               (takutoFx.js) · fx takuto* · takutoPose ย้ายหมากตอนพุ่ง/สลับตำแหน่ง
 //   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
 //               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (ภาพโปร่งภาพเดียว · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
@@ -80,6 +82,7 @@ import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
 import { celinePose } from "./celineFx";
+import { takutoPose } from "./takutoFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
@@ -593,6 +596,9 @@ export default function BoardCanvas(props) {
         // ฉากของเซลิน: คนที่ถูกสลับตำแหน่งลอยขึ้น บินโค้ง แล้วลงที่ใหม่ (celinePose)
         const cpo = sp || gp || dp || vp || u.corpse ? null : celinePose(st.fxActive, u, now);
         if (cpo) { rx = cpo.x; ry = cpo.y; ox = 0; oy = 0; hz = cpo.hz || 0; sq = 0; }
+        // ฉากของทาคุโตะ: พุ่งต้นตาเดิน (เลื่อนเร็ว) · ดาบประกายแสง (ทาคุโตะ/เป้าวาบหายแล้วโผล่ที่ใหม่ — alpha)
+        const tpo = sp || gp || dp || vp || cpo || u.corpse ? null : takutoPose(st.fxActive, u, now);
+        if (tpo) { rx = tpo.x; ry = tpo.y; ox = 0; oy = 0; hz = tpo.hz || 0; sq = 0; }
         const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
@@ -620,6 +626,7 @@ export default function BoardCanvas(props) {
         const lu = list[list.length - 1];
         if (u.wings) lu.wings = true;
         if (sp) { if (sp.fly) lu.fly = true; if (sp.alpha != null) lu.alpha *= sp.alpha; }
+        if (tpo && tpo.alpha != null) lu.alpha *= tpo.alpha;
       }
 
       // --- ฉากห่วงเวลาซีโร่: seq ใหม่ = จับภาพเฟรมล่าสุด (สนามก่อนเปลี่ยน) ไว้ก่อนวาดเฟรมใหม่
@@ -660,7 +667,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

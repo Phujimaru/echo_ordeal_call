@@ -61,25 +61,25 @@ const vit = (p) => (p.hp || 0) + (p.armor || 0);
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); delete process.env.ECHO_DEV_ZERO; });
 test.after(() => { engine.clearPhaseTimer(); Zero.reset(); for (const id of Object.keys(engine.players)) delete engine.players[id]; });
 
-test('ปิดอยู่: ไม่เกิดเลยแม้ทอยผ่าน', () => {
+test('ปิด (ZERO_ENABLED = false): ไม่เกิดเลยแม้ทอยผ่าน', (t) => {
+  Zero.ZERO_ENABLED = false;
+  t.after(() => { Zero.ZERO_ENABLED = true; });
   setup();
   engine.setRoundNumber(9);
-  assert.equal(Zero.ZERO_ENABLED, false);
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);
   assert.ok(!Zero.active());
 });
 
-test('เกิด: เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 30% · ครั้งเดียวต่อเกม', (t) => {
-  Zero.ZERO_ENABLED = true;
-  t.after(() => { Zero.ZERO_ENABLED = false; });
+test('เกิด: เปิดอยู่ · เทิร์นถัดไปเป็นกลางคืนตั้งแต่เทิร์น 10 · 5% · ครั้งเดียวต่อเกม', () => {
+  assert.equal(Zero.ZERO_ENABLED, true);
   setup();
   engine.setRoundNumber(3); // ถัดไป = 4 กลางคืนแรก — ยังไม่ถึงเทิร์น 10
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);
   engine.setRoundNumber(8); // ถัดไป = 9 กลางวัน
   assert.equal(withRandom(0, () => Zero.maybeEnter()), false);
   engine.setRoundNumber(9); // ถัดไป = 10 กลางคืน
-  assert.equal(withRandom(0.31, () => Zero.maybeEnter()), false, 'ทอยเกิน 30% = ไม่เกิด');
-  assert.equal(withRandom(0.29, () => Zero.maybeEnter()), true);
+  assert.equal(withRandom(0.051, () => Zero.maybeEnter()), false, 'ทอยเกิน 5% = ไม่เกิด');
+  assert.equal(withRandom(0.049, () => Zero.maybeEnter()), true);
   engine.clearPhaseTimer();
   assert.ok(Zero.active());
   assert.equal(match.gameState, 'CUTSCENE');

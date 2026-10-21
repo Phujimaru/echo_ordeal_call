@@ -19,6 +19,7 @@ const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรน�
 const fern = require("./fern"); // เฟิร์น — ระดับกลาง (Zoltraak แนวตรง / Energy 10 / ครั้งที่ 6 ทะลุเกราะ + รีเซ็ทคูลดาวน์ / ท่าไม้ตายซ่อนเร้นมานา)
 const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
 const celine = require("./celine"); // องค์หญิงดอกไม้ เซลิน — พิเศษ (คฑา 4 แบบ / อาวุธ 6 แบบ / พุ่มดอกไม้ server/flora.js / ราชาดอกไม้)
+const takuto = require("./takuto"); // ซึนาชิ ทาคุโตะ — พิเศษ · unique (ร่างคน/ทาวเบิร์น 3×3 · ดาบ 2 เล่ม · ห่วงเวลาซีโร่ + ช่วงมิติพังทลาย — server/zeroTime.js)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -41,6 +42,7 @@ const CHARACTER_MODULES = [
   fern,
   funny_valentine,
   celine,
+  takuto,
 ];
 
 const CHAR_HOOKS = {};

@@ -12,12 +12,18 @@
 //
 //  ฉาก (client เล่นระหว่าง gameState CUTSCENE ที่ cutsceneInfo = null): match.zeroScene { seq, mode, stage, seal, breakerId }
 //   enter = ลำแสง → คลื่น → โซ่ → ผนึก · break = ผนึกแตก + สนามเปลี่ยนระดับ · release = มิติแตกกลับสนามเดิม
+//
+//  ฮุคตัวละคร (ทาคุโตะ — GRID_PLAN §7.16):
+//   zeroChanceBonus(engine) → % บวกโอกาสเกิด (ทุกโมดูล) · zeroImmune(p) → ไม่โดนผลเสีย (กัดกิน/ฟ้าผ่า/ล็อกท่าไม้ตาย/แรงปลดผนึก)
+//   zeroCollapseTurns(engine) → เทิร์น > 0 = ผนึกอันสุดท้ายแตกแล้วเข้า "ช่วงมิติพังทลาย" แทนปลดผนึกทันที (ยังอยู่สนามซีโร่ · ไม่มีบัฟเฟส/
+//     กัดกิน/ของ/ฟ้าผ่า/ล็อกท่าไม้ตาย · แรงปลดผนึกลงตอนผนึกแตก · ครบแล้วกลับสนามเดิมตอนจบเทิร์น — maybeFinishCollapse)
+//   broadcast onZeroStage(engine, stage) หลังฉากผนึกแตก · onZeroCollapse(engine) ตอนเข้าช่วงพังทลาย (คลิปที่ฮุคคิวไว้เล่นต่อจากฉาก)
 // ============================================================
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   active, stage, worldRound, maybeEnter, enter, onRoundStart, onEndTurn, attackBonus, ultLocked,
   sealIndexOf, sealUnit, canHitSeal, attackSeal, hitSealsInArea, hasPendingBreak, runPendingBreak,
-  collectPickup, publicInfo, reset,
+  collectPickup, publicInfo, reset, chance, immune, collapsing, maybeFinishCollapse,
 });
 
 const { ATTACKFX_TIME } = require("./constants");
@@ -34,13 +40,15 @@ const lobby = require("./lobby");
 const shop = require("./shop");
 const timers = require("./timers");
 const view = require("./view");
+const cutscene = require("./cutscene");
+const CHAR_HOOKS = require("../characters/index");
 const { statusAmtOf, poisonAtkPenalty, invertActive } = require("../characters/_universal_status");
 
-// ปิดไว้ (ผู้ใช้สั่ง 2026-10-12 · เปิดกลับ 5.6.12 แล้วผู้ใช้สั่งปิดอีก 2026-10-15 — ห้ามเปิดเองโดยไม่ได้รับคำสั่ง)
-//  เก็บระบบไว้ใช้ในอนาคต · true = กลับมาสุ่มเกิดตามปกติ (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
-const ZERO_ENABLED = false;
+// เปิดอยู่ (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · ผู้ใช้สั่งเปิดกลับ 2026-10-21 พร้อมทาคุโตะ — โอกาส 5%)
+//  false = ไม่เกิดเลย (ECHO_DEV_ZERO=1 ยังบังคับเกิดได้)
+const ZERO_ENABLED = true;
 const ZERO_START_ROUND = 10; // เริ่มสุ่มตั้งแต่กลางคืนช่วงที่ 2 (เทิร์น 10–12)
-const ZERO_CHANCE = 30;      // % ต่อเทิร์นกลางคืน
+const ZERO_CHANCE = 5;       // % ต่อเทิร์นกลางคืน (+ ฮุค zeroChanceBonus — ทาคุโตะ +45)
 const SEAL_HP = 3, SEAL_ARMOR = 2;
 const PICKUP_HEAL = 2;       // ของฟื้นพลังชีวิต (Claude ตัดสิน — ผู้ใช้ไม่ได้ระบุ)
 const PICKUP_MAX = 4;        // ค้างบนสนามได้ไม่เกินเท่านี้ (เทิร์นละ 1 ชิ้น)
@@ -55,6 +63,25 @@ Object.assign(module.exports, { ZERO_ENABLED, ZERO_START_ROUND, ZERO_CHANCE, SEA
 const roll = (pct) => Math.random() * 100 < pct;
 
 function active() { return !!match.zero; }
+// ช่วงมิติพังทลาย (หลังผนึกอันสุดท้ายแตก — ฮุค zeroCollapseTurns) · ยังนับว่าอยู่ในห่วงเวลา (active)
+function collapsing() { return !!(match.zero && match.zero.collapse); }
+// ไม่โดนผลเสียของห่วงเวลา (ฮุค zeroImmune — ทาคุโตะ)
+function immune(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && typeof hook.zeroImmune === "function" && combat.runHook(hook, "zeroImmune", p));
+}
+// โอกาสเกิด (%) = ค่ากลาง + ฮุค zeroChanceBonus ของทุกโมดูล
+function chance() {
+  let n = ZERO_CHANCE;
+  for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.zeroChanceBonus === "function") n += Number(combat.runHook(mod, "zeroChanceBonus", engine)) || 0;
+  return Math.max(0, Math.min(100, n));
+}
+// เทิร์นของช่วงมิติพังทลาย (มากสุดของทุกโมดูล · 0 = ปลดผนึกทันทีแบบเดิม)
+function collapseTurns() {
+  let n = 0;
+  for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.zeroCollapseTurns === "function") n = Math.max(n, Number(combat.runHook(mod, "zeroCollapseTurns", engine)) || 0);
+  return n;
+}
 function stage() {
   if (!match.zero) return 0;
   return Math.min(Board.ZERO_STAGES, match.zero.seals.filter((s) => s.broken).length + 1);
@@ -80,7 +107,7 @@ function maybeEnter() {
   const next = worldRound() + 1;
   if (!dayNight.isNightRound(next)) return false;
   if (devForce()) return enter();
-  if (next < ZERO_START_ROUND || !roll(ZERO_CHANCE)) return false;
+  if (next < ZERO_START_ROUND || !roll(chance())) return false;
   return enter();
 }
 function enter() {
@@ -117,7 +144,7 @@ function playScene(info, seconds, after) {
 // ---------- ต้นเทิร์น (dealRound — เวลาโลกหยุดนับที่หัว dealRound เอง) ----------
 //  ของฟื้นพลังชีวิต 1 ชิ้น · เฟส 4 ฟ้าผ่า
 function onRoundStart() {
-  if (!match.zero) return;
+  if (!match.zero || match.zero.collapse) return; // ช่วงมิติพังทลาย: ไม่มีของฟื้นพลังชีวิต/ฟ้าผ่า
   const map = action.boardMap();
   const units = action.boardUnits();
   const z = match.zero;
@@ -143,7 +170,7 @@ function lightning(map) {
   for (let i = 0; i < BOLT_COUNT && all.length; i++) tiles.push(all.splice(Math.floor(Math.random() * all.length), 1)[0]);
   const hits = [];
   for (const p of combat.alivePlayers()) {
-    if (!p.pos) continue;
+    if (!p.pos || immune(p)) continue;
     const box = action.boxOf(p);
     if (!tiles.some((t) => Board.covers(box, t.x, t.y))) continue;
     const vit = (p.hp || 0) + (p.armor || 0);
@@ -167,12 +194,18 @@ function fieldHit(p, n) {
 // ---------- จบเทิร์น (endTurn — หลังลูปลดเทิร์นสถานะ ก่อนกวาดคนตาย) ----------
 function onEndTurn() {
   if (!match.zero) return;
+  // ช่วงมิติพังทลาย: ไม่มีบัฟเฟส/กัดกิน · ครบเวลา = กลับสนามเดิมหลังจบเทิร์นนี้ (endTurn → maybeFinishCollapse)
+  if (match.zero.collapse) {
+    if (match.roundNumber >= match.zero.collapse.endRound) match.zero.collapse.done = true;
+    return;
+  }
   const st = stage();
   const alive = combat.alivePlayers();
   for (const p of alive) combat.addSkill(p, 1);                 // เฟส 1: แต้มสกิล +1
   if (st >= 2) for (const p of alive) shop.addGold(p, 1);         // เฟส 2: เหรียญ +1
   match.lastLog.push(st >= 2 ? "⏳ ห่วงเวลาซีโร่ — แต้มสกิล +1 · เหรียญ +1" : "⏳ ห่วงเวลาซีโร่ — แต้มสกิล +1");
   for (const p of alive) {
+    if (immune(p)) continue;
     fieldHit(p, DRAIN);
     match.lastLog.push(`⏳ ${p.name} ถูกห่วงเวลากัดกิน -${DRAIN}`);
   }
@@ -181,12 +214,14 @@ function onEndTurn() {
 // ---------- บัฟ / ล็อก ----------
 // พลังโจมตีจากห่วงเวลา (ungated · computeAttackBase) — เฟส 3 +1 · เฟส 4 +2
 function attackBonus() {
+  if (collapsing()) return null; // ช่วงมิติพังทลาย: บัฟเฟสหมด
   const st = stage();
   if (st < 3) return null;
   const amount = st >= 4 ? 2 : 1;
   return { amount, name: `ห่วงเวลาซีโร่ — พลังโจมตี +${amount}` };
 }
-function ultLocked() { return !!match.zero; }
+// ท่าไม้ตายล็อก (p = คนใช้ · ไม่ส่ง = กติกากลาง) — ช่วงมิติพังทลายปลดล็อก · ฮุค zeroImmune ไม่ล็อก
+function ultLocked(p) { return !!match.zero && !match.zero.collapse && !(p && immune(p)); }
 
 // ---------- ผนึก ----------
 // "seal:N" → N (ผนึกที่ยังไม่แตก) · อื่น = -1
@@ -282,12 +317,55 @@ function runPendingBreak(done) {
   match.board.area = Board.ZERO_AREA + st - 1;
   delete match.board.mapCache;
   match.lastLog.push(`⏳ ห่วงเวลาซีโร่ — เฟส ${st}`);
-  playScene({ mode: "break", stage: st, seal: last.i, breakerId: last.by }, BREAK_SECONDS, done);
+  playScene({ mode: "break", stage: st, seal: last.i, breakerId: last.by }, BREAK_SECONDS, () => afterScene("onZeroStage", st, done));
+}
+// หลังฉากผนึกแตก/เข้าช่วงพังทลาย: ฮุค broadcast (ทาคุโตะ: คลิปเฟส 2/4 · ห่วงเวลาถูกทำลาย · ดาบรวมร่าง)
+//  → เล่นคลิป/ผลหลังคลิป/จังหวะพักที่ฮุคขอไว้ (cutscene.runSkillFlow) → done
+function afterScene(hookName, st, done) {
+  combat.broadcastHook(hookName, engine, st);
+  if ((match.cutsceneQueue && match.cutsceneQueue.length) || (match.afterCutscene && match.afterCutscene.length)) { cutscene.runSkillFlow(done); return; }
+  done();
 }
 // ปลดผนึก: กลับสนามเดิม (ตำแหน่งเดิม · ไม่ว่าง = ช่องว่างใกล้สุด) · ร้านกลับมา · ทุกคนเสีย 2 ยกเว้นคนทุบอันสุดท้าย
 function release(last, done) {
   const z = match.zero;
   const breaker = last && last.by ? match.players[last.by] : null;
+  // ช่วงมิติพังทลาย (ฮุค zeroCollapseTurns > 0): ยังไม่กลับสนามเดิม — แรงปลดผนึกลงตอนนี้ · ครบเวลาแล้ว maybeFinishCollapse
+  //  เทิร์นที่ผนึกแตกนับเป็นเทิร์นแรก (เหลือ N → … → 1 แล้วกลับตอนจบเทิร์น)
+  const turns = collapseTurns();
+  if (turns > 0) {
+    z.collapse = { total: turns, endRound: match.roundNumber + turns - 1, seq: match.roundNumber, done: false };
+    match.board.area = Board.ZERO_AREA + Board.ZERO_STAGES - 1; // หน้าตาสนามระดับสุดท้าย (ผนึกแตกหลายอันพร้อมกัน)
+    delete match.board.mapCache;
+    match.lastLog.push(`⏳ ห่วงเวลาซีโร่ถูกทำลาย — มิติค่อยๆ พังทลาย (${turns} เทิร์น)`);
+    releaseBlast(breaker);
+    playScene({ mode: "break", stage: Board.ZERO_STAGES, seal: last ? last.i : 0, breakerId: breaker ? breaker.id : null }, BREAK_SECONDS,
+      () => afterScene("onZeroCollapse", Board.ZERO_STAGES, done));
+    return;
+  }
+  restoreBoard(z);
+  releaseBlast(breaker);
+  playScene({ mode: "release", stage: 4, seal: last ? last.i : 0, breakerId: breaker ? breaker.id : null }, RELEASE_SECONDS, done);
+}
+// ช่วงมิติพังทลายครบเวลา (endTurn หลังเล่นคิวคัตซีน · ก่อนการเดินทาง) → กลับสนามเดิม + ฉากปลดผนึก → เทิร์นถัดไป
+function maybeFinishCollapse() {
+  const z = match.zero;
+  if (!z || !z.collapse || !z.collapse.done) return false;
+  restoreBoard(z);
+  playScene({ mode: "release", stage: 4, seal: 0, breakerId: null }, RELEASE_SECONDS, () => draw.dealRound());
+  return true;
+}
+// แรงปลดผนึก: ทุกคนเสีย 2 ยกเว้นคนทุบอันสุดท้าย (และฮุค zeroImmune)
+function releaseBlast(breaker) {
+  for (const p of combat.alivePlayers()) {
+    if ((breaker && p.id === breaker.id) || immune(p)) continue;
+    fieldHit(p, RELEASE_DMG);
+    match.lastLog.push(`💥 ${p.name} โดนแรงปลดผนึก -${RELEASE_DMG}`);
+    if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
+  }
+}
+// กลับสนามเดิม (ตำแหน่งเดิม · ไม่ว่าง = ช่องว่างใกล้สุด) · ร้านกลับมา · match.zero = null
+function restoreBoard(z) {
   match.board = z.saved.board;
   match.shopPos = z.saved.shopPos;
   match.zero = null;
@@ -306,13 +384,6 @@ function release(last, done) {
     if (a && a.pos) match.action = { ...match.action, from: { ...a.pos }, moved: true, locked: true, path: null };
   }
   match.lastLog.push("⏳ ปลดผนึก — เวลากลับมาเดินอีกครั้ง");
-  for (const p of alive) {
-    if (breaker && p.id === breaker.id) continue;
-    fieldHit(p, RELEASE_DMG);
-    match.lastLog.push(`💥 ${p.name} โดนแรงปลดผนึก -${RELEASE_DMG}`);
-    if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
-  }
-  playScene({ mode: "release", stage: 4, seal: last ? last.i : 0, breakerId: breaker ? breaker.id : null }, RELEASE_SECONDS, done);
 }
 // ช่องยืนใกล้ want ที่สุด (ทั้งตัวลงได้ ไม่ทับใคร/สิ่งกีดขวาง/ร้าน) — ตัวใหญ่ใช้ placeBig (ไม่พังของ)
 function spotNear(p, want) {
@@ -360,6 +431,7 @@ function publicInfo() {
     seals: z.seals.map((s, i) => ({ i, x: s.x, y: s.y, hp: s.hp, armor: s.armor, maxHp: SEAL_HP, maxArmor: SEAL_ARMOR, broken: s.broken })),
     pickups: z.pickups.map((q) => ({ x: q.x, y: q.y })),
     atk: attackBonus() ? attackBonus().amount : 0,
+    ...(z.collapse ? { collapse: { left: Math.max(0, z.collapse.endRound - match.roundNumber + 1), total: z.collapse.total, seq: z.collapse.seq } } : {}),
     scene,
   };
 }

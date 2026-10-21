@@ -402,6 +402,10 @@ test('ก่อกำเนิดใหม่: ฉาก rebirth (ระหว�
 
 test('ก่อกำเนิดใหม่: เทิร์นที่ใช้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (กลางวัน) · อยู่ครบ 6 เทิร์นนับจากเทิร์นนั้น · ร้านค้าปรากฏใหม่นับ 6 เทิร์นใหม่', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  // ห่วงเวลาซีโร่ (เปิดอยู่ 5%) อาจสุ่มเกิดตอนจบเทิร์น 9 (ถัดไปกลางคืน) — ปิดในเทสต์นี้
+  const Zero = require('../../server/zeroTime.js');
+  Zero.ZERO_ENABLED = false;
+  t.after(() => { Zero.ZERO_ENABLED = true; });
   rebirthSetup([['E', 'echo', 2, 2], ['B', 'dummy', 12, 12]], { round: 5 });
   assert.equal(engine.isNightRound(5), true, 'ภูมิภาคเดิม: เทิร์น 5 กลางคืน');
   const shopBefore = engine.shopItems;

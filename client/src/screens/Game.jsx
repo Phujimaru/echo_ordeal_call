@@ -807,6 +807,9 @@ const STATUS_INFO = {
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
   // องค์หญิงดอกไม้ เซลิน
   celineKing:    { icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "" },
+  // ซึนาชิ ทาคุโตะ (ดาบอันเจิดจรัด — เทิร์นที่เหลือ)
+  takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "" },
+  takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -905,6 +908,13 @@ function statusEntries(p, full) {
     else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/5`, cls: "bg-violet-200 text-gray-900", desc: "" });
     if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "" });
     else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "" });
+  }
+  // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
+  if (p.takuto) {
+    const t = p.takuto;
+    if (t.judgment) out.push({ key: "takutoJudgment", v: 1, icon: "⚔️", label: "ดาบแห่งการพิพากษา", cls: "bg-amber-200 text-gray-900", desc: "" });
+    if (t.secCd > 0) out.push({ key: "takutoSecCd", v: t.secCd, turns: true, icon: "⏳", label: "ดาบประกายแสง", cls: "bg-white/20", desc: "" });
+    if (t.ultCd > 0) out.push({ key: "takutoUltCd", v: t.ultCd, turns: true, icon: "⏳", label: t.collapse ? "ฉันยังมองเห็นอยู่" : "ทาวววว มิสไซล์", cls: "bg-white/20", desc: "" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {
@@ -2051,9 +2061,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   useEffect(() => {
     if (!pickReq) return;
     const gone = (pickReq.kind === "gun" && !(me?.inventory || []).some((it) => it.uid === pickReq.item.uid))
-      || (pickReq.kind === "suit" && !(me?.inventory || []).some((it) => it.uid === pickReq.uid));
+      || (pickReq.kind === "suit" && !(me?.inventory || []).some((it) => it.uid === pickReq.uid))
+      || (pickReq.kind === "action" && !(me?.actions || []).some((x) => x.key === pickReq.key && !x.disabled && Array.isArray(x.tiles) && x.tiles.length));
     if (!myTurn || canto || gone) setPickReq(null);
-  }, [pickReq, myTurn, canto, me?.inventory]);
+  }, [pickReq, myTurn, canto, me?.inventory, me?.actions]);
   // โหมดเลือกเป้าที่ส่งให้ BoardStage
   let boardPick = null;
   if (pickReq && me) {
@@ -2082,6 +2093,11 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
       boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "action") {
+      // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
+      const act = (me.actions || []).find((x) => x.key === pickReq.key);
+      const tiles = act && Array.isArray(act.tiles) ? act.tiles : [];
+      boardPick = { kind: "tile", place: "list", tiles, foot: Math.max(1, me.size | 0), label: act ? act.name : pickReq.key, onPick: (tile) => { socket.emit("charAction", { key: pickReq.key, tile }); done(); }, onCancel: done };
     } else if (pickReq.kind === "suit") {
       const { uid, mode } = pickReq;
       boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && !p.summon && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
@@ -2537,7 +2553,19 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
-              extra={(me?.actions || []).map((x) => ({ ...x, disabled: !!x.disabled || canto, onClick: () => { clickSound(); socket.emit("charAction", { key: x.key }); } }))}
+              extra={(me?.actions || []).map((x) => {
+                // tiles = เลือกช่องบนกระดานก่อน (กดซ้ำ = ยกเลิก) · ไม่มี = ส่งทันที (ม้าของไจโร/ดิเอโก้)
+                const picking = pickReq?.kind === "action" && pickReq.key === x.key;
+                const tiles = Array.isArray(x.tiles) && x.tiles.length ? x.tiles : null;
+                return {
+                  ...x, on: picking, disabled: !!x.disabled || canto || (Array.isArray(x.tiles) && !tiles),
+                  onClick: () => {
+                    clickSound();
+                    if (tiles) { setPickReq(picking ? null : { kind: "action", key: x.key }); return; }
+                    socket.emit("charAction", { key: x.key });
+                  },
+                };
+              })}
               onBag={() => { clickSound(); setBagOpen(true); }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}

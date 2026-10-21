@@ -256,6 +256,26 @@ const FILES = {
   ...Object.fromEntries([
     "turn1", "turn2", "turn3", "strike1", "strike2", "strike3", "struck1", "struck2", "tender1", "tender2", "weapon1", "ult1", "ult2",
   ].map((k) => [`celine_v_${k}`, `/characters/celine/voice/celine_v_${k}.m4a`])),
+  // ซึนาชิ ทาคุโตะ (GRID_PLAN §7.16 · contract §5–6) — เสียงเรียกดาบ = ไฟล์ผู้ใช้ · ที่เหลือสังเคราะห์ numpy ล้วน (.claude/plans/takuto-sfx.py) ~-15 LUFS
+  //  ตีปกติ: จุดกระแทกอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · เหตุการณ์: จังหวะในไฟล์ตรงกับฉาก takutoFx.js (TAKUTO_T)
+  takuto_sword_emerald: "/characters/takuto/sfx/takuto_sword_emerald.mp3",   // เรียกดาบเอเมอรูด (เสียงพากย์ 9.3 วิ)
+  takuto_sword_sapphire: "/characters/takuto/sfx/takuto_sword_sapphire.mp3", // เรียกดาบแซฟไฟร์ (เสียงพากย์ 4.1 วิ)
+  takuto_atk_punch: "/characters/takuto/sfx/takuto_atk_punch.mp3",       // ตีปกติ: หมัดทาวเบิร์น
+  takuto_atk_emerald: "/characters/takuto/sfx/takuto_atk_emerald.mp3",   // ตีปกติ: ฟันเฉียงเขียว
+  takuto_atk_sapphire: "/characters/takuto/sfx/takuto_atk_sapphire.mp3", // ตีปกติ: กวาดฟันฟ้าทั้งด้าน
+  takuto_atk_dual: "/characters/takuto/sfx/takuto_atk_dual.mp3",         // ตีปกติ: ฟันคู่ไขว้
+  takuto_atk_judgment: "/characters/takuto/sfx/takuto_atk_judgment.mp3", // ตีปกติ: ดาบแห่งการพิพากษา (ปะทะ + เสาแสงทอง)
+  takuto_transform: "/characters/takuto/sfx/takuto_transform.mp3",       // แปลงร่างเสร็จ (ทาวเบิร์น)
+  takuto_merge: "/characters/takuto/sfx/takuto_merge.mp3",               // ดาบรวมร่าง (วาบที่ 0.9 วิ)
+  takuto_vanish: "/characters/takuto/sfx/takuto_vanish.mp3",             // ดาบแตก/หาย
+  takuto_heal: "/characters/takuto/sfx/takuto_heal.mp3",                 // ดาบเอเมอรูดดูดพลัง / ฟื้นเฟส 4
+  takuto_dash: "/characters/takuto/sfx/takuto_dash.mp3",                 // พุ่งต้นตาเดิน
+  takuto_flash: "/characters/takuto/sfx/takuto_flash.mp3",               // ดาบประกายแสง (ชาร์จ → พุ่ง 0.42 → ฟัน 0.76/0.91 → สลับ 1.26 → ปะทะ 1.52 วิ)
+  takuto_missile: "/characters/takuto/sfx/takuto_missile.mp3",           // ทาวววว มิสไซล์ (ชาร์จ → ยิง 1.15 → ถึงปลาย 1.7 วิ)
+  takuto_steal: "/characters/takuto/sfx/takuto_steal.mp3",               // ขโมยแต้มสกิล (ลูกแสงฟ้า)
+  takuto_blast: "/characters/takuto/sfx/takuto_blast.mp3",               // ฉันยังมองเห็นอยู่ (รวมแสง → ระเบิด 1.3 → ถึงขอบ 1.95 วิ)
+  // เพลงช่วงมิติพังทลาย (state.skillMusic "takuto_theme")
+  takuto_theme: "/characters/takuto/takuto_theme.m4a",
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -328,6 +348,7 @@ const LOUDNESS_GAIN = {
   "/characters/yuna/yuna_longing.mp3": 0.63, // -10.0 LUFS
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
+  "/characters/takuto/takuto_theme.m4a": 0.5, // -8.0 LUFS (ffmpeg ebur128)
   // เกรย์ (ffmpeg ebur128 ทั้งไฟล์) — contro -14.6 / standBy -14.1 / skill3_intro.mp4 -16.2 / skill3_final.mp4 -15.5 อยู่ที่เป้าแล้ว ไม่อยู่ในตาราง
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }

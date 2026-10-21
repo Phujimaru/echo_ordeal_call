@@ -119,7 +119,7 @@ export function HudCommand({ skills, attack, shop, ride, drop, extra, onBag, und
         {ride && <button type="button" className="hc-btn ride" disabled={ride.disabled} onClick={ride.onClick}><span className="ico">🎠</span><b>ขี่</b></button>}
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}
         {(extra || []).map((x) => (
-          <button key={x.key} type="button" className="hc-btn ride" disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
+          <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
         ))}
         <button type="button" className="hc-btn bag" onClick={onBag}><span className="ico">{BAG}</span><b>กระเป๋า</b></button>
         <div className="hc-row">

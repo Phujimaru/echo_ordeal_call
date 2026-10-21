@@ -12,8 +12,9 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   const journey = state?.journey;
   // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เพลงตามระดับ เล่นเสมอ — เพลงท่าไม้ตาย/เพลงอื่นทับไม่ได้ (ผู้ใช้สั่ง)
   //  ฉากปลดผนึก (zero.active = false) = กลับเพลงภูมิภาค
+  //  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ) = ไม่เล่นเพลง zero_N ให้เพลงสกิล (takuto_theme) เล่นแทน
   const zero = state?.zero;
-  if (zero && zero.active && isMatchPhase(phase)) return { name: `zero_${Math.min(4, Math.max(1, zero.stage || 1))}` };
+  if (zero && zero.active && !zero.collapse && isMatchPhase(phase)) return { name: `zero_${Math.min(4, Math.max(1, zero.stage || 1))}` };
   if (state?.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
   // ระบบกระดาน: ทุกคนได้ตีในตาของตัวเอง — ฉากตี (ATTACKING) ไม่สลับไปเพลงช่วงโจมตีแล้ว (สลับไปมาทุกตา = รก)
   if (isMatchPhase(phase)) {

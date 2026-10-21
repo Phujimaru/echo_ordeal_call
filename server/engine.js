@@ -44,6 +44,7 @@ const TimeStop = require("./timeStop");
 const Dim = require("./dimension");
 const Summon = require("./summon");
 const Visibility = require("./visibility");
+const Zero = require("./zeroTime");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -100,6 +101,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้ — server/zeroTime.js) · ผลภูมิภาค/กลางวันกลางคืนอ่านค่านี้
   get worldRound() { return match.roundNumber - (match.zeroFrozen || 0); },
   zeroActive() { return !!match.zero; },
+  zeroStage() { return Zero.stage(); },           // เฟสห่วงเวลาซีโร่ 1–4 (0 = ไม่ได้อยู่)
+  zeroCollapsing() { return Zero.collapsing(); }, // ช่วงมิติพังทลาย (ทาคุโตะ — server/zeroTime.js)
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
   get legStart() { return match.legStart; }, // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea)

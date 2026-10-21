@@ -273,13 +273,14 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'rideAsk', (id, { targetId } = {}) => Ride.ask(id, targetId), 6);
   onPlayerEvent(socket, 'rideAnswer', (id, { ok } = {}) => Ride.answer(id, ok === true), 6);
   onUnitEvent(socket, 'rideDrop', (id) => Ride.drop(id), 6); // ตัวที่ถูกขี่สั่งให้ลง (ตาของตัวเอง)
-  // ปุ่มพิเศษบน HUD ของตัวละคร (ไม่ใช่ช่องสกิล — state.players[].actions จากฮุค hudActions) → ฮุค charAction(engine, p, key)
-  //  ไจโร: ขึ้น/ลงม้า · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
-  onUnitEvent(socket, 'charAction', (id, { key } = {}) => {
+  // ปุ่มพิเศษบน HUD ของตัวละคร (ไม่ใช่ช่องสกิล — state.players[].actions จากฮุค hudActions) → ฮุค charAction(engine, p, key, { tile })
+  //  ไจโร: ขึ้น/ลงม้า · ทาคุโตะ: พุ่ง (ปุ่มที่มี tiles — client ให้เลือกช่องแล้วส่ง tile) · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
+  onUnitEvent(socket, 'charAction', (id, { key, tile } = {}) => {
     const p = match.players[id];
     const hook = p && CHAR_HOOKS[p.characterId];
     if (!hook || !hook.charAction || typeof key !== 'string') return;
-    combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key));
+    const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
+    combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key, { tile: t }));
   }, 8);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);

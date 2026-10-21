@@ -114,6 +114,40 @@
         "ECHO_DEV_ACTION_TIME": "600",
         "JOURNEY_START_SECONDS": "0"
       }
+    },
+    {
+      "name": "server-takuto",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3007,
+      "env": {
+        "PORT": "3007",
+        "ECHO_DEV_ZERO": "1",
+        "ECHO_DEV_ZERO_SEAL_HP": "1",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-takuto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5177",
+        "--strictPort"
+      ],
+      "port": 5177,
+      "env": {
+        "ECHO_SERVER_PORT": "3007"
+      }
     }
   ]
 }

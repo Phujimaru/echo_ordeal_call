@@ -259,7 +259,7 @@ function buildStateFor(viewerId) {
         teamId: p.teamId || null,
         teamConfirmed: !!p.teamConfirmed,
         // คูลดาวน์/ล็อกรายช่องของตัวละคร (โอเบรอน) — client ใช้ทำปุ่มเทา + ตัวเลขคูลดาวน์
-        skillLocks: zeroLocks(CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
+        skillLocks: zeroLocks(p, CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
           ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
@@ -336,8 +336,9 @@ function buildStateFor(viewerId) {
         valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งที่ 6 / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
+        takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
-        // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key }
+        // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key } · มี tiles = เลือกช่องก่อน → { key, tile }
         actions: mine && hook && hook.hudActions ? hook.hudActions(engine, p) || undefined : undefined,
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
@@ -381,9 +382,9 @@ function unseenPub(o, p) {
     actions: undefined,
   };
 }
-// ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)
-function zeroLocks(locks) {
-  if (!Zero.ultLocked()) return locks;
+// ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก (ยกเว้นฮุค zeroImmune · ช่วงมิติพังทลาย) — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)
+function zeroLocks(p, locks) {
+  if (!Zero.ultLocked(p)) return locks;
   return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
 }
 function broadcastState() {

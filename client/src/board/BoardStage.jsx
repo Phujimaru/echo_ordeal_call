@@ -35,6 +35,7 @@ import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
+import { takutoEventFx } from "./takutoFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -413,6 +414,27 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     }
+    if (pick.kind === "tile" && pick.place === "list") {
+      // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
+      //  ชี้ช่องไหน = กรอบที่ให้กลางตัวอยู่ช่องนั้น · ไม่มี = กรอบในรายการที่ครอบช่องนั้นและกลางตัวใกล้สุด
+      const n = Math.max(1, pick.foot | 0), c = Math.floor((n - 1) / 2);
+      const anchors = (Array.isArray(pick.tiles) ? pick.tiles : []).filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y) && Rules.inBounds(map, t.x, t.y));
+      const cells = new Set();
+      for (const a of anchors) for (const t of Rules.footprint(a.x, a.y, n)) if (Rules.inBounds(map, t.x, t.y)) cells.add(key(t.x, t.y));
+      const anchorOf = (x, y) => {
+        const want = anchors.find((a) => a.x === x - c && a.y === y - c);
+        if (want) return want;
+        let best = null, bd = Infinity;
+        for (const a of anchors) {
+          if (!Rules.covers({ x: a.x, y: a.y, size: n }, x, y)) continue;
+          const d = Math.abs(a.x + (n - 1) / 2 - x) + Math.abs(a.y + (n - 1) / 2 - y);
+          if (d < bd) { bd = d; best = a; }
+        }
+        return best;
+      };
+      const skill = [...cells];
+      return { tile: true, list: true, foot: n, anchorOf, skill, validSet: new Set(skill) };
+    }
     if (pick.kind === "tile" && pick.place === "wall") {
       const valid = Rules.tilesInRange(map, me.pos.x, me.pos.y, [0, pick.range | 0], sizeOfP(me)).filter((t) => wallPlan(t, wallOrient).ok).map((t) => key(t.x, t.y));
       return { tile: true, wall: true, skill: valid, validSet: new Set(valid) };
@@ -456,6 +478,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   };
   const pickTileAt = (x, y) => {
     if (!pick || pick.kind !== "tile" || !pickInfo || !pickInfo.tile) return;
+    if (pickInfo.list) {
+      const a = pickInfo.anchorOf(x, y);
+      if (!a) return;
+      clickSound();
+      pick.onPick({ x: a.x, y: a.y });
+      return;
+    }
     if (dirPick) {
       const ar = dirPick.arrows.find((a) => a.x === x && a.y === y);
       if (ar && ar.ok) { clickSound(); setDirPick(null); pick.onPick({ x: dirPick.x, y: dirPick.y }, ar.dir, dirPick.orient); }
@@ -730,7 +759,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const myth = a.byHitFx === "mythSlash";
       if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
-      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null }]));
+      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
       // เสียงของท่าฮิคารุเริ่มก่อนปะทะ (ช่วงดังสุดของไฟล์ตรงจังหวะปะทะ)
@@ -1480,6 +1509,35 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("celineFx", onCeline);
   }, [pushFx, look, lowQ]);
 
+  // ซึนาชิ ทาคุโตะ: socket "takutoFx" { kind, id, color, at, size, ... } → takutoFx.js (GRID_PLAN §7.16 · contract §5) · เสียงมาจาก server
+  //  dash / flash = ตัวที่ฉากย้ายเอง (takutoPose) จดไว้ใน shadowBusy (ไม่เลื่อนซ้ำตอน state มาถึง)
+  //  flash / missile / blast: server พัก 1.6 / 1.8 / 2.0 วิก่อนดาเมจลง — คนที่โดนสั่น (hitIds) + จอสั่นตรงจังหวะปะทะในฉาก
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const idsOn = (tiles, owner) => {
+      const ks = new Set(tiles.map((t) => key(t.x, t.y))), me0 = recOf(owner);
+      return Object.values(byIdRef.current).filter((p) => p && p.alive && p.pos && p.id !== owner
+        && !(me0 && (sameSide(p, me0) || (!!me0.teamId && p.teamId === me0.teamId)))
+        && (!me0 || dimOf(p) === dimOf(me0))
+        && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => ks.has(key(t.x, t.y)))).map((p) => p.id);
+    };
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const onTakuto = (ev) => {
+      const out = takutoEventFx(ev, { posOf, sizeOf, idsOn });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      pushFx(out.fx);
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
+    };
+    socket.on("takutoFx", onTakuto);
+    return () => socket.off("takutoFx", onTakuto);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1522,7 +1580,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         return h;
       }
       h.skill = pickInfo.skill;
-      if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) {
+      if (hover && pickInfo.list) {
+        // กรอบเท่าตัวที่จะไปอยู่ (ตัวใหญ่ = กรอบ n×n แบบเดินตัวใหญ่)
+        const a = pickInfo.anchorOf(hover.x, hover.y);
+        if (a) {
+          const fp = Rules.footprint(a.x, a.y, pickInfo.foot).map((t) => key(t.x, t.y));
+          h.aoe = fp;
+          if (pickInfo.foot > 1) h.ghost = fp;
+        }
+      } else if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) {
         h.aoe = pickInfo.wall ? wallPlan(hover, wallOrient).placed.map((t) => key(t.x, t.y))
           : pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
       }
@@ -1662,6 +1728,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!hover || !pickInfo.validSet.has(key(hover.x, hover.y))) return null;
     return { tiles: wallPlan(hover, wallOrient).placed, orient: wallOrient, ok: true };
   }, [pickInfo, dirPick, hover, wallPlan, wallOrient]);
+  // ซึนาชิ ทาคุโตะ (takutoFx.js): ทาวเบิร์นถือดาบ (p.takuto.emerald / sapphire = เทิร์นที่เหลือ · judgment) · ช่วงมิติพังทลาย (collapse)
+  //  ร่างคนถือดาบไม่ได้ = ไม่วาด
+  const takutoSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.takuto && p.takuto.form === "tauburn" && sameDim(p))
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), emerald: p.takuto.emerald > 0, sapphire: p.takuto.sapphire > 0, judgment: !!p.takuto.judgment, collapse: !!p.takuto.collapse }))
+    .filter((c) => c.emerald || c.sapphire || c.judgment || c.collapse));
+  const takutos = useMemo(() => { const list = JSON.parse(takutoSig); return list.length ? list : null; }, [takutoSig]);
   const celineProp = useMemo(() => {
     const kings = JSON.parse(kingSig);
     if (!celFlora.length && !kings.length && !wallHold.length && !wallPreview) return null;
@@ -1943,6 +2015,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         songs={songs}
         grays={grays}
         ferns={ferns}
+        takutos={takutos}
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}

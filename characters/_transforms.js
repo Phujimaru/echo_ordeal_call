@@ -15,6 +15,7 @@ const hikaru = require("./raido_hikaru");
 const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแรงดังไฟ (ทุกครั้งที่กด)
 const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
+const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่างทาวเบิร์น / เฟส 2·4 / ห่วงเวลาถูกทำลาย / ดาบรวมร่าง / ปาดาบ / สกิล
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -57,6 +58,17 @@ module.exports = function buildTransforms() {
     celineCritSword: { img: celine.IMG.base, video: celine.VIDEO.critSword, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 2.6, music: null, afterReveal: false, noIntro: true },
     celineCritMage: { img: celine.IMG.base, video: celine.VIDEO.critMage, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 3.5, music: null, afterReveal: false, noIntro: true },
     celineUlt: { img: celine.IMG.skill3, video: null, title: "สวนดอกไม้ของฉัน", label: "ราชาดอกไม้", seconds: 0, music: null, afterReveal: false },
+    // ซึนาชิ ทาคุโตะ — ความยาวจริง (ffprobe) 29.4 / 13.1 / 4.9 / 10.5 / 1.13 / 12.9 / 17.3 / 14.9 / 18.4 วิ ปัดขึ้น
+    //  แปลงร่าง/เฟส/ห่วงเวลาถูกทำลาย = คิวจากโค้ด (ครั้งเดียวต่อเกมตามจังหวะห่วงเวลา) · ปาดาบ = ทุกครั้ง (preAttackClip) · สกิล = เต็มครั้งแรกต่อเกม (triggerCutscene)
+    takutoTauburn:  { img: takuto.IMG.tauburn, video: takuto.VIDEO.tauburn,     title: "ทาวเบิร์น",              label: "apprivoise", seconds: 30, music: null, afterReveal: false },
+    takutoPassive:  { img: takuto.IMG.tauburn, video: takuto.VIDEO.passive,     title: "apprivoise",             label: "ทาวเบิร์น", seconds: 14, music: null, afterReveal: false },
+    takutoPassive2: { img: takuto.IMG.tauburn, video: takuto.VIDEO.passive2,    title: "apprivoise",             label: "ทาวเบิร์น", seconds: 5.5, music: null, afterReveal: false, noIntro: true },
+    takutoPassive3: { img: takuto.IMG.zero,    video: takuto.VIDEO.passive3,    title: "ห่วงเวลาถูกทำลาย",       label: "ทาวเบิร์น", seconds: 11, music: null, afterReveal: false },
+    takutoDuo:      { img: takuto.IMG.zero,    video: takuto.VIDEO.duo,         title: "ดาบแห่งการพิพากษา",      label: "ทาวเบิร์น", seconds: 1.6, music: null, afterReveal: false, noIntro: true },
+    takutoDuoHit:   { img: takuto.IMG.zero,    video: takuto.VIDEO.duoHit,      title: "ดาบแห่งการพิพากษา",      label: "ทาวเบิร์น", seconds: 13.5, music: null, afterReveal: false, noIntro: true },
+    takutoFlash:    { img: takuto.IMG.skill2,  video: takuto.VIDEO.skill2,      title: "ดาบประกายแสง",           label: "ทาวเบิร์น", seconds: 18, music: null, afterReveal: false },
+    takutoMissile:  { img: takuto.IMG.skill3,  video: takuto.VIDEO.skill3,      title: "ทาวววว มิสไซล์",          label: "ปล่อยท่าไม้ตาย", seconds: 15.5, music: null, afterReveal: false },
+    takutoBlast:    { img: takuto.IMG.zero,    video: takuto.VIDEO.skill3Extra, title: "ฉันยังมองเห็นอยู่",       label: "ปล่อยท่าไม้ตาย", seconds: 19, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
     mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },

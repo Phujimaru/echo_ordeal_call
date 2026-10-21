@@ -9,6 +9,9 @@
 //    ambient   วงแหวนทองครึ่งหน้า · อนุภาค · ลำแสงจากฟ้า (lowQ ข้าม)
 //   ผนึกมิโกะ (สิ่งกีดขวางชนิด "seal"): แท่นทอง + เสาแสงขึ้นฟ้า + วงหนาม + อักษรฟินิเชียน + วงโซ่ทองโคจรรอบนอก (ห้ามบังอักษร — ผู้ใช้สั่ง)
 //   เอฟเฟกต์: zeroBolt (ฟ้าผ่าเฟส 4) · sealBreak (ผนึกแตก + ชิ้นโซ่ร่วง)
+//   ช่วงมิติพังทลาย (zero.collapse { left, total } — ทาคุโตะ · ภาพเท่านั้น): ความคืบหน้า = (total − left + 1) / total ค่อยๆ ไล่ (COLLAPSE_TWEEN)
+//    animBack  สีฟ้าจางลง + ท้องฟ้าแตกเป็นช่องว่างดำขอบแดง · overBoard พื้นซีด + รอยร้าวแดงลามทุกเทิร์น + ขอบเวทีแตกเป็นหลุมดำ (เศษร่วง)
+//    ambient   เศษหินลอยหลุดขึ้นฟ้า
 //   ฉากเปลี่ยนผ่าน (BoardCanvas ใช้): zeroWavePath · zeroBeam · zeroWaveRing · zeroCracks · makeShards/drawShards
 // ============================================================
 import { faceVisible, gEllipse, glow, P, PS, rng } from "./boardGeo";
@@ -152,6 +155,151 @@ function haloPieces(i, sx, sy, R, s, now) {
   const pts = [], rr = R * 1.66, rot = now / 3300 + i;
   for (let j = 0; j <= 56; j++) { const a = rot + j / 56 * TAU; pts.push([sx + Math.cos(a) * rr, sy + Math.sin(a) * rr * 0.9, s]); }
   return chainPieces(pts, 0.42);
+}
+
+// =================================================================== ช่วงมิติพังทลาย (ทาคุโตะ)
+//  ค่า k ที่วาดไล่ตามเป้าแบบนุ่ม (เข้าช่วง = จาก 0 · เทิร์นใหม่ = จากค่าที่วาดอยู่) — จำในโมดูล (มีกระดานเดียวต่อหน้า)
+const COLLAPSE_TWEEN = 2200;
+const COL = { seq: null, from: 0, to: 0, t0: 0 };
+const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+function collapseK(z) {
+  const c = z && z.collapse;
+  if (!c) { COL.seq = null; return 0; }
+  const total = Math.max(1, Number(c.total) || 5), left = Math.max(0, Math.min(total, Number(c.left) || 0));
+  const target = clamp01((total - left + 1) / total), tn = nowMs();
+  const cur = COL.seq == null ? 0 : COL.from + (COL.to - COL.from) * easeOut(clamp01((tn - COL.t0) / COLLAPSE_TWEEN));
+  if (COL.seq == null || COL.to !== target) { COL.seq = c.seq ?? 0; COL.from = cur; COL.to = target; COL.t0 = tn; }
+  return COL.from + (COL.to - COL.from) * easeOut(clamp01((tn - COL.t0) / COLLAPSE_TWEEN));
+}
+const hashN = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+// รอยร้าว: เส้นสุ่มเดินจากจุดเริ่ม (มุม/กลางขอบ/กลางเวที) แตกกิ่ง · แต่ละท่อนมีเกณฑ์ k ที่เริ่มเห็น
+let CRACKS = null;
+function crackNet(N, M) {
+  if (CRACKS && CRACKS.N === N && CRACKS.M === M) return CRACKS.segs;
+  const r = rng(4243), segs = [];
+  const origins = [[0.4, 0.4, 0.05], [N - 0.4, 0.4, 0.08], [N - 0.4, M - 0.4, 0.11], [0.4, M - 0.4, 0.14], [N / 2, M / 2, 0.3],
+    [N / 2, 0.2, 0.2], [N - 0.2, M / 2, 0.24], [N / 2, M - 0.2, 0.36], [0.2, M / 2, 0.42], [N * 0.3, M * 0.7, 0.55], [N * 0.72, M * 0.28, 0.6]];
+  const walk = (x, y, a, len, th0, depth) => {
+    for (let i = 0; i < len; i++) {
+      a += (r() - 0.5) * 0.9;
+      const st = 0.35 + r() * 0.45, nx = Math.max(0, Math.min(N, x + Math.cos(a) * st)), ny = Math.max(0, Math.min(M, y + Math.sin(a) * st));
+      segs.push({ x0: x, y0: y, x1: nx, y1: ny, th: th0 + i * 0.045, w: depth ? 0.6 : 1 });
+      x = nx; y = ny;
+      if (depth < 2 && r() < 0.22) walk(x, y, a + (r() < 0.5 ? 1 : -1) * (0.7 + r() * 0.6), Math.floor(len * 0.5), th0 + i * 0.045 + 0.05, depth + 1);
+    }
+  };
+  for (const [x, y, th] of origins) {
+    const toC = Math.atan2(M / 2 - y, N / 2 - x);
+    for (let k = 0; k < 2; k++) walk(x, y, toC + (k ? 0.9 : -0.9) * (0.4 + r() * 0.6), 9 + Math.floor(r() * 6), th, 0);
+  }
+  CRACKS = { N, M, segs };
+  return segs;
+}
+// หลุมดำขอบเวที: ระยะจากขอบ d = 0 แตกก่อน · d = 1 ตามมา · ข้างในไม่แตก
+const voidTh = (x, y, N, M) => { const d = Math.min(x, y, N - 1 - x, M - 1 - y); return d > 1 ? 9 : 0.3 + d * 0.36 + hashN(x * 31 + y * 17) * 0.24; };
+// รอยแยกในท้องฟ้า (พิกัดสัดส่วนของส่วนที่มองเห็น)
+const SKY_RIFTS = Array.from({ length: 9 }, (_, i) => ({ u: [0.08, 0.3, 0.55, 0.82, 0.95, 0.04, 0.68, 0.2, 0.9][i], v: [0.12, 0.05, 0.16, 0.08, 0.32, 0.4, 0.3, 0.28, 0.55][i], r: 0.05 + hashN(i + 3) * 0.06, th: 0.15 + i * 0.09, seed: i * 13 + 1 }));
+function riftPath(g, cx, cy, R, seed) {
+  g.beginPath();
+  for (let k = 0; k < 9; k++) {
+    const a = k / 9 * TAU + hashN(seed + k) * 0.4, rr = R * (0.55 + hashN(seed + k * 3) * 0.6);
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.8;
+    if (k) g.lineTo(x, y); else g.moveTo(x, y);
+  }
+  g.closePath();
+}
+// ฉากหลัง: ฟ้าซีด + ช่องว่างดำในท้องฟ้า
+function collapseBack(g, f, k) {
+  if (k <= 0.001) return;
+  const v = f.view, VW = v.x1 - v.x0, VH = v.y1 - v.y0;
+  g.save();
+  g.globalCompositeOperation = "saturation"; g.fillStyle = `rgba(128,128,128,${0.25 + 0.6 * k})`; g.fillRect(v.x0, v.y0, VW, VH);
+  g.globalCompositeOperation = "multiply"; g.fillStyle = `rgba(150,120,130,${0.5 * k})`; g.fillRect(v.x0, v.y0, VW, VH);
+  g.globalCompositeOperation = "source-over";
+  const S = Math.max(VW, VH);
+  for (const rf of SKY_RIFTS) {
+    const q = clamp01((k - rf.th) / 0.35);
+    if (q <= 0) continue;
+    const cx = v.x0 + rf.u * VW, cy = v.y0 + rf.v * VH, R = rf.r * S * (0.3 + 0.7 * easeOut(q));
+    g.save();
+    riftPath(g, cx, cy, R * 1.12, rf.seed); g.fillStyle = `rgba(255,40,60,${0.35 * q})`; g.fill();
+    riftPath(g, cx, cy, R, rf.seed); g.fillStyle = "rgba(3,0,6,.97)"; g.fill();
+    g.clip();
+    for (let i = 0; i < 10; i++) { g.fillStyle = `rgba(190,150,255,${0.5 * hashN(rf.seed + i)})`; g.fillRect(cx + (hashN(rf.seed + i * 7) - 0.5) * R * 1.6, cy + (hashN(rf.seed + i * 11) - 0.5) * R * 1.3, 1.6, 1.6); }
+    g.restore();
+    riftPath(g, cx, cy, R, rf.seed); g.strokeStyle = `rgba(255,70,90,${0.8 * q})`; g.lineWidth = 1.6; g.stroke();
+  }
+  g.restore();
+}
+// พื้นเวที: ซีด/มืด + รอยร้าว + หลุมดำขอบเวที (เศษร่วงตอนแตก)
+function collapseFloor(g, f, k, now) {
+  if (k <= 0.001) return;
+  const N = f.info.cols, M = f.info.rows;
+  g.save();
+  polyZ(g, [[0, 0, 0], [N, 0, 0], [N, M, 0], [0, M, 0]]);
+  g.globalCompositeOperation = "saturation"; g.fillStyle = `rgba(128,128,128,${0.2 + 0.55 * k})`; g.fill();
+  g.globalCompositeOperation = "multiply"; g.fillStyle = `rgba(120,90,100,${0.55 * k})`; g.fill();
+  g.globalCompositeOperation = "source-over";
+  // รอยร้าว: ท่อนที่ผ่านเกณฑ์แล้ว (ท่อนใหม่ค่อยๆ ยืดออก)
+  const segs = crackNet(N, M), glowK = 0.6 + 0.4 * Math.sin(now / 420), live = [];
+  for (const sg of segs) {
+    const q = clamp01((k - sg.th) / 0.06);
+    if (q <= 0) continue;
+    const a = P(sg.x0, sg.y0, 0.01), b = P(sg.x0 + (sg.x1 - sg.x0) * q, sg.y0 + (sg.y1 - sg.y0) * q, 0.01);
+    live.push([a, b, sg.w]);
+  }
+  g.lineCap = "round"; g.lineJoin = "round";
+  for (const [a, b, w] of live) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.strokeStyle = "rgba(8,0,4,.9)"; g.lineWidth = (1.5 + 2.6 * k) * w; g.stroke(); }
+  g.globalCompositeOperation = "lighter";
+  for (const [a, b, w] of live) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.strokeStyle = `rgba(255,50,70,${(0.45 + 0.4 * k) * glowK})`; g.lineWidth = (0.8 + 0.8 * k) * w; g.stroke(); }
+  g.globalCompositeOperation = "source-over";
+  // หลุมดำ
+  for (let y = 0; y < M; y++) for (let x = 0; x < N; x++) {
+    const th = voidTh(x, y, N, M);
+    if (k < th) continue;
+    const age = clamp01((k - th) / 0.08);
+    polyZ(g, [[x, y, 0], [x + 1, y, 0], [x + 1, y + 1, 0], [x, y + 1, 0]]);
+    g.fillStyle = `rgba(4,0,8,${0.96 * age})`; g.fill();
+    // ขอบแดงที่ติดพื้นที่ยังไม่แตก
+    g.globalCompositeOperation = "lighter";
+    for (const [dx, dy, ax, ay, bx, by] of [[0, -1, x, y, x + 1, y], [1, 0, x + 1, y, x + 1, y + 1], [0, 1, x, y + 1, x + 1, y + 1], [-1, 0, x, y, x, y + 1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= N || ny >= M || k >= voidTh(nx, ny, N, M)) continue;
+      gLine(g, ax, ay, bx, by, 0.01); g.strokeStyle = `rgba(255,60,80,${0.7 * age * glowK})`; g.lineWidth = 2; g.stroke();
+    }
+    g.globalCompositeOperation = "source-over";
+    // ดาวไกลในหลุม
+    if (hashN(x * 7 + y * 13) > 0.6) { const [sx, sy] = P(x + 0.3 + hashN(x + y) * 0.4, y + 0.3 + hashN(x * 3 + y) * 0.4, 0); g.fillStyle = `rgba(200,160,255,${0.6 * age})`; g.fillRect(sx - 0.8, sy - 0.8, 1.6, 1.6); }
+    // แผ่นพื้นร่วงลงตอนเพิ่งแตก
+    if (age < 1) {
+      const z = -1.6 * easeOut(age) * age;
+      polyZ(g, [[x + 0.06, y + 0.06, z], [x + 0.94, y + 0.06, z], [x + 0.94, y + 0.94, z], [x + 0.06, y + 0.94, z]]);
+      g.fillStyle = `rgba(70,40,48,${1 - age})`; g.fill(); g.strokeStyle = `rgba(255,80,90,${0.8 * (1 - age)})`; g.lineWidth = 1.2; g.stroke();
+    }
+  }
+  g.restore();
+}
+// เศษหินลอยหลุดขึ้นฟ้า (จำนวนตาม k) — ทับตัวละคร (ambient)
+const DEBRIS = Array.from({ length: 46 }, (_, i) => ({ e: hashN(i + 1), s: hashN(i + 7), p: hashN(i + 13), sz: 0.1 + hashN(i + 19) * 0.22, sp: 0.5 + hashN(i + 23) * 0.8, th: hashN(i + 29) }));
+function collapseAir(g, f, k, now) {
+  if (k <= 0.001) return;
+  const N = f.info.cols, M = f.info.rows, tt = now / 1000;
+  g.save();
+  for (const d of DEBRIS) {
+    if (d.th > 0.15 + k * 0.85) continue;
+    // จุดเริ่ม: รอบขอบเวที
+    const side = Math.floor(d.e * 4), along = d.s * (side % 2 ? M : N);
+    const x0 = side === 0 ? along : side === 1 ? N - 0.3 : side === 2 ? N - along : 0.3, y0 = side === 0 ? 0.3 : side === 1 ? along : side === 2 ? M - 0.3 : M - along;
+    const ph = (tt * 0.06 * d.sp + d.p) % 1, z = ph * 9 - 0.6, x = x0 + Math.sin(tt * 0.4 + d.p * 9) * 0.3, y = y0 + Math.cos(tt * 0.3 + d.p * 7) * 0.3;
+    const [sx, sy, sc] = P(x, y, z), r = d.sz * sc, al = Math.min(1, ph * 5) * (1 - ph) * (0.6 + 0.4 * k);
+    if (al <= 0.02) continue;
+    const rot = tt * (d.p - 0.5) * 2 + d.e * 6;
+    g.save(); g.translate(sx, sy); g.rotate(rot); g.globalAlpha = al;
+    g.beginPath(); g.moveTo(-r, -r * 0.5); g.lineTo(r * 0.3, -r * 0.8); g.lineTo(r, -r * 0.1); g.lineTo(r * 0.5, r * 0.7); g.lineTo(-r * 0.7, r * 0.5); g.closePath();
+    g.fillStyle = "#3a2228"; g.fill(); g.strokeStyle = "rgba(255,80,96,.85)"; g.lineWidth = 1; g.stroke();
+    g.restore();
+  }
+  g.restore();
 }
 
 // =================================================================== ธีม (regionThemes ใช้)
@@ -354,10 +502,13 @@ function makeTheme(sv) {
       }
       if (sv === 4) { const [mx, my] = P(cx, cy); glow(g, mx, my, 700, "120,10,20", 0.18 + 0.08 * Math.sin(t / 650)); }
       drawRings(g, S, false, t, cx, cy);
+      // ช่วงมิติพังทลาย: ฟ้าซีด + ท้องฟ้าแตก (หลังเวที)
+      if (f.zero && f.zero.collapse) collapseBack(g, f, collapseK(f.zero));
     },
     // บนพื้นเวที ใต้ตัวละคร: โซ่ทองขอบเวที (ระหว่างผนึกที่ยังไม่แตก) + ของฟื้นพลังชีวิต
     overBoard(g, f, t) {
       const z = f.zero, anim = f.zeroAnim || {};
+      if (z && z.collapse) collapseFloor(g, f, collapseK(z), t);
       const seals = z && Array.isArray(z.seals) ? z.seals : null;
       if (seals && seals.length === 4) {
         for (let k = 0; k < 4; k++) {
@@ -384,6 +535,7 @@ function makeTheme(sv) {
         if (m.s > 1.3 && S.mote !== "ash") glow(g, sx, sy, 0.12 * s, col, 0.35 * tw);
       }
       drawRays(g, S, f.view, t);
+      if (f.zero && f.zero.collapse) collapseAir(g, f, collapseK(f.zero), t);
     },
   };
 }

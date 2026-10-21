@@ -533,9 +533,30 @@ function MoonIcon() {
   );
 }
 // ห่วงเวลาซีโร่ (zero.active): แทนป้ายภูมิภาค — ผนึก 4 อัน (ชมพู = ยังอยู่) · บัฟสะสม · ท่าไม้ตายล็อก · กดไม่ได้
+//  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ): นาฬิกาทราย + เทิร์นที่เหลือแทนบัฟ (ท่าไม้ตายไม่ล็อก)
 function ZeroChip({ zero }) {
   const seals = Array.isArray(zero.seals) ? [...zero.seals].sort((a, b) => a.i - b.i) : [];
   const bp = zero.buffPhase || 0;
+  const col = zero.collapse && Number.isFinite(Number(zero.collapse.left)) ? zero.collapse : null;
+  if (col) {
+    return (
+      <div className="hud-top-region hud-top-zero" data-collapse="true">
+        <span className="hud-top-gem hud-zero-gem"><span>0</span></span>
+        <span className="hud-top-text">
+          <span className="hud-top-name">ห่วงเวลาซีโร่</span>
+          <span className="hud-top-sub">เฟส {zero.stage}</span>
+        </span>
+        <span className="hud-zero-info">
+          <span className="hud-zero-seals">
+            {seals.map((s) => <i key={s.i} data-on="false" />)}
+          </span>
+          <span className="hud-zero-buffs">
+            <span className="hud-zero-left"><ZeroIcon name="hourglass" /><b>{Math.max(0, col.left | 0)}</b></span>
+          </span>
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="hud-top-region hud-top-zero">
       <span className="hud-top-gem hud-zero-gem"><span>0</span></span>

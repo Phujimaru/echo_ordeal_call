@@ -743,9 +743,10 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
 client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
-- **ปิดอยู่** (2026-10-12 · เปิดกลับใน 5.6.12 แล้วผู้ใช้สั่งปิดอีก 2026-10-15): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ระบบทั้งหมดยังอยู่ครบ เปิดกลับได้ด้วยค่าเดียว — ห้ามเปิดเองโดยไม่ได้รับคำสั่ง
+- **เปิดอยู่ 5%** (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · ผู้ใช้สั่งเปิดกลับ 2026-10-21 พร้อมทาคุโตะ): `ZERO_ENABLED = true` · `false` = `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`)
+  · เทสต์ที่จบเทิร์น 9+ ด้วย Math.random จริงอาจสุ่มติด — ปิด `Zero.ZERO_ENABLED` ในเทสต์นั้น (ดู echo.test.js ก่อกำเนิดใหม่) · ฮุคตัวละคร/ช่วงมิติพังทลาย ดู §28
 - **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
-  → ทอย `ZERO_CHANCE` 30% · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
+  → ทอย `Zero.chance()` = `ZERO_CHANCE` 5% + ฮุค `zeroChanceBonus` (ทาคุโตะ +45) · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
   · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)
 - **เข้า** (`enter`): เก็บ `saved` { board, shopPos, positions } → `placeOnBoard(ZERO_AREA)` สุ่มจุดเกิดบนสนามเฉพาะ (ร้านถูกยกออก) → ฉาก `enter` → `dealRound()`
 - **เวลาโลก vs `roundNumber`**: `worldRound = roundNumber − zeroFrozen` (`Zero.worldRound()` / `engine.worldRound`) — `dealRound` บวก `zeroFrozen` ทุกเทิร์นที่อยู่ข้างใน
@@ -957,3 +958,20 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **area ใหม่**: `target` + `count: N` = เลือก N คนต่างกัน (ทุกคนผ่านกติกาเดียวกัน — `targetOk`) · `tile` + `rect: [w, h]` = สี่เหลี่ยมกลางช่องที่เลือก (`tileArea`) · socket `useSkill` รับ `orient: "h" | "v"` → `opts.orient` (`skillArea` เลือก rect ตามแนว)
 - เอฟเฟกต์ `engine.boardFx("celineFx", { kind, id, color, … })` (client `celineFx.js`) · เสียง `celine_*` / เสียงพากย์ `celine_v_*` · ตีปกติ `attackStyle` = `celineDagger|Dragon|Great|Fire|Wind|Thunder`
 
+## 28. ตัวละครที่ผูกกับห่วงเวลาซีโร่ / ช่วงมิติพังทลาย / ปุ่ม HUD เลือกช่อง (ทาคุโตะ — `characters/takuto.js` · `server/zeroTime.js` · GRID_PLAN §7.16 · สัญญาข้อมูล `.claude/plans/takuto-contract.md`)
+- **ฮุคห่วงเวลาซีโร่** (`server/zeroTime.js` วนทุกโมดูล): `zeroChanceBonus(engine)` → % บวกโอกาสเกิด (`Zero.chance()` = `ZERO_CHANCE` + ผลรวม · เพดาน 100) ·
+  `zeroImmune(p)` → true = ไม่โดนกัดกิน (`onEndTurn`) / ฟ้าผ่า (`lightning`) / ล็อกท่าไม้ตาย (`ultLocked(p)` — `useSkill` + `zeroLocks(p, …)` ใน view.js) / แรงปลดผนึก (`releaseBlast`) ·
+  `zeroCollapseTurns(engine)` → เทิร์น (มากสุดของทุกโมดูล) > 0 = ผนึกอันสุดท้ายแตกแล้วเข้า **ช่วงมิติพังทลาย** แทน `restoreBoard` ทันที ·
+  broadcast `onZeroStage(engine, stage)` หลังฉากผนึกแตก (`runPendingBreak`) · `onZeroCollapse(engine)` ตอนเข้าช่วงพังทลาย — คลิป/ผลหลังคลิปที่ฮุคคิวไว้เล่นต่อจากฉากผ่าน `cutscene.runSkillFlow` (`afterScene`)
+- **ช่วงมิติพังทลาย** (`match.zero.collapse = { total, endRound, seq, done }` · `Zero.collapsing()` / `engine.zeroCollapsing()`): `active()` ยัง true (สนามซีโร่ · ร้าน/ภูมิภาค/เวลาโลกหยุด) ·
+  `stage()` 4 · `attackBonus` null · `onRoundStart` ไม่มีของ/ฟ้าผ่า · `onEndTurn` ไม่มีบัฟ/กัดกิน — `roundNumber >= endRound` = `done` ·
+  `endTurn` (หลังคิวคัตซีน ก่อนการเดินทาง) → `Zero.maybeFinishCollapse()` → `restoreBoard` + ฉาก `release` → `dealRound` ·
+  `publicInfo().collapse = { left, total, seq }` (client: ไม่เล่นเพลง zero_N · สนามพังทลายตาม left/total) · แรงปลดผนึกลงตอนผนึกแตก (`releaseBlast`)
+- **ปุ่ม HUD เลือกช่อง**: `hudActions` คืน `tiles: [{ x, y }]` = client เข้าโหมดเลือกช่องก่อนส่ง → socket `charAction { key, tile }` → ฮุค `charAction(engine, p, key, { tile })` (ไม่มี tiles = ส่งทันทีแบบเดิม)
+- **ทาคุโตะ**: สถานะ `p.takuto` { form human|tauburn, judgment, dash, dashRound, seen2/seen4, awakened, secReady, ultReady, tallySeq/tally } · ดาบเป็นสถานะ `takutoEmerald` / `takutoSapphire` (5 เทิร์น)
+  · แปลงร่าง = `onRoundStartTick` ตัวแรกที่ `engine.zeroActive()` → คิวคลิป + `deferAfterCutscene(resizeUnit 3)` (dealRound เล่นคิว → `runSkillFlow`) · ขยายไม่สำเร็จ = ลองใหม่ทุกต้นเทิร์น
+  · พุ่งต้นตาเดิน: `dashTiles` (ตรง 4 ทิศ 1–3 ช่อง ทั้งตัวต้องว่าง — สิ่งกีดขวาง/ร้าน/ร่าง/คนที่มองเห็น) → ย้าย `p.pos` + ตั้ง `action.from` ใหม่ (ยังเดินได้) · ชนคนที่มองไม่เห็น = หยุดก่อน
+  · เอเมอรูด: นับดาเมจจริงด้วย `onDamageDealt` แยกครั้งด้วย `engine.cmdSeq` → ฟื้นใน `afterBoardAttack` (หลังฉากตี) · แซฟไฟร์: `attackLane` "face" · ดาบแห่งการพิพากษา: `range` [1, 4] + `fixedStrikeDamage` 4 + `preAttackClip` + `afterStrike` ทิ้งดาบ
+  · สลับตำแหน่งตัวใหญ่: `spotNear` ใน takuto.js (มุมบนซ้ายใกล้ที่ต้องการที่สุด · ไม่พังของ) — `Board.placeBig` ใช้ไม่ได้เพราะวัดระยะจากกล่อง (ทุกกล่องที่ครอบจุดได้ 0)
+  · ท่าไม้ตายเปลี่ยนตามช่วง: `skillPub` (ชื่อ/รูป/คำอธิบาย + `flash`) · `skillArea` line 8×1 ↔ aoe `"mov"` · เพลงช่วงพังทลาย `skillMusic` → `takuto_theme`
+- เอฟเฟกต์ `engine.boardFx("takutoFx", { kind, id, color, at, size, … })` (client `takutoFx.js`) · ตีปกติ `attackStyle` = `takutoPunch|Emerald|Sapphire|Dual|Judgment` · เสียง `takuto_*`
