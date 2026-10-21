@@ -83,11 +83,12 @@ function hiddenFromOne(viewer, target) {
 function exposeBush(p) {
   if (p) p.exposedRound = match.roundNumber;
 }
-// โจมตีปกติ / ยิงปืน / ใช้ไอเทมใส่คนอื่น — พุ่มหญ้าโผล่ + ตัวละครล่องหนปรากฏตัว (hook onReveal "act")
-function onHostileAct(p) {
+// โจมตีปกติ / ยิงปืน / ใช้ไอเทมใส่คนอื่น — พุ่มหญ้าโผล่ + ตัวละครล่องหนปรากฏตัว (hook onReveal(engine, p, "act", how))
+//  how = "strike" ตีปกติ (คน/ผนึก/หนาม) · "gun" ปืน GUTS · "slide" ไถลชน · "item" ใช้ไอเทมใส่คนอื่น (เฟิร์น: ไอเทมไม่ออกจากซ่อนเร้นมานา)
+function onHostileAct(p, how) {
   exposeBush(p);
   const hook = hookOf(p);
-  if (hook && hook.onReveal) hook.onReveal(engine, p, "act");
+  if (hook && hook.onReveal) hook.onReveal(engine, p, "act", how);
 }
 // สกิลพื้นที่แบบโจมตี (area.hostile) โดนใคร — คนล่องหนที่เป็นศัตรูของผู้ใช้ปรากฏตัว (hook onReveal "hit")
 //  บรรทัดที่ผู้ใช้ก่อไว้ในตาเดินนี้ก่อนปรากฏตัว (เช่นดาเมจของการโจมตีนี้เอง) ฝ่ายผู้ใช้ยังเห็นได้ (witness — filterLog)

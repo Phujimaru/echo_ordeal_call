@@ -38,7 +38,7 @@ import {
 import {
   VAL_FX_DUR, VAL_HIT_P, VAL_MS, drawValUnit, isValentineFx, valentineDimGround, valentineDimLayer, valentineFlip, valentineFx, valentineItems, valentinePuppets,
 } from "./valentineFx";
-import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, drawFernGround, fernFx, isFernFx } from "./fernFx";
+import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, fernFx, isFernFx } from "./fernFx";
 import {
   CELINE_FX_DUR, CELINE_HIT_P, CELINE_MS, celineFx, celineItems, celineWallRise, drawCelineAir, drawCelineGround, drawCelineWall, isCelineFx,
 } from "./celineFx";
@@ -1921,7 +1921,7 @@ export const FX_DUR = {
 // =================================================================== frame
 //  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, shopLabel?, hover, fx (กำลังเล่น) }
 //   grays? = รองโกมิเนียตที่กำลังชาร์จ [{ id, x, y, size, dir, left, tiles }] (grayFx.js)
-//   ferns? = เฟิร์นกำลังชาร์จ Orbital Cannon Zoltraak [{ id, x, y, size, charge }] (fernFx.js)
+//   ferns? = เฟิร์นที่ Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะรออยู่ [{ id, x, y, size, empowered, boost }] (fernFx.js — แสงปลายคทา)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
 //   celine? = { flora, kings, hold, preview } ของค้างของเซลิน (celineFx.js) · terrain "icewall" = กำแพงน้ำแข็ง (drawCelineWall)
@@ -1976,9 +1976,7 @@ export function drawFrame(g, st, now) {
   // เกรย์ชาร์จรองโกมิเนียต / กำลังยิง (grayFx.js): สนามมืดลง + แนวลำแสงสีทอง — ใต้ไฮไลต์และตัวละคร
   const grays = st.grays && st.grays.length ? st.grays : null;
   if (grays || fx.some((e) => e.kind === "grayBeam")) drawGrayGround(g, grays, fx, view, now, lowQ);
-  // เฟิร์นชาร์จ Orbital Cannon Zoltraak (fernFx.js): วงเวทใต้ตัว · สนามมืดระหว่างยิง — ใต้ไฮไลต์และตัวละคร
-  const ferns = st.ferns && st.ferns.length ? st.ferns : null;
-  if (ferns || fx.some((e) => e.kind === "fernCannon")) drawFernGround(g, ferns, fx, view, now, lowQ);
+  const ferns = st.ferns && st.ferns.length ? st.ferns : null; // เฟิร์น: แสงปลายคทา (วาดหลังตัวละคร — drawFernAir)
   // วงเพลงของยูนะ (yunaFx.js) — บนพื้น ใต้ไฮไลต์
   if (st.songs && st.songs.length) drawYunaZones(g, st.songs, info, now, lowQ);
   // ดิเอโก้ (diegoFx.js): แอ่งน้ำมัน · พื้นไหม้ · ขี้เถ้า · ตาข่ายของเรา — ใต้ไฮไลต์ · ระหว่างหยุดเวลาทุกอย่างหยุดขยับ (amb)
@@ -2094,7 +2092,7 @@ export function drawFrame(g, st, now) {
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
   if (grays) drawGrayAir(g, grays, units, now, lowQ);
-  // ละอองมานาวนเข้าหาเฟิร์น + ลูกแสงตามจำนวนเทิร์นที่ชาร์จ (ทับตัวละคร)
+  // เฟิร์น: แสงที่ปลายคทา (Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะ) — ทับตัวละคร
   if (ferns) drawFernAir(g, ferns, units, now, lowQ);
   // ราชาดอกไม้ (เซลิน): มงกุฎลอย + กลีบโคจร + ผีเสื้อ (ทับตัวละคร)
   if (cel) drawCelineAir(g, cel, units, now, lowQ);
@@ -2129,7 +2127,7 @@ export function drawFrame(g, st, now) {
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
-    else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ, view);
+    else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);

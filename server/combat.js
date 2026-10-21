@@ -260,7 +260,7 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
   if (n > 0 && Dim.blocks(p)) return 0;
   // ตั้งรับด้วยการหยุดเวลา (ฮุค counterArmed — ดิเอโก้: เดอะเวิลด์) = ตัดการกระทำของผู้โจมตีทั้งก้อน (server/timeStop.js)
   if (n > 0) TimeStop.check(p, n);
-  // ศัตรูทำให้เสียหาย = ถูกโจมตี (ฮุค onAttacked) · การโจมตีครั้งนี้ถูกกันทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = 0
+  // ศัตรูทำให้เสียหาย = ถูกโจมตี (ฮุค onAttacked) · การโจมตีครั้งนี้ถูกกันทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน) = 0
   if (n > 0) {
     const src = match.effectSourceId && match.players[match.effectSourceId];
     if (src && src.id !== p.id && !sameTeam(src, p)) {

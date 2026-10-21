@@ -205,18 +205,12 @@ function hasGutsWeapon(p) {
 // หลับไหล: "ออกการกระทำใดๆ ไม่ได้" — จั่ว/กดสกิลกันไว้ด้วย p.locked อยู่แล้ว
 //  แต่ร้านค้า/ไอเทมไม่ได้ผูกกับ p.locked ทั้งหมด (บางชนิดกดใช้นอกเฟสจั่วได้) จึงต้องมีด่านของตัวเอง
 function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; }
-// ฮุค blocksItems(engine, p) → true = ซื้อ/ใช้ไอเทมไม่ได้ (ทิ้งได้) — เฟิร์น: ระหว่างซ่อนเร้นมานา
-function itemsBlocked(p) {
-  const hook = p && CHAR_HOOKS[p.characterId];
-  return !!(hook && hook.blocksItems && hook.blocksItems(engine, p));
-}
 
 function buyShopItem(id, itemId) {
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return; // ร่างแยกที่คุมได้ซื้อให้เจ้าของได้ (เหรียญ/กระเป๋าใช้ร่วม — ผู้ใช้สั่ง 2026-10-21) · ตัวเหมือนซื้อไม่ได้
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
-  if (itemsBlocked(p)) return;
   if (!p.pos || !Board.nearShop(Board.boxOf(p), match.shopPos)) return; // ต้องยืนติดร้าน (ระยะ 1) — GRID_PLAN §8.1
   if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = match.shopItems.find((it) => it.id === itemId);
@@ -245,7 +239,6 @@ function useInventoryItem(id, uid, opts = {}) {
   if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ใช้ไอเทมไม่ได้
   if (!action.canAct(p)) return; // ใช้ของได้เฉพาะตาเดินของตัวเอง — ใช้แล้วเดินไม่ได้อีก (GRID_PLAN §8.1)
   if (asleep(p)) return; // หลับไหล: ใช้ไอเทมไม่ได้เลย (ยาโชคลาภ/ต้านสถานะ/แต้มสกิล/เกราะ เดิมไม่เช็ค p.locked จึงรั่ว)
-  if (itemsBlocked(p)) return;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];
@@ -257,7 +250,7 @@ function useInventoryItem(id, uid, opts = {}) {
     const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
     if (!plan) return;
     action.lockMove(p);
-    if (other) Visibility.onHostileAct(p); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
+    if (other) Visibility.onHostileAct(p, "item"); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
     p.inventory.splice(idx, 1);
     characterRules.mark42Run(p, plan, null);
     return;
@@ -332,7 +325,7 @@ function fireGuts(p, idx, item, targetId) {
   match.action.locked = true;
   p.gutsShotTurn = match.roundNumber;
   p.inventory.splice(idx, 1);
-  Visibility.onHostileAct(p); // ยิงจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
+  Visibility.onHostileAct(p, "gun"); // ยิงจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   match.lastLog.push(`🔫 ${p.name} ยิง ${GUTS_AMMO[item.ammo].name} ใส่ ${target.name}!`);
   // วีดีโอเต็มจอของกระสุนแต่ละแบบเล่นครั้งเดียวต่อเกม "ต่อผู้ยิงแต่ละคน" (เก็บใน p.cutsceneShown เหมือน
   //  วีดีโอแปลงร่างของตัวละคร — รีเซ็ตทุกแมตช์ใหม่ใน resetCombat) ครั้งต่อไปเป็นการ์ดแจ้งเตือนเล็ก ไม่หยุดกระดาน

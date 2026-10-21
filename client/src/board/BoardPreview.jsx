@@ -17,7 +17,7 @@
 //   ?diego=1 = ดิเอโก้ แบรนโด โลกคู่ขนาน (ขี่ซิลเวอร์ บูลเล็ต) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "diegoFx" + หยุดเวลา (DiegoFxDev.jsx)
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
-//   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak + ชั้นชาร์จ 0..3 (FernFxDev.jsx)
+//   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -245,8 +245,8 @@ export default function BoardPreview() {
   // วาเลนไทน์ (?valentine=1): ธงปัก [{ x, y, ownerId }] (prop valentine) · มุมมองมิติ "par"/"veil" (prop dimView)
   const [valFlags, setValFlags] = useState([]);
   const [dimView, setDimView] = useState(null);
-  // เฟิร์น (?fern=1): ชาร์จจำลอง { charge } | null → prop ferns (ตามช่องของ "me")
-  const [fernCharge, setFernCharge] = useState(null);
+  // เฟิร์น (?fern=1): แสงปลายคทาจำลอง { empowered, boost } | null → prop ferns (ตามช่องของ "me")
+  const [fernGlow, setFernGlow] = useState(null);
   // เซลิน (?celine=1): พุ่มดอกไม้ [{ x, y, left, made }] → special "bloom" · กำแพง [{ x, y }] → terrain "icewall" · ราชาดอกไม้ (me)
   const [celDev, setCelDev] = useState({ flora: [], walls: [], king: false });
   useEffect(() => { window.__boardSongs = (v) => setSongsMock(v && v.length ? v : null); return () => { delete window.__boardSongs; }; }, []);
@@ -321,7 +321,7 @@ export default function BoardPreview() {
   const fernMe = units.find((u) => u.id === "me");
   const celineMock = CELINE_DEV && fernMe && (celDev.flora.length || celDev.king)
     ? { flora: celDev.flora, kings: celDev.king ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1 }] : [] } : null;
-  const fernMock = fernCharge && fernMe ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1, charge: fernCharge.charge }] : null;
+  const fernMock = fernGlow && fernMe && (fernGlow.empowered || fernGlow.boost) ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1, empowered: !!fernGlow.empowered, boost: !!fernGlow.boost }] : null;
   const viewUnits = units.map((u) => ({ ...u, isMe: u.id === "me", isActor: u.id === actor.id, teamId: null }));
 
   const walk = (path, then) => {
@@ -522,7 +522,7 @@ export default function BoardPreview() {
       {DIEGO_DEV && <DiegoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} ground={diegoGround} setGround={setDiegoGround} freeze={timeFreeze} setFreeze={setTimeFreeze} />}
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
-      {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernCharge} setFerns={setFernCharge} />}
+      {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>
         <div>ภูมิภาค {ROMAN[area]} · {AREA_NAMES[area]}{map.demo ? " (แผนที่สาธิต)" : ""} · {map.cols} × {map.rows}{zoom ? " · มุมใกล้" : ""}</div>

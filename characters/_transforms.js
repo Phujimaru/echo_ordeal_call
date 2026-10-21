@@ -15,7 +15,6 @@ const hikaru = require("./raido_hikaru");
 const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแรงดังไฟ (ทุกครั้งที่กด)
 const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
-const fern = require("./fern"); // เฟิร์น: Orbital Cannon Zoltraak intro (ตอนกด) / final (ตอนยิง)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -54,9 +53,6 @@ module.exports = function buildTransforms() {
     // เกรย์ — รองโกมิเนียต: intro ตอนกด · final ตอนยิง (ต้นตาเดินเทิร์น N+2) เล่นทุกครั้ง · ความยาวจริง 12.30 / 22.40 วิ ปัดขึ้น
     grayUltIntro: { img: gray.IMG.skill3, video: gray.VIDEO.intro, title: "รองโกมิเนียต", label: "ปลดผนึก", seconds: 13, music: null, afterReveal: false },
     grayUltFinal: { img: gray.IMG.skill3, video: gray.VIDEO.final, title: "รองโกมิเนียต", label: "ปล่อยท่าไม้ตาย", seconds: 23, music: null, afterReveal: false },
-    // เฟิร์น — Orbital Cannon Zoltraak: intro ตอนกด (วาร์ป) · final ตอนยิง เล่นทุกครั้ง
-    fernUltIntro: { img: fern.IMG.skill3, video: fern.VIDEO.intro, title: "Orbital Cannon Zoltraak", label: "ปล่อยท่าไม้ตาย", seconds: 5, music: null, afterReveal: false },
-    fernUltFinal: { img: fern.IMG.skill3, video: fern.VIDEO.final, title: "Orbital Cannon Zoltraak", label: "ยิง", seconds: 8, music: null, afterReveal: false },
     // เซลิน — ตีปกติติดคริ = คลิปคริตามสายอาวุธก่อนฉากตีทุกครั้ง (ความยาวจริง 2.47 / 3.37 วิ) · ท่าไม้ตาย = การ์ดแจ้งเตือน (ไม่มีคลิป)
     celineCritSword: { img: celine.IMG.base, video: celine.VIDEO.critSword, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 2.6, music: null, afterReveal: false, noIntro: true },
     celineCritMage: { img: celine.IMG.base, video: celine.VIDEO.critMage, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 3.5, music: null, afterReveal: false, noIntro: true },

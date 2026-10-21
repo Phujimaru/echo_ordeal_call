@@ -159,9 +159,6 @@ function dealRound() {
       if (!Duo.isOwner(p)) p.locked = true;
       match.lastLog.push(`😵 ${p.name} ติดสถานะสตั้น — ขยับไม่ได้ทั้งเทิร์น! (เหลืออีก ${p.statuses.stun} เทิร์น)`);
     }
-    // ฮุค holdsDraw(engine, p): จั่วไม่ได้ทั้งช่วงจั่วไพ่ (ยืนที่ไพ่ใบแรก = กด "พอ" ให้เลย) — เฟิร์น: ชาร์จ Orbital Cannon Zoltraak
-    const drawHook = CHAR_HOOKS[p.characterId];
-    if (cardHolder && drawHook && drawHook.holdsDraw && combat.runHook(drawHook, "holdsDraw", engine, p)) p.locked = true;
   }
 
   // สลับช่วงเวลากลางวัน/กลางคืน — แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน

@@ -65,7 +65,7 @@ function mark42Control(id, action) {
   const plan = Mark42.planControl(engine, p, action);
   if (!plan) { view.broadcastState(); return; }
   actionPhase.lockMove(p);
-  if (plan.wearerId !== p.id) Visibility.onHostileAct(p);
+  if (plan.wearerId !== p.id) Visibility.onHostileAct(p, "item");
   mark42Run(p, plan, null);
 }
 // ผู้เล่นที่มองเห็น p (id สำหรับ io.to) — ทุกคนเห็น = undefined (ส่งทุกคนตามเดิม)

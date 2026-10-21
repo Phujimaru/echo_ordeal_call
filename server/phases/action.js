@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap, boxChebyshev, flowerWalk,
+  walkUndoPatch, startMap, flowerWalk,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -407,21 +407,12 @@ function targetOk(p, area, range, t) {
   if (Visibility.hiddenFromUnit(p, t)) return false;
   // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
   if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t);
-  // square: true = กรอบสี่เหลี่ยมรอบตัว (นับแบบเชบีเชฟ — range 3 = 7×7 · เฟิร์น: ยิง Orbital Cannon Zoltraak) · ไม่ใส่ = แมนฮัตตัน
-  const d = area.square ? boxChebyshev(boxOf(p), boxOf(t)) : Board.dist(boxOf(p), boxOf(t));
-  return d <= range;
+  return Board.dist(boxOf(p), boxOf(t)) <= range;
 }
 // เป้า t ทับช่องตามรูป cells ([[dx, dy], …] นับจากช่องของ p) ไหม
 function cellsHit(p, cells, t) {
   const want = new Set(cells.filter((c) => Array.isArray(c)).map(([dx, dy]) => Board.key(p.pos.x + dx, p.pos.y + dy)));
   return Board.footprint(t.pos.x, t.pos.y, sizeOf(t)).some((c) => want.has(Board.key(c.x, c.y)));
-}
-// ระยะแบบเชบีเชฟระหว่างกรอบตัว (ช่องว่างตามแกนที่มากกว่า · ติดกัน/ทแยง = 1) — target ที่ square: true
-function boxChebyshev(a, b) {
-  const as = Math.max(1, a.size | 0), bs = Math.max(1, b.size | 0);
-  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
-  const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
-  return Math.max(dx, dy);
 }
 // ช่องที่เลือก (socket ส่ง { x, y }) → { x, y } จำนวนเต็ม · ไม่ถูกต้อง = null
 function tileOf(tile) {
@@ -784,7 +775,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   Ice.flush(ctx);
   const struck = ctx.strikes.some((h) => h.by === p.id && h.attack !== false); // ไม้ถูพื้น (เอมิลิโกะ) ไม่นับเป็นการโจมตี
   if (struck || !p.alive) {
-    if (struck) { p.didAttackRound = true; Visibility.onHostileAct(p); }
+    if (struck) { p.didAttackRound = true; Visibility.onHostileAct(p, "slide"); }
     timers.clearPhaseTimer();
     match.gameState = "ATTACKING";
     timers.startPhaseTimer(Ice.fxSeconds(ctx), finishActor);
@@ -931,7 +922,7 @@ function strikeTarget(id, targetId) {
     if (!canAct(p) || !Zero.canHitSeal(p, seal)) return false;
     timers.clearPhaseTimer();
     match.action.locked = true;
-    Visibility.onHostileAct(p);
+    Visibility.onHostileAct(p, "strike");
     strikeObject(p, Zero.sealUnit(seal).pos);
     Zero.attackSeal(p, seal, done);
     return true;
@@ -942,7 +933,7 @@ function strikeTarget(id, targetId) {
     if (!canAct(p) || !Ice.canHitSpike(p, spikeK)) return false;
     timers.clearPhaseTimer();
     match.action.locked = true;
-    Visibility.onHostileAct(p);
+    Visibility.onHostileAct(p, "strike");
     const [sx, sy] = spikeK.split(",").map(Number);
     strikeObject(p, { x: sx, y: sy });
     Ice.attackSpike(p, spikeK, done);
@@ -970,7 +961,7 @@ function strikeTarget(id, targetId) {
   if (!canStrike(p, target)) return false;
   timers.clearPhaseTimer();
   match.action.locked = true;
-  Visibility.onHostileAct(p); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
+  Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   attack.boardAttack(p, target, done);
   return true;
 }
@@ -1010,12 +1001,6 @@ function finishActor() {
       }
     }
     const endHook = p && CHAR_HOOKS[p.characterId];
-    // ฮุค beforeActorEnd(engine, p) → true = ตัวละครพักตาเล่นฉากก่อนจบตา (ตั้งฉากเอง เช่น pausePlayingForCutscene(…, { endTurn: true })
-    //  แล้ว finishActor ถูกเรียกอีกครั้ง) · ครั้งเดียวต่อตา · รอ/หมดเวลาก็ถึง (เฟิร์น: ชาร์จครบ 3 เทิร์นไม่ยิง = ยิงเอง)
-    if (p && p.alive && match.action && !match.action.endScene && endHook && endHook.beforeActorEnd && match.gameState !== "GAMEOVER") {
-      match.action.endScene = true;
-      if (combat.withEffectSource(p, () => combat.runHook(endHook, "beforeActorEnd", engine, p))) return;
-    }
     // ฮุค onActorEnd(engine, p): ตาเดินของตัวนี้จบจริง (หลังเดินต่อ/ก่อนผลของช่อง) — ไจโร: เสริมท่าไม้ตายที่ไม่ได้ใช้หมดลง
     if (endHook && endHook.onActorEnd) combat.withEffectSource(p, () => combat.runHook(endHook, "onActorEnd", engine, p));
     Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา

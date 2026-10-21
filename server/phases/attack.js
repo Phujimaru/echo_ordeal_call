@@ -170,7 +170,7 @@ function strike(attacker, target, { counter = false } = {}) {
   attacker.didAttackRound = true;
   Voice.play(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
-  combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: Defensive Magic / หลุดซ่อนเร้น/ชาร์จ) — ก่อนทอยหลบ
+  combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: กันการโจมตี / หลุดซ่อนเร้นมานา) — ก่อนทอยหลบ
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
 
@@ -273,12 +273,16 @@ function strike(attacker, target, { counter = false } = {}) {
   if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker), critMultOf(attacker));
   // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
   dmg = Math.min(dmg, combat.damageCapOf(attacker));
-  // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
+  // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
   const blockFx = combat.attackBlocked(target, attacker);
   if (blockFx) dmg = 0;
+  // ตีปกติทะลุเกราะ (ฮุค strikePierces(engine, ผู้ตี, เป้า) → true — เฟิร์น: Zoltraak ครั้งที่ 6 · ทุกคนในแนว) = ข้ามเกราะเข้าเลือด (โล่ยังกัน)
+  const pierceHook = CHAR_HOOKS[attacker.characterId];
+  const pierce = !!(pierceHook && pierceHook.strikePierces && combat.runHook(pierceHook, "strikePierces", engine, attacker, target));
 
   const shieldBefore = target.shield;
-  combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
+  if (pierce) combat.dealDirect(target, dmg, true);
+  else combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
   // มุยมิ: ดาบเก่าๆ/ดาบสะบั้นฟื้นฟูเมื่อโจมตีปกติ และใจที่ไม่ยอมแพ้ยืดเวลาท่าไม้ตาย
   const muimiAttackFx = CHAR_HOOKS.muimi.onAttackLanded(engine, attacker);
   // เสริมพลัง (empower): ใช้แล้วหมดไปทันทีเมื่อได้โจมตี
@@ -288,7 +292,7 @@ function strike(attacker, target, { counter = false } = {}) {
   }
   target.wasAttacked = true;
   Voice.play(target, "struck"); // เสียงพากย์ตอนโดนตี (ไจโร: hitby_1)
-  match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (ลดเกราะก่อน)`);
+  match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (${pierce ? "ทะลุเกราะ" : "ลดเกราะก่อน"})`);
   // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
   const landedHook = CHAR_HOOKS[attacker.characterId];
   const landedFx = landedHook && landedHook.onStrikeLanded && target.alive ? landedHook.onStrikeLanded(engine, attacker, target, { counter }) || [] : [];
@@ -344,7 +348,7 @@ function strike(attacker, target, { counter = false } = {}) {
 function skillStrike(attacker, target, reason) {
   target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
   if (skillDodge(attacker, target, reason)) return { dmg: 0, dodge: true, kill: false };
-  // เป้ากันการโจมตีนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic)
+  // เป้ากันการโจมตีนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน)
   const blockFx = combat.attackBlocked(target, attacker);
   if (blockFx) {
     match.lastLog.push(`🛡️ ${target.name} ${blockFx.name} — กัน${reason}ของ ${attacker.name}`);

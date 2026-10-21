@@ -1,50 +1,42 @@
 // ============================================================
 //  เอฟเฟกต์บนกระดานของเฟิร์น (characters/fern.js · GRID_PLAN §7.14) — เวทแบบ Frieren: ขาวอมฟ้า ขอบม่วงเข้ม
 //
-//  ตีปกติ Zoltraak (attackStyle "fernZoltraak" — STYLE_MS ใน boardDraw) · fx { x, y (ช่องผู้ตี), size, to, lane: [{ x, y }] }
-//   วงเวทเล็กกางหน้ามือ → ลำแสงขาวเรียวพุ่งตามแนว 3 ช่อง (ทะลุทุกอย่าง) แกนขาว/ฟ้าซีด/ขอบม่วงเข้ม → ประกายปะทะทุกช่องที่ผ่าน
-//   ลำแสงถึงปลายแนว = จังหวะปะทะ (FERN_HIT_P) · ไม่มี lane = ยิงตรงไปที่ to
-//  เหตุการณ์ (socket "fernFx" → FERN_EVENT_FX · at/from/to = { x, y }):
-//   cast (ร่ายต่อเนื่อง: วงเวทคู่กระเพื่อม) · conceal (ออร่ามานาหดเข้าตัว — เจ้าของเห็นคนเดียว) · unveil (ออร่าปะทุกลับ)
-//   shield (Defensive Magic: โดมหกเหลี่ยมโปร่งแสงกันการโจมตี) · warpOut / warpIn (วาร์ป: ประกายหาย / ประกายปรากฏ)
-//   reveal (ต้นเทิร์นที่ชาร์จ: วงสัญญาณที่ช่องของเฟิร์น) · fizzle (ชาร์จถูกยกเลิก: วงเวทร้าวแตกสลาย)
-//   cannon { from, to } = Orbital Cannon Zoltraak (FERN_CANNON — ต้องตรงกับ server FERN_CANNON_HIT 1.4 วิ + หาง 0.8 วิ):
-//    0–1.4 วิ = เฟิร์นยิงแสงขึ้นฟ้า · วงเวทยักษ์กางกลางอากาศเหนือเป้า หมุนเร็วขึ้น ละอองไหลเข้ากลางวง · สนามมืดลง · วงล็อกเป้าบนพื้น
-//    1.4 วิ = ลำแสงขาวจันทร์ทิ้งดิ่งลงเป้า + แฟลชทั้งจอ + คลื่นกระแทกบนพื้น (BoardStage: จอสั่น + เลขดาเมจ)
-//    1.4–2.2 วิ = ลำแสงค้าง เกลียวพลังหมุนรอบ → หดเรียวจางหาย
-//  ระหว่างชาร์จ (p.fern.charge 0..3 → prop ferns ของ BoardCanvas):
-//   drawFernGround (ก่อนตัวละคร) = วงเวทใต้ตัว ใหญ่/สว่าง/มีวงเพิ่มตามจำนวนเทิร์นที่ชาร์จ (+ สนามมืดระหว่าง cannon)
-//   drawFernAir (หลังตัวละคร) = ละอองมานาวนเข้าหาจุดเหนือหัว + ลูกแสงโคจรตามจำนวนชาร์จ
+//  ตีปกติ Zoltraak (attackStyle — STYLE_MS ใน boardDraw) · fx { x, y (ช่องผู้ตี), size, to, lane: [{ x, y }] }
+//   "fernZoltraak"    = วงเวทเล็กกางหน้ามือ → ลำแสงขาวเรียวพุ่งตามแนว (3 ช่อง · เพิ่มระยะ = 6 ช่อง · ทะลุทุกอย่าง) → ประกายปะทะทุกช่อง
+//   "fernZoltraakMax" = ครั้งที่ 6 (ทะลุเกราะ): วงเวท 3 ชั้นซ้อนตามแนวยิง · ลำแสงหนา แกนขาวอมม่วง · เกลียวพลัง · คลื่นกระแทกทุกช่อง
+//   ลำแสงถึงช่องไกลสุดของแนว = จังหวะปะทะ (FERN_HIT_P) · ไม่มี lane = ยิงตรงไปที่ to
+//  เหตุการณ์ (socket "fernFx" { kind, at, id } → FERN_EVENT_FX):
+//   cast (ร่ายต่อเนื่อง: วงเวทคู่กระเพื่อม) · boost (เพิ่มระยะ: วงเวทใต้ตัว + เส้นอักษรวิ่งยืดออก 6 ช่องทั้ง 4 ทิศ)
+//   conceal (ซ่อนเร้นมานา: ออร่าหดเข้าตัว — เจ้าของเห็นคนเดียว) · unveil (ออกจากซ่อนเร้น: ออร่าปะทุกลับ)
+//   shield (ผู้เชี่ยวชาญเวทมนต์พื้นฐาน กันได้: โดมหกเหลี่ยมโปร่งแสง)
+//   empower (ตีครบ 5 ครั้ง: ละอองม่วงขาวไหลเข้าปลายคทา + วงเรืองรอบตัว) · reset (ครั้งที่ 6 จบ: หน้าปัดอักษร เข็มหมุนย้อน → วงหดแล้วปะทุ)
+//  ค้างบนตัว (prop ferns ของ BoardCanvas · [{ id, x, y, size, empowered, boost }] จาก p.fern):
+//   drawFernAir (หลังตัวละคร) = แสงที่ปลายคทา — empowered = ม่วงขาว + ละอองโคจร · boost = ฟ้าซีด + วงขีดอักษรเล็กหมุน
 //  lowQ = ตัดอนุภาค/ชั้นเรืองครึ่งหนึ่งขึ้นไป · ลดการเคลื่อนไหว = ของที่วนตลอดหยุดนิ่ง เอฟเฟกต์ครั้งเดียวยังเล่น
 // ============================================================
-import { P, gEllipse, glow, quad } from "./boardGeo";
+import { P, gEllipse, glow } from "./boardGeo";
 
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
 
 // ---------- จังหวะ ----------
-export const FERN_MS = { fernZoltraak: 900 };
-export const FERN_HIT_P = { fernZoltraak: 0.3 }; // 270 ms = ลำแสงถึงปลายแนว
-// Orbital Cannon Zoltraak — ต้องตรงกับ server (FERN_CANNON_HIT 1.4 วิ แล้วรออีก 0.8 วิ)
-export const FERN_CANNON = { hit: 1400, drop: 90, fade0: 1900, total: 2200 };
+export const FERN_MS = { fernZoltraak: 900, fernZoltraakMax: 1300 };
+export const FERN_HIT_P = { fernZoltraak: 0.3, fernZoltraakMax: 0.38 }; // 270 / 494 ms = ลำแสงถึงช่องไกลสุดของแนว
 export const FERN_FX_DUR = {
-  ...FERN_MS, fernCast: 850, fernConceal: 950, fernUnveil: 850, fernShield: 900, fernWarpOut: 850, fernWarpIn: 850,
-  fernReveal: 1300, fernFizzle: 1100, fernCannon: FERN_CANNON.total,
+  ...FERN_MS, fernCast: 850, fernBoost: 1000, fernConceal: 950, fernUnveil: 850, fernShield: 900, fernEmpower: 1300, fernReset: 1100,
 };
 export const isFernFx = (kind) => typeof kind === "string" && (kind in FERN_FX_DUR);
 export const FERN_EVENT_FX = {
-  cast: "fernCast", conceal: "fernConceal", unveil: "fernUnveil", shield: "fernShield", warpOut: "fernWarpOut", warpIn: "fernWarpIn",
-  reveal: "fernReveal", fizzle: "fernFizzle", cannon: "fernCannon",
+  cast: "fernCast", boost: "fernBoost", conceal: "fernConceal", unveil: "fernUnveil", shield: "fernShield", empower: "fernEmpower", reset: "fernReset",
 };
-// เสียงของแต่ละเหตุการณ์ — เกมจริง server ส่งเอง (characters/fern.js engine.sfx) · ตารางนี้ใช้แค่หน้า dev (FernFxDev) · cannon ไฟล์ระเบิดตรง 1.4 วิ
+// เสียงของแต่ละเหตุการณ์ — เกมจริง server ส่งเอง (characters/fern.js engine.sfx) · ตารางนี้ใช้แค่หน้า dev (FernFxDev)
 export const FERN_EVENT_SFX = {
-  cast: "fern_cast", conceal: "fern_conceal", unveil: "fern_unveil", shield: "fern_shield", warpOut: "fern_teleport", warpIn: "fern_teleport",
-  reveal: "fern_charge", fizzle: "fern_conceal", cannon: "fern_cannon",
+  cast: "fern_cast", boost: "fern_boost", conceal: "fern_conceal", unveil: "fern_unveil", shield: "fern_shield",
 };
 
 // ---------- สี (r,g,b) ----------
 const WHITE = "255,255,255", PALE = "196,230,255", BLUE = "120,176,255", VIOLET = "150,112,236";
-const DVIOLET = "58,30,118", MOON = "250,252,255";
+const DVIOLET = "58,30,118", LILAC = "198,168,255", VWHITE = "242,232,255";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const easeOut3 = (t) => 1 - Math.pow(1 - t, 3);
@@ -53,7 +45,6 @@ const hash01 = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; retu
 const add3 = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
 const P3 = (v) => P(v[0], v[1], v[2]);
 const FLAT = [[1, 0, 0], [0, 1, 0]];
-function seg(g, a, b) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
 // วงกลมในอากาศ/บนพื้น: จุด = c + A·cos·r + B·sin·r
 function ring3(g, c, r, A, B, n = 40, a0 = 0, a1 = TAU) {
   g.beginPath();
@@ -143,6 +134,9 @@ function taper(g, a, b, ra, rb, layers, k) {
 }
 const BEAM_LAYERS = [[3.4, DVIOLET, 0.16, 0], [2.3, VIOLET, 0.22, 0], [1.55, BLUE, 0.5, 1], [1, PALE, 0.75, 1], [0.5, WHITE, 1, 1]];
 const BEAM_LAYERS_LOW = [[2.3, VIOLET, 0.28, 0], [1.2, PALE, 0.8, 1], [0.5, WHITE, 1, 1]];
+// ครั้งที่ 6: หนากว่า ขอบม่วงกว้าง แกนขาวอมม่วง
+const MAX_LAYERS = [[4.4, DVIOLET, 0.2, 0], [3.1, VIOLET, 0.3, 0], [2.1, LILAC, 0.5, 1], [1.35, PALE, 0.75, 1], [0.75, VWHITE, 1, 1], [0.36, WHITE, 1, 1]];
+const MAX_LAYERS_LOW = [[3, VIOLET, 0.32, 0], [1.4, LILAC, 0.75, 1], [0.6, WHITE, 1, 1]];
 
 // ประกายแตกกระจาย (จอ) รอบจุด c · age 0..1
 function sparks(g, c, age, seed, n, size, lowQ) {
@@ -159,72 +153,133 @@ function sparks(g, c, age, seed, n, size, lowQ) {
 }
 
 // ---------- Zoltraak ----------
-const Z_HAND = 0.85, WIND = 0.13;
+//  ค่าต่อท่า: wind = ช่วงกางวงเวท · hold/fade = ลำแสงเต็มถึง hold แล้วเรียวหายถึง fade (สัดส่วนของ FERN_MS) · w = ความกว้างลำ
+const Z_HAND = 0.85;
+const Z_KIND = {
+  fernZoltraak: { wind: 0.13, hold: 0.5, fade: 0.88, w: 0.075, sig: 0.3, max: false },
+  fernZoltraakMax: { wind: 0.2, hold: 0.62, fade: 0.92, w: 0.13, sig: 0.42, max: true },
+};
 function zoltraak(g, e, now, lowQ) {
-  const t = (now - e.t0) / FERN_MS.fernZoltraak;
+  const Z = Z_KIND[e.kind], D = FERN_MS[e.kind], HIT = FERN_HIT_P[e.kind], WIND = Z.wind;
+  const t = (now - e.t0) / D;
   if (t <= 0 || t >= 1) return;
-  const HIT = FERN_HIT_P.fernZoltraak, n0 = Math.max(1, e.size | 0);
+  const n0 = Math.max(1, e.size | 0);
   const ox = e.x + n0 / 2, oy = e.y + n0 / 2;
-  const lane = Array.isArray(e.lane) && e.lane.length ? e.lane : null;
-  const tgt = lane ? lane[lane.length - 1] : e.to || { x: e.x, y: e.y - 1 };
+  const laneIn = Array.isArray(e.lane) ? e.lane.filter((l) => l && Number.isFinite(l.x) && Number.isFinite(l.y)) : [];
+  const lane = laneIn.length ? laneIn : null;
   const tn = lane ? 1 : Math.max(1, e.toSize | 0);
-  let fx = tgt.x + tn / 2 - ox, fy = tgt.y + tn / 2 - oy;
+  const aim = lane ? lane[lane.length - 1] : e.to || { x: e.x, y: e.y - 1 };
+  let fx = aim.x + tn / 2 - ox, fy = aim.y + tn / 2 - oy;
   // ทิศแนวตรง (lane) = แกนหลัก · ไม่มี lane = เวกเตอร์จริง
   if (lane) { if (Math.abs(fx) >= Math.abs(fy)) { fx = Math.sign(fx) || 1; fy = 0; } else { fy = Math.sign(fy) || 1; fx = 0; } }
   const dl = Math.hypot(fx, fy) || 1, f = [fx / dl, fy / dl, 0];
-  const reach = lane ? Math.abs((tgt.x + 0.5 - ox) * f[0] + (tgt.y + 0.5 - oy) * f[1]) + 0.45 : dl;
+  const proj = (tl) => Math.abs((tl.x + 0.5 - ox) * f[0] + (tl.y + 0.5 - oy) * f[1]);
+  // ปลายลำ = ช่องไกลสุดของแนว (3 หรือ 6 ช่อง — ไม่พึ่งลำดับใน lane)
+  const reach = lane ? lane.reduce((m, tl) => Math.max(m, proj(tl)), 0) + 0.45 : dl;
   const s = [-f[1], f[0], 0], up = [0, 0, 1];
   const start = n0 / 2 * 0.85 + 0.05;
   const O = [ox + f[0] * start, oy + f[1] * start, Z_HAND];
-  const rot = (REDUCED ? 0 : now / 140) + e.t0 * 0.001;
-  // วงเวทหน้ามือ (ระนาบตั้งฉากกับทิศยิง)
-  const sk = t < WIND ? easeOut3(t / WIND) : t < 0.6 ? 1 : clamp01(1 - (t - 0.6) / 0.4);
-  sigil(g, O, s, up, 0.3 * (0.4 + 0.6 * Math.min(1, t / WIND)), rot, sk, lowQ, 2);
+  const rot = (REDUCED ? 0 : now / (Z.max ? 110 : 140)) + e.t0 * 0.001;
+  const wq = Math.min(1, t / WIND);
+  // วงเวทหน้ามือ (ระนาบตั้งฉากกับทิศยิง) · Max = วงที่ 2/3 ซ้อนตามแนวยิง + วงใต้เท้า
+  const sk = t < WIND ? easeOut3(t / WIND) : t < Z.hold + 0.1 ? 1 : clamp01(1 - (t - Z.hold - 0.1) / (1 - Z.hold - 0.1));
+  sigil(g, O, s, up, Z.sig * (0.4 + 0.6 * wq), rot, sk, lowQ, Z.max ? 3 : 2);
+  if (Z.max) {
+    const a2 = clamp01((t - WIND * 0.35) / (WIND * 0.65)), a3 = clamp01((t - WIND * 0.6) / (WIND * 0.4));
+    if (a2 > 0) sigil(g, add3(O, f, 0.32), s, up, Z.sig * 0.78 * easeOut3(a2), -rot * 1.4, sk * a2, lowQ, 2);
+    if (a3 > 0 && !lowQ) sigil(g, add3(O, f, 0.6), s, up, Z.sig * 0.56 * easeOut3(a3), rot * 1.9, sk * a3, lowQ, 1);
+    sigil(g, [ox, oy, 0.03], FLAT[0], FLAT[1], 0.62 * n0 * (0.5 + 0.5 * wq), -rot * 0.6, sk * 0.85, lowQ, 2);
+    // ละอองม่วงขาวไหลเข้าวงหน้ามือระหว่างชาร์จ
+    if (t < WIND && !lowQ) {
+      g.save(); g.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 14; i++) {
+        const q = clamp01(wq * 1.3 - hash01(i + 41) * 0.3), a = hash01(i + 5) * TAU, r = 0.9 * (1 - easeIn2(q));
+        const p = P3(add3(add3(O, s, Math.cos(a) * r), up, Math.sin(a) * r));
+        g.fillStyle = `rgba(${i % 2 ? LILAC : WHITE},${Math.sin(Math.PI * q)})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.1, p[2] * 0.025), 0, TAU); g.fill();
+      }
+      g.restore();
+    }
+  }
   if (t < WIND) {
     const [px, py, ps] = P3(O);
-    g.save(); g.globalCompositeOperation = "lighter"; glow(g, px, py, ps * 0.35 * (t / WIND), PALE, 0.6); g.restore();
+    g.save(); g.globalCompositeOperation = "lighter"; glow(g, px, py, ps * (Z.max ? 0.55 : 0.35) * (t / WIND), Z.max ? LILAC : PALE, 0.6); g.restore();
     return;
   }
   // หัวลำแสง: วิ่งถึงปลายแนวตอน HIT
   const u = clamp01((t - WIND) / (HIT - WIND)), d = start + (reach - start) * (t < HIT ? easeIn2(u) * 0.35 + u * 0.65 : 1);
   const H = [ox + f[0] * d, oy + f[1] * d, Z_HAND];
-  // ความกว้าง: เต็มช่วง HIT–0.5 แล้วเรียวลงจนหายที่ 0.88
-  const wK = t < HIT ? 0.75 + 0.25 * u : t < 0.5 ? 1 : clamp01(1 - (t - 0.5) / 0.38);
+  // ความกว้าง: เต็มช่วง HIT–hold แล้วเรียวลงจนหายที่ fade
+  const wK = t < HIT ? 0.75 + 0.25 * u : t < Z.hold ? 1 : clamp01(1 - (t - Z.hold) / (Z.fade - Z.hold));
   const flick = REDUCED ? 1 : 0.9 + 0.1 * Math.sin(now / 23);
+  const surge = Z.max && t >= HIT && t < HIT + 0.08 ? 1 + 0.35 * (1 - (t - HIT) / 0.08) : 1; // ปะทะ = ลำพองวาบ
   if (wK > 0.01) {
-    const a = P3(O), b = P3(H), base = 0.075 * wK * flick;
+    const a = P3(O), b = P3(H), base = Z.w * wK * flick * surge;
     g.save();
-    taper(g, a, b, a[2] * base, b[2] * base, lowQ ? BEAM_LAYERS_LOW : BEAM_LAYERS, 1);
-    // ละอองไหลตามลำ
+    taper(g, a, b, a[2] * base, b[2] * base, Z.max ? (lowQ ? MAX_LAYERS_LOW : MAX_LAYERS) : (lowQ ? BEAM_LAYERS_LOW : BEAM_LAYERS), 1);
     if (!lowQ) {
       g.globalCompositeOperation = "lighter";
-      for (let i = 0; i < 10; i++) {
-        const q = ((now / 260) + hash01(i + 3)) % 1, dd = start + (d - start) * q, off = (hash01(i + 9) - 0.5) * 0.16;
-        const p = P(ox + f[0] * dd + s[0] * off, oy + f[1] * dd + s[1] * off, Z_HAND + (hash01(i + 20) - 0.5) * 0.14);
+      // ละอองไหลตามลำ
+      const NP = Z.max ? 16 : 10;
+      for (let i = 0; i < NP; i++) {
+        const q = ((now / 260) + hash01(i + 3)) % 1, dd = start + (d - start) * q, off = (hash01(i + 9) - 0.5) * (Z.max ? 0.3 : 0.16);
+        const p = P(ox + f[0] * dd + s[0] * off, oy + f[1] * dd + s[1] * off, Z_HAND + (hash01(i + 20) - 0.5) * (Z.max ? 0.26 : 0.14));
         g.fillStyle = `rgba(${WHITE},${0.8 * wK})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * 0.02), 0, TAU); g.fill();
+      }
+      // Max: เกลียวพลัง 2 เส้นพันรอบลำ
+      if (Z.max) {
+        for (let c = 0; c < 2; c++) {
+          g.beginPath();
+          const N = Math.max(12, Math.round((d - start) * 14));
+          for (let i = 0; i <= N; i++) {
+            const q = i / N, dd = start + (d - start) * q, th = dd * 5.5 + c * Math.PI - (REDUCED ? 0 : now / 55), rr = 0.17 * wK;
+            const p = P3(add3(add3([ox + f[0] * dd, oy + f[1] * dd, Z_HAND], s, Math.cos(th) * rr), up, Math.sin(th) * rr));
+            if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
+          }
+          g.strokeStyle = `rgba(${c ? LILAC : WHITE},${0.7 * wK})`; g.lineWidth = 1.6; g.stroke();
+        }
       }
     }
     // หัวลำแสงเรือง (ขณะวิ่ง)
-    if (t < HIT + 0.08) { g.globalCompositeOperation = "lighter"; glow(g, b[0], b[1], b[2] * 0.42, PALE, 0.9 * (t < HIT ? 1 : 1 - (t - HIT) / 0.08)); }
+    if (t < HIT + 0.08) { g.globalCompositeOperation = "lighter"; glow(g, b[0], b[1], b[2] * (Z.max ? 0.65 : 0.42), Z.max ? VWHITE : PALE, 0.9 * (t < HIT ? 1 : 1 - (t - HIT) / 0.08)); }
     // แสงวาบที่ปากวงเวทตอนปล่อย
-    if (t < WIND + 0.12) { g.globalCompositeOperation = "lighter"; glow(g, a[0], a[1], a[2] * 0.55, WHITE, 0.8 * (1 - (t - WIND) / 0.12)); }
+    if (t < WIND + 0.12) { g.globalCompositeOperation = "lighter"; glow(g, a[0], a[1], a[2] * (Z.max ? 0.85 : 0.55), WHITE, 0.8 * (1 - (t - WIND) / 0.12)); }
     g.restore();
   }
-  // ประกายปะทะ + รอยไหม้ฟ้าบนพื้น ทุกช่องที่ลำแสงผ่าน (ไม่มี lane = ช่องเป้า)
-  const tiles = lane || [{ x: tgt.x, y: tgt.y }];
+  // ประกายปะทะ + รอยไหม้ฟ้าบนพื้น ทุกช่องที่ลำแสงผ่าน (ไม่มี lane = ช่องเป้า) · Max = คลื่นกระแทก 2 วง + ประกายใหญ่
+  const tiles = lane || [{ x: aim.x, y: aim.y }];
   tiles.forEach((tl, i) => {
-    const td = Math.abs((tl.x + 0.5 - ox) * f[0] + (tl.y + 0.5 - oy) * f[1]);
+    const td = proj(tl);
     const hitAt = WIND + (HIT - WIND) * clamp01(lane ? (td - start) / (reach - start) : 1);
-    const age = (t - hitAt) / 0.45;
+    const age = (t - hitAt) / (Z.max ? 0.4 : 0.45);
     if (age < 0) return;
     const cx = tl.x + (lane ? 0.5 : tn / 2), cy = tl.y + (lane ? 0.5 : tn / 2);
-    sparks(g, [cx, cy, Z_HAND], age, i * 13 + 7, 9, 0.55, lowQ);
+    sparks(g, [cx, cy, Z_HAND], age, i * 13 + 7, Z.max ? 14 : 9, Z.max ? 0.8 : 0.55, lowQ);
     if (age < 1) {
       g.save(); g.globalCompositeOperation = "lighter";
-      gEllipse(g, cx, cy, 0.18 + 0.32 * easeOut3(age), 0.02, 28); g.strokeStyle = `rgba(${PALE},${0.7 * (1 - age)})`; g.lineWidth = 1.6; g.stroke();
+      gEllipse(g, cx, cy, 0.18 + (Z.max ? 0.55 : 0.32) * easeOut3(age), 0.02, 28); g.strokeStyle = `rgba(${PALE},${0.7 * (1 - age)})`; g.lineWidth = Z.max ? 2.4 : 1.6; g.stroke();
+      if (Z.max) {
+        const a2 = clamp01(age * 1.25 - 0.15);
+        if (a2 > 0 && a2 < 1) { gEllipse(g, cx, cy, 0.25 + 0.85 * easeOut3(a2), 0.03, 32); g.strokeStyle = `rgba(${LILAC},${0.75 * (1 - a2)})`; g.lineWidth = 1.8; g.stroke(); }
+        if (age < 0.3) { const [px, py, ps] = P(cx, cy, 0.5); glow(g, px, py, ps * 0.7, VWHITE, 0.7 * (1 - age / 0.3)); }
+      }
       g.restore();
     }
   });
+  // Max: คลื่นกระแทกใหญ่ที่ปลายแนว
+  if (Z.max && t >= HIT) {
+    const q = clamp01((t - HIT) / 0.4);
+    if (q < 1) {
+      const ex = ox + f[0] * (reach - 0.45), ey = oy + f[1] * (reach - 0.45);
+      g.save(); g.globalCompositeOperation = "lighter";
+      for (let j = 0; j < (lowQ ? 1 : 2); j++) {
+        const qq = clamp01(q * 1.2 - j * 0.2);
+        if (qq <= 0 || qq >= 1) continue;
+        gEllipse(g, ex, ey, 0.4 + 1.5 * easeOut3(qq), 0.03, 48);
+        g.strokeStyle = `rgba(${j ? VIOLET : VWHITE},${0.85 * (1 - qq)})`; g.lineWidth = 3.2 * (1 - qq) + 1; g.stroke();
+      }
+      g.restore();
+    }
+  }
 }
 
 // ---------- เหตุการณ์ครั้งเดียว ----------
@@ -278,7 +333,7 @@ function unveilFx(g, e, t, lowQ) {
   gEllipse(g, cx, cy, 0.3 + 1.4 * easeOut3(q), 0.03, 40); g.strokeStyle = `rgba(${PALE},${0.8 * (1 - q)})`; g.lineWidth = 2.2; g.stroke();
   g.restore();
 }
-// Defensive Magic: โดมหกเหลี่ยมโปร่งแสง (ครึ่งทรงกลมรัศมี R) วาบขึ้นแล้วจาง + ระลอกจุดกระทบ
+// ผู้เชี่ยวชาญเวทมนต์พื้นฐาน (กันการโจมตี): โดมหกเหลี่ยมโปร่งแสง (ครึ่งทรงกลมรัศมี R) วาบขึ้นแล้วจาง + ระลอกจุดกระทบ
 const DOME_R = 0.78;
 const DOME_CELLS = (() => {
   const out = [];
@@ -318,273 +373,155 @@ function shieldFx(g, e, t, lowQ) {
   if (q < 0.25) glow(g, ccx, ccy, cs * R * 1.4, WHITE, 0.55 * (1 - q / 0.25));
   g.restore();
 }
-// วาร์ป: out = ประกายหมุนวนขึ้นแล้วหาย (ตัวสลายเป็นแสง) · in = ประกายตกลงรวมตัว + วงพื้นกาง
-function warpFx(g, e, t, out, lowQ) {
-  const [cx, cy] = pos(e), q = clamp01(t / FERN_FX_DUR.fernWarpOut), k = out ? 1 - easeIn2(q) : (q < 0.7 ? 1 : 1 - (q - 0.7) / 0.3);
-  g.save(); g.globalCompositeOperation = "lighter";
-  // เสาแสง
-  const colA = out ? (q < 0.3 ? q / 0.3 : 1 - (q - 0.3) / 0.7) : (q < 0.55 ? q / 0.55 : 1 - (q - 0.55) / 0.45);
-  if (colA > 0) {
-    const b = P(cx, cy, 0), tp = P(cx, cy, 2.6), w = b[2] * 0.34 * (out ? 1 - q * 0.7 : 0.4 + q * 0.6);
-    const gr = g.createLinearGradient(tp[0], tp[1], b[0], b[1]);
-    gr.addColorStop(0, `rgba(${PALE},0)`); gr.addColorStop(0.6, `rgba(${PALE},${0.45 * colA})`); gr.addColorStop(1, `rgba(${WHITE},${0.7 * colA})`);
-    g.fillStyle = gr; g.beginPath(); g.moveTo(tp[0] - w * 0.4, tp[1]); g.lineTo(b[0] - w, b[1]); g.lineTo(b[0] + w, b[1]); g.lineTo(tp[0] + w * 0.4, tp[1]); g.closePath(); g.fill();
+// เพิ่มระยะ: วงเวทใต้ตัวกาง + เส้นอักษรวิ่งยืดออก 6 ช่องทั้ง 4 ทิศ (ขีดอักษรทุกครึ่งช่อง) แล้วจาง
+const BOOST_LEN = 6;
+function boostFx(g, e, t, lowQ) {
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, q = clamp01(t / FERN_FX_DUR.fernBoost);
+  const k = q < 0.12 ? q / 0.12 : q < 0.6 ? 1 : 1 - (q - 0.6) / 0.4;
+  sigil(g, [cx, cy, 0.03], FLAT[0], FLAT[1], (0.5 + 0.2 * easeOut3(Math.min(1, q * 3))) * n, t / 260, k, lowQ, 2);
+  const r0 = n / 2 + 0.1, L = r0 + (n / 2 + BOOST_LEN - r0) * easeOut3(clamp01((q - 0.05) / 0.5));
+  if (L <= r0 + 0.01) return;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const sx = -dy, sy = dx;
+    const a = P(cx + dx * r0, cy + dy * r0, 0.04), b = P(cx + dx * L, cy + dy * L, 0.04);
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]);
+    g.strokeStyle = `rgba(${BLUE},${0.45 * k})`; g.lineWidth = Math.max(2, a[2] * 0.05); g.stroke();
+    g.strokeStyle = `rgba(${WHITE},${0.85 * k})`; g.lineWidth = Math.max(1, a[2] * 0.014); g.stroke();
+    // ขีดอักษร: ทุกครึ่งช่อง ยาวสลับสั้น (lowQ = ทุกช่อง)
+    g.beginPath();
+    for (let d = r0 + 0.5; d < L; d += lowQ ? 1 : 0.5) {
+      const h = Math.round(d * 2) % 2 ? 0.07 : 0.14;
+      const p0 = P(cx + dx * d + sx * h, cy + dy * d + sy * h, 0.04), p1 = P(cx + dx * d - sx * h, cy + dy * d - sy * h, 0.04);
+      g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]);
+    }
+    g.strokeStyle = `rgba(${PALE},${0.8 * k})`; g.lineWidth = 1.3; g.stroke();
+    // หัวเส้น = จุดแสง
+    glow(g, b[0], b[1], b[2] * 0.22, PALE, 0.9 * k);
   }
-  // วงพื้น
-  const rr = out ? 0.7 * (1 - easeOut3(q)) + 0.1 : 0.2 + 0.7 * easeOut3(q);
-  gEllipse(g, cx, cy, rr, 0.02, 36); g.strokeStyle = `rgba(${PALE},${0.85 * k})`; g.lineWidth = 2; g.stroke();
-  if (!out) { gEllipse(g, cx, cy, rr * 1.25, 0.02, 36); g.strokeStyle = `rgba(${VIOLET},${0.6 * k})`; g.lineWidth = 1.3; g.stroke(); }
-  // ประกายดาว 4 แฉก
-  const N = lowQ ? 9 : 20;
+  g.restore();
+}
+
+// ปลายคทา (โลก) ของเฟิร์นที่ยืนกลางกล่อง (wx, wy) ขนาด n — ข้างขวาของตัว สูงกว่าหัวเล็กน้อย
+const staffPt = (wx, wy, n) => [wx + 0.3 * n, wy + 0.05 * n, 1.55 * n];
+// Zoltraak ครั้งที่ 6 พร้อม: ละอองม่วงขาวไหลจากรอบตัวเข้าปลายคทา + วงเรืองรอบตัวกางแล้วค้าง → วาบตอนรวมครบ
+function empowerFx(g, e, t, lowQ) {
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, q = clamp01(t / FERN_FX_DUR.fernEmpower);
+  const S = staffPt(cx, cy, n);
+  g.save(); g.globalCompositeOperation = "lighter";
+  const N = lowQ ? 12 : 30;
   for (let i = 0; i < N; i++) {
-    const ph = hash01(i + (out ? 3 : 8)), a = ph * TAU + (out ? q * 4 : -q * 3), r0 = 0.15 + 0.5 * hash01(i + 17);
-    const z = out ? 0.2 + (0.4 + 2.2 * ph) * easeOut3(q) : 2.8 * (1 - easeOut3(clamp01(q * 1.3 - ph * 0.2))) + 0.15;
-    const rr2 = out ? r0 * (1 - q * 0.6) : r0 * (0.4 + 0.6 * (1 - q));
-    const p = P(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2, z), tw = 0.5 + 0.5 * Math.sin(t / 50 + i * 2);
-    const sz = p[2] * (0.05 + 0.04 * tw), al = k * (0.5 + 0.5 * tw);
-    g.strokeStyle = `rgba(${WHITE},${al})`; g.lineWidth = 1.1;
-    g.beginPath(); g.moveTo(p[0] - sz, p[1]); g.lineTo(p[0] + sz, p[1]); g.moveTo(p[0], p[1] - sz); g.lineTo(p[0], p[1] + sz); g.stroke();
-    glow(g, p[0], p[1], sz * 1.4, PALE, 0.5 * al);
+    const ph = hash01(i + 71) * 0.45, u = clamp01((q - ph) / 0.5);
+    if (u <= 0 || u >= 1) continue;
+    const a = hash01(i + 13) * TAU + u * 2.4, r = (1.1 + 0.8 * hash01(i + 29)) * n * (1 - easeIn2(u));
+    const p = P(S[0] + Math.cos(a) * r, S[1] + Math.sin(a) * r, 0.1 + (S[2] - 0.1) * Math.pow(u, 0.6));
+    const al = Math.sin(Math.PI * u);
+    if (!lowQ) glow(g, p[0], p[1], p[2] * 0.06, LILAC, 0.45 * al);
+    g.fillStyle = `rgba(${i % 3 ? VWHITE : LILAC},${al})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.1, p[2] * 0.024), 0, TAU); g.fill();
   }
-  // แสงวาบ (out = ตอนต้น · in = ตอนรวมตัวเสร็จ)
-  const fq = out ? q / 0.2 : (q - 0.5) / 0.2;
-  if (fq > 0 && fq < 1) { const [px, py, ps] = P(cx, cy, 0.8); glow(g, px, py, ps * 0.9, WHITE, 0.85 * (1 - fq)); }
+  // วงเรืองรอบตัว (พื้น)
+  const rk = q < 0.2 ? q / 0.2 : q < 0.8 ? 1 : 1 - (q - 0.8) / 0.2, grow = easeOut3(Math.min(1, q * 2));
+  gEllipse(g, cx, cy, (0.55 + 0.15 * grow) * n, 0.03, 44); g.strokeStyle = `rgba(${LILAC},${0.85 * rk})`; g.lineWidth = 2.2; g.stroke();
+  gEllipse(g, cx, cy, (0.68 + 0.15 * grow) * n, 0.03, 44); g.strokeStyle = `rgba(${VIOLET},${0.55 * rk})`; g.lineWidth = 1.3; g.stroke();
+  const [px, py, ps] = P3(S);
+  glow(g, px, py, ps * (0.12 + 0.25 * q), VWHITE, (0.5 + 0.4 * q) * (q < 0.9 ? 1 : 1 - (q - 0.9) / 0.1));
+  if (q > 0.65 && q < 0.9) { const fq = (q - 0.65) / 0.25; glow(g, px, py, ps * (0.4 + 0.5 * fq), WHITE, 0.85 * (1 - fq)); }
   g.restore();
 }
-// ต้นเทิร์นที่ชาร์จ: เผยตำแหน่ง — วงสัญญาณ 3 วงขยายบนพื้น + เสาแสงสั้น
-function revealFx(g, e, t, lowQ) {
-  const [cx, cy] = pos(e), D = FERN_FX_DUR.fernReveal;
-  g.save(); g.globalCompositeOperation = "lighter";
-  for (let j = 0; j < 3; j++) {
-    const q = (t - j * 220) / (D - 440);
-    if (q < 0 || q > 1) continue;
-    gEllipse(g, cx, cy, 0.3 + 1.7 * easeOut3(q), 0.02, 48);
-    g.strokeStyle = `rgba(${j === 1 ? VIOLET : PALE},${0.85 * (1 - q)})`; g.lineWidth = 2.4 * (1 - q) + 0.8; g.stroke();
-  }
-  const q = clamp01(t / D), k = q < 0.15 ? q / 0.15 : 1 - (q - 0.15) / 0.85;
-  const b = P(cx, cy, 0), tp = P(cx, cy, 3.2);
-  g.strokeStyle = `rgba(${PALE},${0.6 * k})`; g.lineWidth = Math.max(2, b[2] * 0.06); seg(g, b, tp); g.stroke();
-  g.strokeStyle = `rgba(${WHITE},${0.9 * k})`; g.lineWidth = Math.max(1, b[2] * 0.02); g.stroke();
-  if (!lowQ) glow(g, b[0], b[1], b[2] * 0.7, BLUE, 0.4 * k);
-  g.restore();
-}
-// ชาร์จถูกยกเลิก: วงเวทใต้ตัวร้าว → เศษวงกระเด็นออก ตกลงพื้น → ควันม่วงจาง
-function fizzleFx(g, e, t, lowQ) {
-  const [cx, cy] = pos(e), q = clamp01(t / FERN_FX_DUR.fernFizzle);
-  const crack = clamp01(q / 0.35), k = q < 0.35 ? 1 : 1 - (q - 0.35) / 0.4;
-  if (k > 0) sigil(g, [cx, cy, 0.03], FLAT[0], FLAT[1], 0.95, 0.4, k * (REDUCED ? 1 : 0.8 + 0.2 * Math.sin(t / 30)), lowQ, 2, crack);
-  // เศษ: ขีดโค้งจากวงกระเด็นออก
-  if (q > 0.3) {
-    const u = (q - 0.3) / 0.7, N = lowQ ? 8 : 16;
-    g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
-    for (let i = 0; i < N; i++) {
-      const a = hash01(i + 61) * TAU, r = 0.95 + 0.9 * easeOut3(u) * (0.5 + hash01(i + 2)), z = 0.03 + Math.sin(Math.PI * Math.min(1, u * 1.2)) * 0.5 * hash01(i + 9);
-      const p0 = P(cx + Math.cos(a) * r, cy + Math.sin(a) * r, z), p1 = P(cx + Math.cos(a + 0.18) * r, cy + Math.sin(a + 0.18) * r, z);
-      g.strokeStyle = `rgba(${i % 2 ? PALE : VIOLET},${1 - u})`; g.lineWidth = Math.max(1, p0[2] * 0.03 * (1 - u)); seg(g, p0, p1); g.stroke();
+// ครั้งที่ 6 จบ — รีเซ็ทคูลดาวน์: หน้าปัดอักษร 12 ขีดบนพื้น · เข็มหมุนย้อนเร็ว → วงหดเข้า (SNAP) → ปะทุเป็นวงกระจาย + ประกาย
+function resetFx(g, e, t, lowQ) {
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, q = clamp01(t / FERN_FX_DUR.fernReset);
+  const SNAP = 0.55, R0 = 0.85 * n;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  if (q < SNAP + 0.08) {
+    const a0 = clamp01(q / 0.15), shr = q < SNAP - 0.12 ? 1 : 1 - easeIn2(clamp01((q - (SNAP - 0.12)) / 0.2)) * 0.75;
+    const k = a0 * (q < SNAP ? 1 : 1 - (q - SNAP) / 0.08), R = R0 * shr;
+    gEllipse(g, cx, cy, R, 0.04, 48); g.strokeStyle = `rgba(${PALE},${0.9 * k})`; g.lineWidth = 2; g.stroke();
+    gEllipse(g, cx, cy, R * 0.82, 0.04, 40); g.strokeStyle = `rgba(${VIOLET},${0.6 * k})`; g.lineWidth = 1.2; g.stroke();
+    g.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU, l = i % 3 ? 0.1 : 0.2;
+      const p0 = P(cx + Math.cos(a) * R * (1 - l), cy + Math.sin(a) * R * (1 - l), 0.04), p1 = P(cx + Math.cos(a) * R * 0.98, cy + Math.sin(a) * R * 0.98, 0.04);
+      g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]);
     }
-    g.restore();
+    g.strokeStyle = `rgba(${WHITE},${0.85 * k})`; g.lineWidth = 1.5; g.stroke();
+    // เข็ม: หมุนย้อน 1.5 รอบ (เร่งขึ้น) แล้วหยุดที่ 12 นาฬิกาตอน SNAP
+    const sw = easeIn2(clamp01(q / SNAP)), ang = -Math.PI / 2 + (1 - sw) * TAU * 1.5;
+    const c0 = P(cx, cy, 0.04), tip = P(cx + Math.cos(ang) * R * 0.78, cy + Math.sin(ang) * R * 0.78, 0.04);
+    g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(tip[0], tip[1]);
+    g.strokeStyle = `rgba(${VWHITE},${k})`; g.lineWidth = Math.max(1.5, c0[2] * 0.03); g.stroke();
     if (!lowQ) {
-      g.save(); g.globalCompositeOperation = "source-over";
-      for (let i = 0; i < 6; i++) {
-        const a = hash01(i + 90) * TAU, [px, py, ps] = P(cx + Math.cos(a) * 0.5, cy + Math.sin(a) * 0.5, 0.2 + u * 0.9);
-        glow(g, px, py, ps * (0.3 + 0.3 * u), DVIOLET, 0.35 * (1 - u));
-      }
-      g.restore();
-    }
-  }
-}
-
-// ---------- Orbital Cannon Zoltraak ----------
-const SKY_Z = 5.2, SKY_R = 1.35;
-function cannonGeo(e) {
-  if (e._geo) return e._geo;
-  const from = e.from || e.to || { x: e.x, y: e.y }, to = e.to || from;
-  e._geo = { fx: from.x + 0.5, fy: from.y + 0.5, tx: to.x + 0.5, ty: to.y + 0.5 };
-  return e._geo;
-}
-function cannonFx(g, e, now, lowQ, view) {
-  const t = now - e.t0, { hit, drop, fade0, total } = FERN_CANNON;
-  if (t < 0 || t > total) return;
-  const G = cannonGeo(e), sky = [G.tx, G.ty, SKY_Z], ground = [G.tx, G.ty, 0.02];
-  const spin = REDUCED ? 0 : (t / 1000) * (1.2 + 3.5 * clamp01(t / hit));
-  g.save(); g.lineCap = "round"; g.lineJoin = "round";
-  // 1) เฟิร์นยิงแสงขึ้นฟ้า (0–0.6 วิ)
-  if (t < 650) {
-    const q = t / 650, k = q < 0.2 ? q / 0.2 : 1 - (q - 0.2) / 0.8;
-    sigil(g, [G.fx, G.fy, 0.03], FLAT[0], FLAT[1], 0.7, spin, k, lowQ, 2);
-    const b = P(G.fx, G.fy, 0.9), tp = P(G.fx, G.fy, 0.9 + 9 * easeOut3(Math.min(1, q * 2.2)));
-    taper(g, b, tp, b[2] * 0.06, tp[2] * 0.03, lowQ ? BEAM_LAYERS_LOW : BEAM_LAYERS, k);
-  }
-  // 2) วงเวทยักษ์กลางฟ้าเหนือเป้า + วงล็อกเป้าบนพื้น (0.25 วิ → จางตอนท้าย)
-  const sq = clamp01((t - 250) / 700), sK = t < fade0 ? easeOut3(sq) : clamp01(1 - (t - fade0) / (total - fade0));
-  if (sK > 0) {
-    const R = SKY_R * (0.35 + 0.65 * easeOut3(sq));
-    sigil(g, sky, FLAT[0], FLAT[1], R, spin, sK, lowQ, 3);
-    sigil(g, sky, FLAT[0], FLAT[1], R * 0.55, -spin * 1.6, sK * 0.8, lowQ, 1);
-    // วงล็อกเป้าบนพื้น + ช่องเป้า
-    const lockK = sK * (t < hit ? 0.6 + 0.4 * Math.sin(t / 70) : 0.6);
-    sigil(g, ground, FLAT[0], FLAT[1], 0.75, -spin, lockK, lowQ, 1);
-    g.save(); g.globalCompositeOperation = "lighter";
-    quad(g, G.tx - 0.5, G.ty - 0.5, 0.04); g.fillStyle = `rgba(${PALE},${0.22 * lockK})`; g.fill();
-    g.restore();
-  }
-  // 3) ชาร์จ: ละอองจากขอบวงไหลเข้ากลาง + แกนกลางสว่างขึ้น + เส้นนำลงเป้า (1.1–1.4 วิ)
-  if (t < hit) {
-    const ch = clamp01((t - 300) / (hit - 300));
-    const [sx, sy, ss] = P3(sky);
-    g.save(); g.globalCompositeOperation = "lighter";
-    if (!lowQ) {
-      for (let i = 0; i < 26; i++) {
-        const per = 520 + hash01(i) * 380, age = ((t / per) + hash01(i + 4)) % 1, a = hash01(i + 7) * TAU + age * 1.2;
-        const r = SKY_R * 1.5 * (1 - easeIn2(age));
-        const p = P(G.tx + Math.cos(a) * r, G.ty + Math.sin(a) * r, SKY_Z + 0.25 * Math.sin(Math.PI * age));
-        g.fillStyle = `rgba(${WHITE},${ch * Math.sin(Math.PI * age)})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.2, p[2] * 0.03), 0, TAU); g.fill();
+      for (let j = 1; j <= 4; j++) { // รอยหางเข็ม (ฝั่งที่เพิ่งผ่าน)
+        const aj = ang + j * 0.16, tj = P(cx + Math.cos(aj) * R * 0.78, cy + Math.sin(aj) * R * 0.78, 0.04);
+        g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(tj[0], tj[1]);
+        g.strokeStyle = `rgba(${PALE},${0.35 * k * (1 - j / 5)})`; g.lineWidth = 1.2; g.stroke();
       }
     }
-    glow(g, sx, sy, ss * (0.3 + 0.9 * ch), PALE, 0.35 + 0.5 * ch);
-    glow(g, sx, sy, ss * (0.12 + 0.3 * ch), WHITE, 0.6 + 0.4 * ch);
-    if (t > 1050) {
-      const gk = (t - 1050) / (hit - 1050), fl = REDUCED ? 1 : 0.5 + 0.5 * Math.sin(t / 18);
-      const a = P3(sky), b = P3(ground);
-      g.strokeStyle = `rgba(${PALE},${0.55 * gk * fl})`; g.lineWidth = Math.max(1, a[2] * 0.02 + gk * 2); seg(g, a, b); g.stroke();
+    glow(g, c0[0], c0[1], c0[2] * 0.2, PALE, 0.6 * k);
+  }
+  if (q >= SNAP) {
+    const u = clamp01((q - SNAP) / (1 - SNAP));
+    for (let j = 0; j < (lowQ ? 1 : 2); j++) {
+      const uu = clamp01(u * 1.15 - j * 0.15);
+      if (uu <= 0 || uu >= 1) continue;
+      gEllipse(g, cx, cy, 0.25 * n + 1.6 * n * easeOut3(uu), 0.04, 52);
+      g.strokeStyle = `rgba(${j ? VIOLET : PALE},${0.9 * (1 - uu)})`; g.lineWidth = 3 * (1 - uu) + 1; g.stroke();
     }
+    const [px, py, ps] = P(cx, cy, 0.7);
+    if (u < 0.3) glow(g, px, py, ps * 0.9 * n, WHITE, 0.8 * (1 - u / 0.3));
     g.restore();
-  }
-  // 4) ลำแสงทิ้งดิ่ง (hit − drop → hit) แล้วค้างถึง fade0 → เรียวหาย
-  if (t >= hit - drop) {
-    const dq = clamp01((t - (hit - drop)) / drop), endZ = SKY_Z - (SKY_Z - 0.02) * easeIn2(dq);
-    const wK = t < fade0 ? 1 : clamp01(1 - (t - fade0) / (total - fade0 - 60));
-    const pulse = REDUCED ? 1 : 0.9 + 0.1 * Math.sin(t / 25) + (t < hit + 160 ? 0.35 * (1 - (t - hit) / 160) * (t >= hit ? 1 : 0) : 0);
-    const a = P3(sky), b = P(G.tx, G.ty, endZ);
-    if (wK > 0.01) {
-      const ra = a[2] * 0.42 * wK * pulse, rb = b[2] * 0.55 * wK * pulse;
-      taper(g, a, b, ra, rb, lowQ ? BEAM_LAYERS_LOW : [[2.6, DVIOLET, 0.2, 0], [1.9, VIOLET, 0.3, 0], [1.4, BLUE, 0.55, 1], [1, PALE, 0.8, 1], [0.55, MOON, 1, 1], [0.25, WHITE, 1, 1]], 1);
-      // เกลียวพลังหมุนรอบลำ
-      if (!lowQ && t >= hit) {
-        g.globalCompositeOperation = "lighter";
-        for (let c = 0; c < 2; c++) {
-          g.beginPath();
-          for (let i = 0; i <= 30; i++) {
-            const s = i / 30, z = SKY_Z * (1 - s) + 0.05, th = s * 10 + c * Math.PI - t / 60, rr = 0.45 + 0.2 * s;
-            const p = P(G.tx + Math.cos(th) * rr * wK, G.ty + Math.sin(th) * rr * wK, z);
-            if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
-          }
-          g.strokeStyle = `rgba(${c ? VIOLET : PALE},${0.6 * wK})`; g.lineWidth = 1.8; g.stroke();
-        }
-      }
-    }
-  }
-  // 5) ปะทะ: คลื่นกระแทก + ประกาย + แสงพื้น + รอยไหม้
-  if (t >= hit) {
-    const u = (t - hit) / (total - hit);
-    g.save(); g.globalCompositeOperation = "lighter";
-    const [gx, gy, gs] = P(G.tx, G.ty, 0.05);
-    glow(g, gx, gy, gs * (1.6 + 1.2 * u), BLUE, 0.55 * (1 - u));
-    glow(g, gx, gy, gs * 0.9, WHITE, 0.8 * (1 - u));
-    for (let j = 0; j < 2; j++) {
-      const q = clamp01((t - hit - j * 140) / 600);
-      if (q <= 0 || q >= 1) continue;
-      gEllipse(g, G.tx, G.ty, 0.4 + 2.6 * easeOut3(q), 0.03, 56);
-      g.strokeStyle = `rgba(${j ? VIOLET : PALE},${0.9 * (1 - q)})`; g.lineWidth = 4 * (1 - q) + 1; g.stroke();
-    }
-    g.restore();
-    sparks(g, [G.tx, G.ty, 0.4], clamp01((t - hit) / 650), 211, 18, 1.6, lowQ);
-  }
-  // 6) แฟลชทั้งจอตอนปะทะ
-  if (t >= hit && t < hit + 380) {
-    const fq = (t - hit) / 380;
-    const x0 = (view && Number.isFinite(view.x0) ? view.x0 : 0) - 60, y0 = (view && Number.isFinite(view.y0) ? view.y0 : 0) - 60;
-    const x1 = (view && Number.isFinite(view.x1) ? view.x1 : 1280) + 60, y1 = (view && Number.isFinite(view.y1) ? view.y1 : 720) + 60;
-    g.globalCompositeOperation = "lighter";
-    g.fillStyle = `rgba(215,232,255,${(lowQ ? 0.4 : 0.62) * (1 - fq) * (1 - fq)})`;
-    g.fillRect(x0, y0, x1 - x0, y1 - y0);
+    sparks(g, [cx, cy, 0.7], u, 157, 14, 1.1 * n, lowQ);
+    return;
   }
   g.restore();
 }
 
-// ---------- ระหว่างชาร์จ ----------
-//  ferns = [{ id, x, y, size, charge (0..3) }] (BoardStage จาก p.fern.charge)
-const chargeK = (c) => clamp01((Number(c.charge) || 0) / 3);
-// ความมืดของสนามระหว่าง cannon (ms นับจากเริ่ม)
-function cannonDark(t) {
-  const { hit, fade0, total } = FERN_CANNON;
-  if (t < 0 || t > total) return 0;
-  if (t < hit) return 0.12 + 0.3 * easeIn2(t / hit);
-  if (t < fade0) return 0.42;
-  return 0.42 * (1 - (t - fade0) / (total - fade0));
-}
-export function drawFernGround(g, ferns, fx, view, now, lowQ) {
-  let dark = 0;
-  for (const e of fx) if (e.kind === "fernCannon") dark = Math.max(dark, cannonDark(now - e.t0));
-  if (dark > 0) {
-    g.save(); g.globalCompositeOperation = "source-over";
-    g.fillStyle = `rgba(8,10,32,${dark})`;
-    const x0 = (view && Number.isFinite(view.x0) ? view.x0 : 0) - 60, y0 = (view && Number.isFinite(view.y0) ? view.y0 : 0) - 60;
-    const x1 = (view && Number.isFinite(view.x1) ? view.x1 : 1280) + 60, y1 = (view && Number.isFinite(view.y1) ? view.y1 : 720) + 60;
-    g.fillRect(x0, y0, x1 - x0, y1 - y0);
-    g.restore();
-  }
-  if (!Array.isArray(ferns)) return;
-  for (const c of ferns) {
-    const n = Math.max(1, c.size | 0), cx = c.x + n / 2, cy = c.y + n / 2, ck = chargeK(c), lv = Math.round(ck * 3);
-    const rot = REDUCED ? 0 : now / (2600 - 500 * lv), pulse = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(now / (420 - 60 * lv));
-    const k = 0.5 + 0.35 * ck + 0.15 * pulse;
-    // แสงพื้นใต้วง (lighter บนพื้นสว่างจาง — ใส่ชั้นม่วงเข้มบางๆ ให้วงเด่น)
-    g.save();
-    if (!lowQ) { g.globalCompositeOperation = "source-over"; gEllipse(g, cx, cy, (0.8 + 0.25 * lv) * n, 0.01, 40); g.fillStyle = `rgba(${DVIOLET},${0.16 + 0.06 * lv})`; g.fill(); }
-    g.globalCompositeOperation = "lighter";
-    const [sx, sy, ss] = P(cx, cy, 0.04);
-    glow(g, sx, sy, ss * (0.9 + 0.35 * lv) * n, BLUE, 0.18 + 0.12 * ck);
-    g.restore();
-    sigil(g, [cx, cy, 0.03], FLAT[0], FLAT[1], (0.62 + 0.14 * lv) * n, rot, k, lowQ, 1 + Math.min(2, lv));
-    if (lv >= 2) sigil(g, [cx, cy, 0.03], FLAT[0], FLAT[1], 0.34 * n, -rot * 1.7, k * 0.8, lowQ, 1);
-  }
-}
-const HEAD_Z = 1.95;
+// ---------- ค้างบนตัว: แสงที่ปลายคทา ----------
+//  ferns = [{ id, x, y, size, empowered, boost }] (BoardStage จาก p.fern) · ตามหมากที่กำลังเดิน (units rx/ry)
 export function drawFernAir(g, ferns, units, now, lowQ) {
   if (!Array.isArray(ferns) || !ferns.length) return;
   for (const c of ferns) {
     const n = Math.max(1, c.size | 0), u = units.find((it) => it.id === c.id && !it.corpse);
     const wx = u ? u.rx + n / 2 + (u.ox || 0) : c.x + n / 2, wy = u ? u.ry + n / 2 + (u.oy || 0) : c.y + n / 2;
-    const ck = chargeK(c), lv = Math.round(ck * 3), T = [wx, wy, HEAD_Z * n];
+    const S = staffPt(wx, wy, n), [hx, hy, hs] = P3(S);
+    const pulse = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(now / 380);
     g.save(); g.globalCompositeOperation = "lighter";
-    // ละอองมานาจากพื้นรอบตัววนเข้าหาจุดเหนือหัว
-    const N = (lowQ ? 6 : 14) + lv * (lowQ ? 3 : 8), str = 0.45 + 0.55 * ck;
-    for (let i = 0; i < N; i++) {
-      const per = 1500 + hash01(i + 1) * 1100 - lv * 200, age = REDUCED ? hash01(i + 2) : ((now / per) + hash01(i * 3.1)) % 1;
-      const ang = hash01(i + 5) * TAU + age * 2.2, r = (1.1 + hash01(i + 9) * 1.6) * (1 - easeIn2(age));
-      const p = P(T[0] + Math.cos(ang) * r, T[1] + Math.sin(ang) * r, 0.05 + (T[2] - 0.05) * Math.pow(age, 0.7));
-      const a = Math.sin(Math.PI * age) * str;
-      if (!lowQ) glow(g, p[0], p[1], p[2] * 0.07, PALE, 0.4 * a);
-      g.fillStyle = `rgba(${i % 3 ? PALE : WHITE},${a})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * 0.022), 0, TAU); g.fill();
+    if (c.boost) {
+      glow(g, hx, hy, hs * (0.16 + 0.04 * pulse), PALE, 0.45 + 0.15 * pulse);
+      if (!lowQ) {
+        const rot = REDUCED ? 0 : now / 900, r = 0.15 * n;
+        g.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = rot + (i / 8) * TAU, p0 = P(S[0] + Math.cos(a) * r, S[1] + Math.sin(a) * r, S[2]), p1 = P(S[0] + Math.cos(a + 0.35) * r, S[1] + Math.sin(a + 0.35) * r, S[2]);
+          g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]);
+        }
+        g.strokeStyle = `rgba(${PALE},0.75)`; g.lineWidth = 1.2; g.stroke();
+      }
     }
-    // จุดรวมมานาเหนือหัว + ลูกแสงโคจรตามจำนวนเทิร์นที่ชาร์จ
-    const [hx, hy, hs] = P3(T), bob = REDUCED ? 0 : Math.sin(now / 300) * 0.06;
-    glow(g, hx, hy, hs * (0.18 + 0.12 * lv), PALE, 0.4 + 0.15 * lv);
-    glow(g, hx, hy, hs * 0.07 * (1 + lv * 0.4), WHITE, 0.8);
-    for (let i = 0; i < lv; i++) {
-      const a = (REDUCED ? 0 : now / 520) + (i / Math.max(1, lv)) * TAU;
-      const p = P(T[0] + Math.cos(a) * 0.42, T[1] + Math.sin(a) * 0.42, T[2] + bob + 0.05 * Math.sin(a * 2));
-      glow(g, p[0], p[1], p[2] * 0.14, BLUE, 0.6);
-      g.fillStyle = `rgba(${WHITE},1)`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.6, p[2] * 0.035), 0, TAU); g.fill();
+    if (c.empowered) {
+      glow(g, hx, hy, hs * (0.2 + 0.07 * pulse), LILAC, 0.5 + 0.2 * pulse);
+      glow(g, hx, hy, hs * 0.07, VWHITE, 0.9);
+      const M = lowQ ? 2 : 4;
+      for (let i = 0; i < M; i++) {
+        const a = (REDUCED ? 0 : now / 600) + (i / M) * TAU, p = P(S[0] + Math.cos(a) * 0.22 * n, S[1] + Math.sin(a) * 0.22 * n, S[2] + 0.06 * Math.sin(a * 2));
+        g.fillStyle = `rgba(${VWHITE},0.95)`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.2, p[2] * 0.022), 0, TAU); g.fill();
+      }
     }
     g.restore();
   }
 }
 
-export function fernFx(g, e, now, lowQ, view) {
-  if (e.kind === "fernZoltraak") { zoltraak(g, e, now, lowQ); return; }
-  if (e.kind === "fernCannon") { cannonFx(g, e, now, lowQ, view); return; }
+export function fernFx(g, e, now, lowQ) {
+  if (Z_KIND[e.kind]) { zoltraak(g, e, now, lowQ); return; }
   const t = now - e.t0;
   if (t < 0 || t > (FERN_FX_DUR[e.kind] || 0)) return;
   g.save(); g.lineCap = "round"; g.lineJoin = "round";
   if (e.kind === "fernCast") castFx(g, e, t, lowQ);
+  else if (e.kind === "fernBoost") boostFx(g, e, t, lowQ);
   else if (e.kind === "fernConceal") concealFx(g, e, t, lowQ);
   else if (e.kind === "fernUnveil") unveilFx(g, e, t, lowQ);
   else if (e.kind === "fernShield") shieldFx(g, e, t, lowQ);
-  else if (e.kind === "fernWarpOut") warpFx(g, e, t, true, lowQ);
-  else if (e.kind === "fernWarpIn") warpFx(g, e, t, false, lowQ);
-  else if (e.kind === "fernReveal") revealFx(g, e, t, lowQ);
-  else if (e.kind === "fernFizzle") fizzleFx(g, e, t, lowQ);
+  else if (e.kind === "fernEmpower") empowerFx(g, e, t, lowQ);
+  else if (e.kind === "fernReset") resetFx(g, e, t, lowQ);
   g.restore();
 }

@@ -1,9 +1,10 @@
 // เฉพาะ dev: หน้าดูกระดาน ?board=1&fern=1 — ปุ่มเล่นเอฟเฟกต์ของเฟิร์น (fernFx.js) โดยไม่ต้องเปิดห้องจริง
 //  มุยมิ (me) กลายเป็นเฟิร์น — ปุ่มสร้าง payload แบบเดียวกับ server (GRID_PLAN §7.14) แล้วผ่าน FERN_EVENT_FX เหมือน BoardStage
-//  Zoltraak = attackStyle "fernZoltraak" ตามแนว 3 ช่องไปทางศัตรูใกล้สุด · ชาร์จ 0..3 = ชั้นวงเวท (prop ferns) · ปิด = ไม่ชาร์จ
-//  คอนโซล: window.__fernFx({ kind: "cannon", from: { x, y }, to: { x, y } }) = ส่ง payload ของ socket "fernFx" ตรงๆ
+//  Zoltraak 3 / 6 = attackStyle "fernZoltraak" ตามแนว 3 หรือ 6 ช่องไปทางที่โดนศัตรูมากสุด · Zoltraak 6th = "fernZoltraakMax" (แนว 3 ช่อง)
+//  แสงปลายคทา (prop ferns) = สลับ empowered / boost
+//  คอนโซล: window.__fernFx({ kind: "reset", at: { x, y } }) = ส่ง payload ของ socket "fernFx" ตรงๆ
 import { useEffect } from "react";
-import { FERN_CANNON, FERN_EVENT_FX, FERN_EVENT_SFX } from "./fernFx";
+import { FERN_EVENT_FX, FERN_EVENT_SFX, FERN_HIT_P, FERN_MS } from "./fernFx";
 import { playSfx } from "../audio";
 
 const IMG = "/characters/fern/fern.webp";
@@ -11,60 +12,49 @@ function fernUnits(list) {
   return list.map((u) => (u.id === "me" ? { ...u, x: 4, y: 8, name: "เฟิร์น", img: IMG, color: "#8E7CC3", hp: 5, maxHp: 5, armor: 2, maxArmor: 2 } : u));
 }
 const DIR4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const man = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const btn = { font: "500 13px Kanit, sans-serif", color: "#fff", cursor: "pointer", padding: "4px 9px", border: "1px solid rgba(180,210,255,.6)", background: "rgba(24,22,48,.94)" };
 
 export default function FernFxDev({ units, pushFx, setFocus, map, ferns, setFerns }) {
-  const get = (id) => units.find((u) => u.id === id);
   const inB = (x, y) => x >= 0 && y >= 0 && x < map.cols && y < map.rows;
-  const F = () => get("me");
-  const foes = () => { const d = F(); return units.filter((u) => u.id !== "me").sort((a, b) => man(a, d) - man(b, d)); };
+  const F = () => units.find((u) => u.id === "me");
   const play = (ev) => {
     const kind = FERN_EVENT_FX[ev.kind];
-    if (!kind) return;
-    const at = ev.kind === "cannon" ? ev.to : ev.at;
-    pushFx([{ ...ev, kind, x: at.x, y: at.y, ...(ev.kind === "cannon" && ev.hitId ? { hitIds: [ev.hitId], hitDelay: FERN_CANNON.hit } : {}) }]);
+    if (!kind || !ev.at) return;
+    pushFx([{ ...ev, kind, x: ev.at.x, y: ev.at.y, size: 1 }]);
     if (FERN_EVENT_SFX[ev.kind]) playSfx(FERN_EVENT_SFX[ev.kind]);
-    setFocus({ x: at.x, y: at.y });
-    if (ev.kind === "cannon") {
-      setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 10, dur: 900 }, { kind: "float", x: at.x, y: at.y, text: `-${ev.dmg || 5}`, size: 34, z: 1.5 }]), FERN_CANNON.hit);
-    }
+    setFocus({ x: ev.at.x, y: ev.at.y });
   };
   useEffect(() => { window.__fernFx = (ev) => play(ev); return () => { delete window.__fernFx; }; });
   const me = () => { const d = F(); return { x: d.x, y: d.y }; };
-  // แนว 3 ช่องที่มีศัตรูใกล้สุด (ไม่มี = ทิศขวา)
-  const zoltraak = () => {
+  // แนว len ช่องที่โดนศัตรูมากสุด (เสมอ = ทิศแรก · ไม่มีใคร = ทิศขวา)
+  const zoltraak = (len, style) => {
     const d = F();
     let best = null;
     for (const [dx, dy] of DIR4) {
       const lane = [];
-      for (let i = 1; i <= 3 && inB(d.x + dx * i, d.y + dy * i); i++) lane.push({ x: d.x + dx * i, y: d.y + dy * i });
+      for (let i = 1; i <= len && inB(d.x + dx * i, d.y + dy * i); i++) lane.push({ x: d.x + dx * i, y: d.y + dy * i });
       if (!lane.length) continue;
       const hits = units.filter((u) => u.id !== "me" && lane.some((t) => t.x === u.x && t.y === u.y));
       if (!best || hits.length > best.hits.length) best = { lane, hits };
     }
     if (!best) return;
     const to = best.hits[0] ? { x: best.hits[0].x, y: best.hits[0].y } : best.lane[best.lane.length - 1];
-    pushFx([{ kind: "fernZoltraak", x: d.x, y: d.y, size: 1, to, lane: best.lane, color: d.color }]);
+    pushFx([{ kind: style, x: d.x, y: d.y, size: 1, to, lane: best.lane, color: d.color }]);
     setFocus(to);
+    const max = style === "fernZoltraakMax";
     setTimeout(() => {
-      playSfx("fern_zoltraak");
-      pushFx(best.hits.flatMap((u) => [{ kind: "burst", x: u.x, y: u.y, color: d.color }, { kind: "float", x: u.x, y: u.y, text: "-2", size: 28, z: 1.5 }]));
-    }, 270);
+      playSfx(max ? "fern_zoltraak_max" : "fern_zoltraak");
+      pushFx(best.hits.flatMap((u) => [{ kind: "burst", x: u.x, y: u.y, color: d.color }, { kind: "float", x: u.x, y: u.y, text: "-2", size: max ? 32 : 28, z: 1.5 }]));
+    }, Math.round(FERN_MS[style] * FERN_HIT_P[style]));
   };
-  const cannon = () => {
-    const f = foes()[0];
-    if (!f) return;
-    play({ kind: "cannon", from: me(), to: { x: f.x, y: f.y }, dmg: 3 + Math.max(0, (ferns && ferns.charge) || 0), hitId: f.id });
-    setFerns(null);
-  };
-  const charge = (n) => setFerns(n == null ? null : { charge: n });
+  const glowToggle = (k) => setFerns({ empowered: !!(ferns && ferns.empowered), boost: !!(ferns && ferns.boost), [k]: !(ferns && ferns[k]) });
   const rows = [
-    [["Zoltraak", zoltraak], ["ร่ายต่อเนื่อง", () => play({ kind: "cast", at: me() })], ["ซ่อนเร้นมานา", () => play({ kind: "conceal", at: me() })],
-      ["เผยตัว", () => play({ kind: "unveil", at: me() })], ["Defensive Magic", () => play({ kind: "shield", at: me() })]],
-    [["วาร์ปหาย", () => play({ kind: "warpOut", at: me() })], ["วาร์ปปรากฏ", () => play({ kind: "warpIn", at: me() })], ["เผยตำแหน่ง", () => play({ kind: "reveal", at: me() })],
-      ["ชาร์จ 0", () => charge(0)], ["ชาร์จ 1", () => charge(1)], ["ชาร์จ 2", () => charge(2)], ["ชาร์จ 3", () => charge(3)], ["ปิดชาร์จ", () => charge(null)],
-      ["Orbital Cannon", cannon], ["ยกเลิกชาร์จ", () => { play({ kind: "fizzle", at: me() }); setFerns(null); }]],
+    [["Zoltraak 3", () => zoltraak(3, "fernZoltraak")], ["Zoltraak 6", () => zoltraak(6, "fernZoltraak")], ["Zoltraak 6th", () => zoltraak(3, "fernZoltraakMax")],
+      ["Zoltraak 6th · 6", () => zoltraak(6, "fernZoltraakMax")]],
+    [["ร่ายต่อเนื่อง", () => play({ kind: "cast", at: me() })], ["เพิ่มระยะ", () => play({ kind: "boost", at: me() })], ["ซ่อนเร้นมานา", () => play({ kind: "conceal", at: me() })],
+      ["ออกจากซ่อนเร้น", () => play({ kind: "unveil", at: me() })], ["ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", () => play({ kind: "shield", at: me() })]],
+    [["ครบ 5", () => play({ kind: "empower", at: me() })], ["รีเซ็ท", () => play({ kind: "reset", at: me() })],
+      [`คทา 6th ${ferns && ferns.empowered ? "✓" : "✗"}`, () => glowToggle("empowered")], [`คทา เพิ่มระยะ ${ferns && ferns.boost ? "✓" : "✗"}`, () => glowToggle("boost")]],
   ];
   return (
     <div style={{ position: "absolute", right: 12, bottom: 12, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", maxWidth: 900 }}>

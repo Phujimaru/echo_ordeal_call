@@ -35,7 +35,7 @@ const TimeStop = require("./timeStop");
 //   → สกิลที่ค่าใช้พลังงานถึงเพดานอยู่แล้ว (เช่นท่าไม้ตาย 8) จะไม่แพงขึ้นไปอีก
 function skillCostOf(p, tier, base, opts) {
   const hook = CHAR_HOOKS[p.characterId];
-  // ฮุค skillFree(p, tier, opts) → true = กดฟรีจริง ไม่คิดภาษีกลางคืน/การเดินทาง/ภาระเวท (เฟิร์น: ยกเลิกซ่อนเร้นมานา · ยิงท่าไม้ตายที่ชาร์จไว้)
+  // ฮุค skillFree(p, tier, opts) → true = กดฟรีจริง ไม่คิดภาษีกลางคืน/การเดินทาง/ภาระเวท (เฟิร์น: ซ่อนเร้นมานา เข้า/ยกเลิก)
   if (hook && hook.skillFree && hook.skillFree(p, tier, opts)) return 0;
   const cost = hook && hook.skillCost ? hook.skillCost(p, tier, base, opts) : base;
   const nightTax = p.nightTaxTier === tier ? 1 : 0;

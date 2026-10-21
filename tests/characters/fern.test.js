@@ -1,4 +1,4 @@
-// เฟิร์น (fern) — Zoltraak (Energy) / Defensive Magic / ร่ายต่อเนื่อง / ซ่อนเร้นมานา / Orbital Cannon Zoltraak (GRID_PLAN §7.14)
+// เฟิร์น (fern) — Zoltraak (Energy) / ผู้เชี่ยวชาญเวทมนต์พื้นฐาน / ร่ายต่อเนื่อง / เพิ่มระยะ / ซ่อนเร้นมานา (GRID_PLAN §7.14 · รื้อใหม่ 2026-10-21)
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,6 +8,7 @@ const { CHAR_BY_ID } = require('../../characters.js');
 const action = require('../../server/phases/action.js');
 const match = require('../../server/match.js');
 const timers = require('../../server/timers.js');
+const Ice = require('../../server/ice.js');
 
 const realRandom = Math.random;
 const blank = (id, characterId, position, teamId = null) => ({
@@ -33,7 +34,6 @@ function setup(list, mode = 'ffa') {
 }
 const view = (viewerId, id) => engine.buildStateFor(viewerId).players.find((p) => p.id === id);
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
-const flush = (t, ms = 6000) => { for (let i = 0; i < ms / 100; i++) t.mock.timers.tick(100); };
 const newCommand = () => { match.commandSeq++; };
 // ตีปกติแล้วจบฉากตีทันที (เก็บ callback ของตัวจับเวลาไว้เรียกเอง)
 function strikeNow(id, targetId) {
@@ -47,6 +47,7 @@ function strikeNow(id, targetId) {
   } finally { timers.startPhaseTimer = orig; engine.clearPhaseTimer(); }
 }
 const hitBy = (src, target, n = 1) => engine.withEffectSource(src, () => engine.dealMixed(target, n));
+const fernFx = (kind) => calls.own.filter((f) => f.event === 'fernFx' && f.payload.kind === kind);
 
 const saved = {
   triggerCutscene: engine.triggerCutscene, queueCutscene: engine.queueCutscene, skillFlash: engine.skillFlash,
@@ -58,7 +59,7 @@ test.before(() => {
   engine.queueCutscene = (p, key) => calls.queue.push(key);
   engine.skillFlash = (f) => calls.flash.push(f);
   engine.notifyTransform = () => {};
-  engine.sfx = (s) => calls.sfx.push(s);
+  engine.sfx = (s, ids) => calls.sfx.push({ s, ids });
   engine.boardFx = (event, payload) => calls.fx.push({ event, payload });
   engine.boardFxTo = (ids, event, payload) => calls.own.push({ ids, event, payload });
 });
@@ -66,223 +67,376 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: ง่าย · พลังชีวิต 5 เกราะ 2 · เดิน 3 · ตีแนวตรง [1, 3] · ไม่มีตีสวน · 2 / 0 / 4 Energy · Energy 10 เริ่มเต็ม', () => {
+test('ข้อมูล: กลาง · พลังชีวิต 5 เกราะ 2 · เดิน 3 · ตีแนวตรง [1, 3] · ไม่มีตีสวน · 2 / 3 / 0 Energy · Energy 10 เริ่มเต็ม', () => {
   const ch = CHAR_BY_ID.fern;
   assert.equal(ch.name, 'เฟิร์น');
-  assert.equal(ch.difficulty, 'easy');
+  assert.equal(ch.difficulty, 'medium');
   assert.equal(ch.mov, 3);
   assert.deepEqual(ch.range, [1, 3]);
   assert.ok(!ch.counter, 'ตีสวนปิดทั้งเกม (GRID_PLAN §6)');
-  assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [2, 0, 4]);
-  assert.deepEqual(ch.ultimate.area, { kind: 'tile', range: 99, place: 'free', hostile: false });
-  for (const t of ['basic', 'secondary', 'ultimate']) assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก/);
+  assert.equal(ch.passive.name, 'ผู้เชี่ยวชาญเวทมนต์พื้นฐาน');
+  assert.deepEqual([ch.basic.name, ch.secondary.name, ch.ultimate.name], ['ร่ายต่อเนื่อง', 'เพิ่มระยะ', 'ซ่อนเร้นมานา']);
+  assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [2, 3, 0]);
+  for (const t of ['basic', 'secondary', 'ultimate']) {
+    assert.deepEqual(ch[t].area, { kind: 'self' });
+    assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก|สวน/);
+  }
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
   assert.equal(P.F.hp, 5);
   assert.equal(P.F.armor, 2);
   assert.equal(P.F.skillPoints, 10, 'เริ่มเกมเต็ม');
   assert.equal(engine.maxSkillOf(P.F), 10);
   assert.equal(action.lanes(P.F), true);
+  assert.equal(action.counters(P.F), false);
   assert.equal(view('F', 'F').maxSkill, 10);
+  assert.equal(P.F.fern.concealReady, 5, 'เทิร์นแรก (1) + 4 — startMatch แจกเทิร์น 1 แล้ว');
+  assert.deepEqual(view('F', 'F').fern, { conceal: false, count: 0, empowered: false, boost: false, shieldCd: 0, basicCd: 0, boostCd: 0, concealCd: 1 });
 });
 
-test('Energy: จบเทิร์น/โบนัสกลางวัน/ไอเทม/ไพ่เหลืองไม่ฟื้น · ซ่อนเร้นมานาฟื้นได้ (ไม่เกิน 10)', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+test('Energy: จบเทิร์น/ไอเทม/ไพ่/สกิลติดตัวไม่ฟื้น · ซ่อนเร้นมานาฟื้นได้ (ไม่เกิน 10)', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
   P.F.skillPoints = 4;
   engine.addSkill(P.F, 3, 'item');
   engine.addSkill(P.F, 2, 'card');
   engine.addSkill(P.F, 1, 'passive');
+  engine.addSkill(P.F, 1, 'journey');
   engine.addSkill(P.F, 1);
   assert.equal(P.F.skillPoints, 4);
-  engine.setRoundNumber(1); // จบเทิร์น 1 = เช้าที่มีโบนัส (ถ้ามี) — ทั้งหมดถูกกัน
+  engine.setRoundNumber(1);
   P.B.skillPoints = 0;
   engine.endTurn();
   engine.clearPhaseTimer();
   assert.equal(P.F.skillPoints, 4, 'จบเทิร์นไม่ฟื้น');
   assert.ok(P.B.skillPoints >= 1, 'คนอื่นฟื้นตามปกติ');
-  engine.setRoundNumber(4);
+  engine.setRoundNumber(5);
+  P.F.fern.concealReady = 0;
   engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.skillPoints, 7, 'ซ่อนเร้น +3');
-  P.F.skillPoints = 9;
+  engine.useSkill('F', 'ultimate', []);
+  assert.equal(P.F.skillPoints, 8, 'ซ่อนเร้น +4');
   fern.onRoundStartTick(engine, P.F);
+  assert.equal(P.F.skillPoints, 10, '+2 ต้นเทิร์น');
   fern.onRoundStartTick(engine, P.F);
   assert.equal(P.F.skillPoints, 10, 'เพดาน 10');
+  assert.ok(P.F.fern.conceal, 'เต็มแล้วโหมดยังอยู่');
 });
 
-test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโดนทุกคน (ทะลุ) เสียครั้งเดียว · ดาเมจ 2 · ไม่ถึง 2 = ตีไม่ได้', () => {
+test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโดนทุกคน (ทะลุ) เสียครั้งเดียว · ดาเมจ 2 (เกราะก่อน) · ไม่ถึง 2 = ตีไม่ได้', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 6, 7], ['D', 'dummy', 7, 7]]);
   for (const id of ['B', 'C', 'D']) { engine.players[id].hp = 10; engine.players[id].armor = 0; }
-  P.F.fern.shieldReady = 99;
+  P.C.armor = 1;
   engine.setActor('F');
   assert.equal(strikeNow('F', 'B'), true);
   assert.equal(P.F.skillPoints, 8, 'ตีครั้งเดียวเสีย 2 แม้โดน 2 คน');
   assert.equal(P.B.hp, 8, 'ดาเมจ 2');
-  assert.equal(P.C.hp, 8, 'คนในแนว (ระยะ 3) โดนด้วย');
+  assert.deepEqual([P.C.hp, P.C.armor], [9, 0], 'คนในแนว (ระยะ 3) โดนด้วย · เกราะรับก่อน');
   assert.equal(P.D.hp, 10, 'ระยะ 4 ไม่โดน');
+  assert.equal(engine.lastAttack.byStyle, 'fernZoltraak');
+  assert.equal(engine.lastAttack.byAttackSound, 'fern_zoltraak');
+  assert.equal(P.F.fern.count, 1);
   P.F.skillPoints = 1;
   engine.setActor('F');
   assert.deepEqual(action.rangeOf(P.F), [1, 0]);
   assert.equal(strikeNow('F', 'B'), false, 'Energy 1 = ตีไม่ได้');
+  assert.equal(P.F.fern.count, 1);
+});
+
+test('Zoltraak ตีหนามน้ำแข็ง = 2 Energy + นับเข้ารอบ · ครั้งที่ 6 ใส่หนามก็ฟรีและรีเซ็ท', () => {
+  const P = setup([['F', 'fern', 3, 7], ['I', 'ice_spike', 12, 12]]);
+  Ice.placeSpike(5, 7, 'I', 3);
+  engine.setActor('F');
+  assert.equal(strikeNow('F', 'spike:5,7'), true);
+  assert.equal(P.F.skillPoints, 8);
+  assert.equal(P.F.fern.count, 1);
+  P.F.fern.count = 5; P.F.skillPoints = 0; P.F.fern.castReady = 9;
+  engine.setActor('F');
+  assert.equal(strikeNow('F', 'spike:5,7'), true);
+  assert.equal(P.F.skillPoints, 0);
+  assert.equal(P.F.fern.count, 0);
+  assert.equal(P.F.fern.castReady, 0);
 });
 
 test('ไม่มีตีสวน: ศัตรูตีประชิด = เฟิร์นไม่สวน ไม่เสีย Energy', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
   P.B.hp = 10; P.B.armor = 0;
-  P.F.hp = 5; P.F.armor = 2;
   P.F.fern.shieldReady = 99;
   engine.setActor('B');
   assert.equal(strikeNow('B', 'F'), true);
   assert.equal(P.F.skillPoints, 10, 'ไม่เสีย Energy');
   assert.equal(P.B.hp, 10, 'ไม่สวน');
   assert.equal(engine.lastAttack.counter, null);
+  assert.equal(P.F.fern.count, 0, 'ถูกตีไม่นับ');
 });
 
-test('ร่ายต่อเนื่อง: ตีแล้วไม่จบตา · 2 ครั้ง = ตี 3 ครั้ง · ครั้งที่ 3 กดไม่ได้ · เทิร์นถัดไปล็อก · N+2 กดได้', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
-  P.B.hp = 99; P.B.armor = 0;
-  engine.setActor('F');
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.skillPoints, 8);
-  assert.equal(P.F.fern.extra, 1);
-  assert.equal(engine.action.locked, true, 'ล็อกการเดิน');
-  assert.ok(calls.fx.some((f) => f.event === 'fernFx' && f.payload.kind === 'cast'));
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.fern.extra, 2, 'ครั้งที่ 2 ไม่ต้องใช้โควตา');
-  assert.equal(P.F.skillPoints, 6);
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.fern.extra, 2, 'ครั้งที่ 3 กดไม่ได้');
-  assert.equal(P.F.skillPoints, 6);
-  for (let i = 0; i < 2; i++) {
-    assert.equal(strikeNow('F', 'B'), true);
-    assert.equal(engine.actorId, 'F', `ตีครั้งที่ ${i + 1} ยังไม่จบตา`);
-    assert.equal(engine.gameState, 'ACTION');
-  }
-  assert.equal(strikeNow('F', 'B'), true);
-  assert.equal(P.B.hp, 99 - 6, 'ตี 3 ครั้ง');
-  assert.equal(P.F.skillPoints, 0);
-  assert.notEqual(engine.actorId, 'F', 'ครั้งสุดท้ายจบตา');
-  // เทิร์นถัดไปกดไม่ได้ · N+2 ได้
-  P.F.skillPoints = 10; P.F.skillUsedRound = false;
-  fern.onActorEnd(engine, P.F);
-  engine.setRoundNumber(5);
-  engine.setActor('F');
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.fern.extra, 0, 'N+1 ล็อก');
-  assert.equal(view('F', 'F').skillLocks.basic.locked, true);
-  engine.setRoundNumber(6);
-  engine.setActor('F');
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.fern.extra, 1, 'N+2 กดได้');
-});
-
-test('ร่ายต่อเนื่อง: ที่ตุนไว้หายตอนจบตา (รอ)', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
-  engine.setActor('F');
-  engine.useSkill('F', 'basic', []);
-  engine.waitAction('F');
-  assert.equal(P.F.fern.extra, 0);
-});
-
-test('Defensive Magic: กันการโจมตีทั้งก้อน (ฉากตีขึ้น 0) · คูลดาวน์ 2 เทิร์น · หลายจังหวะในคำสั่งเดียว = กันหมด', () => {
+test('ผู้เชี่ยวชาญเวทมนต์พื้นฐาน: กันการโจมตีทั้งก้อน (ฉากตีขึ้น 0) · กันเทิร์น N → N+3 · หลายจังหวะในคำสั่งเดียว = กันหมด', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 9, 7]]);
   engine.setActor('B');
   assert.equal(strikeNow('B', 'F'), true);
   assert.equal(vit(P.F), 7, 'กันหมด');
   const card = engine.lastAttack;
   assert.equal(card.dmg, 0, 'ฉากตีขึ้น 0');
-  assert.ok(card.skills.some((s) => s.name === 'Defensive Magic' && s.side === 'def'));
-  assert.ok(calls.own.some((f) => f.event === "fernFx" && f.payload.kind === "shield"));
-  assert.ok(calls.sfx.includes('fern_shield'));
-  assert.equal(view('F', 'F').fern.shieldCd, 2);
-  // การโจมตีถัดไปในเทิร์นเดียวกัน = โดน
+  assert.ok(card.skills.some((s) => s.name === 'ผู้เชี่ยวชาญเวทมนต์พื้นฐาน' && s.side === 'def'));
+  assert.ok(fernFx('shield').length);
+  assert.ok(calls.sfx.some((c) => c.s === 'fern_shield'));
+  assert.equal(view('F', 'F').fern.shieldCd, 3);
   engine.setActor('B');
   strikeNow('B', 'F');
-  assert.equal(vit(P.F), 6);
-  // เทิร์น N+1 ยังไม่พร้อม · N+2 พร้อม
-  engine.setRoundNumber(5);
-  newCommand(); hitBy(P.C, P.F, 1);
-  assert.equal(vit(P.F), 5);
-  engine.setRoundNumber(6);
+  assert.equal(vit(P.F), 6, 'การโจมตีถัดไปโดน');
+  engine.setRoundNumber(5); newCommand(); hitBy(P.C, P.F, 1);
+  engine.setRoundNumber(6); newCommand(); hitBy(P.C, P.F, 1);
+  assert.equal(vit(P.F), 4, 'N+1 / N+2 ยังไม่พร้อม');
+  engine.setRoundNumber(7);
   newCommand(); hitBy(P.C, P.F, 2); hitBy(P.C, P.F, 2);
-  assert.equal(vit(P.F), 5, 'สกิลหลายจังหวะของคำสั่งเดียว = กันทั้งหมด');
+  assert.equal(vit(P.F), 4, 'N+3 กันทั้งคำสั่ง');
   newCommand(); hitBy(P.C, P.F, 1);
-  assert.equal(vit(P.F), 4, 'คำสั่งถัดไปโดน');
-  // ไม่มีผู้ลงมือ (ลุกไหม้/ผลต่อเทิร์น) = ไม่ใช้โล่
-  engine.setRoundNumber(8);
+  assert.equal(vit(P.F), 3, 'คำสั่งถัดไปโดน');
+  // ไม่มีผู้ลงมือ (ลุกไหม้/ผลต่อเทิร์น) = ไม่ใช้การกัน
+  engine.setRoundNumber(10);
   newCommand(); engine.dealMixed(P.F, 1);
-  assert.equal(vit(P.F), 3);
+  assert.equal(vit(P.F), 2);
   assert.equal(view('F', 'F').fern.shieldCd, 0, 'ยังพร้อม');
 });
 
-test('ซ่อนเร้นมานา: +3 · ล่องหน (ศัตรูระยะ 2 เห็น · 3 ไม่เห็น) · ต้นเทิร์น +1 · ฟื้นพลังชีวิตทุก 2 เทิร์น · เงียบ · ทำอะไรไม่ได้', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 5, 7], ['C', 'dummy', 6, 7]]);
-  P.F.skillPoints = 2; P.F.hp = 3;
+test('ครั้งที่ 6: ตีครบ 5 → ฟรีแม้ Energy 0 · ทะลุเกราะทุกคนในแนว · รีเซ็ทคูลดาวน์ทุกอย่าง (รวมคูลดาวน์เริ่มเกม) · นับใหม่', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 6, 7]]);
+  for (const id of ['B', 'C']) { engine.players[id].hp = 50; engine.players[id].armor = 0; }
+  for (let i = 1; i <= 5; i++) {
+    engine.setActor('F');
+    assert.equal(strikeNow('F', 'B'), true, `ตีครั้งที่ ${i}`);
+    assert.equal(P.F.fern.count, i);
+  }
+  assert.equal(P.F.skillPoints, 0);
+  assert.equal(fernFx('empower').length, 1, 'ครบ 5 = เอฟเฟกต์พร้อม');
+  assert.equal(view('F', 'F').fern.empowered, true);
+  assert.equal(view('F', 'F').fern.count, 5);
+  // คูลดาวน์ค้างทุกช่อง (ซ่อนเร้นมานายังติดคูลดาวน์เริ่มเกม)
+  Object.assign(P.F.fern, { castReady: 9, boostReady: 9, shieldReady: 9, concealReady: null });
+  for (const id of ['B', 'C']) { engine.players[id].hp = 10; engine.players[id].armor = 2; }
+  engine.setActor('F');
+  assert.deepEqual(action.rangeOf(P.F), [1, 3], 'Energy 0 ก็ตีได้');
+  assert.equal(strikeNow('F', 'B'), true);
+  assert.equal(P.F.skillPoints, 0, 'ไม่เสีย Energy');
+  assert.deepEqual([P.B.hp, P.B.armor], [8, 2], 'ทะลุเกราะ');
+  assert.deepEqual([P.C.hp, P.C.armor], [8, 2], 'คนในแนวทะลุเกราะด้วย');
+  const card = engine.lastAttack;
+  assert.equal(card.byStyle, 'fernZoltraakMax');
+  assert.equal(card.byAttackSound, 'fern_zoltraak_max');
+  assert.ok(card.skills.some((s) => s.name === 'ทะลุเกราะ' && s.side === 'atk'));
+  assert.equal(fernFx('reset').length, 1);
+  assert.equal(P.F.fern.count, 0, 'นับใหม่ (ครั้งที่ 6 ไม่นับ)');
+  const s = view('F', 'F').fern;
+  assert.deepEqual([s.basicCd, s.boostCd, s.shieldCd, s.concealCd, s.empowered], [0, 0, 0, 0, false]);
+  // ครั้งถัดไปกลับเป็นปกติ
+  P.F.skillPoints = 4;
+  engine.setActor('F');
+  strikeNow('F', 'B');
+  assert.deepEqual([P.B.hp, P.B.armor], [8, 0], 'กลับมาลดเกราะก่อน');
+  assert.equal(P.F.skillPoints, 2);
+  assert.equal(P.F.fern.count, 1);
+});
+
+test('ครั้งที่ 6 ปลดคูลดาวน์ซ่อนเร้นมานาที่เพิ่งเริ่มจากการตีครั้งนั้น', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
+  P.B.hp = 50; P.B.armor = 0;
+  P.F.fern.concealReady = 0;
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  assert.ok(P.F.fern.conceal);
+  P.F.fern.count = 5;
+  assert.equal(strikeNow('F', 'B'), true);
+  assert.equal(P.F.fern.conceal, null, 'ตี = ออก');
+  assert.equal(view('F', 'F').fern.concealCd, 0, 'คูลดาวน์ที่เริ่มจากการตีนี้ถูกรีเซ็ท');
+});
+
+test('ร่ายต่อเนื่อง: ตีครั้งแรกไม่จบตา · ตี 2 ครั้ง · กดซ้ำในเทิร์นเดียวกันไม่ได้ · N+1 ล็อก · N+2 กดได้', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
+  P.B.hp = 99; P.B.armor = 0;
+  engine.setActor('F');
+  engine.useSkill('F', 'basic', []);
+  assert.equal(P.F.skillPoints, 8);
+  assert.equal(P.F.fern.extra, 1);
+  assert.equal(P.F.skillUsedRound, true, 'กินโควตา');
+  assert.ok(fernFx('cast').length);
+  engine.useSkill('F', 'basic', []);
+  assert.equal(P.F.skillPoints, 8, 'กดซ้ำไม่ได้');
+  assert.equal(strikeNow('F', 'B'), true);
+  assert.equal(engine.actorId, 'F', 'ตีครั้งแรกยังไม่จบตา');
+  assert.equal(engine.gameState, 'ACTION');
+  assert.equal(strikeNow('F', 'B'), true);
+  assert.equal(P.B.hp, 99 - 4, 'ตี 2 ครั้ง');
+  assert.equal(P.F.skillPoints, 4);
+  assert.notEqual(engine.actorId, 'F', 'ครั้งที่ 2 จบตา');
+  P.F.skillPoints = 10; P.F.skillUsedRound = false;
+  engine.setRoundNumber(5);
+  engine.setActor('F');
+  engine.useSkill('F', 'basic', []);
+  assert.equal(P.F.fern.extra, 0, 'N+1 ล็อก');
+  assert.equal(view('F', 'F').skillLocks.basic.locked, true);
+  assert.equal(view('F', 'F').fern.basicCd, 1);
+  engine.setRoundNumber(6);
+  engine.setActor('F');
+  engine.useSkill('F', 'basic', []);
+  assert.equal(P.F.fern.extra, 1, 'N+2 กดได้');
+});
+
+test('ร่ายต่อเนื่อง: ที่ตุนไว้หายตอนจบตา (รอ) · ร่าย + เพิ่มระยะในตาเดียวกันไม่ได้ (โควตา)', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
+  engine.setActor('F');
+  engine.useSkill('F', 'basic', []);
+  engine.useSkill('F', 'secondary', []);
+  assert.equal(P.F.fern.boost, false, 'โควตา 1 สกิลต่อเทิร์น');
+  engine.waitAction('F');
+  assert.equal(P.F.fern.extra, 0);
+});
+
+test('เพิ่มระยะ: ตีครั้งถัดไปแนว 6 ช่อง แล้วกลับเป็น 3 · ค้างข้ามเทิร์น · คูลดาวน์ N → N+2', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
+  P.B.hp = 20; P.B.armor = 0;
+  engine.setActor('F');
+  assert.equal(strikeNow('F', 'B'), false, 'ระยะ 6 ตีไม่ถึงตามปกติ');
   engine.setActor('F');
   engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.skillPoints, 5);
+  assert.equal(P.F.skillPoints, 7);
+  assert.equal(P.F.fern.boost, true);
+  assert.ok(fernFx('boost').length);
+  assert.deepEqual(action.rangeOf(P.F), [1, 6]);
+  assert.equal(view('F', 'F').skillLocks.secondary.locked, true, 'ค้างอยู่กดซ้ำไม่ได้');
+  engine.waitAction('F');
+  // เทิร์นถัดไปยังค้าง
+  engine.setRoundNumber(5);
+  P.F.skillUsedRound = false;
+  engine.setActor('F');
+  assert.equal(view('F', 'F').fern.boost, true);
+  assert.equal(view('F', 'F').fern.boostCd, 1);
+  assert.equal(strikeNow('F', 'B'), true, 'ระยะ 6 ตีถึง');
+  assert.equal(P.B.hp, 18);
+  assert.equal(P.F.fern.boost, false);
+  assert.deepEqual(action.rangeOf(P.F), [1, 3]);
+  // N+2 กดได้อีก
+  engine.setRoundNumber(6);
+  P.F.skillUsedRound = false;
+  engine.setActor('F');
+  engine.useSkill('F', 'secondary', []);
+  assert.equal(P.F.fern.boost, true);
+});
+
+test('ซ่อนเร้นมานา: เริ่มเกมคูลดาวน์ 4 (เทิร์นแรก + 4) · +4 · ต้นเทิร์น +2 · ฟื้นพลังชีวิตทุก 2 เทิร์น · เงียบ · เดินได้', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 5, 7], ['C', 'dummy', 6, 7]]);
+  P.F.fern.concealReady = null; // ก่อนเทิร์นแรก
+  assert.equal(view('F', 'F').fern.concealCd, 4);
+  engine.setRoundNumber(1);
+  fern.onRoundStartTick(engine, P.F);
+  assert.equal(P.F.fern.concealReady, 5);
+  engine.setRoundNumber(4);
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  assert.equal(P.F.fern.conceal, null, 'เทิร์น 4 ยังกดไม่ได้');
+  assert.equal(view('F', 'F').skillLocks.ultimate.locked, true);
+  assert.equal(view('F', 'F').fern.concealCd, 1);
+  engine.setRoundNumber(5);
+  P.F.skillPoints = 2; P.F.hp = 3;
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  assert.ok(P.F.fern.conceal, 'เทิร์น 5 กดได้');
+  assert.equal(P.F.skillPoints, 6);
   assert.equal(P.F.skillUsedRound, false, 'ไม่กินโควตา');
+  assert.equal(engine.action.locked, false, 'ไม่ล็อกการเดิน');
   assert.equal(calls.flash.length, 0, 'ไม่ขึ้นป้ายกลาง');
-  assert.ok(calls.own.some((f) => f.event === 'fernFx' && f.payload.kind === 'conceal' && f.ids.join() === 'F'), 'เอฟเฟกต์เฉพาะตัวเอง');
+  assert.ok(fernFx('conceal').some((f) => f.ids.join() === 'F'), 'เอฟเฟกต์เฉพาะตัวเอง');
+  assert.ok(calls.sfx.some((c) => c.s === 'fern_conceal' && c.ids.join() === 'F'));
+  assert.equal(view('F', 'F').character.ultimate.active, true);
+  // มองเห็นได้เฉพาะศัตรูในระยะ 2
   assert.equal(engine.hiddenFrom(P.B, P.F), false, 'ระยะ 2 เห็น');
   assert.equal(engine.hiddenFrom(P.C, P.F), true, 'ระยะ 3 ไม่เห็น');
   assert.equal(view('C', 'F').pos, null);
   assert.equal(view('C', 'F').fern.conceal, false, 'ไม่บอกคนที่มองไม่เห็น');
+  assert.equal(view('C', 'F').fern.count, null);
   assert.equal(view('F', 'F').fern.conceal, true);
-  // ทำอะไรไม่ได้
-  assert.equal(action.movOf(P.F), 0);
-  assert.deepEqual(action.rangeOf(P.F), [1, 0]);
-  assert.equal(fern.blocksGuts(engine, P.F), true);
-  assert.equal(fern.blocksItems(engine, P.F), true);
-  engine.useSkill('F', 'basic', []);
-  assert.equal(P.F.fern.extra, 0);
-  // ต้นเทิร์น N+1: +1 · N+2: +1 + ฟื้น 1
-  engine.setRoundNumber(5); fern.onRoundStartTick(engine, P.F);
-  assert.deepEqual([P.F.skillPoints, P.F.hp], [6, 3]);
+  // ยังเดินได้ · ยังใช้ไอเทม/ตีได้
+  assert.equal(action.movOf(P.F), 3);
+  assert.deepEqual(action.rangeOf(P.F), [1, 3]);
+  assert.equal(engine.moveTo('F', 2, 8), true);
+  assert.ok(P.F.fern.conceal, 'เดินแล้วยังซ่อน');
+  assert.equal(engine.hiddenFrom(P.B, P.F), true, 'เดินห่างออกไป = ระยะ 4 ไม่เห็น');
+  // ต้นเทิร์น N+1: +2 · N+2: +2 + ฟื้น 1
   engine.setRoundNumber(6); fern.onRoundStartTick(engine, P.F);
-  assert.deepEqual([P.F.skillPoints, P.F.hp], [7, 4]);
+  assert.deepEqual([P.F.skillPoints, P.F.hp], [8, 3]);
   engine.setRoundNumber(7); fern.onRoundStartTick(engine, P.F);
-  assert.deepEqual([P.F.skillPoints, P.F.hp], [8, 4]);
+  assert.deepEqual([P.F.skillPoints, P.F.hp], [10, 4]);
   engine.setRoundNumber(8); fern.onRoundStartTick(engine, P.F);
-  assert.deepEqual([P.F.skillPoints, P.F.hp], [9, 5]);
+  assert.deepEqual([P.F.skillPoints, P.F.hp], [10, 4]);
+  engine.setRoundNumber(9); fern.onRoundStartTick(engine, P.F);
+  assert.deepEqual([P.F.skillPoints, P.F.hp], [10, 5]);
 });
 
-test('ซ่อนเร้นมานา: ยกเลิกฟรี (แม้ภาษีกลางคืน) ไม่ใช้โควตา → ตีต่อได้ (เดินไม่ได้) · คูลดาวน์ 3 นับจากเทิร์นที่ออก', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
-  P.B.hp = 99; P.B.armor = 0;
+test('ซ่อนเร้นมานา: ยกเลิกฟรี (แม้ภาระเวท) ไม่ใช้โควตา ไม่ล็อกการเดิน · คูลดาวน์ 4 นับจากเทิร์นที่ออก', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
+  P.F.fern.concealReady = 0;
+  P.F.statuses.spellburden = 3; P.F.statusAmt.spellburden = 1;
   engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.fern.conceal != null, true);
+  engine.useSkill('F', 'ultimate', []);
+  assert.ok(P.F.fern.conceal);
+  assert.equal(P.F.skillPoints, 10, 'เข้าฟรี');
   engine.setRoundNumber(6);
-  P.F.nightTaxTier = 'secondary';
   P.F.skillUsedRound = true; // ใช้โควตาไปแล้วก็ยกเลิกได้
+  P.F.skillPoints = 5;
   engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
+  engine.useSkill('F', 'ultimate', []);
   assert.equal(P.F.fern.conceal, null, 'ออกแล้ว');
-  assert.equal(P.F.skillPoints, 10, 'ฟรีจริง');
-  assert.ok(calls.fx.some((f) => f.event === 'fernFx' && f.payload.kind === 'unveil'));
-  assert.equal(engine.action.locked, true, 'เดินไม่ได้');
-  assert.equal(strikeNow('F', 'B'), true, 'ตีต่อได้');
-  // คูลดาวน์: ออกเทิร์น 6 → เข้าได้อีกเทิร์น 9
-  P.F.skillUsedRound = false; P.F.nightTaxTier = null;
-  engine.setRoundNumber(8); engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.fern.conceal, null, 'N+2 ยังไม่ได้');
+  assert.equal(P.F.skillPoints, 5, 'ฟรีจริง');
+  assert.equal(engine.action.locked, false, 'ยังเดินได้');
+  assert.ok(fernFx('unveil').length);
+  assert.ok(calls.sfx.some((c) => c.s === 'fern_unveil'));
+  assert.equal(calls.flash.length, 0);
+  assert.equal(view('F', 'F').fern.concealCd, 4);
+  P.F.skillUsedRound = false;
   engine.setRoundNumber(9); engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
-  assert.ok(P.F.fern.conceal, 'N+3 ได้');
+  engine.useSkill('F', 'ultimate', []);
+  assert.equal(P.F.fern.conceal, null, 'N+3 ยังไม่ได้');
+  engine.setRoundNumber(10); engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  assert.ok(P.F.fern.conceal, 'N+4 ได้');
 });
 
-test('ซ่อนเร้นมานา: ถูกโจมตี (Defensive Magic ไม่พร้อม) = หลุด + สตั้นเทิร์นหน้า · กันได้ = ไม่หลุด', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
+test('ซ่อนเร้นมานา: ตีปกติ / ใช้ร่ายต่อเนื่อง / ยิงปืน = ออก · ใช้ไอเทมไม่ออก', () => {
+  let P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
+  P.B.hp = 50; P.B.armor = 0;
+  P.F.fern.concealReady = 0;
   engine.setActor('F');
-  engine.useSkill('F', 'secondary', []);
-  // โล่พร้อม: กัน → ยังซ่อนอยู่
+  engine.useSkill('F', 'ultimate', []);
+  assert.equal(strikeNow('F', 'B'), true);
+  assert.equal(P.F.fern.conceal, null, 'ตี = ออก');
+  assert.equal(P.F.fern.stunPending, false);
+  assert.equal(view('F', 'F').fern.concealCd, 4);
+  // ร่ายต่อเนื่อง
+  P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
+  P.F.fern.concealReady = 0;
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  engine.useSkill('F', 'basic', []);
+  assert.equal(P.F.fern.conceal, null, 'ใช้สกิลอื่น = ออก');
+  assert.equal(P.F.fern.extra, 1);
+  // ปืน / ไอเทม (ฮุคที่ Visibility.onHostileAct เรียก)
+  P.F.fern.concealReady = 0; P.F.skillUsedRound = false;
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
+  fern.onReveal(engine, P.F, 'act', 'item');
+  fern.onReveal(engine, P.F, 'hit');
+  fern.onReveal(engine, P.F, 'bump');
+  assert.ok(P.F.fern.conceal, 'ไอเทม/ถูกพื้นที่/ถูกชน ไม่ออก');
+  fern.onReveal(engine, P.F, 'act', 'gun');
+  assert.equal(P.F.fern.conceal, null, 'ปืน = ออก');
+});
+
+test('ซ่อนเร้นมานา: ถูกโจมตี (การกันไม่พร้อม) = หลุด + สตั้นเทิร์นหน้า · กันได้ = ไม่หลุด', () => {
+  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
+  P.F.fern.concealReady = 0;
+  engine.setActor('F');
+  engine.useSkill('F', 'ultimate', []);
   engine.setActor('B');
   strikeNow('B', 'F');
   assert.ok(P.F.fern.conceal, 'กันได้ = ไม่นับว่าถูกโจมตี');
   assert.equal(P.F.fern.stunPending, false);
+  assert.equal(vit(P.F), 7);
   engine.setActor('B');
   strikeNow('B', 'F');
   assert.equal(P.F.fern.conceal, null, 'หลุด');
@@ -291,113 +445,5 @@ test('ซ่อนเร้นมานา: ถูกโจมตี (Defensive 
   assert.equal(P.F.statuses.stun, 1, 'สตั้นเต็มเทิร์นหน้า');
   assert.equal(P.F.fern.stunPending, false);
   engine.clearPhaseTimer();
-  assert.equal(view('F', 'F').fern.concealCd, 3);
-});
-
-test('Orbital Cannon Zoltraak: วาร์ปเฉพาะช่องว่าง · ล่องหน · คลิป intro · ชาร์จ: เดิน/ตี/สกิลอื่นไม่ได้', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
-  engine.setActor('F');
-  engine.useSkill('F', 'ultimate', [], { tile: { x: 2, y: 6 } }); // หิน
-  engine.useSkill('F', 'ultimate', [], { tile: { x: 9, y: 7 } }); // มีคน
-  assert.equal(P.F.fern.ult, null);
-  assert.equal(P.F.skillPoints, 10, 'กดไม่ได้ไม่เสีย');
-  engine.useSkill('F', 'ultimate', [], { tile: { x: 8, y: 8 } });
-  assert.deepEqual(P.F.pos, { x: 8, y: 8 });
-  assert.equal(P.F.skillPoints, 6);
-  assert.ok(calls.queue.includes('fernUltIntro'));
-  assert.equal(engine.hiddenFrom(P.B, P.F), true, 'ล่องหนเต็ม (ใกล้ก็ไม่เห็น)');
-  assert.equal(view('B', 'F').pos, null);
-  assert.equal(view('B', 'F').fern.charge, 0, 'ศัตรูรู้ว่าชาร์จ');
-  assert.equal(action.movOf(P.F), 0);
-  assert.deepEqual(action.rangeOf(P.F), [1, 0]);
-  assert.equal(fern.blocksGuts(engine, P.F), true);
-  P.F.skillUsedRound = false;
-  engine.setActor('F');
-  engine.useSkill('F', 'basic', []);
-  engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.fern.extra, 0);
-  assert.equal(P.F.fern.conceal, null);
-  assert.equal(view('F', 'F').skillLocks.ultimate.locked, true, 'เทิร์นที่กดยิงไม่ได้');
-});
-
-test('Orbital Cannon Zoltraak: เทิร์นถัดไปจั่วไม่ได้ · ต้นเทิร์นเผยตัวจนถึงตาตัวเอง', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
-  engine.setActor('F');
-  engine.useSkill('F', 'ultimate', [], { tile: { x: 8, y: 8 } });
-  flush(t, 6000);
-  assert.ok(calls.fx.some((f) => f.payload.kind === 'warpOut' && f.payload.at.x === 3));
-  assert.ok(calls.own.some((f) => f.payload.kind === 'warpIn' && f.ids.join() === 'F'));
-  engine.endTurn();
-  for (let i = 0; i < 300 && engine.gameState !== 'PLAYING'; i++) t.mock.timers.tick(100);
-  engine.clearPhaseTimer();
-  assert.equal(P.F.locked, true, 'จั่วไม่ได้');
-  assert.equal(P.F.fern.ult.revealed, true);
-  assert.equal(engine.hiddenFrom(P.B, P.F), false, 'ต้นเทิร์นเห็นตัว');
-  assert.ok(calls.fx.some((f) => f.payload.kind === 'reveal'));
-  fern.onActorStart(engine, P.F);
-  assert.equal(engine.hiddenFrom(P.B, P.F), true, 'ถึงตาตัวเอง = ล่องหนอีกครั้ง');
-});
-
-test('Orbital Cannon Zoltraak: ยิงกรอบ 7×7 (เชบีเชฟ 3 ได้ · 4 ไม่ได้) · ดาเมจ 3/4/5 · หลบไม่ได้ · คูลดาวน์ 4 เทิร์นนับจากยิง', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  for (const k of [1, 2, 3]) {
-    const P = setup([['F', 'fern', 5, 7], ['B', 'dummy', 8, 10], ['C', 'dummy', 9, 7]]);
-    P.B.hp = 10; P.B.armor = 2; P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
-    P.F.fern.ult = { cast: 4 - k, revealed: false };
-    engine.setActor('F');
-    engine.useSkill('F', 'ultimate', ['C']);
-    assert.ok(P.F.fern.ult, 'เชบีเชฟ 4 ยิงไม่ได้');
-    assert.equal(view('F', 'F').character.ultimate.name, 'ยิง Zoltraak');
-    assert.deepEqual(view('F', 'F').character.ultimate.area, fern.FIRE_AREA);
-    engine.useSkill('F', 'ultimate', ['B']);
-    assert.equal(P.F.fern.ult, null);
-    assert.equal(P.F.skillPoints, 10, 'ยิงฟรี');
-    assert.ok(calls.queue.includes('fernUltFinal'));
-    flush(t, 15000);
-    assert.equal(vit(P.B), 12 - (2 + k), `ชาร์จ ${k} = ดาเมจ ${2 + k} (หลบไม่ได้)`);
-    assert.ok(calls.fx.some((f) => f.payload.kind === 'cannon' && f.payload.dmg === 2 + k));
-    assert.equal(engine.actorId, 'F', 'กลับตาเดิน');
-    assert.equal(view('F', 'F').fern.ultCd, 4);
-    assert.equal(engine.hiddenFrom(P.B, P.F), false, 'ยิงแล้วเห็นตัว');
-    engine.clearPhaseTimer();
-    calls.queue = []; calls.fx = [];
-  }
-});
-
-test('Orbital Cannon Zoltraak: ชาร์จครบ 3 แล้วรอ = ยิงคนใกล้สุดในกรอบเอง · ไม่มีใคร = สลาย', (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  let P = setup([['F', 'fern', 5, 7], ['B', 'dummy', 7, 8], ['C', 'dummy', 5, 9]]);
-  for (const id of ['B', 'C']) { engine.players[id].hp = 10; engine.players[id].armor = 0; }
-  P.F.fern.ult = { cast: 1, revealed: false };
-  engine.setActor('F');
-  engine.waitAction('F');
-  assert.ok(calls.queue.includes('fernUltFinal'));
-  flush(t, 15000);
-  assert.equal(P.C.hp, 5, 'ใกล้สุด (ระยะ 2) โดน 5');
-  assert.equal(P.B.hp, 10);
-  assert.equal(P.F.fern.ult, null);
-  assert.notEqual(engine.actorId, 'F', 'จบตา');
-  engine.clearPhaseTimer();
-  P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 12, 7]]);
-  P.F.fern.ult = { cast: 1, revealed: false };
-  engine.setActor('F');
-  engine.waitAction('F');
-  assert.equal(P.F.fern.ult, null, 'สลาย');
-  assert.ok(calls.fx.some((f) => f.payload.kind === 'fizzle'));
-  assert.equal(view('F', 'F').fern.ultCd, 4);
-});
-
-test('Orbital Cannon Zoltraak: ถูกโจมตีระหว่างชาร์จ (ไม่ถูกกัน) = ยกเลิก ไม่คืน Energy · คูลดาวน์เริ่ม', () => {
-  const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
-  P.F.skillPoints = 6;
-  P.F.fern.ult = { cast: 3, revealed: true };
-  newCommand(); hitBy(P.B, P.F, 1);
-  assert.ok(P.F.fern.ult, 'Defensive Magic กัน = ยังชาร์จ');
-  assert.equal(vit(P.F), 7);
-  newCommand(); hitBy(P.B, P.F, 1);
-  assert.equal(P.F.fern.ult, null, 'ยกเลิก');
-  assert.equal(P.F.skillPoints, 6);
-  assert.ok(calls.fx.some((f) => f.payload.kind === 'fizzle'));
-  assert.equal(view('F', 'F').fern.ultCd, 4);
+  assert.equal(view('F', 'F').fern.concealCd, 4);
 });
