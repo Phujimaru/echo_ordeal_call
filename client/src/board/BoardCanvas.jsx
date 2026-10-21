@@ -642,7 +642,20 @@ export default function BoardCanvas(props) {
       const storms = syncStorms(st.stormMem || (st.stormMem = new Map()), p.storms, list, now);
       //  ขยาย 3% รอบกลางจอระหว่างสั่น — ขอบภาพไม่โผล่
       const dView = shk ? { ...view, k: view.k * 1.03, ox: w / 2 + (view.ox - w / 2) * 1.03 + shk[0] * view.k, oy: h / 2 + (view.oy - h / 2) * 1.03 + shk[1] * view.k } : view;
-      const frame = (target) => drawFrame(target, {
+      // ล้างสถานะ canvas ทุกเฟรม: ตัววาดตัวไหนโยน error ระหว่าง save()…restore() (เช่นกลาง "lighter")
+      //  สถานะจะค้างข้ามเฟรม → ทุกอย่างถูกบวกแสงจนกระดานขาวทั้งแผ่น (บั๊กจอขาว 5.6.21–5.6.22) · error ไม่ทำให้เฟรมถัดไปพัง
+      const frame = (target) => {
+        if (target.reset) target.reset();
+        else { target.setTransform(1, 0, 0, 1, 0, 0); target.globalCompositeOperation = "source-over"; target.globalAlpha = 1; target.filter = "none"; }
+        try { return drawFrameOf(target); } catch (err) {
+          const msg = String((err && err.stack) || err);
+          if (!st.drawErrs) st.drawErrs = new Set();
+          if (!st.drawErrs.has(msg)) { st.drawErrs.add(msg); console.error("drawFrame", err); }
+          if (target.reset) target.reset();
+          return st.boxes || [];
+        }
+      };
+      const drawFrameOf = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
