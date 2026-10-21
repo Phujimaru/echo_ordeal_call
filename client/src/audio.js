@@ -193,7 +193,6 @@ const FILES = {
   diego_world: "/characters/diego_alt/sfx/diego_world.mp3",
   diego_stop: "/characters/diego_alt/sfx/diego_stop.mp3",
   diego_tick: ["/characters/diego_alt/sfx/diego_tick_1.mp3", "/characters/diego_alt/sfx/diego_tick_2.mp3"],
-  diego_tick_loop: "/characters/diego_alt/sfx/diego_tick_loop.wav", // วนตลอดที่เวลาหยุด (tick_1 + เว้นให้จังหวะต่อกัน 1.12 วิ)
   diego_resume: ["/characters/diego_alt/sfx/diego_resume_1.mp3", "/characters/diego_alt/sfx/diego_resume_2.mp3"],
   diego_crash: "/characters/diego_alt/sfx/diego_crash.mp3",
   diego_shot: "/characters/diego_alt/sfx/diego_shot.mp3", // ปืนลูกโม่ — ผู้ใช้เลือก g1 (HHA/GHA 81.00–81.95)
@@ -621,20 +620,6 @@ export function prewarmSfx(names) {
 // โหลดเพลงไว้ล่วงหน้า (ยังไม่เล่น) — เพลงไฟล์ใหญ่ที่ต้องดังทันทีตอนเริ่มฉาก (เพลงม่านแดงของเคท: intro + loop)
 export function prewarmMusic(name) {
   if (FILES[name]) getMusic(name);
-}
-
-// เสียงวนต่อเนื่อง (ดิเอโก้: นาฬิกาเดินระหว่างหยุดเวลา) → ฟังก์ชันหยุด · ตามระดับเสียงหลัก · ไฟล์ .wav ไม่มีช่องว่างตอนวน
-export function playLoop(name) {
-  const path = Array.isArray(FILES[name]) ? FILES[name][0] : FILES[name];
-  if (!path) return () => {};
-  const a = new Audio(path);
-  a.loop = true;
-  a.preload = "auto";
-  const vol = () => { a.volume = Math.min(1, SFX_BASE * pathGain(path)) * masterGain(); };
-  vol();
-  const off = onVolumeChange(vol);
-  a.play().catch(() => {});
-  return () => { off(); a.pause(); };
 }
 
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)

@@ -22,7 +22,7 @@ import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
-import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, playLoop } from "../audio";
+import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic } from "../audio";
 import BoardStage from "../board/BoardStage";
 import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
@@ -1754,16 +1754,9 @@ function FlyingCardsLayer({ flights, onDone }) {
 }
 
 export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
-  // หยุดเวลา (ดิเอโก้ — state.timeFreeze): ไม่มีเพลงพื้นหลังเลย เหลือนาฬิกาเดินวน (ผู้ใช้สั่ง) · เสียงการกระทำ/เอฟเฟกต์ยังดังตามปกติ
-  //  นาฬิกาเริ่มหลังเสียงหยุดเวลา (ฉาก timeStop 2.2 วิ)
+  // หยุดเวลา (ดิเอโก้ — state.timeFreeze): ไม่มีเพลงพื้นหลังเลย (ผู้ใช้สั่ง · เสียงนาฬิกาวนเอาออกแล้ว — ผู้ใช้: น่ารำคาญ) · เสียงการกระทำ/เอฟเฟกต์ยังดังตามปกติ
   const frozenBy = state?.timeFreeze?.by || null;
-  useEffect(() => {
-    if (!frozenBy) return undefined;
-    const releaseMusic = suspendMusic();
-    let stopTick = null;
-    const t = setTimeout(() => { stopTick = playLoop("diego_tick_loop"); }, 2000);
-    return () => { clearTimeout(t); if (stopTick) stopTick(); releaseMusic(); };
-  }, [frozenBy]);
+  useEffect(() => (frozenBy ? suspendMusic() : undefined), [frozenBy]);
   const [showChar, setShowChar] = useState(false);
   const [flash, setFlash] = useState(null); // สกิลช่วงจั่วการ์ด เด้งทันทีบนกระดาน
   const [notice, setNotice] = useState(null); // แปลงร่างซ้ำ (ครั้งที่ 2 เป็นต้นไป) เด้งแจ้งเตือนทันที ไม่หยุดเกม
@@ -2413,7 +2406,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const slotOff = (tier) => {
     const s = ch?.[tier];
     if (!myTurn || noSkill || giftLocked(tier)) return true;
-    if (canto && tier !== "basic") return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน
+    if (canto && (tier !== "basic" || me?.celine)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return !s.choices.some(choiceOk);
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
