@@ -30,7 +30,7 @@ import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
-import { FERN_EVENT_FX } from "./fernFx";
+import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -735,6 +735,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const hk = !!style && isHikaruFx(style);
       // เสียงของท่าฮิคารุเริ่มก่อนปะทะ (ช่วงดังสุดของไฟล์ตรงจังหวะปะทะ)
       if (hk && tPos) later(Math.max(ZOOM_IN, HIT - (HK_SFX_LEAD[style] || 0)), () => playSfx(a.byAttackSound || "attack"));
+      // Zoltraak ของเฟิร์น: เสียงร่าย/ชาร์จเริ่มพร้อมวงเวท · เสียงระเบิดในไฟล์ (1.5 วิ) ตรงจังหวะปะทะ
+      const fernZ = style === "fernZoltraak" || style === "fernZoltraakMax";
+      if (fernZ && tPos) later(Math.max(ZOOM_IN, HIT - FERN_SFX_LEAD), () => playSfx(a.byAttackSound || "attack"));
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
       if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
@@ -753,7 +756,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
-          if (!myth && !hk) playSfx(a.byAttackSound || "attack");
+          if (!myth && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
           // เซลินติดคริ: ดอกทอง + มงกุฎเล็กเหนือเป้า + เสียงประกาย (ซ้อนเสียงอาวุธ)
           if (style && style.startsWith("celine") && a.crit && !a.dodge) { playSfx("celine_crit"); pushFx([{ kind: "celineCrit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]) }]); }

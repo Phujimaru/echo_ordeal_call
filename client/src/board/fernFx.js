@@ -20,8 +20,11 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 const TAU = Math.PI * 2;
 
 // ---------- จังหวะ ----------
-export const FERN_MS = { fernZoltraak: 900, fernZoltraakMax: 1300 };
-export const FERN_HIT_P = { fernZoltraak: 0.3, fernZoltraakMax: 0.38 }; // 270 / 494 ms = ลำแสงถึงช่องไกลสุดของแนว
+// ร่าย/ชาร์จ 1.5 วิก่อนปะทะ ให้ตรงไฟล์เสียง "ZOLTRAAK FIre" (ระเบิดที่ 1.50 วิของไฟล์) — BoardStage เล่นเสียงก่อนปะทะ FERN_SFX_LEAD
+//  server ยืดฉากตีให้ 1 วิ (characters/fern.js attackFxExtra)
+export const FERN_SFX_LEAD = 1500;
+export const FERN_MS = { fernZoltraak: 2400, fernZoltraakMax: 2700 };
+export const FERN_HIT_P = { fernZoltraak: 0.625, fernZoltraakMax: 0.556 }; // 1500 ms = ลำแสงถึงช่องไกลสุดของแนว
 export const FERN_FX_DUR = {
   ...FERN_MS, fernCast: 850, fernBoost: 1000, fernConceal: 950, fernUnveil: 850, fernShield: 900, fernEmpower: 1300, fernReset: 1100,
 };
@@ -156,8 +159,8 @@ function sparks(g, c, age, seed, n, size, lowQ) {
 //  ค่าต่อท่า: wind = ช่วงกางวงเวท · hold/fade = ลำแสงเต็มถึง hold แล้วเรียวหายถึง fade (สัดส่วนของ FERN_MS) · w = ความกว้างลำ
 const Z_HAND = 0.85;
 const Z_KIND = {
-  fernZoltraak: { wind: 0.13, hold: 0.5, fade: 0.88, w: 0.075, sig: 0.3, max: false },
-  fernZoltraakMax: { wind: 0.2, hold: 0.62, fade: 0.92, w: 0.13, sig: 0.42, max: true },
+  fernZoltraak: { wind: 0.575, hold: 0.76, fade: 0.95, w: 0.075, sig: 0.3, max: false },
+  fernZoltraakMax: { wind: 0.51, hold: 0.7, fade: 0.94, w: 0.13, sig: 0.42, max: true },
 };
 function zoltraak(g, e, now, lowQ) {
   const Z = Z_KIND[e.kind], D = FERN_MS[e.kind], HIT = FERN_HIT_P[e.kind], WIND = Z.wind;
@@ -199,6 +202,16 @@ function zoltraak(g, e, now, lowQ) {
       }
       g.restore();
     }
+  }
+  // ตีปกติ: ละอองฟ้าขาวไหลเข้าวงหน้ามือระหว่างร่าย (Max มีชุดของตัวเองด้านบน)
+  if (!Z.max && t < WIND && !lowQ) {
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 9; i++) {
+      const q = clamp01(wq * 1.3 - hash01(i + 61) * 0.3), a = hash01(i + 17) * TAU, r = 0.7 * (1 - easeIn2(q));
+      const p = P3(add3(add3(O, s, Math.cos(a) * r), up, Math.sin(a) * r));
+      g.fillStyle = `rgba(${i % 2 ? PALE : WHITE},${Math.sin(Math.PI * q)})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * 0.02), 0, TAU); g.fill();
+    }
+    g.restore();
   }
   if (t < WIND) {
     const [px, py, ps] = P3(O);

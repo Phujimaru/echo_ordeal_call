@@ -4,7 +4,7 @@
 //  แสงปลายคทา (prop ferns) = สลับ empowered / boost
 //  คอนโซล: window.__fernFx({ kind: "reset", at: { x, y } }) = ส่ง payload ของ socket "fernFx" ตรงๆ
 import { useEffect } from "react";
-import { FERN_EVENT_FX, FERN_EVENT_SFX, FERN_HIT_P, FERN_MS } from "./fernFx";
+import { FERN_EVENT_FX, FERN_EVENT_SFX, FERN_HIT_P, FERN_MS, FERN_SFX_LEAD } from "./fernFx";
 import { playSfx } from "../audio";
 
 const IMG = "/characters/fern/fern.webp";
@@ -42,10 +42,11 @@ export default function FernFxDev({ units, pushFx, setFocus, map, ferns, setFern
     pushFx([{ kind: style, x: d.x, y: d.y, size: 1, to, lane: best.lane, color: d.color }]);
     setFocus(to);
     const max = style === "fernZoltraakMax";
+    const hit = Math.round(FERN_MS[style] * FERN_HIT_P[style]);
+    setTimeout(() => playSfx(max ? "fern_zoltraak_max" : "fern_zoltraak"), Math.max(0, hit - FERN_SFX_LEAD)); // เสียงร่ายก่อน · ระเบิดตรงปะทะ
     setTimeout(() => {
-      playSfx(max ? "fern_zoltraak_max" : "fern_zoltraak");
       pushFx(best.hits.flatMap((u) => [{ kind: "burst", x: u.x, y: u.y, color: d.color }, { kind: "float", x: u.x, y: u.y, text: "-2", size: max ? 32 : 28, z: 1.5 }]));
-    }, Math.round(FERN_MS[style] * FERN_HIT_P[style]));
+    }, hit);
   };
   const glowToggle = (k) => setFerns({ empowered: !!(ferns && ferns.empowered), boost: !!(ferns && ferns.boost), [k]: !(ferns && ferns[k]) });
   const rows = [

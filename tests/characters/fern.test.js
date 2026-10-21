@@ -132,6 +132,7 @@ test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโ
   assert.equal(P.D.hp, 10, 'ระยะ 4 ไม่โดน');
   assert.equal(engine.lastAttack.byStyle, 'fernZoltraak');
   assert.equal(engine.lastAttack.byAttackSound, 'fern_zoltraak');
+  assert.equal(engine.lastAttack.fxMs, 4000, 'ฉากตียาวขึ้น 1 วิ (ร่าย 1.5 วิก่อนปะทะ)');
   assert.equal(P.F.fern.count, 1);
   P.F.skillPoints = 1;
   engine.setActor('F');

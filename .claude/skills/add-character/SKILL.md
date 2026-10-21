@@ -196,6 +196,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | วัตถุบนกระดานที่เป็นของผู้เล่น (ไม่ขวาง · หลายคนช่องเดียวกันได้) | เก็บที่ตัวผู้เล่น (`p.gyro.balls`) ไม่ใช่ตารางกลางรายช่อง · ล้างใน `onDeath` (เช็ค `p` เป็นตัวเอง) / `onBoardPlaced` · ส่งผ่าน state ของผู้เล่น | – |
 | เส้นทแยงแตะทุกช่อง / กระเด็นถึงขอบ+ข้ามสิ่งกีดขวาง+ดันคนออกข้าง | `touchLine` / `dir8` / `planFlight` ใน `characters/gyro_zeppeli.js` (วางแผนบนสำเนา → ใช้คิดดาเมจล่วงหน้าได้) | – |
 | เสียงตอนใช้สกิล | `skillSound(p, tier)` | `server/skills.js` |
+| ท่าตีปกติยาวกว่าฉากตีปกติ (ร่าย/ชาร์จก่อนปะทะ) | `attackFxExtra(p)` → วินาทีที่ยืดฉาก ATTACKING · client เล่นเสียงก่อนปะทะเอง (เฟิร์น: `FERN_SFX_LEAD` ใน fernFx.js + `fernZ` ใน BoardStage) | `attack.playAttackCard` |
 | ล็อก/คูลดาวน์รายช่องให้ client | `skillLocks(engine, p)` | `server/view.js` |
 | เปลี่ยนรูปบนกระดาน | `displayImg(p)` | `server/view.js` |
 | โบนัส/หักพลังโจมตี | `damageBonus(engine, attacker, target, ctx)` · แทนฐานทั้งหมด `attackBaseOverride` · สกิลพื้นที่ `hostile` ทุบหนามน้ำแข็ง/ผนึกด้วยท่อนี้ **หลัง** ผลของสกิล (`useSkill` ต่อคิวไว้) — โบนัสเฉพาะสกิลต้องยังอยู่ตอนนั้น (ต้นแบบ `p.muimiWave` ของมุยมิ) | `computeAttackBase()` — `server/phases/attack.js` |

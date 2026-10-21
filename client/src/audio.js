@@ -151,8 +151,8 @@ const FILES = {
   // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
   // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
-  fern_zoltraak: "/characters/fern/sfx/fern_zoltraak_fire.mp3", // ตีปกติ Zoltraak — ช่วงยิงจากไฟล์ผู้ใช้ "ZOLTRAAK FIre.mp3" (1.68 วิเป็นต้นไป · เสียงระเบิดอยู่ต้นไฟล์ = จังหวะปะทะ)
-  fern_zoltraak_max: "/characters/fern/sfx/fern_zoltraak_fire_max.mp3", // Zoltraak ครั้งที่ 6 (ทะลุเกราะ) — ช่วงยิงเดียวกัน + ชั้นเสียงต่ำ
+  fern_zoltraak: "/characters/fern/sfx/fern_zoltraak_full.mp3", // ตีปกติ Zoltraak — ไฟล์ผู้ใช้ "ZOLTRAAK FIre.mp3" ทั้งคลิป (ร่าย/ชาร์จ แล้วระเบิดที่ 1.50 วิ = FERN_SFX_LEAD)
+  fern_zoltraak_max: "/characters/fern/sfx/fern_zoltraak_full_max.mp3", // Zoltraak ครั้งที่ 6 (ทะลุเกราะ) — คลิปเดียวกัน + ชั้นเสียงต่ำตอนระเบิด
   fern_cast: "/characters/fern/sfx/fern_cast.mp3",         // ร่ายต่อเนื่อง
   fern_boost: "/characters/fern/sfx/fern_boost.mp3",       // เพิ่มระยะ (เสียงกังวานไล่ขึ้น ~0.7 วิ)
   fern_conceal: "/characters/fern/sfx/fern_conceal.mp3",   // ซ่อนเร้นมานา

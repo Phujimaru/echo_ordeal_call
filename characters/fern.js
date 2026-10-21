@@ -49,6 +49,7 @@ const ARMOR = 2;
 const ENERGY_MAX = 10;
 const ZOLT_COST = 2;
 const ZOLT_DMG = 2;
+const ZOLT_FX_EXTRA = 1; // วินาทีที่ฉากตียาวขึ้น (ร่าย 1.5 วิก่อนปะทะ — client FERN_SFX_LEAD)
 const EMPOWER_AT = 5;    // ตีครบ 5 → ครั้งที่ 6 เสริมพลัง
 const SHIELD_CD = 3;     // กันเทิร์น N → พร้อม N+3
 const CAST_CD = 2;       // กดเทิร์น N → กดได้อีก N+2
@@ -178,6 +179,8 @@ module.exports = {
   attackLane(p) { return isFern(p); },
   attackBaseOverride(engine, attacker) { return isFern(attacker) ? ZOLT_DMG : 1; },
   attackStyle(p) { return isFern(p) ? (empowered(p) ? STYLE_MAX : STYLE) : null; },
+  // ร่าย/ชาร์จก่อนลำแสงปะทะ 1.5 วิ (ตามไฟล์เสียง ZOLTRAAK FIre) → ฉากตียาวขึ้น 1 วิ
+  attackFxExtra(p) { return isFern(p) ? ZOLT_FX_EXTRA : 0; },
   attackSound(p) { return isFern(p) ? (empowered(p) ? SFX.zoltraakMax : SFX.zoltraak) : undefined; },
   // ครั้งที่ 6: ดาเมจทะลุเกราะ (attack.strike — ทุกคนในแนว) + ป้ายบนฉากตี
   strikePierces(engine, attacker) { return empowered(attacker); },

@@ -528,7 +528,10 @@ function playAttackCard(card, attacker, target, done) {
   for (const p of [attacker, target]) if (!p.alive) p.pos = null;
   for (const e of card.extra || []) { const o = match.players[e.targetId]; if (o && !o.alive) o.pos = null; }
   // มีข้อมูลสกิลให้อ่าน / มีตีสวน -> ยืดเวลาฉากให้อ่านทัน · คัตซีนที่ค้างคิวเล่นต่อหลังฉากตี
-  const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0);
+  //  ฮุค attackFxExtra(p) → วินาทีที่ท่าตีของตัวนี้ยาวกว่าปกติ (เฟิร์น: ร่าย/ชาร์จ Zoltraak ก่อนลำแสงปะทะ)
+  const aHook = CHAR_HOOKS[attacker.characterId];
+  const extraFx = aHook && aHook.attackFxExtra ? Number(combat.runHook(aHook, "attackFxExtra", attacker)) || 0 : 0;
+  const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0) + extraFx;
   card.fxMs = fxSeconds * 1000;
   const show = () => {
     match.lastAttack = card;
