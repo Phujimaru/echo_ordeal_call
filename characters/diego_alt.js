@@ -83,7 +83,7 @@ const AID = { uses: 2, hp: 2, armor: 1 };
 const GUN = { ammo: 4, reload: 5, dmg: 1, len: 5 };
 const WORLD = { cunning: 5, cd: 3 };
 const PLOT = { cost: 4, ammo: 1, len: 4, dmg: 4, push: 2, bleed: 2 }; // กระสุน 1 นัด (ผู้ใช้สั่ง 2026-10-20 — เดิม 2)
-const STOP_SKILLS = 5; // ตาหยุดเวลา: กดสกิลรวมกันได้ 5 ครั้ง (ทุกช่อง) แทนตีปกติ/โควตาเดิม (ผู้ใช้สั่ง 2026-10-20)
+const STOP_SKILLS = 4; // ตาหยุดเวลา: กดสกิลรวมกันได้ 4 ครั้ง (ทุกช่อง) แทนตีปกติ/โควตาเดิม (ผู้ใช้สั่ง 2026-10-20 · เนิร์ฟ 5 → 4 วันที่ 2026-10-21)
 const CUNNING_MAX = 10;
 const HORSE = { hp: 3, cd: 3, name: "ซิลเวอร์ บูลเล็ต" };
 // จังหวะเอฟเฟกต์ (ms) — ต้องตรงกับ DIEGO_FX ใน client/src/board/diegoFx.js (GRID_PLAN §7.12)
@@ -406,7 +406,7 @@ function spring(engine, u, info) {
 }
 
 // ---------- ปืนลูกโม่ ----------
-// ตาปกติ: ตาละ 1 นัด · ตาหยุดเวลา: ยิงได้ตามโควตาสกิล 5 ครั้ง (ไม่จำกัดนัดต่อตา)
+// ตาปกติ: ตาละ 1 นัด · ตาหยุดเวลา: ยิงได้ตามโควตาสกิล STOP_SKILLS ครั้ง (ไม่จำกัดนัดต่อตา)
 function shotUsed(engine, p) {
   const s = st(p);
   return s.stopping ? stopLeft(p) <= 0 : s.shotRound === engine.roundNumber;
@@ -527,7 +527,7 @@ module.exports = {
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
   mov(p) { return isDiego(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
-  // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล 5 ครั้ง — ผู้ใช้สั่ง) · ปืน GUTS ก็ไม่ได้
+  // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล STOP_SKILLS ครั้ง — ผู้ใช้สั่ง) · ปืน GUTS ก็ไม่ได้
   range(p) { return isDiego(p) ? (st(p).stopping ? [1, 0] : RANGE) : null; },
   blocksGuts(engine, p) { return stopping(p); },
   voiceLines(p) { return isDiego(p) ? VOICE : null; },
@@ -585,7 +585,7 @@ module.exports = {
     return false;
   },
   // คลังเครื่องมือ / ปืน: ไม่กินโควตาสกิล · คลังเครื่องมือไม่ล็อกการเดิน (ปืนล็อก)
-  //  ตาหยุดเวลา: ทุกช่องใช้โควตา 5 ครั้งของตัวเองแทน (canUseSkill)
+  //  ตาหยุดเวลา: ทุกช่องใช้โควตา STOP_SKILLS ครั้งของตัวเองแทน (canUseSkill)
   skipsTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary" || st(p).stopping); },
   ignoresTurnQuota(p, tier) { return isDiego(p) && (tier === "basic" || tier === "secondary" || st(p).stopping); },
   keepsMove(engine, p, tier) { return isDiego(p) && tier === "basic"; },
