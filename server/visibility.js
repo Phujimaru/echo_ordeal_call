@@ -35,8 +35,10 @@ function inBush(p) {
   if (!p || !p.alive || !p.pos || !match.board) return false;
   if (p.exposedRound === match.roundNumber) return false;
   if (engine.sizeOf(p) > 1) return false; // ตัวใหญ่ (Echo ขยายร่าง) ซ่อนในพุ่มไม่ได้
-  const map = Board.mapOf(match.board.area);
-  return Board.bushPatchOf(map, p.pos.x, p.pos.y) !== null;
+  const hook = hookOf(p);
+  if (hook && hook.bushExposed && hook.bushExposed(p)) return false; // ซ่อนในพุ่มไม่ได้เลย (เซลิน)
+  // แผนที่รวมชั้น (พุ่มดอกไม้ของเซลิน = พุ่ม · น้ำแข็ง/พื้นเปียกที่ทับดอกไม้ = ไม่ใช่พุ่มแล้ว)
+  return Board.bushPatchOf(engine.boardMap(), p.pos.x, p.pos.y) !== null;
 }
 // ศัตรูอย่างน้อยบางคนมองไม่เห็นคนนี้อยู่ (ใช้วาดหมากโปร่งแสงให้ตัวเอง/เพื่อนร่วมทีม)
 function concealed(p) {
@@ -73,7 +75,7 @@ function hiddenFromOne(viewer, target) {
   if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
   if (!inBush(target)) return false;
   if (!viewer.alive || !viewer.pos) return true;
-  const map = Board.mapOf(match.board.area);
+  const map = engine.boardMap();
   const a = Board.bushPatchOf(map, target.pos.x, target.pos.y);
   return a === null || a !== Board.bushPatchOf(map, viewer.pos.x, viewer.pos.y);
 }

@@ -101,6 +101,19 @@
         "JOURNEY_START_SECONDS": "0",
         "ECHO_DEV_DIEGO_CUNNING": "10"
       }
+    },
+    {
+      "name": "server-celine",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3000,
+      "env": {
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0"
+      }
     }
   ]
 }

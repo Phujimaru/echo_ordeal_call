@@ -55,6 +55,8 @@
 //               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
+//   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
+//               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
 //   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
 //               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (ภาพโปร่งภาพเดียว · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
@@ -77,6 +79,7 @@ import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
+import { celinePose } from "./celineFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
@@ -587,6 +590,9 @@ export default function BoardCanvas(props) {
         // ฉากของวาเลนไทน์: ตัวเหมือนวิ่งเข้าหาเป้า · ซ่อน/ตัด/บีบ/เจาะรูหมาก (valMod)
         const vp = sp || gp || dp || u.corpse ? null : valentinePose(st.fxActive, u, now);
         if (vp) { rx = vp.x; ry = vp.y; ox = 0; oy = 0; hz = vp.hz || 0; sq = 0; }
+        // ฉากของเซลิน: คนที่ถูกสลับตำแหน่งลอยขึ้น บินโค้ง แล้วลงที่ใหม่ (celinePose)
+        const cpo = sp || gp || dp || vp || u.corpse ? null : celinePose(st.fxActive, u, now);
+        if (cpo) { rx = cpo.x; ry = cpo.y; ox = 0; oy = 0; hz = cpo.hz || 0; sq = 0; }
         const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
@@ -641,7 +647,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

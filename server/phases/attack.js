@@ -45,6 +45,17 @@ function ownCritPct(attacker) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
   return (hook && hook.critPct && hook.critPct(attacker)) || 0;
 }
+// ตัวคูณคริติคอลของผู้ตี (ฮุค critMult — เซลิน: ราชาดอกไม้ ×3) · ไม่มี = ×2
+function critMultOf(attacker) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  const m = hook && hook.critMult ? Number(hook.critMult(attacker)) : 0;
+  return m > 1 ? m : 2;
+}
+// หลบหลีกเฉพาะตัวของเป้า (%) (ฮุค ownEvade — เซลิน: ดาบเล็ก 5%) — ทอยแยกหลังสถานะหลบหลีก ก่อนช่องพุ่ม · แม่นยำเจาะได้
+function ownEvadeOf(target) {
+  const hook = target && CHAR_HOOKS[target.characterId];
+  return (hook && hook.ownEvade && Number(hook.ownEvade(target))) || 0;
+}
 // ลำแสงตีปกติ (ฮุค attackBeam ของตัวละคร) — ความยาวลำแสงเป็นช่อง · 0 = ตีแบบปกติ (พุ่งชน/ฟัน)
 function attackBeamOf(attacker) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
@@ -137,7 +148,8 @@ function estimateHitOn(attacker, target) {
     const cover = target.pos && action.sizeOf(target) <= 1 ? Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y) : null;
     const coverPct = cover ? pct(cover.pct) : 0;
     const missPct = pct(Journey.attackMissPct(engine));
-    const hit = (100 - evadePct) * (100 - coverPct) * (100 - missPct) / 10000;
+    const ownPct = pct(ownEvadeOf(target));
+    const hit = (100 - evadePct) * (100 - ownPct) * (100 - coverPct) * (100 - missPct) / 1000000;
     return Math.round(hit);
   } catch { return null; }
 }
@@ -176,6 +188,16 @@ function strike(attacker, target, { counter = false } = {}) {
       };
     }
     match.lastLog.push(`💨 ${target.name} พยายามหลบ (${evadePct}%) แต่ไม่พ้น — การโจมตีดำเนินต่อ`);
+  }
+  // หลบหลีกเฉพาะตัว (ฮุค ownEvade — เซลิน: ดาบเล็ก 5%) · ทอยเฉพาะตัวที่มี (ไม่แตะ Math.random ของคนอื่น)
+  const ownEvade = accurate ? 0 : ownEvadeOf(target);
+  if (ownEvade > 0 && Math.random() * 100 < ownEvade) {
+    target.wasAttacked = true;
+    match.lastLog.push(`💨 ${target.name} หลบการ${verb}ของ ${attacker.name} ได้ (${ownEvade}%)`);
+    return {
+      dmg: 0, dodge: true, kill: false,
+      skills: [{ name: `หลบหลีก ${ownEvade}%`, img: null, by: target.name, color: lobby.colorOf(target), side: "def" }],
+    };
   }
   // ช่องพิเศษ (GRID_PLAN §3.1): เป้ายืนในพุ่มดอกไม้สูง/ป่าทึบ หลบได้อีก 20% (ทอยแยกหลังสถานะหลบหลีก · แม่นยำเจาะได้)
   const cover = !accurate && terrainCoverDodge(target);
@@ -248,7 +270,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (fragileAmt > 0) dmg += fragileAmt;
   // การเดินทาง (อาณาจักรน้ำแข็ง กลางวัน): คริติคอล 20% ×2
   const journeyCritFx = {};
-  if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker));
+  if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker), critMultOf(attacker));
   // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
   dmg = Math.min(dmg, combat.damageCapOf(attacker));
   // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: Defensive Magic) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
@@ -293,7 +315,7 @@ function strike(attacker, target, { counter = false } = {}) {
     if (hook && hook.attackFxNames) for (const name of hook.attackFxNames(attacker, atkCtx)) atkFx(name);
   }
   for (const name of landedFx) atkFx(name);
-  if (journeyCritFx.crit) atkFx(`คริติคอล ×2 (${journeyCritFx.pct}%)`, null);
+  if (journeyCritFx.crit) atkFx(`คริติคอล ×${journeyCritFx.mult || 2} (${journeyCritFx.pct}%)`, null);
   if (accurate) atkFx("แม่นยำ — เจาะการหลบหลีก");
   if (empowerAtk) atkFx("เสริมพลัง +1");
   if (cardAtkBonus > 0) atkFx(`การ์ดแดงครบ 3 ใบ +${cardAtkBonus}`); // ระบบกองการ์ดกลาง
@@ -358,6 +380,11 @@ function skillDodge(attacker, target, reason) {
       match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${evadePct}%)`);
       return true;
     }
+  }
+  const own = ownEvadeOf(target); // หลบหลีกเฉพาะตัว (เซลิน: ดาบเล็ก 5%)
+  if (own > 0 && Math.random() * 100 < own) {
+    match.lastLog.push(`💨 ${target.name} หลบ${reason} ได้ (${own}%)`);
+    return true;
   }
   const cover = terrainCoverDodge(target); // พุ่มดอกไม้สูง/ป่าทึบ +20%
   if (cover) {
@@ -499,8 +526,23 @@ function playAttackCard(card, attacker, target, done) {
   // มีข้อมูลสกิลให้อ่าน / มีตีสวน -> ยืดเวลาฉากให้อ่านทัน · คัตซีนที่ค้างคิวเล่นต่อหลังฉากตี
   const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0);
   card.fxMs = fxSeconds * 1000;
-  match.lastAttack = card;
-  match.gameState = "ATTACKING";
-  timers.startPhaseTimer(fxSeconds, () => cutscene.runCutsceneQueue(done));
-  view.broadcastState();
+  const show = () => {
+    match.lastAttack = card;
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(fxSeconds, () => cutscene.runCutsceneQueue(done));
+    view.broadcastState();
+  };
+  // คลิปก่อนฉากตี (ฮุค preAttackClip(engine, ผู้ตี, card) → คีย์คัตซีน — เซลิน: ตีปกติติดคริ = คลิปคริตามสายอาวุธ)
+  //  เล่นก่อนคัตซีนอื่นที่ค้างคิว (คัตซีนเดิมยังเล่นหลังฉากตีตามปกติ)
+  const clip = clipBefore(attacker, card);
+  if (!clip) { show(); return; }
+  const held = match.cutsceneQueue.splice(0);
+  cutscene.queueCutscene(attacker, clip);
+  if (!match.cutsceneQueue.length) { match.cutsceneQueue.push(...held); show(); return; }
+  cutscene.runCutsceneQueue(() => { match.cutsceneQueue.push(...held); show(); });
+}
+function clipBefore(attacker, card) {
+  const hook = attacker && CHAR_HOOKS[attacker.characterId];
+  if (!hook || typeof hook.preAttackClip !== "function") return null;
+  return combat.runHook(hook, "preAttackClip", engine, attacker, card) || null;
 }

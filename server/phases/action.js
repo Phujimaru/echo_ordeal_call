@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap, boxChebyshev,
+  walkUndoPatch, startMap, boxChebyshev, flowerWalk,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -68,8 +68,8 @@ function breakObstacles(keys) {
   for (const k of keys) {
     const kind = map.terrain[k];
     if (!kind || Board.UNBREAKABLE.has(kind)) continue; // ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
-    if (Ice.isSpikeKind(kind)) {
-      // หนามน้ำแข็ง (Ice Spike): พังแล้วหายจากชั้นหนาม (เก็บไว้คืนตอนกดย้อนการเดิน)
+    if (Ice.isSpikeKind(kind) || Ice.isWallKind(kind)) {
+      // หนามน้ำแข็ง (Ice Spike) / กำแพงน้ำแข็ง (เซลิน): พังแล้วหายจากชั้นหนาม (เก็บไว้คืนตอนกดย้อนการเดิน)
       (match.board.smashedSpikes ||= {})[k] = Ice.removeSpike(k);
       const [x, y] = k.split(",").map(Number);
       out.push({ x, y, kind });
@@ -121,6 +121,12 @@ function boardBlocked(selfId = null) {
   if (match.shopPos) out.add(Board.key(match.shopPos.x, match.shopPos.y));
   return trap ? { has: (k) => out.has(k) || trap.has(k) } : out;
 }
+// เดินตามช่องดอกไม้ไม่เสียก้าว (Board.reachable opts.flowerWalk — ฮุค flowerWalk(p) · เซลิน: ราชาดอกไม้) · ถูกตรึง = ไม่ได้
+function flowerWalk(p) {
+  if (!p || ((p.statuses && p.statuses.rooted) || 0) > 0) return false;
+  const hook = CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.flowerWalk && hook.flowerWalk(p));
+}
 // ร่างที่เดินข้ามได้ (Board.reachable opts.hop) · ไม่มี = null
 function hopTiles() {
   const keys = Duo.corpseKeys();
@@ -168,7 +174,7 @@ function rebaseMove(p) {
   const all = boardUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p), flowerWalk: flowerWalk(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -369,16 +375,17 @@ function resolveArea(p, area, targets, dir, tile) {
     return Board.unitsOnTiles(boardUnits(), tileArea(area, t)).map((u) => u.id);
   }
   if (kind === "target") {
-    const t = match.players[Array.isArray(targets) ? targets[0] : null];
-    if (!t || !t.alive || !t.pos) return null;
-    if (t.id === p.id) return area.self ? [t.id] : null;
-    if (!Dim.same(p, t)) return null; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
-    if (Visibility.hiddenFromUnit(p, t)) return null;
-    // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
-    if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t) ? [t.id] : null;
-    // square: true = กรอบสี่เหลี่ยมรอบตัว (นับแบบเชบีเชฟ — range 3 = 7×7 · เฟิร์น: ยิง Orbital Cannon Zoltraak) · ไม่ใส่ = แมนฮัตตัน
-    const d = area.square ? boxChebyshev(boxOf(p), boxOf(t)) : Board.dist(boxOf(p), boxOf(t));
-    return d <= range ? [t.id] : null;
+    // count > 1 = เลือกหลายคน (ต่างกันทุกคน · ทุกคนผ่านกติกาเดียวกัน — เซลิน: คฑาแห่งการเคลื่อนย้ายแบบจับคู่ 2 คน)
+    const n = Math.max(1, area.count | 0);
+    const list = Array.isArray(targets) ? targets.slice(0, n) : [];
+    if (list.length !== n || new Set(list).size !== n) return null;
+    const out = [];
+    for (const id of list) {
+      const ok = targetOk(p, area, range, match.players[id]);
+      if (!ok) return null;
+      out.push(id);
+    }
+    return out;
   }
   const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFromUnit(p, match.players[u.id]));
   if (kind === "aoe") {
@@ -391,6 +398,18 @@ function resolveArea(p, area, targets, dir, tile) {
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
+}
+// เป้า 1 คนของ area target ผ่านไหม (ระยะ · มองเห็น · ชั้นมิติ · ตัวเอง)
+function targetOk(p, area, range, t) {
+  if (!t || !t.alive || !t.pos) return false;
+  if (t.id === p.id) return !!area.self;
+  if (!Dim.same(p, t)) return false; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
+  if (Visibility.hiddenFromUnit(p, t)) return false;
+  // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
+  if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t);
+  // square: true = กรอบสี่เหลี่ยมรอบตัว (นับแบบเชบีเชฟ — range 3 = 7×7 · เฟิร์น: ยิง Orbital Cannon Zoltraak) · ไม่ใส่ = แมนฮัตตัน
+  const d = area.square ? boxChebyshev(boxOf(p), boxOf(t)) : Board.dist(boxOf(p), boxOf(t));
+  return d <= range;
 }
 // เป้า t ทับช่องตามรูป cells ([[dx, dy], …] นับจากช่องของ p) ไหม
 function cellsHit(p, cells, t) {
@@ -411,9 +430,13 @@ function tileOf(tile) {
 }
 // ช่องที่สกิล tile คลุม: ช่องเดียว หรือกรอบ square×square รอบช่องกลาง (ตัดขอบกระดาน)
 //  ขนาดคู่ (ระบำเขม่า 8×8) = ช่องที่เลือกอยู่กลางค่อนซ้ายบน (−n/2 … +n/2−1)
+//  rect: [w, h] = สี่เหลี่ยม w×h กลางช่องที่เลือก (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
 function tileArea(area, t) {
-  const n = Math.max(1, (area && area.square) | 0), lo = Math.floor(n / 2), hi = n - 1 - lo, map = boardMap(), out = [];
-  for (let y = t.y - lo; y <= t.y + hi; y++) for (let x = t.x - lo; x <= t.x + hi; x++) if (Board.inBounds(map, x, y)) out.push({ x, y });
+  const rect = area && Array.isArray(area.rect) ? area.rect : null;
+  const w = rect ? Math.max(1, rect[0] | 0) : Math.max(1, (area && area.square) | 0);
+  const h = rect ? Math.max(1, rect[1] | 0) : w;
+  const lx = Math.floor(w / 2), ly = Math.floor(h / 2), map = boardMap(), out = [];
+  for (let y = t.y - ly; y <= t.y + h - 1 - ly; y++) for (let x = t.x - lx; x <= t.x + w - 1 - lx; x++) if (Board.inBounds(map, x, y)) out.push({ x, y });
   return out;
 }
 // ช่องที่สกิลพื้นที่คลุม (aoe / line / tile) — ใช้ลงผลกับผนึกมิโกะ (ห่วงเวลาซีโร่) / หนามน้ำแข็ง · ชนิดอื่น = []
@@ -635,7 +658,7 @@ function walkUndoPatch() {
     if (!r.prev) special[r.k] = base.special[r.k] || null; // บันทึกแรกของช่อง = สภาพก่อนตานี้
   }
   const spikes = match.board.smashedSpikes || {};
-  for (const k of a.smashed || []) terrain[k] = spikes[k] ? `icespike${spikes[k].lv}` : base.terrain[k] || null;
+  for (const k of a.smashed || []) terrain[k] = spikes[k] ? (spikes[k].wall ? "icewall" : `icespike${spikes[k].lv}`) : base.terrain[k] || null;
   return { terrain, special };
 }
 function startMap() {
@@ -649,7 +672,7 @@ function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
   const seen = boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p), flowerWalk: flowerWalk(p) };
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
   if (step) return Board.stepPath(map, unit, movOf(p), seen, trail, { x, y }, opts);

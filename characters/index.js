@@ -18,6 +18,7 @@ const gyro_zeppeli = require("./gyro_zeppeli"); // ไจโร เซปเป�
 const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก (คลังเครื่องมือ / ปืนลูกโม่ / เดอะเวิลด์ หยุดเวลา / ม้าซิลเวอร์ บูลเล็ต)
 const fern = require("./fern"); // เฟิร์น — ระดับง่าย (Zoltraak แนวตรง / Energy 10 / ซ่อนเร้นมานา / Orbital Cannon Zoltraak ชาร์จ 3 เทิร์น)
 const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
+const celine = require("./celine"); // องค์หญิงดอกไม้ เซลิน — พิเศษ (คฑา 4 แบบ / อาวุธ 6 แบบ / พุ่มดอกไม้ server/flora.js / ราชาดอกไม้)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -39,6 +40,7 @@ const CHARACTER_MODULES = [
   diego_alt,
   fern,
   funny_valentine,
+  celine,
 ];
 
 const CHAR_HOOKS = {};

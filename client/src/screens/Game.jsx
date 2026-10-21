@@ -805,6 +805,8 @@ const STATUS_INFO = {
   yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "" },
   // ไรโด ฮิคารุ
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
+  // องค์หญิงดอกไม้ เซลิน
+  celineKing:    { icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -909,6 +911,21 @@ function statusEntries(p, full) {
     else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "Defensive Magic", cls: "bg-cyan-300 text-gray-900", desc: "" });
     if (f.extra > 0) out.push({ key: "fernExtra", v: 1, icon: "✨", label: `+${f.extra}`, cls: "bg-violet-400 text-white", desc: "" });
     if (f.basicLeft != null && f.basicLeft > 0 && f.basicLeft < 2) out.push({ key: "fernBasicLeft", v: 1, icon: "🔁", label: `${f.basicLeft}/2`, cls: "bg-violet-200 text-gray-900", desc: "" });
+  }
+  // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
+  if (p.celine && p.celine.weapon) {
+    const c = p.celine;
+    const W = { dagger: ["🗡️", "ดาบเล็ก"], dragon: ["🐉", "ดาบมังกรแดง"], great: ["⚔️", "ดาบใหญ่"], fire: ["🔥", "เวทย์ไฟ"], wind: ["🍃", "เวทย์ลม"], thunder: ["⚡", "เวทย์ไฟฟ้า"] }[c.weapon];
+    if (W) out.push({ key: "celineWeapon", v: 1, icon: W[0], label: W[1], cls: c.weaponClass === "magic" ? "bg-emerald-300 text-gray-900" : "bg-pink-300 text-gray-900", desc: "" });
+    if (c.king > 0 && !((p.statuses || {}).celineKing > 0)) out.push({ key: "celineKingTurns", v: c.king, turns: true, icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "" });
+    else if (c.ultCd > 0) out.push({ key: "celineUltCd", v: c.ultCd, turns: true, icon: "⏳", label: "สวนดอกไม้ของฉัน", cls: "bg-white/20", desc: "" });
+    if (c.tenderLeft != null) out.push({ key: "celineTender", v: 1, icon: "🌸", label: `${c.tenderLeft}/3`, cls: c.tenderLeft > 0 ? "bg-pink-200 text-gray-900" : "bg-white/20", desc: "" });
+    if (c.healCd > 0) out.push({ key: "celineHealCd", v: c.healCd, turns: true, icon: "💚", label: "⏳", cls: "bg-white/20", desc: "" });
+    else if (c.healCount > 0) out.push({ key: "celineHealCount", v: 1, icon: "💚", label: `${c.healCount}/4`, cls: "bg-lime-200 text-gray-900", desc: "" });
+    if (c.wallCd > 0) out.push({ key: "celineWallCd", v: c.wallCd, turns: true, icon: "🧊", label: "⏳", cls: "bg-white/20", desc: "" });
+    else if (c.wallCount > 0) out.push({ key: "celineWallCount", v: 1, icon: "🧊", label: `${c.wallCount}/2`, cls: "bg-sky-200 text-gray-900", desc: "" });
+    if (c.swapCd > 0) out.push({ key: "celineSwapCd", v: c.swapCd, turns: true, icon: "🔁", label: "⏳", cls: "bg-white/20", desc: "" });
+    if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
@@ -2063,11 +2080,15 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const f = pickReq.form ? { form: pickReq.form } : {};
       // area.cells (วาเลนไทน์ "รู้จักตัวเองอย่างแท้จริง") = เลือกศัตรูที่ยืนบนช่องตามรูป
       const cells = Array.isArray(a.cells) && a.cells.length ? a.cells : null;
-      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, square: !!a.square, ...(cells ? { cells, allow: enemyOf } : a.hostile && !a.self ? { allow: enemyOf } : {}), label, onPick: (id) => { socket.emit("useSkill", { tier, targets: [id], ...f }); done(); }, onCancel: done };
+      // area.count (เซลิน: จับคู่สลับ 2 คน) = เลือกให้ครบก่อนส่ง (onPick ได้ array) · เซลินสลับ/จับคู่ = ไม่ใช่ตัวเอง ไม่ใช่ตัว 2×2 ขึ้นไป
+      const count = Math.max(1, a.count | 0);
+      const small = ch?.id === "celine" && (pickReq.form === "swap" || pickReq.form === "pair") ? { allow: (p) => p.id !== me.id && (p.size || 1) <= 1 } : {};
+      if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, square: !!a.square, count, ...(cells ? { cells, allow: enemyOf } : a.hostile && !a.self ? { allow: enemyOf } : {}), ...small, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: Array.isArray(id) ? id : [id], ...f }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, label, onPick: (tile, dir) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...f }); done(); }, onCancel: done };
+      //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };

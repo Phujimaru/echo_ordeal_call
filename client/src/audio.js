@@ -231,6 +231,33 @@ const FILES = {
     "veil", "dojaan1", "dojaan2", "gun", "parallel1", "parallel2", "meet", "savor", "selves1", "selves2",
     "clones_out", "know", "justice", "d4c", "death",
   ].map((k) => [`val_v_${k}`, `/characters/funny_valentine/voice/val_v_${k}.m4a`])),
+  // องค์หญิงดอกไม้ เซลิน (GRID_PLAN §7.15) — สังเคราะห์ numpy ล้วน (ไม่มีไฟล์ต้นฉบับ) · peak -1 dBFS ~-14 LUFS · ตีปกติดังสุดช่วง 0–15 ms = จังหวะปะทะ
+  celine_atk_dagger: "/characters/celine/sfx/celine_atk_dagger.mp3",     // ตีปกติ: ดาบเล็ก (ฟันคู่)
+  celine_atk_dragon: "/characters/celine/sfx/celine_atk_dragon.mp3",     // ตีปกติ: ดาบมังกรแดง
+  celine_atk_great: "/characters/celine/sfx/celine_atk_great.mp3",       // ตีปกติ: ดาบใหญ่ (กระแทก + คอร์ด)
+  celine_atk_fire: "/characters/celine/sfx/celine_atk_fire.mp3",         // ตีปกติ: เวทย์ไฟ
+  celine_atk_wind: "/characters/celine/sfx/celine_atk_wind.mp3",         // ตีปกติ: เวทย์ลม
+  celine_atk_thunder: "/characters/celine/sfx/celine_atk_thunder.mp3",   // ตีปกติ: เวทย์ไฟฟ้า
+  celine_crit: "/characters/celine/sfx/celine_crit.mp3",                 // คริติคอล (ประกายซ้อนเสียงตี)
+  celine_heal: "/characters/celine/sfx/celine_heal.mp3",                 // คฑาแห่งการเยียวยา
+  celine_heal_crit: "/characters/celine/sfx/celine_heal_crit.mp3",       // คฑาแห่งการเยียวยา: คริติคอล
+  celine_wall: "/characters/celine/sfx/celine_wall.mp3",                 // คฑาแห่งการกีดกัน: กำแพงน้ำแข็งขึ้น
+  celine_wall_break: "/characters/celine/sfx/celine_wall_break.mp3",     // กำแพงน้ำแข็งแตก
+  celine_swap: "/characters/celine/sfx/celine_swap.mp3",                 // คฑาแห่งการเคลื่อนย้าย
+  celine_bloom: "/characters/celine/sfx/celine_bloom.mp3",               // คฑาแห่งการรังสรรค์: พุ่มดอกไม้
+  celine_trail: "/characters/celine/sfx/celine_trail.mp3",               // สวนดอกไม้: พุ่มงอกใต้เท้า (เบา -10 dBFS)
+  celine_weapon_sword: "/characters/celine/sfx/celine_weapon_sword.mp3", // ความแข็งกร้าว: ถือดาบ
+  celine_weapon_magic: "/characters/celine/sfx/celine_weapon_magic.mp3", // ความแข็งกร้าว: ถือสื่อเวทย์
+  celine_ult: "/characters/celine/sfx/celine_ult.mp3",                   // ท่าไม้ตาย สวนดอกไม้ของฉัน
+  celine_tea: "/characters/celine/sfx/celine_tea.mp3",                   // เวลาน้ำชา: ฟื้นในพุ่ม
+  celine_fire_hit: "/characters/celine/sfx/celine_fire_hit.mp3",         // เวทย์ไฟ: ลุกไหม้ติด
+  celine_thunder_hit: "/characters/celine/sfx/celine_thunder_hit.mp3",   // เวทย์ไฟฟ้า: ช็อตติด
+  celine_wind_hit: "/characters/celine/sfx/celine_wind_hit.mp3",         // เวทย์ลม: ผลัก
+  celine_collide: "/characters/celine/sfx/celine_collide.mp3",           // เวทย์ลม: ชนสิ่งกีดขวาง
+  // เสียงพากย์เซลิน (server/voice.js) — คีย์ = ชื่อไฟล์
+  ...Object.fromEntries([
+    "turn1", "turn2", "turn3", "strike1", "strike2", "strike3", "struck1", "struck2", "tender1", "tender2", "weapon1", "ult1", "ult2",
+  ].map((k) => [`celine_v_${k}`, `/characters/celine/voice/celine_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

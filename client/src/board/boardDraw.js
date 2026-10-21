@@ -39,6 +39,9 @@ import {
   VAL_FX_DUR, VAL_HIT_P, VAL_MS, drawValUnit, isValentineFx, valentineDimGround, valentineDimLayer, valentineFlip, valentineFx, valentineItems, valentinePuppets,
 } from "./valentineFx";
 import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, drawFernGround, fernFx, isFernFx } from "./fernFx";
+import {
+  CELINE_FX_DUR, CELINE_HIT_P, CELINE_MS, celineFx, celineItems, celineWallRise, drawCelineAir, drawCelineGround, drawCelineWall, isCelineFx,
+} from "./celineFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -824,8 +827,9 @@ function smashFx(g, e, now) {
 //  ไรโด ฮิคารุ: ท่าตีตามร่าง (hk*) อยู่ใน hikaruFx.js — รวมเข้าตารางเดียวกันให้ BoardStage ใช้จังหวะปะทะชุดเดียว
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
 //  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P };
+//  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1910,7 +1914,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR,
 };
 
 
@@ -1920,6 +1924,7 @@ export const FX_DUR = {
 //   ferns? = เฟิร์นกำลังชาร์จ Orbital Cannon Zoltraak [{ id, x, y, size, charge }] (fernFx.js)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
+//   celine? = { flora, kings, hold, preview } ของค้างของเซลิน (celineFx.js) · terrain "icewall" = กำแพงน้ำแข็ง (drawCelineWall)
 //   valentine? = { flags } ธงปักของวาเลนไทน์ · dimLayers? = [{ kind: "par"|"veil", k }] มุมมองของมิติ (valentineFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
 //   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
@@ -1982,6 +1987,9 @@ export function drawFrame(g, st, now) {
   if (dFx) drawDiegoGround(g, dGround, fx, now, lowQ, amb);
   // โลกคู่ขนาน (วาเลนไทน์): ตะเข็บบางรอบขอบกระดาน — บนพื้น ใต้ไฮไลต์
   if (st.dimLayers && st.dimLayers.length) valentineDimGround(g, info, st.dimLayers, now, lowQ);
+  // เซลิน (celineFx.js): พรมกลีบใต้พุ่มดอกไม้ · วงเถาวัลย์ทองใต้ราชาดอกไม้ — ใต้ไฮไลต์
+  const cel = st.celine || null, cFx = fx.some((e) => isCelineFx(e.kind));
+  if (cel) drawCelineGround(g, cel, fx, now, lowQ, units);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard) T.overBoard(g, f, now);
@@ -2003,6 +2011,12 @@ export function drawFrame(g, st, now) {
     items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => drawIceSpike(g, x, y, lv, { rise: iceSpikeRise(fx, x, y, now), alpha: fade ? 0.45 : 1 }) });
   };
   for (const t of info.terrain) {
+    // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง
+    if (t.kind === "icewall") {
+      const fade = behind(t.x, t.y), rise = cFx ? celineWallRise(fx, t.x, t.y, now) : 1;
+      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: () => drawCelineWall(g, t.x, t.y, t.conn, { rise, alpha: fade ? 0.45 : 1, now, lowQ }) });
+      continue;
+    }
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
     const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
@@ -2044,6 +2058,8 @@ export function drawFrame(g, st, now) {
   // วาเลนไทน์: ธงปัก (โบกตลอด) + ผ้าในฉาก + ภาพที่จับไว้ของตัวที่หายจาก state แล้ว — เรียงความลึกกับตัวละคร
   const vFlags = st.valentine && Array.isArray(st.valentine.flags) ? st.valentine.flags : null, vFx = fx.some((e) => isValentineFx(e.kind));
   if (vFlags || vFx) valentineItems(items, g, vFlags, fx, now, lowQ);
+  // เซลิน: พุ่มดอกไม้ (ครึ่งหลัง/หน้าตัวละคร) · กำแพงที่ค้างไว้ถึงจังหวะปะทะ · พรีวิวกำแพงตอนเลือกช่อง
+  if (cel) celineItems(items, g, { ...cel, terrain: info.terrainKind }, fx, now, lowQ);
   if (vFx) for (const pu of valentinePuppets(fx, now, lowQ)) items.push({ d: depthOf(pu.rx + 0.5 + (pu.ox || 0), pu.ry + 0.5 + (pu.oy || 0)) + 0.0005, f: () => drawAnyUnit(g, pu, now, null) });
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
@@ -2080,6 +2096,8 @@ export function drawFrame(g, st, now) {
   if (grays) drawGrayAir(g, grays, units, now, lowQ);
   // ละอองมานาวนเข้าหาเฟิร์น + ลูกแสงตามจำนวนเทิร์นที่ชาร์จ (ทับตัวละคร)
   if (ferns) drawFernAir(g, ferns, units, now, lowQ);
+  // ราชาดอกไม้ (เซลิน): มงกุฎลอย + กลีบโคจร + ผีเสื้อ (ทับตัวละคร)
+  if (cel) drawCelineAir(g, cel, units, now, lowQ);
   // หยุดเวลา (เดอะเวิลด์): ซีเปีย + แถบสีกลับด้านที่ขอบวง → วาดดิเอโก้ (+ม้า) ซ้ำให้สีปกติ — ใต้เอฟเฟกต์ครั้งเดียว (ของที่ค้างกลางอากาศยังมีสี)
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
@@ -2112,6 +2130,7 @@ export function drawFrame(g, st, now) {
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ, view);
+    else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

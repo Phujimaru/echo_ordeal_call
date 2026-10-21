@@ -24,7 +24,7 @@ Object.assign(module.exports, {
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
-  wetAt, layWet, dryWet,
+  wetAt, layWet, dryWet, placeWall, removeWall, wallsOf, isWallKind,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -39,6 +39,7 @@ const view = require("./view");
 const Visibility = require("./visibility");
 const action = require("./phases/action");
 const attack = require("./phases/attack");
+const Flora = require("./flora");
 
 const ICE_TURNS = 6;               // ธารน้ำแข็งอยู่ 6 เทิร์น
 const SPIKE_TURNS = 3;             // หนามน้ำแข็งอยู่ 3 เทิร์น (Lv ขึ้น = นับใหม่)
@@ -55,6 +56,9 @@ const bumpVer = () => { match.board.iceVer = (match.board.iceVer || 0) + 1; };
 const hookOf = (p) => (p && CHAR_HOOKS[p.characterId]) || null;
 // terrain ของหนามน้ำแข็ง ("icespike<lv>")
 function isSpikeKind(kind) { return typeof kind === "string" && kind.startsWith("icespike"); }
+// กำแพงน้ำแข็งของเซลิน (terrain "icewall") — เก็บในชั้นหนาม { lv: 1, armor: 1, wall: true } เพื่อใช้ทางตีหนามร่วมกัน
+//  ต่างจากหนาม: ไม่ขึ้น Lv (Ice Surge) · ไม่นับเวลา (เจ้าของถอนเองต้นตาเดินถัดไป) · ไถลชน = ชนสิ่งกีดขวางธรรมดา · ตัวใหญ่เหยียบไม่ได้
+function isWallKind(kind) { return kind === "icewall"; }
 // ช่องในกระดานที่ไม่ใช่สิ่งกีดขวาง (รวมหนาม) และไม่ใช่ร้านค้า — ที่วางน้ำแข็ง/หนาม/พื้นเปียกได้
 function openTile(x, y) {
   const map = action.boardMap();
@@ -67,14 +71,15 @@ function openTile(x, y) {
 //   special "wet" (Board.TERRAIN_INFO slide) = ไถลแบบเดียวกับน้ำแข็งทุกอย่าง · น้ำแข็งทับอยู่ = เป็นน้ำแข็ง
 function hasOverlay(b) {
   return !!b && ((b.ice && Object.keys(b.ice).length > 0) || (b.spikes && Object.keys(b.spikes).length > 0)
-    || (b.wet && Object.keys(b.wet).length > 0));
+    || (b.wet && Object.keys(b.wet).length > 0) || Flora.has(b));
 }
 // รวมชั้นเข้าแผนที่ (เรียกจาก action.boardMap — terrain ส่งมาเป็นสำเนาแล้ว)
 function overlayOf(b, terrain, special) {
   const sp = { ...special };
   for (const k of Object.keys(b.wet || {})) if (!terrain[k] && sp[k] !== "ice") sp[k] = "wet";
   for (const k of Object.keys(b.ice || {})) if (!terrain[k]) sp[k] = "ice";
-  for (const [k, s] of Object.entries(b.spikes || {})) terrain[k] = `icespike${s.lv}`;
+  for (const [k, s] of Object.entries(b.spikes || {})) terrain[k] = s.wall ? "icewall" : `icespike${s.lv}`;
+  Flora.overlay(b, terrain, sp); // พุ่มดอกไม้ของเซลิน (server/flora.js) — ชั้นบนสุดของช่องพิเศษ
   return { terrain, special: sp };
 }
 // ข้อมูลส่ง client (view.boardPublic)
@@ -82,7 +87,7 @@ function publicInfo() {
   const b = match.board || {};
   return {
     ice: Object.entries(b.ice || {}).map(([k, r]) => ({ ...parseKey(k), left: r.left, owner: r.owner })),
-    spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner })),
+    spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner, ...(s.wall ? { wall: true } : {}) })),
     wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
 }
@@ -97,6 +102,7 @@ function layWet(tiles) {
     const k = K(t.x, t.y);
     if ((match.board.wet ||= {})[k]) continue;
     match.board.wet[k] = true;
+    Flora.clear(k); // วางทีหลังทับพุ่มดอกไม้
     out.push({ x: t.x, y: t.y });
   }
   if (out.length) bumpVer();
@@ -133,8 +139,10 @@ function layIce(x, y, owner) {
   b.ice ||= {};
   const prev = b.ice[k] ? { ...b.ice[k] } : null;
   b.ice[k] = { left: ICE_TURNS, owner: owner || null };
+  const flora = b.flora && b.flora[k] ? { ...b.flora[k] } : null;
+  if (flora) Flora.clear(k); // วางทีหลังทับพุ่มดอกไม้ (ย้อนการเดิน = คืนพุ่ม)
   bumpVer();
-  return { k, prev };
+  return flora ? { k, prev, flora } : { k, prev };
 }
 // วางธารน้ำแข็งที่ช่องนี้ได้ไหม (สกิล): ในกระดาน · ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · ไม่ใช่น้ำแข็งถาวรของแผนที่
 function canLay(x, y) {
@@ -170,6 +178,7 @@ function undoLay(records) {
     if (typeof r.undo === "function") { r.undo(); continue; }
     if (r.prev) match.board.ice[r.k] = r.prev;
     else if (match.board.ice) delete match.board.ice[r.k];
+    if (r.flora) (match.board.flora ||= {})[r.k] = r.flora;
   }
   bumpVer();
 }
@@ -182,6 +191,7 @@ function placeSpike(x, y, owner, lv = 1) {
   let level = lv;
   if (Board.specialAt(map, x, y) === "ice" && Board.isIce(map, x, y)) level += 1; // น้ำแข็งเท่านั้น (พื้นเปียกไม่นับ)
   if (b.ice && b.ice[k]) delete b.ice[k];
+  Flora.clear(k);
   b.spikes ||= {};
   level = Math.min(3, level);
   b.spikes[k] = { lv: level, armor: SPIKE_ARMOR[level], left: SPIKE_TURNS, owner: owner || null };
@@ -190,7 +200,7 @@ function placeSpike(x, y, owner, lv = 1) {
 }
 function raiseSpike(k, by = 1) {
   const s = match.board.spikes && match.board.spikes[k];
-  if (!s) return null;
+  if (!s || s.wall) return null;
   const from = s.lv;
   s.lv = Math.min(3, s.lv + by);
   s.armor = SPIKE_ARMOR[s.lv];
@@ -207,6 +217,7 @@ function lowerSpike(k) {
   if (s.lv <= 0) delete match.board.spikes[k];
   else s.armor = SPIKE_ARMOR[s.lv];
   bumpVer();
+  if (s.wall && s.lv <= 0) wallBroken([parseKey(k)], s.owner, "hit");
   return { ...parseKey(k), lv: Math.max(0, s.lv), from };
 }
 function removeSpike(k) {
@@ -442,7 +453,7 @@ function spikeUnit(k) {
   const s = match.board.spikes[k];
   const pos = parseKey(k);
   return {
-    id: `spike:${k}`, name: `หนามน้ำแข็ง Lv.${s.lv}`, pos, boardSize: 1, alive: true,
+    id: `spike:${k}`, name: s.wall ? "กำแพงน้ำแข็ง" : `หนามน้ำแข็ง Lv.${s.lv}`, pos, boardSize: 1, alive: true,
     hp: 0, armor: s.armor, statuses: {}, statusAmt: {}, characterId: null, teamId: null, img: null, customColor: "#9fe3ff",
   };
 }
@@ -505,8 +516,39 @@ function onEndTurn() {
   let changed = false;
   // นับลงอย่างเดียวแผนที่ไม่เปลี่ยน — bumpVer (ล้างแคช action.boardMap) เฉพาะตอนมีของหาย
   for (const [k, r] of Object.entries(b.ice || {})) { r.left -= 1; if (r.left <= 0) { delete b.ice[k]; changed = true; } }
-  for (const [k, s] of Object.entries(b.spikes || {})) { s.left -= 1; if (s.left <= 0) { delete b.spikes[k]; changed = true; } }
+  for (const [k, s] of Object.entries(b.spikes || {})) { if (s.wall) continue; s.left -= 1; if (s.left <= 0) { delete b.spikes[k]; changed = true; } }
   if (changed) bumpVer();
+  Flora.tick(); // พุ่มดอกไม้ของเซลิน
+}
+
+// ---------- กำแพงน้ำแข็ง (เซลิน — คฑาแห่งการกีดกัน) ----------
+//  วางที่ช่องว่างจากสิ่งกีดขวาง/ร้านค้า (ผู้เรียกผลักคนออกก่อน) · ทับธารน้ำแข็ง/พื้นเปียก/พุ่มดอกไม้ = ของเดิมหาย
+function placeWall(x, y, owner) {
+  if (!match.board || !openTile(x, y)) return false;
+  const b = match.board, k = K(x, y);
+  if (b.ice) delete b.ice[k];
+  if (b.wet) delete b.wet[k];
+  Flora.clear(k);
+  (b.spikes ||= {})[k] = { lv: 1, armor: 1, left: 1, owner: owner || null, wall: true };
+  bumpVer();
+  return true;
+}
+// ถอนกำแพง (ครบเวลา) → true = มีกำแพงหาย
+function removeWall(k) {
+  const s = match.board && match.board.spikes && match.board.spikes[k];
+  if (!s || !s.wall) return false;
+  delete match.board.spikes[k];
+  bumpVer();
+  return true;
+}
+function wallsOf(ownerId) {
+  return Object.entries((match.board && match.board.spikes) || {}).filter(([, s]) => s.wall && (!ownerId || s.owner === ownerId)).map(([k]) => k);
+}
+// กำแพงแตก/หาย → เอฟเฟกต์ของเซลิน (client/src/board/celineFx.js)
+function wallBroken(tiles, owner, why) {
+  const o = owner && match.players[owner];
+  engine.boardFx("celineFx", { kind: "wallBreak", id: owner || null, color: o ? engine.colorOf(o) : null, tiles, why });
+  engine.sfx("celine_wall_break");
 }
 
 // ---------- ระเบิดรอบตัว (ติดตัว 3 ของ Ice Spike) ----------

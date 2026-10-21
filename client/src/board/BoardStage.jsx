@@ -34,6 +34,7 @@ import { FERN_CANNON, FERN_EVENT_FX } from "./fernFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
+import { celineEventFx } from "./celineFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -184,7 +185,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ตัวเลือกของกติกาเดินต่อคน: smash = ตัวใหญ่ที่เดินพังสิ่งกีดขวางได้ (server ส่งมา)
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
   //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) });
+  //  flowerWalk = ราชาดอกไม้ของเซลิน (p.flowerWalk) — ช่องดอกไม้ (TERRAIN_INFO flower) ไม่เสียก้าว
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p), flowerWalk: !!(p && p.flowerWalk) });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)
@@ -261,7 +263,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const board = state.board || null;
   const spikeList = useMemo(() => (board && Array.isArray(board.spikes)
     ? board.spikes.filter((s) => s && Number.isFinite(s.x) && Number.isFinite(s.y)) : []), [board]);
-  const spikeFoes = useMemo(() => spikeList.map((s) => ({ id: `spike:${s.x},${s.y}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSpike: true, name: `หนามน้ำแข็ง Lv.${s.lv}` })), [spikeList]);
+  //  กำแพงน้ำแข็งของเซลิน (wall: true) อยู่ในรายการเดียวกัน — ตีได้เหมือนหนาม แต่ชื่อ "กำแพงน้ำแข็ง"
+  const spikeFoes = useMemo(() => spikeList.map((s) => ({ id: `spike:${s.x},${s.y}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSpike: true, isWall: !!s.wall, name: s.wall ? "กำแพงน้ำแข็ง" : `หนามน้ำแข็ง Lv.${s.lv}` })), [spikeList]);
+  // เซลิน: พุ่มดอกไม้บนกระดาน (board.celine.flora · ช่อง special "bloom" ที่ไม่มีในรายการ = พุ่มรอยเท้า 3 เทิร์น)
+  const celFlora = useMemo(() => {
+    const list = board && board.celine && Array.isArray(board.celine.flora)
+      ? board.celine.flora.filter((f) => f && Number.isFinite(f.x) && Number.isFinite(f.y)).map((f) => ({ x: f.x, y: f.y, left: f.left ?? 3, made: !!f.made })) : [];
+    const seen = new Set(list.map((f) => key(f.x, f.y)));
+    for (const [k, kind] of Object.entries((board && board.special) || {})) {
+      if (kind !== "bloom" || seen.has(k)) continue;
+      const [x, y] = k.split(",").map(Number);
+      if (Number.isFinite(x) && Number.isFinite(y)) list.push({ x, y, left: 3, made: false });
+    }
+    return list;
+  }, [board]);
   const hoverSpike = hover && !hoverUnit && !hoverSeal ? spikeFoes.find((s) => samePos(s.pos, hover)) || null : null;
   // เกรย์ (สัปเหร่อ): ศพบนกระดาน = เป้าตีปกติ (เก็บศพ) — หน่วยเทียมแบบผนึก · ตีได้เฉพาะประชิด 1 ช่องเสมอ (planFor) · ไม่อยู่ในปุ่มโจมตี
   const reaper = !!(me && me.gray && me.gray.reaper);
@@ -363,6 +378,32 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }
 
   // ---------- โหมดเลือกเป้า (สกิล/ปืน/Mark 42) ----------
+  // กำแพงน้ำแข็งของเซลิน (tile place "wall" · contract §4): 3 ช่องตามแนว orient รอบช่องกลาง (h = แนวนอน x · v = แนวตั้ง y)
+  //  ช่องที่วางได้ = ไม่ใช่สิ่งกีดขวาง/ร้าน · ต้องวางได้อย่างน้อย 1 ช่อง · มีตัวใหญ่ (2×2 ขึ้นไป) ในแนว = วางไม่ได้
+  //  คนที่เรามองเห็นในแนว (units) = ต้องเลือกทิศผลักตั้งฉากกับกำแพง · orient หมุนได้ด้วยคลิกขวา / R / ล้อเมาส์
+  const [wallOrient, setWallOrient] = useState("h");
+  const wallPlan = useCallback((c, orient) => {
+    const v = orient === "v";
+    const tiles = [-1, 0, 1].map((d) => ({ x: c.x + (v ? 0 : d), y: c.y + (v ? d : 0) })).filter((t) => Rules.inBounds(map, t.x, t.y));
+    const placed = tiles.filter((t) => !Rules.isObstacle(map, t.x, t.y, blocked));
+    const units = [];
+    for (const t of placed) {
+      const u = Rules.unitAt(ruleUnits, t.x, t.y);
+      if (!u) continue;
+      if (sizeOfP(u) > 1) return { ok: false, tiles, placed, units };
+      if (!units.some((q) => q.id === u.id)) units.push(u);
+    }
+    return { ok: placed.length > 0, tiles, placed, units };
+  }, [map, blocked, ruleUnits]);
+  // ทิศผลักของกำแพง: ลูกศรที่ช่องติดช่องกลางตามทิศ · กดได้เมื่อทุกคนในแนวมีช่องว่างปลายทาง
+  const wallArrows = useCallback((c, orient, plan) => {
+    const dirs = orient === "v" ? [["left", -1, 0], ["right", 1, 0]] : [["up", 0, -1], ["down", 0, 1]];
+    const onWall = new Set(plan.placed.map((t) => key(t.x, t.y)));
+    return dirs.map(([dir, dx, dy]) => ({
+      x: c.x + dx, y: c.y + dy, dir,
+      ok: plan.units.every((u) => !onWall.has(key(u.x + dx, u.y + dy)) && Rules.freeTile(map, u.x + dx, u.y + dy, ruleUnits, u.id, blocked)),
+    })).filter((a) => Rules.inBounds(map, a.x, a.y));
+  }, [map, ruleUnits, blocked]);
   const pickInfo = useMemo(() => {
     if (!pick || !me || !me.pos || !map) return null;
     if (pick.kind === "target") {
@@ -382,6 +423,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     }
+    if (pick.kind === "tile" && pick.place === "wall") {
+      const valid = Rules.tilesInRange(map, me.pos.x, me.pos.y, [0, pick.range | 0], sizeOfP(me)).filter((t) => wallPlan(t, wallOrient).ok).map((t) => key(t.x, t.y));
+      return { tile: true, wall: true, skill: valid, validSet: new Set(valid) };
+    }
     if (pick.kind === "tile") {
       // เลือกช่อง (Ice Spike · contract §2): ระยะแมนฮัตตันจากขอบตัว ≤ range (รวมช่องที่ยืน)
       //  ice = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน และไม่ใช่น้ำแข็งของแผนที่เดิม · spike = ไม่ใช่สิ่งกีดขวาง/หนาม/ร้าน · คน: 1×1 + ข้างๆ ว่างอย่างน้อย 1 · any = ทุกช่อง
@@ -393,6 +438,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (pick.place === "free") return !Rules.isObstacle(map, t.x, t.y, blocked) && !Rules.unitAt(ruleUnits, t.x, t.y);
         if (pick.place === "corpse") return corpseKeys.has(key(t.x, t.y)); // ยูนะ: คำอวยพรสุดท้าย — เลือกศพ
         if (Rules.isObstacle(map, t.x, t.y, blocked)) return false;
+        if (pick.place === "bloom") return true; // เซลิน: พุ่มดอกไม้ — ช่องไหนก็ได้ที่ไม่ใช่สิ่งกีดขวาง/ร้าน (มีคนยืนได้)
         const k = key(t.x, t.y);
         if (pick.place === "ice") return !(map.special[k] === "ice" && !own.has(k));
         const u = Rules.unitAt(ruleUnits, t.x, t.y);
@@ -403,21 +449,40 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return { tile: true, skill: valid, validSet: new Set(valid) };
     }
     return null;
-  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked, corpses, sameDim]);
+  }, [pick, me, map, hover, state.players, board, ruleUnits, blocked, corpses, sameDim, wallPlan, wallOrient]);
   // วางหนามทับคน: เลือกทิศผลัก (ลูกศร 4 ทิศรอบคนนั้น · ทิศที่ช่องปลายไม่ว่าง = กดไม่ได้)
   const pickSig = pick ? `${pick.kind}|${pick.label || ""}|${pick.place || ""}` : "";
-  const [dirPick, setDirPick] = useState(null); // { sig, x, y, arrows: [{ x, y, dir, ok }] }
+  const [dirPick, setDirPick] = useState(null); // { sig, x, y, arrows: [{ x, y, dir, ok }], orient?, tiles? (กำแพง) }
   if (dirPick && dirPick.sig !== pickSig) setDirPick(null);
+  // เลือกหลายเป้า (area.count — เซลินจับคู่สลับ 2 คน): คนที่เลือกแล้วในโหมดนี้ · ครบ count = ส่ง
+  const [multi, setMulti] = useState({ sig: "", ids: [] });
+  const multiIds = useMemo(() => (multi.sig === pickSig ? multi.ids : []), [multi, pickSig]);
+  const pickTarget = (id) => {
+    const need = Math.max(1, (pick && pick.count) | 0);
+    if (need <= 1) { clickSound(); pick.onPick(id); return; }
+    clickSound();
+    if (multiIds.includes(id)) { setMulti({ sig: pickSig, ids: multiIds.filter((q) => q !== id) }); return; }
+    const ids = [...multiIds, id];
+    if (ids.length >= need) { setMulti({ sig: "", ids: [] }); pick.onPick(ids); return; }
+    setMulti({ sig: pickSig, ids });
+  };
   const pickTileAt = (x, y) => {
     if (!pick || pick.kind !== "tile" || !pickInfo || !pickInfo.tile) return;
     if (dirPick) {
       const ar = dirPick.arrows.find((a) => a.x === x && a.y === y);
-      if (ar && ar.ok) { clickSound(); setDirPick(null); pick.onPick({ x: dirPick.x, y: dirPick.y }, ar.dir); }
+      if (ar && ar.ok) { clickSound(); setDirPick(null); pick.onPick({ x: dirPick.x, y: dirPick.y }, ar.dir, dirPick.orient); }
       else if (!(x === dirPick.x && y === dirPick.y)) setDirPick(null);
       return;
     }
     if (!pickInfo.validSet.has(key(x, y))) return;
     clickSound();
+    if (pick.place === "wall") {
+      // กำแพงทับคน = เลือกทิศผลักก่อน (ลูกศรตั้งฉากกับกำแพง)
+      const plan = wallPlan({ x, y }, wallOrient);
+      if (plan.units.length) { setDirPick({ sig: pickSig, x, y, orient: wallOrient, tiles: plan.placed, arrows: wallArrows({ x, y }, wallOrient, plan) }); return; }
+      pick.onPick({ x, y }, null, wallOrient);
+      return;
+    }
     const u = pick.place === "spike" ? Rules.unitAt(ruleUnits, x, y) : null;
     if (u) {
       const arrows = ICE_DIRS.map(([dir, dx, dy]) => ({ x: x + dx, y: y + dy, dir, ok: Rules.freeTile(map, x + dx, y + dy, ruleUnits, u.id, blocked) }))
@@ -481,6 +546,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [iceLv, setIceLv] = useState(null);
   const [iceMask, setIceMask] = useState(null);
   const [iceGhosts, setIceGhosts] = useState({});
+  // เซลิน: กำแพงน้ำแข็งที่ถูกตีแตก — วาดค้างไว้ถึงจังหวะปะทะ (wallHold) · ช่องที่ฉากตีจัดการเอง (wallClaim "x,y" → หมดอายุ ms)
+  //  celineHitAt = เวลา (performance.now) ที่ฉากตีปกติของเซลินถึงจังหวะปะทะ — ผลติดหลังตี (burn/shock/gust/collide) รอถึงตอนนั้น
+  const [wallHold, setWallHold] = useState([]);
+  const wallClaim = useRef({});
+  const celineHitAt = useRef(0);
   const iceRun = useRef(null); // { ids, active, gotState, done, pos, snap, snd }
   const iceSeen = useRef(null);
   const finishIceRef = useRef(null); // finishIce ล่าสุด (ประกาศทีหลัง — effect ด้านล่างเรียกผ่านตัวนี้)
@@ -635,6 +705,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const spikeK = spikeT ? key(spikeT.x, spikeT.y) : null;
       const spikeWas = spikeK ? boardSpikeLv(prevBoard.current, spikeK) : 0, spikeNow = spikeK ? boardSpikeLv(state.board, spikeK) : 0;
       if (spikeK) spikeDone.add(spikeK);
+      // กำแพงน้ำแข็งของเซลิน (terrain "icewall") แตกจากการตี = วาดค้างไว้ถึงจังหวะปะทะ แล้วแตกกระจาย (celineFx wallBreak ที่มาพร้อมกันถูกจองไว้)
+      const pbT = prevBoard.current && prevBoard.current.terrain, nbT = state.board && state.board.terrain;
+      const wallHit = !!spikeK && !!pbT && pbT[spikeK] === "icewall" && !(nbT && nbT[spikeK] === "icewall");
+      if (wallHit) {
+        wallClaim.current[spikeK] = performance.now() + 2500;
+        setWallHold((h) => [...h.filter((t) => !samePos(t, spikeT)), { x: spikeT.x, y: spikeT.y }]);
+      }
       if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) setIceLv((m) => ({ ...(m || {}), [spikeK]: spikeWas }));
       const tPos = sealT ? { x: sealT.x, y: sealT.y } : spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
@@ -664,6 +741,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // มีดโซระ (byHitFx "mythSlash"): พุ่งชนแบบเดิม · เสียงเริ่มก่อนปะทะ (ฟันแรกในเสียงตรงจังหวะปะทะ) · ฟันฟ้า 2 ครั้งแทนแสงแตก
       const myth = a.byHitFx === "mythSlash";
       if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
+      if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
@@ -689,6 +767,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         later(HIT, () => {
           if (!myth && !hk) playSfx(a.byAttackSound || "attack");
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
+          // เซลินติดคริ: ดอกทอง + มงกุฎเล็กเหนือเป้า + เสียงประกาย (ซ้อนเสียงอาวุธ)
+          if (style && style.startsWith("celine") && a.crit && !a.dodge) { playSfx("celine_crit"); pushFx([{ kind: "celineCrit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]) }]); }
+          if (wallHit) {
+            setWallHold((h) => h.filter((t) => !samePos(t, spikeT)));
+            pushFx([{ kind: "celineWallBreak", x: spikeT.x, y: spikeT.y, tiles: [{ x: spikeT.x, y: spikeT.y }], why: "hit" }]);
+          }
           setShake((n) => n + 1);
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : a.byDeferDmg ? null : `-${a.dmg}`;
@@ -1377,6 +1461,46 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("valentineFx", onVal);
   }, [pushFx, look, lowQ]);
 
+  // องค์หญิงดอกไม้ เซลิน: socket "celineFx" { kind, id, color, ... } → celineFx.js (GRID_PLAN §7.15 · contract §5) · เสียงมาจาก server (ผลติดหลังตี = ev.sound เล่นที่นี่)
+  //  swap = คนที่ถูกสลับบินโค้งตามฉาก (celinePose) — จดไว้ใน shadowBusy (ไม่เลื่อนซ้ำตอน state มาถึง)
+  //  wallBreak จากการตี = รอ state ของฉากตี (ฉากตีวาดแตกเองตอนปะทะ — wallClaim) · ผลติดหลังตีปกติ = รอถึงจังหวะปะทะ (celineHitAt)
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const run = (ev) => {
+      const out = celineEventFx(ev, { posOf, sizeOf });
+      if (typeof ev.sound === "string") playSfx(ev.sound); // ผลติดหลังตีปกติ: เสียงมากับ payload (ดังพร้อมภาพตอนปะทะ)
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      pushFx(out.fx);
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
+    };
+    const ON_HIT = { burn: 1, shock: 1, gust: 1, collide: 1 };
+    const onCeline = (ev) => {
+      if (!ev || typeof ev !== "object") return;
+      if (ev.kind === "wallBreak" && ev.why !== "expire") {
+        at(140, () => {
+          const now = performance.now();
+          const tiles = (Array.isArray(ev.tiles) ? ev.tiles : []).filter((t) => t && !((wallClaim.current[key(t.x, t.y)] || 0) > now));
+          if (tiles.length) run({ ...ev, tiles });
+        });
+        return;
+      }
+      if (ON_HIT[ev.kind]) {
+        at(120, () => { const wait = celineHitAt.current - performance.now(); if (wait > 0) at(wait + 60, () => run(ev)); else run(ev); });
+        return;
+      }
+      run(ev);
+    };
+    socket.on("celineFx", onCeline);
+    return () => socket.off("celineFx", onCeline);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1415,11 +1539,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (dirPick) {
         h.arrows = dirPick.arrows;
         h.skill = dirPick.arrows.filter((a) => a.ok).map((a) => key(a.x, a.y));
-        h.aoe = [key(dirPick.x, dirPick.y)];
+        h.aoe = Array.isArray(dirPick.tiles) ? dirPick.tiles.map((t) => key(t.x, t.y)) : [key(dirPick.x, dirPick.y)];
         return h;
       }
       h.skill = pickInfo.skill;
-      if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) h.aoe = pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
+      if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) {
+        h.aoe = pickInfo.wall ? wallPlan(hover, wallOrient).placed.map((t) => key(t.x, t.y))
+          : pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
+      }
       return h;
     }
     if (pickInfo) {
@@ -1427,6 +1554,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (pickInfo.aoe) h.aoe = pickInfo.aoe;
       // ชี้คนที่เลือกได้ = ไฮไลต์ช่องของคนนั้น (คนนอกระยะไม่ขึ้น — กดไม่ได้)
       if (pickInfo.valid && hoverUnit && hoverUnit.pos && pickInfo.valid.has(hoverUnit.id)) h.target = { ...boxOfP(hoverUnit) };
+      // เลือกหลายเป้า: คนที่เลือกไว้แล้ว = กรอบทอง
+      if (multiIds.length) h.aoe = multiIds.map((id) => byId[id]).filter((p) => p && p.pos).flatMap((p) => Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).map((t) => key(t.x, t.y)));
       return h;
     }
     if (myTurn && myReach) {
@@ -1465,7 +1594,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       h.attack = [...z.threat];
     }
     return h;
-  }, [dangerKeys, anim, pickInfo, dirPick, myTurn, strikeOff, myReach, canMove, startReach, startMap, action, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dangerKeys, anim, pickInfo, dirPick, multiIds, wallPlan, wallOrient, byId, myTurn, strikeOff, myReach, canMove, startReach, startMap, action, plan, hover, hoverUnit, map, me, ruleUnits, isAlly, blocked, anchorFor]); // eslint-disable-line react-hooks/exhaustive-deps
   // โหมดเลือกเป้า: คนที่เลือกไม่ได้ (นอกระยะ/ไม่ใช่เป้าของท่านี้) ส่งธง dim ให้ตัววาด (GRID_PLAN §7 "คนนอกระยะจางลง")
   const pickValid = pickInfo && pickInfo.valid ? pickInfo.valid : null;
 
@@ -1544,6 +1673,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     nets: state.players.filter((p) => p.diego && Array.isArray(p.diego.nets)).flatMap((p) => p.diego.nets.filter((n) => n && Number.isFinite(n.x) && Number.isFinite(n.y)).map((n) => ({ x: n.x, y: n.y, color: p.color }))),
   });
   const diegoGround = useMemo(() => { const d = JSON.parse(diegoSig); return d.oil.length || d.fire.length || d.ash.length || d.nets.length ? d : null; }, [diegoSig]);
+  // เซลิน (celineFx.js): พุ่มดอกไม้ · ราชาดอกไม้ (p.celine.king > 0 — มงกุฎ/กลีบโคจร) · กำแพงค้างถึงจังหวะปะทะ · พรีวิวกำแพงตอนเลือกช่อง
+  const kingSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.celine && p.celine.king > 0 && sameDim(p))
+    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p) })));
+  const wallPreview = useMemo(() => {
+    if (!pickInfo || !pickInfo.wall) return null;
+    if (dirPick && Array.isArray(dirPick.tiles)) return { tiles: dirPick.tiles, orient: dirPick.orient, ok: true };
+    if (!hover || !pickInfo.validSet.has(key(hover.x, hover.y))) return null;
+    return { tiles: wallPlan(hover, wallOrient).placed, orient: wallOrient, ok: true };
+  }, [pickInfo, dirPick, hover, wallPlan, wallOrient]);
+  const celineProp = useMemo(() => {
+    const kings = JSON.parse(kingSig);
+    if (!celFlora.length && !kings.length && !wallHold.length && !wallPreview) return null;
+    return { flora: celFlora, kings, hold: wallHold, preview: wallPreview };
+  }, [celFlora, kingSig, wallHold, wallPreview]);
 
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1556,7 +1699,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!sameDim(p)) { const t = hover && onBody(p, hover) ? hover : p.pos; if (t) onTileClick(t.x, t.y); return; }
     if (pick) {
       if (pick.kind === "tile") { const t = hover && onBody(p, hover) ? hover : p.pos; pickTileAt(t.x, t.y); return; }
-      if (pick.kind === "target" && pickInfo && pickInfo.valid.has(id)) { clickSound(); pick.onPick(id); }
+      if (pick.kind === "target" && pickInfo && pickInfo.valid.has(id)) pickTarget(id);
       else if (pick.kind === "aoe" && pickInfo && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => pickInfo.aoe.includes(key(t.x, t.y)))) { clickSound(); pick.onConfirm(); }
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(pickInfo.dir); }
       return;
@@ -1633,16 +1776,39 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // โหมดเลือกเป้า (ผู้ใช้สั่ง 2026-10-09): เลือกเป้า = คลิกคน/ตัวเองบนกระดาน · สกิลหมู่ = คลิกในพื้นที่ซ้ำเพื่อใช้
   //  ยกเลิก = ปุ่มยกเลิกกลางล่าง / Esc / คลิกขวา
+  //  กำแพงน้ำแข็งของเซลิน: คลิกขวา / R / ล้อเมาส์ = หมุนแนวกำแพง (ยกเลิก = Esc / ปุ่มยกเลิก)
+  const wallMode = !!pick && pick.kind === "tile" && pick.place === "wall";
+  const flipWall = useCallback(() => setWallOrient((o) => (o === "h" ? "v" : "h")), []);
   useEffect(() => {
     if (!pick || !pick.onCancel) return undefined;
-    // เลือกทิศผลักอยู่ (Ice Spike) = ถอยกลับไปเลือกช่องก่อน
-    const back = () => { if (dirPick) setDirPick(null); else pick.onCancel(); };
-    const onKey = (e) => { if (e.key === "Escape") back(); };
-    const onCtx = (e) => { e.preventDefault(); back(); };
+    // เลือกทิศผลักอยู่ (Ice Spike / กำแพง) = ถอยกลับไปเลือกช่องก่อน · เลือกหลายเป้าไว้แล้ว = ล้างที่เลือกก่อน
+    const back = () => { if (dirPick) setDirPick(null); else if (multiIds.length) setMulti({ sig: "", ids: [] }); else pick.onCancel(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") back();
+      else if (wallMode && !dirPick && e.code === "KeyR" && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) flipWall();
+    };
+    const onCtx = (e) => { e.preventDefault(); if (wallMode && !dirPick) flipWall(); else back(); };
     window.addEventListener("keydown", onKey);
     window.addEventListener("contextmenu", onCtx);
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("contextmenu", onCtx); };
-  }, [pick, dirPick]);
+  }, [pick, dirPick, multiIds, wallMode, flipWall]);
+  // ล้อเมาส์หมุนกำแพง — ดักก่อนถึง BoardCanvas (ซูม) ด้วย capture ที่ชั้นนอก
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || !wallMode || dirPick) return undefined;
+    let last = 0;
+    const onWheel = (e) => {
+      if (e.ctrlKey || !e.deltaY) return;
+      e.preventDefault(); e.stopPropagation();
+      const t = performance.now();
+      if (t - last < 160) return;
+      last = t;
+      flipWall();
+    };
+    el.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => el.removeEventListener("wheel", onWheel, { capture: true });
+  }, [wallMode, dirPick, flipWall]);
 
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
@@ -1650,11 +1816,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `เหลือ ${state.shopTurnsLeft} เทิร์น` : "" };
     // Ice Spike: หนามน้ำแข็ง · ธารน้ำแข็ง (น้ำแข็งที่สร้างระหว่างเกม)
     const sp = spikeList.find((t) => samePos(t, hover));
+    if (sp && sp.wall) return { icon: "🧊", name: "กำแพงน้ำแข็ง", desc: "" };
     if (sp) return { icon: "❄️", name: `หนามน้ำแข็ง Lv.${sp.lv}`, desc: `เกราะ ${sp.armor ?? 0}/${sp.maxArmor ?? 0} · เหลือ ${sp.left ?? 0} เทิร์น` };
+    // เซลิน: พุ่มดอกไม้
+    const fl = celFlora.find((t) => samePos(t, hover));
+    if (fl) return { icon: "🌸", name: "พุ่มดอกไม้", desc: `เหลือ ${fl.left ?? 0} เทิร์น` };
     const ic = board && Array.isArray(board.ice) ? board.ice.find((t) => samePos(t, hover)) : null;
     if (ic) return { icon: "🧊", name: "ธารน้ำแข็ง", desc: `เหลือ ${ic.left ?? 0} เทิร์น` };
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shopPos, state.shopTurnsLeft, spikeList, board]);
+  }, [hover, map, shopPos, state.shopTurnsLeft, spikeList, board, celFlora]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js
@@ -1767,7 +1937,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   if (!map) return null;
   return (
-    <div className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
+    <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
       data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"}
       style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null) }}>
       <BoardCanvas
@@ -1797,6 +1967,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}
         valentine={state.board && state.board.valentine ? state.board.valentine : null}
+        celine={celineProp}
         dimView={typeof myDim === "string" ? (myDim.startsWith("par") ? "par" : myDim.startsWith("veil") ? "veil" : null) : null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}

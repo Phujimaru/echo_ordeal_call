@@ -188,13 +188,15 @@ module.exports = {
     return is(engine, 6, "day") ? ICE_CRIT_PCT : 0;
   },
   // 6 กลางวัน: คริติคอลของสนาม (โอกาส 20% ×2) — extraPct = อัตราคริจากบัฟอื่นที่ไม่ใช่สนาม รวมกันแล้วทอยครั้งเดียว
-  applyCrit(engine, attacker, dmg, fx, extraPct = 0) {
+  //  mult = ตัวคูณเมื่อติด (ปกติ ×2 · เซลินระหว่างราชาดอกไม้ ×3 — ฮุค critMult)
+  applyCrit(engine, attacker, dmg, fx, extraPct = 0, mult = 2) {
     if (!(dmg > 0)) return dmg;
     const pct = this.critBonus(engine) + extraPct;
     if (!pct || !roll(pct)) return dmg;
     fx.crit = true;
     fx.pct = pct;
-    return dmg * 2;
+    fx.mult = mult;
+    return dmg * mult;
   },
 
   // ---------- 3 กลางคืน: ดาเมจสถานะต่อเนื่อง ----------

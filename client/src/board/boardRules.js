@@ -29,11 +29,13 @@ const UNBREAKABLE = new Set(["seal"]);
 //   stop  = เดินเข้าแล้วหยุดทันที (ก้าวที่เหลือหายหมด) · slide = เดินเข้าแล้วไถลไปทิศเดิมจนสุดแนวน้ำแข็ง (จบการเดิน — slideLine)
 //   atk   = ยืนอยู่แล้วพลังโจมตี +N (computeAttackBase) · end = ผลตอนจบตาบนช่องนี้ (endTurnTile)
 //   bush  = พุ่มหญ้า: ยืนอยู่แล้วศัตรูมองไม่เห็น ยกเว้นคนที่ยืนในพุ่มผืนเดียวกัน (bushPatchOf — server/visibility.js)
+//   flower = ช่องดอกไม้ — เดินตามได้ไม่เสียก้าวเมื่อ opts.flowerWalk (ท่าไม้ตายเซลิน "ราชาดอกไม้" — stepCost)
 //  heal / oasis = จุดฟื้นฟู (map.heal) — ชื่อตามภูมิภาค (map.healKind)
 const TERRAIN_INFO = {
   heal: { name: "วงเวทฟื้นฟู", icon: "✨", desc: "จบตา ฟื้นพลังชีวิต +1" },
   oasis: { name: "โอเอซิส", icon: "🌴", desc: "จบตา ฟื้นพลังชีวิต +1" },
-  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
+  flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true, flower: true },
+  bloom: { name: "พุ่มดอกไม้", icon: "🌷", desc: "หลบหลีก +20% · ซ่อนตัว", evade: 20, bush: true, flower: true }, // เซลิน (ชั้นทับช่องเดิม — server/flora.js)
   forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
   thorns: { name: "หนามพิษ", icon: "🥀", desc: "จบตา ติดพิษร้าย 1 เทิร์น", end: "thorns", poison: 1 },
   shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดิน 2 ก้าว", cost: 2 },
@@ -246,6 +248,14 @@ function moveCost(map, x, y) {
   const info = TERRAIN_INFO[specialAt(map, x, y)];
   return (info && info.cost) || 1;
 }
+// ก้าวที่ใช้เดินเข้าช่องนี้ตามตัวเลือกการเดิน — opts.flowerWalk (ราชาดอกไม้ของเซลิน): ช่องดอกไม้ = 0 ก้าว
+function stepCost(map, x, y, opts) {
+  if (opts && opts.flowerWalk) {
+    const info = TERRAIN_INFO[specialAt(map, x, y)];
+    if (info && info.flower) return 0;
+  }
+  return moveCost(map, x, y);
+}
 // หลบหลีกจากช่องที่ยืน (พุ่มดอกไม้สูง/ป่าทึบ) → { kind, name, icon, pct } · ไม่มี = null
 function terrainEvade(map, x, y) {
   const kind = specialAt(map, x, y);
@@ -405,7 +415,7 @@ function reachable(map, unit, mov, units, opts = {}) {
         if (isObstacle(map, nx, ny, blocked) && !(hop && hop.has(key(nx, ny)))) continue; // ร่าง (ระบบคู่) = กระโดดข้ามได้
         const other = occupant(nx, ny);
         if (other && !isAlly(unit, other)) continue; // ศัตรูขวางทาง
-        const nd = cur.d + moveCost(map, nx, ny);
+        const nd = cur.d + stepCost(map, nx, ny, opts);
         if (nd > mov) continue;
         const node = { x: nx, y: ny, d: nd, prev: cur };
         if (isIce(map, nx, ny)) {
@@ -539,7 +549,7 @@ function trailCost(map, unit, trail, units, opts = {}) {
     if (hopped ? last : isObstacle(map, t.x, t.y, blocked)) return Infinity;
     const o = unitAt(units, t.x, t.y);
     if (o && o.id !== unit.id && (last || !isAlly(unit, o) || isIce(map, t.x, t.y))) return Infinity;
-    d += moveCost(map, t.x, t.y);
+    d += stepCost(map, t.x, t.y, opts);
   }
   return d;
 }
@@ -862,7 +872,7 @@ export {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
-  specialAt, moveCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
+  specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
   tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
