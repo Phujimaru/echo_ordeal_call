@@ -258,7 +258,7 @@ function breaker(engine, p, t, pend) {
     engine.ice.revealPushed(u);
     u.pos = { ...m.to };
     shoves.push({ id: u.id, from: m.from, to: { ...m.to } });
-    slides.push({ id: u.id, to: { ...m.to }, dir: m.dir });
+    slides.push({ id: u.id, via: m.from, to: { ...m.to }, dir: m.dir });
     if (engine.sameTeam(p, u)) engine.log(`💨 ${u.name} ถูกดันหลบทาง`);
   }
   if (t.alive && t.pos) {
@@ -274,7 +274,7 @@ function breaker(engine, p, t, pend) {
   });
   engine.sfx(SFX.fly);
   if (shoves.length) engine.sfx(SFX.shove);
-  slides.push({ id: t.id, to: { ...plan.to }, dir });
+  slides.push({ id: t.id, to: { ...plan.to }, dir, path: [from, ...plan.path.map(tile)] });
   engine.ice.forcedSlides(slides, p);
   // ผู้ใช้สั่ง 2026-10-20: ลูกแตะ → เอฟเฟกต์ก่อน → กระเด็นถึงขอบ → แล้วค่อยเสียดาเมจ (ดาเมจ/ตรึง/คนที่ถูกชน ลงตอนจบฉากกระเด็น)
   const hit = plan.shoves.filter((m) => !engine.sameTeam(p, engine.players[m.id] || {})).map((m) => m.id);
@@ -385,7 +385,7 @@ function secret(engine, p, targets, dirKey) {
     now = ms;
   }
   engine.skillBeat(Math.max(0, GYRO_FX.secret - now) / 1000, () => {
-    engine.ice.forcedSlides(pulls.filter((m) => engine.players[m.id] && engine.players[m.id].alive).map((m) => ({ id: m.id, to: m.to, dir: back })), p);
+    engine.ice.forcedSlides(pulls.filter((m) => engine.players[m.id] && engine.players[m.id].alive).map((m) => ({ id: m.id, via: m.from, to: m.to, dir: back })), p);
   });
 }
 

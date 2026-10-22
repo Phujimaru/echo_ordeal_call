@@ -347,22 +347,56 @@ test('ปุ่มหลายตัวเลือกที่ client ได้
   assert.equal(P.C.skillPoints, 0, 'เยียวยาหลังท่าไม้ตายได้');
 });
 
-test('เวลาน้ำชา: ต้นเทิร์นยังอยู่ในพุ่ม = ฟื้น 1 · เข้าพุ่มในตาตัวเอง = ฟื้นตอนจบตา', () => {
+test('เวลาน้ำชา: ต้นเทิร์นยืนในพุ่มติดกัน 2 เทิร์น = ฟื้น 1 (ไม่ติดคริ) แล้วนับใหม่ · ออกจากพุ่ม = นับใหม่', () => {
   const P = setup([['C', 'celine', 2, 7], ['B', 'dummy', 12, 8]]);
-  Math.random = () => 0.99;
+  Math.random = () => 0; // คริติดแน่ถ้ายังติดได้
+  P.C.celine.weapon = 'dragon';
   P.C.hp = 3;
   celine.onRoundStartTick(engine, P.C);
   assert.equal(P.C.hp, 3, 'ไม่อยู่ในพุ่ม');
-  Flora.lay(engine.boardMap(), [{ x: 2, y: 7 }], 'C', 3, { made: true });
+  Flora.lay(engine.boardMap(), [{ x: 2, y: 7 }], 'C', 5, { made: true });
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.hp, 3, 'เทิร์นแรกในพุ่มยังไม่ฟื้น');
+  assert.equal(view('C', 'C').celine.tea, 1);
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.hp, 4, 'ครบ 2 เทิร์น = ฟื้น 1 (ไม่ติดคริ)');
+  assert.equal(fxOf('tea')[0].crit, false);
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.hp, 4, 'นับใหม่');
+  // จบตาโดยไม่ได้ยืนในพุ่ม = นับใหม่
+  P.C.pos = { x: 2, y: 9 };
+  celine.onActorEnd(engine, P.C);
+  P.C.pos = { x: 2, y: 7 };
   celine.onRoundStartTick(engine, P.C);
   assert.equal(P.C.hp, 4);
-  P.C.pos = { x: 2, y: 8 };
-  engine.setActor('C');
-  celine.onActorStart(engine, P.C);
-  assert.ok(engine.moveTo('C', 5, 8));
-  celine.onActorEnd(engine, P.C);
-  assert.equal(P.C.hp, 5, 'เดินเข้าพุ่ม (รอยเท้า) = ฟื้นตอนจบตา');
-  assert.ok(fxOf('tea').length >= 2);
+  celine.onRoundStartTick(engine, P.C);
+  assert.equal(P.C.hp, 5);
+});
+
+test('สวนดอกไม้: ถูกผลัก/กระเด็น/ดึง = ทางที่ถูกพาผ่านเกิดพุ่ม 5 เทิร์น · สลับตำแหน่ง (วาร์ป) ไม่เกิด · Ice Spike ถูกผลัก = เกิดธารน้ำแข็ง', () => {
+  const P = setup([['C', 'celine', 2, 7], ['I', 'ice_spike', 2, 8], ['B', 'dummy', 12, 8]]);
+  const ctx = engine.ice.begin();
+  engine.ice.pushUnit(P.C, { x: 1, y: 0 }, ctx, 2);
+  engine.ice.flush(ctx);
+  assert.deepEqual(P.C.pos, { x: 4, y: 7 });
+  for (let x = 2; x <= 4; x++) assert.equal(special(x, 7), 'bloom', `ช่อง ${x},7`);
+  assert.equal(Flora.at(3, 7).left, 5);
+  assert.ok(fxOf('trail').length >= 1);
+  // ถูกย้ายด้วยแรงอื่นที่ส่งช่องเดิมมา (via)
+  P.C.pos = { x: 6, y: 7 };
+  engine.ice.forcedSlides([{ id: 'C', via: { x: 4, y: 7 }, to: { x: 6, y: 7 } }], P.B);
+  assert.equal(special(5, 7), 'bloom');
+  // วาร์ป (สลับตำแหน่ง) ไม่เกิดพุ่ม
+  P.C.pos = { x: 9, y: 7 };
+  engine.ice.forcedSlides([{ id: 'C', to: { x: 9, y: 7 }, warp: true }], P.B);
+  assert.equal(special(9, 7), null);
+  // Ice Spike ถูกผลัก = ทางเป็นธารน้ำแข็ง
+  const ctx2 = engine.ice.begin();
+  engine.ice.pushUnit(P.I, { x: 1, y: 0 }, ctx2, 1);
+  assert.deepEqual(P.I.pos, { x: 3, y: 8 });
+  assert.ok(engine.ice.iceAt(2, 8) && engine.ice.iceAt(3, 8), 'ช่องเดิม + ช่องที่ลงเป็นน้ำแข็ง');
+  assert.ok(ctx2.events.some((e) => e.kind === 'lay' && e.by === 'I'));
+  engine.ice.flush(ctx2);
 });
 
 test('คลิปคริก่อนฉากตี: สายดาบ / สายเวท · ไม่คริ = ไม่มีคลิป', () => {
@@ -372,4 +406,11 @@ test('คลิปคริก่อนฉากตี: สายดาบ / ส
   P.C.celine.weapon = 'wind';
   assert.equal(celine.preAttackClip(engine, P.C, { crit: true }), 'celineCritMage');
   assert.equal(celine.preAttackClip(engine, P.B, { crit: true }), null);
+  // เสียงพากย์ตอนตี: ไม่ติดคริ = เล่น · ติดคริ = ไม่เล่น (ไม่ทับคลิป)
+  calls.sfx = [];
+  celine.preAttackClip(engine, P.C, { crit: true });
+  assert.ok(!calls.sfx.some((k) => String(k).startsWith('celine_v_strike')));
+  celine.preAttackClip(engine, P.C, { crit: false });
+  assert.ok(calls.sfx.some((k) => String(k).startsWith('celine_v_strike')));
+  assert.deepEqual(celine.voiceLines(P.C).strike, [], 'Voice.play ตอนตีไม่เล่นเอง');
 });

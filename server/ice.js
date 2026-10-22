@@ -401,16 +401,37 @@ function pushUnit(u, dir, ctx, n = 1) {
   if (steps) { u.pos = { ...cur }; ctx.events.push({ kind: "knock", id: u.id, from, to: { ...cur } }); }
   if (blocked) ctx.events.push({ kind: "knock", id: u.id, from: { ...cur }, to: { x: cur.x + dir.x, y: cur.y + dir.y }, collide: true });
   if (!steps) return false;
+  const mark = ctx.events.length;
   resolveEntry(u, dir, ctx);
-  forcedMoved([u.id]);
+  forcedMoved([{ id: u.id, tiles: [...lineTiles(from, cur), ...slidPath(ctx, mark, u.id)] }], ctx);
   return true;
 }
-// ถูกผลัก/ดึง/ไถลไปลงช่องใหม่ (ทุกแรงที่ผ่าน pushUnit / forcedSlides) → ฮุค broadcast onForcedMove(engine, u)
-//  ดิเอโก้: ถูกผลักเข้าตาข่าย = ตาข่ายทำงาน
-function forcedMoved(ids) {
-  for (const id of ids) {
+// ช่องตามแนวตรง/ทแยงจาก a ถึง b (รวมทั้งสองปลาย)
+function lineTiles(a, b) {
+  const out = [{ x: a.x, y: a.y }];
+  const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y);
+  let x = a.x, y = a.y;
+  for (let i = 0; i < 32 && (x !== b.x || y !== b.y); i++) {
+    if (x !== b.x) x += dx;
+    if (y !== b.y) y += dy;
+    out.push({ x, y });
+  }
+  return out;
+}
+// ช่องที่ u ไถลผ่านในเหตุการณ์ตั้งแต่ index mark
+function slidPath(ctx, mark, id) {
+  return ctx.events.slice(mark).filter((e) => e.kind === "slide" && e.id === id).flatMap((e) => e.path.map((t) => ({ x: t.x, y: t.y })));
+}
+// ถูกผลัก/ดึง/ไถลไปลงช่องใหม่ (ทุกแรงที่ผ่าน pushUnit / forcedSlides) → ฮุค broadcast onForcedMove(engine, u, tiles, ctx)
+//  list = [{ id, tiles }] · tiles = ช่องที่ถูกพาผ่าน (ช่องเดิม → ช่องที่ลง + ทางไถล · ไม่รู้ทาง = แค่ช่องที่ลง · วาร์ป = [])
+//  ctx = ชุดเหตุการณ์ iceFx ที่ยังไม่ส่ง (pushUnit — ฮุคต่อเหตุการณ์ท้ายชุดได้) · null = ส่งไปแล้ว (ฮุคส่งของตัวเอง)
+//  ดิเอโก้: ถูกผลักเข้าตาข่าย = ตาข่ายทำงาน · เซลิน/Ice Spike: ทางที่ถูกพาผ่านเกิดพุ่มดอกไม้/ธารน้ำแข็ง
+function forcedMoved(list, ctx = null) {
+  for (const item of list) {
+    const id = typeof item === "string" ? item : item.id;
+    const tiles = typeof item === "string" ? [] : item.tiles || [];
     const u = match.players[id];
-    if (u && u.alive && u.pos) combat.broadcastHook("onForcedMove", engine, u);
+    if (u && u.alive && u.pos) combat.broadcastHook("onForcedMove", engine, u, tiles, ctx);
   }
 }
 // ถูกแรงอื่นย้ายตัว (ตั้ง pos ตรงๆ ไปแล้ว) แล้วลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกย้าย + ชนตามกติกาไถลทุกอย่าง (ผู้ใช้ตัดสิน 2026-10-14 "ไถลต่อตามสเปก")
@@ -424,15 +445,23 @@ function forcedSlides(moves, source = null) {
   const moved = [];
   for (const m of moves || []) {
     const u = m && match.players[m.id];
-    if (u && m.to) moved.push(u.id);
+    // ทางที่ถูกพาผ่าน (ฮุค onForcedMove): m.path = ช่องที่ผ่านจริง · m.from / m.via (ช่องเดิมที่ไม่ต้องเล่นภาพ knock ซ้ำ) → แนวตรงถึงช่องที่ลง
+    //  ไม่รู้ช่องเดิม = แค่ช่องที่ลง · m.warp = วาร์ป ไม่มีทาง · ทางไถลต่อท้ายด้านล่าง
+    const origin = m && (m.from || m.via);
+    const trail = !m || m.warp ? [] : Array.isArray(m.path) && m.path.length ? m.path.map((t) => ({ x: t.x, y: t.y }))
+      : origin ? lineTiles(origin, m.to) : m.to ? [{ x: m.to.x, y: m.to.y }] : [];
+    const entry = u && m.to ? { id: u.id, tiles: trail, warp: !!m.warp } : null;
+    if (entry) moved.push(entry);
     if (!u || !u.alive || !u.pos || !m.to || !m.dir || action.sizeOf(u) > 1) continue;
     if (u.pos.x !== m.to.x || u.pos.y !== m.to.y) continue;
     const dir = { x: Math.sign(m.dir.x), y: Math.sign(m.dir.y) };
     if ((!dir.x && !dir.y) || !Board.isIce(action.boardMap(), u.pos.x, u.pos.y)) continue;
     revealPushed(u);
     if (m.from && (m.from.x !== u.pos.x || m.from.y !== u.pos.y)) ctx.events.push({ kind: "knock", id: u.id, from: { x: m.from.x, y: m.from.y }, to: { ...u.pos } });
+    const mark = ctx.events.length;
     if (source) combat.withEffectSource(source, () => resolveEntry(u, dir, ctx));
     else resolveEntry(u, dir, ctx);
+    if (!entry.warp) entry.tiles.push(...slidPath(ctx, mark, u.id));
   }
   const settle = () => { if (source) combat.withEffectSource(source, () => forcedMoved(moved)); else forcedMoved(moved); };
   if (!ctx.events.length) { settle(); return null; }

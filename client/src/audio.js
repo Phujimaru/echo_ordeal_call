@@ -254,7 +254,8 @@ const FILES = {
   celine_collide: "/characters/celine/sfx/celine_collide.mp3",           // เวทย์ลม: ชนสิ่งกีดขวาง
   // เสียงพากย์เซลิน (server/voice.js) — คีย์ = ชื่อไฟล์
   ...Object.fromEntries([
-    "turn1", "turn2", "turn3", "strike1", "strike2", "strike3", "struck1", "struck2", "tender1", "tender2", "weapon1", "ult1", "ult2",
+    "turn1", "turn2", "turn3", "turn4", "turn5", "strike1", "strike2", "strike3", "strike4", "strike5", "struck1", "struck2", "struck3",
+    "tender1", "tender2", "tender3", "weapon1", "weapon2", "ult1", "ult2",
   ].map((k) => [`celine_v_${k}`, `/characters/celine/voice/celine_v_${k}.m4a`])),
   // ซึนาชิ ทาคุโตะ (GRID_PLAN §7.16 · contract §5–6) — เสียงเรียกดาบ = ไฟล์ผู้ใช้ · ที่เหลือสังเคราะห์ numpy ล้วน (.claude/plans/takuto-sfx.py) ~-15 LUFS
   //  ตีปกติ: จุดกระแทกอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · เหตุการณ์: จังหวะในไฟล์ตรงกับฉาก takutoFx.js (TAKUTO_T)

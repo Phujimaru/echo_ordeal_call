@@ -314,7 +314,7 @@ function beamHit(engine, p, ray, dir, ids, tiles) {
   if (moves.length) {
     engine.boardFx("hikaruPush", { id: p.id, moves });
     // ผลักจบแล้วค่อยไถล: ลงน้ำแข็ง = ไถลต่อตามทิศลำแสง + ชนตามกติกาไถล (คนไกลสุดก่อน) · มีไถล = พักให้กระดานเล่นจบ
-    const slides = moves.map((m) => ({ id: m.id, to: m.to, dir: { x: fx, y: fy } }));
+    const slides = moves.map((m) => ({ id: m.id, via: m.from, to: m.to, dir: { x: fx, y: fy } }));
     engine.skillBeat(PUSH_SECONDS, () => {
       const ctx = engine.ice.forcedSlides(slides, p);
       if (ctx) engine.skillBeat(engine.ice.fxSeconds(ctx), () => {});

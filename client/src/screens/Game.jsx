@@ -929,7 +929,7 @@ function statusEntries(p, full) {
     if (c.wallCd > 0) out.push({ key: "celineWallCd", v: c.wallCd, turns: true, icon: "🧊", label: "⏳", cls: "bg-white/20", desc: "" });
     else if (c.wallCount > 0) out.push({ key: "celineWallCount", v: 1, icon: "🧊", label: `${c.wallCount}/2`, cls: "bg-sky-200 text-gray-900", desc: "" });
     if (c.swapCd > 0) out.push({ key: "celineSwapCd", v: c.swapCd, turns: true, icon: "🔁", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "" });
+    if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: c.teaNeed ? `${c.tea || 0}/${c.teaNeed}` : "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {

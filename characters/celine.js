@@ -19,10 +19,13 @@
 //  สวนดอกไม้ของฉัน (ท่าไม้ตาย · 6 · กินโควตา · ใช้แล้วยังเดินได้): บัฟราชาดอกไม้ 5 เทิร์น (statuses.celineKing · บัฟ 2026-10-21 — เดิม 3)
 //    — เดินตามช่องดอกไม้ไม่เสียก้าว (Board opts.flowerWalk) · อัตราคริ +50% · คริของตีปกติ/ฟื้นฟู ×3 · ต้นเทิร์นแต้มสกิล +1
 //    · กดเทิร์น N → กดได้อีก N+8 (คูลดาวน์ 3 นับหลังบัฟหมด)
-//  เวลาน้ำชา (ติดตัว): ยืนในพุ่ม (ของใครก็ได้) — เข้าพุ่มในตาตัวเอง = ฟื้น 1 ตอนจบตา · ยังอยู่ต่อ = ฟื้น 1 ต้นเทิร์น · ในพุ่มคริ +20%
+//  เวลาน้ำชา (ติดตัว · เนิฟ 2026-10-22): ต้นเทิร์นยืนในพุ่ม (ของใครก็ได้) ติดกัน 2 เทิร์น = ฟื้น 1 แล้วนับใหม่ · ออกจากพุ่ม = นับใหม่
+//    · การรักษานี้ติดคริไม่ได้ · ในพุ่มคริ +20%
 //    ติดคริได้ทุกอย่างของความอ่อนโยน/ความแข็งกร้าว ยกเว้นกำแพง พุ่ม และการเคลื่อนย้าย (ผู้ใช้ตัดสิน) — ฟื้นฟูคริ = ×2 (×3 ราชาดอกไม้)
-//  สวนดอกไม้ (ติดตัว 2): ทุกช่องที่เดินผ่าน (รวมช่องออกตัว/ปลาย) เกิดพุ่มใต้เท้า 3 เทิร์น (afterWalk — ย้อนการเดินได้)
-//    · เหยียบพุ่มเดิมไม่นับเวลาใหม่ · ถูกผลัก/สลับไม่เกิด
+//  สวนดอกไม้ (ติดตัว 2): ทุกช่องที่เดินผ่าน (รวมช่องออกตัว/ปลาย) เกิดพุ่มใต้เท้า 5 เทิร์น (afterWalk — ย้อนการเดินได้ · บัฟ 2026-10-22 เดิม 3)
+//    · ถูกผลัก/กระเด็น/ดึงก็เกิดตามทางที่ถูกพาผ่าน (onForcedMove — ผู้ใช้สั่ง 2026-10-22) · สลับตำแหน่ง (วาร์ป) ไม่เกิด
+//    · เหยียบพุ่มเดิมไม่นับเวลาใหม่
+//  เสียงพากย์ตอนตี: เล่นเองตอนเริ่มฉากตี (preAttackClip) — ติดคริ = ไม่เล่น (คลิปคริมีเสียงของตัวเอง — ผู้ใช้สั่ง 2026-10-22)
 //  ตีปกติติดคริ = คลิปคริตามสายอาวุธก่อนฉากตีทุกครั้ง (ฮุค preAttackClip — server/phases/attack.js)
 //  เอฟเฟกต์: engine.boardFx("celineFx", …) ตามสัญญา .claude/plans/celine-contract.md §5
 // ============================================================
@@ -43,13 +46,14 @@ const CUT = { critSword: "celineCritSword", critMage: "celineCritMage", ult: "ce
 const FX = "celineFx"; // socket event (client/src/board/celineFx.js)
 // เสียงพากย์ตามเหตุการณ์ (server/voice.js — client/public/characters/celine/voice/)
 const VOICE = {
-  turn: ["celine_v_turn1", "celine_v_turn2", "celine_v_turn3"],
-  strike: ["celine_v_strike1", "celine_v_strike2", "celine_v_strike3"],
-  struck: ["celine_v_struck1", "celine_v_struck2"],
-  basic: ["celine_v_tender1", "celine_v_tender2"],
-  secondary: ["celine_v_weapon1"],
+  turn: ["celine_v_turn1", "celine_v_turn2", "celine_v_turn3", "celine_v_turn4", "celine_v_turn5"],
+  strike: [], // เล่นเองใน preAttackClip (ติดคริ = เงียบ ไม่ทับคลิป)
+  struck: ["celine_v_struck1", "celine_v_struck2", "celine_v_struck3"],
+  basic: ["celine_v_tender1", "celine_v_tender2", "celine_v_tender3"],
+  secondary: ["celine_v_weapon1", "celine_v_weapon2"],
   ultimate: ["celine_v_ult1", "celine_v_ult2"],
 };
+const STRIKE_VOICE = ["celine_v_strike1", "celine_v_strike2", "celine_v_strike3", "celine_v_strike4", "celine_v_strike5"];
 
 const HP = 7;
 const ARMOR = 3;
@@ -63,13 +67,14 @@ const WALL_LEN = 3;
 const SWAP_RANGE = 5;
 const SWAP_CD = 3;
 const BLOOM_TURNS = 5;  // คฑาแห่งการรังสรรค์
-const TRAIL_TURNS = 3;  // รอยเท้า (สวนดอกไม้)
+const TRAIL_TURNS = 5;  // รอยเท้า (สวนดอกไม้ · บัฟ 2026-10-22 เดิม 3)
 const ULT_TURNS = 5;     // บัฟ 2026-10-21 (เดิม 3)
 const ULT_CD = ULT_TURNS + 3; // กดเทิร์น N → กดได้อีก N+8 (คูลดาวน์ 3 นับหลังบัฟหมด — ผู้ใช้ตัดสิน 2026-10-21)
 const KING_CRIT = 50;   // ราชาดอกไม้: อัตราคริ +50%
 const KING_SP = 1;      // ราชาดอกไม้: ต้นเทิร์นแต้มสกิล +1
 const BUSH_CRIT = 20;
 const TEA_HEAL = 1;
+const TEA_TURNS = 2;    // ต้นเทิร์นยืนในพุ่มติดกันกี่เทิร์นถึงฟื้น (เนิฟ 2026-10-22)
 const KING = "celineKing";
 
 const WEAPONS = {
@@ -114,7 +119,7 @@ function fresh() {
     wallCount: 0, wallReady: 0,
     swapReady: 0,
     ultReady: 0,
-    startBloom: false,             // เริ่มตาเดินในพุ่ม (เวลาน้ำชา: เข้าพุ่มในตาตัวเอง = ฟื้นตอนจบตา)
+    teaStreak: 0,                  // เวลาน้ำชา: ต้นเทิร์นที่ยืนในพุ่มติดกัน (ครบ TEA_TURNS = ฟื้น)
   };
 }
 function st(p) { return p.celine || (p.celine = fresh()); }
@@ -249,7 +254,7 @@ function swapUnits(engine, p, a, b, mode) {
   fx(engine, p, "swap", { mode, a: { id: a.id, from: pa, to: { ...a.pos } }, b: { id: b.id, from: pb, to: { ...b.pos } } });
   engine.sfx("celine_swap");
   // ถูกย้าย = กับดักบนพื้นทำงาน (ตาข่ายของดิเอโก้) · ไม่ไถลบนน้ำแข็ง (วาร์ป — ไม่ส่งทิศ)
-  engine.ice.forcedSlides([{ id: a.id, to: { ...a.pos } }, { id: b.id, to: { ...b.pos } }], p);
+  engine.ice.forcedSlides([{ id: a.id, to: { ...a.pos }, warp: true }, { id: b.id, to: { ...b.pos }, warp: true }], p);
   engine.log(`🦋 ${p.name} คฑาแห่งการเคลื่อนย้าย — ${a.name} ⇄ ${b.name}`);
 }
 
@@ -348,11 +353,14 @@ module.exports = {
     if (!w.push || !res || res.dodge || !target || !target.alive) return null;
     return () => pushAfter(engine, attacker, target, w);
   },
-  // ตีปกติติดคริ = คลิปคริก่อนฉากตี (สายดาบ / สายเวท)
+  // ตีปกติติดคริ = คลิปคริก่อนฉากตี (สายดาบ / สายเวท) · ไม่ติด = เสียงพากย์ตอนตี (ติดคริไม่เล่น — ไม่ทับเสียงคลิป)
   preAttackClip(engine, attacker, card) {
     if (!isCeline(attacker) || !card) return null;
     const crit = !!card.crit || (card.extra || []).some((e) => e.crit);
-    if (!crit) return null;
+    if (!crit) {
+      engine.sfx(STRIKE_VOICE[Math.floor(Math.random() * STRIKE_VOICE.length)], null, { voice: attacker.id });
+      return null;
+    }
     return weaponOf(attacker).cls === "magic" ? CUT.critMage : CUT.critSword;
   },
 
@@ -475,19 +483,28 @@ module.exports = {
       const got = (p.skillPoints || 0) - before;
       if (got > 0) engine.log(`👑 ${p.name} ราชาดอกไม้ — แต้มสกิล +${got}`);
     }
-    if (inBloom(engine, p)) teaTime(engine, p);
+    // เวลาน้ำชา: ต้นเทิร์นยืนในพุ่มติดกัน 2 เทิร์น = ฟื้น 1 (ไม่ติดคริ) แล้วนับใหม่
+    const s = st(p);
+    if (!inBloom(engine, p)) { s.teaStreak = 0; return; }
+    s.teaStreak += 1;
+    if (s.teaStreak >= TEA_TURNS) { s.teaStreak = 0; teaTime(engine, p); }
   },
   onActorStart(engine, p) {
     if (!isCeline(p)) return;
     clearWalls(engine, p, "expire");
-    st(p).startBloom = inBloom(engine, p);
   },
-  // เข้าพุ่มในตาตัวเอง = ฟื้นตอนจบตา
+  // จบตาโดยไม่ได้ยืนในพุ่ม = เวลาน้ำชานับใหม่
   onActorEnd(engine, p) {
     if (!isCeline(p) || !p.alive) return;
-    const s = st(p);
-    if (!s.startBloom && inBloom(engine, p)) teaTime(engine, p);
-    s.startBloom = false;
+    if (!inBloom(engine, p)) st(p).teaStreak = 0;
+  },
+  // ถูกผลัก/กระเด็น/ดึง: ทางที่ถูกพาผ่านเกิดพุ่ม (ย้อนไม่ได้ · วาร์ปไม่เกิด) — ระบบกลาง Ice.forcedMoved
+  onForcedMove(engine, u, tiles) {
+    if (!isCeline(u) || !u.alive || !Array.isArray(tiles) || !tiles.length) return;
+    const recs = Flora.lay(engine.boardMap(), tiles, u.id, TRAIL_TURNS, { keep: true });
+    if (!recs.length) return;
+    fx(engine, u, "trail", { tiles: recs.map((r) => ({ x: r.x, y: r.y })) });
+    engine.sfx("celine_trail");
   },
   onDeath(engine, p) {
     if (!isCeline(p)) return;
@@ -503,7 +520,7 @@ module.exports = {
       healCount: s.healCount, healCd: cdLeft(s.healReady, r),
       wallCount: s.wallCount, wallCd: cdLeft(s.wallReady, r),
       swapCd: cdLeft(s.swapReady, r), ultCd: kingOn(p) ? 0 : cdLeft(s.ultReady, r),
-      king: kingOn(p) ? p.statuses[KING] : 0, inBloom: inBloom(engine, p),
+      king: kingOn(p) ? p.statuses[KING] : 0, inBloom: inBloom(engine, p), tea: s.teaStreak, teaNeed: TEA_TURNS,
     };
   },
   skillLocks(engine, p) {
@@ -522,12 +539,11 @@ module.exports = {
   },
 };
 
-// เวลาน้ำชา: ฟื้น 1 (ติดคริได้)
+// เวลาน้ำชา: ฟื้น 1 (ติดคริไม่ได้ — เนิฟ 2026-10-22)
 function teaTime(engine, p) {
-  const mult = healCrit(engine, p);
-  const got = engine.healHp(p, TEA_HEAL * mult) || 0;
+  const got = engine.healHp(p, TEA_HEAL) || 0;
   if (got <= 0) return;
-  engine.log(`🫖 ${p.name} เวลาน้ำชา — พลังชีวิต +${got}${mult > 1 ? ` (คริติคอล ×${mult})` : ""}`);
-  if (p.pos) fx(engine, p, "tea", { amt: got, crit: mult > 1 });
+  engine.log(`🫖 ${p.name} เวลาน้ำชา — พลังชีวิต +${got}`);
+  if (p.pos) fx(engine, p, "tea", { amt: got, crit: false });
   engine.sfx("celine_tea");
 }

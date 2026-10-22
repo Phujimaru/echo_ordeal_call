@@ -130,6 +130,24 @@ module.exports = {
     return recs;
   },
 
+  // ถูกผลัก/กระเด็น/ดึง (ระบบกลาง Ice.forcedMoved — ผู้ใช้สั่ง 2026-10-22): ทางที่ถูกพาผ่านเป็นธารน้ำแข็งเหมือนเดินเอง (ย้อนไม่ได้)
+  //  ctx = ชุดเหตุการณ์ iceFx ที่ยังไม่ส่ง (ต่อท้าย) · null = ส่งชุดของตัวเอง
+  onForcedMove(engine, u, tiles, ctx) {
+    if (!isIceSpike(u) || !u.alive || !Array.isArray(tiles) || !tiles.length) return;
+    const laid = [];
+    const seen = new Set();
+    for (const t of tiles) {
+      const k = `${t.x},${t.y}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (engine.ice.layIce(t.x, t.y, u.id)) laid.push({ x: t.x, y: t.y });
+    }
+    if (!laid.length) return;
+    const own = ctx || engine.ice.begin();
+    own.events.push({ kind: "lay", tiles: laid, by: u.id });
+    if (!ctx) engine.ice.flush(own);
+  },
+
   // ---------- ติดตัว 2: ไถลชนศัตรู ----------
   slideStrike(engine, p, u, n) {
     if (!isIceSpike(p)) return 0;
