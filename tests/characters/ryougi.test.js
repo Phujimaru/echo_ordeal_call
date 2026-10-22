@@ -159,7 +159,8 @@ test('สังหารทันที: ไม่มีเนตรมณะ 5%
   assert.equal(kill.targetId, 'A');
   assert.equal(kill.how, 'strike');
   assert.deepEqual(engine.buildStateFor('R').board.ryougi.blood.map((b) => ({ x: b.x, y: b.y })), [at]);
-  assert.ok(calls.sfx.includes(ryougi.VOICE_KILL));
+  assert.equal(kill.line, ryougi.VOICE_KILL, 'เสียงพากย์สังหารเล่นตอนจังหวะปะทะ (client)');
+  assert.equal(kill.sound, 'ryougi_kill');
   // เปลี่ยนภูมิภาค = กองเลือดหาย
   engine.placeOnBoard(engine.board.area);
   assert.equal(engine.buildStateFor('R').board.ryougi, undefined);

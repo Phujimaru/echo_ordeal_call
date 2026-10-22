@@ -277,6 +277,26 @@ const FILES = {
   takuto_blast: "/characters/takuto/sfx/takuto_blast.mp3",               // ฉันยังมองเห็นอยู่ (รวมแสง → ระเบิด 1.3 → ถึงขอบ 1.95 วิ)
   // เพลงช่วงมิติพังทลาย (state.skillMusic "takuto_theme")
   takuto_theme: "/characters/takuto/takuto_theme.m4a",
+  // ผู้นำแห่งตระกูลเรียวกิ (GRID_PLAN §7.17 · contract §4) — ทุกไฟล์ปรับ ~-16 LUFS เบากว่าเสียงพากย์ (~-10.5) ให้เสียงพากย์ไม่จม (ผู้ใช้สั่ง) · สคริปต์ .claude/plans/ryougi-sfx.py
+  //  ตีปกติ 2 ไฟล์ = เสียงจริงที่ผู้ใช้อนุมัติ (Mixkit ฟรี · ต้นฉบับ .claude/plans/ryougi-sfx-src/ — ตัดช่วงเงียบหัวไฟล์ด้วย RMS) · ที่เหลือสังเคราะห์ numpy ล้วน
+  //  ตีปกติ: จุดปะทะอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · เหตุการณ์: จังหวะในไฟล์ตรงกับฉาก ryougiFx.js (RYOUGI_FX)
+  ryougi_slash: "/characters/ryougi/sfx/ryougi_slash.mp3",           // ตีปกติ: ฟันเฉียงทะลุ 2 ช่อง (Mixkit "Quick saber cut" #2763)
+  ryougi_leap: "/characters/ryougi/sfx/ryougi_leap.mp3",             // ตีปกติระหว่างดับสิ้นซะ: ฟันกลางอากาศ → ฟันซ้ำหลังเป้า (Mixkit "Sword slashes in battle" #2158)
+  ryougi_eyes_open: "/characters/ryougi/sfx/ryougi_eyes_open.mp3",   // เปิดเนตรมณะ (จอมืด → ตาวาบ → รอยร้าวแผ่ทั่วแผนที่)
+  ryougi_yinyang: "/characters/ryougi/sfx/ryougi_yinyang.mp3",       // หยินหยาง: เยียวยา
+  ryougi_mind: "/characters/ryougi/sfx/ryougi_mind.mp3",             // รากฐานจิต: ใบมีดเรืองขาว
+  ryougi_sever: "/characters/ryougi/sfx/ryougi_sever.mp3",           // รากฐานจิต: ตัดผลสกิล
+  ryougi_dash: "/characters/ryougi/sfx/ryougi_dash.mp3",             // ดับสิ้นซะ: พุ่ง (ชาร์จ → พุ่ง 0.25 → ถึง 0.52 วิ)
+  ryougi_crumble: "/characters/ryougi/sfx/ryougi_crumble.mp3",       // ดับสิ้นซะ: พื้นพังทลาย
+  ryougi_kill: "/characters/ryougi/sfx/ryougi_kill.mp3",             // สังหารทันที: เส้นตัดขาว → ร่างแยก
+  ryougi_bloom_burst: "/characters/ryougi/sfx/ryougi_bloom.mp3",     // หลังดับสิ้นซะ: ซากุระระเบิดออก (คีย์ไม่ชนกับเพลง ryougi_bloom)
+  // เพลงระหว่างเนตรมณะ / หลังดับสิ้นซะ (state.skillMusic — อันที่เปิดใหม่กว่าชนะ) · -15.2 / -15.7 LUFS เบากว่าเป้าอยู่แล้ว
+  ryougi_eyes: "/characters/ryougi/ryougi_eyes_theme.m4a",
+  ryougi_bloom: "/characters/ryougi/ryougi_bloom_theme.m4a",
+  // เสียงพากย์เรียวกิ (server/voice.js) — คีย์ = ชื่อไฟล์
+  ...Object.fromEntries([
+    "turn1", "turn2", "turn3", "turn4", "strike1", "strike2", "strike3", "struck1", "struck2", "basic1", "secondary1", "secondary2", "ult1", "ult2", "kill1", "death1",
+  ].map((k) => [`ryougi_v_${k}`, `/characters/ryougi/voice/ryougi_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

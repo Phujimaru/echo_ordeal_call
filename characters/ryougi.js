@@ -115,6 +115,8 @@ function slain(engine, p, t, at, how) {
   const b = engine.board;
   if (b) (b.ryougiBlood ||= []).push({ x: at.x, y: at.y, size, id: t.id });
   t.ryougiSlain = true;
+  // ตีปกติ: ภาพเริ่มตอนจังหวะปะทะของฉากตี → client เล่นเสียงเองตอนนั้น (sound/line) · สกิล: เสียงลงพร้อมภาพทันที
+  if (how === "strike") { fx(engine, p, "kill", { targetId: t.id, to: { ...at }, tsize: size, how, sound: "ryougi_kill", line: VOICE_KILL }); return; }
   fx(engine, p, "kill", { targetId: t.id, to: { ...at }, tsize: size, how });
   engine.sfx("ryougi_kill");
   voice(engine, p, VOICE_KILL);
@@ -134,7 +136,7 @@ function trySkillKill(engine, p, t) {
 
 // ---------- รากฐานจิต ----------
 // ลบบัฟล่าสุด 1 + ตัดผลสกิลล่าสุด 1 ของเป้า → ชื่อป้าย
-function applyMind(engine, p, t) {
+function applyMind(engine, p, t, strike = false) {
   const stripped = engine.stripLatestBuff(t);
   const severed = engine.sever.cut(engine, t);
   st(p).mindSeq = engine.cmdSeq;
@@ -143,8 +145,8 @@ function applyMind(engine, p, t) {
   if (severed) names.push(`รากฐานจิต — ตัด ${severed.label}`);
   if (!names.length) names.push("รากฐานจิต");
   engine.log(`🗡️ ${p.name} รากฐานจิต → ${t.name}${stripped ? ` · ลบบัฟ ${stripped.label}` : ""}${severed ? ` · ตัด ${severed.label}` : ""}${!stripped && !severed ? " (ไม่มีอะไรให้ตัด)" : ""}`);
-  if (t.pos) fx(engine, p, "sever", { targetId: t.id, to: { ...t.pos }, tsize: engine.sizeOf(t), stripped: stripped ? stripped.label : null, severed: severed ? severed.label : null });
-  engine.sfx("ryougi_sever");
+  if (t.pos) fx(engine, p, "sever", { targetId: t.id, to: { ...t.pos }, tsize: engine.sizeOf(t), stripped: stripped ? stripped.label : null, severed: severed ? severed.label : null, ...(strike ? { sound: "ryougi_sever" } : {}) });
+  if (!strike || !t.pos) engine.sfx("ryougi_sever"); // ตีปกติ: client เล่นตอนจังหวะปะทะ (sound)
   return names;
 }
 function spendMind(engine, p) {
@@ -322,7 +324,7 @@ module.exports = {
   attackFxExtra(p) { return bloomOn(p) ? LEAP_EXTRA : 0; },
   beforeStrikeHit(engine, attacker, target) {
     if (!mindOn(attacker) || !target || engine.sameTeam(attacker, target)) return [];
-    return applyMind(engine, attacker, target);
+    return applyMind(engine, attacker, target, true);
   },
   afterStrike(engine, p) { if (isRyougi(p)) spendMind(engine, p); },
   onInstaKill(engine, attacker, target, at, how) { if (isRyougi(attacker)) slain(engine, attacker, target, at, how); },

@@ -810,6 +810,9 @@ const STATUS_INFO = {
   // ซึนาชิ ทาคุโตะ (ดาบอันเจิดจรัด — เทิร์นที่เหลือ)
   takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "" },
   takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "" },
+  // ผู้นำแห่งตระกูลเรียวกิ (เทิร์นที่เหลือ)
+  ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "" },
+  ryougiBloom:    { icon: "🌸", label: "ดับสิ้นซะ", cls: "bg-pink-300 text-gray-900", desc: "" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -915,6 +918,13 @@ function statusEntries(p, full) {
     if (t.judgment) out.push({ key: "takutoJudgment", v: 1, icon: "⚔️", label: "ดาบแห่งการพิพากษา", cls: "bg-amber-200 text-gray-900", desc: "" });
     if (t.secCd > 0) out.push({ key: "takutoSecCd", v: t.secCd, turns: true, icon: "⏳", label: "ดาบประกายแสง", cls: "bg-white/20", desc: "" });
     if (t.ultCd > 0) out.push({ key: "takutoUltCd", v: t.ultCd, turns: true, icon: "⏳", label: t.collapse ? "ฉันยังมองเห็นอยู่" : "ทาวววว มิสไซล์", cls: "bg-white/20", desc: "" });
+  }
+  // ผู้นำแห่งตระกูลเรียวกิ: คูลดาวน์หยินหยาง (เนตรมณะ/เยียวยา) · ดับสิ้นซะ (ตัวเลข/ไอคอนเท่านั้น) — เนตรมณะ/รากฐานจิต/ดับสิ้นซะ เป็นสถานะ netramana / ryougiMind / ryougiBloom
+  if (p.ryougi) {
+    const r = p.ryougi;
+    if (r.eyesCd > 0) out.push({ key: "ryougiEyesCd", v: r.eyesCd, turns: true, icon: "⏳", label: "เนตรมณะ", cls: "bg-white/20", desc: "" });
+    if (r.mendCd > 0) out.push({ key: "ryougiMendCd", v: r.mendCd, turns: true, icon: "⏳", label: "เยียวยา", cls: "bg-white/20", desc: "" });
+    if (r.ultCd > 0) out.push({ key: "ryougiUltCd", v: r.ultCd, turns: true, icon: "⏳", label: "ดับสิ้นซะ", cls: "bg-white/20", desc: "" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {

@@ -36,6 +36,7 @@ import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
+import { ryougiEventFx } from "./ryougiFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -568,6 +569,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [wallHold, setWallHold] = useState([]);
   const wallClaim = useRef({});
   const celineHitAt = useRef(0);
+  // เรียวกิ: ryougiHitAt = เวลาที่ฉากตีปกติของเรียวกิถึงจังหวะปะทะ (ฉากสังหาร/ตัดผลสกิลจากการตีเริ่มตอนนั้น)
+  //  ryougiSlain = id → เวลาหมดอายุ: คนที่ถูกเรียวกิสังหาร (socket มาก่อน state) — ไม่ระเบิดตกรอบ (ร่างแยกสองซีกแทน)
+  const ryougiHitAt = useRef(0);
+  const ryougiSlain = useRef({});
   const iceRun = useRef(null); // { ids, active, gotState, done, pos, snap, snd }
   const iceSeen = useRef(null);
   const finishIceRef = useRef(null); // finishIce ล่าสุด (ประกาศทีหลัง — effect ด้านล่างเรียกผ่านตัวนี้)
@@ -600,6 +605,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const boomed = new Set();
     const deathBoom = (t, at) => {
       if (!t || !at || isDoubleP(t)) return; // ตัวที่เหมือนกันแตกเป็นลูกบาศก์ (valentineFx doubleBreak) แทน
+      if ((ryougiSlain.current[t.id] || 0) > performance.now()) return; // ถูกเรียวกิสังหาร = ร่างแยกสองซีก → กองเลือด (ryougiFx kill)
       pushFx([{ kind: "deathBoom", x: at.x, y: at.y, size: sizeOfP(t), img: t.img, color: t.color, name: t.name }]);
       playSfx("death_boom");
       if (!lowQ) setShake((n) => n + 1);
@@ -759,6 +765,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const myth = a.byHitFx === "mythSlash";
       if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
+      if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
       if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
@@ -1538,6 +1545,44 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("takutoFx", onTakuto);
   }, [pushFx, look, lowQ]);
 
+  // ผู้นำแห่งตระกูลเรียวกิ: socket "ryougiFx" { kind, id, color, at, size, ... } → ryougiFx.js (GRID_PLAN §7.17 · contract §3) · เสียงมาจาก server
+  //  dash / crumble = ตัวที่ฉากย้ายเอง (ryougiPose) จดไว้ใน shadowBusy · kill / sever จากการตีปกติ = เริ่มตอนจังหวะปะทะของฉากตี (gate ← ryougiHitAt)
+  //  kill = จับหน้าตาเป้าตอนเหตุการณ์มาถึง (state ตามมาเอาตัวออก) + กันระเบิดตกรอบ (ryougiSlain)
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const lookOf = (id) => { const p = recOf(id); return p ? { img: p.masked ? null : p.img, color: p.masked ? "#ffffff" : p.color, name: p.name } : null; };
+    const foesOf = (owner) => {
+      const me0 = recOf(owner);
+      return Object.values(byIdRef.current).filter((p) => p && p.alive && p.pos && p.id !== owner
+        && !(me0 && (sameSide(p, me0) || (!!me0.teamId && p.teamId === me0.teamId)))
+        && (!me0 || dimOf(p) === dimOf(me0))).map((p) => p.id);
+    };
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const onRyougi = (ev) => {
+      const out = ryougiEventFx(ev, { posOf, sizeOf, lookOf, foesOf });
+      // เสียงสังหาร/ตัดผลสกิลจากการตีปกติ (ev.sound / ev.line) — server ส่งตอนเริ่มฉากตี → เล่นตรงจังหวะปะทะของฉากตีเรียวกิ
+      const sounds = [ev.sound, ev.line].filter(Boolean);
+      if (sounds.length) at(125, () => at(Math.max(0, ryougiHitAt.current - performance.now()), () => { for (const s of sounds) playSfx(s); }));
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const id of out.slain) ryougiSlain.current[id] = t0 + 6000;
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      for (const g of out.gates) {
+        if (g.mode !== "hit") { g.gate.at = t0; continue; }
+        // state ของฉากตีตามมาหลัง socket นี้ — รอให้ฉากตีตั้งจังหวะปะทะก่อน (ไม่มีฉากตี = เริ่มทันที)
+        at(120, () => { const n = performance.now(); g.gate.at = ryougiHitAt.current > n ? ryougiHitAt.current : n; });
+      }
+      pushFx(out.fx);
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(list));
+    };
+    socket.on("ryougiFx", onRyougi);
+    return () => socket.off("ryougiFx", onRyougi);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1679,7 +1724,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ร่างของตัวที่ล้ม (ระบบคู่): เงาร่างล้มบนช่อง (id "corpse:<id>" — คลิก = คลิกช่อง)
     .concat(corpses.map((c) => {
       const p = byId[c.id] || {};
-      return { id: `corpse:${c.id}`, corpse: true, x: c.x, y: c.y, img: p.masked ? null : p.img, color: p.masked ? "#ffffff" : p.color, name: "", size: 1, isMe: false, isActor: false, teamId: null, hp: 0, maxHp: 0, armor: 0, maxArmor: 0 };
+      return { id: `corpse:${c.id}`, corpse: true, ryougiSlain: !!p.ryougiSlain, x: c.x, y: c.y, img: p.masked ? null : p.img, color: p.masked ? "#ffffff" : p.color, name: "", size: 1, isMe: false, isActor: false, teamId: null, hp: 0, maxHp: 0, armor: 0, maxArmor: 0 };
     }))
     // Ice Spike: คนที่ตายระหว่างเหตุการณ์ iceFx — วาดค้างไว้ (ตามตำแหน่งที่แสดง) จนถึงจังหวะตาย
     .concat(Object.values(iceGhosts).filter((t) => t && t.pos && !state.players.some((p) => p.id === t.id && p.alive && p.pos)).map((t) => {
@@ -1734,6 +1779,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), emerald: p.takuto.emerald > 0, sapphire: p.takuto.sapphire > 0, judgment: !!p.takuto.judgment, collapse: !!p.takuto.collapse }))
     .filter((c) => c.emerald || c.sapphire || c.judgment || c.collapse));
   const takutos = useMemo(() => { const list = JSON.parse(takutoSig); return list.length ? list : null; }, [takutoSig]);
+  // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): เนตรมณะ / รากฐานจิต / ซากุระหลังดับสิ้นซะ (p.ryougi — เทิร์นที่เหลือ) · กองเลือด (board.ryougi.blood)
+  const rBlood = state.board && state.board.ryougi && Array.isArray(state.board.ryougi.blood) ? state.board.ryougi.blood : [];
+  const ryougiSig = JSON.stringify({
+    units: state.players.filter((p) => p.alive && p.pos && p.ryougi && sameDim(p))
+      .map((p) => ({ id: p.id, eyes: p.ryougi.eyes > 0, mind: p.ryougi.mind > 0, bloom: p.ryougi.bloom > 0 })).filter((r) => r.eyes || r.mind || r.bloom),
+    blood: rBlood.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ x: b.x, y: b.y, size: Math.max(1, b.size | 0), id: b.id })),
+  });
+  const ryougiProp = useMemo(() => { const r = JSON.parse(ryougiSig); return r.units.length || r.blood.length ? r : null; }, [ryougiSig]);
   const celineProp = useMemo(() => {
     const kings = JSON.parse(kingSig);
     if (!celFlora.length && !kings.length && !wallHold.length && !wallPreview) return null;
@@ -2016,6 +2069,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         grays={grays}
         ferns={ferns}
         takutos={takutos}
+        ryougi={ryougiProp}
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}

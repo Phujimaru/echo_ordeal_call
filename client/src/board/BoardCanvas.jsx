@@ -59,6 +59,9 @@
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
 //   takutos     [{ id, x, y, size, emerald, sapphire, judgment, collapse }] — ทาวเบิร์นของทาคุโตะ: ดาบลอยข้างตัว / ดาบแห่งการพิพากษาพาดหลัง / ออร่าแดงช่วงพังทลาย
 //               (takutoFx.js) · fx takuto* · takutoPose ย้ายหมากตอนพุ่ง/สลับตำแหน่ง
+//   ryougi      { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } | null — ผู้นำแห่งตระกูลเรียวกิ: เนตรมณะ (มืดจาง + รอยร้าวแดง) /
+//               ใบมีดที่มือ / ซากุระทั่วกระดาน · กองเลือด (ryougiFx.js) · map.terrain "chasm" = ช่องพัง · fx ryougi* · ryougiPose ย้ายหมากตอนตี/พุ่ง/ถูกเหวี่ยง
+//               units[].ryougiSlain + corpse = ศพที่ถูกเรียวกิสังหาร วาดเป็นกองเลือด
 //   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
 //               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (ภาพโปร่งภาพเดียว · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
@@ -83,6 +86,7 @@ import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
 import { celinePose } from "./celineFx";
 import { takutoPose } from "./takutoFx";
+import { ryougiPose } from "./ryougiFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
 import {
   easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
@@ -599,6 +603,9 @@ export default function BoardCanvas(props) {
         // ฉากของทาคุโตะ: พุ่งต้นตาเดิน (เลื่อนเร็ว) · ดาบประกายแสง (ทาคุโตะ/เป้าวาบหายแล้วโผล่ที่ใหม่ — alpha)
         const tpo = sp || gp || dp || vp || cpo || u.corpse ? null : takutoPose(st.fxActive, u, now);
         if (tpo) { rx = tpo.x; ry = tpo.y; ox = 0; oy = 0; hz = tpo.hz || 0; sq = 0; }
+        // ฉากของเรียวกิ: พุ่งเข้าตี/กระโดดข้ามหัว · พุ่งดับสิ้นซะ · คน/ศพในแนวถูกเหวี่ยงออกข้าง (ศพด้วย)
+        const rpo = sp || gp || dp || vp || cpo || tpo ? null : ryougiPose(st.fxActive, u, now);
+        if (rpo) { rx = rpo.x; ry = rpo.y; ox = 0; oy = 0; hz = rpo.hz || 0; sq = 0; }
         const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
@@ -615,7 +622,7 @@ export default function BoardCanvas(props) {
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
           isMe: !!u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, dstat: u.dstat || null, lowQ,
-          masked: !!u.masked, corpse: !!u.corpse, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่)
+          masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
           valMod: vmod, ghostDim: !!u.ghostDim, summon: u.summon || null,
@@ -667,7 +674,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);
       if (!zs) st.boxes = frame(g);
       else {
