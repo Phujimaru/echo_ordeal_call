@@ -332,7 +332,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const originUnit = useMemo(() => (myTurn && action.from ? { id: me.id, x: action.from.x, y: action.from.y, alive: true, teamId: me.teamId || null, size: sizeOfP(me) } : null), [myTurn, action, me]);
   const myReach = useMemo(() => {
     if (!myTurn || !map) return null;
-    if (!canMove || !originUnit) return reachOf(map, unitOf(me), 0, ruleUnits, optsOf(me));
+    // เดินไม่ได้แล้ว (ล็อก/ชนคนที่มองไม่เห็น/ไถล) = ช่องที่ยืนเท่านั้น — ไม่เปิดเดินตามดอกไม้ฟรี (ราชาดอกไม้ของเซลิน: งบ 0 ก้าวยังเดินบนดอกไม้ได้
+    //  → แผนตีเลือกช่องยืนที่ต้องเดิน → server ไม่ให้เดิน → ตีค้างรอเดินจบ)
+    if (!canMove || !originUnit) return reachOf(map, unitOf(me), 0, ruleUnits, { ...optsOf(me), flowerWalk: false });
     return reachOf(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me));
   }, [myTurn, canMove, map, startMap, me, action, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   // ช่องที่ชี้ → ช่องมุมบนซ้ายที่จะเดินไป (ตัว 1 ช่อง = ช่องนั้นเอง) · ตัวใหญ่: ให้กลางตัวอยู่ที่ช่องที่ชี้ ไม่ได้ = มุมที่ตัวครอบช่องนั้นและเดินน้อยสุด
@@ -1634,6 +1636,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     setAnimQ((q) => q.slice(1));
     if (cur && typeof cur.then === "function") cur.then();
   }, []);
+  // เดินไปช่องยืนแล้วค่อยตี: server ไม่ให้เดิน (ตำแหน่งไม่เปลี่ยน) = ยกเลิกตีที่ค้างรอ — ไม่งั้นกดตี/เดินอะไรไม่ได้อีกทั้งตา
+  const armPendingAttack = useCallback((id, stand) => {
+    pendingAttack.current = id;
+    const from = me && me.pos ? { ...me.pos } : null;
+    timers.current.push(setTimeout(() => {
+      if (pendingAttack.current !== id) return;
+      const cur = byIdRef.current[me.id];
+      if (cur && cur.pos && from && samePos(cur.pos, from) && !samePos(from, stand)) pendingAttack.current = null;
+    }, 1500));
+    socket.emit("move", { x: stand.x, y: stand.y });
+  }, [me]);
   // เดินจบทั้งชุดแล้วค่อยตี (รวมไถลน้ำแข็งต่อจากเดิน — ชุด iceFx จบ = iceHold ถูกล้าง)
   useEffect(() => {
     if (anim || !pendingAttack.current) return;
@@ -1871,7 +1884,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!pl) return;
       clickSound();
       if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: seal.id });
-      else { pendingAttack.current = seal.id; socket.emit("move", { x: pl.stand.x, y: pl.stand.y }); }
+      else armPendingAttack(seal.id, pl.stand);
       return;
     }
     if (!myTurn || busy || !canMove || !myReach) return;
@@ -1887,8 +1900,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!pl || !myTurn || pendingAttack.current) return;
     clickSound();
     if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: pl.foe.id });
-    else { pendingAttack.current = pl.foe.id; socket.emit("move", { x: pl.stand.x, y: pl.stand.y }); }
-  }, [fcPlan, myTurn, me]);
+    else armPendingAttack(pl.foe.id, pl.stand);
+  }, [fcPlan, myTurn, me, armPendingAttack]);
   const cancelForecast = useCallback(() => { clickSound(); setFcId(null); }, []);
 
   // ---------- เดินด้วยคีย์บอร์ด (ตาของเรา) ----------
