@@ -2,7 +2,7 @@
 //  ผู้นำแห่งตระกูลเรียวกิ (Kara no Kyoukai — เรียวกิ ชิกิ ร่าง Mirai Fukuin) — มหันตภัย · unique · id "ryougi"
 //  กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.17 (2026-10-22) · สัญญาข้อมูล client .claude/plans/ryougi-contract.md · เอฟเฟกต์ client/src/board/ryougiFx.js
 //
-//  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีปกติเล็งประชิด แล้วฟันแนวตรง 2 ช่อง (range [1, 1] + attackLane + laneLen 2 — เป้า + คนด้านหลัง)
+//  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีปกติเล็งได้ห่าง 1–2 ช่อง ฟันแนวตรง 2 ช่องหน้าตัว (range [1, 2] + attackLane + laneLen 2 — ใครอยู่ใน 2 ช่องโดนหมด)
 //  หยินหยาง (พื้นฐาน · 0 · ปุ่ม 2 ตัวเลือก · ไม่กินโควตา · ใช้แล้วยังเดินได้ · เทิร์นเดียวกดได้ทั้ง 2 อย่าง)
 //    เนตรมณะ 1 เทิร์น (คูลดาวน์ 10) — บัฟกลาง netramana 20% รวมกับ 5% ของติดตัว = 25% (ทอยครั้งเดียว — attack.strike)
 //    เยียวยา 3 เทิร์น (คูลดาวน์ 5) — applyMend(p, 1, 3) ฟื้น 1 × 3 ครั้ง
@@ -320,7 +320,7 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   attackLane(p) { return isRyougi(p); },
-  laneLen(p) { return isRyougi(p) ? LANE_LEN : 0; }, // เล็งประชิด (range [1, 1]) แต่ฟันแนวยาว 2 ช่อง — เป้า + คนด้านหลัง
+  laneLen(p) { return isRyougi(p) ? LANE_LEN : 0; }, // ฟันแนว 2 ช่องหน้าตัวเสมอ (เท่าปลายระยะ [1, 2] — ผู้ใช้ 2026-10-23)
   killChance(p) { return isRyougi(p) ? KILL_CHANCE : 0; },
   damageBonus(engine, attacker) { return bloomOn(attacker) ? BLOOM_ATK : 0; },
   attackFxNames(attacker) { return bloomOn(attacker) ? [`ดับสิ้นซะ — พลังโจมตี +${BLOOM_ATK}`] : []; },

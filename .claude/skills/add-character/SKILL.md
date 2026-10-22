@@ -172,7 +172,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ผลเมื่อเกราะลด (ทุกทาง) | `onArmorLost(engine, p)` (ฮิคารุ: ฟื้นพลังชีวิต 1) | `combat.loseArmor` |
 | กันตาย/ฟื้นทันที (ทุกทางที่ตาย) | `preventDeath(engine, p)` → true = ไม่ตาย (ฮุคตั้ง `p.hp` เอง · ข้ามเมื่อ `force`) — ผู้เรียก `instantDeath` ทุกจุดเช็ค `!p.alive` ก่อนเก็บกวาด จึงรอดได้ทุกทาง (กิระ: อัฐิราชา) | `combat.instantDeath` |
 | ตีปกติแนวตรง + ภาพท่าตีวิ่งตามแนว | `attackLane` + `range` + `attackStyle` (client ได้ `fx.lane` = ช่องทั้งแนว · ตัววาดลงตาราง `STYLE_MS`/`STYLE_HIT_P` ใน boardDraw.js — ต้นแบบ `kiraSlash` ใน kiraFx.js · ลำแสงใช้ `attackBeam`/`attackBeamTone`) | – |
-| ตีปกติแนวตรงโดนทุกคนในแนว | `attackLane(p)` → true (ระยะจาก `range` · client ได้ `lane` ไปคิดไฮไลต์/แผนเดินเอง) · เล็งใกล้แต่ฟันยาวกว่าระยะ = ฮุค `laneLen(p)` → ความยาวแนว (เรียวกิ: `range` [1, 1] + `laneLen` 2 = เป้า + คนด้านหลัง) | `action.canStrike` / `laneVictims` → `attack.boardAttack` (`card.extra`) |
+| ตีปกติแนวตรงโดนทุกคนในแนว | `attackLane(p)` → true (ระยะจาก `range` · client ได้ `lane` ไปคิดไฮไลต์/แผนเดินเอง) · เล็งใกล้แต่ฟันยาวกว่าระยะ = ฮุค `laneLen(p)` → ความยาวแนว (ใช้เมื่อแนวยาวกว่าปลายระยะ · เรียวกิตั้ง `range` [1, 2] + `laneLen` 2) | `action.canStrike` / `laneVictims` → `attack.boardAttack` (`card.extra`) |
 | ผลเมื่อตีปกติลง (เฉพาะตัวผู้ตี) | `onStrikeLanded(engine, attacker, target, { counter })` → ชื่อป้ายฉากตี | `strike()` |
 | ท่าตีบนกระดานเฉพาะตัว | `attackStyle(p, dist)` → คีย์ fx (ต้องมีตัววาดใน `boardDraw.js` / `hikaruFx.js` + `STYLE_MS`) | `strikeCard()` |
 | ตัวเลือกเพิ่มจาก client (เช่นเลือกร่าง) | `canUseSkill(engine, p, tier, targets, opts)` / `applyInstantSkill(..., opts)` — socket `useSkill` ส่ง `form` ต่อให้แล้ว · ฟิลด์ใหม่ต้องเพิ่มใน `server/socket.js` | `server/skills.js` |
