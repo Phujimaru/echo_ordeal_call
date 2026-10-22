@@ -310,8 +310,16 @@ module.exports = {
     if (!isCeline(p) || !p.alive) return [];
     const recs = Flora.lay(engine.boardMap(), tiles, p.id, TRAIL_TURNS, { keep: true });
     if (!recs.length) return [];
-    fx(engine, p, "trail", { tiles: recs.map((r) => ({ x: r.x, y: r.y })) });
-    engine.sfx("celine_trail");
+    // เดินใหม่ทุกก้าว (คีย์บอร์ด) server ถอดพุ่มของตานี้แล้วปลูกใหม่ทั้งเส้น — เอฟเฟกต์งอกเฉพาะช่องที่ยังไม่เคยงอกในตานี้
+    //  (ไม่งั้นพุ่มทั้งเส้นหายแล้วงอกใหม่ทุกก้าว) · ล้างตอนเริ่มตาเดิน
+    const s = st(p);
+    const shown = s.trailShown || (s.trailShown = new Set());
+    const fresh = recs.filter((r) => !shown.has(r.k));
+    for (const r of fresh) shown.add(r.k);
+    if (fresh.length) {
+      fx(engine, p, "trail", { tiles: fresh.map((r) => ({ x: r.x, y: r.y })) });
+      engine.sfx("celine_trail");
+    }
     return recs.map((r) => ({ k: r.k, undo: () => Flora.undo([r]) }));
   },
   // ดาบเล็ก: ตี/รอแล้วเดินต่อได้อีกรอบเต็มระยะ (ทำได้แค่เดิน/รอ — ไม่มี cantoSkill)
@@ -494,6 +502,7 @@ module.exports = {
   onActorStart(engine, p) {
     if (!isCeline(p)) return;
     clearWalls(engine, p, "expire");
+    st(p).trailShown = null;
   },
   // จบตาโดยไม่ได้ยืนในพุ่ม = เวลาน้ำชานับใหม่
   onActorEnd(engine, p) {

@@ -110,6 +110,19 @@ test('สวนดอกไม้: ทุกช่องที่เดินผ
   assert.equal(special(3, 7), null, 'ครบเวลา = หาย');
 });
 
+test('สวนดอกไม้: เดินด้วยคีย์บอร์ดทีละก้าว = เอฟเฟกต์พุ่มงอกเฉพาะช่องใหม่ (ไม่งอกซ้ำทั้งเส้นทุกก้าว) · พุ่มยังครบทั้งเส้น', () => {
+  setup([['C', 'celine', 2, 7], ['B', 'dummy', 12, 8]]);
+  engine.setActor('C');
+  celine.onActorStart(engine, engine.players.C);
+  calls.fx = [];
+  assert.ok(engine.moveTo('C', 3, 7, { step: true }));
+  assert.ok(engine.moveTo('C', 4, 7, { step: true }));
+  assert.ok(engine.moveTo('C', 5, 7, { step: true }));
+  const trails = fxOf('trail').map((f) => f.tiles.map((t) => `${t.x},${t.y}`).join(' '));
+  assert.deepEqual(trails, ['2,7 3,7', '4,7', '5,7']);
+  for (let x = 2; x <= 5; x++) assert.equal(special(x, 7), 'bloom');
+});
+
 test('จุดด้อย: ยืนในพุ่มศัตรูยังเห็นเซลิน · คนอื่นในพุ่มของเซลินซ่อนได้ตามกติกากลาง', () => {
   const P = setup([['C', 'celine', 2, 7], ['A', 'dummy', 3, 8], ['B', 'dummy', 12, 8]]);
   Flora.lay(engine.boardMap(), [{ x: 2, y: 7 }, { x: 3, y: 8 }], 'C', 3, { made: true });

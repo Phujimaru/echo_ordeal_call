@@ -108,11 +108,12 @@
       "runtimeArgs": [
         "server.js"
       ],
-      "port": 3000,
+      "port": 3007,
       "env": {
         "ECHO_DEV_RICH": "1",
         "ECHO_DEV_ACTION_TIME": "600",
-        "JOURNEY_START_SECONDS": "0"
+        "JOURNEY_START_SECONDS": "0",
+        "PORT": "3007"
       }
     },
     {
@@ -179,6 +180,20 @@
       "port": 5179,
       "env": {
         "ECHO_SERVER_PORT": "3009"
+      }
+    },
+    {
+      "name": "client-celine",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev"
+      ],
+      "port": 5173,
+      "env": {
+        "ECHO_SERVER_PORT": "3007"
       }
     }
   ]
