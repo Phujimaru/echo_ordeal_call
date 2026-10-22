@@ -89,7 +89,8 @@ test('ข้อมูล: มหันตภัย · unique · ฟันแน�
   assert.equal(ch.unique, true);
   assert.ok(!ch.hidden);
   assert.equal(ch.mov, 4);
-  assert.deepEqual(ch.range, [1, 2]);
+  assert.deepEqual(ch.range, [1, 1], 'เล็งประชิด');
+  assert.equal(ryougi.laneLen(engine.players.R || { characterId: 'ryougi' }), 2, 'ฟันแนวยาว 2 ช่อง');
   assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [0, 4, 6]);
   assert.deepEqual(ch.ultimate.area, ryougi.ULT_AREA);
   for (const t of ['basic', 'secondary', 'ultimate']) assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก/);
@@ -139,6 +140,17 @@ test('ตีปกติฟันแนว 2 ช่อง: โดนศัตร
   assert.equal(P.A.hp + P.A.armor, 9);
   assert.equal(P.B.hp + P.B.armor, 9, 'ช่องที่ 2 โดนด้วย');
   assert.equal(P.C.hp + P.C.armor, 10, 'นอกแนว 2 ช่อง');
+});
+
+test('ตีปกติเล็งได้เฉพาะประชิด (ห่าง 2 ช่องตีไม่ได้) · โดนคนด้านหลังเป้าเสมอ', () => {
+  const { P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2], ['B', 'dummy', 3]]);
+  engine.setActor('R');
+  Math.random = () => 0.99;
+  assert.equal(require('../../server/phases/action.js').canStrike(P.R, P.A), false, 'ห่าง 2 ช่อง = เล็งไม่ได้');
+  P.R.pos = { x: P.A.pos.x - 1, y: P.A.pos.y };
+  drain(() => engine.attackTarget('R', 'A'));
+  assert.equal(P.A.hp + P.A.armor, 9);
+  assert.equal(P.B.hp + P.B.armor, 9, 'คนด้านหลังเป้าโดนด้วย');
 });
 
 test('สังหารทันที: ไม่มีเนตรมณะ 5% · มีเนตรมณะรวมเป็น 25% (ทอยครั้งเดียว) · ตาย = กองเลือด + ฉากสังหาร', () => {

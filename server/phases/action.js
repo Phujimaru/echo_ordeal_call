@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
+  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap, flowerWalk,
 });
@@ -235,6 +235,12 @@ function lanes(p) {
   const mode = hook && hook.attackLane ? hook.attackLane(p) : false;
   return mode === "face" ? "face" : !!mode;
 }
+// ความยาวแนวที่ฟันจริงของตีปกติแบบแนวตรง (ฮุค laneLen — เรียวกิ 2: เล็งประชิดแต่โดนคนด้านหลังเป้าด้วย) · 0 = ปลายระยะตี
+function laneLen(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const n = hook && hook.laneLen ? Number(hook.laneLen(p)) : 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 // เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
@@ -244,7 +250,7 @@ function canStrike(p, target) {
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
 function laneVictims(p, target) {
   if (!lanes(p) || !p.pos || !target || !target.pos) return null;
-  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
+  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face", laneLen(p));
   if (!lane) return null;
   const ids = Board.unitsOnTiles(boardUnits(), lane.tiles).map((u) => u.id)
     .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));

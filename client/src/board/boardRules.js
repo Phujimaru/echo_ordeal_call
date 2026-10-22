@@ -722,7 +722,8 @@ function laneTiles(map, x, y, size, range) {
 // แนวที่เป้า (กล่อง { x, y, size }) อยู่ — ไม่อยู่แนวไหน = null · ตัวใหญ่ทับหลายแนว = แนวที่ใกล้กลางตัวผู้ตีสุด
 //  คืน { dir, j, tiles } (tiles = ทั้งแนว ห่าง 1..range[1] — ทุกคนในนี้โดน)
 //  face = ตีทั้งด้าน (กิงกะ: ช่องติดตัวทั้งด้านที่เป้าอยู่ กว้างเท่าตัว) — tiles = ทุกแนวของด้านนั้น
-function laneOf(map, x, y, size, range, target, face = false) {
+// len = ความยาวแนวที่โดนจริง (ไม่ใส่ = ปลายระยะตี) — เรียวกิ: เล็งประชิด [1, 1] แต่ฟันยาว 2 ช่อง (เป้า + คนด้านหลัง)
+function laneOf(map, x, y, size, range, target, face = false, len = 0) {
   if (!target) return null;
   const n = Math.max(1, size | 0), mid = (n - 1) / 2;
   let best = null;
@@ -732,7 +733,7 @@ function laneOf(map, x, y, size, range, target, face = false) {
     if (!best || off < best.off) best = { ...l, off };
   }
   if (!best) return null;
-  const sets = laneSets(map, x, y, n, [1, range[1]]);
+  const sets = laneSets(map, x, y, n, [1, Math.max(range[1], len || 0)]);
   if (face) return { dir: best.dir, j: best.j, tiles: sets.filter((l) => l.dir === best.dir).flatMap((l) => l.tiles) };
   const full = sets.find((l) => l.dir === best.dir && l.j === best.j);
   return { dir: best.dir, j: best.j, tiles: full.tiles };
