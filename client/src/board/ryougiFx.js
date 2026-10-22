@@ -375,44 +375,51 @@ function revealOf(e, net, ox, oy) {
   e._rev = { dist, edges: [...trunks, ...net.edges], max: Math.max(1, max) };
   return e._rev;
 }
-// วาดเครือข่าย · o = { rev?, front (ระยะที่ไล่ถึง · ไม่ใส่ = ทั้งหมด), alpha, lowQ, glowK, now, pulse? }
+// วาดเครือข่าย · o = { rev?, front (ระยะที่ไล่ถึง · ไม่ใส่ = ทั้งหมด), from? (วาดเฉพาะช่วง from → front — ต่อแคชทีละเฟรม),
+//  alpha, lowQ, glowK, now, pulse?, lines (false = ไม่วาดเส้น), marks (false = ไม่วาดหัวเส้น/จุดร้อน), light (เส้นแกนบางล้วน — ระหว่างกล้องขยับ) }
+//  หนักมาก (เส้นหลายพันช่วง × 3–4 ชั้น) — ชั้นค้าง/ฉากเปิดตาวาดลงแคชผ่าน netCached / revealCached ไม่วาดสดทุกเฟรม
 function strokeNet(g, net, o) {
-  const { rev, alpha, lowQ, now } = o, front = o.front == null ? Infinity : o.front;
+  const { rev, alpha, lowQ, now } = o, front = o.front == null ? Infinity : o.front, from = o.from == null ? -Infinity : o.from;
   if (alpha <= 0.01) return;
   const edges = rev ? rev.edges : net.edges, dist = rev ? rev.dist : null, z = 0.012;
+  const lines = o.lines !== false, marks = o.marks !== false && !o.light;
   const tips = [];
-  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; g.lineJoin = "round";
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = o.from == null ? "round" : "butt"; g.lineJoin = "round";
   for (let c = 0; c < 3; c++) {
-    g.beginPath();
+    if (o.light && c === 2) continue;
+    if (lines) g.beginPath();
     let any = false;
     for (const e of edges) {
       if (e.c !== c) continue;
-      let u = 1, fwd = true;
+      let u = 1, u0 = 0, fwd = true;
       if (dist) {
         const da = dist[e.a], db = dist[e.b], near = Math.min(da, db);
         if (!(front > near)) continue;
         u = clamp01((front - near) / (e.len || 1));
+        u0 = clamp01((from - near) / (e.len || 1));
         fwd = da <= db;
       }
       const pts = e.pts, m = pts.length - 1, L = u * m, full = Math.floor(L);
       const at = (i) => pts[fwd ? i : m - i];
-      let p = at(0), q = P(p[0], p[1], z);
+      const ptAt = (l) => { const i = Math.min(m - 1, Math.floor(l)), a = at(i), b = at(i + 1), f = l - i; return P(lerp(a[0], b[0], f), lerp(a[1], b[1], f), z); };
+      if (full < m && tips.length < 80) tips.push(ptAt(L));
+      if (!lines || u <= u0) continue;
+      const L0 = u0 * m;
+      let q = ptAt(L0);
       g.moveTo(q[0], q[1]);
-      for (let i = 1; i <= full; i++) { p = at(i); q = P(p[0], p[1], z); g.lineTo(q[0], q[1]); }
-      if (full < m) {
-        const a = at(full), b = at(full + 1), f = L - full, r = P(lerp(a[0], b[0], f), lerp(a[1], b[1], f), z);
-        g.lineTo(r[0], r[1]);
-        if (tips.length < 80) tips.push(r);
-      }
+      for (let i = Math.floor(L0) + 1; i <= full; i++) { const p = at(i); q = P(p[0], p[1], z); g.lineTo(q[0], q[1]); }
+      if (full < m) { q = ptAt(L); g.lineTo(q[0], q[1]); }
       any = true;
     }
     if (!any) continue;
     const w = NET_W[c];
+    if (o.light) { g.strokeStyle = rgba("255,60,84", 0.8 * alpha); g.lineWidth = w; g.stroke(); continue; }
     if (!lowQ) { g.strokeStyle = rgba(RED, 0.2 * alpha * (o.glowK ?? 1)); g.lineWidth = w * 4.6; g.stroke(); }
     g.strokeStyle = rgba(RED, 0.5 * alpha); g.lineWidth = w * 1.9; g.stroke();
     g.strokeStyle = rgba("255,60,84", 0.95 * alpha); g.lineWidth = w; g.stroke();
     if (c === 0) { g.strokeStyle = rgba(HOT, 0.85 * alpha); g.lineWidth = w * 0.38; g.stroke(); }
   }
+  if (!marks) { g.restore(); return; }
   // หัวเส้นที่กำลังวิ่ง (ร้อนจัด)
   for (const r of tips) { glow(g, r[0], r[1], r[2] * 0.12, HOT, 0.75 * alpha); }
   // จุดร้อนตรงรอยต่อ
@@ -430,6 +437,73 @@ function strokeNet(g, net, o) {
     twinkle(g, p[0], p[1], R * (0.9 + 0.5 * (k - 1)), 0.75 * alpha * pul, i % 3 ? HOT : WHITE);
   }
   g.restore();
+}
+
+// ---------- แคชเครือข่ายรอยร้าวเป็นภาพบนจอ ----------
+//  ผู้ใช้แจ้ง "เส้นกระตุกมากตอนท่าไม้ตาย" (2026-10-22): วาดเครือข่ายสดทุกเฟรมกิน ~50–110 ms (เส้นหลายพันช่วง)
+//  → วาดลงผืนผ้าใบในพิกัดตรรกะของฉาก (แบบชั้นอบของ boardDraw — P ไม่ขึ้นกับการเลื่อน/ซูม ซึ่งมากับทรานส์ฟอร์มของจอ)
+//    ครั้งเดียว แล้วแต่ละเฟรมแค่ drawImage ใต้ทรานส์ฟอร์มปัจจุบัน · หมุน/เอียงกระดาน (มุมฉากเปลี่ยน) หรือความละเอียดเปลี่ยน = วาดใหม่
+const PERSIST = { cv: null, key: "", lastKey: "", moved: 0 };
+const NET_SETTLE = 180; // ms ที่ฉากต้องนิ่งก่อนวาดเต็มลงแคช (ระหว่างหมุนกระดานวาดเส้นแกนบางสด)
+const CACHE_PAD = 36;   // ขอบเผื่อรอบกรอบกระดานบนจอ (หน่วยตรรกะ — เส้นเรือง/ลำต้นจากเท้าเลยขอบได้นิดหน่อย)
+const resOf = (g) => { const T = g.getTransform(); return Math.max(1, Math.min(2, Math.round(Math.hypot(T.a, T.b) * 4) / 4)); };
+const cornersOf = (info) => { const z = 0.012; return [P(0, 0, z), P(info.cols, 0, z), P(0, info.rows, z), P(info.cols, info.rows, z)]; };
+function camKey(g, info, lowQ) {
+  const r = (v) => Math.round(v * 4) / 4;
+  return [resOf(g), ...cornersOf(info).flatMap((p) => [r(p[0]), r(p[1])]), lowQ ? 1 : 0, info.cols, info.rows].join(",");
+}
+function cacheCtx(slot) {
+  const c = slot.cv.getContext("2d"), R = slot.res, b = slot.box;
+  c.setTransform(R, 0, 0, R, -b.x * R, -b.y * R);
+  return c;
+}
+// ผืนแคชครอบเฉพาะกรอบกระดานบนจอ (ไม่ทั้งเฟรม — ผืนเล็ก = วาด/ปะเร็ว)
+function freshCache(slot, g, info) {
+  if (!slot.cv) slot.cv = document.createElement("canvas");
+  const R = resOf(g), cs = cornersOf(info), xs = cs.map((p) => p[0]), ys = cs.map((p) => p[1]);
+  const x = Math.floor(Math.min(...xs) - CACHE_PAD), y = Math.floor(Math.min(...ys) - CACHE_PAD);
+  const w = Math.ceil(Math.max(...xs) + CACHE_PAD) - x, h = Math.ceil(Math.max(...ys) + CACHE_PAD) - y;
+  slot.res = R; slot.box = { x, y, w, h };
+  const cv = slot.cv, W = Math.ceil(w * R), H = Math.ceil(h * R);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext("2d");
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H);
+  return cacheCtx(slot);
+}
+function blitCache(g, slot, alpha) {
+  if (!slot || !slot.cv || !slot.box || alpha <= 0.01) return;
+  const b = slot.box;
+  g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = clamp01(alpha);
+  g.drawImage(slot.cv, b.x, b.y, b.w, b.h);
+  g.restore();
+}
+const canCache = (g) => typeof document !== "undefined" && !!g && typeof g.getTransform === "function";
+// ชั้นค้าง (ทั้งเครือข่าย) — breath = ความสว่างของเฟรมนี้ (หายใจทั้งผืน)
+function netCached(g, info, alpha, lowQ, now) {
+  const net = crackNet(info.cols, info.rows);
+  if (!canCache(g)) { strokeNet(g, net, { alpha, lowQ, now, glowK: 0.8, pulse: true }); return; }
+  const key = camKey(g, info, lowQ);
+  if (PERSIST.key === key) { blitCache(g, PERSIST, alpha); return; }
+  if (key !== PERSIST.lastKey) { PERSIST.lastKey = key; PERSIST.moved = now; }
+  if (now - PERSIST.moved < NET_SETTLE) { strokeNet(g, net, { alpha: alpha * 1.6, lowQ: true, now, light: true }); return; }
+  strokeNet(freshCache(PERSIST, g, info), net, { alpha: 1, lowQ, now, glowK: 0.8 });
+  PERSIST.key = key;
+  blitCache(g, PERSIST, alpha);
+}
+// ฉากเปิดตา: เส้นที่ไล่ถึงแล้ววาดต่อลงแคชของเหตุการณ์ทีละเฟรม (เฉพาะช่วงใหม่) · หัวเส้น/จุดร้อนวาดสด
+function revealCached(g, e, info, net, rev, front, alpha, lowQ, now) {
+  if (!canCache(g)) { strokeNet(g, net, { rev, front, alpha, lowQ, now, glowK: 1.3 }); return; }
+  const S = e._netCache || (e._netCache = { cv: null, key: "", drawn: 0 });
+  const key = camKey(g, info, lowQ);
+  if (S.key !== key || front < S.drawn) {
+    strokeNet(freshCache(S, g, info), net, { rev, front, alpha: 1, lowQ, now, glowK: 1.3, marks: false });
+    S.key = key;
+  } else if (front > S.drawn) {
+    strokeNet(cacheCtx(S), net, { rev, from: S.drawn, front, alpha: 1, lowQ, now, glowK: 1.3, marks: false });
+  }
+  S.drawn = front;
+  blitCache(g, S, alpha);
+  strokeNet(g, net, { rev, front, alpha, lowQ, now, lines: false });
 }
 
 // =================================================================== ตาเนตรมรณะ / จุดตาย
@@ -665,7 +739,7 @@ function eyesFx(g, e, t, now, lowQ, ctx) {
     const net = crackNet(info.cols, info.rows), rev = revealOf(e, net, ox, oy);
     const front = ((t - F.eyesCrack) / F.eyesSpread) * rev.max;
     const al = t < F.eyesFade ? 1 : 1 - 0.8 * easeInOut(clamp01((t - F.eyesFade) / (D - F.eyesFade)));
-    strokeNet(g, net, { rev, front, alpha: al, lowQ, now, glowK: 1.3 });
+    revealCached(g, e, info, net, rev, front, al, lowQ, now);
     // วาบที่เท้าตอนรอยร้าวเริ่ม
     const q = (t - F.eyesCrack) / 600;
     if (q < 1) {
@@ -1096,7 +1170,7 @@ export function drawRyougiGround(g, rs, info, fx, now, lowQ, o = {}) {
     if (k > 0) {
       g.save(); g.fillStyle = rgba("8,3,12", 0.24 * k); g.fillRect(...viewRect(o.view)); g.restore();
       const br = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(now / 1300);
-      strokeNet(g, crackNet(info.cols, info.rows), { alpha: (0.2 + 0.12 * br) * k, lowQ, now, glowK: 0.8, pulse: true });
+      netCached(g, info, (0.2 + 0.12 * br) * k, lowQ, now);
     }
   }
 }
