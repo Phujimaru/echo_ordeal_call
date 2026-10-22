@@ -34,7 +34,12 @@ const view = (viewerId, id) => engine.buildStateFor(viewerId).players.find((p) =
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
 const flush = (t, ms = 8000) => { for (let i = 0; i < ms / 100; i++) t.mock.timers.tick(100); };
 const fxOf = (kind) => calls.fx.filter((f) => f.event === 'diegoFx' && f.payload.kind === kind).map((f) => f.payload);
-const tool = (id, form, extra = {}) => engine.useSkill(id, 'basic', extra.targets || [], { form, ...extra });
+// โควตาคลังเครื่องมือ 1 ครั้งต่อเทิร์น: เทสต์ที่ไม่ได้ทดสอบโควตาล้างโควตาก่อนกดทุกครั้ง (extra.quota = นับจริง)
+const tool = (id, form, extra = {}) => {
+  const p = engine.players[id];
+  if (!extra.quota && p && p.diego) p.diego.toolUsed = 0;
+  return engine.useSkill(id, 'basic', extra.targets || [], { form, ...extra });
+};
 const L = () => engine.board.diego || { oil: {}, fire: {}, ash: {} };
 
 const saved = {
@@ -74,28 +79,26 @@ test('ข้อมูล: ระดับยาก · พลังชีวิ�
   assert.equal(engine.movOf(P.D), 5);
   const d = view('D', 'D').diego;
   assert.deepEqual(Object.keys(d).sort(), ['ammo', 'ammoMax', 'cunning', 'cunningMax', 'firstAid', 'horseCd', 'horseHp', 'mounted', 'nets', 'reloadCd', 'shot', 'stopping', 'toolLeft', 'worldArmed', 'worldCd'].sort());
-  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 2, 0, true, 3]);
+  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 1, 0, true, 3]);
   assert.equal(view('B', 'D').diego.nets, undefined, 'ตาข่ายเห็นเฉพาะเจ้าของ');
   const choices = view('D', 'D').character.basic.choices;
   assert.deepEqual(choices.map((c) => c.key), ['oil', 'match', 'net', 'knife', 'aid']);
   assert.ok(choices.every((c) => c.desc), 'ทุกตัวเลือกมีคำอธิบาย (กฎผู้ใช้)');
 });
 
-test('คลังเครื่องมือ: 2 ครั้งต่อเทิร์น · ไม่กินโควตาสกิล · ใช้แล้วเดินไม่ได้ · ครั้งที่ 3 กดไม่ได้และไม่เสียแต้ม · เล่ห์เหลี่ยม +1 ต่อครั้ง', (t) => {
+test('คลังเครื่องมือ: 1 ครั้งต่อเทิร์น · ไม่กินโควตาสกิล · ใช้แล้วเดินไม่ได้ · ครั้งที่ 2 กดไม่ได้และไม่เสียแต้ม · เล่ห์เหลี่ยม +1', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['D', 'diego_alt', 2, 7], ['B', 'dummy', 12, 2]]);
   engine.setActor('D');
-  tool('D', 'match', { tile: { x: 4, y: 8 } });
+  tool('D', 'match', { tile: { x: 4, y: 8 }, quota: true });
   flush(t, 2000);
-  tool('D', 'match', { tile: { x: 4, y: 8 } });
-  flush(t, 2000);
-  assert.equal(P.D.skillPoints, 6);
+  assert.equal(P.D.skillPoints, 7);
   assert.equal(P.D.skillUsedRound, false, 'ไม่กินโควตา');
   assert.equal(engine.action.locked, true, 'ใช้แล้วเดินไม่ได้ (ตาปกติ)');
-  assert.equal(P.D.diego.cunning, 2);
-  tool('D', 'match', { tile: { x: 4, y: 8 } });
+  assert.equal(P.D.diego.cunning, 1);
+  tool('D', 'match', { tile: { x: 4, y: 8 }, quota: true });
   flush(t, 2000);
-  assert.equal(P.D.skillPoints, 6, 'ครั้งที่ 3 ไม่ทำงาน ไม่เสียแต้ม');
+  assert.equal(P.D.skillPoints, 7, 'ครั้งที่ 2 ไม่ทำงาน ไม่เสียแต้ม');
   assert.equal(view('D', 'D').diego.toolLeft, 0);
   assert.equal(engine.moveTo('D', 3, 8), false, 'เดินไม่ได้');
 });
