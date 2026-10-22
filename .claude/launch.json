@@ -148,6 +148,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3007"
       }
+    },
+    {
+      "name": "server-ryougi",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3009,
+      "env": {
+        "PORT": "3009",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-ryougi",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5179",
+        "--strictPort"
+      ],
+      "port": 5179,
+      "env": {
+        "ECHO_SERVER_PORT": "3009"
+      }
     }
   ]
 }
