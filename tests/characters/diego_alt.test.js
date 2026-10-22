@@ -81,7 +81,7 @@ test('ข้อมูล: ระดับยาก · พลังชีวิ�
   assert.ok(choices.every((c) => c.desc), 'ทุกตัวเลือกมีคำอธิบาย (กฎผู้ใช้)');
 });
 
-test('คลังเครื่องมือ: 2 ครั้งต่อเทิร์น · ไม่กินโควตาสกิล · ไม่ล็อกการเดิน · ครั้งที่ 3 กดไม่ได้และไม่เสียแต้ม · เล่ห์เหลี่ยม +1 ต่อครั้ง', (t) => {
+test('คลังเครื่องมือ: 2 ครั้งต่อเทิร์น · ไม่กินโควตาสกิล · ใช้แล้วเดินไม่ได้ · ครั้งที่ 3 กดไม่ได้และไม่เสียแต้ม · เล่ห์เหลี่ยม +1 ต่อครั้ง', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['D', 'diego_alt', 2, 7], ['B', 'dummy', 12, 2]]);
   engine.setActor('D');
@@ -91,13 +91,13 @@ test('คลังเครื่องมือ: 2 ครั้งต่อเ�
   flush(t, 2000);
   assert.equal(P.D.skillPoints, 6);
   assert.equal(P.D.skillUsedRound, false, 'ไม่กินโควตา');
-  assert.equal(engine.action.locked, false, 'ยังเดินได้');
+  assert.equal(engine.action.locked, true, 'ใช้แล้วเดินไม่ได้ (ตาปกติ)');
   assert.equal(P.D.diego.cunning, 2);
   tool('D', 'match', { tile: { x: 4, y: 8 } });
   flush(t, 2000);
   assert.equal(P.D.skillPoints, 6, 'ครั้งที่ 3 ไม่ทำงาน ไม่เสียแต้ม');
   assert.equal(view('D', 'D').diego.toolLeft, 0);
-  assert.ok(engine.moveTo('D', 3, 8), 'ใช้ครบแล้วยังเดินได้');
+  assert.equal(engine.moveTo('D', 3, 8), false, 'เดินไม่ได้');
 });
 
 test('ถังน้ำมัน: แอ่ง 3×3 · ศัตรูในพื้นที่ชุ่มน้ำมัน (ดิเอโก้ไม่) · ศัตรูเริ่มตาเดินบนน้ำมัน เดิน −1 · นอกระยะ 4 กดไม่ได้', (t) => {
@@ -274,7 +274,7 @@ test('ปืนลูกโม่: แนว 5×1 คนแรก −1 · ไม
   assert.equal(P.D.diego.ammo, 4, 'รีโหลดครบ = เต็ม');
 });
 
-test('เดอะเวิลด์ counter: ศัตรูตีโดน = ยกเลิกทั้งก้อน → ตาหยุดเวลาแทรกทันที (สกิล 4 ครั้ง ตีปกติไม่ได้) · ดาเมจค้างจนเวลาเดินต่อ · แล้วกลับไปตาของผู้ตีต่อ', (t) => {
+test('เดอะเวิลด์ counter: ศัตรูตีโดน = ยกเลิกทั้งก้อน → ตาหยุดเวลาแทรกทันที (สกิล 3 ครั้ง ตีปกติไม่ได้ · ใช้แล้วยังเดินได้) · ดาเมจค้างจนเวลาเดินต่อ · แล้วกลับไปตาของผู้ตีต่อ', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['D', 'diego_alt', 2, 8], ['B', 'dummy', 3, 8], ['C', 'dummy', 12, 2]]);
   P.D.diego.cunning = 6;
@@ -306,22 +306,23 @@ test('เดอะเวิลด์ counter: ศัตรูตีโดน = �
   // ระหว่างหยุดเวลา: คลังเครื่องมือไม่จำกัด · มีด 1 แต้ม · ดาเมจลงแต่ผู้ชมเห็นค่าเดิม
   const b0 = vit(P.B), shown = view('C', 'B');
   assert.equal(engine.attackTarget('D', 'B'), false, 'ตาหยุดเวลาตีปกติไม่ได้');
-  for (let i = 0; i < 3; i++) { tool('D', 'knife', { dir: 'right' }); flush(t, 2000); }
-  assert.equal(P.D.skillPoints, 5, 'มีด 1 แต้ม × 3');
-  assert.equal(b0 - vit(P.B), 3);
+  for (let i = 0; i < 2; i++) { tool('D', 'knife', { dir: 'right' }); flush(t, 2000); }
+  assert.equal(P.D.skillPoints, 6, 'มีด 1 แต้ม × 2');
+  assert.equal(b0 - vit(P.B), 2);
   assert.equal(vit(view('C', 'B')), vit(shown), 'ค่าที่เห็นค้างไว้');
   engine.useSkill('D', 'secondary', [], { dir: 'right' }); flush(t, 2000);
   assert.equal(P.D.diego.ammo, 3, 'ยิงปืนในตาหยุดเวลาได้');
-  assert.equal(view('D', 'D').diego.toolLeft, 0, 'ครบ 4 ครั้ง');
+  assert.equal(engine.action.locked, false, 'ตาหยุดเวลา: ใช้สกิล/ปืนแล้วยังเดินได้');
+  assert.equal(view('D', 'D').diego.toolLeft, 0, 'ครบ 3 ครั้ง');
   const sp5 = P.D.skillPoints;
   tool('D', 'knife', { dir: 'right' }); flush(t, 2000);
-  assert.equal(P.D.skillPoints, sp5, 'ครั้งที่ 5 ใช้ไม่ได้');
+  assert.equal(P.D.skillPoints, sp5, 'ครั้งที่ 4 ใช้ไม่ได้');
   engine.waitAction('D');
   assert.equal(engine.gameState, 'ATTACKING', 'ฉากเวลาเดินต่อ');
   flush(t, 2000);
   assert.ok(!engine.buildStateFor('C').timeFreeze);
   assert.equal(vit(view('C', 'B')), vit(P.B), 'ดาเมจโชว์แล้ว');
-  assert.ok(fxOf('timeResume').some((f) => f.hits.some((h) => h.id === 'B' && h.dmg === 4)));
+  assert.ok(fxOf('timeResume').some((f) => f.hits.some((h) => h.id === 'B' && h.dmg === 3)));
   assert.equal(engine.actorId, 'B', 'กลับไปตาของผู้ตีต่อ');
   assert.equal(engine.gameState, 'ACTION');
   assert.ok(engine.attackTarget('B', 'D'), 'ผู้ตีเล่นตาต่อได้ (ตีใหม่ได้)');
@@ -374,7 +375,7 @@ test('เดอะเวิลด์ ปกติ: ไม่ถูกตี = �
   assert.ok(!engine.action.extra);
 });
 
-test('เป็นไปดั่งกลอุบาย: เฉพาะตาหยุดเวลา · ขี่ม้า · พุ่งชนศัตรูคนแรก −4 + เลือดไหล 2 + กระเด็น 2 · กระสุน −1 · คลิป intro/final · เวลาเดินต่อ + จบตา', (t) => {
+test('เป็นไปดั่งกลอุบาย: เฉพาะตาหยุดเวลา · ขี่ม้า · พุ่งชนศัตรูคนแรก −3 + เลือดไหล 2 + กระเด็น 2 · กระสุน −2 · คลิป intro/final · เวลาเดินต่อ + จบตา', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['D', 'diego_alt', 1, 8], ['B', 'dummy', 4, 8], ['C', 'dummy', 12, 2]]);
   engine.setActor('D');
@@ -401,11 +402,11 @@ test('เป็นไปดั่งกลอุบาย: เฉพาะตา
   assert.deepEqual(calls.cut, ['diegoPlotIntro']);
   flush(t, 4000);
   assert.ok(calls.cut.includes('diegoPlotFinal'), 'ชน = คลิป final');
-  assert.equal(b0 - vit(P.B), 4);
+  assert.equal(b0 - vit(P.B), 3, 'ดาเมจ 3');
   assert.equal(P.B.statuses.hbleed, 2);
   assert.deepEqual(P.B.pos, { x: 6, y: 8 }, 'กระเด็น 2 ช่อง');
   assert.deepEqual(P.D.pos, { x: 4, y: 8 }, 'ดิเอโก้ยืนช่องเดิมของเป้า');
-  assert.equal(P.D.diego.ammo, 3, 'กระสุน 1 นัด');
+  assert.equal(P.D.diego.ammo, 2, 'กระสุน 2 นัด');
   assert.equal(P.D.skillPoints, 4);
   flush(t, 4000);
   assert.ok(!P.D.diego.stopping, 'เวลาเดินต่อ');
