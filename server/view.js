@@ -166,6 +166,7 @@ function buildStateFor(viewerId) {
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     turnOrder: masked ? [] : match.turnOrder,
+    actorIndex: masked ? -1 : match.actorIndex, // ตำแหน่งในลำดับของฝ่ายที่เดินล่าสุด (ตาพิเศษหยุดเวลา = ยังไม่เลื่อน) — คิว 2 คนถัดไปด้านขวา
     masked,
     forecast: forecastFor(unit), // คาดการณ์ผลตีปกติ (เฉพาะคนที่กำลังเดิน เห็นของตัวเอง)
     actorId: (match.gameState === "ACTION" || match.gameState === "ATTACKING") ? match.actorId : null,

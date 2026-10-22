@@ -120,6 +120,43 @@ function squareKeys(map, x, y, n) {
 }
 const ENERGY_C = "#7fd3ff"; // เลขแต้มสกิล (พลังงาน)
 
+// คิว 2 คนถัดไป (ขวา ใต้ปุ่มกล้อง — ผู้ใช้สั่ง 2026-10-22): รูปหกเหลี่ยม + ชื่อ · คนที่ถึงตา/หลุดคิว เลื่อนขึ้นแล้วจางหาย ที่เหลือเลื่อนขึ้นตาม
+//  แถวเรียงตาม id คงที่ (DOM ไม่สลับที่ — transition ไม่สะดุด) · ตำแหน่งจริงมาจาก --slot
+const QUEUE_OUT_MS = 600;
+function UpNext({ ids, byId, me, show }) {
+  const sig = ids.join(",");
+  const [prev, setPrev] = useState({ sig: "", ids: [] });
+  const [gone, setGone] = useState([]); // { id, p } — คนที่เพิ่งหลุดคิว (เล่นแอนิเมชันออก)
+  if (sig !== prev.sig) {
+    const out = prev.ids.filter((id) => !ids.includes(id) && byId[id]).map((id) => ({ id, p: byId[id] }));
+    setPrev({ sig, ids });
+    setGone((g) => [...g.filter((x) => !ids.includes(x.id) && !out.some((o) => o.id === x.id)), ...out]);
+  }
+  useEffect(() => {
+    if (!gone.length) return undefined;
+    const t = setTimeout(() => setGone([]), QUEUE_OUT_MS);
+    return () => clearTimeout(t);
+  }, [gone]);
+  const rows = [
+    ...gone.filter((g) => !ids.includes(g.id)).map((g) => ({ id: g.id, p: g.p, slot: -1 })),
+    ...ids.map((id, i) => ({ id, p: byId[id], slot: i })),
+  ].filter((r) => r.p).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  if (!rows.length) return null;
+  return (
+    <div className="bs-queue" data-show={show ? "true" : "false"} aria-hidden="true">
+      {rows.map(({ id, p, slot }) => (
+        <div key={id} className="bs-q" data-out={slot < 0 ? "true" : "false"} style={{ "--slot": slot, "--bs-c": p.color || "#7fb8e6" }}>
+          <div className="bs-q-plate"><b>{me && sameSide(p, me) ? "คุณ" : p.name}</b></div>
+          <div className="bs-q-hexw">
+            <div className="bs-actor-frame" />
+            <div className="bs-actor-face"><img src={p.img} alt="" style={faceStyle(p)} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 //  props เพิ่ม (ดีไซน์ UI ใหม่): atkSignal = ตัวเลขเปลี่ยน = ปุ่ม "โจมตี" ถูกกด · onAttackables(ids) = ศัตรูที่ตาเราตีถึง (เดินแล้วตีได้)
 //   onOverlay(bool) = หน้าคาดการณ์เปิด/ปิด (Game ซ่อน HUD ทั้งหมด) · onCall(bool) = ฉากเต็มจอกำลังเล่น
 // ป้ายโบนัสในฉากตี — ผลที่มีต่อการตีครั้งนี้จาก server (การ์ดฉากตี skills: side "atk" = ฝั่งผู้ตี · "def" = ฝั่งเป้า)
@@ -1962,6 +1999,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       ? [...roster].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
       : state.turnOrder;
   const actor = state.actorId ? byId[state.actorId] : null;
+  // คิว 2 คนถัดไป: ต่อจากตำแหน่งที่เดินล่าสุด (server actorIndex · ไม่มี = หาจากฝ่ายของคนที่เดินอยู่) · ตัดคนตกรอบ/มองไม่เห็น (มืดบอด)
+  const actIdx = typeof state.actorIndex === "number" ? state.actorIndex : (state.turnOrder || []).indexOf(actorSide);
+  const upNext = masked || phase === "PLAYING" || !state.turnOrder ? []
+    : state.turnOrder.slice(actIdx + 1).filter((id) => byId[id] && sideAlive(byId[id], state.players) && !byId[id].masked).slice(0, 2);
 
   // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
   //  วัดใหม่เมื่อจอ/รายชื่อ/ข้อความแถบบนเปลี่ยน (เทียบแค่แนวนอน ตำแหน่งแนวตั้งไม่มีผล) · setState เฉพาะตอนค่าเปลี่ยน
@@ -2043,6 +2084,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           <span className="bs-actor-pts" data-bust={actor.busted ? "true" : "false"}>{actor.busted ? "แตก" : actor.score ?? "?"}</span>
         </div>
       )}
+
+      {/* คิว 2 คนถัดไป (ขวา · จอคอม/แท็บเล็ต) */}
+      {(!vp || vp.w >= 768) && <UpNext ids={upNext} byId={byId} me={me} show={phase === "ACTION" || phase === "ATTACKING"} />}
 
       {/* ฉากลำดับเดินเต็มจอ (ORDER ~6.5 วิ) */}
       {/* ฉากเต็มจอทั้งหมดไปอยู่ที่ <body> (ทับ HUD ทุกชั้น) */}
