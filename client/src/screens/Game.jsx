@@ -797,19 +797,19 @@ const STATUS_INFO = {
   slow:          { icon: "❄️", label: "เชื่องช้า", cls: "bg-echo-ice text-gray-900", desc: "ระยะเดิน −1" },
   // เคท & เอมิลิโกะ
   shadowMask:    { icon: "🌫️", label: "มืดบอด", cls: "bg-echo-magenta", desc: "หมากคนอื่นเป็นสีขาว ไม่มีชื่อ ภาพ และลำดับเดิน" },
-  rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "" },
+  rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "เดินไม่ได้ แต่ใช้สกิลและโจมตีได้ตามปกติ" },
   // ดิเอโก้ แบรนโด (โลกคู่ขนาน)
-  oilSoaked:     { icon: "🛢️", label: "ชุ่มน้ำมัน", cls: "bg-amber-800 text-white", desc: "" },
-  diegoNet:      { icon: "🕸️", label: "ติดตาข่าย", cls: "bg-stone-500 text-white", desc: "" },
-  yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "" },
-  yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "" },
+  oilSoaked:     { icon: "🛢️", label: "ชุ่มน้ำมัน", cls: "bg-amber-800 text-white", desc: "ถูกโยนไม้ขีดไฟใส่จะระเบิดรอบตัว 3×3 ช่อง คนในพื้นที่เสียพลังชีวิต 2 เกราะรับก่อน ติดลุกไหม้ แล้วพื้นกลายเป็นกองไฟ" },
+  diegoNet:      { icon: "🕸️", label: "ติดตาข่าย", cls: "bg-stone-500 text-white", desc: "โดนไม้ขีดไฟหรือแรงระเบิดน้ำมันจะติดลุกไหม้ 3 แทน 1" },
+  yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
+  yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "ขี่ผู้เล่นอื่นไม่ได้" },
   // ไรโด ฮิคารุ
-  hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "" },
+  hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "ตัวใหญ่ขนาด 3×3 เดินได้ 3 ช่องและพังสิ่งกีดขวาง ตีปกติแรงขึ้น 1 โดนศัตรูทุกคนที่ติดด้านนั้น และใช้ท่าไม้ตายลำแสงได้" },
   // องค์หญิงดอกไม้ เซลิน
-  celineKing:    { icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "" },
+  celineKing:    { icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "เดินบนช่องดอกไม้ไม่เสียก้าว อัตราคริติคอลเพิ่ม 50% คริติคอลแรงสามเท่า และต้นเทิร์นได้แต้มสกิล 1" },
   // ซึนาชิ ทาคุโตะ (ดาบอันเจิดจรัด — เทิร์นที่เหลือ)
-  takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "" },
-  takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "" },
+  takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "ตีปกติฟื้นพลังชีวิตเท่าความเสียหายจริงที่ทำได้รวมเกราะ ไม่เกิน 2 ต่อการตีหนึ่งครั้ง" },
+  takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "ตีปกติโดนศัตรูทุกคนที่อยู่ติดด้านนั้นของตัวทั้ง 3 ช่อง" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -835,113 +835,121 @@ function statusEntries(p, full) {
   }
   // โซระ: ร่าง My-Th + อาวุธที่ถือ · ร่างโซระนับเทิร์นเพื่อคุณหนู
   if (p.sora && p.sora.myth) {
-    out.push({ key: "soraMyth", v: 1, icon: "🐭", label: "Kamen Rider My-Th", cls: "bg-sky-500 text-gray-900", desc: "" });
-    out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900", desc: "" });
+    out.push({ key: "soraMyth", v: 1, icon: "🐭", label: "Kamen Rider My-Th", cls: "bg-sky-500 text-gray-900", desc: "ตีปกติมีโอกาสคริติคอล 20% และใช้ My-Th Edge กับ Mouse Separade ได้" });
+    out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900",
+      desc: p.sora.gun ? "ระยะตี 1 ถึง 3 ตีโดนแล้วถ้าเป้ารอดจะถูกดึงเข้ามาประชิด" : "ตีปกติแรงขึ้น 1" });
   }
-  if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
+  if (p.sora && !p.sora.myth && p.sora.calm > 0) out.push({ key: "soraCalm", v: 1, icon: "💚", label: `เพื่อคุณหนู ${p.sora.calm}/${p.sora.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "อยู่ร่างโซระต่อเนื่องครบแล้วฟื้นพลังชีวิต 2 แปลงร่างแล้วนับใหม่" });
   // กิระ: ร่างราชาแมลงอวกาศ · นับเทิร์นร่างกิระ · อัฐิราชา (เทิร์นที่เหลือ)
   if (p.kira) {
     const k = p.kira;
-    if (k.king) out.push({ key: "kiraKing", v: 1, icon: "🪲", label: "ราชาแมลงอวกาศ", cls: "bg-violet-500 text-white", desc: "" });
-    if (!k.king && k.calm > 0) out.push({ key: "kiraCalm", v: 1, icon: "💚", label: `บดขยี้ส่วนเกิน ${k.calm}/${k.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
-    if (k.ult > 0) out.push({ key: "kiraUlt", v: k.ult, turns: true, icon: "🦴", label: "อัฐิราชา", cls: "bg-violet-900 text-white", desc: "" });
+    if (k.king) out.push({ key: "kiraKing", v: 1, icon: "🪲", label: "ราชาแมลงอวกาศ", cls: "bg-violet-500 text-white", desc: "ตีปกติเป็นคลื่นแนวตรงยาว 4 ช่องโดนศัตรูทุกคนในแนว และจบเทิร์นศัตรูที่ประชิดเสียพลังชีวิต 1 เกราะรับก่อน" });
+    if (!k.king && k.calm > 0) out.push({ key: "kiraCalm", v: 1, icon: "💚", label: `บดขยี้ส่วนเกิน ${k.calm}/${k.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "อยู่ร่างกิระต่อเนื่องครบแล้วฟื้นพลังชีวิต 2 และแต้มสกิล 1 สวมเกราะแล้วนับใหม่" });
+    if (k.ult > 0) out.push({ key: "kiraUlt", v: k.ult, turns: true, icon: "🦴", label: "อัฐิราชา", cls: "bg-violet-900 text-white", desc: "ตายแล้วฟื้นทันทีด้วยพลังชีวิต 1 ไม่จำกัดครั้ง และพลังโจมตีเพิ่ม 2" });
   }
   // ยูนะ: เพลงที่เปิด · ยูนะ ไอดอล (เทิร์นที่เหลือ) · คูลดาวน์ · เงาของเสียง (รอ/ทำงาน)
   if (p.yuna) {
     const y = p.yuna;
-    if (y.idol > 0) out.push({ key: "yunaIdol", v: y.idol, turns: true, icon: "🔥", label: "ยูนะ ไอดอล", cls: "bg-fuchsia-500 text-white", desc: "" });
-    else if (y.song === "delete") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Delete", cls: "bg-rose-700 text-white", desc: "" });
-    else if (y.song === "smile") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Smile for You", cls: "bg-pink-300 text-gray-900", desc: "" });
-    if (y.ultCd > 0) out.push({ key: "yunaUltCd", v: y.ultCd, turns: true, icon: "⏳", label: "ร้อนแรงดังไฟ", cls: "bg-white/20", desc: "" });
-    if (y.vanish) out.push({ key: "yunaVanish", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-700 text-white", desc: "" });
-    else if (y.vanishNext) out.push({ key: "yunaVanishNext", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-300 text-gray-900", desc: "" });
+    if (y.idol > 0) out.push({ key: "yunaIdol", v: y.idol, turns: true, icon: "🔥", label: "ยูนะ ไอดอล", cls: "bg-fuchsia-500 text-white", desc: "พวกเราในวงพลังโจมตีเพิ่ม 1 ยูนะเพิ่ม 2 ทุกคนแม่นยำ ระยะตีเท่าระยะเดิน และจบเทิร์นฟื้นแต้มสกิล 1" });
+    else if (y.song === "delete") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Delete", cls: "bg-rose-700 text-white", desc: "ศัตรูในวงรับความเสียหายเพิ่ม 1 ทุกแบบ พวกเราในวงฟื้นแต้มสกิล 1 ตอนจบเทิร์น แลกกับแต้มสกิลของยูนะ 2" });
+    else if (y.song === "smile") out.push({ key: "yunaSong", v: 1, icon: "🎵", label: "Smile for You", cls: "bg-pink-300 text-gray-900", desc: "พวกเราในวงรับความเสียหายลดลง 1 ทุกแบบ และฟื้นพลังชีวิต 1 ตอนจบเทิร์น แลกกับแต้มสกิลของยูนะ 2" });
+    if (y.ultCd > 0) out.push({ key: "yunaUltCd", v: y.ultCd, turns: true, icon: "⏳", label: "ร้อนแรงดังไฟ", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+    if (y.vanish) out.push({ key: "yunaVanish", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-700 text-white", desc: "หายตัว ศัตรูมองไม่เห็นและเล็งไม่ได้ ไม่โดนความเสียหายและดีบัฟจากคนอื่น วงเพลงหยุดทำงาน" });
+    else if (y.vanishNext) out.push({ key: "yunaVanishNext", v: 1, icon: "🌫️", label: "เงาของเสียง", cls: "bg-violet-300 text-gray-900", desc: "เทิร์นหน้าหายตัวทั้งเทิร์น ระหว่างรอใช้ท่าไม้ตายและขี่ผู้เล่นอื่นไม่ได้" });
   }
   // เกรย์: ศพที่เก็บ (พลังโจมตี) · จงบ้าคลั่ง · ชาร์จรองโกมิเนียต (เทิร์นที่เหลือก่อนยิง) · คูลดาวน์
   if (p.gray) {
     const g = p.gray;
-    if (g.souls > 0) out.push({ key: "graySouls", v: 1, icon: "⚰️", label: `สัปเหร่อ ${g.souls}/${g.soulsMax}`, cls: "bg-slate-500 text-white", desc: "" });
-    if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "" });
-    if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "" });
-    else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "" });
+    if (g.souls > 0) out.push({ key: "graySouls", v: 1, icon: "⚰️", label: `สัปเหร่อ ${g.souls}/${g.soulsMax}`, cls: "bg-slate-500 text-white", desc: "ศพละพลังโจมตีเพิ่ม 1 และรองโกมิเนียตแรงขึ้น 1 ครบแล้วเก็บศพได้แค่ฟื้นพลังชีวิต 2" });
+    if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "ระยะตีปกติเป็น 2 ช่อง คริติคอลเพิ่ม 25% และตีโดนแล้วเป้าติดถูกตรึง 1 เทิร์น" });
+    if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "เดิน ตีปกติ ใช้สกิล และยิงปืน GUTS ไม่ได้ ศัตรูในแนวถูกตรึง ครบแล้วยิงลำแสงกว้าง 7 ช่องสุดกระดาน ดาเมจ 5 บวกศพที่เก็บ" });
+    else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // ไจโร: ลูกเหล็กในมือ · สัดส่วนทองคำ · ม้า (พลังชีวิตม้า / รอเรียก) · เสริมท่าไม้ตาย · คูลดาวน์ (ตัวเลข/ไอคอนเท่านั้น)
   if (p.gyro && p.gyro.hand != null) {
     const g = p.gyro;
-    out.push({ key: "gyroBalls", v: 1, icon: "🟢", label: `${g.hand}/2`, cls: "bg-emerald-600 text-white", desc: "" });
-    out.push({ key: "gyroGolden", v: 1, icon: "🌀", label: `${g.golden}/30`, cls: "bg-amber-300 text-gray-900", desc: "" });
-    if (g.mounted) out.push({ key: "gyroHorse", v: 1, icon: "🐎", label: `${g.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "" });
-    else if (g.horseCd > 0) out.push({ key: "gyroHorseCd", v: g.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (g.empowered) out.push({ key: "gyroEmpowered", v: 1, icon: "✨", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-yellow-400 text-gray-900", desc: "" });
-    else if (g.ultCd > 0) out.push({ key: "gyroUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-white/20", desc: "" });
+    out.push({ key: "gyroBalls", v: 1, icon: "🟢", label: `${g.hand}/2`, cls: "bg-emerald-600 text-white", desc: "ตีปกติใช้ลูก 1 ลูก ลูกตกที่เป้า ไม่มีลูกในมือจะตีไม่ได้จนกว่าจะเรียกกลับด้วยกลับคืนเจ้าของ" });
+    out.push({ key: "gyroGolden", v: 1, icon: "🌀", label: `${g.golden}/30`, cls: "bg-amber-300 text-gray-900", desc: "ได้ตอนขี่ม้าเดิน เท่ากับช่วงเดินตรงที่ยาวที่สุดในตา วิชาลับใช้ 5 ท่าไม้ตายใช้ 20 สะสมได้สูงสุด 30" });
+    if (g.mounted) out.push({ key: "gyroHorse", v: 1, icon: "🐎", label: `${g.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินและระยะตีเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
+    else if (g.horseCd > 0) out.push({ key: "gyroHorseCd", v: g.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงเรียกม้าได้อีก" });
+    if (g.empowered) out.push({ key: "gyroEmpowered", v: 1, icon: "✨", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-yellow-400 text-gray-900", desc: "ตีปกติครั้งถัดไปในตานี้ทำให้เป้ากระเด็นจนสุดขอบ เสียหายตามจำนวนช่องสูงสุด 6 และถูกตรึง 2 เทิร์น ไม่ตีก่อนจบตาจะหายไป" });
+    else if (g.ultCd > 0) out.push({ key: "gyroUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // ดิเอโก้: เล่ห์เหลี่ยม · กระสุน (รีโหลด) · ม้า · เดอะเวิลด์ (ตั้งรับ / หยุดเวลา / คูลดาวน์) (ตัวเลข/ไอคอนเท่านั้น)
   //  ศัตรูได้ cunning / worldArmed / worldCd เป็น null (server ซ่อน — กดเดอะเวิลด์แล้วต้องไม่รู้)
   if (p.diego && p.diego.ammo != null) {
     const d = p.diego;
-    if (d.cunning != null) out.push({ key: "diegoCunning", v: 1, icon: "🧠", label: `${d.cunning}/${d.cunningMax}`, cls: "bg-yellow-500 text-gray-900", desc: "" });
-    if (d.ammo > 0) out.push({ key: "diegoAmmo", v: 1, icon: "🔫", label: `${d.ammo}/${d.ammoMax}`, cls: "bg-stone-700 text-white", desc: "" });
-    else if (d.reloadCd > 0) out.push({ key: "diegoReload", v: d.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (d.mounted) out.push({ key: "diegoHorse", v: 1, icon: "🐎", label: `${d.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "" });
-    else if (d.horseCd > 0) out.push({ key: "diegoHorseCd", v: d.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "" });
-    else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "" });
-    else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "" });
+    if (d.cunning != null) out.push({ key: "diegoCunning", v: 1, icon: "🧠", label: `${d.cunning}/${d.cunningMax}`, cls: "bg-yellow-500 text-gray-900", desc: "ได้ 1 ทุกครั้งที่ใช้คลังเครื่องมือ และเมื่อราดน้ำมันโดนศัตรู ระเบิด ตาข่ายดักติด หรือกองไฟเผาศัตรู ใช้ 5 เพื่อกดท่าไม้ตาย" });
+    if (d.ammo > 0) out.push({ key: "diegoAmmo", v: 1, icon: "🔫", label: `${d.ammo}/${d.ammoMax}`, cls: "bg-stone-700 text-white", desc: "ปืนลูกโม่ยิงได้ตาละ 1 นัด กระสุนหมดแล้วต้องรีโหลด 5 เทิร์น" });
+    else if (d.reloadCd > 0) out.push({ key: "diegoReload", v: d.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงได้กระสุนเต็ม 4 นัดและยิงได้อีก" });
+    if (d.mounted) out.push({ key: "diegoHorse", v: 1, icon: "🐎", label: `${d.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
+    else if (d.horseCd > 0) out.push({ key: "diegoHorseCd", v: d.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงเรียกม้าได้อีก" });
+    if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "เวลาหยุดอยู่ ได้ตาเดินใหม่ ตีปกติไม่ได้แต่ใช้สกิลรวมได้ 3 ครั้ง ความเสียหายที่ทำใส่คนอื่นลงตอนเวลาเดินต่อ" });
+    else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "ศัตรูทำให้เสียหายก่อนจบเทิร์น การกระทำนั้นถูกยกเลิกแล้วหยุดเวลาทันที ถ้าไม่โดนจะได้หยุดเวลาต้นเทิร์นหน้าก่อนทุกคน" });
+    else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // ฟันนี่ วาเลนไทน์: กระสุน (รีโหลด) · หลบสายตา (เทิร์นที่เหลือ / คูลดาวน์) · กระดานคู่ขนานเปิดอยู่ (ตัวเลข/ไอคอนเท่านั้น)
   //  คูลดาวน์ท่าไม้ตายแต่ละแบบอยู่บนการ์ดตัวเลือก (locked + left จาก server)
   if (p.valentine && p.valentine.ammo != null) {
     const v = p.valentine;
-    if (v.ammo > 0) out.push({ key: "valAmmo", v: 1, icon: "🔫", label: `${v.ammo}/${v.ammoMax || 3}`, cls: "bg-pink-800 text-white", desc: "" });
-    else if (v.reloadCd > 0) out.push({ key: "valReload", v: v.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (v.veil) out.push({ key: "valVeil", v: Math.max(1, v.veil.left || 0), turns: true, icon: "🚩", label: "หลบสายตา", cls: "bg-pink-300 text-gray-900", desc: "" });
-    else if (v.veilCd > 0) out.push({ key: "valVeilCd", v: v.veilCd, turns: true, icon: "⏳", label: "หลบสายตา", cls: "bg-white/20", desc: "" });
+    if (v.ammo > 0) out.push({ key: "valAmmo", v: 1, icon: "🔫", label: `${v.ammo}/${v.ammoMax || 3}`, cls: "bg-pink-800 text-white", desc: "นัดละความเสียหาย 1 ใส่ศัตรูคนแรกในแนว 5 ช่อง หมดแล้วต้องรีโหลด 5 เทิร์น" });
+    else if (v.reloadCd > 0) out.push({ key: "valReload", v: v.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงได้กระสุนเต็ม 3 นัดตอนต้นเทิร์น" });
+    if (v.veil) out.push({ key: "valVeil", v: Math.max(1, v.veil.left || 0), turns: true, icon: "🚩", label: "หลบสายตา", cls: "bg-pink-300 text-gray-900", desc: "ล่องหน เดินทะลุทุกอย่าง ไม่มีใครแตะต้องได้ จบเทิร์นได้แต้มสกิล 1 ตีปกติและยิงปืนไม่ได้" });
+    else if (v.veilCd > 0) out.push({ key: "valVeilCd", v: v.veilCd, turns: true, icon: "⏳", label: "หลบสายตา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้สกิลพื้นฐานได้อีก" });
   }
   // อยู่ในกระดานคู่ขนาน (ชั้นมิติ "par:" — ท่าไม้ตายของวาเลนไทน์): ทุกคนในมิติเห็นป้ายนี้ (หน้าตากระดานเหมือนปกติ — ผู้ใช้ 2026-10-21)
-  if (typeof p.dim === "string" && p.dim.startsWith("par:")) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "กระดานคู่ขนาน", cls: "bg-cyan-200 text-gray-900", desc: "" });
+  if (typeof p.dim === "string" && p.dim.startsWith("par:")) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "กระดานคู่ขนาน", cls: "bg-cyan-200 text-gray-900", desc: "มองเห็นและโจมตีได้แค่คนในกระดานเดียวกัน ตัวที่เหมือนกันชนแล้วเสียหาย 4 เกราะรับก่อน ชนหรือถูกทำลายแล้วกลับกระดานหลัก" });
   // เฟิร์น: ซ่อนเร้นมานา (อยู่ในโหมด/คูลดาวน์) · เพิ่มระยะ (รอตีครั้งถัดไป) · นับ Zoltraak n/5 (ครบ = ครั้งที่ 6 พร้อม) · ผู้เชี่ยวชาญเวทมนต์พื้นฐาน คูลดาวน์การกัน (ตัวเลข/ไอคอนเท่านั้น)
   if (p.fern) {
     const f = p.fern;
-    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "" });
-    else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "" });
-    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: "" });
-    if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: "Zoltraak 5/5", cls: "bg-fuchsia-300 text-gray-900", desc: "" });
-    else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/5`, cls: "bg-violet-200 text-gray-900", desc: "" });
-    if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "" });
-    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "" });
+    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
+    else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
+    if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: "Zoltraak 5/5", cls: "bg-fuchsia-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่ใช้ Energy ทะลุเกราะทุกคนในแนว ตีแล้วรีเซ็ทคูลดาวน์ทุกอย่างและเริ่มนับใหม่" });
+    else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/5`, cls: "bg-violet-200 text-gray-900", desc: "ตีปกติครบ 5 ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง" });
+    if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงกันการโจมตีได้อีก" });
+    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
   }
   // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
   if (p.takuto) {
     const t = p.takuto;
-    if (t.judgment) out.push({ key: "takutoJudgment", v: 1, icon: "⚔️", label: "ดาบแห่งการพิพากษา", cls: "bg-amber-200 text-gray-900", desc: "" });
-    if (t.secCd > 0) out.push({ key: "takutoSecCd", v: t.secCd, turns: true, icon: "⏳", label: "ดาบประกายแสง", cls: "bg-white/20", desc: "" });
-    if (t.ultCd > 0) out.push({ key: "takutoUltCd", v: t.ultCd, turns: true, icon: "⏳", label: t.collapse ? "ฉันยังมองเห็นอยู่" : "ทาวววว มิสไซล์", cls: "bg-white/20", desc: "" });
+    if (t.judgment) out.push({ key: "takutoJudgment", v: 1, icon: "⚔️", label: "ดาบแห่งการพิพากษา", cls: "bg-amber-200 text-gray-900", desc: "ตีปกติเป็นการปาดาบใส่เป้าเดียวไกล 1 ถึง 4 ช่อง เสียหาย 4 ตายตัว แล้วดาบทั้งสองเล่มหายไป" });
+    if (t.secCd > 0) out.push({ key: "takutoSecCd", v: t.secCd, turns: true, icon: "⏳", label: "ดาบประกายแสง", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ดาบประกายแสงได้อีก" });
+    if (t.ultCd > 0) out.push({ key: "takutoUltCd", v: t.ultCd, turns: true, icon: "⏳", label: t.collapse ? "ฉันยังมองเห็นอยู่" : "ทาวววว มิสไซล์", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {
     const c = p.celine;
-    const W = { dagger: ["🗡️", "ดาบเล็ก"], dragon: ["🐉", "ดาบมังกรแดง"], great: ["⚔️", "ดาบใหญ่"], fire: ["🔥", "เวทย์ไฟ"], wind: ["🍃", "เวทย์ลม"], thunder: ["⚡", "เวทย์ไฟฟ้า"] }[c.weapon];
-    if (W) out.push({ key: "celineWeapon", v: 1, icon: W[0], label: W[1], cls: c.weaponClass === "magic" ? "bg-emerald-300 text-gray-900" : "bg-pink-300 text-gray-900", desc: "" });
-    if (c.king > 0 && !((p.statuses || {}).celineKing > 0)) out.push({ key: "celineKingTurns", v: c.king, turns: true, icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "" });
-    else if (c.ultCd > 0) out.push({ key: "celineUltCd", v: c.ultCd, turns: true, icon: "⏳", label: "สวนดอกไม้ของฉัน", cls: "bg-white/20", desc: "" });
-    if (c.tenderLeft != null) out.push({ key: "celineTender", v: 1, icon: "🌸", label: `${c.tenderLeft}/3`, cls: c.tenderLeft > 0 ? "bg-pink-200 text-gray-900" : "bg-white/20", desc: "" });
-    if (c.healCd > 0) out.push({ key: "celineHealCd", v: c.healCd, turns: true, icon: "💚", label: "⏳", cls: "bg-white/20", desc: "" });
-    else if (c.healCount > 0) out.push({ key: "celineHealCount", v: 1, icon: "💚", label: `${c.healCount}/4`, cls: "bg-lime-200 text-gray-900", desc: "" });
-    if (c.wallCd > 0) out.push({ key: "celineWallCd", v: c.wallCd, turns: true, icon: "🧊", label: "⏳", cls: "bg-white/20", desc: "" });
-    else if (c.wallCount > 0) out.push({ key: "celineWallCount", v: 1, icon: "🧊", label: `${c.wallCount}/2`, cls: "bg-sky-200 text-gray-900", desc: "" });
-    if (c.swapCd > 0) out.push({ key: "celineSwapCd", v: c.swapCd, turns: true, icon: "🔁", label: "⏳", cls: "bg-white/20", desc: "" });
-    if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: c.teaNeed ? `${c.tea || 0}/${c.teaNeed}` : "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "" });
+    const W = {
+      dagger: ["🗡️", "ดาบเล็ก", "ตีประชิด หลบหลีก 5% ตีหรือรอแล้วเดินต่อได้อีกรอบเต็มระยะ หลังเดินทำได้แค่รอ"],
+      dragon: ["🐉", "ดาบมังกรแดง", "ตีประชิด อัตราคริติคอลเพิ่ม 50% ทั้งตีปกติและคฑาแห่งการเยียวยา"],
+      great: ["⚔️", "ดาบใหญ่", "ตีประชิด พลังโจมตีเพิ่ม 1 และตีโดนแล้วผลักเป้าออกไป 1 ช่อง"],
+      fire: ["🔥", "เวทย์ไฟ", "ตีได้ไกล 1 ถึง 3 ช่อง ตีโดนแล้วเป้าติดลุกไหม้ 1"],
+      wind: ["🍃", "เวทย์ลม", "ตีได้ไกล 1 ถึง 3 ช่อง ตีโดนแล้วผลักเป้า 2 ช่อง ถ้าชนสิ่งกีดขวาง ขอบ หรือคน เสียหายเพิ่ม 1 เกราะรับก่อน"],
+      thunder: ["⚡", "เวทย์ไฟฟ้า", "ตีได้ไกล 1 ถึง 3 ช่อง ตีโดนแล้วเป้าติดช็อต 2 เทิร์น"],
+    }[c.weapon];
+    if (W) out.push({ key: "celineWeapon", v: 1, icon: W[0], label: W[1], cls: c.weaponClass === "magic" ? "bg-emerald-300 text-gray-900" : "bg-pink-300 text-gray-900", desc: W[2] });
+    if (c.king > 0 && !((p.statuses || {}).celineKing > 0)) out.push({ key: "celineKingTurns", v: c.king, turns: true, icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "เดินบนช่องดอกไม้ไม่เสียก้าว อัตราคริติคอลเพิ่ม 50% คริติคอลแรงสามเท่า และต้นเทิร์นได้แต้มสกิล 1" });
+    else if (c.ultCd > 0) out.push({ key: "celineUltCd", v: c.ultCd, turns: true, icon: "⏳", label: "สวนดอกไม้ของฉัน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+    if (c.tenderLeft != null) out.push({ key: "celineTender", v: 1, icon: "🌸", label: `${c.tenderLeft}/3`, cls: c.tenderLeft > 0 ? "bg-pink-200 text-gray-900" : "bg-white/20", desc: "ใช้ความอ่อนโยนได้อีกกี่ครั้งในเทิร์นนี้ รวมทุกคฑาไม่เกิน 3 ครั้ง ไม่นับโควตาสกิล" });
+    if (c.healCd > 0) out.push({ key: "celineHealCd", v: c.healCd, turns: true, icon: "💚", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้คฑาแห่งการเยียวยาได้อีก" });
+    else if (c.healCount > 0) out.push({ key: "celineHealCount", v: 1, icon: "💚", label: `${c.healCount}/4`, cls: "bg-lime-200 text-gray-900", desc: "ใช้คฑาแห่งการเยียวยาครบ 4 ครั้งแล้วพัก 5 เทิร์น นับสะสมข้ามเทิร์น" });
+    if (c.wallCd > 0) out.push({ key: "celineWallCd", v: c.wallCd, turns: true, icon: "🧊", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้คฑาแห่งการกีดกันได้อีก" });
+    else if (c.wallCount > 0) out.push({ key: "celineWallCount", v: 1, icon: "🧊", label: `${c.wallCount}/2`, cls: "bg-sky-200 text-gray-900", desc: "ใช้คฑาแห่งการกีดกันครบ 2 ครั้งแล้วพัก 3 เทิร์น นับสะสมข้ามเทิร์น" });
+    if (c.swapCd > 0) out.push({ key: "celineSwapCd", v: c.swapCd, turns: true, icon: "🔁", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้คฑาแห่งการเคลื่อนย้ายได้อีก" });
+    if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: c.teaNeed ? `${c.tea || 0}/${c.teaNeed}` : "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "ต้นเทิร์นยืนในพุ่มติดกันครบ 2 เทิร์น ฟื้นพลังชีวิต 1 แล้วนับใหม่ ระหว่างอยู่ในพุ่มอัตราคริติคอลเพิ่ม 20%" });
   }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
-    if (h.form) out.push({ key: "hikaruForm", v: h.formLeft || 1, icon: "🔆", label: h.formName, cls: "bg-amber-300 text-gray-900", desc: "" });
-    if (h.ginga && h.strium) out.push({ key: "hikaruStrium", v: 1, icon: "🌈", label: "Strium", cls: "bg-orange-400 text-gray-900", desc: "" });
-    if (!h.strium && h.brace > 0) out.push({ key: "hikaruBrace", v: 1, icon: "🌈", label: `Strium Brace ${h.brace}/${h.braceMax}`, cls: "bg-echo-ice text-gray-900", desc: "" });
-    if (h.kemurCalm > 0) out.push({ key: "hikaruKemur", v: 1, icon: "🌫️", label: `${h.kemurCalm}/${h.kemurMax}`, cls: "bg-purple-300 text-gray-900", desc: "" });
-    if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "" });
+    if (h.form) out.push({ key: "hikaruForm", v: h.formLeft || 1, icon: "🔆", label: h.formName, cls: "bg-amber-300 text-gray-900", desc: "เกราะสูงสุดเพิ่ม 2 เกราะลดลงทุก 1 ฟื้นพลังชีวิต 1 ตีปกติได้ผลตามร่าง หมดเวลาแล้วคืนร่างปกติและร่างนั้นพัก 5 เทิร์น" });
+    if (h.ginga && h.strium) out.push({ key: "hikaruStrium", v: 1, icon: "🌈", label: "Strium", cls: "bg-orange-400 text-gray-900", desc: "พลังโจมตีเพิ่มอีก 1 ตีปกติติดลุกไหม้ 1 และท่าไม้ตายเปลี่ยนเป็น Strium Ray" });
+    if (!h.strium && h.brace > 0) out.push({ key: "hikaruBrace", v: 1, icon: "🌈", label: `Strium Brace ${h.brace}/${h.braceMax}`, cls: "bg-echo-ice text-gray-900", desc: "จบเทิร์นในร่าง Ultraman Ginga ช่วงกลางวันได้ 1 ครบแล้วกลายเป็น Strium ถาวร" });
+    if (h.kemurCalm > 0) out.push({ key: "hikaruKemur", v: 1, icon: "🌫️", label: `${h.kemurCalm}/${h.kemurMax}`, cls: "bg-purple-300 text-gray-900", desc: "ร่างมนุษย์ดาวเคมูไม่ถูกโจมตีและไม่เสียหายต่อเนื่องครบแล้ว เทิร์นถัดไปล่องหน 1 เทิร์น" });
+    if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงฟื้นเกราะ 2 ตอนเข้าร่าง UltraLive ได้อีก" });
   }
   // Ice Spike: ดาเมจสะสมก่อนระเบิด (ติดตัว 3)
-  if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "" });
+  if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "ความเสียหายที่ได้รับสะสมครบแล้วระเบิดผลักศัตรูรอบตัวออกไป 2 ช่อง และติดเชื่องช้า 1 เทิร์น" });
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
     desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
@@ -1080,7 +1088,7 @@ function StatusModal({ p, onClose, statusOnly }) {
                     {it.v > 0 && (
                       isPermanentTurnValue(it)
                         ? <span className="text-xs font-bold text-echo-cyan">ถาวร</span>
-                        : isPermanentStatus(it)
+                        : isPermanentStatus(it) || (!it.turns && !(it.key in (p.statuses || {}))) // ป้ายตัวละครที่ไม่ใช่ตัวนับถอยหลัง (กระสุน/ตัวนับ/ร่าง) = ไม่มี "เหลือ N เทิร์น"
                           ? (it.v > 1 ? <span className="text-xs font-bold text-echo-cyan">สะสม {it.v}</span> : null)
                           : <span className="text-xs font-bold text-echo-ice">เหลือ {it.v} เทิร์น</span>
                     )}
