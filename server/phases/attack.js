@@ -210,37 +210,41 @@ function strike(attacker, target, { counter = false } = {}) {
     };
   }
 
-  // ---------- "เนตรมณะ" (สถานะ Universal patch 2.2.7) ----------
-  //  ใครก็ตามที่ติดบัฟนี้ โจมตีปกติแล้วมีโอกาสสังหารเป้าหมายทันที NETRAMANA_KILL_CHANCE
-  if (netramanaActive(attacker) && Math.random() < NETRAMANA_KILL_CHANCE) {
-    combat.instantDeath(target);
-    target.wasAttacked = true;
-    if (!target.alive) match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} (โอกาส ${Math.round(NETRAMANA_KILL_CHANCE * 100)}%) — สังหารทันที!`);
-    else match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} — แต่ ${target.name} รอดไปได้!`);
-    return {
-      dmg: 0, dodge: false, kill: !target.alive,
-      skills: [{ name: "เนตรมณะ — สังหารทันที", img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
-    };
-  }
+  // ผลก่อนการตีลง (ฮุค beforeStrikeHit ของผู้ตี — เรียวกิ: รากฐานจิตลบบัฟ/ตัดผลสกิลของเป้าก่อนดาเมจ/สังหาร) → ชื่อป้ายฉากตี
+  const preHook = CHAR_HOOKS[attacker.characterId];
+  const preFx = preHook && preHook.beforeStrikeHit ? combat.runHook(preHook, "beforeStrikeHit", engine, attacker, target, { counter }) || [] : [];
+  const preSkills = preFx.map((name) => ({ name, img: view.displayImg(attacker), by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }));
 
-  // โอกาสสังหารทันทีเฉพาะตัวละคร (ฮุค killChance — Echo ขยายร่างครบ 10 ระดับ 5%)
+  // ---------- "เนตรมณะ" (สถานะ Universal patch 2.2.7) + โอกาสสังหารทันทีเฉพาะตัวละคร (ฮุค killChance) ----------
+  //  ติดเนตรมณะ = ทอยครั้งเดียวด้วยโอกาสรวม (เรียวกิ: 20% + 5% = 25% — ผู้ใช้สั่ง "ต้องรวมกัน") · ไม่ติด = ทอยตามฮุค (Echo 10 ระดับ 5%)
   const hookKill = CHAR_HOOKS[attacker.characterId] && CHAR_HOOKS[attacker.characterId].killChance
     ? CHAR_HOOKS[attacker.characterId].killChance(attacker) : 0;
-  if (hookKill > 0 && Math.random() < hookKill) {
+  const netra = netramanaActive(attacker);
+  const killPct = (netra ? NETRAMANA_KILL_CHANCE : 0) + (hookKill > 0 ? hookKill : 0);
+  if (killPct > 0 && Math.random() < killPct) {
+    const at = target.pos ? { ...target.pos } : null;
     combat.instantDeath(target);
     target.wasAttacked = true;
-    match.lastLog.push(!target.alive
-      ? `💀 ${attacker.name} สังหาร ${target.name} ทันที (โอกาส ${Math.round(hookKill * 100)}%)`
-      : `💀 ${attacker.name} พยายามสังหาร ${target.name} ทันที — แต่ ${target.name} รอดไปได้!`);
+    const pctTxt = `${Math.round(killPct * 100)}%`;
+    if (netra) {
+      if (!target.alive) match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} (โอกาส ${pctTxt}) — สังหารทันที!`);
+      else match.lastLog.push(`👁️✨💀 เนตรมณะ — ${attacker.name} มองทะลุความตายของ ${target.name} — แต่ ${target.name} รอดไปได้!`);
+    } else {
+      match.lastLog.push(!target.alive
+        ? `💀 ${attacker.name} สังหาร ${target.name} ทันที (โอกาส ${pctTxt})`
+        : `💀 ${attacker.name} พยายามสังหาร ${target.name} ทันที — แต่ ${target.name} รอดไปได้!`);
+    }
+    // ฉากสังหารเฉพาะตัว (ฮุค onInstaKill — เรียวกิ: ร่างแยกสองซีก → กองเลือด) · at = ช่องของเป้าก่อนตาย
+    if (!target.alive && preHook && preHook.onInstaKill) combat.runHook(preHook, "onInstaKill", engine, attacker, target, at, "strike");
     return {
       dmg: 0, dodge: false, kill: !target.alive,
-      skills: [{ name: `สังหารทันที (${Math.round(hookKill * 100)}%)`, img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
+      skills: [...preSkills, { name: netra ? "เนตรมณะ — สังหารทันที" : `สังหารทันที (${pctTxt})`, img: null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }],
     };
   }
 
   // การเดินทาง (ป่าไม้ต้องสาป กลางวัน): โจมตีพลาด 40% — ฝั่งผู้ตีพลาดเอง แต่ "แม่นยำ" ก็เจาะได้เหมือนด่านหลบ
   const miss = !accurate && Journey.tryAttackMiss(engine, attacker, target);
-  if (miss) return { dmg: 0, dodge: true, kill: false, skills: [{ ...miss, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }] };
+  if (miss) return { dmg: 0, dodge: true, kill: false, skills: [...preSkills, { ...miss, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }] };
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
@@ -338,7 +342,7 @@ function strike(attacker, target, { counter = false } = {}) {
   if (discord) defFx("ขัดแย้ง (+1 ดาเมจ)");
   if (fragileAmt > 0) defFx(`เปราะบาง (+${fragileAmt} ดาเมจ)`);
 
-  return { dmg, dodge: false, kill: !target.alive, crit: !!journeyCritFx.crit, skills: fxSkills };
+  return { dmg, dodge: false, kill: !target.alive, crit: !!journeyCritFx.crit, skills: [...preSkills, ...fxSkills] };
 }
 
 // ดาเมจจากสกิลที่ "ตีด้วยพลังโจมตี" (เช่นคลื่นดาบของมุยมิ) — ไม่ทะลุอะไรเลย (GRID_PLAN §7.3):

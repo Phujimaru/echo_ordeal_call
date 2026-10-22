@@ -60,6 +60,37 @@ const castsOf = (list) => Math.max(1, Array.isArray(list) ? list.length : 0);
 const veilAtkOf = (p) => ((p.statuses.obsVeil || 0) > 0 ? VEIL_ATK * castsOf(p.obsVeilStack) : 0);
 const dreamAtkOf = (p) => ((p.statuses.obsDream || 0) > 0 ? DREAM_ATK * castsOf(p.obsDreamQueue) : 0);
 
+// ตัดผลสกิล: ถอดม่านครั้งของตัวเองออก (รายครั้งที่เหลือเทิร์นเท่ากับครั้งนั้น) — ไม่เหลือครั้งไหน = สถานะหาย
+function cutSelfVeil(engine, p) {
+  const veil = p.obsSelfVeil;
+  p.obsSelfVeil = null;
+  const left = veil ? veil.until - engine.roundNumber + 1 : 0;
+  const stack = Array.isArray(p.obsVeilStack) ? [...p.obsVeilStack] : [];
+  let i = stack.indexOf(left);
+  if (i < 0 && stack.length) i = stack.length - 1;
+  if (i >= 0) stack.splice(i, 1);
+  p.obsVeilStack = stack;
+  if (stack.length) {
+    p.statuses.obsVeil = Math.max(...stack);
+    p.statusAmt.obsVeil = VEIL_ATK * stack.length;
+  } else {
+    delete p.statuses.obsVeil;
+    if (p.statusAmt) delete p.statusAmt.obsVeil;
+  }
+}
+// ตัดผลสกิล: ถอดความฝันครั้งของตัวเองออกจากคิว (+4 หาย · สตั้นของครั้งนั้นไม่ลง) — ไม่เหลือครั้งไหน = สถานะหาย
+function cutSelfDream(p) {
+  const dream = p.obsSelfDream;
+  p.obsSelfDream = null;
+  const queue = Array.isArray(p.obsDreamQueue) ? [...p.obsDreamQueue] : [];
+  const i = dream ? queue.indexOf(dream.useRound) : -1;
+  if (i >= 0) queue.splice(i, 1);
+  p.obsDreamQueue = queue;
+  p.obsDreamUseRound = queue.length ? Math.min(...queue) : 0;
+  if (queue.length) p.statusAmt.obsDream = DREAM_ATK * queue.length;
+  else { delete p.statuses.obsDream; if (p.statusAmt) delete p.statusAmt.obsDream; }
+}
+
 module.exports = {
   id: ID,
   IMG, SOUND,
@@ -74,6 +105,9 @@ module.exports = {
     p.obsVeilStack = [];    // ม่านแห่งราตรี: เทิร์นที่เหลือของแต่ละครั้ง (+1 ต่อครั้ง)
     p.obsLarkStack = 0;     // นกจาบยามเช้า: จำนวนเครื่องหมายที่รอลงผลต้นเทิร์นหน้า (เสีย 2 ต่อครั้ง)
     p.obsDreamQueue = [];   // จุดจบของความฝัน: เทิร์นที่ได้ใช้บัฟของแต่ละครั้ง (+4 ต่อครั้ง · สตั้น 3 ต่อครั้ง)
+    // ผลสกิลของโอเบรอนที่ลงตัวเอง (ตัดผลสกิล server/sever.js — รากฐานจิตของเรียวกิ) · at = engine.severStamp()
+    p.obsSelfVeil = null;   // ม่านแห่งราตรีที่ตัวเองร่ายใส่ตัวเอง: { at, until } (until = เทิร์นสุดท้ายที่มีผล)
+    p.obsSelfDream = null;  // จุดจบของความฝันที่ตัวเองใช้กับตัวเอง: { at, useRound } (รายการใน obsDreamQueue)
   },
 
   // พลังโจมตีจากท่าของโอเบรอน (ungated — อ่านที่ computeAttackBase ใครติดก็ได้)
@@ -117,6 +151,7 @@ module.exports = {
         o.obsVeilStack = [...live, VEIL_TURNS];
         o.statusAmt.obsVeil = VEIL_ATK * o.obsVeilStack.length;
         engine.healHp(o, VEIL_HEAL);
+        if (o.id === p.id) p.obsSelfVeil = { at: engine.severStamp(), until: round + VEIL_TURNS - 1 };
       }
       engine.log(`🌙 ${p.name} ม่านแห่งราตรี — ${list.length} คน พลังโจมตี +${VEIL_ATK} (${VEIL_TURNS} เทิร์น) และฟื้นพลังชีวิต +${VEIL_HEAL}`);
       return "";
@@ -143,6 +178,7 @@ module.exports = {
       const later = engine.hasActed(t.id);
       // ทุกครั้งนับ: ความฝันจากอีกครั้งที่ยังค้างไม่ถูกเขียนทับ — แต่ละครั้งมีเทิร์นใช้บัฟ/สตั้นของตัวเอง
       t.obsDreamQueue = [...(t.obsDreamQueue || []), later ? round + 1 : round];
+      if (t.id === p.id) p.obsSelfDream = { at: engine.severStamp(), useRound: later ? round + 1 : round };
       t.obsDreamUseRound = Math.min(...t.obsDreamQueue);
       engine.applyBuff(t, "obsDream", DREAM_ATK, later ? 2 : 1);
       t.statusAmt.obsDream = DREAM_ATK * t.obsDreamQueue.length;
@@ -205,6 +241,26 @@ module.exports = {
       engine.addGold(p, 1);
       engine.log(`🎭 ${p.name} หน้าไหว้หลังหลอก — ไม่ถูกโจมตีเลยเทิร์นนี้ ได้แต้มสกิล +1 และเหรียญ +1`);
     }
+  },
+
+  // ---------- ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  เฉพาะผลจากท่าของโอเบรอนเองที่ลงตัวเอง (ม่าน/ความฝันจากโอเบรอนคนอื่นไม่ใช่ผลสกิลของเขา · นกจาบ = ผลเสียที่รอลง ไม่นับ)
+  //  ม่านแห่งราตรี: ถอดเฉพาะครั้งของตัวเองออกจากรายครั้ง · คูลดาวน์ (obsVeilUntil) เดินต่อตามปกติ
+  //  จุดจบของความฝัน: ถอดครั้งของตัวเองออกจากคิว = เสียพลังโจมตี +4 และสตั้นที่รอลงของครั้งนั้นไม่เกิด (ตัดจบก่อนทำงาน)
+  //   · คูลดาวน์ (obsUltReady) เดินต่อตามปกติ
+  severables(engine, p) {
+    if (!isOberon(p) || !p.statuses) return [];
+    const round = engine.roundNumber;
+    const out = [];
+    const veil = p.obsSelfVeil;
+    if (veil && round <= veil.until && (p.statuses.obsVeil || 0) > 0) {
+      out.push({ key: "obsVeil", label: "ม่านแห่งราตรี", at: veil.at || 0, cancel() { cutSelfVeil(engine, p); } });
+    }
+    const dream = p.obsSelfDream;
+    if (dream && (p.statuses.obsDream || 0) > 0 && (p.obsDreamQueue || []).includes(dream.useRound)) {
+      out.push({ key: "obsDream", label: "จุดจบของความฝัน", at: dream.at || 0, cancel() { cutSelfDream(p); } });
+    }
+    return out;
   },
 
   // ---------- ข้อมูลให้ client: ปุ่มล็อก/คูลดาวน์รายช่อง ----------

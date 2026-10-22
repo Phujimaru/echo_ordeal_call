@@ -132,6 +132,8 @@ function fresh() {
     brace: 0,
     kemurCalm: 0,     // เทิร์นติดที่ไม่โดนอะไรเลยในร่างเคมู
     kemurSnap: null,  // ค่าก่อนเข้าร่างเคมูในเทิร์นที่เข้า (ดาเมจก่อนเข้าร่างไม่นับ)
+    formAt: 0,        // ลำดับตอนเข้าร่าง UltraLive / กิงกะ ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
+    gingaAt: 0,
     hidden: false,    // ล่องหน (ร่างเคมู)
     logCut: 0,
     logRound: 0,
@@ -213,6 +215,7 @@ function setForm(engine, p, key) {
   leaveForm(engine, p, false);
   const f = FORMS[key];
   s.form = key;
+  s.formAt = engine.severStamp();
   p.statuses.hikaruForm = FORM_TURNS;
   if (key === "tiga") giveTigaAccuracy(engine, p);
   if (key === "kemur") {
@@ -247,19 +250,21 @@ function startGinga(engine, p) {
   const s = st(p);
   braceTick(engine, p); // แปลงร่างกลางวัน = +1 ทันที (ครบพอดี = แปลงเป็นสโตเรี่ยมเลย)
   s.ginga = true;
+  s.gingaAt = engine.severStamp();
   p.statuses.hikaruGinga = GINGA_TURNS;
   engine.triggerCutscene(p, s.strium ? CUT.strium : CUT.ginga);
   engine.log(`✨ ${p.name} แปลงร่างเป็น Ultraman Ginga${s.strium ? " Strium" : ""} ${GINGA_TURNS} เทิร์น`);
   // ขยายตัวหลังคลิป (ทับศัตรู = ผลักออก เสีย 1) · ขยายไม่ได้ = ลองใหม่ต้นเทิร์น (onRoundStartTick)
   engine.deferAfterCutscene(() => { if (p.alive && bigOn(p)) engine.resizeUnit(p, GINGA_SIZE); });
 }
-function endGinga(engine, p) {
+// กิงกะจบ (หมดเวลา · ถูกตัดผลสกิล — quiet = ผู้เรียก log เอง) → คูลดาวน์ GINGA_CD · ตัว 1×1
+function endGinga(engine, p, quiet) {
   const s = st(p);
   s.ginga = false;
   delete p.statuses.hikaruGinga;
   s.gingaReady = engine.roundNumber + 1 + GINGA_CD;
   if (p.alive) engine.resizeUnit(p, 1);
-  engine.log(`✨ ${p.name} — Ultraman Ginga หมดเวลา คืนร่างปกติ`);
+  if (!quiet) engine.log(`✨ ${p.name} — Ultraman Ginga หมดเวลา คืนร่างปกติ`);
 }
 
 // ---------- ท่าไม้ตาย: ลำแสง ----------
@@ -468,6 +473,28 @@ module.exports = {
       return "";
     }
     return "";
+  },
+
+  // ---------- ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ร่าง UltraLive → คืนร่างทันที (ทางเดียวกับคืนร่าง/หมดเวลา: ร่างนั้นคูลดาวน์ FORM_CD · ตัดเกราะเกิน · คืนแม่นยำ Tiga · เคมูเลิกล่องหน · ตัว 1×1)
+  //  Ultraman Ginga (รวมสโตเรี่ยม) → จบทันที ทางเดียวกับหมดเวลา (คูลดาวน์ GINGA_CD · ตัว 1×1) · Strium Brace ที่ปลดแล้วคงอยู่ (ติดตัว)
+  severables(engine, p) {
+    if (!isHikaru(p)) return [];
+    const s = st(p);
+    const out = [];
+    if (s.form) {
+      out.push({
+        key: "hikaruForm", label: FORMS[s.form].name, at: s.formAt || 0,
+        cancel() { revertToNormal(engine, p, false); },
+      });
+    }
+    if (s.ginga) {
+      out.push({
+        key: "hikaruGinga", label: s.strium ? "Ultraman Ginga Strium" : "Ultraman Ginga", at: s.gingaAt || 0,
+        cancel() { endGinga(engine, p, true); },
+      });
+    }
+    return out;
   },
 
   // ---------- ต้นเทิร์น (dealRound): กิงกะที่ขยายตัวไม่สำเร็จ ลองใหม่ ----------

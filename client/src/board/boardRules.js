@@ -19,7 +19,7 @@ const LINE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 const key = (x, y) => `${x},${y}`;
 // สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้) — ผนึกมิโกะของห่วงเวลาซีโร่ (GRID_PLAN §8.2)
-const UNBREAKABLE = new Set(["seal"]);
+const UNBREAKABLE = new Set(["seal", "chasm"]); // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
 
 // ---------- ช่องพิเศษ (GRID_PLAN §3.1 — แนว Fire Emblem) ----------
 //  ยืน/เดินผ่านได้ทุกชนิด (ต่างจากสิ่งกีดขวาง) · ไม่มีผลกับระยะตี/สกิล
@@ -848,7 +848,7 @@ function assignSpawns(map, players, { teamMode = false, rng = Math.random } = {}
 }
 // สุ่มจุดตั้งร้านค้ามายา: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน · ไม่มีจุดว่างเลย = คงจุดเดิม (หรือ null)
 function pickShopSpot(map, units, prev, rng = Math.random) {
-  const free = map.shopSpots.filter((s) => !unitAt(units, s.x, s.y) && !(prev && s.x === prev.x && s.y === prev.y));
+  const free = map.shopSpots.filter((s) => !unitAt(units, s.x, s.y) && !map.terrain[key(s.x, s.y)] && !(prev && s.x === prev.x && s.y === prev.y)); // ช่องพัง (chasm) ตั้งร้านไม่ได้
   if (!free.length) return prev || null;
   const s = free[Math.floor(rng() * free.length)];
   return { x: s.x, y: s.y };

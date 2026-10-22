@@ -75,6 +75,8 @@ function fresh() {
     ultUses: 0,
     ultUntil: 0,    // อัฐิราชามีผลถึงเทิร์นนี้ (รวม) — 0 = ไม่มีผล
     revives: 0,
+    kingAt: 0,      // ลำดับตอนสวมเกราะราชัน / เปิดอัฐิราชา ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
+    ultSevAt: 0,
   };
 }
 function st(p) { return p.kira || (p.kira = fresh()); }
@@ -262,6 +264,7 @@ module.exports = {
       s.king = !s.king;
       s.switchRound = engine.roundNumber;
       s.calm = 0;
+      if (s.king) s.kingAt = engine.severStamp();
       p.cutsceneShown ||= {};
       if (s.king && !p.cutsceneShown[CUT.transform]) {
         p.cutsceneShown[CUT.transform] = true;
@@ -278,10 +281,30 @@ module.exports = {
       s.ultUses++;
       s.ultUntil = engine.roundNumber + ULT_TURNS - 1;
       s.ultAt = engine.nextTransformCounter();
+      s.ultSevAt = engine.severStamp();
       engine.log(`🦴 ${p.name} อัฐิราชา — ${ULT_TURNS} เทิร์น ตายแล้วฟื้น · พลังโจมตี +${ULT_ATK} (เหลือ ${ULT_USES - s.ultUses} ครั้ง)`);
       return "";
     }
     return "";
+  },
+
+  // ---------- ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ร่างราชาแมลงอวกาศ → ถอดเกราะกลับร่างกิระทันที แบบเดียวกับกดถอดเกราะ (สวมเกราะไม่มีคูลดาวน์ · เทิร์นนี้ไม่นับการฟื้นของร่างกิระ)
+  //  อัฐิราชา → หมดทันทีแบบหมดเวลา (ตายแล้วไม่ฟื้น · พลังโจมตี +2 หาย · ครั้งที่ใช้ไปแล้วนับตามเดิม)
+  severables(engine, p) {
+    if (!isKira(p)) return [];
+    const s = st(p);
+    const out = [];
+    if (s.king) {
+      out.push({
+        key: "kiraKing", label: "ราชาแมลงอวกาศ", at: s.kingAt || 0,
+        cancel() { s.king = false; s.switchRound = engine.roundNumber; s.calm = 0; },
+      });
+    }
+    if (ultOn(engine, p)) {
+      out.push({ key: "kiraUlt", label: "อัฐิราชา", at: s.ultSevAt || 0, cancel() { s.ultUntil = 0; } });
+    }
+    return out;
   },
 
   // ---------- บดขยี้ส่วนเกิน (ร่างกิระ): ครบ 2 เทิร์น ฟื้นพลังชีวิต 2 + แต้มสกิล 1 (endTurn — หลังลูปลดเทิร์นสถานะ) ----------

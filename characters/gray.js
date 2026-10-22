@@ -83,6 +83,7 @@ function fresh() {
     keeperReady: 0,  // คนเฝ้าสุสาน: กดได้อีกเมื่อ roundNumber >= ค่านี้
     graveReady: 0,
     frenzy: 0,       // จงบ้าคลั่ง: เทิร์นที่เหลือ (ลดตอนจบเทิร์น)
+    frenzySever: 0,  // ลำดับตอนได้จงบ้าคลั่ง (engine.severStamp — ฮุค severables)
     ultReady: 0,
     charge: null,    // รองโกมิเนียตที่กำลังชาร์จ { dir, cast, fire, at }
     weapon: "scythe", // อาวุธของการตีปกติครั้งล่าสุด (attackStyle สุ่ม → attackSound อ่าน)
@@ -269,13 +270,14 @@ module.exports = {
     if (tier === "secondary") {
       s.graveReady = r + GRAVE_CD;
       s.frenzy = FRENZY_TURNS;
+      s.frenzySever = engine.severStamp();
       if (p.pos) engine.boardFx("grayFx", { kind: "grave", at: { ...p.pos }, id: p.id });
       engine.log(`⛓️ ${p.name} Grave — จงบ้าคลั่ง ${FRENZY_TURNS} เทิร์น (ระยะตี 2 · ตีติดถูกตรึง)`);
       return " — จงบ้าคลั่ง";
     }
     if (tier === "ultimate") {
       if (!opts.dir) return "";
-      s.charge = { dir: opts.dir, cast: r, fire: r + ULT_DELAY, at: engine.nextTransformCounter() };
+      s.charge = { dir: opts.dir, cast: r, fire: r + ULT_DELAY, at: engine.nextTransformCounter(), sever: engine.severStamp() };
       s.ultReady = s.charge.fire + ULT_CD; // ป้ายคูลดาวน์ระหว่างชาร์จ (ยิงแล้วนับใหม่จากเทิร์นที่ยิง)
       engine.queueCutscene(p, CUT.intro);
       engine.log(`✨ ${p.name} ปลดผนึกรองโกมิเนียต — ยิงเทิร์นที่ ${s.charge.fire}`);
@@ -320,6 +322,34 @@ module.exports = {
     if (s.charge) engine.log(`✨ รองโกมิเนียตของ ${p.name} สลายไป`);
     s.charge = null;
     s.frenzy = 0;
+  },
+
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  จงบ้าคลั่ง (หมดทันที · คูลดาวน์ Grave นับจากตอนกดอยู่แล้ว) · รองโกมิเนียตที่กำลังชาร์จ (สลาย ไม่ยิง · คูลดาวน์นับจากเทิร์นนี้แบบยิงแล้ว)
+  //  คนที่ถูกตรึงในแนวไปแล้วยังติดต่อ (แบบเดียวกับเกรย์ตายระหว่างชาร์จ — onDeath)
+  severables(engine, p) {
+    if (!isGray(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (s.charge) {
+      out.push({
+        key: "charge", label: "รองโกมิเนียต", at: s.charge.sever || 0,
+        cancel: () => {
+          s.charge = null;
+          s.ultReady = engine.roundNumber + ULT_CD;
+          engine.log(`✨ รองโกมิเนียตของ ${p.name} สลายไป`);
+        },
+      });
+    }
+    if (s.frenzy > 0) {
+      out.push({
+        key: "frenzy", label: "จงบ้าคลั่ง", at: s.frenzySever,
+        cancel: () => {
+          s.frenzy = 0;
+          engine.log(`⛓️ จงบ้าคลั่งของ ${p.name} หมดลง`);
+        },
+      });
+    }
+    return out;
   },
 
   // เพลงระหว่างชาร์จ (view.activeSkillMusic): contro → standBy วน

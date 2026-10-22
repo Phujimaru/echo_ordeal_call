@@ -50,7 +50,8 @@ const SMASH_SIZE = 3;
 
 const isEcho = (p) => !!p && p.characterId === ID;
 function fresh() {
-  return { stacks: 0, giantReady: 0, ultReady: 0, kills: 0, guardOwn: false };
+  // queenAt / owAt = ลำดับตอนได้ราชินี / พลังโจมตีของ Overwrite (engine.severStamp — ตัดผลสกิล server/sever.js)
+  return { stacks: 0, giantReady: 0, ultReady: 0, kills: 0, guardOwn: false, queenAt: 0, owAt: 0 };
 }
 function st(p) { return p.echo || (p.echo = fresh()); }
 const maxHpFor = (stacks) => BASE_HP + HP_PER_STACK * stacks;
@@ -167,6 +168,7 @@ module.exports = {
     const s = st(p);
     if (tier === "basic") {
       p.statuses.echoQueen = QUEEN_TURNS;
+      s.queenAt = engine.severStamp();
       s.giantReady = engine.roundNumber + GIANT_CD;
       engine.log(`👑 ${p.name} ใช้ มหึมา — ราชินีแห่ง Echo ${QUEEN_TURNS} เทิร์น`);
       gainStack(engine, p);
@@ -182,6 +184,7 @@ module.exports = {
       if (pairs > 0) {
         p.statuses.echoOverwrite = OW_ATK_TURNS;
         p.statusAmt.echoOverwrite = pairs;
+        s.owAt = engine.severStamp();
       }
       const healed = engine.healHp(p, OW_HEAL);
       refreshGuard(p);
@@ -197,6 +200,25 @@ module.exports = {
       return "";
     }
     return "";
+  },
+  // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ)
+  //  ราชินีแห่ง Echo → หมดทันทีแบบหมดเวลาเอง: ไม่ได้ขยายร่างต้นเทิร์นอีก · ขยายร่างที่ได้แล้วคงอยู่ · คูลดาวน์มหึมา (giantReady) เดินต่อ
+  //  พลังโจมตีจาก Overwrite → หายทันที
+  //  (ขยายร่างเป็นผลสะสมถาวร ไม่ใช่ผลที่ทำงานค้าง — ไม่ตัด)
+  severables(engine, p) {
+    if (!isEcho(p) || !p.statuses) return [];
+    const s = st(p);
+    const out = [];
+    if (queenActive(p)) {
+      out.push({ key: "echoQueen", label: "ราชินีแห่ง Echo", at: s.queenAt || 0, cancel() { delete p.statuses.echoQueen; } });
+    }
+    if ((p.statuses.echoOverwrite || 0) > 0) {
+      out.push({
+        key: "echoOverwrite", label: "Overwrite", at: s.owAt || 0,
+        cancel() { delete p.statuses.echoOverwrite; if (p.statusAmt) delete p.statusAmt.echoOverwrite; },
+      });
+    }
+    return out;
   },
   skillLocks(engine, p) {
     if (!isEcho(p)) return undefined;

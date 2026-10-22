@@ -78,6 +78,7 @@ function fresh() {
     weaponRound: 0, // เทิร์นที่สลับอาวุธล่าสุด (เทิร์นละ 1 ครั้ง)
     calm: 0,        // เทิร์นที่อยู่ร่างโซระต่อเนื่อง (ครบ REGEN_TURNS = ฟื้น)
     ultReady: 0,    // Mouse Separade: กดได้อีกเมื่อ roundNumber >= ค่านี้
+    mythAt: 0,      // ลำดับตอนเข้าร่าง My-Th ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
   };
 }
 function st(p) { return p.sora || (p.sora = fresh()); }
@@ -306,6 +307,7 @@ module.exports = {
       s.formRound = engine.roundNumber;
       s.myth = !s.myth;
       s.calm = 0;
+      if (s.myth) s.mythAt = engine.severStamp();
       if (s.myth && !p.cutsceneShown[CUT.transform]) {
         p.cutsceneShown[CUT.transform] = true;
         engine.queueCutscene(p, CUT.transform);
@@ -330,6 +332,18 @@ module.exports = {
       return "";
     }
     return "";
+  },
+
+  // ---------- ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ร่าง My-Th → กลับร่างโซระทันที แบบเดียวกับกดแปลงร่างคืน: แปลงร่างเทิร์นละ 1 ครั้ง (เทิร์นนี้แปลงกลับไม่ได้) · เพื่อคุณหนูนับใหม่
+  //  อาวุธ My-Th Edge ค้างตามเดิม (คืนร่างไม่รีเซ็ต)
+  severables(engine, p) {
+    if (!mythOn(p)) return [];
+    const s = st(p);
+    return [{
+      key: "soraMyth", label: "Kamen Rider My-Th", at: s.mythAt || 0,
+      cancel() { s.myth = false; s.calm = 0; s.formRound = engine.roundNumber; },
+    }];
   },
 
   // ---------- เพื่อคุณหนู: ร่างโซระครบ 2 เทิร์น ฟื้น 2 (endTurn — หลังลูปลดเทิร์นสถานะ) ----------

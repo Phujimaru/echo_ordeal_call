@@ -41,6 +41,7 @@ const match = {
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
   tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
   shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)
+  shopRazed: false,    // ร้านถูกพัง (ท่าไม้ตายเรียวกิ) — ไม่ตั้งใหม่จนถึงรอบย้ายตามปกติ (shop.shopDue)
   shopOpenedRound: 0,  // เทิร์นที่ร้านมาตั้งจุดนี้ — ครบ SHOP_INTERVAL_TURNS แล้วย้าย
   roundNumber: 0,
   centralDeck: [], // กองกลาง 43 ใบ (สับใหม่ทุกรอบใน dealRound())

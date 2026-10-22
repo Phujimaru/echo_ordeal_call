@@ -90,6 +90,7 @@ function fresh() {
     horseReadyRound: 0,  // ม้าตาย: เรียกได้อีกเมื่อ roundNumber >= ค่านี้
     ultReadyRound: 0,
     empowered: false,    // เสริมตีปกติครั้งถัดไป (หมดเมื่อจบตาเดินนั้น — onActorEnd)
+    empoweredSever: 0,   // ลำดับตอนได้เสริม (engine.severStamp — ฮุค severables)
     healedRound: 0,      // กลับคืนเจ้าของ: เทิร์นที่นับการฟื้น
     healed: 0,
     walkGolden: 0,       // ทองคำหลังการเดินครั้งล่าสุดของตานี้ (ประกายทองตอนได้เพิ่ม)
@@ -596,6 +597,7 @@ module.exports = {
     if (tier === "ultimate") {
       s.golden = Math.max(0, s.golden - ULT_GOLD);
       s.empowered = true;
+      s.empoweredSever = engine.severStamp();
       s.ultReadyRound = engine.roundNumber + ULT_CD;
       engine.log(`✨ ${p.name} การหมุนที่สมบูรณ์แบบ — ตีปกติครั้งถัดไปเสริมพลัง (สัดส่วนทองคำ −${ULT_GOLD})`);
       if (p.pos) fx(engine, p, "golden", { at: { ...p.pos } });
@@ -642,6 +644,20 @@ module.exports = {
       s.empowered = false;
       engine.log(`✨ การหมุนที่สมบูรณ์แบบของ ${p.name} หมดลง`);
     }
+  },
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  การหมุนที่สมบูรณ์แบบที่เสริมตีปกติค้างอยู่ (มีแค่ในตาเดินของไจโรเอง) → หมดแบบจบตาโดยไม่ตี (คูลดาวน์นับจากตอนกดอยู่แล้ว)
+  //  ม้าวาลคิรี/ลูกเหล็ก/สัดส่วนทองคำ = ติดตัว ไม่ใช่ผลสกิล
+  severables(engine, p) {
+    if (!isGyro(p) || !p.alive || !st(p).empowered) return [];
+    const s = st(p);
+    return [{
+      key: "empowered", label: "การหมุนที่สมบูรณ์แบบ", at: s.empoweredSever,
+      cancel: () => {
+        s.empowered = false;
+        engine.log(`✨ การหมุนที่สมบูรณ์แบบของ ${p.name} หมดลง`);
+      },
+    }];
   },
 
   // ---------- เปลี่ยนแผนที่ / ตาย ----------

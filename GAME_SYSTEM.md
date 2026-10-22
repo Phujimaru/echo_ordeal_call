@@ -978,3 +978,17 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · สลับตำแหน่งตัวใหญ่: `spotNear` ใน takuto.js (มุมบนซ้ายใกล้ที่ต้องการที่สุด · ไม่พังของ) — `Board.placeBig` ใช้ไม่ได้เพราะวัดระยะจากกล่อง (ทุกกล่องที่ครอบจุดได้ 0)
   · ท่าไม้ตายเปลี่ยนตามช่วง: `skillPub` (ชื่อ/รูป/คำอธิบาย + `flash`) · `skillArea` line 8×1 ↔ aoe `"mov"` · เพลงช่วงพังทลาย `skillMusic` → `takuto_theme`
 - เอฟเฟกต์ `engine.boardFx("takutoFx", { kind, id, color, at, size, … })` (client `takutoFx.js`) · ตีปกติ `attackStyle` = `takutoPunch|Emerald|Sapphire|Dual|Judgment` · เสียง `takuto_*`
+
+## 29. ตัดผลสกิล / ช่องพัง / ร้านค้าถูกพัง / สังหารทันทีรวมโอกาส / ผลก่อนการตีลง (เรียวกิ — `characters/ryougi.js` · `server/sever.js` · GRID_PLAN §7.17 · สัญญาข้อมูล `.claude/plans/ryougi-contract.md`)
+- **ตัดผลสกิล** (`server/sever.js` · `engine.sever` / `engine.severStamp`): ฮุคตัวละคร `severables(engine, p)` → `[{ key, label, at, cancel() }]` = ผลสกิลของตัวเองที่ทำงานอยู่ (ท่าไม้ตาย/สถานะจากสกิล · ร่างแปลง · ท่าที่รอ trigger · ท่าชาร์จ · โหมดเปิด/ปิด)
+  · `at` = จด `engine.severStamp()` ตอนเปิดผล (ใหม่กว่า = เลขมากกว่า) · `cancel()` = ปิดแบบเดียวกับหมดเวลาเอง (กลับร่างเดิม · สกิลเข้าคูลดาวน์ตามปกติ — ผู้ใช้ตัดสิน 2026-10-22) · ไม่มีอะไรทำงาน = `[]`
+  · `Sever.cut(engine, t)` ตัดอันล่าสุด 1 อย่าง → `{ key, label }` | null · ตัวละครใหม่ที่มีผลค้าง **ต้อง** เขียน `severables` ด้วย (ไม่งั้นรากฐานจิตตัดไม่ได้)
+- **ผลก่อนการตีลง**: ฮุคผู้ตี `beforeStrikeHit(engine, ผู้ตี, เป้า, { counter })` → ชื่อป้ายฉากตี — เรียกใน `attack.strike` หลังด่านหลบทุกแบบ ก่อนทอยสังหาร/ดาเมจ (ท่าที่รอ trigger ของเป้าถูกตัดก่อนดาเมจลง)
+- **สังหารทันทีรวมโอกาส**: ติดเนตรมณะ = ทอยครั้งเดียวด้วย `NETRAMANA_KILL_CHANCE` + ฮุค `killChance` (เรียวกิ 20 + 5 = 25%) · ไม่ติด = ทอยตามฮุค · ตาย = ฮุคผู้ตี `onInstaKill(engine, ผู้ตี, เป้า, at, "strike")` (at = ช่องก่อนตาย)
+- **ช่องพัง** (`match.board.chasm` ["x,y"…] · `engine.addChasm(keys)` → คีย์ที่เพิ่งพัง): `action.layeredMap` ทับทุกชั้นด้วย terrain `"chasm"` (ลบช่องพิเศษ/จุดฟื้นฟูช่องนั้น) ·
+  เป็นสิ่งกีดขวางทุกกติกา (เดิน/ยืน/ถูกผลักเข้า/วาร์ปลง/ตั้งร้าน `pickShopSpot`) แต่ไม่บังการตี · อยู่ใน `Board.UNBREAKABLE` (ตัวใหญ่เดินพังไม่ได้) · `placeOnBoard` ล้าง = เปลี่ยนภูมิภาคแล้วหาย
+- **ร้านค้าถูกพัง**: `engine.razeShop()` → `shopPos` null + `match.shopRazed` → `shopDue` ไม่ตั้งใหม่จนครบรอบย้ายร้านตามปกติ (`relocateShop` / `placeOnBoard` ล้างธง)
+- **เรียวกิ**: สถานะ `p.ryougi` { eyesReady, mendReady, ultReady, eyesAt, bloomAt, mindSeq } · สถานะ `ryougiMind` (รากฐานจิต — ใช้แล้วหมดใน `afterStrike` ด้วย `mindSeq === engine.cmdSeq`) · `ryougiBloom` (หลังท่าไม้ตาย: `damageBonus` +1 · ฉากตี `ryougiLeap` · `attackFxExtra` 0.5)
+  · ตีปกติ `range` [1, 2] + `attackLane` (ฟันแนว 2 ช่อง) · ท่าไม้ตาย: `skillBeat` 1.2 วิ (พุ่ง) → ดาเมจ/ขโมยแต้ม/สังหาร 5% → `breakObstacles` + `razeShop` + `addChasm` → ลงช่องท้าย → ผลักออกข้าง (`pushOut` — ว่างสองข้างสุ่ม · ไม่ว่าง = ช่องว่างใกล้สุด · ศพย้าย `p.corpse`) → `Ice.forcedSlides` (via) → `skillBeat` 1.1 วิ → บัฟ
+  · กองเลือด `match.board.ryougiBlood` → `boardPublic` `ryougi.blood` · ผู้ถูกสังหาร `p.ryougiSlain` (state `players[].ryougiSlain`) · เพลง `skillMusic` `ryougi_eyes` / `ryougi_bloom` (เปิดใหม่กว่าชนะ)
+- เอฟเฟกต์ `engine.boardFx("ryougiFx", { kind, id, color, at, size, … })` (client `ryougiFx.js`) · ตีปกติ `attackStyle` = `ryougiSlash|ryougiLeap` · เสียง `ryougi_*` / เสียงพากย์ `ryougi_v_*`

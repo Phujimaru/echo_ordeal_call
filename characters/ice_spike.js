@@ -64,6 +64,21 @@ module.exports = {
     p.iceSpikeUses = 0;     //  … จำนวนครั้งในเทิร์นนั้น (เทิร์นละ 2 · Ice Surge เทิร์นละ 6)
     p.iceUltReady = 0;      // Ice Surge: กดได้อีกเมื่อ roundNumber >= ค่านี้
     p.iceStruckRound = 0;   // เทิร์นที่ไถลชนศัตรูด้วยสกิลแล้ว (ทำอย่างอื่นต่อไม่ได้)
+    p.iceSurgeAt = 0;       // ลำดับตอนได้ Ice Surge ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
+  },
+
+  // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ): Ice Surge → หมดทันทีแบบหมดเวลาเอง
+  //  (ระยะ/ราคา/โควตาหนามกลับปกติ · คูลดาวน์ iceUltReady เดินต่อ · ฟื้นพลังที่ได้พร้อมกันเป็นบัฟกลาง — ไม่แตะ · หนามที่ยก Lv แล้วคงอยู่)
+  severables(engine, p) {
+    if (!isIceSpike(p) || !surging(p)) return [];
+    return [{
+      key: "iceSurge", label: "Ice Surge", at: p.iceSurgeAt || 0,
+      cancel() {
+        delete p.statuses.iceSurge;
+        if (p.statusAmt) delete p.statusAmt.iceSurge;
+        if (p.statusAt) delete p.statusAt.iceSurge;
+      },
+    }];
   },
 
   // ---------- สกิลทุกช่องมีโควตาของตัวเอง (ไม่ใช้โควตากลาง 1 สกิล/เทิร์น) ----------
@@ -232,6 +247,7 @@ function castSpike(engine, p, t, dir, ctx) {
 function castSurge(engine, p, ctx) {
   p.iceUltReady = engine.roundNumber + ULT_COOLDOWN;
   engine.applyBuff(p, "iceSurge", null, SURGE_TURNS);
+  p.iceSurgeAt = engine.severStamp();
   engine.applySpRegen(p, SURGE_REGEN);
   ctx.events.push({ kind: "surge", id: p.id, x: p.pos.x, y: p.pos.y });
   const raised = engine.ice.raiseAllSpikes();

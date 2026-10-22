@@ -105,6 +105,8 @@ module.exports = {
     p.muimiEmergencyUses = EMERGENCY_USES;
     p.muimiEmergencyUsedRound = 0;
     p.muimiUltLock = 0;
+    p.muimiTowerAt = 0; // ลำดับตอนได้ดาบสะบั้น / ดาบเก่าๆ (engine.severStamp — ตัดผลสกิล server/sever.js)
+    p.muimiRustyAt = 0;
     delete p.muimiWave;
   },
 
@@ -169,12 +171,14 @@ module.exports = {
     }
     if (tier === "secondary") {
       p.statuses.muimiRusty = RUSTY_TURNS;
+      p.muimiRustyAt = engine.severStamp();
       engine.log(`🗡️ ${p.name} ได้รับสถานะ “ดาบเก่าๆ” ${RUSTY_TURNS} เทิร์น`);
       return " — ได้รับสถานะ ดาบเก่าๆ";
     }
     if (tier === "ultimate") {
       const resistBefore = p.statuses.resist || 0;
       p.statuses.muimiTower = TOWER_TURNS;
+      p.muimiTowerAt = engine.severStamp();
       // เขียน resist ตรงๆ (ไม่ผ่าน engine.applyBuff) โดยตั้งใจ: applyBuff ประทับ statusAt ทำให้ต้านสถานะนี้กลายเป็น
       //  "บัฟล่าสุด" ที่ stripLatestBuff ดึงทิ้งก่อน — พฤติกรรมเดิมถือว่าเก่ากว่าบัฟอื่นเสมอ · หลบหมดคืนค่าเดิม (resistBefore)
       p.statuses.resist = Math.max(resistBefore, RESIST_TURNS);
@@ -200,6 +204,26 @@ module.exports = {
       return " — ได้รับสถานะ ดาบสะบั้น";
     }
     return "";
+  },
+
+  // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ): ดาบสะบั้น (ท่าไม้ตาย) · ดาบเก่าๆ (สกิลรอง)
+  //  ดาบสะบั้นถูกตัด = จบแบบหมดเวลาเอง → ล็อกท่าไม้ตาย ULT_COOLDOWN_TURNS (ต้านสถานะที่ได้พร้อมกันเป็นบัฟกลาง — ไม่แตะ)
+  severables(engine, p) {
+    if (!isMuimi(p) || !p.statuses) return [];
+    const out = [];
+    if (towerActive(p)) {
+      out.push({
+        key: "muimiTower", label: "ดาบสะบั้น", at: p.muimiTowerAt || 0,
+        cancel() { delete p.statuses.muimiTower; if (p.seen) delete p.seen.muimiTower; lockUlt(engine, p); },
+      });
+    }
+    if (rustyActive(p)) {
+      out.push({
+        key: "muimiRusty", label: "ดาบเก่าๆ", at: p.muimiRustyAt || 0,
+        cancel() { delete p.statuses.muimiRusty; if (p.seen) delete p.seen.muimiRusty; },
+      });
+    }
+    return out;
   },
 
   damageBonus(engine, attacker, target, ctx) {

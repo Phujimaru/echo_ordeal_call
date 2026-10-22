@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
+  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap, flowerWalk,
 });
@@ -46,8 +46,8 @@ const Summon = require("../summon");
 function boardMap() {
   const b = match.board;
   const base = Board.mapOf(b ? b.area : 1);
-  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b)) return base;
-  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}`;
+  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length)) return base;
+  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}|${b.chasmVer || 0}`;
   if (b.mapCache && b.mapCache.ver === ver && b.mapCache.base === base) return b.mapCache.map;
   const map = layeredMap(b, base);
   b.mapCache = { ver, base, map };
@@ -58,7 +58,31 @@ function layeredMap(b, base) {
   let terrain = { ...base.terrain }, special = base.special;
   if (b.broken && b.broken.length) for (const k of b.broken) delete terrain[k];
   if (Ice.hasOverlay(b)) ({ terrain, special } = Ice.overlayOf(b, terrain, special));
-  return { ...base, terrain, special };
+  // ช่องพัง (ท่าไม้ตายของเรียวกิ — GRID_PLAN §7.17): ทับทุกชั้น · ยืน/เดิน/วาร์ปลงไม่ได้ · อยู่จนเปลี่ยนภูมิภาค (placeOnBoard ล้าง match.board)
+  let heal = base.heal;
+  if (b.chasm && b.chasm.length) {
+    if (special === base.special) special = { ...special };
+    for (const k of b.chasm) { terrain[k] = "chasm"; delete special[k]; }
+    heal = new Set([...base.heal].filter((k) => !b.chasm.includes(k)));
+  }
+  return { ...base, terrain, special, heal };
+}
+// ทำให้ช่องพัง (เดิน/ยืนไม่ได้จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง (ช่องที่พังอยู่แล้ว/นอกกระดานข้าม)
+function addChasm(keys) {
+  if (!match.board || !keys || !keys.length) return [];
+  const map = Board.mapOf(match.board.area);
+  const have = new Set(match.board.chasm || []);
+  const out = [];
+  for (const k of keys) {
+    const [x, y] = k.split(",").map(Number);
+    if (have.has(k) || !Board.inBounds(map, x, y)) continue;
+    have.add(k);
+    out.push(k);
+  }
+  if (!out.length) return out;
+  match.board.chasm = [...have];
+  match.board.chasmVer = (match.board.chasmVer || 0) + 1;
+  return out;
 }
 // พังสิ่งกีดขวางชุดนี้ (ช่องที่ไม่มีของข้าม) → คืนรายการ { x, y, kind } ที่พังจริง
 function breakObstacles(keys) {
@@ -240,6 +264,7 @@ function placeOnBoard(area) {
   Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
   match.board = { area };
   match.shopPos = null;
+  match.shopRazed = false;
   const map = boardMap();
   const alive = combat.alivePlayers();
   // ระบบคู่: จุดเกิดแจกต่อฝ่าย (ตัวแรกที่ยังอยู่) · อีกตัวลงช่องว่างติดกัน

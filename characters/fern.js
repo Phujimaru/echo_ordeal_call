@@ -80,6 +80,7 @@ function fresh() {
     concealReady: null,  // null = ยังไม่ตั้ง (ตั้งต้นเทิร์นแรก = เทิร์นนั้น + 4)
     stunPending: false,
     last: null,          // ผลของการกดล่าสุด (silentFlash/skillSound อ่านหลัง applyInstantSkill) "enter" | "exit" | "cast" | "boost"
+    castSever: 0, boostSever: 0, // ลำดับตอนได้ผลสกิล (engine.severStamp — ฮุค severables · ซ่อนเร้นมานาเก็บใน conceal.sever)
   };
 }
 function st(p) { return p.fern || (p.fern = fresh()); }
@@ -120,7 +121,7 @@ function shieldReady(engine, p) { return engine.roundNumber >= st(p).shieldReady
 // ---------- ซ่อนเร้นมานา ----------
 function enterConceal(engine, p) {
   const s = st(p), r = engine.roundNumber;
-  s.conceal = { since: r, healAt: r + CONCEAL_HEAL_EVERY };
+  s.conceal = { since: r, healAt: r + CONCEAL_HEAL_EVERY, sever: engine.severStamp() };
   const got = gainEnergy(engine, p, CONCEAL_GAIN);
   const own = audience(engine, p);
   fx(engine, p, "conceal", own);
@@ -283,6 +284,7 @@ module.exports = {
       if (s.conceal) exitConceal(engine, p, "skill");
       s.castReady = r + CAST_CD;
       s.extra++;
+      s.castSever = engine.severStamp();
       s.last = "cast";
       fx(engine, p, "cast");
       engine.log(`✨ ${p.name} ร่ายต่อเนื่อง — ตีปกติเพิ่ม +1 ในตาเดินนี้`);
@@ -291,6 +293,7 @@ module.exports = {
     if (tier === "secondary") {
       if (s.conceal) exitConceal(engine, p, "skill");
       s.boost = true;
+      s.boostSever = engine.severStamp();
       s.boostReady = r + BOOST_CD;
       s.last = "boost";
       fx(engine, p, "boost");
@@ -339,6 +342,30 @@ module.exports = {
     s.conceal = null;
     s.extra = 0;
     s.stunPending = false;
+  },
+
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ซ่อนเร้นมานา (ออกแบบกดยกเลิก — ไม่สตั้น · คูลดาวน์ 4 นับจากเทิร์นนี้) · เพิ่มระยะที่ค้างอยู่ · ตีที่ตุนไว้จากร่ายต่อเนื่อง (มีแค่ในตาเดินของเฟิร์น)
+  //  คูลดาวน์ร่ายต่อเนื่อง/เพิ่มระยะนับจากตอนกดอยู่แล้ว · การกัน/ครั้งที่ 6 = ติดตัว ไม่ใช่ผลสกิล
+  severables(engine, p) {
+    if (!isFern(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (s.conceal) {
+      out.push({ key: "conceal", label: "ซ่อนเร้นมานา", at: s.conceal.sever || 0, cancel: () => exitConceal(engine, p, "cancel") });
+    }
+    if (s.boost) {
+      out.push({
+        key: "boost", label: "เพิ่มระยะ", at: s.boostSever,
+        cancel: () => { s.boost = false; engine.log(`✨ เพิ่มระยะของ ${p.name} หมดลง`); },
+      });
+    }
+    if (s.extra > 0) {
+      out.push({
+        key: "cast", label: "ร่ายต่อเนื่อง", at: s.castSever,
+        cancel: () => { s.extra = 0; engine.log(`✨ ร่ายต่อเนื่องของ ${p.name} หมดลง`); },
+      });
+    }
+    return out;
   },
 
   // ---------- ข้อมูลให้ client ----------

@@ -112,6 +112,7 @@ function fresh() {
     secReady: 0,
     ultReady: 0,
     tallySeq: -1, tally: 0, // ดาเมจจริงของการตีปกติครั้งนี้ (engine.cmdSeq) — ดาบเอเมอรูด
+    sever: { emerald: 0, sapphire: 0, judgment: 0 }, // ลำดับตอนได้ดาบ/รวมร่าง (engine.severStamp — ฮุค severables)
   };
 }
 function st(p) { return p.takuto || (p.takuto = fresh()); }
@@ -176,6 +177,7 @@ function tryMerge(engine, p) {
   const s = st(p);
   if (s.judgment || !tauburn(p) || !bothSwords(p) || !collapsing()) return false;
   s.judgment = true;
+  s.sever.judgment = engine.severStamp();
   const show = () => { if (p.alive && p.pos) { fx(engine, p, "merge", {}); engine.sfx("takuto_merge"); } };
   engine.queueCutscene(p, CUT.duo);
   if (engine.hasQueuedCutscene()) engine.deferAfterCutscene(show);
@@ -487,6 +489,7 @@ module.exports = {
     if (tier === "basic") {
       const w = SWORDS[opts.form];
       p.statuses[w.status] = SWORD_TURNS;
+      s.sever[opts.form] = engine.severStamp();
       fx(engine, p, "summon", { sword: opts.form });
       engine.sfx(w.sound);
       engine.log(`⚔️ ${p.name} ดาบอันเจิดจรัด — ${w.name} (${SWORD_TURNS} เทิร์น)`);
@@ -541,6 +544,31 @@ module.exports = {
       const s = st(p);
       if (s.judgment && !bothSwords(p)) s.judgment = false;
     }
+  },
+
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ดาบอันเจิดจรัดแต่ละเล่ม (หายแบบหมดเวลา · ไม่มีคูลดาวน์) · ดาบแห่งการพิพากษา (แยกกลับเป็น 2 เล่มแบบจบช่วงพังทลาย — ดาบยังอยู่)
+  //  ร่างทาวเบิร์น/พุ่ง/พลังโจมตีช่วงพังทลาย = ติดตัว apprivoise ไม่ใช่ผลสกิล
+  severables(engine, p) {
+    if (!isTakuto(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (s.judgment && bothSwords(p)) {
+      out.push({
+        key: "judgment", label: "ดาบแห่งการพิพากษา", at: s.sever.judgment,
+        cancel: () => {
+          s.judgment = false;
+          engine.log(`⚔️ ${p.name} — ดาบแห่งการพิพากษาแยกกลับเป็น 2 เล่ม`);
+        },
+      });
+    }
+    for (const k of SWORD_KEYS) {
+      if (!has(p, k)) continue;
+      out.push({
+        key: k, label: SWORDS[k].name, at: s.sever[k],
+        cancel: () => dropSwords(engine, p, [k], `⚔️ ${SWORDS[k].name}ของ ${p.name} สลายไป`),
+      });
+    }
+    return out;
   },
 
   // ---------- ข้อมูลให้ client (สัญญา §2) ----------

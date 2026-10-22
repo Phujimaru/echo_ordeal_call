@@ -125,7 +125,9 @@ function fresh() {
     ultReady: { parallel: 0, selves: 0, know: 0, justice: 0 },
     parallel: null,     // กระดานคู่ขนานที่เปิดอยู่ (dim id) — เปิดได้ทีละมิติ
     parSeq: 0,
-    gainKey: null,      // สกิลติดตัว: คำสั่งล่าสุดที่ได้แต้มไปแล้ว (engine.cmdSeq)
+    parallelSever: 0,   // ลำดับตอนเปิดกระดานคู่ขนาน / เรียกร่างแยก (engine.severStamp — ฮุค severables)
+    selvesSever: 0,     //  · หลบสายตาเก็บใน veil.sever · ตัวเหมือนของรู้จักตัวเองฯ เก็บใน summon.sever
+    gainKey: null,     // สกิลติดตัว: คำสั่งล่าสุดที่ได้แต้มไปแล้ว (engine.cmdSeq)
     win: null,          // สกิลติดตัว: ช่วง "การโจมตี 1 ครั้ง" ที่โมดูลเปิดเอง (ยิงปืน / ตัวเหมือนชน) { hit }
   };
 }
@@ -190,7 +192,7 @@ function enterVeil(engine, p) {
   const s = st(p);
   const dim = `veil:${p.id}`;
   engine.dim.enter(p, dim, { ghost: true });
-  s.veil = { dim, until: engine.roundNumber + VEIL.turns - 1, flag: tile(p.pos) };
+  s.veil = { dim, until: engine.roundNumber + VEIL.turns - 1, flag: tile(p.pos), sever: engine.severStamp() };
   fx(engine, p, "veilIn", { at: tile(p.pos), flag: tile(p.pos) });
   engine.sfx(SFX.flag);
   engine.sfx(SFX.veilIn);
@@ -360,6 +362,7 @@ function castParallel(engine, p, targets, dir) {
   const tiles = engine.areaTiles(p, area, dir).map(tile);
   for (const u of [p, ...foes]) engine.dim.enter(u, dim);
   s.parallel = dim;
+  s.parallelSever = engine.severStamp();
   fx(engine, p, "parallelIn", { at: tile(p.pos), dir, tiles, ids: [p.id, ...foes.map((t) => t.id)], dim });
   engine.sfx(SFX.flag);
   engine.sfx(SFX.parallel);
@@ -375,6 +378,7 @@ function castParallel(engine, p, targets, dir) {
 }
 function castSelves(engine, p) {
   const spawns = [];
+  st(p).selvesSever = engine.severStamp();
   for (let i = 0; i < SELVES.count; i++) {
     const c = engine.summon.spawn(p, {
       kind: "clone", controlled: true, hp: SELVES.hp, armor: SELVES.armor, mov: engine.baseMovOf(p), range: SELVES.range,
@@ -394,6 +398,7 @@ function castSelves(engine, p) {
 }
 function castKnow(engine, p, t) {
   const d = spawnDouble(engine, p, t, "know");
+  if (d) d.summon.sever = engine.severStamp();
   engine.sfx(SFX.flag);
   engine.sfx(SFX.double);
   engine.log(d ? `🇺🇸 ${p.name} รู้จักตัวเองอย่างแท้จริง — ตัวที่เหมือน ${t.name} ปรากฏขึ้น` : `🇺🇸 ${p.name} รู้จักตัวเองอย่างแท้จริง — ไม่มีที่ให้ตัวเหมือนปรากฏ`);
@@ -649,6 +654,62 @@ module.exports = {
       p.valentine.parallel = null;
     }
   },
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) — ตัวจริงเท่านั้น (ร่างแยก/ตัวเหมือนไม่มีผลสกิล) ----------
+  //  หลบสายตา (โผล่ · คูลดาวน์ 3 นับจากเทิร์นนี้) · กระดานคู่ขนาน (ตัวเหมือนของมิติแตก · ทุกคนกลับกระดานหลัก ไม่มีใครโดนชน)
+  //  ตัวเหมือนของรู้จักตัวเองฯ (แตก — ตัวละ 1 รายการ) · ร่างแยกของแด่ตัวฉันทุกคน (หายหมดแบบหมดเวลา)
+  //  คูลดาวน์ท่าไม้ตายนับจากตอนกดอยู่แล้ว · ความยุติธรรมไม่มีวันตาย = ผลทันที ไม่มีอะไรค้าง
+  severables(engine, p) {
+    if (!isVal(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (s.veil) {
+      out.push({
+        key: "veil", label: "หลบสายตา", at: s.veil.sever || 0,
+        cancel: () => { exitVeil(engine, p); },
+      });
+    }
+    if (s.parallel) {
+      const dim = s.parallel;
+      out.push({
+        key: "parallel", label: ULTS.parallel.name, at: s.parallelSever,
+        cancel: () => {
+          for (const d of engine.summon.ofOwner(p.id, "double")) {
+            if (d.summon.mode !== "parallel" || d.dim !== dim) continue;
+            breakDouble(engine, p, d, d.pos);
+            engine.summon.remove(d);
+          }
+          const ids = [];
+          for (const o of engine.dim.membersOf(dim)) { engine.dim.leave(o); ids.push(o.id); }
+          s.parallel = null;
+          if (ids.length) fx(engine, p, "dimOut", { ids, dim });
+          engine.log(`🇺🇸 ${ULTS.parallel.name}ของ ${p.name} ถูกตัด — กลับสู่กระดานหลัก`);
+        },
+      });
+    }
+    for (const d of engine.summon.ofOwner(p.id, "double")) {
+      if (d.summon.mode !== "know") continue;
+      out.push({
+        key: `know:${d.id}`, label: ULTS.know.name, at: d.summon.sever || 0,
+        cancel: () => {
+          breakDouble(engine, p, d, d.pos);
+          engine.summon.remove(d);
+          engine.log(`🧊 ตัวที่เหมือน ${d.name} สลายไป`);
+        },
+      });
+    }
+    const clones = engine.summon.ofOwner(p.id, "clone");
+    if (clones.length) {
+      out.push({
+        key: "selves", label: ULTS.selves.name, at: s.selvesSever,
+        cancel: () => {
+          fadeClones(engine, p, engine.summon.ofOwner(p.id, "clone"));
+          speak(engine, p, VOICE_EVENT.clonesOut);
+          engine.log(`🇺🇸 ร่างแยกของ ${p.name} หายไป`);
+        },
+      });
+    }
+    return out;
+  },
+
   // ธงชาติที่ปักไว้ (ทุกคนเห็น · ไม่ขวาง) → state.board.valentine
   boardPublic(engine) {
     const vals = Object.values(engine.players).filter(isVal);

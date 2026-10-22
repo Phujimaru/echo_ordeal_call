@@ -38,6 +38,7 @@ const view = require("./view");
 const Ice = require("./ice");
 const Board = require("./board");
 const Duo = require("./duo");
+const Sever = require("./sever");
 const Soot = require("./soot");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
@@ -117,6 +118,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get action() { return match.action; },
   placeOnBoard: action.placeOnBoard,
   boardMap: action.boardMap,
+  // ตัดผลสกิลที่ทำงานอยู่ (server/sever.js — รากฐานจิตของเรียวกิ): ฮุค severables + จดลำดับตอนเปิดผลด้วย severStamp()
+  sever: Sever,
+  severStamp: Sever.stamp,
   ice: Ice, // ธารน้ำแข็ง / หนามน้ำแข็ง / ไถล / ผลัก / เชื่องช้า (server/ice.js — Ice Spike + น้ำแข็งภูมิภาค VI)
   tileArea: action.tileArea, // ช่องที่สกิลชนิด tile คลุม (ช่องเดียว / กรอบ square×square)
   boardUnits: action.boardUnits,
@@ -142,6 +146,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   summon: { spawn: Summon.spawn, remove: Summon.remove, ofOwner: Summon.ofOwner, controlledOf: Summon.controlledOf, CONTROL_SECONDS: Summon.CONTROL_SECONDS },
   get cmdSeq() { return match.cmdSeq || 0; }, // เลขคำสั่งของผู้เล่น (TimeStop.guard) — แยก "การโจมตี 1 ครั้ง"
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
+  addChasm: action.addChasm, // ทำให้ช่องพัง ["x,y"…] (เรียวกิ — terrain "chasm" จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
   chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)
   areaTiles: action.areaTiles,           // ช่องที่สกิลพื้นที่คลุม (aoe / line — ตัวใหญ่ออกจากกลางด้านหน้า)
@@ -241,6 +246,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   setShopItems(v) { match.shopItems = v; },
   get shopPos() { return match.shopPos; },
   setShopPos(v) { match.shopPos = v; },
+  // ร้านถูกพัง (ท่าไม้ตายเรียวกิ — GRID_PLAN §7.17): หายไปจนถึงรอบย้ายตามปกติ (shop.shopDue)
+  razeShop() { match.shopPos = null; match.shopRazed = true; },
+  get shopRazed() { return !!match.shopRazed; },
   maybeMoveShop: shop.maybeMoveShop,
   shopTurnsLeft: shop.shopTurnsLeft,
   bagFull: shop.bagFull,

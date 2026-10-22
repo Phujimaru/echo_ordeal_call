@@ -128,6 +128,7 @@ function fresh() {
     armedRound: 0,        // กดเดอะเวิลด์เทิร์นนี้ (ตั้งรับจนจบเทิร์น)
     pendingNormal: false, // ไม่โดนตี → ตาหยุดเวลาต้นเทิร์นหน้า
     worldReady: 0,        // คูลดาวน์เดอะเวิลด์ (กดได้อีกเมื่อ roundNumber >= ค่านี้)
+    worldSever: 0,        // ลำดับตอนกดเดอะเวิลด์ (engine.severStamp — ฮุค severables)
     stopping: false, stopKind: null, stopUses: 0, savedQuota: false,
     nets: [], netSeq: 0,  // ตาข่ายบนกระดาน [{ x, y, seq }] (ช่องกลาง)
     ...Horse.fresh(HORSE),
@@ -611,6 +612,7 @@ module.exports = {
       s.cunning -= WORLD.cunning;
       s.armedRound = engine.roundNumber;
       s.worldReady = engine.roundNumber + WORLD.cd;
+      s.worldSever = engine.severStamp();
       const side = sideIds(engine, p);
       engine.boardFxTo(side, "diegoFx", { kind: "world", id: p.id, color: engine.colorOf(p), at: { ...p.pos } });
       engine.sfx(SFX.world, side);
@@ -682,6 +684,22 @@ module.exports = {
     startStop(engine, p, kind, kind === "counter" ? by : null);
   },
   extraTurnOutro(engine, p) { return isDiego(p) ? endStop(engine, p) : 0; },
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  เดอะเวิลด์ที่ตั้งรับอยู่ (counter) / ตาหยุดเวลาที่รอต้นเทิร์นหน้า (normal) → ตัดจบก่อนทำงาน
+  //  · รากฐานจิตลงก่อนดาเมจ (beforeStrikeHit): counterArmed เป็น false แล้ว → TimeStop.check ไม่ตัดการตีครั้งนั้น
+  //  · คูลดาวน์นับจากตอนกดอยู่แล้ว · เล่ห์เหลี่ยมไม่คืน · ไม่ลง log (ศัตรูไม่เคยรู้ว่ากด — เรียวกิลง log การตัดเอง)
+  //  ตาหยุดเวลาที่กำลังเล่นอยู่ = คนอื่นขยับไม่ได้ (ไม่มีทางถูกตี) · แอ่งน้ำมัน/ตาข่าย/กองไฟ = ของบนกระดาน ไม่ใช่ผลบนตัว
+  severables(engine, p) {
+    if (!isDiego(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (module.exports.counterArmed(engine, p)) {
+      out.push({ key: "world", label: "เดอะเวิลด์", at: s.worldSever, cancel: () => { s.armedRound = 0; } });
+    }
+    if (s.pendingNormal) {
+      out.push({ key: "worldNext", label: "เดอะเวิลด์", at: s.worldSever, cancel: () => { s.pendingNormal = false; } });
+    }
+    return out;
+  },
 
   // ---------- ชั้นพื้น / ตาข่าย (ฮุค broadcast — ทำงานกับทุกคน) ----------
   // เริ่มตาเดินบนแอ่งน้ำมันของคนอื่น = เดิน −1

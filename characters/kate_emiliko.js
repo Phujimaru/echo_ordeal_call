@@ -87,6 +87,8 @@ function fresh() {
     lastWeapon: "mop", // อาวุธก่อนถือดาบ (เรียกดาบคืน = กลับไปถืออันนี้)
     sword: null,       // ดาบเขม่าอยู่กับใคร: null (ยังไม่ชัก) | "kate" | "emi"
     vacuumLeft: VACUUM_USES, // เครื่องดูดฝุ่นเหลือกี่ครั้ง (ต่อเกม — รีเซ็ตแค่ตอนเริ่มแมตช์)
+    swordAt: 0,        // ลำดับตอนเคทถือดาบเขม่า (engine.severStamp — ตัดผลสกิล server/sever.js)
+    emiSwordAt: 0,     // ลำดับตอนเอมิลิโกะเลือกถือดาบเขม่า
   };
 }
 function st(p) {
@@ -98,6 +100,16 @@ const weaponOf = (p) => (isEmi(p) ? st(p).weapon : null);
 // ---------- ม่านแดง (ระบำเขม่า) — ยืนอยู่ในม่านของฝ่ายตัวเองไหม (server/soot.js — engine.soot.inStormOf = Soot.ownStorm) ----------
 function inStorm(engine, p) {
   return !!engine.soot.inStormOf(p);
+}
+// ม่านแดงที่ตัวนี้ร่ายเองและยังอยู่ (เรียงตามลำดับที่ร่าย)
+function ownStorms(engine, p) {
+  return engine.soot.storms().filter((s) => s.owner === p.id);
+}
+// ม่านหายทันที — แบบเดียวกับหมดเวลา (Soot.onEndTurn กรองออกจาก match.board.storms)
+function dropStorm(engine, storm) {
+  const list = engine.soot.storms();
+  const i = list.indexOf(storm);
+  if (i >= 0) list.splice(i, 1);
 }
 
 // ---------- กระจกเงา / ตื่นขึ้นอีกครั้ง ----------
@@ -214,6 +226,7 @@ const kate = {
     if (tier === "secondary" && isEmi(p)) {
       const s = st(p);
       if (opts.form !== "sword") s.lastWeapon = opts.form;
+      else s.emiSwordAt = engine.severStamp();
       s.weapon = opts.form;
       engine.log(`🧹 ${p.name} เปลี่ยนเป็น${WEAPONS[s.weapon].name}`);
       engine.boardFx("shadowFx", { kind: "weapon", id: p.id, weapon: s.weapon });
@@ -222,8 +235,38 @@ const kate = {
     }
     if (tier === "secondary" && isKate(p)) return sootSkill(engine, p, opts.form, targets, opts);
     // ท่าไม้ตาย: เคท ระบำเขม่า · เอมิลิโกะ ร่าเริงสุดๆ
-    if (tier === "ultimate") return isKate(p) ? KC.storm(engine, p, opts) : KC.cheer(engine, p, targets, opts, st(p));
+    if (tier === "ultimate" && isKate(p)) {
+      const before = ownStorms(engine, p).length;
+      const out = KC.storm(engine, p, opts);
+      const mine = ownStorms(engine, p);
+      if (mine.length > before) mine[mine.length - 1].severAt = engine.severStamp(); // ตัดผลสกิล (server/sever.js)
+      return out;
+    }
+    if (tier === "ultimate") return KC.cheer(engine, p, targets, opts, st(p));
     return "";
+  },
+  // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) — ถามทีละตัว (เคท / เอมิลิโกะ แยกกัน)
+  //  เคท: ม่านแดงของระบำเขม่าที่ตัวเองร่าย (ม่านหายทันทีแบบหมดเวลา) · ดาบเขม่าที่ถืออยู่ (เก็บดาบ — ชัก/ส่งใหม่ได้ตามปกติ)
+  //  เอมิลิโกะ: ดาบเขม่าที่ถืออยู่ (ดาบหาย กลับไปถืออาวุธก่อนหน้า) · เครื่องมือทำความสะอาดอื่นเป็นการเลือกอาวุธ ไม่ใช่ผลที่ทำงานค้าง
+  severables(engine, p) {
+    if (!isPair(p) || !p.alive) return [];
+    const s = st(p);
+    const out = [];
+    if (isKate(p)) {
+      for (const storm of ownStorms(engine, p)) {
+        out.push({ key: `kateStorm${storm.seq || ""}`, label: "ระบำเขม่า", at: storm.severAt || 0, cancel() { dropStorm(engine, storm); } });
+      }
+      if (s.sword === "kate") {
+        out.push({ key: "kateSword", label: "ดาบเขม่า", at: s.swordAt || 0, cancel() { s.sword = null; } });
+      }
+    }
+    if (isEmi(p) && s.weapon === "sword") {
+      out.push({
+        key: "emiSword", label: "ดาบเขม่า", at: s.emiSwordAt || 0,
+        cancel() { s.weapon = s.lastWeapon || "mop"; s.sword = null; },
+      });
+    }
+    return out;
   },
   // ปุ่มกระจกเงาเปลี่ยนเป็นตื่นขึ้นอีกครั้งเมื่ออีกตัวล้ม · ปุ่มรองแบบหลายตัวเลือก (choices)
   skillPub(p, tier) {
@@ -291,6 +334,7 @@ function sootSkill(engine, p, form, targets, opts) {
   const m = Duo.partnerOf(p);
   if (form === "hold") {
     s.sword = "kate";
+    s.swordAt = engine.severStamp();
     engine.log(`🗡️ ${p.name} ชักดาบเขม่า — พลังโจมตี +1`);
     engine.boardFx("shadowFx", { kind: "sword", id: p.id, holder: p.id });
     engine.sfx("ke_sword");
@@ -305,6 +349,7 @@ function sootSkill(engine, p, form, targets, opts) {
   }
   if (form === "recall") {
     s.sword = "kate";
+    s.swordAt = engine.severStamp();
     if (s.weapon === "sword") s.weapon = s.lastWeapon || "mop";
     engine.log(`🗡️ ${p.name} เรียกดาบเขม่าคืน`);
     engine.boardFx("shadowFx", { kind: "sword", id: p.id, holder: p.id, from: m ? m.id : null });

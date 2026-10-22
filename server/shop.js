@@ -147,10 +147,12 @@ function journeyGiftItem() {
 // ---------- ร้านค้าบนแผนที่ (GRID_PLAN §8.1) ----------
 // ร้านตั้งอยู่ SHOP_INTERVAL_TURNS เทิร์น แล้วย้ายไปจุดร้านค้าอื่นแบบสุ่ม (ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) พร้อมสุ่มของใหม่
 //  ยังไม่มีที่ตั้ง = เริ่มเกม / เพิ่งเปลี่ยนภูมิภาค (placeOnBoard ล้าง shopPos) → ตั้งทันทีตอนต้นเทิร์น
+//  ร้านถูกพัง (ท่าไม้ตายเรียวกิ — match.shopRazed) = หายไปจนถึงรอบย้ายตามปกติ
 function shopDue() {
-  return !match.shopPos || Zero.worldRound() - match.shopOpenedRound >= SHOP_INTERVAL_TURNS;
+  return (!match.shopPos && !match.shopRazed) || Zero.worldRound() - match.shopOpenedRound >= SHOP_INTERVAL_TURNS;
 }
 function relocateShop() {
+  match.shopRazed = false;
   const prev = match.shopPos;
   match.shopPos = Board.pickShopSpot(action.boardMap(), action.boardUnits("*"), prev); // ร้านอยู่ทุกชั้นมิติ = เลี่ยงคนทุกชั้น
   match.shopOpenedRound = Zero.worldRound(); // เวลาโลก (ห่วงเวลาซีโร่ไม่นับ)

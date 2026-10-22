@@ -20,6 +20,7 @@ const fern = require("./fern"); // เฟิร์น — ระดับกล�
 const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
 const celine = require("./celine"); // องค์หญิงดอกไม้ เซลิน — พิเศษ (คฑา 4 แบบ / อาวุธ 6 แบบ / พุ่มดอกไม้ server/flora.js / ราชาดอกไม้)
 const takuto = require("./takuto"); // ซึนาชิ ทาคุโตะ — พิเศษ · unique (ร่างคน/ทาวเบิร์น 3×3 · ดาบ 2 เล่ม · ห่วงเวลาซีโร่ + ช่วงมิติพังทลาย — server/zeroTime.js)
+const ryougi = require("./ryougi"); // ผู้นำแห่งตระกูลเรียวกิ — มหันตภัย · unique (ฟันแนว 2 ช่อง / เนตรมณะ / ตัดผลสกิล server/sever.js / ช่องพัง terrain "chasm")
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -43,6 +44,7 @@ const CHARACTER_MODULES = [
   funny_valentine,
   celine,
   takuto,
+  ryougi,
 ];
 
 const CHAR_HOOKS = {};

@@ -837,6 +837,49 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- ผู้นำแห่งตระกูลเรียวกิ (Kara no Kyoukai — ร่าง Mirai Fukuin) — มหันตภัย · unique — ดู characters/ryougi.js (GRID_PLAN §7.17) ----------
+    //  ค่าฐาน 7/3/1 · ตีปกติฟันแนวตรง 2 ช่อง · ช่องพัง (terrain "chasm") · ตัดผลสกิล (server/sever.js)
+    id: "ryougi",
+    name: "ผู้นำแห่งตระกูลเรียวกิ",
+    avatar: 0,
+    difficulty: "calamity",
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม (ผู้ใช้สั่ง 2026-10-22)
+    img: "/characters/ryougi/ryougi.webp",
+    mov: 4,
+    range: [1, 2],
+    passive: {
+      name: "mystical eye of death perception",
+      desc: "ตีปกติฟันแนวตรง 2 ช่อง โดนศัตรูทุกคนในแนว · ตีปกติและสกิลโจมตีมีโอกาสสังหารทันที 5% · หลังปล่อยท่าไม้ตาย 3 เทิร์น (นับเทิร์นนี้): พลังโจมตี +1 และต้านสถานะผิดปกติ",
+    },
+    basic: {
+      name: "หยินหยาง",
+      desc: "เลือก 1 ใน 2 (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · เทิร์นเดียวกดได้ทั้ง 2 อย่าง): เนตรมณะ — ตีปกติสังหารทันทีเพิ่ม 20% 1 เทิร์น (คูลดาวน์ 10 เทิร์น) · เยียวยา — ต้นเทิร์นฟื้นพลังชีวิต 1 รวม 3 เทิร์น (คูลดาวน์ 5 เทิร์น)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/ryougi/ryougi_skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/ryougi.js (ปุ่ม 2 ตัวเลือก — skillPub choices)
+    },
+    secondary: {
+      name: "รากฐานจิต",
+      desc: "ได้ “รากฐานจิต” 3 เทิร์น ใช้ได้ 1 ครั้ง: การโจมตีครั้งถัดไป (ตีปกติ/ท่าไม้ตาย) ศัตรูทุกคนที่โดนถูกลบบัฟล่าสุด 1 อย่าง และถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง (ร่างแปลงกลับร่างเดิม · ท่าที่รอทำงานถูกตัดจบ) · ถูกหลบ = ยังอยู่ · กดซ้ำไม่ได้ระหว่างที่ยังอยู่ · ใช้แล้วยังเดินได้",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/ryougi/ryougi_skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ดับสิ้นซะ",
+      desc: "เลือกทิศ: พุ่งแนว 8×1 ไปลงช่องท้ายสุด ทุกอย่างในแนวพังรวมร้านค้า · ช่องที่พุ่งผ่านกลายเป็นช่องพัง เดิน/ยืนไม่ได้จนเปลี่ยนภูมิภาค · ศัตรูในแนวเสียหาย 3 (เกราะรับก่อน) และถูกขโมยแต้มสกิล 2 · แต้มไม่พอ ส่วนที่ขาดเป็นความเสียหายเพิ่ม · ทุกคนในแนวถูกผลักออกข้าง · ใช้แล้วเดินต่อไม่ได้ (คูลดาวน์ 5 เทิร์น)",
+      area: { kind: "line", len: 8, width: 1, hostile: true },
+      cost: 6,
+      img: "/characters/ryougi/ryougi_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

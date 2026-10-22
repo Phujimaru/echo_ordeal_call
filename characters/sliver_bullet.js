@@ -55,6 +55,7 @@ function fresh() {
     arm: true,
     hidden: false,
     revealUntil: -1, // ปรากฏตัวถึงจบเทิร์นนี้ (เลขรอบ) — -1 = เริ่มเกมล่องหนทันที (startMatch ตั้งรอบ ≥ 0 · ECHO_DEV_START_ROUND − 1)
+    hiddenAt: 0,     // ลำดับตอนเริ่มล่องหนรอบล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
     logCut: 0,      // index ใน lastLog ตอนปรากฏตัวรอบนี้ — บรรทัดก่อนหน้าที่มีชื่อเขาซ่อนจากศัตรู
     logRound: 0,
   };
@@ -114,7 +115,7 @@ module.exports = {
       const s = st(p);
       if (!p.alive) { s.hidden = false; continue; }
       if (!conditionHolds(engine, p)) { if (s.hidden) reveal(engine, p, 0); continue; }
-      if (!s.hidden && engine.roundNumber > s.revealUntil) s.hidden = true;
+      if (!s.hidden && engine.roundNumber > s.revealUntil) { s.hidden = true; s.hiddenAt = engine.severStamp(); }
     }
   },
   // มีคนตาย: เงื่อนไขหมด = ปรากฏตัว · นักบินตายเอง = เลิกล่องหนเงียบๆ (ไม่ขึ้น "ปรากฏตัวบนสนาม!")
@@ -131,6 +132,12 @@ module.exports = {
     if (!isPilot(p) || !p.alive) return;
     const s = st(p);
     if (kind === "act" || s.hidden) reveal(engine, p, REVEAL_TURNS);
+  },
+  // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ): ล่องหนของซุ่มโจมตี = ถูกพบ → ปรากฏตัว 2 เทิร์นแบบเดียวกับโดนพื้นที่สกิล
+  //  (ล่องหนกลับมาเองตามกติกาเดิมเมื่อครบเวลา · แขนเป็นชิ้นส่วน ไม่ใช่ผลสกิลที่ทำงานค้าง)
+  severables(engine, p) {
+    if (!isPilot(p) || !st(p).hidden) return [];
+    return [{ key: "sliverStealth", label: "ซุ่มโจมตี", at: st(p).hiddenAt || 0, cancel() { reveal(engine, p, REVEAL_TURNS); } }];
   },
   // บันทึก (lastLog) ล้างทุกต้นเทิร์น — จุดตัดใช้ได้เฉพาะเทิร์นที่ปรากฏตัว
   logCut(p, round) {

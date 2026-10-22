@@ -102,6 +102,8 @@ function fresh() {
     ultReady: 0,     // กดท่าไม้ตายได้อีกตั้งแต่เทิร์นนี้
     ultAt: 0,
     vanishRound: 0,  // เงาของเสียงทำงานเทิร์นนี้
+    // ลำดับตอนได้ผลสกิล (engine.severStamp — รากฐานจิตของเรียวกิตัดอันล่าสุด · ฮุค severables)
+    ultSever: 0, songSever: 0, vanishSever: 0,
   };
 }
 function st(p) { return p.yuna || (p.yuna = fresh()); }
@@ -189,6 +191,21 @@ function noRide(engine, p, n) {
   if ((p.statuses.yunaNoRide || 0) >= n) return;
   p.statuses.yunaNoRide = n;
   engine.log(`💫 ${p.name} ขี่ใครไม่ได้ ${n} เทิร์น`);
+}
+
+// ร้อนแรงดังไฟจบ (หมดเวลา / ถูกตัด) — กลับร่าง
+function idolEnd(engine, p, why) {
+  engine.log(`🔥 ${p.name} ร้อนแรงดังไฟ${why} — กลับร่าง (คูลดาวน์ ${ULT_CD} เทิร์น)`);
+  const at = centerOf(engine, p);
+  if (at) engine.boardFx("yunaFx", { kind: "idolEnd", id: p.id, at: { ...at }, color: engine.colorOf(p) });
+  engine.sfx(SFX.idolEnd);
+}
+// เงาของเสียงจบ — ปรากฏตัว
+function appear(engine, p) {
+  engine.log(`🎶 ${p.name} ปรากฏตัวจากเงา`);
+  const at = centerOf(engine, p);
+  if (at) engine.boardFx("yunaFx", { kind: "appear", id: p.id, at: { ...at }, color: engine.colorOf(p) });
+  engine.sfx(SFX.appear);
 }
 
 // ---------- ข้อมูลออร่าให้ client (วาดวง) ----------
@@ -355,6 +372,7 @@ module.exports = {
         return ` — ${d.name}`;
       }
       s.vanishRound = engine.roundNumber + 1;
+      s.vanishSever = engine.severStamp();
       s.lastBasic = "shadow";
       engine.log(`🌫️ ${p.name} เป็นส่วนหนึ่งของเงา — เทิร์นหน้าหายตัว`);
       engine.boardFx("yunaFx", { kind: "shadowCast", id: p.id, at: p.pos ? { ...p.pos } : null, color: engine.colorOf(p) });
@@ -363,6 +381,7 @@ module.exports = {
     if (tier === "secondary") {
       s.song = opts.form;
       s.songAt = engine.nextTransformCounter();
+      s.songSever = engine.severStamp();
       engine.log(s.song === "rest" ? `🎵 ${p.name} หยุดร้องเพลง` : `🎵 ${p.name} บทเพลงแห่งชีวิต — ${SONG_NAME[s.song]}`);
       const at = centerOf(engine, p);
       if (at) engine.boardFx("yunaFx", { kind: "song", id: p.id, song: s.song, at: { ...at }, r: radiusOf(engine, p), color: engine.colorOf(p) });
@@ -372,6 +391,7 @@ module.exports = {
       s.ultUntil = engine.roundNumber + ULT_TURNS - 1;
       s.ultReady = s.ultUntil + 1 + ULT_CD;
       s.ultAt = engine.nextTransformCounter();
+      s.ultSever = engine.severStamp();
       s.song = "rest";
       engine.queueCutscene(p, CUT.ult);
       engine.log(`🔥 ${p.name} ร้อนแรงดังไฟ — ยูนะ ไอดอล ${ULT_TURNS} เทิร์น`);
@@ -394,10 +414,7 @@ module.exports = {
     for (const p of yunas(engine)) {
       const s = st(p);
       if (s.vanishRound === engine.roundNumber) {
-        engine.log(`🎶 ${p.name} ปรากฏตัวจากเงา`);
-        const at = centerOf(engine, p);
-        if (at) engine.boardFx("yunaFx", { kind: "appear", id: p.id, at: { ...at }, color: engine.colorOf(p) });
-        engine.sfx(SFX.appear);
+        appear(engine, p);
         continue; // หายตัว = วงไม่ทำงาน ไม่เสียค่าเพลง
       }
       if (ultOn(engine, p)) {
@@ -408,12 +425,7 @@ module.exports = {
           if (u.skillPoints > before) got.push(u.name);
         }
         if (got.length) { engine.log(`🔥 ร้อนแรงดังไฟ — แต้มสกิล +1 (${got.join(", ")})`); engine.sfx(SFX.tick); }
-        if (s.ultUntil === engine.roundNumber) {
-          engine.log(`🔥 ${p.name} ร้อนแรงดังไฟหมดเวลา — กลับร่าง (คูลดาวน์ ${ULT_CD} เทิร์น)`);
-          const at = centerOf(engine, p);
-          if (at) engine.boardFx("yunaFx", { kind: "idolEnd", id: p.id, at: { ...at }, color: engine.colorOf(p) });
-          engine.sfx(SFX.idolEnd);
-        }
+        if (s.ultUntil === engine.roundNumber) idolEnd(engine, p, "หมดเวลา");
         continue;
       }
       if (s.song !== "delete" && s.song !== "smile") continue;
@@ -451,6 +463,45 @@ module.exports = {
     }
     if (((p.statuses && p.statuses.yunaBless) || 0) > 0 && p.yunaBlessAt) return { music: MUSIC.longing, at: p.yunaBlessAt };
     return null;
+  },
+
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ร้อนแรงดังไฟ (กลับร่าง · คูลดาวน์นับเหมือนหมดเวลาเทิร์นนี้) · เงาของเสียง (รอ/ทำงาน) · เพลงที่เปิดอยู่ (หยุด → พักผ่อน)
+  severables(engine, p) {
+    if (!isYuna(p) || !p.alive) return [];
+    const s = st(p), out = [];
+    if (ultOn(engine, p)) {
+      out.push({
+        key: "idol", label: "ร้อนแรงดังไฟ", at: s.ultSever,
+        cancel: () => {
+          s.ultUntil = engine.roundNumber - 1; // จบตอนนี้ (ultOn = false)
+          s.ultReady = engine.roundNumber + 1 + ULT_CD; // แบบหมดเวลาเทิร์นนี้: คูลดาวน์ 3 เทิร์นเต็ม
+          idolEnd(engine, p, "ถูกตัด");
+        },
+      });
+    }
+    if (vanishOn(engine, p) || vanishPending(engine, p)) {
+      out.push({
+        key: "vanish", label: "เงาของเสียง", at: s.vanishSever,
+        cancel: () => {
+          const active = vanishOn(engine, p);
+          s.vanishRound = 0;
+          if (active) appear(engine, p);
+        },
+      });
+    }
+    const song = songOn(engine, p);
+    if (song) {
+      out.push({
+        key: "song", label: SONG_NAME[song], at: s.songSever,
+        cancel: () => {
+          s.song = "rest";
+          engine.log(`🎵 ${p.name} ${SONG_NAME[song]} ถูกตัด — เพลงหยุด`);
+          engine.sfx(SFX.stop);
+        },
+      });
+    }
+    return out;
   },
 
   // ---------- ข้อมูลให้ client ----------

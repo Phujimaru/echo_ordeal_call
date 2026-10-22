@@ -120,6 +120,7 @@ function fresh() {
     swapReady: 0,
     ultReady: 0,
     teaStreak: 0,                  // เวลาน้ำชา: ต้นเทิร์นที่ยืนในพุ่มติดกัน (ครบ TEA_TURNS = ฟื้น)
+    kingSever: 0,                  // ลำดับตอนได้ราชาดอกไม้ (engine.severStamp — ฮุค severables)
   };
 }
 function st(p) { return p.celine || (p.celine = fresh()); }
@@ -463,6 +464,7 @@ module.exports = {
       p.statuses[KING] = ULT_TURNS;
       p.statusAt = p.statusAt || {};
       s.ultReady = r + ULT_CD;
+      s.kingSever = engine.severStamp();
       fx(engine, p, "ult", {});
       engine.sfx("celine_ult");
       engine.notifyTransform(p, CUT.ult);
@@ -509,6 +511,23 @@ module.exports = {
   onDeath(engine, p) {
     if (!isCeline(p)) return;
     clearWalls(engine, p, "expire");
+  },
+
+  // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
+  //  ราชาดอกไม้ → หมดทันที · คูลดาวน์ 3 เทิร์นนับหลังบัฟหมดแบบหมดเวลาเทิร์นนี้ (กดได้อีกเทิร์นนี้ + 4)
+  //  อาวุธที่ถือ/พุ่มดอกไม้/กำแพงน้ำแข็ง = ของบนกระดานหรือการเลือกอาวุธ ไม่ใช่ผลบนตัวที่ค้างอยู่
+  severables(engine, p) {
+    if (!kingOn(p) || !p.alive) return [];
+    const s = st(p);
+    return [{
+      key: "king", label: "ราชาดอกไม้", at: s.kingSever,
+      cancel: () => {
+        delete p.statuses[KING];
+        if (p.statusAmt) delete p.statusAmt[KING];
+        s.ultReady = Math.min(s.ultReady, engine.roundNumber + 1 + (ULT_CD - ULT_TURNS));
+        engine.log(`👑 ราชาดอกไม้ของ ${p.name} หมดลง`);
+      },
+    }];
   },
 
   // ---------- ข้อมูลให้ client (สัญญา §2–§3) ----------
