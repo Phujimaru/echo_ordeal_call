@@ -13,7 +13,7 @@
 //    ศัตรูในแนว: ขโมยแต้ม 2 (ขาด = ดาเมจเพิ่ม) + ดาเมจ 3 (เกราะก่อน · ฆ่าได้ · ไม่หลบ) + ทอยสังหาร 5% ทีละคน
 //    ทุกช่องที่พุ่งผ่าน (ยกเว้นช่องที่ลง) → ช่องพัง terrain "chasm" (engine.addChasm) จนเปลี่ยนภูมิภาค · สิ่งกีดขวาง/หนาม/ร้านค้าในแนวพัง
 //    ทุกคน (รวมเพื่อน · ศพ) ที่อยู่บนแนว/ช่องที่ลง ถูกผลักออกข้าง (ว่างทั้งสองข้าง = สุ่ม · ไม่ว่าง = ปลิวไปที่ยืนได้ใกล้จุดเดิมที่สุด)
-//  mystical eye of death perception (ติดตัว): ตีปกติ + สกิลโจมตีสังหารทันที 5% · หลังท่าไม้ตาย 3 เทิร์น (นับเทิร์นที่กด)
+//  mystical eye of death perception (ติดตัว): ตีปกติ + สกิลโจมตีสังหารทันที 5% (เนตรมณะเปิดอยู่ = 25% ทั้งตีปกติและท่าไม้ตาย) · หลังท่าไม้ตาย 3 เทิร์น (นับเทิร์นที่กด)
 //    พลังโจมตี +1 (สถานะ ryougiBloom) + ต้านสถานะผิดปกติ · ระหว่างนี้ฉากตีปกติเป็นกระโดดฟันข้ามหัว (ryougiLeap)
 //  ถูกเรียวกิสังหารทันที = ฉากร่างแยกสองซีก → กองเลือดบนพื้น (board.ryougi.blood · ภาพเฉย ไม่ขวางทาง · อยู่จนเปลี่ยนภูมิภาค)
 //
@@ -21,6 +21,7 @@
 //    = ถอยมาช่องยืนได้ที่ใกล้สุดในแนว (ไม่มีเลย = อยู่ที่เดิม) · ทอยสังหารก่อนดาเมจ (สังหารแล้วไม่ต้องลงดาเมจ)
 // ============================================================
 const Board = require("../server/board");
+const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("./_universal_status");
 
 const ID = "ryougi";
 const DIR = "/characters/ryougi";
@@ -66,7 +67,7 @@ const CRUMBLE_SECONDS = 1.1;
 const LEAP_EXTRA = 0.5; // ฉากตีปกติแบบกระโดดข้ามหัวยาวกว่าฉากตีปกติ (attackFxExtra)
 const CHOICES = {
   eyes: { name: "เนตรมณะ", img: IMG.skill3, cd: EYES_CD,
-    desc: `เนตรมณะ: ตีปกติสังหารทันทีเพิ่ม 20% (รวม 25%) 1 เทิร์น (คูลดาวน์ ${EYES_CD} เทิร์น)` },
+    desc: `เนตรมณะ: ตีปกติและท่าไม้ตายสังหารทันทีเพิ่ม 20% (รวม 25%) 1 เทิร์น (คูลดาวน์ ${EYES_CD} เทิร์น)` },
   mend: { name: "เยียวยา", img: IMG.skill1, cd: MEND_CD,
     desc: `เยียวยา: ต้นเทิร์นฟื้นพลังชีวิต ${MEND_AMT} รวม ${MEND_TURNS} เทิร์น (คูลดาวน์ ${MEND_CD} เทิร์น)` },
 };
@@ -122,15 +123,17 @@ function slain(engine, p, t, at, how) {
   engine.sfx("ryougi_kill");
   voice(engine, p, VOICE_KILL);
 }
-// ทอยสังหารทันทีของสกิลโจมตี (5%) → true = ตายแล้ว
+// ทอยสังหารทันทีของสกิลโจมตี (5% · เนตรมณะเปิดอยู่ = 25% — ผู้ใช้สั่ง 2026-10-22) → true = ตายแล้ว
+const skillKillChance = (p) => KILL_CHANCE + (netramanaActive(p) ? NETRAMANA_KILL_CHANCE : 0);
 function trySkillKill(engine, p, t) {
-  if (!(Math.random() < KILL_CHANCE)) return false;
+  const pct = skillKillChance(p);
+  if (!(Math.random() < pct)) return false;
   const at = t.pos ? { ...t.pos } : null;
   engine.instantDeath(t);
   t.wasAttacked = true;
   if (t.alive) { engine.log(`💀 ${p.name} พยายามสังหาร ${t.name} ทันที — แต่ ${t.name} รอดไปได้!`); return false; }
   t.pos = null;
-  engine.log(`💀 ${p.name} สังหาร ${t.name} ทันที (โอกาส ${Math.round(KILL_CHANCE * 100)}%)`);
+  engine.log(`💀 ${p.name} สังหาร ${t.name} ทันที (โอกาส ${Math.round(pct * 100)}%)`);
   slain(engine, p, t, at, "skill");
   return true;
 }
@@ -363,7 +366,7 @@ module.exports = {
         s.eyesAt = engine.severStamp();
         fx(engine, p, "eyes", {});
         engine.sfx("ryougi_eyes_open");
-        engine.log(`👁️ ${p.name} หยินหยาง — เนตรมณะ (ตีปกติสังหารทันที ${Math.round((0.2 + KILL_CHANCE) * 100)}% เทิร์นนี้)`);
+        engine.log(`👁️ ${p.name} หยินหยาง — เนตรมณะ (ตีปกติและท่าไม้ตายสังหารทันที ${Math.round((NETRAMANA_KILL_CHANCE + KILL_CHANCE) * 100)}% เทิร์นนี้)`);
         return " — เนตรมณะ";
       }
       engine.applyMend(p, MEND_AMT, MEND_TURNS);

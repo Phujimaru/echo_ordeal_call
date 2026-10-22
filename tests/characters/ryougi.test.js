@@ -288,3 +288,19 @@ test('ตัดผลสกิล: server/sever.js เลือกอันล�
   assert.deepEqual(order, ['new']);
   assert.ok(Sever.stamp() < Sever.stamp());
 });
+
+test('ดับสิ้นซะ: สังหารทันที 5% · เนตรมณะเปิดอยู่ = 25%', () => {
+  let { P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2]]);
+  engine.setActor('R');
+  Math.random = () => 0.06;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.ok(P.A.alive, 'ทอย 6% ไม่ผ่าน 5%');
+  ({ P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2]]));
+  engine.setActor('R');
+  engine.useSkill('R', 'basic', [], { form: 'eyes' });
+  Math.random = () => 0.24;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.equal(P.A.alive, false, 'ทอย 24% ผ่าน 25% (เนตรมณะ)');
+  assert.equal(P.A.ryougiSlain, true);
+  assert.equal(fxOf('kill').filter((k) => k.how === 'skill').length, 1);
+});
