@@ -246,8 +246,8 @@ test('ดับสิ้นซะ: พุ่ง 8×1 ไปลงช่องท
   assert.equal(fxOf('crumble')[0].tiles.length, 7);
   assert.equal(fxOf('bloom').length, 1);
   assert.equal(engine.buildStateFor('R').skillMusic, 'ryougi_bloom');
-  // คูลดาวน์ 5 เทิร์น
-  assert.equal(engine.buildStateFor('R').players.find((p) => p.id === 'R').ryougi.ultCd, 5);
+  // คูลดาวน์ 2 เทิร์น
+  assert.equal(engine.buildStateFor('R').players.find((p) => p.id === 'R').ryougi.ultCd, 2);
   // เปลี่ยนภูมิภาค = ช่องพังหาย
   engine.placeOnBoard(engine.board.area);
   assert.equal(Object.values(engine.boardMap().terrain).filter((k) => k === 'chasm').length, 0);
