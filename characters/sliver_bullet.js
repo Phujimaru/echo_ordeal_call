@@ -469,7 +469,8 @@ function formPub(p, tier) {
   if (!s) return null;
   const out = { name: s.name, desc: s.desc, img: s.img };
   if (tier === "secondary") {
-    out.ammo = B.ammo; // จำนวนเต็ม (ที่เหลือ = state.players[].sliver.ammo)
+    // จำนวนเต็ม (ที่เหลือ = state.players[].sliver.ammo) · ระหว่างยูนิคอร์นไม่ใช้กระสุน = ไม่มีแถบกระสุน (ปุ่มไม่เทาตอนกระสุนหมด)
+    out.ammo = unicornOn(p) ? null : B.ammo;
     out.img = unicornOn(p) ? IMG.beamUlt : st(p).ntd ? IMG.beamNtd : IMG.beam; // ปกปุ่มตามร่าง
   }
   return out;

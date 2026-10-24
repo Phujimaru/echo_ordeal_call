@@ -238,6 +238,16 @@ test('ยูนิคอร์น!!!!: NT-D ฟรี · Beam 4 แต้มไ�
   engine.useSkill('S', 'secondary', [], { dir: 'down' });
   assert.equal(P.S.sliver.ammo, 5, 'ไม่ใช้กระสุน');
   assert.equal(P.S.sliver.reloadNeed, false, 'ไม่ต้องรีโหลด');
+  // กระสุนหมดแล้วยังยิงได้ระหว่างยูนิคอร์น — ปุ่มไม่มีแถบกระสุน (client ไม่เทาปุ่ม) · ไม่ล็อก
+  P.S.sliver.ammo = 0;
+  P.S.skillUsedRound = false;
+  P.S.skillPoints = 8;
+  const sec = view('S', 'S');
+  assert.equal(sec.character.secondary.ammo, null, 'ไม่มีแถบกระสุนระหว่างยูนิคอร์น');
+  assert.equal(sec.skillLocks.secondary.locked, false);
+  const sp = P.S.skillPoints;
+  engine.useSkill('S', 'secondary', [], { dir: 'up' });
+  assert.equal(P.S.skillPoints, sp - 4, 'กระสุนหมดก็ยิงได้');
   // ครบ 5 เทิร์น
   engine.setRoundNumber(P.S.sliver.unicorn.until);
   pilot.onEndTurn(engine);
