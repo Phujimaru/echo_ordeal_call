@@ -259,6 +259,7 @@ io.on('connection', (socket) => {
     tile: tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : undefined, // สกิลเลือกช่อง (Ice Spike)
     orient: orient === 'h' || orient === 'v' ? orient : undefined, // แนวของพื้นที่ rect (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
   }), 12);
+  onUnitEvent(socket, 'viewShop', (id) => shop.viewShop(id), 8); // เปิดดูร้าน = ล็อกการเดิน
   onUnitEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
   onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
   onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)

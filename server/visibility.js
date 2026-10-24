@@ -4,6 +4,7 @@
 //  2. ล่องหนของตัวละคร (hook stealthed — นักบินปริศนา): ศัตรูมองไม่เห็นเลย พุ่มหญ้าผืนเดียวกันก็ไม่เห็น
 //  เพื่อนร่วมทีมเห็นกันเสมอ · จบเกม = เห็นทุกคน
 //  ผลต่อกติกา: เล็ง/ตี/ยิงคนที่มองไม่เห็นไม่ได้ · สกิลพื้นที่แบบโจมตี (area.hostile) ยังโดน · เดินชนคนที่มองไม่เห็น = หยุดก่อนถึง (ซุ่มโจมตีแบบ FE)
+//  มองในระยะ (พุ่มผืนเดียวกัน · seenBy · summon.sight) ระหว่างที่ยังเดินต่อได้ = นับจากช่องเริ่มตา (eyeOf)
 //  ผู้ชมที่มองไม่เห็นได้ pos = null และไม่เห็นเส้นทางเดิน/บันทึกที่มีชื่อเขา (view.js)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
@@ -68,16 +69,35 @@ function hiddenFromOne(viewer, target) {
   if (Dim.unseen(viewer, target)) return true; // ชั้นมิติ: คนละมิติมองไม่เห็นกัน (เพื่อนร่วมทีมก็ไม่เห็น)
   if (combat.sameTeam(viewer, target)) return false;
   // สายตาระยะใกล้ของยูนิตที่ถูกเรียก (summon.sight — ร่างแยกของวาเลนไทน์ 2 ช่อง): เห็นคนล่องหน/ในพุ่ม/ในม่านที่อยู่ใกล้เป็นคนปกติ (ผู้ใช้สั่ง 2026-10-21)
-  if (viewer.summon && viewer.summon.sight > 0 && viewer.alive && viewer.pos && Board.dist(Board.boxOf(viewer), Board.boxOf(target)) <= viewer.summon.sight) return false;
+  //  การมองในระยะทุกแบบ (สายตานี้ · seenBy · พุ่มผืนเดียวกัน) นับจากช่องที่มอง (eyeOf) — ยังเดินต่อได้ = ช่องเริ่มตา
+  const eye = eyeOf(viewer);
+  if (viewer.summon && viewer.summon.sight > 0 && viewer.alive && viewer.pos && Board.dist(Board.boxOf(eye), Board.boxOf(target)) <= viewer.summon.sight) return false;
   // ล่องหนที่คนใกล้ๆ มองเห็น (ฮุคของเป้า seenBy(engine, viewer, target) → true = viewer เห็น — เฟิร์น: ซ่อนเร้นมานา ศัตรูในระยะ 2)
   //  ข้ามแค่ล่องหนของตัวละคร · พุ่มหญ้า/ม่านแดงยังบังตามปกติ
-  if (stealthed(target) && !seenBy(viewer, target)) return true;
+  if (stealthed(target) && !seenBy(eye, target)) return true;
   if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
   if (!inBush(target)) return false;
   if (!viewer.alive || !viewer.pos) return true;
   const map = engine.boardMap();
   const a = Board.bushPatchOf(map, target.pos.x, target.pos.y);
-  return a === null || a !== Board.bushPatchOf(map, viewer.pos.x, viewer.pos.y);
+  return a === null || a !== Board.bushPatchOf(map, eye.pos.x, eye.pos.y);
+}
+// ช่องที่ viewer ใช้มองในระยะ (ผู้ใช้สั่ง 2026-10-24 — กันเดินวนทั้งแมพหาคนล่องหน):
+//  ยังเดินต่อได้ (ตาของตัวเองที่ยังไม่ล็อก · ตัวในฝ่ายคู่/ร่างแยกที่สลับออกไปแล้วยังไม่ล็อก) = มองจากช่องเริ่มตา
+//   (action.eye — rebaseMove เก็บไว้ · ไม่มี = action.from)
+//  เดินต่อไม่ได้แล้ว (ล็อก — ใช้สกิล/ไอเทม/ซื้อ/ดูร้าน/ชน · จบตา · ไม่ใช่ตาของตัวเอง) = มองจากช่องที่ยืนจริง
+//  คืนตัว viewer เอง หรือร่างเงา (Object.create — ฟิลด์อื่นอ่านผ่าน prototype) ที่ pos เป็นช่องเริ่มตา
+function eyeOf(viewer) {
+  const from = walkAnchor(viewer);
+  if (!from || !viewer.pos || (from.x === viewer.pos.x && from.y === viewer.pos.y)) return viewer;
+  const eye = Object.create(viewer);
+  eye.pos = { x: from.x, y: from.y };
+  return eye;
+}
+function walkAnchor(u) {
+  if (!u || match.gameState !== "ACTION") return null;
+  const a = match.actorId === u.id ? match.action : match.duo && match.duo.acts ? match.duo.acts[u.id] : null;
+  return a && !a.locked ? a.eye || a.from : null;
 }
 // โจมตี/ใส่ผลให้คนอื่นจากในพุ่ม = โผล่จนจบเทิร์น
 function exposeBush(p) {

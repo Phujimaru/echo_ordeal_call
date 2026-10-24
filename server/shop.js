@@ -3,7 +3,7 @@
 Object.assign(module.exports, {
   goldCapOf, addGold, rollShopItem, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, bagFull, dropItem,
-  grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, buyShopItem,
+  grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, viewShop, buyShopItem,
   cardLabel, useInventoryItem, useDrawItem, gutsFireTargetOf, applyGutsBullet,
 });
 
@@ -208,6 +208,15 @@ function hasGutsWeapon(p) {
 //  แต่ร้านค้า/ไอเทมไม่ได้ผูกกับ p.locked ทั้งหมด (บางชนิดกดใช้นอกเฟสจั่วได้) จึงต้องมีด่านของตัวเอง
 function asleep(p) { return !!p && ((p.statuses && p.statuses.sleep) || 0) > 0; }
 
+// เปิดดูร้าน (ตาของตัวเอง · ยืนติดร้าน) = เดินต่อไม่ได้แล้ว แม้ไม่ซื้อ (ผู้ใช้สั่ง 2026-10-24) — ยังตี/ใช้สกิลได้ เหมือนซื้อ
+function viewShop(id) {
+  const p = match.players[id];
+  if (!p || !p.alive || (p.summon && !p.summon.controlled)) return;
+  if (!action.canAct(p) || match.action.locked) return;
+  if (!p.pos || !Board.nearShop(Board.boxOf(p), match.shopPos)) return;
+  action.lockMove(p);
+  view.broadcastState();
+}
 function buyShopItem(id, itemId) {
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return; // ร่างแยกที่คุมได้ซื้อให้เจ้าของได้ (เหรียญ/กระเป๋าใช้ร่วม — ผู้ใช้สั่ง 2026-10-21) · ตัวเหมือนซื้อไม่ได้

@@ -154,7 +154,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ผลหลังฉากตีปกติ 1 ครั้ง (ทุกเป้า: คน/ผนึก/หนาม/ศพ · ก่อน `extraStrike`/จบตา) | `afterStrike(engine, p)` (เฟิร์น: นับ Zoltraak · ใช้เพิ่มระยะ · รีเซ็ทคูลดาวน์ · เอมิลิโกะ: เครื่องดูดฝุ่นหัก) | `action.strikeTarget` (`done`) |
 | ตีปกติแล้วไม่จบตา (ตีเพิ่มที่ตุนไว้) | `extraStrike(engine, p)` → true (ฮุคหักเอง) = กลับเข้าตาเดินด้วยเวลาที่เหลือ (เฟิร์น: ร่ายต่อเนื่อง) | `action.strikeTarget` (`done`) |
 | รู้ว่าถูกศัตรูโจมตี (รวมหลบพ้น) / กันการโจมตีทั้งก้อน | `onAttacked(engine, p, attacker, kind)` (`strike` ก่อนทอยหลบ · `skillDodge` · `gunAttack` · ดาเมจจากศัตรู — เรียกซ้ำได้ในการโจมตีเดียว แยกด้วย `engine.commandSeq`) + `blocksAttack(engine, p, attacker)` → `{ name, img }` = 0 ทั้งก้อน (ฉากตีขึ้น 0) — ต้นแบบ ผู้เชี่ยวชาญเวทมนต์พื้นฐานของเฟิร์น (GAME_SYSTEM §25) | `combat.notifyAttacked` / `attackBlocked` |
-| ล่องหนที่ศัตรูใกล้ๆ มองเห็น | `seenBy(engine, viewer, target)` → true = ข้าม `stealthed` (พุ่ม/ม่านยังบัง) | `visibility.hiddenFromOne` |
+| ล่องหนที่ศัตรูใกล้ๆ มองเห็น | `seenBy(engine, viewer, target)` → true = ข้าม `stealthed` (พุ่ม/ม่านยังบัง) · viewer = ช่องที่มอง (`Visibility.eyeOf` — ยังเดินต่อได้ = ช่องเริ่มตา) ใช้แค่ `viewer.pos`/`Board.boxOf(viewer)` คิดระยะ | `visibility.hiddenFromOne` |
 | ซ่อนในพุ่มไม่ได้ (ศัตรูเห็นเสมอ) | `bushExposed(p)` → true (เซลิน) | `visibility.inBush` |
 | เดินตามช่องดอกไม้ไม่เสียก้าว | `flowerWalk(p)` → true (ช่อง `TERRAIN_INFO[...].flower` = 0 ก้าว · client อ่าน `players[].flowerWalk`) | `action.planWalk` / `rebaseMove` → `Board.stepCost` |
 | ตัวคูณคริ / หลบหลีกเฉพาะตัว | `critMult(p)` → ×N (ไม่มี = 2) · `ownEvade(p)` → % (ตีปกติ + `skillDodge` + คาดการณ์) | `attack.strike` |

@@ -2568,7 +2568,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 </>
               }
               attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
-              shop={nearShop && !canto ? { onClick: () => { clickSound(); setShopOpen(true); } } : null}
+              shop={nearShop && !canto ? { onClick: () => { clickSound(); socket.emit("viewShop"); setShopOpen(true); } } : null}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
               extra={(me?.actions || []).map((x) => {

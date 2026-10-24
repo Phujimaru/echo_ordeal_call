@@ -203,6 +203,7 @@ function rebaseMove(p) {
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
   else a.movLeft = left;
+  if (!a.eye) a.eye = { ...a.from }; // ช่องที่ใช้มองในระยะยังเป็นช่องเริ่มตาเดิม (Visibility.eyeOf)
   a.from = { ...p.pos };
   a.moved = false;
   a.path = null;
