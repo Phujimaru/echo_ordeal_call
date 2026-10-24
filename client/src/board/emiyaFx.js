@@ -631,6 +631,41 @@ function swordTiles(info) {
   info.__emiyaSwords = { cols: info.cols, rows: info.rows, list };
   return list;
 }
+// ดาบปักพื้นที่ขึ้นเต็มแล้ว = วาดลงแผ่นรวม (atlas) ครั้งเดียว แล้วแปะทีละช่องทุกเฟรม — ไล่สีใบดาบ ~40 เล่มสดทุกเฟรมกิน ~1.7ms
+//  และ canvas แยกใบละเล่มต้องส่งขึ้น GPU ทีละใบทุกเฟรม (~0.85ms) — แผ่นเดียว = texture เดียว
+//  ความละเอียด = สเกลจริงของ g (dpr × ซูม) จึงไม่เบลอ · กล้องซูม/หมุน (ขนาดบนจอเปลี่ยน) = สร้างใหม่ · เงาใต้ดาบอบรวมไว้ด้วย
+let ATLAS = null; // { key, cv, at: Map(seed → { sx, sy, sw, sh, ox, oy, w, h }) }
+function swordAtlas(g, list) {
+  const tr = typeof g.getTransform === "function" ? g.getTransform() : null;
+  const sc = tr ? Math.max(0.5, Math.hypot(tr.a, tr.b)) : 1;
+  let key = `${Math.round(sc * 20)}`;
+  for (const e of list) key += `|${e.s.seed}:${Math.round(e.L * 4)}`;
+  if (ATLAS && ATLAS.key === key) return ATLAS;
+  if (typeof document === "undefined") return null;
+  // จัดเรียงเป็นแถว กว้างไม่เกิน 1024 (พิกัดตรรกะ)
+  const boxes = list.map((e) => { const w = Math.ceil(e.L * 1.1) + 8, h = Math.ceil(e.L * 1.3) + 8; return { e, w, h }; });
+  let x = 0, y = 0, rowH = 0, W = 0;
+  for (const b of boxes) {
+    if (x + b.w > 1024) { x = 0; y += rowH + 2; rowH = 0; }
+    b.x = x; b.y = y; x += b.w + 2; rowH = Math.max(rowH, b.h); W = Math.max(W, x);
+  }
+  const H = y + rowH;
+  if (!W || !H) return null;
+  const cv = document.createElement("canvas");
+  cv.width = Math.ceil(W * sc); cv.height = Math.ceil(H * sc);
+  const cg = cv.getContext("2d");
+  if (!cg) return null;
+  cg.scale(sc, sc);
+  const at = new Map();
+  for (const b of boxes) {
+    const { s, L } = b.e, ox = b.x + b.w / 2, oy = b.y + b.h - 6, gs = L / s.len;
+    cg.fillStyle = rgba("40,24,14", 0.35); cg.beginPath(); cg.ellipse(ox, oy, gs * 0.12, gs * 0.05, 0, 0, TAU); cg.fill();
+    drawBlade(cg, ox + Math.sin(s.lean) * L * 0.95, oy - Math.cos(s.lean) * L * 0.95, Math.PI / 2 + s.lean, L * 0.95, s.kind, 0.95);
+    at.set(s.seed, { sx: b.x * sc, sy: b.y * sc, sw: b.w * sc, sh: b.h * sc, ox: b.w / 2, oy: b.h - 6, w: b.w, h: b.h });
+  }
+  ATLAS = { key, cv, at };
+  return ATLAS;
+}
 // ดาบปักพื้น + อาวุธที่ถือลอยข้างตัว — เรียงความลึกกับตัวละคร
 export function emiyaItems(items, g, em, units, fx, now, lowQ, info) {
   const k = worldLevel(em, fx, now);
@@ -640,16 +675,25 @@ export function emiyaItems(items, g, em, units, fx, now, lowQ, info) {
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out.push(`${Math.round(u.rx) + i},${Math.round(u.ry) + j}`);
       return out;
     }));
-    const list = swordTiles(info);
-    for (const s of list) {
+    const vis = [];
+    for (const s of swordTiles(info)) {
       if (occupied.has(`${Math.floor(s.x)},${Math.floor(s.y)}`)) continue;
       // ดาบโผล่ขึ้นจากพื้นตามวงไฟ (เรียงตามระยะ — ใช้ลำดับสุ่มแทนระยะจริงให้ดูกระจาย)
       const rise = k >= 1 ? 1 : clamp01(k * 1.3 - hash01(s.seed) * 0.3);
       if (rise <= 0.01) continue;
-      items.push({ d: depthOf(s.x, s.y), f: () => {
-        const [bx, by, sc] = P(s.x, s.y, 0);
-        const L = sc * s.len * rise;
-        g.save(); g.globalAlpha *= Math.min(1, k * 1.2) * (lowQ ? 0.9 : 1);
+      const [bx, by, sc] = P(s.x, s.y, 0);
+      vis.push({ s, rise, bx, by, sc, L: sc * s.len * rise });
+    }
+    const atl = k >= 1 && vis.length ? swordAtlas(g, vis) : null;
+    const alpha = Math.min(1, k * 1.2) * (lowQ ? 0.9 : 1);
+    for (const v of vis) {
+      const { s, bx, by, sc, L } = v, r = atl && atl.at.get(s.seed);
+      items.push({ d: depthOf(s.x, s.y), f: r ? () => {
+        if (alpha < 1) { g.save(); g.globalAlpha *= alpha; }
+        g.drawImage(atl.cv, r.sx, r.sy, r.sw, r.sh, bx - r.ox, by - r.oy, r.w, r.h);
+        if (alpha < 1) g.restore();
+      } : () => {
+        g.save(); g.globalAlpha *= alpha;
         g.fillStyle = rgba("40,24,14", 0.35); g.beginPath(); g.ellipse(bx, by, sc * 0.12, sc * 0.05, 0, 0, TAU); g.fill();
         drawBlade(g, bx + Math.sin(s.lean) * L * 0.95, by - Math.cos(s.lean) * L * 0.95, Math.PI / 2 + s.lean, L * 0.95, s.kind, 0.95);
         g.restore();
@@ -680,6 +724,7 @@ export function emiyaItems(items, g, em, units, fx, now, lowQ, info) {
     } });
   }
 }
+const VIGNETTE = { g: null, key: "", ctx: null }; // ไล่สีขอบจอ (สร้างใหม่เมื่อมุมมอง/ความเข้มเปลี่ยน)
 // ฟ้าโลกแห่งดาบ: เฟืองยักษ์หมุนช้าที่ขอบบน + ประกายไฟลอยขึ้น + ขอบจออุ่น (ทับตัวละคร)
 export function drawEmiyaSky(g, em, info, fx, now, lowQ, view) {
   const k = worldLevel(em, fx, now);
@@ -689,9 +734,13 @@ export function drawEmiyaSky(g, em, info, fx, now, lowQ, view) {
   const W = x1 - x0, H = y1 - y0;
   g.save();
   // ขอบจอส้มอุ่น
-  const vg = g.createRadialGradient(x0 + W / 2, y0 + H * 0.55, Math.min(W, H) * 0.35, x0 + W / 2, y0 + H * 0.55, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, "rgba(255,150,70,0)"); vg.addColorStop(1, rgba("150,60,20", 0.32 * k));
-  g.fillStyle = vg; g.fillRect(x0, y0, W, H);
+  const vk = `${x0 | 0}|${y0 | 0}|${W | 0}|${H | 0}|${Math.round(k * 20)}`;
+  if (!VIGNETTE.g || VIGNETTE.key !== vk || VIGNETTE.ctx !== g) {
+    const vg = g.createRadialGradient(x0 + W / 2, y0 + H * 0.55, Math.min(W, H) * 0.35, x0 + W / 2, y0 + H * 0.55, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "rgba(255,150,70,0)"); vg.addColorStop(1, rgba("150,60,20", 0.32 * Math.round(k * 20) / 20));
+    Object.assign(VIGNETTE, { g: vg, key: vk, ctx: g });
+  }
+  g.fillStyle = VIGNETTE.g; g.fillRect(x0, y0, W, H);
   // เฟือง
   const spin = REDUCED ? 0 : now / 9000;
   for (const [fx0, fy0, r, dirS, teeth] of [[0.12, 0.08, 0.13, 1, 14], [0.86, 0.05, 0.17, -1, 18], [0.55, -0.02, 0.09, 1, 10]]) {
