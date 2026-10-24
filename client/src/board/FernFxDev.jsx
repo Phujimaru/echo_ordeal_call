@@ -50,12 +50,12 @@ export default function FernFxDev({ units, pushFx, setFocus, map, ferns, setFern
   };
   const glowToggle = (k) => setFerns({ empowered: !!(ferns && ferns.empowered), boost: !!(ferns && ferns.boost), [k]: !(ferns && ferns[k]) });
   const rows = [
-    [["Zoltraak 3", () => zoltraak(3, "fernZoltraak")], ["Zoltraak 6", () => zoltraak(6, "fernZoltraak")], ["Zoltraak 6th", () => zoltraak(3, "fernZoltraakMax")],
-      ["Zoltraak 6th · 6", () => zoltraak(6, "fernZoltraakMax")]],
+    [["Zoltraak 3", () => zoltraak(3, "fernZoltraak")], ["Zoltraak 6", () => zoltraak(6, "fernZoltraak")], ["Zoltraak เสริมพลัง", () => zoltraak(3, "fernZoltraakMax")],
+      ["Zoltraak เสริมพลัง · 6", () => zoltraak(6, "fernZoltraakMax")]],
     [["ร่ายต่อเนื่อง", () => play({ kind: "cast", at: me() })], ["เพิ่มระยะ", () => play({ kind: "boost", at: me() })], ["ซ่อนเร้นมานา", () => play({ kind: "conceal", at: me() })],
       ["ออกจากซ่อนเร้น", () => play({ kind: "unveil", at: me() })], ["ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", () => play({ kind: "shield", at: me() })]],
-    [["ครบ 5", () => play({ kind: "empower", at: me() })], ["รีเซ็ท", () => play({ kind: "reset", at: me() })],
-      [`คทา 6th ${ferns && ferns.empowered ? "✓" : "✗"}`, () => glowToggle("empowered")], [`คทา เพิ่มระยะ ${ferns && ferns.boost ? "✓" : "✗"}`, () => glowToggle("boost")]],
+    [["ครบ 4", () => play({ kind: "empower", at: me() })], ["รีเซ็ท", () => play({ kind: "reset", at: me() })],
+      [`คทา เสริมพลัง ${ferns && ferns.empowered ? "✓" : "✗"}`, () => glowToggle("empowered")], [`คทา เพิ่มระยะ ${ferns && ferns.boost ? "✓" : "✗"}`, () => glowToggle("boost")]],
   ];
   return (
     <div style={{ position: "absolute", right: 12, bottom: 12, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", maxWidth: 900 }}>

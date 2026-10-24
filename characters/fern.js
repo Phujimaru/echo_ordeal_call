@@ -5,17 +5,18 @@
 //  Energy = แต้มสกิล (p.skillPoints) เพดาน 10 (maxSkill) · เริ่มเกมเต็ม 10 (resetCombat)
 //    ฟื้นได้จากซ่อนเร้นมานาเท่านั้น — ฮุค blocksSkillGain กันทุกทางอื่นใน combat.addSkill + เงินคืนของการเดินทาง (skills.js)
 //    · ฟื้นของตัวเองส่ง src "fern" (ชะงัก/ผนึกพลังงานยังกันได้)
-//  ตีปกติ Zoltraak: ดาเมจฐาน 2 (attackBaseOverride — บัฟ/คริบวกต่อ) · 2 Energy ต่อการตี 1 ครั้ง (onStrikeResolved/onStrikeObject
-//    เรียกครั้งเดียวต่อการตี — ทั้งแนวเสียครั้งเดียว) · Energy ไม่ถึง 2 = range [1, 0] (ตีไม่ได้) ยกเว้นครั้งที่ 6 · ไม่มีตีสวน
+//  ตีปกติ Zoltraak: ดาเมจฐาน 2 (attackBaseOverride — บัฟ/คริบวกต่อ) · 1 Energy ต่อการตี 1 ครั้ง (บัฟ 2026-10-24 — เดิม 2) (onStrikeResolved/onStrikeObject
+//    เรียกครั้งเดียวต่อการตี — ทั้งแนวเสียครั้งเดียว) · Energy ไม่ถึง 1 = range [1, 0] (ตีไม่ได้) ยกเว้นครั้งที่เสริมพลัง · ไม่มีตีสวน
 //  ติดตัว ผู้เชี่ยวชาญเวทมนต์พื้นฐาน:
 //    (ก) ศัตรูโจมตีใส่ (ตีปกติ/ปืน/สกิล — ไม่นับดาเมจที่ไม่มีผู้ลงมือ) ขณะพร้อม = การโจมตีนั้นทั้งก้อนเป็น 0 (ฮุค onAttacked + blocksAttack
 //        — คีย์ ผู้โจมตี|เทิร์น|ตาเดิน|commandSeq) · ไม่นับว่าถูกโจมตี (ซ่อนเร้นไม่หลุด ไม่สตั้น) · กันเทิร์น N → พร้อมอีก N+3 · ก่อนทอยหลบ
-//    (ข) นับการตี Zoltraak (คน/ผนึก/หนาม · 1 ครั้งต่อการตี — afterStrike) ครบ 5 → ครั้งที่ 6: ไม่เสีย Energy + ทะลุเกราะทุกคนในแนว
+//    (ข) นับการตี Zoltraak (คน/ผนึก/หนาม · 1 ครั้งต่อการตี — afterStrike) ครบ 4 (บัฟ 2026-10-24 — เดิม 5) → ครั้งที่ 5: ไม่เสีย Energy + ทะลุเกราะทุกคนในแนว
 //        (ฮุค strikePierces) + จบฉากตีแล้วรีเซ็ทคูลดาวน์ทุกอย่าง (ร่ายต่อเนื่อง/เพิ่มระยะ/ซ่อนเร้นมานา รวมคูลดาวน์เริ่มเกม/การกัน)
-//        แล้วนับ 0 ใหม่ (ครั้งที่ 6 ไม่นับ)
-//  สกิลพื้นฐาน ร่ายต่อเนื่อง (2 Energy · ตัวเอง): ตีปกติ +1 ครั้งในตาเดินนี้ (ฮุค extraStrike) · กดเทิร์น N → กดได้อีก N+2 · โควตาปกติ
+//        แล้วนับ 0 ใหม่ (ครั้งที่เสริมพลังไม่นับ)
+//  สกิลพื้นฐาน ร่ายต่อเนื่อง (2 Energy · ตัวเอง): ตีปกติ +1 ครั้งในตาเดินนี้ (ฮุค extraStrike) · กดเทิร์น N → กดได้อีก N+2
 //  สกิลรอง เพิ่มระยะ (3 Energy · ตัวเอง): ตีปกติครั้งถัดไป 1 ครั้งเป็นแนว [1, 6] (ค้างข้ามเทิร์นจนกว่าจะตี) · กดเทิร์น N → N+2
 //    · ค้างอยู่แล้วกดซ้ำไม่ได้ (Claude ตัดสิน — กันเสีย Energy เปล่า)
+//  โควตา: ทุกสกิลของเฟิร์นไม่กินโควตา 1 สกิลต่อเทิร์น (บัฟ 2026-10-24 — ใช้พื้นฐาน/รองแล้วใช้สกิลอื่นต่อได้) · แต่ละสกิลยังจำกัดด้วยคูลดาวน์ของตัวเอง
 //  ท่าไม้ตาย ซ่อนเร้นมานา (ฟรีจริง — skillFree · ไม่กินโควตา · ไม่ล็อกการเดิน · กดอีกครั้ง = ยกเลิก):
 //    เริ่มเกมติดคูลดาวน์ — กดได้ตั้งแต่เทิร์นแรก + 4 (ตั้งตอนต้นเทิร์นแรก: roundNumber เริ่มที่ startRound — ปกติ 1 → เทิร์น 5)
 //    เข้า: ล่องหน (ศัตรูในระยะ 2 แมนฮัตตันจากกรอบตัวเห็น — ฮุค seenBy) · Energy +4 ทันที · ต้นเทิร์น +2 · ฟื้นพลังชีวิต 1
@@ -40,17 +41,17 @@ const SFX = {
 };
 const FX = "fernFx"; // socket event (client/src/board/fernFx.js)
 const STYLE = "fernZoltraak";        // ท่าตีปกติบนกระดาน (client STYLE_MS / STYLE_HIT_P)
-const STYLE_MAX = "fernZoltraakMax"; // ครั้งที่ 6
+const STYLE_MAX = "fernZoltraakMax"; // ครั้งเสริมพลัง
 const PASSIVE = "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน";
 const PIERCE_FX = "ทะลุเกราะ";
 
 const HP = 5;
 const ARMOR = 2;
 const ENERGY_MAX = 10;
-const ZOLT_COST = 2;
+const ZOLT_COST = 1;
 const ZOLT_DMG = 2;
 const ZOLT_FX_EXTRA = 1; // วินาทีที่ฉากตียาวขึ้น (ร่าย 1.5 วิก่อนปะทะ — client FERN_SFX_LEAD)
-const EMPOWER_AT = 5;    // ตีครบ 5 → ครั้งที่ 6 เสริมพลัง
+const EMPOWER_AT = 4;    // ตีครบ 4 → ครั้งที่ 5 เสริมพลัง
 const SHIELD_CD = 3;     // กันเทิร์น N → พร้อม N+3
 const CAST_CD = 2;       // กดเทิร์น N → กดได้อีก N+2
 const BOOST_CD = 2;
@@ -71,7 +72,7 @@ function fresh() {
     shieldReady: 0,      // การกันพร้อมเมื่อ roundNumber >= ค่านี้
     blockKey: null,      // คีย์การโจมตีที่กำลังถูกกัน (ทุกจังหวะของการโจมตีเดียวกัน = 0)
     hitKey: null,        // คีย์การโจมตีที่นับว่าถูกโจมตีไปแล้ว (ไม่หลุดซ้ำ)
-    count: 0,            // การตี Zoltraak ที่นับไว้ (0..5 — ครบ 5 = ครั้งถัดไปเสริมพลัง)
+    count: 0,            // การตี Zoltraak ที่นับไว้ (0..EMPOWER_AT — ครบ = ครั้งถัดไปเสริมพลัง)
     castReady: 0,        // ร่ายต่อเนื่องกดได้เมื่อ roundNumber >= ค่านี้
     extra: 0,            // ตีปกติที่ตุนไว้ในตาเดินนี้
     boost: false,        // เพิ่มระยะค้างอยู่ (ตีครั้งถัดไป [1, 6])
@@ -145,7 +146,7 @@ function exitConceal(engine, p, why) {
   }
 }
 
-// ---------- ครั้งที่ 6: รีเซ็ทคูลดาวน์ทุกอย่าง ----------
+// ---------- ครั้งเสริมพลัง: รีเซ็ทคูลดาวน์ทุกอย่าง ----------
 function resetAll(s) {
   s.castReady = 0;
   s.boostReady = 0;
@@ -183,10 +184,10 @@ module.exports = {
   // ร่าย/ชาร์จก่อนลำแสงปะทะ 1.5 วิ (ตามไฟล์เสียง ZOLTRAAK FIre) → ฉากตียาวขึ้น 1 วิ
   attackFxExtra(p) { return isFern(p) ? ZOLT_FX_EXTRA : 0; },
   attackSound(p) { return isFern(p) ? (empowered(p) ? SFX.zoltraakMax : SFX.zoltraak) : undefined; },
-  // ครั้งที่ 6: ดาเมจทะลุเกราะ (attack.strike — ทุกคนในแนว) + ป้ายบนฉากตี
+  // ครั้งเสริมพลัง: ดาเมจทะลุเกราะ (attack.strike — ทุกคนในแนว) + ป้ายบนฉากตี
   strikePierces(engine, attacker) { return empowered(attacker); },
   attackFxNames(attacker) { return empowered(attacker) ? [PIERCE_FX] : []; },
-  // ตีคน 1 ครั้ง (ทั้งแนวนับครั้งเดียว) · ตีผนึก/หนาม = 2 Energy · ครั้งที่ 6 ฟรี
+  // ตีคน 1 ครั้ง (ทั้งแนวนับครั้งเดียว) · ตีผนึก/หนาม = 1 Energy · ครั้งเสริมพลัง ฟรี
   onStrikeResolved(engine, attacker, target, res, { counter } = {}) {
     if (!isFern(attacker) || counter || empowered(attacker)) return;
     attacker.skillPoints = Math.max(0, (attacker.skillPoints || 0) - ZOLT_COST);
@@ -195,7 +196,7 @@ module.exports = {
     if (!isFern(p) || empowered(p)) return;
     p.skillPoints = Math.max(0, (p.skillPoints || 0) - ZOLT_COST);
   },
-  // จบฉากตี 1 ครั้ง (คน/ผนึก/หนาม): ใช้เพิ่มระยะ · นับ Zoltraak · ครั้งที่ 6 = รีเซ็ทคูลดาวน์ทั้งหมดแล้วนับใหม่
+  // จบฉากตี 1 ครั้ง (คน/ผนึก/หนาม): ใช้เพิ่มระยะ · นับ Zoltraak · ครั้งเสริมพลัง = รีเซ็ทคูลดาวน์ทั้งหมดแล้วนับใหม่
   afterStrike(engine, p) {
     if (!isFern(p)) return;
     const s = st(p);
@@ -255,7 +256,7 @@ module.exports = {
   // ---------- สกิล ----------
   // ท่าไม้ตายฟรีจริงทุกครั้ง (เข้า/ยกเลิก — ภาระเวทไม่บวก)
   skillFree(p, tier) { return isFern(p) && tier === "ultimate"; },
-  skipsTurnQuota(p, tier) { return isFern(p) && tier === "ultimate"; },
+  skipsTurnQuota(p) { return isFern(p); }, // ทุกสกิลไม่กินโควตา (ใช้พื้นฐาน/รองแล้วใช้สกิลอื่นต่อได้)
   ignoresTurnQuota(p, tier) { return isFern(p) && tier === "ultimate" && concealOn(p); }, // ยกเลิก
   keepsMove(engine, p, tier) { return isFern(p) && tier === "ultimate"; },
   silentFlash(p, tier) { return isFern(p) && tier === "ultimate"; }, // เข้าเงียบ · ออกมีเอฟเฟกต์ unveil + เสียงแทนป้าย
@@ -346,7 +347,7 @@ module.exports = {
 
   // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
   //  ซ่อนเร้นมานา (ออกแบบกดยกเลิก — ไม่สตั้น · คูลดาวน์ 4 นับจากเทิร์นนี้) · เพิ่มระยะที่ค้างอยู่ · ตีที่ตุนไว้จากร่ายต่อเนื่อง (มีแค่ในตาเดินของเฟิร์น)
-  //  คูลดาวน์ร่ายต่อเนื่อง/เพิ่มระยะนับจากตอนกดอยู่แล้ว · การกัน/ครั้งที่ 6 = ติดตัว ไม่ใช่ผลสกิล
+  //  คูลดาวน์ร่ายต่อเนื่อง/เพิ่มระยะนับจากตอนกดอยู่แล้ว · การกัน/ครั้งเสริมพลัง = ติดตัว ไม่ใช่ผลสกิล
   severables(engine, p) {
     if (!isFern(p) || !p.alive) return [];
     const s = st(p), out = [];
@@ -376,6 +377,7 @@ module.exports = {
     return {
       conceal: !!s.conceal,
       count: Math.min(s.count, EMPOWER_AT),
+      need: EMPOWER_AT,
       empowered: s.count >= EMPOWER_AT,
       boost: !!s.boost,
       shieldCd: cdLeft(s.shieldReady, r),

@@ -902,14 +902,14 @@ function statusEntries(p, full) {
   }
   // อยู่ในกระดานคู่ขนาน (ชั้นมิติ "par:" — ท่าไม้ตายของวาเลนไทน์): ทุกคนในมิติเห็นป้ายนี้ (หน้าตากระดานเหมือนปกติ — ผู้ใช้ 2026-10-21)
   if (typeof p.dim === "string" && p.dim.startsWith("par:")) out.push({ key: "valParallel", v: 1, icon: "🌐", label: "กระดานคู่ขนาน", cls: "bg-cyan-200 text-gray-900", desc: "มองเห็นและโจมตีได้แค่คนในกระดานเดียวกัน ตัวที่เหมือนกันชนแล้วเสียหาย 4 เกราะรับก่อน ชนหรือถูกทำลายแล้วกลับกระดานหลัก" });
-  // เฟิร์น: ซ่อนเร้นมานา (อยู่ในโหมด/คูลดาวน์) · เพิ่มระยะ (รอตีครั้งถัดไป) · นับ Zoltraak n/5 (ครบ = ครั้งที่ 6 พร้อม) · ผู้เชี่ยวชาญเวทมนต์พื้นฐาน คูลดาวน์การกัน (ตัวเลข/ไอคอนเท่านั้น)
+  // เฟิร์น: ซ่อนเร้นมานา (อยู่ในโหมด/คูลดาวน์) · เพิ่มระยะ (รอตีครั้งถัดไป) · นับ Zoltraak n/need (ครบ = ครั้งเสริมพลังพร้อม) · ผู้เชี่ยวชาญเวทมนต์พื้นฐาน คูลดาวน์การกัน (ตัวเลข/ไอคอนเท่านั้น)
   if (p.fern) {
     const f = p.fern;
     if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
     else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
     if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
-    if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: "Zoltraak 5/5", cls: "bg-fuchsia-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่ใช้ Energy ทะลุเกราะทุกคนในแนว ตีแล้วรีเซ็ทคูลดาวน์ทุกอย่างและเริ่มนับใหม่" });
-    else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/5`, cls: "bg-violet-200 text-gray-900", desc: "ตีปกติครบ 5 ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง" });
+    if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: `Zoltraak ${f.need || 4}/${f.need || 4}`, cls: "bg-fuchsia-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่ใช้ Energy ทะลุเกราะทุกคนในแนว ตีแล้วรีเซ็ทคูลดาวน์ทุกอย่างและเริ่มนับใหม่" });
+    else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/${f.need || 4}`, cls: "bg-violet-200 text-gray-900", desc: `ตีปกติครบ ${f.need || 4} ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง` });
     if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงกันการโจมตีได้อีก" });
     else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
   }

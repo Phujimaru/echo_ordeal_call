@@ -90,7 +90,7 @@ test('ข้อมูล: กลาง · พลังชีวิต 5 เก�
   assert.equal(action.counters(P.F), false);
   assert.equal(view('F', 'F').maxSkill, 10);
   assert.equal(P.F.fern.concealReady, 5, 'เทิร์นแรก (1) + 4 — startMatch แจกเทิร์น 1 แล้ว');
-  assert.deepEqual(view('F', 'F').fern, { conceal: false, count: 0, empowered: false, boost: false, shieldCd: 0, basicCd: 0, boostCd: 0, concealCd: 1 });
+  assert.deepEqual(view('F', 'F').fern, { conceal: false, count: 0, need: 4, empowered: false, boost: false, shieldCd: 0, basicCd: 0, boostCd: 0, concealCd: 1 });
 });
 
 test('Energy: จบเทิร์น/ไอเทม/ไพ่/สกิลติดตัวไม่ฟื้น · ซ่อนเร้นมานาฟื้นได้ (ไม่เกิน 10)', () => {
@@ -120,13 +120,13 @@ test('Energy: จบเทิร์น/ไอเทม/ไพ่/สกิลต
   assert.ok(P.F.fern.conceal, 'เต็มแล้วโหมดยังอยู่');
 });
 
-test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโดนทุกคน (ทะลุ) เสียครั้งเดียว · ดาเมจ 2 (เกราะก่อน) · ไม่ถึง 2 = ตีไม่ได้', () => {
+test('Zoltraak: 1 Energy ต่อการตี · แนว 3 ช่องโดนทุกคน (ทะลุ) เสียครั้งเดียว · ดาเมจ 2 (เกราะก่อน) · Energy 0 = ตีไม่ได้', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 6, 7], ['D', 'dummy', 7, 7]]);
   for (const id of ['B', 'C', 'D']) { engine.players[id].hp = 10; engine.players[id].armor = 0; }
   P.C.armor = 1;
   engine.setActor('F');
   assert.equal(strikeNow('F', 'B'), true);
-  assert.equal(P.F.skillPoints, 8, 'ตีครั้งเดียวเสีย 2 แม้โดน 2 คน');
+  assert.equal(P.F.skillPoints, 9, 'ตีครั้งเดียวเสีย 1 แม้โดน 2 คน');
   assert.equal(P.B.hp, 8, 'ดาเมจ 2');
   assert.deepEqual([P.C.hp, P.C.armor], [9, 0], 'คนในแนว (ระยะ 3) โดนด้วย · เกราะรับก่อน');
   assert.equal(P.D.hp, 10, 'ระยะ 4 ไม่โดน');
@@ -134,21 +134,21 @@ test('Zoltraak: 2 Energy ต่อการตี · แนว 3 ช่องโ
   assert.equal(engine.lastAttack.byAttackSound, 'fern_zoltraak');
   assert.equal(engine.lastAttack.fxMs, 4000, 'ฉากตียาวขึ้น 1 วิ (ร่าย 1.5 วิก่อนปะทะ)');
   assert.equal(P.F.fern.count, 1);
-  P.F.skillPoints = 1;
+  P.F.skillPoints = 0;
   engine.setActor('F');
   assert.deepEqual(action.rangeOf(P.F), [1, 0]);
-  assert.equal(strikeNow('F', 'B'), false, 'Energy 1 = ตีไม่ได้');
+  assert.equal(strikeNow('F', 'B'), false, 'Energy 0 = ตีไม่ได้');
   assert.equal(P.F.fern.count, 1);
 });
 
-test('Zoltraak ตีหนามน้ำแข็ง = 2 Energy + นับเข้ารอบ · ครั้งที่ 6 ใส่หนามก็ฟรีและรีเซ็ท', () => {
+test('Zoltraak ตีหนามน้ำแข็ง = 1 Energy + นับเข้ารอบ · ครั้งเสริมพลังใส่หนามก็ฟรีและรีเซ็ท', () => {
   const P = setup([['F', 'fern', 3, 7], ['I', 'ice_spike', 12, 12]]);
   Ice.placeSpike(5, 7, 'I', 3);
   engine.setActor('F');
   assert.equal(strikeNow('F', 'spike:5,7'), true);
-  assert.equal(P.F.skillPoints, 8);
+  assert.equal(P.F.skillPoints, 9);
   assert.equal(P.F.fern.count, 1);
-  P.F.fern.count = 5; P.F.skillPoints = 0; P.F.fern.castReady = 9;
+  P.F.fern.count = 4; P.F.skillPoints = 0; P.F.fern.castReady = 9;
   engine.setActor('F');
   assert.equal(strikeNow('F', 'spike:5,7'), true);
   assert.equal(P.F.skillPoints, 0);
@@ -197,18 +197,19 @@ test('ผู้เชี่ยวชาญเวทมนต์พื้นฐ�
   assert.equal(view('F', 'F').fern.shieldCd, 0, 'ยังพร้อม');
 });
 
-test('ครั้งที่ 6: ตีครบ 5 → ฟรีแม้ Energy 0 · ทะลุเกราะทุกคนในแนว · รีเซ็ทคูลดาวน์ทุกอย่าง (รวมคูลดาวน์เริ่มเกม) · นับใหม่', () => {
+test('ครั้งที่ 5: ตีครบ 4 → ฟรีแม้ Energy 0 · ทะลุเกราะทุกคนในแนว · รีเซ็ทคูลดาวน์ทุกอย่าง (รวมคูลดาวน์เริ่มเกม) · นับใหม่', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 6, 7]]);
   for (const id of ['B', 'C']) { engine.players[id].hp = 50; engine.players[id].armor = 0; }
-  for (let i = 1; i <= 5; i++) {
+  P.F.skillPoints = 4;
+  for (let i = 1; i <= 4; i++) {
     engine.setActor('F');
     assert.equal(strikeNow('F', 'B'), true, `ตีครั้งที่ ${i}`);
     assert.equal(P.F.fern.count, i);
   }
   assert.equal(P.F.skillPoints, 0);
-  assert.equal(fernFx('empower').length, 1, 'ครบ 5 = เอฟเฟกต์พร้อม');
+  assert.equal(fernFx('empower').length, 1, 'ครบ 4 = เอฟเฟกต์พร้อม');
   assert.equal(view('F', 'F').fern.empowered, true);
-  assert.equal(view('F', 'F').fern.count, 5);
+  assert.equal(view('F', 'F').fern.count, 4);
   // คูลดาวน์ค้างทุกช่อง (ซ่อนเร้นมานายังติดคูลดาวน์เริ่มเกม)
   Object.assign(P.F.fern, { castReady: 9, boostReady: 9, shieldReady: 9, concealReady: null });
   for (const id of ['B', 'C']) { engine.players[id].hp = 10; engine.players[id].armor = 2; }
@@ -223,7 +224,7 @@ test('ครั้งที่ 6: ตีครบ 5 → ฟรีแม้ Energ
   assert.equal(card.byAttackSound, 'fern_zoltraak_max');
   assert.ok(card.skills.some((s) => s.name === 'ทะลุเกราะ' && s.side === 'atk'));
   assert.equal(fernFx('reset').length, 1);
-  assert.equal(P.F.fern.count, 0, 'นับใหม่ (ครั้งที่ 6 ไม่นับ)');
+  assert.equal(P.F.fern.count, 0, 'นับใหม่ (ครั้งเสริมพลังไม่นับ)');
   const s = view('F', 'F').fern;
   assert.deepEqual([s.basicCd, s.boostCd, s.shieldCd, s.concealCd, s.empowered], [0, 0, 0, 0, false]);
   // ครั้งถัดไปกลับเป็นปกติ
@@ -231,18 +232,18 @@ test('ครั้งที่ 6: ตีครบ 5 → ฟรีแม้ Energ
   engine.setActor('F');
   strikeNow('F', 'B');
   assert.deepEqual([P.B.hp, P.B.armor], [8, 0], 'กลับมาลดเกราะก่อน');
-  assert.equal(P.F.skillPoints, 2);
+  assert.equal(P.F.skillPoints, 3);
   assert.equal(P.F.fern.count, 1);
 });
 
-test('ครั้งที่ 6 ปลดคูลดาวน์ซ่อนเร้นมานาที่เพิ่งเริ่มจากการตีครั้งนั้น', () => {
+test('ครั้งเสริมพลังปลดคูลดาวน์ซ่อนเร้นมานาที่เพิ่งเริ่มจากการตีครั้งนั้น', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7]]);
   P.B.hp = 50; P.B.armor = 0;
   P.F.fern.concealReady = 0;
   engine.setActor('F');
   engine.useSkill('F', 'ultimate', []);
   assert.ok(P.F.fern.conceal);
-  P.F.fern.count = 5;
+  P.F.fern.count = 4;
   assert.equal(strikeNow('F', 'B'), true);
   assert.equal(P.F.fern.conceal, null, 'ตี = ออก');
   assert.equal(view('F', 'F').fern.concealCd, 0, 'คูลดาวน์ที่เริ่มจากการตีนี้ถูกรีเซ็ท');
@@ -255,7 +256,7 @@ test('ร่ายต่อเนื่อง: ตีครั้งแรกไ
   engine.useSkill('F', 'basic', []);
   assert.equal(P.F.skillPoints, 8);
   assert.equal(P.F.fern.extra, 1);
-  assert.equal(P.F.skillUsedRound, true, 'กินโควตา');
+  assert.equal(P.F.skillUsedRound, false, 'ไม่กินโควตา (บัฟ 2026-10-24)');
   assert.ok(fernFx('cast').length);
   engine.useSkill('F', 'basic', []);
   assert.equal(P.F.skillPoints, 8, 'กดซ้ำไม่ได้');
@@ -264,7 +265,7 @@ test('ร่ายต่อเนื่อง: ตีครั้งแรกไ
   assert.equal(engine.gameState, 'ACTION');
   assert.equal(strikeNow('F', 'B'), true);
   assert.equal(P.B.hp, 99 - 4, 'ตี 2 ครั้ง');
-  assert.equal(P.F.skillPoints, 4);
+  assert.equal(P.F.skillPoints, 6);
   assert.notEqual(engine.actorId, 'F', 'ครั้งที่ 2 จบตา');
   P.F.skillPoints = 10; P.F.skillUsedRound = false;
   engine.setRoundNumber(5);
@@ -279,12 +280,16 @@ test('ร่ายต่อเนื่อง: ตีครั้งแรกไ
   assert.equal(P.F.fern.extra, 1, 'N+2 กดได้');
 });
 
-test('ร่ายต่อเนื่อง: ที่ตุนไว้หายตอนจบตา (รอ) · ร่าย + เพิ่มระยะในตาเดียวกันไม่ได้ (โควตา)', () => {
+test('ร่ายต่อเนื่อง: ที่ตุนไว้หายตอนจบตา (รอ) · ร่าย + เพิ่มระยะ + ซ่อนเร้นในตาเดียวกันได้ (ไม่กินโควตา)', () => {
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
+  P.F.fern.concealReady = 0;
   engine.setActor('F');
   engine.useSkill('F', 'basic', []);
   engine.useSkill('F', 'secondary', []);
-  assert.equal(P.F.fern.boost, false, 'โควตา 1 สกิลต่อเทิร์น');
+  assert.equal(P.F.fern.boost, true, 'ใช้พื้นฐานแล้วใช้รองต่อได้');
+  engine.useSkill('F', 'ultimate', []);
+  assert.ok(P.F.fern.conceal, 'ใช้รองแล้วใช้ท่าไม้ตายต่อได้');
+  assert.equal(P.F.skillPoints, 10 - 2 - 3 + 4);
   engine.waitAction('F');
   assert.equal(P.F.fern.extra, 0);
 });

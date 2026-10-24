@@ -335,7 +335,7 @@ function buildStateFor(viewerId) {
         gyro: hook && hook.gyroState ? hook.gyroState(engine, p) : undefined, // ไจโร: ลูกเหล็ก (บนพื้น/ในมือ) / สัดส่วนทองคำ / ม้า / เสริมท่าไม้ตาย (GRID_PLAN §7.11 สัญญาข้อมูล)
         diego: hook && hook.diegoState ? hook.diegoState(engine, p, viewer) : undefined, // ดิเอโก้: เล่ห์เหลี่ยม / กระสุน / เดอะเวิลด์ / ม้า / ตาข่าย (เจ้าของเห็น) — GRID_PLAN §7.12
         valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
-        fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งที่ 6 / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
+        fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งเสริมพลัง / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
@@ -382,7 +382,7 @@ function unseenPub(o, p) {
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
     diego: undefined, celine: undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
-    fern: o.fern ? { conceal: false, count: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
+    fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     actions: undefined,
   };
 }
