@@ -153,6 +153,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // การพุ่งบนกระดาน — client เล่นแอนิเมชันตาม seq ใหม่ { id, path, wheel?, swap?: { id, from, to }, boom? }
   setDash(d) { match.dash = d ? { seq: ++match.dashSeq, ...d } : null; },
   movOf: action.movOf,
+  rebaseMove: action.rebaseMove,         // ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (บานาจ: พุ่งหลังเดิน)
+  tauntOf: action.tauntOf,               // ถูกล่อเป้าอยู่ไหม → Set ของตัวล่อ | null (โล่ผู้พิทักษ์ของบานาจ)
   baseMovOf: action.baseMovOf,
   rangeOf: action.rangeOf,
   beginOrder: action.beginOrder,

@@ -147,7 +147,54 @@ const CHARACTERS = [
       instant: true,
       effect: null,
     },
-    ultimate: null,
+    // ท่าไม้ตาย (โหมดสายหลับ — GRID_PLAN §7.5.1): ช่องวางกล่องที่วางได้ (area.tiles) ใส่ตอนส่ง state (ฮุค skillArea)
+    ultimate: {
+      name: "ผมจำเป็นต้องไปต่อ",
+      desc: "ปรากฏตัว 2 เทิร์น: กล่องของลาพลัส 2×2 ตกลงช่องไหนก็ได้ทั้งสนาม (สิ่งกีดขวาง · พลังชีวิต 2 · เกราะ 1) · ทับผู้เล่นอื่น = ผลักออก + ศัตรูเสียหาย 2 (เกราะรับก่อน) · ยืนติดกล่องแล้วสวม = เป็นบานาจ ลิงซ์ถาวร (พลังชีวิตสูงสุด +2 ฟื้น 2 · เกราะสูงสุด +1 ฟื้น 2) · กล่องพังเรียกใหม่ได้",
+      area: { kind: "tile", range: 30, place: "list", foot: 2, hostile: true },
+      cost: 6,
+      img: "/characters/sliver_bullet/laplace_box.jpg",
+      instant: true,
+      effect: null,
+    },
+    // สองโหมดในหน้าเลือกตัว (socket join { mode }) — ผู้กอบกู้เริ่มเกมเป็นร่าง banagher · สายหลับ = ชุดด้านบน
+    modes: [{ key: "sleeper", name: "สายหลับ" }, { key: "savior", name: "ผู้กอบกู้", form: "banagher" }],
+    // ร่างบานาจ ลิงซ์ (ชุดสกิลแยกขาดจากนักบิน — ผู้ใช้สั่ง) · ปุ่ม/ชื่อ/รูปทับผ่านฮุค skillPub / characterPub ของ characters/sliver_bullet.js
+    forms: {
+      banagher: {
+        name: "บานาจ ลิงซ์",
+        img: "/characters/sliver_bullet/banagher_unicorn.png",
+        passive: {
+          name: "NT-D ทำงาน",
+          desc: "ปุ่มเปิด/ปิด (เทิร์นละครั้ง · ใช้แต้มสกิล 1 ตอนจบเทิร์น · แต้มไม่พอ = ปิดเอง): พลังโจมตี +1 · ระยะเดิน +1 · พุ่งเลือกทิศ 2 ช่องเทิร์นละครั้ง ก่อนหรือหลังเดินก็ได้ (ชนสิ่งกีดขวาง/คน = หยุดก่อนถึง)",
+        },
+        passive2: {
+          name: "New Type Paradise",
+          desc: "ระหว่างยูนิคอร์น!!!!: ได้ผลของ NT-D ทำงานโดยไม่ใช้แต้ม · โล่บินได้ 3 อัน (พลังชีวิต 1 · เกราะ 1 · บินทะลุสิ่งกีดขวาง ซ้อนช่องได้ ไม่ขวางทาง · อยู่ในระยะเดินของบานาจ · ตีปกติไม่ได้) จบตาเดินแล้วคุมทีละอัน · โล่ผู้พิทักษ์ (2 แต้ม · โล่ละครั้งต่อเทิร์น): ศัตรูในระยะ 2 รอบโล่เล็งได้เฉพาะโล่ ทั้งตีปกติและสกิล 1 เทิร์น · ท่าไม้ตายหมด = โล่หาย",
+        },
+        basic: {
+          name: "โล่ดูดซับ",
+          desc: "ดูดซับความเสียหายทุกแบบจนถึงตาเดินถัดไปของตัวเอง แล้วฟื้นพลังชีวิตเท่าที่ดูดซับ (สูงสุด 3) · กันการสังหารทันทีไม่ได้ (คูลดาวน์ 3 เทิร์นหลังหมดผล)",
+          area: { kind: "self" },
+          cost: 3,
+          img: "/characters/sliver_bullet/banagher_skill1.jpg",
+        },
+        secondary: {
+          name: "Beam Magnum",
+          desc: "กระสุน 5 นัดต่อเกม · เลือกทิศ ยิงทะลุทุกคนในแนว 8×1 ความเสียหาย 3 (เกราะรับก่อน · หลบไม่ได้) + พังสิ่งกีดขวางที่โดน · ยิงแล้วต้องรีโหลด (0 แต้ม) เทิร์นถัดไป · ระหว่างยูนิคอร์น!!!!: 4 แต้ม ไม่ใช้กระสุน ไม่ต้องรีโหลด",
+          area: { kind: "line", len: 8, width: 1, hostile: true },
+          cost: 2,
+          img: "/characters/sliver_bullet/sliver_bullet_skill2.webp",
+        },
+        ultimate: {
+          name: "ยูนิคอร์น!!!!",
+          desc: "5 เทิร์น: New Type Paradise ทำงาน (แทน NT-D ทำงาน) · Beam Magnum ไม่ใช้กระสุน ไม่ต้องรีโหลด ยิงได้แม้กระสุนหมด แต่ใช้ 4 แต้ม (คูลดาวน์ 5 เทิร์นหลังหมดผล)",
+          area: { kind: "self" },
+          cost: 6,
+          img: "/characters/sliver_bullet/banagher_skill3.jpg",
+        },
+      },
+    },
   },
   {
     // ---------- โซระ โอโตสุมิ — ระดับง่าย — ดู characters/sora_otosumi.js (GRID_PLAN §7.7) ----------
@@ -955,6 +1002,20 @@ function publicRoster() {
     basic: pub(c.basic),
     secondary: pub(c.secondary),
     ultimate: pub(c.ultimate),
+    // โหมดในหน้าเลือกตัว (นักบินปริศนา: สายหลับ/ผู้กอบกู้) — โหมดที่มีร่าง = ชื่อ/รูป/สกิลของร่างนั้นบนแผง
+    modes: Array.isArray(c.modes) ? c.modes.map((m) => {
+      const f = m.form && c.forms && c.forms[m.form];
+      return {
+        key: m.key, name: m.name,
+        ...(f ? {
+          charName: f.name, img: f.img,
+          passive: f.passive ? { name: f.passive.name, desc: f.passive.desc } : null,
+          passive2: f.passive2 ? { name: f.passive2.name, desc: f.passive2.desc } : null,
+          passive3: null,
+          basic: pub(f.basic), secondary: pub(f.secondary), ultimate: pub(f.ultimate),
+        } : null),
+      };
+    }) : undefined,
   }));
 }
 

@@ -1005,3 +1005,17 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   อาวุธ = ฮุค `range` / `mov` / `attackLane` / `strikeRect` / `strikeRepeat` / `critPct` / `damageBonus` / `onStrikeLanded` ตามอาวุธที่ถือ · สกิลรองเปลี่ยนตามอาวุธ (`skillPub` + `skillArea` + `skillCost` — Caladbolg II ราคา = ความจุ ÷ 2 · `ownsAreaHit` แล้ว `engine.hitArea` ตอนลูกศรถึง) ·
   Avalon: `onDamageTaken` จดเทิร์นที่เสียหาย → `onEndTurn` ไม่เสียหายทั้งเทิร์น = `applyMend(p, 1, 2)` · ใช้สกิลสำเร็จทอย 30% ความจุ +2 (ใน `applyInstantSkill`) · `severables` = อาวุธ + UBW · dev `ECHO_DEV_EMIYA_CAP=N` (ความจุเพิ่มตั้งแต่เริ่ม)
 - เอฟเฟกต์ `engine.boardFx("emiyaFx", { kind, id, color, at, size, … })` (client `emiyaFx.js` · หน้าทดสอบ `?board=1&emiya=1`) · ตีปกติ `attackStyle` = `emiyaKB|emiyaBow|emiyaRule|emiyaNine|emiyaExcal` · เสียง `emiya_*` · คลิป `emiyaCaladbolgBefore/After` + `emiyaUbw` (`characters/_transforms.js`)
+
+## 31. โหมดตัวละคร / ยูนิตบินได้ + สายจูง / ล่อเป้า (นักบินปริศนา–บานาจ ลิงซ์ — `characters/sliver_bullet.js` · GRID_PLAN §7.5.1)
+- **โหมดในหน้าเลือกตัว**: characters.js `modes: [{ key, name, form? }]` + `forms: { <form>: { name, img, passive, passive2, basic, secondary, ultimate } }` · `publicRoster` ส่ง `modes` (โหมดที่มีร่าง = ชื่อ/สกิลของร่าง) ·
+  client `CharacterSelect` วาดปุ่มคู่ข้างปุ่มยืนยัน → `join { characterId, mode }` → `p.charMode` (ไม่รู้จัก = โหมดแรก) · ตัวละครอ่าน `p.charMode` ใน `resetCombat`
+- **ร่างที่ชุดสกิลแยกขาด**: ปุ่มทับด้วย `skillPub` (ชื่อ/คำอธิบาย/รูป) + `skillArea` + `skillCost` · ชื่อ/ปก/สกิลติดตัวทับด้วย `characterPub` → `{ name, img, passive, passive2 }` (view อ่าน passive/passive2 ได้แล้ว)
+- **บินได้** (ฮุค `flies(p)` → `action.flies` / `walksThrough`): เดินแบบ ghost (`Board.reachable ghost` — ทะลุสิ่งกีดขวาง/คน หยุดซ้อนช่องได้) · ไม่เหยียบน้ำแข็ง/กับดัก ไม่ได้ผลของช่อง ·
+  **ไม่ขวางทางใคร** (`action.walkUnits` ตัดออกจากรายชื่อที่ใช้คิดทางเดิน · client `ruleUnits` ตัด `p.flies`) · ยังถูกตี/โดนพื้นที่ปกติ
+- **สายจูง** (ฮุค `walkLeash(p)` → `{ x, y, r }`): ปลายทางเดินต้องห่างจุดนั้นไม่เกิน r (`planWalk`) · client ตัดระยะเดินด้วย `players[].leash` (ส่งเฉพาะเจ้าของ)
+- **ล่อเป้า**: `p.taunt = { ids, until }` (ตั้งโดยตัวละคร) → `action.tauntOf(p)` = Set ตัวล่อที่ยังอยู่จนจบเทิร์น until · `tauntAllows` ใช้ใน `canStrike` (ตีปกติ) + `targetOk` (สกิล target) — เพื่อน/ตัวเองไม่ถูกบังคับ ·
+  state `players[].taunt` (id ตัวล่อ) → client กรองเป้าใน `planFor` / โหมดเลือกเป้า (`tauntOk`) · engine `tauntOf`
+- **พุ่งหลังเดิน**: `engine.rebaseMove(p)` = ตาเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (ก่อนย้าย `p.pos` เอง) · พุ่งก่อนเดิน = ตั้ง `engine.action.from` เป็นช่องใหม่ (แบบทาคุโตะ) · แอนิเมชัน `engine.setDash({ id, path })`
+- **สกิลเลือกช่องจากรายการของ server**: `area { kind: "tile", place: "list", foot, tiles }` (tiles คิดใน `skillArea` ทุกครั้งที่ส่ง state) — client ใช้โหมด list เดียวกับปุ่ม HUD ที่มี tiles
+- **ยูนิตที่ถูกเรียกขนาดใหญ่**: ตั้ง `boardSize` หลัง `engine.summon.spawn` (กล่องของลาพลัส 2×2 · ฝ่ายกลาง = ขวางทางทุกคน) · ตายแล้วฮุค `onSummonDeath` ของเจ้าของ
+- **ฉากตีดาบสี**: `attackHitFx(p)` → `"saberRed"` = ฟันไขว้แบบมีดโซระ (`mythSlashFx` tone red) · เสียงตีตรงจังหวะปะทะ

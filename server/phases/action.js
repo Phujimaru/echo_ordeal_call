@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap, flowerWalk,
+  walkUndoPatch, startMap, flowerWalk, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -160,6 +160,43 @@ function hopTiles() {
 function unitAlly(a, b) {
   return combat.sameTeam(match.players[a.id], match.players[b.id]);
 }
+// บินได้ (ฮุค flies(p) — โล่บินได้ของบานาจ GRID_PLAN §7.5.1): เดินทะลุสิ่งกีดขวาง/คนแบบเดินทะลุ (Board.reachable ghost) หยุดซ้อนช่องได้
+//  และไม่ขวางทางเดินของใคร (walkUnits ไม่นับ) — ยังถูกตี/โดนพื้นที่ได้ตามปกติ
+function flies(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.flies && hook.flies(p));
+}
+// เดินทะลุทุกอย่าง: ชั้นมิติหลบสายตา (Dim.ghost) หรือบินได้ — ไม่เหยียบน้ำแข็ง/กับดัก ไม่ชนใคร ไม่ได้ผลของช่อง
+function walksThrough(p) {
+  return Dim.ghost(p) || flies(p);
+}
+// คนที่ขวางทางเดิน (boardUnits ตัดตัวที่บินได้ออก)
+function walkUnits(ref) {
+  return boardUnits(ref).filter((u) => !flies(match.players[u.id]));
+}
+// สายจูง (ฮุค walkLeash(p) → { x, y, r }): ช่องที่หยุดได้ต้องห่างจุดนั้นไม่เกิน r (แมนฮัตตัน) · ไม่มี = null
+function leashOf(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  const l = hook && hook.walkLeash ? hook.walkLeash(p) : null;
+  return l && Number.isFinite(l.x) && Number.isFinite(l.y) && Number.isFinite(l.r) ? l : null;
+}
+function inLeash(leash, t) {
+  return !leash || Math.abs(t.x - leash.x) + Math.abs(t.y - leash.y) <= leash.r;
+}
+// ถูกล่อเป้า (โล่ผู้พิทักษ์ของบานาจ): p.taunt = { ids, until } — จนจบเทิร์น until เล็งศัตรูได้เฉพาะ ids ที่ยังอยู่ (ตีปกติ + สกิลแบบ target)
+//  → Set ของ id ที่ต้องเล็ง | null (ไม่ถูกล่อ / ตัวล่อหายหมด)
+function tauntOf(p) {
+  const t = p && p.taunt;
+  if (!t || !(t.until >= match.roundNumber)) return null;
+  const ids = (t.ids || []).filter((id) => { const u = match.players[id]; return u && u.alive && u.pos; });
+  return ids.length ? new Set(ids) : null;
+}
+// เล็งเป้านี้ได้ไหมตามการล่อเป้า (เพื่อน/ตัวเอง = ได้เสมอ)
+function tauntAllows(p, t) {
+  if (!t || t.id === p.id || combat.sameTeam(p, t)) return true;
+  const set = tauntOf(p);
+  return !set || set.has(t.id);
+}
 // ระยะเดินปกติสูงสุด (ก่อนหักโทษ) — บัฟของโอเบรอนใช้ค่านี้เป็นระยะส่ง (GRID_PLAN §5)
 //  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (Echo: ตัวใหญ่ขึ้น เดินได้น้อยลง)
 function baseMovOf(p) {
@@ -177,7 +214,7 @@ function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
-  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (Dim.ghost(p) ? 0 : movPenalty(p, a)));
+  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)));
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
@@ -195,10 +232,10 @@ function movPenalty(p, a) {
 function rebaseMove(p) {
   const a = match.action;
   if (!p || !p.pos || !a || !a.moved || match.actorId !== p.id) return;
-  const all = boardUnits();
+  const all = walkUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p), flowerWalk: flowerWalk(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -252,6 +289,7 @@ function strikeRect(p) {
 // เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
+  if (!tauntAllows(p, target)) return false; // ถูกล่อเป้า: ตีได้เฉพาะตัวล่อ
   if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
 }
@@ -446,6 +484,7 @@ function targetOk(p, area, range, t) {
   if (t.id === p.id) return !!area.self;
   if (!Dim.same(p, t)) return false; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
   if (Visibility.hiddenFromUnit(p, t)) return false;
+  if (!tauntAllows(p, t)) return false; // ถูกล่อเป้า: เล็งศัตรูได้เฉพาะตัวล่อ
   // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
   if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t);
   return Board.dist(boxOf(p), boxOf(t)) <= range;
@@ -702,9 +741,10 @@ function startMap() {
 //  ตัวใหญ่: คีย์ของระยะเดิน = ช่องมุมบนซ้าย · ตั้งแต่ 3×3 เดินพังสิ่งกีดขวางได้ (smash)
 function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
-  const seen = boardUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
+  const seen = walkUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: Dim.ghost(p), flowerWalk: flowerWalk(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p) };
+  if (!inLeash(leashOf(p), { x, y })) return null; // สายจูง (โล่บินได้): ปลายทางต้องอยู่ในระยะ
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
   if (step) return Board.stepPath(map, unit, movOf(p), seen, trail, { x, y }, opts);
@@ -737,7 +777,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   if (p.mountId) { act.dismount = p.mountId; p.mountId = null; }
   const s = sizeOf(p);
   const map = boardMap();
-  const all = boardUnits();
+  const all = walkUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   // ภาพเดิน: คลิก = ทั้งเส้นทางจากจุดเริ่มตา · คีย์บอร์ด = ก้าวนี้ก้าวเดียว (จากช่องที่ยืน)
   const animOf = (walked) => {
@@ -747,7 +787,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   };
   // น้ำแข็ง (GRID_PLAN §7.9): ช่องน้ำแข็งช่องแรกที่เดินเข้า = จุดเริ่มไถล — เดินจริงแค่ถึงช่องนั้น ที่เหลือคิดใหม่ด้วยตำแหน่งจริงของทุกคน
   //  เดินทะลุ (ชั้นมิติ — Dim.ghost) ไม่เหยียบน้ำแข็ง/กับดัก ไม่ชนใคร
-  const ghost = Dim.ghost(p);
+  const ghost = walksThrough(p);
   const entry = s <= 1 && !ghost ? path.findIndex((t, i) => i > 0 && Board.isIce(map, t.x, t.y)) : -1;
   const walk = entry > 0 ? path.slice(0, entry + 1) : path;
   const bodyAt = (t) => ({ x: t.x, y: t.y, size: s });
@@ -1047,7 +1087,7 @@ function finishActor() {
     Ride.cancelAsk(); // คำขอขี่ที่ยังไม่ได้ตอบหมดอายุพร้อมตา
     if (p && match.action && match.action.dismount && !Ride.riding(p)) Ride.dismounted(p, "walk"); // เดินลงจากหลังตานี้ (ไม่ได้ย้อนกลับ)
     if (Ride.riding(p)) Ride.unseat(p); // ขี่อยู่ = ไม่ได้ยืนบนช่อง (ไม่ได้ผลของช่อง) · ขึ้นหลังต่อ
-    else if (!Dim.ghost(p)) endUnitTile(p); // เดินทะลุ (ชั้นมิติ — หลบสายตา) = ไม่ได้ผลของช่อง
+    else if (!walksThrough(p)) endUnitTile(p); // เดินทะลุ (ชั้นมิติ — หลบสายตา) = ไม่ได้ผลของช่อง
     // ฮุค broadcast afterActorEnd(engine, p) → วินาที: ตาเดินของใครก็ได้จบ (หลังผลของช่อง ก่อนไปตัว/คนถัดไป)
     //  > 0 = ค้างฉาก ATTACKING เท่านั้นแล้วมาต่อที่นี่ (วาเลนไทน์: ตัวที่เหมือนกันวิ่งเข้าหา + ชน) · ผลจบตาไม่ลงซ้ำ (endDone)
     const hold = afterActorEnd(p);

@@ -53,6 +53,15 @@ const onBody = (p, t) => !!p && !!p.pos && !!t && Rules.covers(boxOfP(p), t.x, t
 const dimOf = (p) => (p && p.dim) || null;
 const isDoubleP = (p) => !!(p && p.summon && p.summon.kind === "double");
 const veiledP = (p) => !!(p && p.valentine && p.valentine.veil);
+// บินได้ (โล่บินได้ของบานาจ — server action.flies): เดินทะลุแบบ ghost · ไม่ขวางทางใคร
+const fliesP = (p) => !!(p && p.flies);
+// สายจูง { x, y, r } (server action.leashOf): ช่องที่หยุดได้ต้องห่างจุดนั้นไม่เกิน r — ตัดระยะเดินที่เกิน (เก็บช่องเริ่มไว้เสมอ)
+function leashReach(reach, leash, start) {
+  if (!reach || !leash) return reach;
+  const out = new Map();
+  for (const [k, n] of reach) if ((start && n.x === start.x && n.y === start.y) || Math.abs(n.x - leash.x) + Math.abs(n.y - leash.y) <= leash.r) out.set(k, n);
+  return out;
+}
 const teamOfP = (p) => (isDoubleP(p) ? null : (p && p.teamId) || null); // ตัวเหมือน = ไม่มีทีม (เดินผ่านไม่ได้ · ตีได้ทุกคน)
 const GHOST_ALPHA = 0.38; // คนคนละชั้นมิติ
 // เดินทะลุ (หลบสายตา): boardRules รองรับ opts.ghost แล้วหรือยัง (ทดลองเดินทะลุหินบนกระดาน 3×1)
@@ -207,7 +216,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const myDim = dimOf(me);
   const sameDim = useCallback((p) => !!p && dimOf(p) === myDim, [myDim]);
   const ruleUnits = useMemo(
-    () => state.players.filter((p) => p.alive && p.pos && dimOf(p) === myDim).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: teamOfP(p), size: sizeOfP(p) })),
+    () => state.players.filter((p) => p.alive && p.pos && dimOf(p) === myDim && !fliesP(p)).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: teamOfP(p), size: sizeOfP(p) })),
     [state.players, myDim],
   );
   const isAlly = useCallback((a, b) => teamMode && !!a.teamId && a.teamId === b.teamId, [teamMode]);
@@ -216,12 +225,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
   //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
   //  flowerWalk = ราชาดอกไม้ของเซลิน (p.flowerWalk) — ช่องดอกไม้ (TERRAIN_INFO flower) ไม่เสียก้าว
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p), flowerWalk: !!(p && p.flowerWalk) });
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk) });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)
+  //  กล่องของลาพลัส (summon laplace) = ฝ่ายกลางเหมือนกัน ยกเว้นเจ้าของกล่อง
   const isEnemy = (p) => !!p && !!me && p.id !== me.id && sameDim(p)
+    && !(p.summon && p.summon.kind === "laplace" && p.summon.ownerId === me.id)
     && (isDoubleP(p) || (!sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId)));
+  // ถูกล่อเป้า (โล่ผู้พิทักษ์ — server action.tauntOf): เล็งศัตรูได้เฉพาะตัวล่อ (ตีปกติ + สกิลเลือกเป้า)
+  const tauntOk = (p) => !me || !Array.isArray(me.taunt) || !me.taunt.length || !isEnemy(p) || me.taunt.includes(p.id);
 
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
@@ -336,7 +349,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // เดินไม่ได้แล้ว (ล็อก/ชนคนที่มองไม่เห็น/ไถล) = ช่องที่ยืนเท่านั้น — ไม่เปิดเดินตามดอกไม้ฟรี (ราชาดอกไม้ของเซลิน: งบ 0 ก้าวยังเดินบนดอกไม้ได้
     //  → แผนตีเลือกช่องยืนที่ต้องเดิน → server ไม่ให้เดิน → ตีค้างรอเดินจบ)
     if (!canMove || !originUnit) return reachOf(map, unitOf(me), 0, ruleUnits, { ...optsOf(me), flowerWalk: false });
-    return reachOf(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me));
+    return leashReach(reachOf(startMap, originUnit, me.mov || 0, ruleUnits, optsOf(me)), me.leash, me.pos);
   }, [myTurn, canMove, map, startMap, me, action, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   // ช่องที่ชี้ → ช่องมุมบนซ้ายที่จะเดินไป (ตัว 1 ช่อง = ช่องนั้นเอง) · ตัวใหญ่: ให้กลางตัวอยู่ที่ช่องที่ชี้ ไม่ได้ = มุมที่ตัวครอบช่องนั้นและเดินน้อยสุด
   //  ช่องที่ยืนอยู่ = ไม่ใช่เป้าเดิน · เดินแล้วชี้จุดเริ่มตา = ย้อนการเดิน (server ย้อนให้)
@@ -357,7 +370,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
-    if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive) return null;
+    if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive || !tauntOk(foe)) return null;
     const range = foe.isCorpse ? [1, 1] : me.range || [1, 1];
     const laneOn = !foe.isCorpse && me.lane;
     const hits = (n) => (laneOn ? !!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
@@ -449,7 +462,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const keys = new Set(tiles.map((t) => key(t.x, t.y)));
       if (pick.self) for (const t of Rules.footprint(me.pos.x, me.pos.y, sizeOfP(me))) keys.add(key(t.x, t.y));
       const inKeys = (p) => Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => keys.has(key(t.x, t.y)));
-      const valid = new Set(state.players.filter((p) => p.alive && p.pos && sameDim(p) && inKeys(p) && (!pick.allow || pick.allow(p))).map((p) => p.id));
+      const valid = new Set(state.players.filter((p) => p.alive && p.pos && sameDim(p) && inKeys(p) && (!pick.allow || pick.allow(p)) && tauntOk(p)).map((p) => p.id));
       return { skill: [...keys], valid };
     }
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
@@ -804,8 +817,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
       // มีดโซระ (byHitFx "mythSlash"): พุ่งชนแบบเดิม · เสียงเริ่มก่อนปะทะ (ฟันแรกในเสียงตรงจังหวะปะทะ) · ฟันฟ้า 2 ครั้งแทนแสงแตก
-      const myth = a.byHitFx === "mythSlash";
-      if (myth && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
+      //  ดาบ BeamSaber ของบานาจ (byHitFx "saberRed"): ฟันไขว้แบบเดียวกันแต่สีแดง · เสียงตีตรงจังหวะปะทะ
+      const saber = a.byHitFx === "saberRed";
+      const myth = a.byHitFx === "mythSlash" || saber;
+      if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
       if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId }]));
@@ -839,7 +854,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
-          if (!myth && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
+          if ((!myth || saber) && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
           // เซลินติดคริ: ดอกทอง + มงกุฎเล็กเหนือเป้า + เสียงประกาย (ซ้อนเสียงอาวุธ)
           if (style && style.startsWith("celine") && a.crit && !a.dodge) { playSfx("celine_crit"); pushFx([{ kind: "celineCrit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]) }]); }
@@ -853,7 +868,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           pushFx([
             hk && !a.dodge
               ? { kind: "hkHit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), tone: HK_TONE[style], hitIds: [a.targetId, ...extras.filter((e) => !e.dodge).map((e) => e.targetId)] }
-              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
+              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]), tone: saber ? "red" : null },
             ...extras.flatMap((e) => [
               e.dodge ? { kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor } : hk ? { kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] } : { kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor },
               { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
@@ -910,7 +925,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (a.push.collide) pushFx([{ kind: "float", x: a.push.from.x, y: a.push.from.y, text: "ชน -1", color: "#ffc56b", size: 22 }]);
         });
       }
-      const slashTail = myth || (a.counter && a.counter.byHitFx === "mythSlash") ? SORA_T.slash2 : 0;
+      const slashTail = myth || (a.counter && (a.counter.byHitFx === "mythSlash" || a.counter.byHitFx === "saberRed")) ? SORA_T.slash2 : 0;
       if (!lowQ) later(t + slashTail + (a.push ? 900 : 1000), () => setCinema(null));
     }
     // ผนึกแตกนอกฉากตี (สกิลพื้นที่) = แตกทันที
@@ -1502,6 +1517,31 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("diegoFx", onDiego);
     return () => socket.off("diegoFx", onDiego);
+  }, [pushFx, look, lowQ]);
+
+  // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
+  useEffect(() => {
+    const onSliver = (ev) => {
+      if (!ev || !ev.kind) return;
+      const burstAt = (t, size = 1, color = ev.color) => t && { kind: "burst", x: t.x + (size - 1) / 2, y: t.y + (size - 1) / 2, color };
+      if (ev.kind === "boxDrop" && ev.at) {
+        look(ev.at);
+        pushFx([burstAt(ev.at, ev.size || 2, "#ffd36a"), { kind: "slash", x: ev.at.x + 0.5, y: ev.at.y + 0.5, color: ev.color || "#ffffff" }].filter(Boolean));
+        if (!lowQ) setShake((n) => n + 1);
+      } else if (ev.kind === "boxWear" && ev.at) {
+        pushFx([burstAt(ev.at, 2, "#ffffff")]);
+      } else if (ev.kind === "funnels") {
+        pushFx((ev.spawns || []).map((s) => burstAt(s.at, 1, "#7dffb0")).filter(Boolean));
+      } else if (ev.kind === "funnelFade" || ev.kind === "funnelBreak") {
+        pushFx([...(ev.at && !Array.isArray(ev.at) ? [ev.at] : ev.at || [])].map((t) => burstAt(t, 1, "#ffffff")).filter(Boolean));
+      } else if (ev.kind === "guard" && ev.at) {
+        pushFx([burstAt(ev.at, 1, "#7dffb0"), ...(ev.ids || []).map((id) => { const p = byIdRef.current[id]; return p && p.pos ? { kind: "slash", x: p.pos.x, y: p.pos.y, color: "#7dffb0" } : null; }).filter(Boolean)]);
+      } else if ((ev.kind === "absorb" || ev.kind === "absorbHit" || ev.kind === "ntd") && ev.at) {
+        pushFx([burstAt(ev.at, 1, ev.kind === "ntd" ? "#ff3b4e" : "#8fd8ff")]);
+      }
+    };
+    socket.on("sliverFx", onSliver);
+    return () => socket.off("sliverFx", onSliver);
   }, [pushFx, look, lowQ]);
 
   // ฟันนี่ วาเลนไทน์ (D4C): socket "valentineFx" { kind, id, ... } → valentineFx.js (GRID_PLAN §7.13)

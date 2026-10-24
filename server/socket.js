@@ -133,7 +133,7 @@ function onUnitEvent(socket, event, handler, limit = 20, windowMs = 1000) {
 }
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join
-function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, ch }) {
+function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, ch, mode = null }) {
   return {
     id: playerId,
     sessionToken,
@@ -144,6 +144,7 @@ function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, c
     name: (name || "ผู้เล่น").toString().slice(0, 12),
     customColor: lobby.normalizeColor(color),
     position: pos, characterId: ch.id, avatar: ch.avatar, img: ch.img,
+    charMode: mode, // โหมดที่เลือกในหน้าเลือกตัว (characters.js modes — นักบินปริศนา: "sleeper" / "savior") · ไม่มีโหมด = null
     cards: [], locked: false, busted: false, result: null,
     hp: MAX_HP, armor: MAX_ARMOR, skillPoints: 0, alive: true, shield: 0,
     statuses: {}, statusAmt: {},
@@ -190,7 +191,7 @@ io.on('connection', (socket) => {
     view.broadcastPositions();
   });
 
-  safeOn(socket, "join", ({ name, position, characterId, color } = {}) => {
+  safeOn(socket, "join", ({ name, position, characterId, color, mode } = {}) => {
     if (!consumeEventQuota(socket, 'join', 3, 10_000) || playerIdFor(socket)) return;
     if (Object.keys(match.players).length >= MAX_PLAYERS) { socket.emit("full"); return; }
     if (match.gameState !== "LOBBY") { socket.emit("inProgress"); return; }
@@ -210,7 +211,10 @@ io.on('connection', (socket) => {
 
     const playerId = crypto.randomUUID();
     const sessionToken = crypto.randomBytes(32).toString('base64url');
-    match.players[playerId] = newPlayerRecord({ playerId, sessionToken, socketId: socket.id, name, color, pos, ch });
+    // โหมดของตัวละคร (characters.js modes) — ไม่รู้จัก/ไม่ส่ง = โหมดแรก (ค่าเริ่มต้น)
+    const modes = Array.isArray(ch.modes) ? ch.modes : null;
+    const charMode = modes ? (modes.find((m) => m.key === mode) || modes[0]).key : null;
+    match.players[playerId] = newPlayerRecord({ playerId, sessionToken, socketId: socket.id, name, color, pos, ch, mode: charMode });
     sessions.set(sessionToken, playerId);
     bindPlayerSocket(socket, playerId);
     socket.emit('joined', { sessionToken });

@@ -42,6 +42,18 @@ const FILES = {
   // นักบินปริศนา (sliver_bullet): บรรจุแขนใหม่ · ยิง (ตีปกติ + Beam Magnum)
   sliver_reload: "/characters/sliver_bullet/sliver_bullet_reload_arm.m4a",
   sliver_shot: "/characters/sliver_bullet/sliver_bullet.m4a",
+  // บานาจ ลิงซ์ (state.skillMusic): ยูนิคอร์น!!!! ระหว่างท่าไม้ตาย · กล่องของลาพลัสวนระหว่างกล่องอยู่บนสนาม (ไฟล์จากผู้ใช้ ปรับ -14 LUFS แล้ว)
+  banagher_unicorn: "/characters/sliver_bullet/banagher_unicorn.mp3",
+  laplace_box: "/characters/sliver_bullet/laplace_box.mp3",
+  // บานาจ ลิงซ์: เสียงเอฟเฟกต์สังเคราะห์ด้วย ffmpeg (~-16 LUFS) — ฟันดาบ BeamSaber / พุ่ง / โล่ดูดซับ / ล่อเป้า / กล่องตก / โล่บินได้เกิด / แตก
+  banagher_saber: "/characters/sliver_bullet/sfx/banagher_saber.mp3",
+  banagher_dash: "/characters/sliver_bullet/sfx/banagher_dash.mp3",
+  banagher_absorb: "/characters/sliver_bullet/sfx/banagher_absorb.mp3",
+  banagher_absorb_hit: "/characters/sliver_bullet/sfx/banagher_absorb_hit.mp3",
+  banagher_guard: "/characters/sliver_bullet/sfx/banagher_guard.mp3",
+  banagher_box: "/characters/sliver_bullet/sfx/banagher_box.mp3",
+  banagher_funnel: "/characters/sliver_bullet/sfx/banagher_funnel.mp3",
+  banagher_break: "/characters/sliver_bullet/sfx/banagher_break.mp3",
   // โซระ โอโตสุมิ: ตีปกติมีด (ฟัน 2 ครั้ง — ครั้งแรก ~0.25 วิ ครั้งสอง ~1.0 วิ) / ปืน · สลับ My-Th Edge เป็นมีด / ปืน
   sora_hit_knife: "/characters/sora_otosumi/sora_hit_knife.m4a",
   sora_hit_gun: "/characters/sora_otosumi/sora_hit_gun.m4a",
@@ -376,6 +388,17 @@ const LOUDNESS_GAIN = {
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
   "/characters/takuto/takuto_theme.m4a": 0.5, // -8.0 LUFS (ffmpeg ebur128)
+  // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
+  "/characters/sliver_bullet/sliver_bullet_skill3.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_ntd.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_ntd_shot.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_skill1.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_guard.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_reload.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_beam.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_beam_ntd.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_beam_ult.mp4": 0.84,
+  "/characters/sliver_bullet/banagher_skill3.mp4": 0.84,
   // เกรย์ (ffmpeg ebur128 ทั้งไฟล์) — contro -14.6 / standBy -14.1 / skill3_intro.mp4 -16.2 / skill3_final.mp4 -15.5 อยู่ที่เป้าแล้ว ไม่อยู่ในตาราง
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }

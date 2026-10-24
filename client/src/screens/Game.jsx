@@ -2121,7 +2121,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
+      //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0) } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
@@ -2580,7 +2581,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               skills={
                 <>
                   <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
-                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} />
+                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" ? me.sliver.ammo : undefined} />
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }

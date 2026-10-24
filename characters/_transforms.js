@@ -29,6 +29,17 @@ module.exports = function buildTransforms() {
     //  sliverReload ระหว่างล่องหนคิวแบบ onlyFor (นักบิน + เพื่อนร่วมทีม) · ความยาวจริง skill1 3.10 / skill2 5.07 วิ
     sliverReload: { img: sliverChar.IMG.skill1, video: sliverChar.VIDEO.reload, title: "เปลี่ยนชิ้นส่วน", label: "ซ่อมแซม", seconds: 5, music: null, afterReveal: false },
     sliverBeam:   { img: sliverChar.IMG.skill2, video: sliverChar.VIDEO.beam,   title: "Beam Magnum",     label: "ยิงทำลาย", seconds: 7, music: null, afterReveal: false },
+    // บานาจ ลิงซ์ (GRID_PLAN §7.5.1) — จังหวะเล่นอยู่ใน sliver_bullet.js · seconds = ความยาวจริงปัดขึ้น
+    banagherWear:     { img: sliverChar.IMG.laplace, video: sliverChar.VIDEO.wear,     title: "กล่องของลาพลัส",  label: "สวมใส่",       seconds: 20, music: null, afterReveal: false }, // 19.27 วิ
+    banagherNtd:      { img: sliverChar.IMG.ntd,     video: sliverChar.VIDEO.ntd,      title: "NT-D ทำงาน",      label: "Destroy Mode", seconds: 15, music: null, afterReveal: false }, // 14.40 วิ
+    banagherNtdShot:  { img: sliverChar.IMG.ntd,     video: sliverChar.VIDEO.ntdShot,  title: "NT-D ทำงาน",      label: "Destroy Mode", seconds: 7,  music: null, afterReveal: false }, // 6.43 วิ
+    banagherAbsorb:   { img: sliverChar.IMG.shield,  video: sliverChar.VIDEO.absorb,   title: "โล่ดูดซับ",       label: "ดูดซับ",       seconds: 6,  music: null, afterReveal: false }, // 4.83 วิ
+    banagherGuard:    { img: sliverChar.IMG.guard,   video: sliverChar.VIDEO.guard,    title: "โล่ผู้พิทักษ์",    label: "ล่อเป้า",      seconds: 4,  music: null, afterReveal: false }, // 3.13 วิ
+    banagherReload:   { img: sliverChar.IMG.beam,    video: sliverChar.VIDEO.bReload,  title: "Beam Magnum",     label: "รีโหลด",       seconds: 3,  music: null, afterReveal: false }, // 1.70 วิ
+    banagherBeam:     { img: sliverChar.IMG.beam,    video: sliverChar.VIDEO.bBeam,    title: "Beam Magnum",     label: "ยิงทำลาย",     seconds: 5,  music: null, afterReveal: false }, // 3.63 วิ
+    banagherBeamNtd:  { img: sliverChar.IMG.beamNtd, video: sliverChar.VIDEO.bBeamNtd, title: "Beam Magnum",     label: "ยิงทำลาย",     seconds: 6,  music: null, afterReveal: false }, // 4.80 วิ
+    banagherBeamUlt:  { img: sliverChar.IMG.beamUlt, video: sliverChar.VIDEO.bBeamUlt, title: "Beam Magnum",     label: "ยิงทำลาย",     seconds: 6,  music: null, afterReveal: false }, // 4.53 วิ
+    banagherUnicorn:  { img: sliverChar.IMG.ult,     video: sliverChar.VIDEO.unicorn,  title: "ยูนิคอร์น!!!!",    label: "New Type Paradise", seconds: 16, music: null, afterReveal: false }, // 14.77 วิ
     // โซระ โอโตสุมิ — แปลงร่าง/ท่าไม้ตายเล่นครั้งแรกต่อเกม · คลิปชนเล่นทุกครั้งที่ชนโดน (sora_otosumi.js คิวเอง)
     //  ความยาวจริง 20.37 / 11.70 / 8.33 วิ ปัดขึ้น
     soraTransform: { img: sora.IMG.myth,   video: sora.VIDEO.transform, title: "Kamen Rider My-Th", label: "แปลงร่าง", seconds: 21, music: null, afterReveal: false },

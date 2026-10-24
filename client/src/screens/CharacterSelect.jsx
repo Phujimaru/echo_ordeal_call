@@ -106,6 +106,9 @@ function inkOn(hex) {
   return 0.299 * r + 0.587 * g + 0.114 * b > 165 ? "var(--oc-ink)" : "#fff";
 }
 
+// นาฬิกาเดียวกับ performance.now() (ห่อไว้ — ตัวตรวจ react-hooks/purity เข้าใจผิดว่าตัวจัดการคลิกถูกเรียกระหว่าง render)
+const nowMs = () => performance.now();
+
 // รายการสกิลที่แผงแสดง (สกิลติดตัว 2 มีเฉพาะบางตัว เช่น มุยมิ — ตัวอื่นเป็น null)
 function skillRows(sel) {
   const skills = [];
@@ -157,8 +160,17 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   // การ์ดที่ลอยออกจากวง: [{ key, id, dir: "out" | "back", t0, dur, from }] — ตำแหน่งตั้งทุกเฟรมใน flyFrame
   const [flies, setFlies] = useState([]);
 
+  // โหมดของตัวละคร (roster modes — นักบินปริศนา: สายหลับ / ผู้กอบกู้) · โหมดที่มีร่าง = ชื่อ/สกิลของร่างนั้นบนแผง
+  const [modeOf, setModeOf] = useState({}); // id → key ที่เลือก (ไม่เลือก = โหมดแรก)
+  const modeKey = (c) => (c && Array.isArray(c.modes) && c.modes.length ? (modeOf[c.id] || c.modes[0].key) : null);
+  const withMode = (c) => {
+    const m = c && Array.isArray(c.modes) ? c.modes.find((x) => x.key === modeKey(c)) : null;
+    if (!m || !m.charName) return c;
+    return { ...c, name: m.charName, passive: m.passive, passive2: m.passive2, passive3: m.passive3, basic: m.basic, secondary: m.secondary, ultimate: m.ultimate };
+  };
   const sel = roster.find((c) => c.id === picked);
-  const shown = roster.find((c) => c.id === (picked || shownId));
+  const shown = withMode(roster.find((c) => c.id === (picked || shownId)));
+  const selMode = modeKey(sel);
   const shownGroup = shown ? grouped.find((g) => g.chars.some((c) => c.id === shown.id)) : null;
   const reason = blockReason(shown);
   const canConfirm = !!sel && !sel.locked && !blockReason(sel);
@@ -359,13 +371,13 @@ export default function CharacterSelect({ roster, position, color: myColor, name
     if (!card) return;
     card.style.animationPlayState = "paused";
     const r = card.getBoundingClientRect();
-    if (r.width > 0) { setHeroHandoff({ img: sel.img, rect: r, color }); holdUntil.current = performance.now() + 4000; }
+    if (r.width > 0) { setHeroHandoff({ img: sel.img, rect: r, color }); holdUntil.current = nowMs() + 4000; }
   };
 
   const confirm = () => {
     if (!picked || sel?.locked || blockReason(sel)) return;
     handOffHero();
-    onConfirm(picked);
+    onConfirm(picked, selMode ? { mode: selMode } : undefined);
   };
 
   const byId = new Map(roster.map((c) => [c.id, c]));
@@ -515,6 +527,17 @@ export default function CharacterSelect({ roster, position, color: myColor, name
       {/* ยืนยัน — มุมขวาล่าง โผล่เฉพาะตอนเลือกตัว · เลือกไม่ได้ = ปุ่มกดไม่ได้ + ป้ายเหตุผล */}
       <div className={`cs-confirm-wrap${sel ? " open" : ""}`} aria-hidden={!sel}>
         {sel && selWhy && <span className="cs-confirm-why">{selWhy}</span>}
+        {sel && Array.isArray(sel.modes) && sel.modes.length > 1 && (
+          <div className="cs-modes" role="radiogroup">
+            {sel.modes.map((m) => (
+              <button
+                key={m.key} type="button" role="radio" aria-checked={selMode === m.key}
+                className={`cs-mode${selMode === m.key ? " on" : ""}`}
+                onClick={() => setModeOf((o) => ({ ...o, [sel.id]: m.key }))}
+              >{m.name}</button>
+            ))}
+          </div>
+        )}
         <OcButton variant="primary" className="cs-confirm" disabled={!canConfirm} tabIndex={sel ? undefined : -1} onClick={confirm}>{confirmLabel}</OcButton>
       </div>
 

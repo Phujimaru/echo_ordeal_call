@@ -309,8 +309,9 @@ function buildStateFor(viewerId) {
           img: (charOver && charOver.img) || ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
           cover: (charOver && charOver.img) || ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน
           name: (charOver && charOver.name) || ch.name, // ฮุค characterPub (ยูนะ: ร้อนแรงดังไฟ = "ยูนะ" + ปกไอดอล)
-          passive: ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
-          passive2: ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
+          // characterPub คืน passive/passive2 ได้ (บานาจ ลิงซ์: ชุดสกิลติดตัวของร่าง)
+          passive: charOver && charOver.passive !== undefined ? charOver.passive : ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
+          passive2: charOver && charOver.passive2 !== undefined ? charOver.passive2 : ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
           passive3: ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike)
           basic: basicPub,
           secondary: secondaryPub,
@@ -342,6 +343,9 @@ function buildStateFor(viewerId) {
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
         takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
+        flies: action.flies(p) || undefined, // บินได้ (โล่บินได้ของบานาจ): เดินทะลุแบบ ghost + ไม่ขวางทางใคร
+        leash: mine ? action.leashOf(p) || undefined : undefined, // สายจูง { x, y, r }: ช่องที่หยุดได้ต้องห่างจุดนี้ไม่เกิน r
+        taunt: (() => { const t = action.tauntOf(p); return t ? [...t] : undefined; })(), // ถูกล่อเป้า: id ตัวล่อที่ต้องเล็ง
         // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key } · มี tiles = เลือกช่องก่อน → { key, tile }
         actions: mine && hook && hook.hudActions ? hook.hudActions(engine, p) || undefined : undefined,
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว

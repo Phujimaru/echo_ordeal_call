@@ -1564,6 +1564,7 @@ function quakeFx(g, e, now, lowQ) {
 //   lead = เล่นเสียงมีดก่อนจังหวะปะทะ (เสียงฟันแรกอยู่ที่ ~0.25 วิ) · slash2 = ฟันแรก → ฟันที่สอง · boom = ระยะระเบิดฟ้า
 export const SORA_T = { wheel: 1400, step: 90, lead: 250, slash2: 750, boom: 1200 };
 const SKY = "80,185,255", SKY_HI = "185,235,255", DEEP = "28,72,235", ICE = "225,246,255", STEEL = "196,212,232";
+const SORA_PAL = { SKY, SKY_HI, DEEP, ICE };
 const h01 = (n) => { const s = Math.sin(n * 91.7 + 47.3) * 43758.5453; return s - Math.floor(s); };
 
 //  fx { kind: "mythSlash", x, y (มุมบนซ้ายเป้า), size } — ฟันมีด 2 ครั้ง: ครั้งแรกที่ t0 (จังหวะปะทะ) · ครั้งที่สอง t0 + SORA_T.slash2 ไขว้กันเป็นรูป X
@@ -1585,7 +1586,10 @@ function crescent(g, cx, cy, R, rot, span, u0, u1, W, fill) {
   for (let i = inn.length - 1; i >= 0; i--) g.lineTo(inn[i][0], inn[i][1]);
   g.closePath(); g.fillStyle = fill; g.fill();
 }
+// tone "red" = ดาบ BeamSaber ของบานาจ (แกนขาว + เรืองแดง)
+const SABER = { SKY: "255,70,90", SKY_HI: "255,190,200", DEEP: "220,20,40", ICE: "255,228,232" };
 function mythSlashFx(g, e, now, lowQ) {
+  const { SKY, SKY_HI, DEEP, ICE } = e.tone === "red" ? SABER : SORA_PAL;
   const t = now - e.t0, n = Math.max(1, e.size | 0), still = lowQ || REDUCED;
   const [cx, cy, s0] = P(e.x + n / 2, e.y + n / 2, 0.85 + (n - 1) * 0.4);
   const S = s0 * 1.2 * (1 + (n - 1) * 0.5), R = S * 0.62, span = 2.0;

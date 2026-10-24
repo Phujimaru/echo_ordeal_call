@@ -47,9 +47,10 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · ไม่มีท่าไม้ตาย · ตีปกติระยะ 1–4 · Beam Magnum แนว 8×1 (สกิลโจมตี) · unique', () => {
+test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · ท่าไม้ตายกล่องของลาพลัส · ตีปกติระยะ 1–4 · Beam Magnum แนว 8×1 (สกิลโจมตี) · unique', () => {
   const ch = CHAR_BY_ID.sliver_bullet;
-  assert.equal(ch.ultimate, null);
+  assert.equal(ch.ultimate.cost, 6);
+  assert.equal(ch.ultimate.area.kind, 'tile');
   assert.equal(ch.unique, true);
   assert.deepEqual(ch.basic.area, { kind: 'self' });
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 8, width: 1, hostile: true });
