@@ -14,7 +14,7 @@
 //    คฑาแห่งการรังสรรค์ (1 · ทั้งแผนที่): พุ่มดอกไม้ 1 ช่อง อยู่ 5 เทิร์น
 //  ความแข็งกร้าว (รอง · 0 แต้ม · ไม่จำกัด · ไม่กินโควตา · ไม่ล็อกการเดิน): เลือกอาวุธที่ถือ (เริ่มเกม ดาบเล็ก)
 //    ดาบ (ประชิด): ดาบเล็ก หลบหลีกเฉพาะตัว 5% + ตี/รอแล้วเดินต่อได้อีกรอบ (canto — ทำได้แค่เดิน/รอ) · ดาบมังกรแดง คริ 50% ·
-//      ดาบใหญ่ พลังโจมตี +1 + ผลัก 1 ช่อง
+//      ดาบใหญ่ พลังโจมตี +1 + ผลัก 1 ช่อง · ตีแล้วกลับเป็นดาบเล็ก + ดาบใหญ่คูลดาวน์ 5 (ผู้ใช้สั่ง 2026-10-24 · ตีที่ปลดเป็นดาบเล็กไม่ได้เดินต่อ)
 //    สื่อเวทย์ (ระยะ 1–3): ไฟ ลุกไหม้ 1 · ลม ผลัก 2 ช่อง ชนสิ่งกีดขวาง/ขอบ/คน = เสียหายเพิ่ม 1 · ไฟฟ้า ช็อต 2 เทิร์น
 //  สวนดอกไม้ของฉัน (ท่าไม้ตาย · 6 · กินโควตา · ใช้แล้วยังเดินได้): บัฟราชาดอกไม้ 5 เทิร์น (statuses.celineKing · บัฟ 2026-10-21 — เดิม 3)
 //    — เดินตามช่องดอกไม้ไม่เสียก้าว (Board opts.flowerWalk) · อัตราคริ +50% · คริของตีปกติ/ฟื้นฟู ×3 · ต้นเทิร์นแต้มสกิล +1
@@ -66,6 +66,7 @@ const WALL_CD = 3;
 const WALL_LEN = 3;
 const SWAP_RANGE = 5;
 const SWAP_CD = 3;
+const GREAT_CD = 5;     // ดาบใหญ่: ตีแล้วกลับเป็นดาบเล็ก + คูลดาวน์ (ผู้ใช้สั่ง 2026-10-24)
 const BLOOM_TURNS = 5;  // คฑาแห่งการรังสรรค์
 const TRAIL_TURNS = 5;  // รอยเท้า (สวนดอกไม้ · บัฟ 2026-10-22 เดิม 3)
 const ULT_TURNS = 5;     // บัฟ 2026-10-21 (เดิม 3)
@@ -81,7 +82,8 @@ const WEAPONS = {
   dagger: { name: "ดาบเล็ก", cls: "sword", evade: 5, canto: true,
     desc: "ประชิด · หลบหลีก 5% · ตีหรือรอแล้วเดินต่อได้อีกรอบ (ทำได้แค่เดินกับรอ)" },
   dragon: { name: "ดาบมังกรแดง", cls: "sword", crit: 50, desc: "ประชิด · อัตราคริ 50%" },
-  great: { name: "ดาบใหญ่", cls: "sword", atk: 1, push: 1, desc: "ประชิด · พลังโจมตี +1 · ผลักเป้า 1 ช่อง" },
+  great: { name: "ดาบใหญ่", cls: "sword", atk: 1, push: 1, cd: GREAT_CD,
+    desc: `ประชิด · พลังโจมตี +1 · ผลักเป้า 1 ช่อง · ตีแล้วกลับเป็นดาบเล็ก (คูลดาวน์ ${GREAT_CD} เทิร์น)` },
   fire: { name: "เวทย์ไฟ", cls: "magic", burn: 1, desc: "ระยะ 3 · ลุกไหม้ 1" },
   wind: { name: "เวทย์ลม", cls: "magic", push: 2, collide: 1, desc: "ระยะ 3 · ผลักเป้า 2 ช่อง · ชนสิ่งกีดขวางเสียหายเพิ่ม 1" },
   thunder: { name: "เวทย์ไฟฟ้า", cls: "magic", shock: 2, desc: "ระยะ 3 · ช็อต 2 เทิร์น" },
@@ -118,6 +120,7 @@ function fresh() {
     healCount: 0, healReady: 0,
     wallCount: 0, wallReady: 0,
     swapReady: 0,
+    greatReady: 0, noCanto: false, // ดาบใหญ่: คูลดาวน์หลังตี · ตาที่ตีด้วยดาบใหญ่ไม่ได้เดินต่อ (แม้กลับเป็นดาบเล็กแล้ว)
     ultReady: 0,
     teaStreak: 0,                  // เวลาน้ำชา: ต้นเทิร์นที่ยืนในพุ่มติดกัน (ครบ TEA_TURNS = ฟื้น)
     kingSever: 0,                  // ลำดับตอนได้ราชาดอกไม้ (engine.severStamp — ฮุค severables)
@@ -294,7 +297,7 @@ function pushAfter(engine, p, t, w) {
 module.exports = {
   id: ID,
   IMG, ICON, VIDEO, CUT, FX, VOICE, HP, ARMOR, TENDER, TENDER_KEYS, TENDER_PER_TURN, WEAPONS, WEAPON_KEYS, STYLE,
-  HEAL_AMT, HEAL_LIMIT, HEAL_CD, WALL_LIMIT, WALL_CD, SWAP_RANGE, SWAP_CD, BLOOM_TURNS, TRAIL_TURNS, ULT_TURNS, ULT_CD, BUSH_CRIT, KING, KING_CRIT, KING_SP,
+  HEAL_AMT, HEAL_LIMIT, HEAL_CD, WALL_LIMIT, WALL_CD, SWAP_RANGE, SWAP_CD, GREAT_CD, BLOOM_TURNS, TRAIL_TURNS, ULT_TURNS, ULT_CD, BUSH_CRIT, KING, KING_CRIT, KING_SP,
   isCeline, kingOn, inBloom, wallPlan,
 
   resetCombat(p) { p.celine = isCeline(p) ? fresh() : null; },
@@ -324,7 +327,7 @@ module.exports = {
   },
   // ดาบเล็ก: ตี/รอแล้วเดินต่อได้อีกรอบเต็มระยะ (ทำได้แค่เดิน/รอ — ไม่มี cantoSkill)
   cantoMov(engine, p) {
-    if (!isCeline(p) || !weaponOf(p).canto) return 0;
+    if (!isCeline(p) || !weaponOf(p).canto || st(p).noCanto) return 0;
     return engine.movOf(p);
   },
 
@@ -372,6 +375,17 @@ module.exports = {
     }
     return weaponOf(attacker).cls === "magic" ? CUT.critMage : CUT.critSword;
   },
+  // ดาบใหญ่: ตีจบ (หลังผลัก) → กลับเป็นดาบเล็ก + คูลดาวน์ · ตานี้ไม่ได้เดินต่อของดาบเล็ก
+  afterStrike(engine, p) {
+    if (!isCeline(p)) return;
+    const s = st(p);
+    if (s.weapon !== "great") return;
+    s.weapon = "dagger";
+    s.greatReady = engine.roundNumber + GREAT_CD;
+    s.noCanto = true;
+    if (p.alive) fx(engine, p, "weapon", { weapon: s.weapon, cls: WEAPONS.dagger.cls });
+    engine.log(`⚔️ ${p.name} ดาบใหญ่กลับเป็น${WEAPONS.dagger.name} (คูลดาวน์ ${GREAT_CD} เทิร์น)`);
+  },
 
   // ---------- สกิล ----------
   skillCost(p, tier, base, opts = {}) {
@@ -406,10 +420,13 @@ module.exports = {
     }
     if (tier === "secondary") {
       return {
-        choices: WEAPON_KEYS.map((k) => ({
-          key: k, name: WEAPONS[k].name, img: ICON(k), desc: WEAPONS[k].desc, area: { kind: "self" }, cost: 0,
-          on: s.weapon === k, locked: s.weapon === k, free: true,
-        })),
+        choices: WEAPON_KEYS.map((k) => {
+          const cd = k === "great" ? cdLeft(s.greatReady, r) : 0;
+          return {
+            key: k, name: WEAPONS[k].name, img: ICON(k), desc: WEAPONS[k].desc, area: { kind: "self" }, cost: 0,
+            cd, on: s.weapon === k, locked: s.weapon === k || cd > 0, free: true,
+          };
+        }),
       };
     }
     return null;
@@ -436,7 +453,7 @@ module.exports = {
       if (opts.form === "bloom") return !!opts.tile && Flora.canBloom(engine.boardMap(), opts.tile.x, opts.tile.y);
       return false;
     }
-    if (tier === "secondary") return !!WEAPONS[opts.form] && opts.form !== s.weapon;
+    if (tier === "secondary") return !!WEAPONS[opts.form] && opts.form !== s.weapon && !(opts.form === "great" && cdLeft(s.greatReady, r) > 0);
     if (tier === "ultimate") return !kingOn(p) && cdLeft(s.ultReady, r) === 0;
     return false;
   },
@@ -503,6 +520,7 @@ module.exports = {
     if (!isCeline(p)) return;
     clearWalls(engine, p, "expire");
     st(p).trailShown = null;
+    st(p).noCanto = false;
   },
   // จบตาโดยไม่ได้ยืนในพุ่ม = เวลาน้ำชานับใหม่
   onActorEnd(engine, p) {

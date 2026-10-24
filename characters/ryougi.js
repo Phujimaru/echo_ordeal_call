@@ -5,6 +5,7 @@
 //  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีปกติเล็งได้ห่าง 1–2 ช่อง ฟันแนวตรง 2 ช่องหน้าตัว (range [1, 2] + attackLane + laneLen 2 — ใครอยู่ใน 2 ช่องโดนหมด)
 //  หยินหยาง (พื้นฐาน · 0 · ปุ่ม 2 ตัวเลือก · ไม่กินโควตา · ใช้แล้วยังเดินได้ · เทิร์นเดียวกดได้ทั้ง 2 อย่าง)
 //    เนตรมณะ 1 เทิร์น (คูลดาวน์ 10) — บัฟกลาง netramana 20% รวมกับ 5% ของติดตัว = 25% (ทอยครั้งเดียว — attack.strike)
+//      คูลดาวน์ลดลง (ผู้ใช้สั่ง 2026-10-24): ตีปกติโดนศัตรู ≥1 คน = −1 ต่อครั้ง · ท่าไม้ตายโดนศัตรู = −2 ต่อคน
 //    เยียวยา 3 เทิร์น (คูลดาวน์ 5) — applyMend(p, 1, 3) ฟื้น 1 × 3 ครั้ง
 //  รากฐานจิต (รอง · 4 · กินโควตา · ใช้แล้วยังเดินได้ · กดซ้ำไม่ได้ระหว่างที่ยังอยู่): สถานะ ryougiMind 3 เทิร์น ใช้ได้ 1 ครั้ง —
 //    การโจมตีครั้งถัดไป (ตีปกติ/ท่าไม้ตาย) ศัตรูทุกคนที่โดน: ลบบัฟล่าสุด 1 (stripLatestBuff) + ตัดผลสกิลล่าสุด 1 (server/sever.js)
@@ -48,6 +49,8 @@ const VOICE_DEATH = "ryougi_v_death1";
 const LANE_LEN = 2;     // ตีปกติฟันแนว 2 ช่อง (ผู้ใช้: "ฟันไปข้างหน้า 2 ช่อง คนด้านหลังก็โดนด้วย")
 const KILL_CHANCE = 0.05;
 const EYES_CD = 10;
+const EYES_CUT_STRIKE = 1; // ตีปกติโดน → คูลดาวน์เนตรมณะ −1 (ต่อการตี 1 ครั้ง)
+const EYES_CUT_ULT = 2;    // ท่าไม้ตายโดน → −2 ต่อศัตรู 1 คน
 const MEND_CD = 5;
 const MEND_AMT = 1;
 const MEND_TURNS = 3;
@@ -67,7 +70,7 @@ const CRUMBLE_SECONDS = 1.1;
 const LEAP_EXTRA = 0.5; // ฉากตีปกติแบบกระโดดข้ามหัวยาวกว่าฉากตีปกติ (attackFxExtra)
 const CHOICES = {
   eyes: { name: "เนตรมณะ", img: IMG.skill3, cd: EYES_CD,
-    desc: `เนตรมณะ: ตีปกติและท่าไม้ตายสังหารทันทีเพิ่ม 20% (รวม 25%) 1 เทิร์น (คูลดาวน์ ${EYES_CD} เทิร์น)` },
+    desc: `เนตรมณะ: ตีปกติและท่าไม้ตายสังหารทันทีเพิ่ม 20% (รวม 25%) 1 เทิร์น (คูลดาวน์ ${EYES_CD} เทิร์น · ตีปกติโดน −${EYES_CUT_STRIKE} · ท่าไม้ตายโดน −${EYES_CUT_ULT} ต่อคน)` },
   mend: { name: "เยียวยา", img: IMG.skill1, cd: MEND_CD,
     desc: `เยียวยา: ต้นเทิร์นฟื้นพลังชีวิต ${MEND_AMT} รวม ${MEND_TURNS} เทิร์น (คูลดาวน์ ${MEND_CD} เทิร์น)` },
 };
@@ -82,6 +85,7 @@ function fresh() {
     eyesReady: 0, mendReady: 0, ultReady: 0,
     eyesAt: 0, bloomAt: 0, // ลำดับตอนเปิด (เพลง — ใหม่กว่าชนะ)
     mindSeq: -1,           // engine.cmdSeq ของการตีที่รากฐานจิตลงผลแล้ว (หมดหลังการตีครั้งนั้นจบ)
+    hitSeq: -1,            // engine.cmdSeq ของตีปกติที่โดนศัตรูแล้ว (ลดคูลดาวน์เนตรมณะตอนตีจบ)
   };
 }
 function st(p) { return p.ryougi || (p.ryougi = fresh()); }
@@ -92,6 +96,14 @@ const mindOn = (p) => isRyougi(p) && on(p, MIND);
 function cdOf(engine, p, form) {
   const s = st(p), r = engine.roundNumber;
   return cdLeft(form === "eyes" ? s.eyesReady : s.mendReady, r);
+}
+// ลดคูลดาวน์เนตรมณะ n เทิร์น (ไม่ติดคูลดาวน์ = ไม่มีผล)
+function cutEyes(engine, p, n, why) {
+  const s = st(p), r = engine.roundNumber;
+  const left = cdLeft(s.eyesReady, r);
+  if (!(n > 0) || left <= 0) return;
+  s.eyesReady = r + Math.max(0, left - n);
+  engine.log(`👁️ ${p.name} ${why} — คูลดาวน์เนตรมณะ −${Math.min(n, left)} (เหลือ ${cdLeft(s.eyesReady, r)})`);
 }
 function fx(engine, p, kind, extra) {
   engine.boardFx(FX, { kind, id: p.id, color: engine.colorOf(p), ...(p.pos ? { at: { ...p.pos } } : {}), size: engine.sizeOf(p), ...extra });
@@ -249,8 +261,9 @@ function ultimate(engine, p, dir, ids) {
     // ศัตรูในแนว: รากฐานจิต → ขโมยแต้ม → ทอยสังหาร 5% → ดาเมจ
     const line = new Set(plan.tiles.map((t) => key(t.x, t.y)));
     const onLine = (t) => t.pos && Board.footprint(t.pos.x, t.pos.y, engine.sizeOf(t)).some((c) => line.has(key(c.x, c.y)));
-    let mindUsed = false;
+    let mindUsed = false, struck = 0;
     for (const t of enemiesOf(engine, p, ids).filter(onLine)) {
+      struck += 1;
       if (mindOn(p)) { applyMind(engine, p, t); mindUsed = true; }
       const take = Math.min(ULT_STEAL, Math.max(0, t.skillPoints || 0));
       t.skillPoints = (t.skillPoints || 0) - take;
@@ -263,6 +276,7 @@ function ultimate(engine, p, dir, ids) {
       if (!t.alive) engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`);
     }
     if (mindUsed && on(p, MIND)) { delete p.statuses[MIND]; st(p).mindSeq = -1; engine.log(`🗡️ ${p.name} — รากฐานจิตถูกใช้ไปแล้ว`); }
+    cutEyes(engine, p, struck * EYES_CUT_ULT, `ดับสิ้นซะโดน ${struck} คน`);
 
     // ทุกอย่างในแนวพัง → ช่องพัง (ยกเว้นช่องที่ลง)
     const landKey = plan.land ? key(plan.land.x, plan.land.y) : null;
@@ -307,7 +321,7 @@ function ultimate(engine, p, dir, ids) {
 module.exports = {
   id: ID,
   IMG, FX, MUSIC, VOICE, VOICE_KILL, VOICE_DEATH, CHOICES, CHOICE_KEYS,
-  KILL_CHANCE, EYES_CD, MEND_CD, MEND_AMT, MEND_TURNS, MIND, MIND_TURNS, BLOOM, BLOOM_TURNS, BLOOM_ATK,
+  KILL_CHANCE, EYES_CD, EYES_CUT_STRIKE, EYES_CUT_ULT, MEND_CD, MEND_AMT, MEND_TURNS, MIND, MIND_TURNS, BLOOM, BLOOM_TURNS, BLOOM_ATK,
   ULT_CD, ULT_DMG, ULT_STEAL, ULT_LEN, ULT_AREA, DASH_SECONDS, CRUMBLE_SECONDS, LEAP_EXTRA,
   isRyougi, bloomOn, mindOn, dashPlan,
 
@@ -327,11 +341,18 @@ module.exports = {
   attackStyle(p) { return isRyougi(p) ? (bloomOn(p) ? "ryougiLeap" : "ryougiSlash") : null; },
   attackSound(p) { return isRyougi(p) ? (bloomOn(p) ? "ryougi_leap" : "ryougi_slash") : undefined; },
   attackFxExtra(p) { return bloomOn(p) ? LEAP_EXTRA : 0; },
-  beforeStrikeHit(engine, attacker, target) {
-    if (!mindOn(attacker) || !target || engine.sameTeam(attacker, target)) return [];
+  beforeStrikeHit(engine, attacker, target, { counter } = {}) {
+    if (!isRyougi(attacker) || !target || engine.sameTeam(attacker, target)) return [];
+    if (!counter) st(attacker).hitSeq = engine.cmdSeq;
+    if (!mindOn(attacker)) return [];
     return applyMind(engine, attacker, target, true);
   },
-  afterStrike(engine, p) { if (isRyougi(p)) spendMind(engine, p); },
+  afterStrike(engine, p) {
+    if (!isRyougi(p)) return;
+    spendMind(engine, p);
+    const s = st(p);
+    if (s.hitSeq === engine.cmdSeq) { s.hitSeq = -1; cutEyes(engine, p, EYES_CUT_STRIKE, "ตีปกติโดน"); }
+  },
   onInstaKill(engine, attacker, target, at, how) { if (isRyougi(attacker)) slain(engine, attacker, target, at, how); },
 
   // ---------- สกิล ----------

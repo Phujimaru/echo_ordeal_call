@@ -286,6 +286,35 @@ test('อาวุธ: ดาบใหญ่ +1 ผลัก 1 · เวทย�
   assert.equal(fxOf('collide').length, 1);
 });
 
+test('ดาบใหญ่: ตีแล้วกลับเป็นดาบเล็ก · คูลดาวน์ 5 เทิร์น (เลือกไม่ได้) · ตานั้นไม่ได้เดินต่อของดาบเล็ก', () => {
+  Math.random = () => 0.99;
+  const P = setup([['C', 'celine', 2, 7], ['A', 'dummy', 3, 7], ['B', 'dummy', 12, 8]]);
+  engine.setActor('C');
+  engine.useSkill('C', 'secondary', [], { form: 'great' });
+  assert.equal(P.C.celine.weapon, 'great');
+  // ฉากตีจบ: หยุดถ้ากลับเข้าตาเดิน (= ได้เดินต่อ)
+  const orig = timers.startPhaseTimer;
+  const fires = [];
+  timers.startPhaseTimer = (sec, fn) => { fires.push(fn); };
+  try {
+    assert.ok(engine.attackTarget('C', 'A'));
+    for (let i = 0; i < 6 && fires.length && match.actorId === 'C' && match.gameState !== 'ACTION'; i++) fires.shift()();
+  } finally { timers.startPhaseTimer = orig; engine.clearPhaseTimer(); }
+  assert.deepEqual(P.A.pos, { x: 4, y: 7 }, 'ยังผลัก 1 ช่อง');
+  assert.equal(P.C.celine.weapon, 'dagger', 'กลับเป็นดาบเล็ก');
+  assert.ok(!(match.actorId === 'C' && engine.action && engine.action.canto), 'ไม่ได้เดินต่อ');
+  const great = () => view('C', 'C').character.secondary.choices.find((c) => c.key === 'great');
+  assert.equal(great().cd, celine.GREAT_CD);
+  assert.equal(great().locked, true);
+  assert.equal(celine.canUseSkill(engine, P.C, 'secondary', [], { form: 'great' }), false);
+  engine.setRoundNumber(4 + celine.GREAT_CD);
+  assert.equal(great().cd, 0);
+  assert.equal(celine.canUseSkill(engine, P.C, 'secondary', [], { form: 'great' }), true);
+  // ตาถัดไปถือดาบเล็ก = เดินต่อได้ตามปกติ
+  celine.onActorStart(engine, P.C);
+  assert.ok(celine.cantoMov(engine, P.C) > 0);
+});
+
 test('ดาบเล็ก: หลบหลีกเฉพาะตัว 5% · ตี/รอแล้วเดินต่อได้อีกรอบ (เดิน/รอเท่านั้น)', () => {
   const P = setup([['C', 'celine', 2, 7], ['A', 'dummy', 3, 7], ['B', 'dummy', 12, 8]]);
   assert.equal(celine.ownEvade(P.C), 5);

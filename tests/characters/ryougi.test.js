@@ -274,6 +274,36 @@ test('ดับสิ้นซะ: ร้านค้าในแนวพัง
   assert.ok(P.R.pos.x < row.x + 8);
 });
 
+test('คูลดาวน์เนตรมณะ: ตีปกติโดน −1 ต่อครั้ง (โดน 2 คน = −1) · ถูกหลบ = ไม่ลด · ท่าไม้ตายโดน −2 ต่อคน · ไม่ต่ำกว่า 0', () => {
+  let { P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 1], ['B', 'dummy', 2]]);
+  engine.setActor('R');
+  engine.useSkill('R', 'basic', [], { form: 'eyes' });
+  assert.equal(engine.buildStateFor('R').players.find((p) => p.id === 'R').ryougi.eyesCd, 10);
+  Math.random = () => 0.99;
+  drain(() => engine.attackTarget('R', 'A'));
+  assert.equal(P.R.ryougi.eyesReady - engine.roundNumber, 9, 'ตีโดน 2 คน = −1 ครั้งเดียว');
+
+  ({ P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 1]]));
+  engine.setActor('R');
+  P.R.ryougi.eyesReady = engine.roundNumber + 10;
+  P.A.statuses.evade = 1; // หลบ 100%
+  drain(() => engine.attackTarget('R', 'A'));
+  assert.equal(P.R.ryougi.eyesReady - engine.roundNumber, 10, 'ถูกหลบ = ไม่ลด');
+
+  ({ P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2], ['B', 'dummy', 4]]));
+  engine.setActor('R');
+  P.R.ryougi.eyesReady = engine.roundNumber + 10;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.equal(P.R.ryougi.eyesReady - engine.roundNumber, 6, 'ท่าไม้ตายโดน 2 คน = −4');
+
+  ({ P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2], ['B', 'dummy', 4]]));
+  engine.setActor('R');
+  P.R.ryougi.eyesReady = engine.roundNumber + 3;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.equal(P.R.ryougi.eyesReady - engine.roundNumber, 0, 'ไม่ต่ำกว่า 0');
+  Math.random = realRandom;
+});
+
 test('ตัดผลสกิล: server/sever.js เลือกอันล่าสุด · ไม่มีฮุค = null', () => {
   const Sever = require('../../server/sever.js');
   const { P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 1]]);
