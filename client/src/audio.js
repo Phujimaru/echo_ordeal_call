@@ -297,6 +297,12 @@ const FILES = {
   ...Object.fromEntries([
     "turn1", "turn2", "turn3", "turn4", "strike1", "strike2", "strike3", "struck1", "struck2", "basic1", "secondary1", "secondary2", "ult1", "ult2", "kill1", "death1",
   ].map((k) => [`ryougi_v_${k}`, `/characters/ryougi/voice/ryougi_v_${k}.m4a`])),
+  // เอมิยะ ชิโร่ (GRID_PLAN §7.18 · contract §4) — Mixkit ฟรี ปรับ ~-16 LUFS (แหล่งที่มา .claude/plans/emiya-sfx-sources.md)
+  //  ตีปกติ: จุดปะทะอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · K&B มี 2 จังหวะในไฟล์ (ฮิตที่ 2 ตามหลัง 0.3 วิ)
+  ...Object.fromEntries([
+    "trace", "trace_excalibur", "break", "capacity", "avalon", "atk_kb", "atk_hrunting", "atk_rule", "atk_nine", "atk_excalibur",
+    "throw", "caladbolg_shot", "caladbolg_blast", "smash", "rho", "excalibur", "ubw", "stun",
+  ].map((k) => [`emiya_${k}`, `/characters/emiya_shirou/sfx/emiya_${k}.mp3`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

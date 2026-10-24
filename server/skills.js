@@ -41,7 +41,8 @@ function skillCostOf(p, tier, base, opts) {
   const nightTax = p.nightTaxTier === tier ? 1 : 0;
   const journeyTax = Journey.skillTax(engine, cost);
   const spellburden = Math.min(SPELLBURDEN_MAX, statusAmtOf(p, "spellburden"));
-  return Math.min(SKILL_COST_MAX, Math.max(0, cost - statusAmtOf(p, "spellflow")) + nightTax + journeyTax + spellburden);
+  // ราคาตั้งต้นที่เกินเพดานอยู่แล้ว (ท่าไม้ตาย UBW ของชิโร่ 12) คงราคาเดิม — ตัวปรับขาขึ้นแค่ดันไม่ได้
+  return Math.min(Math.max(SKILL_COST_MAX, cost), Math.max(0, cost - statusAmtOf(p, "spellflow")) + nightTax + journeyTax + spellburden);
 }
 
 // หยุดเวลา (server/timeStop.js): คำสั่งของผู้เล่นในตาเดิน — จดจุดย้อนไว้ ถูกตัด = ย้อนทั้งก้อน

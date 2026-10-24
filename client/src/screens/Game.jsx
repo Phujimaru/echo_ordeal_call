@@ -811,6 +811,7 @@ const STATUS_INFO = {
   takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "ตีปกติฟื้นพลังชีวิตเท่าความเสียหายจริงที่ทำได้รวมเกราะ ไม่เกิน 2 ต่อการตีหนึ่งครั้ง" },
   takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "ตีปกติโดนศัตรูทุกคนที่อยู่ติดด้านนั้นของตัวทั้ง 3 ช่อง" },
   // ผู้นำแห่งตระกูลเรียวกิ (เทิร์นที่เหลือ)
+  emiyaUbw:       { icon: "⚔️", label: "Unlimited Blade Works", cls: "bg-orange-300 text-gray-900", desc: "ต้นเทิร์นได้แต้มสกิล 1 คูลดาวน์สกิลรองลดเพิ่มทุกเทิร์น Trace On ไม่มีคูลดาวน์ และระยะเดินเพิ่ม 1" },
   ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "การโจมตีครั้งถัดไป ศัตรูที่โดนถูกลบบัฟล่าสุด 1 อย่างและถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง ใช้ได้ครั้งเดียว" },
   ryougiBloom:    { icon: "🌸", label: "ดับสิ้นซะ", cls: "bg-pink-300 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
   // Echo
@@ -926,6 +927,22 @@ function statusEntries(p, full) {
     if (r.eyesCd > 0) out.push({ key: "ryougiEyesCd", v: r.eyesCd, turns: true, icon: "⏳", label: "เนตรมณะ", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้เนตรมณะได้อีก" });
     if (r.mendCd > 0) out.push({ key: "ryougiMendCd", v: r.mendCd, turns: true, icon: "⏳", label: "เยียวยา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้เยียวยาได้อีก" });
     if (r.ultCd > 0) out.push({ key: "ryougiUltCd", v: r.ultCd, turns: true, icon: "⏳", label: "ดับสิ้นซะ", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+  }
+  // เอมิยะ ชิโร่: อาวุธที่ถือ (เทิร์น/ครั้งที่เหลือ) · คูลดาวน์ Trace On / สกิลรอง / UBW · Avalon — UBW เป็นสถานะ emiyaUbw
+  if (p.emiya) {
+    const e = p.emiya;
+    const W = {
+      kb: ["⚔️", "Kanshou & Bakuya", "ตีปกติ 1 ครั้งฟัน 2 ฮิต อัตราคริติคอลเพิ่ม 15%"],
+      hrunting: ["🏹", "Hrunting & Caladbolg II", "ตีได้ไกล 1 ถึง 4 ช่อง ระยะเดินลด 1"],
+      rule: ["🗡️", "Rule Breaker", "ตีโดนแล้วเป้าใช้สกิลไม่ได้จนจบตาเดินถัดไป และติดผนึกพลังงาน 2 เทิร์น"],
+      nine: ["🪨", "Nine Lives Blade Works", "พลังโจมตีเพิ่ม 1 ตีโดนศัตรูทุกคนในกรอบ 2×3 ทางทิศของเป้า"],
+      excalibur: ["✨", "Excalibur", "พลังโจมตีเพิ่ม 1 ตีแนว 3 ช่องโดนทุกคน ตีโดนแล้วติดเปราะบาง 2 เทิร์น"],
+    }[e.weapon];
+    if (W) out.push({ key: "emiyaWeapon", v: e.weaponTurns || 1, turns: true, icon: W[0], label: `${W[1]} ×${e.usesLeft}`, cls: e.weapon === "excalibur" ? "bg-amber-300 text-gray-900" : "bg-sky-200 text-gray-900", desc: W[2] });
+    if (e.traceCd > 0) out.push({ key: "emiyaTraceCd", v: e.traceCd, turns: true, icon: "⏳", label: "Trace On", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ Trace On ได้อีก" });
+    if (e.wsCd > 0) out.push({ key: "emiyaWsCd", v: e.wsCd, turns: true, icon: "⏳", label: "Weapon Skill", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้สกิลรองได้อีก" });
+    if (e.ultCd > 0) out.push({ key: "emiyaUltCd", v: e.ultCd, turns: true, icon: "⏳", label: "Unlimited Blade Works", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+    if (e.avalonCd > 0) out.push({ key: "emiyaAvalonCd", v: e.avalonCd, turns: true, icon: "🛡️", label: "Avalon", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงฟื้นพลังชีวิตจาก Avalon ได้อีก" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {

@@ -59,6 +59,7 @@
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
 //   takutos     [{ id, x, y, size, emerald, sapphire, judgment, collapse }] — ทาวเบิร์นของทาคุโตะ: ดาบลอยข้างตัว / ดาบแห่งการพิพากษาพาดหลัง / ออร่าแดงช่วงพังทลาย
 //               (takutoFx.js) · fx takuto* · takutoPose ย้ายหมากตอนพุ่ง/สลับตำแหน่ง
+//   emiya       { ubw, units: [{ id, weapon }] } | null — เอมิยะ ชิโร่: โลก Unlimited Blade Works · อาวุธที่ถือ (emiyaFx.js) · fx emiya*
 //   ryougi      { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } | null — ผู้นำแห่งตระกูลเรียวกิ: เนตรมณะ (มืดจาง + รอยร้าวแดง) /
 //               ใบมีดที่มือ / ซากุระทั่วกระดาน · กองเลือด (ryougiFx.js) · map.terrain "chasm" = ช่องพัง · fx ryougi* · ryougiPose ย้ายหมากตอนตี/พุ่ง/ถูกเหวี่ยง
 //               units[].ryougiSlain + corpse = ศพที่ถูกเรียวกิสังหาร วาดเป็นกองเลือด
@@ -674,7 +675,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
       }, now);
       if (!zs) st.boxes = frame(g);
       else {

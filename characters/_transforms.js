@@ -16,6 +16,7 @@ const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแร�
 const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
 const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่างทาวเบิร์น / เฟส 2·4 / ห่วงเวลาถูกทำลาย / ดาบรวมร่าง / ปาดาบ / สกิล
+const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: Caladbolg II (ก่อน/หลังเลือกทิศ) · Unlimited Blade Works — ทุกครั้งที่กด
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -69,6 +70,10 @@ module.exports = function buildTransforms() {
     takutoFlash:    { img: takuto.IMG.skill2,  video: takuto.VIDEO.skill2,      title: "ดาบประกายแสง",           label: "ทาวเบิร์น", seconds: 18, music: null, afterReveal: false },
     takutoMissile:  { img: takuto.IMG.skill3,  video: takuto.VIDEO.skill3,      title: "ทาวววว มิสไซล์",          label: "ปล่อยท่าไม้ตาย", seconds: 15.5, music: null, afterReveal: false },
     takutoBlast:    { img: takuto.IMG.zero,    video: takuto.VIDEO.skill3Extra, title: "ฉันยังมองเห็นอยู่",       label: "ปล่อยท่าไม้ตาย", seconds: 19, music: null, afterReveal: false },
+    // เอมิยะ ชิโร่ — Caladbolg II เล่นต่อกัน 2 คลิปทุกครั้ง (ง้างธนู → ลูกธนูระเบิด) · UBW ทุกครั้งที่กด · ความยาวจริง 9.26 / 3.25 / 22.73 วิ ปัดขึ้น
+    emiyaCaladbolgBefore: { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calBefore, title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 9.6, music: null, afterReveal: false },
+    emiyaCaladbolgAfter:  { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calAfter,  title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 3.6, music: null, afterReveal: false, noIntro: true },
+    emiyaUbw:             { img: emiya.IMG.ubw,            video: emiya.VIDEO.ubw,       title: "Unlimited Blade Works", label: "ปล่อยท่าไม้ตาย", seconds: 23.2, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
     mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },

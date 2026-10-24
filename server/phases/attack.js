@@ -443,6 +443,17 @@ function boardAttack(attacker, target, done) {
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
   strikeResolved(attacker, target, first, false);
+  // ตีซ้ำเป้าเดิมในการตีครั้งเดียว (ฮุค strikeRepeat(p) → จำนวนฮิตเพิ่ม — ชิโร่ Kanshou & Bakuya: 2 ฮิต แบบอาวุธ Brave)
+  //  แต่ละฮิตผ่าน strike() เต็มท่อ (หลบ/คริ/ผลตีโดน) · เป้าตาย/ผู้ตีตาย = หยุด · card.repeat = ผลของฮิตเพิ่ม (client เล่นต่อจากฮิตแรก)
+  const repeat = Number(hookOf(attacker, "strikeRepeat")) || 0;
+  if (repeat > 0) {
+    card.repeat = [];
+    for (let i = 0; i < repeat && target.alive && attacker.alive; i++) {
+      const r = strike(attacker, target);
+      card.repeat.push({ dmg: r.dmg, dodge: !!r.dodge, kill: !!r.kill, crit: !!r.crit, skills: r.skills || [] });
+      strikeResolved(attacker, target, r, false);
+    }
+  }
   if (lane) {
     card.byLane = lane.tiles;
     card.extra = [];
@@ -535,7 +546,7 @@ function playAttackCard(card, attacker, target, done) {
   //  ฮุค attackFxExtra(p) → วินาทีที่ท่าตีของตัวนี้ยาวกว่าปกติ (เฟิร์น: ร่าย/ชาร์จ Zoltraak ก่อนลำแสงปะทะ)
   const aHook = CHAR_HOOKS[attacker.characterId];
   const extraFx = aHook && aHook.attackFxExtra ? Number(combat.runHook(aHook, "attackFxExtra", attacker)) || 0 : 0;
-  const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0) + extraFx;
+  const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0) + extraFx + (card.repeat ? 0.5 * card.repeat.length : 0); // ตีซ้ำ (strikeRepeat) +0.5 วิ/ฮิต
   card.fxMs = fxSeconds * 1000;
   const show = () => {
     match.lastAttack = card;

@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, canStrike, laneVictims,
+  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
   actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap, flowerWalk,
 });
@@ -242,6 +242,13 @@ function laneLen(p) {
   const n = hook && hook.laneLen ? Number(hook.laneLen(p)) : 0;
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
+// ตีปกติเป็นกรอบทางทิศของเป้า (ฮุค strikeRect(p) → [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works [2, 3]) · null = ไม่ใช่
+//  เล็งตามระยะแมนฮัตตันปกติ (rangeOf) · ทุกศัตรูในกรอบโดน (laneVictims) — ไม่ใช้ร่วมกับ attackLane
+function strikeRect(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const r = hook && hook.strikeRect ? hook.strikeRect(p) : null;
+  return Array.isArray(r) && r[0] > 0 && r[1] > 0 ? r : null;
+}
 // เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
@@ -250,8 +257,10 @@ function canStrike(p, target) {
 }
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
 function laneVictims(p, target) {
-  if (!lanes(p) || !p.pos || !target || !target.pos) return null;
-  const lane = Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face", laneLen(p));
+  if (!p.pos || !target || !target.pos) return null;
+  const rect = !lanes(p) && strikeRect(p);
+  if (!lanes(p) && !rect) return null;
+  const lane = rect ? Board.rectToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), rect[0], rect[1]) : Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face", laneLen(p));
   if (!lane) return null;
   const ids = Board.unitsOnTiles(boardUnits(), lane.tiles).map((u) => u.id)
     .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));

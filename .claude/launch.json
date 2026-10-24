@@ -195,6 +195,39 @@
       "env": {
         "ECHO_SERVER_PORT": "3007"
       }
+    },
+    {
+      "name": "server-emiya",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3011,
+      "env": {
+        "PORT": "3011",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "ECHO_DEV_EMIYA_CAP": "16"
+      }
+    },
+    {
+      "name": "client-emiya",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181,
+      "env": {
+        "ECHO_SERVER_PORT": "3011"
+      }
     }
   ]
 }

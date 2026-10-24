@@ -44,6 +44,7 @@ import {
 } from "./celineFx";
 import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGhosts, takutoItems } from "./takutoFx";
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
+import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -831,8 +832,8 @@ function smashFx(g, e, now) {
 //  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1917,7 +1918,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR,
 };
 
 
@@ -1930,6 +1931,7 @@ export const FX_DUR = {
 //   celine? = { flora, kings, hold, preview } ของค้างของเซลิน (celineFx.js) · terrain "icewall" = กำแพงน้ำแข็ง (drawCelineWall)
 //   takutos? = ทาวเบิร์นที่ถือดาบ/ช่วงพังทลาย [{ id, x, y, size, emerald, sapphire, judgment, collapse }] (takutoFx.js — ดาบลอยข้างตัว)
 //   ryougi? = { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } เรียวกิ (ryougiFx.js) · terrain "chasm" = ช่องพัง (drawRyougiGround — ไม่ใช่สิ่งกีดขวาง)
+//   emiya? = { ubw, units: [{ id, weapon }] } ชิโร่ (emiyaFx.js) — โลกแห่งดาบ (พื้นซีเปีย/ดาบปัก/เฟือง) · อาวุธที่ถือลอยข้างตัว
 //   valentine? = { flags } ธงปักของวาเลนไทน์ · dimLayers? = [{ kind: "par"|"veil", k }] มุมมองของมิติ (valentineFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
 //   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
@@ -1978,6 +1980,9 @@ export function drawFrame(g, st, now) {
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
   drawRyougiGround(g, ry, info, fx, now, lowQ, { view, C });
+  // เอมิยะ ชิโร่ (emiyaFx.js): โลก Unlimited Blade Works — พื้นโทนส้มซีเปีย (ใต้ไฮไลต์)
+  const em = st.emiya || null, emWorld = emiyaWorldOn(em, fx, now);
+  if (emWorld) drawEmiyaWorld(g, em, info, fx, now, lowQ);
   // ม่านแดง (ระบำเขม่า · เคท): พื้นมืด → ม่านรอบขอบเรียงความลึกกับตัวละคร → เขม่าในอากาศ — sootStorm.js
   const storms = st.storms && st.storms.length ? st.storms : null;
   if (storms) drawStormGround(g, storms, info, now, lowQ);
@@ -2072,6 +2077,8 @@ export function drawFrame(g, st, now) {
   if (fx.some((e) => e.kind === "takutoDash")) for (const gh of takutoGhosts(fx, units, now)) items.push({ d: depthOf(gh.rx + gh.size / 2, gh.ry + gh.size / 2) - 0.0008, f: () => drawAnyUnit(g, gh, now, null) });
   // เรียวกิ: เงาติดตาตอนพุ่ง/ตี · ใบมีดที่มือ · กลีบวนรอบตัว · ตาเรือง
   if (ry || rFx) ryougiItems(items, g, ry, units, fx, now, lowQ, (u) => drawAnyUnit(g, u, now, null));
+  // ชิโร่: ดาบปักพื้นในโลก UBW · อาวุธที่ถือลอยข้างตัว
+  if (em || emWorld) emiyaItems(items, g, em, units, fx, now, lowQ, info);
   if (vFx) for (const pu of valentinePuppets(fx, now, lowQ)) items.push({ d: depthOf(pu.rx + 0.5 + (pu.ox || 0), pu.ry + 0.5 + (pu.oy || 0)) + 0.0005, f: () => drawAnyUnit(g, pu, now, null) });
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
@@ -2112,6 +2119,8 @@ export function drawFrame(g, st, now) {
   if (cel) drawCelineAir(g, cel, units, now, lowQ);
   // เรียวกิหลังดับสิ้นซะ: กลีบซากุระปลิวทั่วกระดาน (ทับตัวละคร)
   if (ry) drawRyougiAir(g, ry, info, fx, now, lowQ);
+  // โลก UBW ของชิโร่: เฟืองยักษ์ + ประกายไฟ (ทับตัวละคร)
+  if (emWorld) drawEmiyaSky(g, em, info, fx, now, lowQ, view);
   // หยุดเวลา (เดอะเวิลด์): ซีเปีย + แถบสีกลับด้านที่ขอบวง → วาดดิเอโก้ (+ม้า) ซ้ำให้สีปกติ — ใต้เอฟเฟกต์ครั้งเดียว (ของที่ค้างกลางอากาศยังมีสี)
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
@@ -2148,6 +2157,7 @@ export function drawFrame(g, st, now) {
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);
     else if (isTakutoFx(e.kind)) takutoFx(g, e, now, lowQ);
     else if (isRyougiFx(e.kind)) ryougiFx(g, e, now, lowQ, rctx || (rctx = { view, info, units, octx, redraw: (u) => drawAnyUnit(g, u, now, null), drawShop: (x, y) => drawShop(g, x, y, C, now, night) }));
+    else if (isEmiyaFx(e.kind)) emiyaFx(g, e, now, lowQ, { info });
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

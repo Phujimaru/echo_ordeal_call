@@ -284,6 +284,7 @@ function useInventoryItem(id, uid, opts = {}) {
     p.statuses.resist = Math.max(p.statuses.resist || 0, SHOP_RESIST_TURNS);
     match.lastLog.push(`🛡️ ${p.name} ใช้ยาต้านสถานะ — ต้านสถานะผิดปกติ ${SHOP_RESIST_TURNS} เทิร์น จากคลัง`);
   } else if (item.type === "skillPoint") {
+    if (combat.skillGainBlocked(p, "item")) return; // ฮุค blocksSkillGain (ชิโร่/เฟิร์น): ยาไม่มีผล = ใช้ไม่ได้ ไม่เสียของ
     combat.addSkill(p, item.value, "item");
     match.lastLog.push(`⚡ ${p.name} ใช้ยาฟื้นแต้มสกิล +${item.value} จากคลัง (เพดาน ${combat.maxSkillOf(p)})`);
   } else if (item.type === "armor") {

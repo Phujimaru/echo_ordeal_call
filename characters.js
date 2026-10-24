@@ -880,6 +880,49 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- เอมิยะ ชิโร่ (Fate/stay night [UBW]) — ยาก — ดู characters/emiya_shirou.js (GRID_PLAN §7.18) ----------
+    //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · แต้มสกิล 0/8 (ความจุเพิ่มได้ถึง 24 — ฮุค maxSkill)
+    //  ระยะ/ระยะเดิน/ท่าตีเปลี่ยนตามอาวุธที่ Trace On (ฮุค range / mov / attackLane / strikeRect / strikeRepeat)
+    id: "emiya_shirou",
+    name: "เอมิยะ ชิโร่",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/emiya_shirou/emiya.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Avalon Magecraft",
+      desc: "จบเทิร์นที่ไม่ได้รับความเสียหายเลย: เยียวยา 1 นาน 2 เทิร์น (คูลดาวน์ 3 เทิร์น) · ใช้สกิลแต่ละครั้งมีโอกาส 30% ความจุแต้มสกิล +2 (เพิ่มได้ไม่เกิน 16) · ไอเทมฟื้นแต้มสกิลใช้ไม่ได้ · ตีปกติขณะถืออาวุธ แต้มสกิล +1",
+    },
+    basic: {
+      name: "Trace On",
+      desc: "เลือกอาวุธ 1 ใน 5: Kanshou & Bakuya (2) · Hrunting & Caladbolg II (3) · Rule Breaker (4) · Nine Lives Blade Works (5) · Excalibur (6 · เฉพาะตอน Unlimited Blade Works · 1 ครั้งต่อเกม) · อาวุธอยู่ 5 เทิร์น ตีปกติ+สกิลรองรวม 3 ครั้งหาย · กดใหม่ = เปลี่ยนอาวุธ (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 0, // ราคาจริงตามอาวุธที่เลือก (ตัวเลือกบอกเอง — skillCost)
+      img: "/characters/emiya_shirou/emiya_trace.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/emiya_shirou.js (ปุ่ม 5 ตัวเลือก — skillPub choices)
+    },
+    secondary: {
+      name: "Weapon Skill",
+      desc: "สกิลของอาวุธที่ถืออยู่ (ไม่มีอาวุธ = ใช้ไม่ได้): Throwing Blade · Caladbolg II · Rho Aias · Ground Smash · Ex calibruuuu! (คูลดาวน์ร่วม 4 เทิร์น)",
+      area: { kind: "self" }, // พื้นที่จริงตามอาวุธ (skillArea)
+      cost: 0,
+      img: "/characters/emiya_shirou/emiya_ws.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Unlimited Blade Works",
+      desc: "ดึงทุกคนเข้าโลก Unlimited Blade Works 6 เทิร์น: ต้นเทิร์นแต้มสกิล +1 · คูลดาวน์สกิลรองลดเพิ่ม 1 ทุกเทิร์น · Trace On ไม่มีคูลดาวน์ · ระยะเดิน +1 (คูลดาวน์ 6 เทิร์นหลังจบ)",
+      area: { kind: "field" },
+      cost: 12,
+      img: "/characters/emiya_shirou/emiya_ubw.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

@@ -738,6 +738,28 @@ function laneOf(map, x, y, size, range, target, face = false, len = 0) {
   const full = sets.find((l) => l.dir === best.dir && l.j === best.j);
   return { dir: best.dir, j: best.j, tiles: full.tiles };
 }
+// ตีปกติเป็นกรอบ (ฮุค strikeRect — ชิโร่ Nine Lives Blade Works: ลึก 2 × กว้าง 3) ทางทิศของเป้า
+//  ทิศ = แกนที่เป้าห่างจากกลางตัวผู้ตีมากกว่า (เท่ากัน = แนวนอน) · กรอบเริ่มจากช่องติดขอบตัว กว้าง width (+ ขนาดตัว − 1) กลางตรงกลางตัว
+//  คืน { dir, tiles } — tiles ตัดที่ขอบกระดาน · เป้าไม่อยู่ในกรอบ = null
+function rectToward(map, x, y, size, target, depth, width) {
+  if (!target) return null;
+  const n = Math.max(1, size | 0), tn = Math.max(1, (target.size | 0) || 1);
+  const dx = (target.x + (tn - 1) / 2) - (x + (n - 1) / 2), dy = (target.y + (tn - 1) / 2) - (y + (n - 1) / 2);
+  if (!dx && !dy) return null;
+  const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+  const [fx, fy] = LINE_DIRS[dir];
+  const half = Math.floor((Math.max(1, width) - 1) / 2);
+  const tiles = [];
+  for (let d = 1; d <= depth; d++) {
+    for (let w = -half; w <= n - 1 + half; w++) {
+      const tx = fx > 0 ? x + n - 1 + d : fx < 0 ? x - d : x + w;
+      const ty = fy > 0 ? y + n - 1 + d : fy < 0 ? y - d : y + w;
+      if (inBounds(map, tx, ty)) tiles.push({ x: tx, y: ty });
+    }
+  }
+  if (!tiles.some((t) => covers(target, t.x, t.y))) return null;
+  return { dir, tiles };
+}
 // ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา (ตัวใหญ่ = ช่องไหนของตัวโดนก็นับ)
 function unitsOnTiles(units, tiles) {
   const set = new Set(tiles.map((t) => key(t.x, t.y)));
@@ -875,7 +897,7 @@ export {
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
-  tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, unitsOnTiles, attackTargets,
+  tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,
   normalizeMap,

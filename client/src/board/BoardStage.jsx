@@ -37,6 +37,7 @@ import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
+import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -371,7 +372,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!best) return null;
     const stand = { x: best.x, y: best.y };
     // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
-    const lane = laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : null; // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
+    // ตีเป็นกรอบ (me.strikeRect [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works): ทุกคนในกรอบทางทิศของเป้าโดนด้วย
+    const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
+    const lane = laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect; // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
@@ -813,18 +816,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // Zoltraak ของเฟิร์น: เสียงร่าย/ชาร์จเริ่มพร้อมวงเวท · เสียงระเบิดในไฟล์ (1.5 วิ) ตรงจังหวะปะทะ
       const fernZ = style === "fernZoltraak" || style === "fernZoltraakMax";
       if (fernZ && tPos) later(Math.max(ZOOM_IN, HIT - FERN_SFX_LEAD), () => playSfx(a.byAttackSound || "attack"));
+      // ตีซ้ำเป้าเดิมในการตีครั้งเดียว (card.repeat — ชิโร่ Kanshou & Bakuya): ฮิตละ EMIYA_REPEAT_MS หลังฮิตแรก · ตายที่ฮิตไหน = ตกรอบตอนนั้น
+      const reps = Array.isArray(a.repeat) ? a.repeat : [];
+      const repKill = reps.findIndex((r) => r.kill);
+      const tKill = !!a.kill || repKill >= 0;
+      const tKillAt = a.kill ? HIT : HIT + EMIYA_REPEAT_MS * (repKill + 1);
       // เป้าตกรอบ (server เอาออกจากกระดานแล้ว) = วาดค้างไว้ถึงจังหวะปะทะ
-      if (a.kill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
+      if (tKill && tPos && !nextPos[a.targetId] && lastPlayers[a.targetId]) {
         const t = lastPlayers[a.targetId];
         setGhost({ id: t.id, x: tPos.x, y: tPos.y, img: t.img, color: t.color, name: t.name, hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0 });
-        later(HIT + 40, () => setGhost(null));
+        later(tKillAt + 40, () => setGhost(null));
       }
       // ตกรอบในฉากตี (เป้าหลัก + คนอื่นในแนว) = ระเบิดตอนปะทะ
-      const deadInAtk = [
-        ...(a.kill && tPos && !sealT && lastPlayers[a.targetId] ? [{ t: lastPlayers[a.targetId], at: tPos }] : []),
-        ...extras.filter((e) => e.kill && lastPlayers[e.targetId]).map((e) => ({ t: lastPlayers[e.targetId], at: e.at })),
-      ];
+      const mainDead = tKill && tPos && !sealT && lastPlayers[a.targetId] ? { t: lastPlayers[a.targetId], at: tPos } : null;
+      const deadInAtk = extras.filter((e) => e.kill && lastPlayers[e.targetId]).map((e) => ({ t: lastPlayers[e.targetId], at: e.at }));
+      if (mainDead) boomed.add(mainDead.t.id);
       for (const d of deadInAtk) boomed.add(d.t.id);
+      if (mainDead) later(tKillAt, () => deathBoom(mainDead.t, mainDead.at));
       if (deadInAtk.length) later(HIT, () => deadInAtk.forEach((d) => deathBoom(d.t, d.at)));
       if (tPos) {
         look(tPos);
@@ -868,7 +876,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           }
         });
       }
-      let t = HIT;
+      if (tPos) reps.forEach((r, i) => later(HIT + EMIYA_REPEAT_MS * (i + 1), () => {
+        setShake((n) => n + 1);
+        const zz = lowQ ? 2.4 : 1.5, crit = r.crit && !r.dodge;
+        pushFx([
+          { kind: r.dodge ? "slash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]) },
+          { kind: "float", x: tPos.x, y: tPos.y - 0.35, text: r.dodge ? "หลบ" : `-${r.dmg}`, color: crit ? "#ffd84a" : undefined, size: crit ? 38 : 30, z: zz },
+          ...(crit ? [{ kind: "float", x: tPos.x, y: tPos.y - (r.kill ? 1.5 : 0.95), text: "คริติคอล", color: "#ffd84a", size: 24, z: zz }] : []),
+          ...(r.kill && !sideStays(a.targetId) ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.95, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: zz }] : []),
+        ]);
+      }));
+      let t = HIT + EMIYA_REPEAT_MS * reps.length;
       if (a.counter && fromPos) {
         t = HIT + 640;
         const c = a.counter;
@@ -1622,6 +1640,25 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("ryougiFx", onRyougi);
   }, [pushFx, look, lowQ]);
 
+  // เอมิยะ ชิโร่: socket "emiyaFx" { kind, id, color, at, size, ... } → emiyaFx.js (GRID_PLAN §7.18 · contract §3) · เสียงมาจาก server
+  //  เลขดาเมจของสกิลมากับเหตุการณ์ (throwHit / caladbolgBlast / caladbolgSplash / excaliburHit) — ตรงจังหวะที่ server ลงผล
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const z = (list) => list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f));
+    const onEmiya = (ev) => {
+      const out = emiyaEventFx(ev, { posOf, sizeOf });
+      if (out.fx.length) pushFx(z(out.fx));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(z(list)));
+    };
+    socket.on("emiyaFx", onEmiya);
+    return () => socket.off("emiyaFx", onEmiya);
+  }, [pushFx, look, lowQ]);
+
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
   const animRef = useRef(null);
@@ -1837,6 +1874,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     blood: rBlood.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ x: b.x, y: b.y, size: Math.max(1, b.size | 0), id: b.id })),
   });
   const ryougiProp = useMemo(() => { const r = JSON.parse(ryougiSig); return r.units.length || r.blood.length ? r : null; }, [ryougiSig]);
+  // เอมิยะ ชิโร่ (emiyaFx.js): โลก Unlimited Blade Works (ชิโร่คนไหนก็ได้ที่กางอยู่) · อาวุธที่ถือลอยข้างตัว
+  const emiyaSig = JSON.stringify({
+    ubw: state.players.some((p) => p.alive && p.emiya && p.emiya.ubw > 0),
+    units: state.players.filter((p) => p.alive && p.pos && p.emiya && p.emiya.weapon && sameDim(p)).map((p) => ({ id: p.id, weapon: p.emiya.weapon })),
+  });
+  const emiyaProp = useMemo(() => { const r = JSON.parse(emiyaSig); return r.ubw || r.units.length ? r : null; }, [emiyaSig]);
   const celineProp = useMemo(() => {
     const kings = JSON.parse(kingSig);
     if (!celFlora.length && !kings.length && !wallHold.length && !wallPreview) return null;
@@ -2124,6 +2167,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ferns={ferns}
         takutos={takutos}
         ryougi={ryougiProp}
+        emiya={emiyaProp}
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}
