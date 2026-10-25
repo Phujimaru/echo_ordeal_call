@@ -691,7 +691,8 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
         shotEnd = t0 + ms + 250;
         jumpCam = { t0, ms, phi0, dir, z0: from.y + 0.5, z1: to.y + 0.5 };
       }
-      later(ms, () => { R.shake = Math.max(R.shake, 0.35); });
+      // ลงแล้ว: โฟกัสอยู่จุดลงทันที (BoardStage ส่ง focus ใหม่ตามมาอีกที) — กล้องไม่ย้อนกลับไปจุดกระโดด
+      later(ms, () => { R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id || !R.focusId) { R.focus = { x: to.x, y: to.y }; R.user.panX = 0; R.user.panZ = 0; } });
     } else if (kind === "colonyLift") {
       const from = d.from, to = d.to;
       flyUnit(d.id, (k) => surf(phiOf(lerp(from.x, from.x + wd(from.x, to.x), k) + 0.5), lerp(from.y, to.y, k) + 0.5, 0.3 + Math.sin(k * Math.PI) * Rc * 0.7), 900);

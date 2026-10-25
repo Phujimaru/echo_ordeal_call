@@ -1733,10 +1733,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       setDiegoGhosts((g) => ({ ...g, ...add }));
       for (const id of Object.keys(add)) timers.current.push(setTimeout(() => setDiegoGhosts((g) => { if (!g[id]) return g; const n = { ...g }; delete n[id]; return n; }), ms + 1500));
     };
-    const handlers = kinds.map((kind) => [kind, (data) => { holdDead(kind, data); setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }]); }]);
+    // กระโดดผ่านแกน / ลิฟต์ = ย้ายตำแหน่งตรงๆ (ไม่ใช่การเดิน) → จบฉากแล้วโฟกัสกล้องไปจุดลง (ไม่งั้นกล้องกลับไปค้างที่จุดเดิม)
+    const LAND_AT = { colonyJump: 1000, colonyLift: 900 };
+    const followLand = (kind, data) => {
+      const ms = LAND_AT[kind], to = data && data.to;
+      if (ms && to && Number.isFinite(to.x) && Number.isFinite(to.y)) timers.current.push(setTimeout(() => look(to), ms));
+    };
+    const handlers = kinds.map((kind) => [kind, (data) => { holdDead(kind, data); followLand(kind, data); setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }]); }]);
     for (const [k, fn] of handlers) socket.on(k, fn);
     return () => { for (const [k, fn] of handlers) socket.off(k, fn); };
-  }, []);
+  }, [look]);
 
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
