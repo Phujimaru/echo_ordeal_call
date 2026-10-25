@@ -423,9 +423,17 @@ test('ข้อมูลให้ client: กอง / ท่าที่เซ�
   assert.equal(s.combo, 'blast');
   assert.equal(s.picksLeft, 1);
   assert.deepEqual(s.hand, [{ k: 'kick', n: 1 }, { k: 'thunder', n: 1 }]);
+  assert.deepEqual(s.cards, ['kick', 'thunder']);
+  assert.equal(s.maxCards, 3);
   const locks = kz.skillLocks(engine, P.K);
   assert.equal(locks.basic.locked, true);
   assert.equal(locks.ultimate.locked, false);
+  // ใบซ้ำ = อีกใบเรียงต่อ (รายใบตามลำดับที่ใส่)
+  const P2 = setup([['K', 'kensaki_kazuma', 0]]);
+  bladeWith(P2, ['slash', 'kick', 'slash']);
+  assert.deepEqual(kz.kazumaState(engine, P2.K).cards, ['slash', 'kick', 'slash']);
+  rouze();
+  assert.deepEqual(kz.kazumaState(engine, P2.K).cards, []);
 });
 
 test('ช่างหัวมันสิ: ไม่มีผลการ์ดค้าง คริ 50% + คลิปมือเปล่าติดคริ · มีผล Rouze ค้าง = ไม่คริ · ท่า Lightning โดน = คลิปท่า', () => {

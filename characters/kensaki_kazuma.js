@@ -105,6 +105,7 @@ function fresh() {
     blade: false, formAt: 0, formRound: 0, // ร่าง Blade · ลำดับตอนแปลง (severables) · เทิร์นที่กดแปลง/คืนร่างล่าสุด
     humanTurns: 0,                         // จบเทิร์นในร่างมนุษย์ติดกันกี่เทิร์น
     hand: [],                              // กองการ์ด [{ k, n }] ตามลำดับชนิดที่ได้มา
+    order: [],                             // การ์ดรายใบตามลำดับที่ใส่ (client วางใบซ้ำเรียงข้างกัน ไม่ซ้อน — ผู้ใช้สั่ง 2026-10-25)
     handAt: 0,
     combo: null, comboAt: 0,               // ท่าที่เซ็ตไว้ (ครบสูตรล่าสุด)
     armed: null,                           // ผลที่ Rouze แล้วรอตีปกติ { kind: "cards"|"blast"|"slash", cards, round, at }
@@ -181,6 +182,7 @@ function pickCard(engine, p, k) {
   const had = new Set(satisfied(s));
   const cur = s.hand.find((c) => c.k === k);
   if (cur) cur.n += 1; else s.hand.push({ k, n: 1 });
+  s.order.push(k);
   if (handSize(s) === 1) s.handAt = engine.severStamp();
   // ครบสูตรใหม่ = ทับท่าที่เซ็ตไว้ · ครบหลายสูตรพร้อมกัน = สูตรที่ใช้การ์ดมากกว่า
   const fresh = satisfied(s).filter((c) => !had.has(c)).sort((a, b) => COMBOS[b].cards.length - COMBOS[a].cards.length);
@@ -197,6 +199,7 @@ function pickCard(engine, p, k) {
 }
 function clearHand(s) {
   s.hand = [];
+  s.order = [];
   s.combo = null;
   s.handAt = 0;
   s.comboAt = 0;
@@ -589,7 +592,8 @@ module.exports = {
     const s = st(p), r = engine.roundNumber, a = armedOf(p);
     return {
       blade: s.blade, formUsed: s.formRound === r, humanTurns: s.humanTurns, humanNeed: HUMAN_TURNS,
-      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), combo: s.combo, picksLeft: slotsLeft(s), maxTypes: MAX_TYPES,
+      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), cards: s.order.slice(), maxCards: MAX_CARDS,
+      combo: s.combo, picksLeft: slotsLeft(s), maxTypes: MAX_TYPES,
       armed: a ? { kind: a.kind, cards: a.cards || null } : null, metal: (p.statuses[METAL_STATUS] || 0) > 0 ? s.metal : 0,
     };
   },
