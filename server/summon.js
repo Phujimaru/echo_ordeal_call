@@ -90,6 +90,7 @@ function onDeath(p) {
   const owner = match.players[p.summon.ownerId];
   const hook = owner && CHAR_HOOKS[owner.characterId];
   if (hook && hook.onSummonDeath) combat.runHook(hook, "onSummonDeath", engine, owner, p);
+  if (p.summon.moon) require("./moonCell").onUnitDeath(p); // Moon Cell: ฮาคุโนะ/Moon Cell (ไม่มีเจ้าของจริง)
   p.pos = null;
 }
 // ลบระเบียนที่ตายแล้ว (จบเทิร์น)

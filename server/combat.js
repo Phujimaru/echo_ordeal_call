@@ -92,10 +92,14 @@ function withEffectSource(source, fn) {
   try { return fn(); }
   finally { match.effectSourceId = prev; }
 }
+// ยูนิตที่ไม่ติดสถานะใดๆ (summon.noStatus — Moon Cell · server/moonCell.js)
+const noStatus = (p) => !!(p && p.summon && p.summon.noStatus);
 function applyBuff(p, key, amount, turns) {
+  if (noStatus(p)) return;
   rawApplyBuff(p, key, amount, turns);
 }
 function applyDebuff(p, key, amount, turns) {
+  if (noStatus(p)) return false;
   if (friendlyEffectBlocked(p)) return false;
   if (Dim.blocks(p)) return false; // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้น = ไม่ติด
   if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น

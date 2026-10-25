@@ -9,7 +9,7 @@ Object.assign(module.exports, {
 const CHAR_HOOKS = require("../../characters/index");
 const { NO_TICK_STATUS } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
-const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME } = require("../constants");
+const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME, TEAM_IDS } = require("../constants");
 const match = require("../match");
 const { engine } = require("../engine");
 const combat = require("../combat");
@@ -27,6 +27,7 @@ const Duo = require("../duo");
 const Soot = require("../soot");
 const Summon = require("../summon");
 const Colony = require("../colony");
+const Moon = require("../moonCell");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -126,6 +127,19 @@ function colonyHoldThen(secs, next) {
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
+  // Moon Cell (GRID_PLAN §8.4): ชนะ = ทำลาย Moon Cell / ฮาคุโนะตายพร้อมกันทั้งคู่ · แพ้ = ผู้เล่นตายหมด — ไม่ใช้กติกาทีมเหลือทีมเดียว
+  if (Moon.active()) {
+    const res = Moon.outcome();
+    if (!res) return false;
+    match.moon.result = res;
+    match.winningTeamId = res === "win" ? TEAM_IDS[0] : null;
+    match.lastLog.push(res === "win" ? "🏆 โค่นฮาคุโนะได้แล้ว — ผู้เล่นชนะ!" : "🌙 ผู้เล่นล้มหมด — ฮาคุโนะชนะ");
+    timers.clearPhaseTimer();
+    match.gameState = "GAMEOVER";
+    match.timeLeft = 0;
+    view.broadcastState();
+    return true;
+  }
   const stillAlive = combat.alivePlayers().filter((p) => !p.summon); // ยูนิตที่ถูกเรียก (server/summon.js) ไม่นับเป็นผู้รอด
   const total = Duo.sideCount(Object.values(match.players)); // ระบบคู่: นับต่อฝ่าย (สองตัวของผู้เล่นคนเดียวกัน = 1)
   const sidesLeft = Duo.sideCount(stillAlive);

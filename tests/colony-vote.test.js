@@ -1,5 +1,5 @@
 // หน้าเลือกโหมด 2 ชั้น (GRID_PLAN §8.3): โหวตสนาม (โลก / Colony) คู่กับโหมด
-//  modeVotes มีครบ 2 สนาม × 3 โหมด · โหวต { mode, world } → state.world · player.modeWorld
+//  modeVotes มีครบ 2 สนาม × 3 โหมด + ดวงจันทร์ 1 โหมด (Moon Cell — GRID_PLAN §8.4) · โหวต { mode, world } → state.world · player.modeWorld
 //  สนามไม่รู้จัก = โลก · ย้อนกลับห้องรอ = ล้างสนามกลับเป็นโลก · คนละสนามโหมดเดียวกัน = นับแยกกัน (ยังไม่ครบเสียง)
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -66,7 +66,7 @@ test('เลือกสนาม: โหวต Colony คู่กับโห�
     const tm = await tmP;
     assert.equal(tm.world, 'earth', 'เข้าหน้าเลือกโหมด = สนามตั้งต้นโลก');
     const keys = tm.modeVotes.map((o) => `${o.world}:${o.mode}`).sort();
-    assert.deepEqual(keys, ['colony:duo', 'colony:ffa', 'colony:trio', 'earth:duo', 'earth:ffa', 'earth:trio']);
+    assert.deepEqual(keys, ['colony:duo', 'colony:ffa', 'colony:trio', 'earth:duo', 'earth:ffa', 'earth:trio', 'moon:moon']);
 
     // คนละสนาม โหมดเดียวกัน → ยังไม่ครบเสียง
     a.emit('selectGameMode', { mode: 'ffa', world: 'colony' });

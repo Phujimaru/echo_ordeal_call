@@ -8,8 +8,9 @@ const match = {
   // ---------- สถานะเกมส่วนกลาง ----------
   players: {},
   gameState: "LOBBY", // LOBBY | TEAM_MODE | TEAM_SETUP | PLAYING | CUTSCENE | ORDER | ACTION | ATTACKING | TRANSITION | GAMEOVER
-  gameMode: "ffa", // ffa | duo | trio | pending
-  world: "earth",  // สนาม: earth = การเดินทาง 7 ภูมิภาคบนโลก · colony = โคโลนีอวกาศ (GRID_PLAN §8.3) — โหวตคู่กับโหมด
+  gameMode: "ffa", // ffa | duo | trio | moon | pending
+  world: "earth",  // สนาม: earth = การเดินทาง 7 ภูมิภาคบนโลก · colony = โคโลนีอวกาศ (GRID_PLAN §8.3) · moon = Moon Cell (§8.4) — โหวตคู่กับโหมด
+  moon: null,      // Moon Cell — Raid Boss (server/moonCell.js): ฮาคุโนะ 2 ตัว · Moon Cell · คำสาปแห่งดวงจันทร์ · ผลแพ้ชนะ
   teamSize: 1,
   teamCount: 0,
   winningTeamId: null,

@@ -53,6 +53,8 @@ const CHARACTER_MODULES = [
 
 const CHAR_HOOKS = {};
 for (const mod of CHARACTER_MODULES) CHAR_HOOKS[mod.id] = mod;
+// บอสของโหมด Moon Cell (characters/_hakuno.js) — ฮุครายตัว (CHAR_HOOKS[characterId]) ได้ แต่ไม่อยู่ใน MODULES (ไม่รับฮุคแบบกระจาย)
+CHAR_HOOKS.kishinami_hakuno = require("./_hakuno");
 // รายการตามลำดับ (ไม่ enumerable — CHAR_HOOKS ยังเป็นแผนที่ id → โมดูลล้วนๆ)
 // "แม่นยำ" จากออร่า (ฮุค auraAccurate(p)) — _universal_status.accurateActive ถามทุกแหล่ง
 for (const mod of CHARACTER_MODULES) if (typeof mod.auraAccurate === "function") Status.addAccurateSource((p) => mod.auraAccurate(p));

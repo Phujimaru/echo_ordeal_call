@@ -39,6 +39,7 @@ const TimeStop = require("../timeStop");
 const Dim = require("../dimension");
 const Summon = require("../summon");
 const Colony = require("../colony");
+const Moon = require("../moonCell");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -535,13 +536,15 @@ function beginOrder() {
   // ระบบคู่: ลำดับเดินต่อผู้เล่น (ไพ่ของเจ้าของ) — ฝ่ายที่ยังมีตัวบนกระดาน
   //  ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ไม่อยู่บนกระดาน (pos = null) แต่ยังได้ตาเดิน
   const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && (u.pos || Ride.riding(u))));
-  match.turnOrder = turnOrderOf(alive);
+  const order = turnOrderOf(alive);
+  // Moon Cell (GRID_PLAN §8.4): ฮาคุโนะเดินก่อนผู้เล่นเสมอ (ไม่จั่วไพ่)
+  match.turnOrder = [...Moon.bossOrder(), ...order];
   match.actorIndex = -1;
   match.actorId = null;
   match.action = null;
   match.duo = null;
   // เหรียญ: ทุกคน +1 ตอนจบเทิร์น (endTurn) · คนเดินลำดับแรกได้เพิ่มอีก (รวม 2)
-  const first = match.players[match.turnOrder[0]];
+  const first = match.players[order[0]];
   if (first) {
     shop.addGold(first, GOLD_FIRST_BONUS);
     match.lastLog.push(`🥇 ${first.name} ได้เดินลำดับแรก — เหรียญ +${GOLD_FIRST_BONUS}`);
@@ -623,6 +626,7 @@ function nextActor() {
     }
     if (match.gameState !== "ACTION") return; // ฉากต้นตาเดินพักตาไว้แล้ว (บรอดแคสต์เอง)
     view.broadcastState();
+    if (Moon.isBoss(units[0])) Moon.startAi(units[0]); // Moon Cell: ตาของฮาคุโนะคุมโดย AI (server/moonCell.js)
     return;
   }
 }

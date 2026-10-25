@@ -26,15 +26,18 @@ const Zero = require("../zeroTime");
 const Duo = require("../duo");
 const Soot = require("../soot");
 const Colony = require("../colony");
+const Moon = require("../moonCell");
 
 function dealRound() {
   timers.clearPhaseTimer();
   // Colony: อีเวนต์ต้นเทิร์น (อุกกาบาต/ลำแสง/แคปซูล/ดูด/หมุน) ลงผลก่อนแจกไพ่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
   if (Colony.preRound(dealRound)) return;
+  // Moon Cell: ฟื้นคืนชีพ / คำสาปแห่งดวงจันทร์ลงผล (คลิป) / เล็งคำสาปใหม่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
+  if (Moon.preRound(dealRound)) return;
   match.roundNumber++;
   if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
-  match.lastLog = [];
+  match.lastLog = Moon.takeLog(); // บันทึกต้นเทิร์นของ Moon Cell (ไม่มี = ว่าง)
   match.turnOrder = [];
   match.actorIndex = -1;
   match.actorId = null;

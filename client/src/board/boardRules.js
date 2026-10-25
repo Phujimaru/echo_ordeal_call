@@ -75,7 +75,7 @@ const TERRAIN_INFO = {
 //    → map.special = { "x,y": ชนิด } · map.flow = { "x,y": ทิศ }
 //  heal = จุดฟื้นฟู (จบตาบนช่องนี้ เลือด +1) · healKind = ชื่อจุดฟื้นฟูใน TERRAIN_INFO (ทะเลทราย = โอเอซิส)
 //  spawns = จุดเกิด 7 จุด · shopSpots = จุดที่ร้านค้ามายาสุ่มไปตั้ง (พื้นธรรมดาเท่านั้น)
-function buildMap({ area, name, terrain, special = {}, heal, healKind = "heal", spawns, shopSpots }) {
+function buildMap({ area, name, terrain, special = {}, heal, healKind = "heal", spawns, shopSpots, cols = COLS, rows = ROWS }) {
   const t = {};
   for (const [kind, list] of Object.entries(terrain)) for (const [x, y] of list) t[key(x, y)] = kind;
   const sp = {}, flow = {};
@@ -86,7 +86,7 @@ function buildMap({ area, name, terrain, special = {}, heal, healKind = "heal", 
     }
   }
   return {
-    area, name, cols: COLS, rows: ROWS,
+    area, name, cols, rows,
     terrain: t,
     special: sp,
     flow,
@@ -300,6 +300,27 @@ function buildColonyMap() {
 }
 MAPS[COLONY_AREA] = buildColonyMap();
 const isColonyArea = (area) => Number(area) === COLONY_AREA;
+
+// ---------- Moon Cell — Raid Boss (GRID_PLAN §8.4) ----------
+//  ลานโรงเรียน 20×20 (ผู้ใช้สั่ง: มีโรงเรียน + ต้นซากุระ กลีบโปรยตลอด) · อาคารเรียนเต็มแถวบนสุด (y = 0)
+//  Moon Cell ตัวใหญ่ 2×2 ลอยหน้าอาคารกลางกระดาน · ฮาคุโนะ 2 ตัวยืนหน้า Moon Cell ซ้าย/ขวา · ผู้เล่นเกิดขอบใต้ (แถว 18–19)
+//  ต้นซากุระ/ม้านั่ง = สิ่งกีดขวางประปราย (ไม่ปิดทางจากจุดเกิดถึง Moon Cell)
+const MOON_AREA = 30;
+const MOON = { cols: 20, rows: 20, cell: { x: 9, y: 1 }, bosses: [{ x: 6, y: 3 }, { x: 13, y: 3 }] };
+MAPS[MOON_AREA] = buildMap({
+  area: MOON_AREA,
+  name: "Moon Cell",
+  cols: MOON.cols, rows: MOON.rows,
+  terrain: {
+    school: Array.from({ length: 20 }, (_, x) => [x, 0]),
+    sakura: [[4, 2], [15, 2], [5, 6], [14, 6], [3, 8], [16, 8], [7, 11], [12, 11], [2, 14], [17, 14], [4, 16], [15, 16]],
+    bench: [[9, 7], [10, 7], [9, 14], [10, 14]],
+  },
+  heal: [],
+  spawns: [[3, 18], [6, 19], [8, 18], [10, 19], [12, 18], [14, 19], [17, 18]],
+  shopSpots: [[1, 11], [18, 11], [9, 17]],
+});
+const isMoonArea = (area) => Number(area) === MOON_AREA;
 
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
@@ -1007,7 +1028,7 @@ function normalizeMap(pub) {
 }
 
 export {
-  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
+  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
   COLONY_AREA, COLONY, isColonyArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,

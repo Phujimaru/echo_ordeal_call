@@ -59,6 +59,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
 | `dimension.js` | **ชั้นมิติ** (§26): `layerOf`, `same`, `ghost`, `enter`, `leave` (กลับกระดานหลัก → ช่องว่างใกล้สุด), `resetAll`, `refLayer`, `blocks` (ต้นตอคนละชั้น), `membersOf` |
 | `summon.js` | **ยูนิตที่ถูกเรียก** (§26): `spawn`, `remove`, `removeAll`, `sweep`, `ofOwner`, `controlledOf`, `onDeath`, `CONTROL_SECONDS` |
+| `moonCell.js` | **โหมด Moon Cell — Raid Boss** (§34): `start`, `preRound` (ฟื้นคืนชีพ/คำสาป), `bossOrder`, `startAi`/`planTurn` (AI), `onUnitDeath`, `outcome` (ชนะ/แพ้), `publicInfo` |
 | `characterRules.js` | กติกากลางที่ระบบเรียกตรง: `hasKillCapability` (เนตรมณะ), `ultNameOfStatus`, เกราะ Mark 42 (`mark42Run`, `mark42Control`) |
 | `socket.js` | `io.on('connection')` + handler ทุก event (`safeOn`/`onPlayerEvent`), session/reconnect, `newPlayerRecord` |
 | `phases/draw.js` | `dealRound`, `hit`, `lock`, `checkAllLocked` |
@@ -1046,3 +1047,16 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   ผล Rouze = ฮุค `range` / `mov` / `strikeRect` (BEAT) / `attackLane` (Slash) / `fixedStrikeDamage` (Blast/Slash 2) / `damageBonus` (SLASH) / `onStrikeLanded` (ช็อต/TIME) / `afterBoardAttack` (TACKLE ผลัก `engine.ice.pushUnit` / MAGNET ดึง) ·
   ผลหายใน `afterStrike` / `onActorEnd` · Sonic = `skillArea` line 4×1 + `ownsAreaHit` → `engine.chargeTiles` + `setDash` + `skillDodge` + `queueCutscene` / `deferAfterCutscene` · `severables` = ร่าง/กอง/ผลรอตี/METAL
 - เอฟเฟกต์ `engine.boardFx("kazumaFx", { kind, id, color, at, size, … })` (client `kazumaFx.js` — henshin/unhenshin/card/rouze/metal/heal/sonicDash/sonicHit) · ตีปกติ `attackStyle` = `kazumaBlade` (ร่าง Blade) / `kazumaPunch` (ร่างมนุษย์) / `kazumaBlast` / `kazumaSlash` + `attackSound` `kazuma_atk_*` · พุ่ง Sonic `setDash({ style: "kazumaSonic" })` (BoardStage วาดทางพุ่งเฉพาะตัวแทนแบบกลาง) · เสียงเหตุการณ์ `kazuma_henshin_fx/unhenshin/rouze/metal/heal/sonic_dash/sonic_hit/crash/magnet` (สังเคราะห์ `.claude/plans/kazuma-sfx.py`) · หน้าทดสอบ `?board=1&kazuma=1` · เสียง `kazuma_*` (.m4a) · คลิป `kazumaCrit/Blast/Slash/Sonic`
+
+## 34. โหมด Moon Cell — Raid Boss: บอส AI / ลำดับเดินบอสก่อน / ฟื้นคืนชีพ / คำสาปพื้นที่ / แพ้ชนะเฉพาะโหมด (`server/moonCell.js` · GRID_PLAN §8.4)
+- สนาม `match.world = "moon"` คู่กับ `match.gameMode = "moon"` เท่านั้น (`lobby.worldHasMode`) · โหวตครบ = ทุกคนทีม A ยืนยันแล้ว → `startMatch` ทันที · `teamModeActive()` = true (กติกาทีมเดิม) · ไม่มีการเดินทาง
+- กระดาน `MAPS[MOON_AREA]` (30 · 20×20 ลานโรงเรียน — `Board.MOON` จุด Moon Cell/ฮาคุโนะ) · `buildMap` รับ `cols`/`rows` ได้แล้ว
+- ยูนิต = ยูนิตที่ถูกเรียก (`Summon.spawn` เจ้าของสมมติ `OWNER` ไม่อยู่ใน `match.players`) ฝ่าย `summon.side = "moon"` · `summon.moon` = `"m"` | `"f"` | `"cell"` ·
+  ฮาคุโนะ `characterId: "kishinami_hakuno"` → ฮุคตีปกติ `characters/_hakuno.js` (`attackBaseOverride` 2 · `critPct` 25 · `onStrikeResolved` แต้มสกิลเป้า −1) ลงทะเบียน `CHAR_HOOKS` แบบไม่อยู่ใน `MODULES` ·
+  Moon Cell `boardSize` 2 · `summon.noStatus` → `combat.applyBuff`/`applyDebuff` ไม่มีผล
+- ลำดับเดิน: `beginOrder` = `[...Moon.bossOrder(), ...turnOrderOf(ผู้ถือไพ่)]` (เหรียญคนแรก = ผู้เล่นคนแรก) · `nextActor` เริ่มตาบอสแล้วเรียก `Moon.startAi` (คิด `aiDelayMs` → เดิน → ตี/รอ · `setAiDelay(0)` = ทำทันทีในเทสต์) · ตาละ `CONTROL_SECONDS`
+- ตาย: `Summon.onDeath` → `Moon.onUnitDeath` (จด `bosses[k].deadRound` / `cellDead`) · ฟื้นใน `preRound` เมื่อ `turn ≥ deadRound + 3` (ระเบียนใหม่ id ใหม่)
+- ต้นเทิร์น `Moon.preRound(dealRound)` (หลัง `Colony.preRound` ก่อนเลขเทิร์นขยับ): ฟื้นคืนชีพ → คำสาปที่เตือนไว้ (`match.moon.curse.land`) ลงผล = คิวคลิป `/mooncell/hakuno_duo_ultimate.mp4` (+ `voice` เสียง m4a) → `landCurse` → เช็กจบเกม →
+  เล็งคำสาปใหม่ (เทิร์น % 3 = 0 · ฮาคุโนะครบ) → มีเหตุการณ์ = พัก CUTSCENE + boardFx `moonScene` (`{ seq, turn, events: [{ type: revive | warn | curse | cancel, … }] }`) · บันทึกต้นเทิร์นต่อเข้า `lastLog` ผ่าน `Moon.takeLog()`
+- จบเกม: `gameOver` ถาม `Moon.outcome()` ก่อนกติกาทีม → `"win"` (Moon Cell ตาย / ฮาคุโนะ deadRound ครบทั้งคู่ · `winningTeamId = "A"`) · `"lose"` (ผู้เล่นตายหมด · `null`) · state `moon: { cellId, bosses[{ key, id, alive, reviveAt }], curse, nextCurse, result, scene }`
+- สื่อ `/mooncell/` (R2 — `server/mediaDirs.js`): `hakuno_m.png` · `hakuno_f.webp` · `moon_cell.webp` · คลิป/เสียงท่าไม้ตาย · `moon_cell_theme.mp3`

@@ -28,6 +28,7 @@ const view = require("./view");
 const Zero = require("./zeroTime");
 const Duo = require("./duo");
 const Colony = require("./colony");
+const Moon = require("./moonCell");
 const Board = require("./board");
 
 // สีประจำตัว: ผู้เล่นปรับเองได้ตอนตั้งค่าก่อนเข้าเกม — ไม่ได้ตั้งไว้ก็ใช้สีประจำตำแหน่งเดิม
@@ -39,8 +40,9 @@ function colorOf(p) {
   if (!p) return "#9B4F96";
   return p.customColor || POSITION_COLORS[p.position] || "#9B4F96";
 }
+// Moon Cell (GRID_PLAN §8.4): ผู้เล่นทุกคนเป็นทีมเดียวกัน (ทีม A) สู้บอส — ใช้กติกาทีมเดิม (ตีกันไม่ได้ · ผลดีถึงเพื่อน)
 function teamModeActive() {
-  return match.gameMode === "duo" || match.gameMode === "trio";
+  return match.gameMode === "duo" || match.gameMode === "trio" || match.gameMode === "moon";
 }
 // "เป็นพวกเดียวกัน" สำหรับการมอบผลดี (ซัพพอร์ต) — duo/trio: ทีมเดียวกัน
 function isAlly(a, b) {
@@ -78,24 +80,31 @@ function validGameMode(mode, count = Object.keys(match.players).length) {
   if (mode === "ffa") return count >= 1; // 1 คน = เล่นทดสอบคนเดียว (ปุ่ม "เล่นคนเดียว" ในห้องรอ)
   if (mode === "duo") return count >= 4 && count % 2 === 0;
   if (mode === "trio") return count === 6;
+  if (mode === "moon") return count >= 1; // Moon Cell: ผู้เล่นทุกคนร่วมทีมเดียว (1 คนก็ได้)
   return false;
 }
 // โหมดที่ "พักใช้งาน" — โค้ดยังอยู่ครบ แต่ไม่โผล่ในหน้าโหวตโหมด และโหวตเข้าไม่ได้
 const SUSPENDED_MODES = new Set(); // โหมดที่พักใช้งานชั่วคราว (ตอนนี้ไม่มี)
 // group: "normal" = สงครามทั่วไป · "special" = สงครามพิเศษ (หน้าโหวตแยกเป็น 2 ชั้น)
 //  โหมดที่พักใช้งานยังโผล่ในหมวดของมัน แต่เป็นปุ่มสีเทาพร้อมป้าย "พักใช้งาน" (suspended) และโหวตไม่ได้
-function modeOptionsFor(count = Object.keys(match.players).length) {
-  return [
-    { mode: "ffa", label: "Free For All", size: 1, group: "normal" },
-    { mode: "duo", label: "Duo", size: 2, group: "normal" },
-    { mode: "trio", label: "Trio", size: 3, group: "normal" },
-  ].map((opt) => {
+//  สนามดวงจันทร์ (world "moon") มีโหมดเดียว "moon" (Raid Boss — GRID_PLAN §8.4) · โลก/โคโลนีมี ffa / duo / trio
+function modeOptionsFor(count = Object.keys(match.players).length, world = "earth") {
+  const list = world === "moon"
+    ? [{ mode: "moon", label: "Moon Cell", size: count, group: "special" }]
+    : [
+      { mode: "ffa", label: "Free For All", size: 1, group: "normal" },
+      { mode: "duo", label: "Duo", size: 2, group: "normal" },
+      { mode: "trio", label: "Trio", size: 3, group: "normal" },
+    ];
+  return list.map((opt) => {
     const suspended = SUSPENDED_MODES.has(opt.mode);
     return { ...opt, suspended, enabled: !suspended && validGameMode(opt.mode, count) };
   });
 }
-// สนามที่โหวตได้: โลก (การเดินทาง) / โคโลนี — ทั้งสองมีโหมด ffa / duo / trio ชุดเดียวกัน
-const WORLDS = ["earth", "colony"];
+// สนามที่โหวตได้: โลก (การเดินทาง) / โคโลนี — ทั้งสองมีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
+const WORLDS = ["earth", "colony", "moon"];
+// โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
+function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon"); }
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
 const voteKey = (world, mode) => `${world}:${mode}`;
 function currentTeamOptions() {
@@ -103,7 +112,7 @@ function currentTeamOptions() {
 }
 function modeVoteSummary() {
   const list = Object.values(match.players);
-  return WORLDS.flatMap((world) => modeOptionsFor(list.length).map((opt) => {
+  return WORLDS.flatMap((world) => modeOptionsFor(list.length, world).map((opt) => {
     const voters = list.filter((p) => match.modeVotes[p.id] === voteKey(world, opt.mode)).map((p) => p.id);
     return { ...opt, world, voters, voteCount: voters.length };
   }));
@@ -113,6 +122,7 @@ function voteGameMode(playerId, mode, world = "earth") {
   const p = match.players[playerId];
   if (!p || SUSPENDED_MODES.has(mode) || !validGameMode(mode)) return;
   const w = normWorld(world);
+  if (!worldHasMode(w, mode)) return;
   match.modeVotes[playerId] = voteKey(w, mode);
   p.modeVote = mode;
   p.modeWorld = w;
@@ -149,6 +159,16 @@ function startTeamSetup(mode, world = "earth") {
   if (!validGameMode(mode, count)) return;
   resetModeVotes();
   match.world = normWorld(world);
+  if (!worldHasMode(match.world, mode)) { match.world = "earth"; return; }
+  if (mode === "moon") {
+    // Moon Cell: ทุกคนทีม A ยืนยันแล้ว → เข้าแมตช์ทันที (ไม่มีหน้าเลือกทีม)
+    match.gameMode = mode;
+    match.teamSize = count;
+    match.teamCount = 1;
+    for (const p of Object.values(match.players)) { p.teamId = TEAM_IDS[0]; p.teamConfirmed = true; }
+    startMatch();
+    return;
+  }
   if (mode === "ffa") {
     match.gameMode = mode;
     match.teamSize = 1;
@@ -191,7 +211,7 @@ function maybeStartTeamMatch() {
   const fullTeams = currentTeamOptions().every((t) => list.filter((p) => p.teamId === t.id).length === match.teamSize);
   if (fullTeams && list.every((p) => p.teamId && p.teamConfirmed)) startMatch();
 }
-function aliveTeamIds(list = combat.alivePlayers()) {
+function aliveTeamIds(list = combat.alivePlayers()) { // Moon Cell ตัดสินแพ้ชนะเอง (Moon.outcome — phases/endTurn.js gameOver)
   return [...new Set(list.filter((p) => !p.summon).map((p) => p.teamId).filter(Boolean))]; // ยูนิตที่ถูกเรียกไม่นับ
 }
 function remainingTeamWinInfo(stillAlive = combat.alivePlayers(), total = Duo.sideCount(Object.values(match.players))) {
@@ -295,7 +315,9 @@ function startMatch() {
   match.journeyArea = startArea;
   match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
   match.colony = null;
+  match.moon = null;
   if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
+  else if (Moon.inWorld()) Moon.start(); // Moon Cell: กระดานดวงจันทร์ 20×20 + ฮาคุโนะ 2 ตัว + Moon Cell (GRID_PLAN §8.4)
   else action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
@@ -305,8 +327,8 @@ function startMatch() {
   match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; // หยุดเวลา (server/timeStop.js)
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
-  // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก)
-  const journeyStart = (Journey.active(engine) || Colony.inWorld()) && JOURNEY_START_SECONDS > 0;
+  // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก) · Moon Cell = ฉากบินอ้อมโลกไปดวงจันทร์ (client oc/intro/moonFlight.js)
+  const journeyStart = (Journey.active(engine) || Colony.inWorld() || Moon.inWorld()) && JOURNEY_START_SECONDS > 0;
   if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
@@ -356,6 +378,7 @@ function backToLobby() {
   match.journeyArea = 1;
   match.journeyRoute = [1];
   match.colony = null;
+  match.moon = null;
   Board.setWrap(0);
   Zero.reset();
   match.lastLog = [];
