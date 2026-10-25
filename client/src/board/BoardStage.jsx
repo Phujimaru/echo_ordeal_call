@@ -727,6 +727,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             ...(dead ? [{ kind: "float", x: boom.x, y: boom.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (!lowQ) setShake((n) => n + 1);
+          if (d.fire) playSfx("sora_fire"); // Fire Frame: ไฟลุกตอนระเบิด
           if (dead) deathBoom(dead, dead.pos);
         });
       }
@@ -855,6 +856,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
           if ((!myth || saber) && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
+          // เสียงต่อท้ายเสียงตี (โซระ Fire Frame: ไฟลุก) · หลบพ้น = ไม่เล่น
+          if (a.byTailSound && a.byTailSound.key && !a.dodge) later(Math.max(0, +a.byTailSound.after || 0), () => playSfx(a.byTailSound.key));
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
           // เซลินติดคริ: ดอกทอง + มงกุฎเล็กเหนือเป้า + เสียงประกาย (ซ้อนเสียงอาวุธ)
           if (style && style.startsWith("celine") && a.crit && !a.dodge) { playSfx("celine_crit"); pushFx([{ kind: "celineCrit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]) }]); }

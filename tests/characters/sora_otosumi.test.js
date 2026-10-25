@@ -577,7 +577,7 @@ test('Mouse Separade: บันทึกดาเมจนับส่วนท�
 // ---------- Fire Frame (ผู้ใช้สั่ง 2026-10-25) ----------
 const fire = (p, gun = false) => { myth(p, gun); p.sora.fire = true; };
 
-test('Fire Frame: ร่าง My-Th เลือก Fire Frame = เข้าร่างไฟ (0 แต้ม · คลิปครั้งแรกต่อเกม) · คืนร่างเลือกได้ · ร่างไฟกดแปลงร่าง = คืนร่างโซระ', () => {
+test('Fire Frame: ร่าง My-Th เลือก Fire Frame = เข้าร่างไฟ (0 แต้ม · คลิปครั้งแรกต่อเกม · ภาพร่างไฟ) · ร่างไฟเลือกกลับ My-Th หรือคืนร่างโซระ', () => {
   const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 8, 5]]);
   myth(P.S);
   engine.setActor('S');
@@ -590,18 +590,29 @@ test('Fire Frame: ร่าง My-Th เลือก Fire Frame = เข้า�
   assert.deepEqual(calls.queue, ['soraFire']);
   const v = view('S', 'S');
   assert.equal(v.sora.fire, true);
-  assert.equal(v.character.basic.choices, undefined, 'ร่างไฟ = ปุ่มคืนร่างธรรมดา');
-  assert.equal(v.character.basic.img, sora.IMG.toSora);
+  assert.equal(v.img, sora.IMG.mythFire, 'ภาพบนกระดานเป็นร่างไฟ');
+  assert.deepEqual(v.character.basic.choices.map((c) => c.key), ['myth', 'sora'], 'ร่างไฟ: เลือกกลับ My-Th / คืนร่าง');
+  assert.ok(v.character.basic.choices.every((c) => c.desc && c.locked));
   // เทิร์นเดียวกันกดอีกไม่ได้
-  engine.useSkill('S', 'basic', []);
+  engine.useSkill('S', 'basic', [], { form: 'myth' });
   assert.equal(P.S.sora.fire, true);
-  // เทิร์นหน้า: ร่างไฟกด = กลับร่างโซระ
+  // เทิร์นหน้า: เลือก My-Th = ดับไฟ เหลือ My-Th
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.setActor('S');
-  engine.useSkill('S', 'basic', []);
+  engine.useSkill('S', 'basic', [], { form: 'myth' });
+  assert.equal(P.S.sora.myth, true);
+  assert.equal(P.S.sora.fire, false);
+  assert.equal(engine.displayImg(P.S), sora.IMG.myth);
+  // เข้าไฟอีกรอบแล้วเลือกคืนร่าง = กลับร่างโซระ
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor('S');
+  engine.useSkill('S', 'basic', [], { form: 'fire' });
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor('S');
+  engine.useSkill('S', 'basic', [], { form: 'sora' });
   assert.equal(P.S.sora.myth, false);
   assert.equal(P.S.sora.fire, false);
-  // เข้าไฟอีกครั้ง = ไม่มีคลิปแล้ว · ตัวเลือกคืนร่างจาก My-Th ยังกลับร่างโซระ
+  // เข้าไฟอีกครั้ง (จากร่าง My-Th) = ไม่มีคลิปแล้ว · ตัวเลือกคืนร่างจาก My-Th ยังกลับร่างโซระ
   P.S.sora.myth = true;
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.setActor('S');
@@ -620,14 +631,18 @@ test('Fire Frame: ตีปกติ (มีด/ปืน) ติดลุกไ
   myth(P.S);
   engine.doAttack('S', 'B');
   assert.equal(P.B.statuses.hburn, undefined, 'My-Th ปกติไม่ติดลุกไหม้');
+  assert.equal(engine.lastAttack.byTailSound, null, 'My-Th ปกติไม่มีเสียงไฟ');
   fire(P.S);
   const before = vit(P.B);
   engine.doAttack('S', 'B');
   assert.equal(before - vit(P.B), 1 + sora.KNIFE_BONUS, 'มีดยังบวกตามเดิม');
   assert.equal(P.B.statuses.hburn, sora.FIRE_BURN);
   assert.ok(engine.lastAttack.skills.some((s) => /ลุกไหม้ 1/.test(s.name)));
+  assert.deepEqual(engine.lastAttack.byAttackSound, 'sora_hit_knife', 'เสียงตีเดิม');
+  assert.deepEqual(engine.lastAttack.byTailSound, { key: 'sora_fire', after: 1850 }, 'ตามด้วยไฟลุก');
   fire(P.S, true);
   engine.doAttack('S', 'B');
+  assert.deepEqual(engine.lastAttack.byTailSound, { key: 'sora_fire', after: 1200 }, 'ปืน: ไฟลุกหลังเสียงปืนจบ');
   assert.equal(P.B.statuses.hburn, 2, 'ปืนก็ติด (สะสม)');
   P.B.statuses = { resist: 2 };
   engine.doAttack('S', 'B');

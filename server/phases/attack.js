@@ -412,6 +412,7 @@ function strikeCard(attacker, target, res) {
     byHitFx: hookOf(attacker, "attackHitFx"), // เอฟเฟกต์จังหวะปะทะ "mythSlash" (โซระ มีด) · null = แสงแตกเดิม
     byStyle: attackStyleOf(attacker, target), // ท่าตีเฉพาะตัว "echo" | "hair" | "rock" (Echo) — null = พุ่งชน · ก่อน byAttackSound: เกรย์สุ่มอาวุธที่นี่แล้วเสียงตามอาวุธ
     byAttackSound: attackSoundOf(attacker), // เสียงโจมตีปกติเฉพาะตัว
+    byTailSound: hookOf(attacker, "attackTailSound") || null, // เสียงต่อท้ายเสียงตี { key, after (ms หลังปะทะ) } — โซระ Fire Frame: ไฟลุก
     byDeferDmg: !!hookOf(attacker, "deferStrikeDamage"), // ดาเมจไม่ลงตอนปะทะ (ไจโรตีเสริม: ลงตอนชนขอบ) — ไม่ขึ้นเลขที่ปะทะ
     bySize: action.sizeOf(attacker), // ขนาดตัวผู้ตี (ตัวใหญ่ — เอฟเฟกต์เริ่มจากตัวทั้งก้อน)
     targetName: target.name, targetImg: view.displayImg(target), targetColor: lobby.colorOf(target),

@@ -22,7 +22,8 @@
 //    · ร่าง My-Th อัตราคริติคอล 20% (ตีปกติ — รวมกับคริของสนามแล้วทอยครั้งเดียว)
 //
 //  ร่าง Fire Frame (ผู้ใช้สั่ง 2026-10-25) — ร่างย่อยของ My-Th (มีด/ปืน/คริ/ท่าไม้ตายใช้ได้เหมือนเดิม)
-//    ร่าง My-Th กดแปลงร่าง = ตัวเลือก Fire Frame / คืนร่าง · ร่าง Fire Frame กดแปลงร่าง = คืนร่างโซระ (Claude ตัดสิน)
+//    ร่าง My-Th กดแปลงร่าง = ตัวเลือก Fire Frame / คืนร่าง · ร่าง Fire Frame กดแปลงร่าง = ตัวเลือก My-Th / คืนร่าง (ผู้ใช้สั่ง 2026-10-25)
+//    ภาพบนกระดาน = myth_fire.jpg · ตีปกติ: เสียงตีเดิมจบแล้วตามด้วยเสียงไฟลุก (attackTailSound) · ท่าไม้ตายชน = เสียงไฟลุกตอนระเบิด
 //    เข้าร่างครั้งแรกต่อเกม = คลิป myth_fire · แปลงร่างยังเทิร์นละ 1 ครั้ง
 //    ตีปกติ + Mouse Separade ที่โดนศัตรู = ลุกไหม้ 1 (engine.applyBurn — ต้านได้)
 //    จบเทิร์นในร่างนี้ = เสียแต้มสกิล 1 · แต้มไม่พอ = กลับร่าง My-Th ปกติ (Claude ตัดสิน)
@@ -41,7 +42,8 @@ const IMG = {
   toSora: `${DIR}/sora_skill1_normal.jpg`,
   skill2: `${DIR}/sora_skill2.jpg`,
   skill3: `${DIR}/sora_skill3.jpg`,
-  fire: `${DIR}/myth_fire_type1.jpg`,
+  fire: `${DIR}/myth_fire_type1.jpg`, // ตัวเลือก Fire Frame บนปุ่มแปลงร่าง
+  mythFire: `${DIR}/myth_fire.jpg`,    // ภาพร่าง Fire Frame บนกระดาน
 };
 const VIDEO = {
   transform: `${DIR}/sora_skill1.mp4`,
@@ -53,7 +55,9 @@ const VIDEO = {
 };
 const CUT = { transform: "soraTransform", ult: "soraUlt", hit: "soraHit", fire: "soraFire", fireUlt: "soraFireUlt", fireHit: "soraFireHit" };
 // เสียง (client/src/audio.js) — ตีปกติมีดฟัน 2 ครั้ง (ฉากตีเล่นรอยฟัน 2 จังหวะตามเสียง) · สลับอาวุธ = เสียงของอาวุธใหม่
-const SFX = { gun: "sora_hit_gun", knife: "sora_hit_knife", toGun: "sora_skill2_gun", toKnife: "sora_skill2_knife" };
+const SFX = { gun: "sora_hit_gun", knife: "sora_hit_knife", toGun: "sora_skill2_gun", toKnife: "sora_skill2_knife", fire: "sora_fire" };
+// Fire Frame: เสียงไฟลุกต่อท้ายเสียงตี — ms หลังจังหวะปะทะ ≈ ตอนเสียงตีจบ (มีด 2.2 วิ เริ่มก่อนปะทะ 0.25 วิ · ปืน 1.3 วิ เริ่มตอนปะทะ)
+const FIRE_TAIL_MS = { knife: 1850, gun: 1200 };
 
 const KNIFE_BONUS = 1;
 const GUN_RANGE = [1, 3]; // ผู้ใช้สั่งเพิ่มจาก 2 (2026-10-12)
@@ -270,8 +274,13 @@ function settleAtStop(engine, p, stop, big) {
 }
 
 // ร่าง My-Th: ปุ่มแปลงร่างเป็นตัวเลือก (desc = คำอธิบายตอนชี้ค้าง — กฎผู้ใช้ 2026-10-19)
+//  ร่าง Fire Frame: ตัวเลือก กลับร่าง My-Th / คืนร่างโซระ
 const FORM_CHOICES = [
   { key: "fire", name: "Fire Frame", img: IMG.fire, desc: `Fire Frame: ตีปกติและ Mouse Separade ติดลุกไหม้ ${FIRE_BURN} · จบเทิร์นเสียแต้มสกิล ${FIRE_UPKEEP} (แต้มไม่พอ = กลับร่าง My-Th)` },
+  { key: "sora", name: "คืนร่าง", img: IMG.toSora, desc: "กลับเป็นร่างโซระ" },
+];
+const FIRE_CHOICES = [
+  { key: "myth", name: "Kamen Rider My-Th", img: IMG.myth, desc: "กลับเป็นร่าง Kamen Rider My-Th" },
   { key: "sora", name: "คืนร่าง", img: IMG.toSora, desc: "กลับเป็นร่างโซระ" },
 ];
 
@@ -280,7 +289,7 @@ module.exports = {
   IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD, BIG_BONUS, BIG_PUSH, CRASH_DMG, FIRE_BURN, FIRE_UPKEEP,
 
   resetCombat(p) { p.sora = isSora(p) ? fresh() : null; },
-  displayImg(p) { return mythOn(p) ? IMG.myth : null; },
+  displayImg(p) { return fireOn(p) ? IMG.mythFire : mythOn(p) ? IMG.myth : null; },
 
   // ---------- ตีปกติ ----------
   range(p) { return gunOn(p) ? GUN_RANGE : null; },
@@ -296,6 +305,11 @@ module.exports = {
   attackBeam(p) { return gunOn(p) ? GUN_BEAM : 0; },
   attackBeamTone(p) { return gunOn(p) ? "blue" : null; },
   attackHitFx(p) { return knifeOn(p) ? "mythSlash" : null; },
+  // Fire Frame: เสียงไฟลุกต่อท้ายเสียงตี (client เล่นหลังจังหวะปะทะ after ms · หลบพ้น = ไม่เล่น)
+  attackTailSound(p) {
+    if (!fireOn(p)) return null;
+    return { key: SFX.fire, after: st(p).gun ? FIRE_TAIL_MS.gun : FIRE_TAIL_MS.knife };
+  },
   attackSound(p) {
     if (gunOn(p)) return SFX.gun;
     if (knifeOn(p)) return SFX.knife;
@@ -334,10 +348,10 @@ module.exports = {
     if (!isSora(p)) return null;
     if (tier === "basic") {
       if (!mythOn(p)) return { img: IMG.toMyth };
-      if (fireOn(p)) return { img: IMG.toSora };
       // require ตอนเรียก: engine require โมดูลตัวละครตอนโหลด
       const locked = st(p).formRound === require("../server/engine").engine.roundNumber;
-      return { img: IMG.fire, choices: FORM_CHOICES.map((c) => ({ ...c, area: { kind: "self" }, cost: 0, free: true, locked })) };
+      const fire = fireOn(p);
+      return { img: fire ? IMG.toSora : IMG.fire, choices: (fire ? FIRE_CHOICES : FORM_CHOICES).map((c) => ({ ...c, area: { kind: "self" }, cost: 0, free: true, locked })) };
     }
     if (tier === "secondary") return { name: `My-Th Edge (${st(p).gun ? "มีด" : "ปืน"})` };
     return null;
@@ -348,7 +362,13 @@ module.exports = {
     p.cutsceneShown ||= {};
     if (tier === "basic") {
       s.formRound = engine.roundNumber;
-      // ร่าง My-Th + เลือก Fire Frame = เข้าร่างไฟ · อย่างอื่น (คืนร่าง / ร่างไฟกดซ้ำ / ไม่ส่งตัวเลือก) = สลับร่างตามเดิม
+      // ร่างไฟ + เลือก My-Th = ดับไฟ เหลือ My-Th
+      if (s.myth && s.fire && opts.form === "myth") {
+        s.fire = false;
+        engine.log(`🐭 ${p.name} กลับเป็นร่าง Kamen Rider My-Th`);
+        return " — Kamen Rider My-Th";
+      }
+      // ร่าง My-Th + เลือก Fire Frame = เข้าร่างไฟ · อย่างอื่น (คืนร่าง / ไม่ส่งตัวเลือก) = สลับร่างตามเดิม
       if (s.myth && !s.fire && opts.form === "fire") {
         s.fire = true;
         s.fireAt = engine.severStamp();
