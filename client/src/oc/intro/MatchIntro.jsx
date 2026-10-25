@@ -16,8 +16,7 @@
 //      มีฉากดิ่ง: ยาว D = durationMs (≤ 7 วิ) · ส่งต่อที่ชน (0.82D + 0.1 ของช่วงเผย) · onDone ที่ X + D
 //      ไม่มี: การ์ดไหลออก + ม่านขาว · ส่งต่อที่ X+600 · onDone ที่ X+1300 (server พักเกินนี้อย่างน้อย 1 วิ)
 //      { colony }: กล้องเหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยานของโคโลนี (colonyFlight.js · โหมด Colony GRID_PLAN §8.3)
-//      { moon }: กล้องโค้งอ้อมหลังโลก เห็นดวงจันทร์ แล้วซูมเข้า (moonFlight.js)
-//        ฉากดวงจันทร์ยังไม่มีโหมดไหนใช้ (เดิมเป็นของ Moon Cell ที่ถอดไปแล้ว — เก็บไว้ให้โหมดในอนาคต · ดูได้ที่ ?moon)
+//      { moon }: กล้องโค้งอ้อมหลังโลก เห็นดวงจันทร์ + ลูกบาศก์ Moon Cell แล้วซูมเข้า (moonFlight.js · โหมด Moon Cell GRID_PLAN §8.4 · ดูได้ที่ ?moon)
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";

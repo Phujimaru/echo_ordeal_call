@@ -1,6 +1,6 @@
 // ============================================================
 //  ฉากบินจากโลกไปดวงจันทร์: ปลายฉากเปิดแมตช์ (MatchIntro โหมด moon) — บนลูกโลกร่วมใบเดิม
-//  เดิมเป็นฉากเปิดของ Moon Cell (ถอดโหมดออกแล้ว) — เก็บไว้ให้โหมดในอนาคต · พรีวิว dev: ?moon
+//  ฉากเข้าด่านของโหมด Moon Cell (Raid Boss — GRID_PLAN §8.4) · พรีวิว dev: ?moon
 //  ใช้: App คืน { moon: true, durationMs: MOON_MS } จาก onOutro ของ MatchIntro และ server ต้องพักเกม
 //   ช่วงเปิดตัวผู้เล่น + ~6 วิ (เฟส CUTSCENE ไม่มีคลิป) ไม่งั้นฉากถูกตัดกลางคัน
 //  กล้องโค้งอ้อมไปด้านข้าง/หลังลูกโลก → เห็นดวงจันทร์ที่ซ่อนอยู่หลังโลก → ซูมเข้าหาดวงจันทร์ → แฟลชขาว (DOM)
@@ -8,11 +8,12 @@
 //  u = เวลา/ D (0..1) · D = MOON_MS
 // ============================================================
 import { REDUCED, clamp01, easeInOutCubic, span } from "./diveKit";
+import { createMoonCellCube } from "../../globe/moonModel";
 
 export const MOON_MS = 5600;
 
 /** ผิวดวงจันทร์: ขาวอมฟ้า + หลุมอุกกาบาต + ตารางข้อมูล (สไตล์ ORDEAL CALL) */
-function moonTexture(THREE) {
+export function moonTexture(THREE) {
   const cv = document.createElement("canvas");
   cv.width = 1024; cv.height = 512;
   const g = cv.getContext("2d");
@@ -49,7 +50,7 @@ function moonTexture(THREE) {
   return tex;
 }
 
-function glowTexture(THREE, inner, outer) {
+export function glowTexture(THREE, inner, outer) {
   const cv = document.createElement("canvas");
   cv.width = cv.height = 256;
   const g = cv.getContext("2d");
@@ -92,6 +93,12 @@ export function createMoonFlight(core, { lowQ = false } = {}) {
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(THREE, "rgba(230,244,255,.95)", "rgba(190,227,248,.45)"), transparent: true, depthWrite: false }));
   glow.scale.setScalar(MOON_R * 4.4);
   moon.add(glow);
+  // Moon Cell ลอยเหนือขั้วบนของดวงจันทร์ (globe/moonModel.js)
+  const cell = createMoonCellCube(THREE, 0.42);
+  const cellHolder = new THREE.Group();
+  cellHolder.position.set(0, MOON_R * 1.5, 0);
+  cellHolder.add(cell.group);
+  moon.add(cellHolder);
   scene.add(moon);
 
   const near0 = camera.near;
@@ -106,6 +113,7 @@ export function createMoonFlight(core, { lowQ = false } = {}) {
     /** u = ความคืบหน้าของฉาก 0..1 */
     frame(u, dt = 0.016) {
       moon.rotation.y += dt * 0.12;
+      cell.update(dt, performance.now() / 1000);
       ringMat.dashOffset = (ringMat.dashOffset || 0) - dt * 0.4;
       if (REDUCED) { camera.position.copy(M).add(new THREE.Vector3(0, 0, 3.2)); camera.lookAt(M); return; }
       // 1) โค้งอ้อมโลก: มุมรอบแกน Y 0 -> 112° ยกกล้องขึ้นนิดหน่อย

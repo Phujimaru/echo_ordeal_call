@@ -1050,6 +1050,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 
 ## 34. โหมด Moon Cell — Raid Boss: บอส AI / ลำดับเดินบอสก่อน / ฟื้นคืนชีพ / คำสาปพื้นที่ / แพ้ชนะเฉพาะโหมด (`server/moonCell.js` · GRID_PLAN §8.4)
 - สนาม `match.world = "moon"` คู่กับ `match.gameMode = "moon"` เท่านั้น (`lobby.worldHasMode`) · โหวตครบ = ทุกคนทีม A ยืนยันแล้ว → `startMatch` ทันที · `teamModeActive()` = true (กติกาทีมเดิม) · ไม่มีการเดินทาง
+- client: หน้าโหวต `oc/lobby/ModeVote.jsx` (โมเดล `globe/moonModel.js`) · ฉากเปิดแมตช์ = ช่วงพักเดียวกับการเดินทาง → `Journey.publicInfo` ส่ง `{ moon: true, scene }` → App คืน `{ moon }` ให้ MatchIntro เล่น `oc/intro/moonFlight.js`
 - กระดาน `MAPS[MOON_AREA]` (30 · 20×20 ลานโรงเรียน — `Board.MOON` จุด Moon Cell/ฮาคุโนะ) · `buildMap` รับ `cols`/`rows` ได้แล้ว
 - ยูนิต = ยูนิตที่ถูกเรียก (`Summon.spawn` เจ้าของสมมติ `OWNER` ไม่อยู่ใน `match.players`) ฝ่าย `summon.side = "moon"` · `summon.moon` = `"m"` | `"f"` | `"cell"` ·
   ฮาคุโนะ `characterId: "kishinami_hakuno"` → ฮุคตีปกติ `characters/_hakuno.js` (`attackBaseOverride` 2 · `critPct` 25 · `onStrikeResolved` แต้มสกิลเป้า −1) ลงทะเบียน `CHAR_HOOKS` แบบไม่อยู่ใน `MODULES` ·

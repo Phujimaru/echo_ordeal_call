@@ -76,7 +76,7 @@ const AREAS = [
 const roll = (pct) => Math.random() * 100 < pct;
 
 function active(engine) {
-  if (engine.world === "colony") return false; // สนาม Colony (GRID_PLAN §8.3): ไม่มีการเดินทาง/ผลภูมิภาค
+  if (engine.world === "colony" || engine.world === "moon") return false; // สนาม Colony (§8.3) / Moon Cell (§8.4): ไม่มีการเดินทาง/ผลภูมิภาค
   return ["ffa", "duo", "trio"].includes(engine.gameMode);
 }
 function areaNow(engine) {
@@ -273,9 +273,10 @@ module.exports = {
 
   // ---------- ข้อมูลที่ส่งให้ client ----------
   publicInfo(engine, scene) {
-    // Colony: ไม่มีภูมิภาค — ส่งแค่ฉากเปิดแมตช์ (start) ให้ client รู้ว่าต้องเล่นฉากพุ่งเข้าโคโลนี
-    if (engine.world === "colony") {
-      return scene && scene.mode === "start" ? { colony: true, area: 1, night: false, scene: { seq: scene.seq, active: !!scene.active, mode: scene.mode, area: 1, fromArea: null, route: null, casterId: null } } : null;
+    // Colony / Moon Cell: ไม่มีภูมิภาค — ส่งแค่ฉากเปิดแมตช์ (start) ให้ client รู้ว่าต้องเล่นฉากพุ่งเข้าโคโลนี / บินไปดวงจันทร์
+    if (engine.world === "colony" || engine.world === "moon") {
+      const w = engine.world === "colony" ? { colony: true } : { moon: true };
+      return scene && scene.mode === "start" ? { ...w, area: 1, night: false, scene: { seq: scene.seq, active: !!scene.active, mode: scene.mode, area: 1, fromArea: null, route: null, casterId: null } } : null;
     }
     if (!active(engine)) return null;
     // ระหว่างฉากเดินทางไปภูมิภาคใหม่ (advance) ให้ client เห็นภูมิภาคปลายทางแล้ว (ฉากหลัง/เพลงเปลี่ยนใต้ฉากแผนที่)

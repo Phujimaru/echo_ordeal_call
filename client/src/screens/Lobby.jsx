@@ -29,7 +29,7 @@ function useViewport() {
 }
 
 /** ตำแหน่ง/ขนาดลูกโลกของแต่ละหน้า (คิดจากขนาดจอให้ไม่ชนแผงข้าง) · modeFocus = หน้าเลือกโหมดกำลังเลือกดูโหมด (มีแผงขวา)
- *  modeWorld = สนามที่เลือกดู (null = ชั้นสนาม โลก + โคโลนีโคจรรอบ · "colony" = โลกถอยไปมุมล่างซ้าย ให้โคโลนีเด่นกลางจอ) */
+ *  modeWorld = สนามที่เลือกดู (null = ชั้นสนาม โลก + โคโลนีโคจรรอบ + ดวงจันทร์ · "colony" / "moon" = โลกถอยไปมุมล่างซ้าย ให้โคโลนี/ดวงจันทร์เด่นกลางจอ) */
 function globeLayout(view, w, h, modeFocus, modeWorld) {
   const ppu = h / VIEW_H;
   if (view === "TEAM_SETUP") {
@@ -37,7 +37,7 @@ function globeLayout(view, w, h, modeFocus, modeWorld) {
     const s = 2.2;
     return { x: 0, y: r3(-VIEW_H / 2 + 120 / ppu - s - 0.5), s }; // -0.5 = ชดเชยมุมมองกล้อง (ขอบโลกโผล่สูงกว่าที่คิด)
   }
-  if (view === "TEAM_MODE" && modeWorld === "colony") {
+  if (view === "TEAM_MODE" && (modeWorld === "colony" || modeWorld === "moon")) {
     const r = Math.max(70, Math.min(h * 0.17, w * 0.12));
     return { x: r3((40 + r * 1.1 - w / 2) / ppu), y: r3((h / 2 - (h - r * 0.75 - 40)) / ppu), s: r3(r / ppu) };
   }

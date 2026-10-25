@@ -11,6 +11,7 @@ import VolumeControl from "./components/VolumeControl";
 import TransitionCurtain from "./components/TransitionCurtain";
 import MatchIntro from "./oc/intro/MatchIntro";
 import { COLONY_MS } from "./oc/intro/colonyFlight";
+import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
@@ -61,9 +62,9 @@ export default function App() {
     const me = state.players?.find((p) => p.id === state.youId);
     if (!me) return;
     if (state.gameState === "LOBBY" && !me.ready) socket.emit("toggleReady");
-    // &world=colony = โหวตสนาม Colony · &world=none = ไม่โหวตเอง (หยุดดูหน้าเลือกโหมด)
+    // &world=colony = โหวตสนาม Colony · &world=moon = Moon Cell · &world=none = ไม่โหวตเอง (หยุดดูหน้าเลือกโหมด)
     const world = new URLSearchParams(location.search).get("world") || "earth";
-    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: "ffa", world });
+    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : "ffa", world });
   }, [state]);
   const curtainRef = useRef(null); // ม่านเปลี่ยนฉาก — ควบคุมจังหวะปิด/เปิดจอตอนสลับหน้า
   // กันดับเบิ้ลคลิก/กดรัวบนปุ่มนำทาง (ถัดไป/ยืนยัน/ย้อนกลับ) ไม่ให้ยิงคำสั่งเปลี่ยนฉากซ้อนกัน
@@ -81,7 +82,7 @@ export default function App() {
   const journeySeqRef = useRef(null);      // ฉากที่เล่น/จองไว้แล้ว (กันเล่นซ้ำจากบรอดแคสต์ถัดๆ ไป)
   const pendingJourneyRef = useRef(null);  // ฉาก start ที่รอช่วงเปิดตัวผู้เล่นจบก่อน
   const journeyStateRef = useRef(null);    // ก้อน journey ล่าสุด (startPendingJourney อ่านว่าช่วงพักยังไม่หมด)
-  const worldRef = useRef("earth");        // สนามของแมตช์ (earth | colony) — colony = ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก
+  const worldRef = useRef("earth");        // สนามของแมตช์ (earth | colony | moon) — colony = ฉากพุ่งเข้าโคโลนี · moon = บินอ้อมโลกไปดวงจันทร์ แทนดิ่งลงโลก
   const prevGameStateRef = useRef(null);
   const screenKeyRef = useRef("setup"); // หน้าปัจจุบัน (navigate ใช้ตัดสินว่าต้องมีม่านไหม)
   const [roster, setRoster] = useState([]);
@@ -355,6 +356,7 @@ export default function App() {
     const live = journeyStateRef.current?.scene;
     if (pending && live?.active && live.seq === pending.seq) {
       if (worldRef.current === "colony") return { colony: true, durationMs: journeyDurationMs(getTickSeconds(), COLONY_MS) };
+      if (worldRef.current === "moon") return { moon: true, durationMs: journeyDurationMs(getTickSeconds(), MOON_MS) };
       return { area: pending.area, durationMs: journeyDurationMs(getTickSeconds(), 7000) };
     }
     return null;

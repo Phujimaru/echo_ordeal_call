@@ -84,7 +84,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get cutsceneInfo() { return match.cutsceneInfo; },
   get gameMode() { return match.gameMode; },
   setGameMode(v) { match.gameMode = v; },
-  get world() { return match.world; }, // earth | colony — การเดินทางปิดใน Colony (characters/_journey.js active)
+  get world() { return match.world; }, // earth | colony | moon — การเดินทางปิดใน Colony / Moon Cell (characters/_journey.js active)
   resetModeVotes: lobby.resetModeVotes,
   voteGameMode: lobby.voteGameMode,
   validGameMode: lobby.validGameMode,

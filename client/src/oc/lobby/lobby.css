@@ -187,6 +187,16 @@
 }
 .ocl-modetag[data-mode="trio"]::after { left: 14px; right: 14px; bottom: 3px; height: 2px; background: var(--orn); opacity: 0.55; }
 
+/* Moon Cell — สี่เหลี่ยมมุมเฉียง + ลูกบาศก์ซ้อนสองชั้นทางซ้าย */
+.ocl-modetag[data-mode="moon"] {
+  --shape: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  padding: 10px 18px 10px 38px;
+}
+.ocl-modetag[data-mode="moon"] .ocl-mt-name { font: 400 14px/1 var(--oc-f-logo); letter-spacing: 0.16em; }
+.ocl-modetag[data-mode="moon"]::before, .ocl-modetag[data-mode="moon"]::after { top: 50%; width: 10px; height: 10px; margin-top: -5px; }
+.ocl-modetag[data-mode="moon"]::before { left: 12px; border: 1.5px solid var(--orn2); transform: translate(3px, -3px); }
+.ocl-modetag[data-mode="moon"]::after { left: 12px; background: var(--orn2); opacity: 0.85; }
+
 /* สถานะ (อยู่หลังกรอบประจำโหมดเพื่อทับค่า) */
 .ocl-modetag.focus {
   --edge: var(--oc-echo); --k: 1.1; --bw: 2px; z-index: 3;
@@ -212,6 +222,7 @@
   background: linear-gradient(var(--oc-azure), transparent); pointer-events: none;
 }
 .ocl-worldtag[data-world="colony"] { border-color: var(--oc-azure); }
+.ocl-worldtag[data-world="moon"] { border-color: var(--oc-echo); }
 
 .ocl-dots { display: flex; gap: 3px; }
 .ocl-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: 0 0 0 1.5px #fff; }
@@ -238,6 +249,7 @@
 .ocl-seclabel span { order: 2; font-variant-numeric: tabular-nums; color: var(--oc-azure); }
 .ocl-route { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .ocl-route li { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px dashed var(--oc-frost); font-size: 13.5px; }
+.ocl-bosses img.n { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; box-shadow: 0 0 0 1.5px var(--oc-frost); }
 .ocl-route li:first-child { border-top: 0; }
 .ocl-route .n { font: 400 11px/1 var(--oc-f-logo); color: var(--oc-azure); letter-spacing: 0.06em; }
 .ocl-route .tt { font: 500 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }

@@ -73,6 +73,16 @@ test('โหวตสนามดวงจันทร์: มีโหมดเ
   assert.ok(Moon.active());
 });
 
+test('ฉากเปิดแมตช์: journey ส่งฉาก start แบบ moon ให้ client เล่นฉากบินไปดวงจันทร์ · ไม่มีภูมิภาค', () => {
+  setup(1);
+  match.journeyScene = { seq: 7, active: true, mode: 'start', area: 1, fromArea: null };
+  const j = Journey.publicInfo(engine, match.journeyScene);
+  assert.equal(j.moon, true);
+  assert.ok(!j.colony);
+  assert.deepEqual({ seq: j.scene.seq, active: j.scene.active, mode: j.scene.mode }, { seq: 7, active: true, mode: 'start' });
+  assert.equal(Journey.publicInfo(engine, null), null);
+});
+
 test('เริ่มแมตช์: กระดาน 20×20 · Moon Cell 2×2 · ฮาคุโนะ 2 ตัว · ไม่มีการเดินทาง · ผู้เล่นเป็นพวกเดียวกัน', () => {
   setup(3);
   const map = action.boardMap();
