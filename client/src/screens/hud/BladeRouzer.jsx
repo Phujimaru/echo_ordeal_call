@@ -1,5 +1,5 @@
 // เคนซากิ คาซุมะ — ช่องสกิลรองเฉพาะตัว (Blay Rouzer) + แผงเลือกการ์ด — จอคอม/แท็บเล็ต (GRID_PLAN §7.19)
-//  me.kazuma = { blade, hand: [{ k, n }], cards (รายใบตามลำดับที่ใส่), maxCards, combo, picksLeft (ช่องว่างในกอง — รวมไม่เกิน 3 ใบ), maxTypes, armed, metal } · การ์ด 9 ใบ = skill.choices จาก server
+//  me.kazuma = { blade, hand: [{ k, n }], combo, picksLeft (ช่องว่างในกอง — รวมไม่เกิน 3 ใบ), maxTypes, armed, metal } · การ์ด 9 ใบ = skill.choices จาก server
 //  (choices: { key, name, img, cost, count, locked, desc }) · ชี้ค้าง = คำอธิบายการ์ด (c.desc — กฎผู้ใช้ 2026-10-19) · ไม่มีข้อความอื่น
 //  กดการ์ด = ใช้แต้มทันที (socket useSkill tier "secondary" form) · แผงไม่ปิดเอง เลือกต่อได้จนกองเต็ม 3 ใบ · Esc / คลิกนอก / คลิกขวา = ปิด
 import { useEffect, useRef, useState } from "react";
@@ -8,11 +8,6 @@ import "./bladeRouzer.css";
 
 const COMBO_NAME = { blast: "Lightning Blast", slash: "Lightning Slash", sonic: "Lightning Sonic" };
 const PICKS = 3;
-// ช่องการ์ดในกอง: 1 ช่อง = 1 ใบตามลำดับที่ใส่ · ใบซ้ำวางเรียงข้างกัน ไม่ซ้อน (ผู้ใช้สั่ง 2026-10-25)
-function stackSlots(k) {
-  const cards = Array.isArray(k.cards) ? k.cards : (k.hand || []).flatMap((c) => Array.from({ length: c.n }, () => c.k));
-  return Array.from({ length: k.maxCards || PICKS }, (_, i) => cards[i] || null);
-}
 
 function Pips({ left, max = PICKS }) {
   return (
@@ -22,10 +17,11 @@ function Pips({ left, max = PICKS }) {
   );
 }
 
-// ช่องสกิลรองบนแผงล่าง: ถาดการ์ดของ Blay Rouzer — การ์ดในกองเรียงพัดรายใบ (สูงสุด 3 ใบ) · ช่องว่างที่เหลือ · ครบสูตร = เรืองทอง
+// ช่องสกิลรองบนแผงล่าง: ถาดการ์ดของ Blay Rouzer — การ์ดในกองเรียงพัด (สูงสุด 3 ชนิด) · ×n · เลือกได้อีกกี่ใบ · ครบสูตร = เรืองทอง
 export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
   const k = kazuma || {};
-  const slots = stackSlots(k);
+  const hand = k.hand || [];
+  const slots = Array.from({ length: k.maxTypes || 3 }, (_, i) => hand[i] || null);
   const imgOf = (key) => (skill?.choices || []).find((c) => c.key === key)?.img;
   const usable = !disabled;
   return (
@@ -44,7 +40,8 @@ export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
         <span className="kz-fan">
           {slots.map((c, i) => (
             <span key={i} className="kz-fan-card" data-i={i} data-empty={c ? "false" : "true"}>
-              {c ? <img src={imgOf(c)} alt="" draggable={false} /> : <span className="kz-fan-blank">♠</span>}
+              {c ? <img src={imgOf(c.k)} alt="" draggable={false} /> : <span className="kz-fan-blank">♠</span>}
+              {c && c.n > 1 && <span className="kz-count">×{c.n}</span>}
             </span>
           ))}
         </span>
@@ -62,7 +59,8 @@ export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
 // แผงเลือกการ์ด: ถาด 3 ช่องด้านบน (กองปัจจุบัน + ชื่อท่าที่ผสมได้) · การ์ด 9 ใบเรียงเป็นพัดด้านล่าง
 export function BladeRouzerPanel({ kazuma, choices = [], points = 0, isOk = () => true, onPick, onClose }) {
   const k = kazuma || {};
-  const slots = stackSlots(k);
+  const hand = k.hand || [];
+  const slots = Array.from({ length: k.maxTypes || 3 }, (_, i) => hand[i] || null);
   const [hover, setHover] = useState(null);
   const [swipe, setSwipe] = useState(null); // { key, seq } — การ์ดที่เพิ่งรูด (เล่นภาพรูดผ่าน)
   const seq = useRef(0);
@@ -92,7 +90,8 @@ export function BladeRouzerPanel({ kazuma, choices = [], points = 0, isOk = () =
         <div className="kz-rouzer" data-combo={k.combo || undefined}>
           {slots.map((c, i) => (
             <div key={i} className="kz-slotcard" data-empty={c ? "false" : "true"}>
-              {c ? <img src={imgOf(c)} alt="" draggable={false} /> : <span className="kz-slotcard-blank">♠</span>}
+              {c ? <img src={imgOf(c.k)} alt="" draggable={false} /> : <span className="kz-slotcard-blank">♠</span>}
+              {c && <span className="kz-count kz-count-lg">×{c.n}</span>}
             </div>
           ))}
           <div className="kz-combo" data-on={k.combo ? "true" : "false"}>{k.combo ? COMBO_NAME[k.combo] : ""}</div>
