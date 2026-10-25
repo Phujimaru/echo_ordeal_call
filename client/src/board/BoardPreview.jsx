@@ -17,6 +17,7 @@
 //   ?diego=1 = ดิเอโก้ แบรนโด โลกคู่ขนาน (ขี่ซิลเวอร์ บูลเล็ต) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "diegoFx" + หยุดเวลา (DiegoFxDev.jsx)
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
+//   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
@@ -34,6 +35,7 @@ import ValentineFxDev from "./ValentineFxDev"; // ?valentine=1 = ปุ่มเ
 import FernFxDev from "./FernFxDev"; // ?fern=1 = ปุ่มเล่นเอฟเฟกต์เฟิร์น
 import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่นเอฟเฟกต์เซลิน
 import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
+import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
 const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
@@ -124,6 +126,7 @@ const FERN_DEV = Q.get("fern") === "1";
 const CELINE_DEV = Q.get("celine") === "1";
 const TAKUTO_DEV = Q.get("takuto") === "1";
 const EMIYA_DEV = Q.get("emiya") === "1";
+const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
   : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : baseUnits());
@@ -539,6 +542,7 @@ export default function BoardPreview() {
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
+      {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}

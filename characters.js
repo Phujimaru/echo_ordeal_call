@@ -212,7 +212,7 @@ const CHARACTERS = [
     },
     basic: {
       name: "แปลงร่าง",
-      desc: "ไม่นับเป็นการใช้สกิล · เทิร์นละ 1 ครั้ง: สลับร่างโซระ ⇄ Kamen Rider My-Th",
+      desc: "ไม่นับเป็นการใช้สกิล · เทิร์นละ 1 ครั้ง: สลับร่างโซระ ⇄ Kamen Rider My-Th · ร่าง My-Th: เลือกเปลี่ยนเป็น Fire Frame หรือคืนร่าง · Fire Frame: ตีปกติและ Mouse Separade ติดลุกไหม้ 1 · จบเทิร์นเสียแต้มสกิล 1 (แต้มไม่พอ = กลับร่าง My-Th)",
       area: { kind: "self" },
       cost: 0,
       img: "/characters/sora_otosumi/sora_skill1.jpg",

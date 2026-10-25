@@ -45,6 +45,10 @@ module.exports = function buildTransforms() {
     soraTransform: { img: sora.IMG.myth,   video: sora.VIDEO.transform, title: "Kamen Rider My-Th", label: "แปลงร่าง", seconds: 21, music: null, afterReveal: false },
     soraUlt:       { img: sora.IMG.skill3, video: sora.VIDEO.ult,       title: "Mouse Separade",    label: "ปล่อยท่าไม้ตาย", seconds: 13, music: null, afterReveal: false },
     soraHit:       { img: sora.IMG.skill3, video: sora.VIDEO.hit,       title: "Mouse Separade",    label: "พุ่งชน", seconds: 9, music: null, afterReveal: false, noIntro: true },
+    // Fire Frame (seconds = ความยาวจริงปัดขึ้น) — แปลงร่าง/คลิปเปิดท่าไม้ตายครั้งแรกต่อเกม · คลิปชนทุกครั้ง
+    soraFire:      { img: sora.IMG.fire,   video: sora.VIDEO.fire,      title: "Fire Frame",        label: "แปลงร่าง", seconds: 18, music: null, afterReveal: false },
+    soraFireUlt:   { img: sora.IMG.fire,   video: sora.VIDEO.fireUlt,   title: "Mouse Separade",    label: "ปล่อยท่าไม้ตาย", seconds: 12, music: null, afterReveal: false },
+    soraFireHit:   { img: sora.IMG.fire,   video: sora.VIDEO.fireHit,   title: "Mouse Separade",    label: "พุ่งชน", seconds: 11, music: null, afterReveal: false, noIntro: true },
     // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — เป็นไปดั่งกลอุบาย: intro ทุกครั้งก่อนพุ่ง · final ทุกครั้งที่ชน (ผู้ใช้สั่ง 2026-10-20) · ความยาวจริง 1.17 / 5.43 วิ
     diegoPlotIntro: { img: diego.IMG.plot, video: diego.VIDEO.intro, title: "เป็นไปดั่งกลอุบาย", label: "ปล่อยท่าไม้ตาย", seconds: 2, music: null, afterReveal: false, noIntro: true },
     diegoPlotFinal: { img: diego.IMG.plot, video: diego.VIDEO.final, title: "เป็นไปดั่งกลอุบาย", label: "พุ่งชน", seconds: 6, music: null, afterReveal: false, noIntro: true },

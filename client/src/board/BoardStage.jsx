@@ -688,8 +688,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         anims.push({ kind: "wheel", id, at: s0, ms: SORA_T.wheel, dir, lunge: pts.length <= 1, seq: ++fxSeq.current });
         if (pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, holdEnd: end, dashSeq: d.seq, seq: ++fxSeq.current });
         pushFx([
-          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, spin: SORA_T.wheel, path: pts, step: SORA_T.step, dur: SORA_T.wheel + Math.max(0, pts.length - 1) * SORA_T.step + 160 },
-          ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step) }] : []),
+          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, spin: SORA_T.wheel, path: pts, step: SORA_T.step, dur: SORA_T.wheel + Math.max(0, pts.length - 1) * SORA_T.step + 160, fire: !!d.fire },
+          ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step), fire: !!d.fire }] : []),
         ]);
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(s0);
@@ -722,7 +722,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         look(boom);
         later(moveMs, () => {
           pushFx([
-            { kind: "soraBoom", x: boom.x, y: boom.y, size: bSize },
+            { kind: "soraBoom", x: boom.x, y: boom.y, size: bSize, fire: !!d.fire },
             ...(dead && lost < 0 ? [{ kind: "float", x: boom.x, y: boom.y, text: `${lost}`, size: 30, z: lowQ ? 2.4 : 1.5 }] : []),
             ...(dead ? [{ kind: "float", x: boom.x, y: boom.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
