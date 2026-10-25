@@ -39,7 +39,7 @@ import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
-import { kazumaEventFx } from "./kazumaFx";
+import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -696,7 +696,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (freshDash) {
       const d = freshDash, id = d.id, pts = d.path.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y }));
       const s0 = pts[0], end = pts[pts.length - 1], size = sizeOfP(byId[id]);
-      if (s0 && d.wheel) {
+      if (s0 && d.style === "kazumaSonic") {
+        // คาซุมะ Lightning Sonic: พุ่งตามเส้นทาง (KAZUMA_FX.dashStep ต่อช่อง = DASH_STEP ของ server) · ภาพพุ่งสายฟ้า kazumaSonic แทนเงาฟ้า/ระเบิดของโซระ
+        //  ชน/ดาเมจ/ผลักมาทาง socket "kazumaFx" sonicHit + state ตามปกติ
+        const dir = d.dir && Number.isFinite(d.dir.x) && Number.isFinite(d.dir.y) ? { x: d.dir.x, y: d.dir.y } : { x: end.x - s0.x, y: end.y - s0.y };
+        if (pts.length > 1) {
+          dashSkip.current[id] = end;
+          anims.push({ kind: "move", id, path: pts, stepMs: KAZUMA_FX.dashStep, seq: ++fxSeq.current });
+        }
+        pushFx([{ kind: "kazumaSonic", path: pts, step: KAZUMA_FX.dashStep, size, by: id, dur: kazumaSonicDur(pts) }]);
+        if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
+        look(end);
+        if (!lowQ && pts.length > 1) later((pts.length - 1) * KAZUMA_FX.dashStep, () => setShake((n) => n + 1));
+      } else if (s0 && d.wheel) {
         // เฟสวิ่ง: กรงจักรหนูที่ช่องเริ่ม (WHEEL_MS) → พุ่งตามเส้นทาง (DASH_STEP_MS ต่อช่อง) → ค้างที่ปลายทางจน server ย้ายตัวจริง
         // ทิศจาก server (ทิศที่เลือก) — เป้ายืนติดตัว = เส้นทางยาว 0 ช่อง ใช้เส้นทางเดาทิศไม่ได้
         const dir = d.dir && Number.isFinite(d.dir.x) && Number.isFinite(d.dir.y) ? { x: d.dir.x, y: d.dir.y } : { x: end.x - s0.x, y: end.y - s0.y };
@@ -831,6 +843,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const style = !a.gun && !beam && a.byStyle && STYLE_HIT[a.byStyle] && fromPos && tPos ? a.byStyle : null;
       // ไจโรตีด้วยลูกเหล็กที่ขว้าง (gyroFx "throw") — ไม่พุ่งชนแม้อยู่ใกล้
       const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
+      const kz = !!style && style.startsWith("kazuma");
+      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
@@ -841,7 +856,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
-      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId }]));
+      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId, dodge: !!a.dodge }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
       // เสียงของท่าฮิคารุเริ่มก่อนปะทะ (ช่วงดังสุดของไฟล์ตรงจังหวะปะทะ)
@@ -870,7 +885,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (tPos) {
         look(tPos);
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
-        if (melee && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
+        if ((melee || kzLunge) && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
           if ((!myth || saber) && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
           // เสียงต่อท้ายเสียงตี (โซระ Fire Frame: ไฟลุก) · หลบพ้น = ไม่เล่น
@@ -886,11 +901,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
           const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : a.byDeferDmg ? null : `-${a.dmg}`;
           pushFx([
-            hk && !a.dodge
+            // คาซุมะ: ฉากปะทะอยู่ใน kazumaFx แล้ว (รอยฟัน/หมัด/สายฟ้า) — ไม่ซ้อนแสงแตกเดิม
+            ...(kz && !a.dodge ? [] : [hk && !a.dodge
               ? { kind: "hkHit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), tone: HK_TONE[style], hitIds: [a.targetId, ...extras.filter((e) => !e.dodge).map((e) => e.targetId)] }
-              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]), tone: saber ? "red" : null },
+              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]), tone: saber ? "red" : null }]),
             ...extras.flatMap((e) => [
-              e.dodge ? { kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor } : hk ? { kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] } : { kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor },
+              ...(e.dodge ? [{ kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor }] : hk ? [{ kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] }] : kz ? [] : [{ kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor }]),
               { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
               ...(e.kill && !sideStays(e.targetId) ? [{ kind: "float", x: e.at.x, y: e.at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22, z: lowQ ? 2.4 : 1.5 }] : []),
             ]),

@@ -348,6 +348,12 @@ const FILES = {
     "card_slash", "card_beat", "card_tackle", "card_kick", "card_thunder", "card_metal", "card_magnet", "card_mach", "card_time",
     "open", "swipe", "pass", "lightning_blast", "lightning_slash", "lightning_sonic",
   ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
+  //  เสียงสังเคราะห์ (numpy — .claude/plans/kazuma-sfx.py) -16 LUFS · atk_* = ตีปกติ (attackSound · จุดปะทะอยู่ต้นไฟล์)
+  //  ที่เหลือ = engine.sfx ตรงเหตุการณ์ (henshin_fx แปลงร่างบนกระดาน · rouze ไม่ครบสูตร · metal กันการโจมตี · sonic_dash/sonic_hit · crash ชนสิ่งกีดขวาง · magnet ดึง)
+  ...Object.fromEntries([
+    "atk_blade", "atk_punch", "atk_blast", "atk_slash",
+    "henshin_fx", "unhenshin", "rouze", "metal", "heal", "sonic_dash", "sonic_hit", "crash", "magnet",
+  ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
