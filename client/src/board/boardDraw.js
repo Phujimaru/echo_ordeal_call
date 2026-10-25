@@ -21,7 +21,9 @@
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
+  frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
+import { drawCapsule, drawHouse, drawTower } from "./colonyProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
@@ -458,6 +460,27 @@ function cloakShimmer(g, cx, cy, r, now) {
   g.restore();
 }
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
+// สนาม Colony: ขยายแถบเลือด/ป้าย (หมากถูกย่อตามระยะกล้อง + จอถูกย่อ → แถบบางจนอ่านไม่ออก) — ตั้งจาก onWall ของ drawFrame
+let UNIT_UI_K = 1, UNIT_PILL = false;
+// หลอดเลือดแบบแคปซูล (สนาม Colony): สั้นพอดีกว้างหกเหลี่ยม · ขอบมน · เลือดแดงไล่สี + เกราะฟ้าต่อท้าย · ขีดแบ่งทีละแต้มจางๆ
+function pillPath(g, x, y, w, h) {
+  const r = h / 2;
+  g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2); g.lineTo(x + r, y + h); g.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5); g.closePath();
+}
+function drawPillBar(g, x, y, w, h, u, hpN, nT, UK) {
+  pillPath(g, x, y, w, h);
+  g.fillStyle = "rgba(10,22,44,.88)"; g.fill();
+  g.lineWidth = Math.max(1, 1.1 * UK); g.strokeStyle = "rgba(255,255,255,.6)"; g.stroke();
+  const ins = 1.6 * UK, ix = x + ins, iy = y + ins, iw = w - ins * 2, ih = h - ins * 2, per = iw / nT;
+  g.save(); pillPath(g, ix, iy, iw, ih); g.clip();
+  const hp = Math.max(0, Math.min(hpN, u.hp | 0)), ar = Math.max(0, Math.min(nT - hpN, u.armor | 0));
+  if (hp > 0) { const gr = g.createLinearGradient(0, iy, 0, iy + ih); gr.addColorStop(0, "#ff9aa6"); gr.addColorStop(1, "#d93a50"); g.fillStyle = gr; g.fillRect(ix, iy, per * hp, ih); }
+  if (ar > 0) { const gr = g.createLinearGradient(0, iy, 0, iy + ih); gr.addColorStop(0, "#c4e6ff"); gr.addColorStop(1, "#4f97e0"); g.fillStyle = gr; g.fillRect(ix + per * hpN, iy, per * ar, ih); }
+  g.fillStyle = "rgba(10,22,44,.55)";
+  for (let i = 1; i < nT; i++) g.fillRect(ix + per * i - 0.5 * UK, iy, (i === hpN ? 1.6 : 0.9) * UK, ih);
+  g.fillStyle = "rgba(255,255,255,.22)"; g.fillRect(ix, iy, iw, ih * 0.42);
+  g.restore();
+}
 function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
@@ -524,26 +547,35 @@ function drawUnit(g, u, now, boxes) {
   }
   const maxHp = Math.max(1, u.maxHp | 0 || 7), maxAr = Math.max(0, u.maxArmor == null ? 3 : u.maxArmor | 0);
   const nT = Math.min(16, maxHp + maxAr), hpN = Math.min(maxHp, nT), arN = nT - hpN;
-  const pw = Math.max(54, s * 1.0, nT * 6), ph = 9, px = bx - pw / 2, py = hy + hexR * 0.87 + 3;
-  g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(px, py, pw, ph);
-  const gap = arN ? 4 : 0, tw = (pw - 6 - gap) / nT;
-  for (let i = 0; i < nT; i++) {
-    const arm = i >= hpN, on = arm ? i - hpN < (u.armor | 0) : i < (u.hp | 0);
-    g.fillStyle = on ? (arm ? "#7fbef5" : "#ef5a6a") : "rgba(255,255,255,.12)";
-    g.fillRect(px + 3 + i * tw + (arm ? gap : 0), py + 2, tw - 1.2, ph - 4);
+  const UK = UNIT_UI_K;
+  let ph, py;
+  if (UNIT_PILL) {
+    const pw = Math.max(hexR * 1.8, 44 * UK);
+    ph = 9 * UK; py = hy + hexR * 0.87 + 4 * UK;
+    drawPillBar(g, bx - pw / 2, py, pw, ph, u, hpN, nT, UK);
+  } else {
+    const pw = Math.max(54, s * 1.0, nT * 6) * UK, px = bx - pw / 2;
+    ph = 9 * UK; py = hy + hexR * 0.87 + 3 * UK;
+    g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(px, py, pw, ph);
+    const bi = 2 * UK, gap = arN ? 4 * UK : 0, tw = (pw - bi * 3 - gap) / nT;
+    for (let i = 0; i < nT; i++) {
+      const arm = i >= hpN, on = arm ? i - hpN < (u.armor | 0) : i < (u.hp | 0);
+      g.fillStyle = on ? (arm ? "#7fbef5" : "#ef5a6a") : "rgba(255,255,255,.12)";
+      g.fillRect(px + bi * 1.5 + i * tw + (arm ? gap : 0), py + bi, tw - 1.2 * UK, ph - bi * 2);
+    }
   }
   // ชื่อ (ตอนชี้)
   if (u.hovered && u.name) {
-    g.font = `600 13px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
-    const nw = g.measureText(u.name).width + 14;
-    g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(bx - nw / 2, py + ph + 3, nw, 19);
-    g.fillStyle = "#ffffff"; g.fillText(u.name, bx, py + ph + 13); g.textBaseline = "alphabetic";
+    g.font = `600 ${13 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const nw = g.measureText(u.name).width + 14 * UK;
+    g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(bx - nw / 2, py + ph + 3 * UK, nw, 19 * UK);
+    g.fillStyle = "#ffffff"; g.fillText(u.name, bx, py + ph + 13 * UK); g.textBaseline = "alphabetic";
   }
   // ป้าย "คุณ" มุมซ้ายบนของรูป
   if (u.isMe) {
-    g.font = `600 11px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
-    const mw = g.measureText("คุณ").width + 10, mx = bx - hexR - 4, my = hy - hexR * 0.87 - 2;
-    g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8, mw, 16);
+    g.font = `600 ${11 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const mw = g.measureText("คุณ").width + 10 * UK, mx = bx - hexR - 4, my = hy - hexR * 0.87 - 2;
+    g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
     g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
   }
   const tag = normTag(u.tag);
@@ -1991,6 +2023,10 @@ export function drawFrame(g, st, now) {
     if (exact) { g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(cv, 0, 0); return; }
     L(); g.drawImage(cv, bv.x0, bv.y0, cv.width / (bres * bv.k), cv.height / (bres * bv.k));
   };
+  // สนาม Colony: พื้น/ผนังกั้น/โดม วาดเป็น 3D ใต้แคนวาสนี้ (colony3d.js) — ชั้นนี้โปร่ง วาดไฮไลต์ + สไปรต์ 2D (บ้าน ตึก ต้นไม้ แคปซูล ตัวละคร)
+  //  สไปรต์ยืนบนผิวโค้ง: วาดในกรอบหมุน (withLocalFrame) ให้ "ขึ้น" ชี้เข้าแกน — บนเพดานจึงเห็นกลับหัว
+  const colony = !!st.colony;
+  if (colony) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, g.canvas.width, g.canvas.height); }
   if (bake && bake.scene) {
     if (bake.sceneFrom && bake.mix < 1) {
       blit(bake.sceneFrom);
@@ -2000,11 +2036,12 @@ export function drawFrame(g, st, now) {
   L();
   // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
   const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
-  if (T.animBack) T.animBack(g, f, lowQ ? 0 : now);
-  if (bake && bake.board) { blit(bake.board); L(); }
+  if (T.animBack && !colony) T.animBack(g, f, lowQ ? 0 : now);
+  if (colony) { /* พื้นวาดใน 3D */ }
+  else if (bake && bake.board) { blit(bake.board); L(); }
   else drawBoardLayer(g, info, bv, night);
   // วงเวทเคลื่อนไหว (ด่าน I)
-  const pz = info.plaza;
+  const pz = colony ? null : info.plaza;
   if (pz) {
     const pulse = 0.5 + 0.5 * Math.sin(now / 800);
     g.save(); gEllipse(g, pz.x, pz.y, 1.55 * pz.sc); g.clip();
@@ -2016,8 +2053,8 @@ export function drawFrame(g, st, now) {
   }
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
-  for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
-  if (info.heal.length && !pz) animHeal(g, info, { night, C, area: info.area }, tA);
+  if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
+  if (info.heal.length && !pz && !colony) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
   drawRyougiGround(g, ry, info, fx, now, lowQ, { view, C });
@@ -2044,15 +2081,56 @@ export function drawFrame(g, st, now) {
   if (cel) drawCelineGround(g, cel, fx, now, lowQ, units);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
-  if (T.overBoard) T.overBoard(g, f, now);
+  if (T.overBoard && !colony) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
   // ตัวใหญ่: จุดกลางตัว (เรียงความลึก/จางสิ่งกีดขวางที่อยู่หลัง)
-  const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
+  const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return colony ? [0, depthOf(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0))] : toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
+  // Colony: จุดบนจอของหมาก (ตัดสินว่าสิ่งกีดขวางสูงบังตัวที่อยู่ไกลกว่าไหม — เทียบในกรอบหมุนของสิ่งกีดขวาง)
+  const usc = colony ? units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return P(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); }) : null;
   const behind = (x, y) => {
+    if (colony) {
+      const fr = localFrame(x + 0.5, y + 0.5), d = depthOf(x + 0.5, y + 0.5);
+      if (!fr) return false;
+      const c = Math.cos(fr.th), s = Math.sin(fr.th);
+      return usc.some((p, i) => {
+        if (!(uv[i][1] < d) || !Number.isFinite(p[0])) return false;
+        const dx = p[0] - fr.x, dy = p[1] - fr.y, lx = dx * c + dy * s, ly = -dx * s + dy * c;
+        const S = fr.s * fr.k;
+        return Math.abs(lx) < S * 0.7 && ly < S * 0.15 && ly > -S * 2.4;
+      });
+    }
     const [vx, vy] = toView(x + 0.5, y + 0.5);
     return uv.some(([ux, uy]) => Math.abs(ux - vx) < 0.9 && uy < vy && uy >= vy - 2.2);
   };
+  // Colony: วาด fn ในกรอบหมุนรอบ (ax, ay) · กล่องชี้ของหมาก (boxes) ที่เพิ่มระหว่างนั้น = แปลงกลับเป็นจอจริง
+  const occ = colony && st.colonyOcclude != null ? st.colonyOcclude : null, burn = colony && st.colonyBurn != null ? st.colonyBurn : null; // Colony: แถวหลังม่านเหล็กที่ปิดแล้ว = ไม่วาด
+  const UNIT_MIN_S = 62;
+  let frameK = 1;
+  const onWall = (ax, ay, fn, keep = false) => {
+    if (!colony) return fn;
+    return () => {
+      if (occ != null && ay < occ) return;
+      if (burn != null && ay > burn) return; // ระเบิดตอนจบ: กำแพงไฟกลืนไปแล้ว
+      const fr = localFrame(ax, ay);
+      if (!fr) return;
+      // หมาก (keep): ไกลแค่ไหนก็ไม่เล็กกว่าช่องขนาด UNIT_MIN_S บนจอ — รูป/หลอดเลือดอ่านออกเสมอ
+      if (keep) fr.k = Math.max(fr.k, Math.min(1.8, UNIT_MIN_S / fr.s));
+      frameK = fr.k;
+      const n0 = boxes.length;
+      // ไกลกล้อง = จางลงตามหมอกของฉาก 3D (ปลายอุโมงค์ไม่รก) · หมาก (keep) จางแค่นิดเดียว — ต้องเห็นศัตรูเสมอ
+      const dist = -depthOf(ax, ay), far = keep ? Math.min(0.3, Math.max(0, (dist - 14) / 30)) : Math.min(0.9, Math.max(0, (dist - 6.5) / 10));
+      if (far > 0) { g.save(); g.globalAlpha *= 1 - far; }
+      withLocalFrame(g, fr, fn);
+      if (far > 0) g.restore();
+      for (let i = n0; i < boxes.length; i++) {
+        const b = boxes[i], pts = [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].map(([x, y]) => frameToScreen(fr, x, y));
+        b.x0 = Math.min(...pts.map((q) => q[0])); b.x1 = Math.max(...pts.map((q) => q[0]));
+        b.y0 = Math.min(...pts.map((q) => q[1])); b.y1 = Math.max(...pts.map((q) => q[1]));
+      }
+    };
+  };
+  const boxes = [];
   const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
   // หนามน้ำแข็ง: Lv ที่แสดง = ค่าที่ BoardStage ค้างไว้ระหว่างเล่นเหตุการณ์ (ice.lv) หรือ terrain · พุ่งขึ้นจากพื้นตาม fx iceSpikeUp
   const ice = st.ice || null; // { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } — BoardStage ค้างไว้ระหว่างเล่น iceFx
@@ -2064,6 +2142,14 @@ export function drawFrame(g, st, now) {
   };
   for (const t of info.terrain) {
     if (t.kind === "chasm") continue; // ช่องพังของเรียวกิ = หลุมบนพื้น (drawRyougiGround) ไม่มีสไปรต์
+    if (t.kind === "breach") continue; // Colony: รูรั่ว = หลุมบนพื้น 3D (colony3d)
+    // Colony: บ้าน · ตึก · ต้นไม้ — สไปรต์ยืนบนผิวโค้ง (ตึก/ต้นไม้บังตัวที่อยู่ไกลกว่า = จาง)
+    if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree")) {
+      const fade = t.kind !== "house" && behind(t.x, t.y);
+      const f0 = t.kind === "house" ? () => drawHouse(g, t.x, t.y, night) : t.kind === "tower" ? () => drawTower(g, t.x, t.y, night, now) : () => drawObstacle(g, t, octx, now);
+      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
+      continue;
+    }
     // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง
     if (t.kind === "icewall") {
       const fade = behind(t.x, t.y), rise = cFx ? celineWallRise(fx, t.x, t.y, now) : 1;
@@ -2074,7 +2160,7 @@ export function drawFrame(g, st, now) {
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
     const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
     const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
-    items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0 });
+    items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
   }
   // หนามที่ server เอาออกแล้วแต่ยังค้างไว้ (แตกตอนเหตุการณ์ถึง) / ยังไม่อยู่ใน terrain
   if (iceLv) for (const [k, lv] of Object.entries(iceLv)) {
@@ -2082,12 +2168,22 @@ export function drawFrame(g, st, now) {
     const [x, y] = parseKey(k);
     if (!iceSpikeLv(String((info.terrainKind && info.terrainKind[k]) || ""))) pushSpike(x, y, lv);
   }
-  if (shopPos && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
+  // Colony: ร้าน = แคปซูลเสบียง (ตกลงมาจากแกนตอนปรากฏ — st.colonyCapsule จาก colony3d.capsuleAt)
+  const cap = colony ? st.colonyCapsule : null;
+  if (cap) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now)) });
+  if (shopPos && !colony && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
     const { x, y } = shopPos, fade = behind(x, y);
     items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });
   }
-  const boxes = [];
-  units.forEach((u, i) => items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: () => drawAnyUnit(g, u, now, boxes) }));
+  // Colony: แถบเลือด/ป้ายของหมากไม่ย่อตามระยะ (ชดเชย k ของกรอบหมุน) + หนาขึ้นอีกนิดให้อ่านง่ายบนผิวโค้ง
+  const unitDraw = (u, ax, ay) => () => {
+    if (!colony) { drawAnyUnit(g, u, now, boxes); return; }
+    // แถบ/ป้ายบนหมาก: ขนาดบนจอคงที่ (ชดเชยการย่อ/ขยายของกรอบ) — หนาพอมองง่าย
+    UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1)); UNIT_PILL = true;
+    drawAnyUnit(g, u, now, boxes);
+    UNIT_UI_K = 1; UNIT_PILL = false;
+  };
+  units.forEach((u, i) => { const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); });
   // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
   for (const e of fx) {
     if (e.kind !== "soraWheel") continue;
@@ -2124,7 +2220,7 @@ export function drawFrame(g, st, now) {
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (storms) drawStormAir(g, storms, info, now, lowQ);
-  if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
+  if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y) && (!colony || cap)) {
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
     const hide = storms && behindDome(storms, shopPos.x, shopPos.y) && clipOutDomes(g, storms);
     drawShopLabel(g, shopPos.x, shopPos.y, `🏪 ${st.shopLabel}`);
@@ -2149,7 +2245,7 @@ export function drawFrame(g, st, now) {
       }
       g.globalAlpha = 1;
     }
-    if (T.ambient) { g.save(); T.ambient(g, f, now); g.restore(); }
+    if (T.ambient && !colony) { g.save(); T.ambient(g, f, now); g.restore(); }
     if (domeClip) g.restore();
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
@@ -2171,6 +2267,7 @@ export function drawFrame(g, st, now) {
   // เอฟเฟกต์ครั้งเดียว
   let rctx = null;
   for (const e of fx) {
+    if (occ != null && Number.isFinite(e.y) && e.y < occ) continue;
     const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
     if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");

@@ -26,5 +26,8 @@ desktop/dist/
 desktop/build/
 .claude/worktrees/
 
+# เพลงสนาม Colony (ปล้อง I/II/III + นับถอยหลังระเบิด · ~26 MB จากผู้ใช้) — เก็บบน R2 เหมือนสื่ออื่น
+client/public/colony/
+
 # เพลงห่วงเวลาซีโร่ 3 เฟส — เก็บบน R2 เหมือนสื่ออื่น
 client/public/zero_time/

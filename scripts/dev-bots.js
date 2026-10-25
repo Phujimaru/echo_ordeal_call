@@ -1,6 +1,6 @@
 // บอทสำหรับทดสอบกระดาน (เฉพาะ dev) — เข้าห้อง server ที่รันอยู่ แล้วเล่นแบบง่ายๆ
 //  ใช้คู่กับ ?autoplay=muimi ฝั่ง client (ผู้เล่นจริงนั่งที่ 1 · บอทนั่งที่ 2..)
-//  รัน: node scripts/dev-bots.js [จำนวนบอท=3] [url=http://localhost:3000] [โหมด=ffa|duo|trio]
+//  รัน: node scripts/dev-bots.js [จำนวนบอท=3] [url=http://localhost:3000] [โหมด=ffa|duo|trio] [สนาม=earth|colony]
 //  บอท: พร้อม → โหวตโหมด (ทีม: เลือกทีมสลับกัน + ยืนยัน) → จั่วจนแต้ม ≥ 16 แล้ว "พอ"
 //   → ตาของตัวเอง: เดินก่อน (มีเหรียญ = แวะร้านบ้าง ไม่งั้นเข้าหาศัตรูใกล้สุด) แล้วสุ่มทำ (ให้ทดสอบครอบคลุม):
 //     ยิงปืน GUTS · ใช้สกิลที่แต้มพอ · ใช้ของในกระเป๋า · ซื้อของถ้ายืนติดร้าน → ตีถ้าถึง ไม่งั้น "รอ"
@@ -11,6 +11,7 @@ const Board = require("../server/board");
 const N = Math.max(1, Math.min(6, Number(process.argv[2]) || 3));
 const URL = process.argv[3] || "http://localhost:3000";
 const MODE = ["ffa", "duo", "trio"].includes(process.argv[4]) ? process.argv[4] : "ffa";
+const WORLD = process.argv[5] === "colony" ? "colony" : "earth";
 const CHARS = ["oberon_summer", "muimi", "sliver_bullet"];
 const COLORS = ["#C0392B", "#2E9E4B", "#E5B33B", "#9B4F96", "#E86A2B", "#1C3F6E"];
 const TEAMS = ["A", "B", "C"];
@@ -34,7 +35,7 @@ function bot(i) {
     // toggleReady เป็นสวิตช์: ส่งครั้งเดียวต่อการรอ ไม่งั้น state 2 ก้อนที่มาก่อน server ตอบ = กดพร้อมแล้วยกเลิกเอง
     if (st.gameState === "LOBBY" && !me.ready && st.players.length >= N + 1 && !readySent) { readySent = true; s.emit("toggleReady"); }
     if (st.gameState === "LOBBY" && me.ready) readySent = false;
-    if (st.gameState === "TEAM_MODE" && !me.modeVote) s.emit("selectGameMode", { mode: MODE });
+    if (st.gameState === "TEAM_MODE" && !me.modeVote) s.emit("selectGameMode", { mode: MODE, world: WORLD });
     if (st.gameState === "TEAM_SETUP") {
       const teamCount = MODE === "trio" ? Math.ceil((N + 1) / 3) : Math.ceil((N + 1) / 2);
       if (!me.teamId) s.emit("chooseTeam", { teamId: TEAMS[(i + 1) % Math.max(1, teamCount)] });

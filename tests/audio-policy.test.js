@@ -67,3 +67,14 @@ test('เฟสระหว่างแมตช์นับว่าอยู�
   for (const ph of ['LOBBY', 'TEAM_MODE', 'GAMEOVER', undefined]) assert.equal(isMatchPhase(ph), false, String(ph));
 });
 
+
+test('Colony: เพลงตามปล้อง I/II/III · นับถอยหลังระเบิด = colony_alert ทับเพลงท่าไม้ตาย', () => {
+  const col = (c, extra = {}) => ({ gameState: 'ACTION', cycle: 'night', colony: { sealed: 0, countdown: null, ...c }, ...extra });
+  assert.equal(policy.musicForState(col({ sealed: 0 })).name, 'colony_1');
+  assert.equal(policy.musicForState(col({ sealed: 1 })).name, 'colony_2');
+  assert.equal(policy.musicForState(col({ sealed: 2 })).name, 'colony_3');
+  assert.equal(policy.musicForState(col({ sealed: 3, countdown: 10 })).name, 'colony_alert');
+  assert.equal(policy.musicForState(col({ sealed: 1 }, { skillMusic: 'dummy' })).name, 'dummy');
+  assert.equal(policy.musicForState(col({ sealed: 3, countdown: 2 }, { skillMusic: 'dummy' })).name, 'colony_alert');
+  assert.equal(policy.musicForState(col({ sealed: 3, countdown: 1 }, { gameState: 'CUTSCENE', cutscene: null })).name, 'colony_alert');
+});

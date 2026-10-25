@@ -90,7 +90,7 @@ function endTurn() {
   // ระบำเขม่า (เคท): ม่านแดงนับเวลา หมดแล้วหาย
   Soot.onEndTurn();
   // Colony: รอยรั่วปิด · คูลดาวน์กระโดด · ปิดผนึกปล้อง (ตายจริง) · ครบเวลา = ระเบิด (ทุกคนตาย → เสมอ)
-  Colony.onEndTurn();
+  const colonyHold = Colony.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {
@@ -102,7 +102,7 @@ function endTurn() {
   Summon.sweep(); // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว ลบระเบียน
 
   // เล่นฉากที่ค้างคิว (ถ้ามี) ให้จบก่อน แล้วค่อยสรุปจบเกม/ขึ้นรอบถัดไป
-  cutscene.runCutsceneQueue(() => {
+  cutscene.runCutsceneQueue(() => colonyHoldThen(colonyHold, () => {
     if (gameOver()) return;
     // ห่วงเวลาซีโร่: ช่วงมิติพังทลายครบเวลา (ทาคุโตะ) → กลับสนามเดิม + ฉากปลดผนึก → เทิร์นถัดไป
     if (Zero.maybeFinishCollapse()) return;
@@ -113,7 +113,15 @@ function endTurn() {
     match.gameState = "TRANSITION";
     timers.startPhaseTimer(TRANSITION_TIME, draw.dealRound);
     view.broadcastState();
-  });
+  }));
+}
+// Colony: ปิดผนึก/ระเบิดตอนจบเทิร์น → พักเฟส CUTSCENE (ไม่มีคลิป) ให้ฉากของ client เล่นจบก่อน แล้วค่อยสรุปจบเกม/ขึ้นเทิร์นถัดไป
+function colonyHoldThen(secs, next) {
+  if (!(secs > 0)) { next(); return; }
+  match.cutsceneInfo = null;
+  match.gameState = "CUTSCENE";
+  timers.startPhaseTimer(secs, next);
+  view.broadcastState();
 }
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม

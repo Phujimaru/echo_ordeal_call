@@ -1029,6 +1029,6 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   → **ตัวละครใหม่ที่คิดช่อง/ทิศเอง ให้ใช้ Board.wx / Board.wdx แทน x ± n ตรงๆ** (ไม่งั้นข้ามตะเข็บแล้วผลหาย)
 - กำแพงกั้นปล้อง `map.walls` (แถว r กับ r+1) ผ่านได้แค่คอลัมน์ `map.doors` (`Board.wallBlocks`) — เดิน/ไถล/ถอย ใช้ · ตัวใหญ่ 2×2+ ผ่านได้ · ปล้องที่ปิด = `map.minRow` (แถวต่ำกว่า = นอกกระดาน)
 - ต้นเทิร์น (`Colony.preRound` ต้น `draw.dealRound`): อีเวนต์ที่เตือนไว้ลงผล → มีฉาก = พักเฟส CUTSCENE (`state.colony.scene` + boardFx `colonyScene`) แล้วกลับมาแจกไพ่ ·
-  จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`)
+  จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`) — คืนวินาทีพัก (`HOLD_SECONDS`) → endTurn พักเฟส CUTSCENE ให้ฉากเล่นจบก่อนเช็กจบเกม (`colonyHoldThen`)
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)

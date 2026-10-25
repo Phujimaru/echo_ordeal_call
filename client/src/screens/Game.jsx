@@ -2490,16 +2490,21 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* QTE — ลอยกลางจอ */}
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}
 
+      {/* สนาม Colony: ขอบจอแดงกะพริบ — ประตูปิดเทิร์นนี้ / นับถอยหลังระเบิด 3 เทิร์นสุดท้าย */}
+      {state.colony && (phase === "PLAYING" || inBoardTurn) && ((state.colony.countdown == null && state.colony.sealIn != null && state.colony.sealIn <= 1) || (state.colony.countdown != null && state.colony.countdown <= 3)) && (
+        <div className="colony-alarm" data-boom={state.colony.countdown != null ? "true" : "false"} aria-hidden="true" />
+      )}
       {/* แถบซ้ายบน: กลางวัน/คืน · รอบ · เวลา · ภูมิภาค */}
       {!fcOpen && !(state.board && phase === "ATTACKING") && <HudTopBar
         night={nightNow}
         round={phase === "PLAYING" || inBoardTurn ? state.roundNumber : null}
         timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
-        journey={state.journey && (phase === "PLAYING" || inBoardTurn)
+        journey={state.journey && !state.colony && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : null}
         onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
+        colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         zoom={hudZ}
       />}
 

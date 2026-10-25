@@ -532,6 +532,45 @@ function MoonIcon() {
     </svg>
   );
 }
+// สนาม Colony (state.colony): แทนป้ายภูมิภาค — ปล้องที่จะปิดถัดไป + เทิร์นที่เหลือ · ปิดครบแล้ว = นับถอยหลังระเบิดตัวเอง
+//  แถบ 4 ปล้อง: ปิดแล้ว = แดงมืด · ปล้องที่จะปิด = ส้ม (เหลือ 1 = กะพริบ) · เปิด = ฟ้า
+const COLONY_SEC = ["I", "II", "III", "IV"];
+const COLONY_NAME = ["เมือง", "ป่า", "เมืองตึก", "สวน"];
+function ColonyIcon({ name }) {
+  if (name === "boom") {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <circle cx="11" cy="14" r="7" fill="currentColor" />
+        <path d="M15 8l3-3M18 5l1.5-1.5M19 7h2M17 3V1.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M4 21V5.5L12 2l8 3.5V21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M8 21V9h8v12M8 13h8M8 17h8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+function ColonyChip({ colony }) {
+  const sealed = Math.max(0, colony.sealed | 0);
+  const cd = colony.countdown != null ? Math.max(0, colony.countdown | 0) : null;
+  const left = cd != null ? cd : colony.sealIn != null ? Math.max(0, colony.sealIn | 0) : null;
+  const next = Math.min(3, sealed);
+  const urgent = left != null && left <= 1;
+  return (
+    <div className="hud-top-region hud-top-colony" data-mode={cd != null ? "boom" : "seal"} data-urgent={urgent ? "true" : "false"}>
+      <span className="hud-top-gem hud-colony-gem"><span>{cd != null ? "!" : COLONY_SEC[next]}</span></span>
+      <span className="hud-top-text">
+        <span className="hud-top-name">{cd != null ? "ระเบิดตัวเอง" : "ปล้อง " + COLONY_SEC[next] + " · " + COLONY_NAME[next]}</span>
+        {left != null && <span className="hud-top-sub hud-colony-left"><ColonyIcon name={cd != null ? "boom" : "door"} />เหลือ <b>{left}</b> เทิร์น</span>}
+      </span>
+      <span className="hud-colony-secs">
+        {COLONY_SEC.map((n, i) => <i key={n} data-s={i < sealed ? "sealed" : cd == null && i === sealed ? "next" : "open"} />)}
+      </span>
+    </div>
+  );
+}
 // ห่วงเวลาซีโร่ (zero.active): แทนป้ายภูมิภาค — ผนึก 4 อัน (ชมพู = ยังอยู่) · บัฟสะสม · ท่าไม้ตายล็อก · กดไม่ได้
 //  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ): นาฬิกาทราย + เทิร์นที่เหลือแทนบัฟ (ท่าไม้ตายไม่ล็อก)
 function ZeroChip({ zero }) {
@@ -578,11 +617,11 @@ function ZeroChip({ zero }) {
     </div>
   );
 }
-export function HudTopBar({ night, round, timer, journey, onJourney, zero, zoom = 1 }) {
+export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
-  if (round == null && !journey && !zeroOn) return null;
+  if (round == null && !journey && !zeroOn && !colony) return null;
   return (
-    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"}>
+    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined}>
       <span className="hud-top-cycle" title={zeroOn ? undefined : night ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : night ? <MoonIcon /> : <SunIcon />}</span>
       {round != null && (
         <>
@@ -594,6 +633,11 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, zoom 
         <>
           {round != null && <span className="hud-top-div" aria-hidden="true" />}
           <ZeroChip zero={zero} />
+        </>
+      ) : colony ? (
+        <>
+          {round != null && <span className="hud-top-div" aria-hidden="true" />}
+          <ColonyChip colony={colony} />
         </>
       ) : journey && (
         <>

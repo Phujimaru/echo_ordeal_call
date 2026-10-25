@@ -292,6 +292,31 @@
 .hud-top-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .hud-top-name { font: 500 15px/1.2 Kanit, sans-serif; white-space: nowrap; max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
 .hud-top-sub { font: 400 13px/1.2 Kanit, sans-serif; color: #9db8da; white-space: nowrap; }
+/* สนาม Colony: ปล้องที่จะปิด + เทิร์นที่เหลือ (กดไม่ได้) · ใกล้ปิด/นับถอยหลังระเบิด = ขอบแดงกะพริบ */
+.hud-top[data-colony] { border-color: rgba(120, 220, 255, 0.45); }
+.hud-top[data-colony="boom"] { border-color: rgba(255, 90, 70, 0.7); background: linear-gradient(100deg, rgba(60, 10, 12, 0.92), rgba(12, 28, 58, 0.88) 70%); }
+.hud-top-colony { cursor: default; }
+.hud-colony-gem { background: linear-gradient(135deg, #eaf8ff, #6fd2ff 55%, #2a6c9c); box-shadow: 0 0 12px rgba(111, 210, 255, 0.5); }
+.hud-colony-gem > span { font-size: 12px; color: #0c2a44; }
+.hud-top-colony[data-mode="boom"] .hud-colony-gem { background: linear-gradient(135deg, #ffd9cf, #ff5a46 55%, #8e1a12); box-shadow: 0 0 14px rgba(255, 90, 70, 0.8); animation: hudColonyPulse 0.9s ease-in-out infinite; }
+.hud-top-colony[data-mode="boom"] .hud-colony-gem > span { color: #3a0805; font-size: 15px; }
+.hud-colony-left { display: inline-flex; align-items: center; gap: 4px; color: #9fdcff; }
+.hud-colony-left b { font: 600 16px/1 "Chakra Petch", sans-serif; color: #fff; }
+.hud-top-colony[data-urgent="true"] .hud-colony-left { color: #ff9a80; }
+.hud-top-colony[data-urgent="true"] .hud-colony-left b { color: #ff6a50; text-shadow: 0 0 8px rgba(255, 80, 50, 0.9); animation: hudColonyBlink 0.7s steps(2, start) infinite; }
+.hud-top-colony[data-mode="boom"] .hud-colony-left { color: #ffb3a6; }
+.hud-colony-secs { display: flex; gap: 4px; align-self: center; }
+.hud-colony-secs i { width: 7px; height: 22px; border-radius: 2px; background: rgba(111, 210, 255, 0.55); }
+.hud-colony-secs i[data-s="sealed"] { background: #5a1a1c; box-shadow: inset 0 0 0 1px rgba(255, 90, 70, 0.6); }
+.hud-colony-secs i[data-s="next"] { background: #ffa640; box-shadow: 0 0 6px rgba(255, 166, 64, 0.8); }
+.hud-top-colony[data-urgent="true"] .hud-colony-secs i[data-s="next"] { animation: hudColonyBlink 0.7s steps(2, start) infinite; background: #ff5a46; }
+@keyframes hudColonyPulse { 50% { transform: rotate(45deg) scale(1.12); } }
+@keyframes hudColonyBlink { to { opacity: 0.35; } }
+/* ขอบจอแดงกะพริบ: ประตูจะปิดเทิร์นนี้ / นับถอยหลังระเบิด */
+.colony-alarm { position: absolute; inset: 0; pointer-events: none; z-index: 3; box-shadow: inset 0 0 90px 18px rgba(255, 50, 30, 0.55); animation: colonyAlarm 1.4s ease-in-out infinite; }
+.colony-alarm[data-boom="true"] { box-shadow: inset 0 0 120px 26px rgba(255, 40, 20, 0.65); animation-duration: 0.9s; }
+@keyframes colonyAlarm { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .colony-alarm, .hud-colony-left b, .hud-colony-secs i, .hud-colony-gem { animation: none !important; } }
 /* ห่วงเวลาซีโร่: แทนป้ายภูมิภาค (กดไม่ได้) · นาฬิกาทรายแทนกลางวัน/คืน */
 .hud-top[data-zero="true"] { border-color: rgba(255, 150, 210, 0.5); background: linear-gradient(100deg, rgba(40, 12, 40, 0.9), rgba(12, 28, 58, 0.88) 70%); }
 .hud-zero-hg { display: grid; place-items: center; animation: hudZeroHg 6s ease-in-out infinite; }
