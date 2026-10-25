@@ -322,6 +322,12 @@ const FILES = {
     "trace", "trace_excalibur", "break", "capacity", "avalon", "atk_kb", "atk_hrunting", "atk_rule", "atk_nine", "atk_excalibur",
     "throw", "caladbolg_shot", "caladbolg_blast", "smash", "rho", "excalibur", "ubw", "stun",
   ].map((k) => [`emiya_${k}`, `/characters/emiya_shirou/sfx/emiya_${k}.mp3`])),
+  // เคนซากิ คาซุมะ (GRID_PLAN §7.19) — ไฟล์จากผู้ใช้ ปรับ -14 LUFS (ffmpeg loudnorm)
+  //  การ์ด = รูดการ์ด → ชื่อการ์ด → รูดการ์ดผ่าน ต่อกันในไฟล์เดียว · เล่นต่อคิว ไม่ซ้อนกัน (SFX_QUEUED) · open = กดเปิดแผงการ์ด (เล่นเฉพาะคนกด)
+  ...Object.fromEntries([
+    "card_slash", "card_beat", "card_tackle", "card_kick", "card_thunder", "card_metal", "card_magnet", "card_mach", "card_time",
+    "open", "swipe", "pass", "lightning_blast", "lightning_slash", "lightning_sonic",
+  ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -704,7 +710,34 @@ export function prewarmMusic(name) {
 
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
+// เสียงที่ต้องเล่นต่อคิว (ขึ้นต้นด้วยคีย์นี้ = คิวเดียวกัน): เสียงใหม่รอเสียงก่อนหน้าในคิวจบก่อน (คาซุมะ: รูดการ์ดหลายใบติดกัน)
+const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
+const sfxQueues = new Map(); // คิว -> { busy: element ที่เล่นอยู่ | null, waiting: [ชื่อ] }
+function playQueued(group, name, opts) {
+  const q = sfxQueues.get(group) || { busy: null, waiting: [] };
+  sfxQueues.set(group, q);
+  if (q.busy && !q.busy.paused && !q.busy.ended) { q.waiting.push(name); return null; }
+  const next = () => {
+    q.busy = null;
+    const n = q.waiting.shift();
+    if (n) playQueued(group, n, opts);
+  };
+  const a = playSfxNow(name, opts);
+  if (!a) { next(); return null; }
+  q.busy = a;
+  const id = sfxPlayId(a);
+  const done = () => { a.removeEventListener("ended", done); a.removeEventListener("pause", done); if (q.busy === a && sfxPlayId(a) === id) next(); };
+  a.addEventListener("ended", done);
+  a.addEventListener("pause", done);
+  return a;
+}
 export function playSfx(name, opts) {
+  const pre = typeof name === "string" && Object.keys(SFX_QUEUED).find((g) => name.startsWith(g));
+  const group = pre ? SFX_QUEUED[pre] : null;
+  if (group) return playQueued(group, name, opts);
+  return playSfxNow(name, opts);
+}
+function playSfxNow(name, opts) {
   if (!FILES[name]) return null;
   const v = sfxVariant(name);
   if (missingSfx.has(v.path)) return null;

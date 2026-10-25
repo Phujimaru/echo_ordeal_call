@@ -1,0 +1,207 @@
+/* เคนซากิ คาซุมะ — ช่องสกิลรอง Blay Rouzer + แผงเลือกการ์ด (BladeRouzer.jsx)
+   ธีม Blade: เงินโลหะ · กรมท่า · แดงเข้ม · โพแดงทอง — ขยับด้วย transform/opacity เท่านั้น */
+
+/* ===== ช่องบนแผงล่าง ===== */
+.kz-slot { width: 150px; }
+.kz-tray {
+  position: relative;
+  display: block;
+  width: 150px;
+  height: 114px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.16), transparent 55%),
+    linear-gradient(165deg, #2a3550 0%, #18213a 46%, #4a1220 100%);
+  border: 1px solid rgba(206, 218, 236, 0.45);
+  box-shadow: inset 0 0 0 3px rgba(12, 18, 34, 0.75), inset 0 0 0 4px rgba(196, 206, 222, 0.3), 0 8px 14px rgba(3, 10, 24, 0.55);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+}
+.kz-tray-spade {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 92px;
+  line-height: 1;
+  color: rgba(214, 170, 74, 0.14);
+  pointer-events: none;
+}
+.kz-fan { position: absolute; left: 0; right: 0; bottom: 6px; height: 86px; }
+.kz-fan-card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 46px;
+  height: 66px;
+  margin-left: -23px;
+  border-radius: 4px;
+  overflow: hidden;
+  transform-origin: 50% 120%;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.kz-fan-card[data-i="0"] { transform: translateX(-34px) rotate(-13deg); }
+.kz-fan-card[data-i="1"] { transform: translateY(-6px); }
+.kz-fan-card[data-i="2"] { transform: translateX(34px) rotate(13deg); }
+.kz-fan-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kz-fan-card[data-empty="true"] { border: 1px dashed rgba(206, 218, 236, 0.35); background: rgba(8, 12, 26, 0.45); box-shadow: none; }
+.kz-fan-blank { display: grid; place-items: center; width: 100%; height: 100%; font-size: 20px; color: rgba(206, 218, 236, 0.28); }
+.kz-count {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 0 4px;
+  background: rgba(74, 18, 32, 0.92);
+  border: 1px solid #d6aa4a;
+  color: #ffe7a6;
+  font: 700 11px/1.35 "Chakra Petch", sans-serif;
+}
+.kz-pips { position: absolute; top: 7px; left: 14px; display: flex; gap: 4px; }
+.kz-pips > span { width: 8px; height: 8px; transform: rotate(45deg); background: rgba(206, 218, 236, 0.22); }
+.kz-pips > span[data-on="true"] { background: #7fd8ff; box-shadow: 0 0 6px rgba(127, 216, 255, 0.9); }
+.kz-slot[data-state="ready"]:hover { transform: translateY(-4px); filter: brightness(1.1); }
+.kz-slot[data-state="ready"]:hover .kz-fan-card[data-i="0"] { transform: translateX(-40px) rotate(-18deg); }
+.kz-slot[data-state="ready"]:hover .kz-fan-card[data-i="2"] { transform: translateX(40px) rotate(18deg); }
+.kz-slot[data-state="off"] .kz-tray { opacity: 0.55; }
+.kz-slot[data-state="off"] .kz-tray img { filter: grayscale(0.6); }
+.kz-slot[data-combo] .kz-tray { animation: kz-combo-glow 1.6s ease-in-out infinite; }
+@keyframes kz-combo-glow {
+  0%, 100% { box-shadow: inset 0 0 0 3px rgba(12, 18, 34, 0.75), inset 0 0 0 4px rgba(214, 170, 74, 0.55), 0 8px 14px rgba(3, 10, 24, 0.55); }
+  50% { box-shadow: inset 0 0 0 3px rgba(12, 18, 34, 0.75), inset 0 0 0 4px rgba(255, 220, 120, 1), 0 0 18px rgba(255, 210, 100, 0.75); }
+}
+
+/* ===== แผงเลือกการ์ด ===== */
+.kz-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(70% 60% at 50% 62%, rgba(120, 22, 40, 0.42), transparent 70%),
+    rgba(4, 7, 16, 0.82);
+  animation: kz-fade 0.18s ease-out;
+}
+@keyframes kz-fade { from { opacity: 0; } to { opacity: 1; } }
+.kz-panel-in { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.kz-head { display: flex; align-items: center; gap: 14px; }
+.kz-title { font: 800 30px/1 "Chakra Petch", sans-serif; letter-spacing: 0.06em; color: #e8eef8; text-shadow: 0 2px 0 #4a1220, 0 0 18px rgba(127, 216, 255, 0.45); }
+.kz-head .kz-pips { position: static; gap: 6px; }
+.kz-head .kz-pips > span { width: 12px; height: 12px; }
+.kz-sp { font: 700 18px/1 "Chakra Petch", sans-serif; color: #bfe6ff; }
+
+/* ถาด Rouzer: 3 ช่องการ์ด + ชื่อท่า */
+.kz-rouzer {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 14px 22px 34px;
+  background: linear-gradient(170deg, #c9d2e0 0%, #8d98ab 40%, #59647a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 4px rgba(24, 33, 58, 0.85), inset 0 0 0 6px rgba(214, 170, 74, 0.6), 0 16px 30px rgba(0, 0, 0, 0.6);
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px), 0 18px);
+}
+.kz-slotcard {
+  position: relative;
+  width: 104px;
+  height: 151px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #18213a;
+  box-shadow: inset 0 0 0 2px rgba(10, 14, 28, 0.9), 0 6px 12px rgba(0, 0, 0, 0.5);
+  animation: kz-drop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.kz-slotcard[data-empty="true"] { animation: none; background: linear-gradient(170deg, #2a3550, #4a1220); }
+.kz-slotcard img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kz-slotcard-blank { display: grid; place-items: center; width: 100%; height: 100%; font-size: 46px; color: rgba(214, 170, 74, 0.35); }
+.kz-count-lg { right: 4px; bottom: 4px; padding: 1px 7px; font-size: 15px; }
+@keyframes kz-drop { from { transform: translateY(-18px) scale(1.06); opacity: 0; } to { transform: none; opacity: 1; } }
+.kz-combo {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 800 17px/1.2 "Chakra Petch", sans-serif;
+  letter-spacing: 0.08em;
+  color: #fff3c4;
+  text-shadow: 0 0 10px rgba(255, 200, 80, 0.95), 0 1px 0 #4a1220;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.kz-combo[data-on="true"] { opacity: 1; animation: kz-combo-text 1.4s ease-in-out infinite; }
+@keyframes kz-combo-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.72; } }
+.kz-rouzer[data-combo] { animation: kz-rouzer-glow 1.6s ease-in-out infinite; }
+@keyframes kz-rouzer-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 210, 100, 0)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 210, 100, 0.8)); }
+}
+
+/* พัดการ์ด 9 ใบ */
+.kz-deck { display: flex; justify-content: center; align-items: flex-end; height: 214px; padding-top: 26px; }
+.kz-deck-slot {
+  position: relative;
+  width: 92px;
+  margin: 0 -6px;
+  transform: translateY(var(--lift)) rotate(var(--rot));
+  transform-origin: 50% 140%;
+}
+.kz-card {
+  position: relative;
+  display: block;
+  width: 116px;
+  height: 168px;
+  margin-left: -12px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #18213a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, opacity 0.2s ease;
+  will-change: transform;
+}
+.kz-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kz-card[data-ok="true"]:hover { transform: translateY(-30px) scale(1.08); box-shadow: 0 14px 26px rgba(0, 0, 0, 0.7), 0 0 0 2px #7fd8ff, 0 0 18px rgba(127, 216, 255, 0.7); }
+.kz-card[data-ok="false"] { cursor: not-allowed; opacity: 0.42; }
+.kz-card[data-ok="false"] img { filter: grayscale(0.85); }
+.kz-card .kz-count { right: 5px; bottom: 5px; font-size: 14px; padding: 1px 6px; }
+.kz-cost {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 6px;
+  background: rgba(12, 28, 58, 0.92);
+  border: 1px solid #7fd8ff;
+  color: #bfe6ff;
+  font: 700 13px/1.3 "Chakra Petch", sans-serif;
+}
+/* รูดการ์ด: การ์ดพุ่งขึ้นเข้าถาดพร้อมแสงฟ้า แล้วกลับมาที่เดิม */
+.kz-card[data-swipe="true"] { animation: kz-swipe 0.65s cubic-bezier(0.3, 0.7, 0.2, 1); }
+@keyframes kz-swipe {
+  0% { transform: translateY(-30px) scale(1.08); }
+  35% { transform: translateY(-150px) scale(0.92); opacity: 0.95; box-shadow: 0 0 28px rgba(127, 216, 255, 1); }
+  55% { transform: translateY(-190px) scale(0.86); opacity: 0; }
+  56% { transform: translateY(30px); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+.kz-tip {
+  max-width: 640px;
+  min-height: 3.25rem;
+  padding: 8px 16px;
+  border-radius: 12px;
+  text-align: center;
+  font: 400 15px/1.4 Kanit, sans-serif;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.kz-tip[data-on="true"] { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-slot[data-combo] .kz-tray, .kz-rouzer[data-combo], .kz-combo[data-on="true"], .kz-card[data-swipe="true"], .kz-slotcard, .kz-panel { animation: none; }
+}

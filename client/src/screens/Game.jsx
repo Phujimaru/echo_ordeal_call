@@ -21,6 +21,7 @@ import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
+import { BladeRouzerSlot, BladeRouzerPanel } from "./hud/BladeRouzer";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic } from "../audio";
 import BoardStage from "../board/BoardStage";
@@ -814,6 +815,8 @@ const STATUS_INFO = {
   emiyaUbw:       { icon: "⚔️", label: "Unlimited Blade Works", cls: "bg-orange-300 text-gray-900", desc: "ต้นเทิร์นได้แต้มสกิล 1 คูลดาวน์สกิลรองลดเพิ่มทุกเทิร์น Trace On ไม่มีคูลดาวน์ และระยะเดินเพิ่ม 1" },
   ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "การโจมตีครั้งถัดไป ศัตรูที่โดนถูกลบบัฟล่าสุด 1 อย่างและถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง ใช้ได้ครั้งเดียว" },
   ryougiBloom:    { icon: "🌸", label: "ดับสิ้นซะ", cls: "bg-pink-300 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
+  // เคนซากิ คาซุมะ (เทิร์นที่เหลือ — ครั้งที่กันได้อยู่ในป้าย kazumaMetal ของบล็อกคาซุมะ)
+  kazumaMetal:    { icon: "🛡️", label: "METAL", cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนตามจำนวนครั้งที่เหลือ จนจบเทิร์น" },
   // Echo
   echoQueen:     { icon: "👑", label: "ราชินีแห่ง Echo", cls: "bg-echo-ice text-gray-900", desc: "ต้นเทิร์นขยายร่าง 1 ระดับ ล้างไม่ได้" },
   echoOverwrite: { icon: "🔄", label: "Overwrite", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ" },
@@ -944,6 +947,18 @@ function statusEntries(p, full) {
     if (e.wsCd > 0) out.push({ key: "emiyaWsCd", v: e.wsCd, turns: true, icon: "⏳", label: "Weapon Skill", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้สกิลรองได้อีก" });
     if (e.ultCd > 0) out.push({ key: "emiyaUltCd", v: e.ultCd, turns: true, icon: "⏳", label: "Unlimited Blade Works", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
     if (e.avalonCd > 0) out.push({ key: "emiyaAvalonCd", v: e.avalonCd, turns: true, icon: "🛡️", label: "Avalon", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงฟื้นพลังชีวิตจาก Avalon ได้อีก" });
+  }
+  // เคนซากิ คาซุมะ: ผล Rouze ที่รอตีปกติ (ท่า Lightning / การ์ด) · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต — METAL เป็นสถานะ kazumaMetal
+  if (p.kazuma) {
+    const k = p.kazuma;
+    const COMBO = { blast: ["⚡", "Lightning Blast", "ตีปกติครั้งถัดไปในตาเดินนี้ ระยะ 1 ถึง 3 เสียหาย 2 ตายตัว และติดช็อต 2 เทิร์น"], slash: ["⚡", "Lightning Slash", "ตีปกติครั้งถัดไปในตาเดินนี้เป็นแนว 3 ช่องโดนทุกคน เสียหาย 2 ตายตัว และติดช็อต 1 เทิร์น"] };
+    if (k.armed && COMBO[k.armed.kind]) { const C = COMBO[k.armed.kind]; out.push({ key: "kazumaArmed", v: 1, icon: C[0], label: C[1], cls: "bg-amber-300 text-gray-900", desc: C[2] }); }
+    else if (k.armed && k.armed.cards) {
+      const label = Object.entries(k.armed.cards).map(([c, n]) => `${c.toUpperCase()}${n > 1 ? ` ×${n}` : ""}`).join(" · ");
+      out.push({ key: "kazumaArmed", v: 1, icon: "🃏", label, cls: "bg-sky-200 text-gray-900", desc: "ผลการ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ ไม่ได้ตีก็หายตอนจบตา" });
+    }
+    if (k.metal > 1) out.push({ key: "kazumaMetalN", v: 1, icon: "🛡️", label: `METAL ×${k.metal}`, cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนได้อีกตามจำนวนนี้ จนจบเทิร์น" });
+    if (!k.blade && k.humanTurns > 0) out.push({ key: "kazumaHuman", v: 1, icon: "💚", label: `${k.humanTurns}/${k.humanNeed || 3}`, cls: "bg-white/20", desc: "อยู่ร่างมนุษย์ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {
@@ -2056,6 +2071,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   if (hkForms && !myTurn) setHkForms(false); // หมดตาเรา = ปิดตัวเลือกร่าง
   // ปุ่มสกิลแบบหลายตัวเลือก (skill.choices — เคท/เอมิลิโกะ): tier ที่ตัวเลือกเปิดอยู่ · หมดตา/สลับตัว = ปิด
   const [choiceOpen, setChoiceOpen] = useState(null); // { tier, unit }
+  // เคนซากิ คาซุมะ: แผงการ์ด Blay Rouzer (ช่องสกิลรองเฉพาะตัว) · หมดตา/คืนร่าง = ปิด
+  const [kzOpen, setKzOpen] = useState(false);
+  if (kzOpen && (!myTurn || canto || !me?.kazuma?.blade)) setKzOpen(false);
   if (choiceOpen && (!myTurn || canto || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
   const choiceFree = (c) => (c.free != null ? !!c.free : (c.cost || 0) === 0);
@@ -2070,6 +2088,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
     if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
+    // เคนซากิ คาซุมะ: เปิดแผงการ์ด Blay Rouzer — เสียงเปิดแผงทุกครั้ง (เฉพาะคนกด · ผู้ใช้สั่ง 2026-10-25)
+    if (me?.kazuma && tier === "secondary" && vp.w >= 768) { playSfx("kazuma_open"); setKzOpen(true); return; }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า
@@ -2590,7 +2610,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               skills={
                 <>
                   <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
-                  <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />
+                  {me.kazuma
+                    ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
+                    : <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
@@ -2663,6 +2685,16 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       )}
       {hkForms && me?.hikaru && (
         <HikaruForms hikaru={me.hikaru} onClose={() => setHkForms(false)} onPick={(form) => { setHkForms(false); socket.emit("useSkill", { tier: "basic", form }); }} />
+      )}
+      {kzOpen && me?.kazuma && ch?.secondary?.choices && (
+        <BladeRouzerPanel
+          kazuma={me.kazuma}
+          choices={ch.secondary.choices}
+          points={me.skillPoints}
+          isOk={choiceOk}
+          onClose={() => setKzOpen(false)}
+          onPick={(c) => socket.emit("useSkill", { tier: "secondary", form: c.key })}
+        />
       )}
       {choiceOpen && ch?.[choiceOpen.tier]?.choices && (
         <SkillChoices

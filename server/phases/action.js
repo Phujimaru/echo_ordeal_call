@@ -557,6 +557,16 @@ function actionSeconds() {
   const n = Math.floor(Number(process.env.ECHO_DEV_ACTION_TIME));
   return Number.isFinite(n) && n > 0 ? n : ACTION_TIME;
 }
+// เวลาตาเดินของ u หลังฮุค broadcast turnSeconds(engine, u, secs) → วินาทีใหม่ (คาซุมะ TIME: ตาเดินถัดไปของเป้า −10 วิ)
+//  เรียกตอนตาเริ่มจริงเท่านั้น (ฮุคใช้ผลที่ค้างไว้หมดในครั้งนี้) · ตาของยูนิตที่ถูกเรียกไม่ผ่านที่นี่
+function turnSecondsOf(u, secs) {
+  for (const mod of CHAR_HOOKS.MODULES) {
+    if (typeof mod.turnSeconds !== "function") continue;
+    const n = combat.runHook(mod, "turnSeconds", engine, u, secs);
+    if (Number.isFinite(n) && n > 0) secs = n;
+  }
+  return secs;
+}
 // ไปคนถัดไปในลำดับ · หมดแถว = จบเทิร์น
 function nextActor() {
   timers.clearPhaseTimer();
@@ -594,7 +604,7 @@ function nextActor() {
     for (const u of units) if (stuck(u)) match.lastLog.push(`😵 ${u.name} ขยับไม่ได้ — ข้ามตาเดิน`);
     units = units.filter((u) => !stuck(u));
     if (!units.length) continue;
-    const secs = units[0].summon ? Summon.CONTROL_SECONDS : actionSeconds();
+    const secs = units[0].summon ? Summon.CONTROL_SECONDS : turnSecondsOf(units[0], actionSeconds());
     if (owner.duoWith || units.length > 1 || units[0] !== owner) Duo.startTurn(owner, units);
     else {
       match.duo = null;
@@ -633,7 +643,7 @@ function startExtra(ex) {
   match.actorId = p.id;
   match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind, resume: ex.resume || null };
   match.gameState = "ACTION";
-  timers.startPhaseTimer(actionSeconds(), actionTimeUp);
+  timers.startPhaseTimer(turnSecondsOf(p, actionSeconds()), actionTimeUp);
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onExtraTurn) combat.withEffectSource(p, () => combat.runHook(hook, "onExtraTurn", engine, p, ex.kind));
   if (match.gameState !== "ACTION") return true; // ฉากต้นตาพักไว้แล้ว (บรอดแคสต์เอง)

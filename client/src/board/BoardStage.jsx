@@ -39,6 +39,7 @@ import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
+import { kazumaEventFx } from "./kazumaFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -1716,6 +1717,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("emiyaFx", onEmiya);
     return () => socket.off("emiyaFx", onEmiya);
+  }, [pushFx, look, lowQ]);
+  // เคนซากิ คาซุมะ: socket "kazumaFx" { kind, id, color, at, size, ... } → kazumaFx.js (GRID_PLAN §7.19) · เสียงมาจาก server
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const z = (list) => list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f));
+    const onKazuma = (ev) => {
+      const out = kazumaEventFx(ev, { posOf, sizeOf });
+      if (out.fx.length) pushFx(z(out.fx));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(z(list)));
+    };
+    socket.on("kazumaFx", onKazuma);
+    return () => socket.off("kazumaFx", onKazuma);
   }, [pushFx, look, lowQ]);
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);

@@ -22,6 +22,7 @@ const celine = require("./celine"); // องค์หญิงดอกไม�
 const takuto = require("./takuto"); // ซึนาชิ ทาคุโตะ — พิเศษ · unique (ร่างคน/ทาวเบิร์น 3×3 · ดาบ 2 เล่ม · ห่วงเวลาซีโร่ + ช่วงมิติพังทลาย — server/zeroTime.js)
 const ryougi = require("./ryougi"); // ผู้นำแห่งตระกูลเรียวกิ — มหันตภัย · unique (ฟันแนว 2 ช่อง / เนตรมณะ / ตัดผลสกิล server/sever.js / ช่องพัง terrain "chasm")
 const emiya_shirou = require("./emiya_shirou"); // เอมิยะ ชิโร่ — ยาก (Trace On อาวุธ 5 แบบ / สกิลรองตามอาวุธ / Unlimited Blade Works)
+const kensaki_kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ — ยาก (ร่างมนุษย์/Blade / Blay Rouzer การ์ด 9 ใบ / Rouze ท่า Lightning)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -47,6 +48,7 @@ const CHARACTER_MODULES = [
   takuto,
   ryougi,
   emiya_shirou,
+  kensaki_kazuma,
 ];
 
 const CHAR_HOOKS = {};

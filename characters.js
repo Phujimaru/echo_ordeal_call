@@ -970,6 +970,49 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- เคนซากิ คาซุมะ (Kamen Rider Blade) — ยาก — ดู characters/kensaki_kazuma.js (GRID_PLAN §7.19) ----------
+    //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · ร่างมนุษย์/ร่าง Blade · กองการ์ด Blay Rouzer → Rouze
+    //  ระยะ/ระยะเดิน/ท่าตีเปลี่ยนตามผลการ์ดที่ Rouze ไว้ (ฮุค range / mov / strikeRect / attackLane / fixedStrikeDamage)
+    id: "kensaki_kazuma",
+    name: "เคนซากิ คาซุมะ",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/kensaki_kazuma/kazuma.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "ช่างหัวมันสิ",
+      desc: "ร่าง Blade ตีปกติ แต้มสกิล +1 · ตีปกติที่ไม่มีผลการ์ดจาก Rouze ค้างอยู่ อัตราคริติคอล 50%",
+    },
+    basic: {
+      name: "แปลงร่าง",
+      desc: "สลับร่าง: ร่าง Blade — จบเทิร์นแต้มสกิล +2 · ร่างมนุษย์ (เริ่มต้น) — อยู่ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2 (1 ครั้งต่อเทิร์น · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/kensaki_kazuma/kazuma_belt_off.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/kensaki_kazuma.js
+    },
+    secondary: {
+      name: "Blay Rouzer",
+      desc: "เฉพาะร่าง Blade: เลือกการ์ด 1 ใน 9 ใส่กอง (ใบละ 2 แต้ม · 3 ใบต่อเทิร์น · กองมีได้ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผล · TACKLE กับ MAGNET อยู่กองเดียวกันไม่ได้) · กองค้างข้ามเทิร์นจนกว่าจะ Rouze (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้)",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/kensaki_kazuma/cards/kazuma_card_thunder.webp",
+      instant: true,
+      effect: null, // ปุ่ม 9 ตัวเลือก (skillPub choices)
+    },
+    ultimate: {
+      name: "Rouze",
+      desc: "ใช้การ์ดทั้งกอง: ครบสูตร = Lightning Blast (KICK + THUNDER) · Lightning Slash (SLASH + THUNDER) · Lightning Sonic (KICK + THUNDER + MACH) · ไม่ครบสูตร = การ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ (ใช้แล้วยังเดินได้)",
+      area: { kind: "self" }, // Lightning Sonic = แนว 4×1 (skillArea)
+      cost: 0,
+      img: "/characters/kensaki_kazuma/kazuma_belt_on.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

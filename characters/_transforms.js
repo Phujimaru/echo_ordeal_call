@@ -17,6 +17,7 @@ const diego = require("./diego_alt"); // ดิเอโก้: เป็นไ�
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
 const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่างทาวเบิร์น / เฟส 2·4 / ห่วงเวลาถูกทำลาย / ดาบรวมร่าง / ปาดาบ / สกิล
 const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: Caladbolg II (ก่อน/หลังเลือกทิศ) · Unlimited Blade Works — ทุกครั้งที่กด
+const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ: มือเปล่าติดคริ (ก่อนฉากตี) · ท่า Lightning 3 แบบ (ตอนโดน)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -89,6 +90,11 @@ module.exports = function buildTransforms() {
     emiyaCaladbolgBefore: { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calBefore, title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 9.6, music: null, afterReveal: false },
     emiyaCaladbolgAfter:  { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calAfter,  title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 3.6, music: null, afterReveal: false, noIntro: true },
     emiyaUbw:             { img: emiya.IMG.ubw,            video: emiya.VIDEO.ubw,       title: "Unlimited Blade Works", label: "ปล่อยท่าไม้ตาย", seconds: 23.2, music: null, afterReveal: false },
+    // เคนซากิ คาซุมะ — ทุกครั้ง · ความยาวจริง 2.03 / 14.74 / 6.0 / 20.57 วิ ปัดขึ้น
+    kazumaCrit:  { img: kazuma.IMG.blade,        video: kazuma.VIDEO.crit,           title: "คริติคอล",        label: "เคนซากิ คาซุมะ", seconds: 2.1, music: null, afterReveal: false, noIntro: true },
+    kazumaBlast: { img: kazuma.IMG.ult("blast"), video: kazuma.VIDEO.combo("blast"), title: "Lightning Blast", label: "ปล่อยท่าไม้ตาย", seconds: 15, music: null, afterReveal: false },
+    kazumaSlash: { img: kazuma.IMG.ult("slash"), video: kazuma.VIDEO.combo("slash"), title: "Lightning Slash", label: "ปล่อยท่าไม้ตาย", seconds: 6.1, music: null, afterReveal: false },
+    kazumaSonic: { img: kazuma.IMG.ult("sonic"), video: kazuma.VIDEO.combo("sonic"), title: "Lightning Sonic", label: "ปล่อยท่าไม้ตาย", seconds: 20.6, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
     mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },

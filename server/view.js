@@ -347,6 +347,7 @@ function buildStateFor(viewerId) {
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17
         emiya: hook && hook.emiyaState ? hook.emiyaState(engine, p) : undefined, // ชิโร่: อาวุธ / เทิร์น+ครั้งที่เหลือ / คูลดาวน์ / UBW / ความจุที่เพิ่ม — GRID_PLAN §7.18
+        kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
         takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
@@ -383,7 +384,7 @@ function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
     hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
-    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined, valentine: undefined, celine: undefined, emiya: undefined,
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined, valentine: undefined, celine: undefined, emiya: undefined, kazuma: undefined,
   };
 }
 
@@ -398,7 +399,7 @@ function unseenPub(o, p) {
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
-    diego: undefined, celine: undefined, emiya: undefined,
+    diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     actions: undefined,
