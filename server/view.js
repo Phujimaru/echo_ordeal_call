@@ -28,6 +28,7 @@ const Soot = require("./soot");
 const skills = require("./skills");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const Colony = require("./colony");
 const Dim = require("./dimension");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
@@ -78,6 +79,8 @@ function boardPublic() {
     ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike) / พื้นเปียก (เอมิลิโกะ)
     storms: Soot.publicInfo(), // ม่านแดง (ระบำเขม่า — เคท)
     spawns: m.spawns, shopSpots: m.shopSpots,
+    // Colony (GRID_PLAN §8.3): กระดานต่อวงรอบ · กำแพงกั้นปล้อง + ประตู · แถวแรกที่ยังไม่ปิดผนึก · แถบกระจก
+    ...(m.wrap ? { wrap: true, walls: m.walls, doors: m.doors, minRow: m.minRow | 0, glass: m.glass, section: m.section } : {}),
     ...boardExtras(), // ชั้นบนพื้นของตัวละคร (ฮุค boardPublic — ดิเอโก้: น้ำมัน/กองไฟ/ขี้เถ้า → diego)
   };
 }
@@ -143,6 +146,7 @@ function buildStateFor(viewerId) {
     gameState: match.gameState,
     gameMode: match.gameMode,
     world: match.world, // earth | colony (GRID_PLAN §8.3)
+    colony: Colony.publicInfo(), // Colony: ปล้อง/ประตู/เป้าอันตราย/รอยรั่ว/แคปซูล/ฉากต้นเทิร์น — null = ไม่ได้อยู่ใน Colony
     teamSize: match.teamSize,
     teamCount: match.teamCount,
     teamOptions: lobby.currentTeamOptions(),
@@ -265,6 +269,7 @@ function buildStateFor(viewerId) {
           ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
+        colony: Colony.playerInfo(p), // Colony: { jumpCd }
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,
@@ -400,6 +405,7 @@ function zeroLocks(p, locks) {
   return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
 }
 function broadcastState() {
+  Colony.normalize(); // Colony: พิกัด x ทุกคนกลับเข้าช่วง 0..15 (กระดานต่อวงรอบ)
   for (const p of Object.values(match.players)) if (!p.duoOf && !p.summon) io.to(p.id).emit("state", buildStateFor(p.id)); // ตัวที่สองของระบบคู่ / ยูนิตที่ถูกเรียก ไม่มี socket
 }
 function broadcastPositions() {

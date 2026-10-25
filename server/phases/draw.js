@@ -25,9 +25,12 @@ const view = require("../view");
 const Zero = require("../zeroTime");
 const Duo = require("../duo");
 const Soot = require("../soot");
+const Colony = require("../colony");
 
 function dealRound() {
   timers.clearPhaseTimer();
+  // Colony: อีเวนต์ต้นเทิร์น (อุกกาบาต/ลำแสง/แคปซูล/ดูด/หมุน) ลงผลก่อนแจกไพ่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
+  if (Colony.preRound(dealRound)) return;
   match.roundNumber++;
   if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ

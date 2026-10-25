@@ -14,6 +14,7 @@ test('client/src/board/boardRules.js ตรงกับ server/board.js', () => 
 const pub = (m) => JSON.parse(JSON.stringify({
   area: m.area, cols: m.cols, rows: m.rows, terrain: m.terrain, heal: [...m.heal],
   special: m.special, flow: m.flow, healKind: m.healKind, spawns: m.spawns, shopSpots: m.shopSpots,
+  ...(m.wrap ? { wrap: true, walls: m.walls, doors: m.doors, minRow: m.minRow | 0, glass: m.glass, section: m.section } : {}), // Colony (view.js boardPublic)
 }));
 // ผลเดินแบบเทียบกันได้: ช่องที่หยุดได้ → ก้าวที่ใช้ + เส้นทาง
 const flat = (Rules, reach) => Object.fromEntries([...reach.keys()].sort().map((k) => {

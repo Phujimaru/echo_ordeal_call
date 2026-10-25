@@ -31,6 +31,7 @@ const view = require("./view");
 const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
 const Dim = require("./dimension");
+const Colony = require("./colony");
 
 // เพดานเหรียญรายบุคคล
 function goldCapOf(p) {
@@ -160,6 +161,7 @@ function relocateShop() {
 }
 // ต้นเทิร์น (dealRound): ครบกำหนดย้าย = ย้าย + ของใหม่ · ไม่งั้นแค่คิดผลของภูมิภาคต่อร้านใหม่ตามช่วงเวลา
 function maybeMoveShop() {
+  if (Colony.active()) { refreshShopForJourney(); return; } // Colony: ร้าน = แคปซูลเสบียง (server/colony.js ตั้ง/เก็บเอง)
   if (shopDue()) relocateShop();
   else refreshShopForJourney();
 }

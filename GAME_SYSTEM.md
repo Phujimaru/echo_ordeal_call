@@ -1019,3 +1019,14 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **สกิลเลือกช่องจากรายการของ server**: `area { kind: "tile", place: "list", foot, tiles }` (tiles คิดใน `skillArea` ทุกครั้งที่ส่ง state) — client ใช้โหมด list เดียวกับปุ่ม HUD ที่มี tiles
 - **ยูนิตที่ถูกเรียกขนาดใหญ่**: ตั้ง `boardSize` หลัง `engine.summon.spawn` (กล่องของลาพลัส 2×2 · ฝ่ายกลาง = ขวางทางทุกคน) · ตายแล้วฮุค `onSummonDeath` ของเจ้าของ
 - **ฉากตีดาบสี**: `attackHitFx(p)` → `"saberRed"` = ฟันไขว้แบบมีดโซระ (`mythSlashFx` tone red) · เสียงตีตรงจังหวะปะทะ
+
+## 32. สนาม Colony: กระดานต่อวงรอบ / กำแพงกั้นปล้อง / อีเวนต์ต้นเทิร์น / ตายจริง (`server/colony.js` · `server/board.js` · GRID_PLAN §8.3)
+- สนาม = `match.world` (earth | colony) โหวตคู่กับโหมด · colony = `Colony.start()` วางกระดาน `MAPS[COLONY_AREA]` (16 × 40) · การเดินทางปิด (`Journey.active` false)
+- **กระดานต่อวงรอบ** (`map.wrap`): คอลัมน์ต่อกันเป็นวง · `Board.setWrap(cols)` ตอนวางกระดาน + ฟังก์ชันที่รับ map ตั้งเอง (`syncWrap`) · `dist`/`covers`/พื้นที่สกิล/เดิน นับวงรอบ ·
+  ฟังก์ชันใน board.js คืน x ในช่วง 0..cols-1 เสมอ (`wx`) · ส่วนต่างคอลัมน์ที่สั้นสุด `Board.wdx(a, b)` · ตำแหน่งผู้เล่นถูกจัดเข้าช่วงก่อนบรอดแคสต์ทุกครั้ง (`Colony.normalize`)
+  → **ตัวละครใหม่ที่คิดช่อง/ทิศเอง ให้ใช้ Board.wx / Board.wdx แทน x ± n ตรงๆ** (ไม่งั้นข้ามตะเข็บแล้วผลหาย)
+- กำแพงกั้นปล้อง `map.walls` (แถว r กับ r+1) ผ่านได้แค่คอลัมน์ `map.doors` (`Board.wallBlocks`) — เดิน/ไถล/ถอย ใช้ · ตัวใหญ่ 2×2+ ผ่านได้ · ปล้องที่ปิด = `map.minRow` (แถวต่ำกว่า = นอกกระดาน)
+- ต้นเทิร์น (`Colony.preRound` ต้น `draw.dealRound`): อีเวนต์ที่เตือนไว้ลงผล → มีฉาก = พักเฟส CUTSCENE (`state.colony.scene` + boardFx `colonyScene`) แล้วกลับมาแจกไพ่ ·
+  จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`)
+- ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
+- กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)

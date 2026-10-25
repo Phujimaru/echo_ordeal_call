@@ -17,8 +17,29 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LINE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 const key = (x, y) => `${x},${y}`;
+// ---------- กระดานต่อวงรอบ (โหมด Colony — GRID_PLAN §8.3) ----------
+//  แผนที่ที่ map.wrap = true: คอลัมน์ต่อกันเป็นวง (x = -1 คือ cols-1) · ระยะ/เดิน/พื้นที่สกิลนับแบบวงรอบ
+//  WRAP = จำนวนคอลัมน์ของกระดานที่ใช้อยู่ (0 = กระดานธรรมดา) — engine ตั้งตอนวางกระดาน (setWrap) เพราะ dist/covers ไม่ได้รับ map
+//  พิกัด x ที่ฟังก์ชันในไฟล์นี้คืนออกไป ถูกจัดเข้าช่วง 0..cols-1 เสมอ (wx) · ค้นช่อง/คนด้วย x นอกช่วงได้ (จัดให้เอง)
+//  กำแพงกั้นปล้อง: map.walls = แถว r ที่เดินจาก r ไป r+1 ไม่ได้ ยกเว้นคอลัมน์ประตู map.doors (ตัวใหญ่ 2×2+ ผ่านได้ — ตัวใหญ่เบียดได้)
+//  ปล้องที่ปิดผนึกแล้ว: map.minRow = แถวแรกที่ยังอยู่ในกระดาน (แถวต่ำกว่า = นอกกระดาน)
+let WRAP = 0;
+function setWrap(cols) { WRAP = Math.max(0, cols | 0); }
+// ฟังก์ชันที่รับ map ตั้ง WRAP ตามแผนที่นั้นเอง (เทสต์/โค้ดที่สลับแผนที่ไปมาได้ผลถูก)
+function syncWrap(map) { const w = map && map.wrap ? map.cols : 0; if (w !== WRAP) WRAP = w; }
+const wrapCols = () => WRAP;
+const wx = (x) => (WRAP ? ((x % WRAP) + WRAP) % WRAP : x);
+// ส่วนต่างคอลัมน์ a → b ที่สั้นสุด (กระดานธรรมดา = b − a)
+const wdx = (a, b) => { if (!WRAP) return b - a; let d = ((b - a) % WRAP + WRAP) % WRAP; if (d > WRAP / 2) d -= WRAP; return d; };
+const tk = (x, y) => key(wx(x), y);
+// ก้าว (x, y) → (x, ny) ข้ามกำแพงกั้นปล้องไหม (ประตู = ผ่านได้)
+function wallBlocks(map, x, y, ny) {
+  if (!map.walls || ny === y) return false;
+  const lo = Math.min(y, ny);
+  return map.walls.includes(lo) && !(map.doors || []).includes(wx(x));
+}
 // สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้) — ผนึกมิโกะของห่วงเวลาซีโร่ (GRID_PLAN §8.2)
-const UNBREAKABLE = new Set(["seal", "chasm"]); // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
+const UNBREAKABLE = new Set(["seal", "chasm", "breach"]); // breach = รอยรั่วของ Colony (server/colony.js) // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
 
 // ---------- ช่องพิเศษ (GRID_PLAN §3.1 — แนว Fire Emblem) ----------
 //  ยืน/เดินผ่านได้ทุกชนิด (ต่างจากสิ่งกีดขวาง) · ไม่มีผลกับระยะตี/สกิล
@@ -44,6 +65,7 @@ const TERRAIN_INFO = {
   wet: { name: "พื้นเปียก", icon: "💦", desc: "ไถลจนสุดแนว", slide: true }, // แจกันใส่น้ำของเอมิลิโกะ (server/wet.js) — กติกาไถลเดียวกับน้ำแข็ง
   lava: { name: "ลาวา", icon: "🌋", desc: "จบตา เสียหาย 1", end: "lava", dmg: 1 },
   power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
+  lift: { name: "ลิฟต์แกนกลาง", icon: "⏫", desc: "จบตา ดีดขึ้น 4 แถว", end: "lift" }, // Colony (GRID_PLAN §8.3)
 };
 
 // ---------- แผนที่รายภูมิภาค ----------
@@ -220,6 +242,64 @@ for (let i = 0; i < ZERO_STAGES; i++) {
   });
 }
 
+// ---------- Colony (GRID_PLAN §8.3) ----------
+//  ผิวด้านในของกระบอก คลี่เป็น 16 คอลัมน์ (ต่อวงรอบ) × 40 แถว · ปล้องละ 10 แถว (0–9 · 10–19 · 20–29 · ปล้องสุดท้าย 30–39)
+//  กำแพงกั้นปล้องอยู่ระหว่างแถว 9|10 · 19|20 · 29|30 ประตู 4 บาน (คอลัมน์ 0 · 4 · 8 · 12)
+//  แถบกระจก (คอลัมน์ 1 · 6 · 11) = พื้นธรรมดา (ใช้แค่ตอนวาด) · ลิฟต์แกนกลาง 6 จุด (จบตา = ดีดขึ้น 4 แถว)
+//  เขตตามปล้อง (ผู้ใช้สั่ง: สภาพแวดล้อมจำลองจากโลก): บ้านพัก · ป่า + บึง (น้ำตื้น) · ใจกลางเมือง (ตึก) · สวนชมวิว (ต้นไม้ + สระ)
+//  ผังสุ่มแบบกำหนดค่า (seed คงที่ — ต้นแบบ .claude/plans/colony.html genMap) · จุดเกิด 7 จุดแถว 1 กระจายรอบวง
+const COLONY_AREA = 20;
+const COLONY = { cols: 16, rows: 40, section: 10, walls: [9, 19, 29], doors: [0, 4, 8, 12], glass: [1, 6, 11],
+  lifts: [[2, 7], [10, 7], [5, 17], [13, 17], [7, 27], [15, 27]] };
+function buildColonyMap() {
+  let s = 11;
+  const R = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const C = COLONY.cols, SEC = COLONY.section;
+  const m = (x) => ((x % C) + C) % C;
+  const used = {}; // key → ชนิด
+  const keep = new Set();
+  for (const [x, y] of COLONY.lifts) for (const d of [0, 3, 4, 5]) keep.add(key(x, y + d));
+  const free = (x, y, sec) => !COLONY.glass.includes(x) && !used[key(x, y)] && !keep.has(key(x, y)) && !(sec === 0 && y <= 2) && y % SEC !== SEC - 1 && y % SEC !== 0;
+  const place = (sec, n, kind, shapes) => {
+    let placed = 0, guard = 0;
+    while (placed < n && guard++ < 800) {
+      const x = Math.floor(R() * C), y = sec * SEC + 1 + Math.floor(R() * (SEC - 2));
+      const sh = shapes[Math.floor(R() * shapes.length)];
+      const cells = sh.map(([dx, dy]) => [m(x + dx), y + dy]);
+      if (!cells.every(([cx, cy]) => free(cx, cy, sec))) continue;
+      for (const [cx, cy] of cells) used[key(cx, cy)] = kind;
+      placed++;
+    }
+  };
+  const pond = (sec, w, h) => {
+    for (let g = 0; g < 200; g++) {
+      const x = Math.floor(R() * C), y = sec * SEC + 2 + Math.floor(R() * (SEC - 3 - h));
+      const cells = [];
+      for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) if (!((i === 0 || i === w - 1) && (j === 0 || j === h - 1)) || w < 3) cells.push([m(x + i), y + j]);
+      if (!cells.every(([cx, cy]) => free(cx, cy, sec))) continue;
+      for (const [cx, cy] of cells) used[key(cx, cy)] = "water";
+      return;
+    }
+  };
+  const ONE = [[0, 0]], H2 = [[0, 0], [1, 0]], V2 = [[0, 0], [0, 1]];
+  place(0, 11, "house", [ONE, H2, ONE]);
+  pond(1, 4, 3); place(1, 15, "tree", [ONE]);
+  place(2, 9, "tower", [ONE, V2, H2]); place(2, 3, "tree", [ONE]);
+  pond(3, 3, 2); place(3, 6, "tree", [ONE]);
+  const terrain = {}, special = {};
+  for (const [k, kind] of Object.entries(used)) { if (kind === "water") special[k] = "shallow"; else terrain[k] = kind; }
+  for (const [x, y] of COLONY.lifts) special[key(x, y)] = "lift";
+  return {
+    area: COLONY_AREA, name: "Colony", cols: C, rows: COLONY.rows, wrap: true, minRow: 0,
+    walls: COLONY.walls, doors: COLONY.doors, glass: COLONY.glass, section: SEC,
+    terrain, special, flow: {}, heal: new Set(), healKind: "heal",
+    spawns: [1, 3, 5, 8, 10, 12, 14].map((x, i) => ({ x, y: i % 2 ? 2 : 1 })),
+    shopSpots: [], // ร้านค้า = แคปซูลเสบียง (server/colony.js) ไม่ใช้จุดร้านค้า
+  };
+}
+MAPS[COLONY_AREA] = buildColonyMap();
+const isColonyArea = (area) => Number(area) === COLONY_AREA;
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -227,20 +307,22 @@ function mapOf(area) {
 
 // ---------- พื้นฐาน ----------
 function inBounds(map, x, y) {
+  syncWrap(map);
+  if (map.wrap) return y >= (map.minRow | 0) && y < map.rows;
   return x >= 0 && y >= 0 && x < map.cols && y < map.rows;
 }
 // blocked = ชุด key ของช่องที่ยืน/เดินผ่านไม่ได้เพิ่มเติม (เช่น แผงร้านค้า)
 function isObstacle(map, x, y, blocked) {
   if (!inBounds(map, x, y)) return true;
-  if (map.terrain[key(x, y)]) return true;
-  return !!(blocked && blocked.has(key(x, y)));
+  if (map.terrain[tk(x, y)]) return true;
+  return !!(blocked && blocked.has(tk(x, y)));
 }
 function isHeal(map, x, y) {
-  return map.heal.has(key(x, y));
+  return map.heal.has(tk(x, y));
 }
 // ชนิดช่องพิเศษ (TERRAIN_INFO) ของช่องนี้ — ไม่มี = null
 function specialAt(map, x, y) {
-  return (map.special && map.special[key(x, y)]) || null;
+  return (map.special && map.special[tk(x, y)]) || null;
 }
 // ก้าวที่ใช้เดินเข้าช่องนี้ (พื้นธรรมดา = 1)
 function moveCost(map, x, y) {
@@ -284,7 +366,7 @@ function bushPatchOf(map, x, y) {
         while (stack.length) {
           const [cx, cy] = stack.pop();
           for (const [dx, dy] of DIRS) {
-            const nx = cx + dx, ny = cy + dy;
+            const nx = wx(cx + dx), ny = cy + dy;
             if (!inBounds(map, nx, ny) || !isBush(nx, ny) || patches.has(key(nx, ny))) continue;
             patches.set(key(nx, ny), id);
             stack.push([nx, ny]);
@@ -294,7 +376,7 @@ function bushPatchOf(map, x, y) {
     }
     bushCache.set(map, patches);
   }
-  const id = patches.get(key(x, y));
+  const id = patches.get(tk(x, y));
   return id === undefined ? null : id;
 }
 // ข้อมูลช่องสำหรับป้ายบนหน้าจอ → { kind, name, icon, desc } · พื้นธรรมดา/สิ่งกีดขวาง = null
@@ -315,18 +397,23 @@ function boxOf(p) {
 // ช่องทั้งหมดที่ตัวขนาด size ยืนที่มุม (x, y) กินอยู่
 function footprint(x, y, size = 1) {
   const out = [];
-  for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) out.push({ x: x + dx, y: y + dy });
+  for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) out.push({ x: wx(x + dx), y: y + dy });
   return out;
 }
 // ช่อง (x, y) อยู่ในตัวของ u ไหม
 function covers(u, x, y) {
   const s = sizeOf(u);
+  if (WRAP) { const d = ((x - u.x) % WRAP + WRAP) % WRAP; return d < s && y >= u.y && y < u.y + s; }
   return x >= u.x && x < u.x + s && y >= u.y && y < u.y + s;
 }
 // ระยะแมนฮัตตันระหว่างขอบที่ใกล้สุดของสองกล่อง (ตัว 1 ช่อง = |dx| + |dy| ตามเดิม · ทับกัน = 0)
 function dist(a, b) {
   const as = sizeOf(a), bs = sizeOf(b);
-  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
+  let dx;
+  if (WRAP) { // ช่องว่างระหว่างสองช่วงบนวง (ไปทางขวา/ซ้ายแล้วเอาที่น้อยกว่า)
+    const f = ((b.x - a.x) % WRAP + WRAP) % WRAP, r = ((a.x - b.x) % WRAP + WRAP) % WRAP;
+    dx = Math.min(Math.max(0, f - (as - 1)), Math.max(0, r - (bs - 1)));
+  } else dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
   const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
   return dx + dy;
 }
@@ -348,7 +435,7 @@ function freeTile(map, x, y, units, selfId, blocked) {
 // ---------- น้ำแข็ง (ผู้ใช้ตัดสิน 2026-10-12 — GRID_PLAN §7.9 · ใช้กับน้ำแข็งทุกแบบ: ภูมิภาค VI + ธารน้ำแข็งของ Ice Spike) ----------
 // ช่องนี้ไถลได้ไหม: น้ำแข็ง หรือพื้นเปียก (TERRAIN_INFO slide) · มีสิ่งกีดขวาง/หนามน้ำแข็งทับ = ไม่ใช่
 function isIce(map, x, y) {
-  if (!inBounds(map, x, y) || map.terrain[key(x, y)]) return false;
+  if (!inBounds(map, x, y) || map.terrain[tk(x, y)]) return false;
   const info = TERRAIN_INFO[specialAt(map, x, y)];
   return !!(info && info.slide);
 }
@@ -357,18 +444,20 @@ function isIce(map, x, y) {
 //  คืน { x, y (ช่องที่หยุด), tiles (ช่องน้ำแข็งที่ผ่านรวมช่องแรก — ยาว = ระยะไถล), hit } · hit = ของที่ช่องถัดจากช่องที่หยุด:
 //   { kind: "unit", id, x, y } | { kind: "obstacle", terrain, x, y } | null (พื้นว่าง/ขอบกระดาน/ร้านค้า)
 function slideLine(map, x, y, dx, dy, units, selfId, blocked) {
+  syncWrap(map);
   const tiles = [{ x, y }];
   let cx = x, cy = y;
-  while (isIce(map, cx + dx, cy + dy) && freeTile(map, cx + dx, cy + dy, units, selfId, blocked) && tiles.length < map.cols + map.rows) {
-    cx += dx; cy += dy;
+  while (isIce(map, cx + dx, cy + dy) && !wallBlocks(map, cx, cy, cy + dy) && freeTile(map, cx + dx, cy + dy, units, selfId, blocked) && tiles.length < map.cols + map.rows) {
+    cx = wx(cx + dx); cy += dy;
     tiles.push({ x: cx, y: cy });
   }
-  const nx = cx + dx, ny = cy + dy;
+  const nx = wx(cx + dx), ny = cy + dy;
   let hit = null;
   if (inBounds(map, nx, ny)) {
     const u = unitAt(units, nx, ny);
     if (u && u.id !== selfId) hit = { kind: "unit", id: u.id, x: nx, y: ny };
     else if (map.terrain[key(nx, ny)]) hit = { kind: "obstacle", terrain: map.terrain[key(nx, ny)], x: nx, y: ny };
+    else if (wallBlocks(map, cx, cy, ny)) hit = { kind: "obstacle", terrain: "bulkhead", x: nx, y: ny };
   }
   return { x: cx, y: cy, tiles, hit };
 }
@@ -385,6 +474,7 @@ function slideLine(map, x, y, dx, dy, units, selfId, blocked) {
 //     ช่องน้ำแข็งที่มีเพื่อนยืน = เข้าไม่ได้ · เดินออกจากน้ำแข็ง (ช่องเริ่ม) ไปพื้นธรรมดาไม่ไถล
 //   - opts.ghost = เดินทะลุ (ชั้นมิติ server/dimension.js — หลบสายตาของวาเลนไทน์): ก้าวละ 1 ข้ามทุกอย่าง เหลือแค่ขอบกระดาน (reachableGhost)
 function reachable(map, unit, mov, units, opts = {}) {
+  syncWrap(map);
   if (opts.ghost) return reachableGhost(map, unit, mov);
   if (sizeOf(unit) > 1) return reachableBig(map, unit, mov, units, opts);
   const { isAlly = () => false, blocked = null, hop = null } = opts;
@@ -410,7 +500,8 @@ function reachable(map, unit, mov, units, opts = {}) {
       if (cur.slide) continue; // ไถลมาแล้ว = จบการเดิน
       if (cur !== start && specialAt(map, cur.x, cur.y) === "quicksand") continue; // ทรายดูด: หยุดทันที
       for (const [dx, dy] of DIRS) {
-        const nx = cur.x + dx, ny = cur.y + dy;
+        const nx = wx(cur.x + dx), ny = cur.y + dy;
+        if (wallBlocks(map, cur.x, cur.y, ny)) continue; // กำแพงกั้นปล้อง (ผ่านได้แค่ประตู)
         if (isObstacle(map, nx, ny, blocked) && !(hop && hop.has(key(nx, ny)))) continue; // ร่าง (ระบบคู่) = กระโดดข้ามได้
         const other = occupant(nx, ny);
         if (other && !isAlly(unit, other)) continue; // ศัตรูขวางทาง
@@ -434,6 +525,7 @@ function reachable(map, unit, mov, units, opts = {}) {
 }
 // เดินทะลุ (opts.ghost): ทุกช่องในกระดานที่ห่างไม่เกิน mov ก้าว (4 ทิศ) — ไม่สนสิ่งกีดขวาง/คน/ร้าน/ค่าเดิน/น้ำแข็ง/ทรายดูด · หยุดได้ทุกช่อง
 function reachableGhost(map, unit, mov) {
+  syncWrap(map);
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
   const stops = new Map([[key(unit.x, unit.y), start]]);
   const queue = [start];
@@ -441,7 +533,7 @@ function reachableGhost(map, unit, mov) {
     const cur = queue[i];
     if (cur.d >= mov) continue;
     for (const [dx, dy] of DIRS) {
-      const nx = cur.x + dx, ny = cur.y + dy, k = key(nx, ny);
+      const nx = wx(cur.x + dx), ny = cur.y + dy, k = key(nx, ny);
       if (!inBounds(map, nx, ny) || stops.has(k)) continue;
       const node = { x: nx, y: ny, d: cur.d + 1, prev: cur };
       stops.set(k, node);
@@ -457,8 +549,10 @@ const trampleKind = (kind) => typeof kind === "string" && kind.startsWith("icesp
 //  ทั้งตัวต้องอยู่ในกระดาน · ไม่ทับ blocked (ร้านค้า) · ไม่ทับศัตรู (ทับเพื่อน = ผ่านได้แต่หยุดไม่ได้ → ally)
 //  สิ่งกีดขวาง: smash = พังได้ (ทับได้ · rubble = มีของต้องพัง) · ไม่ smash = ยืนไม่ได้ · หนามน้ำแข็ง = เหยียบได้เสมอ (trampleKind)
 function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null, smash = false } = {}) {
+  syncWrap(map);
   const s = sizeOf(unit);
-  if (x < 0 || y < 0 || x + s > map.cols || y + s > map.rows) return null;
+  if (map.wrap ? y < (map.minRow | 0) || y + s > map.rows : x < 0 || y < 0 || x + s > map.cols || y + s > map.rows) return null;
+  x = wx(x);
   let rubble = false, ally = false;
   for (const t of footprint(x, y, s)) {
     const k = key(t.x, t.y);
@@ -477,6 +571,7 @@ function bigFits(map, unit, x, y, units, { isAlly = () => false, blocked = null,
 //  ก้าวละ 1 ช่องทั้งตัว · ไม่สนค่าเดิน/ทรายดูด/น้ำแข็งของช่องพิเศษ (ก้าวข้ามได้)
 //  smash: เดินพังสิ่งกีดขวางได้ — ก้าวที่ขอบหน้าตัวชนของใหม่ กินเพิ่ม 1 ก้าว
 function reachableBig(map, unit, mov, units, opts = {}) {
+  syncWrap(map);
   const start = { x: unit.x, y: unit.y, d: 0, prev: null };
   const best = new Map([[key(unit.x, unit.y), start]]);
   const stops = new Map([[key(unit.x, unit.y), start]]);
@@ -485,7 +580,7 @@ function reachableBig(map, unit, mov, units, opts = {}) {
     for (const cur of buckets[d] || []) {
       if (best.get(key(cur.x, cur.y)) !== cur) continue;
       for (const [dx, dy] of DIRS) {
-        const nx = cur.x + dx, ny = cur.y + dy;
+        const nx = wx(cur.x + dx), ny = cur.y + dy;
         const st = bigStep(map, unit, nx, ny, dx, dy, units, opts);
         if (!st) continue;
         const nd = cur.d + st.cost;
@@ -513,7 +608,7 @@ function bigStep(map, unit, nx, ny, dx, dy, units, opts) {
     for (let i = 0; i < s && !edge; i++) {
       const ex = dx > 0 ? nx + s - 1 : dx < 0 ? nx : nx + i;
       const ey = dy > 0 ? ny + s - 1 : dy < 0 ? ny : ny + i;
-      const kind = map.terrain[key(ex, ey)];
+      const kind = map.terrain[tk(ex, ey)];
       if (kind && !trampleKind(kind)) edge = true;
     }
   }
@@ -523,11 +618,12 @@ function bigStep(map, unit, nx, ny, dx, dy, units, opts) {
 //  ช่องสุดท้ายต้องหยุดได้ (ไม่มีคนยืน) ยกเว้นเป็นน้ำแข็ง = จุดเริ่มไถล (ต้องว่าง)
 //  ระหว่างทาง: ผ่านเพื่อน/ร่าง (opts.hop) ได้ · ทรายดูด/น้ำแข็ง (ที่ไม่ใช่ช่องเริ่ม) = จบการเดินที่ช่องนั้น เดินต่อไม่ได้
 function trailCost(map, unit, trail, units, opts = {}) {
+  syncWrap(map);
   const { isAlly = () => false, blocked = null, hop = null } = opts;
   if (opts.ghost) { // เดินทะลุ: ก้าวละ 1 · ต้องติดกันและอยู่ในกระดาน
     for (let i = 1; i < trail.length; i++) {
       const a = trail[i - 1], t = trail[i];
-      if (Math.abs(t.x - a.x) + Math.abs(t.y - a.y) !== 1 || !inBounds(map, t.x, t.y)) return Infinity;
+      if (Math.abs(wdx(a.x, t.x)) + Math.abs(t.y - a.y) !== 1 || !inBounds(map, t.x, t.y)) return Infinity;
     }
     return trail.length - 1;
   }
@@ -535,8 +631,9 @@ function trailCost(map, unit, trail, units, opts = {}) {
   let d = 0;
   for (let i = 1; i < trail.length; i++) {
     const a = trail[i - 1], t = trail[i], last = i === trail.length - 1;
-    const dx = t.x - a.x, dy = t.y - a.y;
+    const dx = wdx(a.x, t.x), dy = t.y - a.y;
     if (Math.abs(dx) + Math.abs(dy) !== 1) return Infinity;
+    if (!big && wallBlocks(map, a.x, a.y, t.y)) return Infinity;
     if (big) {
       const st = bigStep(map, unit, t.x, t.y, dx, dy, units, opts);
       if (!st || (last && st.ally)) return Infinity;
@@ -557,10 +654,11 @@ function trailCost(map, unit, trail, units, opts = {}) {
 //  ก้าวกลับช่องที่เคยผ่าน = ตัดเส้นทางถึงช่องนั้น (กลับช่องเริ่ม = [ช่องเริ่ม]) · ต่อเส้นทางเดิมได้ไม่เกิน mov = ต่อ
 //  ต่อไม่ได้ = ทางที่ก้าวน้อยสุดจากช่องเริ่ม (ไม่รับทางที่ต้องไถลไปลง) · ก้าวเข้าน้ำแข็ง = ช่องสุดท้าย (ไถลต่อตอนเดินจริง)
 function stepPath(map, unit, mov, units, trail, to, opts = {}) {
+  syncWrap(map);
   const origin = { x: unit.x, y: unit.y };
   const tr = Array.isArray(trail) && trail.length && trail[0].x === origin.x && trail[0].y === origin.y ? trail : [origin];
   const cur = tr[tr.length - 1];
-  if (Math.abs(to.x - cur.x) + Math.abs(to.y - cur.y) !== 1) return null;
+  if (Math.abs(wdx(cur.x, to.x)) + Math.abs(to.y - cur.y) !== 1) return null;
   const back = tr.findIndex((t) => t.x === to.x && t.y === to.y);
   if (back >= 0) return tr.slice(0, back + 1).map((t) => ({ x: t.x, y: t.y }));
   const ext = [...tr.map((t) => ({ x: t.x, y: t.y })), { x: to.x, y: to.y }];
@@ -589,13 +687,14 @@ function patchMap(map, patch) {
 //  มุมที่ทับตัวใหญ่อีกตัว = ข้าม · ไม่เหลือมุมเลย = null ให้ผู้เรียกลองใหม่ทีหลัง)
 //  smash = พังสิ่งกีดขวางได้ (ไม่ได้ = ช่องใหม่ต้องไม่มีสิ่งกีดขวาง) · blocked (ร้านค้า) ทับไม่ได้เสมอ
 function growPlan(map, unit, newSize, units, { blocked = null, smash = false } = {}) {
+  syncWrap(map);
   const s0 = sizeOf(unit), grow = newSize - s0;
   if (grow <= 0) return null;
   let best = null;
   for (let oy = -grow; oy <= 0; oy++) {
     for (let ox = -grow; ox <= 0; ox++) {
-      const x = unit.x + ox, y = unit.y + oy;
-      if (x < 0 || y < 0 || x + newSize > map.cols || y + newSize > map.rows) continue;
+      const x = wx(unit.x + ox), y = unit.y + oy;
+      if (map.wrap ? y < (map.minRow | 0) || y + newSize > map.rows : x < 0 || y < 0 || x + newSize > map.cols || y + newSize > map.rows) continue;
       const tiles = footprint(x, y, newSize);
       if (blocked && tiles.some((t) => blocked.has(key(t.x, t.y)))) continue;
       const rubble = tiles.filter((t) => map.terrain[key(t.x, t.y)]).map((t) => key(t.x, t.y));
@@ -616,13 +715,14 @@ function growPlan(map, unit, newSize, units, { blocked = null, smash = false } =
 // ช่องว่างที่ใกล้ from ที่สุดนอกกล่อง avoid (ถูกผลักออกตอนตัวใหญ่ขยาย) — ไม่ใช่สิ่งกีดขวาง/blocked/ไม่มีคน · ไม่มีเลย = null
 //  ระยะเท่ากันเลือกช่องที่ห่างกลางกล่องมากกว่า (ผลักออกไปข้างนอก)
 function pushOutTile(map, from, avoid, units, { selfId = null, blocked = null } = {}) {
+  syncWrap(map);
   const ac = { x: avoid.x + (sizeOf(avoid) - 1) / 2, y: avoid.y + (sizeOf(avoid) - 1) / 2 };
   let best = null;
-  for (let y = 0; y < map.rows; y++) {
+  for (let y = map.minRow | 0; y < map.rows; y++) {
     for (let x = 0; x < map.cols; x++) {
       if (covers(avoid, x, y) || !freeTile(map, x, y, units, selfId, blocked)) continue;
-      const d = Math.abs(x - from.x) + Math.abs(y - from.y);
-      const away = Math.abs(x - ac.x) + Math.abs(y - ac.y);
+      const d = Math.abs(wdx(from.x, x)) + Math.abs(y - from.y);
+      const away = Math.abs(wdx(ac.x, x)) + Math.abs(y - ac.y);
       if (!best || d < best.d || (d === best.d && away > best.away)) best = { x, y, d, away };
     }
   }
@@ -630,10 +730,11 @@ function pushOutTile(map, from, avoid, units, { selfId = null, blocked = null } 
 }
 // วางตัวใหญ่ใกล้จุด near (เปลี่ยนภูมิภาค/จุดเกิด): มุมที่ใกล้ near สุดซึ่งยืนได้โดยไม่ทับใคร → { x, y, rubble } · ไม่มี = null
 function placeBig(map, size, near, units, { selfId = null, blocked = null, smash = false } = {}) {
+  syncWrap(map);
   let best = null;
   const unit = { id: selfId, x: 0, y: 0, size };
-  for (let y = 0; y + size <= map.rows; y++) {
-    for (let x = 0; x + size <= map.cols; x++) {
+  for (let y = map.minRow | 0; y + size <= map.rows; y++) {
+    for (let x = 0; x + (map.wrap ? 1 : size) <= map.cols; x++) {
       const fit = bigFits(map, unit, x, y, units, { blocked, smash });
       if (!fit || fit.ally) continue;
       const d = dist({ x, y, size }, near);
@@ -656,11 +757,17 @@ function pathTo(reach, x, y) {
 // ---------- ระยะ / พื้นที่ ----------
 // ช่องในกระดานที่ห่างจาก (x, y) อยู่ในช่วง [rmin, rmax] · size = ตัวใหญ่ (นับจากขอบตัว — ช่องในตัวเองห่าง 0)
 function tilesInRange(map, x, y, range, size = 1) {
+  syncWrap(map);
   const out = [];
   const box = { x, y, size };
+  const seen = new Set();
   for (let tx = x - range[1]; tx <= x + size - 1 + range[1]; tx++) {
     for (let ty = y - range[1]; ty <= y + size - 1 + range[1]; ty++) {
-      if (inRange(range, dist(box, { x: tx, y: ty })) && inBounds(map, tx, ty)) out.push({ x: tx, y: ty });
+      if (!inRange(range, dist(box, { x: wx(tx), y: ty })) || !inBounds(map, tx, ty)) continue;
+      const k = tk(tx, ty);
+      if (seen.has(k)) continue; // กระดานวงรอบ: ระยะยาวเกินครึ่งวงวนมาซ้ำช่องเดิม
+      seen.add(k);
+      out.push({ x: wx(tx), y: ty });
     }
   }
   return out;
@@ -673,6 +780,7 @@ function aoeTiles(map, x, y, radius, size = 1) {
 //  width ควรเป็นเลขคี่ (4×3 = ท่าไม้ตายมุยมิ)
 //  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
 function lineTiles(map, x, y, dir, len, width, size = 1) {
+  syncWrap(map);
   const v = LINE_DIRS[dir];
   if (!v) return [];
   const [fx, fy] = v;
@@ -685,7 +793,7 @@ function lineTiles(map, x, y, dir, len, width, size = 1) {
   for (let i = 1; i <= len; i++) {
     for (let j = -half; j <= half; j++) {
       const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
-      if (inBounds(map, tx, ty)) out.push({ x: tx, y: ty });
+      if (inBounds(map, tx, ty)) out.push({ x: wx(tx), y: ty });
     }
   }
   return out;
@@ -694,6 +802,7 @@ function lineTiles(map, x, y, dir, len, width, size = 1) {
 //  ตัวใหญ่ = ทุกแถว/คอลัมน์ที่ตัวกิน (ช่องหน้าแต่ละช่องของขอบเป็น 1 แนว)
 //  คืน [{ dir, j (ช่องที่เท่าไรของขอบ), tiles: [{ x, y, i }] }] — tiles ตัดที่ขอบกระดาน
 function laneSets(map, x, y, size, range) {
+  syncWrap(map);
   const n = Math.max(1, size | 0), out = [];
   for (const [dir, [fx, fy]] of Object.entries(LINE_DIRS)) {
     for (let j = 0; j < n; j++) {
@@ -703,7 +812,7 @@ function laneSets(map, x, y, size, range) {
       const tiles = [];
       for (let i = range[0]; i <= range[1]; i++) {
         const tx = ex + fx * i, ty = ey + fy * i;
-        if (inBounds(map, tx, ty)) tiles.push({ x: tx, y: ty, i });
+        if (inBounds(map, tx, ty)) tiles.push({ x: wx(tx), y: ty, i });
       }
       out.push({ dir, j, tiles });
     }
@@ -741,9 +850,10 @@ function laneOf(map, x, y, size, range, target, face = false, len = 0) {
 //  ทิศ = แกนที่เป้าห่างจากกลางตัวผู้ตีมากกว่า (เท่ากัน = แนวนอน) · กรอบเริ่มจากช่องติดขอบตัว กว้าง width (+ ขนาดตัว − 1) กลางตรงกลางตัว
 //  คืน { dir, tiles } — tiles ตัดที่ขอบกระดาน · เป้าไม่อยู่ในกรอบ = null
 function rectToward(map, x, y, size, target, depth, width) {
+  syncWrap(map);
   if (!target) return null;
   const n = Math.max(1, size | 0), tn = Math.max(1, (target.size | 0) || 1);
-  const dx = (target.x + (tn - 1) / 2) - (x + (n - 1) / 2), dy = (target.y + (tn - 1) / 2) - (y + (n - 1) / 2);
+  const dx = wdx(x + (n - 1) / 2, target.x + (tn - 1) / 2), dy = (target.y + (tn - 1) / 2) - (y + (n - 1) / 2);
   if (!dx && !dy) return null;
   const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
   const [fx, fy] = LINE_DIRS[dir];
@@ -753,7 +863,7 @@ function rectToward(map, x, y, size, target, depth, width) {
     for (let w = -half; w <= n - 1 + half; w++) {
       const tx = fx > 0 ? x + n - 1 + d : fx < 0 ? x - d : x + w;
       const ty = fy > 0 ? y + n - 1 + d : fy < 0 ? y - d : y + w;
-      if (inBounds(map, tx, ty)) tiles.push({ x: tx, y: ty });
+      if (inBounds(map, tx, ty)) tiles.push({ x: wx(tx), y: ty });
     }
   }
   if (!tiles.some((t) => covers(target, t.x, t.y))) return null;
@@ -761,7 +871,7 @@ function rectToward(map, x, y, size, target, depth, width) {
 }
 // ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา (ตัวใหญ่ = ช่องไหนของตัวโดนก็นับ)
 function unitsOnTiles(units, tiles) {
-  const set = new Set(tiles.map((t) => key(t.x, t.y)));
+  const set = new Set(tiles.map((t) => tk(t.x, t.y)));
   return units.filter((u) => u.alive && footprint(u.x, u.y, sizeOf(u)).some((t) => set.has(key(t.x, t.y))));
 }
 // เป้าที่ตีปกติได้จากช่อง (x, y) ด้วยระยะ range (ไม่รวมตัวเองและพวกเดียวกัน)
@@ -780,15 +890,16 @@ function canCounter(defenderRange, attackerPos, defenderPos) {
 //  ไม่มีช่องว่างให้ถอย (สิ่งกีดขวาง/ขอบ/ตัวละคร/blocked) = ไม่ขยับ และ collide = true (ชน −1)
 //  ถอยลงน้ำแข็ง = ไถลต่อจนสุดแนวน้ำแข็ง (slideLine) → มี via = ช่องน้ำแข็งช่องแรก (ไม่ไถล = ไม่มี via)
 function pushback(map, attackerPos, defenderPos, units, { selfId = null, blocked = null } = {}) {
-  const dx = attackerPos.x - defenderPos.x, dy = attackerPos.y - defenderPos.y;
+  syncWrap(map);
+  const dx = wdx(defenderPos.x, attackerPos.x), dy = attackerPos.y - defenderPos.y;
   const sx = Math.sign(dx), sy = Math.sign(dy);
   let dirs;
   if (Math.abs(dx) > Math.abs(dy)) dirs = [[sx, 0]];
   else if (Math.abs(dy) > Math.abs(dx)) dirs = [[0, sy]];
   else dirs = [[0, sy], [sx, 0]];
-  const dir = dirs.find(([ux, uy]) => freeTile(map, attackerPos.x + ux, attackerPos.y + uy, units, selfId, blocked));
+  const dir = dirs.find(([ux, uy]) => !wallBlocks(map, attackerPos.x, attackerPos.y, attackerPos.y + uy) && freeTile(map, attackerPos.x + ux, attackerPos.y + uy, units, selfId, blocked));
   if (!dir) return { x: attackerPos.x, y: attackerPos.y, moved: false, collide: true };
-  const nx = attackerPos.x + dir[0], ny = attackerPos.y + dir[1];
+  const nx = wx(attackerPos.x + dir[0]), ny = attackerPos.y + dir[1];
   if (isIce(map, nx, ny)) {
     const s = slideLine(map, nx, ny, dir[0], dir[1], units, selfId, blocked);
     if (s.tiles.length > 1) return { x: s.x, y: s.y, moved: true, collide: false, via: { x: nx, y: ny } };
@@ -803,16 +914,18 @@ function pushback(map, attackerPos, defenderPos, units, { selfId = null, blocked
 //  { kind: "whirl", dir, to } = โดนกระแสดัน 1 ช่องตาม map.flow · to = null เมื่อช่องนั้นไม่ว่าง (ไม่ขยับ)
 //  ช่องอื่น = null
 function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = {}) {
+  syncWrap(map);
   const kind = specialAt(map, x, y);
   const info = TERRAIN_INFO[kind];
   if (!info || !info.end) return null;
   if (info.end === "thorns") return { kind, turns: info.poison };
   if (info.end === "lava") return { kind, dmg: info.dmg };
+  if (info.end === "lift") return { kind }; // Colony: ดีดขึ้น 4 แถว (server/colony.js liftUnit)
   if (info.end === "whirl") {
     const dir = map.flow && map.flow[key(x, y)];
     const v = LINE_DIRS[dir];
     if (!v) return null;
-    const to = freeTile(map, x + v[0], y + v[1], units, selfId, blocked) ? { x: x + v[0], y: y + v[1] } : null;
+    const to = freeTile(map, x + v[0], y + v[1], units, selfId, blocked) ? { x: wx(x + v[0]), y: y + v[1] } : null;
     return { kind, dir, to };
   }
   return null;
@@ -824,6 +937,7 @@ function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = 
 //  ตัวใหญ่: move = ทุกช่องที่ตัวไปทับได้ (รวมทั้งตัว ไม่ใช่แค่มุม)
 //  opts.lane = ตีแบบแนวตรง (laneTiles) แทนข้าวหลามตัด
 function threatZone(map, unit, mov, range, units, opts = {}) {
+  syncWrap(map);
   const reach = reachable(map, unit, mov, units, opts);
   const s = sizeOf(unit);
   const move = new Set();
@@ -882,7 +996,9 @@ function nearShop(pos, shopPos) {
 
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
+  COLONY_AREA, COLONY, isColonyArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
+  setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,

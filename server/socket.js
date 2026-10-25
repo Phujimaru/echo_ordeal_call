@@ -25,6 +25,7 @@ const Summon = require("./summon");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
 const { engine } = require("./engine");
+const Colony = require("./colony");
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
 const sessions = new Map();          // sessionToken -> playerId
@@ -224,6 +225,8 @@ io.on('connection', (socket) => {
 
   // ปุ่มเล่นคนเดียว (ทดสอบ): คนเดียวในห้อง -> เข้าหน้าเลือกโหมดเหมือนเกมปกติ (หลายคนเริ่มได้ทางกดพร้อมครบเท่านั้น)
   onPlayerEvent(socket, 'startGame', (id) => lobby.startSoloTest(id), 2);
+  // Colony: กระโดดข้ามแกนกลางไปฝั่งตรงข้าม (server/colony.js)
+  onPlayerEvent(socket, 'colonyJump', (id) => Colony.jump(id), 4);
   onPlayerEvent(socket, 'selectGameMode', (id, { mode, world } = {}) => {
     if (match.gameState !== 'TEAM_MODE') return;
     lobby.voteGameMode(id, mode, world);

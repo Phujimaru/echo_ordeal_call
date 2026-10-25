@@ -27,6 +27,8 @@ const timers = require("./timers");
 const view = require("./view");
 const Zero = require("./zeroTime");
 const Duo = require("./duo");
+const Colony = require("./colony");
+const Board = require("./board");
 
 // สีประจำตัว: ผู้เล่นปรับเองได้ตอนตั้งค่าก่อนเข้าเกม — ไม่ได้ตั้งไว้ก็ใช้สีประจำตำแหน่งเดิม
 const CUSTOM_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -292,7 +294,9 @@ function startMatch() {
   const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
   match.journeyArea = startArea;
   match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
-  action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
+  match.colony = null;
+  if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
+  else action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
   match.shopItems = []; // ล้างสต็อกร้านค้าเก่าค้างจากแมตช์ก่อน (placeOnBoard ยกร้านออก — ตั้งใหม่ตอนเทิร์นแรก)
   match.cutsceneQueue = [];
@@ -301,7 +305,8 @@ function startMatch() {
   match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; // หยุดเวลา (server/timeStop.js)
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
-  const journeyStart = Journey.active(engine) && JOURNEY_START_SECONDS > 0;
+  // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก)
+  const journeyStart = (Journey.active(engine) || Colony.inWorld()) && JOURNEY_START_SECONDS > 0;
   if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
@@ -350,6 +355,8 @@ function backToLobby() {
   match.journeyScene = null;
   match.journeyArea = 1;
   match.journeyRoute = [1];
+  match.colony = null;
+  Board.setWrap(0);
   Zero.reset();
   match.lastLog = [];
   match.cutsceneQueue = [];

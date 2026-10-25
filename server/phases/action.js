@@ -38,6 +38,7 @@ const Voice = require("../voice");
 const TimeStop = require("../timeStop");
 const Dim = require("../dimension");
 const Summon = require("../summon");
+const Colony = require("../colony");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -46,8 +47,9 @@ const Summon = require("../summon");
 function boardMap() {
   const b = match.board;
   const base = Board.mapOf(b ? b.area : 1);
-  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length)) return base;
-  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}|${b.chasmVer || 0}`;
+  const cv = Colony.layerVer(); // Colony: รอยรั่ว + ปล้องที่ปิดผนึก (server/colony.js)
+  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length) && !cv) return base;
+  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}|${b.chasmVer || 0}|${cv}`;
   if (b.mapCache && b.mapCache.ver === ver && b.mapCache.base === base) return b.mapCache.map;
   const map = layeredMap(b, base);
   b.mapCache = { ver, base, map };
@@ -65,7 +67,7 @@ function layeredMap(b, base) {
     for (const k of b.chasm) { terrain[k] = "chasm"; delete special[k]; }
     heal = new Set([...base.heal].filter((k) => !b.chasm.includes(k)));
   }
-  return { ...base, terrain, special, heal };
+  return Colony.mapLayer({ ...base, terrain, special, heal });
 }
 // ทำให้ช่องพัง (เดิน/ยืนไม่ได้จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง (ช่องที่พังอยู่แล้ว/นอกกระดานข้าม)
 function addChasm(keys) {
@@ -317,6 +319,7 @@ function placeOnBoard(area) {
   Summon.removeAll(); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด
   Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
   match.board = { area };
+  Board.setWrap(Board.isColonyArea(area) ? Board.COLONY.cols : 0); // Colony: กระดานต่อวงรอบ (dist/covers ใช้ค่านี้)
   match.shopPos = null;
   match.shopRazed = false;
   const map = boardMap();
@@ -1193,6 +1196,8 @@ function tileEndEffect(p) {
       if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
     }
     if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
+  } else if (fx.kind === "lift") {
+    Colony.liftUnit(p); // Colony: ลิฟต์แกนกลาง ดีดขึ้น 4 แถว
   } else if (fx.kind === "whirl") {
     if (fx.to) {
       const from = { ...p.pos };

@@ -26,6 +26,7 @@ const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
 const Summon = require("../summon");
+const Colony = require("../colony");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -88,6 +89,8 @@ function endTurn() {
   Ice.onEndTurn();
   // ระบำเขม่า (เคท): ม่านแดงนับเวลา หมดแล้วหาย
   Soot.onEndTurn();
+  // Colony: รอยรั่วปิด · คูลดาวน์กระโดด · ปิดผนึกปล้อง (ตายจริง) · ครบเวลา = ระเบิด (ทุกคนตาย → เสมอ)
+  Colony.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {

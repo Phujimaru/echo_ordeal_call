@@ -19,6 +19,7 @@ function generate() {
     "// state.board จาก server ส่ง heal เป็น array ของ \"x,y\" — แปลงกลับเป็นรูปเดียวกับแผนที่ฝั่ง server ก่อนส่งให้ฟังก์ชันในไฟล์นี้",
     "function normalizeMap(pub) {",
     "  if (!pub) return null;",
+    "  setWrap(pub.wrap ? pub.cols : 0); // Colony: กระดานต่อวงรอบ (ระยะ/เดินนับวง)",
     "  return {",
     "    ...pub,",
     "    terrain: pub.terrain || {}, special: pub.special || {}, flow: pub.flow || {}, healKind: pub.healKind || \"heal\",",
