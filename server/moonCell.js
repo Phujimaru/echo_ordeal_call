@@ -54,7 +54,9 @@ const CURSE_SIZE = 9;       // พื้นที่ 9×9
 const CURSE_DMG = 3;
 const ACCURATE_TURNS = 3;
 const LEASH = 8;            // AI ไม่ออกห่าง Moon Cell เกินนี้ (นับจากขอบ Moon Cell)
-const CURSE_VIDEO = { video: "/mooncell/hakuno_duo_ultimate.mp4", seconds: 11 }; // เสียงท่าไม้ตาย (m4a ของผู้ใช้) รวมอยู่ในคลิปแล้ว
+// เสียงท่าไม้ตาย (m4a ของผู้ใช้) รวมอยู่ในคลิปแล้ว · client เล่นการ์ดเปิด 0.95 วิ + คลิป 10.07 วิ → รอ 12 วิ (เผื่อโหลดช้า — เสียงคลิปห้ามซ้อนเสียงกระแทก ผู้ใช้สั่ง)
+const CURSE_VIDEO = { video: "/mooncell/hakuno_duo_ultimate.mp4", seconds: 12 };
+const CURSE_HIT_SFX_MS = 820; // เสียงกระแทกดังตอนลำแสงใหญ่ถึงพื้น (client/src/board/moonFx.js CURSE_HIT_MS) ไม่ใช่ทันทีที่คลิปจบ
 const PILLAR_FROM = 2;       // เตือนเสาข้อมูลชุดแรกต้นเทิร์นนี้ (พุ่งต้นเทิร์นถัดไป)
 const PILLAR_BASE = 2, PILLAR_MAX = 5, PILLAR_DMG = 1;
 const PILLAR_NIGHT_MULT = 2, PILLAR_NIGHT_MAX = 10; // กลางคืน (ผู้ใช้สั่ง: เกิดถี่มาก) — นับจากเทิร์นที่เสาพุ่ง
@@ -317,7 +319,11 @@ function preRound(resume) {
 function holdScene(events, turn, resume) {
   const s = st();
   const has = (type) => events.some((e) => e.type === type);
-  if (has("curse")) engine.sfx("moon_curse_hit");
+  if (has("curse")) {
+    const seq = s.sceneSeq + 1;
+    if (aiDelayMs) setTimeout(() => { if (s.scene && s.scene.seq === seq && s.scene.active) engine.sfx("moon_curse_hit"); }, CURSE_HIT_SFX_MS);
+    else engine.sfx("moon_curse_hit");
+  }
   if (events.some((e) => e.type === "pillars" && e.erupt && e.erupt.length)) engine.sfx("moon_pillar");
   if (has("revive")) engine.sfx("moon_revive");
   if (has("warn") || events.some((e) => e.type === "pillars" && e.next && e.next.length && !(e.erupt && e.erupt.length))) engine.sfx("moon_warn");
