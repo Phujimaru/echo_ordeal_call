@@ -1,7 +1,7 @@
 // เคนซากิ คาซุมะ — ช่องสกิลรองเฉพาะตัว (Blay Rouzer) + แผงเลือกการ์ด — จอคอม/แท็บเล็ต (GRID_PLAN §7.19)
-//  me.kazuma = { blade, hand: [{ k, n }], combo, picksLeft, maxTypes, armed, metal } · การ์ด 9 ใบ = skill.choices จาก server
+//  me.kazuma = { blade, hand: [{ k, n }], combo, picksLeft (ช่องว่างในกอง — รวมไม่เกิน 3 ใบ), maxTypes, armed, metal } · การ์ด 9 ใบ = skill.choices จาก server
 //  (choices: { key, name, img, cost, count, locked, desc }) · ชี้ค้าง = คำอธิบายการ์ด (c.desc — กฎผู้ใช้ 2026-10-19) · ไม่มีข้อความอื่น
-//  กดการ์ด = ใช้แต้มทันที (socket useSkill tier "secondary" form) · แผงไม่ปิดเอง เลือกต่อได้จนครบ 3 ใบ · Esc / คลิกนอก / คลิกขวา = ปิด
+//  กดการ์ด = ใช้แต้มทันที (socket useSkill tier "secondary" form) · แผงไม่ปิดเอง เลือกต่อได้จนกองเต็ม 3 ใบ · Esc / คลิกนอก / คลิกขวา = ปิด
 import { useEffect, useRef, useState } from "react";
 import { clickSound } from "../../audio";
 import "./bladeRouzer.css";

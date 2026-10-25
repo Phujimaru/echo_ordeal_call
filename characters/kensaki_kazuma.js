@@ -9,7 +9,7 @@
 //    ร่าง Blade — จบเทิร์นแต้มสกิล +2 (ปกติ +1 · ฮุค skillRegen)
 //    ร่างมนุษย์ (ค่าเริ่มต้น) — อยู่ร่างมนุษย์ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2 (นับจบเทิร์น · แปลงร่าง = นับใหม่)
 //  Blay Rouzer (รอง · ปุ่ม 9 การ์ด · ใบละ 2 แต้ม · เฉพาะร่าง Blade · ไม่กินโควตา · กดแล้วยังเดินได้):
-//    เลือกได้ 3 ใบต่อเทิร์น · ในกองมีได้ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผลเป็นเท่า · กองค้างข้ามเทิร์นจนกด Rouze · ยกเลิกการ์ดไม่ได้
+//    กองมีได้รวมไม่เกิน 3 ใบ (ผู้ใช้แก้ 2026-10-25 — เดิม 3 ใบต่อเทิร์นแล้วสะสมเกินได้) · ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผลเป็นเท่า · กองค้างข้ามเทิร์นจนกด Rouze · ยกเลิกการ์ดไม่ได้
 //    TACKLE กับ MAGNET อยู่กองเดียวกันไม่ได้ (ผลักออกแล้วดึงกลับหักล้างกัน)
 //    ครบสูตรใหม่ = ทับท่าที่เซ็ตไว้ (ครบหลายสูตรพร้อมกัน = สูตรที่ใช้การ์ดมากกว่า) · เสียง: การ์ด → ชื่อท่าที่ผสมได้ (client เล่นต่อคิว)
 //  Rouze (ท่าไม้ตาย · 0 แต้ม · กินโควตา · กดแล้วยังเดินได้ · ใช้การ์ดทั้งกอง):
@@ -57,7 +57,7 @@ const HP = 7;
 const ARMOR = 3;
 const MOV = 4;
 const CARD_COST = 2;
-const PICKS_PER_TURN = 3;
+const MAX_CARDS = 3;      // การ์ดในกองรวมทุกใบ (เต็มแล้วต้อง Rouze ก่อนจึงใส่ใหม่ได้)
 const MAX_TYPES = 3;
 const BLADE_REGEN = 2;       // จบเทิร์น (ปกติ 1)
 const STRIKE_SP = 1;
@@ -107,7 +107,6 @@ function fresh() {
     hand: [],                              // กองการ์ด [{ k, n }] ตามลำดับชนิดที่ได้มา
     handAt: 0,
     combo: null, comboAt: 0,               // ท่าที่เซ็ตไว้ (ครบสูตรล่าสุด)
-    pickRound: 0, picks: 0,                // เลือกการ์ดไปกี่ใบในเทิร์น pickRound
     armed: null,                           // ผลที่ Rouze แล้วรอตีปกติ { kind: "cards"|"blast"|"slash", cards, round, at }
     metal: 0, metalAt: 0, blockKey: null,  // METAL: กันได้อีกกี่ครั้ง · คีย์การโจมตีที่กำลังกัน
   };
@@ -116,7 +115,7 @@ function st(p) { return p.kazuma || (p.kazuma = fresh()); }
 const bladeOn = (p) => isKazuma(p) && !!st(p).blade;
 const countOf = (s, k) => { const h = s.hand.find((c) => c.k === k); return h ? h.n : 0; };
 const handSize = (s) => s.hand.reduce((a, c) => a + c.n, 0);
-const picksLeft = (s, round) => (s.pickRound === round ? Math.max(0, PICKS_PER_TURN - s.picks) : PICKS_PER_TURN);
+const slotsLeft = (s) => Math.max(0, MAX_CARDS - handSize(s));
 // ผลที่ Rouze ค้างไว้ของตาเดินนี้ (เทิร์นเดียวกัน · ร่าง Blade)
 function armedOf(p) {
   if (!bladeOn(p)) return null;
@@ -172,19 +171,17 @@ function cardBlock(p, k, round) {
   const s = st(p);
   if (!CARDS[k]) return "card";
   if (!s.blade) return "human";
-  if (picksLeft(s, round) <= 0) return "picks";
+  if (slotsLeft(s) <= 0) return "full";
   if (!countOf(s, k) && s.hand.length >= MAX_TYPES) return "types";
   if (EXCLUSIVE[k] && countOf(s, EXCLUSIVE[k]) > 0) return "exclusive";
   return null;
 }
 function pickCard(engine, p, k) {
-  const s = st(p), r = engine.roundNumber;
+  const s = st(p);
   const had = new Set(satisfied(s));
   const cur = s.hand.find((c) => c.k === k);
   if (cur) cur.n += 1; else s.hand.push({ k, n: 1 });
   if (handSize(s) === 1) s.handAt = engine.severStamp();
-  if (s.pickRound !== r) { s.pickRound = r; s.picks = 0; }
-  s.picks += 1;
   // ครบสูตรใหม่ = ทับท่าที่เซ็ตไว้ · ครบหลายสูตรพร้อมกัน = สูตรที่ใช้การ์ดมากกว่า
   const fresh = satisfied(s).filter((c) => !had.has(c)).sort((a, b) => COMBOS[b].cards.length - COMBOS[a].cards.length);
   if (fresh.length) {
@@ -358,7 +355,7 @@ function rouzeDesc(s) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, FX, SFX, CARDS, CARD_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, PICKS_PER_TURN, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
+  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, FX, SFX, CARDS, CARD_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, MAX_CARDS, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
   HUMAN_TURNS, HUMAN_HEAL, TIME_CUT, TIME_MIN, BLAST, SLASH, SONIC, METAL_STATUS,
   isKazuma, bladeOn, planSonic,
 
@@ -592,7 +589,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber, a = armedOf(p);
     return {
       blade: s.blade, formUsed: s.formRound === r, humanTurns: s.humanTurns, humanNeed: HUMAN_TURNS,
-      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), combo: s.combo, picksLeft: picksLeft(s, r), maxTypes: MAX_TYPES,
+      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), combo: s.combo, picksLeft: slotsLeft(s), maxTypes: MAX_TYPES,
       armed: a ? { kind: a.kind, cards: a.cards || null } : null, metal: (p.statuses[METAL_STATUS] || 0) > 0 ? s.metal : 0,
     };
   },
@@ -601,7 +598,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     return {
       basic: { locked: s.formRound === r, free: true },
-      secondary: { locked: !s.blade || picksLeft(s, r) <= 0, free: true },
+      secondary: { locked: !s.blade || slotsLeft(s) <= 0, free: true },
       ultimate: { locked: !s.blade || !s.hand.length },
     };
   },
