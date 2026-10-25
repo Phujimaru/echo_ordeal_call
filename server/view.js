@@ -142,6 +142,7 @@ function buildStateFor(viewerId) {
   return {
     gameState: match.gameState,
     gameMode: match.gameMode,
+    world: match.world, // earth | colony (GRID_PLAN §8.3)
     teamSize: match.teamSize,
     teamCount: match.teamCount,
     teamOptions: lobby.currentTeamOptions(),
@@ -263,6 +264,7 @@ function buildStateFor(viewerId) {
         skillLocks: zeroLocks(p, CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
           ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
+        modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,

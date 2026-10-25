@@ -2,7 +2,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   normalizeColor, colorOf, teamModeActive, isAlly, pregameStateActive, resetTeamAssignments,
-  resetModeVotes, resetPregameFlowToLobby, validGameMode, modeOptionsFor, currentTeamOptions,
+  resetModeVotes, resetPregameFlowToLobby, validGameMode, modeOptionsFor, currentTeamOptions, normWorld,
   modeVoteSummary, voteGameMode, chooseTeam, confirmTeam, remainingTeamWinInfo, releaseReservation,
   reservePosition, positionsFor, positionUsedByOther, checkLobbyReady, startSoloTest, startMatch, backToLobby,
   relayLobbyEmote, modeSelectBackToLobby,
@@ -56,6 +56,7 @@ function resetTeamAssignments(resetMode = false) {
   }
   if (resetMode) {
     match.gameMode = "ffa";
+    match.world = "earth";
     match.teamSize = 1;
     match.teamCount = 0;
     match.winningTeamId = null;
@@ -63,7 +64,7 @@ function resetTeamAssignments(resetMode = false) {
 }
 function resetModeVotes() {
   match.modeVotes = {};
-  for (const p of Object.values(match.players)) p.modeVote = null;
+  for (const p of Object.values(match.players)) { p.modeVote = null; p.modeWorld = null; }
 }
 function resetPregameFlowToLobby() {
   match.gameState = "LOBBY";
@@ -91,29 +92,36 @@ function modeOptionsFor(count = Object.keys(match.players).length) {
     return { ...opt, suspended, enabled: !suspended && validGameMode(opt.mode, count) };
   });
 }
+// สนามที่โหวตได้: โลก (การเดินทาง) / โคโลนี — ทั้งสองมีโหมด ffa / duo / trio ชุดเดียวกัน
+const WORLDS = ["earth", "colony"];
+function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
+const voteKey = (world, mode) => `${world}:${mode}`;
 function currentTeamOptions() {
   return TEAM_IDS.slice(0, match.teamCount).map((id) => ({ id, label: `Team ${id}`, size: match.teamSize }));
 }
 function modeVoteSummary() {
   const list = Object.values(match.players);
-  return modeOptionsFor(list.length).map((opt) => {
-    const voters = list.filter((p) => match.modeVotes[p.id] === opt.mode).map((p) => p.id);
-    return { ...opt, voters, voteCount: voters.length };
-  });
+  return WORLDS.flatMap((world) => modeOptionsFor(list.length).map((opt) => {
+    const voters = list.filter((p) => match.modeVotes[p.id] === voteKey(world, opt.mode)).map((p) => p.id);
+    return { ...opt, world, voters, voteCount: voters.length };
+  }));
 }
-function voteGameMode(playerId, mode) {
+function voteGameMode(playerId, mode, world = "earth") {
   if (match.gameState !== "TEAM_MODE") return;
   const p = match.players[playerId];
   if (!p || SUSPENDED_MODES.has(mode) || !validGameMode(mode)) return;
-  match.modeVotes[playerId] = mode;
+  const w = normWorld(world);
+  match.modeVotes[playerId] = voteKey(w, mode);
   p.modeVote = mode;
+  p.modeWorld = w;
   const list = Object.values(match.players);
   const votes = list.map((o) => match.modeVotes[o.id]).filter(Boolean);
   if (votes.length === list.length) {
     const counts = votes.reduce((acc, v) => ({ ...acc, [v]: (acc[v] || 0) + 1 }), {});
     const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     if (ranked[0] && (!ranked[1] || ranked[0][1] > ranked[1][1])) {
-      startTeamSetup(ranked[0][0]);
+      const [w, m] = ranked[0][0].split(":");
+      startTeamSetup(m, w);
       return;
     }
   }
@@ -127,16 +135,18 @@ function enterModeSelect() {
   resetTeamAssignments(false);
   resetModeVotes();
   match.gameMode = "pending";
+  match.world = "earth";
   match.teamSize = 1;
   match.teamCount = 0;
   match.winningTeamId = null;
   match.gameState = "TEAM_MODE";
   view.broadcastState();
 }
-function startTeamSetup(mode) {
+function startTeamSetup(mode, world = "earth") {
   const count = Object.keys(match.players).length;
   if (!validGameMode(mode, count)) return;
   resetModeVotes();
+  match.world = normWorld(world);
   if (mode === "ffa") {
     match.gameMode = mode;
     match.teamSize = 1;

@@ -260,6 +260,36 @@
       "env": {
         "ECHO_SERVER_PORT": "3013"
       }
+    },
+    {
+      "name": "server-colony",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3015,
+      "env": {
+        "PORT": "3015",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
+    },
+    {
+      "name": "client-colony",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5185",
+        "--strictPort"
+      ],
+      "port": 5185,
+      "env": {
+        "ECHO_SERVER_PORT": "3015"
+      }
     }
   ]
 }

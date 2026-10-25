@@ -8,6 +8,12 @@
 import { useState } from "react";
 import MatchIntro from "./MatchIntro";
 import { MOON_MS } from "./moonFlight";
+import { COLONY_MS } from "./colonyFlight";
+
+// ?colony = ฉากเข้าด่าน Colony แทนดวงจันทร์
+const COLONY = new URLSearchParams(location.search).has("colony");
+// ?colony=30000 = ยืดฉากให้ช้าลง (มิลลิวินาที) ไว้ดูทีละช่วง
+const COLONY_D = Number(new URLSearchParams(location.search).get("colony")) || COLONY_MS;
 
 const mk = (id, name, color, ch, chName, img, position) => ({
   id, name, color, position, connected: true, alive: true, img,
@@ -30,7 +36,7 @@ export default function MoonFlightPreview() {
         key={run}
         players={PLAYERS}
         area={1}
-        onOutro={() => ({ moon: true, durationMs: MOON_MS })}
+        onOutro={() => (COLONY ? { colony: true, durationMs: COLONY_D } : { moon: true, durationMs: MOON_MS })}
         onHandoff={() => {}}
         onDone={() => setRun((r) => r + 1)}
       />

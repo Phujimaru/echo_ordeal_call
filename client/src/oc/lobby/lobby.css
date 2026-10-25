@@ -201,6 +201,18 @@
 }
 .ocl-modetag[data-blocked="true"]:not(.focus):not(:hover) { --edge: var(--oc-frost); }
 
+/* ป้ายสนาม (ชั้นแรกของหน้าเลือกโหมด): โลก / Colony — ใหญ่กว่าป้ายโหมด มีขีดชี้ลงหาวัตถุ */
+.ocl-worldtag {
+  gap: 10px; padding: 11px 26px; font: 600 17px/1 var(--oc-f-ui); letter-spacing: 0.02em;
+  filter: drop-shadow(0 8px 12px rgba(28, 63, 110, 0.2)); transition: opacity 0.35s;
+}
+.ocl-worldtag .oc-latin { font: 400 16px/1 var(--oc-f-logo); letter-spacing: 0.22em; }
+.ocl-worldtag::after {
+  content: ""; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 18px; margin-left: -0.75px;
+  background: linear-gradient(var(--oc-azure), transparent); pointer-events: none;
+}
+.ocl-worldtag[data-world="colony"] { border-color: var(--oc-azure); }
+
 .ocl-dots { display: flex; gap: 3px; }
 .ocl-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: 0 0 0 1.5px #fff; }
 .ocl-areatag {

@@ -15,6 +15,7 @@
 //    X = L + 2900 → onOutro() — App คืน { area, durationMs } ถ้า server ยังพักเกมรอฉากดิ่ง (โหมดการเดินทาง)
 //      มีฉากดิ่ง: ยาว D = durationMs (≤ 7 วิ) · ส่งต่อที่ชน (0.82D + 0.1 ของช่วงเผย) · onDone ที่ X + D
 //      ไม่มี: การ์ดไหลออก + ม่านขาว · ส่งต่อที่ X+600 · onDone ที่ X+1300 (server พักเกินนี้อย่างน้อย 1 วิ)
+//      { colony }: กล้องเหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยานของโคโลนี (colonyFlight.js · โหมด Colony GRID_PLAN §8.3)
 //      { moon }: กล้องโค้งอ้อมหลังโลก เห็นดวงจันทร์ แล้วซูมเข้า (moonFlight.js)
 //        ฉากดวงจันทร์ยังไม่มีโหมดไหนใช้ (เดิมเป็นของ Moon Cell ที่ถอดไปแล้ว — เก็บไว้ให้โหมดในอนาคต · ดูได้ที่ ?moon)
 // ============================================================
@@ -29,6 +30,7 @@ import { DiveStreaks, DiveReticle, RegionTag, DiveImpact, Chrome } from "./DiveF
 import "./dive.css";
 import "./intro.css";
 import { createMoonFlight } from "./moonFlight";
+import { createColonyFlight, COLONY_T } from "./colonyFlight";
 
 const FINALE_MS = 2900;
 const FIRST_MS = 120;
@@ -123,6 +125,8 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
   const [dphase, setDphase] = useState(0);        // ช่วงดิ่ง: 0 หมุนเข้า · 1 หัวข้อ · 2 ล็อก · 3 ดิ่ง · 4 ชน/เผย
   const [handed, setHanded] = useState(false);    // ส่งต่อแล้ว — ลูกโลกร่วมปิด ห้าม render GlobeCanvas อีก
   const [moon, setMoon] = useState(null);         // ปลายฉากบินอ้อมโลกไปดวงจันทร์ { D }
+  const [colony, setColony] = useState(null);     // ปลายฉากพุ่งเข้าโคโลนี { D }
+  const [cdash, setCdash] = useState(false);      // ช่วงพุ่งเข้าท่าเทียบยาน (เส้นพุ่ง)
 
   const cbRef = useRef({ onOutro, onHandoff, onDone });
   useLayoutEffect(() => { cbRef.current = { onOutro, onHandoff, onDone }; });
@@ -153,7 +157,17 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     at(L, () => setLineup(true));
     at(X, () => {
       const spec = cbRef.current.onOutro?.() || null;
-      if (spec && spec.moon) {
+      if (spec && spec.colony) {
+        // โคโลนี: การ์ดไหลออก → เหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยาน → แฟลชขาวส่งต่อ
+        const D = Math.max(3200, Number(spec.durationMs) || 6800);
+        tlRef.current.out = true;
+        tlRef.current.colony = { at: performance.now(), D };
+        setColony({ D });
+        setMode("colony");
+        at(COLONY_T.dash * D, () => setCdash(true));
+        at(D - 300, handoff);
+        at(D, done);
+      } else if (spec && spec.moon) {
         // ดวงจันทร์: การ์ดไหลออก → กล้องโค้งอ้อมหลังโลก → ดวงจันทร์โผล่ → ซูมเข้า → แฟลชขาวส่งต่อ
         const D = Math.max(2400, Number(spec.durationMs) || 5600);
         tlRef.current.out = true;
@@ -212,10 +226,11 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     let diveCam = null;
     let marker = null;
     let moonCam = null;
+    let colonyCam = null;
     const P = new THREE.Vector3();
     const ring = { cx: 0, cy: 0, r: 1 };
 
-    const off = core.onFrame(() => {
+    const off = core.onFrame((dt) => {
       const now = performance.now();
       const ms = now - start;
       const dv = tlRef.current.dive;
@@ -290,6 +305,13 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
         moonCam.frame(clamp01((now - mv.at) / mv.D));
         return;
       }
+      // ---------- พุ่งเข้าโคโลนี ----------
+      const cv = tlRef.current.colony;
+      if (cv) {
+        if (!colonyCam) colonyCam = createColonyFlight(core, { lowQ });
+        colonyCam.frame(clamp01((now - cv.at) / cv.D), dt);
+        return;
+      }
 
       if (!dv) return;
       // ---------- ช่วงดิ่ง (ลุคเดิมของ GlobeDive) ----------
@@ -319,6 +341,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
       // ฉากร่วมอาจอยู่ต่อ (เช่นกลับห้องรอกลางฉาก) — คืนค่าที่ฉากนี้แก้ไว้ (ของ 3D/กล้อง/world ถูก scopeCore เก็บกวาด)
       diveCam?.restore();
       moonCam?.restore();
+      colonyCam?.restore();
       if (core.sand) core.sand.visible = sandShown;
       core.world.rotation.set(0, 0, 0);
     };
@@ -333,6 +356,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     leaving ? "is-leaving" : "",
     mode === "out" ? "is-out" : "",
     mode === "moon" ? "is-moon" : "",
+    mode === "colony" ? "is-colony" : "",
     diving ? `ocd-p${dphase}` : "",
     crash ? "is-crash" : "",
     lineup ? "is-lineup" : "",
@@ -343,7 +367,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
   return (
     <div
       className={rootCls}
-      style={{ "--moon": `${moon ? moon.D : 5600}ms`, "--rev": `${Math.round((1 - T.crash) * D)}ms`, "--hex": n > 4 ? "clamp(60px, 8.5vh, 84px)" : "clamp(68px, 10vh, 96px)" }}
+      style={{ "--moon": `${moon ? moon.D : 5600}ms`, "--colony": `${colony ? colony.D : 6800}ms`, "--rev": `${Math.round((1 - T.crash) * D)}ms`, "--hex": n > 4 ? "clamp(60px, 8.5vh, 84px)" : "clamp(68px, 10vh, 96px)" }}
     >
       <div className="ocd-bg" aria-hidden="true" />
       {!handed && (
@@ -390,6 +414,13 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
         <>
           <div className="ocx-moon-tag" aria-hidden="true"><span className="oc-latin">SE.RA.PH</span><b className="oc-latin">MOON CELL</b></div>
           <div className="ocx-moon-flash" aria-hidden="true" />
+        </>
+      )}
+      {colony && (
+        <>
+          <DiveStreaks show={cdash} seed={9} lowQ={lowQ} />
+          <div className="ocx-colony-tag" aria-hidden="true"><span className="oc-latin">SPACE COLONY</span><b className="oc-latin">COLONY</b></div>
+          <div className="ocx-colony-flash" aria-hidden="true" />
         </>
       )}
       {diving && <DiveImpact area={A} lowQ={lowQ} />}

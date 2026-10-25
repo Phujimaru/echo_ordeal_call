@@ -1,15 +1,15 @@
-// เลือกโหมด (gameState TEAM_MODE) — หมุดโหมดบนลูกโลก · โหวตจริงที่ปุ่ม "โหวต" ในแผง (selectGameMode)
-//  เปิดหน้ามา = ยังไม่เลือกดูโหมดไหน (โลก + หมุดเท่านั้น ไม่มีแผง ไม่มีเส้นทาง)
-//  กดหมุด/ป้าย = เลือกดู: โลกหันเข้าหาหมุดแล้วซูมเล็กน้อย (Lobby.jsx globeLayout) แผงเลื่อนเข้ามาทางขวา
-//  กดที่ว่าง / Esc = เลิกดู: แผงเลื่อนออก เส้นทางหาย โลกกลับไปมุมภาพรวม
-//  ท่าพัก (ไม่ได้เลือกดูโหมดไหน): หมุด "อิสระ" อยู่กลางโลกหันตรงหน้า · หน้านี้โลกไม่หมุนเอง (ออกจากหน้าแล้วคืนค่า)
-//  ย้อนกลับ = กลับห้องรอ (modeBackToLobby — ทุกคนยกเลิกพร้อม) ไม่ใช่ออกจากห้อง
-//  โหมดที่มีการเดินทาง (อิสระ/คู่หู/สหายทั้ง 3 เอ๋ย) แสดงเส้นทางจากภูมิภาค I แยกไป II–VII บนโลก (ภูมิภาคถัดไปสุ่ม · ดูอย่างเดียว)
+// เลือกโหมด (gameState TEAM_MODE) — 2 ชั้น: เลือกสนาม (โลก / Colony) → เลือกโหมดของสนามนั้น · โหวตจริงที่ปุ่ม "โหวต" ในแผง
+//  ชั้นสนาม (world = null): โลกกลางจอ + โคโลนีโคจรรอบโลก (globe/colonyModel.js) · กดโลก = เข้าโลก · กดโคโลนี = เข้า Colony (ผู้ใช้สั่ง 2026-10-25)
+//  โลก: หมุดโหมดบนลูกโลกแบบเดิม · Colony: กล้องพาโคโลนีมากลางจอ โลกถอยไปมุมล่างซ้าย + หมุดโหมด 3 อันบนตัวกระบอก
+//  กดหมุด/ป้าย = เลือกดู: แผงเลื่อนเข้ามาทางขวา · กดที่ว่าง / Esc = เลิกดู · ย้อนกลับ/Esc ตอนไม่ได้เลือกดู = กลับชั้นสนาม
+//  ย้อนกลับจากชั้นสนาม = กลับห้องรอ (modeBackToLobby — ทุกคนยกเลิกพร้อม) ไม่ใช่ออกจากห้อง
+//  โหมดที่มีการเดินทาง (โลก) แสดงเส้นทางจากภูมิภาค I แยกไป II–VII บนโลก (ภูมิภาคถัดไปสุ่ม · ดูอย่างเดียว)
 //  ป้ายชื่อโหมดแต่ละโหมดมีกรอบของตัวเอง (lobby.css .ocl-modetag[data-mode]) · หน้านี้ไม่มีอีโมต
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { dirFromLonLat, regionDir, COLORS } from "../../globe/globeCore";
+import { createColonyModel } from "../../globe/colonyModel";
 import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas";
 import { OcButton, OcPanel } from "../ui";
 
@@ -17,60 +17,79 @@ const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "ส
 const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน" };
 const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน" };
 const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
-const JOURNEY = new Set(["ffa", "duo", "trio"]);
 const ORDER = ["ffa", "duo", "trio"];
+const WORLD_TITLES = { earth: "โลก", colony: "Colony" };
+// ปล้องของโคโลนี (GRID_PLAN §8.3 · แบบ B): ปิดผนึกตอนจบเทิร์น 5 / 9 / 13 · ระเบิดจบเทิร์น 23
+const COLONY_SECTIONS = [
+  { n: "I", name: "ย่านบ้านพัก", tt: "เทิร์น 1–5" },
+  { n: "II", name: "ป่า", tt: "เทิร์น 6–9" },
+  { n: "III", name: "ใจกลางเมือง", tt: "เทิร์น 10–13" },
+  { n: "IV", name: "สวนชมวิว", tt: "เทิร์น 14–23" },
+];
 
 const modeTitle = (m) => MODE_TITLES[m] || m;
 const turnRange = (i) => (i === 0 ? `เทิร์น 1–${T}` : "สุ่ม");
+const worldOf = (o) => o.world || "earth";
 
-function useOptions(state) {
+function useOptions(state, world) {
   const count = state.players.length;
   const list = state.modeVotes?.length ? state.modeVotes : (state.modeOptions?.length ? state.modeOptions : [
     { mode: "ffa", enabled: count >= 1, voters: [], voteCount: 0 }, // 1 คน = เล่นทดสอบ (server/lobby.js validGameMode)
     { mode: "duo", enabled: count >= 4 && count % 2 === 0, voters: [], voteCount: 0 },
     { mode: "trio", enabled: count === 6, voters: [], voteCount: 0 },
   ]);
-  return [...list].filter((o) => MODE_GEO[o.mode]).sort((a, b) => ORDER.indexOf(a.mode) - ORDER.indexOf(b.mode));
+  return list.filter((o) => MODE_GEO[o.mode] && worldOf(o) === (world || "earth"))
+    .sort((a, b) => ORDER.indexOf(a.mode) - ORDER.indexOf(b.mode));
 }
 
 /**
- * @param focus   โหมดที่เลือกดูอยู่ (null = ภาพรวม) — Lobby.jsx ถือค่านี้เพราะใช้คิดตำแหน่งลูกโลกด้วย
- * @param onFocus (mode|null)
+ * @param world   สนามที่เลือกดู (null = ชั้นสนาม · "earth" · "colony") — Lobby.jsx ถือค่านี้เพราะใช้คิดตำแหน่งลูกโลกด้วย
+ * @param focus   โหมดที่เลือกดูอยู่ (null = ภาพรวมของสนาม)
  */
-export default function ModeVote({ state, core, interceptRef, focus, onFocus }) {
-  const options = useOptions(state);
+export default function ModeVote({ state, core, interceptRef, focus, onFocus, world, onWorld }) {
+  const options = useOptions(state, world);
   const me = state.players.find((p) => p.id === state.youId);
   const myVote = me?.modeVote || null;
+  const myWorld = myVote ? me?.modeWorld || "earth" : null;
+  const votedHere = (mode) => myVote === mode && myWorld === (world || "earth");
   // โหมดที่แผงแสดง — ค้างไว้ระหว่างแผงเลื่อนออกตอนเลิกดู (ปรับ state ระหว่าง render ตามแนวทางของ React)
   const [shown, setShown] = useState(focus);
   if (focus && focus !== shown) setShown(focus);
 
   const tagRefs = useRef({});
+  const worldRefs = useRef({});
   const areaRefs = useRef([]);
-  const scene = useRef(null); // { markers: {mode: group}, hits: [], route... }
+  const scene = useRef(null);
   const optsRef = useRef(options);
-  useLayoutEffect(() => { optsRef.current = options; });
+  const worldRef = useRef(world);
+  useLayoutEffect(() => { optsRef.current = options; worldRef.current = world; });
 
   const vote = (mode) => {
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
     clickSound();
-    socket.emit("selectGameMode", { mode });
+    socket.emit("selectGameMode", { mode, world: world || "earth" });
   };
   // กดหมุด/ป้าย = เลือกดูอย่างเดียว ยังไม่โหวต (ผู้ใช้สั่ง: ต้องกดยืนยันก่อน) · ป้ายเป็นปุ่ม (เสียงคลิกมาเอง) หมุดบนโลกต้องเรียกเอง
   const preview = (mode, sound) => { if (sound && mode !== focus) clickSound(); onFocus(mode); };
   const clear = () => { if (!focus) return; clickSound(); onFocus(null); };
-  const cbRef = useRef({ preview, clear });
-  useLayoutEffect(() => { cbRef.current = { preview, clear }; });
+  const enter = (w, sound) => { if (sound) clickSound(); onFocus(null); onWorld(w); };
+  const back = () => {
+    if (focus) { onFocus(null); return; }
+    if (world) { onWorld(null); return; }
+    socket.emit("modeBackToLobby");
+  };
+  const cbRef = useRef({ preview, clear, enter, back });
+  useLayoutEffect(() => { cbRef.current = { preview, clear, enter, back }; });
 
   useEffect(() => {
-    if (!focus) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") cbRef.current.clear(); };
+    if (!focus && !world) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") { clickSound(); cbRef.current.back(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus]);
+  }, [focus, world]);
 
-  // ---------- ของ 3D: หมุด + เส้นทาง ----------
+  // ---------- ของ 3D: หมุดบนโลก + เส้นทาง + โคโลนี ----------
   useEffect(() => {
     if (!core) return undefined;
     const { THREE } = core;
@@ -101,28 +120,110 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
     token.visible = false;
     root.add(token);
     const areaDirs = JOURNEY_AREAS.map((_, i) => regionDir(i));
-    const s = { root, markers, hits, token, route: null, curve: null, areaDirs, focus: null };
+
+    // โคโลนี: อยู่ใน scene ตรง (ไม่หมุนตามโลก) — ตำแหน่ง/ขนาด/ทิศ ไหลไปหาเป้าของแต่ละชั้นทุกเฟรม
+    const colony = createColonyModel(THREE);
+    core.scene.add(colony.group);
+    const cpins = {};
+    const cHits = [];
+    ORDER.forEach((mode, i) => {
+      const g = new THREE.Group();
+      g.position.copy(colony.anchors[i]);
+      const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.05), new THREE.MeshBasicMaterial({ color: COLORS.azure }));
+      head.position.y = 0.14;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), new THREE.MeshBasicMaterial({ color: COLORS.azure }));
+      stem.position.y = 0.06;
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      hit.position.y = 0.12; hit.userData.mode = mode;
+      g.add(stem, head, hit);
+      colony.group.add(g);
+      cpins[mode] = { g, head, stem };
+      cHits.push(hit);
+    });
+    const cur = { pos: new THREE.Vector3(2, 0.6, -1), scale: 0.4, quat: new THREE.Quaternion(), op: 0 };
+    const tgtPos = new THREE.Vector3(), tgtQuat = new THREE.Quaternion(), e = new THREE.Euler();
+    let orbit = 0.6;
+    const s = { root, markers, hits, token, route: null, curve: null, areaDirs, focus: null, colony, cpins, cHits };
     scene.current = s;
-    core.setAutoSpin(0); // หน้าเลือกโหมด: โลกนิ่ง หมุนเฉพาะตอนหันเข้าหาหมุด (focusDir)
 
     const tmp = new THREE.Vector3();
     const offFrame = core.onFrame((dt, clock) => {
+      const w = worldRef.current;
       const f = s.markers[s.focus];
-      if (f) f.ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 3));
+      if (f && w === "earth") f.ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 3));
       if (s.curve && token.visible) {
         token.position.copy(s.curve.getPointAt((((clock * 0.04) % 1) + 1) % 1)).multiplyScalar(1.02); // clock ติดลบได้ในเฟรมแรก
         token.rotation.y += dt * 2;
       }
-      for (const mode of ORDER) {
-        const el = tagRefs.current[mode];
-        if (!el) continue;
-        const m = s.markers[mode];
-        const p = core.project(m.g.localToWorld(tmp.set(0, 0.17, 0)));
-        // --k = ขยายป้ายที่เลือกดู (ใส่ใน transform เดียวกัน — scale แยกจะขยายระยะเลื่อนไปด้วย)
-        el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
-        el.classList.toggle("back", core.facing(m.dir) < 0.18);
+      root.visible = w === "earth";
+
+      // ---- เป้าของโคโลนี
+      const gp = core.world.position, gs = core.world.scale.x;
+      const { w: W, h: H } = core.size;
+      const ppu = H / (2 * 6 * Math.tan((16 * Math.PI) / 180));
+      if (!w) {
+        orbit += dt * 0.11;
+        const ox = Math.cos(orbit) * gs * 2.05, oz = Math.sin(orbit) * gs * 2.05;
+        tgtPos.set(gp.x + ox, gp.y + gs * 0.38 - Math.sin(orbit) * gs * 0.3, oz);
+        e.set(0.35, -orbit + Math.PI, 0.5); // แกนกระบอกตามทิศโคจร
+        tgtQuat.setFromEuler(e);
+        cur.scaleT = gs * 0.3;
+      } else if (w === "colony") {
+        const panel = s.focus ? Math.min(400, W * 0.34) + Math.max(16, W * 0.05) + 32 : 0;
+        const cx = s.focus ? (40 + (W - panel - 40) / 2 - W / 2) / ppu : 0.3;
+        tgtPos.set(cx, 0.08, 0.4);
+        e.set(0.5 + 0.05 * Math.sin(clock * 0.4), -1.32 + 0.1 * Math.sin(clock * 0.25), 0.12);
+        tgtQuat.setFromEuler(e);
+        cur.scaleT = s.focus ? 0.48 : 0.58;
+      } else {
+        // โลก: โคโลนีถอยไปหลังโลกแล้วจางหาย
+        tgtPos.set(gp.x + gs * 2.2, gp.y + gs * 0.9, -3);
       }
-      const showAreas = !!s.curve;
+      const k = 1 - Math.pow(0.03, dt);
+      cur.pos.lerp(tgtPos, k);
+      cur.quat.slerp(tgtQuat, k);
+      cur.scale += ((cur.scaleT || cur.scale) - cur.scale) * k;
+      cur.op += ((w === "earth" ? 0 : 1) - cur.op) * k;
+      colony.group.position.copy(cur.pos);
+      colony.group.quaternion.copy(cur.quat);
+      colony.group.scale.setScalar(Math.max(0.001, cur.scale));
+      colony.setOpacity(cur.op);
+      colony.update(dt, clock);
+      for (const [mode, p] of Object.entries(s.cpins)) {
+        p.g.visible = w === "colony";
+        p.head.rotation.y += dt * 1.5;
+        const on = s.focus === mode;
+        p.head.scale.setScalar(on ? 1.35 + 0.15 * Math.sin(clock * 4) : 1);
+      }
+      colony.group.updateMatrixWorld();
+
+      // ---- ป้าย (HTML)
+      for (const mode of ORDER) {
+        // ป้ายโหมดชุดเดียว: สนามโลก = เกาะหมุดบนลูกโลก · Colony = เกาะหมุดบนตัวกระบอก
+        const el = tagRefs.current[mode];
+        if (el && w === "colony") {
+          const p = core.project(s.cpins[mode].g.localToWorld(tmp.set(0, 0.24, 0)));
+          el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
+          el.classList.remove("back");
+        } else if (el) {
+          const m = s.markers[mode];
+          const p = core.project(m.g.localToWorld(tmp.set(0, 0.17, 0)));
+          el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
+          el.classList.toggle("back", w !== "earth" || core.facing(m.dir) < 0.18);
+        }
+      }
+      const we = worldRefs.current;
+      if (we.earth) {
+        const p = core.project(tmp.set(gp.x, gp.y + gs * 1.08, 0));
+        we.earth.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
+        we.earth.classList.toggle("back", !!w);
+      }
+      if (we.colony) {
+        const p = core.project(colony.group.localToWorld(tmp.set(0, 0.5, 0)));
+        we.colony.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
+        we.colony.classList.toggle("back", !!w || cur.pos.z < -0.3);
+      }
+      const showAreas = !!s.curve && w === "earth";
       areaRefs.current.forEach((el, i) => {
         if (!el) return;
         if (!showAreas) { el.classList.add("back"); return; }
@@ -134,19 +235,28 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
     });
 
     const pickMode = (ev) => {
-      const h = core.pick(ev, hits);
+      const w = worldRef.current;
+      const h = w === "colony" ? core.raycaster(ev).intersectObjects(cHits, false)[0] : w === "earth" ? core.pick(ev, hits) : null;
       return h ? h.object.userData.mode : null;
     };
-    // กดบนโลก (ไม่ใช่ลาก): โดนหมุด = เลือกดู · ที่ว่าง = เลิกดู — กินทุกคลิก (หน้านี้ไม่มีอีโมต)
+    const pickColony = (ev) => !!core.pick(ev, colony.hits);
+    // กดบนฉาก (ไม่ใช่ลาก): ชั้นสนาม = เลือกโลก/โคโลนี · ในสนาม = หมุดเลือกดู / ที่ว่างเลิกดู — กินทุกคลิก (หน้านี้ไม่มีอีโมต)
     interceptRef.current = (ev) => {
+      const w = worldRef.current;
+      if (!w) {
+        if (pickColony(ev)) cbRef.current.enter("colony", true);
+        else if (core.hitGlobe(ev)) cbRef.current.enter("earth", true);
+        return true;
+      }
       const mode = pickMode(ev);
       if (mode) cbRef.current.preview(mode, true);
       else cbRef.current.clear();
       return true;
     };
     const offHover = core.onHover((ev) => {
-      const mode = ev ? pickMode(ev) : null;
-      if (mode) core.canvas.dataset.hot = "1"; else delete core.canvas.dataset.hot;
+      const w = worldRef.current;
+      const hot = ev && (w ? !!pickMode(ev) : pickColony(ev) || !!core.hitGlobe(ev));
+      if (hot) core.canvas.dataset.hot = "1"; else delete core.canvas.dataset.hot;
     });
 
     return () => {
@@ -154,7 +264,9 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
       interceptRef.current = null;
       delete core.canvas.dataset.hot;
       core.spin.remove(root);
+      core.scene.remove(colony.group);
       root.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+      colony.group.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; if (m) { m.map?.dispose?.(); m.dispose?.(); } });
       scene.current = null;
       core.focusDir(null);
       core.setAutoSpin(0.1); // ค่าปกติของลูกโลกร่วม (หน้าห้องรอ/จัดทีม)
@@ -166,26 +278,27 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
     const s = scene.current;
     if (!s) return;
     for (const opt of options) {
-      const m = s.markers[opt.mode];
+      const col = !opt.enabled || opt.suspended ? COLORS.mute : votedHere(opt.mode) ? COLORS.echo : COLORS.azure;
+      const m = world === "colony" ? s.cpins[opt.mode] : s.markers[opt.mode];
       if (!m) continue;
-      const col = !opt.enabled || opt.suspended ? COLORS.mute : myVote === opt.mode ? COLORS.echo : COLORS.azure;
       m.head.material.color.setHex(col);
       m.stem.material.color.setHex(col);
     }
   });
 
-  // โหมดที่เลือกดูอยู่: หันโลกเข้าหา + เส้นทางการเดินทาง · null = ท่าพัก (หมุดอิสระกลางโลก) ไม่มีเส้นทาง
+  // สนาม/โหมดที่เลือกดูอยู่: โลก = หันโลกเข้าหาหมุด + เส้นทางการเดินทาง · ชั้นสนาม/Colony = โลกหมุนช้าๆ เอง
   useEffect(() => {
     const s = scene.current;
     if (!s || !core) return;
     const { THREE } = core;
     s.focus = focus;
-    for (const [mode, m] of Object.entries(s.markers)) m.ring.material.opacity = mode === focus ? 0.9 : 0;
-    core.focusDir((s.markers[focus] || s.markers.ffa).dir);
+    for (const [mode, m] of Object.entries(s.markers)) m.ring.material.opacity = mode === focus && world === "earth" ? 0.9 : 0;
+    if (world === "earth") { core.setAutoSpin(0); core.focusDir((s.markers[focus] || s.markers.ffa).dir); }
+    else { core.focusDir(null); core.setAutoSpin(world === "colony" ? 0.04 : 0.07); }
     if (s.route) { s.root.remove(s.route); s.route.geometry.dispose(); s.route.material.dispose(); s.route = null; }
     s.curve = null;
     s.token.visible = false;
-    if (JOURNEY.has(focus)) {
+    if (world === "earth" && focus) {
       // ภูมิภาค I → แต่ละภูมิภาค → กลับ I (ดาวกระจาย) — เส้นเดียวต่อกัน ให้หมุดวิ่งวนไปทุกปลายทางที่สุ่มได้
       let pts = [];
       const hub = s.areaDirs[0];
@@ -205,34 +318,54 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
       s.root.add(s.route);
       s.token.visible = true;
     }
-  }, [focus, core]);
+  }, [focus, world, core]);
 
   const panelOpt = options.find((o) => o.mode === shown) || null;
   const votedCount = state.players.filter((p) => p.modeVote).length;
   const blocked = (o) => !o.enabled || o.suspended;
+  const worldVoters = (w) => state.players.filter((p) => p.modeVote && (p.modeWorld || "earth") === w);
+
+  const modeTags = () => options.map((o) => {
+    const voters = state.players.filter((p) => (o.voters || []).includes(p.id));
+    return (
+      <button
+        key={o.mode}
+        type="button"
+        ref={(el) => { tagRefs.current[o.mode] = el; }}
+        className={`oc-tag ocl-modetag back${votedHere(o.mode) ? " on" : ""}${focus === o.mode ? " focus" : ""}`}
+        data-mode={o.mode}
+        data-blocked={blocked(o) ? "true" : "false"}
+        aria-disabled={blocked(o)}
+        aria-pressed={focus === o.mode}
+        onClick={() => preview(o.mode, false)}
+      >
+        <span className="ocl-mt-frame" aria-hidden="true" />
+        <span className="ocl-mt-name">{modeTitle(o.mode)}</span>
+        {voters.length > 0 && (
+          <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>
+        )}
+      </button>
+    );
+  });
 
   return (
-    <div className="oc-layer ocl-vote">
+    <div className="ocl-vote oc-layer" data-world={world || "pick"}>
       <div className="ocl-tags">
-        {options.map((o) => {
-          const voters = state.players.filter((p) => (o.voters || []).includes(p.id));
+        {world && modeTags()}
+        {["earth", "colony"].map((w) => {
+          const voters = worldVoters(w);
           return (
             <button
-              key={o.mode}
+              key={w}
               type="button"
-              ref={(el) => { tagRefs.current[o.mode] = el; }}
-              className={`oc-tag ocl-modetag back${myVote === o.mode ? " on" : ""}${focus === o.mode ? " focus" : ""}`}
-              data-mode={o.mode}
-              data-blocked={blocked(o) ? "true" : "false"}
-              aria-disabled={blocked(o)}
-              aria-pressed={focus === o.mode}
-              onClick={() => cbRef.current.preview(o.mode, false)}
+              ref={(el) => { worldRefs.current[w] = el; }}
+              className={`oc-tag ocl-worldtag back${myWorld === w ? " on" : ""}`}
+              data-world={w}
+              onClick={() => enter(w, false)}
+              tabIndex={world ? -1 : 0}
             >
-              <span className="ocl-mt-frame" aria-hidden="true" />
-              <span className="ocl-mt-name">{modeTitle(o.mode)}</span>
-              {voters.length > 0 && (
-                <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>
-              )}
+              <span className={w === "colony" ? "oc-latin" : ""}>{WORLD_TITLES[w]}</span>
+              {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
             </button>
           );
         })}
@@ -243,8 +376,8 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
         ))}
       </div>
 
-      <header className="ocl-title oc-enter">
-        <h1 className="oc-h1">เลือกโหมด</h1>
+      <header className="ocl-title oc-enter" key={world || "pick"}>
+        <h1 className={`oc-h1${world === "colony" ? " oc-latin" : ""}`}>{world ? WORLD_TITLES[world] : "เลือกสนาม"}</h1>
         <span className="oc-label">โหวตแล้ว {votedCount} / {state.players.length}</span>
       </header>
 
@@ -256,7 +389,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
               <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
-            {JOURNEY.has(panelOpt.mode) && (
+            {world === "earth" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">เส้นทาง</div>
                 <ol className="ocl-route">
@@ -265,6 +398,19 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
                       <span className="n oc-latin">{a.numeral}</span>
                       <span>{a.short}</span>
                       <span className="tt">{turnRange(i)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ) : (
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">ปล้อง</div>
+                <ol className="ocl-route">
+                  {COLONY_SECTIONS.map((c, i) => (
+                    <li key={c.n} className={i === 0 ? "first" : ""}>
+                      <span className="n oc-latin">{c.n}</span>
+                      <span>{c.name}</span>
+                      <span className="tt">{c.tt}</span>
                     </li>
                   ))}
                 </ol>
@@ -278,7 +424,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
                   <li key={p.id}>
                     <i style={{ background: p.color }} />
                     <span className="nm">{p.name}{p.id === state.youId ? " (คุณ)" : ""}</span>
-                    <span className={p.modeVote ? "v" : "v none"}>{p.modeVote ? modeTitle(p.modeVote) : "–"}</span>
+                    <span className={p.modeVote ? "v" : "v none"}>{p.modeVote ? `${WORLD_TITLES[p.modeWorld || "earth"]} · ${modeTitle(p.modeVote)}` : "–"}</span>
                   </li>
                 ))}
               </ul>
@@ -286,16 +432,16 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus }) 
 
             <OcButton
               variant="primary"
-              disabled={!focus || blocked(panelOpt) || myVote === panelOpt.mode}
+              disabled={!focus || blocked(panelOpt) || votedHere(panelOpt.mode)}
               onClick={() => vote(panelOpt.mode)}
             >
-              {panelOpt.suspended ? "พักใช้งาน" : !panelOpt.enabled ? MODE_NEED[panelOpt.mode] : myVote === panelOpt.mode ? "โหวตแล้ว" : "โหวต"}
+              {panelOpt.suspended ? "พักใช้งาน" : !panelOpt.enabled ? MODE_NEED[panelOpt.mode] : votedHere(panelOpt.mode) ? "โหวตแล้ว" : "โหวต"}
             </OcButton>
           </OcPanel>
         )}
       </div>
 
-      <OcButton variant="ghost" className="ocl-back oc-enter d2" onClick={() => socket.emit("modeBackToLobby")}>← ย้อนกลับ</OcButton>
+      <OcButton variant="ghost" className="ocl-back oc-enter d2" onClick={back}>← ย้อนกลับ</OcButton>
     </div>
   );
 }

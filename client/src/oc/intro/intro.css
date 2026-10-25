@@ -111,3 +111,21 @@
 }
 @keyframes ocx-moon-flash { 0%, 88% { opacity: 0; } 97%, 100% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .ocx-moon-tag { animation: none; opacity: 0; } }
+
+/* ---------- พุ่งเข้าโคโลนี (MatchIntro โหมด colony · colonyFlight.js — จังหวะตาม COLONY_T) ---------- */
+.ocx.is-colony .ocx-title { opacity: 0 !important; transition: opacity 0.5s; }
+.ocx-colony-tag {
+  position: absolute; left: 0; right: 0; top: 16%; z-index: 30; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0;
+  animation: ocx-colony-tag var(--colony) ease both;
+}
+.ocx-colony-tag span { font: 500 13px/1 var(--oc-f-ui); color: var(--oc-ink-2); letter-spacing: 0.4em; }
+.ocx-colony-tag b { font: 400 clamp(30px, 4.4vw, 54px)/1 var(--oc-f-logo); color: var(--oc-ink); letter-spacing: 0.4em; text-shadow: 0 0 18px rgba(127, 184, 230, 0.8); }
+@keyframes ocx-colony-tag { 0%, 30% { opacity: 0; transform: translateY(14px); letter-spacing: 0.1em; } 42%, 62% { opacity: 1; transform: none; } 72%, 100% { opacity: 0; transform: scale(1.12); } }
+.ocx-colony-flash {
+  position: absolute; inset: 0; z-index: 41; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #eaf6ff 45%, #cfe6fa 100%);
+  animation: ocx-colony-flash var(--colony) linear both;
+}
+@keyframes ocx-colony-flash { 0%, 90% { opacity: 0; } 97%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ocx-colony-tag { animation: none; opacity: 0; } }

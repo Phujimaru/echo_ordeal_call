@@ -28,13 +28,23 @@ function useViewport() {
   return vp;
 }
 
-/** ตำแหน่ง/ขนาดลูกโลกของแต่ละหน้า (คิดจากขนาดจอให้ไม่ชนแผงข้าง) · modeFocus = หน้าเลือกโหมดกำลังเลือกดูโหมด (มีแผงขวา) */
-function globeLayout(view, w, h, modeFocus) {
+/** ตำแหน่ง/ขนาดลูกโลกของแต่ละหน้า (คิดจากขนาดจอให้ไม่ชนแผงข้าง) · modeFocus = หน้าเลือกโหมดกำลังเลือกดูโหมด (มีแผงขวา)
+ *  modeWorld = สนามที่เลือกดู (null = ชั้นสนาม โลก + โคโลนีโคจรรอบ · "colony" = โลกถอยไปมุมล่างซ้าย ให้โคโลนีเด่นกลางจอ) */
+function globeLayout(view, w, h, modeFocus, modeWorld) {
   const ppu = h / VIEW_H;
   if (view === "TEAM_SETUP") {
     // ขอบฟ้าโค้งท้ายจอ ใต้คอลัมน์ทีม
     const s = 2.2;
     return { x: 0, y: r3(-VIEW_H / 2 + 120 / ppu - s - 0.5), s }; // -0.5 = ชดเชยมุมมองกล้อง (ขอบโลกโผล่สูงกว่าที่คิด)
+  }
+  if (view === "TEAM_MODE" && modeWorld === "colony") {
+    const r = Math.max(70, Math.min(h * 0.17, w * 0.12));
+    return { x: r3((40 + r * 1.1 - w / 2) / ppu), y: r3((h / 2 - (h - r * 0.75 - 40)) / ppu), s: r3(r / ppu) };
+  }
+  if (view === "TEAM_MODE" && !modeWorld) {
+    // ชั้นสนาม: โลกกลางจอเล็กลงนิด เผื่อวงโคจรของโคโลนี
+    const r = Math.min(w * 0.22, (h - 260) * 0.42, 0.9 * ppu);
+    return { x: 0, y: -0.1, s: r3(r / ppu) };
   }
   if (view === "TEAM_MODE") {
     if (!modeFocus) {
@@ -96,9 +106,11 @@ export default function Lobby({ state, onBack, lowQ, onToggleLowQ, skillConfirmO
   const armed = view === "LOBBY" ? armedPick : null; // อีโมตมีเฉพาะห้องรอ
   // โหมดที่หน้าเลือกโหมดกำลังเลือกดู (null = ภาพรวม) — เปลี่ยนหน้าแล้วล้าง (ปรับ state ระหว่าง render ตามแนวทางของ React)
   const [modeFocusPick, setModeFocus] = useState(null);
+  const [modeWorldPick, setModeWorld] = useState(null); // สนามที่เลือกดู (null = ชั้นสนาม)
   const [seenView, setSeenView] = useState(view);
-  if (seenView !== view) { setSeenView(view); setModeFocus(null); setArmed(null); }
+  if (seenView !== view) { setSeenView(view); setModeFocus(null); setModeWorld(null); setArmed(null); }
   const modeFocus = view === "TEAM_MODE" ? modeFocusPick : null;
+  const modeWorld = view === "TEAM_MODE" ? modeWorldPick : null;
   const armedRef = useRef(null);
   useLayoutEffect(() => { armedRef.current = armed; });
   const interceptRef = useRef(null); // หน้าย่อยดักคลิกบนโลกก่อน (หมุดโหมด) — คืน true = กินคลิกนั้น
@@ -125,7 +137,7 @@ export default function Lobby({ state, onBack, lowQ, onToggleLowQ, skillConfirmO
     return () => window.removeEventListener("keydown", onKey);
   }, [armed]);
 
-  const layout = globeLayout(view, vp.w, vp.h, modeFocus);
+  const layout = globeLayout(view, vp.w, vp.h, modeFocus, modeWorld);
   const ghostRef = useRef(null);
 
   return (
@@ -134,7 +146,7 @@ export default function Lobby({ state, onBack, lowQ, onToggleLowQ, skillConfirmO
       <div ref={ghostRef} className="ocl-ghosts" aria-hidden="true" />
       {view === "TEAM_MODE" ? (
         <ViewLayer key="TEAM_MODE" ghostRef={ghostRef}>
-          <ModeVote state={state} core={core} interceptRef={interceptRef} focus={modeFocus} onFocus={setModeFocus} />
+          <ModeVote state={state} core={core} interceptRef={interceptRef} focus={modeFocus} onFocus={setModeFocus} world={modeWorld} onWorld={setModeWorld} />
         </ViewLayer>
       ) : view === "TEAM_SETUP" ? (
         <ViewLayer key="TEAM_SETUP" ghostRef={ghostRef}>

@@ -9,6 +9,7 @@ const match = {
   players: {},
   gameState: "LOBBY", // LOBBY | TEAM_MODE | TEAM_SETUP | PLAYING | CUTSCENE | ORDER | ACTION | ATTACKING | TRANSITION | GAMEOVER
   gameMode: "ffa", // ffa | duo | trio | pending
+  world: "earth",  // สนาม: earth = การเดินทาง 7 ภูมิภาคบนโลก · colony = โคโลนีอวกาศ (GRID_PLAN §8.3) — โหวตคู่กับโหมด
   teamSize: 1,
   teamCount: 0,
   winningTeamId: null,

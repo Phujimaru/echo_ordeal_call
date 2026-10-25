@@ -224,9 +224,9 @@ io.on('connection', (socket) => {
 
   // ปุ่มเล่นคนเดียว (ทดสอบ): คนเดียวในห้อง -> เข้าหน้าเลือกโหมดเหมือนเกมปกติ (หลายคนเริ่มได้ทางกดพร้อมครบเท่านั้น)
   onPlayerEvent(socket, 'startGame', (id) => lobby.startSoloTest(id), 2);
-  onPlayerEvent(socket, 'selectGameMode', (id, { mode } = {}) => {
+  onPlayerEvent(socket, 'selectGameMode', (id, { mode, world } = {}) => {
     if (match.gameState !== 'TEAM_MODE') return;
-    lobby.voteGameMode(id, mode);
+    lobby.voteGameMode(id, mode, world);
   }, 4);
   onPlayerEvent(socket, 'teamBackToMode', () => {
     if (match.gameState !== 'TEAM_SETUP') return;
