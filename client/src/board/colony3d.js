@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { getEarth } from "../globe/globeCore";
 import { towerHeight } from "./colonyProps";
+import { playSfx } from "../audio";
 
 const COLS = 16, ROWS = 40, SEC = 10;
 const Rc = COLS / (2 * Math.PI), DPHI = (2 * Math.PI) / COLS;
@@ -628,7 +629,10 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const later = (ms, fn) => setTimeout(fn, ms);
 
   // อีเวนต์จาก server (BoardStage ส่งต่อ): colonyScene · colonySeal · colonyBoom · colonyJump · colonyLift
-  const pendingHoles = new Set(); // รูที่ยังไม่ถึงจังหวะชนในฉาก = ซ่อน
+  const pendingHoles = new Set();
+  // เสียงเอฟเฟกต์ (audio.js colony_*) · gain = ความดังเทียบ · lastWarn = ไซเรนต้นเทิร์นที่เล่นไปแล้ว (null = ยังไม่เคยซิงก์ — เข้าเกมกลางคันไม่ดัง)
+  const sfx = (name, gain) => { try { playSfx(name, gain != null ? { gain } : undefined); } catch { /* เสียงไม่พร้อม */ } };
+  let lastWarn = null; // รูที่ยังไม่ถึงจังหวะชนในฉาก = ซ่อน
   function onEvent(kind, d) {
     if (!d) return;
     if (kind === "colonyScene") {
@@ -637,8 +641,10 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
           const tgt = surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0), from = surf(phiOf(e.at.x + 0.5 + COLS / 2), e.at.y - 1.5, 0);
           for (const [x, y] of e.cells || []) pendingHoles.add(`${x},${y}`);
           queueShot(tileShot(e.at.x, e.at.y), 2600, () => {
+            later(450, () => sfx("colony_meteor_fall"));
             later(550, () => streak(from, tgt, 450));
             later(1000, () => {
+              sfx("colony_meteor_hit"); sfx("colony_wind", 0.7); if ((e.sucked || []).length) sfx("colony_sucked");
               boom(tgt, 2.6); R.shake = Math.max(R.shake, 1.2); flash = Math.max(flash, 0.35);
               if (R.shot) { R.shot.fov = FOV + 14; R.shot.dist = 6.6; R.shot.k = 0.22; }
               for (const [x, y] of e.cells || []) pendingHoles.delete(`${x},${y}`);
@@ -649,8 +655,11 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
         } else if (e.type === "beam") {
           if (e.hole) pendingHoles.add(`${e.hole[0][0]},${e.hole[0][1]}`);
           queueShot({ axis: 1, z: e.y - 1.5, dist: 3, k: 0.1 }, 3000, () => {
-            later(400, () => { beamSweep(e.y, 1300); R.shake = Math.max(R.shake, 0.6); });
+            sfx("colony_beam_charge");
+            later(400, () => { beamSweep(e.y, 1300); R.shake = Math.max(R.shake, 0.6); sfx("colony_beam"); });
             later(1000, () => {
+              if (e.hole) sfx("colony_wind", 0.7);
+              if ((e.sucked || []).length) sfx("colony_sucked");
               R.shake = Math.max(R.shake, 1.4); flash = Math.max(flash, 0.5);
               if (e.hole) pendingHoles.delete(`${e.hole[0][0]},${e.hole[0][1]}`);
               for (const id of e.sucked || []) suckGhost(id, e.hole && e.hole[0]);
@@ -661,13 +670,15 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
           capsuleDrop = { x: e.at.x, y: e.at.y, t0: 0 };
           queueShot(tileShot(e.at.x, e.at.y, { pitch: 0.95, dist: 5 }), 2400, () => {
             capsuleDrop.t0 = now() + 400;
-            later(950, () => { boom(surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0), 1.4, 600); R.shake = Math.max(R.shake, 0.7); if (e.crushed && e.crushed.to) animMoves([{ id: e.crushed.id, from: { x: e.at.x, y: e.at.y }, path: [e.crushed.to] }]); });
+            later(250, () => sfx("colony_capsule_fall"));
+            later(950, () => {
+              sfx("colony_capsule_land"); boom(surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0), 1.4, 600); R.shake = Math.max(R.shake, 0.7); if (e.crushed && e.crushed.to) animMoves([{ id: e.crushed.id, from: { x: e.at.x, y: e.at.y }, path: [e.crushed.to] }]); });
           });
         } else if (e.type === "pull") {
           const c0 = e.hole && e.hole[0];
-          if (c0) queueShot(tileShot(c0[0], c0[1]), 1400, () => { R.shake = Math.max(R.shake, 0.3); for (const id of e.sucked || []) suckGhost(id, c0); animMoves(e.moves); });
+          if (c0) queueShot(tileShot(c0[0], c0[1]), 1400, () => { R.shake = Math.max(R.shake, 0.3); sfx("colony_wind", 0.8); if ((e.sucked || []).length) later(300, () => sfx("colony_sucked")); for (const id of e.sucked || []) suckGhost(id, c0); animMoves(e.moves); });
         } else if (e.type === "drift") {
-          queueShot({ axis: 0.55, dist: 6.4, k: 0.06, roll: 0.08 }, 1600, () => { R.shake = Math.max(R.shake, 0.3); animMoves((e.moves || []).map((m) => ({ id: m.id, from: m.from, path: [m.to], ms: 700 }))); if (R.shot) R.shot.phi = R.cur.phi + DPHI; });
+          queueShot({ axis: 0.55, dist: 6.4, k: 0.06, roll: 0.08 }, 1600, () => { R.shake = Math.max(R.shake, 0.3); sfx("colony_drift"); animMoves((e.moves || []).map((m) => ({ id: m.id, from: m.from, path: [m.to], ms: 700 }))); if (R.shot) R.shot.phi = R.cur.phi + DPHI; });
         }
       }
     } else if (kind === "colonySeal") {
@@ -676,7 +687,9 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       sealAnim = { z, t0: 0 };
       queueShot({ phi: R.cur.phi, z: z + 1.4, yaw: R.rotBase + R.user.yaw + Math.PI, pitch: 0.58, dist: 6.4, axis: 0, k: 0.08 }, 3200, () => {
         sealAnim.t0 = now() + 600;
-        later(2400, () => { R.shake = Math.max(R.shake, 1.5); flash = Math.max(flash, 0.4); if (R.shot) { R.shot.fov = FOV + 12; R.shot.k = 0.25; } });
+        sfx("colony_alarm_seal");
+        later(600, () => sfx("colony_door_slide"));
+        later(2400, () => { sfx("colony_door_close"); R.shake = Math.max(R.shake, 1.5); flash = Math.max(flash, 0.4); if (R.shot) { R.shot.fov = FOV + 12; R.shot.k = 0.25; } });
       });
     } else if (kind === "colonyBoom") {
       alarm = 1;
@@ -692,9 +705,11 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
         jumpCam = { t0, ms, phi0, dir, z0: from.y + 0.5, z1: to.y + 0.5 };
       }
       // ลงแล้ว: โฟกัสอยู่จุดลงทันที (BoardStage ส่ง focus ใหม่ตามมาอีกที) — กล้องไม่ย้อนกลับไปจุดกระโดด
-      later(ms, () => { R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id || !R.focusId) { R.focus = { x: to.x, y: to.y }; R.user.panX = 0; R.user.panZ = 0; } });
+      sfx("colony_jump");
+      later(ms, () => { sfx("colony_stomp"); R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id || !R.focusId) { R.focus = { x: to.x, y: to.y }; R.user.panX = 0; R.user.panZ = 0; } });
     } else if (kind === "colonyLift") {
       const from = d.from, to = d.to;
+      sfx("colony_lift");
       flyUnit(d.id, (k) => surf(phiOf(lerp(from.x, from.x + wd(from.x, to.x), k) + 0.5), lerp(from.y, to.y, k) + 0.5, 0.3 + Math.sin(k * Math.PI) * Rc * 0.7), 900);
     }
   }
@@ -706,6 +721,9 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   function boomFinale() {
     const z0 = clamp(R.cur.z, minRowNow + 1.5, ROWS - 6), t0 = now();
     finale = { t0, z0, front: null, lastScorch: 0 };
+    sfx("colony_alarm_count"); sfx("colony_boom_chain");
+    later(1300, () => { sfx("colony_boom_chain"); sfx("colony_glass"); });
+    later(3000, () => sfx("colony_boom_final"));
     R.shot = null; shots.length = 0;
     queueShot({ axis: 1, z: z0, dist: 3.4, k: 0.08, roll: 0 }, 1400, null);
     queueShot({ axis: 1, z: z0, dist: 3, k: 0.05, roll: 0.55, fov: FOV + 18 }, 2200, null);
@@ -789,6 +807,11 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     if (tSig !== terrainSig) { terrainSig = tSig; buildProps(map, night); }
     if (!walls.children.length) { buildWalls(map); buildLifts(map); }
     const c = colony || {};
+    const warnKey = c.countdown != null ? `b${c.countdown}` : c.sealIn === 1 ? `s${c.sealed | 0}` : "";
+    if (warnKey !== lastWarn) {
+      if (lastWarn !== null && warnKey) sfx(c.countdown != null ? "colony_alarm_count" : "colony_alarm_seal");
+      lastWarn = warnKey;
+    }
     sealedNow = c.sealed | 0;
     minRowNow = Math.max(0, (map.minRow | 0));
     const holes = (c.holes || []).filter((hh) => hh.cells.some(([x, y]) => !pendingHoles.has(`${x},${y}`)));
