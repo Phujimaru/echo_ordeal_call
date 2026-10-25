@@ -2,7 +2,7 @@
 //  เคนซากิ คาซุมะ (Kamen Rider Blade) — ยาก · id "kensaki_kazuma"
 //  กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.19 (2026-10-25 — "ใช้ค่าที่แนะนำทุกข้อ") · เอฟเฟกต์ client/src/board/kazumaFx.js
 //
-//  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีประชิด [1, 1]
+//  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีปกติระยะ [1, 2] (ผู้ใช้ปรับ 2026-10-25 — เดิม [1, 1])
 //  ช่างหัวมันสิ (ติดตัว · ผู้ใช้เพิ่ม 2026-10-25): ร่าง Blade ตีปกติ 1 ครั้ง แต้มสกิล +1 (afterStrike) ·
 //    ตีปกติที่ไม่มีผลการ์ดค้าง (ไม่ได้ Rouze — กองการ์ด/ท่าที่ผสมไว้แต่ยังไม่กดไม่นับ) คริ 50% (critPct) · ติดคริ = คลิป "มือเปล่าติดคริ" ก่อนฉากตีทุกครั้ง
 //  แปลงร่าง/คืนร่าง (พื้นฐาน · 0 แต้ม · 1 ครั้งต่อเทิร์น · ไม่กินโควตา · กดแล้วยังเดินได้):
@@ -19,12 +19,16 @@
 //    Lightning Blast (KICK + THUNDER) → ตีปกติครั้งถัดไปในตาเดินนี้: ระยะ 1–3 · 1 คน · ดาเมจ 2 ตายตัว + ช็อต 2
 //    Lightning Slash (SLASH + THUNDER) → ตีปกติครั้งถัดไปในตาเดินนี้: แนว 3×1 โดนทุกคน · ดาเมจ 2 ตายตัว + ช็อต 1
 //    Lightning Sonic (KICK + THUNDER + MACH) → ทันที: เลือกทิศ พุ่งไกลสุด 4 ช่อง หยุดหน้าศัตรูคนแรก · ดาเมจ 4 + ช็อต 1 ·
-//      ศัตรูกระเด็น 2 ช่อง ชนเสียเพิ่ม 1 · การ์ดที่เกินสูตรไม่เสริมท่า Lightning
+//      ศัตรูกระเด็น 2 ช่อง ชนเสียเพิ่ม 1
+//    การ์ดที่เกินสูตร (ผู้ใช้ปรับ 2026-10-25): เสริมท่า Lightning เท่าผลปกติของการ์ดใบนั้น (SLASH ดาเมจ +1 · KICK ระยะ/ระยะพุ่ง +1 ·
+//      BEAT กว้าง +2 · THUNDER ช็อต +1 · TACKLE ผลัก +1 · MAGNET ดึง · TIME −10 วิ · MACH เดิน +1 (Sonic: ระยะพุ่ง +1) · METAL กัน 1 ครั้ง)
+//      เพดานดาเมจของท่า: 2 ใบ (Blast/Slash) ไม่เกิน 4 · 3 ใบ (Sonic) ไม่เกิน 5 (ชนจากการผลักไม่นับในเพดาน)
 //    คลิปท่า Lightning เล่นตอนท่านั้นโดน (Blast/Slash = ก่อนฉากตีปกติที่ไม่หลบ · Sonic = ชนแล้วไม่หลบ → คลิปแล้วผลลง)
 //
 //  Claude ตัดสินเอง (GRID_PLAN §7.19): คืนร่างมนุษย์ = ผลการ์ดที่ Rouze ค้างไว้หาย (METAL ยังอยู่) · กองการ์ดไม่หายตอนคืนร่าง ·
 //    Sonic หลบได้ (ทอยหลบแบบสกิล) · ดาเมจสกิลบวกเปราะบาง/คุ้มครองลดได้ · คริ 50% ใช้ได้ทั้งสองร่าง ·
-//    รูปปุ่มท่าไม้ตาย = เฟรมจากคลิปของผู้ใช้
+//    รูปปุ่มท่าไม้ตาย = เฟรมจากคลิปของผู้ใช้ · คลิปแปลงร่างเต็มครั้งแรกต่อเกม (ผู้ใช้สั่ง "เล่นครั้งเดียว") ครั้งต่อไปการ์ดแจ้งเตือน ·
+//    BEAT ในท่า Lightning = ตีกรอบแทนแนว · Sonic + BEAT = ทุกศัตรูในแถวขวางกว้าง 1+2n ที่ช่องชนโดนด้วย
 // ============================================================
 const Board = require("../server/board");
 
@@ -40,9 +44,10 @@ const IMG = {
 };
 const VIDEO = {
   crit: `${DIR}/kazuma_crit.mp4`,
+  henshin: `${DIR}/kazuma_henshin.mp4`,
   combo: (k) => `${DIR}/kazuma_lightning_${k}.mp4`,
 };
-const CUT = { crit: "kazumaCrit", blast: "kazumaBlast", slash: "kazumaSlash", sonic: "kazumaSonic" };
+const CUT = { crit: "kazumaCrit", henshin: "kazumaHenshin", blast: "kazumaBlast", slash: "kazumaSlash", sonic: "kazumaSonic" };
 const PASSIVE = "ช่างหัวมันสิ";
 const CRIT_PCT = 50;
 const FX = "kazumaFx"; // socket event (client/src/board/kazumaFx.js)
@@ -51,11 +56,15 @@ const SFX = {
   open: "kazuma_open",             // เปิดแผงการ์ด (client เล่นเองตอนกดปุ่มสกิลรอง)
   pass: "kazuma_pass",
   combo: (k) => `kazuma_lightning_${k}`,
+  // เสียงเหตุการณ์บนกระดาน (สังเคราะห์ — .claude/plans/kazuma-sfx.py) · ตีปกติ kazuma_atk_* (attackSound)
+  henshin: "kazuma_henshin_fx", unhenshin: "kazuma_unhenshin", rouze: "kazuma_rouze", metal: "kazuma_metal", heal: "kazuma_heal",
+  dash: "kazuma_sonic_dash", sonicHit: "kazuma_sonic_hit", crash: "kazuma_crash", magnet: "kazuma_magnet",
 };
 
 const HP = 7;
 const ARMOR = 3;
 const MOV = 4;
+const BASE_RANGE = [1, 2];  // ตีปกติไม่ใช้การ์ด (ผู้ใช้ปรับ 2026-10-25 — เดิม [1, 1])
 const CARD_COST = 2;
 const PICKS_PER_TURN = 3;
 const MAX_TYPES = 3;
@@ -68,6 +77,7 @@ const TIME_MIN = 15;
 const BLAST = { range: [1, 3], dmg: 2, shock: 2 };
 const SLASH = { range: [1, 3], dmg: 2, shock: 1 };
 const SONIC = { len: 4, dmg: 4, shock: 1, push: 2, crash: 1 };
+const COMBO_CAP = { blast: 4, slash: 4, sonic: 5 }; // เพดานดาเมจของท่ารวมโบนัสการ์ดที่เกินสูตร (2 ใบ = 4 · 3 ใบ = 5)
 const METAL_STATUS = "kazumaMetal"; // ป้ายสถานะ (เทิร์นที่เหลือ — ลดเองตอนจบเทิร์น) · ครั้งที่เหลือ = s.metal
 // จังหวะพักให้กระดานเล่นเอฟเฟกต์ (ต้องไม่สั้นกว่า KAZUMA_FX ใน client/src/board/kazumaFx.js)
 const DASH_STEP = 0.09;
@@ -88,11 +98,11 @@ const CARD_KEYS = Object.keys(CARDS);
 const EXCLUSIVE = { tackle: "magnet", magnet: "tackle" };
 const COMBOS = {
   sonic: { name: "Lightning Sonic", cards: ["kick", "thunder", "mach"], img: IMG.ult("sonic"),
-    desc: `เลือกทิศ: พุ่งไกลสุด ${SONIC.len} ช่อง หยุดหน้าศัตรูคนแรก · ความเสียหาย ${SONIC.dmg} (ลดเกราะก่อน · หลบได้) + ช็อต ${SONIC.shock} เทิร์น · ศัตรูกระเด็น ${SONIC.push} ช่อง ชนเสียหายเพิ่ม ${SONIC.crash}` },
+    desc: `เลือกทิศ: พุ่งไกลสุด ${SONIC.len} ช่อง หยุดหน้าศัตรูคนแรก · ความเสียหาย ${SONIC.dmg} (ลดเกราะก่อน · หลบได้) + ช็อต ${SONIC.shock} เทิร์น · ศัตรูกระเด็น ${SONIC.push} ช่อง ชนเสียหายเพิ่ม ${SONIC.crash} · การ์ดที่เกินสูตรเสริมท่า (ดาเมจไม่เกิน ${COMBO_CAP.sonic})` },
   blast: { name: "Lightning Blast", cards: ["kick", "thunder"], img: IMG.ult("blast"),
-    desc: `ตีปกติครั้งถัดไปในตาเดินนี้: ระยะ ${BLAST.range[0]}–${BLAST.range[1]} · ความเสียหาย ${BLAST.dmg} ตายตัว + ช็อต ${BLAST.shock} เทิร์น` },
+    desc: `ตีปกติครั้งถัดไปในตาเดินนี้: ระยะ ${BLAST.range[0]}–${BLAST.range[1]} · ความเสียหาย ${BLAST.dmg} ตายตัว + ช็อต ${BLAST.shock} เทิร์น · การ์ดที่เกินสูตรเสริมท่า (ดาเมจไม่เกิน ${COMBO_CAP.blast})` },
   slash: { name: "Lightning Slash", cards: ["slash", "thunder"], img: IMG.ult("slash"),
-    desc: `ตีปกติครั้งถัดไปในตาเดินนี้: แนว ${SLASH.range[1]}×1 โดนทุกคนในแนว · ความเสียหาย ${SLASH.dmg} ตายตัว + ช็อต ${SLASH.shock} เทิร์น` },
+    desc: `ตีปกติครั้งถัดไปในตาเดินนี้: แนว ${SLASH.range[1]}×1 โดนทุกคนในแนว · ความเสียหาย ${SLASH.dmg} ตายตัว + ช็อต ${SLASH.shock} เทิร์น · การ์ดที่เกินสูตรเสริมท่า (ดาเมจไม่เกิน ${COMBO_CAP.slash})` },
 };
 const COMBO_KEYS = Object.keys(COMBOS);
 const LINE = Board.LINE_DIRS;
@@ -123,7 +133,8 @@ function armedOf(p) {
   const a = st(p).armed;
   return a && a.round === eng().roundNumber ? a : null;
 }
-const armedCards = (p) => { const a = armedOf(p); return a && a.kind === "cards" ? a.cards : null; };
+// การ์ดที่เสริมการตี: ไม่ครบสูตร = ทั้งกอง · ท่า Lightning = ใบที่เกินสูตร
+const armedCards = (p) => { const a = armedOf(p); return a ? a.cards || {} : null; };
 const cardN = (p, k) => { const c = armedCards(p); return (c && c[k]) || 0; };
 const comboArmed = (p) => { const a = armedOf(p); return a && a.kind !== "cards" ? a.kind : null; };
 
@@ -161,6 +172,9 @@ function setForm(engine, p, blade, why) {
   if (blade) s.formAt = engine.severStamp();
   else if (s.armed) { s.armed = null; engine.log(`🃏 ผลการ์ดที่ Rouze ไว้ของ ${p.name} หายไป`); }
   if (p.alive && p.pos) fx(engine, p, blade ? "henshin" : "unhenshin", { why });
+  if (p.alive) engine.sfx(blade ? SFX.henshin : SFX.unhenshin);
+  // คลิปแปลงร่าง: เต็มครั้งแรกต่อเกม · ครั้งต่อไปการ์ดแจ้งเตือน (triggerCutscene)
+  if (blade && why === "skill" && p.alive) engine.triggerCutscene(p, CUT.henshin);
   engine.log(blade ? `🪲 ${p.name} Turn Up — แปลงร่างเป็น Kamen Rider Blade` : `🔙 ${p.name} ${why === "sever" ? "ถูกตัดร่าง — " : ""}คืนร่างมนุษย์`);
 }
 
@@ -211,28 +225,32 @@ function rouze(engine, p, targets, opts) {
   const combo = s.combo;
   const cards = Object.fromEntries(s.hand.map((c) => [c.k, c.n]));
   clearHand(s);
+  // ท่า Lightning: การ์ดที่เกินสูตร (หักสูตรออกชนิดละ 1 ใบ) เสริมท่าเท่าผลปกติ
+  const extra = { ...cards };
+  if (combo) for (const k of COMBOS[combo].cards) { extra[k] -= 1; if (extra[k] <= 0) delete extra[k]; }
+  // METAL ลงทันที (อยู่จนจบเทิร์น) · ที่เหลือรอตีปกติ / เสริมท่า
+  if (extra.metal) {
+    s.metal = extra.metal;
+    s.metalAt = engine.severStamp();
+    p.statuses[METAL_STATUS] = 1;
+    engine.log(`🛡️ ${p.name} METAL — กันการโจมตีได้ ${extra.metal} ครั้งจนจบเทิร์น`);
+  }
+  const rest = { ...extra };
+  delete rest.metal;
   if (combo === "sonic") {
     s.armed = null;
-    sonic(engine, p, opts.dir, targets);
+    sonic(engine, p, opts.dir, targets, rest);
     return ` — ${COMBOS.sonic.name}`;
   }
   if (combo) {
-    s.armed = { kind: combo, round: r, at: engine.severStamp() };
-    fx(engine, p, "rouze", { combo });
-    engine.log(`⚡ ${p.name} ${COMBOS[combo].name} — ตีปกติครั้งถัดไปเป็นท่านี้`);
+    s.armed = { kind: combo, cards: rest, round: r, at: engine.severStamp() };
+    fx(engine, p, "rouze", { combo, cards: rest });
+    engine.log(`⚡ ${p.name} ${COMBOS[combo].name} — ตีปกติครั้งถัดไปเป็นท่านี้${Object.keys(rest).length ? ` (เสริม ${Object.entries(rest).map(([k, n]) => `${CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ")})` : ""}`);
     return ` — ${COMBOS[combo].name}`;
   }
-  // METAL ลงทันที (อยู่จนจบเทิร์น) · ที่เหลือรอตีปกติ
-  if (cards.metal) {
-    s.metal = cards.metal;
-    s.metalAt = engine.severStamp();
-    p.statuses[METAL_STATUS] = 1;
-    engine.log(`🛡️ ${p.name} METAL — กันการโจมตีได้ ${cards.metal} ครั้งจนจบเทิร์น`);
-  }
-  const rest = { ...cards };
-  delete rest.metal;
   s.armed = Object.keys(rest).length ? { kind: "cards", cards: rest, round: r, at: engine.severStamp() } : null;
   fx(engine, p, "rouze", { cards });
+  engine.sfx(SFX.rouze);
   const names = Object.entries(cards).map(([k, n]) => `${CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ");
   engine.log(`🃏 ${p.name} Rouze — ${names}`);
   return "";
@@ -240,8 +258,8 @@ function rouze(engine, p, targets, opts) {
 
 // ---------- Lightning Sonic ----------
 //  ไล่ช่องตามแนว: สิ่งกีดขวาง/ร้านค้า/เพื่อน = หยุดก่อนถึง · ศัตรู = ชน (หลบพ้น = หยุดหน้าเป้า ไม่โดน)
-function planSonic(engine, p, dir) {
-  const tiles = engine.chargeTiles(p, dir, SONIC.len);
+function planSonic(engine, p, dir, len = SONIC.len) {
+  const tiles = engine.chargeTiles(p, dir, len);
   const passed = [];
   let hit = null, stopAt = null;
   for (const t of tiles) {
@@ -255,15 +273,20 @@ function planSonic(engine, p, dir) {
   }
   return { passed, hit, stopAt };
 }
-function sonic(engine, p, dir, targets) {
+// ex = การ์ดที่เกินสูตร: KICK/MACH ระยะพุ่ง +1 · THUNDER ช็อต +1 · SLASH ดาเมจ +1 (ไม่เกิน 5) · BEAT แถวขวางกว้าง 1+2n ที่ช่องชน ·
+//  TACKLE กระเด็น +1 · TIME −10 วิ
+function sonic(engine, p, dir, targets, ex = {}) {
   if (!p.alive || !p.pos || !LINE[dir]) return;
   const start = { ...p.pos };
-  const { passed, hit, stopAt } = planSonic(engine, p, dir);
+  const len = SONIC.len + (ex.kick || 0) + (ex.mach || 0);
+  const dmg = Math.min(COMBO_CAP.sonic, SONIC.dmg + (ex.slash || 0));
+  const { passed, hit, stopAt } = planSonic(engine, p, dir, len);
   const path = [start, ...passed.map((t) => ({ x: t.x, y: t.y }))];
   const land = path[path.length - 1];
   p.pos = { x: land.x, y: land.y };
-  engine.setDash({ id: p.id, path, dir: { x: LINE[dir][0], y: LINE[dir][1] } });
+  engine.setDash({ id: p.id, path, dir: { x: LINE[dir][0], y: LINE[dir][1] }, style: "kazumaSonic" });
   fx(engine, p, "sonicDash", { from: start, path, dir });
+  engine.sfx(SFX.dash);
   engine.skillBeat(Math.max(0, path.length - 1) * DASH_STEP + BEAT.dashPad, () => {
     if (!p.alive) return;
     const crossed = stopAt ? [...passed, stopAt] : passed;
@@ -278,17 +301,40 @@ function sonic(engine, p, dir, targets) {
     engine.queueCutscene(p, CUT.sonic);
     engine.deferAfterCutscene(() => {
       if (!p.alive || !hit.alive || !hit.pos) return;
-      const dealt = hurt(engine, p, hit, SONIC.dmg, COMBOS.sonic.name);
-      const sh = hit.alive ? shock(engine, hit, SONIC.shock) : null;
-      if (sh) engine.log(`⚡ ${hit.name} ${sh}`);
-      fx(engine, p, "sonicHit", { targetId: hit.id, to: hit.pos ? { ...hit.pos } : { x: stopAt.x, y: stopAt.y }, dmg: dealt });
+      const at = { ...hit.pos };
+      // BEAT: ศัตรูในแถวขวางกว้าง 1+2n ที่ช่องชนโดนด้วย (ไม่ทอยหลบ — ไปกับแรงกระแทก)
+      const side = beatRow(engine, p, hit, dir, ex.beat || 0);
+      const dealt = hurt(engine, p, hit, dmg, COMBOS.sonic.name);
+      engine.sfx(SFX.sonicHit);
+      for (const t of [hit, ...side]) {
+        if (t !== hit) hurt(engine, p, t, dmg, `${COMBOS.sonic.name} (BEAT)`);
+        if (!t.alive) continue;
+        const sh = shock(engine, t, SONIC.shock + (ex.thunder || 0));
+        if (sh) engine.log(`⚡ ${t.name} ${sh}`);
+        if (ex.time) cutTime(engine, t, ex.time);
+      }
+      fx(engine, p, "sonicHit", { targetId: hit.id, to: hit.pos ? { ...hit.pos } : at, dmg: dealt, side: side.map((t) => t.id) });
       engine.skillBeat(BEAT.sonicHit, () => {
         if (!hit.alive || !hit.pos) return;
-        const hold = pushTarget(engine, p, hit, { x: LINE[dir][0], y: LINE[dir][1] }, SONIC.push, SONIC.crash, COMBOS.sonic.name);
+        const hold = pushTarget(engine, p, hit, { x: LINE[dir][0], y: LINE[dir][1] }, SONIC.push + (ex.tackle || 0), SONIC.crash, COMBOS.sonic.name);
         if (hold > 0) engine.skillBeat(hold, () => {});
       });
     });
   });
+}
+
+// ศัตรูอื่นในแถวขวางทิศพุ่ง กว้าง 1+2n รอบเป้าที่ชน
+function beatRow(engine, p, hit, dir, n) {
+  if (!(n > 0) || !hit.pos || !LINE[dir]) return [];
+  const [dx, dy] = LINE[dir];
+  const keys = new Set();
+  for (let i = -n; i <= n; i++) if (i) keys.add(`${hit.pos.x + (dy ? i : 0)},${hit.pos.y + (dx ? i : 0)}`);
+  return Object.values(engine.players).filter((o) => o && o.alive && o.pos && o.id !== p.id && o.id !== hit.id && !engine.sameTeam(p, o)
+    && Board.footprint(o.pos.x, o.pos.y, engine.sizeOf(o)).some((c) => keys.has(`${c.x},${c.y}`)));
+}
+// TIME: ตาเดินถัดไปของเป้า −10 วิ ต่อใบ
+function cutTime(engine, t, n) {
+  t.kazumaTimeCut = (t.kazumaTimeCut || 0) + TIME_CUT * n;
 }
 
 // ---------- ผลัก / ดึง ----------
@@ -312,6 +358,7 @@ function pushTarget(engine, p, t, dir, n, crash, reason) {
     engine.withEffectSource(p, () => { engine.dealMixed(t, crash); engine.resolveDamageAftermath(t); });
     const dealt = Math.max(0, before - vit(t));
     if (at) ctx.events.push({ kind: "crash", id: t.id, x: at.x, y: at.y, dmg: dealt, kill: !t.alive });
+    engine.sfx(SFX.crash);
     engine.log(`💢 ${t.name} ถูก ${reason} กระแทกชน -${dealt} (ลดเกราะก่อน)`);
     if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
   }
@@ -332,6 +379,7 @@ function pullTarget(engine, p, t) {
   const from = { ...t.pos };
   engine.ice.revealPushed(t);
   t.pos = { x: to.x, y: to.y };
+  engine.sfx(SFX.magnet);
   engine.log(`🧲 ${p.name} MAGNET — ดึง ${t.name} เข้าประชิด`);
   // ดึงลงน้ำแข็ง = ไถลต่อตามทิศที่ถูกดึง (แบบปืนดึงของโซระ)
   engine.ice.forcedSlides([{ id: t.id, from, to: { ...t.pos }, dir: { x: Math.sign(to.x - from.x), y: Math.sign(to.y - from.y) } }], p);
@@ -358,7 +406,7 @@ function rouzeDesc(s) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, FX, SFX, CARDS, CARD_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, PICKS_PER_TURN, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
+  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, BASE_RANGE, COMBO_CAP, FX, SFX, CARDS, CARD_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, PICKS_PER_TURN, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
   HUMAN_TURNS, HUMAN_HEAL, TIME_CUT, TIME_MIN, BLAST, SLASH, SONIC, METAL_STATUS,
   isKazuma, bladeOn, planSonic,
 
@@ -374,32 +422,43 @@ module.exports = {
 
   // ---------- เดิน / ตีปกติ (ผลจาก Rouze) ----------
   mov(p) { return isKazuma(p) ? MOV + cardN(p, "mach") : null; },
+  // ระยะตี: ไม่ใช้การ์ด [1, 2] · KICK +1 ต่อใบ · ท่า Lightning Blast/Slash [1, 3] + KICK ที่เกินสูตร
   range(p) {
-    const c = comboArmed(p);
-    if (c === "blast") return BLAST.range;
-    if (c === "slash") return SLASH.range;
-    const k = cardN(p, "kick");
-    return k ? [1, 1 + k] : null;
+    if (!isKazuma(p)) return null;
+    const c = comboArmed(p), k = cardN(p, "kick");
+    const base = c === "blast" ? BLAST.range : c === "slash" ? SLASH.range : BASE_RANGE;
+    return [base[0], base[1] + k];
   },
-  attackLane(p) { return comboArmed(p) === "slash"; },
+  attackLane(p) { return comboArmed(p) === "slash" && !cardN(p, "beat"); },
+  // BEAT: ตีกรอบ ลึกเท่าปลายระยะ กว้าง 1+2n (ท่า Lightning Slash + BEAT = กรอบแทนแนว)
   strikeRect(p) {
     const b = cardN(p, "beat");
-    return b ? [1 + cardN(p, "kick"), 1 + 2 * b] : null;
+    if (!b) return null;
+    const r = module.exports.range(p);
+    return [r[1], 1 + 2 * b];
   },
-  damageBonus(engine, attacker) { return cardN(attacker, "slash"); },
+  damageBonus(engine, attacker) { return comboArmed(attacker) ? 0 : cardN(attacker, "slash"); },
+  // ท่า Lightning: ดาเมจตายตัว + SLASH ที่เกินสูตร (เพดาน 4 / 5)
   fixedStrikeDamage(engine, attacker) {
     const c = comboArmed(attacker);
-    return c === "blast" ? BLAST.dmg : c === "slash" ? SLASH.dmg : null;
+    if (c !== "blast" && c !== "slash") return null;
+    return Math.min(COMBO_CAP[c], (c === "blast" ? BLAST.dmg : SLASH.dmg) + cardN(attacker, "slash"));
   },
   attackFxNames(attacker) {
     const c = comboArmed(attacker);
-    if (c) return [COMBOS[c].name];
     const n = cardN(attacker, "slash");
+    if (c) return [COMBOS[c].name];
     return n ? [`SLASH +${n}`] : [];
   },
   attackStyle(p) {
+    if (!isKazuma(p)) return null;
     const c = comboArmed(p);
-    return c === "blast" ? "kazumaBlast" : c === "slash" ? "kazumaSlash" : null;
+    return c === "blast" ? "kazumaBlast" : c === "slash" ? "kazumaSlash" : bladeOn(p) ? "kazumaBlade" : "kazumaPunch";
+  },
+  attackSound(p) {
+    if (!isKazuma(p)) return undefined;
+    const c = comboArmed(p);
+    return c ? `kazuma_atk_${c}` : bladeOn(p) ? "kazuma_atk_blade" : "kazuma_atk_punch";
   },
   // ช่างหัวมันสิ: ตีปกติที่ไม่มีผลการ์ดค้าง คริ 50% (ทั้งสองร่าง)
   critPct(p) { return isKazuma(p) && !armedOf(p) ? CRIT_PCT : 0; },
@@ -415,11 +474,11 @@ module.exports = {
     if (!armedOf(attacker) || !target || !target.alive || engine.sameTeam(attacker, target)) return [];
     const out = [];
     const c = comboArmed(attacker);
-    const th = c === "blast" ? BLAST.shock : c === "slash" ? SLASH.shock : cardN(attacker, "thunder");
+    const th = (c === "blast" ? BLAST.shock : c === "slash" ? SLASH.shock : 0) + cardN(attacker, "thunder");
     if (th > 0) { const sh = shock(engine, target, th); if (sh) out.push(sh); }
     const tm = cardN(attacker, "time");
     if (tm > 0) {
-      target.kazumaTimeCut = (target.kazumaTimeCut || 0) + TIME_CUT * tm;
+      cutTime(engine, target, tm);
       out.push(`TIME −${TIME_CUT * tm} วิ`);
     }
     return out;
@@ -461,6 +520,7 @@ module.exports = {
     s.metal -= 1;
     if (s.metal <= 0) delete p.statuses[METAL_STATUS];
     fx(engine, p, "metal", {});
+    engine.sfx(SFX.metal);
     engine.log(`🛡️ ${p.name} METAL — กันการโจมตีของ ${attacker.name}`);
   },
   blocksAttack(engine, p, attacker) {
@@ -556,6 +616,7 @@ module.exports = {
       s.humanTurns = 0;
       const got = engine.healHp(p, HUMAN_HEAL);
       if (p.pos) fx(engine, p, "heal", { amount: got });
+      engine.sfx(SFX.heal);
       engine.log(`💚 ${p.name} ร่างมนุษย์ครบ ${HUMAN_TURNS} เทิร์น — ฟื้นพลังชีวิต ${got}`);
     }
   },

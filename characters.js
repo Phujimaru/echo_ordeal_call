@@ -980,10 +980,10 @@ const CHARACTERS = [
     difficulty: "hard",
     img: "/characters/kensaki_kazuma/kazuma.webp",
     mov: 4,
-    range: [1, 1],
+    range: [1, 2], // ตีปกติไม่ใช้การ์ด (ผู้ใช้ปรับ 2026-10-25)
     passive: {
       name: "ช่างหัวมันสิ",
-      desc: "ร่าง Blade ตีปกติ แต้มสกิล +1 · ตีปกติที่ไม่มีผลการ์ดจาก Rouze ค้างอยู่ อัตราคริติคอล 50%",
+      desc: "ตีปกติระยะ 1–2 · ร่าง Blade ตีปกติ แต้มสกิล +1 · ตีปกติที่ไม่มีผลการ์ดจาก Rouze ค้างอยู่ อัตราคริติคอล 50%",
     },
     basic: {
       name: "แปลงร่าง",
@@ -1005,7 +1005,7 @@ const CHARACTERS = [
     },
     ultimate: {
       name: "Rouze",
-      desc: "ใช้การ์ดทั้งกอง: ครบสูตร = Lightning Blast (KICK + THUNDER) · Lightning Slash (SLASH + THUNDER) · Lightning Sonic (KICK + THUNDER + MACH) · ไม่ครบสูตร = การ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ (ใช้แล้วยังเดินได้)",
+      desc: "ใช้การ์ดทั้งกอง: ครบสูตร = Lightning Blast (KICK + THUNDER) · Lightning Slash (SLASH + THUNDER) · Lightning Sonic (KICK + THUNDER + MACH) · การ์ดที่เกินสูตรเสริมท่าเท่าผลปกติ (ดาเมจท่า 2 ใบไม่เกิน 4 · ท่า 3 ใบไม่เกิน 5) · ไม่ครบสูตร = การ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ (ใช้แล้วยังเดินได้)",
       area: { kind: "self" }, // Lightning Sonic = แนว 4×1 (skillArea)
       cost: 0,
       img: "/characters/kensaki_kazuma/kazuma_belt_on.webp",

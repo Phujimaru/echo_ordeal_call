@@ -118,7 +118,7 @@ test('ข้อมูล: ยาก · 7/3 · ราคา 0/2/0 · เดิน
   const P = setup([['K', 'kensaki_kazuma', 0]]);
   assert.equal(P.K.hp, 7);
   assert.equal(action.baseMovOf(P.K), 4);
-  assert.deepEqual(action.rangeOf(P.K), [1, 1]);
+  assert.deepEqual(action.rangeOf(P.K), [1, 2], 'ตีปกติระยะ 1–2');
   assert.equal(P.K.kazuma.blade, false);
   assert.equal(kz.displayImg(P.K), null);
 });
@@ -213,7 +213,8 @@ test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้
   const choices = kz.skillPub(P.K, 'secondary').choices;
   assert.equal(choices.length, 9);
   for (const c of choices) { assert.ok(c.desc && c.desc.length > 5); assert.equal(c.locked, true); }
-  assert.deepEqual(calls.sfx, ['kazuma_card_slash', 'kazuma_card_slash', 'kazuma_card_kick'], 'เสียงการ์ดต่อใบ');
+  assert.deepEqual(calls.sfx.filter((k) => k.startsWith('kazuma_card_')), ['kazuma_card_slash', 'kazuma_card_slash', 'kazuma_card_kick'], 'เสียงการ์ดต่อใบ');
+  assert.ok(calls.sfx.includes('kazuma_henshin_fx'), 'เสียงแปลงร่าง');
   // กองค้างข้ามเทิร์น
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.setActor('K');
@@ -269,15 +270,15 @@ test('Rouze: กินโควตา · กองว่าง/ร่างม�
   assert.deepEqual(P.K.kazuma.armed.cards, { slash: 1 });
 });
 
-test('การ์ดเดี่ยว: SLASH ×2 + KICK = พลังโจมตี +2 ระยะ 1–2 · ตีแล้วหาย · ไม่ตี = หายตอนจบตา', () => {
+test('การ์ดเดี่ยว: SLASH ×2 + KICK = พลังโจมตี +2 ระยะ 1–3 · ตีแล้วหาย · ไม่ตี = หายตอนจบตา', () => {
   const P = setup([['K', 'kensaki_kazuma', 0], ['A', 'dummy', 2]]);
   bladeWith(P, ['slash', 'slash', 'kick']);
   rouze();
-  assert.deepEqual(action.rangeOf(P.K), [1, 2]);
+  assert.deepEqual(action.rangeOf(P.K), [1, 3]);
   drain(() => engine.attackTarget('K', 'A'));
   assert.equal(P.A.armor, 0, '1 + 2 = 3');
   assert.equal(P.K.kazuma.armed, null);
-  assert.deepEqual(action.rangeOf(P.K), [1, 1]);
+  assert.deepEqual(action.rangeOf(P.K), [1, 2]);
   const P2 = setup([['K', 'kensaki_kazuma', 0]]);
   bladeWith(P2, ['mach']);
   rouze();
@@ -355,15 +356,35 @@ test('METAL: กันการโจมตีทั้งก้อน 1 คร�
   assert.ok(!P2.K.statuses[kz.METAL_STATUS]);
 });
 
-test('Lightning Blast: ระยะ 1–3 · ดาเมจ 2 ตายตัว (ไม่รับ SLASH) · ช็อต 2', () => {
-  const P = setup([['K', 'kensaki_kazuma', 0], ['A', 'dummy', 3]]);
-  bladeWith(P, ['kick', 'kick', 'thunder']);
+test('Lightning Blast: ระยะ 1–3 · ดาเมจ 2 ตายตัว + ช็อต 2 · KICK เกินสูตร ระยะ +1 · THUNDER เกินสูตร ช็อต +1', () => {
+  const P = setup([['K', 'kensaki_kazuma', 0], ['A', 'dummy', 4]]);
+  bladeWith(P, ['kick', 'kick', 'thunder', 'thunder']);
   rouze();
-  assert.deepEqual(action.rangeOf(P.K), [1, 3]);
+  assert.deepEqual(action.rangeOf(P.K), [1, 4]);
   drain(() => engine.attackTarget('K', 'A'));
-  assert.equal(P.A.armor, 1);
-  assert.equal(P.A.statuses.shock, 2);
-  assert.ok(calls.sfx.length >= 0);
+  assert.equal(P.A.armor, 1, 'ดาเมจ 2');
+  assert.equal(P.A.statuses.shock, 3);
+  assert.equal(match.lastAttack.style || 'kazumaBlast', 'kazumaBlast');
+});
+
+test('การ์ดเกินสูตร: SLASH ×3 + THUNDER = Lightning Slash ดาเมจ 4 (เพดาน) · ×4 ก็ยัง 4 · Sonic + KICK/MACH เกิน = ระยะพุ่ง +2 · ดาเมจไม่เกิน 5', () => {
+  const P = setup([['K', 'kensaki_kazuma', 0], ['A', 'dummy', 1]]);
+  bladeWith(P, ['slash', 'slash', 'slash', 'thunder']);
+  assert.equal(P.K.kazuma.combo, 'slash');
+  rouze();
+  assert.equal(kz.fixedStrikeDamage(engine, P.K), 4);
+  P.K.kazuma.armed.cards.slash = 5;
+  assert.equal(kz.fixedStrikeDamage(engine, P.K), 4, 'เพดาน 4');
+  P.K.kazuma.armed.cards.slash = 2;
+  drain(() => engine.attackTarget('K', 'A'));
+  assert.equal(P.A.armor + P.A.hp, 10 - 4);
+  const P2 = setup([['K', 'kensaki_kazuma', 0]]);
+  bladeWith(P2, ['kick', 'thunder', 'mach', 'kick', 'mach']);
+  assert.equal(P2.K.kazuma.combo, 'sonic');
+  const k2 = P2.K.pos.x;
+  drain(() => rouze({ dir: 'right' }));
+  assert.equal(P2.K.pos.x, k2 + 6, 'พุ่ง 4 + 2');
+  assert.equal(kz.COMBO_CAP.sonic, 5);
 });
 
 test('Lightning Slash: แนว 3×1 โดนทุกคนในแนว · ดาเมจ 2 · ช็อต 1', () => {
