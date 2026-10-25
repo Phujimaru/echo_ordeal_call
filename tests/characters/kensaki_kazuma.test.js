@@ -79,11 +79,12 @@ const noRoll = () => { Math.random = () => 0.99; }; // ไม่คริ ไม
 const henshin = () => engine.useSkill('K', 'basic', []);
 const card = (form) => engine.useSkill('K', 'secondary', [], { form });
 const rouze = (opts = {}) => engine.useSkill('K', 'ultimate', [], opts);
-// ร่าง Blade + การ์ดตามรายการ (แต้มเติมให้พอ)
+// ร่าง Blade + การ์ดตามรายการ (แต้มเติมให้พอ · ข้ามโควตาเลือกการ์ดต่อเทิร์นด้วยการเลื่อนเทิร์น)
 function bladeWith(P, keys) {
   engine.setActor('K');
   henshin();
   for (const k of keys) {
+    if (P.K.kazuma.pickRound === engine.roundNumber && P.K.kazuma.picks >= 3) P.K.kazuma.picks = 0;
     P.K.skillPoints = 8;
     card(k);
   }
@@ -191,7 +192,7 @@ test('ร่างมนุษย์: จบเทิร์นครบ 3 เท
   assert.equal(P.K.hp, 5, 'นับใหม่หลังคืนร่าง ยังไม่ครบ 3');
 });
 
-test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้ม · ไม่กินโควตา · ยังเดินได้ · กองรวมไม่เกิน 3 ใบ (ข้ามเทิร์นด้วย) · ทุกตัวเลือกมีคำอธิบาย', () => {
+test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้ม · ไม่กินโควตา · ยังเดินได้ · 3 ใบต่อเทิร์น · ทุกตัวเลือกมีคำอธิบาย', () => {
   const P = setup([['K', 'kensaki_kazuma', 0]]);
   engine.setActor('K');
   card('slash');
@@ -206,32 +207,25 @@ test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้
   assert.deepEqual(P.K.kazuma.hand, [{ k: 'slash', n: 2 }, { k: 'kick', n: 1 }]);
   P.K.skillPoints = 8;
   card('kick');
-  assert.equal(P.K.skillPoints, 8, 'ใบที่ 4 ไม่ได้');
+  assert.equal(P.K.skillPoints, 8, 'ใบที่ 4 ในเทิร์นเดียวกันไม่ได้');
   const choices = kz.skillPub(P.K, 'secondary').choices;
   assert.equal(choices.length, 9);
   for (const c of choices) { assert.ok(c.desc && c.desc.length > 5); assert.equal(c.locked, true); }
   assert.deepEqual(calls.sfx, ['kazuma_card_slash', 'kazuma_card_slash', 'kazuma_card_kick'], 'เสียงการ์ดต่อใบ');
-  // กองค้างข้ามเทิร์น แต่ยังเต็มที่ 3 ใบ — เทิร์นใหม่ใส่เพิ่มไม่ได้จนกว่าจะ Rouze
+  // กองค้างข้ามเทิร์น
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.setActor('K');
   card('kick');
-  assert.deepEqual(P.K.kazuma.hand, [{ k: 'slash', n: 2 }, { k: 'kick', n: 1 }]);
-  assert.equal(P.K.skillPoints, 8);
-  assert.equal(kz.kazumaState(engine, P.K).picksLeft, 0);
-  assert.equal(kz.skillLocks(engine, P.K).secondary.locked, true);
-  rouze();
-  engine.setRoundNumber(engine.roundNumber + 1);
-  engine.setActor('K');
-  card('kick');
-  assert.deepEqual(P.K.kazuma.hand, [{ k: 'kick', n: 1 }], 'Rouze แล้วกองว่าง ใส่ใหม่ได้');
+  assert.deepEqual(P.K.kazuma.hand, [{ k: 'slash', n: 2 }, { k: 'kick', n: 2 }]);
   assert.equal(calls.sfx[calls.sfx.length - 1], 'kazuma_card_kick');
 });
 
 test('Blay Rouzer: กองไม่เกิน 3 ชนิด · TACKLE กับ MAGNET อยู่ด้วยกันไม่ได้ · แต้มไม่พอกดไม่ได้', () => {
   const P = setup([['K', 'kensaki_kazuma', 0]]);
   bladeWith(P, ['slash', 'beat', 'tackle']);
+  P.K.kazuma.picks = 0;
   card('time');
-  assert.equal(P.K.kazuma.hand.length, 3, 'ใบที่ 4 / ชนิดที่ 4 ไม่ได้');
+  assert.equal(P.K.kazuma.hand.length, 3, 'ชนิดที่ 4 ไม่ได้');
   assert.equal(P.K.skillPoints, 8);
   const P2 = setup([['K', 'kensaki_kazuma', 0]]);
   bladeWith(P2, ['tackle']);
