@@ -1565,6 +1565,9 @@ function quakeFx(g, e, now, lowQ) {
 export const SORA_T = { wheel: 1400, step: 90, lead: 250, slash2: 750, boom: 1200 };
 const SKY = "80,185,255", SKY_HI = "185,235,255", DEEP = "28,72,235", ICE = "225,246,255", STEEL = "196,212,232";
 const SORA_PAL = { SKY, SKY_HI, DEEP, ICE };
+// ร่าง Fire Frame (fx.fire): ส้มไฟ / เหลืองร้อน / แดงลึก / แกนขาวอมเหลือง — ใช้แทนสีฟ้าในวงล้อ เงาพุ่ง และระเบิด
+const FIRE_PAL = { SKY: "255,120,40", SKY_HI: "255,214,110", DEEP: "220,30,20", ICE: "255,240,200" };
+const soraPal = (e) => (e.fire ? FIRE_PAL : SORA_PAL);
 const h01 = (n) => { const s = Math.sin(n * 91.7 + 47.3) * 43758.5453; return s - Math.floor(s); };
 
 //  fx { kind: "mythSlash", x, y (มุมบนซ้ายเป้า), size } — ฟันมีด 2 ครั้ง: ครั้งแรกที่ t0 (จังหวะปะทะ) · ครั้งที่สอง t0 + SORA_T.slash2 ไขว้กันเป็นรูป X
@@ -1651,6 +1654,7 @@ function wheelAt(e, t, still) {
 function wheelFx(g, e, now, lowQ, front) {
   const T = e.dur || SORA_T.wheel, W = Math.min(T, e.spin || T), t = now - e.t0;
   if (t < 0 || t > T) return;
+  const { SKY, SKY_HI, DEEP, ICE } = soraPal(e);
   const n = Math.max(1, e.size | 0), still = lowQ || REDUCED, k = Math.min(1, t / W);
   const dl = Math.hypot(e.dir && e.dir.x, e.dir && e.dir.y) || 0;
   const dx = dl ? e.dir.x / dl : 1, dy = dl ? e.dir.y / dl : 0, ax = -dy, ay = dx;
@@ -1723,11 +1727,42 @@ function wheelFx(g, e, now, lowQ, front) {
         g.beginPath(); g.arc(p[0], p[1], Math.max(0.8, p[2] * 0.03 * (1 - ph)), 0, 7); g.fill();
       }
     }
+    if (e.fire) wheelFlames(g, cx, cy, R, hw, dx, dy, ax, ay, zc, n, now, k, A, still, lowQ);
     // แสงวาบตอนพุ่งออก
     const fl = Math.max(0, (t - (T - 260)) / 260);
     if (fl > 0) { g.globalCompositeOperation = "lighter"; glow(g, C0[0], C0[1], Math.max(1, ref * R * (0.8 + fl)), ICE, 0.75 * Math.sin(fl * Math.PI)); }
   }
   g.restore();
+}
+
+// Fire Frame: เปลวไฟเลียขึ้นรอบขอบล้อ (หนาขึ้นตามความเร็ว) + แสงแดงเรืองครอบ · ลดการเคลื่อนไหว = เปลวนิ่ง
+function wheelFlames(g, cx, cy, R, hw, dx, dy, ax, ay, zc, n, now, k, A, still, lowQ) {
+  const C = P(cx, cy, zc);
+  g.globalCompositeOperation = "lighter";
+  if (!lowQ) glow(g, C[0], C[1], Math.max(1, C[2] * R * 1.5), FIRE_PAL.DEEP, (0.25 + 0.35 * k) * A);
+  const N = lowQ ? 8 : 16;
+  for (let i = 0; i < N; i++) {
+    const th = (i / N) * Math.PI * 2, side = (h01(i + 31) - 0.5) * 2 * hw;
+    const ph = still ? 0.5 : (now / (260 + h01(i) * 180) + h01(i + 9)) % 1;
+    const base = P(cx + dx * Math.cos(th) * R + ax * side, cy + dy * Math.cos(th) * R + ay * side, zc + Math.sin(th) * R);
+    const h = (0.22 + 0.4 * k) * n * (0.6 + h01(i + 17) * 0.6) * Math.sin(ph * Math.PI);
+    const tip = P(cx + dx * Math.cos(th) * R * 1.05 + ax * side - dx * h * 0.35, cy + dy * Math.cos(th) * R * 1.05 + ay * side - dy * h * 0.35, zc + Math.sin(th) * R + h);
+    const w = Math.max(1.5, base[2] * (0.07 + 0.05 * k) * (1 - ph * 0.5)), fa = A * (1 - ph * 0.6);
+    tongue(g, base, tip, w, `rgba(${FIRE_PAL.SKY},${0.75 * fa})`);
+    tongue(g, base, tip, w * 0.45, `rgba(${FIRE_PAL.SKY_HI},${0.85 * fa})`);
+  }
+  g.globalCompositeOperation = "source-over";
+}
+// ลิ้นไฟ: โคนกว้าง w (px) โค้งเรียวไปปลายแหลม
+function tongue(g, a, b, w, fill) {
+  const vx = b[0] - a[0], vy = b[1] - a[1], L = Math.hypot(vx, vy);
+  if (L < 0.5) return;
+  const nx = -vy / L * w, ny = vx / L * w, mx = a[0] + vx * 0.4, my = a[1] + vy * 0.4;
+  g.beginPath();
+  g.moveTo(a[0] + nx, a[1] + ny);
+  g.quadraticCurveTo(mx + nx * 1.1, my + ny * 1.1, b[0], b[1]);
+  g.quadraticCurveTo(mx - nx * 1.1, my - ny * 1.1, a[0] - nx, a[1] - ny);
+  g.closePath(); g.fillStyle = fill; g.fill();
 }
 
 //  fx { kind: "soraDash", path: [{x,y}…], step (ms ต่อช่อง), delay (ms ก่อนเริ่ม), size } — เงาตามตัวสีฟ้าตามเส้นทางพุ่ง
@@ -1738,6 +1773,7 @@ const DASH_TAIL = 2.6, DASH_FADE = 420;
 export const dashDur = (path, step) => Math.max(1, (Array.isArray(path) ? path.length : 1) - 1) * (step || SORA_T.step) + DASH_FADE;
 function dashFx(g, e, now, lowQ) {
   const pts = e.path, step = e.step || SORA_T.step;
+  const { SKY, SKY_HI, DEEP, ICE } = soraPal(e);
   if (!Array.isArray(pts) || pts.length < 2) return;
   const t = now - e.t0 - (e.delay || 0), n = pts.length - 1, run = n * step, sz = Math.max(1, e.size | 0);
   if (t < 0 || t > run + DASH_FADE) return;
@@ -1789,22 +1825,23 @@ function dashFx(g, e, now, lowQ) {
 //  fx { kind: "soraBoom", x, y (มุมบนซ้ายเป้า), size } — ระเบิดตูมสีฟ้า (ขยายตามขนาดเป้า)
 //   แฟลชขาวฟ้า → ลูกพลาสมาฟ้าพองแล้วยุบ + เสาแสงพุ่ง → คลื่นกระแทก 3 วงบนพื้น + รอยไหม้ → ประกาย/เศษพื้นกระเด็น → ควันฟ้าลอยจาง
 //  lowQ = คลื่นวงเดียว ไม่มีเสาแสง/เศษ/ควัน · ลดการเคลื่อนไหว = ไม่มีเศษกระเด็น
-function plasma(g, x, y, r, a) {
+function plasma(g, x, y, r, a, fire) {
   if (r <= 0 || a <= 0) return;
   const gr = g.createRadialGradient(x, y, 0, x, y, r);
   gr.addColorStop(0, `rgba(255,255,255,${a})`);
-  gr.addColorStop(0.22, `rgba(${ICE},${a})`);
-  gr.addColorStop(0.5, `rgba(70,165,255,${0.85 * a})`);
-  gr.addColorStop(1, "rgba(20,40,170,0)");
+  gr.addColorStop(0.22, `rgba(${fire ? FIRE_PAL.ICE : ICE},${a})`);
+  gr.addColorStop(0.5, fire ? `rgba(255,110,30,${0.85 * a})` : `rgba(70,165,255,${0.85 * a})`);
+  gr.addColorStop(1, fire ? "rgba(170,20,10,0)" : "rgba(20,40,170,0)");
   g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
 }
 function boomFx(g, e, now, lowQ) {
   const t = now - e.t0, D = SORA_T.boom;
   if (t < 0 || t > D) return;
+  const { SKY, SKY_HI, ICE } = soraPal(e);
   const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, K = 0.8 + n * 0.45, still = lowQ || REDUCED;
   const q = t / D, k = 1 - q;
   g.save(); g.lineCap = "round";
-  gEllipse(g, cx, cy, 0.5 * K, 0, 32); g.fillStyle = `rgba(8,22,70,${0.5 * k})`; g.fill();
+  gEllipse(g, cx, cy, 0.5 * K, 0, 32); g.fillStyle = e.fire ? `rgba(60,12,4,${0.5 * k})` : `rgba(8,22,70,${0.5 * k})`; g.fill();
   const sc0 = P(cx, cy)[2];
   (lowQ ? [0] : [0, 90, 200]).forEach((d0, i) => {
     const r = (t - d0) / 560;
@@ -1822,7 +1859,7 @@ function boomFx(g, e, now, lowQ) {
   }
   if (t < 680) {
     const p = t / 680, puff = Math.sin(Math.min(1, p * 1.6) * Math.PI / 2);
-    plasma(g, B[0], B[1], B[2] * K * (0.4 + 0.7 * puff) * (1 - 0.25 * p), 1 - p * p);
+    plasma(g, B[0], B[1], B[2] * K * (0.4 + 0.7 * puff) * (1 - 0.25 * p), 1 - p * p, e.fire);
   }
   if (t < 170) { g.globalCompositeOperation = "lighter"; glow(g, B[0], B[1], Math.max(1, B[2] * K * 1.4), ICE, 1 - t / 170); g.globalCompositeOperation = "source-over"; }
   if (!still) {
@@ -1837,7 +1874,7 @@ function boomFx(g, e, now, lowQ) {
       g.beginPath(); g.arc(px, py, Math.max(1.2, ps * (spark ? 0.03 : 0.055)), 0, 7); g.fill();
     }
   }
-  if (!lowQ && t > 220) { const [sx, sy, ss] = P(cx, cy, (0.6 + q * 1.4) * K); glow(g, sx, sy, Math.max(1, ss * K * (0.4 + q * 0.6)), "90,130,190", 0.42 * k); }
+  if (!lowQ && t > 220) { const [sx, sy, ss] = P(cx, cy, (0.6 + q * 1.4) * K); glow(g, sx, sy, Math.max(1, ss * K * (0.4 + q * 0.6)), e.fire ? "120,70,50" : "90,130,190", 0.42 * k); }
   g.restore();
 }
 

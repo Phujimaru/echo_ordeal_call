@@ -840,6 +840,7 @@ function statusEntries(p, full) {
   // โซระ: ร่าง My-Th + อาวุธที่ถือ · ร่างโซระนับเทิร์นเพื่อคุณหนู
   if (p.sora && p.sora.myth) {
     out.push({ key: "soraMyth", v: 1, icon: "🐭", label: "Kamen Rider My-Th", cls: "bg-sky-500 text-gray-900", desc: "ตีปกติมีโอกาสคริติคอล 20% และใช้ My-Th Edge กับ Mouse Separade ได้" });
+    if (p.sora.fire) out.push({ key: "soraFire", v: 1, icon: "🔥", label: "Fire Frame", cls: "bg-orange-500 text-gray-900", desc: "ตีปกติและ Mouse Separade ติดลุกไหม้ 1 จบเทิร์นเสียแต้มสกิล 1 แต้มไม่พอจะกลับร่าง My-Th" });
     out.push({ key: "soraWeapon", v: 1, icon: p.sora.gun ? "🔫" : "🗡️", label: p.sora.gun ? "ปืน" : "มีด", cls: "bg-sky-200 text-gray-900",
       desc: p.sora.gun ? "ระยะตี 1 ถึง 3 ตีโดนแล้วถ้าเป้ารอดจะถูกดึงเข้ามาประชิด" : "ตีปกติแรงขึ้น 1" });
   }
@@ -1222,6 +1223,9 @@ function GutsVideoPreloader({ me, players }) {
       {preloadGray && <video src="/characters/gray/gray_skill3_final.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_normal.mp4" preload="auto" muted playsInline />}
       {preloadSora && <video src="/characters/sora_otosumi/sora_skill3_hit.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/myth_fire.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/myth_fire_skill3_intro.mp4" preload="auto" muted playsInline />}
+      {preloadSora && <video src="/characters/sora_otosumi/myth_fire_skill3_hit.mp4" preload="auto" muted playsInline />}
       {preloadHikaru && HIKARU_CLIPS.map((f) => <video key={f} src={`/characters/raido_hikaru/${f}.mp4`} preload="auto" muted playsInline />)}
     </div>
   );
