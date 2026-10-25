@@ -40,6 +40,7 @@ import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
+import { moonEventFx } from "./moonFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -845,7 +846,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       const kz = !!style && style.startsWith("kazuma");
-      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
+      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "hakunoM") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
@@ -1751,6 +1753,25 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("kazumaFx", onKazuma);
     return () => socket.off("kazumaFx", onKazuma);
   }, [pushFx, look, lowQ]);
+  // Moon Cell (GRID_PLAN §8.4): socket "moonScene" (ฉากต้นเทิร์นระหว่างพักเกม) → moonFx.js — เสาข้อมูลพุ่ง · ฟื้นคืนชีพ · คำสาปลง/เตือน/สลาย
+  useEffect(() => {
+    let lastSeq = null;
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const z = (list) => list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f));
+    const onMoon = (scene) => {
+      if (!scene || scene.seq === lastSeq) return;
+      lastSeq = scene.seq;
+      const out = moonEventFx(scene, { posOf });
+      if (out.fx.length) pushFx(z(out.fx));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(z(list)));
+    };
+    socket.on("moonScene", onMoon);
+    return () => socket.off("moonScene", onMoon);
+  }, [pushFx, look, lowQ]);
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);
   useEffect(() => {
@@ -2282,6 +2303,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
         colony={state.colony || null}
+        moon={state.moon || null}
         colonyEvents={colonyEvents}
         songs={songs}
         grays={grays}

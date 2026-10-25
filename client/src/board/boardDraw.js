@@ -48,6 +48,7 @@ import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGho
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx } from "./kazumaFx";
+import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -462,25 +463,57 @@ function cloakShimmer(g, cx, cy, r, now) {
 }
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
 // สนาม Colony: ขยายแถบเลือด/ป้าย (หมากถูกย่อตามระยะกล้อง + จอถูกย่อ → แถบบางจนอ่านไม่ออก) — ตั้งจาก onWall ของ drawFrame
-let UNIT_UI_K = 1, UNIT_PILL = false;
-// หลอดเลือดแบบแคปซูล (สนาม Colony): สั้นพอดีกว้างหกเหลี่ยม · ขอบมน · เลือดแดงไล่สี + เกราะฟ้าต่อท้าย · ขีดแบ่งทีละแต้มจางๆ
+let UNIT_UI_K = 1;
+// ---------- หลอดพลังชีวิต/เกราะบนหมาก (ผู้ใช้สั่งออกแบบใหม่ 2026-10-25 — ต้องอ่านง่ายทั้งค่าปกติ 7/3 และค่าเยอะแบบบอส 15/5 · 25/5) ----------
+//  เกราะ = แคปซูลบางด้านบน · เลือด = แคปซูลหนาด้านล่าง · ยาวเท่ากัน (แต่ละหลอดเต็ม = เพดานของมันเอง)
+//  ≤ VITAL_TICK_ALL หน่วย = ขีดแบ่งทุกหน่วย · มากกว่า = ขีดเข้มทุก 5 หน่วย + เหรียญตัวเลขเลือดที่หัวหลอด + หลอดยาวขึ้น
+const VITAL_TICK_ALL = 10;
 function pillPath(g, x, y, w, h) {
   const r = h / 2;
   g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2); g.lineTo(x + r, y + h); g.arc(x + r, y + r, r, Math.PI / 2, Math.PI * 1.5); g.closePath();
 }
-function drawPillBar(g, x, y, w, h, u, hpN, nT, UK) {
+function vitalPill(g, x, y, w, h, val, max, top, bot, UK) {
   pillPath(g, x, y, w, h);
-  g.fillStyle = "rgba(10,22,44,.88)"; g.fill();
-  g.lineWidth = Math.max(1, 1.1 * UK); g.strokeStyle = "rgba(255,255,255,.6)"; g.stroke();
-  const ins = 1.6 * UK, ix = x + ins, iy = y + ins, iw = w - ins * 2, ih = h - ins * 2, per = iw / nT;
+  g.fillStyle = "rgba(10,22,44,.9)"; g.fill();
+  g.lineWidth = Math.max(1, UK); g.strokeStyle = "rgba(255,255,255,.7)"; g.stroke();
+  const ins = Math.max(1, 1.3 * UK), ix = x + ins, iy = y + ins, iw = w - ins * 2, ih = h - ins * 2;
   g.save(); pillPath(g, ix, iy, iw, ih); g.clip();
-  const hp = Math.max(0, Math.min(hpN, u.hp | 0)), ar = Math.max(0, Math.min(nT - hpN, u.armor | 0));
-  if (hp > 0) { const gr = g.createLinearGradient(0, iy, 0, iy + ih); gr.addColorStop(0, "#ff9aa6"); gr.addColorStop(1, "#d93a50"); g.fillStyle = gr; g.fillRect(ix, iy, per * hp, ih); }
-  if (ar > 0) { const gr = g.createLinearGradient(0, iy, 0, iy + ih); gr.addColorStop(0, "#c4e6ff"); gr.addColorStop(1, "#4f97e0"); g.fillStyle = gr; g.fillRect(ix + per * hpN, iy, per * ar, ih); }
-  g.fillStyle = "rgba(10,22,44,.55)";
-  for (let i = 1; i < nT; i++) g.fillRect(ix + per * i - 0.5 * UK, iy, (i === hpN ? 1.6 : 0.9) * UK, ih);
-  g.fillStyle = "rgba(255,255,255,.22)"; g.fillRect(ix, iy, iw, ih * 0.42);
+  g.fillStyle = "rgba(255,255,255,.07)"; g.fillRect(ix, iy, iw, ih);
+  const k = max > 0 ? Math.max(0, Math.min(1, val / max)) : 0;
+  if (k > 0) { const gr = g.createLinearGradient(0, iy, 0, iy + ih); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(ix, iy, iw * k, ih); }
+  if (max > 1) {
+    const step = max <= VITAL_TICK_ALL ? 1 : 5, per = iw / max;
+    g.fillStyle = step === 1 ? "rgba(10,22,44,.5)" : "rgba(10,22,44,.78)";
+    for (let i = step; i < max; i += step) g.fillRect(ix + per * i - 0.6 * UK, iy, (step === 1 ? 1 : 1.8) * UK, ih);
+  }
+  g.fillStyle = "rgba(255,255,255,.24)"; g.fillRect(ix, iy, iw, ih * 0.4);
   g.restore();
+}
+const vitalMax = (u) => [Math.max(1, u.maxHp | 0 || 7), Math.max(0, u.maxArmor == null ? 3 : u.maxArmor | 0)];
+// ค่าเยอะ (บอส/ตัวใหญ่) — ใช้ตัดสินความยาวหลอดก่อนวาด
+export function vitalBig(u) { const [mh, ma] = vitalMax(u); return mh > VITAL_TICK_ALL || ma > VITAL_TICK_ALL; }
+// ความสูงรวมของหลอด (ใช้วางป้ายเหนือ/ใต้หลอด)
+export function vitalHeight(u, UK = 1) { const [, ma] = vitalMax(u); return (ma > 0 ? 6.5 * UK : 0) + 8 * UK; }
+// วาดหลอดกลางที่ cx ขอบบนที่ y กว้าง w → คืนขอบล่าง
+export function drawVitalBar(g, cx, y, w, u, UK = 1) {
+  const [maxHp, maxAr] = vitalMax(u);
+  const hp = Math.max(0, Math.min(maxHp, u.hp | 0)), ar = Math.max(0, Math.min(maxAr, u.armor | 0));
+  const big = maxHp > VITAL_TICK_ALL || maxAr > VITAL_TICK_ALL;
+  const br = big ? 8.5 * UK : 0; // รัศมีเหรียญตัวเลข
+  const x = cx - w / 2 + br * 1.2, bw = w - br * 1.2;
+  let yy = y;
+  if (maxAr > 0) { vitalPill(g, x, yy, bw, 5 * UK, ar, maxAr, "#d8eeff", "#4f97e0", UK); yy += 6.5 * UK; }
+  vitalPill(g, x, yy, bw, 8 * UK, hp, maxHp, "#ff9aa6", "#d93a50", UK);
+  const bottom = yy + 8 * UK;
+  if (big) {
+    const ex = cx - w / 2 + br, ey = (y + bottom) / 2;
+    g.beginPath(); g.arc(ex, ey, br + 1.5 * UK, 0, Math.PI * 2); g.fillStyle = "#ffffff"; g.fill();
+    g.beginPath(); g.arc(ex, ey, br, 0, Math.PI * 2);
+    const gr = g.createLinearGradient(0, ey - br, 0, ey + br); gr.addColorStop(0, "#ef5a6a"); gr.addColorStop(1, "#9e1f33"); g.fillStyle = gr; g.fill();
+    g.font = `700 ${(hp >= 10 ? 9.5 : 11) * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#ffffff"; g.fillText(String(hp), ex, ey + 0.5 * UK); g.textBaseline = "alphabetic";
+  }
+  return bottom;
 }
 function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
@@ -546,25 +579,10 @@ function drawUnit(g, u, now, boxes) {
     if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
     return;
   }
-  const maxHp = Math.max(1, u.maxHp | 0 || 7), maxAr = Math.max(0, u.maxArmor == null ? 3 : u.maxArmor | 0);
-  const nT = Math.min(16, maxHp + maxAr), hpN = Math.min(maxHp, nT), arN = nT - hpN;
   const UK = UNIT_UI_K;
-  let ph, py;
-  if (UNIT_PILL) {
-    const pw = Math.max(hexR * 1.8, 44 * UK);
-    ph = 9 * UK; py = hy + hexR * 0.87 + 4 * UK;
-    drawPillBar(g, bx - pw / 2, py, pw, ph, u, hpN, nT, UK);
-  } else {
-    const pw = Math.max(54, s * 1.0, nT * 6) * UK, px = bx - pw / 2;
-    ph = 9 * UK; py = hy + hexR * 0.87 + 3 * UK;
-    g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(px, py, pw, ph);
-    const bi = 2 * UK, gap = arN ? 4 * UK : 0, tw = (pw - bi * 3 - gap) / nT;
-    for (let i = 0; i < nT; i++) {
-      const arm = i >= hpN, on = arm ? i - hpN < (u.armor | 0) : i < (u.hp | 0);
-      g.fillStyle = on ? (arm ? "#7fbef5" : "#ef5a6a") : "rgba(255,255,255,.12)";
-      g.fillRect(px + bi * 1.5 + i * tw + (arm ? gap : 0), py + bi, tw - 1.2 * UK, ph - bi * 2);
-    }
-  }
+  const py = hy + hexR * 0.87 + 4 * UK;
+  const pw = vitalBig(u) ? Math.max(hexR * 2.5, 70 * UK) : Math.max(hexR * 1.9, 48 * UK);
+  const ph = drawVitalBar(g, bx, py, pw, u, UK) - py;
   // ชื่อ (ตอนชี้)
   if (u.hovered && u.name) {
     g.font = `600 ${13 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
@@ -679,16 +697,9 @@ function drawBigUnit(g, u, now, boxes) {
   }
   if (u.cloak && !REDUCED) { g.globalAlpha = a * 0.35; footQuad(g, x0, y0, n, 0.1); g.fillStyle = "rgba(220,240,255,.5)"; g.fill(); g.globalAlpha = a; }
   // แถบเลือด (ตัวใหญ่มีเลือดมาก — แถบยาวตามตัว)
-  const maxHp = Math.max(1, u.maxHp | 0 || 10), maxAr = Math.max(0, u.maxArmor | 0);
-  const nT = Math.min(32, maxHp + maxAr), hpN = Math.min(maxHp, nT);
-  const pw = Math.max(80, Math.min(260, es * s * 0.95, nT * 9)), ph = 10, px = bx - pw / 2, py = top - ph - 8;
-  g.fillStyle = "rgba(13,28,54,.92)"; g.fillRect(px, py, pw, ph);
-  const tw = (pw - 6) / nT;
-  for (let i = 0; i < nT; i++) {
-    const arm = i >= hpN, on = arm ? i - hpN < (u.armor | 0) : i < (u.hp | 0);
-    g.fillStyle = on ? (arm ? "#7fbef5" : "#ef5a6a") : "rgba(255,255,255,.12)";
-    g.fillRect(px + 3 + i * tw, py + 2, Math.max(1, tw - 1), ph - 4);
-  }
+  const bu = { ...u, maxHp: u.maxHp || 10, maxArmor: u.maxArmor | 0 };
+  const pw = Math.max(80, Math.min(220, es * s * 0.8)), ph = vitalHeight(bu), px = bx - pw / 2, py = top - ph - 8;
+  drawVitalBar(g, bx, py, pw, bu);
   if (u.hovered && u.name) {
     g.font = `600 13px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
     const nw = g.measureText(u.name).width + 14;
@@ -746,6 +757,8 @@ function drawCorpse(g, u, now, boxes) {
 }
 // ฟันนี่ วาเลนไทน์ (valentineFx.js): ฉากที่ตัด/บีบ/เจาะรู/พลิกหมาก (valMod) · คนละโลก (ghostDim — โปร่ง กดไม่ได้) · ตัวเหมือน (summon double — ตะเข็บ)
 function drawAnyUnit(g, u, now, boxes) {
+  // Moon Cell (moonFx.js): โมเดลลูกบาศก์ลอย แทนหมาก
+  if (u.summon && u.summon.kind === "moonCell" && !u.corpse) { drawMoonCell(g, u, now, boxes, { UK: UNIT_UI_K, vitalBar: drawVitalBar, vitalHeight }); return; }
   if (u.valMod || u.ghostDim || (u.summon && u.summon.kind === "double")) { drawValUnit(g, u, now, (uu, withBox) => drawAnyUnitBase(g, uu, now, withBox ? boxes : null)); return; }
   drawAnyUnitBase(g, u, now, boxes);
 }
@@ -864,9 +877,10 @@ function smashFx(g, e, now) {
 //  เคท & เอมิลิโกะ: ke* อยู่ใน shadowFx.js
 //  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
+//  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -1992,7 +2006,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR,
 };
 
 
@@ -2006,6 +2020,7 @@ export const FX_DUR = {
 //   takutos? = ทาวเบิร์นที่ถือดาบ/ช่วงพังทลาย [{ id, x, y, size, emerald, sapphire, judgment, collapse }] (takutoFx.js — ดาบลอยข้างตัว)
 //   ryougi? = { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } เรียวกิ (ryougiFx.js) · terrain "chasm" = ช่องพัง (drawRyougiGround — ไม่ใช่สิ่งกีดขวาง)
 //   emiya? = { ubw, units: [{ id, weapon }] } ชิโร่ (emiyaFx.js) — โลกแห่งดาบ (พื้นซีเปีย/ดาบปัก/เฟือง) · อาวุธที่ถือลอยข้างตัว
+//   moon? = state.moon ของโหมด Moon Cell { curse, pillars, … } (moonFx.js — พื้นที่คำสาป/ช่องเสาข้อมูล)
 //   valentine? = { flags } ธงปักของวาเลนไทน์ · dimLayers? = [{ kind: "par"|"veil", k }] มุมมองของมิติ (valentineFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
 //   bake = { scene, sceneFrom?, mix?, board?, fore, marks, view?, res? } — board = null → วาดชั้นกระดานสด (ระหว่างหมุน)
@@ -2080,6 +2095,8 @@ export function drawFrame(g, st, now) {
   // เซลิน (celineFx.js): พรมกลีบใต้พุ่มดอกไม้ · วงเถาวัลย์ทองใต้ราชาดอกไม้ — ใต้ไฮไลต์
   const cel = st.celine || null, cFx = fx.some((e) => isCelineFx(e.kind));
   if (cel) drawCelineGround(g, cel, fx, now, lowQ, units);
+  // Moon Cell (moonFx.js): พื้นที่คำสาปที่เตือนไว้ · ช่องเสาข้อมูลที่จะพุ่ง — ใต้ไฮไลต์
+  if (st.moon && !colony) drawMoonGround(g, st.moon, info, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard && !colony) T.overBoard(g, f, now);
@@ -2180,9 +2197,9 @@ export function drawFrame(g, st, now) {
   const unitDraw = (u, ax, ay) => () => {
     if (!colony) { drawAnyUnit(g, u, now, boxes); return; }
     // แถบ/ป้ายบนหมาก: ขนาดบนจอคงที่ (ชดเชยการย่อ/ขยายของกรอบ) — หนาพอมองง่าย
-    UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1)); UNIT_PILL = true;
+    UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1));
     drawAnyUnit(g, u, now, boxes);
-    UNIT_UI_K = 1; UNIT_PILL = false;
+    UNIT_UI_K = 1;
   };
   units.forEach((u, i) => { const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); });
   // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
@@ -2298,6 +2315,7 @@ export function drawFrame(g, st, now) {
     else if (isRyougiFx(e.kind)) ryougiFx(g, e, now, lowQ, rctx || (rctx = { view, info, units, octx, redraw: (u) => drawAnyUnit(g, u, now, null), drawShop: (x, y) => drawShop(g, x, y, C, now, night) }));
     else if (isEmiyaFx(e.kind)) emiyaFx(g, e, now, lowQ, { info });
     else if (isKazumaFx(e.kind)) kazumaFx(g, e, now, lowQ);
+    else if (isMoonFx(e.kind)) moonFx(g, e, now, lowQ, { info });
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

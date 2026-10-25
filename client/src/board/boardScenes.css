@@ -158,6 +158,10 @@
 .fd-pips i.lose { background: #fff !important; box-shadow: 0 0 12px #fff !important; animation: fdLose .8s ease-in-out infinite; }
 @keyframes fdLose { 50% { opacity: .15; } }
 .fd-side.r .fd-pips { flex-direction: row-reverse; }
+.fd-pips.fd-pips-many { width: 470px; gap: 3px; }
+.fd-pips.fd-pips-many i { flex: 1 1 0; width: auto; min-width: 0; }
+.fd-pips.fd-pips-many i:nth-child(5n):not(:last-child) { margin-right: 9px; }
+.fd-side.r .fd-pips.fd-pips-many i:nth-child(5n):not(:last-child) { margin-right: 0; margin-left: 9px; }
 .fd-side.r .fd-pips i { transform: skewX(20deg); }
 .fd-row { display: flex; gap: 36px; margin-top: 20px; font: 700 34px var(--oc-f-ui); }
 .fd-side.r .fd-row { justify-content: flex-end; }

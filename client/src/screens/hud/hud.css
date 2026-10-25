@@ -317,6 +317,24 @@
 .colony-alarm[data-boom="true"] { box-shadow: inset 0 0 120px 26px rgba(255, 40, 20, 0.65); animation-duration: 0.9s; }
 @keyframes colonyAlarm { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .colony-alarm, .hud-colony-left b, .hud-colony-secs i, .hud-colony-gem { animation: none !important; } }
+/* Moon Cell (state.moon): คำสาปอีกกี่เทิร์น + ฮาคุโนะ 2 ตัว */
+.hud-top-moon { cursor: default; }
+.hud-moon-gem { background: linear-gradient(135deg, #f1e6ff, #9b4f96 55%, #3b1640); box-shadow: 0 0 12px rgba(155, 79, 150, 0.55); color: #fff3c4; }
+.hud-moon-gem svg { width: 15px; height: 15px; }
+.hud-top-moon .hud-top-name { letter-spacing: 0.08em; }
+.hud-moon-left { display: inline-flex; align-items: center; gap: 4px; color: #d9b6ff; }
+.hud-moon-left svg { width: 12px; height: 12px; }
+.hud-moon-left b { font: 600 16px/1 "Chakra Petch", sans-serif; color: #fff; }
+.hud-top-moon[data-urgent="true"] .hud-moon-left { color: #ff9ab0; }
+.hud-top-moon[data-urgent="true"] .hud-moon-left b { color: #ff5a78; text-shadow: 0 0 8px rgba(255, 60, 100, 0.9); animation: hudColonyBlink 0.7s steps(2, start) infinite; }
+.hud-moon-bosses { display: flex; gap: 6px; align-self: center; }
+.hud-moon-boss { position: relative; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1.5px #f0c868; background: #1a2440; }
+.hud-moon-boss img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+.hud-moon-boss i { position: absolute; left: 0; bottom: 0; height: 4px; background: linear-gradient(90deg, #ff9aa6, #d93a50); }
+.hud-moon-boss[data-alive="false"] { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35); }
+.hud-moon-boss[data-alive="false"] img { filter: grayscale(1) brightness(0.45); }
+.hud-moon-boss b { position: absolute; inset: 0; display: grid; place-items: center; font: 700 15px/1 "Chakra Petch", sans-serif; color: #fff; text-shadow: 0 0 6px #000; }
+@media (prefers-reduced-motion: reduce) { .hud-moon-left b { animation: none !important; } }
 /* ห่วงเวลาซีโร่: แทนป้ายภูมิภาค (กดไม่ได้) · นาฬิกาทรายแทนกลางวัน/คืน */
 .hud-top[data-zero="true"] { border-color: rgba(255, 150, 210, 0.5); background: linear-gradient(100deg, rgba(40, 12, 40, 0.9), rgba(12, 28, 58, 0.88) 70%); }
 .hud-zero-hg { display: grid; place-items: center; animation: hudZeroHg 6s ease-in-out infinite; }

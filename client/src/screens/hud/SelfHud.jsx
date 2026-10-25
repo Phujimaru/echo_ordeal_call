@@ -571,6 +571,43 @@ function ColonyChip({ colony }) {
     </div>
   );
 }
+// สนาม Moon Cell (state.moon — GRID_PLAN §8.4): แทนป้ายภูมิภาค — คำสาปแห่งดวงจันทร์อีกกี่เทิร์นลง + ฮาคุโนะ 2 ตัว (ล้ม = เทาพร้อมเทิร์นที่จะฟื้น)
+//  ไม่มีคำสาปที่เตือนอยู่ = นับถึงต้นเทิร์นที่ท่าลง (เล็งต้นเทิร์น nextCurse → ลงเทิร์นถัดไป) · เหลือ 1 = แดงกะพริบ
+function MoonGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M15 3a9 9 0 1 0 6 12A7 7 0 1 1 15 3Z" fill="currentColor" />
+    </svg>
+  );
+}
+function MoonChip({ moon, round, players }) {
+  const r = Number(round) || 0;
+  const lands = moon.curse ? moon.curse.land : moon.nextCurse != null ? moon.nextCurse + 1 : null;
+  const left = lands != null ? Math.max(0, lands - r) : null;
+  const urgent = !!moon.curse && left != null && left <= 1;
+  const byId = Object.fromEntries((players || []).map((p) => [p.id, p]));
+  return (
+    <div className="hud-top-region hud-top-moon" data-urgent={urgent ? "true" : "false"}>
+      <span className="hud-top-gem hud-moon-gem"><MoonGlyph /></span>
+      <span className="hud-top-text">
+        <span className="hud-top-name oc-latin">Moon Cell</span>
+        {left != null && <span className="hud-top-sub hud-moon-left"><MoonGlyph />เหลือ <b>{left}</b> เทิร์น</span>}
+      </span>
+      <span className="hud-moon-bosses">
+        {(moon.bosses || []).map((b) => {
+          const p = b.alive ? byId[b.id] : null;
+          const back = b.reviveAt != null ? Math.max(0, b.reviveAt - r) : null;
+          return (
+            <span key={b.key} className="hud-moon-boss" data-alive={b.alive ? "true" : "false"}>
+              <img src={b.key === "f" ? "/mooncell/hakuno_f.webp" : "/mooncell/hakuno_m.png"} alt="" draggable="false" />
+              {b.alive && p ? <i style={{ width: `${Math.max(0, Math.min(1, (p.hp || 0) / Math.max(1, p.maxHp || 1))) * 100}%` }} /> : back != null && <b>{back}</b>}
+            </span>
+          );
+        })}
+      </span>
+    </div>
+  );
+}
 // ห่วงเวลาซีโร่ (zero.active): แทนป้ายภูมิภาค — ผนึก 4 อัน (ชมพู = ยังอยู่) · บัฟสะสม · ท่าไม้ตายล็อก · กดไม่ได้
 //  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ): นาฬิกาทราย + เทิร์นที่เหลือแทนบัฟ (ท่าไม้ตายไม่ล็อก)
 function ZeroChip({ zero }) {
@@ -617,9 +654,9 @@ function ZeroChip({ zero }) {
     </div>
   );
 }
-export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, zoom = 1 }) {
+export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, players, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
-  if (round == null && !journey && !zeroOn && !colony) return null;
+  if (round == null && !journey && !zeroOn && !colony && !moon) return null;
   return (
     <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined}>
       <span className="hud-top-cycle" title={zeroOn ? undefined : night ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : night ? <MoonIcon /> : <SunIcon />}</span>
@@ -638,6 +675,11 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, colon
         <>
           {round != null && <span className="hud-top-div" aria-hidden="true" />}
           <ColonyChip colony={colony} />
+        </>
+      ) : moon ? (
+        <>
+          {round != null && <span className="hud-top-div" aria-hidden="true" />}
+          <MoonChip moon={moon} round={round} players={players} />
         </>
       ) : journey && (
         <>

@@ -220,13 +220,13 @@ const btn = (on) => ({
 });
 
 export default function BoardPreview() {
-  const [area, setAreaState] = useState(() => qInt("area", 1, 11, 1));
+  const [area, setAreaState] = useState(() => qInt("area", 1, 30, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
-  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 11, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 30, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;

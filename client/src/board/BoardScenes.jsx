@@ -190,10 +190,11 @@ const CRIT = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L28 18 L
 const SKULL = <svg viewBox="0 0 56 56" aria-hidden="true"><path fillRule="evenodd" d="M28 12c-9 0-15 6-15 14 0 5 2 8 5 10v5h20v-5c3-2 5-5 5-10 0-8-6-14-15-14z M22 21.5a3.5 3.5 0 1 0 0.01 0z M34 21.5a3.5 3.5 0 1 0 0.01 0z" /><rect x="24" y="42" width="3" height="5" /><rect x="29" y="42" width="3" height="5" /></svg>;
 
 // แถบช่องเฉียง: now = ค่าตอนนี้ · after = หลังโดน (ช่องที่จะเสียกะพริบ)
+//  เกิน 10 ช่อง (บอส) = ช่องแคบลงในความยาวคงที่ + เว้นห่างทุก 5 ช่อง (fd-pips-many)
 function Pips({ max, now, after, ar }) {
   const n = Math.max(0, Math.min(40, max || 0));
   return (
-    <div className={`fd-pips ${ar ? "fd-pips-ar" : ""}`}>
+    <div className={`fd-pips ${ar ? "fd-pips-ar" : ""} ${n > 10 ? "fd-pips-many" : ""}`}>
       {Array.from({ length: n }, (_, i) => <i key={i} className={`${i < now ? "on" : ""} ${i < now && i >= after ? "lose" : ""}`} />)}
     </div>
   );

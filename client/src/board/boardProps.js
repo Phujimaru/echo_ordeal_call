@@ -6,6 +6,7 @@
 //  ทุกฟังก์ชันวาดในพิกัดตรรกะ · s = ขนาดช่องบนจอ ณ ตำแหน่งนั้น (จาก project)
 // ============================================================
 import { P, PA, faceVisible, gEllipse, gPoly, glow, hexA, quad, rng, viewAxes } from "./boardGeo";
+import { drawBench, drawSakura, drawSchool } from "./schoolTheme";
 
 const TAU = Math.PI * 2;
 
@@ -477,7 +478,7 @@ function drawObelisk(g, x, y, C, night, now) {
 
 // =================================================================== ตัวเลือกสิ่งกีดขวาง
 // ชนิดที่สูง (บังตัวละครที่ยืนข้างหลัง → จางลง)
-export const TALL_KINDS = new Set(["tree", "pillar", "banner", "bannerP", "bannerB", "windmill", "deadtree", "wreck", "cactus", "ruin", "pine", "crystal", "obelisk"]);
+export const TALL_KINDS = new Set(["tree", "pillar", "banner", "bannerP", "bannerB", "windmill", "deadtree", "wreck", "cactus", "ruin", "pine", "crystal", "obelisk", "school", "sakura"]);
 
 // t = { x, y, kind, conn } · ctx = { area, C, night, cols }
 export function drawObstacle(g, t, ctx, now) {
@@ -503,6 +504,10 @@ export function drawObstacle(g, t, ctx, now) {
     case "pine": drawPine(g, x, y, C, night); return;
     case "crystal": drawCrystal(g, x, y, C, night, now); return;
     case "obelisk": drawObelisk(g, x, y, C, night, now); return;
+    // Moon Cell (schoolTheme.js): อาคารเรียน · ต้นซากุระ · ม้านั่ง
+    case "school": drawSchool(g, t, ctx, now); return;
+    case "sakura": drawSakura(g, t, ctx, now); return;
+    case "bench": drawBench(g, t, ctx); return;
     default: drawRock(g, x, y, area, night, now);
   }
 }

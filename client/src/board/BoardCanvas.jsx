@@ -703,7 +703,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {

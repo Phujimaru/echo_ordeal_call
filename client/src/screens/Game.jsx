@@ -2519,12 +2519,14 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         night={nightNow}
         round={phase === "PLAYING" || inBoardTurn ? state.roundNumber : null}
         timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
-        journey={state.journey && !state.colony && (phase === "PLAYING" || inBoardTurn)
+        journey={state.journey && !state.colony && !state.moon && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : null}
         onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
+        moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}
+        players={state.players}
         zoom={hudZ}
       />}
 

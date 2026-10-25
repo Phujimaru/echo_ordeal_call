@@ -7,6 +7,7 @@
 // ============================================================
 
 const FILES = {
+  // (เสียงพากย์ฮาคุโนะ hakuno_v_m01–m21 / f01–f20 เติมท้ายตาราง — ดูใต้ FILES)
   main_home: "/theme_song/main_home_4.0.mp3",
   // ECHO 5.1 ORDEAL CALL: main5 = ตั้งแต่เปิดโปรแกรมจนเข้าห้องรอ · lobby5 = ห้องรอ → โหวตโหมด → ฉากเปิดตัว (จนเข้าด่าน)
   main5: "/theme_song/main5.0.mp3",
@@ -35,6 +36,14 @@ const FILES = {
   colony_2: "/colony/colony_phase2.mp3",
   colony_3: "/colony/colony_phase3.mp3",
   colony_alert: "/colony/colony_alert10.mp3",
+  // Moon Cell (GRID_PLAN §8.4 · ไฟล์จากผู้ใช้): เพลงธีม · เสียงเหตุการณ์สังเคราะห์ (.claude/plans/mooncell-sfx.sh) — server ยิงผ่าน engine.sfx
+  moon_theme: "/mooncell/moon_cell_theme.mp3",
+  moon_curse_hit: "/mooncell/sfx/moon_curse_hit.mp3",
+  moon_pillar: "/mooncell/sfx/moon_pillar.mp3",
+  moon_revive: "/mooncell/sfx/moon_revive.mp3",
+  moon_warn: "/mooncell/sfx/moon_warn.mp3",
+  hakuno_hit_m: "/mooncell/sfx/hakuno_hit_m.mp3",
+  hakuno_hit_f: "/mooncell/sfx/hakuno_hit_f.mp3",
   // สนาม Colony: เสียงเอฟเฟกต์อีเวนต์ (Mixkit ฟรี ผู้ใช้อนุมัติ 2026-10-25 · ตัด/ปรับ -16 LUFS ด้วย .claude/plans/colony-sfx.sh) — เล่นจาก board/colony3d.js
   colony_meteor_fall: "/colony/sfx/colony_meteor_fall.mp3",
   colony_meteor_hit: "/colony/sfx/colony_meteor_hit.mp3",
@@ -367,6 +376,10 @@ const FILES = {
   zero_4: "/zero_time/phase4.mp3",
   zero_thunder: "/zero_time/thunder.mp3",
 };
+// เสียงพากย์ฮาคุโนะ (Moon Cell · ไฟล์ผู้ใช้ตัดตามช่วงเงียบ — ก่อน 1:46 ชาย หลังจากนั้นหญิง · .claude/plans/mooncell-voice-cut.py)
+for (const [side, n] of [["m", 21], ["f", 20]]) {
+  for (let i = 1; i <= n; i++) { const k = String(i).padStart(2, "0"); FILES[`hakuno_v_${side}${k}`] = `/mooncell/voice/hakuno_${side}_${k}.mp3`; }
+}
 
 // เพลงที่มี intro หนึ่งครั้ง แล้วจึงเปลี่ยนเป็น theme ที่วนลูป — name → [intro, loop] (FILES[name] = intro)
 //  intro กับ loop เป็นคนละ element (loop โหลดรอไว้ระหว่าง intro) แล้วสลับก่อน intro จบเล็กน้อย = ต่อกันไม่มีช่องเงียบ (ดู getMusic)

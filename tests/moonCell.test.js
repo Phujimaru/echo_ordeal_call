@@ -203,6 +203,7 @@ test('คำสาปแห่งดวงจันทร์: เล็งต้
   combat.applyBuff(P().p0, 'might', 1, 3);
   const m = boss('m'), f = boss('f');
   m.hp = 10; combat.applyDebuff(m, 'weak', 1, 2);
+  match.moon.pillars = []; // เสาข้อมูลสุ่ม — ไม่ให้ปนผลคำสาป
   engine.setRoundNumber(3); // ต้นเทิร์น 4 = ลงผล
   let resumed = 0;
   assert.equal(Moon.preRound(() => { resumed++; }), true);
@@ -231,6 +232,7 @@ test('คำสาป: ฮาคุโนะอยู่ไม่ครบ = ไ
   fire();
   combat.instantDeath(boss('f'));
   P().p0.hp = 7; P().p0.armor = 3;
+  match.moon.pillars = [];
   engine.setRoundNumber(3);
   Moon.preRound(() => {});
   assert.equal(match.moon.curse, null);
@@ -245,16 +247,19 @@ test('คำสาป: ฮาคุโนะอยู่ไม่ครบ = ไ
   assert.equal(match.moon.curse, null, 'ไม่ครบตั้งแต่ตอนเล็ง');
 });
 
-test('AI: ตีศัตรูที่ตีถึง HP+เกราะต่ำสุด · ตีไม่ถึงใคร = เดินเข้าหา (ไม่ออกห่าง Moon Cell เกิน 8)', () => {
+test('AI: เล็งคนที่ใกล้ที่สุด → เลือดน้อยสุด · ไม่เล็งฮาคุโนะ/Moon Cell · ตีไม่ถึงใคร = เดินเข้าหา (ไม่ออกห่าง Moon Cell เกิน 8)', () => {
   setup(2);
   park();
   const m = boss('m');
-  put(P().p0, m.pos.x + 2, m.pos.y + 2); P().p0.hp = 7; P().p0.armor = 3;
-  put(P().p1, m.pos.x - 2, m.pos.y + 1); P().p1.hp = 2; P().p1.armor = 0;
+  put(P().p0, m.pos.x + 2, m.pos.y + 2); P().p0.hp = 2; P().p0.armor = 0;
+  put(P().p1, m.pos.x - 2, m.pos.y + 1); P().p1.hp = 7; P().p1.armor = 3;
   engine.setActor(m.id);
   const plan = Moon.planTurn(m);
-  assert.equal(plan.targetId, 'p1', 'เลือดน้อยกว่า');
+  assert.equal(plan.targetId, 'p1', 'ใกล้กว่า (3 ช่อง) ชนะเลือดน้อย (4 ช่อง)');
   assert.equal(Board.dist(plan.to, P().p1.pos), 1);
+  put(P().p0, m.pos.x + 2, m.pos.y + 1);
+  assert.equal(Moon.planTurn(m).targetId, 'p0', 'ระยะเท่ากัน = เลือดน้อยสุด');
+  assert.ok(![boss('f').id, cell().id].includes(Moon.planTurn(m).targetId));
 
   // ไกลเกินระยะเดิน: เดินเข้าหา แต่ไม่ออกนอกสายจูง
   park();
@@ -289,4 +294,60 @@ test('วงจรจริง: ลำดับเดิน → ตาฮาค�
   assert.equal(match.gameState, 'ACTION');
   assert.equal(match.actorId, 'p0');
   assert.equal(match.actorIndex, 2);
+});
+
+test('ฮาคุโนะเห็นทะลุล่องหน/พุ่มหญ้า: เล็งได้ · ผู้เล่นยังมองไม่เห็นกันตามปกติ', () => {
+  setup(1);
+  park();
+  const m = boss('m'), t = P().p0;
+  put(t, m.pos.x + 1, m.pos.y);
+  const vis = require('../server/visibility.js');
+  const realStealth = vis.stealthed;
+  t.exposedRound = -1;
+  // จำลองล่องหนด้วยฮุคตัวละครชั่วคราว
+  engine.CHAR_HOOKS.dummy = { id: 'dummy', stealthed: () => true };
+  try {
+    assert.equal(vis.hiddenFrom(m, t), false);
+    engine.setActor(m.id);
+    assert.equal(Moon.planTurn(m).targetId, 'p0');
+  } finally { delete engine.CHAR_HOOKS.dummy; }
+  assert.equal(typeof realStealth, 'function');
+});
+
+test('AI: หนาม/กำแพงน้ำแข็งขวางทาง = ตีทิ้ง', () => {
+  setup(1);
+  park();
+  const m = boss('m'), t = P().p0;
+  const Ice = require('../server/ice.js');
+  // ล้อมฮาคุโนะด้วยกำแพงทุกด้านที่ว่าง → เดินไม่ได้ → ต้องตีกำแพงที่อยู่ทางเป้า
+  put(t, m.pos.x, m.pos.y + 6);
+  const ring = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: m.pos.x + dx, y: m.pos.y + dy }));
+  for (const c of ring) Ice.placeWall(c.x, c.y, 'p0');
+  engine.setActor(m.id);
+  const plan = Moon.planTurn(m);
+  assert.equal(plan.targetId, `spike:${m.pos.x},${m.pos.y + 1}`, 'กำแพงด้านที่เป้าอยู่');
+});
+
+test('เสาข้อมูล: เตือนตั้งแต่ต้นเทิร์น 2 → พุ่งต้นเทิร์นถัดไป · ผู้เล่นบนช่องเสียหาย 1 · ฮาคุโนะ/Moon Cell ไม่โดน · หนามแตก', () => {
+  setup(2);
+  park();
+  engine.setRoundNumber(0); // ต้นเทิร์น 1 = ยังไม่มีเสา
+  Moon.preRound(() => {}); fire();
+  assert.deepEqual(match.moon.pillars, []);
+  engine.setRoundNumber(1); // ต้นเทิร์น 2 = เตือนชุดแรก
+  Moon.preRound(() => {}); fire();
+  assert.equal(match.moon.pillars.length, Math.min(Moon.PILLAR_MAX, Moon.PILLAR_BASE + 1));
+  const m = boss('m'), t = P().p0;
+  const Ice = require('../server/ice.js');
+  put(t, 3, 12); t.hp = 7; t.armor = 0;
+  Ice.placeWall(5, 12, 'p0');
+  match.moon.pillars = [{ x: 3, y: 12 }, { x: m.pos.x, y: m.pos.y }, { x: 5, y: 12 }, { x: Board.MOON.cell.x, y: Board.MOON.cell.y }];
+  const bossHp = m.hp, cellHp = cell().hp;
+  engine.setRoundNumber(2); // ต้นเทิร์น 3 = พุ่ง
+  assert.equal(Moon.preRound(() => {}), true);
+  assert.equal(t.hp, 6);
+  assert.equal(m.hp, bossHp);
+  assert.equal(cell().hp, cellHp);
+  assert.equal(Ice.spikeAt(5, 12), null);
+  assert.ok(match.moon.pillars.length > 0, 'ชุดใหม่ของเทิร์นหน้า');
 });

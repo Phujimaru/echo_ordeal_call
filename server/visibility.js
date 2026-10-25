@@ -68,6 +68,8 @@ function hiddenFromOne(viewer, target) {
   if (!target.alive || !target.pos) return false;
   if (Dim.unseen(viewer, target)) return true; // ชั้นมิติ: คนละมิติมองไม่เห็นกัน (เพื่อนร่วมทีมก็ไม่เห็น)
   if (combat.sameTeam(viewer, target)) return false;
+  // เห็นทะลุทุกอย่างบนกระดานหลัก (summon.trueSight — ฮาคุโนะของ Moon Cell server/moonCell.js): ล่องหน · พุ่มหญ้า · ม่านแดง (ชั้นมิติยังบังตามด้านบน)
+  if (viewer.summon && viewer.summon.trueSight) return false;
   // สายตาระยะใกล้ของยูนิตที่ถูกเรียก (summon.sight — ร่างแยกของวาเลนไทน์ 2 ช่อง): เห็นคนล่องหน/ในพุ่ม/ในม่านที่อยู่ใกล้เป็นคนปกติ (ผู้ใช้สั่ง 2026-10-21)
   //  การมองในระยะทุกแบบ (สายตานี้ · seenBy · พุ่มผืนเดียวกัน) นับจากช่องที่มอง (eyeOf) — ยังเดินต่อได้ = ช่องเริ่มตา
   const eye = eyeOf(viewer);

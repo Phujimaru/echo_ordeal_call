@@ -19,6 +19,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   const colony = state?.colony;
   if (colony && isMatchPhase(phase) && colony.countdown != null) return { name: "colony_alert" };
   if (colony && isMatchPhase(phase) && !state?.skillMusic) return { name: `colony_${Math.min(3, Math.max(0, colony.sealed | 0) + 1)}` };
+  // Moon Cell (GRID_PLAN §8.4): เพลงธีมของผู้ใช้ตลอดแมตช์ — เพลงท่าไม้ตายทับได้
+  if (state?.moon && isMatchPhase(phase) && !state?.skillMusic) return { name: "moon_theme" };
   if (state?.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
   // ระบบกระดาน: ทุกคนได้ตีในตาของตัวเอง — ฉากตี (ATTACKING) ไม่สลับไปเพลงช่วงโจมตีแล้ว (สลับไปมาทุกตา = รก)
   if (isMatchPhase(phase)) {
