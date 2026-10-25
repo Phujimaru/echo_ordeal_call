@@ -63,6 +63,8 @@ const FILES = {
   sora_squeak: "/characters/sora_otosumi/sora_squeak.mp3",
   sora_wheel: "/characters/sora_otosumi/sora_wheel.mp3",
   sora_dash: "/characters/sora_otosumi/sora_dash.mp3",
+  // Fire Frame: ไฟลุกต่อท้ายเสียงตี + ตอนระเบิดท่าไม้ตาย (สำเนา celine_fire_hit ในเครื่อง — ไม่ได้ดาวน์โหลดใหม่)
+  sora_fire: "/characters/sora_otosumi/sora_fire.mp3",
   // ไรโด ฮิคารุ — เสียงตีปกติตามร่าง / ท่าไม้ตาย (Mixkit ฟรี · ตัดให้พอดีจังหวะแล้ว — ต้นฉบับอยู่ .claude/plans/raido-hikaru-sfx-src/)
   hk_black: "/characters/raido_hikaru/sfx/hk_black.mp3",
   hk_thunder: "/characters/raido_hikaru/sfx/hk_thunder.mp3",

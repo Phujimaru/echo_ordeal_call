@@ -279,8 +279,9 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - Beam Magnum ลงดาเมจด้วย `dealMixed` ตรง (แบบกระสุน Nursedessei) ใน `deferAfterCutscene` + `engine.boardFx("beamFx", { from, dir, len, color })` ให้ client วาดลำแสง
 
 **โซระ โอโตสุมิ (`sora_otosumi` · ง่าย)** — `characters/sora_otosumi.js` · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.7 · เทสต์ [tests/characters/sora_otosumi.test.js](tests/characters/sora_otosumi.test.js)
-- สถานะอยู่ `p.sora` (`myth` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ · `ultReady` เลขรอบที่กด Mouse Separade ได้อีก) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
+- สถานะอยู่ `p.sora` (`myth` · `fire` ร่าง Fire Frame + `fireAt` · `gun` · `formRound`/`weaponRound` เทิร์นที่กดล่าสุด · `calm` นับเทิร์นร่างโซระ · `ultReady` เลขรอบที่กด Mouse Separade ได้อีก) — ล้างใน `resetCombat` · ฟื้นฟูที่ `onEndTurn` (`endTurn` หลัง `oberon_summer.onEndTurn`)
 - ตีปกติผ่านฮุคกลางทั้งหมด (`range` · `damageBonus` · `critPct` · `attackBeam`/`attackBeamTone`/`attackHitFx`/`attackSound` · `afterBoardAttack`) ไม่มีจุดเรียกเจาะจง
+- Fire Frame (ร่างย่อยของ My-Th): ปุ่มแปลงร่างเป็น `choices` ทั้งร่าง My-Th (fire/sora) และร่างไฟ (myth/sora) · ลุกไหม้ 1 ผ่าน `onStrikeLanded` + `impact` · แต้ม -1 ที่ `onEndTurn` · เสียงไฟ `attackTailSound` · `setDash.fire` = วงล้อ/เงาพุ่ง/ระเบิดสีไฟ (`FIRE_PAL` ใน boardDraw.js · ดูภาพ `?board=1&sora=1`)
 - Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat` → ชนตัวใหญ่ = `shove` ผลักถอย 2 ช่อง (เหตุการณ์ iceFx `knock` + `crash` { id, x, y, dmg, kill } — เลขดาเมจตอนกระแทก) · เป้าตกรอบ/หายไประหว่างคลิปชน = โซระหยุดที่ปลายทางพุ่ง (ช่องหน้าเป้า · ไม่ว่าง = ที่เดิม — `settleAtStop`)
   · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
   · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
@@ -609,6 +610,7 @@ module.exports = {
   critPct(p) { return 0; },                                      // อัตราคริเฉพาะตัว (%) ของตีปกติ — รวมกับคริสนามแล้วทอยครั้งเดียว
   attackSound(p) {}, attackBeam(p) { return 0; }, attackBeamTone(p) { return null; }, attackHitFx(p) { return null; },
                                                                  // ฉากตีปกติ: เสียง · ลำแสง (ยาว/สี "blue") · เอฟเฟกต์ปะทะ ("mythSlash") → การ์ดฉากตี
+  attackTailSound(p) { return null; },                           // เสียงต่อท้ายเสียงตี { key, after (ms หลังปะทะ) } → การ์ด byTailSound · หลบพ้นไม่เล่น (โซระ Fire Frame: ไฟลุก)
   attackFxNames(attacker, atkCtx) { return []; },                // ป้ายโบนัสใต้ฉากตี (อ่าน ctx ที่ damageBonus ใส่ไว้)
   afterBoardAttack(engine, attacker, target, res) { return null; }, // ฟังก์ชันที่ทำหลังฉากตีจบ ก่อนจบตา (โซระ ปืน: ดึงเป้า)
   attackLane(p) { return false; },                               // ตีปกติแนวตรงจากขอบตัว — ทุกศัตรูในแนวโดน · "face" = ช่องติดตัวทั้งด้าน (action.lanes · ฮิคารุ: แบล็คคิง / กิงกะ)

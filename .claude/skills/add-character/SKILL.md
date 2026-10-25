@@ -139,6 +139,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | พื้นที่สกิลเปลี่ยนตามสถานะ | `skillArea(p, tier, area)` (useSkill + ปุ่ม/โหมดเลือกเป้าใช้ตัวเดียวกัน — มุยมิ: ดาบสนิมระหว่างดาบสะบั้น) | `server/skills.js` · `server/view.js` |
 | ตีปกติเป็นลำแสง (ฉากตี) | `attackBeam(p)` → ความยาวช่อง (การ์ดฉากตี `byBeam`) · สี `attackBeamTone(p)` → `"blue"` | `strikeCard()` — `server/phases/attack.js` |
 | เอฟเฟกต์ปะทะ/เสียงตีปกติเฉพาะตัว | `attackHitFx(p)` → `"mythSlash"` (โซระ) · `attackSound(p)` | `strikeCard()` / `attackSoundOf()` |
+| เสียงต่อท้ายเสียงตีปกติ (เล่นหลังเสียงหลักจบ) | `attackTailSound(p)` → `{ key, after }` (ms หลังจังหวะปะทะ · หลบพ้นไม่เล่น — โซระ Fire Frame: ไฟลุก) | `strikeCard()` → `byTailSound` |
 | ระยะตีตามสถานะ | `range(p)` → `[rmin, rmax]` (โซระ: ปืน `[1, 3]`) | `action.rangeOf` |
 | อัตราคริเฉพาะตัว | `critPct(p)` → % (รวมคริสนาม ทอยครั้งเดียว · หน้าต่างคาดการณ์ด้วย) | `strike()` / `estimateCritOf()` |
 | ป้ายโบนัสใต้ฉากตี | `attackFxNames(attacker, atkCtx)` | `strike()` |

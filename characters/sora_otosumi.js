@@ -20,6 +20,15 @@
 //      ลงตอนกระดานเล่นพุ่งจบ · ผนึก/หนามโดน 3 (ไม่มีโบนัสมีด)
 //  ติดตัว เพื่อคุณหนู: ร่างโซระต่อเนื่องครบ 2 เทิร์น = ฟื้นพลังชีวิต 2 (แปลงร่างแล้วนับใหม่ · เทิร์นที่เพิ่งคืนร่างไม่นับ)
 //    · ร่าง My-Th อัตราคริติคอล 20% (ตีปกติ — รวมกับคริของสนามแล้วทอยครั้งเดียว)
+//
+//  ร่าง Fire Frame (ผู้ใช้สั่ง 2026-10-25) — ร่างย่อยของ My-Th (มีด/ปืน/คริ/ท่าไม้ตายใช้ได้เหมือนเดิม)
+//    ร่าง My-Th กดแปลงร่าง = ตัวเลือก Fire Frame / คืนร่าง · ร่าง Fire Frame กดแปลงร่าง = ตัวเลือก My-Th / คืนร่าง (ผู้ใช้สั่ง 2026-10-25)
+//    ภาพบนกระดาน = myth_fire.jpg · ตีปกติ: เสียงตีเดิมจบแล้วตามด้วยเสียงไฟลุก (attackTailSound) · ท่าไม้ตายชน = เสียงไฟลุกตอนระเบิด
+//    เข้าร่างครั้งแรกต่อเกม = คลิป myth_fire · แปลงร่างยังเทิร์นละ 1 ครั้ง
+//    ตีปกติ + Mouse Separade ที่โดนศัตรู = ลุกไหม้ 1 (engine.applyBurn — ต้านได้)
+//    จบเทิร์นในร่างนี้ = เสียแต้มสกิล 1 · แต้มไม่พอ = กลับร่าง My-Th ปกติ (Claude ตัดสิน)
+//    Mouse Separade: คลิปเปิด myth_fire_skill3_intro (ครั้งแรกต่อเกม · แทนคลิปปกติ) · คลิปชน myth_fire_skill3_hit (ทุกครั้ง)
+//      วงล้อ/เงาพุ่ง/ระเบิดบนกระดานเป็นสีไฟ (setDash fire)
 // ============================================================
 
 const Board = require("../server/board");
@@ -33,15 +42,22 @@ const IMG = {
   toSora: `${DIR}/sora_skill1_normal.jpg`,
   skill2: `${DIR}/sora_skill2.jpg`,
   skill3: `${DIR}/sora_skill3.jpg`,
+  fire: `${DIR}/myth_fire_type1.jpg`, // ตัวเลือก Fire Frame บนปุ่มแปลงร่าง
+  mythFire: `${DIR}/myth_fire.jpg`,    // ภาพร่าง Fire Frame บนกระดาน
 };
 const VIDEO = {
   transform: `${DIR}/sora_skill1.mp4`,
   ult: `${DIR}/sora_skill3_normal.mp4`,
   hit: `${DIR}/sora_skill3_hit.mp4`,
+  fire: `${DIR}/myth_fire.mp4`,
+  fireUlt: `${DIR}/myth_fire_skill3_intro.mp4`,
+  fireHit: `${DIR}/myth_fire_skill3_hit.mp4`,
 };
-const CUT = { transform: "soraTransform", ult: "soraUlt", hit: "soraHit" };
+const CUT = { transform: "soraTransform", ult: "soraUlt", hit: "soraHit", fire: "soraFire", fireUlt: "soraFireUlt", fireHit: "soraFireHit" };
 // เสียง (client/src/audio.js) — ตีปกติมีดฟัน 2 ครั้ง (ฉากตีเล่นรอยฟัน 2 จังหวะตามเสียง) · สลับอาวุธ = เสียงของอาวุธใหม่
-const SFX = { gun: "sora_hit_gun", knife: "sora_hit_knife", toGun: "sora_skill2_gun", toKnife: "sora_skill2_knife" };
+const SFX = { gun: "sora_hit_gun", knife: "sora_hit_knife", toGun: "sora_skill2_gun", toKnife: "sora_skill2_knife", fire: "sora_fire" };
+// Fire Frame: เสียงไฟลุกต่อท้ายเสียงตี — ms หลังจังหวะปะทะ ≈ ตอนเสียงตีจบ (มีด 2.2 วิ เริ่มก่อนปะทะ 0.25 วิ · ปืน 1.3 วิ เริ่มตอนปะทะ)
+const FIRE_TAIL_MS = { knife: 1850, gun: 1200 };
 
 const KNIFE_BONUS = 1;
 const GUN_RANGE = [1, 3]; // ผู้ใช้สั่งเพิ่มจาก 2 (2026-10-12)
@@ -55,6 +71,8 @@ const ULT_CD = 2;
 const BIG_BONUS = 1; // ชนตัวใหญ่ = ดาเมจ +1 (ผู้ใช้สั่ง 2026-10-19)
 const BIG_PUSH = 2;  // แล้วผลักถอย 2 ช่อง
 const CRASH_DMG = 1; // ถูกผลักไปติดของ = -1
+const FIRE_BURN = 1;  // Fire Frame: การโจมตีที่โดนศัตรู = ลุกไหม้ 1
+const FIRE_UPKEEP = 1; // Fire Frame: จบเทิร์น = แต้มสกิล -1
 // จังหวะบนกระดาน (ต้องตรงกับ client/src/board — SORA_T ใน boardDraw.js)
 const WHEEL_MS = 1400;
 const DASH_STEP_MS = 90;
@@ -79,10 +97,18 @@ function fresh() {
     calm: 0,        // เทิร์นที่อยู่ร่างโซระต่อเนื่อง (ครบ REGEN_TURNS = ฟื้น)
     ultReady: 0,    // Mouse Separade: กดได้อีกเมื่อ roundNumber >= ค่านี้
     mythAt: 0,      // ลำดับตอนเข้าร่าง My-Th ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
+    fire: false,    // ร่าง Fire Frame (อยู่ใน My-Th เสมอ)
+    fireAt: 0,      // ลำดับตอนเข้า Fire Frame ล่าสุด (severStamp)
   };
 }
 function st(p) { return p.sora || (p.sora = fresh()); }
 const mythOn = (p) => isSora(p) && !!st(p).myth;
+const fireOn = (p) => mythOn(p) && !!st(p).fire;
+// ลุกไหม้จาก Fire Frame → ป้ายสำหรับฉากตี/ล็อก
+function burn(engine, t) {
+  if (!t || !t.alive) return null;
+  return engine.applyBurn(t, FIRE_BURN) > 0 ? `ลุกไหม้ ${FIRE_BURN}` : "ลุกไหม้ — ต้านได้";
+}
 const gunOn = (p) => mythOn(p) && !!st(p).gun;
 const knifeOn = (p) => mythOn(p) && !st(p).gun;
 // แปลงร่าง / สลับอาวุธ = ไม่กินโควตาสกิลของเทิร์น และกดได้แม้ใช้โควตาไปแล้ว
@@ -158,7 +184,8 @@ function charge(engine, p, dir) {
   const land = landIndex(passed);
   const runTo = hit && !big ? passed.length - 1 : land;
   const path = [start, ...passed.slice(0, runTo + 1).map((t) => ({ x: t.x, y: t.y }))];
-  engine.setDash({ id: p.id, path, wheel: true, dir: dirVec(dir) });
+  const fire = fireOn(p); // ร่างตอนกด — ผลไฟ/คลิปไฟตามร่างนี้ทั้งท่า
+  engine.setDash({ id: p.id, path, wheel: true, dir: dirVec(dir), fire });
   const seconds = (WHEEL_MS + Math.max(0, path.length - 1) * DASH_STEP_MS) / 1000 + DASH_PAD_SECONDS;
   engine.skillBeat(seconds, () => {
     hitCrossed(p, blocked ? [...passed, blocked] : passed); // ก่อนพัง — หนามที่พุ่งผ่านโดนดาเมจก่อนแตก
@@ -170,9 +197,9 @@ function charge(engine, p, dir) {
       return;
     }
     if (big && land >= 0) p.pos = { x: passed[land].x, y: passed[land].y };
-    engine.queueCutscene(p, CUT.hit);
+    engine.queueCutscene(p, fire ? CUT.fireHit : CUT.hit);
     const stop = path[path.length - 1]; // ช่องที่ภาพค้างไว้ระหว่างคลิปชน (client ต่อแอนิเมชันจากตรงนี้)
-    engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big, dir));
+    engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big, dir, fire));
   });
 }
 // ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (แบบเดียวกับ sliver_bullet)
@@ -180,7 +207,8 @@ function pool(t) {
   return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
 }
 // คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่ · ตัวใหญ่ = ดาเมจ 4 แล้วผลักถอยหลังระเบิด (shove)
-function impact(engine, p, t, start, stop, big, dir) {
+//  Fire Frame (fire = ร่างตอนกด): ระเบิดสีไฟ + เป้ารอด = ลุกไหม้ 1
+function impact(engine, p, t, start, stop, big, dir, fire) {
   if (!p.alive) return;
   if (!t.alive || !t.pos) { settleAtStop(engine, p, stop, big); return; }
   const at = { ...t.pos };
@@ -189,7 +217,8 @@ function impact(engine, p, t, start, stop, big, dir) {
   engine.dealMixed(t, ULT_DMG + (big ? BIG_BONUS : 0));
   engine.resolveDamageAftermath(t);
   const dealt = Math.max(0, before - pool(t));
-  engine.log(`💥 Mouse Separade → ${t.name} -${dealt} (ลดเกราะก่อน)`);
+  const burnt = fire ? burn(engine, t) : null;
+  engine.log(`💥 Mouse Separade → ${t.name} -${dealt} (ลดเกราะก่อน)${burnt ? ` · ${burnt}` : ""}`);
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
   let swap = null;
   if (!big) {
@@ -200,7 +229,7 @@ function impact(engine, p, t, start, stop, big, dir) {
     }
     p.pos = { ...at };
   }
-  engine.setDash({ id: p.id, path: big ? [{ ...p.pos }] : [{ ...stop }, at], swap, boom: at, boomSize: (t.alive && engine.sizeOf(t)) || 1 });
+  engine.setDash({ id: p.id, path: big ? [{ ...p.pos }] : [{ ...stop }, at], swap, boom: at, boomSize: (t.alive && engine.sizeOf(t)) || 1, fire });
   engine.skillBeat(BOOM_SECONDS, () => { if (big) shove(engine, p, t, dir); });
 }
 // ผลักตัวใหญ่ถอยตามทิศพุ่งทีละช่อง (ทั้งตัวต้องลงช่องว่าง — engine.tileFree) ไม่เกิน BIG_PUSH · ติด = ชน -1
@@ -244,12 +273,23 @@ function settleAtStop(engine, p, stop, big) {
   engine.setDash({ id: p.id, path: [{ ...p.pos }] });
 }
 
+// ร่าง My-Th: ปุ่มแปลงร่างเป็นตัวเลือก (desc = คำอธิบายตอนชี้ค้าง — กฎผู้ใช้ 2026-10-19)
+//  ร่าง Fire Frame: ตัวเลือก กลับร่าง My-Th / คืนร่างโซระ
+const FORM_CHOICES = [
+  { key: "fire", name: "Fire Frame", img: IMG.fire, desc: `Fire Frame: ตีปกติและ Mouse Separade ติดลุกไหม้ ${FIRE_BURN} · จบเทิร์นเสียแต้มสกิล ${FIRE_UPKEEP} (แต้มไม่พอ = กลับร่าง My-Th)` },
+  { key: "sora", name: "คืนร่าง", img: IMG.toSora, desc: "กลับเป็นร่างโซระ" },
+];
+const FIRE_CHOICES = [
+  { key: "myth", name: "Kamen Rider My-Th", img: IMG.myth, desc: "กลับเป็นร่าง Kamen Rider My-Th" },
+  { key: "sora", name: "คืนร่าง", img: IMG.toSora, desc: "กลับเป็นร่างโซระ" },
+];
+
 module.exports = {
   id: ID,
-  IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD, BIG_BONUS, BIG_PUSH, CRASH_DMG,
+  IMG, VIDEO, KNIFE_BONUS, GUN_RANGE, CRIT_PCT, REGEN_TURNS, ULT_LEN, ULT_DMG, ULT_CD, BIG_BONUS, BIG_PUSH, CRASH_DMG, FIRE_BURN, FIRE_UPKEEP,
 
   resetCombat(p) { p.sora = isSora(p) ? fresh() : null; },
-  displayImg(p) { return mythOn(p) ? IMG.myth : null; },
+  displayImg(p) { return fireOn(p) ? IMG.mythFire : mythOn(p) ? IMG.myth : null; },
 
   // ---------- ตีปกติ ----------
   range(p) { return gunOn(p) ? GUN_RANGE : null; },
@@ -265,10 +305,21 @@ module.exports = {
   attackBeam(p) { return gunOn(p) ? GUN_BEAM : 0; },
   attackBeamTone(p) { return gunOn(p) ? "blue" : null; },
   attackHitFx(p) { return knifeOn(p) ? "mythSlash" : null; },
+  // Fire Frame: เสียงไฟลุกต่อท้ายเสียงตี (client เล่นหลังจังหวะปะทะ after ms · หลบพ้น = ไม่เล่น)
+  attackTailSound(p) {
+    if (!fireOn(p)) return null;
+    return { key: SFX.fire, after: st(p).gun ? FIRE_TAIL_MS.gun : FIRE_TAIL_MS.knife };
+  },
   attackSound(p) {
     if (gunOn(p)) return SFX.gun;
     if (knifeOn(p)) return SFX.knife;
     return undefined;
+  },
+  // Fire Frame: ตีปกติลง = ลุกไหม้ 1 (ป้ายใต้ฉากตี)
+  onStrikeLanded(engine, attacker, target) {
+    if (!fireOn(attacker)) return [];
+    const b = burn(engine, target);
+    return b ? [b] : [];
   },
   afterBoardAttack(engine, attacker, target, res) {
     if (!gunOn(attacker) || !res || res.dodge || !target.alive) return null;
@@ -295,7 +346,13 @@ module.exports = {
   },
   skillPub(p, tier) {
     if (!isSora(p)) return null;
-    if (tier === "basic") return { img: mythOn(p) ? IMG.toSora : IMG.toMyth };
+    if (tier === "basic") {
+      if (!mythOn(p)) return { img: IMG.toMyth };
+      // require ตอนเรียก: engine require โมดูลตัวละครตอนโหลด
+      const locked = st(p).formRound === require("../server/engine").engine.roundNumber;
+      const fire = fireOn(p);
+      return { img: fire ? IMG.toSora : IMG.fire, choices: (fire ? FIRE_CHOICES : FORM_CHOICES).map((c) => ({ ...c, area: { kind: "self" }, cost: 0, free: true, locked })) };
+    }
     if (tier === "secondary") return { name: `My-Th Edge (${st(p).gun ? "มีด" : "ปืน"})` };
     return null;
   },
@@ -305,7 +362,25 @@ module.exports = {
     p.cutsceneShown ||= {};
     if (tier === "basic") {
       s.formRound = engine.roundNumber;
+      // ร่างไฟ + เลือก My-Th = ดับไฟ เหลือ My-Th
+      if (s.myth && s.fire && opts.form === "myth") {
+        s.fire = false;
+        engine.log(`🐭 ${p.name} กลับเป็นร่าง Kamen Rider My-Th`);
+        return " — Kamen Rider My-Th";
+      }
+      // ร่าง My-Th + เลือก Fire Frame = เข้าร่างไฟ · อย่างอื่น (คืนร่าง / ไม่ส่งตัวเลือก) = สลับร่างตามเดิม
+      if (s.myth && !s.fire && opts.form === "fire") {
+        s.fire = true;
+        s.fireAt = engine.severStamp();
+        if (!p.cutsceneShown[CUT.fire]) {
+          p.cutsceneShown[CUT.fire] = true;
+          engine.queueCutscene(p, CUT.fire);
+        }
+        engine.log(`🔥 ${p.name} เปลี่ยนเป็น Kamen Rider My-Th Fire Frame`);
+        return " — Fire Frame";
+      }
       s.myth = !s.myth;
+      s.fire = false;
       s.calm = 0;
       if (s.myth) s.mythAt = engine.severStamp();
       if (s.myth && !p.cutsceneShown[CUT.transform]) {
@@ -323,9 +398,10 @@ module.exports = {
     }
     if (tier === "ultimate") {
       s.ultReady = engine.roundNumber + 1 + ULT_CD;
-      if (!p.cutsceneShown[CUT.ult]) {
-        p.cutsceneShown[CUT.ult] = true;
-        engine.queueCutscene(p, CUT.ult);
+      const intro = s.fire ? CUT.fireUlt : CUT.ult; // คลิปเปิดแยกตามร่าง (ครั้งแรกต่อเกมของแต่ละร่าง)
+      if (!p.cutsceneShown[intro]) {
+        p.cutsceneShown[intro] = true;
+        engine.queueCutscene(p, intro);
       }
       engine.log(`🐭 ${p.name} ใช้ Mouse Separade`);
       engine.deferAfterCutscene(() => charge(engine, p, opts.dir));
@@ -337,20 +413,37 @@ module.exports = {
   // ---------- ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) ----------
   //  ร่าง My-Th → กลับร่างโซระทันที แบบเดียวกับกดแปลงร่างคืน: แปลงร่างเทิร์นละ 1 ครั้ง (เทิร์นนี้แปลงกลับไม่ได้) · เพื่อคุณหนูนับใหม่
   //  อาวุธ My-Th Edge ค้างตามเดิม (คืนร่างไม่รีเซ็ต)
+  //  Fire Frame (เข้าทีหลัง My-Th เสมอ) → ตัดแล้วเหลือร่าง My-Th ปกติ
   severables(engine, p) {
     if (!mythOn(p)) return [];
     const s = st(p);
-    return [{
+    const out = [{
       key: "soraMyth", label: "Kamen Rider My-Th", at: s.mythAt || 0,
-      cancel() { s.myth = false; s.calm = 0; s.formRound = engine.roundNumber; },
+      cancel() { s.myth = false; s.fire = false; s.calm = 0; s.formRound = engine.roundNumber; },
     }];
+    if (s.fire) out.push({
+      key: "soraFire", label: "Fire Frame", at: s.fireAt || 0,
+      cancel() { s.fire = false; s.formRound = engine.roundNumber; },
+    });
+    return out;
   },
 
   // ---------- เพื่อคุณหนู: ร่างโซระครบ 2 เทิร์น ฟื้น 2 (endTurn — หลังลูปลดเทิร์นสถานะ) ----------
+  //  Fire Frame: จบเทิร์น = แต้มสกิล -1 · ไม่พอ = กลับร่าง My-Th
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isSora(p) || !p.alive) continue;
       const s = st(p);
+      if (s.myth && s.fire) {
+        if ((p.skillPoints || 0) >= FIRE_UPKEEP) {
+          p.skillPoints -= FIRE_UPKEEP;
+          engine.log(`🔥 ${p.name} Fire Frame — แต้มสกิล -${FIRE_UPKEEP}`);
+        } else {
+          s.fire = false;
+          engine.log(`🔥 ${p.name} แต้มสกิลไม่พอ — Fire Frame ดับ กลับร่าง My-Th`);
+        }
+        continue;
+      }
       if (s.myth || s.formRound === engine.roundNumber) continue;
       s.calm++;
       if (s.calm < REGEN_TURNS) continue;
@@ -364,7 +457,7 @@ module.exports = {
   soraState(engine, p) {
     if (!isSora(p)) return undefined;
     const s = st(p);
-    return { myth: !!s.myth, gun: !!s.gun, calm: s.calm, calmMax: REGEN_TURNS };
+    return { myth: !!s.myth, fire: !!(s.myth && s.fire), gun: !!s.gun, calm: s.calm, calmMax: REGEN_TURNS };
   },
   skillLocks(engine, p) {
     if (!isSora(p)) return undefined;
