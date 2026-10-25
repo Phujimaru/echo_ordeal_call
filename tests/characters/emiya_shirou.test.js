@@ -131,19 +131,20 @@ test('Trace On: ราคาตามอาวุธ · ไม่กินโค
   assert.ok(pub.choices.find((c) => c.key === 'excalibur').locked, 'Excalibur ล็อกนอก UBW');
   trace('kb');
   assert.equal(P.S.emiya.weapon, 'kb');
-  assert.equal(P.S.skillPoints, 6);
+  assert.equal(P.S.skillPoints, 7, 'K&B 1 แต้ม');
   assert.equal(P.S.skillUsedRound, false, 'ไม่กินโควตา');
   assert.equal(engine.action.locked, false, 'ยังเดินได้');
   trace('rule');
   assert.equal(P.S.emiya.weapon, 'kb', 'คูลดาวน์ 2 — กดซ้ำเทิร์นเดียวกันไม่ได้');
-  assert.equal(P.S.skillPoints, 6, 'กดไม่ผ่าน = ไม่เสียแต้ม');
+  assert.equal(P.S.skillPoints, 7, 'กดไม่ผ่าน = ไม่เสียแต้ม');
   engine.setRoundNumber(5);
   trace('rule');
   assert.equal(P.S.emiya.weapon, 'kb', 'เทิร์น N+1 ยังติด');
   engine.setRoundNumber(6);
   trace('rule');
   assert.equal(P.S.emiya.weapon, 'rule', 'เทิร์น N+2 กดได้ · แทนอาวุธเดิม');
-  assert.equal(P.S.skillPoints, 2);
+  assert.equal(P.S.skillPoints, 4, 'Rule Breaker 3 แต้ม');
+  assert.deepEqual(emiya.WEAPON_KEYS.map((k) => emiya.WEAPONS[k].cost), [1, 2, 3, 4, 5]);
 });
 
 test('Trace On นอกตาตัวเองกดไม่ได้ · Excalibur ใช้ได้เฉพาะ UBW ครั้งเดียว และเปลี่ยนอาวุธไม่ได้', () => {
@@ -198,15 +199,15 @@ test('อาวุธหาย: ตีปกติ+สกิลรองรว�
   assert.equal(Q.S.emiya.weapon, null, 'หลังจบเทิร์นที่ 5 หาย');
 });
 
-test('Kanshou & Bakuya: ตี 1 ครั้ง = 2 ฮิต · แต้มสกิล +1 · นับใช้ 1 ครั้ง · คริ 15%', () => {
+test('Kanshou & Bakuya: ตี 1 ครั้ง = 2 ฮิต · แต้มสกิล +1 · นับใช้ 1 ครั้ง · คริ 30%', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1]]);
   engine.setActor('S');
   trace('kb');
-  assert.equal(emiya.critPct(P.S), 15);
+  assert.equal(emiya.critPct(P.S), 30);
   drain(() => engine.attackTarget('S', 'A'));
   assert.equal(P.A.armor, 1, '2 ฮิต × 1');
   assert.equal(match.lastAttack.repeat.length, 1);
-  assert.equal(P.S.skillPoints, 7, '8 − 2 + 1');
+  assert.equal(P.S.skillPoints, 8, '8 − 1 + 1');
   assert.equal(P.S.emiya.uses, 1);
 });
 
@@ -268,9 +269,9 @@ test('Throwing Blade: ระยะ 4 · ดาเมจ 1 + เลือดไ�
   engine.setActor('S');
   trace('kb');
   engine.useSkill('S', 'secondary', ['B']);
-  assert.equal(P.S.skillPoints, 6, 'นอกระยะ = ไม่เสียแต้ม');
+  assert.equal(P.S.skillPoints, 7, 'นอกระยะ = ไม่เสียแต้ม');
   drain(() => engine.useSkill('S', 'secondary', ['A']));
-  assert.equal(P.S.skillPoints, 3);
+  assert.equal(P.S.skillPoints, 4);
   assert.equal(P.A.armor, 2);
   assert.equal(P.A.statuses.hbleed, 2);
   assert.equal(engine.action.locked, true);
@@ -361,31 +362,39 @@ test('Unlimited Blade Works: 12 แต้ม · 6 เทิร์น · ต้�
   assert.equal(P.S.emiya.ultReady, r + 12);
 });
 
-test('Avalon: จบเทิร์นไม่เสียหาย = เยียวยา 1 × 2 · โดนแล้วไม่ติด · คูลดาวน์ 3', () => {
+test('Avalon: ได้รับความเสียหาย = เยียวยา 1 × 2 ทันที · คูลดาวน์ 3 · ไม่เสียหาย = ไม่ติด', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
   engine.endTurn(); engine.clearPhaseTimer();
-  assert.equal(P.S.statuses.mend, 2);
-  assert.equal(P.S.emiya.avalonReady, 7);
+  assert.ok(!P.S.statuses.mend, 'ไม่เสียหาย = ไม่ติด');
+  engine.setRoundNumber(5);
+  engine.dealMixed(P.S, 2);
+  assert.equal(P.S.armor, 1);
+  assert.equal(P.S.statuses.mend, 2, 'เสียเกราะ = ติดทันที (หน่วยที่ 2 ติดคูลดาวน์ ไม่ซ้อน)');
+  assert.equal(engine.statusAmtOf(P.S, 'mend'), 1);
+  assert.equal(P.S.emiya.avalonReady, 8);
   delete P.S.statuses.mend;
   engine.setRoundNumber(7);
   engine.dealMixed(P.S, 1);
-  engine.endTurn(); engine.clearPhaseTimer();
-  assert.ok(!P.S.statuses.mend, 'เทิร์นนี้เสียเกราะ');
+  assert.ok(!P.S.statuses.mend, 'คูลดาวน์ 3 — เทิร์น 7 ยังติด');
   engine.setRoundNumber(8);
-  engine.endTurn(); engine.clearPhaseTimer();
-  assert.equal(P.S.statuses.mend, 2);
+  engine.dealMixed(P.S, 1);
+  assert.equal(P.S.statuses.mend, 2, 'เทิร์น 8 ติดได้อีก');
 });
 
-test('Avalon: ใช้สกิล 30% ความจุ +2 ไม่เกิน 24 · ตีพร้อมอาวุธ +1 · ยาฟื้นแต้มใช้ไม่ได้', () => {
+test('Avalon: ใช้สกิลทุกครั้ง ความจุ +1 ไม่เกิน 24 · ยาฟื้นแต้มใช้ไม่ได้', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
   engine.setActor('S');
-  Math.random = () => 0.1;
   trace('kb');
-  assert.equal(engine.maxSkillOf(P.S), 10);
-  P.S.emiya.capBonus = 16;
+  assert.equal(engine.maxSkillOf(P.S), 9);
+  trace('rule');
+  assert.equal(engine.maxSkillOf(P.S), 9, 'กดไม่ผ่าน (คูลดาวน์) = ไม่เพิ่ม');
+  P.S.emiya.capBonus = 15;
   P.S.emiya.traceReady = 0;
   trace('rule');
   assert.equal(engine.maxSkillOf(P.S), 24);
+  P.S.emiya.traceReady = 0;
+  trace('kb');
+  assert.equal(engine.maxSkillOf(P.S), 24, 'เต็ม +16 แล้วไม่เพิ่ม');
   P.S.skillPoints = 3;
   P.S.inventory = [{ uid: 'sp1', type: 'skillPoint', value: 2 }];
   shop.useInventoryItem('S', 'sp1');

@@ -932,7 +932,7 @@ function statusEntries(p, full) {
   if (p.emiya) {
     const e = p.emiya;
     const W = {
-      kb: ["⚔️", "Kanshou & Bakuya", "ตีปกติ 1 ครั้งฟัน 2 ฮิต อัตราคริติคอลเพิ่ม 15%"],
+      kb: ["⚔️", "Kanshou & Bakuya", "ตีปกติ 1 ครั้งฟัน 2 ฮิต อัตราคริติคอลเพิ่ม 30%"],
       hrunting: ["🏹", "Hrunting & Caladbolg II", "ตีได้ไกล 1 ถึง 4 ช่อง ระยะเดินลด 1"],
       rule: ["🗡️", "Rule Breaker", "ตีโดนแล้วเป้าใช้สกิลไม่ได้จนจบตาเดินถัดไป และติดผนึกพลังงาน 2 เทิร์น"],
       nine: ["🪨", "Nine Lives Blade Works", "พลังโจมตีเพิ่ม 1 ตีโดนศัตรูทุกคนในกรอบ 2×3 ทางทิศของเป้า"],

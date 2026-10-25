@@ -4,12 +4,13 @@
 //
 //  ค่าพื้นฐาน 7/3/1 · เดิน 4 · ตีประชิด [1, 1] · แต้มสกิล 0/8 (ความจุเพิ่มได้ถึง 24 — ฮุค maxSkill)
 //  Avalon Magecraft (ติดตัว):
-//    จบเทิร์นที่ไม่เสียพลังชีวิต/เกราะเลย → เยียวยา 1 × 2 เทิร์น (คูลดาวน์ 3 นับจากเทิร์นที่ติด — onDamageTaken จดเทิร์นที่โดน · onEndTurn ตัดสิน)
-//    ใช้สกิลสำเร็จ 30% → ความจุแต้มสกิล +2 (ไม่เกิน +16) · ไอเทมฟื้นแต้มสกิลใช้ไม่ได้ผล (blocksSkillGain "item")
+//    เสียพลังชีวิต/เกราะ (ทุกทาง) → เยียวยา 1 × 2 เทิร์น ทันที (คูลดาวน์ 3 นับจากเทิร์นที่ติด — onDamageTaken · ปรับ 2026-10-25 เดิม "ไม่เสียหายทั้งเทิร์น")
+//    ใช้สกิลสำเร็จทุกครั้ง → ความจุแต้มสกิล +1 (ไม่เกิน +16 · ปรับ 2026-10-25 เดิม 30% +2) · ไอเทมฟื้นแต้มสกิลใช้ไม่ได้ผล (blocksSkillGain "item")
 //    ตีปกติขณะถืออาวุธ +1 แต้มสกิลต่อการตี 1 ครั้ง (afterStrike — K&B 2 ฮิตได้ 1)
 //  Trace On (พื้นฐาน · ปุ่ม 5 ตัวเลือก · ราคาตามอาวุธ · คูลดาวน์ 2 · ไม่กินโควตา · กดแล้วยังเดินได้):
 //    อาวุธอยู่ 5 เทิร์น (นับเทิร์นที่กด) · ตีปกติ + สกิลรองรวมครบ 3 ครั้ง = หาย · กดใหม่ = แทนอาวุธเดิม
-//    Kanshou & Bakuya — ตีปกติ 2 ฮิต (ฮุค strikeRepeat) + คริ 15% · Hrunting — ระยะตี [1, 4] + เดิน −1 ·
+//    ราคา (ปรับ 2026-10-25): K&B 1 · Hrunting 2 · Rule Breaker 3 · Nine Lives 4 · Excalibur 5
+//    Kanshou & Bakuya — ตีปกติ 2 ฮิต (ฮุค strikeRepeat) + คริ 30% · Hrunting — ระยะตี [1, 4] + เดิน −1 ·
 //    Rule Breaker — ตีโดนติดห้ามสกิล (คลุมตาเดินถัดไปของเป้า) + ผนึกพลังงาน 2 · Nine Lives — พลังโจมตี +1 + ตีกรอบ 2×3 (ฮุค strikeRect) ·
 //    Excalibur — เฉพาะ UBW · 1 ครั้งต่อเกม · 2 เทิร์น · ตี 2 ครั้ง/สกิลรอง 1 ครั้งหาย · เปลี่ยนอาวุธไม่ได้ · พลังโจมตี +1 · ตีแนว 3×1 · เปราะบาง +1 2 เทิร์น
 //  Weapon Skill (รอง · เปลี่ยนตามอาวุธ · ไม่มีอาวุธ = ใช้ไม่ได้ · คูลดาวน์ร่วม 4 นับตอนใช้):
@@ -45,9 +46,8 @@ const FX = "emiyaFx"; // socket event (client/src/board/emiyaFx.js)
 const HP = 7;
 const ARMOR = 3;
 const BASE_SKILL = 8;
-const CAP_STEP = 2;
+const CAP_STEP = 1;      // ทุกครั้งที่ใช้สกิล (ปรับ 2026-10-25 — เดิม 30% ได้ +2)
 const CAP_MAX = 16;        // เพิ่มได้ไม่เกิน 16 จากของเดิม (สูงสุด 24)
-const CAP_CHANCE = 0.3;
 const AVALON_AMT = 1;
 const AVALON_TURNS = 2;
 const AVALON_CD = 3;
@@ -60,7 +60,7 @@ const WS_CD = 4;
 const ULT_TURNS = 6;
 const ULT_CD = ULT_TURNS + 6; // คูลดาวน์ 6 นับหลัง UBW หมด (ผู้ใช้ตัดสิน 2026-10-24)
 const UBW = "emiyaUbw";       // สถานะแสดงเทิร์นที่เหลือของ UBW (ค่าจริงอยู่ที่ s.ubwEnd)
-const KB_CRIT = 15;
+const KB_CRIT = 30;      // ปรับ 2026-10-25 (เดิม 15)
 const RULE_SEAL = 2;
 const EXCAL_FRAGILE = 1;
 const EXCAL_FRAGILE_TURNS = 2;
@@ -78,31 +78,31 @@ const BEAT = { throw: 0.6, shot: 0.7, blast: 0.9, smash: 0.75, excal: 1.4 };
 
 const WEAPONS = {
   kb: {
-    name: "Kanshou & Bakuya", cost: 2, style: "emiyaKB", repeat: 1, crit: KB_CRIT,
-    desc: "ตีปกติ 1 ครั้งฟัน 2 ฮิตใส่เป้าเดิม · อัตราคริ +15%",
+    name: "Kanshou & Bakuya", cost: 1, style: "emiyaKB", repeat: 1, crit: KB_CRIT,
+    desc: `ตีปกติ 1 ครั้งฟัน 2 ฮิตใส่เป้าเดิม · อัตราคริ +${KB_CRIT}%`,
     skill: { key: "throw", name: "Throwing Blade", cost: 3, area: { kind: "target", range: 4, hostile: true },
       desc: `1 คนในระยะ 4: ความเสียหาย ${THROW_DMG} (ลดเกราะก่อน · หลบได้) + เลือดไหล ${THROW_BLEED}` },
   },
   hrunting: {
-    name: "Hrunting & Caladbolg II", cost: 3, style: "emiyaBow", range: [1, 4], mov: -1,
+    name: "Hrunting & Caladbolg II", cost: 2, style: "emiyaBow", range: [1, 4], mov: -1,
     desc: "ระยะตี 1–4 · ระยะเดิน −1",
     skill: { key: "caladbolg", name: "Caladbolg II", cost: null, area: { kind: "line", len: 8, width: 1, hostile: true },
       desc: `เลือกทิศ: แนว 8×1 หยุดที่ศัตรูคนแรก · ใช้แต้มครึ่งหนึ่งของความจุ · ทุก 2 แต้ม ความเสียหาย +1 (เริ่ม 1 · หลบได้) · ระเบิด ${CAL_SPLASH} ใส่ศัตรูทุกคนในระยะ ${CAL_RADIUS} รอบคนแรก` },
   },
   rule: {
-    name: "Rule Breaker", cost: 4, style: "emiyaRule",
+    name: "Rule Breaker", cost: 3, style: "emiyaRule",
     desc: `ตีโดน: ห้ามใช้สกิลจนจบตาเดินถัดไปของเป้า + ผนึกพลังงาน ${RULE_SEAL} เทิร์น (ต้านได้)`,
     skill: { key: "rho", name: "Rho Aias", cost: 5, area: { kind: "self" },
       desc: `ตัวเอง: คุ้มครอง −${RHO_GUARD} + ต้านสถานะผิดปกติ ${RHO_TURNS} เทิร์น` },
   },
   nine: {
-    name: "Nine Lives Blade Works", cost: 5, style: "emiyaNine", atk: 1, range: [1, 2], rect: [2, 3],
+    name: "Nine Lives Blade Works", cost: 4, style: "emiyaNine", atk: 1, range: [1, 2], rect: [2, 3],
     desc: "พลังโจมตี +1 · ตีเป้าในระยะ 2 โดนศัตรูทุกคนในกรอบ 2×3 ทางทิศนั้น",
     skill: { key: "smash", name: "Ground Smash", cost: 6, area: { kind: "line", len: 4, width: 3, hostile: true },
       desc: `เลือกทิศ: แนว 4×3 ความเสียหาย ${SMASH_DMG} (ลดเกราะก่อน · หลบได้) · ผลักศัตรู ${SMASH_PUSH} ช่อง ชนกำแพง/สิ่งของ/คน = สตั้น` },
   },
   excalibur: {
-    name: "Excalibur", cost: 6, style: "emiyaExcal", atk: 1, range: [1, 3], lane: true, turns: EXCAL_TURNS, strikes: EXCAL_STRIKES,
+    name: "Excalibur", cost: 5, style: "emiyaExcal", atk: 1, range: [1, 3], lane: true, turns: EXCAL_TURNS, strikes: EXCAL_STRIKES,
     desc: `เฉพาะตอน Unlimited Blade Works · 1 ครั้งต่อเกม: พลังโจมตี +1 · ตีแนว 3×1 โดนทุกคนในแนว · ตีโดนติดเปราะบาง +${EXCAL_FRAGILE} ${EXCAL_FRAGILE_TURNS} เทิร์น · อยู่ ${EXCAL_TURNS} เทิร์น หายเมื่อตีครบ ${EXCAL_STRIKES} ครั้งหรือใช้สกิลรอง · เปลี่ยนอาวุธไม่ได้`,
     skill: { key: "excalibur", name: "Ex calibruuuu!", cost: 8, area: { kind: "line", len: 5, width: 3, hostile: true },
       desc: `เลือกทิศ: แนว 5×3 ความเสียหาย ${EXCAL_DMG} · หลบไม่ได้ · คุ้มครองไม่มีผล · ใช้แล้ว Excalibur หาย` },
@@ -119,7 +119,7 @@ function fresh() {
     weapon: null, uses: 0, weaponEnd: 0, weaponAt: 0, // อาวุธที่ถือ · ครั้งที่ใช้ไป · หายหลังจบเทิร์น weaponEnd · ลำดับตอนได้มา (severables)
     traceReady: 0, wsReady: 0, ultReady: 0,
     capBonus: 0,                                       // ความจุแต้มสกิลที่เพิ่ม (0..16)
-    hurtRound: 0, avalonReady: 0,                      // Avalon: เทิร์นล่าสุดที่เสียหาย · ติดได้อีกตั้งแต่เทิร์นนี้
+    avalonReady: 0,                                    // Avalon: ติดได้อีกตั้งแต่เทิร์นนี้
     excalUsed: false,
     ubwEnd: 0, ubwAt: 0,                               // UBW กางอยู่ถึงเทิร์น ubwEnd (รวม)
   };
@@ -197,10 +197,11 @@ function usesLeft(p) {
   return (s.weapon === "excalibur" ? EXCAL_STRIKES : WEAPON_USES) - s.uses;
 }
 
-// ---------- Avalon: ความจุแต้มสกิล ----------
-function rollCapacity(engine, p) {
+// ---------- Avalon ----------
+// ใช้สกิลสำเร็จ = ความจุแต้มสกิล +1 (เต็ม +16 แล้วไม่เพิ่ม)
+function growCapacity(engine, p) {
   const s = st(p);
-  if (s.capBonus >= CAP_MAX || !(Math.random() < CAP_CHANCE)) return;
+  if (s.capBonus >= CAP_MAX) return;
   s.capBonus = Math.min(CAP_MAX, s.capBonus + CAP_STEP);
   fx(engine, p, "capacity", { cap: engine.maxSkillOf(p) });
   engine.sfx("emiya_capacity");
@@ -360,7 +361,7 @@ function endUbw(engine, p, why) {
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, FX, WEAPONS, WEAPON_KEYS, BEAT,
-  HP, ARMOR, BASE_SKILL, CAP_STEP, CAP_MAX, CAP_CHANCE, AVALON_AMT, AVALON_TURNS, AVALON_CD, TRACE_CD, WEAPON_TURNS, WEAPON_USES,
+  HP, ARMOR, BASE_SKILL, CAP_STEP, CAP_MAX, AVALON_AMT, AVALON_TURNS, AVALON_CD, TRACE_CD, WEAPON_TURNS, WEAPON_USES,
   EXCAL_TURNS, EXCAL_STRIKES, WS_CD, ULT_TURNS, ULT_CD, UBW, KB_CRIT, RULE_SEAL, THROW_DMG, THROW_BLEED, SMASH_DMG, SMASH_PUSH,
   RHO_GUARD, RHO_TURNS, EXCAL_DMG, CAL_SPLASH, CAL_RADIUS,
   isEmiya, ubwOn, weaponOf, caladbolgCost, caladbolgDmg, caladbolgPlan,
@@ -512,12 +513,22 @@ module.exports = {
     } else if (tier === "ultimate") {
       castUbw(engine, p);
     }
-    rollCapacity(engine, p);
+    growCapacity(engine, p);
     return out;
   },
 
   // ---------- จังหวะเทิร์น ----------
-  onDamageTaken(engine, p) { if (isEmiya(p)) st(p).hurtRound = engine.roundNumber; },
+  // Avalon: เสียพลังชีวิต/เกราะ 1 หน่วย (ทุกทาง) ขณะพร้อม = เยียวยา 1 × 2 เทิร์น (ฟื้นต้นเทิร์นถัดไป) แล้วคูลดาวน์ 3
+  onDamageTaken(engine, p) {
+    if (!isEmiya(p) || !p.alive) return;
+    const s = st(p), r = engine.roundNumber;
+    if (r < s.avalonReady) return;
+    engine.applyMend(p, AVALON_AMT, AVALON_TURNS);
+    s.avalonReady = r + AVALON_CD;
+    if (p.pos) fx(engine, p, "avalon", {});
+    engine.sfx("emiya_avalon");
+    engine.log(`🛡️ ${p.name} Avalon Magecraft — ได้รับความเสียหาย: เยียวยา ${AVALON_AMT} × ${AVALON_TURNS} เทิร์น`);
+  },
   // UBW: ต้นเทิร์นแต้มสกิล +1
   onRoundStartTick(engine, p) {
     if (!ubwOn(p)) return;
@@ -526,19 +537,12 @@ module.exports = {
     const got = (p.skillPoints || 0) - before;
     if (got > 0) engine.log(`⚔️ ${p.name} Unlimited Blade Works — แต้มสกิล +${got}`);
   },
-  // จบเทิร์น: Avalon (ไม่เสียหายทั้งเทิร์น) · UBW ลดคูลดาวน์สกิลรองเพิ่ม / หมดเวลา · อาวุธหมดเวลา
+  // จบเทิร์น: UBW ลดคูลดาวน์สกิลรองเพิ่ม / หมดเวลา · อาวุธหมดเวลา
   onEndTurn(engine) {
     const r = engine.roundNumber;
     for (const p of Object.values(engine.players)) {
       if (!isEmiya(p) || !p.alive) continue;
       const s = st(p);
-      if (s.hurtRound !== r && r >= s.avalonReady) {
-        engine.applyMend(p, AVALON_AMT, AVALON_TURNS);
-        s.avalonReady = r + AVALON_CD;
-        if (p.pos) fx(engine, p, "avalon", {});
-        engine.sfx("emiya_avalon");
-        engine.log(`🛡️ ${p.name} Avalon Magecraft — ไม่ได้รับความเสียหายทั้งเทิร์น: เยียวยา ${AVALON_AMT} × ${AVALON_TURNS} เทิร์น`);
-      }
       if (s.ubwEnd && r <= s.ubwEnd) {
         if (s.wsReady > r + 1) s.wsReady -= 1;
         if (r >= s.ubwEnd) endUbw(engine, p, "expire");
@@ -579,7 +583,7 @@ module.exports = {
     return {
       weapon: s.weapon, weaponTurns: s.weapon ? Math.max(0, s.weaponEnd - r + 1) : 0, usesLeft: usesLeft(p),
       traceCd: traceCd(p, r), wsCd: cdLeft(s.wsReady, r), ultCd: ubwOn(p, r) ? 0 : cdLeft(s.ultReady, r),
-      ubw: ubwOn(p, r) ? s.ubwEnd - r + 1 : 0, cap: s.capBonus, avalonCd: cdLeft(s.avalonReady, r + 1), excalUsed: s.excalUsed,
+      ubw: ubwOn(p, r) ? s.ubwEnd - r + 1 : 0, cap: s.capBonus, avalonCd: cdLeft(s.avalonReady, r), excalUsed: s.excalUsed,
     };
   },
   skillLocks(engine, p) {

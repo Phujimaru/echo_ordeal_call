@@ -1001,9 +1001,9 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   ผลอยู่ใน `card.repeat` [{ dmg, dodge, kill, crit, skills }] · ฉากตียาวขึ้น 0.5 วิ/ฮิต · client เล่นฮิตเพิ่มห่าง `EMIYA_REPEAT_MS` (300ms) หลังฮิตแรก (ตกรอบที่ฮิตไหน ระเบิดตอนนั้น) · `afterStrike` ยังเรียกครั้งเดียวต่อการตี
 - **ราคาตั้งต้นเกินเพดาน `SKILL_COST_MAX`** (ชิโร่ UBW 12): `skills.skillCostOf` คงราคาเดิม — เพดานกันแค่ตัวปรับขาขึ้น (กลางคืน/การเดินทาง/ภาระเวท) ไม่ให้ดันเกิน `max(SKILL_COST_MAX, ราคาเดิม)` · ความจุแต้มเฉพาะตัวเพิ่มระหว่างเกมได้ด้วยฮุค `maxSkill(p)`
 - **ไอเทมที่ไม่มีผล = ใช้ไม่ได้**: ยาฟื้นแต้มสกิลของคนที่ `blocksSkillGain(p, "item")` (ชิโร่/เฟิร์น) — `shop.useInventoryItem` คืนก่อนใช้ ของไม่หาย ไม่ล็อกการเดิน
-- **ชิโร่**: สถานะ `p.emiya` { weapon, uses, weaponEnd, weaponAt, traceReady, wsReady, ultReady, capBonus, hurtRound, avalonReady, excalUsed, ubwEnd, ubwAt } · สถานะ `emiyaUbw` (ป้ายเทิร์นของ UBW — ค่าจริงคือ `ubwEnd`) ·
+- **ชิโร่**: สถานะ `p.emiya` { weapon, uses, weaponEnd, weaponAt, traceReady, wsReady, ultReady, capBonus, avalonReady, excalUsed, ubwEnd, ubwAt } · สถานะ `emiyaUbw` (ป้ายเทิร์นของ UBW — ค่าจริงคือ `ubwEnd`) ·
   อาวุธ = ฮุค `range` / `mov` / `attackLane` / `strikeRect` / `strikeRepeat` / `critPct` / `damageBonus` / `onStrikeLanded` ตามอาวุธที่ถือ · สกิลรองเปลี่ยนตามอาวุธ (`skillPub` + `skillArea` + `skillCost` — Caladbolg II ราคา = ความจุ ÷ 2 · `ownsAreaHit` แล้ว `engine.hitArea` ตอนลูกศรถึง) ·
-  Avalon: `onDamageTaken` จดเทิร์นที่เสียหาย → `onEndTurn` ไม่เสียหายทั้งเทิร์น = `applyMend(p, 1, 2)` · ใช้สกิลสำเร็จทอย 30% ความจุ +2 (ใน `applyInstantSkill`) · `severables` = อาวุธ + UBW · dev `ECHO_DEV_EMIYA_CAP=N` (ความจุเพิ่มตั้งแต่เริ่ม)
+  Avalon: `onDamageTaken` (เสียหาย 1 หน่วยทุกทาง) ขณะพร้อม = `applyMend(p, 1, 2)` แล้วคูลดาวน์ 3 · ใช้สกิลสำเร็จทุกครั้งความจุ +1 (ใน `applyInstantSkill`) · `severables` = อาวุธ + UBW · dev `ECHO_DEV_EMIYA_CAP=N` (ความจุเพิ่มตั้งแต่เริ่ม)
 - เอฟเฟกต์ `engine.boardFx("emiyaFx", { kind, id, color, at, size, … })` (client `emiyaFx.js` · หน้าทดสอบ `?board=1&emiya=1`) · ตีปกติ `attackStyle` = `emiyaKB|emiyaBow|emiyaRule|emiyaNine|emiyaExcal` · เสียง `emiya_*` · คลิป `emiyaCaladbolgBefore/After` + `emiyaUbw` (`characters/_transforms.js`)
 
 ## 31. โหมดตัวละคร / ยูนิตบินได้ + สายจูง / ล่อเป้า (นักบินปริศนา–บานาจ ลิงซ์ — `characters/sliver_bullet.js` · GRID_PLAN §7.5.1)
