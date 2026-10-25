@@ -173,11 +173,11 @@ test('ร่าง Blade: จบเทิร์นแต้ม +2 · ตีป�
   assert.ok(P.K.skillPoints >= 2, 'จบเทิร์น +2 (กลางวันอาจ +1 เพิ่ม)');
 });
 
-test('ร่างมนุษย์: จบเทิร์นครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2 · แปลงร่างแล้วนับใหม่', () => {
+test('ร่างมนุษย์: จบเทิร์นครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2 · แปลงร่างแล้วนับใหม่', () => {
   const P = setup([['K', 'kensaki_kazuma', 0]]);
   P.K.hp = 3;
   const end = () => { engine.endTurn(); engine.clearPhaseTimer(); engine.setRoundNumber(engine.roundNumber + 1); };
-  end(); end();
+  end();
   assert.equal(P.K.hp, 3);
   end();
   assert.equal(P.K.hp, 5);
@@ -188,8 +188,10 @@ test('ร่างมนุษย์: จบเทิร์นครบ 3 เท
   end();
   engine.setActor('K');
   henshin();
-  end(); end();
-  assert.equal(P.K.hp, 5, 'นับใหม่หลังคืนร่าง ยังไม่ครบ 3');
+  end();
+  assert.equal(P.K.hp, 5, 'นับใหม่หลังคืนร่าง ยังไม่ครบ 2');
+  end();
+  assert.equal(P.K.hp, 7);
 });
 
 test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้ม · ไม่กินโควตา · ยังเดินได้ · 3 ใบต่อเทิร์น · ทุกตัวเลือกมีคำอธิบาย', () => {

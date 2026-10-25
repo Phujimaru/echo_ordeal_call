@@ -958,7 +958,7 @@ function statusEntries(p, full) {
       out.push({ key: "kazumaArmed", v: 1, icon: "🃏", label, cls: "bg-sky-200 text-gray-900", desc: "ผลการ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ ไม่ได้ตีก็หายตอนจบตา" });
     }
     if (k.metal > 1) out.push({ key: "kazumaMetalN", v: 1, icon: "🛡️", label: `METAL ×${k.metal}`, cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนได้อีกตามจำนวนนี้ จนจบเทิร์น" });
-    if (!k.blade && k.humanTurns > 0) out.push({ key: "kazumaHuman", v: 1, icon: "💚", label: `${k.humanTurns}/${k.humanNeed || 3}`, cls: "bg-white/20", desc: "อยู่ร่างมนุษย์ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2" });
+    if (!k.blade && k.humanTurns > 0) out.push({ key: "kazumaHuman", v: 1, icon: "💚", label: `${k.humanTurns}/${k.humanNeed || 2}`, cls: "bg-white/20", desc: "อยู่ร่างมนุษย์ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2" });
   }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {
