@@ -1698,6 +1698,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("emiyaFx", onEmiya);
     return () => socket.off("emiyaFx", onEmiya);
   }, [pushFx, look, lowQ]);
+  // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
+  const [colonyEvents, setColonyEvents] = useState([]);
+  useEffect(() => {
+    let seq = 0;
+    const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift"];
+    const handlers = kinds.map((kind) => [kind, (data) => setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }])]);
+    for (const [k, fn] of handlers) socket.on(k, fn);
+    return () => { for (const [k, fn] of handlers) socket.off(k, fn); };
+  }, []);
 
   // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
   const pendingAttack = useRef(null);
@@ -2202,6 +2211,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         zeroScene={zScene}
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
+        colony={state.colony || null}
+        colonyEvents={colonyEvents}
         songs={songs}
         grays={grays}
         ferns={ferns}

@@ -354,7 +354,12 @@ function buildStateFor(viewerId) {
         leash: mine ? action.leashOf(p) || undefined : undefined, // สายจูง { x, y, r }: ช่องที่หยุดได้ต้องห่างจุดนี้ไม่เกิน r
         taunt: (() => { const t = action.tauntOf(p); return t ? [...t] : undefined; })(), // ถูกล่อเป้า: id ตัวล่อที่ต้องเล็ง
         // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key } · มี tiles = เลือกช่องก่อน → { key, tile }
-        actions: mine && hook && hook.hudActions ? hook.hudActions(engine, p) || undefined : undefined,
+        actions: mine ? (() => { // + ปุ่มกระโดดของสนาม Colony (ทุกตัวละคร)
+          const own = hook && hook.hudActions ? hook.hudActions(engine, p) || [] : [];
+          const cj = Colony.hudAction(p);
+          const all = cj ? [...own, cj] : own;
+          return all.length ? all : undefined;
+        })() : undefined,
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),

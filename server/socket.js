@@ -285,6 +285,7 @@ io.on('connection', (socket) => {
   //  ไจโร: ขึ้น/ลงม้า · ทาคุโตะ: พุ่ง (ปุ่มที่มี tiles — client ให้เลือกช่องแล้วส่ง tile) · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
   onUnitEvent(socket, 'charAction', (id, { key, tile } = {}) => {
     const p = match.players[id];
+    if (key === 'colonyJump') { Colony.jump(id); return; } // สนาม Colony: ปุ่มกระโดด (ทุกตัวละคร)
     const hook = p && CHAR_HOOKS[p.characterId];
     if (!hook || !hook.charAction || typeof key !== 'string') return;
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;

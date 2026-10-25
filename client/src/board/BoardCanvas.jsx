@@ -68,6 +68,9 @@
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
 //   dimView     "par" | "veil" | null — ชั้นมิติของตัวที่เราคุม: โลกคู่ขนาน / มองจากมิติหลบสายตา (ค่อยๆ เปลี่ยน 600ms)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
+//   colony      state.colony (สนาม Colony — map.wrap) → ฉาก 3D (colony3d.js) ใต้แคนวาสนี้ + ตัวฉายภาพทรงกระบอก (boardGeo.setCustomProjection)
+//               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัว · ลากซ้าย = หมุน/ก้มเงย · ลากขวา/Shift = เลื่อน · ล้อ = ซูม
+//   colonyEvents [{ key, kind, data }] — boardFx ของ Colony (colonyScene/colonySeal/colonyBoom/colonyJump/colonyLift) เล่นเมื่อเห็น key ใหม่
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
 //   ป้ายที่ต้องเกาะช่องให้วาดในแคนวาสแทน (เช่น shopLabel)
@@ -114,7 +117,8 @@ function dimLayersOf(st, kind, now) {
 }
 // ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
-import { P as projectZ, PITCH_BIRD, PITCH_NORMAL, setPitch } from "./boardGeo";
+import { P as projectZ, PITCH_BIRD, PITCH_NORMAL, setPitch, setCustomProjection, customProjection } from "./boardGeo";
+import { createColonyView } from "./colony3d";
 
 // ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
 const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
@@ -266,6 +270,7 @@ function validAnim(a) {
 export default function BoardCanvas(props) {
   const wrapRef = useRef(null);
   const cvRef = useRef(null);
+  const glRef = useRef(null); // สนาม Colony: แคนวาส WebGL ใต้ชั้น 2D
   const propsRef = useRef(props);
   // สถานะภายในทั้งหมดอยู่ใน ref เดียว — ลูป rAF อ่านค่าล่าสุดโดยไม่ต้องเริ่มใหม่
   const S = useRef(null);
@@ -326,6 +331,12 @@ export default function BoardCanvas(props) {
         if (sig !== st.sig || !st.info) { st.sig = sig; st.info = prepareMap(p.map); }
       }
       const info = st.info;
+      // --- สนาม Colony: ฉาก 3D + ตัวฉายภาพทรงกระบอก (ไม่ใช่ Colony = คืนกล้องเอียงปกติ)
+      const colony = !!(p.colony && p.map && p.map.wrap);
+      if (colony && !st.cv3 && glRef.current) { try { st.cv3 = createColonyView(glRef.current, { lowQ }); } catch (err) { console.error("colony3d", err); st.cv3 = null; } }
+      if (!colony && st.cv3) { st.cv3.dispose(); st.cv3 = null; }
+      if (!st.cv3 && customProjection()) setCustomProjection(null);
+      if (glRef.current) glRef.current.style.display = st.cv3 ? "block" : "none";
       // --- ขนาด + ชั้นนิ่ง
       const dpr = Math.min(lowQ ? 1 : 2, window.devicePixelRatio || 1);
       const { w, h } = st.size;
@@ -334,7 +345,7 @@ export default function BoardCanvas(props) {
       const base = computeView(w, h); // เฟรมปกติ (ชั้นอบใช้อันนี้เสมอ)
       st.base = base;
       // --- มุมมอง (หมุนนุ่มๆ ไปทางที่สั้นกว่า)
-      const target = normRot(p.rotation);
+      const target = st.cv3 ? 0 : normRot(p.rotation); // Colony: หมุนมุมมองด้วยกล้อง 3D แทน
       if (st.rotTarget === null) { st.rotTarget = target; st.turn = st.turnFrom = st.turnTo = target; }
       else if (target !== st.rotTarget) {
         // มุมใกล้: จำจุดบนกระดานที่อยู่กลางส่วนที่มองเห็น แล้วหมุนรอบจุดนั้น
@@ -357,7 +368,7 @@ export default function BoardCanvas(props) {
         else { turning = true; mix = ease(pr); st.turn = st.turnFrom + (st.turnTo - st.turnFrom) * mix; }
       }
       // --- มุมกล้อง: มองจากด้านบน = 90° (ชั้นอบแยกตามมุม)
-      const pitch = p.view === "top" ? PITCH_BIRD : PITCH_NORMAL;
+      const pitch = p.view === "top" && !st.cv3 ? PITCH_BIRD : PITCH_NORMAL;
       if (pitch !== st.pitch) {
         // เปลี่ยนมุมมอง: กล้องมุมใกล้คงจุดกลางบนกระดานไว้ (ตำแหน่งบนจอเปลี่ยนตามมุม)
         const was = st.pitch;
@@ -379,9 +390,9 @@ export default function BoardCanvas(props) {
         st.camAnim = { from: { ...st.cam }, to, t0: now, dur };
       };
       const focusPt = (f) => (f && Number.isFinite(f.x) && Number.isFinite(f.y) ? project(f.x + 0.5, f.y + 0.5) : null);
-      const zl = clampZoom(p.zoom);
+      const zl = st.cv3 ? 0 : clampZoom(p.zoom); // Colony: ซูมด้วยกล้อง 3D (กล้อง 2D อยู่กับที่)
       // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
-      const cin = p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
+      const cin = !st.cv3 && p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
       if (cin !== st.cinemaRef) {
         const was = st.cinemaRef;
         st.cinemaRef = cin;
@@ -464,10 +475,10 @@ export default function BoardCanvas(props) {
         }
         return sc;
       };
-      const scTo = sceneOf(turning ? st.turnTo : st.turn);
-      const scFrom = turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
+      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : sceneOf(turning ? st.turnTo : st.turn);
+      const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
-      if (!turning) {
+      if (!turning && !st.cv3) {
         const bk = `${st.sig}|${w}x${h}|${res}|${night}|${normRot(st.turn)}|${pitch}`;
         boardCv = st.boards.get(bk);
         if (!boardCv) {
@@ -567,6 +578,16 @@ export default function BoardCanvas(props) {
       st.fxActive = st.fxActive.filter((f) => now - f.t0 < (f.dur || FX_DUR[f.kind] || 1000));
       for (const f of st.fxActive) if (f.hitU != null && !f.hit2 && now - f.t0 >= SORA_T.slash2) { f.hit2 = true; st.hitT.set(f.hitU, now); }
 
+      // --- สนาม Colony: เหตุการณ์ใหม่ → ฉาก 3D · อัปเดตกล้อง/ฉาก แล้วตั้งตัวฉายภาพก่อนวาดชั้น 2D
+      if (st.cv3) {
+        for (const ev of Array.isArray(p.colonyEvents) ? p.colonyEvents : []) {
+          if (!ev || ev.key == null || st.fxSeen.has("c" + ev.key)) continue;
+          st.fxSeen.add("c" + ev.key);
+          st.cv3.onEvent(ev.kind, ev.data);
+        }
+        st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema });
+        setCustomProjection(st.cv3);
+      }
       // --- ตัวละครพร้อมวาด
       const targeting = hl.skill.size > 0 || hl.aoe.size > 0;
       const hov = st.hover;
@@ -607,6 +628,12 @@ export default function BoardCanvas(props) {
         // ฉากของเรียวกิ: พุ่งเข้าตี/กระโดดข้ามหัว · พุ่งดับสิ้นซะ · คน/ศพในแนวถูกเหวี่ยงออกข้าง (ศพด้วย)
         const rpo = sp || gp || dp || vp || cpo || tpo ? null : ryougiPose(st.fxActive, u, now);
         if (rpo) { rx = rpo.x; ry = rpo.y; ox = 0; oy = 0; hz = rpo.hz || 0; sq = 0; }
+        // สนาม Colony: ถูกดูด/โคโลนีหมุน (ขยับตามฉาก) · กำลังลอยผ่านแกน/ลิฟต์ (ฉาก 3D วาดแทน)
+        if (st.cv3) {
+          if (st.cv3.hidden(u.id, now)) continue;
+          const cpo2 = st.cv3.pose(u.id, now);
+          if (cpo2) { rx = cpo2.x; ry = cpo2.y; ox = 0; oy = 0; }
+        }
         const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ
@@ -676,8 +703,14 @@ export default function BoardCanvas(props) {
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
         valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null,
       }, now);
-      if (!zs) st.boxes = frame(g);
+      if (!zs) {
+        st.boxes = frame(g);
+        // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
+        const fl = st.cv3 ? st.cv3.flash() : 0;
+        if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,255,255,${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
+      }
       else {
         // เฟรมใหม่วาดลงชั้นแยก แล้วประกอบกับภาพนิ่งของสนามเดิมตามจังหวะฉาก
         if (!st.zbuf) st.zbuf = document.createElement("canvas");
@@ -694,6 +727,7 @@ export default function BoardCanvas(props) {
 
     // ล้อเมาส์: ขึ้น = มุมใกล้ (ซูมเข้าหาจุดใต้เมาส์) · ลง = มุมปกติ (ต้อง passive: false เพื่อกันหน้าเลื่อน)
     const onWheel = (e) => {
+      if (st.cv3 && !e.ctrlKey && e.deltaY) { e.preventDefault(); st.cv3.zoomBy(e.deltaY); return; } // Colony: ซูมต่อเนื่อง
       const pp = propsRef.current, cb = pp.onZoomChange;
       if (typeof cb !== "function" || e.ctrlKey || !e.deltaY) return;
       e.preventDefault();
@@ -713,6 +747,13 @@ export default function BoardCanvas(props) {
     // ปุ่มลูกศร = เลื่อนกล้อง (มุมใกล้เท่านั้น · ค้างไว้ = เลื่อนต่อเนื่อง)
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKeyDown = (e) => {
+      // Colony: WASD/ลูกศร = เลื่อน · Space = กลับมาที่ตัว (กลางฉากอีเวนต์ = ข้ามฉาก) · V = มุมมองตามแกน
+      if (st.cv3 && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const mv = { KeyW: [0, -70], ArrowUp: [0, -70], KeyS: [0, 70], ArrowDown: [0, 70], KeyA: [-70, 0], ArrowLeft: [-70, 0], KeyD: [70, 0], ArrowRight: [70, 0] }[e.code];
+        if (mv) { e.preventDefault(); st.cv3.pan(-mv[0], -mv[1]); return; }
+        if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.recenter(); return; }
+        if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }
+      }
       if (!ARROWS[e.code] || !(clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด
@@ -729,6 +770,7 @@ export default function BoardCanvas(props) {
     window.addEventListener("blur", onBlur);
     return () => {
       alive = false; cancelAnimationFrame(raf); ro.disconnect();
+      if (st.cv3) { st.cv3.dispose(); st.cv3 = null; setCustomProjection(null); }
       wrap.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
@@ -780,6 +822,12 @@ export default function BoardCanvas(props) {
   const onPointerDown = (e) => {
     const st = S.current;
     st.suppressClick = false;
+    if (st.cv3 && e.button <= 2) {
+      if (e.button === 1) e.preventDefault();
+      st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button, pan: e.button !== 0 || e.shiftKey };
+      try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
+      return;
+    }
     if (!(clampZoom(propsRef.current.zoom) > 0) || e.button > 2) return;
     if (e.button === 1) e.preventDefault(); // กันเมาส์กลางเลื่อนหน้าอัตโนมัติ
     st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button };
@@ -808,6 +856,13 @@ export default function BoardCanvas(props) {
     st.ptr = { clientX: e.clientX, clientY: e.clientY };
     if (d && d.id === e.pointerId) {
       if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > DRAG_PX) d.moved = true;
+      if (d.moved && st.cv3) {
+        const dx = e.clientX - d.lx, dy = e.clientY - d.ly;
+        if (d.pan) st.cv3.pan(dx, dy); else st.cv3.orbit(dx, dy);
+        d.lx = e.clientX; d.ly = e.clientY;
+        cvRef.current.style.cursor = "grabbing";
+        return;
+      }
       if (d.moved) {
         const k = (st.base ? st.base.k : 1) * st.cam.z;
         st.camAnim = null;
@@ -830,9 +885,10 @@ export default function BoardCanvas(props) {
 
   return (
     <div ref={wrapRef} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+      <canvas ref={glRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", pointerEvents: "none" }} />
       <canvas
         ref={cvRef}
-        style={{ display: "block", width: "100%", height: "100%", touchAction: clampZoom(props.zoom) > 0 ? "none" : "manipulation" }}
+        style={{ position: "relative", display: "block", width: "100%", height: "100%", touchAction: props.colony || clampZoom(props.zoom) > 0 ? "none" : "manipulation" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

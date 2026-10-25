@@ -79,12 +79,50 @@ export function toView(x, y) {
   const dx = x - BC / 2, dy = y - BR / 2;
   return [dx * cT - dy * sT, dx * sT + dy * cT];
 }
+// ตัวฉายภาพแทนที่ (สนาม Colony — board/colony3d.js): { project(x, y, z) → [sx, sy, s], unproject(sx, sy) → {x, y} | null, depth(x, y) }
+//  ตั้งไว้ = ทุกอย่างที่วาดผ่าน P / quad / gEllipse / unproject / depthOf ไปอยู่บนผิวกระบอกตามกล้อง 3D · null = กล้องเอียงปกติ
+let CUSTOM = null;
+export function setCustomProjection(c) { CUSTOM = c || null; }
+export const customProjection = () => CUSTOM;
+// สนาม Colony: ของที่ยืนบนผิวโค้ง (หมาก บ้าน ต้นไม้ ...) — หมุนทั้งชิ้นรอบจุดยึดให้ "ขึ้น" ของสไปรต์ชี้เข้าแกนกระบอก
+//  ภายใน fn: P ยังคืนจุดจริงบนผิวกระบอก (หมุนย้อนไว้ก่อน → ลง canvas ที่หมุนแล้วตรงตำแหน่ง) · ส่วนที่วาดเป็นระยะบนจอ (by − สูง) ตั้งฉากผิว
+//  คืน null = จุดยึดอยู่หลังกล้อง (ไม่ต้องวาด) · ไม่มีตัวฉายภาพแทนที่ = { th: 0 } วาดตามปกติ
+//  k = ย่อทั้งชิ้น (รวมฐานบนพื้น) รอบจุดยึด เมื่ออยู่ใกล้กล้องมาก (ช่องบนจอใหญ่เกิน FRAME_SMAX) ไม่ให้บังจอ
+const FRAME_SMAX = 110;
+export function localFrame(ax, ay) {
+  const C = CUSTOM;
+  if (!C) return { x: 0, y: 0, th: 0, s: 1, k: 1 };
+  const p0 = C.project(ax, ay, 0), p1 = C.project(ax, ay, 0.6);
+  if (!(p0[2] > 0) || !(p1[2] > 0) || !Number.isFinite(p0[0]) || !Number.isFinite(p1[0])) return null;
+  return { x: p0[0], y: p0[1], th: Math.atan2(p1[0] - p0[0], p0[1] - p1[1]), s: p0[2], k: Math.min(1, FRAME_SMAX / p0[2]) };
+}
+export function withLocalFrame(g, fr, fn) {
+  const C = CUSTOM;
+  if (!C || !fr || (!fr.th && fr.k === 1)) return fn();
+  const c = Math.cos(fr.th), s = Math.sin(fr.th), k = fr.k || 1;
+  CUSTOM = {
+    project(x, y, z = 0) {
+      const q = C.project(x, y, z), dx = q[0] - fr.x, dy = q[1] - fr.y;
+      return [fr.x + dx * c + dy * s, fr.y - dx * s + dy * c, q[2]];
+    },
+    depth: C.depth, unproject: C.unproject,
+  };
+  g.save(); g.translate(fr.x, fr.y); g.rotate(fr.th); g.scale(k, k); g.translate(-fr.x, -fr.y);
+  try { return fn(); } finally { g.restore(); CUSTOM = C; }
+}
+// จุดในกรอบหมุน (fr) → จอจริง
+export function frameToScreen(fr, x, y) {
+  if (!fr || (!fr.th && fr.k === 1)) return [x, y];
+  const c = Math.cos(fr.th), s = Math.sin(fr.th), k = fr.k || 1, dx = (x - fr.x) * k, dy = (y - fr.y) * k;
+  return [fr.x + dx * c - dy * s, fr.y + dx * s + dy * c];
+}
 // ความลึก (Y ของมุมมอง) ของจุดบนกระดาน — ใช้เรียงของหน้า/หลัง
-export const depthOf = (x, y) => (x - BC / 2) * sT + (y - BR / 2) * cT;
+export const depthOf = (x, y) => (CUSTOM ? CUSTOM.depth(x, y) : (x - BC / 2) * sT + (y - BR / 2) * cT);
 // แกนของมุมมองในพิกัดกระดาน: f = ทิศเข้าหากล้อง · r = ทิศขวาของจอ
 export const viewAxes = () => ({ fx: sT, fy: cT, rx: cT, ry: -sT });
 // กระดาน (x, y, สูง z) → [sx, sy, สเกล]
 export function project(x, y, z = 0) {
+  if (CUSTOM) return CUSTOM.project(x, y, z);
   const dx = x - BC / 2, dy = y - BR / 2;
   return PV(dx * cT - dy * sT, dx * sT + dy * cT, z);
 }
@@ -108,6 +146,7 @@ function unprojectView(sx, sy) {
 }
 // จุดบนจอ → พิกัดกระดาน (ย้อนการหมุน)
 export function unproject(sx, sy) {
+  if (CUSTOM) return CUSTOM.unproject(sx, sy);
   const v = unprojectView(sx, sy);
   if (!v) return null;
   return { x: v.X * cT + v.Y * sT + BC / 2, y: -v.X * sT + v.Y * cT + BR / 2 };

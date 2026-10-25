@@ -14,7 +14,7 @@
 // ============================================================
 Object.assign(module.exports, {
   inWorld, active, reset, start, preRound, onEndTurn, mapLayer, layerVer, normalize,
-  jump, canJump, liftUnit, publicInfo, playerInfo, jumpLanding,
+  jump, canJump, liftUnit, publicInfo, playerInfo, jumpLanding, hudAction,
 });
 
 const Board = require("./board");
@@ -405,6 +405,12 @@ function publicInfo() {
     scene: s.scene ? { seq: s.scene.seq, active: !!s.scene.active, turn: s.scene.turn, events: s.scene.events } : null,
     walls: C.walls, doors: C.doors, glass: C.glass, section: C.section,
   };
+}
+// ปุ่มพิเศษบน HUD (view.js actions → client ปุ่ม extra → socket charAction { key: "colonyJump" })
+function hudAction(p) {
+  if (!active() || !p || !p.alive || !p.pos) return null;
+  const cd = st().jumpCd[p.id] || 0;
+  return { key: "colonyJump", icon: "🌀", name: "กระโดด", disabled: !canJump(p), cd: cd || undefined };
 }
 // ข้อมูลรายคน (view.js ต่อท้ายผู้เล่น): คูลดาวน์กระโดด
 function playerInfo(p) {
