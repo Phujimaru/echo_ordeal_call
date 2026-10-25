@@ -334,6 +334,7 @@ export default function BoardCanvas(props) {
       // --- สนาม Colony: ฉาก 3D + ตัวฉายภาพทรงกระบอก (ไม่ใช่ Colony = คืนกล้องเอียงปกติ)
       const colony = !!(p.colony && p.map && p.map.wrap);
       if (colony && !st.cv3 && glRef.current) { try { st.cv3 = createColonyView(glRef.current, { lowQ }); } catch (err) { console.error("colony3d", err); st.cv3 = null; } }
+      if (import.meta.env.DEV) window.__colony3d = st.cv3 || null; // dev: เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))
       if (!colony && st.cv3) { st.cv3.dispose(); st.cv3 = null; }
       if (!st.cv3 && customProjection()) setCustomProjection(null);
       if (glRef.current) glRef.current.style.display = st.cv3 ? "block" : "none";
@@ -703,13 +704,13 @@ export default function BoardCanvas(props) {
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
         valentine: p.valentine || null, celine: p.celine || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
-        colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null,
+        colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {
         st.boxes = frame(g);
         // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
         const fl = st.cv3 ? st.cv3.flash() : 0;
-        if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,255,255,${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
+        if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(${st.cv3.flashColor()},${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
       }
       else {
         // เฟรมใหม่วาดลงชั้นแยก แล้วประกอบกับภาพนิ่งของสนามเดิมตามจังหวะฉาก
@@ -747,9 +748,9 @@ export default function BoardCanvas(props) {
     // ปุ่มลูกศร = เลื่อนกล้อง (มุมใกล้เท่านั้น · ค้างไว้ = เลื่อนต่อเนื่อง)
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKeyDown = (e) => {
-      // Colony: WASD/ลูกศร = เลื่อน · Space = กลับมาที่ตัว (กลางฉากอีเวนต์ = ข้ามฉาก) · V = มุมมองตามแกน
+      // Colony: ลูกศร = เลื่อนกล้อง (WASD = เดินตัวละคร — BoardStage) · Space = กลับมาที่ตัว (กลางฉากอีเวนต์ = ข้ามฉาก) · V = มุมมองตามแกน
       if (st.cv3 && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const mv = { KeyW: [0, -70], ArrowUp: [0, -70], KeyS: [0, 70], ArrowDown: [0, 70], KeyA: [-70, 0], ArrowLeft: [-70, 0], KeyD: [70, 0], ArrowRight: [70, 0] }[e.code];
+        const mv = { ArrowUp: [0, -70], ArrowDown: [0, 70], ArrowLeft: [-70, 0], ArrowRight: [70, 0] }[e.code];
         if (mv) { e.preventDefault(); st.cv3.pan(-mv[0], -mv[1]); return; }
         if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.recenter(); return; }
         if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }

@@ -30,6 +30,11 @@ const FILES = {
   journey_6_night: "/journey/map6/Fire Emblem Engage Tear Streaked.mp3",
   journey_7_day: "/journey/map7/Fire Emblem Engage Distorted Flash of Light (Battle).mp3",
   journey_7_night: "/journey/map7/Fire Emblem Engage Distorted Flash of Light.mp3",
+  // สนาม Colony (GRID_PLAN §8.3 · ไฟล์จากผู้ใช้): เพลงตามปล้อง I/II/III · นับถอยหลังระเบิดตัวเอง = colony_alert
+  colony_1: "/colony/colony_phase1.mp3",
+  colony_2: "/colony/colony_phase2.mp3",
+  colony_3: "/colony/colony_phase3.mp3",
+  colony_alert: "/colony/colony_alert10.mp3",
   buy_something: "/effect_sound/buy_something.mp3",
   change_cutscene: "/effect_sound/change_cutscene.mp3",
   muimi: "/overload_force/overload_force_theme.mp3",
@@ -410,6 +415,8 @@ const musicSuspensions = new Set();
 const MUSIC_TRACK_SCALE = {
   // การเดินทาง ภูมิภาค 2 กลางคืน: ไฟล์เบากว่าเพลงอื่น ~5 dB (-19 เทียบ -14 dBFS) — ดันขึ้นให้เท่ากัน (ชนเพดาน volume 1 เมื่อหลอดเสียงสูง)
   journey_2_night: 1.78,
+  // Colony: ไฟล์ดังไม่เท่ากัน (-9 / -12.3 / -14.3 / -11 LUFS) — ลดลงให้ใกล้ -14 เท่าเพลงอื่น
+  colony_1: 0.56, colony_2: 0.82, colony_alert: 0.71,
   // เพลงม่านแดงของเคท: ห้ามมีอะไรกลบ (ผู้ใช้สั่ง) — ดันเต็มหลอด (0.75 × 1.34 ≈ 1 × หลอดเสียง) ดู FEATURED_MUSIC
   kate_storm: 1.34,
   // ร้อนแรงดังไฟของยูนะ: เพลงไอดอลต้องเด่นกว่าเพลงร้องปกติ (ผู้ใช้สั่ง "พิเศษและอลังการกว่า") — เต็มหลอดแบบม่านแดง

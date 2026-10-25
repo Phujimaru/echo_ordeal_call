@@ -354,6 +354,18 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const port = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex("rgba(200,240,255,1)", "rgba(95,200,255,.45)"), transparent: true, depthWrite: false })); port.scale.setScalar(1.2); port.position.z = 0.05; capBottom.add(port);
     capBottom.position.z = 0;
   }
+  // ท่าเทียบยานต่อจากฝาท้าย (z < 0): กล้องถอยออกหลังฝาได้โดยไม่เห็นนอกโคโลนี — ผนังเหล็กเรียบ + ไฟวงแหวน
+  {
+    const bayTex = canvasTex(256, 128, (g, W, H) => {
+      g.fillStyle = "#8d99aa"; g.fillRect(0, 0, W, H);
+      for (let x = 0; x < W; x += 32) { g.fillStyle = (x / 32) % 2 ? "#97a3b4" : "#8592a4"; g.fillRect(x, 0, 32, H); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(x, 0, 1.5, H); }
+      g.fillStyle = "#c9e8ff"; g.fillRect(0, H * 0.46, W, H * 0.08);
+    });
+    bayTex.wrapS = THREE.RepeatWrapping; bayTex.repeat.set(2, 1);
+    const bay = new THREE.Mesh(new THREE.CylinderGeometry(Rc + 0.002, Rc + 0.002, 3.2, 64, 1, true), new THREE.MeshBasicMaterial({ map: bayTex, side: THREE.BackSide }));
+    bay.rotation.x = Math.PI / 2; bay.position.z = -1.6;
+    scene.add(bay);
+  }
   const domeGroup = new THREE.Group(); domeGroup.position.z = ROWS; scene.add(domeGroup);
   const domeMat = new THREE.MeshStandardMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
   {
@@ -397,8 +409,9 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
 
   // ---- ม่านเหล็ก (ปล้องที่ปิดผนึก) — ปิดสนิท / กำลังหมุนปิด
   const irisMat = new THREE.MeshStandardMaterial({ color: 0x6a1e1a, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
-  let iris = null;
+  let iris = null, irisOpen = 1;
   function setIris(z, open) {
+    irisOpen = open;
     if (iris) { scene.remove(iris); iris.geometry.dispose(); iris = null; }
     if (z == null) return;
     iris = new THREE.Mesh(open > 0.02 ? new THREE.RingGeometry(Rc * open, Rc, 64) : new THREE.CircleGeometry(Rc, 64), irisMat);
@@ -433,7 +446,8 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const fxList = [];
   const boomTex = glowTex("rgba(255,255,230,1)", "rgba(255,140,50,.7)");
   const meteorTex = glowTex("rgba(255,250,230,1)", "rgba(255,170,80,.6)");
-  function addFx(f) { fxList.push(f); if (f.obj) fxGroup.add(f.obj); return f; }
+  // ก่อนเฟรมแรกของเอฟเฟกต์ (เวลาเริ่มในอนาคต / เฟรมถูกพัก) ซ่อนไว้ — สไปรต์ค่าเริ่มต้นสเกล 1 ทึบเต็ม = จอขาว
+  function addFx(f) { fxList.push(f); if (f.obj) { f.obj.visible = false; fxGroup.add(f.obj); } return f; }
   function boom(pos, size = 2.2, ms = 900) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: boomTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     s.position.copy(pos);
@@ -610,7 +624,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     shots.push({ params, ms, on, at });
   }
   const tileShot = (x, y, extra = {}) => ({ phi: phiOf(x + 0.5), z: y + 0.5, pitch: 0.82, dist: 5.8, axis: 0, k: 0.11, ...extra });
-  let flash = 0, alarm = 0;
+  let flash = 0, alarm = 0, flashRGB = "255,255,255";
   const later = (ms, fn) => setTimeout(fn, ms);
 
   // อีเวนต์จาก server (BoardStage ส่งต่อ): colonyScene · colonySeal · colonyBoom · colonyJump · colonyLift
@@ -666,10 +680,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       });
     } else if (kind === "colonyBoom") {
       alarm = 1;
-      queueShot({ axis: 1, z: 33, dist: 5, k: 0.05 }, 2800, () => {
-        for (let i = 0; i < 12; i++) later(i * 140, () => { boom(surf(Math.random() * TAU, 30 + Math.random() * 10, 0), 3); R.shake = Math.max(R.shake, 0.4 + i * 0.12); });
-        later(1800, () => { flash = 1; });
-      });
+      boomFinale();
     } else if (kind === "colonyJump") {
       const from = d.from, to = d.to, ms = 1000;
       const a = surf(phiOf(from.x + 0.5), from.y + 0.5, 0.35), b = surf(phiOf(to.x + 0.5), to.y + 0.5, 0.35);
@@ -687,6 +698,71 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     }
   }
   let capsuleDrop = null, sealAnim = null, jumpCam = null;
+  // ---- ระเบิดตัวเองตอนจบ (~6 วิ · server พักเกม HOLD_SECONDS.boom):
+  //  0–1.4 วิ ไฟลุกเป็นทอดจากปลายโดมไล่มาหากล้อง (มุมตามแกน) · 1.4–3.6 วิ ทั่วทั้งกระบอก + ควัน + กระจกแตก + กล้องหมุนเอียง/FOV ถ่าง
+  //  กำแพงไฟวิ่งจากโดมเข้าหากล้อง (สไปรต์ 2D หลังกำแพงไฟถูกเผาหาย — burnFrom) · ชนกล้อง = แฟลชส้ม → ขาวค้าง
+  let finale = null;
+  function boomFinale() {
+    const z0 = clamp(R.cur.z, minRowNow + 1.5, ROWS - 6), t0 = now();
+    finale = { t0, z0, front: null, lastScorch: 0 };
+    R.shot = null; shots.length = 0;
+    queueShot({ axis: 1, z: z0, dist: 3.4, k: 0.08, roll: 0 }, 1400, null);
+    queueShot({ axis: 1, z: z0, dist: 3, k: 0.05, roll: 0.55, fov: FOV + 18 }, 2200, null);
+    queueShot({ axis: 1, z: z0, dist: 2.6, k: 0.04, roll: 1.1, fov: FOV + 30 }, 3000, null);
+    // ระลอกแรก: ไล่จากโดม (z = ROWS) ลงมาหากล้อง
+    for (let i = 0; i < 18; i++) later(i * 75, () => {
+      const z = ROWS - 0.5 - (ROWS - 0.5 - z0 - 3) * (i / 17);
+      for (let j = 0; j < 2; j++) fireball(surf(Math.random() * TAU, z + (Math.random() - 0.5) * 2, 0.1), 2.4 + Math.random() * 1.6, 1100);
+      R.shake = Math.max(R.shake, 0.3 + i * 0.05);
+    });
+    // ระลอกสอง: ทั่วกระบอก + ใกล้กล้อง · กระจกแตก
+    for (let i = 0; i < 34; i++) later(1300 + i * 60, () => {
+      const near = Math.random() < 0.45, z = near ? z0 + 1 + Math.random() * 6 : z0 + Math.random() * (ROWS - z0);
+      fireball(surf(Math.random() * TAU, z, 0.1), (near ? 3 : 2.2) + Math.random() * 2.4, 1300);
+      R.shake = Math.max(R.shake, 1.1 + Math.random() * 0.6);
+      if (i % 6 === 0) shards(surf(phiOf(((mapNow && mapNow.glass) || [1])[i % 3 | 0] + 0.5), z, 0));
+    });
+    // กำแพงไฟ: จากโดมพุ่งเข้าหากล้อง
+    later(1500, () => { finale.front = { t0: now(), ms: 2100, z1: z0 - 2.2 }; frontMesh.visible = true; });
+  }
+  const smokeTex = glowTex("rgba(40,32,30,.9)", "rgba(60,50,46,.45)");
+  const frontTex = glowTex("rgba(255,255,235,1)", "rgba(255,150,50,.85)");
+  const frontMesh = new THREE.Mesh(new THREE.CircleGeometry(Rc * 1.15, 48), new THREE.MeshBasicMaterial({ map: frontTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  frontMesh.visible = false; scene.add(frontMesh);
+  function fireball(pos, size, ms) {
+    size = Math.min(size, pos.distanceTo(camera.position) * 0.75); // ใกล้กล้อง = ไม่ใหญ่จนขาวทั้งจอ
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: boomTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.position.copy(pos);
+    const up = pos.clone().setZ(0).normalize().multiplyScalar(-1);
+    addFx({ obj: s, t0: performance.now(), ms, tick: (k) => { s.scale.setScalar(0.4 + size * ease(Math.min(1, k * 2.2))); s.material.opacity = 0.9 * (k < 0.35 ? 1 : 1 - (k - 0.35) / 0.65); s.position.copy(pos).addScaledVector(up, k * 0.6); } });
+    if (!lowQ) {
+      const sm = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false }));
+      sm.position.copy(pos); sm.material.opacity = 0; sm.scale.setScalar(0.01); // ยังไม่ถึงเวลา (t0 อนาคต) = ซ่อน
+      addFx({ obj: sm, t0: performance.now() + ms * 0.25, ms: ms * 2.2, tick: (k) => { sm.scale.setScalar(size * (0.7 + k * 1.1)); sm.material.opacity = 0.75 * (1 - k); sm.position.copy(pos).addScaledVector(up, 0.4 + k * 1.4); } });
+    }
+    if (Math.random() < 0.5) boom(pos, 0.01, 10); // เศษซาก (ใช้ของเดิม)
+    scorch(pos);
+  }
+  // กระจกแตก: ประกายฟ้าขาวพุ่งออก
+  function shards(pos) {
+    const n = lowQ ? 10 : 26, geo = new THREE.BufferGeometry(), arr = new Float32Array(n * 3);
+    geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xd8f0ff, size: 0.08, transparent: true, depthWrite: false }));
+    const vs = Array.from({ length: n }, () => new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4));
+    addFx({ obj: pts, t0: performance.now(), ms: 1200, tick: (k) => { vs.forEach((v, i) => { const p = pos.clone().addScaledVector(v, k); arr.set([p.x, p.y, p.z], i * 3); }); geo.attributes.position.needsUpdate = true; pts.material.opacity = 1 - k; } });
+  }
+  // รอยไหม้บนพื้น (วาดลงชั้นเตือน — ระหว่างระเบิดชั้นนี้ทึบเต็ม)
+  function scorch(pos) {
+    const g = ovCv.getContext("2d"), W = ovCv.width, H = ovCv.height;
+    const u = mod(Math.atan2(pos.y, pos.x) / DPHI + 0.5, COLS) / COLS, v = clamp(pos.z / ROWS, 0, 1);
+    const x = u * W, y = (1 - v) * H, r = W / COLS * (0.6 + Math.random() * 0.9);
+    for (const dx of [0, -W, W]) {
+      const gr = g.createRadialGradient(x + dx, y, 0, x + dx, y, r);
+      gr.addColorStop(0, "rgba(10,6,6,.95)"); gr.addColorStop(0.55, "rgba(30,14,10,.8)"); gr.addColorStop(0.8, "rgba(255,120,40,.55)"); gr.addColorStop(1, "rgba(255,120,40,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(x + dx, y, r, 0, TAU); g.fill();
+    }
+    ovTex.needsUpdate = true;
+  }
   // ฉากดูด/เลื่อน: ชั้น 2D ขยับหมากตามนี้ (pose) — server ส่งตำแหน่งปลายทางมาแล้วใน state
   const poses = new Map(); // id → { from, path, t0, ms }
   function animMoves(moves) {
@@ -723,7 +799,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       floorTex.needsUpdate = true;
     }
     const oSig = JSON.stringify([c.tele, c.holes, c.sealIn, c.sealed]);
-    if (oSig !== holeSig) {
+    if (oSig !== holeSig && !finale) {
       holeSig = oSig;
       paintOverlay(ovCv.getContext("2d"), ovCv.width, ovCv.height, { colony: { ...c, holes } });
       ovTex.needsUpdate = true;
@@ -778,7 +854,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     if (iris) iris.visible = camera.position.z > iris.position.z + 0.05;
     // ---- ภาพเคลื่อนไหว
     const time = t / 1000;
-    ovMat.opacity = 0.65 + 0.35 * Math.sin(time * 6);
+    if (!finale) ovMat.opacity = 0.65 + 0.35 * Math.sin(time * 6);
     for (const l of wallLights) {
       const warn = l.row === (sealedNow + 1) * SEC - 1 && colony && colony.sealIn != null && colony.sealIn <= 1;
       const on = 0.55 + 0.45 * Math.sin(time * 3 + l.i * 0.8);
@@ -813,6 +889,25 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       });
       partGeo.attributes.position.needsUpdate = true;
     } else parts.visible = false;
+    // ระเบิดตอนจบ: กำแพงไฟวิ่ง · ไฟห้องกะพริบ · ชั้นรอยไหม้ทึบ · แฟลชส้ม → ขาว
+    if (finale) {
+      const ft = t - finale.t0;
+      ovMat.opacity = 1;
+      if (ft > 1200) { hemi.intensity = 0.4 + Math.random() * 1.4; sun.intensity = Math.random() * 1.2; }
+      const fr = finale.front;
+      if (fr) {
+        const k = clamp((t - fr.t0) / fr.ms, 0, 1), e = k * k;
+        const z = lerp(ROWS, fr.z1, e);
+        frontMesh.position.set(0, 0, z); frontMesh.scale.setScalar(0.9 + Math.sin(t / 40) * 0.05);
+        frontMesh.material.opacity = 0.85;
+        fr.z = z;
+        if (k > 0.55) { flashRGB = "255,170,90"; flash = Math.max(flash, (k - 0.55) / 0.45); }
+        if (k >= 1) { flashRGB = "255,248,236"; flash = 1; }
+      }
+      if (ft > 3700) { flashRGB = "255,255,255"; flash = 1; }
+      // เกมจบ = กระดานถูกถอดก่อนถึงตรงนี้ · ถ้ายังอยู่ (เล่นซ้ำใน dev) คืนฉากปกติ
+      if (ft > 9000) { finale = null; frontMesh.visible = false; holeSig = ""; flash = 0; flashRGB = "255,255,255"; alarm = 0; }
+    }
     // ไฟเตือน: แสงแดงทั้งโคโลนี
     const al = alarm * (0.5 + 0.5 * Math.sin(time * 4));
     hemi.color.setRGB(1, 1 - al * 0.55, 1 - al * 0.55);
@@ -820,11 +915,11 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     for (let i = fxList.length - 1; i >= 0; i--) {
       const f = fxList[i], k = (t - f.t0) / f.ms;
       if (k >= 1) { if (f.obj) { fxGroup.remove(f.obj); f.obj.traverse?.((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } fxList.splice(i, 1); continue; }
-      if (k >= 0) f.tick(k);
+      if (k >= 0) { f.tick(k); if (f.obj) f.obj.visible = true; }
     }
     for (const [id, until] of hidden) if (t > until) hidden.delete(id);
     for (const [id, ps] of poses) if (t > ps.t0 + ps.ms + 50) poses.delete(id);
-    flash *= Math.pow(0.9, dt / 16.7);
+    if (!(finale && t - finale.t0 > 3400)) flash *= Math.pow(0.9, dt / 16.7); // ระเบิดจบแล้วขาวค้างจนขึ้นหน้าสรุป
     renderer.render(scene, camera);
   }
 
@@ -872,6 +967,8 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     },
     hidden(id, t) { const u = hidden.get(id); return !!u && t < u; },
     // แคปซูลเสบียงที่วาดตอนนี้ { x, y, z } (z = ความสูงระหว่างตก) · null = ไม่มี/ยังไม่ถึงจังหวะตกในฉาก
+    // ม่านเหล็กปิด (เกือบสนิท) อยู่ระหว่างกล้องกับปล้องที่ปิด → แถว < ค่านี้ถูกบัง (ชั้น 2D ไม่วาดสไปรต์/เอฟเฟกต์) · null = ไม่บัง
+    occludeBelow() { return iris && iris.visible && irisOpen < 0.3 ? iris.position.z : null; },
     capsuleAt(t) {
       const c = capsuleAtNow;
       if (!c) return null;
@@ -882,14 +979,25 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       return { x: c.x, y: c.y, z: (1 - ease(k)) * Rc * 0.95 };
     },
     flash() { return flash; },
+    flashColor() { return flashRGB; },
+    // ระเบิดตอนจบ: แถว > ค่านี้ถูกกำแพงไฟกลืนแล้ว (ชั้น 2D ไม่วาดสไปรต์) · null = ไม่มี
+    burnFrom() { return finale && finale.front && finale.front.z != null ? finale.front.z : null; },
     orbit(dx, dy) { R.user.yaw -= dx * 0.0045; R.user.pitch = clamp(R.user.pitch + dy * 0.004, 0.12, 1.42); },
+    // เลื่อนกล้องแบบลากพื้น (dx, dy = พิกเซลจอที่ลาก): จุดบนพื้นใต้เมาส์ไปตามมือ — คิดจากทิศแกนกระดานบนจอจริง ณ จุดโฟกัส
+    //  (กล้องหมุน/ก้มเงย/อยู่บนผนังด้านไหนก็ได้ ทิศบนจอตรงเสมอ)
     pan(dx, dy) {
-      const s = R.cur.dist * 0.0035 + 0.006;
-      const T = tan(R.cur.phi), right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
-      const rT = right.dot(T), rA = right.dot(AX), rl = Math.hypot(rT, rA) || 1;
-      const fT = Math.sin(R.cur.yaw), fA = Math.cos(R.cur.yaw);
-      R.user.panX = clamp(R.user.panX + (-dx * rT / rl + dy * fT) * s / (Rc * DPHI), -8, 8);
-      R.user.panZ = clamp(R.user.panZ + (-dx * rA / rl + dy * fA) * s, -40, 40);
+      const k = (R.base && R.base.k) || 1, bx = R.focus.x + 0.5 + R.user.panX, by = R.focus.y + 0.5 + R.user.panZ;
+      const p0 = project(bx, by, 0), px = project(bx + 0.5, by, 0), py = project(bx, by + 0.5, 0);
+      let ux, uz;
+      const ax = (px[0] - p0[0]) * 2, ay = (px[1] - p0[1]) * 2, bxv = (py[0] - p0[0]) * 2, byv = (py[1] - p0[1]) * 2, det = ax * byv - bxv * ay;
+      if ([p0[0], px[0], py[0]].every(Number.isFinite) && Math.abs(det) > 1e-3) {
+        const sx = -dx / k, sy = -dy / k; // ลากขวา = พื้นตามมือไปขวา → จุดโฟกัสถอยไปทางซ้าย
+        ux = (sx * byv - bxv * sy) / det; uz = (ax * sy - sx * ay) / det;
+        const m = Math.hypot(ux, uz), cap = 1.2; // กันกระโดดไกลเมื่อพื้นเกือบขนานสายตา
+        if (m > cap) { ux *= cap / m; uz *= cap / m; }
+      } else { ux = -dx * 0.01; uz = dy * 0.01; }
+      R.user.panX = clamp(R.user.panX + ux, -8, 8);
+      R.user.panZ = clamp(R.user.panZ + uz, -40, 40);
     },
     zoomBy(dy) { R.user.dist = clamp(R.user.dist * Math.exp(dy * 0.0012), 1.8, 13); },
     recenter() { R.user.panX = 0; R.user.panZ = 0; },

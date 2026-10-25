@@ -34,6 +34,8 @@ const METEOR_RADIUS = 4, GLASS_RADIUS = 5;
 const BEAM_DMG = 3, CRUSH_DMG = 2, STOMP_DMG = 1;
 const LIFT_ROWS = 4;
 const SCENE_SECONDS = { meteor: 2.6, beam: 3, capsule: 2.4, pull: 1.4, drift: 1.6 };
+// ฉากจบเทิร์นของ client (colony3d: ปิดผนึก = ม่านเหล็กหมุนปิด ~3.2 วิ · ระเบิด = ระเบิดต่อเนื่อง + แฟลช ~4 วิ + ขาวค้าง) — พักเกมให้เล่นจบก่อนสรุปผล/ขึ้นเทิร์นใหม่
+const HOLD_SECONDS = { seal: 4, boom: 6.5 };
 
 Object.assign(module.exports, { SEALS, BOOM, CD_JUMP });
 
@@ -286,9 +288,9 @@ function freeSpot(y0, y1) {
   return null;
 }
 
-// ---------- จบเทิร์น ----------
+// ---------- จบเทิร์น ---------- คืนวินาทีที่ต้องพักให้ฉากปิดผนึก/ระเบิดเล่นจบ (0 = ไม่มีฉาก)
 function onEndTurn() {
-  if (!active()) return;
+  if (!active()) return 0;
   const s = st();
   const turn = match.roundNumber;
   // รอยรั่วที่ดูดครบ 2 เทิร์นแล้วปิด (ปะแผ่นเหล็ก — เดินผ่านได้)
@@ -299,9 +301,11 @@ function onEndTurn() {
   });
   for (const id of Object.keys(s.jumpCd)) { s.jumpCd[id]--; if (s.jumpCd[id] <= 0) delete s.jumpCd[id]; }
   const si = SEALS.indexOf(turn);
-  if (si >= 0) seal(si);
-  if (turn >= BOOM) explode();
+  let hold = 0;
+  if (si >= 0) { seal(si); hold = HOLD_SECONDS.seal; }
+  if (turn >= BOOM) { explode(); hold = HOLD_SECONDS.boom; }
   bump();
+  return hold;
 }
 // ปิดผนึกปล้อง: ทุกคนที่ยังอยู่ในปล้อง (ช่องไหนของตัวก็ได้) ตายจริง · เป้า/รู/แคปซูลในปล้องนั้นหาย
 function seal(si) {

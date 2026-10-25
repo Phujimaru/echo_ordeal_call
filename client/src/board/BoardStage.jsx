@@ -17,6 +17,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
 import { clampZoom, ZOOM_STEPS } from "./boardDraw";
+import { customProjection } from "./boardGeo";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
@@ -101,7 +102,22 @@ function dirToward(from, to, size = 1) {
 }
 // ทิศบนจอ → ทิศบนกระดาน ตามมุมที่หมุน (rotation = จำนวน 90° ตามเข็ม · เหมือน boardGeo.toView)
 //  ขวาบนจอ = (cos, −sin) · ลงล่างจอ (เข้าหากล้อง) = (sin, cos)
-function screenDir(rotation, code) {
+//  สนาม Colony (มีตัวฉายภาพทรงกระบอก): เลือกก้าว 1 ใน 4 ทิศของกระดานที่ไปทางเดียวกับปุ่มบนจอมากที่สุด ณ ตำแหน่งตัวละคร (at)
+const SCREEN_KEY = { KeyD: [1, 0], KeyA: [-1, 0], KeyS: [0, 1], KeyW: [0, -1] };
+function screenDir(rotation, code, at) {
+  const cp = customProjection();
+  if (cp && at && SCREEN_KEY[code]) {
+    const [kx, ky] = SCREEN_KEY[code], cx = at.x + 0.5, cy = at.y + 0.5, p0 = cp.project(cx, cy, 0);
+    if (!Number.isFinite(p0[0])) return null;
+    let best = null;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const q = cp.project(cx + dx * 0.5, cy + dy * 0.5, 0);
+      if (!Number.isFinite(q[0])) continue;
+      const vx = q[0] - p0[0], vy = q[1] - p0[1], l = Math.hypot(vx, vy) || 1, dot = (vx * kx + vy * ky) / l;
+      if (!best || dot > best.dot) best = { x: dx, y: dy, dot };
+    }
+    return best ? { x: best.x, y: best.y } : null;
+  }
   const a = (rotation % 4) * Math.PI / 2, c = Math.round(Math.cos(a)), sn = Math.round(Math.sin(a));
   if (code === "KeyD") return { x: c, y: -sn };
   if (code === "KeyA") return { x: -c, y: sn };
@@ -1703,7 +1719,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   useEffect(() => {
     let seq = 0;
     const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift"];
-    const handlers = kinds.map((kind) => [kind, (data) => setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }])]);
+    // ตายตอนปิดผนึก/ระเบิด (event มาก่อน state): ค้างร่างไว้ (ระบบร่างค้างเดียวกับดิเอโก้) จนม่านเหล็กปิด/แฟลช แล้วค่อยระเบิดตกรอบ
+    const DEATH_AT = { colonySeal: 2300, colonyBoom: 2600 };
+    const holdDead = (kind, data) => {
+      const ms = DEATH_AT[kind], ids = data && Array.isArray(data.dead) ? data.dead : [];
+      if (!ms || !ids.length) return;
+      const t0 = performance.now(), add = {};
+      for (const id of ids) { const p = byIdRef.current[id]; if (p && p.pos) { add[id] = { ...p }; diegoDefer.current[id] = Math.max(diegoDefer.current[id] || 0, t0 + ms); } }
+      if (!Object.keys(add).length) return;
+      setDiegoGhosts((g) => ({ ...g, ...add }));
+      for (const id of Object.keys(add)) timers.current.push(setTimeout(() => setDiegoGhosts((g) => { if (!g[id]) return g; const n = { ...g }; delete n[id]; return n; }), ms + 1500));
+    };
+    const handlers = kinds.map((kind) => [kind, (data) => { holdDead(kind, data); setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }]); }]);
     for (const [k, fn] of handlers) socket.on(k, fn);
     return () => { for (const [k, fn] of handlers) socket.off(k, fn); };
   }, []);
@@ -2004,7 +2031,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!myTurn || pick || fcId) return undefined;
     const onKey = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
-      const dir = screenDir(rotation, e.code);
+      const dir = screenDir(rotation, e.code, me && me.pos);
       if (!dir) return;
       e.preventDefault();
       const sent = stepSent.current;

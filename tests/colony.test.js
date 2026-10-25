@@ -97,7 +97,7 @@ test('ปิดผนึกตอนจบเทิร์น 5: คนในป�
   const [a, b, c] = Object.values(P());
   put(a, 3, 4); put(b, 3, 12); put(c, 8, 30);
   engine.setRoundNumber(5);
-  Colony.onEndTurn();
+  assert.ok(Colony.onEndTurn() > 0, "ปิดผนึก = พักให้ฉากเล่นจบ");
   assert.equal(a.alive, false); assert.equal(a.pos, null);
   assert.equal(b.alive, true); assert.equal(c.alive, true);
   assert.equal(match.colony.sealed, 1);
@@ -106,7 +106,7 @@ test('ปิดผนึกตอนจบเทิร์น 5: คนในป�
   assert.equal(Board.inBounds(map, 3, 9), false);
   assert.equal(Board.inBounds(map, 3, 10), true);
   // จบเทิร์น 6 ไม่ปิดอะไร · จบเทิร์น 9 ปิดปล้อง 2
-  engine.setRoundNumber(6); Colony.onEndTurn(); assert.equal(match.colony.sealed, 1);
+  engine.setRoundNumber(6); assert.equal(Colony.onEndTurn(), 0); assert.equal(match.colony.sealed, 1);
   engine.setRoundNumber(9); Colony.onEndTurn();
   assert.equal(match.colony.sealed, 2); assert.equal(b.alive, false);
 });
@@ -117,7 +117,7 @@ test('ครบเทิร์น 23 = Colony ระเบิด: ทุกค�
   put(a, 1, 33); put(b, 9, 35);
   match.colony.sealed = 3;
   engine.setRoundNumber(23);
-  Colony.onEndTurn();
+  assert.ok(Colony.onEndTurn() > 0, "ระเบิด = พักให้ฉากเล่นจบ");
   assert.equal(a.alive, false); assert.equal(b.alive, false);
   assert.equal(endTurnPhase.gameOver(), true);
   assert.equal(match.gameState, 'GAMEOVER');

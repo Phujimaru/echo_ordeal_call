@@ -15,6 +15,10 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   //  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ) = ไม่เล่นเพลง zero_N ให้เพลงสกิล (takuto_theme) เล่นแทน
   const zero = state?.zero;
   if (zero && zero.active && !zero.collapse && isMatchPhase(phase)) return { name: `zero_${Math.min(4, Math.max(1, zero.stage || 1))}` };
+  // สนาม Colony (GRID_PLAN §8.3): นับถอยหลังระเบิดตัวเอง = colony_alert ทับทุกเพลง · ก่อนนั้นเพลงตามปล้องที่กำลังจะปิด (I/II/III) — เพลงท่าไม้ตายทับได้
+  const colony = state?.colony;
+  if (colony && isMatchPhase(phase) && colony.countdown != null) return { name: "colony_alert" };
+  if (colony && isMatchPhase(phase) && !state?.skillMusic) return { name: `colony_${Math.min(3, Math.max(0, colony.sealed | 0) + 1)}` };
   if (state?.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
   // ระบบกระดาน: ทุกคนได้ตีในตาของตัวเอง — ฉากตี (ATTACKING) ไม่สลับไปเพลงช่วงโจมตีแล้ว (สลับไปมาทุกตา = รก)
   if (isMatchPhase(phase)) {
