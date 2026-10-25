@@ -38,7 +38,7 @@ const FILES = {
   colony_alert: "/colony/colony_alert10.mp3",
   // Moon Cell (GRID_PLAN §8.4 · ไฟล์จากผู้ใช้): เพลงธีม · เสียงเหตุการณ์สังเคราะห์ (.claude/plans/mooncell-sfx.sh) — server ยิงผ่าน engine.sfx
   moon_theme: "/mooncell/moon_cell_theme.mp3",
-  moon_curse_hit: "/mooncell/sfx/moon_curse_hit.mp3",
+  moon_curse_hit: "/mooncell/hakuno_duo_ultimate_sound.m4a", // เสียงโจมตีท่าไม้ตายของผู้ใช้ — ดังตอนลำแสงลงหลังคลิปจบ (คลิปมีเสียงของตัวเอง ห้ามซ้อน)
   moon_pillar: "/mooncell/sfx/moon_pillar.mp3",
   moon_revive: "/mooncell/sfx/moon_revive.mp3",
   moon_warn: "/mooncell/sfx/moon_warn.mp3",

@@ -8,8 +8,7 @@ mk() { # ชื่อ ความยาว นิพจน์
   ffmpeg -hide_banner -loglevel error -y -f lavfi -i "aevalsrc=exprs='$3':s=44100:d=$2" \
     -af "loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=out:st=$(awk "BEGIN{print $2-0.08}"):d=0.08" -ar 44100 -b:a 160k "$OUT/$1.mp3"
 }
-# คำสาปแห่งดวงจันทร์ลง: กวาดลงจากเสียงสูง → ตูมต่ำ + เสียงแตกพร่า
-mk moon_curse_hit 2.6 "0.5*sin(2*PI*(900*exp(-3*t))*t)*exp(-1.2*t)+0.9*sin(2*PI*48*t)*exp(-1.6*t)*gt(t,0.35)+0.35*(random(0)*2-1)*exp(-2.5*(t-0.35))*gt(t,0.35)"
+# (เสียงคำสาปลง = ไฟล์ m4a ของผู้ใช้ client/public/mooncell/hakuno_duo_ultimate_sound.m4a — ไม่สังเคราะห์)
 # เสาข้อมูลพุ่ง: ซ่าดิจิทัลไต่ขึ้น
 mk moon_pillar 0.9 "0.6*sin(2*PI*(200+1400*t)*t)*exp(-2.2*t)+0.3*sgn(sin(2*PI*(80+900*t)*t))*exp(-4*t)"
 # ฟื้นคืนชีพ: เสียงระฆังใสไต่ขึ้น 3 โน้ต

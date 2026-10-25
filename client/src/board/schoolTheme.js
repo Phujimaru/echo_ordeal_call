@@ -62,6 +62,28 @@ function blossomTree(g, x, y, s, C, seed = 1) {
   for (let i = 0; i < 9; i++) { g.fillStyle = i % 2 ? C.c3 : "#ffffff"; g.globalAlpha = 0.7; g.beginPath(); g.arc(x + (R() - 0.5) * s * 0.9, y - s * (0.8 + R() * 0.5), Math.max(0.8, s * 0.03), 0, TAU); g.fill(); }
   g.globalAlpha = 1;
 }
+// กลีบมาตรฐานรัศมี 1 (ใช้กับ transform — กลีบปลิวทั้งจอ)
+const PETAL = typeof Path2D === "undefined" ? null : (() => { const p = new Path2D(); p.moveTo(0, -1); p.quadraticCurveTo(0.9, -0.2, 0, 1); p.quadraticCurveTo(-0.9, -0.2, 0, -1); return p; })();
+// แคชต้นซากุระเป็นภาพ (วาดเต็มทุกเฟรม ~0.1 ms/ต้น → drawImage ครั้งเดียว) — คีย์ = ขนาดบนจอ (ปัด 2 px) · ลาย (seed % 8) · กลางวัน/คืน
+//  ภาพกว้าง 1.6s สูง 1.7s · ฐานต้นอยู่ที่ (0.8s, 1.55s) ของภาพ
+const TREE_CACHE = new Map();
+function cachedTree(g, x, y, s, C, seed) {
+  const sz = Math.max(8, Math.round(s / 2) * 2), dpr = (g.getTransform ? Math.abs(g.getTransform().a) : 1) || 1;
+  const k = `${sz}|${seed % 8}|${C.c1}|${Math.round(dpr * 10)}`;
+  let img = TREE_CACHE.get(k);
+  if (!img) {
+    if (TREE_CACHE.size > 160) TREE_CACHE.clear();
+    const w = Math.ceil(sz * 1.6), h = Math.ceil(sz * 1.7);
+    img = document.createElement("canvas");
+    img.width = Math.ceil(w * dpr); img.height = Math.ceil(h * dpr);
+    const c = img.getContext("2d");
+    c.scale(dpr, dpr);
+    blossomTree(c, sz * 0.8, sz * 1.55, sz, C, seed % 8);
+    TREE_CACHE.set(k, img);
+  }
+  const k2 = s / sz;
+  g.drawImage(img, x - sz * 0.8 * k2, y - sz * 1.55 * k2, (img.width / dpr) * k2, (img.height / dpr) * k2);
+}
 function petalShape(g, x, y, r, rot, col) {
   g.save(); g.translate(x, y); g.rotate(rot);
   g.fillStyle = col; g.beginPath(); g.moveTo(0, -r); g.quadraticCurveTo(r * 0.9, -r * 0.2, 0, r); g.quadraticCurveTo(-r * 0.9, -r * 0.2, 0, -r); g.fill();
@@ -173,16 +195,20 @@ const THEME = {
   // กลีบซากุระโปรยตลอด (ทั้งกลางวัน/กลางคืน)
   ambient(g, f, t) {
     const { view, night, C } = f, W = view.x1 - view.x0, H = view.y1 - view.y0;
-    for (let i = 0; i < 46; i++) {
+    const m = g.getTransform(); // วาดกลีบด้วย setTransform ตัวเลขตรง (ฐาน × กลีบ) — ไม่ save/restore ทีละกลีบ
+    const A = m.a, B = m.b, Cc = m.c, D = m.d, E = m.e, F = m.f;
+    for (let i = 0; i < 34; i++) {
       const ph = (t / (9000 + (i % 7) * 900) + hash(i, 1)) % 1;
       const x = view.x0 + ((hash(i, 2) + ph * 0.45 + Math.sin(t / 1300 + i) * 0.02) % 1) * W;
       const y = view.y0 - 20 + ph * (H + 40) + Math.sin(t / 800 + i * 1.7) * 12;
       const r = 3 + hash(i, 3) * 3.5, flip = Math.abs(Math.sin(t / (500 + i * 13) + i));
       g.globalAlpha = (night ? 0.75 : 0.95) * Math.min(1, Math.sin(ph * Math.PI) * 3);
-      g.save(); g.translate(x, y); g.rotate(t / (700 + i * 21) + i); g.scale(1, 0.35 + flip * 0.65);
-      petalShape(g, 0, 0, r, 0, C.petal[i % C.petal.length]);
-      g.restore();
+      const a = t / (700 + i * 21) + i, ca = Math.cos(a), sa = Math.sin(a), sy = 0.35 + flip * 0.65;
+      const la = ca * r, lb = sa * r, lc = -sa * r * sy, ld = ca * r * sy;
+      g.setTransform(A * la + Cc * lb, B * la + D * lb, A * lc + Cc * ld, B * lc + D * ld, A * x + Cc * y + E, B * x + D * y + F);
+      g.fillStyle = C.petal[i % C.petal.length]; g.fill(PETAL);
     }
+    g.setTransform(m);
     g.globalAlpha = 1;
   },
 };
@@ -208,9 +234,63 @@ function box(g, x0, y0, x1, y1, z0, z1, col, skip = {}) {
   return sides;
 }
 
-// อาคารเรียน (1 ช่อง ต่อกันทั้งแถว) — ด้านยาวหน้า/หลังมีหน้าต่าง 2 ชั้น · เสาขาวที่ขอบช่อง · ฝาเป็นหลังคา
-//  ทางเข้ากลาง (2 ช่องกลางแถว): ประตู + บันได + หน้าจั่วนาฬิกาเหนือหลังคา (ฝั่งหันเข้าลาน)
+// อาคารเรียน: แคชภาพรายช่อง (ตรวจความกระตุก 2026-10-25 — วาดสดทั้งแถว ~2.3 ms/เฟรม) — คีย์ = ตำแหน่งมุมกล่องบนจอ (ปัด 1 px) + กลางวัน/คืน
+//  กล้องนิ่ง = drawImage ช่องละครั้ง · กล้องกำลังขยับ (คีย์เปลี่ยนจากเฟรมก่อน) = วาดสดแบบเดิม ไม่สร้างแคช (สร้างแพงกว่าวาดสด)
+//  คีย์เดิม 2 เฟรมติด = สร้างแคช ไม่เกิน SCHOOL_BUILD_PER_FRAME ช่อง/เฟรม (ไม่กระตุกตอนกล้องหยุด) · ช่องละ 1 canvas ใช้ซ้ำ
+//  เข็มนาฬิกาวาดสดทับทุกเฟรม (drawClockHands)
+const SCHOOL_CACHE = new Map(); // "x,y" → { key, last, cv, x0, y0, w, h }
+const SCHOOL_BUILD_PER_FRAME = 4;
+let schoolFrame = -1, schoolBuilt = 0;
 export function drawSchool(g, t, ctx, now) {
+  const { x, y } = t, conn = t.conn || {}, { night } = ctx;
+  const tf = g.getTransform ? g.getTransform() : null;
+  const dpr = tf ? Math.hypot(tf.a, tf.b) : 1;
+  if (!tf || Math.abs(tf.b) > 1e-6 || Math.abs(tf.c) > 1e-6 || typeof document === "undefined") { drawSchoolRaw(g, t, ctx, now); drawClockHands(g, t, ctx, now); return; }
+  // กรอบบนจอของช่องนี้ (รวมหลังคายื่น · บันได · หน้าจั่ว)
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [u, v, z] of [[-0.1, -0.1, 0], [1.1, -0.1, 0], [-0.1, 1.2, 0], [1.1, 1.2, 0], [-0.1, -0.1, SCHOOL_H + GABLE_H + 0.1], [1.1, -0.1, SCHOOL_H + GABLE_H + 0.1], [-0.1, 1.2, SCHOOL_H + GABLE_H + 0.1], [1.1, 1.2, SCHOOL_H + GABLE_H + 0.1]]) {
+    const q = P(x + u, y + v, z);
+    x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]);
+  }
+  x0 = Math.floor(x0 - 4); y0 = Math.floor(y0 - 4); x1 = Math.ceil(x1 + 4); y1 = Math.ceil(y1 + 4);
+  const a = P(x, y), b = P(x + 1, y + 1, SCHOOL_H);
+  const key = `${conn.l ? 1 : 0}${conn.r ? 1 : 0},${night ? 1 : 0},${ctx.cols},${Math.round(a[0])},${Math.round(a[1])},${Math.round(b[0])},${Math.round(b[1])},${Math.round(dpr * 100)}`;
+  const frame = Math.round(now); // เฟรมเดียวกัน = now เดียวกัน (drawFrame ส่ง now ตัวเดียวให้ทุกของ)
+  if (frame !== schoolFrame) { schoolFrame = frame; schoolBuilt = 0; }
+  const tk = `${x},${y}`;
+  let hit = SCHOOL_CACHE.get(tk);
+  if (!hit) SCHOOL_CACHE.set(tk, (hit = { key: null, last: null, cv: null }));
+  const ready = hit.key === key;
+  if (!ready && hit.last === key && schoolBuilt < SCHOOL_BUILD_PER_FRAME) {
+    schoolBuilt++;
+    const cv = hit.cv || document.createElement("canvas");
+    cv.width = Math.max(1, Math.ceil((x1 - x0) * dpr)); cv.height = Math.max(1, Math.ceil((y1 - y0) * dpr)); // ตั้งขนาด = ล้างภาพเก่า
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr);
+    drawSchoolRaw(c, t, ctx, now);
+    Object.assign(hit, { key, cv, x0, y0, w: x1 - x0, h: y1 - y0 });
+  }
+  hit.last = key;
+  if (hit.key === key) g.drawImage(hit.cv, hit.x0, hit.y0, hit.w, hit.h);
+  else drawSchoolRaw(g, t, ctx, now);
+  drawClockHands(g, t, ctx, now);
+}
+// เข็มนาฬิกาบนหน้าจั่ว (ช่องขวาของทางเข้า · ฝั่งลานหันเข้ากล้อง)
+function drawClockHands(g, t, ctx, now) {
+  const { x, y } = t, mid = Math.floor((ctx.cols || 20) / 2);
+  if (x !== mid) return;
+  const v1 = y + 0.92;
+  if (!faceVisible(0, 1, x + 0.5, v1)) return;
+  const [, , s] = PA(x, y, 0.1);
+  const c = P(x, v1 + 0.01, SCHOOL_H + GABLE_H * 0.42), r = s * 0.17;
+  const hr = (now / 60000) % 1, mn = (now / 5000) % 1;
+  g.strokeStyle = "#3d3a3c"; g.lineCap = "round";
+  g.lineWidth = Math.max(1.2, r * 0.14); g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(c[0] + Math.sin(hr * TAU) * r * 0.5, c[1] - Math.cos(hr * TAU) * r * 0.5); g.stroke();
+  g.lineWidth = Math.max(1, r * 0.09); g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(c[0] + Math.sin(mn * TAU) * r * 0.78, c[1] - Math.cos(mn * TAU) * r * 0.78); g.stroke();
+}
+// อาคารเรียน (1 ช่อง ต่อกันทั้งแถว) — ด้านยาวหน้า/หลังมีหน้าต่าง 2 ชั้น · เสาขาวที่ขอบช่อง · ฝาเป็นหลังคา
+//  ทางเข้ากลาง (2 ช่องกลางแถว): ประตู + บันได + หน้าจั่วนาฬิกาเหนือหลังคา (ฝั่งหันเข้าลาน) — เข็มนาฬิกาอยู่ที่ drawClockHands
+function drawSchoolRaw(g, t, ctx, now) {
   const { x, y } = t, conn = t.conn || {}, { C, night, cols } = ctx;
   const H = SCHOOL_H, v0 = y + 0.08, v1 = y + 0.92;
   const mid = Math.floor((cols || 20) / 2), entry = x === mid - 1 || x === mid;
@@ -222,11 +302,17 @@ export function drawSchool(g, t, ctx, now) {
   g.fillStyle = C.roof; g.fill();
   gPoly(g, [[x, (v0 + v1) / 2 - 0.05, H + 0.08], [x + 1, (v0 + v1) / 2 - 0.05, H + 0.08], [x + 1, (v0 + v1) / 2 + 0.05, H + 0.08], [x, (v0 + v1) / 2 + 0.05, H + 0.08]]);
   g.fillStyle = C.roof2; g.fill();
-  // ลายบนด้านยาว (หน้า = ฝั่งลาน y+1 · หลัง)
+  // ลายบนด้านยาว (หน้า = ฝั่งลาน y+1 · หลัง) — สะสมสี่เหลี่ยมตามสีแล้ว fill ครั้งเดียวต่อสี (เดิม fill ทีละชิ้น ~30 ครั้ง/ช่อง = กระตุก)
+  //  กลางคืน: หน้าต่างที่เปิดไฟ = กระจกสีส้มอุ่น (ไม่ใช้ glow ทีละบาน)
   for (const [, nx, ny] of sides) {
     if (nx) continue;
     const v = ny > 0 ? v1 + 0.004 : v0 - 0.004;
-    const quadAt = (u0, u1, z0, z1, col) => { gPoly(g, [[x + u0, v, z0], [x + u1, v, z0], [x + u1, v, z1], [x + u0, v, z1]]); g.fillStyle = col; g.fill(); };
+    const batch = new Map();
+    const quadAt = (u0, u1, z0, z1, col) => {
+      let list = batch.get(col);
+      if (!list) batch.set(col, (list = []));
+      list.push([P(x + u0, v, z0), P(x + u1, v, z0), P(x + u1, v, z1), P(x + u0, v, z1)]);
+    };
     quadAt(0, 1, 0, 0.16, C.stone2);             // ฐานหิน
     quadAt(0, 1, 1.08, 1.14, C.stone);           // คิ้วระหว่างชั้น
     quadAt(0, 1, H - 0.12, H, C.stone);          // บัวใต้หลังคา
@@ -236,11 +322,11 @@ export function drawSchool(g, t, ctx, now) {
     for (const [z0, z1] of [[0.32, 0.92], [1.3, 1.9]]) {
       for (const [u0, u1] of [[0.17, 0.45], [0.55, 0.83]]) {
         if (door && z0 < 1) continue;
+        const lit = night && hash(x * 7 + z0 * 3, u0 * 11) > 0.45;
         quadAt(u0 - 0.025, u1 + 0.025, z0 - 0.03, z1 + 0.03, C.frame);
-        quadAt(u0, u1, z0, z1, C.pane);
-        quadAt(u0, u1, z0 + (z1 - z0) * 0.55, z1, C.pane2);
+        quadAt(u0, u1, z0, z1, lit ? "#ffd27a" : C.pane);
+        quadAt(u0, u1, z0 + (z1 - z0) * 0.55, z1, lit ? "#ffe6ad" : C.pane2);
         quadAt((u0 + u1) / 2 - 0.012, (u0 + u1) / 2 + 0.012, z0, z1, C.frame);
-        if (night && hash(x * 7 + z0 * 3, u0 * 11) > 0.45) { const p = P(x + (u0 + u1) / 2, v, (z0 + z1) / 2); glow(g, p[0], p[1], s * 0.35, "255,210,122", 0.28); }
       }
     }
     if (door) {
@@ -250,6 +336,15 @@ export function drawSchool(g, t, ctx, now) {
       quadAt(du0 - 0.04, du1 + 0.04, 0, 0.98, C.stone);
       quadAt(du0, du1, 0.12, 0.92, C.door);
       quadAt(left ? 0.97 : 0, left ? 1 : 0.03, 0.12, 0.92, C.frame);
+    }
+    // วาดตามลำดับที่ใส่ (ฐาน/คิ้ว/บัว/เสา → กรอบ → กระจก → แถบ → ประตู) — สีเดียวกันอยู่ชั้นเดียวกันอยู่แล้ว
+    for (const [col, list] of batch) {
+      g.beginPath();
+      for (const [a, b, c, d] of list) { g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); }
+      g.fillStyle = col; g.fill();
+    }
+    if (entry && ny > 0) {
+      const left = x === mid - 1, [du0, du1] = left ? [0.35, 1] : [0, 0.65];
       gPoly(g, [[x + du0, v1, 0.06], [x + du1, v1, 0.06], [x + du1, v1 + 0.16, 0.06], [x + du0, v1 + 0.16, 0.06]]); g.fillStyle = C.stone2; g.fill();
     }
   }
@@ -263,25 +358,17 @@ export function drawSchool(g, t, ctx, now) {
       g.fillStyle = C.stone; g.beginPath(); g.arc(c[0], c[1], r * 1.18, 0, TAU); g.fill();
       g.fillStyle = night ? "#fff4cf" : "#fbf8f0"; g.beginPath(); g.arc(c[0], c[1], r, 0, TAU); g.fill();
       if (night) glow(g, c[0], c[1], r * 3, "255,230,160", 0.35);
-      const hr = (now / 60000) % 1, mn = (now / 5000) % 1;
-      g.strokeStyle = "#3d3a3c"; g.lineCap = "round";
-      g.lineWidth = Math.max(1.2, r * 0.14); g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(c[0] + Math.sin(hr * TAU) * r * 0.5, c[1] - Math.cos(hr * TAU) * r * 0.5); g.stroke();
-      g.lineWidth = Math.max(1, r * 0.09); g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(c[0] + Math.sin(mn * TAU) * r * 0.78, c[1] - Math.cos(mn * TAU) * r * 0.78); g.stroke();
     }
   }
 }
 
 // ต้นซากุระ (สิ่งกีดขวาง) — ใหญ่กว่าต้นไม้ปกติ + กลีบร่วงรอบโคน
+//  (กลีบร่วงบนพื้นอยู่ในชั้นพื้นที่อบไว้แล้ว — ไม่วาดซ้ำทุกเฟรม) · ตัวต้นจากแคช (cachedTree)
 export function drawSakura(g, t, ctx, now) {
   const { x, y } = t, { C } = ctx;
   const [sx, sy, s] = PA(x, y, 0.1);
-  for (let i = 0; i < 6; i++) {
-    const a = hash(x * 13 + y, i) * TAU, d = 0.15 + hash(y * 7 + x, i) * 0.35;
-    const p = P(x + 0.5 + Math.cos(a) * d, y + 0.5 + Math.sin(a) * d);
-    petalShape(g, p[0], p[1], Math.max(1.2, s * 0.04), a, C.petal[i % C.petal.length]);
-  }
   const sway = Math.sin(now / 1700 + x * 1.3 + y) * s * 0.015;
-  blossomTree(g, sx + sway, sy, s * 1.55, C, x * 31 + y);
+  cachedTree(g, sx + sway, sy, s * 1.55, C, x * 31 + y);
 }
 
 // ม้านั่งไม้ (ตามแนวแกน x ของกระดาน) — ที่นั่ง + พนักพิง + ขาเหล็ก
@@ -290,9 +377,12 @@ export function drawBench(g, t, ctx) {
   const [bx, by, s] = PA(x, y, 0);
   g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.45, s * 0.12, 0, 0, TAU); g.fill();
   const iron = { front: night ? "#2a2c36" : "#4a4d58", side: night ? "#202229" : "#3a3d47", top: night ? "#34363f" : "#5a5d68" };
-  const wood = { front: night ? "#6b4c3a" : "#b07a50", side: night ? "#553c2e" : "#8d5f3e", top: night ? "#7c5945" : "#c58d5e", edge: "rgba(0,0,0,.2)" };
-  for (const lx of [0.14, 0.8]) box(g, x + lx, y + 0.36, x + lx + 0.06, y + 0.66, 0, 0.3, iron);
+  const wood = { front: night ? "#6b4c3a" : "#b07a50", side: night ? "#553c2e" : "#8d5f3e", top: night ? "#7c5945" : "#c58d5e" };
+  // ขาเหล็ก = เส้นหนา (เดิมกล่องเล็ก 4 กล่อง — แพงเกินขนาดบนจอ)
+  g.strokeStyle = iron.front; g.lineWidth = Math.max(1.5, s * 0.05); g.lineCap = "butt"; g.beginPath();
+  for (const lx of [0.17, 0.83]) for (const ly of [0.38, 0.64]) { const a = P(x + lx, y + ly, 0), b = P(x + lx, y + ly, 0.3); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+  for (const lx of [0.17, 0.83]) { const a = P(x + lx, y + 0.33, 0.36), b = P(x + lx, y + 0.33, 0.62); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+  g.stroke();
   box(g, x + 0.08, y + 0.34, x + 0.92, y + 0.68, 0.3, 0.36, wood);
-  for (const lx of [0.14, 0.8]) box(g, x + lx, y + 0.32, x + lx + 0.05, y + 0.36, 0.36, 0.62, iron);
   box(g, x + 0.08, y + 0.3, x + 0.92, y + 0.35, 0.46, 0.64, wood);
 }
