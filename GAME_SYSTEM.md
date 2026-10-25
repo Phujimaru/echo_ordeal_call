@@ -1032,3 +1032,17 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`) — คืนวินาทีพัก (`HOLD_SECONDS`) → endTurn พักเฟส CUTSCENE ให้ฉากเล่นจบก่อนเช็กจบเกม (`colonyHoldThen`)
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)
+
+## 33. หักเวลาตาเดิน / เสียงต่อคิว / ช่องสกิลเฉพาะตัวบน HUD (คาซุมะ — `characters/kensaki_kazuma.js` · GRID_PLAN §7.19)
+- **หักเวลาตาเดินของใครก็ได้**: ฮุค broadcast `turnSeconds(engine, u, secs)` → วินาทีใหม่ (ค่า > 0 เท่านั้นที่นับ) — เรียกจาก `turnSecondsOf` ใน `action.js` ตอน `nextActor` (ตาปกติ — ยูนิตที่ถูกเรียกใช้ `Summon.CONTROL_SECONDS` ไม่ผ่านฮุค) และ `startExtra` (ตาพิเศษ) ·
+  คาซุมะ TIME: ตีโดนจด `p.kazumaTimeCut` (+10 วิ/ใบ · ล้างใน `resetCombat`) → ตาถัดไปของเป้า หักแล้วไม่ต่ำกว่า 15 วิ แล้วล้างค่า
+- **เสียงต่อคิว (client)**: `SFX_QUEUED` ใน `client/src/audio.js` = แมปคีย์ขึ้นต้น → ชื่อคิว (`kazuma_card_` / `kazuma_lightning_` → `kazuma`) · `playSfx` ชื่อที่ขึ้นต้นตรง = `playQueued` — เสียงในคิวเดียวกันเล่นทีละตัวต่อกัน (รอ `ended`/`pause`) ไม่ซ้อน ·
+  server แค่ `engine.sfx()` ตามลำดับ (การ์ด → ชื่อท่าที่ผสมได้) · เสียงที่เล่นเฉพาะคนกด = client `playSfx` เอง (`kazuma_open` ตอนเปิดแผง)
+- **ช่องสกิลเฉพาะตัว + แผง (HUD จอคอม)**: state เฉพาะตัว `players[].kazuma` (ฮุค `kazumaState` → `view.buildStateFor` · ล้างในมุมมองที่ซ่อนตัวตน) → `Game.jsx` เมื่อ `me.kazuma` วาด `BladeRouzerSlot` แทนช่องสกิลรองปกติ ·
+  กด = `BladeRouzerPanel` (`client/src/screens/hud/BladeRouzer.jsx` + `bladeRouzer.css`) แทนเมนูตัวเลือกเดิม — ตัวเลือกยังมาจาก `skillPub(...).choices` (มี `count`/`locked`/`desc`) · เลือก = socket `useSkill` tier `secondary` + `form` · ปิดเองเมื่อหมดตา/เดินต่อ/คืนร่าง
+- **กันการโจมตีทั้งก้อน**: METAL ใช้แบบเดียวกับเฟิร์น (§25) — `onAttacked` จดคีย์การโจมตี (`ผู้ตี|เทิร์น|actorId|commandSeq`) แล้ว `blocksAttack` คืน `{ name, img }` เมื่อคีย์ตรง · จำนวนครั้ง `s.metal` + ป้าย `kazumaMetal` หมดตอนจบเทิร์น
+- **`preAttackClip` สองแบบในตัวเดียว**: มีท่า Lightning ค้าง = คลิปท่านั้นถ้ามีคนในฉากไม่หลบ (`card.dodge` / `card.extra[].dodge`) · ไม่มีผลการ์ด + `card.crit` = คลิปคริ `kazumaCrit` (`noIntro`) · คลิปลงทะเบียนใน `characters/_transforms.js`
+- **คาซุมะ**: สถานะ `p.kazuma` { blade, formAt, formRound, humanTurns, hand [{ k, n }], handAt, combo, comboAt, pickRound, picks, armed { kind, cards, round, at }, metal, metalAt, blockKey } ·
+  ผล Rouze = ฮุค `range` / `mov` / `strikeRect` (BEAT) / `attackLane` (Slash) / `fixedStrikeDamage` (Blast/Slash 2) / `damageBonus` (SLASH) / `onStrikeLanded` (ช็อต/TIME) / `afterBoardAttack` (TACKLE ผลัก `engine.ice.pushUnit` / MAGNET ดึง) ·
+  ผลหายใน `afterStrike` / `onActorEnd` · Sonic = `skillArea` line 4×1 + `ownsAreaHit` → `engine.chargeTiles` + `setDash` + `skillDodge` + `queueCutscene` / `deferAfterCutscene` · `severables` = ร่าง/กอง/ผลรอตี/METAL
+- เอฟเฟกต์ `engine.boardFx("kazumaFx", { kind, id, color, at, size, … })` (client `kazumaFx.js` — henshin/unhenshin/card/rouze/metal/heal/sonicDash/sonicHit) · ตีปกติ `attackStyle` = `kazumaBlast|kazumaSlash` · เสียง `kazuma_*` (.m4a) · คลิป `kazumaCrit/Blast/Slash/Sonic`
