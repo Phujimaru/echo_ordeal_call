@@ -302,10 +302,10 @@ const isColonyArea = (area) => Number(area) === COLONY_AREA;
 
 // ---------- Moon Cell — Raid Boss (GRID_PLAN §8.4) ----------
 //  ลานโรงเรียน 20×20 (ผู้ใช้สั่ง: มีโรงเรียน + ต้นซากุระ กลีบโปรยตลอด) · อาคารเรียนเต็มแถวบนสุด (y = 0)
-//  Moon Cell ตัวใหญ่ 2×2 ลอยหน้าอาคารกลางกระดาน · ฮาคุโนะ 2 ตัวยืนหน้า Moon Cell ซ้าย/ขวา · ผู้เล่นเกิดขอบใต้ (แถว 18–19)
+//  Moon Cell ตัวใหญ่ 3×3 (ผู้ใช้สั่ง — เดิม 2×2) ลอยหน้าอาคารกลางกระดาน (คอลัมน์ 8–10 · แถว 1–3) · ฮาคุโนะ 2 ตัวยืนหน้า Moon Cell ซ้าย/ขวา · ผู้เล่นเกิดขอบใต้ (แถว 18–19)
 //  ต้นซากุระ/ม้านั่ง = สิ่งกีดขวางประปราย (ไม่ปิดทางจากจุดเกิดถึง Moon Cell)
 const MOON_AREA = 30;
-const MOON = { cols: 20, rows: 20, cell: { x: 9, y: 1 }, bosses: [{ x: 6, y: 3 }, { x: 13, y: 3 }] };
+const MOON = { cols: 20, rows: 20, cell: { x: 8, y: 1 }, cellSize: 3, bosses: [{ x: 6, y: 3 }, { x: 13, y: 3 }] };
 MAPS[MOON_AREA] = buildMap({
   area: MOON_AREA,
   name: "Moon Cell",

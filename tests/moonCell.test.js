@@ -83,7 +83,7 @@ test('ฉากเปิดแมตช์: journey ส่งฉาก start แ
   assert.equal(Journey.publicInfo(engine, null), null);
 });
 
-test('เริ่มแมตช์: กระดาน 20×20 · Moon Cell 2×2 · ฮาคุโนะ 2 ตัว · ไม่มีการเดินทาง · ผู้เล่นเป็นพวกเดียวกัน', () => {
+test('เริ่มแมตช์: กระดาน 20×20 · Moon Cell 3×3 · ฮาคุโนะ 2 ตัว · ไม่มีการเดินทาง · ผู้เล่นเป็นพวกเดียวกัน', () => {
   setup(3);
   const map = action.boardMap();
   assert.equal(match.board.area, Board.MOON_AREA);
@@ -91,7 +91,7 @@ test('เริ่มแมตช์: กระดาน 20×20 · Moon Cell 2×
   assert.equal(Journey.active(engine), false);
   assert.ok(lobby.teamModeActive());
   const c = cell();
-  assert.equal(c.boardSize, 2);
+  assert.equal(c.boardSize, 3);
   assert.deepEqual(c.pos, Board.MOON.cell);
   assert.equal(c.hp, Moon.CELL_HP); assert.equal(c.armor, Moon.CELL_ARMOR);
   for (const k of ['m', 'f']) {

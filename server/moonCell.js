@@ -4,7 +4,7 @@
 //
 //  ยูนิต (ยูนิตที่ถูกเรียก server/summon.js · เจ้าของสมมติ OWNER ไม่อยู่ใน match.players · ฝ่าย summon.side = SIDE):
 //   ฮาคุโนะชาย/หญิง (characterId "kishinami_hakuno" — ฮุคตีปกติใน characters/_hakuno.js) HP 15 · เกราะ 5 · เดิน 5 · ระยะตี 1
-//   Moon Cell ตัวใหญ่ 2×2 HP 25 · เกราะ 5 · ไม่เดิน ไม่ตี ไม่ติดสถานะ (summon.noStatus — combat.applyBuff/applyDebuff)
+//   Moon Cell ตัวใหญ่ 3×3 HP 25 · เกราะ 5 · ไม่เดิน ไม่ตี ไม่ติดสถานะ (summon.noStatus — combat.applyBuff/applyDebuff)
 //  ลำดับเดิน: ฮาคุโนะเดินก่อนผู้เล่นเสมอ ไม่จั่วไพ่ (phases/action.js beginOrder — bossOrder) · ตาเดินคุมโดย AI (startAi)
 //  ตาย: ฮาคุโนะ = ฟื้นต้นเทิร์นที่ 3 หลังตาย (ระเบียนใหม่ HP/เกราะเต็ม ข้างจุดเกิด) · Moon Cell = จบเกม
 //  ชนะ (outcome): Moon Cell ถูกทำลาย หรือฮาคุโนะตายพร้อมกันทั้ง 2 (โค่นคนที่ 2 ก่อนคนแรกฟื้น) · แพ้: ผู้เล่นตายหมด
@@ -92,7 +92,7 @@ function start() {
     hp: CELL_HP, armor: CELL_ARMOR, mov: 0, range: [1, 1], pos: c, data: { moon: "cell", noStatus: true },
   });
   cell.summon.side = SIDE;
-  cell.boardSize = 2;
+  cell.boardSize = Board.MOON.cellSize;
   st().cellId = cell.id;
   KEYS.forEach((k, i) => spawnBoss(k, Board.MOON.bosses[i]));
 }
