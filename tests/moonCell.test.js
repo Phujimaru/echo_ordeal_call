@@ -351,3 +351,11 @@ test('เสาข้อมูล: เตือนตั้งแต่ต้น
   assert.equal(Ice.spikeAt(5, 12), null);
   assert.ok(match.moon.pillars.length > 0, 'ชุดใหม่ของเทิร์นหน้า');
 });
+
+test('เสาข้อมูลกลางคืน: จำนวน ×2 (สูงสุด 10)', () => {
+  setup(4);
+  const day = Moon.pillarCount(false), night = Moon.pillarCount(true);
+  assert.equal(day, Math.min(Moon.PILLAR_MAX, Moon.PILLAR_BASE + 2));
+  assert.equal(night, Math.min(Moon.PILLAR_NIGHT_MAX, day * Moon.PILLAR_NIGHT_MULT));
+  assert.equal(Moon.pickPillars(Math.random, true).length, night);
+});

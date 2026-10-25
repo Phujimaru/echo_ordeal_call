@@ -13,6 +13,7 @@
 //   ฮาคุโนะทั้ง 2 ได้แม่นยำ 3 เทิร์น + ล้างดีบัฟ + ฟื้นพลังชีวิต 1
 //  เสาข้อมูล (ผู้ใช้สั่ง 2026-10-25): ตั้งแต่ต้นเทิร์น 2 สุ่มจุดเตือนทุกเทิร์น → ต้นเทิร์นถัดไปเสาพุ่งขึ้น: ผู้เล่น/ยูนิตของผู้เล่นบนช่องเสียหาย 1 (เกราะก่อน · ฆ่าได้)
 //   ฮาคุโนะ/Moon Cell ไม่โดน · หนาม/กำแพงน้ำแข็งบนช่องแตก · จำนวน = PILLAR_BASE + ผู้เล่น/2 (สูงสุด PILLAR_MAX) ครึ่งหนึ่งเล็งใกล้ผู้เล่นสุ่ม (รวมคนล่องหน)
+//   กลางคืน (เทิร์นที่เสาพุ่ง) = ×PILLAR_NIGHT_MULT (สูงสุด PILLAR_NIGHT_MAX)
 //  ฮาคุโนะเห็นทะลุล่องหน/พุ่มหญ้า/ม่าน (summon.trueSight — server/visibility.js) · ทางถูกหนาม/กำแพงที่ตีแตกได้ขวาง = ตีทิ้ง (planTurn)
 //  ต้นเทิร์น (preRound — ก่อนแจกไพ่ แบบ server/colony.js): ฟื้นคืนชีพ → เสาข้อมูลพุ่ง → คำสาปลงผล → ตั้งเป้าคำสาป/เสาใหม่ → มีฉาก = พักเกม CUTSCENE แล้วกลับมาแจกไพ่
 // ============================================================
@@ -35,6 +36,7 @@ const Visibility = require("./visibility");
 const Dim = require("./dimension");
 const Ice = require("./ice");
 const Voice = require("./voice");
+const dayNight = require("./dayNight");
 const Status = require("../characters/_universal_status");
 
 const SIDE = "moon";
@@ -55,9 +57,11 @@ const LEASH = 8;            // AI ไม่ออกห่าง Moon Cell เ�
 const CURSE_VIDEO = { video: "/mooncell/hakuno_duo_ultimate.mp4", seconds: 11 }; // เสียงท่าไม้ตาย (m4a ของผู้ใช้) รวมอยู่ในคลิปแล้ว
 const PILLAR_FROM = 2;       // เตือนเสาข้อมูลชุดแรกต้นเทิร์นนี้ (พุ่งต้นเทิร์นถัดไป)
 const PILLAR_BASE = 2, PILLAR_MAX = 5, PILLAR_DMG = 1;
+const PILLAR_NIGHT_MULT = 2, PILLAR_NIGHT_MAX = 10; // กลางคืน (ผู้ใช้สั่ง: เกิดถี่มาก) — นับจากเทิร์นที่เสาพุ่ง
 const SCENE_SECONDS = { revive: 2, warn: 1.6, curse: 2.6, cancel: 1, pillars: 1.6 };
 let aiDelayMs = 700;        // จังหวะคิดของ AI (เทสต์ตั้ง 0 = ทำทันที)
 
+Object.assign(module.exports, { PILLAR_NIGHT_MULT, PILLAR_NIGHT_MAX, pillarCount });
 Object.assign(module.exports, { SIDE, BOSS_HP, BOSS_ARMOR, BOSS_MOV, CELL_HP, CELL_ARMOR, REVIVE_TURNS, CURSE_EVERY, CURSE_SIZE, CURSE_DMG, ACCURATE_TURNS, LEASH, PILLAR_FROM, PILLAR_BASE, PILLAR_MAX, PILLAR_DMG });
 
 function inWorld() { return match.world === "moon"; }
@@ -200,19 +204,20 @@ function landCurse(at) {
 }
 
 // ---------- เสาข้อมูล ----------
-function pillarCount() {
+function pillarCount(night = false) {
   const n = combat.alivePlayers().filter((p) => !p.summon).length;
-  return Math.min(PILLAR_MAX, PILLAR_BASE + Math.floor(n / 2));
+  const day = Math.min(PILLAR_MAX, PILLAR_BASE + Math.floor(n / 2));
+  return night ? Math.min(PILLAR_NIGHT_MAX, day * PILLAR_NIGHT_MULT) : day;
 }
 // จุดเสาชุดใหม่: ครึ่งหนึ่งใกล้ผู้เล่นสุ่ม (±2 ช่อง) ที่เหลือสุ่มทั้งสนาม · ไม่ซ้ำ · ไม่ลงสิ่งกีดขวางของแผนที่/ร้าน/Moon Cell
-function pickPillars(rng = Math.random) {
+function pickPillars(rng = Math.random, night = false) {
   const map = action.boardMap(), base = Board.mapOf(match.board.area);
   const cell = cellUnit(), cellBox = cell && cell.pos ? Board.boxOf(cell) : null;
   const ok = (x, y) => x >= 0 && y >= 0 && x < map.cols && y < map.rows && !base.terrain[Board.key(x, y)]
     && !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y)
     && !(cellBox && Board.covers(cellBox, x, y));
   const players = combat.alivePlayers().filter((p) => !p.summon && p.pos);
-  const n = pillarCount(), out = [], seen = new Set();
+  const n = pillarCount(night), out = [], seen = new Set();
   const add = (x, y) => { const k = Board.key(x, y); if (seen.has(k) || !ok(x, y)) return false; seen.add(k); out.push({ x, y }); return true; };
   for (let i = 0, guard = 0; i < Math.ceil(n / 2) && players.length && guard < 60; guard++) {
     const p = players[Math.floor(rng() * players.length)];
@@ -264,7 +269,7 @@ function preRound(resume) {
   const due = s.pillars || [];
   s.pillars = [];
   const erupted = due.length ? eruptPillars(due) : [];
-  if (turn >= PILLAR_FROM) s.pillars = pickPillars();
+  if (turn >= PILLAR_FROM) s.pillars = pickPillars(Math.random, dayNight.isNightRound(turn + 1));
   if (erupted.length || s.pillars.length) events.push({ type: "pillars", erupt: erupted, next: s.pillars.map((t) => ({ ...t })) });
   if (erupted.some((r) => r.dead) && endTurnPhase.gameOver()) return true;
   // คำสาปที่เตือนไว้ลงผล
