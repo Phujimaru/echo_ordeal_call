@@ -960,6 +960,18 @@ function statusEntries(p, full) {
     if (k.metal > 1) out.push({ key: "kazumaMetalN", v: 1, icon: "🛡️", label: `METAL ×${k.metal}`, cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนได้อีกตามจำนวนนี้ จนจบเทิร์น" });
     if (!k.blade && k.humanTurns > 0) out.push({ key: "kazumaHuman", v: 1, icon: "💚", label: `${k.humanTurns}/${k.humanNeed || 2}`, cls: "bg-white/20", desc: "อยู่ร่างมนุษย์ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2" });
   }
+  // ทราฟาก้า ลอว์ (GRID_PLAN §7.20): ตีที่เหลือในเทิร์น · ศัลแพทย์ที่เหลือ · ท่าไม้ตายที่รอตี · คูลดาวน์ Room/ท่าไม้ตาย · Counter Shock
+  if (p.law) {
+    const L = p.law;
+    if (L.inRoom) {
+      out.push({ key: "lawStrikes", v: 1, icon: "🗡️", label: `${Math.max(0, L.strikesMax - L.strikes)}/${L.strikesMax}`, cls: "bg-sky-200 text-gray-900", desc: "ตีปกติที่เหลือในเทิร์นนี้ (รวมตัดพื้น)" });
+      out.push({ key: "lawSec", v: 1, icon: "🩺", label: `${Math.max(0, L.secMax - L.secUsed)}/${L.secMax}`, cls: "bg-white/20", desc: "ศัลแพทย์ที่ใช้ได้อีกในเทิร์นนี้" });
+    }
+    if (L.armed) out.push({ key: "lawArmed", v: 1, icon: L.armed === "gamma" ? "🟢" : "🫀", label: L.armed === "gamma" ? "Gamma Knife" : "Mess", cls: "bg-emerald-300 text-gray-900", desc: "ตีปกติครั้งถัดไปในตาเดินนี้ (ประชิด)" });
+    if (L.roomCd > 0) out.push({ key: "lawRoomCd", v: L.roomCd, turns: true, icon: "⏳", label: "Room", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงเปิด Room ได้อีก" });
+    if (L.gammaCd > 0) out.push({ key: "lawGammaCd", v: L.gammaCd, turns: true, icon: "⏳", label: "Gamma Knife", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ Gamma Knife ได้อีก" });
+    if (L.messCd > 0) out.push({ key: "lawMessCd", v: L.messCd, turns: true, icon: "⏳", label: "Mess", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ Mess ได้อีก" });
+  }
   // เซลิน: อาวุธที่ถือ · ความอ่อนโยนที่เหลือในเทิร์น · ราชาดอกไม้ (ถ้า server ไม่ได้ส่งเป็นสถานะ) · คูลดาวน์/นับสะสม (ตัวเลข/ไอคอนเท่านั้น)
   if (p.celine && p.celine.weapon) {
     const c = p.celine;
@@ -2146,7 +2158,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0) } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, tile, ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
+      //  place "list" + count (ลอว์: Shambles / Shamble เลือก 2 อย่าง) = เลือกครบแล้วส่ง tiles ทีเดียว
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };

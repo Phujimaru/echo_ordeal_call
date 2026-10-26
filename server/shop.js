@@ -89,6 +89,7 @@ function shopItemName(item) {
   if (item.type === "mark42") return "เกราะ Mark 42";
   if (item.type === "gutsAmmo") return (GUTS_AMMO[item.ammo] || {}).name || "กระสุน";
   if (item.type === "kebread") return "ขนมปัง";
+  if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
   return "สินค้า";
 }
 // เปิดร้านค้ามายา: สุ่มสินค้าใหม่ทั้งหมด SHOP_MAX_ITEMS ช่อง (สินค้าประเภทเดียวกันขึ้นซ้ำได้)
@@ -184,6 +185,9 @@ function dropItem(id, uid) {
   if (p.inventory[idx].type === "kebread") return false; // ขนมปังของเอมิลิโกะทิ้งไม่ได้
   const [item] = p.inventory.splice(idx, 1);
   match.lastLog.push(`🗑️ ${p.name} ทิ้ง ${shopItemName(item)}`);
+  // ของประจำตัวละคร (ลอว์: หัวใจ = คืนเจ้าของ) — ฮุค onDropItem ของเจ้าของกระเป๋า
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onDropItem) combat.withEffectSource(p, () => combat.runHook(hook, "onDropItem", engine, p, item));
   view.broadcastState();
   return true;
 }
@@ -275,6 +279,15 @@ function useInventoryItem(id, uid, opts = {}) {
     action.lockStrike(p); // กินเอง/ป้อนเคท = เอมิลิโกะเดินต่อและตีปกติไม่ได้ในตานี้ (ผู้ใช้สั่ง 2026-10-14)
     if (!(item.uses > 0)) p.inventory.splice(p.inventory.indexOf(item), 1);
     view.broadcastState();
+    return;
+  }
+  // ---------- หัวใจ (ท่าไม้ตาย Mess ของลอว์ · characters/trafalgar_law.js): บีบ = ความเสียหายใส่เจ้าของหัวใจ ไม่ว่าอยู่ไกลแค่ไหน ----------
+  //  ฮุค canUseCharItem(engine, p, item) ด่านก่อน → ใช้แล้วเดินไม่ได้อีก → useCharItem(engine, p, item, opts) ลงผล (หักครั้ง/เอาออกจากกระเป๋า/พักฉากเอง)
+  if (item.type === "lawHeart") {
+    const hook = CHAR_HOOKS[p.characterId];
+    if (!hook || !hook.useCharItem || (hook.canUseCharItem && !hook.canUseCharItem(engine, p, item))) return;
+    action.lockMove(p);
+    hook.useCharItem(engine, p, item, opts);
     return;
   }
   // ---------- ปืน GUTS: นับเป็นการโจมตีของตา (จบตา) ----------

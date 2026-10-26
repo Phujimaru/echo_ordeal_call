@@ -363,6 +363,18 @@ const FILES = {
     "atk_blade", "atk_punch", "atk_blast", "atk_slash",
     "henshin_fx", "unhenshin", "rouze", "metal", "heal", "sonic_dash", "sonic_hit", "crash", "magnet",
   ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
+  // ทราฟาก้า ลอว์ (GRID_PLAN §7.20) — ไฟล์จากผู้ใช้ (เสียงเปิด/ปิด ROOM ต่อกันในไฟล์เดียว · ตัดที่ 4.995 วิ) -16 LUFS
+  law_room_open: "/characters/trafalgar_law/sfx/law_room_open.m4a",
+  law_room_close: "/characters/trafalgar_law/sfx/law_room_close.m4a",
+  //  เสียงเหตุการณ์ (สังเคราะห์ numpy — .claude/plans/law-sfx.py) -16 LUFS · atk = ตีปกติ (จุดปะทะ 100 ms) · mark เบากว่า 8 dB
+  ...Object.fromEntries([
+    "atk", "cut", "shuffle", "takt", "throw", "throw_hit", "shamble", "squeeze", "mark", "rock_down",
+  ].map((k) => [`law_${k}`, `/characters/trafalgar_law/sfx/law_${k}.m4a`])),
+  //  เสียงพากย์ (Law Sound Effects Pack OPPW4 จากผู้ใช้ ตัดเป็นประโยค · -3.3 dB ทั้งชุด) — server/voice.js + ชื่อท่าตอนท่าออกผล
+  ...Object.fromEntries([
+    "room", "shambles", "takt", "gamma", "mess", "shock",
+    "atk1", "atk2", "atk3", "atk4", "turn1", "turn2", "turn3", "hit1", "hit2",
+  ].map((k) => [`law_v_${k}`, `/characters/trafalgar_law/voice/law_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",

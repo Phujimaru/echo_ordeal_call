@@ -293,6 +293,9 @@ function strikeRect(p) {
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
   if (!tauntAllows(p, target)) return false; // ถูกล่อเป้า: ตีได้เฉพาะตัวล่อ
+  // ฮุค strikeAllows(p, target) → false = ตีเป้านี้ไม่ได้ (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room — client ใช้ players[].strikeZone คัดเหมือนกัน)
+  const zoneHook = CHAR_HOOKS[p.characterId];
+  if (zoneHook && zoneHook.strikeAllows && !zoneHook.strikeAllows(p, target)) return false;
   if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
 }

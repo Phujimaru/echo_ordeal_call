@@ -23,6 +23,7 @@ const takuto = require("./takuto"); // ซึนาชิ ทาคุโตะ 
 const ryougi = require("./ryougi"); // ผู้นำแห่งตระกูลเรียวกิ — มหันตภัย · unique (ฟันแนว 2 ช่อง / เนตรมณะ / ตัดผลสกิล server/sever.js / ช่องพัง terrain "chasm")
 const emiya_shirou = require("./emiya_shirou"); // เอมิยะ ชิโร่ — ยาก (Trace On อาวุธ 5 แบบ / สกิลรองตามอาวุธ / Unlimited Blade Works)
 const kensaki_kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ — ยาก (ร่างมนุษย์/Blade / Blay Rouzer การ์ด 9 ใบ / Rouze ท่า Lightning)
+const trafalgar_law = require("./trafalgar_law"); // ทราฟาก้า ลอว์ — พิเศษ · unique (Room / ศัลแพทย์ 4 แบบ / Gamma Knife · Mess / Counter Shock)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -49,6 +50,7 @@ const CHARACTER_MODULES = [
   ryougi,
   emiya_shirou,
   kensaki_kazuma,
+  trafalgar_law,
 ];
 
 const CHAR_HOOKS = {};

@@ -63,6 +63,8 @@
 //   ryougi      { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } | null — ผู้นำแห่งตระกูลเรียวกิ: เนตรมณะ (มืดจาง + รอยร้าวแดง) /
 //               ใบมีดที่มือ / ซากุระทั่วกระดาน · กองเลือด (ryougiFx.js) · map.terrain "chasm" = ช่องพัง · fx ryougi* · ryougiPose ย้ายหมากตอนตี/พุ่ง/ถูกเหวี่ยง
 //               units[].ryougiSlain + corpse = ศพที่ถูกเรียวกิสังหาร วาดเป็นกองเลือด
+//   law         { rooms, objects, marks, hearts, armed, rocks } | null — ทราฟาก้า ลอว์: Room (โดมเยื่อฟ้า · seq ใหม่ = ฉากกาง) / วัตถุลอย / ตัวที่ถูกมาร์ก = ร่างแยกชิ้นลอย (หมากวาดแบบ lawCut) /
+//               หัวใจ (เหนือหัวเหยื่อ + ลอยข้างลอว์) / ท่าไม้ตายที่รอตี · rocks = ["x,y"] terrain "icewall" ที่วาดเป็นหนามหิน (lawFx.js) · fx law*
 //   valentine   state.board.valentine { flags: [{ x, y, ownerId }] } | null — ธงปักของฟันนี่ วาเลนไทน์ (valentineFx.js · โบกตลอด)
 //               units[].ghostDim = อยู่คนละชั้นมิติกับเรา (ภาพโปร่งภาพเดียว · กดไม่ได้) · units[].summon = { kind: "clone"|"double" } (ตัวเหมือน = ตะเข็บ)
 //               fx val* ซ่อน/ตัด/บีบ/เจาะรูหมากเอง (valentineMod) · ตัวเหมือนวิ่ง (valentinePose)
@@ -703,7 +705,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, law: p.law || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {

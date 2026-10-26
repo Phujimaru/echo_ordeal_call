@@ -20,6 +20,7 @@
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
+//   ?law=1 = ทราฟาก้า ลอว์ · ปุ่มเล่นตีปกติ (ฟัน/Gamma Knife/Mess) + ทุกเหตุการณ์ของ socket "lawFx" + Room 5×5/9×9 · วัตถุลอย · มาร์ก · หัวใจ · หนามหิน (LawFxDev.jsx)
 //   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
@@ -37,6 +38,7 @@ import FernFxDev from "./FernFxDev"; // ?fern=1 = ปุ่มเล่นเอ
 import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่นเอฟเฟกต์เซลิน
 import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
+import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
@@ -129,10 +131,11 @@ const CELINE_DEV = Q.get("celine") === "1";
 const TAKUTO_DEV = Q.get("takuto") === "1";
 const EMIYA_DEV = Q.get("emiya") === "1";
 const KAZUMA_DEV = Q.get("kazuma") === "1";
+const LAW_DEV = Q.get("law") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
-  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : baseUnits());
+  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -264,6 +267,7 @@ export default function BoardPreview() {
   const [celDev, setCelDev] = useState({ flora: [], walls: [], king: false });
   // ทาคุโตะ (?takuto=1): ดาบลอย/ออร่า { emerald, sapphire, judgment, collapse } → prop takutos · ช่วงมิติพังทลาย (เทิร์นที่เหลือ) → zero.collapse
   const [emDev, setEmDev] = useState({ weapon: null, ubw: false }); // ชิโร่ (?emiya=1): อาวุธที่ถือ / โลก UBW → prop emiya
+  const [lawDev, setLawDev] = useState(() => LawFxDev.empty); // ลอว์ (?law=1): prop law + หนามหิน → terrain "icewall"
   const [tkSwords, setTkSwords] = useState({ emerald: true, sapphire: true, judgment: false, collapse: false });
   const [tkCollapse, setTkCollapse] = useState(null);
   useEffect(() => { window.__boardSongs = (v) => setSongsMock(v && v.length ? v : null); return () => { delete window.__boardSongs; }; }, []);
@@ -277,6 +281,7 @@ export default function BoardPreview() {
     terrain: { ...iceMap0.terrain, ...Object.fromEntries(celDev.walls.map((w) => [`${w.x},${w.y}`, "icewall"])) },
     special: { ...iceMap0.special, ...Object.fromEntries(celDev.flora.map((f) => [`${f.x},${f.y}`, "bloom"])) },
   }), [iceMap0, celDev]);
+  const lawMap = useMemo(() => (!LAW_DEV || !lawDev.rocks.length ? iceMap : { ...iceMap, terrain: { ...iceMap.terrain, ...Object.fromEntries(lawDev.rocks.map((k) => [k, "icewall"])) } }), [iceMap, lawDev]);
   // ทดสอบกล้องตามตัวละครจากคอนโซล: window.__boardFocus(x, y)
   useEffect(() => { window.__boardFocus = (x, y) => setFocus({ x, y }); return () => { delete window.__boardFocus; }; }, []);
   const after = useRef(null);   // งานต่อหลังแอนิเมชันจบ
@@ -486,7 +491,7 @@ export default function BoardPreview() {
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
       <BoardCanvas
-        map={iceMap}
+        map={lawMap}
         ice={iceMock}
         units={viewUnits}
         highlights={highlights}
@@ -512,6 +517,7 @@ export default function BoardPreview() {
         ferns={fernMock}
         celine={celineMock}
         takutos={takutoMock}
+        law={LAW_DEV ? lawDev : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
         onAnimDone={onAnimDone}
@@ -546,6 +552,7 @@ export default function BoardPreview() {
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
+      {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}

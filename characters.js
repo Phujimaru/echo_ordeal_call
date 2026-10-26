@@ -1013,6 +1013,50 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- ทราฟาก้า ลอว์ (One Piece) — พิเศษ · unique — ดู characters/trafalgar_law.js (GRID_PLAN §7.20) ----------
+    //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 0 เสมอ (fixedStrikeDamage)
+    //  ระยะตีปกติ = ทั้ง Room เฉพาะตอนยืนใน Room (ฮุค range / strikeAllows / strikeZone) · นอก Room ตีไม่ได้
+    id: "trafalgar_law",
+    name: "ทราฟาก้า ลอว์",
+    avatar: 0,
+    difficulty: "special",
+    unique: true, // ผู้ใช้สั่ง 2026-10-26
+    img: "/characters/trafalgar_law/law.webp",
+    mov: 4,
+    range: [1, 0], // นอก Room ตีไม่ได้ (ในโมดูลเปลี่ยนตาม Room)
+    passive: {
+      name: "ศัลแพทย์แห่งความตาย",
+      desc: "พลังโจมตี 0 · ตีปกติได้เฉพาะตอนยืนใน Room ระยะทั้ง Room 3 ครั้งต่อเทิร์น ตีแล้วไม่จบตา · ตีโดน = มาร์กจนจบตาเดิน · ตัดพื้นเป็นวัตถุลอย (นับเป็นการตี · สูงสุด 4 ก้อน) · ยืนใน Room ตอนจบเทิร์น แต้มสกิล +1 · ผู้เล่นที่ตายใน Room เหลือศพ · Counter Shock: ฟื้นศพที่ประชิดด้วยพลังชีวิต 1 (0 แต้ม · 3 ครั้งต่อเกม)",
+    },
+    basic: {
+      name: "Room",
+      desc: "เลือก 5×5 หรือ 9×9: กางรอบตัว อยู่กับที่จนกว่าจะกดปิด · ปิดแล้วคูลดาวน์ 5×5 = 1 เทิร์น · 9×9 = 3 เทิร์น · เปลี่ยนภูมิภาค = ปิดและเปิดใหม่ได้ทันที (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/trafalgar_law/law_room.webp",
+      instant: true,
+      effect: null, // ปุ่ม 2 ตัวเลือก (skillPub choices) · เปิดอยู่ = ปิด Room
+    },
+    secondary: {
+      name: "ศัลแพทย์",
+      desc: "ต้องยืนใน Room · 2 ครั้งต่อเทิร์น (ไม่นับโควตาสกิล): Shambles (2) สลับที่ 2 อย่าง · Takt (2) หนามหิน ความเสียหาย 1 + ผลัก · โยนสิ่งของ (2) วัตถุลอยทั้งหมด ความเสียหาย 1 ต่อก้อน · Shamble (3) สลับพลังชีวิตและเกราะ 2 คน",
+      area: { kind: "self" }, // พื้นที่จริงตามตัวเลือก (skillArea)
+      cost: 2,
+      img: "/characters/trafalgar_law/law_surgeon.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Gamma Knife · Mess",
+      desc: "ต้องยืนใน Room · เลือก 1 ใน 2 (4 แต้ม · คูลดาวน์แยกอันละ 3 เทิร์น · ใช้แล้วยังเดินได้): ตีปกติครั้งถัดไปในตาเดินนี้ต้องประชิด · Gamma Knife = ลุกไหม้ เลือดไหล พิษร้าย อย่างละ 2 เทิร์น สุ่ม 1 อย่างเป็น 3 · Mess = ดึงหัวใจเข้ากระเป๋า ใช้หัวใจ = ความเสียหาย 2 ไม่ว่าอยู่ไกลแค่ไหน 3 ครั้ง",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/trafalgar_law/law_ult.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

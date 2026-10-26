@@ -40,6 +40,7 @@ import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
+import { LAW_ON_HIT, lawEventFx } from "./lawFx";
 import { moonEventFx } from "./moonFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
@@ -83,9 +84,16 @@ const reachOf = (m, u, mov, units, o) => (o && o.ghost && !GHOST_RULES
 const stepOf = (m, u, mov, units, trail, to, o) => (o && o.ghost && !GHOST_RULES
   ? Rules.stepPath(clearMap(m), u, mov, units, trail, to, { ...o, blocked: null, hop: null })
   : Rules.stepPath(m, u, mov, units, trail, to, o));
-const threatOf = (m, u, mov, range, units, o) => (o && o.ghost && !GHOST_RULES
+const threatOf = (m, u, mov, range, units, o) => zoneThreat(o && o.ghost && !GHOST_RULES
   ? Rules.threatZone(clearMap(m), u, mov, range, units, { ...o, blocked: null, hop: null })
-  : Rules.threatZone(m, u, mov, range, units, o));
+  : Rules.threatZone(m, u, mov, range, units, o), o && o.zone);
+// ตีได้เฉพาะในกรอบ (players[].strikeZone — ลอว์: ระยะตี = ทั้ง Room) → ช่องที่ตีถึงตัดเหลือในกรอบ
+function zoneThreat(z, zone) {
+  if (!zone || !z || !z.threat) return z;
+  const threat = new Set();
+  for (const k of z.threat) { const [x, y] = k.split(",").map(Number); if (x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1) threat.add(k); }
+  return { ...z, threat };
+}
 // รูป 4 ทิศของตัวใหญ่บนกระดาน (หน้า/ข้าง/หลัง · มุมบน) — ตัวละครที่ไม่มีในนี้ใช้หมากหกเหลี่ยมเสมอ
 const BIG_ART = {
   echo: {
@@ -243,7 +251,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
   //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
   //  flowerWalk = ราชาดอกไม้ของเซลิน (p.flowerWalk) — ช่องดอกไม้ (TERRAIN_INFO flower) ไม่เสียก้าว
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk) });
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk), zone: (p && p.strikeZone) || null });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)
@@ -391,7 +399,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive || !tauntOk(foe)) return null;
     const range = foe.isCorpse ? [1, 1] : me.range || [1, 1];
     const laneOn = !foe.isCorpse && me.lane;
-    const hits = (n) => (laneOn ? !!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    // กรอบที่ตีได้ (me.strikeZone — ลอว์: ตัวเองยืนใน Room และเป้าทับ Room) — server ฮุค strikeAllows คัดแบบเดียวกัน
+    const zone = !foe.isCorpse && me.strikeZone ? me.strikeZone : null;
+    const inZone = (x, y) => !zone || (x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1);
+    if (zone && !Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inZone(t.x, t.y))) return null;
+    const hits = (n) => inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
     if (!best) {
@@ -556,6 +568,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const a = pickInfo.anchorOf(x, y);
       if (!a) return;
       clickSound();
+      // เลือกหลายช่อง (pick.count — ลอว์: Shambles / Shamble 2 อย่าง): ช่องที่เลือกซ้ำ = ยกเลิก · ครบ = ส่งทั้งชุด (multi เก็บเป็น "x,y")
+      const need = Math.max(1, pick.count | 0);
+      if (need > 1) {
+        const k = key(a.x, a.y);
+        if (multiIds.includes(k)) { setMulti({ sig: pickSig, ids: multiIds.filter((q) => q !== k) }); return; }
+        const ids = [...multiIds, k];
+        if (ids.length >= need) { setMulti({ sig: "", ids: [] }); pick.onPick(ids.map((s) => { const [tx, ty] = s.split(",").map(Number); return { x: tx, y: ty }; })); return; }
+        setMulti({ sig: pickSig, ids });
+        return;
+      }
       pick.onPick({ x: a.x, y: a.y });
       return;
     }
@@ -646,6 +668,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  ryougiSlain = id → เวลาหมดอายุ: คนที่ถูกเรียวกิสังหาร (socket มาก่อน state) — ไม่ระเบิดตกรอบ (ร่างแยกสองซีกแทน)
   const ryougiHitAt = useRef(0);
   const ryougiSlain = useRef({});
+  const lawHitAt = useRef(0); // ลอว์: เวลาที่ฉากตีปกติของลอว์ถึงจังหวะปะทะ (เหตุการณ์ gamma / mess / mark รอถึงตอนนั้น)
   const iceRun = useRef(null); // { ids, active, gotState, done, pos, snap, snd }
   const iceSeen = useRef(null);
   const finishIceRef = useRef(null); // finishIce ล่าสุด (ประกาศทีหลัง — effect ด้านล่างเรียกผ่านตัวนี้)
@@ -817,9 +840,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // กำแพงน้ำแข็งของเซลิน (terrain "icewall") แตกจากการตี = วาดค้างไว้ถึงจังหวะปะทะ แล้วแตกกระจาย (celineFx wallBreak ที่มาพร้อมกันถูกจองไว้)
       const pbT = prevBoard.current && prevBoard.current.terrain, nbT = state.board && state.board.terrain;
       const wallHit = !!spikeK && !!pbT && pbT[spikeK] === "icewall" && !(nbT && nbT[spikeK] === "icewall");
+      //  หนามหิน Takt ของลอว์ (look "lawRock") = ฉาก lawRockBreak วาดหินค้างถึงจังหวะปะทะแล้วพัง (แทนกำแพงน้ำแข็ง)
+      const rockHit = wallHit && ((prevBoard.current && prevBoard.current.spikes) || []).some((sp) => sp && sp.look === "lawRock" && key(sp.x, sp.y) === spikeK);
       if (wallHit) {
         wallClaim.current[spikeK] = performance.now() + 2500;
-        setWallHold((h) => [...h.filter((t) => !samePos(t, spikeT)), { x: spikeT.x, y: spikeT.y }]);
+        if (!rockHit) setWallHold((h) => [...h.filter((t) => !samePos(t, spikeT)), { x: spikeT.x, y: spikeT.y }]);
       }
       if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) setIceLv((m) => ({ ...(m || {}), [spikeK]: spikeWas }));
       const tPos = sealT ? { x: sealT.x, y: sealT.y } : spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
@@ -845,7 +870,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // ไจโรตีด้วยลูกเหล็กที่ขว้าง (gyroFx "throw") — ไม่พุ่งชนแม้อยู่ใกล้
       const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
-      const kz = !!style && style.startsWith("kazuma");
+      //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law"));
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
       const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "hakunoM") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
@@ -858,7 +884,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
-      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId, dodge: !!a.dodge }]));
+      if (style && style.startsWith("law")) lawHitAt.current = performance.now() + HIT;
+      if (rockHit) pushFx([{ kind: "lawRockBreak", tiles: [{ x: spikeT.x, y: spikeT.y }], hold: HIT, dur: HIT + 800, why: "hit" }]);
+      if (style) later(ZOOM_IN, () => pushFx([{ kind: style, x: fromPos.x, y: fromPos.y, size: a.bySize || 1, to: { x: tPos.x, y: tPos.y }, toSize: sizeOfP(byId[a.targetId]), color: a.byColor, lane: Array.isArray(a.byLane) ? a.byLane : null, by: a.byId, tid: a.targetId, dodge: !!a.dodge }]));
       // ท่าตีของฮิคารุ (hk*): ปะทะเป็นแสงตามสีร่าง + ทุกคนที่โดนสั่นพร้อมกัน (แทนแสงแตกกลาง)
       const hk = !!style && isHikaruFx(style);
       // เสียงของท่าฮิคารุเริ่มก่อนปะทะ (ช่วงดังสุดของไฟล์ตรงจังหวะปะทะ)
@@ -895,7 +923,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
           // เซลินติดคริ: ดอกทอง + มงกุฎเล็กเหนือเป้า + เสียงประกาย (ซ้อนเสียงอาวุธ)
           if (style && style.startsWith("celine") && a.crit && !a.dodge) { playSfx("celine_crit"); pushFx([{ kind: "celineCrit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]) }]); }
-          if (wallHit) {
+          if (wallHit && !rockHit) {
             setWallHold((h) => h.filter((t) => !samePos(t, spikeT)));
             pushFx([{ kind: "celineWallBreak", x: spikeT.x, y: spikeT.y, tiles: [{ x: spikeT.x, y: spikeT.y }], why: "hit" }]);
           }
@@ -1753,6 +1781,45 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("kazumaFx", onKazuma);
     return () => socket.off("kazumaFx", onKazuma);
   }, [pushFx, look, lowQ]);
+  // ทราฟาก้า ลอว์: socket "lawFx" { kind, id, color, at, size, ... } → lawFx.js (GRID_PLAN §7.20 · .claude/plans/law-contract.md §4) · ยังไม่มีเสียง
+  //  shuffle = วาร์ปทันที (จดไว้ใน shadowBusy — ไม่เลื่อนเดินตอน state มาถึง) · gamma / mess / mark = รอถึงจังหวะปะทะของฉากตีลอว์ (lawHitAt)
+  //  rockDown จากการตี = ฉากตีวาดหินพังเอง (lawRockBreak — ช่องถูกจองใน wallClaim)
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const colorOf = (id) => { const p = recOf(id); return p && !p.masked ? p.color : null; };
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const z = (list) => list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f));
+    const run = (ev) => {
+      const out = lawEventFx(ev, { posOf, sizeOf, colorOf });
+      if (!out.fx.length) return;
+      const t0 = performance.now();
+      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
+      pushFx(z(out.fx));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      for (const [ms, list] of out.later) at(ms, () => pushFx(z(list)));
+    };
+    const onLaw = (ev) => {
+      if (!ev || typeof ev !== "object") return;
+      if (ev.kind === "rockDown" && ev.why === "hit") {
+        at(140, () => {
+          const now = performance.now();
+          const tiles = (Array.isArray(ev.tiles) ? ev.tiles : []).filter((t) => t && !((wallClaim.current[key(t.x, t.y)] || 0) > now));
+          if (tiles.length) run({ ...ev, tiles });
+        });
+        return;
+      }
+      if (LAW_ON_HIT[ev.kind]) {
+        at(120, () => { const wait = lawHitAt.current - performance.now(); if (wait > 0) at(wait, () => run(ev)); else run(ev); });
+        return;
+      }
+      run(ev);
+    };
+    socket.on("lawFx", onLaw);
+    return () => socket.off("lawFx", onLaw);
+  }, [pushFx, look, lowQ]);
   // Moon Cell (GRID_PLAN §8.4): socket "moonScene" (ฉากต้นเทิร์นระหว่างพักเกม) → moonFx.js — เสาข้อมูลพุ่ง · ฟื้นคืนชีพ · คำสาปลง/เตือน/สลาย
   useEffect(() => {
     let lastSeq = null;
@@ -1852,14 +1919,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         return h;
       }
       h.skill = pickInfo.skill;
-      if (hover && pickInfo.list) {
+      if (pickInfo.list) {
         // กรอบเท่าตัวที่จะไปอยู่ (ตัวใหญ่ = กรอบ n×n แบบเดินตัวใหญ่)
-        const a = pickInfo.anchorOf(hover.x, hover.y);
+        const a = hover ? pickInfo.anchorOf(hover.x, hover.y) : null;
         if (a) {
           const fp = Rules.footprint(a.x, a.y, pickInfo.foot).map((t) => key(t.x, t.y));
           h.aoe = fp;
           if (pickInfo.foot > 1) h.ghost = fp;
         }
+        // เลือกหลายช่อง (ลอว์: Shambles / Shamble): ช่องที่เลือกไว้แล้ว = กรอบทองค้าง
+        if (multiIds.length) h.aoe = [...new Set([...(h.aoe || []), ...multiIds])];
       } else if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) {
         h.aoe = pickInfo.wall ? wallPlan(hover, wallOrient).placed.map((t) => key(t.x, t.y))
           : pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
@@ -2020,6 +2089,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     units: state.players.filter((p) => p.alive && p.pos && p.emiya && p.emiya.weapon && sameDim(p)).map((p) => ({ id: p.id, weapon: p.emiya.weapon })),
   });
   const emiyaProp = useMemo(() => { const r = JSON.parse(emiyaSig); return r.ubw || r.units.length ? r : null; }, [emiyaSig]);
+  // ทราฟาก้า ลอว์ (lawFx.js): Room / วัตถุลอย / มาร์ก / หัวใจ (board.law — ทุกคนเห็น) · ท่าไม้ตายที่รอตี (players[].law.armed) · หนามหิน (board.spikes[].look "lawRock")
+  const lBoard = state.board && state.board.law ? state.board.law : null;
+  const lArr = (k) => (lBoard && Array.isArray(lBoard[k]) ? lBoard[k] : []);
+  const lawSig = JSON.stringify({
+    rooms: lArr("rooms"), objects: lArr("objects"), marks: lArr("marks"), hearts: lArr("hearts"),
+    armed: state.players.filter((p) => p.alive && p.pos && p.law && p.law.armed && sameDim(p)).map((p) => ({ id: p.id, kind: typeof p.law.armed === "string" ? p.law.armed : p.law.armed.kind })),
+    rocks: spikeList.filter((s) => s.look === "lawRock").map((s) => `${s.x},${s.y}`),
+    present: state.players.some((p) => p.character && p.character.id === "trafalgar_law"), // มีลอว์ในเกม = อุ่นเครื่องการ์ดจอไว้ก่อน (lawFx prewarm)
+  });
+  const lawProp = useMemo(() => { const d = JSON.parse(lawSig); return d.present || d.rooms.length || d.objects.length || d.marks.length || d.hearts.length || d.armed.length || d.rocks.length ? d : null; }, [lawSig]);
   const celineProp = useMemo(() => {
     const kings = JSON.parse(kingSig);
     if (!celFlora.length && !kings.length && !wallHold.length && !wallPreview) return null;
@@ -2311,6 +2390,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         takutos={takutos}
         ryougi={ryougiProp}
         emiya={emiyaProp}
+        law={lawProp}
         gyroBalls={gyroBalls}
         diego={diegoGround}
         timeFreeze={state.timeFreeze || null}

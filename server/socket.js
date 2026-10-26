@@ -261,11 +261,18 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
   // ไอเทมช่วงจั่วไพ่ (ยาโชคลาภ / ยาเปลี่ยนสีการ์ด) — ผู้ถือไพ่ = เจ้าของ (ระบบคู่)
   onPlayerEvent(socket, 'useDrawItem', (id, { uid, cardIndex, color } = {}) => shop.useDrawItem(id, uid, { cardIndex, color }), 8);
-  onUnitEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile, orient } = {}) => skills.useSkill(id, tier, targets, {
-    dir, form: typeof form === 'string' ? form : undefined,
-    tile: tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : undefined, // สกิลเลือกช่อง (Ice Spike)
-    orient: orient === 'h' || orient === 'v' ? orient : undefined, // แนวของพื้นที่ rect (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
-  }), 12);
+  onUnitEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile, tiles, orient } = {}) => {
+    const okTile = (t) => !!t && Number.isInteger(t.x) && Number.isInteger(t.y);
+    // เลือกหลายช่อง (area tile place "list" + count — ลอว์: Shambles / Shamble เลือก 2 อย่าง) · ช่องแรกใช้เป็น tile ของด่านระยะ
+    const list = Array.isArray(tiles) ? tiles.slice(0, 4).filter(okTile).map((t) => ({ x: t.x, y: t.y })) : undefined;
+    const one = okTile(tile) ? { x: tile.x, y: tile.y } : list && list[0] ? { ...list[0] } : undefined;
+    return skills.useSkill(id, tier, targets, {
+      dir, form: typeof form === 'string' ? form : undefined,
+      tile: one, // สกิลเลือกช่อง (Ice Spike)
+      tiles: list,
+      orient: orient === 'h' || orient === 'v' ? orient : undefined, // แนวของพื้นที่ rect (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
+    });
+  }, 12);
   onUnitEvent(socket, 'viewShop', (id) => shop.viewShop(id), 8); // เปิดดูร้าน = ล็อกการเดิน
   onUnitEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
   onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);

@@ -49,6 +49,7 @@ import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir,
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx } from "./kazumaFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
+import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -527,7 +528,8 @@ function drawUnit(g, u, now, boxes) {
   const a = u.alpha == null ? 1 : u.alpha;
   // K = ขยายหมากหกเหลี่ยม (ตัวใหญ่ที่ไม่มีรูป 4 ทิศ — กิงกะของไรโด ฮิคารุ) · ตัวปกติ = 1
   const K = u.k || 1;
-  g.save(); g.globalAlpha = a;
+  // lawCut = ร่างถูกตัดเป็นชิ้นของลอว์ (lawFx.js drawSlice วาดชิ้นส่วนแทน) — ตัวหมากโปร่ง แต่แถบเลือด/ป้าย/เป้าเล็ง/กล่องคลิกยังวาด
+  g.save(); g.globalAlpha = u.lawCut ? 0 : a;
   // ไจโร (gyroFx.js): ฝุ่นกีบ · เสริมพลัง = เกลียวทองคำใต้ตัว + เปลวออร่าครึ่งหลัง
   if (u.gyro) gyroUnitBack(g, u, now, wx, wy);
   // ดิเอโก้ (diegoFx.js): ฝุ่นกีบซิลเวอร์ บูลเล็ต
@@ -573,6 +575,7 @@ function drawUnit(g, u, now, boxes) {
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
+  g.globalAlpha = a;
   // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี · noBar = ฉากของวาเลนไทน์ซ่อนแถบไว้ชั่วคราว)
   if (u.masked || u.noBar) {
     g.restore();
@@ -652,7 +655,7 @@ function drawBigUnit(g, u, now, boxes) {
   const x0 = u.rx + (u.ox || 0) + jx, y0 = u.ry + (u.oy || 0) + jy;
   const cx = x0 + n / 2, cy = y0 + n / 2;
   const a = u.alpha == null ? 1 : u.alpha;
-  g.save(); g.globalAlpha = a;
+  g.save(); g.globalAlpha = u.lawCut ? 0 : a; // lawCut = ร่างถูกตัดของลอว์ (ดู drawUnit)
   // ฐาน: พื้นทั้งตัวเรืองสีประจำที่นั่ง
   const shrinkTo1 = u.grow && u.grow.to <= 1;
   if (!shrinkTo1) {
@@ -696,6 +699,7 @@ function drawBigUnit(g, u, now, boxes) {
     top = by - r * 2; left = bx - r; right = bx + r;
   }
   if (u.cloak && !REDUCED) { g.globalAlpha = a * 0.35; footQuad(g, x0, y0, n, 0.1); g.fillStyle = "rgba(220,240,255,.5)"; g.fill(); g.globalAlpha = a; }
+  g.globalAlpha = a;
   // แถบเลือด (ตัวใหญ่มีเลือดมาก — แถบยาวตามตัว)
   const bu = { ...u, maxHp: u.maxHp || 10, maxArmor: u.maxArmor | 0 };
   const pw = Math.max(80, Math.min(220, es * s * 0.8)), ph = vitalHeight(bu), px = bx - pw / 2, py = top - ph - 8;
@@ -879,8 +883,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2006,7 +2010,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR,
 };
 
 
@@ -2020,6 +2024,7 @@ export const FX_DUR = {
 //   takutos? = ทาวเบิร์นที่ถือดาบ/ช่วงพังทลาย [{ id, x, y, size, emerald, sapphire, judgment, collapse }] (takutoFx.js — ดาบลอยข้างตัว)
 //   ryougi? = { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } เรียวกิ (ryougiFx.js) · terrain "chasm" = ช่องพัง (drawRyougiGround — ไม่ใช่สิ่งกีดขวาง)
 //   emiya? = { ubw, units: [{ id, weapon }] } ชิโร่ (emiyaFx.js) — โลกแห่งดาบ (พื้นซีเปีย/ดาบปัก/เฟือง) · อาวุธที่ถือลอยข้างตัว
+//   law? = { rooms, objects, marks, hearts, armed, rocks } ของค้างของลอว์ (lawFx.js) — Room · วัตถุลอย · มาร์ก · หัวใจ · terrain "icewall" ที่อยู่ใน rocks = หนามหิน
 //   moon? = state.moon ของโหมด Moon Cell { curse, pillars, … } (moonFx.js — พื้นที่คำสาป/ช่องเสาข้อมูล)
 //   valentine? = { flags } ธงปักของวาเลนไทน์ · dimLayers? = [{ kind: "par"|"veil", k }] มุมมองของมิติ (valentineFx.js)
 //   view = มุมมองที่แสดงจริง (มีซูม/เลื่อนได้)
@@ -2097,6 +2102,9 @@ export function drawFrame(g, st, now) {
   if (cel) drawCelineGround(g, cel, fx, now, lowQ, units);
   // Moon Cell (moonFx.js): พื้นที่คำสาปที่เตือนไว้ · ช่องเสาข้อมูลที่จะพุ่ง — ใต้ไฮไลต์
   if (st.moon && !colony) drawMoonGround(g, st.moon, info, now, lowQ);
+  // ทราฟาก้า ลอว์ (lawFx.js): พื้น Room + ด้านหลังโดม — ใต้ไฮไลต์ (เรียกทุกเฟรม: จำ Room ที่มีอยู่แล้วตอนเฟรมแรก ไม่เล่นฉากกางซ้ำ)
+  const law = st.law || null, lFx = fx.some((e) => isLawFx(e.kind));
+  drawLawGround(g, law, fx, now, lowQ);
   drawHighlights(g, info, hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard && !colony) T.overBoard(g, f, now);
@@ -2170,6 +2178,12 @@ export function drawFrame(g, st, now) {
     }
     // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง
     if (t.kind === "icewall") {
+      // หนามหิน Takt ของลอว์ (ชั้นหนามเดียวกัน · look "lawRock") — พุ่งขึ้นตามฉาก lawTakt
+      if (law && isLawRock(law, t.x, t.y)) {
+        const fade = behind(t.x, t.y), rise = lFx ? lawRockRise(fx, t.x, t.y, now) : 1;
+        items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: () => drawLawRock(g, t.x, t.y, { rise, alpha: fade ? 0.5 : 1, now, lowQ }) });
+        continue;
+      }
       const fade = behind(t.x, t.y), rise = cFx ? celineWallRise(fx, t.x, t.y, now) : 1;
       items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: () => drawCelineWall(g, t.x, t.y, t.conn, { rise, alpha: fade ? 0.45 : 1, now, lowQ }) });
       continue;
@@ -2201,7 +2215,9 @@ export function drawFrame(g, st, now) {
     drawAnyUnit(g, u, now, boxes);
     UNIT_UI_K = 1;
   };
-  units.forEach((u, i) => { const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); });
+  // ลอว์: ตัวที่ถูกมาร์ก = ร่างถูกตัดเป็นชิ้นลอยแยก (lawSliced อัปเดต/อบชิ้นส่วน · หมากวาดแบบ lawCut)
+  const lCut = law || lFx ? lawSliced(law, units, fx, now, g, (c, uu) => drawAnyUnit(c, uu, now, null)) : null;
+  units.forEach((u0, i) => { const u = lCut && lCut.has(u0.id) ? { ...u0, lawCut: true } : u0; const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); });
   // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
   for (const e of fx) {
     if (e.kind !== "soraWheel") continue;
@@ -2227,6 +2243,8 @@ export function drawFrame(g, st, now) {
   if (vFlags || vFx) valentineItems(items, g, vFlags, fx, now, lowQ);
   // เซลิน: พุ่มดอกไม้ (ครึ่งหลัง/หน้าตัวละคร) · กำแพงที่ค้างไว้ถึงจังหวะปะทะ · พรีวิวกำแพงตอนเลือกช่อง
   if (cel) celineItems(items, g, { ...cel, terrain: info.terrainKind }, fx, now, lowQ);
+  // ลอว์: วัตถุลอย (ก้อนพื้นที่ถูกตัด) + ร่างที่ถูกตัด (มาร์ก)
+  if (law || lCut) lawItems(items, g, law, units, fx, now, lowQ);
   // ทาคุโตะ: ดาบลอยข้างตัว (หน้าหมาก) · ดาบแห่งการพิพากษา/ออร่าช่วงพังทลาย (หลังหมาก) · เงาซ้อนตอนพุ่งต้นตาเดิน
   if (st.takutos && st.takutos.length) takutoItems(items, g, st.takutos, units, fx, now, lowQ);
   if (fx.some((e) => e.kind === "takutoDash")) for (const gh of takutoGhosts(fx, units, now)) items.push({ d: depthOf(gh.rx + gh.size / 2, gh.ry + gh.size / 2) - 0.0008, f: () => drawAnyUnit(g, gh, now, null) });
@@ -2272,6 +2290,8 @@ export function drawFrame(g, st, now) {
   if (ferns) drawFernAir(g, ferns, units, now, lowQ);
   // ราชาดอกไม้ (เซลิน): มงกุฎลอย + กลีบโคจร + ผีเสื้อ (ทับตัวละคร)
   if (cel) drawCelineAir(g, cel, units, now, lowQ);
+  // ลอว์: ผิวโดม Room ด้านหน้า · รอยตัด (มาร์ก) · หัวใจ · ท่าไม้ตายที่รอตี (ทับตัวละคร)
+  if (law) drawLawAir(g, law, units, fx, now, lowQ);
   // เรียวกิหลังดับสิ้นซะ: กลีบซากุระปลิวทั่วกระดาน (ทับตัวละคร)
   if (ry) drawRyougiAir(g, ry, info, fx, now, lowQ);
   // โลก UBW ของชิโร่: เฟืองยักษ์ + ประกายไฟ (ทับตัวละคร)
@@ -2315,6 +2335,7 @@ export function drawFrame(g, st, now) {
     else if (isRyougiFx(e.kind)) ryougiFx(g, e, now, lowQ, rctx || (rctx = { view, info, units, octx, redraw: (u) => drawAnyUnit(g, u, now, null), drawShop: (x, y) => drawShop(g, x, y, C, now, night) }));
     else if (isEmiyaFx(e.kind)) emiyaFx(g, e, now, lowQ, { info });
     else if (isKazumaFx(e.kind)) kazumaFx(g, e, now, lowQ);
+    else if (lFx && isLawFx(e.kind)) lawFx(g, e, now, lowQ, law);
     else if (isMoonFx(e.kind)) moonFx(g, e, now, lowQ, { info });
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);

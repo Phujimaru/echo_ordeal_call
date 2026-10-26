@@ -79,7 +79,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
         </>
       );
     } else if (type !== "gutsAmmo" && !DRAW_ITEM_TYPES.includes(type)) { // ยาช่วงจั่วไพ่ใช้จากกล่องข้างปุ่มจั่วเท่านั้น
-      actions = <button type="button" className="bag-btn primary" disabled={!myTurn} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>ใช้</button>;
+      actions = <button type="button" className="bag-btn primary" disabled={!myTurn || sel.ready === false} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>ใช้</button>; // ready false = หัวใจของลอว์ที่บีบไปแล้วเทิร์นนี้
     }
   }
 

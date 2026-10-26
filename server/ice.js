@@ -87,7 +87,7 @@ function publicInfo() {
   const b = match.board || {};
   return {
     ice: Object.entries(b.ice || {}).map(([k, r]) => ({ ...parseKey(k), left: r.left, owner: r.owner })),
-    spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner, ...(s.wall ? { wall: true } : {}) })),
+    spikes: Object.entries(b.spikes || {}).map(([k, s]) => ({ ...parseKey(k), lv: s.lv, armor: s.armor, maxArmor: SPIKE_ARMOR[s.lv], left: s.left, owner: s.owner, ...(s.wall ? { wall: true } : {}), ...(s.look ? { look: s.look } : {}) })),
     wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
 }
@@ -217,7 +217,7 @@ function lowerSpike(k) {
   if (s.lv <= 0) delete match.board.spikes[k];
   else s.armor = SPIKE_ARMOR[s.lv];
   bumpVer();
-  if (s.wall && s.lv <= 0) wallBroken([parseKey(k)], s.owner, "hit");
+  if (s.wall && s.lv <= 0) wallBroken([parseKey(k)], s.owner, "hit", s.look);
   return { ...parseKey(k), lv: Math.max(0, s.lv), from };
 }
 function removeSpike(k) {
@@ -482,7 +482,7 @@ function spikeUnit(k) {
   const s = match.board.spikes[k];
   const pos = parseKey(k);
   return {
-    id: `spike:${k}`, name: s.wall ? "กำแพงน้ำแข็ง" : `หนามน้ำแข็ง Lv.${s.lv}`, pos, boardSize: 1, alive: true,
+    id: `spike:${k}`, name: s.look === "lawRock" ? "หนามหิน" : s.wall ? "กำแพงน้ำแข็ง" : `หนามน้ำแข็ง Lv.${s.lv}`, pos, boardSize: 1, alive: true,
     hp: 0, armor: s.armor, statuses: {}, statusAmt: {}, characterId: null, teamId: null, img: null, customColor: "#9fe3ff",
   };
 }
@@ -552,13 +552,14 @@ function onEndTurn() {
 
 // ---------- กำแพงน้ำแข็ง (เซลิน — คฑาแห่งการกีดกัน) ----------
 //  วางที่ช่องว่างจากสิ่งกีดขวาง/ร้านค้า (ผู้เรียกผลักคนออกก่อน) · ทับธารน้ำแข็ง/พื้นเปียก/พุ่มดอกไม้ = ของเดิมหาย
-function placeWall(x, y, owner) {
+//  look = หน้าตาที่ client วาดแทนกำแพงน้ำแข็ง (ลอว์ Takt: "lawRock" หนามหิน) — กติกาเดียวกันทุกอย่าง
+function placeWall(x, y, owner, look) {
   if (!match.board || !openTile(x, y)) return false;
   const b = match.board, k = K(x, y);
   if (b.ice) delete b.ice[k];
   if (b.wet) delete b.wet[k];
   Flora.clear(k);
-  (b.spikes ||= {})[k] = { lv: 1, armor: 1, left: 1, owner: owner || null, wall: true };
+  (b.spikes ||= {})[k] = { lv: 1, armor: 1, left: 1, owner: owner || null, wall: true, ...(look ? { look } : {}) };
   bumpVer();
   return true;
 }
@@ -574,8 +575,9 @@ function wallsOf(ownerId) {
   return Object.entries((match.board && match.board.spikes) || {}).filter(([, s]) => s.wall && (!ownerId || s.owner === ownerId)).map(([k]) => k);
 }
 // กำแพงแตก/หาย → เอฟเฟกต์ของเซลิน (client/src/board/celineFx.js)
-function wallBroken(tiles, owner, why) {
+function wallBroken(tiles, owner, why, look) {
   const o = owner && match.players[owner];
+  if (look === "lawRock") { engine.boardFx("lawFx", { kind: "rockDown", id: owner || null, color: o ? engine.colorOf(o) : null, tiles, why }); engine.sfx("law_rock_down"); return; }
   engine.boardFx("celineFx", { kind: "wallBreak", id: owner || null, color: o ? engine.colorOf(o) : null, tiles, why });
   engine.sfx("celine_wall_break");
 }

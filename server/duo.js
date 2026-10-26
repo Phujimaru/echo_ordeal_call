@@ -179,10 +179,23 @@ function keeperAlive() {
   return Object.values(match.players).some((u) => u.alive && HOOKS[u.characterId] && HOOKS[u.characterId].keepsCorpses && HOOKS[u.characterId].keepsCorpses(u));
 }
 const isPair = (p) => !!(p && (p.duoWith || p.duoOf));
+// ศพเฉพาะคน (ฮุค claimsCorpse(u, dead) — ลอว์: ตายใน Room): ตอนตายจดผู้เก็บไว้ที่ dead.corpseKeeper · ผู้เก็บยังอยู่ = ศพค้าง
+function claimCorpse(dead) {
+  dead.corpseKeeper = null;
+  if (!dead.pos) return;
+  const HOOKS = require("../characters/index");
+  const u = Object.values(match.players).find((o) => o.alive && o.id !== dead.id && !o.summon && HOOKS[o.characterId] && HOOKS[o.characterId].claimsCorpse && HOOKS[o.characterId].claimsCorpse(o, dead));
+  if (u) dead.corpseKeeper = u.id;
+}
+function keptFor(dead) {
+  if (keeperAlive()) return true;
+  const u = dead && dead.corpseKeeper && match.players[dead.corpseKeeper];
+  return !!(u && u.alive);
+}
 // ร่างนี้ยังอยู่บนกระดานไหม
 function corpseKept(p) {
   if (!corpseOf(p)) return false;
-  return (isPair(p) && sideAlive(p)) || keeperAlive();
+  return (isPair(p) && sideAlive(p)) || keptFor(p);
 }
 function corpseKeys() {
   const out = [];
@@ -196,26 +209,26 @@ function corpseKeys() {
 //  คนเก็บร่างคนสุดท้ายตาย = ร่างของทุกคนที่ไม่ใช่ระบบคู่ที่ยังรอดหาย
 function onDeath(p) {
   if (!p || p.summon) return; // ยูนิตที่ถูกเรียกไม่ทิ้งศพ
-  const keep = keeperAlive();
+  claimCorpse(p);
+  const keep = keptFor(p);
   if (p.pos && (keep || (isPair(p) && sideAlive(p)))) p.corpse = { ...p.pos };
   if (isPair(p) && !sideAlive(p)) clearSide(p);
-  if (!keep) for (const u of Object.values(match.players)) if (!u.alive && u.corpse && !(isPair(u) && sideAlive(u))) u.corpse = null;
+  // ผู้เก็บร่างที่ตายไป (คนนี้เองก็ได้) = ร่างที่ไม่มีใครเก็บแล้วหาย
+  for (const u of Object.values(match.players)) if (!u.alive && u.corpse && !(isPair(u) && sideAlive(u)) && !keptFor(u)) u.corpse = null;
 }
 // ฝ่ายนี้ตกรอบ (ตายทั้งคู่): ร่างหาย (ยกเว้นมีคนเก็บร่าง) · เจ้าของเป็น "ตกรอบ" (ระหว่างที่คู่ยังอยู่ เจ้าของที่ล้มยังไม่ตกรอบ)
 function clearSide(p) {
-  const keep = keeperAlive();
-  for (const u of unitsOf(p)) { if (!keep) u.corpse = null; u.result = "dead"; u.locked = true; }
+  for (const u of unitsOf(p)) { if (!keptFor(u)) u.corpse = null; u.result = "dead"; u.locked = true; }
 }
 // เปลี่ยนภูมิภาค/เริ่มเกม (phases/action.js placeOnBoard): คู่และร่างลงช่องติดตัวที่ได้จุดเกิด
 //  free(x, y) = ช่องว่างให้ยืน · คืน true ถ้าวางได้
 //  keep = ร่างที่มีช่องอยู่แล้วไม่ย้าย (วางเฉพาะร่างที่ยังไม่มีช่อง — restoreCorpses)
 //  ศพค้าง (ไม่ใช่ระบบคู่ที่อีกตัวรอด): ลงช่องเดิมบนแผนที่ใหม่ถ้าว่าง ไม่งั้นช่องว่างที่ใกล้สุด
 function placeCorpses(free, keep = false) {
-  const keeper = keeperAlive();
   for (const p of Object.values(match.players)) {
     if (p.alive) continue;
     if (!(isPair(p) && sideAlive(p))) {
-      if (!keeper || !p.corpse) { p.corpse = null; continue; }
+      if (!keptFor(p) || !p.corpse) { p.corpse = null; continue; }
       if (keep) continue;
       const old = p.corpse;
       p.corpse = null; // ไม่นับร่างตัวเองตอนหาที่
@@ -237,8 +250,8 @@ function saveCorpses() {
 //  ผู้เรียกวางคนที่ยังอยู่เสร็จแล้วค่อย placeCorpses(free, true) ให้ร่างที่เหลือลงข้างอีกตัว
 function restoreCorpses(saved) {
   for (const p of Object.values(match.players)) {
-    if (p.alive || (!isPair(p) && !keeperAlive())) continue;
-    p.corpse = saved && saved[p.id] && (sideAlive(p) || keeperAlive()) ? { ...saved[p.id] } : null;
+    if (p.alive || (!isPair(p) && !keptFor(p))) continue;
+    p.corpse = saved && saved[p.id] && (sideAlive(p) || keptFor(p)) ? { ...saved[p.id] } : null;
   }
 }
 // ช่องว่างใกล้ pos ที่สุด (ไล่วงรอบตัวออกไป)

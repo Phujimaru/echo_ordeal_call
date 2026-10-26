@@ -244,6 +244,12 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | สกิลเลือกช่องจากรายการที่ server คิด | `area { kind: "tile", place: "list", foot, tiles }` — เติม tiles ใน `skillArea` (กล่องของลาพลัส 2×2) | `client Game.jsx` → โหมด list |
 | ฉากตีปกติเป็นดาบสี | `attackHitFx(p)` → `"saberRed"` (ฟันไขว้แดง — `mythSlashFx` tone) | `strikeCard()` |
 | target รูปเฉพาะ (กรอบ/ทรงที่ไม่ใช่ระยะ) | `area: { kind: "target", range, cells: [[dx, dy], …] }` (นับจากช่องผู้ใช้ · range = ป้าย) | `action.resolveArea` |
+| ตีปกติได้เฉพาะในกรอบ (พื้นที่ค้างของตัวเอง) | `strikeAllows(p, target)` → false = ตีไม่ได้ + `strikeZone(p)` → `{ x0, y0, x1, y1 }` (client คัดช่องยืน/เป้า/ระยะอันตรายให้เอง) · ระยะทั้งกรอบ = `range` `[1, 30]` (ลอว์ Room — GAME_SYSTEM §35) | `action.canStrike` · `view.buildStateFor` |
+| ศพค้างเฉพาะคนที่ตายในเงื่อนไขของตัวเอง | `claimsCorpse(u, dead)` (ถามตอนตาย · จด `dead.corpseKeeper` — ศพอยู่จนผู้เก็บตาย) | `server/duo.js` `claimCorpse` / `keptFor` |
+| ไอเทมประจำตัวละครในกระเป๋า (กินช่อง) | ใส่ `{ uid, type, … }` ใน `p.inventory` เอง · `canUseCharItem` → `useCharItem(engine, p, item, opts)` · ทิ้ง `onDropItem` · type ใหม่ต้องเพิ่มแขนงใน `shop.useInventoryItem` + `client/src/data/shop.js` (ลอว์: `lawHeart`) | `shop.useInventoryItem` / `dropItem` |
+| พักฉากจากปุ่ม HUD / ไอเทม (นอก `useSkill`) | `engine.skillBeat(sec, fn)` แล้ว `engine.pausePlayingForCutscene()` | `cutscene.pausePlayingForCutscene` |
+| เลือกหลายช่องจากรายการ | `area { kind: "tile", place: "list", tiles, count: 2 }` → `opts.tiles` (socket `useSkill { tiles }` · `opts.tile` = ช่องแรก) | `server/socket.js` · `BoardStage` multi |
+| กำแพงตีแตกหน้าตาเฉพาะตัว | `engine.ice.placeWall(x, y, owner, look)` → `spikes[].look` (client วาดตาม look) | `server/ice.js` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):
