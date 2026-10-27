@@ -256,6 +256,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   shopTurnsLeft: shop.shopTurnsLeft,
   bagFull: shop.bagFull,
   dropItem: shop.dropItem,
+  giveItem: shop.giveItem,
+  swapItem: shop.swapItem,
   NETRAMANA_KILL_CHANCE,
   netramanaActive,
   statusAmtOf,

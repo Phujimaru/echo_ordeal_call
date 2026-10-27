@@ -299,7 +299,7 @@ function buildStateFor(viewerId) {
         maxSkill: combat.maxSkillOf(p),
         gold: p.gold || 0, // ร้านค้ามายา (patch 2.2 full): เหรียญสะสม — ทุกคนเห็นของกันและกันได้
         goldMax: shop.goldCapOf(p), // เพดานเหรียญรายบุคคล
-        inventory: mine ? (p.inventory || []) : null, // ของในคลัง — เห็นแค่ของตัวเอง
+        inventory: mine || teamReveal ? (p.inventory || []) : null, // ของในคลัง — เห็นของตัวเอง + เพื่อนร่วมทีม (ให้/แลกของ)
         gutsShotTurn: mine ? (p.gutsShotTurn || 0) : undefined, // ปืน GUTS Select: ยิงไปแล้วเทิร์นไหน (เทียบกับ roundNumber = ยิงครบโควตาแล้ว)
         muimiEmergencyUses: p.characterId === "muimi" ? (p.muimiEmergencyUses != null ? p.muimiEmergencyUses : CHAR_HOOKS.muimi.EMERGENCY_USES) : undefined,
         muimiEmergencyMax: p.characterId === "muimi" ? CHAR_HOOKS.muimi.EMERGENCY_USES : undefined,

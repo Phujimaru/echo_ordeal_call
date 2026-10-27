@@ -7,6 +7,8 @@ import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
 
+const BOUND_ITEMS = ["kebread", "lawHeart"]; // ของประจำตัวละคร — ตรงกับ server/shop.js
+
 function useStageK() {
   const calc = () => Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
   const [k, setK] = useState(calc);
@@ -27,6 +29,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
   const [gunOpen, setGunOpen] = useState(false);
+  const [swapWith, setSwapWith] = useState(null); // id เพื่อนที่กำลังเลือกของมาแลก
   const sel = items.find((it) => it.uid === selUid) || items[0] || null;
   const slots = Math.max(bagSlots + (items.some((it) => it.type === "kebread") ? 1 : 0), items.length); // ขนมปังเอมิลิโกะไม่กินช่อง
 
@@ -48,12 +51,24 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   //  ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง ยิงได้เสมอ
   const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && sameDim(p)
     && (p.summon?.kind === "double" || (!sameSide(p, me) && !(me?.teamId && p.teamId === me.teamId))));
+  // ให้/แลกของ (โหมดร่วมมือ): เพื่อนร่วมทีมที่ยืนติดกัน · ของประจำตัวละครส่งต่อไม่ได้ (server/shop.js BOUND_ITEMS)
+  const boxAdj = (a, b) => {
+    if (!a?.pos || !b?.pos) return false;
+    const na = Math.max(1, a.size | 0), nb = Math.max(1, b.size | 0);
+    const dx = Math.max(0, a.pos.x - (b.pos.x + nb - 1), b.pos.x - (a.pos.x + na - 1));
+    const dy = Math.max(0, a.pos.y - (b.pos.y + nb - 1), b.pos.y - (a.pos.y + na - 1));
+    return dx + dy === 1;
+  };
+  const mates = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.summon && !sameSide(p, me) && sameDim(p)
+    && !!me?.teamId && p.teamId === me.teamId && boxAdj(me, p));
+  const bound = (it) => !it || BOUND_ITEMS.includes(it.type);
   const canFire = myTurn && (me?.gutsShotTurn || 0) !== roundNumber && ammoItems.length > 0 && targets.length > 0;
 
   const emit = (ev, data) => { clickSound(); socket.emit(ev, data); };
-  const pick = (uid) => { clickSound(); setSelUid(uid); setGunOpen(false); };
+  const pick = (uid) => { clickSound(); setSelUid(uid); setGunOpen(false); setSwapWith(null); };
 
   const info = sel ? shopInfoOf(sel) : null;
+  const swapMate = sel && !bound(sel) && swapWith ? mates.find((m) => m.id === swapWith) || null : null;
   let actions = null;
   if (sel) {
     const type = sel.type;
@@ -144,8 +159,27 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
                       })}
                     </div>
                   ) : null}
+                  {swapMate && (
+                    <div className="bag-ammo">
+                      {(swapMate.inventory || []).filter((it) => !bound(it)).map((it) => {
+                        const ti = shopInfoOf(it);
+                        return (
+                          <button type="button" key={it.uid} className="bag-ammo-btn" title={ti.label(it)} onClick={() => { emit("swapItem", { uid: sel.uid, toId: swapMate.id, theirUid: it.uid }); setSwapWith(null); }}>
+                            <Icon info={ti} className="bag-ammo-img" />
+                            <span>{ti.label(it)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="bag-actions">
                     {actions}
+                    {!bound(sel) && mates.map((m) => (
+                      <div key={m.id} className="bag-trade">
+                        <button type="button" className="bag-btn" disabled={!myTurn || (m.inventory || []).filter((it) => it.type !== "kebread").length >= bagSlots} onClick={() => { emit("giveItem", { uid: sel.uid, toId: m.id }); setSwapWith(null); }}>ให้ {m.name}</button>
+                        <button type="button" className="bag-btn" data-on={swapWith === m.id ? "true" : undefined} disabled={!myTurn || !(m.inventory || []).some((it) => !bound(it))} onClick={() => { clickSound(); setSwapWith(swapWith === m.id ? null : m.id); }}>แลก {m.name}</button>
+                      </div>
+                    ))}
                     {sel.type !== "kebread" && <button type="button" className="bag-btn ghost" disabled={!myTurn} onClick={() => emit("dropItem", { uid: sel.uid })}>ทิ้ง</button>}
                   </div>
                 </>

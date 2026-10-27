@@ -3,6 +3,7 @@
 Object.assign(module.exports, {
   goldCapOf, addGold, rollShopItem, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, bagFull, dropItem,
+  giveItem, swapItem,
   grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, viewShop, buyShopItem,
   cardLabel, useInventoryItem, useDrawItem, gutsFireTargetOf, applyGutsBullet,
 });
@@ -188,6 +189,57 @@ function dropItem(id, uid) {
   // ของประจำตัวละคร (ลอว์: หัวใจ = คืนเจ้าของ) — ฮุค onDropItem ของเจ้าของกระเป๋า
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onDropItem) combat.withEffectSource(p, () => combat.runHook(hook, "onDropItem", engine, p, item));
+  view.broadcastState();
+  return true;
+}
+
+// ---------- ให้/แลกของกับเพื่อนร่วมทีม (โหมดร่วมมือ duo/trio/Moon Cell · ผู้ใช้สั่ง 2026-10-27) ----------
+//  ตาตัวเอง · ยืนติดเพื่อน (ระยะ 1 · ชั้นมิติเดียวกัน) · ทันที ไม่ต้องรอเพื่อนยืนยัน · ไม่นับเป็นการใช้ (ยังเดิน/ตีได้)
+//  ของประจำตัวละคร (ขนมปังเอมิลิโกะ · หัวใจของลอว์) ส่งต่อไม่ได้ · ปืน GUTS มีได้กระบอกเดียว · Mark 42 ผู้รับต้องยังไม่มีชุด
+const BOUND_ITEMS = ["kebread", "lawHeart"];
+function tradeMate(p, mateId) {
+  const m = match.players[mateId];
+  if (!p || !m || p.id === m.id || !m.alive || !m.pos || !p.pos || m.summon) return null;
+  if (Duo.sideKey(p) === Duo.sideKey(m)) return null; // สองตัวของระบบคู่ใช้กระเป๋าร่วมอยู่แล้ว
+  if (!engine.isAlly(p, m) || !Dim.same(p, m)) return null;
+  return Board.dist(Board.boxOf(p), Board.boxOf(m)) === 1 ? m : null;
+}
+const tradable = (it) => !!it && !BOUND_ITEMS.includes(it.type);
+// ผู้รับถือของชิ้นนี้ได้ไหม (ไม่นับ without = ชิ้นที่ผู้รับส่งออกไปในการแลก)
+function canHold(r, it, without) {
+  const bag = (r.inventory || []).filter((x) => x !== without);
+  if (it.type === "gutsGun" && bag.some((x) => x.type === "gutsGun")) return false;
+  if (it.type === "mark42" && (Mark42.ownsSuit(r) || bag.some((x) => x.type === "mark42"))) return false;
+  return true;
+}
+function tradeReady(id) {
+  const p = match.players[id];
+  if (!p || !p.alive || p.summon || !action.canAct(p) || asleep(p)) return null;
+  return p;
+}
+function giveItem(id, uid, mateId) {
+  const p = tradeReady(id);
+  const m = p && tradeMate(p, mateId);
+  if (!m) return false;
+  const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
+  const item = idx >= 0 ? p.inventory[idx] : null;
+  if (!tradable(item) || bagFull(m) || !canHold(m, item)) return false;
+  p.inventory.splice(idx, 1);
+  (m.inventory = m.inventory || []).push(item);
+  match.lastLog.push(`🎁 ${p.name} ให้ ${shopItemName(item)} กับ ${m.name}`);
+  view.broadcastState();
+  return true;
+}
+function swapItem(id, uid, mateId, theirUid) {
+  const p = tradeReady(id);
+  const m = p && tradeMate(p, mateId);
+  if (!m) return false;
+  const mine = (p.inventory || []).find((it) => it.uid === uid);
+  const theirs = (m.inventory || []).find((it) => it.uid === theirUid);
+  if (!tradable(mine) || !tradable(theirs) || !canHold(m, mine, theirs) || !canHold(p, theirs, mine)) return false;
+  p.inventory[p.inventory.indexOf(mine)] = theirs;
+  m.inventory[m.inventory.indexOf(theirs)] = mine;
+  match.lastLog.push(`🔄 ${p.name} แลก ${shopItemName(mine)} กับ ${shopItemName(theirs)} ของ ${m.name}`);
   view.broadcastState();
   return true;
 }

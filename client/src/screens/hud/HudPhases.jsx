@@ -108,7 +108,20 @@ export function DrawItems({ fortune, color }) {
 const SWORD = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 38 L34 14 L38 6 L30 10 L6 34" /><path d="M8 28 L20 40 M4 44 L10 38" /></svg>;
 const BAG = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 18 H40 L37 42 H11 Z" /><path d="M17 18 V13 a7 7 0 0 1 14 0 V18" /><path d="M8 26 H40" /><path d="M21 26 V31 H27 V26" /></svg>;
 const SHOP = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 18 L10 8 H38 L42 18 Z" /><path d="M6 18 a6 5 0 0 0 12 0 a6 5 0 0 0 12 0 a6 5 0 0 0 12 0" /><path d="M10 23 V41 H38 V23" /><path d="M20 41 V31 H28 V41" /></svg>;
-// extra = ปุ่มพิเศษของตัวละคร (state.players[].actions จากฮุค hudActions — ไจโร: ขึ้น/ลงม้า) [{ key, icon, name, disabled, cd, onClick }]
+// extra = ปุ่มพิเศษของตัวละคร (state.players[].actions จากฮุค hudActions — ไจโร: ขึ้น/ลงม้า) [{ key, icon, name, disabled, cd, row, onClick }]
+//  row เดียวกันติดกัน = แบ่งครึ่งปุ่มวางคู่กันในแถวเดียว (ลอว์: ตัด | ทิ้ง)
+function extraRows(extra) {
+  const out = [];
+  for (const x of extra || []) {
+    const last = out[out.length - 1];
+    if (x.row && last && last[0].row === x.row) last.push(x);
+    else out.push([x]);
+  }
+  return out;
+}
+const extraBtn = (x) => (
+  <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
+);
 export function HudCommand({ skills, attack, shop, ride, drop, extra, onBag, undo, end }) {
   return (
     <section className="hc" aria-label="คำสั่ง">
@@ -118,9 +131,9 @@ export function HudCommand({ skills, attack, shop, ride, drop, extra, onBag, und
         <button type="button" className="hc-btn atk" data-off={attack.disabled ? "true" : "false"} disabled={attack.disabled} onClick={attack.onClick}><span className="ico">{SWORD}</span><b>โจมตี</b></button>
         {ride && <button type="button" className="hc-btn ride" disabled={ride.disabled} onClick={ride.onClick}><span className="ico">🎠</span><b>ขี่</b></button>}
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}
-        {(extra || []).map((x) => (
-          <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
-        ))}
+        {extraRows(extra).map((g) => (g.length > 1
+          ? <div key={g[0].key} className="hc-row">{g.map(extraBtn)}</div>
+          : extraBtn(g[0])))}
         <button type="button" className="hc-btn bag" onClick={onBag}><span className="ico">{BAG}</span><b>กระเป๋า</b></button>
         <div className="hc-row">
           <button type="button" className="hc-btn" disabled={undo.disabled} onClick={undo.onClick}><b>↶ ย้อน</b></button>

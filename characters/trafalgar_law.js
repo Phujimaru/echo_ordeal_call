@@ -6,10 +6,11 @@
 //  Room (พื้นฐาน · 0 แต้ม · 5×5 / 9×9 · ไม่กินโควตา · ไม่ล็อกการเดิน): กางรอบตัวแล้วอยู่กับที่ · กดอีกครั้ง = ปิด ·
 //    คูลดาวน์นับหลังปิด (5×5 = 1 · 9×9 = 3) · เปลี่ยนภูมิภาค = ปิด ไม่มีคูลดาวน์
 //  ศัลแพทย์แห่งความตาย (ติดตัว): ตีปกติได้เฉพาะใน Room ระยะทั้ง Room · 3 ครั้งต่อเทิร์น ตีแล้วไม่จบตา · ตีโดน = มาร์กจนจบตาเดิน ·
-//    ตัดพื้น (ปุ่ม HUD · นับเป็นการตี) = วัตถุลอย สูงสุด 4 · ยืนใน Room ตอนจบเทิร์น แต้มสกิล +1 · ตายใน Room = ศพค้าง ·
+//    ตัดพื้น (ปุ่ม HUD · นับเป็นการตี) = วัตถุลอย สูงสุด 4 · ทิ้ง (ครึ่งขวาของปุ่มตัด · ฟรี ไม่นับการตี) = เลือกวัตถุลอยทิ้งทีละก้อน · ยืนใน Room ตอนจบเทิร์น แต้มสกิล +1 · ตายใน Room = ศพค้าง ·
 //    Counter Shock (ปุ่ม HUD · 0 แต้ม · 3 ครั้งต่อเกม): ฟื้นศพที่ประชิด พลังชีวิต 1
 //  ศัลแพทย์ (รอง · 4 ตัวเลือก · ต้องอยู่ใน Room · 2 ครั้งต่อเทิร์น นับแยก ไม่กินโควตา):
-//    Shambles (2) สลับที่ 2 อย่าง (ตัวเอง/คนที่มาร์ก/วัตถุ) · Takt (2) หนามหิน ดาเมจ 1 + ผลัก · โยนสิ่งของ (2) วัตถุทั้งหมด ดาเมจ 1 ต่อก้อน ·
+//    Shambles (2) สลับที่ 2 อย่าง (ตัวเอง/คนที่มาร์ก/วัตถุ) · Takt (1) หนามหิน ดาเมจ 1 + ผลัก · โยนสิ่งของ (2) วัตถุทั้งหมด ดาเมจ 1 ต่อก้อน
+//    คูลดาวน์ 3 เทิร์นหลังโยน (ผู้ใช้สั่ง 2026-10-27) ·
 //    Shamble (3) สลับพลังชีวิตและเกราะของ 2 คน (ตัวเอง/คนที่มาร์ก)
 //  ท่าไม้ตาย (2 ตัวเลือก · 4 แต้ม · คูลดาวน์แยกอันละ 3 เทิร์น): ตีปกติครั้งถัดไปในตาเดินนี้ (ประชิด)
 //    Gamma Knife = ลุกไหม้/เลือดไหล/พิษร้าย อย่างละ 2 สุ่ม 1 อย่างเป็น 3 · Mess = หัวใจเข้ากระเป๋า บีบได้ 3 ครั้ง ครั้งละ 2 (ไม่เสียแต้ม เสียการเดิน)
@@ -70,10 +71,11 @@ const SQUEEZE_DMG = 2;
 const HEART_USES = 3;
 const GAMMA = { burn: 2, bleed: 2, poison: 2 };
 const ULT_CD = 3;
+const THROW_CD = 3;       // โยนสิ่งของ: คูลดาวน์หลังโยน (ผู้ใช้สั่ง 2026-10-27)
 const SEC = {
   shuffle: { name: "Shambles", cost: 2, img: IMG.surgeon, desc: "เลือก 2 อย่างจากตัวเอง คนที่มาร์กไว้ และวัตถุลอยใน Room แล้วสลับที่กัน (ตัวใหญ่ต้องอยู่ใน Room ทั้งตัว)" },
-  takt: { name: "Takt", cost: 2, img: IMG.surgeon, desc: `เลือกช่องใน Room: หนามหินพุ่งขึ้น ศัตรูบนช่องเสียหาย ${TAKT_DMG} (เกราะรับก่อน) และถูกผลักออก 1 ช่อง · หนามขวางทาง 1 เทิร์น` },
-  throw: { name: "โยนสิ่งของ", cost: 2, img: IMG.surgeon, desc: `เลือกช่องใน Room: วัตถุลอยทั้งหมดพุ่งลงช่องนั้น ความเสียหาย ${THROW_DMG} ต่อก้อน (เกราะรับก่อน)` },
+  takt: { name: "Takt", cost: 1, img: IMG.surgeon, desc: `เลือกช่องใน Room: หนามหินพุ่งขึ้น ศัตรูบนช่องเสียหาย ${TAKT_DMG} (เกราะรับก่อน) และถูกผลักออก 1 ช่อง · หนามขวางทาง 1 เทิร์น` },
+  throw: { name: "โยนสิ่งของ", cost: 2, img: IMG.surgeon, desc: `เลือกช่องใน Room: วัตถุลอยทั้งหมดพุ่งลงช่องนั้น ความเสียหาย ${THROW_DMG} ต่อก้อน (เกราะรับก่อน) · คูลดาวน์ ${THROW_CD} เทิร์น` },
   shamble: { name: "Shamble", cost: 3, img: IMG.surgeon, desc: "เลือก 2 คนจากตัวเองและคนที่มาร์กไว้ใน Room แล้วสลับพลังชีวิตและเกราะปัจจุบันกัน" },
 };
 const SEC_KEYS = Object.keys(SEC);
@@ -97,7 +99,7 @@ function fresh() {
     objects: [], objSeq: 0, objAt: 0,            // วัตถุลอย [{ id, x, y, seq }]
     strikeRound: 0, strikes: 0,                  // ตีไปกี่ครั้งในเทิร์น strikeRound
     marks: [],                                   // id ที่ตีโดนในตาเดินนี้
-    secRound: 0, secUsed: 0,
+    secRound: 0, secUsed: 0, throwReady: 0,     // throwReady = เทิร์นที่โยนสิ่งของได้อีก
     gammaReady: 0, messReady: 0, armed: null,    // ท่าไม้ตายที่รอตี { kind, round, at }
     shocks: SHOCKS,
     rocks: [],                                   // หนามหิน [{ k, round, at }]
@@ -225,6 +227,21 @@ function cut(engine, p, tile) {
   engine.log(`✂️ ${p.name} ตัดพื้น — วัตถุลอย ${s.objects.length}/${MAX_OBJECTS}`);
   engine.skillBeat(BEAT.cut, () => {});
   engine.pausePlayingForCutscene();
+  return true;
+}
+// ทิ้งวัตถุลอยทีละก้อน (ปุ่ม HUD ครึ่งขวาของตัดพื้น): ฟรี · ไม่นับเป็นการตี · ไม่ล็อกการเดิน
+function dropTiles(engine, p) {
+  return isLaw(p) && p.alive ? st(p).objects.map((o) => ({ x: o.x, y: o.y })) : [];
+}
+function dropObject(engine, p, tile) {
+  if (!engine.canAct(p) || !tile) return false;
+  const s = st(p), o = objAt(s, tile.x, tile.y);
+  if (!o) return false;
+  s.objects = s.objects.filter((x) => x !== o);
+  fx(engine, p, "roomClose", { room: null, objects: [{ id: o.id, x: o.x, y: o.y }], why: "drop" });
+  engine.sfx(SFX.rockDown);
+  engine.log(`🪨 ${p.name} ทิ้งวัตถุลอย — เหลือ ${s.objects.length}/${MAX_OBJECTS}`);
+  engine.broadcastState();
   return true;
 }
 
@@ -526,6 +543,7 @@ function secBlock(engine, p, k) {
   if (!SEC[k]) return "form";
   if (!lawIn(engine, p)) return "room";
   if (secUsed(engine, p) >= SEC_PER_TURN) return "uses";
+  if (k === "throw" && cdLeft(s.throwReady, engine.roundNumber) > 0) return "cd";
   if (k === "throw" && !s.objects.length) return "objects";
   if ((k === "shuffle" || k === "shamble") && pickTiles(engine, p, k).length < 2) return "pick";
   return null;
@@ -543,9 +561,9 @@ function ultBlock(engine, p, k) {
 
 module.exports = {
   id: ID,
-  IMG, FX, SFX, VIDEO, CUT, HP, ARMOR, ROOMS, STRIKES, MAX_OBJECTS, SEC_PER_TURN, SHOCKS, ROOM_REGEN, TAKT_DMG, THROW_DMG, SQUEEZE_DMG, HEART_USES, GAMMA, ULT_CD,
+  IMG, FX, SFX, VIDEO, CUT, HP, ARMOR, ROOMS, STRIKES, MAX_OBJECTS, SEC_PER_TURN, SHOCKS, ROOM_REGEN, TAKT_DMG, THROW_DMG, SQUEEZE_DMG, HEART_USES, GAMMA, ULT_CD, THROW_CD,
   SEC, SEC_KEYS, ULT, ULT_KEYS, BEAT,
-  isLaw, lawIn, swapPlan, pickTiles, cutTiles, taktTiles, shockTargets,
+  isLaw, lawIn, swapPlan, pickTiles, cutTiles, taktTiles, shockTargets, dropTiles,
 
   resetCombat(p) { p.law = isLaw(p) ? fresh() : null; },
   maxHp() { return HP; },
@@ -659,7 +677,12 @@ module.exports = {
     const s = st(p), out = [];
     if (s.room) {
       const tiles = cutTiles(engine, p);
-      out.push({ key: "cut", icon: "✂️", name: `ตัด ${s.objects.length}/${MAX_OBJECTS}`, tiles, disabled: !tiles.length });
+      out.push({ key: "cut", icon: "✂️", name: `ตัด ${s.objects.length}/${MAX_OBJECTS}`, tiles, disabled: !tiles.length, row: "cut" });
+    }
+    // ทิ้งวัตถุลอย: ครึ่งขวาของปุ่มตัด (row เดียวกัน) · วัตถุค้างนอก Room ได้ (ถูกตัดผลสกิล) จึงแสดงเมื่อมีวัตถุด้วย
+    if (s.room || s.objects.length) {
+      const drops = dropTiles(engine, p);
+      out.push({ key: "drop", icon: "🪨", name: "ทิ้ง", tiles: drops, disabled: !drops.length, row: "cut" });
     }
     const corpses = shockTargets(engine, p);
     out.push({ key: "shock", icon: "⚡", name: `Counter Shock ×${s.shocks}`, tiles: corpses.map((d) => ({ x: d.corpse.x, y: d.corpse.y })), disabled: !corpses.length });
@@ -669,6 +692,7 @@ module.exports = {
     if (!isLaw(p)) return false;
     if (key === "cut") return cut(engine, p, opts.tile);
     if (key === "shock") return counterShock(engine, p, opts.tile);
+    if (key === "drop") return dropObject(engine, p, opts.tile);
     return false;
   },
 
@@ -728,7 +752,7 @@ module.exports = {
       return {
         choices: SEC_KEYS.map((k) => ({
           key: k, name: SEC[k].name, img: SEC[k].img, cost: SEC[k].cost, area: secArea(engine, p, k), free: true,
-          locked: !!secBlock(engine, p, k), desc: `${SEC[k].name} (${SEC[k].cost} แต้ม): ${SEC[k].desc}`,
+          locked: !!secBlock(engine, p, k), ...(k === "throw" ? { cd: cdLeft(s.throwReady, r) } : {}), desc: `${SEC[k].name} (${SEC[k].cost} แต้ม): ${SEC[k].desc}`,
         })),
       };
     }
@@ -784,7 +808,7 @@ module.exports = {
       if (k === "shuffle") { const [a, b] = pairOf(engine, p, opts.tiles, k); shuffle(engine, p, a, b); }
       else if (k === "shamble") { const [a, b] = pairOf(engine, p, opts.tiles, k); shamble(engine, p, a.u, b.u); }
       else if (k === "takt") takt(engine, p, { x: opts.tile.x, y: opts.tile.y });
-      else if (k === "throw") throwAll(engine, p, { x: opts.tile.x, y: opts.tile.y });
+      else if (k === "throw") { s.throwReady = r + 1 + THROW_CD; throwAll(engine, p, { x: opts.tile.x, y: opts.tile.y }); }
       return ` — ${SEC[k].name}`;
     }
     if (tier === "ultimate") {
@@ -851,7 +875,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber, a = armedOf(engine, p);
     return {
       inRoom: lawIn(engine, p), strikes: strikesUsed(engine, p), strikesMax: STRIKES, secUsed: secUsed(engine, p), secMax: SEC_PER_TURN,
-      roomCd: s.room ? 0 : cdLeft(s.roomReady, r), gammaCd: cdLeft(s.gammaReady, r), messCd: cdLeft(s.messReady, r),
+      roomCd: s.room ? 0 : cdLeft(s.roomReady, r), throwCd: cdLeft(s.throwReady, r), gammaCd: cdLeft(s.gammaReady, r), messCd: cdLeft(s.messReady, r),
       armed: a ? a.kind : null, shocks: s.shocks, room: s.room ? { size: s.room.size, x0: s.room.x0, y0: s.room.y0, x1: s.room.x1, y1: s.room.y1 } : null,
     };
   },

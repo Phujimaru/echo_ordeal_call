@@ -63,7 +63,7 @@ test('โหมดผู้กอบกู้เริ่มเป็นบา�
   assert.equal(v.character.secondary.cost, 2);
   assert.equal(v.character.ultimate.name, 'ยูนิคอร์น!!!!');
 });
-test('โหมดสายหลับ (ค่าเริ่มต้น) = นักบินเดิม', () => {
+test('โหมดสายลับ (ค่าเริ่มต้น) = นักบินเดิม', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(P.S.sliver.form, 'pilot');
   assert.equal(engine.maxHpOf(P.S), 5);

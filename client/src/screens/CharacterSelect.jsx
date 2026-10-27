@@ -160,7 +160,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   // การ์ดที่ลอยออกจากวง: [{ key, id, dir: "out" | "back", t0, dur, from }] — ตำแหน่งตั้งทุกเฟรมใน flyFrame
   const [flies, setFlies] = useState([]);
 
-  // โหมดของตัวละคร (roster modes — นักบินปริศนา: สายหลับ / ผู้กอบกู้) · โหมดที่มีร่าง = ชื่อ/สกิลของร่างนั้นบนแผง
+  // โหมดของตัวละคร (roster modes — นักบินปริศนา: สายลับ / ผู้กอบกู้) · โหมดที่มีร่าง = ชื่อ/สกิลของร่างนั้นบนแผง
   const [modeOf, setModeOf] = useState({}); // id → key ที่เลือก (ไม่เลือก = โหมดแรก)
   const modeKey = (c) => (c && Array.isArray(c.modes) && c.modes.length ? (modeOf[c.id] || c.modes[0].key) : null);
   const withMode = (c) => {

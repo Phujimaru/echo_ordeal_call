@@ -227,12 +227,13 @@ test('Shambles: สลับกับคนที่ไม่ได้มาร�
   assert.equal(H().canUseSkill(engine, P.L, 'secondary', [], { form: 'shuffle', tiles: [at(1), at(-1)] }), false);
 });
 
-test('Takt: ศัตรูเสียหาย 1 + ถูกผลักออก · หนามหินขวางทาง · หายตอนต้นตาเดินถัดไปของลอว์', () => {
+test('Takt: 1 แต้ม · ศัตรูเสียหาย 1 + ถูกผลักออก · หนามหินขวางทาง · หายตอนต้นตาเดินถัดไปของลอว์', () => {
   noRoll();
   const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 1]]);
   room('5');
   const t = { ...P.E.pos };
   sec('takt', { tile: t });
+  assert.equal(P.L.skillPoints, 11);
   assert.equal(P.E.armor, 2);
   assert.deepEqual(P.E.pos, at(2));
   assert.ok(engine.board.spikes[`${t.x},${t.y}`]);
@@ -252,6 +253,44 @@ test('โยนสิ่งของ: วัตถุทั้งหมดลง
   sec('throw', { tile: { ...P.E.pos } });
   assert.equal(P.E.armor, 1);
   assert.equal(P.L.law.objects.length, 0);
+});
+
+test('โยนสิ่งของ: คูลดาวน์ 3 เทิร์นหลังโยน', () => {
+  noRoll();
+  const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 2]]);
+  room('5');
+  drain(() => H().charAction(engine, P.L, 'cut', { tile: at(0, 1) }));
+  sec('throw', { tile: { ...P.E.pos } });
+  const r0 = engine.roundNumber;
+  drain(() => H().charAction(engine, P.L, 'cut', { tile: at(0, -1) }));
+  const ok = () => H().canUseSkill(engine, P.L, 'secondary', [], { form: 'throw', tile: { ...P.E.pos } });
+  for (let d = 1; d <= 3; d++) {
+    engine.setRoundNumber(r0 + d);
+    assert.equal(ok(), false, `เทิร์นที่ ${d} หลังโยน`);
+    const c = H().skillPub(P.L, 'secondary').choices.find((x) => x.key === 'throw');
+    assert.equal(c.cd, 4 - d);
+  }
+  engine.setRoundNumber(r0 + 4);
+  assert.equal(ok(), true);
+});
+
+test('ทิ้งวัตถุลอย: เลือกทีละก้อน · ฟรี ไม่นับเป็นการตี · ปุ่มคู่กับตัดพื้น', () => {
+  const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 3]]);
+  room('5');
+  drain(() => H().charAction(engine, P.L, 'cut', { tile: at(0, 1) }));
+  drain(() => H().charAction(engine, P.L, 'cut', { tile: at(0, -1) }));
+  const sp = P.L.skillPoints, used = P.L.law.strikes;
+  const acts = H().hudActions(engine, P.L);
+  const drop = acts.find((x) => x.key === 'drop');
+  assert.equal(drop.row, 'cut');
+  assert.equal(acts.find((x) => x.key === 'cut').row, 'cut');
+  assert.deepEqual(drop.tiles, [at(0, 1), at(0, -1)]);
+  assert.equal(H().charAction(engine, P.L, 'drop', { tile: at(1) }), false); // ไม่มีวัตถุ
+  assert.equal(H().charAction(engine, P.L, 'drop', { tile: at(0, 1) }), true);
+  assert.deepEqual(P.L.law.objects.map((o) => ({ x: o.x, y: o.y })), [at(0, -1)]);
+  assert.equal(P.L.skillPoints, sp);
+  assert.equal(P.L.law.strikes, used);
+  assert.equal(engine.action.locked, true); // ล็อกมาจากการตัด ไม่ใช่การทิ้ง
 });
 
 test('Shamble: สลับพลังชีวิต/เกราะ 2 คน (ตัดส่วนเกินเพดาน) · 3 แต้ม', () => {

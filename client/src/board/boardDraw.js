@@ -516,6 +516,14 @@ export function drawVitalBar(g, cx, y, w, u, UK = 1) {
   }
   return bottom;
 }
+// เพื่อนร่วมทีม (โหมดร่วมมือ duo/trio/Moon Cell): วงเขียว + ป้าย "ทีม" ตำแหน่งเดียวกับป้าย "คุณ"
+const ALLY = "#5fe0a4";
+function allyBadge(g, mx, my, UK) {
+  g.font = `600 ${11 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
+  const mw = g.measureText("ทีม").width + 10 * UK;
+  g.fillStyle = ALLY; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
+  g.fillStyle = "#08321f"; g.fillText("ทีม", mx, my + 0.5); g.textBaseline = "alphabetic";
+}
 function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
@@ -543,6 +551,10 @@ function drawUnit(g, u, now, boxes) {
   if (u.isMe) {
     // ตัวเรา: วงทองคู่รอบฐาน
     g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; gEllipse(g, wx, wy, 0.43 * K, 0.02, 32); g.stroke();
+    g.lineWidth = 1; gEllipse(g, wx, wy, 0.48 * K, 0.02, 32); g.stroke();
+  } else if (u.ally) {
+    // เพื่อนร่วมทีม (โหมดร่วมมือ): วงเขียวคู่รอบฐาน
+    g.strokeStyle = ALLY; g.lineWidth = 2.5; gEllipse(g, wx, wy, 0.43 * K, 0.02, 32); g.stroke();
     g.lineWidth = 1; gEllipse(g, wx, wy, 0.48 * K, 0.02, 32); g.stroke();
   }
   if (u.isActor) {
@@ -599,7 +611,7 @@ function drawUnit(g, u, now, boxes) {
     const mw = g.measureText("คุณ").width + 10 * UK, mx = bx - hexR - 4, my = hy - hexR * 0.87 - 2;
     g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
     g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
-  }
+  } else if (u.ally) allyBadge(g, bx - hexR - 4, hy - hexR * 0.87 - 2, UK);
   const tag = normTag(u.tag);
   if (tag) drawTag(g, bx + hexR + (tag.backs ? 10 + Math.min(6, tag.backs) * 7 : 22), hy - hexR * 0.2, tag);
   if (u.isActor) {
@@ -662,6 +674,7 @@ function drawBigUnit(g, u, now, boxes) {
     footQuad(g, x0, y0, n, 0.06); g.fillStyle = hexA(u.color, 0.22); g.fill();
     g.strokeStyle = hexA(u.color, 0.95); g.lineWidth = 2.5; g.stroke();
     if (u.isMe) { footQuad(g, x0, y0, n, -0.04); g.strokeStyle = "#f0c868"; g.lineWidth = 2.5; g.stroke(); }
+    else if (u.ally) { footQuad(g, x0, y0, n, -0.04); g.strokeStyle = ALLY; g.lineWidth = 2.5; g.stroke(); }
     if (u.isActor) {
       const p = (now / 1100) % 1;
       g.globalAlpha = a * (1 - p); footQuad(g, x0, y0, n, -0.06 - p * 0.35); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.globalAlpha = a;
@@ -715,7 +728,7 @@ function drawBigUnit(g, u, now, boxes) {
     const mw = g.measureText("คุณ").width + 10, mx = px - mw / 2 - 4, my = py + ph / 2;
     g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8, mw, 16);
     g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
-  }
+  } else if (u.ally) allyBadge(g, px - 22, py + ph / 2, 1);
   if (u.isActor) {
     const ay = py - 10 + Math.sin(now / 200) * 3;
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 9, ay - 10); g.lineTo(bx + 9, ay - 10); g.lineTo(bx, ay); g.closePath(); g.fill();

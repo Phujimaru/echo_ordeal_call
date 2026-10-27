@@ -1116,7 +1116,7 @@ function StatusModal({ p, onClose, statusOnly }) {
       right={
         !statusOnly && p.img ? (
           <span className="av-frame relative block w-12 h-12 overflow-hidden shrink-0" style={{ border: `1px solid ${p.color}` }}>
-            <img src={p.img} alt="" className="w-full h-full object-cover" />
+            <img src={p.character?.cover || p.img} alt="" className="w-full h-full object-cover" />
           </span>
         ) : null
       }
@@ -1926,6 +1926,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
   // เอมิลิโกะเดินต่อหลังจบตา: ได้แค่เดิน/ย้อน/รอ (+ กระจกเงา)
   const canto = myTurn && !!state.action.canto;
+  // ปุ่มสกิลที่กดได้ระหว่างเดินต่อ (ตรงกับฮุค cantoSkill ฝั่ง server): พื้นฐาน · เอมิลิโกะ สลับอาวุธ (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
+  const cantoTier = (tier) => (tier === "basic" && !me?.celine) || (tier === "secondary" && me?.character?.id === "emiliko");
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // ยืนติดร้าน (ระยะ 1) — ตัวใหญ่ (Echo / ร่างใหญ่ของไรโด ฮิคารุ) นับจากขอบตัวทุกช่อง ตรงกับ server Board.nearShop(boxOf)
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
@@ -2086,7 +2088,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // เคนซากิ คาซุมะ: แผงการ์ด Blay Rouzer (ช่องสกิลรองเฉพาะตัว) · หมดตา/คืนร่าง = ปิด
   const [kzOpen, setKzOpen] = useState(false);
   if (kzOpen && (!myTurn || canto || !me?.kazuma?.blade)) setKzOpen(false);
-  if (choiceOpen && (!myTurn || canto || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
+  if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
   const choiceFree = (c) => (c.free != null ? !!c.free : (c.cost || 0) === 0);
   // เลือกตัวเลือกแล้ว: self = ใช้ทันที · มีระยะ = เข้าโหมดเลือกเป้า/ทิศบนกระดานตามพื้นที่ของตัวเลือก
@@ -2495,7 +2497,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const slotOff = (tier) => {
     const s = ch?.[tier];
     if (!myTurn || noSkill || giftLocked(tier)) return true;
-    if (canto && (tier !== "basic" || me?.celine)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว)
+    if (canto && !cantoTier(tier)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว · เอมิลิโกะ: สลับอาวุธได้)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return !s.choices.some(choiceOk);
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
@@ -2554,7 +2556,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           zoom={hudZ}
           panel={
             <HudPanel
-              portrait={<Portrait key={me.id} p={me} className="w-full h-full" rounded="" />}
+              // ระบบคู่ (เคท & เอมิลิโกะ): รูปหลัก = ภาพปกเดียวกับหน้าเลือกตัว (รูปแต่ละตัวอยู่ที่ปุ่มเลือกตัวด้านบน)
+              portrait={<Portrait key={me.id} p={duoUnits && hand?.character?.cover ? { ...me, img: hand.character.cover } : me} className="w-full h-full" rounded="" />}
               hexPortrait={true}
               duo={duoPick}
               name={me.character?.name || me.name}

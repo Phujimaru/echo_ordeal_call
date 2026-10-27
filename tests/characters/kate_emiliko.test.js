@@ -154,8 +154,11 @@ test('เอมิลิโกะ กำลังใจเต็มเปี่�
   assert.equal(engine.movOf(engine.players[E]), 2);
   assert.equal(engine.moveTo(E, 7, 5), false, 'เกิน 2 ช่อง');
   assert.equal(engine.moveTo(E, 6, 5), true);
+  engine.players.K.skillPoints = 16;
+  engine.useSkill(E, 'ultimate', [], { dir: 'right' });
+  assert.equal(engine.players.K.skillPoints, 16, 'เดินต่ออยู่ ใช้ท่าไม้ตายไม่ได้');
   engine.useSkill(E, 'secondary', [], { form: 'vase' });
-  assert.equal(engine.players.K.shadow.weapon, 'mop', 'เดินต่ออยู่ ใช้สกิลรองไม่ได้');
+  assert.equal(engine.players.K.shadow.weapon, 'vase', 'สลับอาวุธได้ระหว่างเดินต่อ (ตีแจกันแล้วถือไม้ถูพื้นไถลชน)');
   engine.setTimeLeft(40);
   assert.equal(engine.waitAction(E), true);
   engine.clearPhaseTimer();
@@ -300,6 +303,20 @@ test('แจกัน: ผลักเป้า 3 ช่อง ทางที�
   assert.ok(P.B.pos.x > 5, 'ถูกผลักต่อ');
 });
 
+test('แจกัน: ระยะตี 4 · ตีไกลแนวตรง = ทางน้ำเปียกถึงเป้า · สลับไม้ถูพื้นแล้วไถลไปชนซ้ำ', () => {
+  const P = setup([['K', 'kate', 1, 1], [E, null, 2, 5], ['B', 'dummy', 6, 5]]);
+  P.K.shadow.weapon = 'vase';
+  assert.deepEqual(engine.rangeOf(P[E]), [1, 4]);
+  hooks.emiliko.afterBoardAttack(engine, P[E], P.B, { dodge: false })();
+  assert.deepEqual(P.B.pos, { x: 9, y: 5 });
+  for (let x = 3; x <= 8; x++) assert.equal(engine.boardMap().special[`${x},5`], 'wet', `ช่อง ${x},5 เปียก`);
+  // ไม่ตรงแนว = เปียกแค่ทางที่ถูกผลัก
+  const Q = setup([['K', 'kate', 1, 1], [E, null, 2, 5], ['B', 'dummy', 4, 7]]);
+  Q.K.shadow.weapon = 'vase';
+  hooks.emiliko.afterBoardAttack(engine, Q[E], Q.B, { dodge: false })();
+  assert.equal(engine.boardMap().special['3,5'], undefined);
+});
+
 test('เครื่องดูดฝุ่น: ระยะตี 3 · ดาเมจเท่าระยะ (ไม่รับบัฟ) · ดูดเป้ามาติดตัว', () => {
   const P = setup([['K', 'kate', 1, 1], [E, null, 3, 5], ['B', 'dummy', 6, 5]]);
   P.K.shadow.weapon = 'vacuum';
@@ -392,6 +409,27 @@ test('ระบำเขม่า: ม่านแดง 8×8 รอบช่อ
   assert.equal(engine.baseMovOf(P[E]), 4);
   for (let i = 0; i < 3; i++) Soot.onEndTurn();
   assert.equal(Soot.storms().length, 0);
+});
+
+test('ระบำเขม่า: คูลดาวน์ 5 เทิร์น (ปุ่มเทา + ตัวเลขนับถอยหลัง)', () => {
+  const P = setup([['K', 'kate', 4, 4], [E, null, 4, 5], ['B', 'dummy', 12, 12]]);
+  P.K.skillPoints = 16;
+  startTurn('K');
+  const r0 = engine.roundNumber;
+  engine.useSkill('K', 'ultimate', [], { tile: { x: 5, y: 5 } });
+  engine.clearPhaseTimer();
+  assert.equal(Soot.storms().length, 1);
+  const hk = hooks.kate;
+  for (let d = 1; d <= 5; d++) {
+    engine.setRoundNumber(r0 + d);
+    assert.equal(hk.canUseSkill(engine, P.K, 'ultimate', [], { tile: { x: 5, y: 5 } }), false, `เทิร์นที่ ${d}`);
+    assert.deepEqual(hk.skillLocks(engine, P.K).ultimate, { locked: true, cd: 6 - d });
+  }
+  engine.setRoundNumber(r0 + 6);
+  assert.equal(hk.canUseSkill(engine, P.K, 'ultimate', [], { tile: { x: 5, y: 5 } }), true);
+  assert.equal(hk.skillLocks(engine, P.K), undefined);
+  engine.setRoundNumber(r0 + 1);
+  assert.equal((hk.skillLocks(engine, P[E]) || {}).ultimate, undefined, 'ท่าไม้ตายเอมิลิโกะไม่ติดคูลดาวน์');
 });
 
 test('ติดตัวเคท: ตีปกติในม่านแดง → เป้ามืดบอด (เห็นหมากคนอื่นเป็นสีขาว ไม่มีลำดับเดิน)', () => {

@@ -1,6 +1,6 @@
 // ============================================================
 //  เคท & เอมิลิโกะ — ส่วนการต่อสู้ (ต่อท้ายฮุคใน characters/kate_emiliko.js)
-//   เอมิลิโกะ: ไม้ถูพื้น (ไถลบนพื้นเปียกชน 2 · ถูแห้ง) · แจกัน (ตีผลัก 3 + พื้นเปียก) · เครื่องดูดฝุ่น (ระยะ 3 · ดาเมจ = ระยะ · ดูด)
+//   เอมิลิโกะ: ไม้ถูพื้น (ไถลบนพื้นเปียกชน 2 · ถูแห้ง) · แจกัน (ระยะ 4 · ตีผลัก 3 + พื้นเปียกตั้งแต่หน้าเอมิลิโกะถึงเป้า) · เครื่องดูดฝุ่น (ระยะ 3 · ดาเมจ = ระยะ · ดูด)
 //              ดาบเขม่า (+2) · ท่าไม้ตาย ร่าเริงสุดๆ (แนว 4×3 ตามอาวุธ)
 //   เคท: ดาบเขม่า (+1) · แส้เขม่า · ปีกเขม่า · ท่าไม้ตาย ระบำเขม่า (server/soot.js) · ติดตัว: ในม่านตีแล้วเป้า "มืดบอด"
 //  การขยับคน (ผลัก/ดูด/ไถล) ส่งเป็น iceFx (server/ice.js) — client เล่นตามลำดับ · ท่าใหญ่ส่ง shadowFx
@@ -15,6 +15,7 @@ const Duo = require("../server/duo");
 
 const MOP_DMG = 2;
 const VASE_PUSH = 3;
+const VASE_RANGE = [1, 4]; // ผู้ใช้สั่ง 2026-10-27
 const COLLIDE_DMG = 1;
 const VACUUM_RANGE = [1, 3];
 const SWORD_KATE = 1;
@@ -92,6 +93,13 @@ function awayDir(a, b) {
   if (Math.abs(dx) > Math.abs(dy)) return { x: Math.sign(dx), y: 0 };
   return { x: 0, y: Math.sign(dy) || 1 };
 }
+// ช่องว่างระหว่าง a กับ b ที่อยู่แนวเดียวกัน (ไม่รวมสองปลาย) · ไม่ตรงแนว = []
+function lineBetween(engine, a, b) {
+  if (a.x !== b.x && a.y !== b.y) return [];
+  const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), out = [];
+  for (let x = a.x + dx, y = a.y + dy; x !== b.x || y !== b.y; x += dx, y += dy) if (engine.tileFree(x, y)) out.push({ x, y });
+  return out;
+}
 // ช่องติดตัว anchor ที่ว่างและใกล้ near ที่สุด (สำหรับดึง/ดูด/พุ่ง) · ไม่มี = null
 function adjacentToward(engine, anchor, near, selfId) {
   const spots = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: anchor.x + dx, y: anchor.y + dy }))
@@ -122,7 +130,9 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
   return {
     // ---------- ตีปกติ ----------
     range(p) {
-      return isEmi(p) && weaponOf(p) === "vacuum" ? VACUUM_RANGE : null;
+      if (!isEmi(p)) return null;
+      const w = weaponOf(p);
+      return w === "vacuum" ? VACUUM_RANGE : w === "vase" ? VASE_RANGE : null;
     },
     damageBonus(engine, attacker) {
       if (!isPair(attacker)) return 0;
@@ -174,6 +184,10 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
         return () => {
           if (!target.alive || !target.pos) return;
           const ctx = engine.ice.begin();
+          // น้ำสาดตามแนวตรงจากเอมิลิโกะถึงเป้า (ตีไกล) — ถือไม้ถูพื้นเดินเข้าทางเปียกแล้วไถลไปชนเป้าซ้ำได้
+          const gap = lineBetween(engine, attacker.pos, target.pos);
+          const wetGap = gap.length ? engine.ice.layWet(gap) : [];
+          if (wetGap.length) ctx.events.push({ kind: "wet", tiles: wetGap });
           pushLine(engine, attacker, target, awayDir(attacker.pos, target.pos), VASE_PUSH, ctx, { wet: true, label: "กระแทกขณะถูกผลัก" });
           engine.ice.flush(ctx);
           engine.sfx("ke_splash");

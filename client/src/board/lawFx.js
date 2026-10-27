@@ -1178,7 +1178,7 @@ function eventFx(g, e, now, lowQ, law) {
     }
     case "lawRoomClose": {
       const r = e.room && okRoom(e.room) ? e.room : LAST_ROOM.get(e.id) || null;
-      if (e.why !== "region" && r && okRoom(r)) {
+      if (e.why !== "region" && e.why !== "drop" && r && okRoom(r)) { // drop = ทิ้งวัตถุทีละก้อน (Room ยังเปิดอยู่)
         const G = roomGeo(r), pal = palOf(r.color || e.color), COL = 0.55;
         if (p < COL) {
           const u = easeIn2(p / COL), sc = Math.max(0.02, 1 - u), pv = P(G.mx, G.my, G.H * 0.45), ce = roomCache(r, G, pal, g, now);

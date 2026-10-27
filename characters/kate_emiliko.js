@@ -8,9 +8,10 @@
 //      ตัวที่ฟื้นยังขยับไม่ได้ในตานี้ (Claude ตัดสิน)
 //  เอมิลิโกะ: เดิน 3 (ในระบำเขม่า 4) · รอง = เลือกอาวุธ (0 · ไม่กินโควตา · ไม่ล็อกการเดิน) — ไม้ถูพื้น (เริ่มต้น) / แจกัน / เครื่องดูดฝุ่น / ดาบเขม่า (ได้จากเคท)
 //    ติดตัว กำลังใจเต็มเปี่ยม: ตี/รอแล้วเดินต่อได้ 2 (ฮุค cantoMov — phases/action.js)
+//    แจกัน: ระยะตี 4 · น้ำสาดเปียกถึงเป้า · สลับอาวุธได้ระหว่างเดินต่อ → ถือไม้ถูพื้นไถลชนซ้ำ (ผู้ใช้สั่ง 2026-10-27)
 //    ท่าไม้ตาย ร่าเริงสุดๆ (6): แนว 4×3 ตามอาวุธ
 //  เคท: เดิน 4 (ในระบำเขม่า 6) · รอง = เลือกใช้ แส้เขม่า (2) / ดาบเขม่า (0 · ถือ/ให้/เรียกคืน) / ปีกเขม่า (4)
-//    ท่าไม้ตาย ระบำเขม่า (6): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามืดบอด 1 เทิร์น
+//    ท่าไม้ตาย ระบำเขม่า (6 · คูลดาวน์ 5 เทิร์น ผู้ใช้สั่ง 2026-10-27): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามืดบอด 1 เทิร์น
 // ============================================================
 
 const Board = require("../server/board");
@@ -48,6 +49,7 @@ const REVIVE_COST = 6;
 const REVIVE_RANGE = 4;
 const REVIVE_HP = 3;
 const CANTO_MOV = 2;
+const STORM_CD = 5; // ระบำเขม่า: คูลดาวน์หลังใช้ (ผู้ใช้สั่ง 2026-10-27)
 const BREAD_USES = 3;
 const VACUUM_USES = 5; // เครื่องดูดฝุ่น: ใช้ได้ 5 ครั้งต่อเกม (ตีปกติ 1 · ท่าไม้ตาย 1) หมดแล้วกลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้
 const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
@@ -59,7 +61,7 @@ const isSwordForm = (opts) => !!opts && SWORD_FORMS.includes(opts.form);
 // desc = คำอธิบายย่อตอนชี้เมาส์ที่ตัวเลือก (ผู้ใช้สั่ง 2026-10-14)
 const WEAPONS = {
   mop: { name: "ไม้ถูพื้น", img: IMG.mop, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 2 · ทางที่ไถลผ่านแห้ง" },
-  vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางที่ถูกผลักเป็นพื้นเปียก" },
+  vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ระยะตี 4 · ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางน้ำถึงเป้าและทางที่ถูกผลักเป็นพื้นเปียก · ตีแล้วสลับเป็นไม้ถูพื้นได้" },
   vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว · 5 ครั้งต่อเกม หมดแล้วกลับเป็นไม้ถูพื้น" },
   sword: { name: "ดาบเขม่า", img: IMG.sword, desc: "พลังโจมตี +2" },
 };
@@ -89,6 +91,7 @@ function fresh() {
     vacuumLeft: VACUUM_USES, // เครื่องดูดฝุ่นเหลือกี่ครั้ง (ต่อเกม — รีเซ็ตแค่ตอนเริ่มแมตช์)
     swordAt: 0,        // ลำดับตอนเคทถือดาบเขม่า (engine.severStamp — ตัดผลสกิล server/sever.js)
     emiSwordAt: 0,     // ลำดับตอนเอมิลิโกะเลือกถือดาบเขม่า
+    stormReady: 0,     // เทิร์นที่ใช้ระบำเขม่าได้อีก (คูลดาวน์)
   };
 }
 function st(p) {
@@ -111,6 +114,9 @@ function dropStorm(engine, storm) {
   const i = list.indexOf(storm);
   if (i >= 0) list.splice(i, 1);
 }
+
+// ระบำเขม่าเหลือคูลดาวน์กี่เทิร์น
+const stormCd = (engine, p) => Math.max(0, (st(p).stormReady || 0) - engine.roundNumber);
 
 // ---------- กระจกเงา / ตื่นขึ้นอีกครั้ง ----------
 const reviveMode = (p) => {
@@ -166,8 +172,8 @@ const shared = {
     if (!isPair(p)) return null;
     return inStorm(E(), p) ? STORM_MOV[p.characterId] : null;
   },
-  // กระจกเงาสลับตัวได้ระหว่างเดินต่อของเอมิลิโกะ
-  cantoSkill(p, tier) { return isPair(p) && tier === "basic"; },
+  // กระจกเงาสลับตัวได้ระหว่างเดินต่อของเอมิลิโกะ · เอมิลิโกะสลับอาวุธได้ด้วย (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
+  cantoSkill(p, tier) { return isPair(p) && (tier === "basic" || (tier === "secondary" && isEmi(p))); },
   // กระจกเงา (ไม่ใช่ตื่นขึ้นอีกครั้ง) · เลือกอาวุธ (เอมิลิโกะ) · ดาบเขม่า (เคท) = ไม่กินโควตา ไม่ล็อกการเดิน ไม่ขึ้นป้ายกลาง
   skipsTurnQuota(p, tier, opts) {
     if (!isPair(p)) return false;
@@ -182,7 +188,7 @@ const shared = {
 // ---------- เคท ----------
 const kate = {
   id: KATE,
-  IMG, WEAPONS, SOOT, BREAD_USES, VACUUM_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV,
+  IMG, WEAPONS, SOOT, BREAD_USES, VACUUM_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV, STORM_CD,
   isKate, isEmi, isPair, weaponOf, inStorm,
   ...shared,
   skillCost(p, tier, base, opts) {
@@ -210,6 +216,7 @@ const kate = {
       return w !== "sword" || s.sword === "emi";
     }
     if (tier === "secondary" && isKate(p)) return sootAllowed(engine, p, opts.form, targets);
+    if (tier === "ultimate" && isKate(p)) return stormCd(engine, p) <= 0;
     return true;
   },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
@@ -236,6 +243,7 @@ const kate = {
     if (tier === "secondary" && isKate(p)) return sootSkill(engine, p, opts.form, targets, opts);
     // ท่าไม้ตาย: เคท ระบำเขม่า · เอมิลิโกะ ร่าเริงสุดๆ
     if (tier === "ultimate" && isKate(p)) {
+      st(p).stormReady = engine.roundNumber + 1 + STORM_CD;
       const before = ownStorms(engine, p).length;
       const out = KC.storm(engine, p, opts);
       const mine = ownStorms(engine, p);
@@ -285,7 +293,9 @@ const kate = {
     if (!m) basic = true;
     else if (reviveMode(p)) basic = reviveDist(p, m) > REVIVE_RANGE;
     else basic = !engine.duo.canSwitchTo(m);
-    return basic ? { basic: { locked: true } } : undefined;
+    const cd = isKate(p) ? stormCd(engine, p) : 0;
+    if (!basic && !cd) return undefined;
+    return { ...(basic ? { basic: { locked: true } } : {}), ...(cd ? { ultimate: { locked: true, cd } } : {}) };
   },
   // เอมิลิโกะเดินต่อหลังตี/รอ
   cantoMov(engine, p) { return isEmi(p) && p.alive ? CANTO_MOV : 0; },

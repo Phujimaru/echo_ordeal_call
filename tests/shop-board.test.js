@@ -136,6 +136,43 @@ test('กระเป๋า 5 ช่อง: เต็มแล้วซื้อ
   assert.equal(p.inventory.length, 5);
 });
 
+test('ให้/แลกของ (โหมดร่วมมือ): เพื่อนร่วมทีมที่ยืนติดกัน · ตาตัวเอง · ทันที ไม่ล็อกการเดิน · ศัตรู/ไกล/ffa ไม่ได้', () => {
+  engine.setGameMode('duo');
+  try {
+    const p = mkPlayer({ x: 6, y: 4 }, { teamId: 'A' });
+    const mate = mkPlayer({ x: 7, y: 4 }, { teamId: 'A' });
+    const far = mkPlayer({ x: 9, y: 4 }, { teamId: 'A' });
+    const foe = mkPlayer({ x: 6, y: 5 }, { teamId: 'B' });
+    fill(p, 2);
+    mate.inventory.push({ uid: 'm_0', type: 'armor', value: 1 });
+    p.inventory.push({ uid: 'bread', type: 'kebread', uses: 3 });
+    engine.setActor(mate.id);
+    assert.equal(engine.giveItem(p.id, `f_${p.id}_0`, mate.id), false, 'ตาคนอื่น');
+    engine.setActor(p.id);
+    assert.equal(engine.giveItem(p.id, `f_${p.id}_0`, far.id), false, 'ไม่ได้ยืนติด');
+    assert.equal(engine.giveItem(p.id, `f_${p.id}_0`, foe.id), false, 'ศัตรู');
+    assert.equal(engine.giveItem(p.id, 'bread', mate.id), false, 'ของประจำตัวละคร');
+    assert.equal(engine.giveItem(p.id, `f_${p.id}_0`, mate.id), true);
+    assert.deepEqual(mate.inventory.map((it) => it.uid), ['m_0', `f_${p.id}_0`]);
+    assert.equal(p.inventory.length, 2);
+    assert.equal(engine.action.locked, false, 'ไม่ล็อกการเดิน');
+    assert.equal(engine.swapItem(p.id, `f_${p.id}_1`, mate.id, 'm_0'), true);
+    assert.deepEqual(p.inventory.map((it) => it.uid), ['m_0', 'bread']);
+    assert.deepEqual(mate.inventory.map((it) => it.uid), [`f_${p.id}_1`, `f_${p.id}_0`]);
+    // ปืน GUTS มีได้กระบอกเดียว · กระเป๋าผู้รับเต็ม = ให้ไม่ได้
+    giveGun(p); giveGun(mate);
+    assert.equal(engine.giveItem(p.id, `gun_${p.id}`, mate.id), false);
+    assert.equal(engine.swapItem(p.id, `gun_${p.id}`, mate.id, `gun_${mate.id}`), true, 'แลกปืนกับปืนได้');
+    fill(mate, 2);
+    assert.equal(engine.giveItem(p.id, 'm_0', mate.id), false, 'กระเป๋าเต็ม');
+    // เพื่อนร่วมทีมเห็นกระเป๋ากัน · ศัตรูไม่เห็น
+    assert.ok(engine.buildStateFor(p.id).players.find((x) => x.id === mate.id).inventory);
+    assert.equal(engine.buildStateFor(foe.id).players.find((x) => x.id === mate.id).inventory, null);
+    engine.setGameMode('ffa');
+    assert.equal(engine.swapItem(p.id, 'm_0', mate.id, `f_${p.id}_1`), false, 'ffa ไม่ใช่โหมดร่วมมือ');
+  } finally { engine.setGameMode('ffa'); }
+});
+
 test('ยาลดไพ่ถอดออกจากร้านและของฟรี · ยาเปลี่ยนสีการ์ดกลับมาแล้ว (ไอเทมช่วงจั่ว — ผู้ใช้สั่ง 2026-10-18)', () => {
   let color = 0;
   for (let i = 0; i < 1500; i++) {

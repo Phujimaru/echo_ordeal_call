@@ -277,6 +277,9 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
   onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
   onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
+  // ให้/แลกของกับเพื่อนร่วมทีมที่ยืนติดกัน (โหมดร่วมมือ · ตาตัวเอง · ทันที)
+  onUnitEvent(socket, 'giveItem', (id, { uid, toId } = {}) => shop.giveItem(id, uid, toId), 8);
+  onUnitEvent(socket, 'swapItem', (id, { uid, toId, theirUid } = {}) => shop.swapItem(id, uid, toId, theirUid), 8);
   // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
   onUnitEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
