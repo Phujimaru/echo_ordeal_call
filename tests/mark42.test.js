@@ -55,7 +55,7 @@ test.before(() => {
 test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(engine.players)) delete engine.players[id]; });
 test.afterEach(() => engine.clearPhaseTimer());
 
-test('ใส่ให้ตัวเอง: เกราะชุด 7 แทนตัวจริง · พลังโจมตี +1 · ภาพเปลี่ยน · หน้าจอแสดงเลือด 0/0', () => {
+test('ใส่ให้ตัวเอง: เกราะชุด 3 แทนตัวจริง · พลังโจมตี +1 · ภาพเปลี่ยน · หน้าจอแสดงเลือด 0/0', () => {
   const { A, B } = setup();
   giveSuit(A);
   use(A, 'self');
@@ -63,11 +63,11 @@ test('ใส่ให้ตัวเอง: เกราะชุด 7 แทน
   assert.equal(A.inventory.length, 0);
   assert.equal(engine.displayImg(A), Mark42.IMG.suit);
   const st = engine.buildStateFor('A').players.find((p) => p.id === 'A');
-  assert.deepEqual([st.hp, st.maxHp, st.armor, st.maxArmor], [0, 0, 7, 7]);
+  assert.deepEqual([st.hp, st.maxHp, st.armor, st.maxArmor], [0, 0, 3, 3]);
   attack('A', 'B');
   assert.equal(B.hp + B.armor, 8 - 2, 'พลังโจมตี 1 + 1');
   attack('B', 'A');
-  assert.equal(A.mark42.armor, 6, 'ชุดรับแทน');
+  assert.equal(A.mark42.armor, 2, 'ชุดรับแทน');
   assert.deepEqual([A.hp, A.armor], [7, 1], 'เลือด/เกราะจริงไม่ถูกแตะ');
 });
 
@@ -92,7 +92,7 @@ test('สังหารทันทีระหว่างใส่ชุด =
   engine.damageSoft(A);
   A.statuses.hbleed = 2;
   require('../characters/_universal_status').tickBleed(engine, A);
-  assert.equal(A.mark42.armor, 5);
+  assert.equal(A.mark42.armor, 1);
   engine.instantDeath(A);
   assert.equal(A.alive, true);
   assert.equal(A.mark42, null);
@@ -108,15 +108,15 @@ test('ใส่ให้คนอื่น: คนใส่ถอดเองไ
   control('B', 'remove');
   assert.ok(B.mark42, 'คนใส่ถอดเองไม่ได้ (ไม่ใช่เจ้าของ)');
   engine.dealMixed(B, 2);
-  assert.equal(B.mark42.armor, 5);
+  assert.equal(B.mark42.armor, 1);
   control('A', 'recall');
   assert.equal(B.mark42, null);
-  assert.equal(A.mark42.armor, 5, 'เรียกคืนพร้อมเกราะที่เหลือ');
+  assert.equal(A.mark42.armor, 1, 'เรียกคืนพร้อมเกราะที่เหลือ');
   assert.deepEqual(cutscenes, ['mark42SuitSome', 'mark42Recall']);
   control('A', 'remove');
   assert.equal(A.mark42, null);
   assert.equal(A.inventory[0].type, 'mark42');
-  assert.equal(A.inventory[0].armor, 5);
+  assert.equal(A.inventory[0].armor, 1);
   assert.equal(Mark42.canBuy(engine, A), false, 'ยังมีชุดในกระเป๋า = ซื้อซ้ำไม่ได้');
 });
 
@@ -181,7 +181,7 @@ test('ใส่ซ้อนไม่ได้ · ซื้อจากร้า�
   engine.buyShopItem('A', 's1');
   engine.buyShopItem('A', 's2');
   assert.equal(A2.inventory.filter((i) => i.type === 'mark42').length, 1);
-  assert.equal(A2.gold, 5, 'ราคา 25');
+  assert.equal(A2.gold, 10, 'ราคา 20');
 });
 
 // ---------- ระยะบนกระดาน (GRID_PLAN §8.1) ----------

@@ -1,4 +1,4 @@
-import { GUTS_AMMO_INFO, shopInfoOf } from "../data/shop";
+import { GUTS_AMMO_INFO, MARK42_ARMOR, shopInfoOf } from "../data/shop";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1430,7 +1430,7 @@ function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, my
               <img src="/characters/Mark42/mark42.webp" alt="" className="h-10 w-10 rounded object-cover" />
               <div className="min-w-0 flex-1">
                 <div className="av-heading text-sm">เกราะ Mark 42 — {suitOut.self ? "สวมอยู่ที่ตัวเอง" : `สวมอยู่ที่ ${suitOut.wearerName}`}</div>
-                <div className="text-xs" style={{ color: "rgba(234,243,252,.62)" }}>เกราะชุด {suitOut.armor}/7</div>
+                <div className="text-xs" style={{ color: "rgba(234,243,252,.62)" }}>เกราะชุด {suitOut.armor}/{MARK42_ARMOR}</div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

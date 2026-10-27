@@ -2,7 +2,7 @@
 //  เวที 1920 × 1080 ย่อพอดีจอ · ซ้าย = ช่องกระเป๋าเต็มจำนวน (ช่องว่างเป็นกรอบเส้นประ) · ขวา = รายละเอียดของชิ้นที่เลือก + ปุ่มคำสั่ง
 //  เงื่อนไขทั้งหมดเหมือน InventoryModal เดิม (Game.jsx) — ใช้ได้เฉพาะตาตัวเอง = ปุ่มจาง ไม่มีข้อความบอก
 import { useEffect, useState } from "react";
-import { shopInfoOf, DRAW_ITEM_TYPES } from "../../data/shop";
+import { shopInfoOf, DRAW_ITEM_TYPES, MARK42_ARMOR } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
@@ -116,7 +116,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
               <img src="/characters/Mark42/mark42.webp" alt="" />
               <b>Mark 42</b>
               <span className="bag-suit-who">{suitOut.self ? "คุณ" : suitOut.wearerName}</span>
-              <span className="bag-suit-ar">⛨ {suitOut.armor}/7</span>
+              <span className="bag-suit-ar">⛨ {suitOut.armor}/{MARK42_ARMOR}</span>
               <span className="bag-suit-btns">
                 {!suitOut.self && <button type="button" className="bag-btn sm" disabled={!myTurn || !!me?.mark42 || !adjacent(me, suitWearer)} onClick={() => emit("mark42Control", { action: "recall" })}>เรียกคืน</button>}
                 <button type="button" className="bag-btn sm" disabled={!myTurn} onClick={() => emit("mark42Control", { action: "remove" })}>ถอด</button>
