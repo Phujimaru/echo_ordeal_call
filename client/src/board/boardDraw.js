@@ -26,6 +26,7 @@ import {
 import { drawCapsule, drawHouse, drawTower } from "./colonyProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
+import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
@@ -2115,6 +2116,9 @@ export function drawFrame(g, st, now) {
   if (cel) drawCelineGround(g, cel, fx, now, lowQ, units);
   // Moon Cell (moonFx.js): พื้นที่คำสาปที่เตือนไว้ · ช่องเสาข้อมูลที่จะพุ่ง — ใต้ไฮไลต์
   if (st.moon && !colony) drawMoonGround(g, st.moon, info, now, lowQ);
+  // Fodlan (board/fodlan/): ของบนพื้นของด่าน + ช่องเตือนกะพริบแดง — ใต้ไฮไลต์
+  const fd = st.fodlan || null;
+  if (fd) drawFodlanGround(g, fd, info, now, lowQ);
   // ทราฟาก้า ลอว์ (lawFx.js): พื้น Room + ด้านหลังโดม — ใต้ไฮไลต์ (เรียกทุกเฟรม: จำ Room ที่มีอยู่แล้วตอนเฟรมแรก ไม่เล่นฉากกางซ้ำ)
   const law = st.law || null, lFx = fx.some((e) => isLawFx(e.kind));
   drawLawGround(g, law, fx, now, lowQ);
@@ -2203,7 +2207,7 @@ export function drawFrame(g, st, now) {
     }
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
-    const fade = TALL_KINDS.has(t.kind) && behind(t.x, t.y);
+    const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind)) && behind(t.x, t.y);
     const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
   }
@@ -2258,6 +2262,8 @@ export function drawFrame(g, st, now) {
   if (cel) celineItems(items, g, { ...cel, terrain: info.terrainKind }, fx, now, lowQ);
   // ลอว์: วัตถุลอย (ก้อนพื้นที่ถูกตัด) + ร่างที่ถูกตัด (มาร์ก)
   if (law || lCut) lawItems(items, g, law, units, fx, now, lowQ);
+  // Fodlan: เรือ · เครื่องยิงหิน · ธง · กองไฟ · บัลลังก์ … (เรียงความลึกกับตัวละคร)
+  if (fd) fodlanItems(items, g, fd, info, units, now, lowQ);
   // ทาคุโตะ: ดาบลอยข้างตัว (หน้าหมาก) · ดาบแห่งการพิพากษา/ออร่าช่วงพังทลาย (หลังหมาก) · เงาซ้อนตอนพุ่งต้นตาเดิน
   if (st.takutos && st.takutos.length) takutoItems(items, g, st.takutos, units, fx, now, lowQ);
   if (fx.some((e) => e.kind === "takutoDash")) for (const gh of takutoGhosts(fx, units, now)) items.push({ d: depthOf(gh.rx + gh.size / 2, gh.ry + gh.size / 2) - 0.0008, f: () => drawAnyUnit(g, gh, now, null) });
@@ -2305,6 +2311,8 @@ export function drawFrame(g, st, now) {
   if (cel) drawCelineAir(g, cel, units, now, lowQ);
   // ลอว์: ผิวโดม Room ด้านหน้า · รอยตัด (มาร์ก) · หัวใจ · ท่าไม้ตายที่รอตี (ทับตัวละคร)
   if (law) drawLawAir(g, law, units, fx, now, lowQ);
+  // Fodlan: สภาพอากาศ/ฉากเหตุการณ์ (ฝน ฟ้าผ่า ไฟมังกร ซึนามิ …) + หมอกนอกระยะมองเห็น — ทับตัวละคร
+  if (fd) drawFodlanAir(g, fd, info, units, now, lowQ, view);
   // เรียวกิหลังดับสิ้นซะ: กลีบซากุระปลิวทั่วกระดาน (ทับตัวละคร)
   if (ry) drawRyougiAir(g, ry, info, fx, now, lowQ);
   // โลก UBW ของชิโร่: เฟืองยักษ์ + ประกายไฟ (ทับตัวละคร)

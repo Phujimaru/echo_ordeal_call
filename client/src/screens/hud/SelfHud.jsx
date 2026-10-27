@@ -654,6 +654,8 @@ function ZeroChip({ zero }) {
     </div>
   );
 }
+// Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
+const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️" };
 export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, players, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
   if (round == null && !journey && !zeroOn && !colony && !moon) return null;
@@ -690,7 +692,7 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, colon
             </span>
             <span className="hud-top-text">
               <span className="hud-top-name">{journey.name}</span>
-              <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}</span>
+              <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
             </span>
           </button>
         </>

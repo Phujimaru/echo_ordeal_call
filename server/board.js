@@ -324,11 +324,18 @@ const isMoonArea = (area) => Number(area) === MOON_AREA;
 // ---------- Fodlan (GRID_PLAN §8.5) ----------
 //  area 40–44 = ด่าน I–V · ⚠️ ตอนนี้ยังเป็นแผนที่ชั่วคราว (ยืมผังภูมิภาคเดิมที่บรรยากาศใกล้กัน) — ผังจริง + กิมมิกทีละด่านเป็นขั้นถัดไป
 //   I แม่น้ำแอร์มิด ← IV วังวนน้ำ · II เรเมียร์ ← III ป่าต้องสาป · III ชายฝั่งเดอร์ดริว ← VII สุดขอบโลก · IV เทือกเขาฟาร์กัส ← VI แดนน้ำแข็ง · V หลุมศพ ← I
+//  ผังจริง + ชนิดช่องใหม่ของแต่ละด่านอยู่ที่ server/fodlan/mapN.js (ข้อมูลล้วน — map: null = ยังใช้ผังชั่วคราว)
 const FODLAN_AREA = 40;
 const FODLAN_STAGES = 5;
 const FODLAN_NAMES = ["แม่น้ำแอร์มิด", "เรเมียร์", "ชายฝั่งเดอร์ดริว", "เทือกเขาฟาร์กัส", "หลุมศพศักดิ์สิทธิ์"];
+//  require ต้องเขียนเป็นสตริงตรงๆ — scripts/gen-board-rules.js ฝังเนื้อไฟล์แทน require ตอนสร้าง client/src/board/boardRules.js
+const FODLAN_DEFS = [require("./fodlan/map1"), require("./fodlan/map2"), require("./fodlan/map3"), require("./fodlan/map4"), require("./fodlan/map5")];
 [4, 3, 7, 6, 1].forEach((src, i) => {
-  MAPS[FODLAN_AREA + i] = { ...MAPS[src], area: FODLAN_AREA + i, name: FODLAN_NAMES[i] };
+  const def = FODLAN_DEFS[i];
+  Object.assign(TERRAIN_INFO, def.TERRAIN || {});
+  MAPS[FODLAN_AREA + i] = def.map
+    ? buildMap({ ...def.map, area: FODLAN_AREA + i, name: FODLAN_NAMES[i] })
+    : { ...MAPS[src], area: FODLAN_AREA + i, name: FODLAN_NAMES[i] };
 });
 const isFodlanArea = (area) => Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + FODLAN_STAGES;
 

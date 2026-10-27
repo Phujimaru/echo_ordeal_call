@@ -27,6 +27,7 @@ const Duo = require("../duo");
 const Soot = require("../soot");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
+const Fodlan = require("../fodlan");
 
 function dealRound() {
   timers.clearPhaseTimer();
@@ -34,6 +35,8 @@ function dealRound() {
   if (Colony.preRound(dealRound)) return;
   // Moon Cell: ฟื้นคืนชีพ / คำสาปแห่งดวงจันทร์ลงผล (คลิป) / เล็งคำสาปใหม่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
   if (Moon.preRound(dealRound)) return;
+  // Fodlan: เหตุการณ์ต้นเทิร์นของด่าน (ฟ้าผ่า · ห่าธนู · ไฟมังกร · ซึนามิ …) — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
+  if (Fodlan.preRound(dealRound)) return;
   match.roundNumber++;
   if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ

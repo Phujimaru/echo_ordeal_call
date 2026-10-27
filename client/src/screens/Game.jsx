@@ -11,6 +11,7 @@ import JourneyBackdrop from "../journey/JourneyBackdrop";
 import ArenaScene from "../journey/arena/ArenaScene";
 import { arenaLayout } from "../journey/arena/arenaData";
 import { journeyArea } from "../journey/areas";
+import { fodlanStage } from "../fodlan/stages";
 import { RoundBanner, CycleScene } from "../components/BattleScenes";
 import { AvModal, AvButton } from "../components/avalon";
 import { socket } from "../socket";
@@ -1004,6 +1005,8 @@ function statusEntries(p, full) {
     if (h.armorCd > 0) out.push({ key: "hikaruArmorCd", v: h.armorCd, turns: true, icon: "⏳", label: "เกราะ UltraLive", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงฟื้นเกราะ 2 ตอนเข้าร่าง UltraLive ได้อีก" });
   }
   // Ice Spike: ดาเมจสะสมก่อนระเบิด (ติดตัว 3)
+  // Fodlan: ค่าของด่านต่อคน (ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … — server/fodlan/stageN.js playerInfo().badges)
+  if (p.fodlan && Array.isArray(p.fodlan.badges)) for (const b of p.fodlan.badges) out.push({ key: `fd_${b.key}`, v: 1, icon: b.icon, label: b.label, cls: b.cls || "bg-amber-200 text-gray-900", desc: b.desc || b.label });
   if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "ความเสียหายที่ได้รับสะสมครบแล้วระเบิดผลักศัตรูรอบตัวออกไป 2 ช่อง และติดเชื่องช้า 1 เทิร์น" });
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
@@ -2536,8 +2539,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
         journey={state.journey && !state.colony && !state.moon && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
-          : null}
-        onJourney={() => { clickSound(); setJourneyInfoOpen(true); }}
+          : state.fodlan && (phase === "PLAYING" || inBoardTurn) // Fodlan: ป้ายด่าน + สภาพอากาศ (ไม่มีหน้าผลภูมิภาค)
+            ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather }
+            : null}
+        onJourney={state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}

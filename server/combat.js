@@ -167,6 +167,8 @@ function instantDeath(p, force) {
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
   const deathHook = CHAR_HOOKS[p.characterId];
   if (!force && deathHook && deathHook.preventDeath && deathHook.preventDeath(engine, p)) return;
+  // Fodlan: ชีพจรเทพ (นั่งบัลลังก์ผู้ให้กำเนิด — server/fodlan/stage5.js preventDeath ตั้งเลือดเอง)
+  if (!force && !p.summon && require("./fodlan").preventDeath(p)) return;
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
   Ride.onDeath(p); // ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ตาย = ทิ้งศพที่ช่องของตัวที่ถูกขี่ · ตัวที่ถูกขี่ตาย = คนขี่ร่วง
   Duo.onDeath(p); // ระบบคู่ / ศพค้าง (ยูนะ): ล้มแล้วทิ้งร่างไว้ (ไม่มีใครเก็บร่าง = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด

@@ -7,6 +7,7 @@
 // ============================================================
 import { P, PA, faceVisible, gEllipse, gPoly, glow, hexA, quad, rng, viewAxes } from "./boardGeo";
 import { drawBench, drawSakura, drawSchool } from "./schoolTheme";
+import { animFodlanSpecial, bakeFodlanSpecial, drawFodlanObstacle } from "./fodlan/index";
 
 const TAU = Math.PI * 2;
 
@@ -483,6 +484,7 @@ export const TALL_KINDS = new Set(["tree", "pillar", "banner", "bannerP", "banne
 // t = { x, y, kind, conn } · ctx = { area, C, night, cols }
 export function drawObstacle(g, t, ctx, now) {
   const { x, y, kind } = t, { area, C, night } = ctx;
+  if (drawFodlanObstacle(g, t, ctx, now)) return; // Fodlan: ชนิด fd_… (board/fodlan/stageN.js)
   switch (kind) {
     case "tree": { const [sx, sy, s] = PA(x, y, 0.1); drawTree(g, sx, sy, s * 1.35, C); return; }
     case "pillar": drawPillar(g, x, y, C, now); return;
@@ -525,6 +527,7 @@ function sprigs(g, x, y, n, seed, fn) {
 }
 
 export function bakeSpecial(g, sp, ctx) {
+  if (bakeFodlanSpecial(g, sp, ctx)) return; // Fodlan: ชนิด fd_… (board/fodlan/stageN.js)
   const { x, y, kind } = sp, { night } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {
@@ -691,6 +694,7 @@ export function bakeSpecial(g, sp, ctx) {
 
 // t = เวลา (หยุดนิ่งเมื่อ lowQ) · ctx = { night, lowQ }
 export function animSpecial(g, sp, ctx, t) {
+  if (animFodlanSpecial(g, sp, ctx, t)) return; // Fodlan: ชนิด fd_… (board/fodlan/stageN.js)
   const { x, y, kind } = sp, { night, lowQ } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {

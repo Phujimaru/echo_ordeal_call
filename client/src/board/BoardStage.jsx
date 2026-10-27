@@ -353,6 +353,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const reaper = !!(me && me.gray && me.gray.reaper);
   const corpseFoes = useMemo(() => (reaper ? corpses.map((c) => ({ id: `corpse:${c.id}`, pos: { x: c.x, y: c.y }, alive: true, size: 1, isCorpse: true, name: "ศพ" })) : []), [reaper, corpses]);
   const hoverCorpse = hover && !hoverUnit && !hoverSeal && !hoverSpike ? corpseFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  // Fodlan (board/fodlan/): ข้อมูลวาดของด่าน + ของที่ตีได้ (เสาเวทมืด ต้นไม้แห้ง กองหิมะ … — id "fd:…") = หน่วยเทียมแบบหนามน้ำแข็ง
+  const fdBoard = state.fodlan && state.fodlan.board ? state.fodlan.board : null;
+  const fodlanProp = useMemo(() => (fdBoard ? { ...fdBoard, stage: state.fodlan.stage, weather: state.fodlan.weather, vision: state.fodlanVision || null } : null),
+    [fdBoard, state.fodlan, state.fodlanVision]);
+  const fdFoes = useMemo(() => (fdBoard && Array.isArray(fdBoard.objects)
+    ? fdBoard.objects.filter((o) => o && o.strike && Number.isFinite(o.x) && Number.isFinite(o.y)).map((o) => ({ id: o.id, pos: { x: o.x, y: o.y }, alive: true, size: 1, isFodlan: true, name: o.name || "" }))
+    : []), [fdBoard]);
+  const hoverFd = hover && !hoverUnit && !hoverSeal && !hoverSpike && !hoverCorpse ? fdFoes.find((s) => samePos(s.pos, hover)) || null : null;
   const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   const hasGyro = state.players.some((p) => !!p.gyro);
@@ -435,7 +443,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     }
     return { foe, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse]);
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : hoverFd ? planFor(hoverFd) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse, hoverFd]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
@@ -2142,7 +2150,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
     // หนามน้ำแข็ง (Ice Spike) · ศพ (เกรย์เก็บศพ) ใช้ทางเดียวกัน
     const at = (s) => s.pos.x === x && s.pos.y === y;
-    const seal = sealFoes.find(at) || spikeFoes.find(at) || corpseFoes.find(at);
+    const seal = sealFoes.find(at) || spikeFoes.find(at) || corpseFoes.find(at) || fdFoes.find(at);
     if (seal) {
       if (!myTurn || busy || pendingAttack.current) return;
       const pl = planFor(seal);
@@ -2386,6 +2394,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         storms={state.board ? state.board.storms : null}
         colony={state.colony || null}
         moon={state.moon || null}
+        fodlan={fodlanProp}
         colonyEvents={colonyEvents}
         songs={songs}
         grays={grays}

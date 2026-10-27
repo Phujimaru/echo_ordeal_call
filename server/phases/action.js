@@ -40,6 +40,7 @@ const Dim = require("../dimension");
 const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
+const Fodlan = require("../fodlan");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -49,8 +50,9 @@ function boardMap() {
   const b = match.board;
   const base = Board.mapOf(b ? b.area : 1);
   const cv = Colony.layerVer(); // Colony: รอยรั่ว + ปล้องที่ปิดผนึก (server/colony.js)
-  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length) && !cv) return base;
-  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}|${b.chasmVer || 0}|${cv}`;
+  const fv = Fodlan.layerVer(); // Fodlan: ชั้นของด่าน (เรือ ไฟลาม สะพานน้ำแข็ง … — server/fodlan/stageN.js)
+  if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length) && !cv && !fv) return base;
+  const ver = `${b.brokenVer || 0}|${b.iceVer || 0}|${b.chasmVer || 0}|${cv}|${fv}`;
   if (b.mapCache && b.mapCache.ver === ver && b.mapCache.base === base) return b.mapCache.map;
   const map = layeredMap(b, base);
   b.mapCache = { ver, base, map };
@@ -68,7 +70,7 @@ function layeredMap(b, base) {
     for (const k of b.chasm) { terrain[k] = "chasm"; delete special[k]; }
     heal = new Set([...base.heal].filter((k) => !b.chasm.includes(k)));
   }
-  return Colony.mapLayer({ ...base, terrain, special, heal });
+  return Fodlan.mapLayer(Colony.mapLayer({ ...base, terrain, special, heal }));
 }
 // ทำให้ช่องพัง (เดิน/ยืนไม่ได้จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง (ช่องที่พังอยู่แล้ว/นอกกระดานข้าม)
 function addChasm(keys) {
@@ -217,7 +219,8 @@ function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
-  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)));
+  // Fodlan: ผลของด่าน/สภาพอากาศ (ฝนฟ้าผ่า −1 — server/fodlan/stageN.js movMod)
+  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + Fodlan.movMod(p));
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
@@ -1040,6 +1043,22 @@ function strikeTarget(id, targetId) {
     Ice.attackSpike(p, spikeK, done);
     return true;
   }
+  // ของบนกระดานของด่าน Fodlan ("fd:…" — เสาเวทมืด / ต้นไม้แห้ง / กองหิมะ …): ระยะเหมือนตีคน · ผลอยู่ที่ server/fodlan/stageN.js strikeObject
+  if (typeof targetId === "string" && targetId.startsWith("fd:")) {
+    const obj = Fodlan.objects().find((o) => o.id === targetId);
+    if (!canAct(p) || !obj) return false;
+    const secs = combat.withEffectSource(p, () => Fodlan.strikeObject(p, targetId));
+    if (secs === false) return false;
+    timers.clearPhaseTimer();
+    match.action.locked = true;
+    p.didAttackRound = true;
+    Visibility.onHostileAct(p, "strike");
+    strikeObject(p, { x: obj.x, y: obj.y });
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(secs, done);
+    view.broadcastState();
+    return true;
+  }
   // ศพ ("corpse:<id>" — เกรย์: สัปเหร่อ): ตีปกติใส่ศพที่ประชิด = เก็บศพ · ฮุค canReapCorpse / reapCorpse (คืนวินาทีของฉาก)
   const dead = typeof targetId === "string" && targetId.startsWith("corpse:") ? match.players[targetId.slice(7)] : null;
   if (dead) {
@@ -1185,6 +1204,7 @@ function endUnitTile(p) {
   }
   if (p && p.alive && p.pos) tileEndEffect(p);
   if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
+  if (p && p.alive && p.pos) Fodlan.onUnitEnd(p); // Fodlan: ยึดธง · ยืนบนไฟ · นั่งบัลลังก์ … (server/fodlan/stageN.js)
 }
 // ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น
 //  หนามพิษ = ติดพิษร้าย · ลาวา = เสีย 1 (ลดเกราะก่อน) · น้ำวน = โดนดัน 1 ช่องตามกระแส (ผลของช่องใหม่ไม่ทำงานซ้ำในตานี้ · ลงน้ำแข็ง = ไถลต่อ)

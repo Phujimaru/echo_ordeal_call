@@ -296,6 +296,11 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'charAction', (id, { key, tile } = {}) => {
     const p = match.players[id];
     if (key === 'colonyJump') { Colony.jump(id); return; } // สนาม Colony: ปุ่มกระโดด (ทุกตัวละคร)
+    if (typeof key === 'string' && key.startsWith('fd:')) { // Fodlan: ปุ่มกิมมิกของด่าน (server/fodlan/stageN.js charAction)
+      const ft = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
+      require('./fodlan').charAction(id, key, ft);
+      return;
+    }
     const hook = p && CHAR_HOOKS[p.characterId];
     if (!hook || !hook.charAction || typeof key !== 'string') return;
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;

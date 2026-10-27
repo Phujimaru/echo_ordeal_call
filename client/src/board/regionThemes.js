@@ -16,6 +16,7 @@ import { LW, OX, P, PS, depthOf, gPoly, glow, rng, sceneSize, unprojectScene, vi
 import { cactusShape, deadTreeShape, drawTree, pineShape, prism, SNOW_PINE, windmillSails } from "./boardProps";
 import { ZERO_THEMES } from "./zeroTheme";
 import { MOON_THEMES } from "./schoolTheme";
+import { fodlanThemes } from "./fodlan/index";
 
 const TAU = Math.PI * 2;
 // วงรีบนพื้นในพิกัดฉาก
@@ -1015,6 +1016,8 @@ Object.assign(THEMES, MOON_THEMES);
 // Fodlan (area 40–44 = ด่าน I–V · GRID_PLAN §8.5) — ⚠️ ชั่วคราว: ยืมธีมภูมิภาคเดิมที่บรรยากาศใกล้กัน (ตรงกับแผนที่ชั่วคราวใน server/board.js)
 //  ธีมของ Fodlan จริงทีละด่านเป็นขั้นถัดไป
 [4, 3, 7, 6, 1].forEach((src, i) => { THEMES[40 + i] = THEMES[src]; });
+// ด่านที่ทำธีมของตัวเองแล้ว (board/fodlan/stageN.js theme) ทับของที่ยืม
+for (const [area, th] of Object.entries(fodlanThemes())) { if (th.pal) THEMES[area] = th; }
 
 // ธีมของภูมิภาค (ไม่รู้จัก = ภูมิภาค I)
 export function themeOf(area) { return THEMES[area] || THEMES[1]; }

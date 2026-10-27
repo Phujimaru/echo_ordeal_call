@@ -169,6 +169,7 @@ function buildStateFor(viewerId) {
     timeFreeze: TimeStop.frozen() ? { by: TimeStop.frozen().by } : null,
     maxPlayers: MAX_PLAYERS,
     youId: viewerId,
+    fodlanVision: require("./fodlan").vision(viewer) || undefined, // Fodlan หมอก: ช่องที่ฉันมองเห็น ("x,y") — client วาดหมอกนอกช่องเหล่านี้
     controlId, // ระบบคู่: ตัวที่คุมอยู่ (ตัวละครทั่วไป = youId)
     // ระบบคู่: ตาของฝ่ายคู่ที่กำลังเล่น — ตัวที่จบแล้ว (สลับกลับไม่ได้) · ตัวที่ยังไม่ได้เดิน
     duo: match.duo ? { ownerId: match.duo.ownerId, done: Object.keys(match.duo.done) } : null,
@@ -274,6 +275,7 @@ function buildStateFor(viewerId) {
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         colony: Colony.playerInfo(p), // Colony: { jumpCd }
+        fodlan: Fodlan.playerInfo(p), // Fodlan: ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … (server/fodlan/stageN.js playerInfo)
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,
@@ -364,7 +366,8 @@ function buildStateFor(viewerId) {
         actions: mine ? (() => { // + ปุ่มกระโดดของสนาม Colony (ทุกตัวละคร)
           const own = hook && hook.hudActions ? hook.hudActions(engine, p) || [] : [];
           const cj = Colony.hudAction(p);
-          const all = cj ? [...own, cj] : own;
+          const fd = Fodlan.hudActions(p); // Fodlan: ปุ่มกิมมิกของด่าน (ตกปลา · ขับเรือ · เครื่องยิงหิน · วางคบเพลิง … — key "fd:…")
+          const all = [...own, ...(cj ? [cj] : []), ...fd];
           return all.length ? all : undefined;
         })() : undefined,
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
