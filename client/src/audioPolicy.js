@@ -1,11 +1,11 @@
 // Shared music priorities for every mode.
 // ECHO 5.1: main5 เล่นเฉพาะใน launcher ของโปรแกรม · เข้าห้องแล้ว (เลือกลำดับ/ตัวละคร/ห้องรอ/โหวตโหมด/จัดทีม + ฉากเปิดตัวแมตช์) = lobby5 จนเข้าด่าน
-export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0, intro = false } = {}) {
+export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0, intro = false, fodlanMap = false } = {}) {
   const phase = state?.gameState;
   if (!phase) return { name: "lobby5" };
   if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(phase)) return { name: "lobby5" };
-  // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ (การ์ด → ดิ่งลงหมุด → แผนที่ทวีป) = เพลงฉากแผนที่ของผู้ใช้
-  if (intro) return { name: state?.fodlan ? "fodlan_map" : "lobby5" };
+  // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ — การ์ด/ลูกโลกหมุนดิ่ง = เพลงห้องรอเดิม · เห็นแผนที่ทวีปแล้ว (fodlanMap) = เพลงฉากแผนที่ (ผู้ใช้สั่ง)
+  if (intro) return { name: state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" };
   const cs = phase === "CUTSCENE" ? state.cutscene : null;
   if (cs && (!lowQ || cs.announce)) return { name: null };
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว

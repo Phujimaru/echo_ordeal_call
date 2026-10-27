@@ -111,7 +111,7 @@ function OrbitCard({ p, cardRef }) {
   );
 }
 
-export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fodlanPrep = null, onOutro, onHandoff, onDone }) {
+export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fodlanPrep = null, onFodlanMap, onOutro, onHandoff, onDone }) {
   const ordered = useMemo(() => [...players].sort((a, b) => a.position - b.position), [players]);
   const n = ordered.length;
   const perMs = introPerMs(n);
@@ -133,6 +133,8 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
   const [cdash, setCdash] = useState(false);      // ช่วงพุ่งเข้าท่าเทียบยาน (เส้นพุ่ง)
   const [fodlan, setFodlan] = useState(null);     // ฉากเข้าโหมด Fodlan { D, stage, weather }
   const prepRef = useRef(fodlanPrep);
+  const mapRef = useRef(onFodlanMap); // Fodlan: เห็นแผนที่ทวีปแล้ว (App สลับเพลง)
+  useLayoutEffect(() => { mapRef.current = onFodlanMap; });
 
   const cbRef = useRef({ onOutro, onHandoff, onDone });
   useLayoutEffect(() => { cbRef.current = { onOutro, onHandoff, onDone }; });
@@ -245,7 +247,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     let colonyCam = null;
     // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = เริ่มสร้างเลย (ไม่งั้นสร้างตอน onOutro — ภาพค้างใต้แฟลชจนเสร็จ)
     let fodlanCam = null;
-    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false });
+    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false, onMap: () => mapRef.current?.() });
     if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
     const ring = { cx: 0, cy: 0, r: 1 };

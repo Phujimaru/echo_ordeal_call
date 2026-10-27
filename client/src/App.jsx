@@ -278,16 +278,22 @@ export default function App() {
   const skillMusic = stage === "connected" && state ? state.skillMusic : null;
   const skillMusicSeq = stage === "connected" && state ? state.skillMusicSeq : 0;
   const introOn = !!intro; // ฉากเปิดแมตช์ (รวมช่วงดิ่ง) ยังเป็นเพลงห้องรอ
+  // Fodlan: ฉากเปิดแมตช์มาถึงแผนที่ทวีปแล้ว → เพลงฉากแผนที่ (ล้างเมื่อฉากเปิดแมตช์จบ)
+  const [fodlanMapOn, setFodlanMapOn] = useState(false);
+  if (!introOn && fodlanMapOn) setFodlanMapOn(false);
   // Fodlan: เสียงบรรยากาศของด่าน (ป่า ฝน ชายหาด ลม …) ดังต่อเนื่องตลอดที่อยู่บนกระดาน · ออกจากแมตช์ = จางหาย
   //  ฉากเข้าด่าน/เปลี่ยนด่านสั่ง setStage เองตอนเข้าฉากด่าน — ที่นี่ตามให้ตรงกับ state (ด่าน/สภาพอากาศเปลี่ยน · รีคอนเนกต์)
+  //  ระหว่างฉาก (เปิดแมตช์/เปลี่ยนแผนที่) ไม่ยุ่ง: ฉากแผนที่ไม่มีเสียงบรรยากาศ — ฉากเข้าด่านเปิดเสียงของด่านเองตอนเข้าฉากด่าน
   const fdStage = stage === "connected" && state?.fodlan && isMatchPhase(state.gameState) ? state.fodlan.stage : null;
   const fdWeather = !!(fdStage && state.fodlan.weather);
+  const fdScene = !!(fdStage && state.fodlan.scene && state.fodlan.scene.active);
   useEffect(() => {
     const fa = fodlanAudio();
     if (!fdStage) { fa.stop(1.5); return; }
+    if (fdScene) { fa.setStage(null, { fade: 0.8 }); fa.thunder(false); return; }
     fa.setStage(fdStage, { weather: fdWeather, fade: 2.5 });
     fa.thunder(fdStage === 1 && fdWeather);
-  }, [fdStage, fdWeather]);
+  }, [fdStage, fdWeather, fdScene]);
   useEffect(() => {
     // CUTSCENE: หยุดเพลงพื้นหลัง ปล่อยให้เสียงในวีดีโอเล่น (เพลงสกิลมาหลังวีดีโอ)
     // ร่างแปลง (Ginga/Unicorn): เพลงสกิลทับ | ช่วงต่อสู้: เพลงกลางวัน/กลางคืน | อื่นๆ: main_home
@@ -316,7 +322,7 @@ export default function App() {
     // 5.1: เข้าห้องแล้ว (ตั้งแต่หน้าเลือกลำดับ) เปลี่ยนเป็นเพลงห้องรอ lobby5 ทันที — main5 อยู่แค่ใน launcher · ฉากเปิดตัว + ซูมเข้าโลก ยังเป็น lobby5 (intro)
     {
       const track = musicForState(stage === "connected" ? state : null, {
-        lowQ, cycleSeq: cycleSeq.current, attackSeq: attackSeq.current, intro: introOn,
+        lowQ, cycleSeq: cycleSeq.current, attackSeq: attackSeq.current, intro: introOn, fodlanMap: fodlanMapOn,
       });
       if (track.name) playMusic(track.name, track.seq);
       else stopMusic();
@@ -332,7 +338,7 @@ export default function App() {
     if (sounds.attack && !(state?.board && window.innerWidth >= 768)) {
       playSfx(state?.attack?.byAttackSound || "attack");
     }
-  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, fodlanNow?.scene?.active, introOn]);
+  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, fodlanNow?.scene?.active, introOn, fodlanMapOn]);
 
   const goCharacter = (n, pos, col) => {
     setName(n);
@@ -470,6 +476,7 @@ export default function App() {
           players={intro.players}
           area={intro.area}
           fodlan={intro.fodlan}
+          onFodlanMap={() => setFodlanMapOn(true)}
           lowQ={lowQ}
           onOutro={startPendingJourney}
           onHandoff={handoffIntro}
