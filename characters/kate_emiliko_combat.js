@@ -370,6 +370,9 @@ function cheer(engine, p, targets, opts, s) {
         const r = engine.skillStrike(p, t, "ร่าเริงสุดๆ");
         if (!r.dodge && t.alive && t.pos) pushLine(engine, p, t, v, VASE_PUSH, ctx, { wet: true, label: "กระแทกขณะถูกผลัก" });
       }
+      // น้ำสาดทั่วแนว 4×3 → พื้นเปียกทั้งพื้นที่ (หลังผลัก — ไม่ทำให้คนที่ถูกผลักไถลเพิ่ม) · ไม่โดนใครก็เปียก
+      const laid = engine.ice.layWet(tiles);
+      if (laid.length) ctx.events.push({ kind: "wet", tiles: laid });
     } else if (w === "vacuum") {
       // ใกล้สุดก่อน: ดาเมจ = ระยะ (หลบได้) แล้วดูดเข้ามาใกล้ที่สุดเท่าที่มีช่องว่าง
       for (const t of foes.sort((a, b) => dist(p.pos, a.pos) - dist(p.pos, b.pos))) {
