@@ -219,6 +219,15 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // ท่าไม้ตาย Echo "ก่อกำเนิดใหม่": พักเกมเล่นฉาก (journeyScene mode "rebirth") → impact() → เปลี่ยนภูมิภาค + นับเวลาใหม่ → จบตา
   //  ใช้ได้เฉพาะใน applyInstantSkill (useSkill เห็นเฟส CUTSCENE แล้วแค่บรอดแคสต์) — phases/endTurn.js
   journeyRebirth: endTurnPhase.journeyRebirth,
+  // ยูกิ มาโคโตะ — ระเบิดจบเกม: ผู้ชนะที่ระบุ (gameOver ข้ามกติกาทีม/คนสุดท้าย) · ฉากระเบิดของ client (state.yukiBoom)
+  //  · พักจบเทิร์น (CUTSCENE ไม่มีคลิป) ให้ฉากเล่นจบก่อนสรุปผล — phases/endTurn.js
+  declareWinner(p) { match.forcedWinnerId = p ? p.id : null; },
+  setYukiBoom(b) { match.yukiBoom = b ? { seq: ++match.yukiBoomSeq, ...b } : null; },
+  //  onStart = ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้ในจบเทิร์นเล่นจบ — ยูกิ: คลิปท่าไม้ตาย → ระเบิด)
+  holdEndTurn(secs, onStart) {
+    match.endTurnHold = Math.max(match.endTurnHold || 0, secs || 0);
+    if (onStart) (match.endTurnHoldStart ||= []).push(onStart);
+  },
   doAttack: attack.doAttack,
   useSkill: skills.useSkill,
   hitArea: skills.hitArea, // ผลของสกิลโจมตีพื้นที่บนช่องที่โดนจริง (ฮุค ownsAreaHit — โซระ / เกรย์: รองโกมิเนียตโดนตอนยิง)

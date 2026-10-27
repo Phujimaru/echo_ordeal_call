@@ -1089,3 +1089,11 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · จุดเสียบในไฟล์กลาง: action.boardMap/layeredMap (ชั้นแผนที่) · action.movOf (movMod) · action.endUnitTile (onUnitEnd) · action.strikeTarget (เป้า `"fd:…"`) · draw.dealRound (preRound — พักเกมเล่นฉากได้) · attack.computeAttackBase (atkBonus) · combat.instantDeath (preventDeath) · visibility.hiddenFromOne (hides) · view.js (hudActions → `players[].actions`, playerInfo → `players[].fodlan`, vision → `fodlanVision`, publicInfo → `state.fodlan.board`) · socket charAction (key `"fd:…"`)
 - client: `board/fodlan/index.js` = ตัวกลาง (ธีม area 40–44 · สิ่งกีดขวาง/ช่องพิเศษ `fd_…` · ground/items/air ของด่าน · ช่องเตือน `warn` กะพริบแดง · หมอกนอก `fodlanVision` · เวลาเหตุการณ์ `fxT` / `fxOnce`) · ของที่ตีได้ (`objects[].strike`) เป็นหน่วยเทียมแบบหนามน้ำแข็งใน BoardStage · ค่าต่อคน `playerInfo().badges` แสดงเป็นสถานะใน HUD · ป้ายด่าน + สภาพอากาศใช้ช่องภูมิภาคของ HudTopBar
 - เสียง: เพลง `fodlan_map` (ฉาก) / `fodlan_N(_wx)` (กระดาน) ผ่าน audioPolicy · เสียงบรรยากาศ/เอฟเฟกต์ `client/src/fodlan/fodlanAudio.js` (Web Audio · App.jsx ตาม state)
+
+## 37. ไม่ตายแม้ถูกบังคับ / ตายแน่นอน / ข้ามตาเดินเอง / ผู้ชนะที่ระบุ + ฉากจบเกม (ยูกิ มาโคโตะ — `characters/yuki_makoto.js` · GRID_PLAN §7.21)
+- **`combat.instantDeath(p, force)`**: ฮุค `deathless(engine, p)` → true = ไม่ตาย **แม้ force** (ฮุคตั้งเลือด/เกราะเอง) · `force = "absolute"` = ตายแน่นอน ข้ามทุกด่าน (เพื่อนร่วมทีม `friendlyEffectBlocked` · หยุดเวลา `holdsDeath` · Mark 42 · `deathless` · `preventDeath` · Fodlan)
+- **ฮุค `skipsTurn(engine, u)`** → true = ข้ามตาเดินทั้งตาใน `action.nextActor` (หลังผลต้นตาเดิน · ไม่ขึ้นข้อความสตั้น — โมดูลบันทึกเอง)
+- **จบเกมด้วยฉาก**: `engine.declareWinner(p)` (`match.forcedWinnerId` → `gameOver()` ชนะคนเดียวทุกโหมด · ทีม = `winningTeamId` ของผู้ชนะ · Moon Cell = `moon.result "win"`) ·
+  `engine.setYukiBoom({ by, x, y, size })` → `state.yukiBoom { seq, … }` (ค้างถึง GAMEOVER) · `engine.holdEndTurn(sec, onStart)` = endTurn พักเฟส CUTSCENE (ไม่มีคลิป) ทางเดียวกับฉาก Colony ก่อนสรุปผล · `onStart` ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้ในจบเทิร์นเล่นจบ) — เรียกได้จากฮุค `onEndTurn`
+- client: `client/src/board/yukiFx.js` — จอมืด + ออร่ารวมตัวระหว่างนับถอยหลัง (`players[].yuki { left, at }`) · ฉากระเบิดเต็มจอ 14 วิ (`state.yukiBoom` · เสียง `yuki_boom` ระเบิดที่ 2.6 วิ · เงียบเพลงอื่นทั้งหมด)
+

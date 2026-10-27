@@ -24,6 +24,7 @@ const ryougi = require("./ryougi"); // ผู้นำแห่งตระก�
 const emiya_shirou = require("./emiya_shirou"); // เอมิยะ ชิโร่ — ยาก (Trace On อาวุธ 5 แบบ / สกิลรองตามอาวุธ / Unlimited Blade Works)
 const kensaki_kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ — ยาก (ร่างมนุษย์/Blade / Blay Rouzer การ์ด 9 ใบ / Rouze ท่า Lightning)
 const trafalgar_law = require("./trafalgar_law"); // ทราฟาก้า ลอว์ — พิเศษ · unique (Room / ศัลแพทย์ 4 แบบ / Gamma Knife · Mess / Counter Shock)
+const yuki_makoto = require("./yuki_makoto"); // ยูกิ มาโคโตะ — เอาฮา (ไม่ตาย · เกิดใหม่เป็นประตู นับ 3 เทิร์น ระเบิดทั้งแผนที่ จบเกม)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -51,6 +52,7 @@ const CHARACTER_MODULES = [
   emiya_shirou,
   kensaki_kazuma,
   trafalgar_law,
+  yuki_makoto,
 ];
 
 const CHAR_HOOKS = {};

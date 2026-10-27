@@ -612,6 +612,11 @@ function nextActor() {
     // สตั้น / หลับไหล: ข้ามทั้งตา (เดินก็ไม่ได้) · เทิร์นที่เพิ่งโดนกล่อม (sleepFresh) ยังขยับได้
     for (const u of units) if (stuck(u)) match.lastLog.push(`😵 ${u.name} ขยับไม่ได้ — ข้ามตาเดิน`);
     units = units.filter((u) => !stuck(u));
+    // ฮุค skipsTurn(engine, u) → true = ข้ามตาเดินทั้งตา (โมดูลบันทึกเอง — ยูกิ มาโคโตะ: ยืนนิ่งระหว่างนับถอยหลังระเบิด)
+    units = units.filter((u) => {
+      const skipHook = CHAR_HOOKS[u.characterId];
+      return !(skipHook && skipHook.skipsTurn && combat.runHook(skipHook, "skipsTurn", engine, u));
+    });
     if (!units.length) continue;
     const secs = units[0].summon ? Summon.CONTROL_SECONDS : turnSecondsOf(units[0], actionSeconds());
     if (owner.duoWith || units.length > 1 || units[0] !== owner) Duo.startTurn(owner, units);

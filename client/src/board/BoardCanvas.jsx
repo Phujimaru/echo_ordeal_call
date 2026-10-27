@@ -7,6 +7,7 @@
 //               (= state.board · heal รับได้ทั้ง array ของ "x,y" / [x,y] / {x,y} และ Set · ชนิดสิ่งกีดขวางที่ไม่รู้จัก = ก้อนหิน)
 //   units       [{ id, x, y, img, color, name, hp, maxHp, armor, maxArmor, isMe, isActor, teamId, tag, alive?, alpha?, cloak? }]
 //               aura = "kira" → หมอกดำแดงรอบตัว (กิระร่างราชาแมลงอวกาศ — boardDraw kiraAura)
+//               yuki = { left, at } → ยูกินับถอยหลังเกิดใหม่เป็นประตู: ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืดลง (yukiFx.js)
 //               cloak = ซ่อนจากศัตรูอยู่ (เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน) → วาดจางแบบเงา + แถบแสงพาดช้าๆ
 //               wings = เคทยืนในม่านแดงของตัวเอง → ปีกเขม่ากางค้างหลังหมาก (shadowFx.js drawIdleWings) · fx ke* ย้ายหมากเองได้ (shadowPose)
 //               masked = ผู้ชมติด "มืดบอด" → หมากขาวล้วน ไม่มีรูป/ชื่อ/แถบเลือด · corpse = ร่างล้มของระบบคู่ (เงาราบบนช่อง)
@@ -652,7 +653,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

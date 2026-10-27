@@ -11,10 +11,11 @@
 //  fa.duck(k, ms)                          // หรี่เสียงพื้น (คูณ k) ระหว่างเสียงใหญ่
 //
 //  ทางเดินเสียง: ลูปพื้น → gain ต่อลูป → bedBus (0.5) ┐
-//                เสียงครั้งเดียว → sfxBus (0.8)                     ┴→ master (ตามหลอดเสียงของเกม) → ลำโพง
+//                เสียงครั้งเดียว → sfxBus (0.8)                     ┴→ master (ตามหลอดเสียงของเกม) → hold → ลำโพง
+//  hold = 0 ระหว่างเพลงถูกพัก (suspendMusic — วีดีโอท่า/เพลงประจำฉาก) แบบเดียวกับเพลงด่าน · คืนเสียงเมื่อปล่อย
 //  ทุกอย่างห่อ try/catch — เสียงพังห้ามทำให้ฉากพัง
 // ============================================================
-import { masterGain, onVolumeChange } from "../audio";
+import { masterGain, onVolumeChange, isMusicSuspended, onMusicSuspend } from "../audio";
 import { FODLAN_STAGES } from "./stages";
 
 const BED_BASE = 0.5;    // ไฟล์เสียงพื้น −22 LUFS (−6 dB ≈ −28) · เพลงด่าน −11.3 × MUSIC_BASE 0.75 ≈ −13.8 → เพลงดังกว่าเสียงพื้นชัดเจน ~14 dB (ซ้อนฝน/ลมอีกชั้นยังห่าง ~11 dB)
@@ -22,6 +23,7 @@ const BED_BASE = 0.5;    // ไฟล์เสียงพื้น −22 LUFS (
 const SFX_BASE = 0.8;    // เสียงครั้งเดียวของด่าน (ฟ้าผ่า ธนู มังกร …) — ไม่ให้กลบเพลง
 const CAMPFIRE_GAIN = 0.35;
 const THUNDER_GAIN = 0.6;
+const HOLD_OUT = 0.12, HOLD_IN = 0.8; // วินาที: เงียบเร็วตอนวีดีโอเริ่ม · ค่อยๆ กลับหลังวีดีโอจบ
 const url = (key) => `/fodlan/sfx/${key}.mp3`;
 
 let instance = null;
@@ -29,7 +31,7 @@ let instance = null;
 export function fodlanAudio() {
   if (instance) return instance;
 
-  let ctx = null, master = null, bedBus = null, sfxBus = null;
+  let ctx = null, master = null, hold = null, bedBus = null, sfxBus = null;
   const buffers = new Map();   // key → AudioBuffer | null (null = โหลดไม่ได้)
   const loading = new Map();   // key → Promise<AudioBuffer|null>
   const beds = new Map();      // key → { src, gain, target }
@@ -50,7 +52,10 @@ export function fodlanAudio() {
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20;
     limiter.attack.value = 0.003; limiter.release.value = 0.25;
-    master.connect(limiter);
+    hold = ctx.createGain();
+    hold.gain.value = isMusicSuspended() ? 0 : 1;
+    master.connect(hold);
+    hold.connect(limiter);
     limiter.connect(ctx.destination);
     bedBus = ctx.createGain();
     bedBus.gain.value = BED_BASE;
@@ -59,6 +64,14 @@ export function fodlanAudio() {
     sfxBus.gain.value = SFX_BASE;
     sfxBus.connect(master);
     onVolumeChange(() => { try { master.gain.setTargetAtTime(masterGain(), now(), 0.05); } catch { /* ไม่เป็นไร */ } });
+    onMusicSuspend((on) => {
+      try {
+        const p = hold.gain;
+        p.cancelScheduledValues(now());
+        p.setValueAtTime(p.value, now());
+        p.linearRampToValueAtTime(on ? 0 : 1, now() + (on ? HOLD_OUT : HOLD_IN));
+      } catch { /* ไม่เป็นไร */ }
+    });
     // เบราว์เซอร์ยังไม่ให้เล่นเสียงเอง → ปลุกตอนผู้เล่นแตะจอ/กดปุ่มครั้งแรก
     const resume = () => { if (ctx.state === "suspended") ctx.resume().catch(() => {}); };
     window.addEventListener("pointerdown", resume);

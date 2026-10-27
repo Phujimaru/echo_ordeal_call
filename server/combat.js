@@ -156,10 +156,12 @@ function maxArmorOf(p) {
 }
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
 // force = true: ข้ามระบบกันตายทั้งหมด (เช่นเกราะ Mark 42) — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
+//  force = "absolute": ตายแน่นอน ข้ามทุกด่าน (เพื่อนร่วมทีม/หยุดเวลา/กันตาย/ฟื้น/มิตรภาพ) — ระเบิดของยูกิ มาโคโตะ
 function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
-  if (friendlyEffectBlocked(p)) return;
-  if (TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
+  const absolute = force === "absolute";
+  if (!absolute && friendlyEffectBlocked(p)) return;
+  if (!absolute && TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
   if (p.summon) { Summon.onDeath(p); return; }
@@ -167,6 +169,8 @@ function instantDeath(p, force) {
   if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
   const deathHook = CHAR_HOOKS[p.characterId];
+  // ฮุค deathless(engine, p) → true = ไม่ตายแม้ force (ฮุคตั้งเลือดเอง — ยูกิ มาโคโตะ: มิตรภาพ) · ยกเว้น "absolute"
+  if (!absolute && deathHook && deathHook.deathless && deathHook.deathless(engine, p)) return;
   if (!force && deathHook && deathHook.preventDeath && deathHook.preventDeath(engine, p)) return;
   // Fodlan: ชีพจรเทพ (นั่งบัลลังก์ผู้ให้กำเนิด — server/fodlan/stage5.js preventDeath ตั้งเลือดเอง)
   if (!force && !p.summon && require("./fodlan").preventDeath(p)) return;

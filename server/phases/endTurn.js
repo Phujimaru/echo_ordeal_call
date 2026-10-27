@@ -93,6 +93,11 @@ function endTurn() {
   Soot.onEndTurn();
   // Colony: รอยรั่วปิด · คูลดาวน์กระโดด · ปิดผนึกปล้อง (ตายจริง) · ครบเวลา = ระเบิด (ทุกคนตาย → เสมอ)
   const colonyHold = Colony.onEndTurn();
+  // ฉากที่ฮุคจบเทิร์นขอพัก (engine.holdEndTurn — ระเบิดของยูกิ มาโคโตะ) ใช้ทางเดียวกับฉากของ Colony
+  const hold = Math.max(colonyHold, match.endTurnHold || 0);
+  const holdStart = match.endTurnHoldStart || [];
+  match.endTurnHold = 0;
+  match.endTurnHoldStart = null;
   // Fodlan: สภาพอากาศนับเวลาลง
   Fodlan.onEndTurn();
 
@@ -106,7 +111,7 @@ function endTurn() {
   Summon.sweep(); // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว ลบระเบียน
 
   // เล่นฉากที่ค้างคิว (ถ้ามี) ให้จบก่อน แล้วค่อยสรุปจบเกม/ขึ้นรอบถัดไป
-  cutscene.runCutsceneQueue(() => colonyHoldThen(colonyHold, () => {
+  cutscene.runCutsceneQueue(() => colonyHoldThen(hold, holdStart, () => {
     if (gameOver()) return;
     // ห่วงเวลาซีโร่: ช่วงมิติพังทลายครบเวลา (ทาคุโตะ) → กลับสนามเดิม + ฉากปลดผนึก → เทิร์นถัดไป
     if (Zero.maybeFinishCollapse()) return;
@@ -122,7 +127,9 @@ function endTurn() {
   }));
 }
 // Colony: ปิดผนึก/ระเบิดตอนจบเทิร์น → พักเฟส CUTSCENE (ไม่มีคลิป) ให้ฉากของ client เล่นจบก่อน แล้วค่อยสรุปจบเกม/ขึ้นเทิร์นถัดไป
-function colonyHoldThen(secs, next) {
+//  onStart = งานตอนเริ่มพัก (engine.holdEndTurn — ยูกิ: ทุกคนตาย + ฉากระเบิด หลังคลิปท่าไม้ตาย)
+function colonyHoldThen(secs, onStart, next) {
+  for (const fn of onStart) combat.runHook({ id: "endTurnHold", fn }, "fn");
   if (!(secs > 0)) { next(); return; }
   match.cutsceneInfo = null;
   match.gameState = "CUTSCENE";
@@ -132,6 +139,18 @@ function colonyHoldThen(secs, next) {
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
+  // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner): ชนะคนเดียวทุกโหมด (ทีมได้ winningTeamId · Moon Cell = ผู้เล่นชนะ)
+  const champ = match.forcedWinnerId && match.players[match.forcedWinnerId];
+  if (champ) {
+    match.winningTeamId = lobby.teamModeActive() || Moon.active() ? champ.teamId || null : null;
+    if (Moon.active()) match.moon.result = "win";
+    match.lastLog.push(`🏆 ${Duo.ownerOf(champ).name} คือผู้ชนะ!`);
+    timers.clearPhaseTimer();
+    match.gameState = "GAMEOVER";
+    match.timeLeft = 0;
+    view.broadcastState();
+    return true;
+  }
   // Moon Cell (GRID_PLAN §8.4): ชนะ = ทำลาย Moon Cell / ฮาคุโนะตายพร้อมกันทั้งคู่ · แพ้ = ผู้เล่นตายหมด — ไม่ใช้กติกาทีมเหลือทีมเดียว
   if (Moon.active()) {
     const res = Moon.outcome();

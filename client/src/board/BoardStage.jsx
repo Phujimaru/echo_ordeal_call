@@ -2022,6 +2022,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
+      // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
+      yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)
       gyro: !mk && p.gyro ? { mounted: !!p.gyro.mounted, empowered: !!p.gyro.empowered, horseHp: p.gyro.horseHp } : null,
       // ดิเอโก้: ซิลเวอร์ บูลเล็ตใต้หมาก (mounted) · ม้าโดนตี = แวบ · ชุ่มน้ำมัน/ติดตาข่าย = หยดน้ำมัน/ลวดรัดตัว (ใครก็ติดได้) — diegoFx.js
@@ -2053,6 +2055,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
+  // ยูกิเริ่มนับถอยหลังรอบใหม่ (p.yuki.at ใหม่) = เสียงออร่ารวมตัวครั้งเดียว
+  const yukiAtSig = state.players.filter((p) => p.alive && p.yuki && p.yuki.left > 0).map((p) => `${p.id}@${p.yuki.at}`).join("|");
+  const yukiHeard = useRef(new Set());
+  useEffect(() => {
+    if (!yukiAtSig) return;
+    const fresh = yukiAtSig.split("|").filter((k) => !yukiHeard.current.has(k));
+    for (const k of fresh) yukiHeard.current.add(k);
+    if (fresh.length) playSfx("yuki_aura");
+  }, [yukiAtSig]);
   // เกรย์ชาร์จรองโกมิเนียต (p.gray.charge) — ทุกคนเห็นแนวลำแสง + หอกเหนือหัว (grayFx.js drawGrayGround / drawGrayAir)
   const graySig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.gray && p.gray.charge && Array.isArray(p.gray.charge.tiles))
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), dir: p.gray.charge.dir, left: p.gray.charge.left, tiles: p.gray.charge.tiles.map((t) => ({ x: t.x, y: t.y })) })));

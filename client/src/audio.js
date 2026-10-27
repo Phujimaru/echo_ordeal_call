@@ -388,6 +388,16 @@ const FILES = {
     "room", "shambles", "takt", "gamma", "mess", "shock",
     "atk1", "atk2", "atk3", "atk4", "turn1", "turn2", "turn3", "hit1", "hit2",
   ].map((k) => [`law_v_${k}`, `/characters/trafalgar_law/voice/law_v_${k}.m4a`])),
+  // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู — ฉากระเบิด 14 วิ (riser → ระเบิดที่ 2.6 วิ → หางยาว fade 10–14 วิ · -13 LUFS ตั้งใจให้ดังกว่าเสียงอื่น ห้ามหรี่)
+  //  ออร่ารวมตัวตอนเริ่มนับถอยหลัง (6 วิ · -18 LUFS) — board/yukiFx.js · ฉากระเบิด board/YukiBoom.jsx
+  yuki_boom: "/characters/yuki_makoto/sfx/yuki_boom.mp3",
+  yuki_aura: "/characters/yuki_makoto/sfx/yuki_aura.mp3",
+  // เพลงระหว่างนับถอยหลัง (state.skillMusic "yuki_charge")
+  yuki_charge: "/characters/yuki_makoto/yuki_charge_theme.mp3",
+  // เสียงพากย์ (server/voice.js) — คีย์ = ชื่อไฟล์
+  ...Object.fromEntries([
+    "start1", "start2", "start3", "hit1", "hit2", "hit3", "hit4", "hit5", "hit6", "hit7", "hit8", "hit9",
+  ].map((k) => [`yuki_v_${k}`, `/characters/yuki_makoto/voice/yuki_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
@@ -465,6 +475,7 @@ const LOUDNESS_GAIN = {
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
   "/characters/takuto/takuto_theme.m4a": 0.5, // -8.0 LUFS (ffmpeg ebur128)
+  "/characters/yuki_makoto/yuki_charge_theme.mp3": 0.6, // -9.6 LUFS → ~-14
   // Fodlan (ffmpeg ebur128 ทั้งไฟล์) — ผู้ใช้ขอให้ดังกว่าเพลงอื่น (2026-10-27): เป้า -11.3 LUFS (เพลงอื่น -14)
   //  เพลงปกติ 5 เพลงดันที่ตัวไฟล์ + limiter แล้ว (-11.3) · เพลงสภาพอากาศดังเกินเป้า ลดด้วยตารางนี้
   "/fodlan/music/stage1_wx.mp3": 0.81, // -9.5 LUFS
@@ -653,13 +664,21 @@ function applyHandoff(name, a) {
 }
 
 // Foreground video/voice owns the audio until its component releases this lease.
+//  เสียงที่ไม่ได้อยู่ใน musicCache (เสียงบรรยากาศ Fodlan — Web Audio) ฟังผ่าน onMusicSuspend ให้เงียบตามกัน
+const suspendListeners = new Set();
+export function isMusicSuspended() { return musicSuspensions.size > 0; }
+export function onMusicSuspend(fn) { suspendListeners.add(fn); return () => suspendListeners.delete(fn); }
+const notifySuspend = (on) => suspendListeners.forEach((fn) => { try { fn(on); } catch { /* ผู้ฟังพังห้ามทำให้เพลงพัง */ } });
 export function suspendMusic() {
   const token = {};
   musicSuspensions.add(token);
   for (const a of Object.values(musicCache)) a.pause();
+  if (musicSuspensions.size === 1) notifySuspend(true);
   return () => {
     if (!musicSuspensions.delete(token)) return;
-    if (!musicSuspensions.size && currentMusic) playMusic(currentMusic);
+    if (musicSuspensions.size) return;
+    notifySuspend(false);
+    if (currentMusic) playMusic(currentMusic);
   };
 }
 

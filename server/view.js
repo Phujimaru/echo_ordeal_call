@@ -188,6 +188,7 @@ function buildStateFor(viewerId) {
       trail: match.action.trail || null, walkUndo: action.walkUndoPatch(),
     } : null,
     rideAsk: Ride.publicAsk(viewerId), // คำขอขี่ที่รอตอบ (คนขอ / เจ้าของตัวที่ถูกขอเห็น — server/ride.js)
+    yukiBoom: match.yukiBoom, // ฉากระเบิดของยูกิ มาโคโตะ { seq, by, x, y, size } — ค้างถึง GAMEOVER (client กันเล่นซ้ำด้วย seq)
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่
     // onlyFor: คลิปที่เล่นให้เฉพาะบางคนดู — คนนอกลิสต์ได้ null (หน้าจอไม่เล่นวีดีโอ แต่ยังรอครบเวลาเท่ากัน)
@@ -354,6 +355,7 @@ function buildStateFor(viewerId) {
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17
         emiya: hook && hook.emiyaState ? hook.emiyaState(engine, p) : undefined, // ชิโร่: อาวุธ / เทิร์น+ครั้งที่เหลือ / คูลดาวน์ / UBW / ความจุที่เพิ่ม — GRID_PLAN §7.18
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
+        yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
         strikeZone: hook && hook.strikeZone ? hook.strikeZone(p) || undefined : undefined, // กรอบที่ตีปกติได้ { x0, y0, x1, y1 } (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room)
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)

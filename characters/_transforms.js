@@ -19,6 +19,7 @@ const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่
 const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: Caladbolg II (ก่อน/หลังเลือกทิศ) · Unlimited Blade Works — ทุกครั้งที่กด
 const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ: แปลงร่าง (ครั้งแรกต่อเกม) · มือเปล่าติดคริ (ก่อนฉากตี) · ท่า Lightning 3 แบบ (ตอนโดน)
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
+const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 module.exports = function buildTransforms() {
@@ -100,6 +101,8 @@ module.exports = function buildTransforms() {
     lawRoom:  { img: law.IMG.room,  video: law.VIDEO.room,  title: "ROOM",          label: "ทราฟาก้า ลอว์",   seconds: 5.0, music: null, afterReveal: false },
     lawGamma: { img: law.IMG.ult, video: law.VIDEO.gamma, title: "Gamma Knife",   label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
     lawMess:  { img: law.IMG.mess,  video: law.VIDEO.mess,  title: "Mess",          label: "ปล่อยท่าไม้ตาย", seconds: 6.8, music: null, afterReveal: false },
+    // ยูกิ มาโคโตะ — เกิดใหม่เป็นประตู ตอนครบเวลา (ก่อนฉากระเบิด) · ความยาวจริง 17.70 วิ ปัดขึ้น (เสียงในคลิป)
+    yukiUlt: { img: yuki.IMG.skill3, video: yuki.VIDEO.skill3, title: "เกิดใหม่เป็นประตู", label: "ปล่อยท่าไม้ตาย", seconds: 18, music: null, afterReveal: false },
     lawShock: { img: law.IMG.base,  video: law.VIDEO.shock, title: "Counter Shock", label: "ทราฟาก้า ลอว์",   seconds: 3.1, music: null, afterReveal: false, noIntro: true },
     kazumaSonic: { img: kazuma.IMG.ult("sonic"), video: kazuma.VIDEO.combo("sonic"), title: "Lightning Sonic", label: "ปล่อยท่าไม้ตาย", seconds: 20.6, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },

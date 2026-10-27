@@ -52,6 +52,7 @@ import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx } from "./
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
+import { drawYukiDim, yukiAuraBack, yukiAuraFront, yukiNoteUnit } from "./yukiFx";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
 
@@ -529,6 +530,8 @@ function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
   if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  // ยูกิ (yukiFx.js): นับถอยหลังเกิดใหม่เป็นประตู — แสงฟ้าบนพื้นก่อนตัว · อนุภาคไหลเข้าตัว + ตัวเลขหลังตัว
+  if (u.yuki) yukiAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.yuki.left | 0, u.alpha == null ? 1 : u.alpha, u.k || 1);
   let jx = 0, jy = 0;
   const hitAge = u.hitT ? now - u.hitT : 1e9;
   if (hitAge >= 0 && hitAge < 300) { const k = 1 - hitAge / 300; jx = (Math.random() - 0.5) * 0.12 * k; jy = (Math.random() - 0.5) * 0.08 * k; }
@@ -588,6 +591,7 @@ function drawUnit(g, u, now, boxes) {
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
+  if (u.yuki) yukiAuraFront(g, u, wx, wy, bx, by, hy, hexR, now, u.lowQ, UNIT_UI_K);
   g.globalAlpha = a;
   // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี · noBar = ฉากของวาเลนไทน์ซ่อนแถบไว้ชั่วคราว)
   if (u.masked || u.noBar) {
@@ -775,6 +779,8 @@ function drawCorpse(g, u, now, boxes) {
 }
 // ฟันนี่ วาเลนไทน์ (valentineFx.js): ฉากที่ตัด/บีบ/เจาะรู/พลิกหมาก (valMod) · คนละโลก (ghostDim — โปร่ง กดไม่ได้) · ตัวเหมือน (summon double — ตะเข็บ)
 function drawAnyUnit(g, u, now, boxes) {
+  // ยูกิกำลังนับถอยหลัง: จดตำแหน่งบนจอของหมากทุกตัว (ฉากระเบิด YukiBoom.jsx ใช้)
+  yukiNoteUnit(g, u);
   // Moon Cell (moonFx.js): โมเดลลูกบาศก์ลอย แทนหมาก
   if (u.summon && u.summon.kind === "moonCell" && !u.corpse) { drawMoonCell(g, u, now, boxes, { UK: UNIT_UI_K, vitalBar: drawVitalBar, vitalHeight }); return; }
   if (u.valMod || u.ghostDim || (u.summon && u.summon.kind === "double")) { drawValUnit(g, u, now, (uu, withBox) => drawAnyUnitBase(g, uu, now, withBox ? boxes : null)); return; }
@@ -2102,6 +2108,8 @@ export function drawFrame(g, st, now) {
   // เกรย์ชาร์จรองโกมิเนียต / กำลังยิง (grayFx.js): สนามมืดลง + แนวลำแสงสีทอง — ใต้ไฮไลต์และตัวละคร
   const grays = st.grays && st.grays.length ? st.grays : null;
   if (grays || fx.some((e) => e.kind === "grayBeam")) drawGrayGround(g, grays, fx, view, now, lowQ);
+  // ยูกินับถอยหลังเกิดใหม่เป็นประตู (yukiFx.js): กระดานมืดลง ~25% — เรียกทุกเฟรมให้ค่อยๆ มืด/สว่างคืนเอง
+  drawYukiDim(g, units, view, now);
   const ferns = st.ferns && st.ferns.length ? st.ferns : null; // เฟิร์น: แสงปลายคทา (วาดหลังตัวละคร — drawFernAir)
   // วงเพลงของยูนะ (yunaFx.js) — บนพื้น ใต้ไฮไลต์
   if (st.songs && st.songs.length) drawYunaZones(g, st.songs, info, now, lowQ);

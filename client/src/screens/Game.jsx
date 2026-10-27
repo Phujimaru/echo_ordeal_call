@@ -26,6 +26,7 @@ import { BladeRouzerSlot, BladeRouzerPanel } from "./hud/BladeRouzer";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic } from "../audio";
 import BoardStage from "../board/BoardStage";
+import YukiBoom from "../board/YukiBoom";
 import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
 
@@ -1008,6 +1009,8 @@ function statusEntries(p, full) {
   // Fodlan: ค่าของด่านต่อคน (ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … — server/fodlan/stageN.js playerInfo().badges)
   if (p.fodlan && Array.isArray(p.fodlan.badges)) for (const b of p.fodlan.badges) out.push({ key: `fd_${b.key}`, v: 1, icon: b.icon, label: b.label, cls: b.cls || "bg-amber-200 text-gray-900", desc: b.desc || b.label });
   if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "ความเสียหายที่ได้รับสะสมครบแล้วระเบิดผลักศัตรูรอบตัวออกไป 2 ช่อง และติดเชื่องช้า 1 เทิร์น" });
+  // ยูกิ มาโคโตะ: นับถอยหลังเกิดใหม่เป็นประตู (ตัวเลขเท่านั้น — showV = โชว์เลขแม้เหลือ 1)
+  if (p.yuki && p.yuki.left > 0) out.push({ key: "yukiCharge", v: p.yuki.left | 0, turns: true, showV: true, icon: "🚪", label: "เกิดใหม่เป็นประตู", cls: "bg-sky-300 text-gray-900", desc: "" });
   // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
   if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
     desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
@@ -1032,7 +1035,7 @@ function StatusChips({ p, left, compact, grid, max = 5 }) {
         {shown.map((it) => (
           <span
             key={it.key}
-            title={`${it.label}${it.amt > 0 ? ` +${it.amt}` : ""}${showStatusValue(it) ? ` x${it.v}` : ""} — ${it.desc}`}
+            title={`${it.label}${it.amt > 0 ? ` +${it.amt}` : ""}${showStatusValue(it) ? ` x${it.v}` : ""}${it.desc ? ` — ${it.desc}` : ""}`}
             className={`flex items-center gap-1 min-w-0 text-xs px-1.5 py-0.5 rounded-md font-bold border border-black/25 shadow ${it.cls}`}
           >
             <span className="shrink-0">{it.icon}</span>
@@ -1059,7 +1062,7 @@ function StatusChips({ p, left, compact, grid, max = 5 }) {
         return (
           <span
             key={it.key}
-            title={`${it.label}${it.amt > 0 ? ` +${it.amt}` : ""}${showStatusValue(it) ? ` x${it.v}` : ""} — ${it.desc}`}
+            title={`${it.label}${it.amt > 0 ? ` +${it.amt}` : ""}${showStatusValue(it) ? ` x${it.v}` : ""}${it.desc ? ` — ${it.desc}` : ""}`}
             className={
               compact
                 ? `relative w-5 h-5 grid place-items-center text-[11px] rounded-[4px] font-bold border border-black/25 shadow shrink-0 ${it.cls}`
@@ -1100,7 +1103,7 @@ function StatusChips({ p, left, compact, grid, max = 5 }) {
 // ตัวนับเทิร์นจริงยาวสุดในเกมไม่ถึง 99 — เกินจากนี้ถือว่าไม่ใช่จำนวนเทิร์นแน่นอน
 const isPermanentTurnValue = (it) => (it.v || 0) >= 99;
 const isPermanentStatus = (it) => PERMANENT_STATUS_KEYS.has(it.key) || isPermanentTurnValue(it);
-const showStatusValue = (it) => it.v > 1 && !isPermanentTurnValue(it);
+const showStatusValue = (it) => (it.v > 1 || (it.showV && it.v > 0)) && !isPermanentTurnValue(it);
 
 // ---------- หน้าต่างดูสถานะ + รายละเอียดสกิลของผู้เล่น (แตะการ์ดผู้เล่นคนไหนก็ได้ตอนไม่ได้เลือกเป้า) ----------
 //  patch 1.9.1: เพิ่มรายละเอียดสกิลตัวละครของฝั่งตรงข้ามให้กดดูได้จากหน้ากระดาน
@@ -2632,10 +2635,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />
+                  {ch?.basic && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
-                    : <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
+                    : ch?.secondary && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
@@ -2730,6 +2733,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       )}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
+      {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}
+      <YukiBoom boom={state.yukiBoom || null} phase={phase} lowQ={lowQ} />
     </div>
   );
 }

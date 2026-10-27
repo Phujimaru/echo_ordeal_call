@@ -298,6 +298,10 @@ function startMatch() {
     match.teamCount = 0;
   }
   match.winningTeamId = null;
+  match.forcedWinnerId = null;
+  match.yukiBoom = null;
+  match.endTurnHold = 0;
+  match.endTurnHoldStart = null;
   Duo.setup(); // ระบบคู่ (เคท & เอมิลิโกะ): สร้างตัวที่สองของผู้เล่นที่เลือกตัวละครแบบคู่
   for (const p of Object.values(match.players)) combat.resetCombat(p);
   // เครื่องมือ dev: ECHO_DEV_RICH=1 = เริ่มแมตช์ด้วยเหรียญเต็มเพดาน + แต้มสกิลเต็ม (ทดสอบร้าน/ท่าไม้ตายได้ทันที) · ไม่ตั้ง = ปกติ

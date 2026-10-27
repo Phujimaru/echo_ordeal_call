@@ -1057,6 +1057,32 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- ยูกิ มาโคโตะ (Persona 3) — เอาฮา — ดู characters/yuki_makoto.js (GRID_PLAN §7.21) ----------
+    //  พลังชีวิต 3 / เกราะ 2 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · มีแค่ท่าไม้ตาย
+    id: "yuki_makoto",
+    name: "ยูกิ มาโคโตะ",
+    avatar: 0,
+    difficulty: "fun",
+    img: "/characters/yuki_makoto/yuki_makoto.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "มิตรภาพ",
+      desc: "ไม่สามารถถูกสังหารได้ · ไม่สามารถตายได้ · ตายลงฟื้นคืนชีพทันทีด้วยพลังชีวิตเต็ม เกราะเต็ม",
+    },
+    basic: null,
+    secondary: null,
+    ultimate: {
+      name: "เกิดใหม่เป็นประตู",
+      desc: "ตั้งท่าระเบิดตัวเอง 3 เทิร์น (นับเทิร์นนี้) ระหว่างนั้นยืนนิ่ง ข้ามตาเดิน · ครบเวลา: ระเบิดทั้งแผนที่ ทุกคนตายทันที ฟื้นไม่ได้ แล้วจบเกม ยูกิ มาโคโตะเป็นผู้ชนะ (ใช้แล้วจบตาเดิน)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/yuki_makoto/yuki_skill3.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/yuki_makoto.js
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
