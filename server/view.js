@@ -30,6 +30,7 @@ const Ride = require("./ride");
 const TimeStop = require("./timeStop");
 const Colony = require("./colony");
 const Moon = require("./moonCell");
+const Fodlan = require("./fodlan");
 const Dim = require("./dimension");
 
 // รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
@@ -146,7 +147,8 @@ function buildStateFor(viewerId) {
   return {
     gameState: match.gameState,
     gameMode: match.gameMode,
-    world: match.world, // earth | colony (GRID_PLAN §8.3) | moon (§8.4)
+    world: match.world, // earth | fodlan (GRID_PLAN §8.5) | colony (§8.3) | moon (§8.4)
+    fodlan: Fodlan.publicInfo(), // Fodlan: ด่าน/สภาพอากาศ/เทิร์นที่เหลือ/ฉากเข้า-เปลี่ยนแผนที่ — null = ไม่ได้อยู่ใน Fodlan
     colony: Colony.publicInfo(), // Colony: ปล้อง/ประตู/เป้าอันตราย/รอยรั่ว/แคปซูล/ฉากต้นเทิร์น — null = ไม่ได้อยู่ใน Colony
     moon: Moon.publicInfo(), // Moon Cell (GRID_PLAN §8.4): ฮาคุโนะ/ฟื้นคืนชีพ/คำสาปที่เตือนไว้/ผลแพ้ชนะ/ฉากต้นเทิร์น — null = ไม่ได้อยู่
     teamSize: match.teamSize,

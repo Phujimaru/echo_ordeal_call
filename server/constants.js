@@ -92,6 +92,10 @@ const JOURNEY_ADVANCE_SECONDS = Math.max(0, Number(process.env.JOURNEY_ADVANCE_S
 // ท่าไม้ตาย Echo "ก่อกำเนิดใหม่": พักเกม (CUTSCENE · journeyScene mode "rebirth") ตามความยาวฉากโลกแตกฝั่ง client (~17 วิ + เผื่อ)
 //  ความเสียหาย + เปลี่ยนภูมิภาคลงตอนหมดเวลานี้ (phases/endTurn.js journeyRebirth)
 const REBIRTH_SECONDS = 18;
+// โหมด Fodlan (GRID_PLAN §8.5): ฉากเข้าแมตช์ 13 วิ (ดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน) · ฉากเปลี่ยนด่าน 10 วิ (client fodlan/stages.js) — +1 วิเผื่อเน็ตหน่วง
+//  เริ่มฉากตั้งแต่ฉากเปิดตัวผู้เล่น "เริ่มปิดฉาก" แบบเดียวกับ JOURNEY_START_SECONDS · env 0 = ไม่มีฉาก (เทสต์)
+const FODLAN_START_SECONDS = Math.max(0, Number(process.env.FODLAN_START_SECONDS ?? process.env.JOURNEY_START_SECONDS ?? 12));
+const FODLAN_ADVANCE_SECONDS = Math.max(0, Number(process.env.FODLAN_ADVANCE_SECONDS ?? process.env.JOURNEY_ADVANCE_SECONDS ?? 11));
 const TEAM_IDS = ["A", "B", "C"];
 
 const RESYNC_EVERY = 10; // ทุกกี่วินาทีถึงจะ broadcast state ตัวเต็ม (นอกนั้นส่งแค่ "tick")
@@ -105,5 +109,5 @@ module.exports = {
   SHOP_SKILL_SIZES, ITEM_BASE, GUTS_GUN_PRICE, GUTS_CHAA_TURNS, GUTS_RANGE,
   GUTS_NURSE_DMG, GUTS_AMMO, GUTS_AMMO_IDS, SHOP_MAX_GUNS, SHOP_MAX_MARK42, SHOP_AMMO_WEIGHTS,
   SHOP_WEIGHTS, TEMP_HP_TURNS, CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
-  REBIRTH_SECONDS, TEAM_IDS, RESYNC_EVERY,
+  REBIRTH_SECONDS, FODLAN_START_SECONDS, FODLAN_ADVANCE_SECONDS, TEAM_IDS, RESYNC_EVERY,
 };

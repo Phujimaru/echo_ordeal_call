@@ -1012,6 +1012,9 @@ for (const a of Object.keys(THEMES)) THEMES[a].pal = PAL[a];
 Object.assign(THEMES, ZERO_THEMES);
 // Moon Cell (area 30 = ลานโรงเรียน + ซากุระ — schoolTheme.js)
 Object.assign(THEMES, MOON_THEMES);
+// Fodlan (area 40–44 = ด่าน I–V · GRID_PLAN §8.5) — ⚠️ ชั่วคราว: ยืมธีมภูมิภาคเดิมที่บรรยากาศใกล้กัน (ตรงกับแผนที่ชั่วคราวใน server/board.js)
+//  ธีมของ Fodlan จริงทีละด่านเป็นขั้นถัดไป
+[4, 3, 7, 6, 1].forEach((src, i) => { THEMES[40 + i] = THEMES[src]; });
 
 // ธีมของภูมิภาค (ไม่รู้จัก = ภูมิภาค I)
 export function themeOf(area) { return THEMES[area] || THEMES[1]; }

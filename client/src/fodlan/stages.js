@@ -22,8 +22,8 @@ export function clampFodlanStage(s) {
 }
 export const fodlanStage = (s) => FODLAN_STAGES[clampFodlanStage(s) - 1];
 
-// หมุด Fodlan บนลูกโลก (หน้าเลือกสนาม + ฉากดิ่งตอนเริ่มแมตช์ต้องตรงกัน) — ทะเลเปิดระหว่างภูมิภาค III กับ IV ของ Origin
-export const FODLAN_GEO = { lon: 156, lat: 46 };
+// หมุด Fodlan บนลูกโลก (หน้าเลือกสนาม + ฉากดิ่งตอนเริ่มแมตช์ต้องตรงกัน) — ทะเลซีกใต้ ห่างหมุด Origin (ภูมิภาค I) ~70° ให้เห็นพร้อมกันได้
+export const FODLAN_GEO = { lon: 68, lat: -28 };
 
 // ความยาวฉาก (มิลลิวินาที) — ฉากเปิดแมตช์ (ต่อจากการ์ดผู้เล่น) / ฉากเปลี่ยนแผนที่กลางเกม
 export const FODLAN_INTRO_MS = 13000;

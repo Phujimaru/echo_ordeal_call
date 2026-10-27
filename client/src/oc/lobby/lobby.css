@@ -223,6 +223,10 @@
 }
 .ocl-worldtag[data-world="colony"] { border-color: var(--oc-azure); }
 .ocl-worldtag[data-world="moon"] { border-color: var(--oc-echo); }
+/* หมุดสนามย่อยบนโลก (ModeVote ชั้น "earth"): Origin = ฟ้า · Fodlan = ทอง */
+.ocl-worldtag[data-world="origin"] { border-color: var(--oc-azure); }
+.ocl-worldtag[data-world="fodlan"] { border-color: #e0a63a; }
+.ocl-worldtag[data-world="fodlan"] .oc-latin { color: #9a6a18; }
 
 .ocl-dots { display: flex; gap: 3px; }
 .ocl-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: 0 0 0 1.5px #fff; }

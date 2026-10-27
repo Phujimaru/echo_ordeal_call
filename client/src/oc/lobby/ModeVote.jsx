@@ -1,6 +1,8 @@
 // เลือกโหมด (gameState TEAM_MODE) — 2 ชั้น: เลือกสนาม (โลก / Colony / ดวงจันทร์) → เลือกโหมดของสนามนั้น · โหวตจริงที่ปุ่ม "โหวต" ในแผง
 //  ชั้นสนาม (world = null): โลกกลางจอ + โคโลนีโคจรรอบโลก (globe/colonyModel.js) + ดวงจันทร์มุมบนซ้าย (globe/moonModel.js) · กดวัตถุ = เข้าสนามนั้น
-//  โลก: หมุดโหมดบนลูกโลกแบบเดิม · Colony: กล้องพาโคโลนีมากลางจอ โลกถอยไปมุมล่างซ้าย + หมุดโหมด 3 อันบนตัวกระบอก
+//  โลก: หมุดสนามย่อย 2 อัน — Origin (การเดินทาง 7 ภูมิภาคแบบเดิม) / Fodlan (ทวีป 5 ด่าน — GRID_PLAN §8.5) · กดแล้วแตกเป็นหมุดโหมด 3 อัน
+//   (world ฝั่ง client: "earth" = ชั้นหมุด Origin/Fodlan · "origin" → โหวต world "earth" · "fodlan" → โหวต world "fodlan")
+//  Colony: กล้องพาโคโลนีมากลางจอ โลกถอยไปมุมล่างซ้าย + หมุดโหมด 3 อันบนตัวกระบอก
 //  ดวงจันทร์: ดวงจันทร์กลางจอ โลกถอยไปมุมล่างซ้าย · หมุดเดียว = ลูกบาศก์ Moon Cell เหนือดวงจันทร์ (โหมด moon — Raid Boss GRID_PLAN §8.4)
 //  กดหมุด/ป้าย = เลือกดู: แผงเลื่อนเข้ามาทางขวา · กดที่ว่าง / Esc = เลิกดู · ย้อนกลับ/Esc ตอนไม่ได้เลือกดู = กลับชั้นสนาม
 //  ย้อนกลับจากชั้นสนาม = กลับห้องรอ (modeBackToLobby — ทุกคนยกเลิกพร้อม) ไม่ใช่ออกจากห้อง
@@ -13,15 +15,28 @@ import { dirFromLonLat, regionDir, COLORS } from "../../globe/globeCore";
 import { createColonyModel } from "../../globe/colonyModel";
 import { createMoonModel } from "../../globe/moonModel";
 import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas";
+import { FODLAN_GEO, FODLAN_STAGES } from "../../fodlan/stages";
 import { OcButton, OcPanel } from "../ui";
 
 const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
 const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss" };
 const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป" };
 const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
+// หมุดโหมดของ Fodlan กระจุกรอบหมุด Fodlan (ทะเลเปิดระหว่างภูมิภาค III–IV ของ Origin)
+const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
+// ชั้นหมุดสนามย่อยบนโลก: Origin = ภูมิภาค I ของการเดินทาง · Fodlan = หมุดสีทอง
+const SUBS = ["origin", "fodlan"];
+const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat] };
+const FODLAN_GOLD = 0xe0a63a;
 const ORDER = ["ffa", "duo", "trio"];
 const WORLDS = ["earth", "colony", "moon"];
-const WORLD_TITLES = { earth: "โลก", colony: "Colony", moon: "ดวงจันทร์" };
+const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
+const LATIN_WORLDS = new Set(["origin", "fodlan", "colony"]);
+// ชื่อสนามตามที่ server เก็บ (ผลโหวต): earth = Origin
+const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
+// world ฝั่ง client → world ที่ส่งให้ server
+const serverWorld = (w) => (w === "origin" || w === "earth" || !w ? "earth" : w);
+const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan";
 const LATIN_MODES = new Set(["moon"]);
 // บอสของ Moon Cell (server/moonCell.js) — ชื่อ + พลังชีวิต/เกราะ
 const MOON_BOSSES = [
@@ -48,7 +63,8 @@ function useOptions(state, world) {
     { mode: "duo", enabled: count >= 4 && count % 2 === 0, voters: [], voteCount: 0 },
     { mode: "trio", enabled: count === 6, voters: [], voteCount: 0 },
   ]);
-  const w = world || "earth";
+  if (world === "earth") return []; // ชั้นหมุด Origin / Fodlan ยังไม่มีหมุดโหมด
+  const w = serverWorld(world);
   return list.filter((o) => (w === "moon" ? o.mode === "moon" : MODE_GEO[o.mode]) && worldOf(o) === w)
     .sort((a, b) => ORDER.indexOf(a.mode) - ORDER.indexOf(b.mode));
 }
@@ -62,13 +78,14 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const me = state.players.find((p) => p.id === state.youId);
   const myVote = me?.modeVote || null;
   const myWorld = myVote ? me?.modeWorld || "earth" : null;
-  const votedHere = (mode) => myVote === mode && myWorld === (world || "earth");
+  const votedHere = (mode) => myVote === mode && myWorld === serverWorld(world);
   // โหมดที่แผงแสดง — ค้างไว้ระหว่างแผงเลื่อนออกตอนเลิกดู (ปรับ state ระหว่าง render ตามแนวทางของ React)
   const [shown, setShown] = useState(focus);
   if (focus && focus !== shown) setShown(focus);
 
   const tagRefs = useRef({});
   const worldRefs = useRef({});
+  const subRefs = useRef({});
   const areaRefs = useRef([]);
   const scene = useRef(null);
   const optsRef = useRef(options);
@@ -79,7 +96,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
     clickSound();
-    socket.emit("selectGameMode", { mode, world: world || "earth" });
+    socket.emit("selectGameMode", { mode, world: serverWorld(world) });
   };
   // กดหมุด/ป้าย = เลือกดูอย่างเดียว ยังไม่โหวต (ผู้ใช้สั่ง: ต้องกดยืนยันก่อน) · ป้ายเป็นปุ่ม (เสียงคลิกมาเอง) หมุดบนโลกต้องเรียกเอง
   const preview = (mode, sound) => { if (sound && mode !== focus) clickSound(); onFocus(mode); };
@@ -87,6 +104,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const enter = (w, sound) => { if (sound) clickSound(); onFocus(null); onWorld(w); };
   const back = () => {
     if (focus) { onFocus(null); return; }
+    if (world === "origin" || world === "fodlan") { onWorld("earth"); return; }
     if (world) { onWorld(null); return; }
     socket.emit("modeBackToLobby");
   };
@@ -107,25 +125,42 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const root = new THREE.Group();
     core.spin.add(root);
     const up = new THREE.Vector3(0, 1, 0);
-    const markers = {};
-    const hits = [];
-    for (const mode of ORDER) {
-      const dir = dirFromLonLat(...MODE_GEO[mode]);
+    // หมุดบนผิวโลก (ก้าน + หัว + วงเลือก + ทรงกลมรับคลิกล่องหน) · big = หมุดสนามย่อย (ใหญ่กว่า)
+    const makePin = (geo, color, data, big = false) => {
+      const dir = dirFromLonLat(...geo);
+      const k = big ? 1.5 : 1;
       const g = new THREE.Group();
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.14, 6), new THREE.MeshBasicMaterial({ color: COLORS.azure }));
-      stem.position.y = 0.07;
-      const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.022), new THREE.MeshBasicMaterial({ color: COLORS.azure }));
-      head.position.y = 0.15;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.058, 48), new THREE.MeshBasicMaterial({ color: COLORS.echo, transparent: true, opacity: 0, side: THREE.DoubleSide }));
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004 * k, 0.004 * k, 0.14 * k, 6), new THREE.MeshBasicMaterial({ color }));
+      stem.position.y = 0.07 * k;
+      const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.022 * k), new THREE.MeshBasicMaterial({ color }));
+      head.position.y = 0.15 * k;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.05 * k, 0.058 * k, 48), new THREE.MeshBasicMaterial({ color: big ? color : COLORS.echo, transparent: true, opacity: 0, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = 0.003;
-      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-      hit.position.y = 0.12; hit.userData.mode = mode;
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(0.09 * k, 10, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      hit.position.y = 0.12 * k; Object.assign(hit.userData, data);
       g.add(stem, head, ring, hit);
       g.position.copy(dir);
       g.quaternion.setFromUnitVectors(up, dir);
       root.add(g);
-      markers[mode] = { g, stem, head, ring, dir };
-      hits.push(hit);
+      return { g, stem, head, ring, hit, dir, k };
+    };
+    // หมุดโหมดสองชุด: Origin (ตำแหน่งเดิม) / Fodlan (รอบหมุด Fodlan)
+    const modeSets = { origin: {}, fodlan: {} };
+    const hitsBy = { origin: [], fodlan: [] };
+    for (const mode of ORDER) {
+      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO]]) {
+        const m = makePin(geo[mode], COLORS.azure, { mode });
+        modeSets[set][mode] = m;
+        hitsBy[set].push(m.hit);
+      }
+    }
+    const subs = {};
+    const subHits = [];
+    for (const sub of SUBS) {
+      const m = makePin(SUB_GEO[sub], sub === "fodlan" ? FODLAN_GOLD : COLORS.azure, { sub }, true);
+      m.ring.material.opacity = 0.7;
+      subs[sub] = m;
+      subHits.push(m.hit);
     }
     const token = new THREE.Mesh(new THREE.OctahedronGeometry(0.035), new THREE.MeshBasicMaterial({ color: COLORS.echo }));
     token.visible = false;
@@ -160,19 +195,26 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const cur = { pos: new THREE.Vector3(2, 0.6, -1), scale: 0.4, quat: new THREE.Quaternion(), op: 0 };
     const tgtPos = new THREE.Vector3(), tgtQuat = new THREE.Quaternion(), e = new THREE.Euler();
     let orbit = 0.6;
-    const s = { root, markers, hits, token, route: null, curve: null, areaDirs, focus: null, colony, cpins, cHits, moon };
+    const s = { root, modeSets, hitsBy, subs, subHits, token, route: null, curve: null, areaDirs, focus: null, colony, cpins, cHits, moon };
     scene.current = s;
 
     const tmp = new THREE.Vector3();
     const offFrame = core.onFrame((dt, clock) => {
       const w = worldRef.current;
-      const f = s.markers[s.focus];
-      if (f && w === "earth") f.ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 3));
+      const set = s.modeSets[w] || null;
+      const f = set && set[s.focus];
+      if (f) f.ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 3));
+      for (const [k, pins] of Object.entries(s.modeSets)) for (const m of Object.values(pins)) m.g.visible = w === k;
+      for (const m of Object.values(s.subs)) {
+        m.g.visible = w === "earth";
+        m.head.rotation.y += dt * 1.2;
+        m.ring.scale.setScalar(1 + 0.18 * Math.sin(clock * 2.4));
+      }
       if (s.curve && token.visible) {
         token.position.copy(s.curve.getPointAt((((clock * 0.04) % 1) + 1) % 1)).multiplyScalar(1.02); // clock ติดลบได้ในเฟรมแรก
         token.rotation.y += dt * 2;
       }
-      root.visible = w === "earth";
+      root.visible = onEarth(w);
 
       // ---- เป้าของโคโลนี
       const gp = core.world.position, gs = core.world.scale.x;
@@ -244,18 +286,27 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         mtag.classList.toggle("back", w !== "moon");
       }
       for (const mode of ORDER) {
-        // ป้ายโหมดชุดเดียว: สนามโลก = เกาะหมุดบนลูกโลก · Colony = เกาะหมุดบนตัวกระบอก
+        // ป้ายโหมดชุดเดียว: สนาม Origin/Fodlan = เกาะหมุดบนลูกโลก · Colony = เกาะหมุดบนตัวกระบอก
         const el = tagRefs.current[mode];
         if (el && w === "colony") {
           const p = core.project(s.cpins[mode].g.localToWorld(tmp.set(0, 0.24, 0)));
           el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
           el.classList.remove("back");
-        } else if (el) {
-          const m = s.markers[mode];
+        } else if (el && set) {
+          const m = set[mode];
           const p = core.project(m.g.localToWorld(tmp.set(0, 0.17, 0)));
           el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
-          el.classList.toggle("back", w !== "earth" || core.facing(m.dir) < 0.18);
-        }
+          el.classList.toggle("back", core.facing(m.dir) < 0.18);
+        } else if (el) el.classList.add("back");
+      }
+      // ป้ายสนามย่อย Origin / Fodlan (ชั้นโลก)
+      for (const sub of SUBS) {
+        const el = subRefs.current[sub];
+        if (!el) continue;
+        const m = s.subs[sub];
+        const p = core.project(m.g.localToWorld(tmp.set(0, 0.27, 0)));
+        el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -120%)`;
+        el.classList.toggle("back", w !== "earth" || core.facing(m.dir) < 0.12);
       }
       const we = worldRefs.current;
       if (we.earth) {
@@ -273,7 +324,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         we.moon.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
         we.moon.classList.toggle("back", !!w);
       }
-      const showAreas = !!s.curve && w === "earth";
+      const showAreas = !!s.curve && w === "origin";
       areaRefs.current.forEach((el, i) => {
         if (!el) return;
         if (!showAreas) { el.classList.add("back"); return; }
@@ -288,9 +339,10 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
       const w = worldRef.current;
       const h = w === "colony" ? core.raycaster(ev).intersectObjects(cHits, false)[0]
         : w === "moon" ? core.raycaster(ev).intersectObjects([moon.cellHit], false)[0]
-          : w === "earth" ? core.pick(ev, hits) : null;
+          : hitsBy[w] ? core.pick(ev, hitsBy[w]) : null;
       return h ? h.object.userData.mode : null;
     };
+    const pickSub = (ev) => { const h = core.pick(ev, subHits); return h ? h.object.userData.sub : null; };
     const pickColony = (ev) => !!core.pick(ev, colony.hits);
     const pickMoon = (ev) => !!core.raycaster(ev).intersectObjects([...moon.hits, moon.cellHit], false)[0];
     // กดบนฉาก (ไม่ใช่ลาก): ชั้นสนาม = เลือกโลก/โคโลนี · ในสนาม = หมุดเลือกดู / ที่ว่างเลิกดู — กินทุกคลิก (หน้านี้ไม่มีอีโมต)
@@ -302,6 +354,12 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         else if (core.hitGlobe(ev)) cbRef.current.enter("earth", true);
         return true;
       }
+      if (w === "earth") {
+        // ชั้นโลก: กดหมุด Origin / Fodlan = แตกเป็นหมุดโหมดของสนามนั้น · ที่ว่าง = ไม่ทำอะไร
+        const sub = pickSub(ev);
+        if (sub) cbRef.current.enter(sub, true);
+        return true;
+      }
       const mode = pickMode(ev);
       if (mode) cbRef.current.preview(mode, true);
       else cbRef.current.clear();
@@ -309,7 +367,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     };
     const offHover = core.onHover((ev) => {
       const w = worldRef.current;
-      const hot = ev && (w ? !!pickMode(ev) : pickColony(ev) || pickMoon(ev) || !!core.hitGlobe(ev));
+      const hot = ev && (w === "earth" ? !!pickSub(ev) : w ? !!pickMode(ev) : pickColony(ev) || pickMoon(ev) || !!core.hitGlobe(ev));
       if (hot) core.canvas.dataset.hot = "1"; else delete core.canvas.dataset.hot;
     });
 
@@ -335,7 +393,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     for (const opt of options) {
       const col = !opt.enabled || opt.suspended ? COLORS.mute : votedHere(opt.mode) ? COLORS.echo : COLORS.azure;
       if (opt.mode === "moon") continue; // ลูกบาศก์ Moon Cell คงสีของมันเอง (ป้ายบอกสถานะโหวต)
-      const m = world === "colony" ? s.cpins[opt.mode] : s.markers[opt.mode];
+      const m = world === "colony" ? s.cpins[opt.mode] : (s.modeSets[world] || {})[opt.mode];
       if (!m) continue;
       m.head.material.color.setHex(col);
       m.stem.material.color.setHex(col);
@@ -348,13 +406,15 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     if (!s || !core) return;
     const { THREE } = core;
     s.focus = focus;
-    for (const [mode, m] of Object.entries(s.markers)) m.ring.material.opacity = mode === focus && world === "earth" ? 0.9 : 0;
-    if (world === "earth") { core.setAutoSpin(0); core.focusDir((s.markers[focus] || s.markers.ffa).dir); }
+    for (const [k, pins] of Object.entries(s.modeSets)) for (const [mode, m] of Object.entries(pins)) m.ring.material.opacity = mode === focus && world === k ? 0.9 : 0;
+    const set = s.modeSets[world];
+    if (set) { core.setAutoSpin(0); core.focusDir((set[focus] || (world === "fodlan" ? s.subs.fodlan : set.ffa)).dir); }
+    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).normalize()); } // เห็นทั้ง Origin และ Fodlan
     else { core.focusDir(null); core.setAutoSpin(world === "colony" || world === "moon" ? 0.04 : 0.07); }
     if (s.route) { s.root.remove(s.route); s.route.geometry.dispose(); s.route.material.dispose(); s.route = null; }
     s.curve = null;
     s.token.visible = false;
-    if (world === "earth" && focus) {
+    if (world === "origin" && focus) {
       // ภูมิภาค I → แต่ละภูมิภาค → กลับ I (ดาวกระจาย) — เส้นเดียวต่อกัน ให้หมุดวิ่งวนไปทุกปลายทางที่สุ่มได้
       let pts = [];
       const hub = s.areaDirs[0];
@@ -379,7 +439,11 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const panelOpt = options.find((o) => o.mode === shown) || null;
   const votedCount = state.players.filter((p) => p.modeVote).length;
   const blocked = (o) => !o.enabled || o.suspended;
-  const worldVoters = (w) => state.players.filter((p) => p.modeVote && (p.modeWorld || "earth") === w);
+  // ป้ายโลกนับรวมทั้ง Origin และ Fodlan (สองสนามอยู่บนโลก) · ป้ายสนามย่อยนับแยก
+  const worldVoters = (w) => state.players.filter((p) => {
+    const pw = p.modeWorld || "earth";
+    return p.modeVote && (w === "earth" ? pw === "earth" || pw === "fodlan" : w === "origin" ? pw === "earth" : pw === w);
+  });
 
   const modeTags = () => options.map((o) => {
     const voters = state.players.filter((p) => (o.voters || []).includes(p.id));
@@ -415,12 +479,29 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               key={w}
               type="button"
               ref={(el) => { worldRefs.current[w] = el; }}
-              className={`oc-tag ocl-worldtag back${myWorld === w ? " on" : ""}`}
+              className={`oc-tag ocl-worldtag back${myWorld === w || (w === "earth" && myWorld === "fodlan") ? " on" : ""}`}
               data-world={w}
               onClick={() => enter(w, false)}
               tabIndex={world ? -1 : 0}
             >
               <span className={w === "colony" ? "oc-latin" : ""}>{WORLD_TITLES[w]}</span>
+              {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
+            </button>
+          );
+        })}
+        {SUBS.map((sub) => {
+          const voters = worldVoters(sub);
+          return (
+            <button
+              key={sub}
+              type="button"
+              ref={(el) => { subRefs.current[sub] = el; }}
+              className={`oc-tag ocl-worldtag ocl-subtag back${myWorld === serverWorld(sub) ? " on" : ""}`}
+              data-world={sub}
+              onClick={() => enter(sub, false)}
+              tabIndex={world === "earth" ? 0 : -1}
+            >
+              <span className="oc-latin">{WORLD_TITLES[sub]}</span>
               {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
             </button>
           );
@@ -433,7 +514,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
       </div>
 
       <header className="ocl-title oc-enter" key={world || "pick"}>
-        <h1 className={`oc-h1${world === "colony" ? " oc-latin" : ""}`}>{world ? WORLD_TITLES[world] : "เลือกสนาม"}</h1>
+        <h1 className={`oc-h1${LATIN_WORLDS.has(world) ? " oc-latin" : ""}`}>{world ? WORLD_TITLES[world] : "เลือกสนาม"}</h1>
         <span className="oc-label">โหวตแล้ว {votedCount} / {state.players.length}</span>
       </header>
 
@@ -445,7 +526,20 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
-            {world === "earth" ? (
+            {world === "fodlan" ? (
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">ด่าน</div>
+                <ol className="ocl-route">
+                  {FODLAN_STAGES.map((st, i) => (
+                    <li key={st.id} className={i === 0 ? "first" : ""}>
+                      <span className="n oc-latin">{st.numeral}</span>
+                      <span>{st.name}</span>
+                      <span className="tt">{turnRange(i)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ) : world === "origin" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">เส้นทาง</div>
                 <ol className="ocl-route">
@@ -493,7 +587,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
                   <li key={p.id}>
                     <i style={{ background: p.color }} />
                     <span className="nm">{p.name}{p.id === state.youId ? " (คุณ)" : ""}</span>
-                    <span className={p.modeVote ? "v" : "v none"}>{p.modeVote ? `${WORLD_TITLES[p.modeWorld || "earth"]} · ${modeTitle(p.modeVote)}` : "–"}</span>
+                    <span className={p.modeVote ? "v" : "v none"}>{p.modeVote ? `${VOTE_WORLD_TITLES[p.modeWorld || "earth"]} · ${modeTitle(p.modeVote)}` : "–"}</span>
                   </li>
                 ))}
               </ul>

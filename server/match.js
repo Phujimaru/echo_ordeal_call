@@ -9,7 +9,8 @@ const match = {
   players: {},
   gameState: "LOBBY", // LOBBY | TEAM_MODE | TEAM_SETUP | PLAYING | CUTSCENE | ORDER | ACTION | ATTACKING | TRANSITION | GAMEOVER
   gameMode: "ffa", // ffa | duo | trio | moon | pending
-  world: "earth",  // สนาม: earth = การเดินทาง 7 ภูมิภาคบนโลก · colony = โคโลนีอวกาศ (GRID_PLAN §8.3) · moon = Moon Cell (§8.4) — โหวตคู่กับโหมด
+  world: "earth",  // สนาม: earth = การเดินทาง 7 ภูมิภาคบนโลก · fodlan = ทวีป Fodlan 5 ด่าน (GRID_PLAN §8.5) · colony = โคโลนีอวกาศ (§8.3) · moon = Moon Cell (§8.4) — โหวตคู่กับโหมด
+  fodlan: null,    // Fodlan (server/fodlan.js · GRID_PLAN §8.5): { stage, route, weather: { kind, left } | null }
   moon: null,      // Moon Cell — Raid Boss (server/moonCell.js): ฮาคุโนะ 2 ตัว · Moon Cell · คำสาปแห่งดวงจันทร์ · ผลแพ้ชนะ
   teamSize: 1,
   teamCount: 0,

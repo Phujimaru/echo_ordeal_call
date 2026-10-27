@@ -12,7 +12,7 @@ const { POSITION_COLORS } = require("../characters");
 const Journey = require("../characters/_journey");
 const CHAR_HOOKS = require("../characters/index");
 const {
-  JOURNEY_START_SECONDS, RESERVATION_TTL_MS, TEAM_IDS,
+  JOURNEY_START_SECONDS, FODLAN_START_SECONDS, RESERVATION_TTL_MS, TEAM_IDS,
 } = require("./constants");
 const { io } = require("./app");
 const match = require("./match");
@@ -28,6 +28,7 @@ const view = require("./view");
 const Zero = require("./zeroTime");
 const Duo = require("./duo");
 const Colony = require("./colony");
+const Fodlan = require("./fodlan");
 const Moon = require("./moonCell");
 const Board = require("./board");
 
@@ -101,8 +102,8 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
     return { ...opt, suspended, enabled: !suspended && validGameMode(opt.mode, count) };
   });
 }
-// สนามที่โหวตได้: โลก (การเดินทาง) / โคโลนี — ทั้งสองมีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
-const WORLDS = ["earth", "colony", "moon"];
+// สนามที่โหวตได้: โลก (Origin — การเดินทาง) / Fodlan (บนโลก — GRID_PLAN §8.5) / โคโลนี — มีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
+const WORLDS = ["earth", "fodlan", "colony", "moon"];
 // โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
 function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon"); }
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
@@ -316,7 +317,9 @@ function startMatch() {
   match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
   match.colony = null;
   match.moon = null;
-  if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
+  match.fodlan = null;
+  if (Fodlan.inWorld()) Fodlan.start(); // Fodlan: ด่าน I เสมอ + สุ่มสภาพอากาศ (GRID_PLAN §8.5)
+  else if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
   else if (Moon.inWorld()) Moon.start(); // Moon Cell: กระดานดวงจันทร์ 20×20 + ฮาคุโนะ 2 ตัว + Moon Cell (GRID_PLAN §8.4)
   else action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: เริ่มเกมล่องหนทันที (ถ้าเข้าเงื่อนไข)
@@ -328,14 +331,16 @@ function startMatch() {
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก) · Moon Cell = ฉากบินอ้อมโลกไปดวงจันทร์ (client oc/intro/moonFlight.js)
-  const journeyStart = (Journey.active(engine) || Colony.inWorld() || Moon.inWorld()) && JOURNEY_START_SECONDS > 0;
+  const journeyStart = (Journey.active(engine) || Colony.inWorld() || Moon.inWorld() || Fodlan.inWorld()) && JOURNEY_START_SECONDS > 0;
   if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
     //  (cutsceneInfo = null -> client วาดกระดานปกติไว้ใต้ฉากเปิดแมตช์ (MatchIntro) ซึ่งบังอยู่แล้ว)
     match.cutsceneInfo = null;
     match.gameState = "CUTSCENE";
-    timers.startPhaseTimer(gameIntroHoldSeconds() + (journeyStart ? JOURNEY_START_SECONDS : 0), () => {
+    // Fodlan: ฉากดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน ยาวกว่า (client fodlan/stages.js FODLAN_INTRO_MS 13 วิ)
+    const sceneSecs = Fodlan.inWorld() ? FODLAN_START_SECONDS : JOURNEY_START_SECONDS;
+    timers.startPhaseTimer(gameIntroHoldSeconds() + sceneSecs, () => {
       if (match.journeyScene) match.journeyScene.active = false;
       cutscene.runCutsceneQueue(draw.dealRound);
     });
@@ -379,6 +384,7 @@ function backToLobby() {
   match.journeyRoute = [1];
   match.colony = null;
   match.moon = null;
+  match.fodlan = null;
   Board.setWrap(0);
   Zero.reset();
   match.lastLog = [];

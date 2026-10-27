@@ -13,6 +13,8 @@ import MatchIntro from "./oc/intro/MatchIntro";
 import { COLONY_MS } from "./oc/intro/colonyFlight";
 import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
+import FodlanTravel from "./fodlan/FodlanTravel";
+import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
 import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
 import { OcScreen } from "./oc/ui";
@@ -82,7 +84,8 @@ export default function App() {
   const journeySeqRef = useRef(null);      // ฉากที่เล่น/จองไว้แล้ว (กันเล่นซ้ำจากบรอดแคสต์ถัดๆ ไป)
   const pendingJourneyRef = useRef(null);  // ฉาก start ที่รอช่วงเปิดตัวผู้เล่นจบก่อน
   const journeyStateRef = useRef(null);    // ก้อน journey ล่าสุด (startPendingJourney อ่านว่าช่วงพักยังไม่หมด)
-  const worldRef = useRef("earth");        // สนามของแมตช์ (earth | colony | moon) — colony = ฉากพุ่งเข้าโคโลนี · moon = บินอ้อมโลกไปดวงจันทร์ แทนดิ่งลงโลก
+  const worldRef = useRef("earth");        // สนามของแมตช์ (earth | fodlan | colony | moon) — colony = ฉากพุ่งเข้าโคโลนี · moon = บินอ้อมโลกไปดวงจันทร์ · fodlan = ดิ่งลงหมุด Fodlan → แผนที่ทวีป แทนดิ่งลงโลก
+  const fodlanRef = useRef(null);          // ก้อน state.fodlan ล่าสุด (ด่าน/สภาพอากาศ/ฉาก)
   const prevGameStateRef = useRef(null);
   const screenKeyRef = useRef("setup"); // หน้าปัจจุบัน (navigate ใช้ตัดสินว่าต้องมีม่านไหม)
   const [roster, setRoster] = useState([]);
@@ -141,17 +144,25 @@ export default function App() {
       // การเดินทาง: ช่วงพักรอฉากลูกโลกเริ่มใหม่ -> start รอช่วงเปิดตัวผู้เล่นจบก่อน · advance เล่นทันที
       journeyStateRef.current = s.journey || null;
       worldRef.current = s.world || "earth";
-      const jScene = s.journey?.scene;
+      fodlanRef.current = s.fodlan || null;
+      // Fodlan: ฉากเข้า/เปลี่ยนแผนที่มาทาง state.fodlan.scene (ด่าน = stage) แทน state.journey
+      const fScene = s.fodlan?.scene;
+      const jScene = s.journey?.scene || (fScene ? { ...fScene, area: fScene.stage, fromArea: fScene.fromStage } : null);
       if (jScene?.active && jScene.seq !== journeySeqRef.current) {
         journeySeqRef.current = jScene.seq;
         if (jScene.mode === "start") pendingJourneyRef.current = jScene;
         else if (jScene.mode === "rebirth") setRebirth({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, endsInMs: (Number(s.timeLeft) || 18) * 1000 });
+        else if (s.world === "fodlan") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
         else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
       if (!wasInMatch && nowInMatch) {
         curtainRef.current?.skip("gameintro");
         ghostScreen(".ocl"); // หน้าเลือกโหมด/จัดทีมจางหายแทนการหายวับ (ลูกโลกอยู่ต่อในฉากเปิดแมตช์)
-        setIntro({ key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1 });
+        setIntro({
+          key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1,
+          // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = MatchIntro สร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร (เพลงคุมโดย audioPolicy)
+          fodlan: s.world === "fodlan" && s.fodlan ? { stage: s.fodlan.stage, weather: !!s.fodlan.weather, music: false } : null,
+        });
         setShowIntro(true);
       }
       prevGameStateRef.current = s.gameState;
@@ -258,8 +269,10 @@ export default function App() {
   const phase = stage === "connected" && state ? state.gameState : null;
   // การเดินทาง: "ช่วงเวลา" = ภูมิภาค + กลางวัน/กลางคืน — เปลี่ยนภูมิภาคเมื่อไหร่เพลงประจำภูมิภาคเริ่มใหม่จากต้นเช่นกัน
   const journeyNow = stage === "connected" ? state?.journey : null;
+  // Fodlan: "ช่วงเวลา" = ด่าน + สภาพอากาศ (เพลงด่านเริ่มใหม่เมื่อเปลี่ยนด่าน/สภาพอากาศมา-หมด)
+  const fodlanNow = stage === "connected" ? state?.fodlan : null;
   const cycle = stage === "connected" && state
-    ? (journeyNow ? `${journeyNow.area}-${journeyNow.night ? "night" : "day"}` : state.cycle)
+    ? (journeyNow ? `${journeyNow.area}-${journeyNow.night ? "night" : "day"}` : fodlanNow ? `f${fodlanNow.stage}-${fodlanNow.weather ? "wx" : ""}` : state.cycle)
     : null;
   const skillMusic = stage === "connected" && state ? state.skillMusic : null;
   const skillMusicSeq = stage === "connected" && state ? state.skillMusicSeq : 0;
@@ -308,7 +321,7 @@ export default function App() {
     if (sounds.attack && !(state?.board && window.innerWidth >= 768)) {
       playSfx(state?.attack?.byAttackSound || "attack");
     }
-  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, introOn]);
+  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, fodlanNow?.scene?.active, introOn]);
 
   const goCharacter = (n, pos, col) => {
     setName(n);
@@ -353,10 +366,14 @@ export default function App() {
   const startPendingJourney = () => {
     const pending = pendingJourneyRef.current;
     pendingJourneyRef.current = null;
-    const live = journeyStateRef.current?.scene;
+    const live = journeyStateRef.current?.scene || (fodlanRef.current?.scene ? { ...fodlanRef.current.scene } : null);
     if (pending && live?.active && live.seq === pending.seq) {
       if (worldRef.current === "colony") return { colony: true, durationMs: journeyDurationMs(getTickSeconds(), COLONY_MS) };
       if (worldRef.current === "moon") return { moon: true, durationMs: journeyDurationMs(getTickSeconds(), MOON_MS) };
+      if (worldRef.current === "fodlan") {
+        const f = fodlanRef.current;
+        return { fodlan: true, stage: f?.stage || 1, weather: !!f?.weather, music: false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) };
+      }
       return { area: pending.area, durationMs: journeyDurationMs(getTickSeconds(), 7000) };
     }
     return null;
@@ -441,13 +458,26 @@ export default function App() {
           key={intro.key}
           players={intro.players}
           area={intro.area}
+          fodlan={intro.fodlan}
           lowQ={lowQ}
           onOutro={startPendingJourney}
           onHandoff={handoffIntro}
           onDone={finishIntro}
         />
       )}
-      {travel && !intro && stage === "connected" && (
+      {travel && travel.fodlan && !intro && stage === "connected" && (
+        <FodlanTravel
+          key={travel.seq}
+          from={travel.fromArea}
+          to={travel.area}
+          weather={travel.weather}
+          durationMs={travel.durationMs}
+          lowQ={lowQ}
+          music={false}
+          onDone={finishTravel}
+        />
+      )}
+      {travel && !travel.fodlan && !intro && stage === "connected" && (
         <RegionTravel
           key={travel.seq}
           from={travel.fromArea}

@@ -9,7 +9,7 @@ Object.assign(module.exports, {
 const CHAR_HOOKS = require("../../characters/index");
 const { NO_TICK_STATUS } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
-const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME, TEAM_IDS } = require("../constants");
+const { GOLD_PER_TURN, JOURNEY_ADVANCE_SECONDS, FODLAN_ADVANCE_SECONDS, REBIRTH_SECONDS, TRANSITION_TIME, TEAM_IDS } = require("../constants");
 const match = require("../match");
 const { engine } = require("../engine");
 const combat = require("../combat");
@@ -28,6 +28,7 @@ const Soot = require("../soot");
 const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
+const Fodlan = require("../fodlan");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -92,6 +93,8 @@ function endTurn() {
   Soot.onEndTurn();
   // Colony: รอยรั่วปิด · คูลดาวน์กระโดด · ปิดผนึกปล้อง (ตายจริง) · ครบเวลา = ระเบิด (ทุกคนตาย → เสมอ)
   const colonyHold = Colony.onEndTurn();
+  // Fodlan: สภาพอากาศนับเวลาลง
+  Fodlan.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {
@@ -109,6 +112,8 @@ function endTurn() {
     if (Zero.maybeFinishCollapse()) return;
     // การเดินทาง: ข้ามเข้าภูมิภาคใหม่ -> ฉากแผนที่ก่อนแจกไพ่เทิร์นแรกของภูมิภาค
     if (maybeJourneyAdvance()) return;
+    // Fodlan: ครบ 6 เทิร์นของด่าน → สุ่มด่านถัดไป → ฉากเปลี่ยนแผนที่ก่อนแจกไพ่ (server/fodlan.js)
+    if (Fodlan.maybeAdvance(fodlanAdvanceTimer)) return;
     // ห่วงเวลาซีโร่: เทิร์นถัดไปเป็นกลางคืน (ตั้งแต่เทิร์น 10) สุ่ม 30% ครั้งเดียวต่อเกม
     if (Zero.maybeEnter()) return;
     match.gameState = "TRANSITION";
@@ -182,6 +187,14 @@ function maybeJourneyAdvance() {
   timers.startPhaseTimer(JOURNEY_ADVANCE_SECONDS, () => { match.journeyScene.active = false; draw.dealRound(); });
   view.broadcastState();
   return true;
+}
+
+// Fodlan: พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากเปลี่ยนแผนที่ แล้วแจกไพ่เทิร์นแรกของด่านใหม่
+function fodlanAdvanceTimer() {
+  match.cutsceneInfo = null;
+  match.gameState = "CUTSCENE";
+  timers.startPhaseTimer(FODLAN_ADVANCE_SECONDS, () => { match.journeyScene.active = false; draw.dealRound(); });
+  view.broadcastState();
 }
 
 // ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (characters/echo.js): สุ่มภูมิภาคปลายทางไว้ก่อน → พักเกม CUTSCENE ให้ client เล่นฉากโลกแตก

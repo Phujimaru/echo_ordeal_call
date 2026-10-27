@@ -379,6 +379,36 @@
       "env": {
         "ECHO_SERVER_PORT": "3014"
       }
+    },
+    {
+      "name": "server-fodlan",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3017,
+      "env": {
+        "PORT": "3017",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
+    },
+    {
+      "name": "client-fodlan",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5187",
+        "--strictPort"
+      ],
+      "port": 5187,
+      "env": {
+        "ECHO_SERVER_PORT": "3017"
+      }
     }
   ]
 }

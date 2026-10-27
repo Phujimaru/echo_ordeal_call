@@ -14,7 +14,8 @@ import { span, easeInOut, easeOut, easeIn, smooth, clamp01 } from "./kit";
 import { fodlanAudio } from "./fodlanAudio";
 import { playMusic } from "../audio";
 
-export default function FodlanTravel({ from = 1, to = 2, weather = false, durationMs, lowQ = false, onDone }) {
+// music = false: เกมจริงให้ audioPolicy เลือกเพลง (fodlan_map ระหว่างฉาก) · true = พรีวิวสั่งเล่นเอง
+export default function FodlanTravel({ from = 1, to = 2, weather = false, durationMs, lowQ = false, music = true, onDone }) {
   const a = clampFodlanStage(from), b = clampFodlanStage(to);
   const D = Math.max(5000, Number(durationMs) || FODLAN_TRAVEL_MS);
   const ref = useRef(null);
@@ -48,11 +49,11 @@ export default function FodlanTravel({ from = 1, to = 2, weather = false, durati
     const cam = new THREE.Vector3(), at = new THREE.Vector3(), MA = new THREE.Vector3(), MB = new THREE.Vector3(), tok = new THREE.Vector3(), tmp = new THREE.Vector3();
     const swoop = { from: new THREE.Vector3(), look: new THREE.Vector3(), set: false };
     const cues = [
-      [0.001, () => playMusic("fodlan_map", performance.now())], // เพลงฉากแผนที่ระหว่างเปลี่ยนด่าน (เริ่มต้นเพลงทุกครั้ง)
+      [0.001, () => { if (music) playMusic("fodlan_map", performance.now()); }], // เพลงฉากแผนที่ระหว่างเปลี่ยนด่าน (เริ่มต้นเพลงทุกครั้ง)
       [0.02, () => audio.sfx("cine_map", { gain: 0.8 })],
       [T.route, () => audio.sfx("war_horn", { gain: 0.55 })],
       [T.swoop, () => audio.sfx("cine_swoop")],
-      [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(b, { weather, fade: 3 }); audio.thunder(b === 1 && weather); playMusic(`fodlan_${b}${weather ? "_wx" : ""}`); }],
+      [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(b, { weather, fade: 3 }); audio.thunder(b === 1 && weather); if (music) playMusic(`fodlan_${b}${weather ? "_wx" : ""}`); }],
     ];
 
     theatre.ready.then(() => {

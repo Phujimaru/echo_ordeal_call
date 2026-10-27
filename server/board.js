@@ -321,6 +321,17 @@ MAPS[MOON_AREA] = buildMap({
 });
 const isMoonArea = (area) => Number(area) === MOON_AREA;
 
+// ---------- Fodlan (GRID_PLAN §8.5) ----------
+//  area 40–44 = ด่าน I–V · ⚠️ ตอนนี้ยังเป็นแผนที่ชั่วคราว (ยืมผังภูมิภาคเดิมที่บรรยากาศใกล้กัน) — ผังจริง + กิมมิกทีละด่านเป็นขั้นถัดไป
+//   I แม่น้ำแอร์มิด ← IV วังวนน้ำ · II เรเมียร์ ← III ป่าต้องสาป · III ชายฝั่งเดอร์ดริว ← VII สุดขอบโลก · IV เทือกเขาฟาร์กัส ← VI แดนน้ำแข็ง · V หลุมศพ ← I
+const FODLAN_AREA = 40;
+const FODLAN_STAGES = 5;
+const FODLAN_NAMES = ["แม่น้ำแอร์มิด", "เรเมียร์", "ชายฝั่งเดอร์ดริว", "เทือกเขาฟาร์กัส", "หลุมศพศักดิ์สิทธิ์"];
+[4, 3, 7, 6, 1].forEach((src, i) => {
+  MAPS[FODLAN_AREA + i] = { ...MAPS[src], area: FODLAN_AREA + i, name: FODLAN_NAMES[i] };
+});
+const isFodlanArea = (area) => Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + FODLAN_STAGES;
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -1017,7 +1028,7 @@ function nearShop(pos, shopPos) {
 
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
-  COLONY_AREA, COLONY, isColonyArea,
+  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

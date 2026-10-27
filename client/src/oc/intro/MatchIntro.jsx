@@ -166,7 +166,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       if (spec && spec.fodlan) {
         // Fodlan: การ์ดไหลออก → ดิ่งลงหมุด Fodlan → แผนที่ทวีป → ฉากเข้าด่าน → แฟลชขาวส่งต่อ
         const D = Math.max(6000, Number(spec.durationMs) || FODLAN_INTRO_MS);
-        const f = { at: performance.now(), D, stage: clampFodlanStage(spec.stage), weather: !!spec.weather };
+        const f = { at: performance.now(), D, stage: clampFodlanStage(spec.stage), weather: !!spec.weather, music: spec.music };
         tlRef.current.out = true;
         tlRef.current.fodlan = f;
         setFodlan(f);
@@ -245,7 +245,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     let colonyCam = null;
     // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = เริ่มสร้างเลย (ไม่งั้นสร้างตอน onOutro — ภาพค้างใต้แฟลชจนเสร็จ)
     let fodlanCam = null;
-    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start });
+    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false });
     if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
     const ring = { cx: 0, cy: 0, r: 1 };

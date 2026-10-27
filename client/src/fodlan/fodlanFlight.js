@@ -28,7 +28,8 @@ export const FODLAN_T = {
 };
 const T = FODLAN_T;
 
-export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = false, wrapEl = null, start = 0 } = {}) {
+// music = false: เกมจริงให้ audioPolicy เลือกเพลงเอง (fodlan_map ระหว่างฉาก → เพลงด่านเมื่อเข้ากระดาน) · true = พรีวิวสั่งเล่นเอง
+export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = false, wrapEl = null, start = 0, music = true } = {}) {
   const { THREE, camera } = core;
   const theatre = createFodlanTheatre(core, { stage, weather, lowQ });
   const audio = fodlanAudio();
@@ -48,13 +49,13 @@ export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = fa
   const swoop = { from: new THREE.Vector3(), fromLook: new THREE.Vector3(), set: false };
 
   const cues = [
-    [0.005, () => playMusic("fodlan_map", performance.now())], // เพลงฉากแผนที่ (seq ใหม่ = เริ่มต้นเพลงทุกครั้ง)
+    [0.005, () => { if (music) playMusic("fodlan_map", performance.now()); }], // เพลงฉากแผนที่ (seq ใหม่ = เริ่มต้นเพลงทุกครั้ง)
     [0.1, () => audio.sfx("cine_dive")],
     [T.crash - 0.01, () => audio.sfx("cine_clouds")],
     [T.reveal, () => audio.sfx("cine_reveal")],
     [T.reveal + 0.02, () => audio.sfx("cine_map", { gain: 0.8 })],
     [T.swoop, () => audio.sfx("cine_swoop")],
-    [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(stage, { weather, fade: 3 }); if (stage === 1 && weather) audio.thunder(true); playMusic(`fodlan_${stage}${weather ? "_wx" : ""}`); }],
+    [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(stage, { weather, fade: 3 }); if (stage === 1 && weather) audio.thunder(true); if (music) playMusic(`fodlan_${stage}${weather ? "_wx" : ""}`); }],
   ];
 
   return {
