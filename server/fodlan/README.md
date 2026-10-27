@@ -29,5 +29,6 @@
 | `vision(ctx, st, viewer) → string[] \| null` | view.js (เจ้าตัว) | ช่องที่ viewer มองเห็น (client วาดหมอกนอกช่องเหล่านี้) |
 | `publicInfo(ctx, st) → object` | state.fodlan.board | ข้อมูลให้ client วาด (เรือ ไฟ ช่องเตือน ฉาก fx …) |
 | `playerInfo(ctx, st, p) → object` | state.players[].fodlan | ความอบอุ่น · ศิลาตรา · ชีพจรเทพ |
+| `persist: { preventDeath, atkBonus, maxHpBonus, onEndTurn, playerInfo }` | ฮุคเดียวกันข้างบน + combat.maxHpOf | **ผลค้างข้ามด่าน** — ถามทุกด่านที่ export ไม่ใช่แค่ด่านปัจจุบัน · ได้ `(ctx, st \| null, …)` (st = null เมื่อตอนนี้อยู่ด่านอื่น) · เก็บสถานะเองที่ `match.fodlan` · ชีพจรเทพ/ศิลาตรา/ร่างอสูร (ด่าน V) · playerInfo ต่อ badges |
 
 กฎ: ห้ามแก้ไฟล์กลาง (server/*.js, client ส่วนกลาง) จากในไฟล์ด่าน — ถ้าต้องการจุดเสียบใหม่ให้เพิ่มใน server/fodlan.js ตามแบบเดิม

@@ -16,7 +16,7 @@
 Object.assign(module.exports, {
   inWorld, active, start, reset, stageNow, areaOf, weatherNow, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState,
+  movMod, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -159,6 +159,21 @@ function call(name, fallback, ...args) {
   try { return fn(makeCtx(), stageState(), ...args); }
   catch (err) { console.error(`[fodlan] stage${stageNow()}.${name} โยน error — ข้าม:`, err); return fallback; }
 }
+// ผลค้างทั้งแมตช์ (ข้ามด่าน — ชีพจรเทพ / ศิลาตราที่ถือ / ร่างอสูร ของด่าน V): โมดูลด่าน export `persist: { ฮุค(ctx, st, …) }`
+//  ถามทุกด่านที่มีฮุคนั้น ไม่ว่าตอนนี้อยู่ด่านไหน · st = สถานะของด่านนั้นถ้ากำลังอยู่ด่านนั้น ไม่งั้น null · เก็บสถานะเองที่ match.fodlan
+//  คืนผลของทุกด่านเป็น array
+function persistAll(name, ...args) {
+  if (!active()) return [];
+  const out = [];
+  for (let s = 1; s <= STAGES; s++) {
+    const mod = modOf(s), fn = mod.persist && mod.persist[name];
+    if (typeof fn !== "function") continue;
+    try { out.push(fn(makeCtx(), s === stageNow() ? stageState() : null, ...args)); }
+    catch (err) { console.error(`[fodlan] stage${s}.persist.${name} โยน error — ข้าม:`, err); }
+  }
+  return out;
+}
+const sumOf = (list) => list.reduce((a, v) => a + (Number(v) || 0), 0);
 
 // เข้าด่าน (เริ่มแมตช์ / เปลี่ยนด่าน): สถานะใหม่ของการมาเยือน → ฮุค enter
 function enterStage() {
@@ -184,6 +199,7 @@ function pickNext(from, random = Math.random) {
 function onEndTurn() {
   if (!active()) return;
   call("onEndTurn", undefined);
+  persistAll("onEndTurn");
   const w = match.fodlan.weather;
   if (w && w.left > 0) {
     w.left -= 1;
@@ -264,11 +280,24 @@ function strikeObject(p, id) {
   return secs === false ? false : Math.max(0.6, Number(secs) || 1);
 }
 function movMod(p) { return Number(call("movMod", 0, p)) || 0; }
-function atkBonus(p) { return Number(call("atkBonus", 0, p)) || 0; }
-function preventDeath(p) { return !!call("preventDeath", false, p); }
+function atkBonus(p) { return (Number(call("atkBonus", 0, p)) || 0) + sumOf(persistAll("atkBonus", p)); }
+function preventDeath(p) { return !!call("preventDeath", false, p) || persistAll("preventDeath", p).some(Boolean); }
+// เลือดสูงสุดเพิ่ม (combat.maxHpOf) — ร่างอสูรศิลาตรา +5
+function maxHpBonus(p) { return p && !p.summon ? sumOf(persistAll("maxHpBonus", p)) : 0; }
 function hides(viewer, target) { return !!call("hides", false, viewer, target); }
 function vision(viewer) { const v = call("vision", null, viewer); return Array.isArray(v) ? v : null; }
-function playerInfo(p) { return active() ? call("playerInfo", undefined, p) || undefined : undefined; }
+function playerInfo(p) {
+  if (!active()) return undefined;
+  const own = call("playerInfo", undefined, p) || undefined;
+  const extra = persistAll("playerInfo", p).filter(Boolean); // ผลค้างข้ามด่าน → ต่อ badges
+  if (!extra.length) return own;
+  const out = { ...(own || {}) };
+  for (const e of extra) for (const [k, v] of Object.entries(e)) {
+    if (k === "badges") out.badges = [...(out.badges || []), ...(Array.isArray(v) ? v : [])];
+    else if (!(k in out)) out[k] = v;
+  }
+  return out;
+}
 
 // ข้อมูลที่ส่งให้ client (state.fodlan) — null = ไม่ได้อยู่ในสนาม Fodlan
 function publicInfo() {

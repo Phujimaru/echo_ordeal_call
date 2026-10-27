@@ -2088,7 +2088,7 @@ export function drawFrame(g, st, now) {
   }
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
-  if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ }, tA);
+  if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
   if (info.heal.length && !pz && !colony) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
@@ -2207,7 +2207,7 @@ export function drawFrame(g, st, now) {
     }
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
-    const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind)) && behind(t.x, t.y);
+    const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind, info.area)) && behind(t.x, t.y);
     const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
   }

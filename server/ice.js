@@ -60,9 +60,11 @@ function isSpikeKind(kind) { return typeof kind === "string" && kind.startsWith(
 //  ต่างจากหนาม: ไม่ขึ้น Lv (Ice Surge) · ไม่นับเวลา (เจ้าของถอนเองต้นตาเดินถัดไป) · ไถลชน = ชนสิ่งกีดขวางธรรมดา · ตัวใหญ่เหยียบไม่ได้
 function isWallKind(kind) { return kind === "icewall"; }
 // ช่องในกระดานที่ไม่ใช่สิ่งกีดขวาง (รวมหนาม) และไม่ใช่ร้านค้า — ที่วางน้ำแข็ง/หนาม/พื้นเปียกได้
-function openTile(x, y) {
+//  bridge = ธารน้ำแข็งเท่านั้น: สิ่งกีดขวางที่ TERRAIN_INFO iceBridge (แม่น้ำ Fodlan ด่าน I — fd_river) วางได้ → กลายเป็นสะพานน้ำแข็ง (server/fodlan/stage1.js layer)
+function openTile(x, y, bridge = false) {
   const map = action.boardMap();
-  if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return false;
+  const t = Board.inBounds(map, x, y) ? map.terrain[K(x, y)] : null;
+  if (!Board.inBounds(map, x, y) || (t && !(bridge && (Board.TERRAIN_INFO[t] || {}).iceBridge))) return false;
   return !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y);
 }
 
@@ -131,7 +133,7 @@ function spikeKeyOf(targetId) {
 
 // วาง/ต่อเวลาธารน้ำแข็ง → บันทึกไว้ย้อน { k, prev } · วางไม่ได้ (สิ่งกีดขวาง/ร้านค้า/น้ำแข็งของแผนที่) = null
 function layIce(x, y, owner) {
-  if (!match.board || !openTile(x, y)) return null;
+  if (!match.board || !openTile(x, y, true)) return null;
   const base = Board.mapOf(match.board.area);
   if (Board.specialAt(base, x, y) === "ice") return null; // น้ำแข็งถาวรของภูมิภาค VI อยู่แล้ว
   const k = K(x, y);
@@ -146,7 +148,7 @@ function layIce(x, y, owner) {
 }
 // วางธารน้ำแข็งที่ช่องนี้ได้ไหม (สกิล): ในกระดาน · ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · ไม่ใช่น้ำแข็งถาวรของแผนที่
 function canLay(x, y) {
-  if (!match.board || !openTile(x, y)) return false;
+  if (!match.board || !openTile(x, y, true)) return false;
   return Board.specialAt(Board.mapOf(match.board.area), x, y) !== "ice";
 }
 // วางหนามที่ช่องนี้ได้ไหม: ไม่ใช่สิ่งกีดขวาง/หนาม/ร้านค้า · มีคนยืน = ตัว 1×1 + ทิศผลัก dir ที่ช่องปลายว่าง

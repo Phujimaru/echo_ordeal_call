@@ -15,7 +15,7 @@ const {
   BAG_SLOTS, FORTUNE_MAX, GOLD_MAX, GUTS_AMMO, GUTS_AMMO_IDS, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG,
   GUTS_RANGE, SHOP_AMMO_WEIGHTS, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_INTERVAL_TURNS,
   SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_MAX_GUNS, SHOP_MAX_ITEMS, SHOP_MAX_MARK42,
-  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_SKILL_SIZES, SHOP_WEIGHTS,
+  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_SKILL_SIZES, SHOP_TORCH_PRICE, SHOP_WEIGHTS,
 } = require("./constants");
 const Board = require("./board");
 const cardDeck = require("./deck");
@@ -91,6 +91,7 @@ function shopItemName(item) {
   if (item.type === "gutsAmmo") return (GUTS_AMMO[item.ammo] || {}).name || "กระสุน";
   if (item.type === "kebread") return "ขนมปัง";
   if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
+  if (item.type === "torch") return "คบเพลิง";
   return "สินค้า";
 }
 // เปิดร้านค้ามายา: สุ่มสินค้าใหม่ทั้งหมด SHOP_MAX_ITEMS ช่อง (สินค้าประเภทเดียวกันขึ้นซ้ำได้)
@@ -116,6 +117,7 @@ function openShop() {
 //    sold = ครบเพดานแล้ว (client ใช้ sold ตัดสินว่ากดซื้อได้ไหม) · stock/stockMax ส่งไปโชว์ "เหลือ x/3"
 //  · คลื่นวงวนน้ำ กลางวัน: ช่องที่ยังไม่มีใครซื้อและราคาต่ำกว่า 5 ถูกสุ่มใหม่เป็นของราคา 5 ขึ้นไป
 function refreshShopForJourney() {
+  syncStageItems();
   // ทุกโหมดใช้ตัวนับ bought ตัดสิน sold — ผลของภูมิภาคทำงานเฉพาะโหมดที่มีการเดินทาง (Journey.is/shopStock)
   if (!match.shopItems.length) return;
   if (Journey.is(engine, 4, "day")) {
@@ -127,6 +129,7 @@ function refreshShopForJourney() {
     }
   }
   for (const it of match.shopItems) {
+    if (it.type === "torch") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II): ซื้อได้ไม่จำกัด
     // ของที่ขายไปก่อนมีตัวนับ bought (ร้านจาก snapshot/เวอร์ชันเก่า) ถือว่าซื้อไป 1 ชิ้น
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
     const limit = Journey.shopStock(engine, it);
@@ -134,6 +137,14 @@ function refreshShopForJourney() {
     if (limit > 1) { it.stock = Math.max(0, limit - it.bought); it.stockMax = limit; }
     else { delete it.stock; delete it.stockMax; }
   }
+}
+// Fodlan ด่าน II เรเมียร์ (server/fodlan/stage2.js): คบเพลิงขายเฉพาะตอนอยู่ด่านนี้ — ช่องต่อท้ายร้าน (ไม่นับ SHOP_MAX_ITEMS) · ออกจากด่าน = เอาออก
+//  เรียกทุกต้นเทิร์น/ตอนร้านเปิด/หลังซื้อ (ผ่าน refreshShopForJourney) + ตอนเข้าด่าน
+function syncStageItems() {
+  const want = require("./fodlan/stage2").torchOnSale();
+  const has = match.shopItems.some((it) => it.type === "torch");
+  if (want && !has) match.shopItems.push({ id: `shop_torch_${match.shopRoundSeq}`, type: "torch", price: SHOP_TORCH_PRICE, sold: false, soldTo: null, bought: 0 });
+  else if (!want && has) match.shopItems = match.shopItems.filter((it) => it.type !== "torch");
 }
 // การเดินทาง (ทุ่งดอกไม้ กลางวัน): ของฟรีราคาไม่เกิน 5 ที่ใช้ได้ทันที — ไม่มีกระสุน (ใช้ไม่ได้ถ้าไม่มีปืน)
 function journeyGiftItem() {
@@ -288,6 +299,7 @@ function buyShopItem(id, itemId) {
   p.inventory = p.inventory || [];
   if (item.type === "gutsGun" && hasGutsGun(p)) return;
   if (item.type === "mark42" && !Mark42.canBuy(engine, p)) return; // มีชุดอยู่แล้ว / ชุดเพิ่งพังจากการต่อสู้ (10 เทิร์น)
+  if (item.type === "torch" && !require("./fodlan/stage2").torchOnSale()) return; // คบเพลิง: ขายเฉพาะ Fodlan ด่าน II
   item.bought = (item.bought || 0) + 1; // ทุ่งดอกไม้ กลางคืน: ช่องละหลายชิ้น (refreshShopForJourney คิด sold/stock ใหม่)
   item.soldTo = p.id;
   refreshShopForJourney();
@@ -357,6 +369,9 @@ function useInventoryItem(id, uid, opts = {}) {
   } else if (item.type === "armor") {
     const healed = combat.healArmor(p, item.value);
     match.lastLog.push(`🔧 ${p.name} ใช้ยาฟื้นเกราะ +${healed} จากคลัง`);
+  } else if (item.type === "torch") {
+    // คบเพลิง (Fodlan ด่าน II — server/fodlan/stage2.js): ปักบนช่องที่ยืน · นอกด่าน/ช่องมีคบเพลิงแล้ว = ใช้ไม่ได้ ไม่เสียของ
+    if (!require("./fodlan/stage2").useTorch(p)) return;
   } else if (item.type === "gutsGun") {
     return; // ปืนเป็นไอเทมถาวร ไม่ใช่ของกดใช้ — ต้อง return ก่อนถึง splice ท้ายฟังก์ชัน ไม่งั้นปืนหายทันทีที่กด
   } else {

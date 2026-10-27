@@ -14,6 +14,7 @@ import { COLONY_MS } from "./oc/intro/colonyFlight";
 import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
+import { fodlanAudio } from "./fodlan/fodlanAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
 import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
@@ -277,6 +278,16 @@ export default function App() {
   const skillMusic = stage === "connected" && state ? state.skillMusic : null;
   const skillMusicSeq = stage === "connected" && state ? state.skillMusicSeq : 0;
   const introOn = !!intro; // ฉากเปิดแมตช์ (รวมช่วงดิ่ง) ยังเป็นเพลงห้องรอ
+  // Fodlan: เสียงบรรยากาศของด่าน (ป่า ฝน ชายหาด ลม …) ดังต่อเนื่องตลอดที่อยู่บนกระดาน · ออกจากแมตช์ = จางหาย
+  //  ฉากเข้าด่าน/เปลี่ยนด่านสั่ง setStage เองตอนเข้าฉากด่าน — ที่นี่ตามให้ตรงกับ state (ด่าน/สภาพอากาศเปลี่ยน · รีคอนเนกต์)
+  const fdStage = stage === "connected" && state?.fodlan && isMatchPhase(state.gameState) ? state.fodlan.stage : null;
+  const fdWeather = !!(fdStage && state.fodlan.weather);
+  useEffect(() => {
+    const fa = fodlanAudio();
+    if (!fdStage) { fa.stop(1.5); return; }
+    fa.setStage(fdStage, { weather: fdWeather, fade: 2.5 });
+    fa.thunder(fdStage === 1 && fdWeather);
+  }, [fdStage, fdWeather]);
   useEffect(() => {
     // CUTSCENE: หยุดเพลงพื้นหลัง ปล่อยให้เสียงในวีดีโอเล่น (เพลงสกิลมาหลังวีดีโอ)
     // ร่างแปลง (Ginga/Unicorn): เพลงสกิลทับ | ช่วงต่อสู้: เพลงกลางวัน/กลางคืน | อื่นๆ: main_home

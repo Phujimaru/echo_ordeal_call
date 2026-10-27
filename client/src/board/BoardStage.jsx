@@ -543,7 +543,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const ok = (t) => {
         if (pick.place === "any") return true;
         if (pick.place === "corpse") return corpseKeys.has(key(t.x, t.y)); // ยูนะ: คำอวยพรสุดท้าย — เลือกศพ
-        if (Rules.isObstacle(map, t.x, t.y, blocked)) return false;
+        // ธารน้ำแข็งวางบนแม่น้ำ Fodlan ด่าน I ได้ (TERRAIN_INFO iceBridge → สะพานน้ำแข็ง · server/ice.js openTile bridge)
+        const bridge = pick.place === "ice" && !!(Rules.TERRAIN_INFO[map.terrain[key(t.x, t.y)]] || {}).iceBridge && !(blocked && blocked.has(key(t.x, t.y)));
+        if (!bridge && Rules.isObstacle(map, t.x, t.y, blocked)) return false;
         if (pick.place === "bloom") return true; // เซลิน: พุ่มดอกไม้ — ช่องไหนก็ได้ที่ไม่ใช่สิ่งกีดขวาง/ร้าน (มีคนยืนได้)
         const k = key(t.x, t.y);
         if (pick.place === "ice") return !(map.special[k] === "ice" && !own.has(k));

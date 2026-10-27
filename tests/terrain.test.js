@@ -109,6 +109,21 @@ test('แผนที่ I–VII: ทุกช่องที่ไม่ใช�
         }
       }
     };
+    // ข้อยกเว้น Fodlan ด่าน I (area 40 แม่น้ำแอร์มิด): แม่น้ำแบ่งกระดานเป็นสองฝั่งโดยตั้งใจ (ผู้ใช้สั่ง — ข้ามได้แค่เรือ/สะพานน้ำแข็ง
+    //  ซึ่งอยู่ในชั้น layer ของ server/fodlan/stage1.js) → ทุกช่องต้องหยุดได้จากจุดเกิดอย่างน้อยหนึ่งจุด (= ฝั่งของมัน) แทน
+    if (m.area === Board.FODLAN_AREA) {
+      const union = (blocked) => {
+        const all = new Set();
+        for (const s of m.spawns) for (const k of coverage(m, s, blocked)) all.add(k);
+        for (let x = 0; x < m.cols; x++) for (let y = 0; y < m.rows; y++) {
+          const k = K(x, y);
+          if (!m.terrain[k] && !(blocked && blocked.has(k))) assert.ok(all.has(k), `ภูมิภาค ${m.area}: ${k} หยุดไม่ได้จากจุดเกิดไหนเลย`);
+        }
+      };
+      union(null);
+      for (const shop of m.shopSpots) union(new Set([K(shop.x, shop.y)]));
+      continue;
+    }
     for (const s of m.spawns) check(s, null);
     for (const shop of m.shopSpots) check(m.spawns[0], new Set([K(shop.x, shop.y)]));
   }

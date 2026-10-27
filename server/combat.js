@@ -35,7 +35,8 @@ const Summon = require("./summon");
 function maxHpOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxHp)) return p.summon.maxHp; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[p.characterId];
-  return hook && hook.maxHp ? hook.maxHp(p) : MAX_HP;
+  // Fodlan: ร่างอสูรศิลาตรา เลือดสูงสุด +5 (server/fodlan/stage5.js persist.maxHpBonus)
+  return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + require("./fodlan").maxHpBonus(p);
 }
 // ฟื้นเลือดจริงแบบเคารพสถานะ "ไม่ใช้งานต่อ" / "ไร้ทางเยียวยา" — คืนจำนวนที่ฟื้นได้จริง
 // ผกผัน (patch 2.2.1): การฟื้นเลือดกลับกลายเป็นเสียเลือดแทน (ไม่สนเกราะ)

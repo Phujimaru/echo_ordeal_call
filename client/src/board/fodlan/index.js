@@ -9,6 +9,7 @@
 //   items(items, g, fd, info, units, now, lowQ)  ของที่เรียงความลึกกับตัวละคร → items.push({ d: depthOf(cx, cy), f: () => … })
 //   air(g, fd, info, units, now, lowQ, view)    ทับตัวละคร (ฝน หิมะ ฟ้าแลบ ไฟมังกร ซึนามิ …)
 //   fx: { kind: ms }              ความยาวฉากของเหตุการณ์ (fd.fx — server ctx.fx) · ใช้ fxT(e, now, ms) หาความคืบหน้า 0..1
+//   fogRGB: "r,g,b"               สีหมอกนอกระยะมองเห็นของด่านนี้ (ไม่มี = เทาอมฟ้า)
 //  fd = state.fodlan.board + { stage, weather, vision } (BoardStage ส่งมา) · ช่องเตือน fd.warn = [{ x, y, kind? }] กะพริบแดงให้ทุกด่าน (ผู้ใช้สั่ง)
 //  หมอก (fd.vision = ["x,y"] ช่องที่เรามองเห็น) วาดให้ทุกด่านที่ server ส่งมา
 //  ห้าม import regionThemes / boardDraw จากไฟล์ด่าน (วนกัน) — ใช้ ../boardGeo, ../boardProps ได้
@@ -24,8 +25,11 @@ export const FODLAN_AREA = 40;
 const MODS = { 1: S1, 2: S2, 3: S3, 4: S4, 5: S5 };
 export const stageOfArea = (area) => (Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + 5 ? Number(area) - FODLAN_AREA + 1 : 0);
 const modOfArea = (area) => MODS[stageOfArea(area)] || null;
-const modOfKind = (kind) => {
+// ชนิด fd_… ของด่านปัจจุบันก่อน (ชื่อซ้ำข้ามด่านได้ — เช่น fd_fire) · ไม่รู้ area = ด่านแรกที่มีชื่อนี้
+const modOfKind = (kind, area) => {
   if (typeof kind !== "string" || !kind.startsWith("fd_")) return null;
+  const own = modOfArea(area);
+  if (own && own.kinds && own.kinds.includes(kind)) return own;
   for (const m of Object.values(MODS)) if (m.kinds && m.kinds.includes(kind)) return m;
   return null;
 };
@@ -36,25 +40,25 @@ export function fodlanThemes() {
   for (const [s, m] of Object.entries(MODS)) if (m.theme) out[FODLAN_AREA + Number(s) - 1] = m.theme;
   return out;
 }
-export function isFodlanTall(kind) {
-  const m = modOfKind(kind) || null;
+export function isFodlanTall(kind, area) {
+  const m = modOfKind(kind, area) || null;
   return !!(m && Array.isArray(m.tall) && m.tall.includes(kind));
 }
 // คืน true = วาดแล้ว (boardProps ข้ามของเดิม)
 export function drawFodlanObstacle(g, t, ctx, now) {
-  const m = modOfKind(t.kind);
+  const m = modOfKind(t.kind, ctx && ctx.area);
   if (!m || !m.drawObstacle) return false;
   m.drawObstacle(g, t, ctx, now);
   return true;
 }
 export function bakeFodlanSpecial(g, sp, ctx) {
-  const m = modOfKind(sp.kind);
+  const m = modOfKind(sp.kind, ctx && ctx.area);
   if (!m || !m.bakeSpecial) return false;
   m.bakeSpecial(g, sp, ctx);
   return true;
 }
 export function animFodlanSpecial(g, sp, ctx, t) {
-  const m = modOfKind(sp.kind);
+  const m = modOfKind(sp.kind, ctx && ctx.area);
   if (!m || !m.animSpecial) return false;
   m.animSpecial(g, sp, ctx, t);
   return true;
@@ -71,6 +75,16 @@ export function fxT(e, now, ms) {
   let t0 = FX_SEEN.get(e.seq);
   if (t0 == null) { t0 = now; FX_SEEN.set(e.seq, t0); if (FX_SEEN.size > 64) FX_SEEN.delete(FX_SEEN.keys().next().value); }
   return Math.max(0, Math.min(1, (now - t0) / Math.max(1, ms)));
+}
+// true ครั้งเดียวต่อเหตุการณ์ (เล่นเสียงตอนฉากเริ่ม: if (fxOnce(e)) fodlanAudio().sfx("wx_thunder"))
+const FX_PLAYED = new Set();
+export function fxOnce(e) {
+  if (!e || FX_PLAYED.has(e.seq)) return false;
+  if (FX_BASE === null) FX_BASE = e.seq;
+  if (e.seq < FX_BASE) return false;
+  FX_PLAYED.add(e.seq);
+  if (FX_PLAYED.size > 64) FX_PLAYED.delete(FX_PLAYED.values().next().value);
+  return true;
 }
 export function fxActive(fd, now) {
   const list = fd && Array.isArray(fd.fx) ? fd.fx : [];
@@ -95,8 +109,8 @@ function drawWarn(g, list, now) {
   g.restore();
 }
 
-// ---------- หมอก (fd.vision) ----------
-function drawFog(g, info, vision, now, lowQ) {
+// ---------- หมอก (fd.vision) ---------- สีหมอกตามด่าน: export fogRGB = "r,g,b" ในไฟล์ด่าน (ไม่มี = เทาอมฟ้า)
+function drawFog(g, info, vision, now, lowQ, rgb = "150,160,170") {
   if (!Array.isArray(vision)) return;
   const seen = new Set(vision);
   g.save();
@@ -106,7 +120,7 @@ function drawFog(g, info, vision, now, lowQ) {
     const edge = seen.has(key(x + 1, y)) || seen.has(key(x - 1, y)) || seen.has(key(x, y + 1)) || seen.has(key(x, y - 1));
     const drift = lowQ ? 0 : 0.05 * Math.sin(now / 1400 + x * 0.9 + y * 0.6);
     quad(g, x, y, -0.02);
-    g.fillStyle = `rgba(150,160,170,${(edge ? 0.62 : 0.86) + drift})`;
+    g.fillStyle = `rgba(${rgb},${(edge ? 0.62 : 0.86) + drift})`;
     g.fill();
   }
   g.restore();
@@ -128,7 +142,7 @@ export function drawFodlanAir(g, fd, info, units, now, lowQ, view) {
   if (!fd) return;
   const m = modOfArea(info.area);
   if (m && m.air) m.air(g, fd, info, units, now, lowQ, view);
-  drawFog(g, info, fd.vision, now, lowQ);
+  drawFog(g, info, fd.vision, now, lowQ, (m && m.fogRGB) || undefined);
 }
 // ใช้ในไฟล์ด่าน (ไม่ต้อง import boardGeo ซ้ำ)
 export { P, PA };
