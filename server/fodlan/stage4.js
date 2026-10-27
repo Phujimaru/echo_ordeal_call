@@ -36,7 +36,7 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const NAMES = { fd_deadwood: "ต้นไม้แห้ง", fd_snowpile: "กองหิมะ" };
 
 module.exports = {
-  enter, layer, onEndTurn, hudActions, charAction, objects, strikeObject, publicInfo, playerInfo,
+  enter, weatherStart, layer, onEndTurn, hudActions, charAction, objects, strikeObject, publicInfo, playerInfo,
   // เทสต์
   WARM_MAX, FIRE_RANGE, SMALL_RANGE, SMALL_TURNS, STUN_PCT, AVA_LEN, AVA_DMG, AVA_PUSH, warmTiles, isWarm, avalancheLine,
 };
@@ -60,6 +60,13 @@ function enter(ctx, st) {
   const lit = !blizzard(ctx);
   for (const t of pickFireSpots(ctx, FIRES)) st.fires.push({ id: ++st.fireSeq, x: t.x, y: t.y, lit, small: false });
   if (!lit) ctx.log("🌨️ พายุหิมะโหมกระหน่ำ — กองไฟดับหมด!");
+  ctx.bump();
+}
+// พายุหิมะเริ่มกลางด่าน (server/fodlan.js สุ่มตอนจบเทิร์น) → กองไฟที่ลุกอยู่ดับหมด · กลับมาลุกเองตอนพายุสงบ (onEndTurn)
+function weatherStart(ctx, st) {
+  if (!blizzard(ctx)) return;
+  for (const f of (st.fires || []).filter((x) => x.lit)) { f.lit = false; ctx.fx("fireout", { x: f.x, y: f.y, small: !!f.small }); }
+  ctx.log("🌨️ พายุหิมะโหมกระหน่ำ — กองไฟดับหมด!");
   ctx.bump();
 }
 // ช่องตั้งกองไฟ: พื้นโล่ง · รอบ 8 ช่องไม่มีสิ่งกีดขวาง/ช่องพิเศษ/จุดเกิด/จุดร้านค้า (กองไฟไม่ปิดทางเดิน/ทางเข้าน้ำแข็ง) · ไม่อยู่ในแนวหิมะถล่ม · ไม่มีคนยืน

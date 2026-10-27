@@ -14,6 +14,7 @@ const Stage3 = require('../server/fodlan/stage3.js');
 const K = Board.key;
 const AREA = Board.FODLAN_AREA + 2;
 const realRandom = Math.random;
+const noWx = () => 0.99; // จบเทิร์นในเทสต์: ไม่สุ่มสภาพอากาศใหม่ (สุ่มทุกเทิร์นจนกว่าจะเกิด — server/fodlan.js onEndTurn)
 const realStart = timers.startPhaseTimer;
 function fakeTimers() { timers.startPhaseTimer = (secs) => { match.timeLeft = Math.ceil(secs); }; }
 
@@ -215,20 +216,20 @@ test('เผาทุ่ง: หยิบไฟจากกองไฟ → จ�
   assert.equal(st().fire[K(4, 5)], 3);
   assert.ok(!st().carry.p0, 'ใช้ไฟแล้ว');
   // จบเทิร์น 7: ลามไปช่องติดกัน (3,5) (4,6) — ไม่ลามข้ามช่องที่ไม่ใช่หญ้า
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(st().fire[K(4, 5)], 2);
   assert.equal(st().fire[K(3, 5)], 3);
   assert.equal(st().fire[K(4, 6)], 3);
   assert.ok(!st().fire[K(3, 6)], 'ห่าง 2 ช่อง = ยังไม่ลาม');
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(st().fire[K(4, 5)], 1);
   assert.ok(st().fire[K(3, 6)] && st().fire[K(5, 6)]);
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.ok(!st().fire[K(4, 5)] && st().ash[K(4, 5)], 'ลุกครบ 3 เทิร์น = เถ้า');
   assert.equal(action.boardMap().special[K(4, 5)], 'fd_ash');
   assert.ok(!st().fire[K(4, 5)]);
   // เถ้าไม่ติดไฟซ้ำ
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.ok(!st().fire[K(4, 5)]);
   // จบตาบนช่องที่ลุก
   st().fire[K(9, 9)] = 3;
@@ -269,6 +270,7 @@ test('คลื่นซึนามิ: เทิร์น 1 เตือน ·
   match.board.wet = { [K(8, 3)]: true };
   st().arrows = null;
   const b0 = total(P(0)), b1 = total(P(1)), b2 = total(P(2));
+  match.fodlan.weather.left = 2; // จบเทิร์นนับลง (Fodlan.onEndTurn)
   assert.equal(preRoundOf(8), true);
   assert.deepEqual(P(0).pos, { x: 6, y: 13 });
   assert.deepEqual(P(1).pos, { x: 3, y: 7 });
@@ -291,6 +293,7 @@ test('คลื่นซึนามิ: เทิร์น 1 เตือน ·
   st().arrows = null;
   st().dragon = null; // เทิร์น 3 ของด่าน = มังกรด้วย — ตัดออกให้วัดแค่คลื่น
   const c0 = total(P(0)), c1 = total(P(1));
+  match.fodlan.weather.left = 1;
   preRoundOf(9);
   assert.equal(total(P(0)), c0 - 2);
   assert.equal(total(P(1)), c1 - 3);

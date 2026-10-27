@@ -16,6 +16,7 @@ const S1 = require('../server/fodlan/stage1.js');
 const MAP1 = require('../server/fodlan/map1.js');
 
 const realRandom = Math.random;
+const noWx = () => 0.99; // จบเทิร์นในเทสต์: ไม่สุ่มสภาพอากาศใหม่ (สุ่มทุกเทิร์นจนกว่าจะเกิด — server/fodlan.js onEndTurn)
 const realStart = timers.startPhaseTimer;
 const AREA = Board.FODLAN_AREA;
 const K = Board.key;
@@ -182,7 +183,7 @@ test('สะพานน้ำแข็ง: ธารน้ำแข็งวา
   const before = total(P(0));
   for (const r of Object.values(match.board.ice)) r.left = 1;
   Ice.onEndTurn();
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.ok(Board.isObstacle(action.boardMap(), 2, 5));
   assert.ok(!S1.RIVER.has(K(P(0).pos.x, P(0).pos.y)), 'ขึ้นฝั่ง');
   assert.equal(total(P(0)), before - S1.FALL_DMG);

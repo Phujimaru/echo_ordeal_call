@@ -11,6 +11,7 @@ const combat = require('../server/combat.js');
 const timers = require('../server/timers.js');
 
 const realRandom = Math.random;
+const noWx = () => 0.99; // จบเทิร์นในเทสต์: ไม่สุ่มสภาพอากาศใหม่ (สุ่มทุกเทิร์นจนกว่าจะเกิด — server/fodlan.js onEndTurn)
 const realStart = timers.startPhaseTimer;
 const AREA = Board.FODLAN_AREA + 4;
 
@@ -154,12 +155,12 @@ test('ศิลาตรา: ถือครบ 3 จบเทิร์น = อ
   assert.equal(Fodlan.charAction('p0', 'fd:crest', null), true);
   const base = combat.maxHpOf(a);
   a.hp = 4;
-  Fodlan.onEndTurn();
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
+  Fodlan.onEndTurn(noWx);
   assert.equal(a.hp, 4);
   assert.equal(match.fodlan.tomb.carry.p0.turns, 2);
   assert.ok(!(a.statuses.noskill > 0));
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(a.hp, 9);
   assert.equal(combat.maxHpOf(a), base + 5);
   assert.ok(a.statuses.noskill > 0);
@@ -168,7 +169,7 @@ test('ศิลาตรา: ถือครบ 3 จบเทิร์น = อ
   assert.ok(Fodlan.publicInfo().board.fx.some((e) => e.kind === 'beast' && e.id === 'p0'));
   // สถานะหมดอายุตามลูปจบเทิร์น → เติมใหม่ · เลือดไม่เพิ่มซ้ำ
   delete a.statuses.noskill;
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.ok(a.statuses.noskill > 0);
   assert.equal(a.hp, 9);
   // ฟื้นเลือดได้ถึงเพดานใหม่
@@ -201,7 +202,7 @@ test('ศิลาตรา: คนถือตาย = ศิลาร่วง
   assert.equal(Fodlan.atkBonus(b), 1);
   // ตายแบบ force (ไม่ผ่าน preventDeath) — จบเทิร์นกวาดแล้วศิลาร่วงที่ช่องล่าสุด
   combat.instantDeath(b, true);
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.deepEqual(st.stones.map((s) => [s.x, s.y]), [[9, 7]]);
 });
 
@@ -239,7 +240,7 @@ test('สภาพอากาศออร่า (ด่าน V): แสงเ�
     const before = a.skillPoints;
     Fodlan.preRound(() => {});
     gained.push(a.skillPoints - before);
-    Fodlan.onEndTurn(); // ออร่านับเวลาลง
+    Fodlan.onEndTurn(noWx); // ออร่านับเวลาลง
   }
   assert.deepEqual(gained, [1, 1, 1, 0, 0]);
   assert.ok(Fodlan.publicInfo().board.fx.some((e) => e.kind === 'glow' && e.aura));

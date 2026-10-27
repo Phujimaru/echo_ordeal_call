@@ -77,6 +77,44 @@ test('สภาพอากาศ: สุ่ม < 50% ตอนเข้าด�
   assert.equal(Fodlan.publicInfo().weather, null);
 });
 
+test('สภาพอากาศ: ยังไม่เกิด = สุ่มใหม่ทุกจบเทิร์น · เกิดแล้ว 1 ครั้ง = รอด่านถัดไป · เทิร์นสุดท้ายของด่านไม่สุ่ม', () => {
+  setup(2); // เข้าด่าน: 99 = ไม่เกิด
+  match.legStart = 1;
+  match.roundNumber = 1;
+  Fodlan.onEndTurn(() => 0.99);
+  assert.equal(Fodlan.weatherNow(), null, 'สุ่มได้ 99 = ยังไม่เกิด');
+  match.roundNumber = 2;
+  Fodlan.onEndTurn(() => 0.1);
+  assert.deepEqual(Fodlan.weatherNow(), { kind: 'storm', left: 3 }, 'จบเทิร์น 2 สุ่มติด → เทิร์น 3–5');
+  assert.equal(match.fodlan.s.weather, match.fodlan.weather, 'ฮุคของด่านเห็นด้วย (st.weather)');
+  for (const r of [3, 4, 5]) { match.roundNumber = r; Fodlan.onEndTurn(() => 0); }
+  assert.equal(Fodlan.weatherNow(), null, 'อยู่ 3 เทิร์นแล้วสงบ · ไม่เกิดซ้ำในด่านเดิม');
+  // ด่านใหม่: เข้าไม่ติด → เทิร์นสุดท้ายของด่าน (12) ไม่สุ่ม
+  match.roundNumber = 6;
+  let n = 0;
+  Fodlan.maybeAdvance(() => {}, () => [0, 0.99][n++]);
+  assert.equal(Fodlan.weatherNow(), null);
+  match.roundNumber = 12;
+  Fodlan.onEndTurn(() => 0);
+  assert.equal(Fodlan.weatherNow(), null, 'เทิร์นสุดท้ายของด่าน — ด่านถัดไปสุ่มเอง');
+  match.roundNumber = 11;
+  Fodlan.onEndTurn(() => 0);
+  assert.equal(Fodlan.weatherNow().kind, 'miasma');
+});
+
+test('เหตุการณ์ (fx): seq ไม่นับใหม่ตอนเปลี่ยนด่าน/แมตช์ใหม่ (client จำ seq ที่เห็นแล้ว — นับใหม่ = เอฟเฟคไม่ขึ้น)', () => {
+  setup(2);
+  const a = Fodlan.makeCtx().fx('test');
+  match.legStart = 1;
+  match.roundNumber = 6;
+  Fodlan.maybeAdvance(() => {}, () => 0.99);
+  const b = Fodlan.makeCtx().fx('test');
+  assert.ok(b > a, 'ด่านถัดไป');
+  setup(2);
+  const c = Fodlan.makeCtx().fx('test');
+  assert.ok(c > b, 'แมตช์ใหม่');
+});
+
 test('ครบ 6 เทิร์น: สุ่มด่านถัดไป 2–5 (ไม่ซ้ำ) · ย้ายกระดาน · ฉากเปลี่ยนแผนที่ (advance) · สุ่มสภาพอากาศใหม่', () => {
   setup(2);
   match.legStart = 1;

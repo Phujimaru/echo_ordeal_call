@@ -353,7 +353,8 @@ function preRound(ctx, st) {
     st.dragon = pickBand(ctx, turn + 1);
     ctx.fx("dragonWarn", { axis: st.dragon.axis, from: st.dragon.from, width: DRAGON_WIDTH });
   }
-  if (tsunamiOn(st) && idx < 3) {
+  // ซึนามิ 3 เทิร์น: เทิร์นแรกเตือน · เทิร์น 2 พัด + เตือน · เทิร์น 3 พัด (นับจากเทิร์นที่สภาพอากาศเริ่ม — เริ่มกลางด่านได้)
+  if (tsunamiOn(st) && st.weather.left >= 2) {
     st.wave = { at: turn + 1 };
     ctx.fx("waveWarn", { dir: { ...WAVE_DIR } });
     ctx.log("🌊 ทะเลปั่นป่วน — คลื่นยักษ์กำลังก่อตัว!");

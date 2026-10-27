@@ -13,6 +13,7 @@ const S4 = require('../server/fodlan/stage4.js');
 
 const K = Board.key;
 const realRandom = Math.random;
+const noWx = () => 0.99; // จบเทิร์นในเทสต์: ไม่สุ่มสภาพอากาศใหม่ (สุ่มทุกเทิร์นจนกว่าจะเกิด — server/fodlan.js onEndTurn)
 const realStart = timers.startPhaseTimer;
 function fakeTimers() { timers.startPhaseTimer = (secs) => { match.timeLeft = Math.ceil(secs); }; }
 
@@ -113,24 +114,38 @@ test('เข้าด่าน: กองไฟ 2 กองสุ่มที่
   assert.ok(pub.every((f) => f.lit && f.r === 3 && f.tiles.length > 10));
 });
 
+test('พายุหิมะเริ่มกลางด่าน (สุ่มติดตอนจบเทิร์น): กองไฟที่ลุกดับหมด · ครบ 3 เทิร์นกลับมาลุก', () => {
+  setup();
+  setFires([{ x: 5, y: 6 }, { x: 10, y: 10 }]);
+  Fodlan.onEndTurn(() => 0.1);
+  assert.deepEqual(Fodlan.weatherNow(), { kind: 'blizzard', left: 3 });
+  assert.ok(match.fodlan.s.fires.every((f) => !f.lit), 'ดับหมด');
+  assert.equal(match.fodlan.s.fx.filter((e) => e.kind === 'fireout').length, 2);
+  Fodlan.onEndTurn(noWx); Fodlan.onEndTurn(noWx);
+  assert.ok(match.fodlan.s.fires.every((f) => !f.lit), 'ยังดับ 3 เทิร์น');
+  Fodlan.onEndTurn(noWx);
+  assert.equal(Fodlan.weatherNow(), null);
+  assert.ok(match.fodlan.s.fires.every((f) => f.lit), 'พายุสงบ = ลุกกลับ');
+});
+
 test('ความอบอุ่น: ห่างกองไฟ −1/เทิร์น · กลับเข้าระยะ 3 ช่อง (นับแบบการเดิน) +1 จนเต็ม 3', () => {
   const P = setup();
   setFires([{ x: 5, y: 6 }]);
   park(P, ['p2']);
   place(P.p0, 12, 13); place(P.p1, 2, 6); // p1 ห่าง 3 ก้าวพอดี (5,6)→(4,6)→(3,6)→(2,6)
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2);
   assert.equal(warmth(P.p1), 3, 'อยู่ในระยะ = เต็มอยู่แล้ว');
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 1);
   // (5,4) ห่าง 2 ช่องตรงๆ แต่หินหิมะ (5,5) กั้น — เดินอ้อม 4 ก้าว = ไม่อุ่น
   place(P.p0, 5, 4);
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 0);
   place(P.p0, 4, 4); // อ้อมซ้าย 3 ก้าว (4,6)→(4,5)→(4,4)
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 1);
-  Fodlan.onEndTurn(); Fodlan.onEndTurn(); Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx); Fodlan.onEndTurn(noWx); Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 3, 'เต็ม 3');
 });
 
@@ -142,14 +157,14 @@ test('น้ำแข็งกัด: ความอบอุ่น 0 = เส�
   st().warmth.p0 = 1;
   P.p0.armor = 1;
   Math.random = () => 0.5; // ≥ 40% = ไม่สตั้น
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 0);
   assert.equal(P.p0.armor, 0, 'เกราะรับก่อน');
   assert.equal(P.p0.hp, 7);
   assert.ok(!(P.p0.statuses.stun > 0));
   assert.ok(Fodlan.playerInfo(P.p0).badges.some((b) => b.key === 'frost'));
   Math.random = () => 0.39; // < 40% = สตั้น
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(P.p0.hp, 6);
   assert.equal(P.p0.statuses.stun, 1);
   assert.ok(st().fx.some((e) => e.kind === 'frostbite' && e.id === 'p0' && e.stun));
@@ -164,7 +179,7 @@ test('ติดลุกไหม้ = อุ่นเหมือนอยู�
   place(P.p0, 12, 2);
   st().warmth.p0 = 1;
   P.p0.statuses.hburn = 1;
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2);
   assert.equal(P.p0.hp, 7);
 });
@@ -177,16 +192,16 @@ test('ไฟของตัวละครนับเป็นกองไฟ: 
   P.p0.sora = { myth: true, fire: true };
   place(P.p0, 12, 2); place(P.p1, 9, 2); // ห่าง 3 ก้าว
   st().warmth = { p0: 1, p1: 1, p2: 1 };
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2, 'โซระ Fire Frame อุ่นเอง');
   assert.equal(warmth(P.p1), 2, 'ในระยะ 3 ช่องของโซระ');
   assert.equal(warmth(P.p2), 0, 'ไกล = หนาว');
   P.p0.sora.fire = false; // กลับร่าง My-Th = ไม่มีไฟ
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p1), 1);
   // กองไฟของดิเอโก้ (ชั้นพื้น match.board.diego.fire)
   match.board.diego = { oil: {}, fire: { [K(10, 13)]: { owner: 'x', left: 3 } }, ash: {} };
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p2), 1, 'p2 (13,13) อยู่ในระยะ 3 ของกองไฟดิเอโก้ (10,13)');
   delete match.board.diego;
 });
@@ -222,7 +237,7 @@ test('ฟืน: ตีต้นไม้แห้งได้ฟืน (พก�
   assert.equal(Fodlan.playerInfo(P.p0).logs, 1);
   // ลุกแล้ว = อุ่นทั้งที่พายุหิมะยังอยู่
   st().warmth.p0 = 1;
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2);
 });
 
@@ -242,12 +257,12 @@ test('ก่อกองไฟ (ฟืน 2): กองไฟเล็กบน�
   // ระยะ 2: (6,7) ห่าง 2 อุ่น · (6,8) ห่าง 3 ไม่อุ่น
   place(P.p0, 6, 7); place(P.p1, 6, 8);
   st().warmth = { p0: 1, p1: 1 };
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2);
   assert.equal(warmth(P.p1), 0);
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(st().fires.length, 1, 'ยังอยู่หลัง 2 เทิร์น');
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(st().fires.length, 0, 'ครบ 3 เทิร์น มอด');
   assert.ok(!engine.boardMap().terrain[K(6, 5)]);
 });
@@ -284,15 +299,15 @@ test('พายุหิมะ: กองไฟดับตลอด 3 เทิ
   assert.ok(!f.lit);
   assert.equal(engine.boardMap().terrain[K(f.x, f.y)], 'fd_campfire_out');
   assert.equal(Fodlan.publicInfo().board.fires[0].tiles.length, 0);
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 2, 'ติดกองไฟที่ดับ = หนาว');
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 1);
-  Fodlan.onEndTurn(); // พายุเทิร์นสุดท้าย
+  Fodlan.onEndTurn(noWx); // พายุเทิร์นสุดท้าย
   assert.equal(warmth(P.p0), 0);
   assert.equal(Fodlan.weatherNow(), null);
   assert.ok(st().fires.every((o) => o.lit), 'พายุสงบ กองไฟลุก');
   assert.equal(engine.boardMap().terrain[K(f.x, f.y)], 'fd_campfire');
-  Fodlan.onEndTurn();
+  Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 1);
 });

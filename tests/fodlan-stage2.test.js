@@ -17,6 +17,7 @@ const timers = require('../server/timers.js');
 const S2 = require('../server/fodlan/stage2.js');
 
 const realRandom = Math.random;
+const noWx = () => 0.99; // จบเทิร์นในเทสต์: ไม่สุ่มสภาพอากาศใหม่ (สุ่มทุกเทิร์นจนกว่าจะเกิด — server/fodlan.js onEndTurn)
 const realStart = timers.startPhaseTimer;
 const AREA = Board.FODLAN_AREA + 1;
 const K = Board.key;
@@ -319,7 +320,7 @@ test('ไอพิษ: ต้นเทิร์นทุกคนติดดี
     }
     assert.deepEqual(Object.keys(P(2).statuses), ['resist'], 'ต้านสถานะ = ไม่ติด');
     assert.ok(match.lastLog.some((l) => l.includes('ไอพิษ')));
-    Fodlan.onEndTurn();
+    Fodlan.onEndTurn(noWx);
   }
   assert.ok(seen.size >= 2, 'สุ่มได้หลายแบบ');
   assert.equal(Fodlan.weatherNow(), null);
