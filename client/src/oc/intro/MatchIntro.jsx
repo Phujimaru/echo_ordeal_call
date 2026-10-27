@@ -17,6 +17,8 @@
 //      ไม่มี: การ์ดไหลออก + ม่านขาว · ส่งต่อที่ X+600 · onDone ที่ X+1300 (server พักเกินนี้อย่างน้อย 1 วิ)
 //      { colony }: กล้องเหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยานของโคโลนี (colonyFlight.js · โหมด Colony GRID_PLAN §8.3)
 //      { moon }: กล้องโค้งอ้อมหลังโลก เห็นดวงจันทร์ + ลูกบาศก์ Moon Cell แล้วซูมเข้า (moonFlight.js · โหมด Moon Cell GRID_PLAN §8.4 · ดูได้ที่ ?moon)
+//      { fodlan, stage, weather }: ดิ่งลงหมุด Fodlan → ทะลุเมฆ → แผนที่ทวีป → โฉบลงด่าน → ฉากเข้าด่าน (fodlan/fodlanFlight.js · GRID_PLAN §8.5 · ?fodlan)
+//       prop fodlan = { stage, weather } (รู้ตั้งแต่เริ่มฉาก) = เริ่มสร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร ไม่ต้องรอ onOutro
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";
@@ -30,6 +32,9 @@ import "./dive.css";
 import "./intro.css";
 import { createMoonFlight } from "./moonFlight";
 import { createColonyFlight, COLONY_T } from "./colonyFlight";
+import { createFodlanFlight } from "../../fodlan/fodlanFlight";
+import FodlanCine from "../../fodlan/FodlanCine";
+import { FODLAN_INTRO_MS, clampFodlanStage } from "../../fodlan/stages";
 
 const FINALE_MS = 2900;
 const FIRST_MS = 120;
@@ -106,7 +111,7 @@ function OrbitCard({ p, cardRef }) {
   );
 }
 
-export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, onHandoff, onDone }) {
+export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fodlanPrep = null, onOutro, onHandoff, onDone }) {
   const ordered = useMemo(() => [...players].sort((a, b) => a.position - b.position), [players]);
   const n = ordered.length;
   const perMs = introPerMs(n);
@@ -126,6 +131,8 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
   const [moon, setMoon] = useState(null);         // ปลายฉากบินอ้อมโลกไปดวงจันทร์ { D }
   const [colony, setColony] = useState(null);     // ปลายฉากพุ่งเข้าโคโลนี { D }
   const [cdash, setCdash] = useState(false);      // ช่วงพุ่งเข้าท่าเทียบยาน (เส้นพุ่ง)
+  const [fodlan, setFodlan] = useState(null);     // ฉากเข้าโหมด Fodlan { D, stage, weather }
+  const prepRef = useRef(fodlanPrep);
 
   const cbRef = useRef({ onOutro, onHandoff, onDone });
   useLayoutEffect(() => { cbRef.current = { onOutro, onHandoff, onDone }; });
@@ -156,7 +163,17 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     at(L, () => setLineup(true));
     at(X, () => {
       const spec = cbRef.current.onOutro?.() || null;
-      if (spec && spec.colony) {
+      if (spec && spec.fodlan) {
+        // Fodlan: การ์ดไหลออก → ดิ่งลงหมุด Fodlan → แผนที่ทวีป → ฉากเข้าด่าน → แฟลชขาวส่งต่อ
+        const D = Math.max(6000, Number(spec.durationMs) || FODLAN_INTRO_MS);
+        const f = { at: performance.now(), D, stage: clampFodlanStage(spec.stage), weather: !!spec.weather };
+        tlRef.current.out = true;
+        tlRef.current.fodlan = f;
+        setFodlan(f);
+        setMode("fodlan");
+        at(D - 240, handoff);
+        at(D, done);
+      } else if (spec && spec.colony) {
         // โคโลนี: การ์ดไหลออก → เหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยาน → แฟลชขาวส่งต่อ
         const D = Math.max(3200, Number(spec.durationMs) || 6800);
         tlRef.current.out = true;
@@ -226,6 +243,10 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     let marker = null;
     let moonCam = null;
     let colonyCam = null;
+    // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = เริ่มสร้างเลย (ไม่งั้นสร้างตอน onOutro — ภาพค้างใต้แฟลชจนเสร็จ)
+    let fodlanCam = null;
+    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start });
+    if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
     const ring = { cx: 0, cy: 0, r: 1 };
 
@@ -297,6 +318,15 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
         el.style.zIndex = String(10 + Math.round((depth + 1) * 10));
       });
 
+      // ---------- Fodlan ----------
+      const fv = tlRef.current.fodlan;
+      if (fv) {
+        if (!fodlanCam || fodlanCam.theatre.stageInfo.id !== fv.stage) { fodlanCam?.dispose(); fodlanCam = makeFodlan(fv); }
+        // dev: window.__fdU = 0..1 หยุดฉากไว้ที่จุดนั้น (ตรวจภาพทีละช่วง — FodlanPreview)
+        const fu = import.meta.env.DEV && window.__fdU != null ? window.__fdU : clamp01((now - fv.at) / fv.D);
+        fodlanCam.frame(fu, dt, (now - start) / 1000);
+        return;
+      }
       // ---------- บินอ้อมโลกไปดวงจันทร์ ----------
       const mv = tlRef.current.moon;
       if (mv) {
@@ -341,6 +371,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
       diveCam?.restore();
       moonCam?.restore();
       colonyCam?.restore();
+      fodlanCam?.dispose();
       if (core.sand) core.sand.visible = sandShown;
       core.world.rotation.set(0, 0, 0);
     };
@@ -356,6 +387,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
     mode === "out" ? "is-out" : "",
     mode === "moon" ? "is-moon" : "",
     mode === "colony" ? "is-colony" : "",
+    mode === "fodlan" ? "is-fodlan" : "",
     diving ? `ocd-p${dphase}` : "",
     crash ? "is-crash" : "",
     lineup ? "is-lineup" : "",
@@ -423,6 +455,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, onOutro, o
         </>
       )}
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
+      {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.stage} />}
     </div>
   );
 }

@@ -1,0 +1,65 @@
+/* ฉากเข้าโหมด Fodlan (FodlanCine.jsx) — animation อย่างเดียว (opacity/transform) ไม่มี filter เต็มจอ */
+.fdc { position: absolute; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.fdc > * { position: absolute; }
+
+/* แถบดำบนล่างแบบภาพยนตร์ */
+.fdc-bar { left: 0; right: 0; height: 9vh; background: #050302; transform: scaleY(0); animation: fdc-bar 900ms cubic-bezier(.2,.8,.2,1) var(--bars-at) forwards; }
+.fdc-bar.top { top: 0; transform-origin: top; }
+.fdc-bar.bot { bottom: 0; transform-origin: bottom; }
+@keyframes fdc-bar { to { transform: scaleY(1); } }
+
+/* แฟลชตอนชนโลก (ทองอมขาว) แล้วจางเผยชั้นเมฆ */
+.fdc-punch { inset: 0; opacity: 0; background: radial-gradient(circle at 50% 50%, #fffaf0 0%, #ffe9c2 45%, #f0c88a 100%); animation: fdc-punch var(--punch-dur) linear var(--punch-at) both; }
+@keyframes fdc-punch { 0% { opacity: 0; } 22% { opacity: 1; } 48% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ชื่อทวีป */
+.fdc-mark { left: 0; right: 0; top: 15vh; display: flex; align-items: center; justify-content: center; gap: 2.4vw; opacity: 0; animation: fdc-mark var(--mark-dur) cubic-bezier(.25,.7,.2,1) var(--mark-at) both; }
+.fdc-mark b {
+  font-family: Cinzel, serif; font-weight: 900; font-size: clamp(44px, 7.4vw, 128px); line-height: 1;
+  background: linear-gradient(180deg, #fff7dc 0%, #f3d27e 45%, #b9792c 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 40px rgba(255, 196, 110, .35); letter-spacing: .28em; padding-left: .28em;
+}
+.fdc-rule { display: block; width: clamp(60px, 14vw, 260px); height: 2px; background: linear-gradient(90deg, transparent, #f3d27e 40%, #fff2c8); transform-origin: right; }
+.fdc-mark .fdc-rule:last-child { transform: scaleX(-1); }
+@keyframes fdc-mark {
+  0% { opacity: 0; transform: translateY(14px) scale(1.04); }
+  16% { opacity: 1; transform: translateY(0) scale(1); }
+  82% { opacity: 1; transform: translateY(-4px) scale(.995); }
+  100% { opacity: 0; transform: translateY(-10px) scale(.99); }
+}
+
+/* หมึกปาดเปลี่ยนฉาก (ฉากเปลี่ยนแผนที่: กระดานจาง → แผนที่) */
+.fdc-ink { inset: 0; background: #1a0d06; animation: fdc-ink var(--ink-dur) ease-in both; }
+@keyframes fdc-ink { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* แฟลชสีประจำด่านตอนพุ่งเข้าหมุด */
+.fdc-stageflash { inset: 0; opacity: 0; background: radial-gradient(circle at 50% 52%, #fff 0%, var(--g) 22%, var(--c) 60%, rgba(0,0,0,.6) 100%); animation: fdc-sflash var(--sflash-dur) linear var(--sflash-at) both; }
+@keyframes fdc-sflash { 0% { opacity: 0; } 34% { opacity: 1; } 52% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ป้ายชื่อด่าน */
+.fdc-title { left: 0; right: 0; bottom: 15vh; display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0; animation: fdc-title var(--title-dur) cubic-bezier(.2,.7,.2,1) var(--title-at) both; }
+.fdc-num {
+  font-family: Cinzel, serif; font-weight: 900; font-size: clamp(54px, 7vw, 110px); line-height: .9;
+  background: linear-gradient(180deg, #fffaf0, var(--g) 40%, var(--c)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 4px 18px rgba(0,0,0,.6));
+}
+.fdc-line { display: flex; align-items: center; gap: 18px; }
+.fdc-line i { display: block; height: 2px; width: clamp(40px, 9vw, 160px); background: linear-gradient(90deg, transparent, var(--g)); transform: scaleX(0); animation: fdc-rule 700ms ease-out calc(var(--title-at) + 250ms) forwards; }
+.fdc-line i:last-child { background: linear-gradient(270deg, transparent, var(--g)); }
+.fdc-line b { font-family: Trirong, serif; font-weight: 800; font-size: clamp(26px, 3vw, 46px); color: #fff8e6; text-shadow: 0 2px 14px rgba(0,0,0,.75), 0 0 28px color-mix(in srgb, var(--c) 60%, transparent); white-space: nowrap; }
+.fdc-latin { font-family: Cinzel, serif; font-weight: 700; font-size: clamp(12px, 1.05vw, 17px); color: color-mix(in srgb, var(--g) 80%, #fff); letter-spacing: .5em; padding-left: .5em; opacity: .85; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+@keyframes fdc-rule { to { transform: scaleX(1); } }
+@keyframes fdc-title {
+  0% { opacity: 0; transform: translateY(18px); }
+  14% { opacity: 1; transform: translateY(0); }
+  86% { opacity: 1; transform: translateY(-3px); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+/* แฟลชขาวส่งต่อกระดาน */
+.fdc-white { inset: 0; background: #fff; opacity: 0; animation: fdc-white var(--white-dur) ease-in var(--white-at) both; }
+@keyframes fdc-white { to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fdc-mark, .fdc-title { animation-timing-function: linear; }
+}

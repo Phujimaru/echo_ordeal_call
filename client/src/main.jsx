@@ -36,6 +36,11 @@ const TravelPreview = import.meta.env.DEV && hudQ.has("travel")
   ? React.lazy(() => import("./oc/intro/TravelPreview.jsx"))
   : null;
 
+// ?fodlan / ?fodlan=3&wx=1 / ?fodlan=travel&from=1&to=4 = หน้าดูฉากเข้าโหมด Fodlan (เฉพาะ dev) — ดู fodlan/FodlanPreview.jsx
+const FodlanPreview = import.meta.env.DEV && hudQ.has("fodlan")
+  ? React.lazy(() => import("./fodlan/FodlanPreview.jsx"))
+  : null;
+
 // ?rebirth=1..7 = หน้าดูฉากท่าไม้ตาย Echo "ก่อกำเนิดใหม่" (เฉพาะ dev) — ดู oc/intro/EchoRebirthPreview.jsx
 const RebirthPreview = import.meta.env.DEV && hudQ.has("rebirth")
   ? React.lazy(() => import("./oc/intro/EchoRebirthPreview.jsx"))
@@ -43,6 +48,6 @@ const RebirthPreview = import.meta.env.DEV && hudQ.has("rebirth")
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {RebirthPreview ? <React.Suspense fallback={null}><RebirthPreview /></React.Suspense> : TravelPreview ? <React.Suspense fallback={null}><TravelPreview /></React.Suspense> : VictoryPreview ?<React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
+    {FodlanPreview ? <React.Suspense fallback={null}><FodlanPreview /></React.Suspense> : RebirthPreview ? <React.Suspense fallback={null}><RebirthPreview /></React.Suspense> : TravelPreview ? <React.Suspense fallback={null}><TravelPreview /></React.Suspense> : VictoryPreview ?<React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
   </React.StrictMode>
 );

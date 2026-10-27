@@ -31,6 +31,19 @@ const FILES = {
   journey_6_night: "/journey/map6/Fire Emblem Engage Tear Streaked.mp3",
   journey_7_day: "/journey/map7/Fire Emblem Engage Distorted Flash of Light (Battle).mp3",
   journey_7_night: "/journey/map7/Fire Emblem Engage Distorted Flash of Light.mp3",
+  // โหมด Fodlan (GRID_PLAN §8.5 · ไฟล์จากผู้ใช้ 2026-10-27): เพลงต่อด่าน · _wx = ตอนเกิดสภาพอากาศ (ด่าน V = ออร่า)
+  //  เริ่มเล่นตอนฉากเข้าด่าน (fodlan/fodlanFlight.js · FodlanTravel.jsx) · เสียงบรรยากาศแยกอยู่ fodlan/fodlanAudio.js
+  fodlan_map: "/fodlan/music/map.mp3", // ฉากแผนที่ทวีป: ก่อนเข้าด่าน (ดิ่งลงโลก → แผนที่) + ระหว่างเปลี่ยนด่าน (ไฟล์ผู้ใช้ fodlanmap.mp3 ดันเป็น -11.6 LUFS)
+  fodlan_1: "/fodlan/music/stage1.mp3",
+  fodlan_1_wx: "/fodlan/music/stage1_wx.mp3",
+  fodlan_2: "/fodlan/music/stage2.mp3",
+  fodlan_2_wx: "/fodlan/music/stage2_wx.mp3",
+  fodlan_3: "/fodlan/music/stage3.mp3",
+  fodlan_3_wx: "/fodlan/music/stage3_wx.mp3",
+  fodlan_4: "/fodlan/music/stage4.mp3",
+  fodlan_4_wx: "/fodlan/music/stage4_wx.mp3",
+  fodlan_5: "/fodlan/music/stage5.mp3",
+  fodlan_5_wx: "/fodlan/music/stage5_wx.mp3",
   // สนาม Colony (GRID_PLAN §8.3 · ไฟล์จากผู้ใช้): เพลงตามปล้อง I/II/III · นับถอยหลังระเบิดตัวเอง = colony_alert
   colony_1: "/colony/colony_phase1.mp3",
   colony_2: "/colony/colony_phase2.mp3",
@@ -452,6 +465,13 @@ const LOUDNESS_GAIN = {
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
   "/characters/takuto/takuto_theme.m4a": 0.5, // -8.0 LUFS (ffmpeg ebur128)
+  // Fodlan (ffmpeg ebur128 ทั้งไฟล์) — ผู้ใช้ขอให้ดังกว่าเพลงอื่น (2026-10-27): เป้า -11.3 LUFS (เพลงอื่น -14)
+  //  เพลงปกติ 5 เพลงดันที่ตัวไฟล์ + limiter แล้ว (-11.3) · เพลงสภาพอากาศดังเกินเป้า ลดด้วยตารางนี้
+  "/fodlan/music/stage1_wx.mp3": 0.81, // -9.5 LUFS
+  "/fodlan/music/stage2_wx.mp3": 0.8, // -9.4 LUFS
+  "/fodlan/music/stage3_wx.mp3": 0.7, // -8.2 LUFS
+  "/fodlan/music/stage4_wx.mp3": 0.83, // -9.7 LUFS
+  "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
   // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
   "/characters/sliver_bullet/sliver_bullet_skill3.mp4": 0.84,
   "/characters/sliver_bullet/banagher_ntd.mp4": 0.84,
