@@ -912,7 +912,8 @@ export function installClickSound(root = typeof document !== "undefined" ? docum
 //  ระหว่างเล่น เพลงหลักจะถูกหรี่ลงเหลือ DUCK_LEVEL แทนการหยุด — ดูคอมเมนต์ที่ musicDuck
 const DUCK_LEVEL = 0.25;
 // ลูปเสียงเฉพาะกิจทำหน้าที่แทนเพลงประกอบ -> ใช้ระดับเดียวกับเพลง
-function loopVolume(name) { return MUSIC_BASE * soundGain(name) * masterGain() * sfxDuck(); }
+//  คิงโอเจอร์ (ohger_*): ลูปเป็นส่วนหนึ่งของเสียงกดดาบ → ระดับเสียงเอฟเฟกต์ ไม่ใช่ระดับเพลง (ผู้ใช้: ลูปเบาเกิน · ไฟล์ −16 LUFS เท่าเสียงกด)
+function loopVolume(name) { return Math.min(1, (String(name).startsWith("ohger_") ? SFX_BASE : MUSIC_BASE) * soundGain(name) * masterGain() * sfxDuck()); }
 export function startLoopSfx(name) {
   if (!FILES[name]) return null;
   stopLoopSfx();
