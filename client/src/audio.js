@@ -927,8 +927,10 @@ export function startLoopSfx(name) {
   const release = () => { if (loopSfx === a) stopLoopSfx(); };
   a.addEventListener("error", release); // ไฟล์เสีย/โหลดไม่ได้จริง = ทิ้งลูป
   if (yieldSfx && !yieldSfx.paused && !yieldSfx.ended) return a; // เสียงจังหวะเดียวยังเล่นอยู่ = เริ่มลูปตอนเสียงนั้นจบ (endYield)
-  // play() ถูกขัดด้วย pause (ลูปหลบเสียงกด — AbortError) หรือยังไม่มีการกดในหน้า (NotAllowedError) ≠ ไฟล์เสีย → เก็บลูปไว้ เล่นต่อตอน endYield
-  a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch((e) => { if (!e || (e.name !== "AbortError" && e.name !== "NotAllowedError")) release(); });
+  // play() ถูกขัดด้วย pause (ลูปหลบเสียงกด — AbortError) ≠ ไฟล์เสีย → เก็บลูปไว้ เล่นต่อตอน endYield
+  //  ยังไม่มีการกดในหน้า (NotAllowedError): ลูปคิงโอเจอร์เก็บไว้ (เสียงกดถัดไปจบ = ลองใหม่) · ลูปอื่นปล่อยทิ้ง (เพลงกลับดังเต็ม)
+  const keep = (e) => !!e && (e.name === "AbortError" || (e.name === "NotAllowedError" && name.startsWith("ohger_")));
+  a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch((e) => { if (!keep(e)) release(); });
   return a;
 }
 export function stopLoopSfx() {
