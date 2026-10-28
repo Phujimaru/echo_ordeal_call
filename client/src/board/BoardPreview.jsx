@@ -20,6 +20,7 @@
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
+//   ?ohger=1 = คิงโอเจอร์ · ปุ่มเล่น Ohger Finish 5 ร่าง + คลื่นดาบคุวากาตะ (socket "ohgerFx" — OhgerFxDev.jsx)
 //   ?law=1 = ทราฟาก้า ลอว์ · ปุ่มเล่นตีปกติ (ฟัน/Gamma Knife/Mess) + ทุกเหตุการณ์ของ socket "lawFx" + Room 5×5/9×9 · วัตถุลอย · มาร์ก · หัวใจ · หนามหิน (LawFxDev.jsx)
 //   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
@@ -39,6 +40,7 @@ import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่น
 import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
+import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
@@ -132,10 +134,11 @@ const TAKUTO_DEV = Q.get("takuto") === "1";
 const EMIYA_DEV = Q.get("emiya") === "1";
 const KAZUMA_DEV = Q.get("kazuma") === "1";
 const LAW_DEV = Q.get("law") === "1";
+const OHGER_DEV = Q.get("ohger") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
-  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
+  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : OHGER_DEV ? OhgerFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -553,6 +556,7 @@ export default function BoardPreview() {
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}
+      {OHGER_DEV && <OhgerFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}

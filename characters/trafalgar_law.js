@@ -72,11 +72,12 @@ const HEART_USES = 3;
 const GAMMA = { burn: 2, bleed: 2, poison: 2 };
 const ULT_CD = 3;
 const THROW_CD = 3;       // โยนสิ่งของ: คูลดาวน์หลังโยน (ผู้ใช้สั่ง 2026-10-27)
+const SHAMBLE_USES = 2;   // Shamble (สลับพลังชีวิต): ใช้ได้ 2 ครั้งต่อเกม (ผู้ใช้สั่ง 2026-10-28 — เนิฟ)
 const SEC = {
   shuffle: { name: "Shambles", cost: 2, img: IMG.surgeon, desc: "เลือก 2 อย่างจากตัวเอง คนที่มาร์กไว้ และวัตถุลอยใน Room แล้วสลับที่กัน (ตัวใหญ่ต้องอยู่ใน Room ทั้งตัว)" },
   takt: { name: "Takt", cost: 1, img: IMG.surgeon, desc: `เลือกช่องใน Room: หนามหินพุ่งขึ้น ศัตรูบนช่องเสียหาย ${TAKT_DMG} (เกราะรับก่อน) และถูกผลักออก 1 ช่อง · หนามขวางทาง 1 เทิร์น` },
   throw: { name: "โยนสิ่งของ", cost: 2, img: IMG.surgeon, desc: `เลือกช่องใน Room: วัตถุลอยทั้งหมดพุ่งลงช่องนั้น ความเสียหาย ${THROW_DMG} ต่อก้อน (เกราะรับก่อน) · คูลดาวน์ ${THROW_CD} เทิร์น` },
-  shamble: { name: "Shamble", cost: 3, img: IMG.surgeon, desc: "เลือก 2 คนจากตัวเองและคนที่มาร์กไว้ใน Room แล้วสลับพลังชีวิตและเกราะปัจจุบันกัน" },
+  shamble: { name: "Shamble", cost: 3, img: IMG.surgeon, desc: `เลือก 2 คนจากตัวเองและคนที่มาร์กไว้ใน Room แล้วสลับพลังชีวิตและเกราะปัจจุบันกัน (${SHAMBLE_USES} ครั้งต่อเกม)` },
 };
 const SEC_KEYS = Object.keys(SEC);
 const ULT = {
@@ -100,6 +101,7 @@ function fresh() {
     strikeRound: 0, strikes: 0,                  // ตีไปกี่ครั้งในเทิร์น strikeRound
     marks: [],                                   // id ที่ตีโดนในตาเดินนี้
     secRound: 0, secUsed: 0, throwReady: 0,     // throwReady = เทิร์นที่โยนสิ่งของได้อีก
+    shambleUses: 0,                             // Shamble ที่ใช้ไปแล้วในเกมนี้ (SHAMBLE_USES)
     gammaReady: 0, messReady: 0, armed: null,    // ท่าไม้ตายที่รอตี { kind, round, at }
     shocks: SHOCKS,
     rocks: [],                                   // หนามหิน [{ k, round, at }]
@@ -545,6 +547,7 @@ function secBlock(engine, p, k) {
   if (secUsed(engine, p) >= SEC_PER_TURN) return "uses";
   if (k === "throw" && cdLeft(s.throwReady, engine.roundNumber) > 0) return "cd";
   if (k === "throw" && !s.objects.length) return "objects";
+  if (k === "shamble" && (s.shambleUses || 0) >= SHAMBLE_USES) return "spent";
   if ((k === "shuffle" || k === "shamble") && pickTiles(engine, p, k).length < 2) return "pick";
   return null;
 }
@@ -561,7 +564,7 @@ function ultBlock(engine, p, k) {
 
 module.exports = {
   id: ID,
-  IMG, FX, SFX, VIDEO, CUT, HP, ARMOR, ROOMS, STRIKES, MAX_OBJECTS, SEC_PER_TURN, SHOCKS, ROOM_REGEN, TAKT_DMG, THROW_DMG, SQUEEZE_DMG, HEART_USES, GAMMA, ULT_CD, THROW_CD,
+  IMG, FX, SFX, VIDEO, CUT, HP, ARMOR, ROOMS, STRIKES, MAX_OBJECTS, SEC_PER_TURN, SHOCKS, ROOM_REGEN, TAKT_DMG, THROW_DMG, SQUEEZE_DMG, HEART_USES, GAMMA, ULT_CD, THROW_CD, SHAMBLE_USES,
   SEC, SEC_KEYS, ULT, ULT_KEYS, BEAT,
   isLaw, lawIn, swapPlan, pickTiles, cutTiles, taktTiles, shockTargets, dropTiles,
 
@@ -806,7 +809,7 @@ module.exports = {
       if (s.secRound !== r) { s.secRound = r; s.secUsed = 0; }
       s.secUsed += 1;
       if (k === "shuffle") { const [a, b] = pairOf(engine, p, opts.tiles, k); shuffle(engine, p, a, b); }
-      else if (k === "shamble") { const [a, b] = pairOf(engine, p, opts.tiles, k); shamble(engine, p, a.u, b.u); }
+      else if (k === "shamble") { s.shambleUses = (s.shambleUses || 0) + 1; const [a, b] = pairOf(engine, p, opts.tiles, k); shamble(engine, p, a.u, b.u); }
       else if (k === "takt") takt(engine, p, { x: opts.tile.x, y: opts.tile.y });
       else if (k === "throw") { s.throwReady = r + 1 + THROW_CD; throwAll(engine, p, { x: opts.tile.x, y: opts.tile.y }); }
       return ` — ${SEC[k].name}`;

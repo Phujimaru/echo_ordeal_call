@@ -6,7 +6,20 @@
 //    ของอีกคน) เพลงจะเริ่มใหม่จากต้น
 // ============================================================
 
+// ขบวนการจอมราชันคิงโอเจอร์ (characters/_ohger.js) — ตัดจากไฟล์ผู้ใช้ (.claude/plans/ohger-sfx.py · ปรับดังตาม LUFS)
+//  ohger_call_N = กดปุ่มสี · ohger_tf_wait_N = ลูประหว่างกดลำดับแปลงร่าง · ohger_tf_done_N = ปิดท้ายแปลงร่าง (ครั้งที่ 2 ขึ้นไป)
+//  ohger_trigger / ohger_charge_loop (รอดึง) / ohger_pull_N_i / ohger_standby_loop (เลือกทิศ) / ohger_finish_call → ohger_atk_N (ต่อคิว)
+//  N = 1 แดง · 2 น้ำเงิน · 3 เหลือง · 4 ม่วง · 5 ดำ
+const OHGER_SFX = (() => {
+  const keys = ["ohger_trigger", "ohger_charge_loop", "ohger_standby_loop", "ohger_finish_call"];
+  for (let n = 1; n <= 5; n++) {
+    keys.push(`ohger_call_${n}`, `ohger_tf_wait_${n}`, `ohger_tf_done_${n}`, `ohger_atk_${n}`);
+    for (let i = 1; i <= 3; i++) keys.push(`ohger_pull_${n}_${i}`);
+  }
+  return Object.fromEntries(keys.map((k) => [k, `/characters/ohger/sfx/${k}.m4a`]));
+})();
 const FILES = {
+  ...OHGER_SFX,
   // (เสียงพากย์ฮาคุโนะ hakuno_v_m01–m21 / f01–f20 เติมท้ายตาราง — ดูใต้ FILES)
   main_home: "/theme_song/main_home_4.0.mp3",
   // ECHO 5.1 ORDEAL CALL: main5 = ตั้งแต่เปิดโปรแกรมจนเข้าห้องรอ · lobby5 = ห้องรอ → โหวตโหมด → ฉากเปิดตัว (จนเข้าด่าน)
@@ -801,7 +814,7 @@ export function prewarmMusic(name) {
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 // เสียงที่ต้องเล่นต่อคิว (ขึ้นต้นด้วยคีย์นี้ = คิวเดียวกัน): เสียงใหม่รอเสียงก่อนหน้าในคิวจบก่อน (คาซุมะ: รูดการ์ดหลายใบติดกัน)
-const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
+const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_atk_: "ohger" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
 const sfxQueues = new Map(); // คิว -> { busy: element ที่เล่นอยู่ | null, waiting: [ชื่อ] }
 function playQueued(group, name, opts) {
   const q = sfxQueues.get(group) || { busy: null, waiting: [] };

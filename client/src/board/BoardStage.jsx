@@ -41,6 +41,7 @@ import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
+import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
 import { moonEventFx } from "./moonFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
@@ -744,6 +745,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(end);
         if (!lowQ && pts.length > 1) later((pts.length - 1) * KAZUMA_FX.dashStep, () => setShake((n) => n + 1));
+      } else if (s0 && d.style === "ohger") {
+        // คิงโอเจอร์ (ทอมโบไปกลับ / พาพิยอง / ฮาจิถอย): เลื่อนตัวตามเส้นทางเท่านั้น — แถบแสง/ปะทะมาจาก socket "ohgerFx" (ไม่มีระเบิดฟ้าของโซระ ไม่หันตัว)
+        if (pts.length > 1) {
+          if (!samePos(end, s0)) dashSkip.current[id] = end; // ไปกลับ (ทอมโบ) = ตำแหน่งจริงไม่เปลี่ยน ไม่ต้องข้ามการเลื่อน
+          anims.push({ kind: "move", id, path: pts, stepMs: OHGER_FX.dashStep, seq: ++fxSeq.current });
+        }
       } else if (s0 && d.wheel) {
         // เฟสวิ่ง: กรงจักรหนูที่ช่องเริ่ม (WHEEL_MS) → พุ่งตามเส้นทาง (DASH_STEP_MS ต่อช่อง) → ค้างที่ปลายทางจน server ย้ายตัวจริง
         // ทิศจาก server (ทิศที่เลือก) — เป้ายืนติดตัว = เส้นทางยาว 0 ช่อง ใช้เส้นทางเดาทิศไม่ได้
@@ -1831,6 +1838,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("lawFx", onLaw);
     return () => socket.off("lawFx", onLaw);
+  }, [pushFx, look, lowQ]);
+  // คิงโอเจอร์ (characters/_ohger.js): socket "ohgerFx" { kind: slash | dash | needle | wave, id, color, from, tiles, dir, target? } → ohgerFx.js
+  //  คนในช่องที่โดน (ไม่นับฝ่ายเดียวกัน) สั่นตอนปะทะ · กล้องมองกลางพื้นที่ · เสียงมาจาก server
+  useEffect(() => {
+    const onOhger = (ev) => {
+      const idsOn = (tiles, selfId) => {
+        const list = playersRef.current || [], caster = list.find((p) => p.id === selfId) || null;
+        const ally = (p) => !!caster && (p.id === caster.id || sameSide(p, caster) || (!!caster.teamId && p.teamId === caster.teamId));
+        return list.filter((p) => p.alive && p.pos && !ally(p) && tiles.some((t) => onBody(p, t))).map((p) => p.id);
+      };
+      const out = ohgerEventFx(ev, { idsOn });
+      if (!out.fx.length) return;
+      pushFx(out.fx);
+      if (out.look) look(out.look);
+      if (!lowQ) for (const ms of out.shake) timers.current.push(setTimeout(() => setShake((n) => n + 1), ms));
+    };
+    socket.on("ohgerFx", onOhger);
+    return () => socket.off("ohgerFx", onOhger);
   }, [pushFx, look, lowQ]);
   // Moon Cell (GRID_PLAN §8.4): socket "moonScene" (ฉากต้นเทิร์นระหว่างพักเกม) → moonFx.js — เสาข้อมูลพุ่ง · ฟื้นคืนชีพ · คำสาปลง/เตือน/สลาย
   useEffect(() => {

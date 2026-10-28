@@ -14,7 +14,7 @@ import "../oc/seat/seat.css";
 //  กดที่ว่าง / Esc = ยกเลิกที่นั่ง (คืนที่จองให้ server) แผงเลื่อนออก โลกกลับมาใหญ่กลางจอ
 const LAYOUT_BIG = { x: 0, y: -0.08, s: 1.22 };
 const LAYOUT = { x: -0.55, y: -0.05, s: 0.92 };
-const NAME_MAX = 12;
+const NAME_MAX = 20; // ตรงกับ server/socket.js (ตัดที่ 20)
 const SWATCHES = [...POSITIONS.map((n) => POSITION_COLORS[n]), "#6E2C7A", "#3D8BD9", "#1C3F6E"].map((c) => c.toUpperCase());
 
 // สีต้องเป็น #RRGGBB (server/lobby.js normalizeColor) — ผ่าน HSV เพื่อกันสีมืดเกินแบบเดียวกับตัวเลือกสีเดิม

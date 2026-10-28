@@ -1,0 +1,3 @@
+/* แกนดาบคิงโอเจอร์ (OhgerSword.jsx) — กลาง HUD · ดาบตั้ง ล้นขึ้นเหนือแผงล่างได้ */
+.ohger-sword { position: relative; width: 230px; height: 150px; align-self: stretch; pointer-events: none; }
+.ohger-sword canvas { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 250px; pointer-events: auto; }

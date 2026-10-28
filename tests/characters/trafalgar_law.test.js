@@ -218,6 +218,28 @@ test('Shamble: สลับพลังชีวิต/เกราะของ�
   assert.equal(P.L.hp, 7);
 });
 
+test('Shamble: ใช้ได้ 2 ครั้งต่อเกม — ครั้งที่ 3 ถูกล็อก (ไม่เสียแต้ม)', () => {
+  noRoll();
+  const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 2, 1], ['F', 'dummy', -2, -1]]);
+  room('5');
+  strike('E');
+  strike('F');
+  const swap = () => sec('shamble', { tiles: [{ ...P.E.pos }, { ...P.F.pos }], tile: { ...P.E.pos } });
+  P.L.skillPoints = 12;
+  swap();
+  swap();
+  assert.equal(P.L.law.shambleUses, 2);
+  engine.setRoundNumber(engine.roundNumber + 1); // เทิร์นใหม่ (2 ครั้งต่อเทิร์นนับใหม่)
+  engine.setActor('L');
+  const sp = P.L.skillPoints, hpE = P.E.hp;
+  swap();
+  assert.equal(P.L.law.shambleUses, 2, 'ครั้งที่ 3 ใช้ไม่ได้');
+  assert.equal(P.L.skillPoints, sp, 'ไม่เสียแต้ม');
+  assert.equal(P.E.hp, hpE);
+  const ch = H().skillPub(P.L, 'secondary').choices.find((c) => c.key === 'shamble');
+  assert.equal(ch.locked, true);
+});
+
 test('Shambles: สลับกับคนที่ไม่ได้มาร์กไม่ได้ · วัตถุกับวัตถุไม่ได้', () => {
   const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 2, 1]]);
   room('5');

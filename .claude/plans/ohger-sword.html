@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ohger Calibur</title>
+<!-- ต้นแบบแกนดาบคิงโอเจอร์ (GRID_PLAN §7.22) · เปิดผ่าน preview "plans" → /.claude/plans/ohger-sword.html
+     ด้ามดาบ = เรนเดอร์โมเดล "Ohger Caliber" by Ahbangkun (Sketchfab, CC-BY-4.0) สีเรียบแบบภาพอ้างอิงจากผู้ใช้ · ดาบตั้ง กลางจอ เห็นแค่ด้าม
+     สื่อตัวละครอยู่ client/public/characters/*_ohger (gitignored → R2) · เสียงเป็นเสียงสังเคราะห์ชั่วคราว -->
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Kanit:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.169.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.169.0/examples/jsm/"}}</script>
+<style>
+:root{
+  --azure:#3d8bd9; --navy:rgba(12,22,46,.9); --line:rgba(127,184,230,.35);
+  --text:#eaf3fc; --mute:#9db8da; --hp:#e0564f; --armor:#5fa8ee; --gold:#e6b44c;
+  --own:#e23b3b;
+  --c1:#e23b3b; --c2:#3b78ff; --c3:#f2c21b; --c4:#a54ae8; --c5:#d8dde8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#05070d;font-family:"Chakra Petch","Kanit",system-ui,sans-serif;color:var(--text)}
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:50% 50%;user-select:none;overflow:hidden;
+  background:radial-gradient(ellipse at 45% 30%,#1a2238 0%,#0a0e19 60%,#05070d 100%)}
+.panel{position:absolute;background:var(--navy);border:1px solid var(--line)}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--azure);pointer-events:none;z-index:2}
+.panel::before{left:-2px;top:-2px;border-right:0;border-bottom:0}
+.panel::after{right:-2px;bottom:-2px;border-left:0;border-top:0}
+
+/* ตัวเลือกตัวละคร (เครื่องมือต้นแบบ) */
+#pick{left:16px;top:14px;display:flex;gap:6px;padding:6px}
+#pick button{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;background:transparent;border:1px solid transparent;color:var(--mute);font:600 13px "Kanit";cursor:pointer}
+#pick button img{width:30px;height:30px;object-fit:cover;object-position:50% 15%;border-radius:50%;border:2px solid currentColor}
+#pick button.on{color:var(--text);border-color:var(--line);background:rgba(61,139,217,.15)}
+#turnBox{right:16px;top:14px;padding:8px 16px;font:700 15px "Chakra Petch";display:flex;gap:16px;align-items:center}
+#turnBox button{background:transparent;border:1px solid var(--line);color:var(--mute);font:600 12px "Kanit";padding:4px 10px;cursor:pointer}
+
+/* กระดาน */
+#board{position:absolute;left:50%;top:58px;transform:translateX(-50%);display:grid;grid-template-columns:repeat(13,40px);grid-auto-rows:40px;gap:2px;
+  padding:8px;background:rgba(8,14,28,.6);border:1px solid var(--line)}
+.tile{position:relative;background:rgba(90,120,170,.12);border:1px solid rgba(127,184,230,.08)}
+.tile.reach{background:rgba(61,139,217,.22);cursor:pointer}
+.tile.area{background:color-mix(in srgb,var(--own) 38%,transparent);border-color:color-mix(in srgb,var(--own) 70%,transparent)}
+.tile.area2{background:rgba(200,210,230,.18);border-color:rgba(200,210,230,.45);border-style:dashed}
+.tile.hit{animation:hit .5s ease-out}
+@keyframes hit{0%{background:#fff}100%{}}
+.unit{position:absolute;inset:3px;border-radius:50%;background-size:cover;background-position:50% 15%;border:3px solid var(--own);box-shadow:0 0 12px var(--own)}
+.unit.lock::after{content:"";position:absolute;right:-6px;bottom:-6px;width:16px;height:16px;border-radius:50%;background:#111 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 7V5a3 3 0 016 0v2' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Crect x='3.5' y='7' width='9' height='6.5' rx='1' fill='%23fff'/%3E%3C/svg%3E") center/11px no-repeat;border:1px solid #fff}
+.dummy{position:absolute;inset:6px;border-radius:6px;background:linear-gradient(#4a5568,#2d3748);border:2px solid #718096}
+.dmg{position:absolute;left:50%;top:-4px;transform:translateX(-50%);font:700 18px "Chakra Petch";color:#ffd34d;text-shadow:0 2px 3px #000;pointer-events:none;animation:dmg 1.1s ease-out forwards;z-index:5}
+@keyframes dmg{0%{opacity:0;transform:translate(-50%,6px)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-26px)}}
+.arrow{position:absolute;inset:4px;display:grid;place-items:center;cursor:pointer;z-index:3;border-radius:50%;background:color-mix(in srgb,var(--own) 30%,#0b1020);border:2px solid var(--own);animation:apulse 1s ease-in-out infinite}
+.arrow svg{width:18px;height:18px;fill:#fff}
+@keyframes apulse{50%{box-shadow:0 0 14px var(--own)}}
+
+/* HUD ล่าง */
+#hud{left:16px;right:16px;bottom:14px;height:196px;display:flex;align-items:stretch}
+#card{width:290px;display:flex;gap:12px;padding:12px;border-right:1px solid var(--line)}
+#face{width:112px;height:170px;object-fit:cover;object-position:50% 12%;border:2px solid var(--own);background:#000}
+#card .info{display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0}
+#cname{font:600 16px "Kanit";line-height:1.15;white-space:nowrap}
+.bar{display:flex;align-items:center;gap:6px;font:700 14px "Chakra Petch"}
+.bar i{display:inline-block;width:12px;height:12px;border-radius:2px}
+#hud .spacer{flex:1}
+#side{width:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-left:1px solid var(--line)}
+#pts{font:700 34px "Chakra Petch";line-height:1;display:flex;align-items:baseline;gap:6px}
+#pts small{font:500 13px "Kanit";color:var(--mute)}
+#revert{width:64px;height:64px;border-radius:50%;border:2px solid var(--gold);background:radial-gradient(#3a2c10,#140f05);cursor:pointer;display:grid;place-items:center;transition:.2s}
+#revert svg{width:34px;height:34px;fill:var(--gold)}
+#revert:disabled{filter:grayscale(1) brightness(.5);cursor:default}
+#revert.hide{visibility:hidden}
+#endTurn{background:transparent;border:1px solid var(--line);color:var(--text);font:600 14px "Kanit";padding:6px 18px;cursor:pointer}
+
+/* ---------- แกนดาบ (ตั้ง · กลางล่าง) ---------- */
+#swordCol{left:50%;transform:translateX(-50%);bottom:14px;width:340px;height:300px;overflow:hidden;z-index:3}
+#swordCol::after{display:none}
+#sword{position:absolute;inset:0;width:100%;height:100%}
+#swordCol.shake{animation:shake .35s}
+@keyframes shake{20%{transform:translateX(calc(-50% - 6px))}40%{transform:translateX(calc(-50% + 6px))}60%{transform:translateX(calc(-50% - 4px))}80%{transform:translateX(calc(-50% + 3px))}}
+
+#flash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:10}
+#flash.bad{animation:bad .6s ease-out}
+@keyframes bad{0%{opacity:1;background:radial-gradient(transparent 40%,rgba(255,30,30,.55))}100%{opacity:0}}
+#flash.good{animation:good .7s ease-out}
+@keyframes good{0%{opacity:1;background:radial-gradient(color-mix(in srgb,var(--own) 45%,transparent),transparent 70%)}100%{opacity:0}}
+#vid{position:absolute;inset:0;background:#000;display:none;z-index:20}
+#vid video{width:100%;height:100%;object-fit:contain}
+#vid.on{display:block}
+#armorPop{position:absolute;inset:0;display:none;place-items:center;z-index:19;pointer-events:none}
+#armorPop.on{display:grid;animation:pop 1.2s ease-out forwards}
+#armorPop img{height:420px;border:3px solid var(--own);box-shadow:0 0 60px var(--own)}
+@keyframes pop{0%{opacity:0;transform:scale(1.15)}15%{opacity:1;transform:scale(1)}75%{opacity:1}100%{opacity:0}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="pick" class="panel"></div>
+  <div id="turnBox" class="panel"><span id="turnNo">เทิร์น 1</span><button id="newGame">เกมใหม่</button></div>
+  <div id="board"></div>
+  <div id="hud" class="panel">
+    <div id="card">
+      <img id="face" alt="">
+      <div class="info">
+        <div id="cname"></div>
+        <div class="bar"><i style="background:var(--hp)"></i><span id="hp">7/7</span></div>
+        <div class="bar"><i style="background:var(--armor)"></i><span>3</span></div>
+        <div class="bar"><i style="background:var(--gold)"></i><span id="atk">1</span></div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div id="side">
+      <div id="pts"><span id="ptsN">10</span><small>แต้ม</small></div>
+      <button id="revert" class="hide" title="คืนร่าง"><svg viewBox="0 0 24 24"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7zm2.5 13h13v2h-13z"/></svg></button>
+      <button id="endTurn">จบเทิร์น</button>
+    </div>
+  </div>
+
+  <!-- แกนดาบ: โมเดล 3D เรนเดอร์สีเรียบ · ตั้ง · เห็นแค่ด้าม -->
+  <div id="swordCol" class="panel"><canvas id="sword"></canvas></div>
+
+  <div id="flash"></div>
+  <div id="armorPop"><img alt=""></div>
+  <div id="vid"><video playsinline></video></div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+// ---------- ข้อมูล ----------
+const MEDIA = "/client/public/characters/";
+const SEQ = [2, 3, 4, 5, 1];
+const CHARS = [
+  { id: "gira_ohger",     name: "กิระ",     armor: "คุวากาตะ โอเจอร์", btn: 1, css: "#e23b3b", face: "gira.jpg",      armorImg: "kuwagata_ohger.jpg",  video: "kuwagata_ohger.mp4", finish: "kuwagata" },
+  { id: "yanma_ohger",    name: "ยันมะ",    armor: "ทอมโบ โอเจอร์",   btn: 2, css: "#3b78ff", face: "yanma.jpg",     armorImg: "tombo_ohger.webp",    video: "tombo_ohger.mp4",    finish: "tonbo" },
+  { id: "himeno_ohger",   name: "ฮิเมโนะ",  armor: "คามาคิริ โอเจอร์", btn: 3, css: "#f2c21b", face: "himeno.jpg",    armorImg: "kamakiri_ohger.webp", video: "kamakiri_ohger.mp4", finish: "kamakiri" },
+  { id: "rita_ohger",     name: "ริต้า",    armor: "พาพิยอง โอเจอร์", btn: 4, css: "#a54ae8", face: "rita.jpg",      armorImg: "papillon_ohger.webp", video: "papillon_ohger.mp4", finish: "papiyon" },
+  { id: "kaguragi_ohger", name: "คากุรากิ", armor: "ฮาจิ โอเจอร์",    btn: 5, css: "#c9ced8", face: "kaguragi.webp", armorImg: "hachi_ohger.webp",    video: "hachi_ohger.mp4",    finish: "hachi" },
+];
+const FINISH_COST = 4, PTS_MAX = 12, PTS_REGEN = 3, MOV = 4;
+const COLS = 13, ROWS = 8;
+const DUMMIES = [[8, 2], [9, 4], [10, 4], [6, 1], [3, 4], [5, 7], [7, 6], [2, 2], [11, 6]];
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage");
+function fit() { const s = Math.min(innerWidth / 1280, innerHeight / 720); stage.style.transform = `translate(-50%,-50%) scale(${s})`; }
+addEventListener("resize", fit); fit();
+
+// ---------- สถานะ ----------
+let C = CHARS[0];
+const S = {};
+function newGame() {
+  standbyMusic(false);
+  Object.assign(S, {
+    turn: 1, pts: 10, hp: 7, armored: false, armoredTurn: 0,
+    phase: "own",       // own | loop | idle | charge | standby | busy
+    loopIdx: 0, loopLit: new Set(), pulls: 0, finishUsed: false, moved: false,
+    unit: [6, 4], videoSeen: {},
+  });
+  setFill(0, true); renderAll();
+}
+
+// ---------- เสียงชั่วคราว (สังเคราะห์ — ผู้ใช้จะหาเสียงจริงมาแทน) ----------
+let AC; const ac = () => (AC ||= new AudioContext());
+const MUTED = true; // ผู้ใช้สั่งปิดเสียงสังเคราะห์ (2026-10-28) — รอเสียงจริงจากผู้ใช้
+function beep(f, d = 0.08, type = "square", v = 0.05, at = 0) {
+  if (MUTED) return;
+  const a = ac(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime + at;
+  o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.02);
+}
+const SND = {
+  press: (i) => beep(520 + i * 90, 0.09),
+  wrong: () => { beep(140, 0.35, "sawtooth", 0.08); beep(110, 0.4, "sawtooth", 0.06, 0.05); },
+  trigger: () => beep(300, 0.06, "triangle", 0.08),
+  pull: (n) => { beep(420 + n * 160, 0.12, "sawtooth", 0.05); beep(840 + n * 160, 0.08, "square", 0.03, 0.04); },
+  fire: () => { beep(90, 0.5, "sawtooth", 0.1); beep(1200, 0.3, "triangle", 0.05); },
+  cancel: () => beep(260, 0.12, "triangle", 0.06),
+};
+let standbyTimer = null;
+function standbyMusic(on) {
+  clearInterval(standbyTimer); standbyTimer = null;
+  if (!on) return;
+  const notes = [392, 392, 523, 392, 466, 392, 587, 523]; let i = 0;
+  standbyTimer = setInterval(() => beep(notes[i++ % notes.length], 0.14, "square", 0.035), 230);
+}
+
+// ---------- ชิ้นบนดาบ ----------
+const partOf = (b) => "b" + b;
+const canFinish = () => S.armored && !S.finishUsed && S.pts >= FINISH_COST;
+// off | dim | blink | lit
+function partMode(name) {
+  const own = partOf(C.btn);
+  switch (S.phase) {
+    case "own": return name === own ? "blink" : "dim";
+    case "loop": return name === partOf(SEQ[S.loopIdx]) ? "blink" : name === "trigger" ? "dim" : S.loopLit.has(name) ? "lit" : "off";
+    case "idle": return !S.armored ? "off" : name === "trigger" ? (canFinish() ? "blink" : "dim") : name === own ? "lit" : "off";
+    case "charge": return name === own ? "blink" : name === "trigger" ? "lit" : "dim";
+    case "standby": return name === own || name === "trigger" ? "lit" : "dim";
+    default: return "off";
+  }
+}
+// กดได้ไหม (ช่วง loop กดปุ่มสีไหนก็ได้ — ผิดคือโทษ · ช่วง own ติดแค่สีตัวเอง)
+function canPress(name) {
+  if (S.phase === "own") return name === partOf(C.btn);
+  if (S.phase === "loop") return name !== "trigger";
+  if (S.phase === "idle") return S.armored && name === "trigger" && canFinish();
+  if (S.phase === "charge") return true;
+  if (S.phase === "standby") return name === "trigger";
+  return false;
+}
+// ---------- แกนดาบ: เรนเดอร์โมเดล Ohger Caliber (สีเรียบแบบภาพอ้างอิง) · ตั้ง · เห็นแค่ด้าม ----------
+const canvas = $("sword");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+const keyL = new THREE.DirectionalLight(0xffffff, 1.3); keyL.position.set(-1, 2, 3); scene.add(keyL);
+const cam = new THREE.PerspectiveCamera(20, 1, 0.01, 50);
+const pivot = new THREE.Group(); scene.add(pivot);
+
+// ชิ้นที่กดได้ (ชื่อ mesh หลัง three ตัดจุด) · ไก = คันโยก + ห่วงนิ้ว · คามาคิริ = เสี้ยวเหลืองบนห่วง
+const PART_MESH = {
+  b1: (n) => n.startsWith("Circle008_"),
+  b2: (n) => n.startsWith("Circle016_"),
+  b3: (n) => n === "Circle030_yelloww_0",
+  b4: (n) => n.startsWith("Circle010_"),
+  b5: (n) => n.startsWith("Circle018_"),
+  trigger: (n) => n.startsWith("Plane023_") || n === "Circle030_Black_0",
+};
+const PART_GLOW = { b1: 0xff3b30, b2: 0x3d6bff, b3: 0xffc61a, b4: 0xb14bff, b5: 0xdfe4ee, trigger: 0xffe9a8 };
+const PARTS = Object.keys(PART_MESH);
+const parts = {};
+let blade = null, fillMesh = null, fillY0 = 0, fillY1 = 1;
+const fillPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+const glowTex = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.35, "rgba(255,255,255,.5)"); r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+})();
+
+const gltf = await new GLTFLoader().loadAsync(MEDIA + "ohger/ohger_caliber.glb");
+const model = gltf.scene; pivot.add(model); model.updateMatrixWorld(true);
+const solid = [];   // mesh ทึบ (ใช้ raycast — ไม่รวมเส้นขอบ)
+model.traverse((o) => {
+  if (!o.isMesh) return;
+  const m = o.material;
+  if (/Outline/.test(o.name)) { o.material = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.FrontSide }); return; } // เส้นขอบแบบ inverted hull
+  o.material = new THREE.MeshLambertMaterial({ color: m.color.clone(), side: m.side });
+  if (o.name.includes("Light_Sword")) { blade = o; o.material.color.setHex(0xd2d5d8); }
+  solid.push(o);
+});
+
+// จัดแนว: ปลายดาบชี้ขึ้น · หน้าใบดาบหันเข้ากล้อง · หัวหมุน (ฮาจิ) อยู่ซ้าย
+{
+  const tmp = new THREE.Vector3(), all = [], bp = [];
+  for (const o of solid) { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 5) all.push(tmp.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).clone()); }
+  const pb = blade.geometry.attributes.position; for (let i = 0; i < pb.count; i += 2) bp.push(tmp.fromBufferAttribute(pb, i).applyMatrix4(blade.matrixWorld).clone());
+  const ctr = new THREE.Box3().setFromPoints(all).getCenter(new THREE.Vector3());
+  let tip = bp[0]; for (const p of bp) if (p.distanceTo(ctr) > tip.distanceTo(ctr)) tip = p;
+  let pom = all[0]; for (const p of all) if (p.distanceTo(tip) > pom.distanceTo(tip)) pom = p;
+  const qa = new THREE.Quaternion().setFromUnitVectors(tip.clone().sub(pom).normalize(), new THREE.Vector3(0, 1, 0));
+  const bq = bp.map((p) => p.clone().sub(ctr).applyQuaternion(qa));
+  let yaw = 0, best = Infinity;   // หมุนรอบแกน Y ให้ใบดาบบางสุดในแนว Z = หน้าแบนหันเข้ากล้อง
+  for (let a = 0; a < Math.PI; a += Math.PI / 120) {
+    const c = Math.cos(a), s = Math.sin(a); let lo = Infinity, hi = -Infinity;
+    for (const p of bq) { const z = -p.x * s + p.z * c; lo = Math.min(lo, z); hi = Math.max(hi, z); }
+    if (hi - lo < best) { best = hi - lo; yaw = a; }
+  }
+  const knob = new THREE.Box3().setFromObject(model.getObjectByName("Circle018")).getCenter(new THREE.Vector3()).sub(ctr).applyQuaternion(qa);
+  if (knob.x * Math.cos(yaw) + knob.z * Math.sin(yaw) > 0) yaw += Math.PI;      // หัวหมุนไปซ้าย
+  const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+  const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.12); // เอียงขวาเล็กน้อยแบบภาพ
+  pivot.quaternion.copy(tilt.multiply(qy.multiply(qa)));
+  model.position.copy(ctr).negate();
+  pivot.updateMatrixWorld(true);
+}
+
+for (const name of PARTS) {
+  const meshes = []; model.traverse((o) => { if (o.isMesh && !/Outline/.test(o.name) && PART_MESH[name](o.name)) meshes.push(o); });
+  const mats = meshes.map((o) => (o.material = o.material.clone()));
+  mats.forEach((m) => (m._base = m.color.clone()));
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: PART_GLOW[name], transparent: true, opacity: 0, depthTest: false, blending: THREE.AdditiveBlending }));
+  scene.add(halo);
+  const b = new THREE.Box3(); meshes.forEach((m) => b.expandByObject(m));
+  const center = b.getCenter(new THREE.Vector3()), size = b.getSize(new THREE.Vector3());
+  halo.position.copy(center).add(new THREE.Vector3(0, 0, 0.2)); halo.scale.setScalar(Math.min(size.x, size.y) * 1.8 + 0.06);
+  parts[name] = { meshes, mats, halo, kick: 0 };
+}
+const meshPart = new Map(); for (const [n, p] of Object.entries(parts)) p.meshes.forEach((m) => meshPart.set(m, n));
+
+// แสงเติมใบดาบ — สำเนาใบดาบ + ระนาบตัดตามแกน Y
+{
+  const b = new THREE.Box3().setFromObject(blade); fillY0 = b.min.y; fillY1 = b.max.y;
+  fillMesh = new THREE.Mesh(blade.geometry, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, clippingPlanes: [fillPlane] }));
+  blade.add(fillMesh); fillMesh.scale.setScalar(1.003);
+}
+
+// ท่ากดจากแอนิเมชันในโมเดล (ตัดเฉพาะกระดูกของชิ้นนั้น)
+const mixer = new THREE.AnimationMixer(model), pressClips = {};
+{
+  const clip = gltf.animations[0];
+  const cut = (bones, t0, t1) => {
+    const tracks = [];
+    for (const tr of clip.tracks) {
+      if (!bones.some((b) => tr.name.startsWith(b + "."))) continue;
+      const n = tr.getValueSize(), T = [], V = [];
+      tr.times.forEach((t, i) => { if (t >= t0 - 1e-3 && t <= t1 + 1e-3) { T.push(t - t0); for (let k = 0; k < n; k++) V.push(tr.values[i * n + k]); } });
+      if (T.length > 1) tracks.push(new tr.constructor(tr.name, T, V));
+    }
+    return tracks.length ? new THREE.AnimationClip("p", t1 - t0, tracks) : null;
+  };
+  const defs = { b5: [["Bone003_03"], 16.317, 16.583], b2: [["Bone004_04"], 8.017, 8.4], b3: [["Bone005_06"], 10.75, 11.217],
+    trigger: [["Bone005_06", "Bone006_05"], 10.75, 11.217], b4: [["Bone008_08"], 13.467, 13.85] };
+  for (const [n, [bones, t0, t1]] of Object.entries(defs)) { const c = cut(bones, t0, t1); if (c) pressClips[n] = c; }
+}
+function kick(name) {
+  parts[name].kick = 1;
+  const c = pressClips[name]; if (!c) return;
+  const a = mixer.clipAction(c); a.reset(); a.setLoop(THREE.LoopOnce, 1); a.play();
+}
+
+// กล้อง: กรอบเฉพาะด้าม (ตัดปลายด้ามล่าง + ใบดาบบน) แบบภาพอ้างอิง
+function sizeSword() {
+  const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); cam.aspect = w / h;
+  const box = new THREE.Box3(); for (const p of Object.values(parts)) p.meshes.forEach((m) => box.expandByObject(m));
+  const hgt = box.max.y - box.min.y; box.max.y += hgt * 0.3; box.min.y -= hgt * 0.4;
+  const sz = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  const t = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2);
+  const dist = Math.max(sz.y / 2 / t, sz.x / 2 / t / cam.aspect) * 1.05;
+  cam.position.set(ctr.x, ctr.y, ctr.z + dist + 0.4); cam.lookAt(ctr); cam.updateProjectionMatrix();
+}
+new ResizeObserver(sizeSword).observe(canvas); sizeSword();
+
+// ไฟ
+const clock = new THREE.Clock();
+let fillNow = 0, fillTarget = 0;
+function setFill(f, instant) { fillTarget = f; if (instant) fillNow = f; }
+(function loop() {
+  const dt = clock.getDelta(), t = clock.elapsedTime; mixer.update(dt);
+  const bl = 0.5 + 0.5 * Math.sin(t * 8);
+  for (const name of PARTS) {
+    const p = parts[name], m = partMode(name); p.kick = Math.max(0, p.kick - dt * 3);
+    let e = 0, h = 0, dim = 1;
+    if (m === "blink") { e = 0.25 + 0.75 * bl; h = 0.2 + 0.65 * bl; } else if (m === "lit") { e = 0.45; h = 0.15; } else if (m === "dim") dim = 0.4;
+    e += p.kick; h += p.kick * 0.7;
+    for (const mat of p.mats) { mat.color.copy(mat._base).multiplyScalar(dim); mat.emissive.setHex(PART_GLOW[name]); mat.emissiveIntensity = e * (name === "b5" || name === "trigger" ? 0.5 : 0.8); }
+    p.halo.material.opacity = Math.min(0.6, h * 0.6);
+  }
+  fillNow += (fillTarget - fillNow) * Math.min(1, dt * 10);
+  fillPlane.constant = fillY0 + (fillY1 - fillY0) * fillNow;
+  fillMesh.visible = fillNow > 0.002;
+  fillMesh.material.color.set(getComputedStyle(stage).getPropertyValue("--own").trim() || "#fff");
+  fillMesh.material.opacity = S.phase === "standby" ? 0.55 + 0.35 * Math.sin(t * 10) : 0.75;
+  renderer.render(scene, cam);
+  requestAnimationFrame(loop);
+})();
+
+// กด: raycast mesh ทึบ — ชิ้นที่อยู่หน้าสุดชนะ · พลาดเล็กน้อยรอบเคอร์เซอร์ยังติด
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitAt(x, y) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
+  const h = ray.intersectObjects(solid, false)[0]; return h ? meshPart.get(h.object) || null : null;
+}
+function pickPart(ev) {
+  const direct = hitAt(ev.clientX, ev.clientY); if (direct) return direct;
+  const votes = {};
+  for (let a = 0; a < 8; a++) { const n = hitAt(ev.clientX + Math.cos(a * Math.PI / 4) * 7, ev.clientY + Math.sin(a * Math.PI / 4) * 7); if (n) votes[n] = (votes[n] || 0) + 1; }
+  return Object.keys(votes).sort((a, b) => votes[b] - votes[a])[0] || null;
+}
+canvas.addEventListener("pointermove", (e) => { const n = pickPart(e); canvas.style.cursor = n && canPress(n) ? "pointer" : "default"; });
+canvas.addEventListener("pointerdown", (e) => { const n = pickPart(e); if (n && canPress(n)) onPart(n); });
+function renderSword() {}
+window.__snap = (q = 0.8) => { renderer.render(scene, cam); return canvas.toDataURL("image/jpeg", q); };
+// สำหรับทดสอบ: ตำแหน่งจอของชิ้น (จุดบน mesh ที่ raycast แล้วโดนชิ้นนั้นจริง)
+window.__partPoint = (name) => {
+  const r = canvas.getBoundingClientRect();
+  for (const m of parts[name].meshes) { const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += 3) { const v = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).project(cam);
+      const x = r.left + (v.x + 1) / 2 * r.width, y = r.top + (1 - v.y) / 2 * r.height; if (hitAt(x, y) === name) return [x, y]; } }
+  return null;
+};
+
+function onPart(name) {
+  const b = name === "trigger" ? 0 : +name.slice(1);
+  if (S.phase === "own") {                              // บังคับถูกเสมอ
+    SND.press(b); kick(name); S.phase = "loop"; S.loopIdx = 0; S.loopLit = new Set(); setFill(0.06);
+  } else if (S.phase === "loop") {
+    if (b !== SEQ[S.loopIdx]) return failTransform();
+    SND.press(b); kick(name); S.loopLit.add(name); S.loopIdx++;
+    setFill(0.06 + 0.94 * S.loopIdx / SEQ.length);
+    if (S.loopIdx === SEQ.length) return succeedTransform();
+  } else if (S.phase === "idle") {
+    SND.trigger(); kick(name); S.phase = "charge"; S.pulls = 0; setFill(0);
+  } else if (S.phase === "charge") {
+    if (name === "trigger") return cancelFinish();
+    if (b !== C.btn) return wastedFinish();
+    S.pulls++; SND.pull(S.pulls); kick(name); setFill(S.pulls / 3);
+    if (S.pulls === 3) { S.phase = "standby"; standbyMusic(true); }
+  } else if (S.phase === "standby") {
+    return cancelFinish();
+  }
+  renderAll();
+}
+
+function flash(kind) { const f = $("flash"); f.className = ""; void f.offsetWidth; f.className = kind; }
+function shake() { const c = $("swordCol"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); }
+
+function failTransform() {                              // กดผิด = จบตาเดินทันที
+  SND.wrong(); flash("bad"); shake(); S.phase = "busy"; setFill(0); renderAll();
+  setTimeout(endTurn, 800);
+}
+function succeedTransform() {
+  S.phase = "busy"; renderAll();
+  const done = () => { S.armored = true; S.armoredTurn = S.turn; S.phase = "idle"; setFill(1); flash("good"); renderAll(); };
+  if (!S.videoSeen[C.id]) {                             // คลิปแปลงร่างสำเร็จ 1 ครั้งต่อเกม
+    S.videoSeen[C.id] = true;
+    const box = $("vid"), v = box.querySelector("video");
+    v.src = MEDIA + C.id + "/" + C.video; box.classList.add("on");
+    const close = () => { v.pause(); box.classList.remove("on"); v.onended = box.onclick = null; done(); };
+    v.onended = close; box.onclick = close; v.play().catch(close);
+  } else {
+    const pop = $("armorPop"); pop.querySelector("img").src = MEDIA + C.id + "/" + C.armorImg;
+    pop.classList.remove("on"); void pop.offsetWidth; pop.classList.add("on");
+    setTimeout(done, 500);
+  }
+}
+function cancelFinish() { SND.cancel(); standbyMusic(false); S.phase = "idle"; S.pulls = 0; setFill(1); renderAll(); }
+function wastedFinish() {                               // ดึงผิดสี = เสีย 4 แต้มฟรี
+  SND.wrong(); flash("bad"); shake(); standbyMusic(false);
+  S.pts -= FINISH_COST; S.finishUsed = true; S.phase = "idle"; S.pulls = 0; setFill(1); renderAll();
+}
+function revert() {
+  if (!S.armored || S.armoredTurn >= S.turn || S.phase !== "idle") return;
+  S.armored = false; S.phase = "own"; setFill(0); SND.cancel(); renderAll();
+}
+function endTurn() {
+  standbyMusic(false);
+  S.turn++; S.pts = Math.min(PTS_MAX, S.pts + PTS_REGEN); S.finishUsed = false; S.moved = false;
+  if (!S.armored) S.hp = Math.min(7, S.hp + 2);
+  S.phase = S.armored ? "idle" : "own"; setFill(S.armored ? 1 : 0); renderAll();
+}
+
+// ---------- กระดาน + ทิศ ----------
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const ARROW_SVG = { up: "M12 4l7 9h-4v7H9v-7H5z", down: "M12 20l-7-9h4V4h6v7h4z", left: "M4 12l9-7v4h7v6h-7v4z", right: "M20 12l-9 7v-4H4V9h7V5z" };
+const inB = ([x, y]) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+const hasDummy = ([x, y]) => DUMMIES.some((d) => d[0] === x && d[1] === y);
+function finishArea(kind, dir) {
+  const [dx, dy] = DIRS[dir], px = -dy, py = dx, [ux, uy] = S.unit; const out = [], extra = [];
+  const at = (f, l) => [ux + dx * f + px * l, uy + dy * f + py * l];
+  if (kind === "kuwagata") for (let f = 1; f <= 4; f++) for (let l = -1; l <= 2; l++) out.push({ c: at(f, l), dmg: [4] });
+  if (kind === "tonbo") for (let f = 1; f <= 6; f++) out.push({ c: at(f, 0), dmg: [2, 2] });
+  if (kind === "kamakiri") for (let f = 1; f <= 4; f++) for (let l = -2; l <= 2; l++) out.push({ c: at(f, l), dmg: [[2, 3, 4][Math.abs(l)]] });
+  if (kind === "papiyon") for (let f = 1; f <= 4; f++) { const c = at(f, 0); out.push({ c, dmg: [3] }); if (hasDummy(c)) break; }
+  if (kind === "hachi") { for (let f = 1; f <= 5; f++) out.push({ c: at(f, 0), dmg: [2] }); for (let f = 1; f <= 2; f++) extra.push(at(-f, 0)); }
+  return { cells: out.filter((o) => inB(o.c)), extra: extra.filter(inB) };
+}
+let hoverDir = null;
+function fireFinish(dir) {
+  const { cells, extra } = finishArea(C.finish, dir);
+  SND.fire(); standbyMusic(false); flash("good");
+  S.pts -= FINISH_COST; S.finishUsed = true; S.phase = "busy"; renderAll();
+  const hits = C.finish === "papiyon" ? cells.filter((o) => hasDummy(o.c)).slice(0, 1) : cells.filter((o) => hasDummy(o.c));
+  cells.forEach((o, i) => setTimeout(() => tileEl(o.c)?.classList.add("hit"), i * 18));
+  hits.forEach((o) => o.dmg.forEach((d, k) => setTimeout(() => popDmg(o.c, d), 250 + k * 380)));
+  if (C.finish === "papiyon") { const i = hits[0] ? cells.indexOf(hits[0]) - 1 : cells.length - 1; if (i >= 0) S.unit = cells[i].c; }
+  if (C.finish === "hachi") { let p = S.unit; for (const c of extra) { if (hasDummy(c)) break; p = c; } S.unit = p; }
+  setTimeout(() => { S.phase = "idle"; setFill(1); renderAll(); }, 900);
+}
+function popDmg(c, d) { const el = tileEl(c); if (!el) return; const s = document.createElement("div"); s.className = "dmg"; s.textContent = "-" + d; el.appendChild(s); setTimeout(() => s.remove(), 1200); }
+const tileEl = ([x, y]) => $("board").children[y * COLS + x];
+
+function renderBoard() {
+  const bd = $("board"); bd.innerHTML = "";
+  const lock = S.phase === "standby" || S.moved || S.phase === "busy" || S.phase === "loop" || S.phase === "charge";
+  const area = new Set(), area2 = new Set();
+  if (S.phase === "standby" && hoverDir) { const a = finishArea(C.finish, hoverDir); a.cells.forEach((o) => area.add(o.c + "")); a.extra.forEach((c) => area2.add(c + "")); }
+  const [ux, uy] = S.unit;
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const t = document.createElement("div"); t.className = "tile"; const k = [x, y] + "";
+    const dist = Math.abs(x - ux) + Math.abs(y - uy);
+    if (!lock && dist > 0 && dist <= MOV && !hasDummy([x, y])) { t.classList.add("reach"); t.onclick = () => { S.unit = [x, y]; S.moved = true; renderAll(); }; }
+    if (area.has(k)) t.classList.add("area"); if (area2.has(k)) t.classList.add("area2");
+    if (hasDummy([x, y])) t.innerHTML = '<div class="dummy"></div>';
+    if (x === ux && y === uy) {
+      const u = document.createElement("div"); u.className = "unit" + (S.phase === "standby" ? " lock" : "");
+      u.style.backgroundImage = `url(${MEDIA + C.id + "/" + (S.armored ? C.armorImg : C.face)})`; t.appendChild(u);
+    }
+    if (S.phase === "standby") for (const [d, [dx, dy]] of Object.entries(DIRS)) if (x === ux + dx && y === uy + dy) {
+      const a = document.createElement("div"); a.className = "arrow"; a.innerHTML = `<svg viewBox="0 0 24 24"><path d="${ARROW_SVG[d]}"/></svg>`;
+      a.onmouseenter = () => { hoverDir = d; renderBoard(); }; a.onmouseleave = () => { hoverDir = null; renderBoard(); };
+      a.onclick = () => { hoverDir = null; fireFinish(d); }; t.appendChild(a);
+    }
+    bd.appendChild(t);
+  }
+}
+
+function renderAll() {
+  stage.style.setProperty("--own", C.css);
+  $("turnNo").textContent = "เทิร์น " + S.turn;
+  $("face").src = MEDIA + C.id + "/" + (S.armored ? C.armorImg : C.face);
+  $("cname").textContent = S.armored ? C.armor : C.name;
+  $("hp").textContent = S.hp + "/7";
+  $("atk").textContent = S.armored ? "2" : "1";
+  $("ptsN").textContent = S.pts;
+  const rv = $("revert"); rv.classList.toggle("hide", !S.armored); rv.disabled = !(S.armored && S.armoredTurn < S.turn && S.phase === "idle");
+  $("endTurn").disabled = S.phase === "busy";
+  renderSword(); renderBoard();
+}
+
+// ---------- ตัวเลือก ----------
+function buildPick() {
+  const p = $("pick"); p.innerHTML = "";
+  for (const c of CHARS) {
+    const b = document.createElement("button"); b.style.color = c === C ? c.css : "";
+    b.className = c === C ? "on" : ""; b.innerHTML = `<img src="${MEDIA + c.id + "/" + c.face}"><span>${c.name}</span>`;
+    b.onclick = () => { C = c; buildPick(); newGame(); };
+    p.appendChild(b);
+  }
+}
+$("revert").onclick = revert;
+$("endTurn").onclick = () => { if (S.phase !== "busy") endTurn(); };
+$("newGame").onclick = newGame;
+buildPick(); newGame();
+window.__ohger = { S, get C() { return C; }, onPart, canPress };
+</script>
+</body>
+</html>

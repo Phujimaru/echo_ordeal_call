@@ -253,6 +253,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ไม่ตายแม้ถูกบังคับ (force) / ตายแน่นอนข้ามทุกด่าน | ฮุค `deathless(engine, p)` → true (ตั้งเลือดเอง) · `engine.instantDeath(t, "absolute")` (ยูกิ มาโคโตะ — GAME_SYSTEM §37) | `combat.instantDeath` |
 | ข้ามตาเดินทั้งตา (ยืนนิ่ง/ชาร์จ) โดยไม่ใช้สตั้น | ฮุค `skipsTurn(engine, u)` → true (บันทึก log เอง) | `action.nextActor` |
 | จบเกมด้วยผู้ชนะที่กำหนด + พักฉากก่อนสรุปผล | `engine.declareWinner(p)` + `engine.holdEndTurn(sec)` (จากฮุค `onEndTurn`) + ข้อมูลฉากใน state (`engine.setYukiBoom`) | `endTurn.gameOver` / `colonyHoldThen` |
+| HUD เฉพาะตัวแทนช่องสกิล (ปุ่มบนโมเดล 3D) + ลำดับกดตายตัว + ลูปเสียงตามขั้น | ปุ่มส่ง `charAction` (`ohger:…`) · จบลำดับแล้วเรียก `engine.useSkill` เองด้วยธงภายใน · state เฉพาะตัว (`ohgerState`) · ลูปเสียง client `startLoopSfx` ตาม phase · stand by → client เปิดโหมดเลือกทิศเอง (คิงโอเจอร์ — GAME_SYSTEM §38) | `client/src/screens/hud/OhgerSword.jsx` |
+| สกิลแนวกว้างเลขคู่ (4×4) | `area { kind: "line", width: 4 }` ได้แล้ว — เยื้องไปทางลบของแกนขวาง (−2…+1) | `Board.lineTiles` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

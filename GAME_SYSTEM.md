@@ -1097,3 +1097,14 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   `engine.setYukiBoom({ by, x, y, size })` → `state.yukiBoom { seq, … }` (ค้างถึง GAMEOVER) · `engine.holdEndTurn(sec, onStart)` = endTurn พักเฟส CUTSCENE (ไม่มีคลิป) ทางเดียวกับฉาก Colony ก่อนสรุปผล · `onStart` ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้ในจบเทิร์นเล่นจบ) — เรียกได้จากฮุค `onEndTurn`
 - client: `client/src/board/yukiFx.js` — จอมืด + ออร่ารวมตัวระหว่างนับถอยหลัง (`players[].yuki { left, at }`) · ฉากระเบิดเต็มจอ 14 วิ (`state.yukiBoom` · เสียง `yuki_boom` ระเบิดที่ 2.6 วิ · เงียบเพลงอื่นทั้งหมด)
 
+## 38. แกนดาบ HUD เฉพาะตัว / ลำดับกดตายตัว / ลูปเสียงตามขั้น / แนวกว้างคู่ (คิงโอเจอร์ — `characters/_ohger.js` · GRID_PLAN §7.22)
+- **5 ตัวจากโรงงานเดียว**: `makeOhger(def)` คืนโมดูลต่อ id (`gira_ohger` … `kaguragi_ohger`) · ฮุคทุกตัวเช็ค `p.characterId === ID` เอง (broadcast)
+- **ปุ่มบนแกนดาบ = socket `charAction` คีย์ `ohger:b1…b5 / ohger:trigger / ohger:revert`** (ไม่ผ่าน useSkill) · client `client/src/screens/hud/OhgerSword.jsx` (โมเดล GLB `/characters/ohger/ohger_caliber.glb` — raycast ชิ้นจริง) วาดกลาง HUD แทนช่องพื้นฐาน/รอง
+  - แปลงร่าง: ครบลูป → `engine.useSkill(id, "basic")` พร้อมธงภายใน `s.ready` (กด useSkill basic ตรงๆ ไม่ผ่าน `canUseSkill`) · กดผิด → `engine.finishActor()` (จบตาเดิน)
+  - Finish: `charge` → `standby` (ฮุค `mov` → 0) → client เข้าโหมดเลือกทิศเอง (`pickReq.kind "ohger"` ใน Game.jsx) → `useSkill secondary { dir }` · ออกจากโหมด = ส่ง `ohger:trigger` (ยกเลิก)
+- **state `players[].ohger`** (`ohgerState`): `own · armored · phase · step · pulls · next (ปุ่มที่ไฟกระพริบ) · canTransform · canFinish · canRevert`
+- **ลูปเสียงตามขั้น** — client เล่นเอง (`startLoopSfx`/`stopLoopSfx` ใน audio.js) ตาม `phase` ของคนที่กำลังเดิน: `ohger_tf_wait_N` / `ohger_charge_loop` / `ohger_standby_loop` · เสียงจังหวะเดียวมาจาก server `engine.sfx` · เสียงท่าโจมตีต่อคิวหลังป้ายสกิล (`SFX_QUEUED` กลุ่ม `ohger`)
+- **แนวกว้างคู่**: `Board.lineTiles` รับ width คู่ได้แล้ว (เยื้องไปทางลบของแกนขวาง: 4 = −2…+1) — client `boardRules.js` สร้างใหม่ด้วย `node scripts/gen-board-rules.js`
+- เอฟเฟกต์บนกระดาน: socket `ohgerFx { kind (slash/dash/needle/wave), form, color, from, tiles, dir, target? }` → `client/src/board/ohgerFx.js`
+- เสียงทั้งหมดตัดจากไฟล์ผู้ใช้ด้วย `.claude/plans/ohger-sfx.py` (−16 LUFS จังหวะเดียว · −18 LUFS ลูป) · รายการช่วงที่ตัด `.claude/plans/ohger-sfx.json`
+

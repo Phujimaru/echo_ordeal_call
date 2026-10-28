@@ -25,6 +25,12 @@ const emiya_shirou = require("./emiya_shirou"); // เอมิยะ ชิโ�
 const kensaki_kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ — ยาก (ร่างมนุษย์/Blade / Blay Rouzer การ์ด 9 ใบ / Rouze ท่า Lightning)
 const trafalgar_law = require("./trafalgar_law"); // ทราฟาก้า ลอว์ — พิเศษ · unique (Room / ศัลแพทย์ 4 แบบ / Gamma Knife · Mess / Counter Shock)
 const yuki_makoto = require("./yuki_makoto"); // ยูกิ มาโคโตะ — เอาฮา (ไม่ตาย · เกิดใหม่เป็นประตู นับ 3 เทิร์น ระเบิดทั้งแผนที่ จบเกม)
+// ขบวนการจอมราชันคิงโอเจอร์ — ง่าย 5 ตัวแยกกัน (แกนดาบ Ohger Calibur / Ohger Finish ตามร่าง / จอมราชัน — characters/_ohger.js)
+const gira_ohger = require("./gira_ohger");
+const yanma_ohger = require("./yanma_ohger");
+const himeno_ohger = require("./himeno_ohger");
+const rita_ohger = require("./rita_ohger");
+const kaguragi_ohger = require("./kaguragi_ohger");
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -53,6 +59,11 @@ const CHARACTER_MODULES = [
   kensaki_kazuma,
   trafalgar_law,
   yuki_makoto,
+  gira_ohger,
+  yanma_ohger,
+  himeno_ohger,
+  rita_ohger,
+  kaguragi_ohger,
 ];
 
 const CHAR_HOOKS = {};

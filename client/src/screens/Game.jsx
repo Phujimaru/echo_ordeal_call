@@ -23,8 +23,9 @@ import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import { BladeRouzerSlot, BladeRouzerPanel } from "./hud/BladeRouzer";
+import OhgerSword from "./hud/OhgerSword";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
-import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic } from "../audio";
+import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx } from "../audio";
 import BoardStage from "../board/BoardStage";
 import YukiBoom from "../board/YukiBoom";
 import * as Rules from "../board/boardRules";
@@ -2105,6 +2106,27 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     socket.emit("useSkill", { tier, form: c.key });
   };
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
+  // คิงโอเจอร์ (players[].ohger — characters/_ohger.js): ลูปเสียงระหว่างกดแกนดาบของคนที่กำลังเดิน (ทุกคนได้ยิน)
+  //  loop = ลูปแปลงร่างตามสี · charge = รอดึงคันโยก · standby = เลือกทิศ
+  const ohgerActor = phase === "ACTION" ? (state.players || []).find((p) => p.id === state.actorId && p.ohger) : null;
+  const ohgerLoop = ohgerActor && ohgerActor.ohger.phase
+    ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}`, charge: "ohger_charge_loop", standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
+    : null;
+  const ohgerLoopRef = useRef(null);
+  useEffect(() => {
+    if (ohgerLoopRef.current === ohgerLoop) return;
+    if (ohgerLoopRef.current) stopLoopSfx();
+    ohgerLoopRef.current = ohgerLoop;
+    if (ohgerLoop) startLoopSfx(ohgerLoop);
+  }, [ohgerLoop]);
+  useEffect(() => () => { if (ohgerLoopRef.current) stopLoopSfx(); }, []);
+  // stand by (ดึงครบ 3 ครั้ง) = เข้าโหมดเลือกทิศทันที · ออกจากโหมด (Esc / คลิกขวา) = ยกเลิก Finish (กดไกซ้ำ)
+  const ohgerStandby = myTurn && !canto && me?.ohger?.phase === "standby";
+  const ohgerExit = useRef(false);
+  useEffect(() => {
+    if (!ohgerStandby) { ohgerExit.current = false; return; }
+    if (!pickReq && !ohgerExit.current) setPickReq({ kind: "ohger" });
+  }, [ohgerStandby, pickReq]);
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
     if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
@@ -2168,6 +2190,14 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
       //  place "list" + count (ลอว์: Shambles / Shamble เลือก 2 อย่าง) = เลือกครบแล้วส่ง tiles ทีเดียว
       else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "ohger") {
+      // คิงโอเจอร์ stand by: เลือกทิศ Ohger Finish (พื้นที่ตามร่าง) → useSkill secondary · ยกเลิก = กดไกซ้ำ (ไม่เสียแต้ม เดินได้อีก)
+      const a = ch?.secondary?.area || {};
+      boardPick = {
+        kind: "line", len: a.len || 1, width: a.width || 1, label: `${ch?.secondary?.name || ""} · ${areaText(a)}`,
+        onPick: (dir) => { ohgerExit.current = true; socket.emit("useSkill", { tier: "secondary", dir }); done(); },
+        onCancel: () => { ohgerExit.current = true; socket.emit("charAction", { key: "ohger:trigger" }); done(); },
+      };
     } else if (pickReq.kind === "gun") {
       const item = pickReq.item;
       boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
@@ -2596,7 +2626,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             />
           }
           mode={hudMode}
-          center={hudMode === "draw" ? (
+          center={hudMode !== "draw" && me?.ohger ? (
+            <OhgerSword ohger={me.ohger} interactive={myTurn && !canto} onPress={(k) => socket.emit("charAction", { key: `ohger:${k}` })} />
+          ) : hudMode === "draw" ? (
             <DrawDock
               cards={hand.cards}
               score={hand.score}
@@ -2635,10 +2667,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  {ch?.basic && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />}
+                  {ch?.basic && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
-                    : ch?.secondary && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
+                    : ch?.secondary && !me.ohger && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }

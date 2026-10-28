@@ -142,7 +142,7 @@ function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, c
     connected: true,
     ready: false, // ห้องรอ: ต้องกดพร้อมก่อนเกมถึงจะเริ่มได้ (ครบทุกคน = เริ่มอัตโนมัติ)
     teamId: null, teamConfirmed: false, modeVote: null,
-    name: (name || "ผู้เล่น").toString().slice(0, 12),
+    name: (name || "ผู้เล่น").toString().slice(0, 20), // ชื่อผู้เล่นยาวสุด 20 ตัวอักษร (ผู้ใช้สั่ง 2026-10-28 — เดิม 12 · client Setup.jsx NAME_MAX)
     customColor: lobby.normalizeColor(color),
     position: pos, characterId: ch.id, avatar: ch.avatar, img: ch.img,
     charMode: mode, // โหมดที่เลือกในหน้าเลือกตัว (characters.js modes — นักบินปริศนา: "sleeper" / "savior") · ไม่มีโหมด = null

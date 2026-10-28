@@ -1,0 +1,353 @@
+{
+  "ohger_atk_1": {
+    "src": "ohger_attack.m4a",
+    "start": 8.1143,
+    "end": 9.9,
+    "seconds": 1.7857,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -4.2
+  },
+  "ohger_atk_2": {
+    "src": "ohger_attack.m4a",
+    "start": 15.7906,
+    "end": 17.87,
+    "seconds": 2.0794,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -4.1
+  },
+  "ohger_atk_3": {
+    "src": "ohger_attack.m4a",
+    "start": 20.8255,
+    "end": 22.565,
+    "seconds": 1.7395,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -4.2
+  },
+  "ohger_atk_4": {
+    "src": "ohger_attack.m4a",
+    "start": 28.0,
+    "end": 29.69,
+    "seconds": 1.69,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -3.6
+  },
+  "ohger_atk_5": {
+    "src": "ohger_attack.m4a",
+    "start": 37.27,
+    "end": 39.15,
+    "seconds": 1.88,
+    "loop": false,
+    "lufs": -15.9,
+    "truePeak": -6.6
+  },
+  "ohger_call_1": {
+    "src": "ohger_tranform.m4a",
+    "start": 1.644,
+    "end": 4.224,
+    "seconds": 2.58,
+    "loop": false,
+    "lufs": -15.9,
+    "truePeak": -5.6
+  },
+  "ohger_call_2": {
+    "src": "ohger_tranform.m4a",
+    "start": 58.5977,
+    "end": 60.658,
+    "seconds": 2.0602,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -6.4
+  },
+  "ohger_call_3": {
+    "src": "ohger_tranform.m4a",
+    "start": 77.7396,
+    "end": 79.532,
+    "seconds": 1.7924,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -4.7
+  },
+  "ohger_call_4": {
+    "src": "ohger_tranform.m4a",
+    "start": 94.7932,
+    "end": 96.524,
+    "seconds": 1.7308,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -2.1
+  },
+  "ohger_call_5": {
+    "src": "ohger_tranform.m4a",
+    "start": 113.7658,
+    "end": 115.71,
+    "seconds": 1.9442,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -6.6
+  },
+  "ohger_charge_loop": {
+    "src": "ohger_finish.m4a",
+    "start": 3.766,
+    "end": 4.8095,
+    "seconds": 1.0435,
+    "loop": true,
+    "lufs": -18.1,
+    "truePeak": -4.9
+  },
+  "ohger_finish_call": {
+    "src": "ohger_finish.m4a",
+    "start": 30.4885,
+    "end": 40.267,
+    "seconds": 9.7785,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -2.0
+  },
+  "ohger_pull_1_1": {
+    "src": "ohger_finish.m4a",
+    "start": 5.2351,
+    "end": 6.52,
+    "seconds": 1.2849,
+    "loop": false,
+    "lufs": -16.2,
+    "truePeak": -1.8
+  },
+  "ohger_pull_1_2": {
+    "src": "ohger_finish.m4a",
+    "start": 6.5266,
+    "end": 7.83,
+    "seconds": 1.3034,
+    "loop": false,
+    "lufs": -16.2,
+    "truePeak": -1.8
+  },
+  "ohger_pull_1_3": {
+    "src": "ohger_finish.m4a",
+    "start": 7.8524,
+    "end": 9.218,
+    "seconds": 1.3656,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.6
+  },
+  "ohger_pull_2_1": {
+    "src": "ohger_finish.m4a",
+    "start": 9.218,
+    "end": 10.63,
+    "seconds": 1.412,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.7
+  },
+  "ohger_pull_2_2": {
+    "src": "ohger_finish.m4a",
+    "start": 10.63,
+    "end": 12.003,
+    "seconds": 1.373,
+    "loop": false,
+    "lufs": -16.2,
+    "truePeak": -1.0
+  },
+  "ohger_pull_2_3": {
+    "src": "ohger_finish.m4a",
+    "start": 12.0051,
+    "end": 13.484,
+    "seconds": 1.4789,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.9
+  },
+  "ohger_pull_3_1": {
+    "src": "ohger_finish.m4a",
+    "start": 13.5055,
+    "end": 14.988,
+    "seconds": 1.4825,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -1.5
+  },
+  "ohger_pull_3_2": {
+    "src": "ohger_finish.m4a",
+    "start": 14.988,
+    "end": 16.719,
+    "seconds": 1.731,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.8
+  },
+  "ohger_pull_3_3": {
+    "src": "ohger_finish.m4a",
+    "start": 16.7438,
+    "end": 18.366,
+    "seconds": 1.6222,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.8
+  },
+  "ohger_pull_4_1": {
+    "src": "ohger_finish.m4a",
+    "start": 18.3779,
+    "end": 19.717,
+    "seconds": 1.3391,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.1
+  },
+  "ohger_pull_4_2": {
+    "src": "ohger_finish.m4a",
+    "start": 19.7205,
+    "end": 21.081,
+    "seconds": 1.3605,
+    "loop": false,
+    "lufs": -16.2,
+    "truePeak": -2.0
+  },
+  "ohger_pull_4_3": {
+    "src": "ohger_finish.m4a",
+    "start": 21.0836,
+    "end": 22.463,
+    "seconds": 1.3794,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -2.2
+  },
+  "ohger_pull_5_1": {
+    "src": "ohger_finish.m4a",
+    "start": 22.4677,
+    "end": 23.905,
+    "seconds": 1.4373,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.4
+  },
+  "ohger_pull_5_2": {
+    "src": "ohger_finish.m4a",
+    "start": 23.9189,
+    "end": 25.317,
+    "seconds": 1.3981,
+    "loop": false,
+    "lufs": -16.2,
+    "truePeak": -2.2
+  },
+  "ohger_pull_5_3": {
+    "src": "ohger_finish.m4a",
+    "start": 25.3915,
+    "end": 26.794,
+    "seconds": 1.4025,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -2.2
+  },
+  "ohger_standby_loop": {
+    "src": "ohger_finish.m4a",
+    "start": 27.594,
+    "end": 29.3624,
+    "seconds": 1.7684,
+    "loop": true,
+    "lufs": -18.1,
+    "truePeak": -5.0
+  },
+  "ohger_tf_done_1": {
+    "src": "ohger_tranform.m4a",
+    "start": 52.9294,
+    "end": 57.15,
+    "seconds": 4.2206,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -5.1
+  },
+  "ohger_tf_done_2": {
+    "src": "ohger_tranform.m4a",
+    "start": 71.2731,
+    "end": 75.05,
+    "seconds": 3.7769,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -4.7
+  },
+  "ohger_tf_done_3": {
+    "src": "ohger_tranform.m4a",
+    "start": 90.084,
+    "end": 93.79,
+    "seconds": 3.706,
+    "loop": false,
+    "lufs": -15.9,
+    "truePeak": -5.1
+  },
+  "ohger_tf_done_4": {
+    "src": "ohger_tranform.m4a",
+    "start": 109.6356,
+    "end": 113.25,
+    "seconds": 3.6144,
+    "loop": false,
+    "lufs": -16.1,
+    "truePeak": -1.9
+  },
+  "ohger_tf_done_5": {
+    "src": "ohger_tranform.m4a",
+    "start": 128.3037,
+    "end": 131.82,
+    "seconds": 3.5162,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -5.7
+  },
+  "ohger_tf_wait_1": {
+    "src": "ohger_tranform.m4a",
+    "start": 7.514,
+    "end": 9.487,
+    "seconds": 1.973,
+    "loop": true,
+    "lufs": -17.9,
+    "truePeak": -4.9
+  },
+  "ohger_tf_wait_2": {
+    "src": "ohger_tranform.m4a",
+    "start": 7.514,
+    "end": 9.487,
+    "seconds": 1.973,
+    "loop": true,
+    "lufs": -17.9,
+    "truePeak": -4.9
+  },
+  "ohger_tf_wait_3": {
+    "src": "ohger_tranform.m4a",
+    "start": 7.514,
+    "end": 9.487,
+    "seconds": 1.973,
+    "loop": true,
+    "lufs": -17.9,
+    "truePeak": -4.9
+  },
+  "ohger_tf_wait_4": {
+    "src": "ohger_tranform.m4a",
+    "start": 98.039,
+    "end": 100.0076,
+    "seconds": 1.9686,
+    "loop": true,
+    "lufs": -18.0,
+    "truePeak": -5.0
+  },
+  "ohger_tf_wait_5": {
+    "src": "ohger_tranform.m4a",
+    "start": 116.175,
+    "end": 118.1436,
+    "seconds": 1.9686,
+    "loop": true,
+    "lufs": -18.0,
+    "truePeak": -5.0
+  },
+  "ohger_trigger": {
+    "src": "ohger_finish.m4a",
+    "start": 0.0906,
+    "end": 3.186,
+    "seconds": 3.0954,
+    "loop": false,
+    "lufs": -16.0,
+    "truePeak": -3.2
+  }
+}
