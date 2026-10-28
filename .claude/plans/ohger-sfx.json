@@ -96,7 +96,7 @@
     "loop": true,
     "lufs": -18.2,
     "truePeak": -9.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_charge_loop_0": {
     "src": "user-made",
@@ -105,7 +105,7 @@
     "loop": true,
     "lufs": -18.2,
     "truePeak": -9.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_charge_loop_1": {
     "src": "user-made",
@@ -114,7 +114,7 @@
     "loop": true,
     "lufs": -18.2,
     "truePeak": -9.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_charge_loop_2": {
     "src": "user-made",
@@ -123,7 +123,7 @@
     "loop": true,
     "lufs": -18.2,
     "truePeak": -9.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_finish_call": {
     "src": "ohger_finish.m4a",
@@ -312,7 +312,7 @@
     "loop": true,
     "lufs": -18.1,
     "truePeak": -10.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_done_1": {
     "src": "ohger_tranform.m4a",
@@ -366,7 +366,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_1_0": {
     "src": "user-made",
@@ -375,7 +375,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_1_1": {
     "src": "user-made",
@@ -384,7 +384,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_1_2": {
     "src": "user-made",
@@ -393,7 +393,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_1_3": {
     "src": "user-made",
@@ -402,7 +402,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_1_4": {
     "src": "user-made",
@@ -411,7 +411,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2": {
     "src": "user-made",
@@ -420,7 +420,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2_0": {
     "src": "user-made",
@@ -429,7 +429,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2_1": {
     "src": "user-made",
@@ -438,7 +438,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2_2": {
     "src": "user-made",
@@ -447,7 +447,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2_3": {
     "src": "user-made",
@@ -456,7 +456,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_2_4": {
     "src": "user-made",
@@ -465,7 +465,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3": {
     "src": "user-made",
@@ -474,7 +474,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3_0": {
     "src": "user-made",
@@ -483,7 +483,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3_1": {
     "src": "user-made",
@@ -492,7 +492,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3_2": {
     "src": "user-made",
@@ -501,7 +501,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3_3": {
     "src": "user-made",
@@ -510,7 +510,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_3_4": {
     "src": "user-made",
@@ -519,7 +519,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4": {
     "src": "user-made",
@@ -528,7 +528,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -5.0,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4_0": {
     "src": "user-made",
@@ -537,7 +537,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4_1": {
     "src": "user-made",
@@ -546,7 +546,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4_2": {
     "src": "user-made",
@@ -555,7 +555,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4_3": {
     "src": "user-made",
@@ -564,7 +564,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_4_4": {
     "src": "user-made",
@@ -573,7 +573,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5": {
     "src": "user-made",
@@ -582,7 +582,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -5.0,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5_0": {
     "src": "user-made",
@@ -591,7 +591,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5_1": {
     "src": "user-made",
@@ -600,7 +600,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5_2": {
     "src": "user-made",
@@ -609,7 +609,7 @@
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5_3": {
     "src": "user-made",
@@ -618,7 +618,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_tf_wait_5_4": {
     "src": "user-made",
@@ -627,7 +627,7 @@
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9,
-    "note": "user-made loop · normalised to -16 LUFS (2026-10-28, same as one-shots)"
+    "note": "user-made loop · −12 LUFS + limiter −2 dBFS (2026-10-28: user said loops still too quiet at −16)"
   },
   "ohger_trigger": {
     "src": "ohger_finish.m4a",
