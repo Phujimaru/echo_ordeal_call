@@ -206,9 +206,10 @@ test('คุวากาตะ: 4×4 ศัตรูทุกคนเสีย�
   engine.useSkill('G', 'secondary', [], { dir: 'right' });
   assert.equal(P.G.skillPoints, 4);
   assert.equal(P.G.skillUsedRound, true);
-  assert.ok(!calls.sfx.includes('ohger_atk_1'), 'เสียงท่าโจมตีส่งหลังป้ายสกิล');
+  assert.ok(!calls.sfx.includes('ohger_finish_boom'), 'ระเบิดท้ายส่งหลังป้ายสกิล');
   flush(t);
-  assert.ok(calls.sfx.includes('ohger_atk_1'));
+  assert.ok(calls.sfx.includes('ohger_finish_boom'));
+  assert.ok(!calls.sfx.includes('ohger_atk_1'), 'Finish ไม่ใช้เสียงตีปกติ');
   assert.equal(vit(P.A), a0 - 4);
   assert.equal(P.A.armor, 0, 'เกราะรับก่อน');
   assert.equal(vit(P.C), c0 - 4);

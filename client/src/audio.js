@@ -8,10 +8,11 @@
 
 // ขบวนการจอมราชันคิงโอเจอร์ (characters/_ohger.js) — ตัดจากไฟล์ผู้ใช้ (.claude/plans/ohger-sfx.py · ปรับดังตาม LUFS)
 //  ohger_call_N = กดปุ่มสี · ohger_tf_wait_N_S = ลูประหว่างกดลำดับแปลงร่าง ขั้น S (เปลี่ยนตามจำนวนที่กด) · ohger_tf_done_N = ปิดท้ายแปลงร่าง (ครั้งที่ 2 ขึ้นไป)
-//  ohger_trigger / ohger_charge_loop (รอดึง) / ohger_pull_N_i / ohger_standby_loop (เลือกทิศ) / ohger_finish_call → ohger_atk_N (ต่อคิว)
+//  ohger_trigger / ohger_charge_loop (รอดึง) / ohger_pull_N_i / ohger_standby_loop (เลือกทิศ) / ohger_finish_call → ohger_finish_boom (ต่อคิว)
+//  ohger_atk_N = ตีปกติร่างสวมเกราะ
 //  N = 1 แดง · 2 น้ำเงิน · 3 เหลือง · 4 ม่วง · 5 ดำ
 const OHGER_SFX = (() => {
-  const keys = ["ohger_trigger", "ohger_charge_loop", "ohger_standby_loop", "ohger_finish_call", "ohger_complete"];
+  const keys = ["ohger_trigger", "ohger_charge_loop", "ohger_standby_loop", "ohger_finish_call", "ohger_finish_boom", "ohger_complete"];
   for (let n = 1; n <= 5; n++) {
     keys.push(`ohger_call_${n}`, `ohger_tf_wait_${n}`, `ohger_tf_done_${n}`, `ohger_atk_${n}`);
     for (let i = 1; i <= 3; i++) keys.push(`ohger_pull_${n}_${i}`);
@@ -817,7 +818,7 @@ export function prewarmMusic(name) {
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 // เสียงที่ต้องเล่นต่อคิว (ขึ้นต้นด้วยคีย์นี้ = คิวเดียวกัน): เสียงใหม่รอเสียงก่อนหน้าในคิวจบก่อน (คาซุมะ: รูดการ์ดหลายใบติดกัน)
-const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_atk_: "ohger", ohger_complete: "ohger_tf", ohger_tf_done_: "ohger_tf" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
+const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_finish_boom: "ohger", ohger_complete: "ohger_tf", ohger_tf_done_: "ohger_tf" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
 const sfxQueues = new Map(); // คิว -> { busy: element ที่เล่นอยู่ | null, waiting: [ชื่อ] }
 function playQueued(group, name, opts) {
   const q = sfxQueues.get(group) || { busy: null, waiting: [] };
@@ -862,7 +863,7 @@ function playSfxNow(name, opts) {
 }
 // เสียงจังหวะเดียวที่ลูปต้องหลบ (คิงโอเจอร์: กดปุ่ม/ดึงคันโยก/ไก/ปิดท้ายแปลงร่าง/ปล่อยท่า — ผู้ใช้สั่ง ไม่ให้ดังซ้อนลูป)
 //  เริ่ม = หยุดลูปไว้ · จบ = ลูป (ตัวที่ตั้งไว้ล่าสุด — อาจเปลี่ยนขั้นระหว่างนั้น) เล่นต่อจากต้น
-const LOOP_YIELD = /^ohger_(call|press|pull|trigger|complete|tf_done|finish_call|atk)_?/;
+const LOOP_YIELD = /^ohger_(call|press|pull|trigger|complete|tf_done|finish_call|finish_boom|atk)_?/;
 let yieldSfx = null;
 function beginYield(a) {
   yieldSfx = a;

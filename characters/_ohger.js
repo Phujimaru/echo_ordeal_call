@@ -60,8 +60,9 @@ const SFX = {
   done: (n) => `ohger_tf_done_${n}`,        // "<ชื่อ>、王者!" — แปลงร่างครั้งที่ 2 ขึ้นไป (ครั้งแรกเป็นคลิป ไม่มีเสียงเอฟเฟกต์ซ้อน)
   trigger: "ohger_trigger",                // กดไก (Ohger charge)
   pull: (n, i) => `ohger_pull_${n}_${i}`,  // ดึงคันโยกครั้งที่ i (1–3)
-  finish: "ohger_finish_call",             // ปล่อยท่า "Ohger Finish"
-  atk: (n) => `ohger_atk_${n}`,            // เสียงท่าโจมตีตามสี (ต่อคิวหลัง finish — SFX_QUEUED)
+  finish: "ohger_finish_call",             // ปล่อยท่า "Ohger Finish" (เสียงพูดอย่างเดียว — ตัดระเบิดท้ายเดิมออก)
+  boom: "ohger_finish_boom",               // ระเบิดท้าย Ohger Finish (สังเคราะห์ .claude/plans/ohger-boom.py · ต่อคิวหลัง finish — SFX_QUEUED)
+  atk: (n) => `ohger_atk_${n}`,            // ตีปกติร่างสวมเกราะตามสี (ผู้ใช้สั่ง 2026-10-28 — ไม่ใช่เสียงของ Finish)
 };
 const roll = (pct) => Math.random() * 100 < pct;
 const fresh = () => ({
@@ -312,8 +313,8 @@ function makeOhger(def) {
   }
   function finish(engine, p, ids, dir) {
     if (!p.pos || !LINE_DIRS[dir]) return 0;
-    // เสียงท่าโจมตี: ส่งหลังป้ายสกิล (เสียง finish_call) → client ต่อคิวเล่นตาม (SFX_QUEUED "ohger")
-    engine.skillBeat(0.05, () => engine.sfx(SFX.atk(OWN)));
+    // ระเบิดท้าย: ส่งหลังป้ายสกิล (เสียง finish_call) → client ต่อคิวเล่นตาม (SFX_QUEUED "ohger")
+    engine.skillBeat(0.05, () => engine.sfx(SFX.boom));
     if (FORM === "kuwagata") kuwagata(engine, p, ids, dir);
     else if (FORM === "tonbo") tonbo(engine, p, ids, dir);
     else if (FORM === "kamakiri") kamakiri(engine, p, ids, dir);

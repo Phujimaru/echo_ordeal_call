@@ -128,11 +128,11 @@
   "ohger_finish_call": {
     "src": "ohger_finish.m4a",
     "start": 30.4885,
-    "end": 40.267,
-    "seconds": 9.7785,
+    "end": 36.05,
+    "seconds": 5.5615,
     "loop": false,
-    "lufs": -16.0,
-    "truePeak": -2.0
+    "lufs": -16.1,
+    "truePeak": -3.0
   },
   "ohger_press_2": {
     "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",

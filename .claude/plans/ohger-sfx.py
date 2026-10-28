@@ -55,7 +55,7 @@ CUTS = {
     "ohger_trigger": ("fin", 0.077, 3.186, 0.05),
     "ohger_charge_loop": ("fin", 3.186, 5.233, [0.523, 1.046, 1.569], "loop"),
     # ohger_standby_loop ย้ายไปใช้ไฟล์ g (ด้านล่าง) — เดิม ("fin", 26.794, 30.466, [1.77])
-    "ohger_finish_call": ("fin", 30.466, 40.267, 0.10),
+    "ohger_finish_call": ("fin", 30.466, 36.05, 0.12),  # ตัดเสียงระเบิดท้ายเดิม (36.05–40.27) ออก — ผู้ใช้สั่ง 2026-10-28 · ระเบิดใหม่ = ohger_finish_boom (.claude/plans/ohger-boom.py)
     "ohger_atk_1": ("atk", 8.110, 9.900, 0.05),
     "ohger_atk_2": ("atk", 15.790, 17.870, 0.05),
     "ohger_atk_3": ("atk", 20.825, 22.565, 0.05),

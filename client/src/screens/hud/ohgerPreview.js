@@ -63,7 +63,7 @@ export function simOhger(prev, ev, payload) {
     if (s.phase !== "standby") return { state: prev, sfx };
     s.phase = null; s.pulls = 0; s.finishUsed = true;
     me.skillPoints = Math.max(0, (me.skillPoints || 0) - 4);
-    playSfx("ohger_finish_call"); playSfx(`ohger_atk_${d.own}`);
+    playSfx("ohger_finish_call"); playSfx("ohger_finish_boom");
   } else {
     const k = key.slice(6);
     const btn = k === "trigger" ? "trigger" : Number(k.slice(1));
