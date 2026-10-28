@@ -25,7 +25,11 @@ const TAU = Math.PI * 2;
 
 // ---------- จังหวะ (ms) — ตรงกับ BEAT ใน characters/_ohger.js (hit 0.35 · pass 0.45 × 2 · wave 0.6) ----------
 export const OHGER_FX = { hit: 350, pass1: 450, pass2: 900, dashStep: 90, wind: 140, needleCharge: 110, wave: 600, waveReach: 380 };
-export const OHGER_FX_DUR = { ohSlash: 1000, ohDash: 1200, ohNeedle: 850, ohWave: 650 };
+// ตีปกติร่างสวมเกราะ (attackStyle "ohAtk1".."ohAtk5" — STYLE_MS / STYLE_HIT_P ใน boardDraw) · ปะทะที่ 385 ms = จังหวะชนของ anim "lunge"
+//  (BoardStage พุ่งเข้าเมื่อห่าง ≤ 2 แบบดาบคาซุมะ · LUNGE_MS 620 × 0.62)
+export const OHGER_MS = { ohAtk1: 850, ohAtk2: 850, ohAtk3: 850, ohAtk4: 850, ohAtk5: 850 };
+export const OHGER_HIT_P = { ohAtk1: 0.453, ohAtk2: 0.453, ohAtk3: 0.453, ohAtk4: 0.453, ohAtk5: 0.453 };
+export const OHGER_FX_DUR = { ohSlash: 1000, ohDash: 1200, ohNeedle: 850, ohWave: 650, ...OHGER_MS };
 export const isOhgerFx = (kind) => typeof kind === "string" && (kind in OHGER_FX_DUR);
 
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -620,11 +624,191 @@ function ohWave(g, e, now, lowQ) {
 }
 
 export function ohgerFx(g, e, now, lowQ) {
+  if (e && ATK[e.kind]) { ohAttack(g, e, now, lowQ); return; }
   if (!e || !Array.isArray(e.tiles)) return;
   if (e.kind === "ohSlash") (formOf(e) === "kamakiri" ? ohReap : ohCleave)(g, e, now, lowQ);
   else if (e.kind === "ohDash") ohDash(g, e, now, lowQ);
   else if (e.kind === "ohNeedle") ohNeedle(g, e, now, lowQ);
   else if (e.kind === "ohWave") ohWave(g, e, now, lowQ);
+}
+
+
+// ============================================================ ตีปกติ (ohAtk1–5) — fx { x, y (มุมบนซ้ายผู้ตี), size, to, toSize, color, by, dodge }
+//  ohAtk1 คุวากาตะ: เขาคีมด้วงคู่กางรอบเป้าแล้วหนีบปิดตอนปะทะ + มงกุฎเล็กวาบเหนือเป้า
+//  ohAtk2 ทอมโบ: แทงพุ่งเป็นเส้นแสงเร็ว + ปีกแมลงปอเงาติดตาตามแนว → ประกายข้าวหลามตัด
+//  ohAtk3 คามาคิริ: ฟันเคียวตะขอโค้งเดียวรอบเป้า (ปลายงอ) → รอยเคียวค้าง
+//  ohAtk4 พาพิยอง: ปีกผีเสื้อกระพือรอบเป้า → ฟันไขว้บาง + ประกายดาวเล็ก
+//  ohAtk5 ฮาจิ: เหล็กในแทงรัว 3 ครั้ง (ครั้งที่ 3 = ปะทะ) + หกเหลี่ยมรังผึ้งเล็ก
+//  dodge = ท่าเลยเป้าไปด้านข้าง (จุดปะทะเลื่อนครึ่งช่อง) ไม่มีแสงวาบ/ประกาย — ป้าย "หลบ" + รอยฟันมาจาก BoardStage
+//  ผู้ตีพุ่งเข้าด้วย anim "lunge" (ไม่ใช่ lowQ · ห่าง ≤ 2) — ส่วนที่อยู่ที่ตัวผู้ตี (ทอมโบ) ตามตำแหน่งที่พุ่ง
+const ATK = { ohAtk1: 1, ohAtk2: 2, ohAtk3: 3, ohAtk4: 4, ohAtk5: 5 };
+const ATK_COLOR = { 1: "#e23b3b", 2: "#3b78ff", 3: "#f2c21b", 4: "#a54ae8", 5: "#c9ced8" };
+const LUNGE_MS = 620, LUNGE_HIT = 0.62; // = BoardCanvas animPose "lunge"
+function bodyAt(x, y, n = 1) {
+  n = Math.max(1, n | 0);
+  const K = 1 + (n - 1) * 0.6, cx = x + n / 2, cy = y + n / 2, [bx, by, s] = P(cx, cy);
+  return { cx, cy, bx, by, s, K, r: s * 0.4 * K, hy: by - s * 0.86 * K };
+}
+function lungeD(from, to, t) {
+  const p = clamp01(t / LUNGE_MS), reach = Math.max(0, Math.hypot(to.x - from.x, to.y - from.y) - 0.55);
+  if (p < 0.4) return -0.22 * Math.sin((p / 0.4) * Math.PI / 2);
+  if (p < LUNGE_HIT) { const q = (p - 0.4) / (LUNGE_HIT - 0.4); return -0.22 + (reach + 0.22) * q * q; }
+  return reach * Math.pow(1 - (p - LUNGE_HIT) / (1 - LUNGE_HIT), 3);
+}
+function crownGlyph(g, x, y, r, pal, a) {
+  if (a <= 0.01) return;
+  const pts = [[-1, 0.5], [-1, -0.2], [-0.5, 0.15], [0, -0.75], [0.5, 0.15], [1, -0.2], [1, 0.5]].map(([u, v]) => [x + u * r, y + v * r]);
+  pathS(g, pts); g.closePath();
+  g.fillStyle = rgba(pal.main, 0.85 * a); g.fill();
+  g.lineJoin = "round"; g.strokeStyle = rgba(pal.dark, 0.7 * a); g.lineWidth = 2.5; g.stroke();
+  g.strokeStyle = rgba(pal.core, a); g.lineWidth = 1; g.stroke();
+}
+function ohAttack(g, e, now, lowQ) {
+  const id = ATK[e.kind], MS = OHGER_MS[e.kind], t = now - e.t0;
+  if (t < 0 || t > MS || !okT(e.to)) return;
+  const pal = palOf(e.color || ATK_COLOR[id]), HIT = MS * OHGER_HIT_P[e.kind], fx2 = REDUCED || lowQ;
+  const n = e.size || 1, from = { x: e.x, y: e.y };
+  const lunges = !lowQ && Math.abs(e.to.x - e.x) + Math.abs(e.to.y - e.y) <= 2;
+  const T = bodyAt(e.to.x, e.to.y, e.toSize || 1);
+  let A = bodyAt(e.x, e.y, n);
+  if (lunges) {
+    const L = Math.hypot(e.to.x - from.x, e.to.y - from.y) || 1, d = lungeD(from, e.to, t);
+    A = bodyAt(e.x + ((e.to.x - e.x) / L) * d, e.y + ((e.to.y - e.y) / L) * d, n);
+  }
+  // ทิศบนจอ ผู้ตี → เป้า (จากตำแหน่งยืน ไม่ใช่ตำแหน่งที่พุ่ง — ทิศไม่แกว่ง) · (nx, ny) = ตั้งฉาก
+  const A0 = bodyAt(e.x, e.y, n);
+  let ux = T.bx - A0.bx, uy = T.hy - A0.hy;
+  const ul = Math.hypot(ux, uy);
+  if (!(ul >= 1)) { ux = 1; uy = 0; } else { ux /= ul; uy /= ul; }
+  const nx = -uy, ny = ux, R = T.r * 1.25, sc = T.s;
+  const miss = !!e.dodge, mo = miss ? T.s * 0.5 : 0;
+  const cx = T.bx + nx * mo, cy = T.hy + ny * mo; // จุดปะทะ (หลบ = เลื่อนไปข้าง)
+  const aT = t - HIT, flash = !miss && aT >= 0 ? 1 - clamp01(aT / 130) : 0;
+  const out = aT < 0 ? 1 : 1 - clamp01(aT / (MS - HIT));
+  g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.globalCompositeOperation = "source-over";
+  if (id === 1) {
+    // เขาคีม: ปรากฏ → กางกว้าง → หนีบปิดตอนปะทะ (เร่ง) → ค้างปิดแล้วจาง
+    const app = clamp01((t - 80) / 120), shut = aT < 0 ? Math.pow(clamp01((t - 200) / (HIT - 200)), 2.2) : 1;
+    const a = app * out;
+    for (const s of [-1, 1]) {
+      const pts = [];
+      for (let i = 0; i <= 10; i++) {
+        const u = i / 10, open = lerp(1, 0.08, shut);
+        const along = lerp(-1.0, 0.35, u), side = s * (0.42 + (open * 0.45) * Math.sin(Math.PI * u * 0.85)) * (1 - u * 0.55 * shut);
+        pts.push([cx + ux * along * R + nx * side * R, cy + uy * along * R + ny * side * R]);
+      }
+      edge(g, pts, Math.max(2.5, sc * 0.075), pal, a, lowQ);
+      // ฟันเลื่อยด้านในของเขา
+      if (!lowQ) for (const i of [4, 6]) {
+        const p0 = pts[i], k = -s;
+        edge(g, [p0, [p0[0] + nx * k * sc * 0.09, p0[1] + ny * k * sc * 0.09]], Math.max(1.2, sc * 0.03), pal, a, true);
+      }
+    }
+    if (aT >= 0 && !miss) {
+      const k = 1 - clamp01(aT / 260);
+      g.strokeStyle = rgba(pal.core, k); g.lineWidth = Math.max(1.5, sc * 0.03);
+      g.beginPath();
+      for (let j = 0; j < 4; j++) {
+        const an = j * Math.PI / 2 + Math.PI / 4, r0 = sc * 0.08, r1 = sc * (0.2 + 0.25 * easeOut3(clamp01(aT / 160)));
+        g.moveTo(cx + Math.cos(an) * r0, cy + Math.sin(an) * r0); g.lineTo(cx + Math.cos(an) * r1, cy + Math.sin(an) * r1);
+      }
+      g.stroke();
+      const pop = fx2 ? 1 : 0.7 + 0.3 * easeOut3(clamp01(aT / 160));
+      crownGlyph(g, T.bx, T.hy - T.r * 1.5 - (fx2 ? 0 : sc * 0.15 * clamp01(aT / 400)), sc * 0.13 * pop, pal, env(aT, 0, 60, 260, 460));
+    }
+  } else if (id === 2) {
+    // ทอมโบ: เส้นแทงจากหน้าตัวผู้ตีถึงจุดปะทะ (หัวพุ่งเร็ว) + ปีกเงาติดตา 3 คู่ตามแนว
+    const s0x = A.bx + ux * A.r * 0.6, s0y = A.hy + uy * A.r * 0.6;
+    const ex = cx + ux * (miss ? sc * 0.6 : 0), ey = cy + uy * (miss ? sc * 0.6 : 0);
+    const go = clamp01((t - 160) / (HIT - 160)), hp = Math.pow(go, 0.6);
+    const hx = lerp(s0x, ex, hp), hy2 = lerp(s0y, ey, hp), tl = aT < 0 ? 0.55 : 0.55 + 0.45 * clamp01(aT / 200);
+    const a = t < 160 ? 0 : out;
+    if (a > 0) {
+      const tx0 = lerp(s0x, hx, tl), ty0 = lerp(s0y, hy2, tl);
+      edge(g, [[tx0, ty0], [hx, hy2]], Math.max(2, sc * 0.05), pal, a, lowQ);
+      // หัวหอกเพชร
+      const w = sc * 0.07, L = sc * 0.22;
+      g.beginPath(); g.moveTo(hx + ux * L * 0.5, hy2 + uy * L * 0.5); g.lineTo(hx + nx * w, hy2 + ny * w); g.lineTo(hx - ux * L * 0.5, hy2 - uy * L * 0.5); g.lineTo(hx - nx * w, hy2 - ny * w); g.closePath();
+      g.fillStyle = rgba(pal.core, a); g.fill(); g.strokeStyle = rgba(pal.main, a); g.lineWidth = 1.2; g.stroke();
+      if (!fx2) {
+        const ang = Math.atan2(uy, ux);
+        for (let j = 1; j <= 3; j++) {
+          const f = clamp01(hp - j * 0.22);
+          if (f <= 0) continue;
+          const wx = lerp(s0x, ex, f), wy = lerp(s0y, ey, f), wa = a * (0.55 - j * 0.12);
+          for (const sd of [-1, 1]) for (const kk of [0.8, 1.2]) {
+            g.beginPath(); g.ellipse(wx, wy, sc * 0.26, sc * 0.045, ang + sd * kk * 1.1, 0, TAU);
+            g.fillStyle = rgba(pal.hi, 0.35 * wa); g.fill(); g.strokeStyle = rgba(pal.core, 0.6 * wa); g.lineWidth = 1; g.stroke();
+          }
+        }
+      }
+    }
+    if (aT >= 0 && !miss) {
+      const k = 1 - clamp01(aT / 300), r = sc * (0.15 + 0.35 * easeOut3(clamp01(aT / 220)));
+      g.beginPath(); g.moveTo(cx + ux * r, cy + uy * r); g.lineTo(cx + nx * r * 0.45, cy + ny * r * 0.45); g.lineTo(cx - ux * r, cy - uy * r); g.lineTo(cx - nx * r * 0.45, cy - ny * r * 0.45); g.closePath();
+      g.strokeStyle = rgba(pal.dark, 0.6 * k); g.lineWidth = 3.5; g.stroke(); g.strokeStyle = rgba(pal.core, k); g.lineWidth = 1.5; g.stroke();
+    }
+  } else if (id === 3) {
+    // คามาคิริ: เคียวตะขอโค้งเดียว กวาดรอบเป้า ~200° แล้วงอปลายเข้าหาเป้า
+    const base = Math.atan2(uy, ux), a0 = base - 2.0, span = 3.6;
+    const sw = clamp01((t - 170) / (HIT - 170)), q = 1 - Math.pow(1 - sw, 2.5), a = t < 170 ? 0 : out;
+    if (a > 0) {
+      const head = a0 + span * q, tail = Math.max(a0, head - (aT < 0 ? 1.8 : 1.8 * (1 - clamp01(aT / 260)) + 0.001));
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const an = lerp(tail, head, i / 16), rr = R * (1.05 - 0.12 * Math.sin(Math.PI * i / 16));
+        pts.push([cx + Math.cos(an) * rr, cy + Math.sin(an) * rr * 0.78]);
+      }
+      const lh = pts[pts.length - 1], inA = head + Math.PI * 0.75;
+      pts.push([lh[0] + Math.cos(inA) * sc * 0.2, lh[1] + Math.sin(inA) * sc * 0.2 * 0.78]);
+      edge(g, pts, Math.max(2.5, sc * 0.07), pal, a, lowQ);
+      if (!lowQ && aT < 0) { g.globalCompositeOperation = "lighter"; glow(g, lh[0], lh[1], sc * 0.3, pal.hi, 0.5 * a); g.globalCompositeOperation = "source-over"; }
+    }
+    if (aT >= 0 && !miss) {
+      const k = 1 - clamp01(aT / (MS - HIT)), L = sc * 0.42, pts = [];
+      for (let i = 0; i <= 8; i++) { const s = -1 + i / 4, b = (1 - s * s) * sc * 0.1; pts.push([cx + nx * L * s + ux * b, cy + ny * L * s + uy * b]); }
+      edge(g, pts, Math.max(1.5, sc * 0.04), pal, k, lowQ);
+    }
+  } else if (id === 4) {
+    // พาพิยอง: ปีกผีเสื้อกระพือรอบเป้า (ก่อนปะทะ) → ฟันไขว้บาง → ประกายดาว
+    const wa = env(t, 100, 200, HIT, HIT + 200);
+    if (wa > 0) wingPair(g, cx, cy, sc * 0.55, Math.atan2(uy, ux) + Math.PI / 2, fx2 ? 0.8 : 0.5 + 0.5 * Math.sin(t / 28), pal, wa, 1);
+    [0, 60].forEach((delay, i) => {
+      const age = t - (HIT - 60 + delay);
+      if (age < 0) return;
+      const grow = easeOut3(clamp01(age / 70)), an = Math.atan2(uy, ux) + (i ? -1 : 1) * Math.PI / 4, L = sc * 0.45;
+      const dx = Math.cos(an), dy = Math.sin(an);
+      edge(g, [[cx - dx * L, cy - dy * L], [cx - dx * L + dx * 2 * L * grow, cy - dy * L + dy * 2 * L * grow]], Math.max(1.5, sc * 0.035), pal, clamp01(1 - (age - 120) / 300), lowQ);
+    });
+    if (aT >= 0 && !miss && !fx2) for (let i = 0; i < 5; i++) {
+      const age = aT - i * 40, life = 240;
+      if (age < 0 || age > life) continue;
+      const an = hash01(i * 5.3 + 1) * TAU, rr = sc * (0.3 + 0.3 * hash01(i * 2.1));
+      star(g, cx + Math.cos(an) * rr, cy + Math.sin(an) * rr - sc * 0.15 * (age / life), sc * 0.09 * Math.sin(Math.PI * age / life), pal, Math.sin(Math.PI * age / life));
+    }
+  } else {
+    // ฮาจิ: เหล็กในแทงรัว 3 ครั้ง (ทุก 70 ms · ครั้งสุดท้าย = ปะทะ) เยื้องกันเล็กน้อย
+    [-140, -70, 0].forEach((off, i) => {
+      const age = t - (HIT + off - 60);
+      if (age < 0 || age > 260) return;
+      const reach = easeOut3(clamp01(age / 60)), back = clamp01((age - 60) / 140), k = 1 - back;
+      const so = (i - 1) * sc * 0.12, px0 = cx - ux * sc * 0.7 + nx * so, py0 = cy - uy * sc * 0.7 + ny * so;
+      const tipX = lerp(px0, cx + nx * so * 0.3, reach) - ux * sc * 0.25 * back, tipY = lerp(py0, cy + ny * so * 0.3, reach) - uy * sc * 0.25 * back;
+      const bx2 = tipX - ux * sc * 0.3, by2 = tipY - uy * sc * 0.3, w = Math.max(2, sc * 0.045);
+      g.beginPath(); g.moveTo(tipX, tipY); g.lineTo(bx2 + nx * w, by2 + ny * w); g.lineTo(bx2 + ux * w * 0.6, by2 + uy * w * 0.6); g.lineTo(bx2 - nx * w, by2 - ny * w); g.closePath();
+      g.fillStyle = rgba(pal.dark, 0.95 * k); g.fill(); g.strokeStyle = rgba(pal.core, k); g.lineWidth = 1.2; g.stroke();
+      edge(g, [[bx2 - ux * sc * 0.18, by2 - uy * sc * 0.18], [bx2, by2]], Math.max(1, sc * 0.02), pal, 0.7 * k, true);
+      if (!miss && age >= 60 && age < 200) {
+        const q = (age - 60) / 140;
+        hexPath(g, tipX, tipY, sc * (0.06 + 0.1 * q), sc * (0.06 + 0.1 * q) * 0.866);
+        g.strokeStyle = rgba(pal.dark, 0.5 * (1 - q)); g.lineWidth = 3; g.stroke();
+        g.strokeStyle = rgba(pal.core, 1 - q); g.lineWidth = 1.2; g.stroke();
+      }
+    });
+  }
+  if (flash > 0 && !lowQ) { const fk = id === 5 ? 0.45 : 1; g.globalCompositeOperation = "lighter"; glow(g, cx, cy, sc * 0.6, pal.main, 0.55 * flash * fk); glow(g, cx, cy, sc * 0.25, pal.hi, 0.7 * flash * fk); }
+  if (!miss && aT >= 0 && !fx2 && id !== 4) { const src = []; for (let i = 0; i < 6; i++) src.push([T.cx, T.cy]); sparks(g, src, aT, 360, pal, id * 13); }
+  g.restore();
 }
 
 // ============================================================ เหตุการณ์ → fx

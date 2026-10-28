@@ -51,7 +51,7 @@ import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiy
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx } from "./kazumaFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
-import { OHGER_FX_DUR, isOhgerFx, ohgerFx } from "./ohgerFx";
+import { OHGER_FX_DUR, OHGER_HIT_P, OHGER_MS, isOhgerFx, ohgerFx } from "./ohgerFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 import { drawYukiDim, yukiAuraBack, yukiAuraFront, yukiNoteUnit } from "./yukiFx";
 
@@ -904,8 +904,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;

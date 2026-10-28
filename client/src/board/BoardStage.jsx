@@ -890,9 +890,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
-      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law"));
+      //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk"));
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
-      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "hakunoM") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));

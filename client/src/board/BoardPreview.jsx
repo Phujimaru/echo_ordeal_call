@@ -556,7 +556,7 @@ export default function BoardPreview() {
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}
-      {OHGER_DEV && <OhgerFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} />}
+      {OHGER_DEV && <OhgerFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} setCinema={setCinema} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}

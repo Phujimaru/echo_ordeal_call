@@ -484,6 +484,8 @@ function makeOhger(def) {
     },
     // ตีปกติร่างสวมเกราะ = เสียงโจมตีตามสี (ไฟล์ผู้ใช้ ohger_attack.m4a) · ร่างมนุษย์ = เสียงกลาง
     attackSound(p) { return armored(p) ? SFX.atk(OWN) : undefined; },
+    // ท่าตีปกติบนกระดานตามร่าง (client/src/board/ohgerFx.js — STYLE_MS/STYLE_HIT_P) · ร่างมนุษย์ = ท่าตีกลาง
+    attackStyle(p) { return armored(p) ? `ohAtk${OWN}` : null; },
     attackFxNames(attacker, atkCtx) { return atkCtx && atkCtx.ohgerArmor ? [`จอมราชัน +${atkCtx.ohgerArmor}`] : []; },
 
     // คุวากาตะ: จดทิศการตี (เป้ายังอยู่ช่องเดิม) → หลังฉากตี 50% คลื่นดาบไปข้างหลัง 4 ช่อง
