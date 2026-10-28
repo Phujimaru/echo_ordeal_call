@@ -45,13 +45,13 @@
     "truePeak": -6.6
   },
   "ohger_call_1": {
-    "src": "ohger_tranform.m4a",
-    "start": 1.644,
-    "end": 3.993,
-    "seconds": 2.349,
+    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
+    "start": 0.2391,
+    "end": 2.94,
+    "seconds": 2.7009,
     "loop": false,
-    "lufs": -15.9,
-    "truePeak": -5.6
+    "lufs": -16.0,
+    "truePeak": -5.8
   },
   "ohger_call_2": {
     "src": "ohger_tranform.m4a",
@@ -90,40 +90,36 @@
     "truePeak": -6.5
   },
   "ohger_charge_loop": {
-    "src": "ohger_finish.m4a",
-    "start": 3.766,
-    "end": 4.8095,
-    "seconds": 1.0435,
+    "src": "user-made",
+    "userMade": true,
+    "seconds": 4.0414,
     "loop": true,
-    "lufs": -18.1,
-    "truePeak": -4.9
+    "lufs": -18.2,
+    "truePeak": -9.3
   },
   "ohger_charge_loop_0": {
-    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
-    "start": 56.115,
-    "end": 57.1585,
-    "seconds": 1.0435,
+    "src": "user-made",
+    "userMade": true,
+    "seconds": 4.0414,
     "loop": true,
-    "lufs": -17.8,
-    "truePeak": -5.4
+    "lufs": -18.2,
+    "truePeak": -9.3
   },
   "ohger_charge_loop_1": {
-    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
-    "start": 56.115,
-    "end": 57.1585,
-    "seconds": 1.0435,
+    "src": "user-made",
+    "userMade": true,
+    "seconds": 4.0414,
     "loop": true,
-    "lufs": -17.8,
-    "truePeak": -5.4
+    "lufs": -18.2,
+    "truePeak": -9.3
   },
   "ohger_charge_loop_2": {
-    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
-    "start": 56.115,
-    "end": 57.1585,
-    "seconds": 1.0435,
+    "src": "user-made",
+    "userMade": true,
+    "seconds": 4.0414,
     "loop": true,
-    "lufs": -17.8,
-    "truePeak": -5.4
+    "lufs": -18.2,
+    "truePeak": -9.3
   },
   "ohger_finish_call": {
     "src": "ohger_finish.m4a",
@@ -135,40 +131,40 @@
     "truePeak": -2.0
   },
   "ohger_press_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 11.3,
-    "end": 13.22,
-    "seconds": 1.92,
+    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
+    "start": 7.617,
+    "end": 9.56,
+    "seconds": 1.943,
     "loop": false,
-    "lufs": -16.0,
-    "truePeak": -6.1
+    "lufs": -15.8,
+    "truePeak": -4.6
   },
   "ohger_press_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 18.42,
-    "end": 20.37,
-    "seconds": 1.95,
+    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
+    "start": 14.757,
+    "end": 16.7,
+    "seconds": 1.943,
     "loop": false,
-    "lufs": -15.9,
-    "truePeak": -5.1
+    "lufs": -15.8,
+    "truePeak": -5.0
   },
   "ohger_press_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 24.14,
-    "end": 26.62,
-    "seconds": 2.48,
+    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
+    "start": 21.095,
+    "end": 22.94,
+    "seconds": 1.845,
     "loop": false,
-    "lufs": -15.9,
-    "truePeak": -5.1
+    "lufs": -16.0,
+    "truePeak": -3.1
   },
   "ohger_press_5": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 31.42,
-    "end": 33.32,
-    "seconds": 1.9,
+    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
+    "start": 27.803,
+    "end": 29.64,
+    "seconds": 1.837,
     "loop": false,
-    "lufs": -15.9,
-    "truePeak": -6.8
+    "lufs": -16.0,
+    "truePeak": -4.9
   },
   "ohger_pull_1_1": {
     "src": "ohger_finish.m4a",
@@ -306,13 +302,12 @@
     "truePeak": -2.2
   },
   "ohger_standby_loop": {
-    "src": "(HQ) Kuwagata Ohger - Ohger Calibur 変身音 - 必殺技 - 守護 - 合体音 Henshin - Finish - Shugod - Gattai Sound.mp3",
-    "start": 69.145,
-    "end": 72.6819,
-    "seconds": 3.5369,
+    "src": "user-made",
+    "userMade": true,
+    "seconds": 7.044,
     "loop": true,
-    "lufs": -17.8,
-    "truePeak": -6.8
+    "lufs": -18.1,
+    "truePeak": -10.3
   },
   "ohger_tf_done_1": {
     "src": "ohger_tranform.m4a",
@@ -360,270 +355,240 @@
     "truePeak": -5.7
   },
   "ohger_tf_wait_1": {
-    "src": "ohger_tranform.m4a",
-    "start": 7.514,
-    "end": 9.487,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.973,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9
   },
   "ohger_tf_wait_1_0": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 6.94,
-    "end": 10.8773,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6
   },
   "ohger_tf_wait_1_1": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 13.9,
-    "end": 17.8373,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6
   },
   "ohger_tf_wait_1_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 21.555,
-    "end": 23.4903,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9353,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3
   },
   "ohger_tf_wait_1_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 27.295,
-    "end": 31.2323,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7
   },
   "ohger_tf_wait_1_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 34.17,
-    "end": 38.1073,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9
   },
   "ohger_tf_wait_2": {
-    "src": "ohger_tranform.m4a",
-    "start": 7.514,
-    "end": 9.487,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.973,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9
   },
   "ohger_tf_wait_2_0": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 6.94,
-    "end": 10.8773,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6
   },
   "ohger_tf_wait_2_1": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 13.9,
-    "end": 17.8373,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6
   },
   "ohger_tf_wait_2_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 21.555,
-    "end": 23.4903,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9353,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3
   },
   "ohger_tf_wait_2_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 27.295,
-    "end": 31.2323,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7
   },
   "ohger_tf_wait_2_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 34.17,
-    "end": 38.1073,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9
   },
   "ohger_tf_wait_3": {
-    "src": "ohger_tranform.m4a",
-    "start": 7.514,
-    "end": 9.487,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.973,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -4.9
   },
   "ohger_tf_wait_3_0": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 6.94,
-    "end": 10.8773,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6
   },
   "ohger_tf_wait_3_1": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 13.9,
-    "end": 17.8373,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6
   },
   "ohger_tf_wait_3_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 21.555,
-    "end": 23.4903,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9353,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3
   },
   "ohger_tf_wait_3_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 27.295,
-    "end": 31.2323,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7
   },
   "ohger_tf_wait_3_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 34.17,
-    "end": 38.1073,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9
   },
   "ohger_tf_wait_4": {
-    "src": "ohger_tranform.m4a",
-    "start": 98.039,
-    "end": 100.0076,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9686,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -5.0
   },
   "ohger_tf_wait_4_0": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 6.94,
-    "end": 10.8773,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6
   },
   "ohger_tf_wait_4_1": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 13.9,
-    "end": 17.8373,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6
   },
   "ohger_tf_wait_4_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 21.555,
-    "end": 23.4903,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9353,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3
   },
   "ohger_tf_wait_4_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 27.295,
-    "end": 31.2323,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7
   },
   "ohger_tf_wait_4_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 34.17,
-    "end": 38.1073,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.9
   },
   "ohger_tf_wait_5": {
-    "src": "ohger_tranform.m4a",
-    "start": 116.175,
-    "end": 118.1436,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9686,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -5.0
   },
   "ohger_tf_wait_5_0": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 6.94,
-    "end": 10.8773,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -2.6
   },
   "ohger_tf_wait_5_1": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 13.9,
-    "end": 17.8373,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -3.6
   },
   "ohger_tf_wait_5_2": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 21.555,
-    "end": 23.4903,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 1.9353,
     "loop": true,
     "lufs": -18.0,
     "truePeak": -4.3
   },
   "ohger_tf_wait_5_3": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 27.295,
-    "end": 31.2323,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,
     "truePeak": -5.7
   },
   "ohger_tf_wait_5_4": {
-    "src": "KingOhger KuwagataOhger Henshin Sound [HQ].mp3",
-    "start": 34.17,
-    "end": 38.1073,
+    "src": "user-made",
+    "userMade": true,
     "seconds": 3.9373,
     "loop": true,
     "lufs": -17.9,

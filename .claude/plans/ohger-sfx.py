@@ -37,7 +37,7 @@ PULLS = [5.233, 6.520, 7.830, 9.218, 10.630, 12.003, 13.484, 14.988, 16.719, 18.
 CUTS = {
     # เสียงกดตรา = เสียงกด + เสียงเรียกชื่อ ไม่มีลูปรองพื้น (เกมหยุดลูประหว่างเล่น one-shot แล้วเล่นต่อ)
     #  แดงจบที่หางลงเอง (3.99, -44 dB) ก่อนจุดตัดต่อ 4.224 · ฟ้า–ดำ ผู้ใช้ตัดต่อเข้าลูปทันทีที่เสียงพูดหาง → จบก่อนจุดตัด 50 ms แล้ว fade 150 ms
-    "ohger_call_1": ("tf", 1.638, 3.993, 0.20),
+    # ohger_call_1 ย้ายไปใช้ไฟล์ g (ด้านล่าง) — เดิม ("tf", 1.638, 3.993, 0.20)
     "ohger_call_2": ("tf", 58.592, 60.608, 0.15),
     "ohger_call_3": ("tf", 77.60, 79.482, 0.15),
     "ohger_call_4": ("tf", 94.788, 96.474, 0.15),
@@ -79,10 +79,16 @@ for c in range(1, 6):
     for k, (a, b) in enumerate(HQ_STAGES):
         # S2 ใน hq สั้น (3.2 s) และรอบจริง ~1.935 s (ค้นรอบ 1.97±0.03 ได้ corr แค่ 0.62 → ค้น 1.94±0.03 ได้ 0.99)
         CUTS[f"ohger_tf_wait_{c}_{k}"] = ("hq", a, b, [1.94] if k == 2 else [1.97, 3.94], "loop")
-# เสียงกดตราระหว่างลำดับ (ไม่ใช่ตราแรก) จาก hq: หางลงเองจนเงียบก่อนขั้นถัดไป ไม่มีลูปรองพื้นหลังเสียง (ตัวเลือกเสริม — ไม่มีของแดงเพราะแดงกดเป็นตราแรก)
-#  จุดเริ่ม = จุดที่ลูปขาด (ความเหมือนกับลูปตกจาก >0.9) · ม่วงขอบไม่ชัด (24.14–24.28)
-for c, (a, b) in {2: (11.30, 13.22), 3: (18.42, 20.37), 4: (24.14, 26.62), 5: (31.42, 33.32)}.items():
-    CUTS[f"ohger_press_{c}"] = ("hq", a, b, 0.15)
+# เสียงกดตรา (เสียงกด + หางลงเองจนเงียบ ไม่มีลูปรองพื้น) จากไฟล์ g ช่วงแปลงร่าง (ก่อนวินาที 50 · ผู้ใช้สั่ง 2026-10-28)
+#  ไฟล์ g ช่วงนี้คือเสียงเดียวกับ hq (เลื่อนเวลา hq = g + 3.692 s · corr คลื่น 0.84 เพราะเข้ารหัสต่างกัน: g 120 kbps, hq 192 kbps)
+#  ohger_call_1 = กดตราแดงครั้งแรก + เสียงเรียก "クワガタ" 0.24–2.94 (หางลงถึง -52 dB ก่อนลูป S0 เริ่ม 2.95)
+#  ohger_press_2..5 = กดตราระหว่างลำดับ (ฟ้า เหลือง ม่วง ดำ): จุดเริ่ม = จุดที่ลูปถูกตัด (ระดับดิ่ง -17..-34 dB ใน 1 ms
+#   ตรงกับหัวเสียงกดตราของสีนั้นใน ohger_tranform corr 0.61–0.80) · จบที่หางลงถึง -48..-68 dB ก่อนขั้นถัดไป
+#   ในลำดับไม่มีเสียงเรียกชื่อ (เสียงเรียกฟ้า/ม่วง/ดำจาก ohger_tranform หาไม่เจอใน hq/g) · ไม่มีกดแดงครั้งที่ 5 (ลำดับแดงจบที่ S4 → กดไก)
+#  ม่วงเริ่มจริง 21.095 (เดิมตัดจาก hq 24.14 = เร็วไป ~0.6 s มีลูปปน)
+CUTS["ohger_call_1"] = ("g", 0.20, 2.94, 0.15)
+for c, (a, b) in {2: (7.617, 9.56), 3: (14.757, 16.70), 4: (21.095, 22.94), 5: (27.803, 29.64)}.items():
+    CUTS[f"ohger_press_{c}"] = ("g", a, b, 0.15)
 # ลูปท่าไม้ตายจากไฟล์ g (ผู้ใช้สั่งให้ใช้ตั้งแต่วินาที 50 แก้ทั้งสองลูป): ในไฟล์ g
 #   50.40 กดไก "オーガーチャージ" | ลูปรอดึง 53.52–57.70 | ดึง 1 57.71 | ลูป 59.32–62.28 | ดึง 2 62.29 | ลูป 63.66–67.31 | ดึง 3 67.32
 #   ลูปเลือกทิศ 68.78–72.80 | ไก/บี๊บปล่อย 72.81 → "オーガーフィニッシュ" 74.74 → หาง 78.38–85.1
@@ -92,6 +98,10 @@ for c, (a, b) in {2: (11.30, 13.22), 3: (18.42, 20.37), 4: (24.14, 26.62), 5: (3
 for k in range(3):
     CUTS[f"ohger_charge_loop_{k}"] = ("g", 53.52, 57.70, [1.0436], "loop")
 CUTS["ohger_standby_loop"] = ("g", 68.78, 72.80, [1.77, 3.54], "loop")
+
+# ลูปทั้งหมดผู้ใช้ทำเอง (2026-10-28): ohger_tf_wait_* · ohger_charge_loop* · ohger_standby_loop — สคริปต์ห้ามสร้างทับ
+#  จุดตัดด้านบนเก็บไว้เป็นประวัติ · รันสคริปต์แล้วแค่วัดความดังไฟล์ที่มีอยู่ลง manifest (userMade: true)
+USER_MADE = {k for k in CUTS if k.startswith(("ohger_tf_wait_", "ohger_charge_loop", "ohger_standby_loop"))}
 
 
 def decode(path):
@@ -220,11 +230,21 @@ def main():
     src_dir = args[0] if args else "C:/Users/LOQ/Downloads"
     os.makedirs(out_dir, exist_ok=True)
     audio = {k: decode(os.path.join(src_dir, f)) for k, f in SRC.items()}
-    manifest = json.load(open(man_path, encoding="utf-8")) if os.path.exists(man_path) and only else {}
+    manifest = json.load(open(man_path, encoding="utf-8")) if os.path.exists(man_path) else {}
     done = {}
     for name, spec in CUTS.items():
         spec = tuple(tuple(v) if isinstance(v, list) else v for v in spec)
         if only and name not in only:
+            continue
+        if name in USER_MADE:  # ไฟล์ของผู้ใช้: ไม่ตัด/ไม่เข้ารหัสใหม่ — วัดอย่างเดียว
+            dst = os.path.join(out_dir, f"{name}.m4a")
+            if os.path.exists(dst):
+                I, _, tp = ebur(dst, 3)
+                dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", dst],
+                                           capture_output=True, text=True).stdout.strip() or 0)
+                manifest[name] = {"src": "user-made", "userMade": True, "seconds": round(dur, 4), "loop": True,
+                                  "lufs": round(I, 1), "truePeak": round(tp, 1)}
+                print(f"{name:22} user-made (kept) {I:6.1f} LUFS  TP {tp:5.1f}")
             continue
         x = audio[spec[0]]
         if spec in done:  # สเปกเดียวกัน (ไฟล์ซ้ำ) → คัดลอกไฟล์ที่ทำแล้ว
