@@ -102,6 +102,9 @@ test('สวมเกราะราชัน: สีตัวเองถูก
   press(P.G, 'b1');
   assert.equal(P.G.ohger.phase, 'loop');
   assert.ok(calls.sfx.includes('ohger_call_1'));
+  press(P.G, 'b2');
+  assert.ok(calls.sfx.includes('ohger_press_2'), 'กดในลูป = เสียงกดต่อเนื่อง');
+  P.G.ohger.idx = 0;
   assert.equal(engine.useSkill('G', 'basic', []), undefined);
   assert.equal(P.G.ohger.armored, false, 'กด useSkill ตรงๆ ข้ามลำดับไม่ได้');
   for (const n of Ohger.SEQ) press(P.G, `b${n}`);

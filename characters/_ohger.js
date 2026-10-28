@@ -54,7 +54,8 @@ const BEAT = { hit: 0.35, pass: 0.45, move: 0.5, wave: 0.6, flee: 0.5 };
 // เสียง (client/src/audio.js — ไฟล์ client/public/characters/ohger/sfx/ ตัดจากไฟล์ผู้ใช้ด้วย .claude/plans/ohger-sfx.py)
 //  ลูประหว่างรอ (ohger_tf_wait_N / ohger_charge_loop / ohger_standby_loop) client เล่นเองตาม players[].ohger.phase ของคนที่กำลังเดิน
 const SFX = {
-  call: (n) => `ohger_call_${n}`,           // กดปุ่มสี (ขั้นแรก + ลูป 2→3→4→5→1)
+  call: (n) => `ohger_call_${n}`,           // กดสีตัวเอง (ขั้นแรก)
+  press: (n) => `ohger_press_${n}`,         // กดปุ่มในลูป 2→3→4→5 (เสียงกดต่อเนื่องจากไฟล์ HQ — ปุ่มสุดท้ายเป็นเสียงแปลงร่าง/คลิป)
   done: (n) => `ohger_tf_done_${n}`,        // "<ชื่อ>、王者!" — แปลงร่างครั้งที่ 2 ขึ้นไป (ครั้งแรกเป็นคลิป)
   trigger: "ohger_trigger",                // กดไก (Ohger charge)
   pull: (n, i) => `ohger_pull_${n}_${i}`,  // ดึงคันโยกครั้งที่ i (1–3)
@@ -341,7 +342,7 @@ function makeOhger(def) {
       if (s.phase !== "loop" || btn === "trigger") return false;
       if (btn !== SEQ[s.idx]) { transformFail(engine, p); return "done"; }
       s.idx++;
-      if (s.idx < SEQ.length) engine.sfx(SFX.call(btn)); // ปุ่มสุดท้าย = เสียงแปลงร่าง/คลิป
+      if (s.idx < SEQ.length) engine.sfx(SFX.press(btn)); // ปุ่มสุดท้าย = เสียงแปลงร่าง/คลิป
       if (s.idx < SEQ.length) return true;
       reset(s);
       s.ready = true;

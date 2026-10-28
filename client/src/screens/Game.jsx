@@ -2107,10 +2107,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   };
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
   // คิงโอเจอร์ (players[].ohger — characters/_ohger.js): ลูปเสียงระหว่างกดแกนดาบของคนที่กำลังเดิน (ทุกคนได้ยิน)
-  //  loop = ลูปแปลงร่างตามสี · charge = รอดึงคันโยก · standby = เลือกทิศ
+  //  loop = ลูปแปลงร่างตามสี เปลี่ยนตามขั้นที่กด · charge = รอดึงคันโยก เปลี่ยนตามจำนวนที่ดึง · standby = เลือกทิศ · เสียงกด/ดึงดังเมื่อไร ลูปหลบ (audio.js LOOP_YIELD)
   const ohgerActor = phase === "ACTION" ? (state.players || []).find((p) => p.id === state.actorId && p.ohger) : null;
   const ohgerLoop = ohgerActor && ohgerActor.ohger.phase
-    ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}`, charge: "ohger_charge_loop", standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
+    ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}_${ohgerActor.ohger.step || 0}`, charge: `ohger_charge_loop_${ohgerActor.ohger.pulls || 0}`, standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
     : null;
   const ohgerLoopRef = useRef(null);
   useEffect(() => {

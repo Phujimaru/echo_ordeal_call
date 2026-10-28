@@ -7,7 +7,7 @@
 // ============================================================
 
 // ขบวนการจอมราชันคิงโอเจอร์ (characters/_ohger.js) — ตัดจากไฟล์ผู้ใช้ (.claude/plans/ohger-sfx.py · ปรับดังตาม LUFS)
-//  ohger_call_N = กดปุ่มสี · ohger_tf_wait_N = ลูประหว่างกดลำดับแปลงร่าง · ohger_tf_done_N = ปิดท้ายแปลงร่าง (ครั้งที่ 2 ขึ้นไป)
+//  ohger_call_N = กดปุ่มสี · ohger_tf_wait_N_S = ลูประหว่างกดลำดับแปลงร่าง ขั้น S (เปลี่ยนตามจำนวนที่กด) · ohger_tf_done_N = ปิดท้ายแปลงร่าง (ครั้งที่ 2 ขึ้นไป)
 //  ohger_trigger / ohger_charge_loop (รอดึง) / ohger_pull_N_i / ohger_standby_loop (เลือกทิศ) / ohger_finish_call → ohger_atk_N (ต่อคิว)
 //  N = 1 แดง · 2 น้ำเงิน · 3 เหลือง · 4 ม่วง · 5 ดำ
 const OHGER_SFX = (() => {
@@ -15,7 +15,10 @@ const OHGER_SFX = (() => {
   for (let n = 1; n <= 5; n++) {
     keys.push(`ohger_call_${n}`, `ohger_tf_wait_${n}`, `ohger_tf_done_${n}`, `ohger_atk_${n}`);
     for (let i = 1; i <= 3; i++) keys.push(`ohger_pull_${n}_${i}`);
+    for (let i = 0; i <= 4; i++) keys.push(`ohger_tf_wait_${n}_${i}`); // ลูปแปลงร่างแต่ละขั้น (กดในลูปไปแล้ว i ปุ่ม)
   }
+  for (let i = 0; i <= 2; i++) keys.push(`ohger_charge_loop_${i}`);
+  for (let n = 2; n <= 5; n++) keys.push(`ohger_press_${n}`); // กดปุ่มในลูปแปลงร่าง (2→3→4→5) // ลูปรอดึงคันโยกแต่ละขั้น (ดึงไปแล้ว i ครั้ง)
   return Object.fromEntries(keys.map((k) => [k, `/characters/ohger/sfx/${k}.m4a`]));
 })();
 const FILES = {
@@ -852,8 +855,26 @@ function playSfxNow(name, opts) {
   activeSfx.set(a, base);
   a.play().then(() => { if (!activeSfx.has(a)) a.pause(); }).catch(() => {
     activeSfx.delete(a);
+    if (yieldSfx === a) endYield(a);
   });
+  if (LOOP_YIELD.test(name)) beginYield(a);
   return a;
+}
+// เสียงจังหวะเดียวที่ลูปต้องหลบ (คิงโอเจอร์: กดปุ่ม/ดึงคันโยก/ไก/ปิดท้ายแปลงร่าง/ปล่อยท่า — ผู้ใช้สั่ง ไม่ให้ดังซ้อนลูป)
+//  เริ่ม = หยุดลูปไว้ · จบ = ลูป (ตัวที่ตั้งไว้ล่าสุด — อาจเปลี่ยนขั้นระหว่างนั้น) เล่นต่อจากต้น
+const LOOP_YIELD = /^ohger_(call|press|pull|trigger|tf_done|finish_call|atk)_?/;
+let yieldSfx = null;
+function beginYield(a) {
+  yieldSfx = a;
+  if (loopSfx && !loopSfx.paused) loopSfx.pause();
+  const done = () => endYield(a);
+  a.addEventListener("ended", done, { once: true });
+  a.addEventListener("error", done, { once: true });
+}
+function endYield(a) {
+  if (yieldSfx !== a) return;
+  yieldSfx = null;
+  if (loopSfx && loopSfx.paused) { try { loopSfx.currentTime = 0; } catch { /* ยังไม่มี metadata */ } loopSfx.play().catch(() => {}); }
 }
 // playId: กันสั่งหยุด element ที่ถูกรีไซเคิลไปใช้กับเสียงอื่นแล้ว (ดู sfxPlayId)
 export function stopSfx(a, playId) {
@@ -904,6 +925,7 @@ export function startLoopSfx(name) {
   if (currentMusic) getMusic(currentMusic).volume = trackVolume(currentMusic);
   const release = () => { if (loopSfx === a) stopLoopSfx(); };
   a.addEventListener("error", release);
+  if (yieldSfx && !yieldSfx.paused && !yieldSfx.ended) return a; // เสียงจังหวะเดียวยังเล่นอยู่ = เริ่มลูปตอนเสียงนั้นจบ (endYield)
   a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch(release);
   return a;
 }
