@@ -56,7 +56,8 @@ const BEAT = { hit: 0.35, pass: 0.45, move: 0.5, wave: 0.6, flee: 0.5 };
 const SFX = {
   call: (n) => `ohger_call_${n}`,           // กดสีตัวเอง (ขั้นแรก)
   press: (n) => `ohger_press_${n}`,         // กดปุ่มในลูป 2→3→4→5 (เสียงกดต่อเนื่องจากไฟล์ HQ — ปุ่มสุดท้ายเป็นเสียงแปลงร่าง/คลิป)
-  done: (n) => `ohger_tf_done_${n}`,        // "<ชื่อ>、王者!" — แปลงร่างครั้งที่ 2 ขึ้นไป (ครั้งแรกเป็นคลิป)
+  complete: "ohger_complete",            // แปลงร่างสำเร็จ (หลังกดปุ่มสุดท้าย) → ต่อด้วย done — ครั้งที่ 2 ขึ้นไป (ผู้ใช้สั่ง · ต่อคิว SFX_QUEUED "ohger_tf")
+  done: (n) => `ohger_tf_done_${n}`,        // "<ชื่อ>、王者!" — แปลงร่างครั้งที่ 2 ขึ้นไป (ครั้งแรกเป็นคลิป ไม่มีเสียงเอฟเฟกต์ซ้อน)
   trigger: "ohger_trigger",                // กดไก (Ohger charge)
   pull: (n, i) => `ohger_pull_${n}_${i}`,  // ดึงคันโยกครั้งที่ i (1–3)
   finish: "ohger_finish_call",             // ปล่อยท่า "Ohger Finish"
@@ -453,7 +454,7 @@ function makeOhger(def) {
         if (s.tfVideo) { // คลิปแปลงร่างสำเร็จ 1 ครั้งต่อเกม (ผู้ใช้สั่ง) · ครั้งต่อไป = เสียงปิดท้ายแปลงร่าง (skillSound)
           p.cutsceneShown[CUT.transform] = true;
           engine.queueCutscene(p, CUT.transform);
-        }
+        } else engine.sfx(SFX.complete); // ส่งก่อนป้ายสกิล (เสียง done) → client เล่นต่อกัน
         engine.log(`👑 ${p.name} สวมเกราะราชัน — ${def.armorName}`);
         return ` — ${def.armorName}`;
       }

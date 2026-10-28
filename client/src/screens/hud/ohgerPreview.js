@@ -72,7 +72,7 @@ export function simOhger(prev, ev, payload) {
       if (!s.phase) { if (btn === d.own) { s.phase = "loop"; s.step = 0; playSfx(`ohger_call_${btn}`); } }
       else if (btn !== "trigger") {
         if (btn !== SEQ[s.step]) { s.phase = null; s.step = 0; }
-        else if (++s.step >= SEQ.length) { s.phase = null; s.step = 0; s.armored = true; playSfx(`ohger_tf_done_${d.own}`); }
+        else if (++s.step >= SEQ.length) { s.phase = null; s.step = 0; s.armored = true; playSfx("ohger_complete"); playSfx(`ohger_tf_done_${d.own}`); }
         else playSfx(`ohger_press_${btn}`);
       }
     } else if (!s.phase) {

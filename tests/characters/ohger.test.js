@@ -114,6 +114,7 @@ test('สวมเกราะราชัน: สีตัวเองถูก
   assert.equal(engine.action.locked, true);
   assert.deepEqual(calls.queue, [g.CUT.transform]);
   assert.equal(g.skillSound(P.G, 'basic'), null, 'ครั้งแรกเป็นคลิป');
+  assert.ok(!calls.sfx.includes('ohger_complete'), 'ครั้งแรกไม่มีเสียงเอฟเฟกต์ซ้อนคลิป');
   assert.equal(engine.buildStateFor('G').players.find((p) => p.id === 'G').character.name, 'คุวากาตะ โอเจอร์');
   assert.equal(g.displayImg(P.G), g.IMG.armor);
 });
@@ -146,6 +147,7 @@ test('คืนร่าง: เทิร์นที่แปลงกดไม
   assert.equal(P.G.ohger.armored, true, 'คืนร่างแล้วแปลงใหม่ในเทิร์นเดียวกันได้ (ยังไม่ได้แปลงเทิร์นนี้)');
   assert.deepEqual(calls.queue, [], 'คลิปเล่นครั้งเดียวต่อเกม');
   assert.equal(g.skillSound(P.G, 'basic'), 'ohger_tf_done_1');
+  assert.ok(calls.sfx.includes('ohger_complete'), 'ครั้งที่ 2: เสียงแปลงร่างสำเร็จ แล้วต่อด้วยชื่อร่าง');
   engine.setRoundNumber(engine.roundNumber + 1);
   engine.setActor('G');
   press(P.G, 'revert');
