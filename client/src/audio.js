@@ -874,7 +874,7 @@ function beginYield(a) {
 function endYield(a) {
   if (yieldSfx !== a) return;
   yieldSfx = null;
-  if (loopSfx && loopSfx.paused) { try { loopSfx.currentTime = 0; } catch { /* ยังไม่มี metadata */ } loopSfx.play().catch(() => {}); }
+  if (loopSfx && loopSfx.paused) { try { loopSfx.currentTime = 0; } catch { /* ยังไม่มี metadata */ } loopSfx.play().catch(() => { /* ถูกขัด/ยังไม่มีการกด = ลองใหม่ตอนเสียงถัดไปจบ */ }); }
 }
 // playId: กันสั่งหยุด element ที่ถูกรีไซเคิลไปใช้กับเสียงอื่นแล้ว (ดู sfxPlayId)
 export function stopSfx(a, playId) {
@@ -924,9 +924,10 @@ export function startLoopSfx(name) {
   musicDuck = DUCK_LEVEL;
   if (currentMusic) getMusic(currentMusic).volume = trackVolume(currentMusic);
   const release = () => { if (loopSfx === a) stopLoopSfx(); };
-  a.addEventListener("error", release);
+  a.addEventListener("error", release); // ไฟล์เสีย/โหลดไม่ได้จริง = ทิ้งลูป
   if (yieldSfx && !yieldSfx.paused && !yieldSfx.ended) return a; // เสียงจังหวะเดียวยังเล่นอยู่ = เริ่มลูปตอนเสียงนั้นจบ (endYield)
-  a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch(release);
+  // play() ถูกขัดด้วย pause (ลูปหลบเสียงกด — AbortError) หรือยังไม่มีการกดในหน้า (NotAllowedError) ≠ ไฟล์เสีย → เก็บลูปไว้ เล่นต่อตอน endYield
+  a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch((e) => { if (!e || (e.name !== "AbortError" && e.name !== "NotAllowedError")) release(); });
   return a;
 }
 export function stopLoopSfx() {

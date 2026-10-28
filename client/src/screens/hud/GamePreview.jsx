@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import Game from "../Game";
 import { socket } from "../../socket";
+import { playSfx } from "../../audio";
 import { measureHud } from "./hudMeasure";
 import { SCENARIOS, buildMockState as buildBase, simulateEmit, nextTurn } from "./mockBoardState";
 import { OHGER_PREVIEW, applyOhger, simOhger } from "./ohgerPreview";
@@ -60,6 +61,8 @@ export default function GamePreview() {
   const showBar = new URLSearchParams(location.search).get("bar") !== "0";
   const [opts, setOpts] = useState(readOpts);
   const [state, setState] = useState(() => buildMockState(opts));
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [seq, setSeq] = useState(0); // เปลี่ยน = สร้างฉากใหม่ (กดฉากเดิมซ้ำก็เล่นอนิเมชันใหม่)
   const [remount, setRemount] = useState(0);
   const [open, setOpen] = useState(true);
@@ -81,8 +84,11 @@ export default function GamePreview() {
     const orig = socket.emit;
     socket.emit = function previewEmit(ev, payload) {
       console.info("[GamePreview] socket.emit", ev, payload);
+      // คิงโอเจอร์: คิดผลจาก state ล่าสุดนอก updater (StrictMode เรียก updater 2 รอบ = เสียงซ้ำ) แล้วเล่นเสียงครั้งเดียว
+      const oh = simOhger(stateRef.current, ev, payload);
+      if (oh) { stateRef.current = oh.state; setState(oh.state); oh.sfx.forEach((k) => playSfx(k)); return socket; }
       setState((prev) => {
-        const r = simOhger(prev, ev, payload) || simulateEmit(prev, ev, payload);
+        const r = simulateEmit(prev, ev, payload);
         return r ? r.state : prev;
       });
       return socket;

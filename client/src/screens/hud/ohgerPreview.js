@@ -1,7 +1,6 @@
 // หน้าดูเกมจำลอง (GamePreview ?hud=1&game=1&oh=<id>) — ให้ตัวเรา (p0) เป็นคิงโอเจอร์ แล้วกดแกนดาบได้จริงในหน้า
 //  จำลองกติกาเดียวกับ characters/_ohger.js แบบย่อ (ไม่มี server): ขั้นแรกสีตัวเอง → 2→3→4→5→1 → สวมเกราะ ·
 //  ไก → ดึง 3 ครั้ง → stand by → เลือกทิศ = ปล่อยท่า (−4 แต้ม) · กดผิด = กลับขั้นแรก · คืนร่างกดได้ทันที (ในหน้าดูเท่านั้น)
-import { playSfx } from "../../audio";
 
 const SEQ = [2, 3, 4, 5, 1];
 export const OHGER_PREVIEW = [
@@ -46,8 +45,10 @@ export function applyOhger(state, id) {
   return state;
 }
 
-// socket.emit ของหน้าดู → state ใหม่ (null = ไม่ใช่ของคิงโอเจอร์)
+// socket.emit ของหน้าดู → { state ใหม่, sfx: [คีย์เสียงที่ต้องเล่น] } (null = ไม่ใช่ของคิงโอเจอร์) — ผู้เรียกเล่นเสียงเอง ครั้งเดียว
 export function simOhger(prev, ev, payload) {
+  const sfx = [];
+  const playSfx = (k) => sfx.push(k);
   const me0 = prev.players.find((p) => p.id === (prev.controlId || prev.youId)) || prev.players[0];
   const d = me0 && me0.ohger && defOf(me0.ohger.form);
   if (!d) return null;
@@ -59,7 +60,7 @@ export function simOhger(prev, ev, payload) {
   const me = state.players.find((p) => p.id === me0.id);
   const s = { ...me0.ohger._s };
   if (isFire) {
-    if (s.phase !== "standby") return { state: prev };
+    if (s.phase !== "standby") return { state: prev, sfx };
     s.phase = null; s.pulls = 0; s.finishUsed = true;
     me.skillPoints = Math.max(0, (me.skillPoints || 0) - 4);
     playSfx("ohger_finish_call"); playSfx(`ohger_atk_${d.own}`);
@@ -83,5 +84,5 @@ export function simOhger(prev, ev, payload) {
     }
   }
   dress(d, me, s);
-  return { state };
+  return { state, sfx };
 }
