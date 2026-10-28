@@ -303,6 +303,8 @@ test('จอมราชัน: ร่างมนุษย์จบเทิร
   assert.equal(P.H.hp, 3);
   assert.equal(MOD.yanma_ohger.damageBonus(engine, P.H, P.B, {}), 1);
   assert.equal(MOD.gira_ohger.damageBonus(engine, P.G, P.B, {}), 0);
+  assert.equal(MOD.yanma_ohger.attackSound(P.H), 'ohger_atk_2', 'ตีปกติร่างเกราะ = เสียงตามสี');
+  assert.equal(MOD.gira_ohger.attackSound(P.G), undefined, 'ร่างมนุษย์ = เสียงกลาง');
 });
 
 test('ความสามารถเฉพาะร่าง: ทอมโบตีซ้ำ 25% (ครั้งเดียวต่อตา) · พาพิยองตรึง 20% · ฮาจิถอยหลังตาผู้โจมตีจบ + เดิน +2 เทิร์นหน้า', () => {
