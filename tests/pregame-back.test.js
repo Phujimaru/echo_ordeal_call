@@ -1,4 +1,4 @@
-// ปุ่มย้อนกลับก่อนเริ่มเกมต้องถอยทีละขั้น: จัดทีม -> เลือกโหมด (teamBackToMode) -> ห้องรอ (modeBackToLobby)
+// ปุ่มย้อนกลับก่อนเริ่มเกม: เลือกโหมด -> ห้องรอ (modeBackToLobby) · duo/trio สุ่มทีมเอง ไม่มีหน้าจัดทีมแล้ว
 //  modeBackToLobby ใช้ได้เฉพาะหน้าเลือกโหมด · กลับห้องรอแล้วทุกคน "ยังไม่พร้อม" และโหวตโหมดถูกล้าง
 //  เล่นคนเดียว: เลือกโหมด -> ย้อนกลับห้องรอ -> กดเล่นคนเดียวใหม่ได้
 const test = require('node:test');
@@ -48,7 +48,7 @@ function startServer() {
   });
 }
 
-test('ย้อนกลับทีละขั้น: จัดทีม -> เลือกโหมด -> ห้องรอ (ทุกคนยกเลิกพร้อม)', { timeout: 30000 }, async () => {
+test('ย้อนกลับ: เลือกโหมด -> ห้องรอ (ทุกคนยกเลิกพร้อม)', { timeout: 30000 }, async () => {
   usePort(38000);
   const server = startServer();
   const sockets = [];
@@ -76,23 +76,6 @@ test('ย้อนกลับทีละขั้น: จัดทีม -> �
     let next = waitForEvent(a, 'state', (s) => s.gameState === 'TEAM_MODE');
     for (const s of sockets) s.emit('toggleReady');
     await next;
-
-    // โหวตคู่หูครบ -> จัดทีม
-    next = waitForEvent(a, 'state', (s) => s.gameState === 'TEAM_SETUP');
-    for (const s of sockets) s.emit('selectGameMode', { mode: 'duo' });
-    await next;
-
-    // modeBackToLobby ระหว่างจัดทีม = ไม่มีผล (ต้องถอยทีละขั้น)
-    a.emit('modeBackToLobby');
-    await delay(200);
-    assert.equal(latest.gameState, 'TEAM_SETUP');
-
-    // จัดทีม -> เลือกโหมด
-    next = waitForEvent(a, 'state', (s) => s.gameState === 'TEAM_MODE');
-    a.emit('teamBackToMode');
-    const tm = await next;
-    assert.equal(tm.gameMode, 'pending');
-    assert.equal(tm.players.every((p) => !p.modeVote), true, 'โหวตถูกล้าง');
 
     // โหวตไว้บางส่วนแล้วถอย -> ห้องรอ ทุกคนยังไม่พร้อม โหวตหาย
     a.emit('selectGameMode', { mode: 'ffa' });

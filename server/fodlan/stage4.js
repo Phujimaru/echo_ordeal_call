@@ -346,9 +346,12 @@ function publicInfo(ctx, st) {
 function playerInfo(ctx, st, p) {
   if (isSummon(p) || !p.alive) return undefined;
   const w = warmthOf(st, p);
-  const badges = [{ key: "warmth", icon: "🔥", label: `${w}/${WARM_MAX}`, cls: w >= WARM_MAX ? "bg-orange-300 text-gray-900" : w > 0 ? "bg-amber-200 text-gray-900" : "bg-sky-300 text-gray-900" }];
-  if (w <= 0) badges.push({ key: "frost", icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900" });
+  const badges = [{ key: "warmth", icon: "🔥", label: `ความอบอุ่น ${w}/${WARM_MAX}`, cls: w >= WARM_MAX ? "bg-orange-300 text-gray-900" : w > 0 ? "bg-amber-200 text-gray-900" : "bg-sky-300 text-gray-900",
+    desc: `จบเทิร์นอยู่ในระยะ ${FIRE_RANGE} ช่องจากกองไฟที่ลุกเพิ่ม 1 ไม่อยู่ลด 1 เหลือ 0 ติดน้ำแข็งกัด ติดลุกไหม้นับว่าอุ่น` }];
+  if (w <= 0) badges.push({ key: "frost", icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900",
+    desc: `จบเทิร์นเสียหาย ${FROST_DMG} เกราะรับก่อน และมีโอกาสสตั้น ${STUN_PCT}% จนกว่าจะได้ไออุ่น` });
   const logs = logsOf(st, p);
-  if (logs > 0) badges.push({ key: "logs", icon: "🪵", label: `${logs}/${LOG_MAX}`, cls: "bg-amber-700 text-white" });
+  if (logs > 0) badges.push({ key: "logs", icon: "🪵", label: `ฟืน ${logs}/${LOG_MAX}`, cls: "bg-amber-700 text-white",
+    desc: "เติมฟืนจุดกองไฟที่ดับใช้ 1 ก่อกองไฟเล็กใช้ 2" });
   return { warmth: w, logs, badges };
 }

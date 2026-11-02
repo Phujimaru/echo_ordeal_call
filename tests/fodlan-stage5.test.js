@@ -37,6 +37,7 @@ function toTomb(weather = false) {
   let n = 0;
   const seq = [0.99, weather ? 0.1 : 0.99];
   Fodlan.maybeAdvance(() => {}, () => seq[n++]);
+  if (weather) Fodlan.startWeather(); // สภาพอากาศไม่เกิดตอนเข้าด่าน — เทสต์เริ่มเอง
   assert.equal(Fodlan.stageNow(), 5);
   assert.equal(match.board.area, AREA);
 }
@@ -132,7 +133,7 @@ test('ศิลาตรา: เข้าด่าน = 2 ก้อนบนแ�
   assert.equal(match.action.locked, false, 'หยิบไม่ใช้การตี');
   assert.equal(a.didAttackRound || false, false);
   assert.deepEqual(st.stones.map((s) => s.id), ['c2']);
-  assert.ok(Fodlan.playerInfo(a).badges.some((b) => b.key === 'crest' && b.label === '0/3'));
+  assert.ok(Fodlan.playerInfo(a).badges.some((b) => b.key === 'crest' && b.label === 'ศิลาตรา 0/3' && b.desc));
   // ถืออยู่แล้วหยิบอีกไม่ได้
   place(a, 7, 5);
   assert.deepEqual(Fodlan.hudActions(a), []);
@@ -204,6 +205,46 @@ test('ศิลาตรา: คนถือตาย = ศิลาร่วง
   combat.instantDeath(b, true);
   Fodlan.onEndTurn(noWx);
   assert.deepEqual(st.stones.map((s) => [s.x, s.y]), [[9, 7]]);
+});
+
+test('ออกจากหลุมศพ: ศิลาที่ถือหาย (พลังโจมตี +1 หาย) · อสูรตัดพลังชีวิตส่วนที่เกินเพดานเดิม แต่ยังใช้สกิลไม่ได้ 1 เทิร์น', () => {
+  setup(2);
+  toTomb();
+  const st = Fodlan.stageState();
+  st.stones = [{ id: 'c1', x: 5, y: 5 }, { id: 'c2', x: 8, y: 5 }];
+  const a = P(0), b = P(1);
+  place(a, 5, 5); actor(a);
+  assert.equal(Fodlan.charAction('p0', 'fd:crest', null), true);
+  place(b, 8, 5); actor(b);
+  assert.equal(Fodlan.charAction('p1', 'fd:crest', null), true);
+  const base = combat.maxHpOf(a);
+  for (let k = 0; k < 3; k++) { match.fodlan.tomb.carry.p1.turns = 0; Fodlan.onEndTurn(noWx); } // a ครบ 3 = อสูร · b ยังไม่ครบ
+  assert.ok(match.fodlan.tomb.carry.p0.beast);
+  assert.ok(!match.fodlan.tomb.carry.p1.beast);
+  a.hp = base + 3;
+  b.statuses = {};
+  match.legStart = 7; match.roundNumber = 12;
+  Fodlan.maybeAdvance(() => {}, () => 0); // ด่าน 2
+  assert.equal(Fodlan.stageNow(), 2);
+  assert.deepEqual(match.fodlan.tomb.carry, {}, 'ศิลาหายหมด');
+  assert.equal(Fodlan.atkBonus(a), 0);
+  assert.equal(Fodlan.atkBonus(b), 0);
+  assert.equal(combat.maxHpOf(a), base);
+  assert.equal(a.hp, base, 'ตัดส่วนที่เกิน');
+  assert.equal(a.statuses.noskill, 1, 'ใช้สกิลไม่ได้อีก 1 เทิร์น');
+  assert.ok(!(b.statuses.noskill > 0), 'ยังไม่เป็นอสูร = ไม่โดนห้ามใช้สกิล');
+  assert.equal(Fodlan.playerInfo(a), undefined);
+  // อสูรที่เลือดไม่เกินเพดานเดิม = ไม่ตัด
+  match.fodlan.stage = 1;
+  toTomb();
+  Fodlan.stageState().stones = [{ id: 'c9', x: 5, y: 5 }];
+  place(a, 5, 5); actor(a);
+  assert.equal(Fodlan.charAction('p0', 'fd:crest', null), true);
+  for (let k = 0; k < 3; k++) Fodlan.onEndTurn(noWx);
+  a.hp = 2;
+  match.legStart = 13; match.roundNumber = 18;
+  Fodlan.maybeAdvance(() => {}, () => 0);
+  assert.equal(a.hp, 2);
 });
 
 test('แสงเขียวเรือง: ทุก 3 เทิร์นของการมาเยือน คนบนแท่นศิลาตราแต้มสกิล +1 (คนนอกแท่นไม่ได้)', () => {

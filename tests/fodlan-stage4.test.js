@@ -37,6 +37,7 @@ function setup(n = 3, { weather = false } = {}) {
   let k = 0;
   Fodlan.maybeAdvance(() => {}, () => [0.5, weather ? 0.1 : 0.9][k++]); // ด่าน 4
   assert.equal(Fodlan.stageNow(), 4);
+  if (weather) Fodlan.startWeather(); // สภาพอากาศไม่เกิดตอนเข้าด่าน — เทสต์เริ่มเอง
   match.shopPos = null; // ร้านไม่ขวางเทสต์
   match.roundNumber = 7;
   const P = engine.players;
@@ -107,7 +108,8 @@ test('เข้าด่าน: กองไฟ 2 กองสุ่มที่
   assert.ok(Math.abs(fires[0].x - fires[1].x) + Math.abs(fires[0].y - fires[1].y) >= 5);
   for (const p of Object.values(P)) {
     assert.equal(warmth(p), 3);
-    assert.deepEqual(Fodlan.playerInfo(p).badges[0], { key: 'warmth', icon: '🔥', label: '3/3', cls: 'bg-orange-300 text-gray-900' });
+    assert.deepEqual(Fodlan.playerInfo(p).badges[0], { key: 'warmth', icon: '🔥', label: 'ความอบอุ่น 3/3', cls: 'bg-orange-300 text-gray-900', desc: Fodlan.playerInfo(p).badges[0].desc });
+    assert.ok(Fodlan.playerInfo(p).badges[0].desc);
   }
   const pub = Fodlan.publicInfo().board.fires;
   assert.equal(pub.length, 2);
@@ -117,6 +119,9 @@ test('เข้าด่าน: กองไฟ 2 กองสุ่มที่
 test('พายุหิมะเริ่มกลางด่าน (สุ่มติดตอนจบเทิร์น): กองไฟที่ลุกดับหมด · ครบ 3 เทิร์นกลับมาลุก', () => {
   setup();
   setFires([{ x: 5, y: 6 }, { x: 10, y: 10 }]);
+  Fodlan.onEndTurn(() => 0.1);
+  assert.equal(Fodlan.weatherNow(), null, 'จบเทิร์น 1 ของด่าน = ยังไม่สุ่ม');
+  match.roundNumber = 8;
   Fodlan.onEndTurn(() => 0.1);
   assert.deepEqual(Fodlan.weatherNow(), { kind: 'blizzard', left: 3 });
   assert.ok(match.fodlan.s.fires.every((f) => !f.lit), 'ดับหมด');
@@ -216,7 +221,7 @@ test('ฟืน: ตีต้นไม้แห้งได้ฟืน (พก�
   myTurn(P.p0);
   assert.ok(Fodlan.strikeObject(P.p0, 'fd:tree:4,3'));
   assert.equal(Fodlan.playerInfo(P.p0).logs, 1);
-  assert.ok(Fodlan.playerInfo(P.p0).badges.some((b) => b.key === 'logs' && b.label === '1/2'));
+  assert.ok(Fodlan.playerInfo(P.p0).badges.some((b) => b.key === 'logs' && b.label === 'ฟืน 1/2'));
   myTurn(P.p0);
   Fodlan.strikeObject(P.p0, 'fd:tree:4,3');
   myTurn(P.p0);

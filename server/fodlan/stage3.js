@@ -491,8 +491,8 @@ function publicInfo(ctx, st) {
 
 function playerInfo(ctx, st, p) {
   const badges = [];
-  if (st.carry && st.carry[p.id]) badges.push({ key: "carry", icon: "🔥", label: "ถือไฟ" });
-  if (st.flag && flagSide(ctx, st, p)) badges.push({ key: "flag", icon: "🚩", label: "ธงทัพ" });
+  if (st.carry && st.carry[p.id]) badges.push({ key: "carry", icon: "🔥", label: "ถือไฟ", desc: "ยืนติดหญ้าแห้งแล้วจุดไฟได้ ถือข้ามเทิร์นได้ คลื่นซึนามิทำให้ไฟดับ" });
+  if (st.flag && flagSide(ctx, st, p)) badges.push({ key: "flag", icon: "🚩", label: "ธงทัพ", desc: "ฝ่ายที่ยึดธงไม่โดนห่าธนู จนกว่าฝ่ายอื่นจะมายึด" });
   return badges.length ? { badges } : undefined;
 }
 

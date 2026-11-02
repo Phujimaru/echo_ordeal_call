@@ -84,7 +84,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 ## 2. State machine (`gameState`)
 
 ```
-LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING (จั่ว/พอ)
+LOBBY → TEAM_MODE → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING (จั่ว/พอ)
       → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค / ฉากเข้าห่วงเวลาซีโร่)
       → (วน PLAYING) → GAMEOVER → LOBBY
 ```
@@ -93,7 +93,7 @@ LOBBY → TEAM_MODE → (duo/trio: TEAM_SETUP) → CUTSCENE (ฉากเปิ�
 |---|---|---|
 | `LOBBY` | ห้องรอ กดพร้อม — ทุกคนพร้อม (1 คนก็ได้ = เล่นทดสอบคนเดียว) → `enterModeSelect()` · ปุ่ม "เล่นคนเดียว" = socket `startGame` (`startSoloTest`) | – |
 | `TEAM_MODE` | โหวตโหมด ffa / duo / trio (ปุ่มเทาเมื่อจำนวนคนไม่ผ่าน `validGameMode`) · โหวตครบและมีอันดับหนึ่งเดี่ยว → `startTeamSetup` (ffa เข้า `startMatch` ทันที) · `modeBackToLobby` ถอยกลับห้องรอ | – |
-| `TEAM_SETUP` | เลือกทีม A/B/C + ยืนยัน — ทีมเต็มครบและยืนยันหมด → `startMatch()` · `teamBackToMode` ถอยกลับ | – |
+| `TEAM_SETUP` | ไม่ใช้แล้ว (2026-11-02) — duo/trio สุ่มทีมเอง (`randomTeams`) แล้ว `startMatch()` ทันที · โค้ดหน้าเลือกทีมยังอยู่ | – |
 | `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
 | `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ฉากโลกแตกของ Echo `REBIRTH_SECONDS` 18 (ในตาเดินของ Echo — จบฉากแล้ว `finishActor`) · ห่วงเวลาซีโร่ `match.zeroScene` (เข้า 8.5 · ผนึกแตก 3.6 · ปลดผนึก 5 — §18) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
 | `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 6.5s (`ORDER_TIME_MS` 6500) → `nextActor` |
@@ -528,7 +528,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 ## 12. โหมดทีม
 
 `gameMode`: `ffa` | `duo` (2 คน/ทีม) | `trio` (3 คน/ทีม) | `pending` (ระหว่างโหวต)
-- โหวตเลือกโหมด → `TEAM_SETUP` เลือกทีม A/B/C + ยืนยันครบ → `startMatch()` (ffa ข้าม `TEAM_SETUP`)
+- โหวตเลือกโหมด → duo/trio สุ่มทีม A/B/C ให้ (`randomTeams`) → `startMatch()` ทันที (ไม่มีหน้าเลือกทีมแล้ว)
 - `validGameMode`: ffa ≥ 1 คน · duo จำนวนคู่ ≥ 4 · trio 6 คนเป๊ะ — มี 7 คนในห้องจึงเหลือแค่ ffa
 - `sameTeam(a,b)` กันเลือกเป็นเป้าโจมตี/เป้ากระสุน · `friendlyEffectBlocked(target)` กันเอฟเฟกต์ลบใส่พวกเดียวกัน (อิงต้นตอ `effectSourceId`)
 - `isAlly(a,b)` (`server/lobby.js`) = "พวกเดียวกัน" สำหรับการมอบผลดี (ม่านแห่งราตรีของโอเบรอน) และ `teamReveal` (เพื่อนร่วมทีมเห็นแต้มกันตลอดใน `buildStateFor`)
@@ -1084,7 +1084,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 ## 36. โหมด Fodlan: ด่านหมุนเวียน / สภาพอากาศ / โมดูลด่าน / ของบนกระดานที่ตีได้ / หมอก (`server/fodlan.js` · `server/fodlan/` · `client/src/board/fodlan/` · GRID_PLAN §8.5)
 - โลก `match.world = "fodlan"` (โหวตจากหมุด Fodlan บนโลก — หน้าเลือกสนามแตกเป็นหมุด Origin/Fodlan) · ใช้โหมด ffa/duo/trio ชุดเดิม · `Journey.active` = false (ไม่ใช่การเดินทางของ Origin)
 - ด่าน I–V = area 40–44 · ด่าน I ก่อนเสมอ · ครบ 6 เทิร์น (`Journey.legEnds`) สุ่มด่าน 2–5 ไม่ซ้ำ (`Fodlan.maybeAdvance` ใน phases/endTurn.js) → พักเฟส CUTSCENE `FODLAN_ADVANCE_SECONDS` ให้ client เล่นฉากเปลี่ยนแผนที่ (`client/src/fodlan/FodlanTravel.jsx`)
-- สภาพอากาศ: สุ่ม 50% ตอนเข้าด่าน · ยังไม่เกิด = สุ่มใหม่ทุกจบเทิร์น (ครั้งเดียวต่อการมาเยือน — `s.wxDone` · ฮุค `weatherStart` เมื่อเริ่มกลางด่าน) อยู่ 3 เทิร์น (`match.fodlan.weather { kind, left }`) · กลางวัน/กลางคืนสลับแต่ไม่มีผล (`Journey.nightTaxOn` / `skillBonus` คืน 0)
+- สภาพอากาศ: ไม่เกิดตอนเข้าด่าน · สุ่ม 50% ทุกจบเทิร์นตั้งแต่จบเทิร์น 2 ของด่าน (เกิดเร็วสุดเทิร์น 3 — `WEATHER_FROM` · เทสต์เริ่มเองได้ `Fodlan.startWeather()`) (ครั้งเดียวต่อการมาเยือน — `s.wxDone` · ฮุค `weatherStart` เมื่อเริ่มกลางด่าน) อยู่ 3 เทิร์น (`match.fodlan.weather { kind, left }`) · กลางวัน/กลางคืนสลับแต่ไม่มีผล (`Journey.nightTaxOn` / `skillBonus` คืน 0)
 - **โมดูลด่าน** `server/fodlan/stageN.js` (กติกา) + `mapN.js` (ผัง + ชนิดช่อง `fd_…` ข้อมูลล้วน — `scripts/gen-board-rules.js` ฝังเข้า boardRules.js ให้ client) — ตารางฮุคทั้งหมดอยู่ที่ `server/fodlan/README.md` · ตัวคุมกลางส่งต่อเฉพาะด่านปัจจุบัน + ห่อ try/catch
   · จุดเสียบในไฟล์กลาง: action.boardMap/layeredMap (ชั้นแผนที่) · action.movOf (movMod) · action.endUnitTile (onUnitEnd) · action.strikeTarget (เป้า `"fd:…"`) · draw.dealRound (preRound — พักเกมเล่นฉากได้) · attack.computeAttackBase (atkBonus) · combat.instantDeath (preventDeath) · visibility.hiddenFromOne (hides) · view.js (hudActions → `players[].actions`, playerInfo → `players[].fodlan`, vision → `fodlanVision`, publicInfo → `state.fodlan.board`) · socket charAction (key `"fd:…"`)
 - client: `board/fodlan/index.js` = ตัวกลาง (ธีม area 40–44 · สิ่งกีดขวาง/ช่องพิเศษ `fd_…` · ground/items/air ของด่าน · ช่องเตือน `warn` กะพริบแดง · หมอกนอก `fodlanVision` · เวลาเหตุการณ์ `fxT` / `fxOnce`) · ของที่ตีได้ (`objects[].strike`) เป็นหน่วยเทียมแบบหนามน้ำแข็งใน BoardStage · ค่าต่อคน `playerInfo().badges` แสดงเป็นสถานะใน HUD · ป้ายด่าน + สภาพอากาศใช้ช่องภูมิภาคของ HudTopBar

@@ -137,8 +137,12 @@ function enter(ctx, st) {
   const dock = DOCKS[ctx.rng() < 0.5 ? 0 : 1];
   const s = st.fd1 = { visit: ++VISIT, boat: { ...dock.anchor }, warn: null, warnFor: 0 };
   ctx.bump();
-  // ฝนฟ้าผ่าเริ่มตอนเข้าด่าน: เตือนชุดแรกทันที → ผ่าลงต้นเทิร์นถัดจากเทิร์นที่เข้า
   if (stormOn(ctx)) setWarn(ctx, s, ctx.match.roundNumber + 2);
+}
+// ฝนฟ้าผ่าเริ่ม (จบเทิร์น — server/fodlan.js): เตือนชุดแรกทันที → ผ่าลงต้นเทิร์นถัดจากเทิร์นแรกของพายุ
+function weatherStart(ctx, st) {
+  const s = st && st.fd1;
+  if (s && stormOn(ctx) && !s.warn) setWarn(ctx, s, ctx.match.roundNumber + 2);
 }
 
 // ---------- ชั้นแผนที่: ช่องเรือ + สะพานน้ำแข็ง เดินได้ ----------
@@ -332,7 +336,7 @@ function publicInfo(ctx, st) {
 }
 
 module.exports = {
-  enter, layer, layerVer, preRound, onEndTurn, movMod, hudActions, charAction, publicInfo,
+  enter, weatherStart, layer, layerVer, preRound, onEndTurn, movMod, hudActions, charAction, publicInfo,
   // เทสต์
   boatCells, reachableAnchors, driveTargets, moveBoat, pickOf, strand,
   RIVER, DOCKS, LIGHTNING_DMG, LIGHTNING_BASE, FALL_DMG, FISH_GOLD, REWARDS,

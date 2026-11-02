@@ -98,8 +98,10 @@ test('mode voting starts the mode with the most votes after everyone votes', () 
   assert.equal(engine.gameState, 'TEAM_MODE');
 
   engine.voteGameMode(p4.id, 'duo');
-  assert.equal(engine.gameState, 'TEAM_SETUP');
+  assert.notEqual(engine.gameState, 'TEAM_SETUP', 'duo สุ่มทีมให้เลย ไม่มีหน้าเลือกทีม');
   assert.equal(engine.gameMode, 'duo');
+  const teams = [p1, p2, p3, p4].map((p) => p.teamId).sort();
+  assert.deepEqual(teams, ['A', 'A', 'B', 'B']);
 });
 
 test('mode voting waits for a changed vote when the completed vote is tied', () => {
@@ -118,8 +120,10 @@ test('mode voting waits for a changed vote when the completed vote is tied', () 
   assert.equal(engine.gameState, 'TEAM_MODE');
 
   engine.voteGameMode(p4.id, 'duo');
-  assert.equal(engine.gameState, 'TEAM_SETUP');
+  assert.notEqual(engine.gameState, 'TEAM_SETUP', 'duo สุ่มทีมให้เลย ไม่มีหน้าเลือกทีม');
   assert.equal(engine.gameMode, 'duo');
+  const teams = [p1, p2, p3, p4].map((p) => p.teamId).sort();
+  assert.deepEqual(teams, ['A', 'A', 'B', 'B']);
 });
 test('team win check ends when only one team remains alive', () => {
   const a1 = makePlayer({ id: 'a1', teamId: 'A', alive: true });

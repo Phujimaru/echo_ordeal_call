@@ -246,8 +246,11 @@ test('ตกปลา: ติดแม่น้ำ/บนเรือ · ใช�
   assert.equal(Fodlan.charAction('p0', 'fd:fish'), false);
 });
 
-test('ฝนฟ้าผ่า: เดิน −1 · เตือนตอนเข้าด่าน (2 + ครึ่งของคนบนกระดาน) → ต้นเทิร์นถัดไปผ่าลง เสียหาย 2 แล้วเตือนชุดใหม่', () => {
+test('ฝนฟ้าผ่า: เดิน −1 · เตือนตอนพายุเริ่ม (2 + ครึ่งของคนบนกระดาน) → ต้นเทิร์นถัดไปผ่าลง เสียหาย 2 แล้วเตือนชุดใหม่', () => {
   setup(4, 0.1);
+  assert.equal(Fodlan.weatherNow(), null, 'เข้าด่านไม่มีสภาพอากาศ');
+  const turnIn = match.roundNumber; // จบเทิร์นนี้แล้วพายุเริ่ม (เทิร์นแรกของพายุ = turnIn + 1)
+  Fodlan.startWeather();
   assert.equal(Fodlan.weatherNow().kind, 'storm');
   assert.deepEqual(st().boat, NORTH, 'สุ่มต่ำ = ท่าเหนือ');
   const p = P(0);
@@ -258,8 +261,7 @@ test('ฝนฟ้าผ่า: เดิน −1 · เตือนตอนเ
   // เตือนชุดแรก
   const warn = Fodlan.publicInfo().board.warn;
   assert.equal(warn.length, S1.LIGHTNING_BASE + Math.floor(4 / 2));
-  const turnIn = match.roundNumber; // เทิร์นที่เข้าด่าน (startMatch แจกไพ่เทิร์นแรกไปแล้ว — preRound ของเทิร์นนี้ไม่ผ่า)
-  assert.equal(st().warnFor, turnIn + 1);
+  assert.equal(st().warnFor, turnIn + 2);
   for (const w of warn) assert.ok(!Board.isObstacle(action.boardMap(), w.x, w.y), 'เตือนบนพื้นที่ยืนได้');
   // คนยืนบนช่องเตือน
   place(p, warn[0].x, warn[0].y);
@@ -267,7 +269,7 @@ test('ฝนฟ้าผ่า: เดิน −1 · เตือนตอนเ
   others.forEach((o, i) => place(o, ...[[1, 13], [12, 13], [6, 13]][i]));
   for (const o of others) assert.ok(!warn.some((w) => w.x === o.pos.x && w.y === o.pos.y));
   const before = total(p), others0 = others.map(total);
-  match.roundNumber = turnIn; // ต้นเทิร์นถัดไป
+  match.roundNumber = turnIn + 1; // ต้นเทิร์นถัดจากเทิร์นแรกของพายุ
   assert.equal(Fodlan.preRound(() => {}), true, 'พักเกมให้ฉากฟ้าผ่า');
   assert.equal(match.gameState, 'CUTSCENE');
   assert.equal(total(p), before - S1.LIGHTNING_DMG);
@@ -276,10 +278,10 @@ test('ฝนฟ้าผ่า: เดิน −1 · เตือนตอนเ
   assert.equal(fx.length, warn.length);
   // พายุยังอยู่ = เตือนชุดใหม่สำหรับเทิร์นหน้า
   assert.ok(Fodlan.publicInfo().board.warn.length > 0);
-  assert.equal(st().warnFor, turnIn + 2);
+  assert.equal(st().warnFor, turnIn + 3);
   // พายุสงบ: ชุดสุดท้ายยังผ่าลง แต่ไม่เตือนต่อ
   match.fodlan.weather.left = 0;
-  match.roundNumber = turnIn + 1;
+  match.roundNumber = turnIn + 2;
   assert.equal(Fodlan.preRound(() => {}), true);
   assert.equal(Fodlan.publicInfo().board.warn.length, 0);
 });

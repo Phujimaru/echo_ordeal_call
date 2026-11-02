@@ -181,9 +181,15 @@ function startTeamSetup(mode, world = "earth") {
   match.gameMode = mode;
   match.teamSize = mode === "duo" ? 2 : 3;
   match.teamCount = Math.floor(count / match.teamSize);
+  randomTeams();
+  startMatch();
+}
+// duo / trio: สุ่มทีมให้เลย ไม่มีหน้าเลือกทีม (ผู้ใช้สั่ง 2026-11-02) — สลับลำดับผู้เล่นแล้วแบ่งทีมละ teamSize คน
+function randomTeams(random = Math.random) {
   resetTeamAssignments(false);
-  match.gameState = "TEAM_SETUP";
-  view.broadcastState();
+  const list = Object.values(match.players);
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  list.forEach((p, i) => { p.teamId = TEAM_IDS[Math.floor(i / match.teamSize)]; p.teamConfirmed = true; });
 }
 function chooseTeam(playerId, teamId) {
   if (match.gameState !== "TEAM_SETUP") return;
@@ -322,7 +328,7 @@ function startMatch() {
   match.colony = null;
   match.moon = null;
   match.fodlan = null;
-  if (Fodlan.inWorld()) Fodlan.start(); // Fodlan: ด่าน I เสมอ + สุ่มสภาพอากาศ (GRID_PLAN §8.5)
+  if (Fodlan.inWorld()) Fodlan.start(); // Fodlan: ด่าน I เสมอ (สภาพอากาศเกิดเร็วสุดเทิร์น 3 — GRID_PLAN §8.5)
   else if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
   else if (Moon.inWorld()) Moon.start(); // Moon Cell: กระดานดวงจันทร์ 20×20 + ฮาคุโนะ 2 ตัว + Moon Cell (GRID_PLAN §8.4)
   else action.placeOnBoard(startArea); // กระดานภูมิภาคแรก (ปกติ I) · แจกจุดเกิด (GRID_PLAN §3)

@@ -4,7 +4,8 @@
 //
 //  วงจร (match.fodlan):
 //   เริ่มแมตช์ = ด่าน I เสมอ (ผู้ใช้ล็อก) · ด่านละ 6 เทิร์นเท่าการเดินทางของ Origin (Journey.legEnds) → ต้นเทิร์น 7, 13, … สุ่มด่านถัดไป 2–5 ไม่ซ้ำด่านเดิม
-//   สภาพอากาศ: เข้าด่านเมื่อไหร่สุ่ม 50% · เกิด = เริ่มทันทีตอนเข้าด่าน อยู่ 3 เทิร์น · เกิดได้ครั้งเดียวต่อการมาเยือน (วนกลับมาด่านเดิมสุ่มใหม่)
+//   สภาพอากาศ: ไม่เกิดตอนเข้าด่าน · จบเทิร์น 2 ของการมาเยือนเป็นต้นไปสุ่ม 50% ทุกจบเทิร์น → เกิดเร็วสุดเทิร์น 3 (ผู้ใช้สั่ง 2026-11-02 — เกิดทันทีรับมือไม่ทัน)
+//     อยู่ 3 เทิร์น · เกิดได้ครั้งเดียวต่อการมาเยือน (วนกลับมาด่านเดิมสุ่มใหม่)
 //     ชนิดตามด่าน: I ฝนฟ้าผ่า · II ไอพิษ · III ซึนามิ · IV พายุหิมะ · V ออร่า (แสงเขียวเรือง — ใต้ดินไม่มีอากาศ)
 //   กลางวัน/กลางคืน: ยังสลับทุก 3 เทิร์นแต่ไม่มีผล (Journey.nightTaxOn / skillBonus คืน 0 ในโลกนี้)
 //  ฉากเปลี่ยนด่านใช้ match.journeyScene ชุดเดียวกับการเดินทาง (mode "start" / "advance") แต่ส่งผ่าน publicInfo ของโหมดนี้
@@ -14,7 +15,7 @@
 //   สถานะของการมาเยือนแต่ละครั้ง = match.fodlan.s (ล้างทุกครั้งที่เข้าด่าน) · st.weather = สภาพอากาศของครั้งนี้ (อ่านอย่างเดียว)
 // ============================================================
 Object.assign(module.exports, {
-  inWorld, active, start, reset, stageNow, areaOf, weatherNow, maybeAdvance, onEndTurn, publicInfo,
+  inWorld, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
   movMod, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
@@ -33,6 +34,7 @@ const Zero = require("./zeroTime");
 const STAGES = 5;
 const WEATHER_TURNS = 3;
 const WEATHER_PCT = 50;
+const WEATHER_FROM = 3; // เทิร์นแรกของการมาเยือนที่สภาพอากาศเกิดได้
 const WEATHER_KINDS = { 1: "storm", 2: "miasma", 3: "tsunami", 4: "blizzard", 5: "aura" };
 const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์" };
 const WEATHER_NAMES = { storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง" };
@@ -40,7 +42,7 @@ const FX_KEEP = 24; // เหตุการณ์ล่าสุดที่ส
 // seq ของเหตุการณ์: เพิ่มอย่างเดียวตลอดอายุ server (ห้ามนับใหม่ต่อด่าน/แมตช์ — client จำ seq ที่เห็นแล้วข้ามแมตช์ → เอฟเฟคด่านถัดไปไม่ขึ้น)
 //  เริ่มจากเวลาตอนเปิด server = รีสตาร์ท server แล้วยังมากกว่าเลขเดิมที่ client จำไว้
 let FX_SEQ = Date.now();
-Object.assign(module.exports, { STAGES, WEATHER_KINDS, WEATHER_TURNS, WEATHER_PCT, STAGE_NAMES, WEATHER_NAMES });
+Object.assign(module.exports, { STAGES, WEATHER_KINDS, WEATHER_TURNS, WEATHER_PCT, WEATHER_FROM, STAGE_NAMES, WEATHER_NAMES });
 
 // โมดูลกติกาของแต่ละด่าน (โหลดตอนใช้ — ไฟล์ด่าน require ของใน server/ ได้โดยไม่วนตอนโหลด)
 const MODS = {};
@@ -58,7 +60,7 @@ function stageNow() { return match.fodlan ? match.fodlan.stage : 1; }
 function weatherNow() { const w = match.fodlan && match.fodlan.weather; return w && w.left > 0 ? w : null; }
 function stageState() { return match.fodlan ? match.fodlan.s : null; }
 
-// สุ่มสภาพอากาศ (random ส่งเข้ามาได้ — เทสต์): ตอนเข้าด่าน + ทุกจบเทิร์นที่ยังไม่เคยเกิดในการมาเยือนนี้ (ผู้ใช้สั่ง 2026-10-27)
+// สุ่มสภาพอากาศ (random ส่งเข้ามาได้ — เทสต์): ทุกจบเทิร์นตั้งแต่เทิร์น WEATHER_FROM − 1 ที่ยังไม่เคยเกิดในการมาเยือนนี้
 function rollWeather(stage, random = Math.random) {
   return random() * 100 < WEATHER_PCT ? { kind: WEATHER_KINDS[stage], left: WEATHER_TURNS } : null;
 }
@@ -185,9 +187,8 @@ function enterStage() {
 }
 
 // เริ่มแมตช์ในสนาม Fodlan (lobby.startMatch)
-function start(random = Math.random) {
+function start() {
   reset();
-  match.fodlan.weather = rollWeather(1, random);
   action.placeOnBoard(areaOf(1));
   enterStage();
 }
@@ -210,14 +211,20 @@ function onEndTurn(random = Math.random) {
     if (w.left <= 0) match.lastLog.push(`🌤️ ${WEATHER_NAMES[w.kind]} สงบลงแล้ว`);
   }
   const st = stageState();
-  if (!st || st.wxDone || Journey.legEnds(Zero.worldRound(), match.legStart)) return;
-  const nw = rollWeather(match.fodlan.stage, random);
-  if (!nw) return;
+  const round = Zero.worldRound();
+  if (!st || st.wxDone || Journey.legEnds(round, match.legStart) || Journey.turnInArea(round, match.legStart) < WEATHER_FROM - 1) return;
+  if (rollWeather(match.fodlan.stage, random)) startWeather();
+}
+// สภาพอากาศของด่านปัจจุบันเริ่มตอนนี้ (อยู่ WEATHER_TURNS เทิร์น) → ฮุค weatherStart ของด่าน (กองไฟดับ …) · เทสต์เรียกตรงได้
+function startWeather() {
+  const st = stageState();
+  if (!active() || !st) return;
+  const nw = { kind: WEATHER_KINDS[match.fodlan.stage], left: WEATHER_TURNS };
   match.fodlan.weather = nw;
   st.weather = nw;
   st.wxDone = true;
   match.lastLog.push(`⛈️ เกิด${WEATHER_NAMES[nw.kind]}! (${WEATHER_TURNS} เทิร์น)`);
-  call("weatherStart", undefined); // ผลตอนเริ่มกลางด่าน (กองไฟดับ …) — ตอนเข้าด่านให้ฮุค enter จัดการเอง
+  call("weatherStart", undefined);
 }
 
 // จบด่าน (ครบ 6 เทิร์น) → สุ่มด่านถัดไป → พักเกม CUTSCENE ให้ client เล่นฉากเปลี่ยนแผนที่ (fodlan/FodlanTravel.jsx)
@@ -226,14 +233,14 @@ function maybeAdvance(startTimer, random = Math.random) {
   if (Zero.active() || !active() || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
   const st = match.fodlan;
   const from = st.stage;
+  call("leave", undefined); // ฮุคของด่านที่กำลังออก (หลุมศพ: ศิลาตราหาย)
   const to = pickNext(from, random);
   const route = [...st.route];
   st.stage = to;
   st.route.push(to);
-  st.weather = rollWeather(to, random);
+  st.weather = null; // สภาพอากาศของด่านใหม่สุ่มตอนจบเทิร์น (onEndTurn)
   match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "advance", area: to, fromArea: from, route };
   match.lastLog.push(`🗺️ ออกเดินทางต่อ — มุ่งหน้าสู่ด่าน ${to} ${STAGE_NAMES[to]}`);
-  if (st.weather) match.lastLog.push(`⛈️ เกิด${WEATHER_NAMES[st.weather.kind]}! (${WEATHER_TURNS} เทิร์น)`);
   action.placeOnBoard(areaOf(to)); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด
   enterStage();
   startTimer();

@@ -10,10 +10,12 @@
 //  สภาพอากาศ "ออร่า" (แสงเขียวเรือง 3 เทิร์นตั้งแต่เข้าด่าน): แสงเขียวเรืองทุกเทิร์นแทนทุก 3 เทิร์น + ห้องบัลลังก์สว่างขึ้น (client)
 //
 //  ผลต่อคน (ชีพจรเทพ · ศิลาที่ถือ · ร่างอสูร) ค้างข้ามด่าน → อยู่ใน `persist` (server/fodlan.js ถามทุกด่าน ไม่ใช่แค่ด่านปัจจุบัน)
-//   ออกจากหลุมศพไปด่านอื่น: คนถือศิลายังถือต่อ (นับเทิร์นต่อ) · ตายนอกหลุมศพ = ศิลาหาย · ศิลาที่วางบนพื้นหลุมศพหายไปกับด่าน
+//   ออกจากหลุมศพไปด่านอื่น (ผู้ใช้สั่ง 2026-11-02 · ฮุค leave): ศิลาที่ถือหาย → พลังโจมตี +1 หาย · อสูร: เลือดสูงสุด +5 หาย ตัดพลังชีวิตส่วนที่เกินออก
+//    แต่ยังใช้สกิลไม่ได้อีก 1 เทิร์น (เทิร์นแรกของด่านใหม่) · ศิลาที่วางบนพื้นหลุมศพหายไปกับด่าน
 //   กลับมาหลุมศพอีกรอบ = ศิลาใหม่ 2 ก้อน
 //  Claude ตัดสินเอง (ผู้ใช้ไม่ได้ระบุ): ถือได้คนละ 1 ก้อน · หยิบไม่ใช้การตีและยังเดินต่อได้ · อสูรยังถือศิลา (+1 ต่อ) ·
 //   ชีพจรเทพนับต่อคน (ตัวที่ถูกเรียกไม่ได้) · ออร่ากับแสงเขียวเรืองเทิร์นเดียวกัน = ได้ +1 ครั้งเดียว
+//   · ออกจากหลุมศพ: คนถือศิลาที่ยังไม่เป็นอสูรเสียแค่พลังโจมตี +1 (ไม่โดนห้ามใช้สกิล)
 // ============================================================
 const Board = require("../board");
 
@@ -135,14 +137,32 @@ const persist = {
   playerInfo(ctx, st, p) {
     if (!p) return undefined;
     const T = tomb(ctx), c = T.carry[p.id], badges = [];
-    if (T.pulse[p.id] === "ready") badges.push({ key: "pulse", icon: "✨", label: "ชีพจรเทพ", cls: "bg-emerald-200 text-gray-900" });
-    if (c && c.beast) badges.push({ key: "beast", icon: "👹", label: "อสูร", cls: "bg-emerald-700 text-white" });
-    else if (c) badges.push({ key: "crest", icon: "💎", label: `${c.turns}/${BEAST_TURNS}`, cls: "bg-emerald-300 text-gray-900" });
+    if (T.pulse[p.id] === "ready") badges.push({ key: "pulse", icon: "✨", label: "ชีพจรเทพ", cls: "bg-emerald-200 text-gray-900",
+      desc: "ครั้งถัดไปที่จะตาย ฟื้นด้วยพลังชีวิต 1 ใช้ได้ครั้งเดียวต่อแมตช์" });
+    if (c && c.beast) badges.push({ key: "beast", icon: "👹", label: "อสูร", cls: "bg-emerald-700 text-white",
+      desc: `พลังชีวิตและเลือดสูงสุดเพิ่ม ${BEAST_HP} พลังโจมตีเพิ่ม ${STONE_ATK} ใช้สกิลไม่ได้จนกว่าจะตาย ออกจากหลุมศพแล้วผลหาย พลังชีวิตส่วนที่เกินถูกตัด และใช้สกิลไม่ได้อีก 1 เทิร์น` });
+    else if (c) badges.push({ key: "crest", icon: "💎", label: `ศิลาตรา ${c.turns}/${BEAST_TURNS}`, cls: "bg-emerald-300 text-gray-900",
+      desc: `พลังโจมตีเพิ่ม ${STONE_ATK} ถือครบ ${BEAST_TURNS} เทิร์นกลายเป็นอสูร ออกจากหลุมศพแล้วศิลาหาย` });
     return badges.length ? { badges } : undefined;
   },
 };
 
 // ---------- ฮุคของด่าน ----------
+// ออกจากหลุมศพ (server/fodlan.js maybeAdvance ก่อนเปลี่ยนด่าน): ศิลาที่ถือหายทุกก้อน
+//  อสูร → เลือดสูงสุดกลับเท่าเดิม ตัดพลังชีวิตส่วนที่เกิน · ห้ามใช้สกิลค้าง 1 เทิร์น (onEndTurn เติมไว้แล้ว — ย้ำอีกรอบ)
+function leave(ctx, st) {
+  const T = tomb(ctx);
+  for (const [id, c] of Object.entries(T.carry)) {
+    delete T.carry[id];
+    const p = ctx.match.players[id];
+    if (!p || !p.alive) continue;
+    if (!c.beast) { ctx.log(`💎 ศิลาตราของ ${p.name} สลายไปเมื่อออกจากหลุมศพ`); continue; }
+    const cut = Math.max(0, p.hp - ctx.combat.maxHpOf(p));
+    p.hp -= cut;
+    refreshNoSkill(ctx, p);
+    ctx.log(`👹 ${p.name} พ้นร่างอสูรเมื่อออกจากหลุมศพ${cut > 0 ? ` — พลังชีวิต -${cut}` : ""} · ใช้สกิลไม่ได้อีก 1 เทิร์น`);
+  }
+}
 function enter(ctx, st) {
   st.enter = ctx.match.roundNumber; // เทิร์นแรกของการมาเยือน = roundNumber + 1
   st.stones = [];
@@ -216,4 +236,4 @@ function publicInfo(ctx, st) {
   };
 }
 
-Object.assign(module.exports, { persist, enter, onUnitEnd, preRound, hudActions, charAction, publicInfo });
+Object.assign(module.exports, { persist, leave, enter, onUnitEnd, preRound, hudActions, charAction, publicInfo });

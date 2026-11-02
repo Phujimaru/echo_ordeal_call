@@ -44,6 +44,7 @@ function toFog(weather = false) {
   let n = 0;
   const seq = [0, weather ? 0.1 : 0.99];
   Fodlan.maybeAdvance(() => {}, () => seq[n++]);
+  if (weather) Fodlan.startWeather(); // สภาพอากาศไม่เกิดตอนเข้าด่าน — เทสต์เริ่มเอง
   assert.equal(Fodlan.stageNow(), 2);
   assert.equal(match.board.area, AREA);
   match.gameState = 'PLAYING';
