@@ -257,9 +257,12 @@ function rebaseMove(p) {
 }
 // ตีสวนได้ไหม (ผู้ใช้ตัดสิน 2026-10-09: เลิกตีสวนแบบ FE แล้ว — เก็บกลไกไว้ให้ตัวละคร "สะท้อน" ในอนาคต)
 //  เปิดด้วยข้อมูลตัวละคร `counter: true` ใน characters.js หรือ p.counterBack (สถานะ/เทสต์)
-function counters(p) {
+//  ฮุค counters(p, card) → true = สวนได้ตอนนี้ (ออพติมัส ไพร์ม: ท่าตั้งรับผู้พิทักษ์ · card = การ์ดฉากตี · card.gun = ปืน GUTS)
+function counters(p, card) {
   if (!p) return false;
   if (p.counterBack === true) return true;
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && typeof hook.counters === "function" && hook.counters(p, card || null)) return true;
   const ch = CHAR_BY_ID[p.characterId];
   return !!(ch && ch.counter);
 }
@@ -483,7 +486,7 @@ function resolveArea(p, area, targets, dir, tile) {
   }
   if (kind === "line") {
     if (!Board.LINE_DIRS[dir]) return null;
-    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p));
+    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0);
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
@@ -526,7 +529,7 @@ function areaTiles(p, area, dir, tile) {
   if (kind === "tile") { const t = tileOf(tile); return t ? tileArea(area, t) : []; }
   if (!p || !p.pos) return [];
   if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p));
-  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p));
+  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0);
   return [];
 }
 

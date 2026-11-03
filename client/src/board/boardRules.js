@@ -1042,7 +1042,8 @@ function aoeTiles(map, x, y, radius, size = 1) {
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
 //  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4 คุวากาตะ โอเจอร์: −2…+1)
 //  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
-function lineTiles(map, x, y, dir, len, width, size = 1) {
+//  arc > 0 = ครึ่งวง 180° รัศมี arc ไปทางที่หัน รวมแถวข้างตัว (ข้าวหลามตัดครึ่งหน้า · ไม่สน len/width — ท่าไม้ตายออพติมัส ไพร์ม: arc 2 = 8 ช่อง)
+function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
   if (!v) return [];
@@ -1053,6 +1054,19 @@ function lineTiles(map, x, y, dir, len, width, size = 1) {
   const cx = x + c, cy = y + c;
   const edge = fx + fy > 0 ? n - 1 - c : c; // จากกลางตัวถึงขอบด้านที่หัน
   const out = [];
+  if (arc > 0) {
+    // แกนขวางของตัว: lo..hi (นับจากกลางตัว) · แถว i = 0 คือแถวขอบหน้าของตัว (เอาเฉพาะช่องข้างตัว)
+    const lo = sx + sy > 0 ? -c : -(n - 1 - c), hi = sx + sy > 0 ? n - 1 - c : c;
+    for (let i = 0; i <= arc; i++) {
+      const reach = arc - i;
+      for (let j = lo - reach; j <= hi + reach; j++) {
+        if (i === 0 && j >= lo && j <= hi) continue;
+        const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
+        if (inBounds(map, tx, ty)) out.push({ x: wx(tx), y: ty });
+      }
+    }
+    return out;
+  }
   for (let i = 1; i <= len; i++) {
     for (let j = -half; j <= width - 1 - half; j++) {
       const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;

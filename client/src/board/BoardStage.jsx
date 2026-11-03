@@ -32,6 +32,7 @@ import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
+import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -512,7 +513,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
-      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me)).map((t) => key(t.x, t.y)) };
+      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0).map((t) => key(t.x, t.y)) };
     }
     if (pick.kind === "tile" && pick.place === "list") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
@@ -1184,6 +1185,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("grayFx", onGray);
   }, [pushFx, look, lowQ]);
 
+  // รถบรรทุกเก่า / ออพติมัส ไพร์ม: socket "optimusFx" { kind: arc | transform | stance | heal, id, at, dir?, tiles?, form? } → optimusFx.js
+  //  เสียงมาจาก server (engine.sfx — characters/old_truck.js) · ท่าไม้ตาย: กล้องตามกลางวง + จอสั่นตอนคลื่นปะทะ
+  useEffect(() => {
+    const onOt = (e) => {
+      const kind = e && OT_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      const p = e.id != null ? playersRef.current.find((q) => q.id === e.id) : null;
+      look(e.at);
+      pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: p ? sizeOfP(p) : 1 }]);
+      if (kind === "otArc" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), OT_ARC_HIT * OT_ARC_MS));
+    };
+    socket.on("optimusFx", onOt);
+    return () => socket.off("optimusFx", onOt);
+  }, [pushFx, look, lowQ]);
   // เฟิร์น: socket "fernFx" { kind: cast | boost | conceal | unveil | shield | empower | reset, at, id } → fernFx.js
   //  เสียงมาจาก server (engine.sfx ส่งพร้อมเหตุการณ์ — characters/fern.js) · conceal = เห็นเฉพาะเจ้าของ (กล้องไม่ตาม)
   useEffect(() => {
@@ -2074,6 +2089,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       gyro: !mk && p.gyro ? { mounted: !!p.gyro.mounted, empowered: !!p.gyro.empowered, horseHp: p.gyro.horseHp } : null,
       // ดิเอโก้: ซิลเวอร์ บูลเล็ตใต้หมาก (mounted) · ม้าโดนตี = แวบ · ชุ่มน้ำมัน/ติดตาข่าย = หยดน้ำมัน/ลวดรัดตัว (ใครก็ติดได้) — diegoFx.js
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
+      // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
+      truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       dstat: !mk && p.statuses && (p.statuses.oilSoaked > 0 || p.statuses.diegoNet > 0) ? { soaked: p.statuses.oilSoaked > 0, netted: p.statuses.diegoNet > 0 } : null,
       rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };

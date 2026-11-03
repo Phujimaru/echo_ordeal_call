@@ -858,6 +858,14 @@ function statusEntries(p, full) {
     if (!k.king && k.calm > 0) out.push({ key: "kiraCalm", v: 1, icon: "💚", label: `บดขยี้ส่วนเกิน ${k.calm}/${k.calmMax}`, cls: "bg-echo-ice text-gray-900", desc: "อยู่ร่างกิระต่อเนื่องครบแล้วฟื้นพลังชีวิต 2 และแต้มสกิล 1 สวมเกราะแล้วนับใหม่" });
     if (k.ult > 0) out.push({ key: "kiraUlt", v: k.ult, turns: true, icon: "🦴", label: "อัฐิราชา", cls: "bg-violet-900 text-white", desc: "ตายแล้วฟื้นทันทีด้วยพลังชีวิต 1 ไม่จำกัดครั้ง และพลังโจมตีเพิ่ม 2" });
   }
+  // รถบรรทุกเก่า / ออพติมัส ไพร์ม: ผู้พิทักษ์ (ตั้งท่า / คูลดาวน์) · ร่างรถนับเทิร์นฟื้นเลือด · คริ +25%
+  if (p.oldTruck) {
+    const o = p.oldTruck;
+    if (o.stance) out.push({ key: "otGuard", v: 1, icon: "🛡️", label: "ผู้พิทักษ์", cls: "bg-sky-600 text-white", desc: "ถูกตีปกติ = ฟันสวน ความเสียหาย 2 และเลือดไหล 2 เทิร์น ไม่ว่าผู้ตีอยู่ไกลแค่ไหน" });
+    else if (o.guardCd > 0) out.push({ key: "otGuardCd", v: o.guardCd, turns: true, icon: "🛡️", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ผู้พิทักษ์ได้อีก" });
+    if (o.form === "truck" && o.regen > 0) out.push({ key: "otRegen", v: 1, icon: "🚛", label: `${o.regen}/${o.regenMax}`, cls: "bg-echo-ice text-gray-900", desc: "จบเทิร์นในร่างรถบรรทุกครบแล้วฟื้นพลังชีวิต 2" });
+    if (o.crit) out.push({ key: "otCrit", v: 1, icon: "⚔️", label: "คริ +25%", cls: "bg-amber-500 text-gray-900", desc: "ตีปกติคริติคอลเพิ่ม 25% จนจบเทิร์น" });
+  }
   // ยูนะ: เพลงที่เปิด · ยูนะ ไอดอล (เทิร์นที่เหลือ) · คูลดาวน์ · เงาของเสียง (รอ/ทำงาน)
   if (p.yuna) {
     const y = p.yuna;
@@ -1944,7 +1952,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
   const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? `รอบตัว ${a.range}`
-    : a.kind === "line" ? `ทิศทาง ${a.len}×${a.width}` : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
   const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
@@ -2184,7 +2192,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const small = ch?.id === "celine" && (pickReq.form === "swap" || pickReq.form === "pair") ? { allow: (p) => p.id !== me.id && (p.size || 1) <= 1 } : {};
       if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, count, ...(cells ? { cells, allow: enemyOf } : {}), ...small, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: Array.isArray(id) ? id : [id], ...f }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
-      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
+      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, arc: a.arc || 0, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)

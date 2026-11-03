@@ -1253,6 +1253,48 @@ const CHARACTERS = [
     },
     ultimate: null,
   },
+  {
+    // ---------- รถบรรทุกเก่า → รถบรรทุก ⇄ ออพติมัส ไพร์ม (Transformers ภาค 4–5) — ปานกลาง — ดู characters/old_truck.js ----------
+    //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดินตามร่าง 6 / 5 / 4 (ฮุค mov) · ปุ่มตามร่าง (skillHidden / skillPub)
+    id: "old_truck",
+    name: "รถบรรทุกเก่า",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/old_truck/old_truck.webp",
+    mov: 6,
+    range: [1, 1],
+    passive: {
+      name: "ไพร์ม",
+      desc: "ร่างรถบรรทุก/ออพติมัส ไพร์ม: ตีปกติ สวนกลับ และท่าไม้ตายที่โดน มีโอกาส 30% ฟื้นพลังชีวิต 1–2 · ใช้สกิลรอง ท่าไม้ตาย หรือไอเทม: ตีปกติคริติคอล +25% จนจบเทิร์น",
+    },
+    basic: {
+      name: "ร่างที่แท้จริง",
+      desc: "ลอกคราบเป็น “รถบรรทุก” ระยะเดิน 5 (ครั้งเดียว · ไม่นับโควตาสกิล · ยังไม่เดิน = ยังเดินได้) · ปุ่มนี้กลายเป็น “เปลี่ยนร่าง”: สลับรถบรรทุก ⇄ ออพติมัส ไพร์ม (ระยะเดิน 4 · พลังโจมตี +1) 1 ครั้งต่อเทิร์น · จบเทิร์นในร่างรถบรรทุกครบ 3 เทิร์น ฟื้นพลังชีวิต 2",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/old_truck/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/old_truck.js
+    },
+    secondary: {
+      name: "ผู้พิทักษ์",
+      desc: "เฉพาะออพติมัส ไพร์ม: ตั้งท่าจนถึงตาเดินถัดไป · ถูกตีปกติ (ระยะเท่าไรก็ได้) = ฟันสวน ความเสียหาย 2 + เลือดไหล 2 เทิร์น (เกราะรับก่อน · หลบได้ · 1 ครั้ง) · สวนแล้วคูลดาวน์ 3 เทิร์น · ไม่ได้สวน = ไม่ติดคูลดาวน์",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/old_truck/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ข้าคือ...ออพติมัส ไพร์ม",
+      desc: "เฉพาะออพติมัส ไพร์ม: เลือกทิศ ฟันคลื่นครึ่งวงรัศมี 2 ใส่ศัตรูทุกคนในวง ความเสียหาย 4 · ศัตรูคนที่ 2 ขึ้นไป +1 ต่อคน (สูงสุด 6 · ทุกคนเท่ากัน · เกราะรับก่อน · หลบได้)",
+      area: { kind: "line", arc: 2, len: 2, width: 5, hostile: true },
+      cost: 6,
+      img: "/characters/old_truck/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

@@ -21,6 +21,7 @@ const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซ�
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
+const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 const OHGER_SECONDS = { kuwagata: 21, tonbo: 19, kamakiri: 17, papiyon: 21, hachi: 22 };
@@ -128,5 +129,10 @@ module.exports = function buildTransforms() {
     divineDiamondDust:  { img: "/item/divine_whistle/diamond_dust.webp",  video: "/item/divine_whistle/diamond_dust.mp4",  title: "DIAMOND DUST",  label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 27, music: null, afterReveal: false },
     divineJudgmentBolt: { img: "/item/divine_whistle/judgment_bolt.webp", video: "/item/divine_whistle/judgment_bolt.mp4", title: "JUDGMENT BOLT", label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 22, music: null, afterReveal: false },
     gutsNurse:     { img: "/item/guts_key/nurse_key.webp",     video: "/item/guts_key/nursedessei_cannon.mp4", title: "NURSEDESSEI CANNON", label: "ยิงปืนหน่วย GUTS Select", seconds: 16, music: null, afterReveal: false }, // nursedessei_cannon.mp4 ~14.40s
+    // รถบรรทุกเก่า / ออพติมัส ไพร์ม — ความยาวจริง (ffprobe) 21.0 / 8.9 / 12.3 / 17.0 วิ ปัดขึ้น · ครั้งแรกต่อเกม (clipOnce ใน characters/old_truck.js)
+    otTrueForm: { img: ot.IMG.truck, video: ot.VIDEO.trueForm, title: "ร่างที่แท้จริง", label: "รถบรรทุก", seconds: 21.5, music: null, afterReveal: false },
+    otTransform: { img: ot.IMG.prime, video: ot.VIDEO.transform, title: "ออพติมัส ไพร์ม", label: "เปลี่ยนร่าง", seconds: 9.5, music: null, afterReveal: false },
+    otGuardian: { img: ot.IMG.skill2, video: ot.VIDEO.guardian, title: "ผู้พิทักษ์", label: "ออพติมัส ไพร์ม", seconds: 13, music: null, afterReveal: false },
+    otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

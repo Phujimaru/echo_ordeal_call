@@ -256,6 +256,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | จบเกมด้วยผู้ชนะที่กำหนด + พักฉากก่อนสรุปผล | `engine.declareWinner(p)` + `engine.holdEndTurn(sec)` (จากฮุค `onEndTurn`) + ข้อมูลฉากใน state (`engine.setYukiBoom`) | `endTurn.gameOver` / `colonyHoldThen` |
 | HUD เฉพาะตัวแทนช่องสกิล (ปุ่มบนโมเดล 3D) + ลำดับกดตายตัว + ลูปเสียงตามขั้น | ปุ่มส่ง `charAction` (`ohger:…`) · จบลำดับแล้วเรียก `engine.useSkill` เองด้วยธงภายใน · state เฉพาะตัว (`ohgerState`) · ลูปเสียง client `startLoopSfx` ตาม phase · stand by → client เปิดโหมดเลือกทิศเอง (คิงโอเจอร์ — GAME_SYSTEM §38) | `client/src/screens/hud/OhgerSword.jsx` |
 | สกิลแนวกว้างเลขคู่ (4×4) | `area { kind: "line", width: 4 }` ได้แล้ว — เยื้องไปทางลบของแกนขวาง (−2…+1) | `Board.lineTiles` |
+| สกิลครึ่งวง 180° รอบตัว (เลือกทิศ) | `area { kind: "line", arc: 2 }` = ข้าวหลามตัดครึ่งหน้ารัศมี 2 รวมแถวข้างตัว (8 ช่อง · ป้าย "ครึ่งวง 2") (ออพติมัส ไพร์ม — GAME_SYSTEM §40) | `Board.lineTiles` |
+| ซ่อนปุ่มสกิลตามร่าง (ร่างนี้ไม่มีสกิลรอง/ท่าไม้ตาย) | ฮุค `skillHidden(p, tier)` → true = ช่องนั้นเป็น `null` ใน state · ปิดใน `canUseSkill` ด้วย (รถบรรทุกเก่า) | `view.buildStateFor` |
+| ท่าตั้งรับ: ถูกตีปกติแล้วฟันสวน (ทุกระยะ · ดาเมจตายตัว · ผู้ตีไม่ถอย) | `counters(p, card)` (เปิดตีสวนกลาง · `card.gun` = ปืน) + `counterAnyRange(engine, ผู้สวน, ผู้ตี)` (ด่านสุดท้าย = ตั้งธงสวนได้) + `fixedStrikeDamage(..., { counter })` + `counterPush` → `{ push: false }` · จบท่าใน `onStrikeResolved({ counter })` (ออพติมัส ไพร์ม ผู้พิทักษ์ — GAME_SYSTEM §40) | `action.counters` / `attack.counterAndPush` |
+| ผลเมื่อใช้ไอเทมจากกระเป๋า | `onItemUsed(engine, p, item)` (ออพติมัส: คริ +25%) | `shop.itemUsed` |
+| ตัวหมากนั่งบนพาหนะ (รูปใต้หมาก) | state ของตัวละคร → BoardStage `units[]` → **BoardCanvas `list.push` (คัดฟิลด์เอง)** + ยก `hz` → `boardDraw` วาดใต้หมาก (ม้าไจโร / รถ `optimusFx.js otTruck`) | `BoardCanvas.jsx` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

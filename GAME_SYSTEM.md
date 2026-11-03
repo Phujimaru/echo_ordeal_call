@@ -1123,3 +1123,16 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - client: `client/src/board/divineFx.js` (dvWinds / dvWave / dvDust / dvBolt / dvStrike — BoardStage ฟัง `divineFx`) · พื้นไฟ `boardProps.js` case `flame` · หน้าทดสอบ `?board=1&divine=1` (`DivineFxDev.jsx` · `?dvshot=1` + `window.__dvShot`)
 - สื่อ (gitignored → R2 ตอนออกเวอร์ชัน): `client/public/item/divine_whistle/{cross_winds,tsunami,diamond_dust,judgment_bolt}.{mp4,webp}` + `sfx/*.mp3` (Claude สังเคราะห์ — `.claude/plans/divine-sfx.sh`)
 - dev: `ECHO_DEV_WHISTLE=<มนต์>|any|cycle` (ติดทุกครั้ง · cycle = ไล่มนต์ไม่มีคูลดาวน์) · launch `server-whistle` (3021) / `client-whistle` (5191) · เทสต์ [tests/whistle.test.js](tests/whistle.test.js)
+
+## 40. ร่างที่ซ่อนปุ่ม / ตั้งท่าตีสวนทุกระยะ / ใช้ไอเทมแล้วมีผล / พื้นที่ครึ่งวง (รถบรรทุกเก่า — `characters/old_truck.js` · GRID_PLAN §7.23)
+- **ซ่อนปุ่มสกิลตามร่าง**: ฮุค `skillHidden(p, tier)` → true = `view.buildStateFor` ส่งช่องนั้นเป็น `null` (client ไม่วาดปุ่ม — แบบยูกิที่ไม่มีสกิลพื้นฐาน/รอง) · ต้องปิดใน `canUseSkill` ด้วย (กดผ่าน socket ตรงๆ)
+- **ตีสวนเฉพาะช่วง (ท่าตั้งรับ)**: กลไกตีสวนกลาง `attack.counterAndPush` (ปิดทั้งเกม — GRID_PLAN §6) เปิดรายตัวด้วยฮุค `counters(p, card)` ใน `action.counters` (`card.gun` = ปืน GUTS)
+  · `counterAnyRange(engine, ผู้สวน, ผู้ตี)` → true = ข้ามเช็คระยะตีของผู้สวน (เป็นด่านสุดท้าย — คืน true แล้วสวนแน่ จึงตั้งธง "กำลังสวน" ที่นี่ได้)
+  · ดาเมจสวนตายตัว: `fixedStrikeDamage(engine, a, t, { counter })` (ท่อ strike ส่ง `counter` ให้แล้ว) · ท่าตี/เสียงของจังหวะสวน = `attackStyle`/`attackSound` อ่านธง (strikeCard เรียกหลัง strike)
+  · ผลหลังสวน (ท่าหมด/คูลดาวน์) = `onStrikeResolved(..., { counter: true })` · ติดสถานะตอนโดน = `onStrikeLanded(..., { counter })` · ผู้ตีไม่ถอย = `counterPush` คืน `{ push: false }`
+  · ป้ายเพิ่มในฉากตีหลังผลลงแล้ว: push เข้า `res.skills` (array เดียวกับ `card.skills` ของจังหวะนั้น)
+- **ใช้ไอเทมจากกระเป๋าสำเร็จ**: ฮุค `onItemUsed(engine, p, item)` (`shop.itemUsed` — ไอเทมทั่วไป + เกราะ Mark 42 · ไม่รวมปืน GUTS/ขนมปัง/หัวใจ/นกหวีด)
+- **พื้นที่ครึ่งวง 180°**: `area { kind: "line", arc: R }` → `Board.lineTiles(..., size, arc)` = ข้าวหลามตัดครึ่งหน้ารัศมี R รวมแถวข้างตัว (R 2 = 8 ช่อง) · `len`/`width` ไม่ใช้ · client เลือกทิศเหมือน line (ป้าย "ครึ่งวง R") · `action.areaTiles` ส่ง arc ให้แล้ว
+- **ระยะเดินตามร่าง**: ฮุค `mov(p)` (ทุกร่าง) · เปลี่ยนร่างก่อนเดินยังเดินได้ด้วยระยะใหม่ (`keepsMove` เมื่อ `!engine.action.moved`)
+- **ตัวหมากบนพาหนะ**: `players[].oldTruck.form` → BoardStage `units[].truck` → BoardCanvas ยก `hz += OT_RIDE_Z` + `boardDraw` วาด `otTruck` ใต้หมาก (แบบม้าไจโร — `client/src/board/optimusFx.js`) · **BoardCanvas คัดฟิลด์ของ unit เอง ฟิลด์ใหม่ต้องเพิ่มใน `list.push` ด้วย**
+- เอฟเฟกต์: ตีปกติ `otSlash` / `otRam` / `otCounter` (attackStyle) · socket `optimusFx { kind: arc | transform | stance | heal }` · เสียง `ot_*` (`client/src/audio.js`)

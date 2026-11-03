@@ -333,6 +333,7 @@ function useInventoryItem(id, uid, opts = {}) {
     action.lockMove(p);
     if (other) Visibility.onHostileAct(p, "item"); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
     p.inventory.splice(idx, 1);
+    itemUsed(p, item);
     characterRules.mark42Run(p, plan, null);
     return;
   }
@@ -379,7 +380,13 @@ function useInventoryItem(id, uid, opts = {}) {
   }
   action.lockMove(p);
   p.inventory.splice(idx, 1);
+  itemUsed(p, item);
   view.broadcastState();
+}
+// ใช้ไอเทมจากกระเป๋าสำเร็จ → ฮุค onItemUsed(engine, p, item) ของตัวละครผู้ใช้ (ออพติมัส ไพร์ม: คริ +25% จนจบเทิร์น)
+function itemUsed(p, item) {
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.onItemUsed) combat.runHook(hook, "onItemUsed", engine, p, item);
 }
 // ---------- ไอเทมช่วงจั่วไพ่ (ผู้ใช้สั่ง 2026-10-18) ----------
 //  ยาโชคลาภ / ยาเปลี่ยนสีการ์ด ใช้ได้เฉพาะช่วงจั่วไพ่ ก่อนกด "พอ" — ใช้จากกล่องข้างปุ่มจั่ว (ตาเดินกดใช้ไม่ได้)

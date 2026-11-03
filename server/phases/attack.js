@@ -256,7 +256,7 @@ function strike(attacker, target, { counter = false } = {}) {
   // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
   //  (คุ้มครอง/ขัดแย้ง/เปราะบางของเป้ายังมีผล)
   const fixedHook = CHAR_HOOKS[attacker.characterId];
-  const fixed = fixedHook && fixedHook.fixedStrikeDamage ? fixedHook.fixedStrikeDamage(engine, attacker, target) : null;
+  const fixed = fixedHook && fixedHook.fixedStrikeDamage ? fixedHook.fixedStrikeDamage(engine, attacker, target, { counter }) : null; // counter = ตีสวน (ออพติมัส ไพร์ม: ฟันสวน 2)
   const isFixed = Number.isFinite(fixed);
   let dmg = isFixed ? fixed : base;
   // เสริมพลัง / อ่อนแอ (สถานะพื้นฐาน patch 2.0.8): เพิ่ม/ลดดาเมจที่ทำได้ตามจำนวนที่ระบุ
@@ -503,9 +503,12 @@ function slideThen(slide, by, done) {
 // เป้ารอด + มีความสามารถตีสวน (action.counters — ตอนนี้ไม่มีตัวละครไหนมี) + ผู้ตีอยู่ในระยะตีของเป้า
 //  → ตีสวน 1 ครั้ง แล้วผู้ตีถอย 1 ช่อง (ถอยไม่ได้ = ชน เสียเพิ่ม 1) — เขียนผลลง card
 //  คืน { id, to, dir } = ถอยลงน้ำแข็ง (ไถลต่อหลังฉากตี — slideThen) | null
+//  ฮุค counterAnyRange(engine, ผู้สวน, ผู้ตี) → true = สวนได้ไม่ว่าผู้ตีอยู่ห่างแค่ไหน (ออพติมัส ไพร์ม: ผู้พิทักษ์)
 function counterAndPush(attacker, target, card) {
   let slide = null;
-  if (action.counters(target) && attacker.alive && target.alive && attacker.pos && target.pos && (attacker.dim || null) === (target.dim || null) && Board.canCounter(action.rangeOf(target), attacker.pos, target.pos)) {
+  const reachHook = CHAR_HOOKS[target.characterId];
+  const anyRange = () => !!(reachHook && reachHook.counterAnyRange && combat.runHook(reachHook, "counterAnyRange", engine, target, attacker));
+  if (action.counters(target, card) && attacker.alive && target.alive && attacker.pos && target.pos && (attacker.dim || null) === (target.dim || null) && (anyRange() || Board.canCounter(action.rangeOf(target), attacker.pos, target.pos))) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     strikeResolved(target, attacker, back, true);

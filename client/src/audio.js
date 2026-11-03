@@ -158,6 +158,15 @@ const FILES = {
   kira_revive: "/characters/kira/sfx/kira_revive.mp3",
   kira_regen: "/characters/kira/sfx/kira_regen.mp3",
   kira_king: "/characters/kira/kira_king_theme.mp3", // เพลงอัฐิราชา (Rcules no Inbou — ไฟล์จากผู้ใช้) เล่นค้างระหว่างท่าไม้ตาย
+  // รถบรรทุกเก่า / ออพติมัส ไพร์ม — Mixkit ฟรี (ต้นฉบับ .claude/plans/old-truck-sfx-src/ · สคริปต์ old-truck-sfx.sh · -16 LUFS)
+  //  slash/ram/counter = ตีปกติ (ดาบ / ร่างรถ / ฟันสวน) · transform/stance = ปุ่มหลังเล่นคลิปไปแล้ว · ult = คลื่นครึ่งวง · heal = ฟื้นพลังชีวิต
+  ot_slash: "/characters/old_truck/sfx/ot_slash.mp3",
+  ot_ram: "/characters/old_truck/sfx/ot_ram.mp3",
+  ot_counter: "/characters/old_truck/sfx/ot_counter.mp3",
+  ot_transform: "/characters/old_truck/sfx/ot_transform.mp3",
+  ot_stance: "/characters/old_truck/sfx/ot_stance.mp3",
+  ot_ult: "/characters/old_truck/sfx/ot_ult.mp3",
+  ot_heal: "/characters/old_truck/sfx/ot_heal.mp3",
   // Ice Spike — gp/slide/skill_2/skill_2_broke/ult = ไฟล์จากผู้ใช้ · is_* อื่น = Mixkit ฟรี (ต้นฉบับ .claude/plans/ice-spike-sfx-src/)
   //  เล่นตามเหตุการณ์ iceFx (BoardStage) · gp/slide สุ่ม 1/2
   is_gp_1: "/characters/ice_spike/sfx/gp_1.mp3",

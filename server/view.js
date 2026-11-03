@@ -221,9 +221,11 @@ function buildStateFor(viewerId) {
       const secret = unseen && !mine;
       const charOver = !secret && hook && hook.characterPub ? hook.characterPub(engine, p) : null; // ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง
       const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
-      const basicPub = pub(ch.basic);
-      const secondaryPub = pub(ch.secondary);
-      const ultimatePub = pub(ch.ultimate);
+      // ฮุค skillHidden(p, tier) → true = ไม่มีปุ่มช่องนี้ตามร่าง (รถบรรทุกเก่า: เห็นแค่ร่างที่แท้จริง · ร่างรถไม่มีสกิลรอง/ท่าไม้ตาย)
+      const shown = (tierName) => !(!secret && hook && hook.skillHidden && hook.skillHidden(p, tierName));
+      const basicPub = shown("basic") ? pub(ch.basic) : null;
+      const secondaryPub = shown("secondary") ? pub(ch.secondary) : null;
+      const ultimatePub = shown("ultimate") ? pub(ch.ultimate) : null;
       // ราคาบนปุ่ม = ราคาที่ useSkill() หักจริง (สูตรเดียวกัน — skills.skillCostOf: ฮุค skillCost · กลางคืน · การเดินทาง · กระแสเวท/ภาระเวท)
       //  คนที่มองไม่เห็น = ปุ่มตั้งต้นใน characters.js (ราคา/หน้าตาที่เปลี่ยนตามสถานะบอกใบ้ได้ — นักบิน: 3 แต้ม = มีแขน)
       const showCost = (pub, tierName) => (secret ? pub.cost : skills.skillCostOf(p, tierName, pub.cost));
@@ -347,6 +349,7 @@ function buildStateFor(viewerId) {
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         ohger: hook && hook.ohgerState ? hook.ohgerState(engine, p) : undefined, // คิงโอเจอร์: แกนดาบ (ร่าง / ขั้นที่กด / ปุ่มที่ไฟกระพริบ / ชาร์จ Finish) — characters/_ohger.js
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
+        oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
         gyro: hook && hook.gyroState ? hook.gyroState(engine, p) : undefined, // ไจโร: ลูกเหล็ก (บนพื้น/ในมือ) / สัดส่วนทองคำ / ม้า / เสริมท่าไม้ตาย (GRID_PLAN §7.11 สัญญาข้อมูล)

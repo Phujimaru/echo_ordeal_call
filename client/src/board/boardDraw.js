@@ -30,6 +30,7 @@ import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fo
 import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
+import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
 import { YUNA_FX_DUR, YUNA_HIT_P, YUNA_MS, drawRider, drawYunaZones, isYunaFx, yunaFx } from "./yunaFx";
@@ -548,6 +549,8 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroUnitBack(g, u, now, wx, wy);
   // ดิเอโก้ (diegoFx.js): ฝุ่นกีบซิลเวอร์ บูลเล็ต
   if (u.diego) diegoUnitBack(g, u, now, wx, wy);
+  // รถบรรทุกเก่า / ออพติมัส ไพร์ม (optimusFx.js): วงโล่ผู้พิทักษ์
+  if (u.truck) otUnitBack(g, u, now, wx, wy);
   // ฐานแบบที่นั่ง (ทรงกระบอก)
   gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
   const P1 = P(wx, wy, 0.12);
@@ -582,6 +585,8 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroHorse(g, u, now, wx, wy, (u.hz || 0) - (u.gyro.mounted ? GYRO_RIDE_Z : 0));
   // ดิเอโก้ขี่ซิลเวอร์ บูลเล็ต (หรือกำลังควบกลอุบาย — charge) · เพิ่งลง/ม้าตาย = ม้าถอยออก/สลาย
   if (u.diego) diegoHorse(g, u, now, wx, wy, (u.hz || 0) - (u.diego.mounted || u.diego.charge ? DIEGO_RIDE_Z : 0));
+  // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถตัดพื้นหลังใต้หมาก หมากนั่งบนรถ (hz รวม OT_RIDE_Z แล้ว)
+  if (otRides(u)) otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z);
   if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
   else unitHex(g, u, bx, hy, hexR);
   if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
@@ -905,8 +910,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2032,7 +2037,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR,
+  ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR,
 };
 
 
@@ -2355,6 +2360,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (isKiraFx(e.kind)) kiraFx(g, e, now, lowQ);
+    else if (isOtFx(e.kind)) optimusFx(g, e, now, lowQ);
     else if (isYunaFx(e.kind)) yunaFx(g, e, now, lowQ);
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);

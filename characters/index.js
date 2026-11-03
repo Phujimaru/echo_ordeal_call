@@ -31,6 +31,7 @@ const yanma_ohger = require("./yanma_ohger");
 const himeno_ohger = require("./himeno_ohger");
 const rita_ohger = require("./rita_ohger");
 const kaguragi_ohger = require("./kaguragi_ohger");
+const old_truck = require("./old_truck"); // รถบรรทุกเก่า → รถบรรทุก ⇄ ออพติมัส ไพร์ม — ปานกลาง (3 ร่าง · ผู้พิทักษ์ตีสวน · คลื่นครึ่งวง)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -64,6 +65,7 @@ const CHARACTER_MODULES = [
   himeno_ohger,
   rita_ohger,
   kaguragi_ohger,
+  old_truck,
 ];
 
 const CHAR_HOOKS = {};
