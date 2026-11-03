@@ -76,8 +76,8 @@ function blow(id) {
   action.lockMove(p);
   const forced = devForce();
   const hit = forced || Math.random() * 100 < chanceOf(p);
-  engine.sfx("divine_whistle");
   if (!hit) {
+    engine.sfx("divine_whistle"); // เสียงนกหวีดเฉพาะตอนเป่าไม่ติด (ติด = คลิปเล่นทันที ไม่ต้องมีเสียงนำ — ผู้ใช้สั่ง)
     p.whistleReady = match.roundNumber + WHISTLE.failCd + 1;
     combat.loseHp(p); // ไม่สนเกราะ
     match.lastLog.push(`📯 ${p.name} เป่านกหวีดอัญเชิญมนต์อสูรเทพ — ไม่มีสิ่งใดตอบรับ (พลังชีวิต -${WHISTLE.failDmg})`);
