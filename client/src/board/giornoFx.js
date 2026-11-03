@@ -2,7 +2,8 @@
 //  เอฟเฟกต์บนกระดานของโจรุโน่ โจวาน่า (characters/giorno_giovanna.js) — โทนทองของ Gold Experience + ชีวิตสีเขียว
 //
 //  ตีปกติ (fx.kind = attackStyle) — fx { x, y (ช่องผู้ตี), size, to: { x, y } }
-//    gioPunch  หมัดทองรัว: กำปั้นทองพุ่งจากผู้ตีไปเป้าหลายหมัด → ปะทะ ประกายทอง + ใบไม้เล็กปลิว
+//    gioPunch  ตีปกติ: กำปั้นทองของ Gold Experience ง้าง → ต่อยหนัก 1 หมัด (เส้นความเร็ว) → ปะทะ วงคลื่นบนพื้น + เส้นแตกรัศมี + ประกาย + ใบไม้
+//    gioRush   ติดคริ (client เลือกเมื่อ card.crit — BoardStage): หมัดรัวจากหลายมุม (กำปั้น + เงาหมัดซ้อน) ฮิตละแวบ → หมัดสุดท้ายใหญ่ วงคลื่นคู่
 //  เหตุการณ์จาก server (socket "giornoFx" { kind, id, at, size, color, ... } → GIO_EVENT_FX)
 //    life       ชีวิตทดแทน: ไอเทมแตกเป็นแสงทองแล้วกลายเป็นใบไม้เขียวลอยขึ้นรอบตัว
 //    reflect    ต้นตอแห่งชีวิต: วงเต่าทองทองคำหมุนรอบตัวแล้วจางเข้าตัว
@@ -21,8 +22,8 @@ import { P, gEllipse, glow } from "./boardGeo";
 
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export const GIO_MS = { gioPunch: 900 };
-export const GIO_HIT_P = { gioPunch: 0.55 };
+export const GIO_MS = { gioPunch: 820, gioRush: 1700 };
+export const GIO_HIT_P = { gioPunch: 0.45, gioRush: 0.22 }; // ปะทะแรก (ตัวเลขดาเมจขึ้น) — หมัดรัวต่อจนจบท่า
 export const GIO_FX_DUR = { ...GIO_MS, gioLife: 1300, gioReflect: 1200, gioReflectHit: 900, gioTree: 1400, gioRoot: 1300, gioDodge: 800, gioBurst: 1200, gioMuda: 1400, gioHeal: 1100 };
 export const GIO_EVENT_FX = {
   life: "gioLife", reflect: "gioReflect", reflectHit: "gioReflectHit", tree: "gioTree", root: "gioRoot",
@@ -32,7 +33,7 @@ export const isGioFx = (kind) => typeof kind === "string" && (kind in GIO_FX_DUR
 export const GIO_TREE_Z = 0.55; // ลอยบนต้นไม้: หมากยกขึ้น (หน่วยช่อง — BoardCanvas บวกเข้า hz)
 export const gioLifted = (u) => !!(u && u.giorno && u.giorno.tree);
 
-const GOLD = "255,200,60", GOLD_HI = "255,244,190", LEAF = "90,200,90", LEAF_HI = "190,255,170", BARK = "120,80,40", PURPLE = "150,80,200", WHITE = "255,255,255";
+const GOLD = "255,200,60", GOLD_HI = "255,244,190", LEAF = "90,200,90", LEAF_HI = "190,255,170", BARK = "120,80,40", WHITE = "255,255,255";
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const easeOut3 = (t) => 1 - Math.pow(1 - t, 3);
 const hash01 = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -49,13 +50,62 @@ function leaf(g, x, y, s, a, rgb, alpha) {
   g.beginPath(); g.moveTo(-s * 0.8, 0); g.lineTo(s * 0.8, 0); g.stroke();
   g.restore();
 }
-// กำปั้นทอง (สี่เหลี่ยมมนเล็ก + ข้อนิ้ว) ที่จุดจอ ขนาด s
-function fist(g, x, y, s, a, alpha) {
-  g.save(); g.translate(x, y); g.rotate(a);
-  g.fillStyle = `rgba(${GOLD},${alpha})`; g.strokeStyle = `rgba(120,70,10,${alpha})`; g.lineWidth = Math.max(1, s * 0.08);
-  g.beginPath(); g.roundRect ? g.roundRect(-s * 0.5, -s * 0.4, s, s * 0.8, s * 0.22) : g.rect(-s * 0.5, -s * 0.4, s, s * 0.8); g.fill(); g.stroke();
-  g.strokeStyle = `rgba(${PURPLE},${alpha * 0.8})`;
-  for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(s * 0.45, -s * 0.28 + i * s * 0.26); g.lineTo(s * 0.2, -s * 0.28 + i * s * 0.26); g.stroke(); }
+// กำปั้นของ Gold Experience ที่จุดจอ (x, y) ขนาด s หันมุม a — หลังมือทอง ข้อนิ้ว 4 นิ้ว นิ้วโป้ง ข้อมือม่วงแถบทอง
+function fist(g, x, y, s, a, alpha, lowQ) {
+  if (!(alpha > 0) || !(s > 0)) return;
+  g.save(); g.translate(x, y); g.rotate(a); g.globalAlpha *= Math.min(1, alpha);
+  g.lineWidth = Math.max(1, s * 0.06);
+  // แขน/ข้อมือ
+  g.fillStyle = "rgb(120,60,170)"; g.strokeStyle = "rgb(60,25,80)";
+  g.beginPath(); g.rect(-s * 1.15, -s * 0.24, s * 0.62, s * 0.48); g.fill(); g.stroke();
+  g.fillStyle = "rgb(250,200,70)"; g.fillRect(-s * 0.62, -s * 0.26, s * 0.1, s * 0.52);
+  // หลังมือ
+  const grd = g.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
+  grd.addColorStop(0, "rgb(255,236,150)"); grd.addColorStop(0.55, "rgb(240,185,50)"); grd.addColorStop(1, "rgb(190,130,25)");
+  g.fillStyle = grd; g.strokeStyle = "rgb(110,65,10)";
+  g.beginPath();
+  if (g.roundRect) g.roundRect(-s * 0.52, -s * 0.38, s * 0.78, s * 0.76, s * 0.18); else g.rect(-s * 0.52, -s * 0.38, s * 0.78, s * 0.76);
+  g.fill(); g.stroke();
+  // ข้อนิ้ว 4 นิ้ว (ด้านหน้ากำปั้น)
+  g.fillStyle = "rgb(250,210,90)";
+  for (let i = 0; i < 4; i++) {
+    g.beginPath(); g.ellipse(s * 0.28, -s * 0.28 + i * s * 0.187, s * 0.13, s * 0.095, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  }
+  // นิ้วโป้ง
+  g.fillStyle = "rgb(235,175,45)";
+  g.beginPath(); g.ellipse(-s * 0.05, s * 0.4, s * 0.24, s * 0.1, 0.15, 0, Math.PI * 2); g.fill(); g.stroke();
+  // จุดม่วงบนหลังมือ + ไฮไลต์
+  if (!lowQ) { g.fillStyle = "rgba(130,70,190,.85)"; g.beginPath(); g.arc(-s * 0.18, -s * 0.05, s * 0.09, 0, Math.PI * 2); g.fill(); }
+  g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = Math.max(1, s * 0.04);
+  g.beginPath(); g.moveTo(-s * 0.4, -s * 0.28); g.lineTo(s * 0.05, -s * 0.3); g.stroke();
+  g.restore();
+}
+// เส้นความเร็วหลังกำปั้น จาก (x0, y0) ถึง (x1, y1) จอ · w = ความกว้างพุ่ม · n เส้น
+function speedLines(g, x0, y0, x1, y1, w, k, n, seed) {
+  if (k <= 0) return;
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const off = (hash01(seed + i) - 0.5) * w, st = 0.15 + hash01(seed + i + 9) * 0.35;
+    g.strokeStyle = `rgba(${i % 3 ? GOLD : WHITE},${0.55 * k})`; g.lineWidth = Math.max(1, w * 0.06);
+    g.beginPath(); g.moveTo(x0 + dx * st + nx * off, y0 + dy * st + ny * off); g.lineTo(x1 - dx * 0.08 + nx * off * 0.6, y1 - dy * 0.08 + ny * off * 0.6); g.stroke();
+  }
+  g.restore();
+}
+// วงคลื่นปะทะบนพื้นรอบช่อง (cx, cy) + เส้นแตกรัศมี · q 0..1 · big = หมัดสุดท้ายของหมัดรัว
+function impactRing(g, cx, cy, q, big, seed, lowQ) {
+  if (q < 0 || q > 1) return;
+  const k = 1 - q, r = 0.25 + easeOut3(q) * (big ? 0.85 : 0.55);
+  gEllipse(g, cx, cy, r, 0.02, 40); g.strokeStyle = `rgba(${GOLD_HI},${0.9 * k})`; g.lineWidth = big ? 4 : 3; g.stroke();
+  if (big) { gEllipse(g, cx, cy, r * 0.7, 0.02, 40); g.strokeStyle = `rgba(${GOLD},${0.7 * k})`; g.lineWidth = 2; g.stroke(); }
+  const [sx, sy, sc] = P(cx, cy, 0.42);
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  const m = lowQ ? 6 : 12;
+  for (let i = 0; i < m; i++) {
+    const th = (i / m) * Math.PI * 2 + hash01(seed + i) * 0.4, d0 = sc * (0.12 + q * 0.2), d1 = sc * (0.3 + easeOut3(q) * (big ? 0.75 : 0.5));
+    g.strokeStyle = `rgba(${i % 2 ? GOLD_HI : WHITE},${k})`; g.lineWidth = 1 + sc * 0.025 * k;
+    g.beginPath(); g.moveTo(sx + Math.cos(th) * d0, sy + Math.sin(th) * d0 * 0.7); g.lineTo(sx + Math.cos(th) * d1, sy + Math.sin(th) * d1 * 0.7); g.stroke();
+  }
   g.restore();
 }
 // ประกายแตก
@@ -123,21 +173,61 @@ function gioPunch(g, e, now, lowQ) {
   const t = (now - e.t0) / GIO_MS.gioPunch;
   if (t <= 0 || t >= 1) return;
   const HIT = GIO_HIT_P.gioPunch, [ox, oy] = center(e), tx = e.to.x + 0.5, ty = e.to.y + 0.5;
+  const [ax, ay] = P(ox, oy, 0.45), [sx, sy, sc] = P(tx, ty, 0.45);
+  const ang = Math.atan2(sy - ay, sx - ax);
   g.save();
-  const n = lowQ ? 3 : 6;
-  for (let i = 0; i < n; i++) {
-    const t0 = (i / n) * HIT * 0.8, u = clamp01((t - t0) / (HIT * 0.35));
-    if (u <= 0 || u >= 1 && t > HIT + 0.15) continue;
-    const off = (hash01(i + e.to.x * 3) - 0.5) * 0.35, z = 0.35 + (hash01(i + 11) - 0.5) * 0.25;
-    const px = ox + (tx - ox) * easeOut3(u) + off * (ty - oy !== 0 ? 1 : 0), py = oy + (ty - oy) * easeOut3(u) + off * (tx - ox !== 0 ? 1 : 0);
-    const [x, y, s] = P(px, py, z);
-    fist(g, x, y, s * 0.16, Math.atan2(ty - oy, tx - ox), 0.95 * (1 - Math.max(0, u - 0.8) * 5));
-  }
+  // ง้าง (ถอยนิด) → พุ่งเข้าเป้า → ค้างที่เป้าแล้วจาง
+  const W = HIT * 0.45, drive = clamp01((t - W) / (HIT - W));
+  const u = t < W ? -0.15 * Math.sin((t / W) * Math.PI / 2) : -0.15 + 0.97 * easeOut3(drive);
+  const fx = ax + (sx - ax) * u, fy = ay + (sy - ay) * u;
+  const fade = t < HIT ? 1 : 1 - clamp01((t - HIT) / 0.35);
+  if (t > W && t < HIT + 0.1) speedLines(g, ax, ay, fx, fy, sc * 0.7, t < HIT ? 1 : 1 - (t - HIT) / 0.1, lowQ ? 4 : 8, e.to.x * 3 + e.to.y);
+  if (!lowQ && t > W) glow(g, fx, fy, sc * 0.6, GOLD, 0.5 * fade);
+  fist(g, fx, fy, sc * 0.9 * (t < HIT ? 1 : 1 + (t - HIT) * 0.5), ang, fade, lowQ);
   if (t >= HIT) {
-    const q = (t - HIT) / (1 - HIT), [sx, sy, sc] = P(tx, ty, 0.4);
-    if (q < 0.3) glow(g, sx, sy, sc * (0.45 + q), GOLD_HI, 0.8 * (1 - q / 0.3));
-    sparks(g, sx, sy, sc, q, GOLD_HI, 12, e.to.x * 7 + e.to.y, lowQ);
+    const q = (t - HIT) / (1 - HIT);
+    if (q < 0.22) glow(g, sx, sy, sc * (0.7 + q * 1.8), WHITE, 0.95 * (1 - q / 0.22));
+    impactRing(g, tx, ty, q, true, e.to.x * 11 + e.to.y, lowQ);
+    sparks(g, sx, sy, sc * 1.3, q, GOLD_HI, 14, e.to.x * 7 + e.to.y, lowQ);
     risingLeaves(g, tx, ty, q, 5, e.to.x * 13 + e.to.y, lowQ);
+  }
+  g.restore();
+}
+
+// ---------- ติดคริ: หมัดรัว ----------
+//  หมัด 16 หมัด (lowQ 8) พุ่งจากด้านผู้ตีเยื้องมุมเข้าจุดสุ่มรอบเป้า (เงาหมัดซ้อน 2 ชั้น · ปะทะแวบขาว) → หมัดสุดท้ายใหญ่กลางเป้า วงคลื่นคู่
+const RUSH_END = 0.72;
+function gioRush(g, e, now, lowQ) {
+  const t = (now - e.t0) / GIO_MS.gioRush;
+  if (t <= 0 || t >= 1) return;
+  const [ox, oy] = center(e), tx = e.to.x + 0.5, ty = e.to.y + 0.5;
+  const [ax, ay] = P(ox, oy, 0.45), [sx, sy, sc] = P(tx, ty, 0.45);
+  const base = Math.atan2(sy - ay, sx - ax), n = lowQ ? 8 : 16, span = RUSH_END - GIO_HIT_P.gioRush;
+  g.save();
+  if (t < RUSH_END + 0.1) glow(g, ax, ay, sc * 0.55, GOLD, 0.35 * (1 - Math.max(0, t - RUSH_END) / 0.1));
+  for (let i = 0; i < n; i++) {
+    const t0 = GIO_HIT_P.gioRush + (i / n) * span - 0.06, u = (t - t0) / 0.06;
+    if (u < 0 || u > 2.2) continue;
+    const a = base + (hash01(i * 3 + 1) - 0.5) * 0.6;
+    const hx = sx + (hash01(i * 7 + 2) - 0.5) * sc * 0.7, hy = sy + (hash01(i * 5 + 3) - 0.5) * sc * 0.6;
+    const k = u <= 1 ? easeOut3(u) : 1, back = sc * 0.9 * (1 - k);
+    const fx = hx - Math.cos(a) * back, fy = hy - Math.sin(a) * back;
+    if (!lowQ && u <= 1) for (let j = 1; j <= 2; j++) fist(g, fx - Math.cos(a) * sc * 0.13 * j, fy - Math.sin(a) * sc * 0.13 * j, sc * 0.52, a, 0.28 / j, true);
+    fist(g, fx, fy, sc * 0.52, a, u <= 1 ? 1 : 1 - (u - 1) / 1.2, lowQ);
+    if (u >= 1 && u < 1.4) glow(g, hx + Math.cos(a) * sc * 0.08, hy + Math.sin(a) * sc * 0.08, sc * 0.2, WHITE, 0.85 * (1 - (u - 1) / 0.4));
+  }
+  const finHit = RUSH_END + 0.08;
+  if (t >= RUSH_END) {
+    const u = clamp01((t - RUSH_END) / (finHit - RUSH_END)), q = clamp01((t - finHit) / (1 - finHit));
+    const fx = sx - Math.cos(base) * sc * (1 - easeOut3(u)), fy = sy - Math.sin(base) * sc * (1 - easeOut3(u));
+    if (u < 1) speedLines(g, ax, ay, fx, fy, sc * 0.55, 1, lowQ ? 5 : 10, 77);
+    fist(g, fx, fy, sc * 1.1 * (1 + q * 0.3), base, 1 - q, lowQ);
+    if (t >= finHit) {
+      if (q < 0.2) glow(g, sx, sy, sc * (0.7 + q * 2), WHITE, 0.95 * (1 - q / 0.2));
+      impactRing(g, tx, ty, q, true, 91, lowQ);
+      sparks(g, sx, sy, sc * 1.4, q, GOLD_HI, 18, 93, lowQ);
+      risingLeaves(g, tx, ty, q, 8, 95, lowQ);
+    }
   }
   g.restore();
 }
@@ -254,7 +344,7 @@ function gioMuda(g, e, now, lowQ) {
     if (u <= 0 || u >= 1) continue;
     const th = hash01(i + 71) * Math.PI * 2, r = 0.55 * (1 - u);
     const [x, y, s] = P(cx + Math.cos(th) * r, cy + Math.sin(th) * r, 0.3 + hash01(i + 2) * 0.35);
-    fist(g, x, y, s * 0.15, th + Math.PI, 1 - u * 0.5);
+    fist(g, x, y, s * 0.2, th + Math.PI, 1 - u * 0.5, lowQ);
     if (u > 0.8) glow(g, x, y, s * 0.18, GOLD_HI, 0.7);
   }
   if (t > 0.5) { const q = (t - 0.5) / 0.5; risingLeaves(g, cx, cy, q, 8, 83, lowQ, LEAF); glow(g, sx, sy, sc * 0.5, LEAF, 0.35 * (1 - q)); }
@@ -265,14 +355,14 @@ function gioHeal(g, e, now, lowQ) {
   if (t <= 0 || t >= 1) return;
   const [cx, cy] = center(e), [sx, sy, sc] = P(cx, cy, 0.45);
   g.save();
-  if (t < 0.35) { const k = t / 0.35; fist(g, sx - sc * 0.4 * (1 - k), sy, sc * 0.16, 0, 1 - k * 0.6); }
+  if (t < 0.35) { const k = t / 0.35; fist(g, sx - sc * 0.4 * (1 - k), sy, sc * 0.22, 0, 1 - k * 0.6, lowQ); }
   glow(g, sx, sy, sc * 0.5, LEAF_HI, 0.45 * (1 - t));
   risingLeaves(g, cx, cy, clamp01((t - 0.2) / 0.8), 7, 97, lowQ);
   sparks(g, sx, sy, sc, clamp01((t - 0.25) / 0.6), GOLD_HI, 8, 101, lowQ);
   g.restore();
 }
 
-const DRAW = { gioPunch, gioLife, gioReflect, gioReflectHit, gioTree, gioRoot, gioDodge, gioBurst, gioMuda, gioHeal };
+const DRAW = { gioPunch, gioRush, gioLife, gioReflect, gioReflectHit, gioTree, gioRoot, gioDodge, gioBurst, gioMuda, gioHeal };
 export function giornoFx(g, e, now, lowQ) {
   const fn = DRAW[e.kind];
   if (fn) fn(g, e, now, lowQ);

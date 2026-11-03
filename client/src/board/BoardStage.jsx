@@ -33,7 +33,7 @@ import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
-import { GIO_EVENT_FX } from "./giornoFx";
+import { GIO_EVENT_FX, GIO_MS as STYLE_MS_GIO } from "./giornoFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -894,7 +894,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
       const beam = !a.gun && a.byBeam > 0 && fromPos && tPos;
       // ท่าตีเฉพาะตัว (Echo: คลื่นเสียง / ผมฟาด / ปาหิน) — ตีจากที่ยืน เอฟเฟกต์วิ่งจากตัวไปหาเป้า
-      const style = !a.gun && !beam && a.byStyle && STYLE_HIT[a.byStyle] && fromPos && tPos ? a.byStyle : null;
+      // โจรุโน่ (giornoFx.js): ตีปกติ = หมัดหนัก · ติดคริ = หมัดรัว
+      const styleKey = a.byStyle === "gioPunch" && a.crit ? "gioRush" : a.byStyle;
+      const style = !a.gun && !beam && styleKey && STYLE_HIT[styleKey] && fromPos && tPos ? styleKey : null;
       // ไจโรตีด้วยลูกเหล็กที่ขว้าง (gyroFx "throw") — ไม่พุ่งชนแม้อยู่ใกล้
       const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
@@ -911,6 +913,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const saber = a.byHitFx === "saberRed";
       const myth = a.byHitFx === "mythSlash" || saber;
       if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
+      // โจรุโน่: หมัดหนักปะทะ = จอสั่น · หมัดรัว = สั่นตอนหมัดสุดท้าย (giornoFx.js RUSH_END + 0.08)
+      if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("law")) lawHitAt.current = performance.now() + HIT;

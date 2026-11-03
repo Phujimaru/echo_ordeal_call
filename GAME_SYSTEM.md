@@ -1153,5 +1153,5 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เดินไม่ได้จากผลของคนอื่น**: broadcast `movBlocked(engine, p)` → `action.movOf` = 0 (โจรุโน่: ลอยบนต้นไม้)
 - **ปุ่มหลายตัวเลือกเป็นไอเทมในกระเป๋า**: ตัวเลือกมี `item` (สำเนาไอเทม) → `SkillChoices` ใช้ชื่อ/รูป/ไอคอนจาก `shopInfoOf` · `key` = uid ไอเทม (`opts.form`)
 - **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ `strike`/`struck` ของตีบนกระดานถูกพักไว้ (`match.voiceHold`) แล้วเล่นตอนฉากตีเริ่มหลังคลิปก่อนฉากตี (`attack.playAttackCard`) · โจรุโน่เล่นเสียงตอนตีเองใน `preAttackClip` เฉพาะตอนไม่มีคลิป
-- เอฟเฟกต์: ตีปกติ `gioPunch` (attackStyle) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
+- เอฟเฟกต์: ตีปกติ `gioPunch` หมัดหนัก 1 หมัด (attackStyle) · ติดคริ = client เปลี่ยนเป็น `gioRush` หมัดรัว (BoardStage อ่าน `card.crit` — ผู้ใช้สั่ง 2026-11-04) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
 

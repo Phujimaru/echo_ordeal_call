@@ -15,14 +15,15 @@ export default function GiornoFxDev({ units, setUnits, pushFx, setFocus }) {
     setFocus({ x: who.x, y: who.y });
     pushFx([{ kind: GIO_EVENT_FX[kind], x: who.x, y: who.y, size: who.size || 1, ...extra }]);
   };
-  const punch = () => {
+  const punch = (kind = "gioPunch") => {
     const a = me(), t = foe();
     if (!a || !t) return;
-    pushFx([{ kind: "gioPunch", x: a.x, y: a.y, size: 1, to: { x: t.x, y: t.y } }]);
+    pushFx([{ kind, x: a.x, y: a.y, size: 1, to: { x: t.x, y: t.y } }]);
   };
   const toggle = (key) => setUnits((list) => list.map((u) => (u.id === "me" ? { ...u, giorno: { ...(u.giorno || {}), [key]: !(u.giorno && u.giorno[key]) } } : u)));
   const list = [
-    ["ตีปกติ", punch],
+    ["ตีปกติ", () => punch()],
+    ["คริ", () => punch("gioRush")],
     ["ชีวิตทดแทน", () => ev("life")],
     ["ต้นตอแห่งชีวิต", () => ev("reflect")],
     ["สะท้อน", () => { const t = foe(); ev("reflectHit", me(), { toAt: t ? { x: t.x, y: t.y } : null }); }],

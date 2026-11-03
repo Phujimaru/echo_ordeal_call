@@ -172,7 +172,7 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   critPct(p) { return isGio(p) && !st(p).muda ? CRIT_PCT : 0; },
-  attackStyle(p) { return isGio(p) ? "gioPunch" : null; }, // หมัดทองรัว (client/src/board/giornoFx.js)
+  attackStyle(p) { return isGio(p) ? "gioPunch" : null; }, // หมัดหนัก 1 หมัด · ติดคริ = client เปลี่ยนเป็นหมัดรัว gioRush (client/src/board/giornoFx.js)
   attackSound(p) { return isGio(p) ? SFX.punch : undefined; },
   // เศษเดนมนุษย์อย่างแกน่ะ…: ทอยเฉพาะตอนเข้าเงื่อนไข (ไม่แตะ Math.random ของคนอื่น)
   fixedStrikeDamage(engine, attacker, target, ctx = {}) {
