@@ -20,6 +20,7 @@
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
+//   ?giorno=1 = โจรุโน่ โจวาน่า · ปุ่มเล่นทุกเหตุการณ์ของ socket "giornoFx" + ตีปกติ + สลับต้นไม้/สะท้อน/Muda ที่ตัวหมาก (GiornoFxDev.jsx)
 //   ?divine=1 = นกหวีดอัญเชิญมนต์อสูรเทพ · ปุ่มเล่น 4 มนต์ (socket "divineFx" — DivineFxDev.jsx)
 //   ?ohger=1 = คิงโอเจอร์ · ปุ่มเล่น Ohger Finish 5 ร่าง + คลื่นดาบคุวากาตะ (socket "ohgerFx" — OhgerFxDev.jsx)
 //   ?law=1 = ทราฟาก้า ลอว์ · ปุ่มเล่นตีปกติ (ฟัน/Gamma Knife/Mess) + ทุกเหตุการณ์ของ socket "lawFx" + Room 5×5/9×9 · วัตถุลอย · มาร์ก · หัวใจ · หนามหิน (LawFxDev.jsx)
@@ -42,6 +43,7 @@ import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเ
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
 import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
+import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่นเอฟเฟกต์โจรุโน่
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
@@ -138,6 +140,7 @@ const KAZUMA_DEV = Q.get("kazuma") === "1";
 const LAW_DEV = Q.get("law") === "1";
 const OHGER_DEV = Q.get("ohger") === "1";
 const DIVINE_DEV = Q.get("divine") === "1";
+const GIORNO_DEV = Q.get("giorno") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
@@ -556,6 +559,7 @@ export default function BoardPreview() {
       {DIEGO_DEV && <DiegoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} ground={diegoGround} setGround={setDiegoGround} freeze={timeFreeze} setFreeze={setTimeFreeze} />}
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
+      {GIORNO_DEV && <GiornoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}

@@ -1136,3 +1136,21 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ระยะเดินตามร่าง**: ฮุค `mov(p)` (ทุกร่าง) · เปลี่ยนร่างก่อนเดินยังเดินได้ด้วยระยะใหม่ (`keepsMove` เมื่อ `!engine.action.moved`)
 - **ตัวหมากบนพาหนะ**: `players[].oldTruck.form` → BoardStage `units[].truck` → BoardCanvas ยก `hz += OT_RIDE_Z` + `boardDraw` วาด `otTruck` ใต้หมาก (แบบม้าไจโร — `client/src/board/optimusFx.js`) · **BoardCanvas คัดฟิลด์ของ unit เอง ฟิลด์ใหม่ต้องเพิ่มใน `list.push` ด้วย**
 - เอฟเฟกต์: ตีปกติ `otSlash` / `otRam` / `otCounter` (attackStyle) · socket `optimusFx { kind: arc | transform | stance | heal }` · เสียง `ot_*` (`client/src/audio.js`)
+
+## 41. สะท้อนความเสียหาย/ดีบัฟ / หลบได้แน่นอนจากผลของคนอื่น / ตีปกติใส่เพื่อน / เดินไม่ได้จากผลของคนอื่น (โจรุโน่ — `characters/giorno_giovanna.js` · GRID_PLAN §7.24)
+- **สะท้อน** (ฮุคของเป้า `reflectsDamage(engine, p, src)` → `{ name, img }` | null — ฮุคตัดสินเองว่ายังสะท้อนได้ไหม + จดว่าใช้แล้ว):
+  `combat.adjustIncomingDamage` (หลัง `attackBlocked`) → `reflectBack` = ดาเมจทั้งก้อนลงที่ผู้โจมตีแบบเดียวกับ kind (เกราะก่อน/ทะลุเกราะ/เฉพาะเกราะ · ต้นตอ = เป้า) + ตัดสินตาย · เป้าได้ 0 ·
+  ดีบัฟ: `combat.applyDebuff` + `engine.applyBleed/applyBurn/applyPoison/applyShock/applySpellburden` ผ่าน `combat.statusReflected` (ลงที่ผู้โจมตีแทน) ·
+  ระหว่างสะท้อนไม่สะท้อนซ้อน (`match.reflecting`) · สังหารทันที/ปาดบัฟ/ผลักไม่สะท้อน · หลังสะท้อน ฮุค `onReflected(engine, p, src, n, { inStrike })`
+  · ฉากตีปกติ: `strike` เห็น `match.lastReflect` ของเป้า → ดาเมจบนการ์ด = 0 + ป้ายฝั่งป้องกัน · `match.strikeDepth` > 0 = อยู่ในฉากตี (ผู้ตีที่ตายถูกล้างช่องหลังฉาก)
+- **หลบได้แน่นอนจากผลของคนอื่น** (broadcast แบบหยุดที่ตัวแรก `combat.firstHook`): `grantedDodge(engine, เป้า, ผู้ตี)` → `{ name, img }` (ฮุคจดว่าใช้แล้ว) — `attack.strike` (ก่อนหลบหลีก) + `skillDodge` · แม่นยำเจาะได้ ·
+  หน้าคาดการณ์ใช้ `dodgeSure(engine, เป้า)` (ไม่ใช้ผล) → โอกาสโดน 0%
+- **ผล "1 ครั้ง ถึงก่อนตาเดินถัดไปของ t"**: จด `{ round, acted (t เดินแล้ว/กำลังเดิน), seq }` → เปิดอยู่ถ้า (acted: เทิร์นเดิม หรือเทิร์นถัดไปที่ t ยังไม่ถึงตา) · (ไม่ acted: เทิร์นเดิมที่ t ยังไม่ถึงตา) ·
+  ใช้แล้ว = จด `engine.cmdSeq` (คำสั่งเดียวกันยังใช้ต่อได้ — ตีหลายฮิต/ท่าพื้นที่) — `windowOpen` / `live` ใน giorno_giovanna.js
+- **ตีปกติใส่เพื่อนร่วมทีม**: ฮุค `strikesAllies(p)` + `allyStrike(engine, p, เพื่อน)` → วินาทีของฉาก (`action.strikeAlly` — ระยะ/มองเห็น/ชั้นมิติเหมือนตีศัตรู · จบตา · ไม่มีการ์ดฉากตี/สวน/ถอย · คลิปที่คิวไว้เล่นหลังฉาก) ·
+  client: `players[].allyStrike` → BoardStage `planFor` รับเพื่อน (`plan.ally` · ปุ่มโจมตีเลือกศัตรูก่อน) · หน้าคาดการณ์ `forecast[id].heal` จากฮุค `allyHealOn(engine, p, t)` → ลูกศรเขียว `+N`
+- **เดินไม่ได้จากผลของคนอื่น**: broadcast `movBlocked(engine, p)` → `action.movOf` = 0 (โจรุโน่: ลอยบนต้นไม้)
+- **ปุ่มหลายตัวเลือกเป็นไอเทมในกระเป๋า**: ตัวเลือกมี `item` (สำเนาไอเทม) → `SkillChoices` ใช้ชื่อ/รูป/ไอคอนจาก `shopInfoOf` · `key` = uid ไอเทม (`opts.form`)
+- **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ตอนตีเล่นใน `preAttackClip` เฉพาะตอนไม่มีคลิป (ไม่ใช้ `voiceLines.strike`)
+- เอฟเฟกต์: ตีปกติ `gioPunch` (attackStyle) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
+

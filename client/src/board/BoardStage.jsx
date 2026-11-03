@@ -33,6 +33,7 @@ import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
+import { GIO_EVENT_FX } from "./giornoFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -266,6 +267,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const isEnemy = (p) => !!p && !!me && p.id !== me.id && sameDim(p)
     && !(p.summon && p.summon.kind === "laplace" && p.summon.ownerId === me.id)
     && (isDoubleP(p) || (!sameSide(p, me) && !(teamMode && me.teamId && p.teamId === me.teamId)));
+  // ตีปกติใส่เพื่อนร่วมทีมได้ (me.allyStrike — โจรุโน่: ฟื้นพลังชีวิต · server action.strikeAlly)
+  const isAllyHit = (p) => !!p && !!me && !!me.allyStrike && p.id !== me.id && !!p.pos && sameDim(p) && !isDoubleP(p) && !p.summon
+    && (sameSide(p, me) || (teamMode && !!me.teamId && p.teamId === me.teamId));
   // ถูกล่อเป้า (โล่ผู้พิทักษ์ — server action.tauntOf): เล็งศัตรูได้เฉพาะตัวล่อ (ตีปกติ + สกิลเลือกเป้า)
   const tauntOk = (p) => !me || !Array.isArray(me.taunt) || !me.taunt.length || !isEnemy(p) || me.taunt.includes(p.id);
 
@@ -411,7 +415,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
 
   // แผนตีศัตรู foe: ช่องยืนที่เดินน้อยสุดซึ่งตีถึง + ตีสวนได้ไหม + ถอยไปไหน (ตีไม่ถึง = null)
   const planFor = useCallback((foe) => {
-    if (!myTurn || strikeOff || pick || !myReach || !foe || !isEnemy(foe) || !foe.pos || !foe.alive || !tauntOk(foe)) return null;
+    const allyHit = isAllyHit(foe);
+    if (!myTurn || strikeOff || pick || !myReach || !foe || !(isEnemy(foe) || allyHit) || !foe.pos || !foe.alive || (!allyHit && !tauntOk(foe))) return null;
     const range = foe.isCorpse ? [1, 1] : me.range || [1, 1];
     const laneOn = !foe.isCorpse && me.lane;
     // กรอบที่ตีได้ (me.strikeZone — ลอว์: ตัวเองยืนใน Room และเป้าทับ Room) — server ฮุค strikeAllows คัดแบบเดียวกัน
@@ -434,7 +439,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
     const lane = laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect; // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
-    const counter = !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
+    const counter = !allyHit && !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
     if (counter) {
       const moved = ruleUnits.map((u) => (u.id === me.id ? { ...u, ...stand } : u));
@@ -446,13 +451,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         push.to = Math.abs(stand.x - foe.pos.x) >= Math.abs(stand.y - foe.pos.y) && dx ? { x: stand.x + dx, y: stand.y } : { x: stand.x, y: stand.y + (dy || 1) };
       }
     }
-    return { foe, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
+    return { foe, ally: allyHit, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : hoverFd ? planFor(hoverFd) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse, hoverFd]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
-    return state.players.map((p) => planFor(p)).filter(Boolean).sort((a, b) => (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0)).map((pl) => pl.foe.id);
+    return state.players.map((p) => planFor(p)).filter(Boolean).sort((a, b) => (a.ally ? 1 : 0) - (b.ally ? 1 : 0) || (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0)).map((pl) => pl.foe.id); // ศัตรูก่อนเพื่อน (ตีเพื่อน = ฮีล)
   }, [myTurn, pick, state.players, planFor]);
   const atkSig = attackables.join(",");
   useEffect(() => { if (onAttackables) onAttackables(atkSig ? atkSig.split(",") : []); }, [atkSig]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1198,6 +1203,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("optimusFx", onOt);
     return () => socket.off("optimusFx", onOt);
+  }, [pushFx, look, lowQ]);
+  // โจรุโน่: socket "giornoFx" { kind, id, at, size, toAt? } → giornoFx.js · เสียงมาจาก server (characters/giorno_giovanna.js)
+  useEffect(() => {
+    const onGio = (e) => {
+      const kind = e && GIO_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      look(e.at);
+      pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1 }]);
+      if (kind === "gioMuda" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 500));
+    };
+    socket.on("giornoFx", onGio);
+    return () => socket.off("giornoFx", onGio);
   }, [pushFx, look, lowQ]);
   // เฟิร์น: socket "fernFx" { kind: cast | boost | conceal | unveil | shield | empower | reset, at, id } → fernFx.js
   //  เสียงมาจาก server (engine.sfx ส่งพร้อมเหตุการณ์ — characters/fern.js) · conceal = เห็นเฉพาะเจ้าของ (กล้องไม่ตาม)
@@ -2091,6 +2108,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
+      // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda (giornoFx.js)
+      giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda } : null,
       dstat: !mk && p.statuses && (p.statuses.oilSoaked > 0 || p.statuses.diegoNet > 0) ? { soaked: p.statuses.oilSoaked > 0, netted: p.statuses.diegoNet > 0 } : null,
       rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };

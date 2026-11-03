@@ -1295,6 +1295,52 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- โจรุโน่ โจวาน่า (JoJo ภาค 5 — Gold Experience) — ปานกลาง — ดู characters/giorno_giovanna.js ----------
+    //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ประชิด · ปุ่มพื้นฐาน/รอง = หลายตัวเลือก (skillPub choices)
+    id: "giorno_giovanna",
+    name: "โจรุโน่ โจวาน่า",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/giorno_giovanna/giorno.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Gold Experience",
+      desc: "ตีปกติที่ไม่ได้เสริมด้วยสกิล มีโอกาสคริติคอล 30% · ตีปกติใส่เพื่อนร่วมทีมได้ = ฟื้นพลังชีวิต 1 แทนความเสียหาย",
+    },
+    passive2: {
+      name: "เศษเดนมนุษย์อย่างแกน่ะ…",
+      desc: "พลังชีวิตเหลือ 3 หรือต่ำกว่า: ตีปกติที่ไม่ได้เสริมด้วยสกิล มีโอกาส 30% สร้างความเสียหาย 5 (เกราะรับก่อน · ไม่คริ) · 1 ครั้งต่อเกม",
+    },
+    basic: {
+      name: "ชีวิตทดแทน",
+      desc: "สละไอเทมในกระเป๋า 1 ชิ้น (ยกเว้นช่องที่ 6) ฟื้นพลังชีวิต 1 · 2 ครั้งต่อเทิร์น (ไม่นับโควตาสกิล)",
+      area: { kind: "self" },
+      cost: 1,
+      img: "/characters/giorno_giovanna/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/giorno_giovanna.js
+    },
+    secondary: {
+      name: "จงกำเนิดชีวิตใหม่",
+      desc: "เลือก 1 แบบ (คูลดาวน์แยกกัน 2 เทิร์น) · ต้นตอแห่งชีวิต (3): ถึงตาเดินถัดไป ศัตรูโจมตีโดน 1 ครั้ง = ไม่เสียหาย สะท้อนความเสียหายและดีบัฟกลับใส่ผู้โจมตี · จงกำเนิดใหม่ (2): 1 คนในระยะเดิน ตัวเอง/เพื่อน ลอยบนต้นไม้ หลบได้แน่นอน 1 ครั้ง เดินไม่ได้ ถึงตาเดินถัดไป · ศัตรู ถูกตรึง 1 เทิร์น",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/giorno_giovanna/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Muda!!!!!!!",
+      desc: "ตีปกติครั้งถัดไป: ศัตรู ฟื้นพลังชีวิต 3 ล้างดีบัฟ 1 ติดเปราะบาง +1 2 เทิร์น และสตั้น 1 เทิร์น แล้วจึงรับความเสียหาย · เพื่อน ฟื้นพลังชีวิต 3 ล้างดีบัฟ 1",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/giorno_giovanna/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

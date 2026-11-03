@@ -91,6 +91,7 @@ import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { OT_RIDE_Z, otRides } from "./optimusFx";
+import { GIO_TREE_Z, gioLifted } from "./giornoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
 import { celinePose } from "./celineFx";
 import { takutoPose } from "./takutoFx";
@@ -623,6 +624,8 @@ export default function BoardCanvas(props) {
         if (dgo && (dgo.mounted || dgo.charge)) hz += DIEGO_RIDE_Z;
         // รถบรรทุกเก่า / รถบรรทุก: หมากนั่งบนรถ (รถวาดใต้หมาก — optimusFx.js otTruck)
         if (otRides(u)) hz += OT_RIDE_Z;
+        // ลอยบนต้นไม้ของโจรุโน่ (giornoFx.js gioUnitBack วาดต้นไม้ใต้หมาก)
+        if (gioLifted(u)) hz += GIO_TREE_Z;
         // ฉากของวาเลนไทน์: ตัวเหมือนวิ่งเข้าหาเป้า · ซ่อน/ตัด/บีบ/เจาะรูหมาก (valMod)
         const vp = sp || gp || dp || u.corpse ? null : valentinePose(st.fxActive, u, now);
         if (vp) { rx = vp.x; ry = vp.y; ox = 0; oy = 0; hz = vp.hz || 0; sq = 0; }
@@ -656,7 +659,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

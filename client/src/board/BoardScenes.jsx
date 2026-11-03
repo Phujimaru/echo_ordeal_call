@@ -232,8 +232,11 @@ function FdSide({ side, p, label, take, dmg, hit, crit, acc, lethal }) {
   );
 }
 export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, onCancel }) {
-  const dmg = fc && Number.isFinite(fc.dmg) ? fc.dmg : null;
-  const back = fc && Number.isFinite(fc.back) ? fc.back : null;
+  // ตีเพื่อนร่วมทีม = ฟื้นพลังชีวิต (fc.heal — โจรุโน่: Gold Experience / Muda) · ไม่มีดาเมจ/สวน
+  const heal = fc && Number.isFinite(fc.heal) ? fc.heal : null;
+  const dmg = heal != null ? null : fc && Number.isFinite(fc.dmg) ? fc.dmg : null;
+  const back = heal != null ? 0 : fc && Number.isFinite(fc.back) ? fc.back : null;
+  const shown = heal != null ? `+${heal}` : dmg;
   const hit = pct(fc && fc.hit, 100), crit = pct(fc && fc.crit, 0);
   const bHit = pct(fc && fc.backHit, 100), bCrit = pct(fc && fc.backCrit, 0);
   const lethal = dmg != null && afterHit(foe, dmg).hp === 0;
@@ -253,13 +256,13 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
       <div className={`fd-art l ${isBleed(me) ? "bleed" : ""}`}><img src={me.img} alt="" style={bigArtStyle(me, { cx: 400 })} onError={hideBroken} /></div>
       <div className={`fd-art r ${isBleed(foe) ? "bleed" : ""}`}><img src={foe.img} alt="" style={bigArtStyle(foe, { cx: 320 })} onError={hideBroken} /></div>
       <div className="fd-fade" />
-      <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={dmg} hit={hit} crit={crit} acc={accurate} lethal={false} />
+      <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={shown} hit={hit} crit={crit} acc={accurate} lethal={false} />
       <FdSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={bHit} crit={bCrit} acc={false} lethal={lethal} />
       <div className="fd-go">
         <button type="button" className="y" onClick={onConfirm}>{SWORD}โจมตี</button>
         <button type="button" className="n" onClick={onCancel}>ย้อน</button>
       </div>
-      <div className="fd-arr" style={{ bottom: backDmg ? 110 : 76 }}><span className="ln" /><b>{dmg ?? "?"}</b><small>{hit}%</small></div>
+      <div className={`fd-arr ${heal != null ? "heal" : ""}`} style={{ bottom: backDmg ? 110 : 76 }}><span className="ln" /><b>{shown ?? "?"}</b><small>{hit}%</small></div>
       {backDmg > 0 && <div className="fd-arr back" style={{ bottom: 52 }}><small>{bHit}%</small><b>{backDmg}</b><span className="ln" /></div>}
     </Stage>
   );

@@ -189,6 +189,7 @@
 .fd-arr .ln { flex: 1; height: 4px; background: linear-gradient(90deg, transparent, #c99ad6, #fff); position: relative; animation: fdLine .42s ease .3s both; }
 .fd-arr .ln::after { content: ""; position: absolute; right: -4px; top: -9px; width: 18px; height: 18px; border-top: 4px solid #fff; border-right: 4px solid #fff; transform: rotate(45deg); }
 .fd-arr b { font: 700 56px/1 var(--oc-f-ui); text-shadow: 0 0 18px #c99ad6; animation: fdNum .3s cubic-bezier(.2,1.6,.4,1) .56s both; }
+.fd-arr.heal b { color: #9dffb4; text-shadow: 0 0 18px #3ddc84; }
 .fd-arr small { font: 600 22px var(--oc-f-ui); color: var(--oc-navy-mute); }
 .fd-arr.back .ln { background: linear-gradient(270deg, transparent, #ff8ea0, #fff); }
 .fd-arr.back .ln::after { right: auto; left: -4px; transform: rotate(-135deg); }

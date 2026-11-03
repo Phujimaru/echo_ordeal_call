@@ -21,6 +21,7 @@ const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซ�
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
+const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
@@ -133,6 +134,11 @@ module.exports = function buildTransforms() {
     otTrueForm: { img: ot.IMG.truck, video: ot.VIDEO.trueForm, title: "ร่างที่แท้จริง", label: "รถบรรทุก", seconds: 21.5, music: null, afterReveal: false },
     otTransform: { img: ot.IMG.prime, video: ot.VIDEO.transform, title: "ออพติมัส ไพร์ม", label: "เปลี่ยนร่าง", seconds: 9.5, music: null, afterReveal: false },
     otGuardian: { img: ot.IMG.skill2, video: ot.VIDEO.guardian, title: "ผู้พิทักษ์", label: "ออพติมัส ไพร์ม", seconds: 13, music: null, afterReveal: false },
+    // โจรุโน่ โจวาน่า — ความยาวจริง (ffprobe) 4.33 / 32.23 / 9.77 / 9.13 วิ ปัดขึ้น
+    gioCrit: { img: gio.IMG.base, video: gio.VIDEO.crit, title: "GOLD EXPERIENCE", label: "คริติคอล", seconds: 4.8, music: null, afterReveal: false },
+    gioPassive2: { img: gio.IMG.base, video: gio.VIDEO.passive2, title: "เศษเดนมนุษย์อย่างแกน่ะ…", label: "โจรุโน่ โจวาน่า", seconds: 32.7, music: null, afterReveal: false },
+    gioTree: { img: gio.IMG.tree, video: gio.VIDEO.tree, title: "จงกำเนิดใหม่", label: "จงกำเนิดชีวิตใหม่", seconds: 10.2, music: null, afterReveal: false },
+    gioMuda: { img: gio.IMG.skill3, video: gio.VIDEO.muda, title: "Muda!!!!!!!", label: "โจรุโน่ โจวาน่า", seconds: 9.6, music: null, afterReveal: false },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

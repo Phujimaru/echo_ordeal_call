@@ -10,6 +10,7 @@ Object.assign(module.exports, {
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
   runHook, broadcastHook, damageCapOf, skillGainBlocked, notifyAttacked, attackBlocked,
+  reflectOf, statusReflected, firstHook,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -104,7 +105,56 @@ function applyDebuff(p, key, amount, turns) {
   if (friendlyEffectBlocked(p)) return false;
   if (Dim.blocks(p)) return false; // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้น = ไม่ติด
   if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น
+  if (statusReflected(p, (src) => applyDebuff(src, key, amount, turns))) return false; // สะท้อน (โจรุโน่: ต้นตอแห่งชีวิต)
   return rawApplyDebuff(p, key, amount, turns);
+}
+// ============================================================
+//  สะท้อน (ฮุคของเป้า reflectsDamage(engine, p, src) → { name, img } | null — โจรุโน่: ต้นตอแห่งชีวิต)
+//   ความเสียหาย/ดีบัฟที่ศัตรู src ทำกับ p → ไม่โดน p แต่ลงที่ src แทน (แบบเดียวกัน · ต้นตอ = p)
+//   ฮุคเป็นคนตัดสินว่ายังสะท้อนได้ไหม + จด "ใช้ไปแล้ว" เอง · ระหว่างสะท้อนไม่สะท้อนซ้อน (match.reflecting)
+//   ไม่ครอบคลุม: สังหารทันที · ปาดบัฟ · ผลักดึง · ความเสียหายที่ไม่มีต้นตอ (ฮุคกันเองได้ผ่าน adjustIncomingDamage)
+// ============================================================
+function reflectOf(p, src) {
+  if (match.reflecting || !p || !src || src.id === p.id || sameTeam(src, p) || !p.alive) return null;
+  return runHook(CHAR_HOOKS[p.characterId], "reflectsDamage", engine, p, src) || null;
+}
+// ดีบัฟ/สถานะที่ต้นตอปัจจุบันกำลังใส่ p ถูกสะท้อนไหม → true = ลงที่ต้นตอไปแล้ว (applyFn(src))
+function statusReflected(p, applyFn) {
+  const src = match.effectSourceId && match.players[match.effectSourceId];
+  const rf = src && reflectOf(p, src);
+  if (!rf) return false;
+  match.reflecting = true;
+  try { withEffectSource(p, () => applyFn(src)); }
+  finally { match.reflecting = false; }
+  match.lastLog.push(`↩️ ${p.name} ${rf.name} — สะท้อนผลกลับใส่ ${src.name}`);
+  return true;
+}
+function reflectBack(p, src, n, kind, rf) {
+  match.reflecting = true;
+  try {
+    withEffectSource(p, () => {
+      if (kind === "direct") dealDirect(src, n, false);
+      else if (kind === "armor") dealArmorOnly(src, n, false);
+      else dealMixed(src, n, false);
+    });
+    if (src.alive && src.hp <= 0) {
+      withEffectSource(p, () => instantDeath(src));
+      if (!src.alive) match.lastLog.push(`💀 ${src.name} เลือดจริงหมด ตกรอบ!`);
+    }
+  } finally { match.reflecting = false; }
+  match.lastLog.push(`↩️ ${p.name} ${rf.name} — สะท้อนความเสียหาย ${n} กลับใส่ ${src.name}`);
+  match.lastReflect = { byId: p.id, toId: src.id, n, name: rf.name, img: rf.img || null };
+  runHook(CHAR_HOOKS[p.characterId], "onReflected", engine, p, src, n, { inStrike: (match.strikeDepth || 0) > 0 });
+  if (!src.alive && !((match.strikeDepth || 0) > 0)) src.pos = null; // ในฉากตีปกติ: attack.playAttackCard ล้างให้หลังฉาก
+}
+// ฮุคแรกที่คืนค่า truthy จากทุกตัวละคร (broadcast แบบหยุดที่ตัวแรก) — จงกำเนิดใหม่ของโจรุโน่: grantedDodge / movBlocked
+function firstHook(name, ...args) {
+  for (const mod of CHAR_HOOKS.MODULES) {
+    if (typeof mod[name] !== "function") continue;
+    const r = runHook(mod, name, ...args);
+    if (r) return r;
+  }
+  return null;
 }
 // ภาระเวท (spellburden) — จุดเดียวที่ทุกตัวละคร/ทุกเอฟเฟกต์ต้องใช้ใส่สถานะนี้
 //  กฎกลางอยู่ที่ _universal_status.js: สะสม +1 ถึง SPELLBURDEN_MAX · ใช้ซ้ำใส่คนเดิมไม่ต่ออายุ
@@ -277,6 +327,8 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
     if (src && src.id !== p.id && !sameTeam(src, p)) {
       notifyAttacked(p, src, "damage");
       if (attackBlocked(p, src)) return 0;
+      const rf = reflectOf(p, src);
+      if (rf) { reflectBack(p, src, n, kind, rf); return 0; }
     }
   }
   // เกราะ Mark 42: ชุดรับความเสียหายทุกชนิดแทนตัวจริงทั้งก้อน (ส่วนเกินหายไปพร้อมชุด = แค่กลับร่างเดิม)

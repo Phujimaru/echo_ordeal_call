@@ -274,10 +274,10 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   scoreCap: cardDeck.scoreCap,
   applyBuff: rawApplyBuff,
   applyDebuff: combat.applyDebuff,
-  applyPoison,     // "พิษร้าย" (สถานะ Universal): ดาเมจ 1/เทิร์น + พลังโจมตี -1 (เคารพต้านสถานะผิดปกติ)
+  applyPoison: (p, turns) => (combat.statusReflected(p, (src) => applyPoison(src, turns)) ? false : applyPoison(p, turns)), // "พิษร้าย" (สถานะ Universal): ดาเมจ 1/เทิร์น + พลังโจมตี -1 (เคารพต้านสถานะผิดปกติ)
   tickPoison,
   stripLatestBuff, // ปาดบัฟล่าสุดของเป้าหมายทิ้ง 1 ตัว — ทะเบียนบัฟอยู่ที่ _universal_status.js
-  applyShock,      // "ช็อต" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะผิดปกติ)
+  applyShock: (p, turns) => (combat.statusReflected(p, (src) => applyShock(src, turns)) ? false : applyShock(p, turns)), // "ช็อต" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะผิดปกติ)
   tickShock,       // โรลต้นเทิร์น 15% -> สตั้น (เช็ค resist ตอนโรล ไม่ใช่ตอนแปะ)
   poisonAtkPenalty, // พลังโจมตีที่หายไปจากพิษ — computeAttackBase อ่านคู่กับ "อ่อนแอ"
   applyCurse,      // "คำสาป" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะผิดปกติ)
@@ -290,7 +290,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // พลังโจมตีปกติที่ attacker จะฟาดใส่ target ได้ (ท่อเดียวกับ doAttack)
   attackPowerAgainst: attack.estimateAttackOn,
   setTurnsNoRefresh,
-  applySpellburden: combat.applySpellburden,
+  applySpellburden: (p, turns) => (combat.statusReflected(p, (src) => combat.applySpellburden(src, turns)) ? false : combat.applySpellburden(p, turns)),
   cleanseDebuffs,
   cleanseOneStep,
   cleanseLatestDebuff,
@@ -300,8 +300,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   invertActive,
   HBLEED_MAX,
   bleedActive,
-  applyBleed, // "เลือดไหล" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
-  applyBurn,  // "ลุกไหม้" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
+  applyBleed: (p, n) => (combat.statusReflected(p, (src) => applyBleed(src, n)) ? 0 : applyBleed(p, n)), // สะท้อนได้ (combat.statusReflected) · "เลือดไหล" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
+  applyBurn: (p, n) => (combat.statusReflected(p, (src) => applyBurn(src, n)) ? 0 : applyBurn(p, n)), // สะท้อนได้ · "ลุกไหม้" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
   EVADE_TURNS,
   applyEvade, // "หลบหลีก" (สถานะ Universal): 1 เทิร์นเสมอ · ไม่ซ้อน (ได้ซ้ำ = รีเฟรช · % ใช้ค่ามากสุด)
   healHp: combat.healHp,

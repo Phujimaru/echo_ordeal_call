@@ -866,6 +866,15 @@ function statusEntries(p, full) {
     if (o.form === "truck" && o.regen > 0) out.push({ key: "otRegen", v: 1, icon: "🚛", label: `${o.regen}/${o.regenMax}`, cls: "bg-echo-ice text-gray-900", desc: "จบเทิร์นในร่างรถบรรทุกครบแล้วฟื้นพลังชีวิต 2" });
     if (o.crit) out.push({ key: "otCrit", v: 1, icon: "⚔️", label: "คริ +25%", cls: "bg-amber-500 text-gray-900", desc: "ตีปกติคริติคอลเพิ่ม 25% จนจบเทิร์น" });
   }
+  // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · คูลดาวน์ 2 แบบ · เศษเดนมนุษย์ยังไม่ใช้
+  if (p.giorno) {
+    const g = p.giorno;
+    if (g.tree) out.push({ key: "gioTree", v: 1, icon: "🌳", label: "จงกำเนิดใหม่", cls: "bg-emerald-600 text-white", desc: "ลอยบนต้นไม้ หลบการโจมตีได้แน่นอน 1 ครั้ง และเดินไม่ได้ จนถึงตาเดินถัดไป" });
+    if (g.reflect) out.push({ key: "gioReflect", v: 1, icon: "🐞", label: "ต้นตอแห่งชีวิต", cls: "bg-amber-400 text-gray-900", desc: "ศัตรูโจมตีโดน 1 ครั้ง = ไม่เสียหาย ความเสียหายและดีบัฟสะท้อนกลับใส่ผู้โจมตี จนถึงตาเดินถัดไป" });
+    if (g.muda) out.push({ key: "gioMuda", v: 1, icon: "👊", label: "Muda!!!!!!!", cls: "bg-yellow-500 text-gray-900", desc: "ตีปกติครั้งถัดไป: ศัตรูฟื้นพลังชีวิต 3 ล้างดีบัฟ 1 ติดเปราะบางและสตั้นแล้วจึงรับความเสียหาย · เพื่อนฟื้นพลังชีวิต 3 ล้างดีบัฟ 1" });
+    if (g.reflectCd > 0) out.push({ key: "gioReflectCd", v: g.reflectCd, turns: true, icon: "🐞", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ต้นตอแห่งชีวิตได้อีก" });
+    if (g.treeCd > 0) out.push({ key: "gioTreeCd", v: g.treeCd, turns: true, icon: "🌳", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้จงกำเนิดใหม่ได้อีก" });
+  }
   // ยูนะ: เพลงที่เปิด · ยูนะ ไอดอล (เทิร์นที่เหลือ) · คูลดาวน์ · เงาของเสียง (รอ/ทำงาน)
   if (p.yuna) {
     const y = p.yuna;

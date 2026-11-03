@@ -102,8 +102,15 @@ function boardExtras() {
 function forecastFor(viewer) {
   if (!viewer || !viewer.alive || match.gameState !== "ACTION" || match.actorId !== viewer.id) return null;
   const out = {};
+  const hook = CHAR_HOOKS[viewer.characterId];
   for (const t of combat.alivePlayers()) {
-    if (t.id === viewer.id || !t.pos || combat.sameTeam(viewer, t) || !Dim.same(viewer, t) || Visibility.hiddenFromUnit(viewer, t)) continue; // คนละชั้นมิติ = ไม่มีคาดการณ์
+    if (t.id === viewer.id || !t.pos || !Dim.same(viewer, t) || Visibility.hiddenFromUnit(viewer, t)) continue; // คนละชั้นมิติ = ไม่มีคาดการณ์
+    if (combat.sameTeam(viewer, t)) {
+      // ตีเพื่อนได้ (ฮุค allyHealOn — โจรุโน่): ฟื้นพลังชีวิตเท่าไร
+      const heal = hook && hook.allyHealOn ? hook.allyHealOn(engine, viewer, t) : null;
+      if (Number.isFinite(heal)) out[t.id] = { heal, dmg: 0, back: 0, hit: 100, crit: 0, backHit: 0, backCrit: 0 };
+      continue;
+    }
     out[t.id] = {
       dmg: attackPhase.estimateAttackOn(viewer, t), back: attackPhase.estimateAttackOn(t, viewer),
       // โอกาสโดน/คริติคอล (% จำนวนเต็ม 0–100) — back* = ฝั่งเป้าตีสวนกลับ (มีผลเฉพาะเป้าที่ตีสวนได้)
@@ -349,6 +356,8 @@ function buildStateFor(viewerId) {
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         ohger: hook && hook.ohgerState ? hook.ohgerState(engine, p) : undefined, // คิงโอเจอร์: แกนดาบ (ร่าง / ขั้นที่กด / ปุ่มที่ไฟกระพริบ / ชาร์จ Finish) — characters/_ohger.js
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
+        giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
+        allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
@@ -415,7 +424,7 @@ function unseenPub(o, p) {
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
-    diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, law: undefined,
+    diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, law: undefined, giorno: undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     actions: undefined,

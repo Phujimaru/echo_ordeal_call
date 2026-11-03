@@ -3,9 +3,16 @@
 //  ปุ่มมีแค่รูป ชื่อ และแต้ม · ชี้เมาส์ค้าง = คำอธิบายย่อของตัวเลือก (c.desc — ผู้ใช้สั่ง 2026-10-14) · Esc / คลิกนอกกรอบ / คลิกขวา = ปิด
 import { useEffect, useState } from "react";
 import { clickSound } from "../../audio";
+import { shopInfoOf } from "../../data/shop";
 
 // คูลดาวน์ของตัวเลือก (เทิร์นที่เหลือ): c.cd · หรือ locked + left > 0 (วาเลนไทน์ — ท่าไม้ตายคูลดาวน์แยกแต่ละแบบ)
 //  locked + left 0 = ใช้ครบแล้ว (เครื่องดูดฝุ่น) → ป้าย 🔋0 ตามเดิม
+// ตัวเลือกที่เป็นไอเทมในกระเป๋า (c.item — โจรุโน่: ชีวิตทดแทน) = ชื่อ/รูป/ไอคอนของไอเทมนั้น
+function itemLook(c) {
+  if (!c.item) return { name: c.name, img: c.img, icon: null };
+  const info = shopInfoOf(c.item);
+  return { name: info.label(c.item), img: info.img || null, icon: info.img ? null : info.icon };
+}
 const cdOf = (c) => (c.cd > 0 ? c.cd : c.locked && c.left > 0 ? c.left : 0);
 
 export default function SkillChoices({ title, choices = [], isOk = () => true, onPick, onClose }) {
@@ -26,6 +33,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
           {choices.map((c) => {
             const on = !!c.active;
             const off = !on && !isOk(c); // ตัวที่ถืออยู่ = กรอบทอง (กดซ้ำไม่ได้ แต่ไม่จาง)
+            const look = itemLook(c);
             return (
               // ห่อด้วย div: ปุ่มที่ disabled ไม่ส่ง mouseenter — ตัวเลือกที่กดไม่ได้ก็ยังชี้ดูคำอธิบายได้
               <div key={c.key} onMouseEnter={() => setHover(c.key)} onMouseLeave={() => setHover((h) => (h === c.key ? null : h))}>
@@ -37,9 +45,11 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                   on ? "border-amber-300" : "border-white/15"
                 } ${off ? "opacity-45 cursor-not-allowed" : on ? "cursor-default" : "hover:-translate-y-1 hover:border-sky-300"}`}
               >
-                <img src={c.img} alt="" className="w-full aspect-[3/4] object-cover" draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                {look.icon
+                  ? <div className="w-full aspect-[3/4] grid place-items-center text-6xl bg-black/30">{look.icon}</div>
+                  : <img src={look.img} alt="" className="w-full aspect-[3/4] object-cover" draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
-                  <span className="flex-1 text-sm font-bold text-white truncate">{c.name}</span>
+                  <span className="flex-1 text-sm font-bold text-white truncate">{look.name}</span>
                   {(c.cost || 0) > 0 && <span className="shrink-0 text-xs font-black text-sky-200">◆{c.cost}</span>}
                   {cdOf(c) > 0
                     ? <span className="shrink-0 text-xs font-black text-amber-200">⏳{cdOf(c)}</span>

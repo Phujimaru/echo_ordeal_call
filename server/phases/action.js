@@ -217,6 +217,7 @@ function baseMovOf(p) {
 //  ระยะที่เหลือหลังเดินแล้วสลับตัวออก (action.movLeft — rebaseMove) = ไม่เกินค่านี้
 function movOf(p) {
   if (((p && p.statuses && p.statuses.rooted) || 0) > 0) return 0; // ถูกตรึง (กิระ: คลื่นความมืด)
+  if (p && combat.firstHook("movBlocked", engine, p)) return 0; // เดินไม่ได้จากผลของคนอื่น (โจรุโน่: ลอยบนต้นไม้)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
   // Fodlan: ผลของด่าน/สภาพอากาศ (ฝนฟ้าผ่า −1 — server/fodlan/stageN.js movMod)
@@ -1083,7 +1084,7 @@ function strikeTarget(id, targetId) {
   }
   const target = match.players[targetId];
   if (!canAct(p) || !target || !target.alive || !target.pos || target.id === p.id) return false;
-  if (combat.sameTeam(p, target)) return false;
+  if (combat.sameTeam(p, target)) return strikeAlly(p, target, done);
   if (!Dim.same(p, target)) return false; // ชั้นมิติ (server/dimension.js): คนละชั้นตีกันไม่ได้
   if (Visibility.hiddenFromUnit(p, target)) return false; // มองไม่เห็น = ตีไม่ได้ (ม่านแดง: นับจากตาของตัวที่ตีเอง)
   if (!canStrike(p, target)) return false;
@@ -1091,6 +1092,21 @@ function strikeTarget(id, targetId) {
   match.action.locked = true;
   Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   attack.boardAttack(p, target, done);
+  return true;
+}
+// ตีปกติใส่เพื่อนร่วมทีม (ฮุค strikesAllies(p) + allyStrike(engine, p, เพื่อน) → วินาทีของฉาก — โจรุโน่ Gold Experience: ฟื้นพลังชีวิตแทนความเสียหาย)
+//  ระยะ/มองเห็น/ชั้นมิติเหมือนตีศัตรู · ไม่มีตีสวน/ถอย · จบตา · คลิปที่ฮุคคิวไว้เล่นหลังฉาก
+function strikeAlly(p, target, done) {
+  const hook = CHAR_HOOKS[p.characterId];
+  if (!hook || !hook.strikesAllies || !hook.strikesAllies(p) || !hook.allyStrike) return false;
+  if (!Dim.same(p, target) || Visibility.hiddenFromUnit(p, target) || !canStrike(p, target)) return false;
+  timers.clearPhaseTimer();
+  match.action.locked = true;
+  p.didAttackRound = true;
+  const secs = Number(combat.withEffectSource(p, () => combat.runHook(hook, "allyStrike", engine, p, target))) || 0;
+  match.gameState = "ATTACKING";
+  timers.startPhaseTimer(secs > 0 ? secs : 1, () => require("../cutscene").runCutsceneQueue(done));
+  view.broadcastState();
   return true;
 }
 // ตีปกติใส่ของบนกระดาน (ผนึกมิโกะ / หนามน้ำแข็ง) — ฮุค onStrikeObject(engine, p, at) ก่อนลงผล (ไจโร: ใช้ลูกเหล็ก ลูกตกช่องนั้น)

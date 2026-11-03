@@ -145,6 +145,7 @@ function estimateAttackOn(attacker, target) {
 function estimateHitOn(attacker, target) {
   try {
     if (accurateActive(attacker)) return 100;
+    if (combat.firstHook("dodgeSure", engine, target)) return 0; // หลบได้แน่นอน (โจรุโน่: จงกำเนิดใหม่) — ไม่ใช้ผล
     const pct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
     const evadePct = (target.statuses.evade || 0) > 0 ? pct(statusAmtOf(target, "evade") || 100) : 0;
     const cover = target.pos && action.sizeOf(target) <= 1 ? Board.terrainEvade(action.boardMap(), target.pos.x, target.pos.y) : null;
@@ -168,6 +169,12 @@ function estimateCritOf(attacker, target) {
 //  ไม่แตะ gameState/ตัวจับเวลา (คนเรียกจัดฉากเอง) · counter = ตีสวน (ข้อความ log ต่างกันเท่านั้น)
 function strike(attacker, target, { counter = false } = {}) {
   if (!match.effectSourceId) return combat.withEffectSource(attacker, () => strike(attacker, target, { counter }));
+  // ในฉากตีปกติ (combat.reflectBack: สะท้อนแสดงเป็นป้ายฉากตี · ผู้ตีที่ตายล้างช่องหลังฉาก)
+  match.strikeDepth = (match.strikeDepth || 0) + 1;
+  try { return strikeBody(attacker, target, counter); }
+  finally { match.strikeDepth--; }
+}
+function strikeBody(attacker, target, counter) {
   const verb = counter ? "ตีสวน" : "โจมตี";
   attacker.didAttackRound = true;
   Voice.play(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
@@ -176,6 +183,13 @@ function strike(attacker, target, { counter = false } = {}) {
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
   const accurate = accurateActive(attacker);
 
+  // หลบได้แน่นอนจากผลของคนอื่น (broadcast grantedDodge(engine, เป้า, ผู้ตี) → { name, img } — โจรุโน่: จงกำเนิดใหม่ 1 ครั้ง) · แม่นยำเจาะได้
+  const granted = !accurate && combat.firstHook("grantedDodge", engine, target, attacker);
+  if (granted) {
+    target.wasAttacked = true;
+    match.lastLog.push(`💨 ${target.name} ${granted.name} — หลบการ${verb}ของ ${attacker.name}`);
+    return { dmg: 0, dodge: true, kill: false, skills: [{ name: granted.name, img: granted.img || null, by: target.name, color: lobby.colorOf(target), side: "def" }] };
+  }
   // หลบหลีก (สถานะ Universal): หลบการโดนโจมตีตาม % ที่ระบุ (ไม่ระบุ = 100%)
   //  ทอยทุกครั้งที่ถูกโจมตีตลอดเทิร์นที่ติดอยู่ — ไม่มีอะไรถูกใช้หมด (หมดอายุตามเทิร์นที่ endTurn)
   if (!accurate && (target.statuses.evade || 0) > 0) {
@@ -287,8 +301,13 @@ function strike(attacker, target, { counter = false } = {}) {
   const pierce = !!(pierceHook && pierceHook.strikePierces && combat.runHook(pierceHook, "strikePierces", engine, attacker, target));
 
   const shieldBefore = target.shield;
+  match.lastReflect = null;
   if (pierce) combat.dealDirect(target, dmg, true);
   else combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
+  // เป้าสะท้อนความเสียหายกลับ (combat.reflectBack — โจรุโน่: ต้นตอแห่งชีวิต) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
+  const reflected = match.lastReflect && match.lastReflect.byId === target.id ? match.lastReflect : null;
+  match.lastReflect = null;
+  if (reflected) dmg = 0;
   // มุยมิ: ดาบเก่าๆ/ดาบสะบั้นฟื้นฟูเมื่อโจมตีปกติ และใจที่ไม่ยอมแพ้ยืดเวลาท่าไม้ตาย
   const muimiAttackFx = CHAR_HOOKS.muimi.onAttackLanded(engine, attacker);
   // เสริมพลัง (empower): ใช้แล้วหมดไปทันทีเมื่อได้โจมตี
@@ -339,6 +358,7 @@ function strike(attacker, target, { counter = false } = {}) {
     muimiAttackFx.mode === "tower" ? CHAR_HOOKS.muimi.IMG.skill3 : CHAR_HOOKS.muimi.IMG.skill2,
   );
   if (blockFx) defFx(blockFx.name, blockFx.img || view.displayImg(target));
+  if (reflected) defFx(`${reflected.name} — สะท้อน ${reflected.n}`, reflected.img || view.displayImg(target));
   if (shieldBefore > target.shield) defFx("โล่ป้องกัน (กันความเสียหาย)", null);
   if (guardAmt > 0) defFx(`คุ้มครอง (ความเสียหายลด ${guardAmt})`);
   if (discord) defFx("ขัดแย้ง (+1 ดาเมจ)");
@@ -384,6 +404,11 @@ function skillStrike(attacker, target, reason) {
 function skillDodge(attacker, target, reason) {
   combat.notifyAttacked(target, attacker, "skill"); // ถูกสกิลโจมตี (รวมหลบพ้น) — ฮุคของเป้า onAttacked ก่อนทอยหลบ
   if (accurateActive(attacker)) return false;
+  const granted = combat.firstHook("grantedDodge", engine, target, attacker); // จงกำเนิดใหม่ (โจรุโน่)
+  if (granted) {
+    match.lastLog.push(`💨 ${target.name} ${granted.name} — หลบ${reason} ได้`);
+    return true;
+  }
   if ((target.statuses.evade || 0) > 0) {
     const evadePct = statusAmtOf(target, "evade") || 100;
     if (Math.random() * 100 < evadePct) {
