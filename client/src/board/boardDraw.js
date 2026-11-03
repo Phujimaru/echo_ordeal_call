@@ -575,11 +575,15 @@ function drawUnit(g, u, now, boxes) {
   }
   // ลำแสงจากฐานขึ้นรูป
   // hz = ลอยขึ้นระหว่างเดินกระโดด (หน่วยช่อง) · sq = ยุบ/ยืดตัว (Echo)
-  const hexR = s * 0.4 * K, hy = by - s * 0.86 * K + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
+  const hexR = s * 0.4 * K;
+  let hy = by - s * 0.86 * K + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
+  // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
+  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : null;
+  if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
-  if (!u.fly) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
-  if (u.isActor) {
+  if (!u.fly && !tb) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
+  if (u.isActor && !tb) {
     const gl = g.createRadialGradient(bx, hy, hexR * 0.6, bx, hy, hexR * 1.7);
     gl.addColorStop(0, "rgba(255,255,255,.35)"); gl.addColorStop(1, "rgba(255,255,255,0)");
     g.fillStyle = gl; g.fillRect(bx - hexR * 1.8, hy - hexR * 1.8, hexR * 3.6, hexR * 3.6);
@@ -588,25 +592,24 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroHorse(g, u, now, wx, wy, (u.hz || 0) - (u.gyro.mounted ? GYRO_RIDE_Z : 0));
   // ดิเอโก้ขี่ซิลเวอร์ บูลเล็ต (หรือกำลังควบกลอุบาย — charge) · เพิ่งลง/ม้าตาย = ม้าถอยออก/สลาย
   if (u.diego) diegoHorse(g, u, now, wx, wy, (u.hz || 0) - (u.diego.mounted || u.diego.charge ? DIEGO_RIDE_Z : 0));
-  // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถตัดพื้นหลังใต้หมาก หมากนั่งบนรถ (hz รวม OT_RIDE_Z แล้ว)
-  if (otRides(u)) otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z);
-  if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
+  if (tb) { /* ร่างรถ: วาดรถไปแล้วด้านบน — ไม่มีหกเหลี่ยม */ }
+  else if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
   else unitHex(g, u, bx, hy, hexR);
-  if (u.isActor) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
-  if (u.cloak && !REDUCED) cloakShimmer(g, bx, hy, hexR, now);
+  if (u.isActor && !tb) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
+  if (u.cloak && !REDUCED && !tb) cloakShimmer(g, bx, hy, hexR, now);
   // ขี่ผู้เล่นอื่น (ยูนะ): ตัวที่ขี่วาดเป็นหมากเล็กบนหลัง
   if (u.rider) drawRider(g, u.rider, bx, hy, hexR, now, unitHex, a);
   // ไจโรเสริมพลัง: เปลวออร่าครึ่งหน้า + อนุภาคทองวนแขน + ลูกทองในมือ
   if (u.gyro) gyroUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
-  if (hitAge >= 0 && hitAge < 150) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
+  if (hitAge >= 0 && hitAge < 150 && !tb) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   if (u.yuki) yukiAuraFront(g, u, wx, wy, bx, by, hy, hexR, now, u.lowQ, UNIT_UI_K);
   g.globalAlpha = a;
   // แผ่นเลือด/เกราะขนาดเล็ก (มืดบอด = ไม่มี · noBar = ฉากของวาเลนไทน์ซ่อนแถบไว้ชั่วคราว)
   if (u.masked || u.noBar) {
     g.restore();
-    if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
+    if (boxes) boxes.push(unitBox(u, wx, wy, bx, by, s, hy, hexR, tb));
     return;
   }
   const UK = UNIT_UI_K;
@@ -623,20 +626,26 @@ function drawUnit(g, u, now, boxes) {
   // ป้าย "คุณ" มุมซ้ายบนของรูป
   if (u.isMe) {
     g.font = `600 ${11 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
-    const mw = g.measureText("คุณ").width + 10 * UK, mx = bx - hexR - 4, my = hy - hexR * 0.87 - 2;
+    const mw = g.measureText("คุณ").width + 10 * UK;
+    const mx = tb ? bx - pw / 2 - mw / 2 - 4 * UK : bx - hexR - 4, my = tb ? py + ph / 2 : hy - hexR * 0.87 - 2; // ร่างรถ: ข้างหลอดพลัง
     g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
     g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
-  } else if (u.ally) allyBadge(g, bx - hexR - 4, hy - hexR * 0.87 - 2, UK);
+  } else if (u.ally) allyBadge(g, tb ? bx - pw / 2 - 18 * UK : bx - hexR - 4, tb ? py + ph / 2 : hy - hexR * 0.87 - 2, UK);
   const tag = normTag(u.tag);
-  if (tag) drawTag(g, bx + hexR + (tag.backs ? 10 + Math.min(6, tag.backs) * 7 : 22), hy - hexR * 0.2, tag);
+  if (tag) drawTag(g, tb ? bx + pw / 2 + 14 * UK : bx + hexR + (tag.backs ? 10 + Math.min(6, tag.backs) * 7 : 22), tb ? py + ph / 2 : hy - hexR * 0.2, tag);
   if (u.isActor) {
-    const ay = hy - hexR - 14 + Math.sin(now / 200) * 3;
+    const ay = (tb ? py - 6 : hy - hexR - 14) + Math.sin(now / 200) * 3;
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 8, ay - 9); g.lineTo(bx + 8, ay - 9); g.lineTo(bx, ay); g.closePath(); g.fill();
   }
-  if (u.reticle) drawReticle(g, bx, hy, hexR, u.reticle, now);
+  if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now); else drawReticle(g, bx, hy, hexR, u.reticle, now); }
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
-  if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 });
+  if (boxes) boxes.push(unitBox(u, wx, wy, bx, by, s, hy, hexR, tb));
+}
+// กล่องคลิก/ชี้ของหมาก · ร่างรถ = รูปรถทั้งคัน + หลอดพลังเหนือรถ
+function unitBox(u, wx, wy, bx, by, s, hy, hexR, tb) {
+  if (tb) return { id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: tb.left, y0: hy, x1: tb.right, y1: Math.max(tb.bottom, by + s * 0.2) };
+  return { id: u.id, x: u.rx, y: u.ry, d: depthOf(wx, wy), x0: bx - hexR - 4, y0: hy - hexR - 4, x1: bx + hexR + 4, y1: by + s * 0.2 };
 }
 
 

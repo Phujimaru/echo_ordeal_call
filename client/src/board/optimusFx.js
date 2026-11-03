@@ -310,6 +310,7 @@ export function otUnitBack(g, u, now, wx, wy) {
   g.restore();
 }
 // หลังเสาหมาก ก่อนหกเหลี่ยม: รถตัดพื้นหลัง (หันตามทางเดิน · วิ่ง = สั่นเล็กน้อย)
+// วาดรถใต้ตัว → คืนกรอบรูปบนจอ { cx, top, bottom, left, right } (ร่างรถไม่มีหกเหลี่ยม — drawUnit ใช้วางหลอด/กล่องคลิก) · รูปยังไม่โหลด = undefined
 export function otTruck(g, u, now, wx, wy, liftZ = 0) {
   const T = u.truck;
   if (!T) return;
@@ -321,7 +322,9 @@ export function otTruck(g, u, now, wx, wy, liftZ = 0) {
   const bob = REDUCED ? 0 : moving ? Math.abs(Math.sin(now / 70)) * s * 0.02 : 0;
   g.save();
   if (liftZ <= 0.05) { gEllipse(g, wx + 0.03, wy + 0.06, 0.55, 0, 28, 0.32); g.fillStyle = "rgba(0,0,0,.28)"; g.fill(); }
-  g.translate(bx, by + s * 0.22 - bob); g.scale(f, 1);
+  const foot = by + s * 0.22 - bob;
+  g.translate(bx, foot); g.scale(f, 1);
   g.drawImage(img, -W * 0.5, -H, W, H);
   g.restore();
+  return { cx: bx, top: foot - H, bottom: foot, left: bx - W * 0.5, right: bx + W * 0.5 };
 }
