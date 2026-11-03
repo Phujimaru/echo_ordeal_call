@@ -1113,7 +1113,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - socket `blowWhistle` → `Whistle.blow(id)`: ตาเดินของตัวเอง (`action.canAct`) · ไม่หลับ · คูลดาวน์หมด → `lockMove` (แบบใช้ไอเทม — ยังตี/ใช้สกิลได้ · ผู้ใช้เลือก)
 - โอกาสติด `chanceOf`: 20% · เลือด < ครึ่งของ `maxHpOf` 70% · เลือด ≤ 1 100% · ไม่ติด = `loseHp` 1 (ไม่สนเกราะ) + คูลดาวน์ 1 · ติด = สุ่ม 1 ใน 4 มนต์ (ผู้ใช้เลือก) + คูลดาวน์ 10
   · คูลดาวน์ = เลขรอบ `p.whistleReady` (เป่าเทิร์น R คูลดาวน์ N → เป่าได้อีกเทิร์น R + N + 1) · state ส่วนตัว `players[].whistle = { cd, chance }` → `BagScreen` ช่องที่ 6
-- ลำดับเมื่อติด: คลิปเต็มจอครั้งแรกต่อคนต่อมนต์ (`TRANSFORMS.divine*` · `/item/divine_whistle/*.mp4`) ครั้งต่อไปการ์ดแจ้งเตือน → `afterCutscene`: socket `divineFx { seq, spell, by, at, size }` + เสียง `divine_<spell>` → `skillBeat(INTRO_SECONDS)` → `cast` ลงผล + iceFx → พักตาม `Ice.fxSeconds` → กลับตาเดินเวลาที่เหลือ (`pausePlayingForCutscene`)
+- ลำดับเมื่อติด: คลิปเต็มจอทุกครั้ง (ผู้ใช้สั่ง · `TRANSFORMS.divine*` · `/item/divine_whistle/*.mp4`) → `afterCutscene`: socket `divineFx { seq, spell, by, at, size }` + เสียง `divine_<spell>` → `skillBeat(INTRO_SECONDS)` → `cast` ลงผล + iceFx → พักตาม `Ice.fxSeconds` → กลับตาเดินเวลาที่เหลือ (`pausePlayingForCutscene`)
 - ผลไม่โดนตัวเอง/เพื่อนร่วมทีม (`combat.sameTeam`) และคนต่างชั้นมิติ · สถานะ N เทิร์นของเป้าที่เดินไปแล้ว/กำลังเดิน +1 (`debuffFor`) · ต้านสถานะได้ (`applyDebuff`)
   · **Cross Winds**: ศัตรูไกลสุดก่อน ผลักออกห่างผู้เป่าจนชน (`Ice.pushUnit(u, dir, ctx, 64)` — ลงน้ำแข็งไถลต่อ) → ถูกตรึง 1 เทิร์น
   · **Tsunami**: ศัตรู 1×1 ที่ใกล้กลางก่อนได้ช่องว่างที่ใกล้กลางแผนที่ที่สุด (iceFx `knock`) · พื้นเปียก 40% ของช่องโล่ง (`Ice.layWet`)

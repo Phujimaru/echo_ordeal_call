@@ -10,7 +10,7 @@
 //   diamondDust  ศัตรูติดเชื่องช้า 3 เทิร์น (ผู้ใช้: "แช่แข็ง" = เชื่องช้า) + ธารน้ำแข็งกระจายทั่วแผนที่ (ไม่ละลาย — perm)
 //   judgmentBolt ศัตรูติดสตั้น 1 เทิร์น + พื้นไฟกระจายทั่วแผนที่ (จบตาบนช่อง = ลุกไหม้ 2 · ทีมผู้เป่าไม่โดน — ผู้ใช้เลือก)
 //  พื้นทั้งหมดอยู่ในชั้นของ match.board → หายเมื่อเปลี่ยนแผนที่ (placeOnBoard ตั้ง match.board ใหม่)
-//  ลำดับ: คลิปเต็มจอ (ครั้งแรกต่อคนต่อมนต์ · ครั้งต่อไปการ์ดแจ้งเตือน) → ฉากมนต์ลงกระดาน (socket "divineFx" · จังหวะพัก) → ผลจริง (iceFx) → กลับตาเดิน
+//  ลำดับ: คลิปเต็มจอ (ทุกครั้งที่ติด — ผู้ใช้สั่ง) → ฉากมนต์ลงกระดาน (socket "divineFx" · จังหวะพัก) → ผลจริง (iceFx) → กลับตาเดิน
 // ============================================================
 Object.assign(module.exports, { chanceOf, cooldownLeft, canBlow, blow, cast, publicOf, flameEnd });
 
@@ -94,9 +94,8 @@ function blow(id) {
   const S = SPELLS[spell];
   Visibility.onHostileAct(p, "item");
   match.lastLog.push(`📯 ${p.name} เป่านกหวีดอัญเชิญมนต์อสูรเทพ — ${S.name}!`);
-  // คลิปเต็มจอครั้งแรกต่อคนต่อมนต์ · ครั้งต่อไปการ์ดแจ้งเตือน
-  if (p.cutsceneShown[S.cut]) engine.notifyTransform(p, S.cut);
-  else { p.cutsceneShown[S.cut] = true; engine.queueCutscene(p, S.cut); }
+  // คลิปเต็มจอทุกครั้งที่เป่าติด (ผู้ใช้สั่ง 2026-11-03)
+  engine.queueCutscene(p, S.cut);
   // หลังคลิป: ฉากมนต์บนกระดาน (พัก) → ผลจริง + เหตุการณ์ขยับตัว (พักตามเวลาแอนิเมชัน) → กลับตาเดินเวลาที่เหลือ
   match.afterCutscene.push(() => {
     const seq = (match.divineSeq = (match.divineSeq || 0) + 1);

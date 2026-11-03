@@ -3,10 +3,10 @@
 //  socket "divineFx" { seq, spell, by, at, size } = มนต์ลงสนาม (หลังคลิปเต็มจอ / การ์ดแจ้งเตือน) · server พัก INTRO_SECONDS แล้วลงผลจริง (iceFx)
 //   + Judgment Bolt ส่งซ้ำ { land: true, tiles, hits } ตอนผลลง = สายฟ้าฟาดลงช่องไฟ/ตัวศัตรูทีละลูก
 //  โทนตามคลิปของผู้ใช้ (แนวมนต์อสูร FFXV):
-//   dvWinds  Cross Winds   ท้องฟ้าพายุเทา · วงลมกรรโชกแผ่จากผู้เป่า · ริ้วลมขาวหมุนพุ่งออก · ฝุ่นปลิว
-//   dvWave   Tsunami       ผืนน้ำเขียวน้ำทะเลซัดจาก 4 ขอบเข้ากลาง · สันคลื่นฟองขาว · ละอองกระเซ็น → น้ำกระแทกกลางสนาม
-//   dvDust   Diamond Dust  แฟลชขาว · ม่านหมอกน้ำแข็ง · วงน้ำแข็งแผ่พร้อมผลึกแหลม · เกล็ดหิมะ/ประกายโปรย
-//   dvBolt   Judgment Bolt ฟ้ามืดม่วง · สายฟ้าแลบโปรยทั่วสนาม (ช่วงก่อนผลลง)
+//   dvWinds  Cross Winds   ฟ้าพายุเทาหมุน · ทอร์นาโดยักษ์ที่ผู้เป่า → ลมระเบิด: วงกระแทก + ใบมีดลมจันทร์เสี้ยว + ขนนกม่วงทอง
+//   dvWave   Tsunami       ฟ้าพายุ + ฝน · เสาน้ำรอบขอบ · กำแพงคลื่นสูงสันม้วนซัดจาก 4 ขอบเข้ากลาง → เสาน้ำยักษ์ + มงกุฎน้ำกลางสนาม
+//   dvDust   Diamond Dust  แฟลชขาว · ตราเกล็ดหิมะ · คลื่นน้ำแข็งแผ่ · เสาผลึกพุ่งทั่วกระดานแล้วแตก · พายุหิมะ
+//   dvBolt   Judgment Bolt ฟ้ามืดม่วง + เมฆพายุ · สายฟ้าโปรย · สายฟ้ายักษ์ฟาดกลาง (แฟลช/คลื่นกระแทก/รอยแตก/ไฟฟ้าวิ่ง)
 //   dvStrike สายฟ้าลูกเดียวฟาดช่อง (x, y) — big = ฟาดตัวศัตรู (หนา + วงกระแทก)
 //  lowQ = ตัดอนุภาคครึ่งหนึ่ง
 // ============================================================
@@ -20,7 +20,7 @@ const easeIn = (k) => k * k;
 const env = (u, a, b) => Math.min(clamp01(u / a), clamp01((1 - u) / b));
 function rnd(seed) { let s = (Math.abs(Math.floor(seed)) % 2147483646) || 1; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
 
-export const DIVINE_FX_DUR = { dvWinds: 2900, dvWave: 3300, dvDust: 3600, dvBolt: 3000, dvStrike: 900 };
+export const DIVINE_FX_DUR = { dvWinds: 3200, dvWave: 3600, dvDust: 3600, dvBolt: 3000, dvStrike: 900 };
 export const isDivineFx = (kind) => typeof kind === "string" && kind in DIVINE_FX_DUR;
 // ช่วงก่อนผลลง (ms) — ตรงกับ server/whistle.js INTRO_SECONDS
 export const DIVINE_LAND_MS = { crossWinds: 1100, tsunami: 1400, diamondDust: 1200, judgmentBolt: 1300 };
@@ -50,7 +50,7 @@ export function divineEventFx(ev, ctx = {}) {
   }
   const at = ev.at || { x: cols / 2, y: rows / 2 };
   out.fx.push({ kind: KIND_OF[ev.spell], at: { x: at.x, y: at.y }, size: ev.size || 1, cols, rows, seed: ev.seq || 1 });
-  if (ev.spell === "crossWinds") out.shake.push(DIVINE_LAND_MS.crossWinds);
+  if (ev.spell === "crossWinds") out.shake.push(650, DIVINE_LAND_MS.crossWinds);
   if (ev.spell === "tsunami") out.shake.push(DIVINE_LAND_MS.tsunami - 150, DIVINE_LAND_MS.tsunami + 200);
   if (ev.spell === "diamondDust") out.shake.push(80, 700);
   if (ev.spell === "judgmentBolt") out.shake.push(400, 1050, 1250);
@@ -86,26 +86,113 @@ function tint(g, e, rgb, a, pad = 0) {
 // จุดบนวงกลมโลก (cx, cy) รัศมี r มุม an ความสูง z
 const ring = (cx, cy, r, an, z = 0) => P(cx + Math.cos(an) * r, cy + Math.sin(an) * r, z);
 
+// ก้อนเมฆลอยเหนือฉาก (สี rgb · หมุนรอบ (cx, cy) ด้วยความเร็ว spin rad/วิ — 0 = ลอยนิ่ง)
+function skyClouds(g, e, ms, a, rgb, n, seed, spin = 0, cx = 0, cy = 0) {
+  const r = rnd(seed);
+  for (let i = 0; i < n; i++) {
+    let x = r() * (e.cols + 6) - 3, y = r() * (e.rows + 6) - 3;
+    const z = 6 + r() * 3, sz = 1.6 + r() * 1.6;
+    if (spin) { const an = Math.atan2(y - cy, x - cx) + (ms / 1000) * spin, d = Math.hypot(x - cx, y - cy); x = cx + Math.cos(an) * d; y = cy + Math.sin(an) * d; }
+    const p = P(x, y, z), rad = p[2] * sz;
+    const gr = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad);
+    gr.addColorStop(0, `rgba(${rgb},${0.6 * a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = gr; g.fillRect(p[0] - rad, p[1] - rad, rad * 2, rad * 2);
+  }
+}
+
 // ---------- Cross Winds ----------
-const WIND_N = 34;
+//  ฟ้าพายุเทาหมุน → ทอร์นาโดยักษ์ก่อตัวที่ผู้เป่า (วงลมซ้อนขึ้นฟ้า + ริ้วหมุน + เศษหินปลิววน)
+//  → ระเบิดลม: วงกระแทก 3 ระลอก + ใบมีดลมรูปจันทร์เสี้ยวพุ่งออกรอบทิศ + ขนนกม่วงทองปลิว · ริ้วลมพาดทั่วฉาก
+const WIND_N = 40;
+const BURST_AT = 650; // ลมระเบิดออก (ms)
 function windsFx(g, e, u, ms, lowQ) {
   const cx = e.at.x + (e.size || 1) / 2, cy = e.at.y + (e.size || 1) / 2;
   const R = Math.hypot(e.cols, e.rows);
-  const a = env(u, 0.12, 0.3);
-  tint(g, e, "70,78,92", 0.32 * a);
-  // วงลมกรรโชก 3 ระลอก
-  for (let i = 0; i < 3; i++) {
-    const k = clamp01((ms - i * 280) / 1300);
-    if (k <= 0 || k >= 1) continue;
-    gEllipse(g, cx, cy, 0.4 + easeOut(k) * R * 0.75, 0.15, 64);
-    g.strokeStyle = `rgba(235,242,250,${0.75 * (1 - k)})`; g.lineWidth = 3 + 7 * (1 - k); g.stroke();
+  const a = env(u, 0.1, 0.28);
+  tint(g, e, "52,58,72", 0.45 * a, 40);
+  skyClouds(g, e, ms, a, "120,128,140", lowQ ? 8 : 16, e.seed * 41 + 3, 0.9, cx, cy);
+  tint(g, e, "235,240,250", 0.6 * clamp01(1 - Math.abs(ms - BURST_AT) / 160), 40); // แฟลชตอนระเบิดลม
+  // ทอร์นาโด: วงลมซ้อนขึ้นฟ้า (กว้างขึ้นตามความสูง) — ก่อตัวก่อนระเบิด แล้วคลายตัว
+  const tw = ms < BURST_AT ? easeOut(ms / BURST_AT) : clamp01(1 - (ms - BURST_AT) / 1600);
+  if (tw > 0.01) {
+    const H = 7 * tw, rings = lowQ ? 9 : 16;
+    for (let i = 0; i < rings; i++) {
+      const f = i / (rings - 1), z = f * H, rad = 0.35 + f * f * 2.6 + Math.sin(ms / 140 + i) * 0.08;
+      const ox = Math.sin(ms / 400 + f * 3) * f * 0.5, oy = Math.cos(ms / 470 + f * 2) * f * 0.3;
+      gEllipse(g, cx + ox, cy + oy, rad, z, 40, rad * 0.9);
+      g.strokeStyle = `rgba(${215 + f * 40},${220 + f * 35},${228 + f * 27},${(0.25 + 0.45 * (1 - f)) * tw * a})`;
+      g.lineWidth = 3 + 5 * (1 - f); g.stroke();
+    }
+    // ริ้วลมหมุนพันตัวทอร์นาโด
+    const sn = lowQ ? 10 : 22;
+    g.lineCap = "round";
+    for (let i = 0; i < sn; i++) {
+      const f0 = (i / sn + ms / 1800) % 1, ph = i * 2.4 + ms / 110;
+      g.beginPath();
+      for (let s = 0; s <= 8; s++) {
+        const f = clamp01(f0 + s * 0.025), rad = 0.4 + f * f * 2.6, an = ph - s * 0.35, p = ring(cx, cy, rad, an, f * H);
+        if (s) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
+      }
+      g.strokeStyle = `rgba(250,252,255,${0.8 * tw * a})`; g.lineWidth = 1.5 + (i % 3); g.stroke();
+    }
+    // เศษหิน/ใบไม้ปลิววนขึ้น
+    const rd = rnd(e.seed * 7 + 1);
+    for (let i = 0; i < (lowQ ? 14 : 30); i++) {
+      const f = (rd() + ms / 1500) % 1, an = rd() * TAU + ms / (180 + rd() * 100), rad = 0.5 + f * f * 2.8, p = ring(cx, cy, rad, an, f * H);
+      g.fillStyle = i % 3 ? `rgba(110,100,85,${0.9 * tw * a})` : `rgba(120,160,90,${0.9 * tw * a})`;
+      g.beginPath(); g.ellipse(p[0], p[1], p[2] * 0.05, p[2] * 0.025, an * 3, 0, TAU); g.fill();
+    }
+    const pg = P(cx, cy, 0.3);
+    glow(g, pg[0], pg[1], pg[2] * 2.6, "225,232,245", 0.45 * tw * a);
   }
-  glow(g, ...P(cx, cy, 0.4).slice(0, 2), P(cx, cy)[2] * 2.2, "220,230,245", 0.35 * a);
-  // ริ้วลมหมุนพุ่งออก
+  // ฝุ่นวงบนพื้นรอบฐาน
+  gEllipse(g, cx, cy, 1.2 + 0.4 * Math.sin(ms / 200), 0.02, 48); g.fillStyle = `rgba(150,140,120,${0.25 * a})`; g.fill();
+  const bt = ms - BURST_AT;
+  if (bt >= 0) {
+    // วงกระแทก 3 ระลอก
+    for (let i = 0; i < 3; i++) {
+      const k = clamp01((bt - i * 220) / 1100);
+      if (k <= 0 || k >= 1) continue;
+      gEllipse(g, cx, cy, 0.5 + easeOut(k) * R * 0.8, 0.12, 80);
+      g.strokeStyle = `rgba(200,210,225,${0.5 * (1 - k)})`; g.lineWidth = 18 * (1 - k) + 2; g.stroke();
+      g.strokeStyle = `rgba(255,255,255,${0.95 * (1 - k)})`; g.lineWidth = 4 * (1 - k) + 1; g.stroke();
+    }
+    // ใบมีดลมรูปจันทร์เสี้ยวพุ่งออก
+    const bn = lowQ ? 8 : 16;
+    for (let i = 0; i < bn; i++) {
+      const an = (i / bn) * TAU + (i % 2) * 0.2, t = (bt - (i % 4) * 70) / 1000;
+      if (t < 0) continue;
+      const rad = 0.8 + t * 9, fade = clamp01(1 - rad / R);
+      if (fade <= 0) continue;
+      const z = 0.4 + (i % 3) * 0.25, half = 0.32;
+      g.beginPath();
+      for (let s = 0; s <= 10; s++) { const f = s / 10, p = ring(cx, cy, rad + Math.sin(f * Math.PI) * 0.35, an - half + f * 2 * half, z); if (s) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }
+      for (let s = 10; s >= 0; s--) { const f = s / 10, p = ring(cx, cy, rad, an - half + f * 2 * half, z); g.lineTo(p[0], p[1]); }
+      g.closePath();
+      g.fillStyle = `rgba(245,250,255,${0.85 * fade * a})`; g.fill();
+      g.strokeStyle = `rgba(170,190,215,${0.6 * fade * a})`; g.lineWidth = 1.2; g.stroke();
+    }
+    // ขนนกม่วง/ทองปลิว
+    const rf = rnd(e.seed * 113 + 5);
+    for (let i = 0; i < (lowQ ? 10 : 24); i++) {
+      const an = rf() * TAU, sp = 3 + rf() * 5, t = (bt - rf() * 400) / 1000;
+      if (t < 0) continue;
+      const rad = 0.6 + t * sp, fade = clamp01(1 - rad / R);
+      if (fade <= 0) continue;
+      const p = ring(cx, cy, rad, an + t * 0.8, 0.3 + rf() * 1.5 + Math.sin(t * 6 + i) * 0.2), rot = an + t * 7 + i;
+      g.save(); g.translate(p[0], p[1]); g.rotate(rot);
+      const L = p[2] * 0.12;
+      g.fillStyle = i % 3 ? `rgba(150,90,200,${0.9 * fade * a})` : `rgba(230,190,90,${0.9 * fade * a})`;
+      g.beginPath(); g.moveTo(-L, 0); g.quadraticCurveTo(0, -L * 0.35, L, 0); g.quadraticCurveTo(0, L * 0.35, -L, 0); g.fill();
+      g.strokeStyle = `rgba(255,255,255,${0.6 * fade * a})`; g.lineWidth = 1; g.beginPath(); g.moveTo(-L, 0); g.lineTo(L, 0); g.stroke();
+      g.restore();
+    }
+  }
+  // ริ้วลมหมุนพุ่งออก (ทั้งฉาก)
   const r = rnd(e.seed * 131 + 7), n = lowQ ? WIND_N >> 1 : WIND_N;
   g.lineCap = "round";
   for (let i = 0; i < n; i++) {
-    const an0 = r() * TAU, sp = 4 + r() * 5, z = 0.15 + r() * 0.9, len = 0.35 + r() * 0.45, t0 = r() * 900;
+    const an0 = r() * TAU, sp = 4 + r() * 6, z = 0.15 + r() * 1.4, len = 0.4 + r() * 0.5, t0 = BURST_AT - 200 + r() * 1200;
     const t = (ms - t0) / 1000;
     if (t < 0) continue;
     const rad = 0.6 + t * sp, an = an0 + t * 0.9;
@@ -113,115 +200,129 @@ function windsFx(g, e, u, ms, lowQ) {
     const fade = clamp01(1 - rad / R) * a;
     g.beginPath();
     for (let s = 0; s <= 6; s++) {
-      const aa = an - (s / 6) * len, rr = rad - (s / 6) * 0.6;
-      const p = ring(cx, cy, rr, aa, z + Math.sin(aa * 3) * 0.08);
+      const aa = an - (s / 6) * len, rr = rad - (s / 6) * 0.6, p = ring(cx, cy, rr, aa, z + Math.sin(aa * 3) * 0.08);
       if (s) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]);
     }
-    g.strokeStyle = `rgba(245,250,255,${0.85 * fade})`; g.lineWidth = 1.5 + (i % 3);
-    g.stroke();
-  }
-  // ฝุ่น/ใบไม้ปลิว
-  if (!lowQ) for (let i = 0; i < 40; i++) {
-    const an = r() * TAU, sp = 3 + r() * 6, t = (ms - r() * 700) / 1000;
-    if (t < 0) continue;
-    const rad = 0.8 + t * sp;
-    if (rad > R) continue;
-    const p = ring(cx, cy, rad, an + t * 1.2, 0.1 + r() * 0.6);
-    g.fillStyle = i % 4 ? `rgba(200,205,190,${0.7 * a})` : `rgba(140,170,110,${0.8 * a})`;
-    g.beginPath(); g.ellipse(p[0], p[1], p[2] * 0.035, p[2] * 0.018, an + t * 6, 0, TAU); g.fill();
+    g.strokeStyle = `rgba(245,250,255,${0.9 * fade})`; g.lineWidth = 1.5 + (i % 3) * 1.2; g.stroke();
   }
 }
 
 // ---------- Tsunami ----------
+//  ฟ้าพายุเขียวน้ำทะเล + ฝนเฉียง → น้ำพุ่งเป็นเสารอบขอบกระดาน → กำแพงคลื่นสูงม้วนสันฟองซัดจาก 4 ขอบเข้ากลาง
+//  → น้ำปะทะกลางสนาม: เสาน้ำยักษ์ + มงกุฎน้ำกระจาย + วงกระเพื่อม + ละอองตกกลับ
 function waveFx(g, e, u, ms, lowQ) {
   const land = DIVINE_LAND_MS.tsunami;
   const half = Math.min(e.cols, e.rows) / 2;
-  const a = env(u, 0.08, 0.25);
-  tint(g, e, "10,70,90", 0.3 * a);
+  const a = env(u, 0.08, 0.22);
+  tint(g, e, "8,40,56", 0.45 * a, 40);
+  skyClouds(g, e, ms, a, "40,80,95", lowQ ? 8 : 16, e.seed * 29 + 9);
+  // ฝนเฉียง
+  const rr = rnd(e.seed * 5 + 1);
+  g.lineCap = "round";
+  for (let i = 0; i < (lowQ ? 40 : 110); i++) {
+    const x0 = rr() * (e.cols + 8) - 5, y0 = rr() * (e.rows + 8) - 5, ph = rr(), t = ((ms / 600) + ph) % 1;
+    const p = P(x0 + t * 1.2, y0 + t * 0.4, 6 * (1 - t)), q = P(x0 + t * 1.2 - 0.12, y0 + t * 0.4 - 0.04, 6 * (1 - t) + 0.6);
+    g.strokeStyle = `rgba(200,235,245,${0.45 * a})`; g.lineWidth = 1; g.beginPath(); g.moveTo(q[0], q[1]); g.lineTo(p[0], p[1]); g.stroke();
+  }
   const k = clamp01(ms / land);
+  // เสาน้ำพุ่งรอบขอบ (ก่อนคลื่นซัด)
+  const rg = rnd(e.seed * 61 + 4);
+  for (let i = 0; i < (lowQ ? 8 : 16); i++) {
+    const side = i % 4, f = rg(), t0 = rg() * 500, t = (ms - t0) / 700;
+    if (t < 0 || t > 1) continue;
+    const x = side === 0 ? f * e.cols : side === 1 ? e.cols : side === 2 ? f * e.cols : 0;
+    const y = side === 0 ? 0 : side === 1 ? f * e.rows : side === 2 ? e.rows : f * e.rows;
+    const h = Math.sin(t * Math.PI) * (2.5 + rg() * 1.5), b = P(x, y, 0), top = P(x, y, h), w = b[2] * 0.22;
+    const gr = g.createLinearGradient(0, top[1], 0, b[1]);
+    gr.addColorStop(0, `rgba(240,252,255,${0.9 * a})`); gr.addColorStop(1, `rgba(30,140,160,${0.8 * a})`);
+    g.fillStyle = gr; g.beginPath(); g.moveTo(b[0] - w, b[1]); g.quadraticCurveTo(b[0] - w * 0.3, (top[1] + b[1]) / 2, top[0], top[1]); g.quadraticCurveTo(b[0] + w * 0.3, (top[1] + b[1]) / 2, b[0] + w, b[1]); g.closePath(); g.fill();
+  }
   if (k < 1) {
-    const inset = easeIn(k) * (half - 0.6), band = 1.2 + 0.8 * (1 - k);
-    // น้ำที่ซัดผ่านแล้ว (ขอบนอก) = ผิวน้ำบาง
+    const inset = easeIn(k) * (half - 0.6), band = 1.4 + 1.0 * (1 - k);
+    // น้ำที่ซัดผ่านแล้ว (ขอบนอก) = ผิวน้ำปั่นป่วน
     g.beginPath();
-    for (const ring2 of [boardPoly(e, 0), boardPoly(e, inset)]) {
-      ring2.forEach(([x, y], i) => { const p = P(x, y, 0); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    for (const rg2 of [boardPoly(e, 0), boardPoly(e, inset)]) {
+      rg2.forEach(([x, y], i) => { const p = P(x, y, 0); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
       g.closePath();
     }
-    g.fillStyle = `rgba(40,150,170,${0.22 * a})`; g.fill("evenodd");
-    // ตัวคลื่น (แถบ) + สันฟองยกสูง
+    g.fillStyle = `rgba(30,120,145,${0.45 * a})`; g.fill("evenodd");
+    // ตัวคลื่น (แถบ)
     const outer = boardPoly(e, inset), inner = boardPoly(e, Math.min(half - 0.2, inset + band));
     g.beginPath();
-    for (const ring2 of [outer, inner]) {
-      ring2.forEach(([x, y], i) => { const p = P(x, y, 0.05); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    for (const rg2 of [outer, inner]) {
+      rg2.forEach(([x, y], i) => { const p = P(x, y, 0.05); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
       g.closePath();
     }
-    g.fillStyle = `rgba(22,120,140,${0.6 * a})`; g.fill("evenodd");
-    const crest = (h, col, w) => {
-      g.beginPath();
-      const pts = boardPoly(e, inset + band * 0.75);
-      for (let side = 0; side < 4; side++) {
-        const [x0, y0] = pts[side], [x1, y1] = pts[(side + 1) % 4];
-        for (let s = 0; s <= 16; s++) {
-          const f = s / 16, x = x0 + (x1 - x0) * f, y = y0 + (y1 - y0) * f;
-          const p = P(x, y, h + 0.18 * Math.sin(f * 12 + ms / 120 + side));
-          if (side === 0 && s === 0) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]);
-        }
-      }
-      g.closePath(); g.strokeStyle = col; g.lineWidth = w; g.stroke();
-    };
-    // ผนังน้ำ: หน้าคลื่นตั้งจากพื้นถึงสัน (แต่ละด้านเป็นแผ่น · ไล่สีเข้มล่าง → ใสบน)
-    const wall = boardPoly(e, inset + band * 0.75), H = 1.0;
+    g.fillStyle = `rgba(14,96,120,${0.7 * a})`; g.fill("evenodd");
+    // ผนังน้ำสูง: หน้าคลื่นตั้งจากพื้นถึงสัน แล้วสันม้วนยื่นเข้าข้างใน
+    const H = 2.2 * (0.6 + 0.4 * Math.sin(Math.min(1, k * 1.5) * Math.PI / 2 + 0.6));
+    const line = boardPoly(e, inset + band * 0.75), lip = boardPoly(e, inset + band * 0.75 + 0.55);
+    const zAt = (f, side) => H + 0.25 * Math.sin(f * 12 + ms / 120 + side);
     for (let side = 0; side < 4; side++) {
-      const [x0, y0] = wall[side], [x1, y1] = wall[(side + 1) % 4];
-      const top = [], bot = [];
+      const [x0, y0] = line[side], [x1, y1] = line[(side + 1) % 4], [lx0, ly0] = lip[side], [lx1, ly1] = lip[(side + 1) % 4];
+      const top = [], bot = [], curl = [];
       for (let s = 0; s <= 16; s++) {
-        const f = s / 16, x = x0 + (x1 - x0) * f, y = y0 + (y1 - y0) * f;
-        top.push(P(x, y, H + 0.18 * Math.sin(f * 12 + ms / 120 + side))); bot.push(P(x, y, 0));
+        const f = s / 16, x = x0 + (x1 - x0) * f, y = y0 + (y1 - y0) * f, z = zAt(f, side);
+        top.push(P(x, y, z)); bot.push(P(x, y, 0));
+        curl.push(P(lx0 + (lx1 - lx0) * f, ly0 + (ly1 - ly0) * f, z - 0.45));
       }
       g.beginPath();
       top.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
       for (let i = bot.length - 1; i >= 0; i--) g.lineTo(bot[i][0], bot[i][1]);
       g.closePath();
       const ys = top.concat(bot).map((p) => p[1]), gr = g.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
-      gr.addColorStop(0, `rgba(170,235,240,${0.55 * a})`); gr.addColorStop(0.35, `rgba(30,140,160,${0.6 * a})`); gr.addColorStop(1, `rgba(8,70,90,${0.75 * a})`);
+      gr.addColorStop(0, `rgba(190,245,250,${0.7 * a})`); gr.addColorStop(0.3, `rgba(30,150,170,${0.75 * a})`); gr.addColorStop(1, `rgba(4,50,70,${0.85 * a})`);
       g.fillStyle = gr; g.fill();
+      // แถบสะท้อนแสงบนหน้าคลื่น
+      g.beginPath(); top.forEach((p, i) => { const q = [p[0], p[1] + (bot[i][1] - p[1]) * 0.35]; if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+      g.strokeStyle = `rgba(200,250,255,${0.35 * a})`; g.lineWidth = 2; g.stroke();
+      // สันม้วน (ฟองขาวยื่นเข้าข้างใน)
+      g.beginPath();
+      top.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+      for (let i = curl.length - 1; i >= 0; i--) g.lineTo(curl[i][0], curl[i][1]);
+      g.closePath(); g.fillStyle = `rgba(235,252,255,${0.85 * a})`; g.fill();
     }
-    crest(0.9, `rgba(30,140,160,${0.55 * a})`, 10);
-    crest(1.1, `rgba(235,252,255,${0.9 * a})`, 3.5);
     // ละอองเหนือสันคลื่น
     const r = rnd(e.seed * 71 + Math.floor(ms / 60));
-    const pts = boardPoly(e, inset + band * 0.75);
-    for (let i = 0; i < (lowQ ? 24 : 60); i++) {
-      const side = (r() * 4) | 0, f = r(), [x0, y0] = pts[side], [x1, y1] = pts[(side + 1) % 4];
-      const p = P(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1.1 + r() * 0.9);
+    for (let i = 0; i < (lowQ ? 30 : 80); i++) {
+      const side = (r() * 4) | 0, f = r(), [x0, y0] = line[side], [x1, y1] = line[(side + 1) % 4];
+      const p = P(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, H + 0.2 + r() * 1.2);
       g.fillStyle = `rgba(230,250,255,${(0.4 + r() * 0.5) * a})`;
-      g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * (0.012 + r() * 0.02)), 0, TAU); g.fill();
+      g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * (0.014 + r() * 0.022)), 0, TAU); g.fill();
     }
   } else {
-    // น้ำกระแทกกลางสนาม: เสาน้ำ + วงกระเพื่อมออก
+    // น้ำปะทะกลางสนาม: เสาน้ำยักษ์ + มงกุฎน้ำ + วงกระเพื่อม
     const kk = clamp01((ms - land) / (DIVINE_FX_DUR.dvWave - land));
     const cx = e.cols / 2, cy = e.rows / 2, c0 = P(cx, cy, 0);
-    for (let i = 0; i < 3; i++) {
-      const q = clamp01(kk * 1.4 - i * 0.18);
+    tint(g, e, "230,250,255", 0.55 * clamp01(1 - (ms - land) / 200), 40);
+    gPoly(g, boardPoly(e)); g.fillStyle = `rgba(30,120,145,${0.35 * (1 - kk) * a})`; g.fill();
+    for (let i = 0; i < 4; i++) {
+      const q = clamp01(kk * 1.4 - i * 0.15);
       if (q <= 0 || q >= 1) continue;
-      gEllipse(g, cx, cy, 0.5 + easeOut(q) * half * 1.3, 0.03, 64);
-      g.strokeStyle = `rgba(220,248,255,${0.8 * (1 - q)})`; g.lineWidth = 4 * (1 - q) + 1; g.stroke();
+      gEllipse(g, cx, cy, 0.5 + easeOut(q) * half * 1.5, 0.03, 72);
+      g.strokeStyle = `rgba(220,248,255,${0.85 * (1 - q)})`; g.lineWidth = 6 * (1 - q) + 1; g.stroke();
     }
-    const col = clamp01(1 - kk * 1.6);
+    const col = clamp01(1 - kk * 1.5);
     if (col > 0) {
-      const top = P(cx, cy, 3.5 * easeOut(Math.min(1, kk * 4)));
-      const w = c0[2] * 1.2;
+      const top = P(cx, cy, 7 * easeOut(Math.min(1, kk * 4))), w = c0[2] * 1.8;
       const gr = g.createLinearGradient(0, top[1], 0, c0[1]);
-      gr.addColorStop(0, `rgba(240,255,255,${0.9 * col})`); gr.addColorStop(1, `rgba(30,150,170,${0.7 * col})`);
+      gr.addColorStop(0, `rgba(245,255,255,${0.95 * col})`); gr.addColorStop(1, `rgba(20,130,155,${0.8 * col})`);
       g.fillStyle = gr;
-      g.beginPath(); g.moveTo(c0[0] - w, c0[1]); g.quadraticCurveTo(c0[0] - w * 0.2, (top[1] + c0[1]) / 2, top[0], top[1]); g.quadraticCurveTo(c0[0] + w * 0.2, (top[1] + c0[1]) / 2, c0[0] + w, c0[1]); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(c0[0] - w, c0[1]); g.quadraticCurveTo(c0[0] - w * 0.15, (top[1] + c0[1]) / 2, top[0], top[1]); g.quadraticCurveTo(c0[0] + w * 0.15, (top[1] + c0[1]) / 2, c0[0] + w, c0[1]); g.closePath(); g.fill();
+      // มงกุฎน้ำรอบฐาน
+      for (let i = 0; i < 14; i++) {
+        const an = (i / 14) * TAU, rad = 0.8 + kk * 2.2, h = (0.8 + (i % 3) * 0.4) * col;
+        const b = ring(cx, cy, rad, an, 0), t2 = ring(cx, cy, rad + 0.35, an, h), ww = b[2] * 0.08;
+        g.fillStyle = `rgba(225,250,255,${0.85 * col})`;
+        g.beginPath(); g.moveTo(b[0] - ww, b[1]); g.lineTo(t2[0], t2[1]); g.lineTo(b[0] + ww, b[1]); g.closePath(); g.fill();
+      }
     }
     // ละอองตกกลับ
     const r = rnd(e.seed * 17);
-    for (let i = 0; i < (lowQ ? 20 : 50); i++) {
-      const an = r() * TAU, d = 0.5 + r() * half * 0.9 * kk, z = Math.max(0, 3 * Math.sin(Math.min(1, kk * 1.3) * Math.PI) * r());
+    for (let i = 0; i < (lowQ ? 30 : 80); i++) {
+      const an = r() * TAU, d = 0.5 + r() * half * 1.1 * kk, z = Math.max(0, 4 * Math.sin(Math.min(1, kk * 1.3) * Math.PI) * r());
       const p = P(cx + Math.cos(an) * d, cy + Math.sin(an) * d, z);
-      g.fillStyle = `rgba(225,250,255,${0.8 * (1 - kk)})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * 0.025), 0, TAU); g.fill();
+      g.fillStyle = `rgba(225,250,255,${0.85 * (1 - kk)})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * 0.028), 0, TAU); g.fill();
     }
   }
 }

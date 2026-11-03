@@ -64,7 +64,7 @@ test('เป่าไม่ติด: เสียพลังชีวิต 1 
   assert.equal(Whistle.canBlow(p), true);
 });
 
-test('เป่าติด: คูลดาวน์ 10 เทิร์น · คลิปเต็มจอครั้งแรก · เป่าได้เฉพาะตาตัวเอง', () => {
+test('เป่าติด: คูลดาวน์ 10 เทิร์น · คลิปเต็มจอทุกครั้ง · เป่าได้เฉพาะตาตัวเอง', () => {
   process.env.ECHO_DEV_WHISTLE = 'tsunami';
   const p = mk(freeSpot({ x: 3, y: 3 }));
   assert.equal(Whistle.blow(p.id), false, 'ไม่ใช่ตาตัวเอง');
@@ -72,7 +72,12 @@ test('เป่าติด: คูลดาวน์ 10 เทิร์น · �
   assert.equal(Whistle.blow(p.id), true);
   assert.equal(Whistle.cooldownLeft(p), 11);
   assert.equal(engine.gameState, 'CUTSCENE');
-  assert.ok(p.cutsceneShown.divineTsunami);
+  assert.equal(match.cutsceneInfo && match.cutsceneInfo.title, 'TSUNAMI');
+  p.cutsceneShown.divineTsunami = true; // เคยเห็นแล้วก็ยังเล่นเต็มจอ
+  engine.clearPhaseTimer(); match.cutsceneQueue.length = 0; match.afterCutscene.length = 0;
+  p.whistleReady = 0; engine.setActor(p.id);
+  assert.equal(Whistle.blow(p.id), true);
+  assert.equal(engine.gameState, 'CUTSCENE');
 });
 
 test('Cross Winds: ผลักศัตรูออกห่างจนสุดทาง + ถูกตรึง · เพื่อนร่วมทีมไม่โดน', () => {

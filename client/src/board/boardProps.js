@@ -736,7 +736,7 @@ export function animSpecial(g, sp, ctx, t) {
       g.save(); g.globalCompositeOperation = "lighter";
       quad(g, x, y, 0.04); g.fillStyle = `rgba(255,96,28,${0.1 + 0.08 * p})`; g.fill();
       g.restore();
-      glow(g, cx, cy - s * 0.12, s * 0.7, "255,120,40", (night ? 0.28 : 0.16) + 0.08 * p);
+      if (!lowQ) glow(g, cx, cy - s * 0.12, s * 0.7, "255,120,40", (night ? 0.28 : 0.16) + 0.08 * p); // ประหยัดสเปก = ตัดแสงเรืองรายช่อง (พื้นไฟมีได้หลายสิบช่อง)
       const n = lowQ ? 2 : 3;
       for (let i = 0; i < n; i++) {
         const fx = x + 0.25 + (((x * 7 + y * 3 + i * 5) % 7) / 7) * 0.5, fy = y + 0.3 + (((x * 3 + y * 11 + i * 2) % 5) / 5) * 0.45;
