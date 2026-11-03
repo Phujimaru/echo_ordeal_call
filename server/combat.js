@@ -423,6 +423,7 @@ function resetCombat(p) {
   p.gold = 0;        // เหรียญสะสม (เพดาน 30)
   p.inventory = [];  // ของที่ซื้อจากร้านค้า รอใช้ (รวมปืนหน่วย GUTS Select — หายทุกแมตช์ใหม่)
   p.gutsShotTurn = 0;              // ปืนหน่วย GUTS Select: เทิร์นล่าสุดที่ยิงไป (1 นัด/เทิร์น)
+  p.whistleReady = 0;              // นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js): เป่าได้อีกตั้งแต่เทิร์นนี้
   p.gutsGargorgonPending = false;  // Gargorgon Ray: รอแปลงเป็นสตั้นตอนต้นเทิร์นถัดไป
   p.tempHp = 0;           // เลือดชั่วคราวจากฮีลล้น (healOverflow)
   p.tempHpTurns = 0;      // เลือดชั่วคราวหายเองเมื่อครบ 2 เทิร์น

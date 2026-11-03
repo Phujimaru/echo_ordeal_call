@@ -1108,3 +1108,18 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - เอฟเฟกต์บนกระดาน: socket `ohgerFx { kind (slash/dash/needle/wave), form, color, from, tiles, dir, target? }` → `client/src/board/ohgerFx.js`
 - เสียงทั้งหมดตัดจากไฟล์ผู้ใช้ด้วย `.claude/plans/ohger-sfx.py` (−16 LUFS จังหวะเดียว · −18 LUFS ลูป) · รายการช่วงที่ตัด `.claude/plans/ohger-sfx.json`
 
+## 39. นกหวีดอัญเชิญมนต์อสูรเทพ — ช่องพิเศษที่ 6 ของกระเป๋า (`server/whistle.js` · ผู้ใช้ส่งสเปก 2026-11-03)
+- ทุกคนมี (ไม่ใช่ของใน `p.inventory` · ไม่กินช่อง · ทิ้ง/ให้/แลกไม่ได้) · ยูนิตที่ถูกเรียกไม่มี · ระบบคู่ใช้คูลดาวน์ร่วม (`whistleReady` อยู่ใน `Duo` SHARED)
+- socket `blowWhistle` → `Whistle.blow(id)`: ตาเดินของตัวเอง (`action.canAct`) · ไม่หลับ · คูลดาวน์หมด → `lockMove` (แบบใช้ไอเทม — ยังตี/ใช้สกิลได้ · ผู้ใช้เลือก)
+- โอกาสติด `chanceOf`: 20% · เลือด < ครึ่งของ `maxHpOf` 70% · เลือด ≤ 1 100% · ไม่ติด = `loseHp` 1 (ไม่สนเกราะ) + คูลดาวน์ 1 · ติด = สุ่ม 1 ใน 4 มนต์ (ผู้ใช้เลือก) + คูลดาวน์ 10
+  · คูลดาวน์ = เลขรอบ `p.whistleReady` (เป่าเทิร์น R คูลดาวน์ N → เป่าได้อีกเทิร์น R + N + 1) · state ส่วนตัว `players[].whistle = { cd, chance }` → `BagScreen` ช่องที่ 6
+- ลำดับเมื่อติด: คลิปเต็มจอครั้งแรกต่อคนต่อมนต์ (`TRANSFORMS.divine*` · `/item/divine_whistle/*.mp4`) ครั้งต่อไปการ์ดแจ้งเตือน → `afterCutscene`: socket `divineFx { seq, spell, by, at, size }` + เสียง `divine_<spell>` → `skillBeat(INTRO_SECONDS)` → `cast` ลงผล + iceFx → พักตาม `Ice.fxSeconds` → กลับตาเดินเวลาที่เหลือ (`pausePlayingForCutscene`)
+- ผลไม่โดนตัวเอง/เพื่อนร่วมทีม (`combat.sameTeam`) และคนต่างชั้นมิติ · สถานะ N เทิร์นของเป้าที่เดินไปแล้ว/กำลังเดิน +1 (`debuffFor`) · ต้านสถานะได้ (`applyDebuff`)
+  · **Cross Winds**: ศัตรูไกลสุดก่อน ผลักออกห่างผู้เป่าจนชน (`Ice.pushUnit(u, dir, ctx, 64)` — ลงน้ำแข็งไถลต่อ) → ถูกตรึง 1 เทิร์น
+  · **Tsunami**: ศัตรู 1×1 ที่ใกล้กลางก่อนได้ช่องว่างที่ใกล้กลางแผนที่ที่สุด (iceFx `knock`) · พื้นเปียก 40% ของช่องโล่ง (`Ice.layWet`)
+  · **Diamond Dust**: เชื่องช้า 3 เทิร์น (`Ice.applySlow` — ผู้ใช้: "แช่แข็ง" = เชื่องช้า) · ธารน้ำแข็งถาวร 50% ของช่องโล่ง (`layIce(..., { perm: true })` — `onEndTurn` ข้าม)
+  · **Judgment Bolt**: สตั้น 1 เทิร์น · พื้นไฟ 40% ของช่องโล่ง (`Ice.layFlame` → `match.board.flame` "x,y" → เจ้าของ · special `flame` (`TERRAIN_INFO.flame` end) · จบตาบนช่อง = ลุกไหม้ 2 ผ่าน `whistle.flameEnd` — ทีมเจ้าของไม่โดน) + `divineFx { land: true, tiles, hits }` = สายฟ้าฟาดช่องไฟ/ตัวศัตรู
+  · ช่องโล่ง = ไม่มีสิ่งกีดขวาง/ช่องพิเศษ/จุดฟื้นฟู/ร้านค้า · พื้นทั้งหมดหายเมื่อเปลี่ยนแผนที่ (`match.board` ใหม่) · วางทับ = ของทีหลังชนะ (`layIce`/`layWet` ลบไฟ)
+- client: `client/src/board/divineFx.js` (dvWinds / dvWave / dvDust / dvBolt / dvStrike — BoardStage ฟัง `divineFx`) · พื้นไฟ `boardProps.js` case `flame` · หน้าทดสอบ `?board=1&divine=1` (`DivineFxDev.jsx` · `?dvshot=1` + `window.__dvShot`)
+- สื่อ (gitignored → R2 ตอนออกเวอร์ชัน): `client/public/item/divine_whistle/{cross_winds,tsunami,diamond_dust,judgment_bolt}.{mp4,webp}` + `sfx/*.mp3` (Claude สังเคราะห์ — `.claude/plans/divine-sfx.sh`)
+- dev: `ECHO_DEV_WHISTLE=<มนต์>|any|cycle` (ติดทุกครั้ง · cycle = ไล่มนต์ไม่มีคูลดาวน์) · launch `server-whistle` (3021) / `client-whistle` (5191) · เทสต์ [tests/whistle.test.js](tests/whistle.test.js)

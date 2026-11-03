@@ -231,6 +231,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ปุ่มหลายตัวเลือก (**ทุกตัวเลือกต้องมี `desc`** — ชี้เมาส์ค้างขึ้นคำอธิบาย · กฎผู้ใช้ 2026-10-19) | `skillPub` คืน `choices` · client ส่ง `form` · `skillCost/skillArea/keepsMove/skipsTurnQuota/ignoresTurnQuota/silentFlash/skillSound` ได้ `opts` | `server/skills.js` |
 | ดาเมจตายตัวของตีปกติ (ไม่รับบัฟ) | `fixedStrikeDamage(engine, attacker, target)` → ตัวเลข | `attack.strike` |
 | ไถลชนแบบมีเงื่อนไข | `slideStrikes(engine, p)` · `slideStrike` คืน `{ attack: false, knock: false }` | `Ice.impact` |
+| พื้นไฟ (จบตา = ลุกไหม้ · ทีมเจ้าของไม่โดน) / น้ำแข็งถาวร | `engine.ice.layFlame(tiles, ownerId)` · `engine.ice.layIce(x, y, owner, { perm: true })` | `server/ice.js` · `server/whistle.js` |
 | พื้นเปียก / พื้นที่ขัง+บังสายตา | `engine.ice.layWet / dryWet` · `engine.soot.cast / strikeInside / inStormOf / trapOf` | `server/ice.js` · `server/soot.js` |
 | สกิลพื้นที่ที่โดนจริงน้อยกว่าพื้นที่ที่ประกาศ (พุ่งแล้วชนหยุด) | `ownsAreaHit(p, tier, opts)` → true แล้วเรียก `skills.hitArea(p, tiles, ids)` เองกับช่องที่โดนจริง ในจังหวะที่ผลลง (ต้นแบบ ท่าไม้ตายโซระ) | `server/skills.js` |
 | ผลัก/ดึงคน (ตั้ง `pos` เอง) | หลังเอฟเฟกต์ผลัก เรียก `Ice.forcedSlides(moves, source)` (ลงน้ำแข็ง = ไถลต่อ) · ก่อนส่งพิกัดให้ client เรียก `Ice.revealPushed(u)` (ถูกดัน = เผยตัว) — GAME_SYSTEM §19 | `server/ice.js` |

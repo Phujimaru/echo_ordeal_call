@@ -1219,7 +1219,7 @@ function tileEndEffect(p) {
   if (sizeOf(p) > 1) {
     const map = boardMap();
     const kinds = Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).map((t) => Board.endTurnTile(map, t.x, t.y, []) || null).filter(Boolean);
-    fx = kinds.find((f) => f.kind === "lava") || kinds.find((f) => f.kind === "thorns") || null;
+    fx = kinds.find((f) => f.kind === "lava") || kinds.find((f) => f.kind === "thorns") || kinds.find((f) => f.kind === "flame") || null;
   } else {
     fx = Board.endTurnTile(boardMap(), p.pos.x, p.pos.y, boardUnits(), { selfId: p.id, blocked: boardBlocked(p.id) });
   }
@@ -1238,6 +1238,11 @@ function tileEndEffect(p) {
       if (!p.alive) match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`);
     }
     if (!p.alive) p.pos = null; // คนตกรอบหายจากกระดาน
+  } else if (fx.kind === "flame") {
+    // พื้นไฟของนกหวีดอัญเชิญ (Judgment Bolt — server/whistle.js): ทีมผู้เป่าไม่โดน
+    const r = require("../whistle").flameEnd(p, fx);
+    if (r === null) return null;
+    match.lastLog.push(r ? `${info.icon} ${p.name} จบตาบน${info.name} — ติดลุกไหม้ ${fx.turns} เทิร์น` : `${info.icon} ${p.name} จบตาบน${info.name} — แต่ต้านสถานะผิดปกติไว้ได้`);
   } else if (fx.kind === "lift") {
     Colony.liftUnit(p); // Colony: ลิฟต์แกนกลาง ดีดขึ้น 4 แถว
   } else if (fx.kind === "whirl") {

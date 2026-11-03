@@ -64,6 +64,7 @@ const TERRAIN_INFO = {
   ice: { name: "น้ำแข็งลื่น", icon: "🧊", desc: "ไถลจนสุดแนว", slide: true },
   wet: { name: "พื้นเปียก", icon: "💦", desc: "ไถลจนสุดแนว", slide: true }, // แจกันใส่น้ำของเอมิลิโกะ (server/wet.js) — กติกาไถลเดียวกับน้ำแข็ง
   lava: { name: "ลาวา", icon: "🌋", desc: "จบตา เสียหาย 1", end: "lava", dmg: 1 },
+  flame: { name: "พื้นไฟ", icon: "🔥", desc: "จบตา ติดลุกไหม้ 2", end: "flame", burn: 2 }, // Judgment Bolt ของนกหวีดอัญเชิญ (server/whistle.js) — ทีมผู้เป่าไม่โดน
   power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
   lift: { name: "ลิฟต์แกนกลาง", icon: "⏫", desc: "จบตา ดีดขึ้น 4 แถว", end: "lift" }, // Colony (GRID_PLAN §8.3)
 };
@@ -959,6 +960,7 @@ function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = 
   if (!info || !info.end) return null;
   if (info.end === "thorns") return { kind, turns: info.poison };
   if (info.end === "lava") return { kind, dmg: info.dmg };
+  if (info.end === "flame") return { kind, turns: info.burn, x, y }; // พื้นไฟ (server/whistle.js flameEnd — เช็คทีมเจ้าของ)
   if (info.end === "lift") return { kind }; // Colony: ดีดขึ้น 4 แถว (server/colony.js liftUnit)
   if (info.end === "whirl") {
     const dir = map.flow && map.flow[key(x, y)];

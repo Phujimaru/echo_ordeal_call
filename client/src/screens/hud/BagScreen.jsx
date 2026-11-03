@@ -19,6 +19,23 @@ function useStageK() {
   }, []);
   return k;
 }
+// นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js) — ช่องพิเศษที่ 6 ของทุกคน · ไม่ใช่ของในกระเป๋า (ทิ้ง/ให้/แลกไม่ได้)
+const WHISTLE = "__whistle";
+function WhistleIcon({ className = "" }) {
+  return (
+    <svg className={`bag-whistle-ico ${className}`} viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="bwGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff3c4" /><stop offset=".45" stopColor="#e8b64a" /><stop offset="1" stopColor="#8a5a14" /></linearGradient>
+        <radialGradient id="bwGem" cx=".4" cy=".35" r=".7"><stop offset="0" stopColor="#e6d4ff" /><stop offset=".5" stopColor="#8e5cff" /><stop offset="1" stopColor="#3a1680" /></radialGradient>
+      </defs>
+      <path d="M14 52 h46 a30 30 0 1 1 -8 34 l-38 -14 a8 8 0 0 1 -5 -8 v-4 a8 8 0 0 1 5 -8 z" fill="url(#bwGold)" stroke="#5e3a08" strokeWidth="3" strokeLinejoin="round" />
+      <path d="M22 60 h34" stroke="#fff6d8" strokeWidth="4" strokeLinecap="round" opacity=".7" />
+      <circle cx="78" cy="76" r="12" fill="url(#bwGem)" stroke="#3a1680" strokeWidth="2" />
+      <path d="M86 40 q10 -14 22 -12 M90 30 q4 -12 14 -16 M78 36 q2 -12 -4 -22" stroke="#c9a2ff" strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d="M60 52 v-10 a6 6 0 0 1 12 0 v6" stroke="#5e3a08" strokeWidth="3" fill="none" />
+    </svg>
+  );
+}
 function Icon({ info, className = "" }) {
   if (info.img) return <img src={info.img} alt="" className={className} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />;
   return <span className={`bag-emoji ${className}`}>{info.icon}</span>;
@@ -30,7 +47,9 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
   const [gunOpen, setGunOpen] = useState(false);
   const [swapWith, setSwapWith] = useState(null); // id เพื่อนที่กำลังเลือกของมาแลก
-  const sel = items.find((it) => it.uid === selUid) || items[0] || null;
+  const whistle = me?.whistle || null; // { cd, chance } · ยูนิตที่ถูกเรียก = ไม่มี
+  const whistleSel = !!whistle && (selUid === WHISTLE || !items.length);
+  const sel = whistleSel ? null : items.find((it) => it.uid === selUid) || items[0] || null;
   const slots = Math.max(bagSlots + (items.some((it) => it.type === "kebread") ? 1 : 0), items.length); // ขนมปังเอมิลิโกะไม่กินช่อง
 
   // Esc = ปิด
@@ -138,10 +157,29 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
                   </button>
                 );
               })}
+              {whistle && (
+                <button type="button" className="bag-slot bag-slot-whistle" data-sel={whistleSel ? "true" : "false"} onClick={() => pick(WHISTLE)}>
+                  <WhistleIcon className="bag-slot-img" />
+                  <span className="bag-slot-name">นกหวีดอัญเชิญมนต์อสูรเทพ</span>
+                  {whistle.cd > 0 && <span className="bag-whistle-cd">{whistle.cd}</span>}
+                </button>
+              )}
             </div>
 
-            <div className="bag-detail" data-empty={sel ? "false" : "true"}>
-              {sel ? (
+            <div className="bag-detail" data-empty={sel || whistleSel ? "false" : "true"}>
+              {whistleSel ? (
+                <>
+                  <div className="bag-detail-art bag-whistle-art"><WhistleIcon className="bag-detail-img" /></div>
+                  <div className="bag-detail-name">นกหวีดอัญเชิญมนต์อสูรเทพ</div>
+                  <div className="bag-detail-short bag-whistle-stats">
+                    <span>🎲 {whistle.chance}%</span>
+                    {whistle.cd > 0 && <span>⏳ {whistle.cd}</span>}
+                  </div>
+                  <div className="bag-actions">
+                    <button type="button" className="bag-btn primary bag-whistle-btn" disabled={!myTurn || whistle.cd > 0} onClick={() => { emit("blowWhistle", {}); onClose(); }}>เป่า</button>
+                  </div>
+                </>
+              ) : sel ? (
                 <>
                   <div className="bag-detail-art"><Icon info={info} className="bag-detail-img" /></div>
                   <div className="bag-detail-name">{info.label(sel)}</div>

@@ -16,6 +16,21 @@ function shadow(g, x, y, rx, ry, C) {
 }
 
 // =================================================================== ภูมิภาค I (จากต้นแบบ)
+// เปลวไฟ (จุดจอ — ฐาน x, y สูง h กว้าง w) สามชั้น ส้มแดง/ส้ม/ขาวเหลือง · พื้นไฟของ Judgment Bolt
+function tongue(g, x, y, h, w, sway) {
+  if (h <= 0.8) return;
+  const layer = (k, col) => {
+    const hh = h * (0.45 + 0.55 * k), ww = w * k, tipX = x + sway * hh * 0.5, tipY = y - hh, midX = x + sway * hh * 0.15;
+    g.fillStyle = col; g.beginPath(); g.moveTo(x - ww, y);
+    g.bezierCurveTo(x - ww * 1.25, y - hh * 0.35, midX - ww * 0.6, y - hh * 0.7, tipX, tipY);
+    g.bezierCurveTo(midX + ww * 0.6, y - hh * 0.65, x + ww * 1.25, y - hh * 0.3, x + ww, y);
+    g.quadraticCurveTo(x, y + ww * 0.5, x - ww, y); g.fill();
+  };
+  const ga = g.globalAlpha;
+  g.globalAlpha = ga * 0.85; layer(1, "#d8401a");
+  g.globalAlpha = ga * 0.9; layer(0.66, "#ff9a2e");
+  g.globalAlpha = ga; layer(0.33, "#fff0b8");
+}
 export function drawTree(g, x, y, s, C) {
   shadow(g, x, y, s * 0.42, s * 0.14, C);
   g.fillStyle = C.trunk; g.fillRect(x - s * 0.06, y - s * 0.55, s * 0.12, s * 0.55);
@@ -531,6 +546,24 @@ export function bakeSpecial(g, sp, ctx) {
   const { x, y, kind } = sp, { night } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {
+    case "flame": {
+      // พื้นไฟ (Judgment Bolt — นกหวีดอัญเชิญ): พื้นไหม้เกรียม + รอยแตกเรืองส้ม/ม่วงจากสายฟ้า
+      const R = rng(x * 59 + y * 31 + 7);
+      quad(g, x, y, 0.01);
+      const a = P(x, y), b = P(x + 1, y + 1), gr = g.createLinearGradient(a[0], a[1], b[0], b[1]);
+      gr.addColorStop(0, "#2a140c"); gr.addColorStop(0.5, "#3b1a0e"); gr.addColorStop(1, "#1a0c08");
+      g.fillStyle = gr; g.fill();
+      g.strokeStyle = "rgba(255,120,40,.5)"; g.lineWidth = 1.2; g.stroke();
+      for (let i = 0; i < 5; i++) {
+        let px = x + 0.5 + (R() - 0.5) * 0.2, py = y + 0.5 + (R() - 0.5) * 0.2;
+        const an = R() * TAU;
+        g.strokeStyle = i % 2 ? "rgba(255,150,60,.85)" : "rgba(196,140,255,.75)"; g.lineWidth = Math.max(1, s * 0.022);
+        g.beginPath(); let p = P(px, py); g.moveTo(p[0], p[1]);
+        for (let k = 0; k < 3; k++) { px += Math.cos(an + (R() - 0.5) * 1.4) * 0.14; py += Math.sin(an + (R() - 0.5) * 1.4) * 0.14; p = P(px, py); g.lineTo(p[0], p[1]); }
+        g.stroke();
+      }
+      return;
+    }
     case "flowers": {
       quad(g, x, y, 0.03); g.fillStyle = night ? "#2b4d3d" : "#78ac5c"; g.fill();
       g.strokeStyle = night ? "rgba(255,220,240,.35)" : "rgba(255,255,255,.55)"; g.lineWidth = 1.4; g.stroke();
@@ -698,6 +731,26 @@ export function animSpecial(g, sp, ctx, t) {
   const { x, y, kind } = sp, { night, lowQ } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {
+    case "flame": {
+      const p = 0.5 + 0.5 * Math.sin(t / 170 + x * 2.3 + y);
+      g.save(); g.globalCompositeOperation = "lighter";
+      quad(g, x, y, 0.04); g.fillStyle = `rgba(255,96,28,${0.1 + 0.08 * p})`; g.fill();
+      g.restore();
+      glow(g, cx, cy - s * 0.12, s * 0.7, "255,120,40", (night ? 0.28 : 0.16) + 0.08 * p);
+      const n = lowQ ? 2 : 3;
+      for (let i = 0; i < n; i++) {
+        const fx = x + 0.25 + (((x * 7 + y * 3 + i * 5) % 7) / 7) * 0.5, fy = y + 0.3 + (((x * 3 + y * 11 + i * 2) % 5) / 5) * 0.45;
+        const [bx, by, sc] = P(fx, fy, 0);
+        const k = 0.75 + 0.25 * Math.sin(t / (100 + i * 27) + i * 2 + x);
+        tongue(g, bx, by, sc * (0.34 + (i % 3) * 0.05) * k, sc * 0.085, Math.sin(t / 260 + i + y) * 0.3);
+      }
+      // ประกายสายฟ้าม่วงที่ค้างในเปลวไฟ
+      if (!lowQ && ((t / 90 + x * 13 + y * 7) | 0) % 23 === 0) {
+        const b0 = P(x + 0.35, y + 0.5, 0.35), b1 = P(x + 0.6, y + 0.45, 0.1);
+        g.strokeStyle = "rgba(225,200,255,.95)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(b0[0], b0[1]); g.lineTo((b0[0] + b1[0]) / 2 + 3, (b0[1] + b1[1]) / 2); g.lineTo(b1[0], b1[1]); g.stroke();
+      }
+      return;
+    }
     case "thorns": {
       const p = 0.5 + 0.5 * Math.sin(t / 700 + x + y * 1.3);
       quad(g, x, y, 0.04); g.fillStyle = `rgba(170,90,220,${0.06 + 0.1 * p})`; g.fill();

@@ -43,6 +43,7 @@ import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
 import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
 import { moonEventFx } from "./moonFx";
+import { divineEventFx } from "./divineFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
@@ -222,6 +223,8 @@ function AttackTags({ a, byId }) {
 export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay }) {
   const phase = state.gameState;
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
+  const mapRef = useRef(map);
+  useLayoutEffect(() => { mapRef.current = map; });
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // โหมดร่วมมือ (duo/trio/Moon Cell): หมากเพื่อนร่วมทีมมีวงเขียว + ป้าย "ทีม" (ผู้ใช้สั่ง 2026-10-27)
   const coopMode = teamMode || state.gameMode === "moon";
@@ -1876,6 +1879,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("moonScene", onMoon);
     return () => socket.off("moonScene", onMoon);
+  }, [pushFx, look, lowQ]);
+  // นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js): socket "divineFx" → divineFx.js — มนต์ลงสนาม / สายฟ้าพิพากษาฟาดช่องไฟ
+  useEffect(() => {
+    let lastKey = null;
+    const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id] || null; return p && p.pos ? { x: p.pos.x, y: p.pos.y, size: p.size || 1 } : null; };
+    const onDivine = (ev) => {
+      const k = ev ? `${ev.seq}|${ev.land ? 1 : 0}` : null;
+      if (!ev || k === lastKey) return;
+      lastKey = k;
+      const m = mapRef.current || {};
+      const out = divineEventFx(ev, { cols: m.cols, rows: m.rows, posOf, lowQ });
+      if (out.fx.length) pushFx(out.fx);
+      if (out.look) look(out.look);
+      if (!lowQ) for (const ms of out.shake) timers.current.push(setTimeout(() => setShake((n) => n + 1), ms));
+    };
+    socket.on("divineFx", onDivine);
+    return () => socket.off("divineFx", onDivine);
   }, [pushFx, look, lowQ]);
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);

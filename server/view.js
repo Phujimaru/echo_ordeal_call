@@ -305,6 +305,7 @@ function buildStateFor(viewerId) {
         gold: p.gold || 0, // ร้านค้ามายา (patch 2.2 full): เหรียญสะสม — ทุกคนเห็นของกันและกันได้
         goldMax: shop.goldCapOf(p), // เพดานเหรียญรายบุคคล
         inventory: mine || teamReveal ? (p.inventory || []) : null, // ของในคลัง — เห็นของตัวเอง + เพื่อนร่วมทีม (ให้/แลกของ)
+        whistle: mine && !p.summon ? require("./whistle").publicOf(p) : undefined, // นกหวีดอัญเชิญมนต์อสูรเทพ { cd, chance } (ช่องพิเศษที่ 6 ของกระเป๋า)
         gutsShotTurn: mine ? (p.gutsShotTurn || 0) : undefined, // ปืน GUTS Select: ยิงไปแล้วเทิร์นไหน (เทียบกับ roundNumber = ยิงครบโควตาแล้ว)
         muimiEmergencyUses: p.characterId === "muimi" ? (p.muimiEmergencyUses != null ? p.muimiEmergencyUses : CHAR_HOOKS.muimi.EMERGENCY_USES) : undefined,
         muimiEmergencyMax: p.characterId === "muimi" ? CHAR_HOOKS.muimi.EMERGENCY_USES : undefined,

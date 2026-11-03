@@ -409,6 +409,37 @@
       "env": {
         "ECHO_SERVER_PORT": "3017"
       }
+    },
+    {
+      "name": "server-whistle",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3021,
+      "env": {
+        "PORT": "3021",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_WHISTLE": "cycle"
+      }
+    },
+    {
+      "name": "client-whistle",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5191",
+        "--strictPort"
+      ],
+      "port": 5191,
+      "env": {
+        "ECHO_SERVER_PORT": "3021"
+      }
     }
   ]
 }

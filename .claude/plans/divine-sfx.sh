@@ -1,0 +1,10 @@
+#!/bin/sh
+# เสียงนกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js) — Claude สังเคราะห์ด้วย ffmpeg (2026-11-03) · ยังไม่มีใครฟัง
+# ไฟล์เกม: client/public/item/divine_whistle/sfx/ (gitignored → R2 ตอนออกเวอร์ชัน)
+# คลิปมนต์: ต้นฉบับผู้ใช้ Downloads/divine/*.mp4 → ffmpeg -crf 26 -maxrate 3M -c:a aac 128k → item/divine_whistle/<spell>.mp4 · ภาพการ์ด = เฟรมวินาทีที่ 10 (.webp)
+D=client/public/item/divine_whistle/sfx; mkdir -p $D; cd $D
+ffmpeg -v error -y -f lavfi -i "aevalsrc='0.5*sin(2*PI*(2300+500*t+90*sin(2*PI*28*t))*t)*(1-exp(-t*30))*exp(-max(0,t-0.8)*8)':s=44100:d=1.2" -f lavfi -i "anoisesrc=d=1.2:c=pink:a=0.08" -filter_complex "[1]highpass=f=3000[n];[0][n]amix=inputs=2:normalize=0,aecho=0.6:0.5:60:0.3,loudnorm=I=-14" -ar 44100 -b:a 160k whistle.mp3
+ffmpeg -v error -y -f lavfi -i "anoisesrc=d=3.2:c=pink:a=0.9" -af "bandpass=f=600:w=500,tremolo=f=3:d=0.5,afade=t=in:d=0.5,afade=t=out:st=2.2:d=1,volume=3,loudnorm=I=-14" -ar 44100 -b:a 160k crossWinds.mp3
+ffmpeg -v error -y -f lavfi -i "anoisesrc=d=3.5:c=brown:a=0.9" -f lavfi -i "anoisesrc=d=3.5:c=white:a=0.3" -filter_complex "[0]lowpass=f=900,volume='min(1,t/1.4)':eval=frame[a];[1]highpass=f=2500,volume='if(gt(t,1.4),exp(-(t-1.4)*1.5),0)':eval=frame[b];[a][b]amix=inputs=2:normalize=0,afade=t=out:st=2.4:d=1.1,loudnorm=I=-13" -ar 44100 -b:a 160k tsunami.mp3
+ffmpeg -v error -y -f lavfi -i "aevalsrc='0.25*sin(2*PI*3520*t)*exp(-t*3)+0.2*sin(2*PI*4698*t)*exp(-(t-0.3)*3)*gt(t,0.3)+0.18*sin(2*PI*6272*t)*exp(-(t-0.6)*3)*gt(t,0.6)+0.15*sin(2*PI*5274*t)*exp(-(t-0.95)*3)*gt(t,0.95)':s=44100:d=3" -f lavfi -i "anoisesrc=d=3:c=pink:a=0.5" -filter_complex "[1]bandpass=f=1800:w=1200,afade=t=in:d=0.4,afade=t=out:st=2:d=1[n];[0]aecho=0.7:0.6:120|240:0.4|0.25[c];[c][n]amix=inputs=2:normalize=0,loudnorm=I=-15" -ar 44100 -b:a 160k diamondDust.mp3
+ffmpeg -v error -y -f lavfi -i "anoisesrc=d=3:c=white:a=1" -f lavfi -i "anoisesrc=d=3:c=brown:a=1" -filter_complex "[0]highpass=f=1500,volume='exp(-t*14)+0.7*exp(-abs(t-0.9)*16)*gt(t,0.9)':eval=frame[a];[1]lowpass=f=180,volume='0.9*(1-exp(-t*6))*exp(-t*0.9)':eval=frame[b];[a][b]amix=inputs=2:normalize=0,loudnorm=I=-12" -ar 44100 -b:a 160k judgmentBolt.mp3

@@ -24,7 +24,7 @@ Object.assign(module.exports, {
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
-  wetAt, layWet, dryWet, placeWall, removeWall, wallsOf, isWallKind,
+  wetAt, layWet, dryWet, layFlame, flameAt, placeWall, removeWall, wallsOf, isWallKind,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -73,13 +73,14 @@ function openTile(x, y, bridge = false) {
 //   special "wet" (Board.TERRAIN_INFO slide) = ไถลแบบเดียวกับน้ำแข็งทุกอย่าง · น้ำแข็งทับอยู่ = เป็นน้ำแข็ง
 function hasOverlay(b) {
   return !!b && ((b.ice && Object.keys(b.ice).length > 0) || (b.spikes && Object.keys(b.spikes).length > 0)
-    || (b.wet && Object.keys(b.wet).length > 0) || Flora.has(b));
+    || (b.wet && Object.keys(b.wet).length > 0) || (b.flame && Object.keys(b.flame).length > 0) || Flora.has(b));
 }
 // รวมชั้นเข้าแผนที่ (เรียกจาก action.boardMap — terrain ส่งมาเป็นสำเนาแล้ว)
 function overlayOf(b, terrain, special) {
   const sp = { ...special };
   for (const k of Object.keys(b.wet || {})) if (!terrain[k] && sp[k] !== "ice") sp[k] = "wet";
   for (const k of Object.keys(b.ice || {})) if (!terrain[k]) sp[k] = "ice";
+  for (const k of Object.keys(b.flame || {})) if (!terrain[k] && sp[k] !== "ice" && sp[k] !== "wet") sp[k] = "flame"; // พื้นไฟ (Judgment Bolt — server/whistle.js)
   for (const [k, s] of Object.entries(b.spikes || {})) terrain[k] = s.wall ? "icewall" : `icespike${s.lv}`;
   Flora.overlay(b, terrain, sp); // พุ่มดอกไม้ของเซลิน (server/flora.js) — ชั้นบนสุดของช่องพิเศษ
   return { terrain, special: sp };
@@ -93,6 +94,25 @@ function publicInfo() {
     wet: Object.keys(b.wet || {}).map(parseKey), // พื้นเปียก (เอมิลิโกะ)
   };
 }
+// พื้นไฟ (นกหวีดอัญเชิญ Judgment Bolt — server/whistle.js): match.board.flame = { "x,y": ownerId } — ถาวรจนเปลี่ยนภูมิภาค
+//  special "flame" (จบตา = ลุกไหม้ · ทีมเจ้าของไม่โดน — whistle.flameEnd) · วางทับ = ของทีหลังชนะ (layIce/layWet ลบไฟช่องนั้น)
+function flameAt(x, y) { return (match.board && match.board.flame && match.board.flame[K(x, y)]) || null; }
+function layFlame(tiles, owner) {
+  if (!match.board || !Array.isArray(tiles)) return [];
+  const map = action.boardMap();
+  const out = [];
+  for (const t of tiles) {
+    if (!t || !openTile(t.x, t.y)) continue;
+    const sp = Board.specialAt(map, t.x, t.y);
+    if (sp === "ice" || sp === "wet") continue;
+    const k = K(t.x, t.y);
+    (match.board.flame ||= {})[k] = owner || true;
+    Flora.clear(k);
+    out.push({ x: t.x, y: t.y });
+  }
+  if (out.length) bumpVer();
+  return out;
+}
 function wetAt(x, y) { return !!(match.board && match.board.wet && match.board.wet[K(x, y)]); }
 // ทำให้ช่องเปียก (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/น้ำแข็ง/ในกระดาน) → ช่องที่เปียกใหม่จริง [{ x, y }]
 function layWet(tiles) {
@@ -104,6 +124,7 @@ function layWet(tiles) {
     const k = K(t.x, t.y);
     if ((match.board.wet ||= {})[k]) continue;
     match.board.wet[k] = true;
+    if (match.board.flame) delete match.board.flame[k];
     Flora.clear(k); // วางทีหลังทับพุ่มดอกไม้
     out.push({ x: t.x, y: t.y });
   }
@@ -132,7 +153,8 @@ function spikeKeyOf(targetId) {
 }
 
 // วาง/ต่อเวลาธารน้ำแข็ง → บันทึกไว้ย้อน { k, prev } · วางไม่ได้ (สิ่งกีดขวาง/ร้านค้า/น้ำแข็งของแผนที่) = null
-function layIce(x, y, owner) {
+//  opts.perm = ไม่ละลาย (ถาวรจนเปลี่ยนภูมิภาค — Diamond Dust ของนกหวีดอัญเชิญ)
+function layIce(x, y, owner, opts = {}) {
   if (!match.board || !openTile(x, y, true)) return null;
   const base = Board.mapOf(match.board.area);
   if (Board.specialAt(base, x, y) === "ice") return null; // น้ำแข็งถาวรของภูมิภาค VI อยู่แล้ว
@@ -140,7 +162,8 @@ function layIce(x, y, owner) {
   const b = match.board;
   b.ice ||= {};
   const prev = b.ice[k] ? { ...b.ice[k] } : null;
-  b.ice[k] = { left: ICE_TURNS, owner: owner || null };
+  b.ice[k] = { left: ICE_TURNS, owner: owner || null, ...(opts.perm || (prev && prev.perm) ? { perm: true } : {}) };
+  if (b.flame) delete b.flame[k];
   const flora = b.flora && b.flora[k] ? { ...b.flora[k] } : null;
   if (flora) Flora.clear(k); // วางทีหลังทับพุ่มดอกไม้ (ย้อนการเดิน = คืนพุ่ม)
   bumpVer();
@@ -546,7 +569,7 @@ function onEndTurn() {
   if (!b) return;
   let changed = false;
   // นับลงอย่างเดียวแผนที่ไม่เปลี่ยน — bumpVer (ล้างแคช action.boardMap) เฉพาะตอนมีของหาย
-  for (const [k, r] of Object.entries(b.ice || {})) { r.left -= 1; if (r.left <= 0) { delete b.ice[k]; changed = true; } }
+  for (const [k, r] of Object.entries(b.ice || {})) { if (r.perm) continue; r.left -= 1; if (r.left <= 0) { delete b.ice[k]; changed = true; } }
   for (const [k, s] of Object.entries(b.spikes || {})) { if (s.wall) continue; s.left -= 1; if (s.left <= 0) { delete b.spikes[k]; changed = true; } }
   if (changed) bumpVer();
   Flora.tick(); // พุ่มดอกไม้ของเซลิน

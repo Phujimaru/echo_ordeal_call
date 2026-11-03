@@ -68,6 +68,12 @@ const FILES = {
   colony_alert: "/colony/colony_alert10.mp3",
   // Moon Cell (GRID_PLAN §8.4 · ไฟล์จากผู้ใช้): เพลงธีม · เสียงเหตุการณ์สังเคราะห์ (.claude/plans/mooncell-sfx.sh) — server ยิงผ่าน engine.sfx
   moon_theme: "/mooncell/moon_cell_theme.mp3",
+  // นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js) — Claude สังเคราะห์ (.claude/plans/divine-sfx.sh) · มนต์ดังตอนเริ่มฉากบนกระดานหลังคลิป
+  divine_whistle: "/item/divine_whistle/sfx/whistle.mp3",
+  divine_crossWinds: "/item/divine_whistle/sfx/crossWinds.mp3",
+  divine_tsunami: "/item/divine_whistle/sfx/tsunami.mp3",
+  divine_diamondDust: "/item/divine_whistle/sfx/diamondDust.mp3",
+  divine_judgmentBolt: "/item/divine_whistle/sfx/judgmentBolt.mp3",
   moon_curse_hit: "/mooncell/hakuno_duo_ultimate_sound.m4a", // เสียงโจมตีท่าไม้ตายของผู้ใช้ — ดังตอนลำแสงลงหลังคลิปจบ (คลิปมีเสียงของตัวเอง ห้ามซ้อน)
   moon_pillar: "/mooncell/sfx/moon_pillar.mp3",
   moon_revive: "/mooncell/sfx/moon_revive.mp3",

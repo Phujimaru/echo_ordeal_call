@@ -121,6 +121,12 @@ module.exports = function buildTransforms() {
     gutsShockwave: { img: "/item/guts_key/gomora_key.webp",    video: "/item/guts_key/shockwave_boost.mp4",    title: "SHOCKWAVE BULLET",   label: "ยิงปืนหน่วย GUTS Select", seconds: 11, music: null, afterReveal: false }, // shockwave_boost.mp4 ~9.51s
     gutsGargorgon: { img: "/item/guts_key/gargorgon_key.webp", video: "/item/guts_key/gargorgon_ray.mp4",      title: "GARGORGON RAY",      label: "ยิงปืนหน่วย GUTS Select", seconds: 9,  music: null, afterReveal: false }, // gargorgon_ray.mp4 ~7.67s
     gutsThunder:   { img: "/item/guts_key/eleking_key.webp",   video: "/item/guts_key/thunder_boost.mp4",      title: "THUNDER BULLET",     label: "ยิงปืนหน่วย GUTS Select", seconds: 7,  music: null, afterReveal: false }, // thunder_boost.mp4 ~5.38s
+    // ---------- นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js — ช่องพิเศษที่ 6 ของกระเป๋า) ----------
+    //  เต็มจอครั้งแรกต่อคนต่อมนต์ · ผลลงหลังคลิป · ความยาวจริง 24.23 / 25.03 / 26.13 / 21.30 วิ ปัดขึ้น
+    divineCrossWinds:   { img: "/item/divine_whistle/cross_winds.webp",   video: "/item/divine_whistle/cross_winds.mp4",   title: "CROSS WINDS",   label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 25, music: null, afterReveal: false },
+    divineTsunami:      { img: "/item/divine_whistle/tsunami.webp",       video: "/item/divine_whistle/tsunami.mp4",       title: "TSUNAMI",       label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 26, music: null, afterReveal: false },
+    divineDiamondDust:  { img: "/item/divine_whistle/diamond_dust.webp",  video: "/item/divine_whistle/diamond_dust.mp4",  title: "DIAMOND DUST",  label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 27, music: null, afterReveal: false },
+    divineJudgmentBolt: { img: "/item/divine_whistle/judgment_bolt.webp", video: "/item/divine_whistle/judgment_bolt.mp4", title: "JUDGMENT BOLT", label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 22, music: null, afterReveal: false },
     gutsNurse:     { img: "/item/guts_key/nurse_key.webp",     video: "/item/guts_key/nursedessei_cannon.mp4", title: "NURSEDESSEI CANNON", label: "ยิงปืนหน่วย GUTS Select", seconds: 16, music: null, afterReveal: false }, // nursedessei_cannon.mp4 ~14.40s
   };
 };
