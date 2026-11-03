@@ -15,6 +15,8 @@
 | giorno_skill2_2.mp4 | giono_skill2.2.mp4 (9.77 วิ) | จงกำเนิดใหม่ — ครั้งเดียวต่อเกม |
 | giorno_skill3_hit.mp4 | giono_skill3_hit.mp4 (9.13 วิ) | Muda ต่อยโดน — ทุกครั้ง |
 
+คลิปทั้ง 4 ตัว: เสียงเพิ่มเป็น −12 LUFS (ผู้ใช้บอกว่าเบามาก 2026-11-03 · ภาพไม่แตะ · ต้นฉบับเดิม −16 ถึง −21 LUFS) — **ยังไม่ขึ้น R2 จนกว่าจะปล่อยเวอร์ชันถัดไป**
+
 ## เสียงเอฟเฟกต์ `sfx/` — ตัดจาก "Jojo's Bizarre Adventure - Gold Experience SFX.mp3" (−14 LUFS)
 ช่วงแยกด้วย silencedetect · **Claude จับคู่จากรูปคลื่น ยังไม่มีใครฟัง** — ผู้ใช้เปลี่ยนได้
 gio_burst 0.20–1.95 (Muda) · gio_reflect 2.85–3.55 · gio_reflect_hit 3.75–4.32 · gio_tree 4.58–5.22 ·
