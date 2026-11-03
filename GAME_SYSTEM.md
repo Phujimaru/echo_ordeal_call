@@ -1128,6 +1128,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ซ่อนปุ่มสกิลตามร่าง**: ฮุค `skillHidden(p, tier)` → true = `view.buildStateFor` ส่งช่องนั้นเป็น `null` (client ไม่วาดปุ่ม — แบบยูกิที่ไม่มีสกิลพื้นฐาน/รอง) · ต้องปิดใน `canUseSkill` ด้วย (กดผ่าน socket ตรงๆ)
 - **ตีสวนเฉพาะช่วง (ท่าตั้งรับ)**: กลไกตีสวนกลาง `attack.counterAndPush` (ปิดทั้งเกม — GRID_PLAN §6) เปิดรายตัวด้วยฮุค `counters(p, card)` ใน `action.counters` (`card.gun` = ปืน GUTS)
   · `counterAnyRange(engine, ผู้สวน, ผู้ตี)` → true = ข้ามเช็คระยะตีของผู้สวน (เป็นด่านสุดท้าย — คืน true แล้วสวนแน่ จึงตั้งธง "กำลังสวน" ที่นี่ได้)
+  · `counterClip(engine, ผู้สวน, card)` → คีย์คัตซีน = คลิปเล่นตอนตีสวนเกิดจริง ก่อนฉากตี (ต่อจาก `preAttackClip` ของผู้ตี · `attack.playAttackCard`) — ผู้พิทักษ์: ครั้งเดียวต่อเกม กดสกิลมีแค่เสียง
   · ดาเมจสวนตายตัว: `fixedStrikeDamage(engine, a, t, { counter })` (ท่อ strike ส่ง `counter` ให้แล้ว) · ท่าตี/เสียงของจังหวะสวน = `attackStyle`/`attackSound` อ่านธง (strikeCard เรียกหลัง strike)
   · ผลหลังสวน (ท่าหมด/คูลดาวน์) = `onStrikeResolved(..., { counter: true })` · ติดสถานะตอนโดน = `onStrikeLanded(..., { counter })` · ผู้ตีไม่ถอย = `counterPush` คืน `{ push: false }`
   · ป้ายเพิ่มในฉากตีหลังผลลงแล้ว: push เข้า `res.skills` (array เดียวกับ `card.skills` ของจังหวะนั้น)

@@ -587,10 +587,11 @@ function playAttackCard(card, attacker, target, done) {
   };
   // คลิปก่อนฉากตี (ฮุค preAttackClip(engine, ผู้ตี, card) → คีย์คัตซีน — เซลิน: ตีปกติติดคริ = คลิปคริตามสายอาวุธ)
   //  เล่นก่อนคัตซีนอื่นที่ค้างคิว (คัตซีนเดิมยังเล่นหลังฉากตีตามปกติ)
-  const clip = clipBefore(attacker, card);
-  if (!clip) { show(); return; }
+  //  ฮุค counterClip(engine, ผู้สวน, card) → คีย์คัตซีน = คลิปตอนตีสวนเกิดจริง (ต่อจากคลิปผู้ตี — ออพติมัส ไพร์ม: ผู้พิทักษ์)
+  const clips = [[attacker, clipBefore(attacker, card)], [target, card.counter ? counterClip(target, card) : null]].filter(([, k]) => k);
+  if (!clips.length) { show(); return; }
   const held = match.cutsceneQueue.splice(0);
-  cutscene.queueCutscene(attacker, clip);
+  for (const [p, k] of clips) cutscene.queueCutscene(p, k);
   if (!match.cutsceneQueue.length) { match.cutsceneQueue.push(...held); show(); return; }
   cutscene.runCutsceneQueue(() => { match.cutsceneQueue.push(...held); show(); });
 }
@@ -598,4 +599,9 @@ function clipBefore(attacker, card) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
   if (!hook || typeof hook.preAttackClip !== "function") return null;
   return combat.runHook(hook, "preAttackClip", engine, attacker, card) || null;
+}
+function counterClip(target, card) {
+  const hook = target && CHAR_HOOKS[target.characterId];
+  if (!hook || typeof hook.counterClip !== "function") return null;
+  return combat.runHook(hook, "counterClip", engine, target, card) || null;
 }

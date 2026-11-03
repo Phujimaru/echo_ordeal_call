@@ -50,7 +50,7 @@ const SFX = {
   ram: "ot_ram",             // ตีปกติร่างรถ (แตร + ชน)
   counter: "ot_counter",     // ฟันสวน
   transform: "ot_transform", // แปลงร่างหลังเล่นคลิปไปแล้ว
-  stance: "ot_stance",       // ตั้งท่าผู้พิทักษ์หลังเล่นคลิปไปแล้ว
+  stance: "ot_stance",       // ตั้งท่าผู้พิทักษ์ (คลิปเล่นตอนสวนจริง)
   ult: "ot_ult",             // คลื่นครึ่งวง (เล่นตอนคลื่นออก)
   heal: "ot_heal",           // ฟื้นพลังชีวิต (ไพร์ม / รถบรรทุกครบ 3 เทิร์น)
 };
@@ -239,6 +239,14 @@ module.exports = {
     return COUNTER_DMG;
   },
   counterPush() { return { push: false }; }, // ผู้ตีไม่ถอย
+  // คลิปผู้พิทักษ์เล่นตอนสวนกลับเกิดจริง (ก่อนฉากตี) — ครั้งเดียวต่อเกม · กดสกิลมีแค่เสียงตั้งท่า
+  counterClip(engine, p, card) {
+    if (!isTruck(p) || !card || !card.counter) return null;
+    p.cutsceneShown ||= {};
+    if (p.cutsceneShown[CUT.guardian]) return null;
+    p.cutsceneShown[CUT.guardian] = true;
+    return CUT.guardian;
+  },
 
   // ---------- สกิล ----------
   skillHidden(p, tier) {
@@ -298,7 +306,6 @@ module.exports = {
       s.stance = true;
       s.stanceRound = engine.roundNumber;
       s.stanceAt = engine.severStamp();
-      s.clipNow = clipOnce(engine, p, CUT.guardian);
       fx(engine, p, "stance");
       primeCrit(p);
       engine.log(`🛡️ ${p.name} ผู้พิทักษ์ — ตั้งท่าสวนกลับ`);

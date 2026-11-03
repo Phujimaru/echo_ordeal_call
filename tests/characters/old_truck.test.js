@@ -161,7 +161,8 @@ test('ผู้พิทักษ์: ถูกตีปกติ = ฟันส
   engine.useSkill('T', 'secondary', []);
   assert.equal(P.T.skillPoints, 4);
   assert.equal(P.T.oldTruck.stance, true);
-  assert.deepEqual(calls.queue, ['otGuardian']);
+  assert.deepEqual(calls.queue, [], 'กดสกิล = ไม่มีคลิป (คลิปเล่นตอนสวนจริง)');
+  P.T.cutsceneShown.otGuardian = true; // ข้ามคลิปตอนสวน — เทสต์ฉากตี (คลิปทดสอบแยกด้านล่าง)
   assert.equal(view('T', 'T').oldTruck.stance, true);
   assert.equal(view('B', 'T').skillLocks.secondary.locked, true);
   const round = engine.roundNumber;
@@ -191,6 +192,19 @@ test('ผู้พิทักษ์: ถูกตีปกติ = ฟันส
   engine.useSkill('T', 'secondary', []);
   assert.equal(P.T.oldTruck.stance, true, 'ครบคูลดาวน์ใช้ได้อีก');
   engine.setRoundNumber(round);
+});
+
+test('ผู้พิทักษ์: คลิปเล่นตอนสวนกลับจริง (ก่อนฉากตี) ครั้งเดียวต่อเกม', () => {
+  const P = setup([['T', 'old_truck', 4, 7], ['B', 'dummy', 5, 7]]);
+  toPrime(P);
+  P.T.oldTruck.stance = true; P.T.oldTruck.stanceRound = engine.roundNumber;
+  assert.equal(ot.counterClip(engine, P.T, {}), null, 'ไม่ได้สวน = ไม่มีคลิป');
+  engine.setActor('B');
+  engine.attackTarget('B', 'T');
+  assert.equal(engine.gameState, 'CUTSCENE', 'คลิปผู้พิทักษ์ก่อนฉากตี');
+  assert.equal(P.T.cutsceneShown.otGuardian, true);
+  engine.clearPhaseTimer();
+  assert.equal(ot.counterClip(engine, P.T, { counter: {} }), null, 'ครั้งที่ 2 ไม่เล่น');
 });
 
 test('ผู้พิทักษ์: สวนได้ไม่ว่าผู้ตีอยู่ไกลแค่ไหน · ปืน GUTS ไม่นับ · ผู้ตีหลบได้', () => {
