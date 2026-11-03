@@ -60,6 +60,8 @@ const MOV = { old: 6, truck: 5, prime: 4 };
 const PRIME_ATK = 1;
 const REGEN_TURNS = 3;
 const REGEN_HP = 2;
+const TRUE_HP = 2;    // ร่างที่แท้จริง: ฟื้นพลังชีวิต
+const TRUE_ARMOR = 1; // ร่างที่แท้จริง: ฟื้นเกราะ
 const COUNTER_DMG = 2;
 const COUNTER_BLEED = 2;
 const GUARD_CD = 3;
@@ -291,7 +293,9 @@ module.exports = {
         setForm(engine, p, "truck");
         s.clipNow = clipOnce(engine, p, CUT.trueForm);
         fx(engine, p, "transform", { form: "truck" });
-        engine.log(`🚛 ${p.name} ร่างที่แท้จริง — ลอกคราบเป็นรถบรรทุก`);
+        const hp = engine.healHp(p, TRUE_HP), ar = engine.healArmor(p, TRUE_ARMOR);
+        if (hp > 0) fx(engine, p, "heal", { n: hp });
+        engine.log(`🚛 ${p.name} ร่างที่แท้จริง — ลอกคราบเป็นรถบรรทุก · พลังชีวิต +${hp} · เกราะ +${ar}`);
         return " — รถบรรทุก";
       }
       const to = s.form === "truck" ? "prime" : "truck";

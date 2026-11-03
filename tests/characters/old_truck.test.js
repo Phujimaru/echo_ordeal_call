@@ -88,8 +88,12 @@ test('ร่างรถบรรทุกเก่า: เดิน 6 · เห
 test('ร่างที่แท้จริง → รถบรรทุก (คลิปครั้งเดียว · ยังเดินได้) → เปลี่ยนร่าง ⇄ ออพติมัส 1 ครั้งต่อเทิร์น', () => {
   const P = setup([['T', 'old_truck', 4, 7], ['B', 'dummy', 12, 12]]);
   engine.setActor('T');
+  P.T.hp = Math.max(1, P.T.maxHp - 3); P.T.armor = Math.max(0, P.T.maxArmor - 2);
+  const hp0 = P.T.hp, ar0 = P.T.armor;
   engine.useSkill('T', 'basic', []);
   assert.equal(P.T.oldTruck.form, 'truck');
+  assert.equal(P.T.hp, hp0 + 2, 'ฟื้นพลังชีวิต 2');
+  assert.equal(P.T.armor, ar0 + 1, 'ฟื้นเกราะ 1');
   assert.deepEqual(calls.queue, ['otTrueForm']);
   assert.equal(P.T.skillUsedRound, false, 'ไม่นับโควตาสกิล');
   assert.equal(engine.action.locked, false, 'ยังไม่เดิน = ยังเดินได้');
