@@ -55,11 +55,12 @@ const SFX = {
 const VOICE = {
   turn: ["gio_v_turn1", "gio_v_turn2", "gio_v_turn3"],           // ゴールド・エクスペリエンス! · やるしかない · 行きますよ
   strike: ["gio_v_hit1", "gio_v_hit2", "gio_v_hit3", "gio_v_hit4", "gio_v_hit5"], // どうだ、くらえ! · そりゃ · そこだ!貰った! · 無駄だ! ×2
-  basic: ["gio_v_life1", "gio_v_life2"],                          // 生まれろ、生命よ
-  reflect: ["gio_v_reflect1", "gio_v_reflect2"],                  // 鋭い痛みをゆっくり味わえ · 味わいな!
-  tree: ["gio_v_tree1", "gio_v_tree2"],                           // 生まれ変わらせた! · 命を生み出す
-  ultimate: ["gio_v_ult1", "gio_v_ult2"],                         // 無駄無駄無駄…!
-  heal: ["gio_v_heal1", "gio_v_heal2"],                           // 援護します! · 傷を見せてください
+  struck: ["gio_v_struck1", "gio_v_struck2", "gio_v_struck3", "gio_v_struck4", "gio_v_struck5"], // なにぃ?! · しまった · こいつ! · うわっ! · やめろ!
+  basic: ["gio_v_life1", "gio_v_life2", "gio_v_life3"],           // 生まれろ、生命よ ×2 · 生まれろ、新しい命よ
+  reflect: ["gio_v_reflect1", "gio_v_reflect2", "gio_v_reflect3"], // 鋭い痛みをゆっくり味わえ · 味わいな! · ゴールド・エクスペリエンスの能力
+  tree: ["gio_v_tree1", "gio_v_tree2", "gio_v_tree3"],            // 生まれ変わらせた! ×2 · 命を生み出す
+  ultimate: ["gio_v_ult1", "gio_v_ult2", "gio_v_ult3"],           // 無駄無駄無駄…! ×3
+  heal: ["gio_v_heal1", "gio_v_heal2", "gio_v_heal3"],            // 援護します! · 傷を見せてください · 大丈夫ですか
 };
 
 const LIFE_COST_ITEMS = 1;
@@ -213,7 +214,8 @@ module.exports = {
     if (!clip) voice(engine, attacker, "strike");
     return clip;
   },
-  voiceLines(p) { return isGio(p) ? { turn: VOICE.turn } : null; }, // ที่เหลือเล่นเองตามว่ามีคลิปไหม
+  // ต้นตาเดิน / โดนตีปกติ (ระบบกลาง server/voice.js — โดนตีดังตอนฉากตีเริ่ม หลังคลิปของผู้ตี) · ที่เหลือเล่นเองตามว่ามีคลิปไหม
+  voiceLines(p) { return isGio(p) ? { turn: VOICE.turn, struck: VOICE.struck } : null; },
 
   // ---------- ตีปกติใส่เพื่อนร่วมทีม (action.strikeTarget) → วินาทีของฉาก ----------
   strikesAllies(p) { return isGio(p); },

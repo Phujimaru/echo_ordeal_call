@@ -165,6 +165,17 @@ function estimateCritOf(attacker, target) {
   } catch { return null; }
 }
 
+// เสียงพากย์ในการตีปกติ: ตีบนกระดาน = รอเล่นตอนฉากตีเริ่ม (หลังคลิปก่อนฉากตี — กฎผู้ใช้ 2026-11-03 ห้ามเสียงตัดหน้า/ซ้อนวีดีโอ)
+//  match.voiceHold ตั้งที่ boardAttack · ปล่อยใน playAttackCard (show) · ตีแบบไม่มีกระดาน (doAttack) = เล่นทันที
+function voiceAt(p, event) {
+  if (match.voiceHold) match.voiceHold.push([p, event]);
+  else Voice.play(p, event);
+}
+function flushVoices() {
+  const list = match.voiceHold || [];
+  match.voiceHold = null;
+  for (const [p, event] of list) Voice.play(p, event);
+}
 // ลงผลการตีปกติ 1 ครั้ง (ใช้ทั้งตีและตีสวน) — คืน { dmg, dodge, kill, skills }
 //  ไม่แตะ gameState/ตัวจับเวลา (คนเรียกจัดฉากเอง) · counter = ตีสวน (ข้อความ log ต่างกันเท่านั้น)
 function strike(attacker, target, { counter = false } = {}) {
@@ -177,7 +188,7 @@ function strike(attacker, target, { counter = false } = {}) {
 function strikeBody(attacker, target, counter) {
   const verb = counter ? "ตีสวน" : "โจมตี";
   attacker.didAttackRound = true;
-  Voice.play(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
+  voiceAt(attacker, "strike"); // เสียงพากย์ตอนตี (server/voice.js — ไจโร: hit_1–3)
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
   combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: กันการโจมตี / หลุดซ่อนเร้นมานา) — ก่อนทอยหลบ
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
@@ -316,7 +327,7 @@ function strikeBody(attacker, target, counter) {
     match.lastLog.push(`💪 ${attacker.name} เสริมพลัง — การโจมตีนี้ +1 (บัฟหมดลง)`);
   }
   target.wasAttacked = true;
-  Voice.play(target, "struck"); // เสียงพากย์ตอนโดนตี (ไจโร: hitby_1)
+  voiceAt(target, "struck"); // เสียงพากย์ตอนโดนตี (ไจโร: hitby_1 · โจรุโน่)
   match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (${pierce ? "ทะลุเกราะ" : "ลดเกราะก่อน"})`);
   // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
   const landedHook = CHAR_HOOKS[attacker.characterId];
@@ -467,6 +478,7 @@ function doAttack(byId, targetId) {
 //  ฮุค onStrikeResolved(engine, ผู้ตี, เป้า, res, { counter }) = หลังตีปกติ/ตีสวน 1 ครั้ง (ก่อนถอย/ผลัก · เป้ายังอยู่ช่องเดิม)
 //   — ไจโร: ใช้ลูกเหล็ก (ลูกตกช่องเป้า) · ส่ง gyroFx "throw"
 function boardAttack(attacker, target, done) {
+  match.voiceHold = [];
   const lane = action.laneVictims(attacker, target);
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
@@ -580,6 +592,7 @@ function playAttackCard(card, attacker, target, done) {
   const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0) + extraFx + (card.repeat ? 0.5 * card.repeat.length : 0); // ตีซ้ำ (strikeRepeat) +0.5 วิ/ฮิต
   card.fxMs = fxSeconds * 1000;
   const show = () => {
+    flushVoices();
     match.lastAttack = card;
     match.gameState = "ATTACKING";
     timers.startPhaseTimer(fxSeconds, () => cutscene.runCutsceneQueue(done));

@@ -1152,6 +1152,6 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   client: `players[].allyStrike` → BoardStage `planFor` รับเพื่อน (`plan.ally` · ปุ่มโจมตีเลือกศัตรูก่อน) · หน้าคาดการณ์ `forecast[id].heal` จากฮุค `allyHealOn(engine, p, t)` → ลูกศรเขียว `+N`
 - **เดินไม่ได้จากผลของคนอื่น**: broadcast `movBlocked(engine, p)` → `action.movOf` = 0 (โจรุโน่: ลอยบนต้นไม้)
 - **ปุ่มหลายตัวเลือกเป็นไอเทมในกระเป๋า**: ตัวเลือกมี `item` (สำเนาไอเทม) → `SkillChoices` ใช้ชื่อ/รูป/ไอคอนจาก `shopInfoOf` · `key` = uid ไอเทม (`opts.form`)
-- **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ตอนตีเล่นใน `preAttackClip` เฉพาะตอนไม่มีคลิป (ไม่ใช้ `voiceLines.strike`)
+- **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ `strike`/`struck` ของตีบนกระดานถูกพักไว้ (`match.voiceHold`) แล้วเล่นตอนฉากตีเริ่มหลังคลิปก่อนฉากตี (`attack.playAttackCard`) · โจรุโน่เล่นเสียงตอนตีเองใน `preAttackClip` เฉพาะตอนไม่มีคลิป
 - เอฟเฟกต์: ตีปกติ `gioPunch` (attackStyle) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
 

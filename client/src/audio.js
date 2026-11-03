@@ -175,7 +175,7 @@ const FILES = {
   gio_burst: "/characters/giorno_giovanna/sfx/gio_burst.mp3",
   gio_punch: "/characters/giorno_giovanna/sfx/gio_punch.mp3",
   gio_punch2: "/characters/giorno_giovanna/sfx/gio_punch2.mp3",
-  // เสียงพากย์โจรุโน่ (ตัดจากไฟล์ ASBR ของผู้ใช้ −16 LUFS · characters/giorno_giovanna.js VOICE)
+  // เสียงพากย์โจรุโน่ (ตัดจากไฟล์ ASBR ของผู้ใช้ −12 LUFS · characters/giorno_giovanna.js VOICE)
   gio_v_turn1: "/characters/giorno_giovanna/voice/gio_v_turn1.mp3",
   gio_v_turn2: "/characters/giorno_giovanna/voice/gio_v_turn2.mp3",
   gio_v_turn3: "/characters/giorno_giovanna/voice/gio_v_turn3.mp3",
@@ -194,6 +194,16 @@ const FILES = {
   gio_v_ult2: "/characters/giorno_giovanna/voice/gio_v_ult2.mp3",
   gio_v_heal1: "/characters/giorno_giovanna/voice/gio_v_heal1.mp3",
   gio_v_heal2: "/characters/giorno_giovanna/voice/gio_v_heal2.mp3",
+  gio_v_life3: "/characters/giorno_giovanna/voice/gio_v_life3.mp3",
+  gio_v_reflect3: "/characters/giorno_giovanna/voice/gio_v_reflect3.mp3",
+  gio_v_tree3: "/characters/giorno_giovanna/voice/gio_v_tree3.mp3",
+  gio_v_ult3: "/characters/giorno_giovanna/voice/gio_v_ult3.mp3",
+  gio_v_heal3: "/characters/giorno_giovanna/voice/gio_v_heal3.mp3",
+  gio_v_struck1: "/characters/giorno_giovanna/voice/gio_v_struck1.mp3",
+  gio_v_struck2: "/characters/giorno_giovanna/voice/gio_v_struck2.mp3",
+  gio_v_struck3: "/characters/giorno_giovanna/voice/gio_v_struck3.mp3",
+  gio_v_struck4: "/characters/giorno_giovanna/voice/gio_v_struck4.mp3",
+  gio_v_struck5: "/characters/giorno_giovanna/voice/gio_v_struck5.mp3",
   // Ice Spike — gp/slide/skill_2/skill_2_broke/ult = ไฟล์จากผู้ใช้ · is_* อื่น = Mixkit ฟรี (ต้นฉบับ .claude/plans/ice-spike-sfx-src/)
   //  เล่นตามเหตุการณ์ iceFx (BoardStage) · gp/slide สุ่ม 1/2
   is_gp_1: "/characters/ice_spike/sfx/gp_1.mp3",

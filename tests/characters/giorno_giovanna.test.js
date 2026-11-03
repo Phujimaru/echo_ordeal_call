@@ -276,3 +276,15 @@ test('ตัดผลสกิล: ต้นตอแห่งชีวิต / 
   assert.equal(gio.reflectOn(engine, P.G), false);
   assert.equal(P.G.giorno.muda, false);
 });
+
+test('เสียงพากย์: ทุกเหตุการณ์มีอย่างน้อย 3 แบบ · โดนตีมีเสียง (ดังตอนฉากตีเริ่ม)', () => {
+  const lines = gio.voiceLines({ characterId: 'giorno_giovanna' });
+  assert.ok(lines.turn.length >= 3 && lines.struck.length >= 3);
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 5, 7]]);
+  engine.setActor('B');
+  calls.sfx = [];
+  engine.attackTarget('B', 'G');
+  engine.clearPhaseTimer();
+  assert.ok(calls.sfx.some((k) => /^gio_v_struck/.test(k)), 'โดนตี = เสียงพากย์');
+  assert.ok(P.G);
+});
