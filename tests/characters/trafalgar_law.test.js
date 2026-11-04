@@ -338,9 +338,9 @@ test('Gamma Knife: ตีประชิด = ลุกไหม้/เลือ
   assert.equal(engine.action.locked, false); // ยังเดินได้
   assert.equal(engine.attackTarget('L', 'F'), false); // ต้องประชิด
   strike('E');
-  assert.equal(P.E.statuses.hburn, 2);
-  assert.equal(P.E.statuses.hbleed, 2);
-  assert.equal(P.E.statuses.poison, 4); // 3 เทิร์น (+1 ระบบลดเทิร์น)
+  assert.equal(P.E.statuses.hburn, 1);
+  assert.equal(P.E.statuses.hbleed, 1);
+  assert.equal(P.E.statuses.poison, 3); // 2 เทิร์น (+1 ระบบลดเทิร์น)
   assert.equal(P.L.law.gammaReady, engine.roundNumber + 4);
   assert.equal(H().canUseSkill(engine, P.L, 'ultimate', [], { form: 'gamma' }), false);
 });
