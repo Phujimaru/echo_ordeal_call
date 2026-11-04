@@ -188,6 +188,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   hiddenFromUnit(viewer, target) { return Visibility.hiddenFromUnit(viewer, target); },
   // เอฟเฟกต์บนกระดานที่ทุกคนเห็น (เช่น beamFx ลำแสง Beam Magnum) — client วาดเองตาม event
   boardFx(event, payload) { view.emitBoardFx(event, payload); }, // ม่านแดง: ตัดเหตุการณ์ที่ผู้ชมมองไม่เห็น (view.emitBoardFx)
+  // เอฟเฟกต์ที่เกิดระหว่างลงผลตีปกติ: ผลลงก่อนฉากตี (และก่อนคลิปก่อนฉากตี) → รอเล่นตรงจังหวะปะทะ (card.hitFx — BoardStage) · นอกฉากตี = ส่งทันที
+  boardFxAtHit(event, payload) {
+    if (match.hitFxHold) match.hitFxHold.push({ event, payload });
+    else engine.boardFx(event, payload);
+  },
   boardFxTo(ids, event, payload) { for (const id of ids || []) io.to(id).emit(event, payload); }, // เฉพาะผู้ชมบางคน (ดิเอโก้: วางตาข่ายล่องหน — เจ้าของเห็น)
   // หยุดเวลา (server/timeStop.js): ตาเดินพิเศษ / ค้างการตาย+ค่าที่ผู้ชมเห็น / เวลาเดินต่อ
   timeStop: {

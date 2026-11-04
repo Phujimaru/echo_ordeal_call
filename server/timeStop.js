@@ -102,6 +102,7 @@ function guard(fn) {
   match.cmdSeq = (match.cmdSeq || 0) + 1; // เลขคำสั่งของผู้เล่น (ชั้นนอกสุด) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
   match.commandSeq = (match.commandSeq || 0) + 1; // ลำดับคำสั่งของผู้เล่น (ฮุคแยก "การโจมตีครั้งเดียวกัน" — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน)
   match.voiceHold = null; // เสียงพากย์ที่พักไว้ของฉากตีที่ถูกตัดกลางทาง (attack.voiceAt) ไม่ค้างข้ามคำสั่ง
+  match.hitFxHold = null; // เอฟเฟกต์ที่พักไว้แบบเดียวกัน (engine.boardFxAtHit)
   try {
     if (match.gameState === "ACTION") mark();
     return fn();

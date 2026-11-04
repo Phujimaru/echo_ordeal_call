@@ -674,6 +674,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [diegoGhosts, setDiegoGhosts] = useState({});
   const diegoDeferMs = (id) => Math.max(0, (diegoDefer.current[id] || 0) - performance.now());
   const timers = useRef([]);
+  const hitFx = useRef({}); // ชื่อเหตุการณ์ → ตัวเล่น · card.hitFx (engine.boardFxAtHit) เล่นตรงจังหวะปะทะ
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
   // Ice Spike (socket "iceFx" — contract §4): เล่นเหตุการณ์ตามลำดับ · server ส่ง state ผลสุดท้ายตามมาทันที จึงต้องค้างภาพไว้
@@ -919,6 +920,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // อรชุน: เสียงตีเริ่มพร้อมท่า (จังหวะระเบิด/ธนูในเสียงตรงจังหวะปะทะ)
       const arjS = style === "arjunaBomb" || style === "arjunaArrow";
       if (arjS) later(Math.max(ZOOM_IN, HIT - ARJ_SFX_LEAD[style]), () => playSfx(a.byAttackSound || "attack"));
+      if (Array.isArray(a.hitFx) && a.hitFx.length) later(HIT, () => a.hitFx.forEach((h) => hitFx.current[h.event] && hitFx.current[h.event](h.payload)));
       if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
@@ -1222,6 +1224,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1 }]);
       if (kind === "gioMuda" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 500));
     };
+    hitFx.current.giornoFx = onGio;
     socket.on("giornoFx", onGio);
     return () => socket.off("giornoFx", onGio);
   }, [pushFx, look, lowQ]);

@@ -1154,6 +1154,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ปุ่มหลายตัวเลือกเป็นไอเทมในกระเป๋า**: ตัวเลือกมี `item` (สำเนาไอเทม) → `SkillChoices` ใช้ชื่อ/รูป/ไอคอนจาก `shopInfoOf` · `key` = uid ไอเทม (`opts.form`)
 - **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ `strike`/`struck` ของตีบนกระดานถูกพักไว้ (`match.voiceHold`) แล้วเล่นตอนฉากตีเริ่มหลังคลิปก่อนฉากตี (`attack.playAttackCard`) · โจรุโน่เล่นเสียงตอนตีเองใน `preAttackClip` เฉพาะตอนไม่มีคลิป
 - เอฟเฟกต์: ตีปกติ `gioPunch` หมัดหนัก 1 หมัด (attackStyle) · ติดคริ = client เปลี่ยนเป็น `gioRush` หมัดรัว (BoardStage อ่าน `card.crit` — ผู้ใช้สั่ง 2026-11-04) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
+- จังหวะเอฟเฟกต์: ผลของตีปกติลงก่อนฉากตีและก่อนคลิปก่อนฉากตี — เอฟเฟกต์ที่เกิดระหว่างนั้น (`muda` `dodge` `reflectHit`) ส่งด้วย `engine.boardFxAtHit(event, payload)` → `card.hitFx` → BoardStage เล่นตรงจังหวะปะทะ (`hitFx.current[event]`) · นอกฉากตีส่งทันที · ต้นไม้/ตรึงครั้งแรกมีคลิปเต็มจอ = `deferAfterCutscene`
 
 ## 42. มหาเทพอรชุน (`characters/arjuna.js`)
 

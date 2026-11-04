@@ -17,7 +17,7 @@
 //  ท่าไม้ตาย Muda!!!!!!! (4): ตีปกติครั้งถัดไป (ค้างจนได้ตี · ตีพลาดก็หมด) —
 //    ศัตรู: ฮีล 3 → ล้างดีบัฟล่าสุด 1 → เปราะบาง +1 2 เทิร์น + สตั้น 1 เทิร์น (คลุมตาเดินถัดไป) → แล้วจึงเกิดความเสียหาย (ผู้ใช้สั่งลำดับ)
 //    เพื่อน: ฮีล 3 + ล้างดีบัฟ 1 (ไม่มีดาเมจ/เปราะบาง/สตั้น) · คลิป giorno_skill3_hit ทุกครั้งที่ต่อยโดน
-//  สกิลติดตัว Gold Experience: ตีปกติที่ไม่มีผลสกิล (ไม่ได้เสริม Muda) คริติคอล 30% (×2) — คลิป giorno_crit ทุกครั้งที่ติด
+//  สกิลติดตัว Gold Experience: ตีปกติที่ไม่มีผลสกิล (ไม่ได้เสริม Muda) คริติคอล 50% (×2 — ผู้ใช้แก้จาก 30% 2026-11-04) — คลิป giorno_crit ทุกครั้งที่ติด
 //    ตีปกติใส่เพื่อนร่วมทีมได้ = ฟื้นพลังชีวิต 1 แทนความเสียหาย (จบตา · ไม่ตีสวน · ไม่ถอย) — action.strikeTarget ฮุค allyStrike
 //  สกิลติดตัว เศษเดนมนุษย์อย่างแกน่ะ…: พลังชีวิต ≤ 3 + ตีปกติที่ไม่ได้เสริม Muda → โอกาส 50% (ผู้ใช้แก้จาก 30% → 100% → 50% 2026-11-04) ความเสียหายตายตัว 5 (เกราะก่อน · ไม่คริ)
 //    1 ครั้งต่อเกม · คลิป giorno_passive2 เต็ม (32 วิ) ครั้งเดียว
@@ -75,7 +75,7 @@ const MUDA_HEAL = 3;
 const MUDA_FRAGILE = 1;
 const MUDA_FRAGILE_TURNS = 2;
 const MUDA_STUN_TURNS = 1;
-const CRIT_PCT = 30;
+const CRIT_PCT = 50;
 const ALLY_HEAL = 1;
 const RAGE_HP = 3;
 const RAGE_PCT = 50;
@@ -126,7 +126,7 @@ function clipOnce(engine, p, key) {
 }
 function fx(engine, p, kind, extra = {}) {
   if (!p || !p.pos) return;
-  engine.boardFx("giornoFx", { kind, id: p.id, at: { ...p.pos }, size: engine.sizeOf(p), color: engine.colorOf(p), ...extra });
+  engine.boardFxAtHit("giornoFx", { kind, id: p.id, at: { ...p.pos }, size: engine.sizeOf(p), color: engine.colorOf(p), ...extra });
 }
 function voice(engine, p, event) {
   const key = pick(VOICE[event]);
@@ -364,13 +364,13 @@ module.exports = {
       if (!t) return "";
       if (friendOf(engine, p, t)) {
         t.giornoTree = { ...windowFor(engine, t), by: p.id };
-        fx(engine, t, "tree");
+        engine.deferAfterCutscene(() => fx(engine, t, "tree")); // คลิปครั้งแรกเต็มจอ = ต้นไม้งอกหลังคลิป
         engine.log(`🌳 ${p.name} จงกำเนิดใหม่ → ${t.name} ลอยขึ้นบนต้นไม้ (หลบได้ 1 ครั้ง)`);
         return t.id === p.id ? "" : ` → ${t.name}`;
       }
       const acted = engine.actorId === t.id || engine.hasActed(t.id);
       const ok = engine.applyDebuff(t, "rooted", 1, ROOT_TURNS + (acted ? 1 : 0));
-      fx(engine, t, "root");
+      engine.deferAfterCutscene(() => fx(engine, t, "root"));
       engine.log(ok ? `🌳 ${p.name} จงกำเนิดใหม่ → ${t.name} ถูกตรึง ${ROOT_TURNS} เทิร์น` : `🌳 ${t.name} ต้านการตรึงได้`);
       return ` → ${t.name}`;
     }
