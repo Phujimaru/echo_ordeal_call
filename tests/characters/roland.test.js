@@ -89,6 +89,12 @@ test("ห้ามสกิล: BS Page ยังใช้ได้ แต่ Em
   assert.strictEqual(s.ego, null);
 });
 
+test("BS Page เปิดดูมือได้แม้ไม่มีเป้าในระยะ", () => {
+  const { r, s } = setup(4);
+  give(s, "allas");
+  assert.strictEqual(roland.skillPub(r, "basic").browse, true);
+});
+
 test("นอกระยะกดไม่ได้และไม่เสียแต้ม", () => {
   const { r, s } = setup(2);
   use("allas", s, [E]);

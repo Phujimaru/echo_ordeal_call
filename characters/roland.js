@@ -501,7 +501,7 @@ module.exports = {
   skillPub(p, tier) {
     if (!isRoland(p)) return null;
     const r = eng().roundNumber;
-    if (tier === "basic") return { choices: cardChoices(p, r) };
+    if (tier === "basic") return { choices: cardChoices(p, r), browse: true }; // เปิดดูมือได้ทุกเมื่อในตาเดิน แม้ไม่มีเป้าในระยะ
     if (tier === "secondary") return { choices: egoChoices(p, r) };
     return null;
   },

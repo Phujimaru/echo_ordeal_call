@@ -2583,7 +2583,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (!myTurn || (noSkill && !me?.skillLocks?.[tier]?.ignoresNoSkill) || giftLocked(tier)) return true;
     if (canto && !cantoTier(tier)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว · เอมิลิโกะ: สลับอาวุธได้)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
-    if (s?.choices) return !s.choices.some(choiceOk);
+    if (s?.choices) return s.browse ? !s.choices.length : !s.choices.some(choiceOk); // browse = เปิดดูตัวเลือกได้เสมอ (โรลันด์: มือการ์ด) · ตัวที่ใช้ไม่ได้จางอยู่ในแผง
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
     if (tier === "ultimate") return (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || noTargetInRange(s?.area);
     return (me.skillUsed && !giftFree(tier)) || noTargetInRange(s?.area);
