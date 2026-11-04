@@ -1372,7 +1372,7 @@ export function ryougiEventFx(ev, ctx = {}) {
       for (const p of pushes) if (!p.corpse) out.busy.push({ id: p.id, ms: RYOUGI_FX_DUR.ryougiCrumble + 150 });
       out.busy.push({ id: ev.id, ms: RYOUGI_FX_DUR.ryougiCrumble + 150 });
       if (land) out.look.push([mid(land, size), 0]);
-      out.shake.push(RYOUGI_FX.crumbleCut + 60, RYOUGI_FX.crumbleCut + (ev.step || RYOUGI_FX.crumbleStep) * Math.max(0, tiles.length - 1) + 120);
+      if (!ev.step) out.shake.push(RYOUGI_FX.crumbleCut + 60, RYOUGI_FX.crumbleCut + (ev.step || RYOUGI_FX.crumbleStep) * Math.max(0, tiles.length - 1) + 120);
       break;
     }
     case "kill": {

@@ -94,8 +94,9 @@ function lightPillar(g, x, y, s, h, w, rgb, a, seed, now) {
 function impact(g, tx, ty, q, big, lowQ, dodge) {
   const [hx, hy, hs] = P(tx, ty, 0.3), k = easeOut3(q), fade = 1 - q;
   g.save(); g.globalCompositeOperation = "lighter";
-  glow(g, hx, hy, hs * big * (1.5 + k * 2.4), WHITE, (dodge ? 0.5 : 1) * fade * fade);
-  glow(g, hx, hy, hs * big * (2 + k * 3), CYAN, 0.7 * fade);
+  // ฉากตีซูมกล้องเข้า (hs ใหญ่ขึ้นมาก): แสงต้องสั้นและจางเร็ว ไม่งั้นขาวทั้งจอ
+  glow(g, hx, hy, hs * big * (0.9 + k * 1.1), WHITE, (dodge ? 0.4 : 0.9) * fade * fade * fade * fade);
+  glow(g, hx, hy, hs * big * (1.2 + k * 1.3), CYAN, 0.4 * fade * fade);
   for (let i = 0; i < 3; i++) {
     gEllipse(g, tx, ty, 0.4 + k * big * (2 + i * 0.9), 0.03, 48);
     g.strokeStyle = `rgba(${i === 1 ? "130,120,255" : CYAN},${0.9 * fade})`; g.lineWidth = Math.max(1, hs * 0.09 * fade); g.stroke();
@@ -131,7 +132,7 @@ function arjunaBomb(g, e, now, lowQ) {
   const ray = smooth(750, 950, T) * (1 - smooth(1450, HIT + 100, T));
   if (ray > 0) {
     g.save(); g.globalCompositeOperation = "lighter"; g.translate(sx, sy);
-    glow(g, 0, 0, ss * 1.8, CYAN, 0.85 * ray);
+    glow(g, 0, 0, ss * 1.4, CYAN, 0.6 * ray);
     for (let i = 0; i < 9; i++) {
       const a = Math.PI * (0.12 + 0.76 * hash01(i + 9)) + (REDUCED ? 0 : Math.sin(T / 300 + i) * 0.05), L = ss * (9 + hash01(i * 2) * 7), w = ss * (0.1 + hash01(i * 4) * 0.2);
       g.save(); g.rotate(a);
@@ -154,7 +155,7 @@ function arjunaBomb(g, e, now, lowQ) {
       gr.addColorStop(0, `rgba(${c0},1)`); gr.addColorStop(1, `rgba(${c0},0)`);
       g.fillStyle = gr; g.beginPath(); g.moveTo(bx - R * w, by); g.lineTo(ux, uy); g.lineTo(bx + R * w, by); g.closePath(); g.fill();
     };
-    g.save(); g.globalCompositeOperation = "lighter"; tail(1.15, "50,190,255"); tail(0.6, WHITE); glow(g, bx, by, R * 3, CYAN, 0.9); g.restore();
+    g.save(); g.globalCompositeOperation = "lighter"; tail(1.15, "50,190,255"); tail(0.6, WHITE); glow(g, bx, by, R * 2.2, CYAN, 0.6); g.restore();
     // เปลวพลังรอบก้อน
     for (let i = 0; i < 14; i++) {
       const a = (i / 14) * TAU + T / 90, L = R * (1.25 + hash01(i + Math.floor(T / 40)) * 0.55);
@@ -288,7 +289,7 @@ function arjunaArrow(g, e, now, lowQ) {
     }
     // แรงระเบิดปากคันธนู
     const m = 1 - smooth(0, 240, T - FIRE);
-    glow(g, 0, 0, os * 4.2, WHITE, m);
+    glow(g, 0, 0, os * 2.2, WHITE, m);
     for (let i = 0; i < 9; i++) {
       const a = -0.9 + i * 0.225, L = os * (2 + hash01(i + 3) * 2.2) * (1.2 - m);
       g.save(); g.rotate(a + Math.PI); g.fillStyle = `rgba(150,235,255,${m})`; g.beginPath(); g.moveTo(0, -os * 0.08); g.lineTo(L, 0); g.lineTo(0, os * 0.08); g.closePath(); g.fill(); g.restore();

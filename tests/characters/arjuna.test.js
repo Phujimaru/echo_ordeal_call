@@ -103,7 +103,7 @@ test("สกิลรอง: ตีปกติ +1 + ชนิดดีบัฟ
 test("สกิลติดตัว: ตีปกติโดนศัตรูที่มีดีบัฟ = แต้ม +1 · ไม่มีดีบัฟ = ไม่ได้", () => {
   const { a, b } = setup();
   a.skillPoints = 1;
-  assert.strictEqual(engine.CHAR_HOOKS.arjuna.onStrikeLanded(engine, a, b), null);
+  assert.deepStrictEqual(engine.CHAR_HOOKS.arjuna.onStrikeLanded(engine, a, b), []);
   assert.strictEqual(a.skillPoints, 1);
   b.statuses.weak = 2;
   engine.CHAR_HOOKS.arjuna.onStrikeLanded(engine, a, b);
@@ -206,4 +206,12 @@ test("ท่าไม้ตาย: เพดาน 6 · โบนัสชนิ
   for (const k of ["weak", "stun", "nodraw", "noskill", "decay"]) b.statuses[k] = 3;
   ultFlow(a, { x: 3, y: 4 }, "h");
   assert.strictEqual(b.hp, 1); // 3 + 6 ชนิด + เปราะบาง 1 = 10 → เพดาน 6
+});
+
+test("ป้ายฉากตีเป็นข้อความ (object = client พังจอขาว)", () => {
+  const { a, b } = setup();
+  const H = engine.CHAR_HOOKS.arjuna;
+  a.statuses.arjunaPurge = 3;
+  b.statuses.weak = 2;
+  for (const n of [...H.attackFxNames(a), ...H.onStrikeLanded(engine, a, b)]) assert.strictEqual(typeof n, "string");
 });

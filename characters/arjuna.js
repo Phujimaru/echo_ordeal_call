@@ -247,12 +247,12 @@ module.exports = {
     return kind === "strike" || engine.inStrike() ? STRIKE_CAP : null;
   },
   onStrikeLanded(engine, attacker, target) {
-    if (!isArjuna(attacker) || !target || engine.sameTeam(attacker, target) || !debuffKinds(target)) return null;
+    if (!isArjuna(attacker) || !target || engine.sameTeam(attacker, target) || !debuffKinds(target)) return [];
     engine.addSkill(attacker, 1, "passive");
-    return "ความสมบูรณ์แบบ";
+    return ["ความสมบูรณ์แบบ"];
   },
   attackFxNames(attacker, ctx) {
-    return isArjuna(attacker) && on(attacker, PURGE) ? [{ name: "ขจัดสิ่งแปลกปลอม", img: IMG.skill2 }] : [];
+    return isArjuna(attacker) && on(attacker, PURGE) ? ["ขจัดสิ่งแปลกปลอม"] : []; // ชื่อเท่านั้น (object = client พังจอขาว)
   },
   attackStyle(p, dist) {
     if (!isArjuna(p)) return null;

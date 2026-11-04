@@ -34,7 +34,7 @@ import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
 import { GIO_EVENT_FX, GIO_MS as STYLE_MS_GIO } from "./giornoFx";
-import { ARJ_CUT_BEATS, ARJ_EVENT_FX, ARJ_SFX_LEAD } from "./arjunaBoardFx";
+import { ARJ_EVENT_FX, ARJ_SFX_LEAD } from "./arjunaBoardFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -919,7 +919,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // อรชุน: เสียงตีเริ่มพร้อมท่า (จังหวะระเบิด/ธนูในเสียงตรงจังหวะปะทะ)
       const arjS = style === "arjunaBomb" || style === "arjunaArrow";
       if (arjS) later(Math.max(ZOOM_IN, HIT - ARJ_SFX_LEAD[style]), () => playSfx(a.byAttackSound || "attack"));
-      if (arjS && !lowQ) later(HIT, () => setShake((n) => n + 1));
       if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
@@ -1233,11 +1232,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
       look(e.at);
       pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1 }]);
-      if (kind === "arjunaCut" && !lowQ) for (const ms of ARJ_CUT_BEATS) timers.current.push(setTimeout(() => setShake((n) => n + 1), ms));
     };
     socket.on("arjunaFx", onArj);
     return () => socket.off("arjunaFx", onArj);
-  }, [pushFx, look, lowQ]);
+  }, [pushFx, look]);
   // เฟิร์น: socket "fernFx" { kind: cast | boost | conceal | unveil | shield | empower | reset, at, id } → fernFx.js
   //  เสียงมาจาก server (engine.sfx ส่งพร้อมเหตุการณ์ — characters/fern.js) · conceal = เห็นเฉพาะเจ้าของ (กล้องไม่ตาม)
   useEffect(() => {
