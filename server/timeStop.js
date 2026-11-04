@@ -14,7 +14,7 @@
 //     · unfreeze() = เวลาเดินต่อ → คนที่เลือดหมดตกรอบพร้อมกัน → คืนรายการ { id, dmg, kill } (ดาเมจที่ลงระหว่างหยุด)
 // ============================================================
 Object.assign(module.exports, {
-  guard, mark, clearMark, check, catchInterrupt, isInterrupt,
+  guard, mark, clearMark, check, checkKill, catchInterrupt, isInterrupt,
   queueExtra, takeExtra, extraKind,
   freeze, unfreeze, frozen, holdsDeath, frozenView,
 });
@@ -38,7 +38,7 @@ function isInterrupt(err) { return !!(err && err.timeStopInterrupt); }
 
 // ---------- snapshot ----------
 // ฟิลด์ของ match ที่ไม่ย้อน: ตัวจับเวลา / คิวฉาก (ล้างทิ้งตอนตัด) / ห้องรอ
-const SKIP_MATCH = new Set(["players", "phaseTimerId", "timeLeft", "afterCutscene", "skillBeats", "cutsceneQueue", "reservations", "tsSnap", "effectSourceId"]);
+const SKIP_MATCH = new Set(["players", "phaseTimerId", "timeLeft", "afterCutscene", "skillBeats", "cutsceneQueue", "reservations", "tsSnap", "tsTurn", "effectSourceId"]);
 // ฟิลด์ของผู้เล่นที่ผูกกับการเชื่อมต่อ (หลุด/กลับเข้าระหว่างนั้นต้องไม่ถูกย้อน)
 const KEEP_PLAYER = new Set(["socketId", "connected", "sessionToken"]);
 function clonePlain(v) {
@@ -87,12 +87,14 @@ function armedAgainst(actor) {
   return false;
 }
 // จุดย้อนของตาเดินนี้ (เรียกตอนเริ่มตาเดิน/เริ่มคำสั่ง) — ไม่มีใครตั้งรับ = ไม่จด
-function mark() {
+//  turnSecs = เรียกจากต้นตาเดิน: จดเป็นจุดย้อนของทั้งตาด้วย (โจรุโน่ Requiem — ฮุค rewindsTurn ย้อนไปต้นตาเดิน)
+function mark(turnSecs) {
   const actor = match.players[match.actorId];
-  if (!actor || !armedAgainst(actor)) { match.tsSnap = null; return; }
+  if (!actor || !armedAgainst(actor)) { match.tsSnap = null; if (turnSecs) match.tsTurn = null; return; }
   match.tsSnap = { side: sideOf(actor), data: snapshot() };
+  if (turnSecs) match.tsTurn = { secs: turnSecs, data: match.tsSnap.data };
 }
-function clearMark() { match.tsSnap = null; }
+function clearMark() { match.tsSnap = null; match.tsTurn = null; }
 
 let depth = 0;
 // ห่อคำสั่งของผู้เล่นในตาเดิน: จดจุดย้อน แล้วรัน fn · ถูกตัด = ย้อน + ฮุค + จบตาผู้โจมตี (คืน undefined)
@@ -102,6 +104,7 @@ function guard(fn) {
   match.cmdSeq = (match.cmdSeq || 0) + 1; // เลขคำสั่งของผู้เล่น (ชั้นนอกสุด) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
   match.commandSeq = (match.commandSeq || 0) + 1; // ลำดับคำสั่งของผู้เล่น (ฮุคแยก "การโจมตีครั้งเดียวกัน" — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน)
   match.voiceHold = null; // เสียงพากย์ที่พักไว้ของฉากตีที่ถูกตัดกลางทาง (attack.voiceAt) ไม่ค้างข้ามคำสั่ง
+  match.hitFxHold = null; // เอฟเฟกต์ที่พักไว้แบบเดียวกัน (engine.boardFxAtHit)
   try {
     if (match.gameState === "ACTION") mark();
     return fn();
@@ -120,15 +123,25 @@ function check(p, n) {
   if (!src || src.id === p.id || sideOf(src) !== match.tsSnap.side || combat.sameTeam(src, p)) return;
   const hook = CHAR_HOOKS[p.characterId];
   if (!hook || typeof hook.counterArmed !== "function" || !combat.runHook(hook, "counterArmed", engine, p)) return;
+  // ฮุค counterFires(engine, p, src) → false = ครั้งนี้ไม่ตัด (โจรุโน่ Requiem: ทอย 50% ต่อคำสั่ง)
+  if (typeof hook.counterFires === "function" && !combat.runHook(hook, "counterFires", engine, p, src)) return;
   throw new TimeStopInterrupt(p.id, src.id);
+}
+// combat.instantDeath: สังหารทันทีไม่ผ่านดาเมจ — ตัวที่มีฮุค counterFires นับเป็นการโจมตีด้วย (ดิเอโก้ไม่นับตามเดิม)
+function checkKill(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  if (hook && typeof hook.counterFires === "function") check(p, 1);
 }
 
 // รับการตัด: ย้อนสถานะ → ฮุคผู้ตั้งรับ → ผู้โจมตีจบตา · ไม่ใช่การตัด = false
 function catchInterrupt(err) {
   if (!isInterrupt(err)) return false;
   const snap = match.tsSnap;
+  const turn = match.tsTurn;
   match.tsSnap = null;
   if (!snap) return true;
+  const defHook = CHAR_HOOKS[(match.players[err.defenderId] || {}).characterId];
+  if (defHook && defHook.rewindsTurn) return rewindTurn(err, snap, turn, defHook);
   // เวลาที่เหลือของตาผู้โจมตี (ถูกตัดระหว่างฉาก = เวลาที่จดไว้ตอนตาถูกพัก)
   const left = match.gameState === "ACTION" ? match.timeLeft : match.actionLeft;
   timers.clearPhaseTimer();
@@ -148,6 +161,28 @@ function catchInterrupt(err) {
   if (ex) ex.resume = resume;
   const action = require("./phases/action");
   if (!action.runExtras()) action.resumeFrom(resume);
+  return true;
+}
+
+// ฮุค rewindsTurn (โจรุโน่ Requiem: Return to Zero): ย้อนทุกอย่างกลับต้นตาเดินของผู้โจมตี แล้วเดินตานั้นใหม่เต็มเวลา
+//  แต้มสกิล/ไอเทมที่ใช้ไปแล้วไม่คืน · onCounterStop ได้ { from, back } คิวคลิป/ฉากก่อนกลับเข้าตา
+function rewindTurn(err, snap, turn, hook) {
+  const attacker = match.players[err.attackerId];
+  const lost = attacker ? { sp: attacker.skillPoints, bag: clonePlain(attacker.inventory || []), from: attacker.pos ? { ...attacker.pos } : null } : null;
+  timers.clearPhaseTimer();
+  restore(clonePlain((turn || snap).data));
+  match.tsTurn = turn;
+  match.effectSourceId = null;
+  match.cutsceneInfo = null;
+  match.lastAttack = null;
+  if (attacker && lost) {
+    attacker.skillPoints = Math.min(attacker.skillPoints, lost.sp);
+    attacker.inventory = lost.bag;
+  }
+  match.timeLeft = (turn && turn.secs) || match.timeLeft;
+  const defender = match.players[err.defenderId];
+  combat.runHook(hook, "onCounterStop", engine, defender, attacker, { from: lost && lost.from, back: attacker && attacker.pos ? { ...attacker.pos } : null });
+  require("./cutscene").pausePlayingForCutscene();
   return true;
 }
 

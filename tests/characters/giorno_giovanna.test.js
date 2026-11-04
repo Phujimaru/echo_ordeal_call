@@ -3,6 +3,7 @@ process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine } = require('../../server.js');
+const match = require('../../server/match');
 const gio = require('../../characters/giorno_giovanna.js');
 const { CHAR_BY_ID } = require('../../characters.js');
 
@@ -206,9 +207,9 @@ test('Muda!!!!!!!: ศัตรู ฮีล 3 → ล้างดีบัฟ �
   assert.deepEqual(calls.clips, ['gioMuda']);
 });
 
-test('Gold Experience: คริ 30% เฉพาะตีที่ไม่ได้เสริม Muda · ตีเพื่อน = ฮีล 1 (Muda = ฮีล 3 + ล้างดีบัฟ ไม่สตั้น)', () => {
+test('Gold Experience: คริ 50% เฉพาะตีที่ไม่ได้เสริม Muda · ตีเพื่อน = ฮีล 1 (Muda = ฮีล 3 + ล้างดีบัฟ ไม่สตั้น)', () => {
   const P = setup([['G', 'giorno_giovanna', 4, 7, 'A'], ['F', 'dummy', 5, 7, 'A'], ['E', 'dummy', 12, 12, 'B']], 'duo');
-  assert.equal(gio.critPct(P.G), 30);
+  assert.equal(gio.critPct(P.G), 50);
   P.G.giorno.muda = true;
   assert.equal(gio.critPct(P.G), 0);
   P.G.giorno.muda = false;
@@ -257,14 +258,14 @@ test('เศษเดนมนุษย์อย่างแกน่ะ…: เ
   assert.deepEqual(calls.clips, []);
   P.B.hp = 7; P.B.armor = 3;
   P.G.hp = 3;
-  Math.random = () => 0.49; // ติดที่ขอบ 50% (เกิน 30% = ไม่คริ)
+  Math.random = () => 0.49; // ติดที่ขอบ 50% · ไม่คริซ้อนแม้คริ 50% ก็เข้าเงื่อนไข
   engine.setActor('G');
   engine.attackTarget('G', 'B');
   engine.clearPhaseTimer();
   assert.equal(vit(P.B), 10 - 5);
   assert.equal(P.G.giorno.rageUsed, true);
   assert.deepEqual(calls.clips, ['gioPassive2']);
-  // ครั้งที่สอง: ไม่ติดอีก (คริ 30% ติดแทนเพราะ random 0.1)
+  // ครั้งที่สอง: ไม่ติดอีก (คริ 50% ติดแทนเพราะ random 0.1)
   Math.random = () => 0.1;
   calls.clips = [];
   engine.setActor('G');
@@ -297,4 +298,50 @@ test('เสียงพากย์: ทุกเหตุการณ์มี
   engine.clearPhaseTimer();
   assert.ok(calls.sfx.some((k) => /^gio_v_struck/.test(k)), 'โดนตี = เสียงพากย์');
   assert.ok(P.G);
+});
+
+test('เอฟเฟกต์บนกระดาน: จงกำเนิดใหม่เล่นหลังคลิป · หลบ/สะท้อนในฉากตีรอจังหวะปะทะ (card.hitFx)', () => {
+  const kinds = () => calls.fx.filter((f) => f.event === 'giornoFx').map((f) => f.payload.kind);
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 5, 7]]);
+  engine.setActor('G');
+  const later = [], defer = engine.deferAfterCutscene;
+  engine.deferAfterCutscene = (fn) => later.push(fn);
+  try { engine.useSkill('G', 'secondary', ['G'], { form: 'tree' }); } finally { engine.deferAfterCutscene = defer; }
+  assert.ok(!kinds().includes('tree'), 'ไม่ยิงระหว่างคลิปเต็มจอ');
+  later.forEach((fn) => fn());
+  assert.ok(kinds().includes('tree'));
+  // หลบด้วยต้นไม้: ลงผลก่อนฉากตี → ส่งไปกับการ์ด ไม่ยิงทันที
+  engine.setActor('B');
+  engine.attackTarget('B', 'G');
+  engine.clearPhaseTimer();
+  assert.ok(!kinds().includes('dodge'));
+  const hit = engine.buildStateFor('G').attack.hitFx;
+  assert.deepEqual(hit.map((h) => [h.event, h.payload.kind]), [['giornoFx', 'dodge']]);
+  assert.equal(match.hitFxHold, null, 'ส่งแล้วไม่ค้างข้ามการตี');
+  // นอกฉากตี = ส่งทันที
+  P.G.hp = 5;
+  P.G.inventory = [item('i1')];
+  engine.setActor('G');
+  engine.useSkill('G', 'basic', [], { form: 'i1' });
+  assert.ok(kinds().includes('life'));
+});
+
+test('เอฟเฟกต์บนกระดาน: ต้นตอแห่งชีวิตสะท้อน + Muda โดนเป้า = เล่นตอนปะทะ', () => {
+  const kinds = () => calls.fx.filter((f) => f.event === 'giornoFx').map((f) => f.payload.kind);
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 5, 7]]);
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'reflect' });
+  engine.setActor('B');
+  engine.attackTarget('B', 'G');
+  engine.clearPhaseTimer();
+  assert.ok(!kinds().includes('reflectHit'));
+  assert.ok(engine.buildStateFor('G').attack.hitFx.some((h) => h.payload.kind === 'reflectHit'));
+  P.G.giorno.muda = true;
+  engine.setActor('G');
+  const clip = gio.preAttackClip;
+  gio.preAttackClip = () => null; // ข้ามคลิป: ฉากตีเล่นทันที อ่าน card ได้
+  try { engine.attackTarget('G', 'B'); } finally { gio.preAttackClip = clip; }
+  engine.clearPhaseTimer();
+  assert.ok(!kinds().includes('muda'), 'ไม่ยิงก่อนคลิป Muda');
+  assert.ok(match.lastAttack.hitFx.some((h) => h.payload.kind === 'muda'));
 });

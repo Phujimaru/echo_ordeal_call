@@ -480,6 +480,7 @@ function doAttack(byId, targetId) {
 //   — ไจโร: ใช้ลูกเหล็ก (ลูกตกช่องเป้า) · ส่ง gyroFx "throw"
 function boardAttack(attacker, target, done) {
   match.voiceHold = [];
+  match.hitFxHold = []; // เอฟเฟกต์ที่รอจังหวะปะทะ (engine.boardFxAtHit) — ส่งไปกับการ์ด (card.hitFx)
   const lane = action.laneVictims(attacker, target);
   const first = strike(attacker, target);
   const card = { id: ++match.attackSeq, ...strikeCard(attacker, target, first), counter: null, push: null };
@@ -592,6 +593,8 @@ function playAttackCard(card, attacker, target, done) {
   const extraFx = aHook && aHook.attackFxExtra ? Number(combat.runHook(aHook, "attackFxExtra", attacker)) || 0 : 0;
   const fxSeconds = ATTACKFX_TIME + (card.skills.length ? 2 : 0) + (card.counter ? 2 : 0) + extraFx + (card.repeat ? 0.5 * card.repeat.length : 0); // ตีซ้ำ (strikeRepeat) +0.5 วิ/ฮิต
   card.fxMs = fxSeconds * 1000;
+  card.hitFx = match.hitFxHold || [];
+  match.hitFxHold = null;
   const show = () => {
     flushVoices();
     match.lastAttack = card;

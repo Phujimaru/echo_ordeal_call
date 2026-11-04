@@ -163,6 +163,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | เดินตามช่องดอกไม้ไม่เสียก้าว | `flowerWalk(p)` → true (ช่อง `TERRAIN_INFO[...].flower` = 0 ก้าว · client อ่าน `players[].flowerWalk`) | `action.planWalk` / `rebaseMove` → `Board.stepCost` |
 | ตัวคูณคริ / หลบหลีกเฉพาะตัว | `critMult(p)` → ×N (ไม่มี = 2) · `ownEvade(p)` → % (ตีปกติ + `skillDodge` + คาดการณ์) | `attack.strike` |
 | คลิปก่อนฉากตีปกติ | `preAttackClip(engine, ผู้ตี, card)` → คีย์คัตซีน (เซลิน: ติดคริ) | `attack.playAttackCard` |
+| เอฟเฟกต์ที่เกิดระหว่างลงผลตีปกติ (ต้องเห็นตอนปะทะ ไม่ใช่ก่อนฉาก/หลังคลิป) | `engine.boardFxAtHit(event, payload)` → `card.hitFx` · client ลงตัวเล่นใน `hitFx.current[event]` (โจรุโน่: giornoFx) | `attack.playAttackCard` · `BoardStage.jsx` |
 | ชั้นพื้นที่ปลูก/วางทับระหว่างเกม (ซ่อนตัวได้) | `server/flora.js` (`lay/undo/clear/canBloom`) — ปลูกตอนเดินคืน `{ k, undo }` จาก `afterWalk` · กำแพงตีแตก `engine.ice.placeWall/removeWall/wallsOf` | GAME_SYSTEM §27 |
 | เลือกหลายเป้า / พื้นที่สี่เหลี่ยมหมุนได้ | `area { kind: "target", count: 2 }` · `area { kind: "tile", rect: [3, 1] }` + `skillArea` อ่าน `opts.orient` (socket `orient`) | `action.resolveArea` / `tileArea` |
 | ตีสวนได้ (ตัวละครนี้) | `counter: true` ใน characters.js (ตอนนี้ไม่มีตัวไหนเปิด — ตีสวนปิดทั้งเกม GRID_PLAN §6) | `attack.counterAndPush` |
@@ -267,6 +268,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตีปกติใส่เพื่อนร่วมทีม (ฮีลแทนดาเมจ) | `strikesAllies(p)` + `allyStrike(engine, p, เพื่อน)` → วินาทีฉาก + `allyHealOn` (หน้าคาดการณ์) · client `players[].allyStrike` (โจรุโน่ Gold Experience) | `action.strikeAlly` |
 | ปุ่มหลายตัวเลือกจากไอเทมในกระเป๋า | `skillPub` choices ใส่ `item` (สำเนาไอเทม · key = uid) → `SkillChoices` แสดงชื่อ/รูปไอเทมเอง (โจรุโน่ ชีวิตทดแทน) | `client/src/screens/hud/SkillChoices.jsx` |
 | ตัวหมากนั่งบนพาหนะ (รูปใต้หมาก) | state ของตัวละคร → BoardStage `units[]` → **BoardCanvas `list.push` (คัดฟิลด์เอง)** + ยก `hz` → `boardDraw` วาดใต้หมาก (ม้าไจโร / รถ `optimusFx.js otTruck`) | `BoardCanvas.jsx` |
+| ย้อนผู้โจมตีกลับต้นตาเดิน (ยกเลิก + เดินตาใหม่ · แต้ม/ไอเทมไม่คืน) | `counterArmed` + `rewindsTurn: true` + `counterFires(engine, p, src)` + `onCounterStop(engine, p, attacker, { from, back })` (โจรุโน่ Requiem — GAME_SYSTEM §41) | `server/timeStop.js rewindTurn` |
+| ถึงตาของใครก็ได้ (ก่อนฮุคตัวละคร) | broadcast `onUnitActorStart(engine, u)` (โจรุโน่: คนวนตาย) | `action.nextActor` |
 | สถานะคืนชีพ Universal | ติด `jutti` ด้วย `engine.applyBuff(p, "jutti", null, N)` · ฮุค `onJutti(engine, p)` (อรชุน — GAME_SYSTEM §42) | `combat.instantDeath` |
 | เพดานดาเมจแยกตีปกติ/สกิล | `damageCap(engine, p, kind)` → `kind === "strike"` หรือ `engine.inStrike()` | `combat.damageCapOf` |
 | สกิลแถบเต็มแผนที่หมุนได้ | `area { kind: "tile", range: 99, place: "any", band: 4 }` + `skillArea` ใส่ `orient` · `Board.bandTiles` | `action.tileArea` · BoardStage |

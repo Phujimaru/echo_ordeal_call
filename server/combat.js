@@ -211,6 +211,7 @@ function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
   const absolute = force === "absolute";
   if (!absolute && friendlyEffectBlocked(p)) return;
+  if (!absolute) TimeStop.checkKill(p); // ตั้งรับที่นับสังหารทันทีด้วย (โจรุโน่ Requiem)
   if (!absolute && TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
@@ -481,6 +482,7 @@ function resetCombat(p) {
   p.statuses = {}; p.seen = {}; p.transformAt = 0;
   p.statusAmt = {};      // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8) — คู่กับ p.statuses
   p.skillUsedRound = false; // ใช้สกิลได้ 1 อันต่อเทิร์น
+  p.ultRound = 0; // เทิร์นล่าสุดที่ใช้ท่าไม้ตาย (โจรุโน่ Requiem: โจมตีด้วยตานั้น = ย้อน 100%)
   // ---------- ร้านค้ามายา + เศรษฐกิจเหรียญ (patch 2.2 full) ----------
   p.gold = 0;        // เหรียญสะสม (เพดาน 30)
   p.inventory = [];  // ของที่ซื้อจากร้านค้า รอใช้ (รวมปืนหน่วย GUTS Select — หายทุกแมตช์ใหม่)

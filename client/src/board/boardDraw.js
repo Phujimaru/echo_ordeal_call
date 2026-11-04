@@ -31,7 +31,7 @@ import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme"
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
-import { GIO_FX_DUR, GIO_HIT_P, GIO_MS, gioUnitBack, giornoFx, isGioFx } from "./giornoFx";
+import { GIO_FX_DUR, GIO_HIT_P, GIO_MS, gioForeAlpha, gioRewindLayer, gioUnitBack, gioUnitFront, giornoFx, isGioFx } from "./giornoFx";
 import { ARJ_FX_DUR, ARJ_HIT_P, ARJ_MS, arjUnitBack, arjunaBoardFx, isArjFx } from "./arjunaBoardFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
@@ -554,7 +554,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.diego) diegoUnitBack(g, u, now, wx, wy);
   // รถบรรทุกเก่า / ออพติมัส ไพร์ม (optimusFx.js): วงโล่ผู้พิทักษ์
   if (u.truck) otUnitBack(g, u, now, wx, wy);
-  // โจรุโน่ (giornoFx.js): ต้นไม้ใต้หมาก (ลอย) · วงเต่าทอง (ต้นตอแห่งชีวิต) · ออร่าทอง (Muda) — ใครก็มีต้นไม้ได้
+  // โจรุโน่ (giornoFx.js): ต้นไม้ใต้หมาก (ลอย) · วงเต่าทอง (ต้นตอแห่งชีวิต) · ออร่าทอง (Muda) · วงวนตาย · แสงรอผลธนู · เปลวทอง Requiem — ต้นไม้/วนตาย ใครก็ติดได้
   if (u.giorno) gioUnitBack(g, u, now, wx, wy);
   if (u.arjuna) arjUnitBack(g, u, now, wx, wy); // อรชุน (arjunaBoardFx.js): จุติ = ตะเกียงข้างหมาก · ขจัด = ดาวเคราะห์โคจร
   // ฐานแบบที่นั่ง (ทรงกระบอก)
@@ -606,6 +606,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
+  if (u.giorno) gioUnitFront(g, u, now, wx, wy); // เปลวทอง Requiem ครึ่งหน้า · ธนูปักตัว (รอผลธนู)
   if (hitAge >= 0 && hitAge < 150 && !tb) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   if (u.yuki) yukiAuraFront(g, u, wx, wy, bx, by, hy, hexR, now, u.lowQ, UNIT_UI_K);
   g.globalAlpha = a;
@@ -2351,6 +2352,8 @@ export function drawFrame(g, st, now) {
   if (st.timeFreeze || fx.some((e) => e.kind === "diegoStop" || e.kind === "diegoResume")) {
     diegoTimeLayer(g, { info, view, units, fx, freeze: st.timeFreeze || null, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
   }
+  // Return to Zero ของโจรุโน่: ครอบทั้งกระดาน → โจรุโน่ + ผู้โจมตีสีปกติ
+  if (fx.some((e) => e.kind === "gioRewind")) gioRewindLayer(g, { info, view, units, fx, now, lowQ, redraw: (u) => drawAnyUnit(g, u, now, null) });
   // มุมมองของมิติ (วาเลนไทน์): มองจากหลังผ้า = ซีดลง ขอบน้ำเงินจาง ตัวเราสีปกติ (โลกคู่ขนานไม่เปลี่ยนสี)
   if (st.dimLayers && st.dimLayers.length) valentineDimLayer(g, { view, layers: st.dimLayers, now, lowQ, units, dpr, redraw: (u) => drawAnyUnit(g, u, now, null) });
   // เอฟเฟกต์ครั้งเดียว
@@ -2376,7 +2379,7 @@ export function drawFrame(g, st, now) {
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (isKiraFx(e.kind)) kiraFx(g, e, now, lowQ);
     else if (isOtFx(e.kind)) optimusFx(g, e, now, lowQ);
-    else if (isGioFx(e.kind)) giornoFx(g, e, now, lowQ);
+    else if (isGioFx(e.kind)) giornoFx(g, e, now, lowQ, (uu, x, y, r, a) => unitHex(g, uu, x, y, r, a));
     else if (isArjFx(e.kind)) arjunaBoardFx(g, e, now, lowQ);
     else if (isYunaFx(e.kind)) yunaFx(g, e, now, lowQ);
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
@@ -2401,7 +2404,7 @@ export function drawFrame(g, st, now) {
   }
   // พาข้ามโลก (วาเลนไทน์): พื้นที่ของแนวพลิกกลับหัวแล้วตั้งตรง
   if (vFx) valentineFlip(g, fx, now, lowQ, view, dpr);
-  if (bake && bake.fore) blit(bake.fore);
+  if (bake && bake.fore) { g.globalAlpha = gioForeAlpha(fx, now); if (g.globalAlpha > 0) blit(bake.fore); g.globalAlpha = 1; }
   g.setTransform(1, 0, 0, 1, 0, 0);
   boxes.sort((a, b) => b.d - a.d);
   return boxes;

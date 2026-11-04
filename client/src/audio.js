@@ -193,6 +193,14 @@ const FILES = {
   roland_atk_crystal: "/characters/roland/sfx/roland_atk_crystal.mp3",
   roland_atk_logic: "/characters/roland/sfx/roland_atk_logic.mp3",
   roland_atk_durandal: "/characters/roland/sfx/roland_atk_durandal.mp3",
+  // โจรุโน่ ร่าง Gold Experience Requiem: เสียงชั่วคราว ปรุงจาก sfx/ ของเกม (−14 LUFS · ที่มาใน .claude/plans/giorno-media.md)
+  gio_req_shot: "/characters/giorno_giovanna/sfx/gio_req_shot.mp3",
+  gio_req_dash: "/characters/giorno_giovanna/sfx/gio_req_dash.mp3",
+  gio_req_awake: "/characters/giorno_giovanna/sfx/gio_req_awake.mp3",
+  gio_req_rewind: "/characters/giorno_giovanna/sfx/gio_req_rewind.mp3",
+  gio_req_loop: "/characters/giorno_giovanna/sfx/gio_req_loop.mp3",
+  // เพลงระหว่างร่าง Requiem (state.skillMusic "gio_requiem") · ไฟล์ −14 LUFS
+  gio_requiem: "/characters/giorno_giovanna/sfx/gio_req_theme.mp3",
   // มหาเทพอรชุน: เสียงตี/สกิล/สับแผนที่ — ตัดจากคลิปที่ผู้ใช้ส่ง (−14 LUFS · ที่มาใน memory arjuna-spec)
   arj_bomb: "/characters/arjuna/sfx/arj_bomb.mp3",
   arj_arrow: "/characters/arjuna/sfx/arj_arrow.mp3",
@@ -283,6 +291,14 @@ const FILES = {
   gio_v_struck3: "/characters/giorno_giovanna/voice/gio_v_struck3.mp3",
   gio_v_struck4: "/characters/giorno_giovanna/voice/gio_v_struck4.mp3",
   gio_v_struck5: "/characters/giorno_giovanna/voice/gio_v_struck5.mp3",
+  // เสียงพากย์ร่าง Requiem — ตัดจาก Jump Force Giorno Voice (Japanese) (−12 LUFS) · คีย์ = ชื่อไฟล์
+  ...Object.fromEntries([
+    "turn1", "turn2", "turn3", "hit1", "hit2", "hit3", "hit4", "hit5",
+    "struck1", "struck2", "struck3", "struck4", "struck5", "struck6",
+    "shot1", "shot2", "shot3", "life1", "life2", "life3",
+    "reflect1", "reflect2", "reflect3", "tree1", "tree2", "tree3",
+    "ult1", "ult2", "ult3", "heal1", "heal2", "heal3",
+  ].map((k) => [`gio_rv_${k}`, `/characters/giorno_giovanna/voice/gio_rv_${k}.mp3`])),
   // Ice Spike — gp/slide/skill_2/skill_2_broke/ult = ไฟล์จากผู้ใช้ · is_* อื่น = Mixkit ฟรี (ต้นฉบับ .claude/plans/ice-spike-sfx-src/)
   //  เล่นตามเหตุการณ์ iceFx (BoardStage) · gp/slide สุ่ม 1/2
   is_gp_1: "/characters/ice_spike/sfx/gp_1.mp3",

@@ -7,7 +7,7 @@ import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
 
-const BOUND_ITEMS = ["kebread", "lawHeart"]; // ของประจำตัวละคร — ตรงกับ server/shop.js
+const BOUND_ITEMS = ["kebread", "lawHeart", "giornoArrow"]; // ของประจำตัวละคร — ตรงกับ server/shop.js
 
 function useStageK() {
   const calc = () => Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
