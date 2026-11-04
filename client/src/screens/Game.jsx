@@ -28,6 +28,8 @@ import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo"
 import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx } from "../audio";
 import BoardStage from "../board/BoardStage";
 import YukiBoom from "../board/YukiBoom";
+import ArjunaUlt from "../board/ArjunaUlt";
+import { preloadArjunaUlt } from "../board/arjunaFx";
 import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
 
@@ -771,6 +773,8 @@ const STATUS_INFO = {
   numb:     { icon: "🫨", label: "เหน็บชา", cls: "bg-echo-hp", desc: "ใช้สกิลมีโอกาส 30% ไม่ทำงาน แต่ยังเสียแต้มสกิล" },
   weak:      { icon: "🥀", label: "อ่อนแอ", cls: "bg-echo-hp", desc: "ดาเมจที่คุณทำลดลงตามจำนวนที่ระบุ" },
   fragile:   { icon: "💔", label: "เปราะบาง", cls: "bg-echo-hp", desc: "ดาเมจที่คุณได้รับเพิ่มขึ้นตามจำนวนที่ระบุ" },
+  jutti:     { icon: "🪔", label: "จุติ", cls: "bg-amber-400 text-gray-900", desc: "ตายแล้วคืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด บัฟยังอยู่ (1 ครั้ง)" },
+  arjunaPurge: { icon: "🔱", label: "ขจัดสิ่งแปลกปลอม", cls: "bg-cyan-500 text-gray-900", desc: "ตีปกติพลังโจมตี +1 · ตีปกติและท่าไม้ตาย ความเสียหายเพิ่มตามชนิดดีบัฟที่เป้าติดอยู่" },
   might:     { icon: "💪", label: "เสริมพลัง", cls: "bg-echo-ice text-gray-900", desc: "ดาเมจที่คุณทำเพิ่มขึ้นตามจำนวนที่ระบุ" },
   spellflow: { icon: "🌀", label: "กระแสเวท", cls: "bg-echo-cyan text-gray-900", desc: "สกิลทุกช่องถูกลงตามจำนวนที่ระบุ" },
   spellburden: { icon: "⛓️", label: "ภาระเวท", cls: "bg-echo-hp", desc: "สกิลทุกช่องแพงขึ้นตามจำนวนที่ระบุ สูงสุด 2 และไม่เกิน 8 แต้ม" },
@@ -1896,6 +1900,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
   const phase = state.gameState;
+  // อรชุน: ฉาก Mahapralaya (ArjunaUlt.jsx) · โหลดวีดีโอ/รูปหมากล่วงหน้าเมื่อมีอรชุนในเกม
+  const arjunaRun = state.arjunaUlt ? {
+    seq: state.arjunaUlt.seq, hits: state.arjunaUlt.hits,
+    targets: (state.arjunaUlt.targets || []).slice(0, 6).map((id) => { const u = state.players.find((q) => q.id === id); return { id, img: u && !u.masked ? u.img : null, color: u ? u.color : null }; }),
+  } : null;
+  const arjunaInGame = state.players.some((q) => q.character && q.character.id === "arjuna");
+  useEffect(() => { if (arjunaInGame) preloadArjunaUlt(state.players.map((q) => ({ img: q.img }))); }, [arjunaInGame]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- ตัวขับคิวฉากประกาศ ----------
   //  ฉากถัดไปเริ่มนับเวลาก็ต่อเมื่อฉากก่อนหน้าเล่นจบแล้วเท่านั้น
@@ -1961,7 +1972,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
   const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? `รอบตัว ${a.range}`
-    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
   const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
@@ -2206,7 +2217,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
       //  place "list" + count (ลอว์: Shambles / Shamble เลือก 2 อย่าง) = เลือกครบแล้วส่ง tiles ทีเดียว
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, band: a.band || 0, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "ohger") {
       // คิงโอเจอร์ stand by: เลือกทิศ Ohger Finish (พื้นที่ตามร่าง) → useSkill secondary · ยกเลิก = กดไกซ้ำ (ไม่เสียแต้ม เดินได้อีก)
       const a = ch?.secondary?.area || {};
@@ -2784,6 +2795,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
       {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}
       <YukiBoom boom={state.yukiBoom || null} phase={phase} lowQ={lowQ} />
+      {/* อรชุน: ฉาก Mahapralaya 17.4 วิ (state.arjunaUlt) · server พักตาเดินให้จนจบฉาก */}
+      <ArjunaUlt run={arjunaRun} lowQ={lowQ} />
     </div>
   );
 }

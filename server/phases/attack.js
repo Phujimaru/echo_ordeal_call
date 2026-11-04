@@ -134,7 +134,7 @@ function estimateAttackOn(attacker, target) {
     const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target, { estimate: true }) : null;
     if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
-    return Math.max(0, Math.min(c.base || 0, combat.damageCapOf(attacker))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2)
+    return Math.max(0, Math.min(c.base || 0, combat.damageCapOf(attacker, "strike"))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2 · อรชุน ≤ 4)
   } catch { return null; }
 }
 
@@ -303,7 +303,7 @@ function strikeBody(attacker, target, counter) {
   const journeyCritFx = {};
   if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker), critMultOf(attacker));
   // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
-  dmg = Math.min(dmg, combat.damageCapOf(attacker));
+  dmg = Math.min(dmg, combat.damageCapOf(attacker, "strike"));
   // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
   const blockFx = combat.attackBlocked(target, attacker);
   if (blockFx) dmg = 0;
@@ -400,6 +400,7 @@ function skillStrike(attacker, target, reason) {
   dmg = Math.max(0, dmg - guardAmt);
   if ((target.statuses.discord || 0) > 0) dmg += 1;
   dmg += statusAmtOf(target, "fragile");
+  dmg = Math.min(dmg, combat.damageCapOf(attacker)); // เพดานของผู้ลงมือ (อรชุน: ท่าไม้ตาย ≤ 6)
   combat.dealMixed(target, dmg, true);
   match.lastLog.push(`${attacker.name} ${reason} → ${target.name} -${dmg} (ลดเกราะก่อน)`);
   if (target.alive && target.hp <= 0) {

@@ -223,6 +223,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   //  · พักจบเทิร์น (CUTSCENE ไม่มีคลิป) ให้ฉากเล่นจบก่อนสรุปผล — phases/endTurn.js
   declareWinner(p) { match.forcedWinnerId = p ? p.id : null; },
   setYukiBoom(b) { match.yukiBoom = b ? { seq: ++match.yukiBoomSeq, ...b } : null; },
+  // มหาเทพอรชุน — ฉาก Mahapralaya ของ client (state.arjunaUlt) · keep = อัปเดตตัวเลขในฉากเดิม
+  setArjunaUlt(u, keep) { match.arjunaUlt = u ? { seq: keep ? match.arjunaUltSeq : ++match.arjunaUltSeq, ...u } : null; },
+  arjunaUltOn() { return !!match.arjunaUlt; },
+  voice(p, event) { return require("./voice").play(p, event); }, // เสียงพากย์เหตุการณ์เฉพาะตัว (อรชุน: จุติ/ตาย/สังหาร)
+  inStrike() { return (match.strikeDepth || 0) > 0; }, // อยู่ระหว่างลงผลตีปกติไหม
   //  onStart = ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้ในจบเทิร์นเล่นจบ — ยูกิ: คลิปท่าไม้ตาย → ระเบิด)
   holdEndTurn(secs, onStart) {
     match.endTurnHold = Math.max(match.endTurnHold || 0, secs || 0);

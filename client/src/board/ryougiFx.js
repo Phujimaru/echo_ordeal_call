@@ -919,7 +919,7 @@ function stealFx(g, e, t, now, lowQ, ctx) {
   g.restore();
 }
 // ---------- ดับสิ้นซะ: พื้นพังทลาย ----------
-const tileT = (e, i) => RYOUGI_FX.crumbleCut + i * RYOUGI_FX.crumbleStep;
+const tileT = (e, i) => RYOUGI_FX.crumbleCut + i * (e.step || RYOUGI_FX.crumbleStep); // step: แถบใหญ่ของอรชุนถล่มเร็วกว่า
 // ก้อนพื้น 5 ก้อนต่อช่อง (สุ่มคงที่ตามช่อง)
 function chunksOf(x, y) {
   const R0 = rngOf(x * 613 + y * 1291 + 29), c = [x + 0.35 + R0() * 0.3, y + 0.35 + R0() * 0.3];
@@ -1368,11 +1368,11 @@ export function ryougiEventFx(ev, ctx = {}) {
       const pushes = (Array.isArray(ev.pushes) ? ev.pushes : []).filter((p) => p && p.id != null && okT(p.from) && okT(p.to))
         .map((p) => ({ id: p.id, from: ptOf(p.from), to: ptOf(p.to), corpse: !!p.corpse }));
       const razed = (Array.isArray(ev.razed) ? ev.razed : []).filter(okT).map((r) => ({ x: r.x, y: r.y, kind: r.kind || "rock" }));
-      out.fx.push({ ...base, kind, x: land ? land.x : 0, y: land ? land.y : 0, land, dir: ev.dir || null, tiles, pushes, razed, shop: okT(ev.shop) ? ptOf(ev.shop) : null });
+      out.fx.push({ ...base, kind, x: land ? land.x : 0, y: land ? land.y : 0, land, dir: ev.dir || null, tiles, pushes, razed, shop: okT(ev.shop) ? ptOf(ev.shop) : null, step: ev.step || 0 });
       for (const p of pushes) if (!p.corpse) out.busy.push({ id: p.id, ms: RYOUGI_FX_DUR.ryougiCrumble + 150 });
       out.busy.push({ id: ev.id, ms: RYOUGI_FX_DUR.ryougiCrumble + 150 });
       if (land) out.look.push([mid(land, size), 0]);
-      out.shake.push(RYOUGI_FX.crumbleCut + 60, RYOUGI_FX.crumbleCut + RYOUGI_FX.crumbleStep * Math.max(0, tiles.length - 1) + 120);
+      out.shake.push(RYOUGI_FX.crumbleCut + 60, RYOUGI_FX.crumbleCut + (ev.step || RYOUGI_FX.crumbleStep) * Math.max(0, tiles.length - 1) + 120);
       break;
     }
     case "kill": {

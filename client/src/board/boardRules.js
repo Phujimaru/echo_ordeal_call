@@ -1043,6 +1043,14 @@ function aoeTiles(map, x, y, radius, size = 1) {
 //  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4 คุวากาตะ โอเจอร์: −2…+1)
 //  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
 //  arc > 0 = ครึ่งวง 180° รัศมี arc ไปทางที่หัน รวมแถวข้างตัว (ข้าวหลามตัดครึ่งหน้า · ไม่สน len/width — ท่าไม้ตายออพติมัส ไพร์ม: arc 2 = 8 ช่อง)
+// แถบกว้าง width ยาวสุดแผนที่รอบช่อง (x, y): orient "h" = แนวนอน · "v" = แนวตั้ง · ชิดขอบแล้วเลื่อนเข้าให้กว้างครบเสมอ (Mahapralaya)
+function bandTiles(map, x, y, orient, width) {
+  const v = orient === "v", span = v ? map.cols : map.rows, w = Math.min(width, span);
+  const a0 = Math.max(0, Math.min(span - w, (v ? x : y) - Math.floor((w - 1) / 2)));
+  const out = [];
+  for (let a = a0; a < a0 + w; a++) for (let b = 0; b < (v ? map.rows : map.cols); b++) out.push(v ? { x: a, y: b } : { x: b, y: a });
+  return out;
+}
 function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
@@ -1291,7 +1299,7 @@ export {
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
-  tilesInRange, aoeTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, unitsOnTiles, attackTargets,
+  tilesInRange, aoeTiles, bandTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,
   normalizeMap,

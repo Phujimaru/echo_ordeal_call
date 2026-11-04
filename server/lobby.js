@@ -306,6 +306,7 @@ function startMatch() {
   match.winningTeamId = null;
   match.forcedWinnerId = null;
   match.yukiBoom = null;
+  match.arjunaUlt = null;
   match.endTurnHold = 0;
   match.endTurnHoldStart = null;
   Duo.setup(); // ระบบคู่ (เคท & เอมิลิโกะ): สร้างตัวที่สองของผู้เล่นที่เลือกตัวละครแบบคู่

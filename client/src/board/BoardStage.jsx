@@ -34,6 +34,7 @@ import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
 import { GIO_EVENT_FX, GIO_MS as STYLE_MS_GIO } from "./giornoFx";
+import { ARJ_CUT_BEATS, ARJ_EVENT_FX, ARJ_SFX_LEAD } from "./arjunaBoardFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { valentineEventFx } from "./valentineFx";
@@ -618,6 +619,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       pick.onPick({ x, y }, null, wallOrient);
       return;
     }
+    if (pick.band) { pick.onPick({ x, y }, null, wallOrient); return; } // Mahapralaya: แถบเต็มแผนที่ตามแนวที่หมุนไว้
     const u = pick.place === "spike" ? Rules.unitAt(ruleUnits, x, y) : null;
     if (u) {
       const arrows = ICE_DIRS.map(([dir, dx, dy]) => ({ x: x + dx, y: y + dy, dir, ok: Rules.freeTile(map, x + dx, y + dy, ruleUnits, u.id, blocked) }))
@@ -914,6 +916,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const myth = a.byHitFx === "mythSlash" || saber;
       if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       // โจรุโน่: หมัดหนักปะทะ = จอสั่น · หมัดรัว = สั่นตอนหมัดสุดท้าย (giornoFx.js RUSH_END + 0.08)
+      // อรชุน: เสียงตีเริ่มพร้อมท่า (จังหวะระเบิด/ธนูในเสียงตรงจังหวะปะทะ)
+      const arjS = style === "arjunaBomb" || style === "arjunaArrow";
+      if (arjS) later(Math.max(ZOOM_IN, HIT - ARJ_SFX_LEAD[style]), () => playSfx(a.byAttackSound || "attack"));
+      if (arjS && !lowQ) later(HIT, () => setShake((n) => n + 1));
       if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
@@ -950,7 +956,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
         if ((melee || kzLunge) && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
-          if ((!myth || saber) && !hk && !fernZ) playSfx(a.byAttackSound || "attack");
+          if ((!myth || saber) && !hk && !fernZ && !arjS) playSfx(a.byAttackSound || "attack");
           // เสียงต่อท้ายเสียงตี (โซระ Fire Frame: ไฟลุก) · หลบพ้น = ไม่เล่น
           if (a.byTailSound && a.byTailSound.key && !a.dodge) later(Math.max(0, +a.byTailSound.after || 0), () => playSfx(a.byTailSound.key));
           if (style && grayChains(style) && !a.dodge) playSfx("gray_chains"); // เกรย์จงบ้าคลั่ง: โซ่ตรึงซ้อนเสียงอาวุธ
@@ -1219,6 +1225,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("giornoFx", onGio);
     return () => socket.off("giornoFx", onGio);
+  }, [pushFx, look, lowQ]);
+  // มหาเทพอรชุน: socket "arjunaFx" { kind, id, at, size } → arjunaBoardFx.js · จุติเล่นกับทุกคนที่ติดสถานะ
+  useEffect(() => {
+    const onArj = (e) => {
+      const kind = e && ARJ_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      look(e.at);
+      pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1 }]);
+      if (kind === "arjunaCut" && !lowQ) for (const ms of ARJ_CUT_BEATS) timers.current.push(setTimeout(() => setShake((n) => n + 1), ms));
+    };
+    socket.on("arjunaFx", onArj);
+    return () => socket.off("arjunaFx", onArj);
   }, [pushFx, look, lowQ]);
   // เฟิร์น: socket "fernFx" { kind: cast | boost | conceal | unveil | shield | empower | reset, at, id } → fernFx.js
   //  เสียงมาจาก server (engine.sfx ส่งพร้อมเหตุการณ์ — characters/fern.js) · conceal = เห็นเฉพาะเจ้าของ (กล้องไม่ตาม)
@@ -2025,6 +2043,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (multiIds.length) h.aoe = [...new Set([...(h.aoe || []), ...multiIds])];
       } else if (hover && pickInfo.validSet.has(key(hover.x, hover.y))) {
         h.aoe = pickInfo.wall ? wallPlan(hover, wallOrient).placed.map((t) => key(t.x, t.y))
+          : pick.band ? Rules.bandTiles(map, hover.x, hover.y, wallOrient, pick.band).map((t) => key(t.x, t.y))
           : pick.square > 1 ? squareKeys(map, hover.x, hover.y, pick.square) : [key(hover.x, hover.y)];
       }
       return h;
@@ -2114,6 +2133,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda (giornoFx.js)
       giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda } : null,
+      // อรชุน: จุติ (ใครก็ติดได้) · ขจัดสิ่งแปลกปลอม (arjunaBoardFx.js)
+      arjuna: !mk && p.statuses && (p.statuses.jutti > 0 || p.statuses.arjunaPurge > 0) ? { jutti: p.statuses.jutti > 0, purge: p.statuses.arjunaPurge > 0 } : null,
       dstat: !mk && p.statuses && (p.statuses.oilSoaked > 0 || p.statuses.diegoNet > 0) ? { soaked: p.statuses.oilSoaked > 0, netted: p.statuses.diegoNet > 0 } : null,
       rider: riderOn[p.id] ? { img: riderOn[p.id].masked ? null : riderOn[p.id].img, color: riderOn[p.id].masked ? "#ffffff" : riderOn[p.id].color, name: riderOn[p.id].name, masked: !!riderOn[p.id].masked } : null,
     };
@@ -2304,7 +2325,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // โหมดเลือกเป้า (ผู้ใช้สั่ง 2026-10-09): เลือกเป้า = คลิกคน/ตัวเองบนกระดาน · สกิลหมู่ = คลิกในพื้นที่ซ้ำเพื่อใช้
   //  ยกเลิก = ปุ่มยกเลิกกลางล่าง / Esc / คลิกขวา
   //  กำแพงน้ำแข็งของเซลิน: คลิกขวา / R / ล้อเมาส์ = หมุนแนวกำแพง (ยกเลิก = Esc / ปุ่มยกเลิก)
-  const wallMode = !!pick && pick.kind === "tile" && pick.place === "wall";
+  const wallMode = !!pick && pick.kind === "tile" && (pick.place === "wall" || !!pick.band);
   const flipWall = useCallback(() => setWallOrient((o) => (o === "h" ? "v" : "h")), []);
   useEffect(() => {
     if (!pick || !pick.onCancel) return undefined;

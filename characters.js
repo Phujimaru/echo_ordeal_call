@@ -1341,6 +1341,48 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- มหาเทพอรชุน — พิเศษ — ดู characters/arjuna.js ----------
+    //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ตีปกติระยะ 1–2 โดน 1 คน
+    id: "arjuna",
+    name: "มหาเทพอรชุน",
+    avatar: 0,
+    difficulty: "special",
+    img: "/characters/arjuna/arjuna.webp",
+    mov: 4,
+    range: [1, 2],
+    passive: {
+      name: "ความสมบูรณ์แบบ",
+      desc: "ตีปกติสร้างความเสียหายไม่เกิน 4 · ท่าไม้ตายไม่เกิน 6 · ตีปกติโดนศัตรูที่มีดีบัฟ ได้แต้มสกิล 1 · จุติฟื้นคืนชีพ ได้แต้มสกิล 4",
+    },
+    basic: {
+      name: "ตะเกียงวิญญาณ",
+      desc: "ได้รับเยียวยา 3 เทิร์น และจุติ 3 เทิร์น: ตายแล้วคืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด บัฟยังอยู่ (1 ครั้ง) · คูลดาวน์ 3 เทิร์น",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/arjuna/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/arjuna.js
+    },
+    secondary: {
+      name: "ขจัดสิ่งแปลกปลอม",
+      desc: "5 เทิร์น: ตีปกติพลังโจมตี +1 · ตีปกติและท่าไม้ตาย ความเสียหายเพิ่มตามชนิดดีบัฟที่เป้าติดอยู่ (ไม่นับสแต็ก) · คูลดาวน์ 5 เทิร์น",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/arjuna/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Mahapralaya",
+      desc: "เลือกแถบกว้าง 4 ยาวสุดแผนที่ แนวนอนหรือแนวตั้ง ตำแหน่งใดก็ได้ · คนในแถบติดเปราะบาง +1 1 เทิร์น แล้วรับความเสียหาย 3 (เพื่อนไม่โดน) · จากนั้นแถบกลายเป็นช่องพัง ทุกคนถูกผลักออกข้าง ร้านค้าในแถบหาย · คูลดาวน์ 5 เทิร์น",
+      area: { kind: "tile", range: 99, place: "any", band: 4, hostile: true },
+      cost: 6,
+      img: "/characters/arjuna/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

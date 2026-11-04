@@ -49,12 +49,13 @@ const BUFF_KEYS = [
   "awaken",    // ตื่นขึ้น
   "accurate",  // แม่นยำ: เจาะการหลบหลีกทุกแบบ
   "promo",
+  "jutti",     // จุติ: ตายแล้วคืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด (combat.instantDeath · 1 ครั้งแล้วหาย)
 ];
 const BUFF_LABEL = {
   resist: "ต้านสถานะผิดปกติ", guard: "คุ้มครอง", fortune: "โชคลาภ", mend: "เยียวยา",
   might: "เสริมพลัง", empower: "เสริมพลัง", evade: "หลบหลีก", spellflow: "กระแสเวท",
   freecast: "การ์ดราชินี",
-  awaken: "ตื่นขึ้น", accurate: "แม่นยำ", promo: "เปิดแต้ม",
+  awaken: "ตื่นขึ้น", accurate: "แม่นยำ", promo: "เปิดแต้ม", jutti: "จุติ",
 };
 // ตัวนับลำดับ — เดินหน้าอย่างเดียวทั้งเกม จึงเทียบข้ามผู้เล่นได้
 let buffSeq = 0;
@@ -313,6 +314,15 @@ function blindActive(p) {
   return !!p && ((p.statuses && p.statuses.blind) || 0) > 0;
 }
 
+// ล้างดีบัฟทั้งหมดทีเดียว (รวมที่ปกติล้างทีละขั้น) — จุติ
+function clearAllDebuffs(p) {
+  for (const k of BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP)) {
+    if (p.statuses) delete p.statuses[k];
+    if (p.statusAmt) delete p.statusAmt[k];
+    if (p.statusAt) delete p.statusAt[k];
+  }
+}
+
 // ล้างดีบัฟ "ที่โดนล่าสุด" 1 อย่าง — ลำดับตัดสินจากตราเวลา statusAt (applyBuff/applyDebuff/applyBleed ประทับให้)
 //  ดีบัฟที่ตัวละครเขียน p.statuses ตรงๆ ไม่มีตราเวลา = ถือว่าเก่ากว่าตัวที่มีตรา · เสมอกัน -> เทิร์นเหลือมากกว่า -> ชื่อคีย์
 //  ล้างทั้งก้อน ยกเว้นดีบัฟที่ "ล้างได้ทีละขั้น" (SOFT_DEBUFF_STEP: คำสาป/ช็อต) ลดลง 1
@@ -540,6 +550,7 @@ module.exports = {
   applySpellburden,
   resistActive,
   BASIC_DEBUFF_CLEAR,
+  clearAllDebuffs,
   SOFT_DEBUFF_STEP,
   cleanseDebuffs,
   cleanseOneStep,

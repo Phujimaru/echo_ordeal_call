@@ -265,6 +265,10 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตีปกติใส่เพื่อนร่วมทีม (ฮีลแทนดาเมจ) | `strikesAllies(p)` + `allyStrike(engine, p, เพื่อน)` → วินาทีฉาก + `allyHealOn` (หน้าคาดการณ์) · client `players[].allyStrike` (โจรุโน่ Gold Experience) | `action.strikeAlly` |
 | ปุ่มหลายตัวเลือกจากไอเทมในกระเป๋า | `skillPub` choices ใส่ `item` (สำเนาไอเทม · key = uid) → `SkillChoices` แสดงชื่อ/รูปไอเทมเอง (โจรุโน่ ชีวิตทดแทน) | `client/src/screens/hud/SkillChoices.jsx` |
 | ตัวหมากนั่งบนพาหนะ (รูปใต้หมาก) | state ของตัวละคร → BoardStage `units[]` → **BoardCanvas `list.push` (คัดฟิลด์เอง)** + ยก `hz` → `boardDraw` วาดใต้หมาก (ม้าไจโร / รถ `optimusFx.js otTruck`) | `BoardCanvas.jsx` |
+| สถานะคืนชีพ Universal | ติด `jutti` ด้วย `engine.applyBuff(p, "jutti", null, N)` · ฮุค `onJutti(engine, p)` (อรชุน — GAME_SYSTEM §42) | `combat.instantDeath` |
+| เพดานดาเมจแยกตีปกติ/สกิล | `damageCap(engine, p, kind)` → `kind === "strike"` หรือ `engine.inStrike()` | `combat.damageCapOf` |
+| สกิลแถบเต็มแผนที่หมุนได้ | `area { kind: "tile", range: 99, place: "any", band: 4 }` + `skillArea` ใส่ `orient` · `Board.bandTiles` | `action.tileArea` · BoardStage |
+| ฉากวีดีโอเต็มจอที่ลงผลเป็นจังหวะ (มีหมากของคนที่โดนในฉาก) | state ฉาก + `skillBeat` ต่อกัน (ต้นแบบ `engine.setArjunaUlt` · `client/src/board/ArjunaUlt.jsx`) | `cutscene.runSkillFlow` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

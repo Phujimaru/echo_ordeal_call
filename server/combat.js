@@ -16,7 +16,7 @@ Object.assign(module.exports, {
 const { CHAR_BY_ID } = require("../characters");
 const CHAR_HOOKS = require("../characters/index");
 const {
-  applyBuff: rawApplyBuff, applyDebuff: rawApplyDebuff, applySpellburden: rawApplySpellburden,
+  applyBuff: rawApplyBuff, applyDebuff: rawApplyDebuff, applySpellburden: rawApplySpellburden, clearAllDebuffs,
   noHealActive, invertActive, bleedHealPenalty,
 } = require("../characters/_universal_status");
 const Mark42 = require("../characters/_mark42");
@@ -224,6 +224,16 @@ function instantDeath(p, force) {
   if (!force && deathHook && deathHook.preventDeath && deathHook.preventDeath(engine, p)) return;
   // Fodlan: ชีพจรเทพ (นั่งบัลลังก์ผู้ให้กำเนิด — server/fodlan/stage5.js preventDeath ตั้งเลือดเอง)
   if (!force && !p.summon && require("./fodlan").preventDeath(p)) return;
+  // จุติ (สถานะ Universal — ตะเกียงวิญญาณของอรชุน): ฟื้นทันทีแม้การตายแบบ absolute · ล้างดีบัฟทั้งหมด บัฟยังอยู่ · ใช้ครั้งเดียว
+  if ((p.statuses.jutti || 0) > 0) {
+    delete p.statuses.jutti;
+    clearAllDebuffs(p);
+    p.hp = 1;
+    match.lastLog.push(`🪔 ${p.name} จุติ — คืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด`);
+    if (p.pos) engine.boardFx("arjunaFx", { kind: "jutti", id: p.id, at: { ...p.pos }, size: engine.sizeOf(p), color: engine.colorOf(p) });
+    runHook(CHAR_HOOKS.arjuna, "onJutti", engine, p);
+    return;
+  }
   p.hp = 0; p.alive = false; p.result = "dead"; p.locked = true;
   Ride.onDeath(p); // ขี่ผู้เล่นอื่น (server/ride.js): ตัวที่ขี่ตาย = ทิ้งศพที่ช่องของตัวที่ถูกขี่ · ตัวที่ถูกขี่ตาย = คนขี่ร่วง
   Duo.onDeath(p); // ระบบคู่ / ศพค้าง (ยูนะ): ล้มแล้วทิ้งร่างไว้ (ไม่มีใครเก็บร่าง = ร่างหาย) · ยังจั่วไพ่ได้ถ้าอีกตัวรอด
@@ -347,8 +357,8 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
 }
 // เพดานความเสียหายต่อครั้งของผู้ลงมือ (ฮุค damageCap(engine, source) → ตัวเลข | null — ยูนะ: ขี่อยู่ไม่เกิน 2) · ไม่มี = ไม่จำกัด
 //  ใช้ทั้งท่อดาเมจ (หลังฮุคเป้า + ออร่า) และตัวเลขในฉากตีปกติ (attack.strike)
-function damageCapOf(source) {
-  const cap = source ? runHook(CHAR_HOOKS[source.characterId], "damageCap", engine, source) : null;
+function damageCapOf(source, kind) {
+  const cap = source ? runHook(CHAR_HOOKS[source.characterId], "damageCap", engine, source, kind) : null;
   return Number.isFinite(cap) ? Math.max(0, cap) : Infinity;
 }
 // ศัตรูโจมตีใส่ p (ฮุคของเป้า onAttacked(engine, p, attacker, kind) — kind: "strike" ตีปกติ/ตีสวน (รวมหลบพ้น) ·

@@ -517,6 +517,7 @@ function tileOf(tile) {
 //  ขนาดคู่ (ระบำเขม่า 8×8) = ช่องที่เลือกอยู่กลางค่อนซ้ายบน (−n/2 … +n/2−1)
 //  rect: [w, h] = สี่เหลี่ยม w×h กลางช่องที่เลือก (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
 function tileArea(area, t) {
+  if (area && area.band) return Board.bandTiles(boardMap(), t.x, t.y, area.orient, area.band); // Mahapralaya: แถบเต็มแผนที่
   const rect = area && Array.isArray(area.rect) ? area.rect : null;
   const w = rect ? Math.max(1, rect[0] | 0) : Math.max(1, (area && area.square) | 0);
   const h = rect ? Math.max(1, rect[1] | 0) : w;

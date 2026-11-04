@@ -5,7 +5,7 @@
 //   "strike"   = ตีปกติ/ตีสวน (attack.strike — รวมตีพลาด)
 //   "struck"   = โดนตีปกติ/ตีสวน (หลบพ้น = ไม่ดัง)
 //   "basic" | "secondary" | "ultimate" = ใช้สกิลช่องนั้นสำเร็จ (skills.useSkill หลังลงผล)
-//  หลายคีย์ = สุ่ม 1 คีย์ทุกครั้ง · ส่ง socket "sfx" { sound, voice: playerId } — client ตัดเสียงพากย์เก่าของคนเดียวกันก่อนเล่นใหม่
+//  หลายคีย์ = สุ่มแบบไม่ซ้ำจนครบชุด แล้วเริ่มชุดใหม่ (ประโยคท้ายชุดไม่ขึ้นต้นชุดถัดไป) · ส่ง socket "sfx" { sound, voice: playerId } — client ตัดเสียงพากย์เก่าของคนเดียวกันก่อนเล่นใหม่
 //  ไม่มีฮุค/ไม่มีคีย์ = เงียบ (ไม่แตะ Math.random — เทสต์ที่ล็อกลำดับสุ่มของตัวอื่นไม่เพี้ยน)
 // ============================================================
 Object.assign(module.exports, { play, linesOf });
@@ -21,11 +21,21 @@ function linesOf(p, event) {
   const list = lines && lines[event];
   return Array.isArray(list) ? list.filter(Boolean) : [];
 }
+// ถุงสุ่มต่อผู้เล่นต่อเหตุการณ์ (p.voiceBag): หยิบออกทีละคีย์จนหมดถุง
+function nextLine(p, event, list) {
+  const bags = p.voiceBag || (p.voiceBag = {});
+  const b = bags[event] || (bags[event] = { left: [], last: null });
+  b.left = b.left.filter((k) => list.includes(k));
+  if (!b.left.length) b.left = list.filter((k) => k !== b.last);
+  const key = b.left.splice(Math.floor(Math.random() * b.left.length), 1)[0];
+  b.last = key;
+  return key;
+}
 // เล่นเสียงพากย์ของ p สำหรับเหตุการณ์นี้ → คีย์ที่เล่น | null
 function play(p, event) {
   const list = linesOf(p, event);
   if (!list.length) return null;
-  const key = list.length > 1 ? list[Math.floor(Math.random() * list.length)] : list[0];
+  const key = list.length > 1 ? nextLine(p, event, list) : list[0];
   engine.sfx(key, null, { voice: p.id });
   return key;
 }

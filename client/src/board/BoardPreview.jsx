@@ -44,6 +44,7 @@ import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่น
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
 import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
 import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่นเอฟเฟกต์โจรุโน่
+import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่นเอฟเฟกต์มหาเทพอรชุน
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
@@ -141,6 +142,7 @@ const LAW_DEV = Q.get("law") === "1";
 const OHGER_DEV = Q.get("ohger") === "1";
 const DIVINE_DEV = Q.get("divine") === "1";
 const GIORNO_DEV = Q.get("giorno") === "1";
+const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
@@ -560,6 +562,7 @@ export default function BoardPreview() {
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
       {GIORNO_DEV && <GiornoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {ARJUNA_DEV && <ArjunaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}

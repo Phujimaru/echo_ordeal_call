@@ -195,6 +195,7 @@ function buildStateFor(viewerId) {
       trail: match.action.trail || null, walkUndo: action.walkUndoPatch(),
     } : null,
     rideAsk: Ride.publicAsk(viewerId), // คำขอขี่ที่รอตอบ (คนขอ / เจ้าของตัวที่ถูกขอเห็น — server/ride.js)
+    arjunaUlt: match.arjunaUlt, // ฉาก Mahapralaya ของอรชุน (client/src/board/ArjunaUlt.jsx)
     yukiBoom: match.yukiBoom, // ฉากระเบิดของยูกิ มาโคโตะ { seq, by, x, y, size } — ค้างถึง GAMEOVER (client กันเล่นซ้ำด้วย seq)
     skillMusic: sm ? sm.music : null,
     skillMusicSeq: sm ? sm.at : 0, // เปลี่ยน = การเปิดร่างครั้งใหม่ -> client เริ่มเพลงใหม่

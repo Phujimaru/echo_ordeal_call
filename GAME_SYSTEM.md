@@ -1155,3 +1155,11 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **คลิปกับเสียง (กฎผู้ใช้ 2026-11-03)**: action ที่ขึ้นวีดีโอห้ามมีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน — `skillSound` คืน null เมื่อคิวคลิป · เสียงพากย์ `strike`/`struck` ของตีบนกระดานถูกพักไว้ (`match.voiceHold`) แล้วเล่นตอนฉากตีเริ่มหลังคลิปก่อนฉากตี (`attack.playAttackCard`) · โจรุโน่เล่นเสียงตอนตีเองใน `preAttackClip` เฉพาะตอนไม่มีคลิป
 - เอฟเฟกต์: ตีปกติ `gioPunch` หมัดหนัก 1 หมัด (attackStyle) · ติดคริ = client เปลี่ยนเป็น `gioRush` หมัดรัว (BoardStage อ่าน `card.crit` — ผู้ใช้สั่ง 2026-11-04) · socket `giornoFx { kind: life | reflect | reflectHit | tree | root | dodge | burst | muda | heal }` · ตัวหมาก `players[].giorno { tree, reflect, muda }` (ใครก็มีต้นไม้ได้) → ต้นไม้ใต้หมาก + ยก `hz` (`client/src/board/giornoFx.js`) · เสียง `gio_*`
 
+## 42. มหาเทพอรชุน (`characters/arjuna.js`)
+
+- **จุติ** = สถานะ Universal `jutti` (`BUFF_KEYS`): `combat.instantDeath` ฟื้นด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด (`clearAllDebuffs`) บัฟยังอยู่ · ใช้ครั้งเดียว · ฟื้นได้แม้ `absolute` · ใครติดก็ได้ · ฮุคเจ้าตัว `onJutti(engine, p)` · ฉาก `arjunaFx jutti`
+- **เพดานตามชนิดการโจมตี**: ฮุค `damageCap(engine, p, kind)` — `kind === "strike"` จากท่อตีปกติและหน้าคาดการณ์ · `engine.inStrike()` บอกว่าอยู่ระหว่างตีปกติ · `skillStrike` ตัดเพดานด้วย
+- **สกิลแถบเต็มแผนที่**: `area { kind: "tile", range: 99, place: "any", band: 4 }` + `skillArea` ใส่ `orient` · `Board.bandTiles(map, x, y, orient, width)` ชิดขอบแล้วเลื่อนเข้าให้กว้างครบ · client หมุนด้วยคลิกขวา/R/ล้อเมาส์เหมือนกำแพงเซลิน
+- **ฉากวีดีโอที่ลงผลตามจังหวะ**: `engine.setArjunaUlt({ by, targets, hits })` → `state.arjunaUlt` → `ArjunaUlt.jsx` · ลงผลด้วย `skillBeat` ต่อกัน (9.53 เปราะบาง → 12.5 ดาเมจ → 17.4 ช่องพัง/ผลัก) · `setArjunaUlt(u, true)` = อัปเดตตัวเลขในฉากเดิม · ค่าเวลาคู่กับ `ARJUNA_T` ใน `client/src/board/arjunaFx.js`
+- **ถล่มแถบใหญ่**: เหตุการณ์ `ryougiFx crumble` รับ `step` (ms ต่อช่อง) · ผลักด้วย `pushAll` ใน `characters/arjuna.js` (ข้างที่ใกล้กว่า / ตัวใหญ่ = ฝั่งที่เหลือเยอะ)
+- **เสียงพากย์**: `server/voice.js` สุ่มแบบไม่ซ้ำจนครบชุดทุกตัวละคร (`p.voiceBag`) · เหตุการณ์เฉพาะตัวเรียก `engine.voice(p, event)`

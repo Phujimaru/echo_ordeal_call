@@ -18,6 +18,8 @@ const match = {
   forcedWinnerId: null, // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner) · gameOver ข้ามกติกาปกติ
   yukiBoom: null,       // ฉากระเบิดของยูกิ { seq, by, x, y, size } — ส่งให้ client ตลอดช่วงพักจนจบเกม
   yukiBoomSeq: 0,
+  arjunaUlt: null,     // ฉาก Mahapralaya ของอรชุน { seq, by, targets: [id], hits: { id: ดาเมจ } }
+  arjunaUltSeq: 0,
   endTurnHold: 0,       // วินาทีที่ endTurn ต้องพักให้ฉากของ client เล่นจบ (engine.holdEndTurn) — ใช้แล้วล้าง
   endTurnHoldStart: null, // [fn] ที่ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้เล่นจบ) — ใช้แล้วล้าง
   modeVotes: {},
