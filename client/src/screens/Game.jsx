@@ -888,6 +888,7 @@ function statusEntries(p, full) {
     if (g.tree) out.push({ key: "gioTree", v: 1, icon: "🌳", label: "จงกำเนิดใหม่", cls: "bg-emerald-600 text-white", desc: "ลอยบนต้นไม้ หลบการโจมตีได้แน่นอน 1 ครั้ง และเดินไม่ได้ จนถึงตาเดินถัดไป" });
     if (g.reflect) out.push({ key: "gioReflect", v: 1, icon: "🐞", label: "ต้นตอแห่งชีวิต", cls: "bg-amber-400 text-gray-900", desc: "ศัตรูโจมตีโดน 1 ครั้ง = ไม่เสียหาย ความเสียหายและดีบัฟสะท้อนกลับใส่ผู้โจมตี จนถึงตาเดินถัดไป" });
     if (g.muda) out.push({ key: "gioMuda", v: 1, icon: "👊", label: "Muda!!!!!!!", cls: "bg-yellow-500 text-gray-900", desc: "ตีปกติครั้งถัดไป: ศัตรูฟื้นพลังชีวิต 3 ล้างดีบัฟ 1 ติดเปราะบางและสตั้นแล้วจึงรับความเสียหาย · เพื่อนฟื้นพลังชีวิต 3 ล้างดีบัฟ 1" });
+    if (g.shotCd > 0) out.push({ key: "gioShotCd", v: g.shotCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงยิงกระสุนแห่งชีวิตได้อีก" });
     if (g.reflectCd > 0) out.push({ key: "gioReflectCd", v: g.reflectCd, turns: true, icon: "🐞", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ต้นตอแห่งชีวิตได้อีก" });
     if (g.treeCd > 0) out.push({ key: "gioTreeCd", v: g.treeCd, turns: true, icon: "🌳", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้จงกำเนิดใหม่ได้อีก" });
   }
