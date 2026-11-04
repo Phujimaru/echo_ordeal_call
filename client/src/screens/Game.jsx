@@ -870,9 +870,13 @@ function statusEntries(p, full) {
     if (o.form === "truck" && o.regen > 0) out.push({ key: "otRegen", v: 1, icon: "🚛", label: `${o.regen}/${o.regenMax}`, cls: "bg-echo-ice text-gray-900", desc: "จบเทิร์นในร่างรถบรรทุกครบแล้วฟื้นพลังชีวิต 2" });
     if (o.crit) out.push({ key: "otCrit", v: 1, icon: "⚔️", label: "คริ +25%", cls: "bg-amber-500 text-gray-900", desc: "ตีปกติคริติคอลเพิ่ม 25% จนจบเทิร์น" });
   }
-  // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · คูลดาวน์ 2 แบบ · เศษเดนมนุษย์ยังไม่ใช้
+  // โจรุโน่: ร่าง Requiem · ธนู (รอผล/คูลดาวน์) · วนตาย (ใครก็ติดได้) · ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · คูลดาวน์ 2 แบบ · เศษเดนมนุษย์ยังไม่ใช้
   if (p.giorno) {
     const g = p.giorno;
+    if (g.requiem) out.push({ key: "gioRequiem", v: g.reqLeft, turns: true, icon: "✨", label: "Gold Experience Requiem", cls: "bg-amber-500 text-gray-900", desc: "พลังโจมตีและคริติคอลเพิ่ม ระยะเดินไกลขึ้น ต้านสถานะ ศัตรูที่โจมตีมีโอกาสถูกย้อนกลับไปเริ่มตาเดินใหม่ ใช้ท่าไม้ตายในตานั้น = ย้อนแน่นอน" });
+    if (g.arrowWait) out.push({ key: "gioArrowWait", v: 1, icon: "🏹", label: "ธนู Requiem", cls: "bg-amber-300 text-gray-900", desc: "ตาถัดไปสุ่ม 50/50: แปลงร่าง Gold Experience Requiem 3 เทิร์น หรือตายทันที" });
+    if (g.arrowCd > 0) out.push({ key: "gioArrowCd", v: g.arrowCd, turns: true, icon: "🏹", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ธนู Requiem ได้อีก" });
+    if (g.loop) out.push({ key: "gioLoop", v: 1, icon: "🌀", label: "ไปสู่ภพภูมิที่ดี", cls: "bg-violet-900 text-white", desc: "ฟื้นทุกเทิร์นแล้วตายอีกเมื่อถึงตาตัวเอง" });
     if (g.tree) out.push({ key: "gioTree", v: 1, icon: "🌳", label: "จงกำเนิดใหม่", cls: "bg-emerald-600 text-white", desc: "ลอยบนต้นไม้ หลบการโจมตีได้แน่นอน 1 ครั้ง และเดินไม่ได้ จนถึงตาเดินถัดไป" });
     if (g.reflect) out.push({ key: "gioReflect", v: 1, icon: "🐞", label: "ต้นตอแห่งชีวิต", cls: "bg-amber-400 text-gray-900", desc: "ศัตรูโจมตีโดน 1 ครั้ง = ไม่เสียหาย ความเสียหายและดีบัฟสะท้อนกลับใส่ผู้โจมตี จนถึงตาเดินถัดไป" });
     if (g.muda) out.push({ key: "gioMuda", v: 1, icon: "👊", label: "Muda!!!!!!!", cls: "bg-yellow-500 text-gray-900", desc: "ตีปกติครั้งถัดไป: ศัตรูฟื้นพลังชีวิต 3 ล้างดีบัฟ 1 ติดเปราะบางและสตั้นแล้วจึงรับความเสียหาย · เพื่อนฟื้นพลังชีวิต 3 ล้างดีบัฟ 1" });

@@ -33,7 +33,7 @@ import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
-import { GIO_EVENT_FX, GIO_MS as STYLE_MS_GIO } from "./giornoFx";
+import { GIO_EVENT_FX, GIO_FX_DUR, GIO_MS as STYLE_MS_GIO, GIO_REWIND_HIT, GIO_SLAM_HIT } from "./giornoFx";
 import { ARJ_EVENT_FX, ARJ_SFX_LEAD } from "./arjunaBoardFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
@@ -1215,14 +1215,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("optimusFx", onOt);
     return () => socket.off("optimusFx", onOt);
   }, [pushFx, look, lowQ]);
-  // โจรุโน่: socket "giornoFx" { kind, id, at, size, toAt? } → giornoFx.js · เสียงมาจาก server (characters/giorno_giovanna.js)
+  // โจรุโน่: socket "giornoFx" { kind, id, at, size, toAt?, to?, tiles?, attacker?, from?, back?, gioAt?, seconds? } → giornoFx.js · เสียงมาจาก server (characters/giorno_giovanna.js)
   useEffect(() => {
     const onGio = (e) => {
       const kind = e && GIO_EVENT_FX[e.kind];
       if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
-      look(e.at);
-      pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1 }]);
+      // Return to Zero: กล้องตามผู้โจมตีที่ถูกย้อน · เล่นตามเวลาที่ server ส่ง
+      const rew = kind === "gioRewind", dur = rew && e.seconds > 0 ? e.seconds * 1000 : GIO_FX_DUR[kind];
+      look(rew && e.from ? e.from : e.at);
+      pushFx([{ ...e, kind, x: e.at.x, y: e.at.y, size: e.size || 1, dur }]);
       if (kind === "gioMuda" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 500));
+      // จอสั่นเบาแบบเลื่อนกล้อง 1 ครั้ง (iceShake — setShake มีแฟลชเต็มจอ ห้ามใช้กับฉากนี้)
+      if (rew || kind === "gioSlam") timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: rew ? 5 : 6, dur: 420 }]), (rew ? GIO_REWIND_HIT : GIO_SLAM_HIT) * dur));
     };
     hitFx.current.giornoFx = onGio;
     socket.on("giornoFx", onGio);
@@ -2132,8 +2136,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
-      // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda (giornoFx.js)
-      giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda } : null,
+      // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
+      giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda || p.giorno.requiem || p.giorno.arrowWait || p.giorno.loop) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda, requiem: !!p.giorno.requiem, arrowWait: !!p.giorno.arrowWait, loop: !!p.giorno.loop } : null,
       // อรชุน: จุติ (ใครก็ติดได้) · ขจัดสิ่งแปลกปลอม (arjunaBoardFx.js)
       arjuna: !mk && p.statuses && (p.statuses.jutti > 0 || p.statuses.arjunaPurge > 0) ? { jutti: p.statuses.jutti > 0, purge: p.statuses.arjunaPurge > 0 } : null,
       dstat: !mk && p.statuses && (p.statuses.oilSoaked > 0 || p.statuses.diegoNet > 0) ? { soaked: p.statuses.oilSoaked > 0, netted: p.statuses.diegoNet > 0 } : null,

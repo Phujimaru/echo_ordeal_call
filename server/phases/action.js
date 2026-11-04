@@ -609,6 +609,7 @@ function nextActor() {
     Visibility.markTurn(id); // บรรทัดที่ฝ่ายนี้ก่อในตานี้ (filterLog — คนล่องหนที่ถูกโจมตีพื้นที่จนปรากฏตัว)
     // ผลต้นตาเดิน (ถึงคิวแล้ว — รวมคนที่ถูกข้ามตาเพราะสตั้น) · Ice Spike: คุกน้ำแข็งช่วงที่ 2
     for (const u of units) {
+      combat.broadcastHook("onUnitActorStart", engine, u); // ถึงตาของ u ไม่ว่าตัวละครไหน (โจรุโน่: คนวนตาย)
       const startHook = CHAR_HOOKS[u.characterId];
       if (startHook && startHook.onActorStart && u.alive && u.pos) combat.withEffectSource(u, () => startHook.onActorStart(engine, u));
     }
@@ -632,7 +633,7 @@ function nextActor() {
     }
     match.gameState = "ACTION";
     timers.startPhaseTimer(secs, actionTimeUp);
-    TimeStop.mark(); // จุดย้อนของตานี้ (ฉากต้นตาเดินที่โจมตีคนที่ตั้งรับด้วยการหยุดเวลา)
+    TimeStop.mark(secs); // จุดย้อนของตานี้ (ฉากต้นตาเดินที่โจมตีคนที่ตั้งรับด้วยการหยุดเวลา)
     for (const u of units) Voice.play(u, "turn"); // เสียงพากย์ต้นตาเดิน (server/voice.js — ไจโร: start_1/2)
     // ฮุค onActorReady: ตาเริ่มแล้ว (ACTION + นาฬิกา) — ฉากต้นตาเดินพักตาไว้เล่นคลิป/เอฟเฟกต์ได้ (engine.pausePlayingForCutscene
     //  → กลับมาตาเดินด้วยเวลาที่เหลือ) · เกรย์: ปล่อยรองโกมิเนียตที่ชาร์จไว้
@@ -663,7 +664,9 @@ function startExtra(ex) {
   match.actorId = p.id;
   match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind, resume: ex.resume || null };
   match.gameState = "ACTION";
-  timers.startPhaseTimer(turnSecondsOf(p, actionSeconds()), actionTimeUp);
+  const secs = turnSecondsOf(p, actionSeconds());
+  timers.startPhaseTimer(secs, actionTimeUp);
+  TimeStop.mark(secs);
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onExtraTurn) combat.withEffectSource(p, () => combat.runHook(hook, "onExtraTurn", engine, p, ex.kind));
   if (match.gameState !== "ACTION") return true; // ฉากต้นตาพักไว้แล้ว (บรอดแคสต์เอง)

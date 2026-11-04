@@ -108,6 +108,7 @@ function runSkill(id, tier, targets, opts = {}) {
     match.lastLog.push(`👸 ${p.name} การ์ดราชินี — ใช้สกิลนี้โดยไม่เสียแต้มสกิล`);
   }
   if (!skipsQuota) p.skillUsedRound = true;
+  if (tier === "ultimate") p.ultRound = match.roundNumber;
   // "คำสาป" (สถานะ Universal): กดสกิลสำเร็จแล้ว = เสียพลังชีวิต 1 หน่วย (1 ครั้ง/เทิร์น)
   //  วางหลังหักแต้ม — กดไม่ผ่านเงื่อนไขด้านบนจะ return ไปก่อนถึงตรงนี้ คำสาปจึงไม่กินฟรี
   tickCurseOnSkill(engine, p);

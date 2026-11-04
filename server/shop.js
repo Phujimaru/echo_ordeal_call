@@ -90,6 +90,7 @@ function shopItemName(item) {
   if (item.type === "mark42") return "เกราะ Mark 42";
   if (item.type === "gutsAmmo") return (GUTS_AMMO[item.ammo] || {}).name || "กระสุน";
   if (item.type === "kebread") return "ขนมปัง";
+  if (item.type === "giornoArrow") return "ธนู Requiem";
   if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
   if (item.type === "torch") return "คบเพลิง";
   return "สินค้า";
@@ -194,7 +195,7 @@ function dropItem(id, uid) {
   if (!action.canAct(p)) return false;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return false;
-  if (p.inventory[idx].type === "kebread") return false; // ขนมปังของเอมิลิโกะทิ้งไม่ได้
+  if (p.inventory[idx].type === "kebread" || p.inventory[idx].type === "giornoArrow") return false; // ขนมปังของเอมิลิโกะ/ธนู Requiem ทิ้งไม่ได้
   const [item] = p.inventory.splice(idx, 1);
   match.lastLog.push(`🗑️ ${p.name} ทิ้ง ${shopItemName(item)}`);
   // ของประจำตัวละคร (ลอว์: หัวใจ = คืนเจ้าของ) — ฮุค onDropItem ของเจ้าของกระเป๋า
@@ -207,7 +208,7 @@ function dropItem(id, uid) {
 // ---------- ให้/แลกของกับเพื่อนร่วมทีม (โหมดร่วมมือ duo/trio/Moon Cell · ผู้ใช้สั่ง 2026-10-27) ----------
 //  ตาตัวเอง · ยืนติดเพื่อน (ระยะ 1 · ชั้นมิติเดียวกัน) · ทันที ไม่ต้องรอเพื่อนยืนยัน · ไม่นับเป็นการใช้ (ยังเดิน/ตีได้)
 //  ของประจำตัวละคร (ขนมปังเอมิลิโกะ · หัวใจของลอว์) ส่งต่อไม่ได้ · ปืน GUTS มีได้กระบอกเดียว · Mark 42 ผู้รับต้องยังไม่มีชุด
-const BOUND_ITEMS = ["kebread", "lawHeart"];
+const BOUND_ITEMS = ["kebread", "lawHeart", "giornoArrow"];
 function tradeMate(p, mateId) {
   const m = match.players[mateId];
   if (!p || !m || p.id === m.id || !m.alive || !m.pos || !p.pos || m.summon) return null;
@@ -348,7 +349,7 @@ function useInventoryItem(id, uid, opts = {}) {
   }
   // ---------- หัวใจ (ท่าไม้ตาย Mess ของลอว์ · characters/trafalgar_law.js): บีบ = ความเสียหายใส่เจ้าของหัวใจ ไม่ว่าอยู่ไกลแค่ไหน ----------
   //  ฮุค canUseCharItem(engine, p, item) ด่านก่อน → ใช้แล้วเดินไม่ได้อีก → useCharItem(engine, p, item, opts) ลงผล (หักครั้ง/เอาออกจากกระเป๋า/พักฉากเอง)
-  if (item.type === "lawHeart") {
+  if (item.type === "lawHeart" || item.type === "giornoArrow") { // ธนู Requiem: จบตา (characters/giorno_giovanna.js)
     const hook = CHAR_HOOKS[p.characterId];
     if (!hook || !hook.useCharItem || (hook.canUseCharItem && !hook.canUseCharItem(engine, p, item))) return;
     action.lockMove(p);

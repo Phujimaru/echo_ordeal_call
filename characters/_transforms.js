@@ -138,6 +138,13 @@ module.exports = function buildTransforms() {
     gioCrit: { img: gio.IMG.base, video: gio.VIDEO.crit, title: "GOLD EXPERIENCE", label: "คริติคอล", seconds: 4.8, music: null, afterReveal: false },
     gioPassive2: { img: gio.IMG.base, video: gio.VIDEO.passive2, title: "เศษเดนมนุษย์อย่างแกน่ะ…", label: "โจรุโน่ โจวาน่า", seconds: 32.7, music: null, afterReveal: false },
     gioTree: { img: gio.IMG.tree, video: gio.VIDEO.tree, title: "จงกำเนิดใหม่", label: "จงกำเนิดชีวิตใหม่", seconds: 10.2, music: null, afterReveal: false },
+    gioArrow: { img: gio.IMG.re.arrow, video: gio.VIDEO.arrow, title: "ธนู Requiem", label: "โจรุโน่ โจวาน่า", seconds: 3.8, music: null, afterReveal: false },
+    gioSuccess: { img: gio.IMG.re.cover, video: gio.VIDEO.success, title: "Gold Experience Requiem", label: "แปลงร่าง", seconds: 12.7, music: null, afterReveal: false },
+    gioFail: { img: gio.IMG.re.arrow, video: gio.VIDEO.fail, title: "ธนู Requiem", label: "ตายทันที", seconds: 5.9, music: null, afterReveal: false },
+    gioRewind: { img: gio.IMG.re.cover, video: gio.VIDEO.rewind, title: "นี่แหละ คือ Requiem", label: "Gold Experience Requiem", seconds: 3.6, music: null, afterReveal: false },
+    gioShot: { img: gio.IMG.re.skill1, video: gio.VIDEO.shot, title: "กระสุนแห่งชีวิต", label: "ชีวิตทดแทน", seconds: 2.9, music: null, afterReveal: false },
+    gioReUlt: { img: gio.IMG.re.skill3, video: gio.VIDEO.reUlt, title: "ขอให้ไปสู่ภพภูมิที่ดี", label: "Gold Experience Requiem", seconds: 11, music: null, afterReveal: false },
+    gioReCrit: { img: gio.IMG.re.cover, video: gio.VIDEO.reCrit, title: "GOLD EXPERIENCE REQUIEM", label: "คริติคอล", seconds: 5.5, music: null, afterReveal: false },
     gioMuda: { img: gio.IMG.skill3, video: gio.VIDEO.muda, title: "Muda!!!!!!!", label: "โจรุโน่ โจวาน่า", seconds: 9.6, music: null, afterReveal: false },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };

@@ -20,7 +20,7 @@
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
-//   ?giorno=1 = โจรุโน่ โจวาน่า · ปุ่มเล่นทุกเหตุการณ์ของ socket "giornoFx" + ตีปกติ + สลับต้นไม้/สะท้อน/Muda ที่ตัวหมาก (GiornoFxDev.jsx)
+//   ?giorno=1 = โจรุโน่ โจวาน่า · ปุ่มเล่นทุกเหตุการณ์ของ socket "giornoFx" + ตีปกติ + สลับ Requiem/รอผลธนู/วนตาย/ต้นไม้/สะท้อน/Muda ที่ตัวหมาก (GiornoFxDev.jsx)
 //   ?divine=1 = นกหวีดอัญเชิญมนต์อสูรเทพ · ปุ่มเล่น 4 มนต์ (socket "divineFx" — DivineFxDev.jsx)
 //   ?ohger=1 = คิงโอเจอร์ · ปุ่มเล่น Ohger Finish 5 ร่าง + คลื่นดาบคุวากาตะ (socket "ohgerFx" — OhgerFxDev.jsx)
 //   ?law=1 = ทราฟาก้า ลอว์ · ปุ่มเล่นตีปกติ (ฟัน/Gamma Knife/Mess) + ทุกเหตุการณ์ของ socket "lawFx" + Room 5×5/9×9 · วัตถุลอย · มาร์ก · หัวใจ · หนามหิน (LawFxDev.jsx)

@@ -91,7 +91,7 @@ import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { OT_RIDE_Z, otRides } from "./optimusFx";
-import { GIO_TREE_Z, gioLifted } from "./giornoFx";
+import { GIO_TREE_Z, gioLifted, gioPose } from "./giornoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
 import { celinePose } from "./celineFx";
 import { takutoPose } from "./takutoFx";
@@ -577,6 +577,11 @@ export default function BoardCanvas(props) {
             }
           }
           if (f.kind === "smash") item.dur = smashDur(f.tiles);
+          // Return to Zero ของโจรุโน่: จำหน้าตาผู้โจมตีไว้วาดภาพติดตา
+          if (f.kind === "gioRewind") {
+            const au = units.find((u) => u.id === f.attacker);
+            if (au) item.ghost = { img: au.img, name: au.name, masked: !!au.masked, color: "#d9c8ff", size: Math.max(1, au.size | 0) };
+          }
           st.fxActive.push(item);
         }
         if (st.fxSeen.size > 400) st.fxSeen = new Set([...st.fxSeen].slice(-200));
@@ -638,6 +643,9 @@ export default function BoardCanvas(props) {
         // ฉากของเรียวกิ: พุ่งเข้าตี/กระโดดข้ามหัว · พุ่งดับสิ้นซะ · คน/ศพในแนวถูกเหวี่ยงออกข้าง (ศพด้วย)
         const rpo = sp || gp || dp || vp || cpo || tpo ? null : ryougiPose(st.fxActive, u, now);
         if (rpo) { rx = rpo.x; ry = rpo.y; ox = 0; oy = 0; hz = rpo.hz || 0; sq = 0; }
+        // Return to Zero ของโจรุโน่: ผู้โจมตีถูกดึงถอยหลังจากจุดที่ยืนกลับช่องต้นตา
+        const gio = sp || gp || dp || vp || cpo || tpo || rpo || u.corpse ? null : gioPose(st.fxActive, u, now);
+        if (gio) { rx = gio.x; ry = gio.y; ox = 0; oy = 0; hz = gio.hz; sq = 0; }
         // สนาม Colony: ถูกดูด/โคโลนีหมุน (ขยับตามฉาก) · กำลังลอยผ่านแกน/ลิฟต์ (ฉาก 3D วาดแทน)
         if (st.cv3) {
           if (st.cv3.hidden(u.id, now)) continue;
