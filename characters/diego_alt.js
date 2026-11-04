@@ -685,6 +685,15 @@ module.exports = {
     startStop(engine, p, kind, kind === "counter" ? by : null);
   },
   extraTurnOutro(engine, p) { return isDiego(p) ? endStop(engine, p) : 0; },
+  // Return to Zero ของโจรุโน่ทำเวลาเดินต่อ (server/timeStop.js rewindTurn)
+  onFreezeBroken(engine, byId) {
+    const p = engine.players[byId];
+    if (!isDiego(p) || !st(p).stopping) return;
+    const s = st(p);
+    s.stopping = false;
+    s.stopKind = null;
+    p.skillUsedRound = s.savedQuota;
+  },
   // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
   //  เดอะเวิลด์ที่ตั้งรับอยู่ (counter) / ตาหยุดเวลาที่รอต้นเทิร์นหน้า (normal) → ตัดจบก่อนทำงาน
   //  · รากฐานจิตลงก่อนดาเมจ (beforeStrikeHit): counterArmed เป็น false แล้ว → TimeStop.check ไม่ตัดการตีครั้งนั้น

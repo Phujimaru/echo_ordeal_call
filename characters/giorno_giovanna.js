@@ -27,7 +27,7 @@
 //    จงกำเนิดชีวิตใหม่ 0 แต้ม ไม่มีคลิป · ท่าไม้ตาย ขอให้ไปสู่ภพภูมิที่ดี แทน Muda (0 แต้ม · คูลดาวน์ 3): พุ่ง 4 ช่อง ชนศัตรูคนแรก → คลิป → ความเสียหาย 5
 //    ตายด้วยท่านี้ = วนตาย: ต้นเทิร์นฟื้นเลือด 1 เกราะ 0 · ถึงตาตัวเองตายทันที · ทุกครั้งที่ตายซ้ำ โจรุโน่ได้แต้ม 1 เหรียญ 1 · จบเมื่อโจรุโน่ตาย/จบเกม (คนที่ฟื้นอยู่ตายตาม)
 //    สกิลติดตัว 3 นี่แหละ คือ Requiem: พลังโจมตี +1 · คริ +20% จากสกิลติดตัว 1 (70%) · ระยะเดิน 6
-//      ศัตรูโจมตีทุกรูปแบบ 50% (ใช้ท่าไม้ตายในตานั้น = 100%) = Return to Zero: ย้อนกลับต้นตาเดินของผู้โจมตี (server/timeStop.js rewindTurn) แต้ม/ไอเทมที่ใช้ไม่คืน
+//      ศัตรูกดท่าไม้ตาย (ย้อนทันทีแม้ไม่โดนตัว — server/skills.js) / ปืน GUTS / นกหวีด = 100% · โจมตีแบบอื่น 50% (เคยใช้ท่าไม้ตายในเทิร์นนั้น 100%) = Return to Zero: ย้อนกลับต้นตาเดินของผู้โจมตี (server/timeStop.js rewindTurn) ทุกอย่างในตานั้นคืนหมด
 //  เสียง: วีดีโอขึ้น = ไม่มีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน (กฎผู้ใช้ 2026-11-03) · คลิปท่าไม้ตาย/คริเล่นซ้ำได้ อื่นๆ ครั้งเดียว
 //  ไฟล์จากผู้ใช้ (Downloads/giono + Gold Experience SFX + เสียงพากย์ ASBR) — ตัดเสียงด้วย ffmpeg (.claude/plans/giorno-media.md)
 // ============================================================
@@ -357,7 +357,7 @@ module.exports = {
     if (!reqOn(p)) return null;
     return {
       name: "Gold Experience Requiem", img: IMG.re.cover,
-      passive2: { name: "นี่แหละ คือ Requiem", desc: `พลังโจมตี +${REQ_ATK} · ตีปกติคริติคอล ${CRIT_PCT + REQ_CRIT}% · ระยะเดิน ${REQ_MOV} · ต้านสถานะ · ศัตรูโจมตีทุกรูปแบบ ${REWIND_PCT}% (ใช้ท่าไม้ตายในตานั้น 100%) = ย้อนกลับไปเริ่มตาเดินของตัวเองใหม่ แต้มสกิลและไอเทมที่ใช้ไปไม่คืน` },
+      passive2: { name: "นี่แหละ คือ Requiem", desc: `พลังโจมตี +${REQ_ATK} · ตีปกติคริติคอล ${CRIT_PCT + REQ_CRIT}% · ระยะเดิน ${REQ_MOV} · ต้านสถานะ · ศัตรูกดท่าไม้ตาย ใช้ปืน หรือเป่านกหวีด = ย้อนทันที · ศัตรูโจมตีแบบอื่น ${REWIND_PCT}% (เคยใช้ท่าไม้ตายในเทิร์นนั้น 100%) = ย้อนกลับไปเริ่มตาเดินของตัวเองใหม่ ทุกอย่างในตานั้นกลับคืนหมด` },
     };
   },
   displayImg(p) { return reqOn(p) ? IMG.re.cover : null; },
@@ -367,9 +367,11 @@ module.exports = {
   // ---------- นี่แหละ คือ Requiem: Return to Zero (server/timeStop.js) ----------
   counterArmed(engine, p) { return reqOn(p); },
   rewindsTurn: true,
-  // ทอยครั้งเดียวต่อคำสั่ง (ตีหลายฮิต/ท่าพื้นที่) · AI (Moon Cell) ไม่ย้อน
-  counterFires(engine, p, src) {
-    if (!reqOn(p) || src.summon) return false;
+  // ทอยครั้งเดียวต่อคำสั่ง (ตีหลายฮิต/ท่าพื้นที่) · ฮาคุโนะ (AI Moon Cell) ไม่ย้อน · ร่างแยกที่ผู้เล่นคุมย้อนตามปกติ
+  //  sure = ปืน GUTS / นกหวีด ย้อน 100% (TimeStop.checkSure)
+  counterFires(engine, p, src, sure) {
+    if (!reqOn(p) || require("../server/moonCell").isBoss(src)) return false;
+    if (sure) return true;
     const s = st(p);
     if (s.rollSeq !== engine.cmdSeq) {
       s.rollSeq = engine.cmdSeq;
