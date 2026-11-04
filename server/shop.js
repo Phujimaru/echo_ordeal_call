@@ -469,6 +469,7 @@ function applyGutsBullet(p, item, target) {
     match.lastLog.push(`💨 ${GUTS_AMMO[item.ammo].name} พลาดเป้า — ${target ? target.name : "เป้าหมาย"} ตกรอบไปก่อนแล้ว`);
     return;
   }
+  require("./timeStop").checkSure(target); // Return to Zero (โจรุโน่ Requiem): ปืนโดนย้อน 100%
   if (item.ammo === "shockwave") {
     const before = target.armor;
     if (Mark42.suited(target)) Mark42.breakSuit(engine, target, "combat"); // เกราะ Mark 42: สลายเกราะ = ชุดพัง

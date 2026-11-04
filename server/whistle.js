@@ -139,6 +139,7 @@ function plainTiles(share) {
 function cast(p, spell, seq) {
   const ctx = Ice.begin();
   const foes = enemiesOf(p);
+  for (const u of foes) require("./timeStop").checkSure(u); // Return to Zero (โจรุโน่ Requiem): นกหวีดโดนย้อน 100%
   if (spell === "crossWinds") castWinds(p, foes, ctx);
   else if (spell === "tsunami") castTsunami(p, foes, ctx);
   else if (spell === "diamondDust") castDust(p, foes, ctx);

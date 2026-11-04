@@ -211,7 +211,7 @@ function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
   const absolute = force === "absolute";
   if (!absolute && friendlyEffectBlocked(p)) return;
-  if (!absolute) TimeStop.checkKill(p); // ตั้งรับที่นับสังหารทันทีด้วย (โจรุโน่ Requiem)
+  if (!absolute) TimeStop.checkHit(p); // ตั้งรับที่นับสังหารทันทีด้วย (โจรุโน่ Requiem)
   if (!absolute && TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
@@ -367,6 +367,7 @@ function damageCapOf(source, kind) {
 //  ฮุคต้องแยกเองว่าเป็นการโจมตีเดิมไหม (เฟิร์น: คีย์ ผู้โจมตี + เทิร์น + ตาเดิน + engine.commandSeq)
 function notifyAttacked(p, attacker, kind) {
   if (!p || !p.alive || !attacker || attacker.id === p.id || sameTeam(attacker, p)) return;
+  TimeStop.checkHit(p); // Return to Zero (โจรุโน่ Requiem): นับก่อนทอยหลบ · ตีพลัง 0 ก็ติด
   runHook(CHAR_HOOKS[p.characterId], "onAttacked", engine, p, attacker, kind);
 }
 // การโจมตีของ attacker ที่กำลังลงผลใส่ p ถูกกันทั้งก้อนไหม (ฮุค blocksAttack(engine, p, attacker) → { name, img } | null)

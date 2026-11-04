@@ -144,6 +144,9 @@ function runSkill(id, tier, targets, opts = {}) {
     }
   }
 
+  // Return to Zero (โจรุโน่ Requiem): ศัตรูกดท่าไม้ตาย = ย้อนทันที ไม่ต้องรอให้โดนตัว (ผู้ใช้สั่ง 2026-11-05)
+  if (tier === "ultimate") for (const q of Object.values(match.players)) TimeStop.checkSure(q);
+
   // ผลของสกิลที่ตัวละครเขียนเองในโมดูล (effect: null ใน characters.js) — คืนข้อความต่อท้ายป้ายเด้ง
   let flashSuffix = "";
   // ชื่อ/รูปบนป้ายสกิล = หน้าตาปุ่มตอนกด เมื่อฮุค skillPub ตั้ง flash: true (ยูนะ: ปุ่มกลายเป็น "เป็นส่วนหนึ่งของเงา")

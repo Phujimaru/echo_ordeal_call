@@ -14,7 +14,7 @@
 //     · unfreeze() = เวลาเดินต่อ → คนที่เลือดหมดตกรอบพร้อมกัน → คืนรายการ { id, dmg, kill } (ดาเมจที่ลงระหว่างหยุด)
 // ============================================================
 Object.assign(module.exports, {
-  guard, mark, clearMark, check, checkKill, catchInterrupt, isInterrupt,
+  guard, mark, clearMark, check, checkHit, checkSure, catchInterrupt, isInterrupt,
   queueExtra, takeExtra, extraKind,
   freeze, unfreeze, frozen, holdsDeath, frozenView,
 });
@@ -69,6 +69,9 @@ function restore(snap) {
     Object.assign(p, s);
   }
   for (const [k, v] of Object.entries(snap.m)) match[k] = v;
+  // ของที่พักไว้ของฉากตีที่ถูกตัด — จุดย้อนอาจจดก่อนมีฟิลด์นี้ · ค้างไว้ = เอฟเฟกต์ถัดไปถูกพักหาย (Return to Zero ครั้งที่ 2 ไม่ขึ้นบนกระดาน)
+  match.voiceHold = null;
+  match.hitFxHold = null;
   match.cutsceneQueue = [];
   match.skillBeats = [];
   match.afterCutscene = [];
@@ -77,11 +80,13 @@ function restore(snap) {
 // ฝ่ายของคนที่กำลังเดิน (ระบบคู่ = เจ้าของ)
 function sideOf(p) { return p ? Duo.sideKey(p) || p.id : null; }
 // มีใครตั้งรับ (counterArmed) ที่เป็นศัตรูของ actor อยู่ไหม
+//  ระหว่างหยุดเวลา: เหลือเฉพาะฮุค rewindsTurn (โจรุโน่ Requiem — Return to Zero ชนะการหยุดเวลา)
 function armedAgainst(actor) {
-  if (!actor || match.timeFreeze) return false;
+  if (!actor) return false;
   for (const q of Object.values(match.players)) {
     if (!q.alive || q.id === actor.id || combat.sameTeam(q, actor) || sideOf(q) === sideOf(actor)) continue;
     const hook = CHAR_HOOKS[q.characterId];
+    if (match.timeFreeze && !(hook && hook.rewindsTurn)) continue;
     if (hook && typeof hook.counterArmed === "function" && combat.runHook(hook, "counterArmed", engine, q)) return true;
   }
   return false;
@@ -97,6 +102,7 @@ function mark(turnSecs) {
 function clearMark() { match.tsSnap = null; match.tsTurn = null; }
 
 let depth = 0;
+let unfreezing = false; // ผลที่ค้างไว้ตอนเวลาเดินต่อ = การโจมตีเดิมที่ทอยไปแล้ว ไม่ทอยซ้ำ
 // ห่อคำสั่งของผู้เล่นในตาเดิน: จดจุดย้อน แล้วรัน fn · ถูกตัด = ย้อน + ฮุค + จบตาผู้โจมตี (คืน undefined)
 function guard(fn) {
   if (depth > 0) return fn();
@@ -117,20 +123,27 @@ function guard(fn) {
 }
 
 // combat.adjustIncomingDamage: p กำลังจะเสียหาย n จาก effectSource → ตั้งรับอยู่ = โยนตัดการกระทำ
-function check(p, n) {
-  if (!(n > 0) || !p || !p.alive || !match.tsSnap || match.timeFreeze) return;
+function check(p, n, sure) {
+  if (!(n > 0) || !p || !p.alive || !match.tsSnap || unfreezing) return;
   const src = match.effectSourceId && match.players[match.effectSourceId];
   if (!src || src.id === p.id || sideOf(src) !== match.tsSnap.side || combat.sameTeam(src, p)) return;
   const hook = CHAR_HOOKS[p.characterId];
+  if (match.timeFreeze && !(hook && hook.rewindsTurn)) return;
   if (!hook || typeof hook.counterArmed !== "function" || !combat.runHook(hook, "counterArmed", engine, p)) return;
   // ฮุค counterFires(engine, p, src) → false = ครั้งนี้ไม่ตัด (โจรุโน่ Requiem: ทอย 50% ต่อคำสั่ง)
-  if (typeof hook.counterFires === "function" && !combat.runHook(hook, "counterFires", engine, p, src)) return;
+  if (typeof hook.counterFires === "function" && !combat.runHook(hook, "counterFires", engine, p, src, sure)) return;
   throw new TimeStopInterrupt(p.id, src.id);
 }
-// combat.instantDeath: สังหารทันทีไม่ผ่านดาเมจ — ตัวที่มีฮุค counterFires นับเป็นการโจมตีด้วย (ดิเอโก้ไม่นับตามเดิม)
-function checkKill(p) {
+// ถูกโจมตีโดยยังไม่มีดาเมจ (combat.notifyAttacked: ตีปกติ/สกิล/ปืน ก่อนทอยหลบ · combat.instantDeath: สังหารทันที)
+//  ตัวที่มีฮุค counterFires นับเป็นการโจมตีด้วย — ตีปกติพลัง 0 ก็ติด (ดิเอโก้ตั้งรับเฉพาะตอนเสียหายตามเดิม)
+function checkHit(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
   if (hook && typeof hook.counterFires === "function") check(p, 1);
+}
+// การโจมตีที่ไม่ผ่านท่อดาเมจเสมอไป และโดน Return to Zero แน่นอน (ปืน GUTS · นกหวีด — ผู้ใช้สั่ง 2026-11-05)
+function checkSure(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  if (hook && typeof hook.counterFires === "function") check(p, 1, true);
 }
 
 // รับการตัด: ย้อนสถานะ → ฮุคผู้ตั้งรับ → ผู้โจมตีจบตา · ไม่ใช่การตัด = false
@@ -165,23 +178,26 @@ function catchInterrupt(err) {
 }
 
 // ฮุค rewindsTurn (โจรุโน่ Requiem: Return to Zero): ย้อนทุกอย่างกลับต้นตาเดินของผู้โจมตี แล้วเดินตานั้นใหม่เต็มเวลา
-//  แต้มสกิล/ไอเทมที่ใช้ไปแล้วไม่คืน · onCounterStop ได้ { from, back } คิวคลิป/ฉากก่อนกลับเข้าตา
+//  จุดย้อนของตาพิเศษจดก่อนเริ่มหยุดเวลา → ถูกย้อนระหว่างหยุดเวลา = เวลาเดินต่อ เหลือตาธรรมดาของผู้โจมตี
+//  ทุกอย่างของตานั้นคืนหมด ทั้งแต้ม/ไอเทม/เหรียญ/คูลดาวน์ (ผู้ใช้สั่ง 2026-11-05) · onCounterStop ได้ { from, back } คิวคลิป/ฉากก่อนกลับเข้าตา
 function rewindTurn(err, snap, turn, hook) {
   const attacker = match.players[err.attackerId];
-  const lost = attacker ? { sp: attacker.skillPoints, bag: clonePlain(attacker.inventory || []), from: attacker.pos ? { ...attacker.pos } : null } : null;
+  const from = attacker && attacker.pos ? { ...attacker.pos } : null;
   timers.clearPhaseTimer();
   restore(clonePlain((turn || snap).data));
   match.tsTurn = turn;
+  // ย้อนแล้วยังอยู่ในการหยุดเวลา (จุดย้อนจดหลังเริ่มหยุด) = เวลาเดินต่อเอง · ฮุค broadcast onFreezeBroken(engine, ผู้หยุดเวลา) ล้างสถานะของตัวละคร
+  if (match.timeFreeze) {
+    const by = match.timeFreeze.by;
+    unfreeze();
+    combat.broadcastHook("onFreezeBroken", engine, by);
+  }
   match.effectSourceId = null;
   match.cutsceneInfo = null;
   match.lastAttack = null;
-  if (attacker && lost) {
-    attacker.skillPoints = Math.min(attacker.skillPoints, lost.sp);
-    attacker.inventory = lost.bag;
-  }
   match.timeLeft = (turn && turn.secs) || match.timeLeft;
   const defender = match.players[err.defenderId];
-  combat.runHook(hook, "onCounterStop", engine, defender, attacker, { from: lost && lost.from, back: attacker && attacker.pos ? { ...attacker.pos } : null });
+  combat.runHook(hook, "onCounterStop", engine, defender, attacker, { from, back: attacker && attacker.pos ? { ...attacker.pos } : null });
   require("./cutscene").pausePlayingForCutscene();
   return true;
 }
@@ -232,7 +248,8 @@ function unfreeze() {
     if (p.alive && p.hp <= 0) {
       if (p.hp < 0) p.hp = 0;
       const die = () => combat.instantDeath(p);
-      if (by) combat.withEffectSource(by, die); else die();
+      unfreezing = true;
+      try { if (by) combat.withEffectSource(by, die); else die(); } finally { unfreezing = false; }
       if (!p.alive) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); }
     }
     const dmg = Math.max(0, h.pool - poolOf(p));

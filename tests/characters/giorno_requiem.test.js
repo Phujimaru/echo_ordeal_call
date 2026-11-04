@@ -209,7 +209,7 @@ test('วนตาย: ตายจากท่า → ต้นเทิร์�
   assert.equal(P.B.alive, false, 'ไม่ฟื้นอีก');
 });
 
-test('Return to Zero: ตีโจรุโน่ 50% = ไม่เสียหาย · ผู้ตีกลับช่องต้นตา · ตาเริ่มใหม่ · แต้ม/ไอเทมไม่คืน', () => {
+test('Return to Zero: ตีโจรุโน่ 50% = ไม่เสียหาย · ผู้ตีกลับช่องต้นตา · ตาเริ่มใหม่ · แต้มคืนตามต้นตา', () => {
   const P = setup([['G', 'giorno_giovanna', 5, 7], ['B', 'dummy', 3, 7]]);
   P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
   engine.setActor('B');
@@ -221,10 +221,197 @@ test('Return to Zero: ตีโจรุโน่ 50% = ไม่เสียห
   engine.attackTarget('B', 'G');
   assert.equal(vit(P.G), g0);
   assert.deepEqual(P.B.pos, { x: 3, y: 7 });
-  assert.equal(P.B.skillPoints, 2);
+  assert.equal(P.B.skillPoints, 8);
   assert.equal(engine.actorId, 'B');
   assert.equal(engine.action.moved, false);
   assert.deepEqual(calls.queue, ['gioRewind']);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ย้อนซ้ำหลายครั้ง เอฟเฟกต์กระดานขึ้นทุกครั้ง (ไม่ถูกพักค้าง)', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  engine.setActor('B');
+  timeStop.mark(45);
+  Math.random = () => 0.1;
+  const beat = engine.skillBeat;
+  engine.skillBeat = (sec, fn) => fn();
+  try {
+    for (let i = 1; i <= 3; i++) {
+      engine.attackTarget('B', 'G');
+      assert.equal(match.hitFxHold, null);
+      assert.equal(engine.actorId, 'B');
+      assert.equal(calls.queue.filter((k) => k === 'gioRewind').length, i, 'คลิปทุกครั้ง');
+      assert.equal(calls.fx.filter((f) => f.payload && f.payload.kind === 'rewind').length, i, 'เอฟเฟกต์ทุกครั้ง');
+      engine.clearPhaseTimer();
+      match.gameState = 'ACTION';
+    }
+  } finally { engine.skillBeat = beat; }
+});
+
+test('Return to Zero: ชนะการหยุดเวลา — ดิเอโก้โดนย้อนระหว่างหยุดเวลา = เวลาเดินต่อ · ไม่เสียหาย · ตั้งรับตัวอื่นยังไม่ทำงานตอนหยุดเวลา', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['D', 'diego_alt', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  engine.setActor('D');
+  timeStop.mark(45);
+  engine.timeStop.freeze('D');
+  P.D.diego.stopping = true;
+  const g0 = vit(P.G);
+  Math.random = () => 0.1;
+  const combat = require('../../server/combat'); // ตาหยุดเวลาตีปกติไม่ได้ — โจมตีด้วยสกิล/ปืน
+  timeStop.guard(() => combat.withEffectSource(P.D, () => combat.dealMixed(P.G, 2)));
+  assert.equal(engine.timeStop.frozen(), null, 'เวลาเดินต่อ');
+  assert.equal(P.D.diego.stopping, false);
+  assert.equal(vit(P.G), g0);
+  assert.equal(engine.actorId, 'D');
+  assert.deepEqual(calls.queue, ['gioRewind']);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ตัวละครหยุดเวลาตัวอื่น (ระบบกลาง) — หยุดเวลากลางตาด้วย freeze ก็ย้อนได้ เวลาเดินต่อ', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['F', 'dummy', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  const combat = require('../../server/combat');
+  engine.setActor('F');
+  timeStop.mark(45);
+  engine.timeStop.freeze('F');
+  Math.random = () => 0.1;
+  const g0 = vit(P.G);
+  timeStop.guard(() => combat.withEffectSource(P.F, () => combat.dealMixed(P.G, 2)));
+  assert.equal(engine.timeStop.frozen(), null);
+  assert.equal(vit(P.G), g0);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: จุดย้อนจดหลังเริ่มหยุดเวลา = เวลาเดินต่อเอง + ฮุค onFreezeBroken ล้างสถานะดิเอโก้', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['D', 'diego_alt', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  const combat = require('../../server/combat');
+  engine.setActor('D');
+  engine.timeStop.freeze('D');
+  P.D.diego.stopping = true;
+  timeStop.mark(45);
+  Math.random = () => 0.1;
+  timeStop.guard(() => combat.withEffectSource(P.D, () => combat.dealMixed(P.G, 2)));
+  assert.equal(engine.timeStop.frozen(), null);
+  assert.equal(P.D.diego.stopping, false);
+  assert.deepEqual(calls.queue, ['gioRewind']);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ความตายที่ค้างจากหยุดเวลาไม่ทอยซ้ำตอนเวลาเดินต่อ', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['D', 'diego_alt', 3, 7], ['C', 'dummy', 8, 8]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  const combat = require('../../server/combat');
+  engine.setActor('D');
+  timeStop.mark(45);
+  engine.timeStop.freeze('D');
+  P.G.hp = 1; P.G.armor = 0;
+  Math.random = () => 0.9; // การโจมตีไม่ติดย้อน
+  timeStop.guard(() => combat.withEffectSource(P.D, () => combat.dealMixed(P.G, 3)));
+  assert.ok(P.G.alive, 'ค้างไว้');
+  Math.random = () => 0.1; // ถ้าทอยซ้ำจะติด
+  engine.timeStop.unfreeze();
+  assert.equal(P.G.alive, false);
+  assert.deepEqual(calls.queue, []);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ศัตรูกดท่าไม้ตาย = ย้อนทันทีแม้อยู่ไกล · ผลท่าไม่ลง · แต้มคืน', () => {
+  const P = setup([['G', 'giorno_giovanna', 8, 7], ['B', 'muimi', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  P.G.pos = { x: 6, y: 8 };
+  P.B.pos = { x: 3, y: 7 };
+  engine.setActor('B');
+  timeStop.mark(45);
+  Math.random = () => 0.99;
+  const sp = P.B.skillPoints;
+  const g0 = vit(P.G);
+  engine.useSkill('B', 'ultimate', [], { dir: 'left' });
+  assert.deepEqual(calls.queue, ['gioRewind']);
+  assert.equal(P.B.skillPoints, sp, 'แต้มคืน');
+  assert.equal(vit(P.G), g0);
+  assert.equal(engine.actorId, 'B');
+  assert.equal(P.B.skillUsedRound, false, 'เริ่มตาใหม่');
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ไม่อยู่ร่าง Requiem = กดท่าไม้ตายไม่ย้อน', () => {
+  const P = setup([['G', 'giorno_giovanna', 8, 7], ['B', 'muimi', 3, 7]]);
+  engine.setActor('B');
+  timeStop.mark(45);
+  engine.useSkill('B', 'ultimate', [], { dir: 'left' });
+  assert.ok(!calls.queue.includes('gioRewind'));
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ปืน GUTS 100% (ทอยไม่ติดก็ย้อน) · ผลกระสุนไม่ลง · กระสุนคืน', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 2, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  P.B.inventory = [{ uid: 'gun', type: 'gutsGun' }, { uid: 'am', type: 'gutsAmmo', ammo: 'thunder' }];
+  engine.setActor('B');
+  timeStop.mark(45);
+  Math.random = () => 0.99;
+  const combat = require('../../server/combat');
+  timeStop.guard(() => {
+    P.B.inventory.pop(); // กระสุนหลุดจากกระเป๋าตอนยิง
+    combat.withEffectSource(P.B, () => shop.applyGutsBullet(P.B, { ammo: 'thunder' }, P.G));
+  });
+  assert.equal(P.B.inventory.length, 2);
+  assert.ok(!(P.G.statuses.chaa > 0));
+  assert.deepEqual(calls.queue, ['gioRewind']);
+  assert.equal(engine.actorId, 'B');
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: นกหวีดเป่าติด 100% · ผลมนต์ไม่ลง · คูลดาวน์นกหวีดคืน', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 2, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  engine.setActor('B');
+  timeStop.mark(45);
+  Math.random = () => 0.99;
+  const ready0 = P.B.whistleReady;
+  const combat = require('../../server/combat');
+  const whistle = require('../../server/whistle');
+  assert.equal(typeof whistle.cast, 'function');
+  timeStop.guard(() => {
+    P.B.whistleReady = engine.roundNumber + 5; // เป่าติดแล้วตั้งคูลดาวน์
+    combat.withEffectSource(P.B, () => whistle.cast(P.B, 'judgmentBolt', 1));
+  });
+  assert.ok(!(P.G.statuses.stun > 0));
+  assert.deepEqual(calls.queue, ['gioRewind']);
+  assert.equal(P.B.whistleReady, ready0);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ทุกอย่างในตานั้นคืนหมด — เหรียญ/ไอเทม/แต้ม/ท่าไม้ตาย/คูลดาวน์นกหวีด', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  P.B.gold = 9; P.B.inventory = [{ uid: 'x', type: 'armor', value: 1 }];
+  engine.setActor('B');
+  timeStop.mark(45);
+  P.B.gold = 4; P.B.inventory = []; P.B.ultRound = engine.roundNumber;
+  Math.random = () => 0.9; // 100% จากท่าไม้ตาย ไม่ใช่การทอย
+  const g0 = vit(P.G);
+  engine.attackTarget('B', 'G');
+  assert.equal(vit(P.G), g0);
+  assert.equal(P.B.gold, 9);
+  assert.deepEqual(P.B.inventory.map((it) => it.uid), ['x']);
+  assert.equal(P.B.skillPoints, 8);
+  assert.notEqual(P.B.ultRound, engine.roundNumber);
+  engine.clearPhaseTimer();
+});
+
+test('Return to Zero: ตีพลัง 0 ก็ย้อน · ทอยก่อนหลบ · ตาย/ท่าพื้นที่นับต่อคำสั่งเดียว', () => {
+  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 3, 7]]);
+  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
+  engine.setActor('B');
+  timeStop.mark(45);
+  Math.random = () => 0.1;
+  const combat = require('../../server/combat');
+  assert.throws(() => combat.withEffectSource(P.B, () => combat.notifyAttacked(P.G, P.B, 'strike')), (e) => e.timeStopInterrupt);
+  P.G.giorno.rollSeq = null;
+  match.tsSnap = null;
   engine.clearPhaseTimer();
 });
 
@@ -240,9 +427,12 @@ test('Return to Zero: ทอยไม่ติด = ตีลงปกติ · 
   assert.equal(gio.counterFires(engine, P.G, P.B), true);
   P.G.giorno.rollSeq = null;
   P.B.ultRound = 0;
-  P.B.summon = { kind: 'x' };
+  P.B.summon = { kind: 'x', moon: 'm' };
   Math.random = () => 0;
-  assert.equal(gio.counterFires(engine, P.G, P.B), false, 'AI/ยูนิตที่ถูกเรียกไม่ย้อน');
+  assert.equal(gio.counterFires(engine, P.G, P.B), false, 'ฮาคุโนะไม่ย้อน');
+  P.B.summon = { kind: 'clone', controlled: true, side: 'B' };
+  P.G.giorno.rollSeq = null;
+  assert.equal(gio.counterFires(engine, P.G, P.B), true, 'ร่างแยกที่ผู้เล่นคุมย้อน');
   delete P.B.summon;
 });
 
