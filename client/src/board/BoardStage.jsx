@@ -43,6 +43,7 @@ import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
+import { ROLAND_FX, rolandEventFx } from "./rolandFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
 import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
 import { moonEventFx } from "./moonFx";
@@ -756,6 +757,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(end);
         if (!lowQ && pts.length > 1) later((pts.length - 1) * KAZUMA_FX.dashStep, () => setShake((n) => n + 1));
+      } else if (s0 && d.style === "roland") {
+        // โรลันด์ (Crystal Atelier / Furioso): เลื่อนตัวตามเส้นทาง (ROLAND_FX.dashStep = BEAT.dashStep ของ server)
+        if (pts.length > 1) {
+          dashSkip.current[id] = end;
+          anims.push({ kind: "move", id, path: pts, stepMs: ROLAND_FX.dashStep, seq: ++fxSeq.current });
+        }
+        look(end);
       } else if (s0 && d.style === "ohger") {
         // คิงโอเจอร์ (ทอมโบไปกลับ / พาพิยอง / ฮาจิถอย): เลื่อนตัวตามเส้นทางเท่านั้น — แถบแสง/ปะทะมาจาก socket "ohgerFx" (ไม่มีระเบิดฟ้าของโซระ ไม่หันตัว)
         if (pts.length > 1) {
@@ -1853,8 +1861,17 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
       for (const [ms, list] of out.later) at(ms, () => pushFx(z(list)));
     };
+    // โรลันด์: socket "rolandFx" → rolandFx.js (GRID_PLAN §7.25) · จั่วการ์ด = เสียงเฉพาะเจ้าของ
+    const onRoland = (ev) => {
+      const out = rolandEventFx(ev, { sizeOf });
+      if (out.sound) playSfx(out.sound);
+      if (out.fx.length) pushFx(z(out.fx));
+      for (const [pos, ms] of out.look) at(ms, () => look(pos));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+    };
     socket.on("kazumaFx", onKazuma);
-    return () => socket.off("kazumaFx", onKazuma);
+    socket.on("rolandFx", onRoland);
+    return () => { socket.off("kazumaFx", onKazuma); socket.off("rolandFx", onRoland); };
   }, [pushFx, look, lowQ]);
   // ทราฟาก้า ลอว์: socket "lawFx" { kind, id, color, at, size, ... } → lawFx.js (GRID_PLAN §7.20 · .claude/plans/law-contract.md §4) · ยังไม่มีเสียง
   //  shuffle = วาร์ปทันที (จดไว้ใน shadowBusy — ไม่เลื่อนเดินตอน state มาถึง) · gamma / mess / mark = รอถึงจังหวะปะทะของฉากตีลอว์ (lawHitAt)

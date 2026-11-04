@@ -381,10 +381,10 @@ function strikeBody(attacker, target, counter) {
 // ดาเมจจากสกิลที่ "ตีด้วยพลังโจมตี" (เช่นคลื่นดาบของมุยมิ) — ไม่ทะลุอะไรเลย (GRID_PLAN §7.3):
 //  หลบหลีกหลบได้ (แม่นยำเจาะได้) · คุ้มครองลด · ขัดแย้ง/เปราะบางเพิ่ม · เกราะ/โล่รับก่อน (dealMixed)
 //  ต่างจากตีปกติ: ไม่นับเป็นการโจมตีปกติ (ไม่ตีสวน · ไม่ใช้เสริมพลัง · ไม่ติดผลตีปกติของตัวละคร · ไม่มีเนตรมณะ/ป่าพลาดเป้า)
-//  คืน { dmg, dodge, kill }
-function skillStrike(attacker, target, reason) {
+//  opts.bonus = ดาเมจเพิ่มตามท่า (โรลันด์: ค่าบนการ์ด) · opts.sure = ผ่านด่านหลบมาแล้ว · คืน { dmg, dodge, kill }
+function skillStrike(attacker, target, reason, opts = {}) {
   target.wasAttacked = true; // โดนสกิลแบบตีนับว่าถูกโจมตี (แม้หลบพ้น — แบบเดียวกับตีปกติ)
-  if (skillDodge(attacker, target, reason)) return { dmg: 0, dodge: true, kill: false };
+  if (!opts.sure && skillDodge(attacker, target, reason)) return { dmg: 0, dodge: true, kill: false };
   // เป้ากันการโจมตีนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน)
   const blockFx = combat.attackBlocked(target, attacker);
   if (blockFx) {
@@ -394,7 +394,7 @@ function skillStrike(attacker, target, reason) {
   const atkCtx = computeAttackBase(engine, attacker, target);
   let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
-  let dmg = base + statusAmtOf(attacker, "might");
+  let dmg = base + (opts.bonus || 0) + statusAmtOf(attacker, "might");
   dmg = Math.max(0, dmg - (statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker)));
   const guardAmt = (target.statuses.guard || 0) > 0 ? (statusAmtOf(target, "guard") || 1) : 0;
   dmg = Math.max(0, dmg - guardAmt);

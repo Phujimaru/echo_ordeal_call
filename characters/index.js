@@ -33,6 +33,7 @@ const rita_ohger = require("./rita_ohger");
 const kaguragi_ohger = require("./kaguragi_ohger");
 const old_truck = require("./old_truck"); // รถบรรทุกเก่า → รถบรรทุก ⇄ ออพติมัส ไพร์ม — ปานกลาง (3 ร่าง · ผู้พิทักษ์ตีสวน · คลื่นครึ่งวง)
 const arjuna = require("./arjuna"); // มหาเทพอรชุน — พิเศษ (จุติ · โบนัสตามชนิดดีบัฟ · แถบ 4 ช่องผ่าโลกทั้งแมพ)
+const roland = require("./roland"); // โรลันด์ Black Silence — ยาก · unique (การ์ดอาวุธ 9 แบบ · Emotion · Furioso)
 const giorno_giovanna = require("./giorno_giovanna"); // โจรุโน่ โจวาน่า — ปานกลาง (สะท้อน · ต้นไม้หลบ/ตรึง · Muda ฮีลแล้วสตั้น · ตีเพื่อน = ฮีล)
 const Status = require("./_universal_status");
 
@@ -70,6 +71,7 @@ const CHARACTER_MODULES = [
   old_truck,
   giorno_giovanna,
   arjuna,
+  roland,
 ];
 
 const CHAR_HOOKS = {};

@@ -822,6 +822,14 @@ const STATUS_INFO = {
   emiyaUbw:       { icon: "⚔️", label: "Unlimited Blade Works", cls: "bg-orange-300 text-gray-900", desc: "ต้นเทิร์นได้แต้มสกิล 1 คูลดาวน์สกิลรองลดเพิ่มทุกเทิร์น Trace On ไม่มีคูลดาวน์ และระยะเดินเพิ่ม 1" },
   ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "การโจมตีครั้งถัดไป ศัตรูที่โดนถูกลบบัฟล่าสุด 1 อย่างและถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง ใช้ได้ครั้งเดียว" },
   ryougiBloom:    { icon: "🌸", label: "ดับสิ้นซะ", cls: "bg-pink-300 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
+  // โรลันด์ (เทิร์นที่เหลือ · เศษน้ำแข็ง = จำนวนชิ้น)
+  rolandFervent: { icon: "🫀", label: "Fervent Beats", cls: "bg-rose-500", desc: "พลังโจมตีพื้นฐานเพิ่ม 3 เป็นอมตะ บัฟหมดลงตายทันที" },
+  rolandUrging:  { icon: "❤️", label: "Urging", cls: "bg-rose-300 text-gray-900", desc: "พลังชีวิตสูงสุดเพิ่ม 1 ระยะเดินเพิ่ม 1" },
+  rolandScars:   { icon: "🩹", label: "Scars", cls: "bg-amber-200 text-gray-900", desc: "ความเสียหายที่ได้รับลด 1 ถูกโจมตีมีโอกาส 20% ไม่เสียหาย" },
+  rolandKiss:    { icon: "❄️", label: "A Kiss", cls: "bg-sky-200 text-gray-900", desc: "สร้างความเสียหายแล้วเป้าได้เศษน้ำแข็ง 1 ชิ้น" },
+  rolandLies:    { icon: "🎞️", label: "Lies", cls: "bg-slate-300 text-gray-900", desc: "ราคาการ์ดอาวุธสุ่มใหม่ 0 ถึง 4 ทุกเทิร์น" },
+  rolandCrystal: { icon: "⚔️", label: "Crystal Atelier", cls: "bg-slate-200 text-gray-900", desc: "ถูกตีปกติแล้วสวนกลับในระยะ 3 ดาเมจ 1" },
+  rolandIce:     { icon: "🧊", label: "เศษน้ำแข็ง", cls: "bg-sky-300 text-gray-900", desc: "ครบ 5 ชิ้น สตั้นเทิร์นถัดไปและเสียดาเมจ 1" },
   // เคนซากิ คาซุมะ (เทิร์นที่เหลือ — ครั้งที่กันได้อยู่ในป้าย kazumaMetal ของบล็อกคาซุมะ)
   kazumaMetal:    { icon: "🛡️", label: "METAL", cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนตามจำนวนครั้งที่เหลือ จนจบเทิร์น" },
   // Echo
@@ -971,6 +979,13 @@ function statusEntries(p, full) {
     if (e.wsCd > 0) out.push({ key: "emiyaWsCd", v: e.wsCd, turns: true, icon: "⏳", label: "Weapon Skill", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้สกิลรองได้อีก" });
     if (e.ultCd > 0) out.push({ key: "emiyaUltCd", v: e.ultCd, turns: true, icon: "⏳", label: "Unlimited Blade Works", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
     if (e.avalonCd > 0) out.push({ key: "emiyaAvalonCd", v: e.avalonCd, turns: true, icon: "🛡️", label: "Avalon", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงฟื้นพลังชีวิตจาก Avalon ได้อีก" });
+  }
+  // โรลันด์: Emotion · Furioso charge · หลบหลีกจาก Crystal Atelier
+  if (p.roland) {
+    const r = p.roland;
+    out.push({ key: "rolandEmotion", v: 1, icon: "💠", label: `Emotion ${r.emotion}/${r.emotionMax}`, cls: "bg-slate-200 text-gray-900", desc: `โจมตี ${r.hits}/${r.hitsMax}` });
+    out.push({ key: "rolandCharge", v: 1, icon: "⚫", label: `Furioso ${r.charge}/${r.chargeMax}`, cls: r.charge >= r.chargeMax ? "bg-white text-gray-900" : "bg-slate-700", desc: "การ์ดอาวุธคนละแบบ" });
+    if (r.crystalDodge > 0) out.push({ key: "rolandDodge", v: r.crystalDodge, icon: "💨", label: "หลบหลีก", cls: "bg-slate-200 text-gray-900", desc: "หลบการโจมตี 1 ครั้ง" });
   }
   // เคนซากิ คาซุมะ: ผล Rouze ที่รอตีปกติ (ท่า Lightning / การ์ด) · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต — METAL เป็นสถานะ kazumaMetal
   if (p.kazuma) {
@@ -2560,7 +2575,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const choiceOk = (c) => !c.locked && !c.active && (me?.skillPoints || 0) >= (c.cost || 0) && (!me?.skillUsed || choiceFree(c)) && !noTargetInRange(c.area);
   const slotOff = (tier) => {
     const s = ch?.[tier];
-    if (!myTurn || noSkill || giftLocked(tier)) return true;
+    if (!myTurn || (noSkill && !me?.skillLocks?.[tier]?.ignoresNoSkill) || giftLocked(tier)) return true;
     if (canto && !cantoTier(tier)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว · เอมิลิโกะ: สลับอาวุธได้)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return !s.choices.some(choiceOk);

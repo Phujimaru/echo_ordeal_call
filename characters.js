@@ -1342,6 +1342,49 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- โรลันด์ (Black Silence) — ยาก — ดู characters/roland.js (GRID_PLAN §7.25) ----------
+    //  พลังชีวิต 6 / เกราะ 4 / แต้มสกิล 5 (maxHp/maxArmor/maxSkill ในโมดูล) · พลังโจมตี 0 (attackBaseOverride)
+    id: "roland",
+    name: "โรลันด์",
+    avatar: 0,
+    difficulty: "hard",
+    unique: true,
+    img: "/characters/roland/roland.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Black Silence",
+      desc: "พลังชีวิต 6 · เกราะ 4 · แต้มสกิลสูงสุด 5 · พลังโจมตี 0 · ไอเทมเติมแต้มสกิลไม่ได้ · เริ่มเกมได้การ์ดอาวุธ 3 ใบ · ต้นเทิร์นจั่ว 1 ใบ · การ์ดอยู่ 1 เทิร์น · โจมตีครบ 4 ครั้ง Emotion +1 และแต้มสกิล +1 · ใช้การ์ดแบบที่ยังไม่เคยใช้ Furioso charge +1 (ครบ 9 แบบ · ใช้ท่าไม้ตายแล้วนับใหม่)",
+    },
+    basic: {
+      name: "BS Page",
+      desc: "เลือกการ์ดอาวุธในมือ · 2 ครั้งต่อเทิร์น (ไม่นับโควตาสกิล) · ดาเมจ = ค่าบนการ์ด + พลังโจมตี · ใช้ได้แม้ติดห้ามสกิล",
+      area: { kind: "self" }, // พื้นที่จริงตามการ์ด (skillArea)
+      cost: 0,
+      img: "/characters/roland/bs_page.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "Emotion skill",
+      desc: "เลือกบัฟ 3 เทิร์น · ใช้แต้มสกิลและ Emotion · คูลดาวน์รวม 5 เทิร์น",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/roland/ego_page.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Furioso",
+      desc: "ต้องมี Furioso charge 9 · เลือกทิศ แนว 4×1 พุ่งหาศัตรูคนแรก · ดาเมจ 4 · เลือดไหล 2 · เปราะบาง 1 นาน 2 เทิร์น",
+      area: { kind: "line", len: 4, width: 1, hostile: true },
+      cost: 3,
+      img: "/characters/roland/furioso.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- มหาเทพอรชุน — พิเศษ — ดู characters/arjuna.js ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ตีปกติระยะ 1–2 โดน 1 คน
     id: "arjuna",

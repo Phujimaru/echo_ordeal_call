@@ -471,6 +471,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3023"
       }
+    },
+    {
+      "name": "server-roland",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3025,
+      "env": {
+        "PORT": "3025",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-roland",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5195",
+        "--strictPort"
+      ],
+      "port": 5195,
+      "env": {
+        "ECHO_SERVER_PORT": "3025"
+      }
     }
   ]
 }

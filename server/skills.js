@@ -62,7 +62,8 @@ function runSkill(id, tier, targets, opts = {}) {
   // ใช้สกิลได้เฉพาะตาเดินของตัวเอง (GRID_PLAN §7) — ใช้แล้วเดินไม่ได้อีก แต่ยังโจมตีได้
   //  ระหว่างเดินต่อหลังจบตา (canto) กดได้เฉพาะสกิลที่ฮุค cantoSkill อนุญาต (กระจกเงา)
   if (!action.canAct(p, { move: !!(hook && hook.cantoSkill && hook.cantoSkill(p, tier)) })) return;
-  if ((p.statuses.noskill || 0) > 0) return; // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้
+  // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้ · ฮุค ignoresNoSkill(p, tier) = ช่องนี้ยังกดได้ (โรลันด์: BS Page)
+  if ((p.statuses.noskill || 0) > 0 && !(hook && hook.ignoresNoSkill && hook.ignoresNoSkill(p, tier))) return;
   if (tier === "ultimate" && Zero.ultLocked(p)) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก (ยกเว้นฮุค zeroImmune · ช่วงมิติพังทลาย)
 
   // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)

@@ -1163,3 +1163,12 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ฉากวีดีโอที่ลงผลตามจังหวะ**: `engine.setArjunaUlt({ by, targets, hits })` → `state.arjunaUlt` → `ArjunaUlt.jsx` · ลงผลด้วย `skillBeat` ต่อกัน (9.53 เปราะบาง → 12.5 ดาเมจ → 17.4 ช่องพัง/ผลัก) · `setArjunaUlt(u, true)` = อัปเดตตัวเลขในฉากเดิม · ค่าเวลาคู่กับ `ARJUNA_T` ใน `client/src/board/arjunaFx.js`
 - **ถล่มแถบใหญ่**: เหตุการณ์ `ryougiFx crumble` รับ `step` (ms ต่อช่อง) · ผลักด้วย `pushAll` ใน `characters/arjuna.js` (ข้างที่ใกล้กว่า / ตัวใหญ่ = ฝั่งที่เหลือเยอะ)
 - **เสียงพากย์**: `server/voice.js` สุ่มแบบไม่ซ้ำจนครบชุดทุกตัวละคร (`p.voiceBag`) · เหตุการณ์เฉพาะตัวเรียก `engine.voice(p, event)`
+
+## 43. มือการ์ดข้ามสกิล / ใช้ได้แม้ห้ามสกิล / ดาเมจเพิ่มตามท่า (โรลันด์ — `characters/roland.js` · GRID_PLAN §7.25)
+
+- **ใช้ได้แม้ติดห้ามสกิล**: ฮุค `ignoresNoSkill(p, tier)` (`skills.runSkill`) + `skillLocks[tier].ignoresNoSkill` ให้ client เปิดปุ่ม
+- **ดาเมจเพิ่มตามท่าผ่านท่อเดียวกับพลังโจมตี**: `engine.skillStrike(p, t, ชื่อท่า, { bonus, sure })` — `bonus` บวกก่อนหักอ่อนแอ/คุ้มครอง (ใช้เสริมพลังด้วย) · `sure` = ทอยหลบมาแล้ว (ทอยก่อนคลิปแล้วลงผลหลังคลิป)
+- **มือการ์ดเป็นตัวเลือกของปุ่ม**: `skillPub().choices` key = uid การ์ด · `skillCost` / `skillArea` อ่าน `opts.form` · ราคาบนการ์ดเรียก `skills.skillCostOf` ให้รวมภาษีกลางคืน · ตัวเลือก `fresh` = ขึ้นเครื่องหมาย ◆ ใน `SkillChoices`
+- **เหตุการณ์เฉพาะเจ้าของ**: `engine.boardFxTo([id], "rolandFx", { kind: "draw" })` (เสียงจั่วการ์ด)
+- **ท่าพุ่ง**: `engine.setDash({ id, path, dir, style: "roland" })` → BoardStage เลื่อนตัวตามเส้นทาง · ผลลงใน `skillBeat`
+- **เศษน้ำแข็ง** `rolandIce` = สแตกไม่ลดเทิร์น (`NO_TICK_STATUS` + `PERMANENT_STATUS_KEYS`)
