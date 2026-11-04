@@ -126,24 +126,49 @@ test('ร่าง: พลังโจมตี +1 · คริ 70% · เดิ
   assert.equal(gio.canUseCharItem(engine, P.G, arrow(P.G)), true);
 });
 
-test('กระสุนแห่งชีวิต: สละไอเทม · แนว 7×1 ทะลุ · ความเสียหาย 1 + พิษ · เลือดเต็มก็ยิงได้ · โควตาร่วม 2 ครั้ง', () => {
+test('กระสุนแห่งชีวิต: ไม่ใช้ไอเทม (กระเป๋าว่าง/เลือดเต็ม/ฟื้นครบโควตาก็ยิงได้) · แนว 7×1 ทะลุ · ยิง 3 ครั้ง · คูลดาวน์ 3 เทิร์นแล้วเติมเต็ม', () => {
   const P = setup([['G', 'giorno_giovanna', 3, 7], ['B', 'dummy', 5, 7], ['C', 'dummy', 6, 7]]);
   awaken(P.G);
-  P.G.inventory.push({ uid: 'a', type: 'armor', value: 1 }, { uid: 'b', type: 'armor', value: 1 }, { uid: 'c', type: 'armor', value: 1 });
+  P.G.inventory = P.G.inventory.filter((it) => it.type === 'giornoArrow'); // เหลือแค่ธนู = ไม่มีไอเทมสละ
+  P.G.hp = 7;
+  P.G.giorno.lifeRound = engine.roundNumber; P.G.giorno.lifeUses = 2; // ฟื้นเลือดครบโควตาแล้ว
+  const shotOf = () => gio.skillPub(P.G, 'basic').choices.find((c) => c.key === 'shot');
+  assert.equal(gio.skillLocks(engine, P.G).basic.locked, false, 'ช่องไม่ล็อก');
+  assert.equal(shotOf().locked, false);
+  assert.equal(shotOf().left, 3);
+  const bag = P.G.inventory.length;
   const b0 = vit(P.B), c0 = vit(P.C);
-  engine.useSkill('G', 'basic', [], { form: 'shot:a', dir: 'right' });
+  engine.useSkill('G', 'basic', [], { form: 'shot', dir: 'right' });
   engine.clearPhaseTimer();
   assert.equal(vit(P.B), b0 - 1);
   assert.equal(vit(P.C), c0 - 1);
   assert.ok(P.B.statuses.poison > 0);
-  assert.ok(!P.G.inventory.some((it) => it.uid === 'a'));
-  assert.deepEqual(calls.queue, ['gioShot']);
-  engine.useSkill('G', 'basic', [], { form: 'shot:b', dir: 'right' });
+  assert.equal(P.G.inventory.length, bag, 'ไม่กินไอเทม');
+  assert.ok(arrow(P.G), 'ธนูยังอยู่');
+  assert.equal(shotOf().left, 2);
+  engine.useSkill('G', 'basic', [], { form: 'shot', dir: 'right' });
   engine.clearPhaseTimer();
-  engine.useSkill('G', 'basic', [], { form: 'shot:c', dir: 'right' });
+  engine.setRoundNumber(engine.roundNumber + 1); // ข้ามเทิร์นแล้วนัดที่เหลือยังอยู่
+  assert.equal(shotOf().left, 1);
+  engine.useSkill('G', 'basic', [], { form: 'shot', dir: 'right' });
   engine.clearPhaseTimer();
-  assert.ok(P.G.inventory.some((it) => it.uid === 'c'), 'ครั้งที่ 3 ไม่ทำงาน');
-  assert.deepEqual(calls.queue, ['gioShot', 'gioShot'], 'คลิปทุกครั้ง');
+  assert.deepEqual(calls.queue, ['gioShot', 'gioShot', 'gioShot'], 'คลิปทุกครั้ง');
+  assert.equal(shotOf().locked, true);
+  assert.equal(shotOf().cd, 4); // เทิร์นนี้ + คูลดาวน์เต็ม 3 เทิร์น (เหมือนสกิลอื่นของตัวนี้)
+  P.G.giorno.lifeRound = engine.roundNumber; P.G.giorno.lifeUses = 2;
+  assert.equal(gio.skillLocks(engine, P.G).basic.locked, true, 'ฟื้นครบโควตา + กระสุนหมด = ช่องล็อก');
+  const hp = vit(P.B);
+  engine.useSkill('G', 'basic', [], { form: 'shot', dir: 'right' });
+  engine.clearPhaseTimer();
+  assert.equal(vit(P.B), hp, 'นัดที่ 4 ไม่ทำงาน');
+  engine.setRoundNumber(engine.roundNumber + 3);
+  assert.equal(shotOf().cd, 1);
+  engine.setRoundNumber(engine.roundNumber + 1);
+  assert.equal(shotOf().locked, false);
+  assert.equal(shotOf().left, 3);
+  engine.useSkill('G', 'basic', [], { form: 'shot', dir: 'right' });
+  engine.clearPhaseTimer();
+  assert.equal(shotOf().left, 2, 'เติมเต็มแล้วยิงต่อได้');
 });
 
 test('ร่าง: จงกำเนิดใหม่ไม่มีคลิป แม้ยังไม่เคยเล่น', () => {

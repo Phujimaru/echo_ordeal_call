@@ -23,7 +23,7 @@
 //    1 ครั้งต่อเกม · คลิป giorno_passive2 เต็ม (32 วิ) ครั้งเดียว
 //  ธนู Requiem (ไอเทมประจำตัว กินช่องกระเป๋า · ทิ้ง/สละ/ส่งต่อไม่ได้ · ใช้ซ้ำได้ — ผู้ใช้สั่ง 2026-11-04): ใช้ = คลิป + จบตาทันที → ต้นตาเดินถัดไปของตัวเอง 50% แปลงร่าง / 50% ตายทันที
 //    ร่าง Gold Experience Requiem 3 เทิร์น (นับเทิร์นที่แปลง) · คืนร่างแล้วคูลดาวน์ 5 เทิร์น · ปก/สกิล/เสียงพากย์เปลี่ยน · เพลงตลอดร่าง · ต้านสถานะตลอดร่าง · สกิลติดตัว 2 ไม่ทำงาน
-//    ชีวิตทดแทน 0 แต้ม + กระสุนแห่งชีวิต (สละไอเทม แนว 7×1 โดนศัตรูทุกคนในแนว ความเสียหาย 1 + พิษร้าย 1 เทิร์น · โควตาร่วม 2 ครั้งต่อเทิร์น)
+//    ชีวิตทดแทน 0 แต้ม + กระสุนแห่งชีวิต (ไม่ใช้ไอเทม · แนว 7×1 โดนศัตรูทุกคนในแนว ความเสียหาย 1 + พิษร้าย 1 เทิร์น · ยิงได้ 3 ครั้ง ข้ามเทิร์นได้ แล้วคูลดาวน์ 3 เทิร์น — ผู้ใช้สั่ง 2026-11-05)
 //    จงกำเนิดชีวิตใหม่ 0 แต้ม ไม่มีคลิป · ท่าไม้ตาย ขอให้ไปสู่ภพภูมิที่ดี แทน Muda (0 แต้ม · คูลดาวน์ 3): พุ่ง 4 ช่อง ชนศัตรูคนแรก → คลิป → ความเสียหาย 5
 //    ตายด้วยท่านี้ = วนตาย: ต้นเทิร์นฟื้นเลือด 1 เกราะ 0 · ถึงตาตัวเองตายทันที · ทุกครั้งที่ตายซ้ำ โจรุโน่ได้แต้ม 1 เหรียญ 1 · จบเมื่อโจรุโน่ตาย/จบเกม (คนที่ฟื้นอยู่ตายตาม)
 //    สกิลติดตัว 3 นี่แหละ คือ Requiem: พลังโจมตี +1 · คริ +20% จากสกิลติดตัว 1 (70%) · ระยะเดิน 6
@@ -122,6 +122,8 @@ const REWIND_SECONDS = 2.6; // ฉากย้อนบนกระดานห�
 const SHOT_LEN = 7;
 const SHOT_DMG = 1;
 const SHOT_POISON = 1;
+const SHOT_MAX = 3;
+const SHOT_CD = 3;
 const RE_ULT_LEN = 4;
 const RE_ULT_DMG = 5;
 const RE_ULT_CD = 3;
@@ -144,6 +146,7 @@ function fresh() {
     arrowWait: 0, arrowReady: 0, // ธนู: stamp ตอนใช้ (0 = ไม่รอผล) / ใช้ได้อีกตั้งแต่เทิร์นนี้
     requiem: null,              // { until, at } ร่าง Requiem อยู่ถึงจบเทิร์น until
     ultReady: 0,                // ขอให้ไปสู่ภพภูมิที่ดี
+    shots: SHOT_MAX, shotReady: 0, // กระสุนแห่งชีวิต: เหลือกี่นัด / คูลดาวน์หมดเทิร์นนี้ (0 = ไม่ติด)
     rollSeq: null, rollHit: false, // ผลทอย Return to Zero ของคำสั่ง rollSeq
     loop: {},                   // { [id]: ช่องล่าสุด } คนวนตาย
     loopAt: 0,
@@ -202,6 +205,8 @@ function beginRequiem(engine, p) {
   const s = st(p);
   if (!p.alive) return;
   s.requiem = { until: engine.roundNumber + REQ_TURNS - 1, at: engine.severStamp() };
+  s.shots = SHOT_MAX;
+  s.shotReady = 0;
   s.muda = false; // ท่าไม้ตายถูกแทน
   engine.applyBuff(p, "resist", null, REQ_TURNS);
   fx(engine, p, "awake");
@@ -282,8 +287,10 @@ function shoot(engine, p, targets, dir) {
     else t.pos = null;
   }
 }
-const isShot = (form) => typeof form === "string" && form.startsWith("shot:");
-const itemOfForm = (form) => (isShot(form) ? form.slice(5) : form);
+const isShot = (form) => form === "shot";
+// ครบคูลดาวน์ = เติมเต็มเอง · คูลดาวน์เหลือ = 0 นัด
+const shotsLeft = (engine, s) => (s.shotReady && engine.roundNumber >= s.shotReady ? SHOT_MAX : s.shots);
+const shotCd = (engine, s) => cdLeft(s.shotReady, engine.roundNumber);
 
 // ---------- ชีวิตทดแทน ----------
 function lifeUses(engine, p) { const s = st(p); return s.lifeRound === engine.roundNumber ? s.lifeUses : 0; }
@@ -502,12 +509,13 @@ module.exports = {
         desc: `ฟื้นพลังชีวิต ${LIFE_HEAL}`, locked: uses >= LIFE_PER_TURN || full, left: LIFE_PER_TURN - uses, free: true,
       }));
       if (!re) return { choices: heal };
-      const itemName = require("../server/shop").shopItemName;
-      const shots = bagItems(p).map((it) => ({
-        key: `shot:${it.uid}`, name: `กระสุน · ${itemName(it)}`, img: IMG.re.skill1, cost: 0, area: { kind: "line", len: SHOT_LEN, width: 1, hostile: true },
-        desc: `สละไอเทมนี้ ยิงแนว ${SHOT_LEN}×1: ศัตรูทุกคนในแนว ความเสียหาย ${SHOT_DMG} และติดพิษร้าย ${SHOT_POISON} เทิร์น`, locked: uses >= LIFE_PER_TURN, left: LIFE_PER_TURN - uses, free: true,
-      }));
-      return { img: IMG.re.skill1, choices: [...heal, ...shots] };
+      const left = shotsLeft(eng, s), cd = shotCd(eng, s);
+      const shot = {
+        key: "shot", name: "กระสุนแห่งชีวิต", img: IMG.re.skill1, cost: 0, area: { kind: "line", len: SHOT_LEN, width: 1, hostile: true },
+        desc: `ยิงแนว ${SHOT_LEN}×1: ศัตรูทุกคนในแนว ความเสียหาย ${SHOT_DMG} และติดพิษร้าย ${SHOT_POISON} เทิร์น · ยิงได้ ${SHOT_MAX} ครั้ง แล้วคูลดาวน์ ${SHOT_CD} เทิร์น`,
+        locked: left <= 0, left, cd, free: true,
+      };
+      return { img: IMG.re.skill1, desc: `เลือก 1 แบบ · กระสุนแห่งชีวิต: ยิงแนว ${SHOT_LEN}×1 ไม่ใช้ไอเทม ${SHOT_MAX} ครั้ง แล้วคูลดาวน์ ${SHOT_CD} เทิร์น · ชีวิตทดแทน: สละไอเทม 1 ชิ้น ฟื้นพลังชีวิต ${LIFE_HEAL}`, choices: [shot, ...heal] };
     }
     if (tier === "secondary") {
       const rcd = cdLeft(s.reflectReady, round), tcd = cdLeft(s.treeReady, round);
@@ -543,9 +551,9 @@ module.exports = {
     if (!isGio(p)) return true;
     const s = st(p);
     if (tier === "basic") {
-      if (lifeUses(engine, p) >= LIFE_PER_TURN) return false;
-      if (isShot(opts.form) ? !s.requiem : p.hp >= engine.maxHpOf(p)) return false;
-      return bagItems(p).some((it) => it.uid === itemOfForm(opts.form));
+      if (isShot(opts.form)) return !!s.requiem && shotsLeft(engine, s) > 0; // ไม่ต้องมีไอเทม · ไม่แชร์โควตากับการฟื้นเลือด
+      if (lifeUses(engine, p) >= LIFE_PER_TURN || p.hp >= engine.maxHpOf(p)) return false;
+      return bagItems(p).some((it) => it.uid === opts.form);
     }
     if (tier === "secondary") {
       if (opts.form === "reflect") return cdLeft(s.reflectReady, engine.roundNumber) === 0 && !reflectOn(engine, p);
@@ -573,19 +581,21 @@ module.exports = {
     if (!isGio(p)) return "";
     const s = st(p);
     s.clipNow = false;
+    if (tier === "basic" && isShot(opts.form)) {
+      s.shots = shotsLeft(engine, s) - 1;
+      s.shotReady = s.shots <= 0 ? engine.roundNumber + SHOT_CD + 1 : 0;
+      s.clipNow = true; // คลิปทุกครั้ง (ผู้ใช้สั่ง 2026-11-04)
+      engine.queueCutscene(p, CUT.shot);
+      engine.deferAfterCutscene(() => shoot(engine, p, targets, opts.dir));
+      engine.log(`🔫 ${p.name} กระสุนแห่งชีวิต`);
+      return "";
+    }
     if (tier === "basic") {
-      const idx = (p.inventory || []).findIndex((it) => it.uid === itemOfForm(opts.form));
+      const idx = (p.inventory || []).findIndex((it) => it.uid === opts.form);
       if (idx < 0) return "";
       const [item] = p.inventory.splice(idx, 1);
       if (s.lifeRound !== engine.roundNumber) { s.lifeRound = engine.roundNumber; s.lifeUses = 0; }
       s.lifeUses++;
-      if (isShot(opts.form)) {
-        s.clipNow = true; // คลิปทุกครั้ง (ผู้ใช้สั่ง 2026-11-04)
-        engine.queueCutscene(p, CUT.shot);
-        engine.deferAfterCutscene(() => shoot(engine, p, targets, opts.dir));
-        engine.log(`🔫 ${p.name} กระสุนแห่งชีวิต — สละไอเทม 1 ชิ้น`);
-        return "";
-      }
       const healed = engine.healHp(p, LIFE_HEAL);
       engine.log(`🌱 ${p.name} ชีวิตทดแทน — สละ${item.type ? "ไอเทม" : ""} 1 ชิ้น ฟื้นพลังชีวิต +${healed}`);
       fx(engine, p, "life", { n: healed });
@@ -724,7 +734,7 @@ module.exports = {
     if (!tree && !reflect && !muda && !mine && !loop) return undefined;
     return {
       tree, reflect, muda, loop,
-      ...(mine ? { requiem: reqOn(p), reqLeft: reqOn(p) ? st(p).requiem.until - engine.roundNumber + 1 : 0, arrowCd: cdLeft(st(p).arrowReady, engine.roundNumber), arrowWait: !!st(p).arrowWait } : {}),
+      ...(mine ? { shotLeft: reqOn(p) ? shotsLeft(engine, st(p)) : 0, shotCd: reqOn(p) ? shotCd(engine, st(p)) : 0, requiem: reqOn(p), reqLeft: reqOn(p) ? st(p).requiem.until - engine.roundNumber + 1 : 0, arrowCd: cdLeft(st(p).arrowReady, engine.roundNumber), arrowWait: !!st(p).arrowWait } : {}),
       ...(mine ? { lifeLeft: LIFE_PER_TURN - lifeUses(engine, p), reflectCd: cdLeft(st(p).reflectReady, engine.roundNumber), treeCd: cdLeft(st(p).treeReady, engine.roundNumber), rage: !st(p).rageUsed } : {}),
     };
   },
@@ -732,7 +742,8 @@ module.exports = {
     if (!isGio(p)) return undefined;
     const s = st(p);
     return {
-      basic: { locked: lifeUses(engine, p) >= LIFE_PER_TURN, free: true },
+      // ร่าง Requiem: ล็อกช่องเมื่อยิงไม่ได้ด้วยและฟื้นเลือดไม่ได้ด้วย (กระเป๋าว่าง/ฟื้นครบโควตาต้องยังยิงได้)
+      basic: { locked: lifeUses(engine, p) >= LIFE_PER_TURN && !(s.requiem && shotsLeft(engine, s) > 0), free: true },
       ultimate: s.requiem ? { locked: cdLeft(s.ultReady, engine.roundNumber) > 0, cd: cdLeft(s.ultReady, engine.roundNumber) } : { locked: s.muda },
     };
   },
