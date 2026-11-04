@@ -234,7 +234,7 @@ test('Gold Experience: คริ 30% เฉพาะตีที่ไม่ไ�
   assert.ok(calls.queue.includes('gioMuda'));
 });
 
-test('เศษเดนมนุษย์อย่างแกน่ะ…: เลือด ≤ 3 = ความเสียหาย 5 แน่นอน ไม่คริ · 1 ครั้งต่อเกม · คลิป · เลือด 4 ไม่ติด', () => {
+test('เศษเดนมนุษย์อย่างแกน่ะ…: เลือด ≤ 3 โอกาส 50% = ความเสียหาย 5 ไม่คริ · 1 ครั้งต่อเกม · คลิป · เลือด 4 ไม่ติด', () => {
   const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 5, 7]]);
   P.G.hp = 3;
   P.B.hp = 7; P.B.armor = 3;
@@ -247,7 +247,17 @@ test('เศษเดนมนุษย์อย่างแกน่ะ…: เ
   assert.equal(P.G.giorno.rageUsed, false);
   P.B.hp = 7; P.B.armor = 3;
   P.G.hp = 3;
-  Math.random = () => 0.99; // ไม่ต้องทอยติด — 100%
+  // ทอยไม่ติด (≥ 50) = ตีปกติ ยังเหลือโอกาสครั้งถัดไป
+  Math.random = () => 0.6;
+  engine.setActor('G');
+  engine.attackTarget('G', 'B');
+  engine.clearPhaseTimer();
+  assert.equal(vit(P.B), 10 - 1);
+  assert.equal(P.G.giorno.rageUsed, false);
+  assert.deepEqual(calls.clips, []);
+  P.B.hp = 7; P.B.armor = 3;
+  P.G.hp = 3;
+  Math.random = () => 0.49; // ติดที่ขอบ 50% (เกิน 30% = ไม่คริ)
   engine.setActor('G');
   engine.attackTarget('G', 'B');
   engine.clearPhaseTimer();

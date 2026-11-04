@@ -19,7 +19,7 @@
 //    เพื่อน: ฮีล 3 + ล้างดีบัฟ 1 (ไม่มีดาเมจ/เปราะบาง/สตั้น) · คลิป giorno_skill3_hit ทุกครั้งที่ต่อยโดน
 //  สกิลติดตัว Gold Experience: ตีปกติที่ไม่มีผลสกิล (ไม่ได้เสริม Muda) คริติคอล 30% (×2) — คลิป giorno_crit ทุกครั้งที่ติด
 //    ตีปกติใส่เพื่อนร่วมทีมได้ = ฟื้นพลังชีวิต 1 แทนความเสียหาย (จบตา · ไม่ตีสวน · ไม่ถอย) — action.strikeTarget ฮุค allyStrike
-//  สกิลติดตัว เศษเดนมนุษย์อย่างแกน่ะ…: พลังชีวิต ≤ 3 + ตีปกติที่ไม่ได้เสริม Muda → ติดแน่นอน (100% — ผู้ใช้แก้จาก 30% 2026-11-04) ความเสียหายตายตัว 5 (เกราะก่อน · ไม่คริ)
+//  สกิลติดตัว เศษเดนมนุษย์อย่างแกน่ะ…: พลังชีวิต ≤ 3 + ตีปกติที่ไม่ได้เสริม Muda → โอกาส 50% (ผู้ใช้แก้จาก 30% → 100% → 50% 2026-11-04) ความเสียหายตายตัว 5 (เกราะก่อน · ไม่คริ)
 //    1 ครั้งต่อเกม · คลิป giorno_passive2 เต็ม (32 วิ) ครั้งเดียว
 //  เสียง: วีดีโอขึ้น = ไม่มีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน (กฎผู้ใช้ 2026-11-03) · คลิปท่าไม้ตาย/คริเล่นซ้ำได้ อื่นๆ ครั้งเดียว
 //  ไฟล์จากผู้ใช้ (Downloads/giono + Gold Experience SFX + เสียงพากย์ ASBR) — ตัดเสียงด้วย ffmpeg (.claude/plans/giorno-media.md)
@@ -78,7 +78,7 @@ const MUDA_STUN_TURNS = 1;
 const CRIT_PCT = 30;
 const ALLY_HEAL = 1;
 const RAGE_HP = 3;
-const RAGE_PCT = 100;
+const RAGE_PCT = 50;
 const RAGE_DMG = 5;
 const ALLY_STRIKE_SECONDS = 1.4;
 
@@ -179,7 +179,7 @@ module.exports = {
     if (!isGio(attacker) || ctx.estimate || ctx.counter) return null;
     const s = st(attacker);
     if (s.muda || s.rageUsed || attacker.hp > RAGE_HP) return null;
-    if (RAGE_PCT < 100 && Math.random() * 100 >= RAGE_PCT) return null; // 100% = ไม่ทอย (ไม่แตะ Math.random)
+    if (Math.random() * 100 >= RAGE_PCT) return null;
     s.rageUsed = true;
     s.rageNow = true;
     s.clipNext = CUT.passive2;
