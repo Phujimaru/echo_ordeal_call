@@ -182,6 +182,7 @@ function buildStateFor(viewerId) {
     duo: match.duo ? { ownerId: match.duo.ownerId, done: Object.keys(match.duo.done) } : null,
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
+    dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
     turnOrder: masked ? [] : match.turnOrder,
     actorIndex: masked ? -1 : match.actorIndex, // ตำแหน่งในลำดับของฝ่ายที่เดินล่าสุด (ตาพิเศษหยุดเวลา = ยังไม่เลื่อน) — คิว 2 คนถัดไปด้านขวา
     masked,

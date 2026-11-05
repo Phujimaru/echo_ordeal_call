@@ -409,6 +409,16 @@ const FILES = {
   gyro_v2_skill3: "/characters/gyro_zeppeli/voice/gyro_voice2_skill3.m4a",
   // ดิเอโก้ แบรนโด โลกคู่ขนาน (GRID_PLAN §7.12) — ท่อนตัดจากไฟล์ต้นฉบับที่ผู้ใช้ส่ง (THE WORLD HHA/GHA + time stop · ASB-R) ปรับดัง ~-10 LUFS
   //  array = เสียงคล้ายกันหลายท่อน สุ่ม 1 ไฟล์ทุกครั้ง · ต้นฉบับ + หน้าฟัง Downloads\diego_alt\sfx · คีย์ที่ยังไม่มีไฟล์ (splash/match/net/reload/heal/gallop) = ไม่มีเสียง
+  // ดิโอ บรันโด (characters/dio_brando.js) — ไฟล์ผู้ใช้ทั้งหมด · ระเบิด Road Roller ใช้ diego_explode
+  dio_start: "/characters/dio_brando/sfx/dio_start.mp3",
+  dio_attack: "/characters/dio_brando/sfx/dio_attack.mp3",
+  dio_hit: "/characters/dio_brando/sfx/dio_hit.mp3",
+  dio_knife: "/characters/dio_brando/sfx/dio_knife.mp3",
+  dio_shine: "/characters/dio_brando/sfx/dio_shine.mp3",
+  dio_muda: "/characters/dio_brando/sfx/dio_muda.mp3",
+  dio_world: "/characters/dio_brando/sfx/dio_world.mp3",
+  dio_stop: ["/characters/dio_brando/sfx/dio_stop1.mp3", "/characters/dio_brando/sfx/dio_stop2.mp3"],
+  dio_resume: "/characters/dio_brando/sfx/dio_resume.mp3",
   diego_throw: "/characters/diego_alt/sfx/diego_throw.mp3",
   diego_explode: "/characters/diego_alt/sfx/diego_explode.mp3",
   diego_fire: ["/characters/diego_alt/sfx/diego_fire_1.mp3", "/characters/diego_alt/sfx/diego_fire_2.mp3"],

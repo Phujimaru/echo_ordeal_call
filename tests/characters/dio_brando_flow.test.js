@@ -48,7 +48,7 @@ test('ตีดิโอถึงตาย → คลิป → ดวล → �
   dio.duelAction(engine, 'd', 'stand');
   dio.duelAction(engine, 'a', 'stand');
   assert.equal(d.dio.duel.winner, 'foe');
-  adv(t, 4); // แสดงผล
+  adv(t, 5); // แสดงผล
   assert.equal(d.alive, true, 'ยังไม่ตายก่อนคลิปจบ');
   assert.equal(engine.gameState, 'CUTSCENE');
   adv(t, 9); // คลิปแพ้
@@ -67,7 +67,7 @@ test('ดิโอชนะดวล = ดูดเลือด 2 ฟื้น 2
   d.dio.duel.hands.foe = cards(3);
   dio.duelAction(engine, 'd', 'stand');
   dio.duelAction(engine, 'a', 'stand');
-  adv(t, 7);
+  adv(t, 8);
   assert.equal(d.dio.duel, null);
   assert.equal(d.hp, 2);
   assert.equal(a.hp, 5);

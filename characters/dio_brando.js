@@ -54,7 +54,7 @@ const WORLD = { cd: 4, cdSurge: 3, tax: 1 };
 const ROLLER = { actions: 2, dmg: 3, reach: 2 };
 const LAST = { win: 2, seconds: 30, botStop: 17, target: 21 };
 // จังหวะเอฟเฟกต์ (วินาที) — ต้องตรงกับ DIO_FX ใน client/src/board/dioFx.js
-const FX = { knife: 0.55, shine: 0.95, muda: 2.4, press: 1.1, stop: 2.5, resume: 2.2, lift: 0.9, slam: 1.7, result: 2.6 };
+const FX = { knife: 0.55, shine: 0.95, muda: 2.4, press: 1.1, stop: 2.5, resume: 2.2, lift: 0.9, slam: 1.7, result: 3.6 };
 
 const K = Board.key;
 const LINE_AREA = { kind: "line", len: STAND_LEN, width: 1, hostile: true };
@@ -65,7 +65,6 @@ const ROLLER_SKILL = {
   area: { kind: "target", range: ROLLER.reach, cells: ROLLER_CELLS },
   desc: `1 คนในกรอบ 5×5 รอบตัว: ลอยออกจากกระดาน ทับด้วยรถบดถนน ความเสียหาย ${ROLLER.dmg} แล้วลงข้างเป้า · เวลาเดินต่อทันที`,
 };
-const KNIFE_DESC = `1 คนในแนวตรง 4 ทิศ ระยะ ${KNIFE.len}: ความเสียหาย ${KNIFE.dmg} + เลือดไหล ${KNIFE.bleed} (ไม่ทะลุสิ่งกีดขวาง)`;
 const STAND_DESC = {
   shine: `เลือกทิศ แนว ${STAND_LEN}×1: ความเสียหาย ${STAND.shine.dmg} ทะลุเกราะ + ไร้เยียวยา ${STAND.shine.turns} เทิร์น (คูลดาวน์ ${STAND.shine.cd} เทิร์น)`,
   muda: `เลือกทิศ แนว ${STAND_LEN}×1: ความเสียหาย ${STAND.muda.dmg} + ผุพัง ${STAND.muda.turns} เทิร์น (คูลดาวน์ ${STAND.muda.cd} เทิร์น)`,
@@ -545,15 +544,19 @@ module.exports = {
     else engine.broadcastState();
     return true;
   },
-  boardPublic(engine) {
+  // ข้อมูลดวลต่อผู้ชม (ผู้ใช้สั่ง 2026-11-05): เห็นแต้ม/หน้าการ์ดเฉพาะมือตัวเอง · ที่เหลือคว่ำ จนทั้งคู่กดพอแล้วเปิดพร้อมกัน
+  //  ids = ไอดีของผู้ชม (ตัวเอง + ตัวที่คุมอยู่ — ระบบคู่) · ไม่ส่งหน้าการ์ดที่คว่ำไปเครื่องผู้ชมเลย
+  duelView(engine, ids) {
     const p = Object.values(engine.players).find((o) => isDio(o) && o.dio && o.dio.duel);
-    if (!p) return {};
+    if (!p) return null;
     const d = p.dio.duel;
+    const side = ids.includes(d.dioId) ? "dio" : ids.includes(d.foeId) ? "foe" : null;
+    const open = (k) => !!d.winner || k === side;
+    const hand = (k) => (open(k) ? d.hands[k] : d.hands[k].map(() => ({ hidden: true })));
+    const score = (k) => (open(k) ? handScore(d.hands[k]) : null);
     return {
-      dioDuel: {
-        dioId: d.dioId, foeId: d.foeId, hands: d.hands, stood: d.stood, winner: d.winner,
-        scores: { dio: handScore(d.hands.dio), foe: handScore(d.hands.foe) }, target: LAST.target,
-      },
+      dioId: d.dioId, foeId: d.foeId, side, stood: d.stood, winner: d.winner, target: LAST.target,
+      hands: { dio: hand("dio"), foe: hand("foe") }, scores: { dio: score("dio"), foe: score("foe") },
     };
   },
 

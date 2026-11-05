@@ -52,6 +52,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
                   <span className="flex-1 text-sm font-bold text-white truncate">{look.name}</span>
                   {(c.cost || 0) > 0 && <span className="shrink-0 text-xs font-black text-sky-200">◆{c.cost}</span>}
+                  {(c.actions || 0) > 0 && <span className="shrink-0 text-xs font-black text-yellow-200">{c.actions} Action</span>}
                   {cdOf(c) > 0
                     ? <span className="shrink-0 text-xs font-black text-amber-200">⏳{cdOf(c)}</span>
                     : c.left != null && <span className={`shrink-0 text-xs font-black ${c.left > 0 ? "text-emerald-200" : "text-rose-300"}`}>🔋{c.left}</span>}

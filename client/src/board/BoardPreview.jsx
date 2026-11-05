@@ -43,6 +43,7 @@ import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเ
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
 import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
+import DioFxDev from "./DioFxDev"; // ?dio=1 = ปุ่มเล่นเอฟเฟกต์ดิโอ บรันโด
 import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่นเอฟเฟกต์โจรุโน่
 import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่นเอฟเฟกต์มหาเทพอรชุน
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
@@ -142,6 +143,7 @@ const LAW_DEV = Q.get("law") === "1";
 const OHGER_DEV = Q.get("ohger") === "1";
 const DIVINE_DEV = Q.get("divine") === "1";
 const GIORNO_DEV = Q.get("giorno") === "1";
+const DIO_DEV = Q.get("dio") === "1";
 const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
@@ -561,6 +563,7 @@ export default function BoardPreview() {
       {DIEGO_DEV && <DiegoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} ground={diegoGround} setGround={setDiegoGround} freeze={timeFreeze} setFreeze={setTimeFreeze} />}
       {VAL_DEV && <ValentineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} flags={valFlags} setFlags={setValFlags} dimView={dimView} setDimView={setDimView} />}
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
+      {DIO_DEV && <DioFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setFreeze={setTimeFreeze} />}
       {GIORNO_DEV && <GiornoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {ARJUNA_DEV && <ArjunaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}

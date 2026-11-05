@@ -228,3 +228,27 @@ test('Last Stand: แต้มสูงกว่าโดยไม่แตก�
   assert.equal(run([3], [10, 10, 2]), 'dio', 'ศัตรูแตก');
   assert.ok(t);
 });
+
+test('ดวล: เห็นเฉพาะมือตัวเอง · อีกฝ่ายและคนดูเห็นการ์ดคว่ำ · เปิดหมดเมื่อรู้ผล', () => {
+  const [d] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7], ['c', 'dummy', 9, 7]]);
+  const card = (v) => ({ v, c: 'red' });
+  d.dio.duel = { deck: [], dioId: 'd', foeId: 't', hands: { dio: [card(9)], foe: [card(4), card(5)] }, stood: { dio: false, foe: false }, winner: null };
+  const a = dio.duelView(engine, ['d']);
+  assert.equal(a.side, 'dio');
+  assert.equal(a.scores.dio, 9);
+  assert.equal(a.scores.foe, null);
+  assert.deepEqual(a.hands.foe, [{ hidden: true }, { hidden: true }]);
+  const b = dio.duelView(engine, ['t']);
+  assert.equal(b.side, 'foe');
+  assert.deepEqual(b.hands.dio, [{ hidden: true }]);
+  assert.equal(b.scores.foe, 9);
+  const c = dio.duelView(engine, ['c']);
+  assert.equal(c.side, null);
+  assert.equal(JSON.stringify(c).includes('"v"'), false, 'คนดูไม่ได้หน้าการ์ดเลย');
+  d.dio.duel.winner = 'foe';
+  const e = dio.duelView(engine, ['c']);
+  assert.equal(e.scores.dio, 9);
+  assert.equal(e.hands.foe[1].v, 5);
+  d.dio.duel = null;
+  assert.equal(dio.duelView(engine, ['d']), null);
+});

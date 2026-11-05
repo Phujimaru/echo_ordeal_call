@@ -1177,3 +1177,12 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เหตุการณ์เฉพาะเจ้าของ**: `engine.boardFxTo([id], "rolandFx", { kind: "draw" })` (เสียงจั่วการ์ด)
 - **ท่าพุ่ง**: `engine.setDash({ id, path, dir, style: "roland" })` → BoardStage เลื่อนตัวตามเส้นทาง · ผลลงใน `skillBeat`
 - **เศษน้ำแข็ง** `rolandIce` = สแตกไม่ลดเทิร์น (`NO_TICK_STATUS` + `PERMANENT_STATUS_KEYS`)
+
+## 44. หยุดเวลาซ้อน / แทรกตากลางตาคนอื่น / ฉากรอผู้เล่นตัดสิน (ดิโอ บรันโด — `characters/dio_brando.js` · GRID_PLAN §7.26)
+
+- **แทรกตาเดินเดี๋ยวนี้**: `engine.timeStop.interrupt(id, kind, left)` — จดตาที่ถูกแทรกเป็น `resume` แล้วเล่นตาพิเศษทันที (เรียกตอน `ACTION` เท่านั้น) · จากในฉากสกิลใช้ `engine.flowHandoff(id, kind)` = ฉากจบแล้วค่อยแทรก
+- **หยุดเวลาซ้อน**: `TimeStop.freeze` ชั้นใหม่เก็บชั้นเดิมใน `parent` · ผู้ชมยังเห็นค่าเท่าชั้นเดิม · `unfreeze` คืนชั้นเดิม + ส่งดาเมจของชั้นนี้ให้ผู้ชมชั้นเดิมเห็น · คนที่ชั้นเดิมสังหารไว้ตกรอบตอนชั้นเดิมจบ · เจ้าของชั้นเดิมตาย = เวลาเดินต่อทุกชั้น · `rewindTurn` เดินต่อทุกชั้น
+- **จังหวะแบบเปิด**: `engine.skillBeat(วิ, fn, { open: true })` = รอผู้เล่น · `engine.releaseBeat()` จบก่อนหมดเวลา · หมดเวลา = เรียก fn ตามปกติ
+- **ขอฉากจากนอก useSkill ของตัวเอง**: `engine.wantFlow()` (คิวคลิป/ผลหลังคลิป/จังหวะพักไว้ก่อน) — เล่นเมื่อจบคำสั่ง (`TimeStop.guard`) · จบฉากตี (`strikeTarget.done`) · ก่อนจบตา (`finishActor`)
+- **ข้อมูลต่อผู้ชม**: `state.dioDuel` จาก `duelView(engine, [viewerId, controlId])` — ของที่ต้องซ่อนจากบางคนใส่ใน `buildStateFor` ห้ามใช้ `boardPublic` (ส่งก้อนเดียวทุกคน)
+- คนที่เวลาหยุดอยู่ตีสวนไม่ได้ (`attack.counterAndPush` เช็ค `match.timeFreeze`)
