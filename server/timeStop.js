@@ -15,7 +15,7 @@
 // ============================================================
 Object.assign(module.exports, {
   guard, mark, clearMark, check, checkHit, checkSure, catchInterrupt, isInterrupt,
-  queueExtra, takeExtra, extraKind, interrupt,
+  queueExtra, takeExtra, extraKind, interrupt, denyPress,
   freeze, unfreeze, frozen, holdsDeath, frozenView,
 });
 
@@ -171,7 +171,7 @@ function catchInterrupt(err) {
   // ผู้ใช้สั่ง 2026-10-20: ไม่จบตาผู้โจมตี — ตาพิเศษแทรกกลางทาง แล้วกลับมาตาเดิมของผู้โจมตีต่อด้วยเวลาที่เหลือ
   const resume = {
     actorId: match.actorId, action: match.action, duo: match.duo, left: Math.max(3, Number(left) || 0),
-    at: attacker && attacker.pos ? { ...attacker.pos } : null,
+    at: attacker && attacker.pos ? { ...attacker.pos } : null, turn,
   };
   const ex = (match.extraTurns || []).find((e) => defender && e.id === defender.id && !e.resume);
   if (ex) ex.resume = resume;
@@ -186,23 +186,45 @@ function catchInterrupt(err) {
 function rewindTurn(err, snap, turn, hook) {
   const attacker = match.players[err.attackerId];
   const from = attacker && attacker.pos ? { ...attacker.pos } : null;
+  // ผู้หยุดเวลาที่ถูกย้อน: จดก่อนย้อน — จุดย้อนของตาพิเศษจดก่อนเริ่มหยุด ย้อนแล้วไม่เหลือร่องรอยใน match.timeFreeze
+  const broken = new Set();
+  for (let f = match.timeFreeze; f; f = f.parent) broken.add(f.by);
   timers.clearPhaseTimer();
   restore(clonePlain((turn || snap).data));
   match.tsTurn = turn;
-  // ย้อนแล้วยังอยู่ในการหยุดเวลา (จุดย้อนจดหลังเริ่มหยุด) = เวลาเดินต่อเอง · ฮุค broadcast onFreezeBroken(engine, ผู้หยุดเวลา) ล้างสถานะของตัวละคร
-  while (match.timeFreeze) { // วนลูป: หยุดเวลาซ้อนกัน (ดิโอแทรกการหยุดเวลาของคนอื่น) เดินต่อทุกชั้น
-    const by = match.timeFreeze.by;
+  // ย้อนแล้วยังอยู่ในการหยุดเวลา (จุดย้อนจดหลังเริ่มหยุด) = เวลาเดินต่อเอง · วนลูป: หยุดเวลาซ้อนกัน (ดิโอแทรกการหยุดเวลาของคนอื่น) เดินต่อทุกชั้น
+  while (match.timeFreeze) {
+    broken.add(match.timeFreeze.by);
     unfreeze();
-    combat.broadcastHook("onFreezeBroken", engine, by);
   }
+  // ฮุค broadcast onFreezeBroken(engine, ผู้หยุดเวลา): ล้างสถานะของตัวละคร รวมของที่จุดย้อนคืนมา (ดิโอ: Action ที่รอเริ่มหยุดเวลา)
+  for (const by of broken) combat.broadcastHook("onFreezeBroken", engine, by);
   match.effectSourceId = null;
   match.cutsceneInfo = null;
   match.lastAttack = null;
   match.timeLeft = (turn && turn.secs) || match.timeLeft;
   const defender = match.players[err.defenderId];
   combat.runHook(hook, "onCounterStop", engine, defender, attacker, { from, back: attacker && attacker.pos ? { ...attacker.pos } : null });
-  require("./cutscene").pausePlayingForCutscene();
+  // ฮุค rewindEndsExtra (ดิโอ): ตาพิเศษมีไว้หยุดเวลาเท่านั้น ถูกย้อน = จบตานั้น ไม่เหลือตาแถม (ตาธรรมดาของเขายังอยู่ในลำดับเดิน)
+  const atkHook = attacker && CHAR_HOOKS[attacker.characterId];
+  const endTurn = !!(match.action && match.action.extra && atkHook && atkHook.rewindEndsExtra);
+  require("./cutscene").pausePlayingForCutscene(null, { endTurn });
   return true;
+}
+// ศัตรูกดท่าไม้ตายนอกตาตัวเอง (ดิโอ: แทรก Za warudo) = ไม่มีตาให้ย้อน → การกดถูกยกเลิกก่อนเสียอะไร
+//  คืน true = มีผู้ตั้งรับแบบ rewindsTurn ยกเลิกแล้ว (คิวคลิปแล้วกลับตาเดิมด้วยเวลาที่เหลือ) · false = กดต่อได้
+function denyPress(src) {
+  for (const q of Object.values(match.players)) {
+    if (!q.alive || q.id === src.id || combat.sameTeam(q, src) || sideOf(q) === sideOf(src)) continue;
+    const hook = CHAR_HOOKS[q.characterId];
+    if (!hook || !hook.rewindsTurn) continue;
+    if (!combat.runHook(hook, "counterArmed", engine, q) || !combat.runHook(hook, "counterFires", engine, q, src, true)) continue;
+    const at = src.pos ? { ...src.pos } : null;
+    combat.runHook(hook, "onCounterStop", engine, q, src, { from: at, back: at, press: true });
+    require("./cutscene").pausePlayingForCutscene();
+    return true;
+  }
+  return false;
 }
 
 // ---------- ตาเดินพิเศษ ----------
@@ -215,7 +237,7 @@ function interrupt(id, kind, left) {
   const actor = match.players[match.actorId];
   const resume = {
     actorId: match.actorId, action: match.action, duo: match.duo, left: Math.max(3, Number(left) || 0),
-    at: actor && actor.pos ? { ...actor.pos } : null,
+    at: actor && actor.pos ? { ...actor.pos } : null, turn: match.tsTurn || null,
   };
   timers.clearPhaseTimer();
   (match.extraTurns ||= []).unshift({ id, kind: kind || "extra", resume });

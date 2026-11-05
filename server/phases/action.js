@@ -692,6 +692,7 @@ function resumeFrom(r) {
   }
   match.gameState = "ACTION";
   timers.startPhaseTimer(r.left || actionSeconds(), actionTimeUp);
+  match.tsTurn = r.turn || null; // จุดย้อนทั้งตา (Return to Zero) = ต้นตาของคนนี้ ไม่ใช่ต้นตาพิเศษที่เพิ่งจบ
   TimeStop.mark();
   view.broadcastState();
 }

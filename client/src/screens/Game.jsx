@@ -2576,11 +2576,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
         {scene?.kind === "shop" && <ShopHerald key={scene.id} />}
 
-      {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
-      {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
-      {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
-      <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
-
         {phase === "GAMEOVER" && (
           <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
         )}
@@ -2866,6 +2861,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           onPick={(c) => pickChoice(choiceOpen.tier, c)}
         />
       )}
+      {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
+      {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
+      {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
+      <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
       {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}

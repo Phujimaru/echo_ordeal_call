@@ -386,9 +386,9 @@ module.exports = {
     }
     return s.rollHit;
   },
-  onCounterStop(engine, p, attacker, { from, back } = {}) {
+  onCounterStop(engine, p, attacker, { from, back, press } = {}) {
     if (!isGio(p) || !attacker) return;
-    engine.log(`⏪ ${p.name} Requiem — ${attacker.name} กลับสู่จุดเริ่มต้นของตา`);
+    engine.log(press ? `⏪ ${p.name} Requiem — ท่าไม้ตายของ ${attacker.name} กลับสู่จุดเริ่มต้น` : `⏪ ${p.name} Requiem — ${attacker.name} กลับสู่จุดเริ่มต้นของตา`);
     engine.queueCutscene(p, CUT.rewind);
     engine.deferAfterCutscene(() => {
       fx(engine, p, "rewind", { attacker: attacker.id, from, back, gioAt: p.pos ? { ...p.pos } : null, seconds: REWIND_SECONDS });

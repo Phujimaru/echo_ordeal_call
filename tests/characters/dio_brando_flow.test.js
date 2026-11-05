@@ -57,7 +57,7 @@ test('ตีดิโอถึงตาย → คลิป → ดวล → �
   assert.equal(a.alive, true);
 });
 
-test('ดิโอชนะดวล = ดูดเลือด 2 ฟื้น 2 · ผู้ตีเสีย 2 ทะลุเกราะ', (t) => {
+test('ดิโอชนะดวล = ดูดเลือด 2 ฟื้น 2 · ผู้ตีเสีย 2 ลงเกราะก่อน ไม่ทะลุเกราะ', (t) => {
   const [d, a] = setup([['d', 'dio_brando', 3, 7], ['a', 'dummy', 4, 7], ['c', 'dummy', 9, 7]]);
   d.hp = 1; a.hp = 7; a.armor = 3;
   engine.setActor('a');
@@ -70,8 +70,8 @@ test('ดิโอชนะดวล = ดูดเลือด 2 ฟื้น 2
   adv(t, 8);
   assert.equal(d.dio.duel, null);
   assert.equal(d.hp, 2);
-  assert.equal(a.hp, 5);
-  assert.equal(a.armor, 3);
+  assert.equal(a.hp, 7);
+  assert.equal(a.armor, 1);
 });
 
 test('ไม่กดอะไรในดวล = หมดเวลาเทียบแต้มที่มี', (t) => {
@@ -121,7 +121,7 @@ test('แทรกตา → เวลาหยุด → ใช้ Action ห�
   assert.ok(engine.timeStop.frozen());
   assert.equal(d.dio.actions, 1);
   engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
-  assert.equal(a.hp, 3, 'ดาเมจจริง (ผู้ชมยังเห็นเดิม)');
+  assert.equal(a.hp, 4, 'ดาเมจจริง (ผู้ชมยังเห็นเดิม)');
   adv(t, 8); // ฉากสกิล + เวลาเดินต่อ
   assert.equal(engine.timeStop.frozen(), null);
   assert.equal(engine.actorId, 'a', 'กลับตาเดิม');
@@ -170,7 +170,7 @@ test('Road Roller → คลิป → ลงข้างเป้า → เว
   assert.equal(Math.abs(d.pos.x - 5) + Math.abs(d.pos.y - 8), 1, 'ลงข้างเป้า');
   assert.equal(a.hp, 7, 'ยังไม่ลง — รอรถระเบิด');
   adv(t, 5);
-  assert.equal(a.hp, 3, 'ระเบิด: 3 + ดูด 1');
+  assert.equal(a.hp, 4, 'ระเบิด: 3');
   adv(t, 6);
   assert.equal(d.dio.stopping, false);
   assert.equal(engine.timeStop.frozen(), null);
