@@ -556,6 +556,52 @@ const CHARACTERS = [
       effect: null,
     },
   },
+    // ---------- ดิโอ บรันโด (Stardust Crusaders) — กลาง · unique — ดู characters/dio_brando.js (GRID_PLAN §7.26) ----------
+  {
+    id: "dio_brando",
+    name: "ดิโอ บรันโด",
+    avatar: 0,
+    difficulty: "medium",
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม
+    img: "/characters/dio_brando/dio.webp",
+    mov: 4,
+    range: [1, 2],
+    passive: {
+      name: "Vampire",
+      desc: "ตีปกติ/สกิลโดนศัตรู 1 คน = BloodStack +1 + ดูดเลือด 1 (ศัตรู −1 ทะลุเกราะ · ดิโอ +1) · BloodStack 6: Time Meter จุ 8 · Za warudo คูลดาวน์ 3 + ทำงานทันที · BloodStack 8: ดาเมจสกิล +1 · ดูดเลือด +1 · กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1",
+    },
+    passive2: {
+      name: "Last Stand",
+      desc: "ถูกตีปกติ/สกิลถึงตาย = ดวลจั่วการ์ดกับผู้โจมตี 1 รอบ เป้า 21 (1 ครั้งต่อเกม): แพ้ = ตายทันที · ชนะ เสมอ หรือแตกทั้งคู่ = ดูดเลือด 2 ฟื้นด้วยพลังชีวิต 2 · Time Meter: ตีปกติ +1 · ใช้สกิล +1 · เริ่มเทิร์นคนแรก +2",
+    },
+    basic: {
+      name: "Throwing knife",
+      desc: "1 คนในแนวตรง 4 ทิศ ระยะ 4: ความเสียหาย 1 + เลือดไหล 1 (ไม่ทะลุสิ่งกีดขวาง · คูลดาวน์ 3 เทิร์น)",
+      area: { kind: "target", range: 4, cells: [] }, // cells จริงคิดใน skillArea (หยุดที่สิ่งกีดขวาง)
+      cost: 2,
+      img: "/characters/dio_brando/dio_knife.jpg",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "Stand",
+      desc: "เลือก 1 อย่าง · แนว 2×1: SHINEI! 2 ทะลุเกราะ + ไร้เยียวยา 2 เทิร์น · MUDAMUDAMUDA! 3 + ผุพัง 2 เทิร์น (แบบละคูลดาวน์ 2 เทิร์น)",
+      area: { kind: "line", len: 2, width: 1, hostile: true },
+      cost: 3,
+      img: "/characters/dio_brando/dio_shine.jpg",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Za warudo!!!!!!",
+      desc: "ใช้ Time Meter ทั้งหมด (1 หน่วย = 1 Action): เข้าร่างหยุดเวลาต้นเทิร์นถัดไปก่อนทุกคน · กดในตาคนอื่นได้ ทำงานทันที (เสียเพิ่ม 1) · ร่างหยุดเวลา: เดินฟรี · มีด/Stand/ตีปกติ 1 Action · Road Roller 2 Action · ดาเมจลงตอนเวลาเดินต่อ (คูลดาวน์ 4 เทิร์น)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/dio_brando/dio_timestop.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
   {
     // ---------- ฟันนี่ วาเลนไทน์ — พิเศษ · unique — ดู characters/funny_valentine.js (GRID_PLAN §7.13) ----------
     //  ระบบกลาง: ชั้นมิติ server/dimension.js · ยูนิตที่ถูกเรียก server/summon.js · ฮุค afterActorEnd · target รูปเฉพาะ (cells)

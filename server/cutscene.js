@@ -1,7 +1,7 @@
 // คิวคัตซีน/วีดีโอแปลงร่าง
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  triggerCutscene, queueCutscene, notifyTransform, pausePlayingForCutscene, runCutsceneQueue, runSkillFlow,
+  triggerCutscene, queueCutscene, notifyTransform, pausePlayingForCutscene, runCutsceneQueue, runSkillFlow, releaseBeat,
 });
 
 const { io } = require("./app");
@@ -83,6 +83,13 @@ function pausePlayingForCutscene(after, opts = {}) {
       // คนเดินอยู่ตกรอบระหว่างคลิป (เช่นระเบิดตัวเอง) = ไปคนถัดไปเลย
       const actor = match.players[match.actorId];
       if (!actor || !actor.alive || opts.endTurn) { action.finishActor(); return; }
+      // ฉากจบแล้วส่งต่อเป็นตาพิเศษกลางตานี้ (match.flowHandoff { id, kind } — ดิโอ: Za warudo ทำงานทันที)
+      if (match.flowHandoff) {
+        const h = match.flowHandoff;
+        match.flowHandoff = null;
+        require("./timeStop").interrupt(h.id, h.kind, remain);
+        return;
+      }
       match.gameState = "ACTION";
       timers.startPhaseTimer(remain, action.actionTimeUp);
       view.broadcastState();
@@ -98,7 +105,18 @@ function pausePlayingForCutscene(after, opts = {}) {
 //  คลิปที่คิวไว้ → ผลหลังคลิป (match.afterCutscene) · จังหวะพัก (match.skillBeats: { seconds, fn }) = เฟส ATTACKING
 //  (ปิดการกด — กระดานเล่นเอฟเฟกต์) ครบเวลาแล้วเรียก fn · fn คิวคลิป/ผลหลังคลิป/จังหวะถัดไปได้อีก
 //  ผลทุกก้อนทำในนามคนที่กำลังเดิน (withEffectSource) · จบเกมกลางทาง = หยุด
+//  จังหวะแบบเปิด (engine.skillBeat(วิ, fn, { open: true })) = รอผู้เล่นตัดสิน: releaseBeat() จบก่อนหมดเวลาได้ (ดิโอ: Last Stand)
+let openBeat = null;
+function releaseBeat() {
+  const next = openBeat;
+  if (!next) return false;
+  openBeat = null;
+  timers.clearPhaseTimer();
+  next();
+  return true;
+}
 function runSkillFlow(onDone) {
+  match.flowWanted = false;
   const runFns = (fns) => {
     const actor = match.players[match.actorId];
     for (const fn of fns) actor ? combat.withEffectSource(actor, fn) : fn();
@@ -113,7 +131,9 @@ function runSkillFlow(onDone) {
   if (match.skillBeats.length) {
     const beat = match.skillBeats.shift();
     match.gameState = "ATTACKING";
-    timers.startPhaseTimer(beat.seconds, () => { runFns([beat.fn]); runSkillFlow(onDone); });
+    const next = () => { runFns([beat.fn]); runSkillFlow(onDone); };
+    openBeat = beat.open ? next : null;
+    timers.startPhaseTimer(beat.seconds, () => { openBeat = null; next(); });
     view.broadcastState();
     return;
   }

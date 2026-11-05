@@ -13,6 +13,7 @@ const sora = require("./sora_otosumi"); // โซระ: คลิปแปล�
 const kira = require("./kira"); // กิระ: คลิปสวมเกราะราชัน (ครั้งแรกต่อเกม)
 const hikaru = require("./raido_hikaru");
 const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแรงดังไฟ (ทุกครั้งที่กด)
+const dio = require("./dio_brando"); // ดิโอ: BloodStack 6 / Last Stand เริ่ม + แพ้ / Road Roller
 const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
 const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่างทาวเบิร์น / เฟส 2·4 / ห่วงเวลาถูกทำลาย / ดาบรวมร่าง / ปาดาบ / สกิล
@@ -58,6 +59,10 @@ module.exports = function buildTransforms() {
     soraFireUlt:   { img: sora.IMG.fire,   video: sora.VIDEO.fireUlt,   title: "Mouse Separade",    label: "ปล่อยท่าไม้ตาย", seconds: 12, music: null, afterReveal: false },
     soraFireHit:   { img: sora.IMG.fire,   video: sora.VIDEO.fireHit,   title: "Mouse Separade",    label: "พุ่งชน", seconds: 11, music: null, afterReveal: false, noIntro: true },
     // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — เป็นไปดั่งกลอุบาย: intro ทุกครั้งก่อนพุ่ง · final ทุกครั้งที่ชน (ผู้ใช้สั่ง 2026-10-20) · ความยาวจริง 1.17 / 5.43 วิ
+    dioBlood6: { img: dio.IMG.base, video: dio.VIDEO.blood6, title: "ดิโอ", label: "BloodStack 6", seconds: 8, music: null, afterReveal: false, noIntro: true },
+    dioLastStand: { img: dio.IMG.base, video: dio.VIDEO.last, title: "Last Stand", label: "Last Stand", seconds: 7, music: null, afterReveal: false, noIntro: true },
+    dioLastStandFail: { img: dio.IMG.base, video: dio.VIDEO.lastFail, title: "Last Stand", label: "Last Stand", seconds: 8, music: null, afterReveal: false, noIntro: true },
+    dioRoadRoller: { img: dio.IMG.roller, video: dio.VIDEO.roller, title: "Road Roller", label: "ท่าไม้ตาย", seconds: 5, music: null, afterReveal: false, noIntro: true },
     diegoPlotIntro: { img: diego.IMG.plot, video: diego.VIDEO.intro, title: "เป็นไปดั่งกลอุบาย", label: "ปล่อยท่าไม้ตาย", seconds: 2, music: null, afterReveal: false, noIntro: true },
     diegoPlotFinal: { img: diego.IMG.plot, video: diego.VIDEO.final, title: "เป็นไปดั่งกลอุบาย", label: "พุ่งชน", seconds: 6, music: null, afterReveal: false, noIntro: true },
     // ไรโด ฮิคารุ — ทุกคลิปเล่นครั้งเดียวต่อเกม (triggerCutscene · ผู้ใช้สั่ง) · ครั้งต่อไปเป็นการ์ดแจ้งเตือน

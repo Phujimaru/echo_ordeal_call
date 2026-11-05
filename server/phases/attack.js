@@ -550,7 +550,7 @@ function counterAndPush(attacker, target, card) {
   let slide = null;
   const reachHook = CHAR_HOOKS[target.characterId];
   const anyRange = () => !!(reachHook && reachHook.counterAnyRange && combat.runHook(reachHook, "counterAnyRange", engine, target, attacker));
-  if (action.counters(target, card) && attacker.alive && target.alive && attacker.pos && target.pos && (attacker.dim || null) === (target.dim || null) && (anyRange() || Board.canCounter(action.rangeOf(target), attacker.pos, target.pos))) {
+  if (!match.timeFreeze && action.counters(target, card) && attacker.alive && target.alive && attacker.pos && target.pos && (attacker.dim || null) === (target.dim || null) && (anyRange() || Board.canCounter(action.rangeOf(target), attacker.pos, target.pos))) {
     const back = strike(target, attacker, { counter: true });
     card.counter = strikeCard(target, attacker, back);
     strikeResolved(target, attacker, back, true);

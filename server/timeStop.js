@@ -15,7 +15,7 @@
 // ============================================================
 Object.assign(module.exports, {
   guard, mark, clearMark, check, checkHit, checkSure, catchInterrupt, isInterrupt,
-  queueExtra, takeExtra, extraKind,
+  queueExtra, takeExtra, extraKind, interrupt,
   freeze, unfreeze, frozen, holdsDeath, frozenView,
 });
 
@@ -113,7 +113,10 @@ function guard(fn) {
   match.hitFxHold = null; // เอฟเฟกต์ที่พักไว้แบบเดียวกัน (engine.boardFxAtHit)
   try {
     if (match.gameState === "ACTION") mark();
-    return fn();
+    const out = fn();
+    // ผลของคำสั่งขอฉากต่อ (ดิโอ: Last Stand) และคำสั่งนี้ไม่ได้พักตาเอง = เล่นตอนนี้ แล้วกลับตาด้วยเวลาที่เหลือ
+    if (match.flowWanted && match.gameState === "ACTION") require("./cutscene").pausePlayingForCutscene();
+    return out;
   } catch (err) {
     if (!catchInterrupt(err)) throw err;
     return undefined;
@@ -187,7 +190,7 @@ function rewindTurn(err, snap, turn, hook) {
   restore(clonePlain((turn || snap).data));
   match.tsTurn = turn;
   // ย้อนแล้วยังอยู่ในการหยุดเวลา (จุดย้อนจดหลังเริ่มหยุด) = เวลาเดินต่อเอง · ฮุค broadcast onFreezeBroken(engine, ผู้หยุดเวลา) ล้างสถานะของตัวละคร
-  if (match.timeFreeze) {
+  while (match.timeFreeze) { // วนลูป: หยุดเวลาซ้อนกัน (ดิโอแทรกการหยุดเวลาของคนอื่น) เดินต่อทุกชั้น
     const by = match.timeFreeze.by;
     unfreeze();
     combat.broadcastHook("onFreezeBroken", engine, by);
@@ -206,6 +209,18 @@ function rewindTurn(err, snap, turn, hook) {
 function queueExtra(id, kind) {
   (match.extraTurns ||= []).push({ id, kind: kind || "extra" });
 }
+// แทรกตาเดินพิเศษกลางตาของคนที่กำลังเดินเดี๋ยวนี้ (ดิโอ: Za warudo) — จบแล้วกลับตานั้นด้วยเวลาที่เหลือ
+//  left = เวลาที่เหลือของตาที่ถูกแทรก · ระหว่างฉาก ATTACKING/CUTSCENE ห้ามเรียก (ใช้ engine.flowHandoff ให้ฉากจบก่อน)
+function interrupt(id, kind, left) {
+  const actor = match.players[match.actorId];
+  const resume = {
+    actorId: match.actorId, action: match.action, duo: match.duo, left: Math.max(3, Number(left) || 0),
+    at: actor && actor.pos ? { ...actor.pos } : null,
+  };
+  timers.clearPhaseTimer();
+  (match.extraTurns ||= []).unshift({ id, kind: kind || "extra", resume });
+  require("./phases/action").runExtras();
+}
 function takeExtra() {
   const q = match.extraTurns;
   return q && q.length ? q.shift() : null;
@@ -216,16 +231,19 @@ function extraKind() {
 
 // ---------- หยุดเวลา ----------
 const poolOf = (p) => (p.hp || 0) + (p.armor || 0) + (p.shield || 0) + (p.tempHp || 0);
+//  หยุดเวลาซ้อน (ดิโอแทรกตอนคนอื่นหยุดเวลา — ผู้ใช้สั่ง 2026-11-05: แทรกแล้วคืนตาเขา): ชั้นเดิมเก็บใน parent · ผู้ชมยังเห็นค่าเท่าชั้นเดิม
 function freeze(byId) {
+  const prev = match.timeFreeze || null;
   const held = {};
   for (const p of Object.values(match.players)) {
     if (p.id === byId || !p.alive) continue;
+    const seen = (prev && prev.held[p.id]) || p;
     held[p.id] = {
-      hp: p.hp, armor: p.armor, shield: p.shield, tempHp: p.tempHp || 0,
-      statuses: { ...(p.statuses || {}) }, statusAmt: { ...(p.statusAmt || {}) }, pool: poolOf(p),
+      hp: seen.hp, armor: seen.armor, shield: seen.shield, tempHp: seen.tempHp || 0,
+      statuses: { ...(seen.statuses || {}) }, statusAmt: { ...(seen.statusAmt || {}) }, pool: poolOf(p),
     };
   }
-  match.timeFreeze = { by: byId, held, doomed: [] };
+  match.timeFreeze = { by: byId, held, doomed: [], parent: prev };
 }
 function frozen() { return match.timeFreeze || null; }
 // combat.instantDeath: ระหว่างหยุดเวลา คนอื่นยังไม่ตาย (จดไว้ ตกรอบตอนเวลาเดินต่อ)
@@ -241,11 +259,14 @@ function unfreeze() {
   if (!f) return [];
   match.timeFreeze = null;
   const by = match.players[f.by];
+  const parent = f.parent || null;
   const hits = [];
   for (const [id, h] of Object.entries(f.held)) {
     const p = match.players[id];
     if (!p) continue;
-    if (p.alive && p.hp <= 0) {
+    // หยุดเวลาซ้อน: คนที่ชั้นเดิมสังหารไว้ยังไม่ตาย ถ้าชั้นนี้ไม่ได้ตีเพิ่ม (ตกรอบตอนชั้นเดิมเดินต่อ)
+    const parentsKill = parent && parent.doomed.includes(id) && !f.doomed.includes(id);
+    if (p.alive && p.hp <= 0 && !parentsKill) {
       if (p.hp < 0) p.hp = 0;
       const die = () => combat.instantDeath(p);
       unfreezing = true;
@@ -254,6 +275,18 @@ function unfreeze() {
     }
     const dmg = Math.max(0, h.pool - poolOf(p));
     if (dmg > 0 || !p.alive) hits.push({ id, dmg, kill: !p.alive });
+    // ดาเมจของชั้นนี้ลงแล้ว = ผู้ชมชั้นเดิมเห็นเลือดใหม่ · ไม่นับเป็นดาเมจของชั้นเดิมซ้ำ
+    const up = parent && parent.held[id];
+    if (up && dmg > 0) {
+      up.pool = Math.max(0, up.pool - dmg);
+      up.hp = Math.max(0, up.hp - dmg);
+      up.armor = p.armor; up.shield = p.shield; up.tempHp = p.tempHp || 0;
+    }
+  }
+  if (parent) {
+    match.timeFreeze = parent;
+    const owner = match.players[parent.by];
+    if (!owner || !owner.alive) hits.push(...unfreeze()); // เจ้าของชั้นเดิมตายตอนนี้ = เวลาเดินต่อทั้งหมด
   }
   return hits;
 }
