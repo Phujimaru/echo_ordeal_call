@@ -8,10 +8,11 @@
 //  ช่อง secondary: กระเป๋า SmartBrain form: "knuckle" | "pointer" | "axel" — กดซ้ำ = ถอด
 //  ช่อง ultimate: Start Up — โผล่เฉพาะตอนสวม axel_watch
 //
+//  วีดีโอเล่นครั้งแรกต่อเกมเท่านั้น ยกเว้น Exceed Charge ตีโดน + คลิปคริ · รอบหลังใช้เสียงแทน
 //  ไม่กินโควตา: ทุกอย่างที่ฟรี · กินโควตา: 279 / Exceed Charge / Start Up (ผู้ใช้เลือก 2026-11-05)
 //  ทุกสกิลล็อกการเดิน ยกเว้น Exceed Charge และทุกอย่างระหว่าง Start Up
 //  ร่าง Faiz ไม่เพิ่มค่าสถานะ (ผู้ใช้เลือก) · ใส่ Knuckle/Pointer/Axel ต้องแปลงร่างก่อน · วางสาย = ถอดของทั้งหมด
-//  ปืน: กดรหัสแล้วค้างจนกระสุนหมด/เปลี่ยนรหัส · หักตอนยิงจริง (103 = 1 นัด · 106 = 2 นัด)
+//  ปืน: กดรหัสแล้วค้างจนกระสุนหมด/เปลี่ยนรหัส/ใส่อุปกรณ์ · หักตอนยิงจริง (103 = 1 นัด · 106 = 2 นัด)
 //  สกิลติดตัว: ตีโดนโดยไม่ได้สวม Knuckle/Pointer/Axel (รวมร่าง Faiz + ปืน) แต้มสกิล +1
 //
 //  Start Up: คลิปจบแล้วนับ 10 วิ เฉพาะเวลาที่ผู้เล่นกดได้ (ฮุค clockSeconds — ฉากตี/คลิปไม่กินเวลา)
@@ -21,7 +22,7 @@
 //
 //  Claude ตัดสินเอง (GRID_PLAN §7.27): Exceed Charge ปลดล็อกการเดินที่ค้างในตานั้น · ตีด้วย Exceed หลบได้ = เสียผล ·
 //    เป้าประชิดเท่านั้น ไม่ใช้กระสุน · คริ 106 บวกกับคริ Axel · เลือกอุปกรณ์ทับ axel_watch = ถอด Axel (คูลดาวน์) ·
-//    ฟื้นเลือด 2 เทิร์นต้องอยู่ร่างมนุษย์ติดกัน · exceed.m4a ใช้ตอนใส่ของใน Start Up (ไม่มีคลิปให้ซ้อน) · เสียง 103/106/279/ยิง ตัดจากไฟล์ซาวด์เอฟเฟกต์ของผู้ใช้โดยดูรูปคลื่น ยังไม่ได้ฟัง
+//    ฟื้นเลือด 2 เทิร์นต้องอยู่ร่างมนุษย์ติดกัน · exceed.m4a ใช้ตอนใส่ของใน Start Up (ไม่มีคลิปให้ซ้อน) · เสียง 103/106/279/ยิง ตัดจากไฟล์ซาวด์เอฟเฟกต์ของผู้ใช้โดยวิเคราะห์ความถี่ ยังไม่ได้ฟัง
 // ============================================================
 
 const ID = "inui_takumi";
@@ -82,6 +83,15 @@ const stopGun = (s) => { s.gun = null; };
 
 function logTo(engine, msg) { engine.log(msg); }
 
+// กฎผู้ใช้ 2026-11-05: วีดีโอทุกตัวเล่นครั้งแรกต่อเกมเท่านั้น ยกเว้น Exceed Charge ตีโดน กับคลิปคริ (คิวตรงใน preAttackClip)
+//  เล่นแล้ว = false ให้ผู้เรียกใช้เสียงแทน
+function clipOnce(engine, p, key) {
+  if (p.cutsceneShown[key]) return false;
+  p.cutsceneShown[key] = true;
+  engine.queueCutscene(p, key);
+  return true;
+}
+
 // ---------- ร่าง Axel ----------
 //  คูลดาวน์นับลงตอนจบเทิร์น: จบระหว่างเทิร์น +1 (เทิร์นปัจจุบันไม่นับ) · จบตอนจบเทิร์น (atEnd) = เต็ม 3 เทิร์นถัดไปพอดี
 function endAxel(p, atEnd) {
@@ -114,8 +124,7 @@ function dial(engine, p, form) {
     s.faiz = true;
     s.faizAt = engine.severStamp();
     s.humanTurns = 0;
-    if (!p.cutsceneShown[CUT.henshin]) { p.cutsceneShown[CUT.henshin] = true; engine.queueCutscene(p, CUT.henshin); }
-    else { engine.sfx("inui_standby"); engine.sfx("inui_henshin2"); }
+    if (!clipOnce(engine, p, CUT.henshin)) { engine.sfx("inui_standby"); engine.sfx("inui_henshin2"); }
     logTo(engine, `📱 ${p.name} 555 ENTER — แปลงร่าง Kamen Rider Faiz`);
     return;
   }
@@ -139,7 +148,7 @@ function dial(engine, p, form) {
     s.exceedAt = engine.severStamp();
     // ปลดล็อกการเดินที่ค้างจากคำสั่งก่อนหน้า: ระยะเดิน +2 ระหว่าง Exceed Charge
     if (engine.action) engine.action.locked = false;
-    engine.queueCutscene(p, kind === "knuckle" ? CUT.knuckleEx : CUT.pointerEx);
+    if (!clipOnce(engine, p, kind === "knuckle" ? CUT.knuckleEx : CUT.pointerEx)) engine.sfx("inui_exceed");
     logTo(engine, `⚡ ${p.name} Exceed Charge — ${kind === "knuckle" ? "Faiz_nuckle" : "Faiz_pointer"}`);
   }
 }
@@ -151,10 +160,11 @@ function wear(engine, p, form) {
   if (form === "axel") {
     if (s.axel) { endAxel(p); logTo(engine, `⌚ ${p.name} ถอด axel_watch`); return; }
     clearGear(s);
+    stopGun(s);
     s.axel = true;
     s.axelLeft = AXEL_TURNS;
     s.axelAt = engine.severStamp();
-    engine.queueCutscene(p, CUT.axel);
+    if (!clipOnce(engine, p, CUT.axel)) { engine.sfx("inui_standby"); engine.sfx("inui_henshin2"); }
     logTo(engine, `⌚ ${p.name} สวม axel_watch — Faiz Axel`);
     return;
   }
@@ -168,11 +178,12 @@ function wear(engine, p, form) {
     if (s.axel) endAxel(p);
     clearGear(s);
   }
+  stopGun(s); // ใส่อุปกรณ์ = ปิดโหมดปืนที่กดไว้ (ผู้ใช้สั่ง 2026-11-05) · กดรหัสใหม่ได้
   s[form] = true;
   s.lastGear = form;
   s.gearAt = engine.severStamp();
   if (up) engine.sfx("inui_exceed");
-  else engine.queueCutscene(p, form === "knuckle" ? CUT.knuckle : CUT.pointer);
+  else clipOnce(engine, p, form === "knuckle" ? CUT.knuckle : CUT.pointer);
   logTo(engine, `🎒 ${p.name} สวม ${form === "knuckle" ? "Faiz_nuckle" : "Faiz_pointer"}`);
 }
 
@@ -255,7 +266,7 @@ module.exports = {
     const s = st(p);
     if (tier === "basic" && !s.opened) {
       s.opened = true;
-      engine.queueCutscene(p, CUT.open);
+      clipOnce(engine, p, CUT.open);
       logTo(engine, `💼 ${p.name} เปิดกระเป๋า SmartBrain`);
       return "";
     }
@@ -264,7 +275,8 @@ module.exports = {
     if (tier === "ultimate") {
       s.startUp = { left: STARTUP_HITS, started: false, at: engine.severStamp() };
       engine.freshMove(p);
-      engine.queueCutscene(p, CUT.startUp);
+      // เล่นคลิปแล้ว: นับ 10 วิทันที (ไม่มีฉากให้ clockSeconds รับช่วง)
+      if (!clipOnce(engine, p, CUT.startUp)) { s.startUp.started = true; engine.setActionClock(STARTUP_SECONDS); }
       logTo(engine, `⏱️ ${p.name} Start Up — ${STARTUP_SECONDS} วินาที`);
     }
     return "";
@@ -272,7 +284,13 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   range(p) { return gunOn(p) ? [1, 3] : [1, 1]; },
-  attackBeam(p) { return gunOn(p) ? 3 : 0; },
+  // ท่าตีเฉพาะตัว (client/src/board/faizFx.js) · ใส่อุปกรณ์ทั้งคู่ใน Start Up = ชิ้นล่าสุด
+  attackStyle(p) {
+    const s = st(p);
+    if (gunOn(p)) return s.gun === "106" ? "faizBurst" : "faizShot";
+    const gear = s.exceed ? s.exceed.kind : s.lastGear || (s.pointer ? "pointer" : s.knuckle ? "knuckle" : null);
+    return gear === "pointer" ? "faizPoint" : gear === "knuckle" ? "faizKnuckle" : "faizFist";
+  },
   attackSound(p) { if (!gunOn(p)) return undefined; return st(p).gun === "106" ? "inui_shot_burst" : "inui_shot"; },
   critPct(p) {
     const s = st(p);
@@ -342,7 +360,7 @@ module.exports = {
   clockSeconds(engine, p, left) {
     const s = st(p);
     if (!s.startUp) return null;
-    // เพลง axel_theme + เสียง axel_startUp_soundeffect เริ่มพร้อมกันตอนนับ 10 วิ หลังคลิปจบ (ผู้ใช้สั่ง 2026-11-05) — client เล่นตาม startUp.running · พักตอนมีคลิป
+    // เพลง axel_theme + เสียง axel_startUp_soundeffect เริ่มพร้อมกันตอนนับ 10 วิ หลังคลิปจบ (ผู้ใช้สั่ง 2026-11-05) — client เล่นตาม startUp.running · เสียงพักตอนนาฬิกาหยุด
     if (!s.startUp.started) { s.startUp.started = true; return STARTUP_SECONDS; }
     return Math.max(1, left);
   },
@@ -350,7 +368,7 @@ module.exports = {
     const s = st(p);
     if (!s.startUp) return;
     endStartUp(engine, p);
-    engine.queueCutscene(p, CUT.timeOut);
+    if (!clipOnce(engine, p, CUT.timeOut)) engine.sfx("inui_timeout");
     logTo(engine, `⏱️ ${p.name} Time Out — กลับร่าง Faiz`);
   },
   onActorEnd(engine, p) { const s = st(p); s.exceed = null; s.exceedClip = null; },
@@ -365,7 +383,7 @@ module.exports = {
         s.axelLeft -= 1;
         if (s.axelLeft <= 0) {
           endAxel(p, true);
-          engine.queueCutscene(p, CUT.timeOutIdle);
+          if (!clipOnce(engine, p, CUT.timeOutIdle)) engine.sfx("inui_timeout");
           logTo(engine, `⌚ ${p.name} Faiz Axel หมดเวลา`);
         }
       }

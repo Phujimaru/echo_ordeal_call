@@ -156,6 +156,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // การพุ่งบนกระดาน — client เล่นแอนิเมชันตาม seq ใหม่ { id, path, wheel?, swap?: { id, from, to }, boom? }
   setDash(d) { match.dash = d ? { seq: ++match.dashSeq, ...d } : null; },
   movOf: action.movOf,
+  setActionClock: (secs) => timers.startPhaseTimer(secs, action.actionTimeUp), // ตั้งเวลาตาเดินใหม่ทันที (อินุอิ: Start Up รอบที่ไม่มีคลิป)
   freshMove: action.freshMove,           // เริ่มนับเดินใหม่เต็มระยะจากช่องที่ยืน (อินุอิ: Start Up)
   rebaseMove: action.rebaseMove,         // ตาเดินเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (บานาจ: พุ่งหลังเดิน)
   tauntOf: action.tauntOf,               // ถูกล่อเป้าอยู่ไหม → Set ของตัวล่อ | null (โล่ผู้พิทักษ์ของบานาจ)

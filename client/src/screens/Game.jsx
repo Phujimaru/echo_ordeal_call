@@ -2190,13 +2190,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const ohgerLoop = ohgerActor && ohgerActor.ohger.phase
     ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}_${ohgerActor.ohger.step || 0}`, charge: `ohger_charge_loop_${ohgerActor.ohger.pulls || 0}`, standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
     : null;
-  // อินุอิ Start Up: เสียง axel_startUp_soundeffect เริ่มพร้อมเพลงตอนนับ 10 วิ (ทุกคนได้ยิน) · หลบคลิปคริ (กฎห้ามเสียงซ้อนวีดีโอ)
+  // อินุอิ Start Up: เสียง axel_startUp_soundeffect เริ่มพร้อมเพลงตอนนับ 10 วิ (ทุกคนได้ยิน) · พักพร้อมนาฬิกา (ฉากตี/คลิป)
   const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
   const inuiUpRef = useRef(false);
   useEffect(() => {
     if (inuiUp && !inuiUpRef.current) { inuiUpRef.current = true; startLoopSfx("inui_startup"); }
     else if (!inuiUp && inuiUpRef.current) { inuiUpRef.current = false; stopLoopSfx(); return; }
-    if (inuiUp) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
+    if (inuiUp) { if (phase === "ACTION") resumeLoopSfx(); else pauseLoopSfx(); } // เดินตามนาฬิกา 10 วิ: ฉากตี/คลิปพักทั้งคู่
   }, [inuiUp, phase]);
   const ohgerLoopRef = useRef(null);
   useEffect(() => {

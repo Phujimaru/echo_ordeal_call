@@ -555,8 +555,8 @@ const FILES = {
     "card_evolution", "card_jack", "card_queen", "card_king", "card_ace", "card_fire", "card_tornado", "card_blizzard", "card_ten", "card_spade",
     "lightning_straight", "lightning_four", "lightning_royal", "atk_king", "atk_straight", "king_wave", "king_four_hit",
   ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
-  // อินุอิ ทาคุมิ: เสียงจากผู้ใช้ (-16 LUFS) · ปุ่ม/standby ตัดจาก "เสียงปุ่มและ standby" · 103/106/279/ยิง ตัดจาก Sound Effects Henshin And Finisher
-  ...Object.fromEntries(["key", "enter", "standby", "henshin2", "exceed", "single", "burst", "charge", "shot", "shot_burst", "startup"].map((k) => [`inui_${k}`, `/characters/inui_takumi/sfx/inui_${k}.m4a`])),
+  // อินุอิ ทาคุมิ: เสียงจากผู้ใช้ · ปุ่ม 3 เสียงไล่ระดับ key1/2/3 + ENTER + 103/106/279/ยิง ตัดจาก Sound Effects Henshin And Finisher · standby จาก "เสียงปุ่มและ standby"
+  ...Object.fromEntries(["key1", "key2", "key3", "enter", "standby", "henshin2", "exceed", "single", "burst", "charge", "shot", "shot_burst", "startup", "timeout"].map((k) => [`inui_${k}`, `/characters/inui_takumi/sfx/inui_${k}.m4a`])),
   inui_axel: "/characters/inui_takumi/inui_axel_theme.m4a", // เล่นตลอด Start Up
   inui_exceed_wait: "/characters/inui_takumi/inui_exceed_wait.m4a", // เพลงรอ Exceed Charge
   kazuma_king: "/characters/kensaki_kazuma/kazuma_king_theme.mp3", // Round ZERO ～BLADE BRAVE (ไฟล์จากผู้ใช้) เล่นตลอดร่างคิง

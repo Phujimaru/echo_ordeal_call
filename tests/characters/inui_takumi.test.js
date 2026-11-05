@@ -107,6 +107,24 @@ test("ปืน: ค้างโหมด หักตอนยิง · 106 ใ
   assert.equal(p.skillUsedRound, true, "279 กินโควตา");
 });
 
+test("ใส่อุปกรณ์ปิดโหมดปืน · กดรหัสใหม่ได้ · ท่าตีตามอุปกรณ์", () => {
+  const { p } = faiz();
+  assert.equal(inui.attackStyle(p), "faizFist");
+  dial("106");
+  assert.equal(inui.attackStyle(p), "faizBurst");
+  assert.equal(inui.attackBeam, undefined, "ไม่ใช้ลำแสงกลาง");
+  bag("knuckle");
+  assert.equal(p.inui.gun, null);
+  assert.deepEqual(inui.range(p), [1, 1]);
+  assert.equal(inui.attackStyle(p), "faizKnuckle");
+  bag("pointer");
+  assert.equal(inui.attackStyle(p), "faizPoint");
+  dial("103");
+  assert.equal(inui.attackStyle(p), "faizShot");
+  bag("axel");
+  assert.equal(p.inui.gun, null, "axel_watch ก็ปิดปืน");
+});
+
 test("สกิลติดตัว: ไม่สวมของตีโดนได้แต้ม 1 ทั้งมนุษย์และ Faiz · สวมของไม่ได้", () => {
   Math.random = () => 0.99;
   const { p } = setup({ points: 0 });
@@ -179,6 +197,49 @@ test("Exceed Charge: 4 แต้ม เดินได้ +2 ตีลง 4 + �
   assert.equal(t.hp, 3);
   assert.ok(t.statuses.rooted > 0);
   assert.equal(p.inui.exceed, null);
+});
+
+test("วีดีโอเล่นครั้งเดียวต่อเกม: อุปกรณ์ · Exceed เริ่ม · axel · Start Up · Time Out", () => {
+  const { p } = faiz();
+  bag("knuckle"); bag("knuckle");
+  assert.deepEqual(clips, [inui.CUT.knuckle], "ใส่ซ้ำไม่มีคลิป");
+  clips.length = 0;
+  bag("knuckle");
+  engine.setActor("a");
+  p.skillPoints = 8;
+  dial("exceed");
+  assert.deepEqual(clips, [inui.CUT.knuckle ? inui.CUT.knuckleEx : ""]);
+  inui.onActorEnd(engine, p);
+  p.skillUsedRound = false;
+  engine.setActor("a");
+  clips.length = 0;
+  p.skillPoints = 8;
+  dial("exceed");
+  assert.deepEqual(clips, [], "Exceed รอบสอง ไม่มีคลิปเริ่ม");
+  inui.onActorEnd(engine, p);
+  // ตีโดน/คริ เล่นทุกครั้ง
+  p.inui.exceedClip = "knuckle";
+  assert.equal(inui.preAttackClip(engine, p, {}), inui.CUT.knuckleHit);
+  p.inui.exceedClip = "knuckle";
+  assert.equal(inui.preAttackClip(engine, p, {}), inui.CUT.knuckleHit);
+  // Start Up รอบสอง: ไม่มีคลิป นับ 10 วิทันที
+  p.inui.axelCd = 0;
+  p.skillUsedRound = false;
+  engine.setActor("a");
+  bag("axel");
+  engine.setActor("a");
+  clips.length = 0;
+  p.skillPoints = 8;
+  p.cutsceneShown[inui.CUT.startUp] = true;
+  engine.useSkill("a", "ultimate", []);
+  assert.deepEqual(clips, []);
+  assert.equal(p.inui.startUp.started, true);
+  assert.equal(engine.timeLeft, 10);
+  engine.clearPhaseTimer();
+  p.cutsceneShown[inui.CUT.timeOut] = true;
+  inui.actorOutro(engine, p);
+  assert.deepEqual(clips, [], "Time Out รอบสอง ใช้เสียงแทน");
+  assert.equal(p.inui.axel, false);
 });
 
 test("Exceed Charge: ใช้ไม่ได้ถ้าไม่แปลงร่าง/ไม่สวมของ ไม่เสียแต้ม", () => {

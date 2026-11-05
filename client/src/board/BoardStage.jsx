@@ -916,9 +916,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
       //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
-      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk"));
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz"));
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
-      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const kzLunge = (style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
@@ -932,7 +932,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const arjS = style === "arjunaBomb" || style === "arjunaArrow";
       if (arjS) later(Math.max(ZOOM_IN, HIT - ARJ_SFX_LEAD[style]), () => playSfx(a.byAttackSound || "attack"));
       if (Array.isArray(a.hitFx) && a.hitFx.length) later(HIT, () => a.hitFx.forEach((h) => hitFx.current[h.event] && hitFx.current[h.event](h.payload)));
-      if (style === "dioPunch" && !lowQ) later(HIT, () => setShake((n) => n + 1));
+      if ((style === "dioPunch" || style === "faizKnuckle" || style === "faizPoint") && !lowQ) later(HIT, () => setShake((n) => n + 1));
       if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
