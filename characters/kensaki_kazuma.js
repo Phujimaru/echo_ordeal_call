@@ -29,6 +29,13 @@
 //    Sonic หลบได้ (ทอยหลบแบบสกิล) · ดาเมจสกิลบวกเปราะบาง/คุ้มครองลดได้ · คริ 50% ใช้ได้ทั้งสองร่าง ·
 //    รูปปุ่มท่าไม้ตาย = เฟรมจากคลิปของผู้ใช้ · คลิปแปลงร่างเต็มครั้งแรกต่อเกม (ผู้ใช้สั่ง "เล่นครั้งเดียว") ครั้งต่อไปการ์ดแจ้งเตือน ·
 //    BEAT ในท่า Lightning = ตีกรอบแทนแนว · Sonic + BEAT = ทุกศัตรูในแถวขวางกว้าง 1+2n ที่ช่องชนโดนด้วย
+//
+//  King Form (ผู้ใช้ตัดสิน 2026-11-05 · GRID_PLAN §7.19.1): เลือกการ์ดสะสมอัตราผสาน 9 → Evolution 1 ครั้งต่อเกม (useSkill basic form "evolution")
+//    พลังโจมตี 2 · เกราะ +3 · เดิน 3 · การ์ด 5 ใบ/เทิร์น ใบละ 1 แต้ม ไม่จำกัดชนิด · การ์ดเพิ่ม 7 ใบ · เพดาน Lightning +1
+//    อยู่ 5 เทิร์น → คลิปคืนร่าง + ร่างมนุษย์ + ฟื้นพลังชีวิต 2 + สตั้นตัวเอง 1 เทิร์น
+//    Straight Flush (SLASH BEAT TACKLE KICK THUNDER): คลิปตอนกด · ตีปกติครั้งถัดไปในตาเดินนี้ ×2 (เพดาน 6)
+//    Four Card (THUNDER TORNADO FIRE BLIZZARD EVOLUTION): พุ่ง 5 ช่อง · ดิบ 2 ลดเกราะก่อน · ช็อต 1 ผลัก 1 ลุกไหม้ 2 เชื่องช้า 2 เลือดไหล 1
+//    Royal Straight Flush (TIME FUSION ABSORB EVOLUTION CHANGE): คลื่นดาบ 4×3 · ดาเมจ 6 ลดเกราะก่อน · ทอยหลบรายคน · แล้วกลับร่าง Blade
 // ============================================================
 const Board = require("../server/board");
 
@@ -41,13 +48,22 @@ const IMG = {
   beltOn: `${DIR}/kazuma_belt_on.webp`,
   card: (k) => `${DIR}/cards/kazuma_card_${k}.webp`,
   ult: (k) => `${DIR}/kazuma_ult_${k}.webp`,
+  king: `${DIR}/kazuma_king.webp`,
 };
 const VIDEO = {
   crit: `${DIR}/kazuma_crit.mp4`,
   henshin: `${DIR}/kazuma_henshin.mp4`,
   combo: (k) => `${DIR}/kazuma_lightning_${k}.mp4`,
+  king: `${DIR}/kazuma_king_henshin.mp4`,
+  deform: `${DIR}/kazuma_king_deform.mp4`,
+  straight: `${DIR}/kazuma_king_straight.mp4`,
+  four: `${DIR}/kazuma_king_four.mp4`,
+  royal: `${DIR}/kazuma_king_royal.mp4`,
 };
-const CUT = { crit: "kazumaCrit", henshin: "kazumaHenshin", blast: "kazumaBlast", slash: "kazumaSlash", sonic: "kazumaSonic" };
+const CUT = {
+  crit: "kazumaCrit", henshin: "kazumaHenshin", blast: "kazumaBlast", slash: "kazumaSlash", sonic: "kazumaSonic",
+  king: "kazumaKing", deform: "kazumaDeform", straight: "kazumaStraight", four: "kazumaFour", royal: "kazumaRoyal",
+};
 const PASSIVE = "ช่างหัวมันสิ";
 const CRIT_PCT = 50;
 const FX = "kazumaFx"; // socket event (client/src/board/kazumaFx.js)
@@ -59,6 +75,7 @@ const SFX = {
   // เสียงเหตุการณ์บนกระดาน (สังเคราะห์ — .claude/plans/kazuma-sfx.py) · ตีปกติ kazuma_atk_* (attackSound)
   henshin: "kazuma_henshin_fx", unhenshin: "kazuma_unhenshin", rouze: "kazuma_rouze", metal: "kazuma_metal", heal: "kazuma_heal",
   dash: "kazuma_sonic_dash", sonicHit: "kazuma_sonic_hit", crash: "kazuma_crash", magnet: "kazuma_magnet",
+  wave: "kazuma_king_wave", fourHit: "kazuma_king_four_hit",
 };
 
 const HP = 7;
@@ -78,10 +95,15 @@ const BLAST = { range: [1, 3], dmg: 2, shock: 2 };
 const SLASH = { range: [1, 3], dmg: 2, shock: 1 };
 const SONIC = { len: 4, dmg: 4, shock: 1, push: 2, crash: 1 };
 const COMBO_CAP = { blast: 4, slash: 4, sonic: 5 }; // เพดานดาเมจของท่ารวมโบนัสการ์ดที่เกินสูตร (2 ใบ = 4 · 3 ใบ = 5)
+const KING = { need: 9, turns: 5, picks: 5, cost: 1, armor: 3, mov: 3, atk: 1, heal: 2, stun: 1, capUp: 1 };
+const STRAIGHT = { mult: 2, cap: 6 };
+const FOUR = { len: 5, dmg: 2, shock: 1, push: 1, crash: 1, burn: 2, slow: 2, bleed: 1 };
+const ROYAL = { len: 4, width: 3, dmg: 6 };
+const KING_CRIT = 20; // ♠K ต่อใบ
 const METAL_STATUS = "kazumaMetal"; // ป้ายสถานะ (เทิร์นที่เหลือ — ลดเองตอนจบเทิร์น) · ครั้งที่เหลือ = s.metal
 // จังหวะพักให้กระดานเล่นเอฟเฟกต์ (ต้องไม่สั้นกว่า KAZUMA_FX ใน client/src/board/kazumaFx.js)
 const DASH_STEP = 0.09;
-const BEAT = { dashPad: 0.35, sonicHit: 0.7 };
+const BEAT = { dashPad: 0.35, sonicHit: 0.7, wave: 0.95, fourHit: 0.6 };
 
 const CARDS = {
   slash: { name: "SLASH", desc: "ตีปกติ พลังโจมตี +1" },
@@ -95,8 +117,26 @@ const CARDS = {
   time: { name: "TIME", desc: `ตีโดน ตาเดินถัดไปของเป้าเหลือเวลาน้อยลง ${TIME_CUT} วินาที` },
 };
 const CARD_KEYS = Object.keys(CARDS);
+// การ์ดเฉพาะร่าง King (GRID_PLAN §7.19.1) · เสียง = รูด + ชื่อการ์ด (คีย์ kazuma_card_* ต่อคิวเหมือนการ์ดเดิม)
+const KING_CARDS = {
+  jack: { name: "FUSION", desc: "ตีโดน แต้มสกิล +1" },
+  queen: { name: "ABSORB", desc: "ตีโดน ฟื้นเกราะ 1" },
+  king: { name: "EVOLUTION", desc: `อัตราคริติคอล +${KING_CRIT}%` },
+  ace: { name: "CHANGE", desc: "ตีโดน ล้างสถานะผิดปกติของตัวเอง 1 อย่าง" },
+  fire: { name: "FIRE", desc: "ตีโดน ติดลุกไหม้ 1" },
+  tornado: { name: "TORNADO", desc: "ตีโดน ตัวเองได้หลบหลีก 1 เทิร์น" },
+  blizzard: { name: "BLIZZARD", desc: "ตีโดน ติดเชื่องช้า 1 เทิร์น" },
+};
+const KING_KEYS = Object.keys(KING_CARDS);
+const ALL_CARDS = { ...CARDS, ...KING_CARDS };
 const EXCLUSIVE = { tackle: "magnet", magnet: "tackle" };
 const COMBOS = {
+  royal: { name: "Royal Straight Flush", cards: ["time", "jack", "queen", "king", "ace"], img: IMG.ult("royal"), king: true,
+    desc: `เลือกทิศ: คลื่นดาบ ${ROYAL.len}×${ROYAL.width} · ความเสียหาย ${ROYAL.dmg} (ลดเกราะก่อน · หลบได้) · แล้วกลับร่าง Blade` },
+  straight: { name: "Straight Flush", cards: ["slash", "beat", "tackle", "kick", "thunder"], img: IMG.ult("straight"), king: true,
+    desc: `ตีปกติครั้งถัดไปในตาเดินนี้ ความเสียหาย ×${STRAIGHT.mult} (ไม่เกิน ${STRAIGHT.cap})` },
+  four: { name: "Four Card", cards: ["thunder", "tornado", "fire", "blizzard", "king"], img: IMG.ult("four"), king: true,
+    desc: `เลือกทิศ: พุ่งไกลสุด ${FOUR.len} ช่อง หยุดหน้าศัตรูคนแรก · ความเสียหาย ${FOUR.dmg} ตายตัว (ลดเกราะก่อน · หลบได้) · ช็อต ${FOUR.shock} · ผลัก ${FOUR.push} · ลุกไหม้ ${FOUR.burn} · เชื่องช้า ${FOUR.slow} · เลือดไหล ${FOUR.bleed} เทิร์น` },
   sonic: { name: "Lightning Sonic", cards: ["kick", "thunder", "mach"], img: IMG.ult("sonic"),
     desc: `เลือกทิศ: พุ่งไกลสุด ${SONIC.len} ช่อง หยุดหน้าศัตรูคนแรก · ความเสียหาย ${SONIC.dmg} (ลดเกราะก่อน · หลบได้) + ช็อต ${SONIC.shock} เทิร์น · ศัตรูกระเด็น ${SONIC.push} ช่อง ชนเสียหายเพิ่ม ${SONIC.crash} · การ์ดที่เกินสูตรเสริมท่า (ดาเมจไม่เกิน ${COMBO_CAP.sonic})` },
   blast: { name: "Lightning Blast", cards: ["kick", "thunder"], img: IMG.ult("blast"),
@@ -108,6 +148,8 @@ const COMBO_KEYS = Object.keys(COMBOS);
 const LINE = Board.LINE_DIRS;
 
 const isKazuma = (p) => !!p && p.characterId === ID && !p.summon;
+const kingOn = (p) => isKazuma(p) && !!(p.kazuma && p.kazuma.king);
+const comboCap = (p, c) => COMBO_CAP[c] + (kingOn(p) ? KING.capUp : 0);
 // ฮุคที่ไม่ได้รับ engine อ่านเลขเทิร์นจาก engine กลาง (require ตอนเรียก — กันวน)
 function eng() { return require("../server/engine").engine; }
 function fresh() {
@@ -120,13 +162,16 @@ function fresh() {
     pickRound: 0, picks: 0,                // เลือกการ์ดไปกี่ใบในเทิร์น pickRound
     armed: null,                           // ผลที่ Rouze แล้วรอตีปกติ { kind: "cards"|"blast"|"slash", cards, round, at }
     metal: 0, metalAt: 0, blockKey: null,  // METAL: กันได้อีกกี่ครั้ง · คีย์การโจมตีที่กำลังกัน
+    fusion: 0, king: false, kingUsed: false, kingLeft: 0, kingAt: 0, // อัตราผสาน · ร่าง King (blade ยังเป็น true) · ใช้ไปแล้ว · เทิร์นที่เหลือ · ลำดับตอนแปลง
   };
 }
 function st(p) { return p.kazuma || (p.kazuma = fresh()); }
 const bladeOn = (p) => isKazuma(p) && !!st(p).blade;
 const countOf = (s, k) => { const h = s.hand.find((c) => c.k === k); return h ? h.n : 0; };
 const handSize = (s) => s.hand.reduce((a, c) => a + c.n, 0);
-const picksLeft = (s, round) => (s.pickRound === round ? Math.max(0, PICKS_PER_TURN - s.picks) : PICKS_PER_TURN);
+const picksMax = (s) => (s.king ? KING.picks : PICKS_PER_TURN);
+const picksLeft = (s, round) => (s.pickRound === round ? Math.max(0, picksMax(s) - s.picks) : picksMax(s));
+const canEvolve = (s) => s.blade && !s.king && !s.kingUsed && s.fusion >= KING.need;
 // ผลที่ Rouze ค้างไว้ของตาเดินนี้ (เทิร์นเดียวกัน · ร่าง Blade)
 function armedOf(p) {
   if (!bladeOn(p)) return null;
@@ -164,7 +209,7 @@ function shock(engine, t, turns) {
 }
 
 // ---------- ร่าง ----------
-function setForm(engine, p, blade, why) {
+function setForm(engine, p, blade, why, quiet = false) {
   const s = st(p);
   if (s.blade === blade) return;
   s.blade = blade;
@@ -172,22 +217,26 @@ function setForm(engine, p, blade, why) {
   if (blade) s.formAt = engine.severStamp();
   else if (s.armed) { s.armed = null; engine.log(`🃏 ผลการ์ดที่ Rouze ไว้ของ ${p.name} หายไป`); }
   if (p.alive && p.pos) fx(engine, p, blade ? "henshin" : "unhenshin", { why });
-  if (p.alive) engine.sfx(blade ? SFX.henshin : SFX.unhenshin);
+  // quiet = กำลังจะมีคลิป · แปลงร่างครั้งแรกของเกมก็มีคลิป (ห้ามเสียงตัดหน้า) · ครั้งต่อไปไม่มีคลิป = เล่นเสียงนี้แทน
+  const firstClip = blade && why === "skill" && !(p.cutsceneShown && p.cutsceneShown[CUT.henshin]);
+  if (p.alive && !quiet && !firstClip) engine.sfx(blade ? SFX.henshin : SFX.unhenshin);
   // คลิปแปลงร่าง: เต็มครั้งแรกต่อเกม · ครั้งต่อไปการ์ดแจ้งเตือน (triggerCutscene)
   if (blade && why === "skill" && p.alive) engine.triggerCutscene(p, CUT.henshin);
   engine.log(blade ? `🪲 ${p.name} Turn Up — แปลงร่างเป็น Kamen Rider Blade` : `🔙 ${p.name} ${why === "sever" ? "ถูกตัดร่าง — " : ""}คืนร่างมนุษย์`);
 }
 
 // ---------- Blay Rouzer ----------
-// สูตรที่ครบด้วยกองนี้
-const satisfied = (s) => COMBO_KEYS.filter((k) => COMBOS[k].cards.every((c) => countOf(s, c) > 0));
+// สูตรที่ครบด้วยกองนี้ (สูตรของร่าง King ใช้ได้เฉพาะร่าง King)
+const satisfied = (s) => COMBO_KEYS.filter((k) => (!COMBOS[k].king || s.king) && COMBOS[k].cards.every((c) => countOf(s, c) > 0));
+const longest = (list) => [...list].sort((a, b) => COMBOS[b].cards.length - COMBOS[a].cards.length)[0] || null;
 // การ์ดใบนี้เลือกได้ไหม (ไม่สนแต้ม/ตาเดิน) → null = ได้ · สตริง = เหตุผล (log/ทดสอบ)
 function cardBlock(p, k, round) {
   const s = st(p);
-  if (!CARDS[k]) return "card";
+  if (!ALL_CARDS[k]) return "card";
   if (!s.blade) return "human";
+  if (KING_CARDS[k] && !s.king) return "king";
   if (picksLeft(s, round) <= 0) return "picks";
-  if (!countOf(s, k) && s.hand.length >= MAX_TYPES) return "types";
+  if (!s.king && !countOf(s, k) && s.hand.length >= MAX_TYPES) return "types";
   if (EXCLUSIVE[k] && countOf(s, EXCLUSIVE[k]) > 0) return "exclusive";
   return null;
 }
@@ -199,24 +248,67 @@ function pickCard(engine, p, k) {
   if (handSize(s) === 1) s.handAt = engine.severStamp();
   if (s.pickRound !== r) { s.pickRound = r; s.picks = 0; }
   s.picks += 1;
+  if (!s.kingUsed) s.fusion = Math.min(KING.need, s.fusion + 1);
   // ครบสูตรใหม่ = ทับท่าที่เซ็ตไว้ · ครบหลายสูตรพร้อมกัน = สูตรที่ใช้การ์ดมากกว่า
-  const fresh = satisfied(s).filter((c) => !had.has(c)).sort((a, b) => COMBOS[b].cards.length - COMBOS[a].cards.length);
+  const fresh = satisfied(s).filter((c) => !had.has(c));
   if (fresh.length) {
-    s.combo = fresh[0];
+    s.combo = longest(fresh);
     s.comboAt = engine.severStamp();
     engine.log(`⚡ ${p.name} ผสมการ์ดได้ ${COMBOS[s.combo].name}`);
   }
   fx(engine, p, "card", { card: k, combo: fresh.length ? s.combo : null });
   // เสียง: รูดการ์ด → ชื่อการ์ด → รูดผ่าน แล้วชื่อท่าที่ผสมได้ (client เล่นต่อคิว — audio.js SFX_QUEUED)
-  engine.sfx(SFX.card(k));
+  engine.sfx(SFX.card(cardVoice(s, k)));
   if (fresh.length) engine.sfx(SFX.combo(s.combo));
-  engine.log(`🃏 ${p.name} Blay Rouzer — ${CARDS[k].name} (${countOf(s, k)} ใบ)`);
+  engine.log(`🃏 ${p.name} ${s.king ? "ร่างคิง" : "Blay Rouzer"} — ${ALL_CARDS[k].name} (${countOf(s, k)} ใบ)`);
+}
+// ร่าง King เรียกไพ่แบบโป๊กเกอร์: TIME = "Spade Ten" · THUNDER ในกองสี่ดอก = "Spade Card"
+function cardVoice(s, k) {
+  if (!s.king) return k;
+  if (k === "time") return "ten";
+  if (k === "thunder" && (countOf(s, "tornado") || countOf(s, "fire") || countOf(s, "blizzard"))) return "spade";
+  return k;
 }
 function clearHand(s) {
   s.hand = [];
   s.combo = null;
   s.handAt = 0;
   s.comboAt = 0;
+}
+
+// ---------- King Form ----------
+function evolve(engine, p) {
+  const s = st(p);
+  s.king = true;
+  s.kingUsed = true;
+  s.kingLeft = KING.turns;
+  s.kingAt = engine.severStamp();
+  p.armor = Math.min(ARMOR + KING.armor, (p.armor || 0) + KING.armor);
+  engine.log(`👑 ${p.name} แปลงร่างเป็นร่างคิง`);
+  engine.triggerCutscene(p, CUT.king);
+  engine.deferAfterCutscene(() => { if (p.alive && p.pos) fx(engine, p, "kingOn", {}); });
+}
+// จบร่าง King: การ์ดเฉพาะร่างในกองหาย · ท่าที่ค้างคิดใหม่ · เกราะส่วนเกินหาย (toHuman = หมดเวลา)
+function leaveKing(engine, p, toHuman, why) {
+  const s = st(p);
+  if (!s.king) return;
+  s.king = false;
+  s.kingLeft = 0;
+  s.hand = s.hand.filter((c) => !KING_CARDS[c.k]);
+  if (!s.hand.length) s.handAt = 0;
+  const left = satisfied(s);
+  if (!left.includes(s.combo)) { s.combo = longest(left); s.comboAt = s.combo ? engine.severStamp() : 0; }
+  p.armor = Math.min(p.armor || 0, ARMOR);
+  if (toHuman) setForm(engine, p, false, why, true);
+  else if (p.alive && p.pos) fx(engine, p, "kingOff", {});
+}
+// ครบ 5 เทิร์น: คลิปคืนร่าง · ร่างมนุษย์ · ฟื้นพลังชีวิต 2 · สตั้นตัวเอง 1 เทิร์น (ใส่ตอนจบเทิร์น = เต็มเทิร์นถัดไป)
+function kingTimeUp(engine, p) {
+  leaveKing(engine, p, true, "king");
+  engine.queueCutscene(p, CUT.deform);
+  const got = engine.healHp(p, KING.heal);
+  if (!engine.applyDebuff(p, "stun", null, KING.stun)) p.statuses.stun = Math.max(p.statuses.stun || 0, KING.stun);
+  engine.log(`🔙 ${p.name} ร่างคิงสิ้นสุด — ฟื้นพลังชีวิต ${got} · หมดแรง สตั้น ${KING.stun} เทิร์น`);
 }
 
 // ---------- Rouze ----------
@@ -242,16 +334,34 @@ function rouze(engine, p, targets, opts) {
     sonic(engine, p, opts.dir, targets, rest);
     return ` — ${COMBOS.sonic.name}`;
   }
+  if (combo === "four") {
+    s.armed = null;
+    fourCard(engine, p, opts.dir, rest);
+    return ` — ${COMBOS.four.name}`;
+  }
+  if (combo === "royal") {
+    s.armed = null;
+    royal(engine, p, opts.dir, targets);
+    return ` — ${COMBOS.royal.name}`;
+  }
+  if (combo === "straight") {
+    // คลิปตอนกด แล้วตีปกติครั้งถัดไปในตาเดินนี้ ×2
+    s.armed = { kind: "straight", cards: rest, round: r, at: engine.severStamp() };
+    engine.queueCutscene(p, CUT.straight);
+    engine.deferAfterCutscene(() => { if (p.alive && p.pos) fx(engine, p, "straightOn", {}); });
+    engine.log(`👑 ${p.name} ${COMBOS.straight.name} — ตีปกติครั้งถัดไป ความเสียหาย ×${STRAIGHT.mult}`);
+    return ` — ${COMBOS.straight.name}`;
+  }
   if (combo) {
     s.armed = { kind: combo, cards: rest, round: r, at: engine.severStamp() };
     fx(engine, p, "rouze", { combo, cards: rest });
-    engine.log(`⚡ ${p.name} ${COMBOS[combo].name} — ตีปกติครั้งถัดไปเป็นท่านี้${Object.keys(rest).length ? ` (เสริม ${Object.entries(rest).map(([k, n]) => `${CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ")})` : ""}`);
+    engine.log(`⚡ ${p.name} ${COMBOS[combo].name} — ตีปกติครั้งถัดไปเป็นท่านี้${Object.keys(rest).length ? ` (เสริม ${Object.entries(rest).map(([k, n]) => `${ALL_CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ")})` : ""}`);
     return ` — ${COMBOS[combo].name}`;
   }
   s.armed = Object.keys(rest).length ? { kind: "cards", cards: rest, round: r, at: engine.severStamp() } : null;
   fx(engine, p, "rouze", { cards });
   engine.sfx(SFX.rouze);
-  const names = Object.entries(cards).map(([k, n]) => `${CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ");
+  const names = Object.entries(cards).map(([k, n]) => `${ALL_CARDS[k].name}${n > 1 ? ` ×${n}` : ""}`).join(" · ");
   engine.log(`🃏 ${p.name} Rouze — ${names}`);
   return "";
 }
@@ -279,7 +389,7 @@ function sonic(engine, p, dir, targets, ex = {}) {
   if (!p.alive || !p.pos || !LINE[dir]) return;
   const start = { ...p.pos };
   const len = SONIC.len + (ex.kick || 0) + (ex.mach || 0);
-  const dmg = Math.min(COMBO_CAP.sonic, SONIC.dmg + (ex.slash || 0));
+  const dmg = Math.min(comboCap(p, "sonic"), SONIC.dmg + (ex.slash || 0));
   const { passed, hit, stopAt } = planSonic(engine, p, dir, len);
   const path = [start, ...passed.map((t) => ({ x: t.x, y: t.y }))];
   const land = path[path.length - 1];
@@ -321,6 +431,84 @@ function sonic(engine, p, dir, targets, ex = {}) {
       });
     });
   });
+}
+
+// ---------- Four Card ----------
+//  พุ่งแบบ Lightning Sonic · โดน = คลิป แล้วผลลง · หลบได้ · ดิบ 2 = ตายตัว คุ้มครอง/เปราะบางไม่มีผล ลดเกราะก่อน · การ์ดที่เกินสูตรเพิ่มผล
+function fourCard(engine, p, dir, ex = {}) {
+  if (!p.alive || !p.pos || !LINE[dir]) return;
+  const start = { ...p.pos };
+  const len = FOUR.len + (ex.kick || 0) + (ex.mach || 0);
+  const { passed, hit, stopAt } = planSonic(engine, p, dir, len);
+  const path = [start, ...passed.map((t) => ({ x: t.x, y: t.y }))];
+  const land = path[path.length - 1];
+  p.pos = { x: land.x, y: land.y };
+  engine.setDash({ id: p.id, path, dir: { x: LINE[dir][0], y: LINE[dir][1] }, style: "kazumaFour" });
+  engine.skillBeat(Math.max(0, path.length - 1) * DASH_STEP + BEAT.dashPad, () => {
+    if (!p.alive) return;
+    const crossed = stopAt ? [...passed, stopAt] : passed;
+    require("../server/skills").hitArea(p, crossed, hit ? [hit.id] : []);
+    if (!hit || !hit.alive || !hit.pos) { engine.sfx(SFX.dash); engine.log(`👑 ${p.name} Four Card — ไม่โดนใคร`); return; }
+    hit.wasAttacked = true;
+    if (engine.skillDodge(p, hit, COMBOS.four.name)) {
+      fx(engine, p, "fourHit", { targetId: hit.id, to: { ...hit.pos }, dodge: true });
+      engine.sfx(SFX.dash);
+      return;
+    }
+    engine.queueCutscene(p, CUT.four);
+    engine.deferAfterCutscene(() => {
+      if (!p.alive || !hit.alive || !hit.pos) return;
+      const at = { ...hit.pos }, before = vit(hit);
+      engine.dealMixed(hit, FOUR.dmg);
+      engine.resolveDamageAftermath(hit);
+      const dealt = Math.max(0, before - vit(hit));
+      engine.log(`👑 ${p.name} Four Card → ${hit.name} -${dealt} (ลดเกราะก่อน)`);
+      if (!hit.alive) { hit.pos = null; engine.log(`💀 ${hit.name} เลือดจริงหมด ตกรอบ!`); }
+      engine.sfx(SFX.fourHit);
+      if (hit.alive) {
+        const sh = shock(engine, hit, FOUR.shock + (ex.thunder || 0));
+        if (sh) engine.log(`⚡ ${hit.name} ${sh}`);
+        engine.applyBurn(hit, FOUR.burn + (ex.fire || 0));
+        engine.ice.applySlow(hit, FOUR.slow + (ex.blizzard || 0));
+        engine.applyBleed(hit, FOUR.bleed);
+        if (ex.time) cutTime(engine, hit, ex.time);
+      }
+      fx(engine, p, "fourHit", { targetId: hit.id, to: hit.pos ? { ...hit.pos } : at, dmg: dealt });
+      engine.skillBeat(BEAT.fourHit, () => {
+        if (!hit.alive || !hit.pos) return;
+        const hold = pushTarget(engine, p, hit, { x: LINE[dir][0], y: LINE[dir][1] }, FOUR.push + (ex.tackle || 0), FOUR.crash, COMBOS.four.name);
+        if (hold > 0) engine.skillBeat(hold, () => {});
+      });
+    });
+  });
+}
+
+// ---------- Royal Straight Flush ----------
+//  ทอยหลบรายคนตอนกด · มีคนโดน = คลิป แล้วคลื่นดาบบนกระดาน → ดาเมจ · ทุกคนหลบ/ไม่มีเป้า = คลื่นอย่างเดียว · จบแล้วกลับร่าง Blade
+function royal(engine, p, dir, targets) {
+  if (!p.alive || !p.pos || !LINE[dir]) return;
+  const foes = (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && t.pos && !engine.sameTeam(p, t));
+  const hits = [], missed = [];
+  for (const t of foes) {
+    t.wasAttacked = true;
+    (engine.skillDodge(p, t, COMBOS.royal.name) ? missed : hits).push(t);
+  }
+  const tiles = Board.lineTiles(engine.boardMap(), p.pos.x, p.pos.y, dir, ROYAL.len, ROYAL.width, engine.sizeOf(p));
+  const land = () => {
+    if (!p.alive || !p.pos) return;
+    fx(engine, p, "royalWave", { dir, tiles, hits: hits.map((t) => t.id), missed: missed.map((t) => t.id) });
+    engine.sfx(SFX.wave);
+    engine.skillBeat(BEAT.wave, () => {
+      if (p.alive) require("../server/skills").hitArea(p, tiles, foes.map((t) => t.id));
+      for (const t of hits) if (t.alive && t.pos) hurt(engine, p, t, ROYAL.dmg, COMBOS.royal.name);
+      if (!hits.length) engine.log(`👑 ${p.name} Royal Straight Flush — ไม่โดนใคร`);
+      leaveKing(engine, p, false, "royal");
+    });
+  };
+  if (hits.length) {
+    engine.queueCutscene(p, CUT.royal);
+    engine.deferAfterCutscene(land);
+  } else land();
 }
 
 // ศัตรูอื่นในแถวขวางทิศพุ่ง กว้าง 1+2n รอบเป้าที่ชน
@@ -388,40 +576,43 @@ function pullTarget(engine, p, t) {
 
 // ---------- ป้าย/ข้อมูลปุ่ม ----------
 function cardChoices(p, round) {
-  const s = st(p);
-  return CARD_KEYS.map((k) => {
-    const c = CARDS[k];
+  const s = st(p), cost = s.king ? KING.cost : CARD_COST;
+  return (s.king ? [...CARD_KEYS, ...KING_KEYS] : CARD_KEYS).map((k) => {
+    const c = ALL_CARDS[k];
     return {
-      key: k, name: c.name, img: IMG.card(k), cost: CARD_COST, area: { kind: "self" }, free: true,
+      key: k, name: c.name, img: IMG.card(k), cost, area: { kind: "self" }, free: true,
       count: countOf(s, k), locked: !!cardBlock(p, k, round),
-      desc: `${c.name} (${CARD_COST} แต้ม): ${c.desc}`,
+      desc: `${c.name} (${cost} แต้ม): ${c.desc}`,
     };
   });
 }
 function rouzeDesc(s) {
   if (s.combo) return `${COMBOS[s.combo].name}: ${COMBOS[s.combo].desc}`;
   if (!s.hand.length) return "ใช้การ์ดทั้งกองใน Blay Rouzer";
-  return s.hand.map((c) => `${CARDS[c.k].name}${c.n > 1 ? ` ×${c.n}` : ""}`).join(" · ");
+  return s.hand.map((c) => `${ALL_CARDS[c.k].name}${c.n > 1 ? ` ×${c.n}` : ""}`).join(" · ");
 }
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, BASE_RANGE, COMBO_CAP, FX, SFX, CARDS, CARD_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, PICKS_PER_TURN, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
-  HUMAN_TURNS, HUMAN_HEAL, TIME_CUT, TIME_MIN, BLAST, SLASH, SONIC, METAL_STATUS,
-  isKazuma, bladeOn, planSonic,
+  IMG, VIDEO, CUT, PASSIVE, CRIT_PCT, BASE_RANGE, COMBO_CAP, FX, SFX, CARDS, CARD_KEYS, KING_CARDS, KING_KEYS, COMBOS, COMBO_KEYS, HP, ARMOR, MOV, CARD_COST, PICKS_PER_TURN, MAX_TYPES, BLADE_REGEN, STRIKE_SP,
+  HUMAN_TURNS, HUMAN_HEAL, TIME_CUT, TIME_MIN, BLAST, SLASH, SONIC, METAL_STATUS, KING, STRAIGHT, FOUR, ROYAL, KING_CRIT,
+  isKazuma, bladeOn, kingOn, planSonic,
 
   resetCombat(p) {
     p.kazumaTimeCut = 0; // TIME: วินาทีที่ตาเดินถัดไปของคนนี้ถูกหัก (ใครก็ติดได้)
     p.kazuma = isKazuma(p) ? fresh() : null;
   },
   maxHp() { return HP; },
-  maxArmor() { return ARMOR; },
-  displayImg(p) { return bladeOn(p) ? IMG.blade : null; },
-  characterPub(engine, p) { return bladeOn(p) ? { name: "Kamen Rider Blade", img: IMG.blade } : null; },
+  maxArmor(p) { return ARMOR + (kingOn(p) ? KING.armor : 0); },
+  displayImg(p) { return kingOn(p) ? IMG.king : bladeOn(p) ? IMG.blade : null; },
+  characterPub(engine, p) {
+    if (kingOn(p)) return { name: "เบลด ร่างคิง", img: IMG.king };
+    return bladeOn(p) ? { name: "Kamen Rider Blade", img: IMG.blade } : null;
+  },
   skillRegen(p) { return bladeOn(p) ? BLADE_REGEN : 1; },
 
   // ---------- เดิน / ตีปกติ (ผลจาก Rouze) ----------
-  mov(p) { return isKazuma(p) ? MOV + cardN(p, "mach") : null; },
+  mov(p) { return isKazuma(p) ? (kingOn(p) ? KING.mov : MOV) + cardN(p, "mach") : null; },
   // ระยะตี: ไม่ใช้การ์ด [1, 2] · KICK +1 ต่อใบ · ท่า Lightning Blast/Slash [1, 3] + KICK ที่เกินสูตร
   range(p) {
     if (!isKazuma(p)) return null;
@@ -437,12 +628,19 @@ module.exports = {
     const r = module.exports.range(p);
     return [r[1], 1 + 2 * b];
   },
-  damageBonus(engine, attacker) { return comboArmed(attacker) ? 0 : cardN(attacker, "slash"); },
+  // พลังโจมตีร่าง King 2 · ท่าตายตัว (Blast/Slash) ไม่ผ่านทางนี้
+  damageBonus(engine, attacker) {
+    const c = comboArmed(attacker);
+    return c === "blast" || c === "slash" ? 0 : cardN(attacker, "slash") + (kingOn(attacker) ? KING.atk : 0);
+  },
+  // Straight Flush: ความเสียหาย ×2 หลังคริ (attack.strike · เพดาน damageCap)
+  strikeMult(p) { return comboArmed(p) === "straight" ? STRAIGHT.mult : 1; },
+  damageCap(engine, p, kind) { return kind === "strike" && comboArmed(p) === "straight" ? STRAIGHT.cap : null; },
   // ท่า Lightning: ดาเมจตายตัว + SLASH ที่เกินสูตร (เพดาน 4 / 5)
   fixedStrikeDamage(engine, attacker) {
     const c = comboArmed(attacker);
     if (c !== "blast" && c !== "slash") return null;
-    return Math.min(COMBO_CAP[c], (c === "blast" ? BLAST.dmg : SLASH.dmg) + cardN(attacker, "slash"));
+    return Math.min(comboCap(attacker, c), (c === "blast" ? BLAST.dmg : SLASH.dmg) + cardN(attacker, "slash"));
   },
   attackFxNames(attacker) {
     const c = comboArmed(attacker);
@@ -453,27 +651,48 @@ module.exports = {
   attackStyle(p) {
     if (!isKazuma(p)) return null;
     const c = comboArmed(p);
-    return c === "blast" ? "kazumaBlast" : c === "slash" ? "kazumaSlash" : bladeOn(p) ? "kazumaBlade" : "kazumaPunch";
+    if (c === "blast") return "kazumaBlast";
+    if (c === "slash") return "kazumaSlash";
+    if (c === "straight") return "kazumaStraight";
+    return kingOn(p) ? "kazumaKing" : bladeOn(p) ? "kazumaBlade" : "kazumaPunch";
   },
   attackSound(p) {
     if (!isKazuma(p)) return undefined;
     const c = comboArmed(p);
-    return c ? `kazuma_atk_${c}` : bladeOn(p) ? "kazuma_atk_blade" : "kazuma_atk_punch";
+    if (c) return `kazuma_atk_${c}`;
+    return kingOn(p) ? "kazuma_atk_king" : bladeOn(p) ? "kazuma_atk_blade" : "kazuma_atk_punch";
   },
-  // ช่างหัวมันสิ: ตีปกติที่ไม่มีผลการ์ดค้าง คริ 50% (ทั้งสองร่าง)
-  critPct(p) { return isKazuma(p) && !armedOf(p) ? CRIT_PCT : 0; },
+  // ช่างหัวมันสิ: ตีปกติที่ไม่มีผลการ์ดค้าง คริ 50% (ทั้งสองร่าง) · มีผลการ์ดค้าง = ♠K ใบละ 20% (ไม่บวกกับ 50%)
+  critPct(p) {
+    if (!isKazuma(p)) return 0;
+    return armedOf(p) ? cardN(p, "king") * KING_CRIT : CRIT_PCT;
+  },
   // คลิปก่อนฉากตี: ท่า Lightning ที่โดน (ไม่หลบ — Slash: คนไหนในแนวโดนก็นับ) · ไม่มีผลการ์ด + ติดคริ = "มือเปล่าติดคริ"
   preAttackClip(engine, attacker, card) {
     if (!isKazuma(attacker) || !card) return null;
     const c = comboArmed(attacker);
+    if (c === "straight") return null; // คลิปเล่นตอนกดไปแล้ว
     if (c) return !card.dodge || (card.extra || []).some((e) => !e.dodge) ? CUT[c] : null;
     if (armedOf(attacker)) return null;
     return card.crit || (card.extra || []).some((e) => e.crit) ? CUT.crit : null;
   },
   onStrikeLanded(engine, attacker, target) {
-    if (!armedOf(attacker) || !target || !target.alive || engine.sameTeam(attacker, target)) return [];
+    if (!armedOf(attacker) || !target || engine.sameTeam(attacker, target)) return [];
     const out = [];
     const c = comboArmed(attacker);
+    // การ์ดเฉพาะร่าง King ที่ลงกับตัวเอง
+    const jack = cardN(attacker, "jack"), queen = cardN(attacker, "queen"), ace = cardN(attacker, "ace");
+    if (jack > 0) { engine.addSkill(attacker, jack, "kazuma"); out.push(`แต้มสกิล +${jack}`); }
+    if (queen > 0) {
+      const room = ARMOR + KING.armor - (attacker.armor || 0);
+      if (room > 0) { attacker.armor = (attacker.armor || 0) + Math.min(room, queen); out.push(`เกราะ +${Math.min(room, queen)}`); }
+    }
+    if (cardN(attacker, "tornado") > 0) { engine.applyBuff(attacker, "evade", 100, 1); out.push("หลบหลีก"); }
+    for (let i = 0; i < ace; i++) if (engine.cleanseLatestDebuff(attacker)) out.push("ล้างสถานะ");
+    if (!target.alive) return out;
+    const burn = cardN(attacker, "fire"), slow = cardN(attacker, "blizzard");
+    if (burn > 0 && engine.applyBurn(target, burn)) out.push(`ลุกไหม้ ${burn}`);
+    if (slow > 0) { engine.ice.applySlow(target, slow); out.push(`เชื่องช้า ${slow}`); }
     const th = (c === "blast" ? BLAST.shock : c === "slash" ? SLASH.shock : 0) + cardN(attacker, "thunder");
     if (th > 0) { const sh = shock(engine, target, th); if (sh) out.push(sh); }
     const tm = cardN(attacker, "time");
@@ -541,16 +760,21 @@ module.exports = {
   // ---------- สกิล ----------
   skillCost(p, tier, base) {
     if (!isKazuma(p)) return base;
-    return tier === "secondary" ? CARD_COST : tier === "ultimate" ? 0 : base;
+    return tier === "secondary" ? (kingOn(p) ? KING.cost : CARD_COST) : tier === "ultimate" ? 0 : base;
   },
   skillArea(p, tier, area) {
     if (!isKazuma(p) || tier !== "ultimate") return area;
-    return st(p).combo === "sonic" ? { kind: "line", len: SONIC.len, width: 1, hostile: true } : { kind: "self" };
+    const c = st(p).combo;
+    if (c === "sonic") return { kind: "line", len: SONIC.len, width: 1, hostile: true };
+    if (c === "four") return { kind: "line", len: FOUR.len, width: 1, hostile: true };
+    if (c === "royal") return { kind: "line", len: ROYAL.len, width: ROYAL.width, hostile: true };
+    return { kind: "self" };
   },
   skillPub(p, tier) {
     if (!isKazuma(p)) return null;
     const engine = eng(), s = st(p), r = engine.roundNumber;
     if (tier === "basic") {
+      if (s.king) return { name: "ร่างคิง", img: IMG.king, desc: `เหลือ ${s.kingLeft} เทิร์น` };
       return s.blade
         ? { name: "คืนร่าง", img: IMG.beltOn, desc: "กลับเป็นร่างมนุษย์", flash: true }
         : { name: "แปลงร่าง", img: IMG.beltOff, desc: "เปลี่ยนร่างเป็น Kamen Rider Blade", flash: true };
@@ -566,11 +790,14 @@ module.exports = {
     if (!isKazuma(p)) return true;
     const s = st(p), r = engine.roundNumber;
     if (!p.pos) return false;
-    if (tier === "basic") return s.formRound !== r;
+    if (tier === "basic") {
+      if (opts.form === "evolution") return canEvolve(s);
+      return !s.king && s.formRound !== r;
+    }
     if (tier === "secondary") return !cardBlock(p, opts.form, r);
     if (tier === "ultimate") {
       if (!s.blade || !s.hand.length) return false;
-      if (s.combo === "sonic") return !!LINE[opts.dir];
+      if (s.combo === "sonic" || s.combo === "four" || s.combo === "royal") return !!LINE[opts.dir];
       return true;
     }
     return false;
@@ -580,24 +807,27 @@ module.exports = {
   ignoresTurnQuota(p, tier) { return isKazuma(p) && (tier === "basic" || tier === "secondary"); },
   keepsMove(engine, p) { return isKazuma(p); },
   // Lightning Sonic: แนว 4×1 โดนจริงแค่ช่องที่พุ่งผ่าน + คนแรก — ลงผลพื้นที่เองตอนชน (hitArea)
-  ownsAreaHit(p, tier) { return isKazuma(p) && tier === "ultimate" && st(p).combo === "sonic"; },
+  ownsAreaHit(p, tier) { return isKazuma(p) && tier === "ultimate" && ["sonic", "four", "royal"].includes(st(p).combo); },
+  // Evolution: ไม่ขึ้นป้ายกลาง — เข้าฉากใส่การ์ดของ client แล้วคลิปต่อทันที
+  silentFlash(p, tier, opts = {}) { return isKazuma(p) && tier === "basic" && opts.form === "evolution"; },
   skillSound(p, tier, opts = {}) {
     if (!isKazuma(p)) return null;
-    // การ์ด: เสียงส่งเองใน pickCard (ต่อด้วยชื่อท่าที่ผสมได้) · Rouze: รูดผ่าน
-    if (tier === "ultimate") return SFX.pass;
+    // การ์ด: เสียงส่งเองใน pickCard (ต่อด้วยชื่อท่าที่ผสมได้) · Rouze: รูดผ่าน · ท่าของร่าง King มีคลิป = เงียบ (กฎห้ามเสียงตัดหน้า)
+    if (tier === "ultimate") return ["four", "royal", "straight"].includes(st(p).combo) ? null : SFX.pass;
     return null;
   },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isKazuma(p)) return "";
     const s = st(p), r = engine.roundNumber;
     if (tier === "basic") {
+      if (opts.form === "evolution") { evolve(engine, p); return ""; }
       s.formRound = r;
       setForm(engine, p, !s.blade, "skill");
       return "";
     }
     if (tier === "secondary") {
       pickCard(engine, p, opts.form);
-      return ` — ${CARDS[opts.form].name}`;
+      return ` — ${ALL_CARDS[opts.form].name}`;
     }
     if (tier === "ultimate") return rouze(engine, p, [...(targets || [])], opts);
     return "";
@@ -610,6 +840,11 @@ module.exports = {
       if (!isKazuma(p)) continue;
       const s = st(p);
       if (!((p.statuses[METAL_STATUS] || 0) > 0)) s.metal = 0;
+      if (p.alive && s.king) {
+        s.kingLeft -= 1;
+        if (s.kingLeft <= 0) kingTimeUp(engine, p);
+        continue;
+      }
       if (!p.alive || s.blade) continue;
       s.humanTurns += 1;
       if (s.humanTurns < HUMAN_TURNS) continue;
@@ -625,6 +860,7 @@ module.exports = {
     const s = st(p);
     s.armed = null;
     s.metal = 0;
+    if (s.king) leaveKing(engine, p, false, "death");
   },
 
   // ---------- ผลสกิลที่ตัดได้ (server/sever.js — รากฐานจิตของเรียวกิ) ----------
@@ -632,7 +868,8 @@ module.exports = {
   severables(engine, p) {
     if (!isKazuma(p) || !p.alive) return [];
     const s = st(p), out = [];
-    if (s.blade) out.push({ key: "blade", label: "Kamen Rider Blade", at: s.formAt, cancel: () => setForm(engine, p, false, "sever") });
+    if (s.king) out.push({ key: "king", label: "ร่างคิง", at: s.kingAt, cancel: () => leaveKing(engine, p, false, "sever") });
+    if (s.blade && !s.king) out.push({ key: "blade", label: "Kamen Rider Blade", at: s.formAt, cancel: () => setForm(engine, p, false, "sever") });
     if (s.hand.length) {
       out.push({ key: "hand", label: s.combo ? COMBOS[s.combo].name : "Blay Rouzer", at: Math.max(s.handAt, s.comboAt),
         cancel: () => { clearHand(s); engine.log(`🃏 การ์ดใน Blay Rouzer ของ ${p.name} ถูกตัดทิ้ง`); } });
@@ -647,13 +884,23 @@ module.exports = {
     return out;
   },
 
+  // เพลงร่างคิง (ไฟล์จากผู้ใช้) เล่นตลอดช่วงอยู่ในร่าง
+  skillMusic(engine, p) { return kingOn(p) && p.alive && engine.gameState !== "GAMEOVER" ? { music: "kazuma_king", at: st(p).kingAt } : null; },
+
+  // ---------- ปุ่ม Evolution บน HUD (client เปิดฉากใส่การ์ด แล้วส่ง useSkill basic form "evolution") ----------
+  hudActions(engine, p) {
+    if (!isKazuma(p) || !canEvolve(st(p))) return [];
+    return [{ key: "kazumaEvolution", icon: "♠", name: "แปลงร่างคิง" }];
+  },
+
   // ---------- ข้อมูลให้ client ----------
   kazumaState(engine, p) {
     if (!isKazuma(p)) return undefined;
     const s = st(p), r = engine.roundNumber, a = armedOf(p);
     return {
       blade: s.blade, formUsed: s.formRound === r, humanTurns: s.humanTurns, humanNeed: HUMAN_TURNS,
-      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), combo: s.combo, picksLeft: picksLeft(s, r), maxTypes: MAX_TYPES,
+      hand: s.hand.map((c) => ({ k: c.k, n: c.n })), combo: s.combo, picksLeft: picksLeft(s, r), picksMax: picksMax(s), maxTypes: MAX_TYPES,
+      king: s.king, kingLeft: s.kingLeft, kingUsed: s.kingUsed, fusion: s.fusion, fusionNeed: KING.need, canEvolve: canEvolve(s),
       armed: a ? { kind: a.kind, cards: a.cards || null } : null, metal: (p.statuses[METAL_STATUS] || 0) > 0 ? s.metal : 0,
     };
   },
@@ -661,7 +908,7 @@ module.exports = {
     if (!isKazuma(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     return {
-      basic: { locked: s.formRound === r, free: true },
+      basic: { locked: s.king || s.formRound === r, free: true },
       secondary: { locked: !s.blade || picksLeft(s, r) <= 0, free: true },
       ultimate: { locked: !s.blade || !s.hand.length },
     };

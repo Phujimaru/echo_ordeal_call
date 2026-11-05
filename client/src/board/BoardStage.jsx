@@ -42,7 +42,7 @@ import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
-import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
+import { KAZUMA_FX, kazumaEventFx, kazumaFourDur, kazumaSonicDur } from "./kazumaFx";
 import { ROLAND_FX, rolandEventFx } from "./rolandFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
 import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
@@ -746,7 +746,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (freshDash) {
       const d = freshDash, id = d.id, pts = d.path.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y }));
       const s0 = pts[0], end = pts[pts.length - 1], size = sizeOfP(byId[id]);
-      if (s0 && d.style === "kazumaSonic") {
+      if (s0 && (d.style === "kazumaSonic" || d.style === "kazumaFour")) {
         // คาซุมะ Lightning Sonic: พุ่งตามเส้นทาง (KAZUMA_FX.dashStep ต่อช่อง = DASH_STEP ของ server) · ภาพพุ่งสายฟ้า kazumaSonic แทนเงาฟ้า/ระเบิดของโซระ
         //  ชน/ดาเมจ/ผลักมาทาง socket "kazumaFx" sonicHit + state ตามปกติ
         const dir = d.dir && Number.isFinite(d.dir.x) && Number.isFinite(d.dir.y) ? { x: d.dir.x, y: d.dir.y } : { x: end.x - s0.x, y: end.y - s0.y };
@@ -754,7 +754,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           dashSkip.current[id] = end;
           anims.push({ kind: "move", id, path: pts, stepMs: KAZUMA_FX.dashStep, seq: ++fxSeq.current });
         }
-        pushFx([{ kind: "kazumaSonic", path: pts, step: KAZUMA_FX.dashStep, size, by: id, dur: kazumaSonicDur(pts) }]);
+        pushFx([d.style === "kazumaFour"
+          ? { kind: "kazumaFourDash", path: pts, step: KAZUMA_FX.dashStep, size, by: id, dur: kazumaFourDur(pts) }
+          : { kind: "kazumaSonic", path: pts, step: KAZUMA_FX.dashStep, size, by: id, dur: kazumaSonicDur(pts) }]);
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(end);
         if (!lowQ && pts.length > 1) later((pts.length - 1) * KAZUMA_FX.dashStep, () => setShake((n) => n + 1));
@@ -915,7 +917,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
       const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk"));
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
-      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const kzLunge = (style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
@@ -2144,7 +2146,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       cloak: !!p.veiled,
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
-      aura: p.kira && p.kira.king ? "kira" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง (ศัตรูประชิดเสียหายทุกเทิร์น)
+      aura: p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)

@@ -26,13 +26,15 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 const TAU = Math.PI * 2;
 
 // ---------- จังหวะ ----------
-export const KAZUMA_MS = { kazumaBlade: 800, kazumaPunch: 700, kazumaBlast: 1100, kazumaSlash: 1000 };
-export const KAZUMA_HIT_P = { kazumaBlade: 0.48, kazumaPunch: 0.55, kazumaBlast: 0.55, kazumaSlash: 0.45 };
+export const KAZUMA_MS = { kazumaBlade: 800, kazumaPunch: 700, kazumaBlast: 1100, kazumaSlash: 1000, kazumaKing: 900, kazumaStraight: 1300 };
+export const KAZUMA_HIT_P = { kazumaBlade: 0.48, kazumaPunch: 0.55, kazumaBlast: 0.55, kazumaSlash: 0.45, kazumaKing: 0.43, kazumaStraight: 0.62 };
 //  server พัก (skillBeat): พุ่ง 0.09 วิ/ช่อง + 0.35 · ชน 0.7 วิ — ภาพต้องไม่ช้ากว่านั้น
 export const KAZUMA_FX = { dashStep: 90, sonicBoom: 120, dashFade: 460, henshinPass: 620 };
+export const kazumaFourDur = (path) => Math.max(1, (Array.isArray(path) ? path.length : 1) - 1) * KAZUMA_FX.dashStep + KAZUMA_FX.dashFade + 260;
 export const kazumaSonicDur = (path) => Math.max(1, (Array.isArray(path) ? path.length : 1) - 1) * KAZUMA_FX.dashStep + KAZUMA_FX.dashFade + 40;
 export const KAZUMA_FX_DUR = {
   ...KAZUMA_MS,
+  kazumaKingOn: 1900, kazumaKingOff: 1000, kazumaStraightOn: 1600, kazumaRoyalWave: 1500, kazumaFourDash: 1600, kazumaFourHit: 1250,
   kazumaHenshin: 1300, kazumaUnhenshin: 850, kazumaCard: 900, kazumaRouze: 1100, kazumaMetal: 900, kazumaHeal: 1100,
   kazumaDashStart: 750, kazumaSonic: 1400, kazumaSonicHit: 950,
 };
@@ -40,6 +42,7 @@ export const isKazumaFx = (kind) => typeof kind === "string" && (kind in KAZUMA_
 const EVENT_FX = {
   henshin: "kazumaHenshin", unhenshin: "kazumaUnhenshin", card: "kazumaCard", rouze: "kazumaRouze", metal: "kazumaMetal",
   heal: "kazumaHeal", sonicDash: "kazumaDashStart", sonicHit: "kazumaSonicHit",
+  kingOn: "kazumaKingOn", kingOff: "kazumaKingOff", straightOn: "kazumaStraightOn", royalWave: "kazumaRoyalWave", fourHit: "kazumaFourHit",
 };
 // ตรงกับ BoardCanvas animPose "lunge" (ง้าง 40% → พุ่ง → ชนที่ 62% → กลับ)
 const LUNGE_MS = 620, LUNGE_HIT = 0.62;
@@ -83,7 +86,7 @@ function lungeD(from, to, t) {
   return reach * Math.pow(1 - q, 3);
 }
 // BoardStage ใส่ anim "lunge" ให้ท่าดาบ/หมัดเมื่อห่าง ≤ 2 และไม่ใช่ lowQ — ภาพต้องตามตัวที่พุ่ง
-const lunges = (e, lowQ) => !lowQ && (e.kind === "kazumaBlade" || e.kind === "kazumaPunch") && mdist(e, e.to) <= 2;
+const lunges = (e, lowQ) => !lowQ && (e.kind === "kazumaBlade" || e.kind === "kazumaPunch" || e.kind === "kazumaKing" || e.kind === "kazumaStraight") && mdist(e, e.to) <= 2;
 function attackerAt(e, t, lowQ) {
   if (!lunges(e, lowQ)) return bodyAt(e.x, e.y, e.size || 1);
   const L = Math.hypot(e.to.x - e.x, e.to.y - e.y) || 1, d = lungeD(e, e.to, t);
@@ -673,6 +676,7 @@ function styleFx(g, e, now, lowQ) {
   const T = KAZUMA_MS[e.kind] || 900, p = (now - e.t0) / T;
   if (p < 0 || p > 1 || !okT(e) || !okT(e.to)) return;
   if (e.kind === "kazumaBlade") bladeStyle(g, e, now, lowQ, false);
+  else if (e.kind === "kazumaKing" || e.kind === "kazumaStraight") { bladeStyle(g, e, now, lowQ, false); kingStrike(g, e, now, lowQ); }
   else if (e.kind === "kazumaSlash") bladeStyle(g, e, now, lowQ, true);
   else if (e.kind === "kazumaPunch") punchStyle(g, e, now, lowQ);
   else if (e.kind === "kazumaBlast") blastStyle(g, e, now, lowQ);
@@ -999,9 +1003,238 @@ function eventFx(g, e, now, lowQ) {
 }
 
 // ---------- จุดเข้า ----------
+// ---------- King Form (GRID_PLAN §7.19.1) ----------
+//  โทนทอง-กรมท่า · การ์ดตระกูลโพลอยเรียงแถว · พลัง 13 ใบหลอมเป็นหนึ่ง · ตามฉาก Royal Straight Flush / Four Card / Straight Flush ในเรื่อง
+const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const ROYAL_CARD = ["245,214,120", "120,170,240", "230,120,90", "255,206,90", "220,70,80"]; // 10 J Q K A
+const ELEM = [["180,225,255", "60,140,255"], ["150,245,190", "40,170,110"], ["255,170,90", "230,60,40"], ["205,180,255", "110,80,230"]]; // สายฟ้า ลม ไฟ น้ำแข็ง
+
+function worldQuad(g, a, b, c, d) {
+  const q = [P(a[0], a[1], 0.03), P(b[0], b[1], 0.03), P(c[0], c[1], 0.03), P(d[0], d[1], 0.03)];
+  g.beginPath(); g.moveTo(q[0][0], q[0][1]); for (let i = 1; i < 4; i++) g.lineTo(q[i][0], q[i][1]); g.closePath();
+}
+// ออร่าร่าง King: ตราโพหมุนบนพื้น · ประกายทองลอยขึ้น
+export function kazumaKingAuraBack(g, wx, wy, now, lowQ, alpha = 1) {
+  const pulse = 0.75 + 0.25 * Math.sin(now / 420);
+  g.save(); g.globalAlpha *= alpha; g.globalCompositeOperation = "lighter";
+  groundSpade(g, wx, wy, 0.46, GOLD, 0.22 * pulse, { stroke: GOLD_L, lw: 1.6 });
+  groundRing(g, wx, wy, 0.56 + 0.04 * Math.sin(now / 300), GOLD, 0.5 * pulse, 1.8);
+  if (!lowQ) groundRing(g, wx, wy, 0.72, NAVY_L, 0.32 * pulse, 1.2);
+  g.restore();
+}
+export function kazumaKingAuraFront(g, wx, wy, now, lowQ, alpha = 1) {
+  const n = lowQ ? 4 : 9, [bx, by, s] = P(wx, wy);
+  g.save(); g.globalAlpha *= alpha; g.globalCompositeOperation = "lighter";
+  for (let i = 0; i < n; i++) {
+    const q = ((now / 1500) + i / n) % 1, an = i * 2.4;
+    const x = bx + Math.cos(an) * s * (0.42 - 0.12 * q), y = by - s * (0.1 + 1.5 * q);
+    g.fillStyle = rgba(i % 3 ? GOLD : GOLD_L, 0.8 * Math.sin(q * Math.PI)); g.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
+  }
+  g.restore();
+}
+// ตีปกติร่าง King: จันทร์เสี้ยวทองซ้อนรอยดาบ
+function kingStrike(g, e, now, lowQ) {
+  const T = KAZUMA_MS[e.kind], p = (now - e.t0) / T, HIT = KAZUMA_HIT_P[e.kind];
+  const seed = strHash(`${e.by}|${e.t0 | 0}|k`), B = bodyAt(e.to.x, e.to.y, e.toSize || 1), A = attackerAt(e, now - e.t0, lowQ);
+  const face = Math.atan2(B.hy - A.hy, B.bx - A.bx);
+  const straight = e.kind === "kazumaStraight";
+  if (straight && p < HIT) {
+    // การ์ด 2–6 เรียงเป็นแนวเหนือตัวแล้วรวมเข้าดาบ
+    for (let i = 0; i < 5; i++) {
+      const u = (i - 2) / 2, kc = env(p, 0.02 + i * 0.03, 0.08 + i * 0.03, HIT - 0.12, HIT - 0.02);
+      const pull = easeIn2(clamp01((p - (HIT - 0.16)) / 0.14));
+      cardShape(g, lerp(A.bx + u * A.r * 1.9, A.bx, pull), lerp(A.hy - A.r * (2.3 - Math.abs(u) * 0.3), A.hy, pull), A.r * 0.62, A.r * 0.9, u * 0.15, kc, { glowRgb: GOLD, tint: ELEM[i % 4][1] });
+    }
+  }
+  if (p >= HIT - 0.1) {
+    const q = clamp01((p - HIT + 0.1) / (1 - HIT + 0.1)), k = 1 - clamp01((q - 0.25) / 0.7), R = B.r * (straight ? 2.5 : 1.9);
+    const list = straight ? [[face + 0.75, 1], [face - 0.75, -1]] : [[face + 0.8, 1]];
+    list.forEach(([rot, d], i) => {
+      const dl = i * 0.14, w = clamp01((q - dl) / 0.22), a0 = -1.5 * d, a1 = a0 + 3 * d * easeOut3(w);
+      crescent(g, B.bx, B.hy, R, rot, 0.6, a0, a1, B.r * 0.42, k * (w > 0 ? 1 : 0), { outer: GOLD, mid: GOLD_L, edge: NAVY_L, core: WHITE });
+    });
+    if (!e.dodge && p >= HIT) {
+      const q2 = (p - HIT) / (1 - HIT), k2 = 1 - clamp01((q2 - 0.1) / 0.8);
+      impactStar(g, B.bx, B.hy, B.r * (straight ? 3 : 2.1) * (0.5 + 0.5 * easeOut3(clamp01(q2 / 0.25))), k2, seed, lowQ ? 8 : 14, GOLD_L);
+      sparks(g, B.bx, B.hy, face, 2.2, B.r * (straight ? 3.6 : 2.6), q2 * 1.4, k2, seed + 5, lowQ ? 8 : straight ? 24 : 14);
+      g.save(); g.globalCompositeOperation = "lighter";
+      groundSpade(g, B.cx, B.cy, (0.5 + 0.6 * easeOut3(clamp01(q2 / 0.4))) * B.K, GOLD, 0.45 * k2, { stroke: GOLD_L, lw: 2.2 });
+      glow(g, B.bx, B.hy, B.r * 2.4, GOLD, 0.55 * k2);
+      g.restore();
+    }
+  }
+}
+// พุ่ง Four Card: ริบบอน 4 ธาตุ + การ์ด 4 ดอกวาบทีละใบตามทาง + เงาร่างสีต่างกัน
+function fourDashFx(g, e, now, lowQ) {
+  const pts = Array.isArray(e.path) ? e.path.filter(okT) : [];
+  if (pts.length < 1) return;
+  const step = e.step || KAZUMA_FX.dashStep, FADE = KAZUMA_FX.dashFade + 200, n = pts.length - 1, sz = Math.max(1, e.size | 0);
+  const t = now - e.t0, run = n * step;
+  if (t < 0 || t > run + FADE) return;
+  const at = (f) => { if (n < 1) return [pts[0].x + sz / 2, pts[0].y + sz / 2]; const i = Math.min(n - 1, Math.floor(f)), q = f - i, A = pts[i], B = pts[i + 1]; return [A.x + (B.x - A.x) * q + sz / 2, A.y + (B.y - A.y) * q + sz / 2]; };
+  const K = 1 + (sz - 1) * 0.6, head = Math.min(n, t / step), fade = t > run ? 1 - (t - run) / FADE : 1;
+  const dv = n ? [Math.sign(pts[n].x - pts[0].x), Math.sign(pts[n].y - pts[0].y)] : [0, 0], pv = [-dv[1], dv[0]];
+  g.save(); g.globalCompositeOperation = "lighter";
+  ELEM.forEach(([mid, deep], c) => {
+    const off = ((c - 1.5) * 0.16) * K, w0 = (lowQ ? 7 : 11) * K;
+    for (const [w, rgb, al] of [[w0, deep, 0.32], [w0 * 0.45, mid, 0.8]]) {
+      g.beginPath();
+      for (let i = 0; i <= 14; i++) {
+        const f = head * (i / 14), [wx, wy] = at(f), wave = Math.sin(i * 0.8 + now / 70 + c) * 0.05;
+        const [x, y, s] = P(wx + pv[0] * (off + wave), wy + pv[1] * (off + wave));
+        const yy = y - s * 0.7 * K;
+        if (i) g.lineTo(x, yy); else g.moveTo(x, yy);
+      }
+      g.strokeStyle = rgba(rgb, al * fade); g.lineWidth = w; g.lineCap = "round"; g.stroke();
+    }
+  });
+  g.restore();
+  // การ์ด 4 ดอกตั้งขวางทาง ฟันผ่านทีละใบ
+  ELEM.forEach(([mid, deep], c) => {
+    const f = n * ((c + 0.6) / 4.2), passed = head >= f, [wx, wy] = at(f), [x, y, s] = P(wx, wy);
+    const tp = (t - f * step) / 520, k = tp < 0 ? clamp01(t / 120) * 0.55 : 1 - clamp01(tp);
+    if (k <= 0) return;
+    cardShape(g, x, y - s * 0.95 * K, s * 0.72 * K, s * 1.04 * K, 0, k, { glowRgb: mid, tint: deep, flipX: passed ? 1 - clamp01(tp) * 0.8 : 1 });
+    if (passed && tp < 0.5) {
+      const d = s * K * (0.3 + tp * 1.6);
+      bladeLine(g, [x - d, y - s * 1.3 * K], [x + d, y - s * 0.5 * K], s * 0.09, 1 - tp * 2, { outer: deep, mid, edge: GOLD });
+    }
+  });
+}
+// เหตุการณ์ร่าง King
+function kingEvent(g, e, now, lowQ) {
+  const T = KAZUMA_FX_DUR[e.kind] || 1000, t = now - e.t0, p = t / T;
+  if (p < 0 || p > 1) return;
+  const at = okT(e.at) ? e.at : null, n = Math.max(1, e.size | 0);
+  const A = at ? bodyAt(at.x, at.y, n) : null;
+  const seed = strHash(`${e.id}|${e.kind}|${e.t0 | 0}`), flick = REDUCED ? 0 : Math.floor(now / 60);
+  switch (e.kind) {
+    case "kazumaKingOn": {
+      if (!A) return;
+      // การ์ด 13 ใบวนรอบตัว → หลอมเข้าตัว → ตราโพทองแผ่
+      const m = lowQ ? 7 : 13, merge = easeIn2(clamp01((p - 0.28) / 0.28)), k = env(p, 0, 0.06, 0.5, 0.6);
+      for (let i = 0; i < m; i++) {
+        const an = (i / m) * TAU + (REDUCED ? 0 : p * 9), rr = A.r * 2.6 * (1 - merge);
+        cardShape(g, A.bx + Math.cos(an) * rr, A.hy - A.r * 0.4 + Math.sin(an) * rr * 0.42, A.r * 0.5, A.r * 0.72, Math.cos(an) * 0.3, k, { glowRgb: GOLD, tint: GOLD });
+      }
+      const q = clamp01((p - 0.5) / 0.5), k2 = env(p, 0.48, 0.54, 0.75, 1), grow = easeOut3(q);
+      g.save(); g.globalCompositeOperation = "lighter";
+      glow(g, A.bx, A.hy, A.r * (2 + 3 * grow), GOLD, 0.8 * k2);
+      groundSpade(g, A.cx, A.cy, (0.5 + 1.7 * grow) * A.K, GOLD, 0.5 * k2, { stroke: GOLD_L, lw: 3 });
+      groundRing(g, A.cx, A.cy, (0.4 + 2.4 * grow) * A.K, GOLD_L, 0.8 * k2, 3.5);
+      g.restore();
+      spade(g, A.bx, A.hy - A.r * (2 + grow), A.r * (0.5 + 0.8 * grow), GOLD, k2, GOLD_L);
+      sparks(g, A.bx, A.hy, -Math.PI / 2, 3.4, A.r * 4, q * 1.4, k2, seed, lowQ ? 10 : 26);
+      return;
+    }
+    case "kazumaKingOff": {
+      if (!A) return;
+      // เกราะทองแตกเป็นผงการ์ด
+      const k = env(p, 0, 0.05, 0.4, 1), q = easeOut3(p);
+      sparks(g, A.bx, A.hy, -Math.PI / 2, 3.8, A.r * 3.4, p * 1.4, k, seed, lowQ ? 10 : 22);
+      for (let i = 0; i < 5; i++) {
+        const an = (i / 5) * TAU + 0.6;
+        cardShape(g, A.bx + Math.cos(an) * A.r * 3 * q, A.hy + Math.sin(an) * A.r * 1.8 * q - A.r * q, A.r * 0.46, A.r * 0.66, q * 3 * (i % 2 ? 1 : -1), k * (1 - p), { tint: GOLD });
+      }
+      g.save(); g.globalCompositeOperation = "lighter"; glow(g, A.bx, A.hy, A.r * 2.2, GOLD, 0.6 * (1 - p)); g.restore();
+      return;
+    }
+    case "kazumaStraightOn": {
+      if (!A) return;
+      // ชูดาบ: การ์ด 5 ใบเรียงโค้งเหนือหัวลุกเป็นไฟทอง · ไอพลังค้างบนใบดาบ
+      const k = env(p, 0, 0.1, 0.72, 1);
+      for (let i = 0; i < 5; i++) {
+        const u = (i - 2) / 2, kc = k * clamp01((p - i * 0.05) / 0.1), y = A.hy - A.r * (3 - Math.abs(u) * 0.55), x = A.bx + u * A.r * 1.9;
+        cardShape(g, x, y, A.r * 0.66, A.r * 0.96, u * 0.16, kc, { glowRgb: "255,150,60", tint: GOLD });
+      }
+      rouzer(g, A.bx + A.r * 0.3, A.hy, -Math.PI / 2 + 0.1, A.r * 2.5, k, { charge: 1, seed, lowQ, flick });
+      g.save(); g.globalCompositeOperation = "lighter"; glow(g, A.bx, A.hy - A.r * 1.2, A.r * 2.6, GOLD, 0.55 * k); g.restore();
+      return;
+    }
+    case "kazumaRoyalWave": {
+      if (!A || !Array.isArray(e.tiles)) return;
+      const dv = DIRV[e.dir] || [0, -1], pv = [-dv[1], dv[0]];
+      const sx = at.x + n / 2 + dv[0] * (n / 2), sy = at.y + n / 2 + dv[1] * (n / 2);
+      const len = e.tiles.reduce((m, c) => Math.max(m, Math.abs(c.x + 0.5 - sx) * Math.abs(dv[0]) + Math.abs(c.y + 0.5 - sy) * Math.abs(dv[1])), 1) + 0.5;
+      const half = Math.max(1, e.tiles.reduce((m, c) => Math.max(m, Math.abs(c.x + 0.5 - sx) * Math.abs(pv[0]) + Math.abs(c.y + 0.5 - sy) * Math.abs(pv[1])), 0.5) + 0.5);
+      const w = (l, o) => [sx + dv[0] * l + pv[0] * o, sy + dv[1] * l + pv[1] * o];
+      // พื้นที่เรืองก่อนยิง
+      const kArea = env(p, 0, 0.1, 0.8, 1);
+      g.save(); g.globalCompositeOperation = "lighter";
+      worldQuad(g, w(0, -half), w(0, half), w(len, half), w(len, -half)); g.fillStyle = rgba(GOLD, 0.2 * kArea); g.fill();
+      g.strokeStyle = rgba(GOLD_L, 0.7 * kArea); g.lineWidth = 2; g.stroke();
+      g.restore();
+      // การ์ดยักษ์ 5 ใบเรียงแถว
+      const FIRE = 0.42;
+      for (let i = 0; i < 5; i++) {
+        const l = ((i + 0.6) / 5) * len, [wx, wy] = w(l, 0), [x, y, s] = P(wx, wy);
+        const on = clamp01((p - i * 0.045) / 0.07), hitT = FIRE + (i / 5) * 0.16, off = clamp01((p - hitT) / 0.14);
+        const ka = on * (1 - off), scale = 1 + off * 0.5;
+        cardShape(g, x, y - s * 1.05, s * 1.04 * scale, s * 1.5 * scale, 0, ka, { glowRgb: GOLD, tint: ROYAL_CARD[i], flipX: 1 });
+      }
+      // ลำแสงดาบ
+      const kBeam = env(p, FIRE - 0.03, FIRE + 0.02, 0.76, 0.98), run = easeOut3(clamp01((p - FIRE) / 0.16));
+      if (kBeam > 0) {
+        const tip = len * run + 0.3;
+        g.save(); g.globalCompositeOperation = "lighter";
+        for (const [o, rgb, al] of [[half, NAVY_L, 0.32], [half * 0.72, GOLD, 0.55], [half * 0.34, GOLD_L, 0.85], [half * 0.13, WHITE, 1]]) {
+          const wob = 1 + (REDUCED ? 0 : 0.05 * Math.sin(now / 35 + o));
+          worldQuad(g, w(-0.3, -o * wob * 0.4), w(-0.3, o * wob * 0.4), w(tip, o * wob), w(tip, -o * wob));
+          g.fillStyle = rgba(rgb, al * kBeam); g.fill();
+        }
+        g.restore();
+        if (!lowQ) for (let i = 0; i < 4; i++) {
+          const a = P(...w(tip * (i / 4), (i % 2 ? 1 : -1) * half * 0.8)), b = P(...w(tip * ((i + 1) / 4), (i % 2 ? -1 : 1) * half * 0.8));
+          bolt(g, a[0], a[1] - a[2] * 0.3, b[0], b[1] - b[2] * 0.3, seed + i + flick, kBeam * 0.8, 1.8, { branch: 0, lowQ, core: GOLD_L, mid: GOLD, outer: NAVY_L });
+        }
+      }
+      // ปลายคลื่นระเบิด · คนที่โดน
+      const qEnd = clamp01((p - 0.58) / 0.42);
+      if (qEnd > 0) {
+        const [ex, ey, es] = P(...w(len, 0));
+        impactStar(g, ex, ey - es * 0.4, es * 2.4 * easeOut3(clamp01(qEnd / 0.3)), 1 - qEnd, seed, lowQ ? 8 : 16, GOLD_L);
+        sparks(g, ex, ey - es * 0.4, Math.atan2(dv[1], dv[0]), 2.2, es * 2.4, qEnd * 1.4, 1 - qEnd, seed + 2, lowQ ? 10 : 24);
+      }
+      return;
+    }
+    case "kazumaFourHit": {
+      const to = okT(e.to) ? e.to : at;
+      if (!to) return;
+      const B = bodyAt(to.x, to.y, e.tsize || 1);
+      if (e.dodge) {
+        const k = 1 - p;
+        g.save(); g.globalCompositeOperation = "lighter"; glow(g, B.bx, B.hy, B.r * 1.4, GOLD, 0.4 * k); g.restore();
+        ghostHex(g, B.bx + B.r * 0.8 * easeOut3(p), B.hy, B.r, 0.5 * k);
+        return;
+      }
+      // 4 ธาตุลงทีละจังหวะ แล้วตราโพทองปิดท้าย
+      ELEM.forEach(([mid, deep], i) => {
+        const d0 = i * 0.13, q = clamp01((p - d0) / 0.3), k = env(p, d0, d0 + 0.02, d0 + 0.12, d0 + 0.3);
+        if (k <= 0) return;
+        const rot = (i - 1.5) * 0.9, r = B.r * (1.1 + q * 1.6);
+        bladeLine(g, [B.bx - Math.cos(rot) * r, B.hy - Math.sin(rot) * r], [B.bx + Math.cos(rot) * r, B.hy + Math.sin(rot) * r], B.r * 0.28, k, { outer: deep, mid, edge: GOLD });
+        if (i === 0) skyBolt(g, B.bx, B.hy, B.s * 3, seed + flick, k, 2.4, lowQ);
+        if (i === 1) { g.save(); g.globalCompositeOperation = "lighter"; for (let a = 0; a < 3; a++) groundRing(g, B.cx, B.cy, (0.35 + a * 0.28 + q * 0.5) * B.K, mid, 0.7 * k, 2.2); g.restore(); }
+        if (i === 2) { g.save(); g.globalCompositeOperation = "lighter"; glow(g, B.bx, B.hy, B.r * 2.6, deep, 0.8 * k); g.restore(); sparks(g, B.bx, B.hy, -Math.PI / 2, 2.4, B.r * 3, q, k, seed + 7, lowQ ? 8 : 18, mid); }
+        if (i === 3) for (let a = 0; a < (lowQ ? 4 : 7); a++) { const an = (a / 7) * TAU + 0.3; bladeLine(g, [B.bx, B.hy], [B.bx + Math.cos(an) * r * 1.1, B.hy + Math.sin(an) * r * 0.7], B.r * 0.16, k, { outer: deep, mid, edge: null }); }
+      });
+      const q = clamp01((p - 0.5) / 0.5), k = env(p, 0.48, 0.54, 0.7, 1), g0 = easeOut3(q);
+      g.save(); g.globalCompositeOperation = "lighter";
+      groundSpade(g, B.cx, B.cy, (0.4 + 1 * g0) * B.K, GOLD, 0.4 * k, { stroke: GOLD_L, lw: 2.5 });
+      glow(g, B.bx, B.hy, B.r * 2.2, GOLD, 0.5 * k);
+      g.restore();
+      spade(g, B.bx, B.hy - B.r * (1.5 + g0), B.r * (0.5 + 0.6 * g0), GOLD, k, GOLD_L);
+      return;
+    }
+    default:
+  }
+}
+
 export function kazumaFx(g, e, now, lowQ) {
   if (e.kind in KAZUMA_MS) { styleFx(g, e, now, lowQ); return; }
   if (e.kind === "kazumaSonic") { sonicFx(g, e, now, lowQ); return; }
+  if (e.kind === "kazumaFourDash") { fourDashFx(g, e, now, lowQ); return; }
+  if (e.kind.startsWith("kazumaKing") || e.kind === "kazumaStraightOn" || e.kind === "kazumaRoyalWave" || e.kind === "kazumaFourHit") { kingEvent(g, e, now, lowQ); return; }
   eventFx(g, e, now, lowQ);
 }
 
@@ -1014,7 +1247,21 @@ export function kazumaEventFx(ev, ctx = {}) {
   if (!kind) return out;
   const sizeOf = ctx.sizeOf || (() => 1), posOf = ctx.posOf || (() => null);
   const f = { kind, id: ev.id, at: ev.at, size: ev.size || 1, color: ev.color };
-  for (const k of ["card", "combo", "cards", "path", "dir", "from", "to", "targetId", "dodge", "amount"]) if (ev[k] !== undefined) f[k] = ev[k];
+  for (const k of ["card", "combo", "cards", "path", "dir", "from", "to", "targetId", "dodge", "amount", "tiles"]) if (ev[k] !== undefined) f[k] = ev[k];
+  if (ev.kind === "royalWave") {
+    for (const [id, text] of [...(ev.hits || []).map((h) => [h, null]), ...(ev.missed || []).map((h) => [h, "หลบ"])]) {
+      const c = posOf(id);
+      if (c) out.later.push([850, [{ kind: "float", x: c.x, y: c.y, text: text || "♠", size: 30 }]]);
+    }
+    out.shake.push(620, 900);
+  }
+  if (ev.kind === "kingOn") out.shake.push(950);
+  if (ev.kind === "fourHit") {
+    f.tsize = sizeOf(ev.targetId) || 1;
+    const to = okT(ev.to) ? ev.to : null;
+    if (to) { out.look.push([to, 0]); out.later.push([140, [{ kind: "float", x: to.x, y: to.y, text: ev.dodge ? "หลบ" : `-${ev.dmg | 0}`, size: 32, hitIds: ev.dodge ? undefined : [ev.targetId] }]]); }
+    if (!ev.dodge) out.shake.push(120, 620);
+  }
   if (ev.kind === "sonicHit") {
     f.tsize = sizeOf(ev.targetId) || 1;
     if (Array.isArray(ev.side)) f.sideAt = ev.side.map((id) => { const p = posOf(id); return p ? { x: p.x, y: p.y, size: sizeOf(id) || 1 } : null; }).filter(Boolean);

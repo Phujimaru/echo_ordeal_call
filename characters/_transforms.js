@@ -111,6 +111,11 @@ module.exports = function buildTransforms() {
     rolandFurioso: { img: roland.IMG.furioso, video: roland.VIDEO.furioso, title: "Furioso", label: "ปล่อยท่าไม้ตาย", seconds: 9.9, music: null, afterReveal: false },
     lawShock: { img: law.IMG.base,  video: law.VIDEO.shock, title: "Counter Shock", label: "ทราฟาก้า ลอว์",   seconds: 3.1, music: null, afterReveal: false, noIntro: true },
     kazumaSonic: { img: kazuma.IMG.ult("sonic"), video: kazuma.VIDEO.combo("sonic"), title: "Lightning Sonic", label: "ปล่อยท่าไม้ตาย", seconds: 20.6, music: null, afterReveal: false },
+    kazumaKing: { img: kazuma.IMG.king, video: kazuma.VIDEO.king, title: "ร่างคิง", label: "แปลงร่าง", seconds: 20.3, music: null, afterReveal: false },
+    kazumaDeform: { img: kazuma.IMG.base, video: kazuma.VIDEO.deform, title: "เคนซากิ คาซุมะ", label: "คืนร่าง", seconds: 8.7, music: null, afterReveal: false },
+    kazumaStraight: { img: kazuma.IMG.ult("straight"), video: kazuma.VIDEO.straight, title: "Straight Flush", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
+    kazumaFour: { img: kazuma.IMG.ult("four"), video: kazuma.VIDEO.four, title: "Four Card", label: "ปล่อยท่าไม้ตาย", seconds: 21.1, music: null, afterReveal: false },
+    kazumaRoyal: { img: kazuma.IMG.ult("royal"), video: kazuma.VIDEO.royal, title: "Royal Straight Flush", label: "ปล่อยท่าไม้ตาย", seconds: 13, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // ขบวนการจอมราชันคิงโอเจอร์ — คลิปแปลงร่างสำเร็จครั้งแรกต่อเกม (_ohger.js คิวเอง) · ความยาวจริง 20.47 / 18.43 / 16.27 / 20.47 / 21.67 วิ ปัดขึ้น
     ...Object.fromEntries(ohger.map((m) => [m.CUT.transform, { img: m.IMG.armor, video: m.VIDEO.transform, title: m.def.armorName, label: "สวมเกราะราชัน", seconds: OHGER_SECONDS[m.FORM], music: null, afterReveal: false }])),

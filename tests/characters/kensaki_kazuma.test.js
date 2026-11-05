@@ -199,6 +199,7 @@ test('Blay Rouzer: เฉพาะร่าง Blade · ใบละ 2 แต้
   engine.setActor('K');
   card('slash');
   assert.equal(P.K.skillPoints, 8, 'ร่างมนุษย์เลือกไม่ได้ ไม่เสียแต้ม');
+  P.K.cutsceneShown.kazumaHenshin = true; // ครั้งต่อไปของเกม: ไม่มีคลิป = มีเสียง
   henshin();
   card('slash');
   card('slash');

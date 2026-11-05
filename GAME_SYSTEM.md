@@ -1034,6 +1034,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)
 
+> **ตัวคูณดาเมจตีปกติ**: ฮุค `strikeMult(p)` → ×N (หลังคริ ก่อนเพดาน `damageCap` · หน้าคาดการณ์คิดด้วย) — คาซุมะ Straight Flush · King Form ดู GRID_PLAN §7.19.1
+
 ## 33. หักเวลาตาเดิน / เสียงต่อคิว / ช่องสกิลเฉพาะตัวบน HUD (คาซุมะ — `characters/kensaki_kazuma.js` · GRID_PLAN §7.19)
 - **หักเวลาตาเดินของใครก็ได้**: ฮุค broadcast `turnSeconds(engine, u, secs)` → วินาทีใหม่ (ค่า > 0 เท่านั้นที่นับ) — เรียกจาก `turnSecondsOf` ใน `action.js` ตอน `nextActor` (ตาปกติ — ยูนิตที่ถูกเรียกใช้ `Summon.CONTROL_SECONDS` ไม่ผ่านฮุค) และ `startExtra` (ตาพิเศษ) ·
   คาซุมะ TIME: ตีโดนจด `p.kazumaTimeCut` (+10 วิ/ใบ · ล้างใน `resetCombat`) → ตาถัดไปของเป้า หักแล้วไม่ต่ำกว่า 15 วิ แล้วล้างค่า

@@ -134,7 +134,8 @@ function estimateAttackOn(attacker, target) {
     const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target, { estimate: true }) : null;
     if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
-    return Math.max(0, Math.min(c.base || 0, combat.damageCapOf(attacker, "strike"))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2 · อรชุน ≤ 4)
+    const mult = (hook && hook.strikeMult && hook.strikeMult(attacker)) || 1;
+    return Math.max(0, Math.min((c.base || 0) * mult, combat.damageCapOf(attacker, "strike"))); // เพดานของผู้ตี (ยูนะขี่อยู่ ≤ 2 · อรชุน ≤ 4)
   } catch { return null; }
 }
 
@@ -302,6 +303,8 @@ function strikeBody(attacker, target, counter) {
   // การเดินทาง (อาณาจักรน้ำแข็ง กลางวัน): คริติคอล 20% ×2
   const journeyCritFx = {};
   if (!isFixed) dmg = Journey.applyCrit(engine, attacker, dmg, journeyCritFx, ownCritPct(attacker), critMultOf(attacker));
+  // ตัวคูณดาเมจตีปกติครั้งนี้ (ฮุค strikeMult — คาซุมะ: Straight Flush ×2) · ใช้หลังคริ ก่อนเพดาน
+  if (!isFixed && fixedHook && fixedHook.strikeMult) dmg *= fixedHook.strikeMult(attacker) || 1;
   // เพดานความเสียหายของผู้ตี (ฮุค damageCap — ยูนะขี่อยู่ไม่เกิน 2) — ท่อดาเมจตัดซ้ำหลังออร่าอีกชั้น
   dmg = Math.min(dmg, combat.damageCapOf(attacker, "strike"));
   // เป้ากันการโจมตีครั้งนี้ทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน

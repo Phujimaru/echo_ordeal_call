@@ -22,7 +22,7 @@ import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
-import { BladeRouzerSlot, BladeRouzerPanel } from "./hud/BladeRouzer";
+import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
 import OhgerSword from "./hud/OhgerSword";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx } from "../audio";
@@ -996,7 +996,8 @@ function statusEntries(p, full) {
   // เคนซากิ คาซุมะ: ผล Rouze ที่รอตีปกติ (ท่า Lightning / การ์ด) · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต — METAL เป็นสถานะ kazumaMetal
   if (p.kazuma) {
     const k = p.kazuma;
-    const COMBO = { blast: ["⚡", "Lightning Blast", "ตีปกติครั้งถัดไปในตาเดินนี้ ระยะ 1 ถึง 3 เสียหาย 2 ตายตัว และติดช็อต 2 เทิร์น"], slash: ["⚡", "Lightning Slash", "ตีปกติครั้งถัดไปในตาเดินนี้เป็นแนว 3 ช่องโดนทุกคน เสียหาย 2 ตายตัว และติดช็อต 1 เทิร์น"] };
+    const COMBO = { blast: ["⚡", "Lightning Blast", "ตีปกติครั้งถัดไปในตาเดินนี้ ระยะ 1 ถึง 3 เสียหาย 2 ตายตัว และติดช็อต 2 เทิร์น"], slash: ["⚡", "Lightning Slash", "ตีปกติครั้งถัดไปในตาเดินนี้เป็นแนว 3 ช่องโดนทุกคน เสียหาย 2 ตายตัว และติดช็อต 1 เทิร์น"], straight: ["👑", "Straight Flush", "ตีปกติครั้งถัดไปในตาเดินนี้ ความเสียหาย ×2 สูงสุด 6"] };
+    if (k.king) out.push({ key: "kazumaKing", v: k.kingLeft, icon: "👑", label: "ร่างคิง", cls: "bg-amber-400 text-gray-900", desc: `เหลือ ${k.kingLeft} เทิร์น ครบแล้วคืนร่างมนุษย์ ฟื้นพลังชีวิต 2 และสตั้นตัวเอง 1 เทิร์น` });
     if (k.armed && COMBO[k.armed.kind]) { const C = COMBO[k.armed.kind]; out.push({ key: "kazumaArmed", v: 1, icon: C[0], label: C[1], cls: "bg-amber-300 text-gray-900", desc: C[2] }); }
     else if (k.armed && k.armed.cards) {
       const label = Object.entries(k.armed.cards).map(([c, n]) => `${c.toUpperCase()}${n > 1 ? ` ×${n}` : ""}`).join(" · ");
@@ -2144,6 +2145,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // เคนซากิ คาซุมะ: แผงการ์ด Blay Rouzer (ช่องสกิลรองเฉพาะตัว) · หมดตา/คืนร่าง = ปิด
   const [kzOpen, setKzOpen] = useState(false);
   if (kzOpen && (!myTurn || canto || !me?.kazuma?.blade)) setKzOpen(false);
+  // ฉากใส่การ์ด Evolution (Rouze Absorber) · หมดตา/เข้าร่างแล้ว = ปิด
+  const [kzEvolve, setKzEvolve] = useState(false);
+  if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
   const choiceFree = (c) => (c.free != null ? !!c.free : (c.cost || 0) === 0);
@@ -2736,6 +2740,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   onClick: () => {
                     clickSound();
                     if (tiles) { setPickReq(picking ? null : { kind: "action", key: x.key }); return; }
+                    if (x.key === "kazumaEvolution") { setKzEvolve(true); return; }
                     socket.emit("charAction", { key: x.key });
                   },
                 };
@@ -2802,6 +2807,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           onClose={() => setKzOpen(false)}
           onPick={(c) => socket.emit("useSkill", { tier: "secondary", form: c.key })}
         />
+      )}
+      {kzEvolve && me?.kazuma && (
+        <EvolutionScene onClose={() => setKzEvolve(false)} onDone={() => socket.emit("useSkill", { tier: "basic", form: "evolution" })} />
       )}
       {choiceOpen && ch?.[choiceOpen.tier]?.choices && (
         <SkillChoices

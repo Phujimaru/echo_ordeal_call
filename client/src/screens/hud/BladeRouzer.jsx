@@ -1,12 +1,18 @@
 // เคนซากิ คาซุมะ — ช่องสกิลรองเฉพาะตัว (Blay Rouzer) + แผงเลือกการ์ด — จอคอม/แท็บเล็ต (GRID_PLAN §7.19)
-//  me.kazuma = { blade, hand: [{ k, n }], combo, picksLeft, maxTypes, armed, metal } · การ์ด 9 ใบ = skill.choices จาก server
+//  me.kazuma = { blade, hand: [{ k, n }], combo, picksLeft, picksMax, maxTypes, armed, metal, king, kingLeft, fusion, canEvolve } · การ์ด 9 ใบ (ร่าง King 16 ใบ) = skill.choices จาก server
 //  (choices: { key, name, img, cost, count, locked, desc }) · ชี้ค้าง = คำอธิบายการ์ด (c.desc — กฎผู้ใช้ 2026-10-19) · ไม่มีข้อความอื่น
 //  กดการ์ด = ใช้แต้มทันที (socket useSkill tier "secondary" form) · แผงไม่ปิดเอง เลือกต่อได้จนครบ 3 ใบ · Esc / คลิกนอก / คลิกขวา = ปิด
 import { useEffect, useRef, useState } from "react";
 import { clickSound } from "../../audio";
+import { RouzeAbsorber } from "./RouzeAbsorber";
 import "./bladeRouzer.css";
 
-const COMBO_NAME = { blast: "Lightning Blast", slash: "Lightning Slash", sonic: "Lightning Sonic" };
+export { EvolutionScene } from "./RouzeAbsorber";
+
+const COMBO_NAME = {
+  blast: "Lightning Blast", slash: "Lightning Slash", sonic: "Lightning Sonic",
+  straight: "Straight Flush", four: "Four Card", royal: "Royal Straight Flush",
+};
 const PICKS = 3;
 
 function Pips({ left, max = PICKS }) {
@@ -21,7 +27,9 @@ function Pips({ left, max = PICKS }) {
 export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
   const k = kazuma || {};
   const hand = k.hand || [];
-  const slots = Array.from({ length: k.maxTypes || 3 }, (_, i) => hand[i] || null);
+  // ร่าง King ไม่จำกัดชนิด: ถาดโชว์ 3 ชนิดล่าสุด
+  const shown = k.king ? hand.slice(-3) : hand;
+  const slots = Array.from({ length: k.maxTypes || 3 }, (_, i) => shown[i] || null);
   const imgOf = (key) => (skill?.choices || []).find((c) => c.key === key)?.img;
   const usable = !disabled;
   return (
@@ -32,6 +40,7 @@ export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
       data-state={usable ? "ready" : "off"}
       data-combo={k.combo || undefined}
       data-blade={k.blade ? "true" : "false"}
+      data-king={k.king ? "true" : "false"}
       disabled={!usable}
       onClick={() => usable && onOpen()}
     >
@@ -45,11 +54,13 @@ export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
             </span>
           ))}
         </span>
-        {k.blade && <Pips left={k.picksLeft ?? PICKS} />}
+        {k.blade && <Pips left={k.picksLeft ?? PICKS} max={k.picksMax || PICKS} />}
+        {k.blade && !k.kingUsed && <span className="kz-fusion" data-full={k.canEvolve ? "true" : "false"}>{k.fusion || 0}/{k.fusionNeed || 9}</span>}
+        {k.king && <span className="kz-fusion" data-full="true">👑{k.kingLeft}</span>}
       </span>
       <span className="hud-skill-label">
         <span className="hud-skill-tier">รอง</span>
-        <span className="hud-skill-name">{k.combo ? COMBO_NAME[k.combo] : skill?.name || "Blay Rouzer"}</span>
+        <span className="hud-skill-name">{k.combo ? COMBO_NAME[k.combo] : k.king ? "การ์ด" : skill?.name || "Blay Rouzer"}</span>
       </span>
       {skill && <span className="hud-skill-cost">{skill.choices?.[0]?.cost ?? skill.cost} แต้ม</span>}
     </button>
@@ -79,23 +90,43 @@ export function BladeRouzerPanel({ kazuma, choices = [], points = 0, isOk = () =
     return () => clearTimeout(t);
   }, [swipe]);
   const mid = (choices.length - 1) / 2;
+  const king = !!k.king;
+  const swiped = king && swipe ? choices.find((c) => c.key === swipe.key) : null;
   return (
-    <div className="kz-panel" onClick={() => { clickSound(); onClose(); }}>
+    <div className="kz-panel" data-king={king ? "true" : "false"} onClick={() => { clickSound(); onClose(); }}>
       <div className="kz-panel-in" onClick={(e) => e.stopPropagation()}>
         <div className="kz-head">
-          <span className="kz-title">Blay Rouzer</span>
-          <Pips left={k.picksLeft ?? PICKS} />
+          {!king && <span className="kz-title">Blay Rouzer</span>}
+          {!king && <Pips left={k.picksLeft ?? PICKS} max={k.picksMax || PICKS} />}
           <span className="kz-sp">◆{points}</span>
         </div>
-        <div className="kz-rouzer" data-combo={k.combo || undefined}>
-          {slots.map((c, i) => (
-            <div key={i} className="kz-slotcard" data-empty={c ? "false" : "true"}>
-              {c ? <img src={imgOf(c.k)} alt="" draggable={false} /> : <span className="kz-slotcard-blank">♠</span>}
-              {c && <span className="kz-count kz-count-lg">×{c.n}</span>}
+        {king ? (
+          <div className="kz-king-top">
+            <div className="kz-king-device" data-combo={k.combo || undefined}>
+              <RouzeAbsorber screen="king" />
+              {swiped && <img key={swipe.seq} className="kz-king-swipe" src={swiped.img} alt="" draggable={false} />}
             </div>
-          ))}
-          <div className="kz-combo" data-on={k.combo ? "true" : "false"}>{k.combo ? COMBO_NAME[k.combo] : ""}</div>
-        </div>
+            <div className="kz-king-hand">
+              {hand.map((c) => (
+                <div key={c.k} className="kz-slotcard" data-empty="false">
+                  <img src={imgOf(c.k)} alt="" draggable={false} />
+                  {c.n > 1 && <span className="kz-count">×{c.n}</span>}
+                </div>
+              ))}
+              <div className="kz-king-combo">{k.combo ? COMBO_NAME[k.combo] : ""}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="kz-rouzer" data-combo={k.combo || undefined}>
+            {slots.map((c, i) => (
+              <div key={i} className="kz-slotcard" data-empty={c ? "false" : "true"}>
+                {c ? <img src={imgOf(c.k)} alt="" draggable={false} /> : <span className="kz-slotcard-blank">♠</span>}
+                {c && <span className="kz-count kz-count-lg">×{c.n}</span>}
+              </div>
+            ))}
+            <div className="kz-combo" data-on={k.combo ? "true" : "false"}>{k.combo ? COMBO_NAME[k.combo] : ""}</div>
+          </div>
+        )}
         <div className="kz-deck">
           {choices.map((c, i) => {
             const ok = isOk(c);
