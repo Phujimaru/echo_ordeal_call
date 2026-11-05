@@ -4,7 +4,7 @@
 //
 //  พลังชีวิต 9 · เกราะ 0 · เดิน 4 · ตีปกติ [1, 2] · พลังโจมตี 1
 //  Time Meter 0/6 (BloodStack 6 ขึ้นไป = 0/8): ตีปกติ +1 · ใช้สกิล +1 · เริ่มเทิร์นเป็นคนแรก +2 (ระหว่างหยุดเวลาไม่ได้)
-//  Vampire (ติดตัว): ตี/สกิลโดนศัตรู 1 คน = BloodStack +1 + ดูดเลือด 1 (ศัตรู −1 ทะลุเกราะ · ดิโอ +1)
+//  Vampire (ติดตัว): ตี/สกิลโดนศัตรู 1 คน = BloodStack +1 + ดูดเลือด 1 (ดิโอ +1 · ไม่มีดาเมจเพิ่ม)
 //    BloodStack 6 ขึ้นไป: Time Meter จุ 8 · คูลดาวน์ Za warudo 3 · Za warudo ทำงานทันที · คลิปครั้งเดียว
 //    BloodStack 8 ขึ้นไป: ดาเมจสกิลทุกท่า +1 · ดูดเลือด +1
 //    กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1
@@ -78,7 +78,7 @@ function fresh() {
     meter: 0, blood: 0,
     knifeReady: 0, shineReady: 0, mudaReady: 0, worldReady: 0, worldSever: 0,
     pending: 0, pendingRound: 0, // Action ที่รอเริ่มหยุดเวลา (ต้นเทิร์นถัดไป / ตาที่แทรก)
-    stopping: false, actions: 0, savedQuota: false,
+    stopping: false, actions: 0, savedQuota: false, deniedAt: null,
     lastUsed: false, duelPending: false, duelFoe: null, duel: null,
     clip6: false, want6: false, startVoice: false,
   };
@@ -102,11 +102,10 @@ function settle(engine, t) {
   if (t.alive && t.hp <= 0) engine.instantDeath(t);
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
 }
-// Vampire: โดนศัตรู 1 คน = ดูดเลือด (ศัตรู −n ทะลุเกราะ · ดิโอ +n) + BloodStack +1
+// Vampire: โดนศัตรู 1 คน = ดูดเลือด (ดิโอ +n · ไม่มีดาเมจเพิ่มจากการตี/สกิลนั้น — ผู้ใช้แก้ 2026-11-05) + BloodStack +1
 function drain(engine, p, t, at) {
   const s = st(p);
   const n = drainOf(s);
-  if (t.alive && t.hp > 0) { engine.dealDirect(t, n); settle(engine, t); }
   const healed = engine.healHp(p, n);
   s.blood = Math.min(BLOOD.max, s.blood + 1);
   if (s.blood >= BLOOD.surge && !s.clip6) { s.clip6 = true; s.want6 = true; }
@@ -223,9 +222,12 @@ function pressWorld(engine, p) {
     engine.flowHandoff(p.id, "dioWorld");
   }
 }
+// แทรกตาถูก Return to Zero ยกเลิก = กดซ้ำไม่ได้จนจบตาคนนั้น (ไม่เสียอะไร · กันกดคลิปซ้ำถ่วงตาคนอื่น)
+const denyKey = (engine) => `${engine.roundNumber}:${engine.actorId}`;
 function canInterrupt(engine, p) {
   if (!isDio(p) || !p.alive || !p.pos) return false;
   const s = st(p);
+  if (s.deniedAt === denyKey(engine)) return false;
   const actor = engine.players[engine.actorId];
   if (engine.gameState !== "ACTION" || !actor || actor.id === p.id || actor.summon || !engine.action) return false;
   if (engine.sameSide && engine.sameSide(p, actor)) return false;
@@ -235,6 +237,8 @@ function canInterrupt(engine, p) {
 function interrupt(engine, p) {
   if (!canInterrupt(engine, p)) return false;
   const s = st(p);
+  // กดท่าไม้ตาย = Return to Zero ย้อนแน่นอน ทางนี้ไม่ผ่าน useSkill จึงเช็กเอง (ก่อนหัก/ก่อนเสียงทุกอย่าง — กฎคลิป)
+  if (engine.timeStop.denyPress(p)) { s.deniedAt = denyKey(engine); return true; }
   s.pending = s.meter - WORLD.tax;
   s.meter = 0;
   s.worldReady = engine.roundNumber + worldCd(s);
@@ -346,7 +350,7 @@ function finishDuel(engine, p) {
   if (d.winner === "dio") {
     p.hp = LAST.win;
     const at = q && q.pos ? { ...q.pos } : null;
-    if (q && q.alive) engine.withEffectSource(p, () => { engine.dealDirect(q, LAST.win); settle(engine, q); });
+    if (q && q.alive) engine.withEffectSource(p, () => { engine.dealMixed(q, LAST.win, false); settle(engine, q); });
     fx(engine, p, "lastWin", { targetId: q ? q.id : null, from: at, at: p.pos ? { ...p.pos } : null, amount: LAST.win });
     engine.log(`🩸 ${p.name} ชนะ Last Stand — ดูดเลือด ${LAST.win}`);
     engine.skillBeat(1.6, () => {});
@@ -498,11 +502,14 @@ module.exports = {
     startStop(engine, p, kind);
   },
   extraTurnOutro(engine, p) { return isDio(p) ? endStop(engine, p) : 0; },
-  // Return to Zero ของโจรุโน่ทำเวลาเดินต่อ
+  // Return to Zero ของโจรุโน่ทำเวลาเดินต่อ: Za warudo ครั้งนี้จบ — Action ที่จุดย้อนคืนมาไม่กลับไปหยุดเวลาเทิร์นหน้า · ตาพิเศษจบตาม (ไม่มีตาแถม)
+  rewindEndsExtra: true,
   onFreezeBroken(engine, byId) {
     const p = engine.players[byId];
-    if (!isDio(p) || !st(p).stopping) return;
+    if (!isDio(p)) return;
     const s = st(p);
+    s.pending = 0;
+    if (!s.stopping) return;
     s.stopping = false;
     s.actions = 0;
     p.skillUsedRound = s.savedQuota;

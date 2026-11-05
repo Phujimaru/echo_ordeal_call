@@ -199,7 +199,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // หยุดเวลา (server/timeStop.js): ตาเดินพิเศษ / ค้างการตาย+ค่าที่ผู้ชมเห็น / เวลาเดินต่อ
   timeStop: {
     queueExtra: TimeStop.queueExtra, extraKind: TimeStop.extraKind,
-    interrupt: TimeStop.interrupt, freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
+    interrupt: TimeStop.interrupt, denyPress: TimeStop.denyPress, freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
   },
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },

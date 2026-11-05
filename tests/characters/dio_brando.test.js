@@ -54,13 +54,13 @@ test('ข้อมูลตัวละคร: เลือด 9 เกราะ
   assert.equal(p.dio.meter, 0);
 });
 
-test('ตีปกติโดน: ดูดเลือด 1 ทะลุเกราะ + BloodStack + Time Meter', () => {
+test('ตีปกติโดน: ดาเมจ 1 ไม่ตี 2 · ฟื้น 1 + BloodStack + Time Meter', () => {
   const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
   d.hp = 5; t.hp = 7; t.armor = 3;
   engine.setActor('d');
   engine.attackTarget('d', 't');
-  assert.equal(t.armor, 2, 'ตีปกติ 1 ลงเกราะ');
-  assert.equal(t.hp, 6, 'ดูดเลือดทะลุเกราะ');
+  assert.equal(t.armor, 2, 'ตีปกติ 1 เท่านั้น');
+  assert.equal(t.hp, 7, 'ดูดเลือดไม่มีดาเมจเพิ่ม');
   assert.equal(d.hp, 6);
   assert.equal(d.dio.blood, 1);
   engine.clearPhaseTimer();
@@ -89,7 +89,7 @@ test('SHINEI! ทะลุเกราะ + ไร้เยียวยา · MU
   engine.setActor('d');
   engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
   assert.equal(t.armor, 3);
-  assert.equal(t.hp, 4, '2 ทะลุเกราะ + ดูด 1');
+  assert.equal(t.hp, 5, 'SHINEI! 2 ทะลุเกราะ ไม่มีดาเมจเพิ่ม');
   assert.ok(t.statuses.nohealing > 0);
   assert.equal(d.skillPoints, 5);
   engine.clearPhaseTimer();
@@ -108,7 +108,7 @@ test('BloodStack 6: Time Meter จุ 8 + คูลดาวน์ 3 · BloodSta
   d.dio.blood = 8; d.dio.clip6 = true; d.hp = 3; t.hp = 7; t.armor = 0;
   engine.setActor('d');
   engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
-  assert.equal(t.hp, 1, '3+1 + ดูด 2');
+  assert.equal(t.hp, 3, '3+1 ไม่มีดาเมจเพิ่ม');
   assert.equal(d.hp, 5);
   assert.equal(d.dio.blood, 9);
   engine.clearPhaseTimer();
@@ -147,7 +147,7 @@ test('กด Za warudo ปกติ: ใช้ Meter ทั้งหมด · �
   engine.setGameState('ACTION');
   engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
   engine.clearPhaseTimer();
-  assert.equal(t.hp, 3, 'ดาเมจจริงลงแล้ว (3 + ดูด 1)');
+  assert.equal(t.hp, 4, 'ดาเมจจริงลงแล้ว (3)');
   assert.equal(engine.timeStop.frozen().held.t.hp, 7, 'ผู้ชมยังเห็นเลือดเดิม');
   assert.equal(d.dio.actions, 2);
 });
@@ -251,4 +251,11 @@ test('ดวล: เห็นเฉพาะมือตัวเอง · อ�
   assert.equal(e.hands.foe[1].v, 5);
   d.dio.duel = null;
   assert.equal(dio.duelView(engine, ['d']), null);
+});
+
+test('HUD ดิโออยู่ในจอคอม ไม่ใช่ส่วนจอมือถือ (ปุ่มแทรกตา/แถบ/จอดวล)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../client/src/screens/Game.jsx'), 'utf8');
+  const desktop = src.indexOf('const hudAway');
+  assert.ok(desktop > 0);
+  for (const tag of ['<DioGauge', '<DioInterrupt', '<LastStandDuel']) assert.ok(src.indexOf(tag) > desktop, tag);
 });
