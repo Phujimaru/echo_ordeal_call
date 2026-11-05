@@ -31,6 +31,7 @@ import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme"
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
+import { DIO_FX_DUR, DIO_HIT_P, DIO_MS, dioFx, dioUnitBack, isDioFx } from "./dioFx";
 import { GIO_FX_DUR, GIO_HIT_P, GIO_MS, gioForeAlpha, gioRewindLayer, gioUnitBack, gioUnitFront, giornoFx, isGioFx } from "./giornoFx";
 import { ARJ_FX_DUR, ARJ_HIT_P, ARJ_MS, arjUnitBack, arjunaBoardFx, isArjFx } from "./arjunaBoardFx";
 import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRise, isIceFx } from "./iceFx";
@@ -558,6 +559,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.truck) otUnitBack(g, u, now, wx, wy);
   // โจรุโน่ (giornoFx.js): ต้นไม้ใต้หมาก (ลอย) · วงเต่าทอง (ต้นตอแห่งชีวิต) · ออร่าทอง (Muda) · วงวนตาย · แสงรอผลธนู · เปลวทอง Requiem — ต้นไม้/วนตาย ใครก็ติดได้
   if (u.giorno) gioUnitBack(g, u, now, wx, wy);
+  if (u.dio) dioUnitBack(g, u, now, wx, wy); // ดิโอ (dioFx.js): ออร่าทองตอนหยุดเวลา · ออร่าแดงตอน BloodStack 6 ขึ้นไป
   if (u.arjuna) arjUnitBack(g, u, now, wx, wy); // อรชุน (arjunaBoardFx.js): จุติ = ตะเกียงข้างหมาก · ขจัด = ดาวเคราะห์โคจร
   // อินุอิ Exceed Charge: วงแดง Photon Blood รอบฐาน · Start Up: ภาพค้างไล่ตามตอนเคลื่อนไหว
   if (u.aura === "faizExceed") {
@@ -942,8 +944,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2069,7 +2071,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR,
+  ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR,
 };
 
 
@@ -2401,6 +2403,7 @@ export function drawFrame(g, st, now) {
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
+    else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);

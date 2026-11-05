@@ -37,6 +37,7 @@ import { GIO_EVENT_FX, GIO_FX_DUR, GIO_MS as STYLE_MS_GIO, GIO_REWIND_HIT, GIO_S
 import { ARJ_EVENT_FX, ARJ_SFX_LEAD } from "./arjunaBoardFx";
 import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
+import { dioEventFx } from "./dioFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
@@ -931,6 +932,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const arjS = style === "arjunaBomb" || style === "arjunaArrow";
       if (arjS) later(Math.max(ZOOM_IN, HIT - ARJ_SFX_LEAD[style]), () => playSfx(a.byAttackSound || "attack"));
       if (Array.isArray(a.hitFx) && a.hitFx.length) later(HIT, () => a.hitFx.forEach((h) => hitFx.current[h.event] && hitFx.current[h.event](h.payload)));
+      if (style === "dioPunch" && !lowQ) later(HIT, () => setShake((n) => n + 1));
       if ((style === "gioPunch" || style === "gioRush") && !lowQ) later(style === "gioRush" ? ZOOM_IN + 0.8 * STYLE_MS_GIO.gioRush : HIT, () => setShake((n) => n + 1));
       if (style && style.startsWith("celine")) celineHitAt.current = performance.now() + HIT;
       if (style && style.startsWith("ryougi")) ryougiHitAt.current = performance.now() + HIT;
@@ -1654,8 +1656,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id]; return p && p.pos ? p.pos : null; };
     const sizeOf = (id) => sizeOfP(byIdRef.current[id]);
     const idAt = (t) => { const p = Object.values(byIdRef.current).find((q) => q && q.alive && q.pos && Rules.covers(boxOfP(q), t.x, t.y)); return p ? p.id : null; };
-    const onDiego = (ev) => {
-      const out = diegoEventFx(ev, { posOf, sizeOf, idAt });
+    const playOut = (out) => {
       if (!out.fx.length) return;
       const t0 = performance.now();
       for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
@@ -1673,8 +1674,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
       for (const [ms, list] of out.later) at(ms, () => pushFx(lowQ ? list.filter((f) => f.kind !== "iceShake") : list));
     };
+    const onDiego = (ev) => playOut(diegoEventFx(ev, { posOf, sizeOf, idAt }));
+    const onDio = (ev) => playOut(dioEventFx(ev, { posOf, sizeOf, idAt })); // ดิโอ บรันโด (dioFx.js) — ใช้ตัวรับเดียวกัน
     socket.on("diegoFx", onDiego);
-    return () => socket.off("diegoFx", onDiego);
+    socket.on("dioFx", onDio);
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
@@ -2157,6 +2161,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
+      dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
       giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda || p.giorno.requiem || p.giorno.arrowWait || p.giorno.loop) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda, requiem: !!p.giorno.requiem, arrowWait: !!p.giorno.arrowWait, loop: !!p.giorno.loop } : null,
       // อรชุน: จุติ (ใครก็ติดได้) · ขจัดสิ่งแปลกปลอม (arjunaBoardFx.js)
       arjuna: !mk && p.statuses && (p.statuses.jutti > 0 || p.statuses.arjunaPurge > 0) ? { jutti: p.statuses.jutti > 0, purge: p.statuses.arjunaPurge > 0 } : null,

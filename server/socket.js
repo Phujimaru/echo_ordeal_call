@@ -307,6 +307,10 @@ io.on('connection', (socket) => {
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
     combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key, { tile: t }));
   }, 8);
+  // Last Stand ของดิโอ: จั่ว/พอ ของสองฝ่ายที่ดวลกัน (characters/dio_brando.js)
+  onUnitEvent(socket, 'dioDuel', (id, { action: act } = {}) => {
+    if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
+  }, 12);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);

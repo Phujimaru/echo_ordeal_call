@@ -880,7 +880,7 @@ function stopFx(g, e, t, now, lowQ, view) {
   if (!okT(e.at) || t >= DIEGO_FX.timeStop) return;
   const n = Math.max(1, e.size | 0), [cx, cy] = cen(e.at, n), [bx, by, s] = P(cx, cy, 0.95);
   // หัวใจเต้น 2 จังหวะ (ตึก-ตัก) ที่อก
-  for (const bt of [40, 200]) {
+  for (const bt of e.plain ? [] : [40, 200]) { // plain = ดิโอ: ไม่มีหัวใจ (ของซิลเวอร์ บูลเล็ต)
     const q = (t - bt) / 260;
     if (q < 0 || q > 1) continue;
     g.save(); g.globalCompositeOperation = "lighter";
@@ -1665,7 +1665,7 @@ export function diegoEventFx(ev, ctx = {}) {
       if (!okT(ev.at)) break;
       note(STOPS, ev.id, evT);
       const atk = ev.attackerId != null ? posOf(ev.attackerId) : null;
-      out.fx.push({ ...base, kind: "diegoStop", at: ptOf(ev.at), size: sizeOf(ev.id), mode: ev.mode === "counter" ? "counter" : "normal",
+      out.fx.push({ ...base, plain: !!ev.plain, kind: "diegoStop", at: ptOf(ev.at), size: sizeOf(ev.id), mode: ev.mode === "counter" ? "counter" : "normal",
         attackerId: ev.attackerId != null ? ev.attackerId : null, attackerAt: okT(atk) ? ptOf(atk) : null, attackerSize: sizeOf(ev.attackerId), dur: DIEGO_FX.timeStop });
       out.look.push([ptOf(ev.at), 0]);
       quake(TS.ring0, 7);

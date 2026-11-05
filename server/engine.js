@@ -148,6 +148,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get cmdSeq() { return match.cmdSeq || 0; }, // เลขคำสั่งของผู้เล่น (TimeStop.guard) — แยก "การโจมตี 1 ครั้ง"
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   addChasm: action.addChasm, // ทำให้ช่องพัง ["x,y"…] (เรียวกิ — terrain "chasm" จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง
+  stuck: action.stuck,                   // ติดสตั้น/หลับไหล (ขยับไม่ได้)
+  attackBlocked: combat.attackBlocked,   // เป้ากันการโจมตีทั้งก้อน (ฮุค blocksAttack) → { name, img } | null
   tileFree: action.tileFree,             // ช่องนี้ยืนได้ไหม (ไม่ใช่สิ่งกีดขวาง/ร้านค้า/ไม่มีใคร)
   chargeTiles: action.chargeTiles,       // ช่องตามแนวพุ่งตรง (โซระ: Mouse Separade)
   areaTiles: action.areaTiles,           // ช่องที่สกิลพื้นที่คลุม (aoe / line — ตัวใหญ่ออกจากกลางด้านหน้า)
@@ -198,7 +200,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // หยุดเวลา (server/timeStop.js): ตาเดินพิเศษ / ค้างการตาย+ค่าที่ผู้ชมเห็น / เวลาเดินต่อ
   timeStop: {
     queueExtra: TimeStop.queueExtra, extraKind: TimeStop.extraKind,
-    freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
+    interrupt: TimeStop.interrupt, freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
   },
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },
@@ -337,7 +339,13 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // ให้ผลของสกิลเกิดหลังคลิปที่คิวไว้จบ (ไม่มีคลิป = เกิดทันทีหลัง hook) — ใช้ได้เฉพาะใน applyInstantSkill
   deferAfterCutscene(fn) { match.afterCutscene.push(fn); },
   // พักตาเดิน seconds วิ (เฟส ATTACKING — กระดานเล่นเอฟเฟกต์ ปิดการกด) แล้วค่อยเรียก fn — ใช้ในผลของสกิล (cutscene.runSkillFlow)
-  skillBeat(seconds, fn) { match.skillBeats.push({ seconds, fn }); },
+  //  opts.open = รอผู้เล่นตัดสิน: engine.releaseBeat() จบจังหวะก่อนหมดเวลา (ดิโอ: Last Stand)
+  skillBeat(seconds, fn, opts) { match.skillBeats.push({ seconds, fn, open: !!(opts && opts.open) }); },
+  releaseBeat: cutscene.releaseBeat,
+  // ขอให้เล่นฉากที่คิวไว้ (คลิป/ผลหลังคลิป/จังหวะพัก) ทันทีที่คำสั่ง/ฉากตีปัจจุบันจบ — สำหรับผลที่เกิดนอก useSkill ของตัวเอง (ดิโอ: Last Stand)
+  wantFlow() { match.flowWanted = true; },
+  // ฉากของสกิลนี้จบแล้วส่งต่อเป็นตาพิเศษกลางตาเดิน (ดิโอ: Za warudo ทำงานทันที)
+  flowHandoff(id, kind) { match.flowHandoff = { id, kind }; },
   runCutsceneQueue: cutscene.runCutsceneQueue,
   pausePlayingForCutscene: cutscene.pausePlayingForCutscene,
   startPhaseTimer: timers.startPhaseTimer,

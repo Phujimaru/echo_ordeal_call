@@ -90,6 +90,7 @@ import { iceShakeOffset } from "./iceFx";
 import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
+import { dioPose } from "./dioFx";
 import { OT_RIDE_Z, otRides } from "./optimusFx";
 import { GIO_TREE_Z, gioLifted, gioPose } from "./giornoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
@@ -625,6 +626,9 @@ export default function BoardCanvas(props) {
         // ฉากของดิเอโก้ (ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น) · ขี่ซิลเวอร์ บูลเล็ต/กำลังควบ = นั่งบนหลังม้า
         const dp = sp || gp || u.corpse ? null : diegoPose(st.fxActive, u, now);
         if (dp) { rx = dp.x; ry = dp.y; ox = 0; oy = 0; hz = dp.hz || 0; sq = dp.sq || 0; }
+        // ฉากของดิโอ: พุ่งขึ้นฟ้าไปเอารถบดถนน · ลงพร้อมรถ
+        const dip = sp || gp || dp || u.corpse ? null : dioPose(st.fxActive, { id: u.id, rx, ry }, now);
+        if (dip) { rx = dip.x; ry = dip.y; ox = 0; oy = 0; hz = dip.hz || 0; sq = 0; }
         const dgo = u.diego ? { ...u.diego, charge: !!(dp && dp.charge) } : null;
         if (dgo && (dgo.mounted || dgo.charge)) hz += DIEGO_RIDE_Z;
         // รถบรรทุกเก่า / รถบรรทุก: หมากนั่งบนรถ (รถวาดใต้หมาก — optimusFx.js otTruck)
@@ -667,7 +671,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: !!u.faizTrail, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: !!u.faizTrail, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

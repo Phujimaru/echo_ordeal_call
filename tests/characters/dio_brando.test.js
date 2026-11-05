@@ -1,0 +1,254 @@
+// ดิโอ บรันโด (dio_brando) — Time Meter / BloodStack / Stand / Za warudo / ร่างหยุดเวลา / Road Roller / Last Stand
+//  กติกา: GRID_PLAN.md §7.26 (ผู้ใช้ตัดสิน 2026-11-05) · ระบบกลางหยุดเวลา server/timeStop.js
+process.env.JOURNEY_START_SECONDS = '0';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { engine } = require('../../server.js');
+const dio = require('../../characters/dio_brando.js');
+const diego = require('../../characters/diego_alt.js');
+const { CHAR_BY_ID } = require('../../characters.js');
+
+const realRandom = Math.random;
+const real = {};
+const blank = (id, characterId, position, teamId = null) => ({
+  id, name: id, position, characterId, alive: true, connected: true, cards: [], statuses: {}, statusAmt: {},
+  seen: {}, cutsceneShown: {}, inventory: [], teamId,
+});
+function setup(list, { round = 2, shift = 0, mode = 'ffa' } = {}) {
+  for (const id of Object.keys(engine.players)) delete engine.players[id];
+  list.forEach(([id, ch, , , team], i) => { engine.players[id] = blank(id, ch, i + 1, team || null); });
+  engine.setGameMode(mode);
+  engine.startMatch();
+  engine.clearPhaseTimer();
+  engine.setJourneyArea(1);
+  engine.setCycleShift(shift);
+  engine.setShopPos(null);
+  engine.setRoundNumber(round);
+  for (const [id, , x, y] of list) {
+    const p = engine.players[id];
+    p.pos = { x, y }; p.skillPoints = 8; p.skillUsedRound = false; p.shield = 0;
+    p.statuses = {}; p.statusAmt = {};
+  }
+  return list.map(([id]) => engine.players[id]);
+}
+// เล่นฉากต่อเนื่อง (ตัวจับเวลา) ให้จบ: เรียกจริงผ่าน startPhaseTimer ที่ดักไว้
+let pending = null;
+function flush(max = 40) {
+  for (let i = 0; i < max && pending; i++) { const fn = pending; pending = null; fn(); }
+}
+
+test.before(() => {
+  real.start = engine.startPhaseTimer;
+});
+test.beforeEach(() => { Math.random = () => 0.99; pending = null; });
+test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
+
+test('ข้อมูลตัวละคร: เลือด 9 เกราะ 0 ระยะ 1–2 กลาง unique', () => {
+  const ch = CHAR_BY_ID.dio_brando;
+  assert.equal(ch.difficulty, 'medium');
+  assert.equal(ch.unique, true);
+  assert.deepEqual(ch.range, [1, 2]);
+  const [p] = setup([['d', 'dio_brando', 3, 7]]);
+  assert.equal(p.hp, 9);
+  assert.equal(p.armor, 0);
+  assert.equal(p.dio.meter, 0);
+});
+
+test('ตีปกติโดน: ดูดเลือด 1 ทะลุเกราะ + BloodStack + Time Meter', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  d.hp = 5; t.hp = 7; t.armor = 3;
+  engine.setActor('d');
+  engine.attackTarget('d', 't');
+  assert.equal(t.armor, 2, 'ตีปกติ 1 ลงเกราะ');
+  assert.equal(t.hp, 6, 'ดูดเลือดทะลุเกราะ');
+  assert.equal(d.hp, 6);
+  assert.equal(d.dio.blood, 1);
+  engine.clearPhaseTimer();
+});
+
+test('มีด: แนวตรงเท่านั้น ระยะ 4 ไม่ทะลุสิ่งกีดขวาง · คูลดาวน์ 3 · ไม่เสียแต้มเมื่อนอกระยะ', () => {
+  const [d, t, u] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 7, 7], ['u', 'dummy', 4, 8]]);
+  engine.setActor('d');
+  engine.useSkill('d', 'basic', ['u']);
+  assert.equal(d.skillPoints, 8, 'แนวทแยง = กดไม่ได้');
+  engine.useSkill('d', 'basic', ['t']);
+  assert.equal(d.skillPoints, 6);
+  assert.ok(t.statuses.hbleed > 0);
+  assert.equal(d.dio.meter, 1);
+  assert.equal(d.dio.knifeReady, engine.roundNumber + 3);
+  engine.clearPhaseTimer();
+  const board = engine.boardMap();
+  board.terrain[`${5},${7}`] = 'rock';
+  assert.equal(dio.skillArea(d, 'basic', CHAR_BY_ID.dio_brando.basic.area).cells.some(([x, y]) => x === 2 && y === 0), false);
+  delete board.terrain[`${5},${7}`];
+});
+
+test('SHINEI! ทะลุเกราะ + ไร้เยียวยา · MUDA ลงเกราะ + ผุพัง · แบบละคูลดาวน์ 2', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  t.hp = 7; t.armor = 3; d.hp = 8;
+  engine.setActor('d');
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
+  assert.equal(t.armor, 3);
+  assert.equal(t.hp, 4, '2 ทะลุเกราะ + ดูด 1');
+  assert.ok(t.statuses.nohealing > 0);
+  assert.equal(d.skillPoints, 5);
+  engine.clearPhaseTimer();
+  engine.setRoundNumber(engine.roundNumber + 1);
+  d.skillUsedRound = false; engine.setActor('d');
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
+  assert.equal(d.skillPoints, 5, 'คูลดาวน์ 2');
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
+  assert.equal(d.skillPoints, 2, 'อีกแบบใช้ได้');
+  assert.equal(t.armor, 0);
+  assert.ok(t.statuses.decay > 0);
+});
+
+test('BloodStack 6: Time Meter จุ 8 + คูลดาวน์ 3 · BloodStack 8: สกิล +1 ดูด +1', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  d.dio.blood = 8; d.dio.clip6 = true; d.hp = 3; t.hp = 7; t.armor = 0;
+  engine.setActor('d');
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
+  assert.equal(t.hp, 1, '3+1 + ดูด 2');
+  assert.equal(d.hp, 5);
+  assert.equal(d.dio.blood, 9);
+  engine.clearPhaseTimer();
+  d.dio.meter = 8;
+  assert.equal(engine.players.d.dio.meter, 8);
+  const s = dio.dioState(engine, d);
+  assert.equal(s.meterMax, 8);
+});
+
+test('กลางวันโดน +1 · กลางคืนต้าน 1', () => {
+  const [d] = setup([['d', 'dio_brando', 3, 7]]);
+  engine.setCycleShift(0);
+  const day = engine.isNightRound(engine.worldRound);
+  assert.equal(dio.adjustIncomingDamage(engine, d, 2), day ? 1 : 3);
+  engine.setRoundNumber(1);
+  assert.equal(dio.adjustIncomingDamage(engine, d, 2), 3);
+});
+
+test('กด Za warudo ปกติ: ใช้ Meter ทั้งหมด · ต้นเทิร์นถัดไปได้ตาหยุดเวลา · จบ Action แล้วเวลาเดินต่อ ดาเมจลงพร้อมกัน', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  d.dio.meter = 3; t.hp = 7; t.armor = 0;
+  engine.setActor('d');
+  engine.useSkill('d', 'ultimate', []);
+  assert.equal(d.dio.meter, 0);
+  assert.equal(d.dio.pending, 3);
+  assert.equal(d.dio.worldReady, engine.roundNumber + 4);
+  engine.setRoundNumber(engine.roundNumber + 1);
+  dio.onOrderBegin(engine);
+  // เริ่มตาพิเศษ
+  engine.setGameState('ACTION');
+  engine.timeStop.interrupt('d', 'dioWorld', 30);
+  engine.clearPhaseTimer();
+  assert.equal(d.dio.stopping, true);
+  assert.equal(d.dio.actions, 3);
+  assert.ok(engine.timeStop.frozen());
+  engine.setGameState('ACTION');
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 3, 'ดาเมจจริงลงแล้ว (3 + ดูด 1)');
+  assert.equal(engine.timeStop.frozen().held.t.hp, 7, 'ผู้ชมยังเห็นเลือดเดิม');
+  assert.equal(d.dio.actions, 2);
+});
+
+test('แทรกตา: ใช้ Meter ทั้งหมด ได้ Action −1 · ต้องมีอย่างน้อย 2 · หลังจบกลับตาเดิมด้วยเวลาที่เหลือ', () => {
+  const [d, a] = setup([['d', 'dio_brando', 3, 7], ['a', 'dummy', 9, 7]]);
+  engine.setActor('a');
+  d.dio.meter = 1;
+  assert.equal(dio.dioState(engine, d).canInterrupt, false);
+  d.dio.meter = 4;
+  assert.equal(dio.dioState(engine, d).canInterrupt, true);
+  assert.equal(dio.charAction(engine, d, 'dio:world'), true);
+  engine.clearPhaseTimer();
+  assert.equal(d.dio.stopping, true);
+  assert.equal(d.dio.actions, 3);
+  assert.equal(engine.actorId, 'd');
+  assert.equal(engine.action.resume.actorId, 'a');
+  engine.timeStop.frozen() || engine.timeStop.freeze('d');
+  engine.setGameState('ACTION');
+  engine.action.outro = false;
+  engine.finishActor();
+  engine.clearPhaseTimer();
+  engine.finishActor();
+  engine.clearPhaseTimer();
+  assert.equal(engine.actorId, 'a', 'กลับตาเดิม');
+  assert.equal(d.dio.stopping, false);
+  assert.equal(engine.timeStop.frozen(), null);
+});
+
+test('หยุดเวลาซ้อน: ดิโอแทรกดิเอโก้ แล้วการหยุดเวลาของดิเอโก้ยังอยู่ · ดาเมจของดิโอลงตอนชั้นตัวเองจบ', () => {
+  const [d, g, t] = setup([['d', 'dio_brando', 3, 7], ['g', 'diego_alt', 9, 7], ['t', 'dummy', 5, 7]]);
+  t.hp = 7; t.armor = 0;
+  engine.timeStop.freeze('g');
+  assert.equal(engine.timeStop.frozen().by, 'g');
+  engine.timeStop.freeze('d');
+  assert.equal(engine.timeStop.frozen().by, 'd');
+  t.hp = 2;
+  const hits = engine.timeStop.unfreeze();
+  assert.deepEqual(hits, [{ id: 't', dmg: 5, kill: false }]);
+  assert.equal(engine.timeStop.frozen().by, 'g', 'ชั้นดิเอโก้ยังอยู่');
+  assert.equal(engine.timeStop.frozen().held.t.hp, 2, 'ผู้ชมชั้นเดิมเห็นดาเมจของดิโอแล้ว');
+  assert.deepEqual(engine.timeStop.unfreeze(), []);
+  assert.equal(engine.timeStop.frozen(), null);
+  assert.ok(diego);
+});
+
+test('Last Stand: ถูกตีถึงตาย = ไม่ตาย ได้ดวล · ใช้ครั้งเดียว · ไม่มีผู้โจมตี = ตายเลย', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  d.hp = 0;
+  engine.withEffectSource(t, () => engine.instantDeath(d));
+  assert.equal(d.alive, true);
+  assert.equal(d.hp, 1);
+  assert.equal(d.dio.lastUsed, true);
+  assert.equal(d.dio.duelFoe, 't');
+
+  const [e] = setup([['e', 'dio_brando', 3, 7]]);
+  e.hp = 0;
+  engine.instantDeath(e);
+  assert.equal(e.alive, false, 'ไม่มีผู้โจมตี');
+});
+
+test('Last Stand: แต้มสูงกว่าโดยไม่แตกชนะ · เสมอ/แตกทั้งคู่ ดิโอชนะ', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  const card = (v) => ({ v, c: 'red' });
+  const run = (a, b) => {
+    d.dio.duel = { deck: [], dioId: 'd', foeId: 't', hands: { dio: a.map(card), foe: b.map(card) }, stood: { dio: true, foe: true }, winner: null };
+    dio.duelResolveForTest(engine, d);
+    const w = d.dio.duel.winner;
+    d.dio.duel = null;
+    engine.clearPhaseTimer();
+    return w;
+  };
+  assert.equal(run([10, 9], [10, 8]), 'dio');
+  assert.equal(run([10, 7], [10, 8]), 'foe');
+  assert.equal(run([10, 8], [10, 8]), 'dio', 'เสมอ');
+  assert.equal(run([10, 10, 5], [10, 8]), 'foe', 'ดิโอแตก');
+  assert.equal(run([10, 10, 5], [10, 10, 2]), 'dio', 'แตกทั้งคู่');
+  assert.equal(run([3], [10, 10, 2]), 'dio', 'ศัตรูแตก');
+  assert.ok(t);
+});
+
+test('ดวล: เห็นเฉพาะมือตัวเอง · อีกฝ่ายและคนดูเห็นการ์ดคว่ำ · เปิดหมดเมื่อรู้ผล', () => {
+  const [d] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7], ['c', 'dummy', 9, 7]]);
+  const card = (v) => ({ v, c: 'red' });
+  d.dio.duel = { deck: [], dioId: 'd', foeId: 't', hands: { dio: [card(9)], foe: [card(4), card(5)] }, stood: { dio: false, foe: false }, winner: null };
+  const a = dio.duelView(engine, ['d']);
+  assert.equal(a.side, 'dio');
+  assert.equal(a.scores.dio, 9);
+  assert.equal(a.scores.foe, null);
+  assert.deepEqual(a.hands.foe, [{ hidden: true }, { hidden: true }]);
+  const b = dio.duelView(engine, ['t']);
+  assert.equal(b.side, 'foe');
+  assert.deepEqual(b.hands.dio, [{ hidden: true }]);
+  assert.equal(b.scores.foe, 9);
+  const c = dio.duelView(engine, ['c']);
+  assert.equal(c.side, null);
+  assert.equal(JSON.stringify(c).includes('"v"'), false, 'คนดูไม่ได้หน้าการ์ดเลย');
+  d.dio.duel.winner = 'foe';
+  const e = dio.duelView(engine, ['c']);
+  assert.equal(e.scores.dio, 9);
+  assert.equal(e.hands.foe[1].v, 5);
+  d.dio.duel = null;
+  assert.equal(dio.duelView(engine, ['d']), null);
+});

@@ -17,6 +17,7 @@ import { AvModal, AvButton } from "../components/avalon";
 import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
+import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
@@ -923,6 +924,14 @@ function statusEntries(p, full) {
   }
   // ดิเอโก้: เล่ห์เหลี่ยม · กระสุน (รีโหลด) · ม้า · เดอะเวิลด์ (ตั้งรับ / หยุดเวลา / คูลดาวน์) (ตัวเลข/ไอคอนเท่านั้น)
   //  ศัตรูได้ cunning / worldArmed / worldCd เป็น null (server ซ่อน — กดเดอะเวิลด์แล้วต้องไม่รู้)
+  if (p.dio) {
+    const d = p.dio;
+    out.push({ key: "dioMeter", v: 1, icon: "⏱️", label: `${d.meter}/${d.meterMax}`, cls: "bg-yellow-500 text-gray-900", desc: "Time Meter" });
+    out.push({ key: "dioBlood", v: 1, icon: "🩸", label: `${d.blood}/${d.bloodMax}`, cls: "bg-red-700 text-white", desc: "BloodStack" });
+    if (d.stopping) out.push({ key: "dioStop", v: 1, icon: "⏱️", label: `${d.actions} Action`, cls: "bg-yellow-300 text-gray-900", desc: "Za warudo!!!!!!" });
+    else if (d.pending > 0) out.push({ key: "dioPending", v: 1, icon: "⏱️", label: `${d.pending} Action`, cls: "bg-yellow-500 text-gray-900", desc: "Za warudo!!!!!!" });
+    else if (d.worldCd > 0) out.push({ key: "dioWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "Za warudo!!!!!!", cls: "bg-white/20", desc: "Za warudo!!!!!!" });
+  }
   if (p.diego && p.diego.ammo != null) {
     const d = p.diego;
     if (d.cunning != null) out.push({ key: "diegoCunning", v: 1, icon: "🧠", label: `${d.cunning}/${d.cunningMax}`, cls: "bg-yellow-500 text-gray-900", desc: "ได้ 1 ทุกครั้งที่ใช้คลังเครื่องมือ และเมื่อราดน้ำมันโดนศัตรู ระเบิด ตาข่ายดักติด หรือกองไฟเผาศัตรู ใช้ 5 เพื่อกดท่าไม้ตาย" });
@@ -2566,6 +2575,11 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         {scene?.kind === "atk" && <AttackCall key={scene.id} />}
 
         {scene?.kind === "shop" && <ShopHerald key={scene.id} />}
+
+      {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
+      {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
+      {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
+      <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
 
         {phase === "GAMEOVER" && (
           <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />

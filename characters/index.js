@@ -15,6 +15,7 @@ const kira = require("./kira"); // กิระ (ราชาแมลงอว�
 const yuna = require("./yuna"); // เด็กสาวเสื้อคลุมขาว (ยูนะ) — พิเศษ (วงเพลง / ศพค้าง / ขี่ผู้เล่นอื่น — server/ride.js)
 const gray = require("./gray"); // เกรย์ — ระดับกลาง (คนเฝ้าสุสาน / Grave / รองโกมิเนียต ชาร์จ 2 เทิร์น / เก็บศพ)
 const gyro_zeppeli = require("./gyro_zeppeli"); // ไจโร เซปเปลี่ — ระดับยาก (ลูกเหล็ก 2 ลูก / ม้าวาลคิรี / สัดส่วนทองคำ)
+const dio_brando = require("./dio_brando"); // ดิโอ บรันโด (Stardust Crusaders) — ระดับกลาง (Time Meter / BloodStack / Za warudo / Road Roller / Last Stand)
 const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก (คลังเครื่องมือ / ปืนลูกโม่ / เดอะเวิลด์ หยุดเวลา / ม้าซิลเวอร์ บูลเล็ต)
 const fern = require("./fern"); // เฟิร์น — ระดับกลาง (Zoltraak แนวตรง / Energy 10 / ครั้งที่ 6 ทะลุเกราะ + รีเซ็ทคูลดาวน์ / ท่าไม้ตายซ่อนเร้นมานา)
 const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
@@ -75,6 +76,7 @@ const CHARACTER_MODULES = [
   arjuna,
   roland,
   inui_takumi,
+  dio_brando,
 ];
 
 const CHAR_HOOKS = {};

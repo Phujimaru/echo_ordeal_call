@@ -182,6 +182,7 @@ function buildStateFor(viewerId) {
     duo: match.duo ? { ownerId: match.duo.ownerId, done: Object.keys(match.duo.done) } : null,
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
+    dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
     turnOrder: masked ? [] : match.turnOrder,
     actorIndex: masked ? -1 : match.actorIndex, // ตำแหน่งในลำดับของฝ่ายที่เดินล่าสุด (ตาพิเศษหยุดเวลา = ยังไม่เลื่อน) — คิว 2 คนถัดไปด้านขวา
     masked,
@@ -351,6 +352,7 @@ function buildStateFor(viewerId) {
         // หมากโปร่งแสง: ศัตรูบางคนมองไม่เห็นคนนี้อยู่ (ส่งเฉพาะผู้ชมที่ยังเห็น — ตัวเอง/เพื่อนร่วมทีม/คนในพุ่มเดียวกัน)
         veiled: !unseen && Visibility.concealed(p),
         sliver: hook && hook.publicState ? hook.publicState(engine, p, viewer) : undefined, // นักบินปริศนา: แขน / ล่องหน
+        dio: hook && hook.dioState ? hook.dioState(engine, p) : undefined, // ดิโอ: Time Meter / BloodStack / ร่างหยุดเวลา / ปุ่มแทรกตา
         echo: hook && hook.echoState ? hook.echoState(engine, p) : undefined, // Echo: ขยายร่าง / ราชินี / คูลดาวน์มหึมา
         sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์

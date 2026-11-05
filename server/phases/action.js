@@ -1020,6 +1020,7 @@ function strikeTarget(id, targetId) {
   if (match.action && match.action.noStrike) return false; // lockStrike (ขนมปังของเอมิลิโกะ)
   // ตีจบแล้ว (ก่อนจบตา): ฮุค afterStrike — เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง
   const done = () => {
+    if (runWantedFlow(done)) return; // ฉากที่ขอไว้ระหว่างตี (ดิโอ: Last Stand)
     const hook = CHAR_HOOKS[p.characterId];
     if (hook && hook.afterStrike) combat.withEffectSource(p, () => hook.afterStrike(engine, p));
     // ฮุค extraStrike(engine, p) → true = ตีครั้งนี้ไม่จบตา (ใช้ครั้งที่ตุนไว้ — เฟิร์น: ร่ายต่อเนื่อง) → กลับเข้าตาเดินด้วยเวลาที่เหลือ
@@ -1129,6 +1130,7 @@ function waitAction(id) {
 //  ระบบคู่ (server/duo.js): ตัวนี้จบ → ยังมีอีกตัว = สลับไปคุมต่อด้วยเวลาที่เหลือ · หมดเวลา = จบทั้งฝ่าย
 //  เดินต่อหลังจบตา (ฮุค cantoMov — เอมิลิโกะ): ตี/รอแล้วได้เดินอีก N ช่องก่อนจบจริง (หมดเวลา = ไม่ได้)
 function finishActor() {
+  if (runWantedFlow(finishActor)) return; // ฉากที่ขอไว้ (ดิโอ: Last Stand) เล่นก่อนจบตา
   const expired = !!(match.action && match.action.expired);
   timers.clearPhaseTimer();
   Ice.flushBursts(); // ระเบิดติดตัว 3 ของ Ice Spike ที่ค้างไว้ระหว่างฉากตี
@@ -1196,6 +1198,13 @@ function finishActor() {
   match.action = null;
   if (resume) { resumeFrom(resume); return; } // ตาพิเศษที่แทรกกลางตาคนอื่น = กลับไปตานั้นต่อ
   nextActor();
+}
+// engine.wantFlow(): มีฉากรอเล่น (คลิป/ผลหลังคลิป/จังหวะพัก) → เล่นให้จบแล้วเรียก next · ไม่มี = false
+function runWantedFlow(next) {
+  if (!match.flowWanted || match.gameState === "GAMEOVER") return false;
+  timers.clearPhaseTimer();
+  require("../cutscene").runSkillFlow(next);
+  return true;
 }
 // ฮุค broadcast afterActorEnd(engine, p) ของทุกโมดูล → วินาทีพักฉากรวม (ค่ามากสุด) · ฮุคลงผลเอง
 function afterActorEnd(p) {
