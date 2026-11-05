@@ -12,7 +12,7 @@
 //   muda       dioMuda     หมัดรัวเต็มแนว 2.4 วิ + หมัดปิดท้าย + จอสั่นถี่
 //   drain      dioDrain    สายเลือดไหลจากเป้าเข้าดิโอ
 //   rollerLift dioLift     ดิโอพุ่งขึ้นฟ้าหายจากกระดาน (dioPose)
-//   roller     dioRoller   รถบดถนนตกจากฟ้า → แสงวาบ → คลื่นกระแทก 3 ชั้น + พื้นแตก + เศษหิน + ฝุ่น
+//   roller     dioRoller   รถตกจากฟ้าพร้อมดิโอบนหลังคา → พื้นแตก → หมัดรัวใส่รถ (รถสั่น ร้าว แสงลอด) → รถแตกกระจาย + ระเบิด + คลื่นกระแทก 3 ชั้น
 //   lastWin    dioLastWin  สายเลือดคู่ + เสาไฟแดงทอง
 //  ตัวหมาก: u.dio = { stop, blood } — ออร่าทองตอนหยุดเวลา · ออร่าแดงตอน BloodStack 6 ขึ้นไป
 //  lowQ = ตัดอนุภาคครึ่งหนึ่ง · ลดการเคลื่อนไหว = ไม่หมุน ไม่เต้น
@@ -27,8 +27,8 @@ const GOLD = "255,208,60", GOLD_HI = "255,244,190", AMBER = "226,150,24", WHITE 
 // ---------- จังหวะ (ms) — สัญญากับ server (FX ใน characters/dio_brando.js) ----------
 export const DIO_MS = { dioPunch: 900 };
 export const DIO_HIT_P = { dioPunch: 0.42 };
-const T = { press: 1100, stop: 2500, shine: 950, muda: 2400, lift: 900, slam: 1700, drain: 900, win: 1600 };
-const SHINE_HIT = 430, MUDA_END = 2050, SLAM_HIT = 340;
+const T = { press: 1100, stop: 2500, shine: 950, muda: 2400, lift: 900, slam: 4500, drain: 900, win: 1600 };
+const SHINE_HIT = 430, MUDA_END = 2050, SLAM_HIT = 340, RUSH_T = 520, BOOM_T = 3000, HOP_MS = 320, ROOF_Z = 1.05; // รถตก · เริ่มต่อย · รถระเบิด · ดิโอกระโดดลง · ความสูงหลังคารถ
 const LIFT_HOLD = 8000; // ค้างบนฟ้าระหว่างคลิป จน roller มาถึง
 export const DIO_FX_DUR = {
   ...DIO_MS, dioPress: T.press, dioStop: T.stop, dioShine: T.shine, dioMuda: T.muda, dioDrain: T.drain,
@@ -44,7 +44,9 @@ const okT = (t) => !!t && Number.isFinite(t.x) && Number.isFinite(t.y);
 const DIRV = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 function viewRect(view) {
-  return view ? [view.x || 0, view.y || 0, view.w || 4000, view.h || 4000] : [0, 0, 4000, 4000];
+  const x0 = (view && Number.isFinite(view.x0) ? view.x0 : 0) - 60, y0 = (view && Number.isFinite(view.y0) ? view.y0 : 0) - 60;
+  const x1 = (view && Number.isFinite(view.x1) ? view.x1 : 1280) + 60, y1 = (view && Number.isFinite(view.y1) ? view.y1 : 720) + 60;
+  return [x0, y0, x1 - x0, y1 - y0];
 }
 function flash(g, view, rgb, a, op = "lighter") {
   if (!(a > 0)) return;
@@ -304,66 +306,128 @@ export function preloadDioArt() {
   if (!rollerImg && typeof Image === "function") { rollerImg = new Image(); rollerImg.src = ROLLER_URL; }
   return rollerImg;
 }
+const ROLLER_W = 4.2;
+function rollerSize(img, s) { const w = s * ROLLER_W; return [w, w * (img.naturalHeight / img.naturalWidth)]; }
+const rollerReady = () => { const img = preloadDioArt(); return img && img.complete && img.naturalWidth ? img : null; };
 function drawRoller(g, x, y, s, a) {
-  const img = preloadDioArt();
-  if (!img || !img.complete || !img.naturalWidth) return;
-  const w = s * 4.2, h = w * (img.naturalHeight / img.naturalWidth);
+  const img = rollerReady();
+  if (!img) return;
+  const [w, h] = rollerSize(img, s);
   g.save(); g.globalAlpha *= a;
   g.shadowColor = "rgba(0,0,0,.55)"; g.shadowBlur = s * 0.25;
   g.drawImage(img, x - w / 2, y - h * 0.8, w, h);
   g.restore();
 }
+// รถแตก: ตัดรูปเป็นชิ้น 4×3 ปลิวออกจากจุดระเบิด
+function rollerPieces(g, x, y, s, q) {
+  const img = rollerReady();
+  if (!img) return;
+  const [w, h] = rollerSize(img, s), cols = 4, rows = 3, nw = img.naturalWidth / cols, nh = img.naturalHeight / rows;
+  const x0 = x - w / 2, y0 = y - h * 0.8;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const i = r * cols + c, px = x0 + (c + 0.5) * (w / cols), py = y0 + (r + 0.5) * (h / rows);
+    const dx = px - x, dy = py - (y - h * 0.3), L = Math.hypot(dx, dy) || 1, sp = s * (2 + 3.2 * hash01(i + 3));
+    const k = easeOut3(q), nx = px + (dx / L) * sp * k, ny = py + (dy / L) * sp * k + s * 2.6 * q * q - s * 0.7 * hash01(i + 5) * k;
+    g.save(); g.translate(nx, ny); g.rotate((hash01(i + 7) - 0.5) * 7 * k); g.globalAlpha *= 1 - q * q;
+    g.drawImage(img, c * nw, r * nh, nw, nh, -w / cols / 2, -h / rows / 2, w / cols, h / rows);
+    g.restore();
+  }
+}
+// รอยร้าวแสงบนตัวรถ: ยิ่งต่อยยิ่งลาม
+function rollerCracks(g, x, y, s, k, seed) {
+  const n = Math.ceil(10 * k);
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    let px = x + (hash01(seed + i) - 0.5) * s * 3, py = y - s * (0.2 + 0.9 * hash01(seed + i * 2)), an = hash01(seed + i * 3) * TAU;
+    g.beginPath(); g.moveTo(px, py);
+    for (let j = 0; j < 4; j++) { an += (hash01(seed + i + j * 5) - 0.5) * 1.5; px += Math.cos(an) * s * 0.26; py += Math.sin(an) * s * 0.26; g.lineTo(px, py); }
+    g.strokeStyle = `rgba(255,214,120,${0.55 + 0.45 * k})`; g.lineWidth = 1.5 + 2 * k; g.stroke();
+  }
+  g.restore();
+}
+function groundCracks(g, cx, cy, q, a, lowQ) {
+  g.save(); g.lineCap = "round";
+  for (let i = 0; i < (lowQ ? 8 : 16); i++) {
+    let an = hash01(i + 40) * TAU, x = cx, y = cy;
+    const pts = [P(x, y, 0.02)];
+    for (let j = 0; j < 4; j++) { an += (hash01(i * 5 + j) - 0.5) * 0.9; const d = (0.45 + 0.5 * hash01(i + j * 3)) * q; x += Math.cos(an) * d; y += Math.sin(an) * d; pts.push(P(x, y, 0.02)); }
+    g.strokeStyle = `rgba(16,10,6,${0.85 * a})`; g.lineWidth = 4;
+    g.beginPath(); pts.forEach(([u, v], k) => (k ? g.lineTo(u, v) : g.moveTo(u, v))); g.stroke();
+    g.strokeStyle = `rgba(255,170,60,${0.75 * a})`; g.lineWidth = 1.5; g.stroke();
+  }
+  gEllipse(g, cx, cy, 1.15 * q, 0.015, 40); g.fillStyle = `rgba(22,14,8,${0.7 * a})`; g.fill();
+  g.restore();
+}
 function rollerFx(g, e, t, lowQ, view) {
   if (!okT(e.at) || t >= T.slam) return;
-  const n = Math.max(1, e.size | 0), cx = e.at.x + n / 2, cy = e.at.y + n / 2, end = 1 - clamp01((t - 1150) / 550);
+  const n = Math.max(1, e.size | 0), cx = e.at.x + n / 2, cy = e.at.y + n / 2, end = 1 - clamp01((t - 3900) / 600);
   // เงาตกพื้นก่อนรถถึง
   if (t < SLAM_HIT) {
     gEllipse(g, cx, cy, 0.6 + 1.6 * (t / SLAM_HIT), 0.01, 40);
     g.fillStyle = `rgba(0,0,0,${0.6 * (t / SLAM_HIT)})`; g.fill();
   }
-  const z = t < SLAM_HIT ? 12 * (1 - easeIn2(t / SLAM_HIT)) : 0.3;
-  const [rx, ry, rs] = P(cx, cy, z + 0.12);
-  // พื้นแตกร้าว (ค้างจนจบฉาก)
-  if (t >= SLAM_HIT) {
-    const q = clamp01((t - SLAM_HIT) / 220);
-    g.save(); g.lineCap = "round";
-    for (let i = 0; i < (lowQ ? 8 : 16); i++) {
-      let an = hash01(i + 40) * TAU, x = cx, y = cy;
-      const pts = [P(x, y, 0.02)];
-      for (let j = 0; j < 4; j++) { an += (hash01(i * 5 + j) - 0.5) * 0.9; const d = (0.45 + 0.5 * hash01(i + j * 3)) * q; x += Math.cos(an) * d; y += Math.sin(an) * d; pts.push(P(x, y, 0.02)); }
-      g.strokeStyle = `rgba(16,10,6,${0.85 * end})`; g.lineWidth = 4;
-      g.beginPath(); pts.forEach(([a, b], k) => (k ? g.lineTo(a, b) : g.moveTo(a, b))); g.stroke();
-      g.strokeStyle = `rgba(255,170,60,${0.75 * end})`; g.lineWidth = 1.5; g.stroke();
+  if (t >= SLAM_HIT) groundCracks(g, cx, cy, clamp01((t - SLAM_HIT) / 220) * (t < BOOM_T ? 0.75 : 1), end, lowQ);
+  const fall = t < SLAM_HIT ? 12 * (1 - easeIn2(t / SLAM_HIT)) : 0;
+  const rush = clamp01((t - RUSH_T) / (BOOM_T - RUSH_T));
+  // รถสั่นแรงขึ้นเรื่อยๆ ตามหมัด
+  const amp = t >= RUSH_T && t < BOOM_T && !REDUCED ? 2 + 7 * rush : 0;
+  const jx = amp ? Math.sin(t * 0.09) * amp : 0, jy = amp ? Math.cos(t * 0.13) * amp * 0.6 : 0;
+  const [rx, ry, rs] = P(cx, cy, fall + 0.12);
+  const [tx, ty, ts] = P(cx, cy, ROOF_Z + 0.6); // จุดที่หมัดลง: หลังคารถ
+  if (t < BOOM_T) {
+    drawRoller(g, rx + jx, ry + jy, rs * (1 + (t < SLAM_HIT ? 0.35 * (1 - t / SLAM_HIT) : 0)), 1);
+    // รถตกถึงพื้น: แรงกระแทกชุดเล็ก
+    if (t >= SLAM_HIT && t < SLAM_HIT + 420) {
+      const a = t - SLAM_HIT, q = a / 420;
+      if (a < 70) flash(g, view, WHITE, 0.55 * (1 - a / 70));
+      ring(g, cx, cy, 0.8 + 3 * easeOut3(q), 0.9 * (1 - q), GOLD_HI, 5 * (1 - q) + 0.5);
+      if (!lowQ) shards(g, cx, cy, q, 18, 7, "226,196,150", 2.6);
     }
-    gEllipse(g, cx, cy, 1.15 * q, 0.015, 40); g.fillStyle = `rgba(22,14,8,${0.7 * end})`; g.fill();
-    g.restore();
+    if (rush > 0) {
+      rollerCracks(g, rx + jx, ry + jy, rs, rush, 13);
+      g.save(); g.globalCompositeOperation = "lighter";
+      glow(g, rx, ry - rs * 0.55, rs * (1.2 + 1.4 * rush), "255,150,40", 0.18 + 0.6 * rush * rush);
+      g.restore();
+      // หมัดรัวจากตัวหมากลงใส่หลังคา: ออกทุก 34ms ชีวิต 170ms
+      const every = lowQ ? 68 : 34, life = 170, rel = t - RUSH_T, last = Math.min(rel, BOOM_T - RUSH_T);
+      for (let i = Math.max(0, Math.floor((last - life) / every)); i * every <= last; i++) {
+        const age = (rel - i * every) / life;
+        if (age < 0 || age >= 1) continue;
+        const sx = tx + (hash01(i + 3) - 0.5) * ts * 1.5, sy = ty - ts * (0.05 + 0.45 * hash01(i + 5)), k = easeOut3(clamp01(age * 1.7));
+        const ox = tx + (sx - tx) * 0.3, oy = ty - ts * 1.1, x = ox + (sx - ox) * k, y = oy + (sy - oy) * k;
+        fist(g, x, y, ts * (0.34 + 0.2 * hash01(i + 9)), Math.atan2(sy - oy, sx - ox), (1 - age) * 1.2);
+        if (age > 0.5) burstStar(g, sx, sy, ts * 0.32, 0.8 * (1 - age), GOLD_HI, 6, i);
+      }
+      if (!lowQ) speedLines(g, tx, ty - ts * 1.2, tx, ty, ts * 1.7, 0.6, 10, Math.floor(t / 60));
+    }
+    // หมัดปิดท้าย
+    if (t > BOOM_T - 170) {
+      const k = clamp01((t - (BOOM_T - 170)) / 170);
+      fist(g, tx, ty - ts * (1.4 - 1.2 * easeIn2(k)), ts * 1.15, Math.PI / 2, 1);
+    }
+    return;
   }
-  const shrink = t < 1150 ? 1 : end;
-  if (t >= SLAM_HIT) {
-    const a = t - SLAM_HIT, q = clamp01(a / (T.slam - SLAM_HIT));
-    if (a < 90) flash(g, view, WHITE, 0.9 * (1 - a / 90));
-    else if (a < 300) flash(g, view, GOLD, 0.28 * (1 - (a - 90) / 210));
-    const [bx, by, s] = P(cx, cy, 0.8);
-    g.save(); g.globalCompositeOperation = "lighter";
-    glow(g, bx, by, s * (1.6 + 3 * easeOut3(q)), "255,150,40", 0.95 * (1 - q));
-    glow(g, bx, by, s * (0.9 + 1.4 * easeOut3(q)), GOLD_HI, 0.95 * (1 - q));
-    g.restore();
-    for (let k = 0; k < (lowQ ? 1 : 3); k++) {
-      const qq = clamp01(q * 1.3 - k * 0.14);
-      if (qq > 0 && qq < 1) ring(g, cx, cy, (0.8 + 5.2 * easeOut3(qq)) * n, 0.95 * (1 - qq), k === 1 ? "255,150,40" : GOLD_HI, 6 * (1 - qq) + 0.6);
-    }
-    // ควันดำม้วนขึ้น + เศษหิน
-    g.save();
-    for (let i = 0; i < (lowQ ? 8 : 20); i++) {
-      const an = hash01(i + 90) * TAU, d = (0.5 + 2 * hash01(i + 91)) * easeOut3(q), [x, y, ps] = P(cx + Math.cos(an) * d, cy + Math.sin(an) * d, 0.2 + 2 * q * hash01(i + 92));
-      glow(g, x, y, ps * (0.35 + 0.75 * q), "48,40,34", 0.6 * (1 - q));
-    }
-    g.restore();
-    if (!lowQ) shards(g, cx, cy, q, 34, 7, "226,196,150", 3.4);
-    if (e.dodge) burstStar(g, bx, by, s, 0.5 * (1 - q), "200,210,230", 8, 3);
+  // รถระเบิด
+  const a = t - BOOM_T, q = clamp01(a / (T.slam - BOOM_T));
+  if (a < 110) flash(g, view, WHITE, 0.95 * (1 - a / 110));
+  else if (a < 380) flash(g, view, GOLD, 0.3 * (1 - (a - 110) / 270));
+  const [bx, by, s] = P(cx, cy, 0.8);
+  g.save(); g.globalCompositeOperation = "lighter";
+  glow(g, bx, by, s * (2 + 4 * easeOut3(q)), "255,130,30", 1 - q);
+  glow(g, bx, by, s * (1.1 + 2 * easeOut3(q)), GOLD_HI, 1 - q);
+  g.restore();
+  rollerPieces(g, rx, ry, rs, clamp01(a / 1100));
+  for (let k = 0; k < (lowQ ? 1 : 3); k++) {
+    const qq = clamp01(q * 1.3 - k * 0.14);
+    if (qq > 0 && qq < 1) ring(g, cx, cy, (1 + 6.5 * easeOut3(qq)) * n, 0.95 * (1 - qq), k === 1 ? "255,150,40" : GOLD_HI, 7 * (1 - qq) + 0.6);
   }
-  // รถอยู่บนสุด: แสงระเบิดไม่กลบภาพรถ
-  if (shrink > 0) drawRoller(g, rx, ry, rs * (1 + (t < SLAM_HIT ? 0.35 * (1 - t / SLAM_HIT) : 0)), shrink);
+  g.save();
+  for (let i = 0; i < (lowQ ? 8 : 22); i++) {
+    const an = hash01(i + 90) * TAU, d = (0.5 + 2.4 * hash01(i + 91)) * easeOut3(q), [x, y, ps] = P(cx + Math.cos(an) * d, cy + Math.sin(an) * d, 0.2 + 2.4 * q * hash01(i + 92));
+    glow(g, x, y, ps * (0.4 + 0.9 * q), "48,40,34", 0.6 * (1 - q));
+  }
+  g.restore();
+  if (!lowQ) shards(g, cx, cy, q, 40, 7, "226,196,150", 4);
 }
 function lastWinFx(g, e, t, lowQ, view) {
   if (t >= T.win) return;
@@ -399,7 +463,7 @@ export function dioFx(g, e, now, lowQ, view) {
   g.restore();
 }
 
-// ดิโอพุ่งขึ้นฟ้าหายจากกระดาน → ลงพร้อมรถบดถนน (BoardCanvas)
+// ดิโอพุ่งขึ้นฟ้าหายจากกระดาน → ลงมาบนหลังคารถ ยืนต่อย → รถระเบิดแล้วโดดลงข้างเป้า (BoardCanvas)
 export function dioPose(list, u, now) {
   if (!u || u.id == null || !Array.isArray(list)) return null;
   let lift = null, slam = null;
@@ -409,9 +473,14 @@ export function dioPose(list, u, now) {
     if (e.kind === "dioLift" && now - e.t0 < e.dur) lift = e;
   }
   if (slam) {
-    const t = now - slam.t0;
-    if (t >= 0 && t < SLAM_HIT + 200) return { x: u.rx, y: u.ry, hz: t < SLAM_HIT ? 14 * (1 - t / SLAM_HIT) + 1.2 : 1.2 * (1 - (t - SLAM_HIT) / 200), sq: 0 };
-    return null;
+    const t = slam.holdT != null ? slam.holdT : now - slam.t0, at = slam.at;
+    if (!okT(at)) return null;
+    const n = Math.max(1, slam.size | 0), x = at.x + (n - 1) / 2, y = at.y + (n - 1) / 2;
+    if (t < 0 || t >= BOOM_T + HOP_MS) return null;
+    if (t < SLAM_HIT) return { x, y, hz: ROOF_Z + 12 * (1 - easeIn2(t / SLAM_HIT)), sq: 0 };
+    if (t < BOOM_T) return { x, y, hz: ROOF_Z, sq: 0 };
+    const q = (t - BOOM_T) / HOP_MS, land = okT(slam.land) ? slam.land : { x: u.rx, y: u.ry };
+    return { x: x + (land.x - x) * q, y: y + (land.y - y) * q, hz: ROOF_Z * (1 - q) + Math.sin(Math.PI * q) * 1.2, sq: 0 };
   }
   if (!lift) return null;
   return { x: u.rx, y: u.ry, hz: 16 * easeIn2(clamp01((now - lift.t0) / T.lift)), sq: 0 };
@@ -504,10 +573,12 @@ export function dioEventFx(ev, ctx = {}) {
       break;
     case "roller":
       if (okT(ev.at)) {
-        out.fx.push({ ...base, kind: "dioRoller", at: pt(ev.at), size: ev.size || sizeOf(ev.targetId), dodge: !!ev.dodge, dur: T.slam });
+        out.fx.push({ ...base, kind: "dioRoller", at: pt(ev.at), land: okT(ev.land) ? pt(ev.land) : null, size: ev.size || sizeOf(ev.targetId), dur: T.slam });
         out.look.push([pt(ev.at), 0]);
-        quake(SLAM_HIT, 22);
-        out.shake.push(SLAM_HIT + 160, SLAM_HIT + 320);
+        quake(SLAM_HIT, 16);
+        for (let ms = RUSH_T; ms < BOOM_T; ms += 300) out.shake.push(ms);
+        quake(BOOM_T, 26);
+        out.shake.push(BOOM_T + 160, BOOM_T + 320);
       }
       break;
     case "lastWin":

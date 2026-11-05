@@ -168,7 +168,9 @@ test('Road Roller → คลิป → ลงข้างเป้า → เว
   assert.equal(engine.gameState, 'CUTSCENE');
   adv(t, 5);
   assert.equal(Math.abs(d.pos.x - 5) + Math.abs(d.pos.y - 8), 1, 'ลงข้างเป้า');
-  assert.equal(a.hp, 3, '3 + ดูด 1');
+  assert.equal(a.hp, 7, 'ยังไม่ลง — รอรถระเบิด');
+  adv(t, 5);
+  assert.equal(a.hp, 3, 'ระเบิด: 3 + ดูด 1');
   adv(t, 6);
   assert.equal(d.dio.stopping, false);
   assert.equal(engine.timeStop.frozen(), null);

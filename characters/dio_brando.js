@@ -15,7 +15,7 @@
 //    กดตอนตาคนอื่นได้ (แทรกตา — เสียเพิ่ม 1 · รวมตอนคนอื่นหยุดเวลา แล้วคืนตาเขา)
 //  ร่างหยุดเวลา (ตาพิเศษ): มีด 1 Action · Stand 1 Action · ตีปกติ 1 Action (ไม่จบตา) · เดินฟรี · Road Roller 2 Action
 //    ดาเมจลงพร้อมกันตอนเวลาเดินต่อ (ทอยหลบตอนกด) · Action หมด = เวลาเดินต่อ
-//  Road Roller: 1 คนในกรอบ 5×5 · ลอยออก → คลิป → ระเบิด · 3 · ดิโอลงข้างเป้า · เวลาเดินต่อทันที
+//  Road Roller: 1 คนในกรอบ 5×5 · ลอยออก → คลิป → รถตกพร้อมดิโอ → ต่อยรถรัวจนระเบิด · 3 · ดิโอลงข้างเป้า · เวลาเดินต่อทันที
 //
 //  ทุกอย่างเก็บที่ p.dio · เอฟเฟกต์: engine.boardFx("dioFx", { kind, id, color, … }) — client/src/board/dioFx.js
 // ============================================================
@@ -54,7 +54,7 @@ const WORLD = { cd: 4, cdSurge: 3, tax: 1 };
 const ROLLER = { actions: 2, dmg: 3, reach: 2 };
 const LAST = { win: 2, seconds: 30, botStop: 17, target: 21 };
 // จังหวะเอฟเฟกต์ (วินาที) — ต้องตรงกับ DIO_FX ใน client/src/board/dioFx.js
-const FX = { knife: 0.55, shine: 0.95, muda: 2.4, press: 1.1, stop: 2.5, resume: 2.2, lift: 0.9, slam: 1.7, result: 3.6 };
+const FX = { knife: 0.55, shine: 0.95, muda: 2.4, press: 1.1, stop: 2.5, resume: 2.2, lift: 0.9, slam: 0.5, rush: 2.5, boom: 1.5, result: 3.6 };
 
 const K = Board.key;
 const LINE_AREA = { kind: "line", len: STAND_LEN, width: 1, hostile: true };
@@ -270,12 +270,16 @@ function roller(engine, p, t) {
   engine.skillBeat(FX.lift, () => {
     engine.queueCutscene(p, CUT.roller);
     engine.deferAfterCutscene(() => {
+      // รถตกทับพร้อมดิโอบนหลังคา → ต่อยรัว → รถระเบิด: ผลลงตอนระเบิด (ผู้ใช้สั่ง 2026-11-05)
       const spot = at && landingSpot(engine, p, t, at);
       if (spot) { engine.ice.revealPushed(p); p.pos = spot; }
-      const res = t.alive ? standHit(engine, p, t, "Road Roller", ROLLER.dmg, false) : {};
-      fx(engine, p, "roller", { at, land: { ...p.pos }, targetId: t.id, dodge: !!res.dodge, size: engine.sizeOf(t) });
-      engine.sfx(SFX.explode);
-      playSurge(engine, p, FX.slam);
+      fx(engine, p, "roller", { at, land: { ...p.pos }, targetId: t.id, size: engine.sizeOf(t) });
+      engine.skillBeat(FX.slam, () => engine.sfx(SFX.muda));
+      engine.skillBeat(FX.rush, () => {
+        if (t.alive) standHit(engine, p, t, "Road Roller", ROLLER.dmg, false);
+        engine.sfx(SFX.explode);
+        playSurge(engine, p, FX.boom);
+      });
     });
   });
 }

@@ -628,7 +628,7 @@ export default function BoardCanvas(props) {
         if (dp) { rx = dp.x; ry = dp.y; ox = 0; oy = 0; hz = dp.hz || 0; sq = dp.sq || 0; }
         // ฉากของดิโอ: พุ่งขึ้นฟ้าไปเอารถบดถนน · ลงพร้อมรถ
         const dip = sp || gp || dp || u.corpse ? null : dioPose(st.fxActive, { id: u.id, rx, ry }, now);
-        if (dip) { hz = dip.hz || 0; sq = 0; }
+        if (dip) { rx = dip.x; ry = dip.y; ox = 0; oy = 0; hz = dip.hz || 0; sq = 0; }
         const dgo = u.diego ? { ...u.diego, charge: !!(dp && dp.charge) } : null;
         if (dgo && (dgo.mounted || dgo.charge)) hz += DIEGO_RIDE_Z;
         // รถบรรทุกเก่า / รถบรรทุก: หมากนั่งบนรถ (รถวาดใต้หมาก — optimusFx.js otTruck)
