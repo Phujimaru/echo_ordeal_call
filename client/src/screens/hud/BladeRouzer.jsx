@@ -55,7 +55,7 @@ export function BladeRouzerSlot({ kazuma, skill, disabled, onOpen }) {
           ))}
         </span>
         {k.blade && <Pips left={k.picksLeft ?? PICKS} max={k.picksMax || PICKS} />}
-        {k.blade && !k.kingUsed && <span className="kz-fusion" data-full={k.canEvolve ? "true" : "false"}>{k.fusion || 0}/{k.fusionNeed || 9}</span>}
+        {k.blade && !k.kingUsed && <span className="kz-fusion" data-full={k.canEvolve ? "true" : "false"}>{k.fusion || 0}/{k.fusionNeed || 5}</span>}
         {k.king && <span className="kz-fusion" data-full="true">👑{k.kingLeft}</span>}
       </span>
       <span className="hud-skill-label">

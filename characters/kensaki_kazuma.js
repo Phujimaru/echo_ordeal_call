@@ -6,7 +6,7 @@
 //  ช่างหัวมันสิ (ติดตัว · ผู้ใช้เพิ่ม 2026-10-25): ร่าง Blade ตีปกติ 1 ครั้ง แต้มสกิล +1 (afterStrike) ·
 //    ตีปกติที่ไม่มีผลการ์ดค้าง (ไม่ได้ Rouze — กองการ์ด/ท่าที่ผสมไว้แต่ยังไม่กดไม่นับ) คริ 50% (critPct) · ติดคริ = คลิป "มือเปล่าติดคริ" ก่อนฉากตีทุกครั้ง
 //  แปลงร่าง/คืนร่าง (พื้นฐาน · 0 แต้ม · 1 ครั้งต่อเทิร์น · ไม่กินโควตา · กดแล้วยังเดินได้):
-//    ร่าง Blade — จบเทิร์นแต้มสกิล +2 (ปกติ +1 · ฮุค skillRegen)
+//    ร่าง Blade — จบเทิร์นแต้มสกิล +2 · ร่าง King +3 (ปกติ +1 · ฮุค skillRegen)
 //    ร่างมนุษย์ (ค่าเริ่มต้น) — อยู่ร่างมนุษย์ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2 (นับจบเทิร์น · แปลงร่าง = นับใหม่)
 //  Blay Rouzer (รอง · ปุ่ม 9 การ์ด · ใบละ 2 แต้ม · เฉพาะร่าง Blade · ไม่กินโควตา · กดแล้วยังเดินได้):
 //    เลือกได้ 3 ใบต่อเทิร์น · ในกองมีได้ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผลเป็นเท่า · กองค้างข้ามเทิร์นจนกด Rouze · ยกเลิกการ์ดไม่ได้
@@ -30,8 +30,8 @@
 //    รูปปุ่มท่าไม้ตาย = เฟรมจากคลิปของผู้ใช้ · คลิปแปลงร่างเต็มครั้งแรกต่อเกม (ผู้ใช้สั่ง "เล่นครั้งเดียว") ครั้งต่อไปการ์ดแจ้งเตือน ·
 //    BEAT ในท่า Lightning = ตีกรอบแทนแนว · Sonic + BEAT = ทุกศัตรูในแถวขวางกว้าง 1+2n ที่ช่องชนโดนด้วย
 //
-//  King Form (ผู้ใช้ตัดสิน 2026-11-05 · GRID_PLAN §7.19.1): เลือกการ์ดสะสมอัตราผสาน 9 → Evolution 1 ครั้งต่อเกม (useSkill basic form "evolution")
-//    พลังโจมตี 2 · เกราะ +3 · เดิน 3 · การ์ด 5 ใบ/เทิร์น ใบละ 1 แต้ม ไม่จำกัดชนิด · การ์ดเพิ่ม 7 ใบ · เพดาน Lightning +1
+//  King Form (ผู้ใช้ตัดสิน 2026-11-05 · GRID_PLAN §7.19.1): เลือกการ์ดสะสมอัตราผสาน 5 → Evolution 1 ครั้งต่อเกม (useSkill basic form "evolution")
+//    ตอนแปลงพลังชีวิตฟื้นเต็ม · พลังโจมตี 2 · เพดานเกราะ +3 (เกราะปัจจุบันไม่เพิ่ม) · เดิน 3 · การ์ด 5 ใบ/เทิร์น ใบละ 1 แต้ม ไม่จำกัดชนิด · การ์ดเพิ่ม 7 ใบ · เพดาน Lightning +1
 //    อยู่ 5 เทิร์น → คลิปคืนร่าง + ร่างมนุษย์ + ฟื้นพลังชีวิต 2 + สตั้นตัวเอง 1 เทิร์น
 //    Straight Flush (SLASH BEAT TACKLE KICK THUNDER): คลิปตอนกด · ตีปกติครั้งถัดไปในตาเดินนี้ ×2 (เพดาน 6)
 //    Four Card (THUNDER TORNADO FIRE BLIZZARD EVOLUTION): พุ่ง 5 ช่อง · ดิบ 2 ลดเกราะก่อน · ช็อต 1 ผลัก 1 ลุกไหม้ 2 เชื่องช้า 2 เลือดไหล 1
@@ -95,7 +95,7 @@ const BLAST = { range: [1, 3], dmg: 2, shock: 2 };
 const SLASH = { range: [1, 3], dmg: 2, shock: 1 };
 const SONIC = { len: 4, dmg: 4, shock: 1, push: 2, crash: 1 };
 const COMBO_CAP = { blast: 4, slash: 4, sonic: 5 }; // เพดานดาเมจของท่ารวมโบนัสการ์ดที่เกินสูตร (2 ใบ = 4 · 3 ใบ = 5)
-const KING = { need: 9, turns: 5, picks: 5, cost: 1, armor: 3, mov: 3, atk: 1, heal: 2, stun: 1, capUp: 1 };
+const KING = { need: 5, turns: 5, picks: 5, cost: 1, armor: 3, mov: 3, atk: 1, heal: 2, stun: 1, capUp: 1, regen: 3 };
 const STRAIGHT = { mult: 2, cap: 6 };
 const FOUR = { len: 5, dmg: 2, shock: 1, push: 1, crash: 1, burn: 2, slow: 2, bleed: 1 };
 const ROYAL = { len: 4, width: 3, dmg: 6 };
@@ -122,7 +122,7 @@ const KING_CARDS = {
   jack: { name: "FUSION", desc: "ตีโดน แต้มสกิล +1" },
   queen: { name: "ABSORB", desc: "ตีโดน ฟื้นเกราะ 1" },
   king: { name: "EVOLUTION", desc: `อัตราคริติคอล +${KING_CRIT}%` },
-  ace: { name: "CHANGE", desc: "ตีโดน ล้างสถานะผิดปกติของตัวเอง 1 อย่าง" },
+  ace: { name: "CHANGE", desc: "ตอน Rouze ล้างสถานะผิดปกติของตัวเอง 1 อย่าง" },
   fire: { name: "FIRE", desc: "ตีโดน ติดลุกไหม้ 1" },
   tornado: { name: "TORNADO", desc: "ตีโดน ตัวเองได้หลบหลีก 1 เทิร์น" },
   blizzard: { name: "BLIZZARD", desc: "ตีโดน ติดเชื่องช้า 1 เทิร์น" },
@@ -283,7 +283,7 @@ function evolve(engine, p) {
   s.kingUsed = true;
   s.kingLeft = KING.turns;
   s.kingAt = engine.severStamp();
-  p.armor = Math.min(ARMOR + KING.armor, (p.armor || 0) + KING.armor);
+  engine.healHp(p, engine.maxHpOf(p) - p.hp); // เพดานเกราะเพิ่มจาก maxArmor แต่ส่วนต่างไม่ฟื้น
   engine.log(`👑 ${p.name} แปลงร่างเป็นร่างคิง`);
   engine.triggerCutscene(p, CUT.king);
   engine.deferAfterCutscene(() => { if (p.alive && p.pos) fx(engine, p, "kingOn", {}); });
@@ -320,7 +320,10 @@ function rouze(engine, p, targets, opts) {
   // ท่า Lightning: การ์ดที่เกินสูตร (หักสูตรออกชนิดละ 1 ใบ) เสริมท่าเท่าผลปกติ
   const extra = { ...cards };
   if (combo) for (const k of COMBOS[combo].cards) { extra[k] -= 1; if (extra[k] <= 0) delete extra[k]; }
-  // METAL ลงทันที (อยู่จนจบเทิร์น) · ที่เหลือรอตีปกติ / เสริมท่า
+  // CHANGE ลงทันที (ใบที่เป็นส่วนของสูตรไม่นับ) · METAL ลงทันที (อยู่จนจบเทิร์น) · ที่เหลือรอตีปกติ / เสริมท่า
+  for (let i = 0; i < (extra.ace || 0); i++) {
+    if (engine.cleanseLatestDebuff(p)) engine.log(`🃏 ${p.name} CHANGE — ล้างสถานะผิดปกติ 1 อย่าง`);
+  }
   if (extra.metal) {
     s.metal = extra.metal;
     s.metalAt = engine.severStamp();
@@ -329,6 +332,7 @@ function rouze(engine, p, targets, opts) {
   }
   const rest = { ...extra };
   delete rest.metal;
+  delete rest.ace;
   if (combo === "sonic") {
     s.armed = null;
     sonic(engine, p, opts.dir, targets, rest);
@@ -609,7 +613,7 @@ module.exports = {
     if (kingOn(p)) return { name: "เบลด ร่างคิง", img: IMG.king };
     return bladeOn(p) ? { name: "Kamen Rider Blade", img: IMG.blade } : null;
   },
-  skillRegen(p) { return bladeOn(p) ? BLADE_REGEN : 1; },
+  skillRegen(p) { return kingOn(p) ? KING.regen : bladeOn(p) ? BLADE_REGEN : 1; },
 
   // ---------- เดิน / ตีปกติ (ผลจาก Rouze) ----------
   mov(p) { return isKazuma(p) ? (kingOn(p) ? KING.mov : MOV) + cardN(p, "mach") : null; },
@@ -681,14 +685,13 @@ module.exports = {
     const out = [];
     const c = comboArmed(attacker);
     // การ์ดเฉพาะร่าง King ที่ลงกับตัวเอง
-    const jack = cardN(attacker, "jack"), queen = cardN(attacker, "queen"), ace = cardN(attacker, "ace");
+    const jack = cardN(attacker, "jack"), queen = cardN(attacker, "queen");
     if (jack > 0) { engine.addSkill(attacker, jack, "kazuma"); out.push(`แต้มสกิล +${jack}`); }
     if (queen > 0) {
       const room = ARMOR + KING.armor - (attacker.armor || 0);
       if (room > 0) { attacker.armor = (attacker.armor || 0) + Math.min(room, queen); out.push(`เกราะ +${Math.min(room, queen)}`); }
     }
     if (cardN(attacker, "tornado") > 0) { engine.applyBuff(attacker, "evade", 100, 1); out.push("หลบหลีก"); }
-    for (let i = 0; i < ace; i++) if (engine.cleanseLatestDebuff(attacker)) out.push("ล้างสถานะ");
     if (!target.alive) return out;
     const burn = cardN(attacker, "fire"), slow = cardN(attacker, "blizzard");
     if (burn > 0 && engine.applyBurn(target, burn)) out.push(`ลุกไหม้ ${burn}`);

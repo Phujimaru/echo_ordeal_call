@@ -98,7 +98,7 @@ test.before(() => {
 test.beforeEach(() => { calls.cut.length = 0; calls.sfx.length = 0; Math.random = () => 0.99; });
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); match.cutsceneQueue.length = 0; match.afterCutscene = []; match.skillBeats = []; });
 
-test('อัตราผสาน: เลือกการ์ดครบ 9 ใบถึงจะ Evolution ได้ · ปุ่มขึ้นบน HUD · ครั้งเดียวต่อเกม', () => {
+test('อัตราผสาน: เลือกการ์ดครบ 5 ใบถึงจะ Evolution ได้ · ปุ่มขึ้นบน HUD · ครั้งเดียวต่อเกม', () => {
   const P = setup();
   engine.useSkill('K', 'basic', []);
   assert.deepEqual(kz.hudActions(engine, P.K), []);
@@ -108,10 +108,13 @@ test('อัตราผสาน: เลือกการ์ดครบ 9 ใ
   pick(['slash']);
   assert.equal(P.K.kazuma.fusion, kz.KING.need);
   assert.equal(kz.hudActions(engine, P.K)[0].key, 'kazumaEvolution');
-  const armor = P.K.armor;
+  P.K.hp = 2;
+  P.K.armor = 1;
   engine.useSkill('K', 'basic', [], { form: 'evolution' });
   assert.equal(P.K.kazuma.king, true);
-  assert.equal(P.K.armor, armor + 3);
+  assert.equal(P.K.hp, kz.maxHp(P.K), 'ฟื้นพลังชีวิตเต็ม');
+  assert.equal(P.K.armor, 1, 'เกราะส่วนต่างไม่ฟื้น');
+  assert.equal(kz.maxArmor(P.K), kz.ARMOR + 3, 'เพดานเกราะเพิ่ม');
   assert.ok(calls.cut.includes('kazumaKing'));
   assert.equal(kz.mov(P.K), 3);
   assert.equal(kz.characterPub(engine, P.K).name, 'เบลด ร่างคิง');
@@ -181,6 +184,51 @@ test('การ์ดเดี่ยว: FIRE ลุกไหม้ · BLIZZARD 
   assert.ok(P.K.skillPoints >= sp + 1);
   assert.equal(P.K.armor, 3);
   assert.ok((P.K.statuses.evade || 0) > 0);
+});
+
+test('ฟื้นแต้มสกิลจบเทิร์น: ร่าง Blade 2 · ร่าง King 3', () => {
+  const P = setup();
+  engine.useSkill('K', 'basic', []);
+  assert.equal(kz.skillRegen(P.K), 2);
+  P.K.kazuma.fusion = kz.KING.need;
+  engine.useSkill('K', 'basic', [], { form: 'evolution' });
+  assert.equal(kz.skillRegen(P.K), 3);
+});
+
+test('CHANGE: ล้างดีบัฟตัวเองทันทีตอน Rouze ไม่ต้องตีโดน · ไม่ค้างไปถึงการตี', () => {
+  const P = setup();
+  king(P);
+  P.K.statuses.hburn = 3;
+  P.K.statuses.weak = 3;
+  P.K.statusAt = { hburn: 1, weak: 2 };
+  pick(['ace']);
+  assert.equal(P.K.statuses.weak, 3, 'เลือกการ์ดเฉยๆ ยังไม่ล้าง');
+  engine.useSkill('K', 'ultimate', []);
+  assert.equal(P.K.statuses.weak, undefined, 'ล้างอันที่โดนล่าสุด');
+  assert.equal(P.K.statuses.hburn, 3, 'ล้าง 1 อย่างต่อใบ');
+  assert.equal(P.K.kazuma.armed, null);
+});
+
+test('CHANGE เสริม Lightning Sonic: ล้างก่อนพุ่ง แม้ไม่โดนใคร', () => {
+  const P = setup();
+  king(P);
+  P.K.statuses.weak = 3;
+  P.K.statusAt = { weak: 1 };
+  picks(['kick', 'thunder', 'mach', 'ace']);
+  assert.equal(P.K.kazuma.combo, 'sonic');
+  engine.useSkill('K', 'ultimate', [], { dir: 'right' });
+  assert.equal(P.K.statuses.weak, undefined);
+});
+
+test('Royal Straight Flush: CHANGE ในสูตรไม่ล้างดีบัฟ', () => {
+  const P = setup();
+  king(P);
+  P.K.statuses.weak = 3;
+  P.K.statusAt = { weak: 1 };
+  picks(['time', 'jack', 'queen', 'king', 'ace']);
+  assert.equal(P.K.kazuma.combo, 'royal');
+  engine.useSkill('K', 'ultimate', [], { dir: 'right' });
+  assert.equal(P.K.statuses.weak, 3);
 });
 
 test('Four Card: พุ่ง · ดิบ 2 ลดเกราะก่อน ไม่สนคุ้มครอง · ติดสถานะครบ · คลิปตอนโดน', () => {
