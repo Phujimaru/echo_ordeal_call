@@ -24,6 +24,7 @@ const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: �
 const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
+const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 const OHGER_SECONDS = { kuwagata: 21, tonbo: 19, kamakiri: 17, papiyon: 21, hachi: 22 };
@@ -153,6 +154,23 @@ module.exports = function buildTransforms() {
     gioReUlt: { img: gio.IMG.re.skill3, video: gio.VIDEO.reUlt, title: "ขอให้ไปสู่ภพภูมิที่ดี", label: "Gold Experience Requiem", seconds: 11, music: null, afterReveal: false },
     gioReCrit: { img: gio.IMG.re.cover, video: gio.VIDEO.reCrit, title: "GOLD EXPERIENCE REQUIEM", label: "คริติคอล", seconds: 5.5, music: null, afterReveal: false },
     gioMuda: { img: gio.IMG.skill3, video: gio.VIDEO.muda, title: "Muda!!!!!!!", label: "โจรุโน่ โจวาน่า", seconds: 9.6, music: null, afterReveal: false },
+    // อินุอิ ทาคุมิ — ความยาวจริง (ffprobe) +0.4 วิ
+    ...Object.fromEntries([
+      ["open", "inui_start", inui.IMG.case, "กระเป๋า SmartBrain", "อินุอิ ทาคุมิ", 10.2],
+      ["henshin", "henshin", inui.IMG.faiz, "Kamen Rider Faiz", "แปลงร่าง", 10.9],
+      ["knuckle", "knuckle_mode", inui.IMG.knuckle, "Faiz_nuckle", "Kamen Rider Faiz", 7],
+      ["pointer", "pointer_mode", inui.IMG.pointer, "Faiz_pointer", "Kamen Rider Faiz", 5.4],
+      ["knuckleEx", "knuckle_ex_start", inui.IMG.knuckle, "Exceed Charge", "Faiz_nuckle", 8.3],
+      ["pointerEx", "pointer_ex_start", inui.IMG.pointer, "Exceed Charge", "Faiz_pointer", 6.7],
+      ["knuckleHit", "knuckle_ex_hit", inui.IMG.knuckle, "Exceed Charge", "Faiz_nuckle", 9.6],
+      ["pointerHit", "pointer_ex_hit", inui.IMG.pointer, "Exceed Charge", "Faiz_pointer", 22.7],
+      ["axel", "axel_watch", inui.IMG.axel, "Faiz Axel", "axel_watch", 12.9],
+      ["startUp", "axel_start_up", inui.IMG.axel, "Start Up", "Faiz Axel", 8.8],
+      ["axelCrit", "axel_crit", inui.IMG.axel, "Faiz Axel", "คริติคอล", 4.4],
+      ["axelPointer", "axel_pointer_hit", inui.IMG.axel, "Faiz Axel", "คริติคอล", 13.6],
+      ["timeOut", "axel_time_out", inui.IMG.faiz, "Time Out", "Faiz Axel", 6.9],
+      ["timeOutIdle", "axel_time_out_no_use", inui.IMG.faiz, "Time Out", "Faiz Axel", 5.4],
+    ].map(([k, v, img, title, label, seconds]) => [inui.CUT[k], { img, video: inui.VIDEO[v], title, label, seconds, music: null, afterReveal: false }])),
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

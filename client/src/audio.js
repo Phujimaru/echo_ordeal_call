@@ -545,6 +545,10 @@ const FILES = {
     "card_evolution", "card_jack", "card_queen", "card_king", "card_ace", "card_fire", "card_tornado", "card_blizzard", "card_ten", "card_spade",
     "lightning_straight", "lightning_four", "lightning_royal", "atk_king", "atk_straight", "king_wave", "king_four_hit",
   ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
+  // อินุอิ ทาคุมิ: เสียงจากผู้ใช้ (-16 LUFS) · ปุ่ม/standby ตัดจาก "เสียงปุ่มและ standby" · 103/106/279/ยิง ตัดจาก Sound Effects Henshin And Finisher
+  ...Object.fromEntries(["key", "enter", "standby", "henshin2", "exceed", "single", "burst", "charge", "shot", "shot_burst", "startup"].map((k) => [`inui_${k}`, `/characters/inui_takumi/sfx/inui_${k}.m4a`])),
+  inui_axel: "/characters/inui_takumi/inui_axel_theme.m4a", // เล่นตลอด Start Up
+  inui_exceed_wait: "/characters/inui_takumi/inui_exceed_wait.m4a", // เพลงรอ Exceed Charge
   kazuma_king: "/characters/kensaki_kazuma/kazuma_king_theme.mp3", // Round ZERO ～BLADE BRAVE (ไฟล์จากผู้ใช้) เล่นตลอดร่างคิง
   ...Object.fromEntries(["loop", "scan", "absorb", "evolution"].map((k) => [`kazuma_king_${k}`, `/characters/kensaki_kazuma/sfx/king/kazuma_king_${k}.m4a`])),
   // ทราฟาก้า ลอว์ (GRID_PLAN §7.20) — ไฟล์จากผู้ใช้ (เสียงเปิด/ปิด ROOM ต่อกันในไฟล์เดียว · ตัดที่ 4.995 วิ) -16 LUFS
@@ -686,7 +690,7 @@ const MUSIC_TRACK_SCALE = {
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
-const FEATURED_MUSIC = { kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
+const FEATURED_MUSIC = { inui_axel: 1, kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
 function sfxDuck() {
   const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
   return d ?? 1;
@@ -971,7 +975,7 @@ export function prewarmMusic(name) {
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 // เสียงที่ต้องเล่นต่อคิว (ขึ้นต้นด้วยคีย์นี้ = คิวเดียวกัน): เสียงใหม่รอเสียงก่อนหน้าในคิวจบก่อน (คาซุมะ: รูดการ์ดหลายใบติดกัน)
-const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_finish_boom: "ohger", ohger_complete: "ohger_tf", ohger_tf_done_: "ohger_tf" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
+const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_finish_boom: "ohger", ohger_complete: "ohger_tf", ohger_tf_done_: "ohger_tf", inui_standby: "inui", inui_henshin2: "inui" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
 const sfxQueues = new Map(); // คิว -> { busy: element ที่เล่นอยู่ | null, waiting: [ชื่อ] }
 function playQueued(group, name, opts) {
   const q = sfxQueues.get(group) || { busy: null, waiting: [] };
@@ -1087,6 +1091,9 @@ export function startLoopSfx(name) {
   a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch((e) => { if (!keep(e)) release(); });
   return a;
 }
+// พัก/เล่นต่อจากจุดเดิม (อินุอิ: เสียง Start Up หลบคลิปคริ)
+export function pauseLoopSfx() { if (loopSfx) loopSfx.pause(); }
+export function resumeLoopSfx() { if (loopSfx && loopSfx.paused) loopSfx.play().catch(() => {}); }
 export function stopLoopSfx() {
   if (!loopSfx) return;
   try { loopSfx.pause(); loopSfx.currentTime = 0; } catch { /* element อาจถูกทิ้งไปแล้ว */ }

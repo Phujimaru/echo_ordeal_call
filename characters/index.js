@@ -39,6 +39,8 @@ const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
 //  โอเบรอนมาก่อนมุยมิ และโซระมาก่อน Echo ตามลำดับที่ server/ เคยเรียกตรงๆ — ตัวใหม่ต่อท้ายได้เลย
+const inui_takumi = require("./inui_takumi"); // อินุอิ ทาคุมิ — ปานกลาง (Faiz Phone · Start Up)
+
 const CHARACTER_MODULES = [
   oberon_summer,
   muimi,
@@ -72,6 +74,7 @@ const CHARACTER_MODULES = [
   giorno_giovanna,
   arjuna,
   roland,
+  inui_takumi,
 ];
 
 const CHAR_HOOKS = {};

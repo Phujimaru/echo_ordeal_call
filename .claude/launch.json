@@ -503,6 +503,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3025"
       }
+    },
+    {
+      "name": "server-inui",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3027,
+      "env": {
+        "PORT": "3027",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-inui",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5197",
+        "--strictPort"
+      ],
+      "port": 5197,
+      "env": {
+        "ECHO_SERVER_PORT": "3027"
+      }
     }
   ]
 }

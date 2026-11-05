@@ -31,7 +31,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
         {title && <div className="text-2xl font-black tracking-wide text-white drop-shadow">{title}</div>}
         <div className="flex flex-wrap justify-center gap-3 max-w-[1100px]">
           {choices.map((c) => {
-            const on = !!c.active;
+            const on = !!c.active || !!c.worn; // worn = สวมอยู่ กดซ้ำเพื่อถอดได้ (อินุอิ: กระเป๋า SmartBrain)
             const off = !on && !isOk(c); // ตัวที่ถืออยู่ = กรอบทอง (กดซ้ำไม่ได้ แต่ไม่จาง)
             const look = itemLook(c);
             return (
@@ -39,11 +39,11 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
               <div key={c.key} onMouseEnter={() => setHover(c.key)} onMouseLeave={() => setHover((h) => (h === c.key ? null : h))}>
               <button
                 type="button"
-                disabled={off || on}
+                disabled={off || !!c.active}
                 onClick={() => { clickSound(); onPick(c); }}
                 className={`relative w-32 rounded-xl overflow-hidden border-2 bg-echo-navy text-left transition-transform duration-150 ${
                   on ? "border-amber-300" : "border-white/15"
-                } ${off ? "opacity-45 cursor-not-allowed" : on ? "cursor-default" : "hover:-translate-y-1 hover:border-sky-300"}`}
+                } ${off ? "opacity-45 cursor-not-allowed" : c.active ? "cursor-default" : "hover:-translate-y-1 hover:border-sky-300"}`}
               >
                 {look.icon
                   ? <div className="w-full aspect-[3/4] grid place-items-center text-6xl bg-black/30">{look.icon}</div>

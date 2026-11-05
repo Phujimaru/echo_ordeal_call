@@ -9,7 +9,7 @@ Object.assign(module.exports, {
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
-  actionTimeUp, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
+  actionTimeUp, clockOf, freshMove, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap, flowerWalk, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
 });
 
@@ -1135,6 +1135,12 @@ function finishActor() {
   const p = match.players[match.actorId];
   // ผลจบตาลงไปแล้ว (เรียกซ้ำหลังพักฉากของฮุค afterActorEnd) = ข้ามไปเลือกตัว/คนถัดไป
   if (!(match.action && match.action.endDone)) {
+    // ฮุค actorOutro(engine, p): ฉากก่อนจบตา — คิวคลิปแล้วเล่นให้จบค่อยจบตาจริง (อินุอิ: Time Out) · ฮุคต้องคิวครั้งเดียว
+    const outroHook = p && CHAR_HOOKS[p.characterId];
+    if (p && p.alive && outroHook && outroHook.actorOutro) {
+      combat.withEffectSource(p, () => combat.runHook(outroHook, "actorOutro", engine, p));
+      if (match.cutsceneQueue.length && match.gameState !== "GAMEOVER") { require("../cutscene").runCutsceneQueue(finishActor); return; }
+    }
     if (!expired && startCanto(p)) return;
     // ตาเดินพิเศษ: ฮุค extraTurnOutro(engine, p, kind) → วินาทีพักฉากก่อนจบตาจริง (ดิเอโก้: เวลาเดินต่อ — ดาเมจที่ค้างลงพร้อมกัน) · ครั้งเดียวต่อตา
     if (p && match.action && match.action.extra && !match.action.outro) {
@@ -1203,12 +1209,31 @@ function afterActorEnd(p) {
   }
   return hold;
 }
+// เวลาตาเดินตอนกลับจากฉาก: ฮุค clockSeconds(engine, p, เวลาที่เหลือ) → วินาที (อินุอิ: Start Up นับเฉพาะเวลาที่กดได้) · ไม่มี = fallback
+function clockOf(p, fallback) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  const n = hook && hook.clockSeconds ? Number(combat.runHook(hook, "clockSeconds", engine, p, match.actionLeft || 0)) : 0;
+  return n > 0 ? n : fallback;
+}
+// เริ่มนับเดินใหม่เต็มระยะจากช่องที่ยืน ย้อนกลับจุดเดิมไม่ได้ (อินุอิ: Start Up เติมระยะเดินทุกครั้งที่ตี)
+function freshMove(p) {
+  const a = match.action;
+  if (!a || !p || !p.pos || match.actorId !== p.id) return;
+  a.from = { ...p.pos };
+  a.moved = false;
+  a.locked = false;
+  a.path = null;
+  a.trail = null;
+  a.smashed = null;
+  a.iceUndo = null;
+  delete a.movLeft;
+}
 // กลับเข้าตาเดิน (ระบบคู่สลับตัว / เดินต่อหลังจบตา) ด้วยเวลาที่เหลือของตานี้
 //  (match.actionLeft = เวลาที่เหลือตอนตาถูกพัก — timers.clearPhaseTimer จดไว้ระหว่างเฟส ACTION)
 //  secs = เวลาของตัวที่คุมต่อ (ร่างแยก — Summon.CONTROL_SECONDS) · ไม่ส่ง = เวลาที่เหลือ
 function resumeAction(secs) {
   match.gameState = "ACTION";
-  timers.startPhaseTimer(secs > 0 ? secs : Math.max(3, match.actionLeft || 0), actionTimeUp);
+  timers.startPhaseTimer(secs > 0 ? secs : clockOf(match.players[match.actorId], Math.max(3, match.actionLeft || 0)), actionTimeUp);
   view.broadcastState();
 }
 // เดินต่อหลังจบตา (canto): ฮุค cantoMov(engine, p) → ระยะ · ครั้งเดียวต่อตา · ทำได้แค่เดิน/ย้อน/รอ

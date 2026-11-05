@@ -24,8 +24,9 @@ import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
 import OhgerSword from "./hud/OhgerSword";
+import FaizPhone, { AxelClock } from "./hud/FaizPhone";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
-import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx } from "../audio";
+import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx, pauseLoopSfx, resumeLoopSfx } from "../audio";
 import BoardStage from "../board/BoardStage";
 import YukiBoom from "../board/YukiBoom";
 import ArjunaUlt from "../board/ArjunaUlt";
@@ -992,6 +993,19 @@ function statusEntries(p, full) {
     out.push({ key: "rolandCharge", v: 1, icon: "⚫", label: `Furioso ${r.charge}/${r.chargeMax}`, cls: r.charge >= r.chargeMax ? "bg-white text-gray-900" : "bg-slate-700", desc: "การ์ดอาวุธคนละแบบ" });
     if (r.ultCd > 0) out.push({ key: "rolandUltCd", v: r.ultCd, turns: true, icon: "⏳", label: "Furioso", cls: "bg-white/20", desc: "รอให้ครบเทิร์น" });
     if (r.crystalDodge > 0) out.push({ key: "rolandDodge", v: r.crystalDodge, icon: "💨", label: "หลบหลีก", cls: "bg-slate-200 text-gray-900", desc: "หลบการโจมตี 1 ครั้ง" });
+  }
+  // อินุอิ ทาคุมิ: กระสุน · โหมดปืน · อุปกรณ์ · ร่าง Axel · Exceed Charge · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต
+  if (p.inui && p.inui.opened) {
+    const n = p.inui;
+    out.push({ key: "inuiAmmo", v: 1, icon: "🔋", label: `${n.ammo}/${n.ammoMax}`, cls: n.ammo > 0 ? "bg-red-200 text-gray-900" : "bg-white/20", desc: "กระสุน Faiz Phone 103 ใช้ 1 นัด 106 ใช้ 2 นัด" });
+    if (n.gun) out.push({ key: "inuiGun", v: 1, icon: "🔫", label: n.gun === "103" ? "Single Mode" : "Burst Mode", cls: "bg-red-500 text-white", desc: n.gun === "103" ? "ตีปกติระยะ 3 ใช้กระสุน 1 นัด" : "ตีปกติระยะ 3 อัตราคริติคอล 50% ใช้กระสุน 2 นัด" });
+    if (n.knuckle) out.push({ key: "inuiKnuckle", v: 1, icon: "👊", label: "Faiz_nuckle", cls: "bg-slate-300 text-gray-900", desc: "การโจมตีปกติแรงขึ้น 1" });
+    if (n.pointer) out.push({ key: "inuiPointer", v: 1, icon: "🎯", label: "Faiz_pointer", cls: "bg-slate-300 text-gray-900", desc: "แม่นยำตลอดที่สวม" });
+    if (n.axel) out.push({ key: "inuiAxel", v: n.axelLeft, turns: true, icon: "⌚", label: "Faiz Axel", cls: "bg-rose-600 text-white", desc: "อัตราคริติคอล 25% ใช้ Start Up ได้ ครบเวลากลับร่าง Faiz" });
+    if (!n.axel && n.axelCd > 0) out.push({ key: "inuiAxelCd", v: n.axelCd, turns: true, icon: "⏳", label: "axel_watch", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงสวม axel_watch ได้อีก" });
+    if (n.exceed) out.push({ key: "inuiExceed", v: 1, icon: "⚡", label: "Exceed Charge", cls: "bg-red-600 text-white", desc: n.exceed === "knuckle" ? "ระยะเดิน +2 ตีประชิดครั้งถัดไปในตานี้ ความเสียหาย 4 ลุกไหม้ 1" : "ระยะเดิน +2 ตีประชิดครั้งถัดไปในตานี้ ความเสียหาย 4 ถูกตรึง 1 เทิร์น" });
+    if (n.startUp) out.push({ key: "inuiStartUp", v: 1, icon: "⏱️", label: `Start Up ${n.startUp.left}`, cls: "bg-gray-100 text-gray-900", desc: "ตีได้อีกตามจำนวนนี้ ก่อนหมดเวลา" });
+    if (!n.faiz && n.humanTurns > 0) out.push({ key: "inuiHuman", v: 1, icon: "💚", label: `${n.humanTurns}/${n.humanNeed}`, cls: "bg-white/20", desc: "อยู่ร่างมนุษย์ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2" });
   }
   // เคนซากิ คาซุมะ: ผล Rouze ที่รอตีปกติ (ท่า Lightning / การ์ด) · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต — METAL เป็นสถานะ kazumaMetal
   if (p.kazuma) {
@@ -2147,6 +2161,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   if (kzOpen && (!myTurn || canto || !me?.kazuma?.blade)) setKzOpen(false);
   // ฉากใส่การ์ด Evolution (Rouze Absorber) · หมดตา/เข้าร่างแล้ว = ปิด
   const [kzEvolve, setKzEvolve] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false); // อินุอิ: Faiz Phone กางอยู่
+  if (phoneOpen && (!myTurn || canto || !me?.inui?.opened)) setPhoneOpen(false);
   if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
@@ -2165,6 +2181,14 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const ohgerLoop = ohgerActor && ohgerActor.ohger.phase
     ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}_${ohgerActor.ohger.step || 0}`, charge: `ohger_charge_loop_${ohgerActor.ohger.pulls || 0}`, standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
     : null;
+  // อินุอิ Start Up: เสียง axel_startUp_soundeffect เริ่มพร้อมเพลงตอนนับ 10 วิ (ทุกคนได้ยิน) · หลบคลิปคริ (กฎห้ามเสียงซ้อนวีดีโอ)
+  const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
+  const inuiUpRef = useRef(false);
+  useEffect(() => {
+    if (inuiUp && !inuiUpRef.current) { inuiUpRef.current = true; startLoopSfx("inui_startup"); }
+    else if (!inuiUp && inuiUpRef.current) { inuiUpRef.current = false; stopLoopSfx(); return; }
+    if (inuiUp) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
+  }, [inuiUp, phase]);
   const ohgerLoopRef = useRef(null);
   useEffect(() => {
     if (ohgerLoopRef.current === ohgerLoop) return;
@@ -2183,6 +2207,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
     if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
+    // อินุอิ ทาคุมิ: Faiz Phone แผงกดรหัส (เปิดกระเป๋าแล้ว)
+    if (me?.inui?.opened && tier === "basic" && vp.w >= 768) { clickSound(); setPhoneOpen(true); return; }
     // เคนซากิ คาซุมะ: เปิดแผงการ์ด Blay Rouzer — เสียงเปิดแผงทุกครั้ง (เฉพาะคนกด · ผู้ใช้สั่ง 2026-10-25)
     if (me?.kazuma && tier === "secondary" && vp.w >= 768) { playSfx("kazuma_open"); setKzOpen(true); return; }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
@@ -2587,6 +2613,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     const s = ch?.[tier];
     if (!myTurn || (noSkill && !me?.skillLocks?.[tier]?.ignoresNoSkill) || giftLocked(tier)) return true;
     if (canto && !cantoTier(tier)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว · เอมิลิโกะ: สลับอาวุธได้)
+    if (me?.inui?.opened && tier === "basic") return false; // Faiz Phone: เปิดเครื่องได้เสมอในตาตัวเอง · รหัสตรวจในเครื่อง
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
     if (s?.choices) return s.browse ? !s.choices.length : !s.choices.some(choiceOk); // browse = เปิดดูตัวเลือกได้เสมอ (โรลันด์: มือการ์ด) · ตัวที่ใช้ไม่ได้จางอยู่ในแผง
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
@@ -2602,6 +2629,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
+      {inuiUp && <div className="axel-world" data-low={lowQ ? "true" : "false"} />}
+      {inuiUp && <AxelClock phase={phase} />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       <div className="deck-drawer" data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
         <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
@@ -2720,7 +2749,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  {ch?.basic && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : undefined} />}
+                  {ch?.basic && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
                     : ch?.secondary && !me.ohger && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
@@ -2807,6 +2836,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           onClose={() => setKzOpen(false)}
           onPick={(c) => socket.emit("useSkill", { tier: "secondary", form: c.key })}
         />
+      )}
+      {phoneOpen && me?.inui && (
+        <FaizPhone inui={me.inui} points={me.skillPoints || 0} skillUsed={!!me.skillUsed} onClose={() => setPhoneOpen(false)} onDial={(form) => socket.emit("useSkill", { tier: "basic", form })} />
       )}
       {kzEvolve && me?.kazuma && (
         <EvolutionScene onClose={() => setKzEvolve(false)} onDone={() => socket.emit("useSkill", { tier: "basic", form: "evolution" })} />

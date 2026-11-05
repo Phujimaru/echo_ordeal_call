@@ -84,7 +84,7 @@ function pausePlayingForCutscene(after, opts = {}) {
       const actor = match.players[match.actorId];
       if (!actor || !actor.alive || opts.endTurn) { action.finishActor(); return; }
       match.gameState = "ACTION";
-      timers.startPhaseTimer(remain, action.actionTimeUp);
+      timers.startPhaseTimer(action.clockOf(actor, remain), action.actionTimeUp);
       view.broadcastState();
       return;
     }

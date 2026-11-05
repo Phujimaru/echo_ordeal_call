@@ -1177,3 +1177,12 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เหตุการณ์เฉพาะเจ้าของ**: `engine.boardFxTo([id], "rolandFx", { kind: "draw" })` (เสียงจั่วการ์ด)
 - **ท่าพุ่ง**: `engine.setDash({ id, path, dir, style: "roland" })` → BoardStage เลื่อนตัวตามเส้นทาง · ผลลงใน `skillBeat`
 - **เศษน้ำแข็ง** `rolandIce` = สแตกไม่ลดเทิร์น (`NO_TICK_STATUS` + `PERMANENT_STATUS_KEYS`)
+
+## 45. เวลาตาเดินเฉพาะตัว / ฉากก่อนจบตา / เติมระยะเดินกลางตา / HUD รหัสโทรศัพท์ (อินุอิ ทาคุมิ — `characters/inui_takumi.js` · GRID_PLAN §7.27)
+
+- **`action.clockOf(p, fallback)`** ฮุค `clockSeconds(engine, p, left)` → วินาทีของตาเดินตอนกลับจากฉาก (คลิป/ฉากตี) · `left` = เวลาที่เหลือจริงก่อนพัก ไม่มีขั้นต่ำ 3 วิ · ใช้ทำช่วงเวลาที่นับเฉพาะตอนผู้เล่นกดได้ (Start Up)
+- **ฮุค `actorOutro(engine, p)`** ต้น `finishActor` — คิวคลิปได้ ระบบเล่นจบแล้วจบตาจริง · เรียกซ้ำตอนกลับมา ฮุคต้องคิวครั้งเดียว
+- **`engine.freshMove(p)`** เริ่มนับเดินใหม่เต็มระยะจากช่องที่ยืน · ใช้คู่ `extraStrike` = ตีแล้วเดินต่อได้
+- **HUD รหัส** `FaizPhone.jsx` ใช้รูปตัวเครื่องเป็นพื้น ปุ่มเป็นพื้นที่กดวางทับ · รหัสส่งเป็น `useSkill` form · `skipsTurnQuota`/`skillFree`/`keepsMove` แยกตาม form
+- **เสียงที่ต้องหยุดกลางคัน** `startLoopSfx` + `pauseLoopSfx` / `resumeLoopSfx` (`client/src/audio.js`) — หลบคลิปโดยเล่นต่อจากจุดเดิม
+- ตัวเลือกใน `SkillChoices` ฟิลด์ `worn` = กรอบทองแต่ยังกดซ้ำได้ (ถอด)

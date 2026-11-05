@@ -51,6 +51,7 @@ import {
 import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGhosts, takutoItems } from "./takutoFx";
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
+import { faizGhosts, faizTrailClear } from "./faizFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
@@ -558,6 +559,19 @@ function drawUnit(g, u, now, boxes) {
   // โจรุโน่ (giornoFx.js): ต้นไม้ใต้หมาก (ลอย) · วงเต่าทอง (ต้นตอแห่งชีวิต) · ออร่าทอง (Muda) · วงวนตาย · แสงรอผลธนู · เปลวทอง Requiem — ต้นไม้/วนตาย ใครก็ติดได้
   if (u.giorno) gioUnitBack(g, u, now, wx, wy);
   if (u.arjuna) arjUnitBack(g, u, now, wx, wy); // อรชุน (arjunaBoardFx.js): จุติ = ตะเกียงข้างหมาก · ขจัด = ดาวเคราะห์โคจร
+  // อินุอิ Exceed Charge: วงแดง Photon Blood รอบฐาน · Start Up: ภาพค้างไล่ตามตอนเคลื่อนไหว
+  if (u.aura === "faizExceed") {
+    const p = (now / 700) % 1;
+    g.strokeStyle = "#ff2433"; g.lineWidth = 3; g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.42 + p * 0.3) * K, 0.04, 30); g.stroke(); g.globalAlpha = a;
+  }
+  if (u.faizTrail) {
+    for (const t of faizGhosts(u.id, now, wx, wy)) {
+      const [gx, gy, gs] = P(t.x, t.y);
+      g.globalAlpha = a * t.a;
+      unitHex(g, u, gx, gy - gs * 0.86 * K, gs * 0.4 * K);
+    }
+    g.globalAlpha = a;
+  } else faizTrailClear(u.id);
   // ฐานแบบที่นั่ง (ทรงกระบอก)
   gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
   const P1 = P(wx, wy, 0.12);

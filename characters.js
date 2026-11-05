@@ -1014,6 +1014,48 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- อินุอิ ทาคุมิ (Kamen Rider Faiz) — ปานกลาง — ดู characters/inui_takumi.js (GRID_PLAN §7.27) ----------
+    //  พลังชีวิต 7 / เกราะ 3 · พลังโจมตี 1 · ช่อง basic เปลี่ยนจากกระเป๋าเป็น Faiz Phone (FaizPhone.jsx) · รอง/ท่าไม้ตายซ่อนจนกว่าจะเปิด/สวม axel_watch
+    id: "inui_takumi",
+    name: "อินุอิ ทาคุมิ",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/inui_takumi/inui.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "ฉันก็เป็นมนุษย์",
+      desc: "ตีโดนโดยไม่ได้สวม Faiz_nuckle / Faiz_pointer / axel_watch แต้มสกิล +1 · ไม่ได้แปลงร่างครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2",
+    },
+    basic: {
+      name: "Faiz Phone",
+      desc: "555 ENTER แปลงร่าง · 103 ENTER ตีระยะ 3 ใช้กระสุน 1 นัด · 106 ENTER ตีระยะ 3 คริติคอล 50% ใช้กระสุน 2 นัด · 279 ENTER เติมกระสุน 4 นัด (4 แต้ม) · วางสาย คืนร่าง · แปลงร่างและสวม Faiz_nuckle / Faiz_pointer: ENTER เข้า Exceed Charge (4 แต้ม) ระยะเดิน +2 ตีประชิดครั้งถัดไปในตานี้ ความเสียหาย 4 พร้อมผลของอุปกรณ์",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/inui_takumi/faiz_phone.webp",
+      instant: true,
+      effect: null, // รหัสจาก FaizPhone.jsx (useSkill form) · ก่อนเปิดกระเป๋า skillPub เป็นกระเป๋า SmartBrain
+    },
+    secondary: {
+      name: "กระเป๋า SmartBrain",
+      desc: "ต้องแปลงร่าง · สวม 1 ชิ้น เลือกซ้ำ = ถอด (ฟรี · ไม่นับโควตาสกิล)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/inui_takumi/smartbrain_case.webp",
+      instant: true,
+      effect: null, // ปุ่ม 3 ตัวเลือก (skillPub choices)
+    },
+    ultimate: {
+      name: "Start Up",
+      desc: "10 วินาที: ตีได้ 3 ครั้ง ระยะเดิน 7 ช่อง เติมใหม่ทุกครั้งที่ตี · พลังโจมตี +1 · คริติคอล +25% (รวม 50%) · ใส่ Faiz_nuckle และ Faiz_pointer พร้อมกันได้ ตีโดน ลุกไหม้ 1 / ถูกตรึง 1 เทิร์น · จบแล้วกลับร่าง Faiz คูลดาวน์ 3 เทิร์น",
+      area: { kind: "self" },
+      cost: 6,
+      img: "/characters/inui_takumi/start_up.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- ทราฟาก้า ลอว์ (One Piece) — พิเศษ · unique — ดู characters/trafalgar_law.js (GRID_PLAN §7.20) ----------
     //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 0 เสมอ (fixedStrikeDamage)
     //  ระยะตีปกติ = ทั้ง Room เฉพาะตอนยืนใน Room (ฮุค range / strikeAllows / strikeZone) · นอก Room ตีไม่ได้
