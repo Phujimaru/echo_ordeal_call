@@ -83,7 +83,7 @@ test("ห้ามสกิล: BS Page ยังใช้ได้ แต่ Em
   const { r, e, s } = setup();
   r.statuses.noskill = 1;
   use("zelkova", s, [E]);
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   s.emotion = 5;
   engine.useSkill(R, "secondary", [], { form: "urging" });
   assert.strictEqual(s.ego, null);
@@ -109,43 +109,66 @@ test("Allas: ราคา 2 · อ่อนแอ", () => {
   assert.ok((e.statuses.weak || 0) > 0);
 });
 
-test("Zelkova: 2 ฮิต + จั่วเพิ่มเทิร์นหน้า", () => {
+test("Zelkova: ดาเมจ 1 ครั้งเดียว + จั่วเพิ่มเทิร์นหน้า", () => {
   const { r, e, s } = setup();
   use("zelkova", s, [E]);
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   s.started = true;
   s.hand = [];
   roland.onRoundStartTick(engine, r);
   assert.strictEqual(s.hand.length, 2);
 });
 
-test("Mook: ทะลุเกราะ 1 + แต้มสกิล 3", () => {
-  const { r, e, s } = setup();
+test("Mook: แนว 2×1 · ทะลุเกราะ 1 + แต้มสกิล 3 · ต้นเทิร์นถัดไปจั่วเพิ่ม", () => {
+  const { r, e, s } = setup(2);
   r.skillPoints = 2;
-  use("mook", s, [E]);
+  use("mook", s, [], { dir: "right" });
   assert.strictEqual(e.armor, 2);
   assert.strictEqual(e.hp, 6);
   assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(s.bonusDraw, 1);
 });
 
-test("Old Boys: เกราะ +1 · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +3 ครั้งเดียว", () => {
+test("Mook / Old Boys: ไม่เลือกทิศ หรือไม่มีศัตรูในแนว กดไม่ได้ ไม่เสียแต้ม", () => {
+  const { r, s } = setup();
+  use("mook", s, [E]);
+  assert.strictEqual(r.skillPoints, 5);
+  use("oldboys", s, [], { dir: "left" });
+  assert.strictEqual(r.skillPoints, 5);
+  assert.strictEqual(s.pages, 0);
+});
+
+test("Mook: โดนทุกคนในแนว ได้แต้มสกิลครั้งเดียว", () => {
+  const { r, e, s } = setup();
+  const f = engine.players.f = player("f", "dummy");
+  f.pos = { x: 6, y: 4 }; f.statuses = {}; f.statusAmt = {}; f.hp = 7; f.armor = 3;
+  r.skillPoints = 2;
+  use("mook", s, [], { dir: "right" });
+  delete engine.players.f;
+  assert.strictEqual(e.armor + e.hp, 8);
+  assert.strictEqual(f.armor + f.hp, 8);
+  assert.strictEqual(r.skillPoints, 3);
+});
+
+test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่ม · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +2 ครั้งเดียว", () => {
   const { r, s } = setup();
   r.armor = 3;
-  use("oldboys", s, [E]);
+  use("oldboys", s, [], { dir: "right" });
   assert.strictEqual(r.armor, 4);
+  assert.strictEqual(s.bonusDraw, 1);
   r.skillPoints = 0;
   engine.setRoundNumber(engine.roundNumber + 1);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(r.skillPoints, 2);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(r.skillPoints, 2);
 });
 
 test("Wheels: โดนในแนว 2×1 · คนใกล้สุดสตั้น · เกราะ +1", () => {
   const { r, e, s } = setup();
   r.armor = 2;
   use("wheels", s, [], { dir: "right" });
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   assert.ok((e.statuses.stun || 0) > 0);
   assert.strictEqual(r.armor, 3);
 });
@@ -180,26 +203,23 @@ test("Atelier Logic: ดาเมจ 2 ระยะ 3 · ประชิดผ�
   assert.strictEqual(c.e.pos.x, 6);
 });
 
-test("Durandal: เทิร์นถัดไปเสริมพลังเท่าจำนวนครั้งที่ลง และเพิ่มดาเมจการ์ด", () => {
+test("Durandal: ดาเมจ 1 สองครั้ง · ไม่มีเสริมพลัง", () => {
   const { r, e, s } = setup();
   use("durandal", s, [E]);
-  roland.onRoundStartTick(engine, r);
-  assert.strictEqual(r.statuses.might, 2);
-  e.armor = 3;
-  s.pages = 0;
-  use("ranga", s, [E]);
   assert.strictEqual(e.armor, 1);
+  roland.onRoundStartTick(engine, r);
+  assert.ok(!r.statuses.might);
 });
 
 test("สร้างความเสียหายครบ 4 ครั้ง: Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 · นับทีละฮิต · ดาเมจ 0 ไม่นับ", () => {
   const { r, e, s } = setup();
-  r.skillPoints = 0; r.hp = 3;
+  r.skillPoints = 4; r.hp = 3;
   roland.onStrikeResolved(engine, r, e, { dmg: 0 }, {});
   assert.strictEqual(s.hits, 0);
-  use("zelkova", s, [E]);
+  use("durandal", s, [E]);
   assert.strictEqual(s.hits, 2);
   s.pages = 0; e.armor = 3;
-  use("zelkova", s, [E]);
+  use("durandal", s, [E]);
   assert.strictEqual(s.emotion, 1);
   assert.strictEqual(s.hits, 0);
   assert.strictEqual(r.skillPoints, 1);

@@ -32,7 +32,7 @@ const SFX = {
 const HP = 6, ARMOR = 4, MAX_SKILL = 5, MOV = 4;
 const START_CARDS = 3, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
 const EGO_SHARED_CD = 5, EGO_TURNS = 3, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
-const LIES_MAX = 4, OLD_MOOK_SP = 3, COUNTER_RANGE = 3, COUNTER_DMG = 1;
+const LIES_MAX = 4, OLD_BOYS_SP = 2, MOOK_SP = 3, COUNTER_RANGE = 3, COUNTER_DMG = 1;
 const FURIOSO = { cost: 3, cd: 4, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
 const SHARD = "rolandIce";      // สแตกบนเป้า (ไม่ลดเทิร์น — NO_TICK_STATUS)
 const CRYSTAL = "rolandCrystal"; // ป้ายหลบ + สวนกลับ (ลดเองตอนจบเทิร์น)
@@ -40,16 +40,17 @@ const CRYSTAL = "rolandCrystal"; // ป้ายหลบ + สวนกลั�
 const BEAT = { swing: 0.45, dashStep: 0.09, after: 0.4 };
 
 const near = { kind: "target", range: 1, hostile: true };
+const line2 = { kind: "line", len: 2, width: 1, hostile: true };
 const CARDS = {
   allas: { name: "Allas Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · อ่อนแอ 1 ในเทิร์นถัดไป" },
-  zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
-  oldboys: { name: "Old Boys Workshop", cost: 1, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +3" },
-  mook: { name: "Mook Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 + ทะลุเกราะ 1 · สร้างความเสียหายได้ แต้มสกิล +3" },
+  zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
+  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +2" },
+  mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
   ranga: { name: "Ranga Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เลือดไหล 1" },
-  wheels: { name: "Wheels Industry", cost: 4, area: { kind: "line", len: 2, width: 1, hostile: true }, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 2 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
+  wheels: { name: "Wheels Industry", cost: 4, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
   crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับในระยะ 3 ดาเมจ 1 (จนจบเทิร์น)" },
   logic: { name: "Atelier Logic", cost: 2, area: { kind: "target", range: 3, hostile: true }, desc: "1 คนในระยะ 3 · ดาเมจ 2 · เป้าประชิดถูกผลัก 1 ช่อง" },
-  durandal: { name: "Durandal", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง · เทิร์นถัดไปเสริมพลัง 1 นานเท่าจำนวนครั้งที่สร้างความเสียหายได้" },
+  durandal: { name: "Durandal", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง" },
 };
 const CARD_KEYS = Object.keys(CARDS);
 const EGO = {
@@ -67,7 +68,7 @@ const Board = () => require("../server/board");
 const LINE = () => Board().LINE_DIRS;
 function fresh() {
   return {
-    started: false, seq: 0, hand: [], used: [], bonusDraw: 0, durandal: 0, pageRound: 0, pages: 0,
+    started: false, seq: 0, hand: [], used: [], bonusDraw: 0, pageRound: 0, pages: 0,
     hits: 0, emotion: 0, ultReady: 0, egoReady: 0, own: {}, ego: null, egoAt: 0, lies: null,
     oldBoysRound: 0, crystalAt: 0, crystalDodge: 0, countering: false,
   };
@@ -157,7 +158,7 @@ function onDealt(engine, p, t) {
   countDamage(engine, p);
   if (s.oldBoysRound && s.oldBoysRound === engine.roundNumber) {
     s.oldBoysRound = 0;
-    gainSp(engine, p, OLD_MOOK_SP, CARDS.oldboys.name);
+    gainSp(engine, p, OLD_BOYS_SP, CARDS.oldboys.name);
   }
   if (s.ego === "kiss" && egoOn(p, "kiss")) addShard(engine, p, t);
 }
@@ -205,7 +206,18 @@ function dashTo(engine, p, dir, passed) {
 }
 
 // ---------- การ์ดแต่ละใบ ----------
-const single = (engine, p, targets) => (targets || []).map((id) => engine.players[id]).find((t) => t && t.alive && !engine.sameTeam(p, t)) || null;
+const foes = (engine, p, targets) => (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && !engine.sameTeam(p, t));
+const single = (engine, p, targets) => foes(engine, p, targets)[0] || null;
+const sweeps = (k) => k === "wheels" || k === "oldboys" || k === "mook"; // แนว 2×1 โดนทุกคนในแนว
+// Mook: ทะลุเกราะ 1 → ดาเมจที่ลงจริง
+function pierceHit(engine, t) {
+  const before = vit(t);
+  engine.dealDirect(t, 1);
+  engine.resolveDamageAftermath(t);
+  const dealt = Math.max(0, before - vit(t));
+  if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
+  return dealt;
+}
 function playCard(engine, p, card, targets, opts) {
   const s = st(p), k = card.k, c = CARDS[k], r = engine.roundNumber;
   s.hand = s.hand.filter((x) => x.uid !== card.uid);
@@ -218,19 +230,26 @@ function playCard(engine, p, card, targets, opts) {
     engine.sfx(SFX.atk(k));
     fn();
   }));
-  if (k === "wheels") {
-    const hitList = (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && !engine.sameTeam(p, t));
+  if (sweeps(k)) {
+    const hitList = foes(engine, p, targets);
     const dist = (t) => Board().dist(Board().boxOf(p), Board().boxOf(t));
     const closest = [...hitList].sort((a, b) => dist(a) - dist(b))[0];
-    swing({ dir: opts.dir });
+    swing({ dir: opts.dir, to: closest && closest.pos ? { ...closest.pos } : null });
     beat(BEAT.swing, () => {
+      let dealt = 0;
       for (const t of hitList) {
+        if (!t.alive) continue;
         const at = t.pos ? { ...t.pos } : null;
-        const res = hit(engine, p, t, 2, c.name);
+        const res = hit(engine, p, t, 1, c.name);
+        if (k === "mook" && !res.dodge && t.alive) res.dealt += pierceHit(engine, t);
+        dealt += res.dealt;
         if (at) impact(engine, p, k, t, at, res);
-        if (t === closest && !res.dodge && t.alive) engine.applyDebuff(t, "stun", null, nextTurnSpan(engine, t));
+        if (k === "wheels" && t === closest && !res.dodge && t.alive) engine.applyDebuff(t, "stun", null, nextTurnSpan(engine, t));
       }
-      engine.healArmor(p, 1);
+      if (k !== "wheels") s.bonusDraw += 1;
+      if (k === "mook" && dealt > 0) gainSp(engine, p, MOOK_SP, c.name);
+      if (k === "oldboys") s.oldBoysRound = r + 1;
+      if (k !== "mook") engine.healArmor(p, 1);
       engine.skillBeat(BEAT.after, () => {});
     });
     return;
@@ -259,21 +278,13 @@ function playCard(engine, p, card, targets, opts) {
   beat(BEAT.swing, () => {
     if (!t.alive) return;
     const at = t.pos ? { ...t.pos } : to;
-    const hits = k === "zelkova" || k === "durandal" ? 2 : 1;
+    const hits = k === "durandal" ? 2 : 1;
     const dmg = k === "logic" ? 2 : 1;
-    let total = 0, n = 0, dodged = true;
+    let total = 0, dodged = true;
     for (let i = 0; i < hits; i++) {
       const res = hit(engine, p, t, dmg, c.name);
       total += res.dealt;
-      if (res.dealt > 0) n += 1;
       if (!res.dodge) dodged = false;
-    }
-    if (k === "mook" && !dodged && t.alive) {
-      const before = vit(t);
-      engine.dealDirect(t, 1);
-      engine.resolveDamageAftermath(t);
-      total += Math.max(0, before - vit(t));
-      if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
     }
     impact(engine, p, k, t, at, { dealt: total, dodge: dodged });
     let hold = BEAT.after;
@@ -281,14 +292,7 @@ function playCard(engine, p, card, targets, opts) {
       if (k === "allas") engine.applyDebuff(t, "weak", 1, 1 + (engine.hasActed(t.id) ? 1 : 0));
       if (k === "ranga") engine.applyBleed(t, 1);
     }
-    if (k === "mook" && total > 0) gainSp(engine, p, OLD_MOOK_SP, c.name);
     if (k === "zelkova") s.bonusDraw += 1;
-    if (k === "oldboys") {
-      s.bonusDraw += 1;
-      s.oldBoysRound = r + 1;
-      engine.healArmor(p, 1);
-    }
-    if (k === "durandal") s.durandal += n;
     if (k === "logic" && !dodged && t.alive && t.pos && Board().dist(Board().boxOf(p), Board().boxOf(t)) === 1) {
       hold += push(engine, p, t, awayDir(p.pos, t));
     }
@@ -413,10 +417,6 @@ module.exports = {
     s.bonusDraw = 0;
     for (let i = 0; i < n; i++) drawOne(s);
     secretFx(engine, p, "draw");
-    if (s.durandal > 0) {
-      engine.applyBuff(p, "might", 1, s.durandal);
-      s.durandal = 0;
-    }
     if (s.ego === "lies" && egoOn(p, "lies")) rollLies(s);
   },
   onEndTurn(engine) {
@@ -506,7 +506,7 @@ module.exports = {
       const c = cardOf(s, opts.form);
       if (!c || pagesUsed(s, r) >= PAGES_PER_TURN) return false;
       if (c.k === "crystal") return !!LINE()[opts.dir] && !!planDash(engine, p, opts.dir, CARDS.crystal.area.len).hit;
-      if (c.k === "wheels") return (targets || []).some((id) => { const t = engine.players[id]; return t && !engine.sameTeam(p, t); });
+      if (sweeps(c.k)) return foes(engine, p, targets).length > 0;
       return !!single(engine, p, targets);
     }
     if (tier === "secondary") return !egoBlock(p, opts.form, r);
