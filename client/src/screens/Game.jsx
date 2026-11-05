@@ -988,8 +988,9 @@ function statusEntries(p, full) {
   // โรลันด์: Emotion · Furioso charge · หลบหลีกจาก Crystal Atelier
   if (p.roland) {
     const r = p.roland;
-    out.push({ key: "rolandEmotion", v: 1, icon: "💠", label: `Emotion ${r.emotion}/${r.emotionMax}`, cls: "bg-slate-200 text-gray-900", desc: `โจมตี ${r.hits}/${r.hitsMax}` });
+    out.push({ key: "rolandEmotion", v: 1, icon: "💠", label: `Emotion ${r.emotion}/${r.emotionMax}`, cls: "bg-slate-200 text-gray-900", desc: `สร้างความเสียหาย ${r.hits}/${r.hitsMax}` });
     out.push({ key: "rolandCharge", v: 1, icon: "⚫", label: `Furioso ${r.charge}/${r.chargeMax}`, cls: r.charge >= r.chargeMax ? "bg-white text-gray-900" : "bg-slate-700", desc: "การ์ดอาวุธคนละแบบ" });
+    if (r.ultCd > 0) out.push({ key: "rolandUltCd", v: r.ultCd, turns: true, icon: "⏳", label: "Furioso", cls: "bg-white/20", desc: "รอให้ครบเทิร์น" });
     if (r.crystalDodge > 0) out.push({ key: "rolandDodge", v: r.crystalDodge, icon: "💨", label: "หลบหลีก", cls: "bg-slate-200 text-gray-900", desc: "หลบการโจมตี 1 ครั้ง" });
   }
   // เคนซากิ คาซุมะ: ผล Rouze ที่รอตีปกติ (ท่า Lightning / การ์ด) · ร่างมนุษย์นับสู่การฟื้นพลังชีวิต — METAL เป็นสถานะ kazumaMetal
@@ -2583,7 +2584,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (!myTurn || (noSkill && !me?.skillLocks?.[tier]?.ignoresNoSkill) || giftLocked(tier)) return true;
     if (canto && !cantoTier(tier)) return true; // เดินต่อหลังจบตา: เหลือแค่ปุ่มพื้นฐาน (เซลิน ดาบเล็ก: เดินกับรออย่างเดียว · เอมิลิโกะ: สลับอาวุธได้)
     if (s?.active) return false; // ทำงานอยู่ (กด = ออก · ไม่กินโควตา)
-    if (s?.choices) return !s.choices.some(choiceOk);
+    if (s?.choices) return s.browse ? !s.choices.length : !s.choices.some(choiceOk); // browse = เปิดดูตัวเลือกได้เสมอ (โรลันด์: มือการ์ด) · ตัวที่ใช้ไม่ได้จางอยู่ในแผง
     if (tier === "basic") return (me.skillUsed && !basicFree && !giftFree("basic") && !duoMirror) || muimiBasicLocked || noTargetInRange(s?.area);
     if (tier === "ultimate") return (me.skillUsed && !giftFree("ultimate")) || muimiUltLocked || noTargetInRange(s?.area);
     return (me.skillUsed && !giftFree(tier)) || noTargetInRange(s?.area);

@@ -57,14 +57,14 @@ test("ค่าพื้นฐานและการ์ดเริ่มเ�
   assert.strictEqual(r.roland.hand.length, 3);
 });
 
-test("จั่วเลือกแบบที่ยังไม่ได้ใช้ก่อน และการ์ดหมดตอนจบเทิร์น", () => {
+test("จั่วเลือกแบบที่ยังไม่ได้ใช้ก่อน และการ์ดค้างข้ามเทิร์น", () => {
   const { r, s } = setup();
   s.started = true; s.hand = [];
   s.used = roland.CARD_KEYS.filter((k) => k !== "mook");
   roland.onRoundStartTick(engine, r);
   assert.deepStrictEqual(s.hand.map((c) => c.k), ["mook"]);
   roland.onEndTurn(engine);
-  assert.strictEqual(s.hand.length, 0);
+  assert.strictEqual(s.hand.length, 1);
 });
 
 test("BS Page ใช้ได้ 2 ครั้งต่อเทิร์น ไม่กินโควตา และได้ Furioso charge เฉพาะแบบใหม่", () => {
@@ -83,10 +83,16 @@ test("ห้ามสกิล: BS Page ยังใช้ได้ แต่ Em
   const { r, e, s } = setup();
   r.statuses.noskill = 1;
   use("zelkova", s, [E]);
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   s.emotion = 5;
   engine.useSkill(R, "secondary", [], { form: "urging" });
   assert.strictEqual(s.ego, null);
+});
+
+test("BS Page เปิดดูมือได้แม้ไม่มีเป้าในระยะ", () => {
+  const { r, s } = setup(4);
+  give(s, "allas");
+  assert.strictEqual(roland.skillPub(r, "basic").browse, true);
 });
 
 test("นอกระยะกดไม่ได้และไม่เสียแต้ม", () => {
@@ -103,54 +109,76 @@ test("Allas: ราคา 2 · อ่อนแอ", () => {
   assert.ok((e.statuses.weak || 0) > 0);
 });
 
-test("Zelkova: 2 ฮิต + จั่วเพิ่มเทิร์นหน้า", () => {
+test("Zelkova: ดาเมจ 1 ครั้งเดียว + จั่วเพิ่มเทิร์นหน้า", () => {
   const { r, e, s } = setup();
   use("zelkova", s, [E]);
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   s.started = true;
   s.hand = [];
   roland.onRoundStartTick(engine, r);
   assert.strictEqual(s.hand.length, 2);
 });
 
-test("Mook: ทะลุเกราะ 1 + แต้มสกิล 3", () => {
-  const { r, e, s } = setup();
+test("Mook: แนว 2×1 · ทะลุเกราะ 1 + แต้มสกิล 3 · ต้นเทิร์นถัดไปจั่วเพิ่ม", () => {
+  const { r, e, s } = setup(2);
   r.skillPoints = 2;
-  use("mook", s, [E]);
+  use("mook", s, [], { dir: "right" });
   assert.strictEqual(e.armor, 2);
   assert.strictEqual(e.hp, 6);
   assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(s.bonusDraw, 1);
 });
 
-test("Old Boys: เกราะ +1 · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +3 ครั้งเดียว", () => {
+test("Mook / Old Boys: ไม่เลือกทิศ หรือไม่มีศัตรูในแนว กดไม่ได้ ไม่เสียแต้ม", () => {
+  const { r, s } = setup();
+  use("mook", s, [E]);
+  assert.strictEqual(r.skillPoints, 5);
+  use("oldboys", s, [], { dir: "left" });
+  assert.strictEqual(r.skillPoints, 5);
+  assert.strictEqual(s.pages, 0);
+});
+
+test("Mook: โดนทุกคนในแนว ได้แต้มสกิลครั้งเดียว", () => {
+  const { r, e, s } = setup();
+  const f = engine.players.f = player("f", "dummy");
+  f.pos = { x: 6, y: 4 }; f.statuses = {}; f.statusAmt = {}; f.hp = 7; f.armor = 3;
+  r.skillPoints = 2;
+  use("mook", s, [], { dir: "right" });
+  delete engine.players.f;
+  assert.strictEqual(e.armor + e.hp, 8);
+  assert.strictEqual(f.armor + f.hp, 8);
+  assert.strictEqual(r.skillPoints, 3);
+});
+
+test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่ม · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +2 ครั้งเดียว", () => {
   const { r, s } = setup();
   r.armor = 3;
-  use("oldboys", s, [E]);
+  use("oldboys", s, [], { dir: "right" });
   assert.strictEqual(r.armor, 4);
+  assert.strictEqual(s.bonusDraw, 1);
   r.skillPoints = 0;
   engine.setRoundNumber(engine.roundNumber + 1);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(r.skillPoints, 2);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(r.skillPoints, 2);
 });
 
 test("Wheels: โดนในแนว 2×1 · คนใกล้สุดสตั้น · เกราะ +1", () => {
   const { r, e, s } = setup();
   r.armor = 2;
   use("wheels", s, [], { dir: "right" });
-  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(e.armor, 2);
   assert.ok((e.statuses.stun || 0) > 0);
   assert.strictEqual(r.armor, 3);
 });
 
-test("Crystal: พุ่งถึงเป้าปลายระยะ ผลักออกข้าง · หลบ 1 ครั้ง · สวนกลับรัศมี 3", () => {
+test("Crystal: พุ่งถึงเป้าปลายระยะ ไม่ผลัก · หลบ 1 ครั้ง · สวนกลับรัศมี 3", () => {
   const { r, e, s } = setup(3);
   use("crystal", s, [], { dir: "right" });
   assert.deepStrictEqual(r.pos, { x: 6, y: 4 });
   assert.strictEqual(e.armor, 1);
-  assert.strictEqual(e.pos.x, 7);
-  assert.notStrictEqual(e.pos.y, 4);
+  assert.deepStrictEqual(e.pos, { x: 7, y: 4 });
   assert.ok(roland.dodgeSure(engine, r));
   assert.ok(roland.grantedDodge(engine, r));
   assert.ok(!roland.grantedDodge(engine, r));
@@ -175,25 +203,33 @@ test("Atelier Logic: ดาเมจ 2 ระยะ 3 · ประชิดผ�
   assert.strictEqual(c.e.pos.x, 6);
 });
 
-test("Durandal: เทิร์นถัดไปเสริมพลังเท่าจำนวนครั้งที่ลง และเพิ่มดาเมจการ์ด", () => {
+test("Durandal: ดาเมจ 1 สองครั้ง · ไม่มีเสริมพลัง", () => {
   const { r, e, s } = setup();
   use("durandal", s, [E]);
-  roland.onRoundStartTick(engine, r);
-  assert.strictEqual(r.statuses.might, 2);
-  e.armor = 3;
-  s.pages = 0;
-  use("ranga", s, [E]);
   assert.strictEqual(e.armor, 1);
+  roland.onRoundStartTick(engine, r);
+  assert.ok(!r.statuses.might);
 });
 
-test("โจมตีครบ 4 ครั้ง: Emotion +1 + แต้มสกิล +1 · ตีปกติดาเมจ 0 ไม่นับ", () => {
-  const { r, s } = setup();
-  r.skillPoints = 0;
-  roland.onStrikeResolved(engine, r, engine.players[E], { dmg: 0 }, {});
+test("สร้างความเสียหายครบ 4 ครั้ง: Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 · นับทีละฮิต · ดาเมจ 0 ไม่นับ", () => {
+  const { r, e, s } = setup();
+  r.skillPoints = 4; r.hp = 3;
+  roland.onStrikeResolved(engine, r, e, { dmg: 0 }, {});
   assert.strictEqual(s.hits, 0);
-  for (let i = 0; i < 4; i++) { s.pages = 0; use("ranga", s, [E]); }
+  use("durandal", s, [E]);
+  assert.strictEqual(s.hits, 2);
+  s.pages = 0; e.armor = 3;
+  use("durandal", s, [E]);
   assert.strictEqual(s.emotion, 1);
+  assert.strictEqual(s.hits, 0);
   assert.strictEqual(r.skillPoints, 1);
+  assert.strictEqual(r.hp, 4);
+});
+
+test("ตีสวนที่สร้างความเสียหายนับเข้า Black Silence", () => {
+  const { r, e, s } = setup();
+  roland.onStrikeResolved(engine, r, e, { dmg: 1 }, { counter: true });
+  assert.strictEqual(s.hits, 1);
 });
 
 test("ไอเทมเติมแต้มสกิลไม่ได้", () => {
@@ -277,5 +313,20 @@ test("Furioso: ต้องครบ 9 แบบ · ดาเมจ 4 · เล�
   assert.strictEqual(e.armor + e.hp, 10 - 4);
   assert.strictEqual(e.statuses.hbleed, 2);
   assert.ok((e.statuses.fragile || 0) > 0);
+  assert.strictEqual(s.used.length, 0);
+});
+
+test("Furioso คูลดาวน์ 4 เทิร์น", () => {
+  const { r, s } = setup(3);
+  s.used = [...roland.CARD_KEYS];
+  engine.useSkill(R, "ultimate", [], { dir: "right" });
+  runBeats();
+  const round = engine.roundNumber;
+  const again = () => { r.pos = { x: 4, y: 4 }; engine.players[E].pos = { x: 7, y: 4 }; r.skillPoints = 5; r.skillUsedRound = false; s.used = [...roland.CARD_KEYS]; engine.useSkill(R, "ultimate", [], { dir: "right" }); runBeats(); };
+  engine.setRoundNumber(round + 3);
+  again();
+  assert.strictEqual(s.used.length, 9);
+  engine.setRoundNumber(round + 4);
+  again();
   assert.strictEqual(s.used.length, 0);
 });

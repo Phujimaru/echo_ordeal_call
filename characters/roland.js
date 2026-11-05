@@ -3,16 +3,15 @@
 //  สเปกผู้ใช้ C:\Users\LOQ\Downloads\Roland.txt · กติกาที่ตัดสินแล้ว GRID_PLAN §7.25 · ระบบกลาง GAME_SYSTEM §43
 //
 //  พลังชีวิต 6 / เกราะ 4 · แต้มสกิล 0/5 · เดิน 4 · พลังโจมตี 0 · ตีปกติประชิด
-//  Black Silence (ติดตัว): ไอเทมเติมแต้มสกิลไม่ได้ · เริ่มเกมได้การ์ดอาวุธ 3 ใบ · ต้นเทิร์นจั่ว 1 ใบ · การ์ดอยู่ 1 เทิร์น
-//    จั่วเลือกแบบที่ยังไม่ได้ใช้ในรอบ Furioso นี้ก่อน · โจมตีครบ 4 ครั้ง = Emotion +1 + แต้มสกิล +1
+//  Black Silence (ติดตัว): ไอเทมเติมแต้มสกิลไม่ได้ · เริ่มเกมได้การ์ดอาวุธ 3 ใบ · ต้นเทิร์นจั่ว 1 ใบ · การ์ดในมือไม่หมดอายุ (ผู้ใช้ปรับ 2026-11-05)
+//    จั่วเลือกแบบที่ยังไม่ได้ใช้ในรอบ Furioso นี้ก่อน · สร้างความเสียหายครบ 4 ครั้ง = Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 (นับทีละฮิต · ตีสวน/ตีปกติด้วย)
 //    ใช้การ์ดแบบที่ยังไม่เคยใช้ = Furioso charge +1 (ครบ 9 แบบ = ท่าไม้ตายพร้อม · ใช้แล้วนับใหม่)
 //  BS Page (พื้นฐาน): เลือกการ์ดในมือ · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
 //    ดาเมจการ์ด = ค่าบนการ์ด + พลังโจมตี/เสริมพลัง (attack.skillStrike opts.bonus) · ไม่จบตา · เดินต่อไม่ได้
 //  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น + คูลดาวน์ของแต่ละแบบ · ใช้แล้วหัก Emotion · บัฟ 3 เทิร์น
-//  Furioso (ท่าไม้ตาย): แนว 4×1 พุ่งชนศัตรูคนแรก · คลิปลงเมื่อไม่หลบ (เสียงคลิกงดตามกฎห้ามเสียงซ้อนวีดีโอ)
+//  Furioso (ท่าไม้ตาย · คูลดาวน์ 4 เทิร์น): แนว 4×1 พุ่งชนศัตรูคนแรก · คลิปลงเมื่อไม่หลบ (เสียงคลิกงดตามกฎห้ามเสียงซ้อนวีดีโอ)
 //
-//  Claude ตัดสินเอง (GRID_PLAN §7.25): การ์ดนับเป็นการโจมตี 1 ครั้งแม้หลบหรือตี 2 ฮิต · ตีปกตินับเมื่อดาเมจ > 0 ·
-//    ดาเมจลงเกราะนับว่าสร้างความเสียหาย · Crystal หลบ + สวนกลับรัศมี 3 อยู่จนจบเทิร์น (ตีปกติเท่านั้น) ·
+//  Claude ตัดสินเอง (GRID_PLAN §7.25): ดาเมจลงเกราะนับว่าสร้างความเสียหาย · Crystal หลบ + สวนกลับรัศมี 3 อยู่จนจบเทิร์น (ตีปกติเท่านั้น) ·
 //    Fervent Beats เลือดเหลือ 1 แทนการตาย · ถูกตัดบัฟ = ตายเหมือนหมดเวลา · เศษน้ำแข็งค้างบนเป้าหลังบัฟหมด
 // ============================================================
 
@@ -33,24 +32,25 @@ const SFX = {
 const HP = 6, ARMOR = 4, MAX_SKILL = 5, MOV = 4;
 const START_CARDS = 3, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
 const EGO_SHARED_CD = 5, EGO_TURNS = 3, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
-const LIES_MAX = 4, OLD_MOOK_SP = 3, COUNTER_RANGE = 3, COUNTER_DMG = 1;
-const FURIOSO = { cost: 3, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
+const LIES_MAX = 4, OLD_BOYS_SP = 2, MOOK_SP = 3, COUNTER_RANGE = 3, COUNTER_DMG = 1;
+const FURIOSO = { cost: 3, cd: 4, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
 const SHARD = "rolandIce";      // สแตกบนเป้า (ไม่ลดเทิร์น — NO_TICK_STATUS)
 const CRYSTAL = "rolandCrystal"; // ป้ายหลบ + สวนกลับ (ลดเองตอนจบเทิร์น)
 // server พัก (skillBeat) ให้ภาพง้าง + เสียงคลิกจบหัวก่อนผลลง · ตรงกับ ROLAND_FX ใน rolandFx.js
 const BEAT = { swing: 0.45, dashStep: 0.09, after: 0.4 };
 
 const near = { kind: "target", range: 1, hostile: true };
+const line2 = { kind: "line", len: 2, width: 1, hostile: true };
 const CARDS = {
   allas: { name: "Allas Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · อ่อนแอ 1 ในเทิร์นถัดไป" },
-  zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
-  oldboys: { name: "Old Boys Workshop", cost: 1, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +3" },
-  mook: { name: "Mook Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 + ทะลุเกราะ 1 · สร้างความเสียหายได้ แต้มสกิล +3" },
+  zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
+  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +2" },
+  mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
   ranga: { name: "Ranga Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เลือดไหล 1" },
-  wheels: { name: "Wheels Industry", cost: 4, area: { kind: "line", len: 2, width: 1, hostile: true }, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 2 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
-  crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · ปลายระยะพอดีผลักออกข้าง · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับในระยะ 3 ดาเมจ 1 (จนจบเทิร์น)" },
+  wheels: { name: "Wheels Industry", cost: 4, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
+  crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับในระยะ 3 ดาเมจ 1 (จนจบเทิร์น)" },
   logic: { name: "Atelier Logic", cost: 2, area: { kind: "target", range: 3, hostile: true }, desc: "1 คนในระยะ 3 · ดาเมจ 2 · เป้าประชิดถูกผลัก 1 ช่อง" },
-  durandal: { name: "Durandal", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง · เทิร์นถัดไปเสริมพลัง 1 นานเท่าจำนวนครั้งที่สร้างความเสียหายได้" },
+  durandal: { name: "Durandal", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง" },
 };
 const CARD_KEYS = Object.keys(CARDS);
 const EGO = {
@@ -68,8 +68,8 @@ const Board = () => require("../server/board");
 const LINE = () => Board().LINE_DIRS;
 function fresh() {
   return {
-    started: false, seq: 0, hand: [], used: [], bonusDraw: 0, durandal: 0, pageRound: 0, pages: 0,
-    hits: 0, emotion: 0, egoReady: 0, own: {}, ego: null, egoAt: 0, lies: null,
+    started: false, seq: 0, hand: [], used: [], bonusDraw: 0, pageRound: 0, pages: 0,
+    hits: 0, emotion: 0, ultReady: 0, egoReady: 0, own: {}, ego: null, egoAt: 0, lies: null,
     oldBoysRound: 0, crystalAt: 0, crystalDodge: 0, countering: false,
   };
 }
@@ -107,7 +107,8 @@ function gainSp(engine, p, n, why) {
   engine.addSkill(p, n, "roland");
   if ((p.skillPoints || 0) > before) engine.log(`🎲 ${p.name} ${why} — แต้มสกิล +${(p.skillPoints || 0) - before}`);
 }
-function countAttack(engine, p) {
+// สร้างความเสียหายครบ 4 ครั้ง: Emotion +1 · แต้มสกิล +1 · พลังชีวิต +1
+function countDamage(engine, p) {
   const s = st(p);
   s.hits += 1;
   if (s.hits < HITS_PER_EMOTION) return;
@@ -119,6 +120,7 @@ function countAttack(engine, p) {
     engine.log(`💠 ${p.name} Emotion ${s.emotion}/${EMOTION_MAX}`);
   }
   gainSp(engine, p, 1, "Black Silence");
+  engine.healHp(p, 1);
 }
 function markUsed(engine, p, k) {
   const s = st(p);
@@ -153,9 +155,10 @@ function addShard(engine, p, t) {
 // สร้างความเสียหายได้ (ไม่นับ 0): Old Boys ที่รอจากเทิร์นก่อน · เศษน้ำแข็ง
 function onDealt(engine, p, t) {
   const s = st(p);
+  countDamage(engine, p);
   if (s.oldBoysRound && s.oldBoysRound === engine.roundNumber) {
     s.oldBoysRound = 0;
-    gainSp(engine, p, OLD_MOOK_SP, CARDS.oldboys.name);
+    gainSp(engine, p, OLD_BOYS_SP, CARDS.oldboys.name);
   }
   if (s.ego === "kiss" && egoOn(p, "kiss")) addShard(engine, p, t);
 }
@@ -203,40 +206,56 @@ function dashTo(engine, p, dir, passed) {
 }
 
 // ---------- การ์ดแต่ละใบ ----------
-const single = (engine, p, targets) => (targets || []).map((id) => engine.players[id]).find((t) => t && t.alive && !engine.sameTeam(p, t)) || null;
+const foes = (engine, p, targets) => (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && !engine.sameTeam(p, t));
+const single = (engine, p, targets) => foes(engine, p, targets)[0] || null;
+const sweeps = (k) => k === "wheels" || k === "oldboys" || k === "mook"; // แนว 2×1 โดนทุกคนในแนว
+// Mook: ทะลุเกราะ 1 → ดาเมจที่ลงจริง
+function pierceHit(engine, t) {
+  const before = vit(t);
+  engine.dealDirect(t, 1);
+  engine.resolveDamageAftermath(t);
+  const dealt = Math.max(0, before - vit(t));
+  if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
+  return dealt;
+}
 function playCard(engine, p, card, targets, opts) {
   const s = st(p), k = card.k, c = CARDS[k], r = engine.roundNumber;
   s.hand = s.hand.filter((x) => x.uid !== card.uid);
   if (s.pageRound !== r) { s.pageRound = r; s.pages = 0; }
   s.pages += 1;
   markUsed(engine, p, k);
-  countAttack(engine, p);
   const swing = (extra) => fx(engine, p, "swing", { weapon: k, ...extra });
   const beat = (sec, fn) => engine.skillBeat(sec, () => engine.withEffectSource(p, () => {
     if (!p.alive) return;
     engine.sfx(SFX.atk(k));
     fn();
   }));
-  if (k === "wheels") {
-    const hitList = (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && !engine.sameTeam(p, t));
+  if (sweeps(k)) {
+    const hitList = foes(engine, p, targets);
     const dist = (t) => Board().dist(Board().boxOf(p), Board().boxOf(t));
     const closest = [...hitList].sort((a, b) => dist(a) - dist(b))[0];
-    swing({ dir: opts.dir });
+    swing({ dir: opts.dir, to: closest && closest.pos ? { ...closest.pos } : null });
     beat(BEAT.swing, () => {
+      let dealt = 0;
       for (const t of hitList) {
+        if (!t.alive) continue;
         const at = t.pos ? { ...t.pos } : null;
-        const res = hit(engine, p, t, 2, c.name);
+        const res = hit(engine, p, t, 1, c.name);
+        if (k === "mook" && !res.dodge && t.alive) res.dealt += pierceHit(engine, t);
+        dealt += res.dealt;
         if (at) impact(engine, p, k, t, at, res);
-        if (t === closest && !res.dodge && t.alive) engine.applyDebuff(t, "stun", null, nextTurnSpan(engine, t));
+        if (k === "wheels" && t === closest && !res.dodge && t.alive) engine.applyDebuff(t, "stun", null, nextTurnSpan(engine, t));
       }
-      engine.healArmor(p, 1);
+      if (k !== "wheels") s.bonusDraw += 1;
+      if (k === "mook" && dealt > 0) gainSp(engine, p, MOOK_SP, c.name);
+      if (k === "oldboys") s.oldBoysRound = r + 1;
+      if (k !== "mook") engine.healArmor(p, 1);
       engine.skillBeat(BEAT.after, () => {});
     });
     return;
   }
   if (k === "crystal") {
     const plan = planDash(engine, p, opts.dir, c.area.len);
-    const reach = plan.passed.length;
     p.statuses[CRYSTAL] = 1;
     s.crystalDodge = 1;
     s.crystalAt = engine.severStamp();
@@ -249,13 +268,7 @@ function playCard(engine, p, card, targets, opts) {
       const a = hit(engine, p, t, 1, c.name);
       const b = hit(engine, p, t, 1, c.name);
       if (at) impact(engine, p, k, t, at, { dealt: a.dealt + b.dealt, dodge: a.dodge && b.dodge });
-      let hold = BEAT.after;
-      if (reach === c.area.len - 1 && t.alive && t.pos) {
-        const [dx, dy] = LINE()[opts.dir];
-        const side = Math.random() < 0.5 ? 1 : -1;
-        hold += push(engine, p, t, { x: dy ? side : 0, y: dx ? side : 0 });
-      }
-      engine.skillBeat(hold, () => {});
+      engine.skillBeat(BEAT.after, () => {});
     });
     return;
   }
@@ -265,21 +278,13 @@ function playCard(engine, p, card, targets, opts) {
   beat(BEAT.swing, () => {
     if (!t.alive) return;
     const at = t.pos ? { ...t.pos } : to;
-    const hits = k === "zelkova" || k === "durandal" ? 2 : 1;
+    const hits = k === "durandal" ? 2 : 1;
     const dmg = k === "logic" ? 2 : 1;
-    let total = 0, n = 0, dodged = true;
+    let total = 0, dodged = true;
     for (let i = 0; i < hits; i++) {
       const res = hit(engine, p, t, dmg, c.name);
       total += res.dealt;
-      if (res.dealt > 0) n += 1;
       if (!res.dodge) dodged = false;
-    }
-    if (k === "mook" && !dodged && t.alive) {
-      const before = vit(t);
-      engine.dealDirect(t, 1);
-      engine.resolveDamageAftermath(t);
-      total += Math.max(0, before - vit(t));
-      if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
     }
     impact(engine, p, k, t, at, { dealt: total, dodge: dodged });
     let hold = BEAT.after;
@@ -287,14 +292,7 @@ function playCard(engine, p, card, targets, opts) {
       if (k === "allas") engine.applyDebuff(t, "weak", 1, 1 + (engine.hasActed(t.id) ? 1 : 0));
       if (k === "ranga") engine.applyBleed(t, 1);
     }
-    if (k === "mook" && total > 0) gainSp(engine, p, OLD_MOOK_SP, c.name);
     if (k === "zelkova") s.bonusDraw += 1;
-    if (k === "oldboys") {
-      s.bonusDraw += 1;
-      s.oldBoysRound = r + 1;
-      engine.healArmor(p, 1);
-    }
-    if (k === "durandal") s.durandal += n;
     if (k === "logic" && !dodged && t.alive && t.pos && Board().dist(Board().boxOf(p), Board().boxOf(t)) === 1) {
       hold += push(engine, p, t, awayDir(p.pos, t));
     }
@@ -308,7 +306,7 @@ function furioso(engine, p, opts) {
   const plan = planDash(engine, p, opts.dir, FURIOSO.len);
   const t = plan.hit;
   s.used = [];
-  countAttack(engine, p);
+  s.ultReady = engine.roundNumber + FURIOSO.cd;
   t.wasAttacked = true;
   const dodged = engine.skillDodge(p, t, ULT_NAME);
   const land = () => {
@@ -419,17 +417,12 @@ module.exports = {
     s.bonusDraw = 0;
     for (let i = 0; i < n; i++) drawOne(s);
     secretFx(engine, p, "draw");
-    if (s.durandal > 0) {
-      engine.applyBuff(p, "might", 1, s.durandal);
-      s.durandal = 0;
-    }
     if (s.ego === "lies" && egoOn(p, "lies")) rollLies(s);
   },
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isRoland(p)) continue;
       const s = st(p);
-      s.hand = [];
       if (!crystalOn(p)) s.crystalDodge = 0;
       if (p.alive && s.ego && !egoOn(p, s.ego)) endEgo(engine, p);
     }
@@ -478,7 +471,6 @@ module.exports = {
     if (!isRoland(attacker)) return;
     if (counter) st(attacker).countering = false;
     if (!res || !(res.dmg > 0)) return;
-    if (!counter) countAttack(engine, attacker);
     onDealt(engine, attacker, target);
   },
 
@@ -501,7 +493,7 @@ module.exports = {
   skillPub(p, tier) {
     if (!isRoland(p)) return null;
     const r = eng().roundNumber;
-    if (tier === "basic") return { choices: cardChoices(p, r) };
+    if (tier === "basic") return { choices: cardChoices(p, r), browse: true }; // เปิดดูมือได้ทุกเมื่อในตาเดิน แม้ไม่มีเป้าในระยะ
     if (tier === "secondary") return { choices: egoChoices(p, r) };
     return null;
   },
@@ -514,11 +506,11 @@ module.exports = {
       const c = cardOf(s, opts.form);
       if (!c || pagesUsed(s, r) >= PAGES_PER_TURN) return false;
       if (c.k === "crystal") return !!LINE()[opts.dir] && !!planDash(engine, p, opts.dir, CARDS.crystal.area.len).hit;
-      if (c.k === "wheels") return (targets || []).some((id) => { const t = engine.players[id]; return t && !engine.sameTeam(p, t); });
+      if (sweeps(c.k)) return foes(engine, p, targets).length > 0;
       return !!single(engine, p, targets);
     }
     if (tier === "secondary") return !egoBlock(p, opts.form, r);
-    if (tier === "ultimate") return chargeOf(s) >= CARD_KINDS && !!LINE()[opts.dir] && !!planDash(engine, p, opts.dir, FURIOSO.len).hit;
+    if (tier === "ultimate") return chargeOf(s) >= CARD_KINDS && cdLeft(s.ultReady, r) === 0 && !!LINE()[opts.dir] && !!planDash(engine, p, opts.dir, FURIOSO.len).hit;
     return false;
   },
   // พุ่งแล้วชนคนแรก: โดนจริงแค่ช่องที่พุ่งผ่าน — ลงผลพื้นที่เองตอนถึง (hitArea)
@@ -558,7 +550,7 @@ module.exports = {
     if (!isRoland(p)) return undefined;
     const s = st(p);
     return {
-      emotion: s.emotion, emotionMax: EMOTION_MAX, hits: s.hits, hitsMax: HITS_PER_EMOTION, charge: chargeOf(s), chargeMax: CARD_KINDS,
+      emotion: s.emotion, emotionMax: EMOTION_MAX, ultCd: cdLeft(s.ultReady, engine.roundNumber), hits: s.hits, hitsMax: HITS_PER_EMOTION, charge: chargeOf(s), chargeMax: CARD_KINDS,
       pagesLeft: Math.max(0, PAGES_PER_TURN - pagesUsed(s, engine.roundNumber)), pagesMax: PAGES_PER_TURN, crystalDodge: crystalOn(p) ? s.crystalDodge : 0,
     };
   },
@@ -568,7 +560,7 @@ module.exports = {
     return {
       basic: { locked: pagesUsed(s, r) >= PAGES_PER_TURN || !s.hand.length, free: true, ignoresNoSkill: true },
       secondary: { locked: !EGO_KEYS.some((k) => !egoBlock(p, k, r)) },
-      ultimate: { locked: chargeOf(s) < CARD_KINDS },
+      ultimate: { cd: cdLeft(s.ultReady, r), locked: chargeOf(s) < CARD_KINDS },
     };
   },
 };
