@@ -2553,7 +2553,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
       {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
       {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
-      <LastStandDuel duel={state.dioDuel || null} players={state.players} timeLeft={state.timeLeft} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
+      <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
 
         {phase === "GAMEOVER" && (
           <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />

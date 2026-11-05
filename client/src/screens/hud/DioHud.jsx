@@ -5,6 +5,7 @@
 //   LastStandDuel ฉากดวล: สองฝั่งเฉียงพร้อมภาพตัวละคร · เห็นการ์ดตัวเอง อีกฝ่ายคว่ำ · ทั้งคู่กดพอ = พลิกเปิดพร้อมกัน แล้วประกาศผู้ชนะ
 //  จอคอม/แท็บเล็ตเท่านั้น · ไม่มีข้อความอธิบาย (ชื่อ ตัวเลข ไอคอน)
 // ============================================================
+import { useTick } from "../../tickStore";
 import "./dioHud.css";
 
 export function DioGauge({ dio }) {
@@ -78,7 +79,13 @@ function Side({ k, p, duel, mine }) {
   );
 }
 
-export function LastStandDuel({ duel, players, timeLeft, onDraw, onStand }) {
+// นาฬิกาแยกคอมโพเนนต์: อ่าน useTick เฉพาะตรงนี้ (ตัวนับวินาทีไม่เข้า state กระดาน)
+function DuelClock({ done }) {
+  const left = useTick();
+  return <div className="ls-clock">{done ? "VS" : left}</div>;
+}
+
+export function LastStandDuel({ duel, players, onDraw, onStand }) {
   if (!duel) return null;
   const dio = players.find((p) => p.id === duel.dioId), foe = players.find((p) => p.id === duel.foeId);
   const live = !!duel.side && !duel.winner && !duel.stood[duel.side];
@@ -92,7 +99,7 @@ export function LastStandDuel({ duel, players, timeLeft, onDraw, onStand }) {
       <Side k="foe" p={foe} duel={duel} mine={duel.side === "foe"} />
       <div className="ls-slash" />
       <div className="ls-title">LAST STAND</div>
-      <div className="ls-center"><div className="ls-clock">{duel.winner ? "VS" : timeLeft}</div></div>
+      <div className="ls-center"><DuelClock done={!!duel.winner} /></div>
       {live && (
         <div className={`ls-btns ls-btns-${duel.side}`}>
           <button type="button" className="ls-btn draw" onClick={onDraw}>จั่ว</button>
