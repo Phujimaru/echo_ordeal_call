@@ -1,0 +1,110 @@
+/* เคนซากิ คาซุมะ — Rouze Absorber + ฉาก Evolution (RouzeAbsorber.jsx) · ขยับด้วย transform/opacity เท่านั้น */
+.rz-device { position: relative; z-index: 2; display: block; width: 100%; height: auto; user-select: none; pointer-events: none; filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55)); }
+.rz-device[data-glow="true"] { animation: rz-device-glow 1.4s ease-in-out infinite; }
+@keyframes rz-device-glow {
+  0%, 100% { filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 12px rgba(255, 206, 90, 0.5)); }
+  50% { filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 34px rgba(255, 206, 90, 0.95)); }
+}
+
+/* ฉาก Evolution */
+.rz-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(4, 7, 16, 0.42);
+  animation: rz-in 0.25s ease-out;
+  user-select: none;
+  touch-action: none;
+}
+@keyframes rz-in { from { opacity: 0; } to { opacity: 1; } }
+.rz-stage { position: relative; display: flex; align-items: center; justify-content: center; gap: 4vw; width: 100%; padding: 0 4vw; }
+.rz-device-wrap { position: relative; width: min(52vw, 620px); flex: 0 0 auto; }
+.rz-target-center { position: absolute; left: 30%; top: 38%; width: 34%; height: 46%; pointer-events: none; }
+.rz-target-side { position: absolute; left: 14%; top: 82%; width: 78%; height: 18%; pointer-events: none; }
+.rz-card {
+  width: min(13vw, 180px);
+  aspect-ratio: 400 / 582;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: grab;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+  transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.35s;
+}
+.rz-card img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.rz-card:disabled { cursor: default; }
+.rz-card[data-active="true"] { animation: rz-card-call 1.2s ease-in-out infinite; }
+@keyframes rz-card-call { 0%, 100% { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); } 50% { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 0 0 3px #ffce5a, 0 0 28px rgba(255, 206, 90, 0.9); } }
+.rz-card[data-active="false"][data-used="false"] { opacity: 0.45; }
+.rz-card[data-side="left"][data-used="true"] { transform: translateX(26vw) scale(0.55); opacity: 0; }
+.rz-card[data-side="right"][data-used="true"] { opacity: 0; transition: opacity 0.1s; }
+/* จุดรูดอยู่ขอบล่างใต้หน้าจอ: การ์ดแนวขวาง สอดหลังตัวเครื่อง รูดจากขวาไปซ้าย */
+.rz-swipe {
+  position: absolute;
+  z-index: 1;
+  left: 56%;
+  top: 72%;
+  width: 27.5%;
+  aspect-ratio: 400 / 582;
+  border-radius: 4px;
+  animation: rz-swipe 0.8s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+@keyframes rz-swipe {
+  0% { transform: translateX(170%) rotate(-90deg); opacity: 0; }
+  14% { opacity: 1; }
+  84% { opacity: 1; }
+  100% { transform: translateX(-190%) rotate(-90deg); opacity: 0; }
+}
+.rz-flash { position: absolute; inset: 0; background: #e9cf2e; opacity: 0; pointer-events: none; }
+.rz-scene[data-step="3"] .rz-flash { animation: rz-flash 0.6s ease-in forwards; }
+@keyframes rz-flash { from { opacity: 0; } to { opacity: 1; } }
+
+/* แผงการ์ดร่าง King */
+.kz-panel[data-king="true"] { background: radial-gradient(70% 60% at 50% 22%, rgba(44, 66, 138, 0.62), rgba(10, 12, 24, 0.9)); }
+.kz-king-top { position: relative; display: flex; align-items: center; gap: 22px; min-height: 186px; }
+.kz-king-device { position: relative; width: 250px; flex: 0 0 auto; }
+.kz-king-device[data-combo] .rz-device { animation: rz-device-glow 1.2s ease-in-out infinite; }
+.kz-king-swipe {
+  position: absolute;
+  z-index: 1;
+  left: 56%;
+  top: 72%;
+  width: 27.5%;
+  aspect-ratio: 400 / 582;
+  border-radius: 4px;
+  animation: kz-king-swipe 0.6s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+@keyframes kz-king-swipe {
+  0% { transform: translateX(170%) rotate(-90deg); opacity: 0; }
+  14% { opacity: 1; }
+  84% { opacity: 1; }
+  100% { transform: translateX(-190%) rotate(-90deg); opacity: 0; }
+}
+.kz-king-hand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 420px; min-height: 96px; }
+.kz-king-hand .kz-slotcard { width: 58px; height: 84px; }
+.kz-king-combo { width: 100%; min-height: 28px; font: 800 22px/1.2 "Chakra Petch", sans-serif; letter-spacing: 0.03em; color: #ffe9b0; text-shadow: 0 0 14px rgba(255, 206, 90, 0.9); }
+.kz-panel[data-king="true"] .kz-deck { --kc: min(104px, 11vw, 15vh); display: grid; grid-template-columns: repeat(8, var(--kc)); gap: 8px; height: auto; padding-top: 0; }
+.kz-panel[data-king="true"] .kz-deck-slot { position: relative; width: var(--kc); height: calc(var(--kc) * 1.42); margin: 0; transform: none; }
+.kz-panel[data-king="true"] .kz-card { width: 100%; height: 100%; }
+.kz-panel[data-king="true"] .kz-card[data-ok="true"]:hover { transform: translateY(-8px) scale(1.06); box-shadow: 0 12px 22px rgba(0, 0, 0, 0.7), 0 0 0 2px #ffce5a, 0 0 18px rgba(255, 206, 90, 0.75); }
+
+/* ช่องบนแผงล่าง */
+.kz-slot[data-king="true"] .kz-tray {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 233, 176, 0.28), transparent 55%),
+    linear-gradient(165deg, #2c428a 0%, #16214a 50%, #6b4a12 100%);
+  border-color: rgba(255, 206, 90, 0.7);
+}
+.kz-slot[data-king="true"] .kz-pips > span[data-on="true"] { background: #ffce5a; box-shadow: 0 0 6px rgba(255, 206, 90, 0.9); }
+.kz-fusion { position: absolute; top: 5px; right: 12px; font: 700 12px/1.2 "Chakra Petch", sans-serif; color: #ffe7a6; text-shadow: 0 1px 2px #000; }
+.kz-fusion[data-full="true"] { color: #fff; text-shadow: 0 0 8px #ffce5a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rz-device[data-glow="true"], .rz-card[data-active="true"], .kz-king-device[data-combo] .rz-device { animation: none; }
+}

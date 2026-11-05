@@ -540,6 +540,13 @@ const FILES = {
     "atk_blade", "atk_punch", "atk_blast", "atk_slash",
     "henshin_fx", "unhenshin", "rouze", "metal", "heal", "sonic_dash", "sonic_hit", "crash", "magnet",
   ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
+  //  King Form (§7.19.1): การ์ดใหม่ = รูด + ชื่อการ์ด (เสียงจาก soundboard ที่ผู้ใช้อัด) · ชื่อท่า = คิว lightning · wave/four_hit/atk = ผสมจากเสียงเดิม
+  ...Object.fromEntries([
+    "card_evolution", "card_jack", "card_queen", "card_king", "card_ace", "card_fire", "card_tornado", "card_blizzard", "card_ten", "card_spade",
+    "lightning_straight", "lightning_four", "lightning_royal", "atk_king", "atk_straight", "king_wave", "king_four_hit",
+  ].map((k) => [`kazuma_${k}`, `/characters/kensaki_kazuma/sfx/kazuma_${k}.m4a`])),
+  kazuma_king: "/characters/kensaki_kazuma/kazuma_king_theme.mp3", // Round ZERO ～BLADE BRAVE (ไฟล์จากผู้ใช้) เล่นตลอดร่างคิง
+  ...Object.fromEntries(["loop", "scan", "absorb", "evolution"].map((k) => [`kazuma_king_${k}`, `/characters/kensaki_kazuma/sfx/king/kazuma_king_${k}.m4a`])),
   // ทราฟาก้า ลอว์ (GRID_PLAN §7.20) — ไฟล์จากผู้ใช้ (เสียงเปิด/ปิด ROOM ต่อกันในไฟล์เดียว · ตัดที่ 4.995 วิ) -16 LUFS
   law_room_open: "/characters/trafalgar_law/sfx/law_room_open.m4a",
   law_room_close: "/characters/trafalgar_law/sfx/law_room_close.m4a",

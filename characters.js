@@ -987,7 +987,7 @@ const CHARACTERS = [
     },
     basic: {
       name: "แปลงร่าง",
-      desc: "สลับร่าง: ร่าง Blade — จบเทิร์นแต้มสกิล +2 · ร่างมนุษย์ (เริ่มต้น) — อยู่ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2 (1 ครั้งต่อเทิร์น · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้)",
+      desc: "สลับร่าง: ร่าง Blade — จบเทิร์นแต้มสกิล +2 · ร่างมนุษย์ (เริ่มต้น) — อยู่ครบ 2 เทิร์นติดกัน ฟื้นพลังชีวิต 2 (1 ครั้งต่อเทิร์น · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้) · เลือกการ์ดครบ 9 ใบ: Evolution เข้าร่าง King Form 5 เทิร์น 1 ครั้งต่อเกม (พลังโจมตี 2 · เกราะ +3 · เดิน 3) ครบแล้วคืนร่างมนุษย์ ฟื้นพลังชีวิต 2 สตั้นตัวเอง 1 เทิร์น",
       area: { kind: "self" },
       cost: 0,
       img: "/characters/kensaki_kazuma/kazuma_belt_off.webp",
@@ -996,7 +996,7 @@ const CHARACTERS = [
     },
     secondary: {
       name: "Blay Rouzer",
-      desc: "เฉพาะร่าง Blade: เลือกการ์ด 1 ใน 9 ใส่กอง (ใบละ 2 แต้ม · 3 ใบต่อเทิร์น · กองมีได้ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผล · TACKLE กับ MAGNET อยู่กองเดียวกันไม่ได้) · กองค้างข้ามเทิร์นจนกว่าจะ Rouze (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้)",
+      desc: "เฉพาะร่าง Blade: เลือกการ์ด 1 ใน 9 ใส่กอง (ใบละ 2 แต้ม · 3 ใบต่อเทิร์น · กองมีได้ไม่เกิน 3 ชนิด · ใบซ้ำซ้อนผล · TACKLE กับ MAGNET อยู่กองเดียวกันไม่ได้) · กองค้างข้ามเทิร์นจนกว่าจะ Rouze (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้) · ร่าง King: การ์ด 16 ใบ ใบละ 1 แต้ม 5 ใบต่อเทิร์น ไม่จำกัดชนิด",
       area: { kind: "self" },
       cost: 2,
       img: "/characters/kensaki_kazuma/cards/kazuma_card_thunder.webp",
@@ -1005,7 +1005,7 @@ const CHARACTERS = [
     },
     ultimate: {
       name: "Rouze",
-      desc: "ใช้การ์ดทั้งกอง: ครบสูตร = Lightning Blast (KICK + THUNDER) · Lightning Slash (SLASH + THUNDER) · Lightning Sonic (KICK + THUNDER + MACH) · การ์ดที่เกินสูตรเสริมท่าเท่าผลปกติ (ดาเมจท่า 2 ใบไม่เกิน 4 · ท่า 3 ใบไม่เกิน 5) · ไม่ครบสูตร = การ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ (ใช้แล้วยังเดินได้)",
+      desc: "ใช้การ์ดทั้งกอง: ครบสูตร = Lightning Blast (KICK + THUNDER) · Lightning Slash (SLASH + THUNDER) · Lightning Sonic (KICK + THUNDER + MACH) · การ์ดที่เกินสูตรเสริมท่าเท่าผลปกติ (ดาเมจท่า 2 ใบไม่เกิน 4 · ท่า 3 ใบไม่เกิน 5) · ไม่ครบสูตร = การ์ดเสริมตีปกติครั้งถัดไปในตาเดินนี้ (ใช้แล้วยังเดินได้) · ร่าง King: Straight Flush · Four Card · Royal Straight Flush",
       area: { kind: "self" }, // Lightning Sonic = แนว 4×1 (skillArea)
       cost: 0,
       img: "/characters/kensaki_kazuma/kazuma_belt_on.webp",

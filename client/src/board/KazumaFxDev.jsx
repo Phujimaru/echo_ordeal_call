@@ -2,10 +2,11 @@
 //  มุยมิ (me) กลายเป็นคาซุมะ · เป้าจำลอง: ห่าง 1 (ขวา) / ห่าง 2 (ล่าง) / ห่าง 3 (บน — แนวพุ่ง Lightning Sonic)
 //  ตีปกติ = fx แบบเดียวกับ BoardStage (lunge เมื่อห่าง ≤ 2 สำหรับดาบ/หมัด) · เสียง kazuma_atk_* ตรงจังหวะปะทะ (STYLE_HIT)
 //  ภาพนิ่ง: ?kzshot=1 + window.__kzShot (ด้านล่าง) · คอนโซล: window.__kazumaFx({ kind: "metal", id: "me", at: { x, y } })
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { KAZUMA_FX, kazumaEventFx, kazumaSonicDur } from "./kazumaFx";
 import { STYLE_HIT } from "./boardDraw";
 import { playSfx } from "../audio";
+import { BladeRouzerPanel, BladeRouzerSlot, EvolutionScene } from "../screens/hud/BladeRouzer";
 
 const IMG = "/characters/kensaki_kazuma/kazuma_blade.webp";
 function kazumaUnits(list) {
@@ -39,7 +40,13 @@ if (typeof window !== "undefined" && /[?&]kzshot=1/.test(location.search)) {
 const SFX = { henshin: "kazuma_henshin_fx", unhenshin: "kazuma_unhenshin", rouze: "kazuma_rouze", metal: "kazuma_metal", heal: "kazuma_heal" };
 const btn = { font: "500 13px Kanit, sans-serif", color: "#fff", cursor: "pointer", padding: "4px 9px", border: "1px solid rgba(150,220,255,.6)", background: "rgba(18,24,40,.94)" };
 
+// แผงการ์ดร่าง King จำลอง (หน้าทดสอบ)
+const KCARDS = ["slash", "beat", "tackle", "kick", "thunder", "metal", "magnet", "mach", "time", "jack", "queen", "king", "ace", "fire", "tornado", "blizzard"];
+const KMOCK = { blade: true, king: true, kingLeft: 3, hand: [{ k: "time", n: 1 }, { k: "jack", n: 1 }, { k: "queen", n: 1 }, { k: "king", n: 1 }, { k: "ace", n: 1 }], combo: "royal", picksLeft: 2, picksMax: 5, maxTypes: 3, fusion: 9, fusionNeed: 9, kingUsed: true };
+const KCHOICES = KCARDS.map((k) => ({ key: k, name: k, img: `/characters/kensaki_kazuma/cards/kazuma_card_${k}.webp`, cost: 1, count: 0, desc: k }));
+
 export default function KazumaFxDev({ units, setUnits, pushFx, setFocus, setAnim, cinema, setCinema }) {
+  const [ui, setUi] = useState(null);
   useEffect(() => { CUR.units = units; });
   const get = (id) => CUR.units.find((u) => u.id === id);
   const me = () => { const d = get("me"); return { x: d.x, y: d.y }; };
@@ -86,10 +93,17 @@ export default function KazumaFxDev({ units, setUnits, pushFx, setFocus, setAnim
     [["หมัด 1", () => strike("kazumaPunch", "p2")], ["หมัด 2", () => strike("kazumaPunch", "p4")], ["หมัด BEAT", () => strike("kazumaPunch", "p4", { lane: tilesBox({ x: 4, y: 10 }, 1) })]],
     [["Blast", () => strike("kazumaBlast", "p6")], ["Blast กรอบ", () => strike("kazumaBlast", "p6", { lane: tilesBox({ x: 4, y: 5 }, 1) })], ["Slash", () => strike("kazumaSlash", "p2", { lane: slashLine() })], ["Sonic", sonic], ["กลับที่", reset], [cinema ? "ซูม ✓" : "ซูม", () => setCinema(cinema ? null : { a: { x: 4, y: 6 }, b: { x: 4, y: 9 }, z: 3.2 })]],
     [["แปลงร่าง", () => play({ kind: "henshin" })], ["คลายร่าง", () => play({ kind: "unhenshin" })], ["การ์ด", () => play({ kind: "card", card: "thunder" }, "kazuma_card_thunder")], ["การ์ดครบ", () => play({ kind: "card", card: "kick", combo: "blast" }, "kazuma_card_kick")],
+      ["แผง King", () => setUi("panel")], ["Evolution", () => setUi("evo")], ["ช่อง King", () => setUi(ui === "slot" ? null : "slot")],
+      ["King On", () => play({ kind: "kingOn" }, null)], ["King Off", () => play({ kind: "kingOff" }, null)], ["SF On", () => play({ kind: "straightOn" }, null)], ["King ตี", () => strike("kazumaKing", "p2")], ["SF ตี", () => strike("kazumaStraight", "p2")],
+      ["RSF", () => { const d = me(); const tiles = []; for (let y = 1; y <= 4; y++) for (let x = -1; x <= 1; x++) tiles.push({ x: d.x + x, y: d.y - y }); play({ kind: "royalWave", dir: "up", tiles, hits: ["p6"], missed: [] }, "kazuma_king_wave"); }],
+      ["Four", () => { const d = me(), f = get("p6"); const path = [d]; for (let y = d.y - 1; y > f.y; y--) path.push({ x: d.x, y }); pushFx([{ kind: "kazumaFourDash", path, step: KAZUMA_FX.dashStep, size: 1, by: "me", dur: 1600 }]); setAnim({ kind: "move", id: "me", path, stepMs: KAZUMA_FX.dashStep }); const end = path[path.length - 1], run = (path.length - 1) * KAZUMA_FX.dashStep; setTimeout(() => setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, x: end.x, y: end.y } : u))), run + 30); setTimeout(() => play({ kind: "fourHit", targetId: f.id, to: { x: f.x, y: f.y }, dmg: 2 }, "kazuma_king_four_hit"), run + 500); }],
       ["Rouze", () => play({ kind: "rouze", cards: { slash: 1 } })], ["Rouze Lightning", () => play({ kind: "rouze", combo: "blast", cards: { kick: 1, thunder: 1 } }, "kazuma_lightning_blast")], ["METAL", () => play({ kind: "metal" })], ["ฟื้น", () => play({ kind: "heal", amount: 2 })]],
   ];
   return (
     <div style={{ position: "absolute", right: 12, bottom: 12, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", maxWidth: 900 }}>
+      {ui === "panel" && <BladeRouzerPanel kazuma={KMOCK} choices={KCHOICES} points={6} onPick={() => {}} onClose={() => setUi(null)} />}
+      {ui === "evo" && <EvolutionScene onDone={() => setUi(null)} onClose={() => setUi(null)} />}
+      {ui === "slot" && <BladeRouzerSlot kazuma={KMOCK} skill={{ choices: KCHOICES, cost: 1 }} onOpen={() => setUi("panel")} />}
       {rows.map((r, i) => (
         <div key={i} style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {r.map(([label, fn]) => <button key={label} style={btn} onClick={fn}>{label}</button>)}

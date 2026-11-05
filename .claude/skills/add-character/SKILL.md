@@ -154,6 +154,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ยิงปืน GUTS ไม่ได้ | `blocksGuts(engine, p)` | `shop.gutsFireTargetOf` |
 | แต้มสกิลฟื้นจากทางอื่นไม่ได้ | `blocksSkillGain(p, src)` → true = `addSkill` ไม่เพิ่ม · ฟื้นของตัวเองใช้ src เฉพาะ (เฟิร์น `"fern"`) · เพดาน `maxSkill` · `skillRegen` 0 | `combat.addSkill` · เงินคืนทะเลทราย `skills.js` |
 | กดฟรีจริง (ไม่คิดภาษีกลางคืน/การเดินทาง/ภาระเวท) | `skillFree(p, tier, opts)` (เฟิร์น: ซ่อนเร้นมานา เข้า/ยกเลิก) | `skills.skillCostOf` |
+| ตัวคูณดาเมจตีปกติครั้งนั้น | `strikeMult(p)` → ×N (หลังคริ ก่อนเพดาน `damageCap` · คาซุมะ Straight Flush) | `attack.strike` / `estimateAttackOn` |
 | ตีปกติทะลุเกราะ (เข้าเลือดตรง · โล่ยังกัน) | `strikePierces(engine, attacker, target)` → true (ทุกคนในแนวถูกถามแยก — เฟิร์น: Zoltraak ครั้งที่ 6) · ป้ายใต้ฉากตีใช้ `attackFxNames` | `attack.strike` (`dealDirect` แทน `dealMixed`) |
 | ผลหลังฉากตีปกติ 1 ครั้ง (ทุกเป้า: คน/ผนึก/หนาม/ศพ · ก่อน `extraStrike`/จบตา) | `afterStrike(engine, p)` (เฟิร์น: นับ Zoltraak · ใช้เพิ่มระยะ · รีเซ็ทคูลดาวน์ · เอมิลิโกะ: เครื่องดูดฝุ่นหัก) | `action.strikeTarget` (`done`) |
 | ตีปกติแล้วไม่จบตา (ตีเพิ่มที่ตุนไว้) | `extraStrike(engine, p)` → true (ฮุคหักเอง) = กลับเข้าตาเดินด้วยเวลาที่เหลือ (เฟิร์น: ร่ายต่อเนื่อง) | `action.strikeTarget` (`done`) |

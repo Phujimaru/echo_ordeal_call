@@ -51,7 +51,7 @@ import {
 import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGhosts, takutoItems } from "./takutoFx";
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
-import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx } from "./kazumaFx";
+import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { DIVINE_FX_DUR, divineFx, isDivineFx } from "./divineFx";
@@ -536,6 +536,7 @@ function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
   if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  if (u.aura === "kazumaKing") kazumaKingAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   // ยูกิ (yukiFx.js): นับถอยหลังเกิดใหม่เป็นประตู — แสงฟ้าบนพื้นก่อนตัว · อนุภาคไหลเข้าตัว + ตัวเลขหลังตัว
   if (u.yuki) yukiAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.yuki.left | 0, u.alpha == null ? 1 : u.alpha, u.k || 1);
   let jx = 0, jy = 0;
@@ -644,6 +645,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now); else drawReticle(g, bx, hy, hexR, u.reticle, now); }
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (boxes) boxes.push(unitBox(u, wx, wy, bx, by, s, hy, hexR, tb));
 }
 // กล่องคลิก/ชี้ของหมาก · ร่างรถ = รูปรถทั้งคัน + หลอดพลังเหนือรถ
