@@ -338,7 +338,7 @@ function startMatch() {
   match.cutsceneQueue = [];
   match.skillBeats = [];
   match.dash = null;
-  match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; match.flowWanted = false; match.flowHandoff = null; // หยุดเวลา (server/timeStop.js)
+  match.clockUp = null; match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; match.flowWanted = false; match.flowHandoff = null; // หยุดเวลา (server/timeStop.js)
   // การเดินทาง: ฉากแผนที่ "การเดินทางเริ่มต้นขึ้น" ต่อท้ายฉากเปิดตัวผู้เล่น — พักรวมทั้งสองฉาก
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก) · Moon Cell = ฉากบินอ้อมโลกไปดวงจันทร์ (client oc/intro/moonFlight.js)

@@ -273,10 +273,10 @@ module.exports = {
     if (tier === "basic") { dial(engine, p, opts.form); return ""; }
     if (tier === "secondary") { wear(engine, p, opts.form); return ""; }
     if (tier === "ultimate") {
+      // ช่วง Clock Up (server/clockUp.js): 10 วิ นับเฉพาะเวลาที่กดได้ · ตี 3 ครั้ง · ไรเดอร์ ZECT แทรก/เข้าร่วมได้ (GRID_PLAN §7.28)
       s.startUp = { left: STARTUP_HITS, started: false, at: engine.severStamp() };
-      engine.freshMove(p);
-      // เล่นคลิปแล้ว: นับ 10 วิทันที (ไม่มีฉากให้ clockSeconds รับช่วง)
-      if (!clipOnce(engine, p, CUT.startUp)) { s.startUp.started = true; engine.setActionClock(STARTUP_SECONDS); }
+      s.startUp.started = !clipOnce(engine, p, CUT.startUp); // เพลงเริ่มหลังคลิปจบ (clockSeconds)
+      engine.clockUp.start(p, startUpOpts());
       logTo(engine, `⏱️ ${p.name} Start Up — ${STARTUP_SECONDS} วินาที`);
     }
     return "";
@@ -357,9 +357,11 @@ module.exports = {
     return s.exceed ? 4 + EXCEED_MOV : null;
   },
   // เวลาตาเดินตอนกลับจากฉาก: คลิป Start Up จบ = เริ่ม 10 วิ · ฉากตี/คลิปอื่น = เวลาที่เหลือพอดี
+  //  ในช่วง Clock Up (server/clockUp.js) เวลาของ Start Up นับที่สมาชิกเอง — ไม่ใช้ฮุคนี้
   clockSeconds(engine, p, left) {
     const s = st(p);
     if (!s.startUp) return null;
+    if (engine.clockUp.memberOf(p)) { s.startUp.started = true; return null; } // คลิปจบ = เพลง axel_theme เริ่ม
     // เพลง axel_theme + เสียง axel_startUp_soundeffect เริ่มพร้อมกันตอนนับ 10 วิ หลังคลิปจบ (ผู้ใช้สั่ง 2026-11-05) — client เล่นตาม startUp.running · เสียงพักตอนนาฬิกาหยุด
     if (!s.startUp.started) { s.startUp.started = true; return STARTUP_SECONDS; }
     return Math.max(1, left);
@@ -372,6 +374,21 @@ module.exports = {
     logTo(engine, `⏱️ ${p.name} Time Out — กลับร่าง Faiz`);
   },
   onActorEnd(engine, p) { const s = st(p); s.exceed = null; s.exceedClip = null; },
+
+  // ---------- Start Up นอกตา (แทรก/เข้าร่วมช่วง Clock Up — GRID_PLAN §7.28) ----------
+  charAction(engine, p, key) { return isInui(p) && key === "inui:startup" && startUpOffTurn(engine, p); },
+  onExtraTurn(engine, p, kind) {
+    if (!isInui(p) || kind !== "clockUp" || !st(p).startUp) return;
+    if (clipOnce(engine, p, CUT.startUp)) engine.pausePlayingForCutscene();
+    else st(p).startUp.started = true;
+  },
+  // สมาชิกช่วง Clock Up จบ (ตีครบ / หมดเวลา / รอ) — คนถือตาจบผ่าน actorOutro (คลิป) · จบนอกตา = เสียงแทนคลิป
+  onClockDone(engine, p) {
+    if (!isInui(p) || !st(p).startUp) return;
+    endStartUp(engine, p);
+    engine.sfx("inui_timeout");
+    logTo(engine, `⏱️ ${p.name} Time Out — กลับร่าง Faiz`);
+  },
 
   // ---------- จังหวะเทิร์น ----------
   onEndTurn(engine) {
@@ -425,12 +442,43 @@ module.exports = {
       opened: s.opened, faiz: s.faiz, ammo: s.ammo, ammoMax: AMMO, gun: gunOn(p) ? s.gun : null,
       knuckle: s.knuckle, pointer: s.pointer, axel: s.axel, axelLeft: s.axelLeft, axelCd: s.axelCd,
       exceed: s.exceed ? s.exceed.kind : null,
-      startUp: s.startUp ? { left: s.startUp.left, running: s.startUp.started } : null,
+      startUp: s.startUp ? { left: startUpLeft(engine, p), running: s.startUp.started } : null,
+      canStartUp: canStartUpOffTurn(engine, p), startUpCost: STARTUP_COST,
       henshinShown: !!p.cutsceneShown[CUT.henshin],
       humanTurns: s.humanTurns, humanNeed: HEAL_EVERY,
     };
   },
 };
+
+// ---------- Start Up ในระบบ Clock Up ----------
+const STARTUP_COST = 6;
+function startUpOpts() { return { kind: "faiz", secs: STARTUP_SECONDS, max: STARTUP_HITS }; }
+function startUpLeft(engine, p) {
+  const m = engine.clockUp.memberOf(p);
+  return m ? Math.max(0, m.max - m.hits) : st(p).startUp.left;
+}
+function canStartUpOffTurn(engine, p) {
+  const s = st(p);
+  return isInui(p) && p.alive && s.axel && !s.startUp && (p.skillPoints || 0) >= STARTUP_COST
+    && !((p.statuses.noskill || 0) > 0) && !engine.stuck(p) && !!engine.clockUp.canEnter(p);
+}
+function startUpOffTurn(engine, p) {
+  if (!canStartUpOffTurn(engine, p)) return false;
+  if (engine.timeStop.denyPress(p)) return true;
+  const s = st(p);
+  const how = engine.clockUp.canEnter(p);
+  p.skillPoints -= STARTUP_COST;
+  p.ultRound = engine.roundNumber;
+  s.startUp = { left: STARTUP_HITS, started: false, at: engine.severStamp() };
+  engine.skillFlash({ name: "Start Up", img: IMG.startUp, by: p.name, color: engine.colorOf(p) });
+  logTo(engine, `⏱️ ${p.name} Start Up — ${how === "join" ? "เข้าร่วม Clock Up" : "แทรกเวลา"}`);
+  engine.clockUp.enter(p, startUpOpts());
+  if (how === "join") {
+    if (clipOnce(engine, p, CUT.startUp)) engine.pausePlayingForCutscene();
+    else s.startUp.started = true;
+  }
+  return true;
+}
 
 function spendAmmo(p) {
   if (!isInui(p) || !gunOn(p)) return;

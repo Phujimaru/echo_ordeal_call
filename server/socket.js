@@ -24,6 +24,7 @@ const Duo = require("./duo");
 const Summon = require("./summon");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const ClockUp = require("./clockUp");
 const { engine } = require("./engine");
 const Colony = require("./colony");
 
@@ -130,7 +131,11 @@ function onPlayerEvent(socket, event, handler, limit = 20, windowMs = 1000) {
 // คำสั่งตาเดินของ "ตัวบนกระดาน" — ระบบคู่ (server/duo.js): ส่งไปที่ตัวที่ผู้เล่นคุมอยู่ตอนนี้
 //  หยุดเวลา (server/timeStop.js): ทุกคำสั่งจดจุดย้อนไว้ — ถูกตัด = ย้อนทั้งก้อน แล้วผู้สั่งจบตา
 function onUnitEvent(socket, event, handler, limit = 20, windowMs = 1000) {
-  onPlayerEvent(socket, event, (playerId, payload) => TimeStop.guard(() => handler(Duo.controlledId(playerId), payload)), limit, windowMs);
+  onPlayerEvent(socket, event, (playerId, payload) => {
+    const id = Duo.controlledId(playerId);
+    ClockUp.claim(id); // ช่วง Clock Up (server/clockUp.js): สมาชิกที่ส่งคำสั่งได้ถือตา
+    return TimeStop.guard(() => handler(id, payload));
+  }, limit, windowMs);
 }
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join
@@ -312,6 +317,7 @@ io.on('connection', (socket) => {
     if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
   }, 12);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
+  onPlayerEvent(socket, 'clockMash', (id) => ClockUp.mash(Duo.controlledId(id)), 40, 1000); // Clock Up ชนกัน: กดรัว
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);
   onPlayerEvent(socket, 'backToLobby', () => { if (match.gameState === 'GAMEOVER') lobby.backToLobby(); }, 2);

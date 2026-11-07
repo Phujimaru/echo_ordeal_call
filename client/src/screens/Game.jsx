@@ -18,6 +18,7 @@ import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
+import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
@@ -2004,6 +2005,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const meStatuses = me ? statusEntries(me) : []; // รายการสถานะของตัวเอง — ใช้ในกล่อง "สถานะ" ของแผง HUD (เรียงลงล่างเรื่อยๆ ตามลำดับที่ติด)
   // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
   const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
+  const mashClock = useCallback(() => socket.emit("clockMash"), []); // Clock Up ชนกัน: กดรัว
   // เอมิลิโกะเดินต่อหลังจบตา: ได้แค่เดิน/ย้อน/รอ (+ กระจกเงา)
   const canto = myTurn && !!state.action.canto;
   // ปุ่มสกิลที่กดได้ระหว่างเดินต่อ (ตรงกับฮุค cantoSkill ฝั่ง server): พื้นฐาน · เอมิลิโกะ สลับอาวุธ (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
@@ -2192,6 +2194,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     : null;
   // อินุอิ Start Up: เสียง axel_startUp_soundeffect เริ่มพร้อมเพลงตอนนับ 10 วิ (ทุกคนได้ยิน) · พักพร้อมนาฬิกา (ฉากตี/คลิป)
   const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
+  const clockWorld = !!state.clockUp && !state.clockUp.paused; // ช่วง Clock Up (server/clockUp.js) — ตัวหยุดเวลาแทรก = ปิด
+  const faizClock = state.clockUp ? state.clockUp.members.find((m) => m.kind === "faiz" && !m.over) : null;
   const inuiUpRef = useRef(false);
   useEffect(() => {
     if (inuiUp && !inuiUpRef.current) { inuiUpRef.current = true; startLoopSfx("inui_startup"); }
@@ -2638,8 +2642,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
-      {inuiUp && <div className="axel-world" data-low={lowQ ? "true" : "false"} />}
-      {inuiUp && <AxelClock phase={phase} />}
+      {/* Start Up / ช่วง Clock Up (ไรเดอร์ ZECT): โลกสีซีด ขอบเบลอ · Start Up ในช่วง Clock Up ใช้เวลาของสมาชิก Faiz */}
+      {(inuiUp || clockWorld) && <div className={`axel-world ${clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
+      {inuiUp && <AxelClock phase={phase} value={faizClock ? faizClock.left : undefined} />}
+      {clockWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       <div className="deck-drawer" data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
         <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
@@ -2864,6 +2870,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
       {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
       {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
+      {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
+      <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
+      <ClockDuel clock={state.clockUp || null} players={state.players} myId={me?.id} onMash={mashClock} />
       <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}

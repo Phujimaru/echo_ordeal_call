@@ -50,6 +50,7 @@ const match = {
   extraTurns: [],      // ตาเดินพิเศษที่รอคิว [{ id, kind }] — nextActor เล่นก่อนเลื่อนลำดับ
   flowWanted: false,   // engine.wantFlow(): มีฉากรอเล่นหลังคำสั่ง/ฉากตีนี้
   flowHandoff: null,   // engine.flowHandoff(): ฉากจบแล้วเข้าตาพิเศษ { id, kind }
+  clockUp: null,       // ช่วง Clock Up (server/clockUp.js — ไรเดอร์ ZECT / Faiz Start Up): หลายคนขยับพร้อมกัน
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
   tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
   shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)

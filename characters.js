@@ -1514,6 +1514,174 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- คาซามะ ไดสุเกะ — ไรเดอร์ ZECT · ง่าย — ดู characters/daisuke.js + characters/_zect.js (GRID_PLAN §7.28) ----------
+    //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
+    id: "daisuke",
+    name: "คาซามะ ไดสุเกะ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/daisuke/daisuke.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Zect",
+      desc: "ระหว่าง Clock Up หลบหลีก 25% · ตีคนที่ Clock Up อยู่ด้วยกัน พลังโจมตี +1 · PUT ON ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2",
+    },
+    basic: {
+      name: "CAST OFF / PUT ON",
+      desc: "ฟรี · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · กดระหว่าง Clock Up ไม่ได้: สลับร่าง · PUT ON: ระยะเดิน 3 เกราะสูงสุด 5 · CAST OFF: ระยะเดิน 5 เกราะสูงสุด 3 ไม่ฟื้น พลังโจมตี +1",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/daisuke/daisuke_skill1.png",
+      instant: true,
+      effect: null, // ก่อนแปลงร่าง skillPub = Henshin
+    },
+    secondary: {
+      name: "Clock Up",
+      desc: "เฉพาะ CAST OFF · กดได้ทั้งในตาตัวเองและแทรกตาคนอื่น: 1 ตาเดินเต็ม ระยะเดิน 7 ตีได้ 2 ครั้ง (ท่าไม้ตายนับ 1) เดินใหม่ทุกครั้งที่ตี · คนที่ Clock Up อยู่เข้าร่วมได้ ขยับพร้อมกัน · ชนกัน = กดรัวแข่ง ผู้ชนะตี 1 ครั้ง แล้วแยกห่าง 2 ช่อง · ตีครบ = Clock Over · แทรก/เข้าร่วมก่อนถึงคิว = เสียตาเดินเทิร์นนี้ (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/daisuke/daisuke_skill2.jpg",
+      instant: true,
+      effect: null, // server/clockUp.js
+    },
+    ultimate: {
+      name: "Rider Shooting",
+      desc: "เฉพาะ CAST OFF · เลือกทิศ: ยิงแนว 5×1 โดนศัตรูคนแรก · ล้างเกราะ 1 แล้วโจมตี +1 · ระหว่าง Clock Up: ตีปกติครั้งถัดไปล้างเกราะ 1 แล้วโจมตี +1 (ใช้แล้วยังเดินได้) (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "line", len: 5, width: 1, hostile: true },
+      cost: 4,
+      img: "/characters/daisuke/daisuke_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
+    // ---------- โซ ยากุรุมะ — ไรเดอร์ ZECT · ง่าย — ดู characters/yaguruma.js + characters/_zect.js (GRID_PLAN §7.28) ----------
+    //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
+    id: "yaguruma",
+    name: "โซ ยากุรุมะ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/yaguruma/yaguruma.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Zect",
+      desc: "ระหว่าง Clock Up หลบหลีก 25% · ตีคนที่ Clock Up อยู่ด้วยกัน พลังโจมตี +1 · PUT ON ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2",
+    },
+    basic: {
+      name: "CAST OFF / PUT ON",
+      desc: "ฟรี · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · กดระหว่าง Clock Up ไม่ได้: สลับร่าง · PUT ON: ระยะเดิน 3 เกราะสูงสุด 5 · CAST OFF: ระยะเดิน 5 เกราะสูงสุด 3 ไม่ฟื้น พลังโจมตี +1",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/yaguruma/yaguruma_skill1.webp",
+      instant: true,
+      effect: null, // ก่อนแปลงร่าง skillPub = Henshin
+    },
+    secondary: {
+      name: "Clock Up",
+      desc: "เฉพาะ CAST OFF · กดได้ทั้งในตาตัวเองและแทรกตาคนอื่น: 1 ตาเดินเต็ม ระยะเดิน 7 ตีได้ 2 ครั้ง (ท่าไม้ตายนับ 1) เดินใหม่ทุกครั้งที่ตี · คนที่ Clock Up อยู่เข้าร่วมได้ ขยับพร้อมกัน · ชนกัน = กดรัวแข่ง ผู้ชนะตี 1 ครั้ง แล้วแยกห่าง 2 ช่อง · ตีครบ = Clock Over · แทรก/เข้าร่วมก่อนถึงคิว = เสียตาเดินเทิร์นนี้ (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/yaguruma/yaguruma_skill2.jpg",
+      instant: true,
+      effect: null, // server/clockUp.js
+    },
+    ultimate: {
+      name: "Rider Sting",
+      desc: "เฉพาะ CAST OFF · 1 คนในระยะ 1: ล้างต้านสถานะ แล้วโจมตี +1 · พิษร้าย 3 เทิร์น + ผุพัง 2 เทิร์น (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "target", range: 1, hostile: true },
+      cost: 4,
+      img: "/characters/yaguruma/yaguruma_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
+    // ---------- คากามิ อาราตะ — ไรเดอร์ ZECT · ง่าย — ดู characters/kagami.js + characters/_zect.js (GRID_PLAN §7.28) ----------
+    //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
+    id: "kagami",
+    name: "คากามิ อาราตะ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/kagami/kagami.jpeg",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Zect",
+      desc: "ระหว่าง Clock Up หลบหลีก 25% · ตีคนที่ Clock Up อยู่ด้วยกัน พลังโจมตี +1 · PUT ON ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2",
+    },
+    basic: {
+      name: "CAST OFF / PUT ON",
+      desc: "ฟรี · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · กดระหว่าง Clock Up ไม่ได้: สลับร่าง · PUT ON: ระยะเดิน 3 เกราะสูงสุด 5 · CAST OFF: ระยะเดิน 5 เกราะสูงสุด 3 ไม่ฟื้น พลังโจมตี +1",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/kagami/kagami_skill1.webp",
+      instant: true,
+      effect: null, // ก่อนแปลงร่าง skillPub = Henshin
+    },
+    secondary: {
+      name: "Clock Up",
+      desc: "เฉพาะ CAST OFF · กดได้ทั้งในตาตัวเองและแทรกตาคนอื่น: 1 ตาเดินเต็ม ระยะเดิน 7 ตีได้ 2 ครั้ง (ท่าไม้ตายนับ 1) เดินใหม่ทุกครั้งที่ตี · คนที่ Clock Up อยู่เข้าร่วมได้ ขยับพร้อมกัน · ชนกัน = กดรัวแข่ง ผู้ชนะตี 1 ครั้ง แล้วแยกห่าง 2 ช่อง · ตีครบ = Clock Over · แทรก/เข้าร่วมก่อนถึงคิว = เสียตาเดินเทิร์นนี้ (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/kagami/kagami_skill2.jpg",
+      instant: true,
+      effect: null, // server/clockUp.js
+    },
+    ultimate: {
+      name: "Rider Kick",
+      desc: "เฉพาะ CAST OFF · ชาร์จ 3 ครั้ง (1 / 1 / 3 แต้ม · ค้างข้ามเทิร์น · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้) → ตีปกติครั้งถัดไป +1 · ช็อต 5 เทิร์น + ชา 3 เทิร์น · เป้ามีต้านสถานะ: ไม่ติดอะไร แต่ทะลุเกราะ (รวมไม่เกิน 3) (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 1,
+      img: "/characters/kagami/kagami_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
+    // ---------- คามิชิโร่ ซึรุงิ — ไรเดอร์ ZECT · ง่าย — ดู characters/tsurugi.js + characters/_zect.js (GRID_PLAN §7.28) ----------
+    //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
+    id: "tsurugi",
+    name: "คามิชิโร่ ซึรุงิ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/tsurugi/tsurugi.jpg",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Zect",
+      desc: "ระหว่าง Clock Up หลบหลีก 25% · ตีคนที่ Clock Up อยู่ด้วยกัน พลังโจมตี +1 · PUT ON ครบ 3 เทิร์นติดกัน ฟื้นพลังชีวิต 2",
+    },
+    basic: {
+      name: "CAST OFF / PUT ON",
+      desc: "ฟรี · ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · กดระหว่าง Clock Up ไม่ได้: สลับร่าง · PUT ON: ระยะเดิน 3 เกราะสูงสุด 5 · CAST OFF: ระยะเดิน 5 เกราะสูงสุด 3 ไม่ฟื้น พลังโจมตี +1",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/tsurugi/tsurugi_skill1.webp",
+      instant: true,
+      effect: null, // ก่อนแปลงร่าง skillPub = Henshin
+    },
+    secondary: {
+      name: "Clock Up",
+      desc: "เฉพาะ CAST OFF · กดได้ทั้งในตาตัวเองและแทรกตาคนอื่น: 1 ตาเดินเต็ม ระยะเดิน 7 ตีได้ 2 ครั้ง (ท่าไม้ตายนับ 1) เดินใหม่ทุกครั้งที่ตี · คนที่ Clock Up อยู่เข้าร่วมได้ ขยับพร้อมกัน · ชนกัน = กดรัวแข่ง ผู้ชนะตี 1 ครั้ง แล้วแยกห่าง 2 ช่อง · ตีครบ = Clock Over · แทรก/เข้าร่วมก่อนถึงคิว = เสียตาเดินเทิร์นนี้ (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/tsurugi/tsurugi_skill2.jpg",
+      instant: true,
+      effect: null, // server/clockUp.js
+    },
+    ultimate: {
+      name: "Rider Slash",
+      desc: "เฉพาะ CAST OFF · ฟัน 2 ครั้ง 1 คนในระยะ 1 · ครั้งแรก: ลบบัฟล่าสุด แล้วโจมตีตามปกติ · ครั้งสอง (ฟรี · เลือกเป้าใหม่ได้): ดาเมจ 1 + พิษร้าย 3 เทิร์น · ฟันแล้วยังเดินได้ (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "target", range: 1, hostile: true },
+      cost: 4,
+      img: "/characters/tsurugi/tsurugi_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

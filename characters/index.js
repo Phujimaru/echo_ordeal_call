@@ -41,6 +41,11 @@ const Status = require("./_universal_status");
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
 //  โอเบรอนมาก่อนมุยมิ และโซระมาก่อน Echo ตามลำดับที่ server/ เคยเรียกตรงๆ — ตัวใหม่ต่อท้ายได้เลย
 const inui_takumi = require("./inui_takumi"); // อินุอิ ทาคุมิ — ปานกลาง (Faiz Phone · Start Up)
+// ไรเดอร์ ZECT — ง่าย 4 ตัวแยกกัน (Henshin · CAST OFF/PUT ON · Clock Up server/clockUp.js · ท่าไม้ตายตามตัว — characters/_zect.js)
+const daisuke = require("./daisuke");
+const yaguruma = require("./yaguruma");
+const kagami = require("./kagami");
+const tsurugi = require("./tsurugi");
 
 const CHARACTER_MODULES = [
   oberon_summer,
@@ -77,6 +82,10 @@ const CHARACTER_MODULES = [
   roland,
   inui_takumi,
   dio_brando,
+  daisuke,
+  yaguruma,
+  kagami,
+  tsurugi,
 ];
 
 const CHAR_HOOKS = {};

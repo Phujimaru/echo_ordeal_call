@@ -41,6 +41,7 @@ const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
+const ClockUp = require("../clockUp");
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -619,6 +620,9 @@ function nextActor() {
     for (const u of units) if (stuck(u)) match.lastLog.push(`😵 ${u.name} ขยับไม่ได้ — ข้ามตาเดิน`);
     units = units.filter((u) => !stuck(u));
     // ฮุค skipsTurn(engine, u) → true = ข้ามตาเดินทั้งตา (โมดูลบันทึกเอง — ยูกิ มาโคโตะ: ยืนนิ่งระหว่างนับถอยหลังระเบิด)
+    // Clock Up (server/clockUp.js): แทรก/เข้าร่วมก่อนถึงคิว = เสียตาเดินปกติของเทิร์นนี้
+    for (const u of units) if (ClockUp.skipsRound(u)) match.lastLog.push(`⏱️ ${u.name} ใช้ตาเดินเทิร์นนี้ไปกับ Clock Up แล้ว`);
+    units = units.filter((u) => !ClockUp.skipsRound(u));
     units = units.filter((u) => {
       const skipHook = CHAR_HOOKS[u.characterId];
       return !(skipHook && skipHook.skipsTurn && combat.runHook(skipHook, "skipsTurn", engine, u));
@@ -664,6 +668,7 @@ function startExtra(ex) {
   match.actorId = p.id;
   match.action = { from: { ...p.pos }, moved: false, locked: false, extra: ex.kind, resume: ex.resume || null };
   match.gameState = "ACTION";
+  if (ex.kind === "clockUp") ClockUp.beginExtra(p); // Clock Up แทรกตา: ช่วงเริ่มพร้อมตาพิเศษ (นาฬิกาเดินทีละวิ)
   const secs = turnSecondsOf(p, actionSeconds());
   timers.startPhaseTimer(secs, actionTimeUp);
   TimeStop.mark(secs);
@@ -720,6 +725,7 @@ function stuck(p) {
 }
 // หมดเวลาตาเดิน (ตัวจับเวลาของเฟส ACTION) — ระบบคู่: จบตาของทั้งฝ่ายทันที · ไม่ได้เดินต่อ (canto)
 function actionTimeUp() {
+  if (ClockUp.owns()) { ClockUp.tick(); return; } // ช่วง Clock Up: ครบ 1 วิ — ลดเวลาของสมาชิกทุกคน
   if (match.action) match.action.expired = true;
   finishActor();
 }
@@ -1024,6 +1030,15 @@ function strikeTarget(id, targetId) {
     if (runWantedFlow(done)) return; // ฉากที่ขอไว้ระหว่างตี (ดิโอ: Last Stand)
     const hook = CHAR_HOOKS[p.characterId];
     if (hook && hook.afterStrike) combat.withEffectSource(p, () => hook.afterStrike(engine, p));
+    // Clock Up (server/clockUp.js): สมาชิกตียังไม่ครบ = เดินใหม่เต็มระยะแล้วกลับเข้าตา · ครบ = Clock Over
+    const cu = ClockUp.afterStrike(p);
+    if (cu === true) {
+      if (endTurnPhase.gameOver()) return;
+      Ice.flushBursts();
+      resumeAction();
+      return;
+    }
+    if (cu === false) { finishActor(); return; }
     // ฮุค extraStrike(engine, p) → true = ตีครั้งนี้ไม่จบตา (ใช้ครั้งที่ตุนไว้ — เฟิร์น: ร่ายต่อเนื่อง) → กลับเข้าตาเดินด้วยเวลาที่เหลือ
     //  (เดินยังล็อก · รอ/หมดเวลา = จบตาตามปกติ)
     if (p.alive && p.pos && match.action && match.actorId === p.id && match.gameState !== "GAMEOVER" && hook && hook.extraStrike
@@ -1094,6 +1109,8 @@ function strikeTarget(id, targetId) {
   if (!Dim.same(p, target)) return false; // ชั้นมิติ (server/dimension.js): คนละชั้นตีกันไม่ได้
   if (Visibility.hiddenFromUnit(p, target)) return false; // มองไม่เห็น = ตีไม่ได้ (ม่านแดง: นับจากตาของตัวที่ตีเอง)
   if (!canStrike(p, target)) return false;
+  // Clock Up: สมาชิกที่ยังไม่จบตีกันเอง = หมากพุ่งชน → QTE กดรัว (server/clockUp.js)
+  if (ClockUp.duelWanted(p, target)) { Visibility.onHostileAct(p, "strike"); return ClockUp.startDuel(p, target, done); }
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
@@ -1144,6 +1161,8 @@ function finishActor() {
       combat.withEffectSource(p, () => combat.runHook(outroHook, "actorOutro", engine, p));
       if (match.cutsceneQueue.length && match.gameState !== "GAMEOVER") { require("../cutscene").runCutsceneQueue(finishActor); return; }
     }
+    // ช่วง Clock Up: จบเฉพาะสมาชิกคนนี้ — ส่งตาให้คนต่อไป · ทุกคนจบ = ช่วงจบแล้วกลับมาจบตาของเจ้าของตาที่นี่
+    if (ClockUp.owns() && ClockUp.memberFinish(p, expired)) return;
     if (!expired && startCanto(p)) return;
     // ตาเดินพิเศษ: ฮุค extraTurnOutro(engine, p, kind) → วินาทีพักฉากก่อนจบตาจริง (ดิเอโก้: เวลาเดินต่อ — ดาเมจที่ค้างลงพร้อมกัน) · ครั้งเดียวต่อตา
     if (p && match.action && match.action.extra && !match.action.outro) {

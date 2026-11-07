@@ -42,6 +42,7 @@ const Sever = require("./sever");
 const Soot = require("./soot");
 const Ride = require("./ride");
 const TimeStop = require("./timeStop");
+const ClockUp = require("./clockUp");
 const Dim = require("./dimension");
 const Summon = require("./summon");
 const Visibility = require("./visibility");
@@ -202,6 +203,12 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   timeStop: {
     queueExtra: TimeStop.queueExtra, extraKind: TimeStop.extraKind,
     interrupt: TimeStop.interrupt, denyPress: TimeStop.denyPress, freeze: TimeStop.freeze, unfreeze: TimeStop.unfreeze, frozen: TimeStop.frozen,
+  },
+  // Clock Up (server/clockUp.js — ไรเดอร์ ZECT / Faiz Start Up): ช่วงที่หลายคนขยับพร้อมกัน
+  clockUp: {
+    active: ClockUp.active, owns: ClockUp.owns, memberOf: ClockUp.memberOf, activeMember: ClockUp.activeMember,
+    start: ClockUp.start, canEnter: ClockUp.canEnter, enter: ClockUp.enter, claim: ClockUp.claim, countHit: ClockUp.countHit,
+    mash: ClockUp.mash, tick: ClockUp.tick,
   },
   // การ์ดสกิลเด้งบนกระดาน (ไม่หยุดเกม) — payload.sound = คีย์ใน client/src/audio.js ให้เล่นพร้อมการ์ด
   skillFlash(payload) { io.emit("skillFlash", payload); },

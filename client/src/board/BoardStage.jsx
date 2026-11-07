@@ -2150,7 +2150,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       cloak: !!p.veiled,
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
-      faizTrail: !!(p.inui && p.inui.startUp && p.inui.startUp.running), // อินุอิ Start Up: ภาพค้างตามตัว (faizFx.js)
+      // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
+      faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? "clock" : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
       aura: p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
@@ -2188,7 +2189,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode]);
+  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);

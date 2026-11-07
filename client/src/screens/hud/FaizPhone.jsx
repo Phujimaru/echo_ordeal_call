@@ -150,14 +150,16 @@ function Digit({ n, x }) {
   return <g transform={`translate(${x} 0)`}>{Object.keys(SEG_D).map((k) => <path key={k} d={SEG_D[k]} fill={on.includes(k) ? "#ff2433" : "#3a0a0e"} />)}</g>;
 }
 // นาฬิกา Start Up: ผู้เล่นทุกคนเห็น · ระหว่างฉากตี/คลิปค้างเลขเดิม (เวลาไม่เดิน)
-export function AxelClock({ phase }) {
+// value = เวลาของ Start Up ในช่วง Clock Up (state.clockUp — server/clockUp.js) · ไม่ส่ง = นาฬิกาตาเดิน
+export function AxelClock({ phase, value }) {
   const tick = useTick();
+  const src = value ?? tick;
   const [v, setV] = useState(10);
   useEffect(() => {
-    if (phase !== "ACTION" || tick <= 0) return undefined;
-    const t = setTimeout(() => setV(Math.min(10, tick)), 0);
+    if (phase !== "ACTION" || src <= 0) return undefined;
+    const t = setTimeout(() => setV(Math.min(10, src)), 0);
     return () => clearTimeout(t);
-  }, [phase, tick]);
+  }, [phase, src]);
   return (
     <div className="fp-clock" aria-label={`${v}`}>
       <svg viewBox="0 0 70 46"><Digit n={Math.floor(v / 10)} x={2} /><Digit n={v % 10} x={36} /></svg>

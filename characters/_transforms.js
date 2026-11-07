@@ -26,6 +26,7 @@ const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kagur
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
+const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 const OHGER_SECONDS = { kuwagata: 21, tonbo: 19, kamakiri: 17, papiyon: 21, hachi: 22 };
@@ -176,6 +177,28 @@ module.exports = function buildTransforms() {
       ["timeOut", "axel_time_out", inui.IMG.faiz, "Time Out", "Faiz Axel", 6.9],
       ["timeOutIdle", "axel_time_out_no_use", inui.IMG.faiz, "Time Out", "Faiz Axel", 5.4],
     ].map(([k, v, img, title, label, seconds]) => [inui.CUT[k], { img, video: inui.VIDEO[v], title, label, seconds, music: null, afterReveal: false }])),
+    // ไรเดอร์ ZECT — ความยาวจริง (ffprobe) +0.4 วิ · [ลำดับใน ZECT, คีย์, ชื่อ, ป้าย, รูป, วินาที]
+    ...Object.fromEntries([
+      [0, "henshin", "Henshin", "แปลงร่าง", "putOn", 16.8],
+      [0, "castOff", "CAST OFF", "Change", "castOff", 11.8],
+      [0, "clockUp", "Clock Up", "ZECT", "clock", 1.8],
+      [0, "rider", "Rider Shooting", "ท่าไม้ตาย", "rider", 8.9],
+      [1, "henshin", "Henshin", "แปลงร่าง", "putOn", 11.7],
+      [1, "castOff", "CAST OFF", "Change", "castOff", 16.1],
+      [1, "clockUp", "Clock Up", "ZECT", "clock", 3.9],
+      [1, "rider", "Rider Sting", "ท่าไม้ตาย", "rider", 11.5],
+      [2, "henshin", "Henshin", "แปลงร่าง", "putOn", 8.9],
+      [2, "castOff", "CAST OFF", "Change", "castOff", 15.0],
+      [2, "clockUp", "Clock Up", "ZECT", "clock", 2.9],
+      [2, "kickOne", "Rider Kick", "One", "rider", 1.9],
+      [2, "kickThree", "Rider Kick", "Three", "rider", 2.7],
+      [2, "kickFinal", "Rider Kick", "ท่าไม้ตาย", "rider", 8.2],
+      [3, "henshin", "Henshin", "แปลงร่าง", "putOn", 11.9],
+      [3, "castOff", "CAST OFF", "Change", "castOff", 12.5],
+      [3, "clockUp", "Clock Up", "ZECT", "clock", 2.0],
+      [3, "slashFirst", "Rider Slash", "ท่าไม้ตาย", "rider", 7.9],
+      [3, "slashFinal", "Rider Slash", "ท่าไม้ตาย", "rider", 3.9],
+    ].map(([n, k, title, label, img, seconds]) => [ZECT[n].CUT[k], { img: ZECT[n].IMG[img], video: ZECT[n].VIDEO[k], title, label, seconds, music: null, afterReveal: false }])),
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

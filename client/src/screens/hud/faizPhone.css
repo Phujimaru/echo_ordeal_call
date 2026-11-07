@@ -44,6 +44,8 @@
   mask-image: radial-gradient(ellipse 58% 62% at 50% 50%, transparent 55%, #000 100%);
   background: radial-gradient(ellipse 58% 62% at 50% 50%, transparent 60%, rgba(235, 240, 245, 0.28) 100%);
 }
+.axel-world.clock { -webkit-backdrop-filter: grayscale(0.7) brightness(0.92) contrast(0.95); backdrop-filter: grayscale(0.7) brightness(0.92) contrast(0.95); }
+.axel-world.clock::after { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); background: radial-gradient(ellipse 58% 62% at 50% 50%, transparent 60%, rgba(150, 200, 235, 0.22) 100%); }
 .axel-world[data-low="true"] { -webkit-backdrop-filter: grayscale(0.85); backdrop-filter: grayscale(0.85); }
 .axel-world[data-low="true"]::after { display: none; }
 @keyframes axel-in { from { opacity: 0; } to { opacity: 1; } }

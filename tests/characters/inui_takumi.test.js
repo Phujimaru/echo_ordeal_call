@@ -234,7 +234,7 @@ test("วีดีโอเล่นครั้งเดียวต่อเ�
   engine.useSkill("a", "ultimate", []);
   assert.deepEqual(clips, []);
   assert.equal(p.inui.startUp.started, true);
-  assert.equal(engine.timeLeft, 10);
+  assert.equal(engine.clockUp.memberOf(p).left, 10, "นับ 10 วิในช่วง Clock Up");
   engine.clearPhaseTimer();
   p.cutsceneShown[inui.CUT.timeOut] = true;
   inui.actorOutro(engine, p);
@@ -280,9 +280,11 @@ test("Start Up: 6 แต้ม · ตี 3 ครั้ง เติมเดิ
   assert.equal(engine.baseMovOf(p), 7);
   assert.equal(inui.critPct(p), 50);
   assert.equal(inui.skillMusic(engine, p), null, "เพลงยังไม่ขึ้นระหว่างคลิป");
-  assert.equal(inui.clockSeconds(engine, p, 40), 10);
+  // ช่วง Clock Up (server/clockUp.js): เวลา 10 วิอยู่ที่สมาชิก · คลิปจบ (clockSeconds) = เพลงเริ่ม
+  assert.equal(engine.clockUp.memberOf(p).left, 10);
+  assert.equal(engine.clockUp.memberOf(p).max, 3);
+  assert.equal(inui.clockSeconds(engine, p, 40), null);
   assert.equal(inui.skillMusic(engine, p).music, "inui_axel");
-  assert.equal(inui.clockSeconds(engine, p, 6), 6);
   // ใส่ของใน Start Up: ไม่มีคลิป ไม่ล็อกเดิน ใส่พร้อมกันได้
   clips.length = 0;
   bag("knuckle"); bag("pointer");

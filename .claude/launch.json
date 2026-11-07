@@ -535,6 +535,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3027"
       }
+    },
+    {
+      "name": "server-zect",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3029,
+      "env": {
+        "PORT": "3029",
+        "ECHO_DEV_ACTION_TIME": "120",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-zect",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5199",
+        "--strictPort"
+      ],
+      "port": 5199,
+      "env": {
+        "ECHO_SERVER_PORT": "3029"
+      }
     }
   ]
 }

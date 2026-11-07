@@ -21,6 +21,7 @@ function clearPhaseTimer() {
 //  จากนั้นนับถอยหลังทีละ 1 วิตามเดิม → หมดเวลาพอดี seconds · จำนวนเต็มทำงานแบบเดิมทุกอย่าง
 function startPhaseTimer(seconds, onExpire) {
   clearPhaseTimer();
+  seconds = require("./clockUp").forceSecond(seconds, onExpire); // ช่วง Clock Up: ตาเดินนับทีละ 1 วิ (server/clockUp.js tick)
   const fracMs = Math.round((seconds - Math.floor(seconds)) * 1000);
   match.timeLeft = Math.ceil(seconds);
   const tick = () => {

@@ -567,7 +567,8 @@ function drawUnit(g, u, now, boxes) {
     g.strokeStyle = "#ff2433"; g.lineWidth = 3; g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.42 + p * 0.3) * K, 0.04, 30); g.stroke(); g.globalAlpha = a;
   }
   if (u.faizTrail) {
-    for (const t of faizGhosts(u.id, now, wx, wy)) {
+    const clock = u.faizTrail === "clock"; // ช่วง Clock Up (ไรเดอร์ ZECT): เงาค้างนานขึ้น
+    for (const t of faizGhosts(u.id, now, wx, wy, clock ? 1300 : undefined, clock ? 0.62 : undefined)) {
       const [gx, gy, gs] = P(t.x, t.y);
       g.globalAlpha = a * t.a;
       unitHex(g, u, gx, gy - gs * 0.86 * K, gs * 0.4 * K);

@@ -123,7 +123,10 @@ function dealRound() {
     // เกราะฟื้น 1 หน่วยทุก 2 เทิร์น (รอบเลขคู่) — เหมือนกันทั้งกลางวัน/กลางคืน (ยกเลิกโบนัสฟื้นทุกเทิร์นตอนกลางคืน patch 2.1.7)
     //  ผุพัง (สถานะ Universal): เกราะไม่ฟื้นระหว่างมีผล · การเดินทาง: ภูมิภาค 5-7 เกราะฟื้นทุกเทิร์น (Journey.armorRegenDue)
     //  ห่วงเวลาซีโร่: เกราะไม่ฟื้น
-    if (!Zero.active() && !((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, world)) combat.healArmor(p, 1);
+    //  ฮุค blocksArmorRegen(p) → true = เกราะไม่ฟื้น (ไรเดอร์ ZECT: CAST OFF)
+    const armorHook = CHAR_HOOKS[p.characterId];
+    const armorLocked = !!(armorHook && armorHook.blocksArmorRegen && armorHook.blocksArmorRegen(p));
+    if (!Zero.active() && !armorLocked && !((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, world)) combat.healArmor(p, 1);
     // ตื่นขึ้น (awaken, สถานะ Universal): ฟื้นพลังชีวิตเทิร์นละ 1 หน่วย
     if ((p.statuses.awaken || 0) > 0 && combat.healHp(p, 1) > 0) {
       match.lastLog.push(`⏰ ${p.name} การตื่นขึ้น — ฟื้นพลังชีวิต +1`);
