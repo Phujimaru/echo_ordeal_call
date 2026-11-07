@@ -139,7 +139,7 @@ function Cutscene({ cs }) {
           {cs.label && <div className="text-lg sm:text-xl font-bold opacity-90 -mt-2">{cs.label}!</div>}
         </div>
       )}
-      {introDone && (
+      {introDone && cs.title && ( // ไม่มีชื่อ (แปลงร่างไรเดอร์ ZECT) = ไม่ขึ้นตัวอักษรบนคลิป
         <div className="absolute top-[8%] inset-x-0 text-center px-4 transition-opacity duration-200">
           <div className="cut-title glitch text-4xl sm:text-6xl font-black" data-text={cs.title}>{cs.title}</div>
         </div>
