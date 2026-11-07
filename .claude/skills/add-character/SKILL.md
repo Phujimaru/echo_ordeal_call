@@ -281,6 +281,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | คลิปก่อนจบตาทุกทาง (หมดเวลา/รอ/ตีครบ) | ฮุค `actorOutro(engine, p)` คิวคลิปครั้งเดียว · ระบบเล่นจบแล้วจบตา (อินุอิ: Time Out) | `action.finishActor` |
 | ตีแล้วเดินต่อเต็มระยะ | `extraStrike` + `engine.freshMove(p)` (อินุอิ: Start Up) | `action.freshMove` |
 | HUD รูปเครื่องจริงกดรหัส / ของสวมกดซ้ำถอด | `FaizPhone.jsx` (รหัส = `useSkill` form) · `choices[].worn` | `client/src/screens/hud/` |
+| หลายคนขยับพร้อมกันแบบเรียลไทม์ (แทรกตา/เข้าร่วม · ชนกันกดรัว) | `engine.clockUp.start / enter / canEnter / countHit / activeMember` + ฮุค `onClockDone` · ตาพิเศษ kind `"clockUp"` (ต้นแบบ ไรเดอร์ ZECT + Faiz Start Up — GAME_SYSTEM §46) | `server/clockUp.js` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

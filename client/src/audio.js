@@ -565,6 +565,11 @@ const FILES = {
   zect_parry: "/characters/zect/parry.m4a",
   zect_clockover: "/characters/zect/clock_over.m4a",
   zect_kick_charge: "/characters/zect/kick_charge.m4a",
+  //  ตีปกติตามร่าง (สังเคราะห์ ffmpeg · จุดปะทะอยู่ต้นไฟล์): Drake ปืน 2 นัด · TheBee แทง+หึ่ง · Gatack ดาบคู่ · Sasword ฟันหนัก+ฟู่พิษ
+  zect_atk_drake: "/characters/zect/atk_drake.m4a",
+  zect_atk_bee: "/characters/zect/atk_bee.m4a",
+  zect_atk_gatack: "/characters/zect/atk_gatack.m4a",
+  zect_atk_sasword: "/characters/zect/atk_sasword.m4a",
   inui_exceed_wait: "/characters/inui_takumi/inui_exceed_wait.m4a", // เพลงรอ Exceed Charge
   kazuma_king: "/characters/kensaki_kazuma/kazuma_king_theme.mp3", // Round ZERO ～BLADE BRAVE (ไฟล์จากผู้ใช้) เล่นตลอดร่างคิง
   ...Object.fromEntries(["loop", "scan", "absorb", "evolution"].map((k) => [`kazuma_king_${k}`, `/characters/kensaki_kazuma/sfx/king/kazuma_king_${k}.m4a`])),

@@ -6,7 +6,7 @@
 const { makeZect } = require("./_zect");
 
 module.exports = makeZect({
-  id: "kagami", rider: "Kamen Rider Gatack", ult: "kick",
+  id: "kagami", rider: "Kamen Rider Gatack", style: "zGatack", sound: "zect_atk_gatack", ult: "kick",
   img: { base: "kagami.jpeg", putOn: "kagami_put_on.webp", castOff: "kagami_cass_off.jpg", clock: "kagami_skill2.jpg", rider: "kagami_skill3.jpg" },
   video: {
     henshin: "kagami.mp4", castOff: "kagami_skill1.mp4", clockUp: "kagami_skill2.mp4",

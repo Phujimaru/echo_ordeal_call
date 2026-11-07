@@ -119,6 +119,12 @@ function makeZect(cfg) {
   const ultHits = (p) => (ult === "shooting" && !clockOn(p)) || ult === "sting" || (ult === "slash" && !st(p).slash);
   const ultArea = { shooting: { kind: "line", len: 5, width: 1, hostile: true }, sting: { kind: "target", range: 1, hostile: true }, kick: { kind: "self" }, slash: { kind: "target", range: 1, hostile: true } }[ult];
 
+  // ท่าไม้ตายที่เป็นสกิล: เอฟเฟกต์บนกระดานหลังคลิปจบ (client/src/board/zectFx.js)
+  function ultFx(engine, p, kind, t, extra) {
+    if (!t || !t.pos || !p.pos) return;
+    const data = { kind, from: { ...p.pos }, to: { ...t.pos }, ...(extra || {}) };
+    engine.deferAfterCutscene(() => engine.boardFx("zectFx", data));
+  }
   function foes(engine, p, ids) {
     return (ids || []).map((id) => engine.players[id]).filter((t) => t && t.alive && t.pos && t.id !== p.id && !engine.sameTeam(p, t));
   }
@@ -141,6 +147,7 @@ function makeZect(cfg) {
       s.ultReady = cdReady(engine, ULT_CD);
       engine.queueCutscene(p, CUT.rider);
       if (!t) return;
+      ultFx(engine, p, "zUltShoot", t);
       if (engine.skillDodge(p, t, "Rider Shooting")) return;
       const strip = Math.min(SHOOT.strip, t.armor || 0);
       if (strip > 0) { t.armor -= strip; log(engine, `🔫 ${p.name} Rider Shooting ล้างเกราะ ${t.name} ${strip}`); }
@@ -151,6 +158,7 @@ function makeZect(cfg) {
       const t = foes(engine, p, targets)[0];
       s.ultReady = cdReady(engine, ULT_CD);
       engine.queueCutscene(p, CUT.rider);
+      if (t) ultFx(engine, p, "zUltSting", t);
       if (!t || engine.skillDodge(p, t, "Rider Sting")) return;
       if ((t.statuses.resist || 0) > 0) {
         delete t.statuses.resist;
@@ -184,6 +192,7 @@ function makeZect(cfg) {
         s.slash = true;
         s.slashAt = engine.severStamp();
         engine.queueCutscene(p, CUT.slashFirst);
+        if (t) ultFx(engine, p, "zUltSlash", t);
         if (!t || engine.skillDodge(p, t, "Rider Slash")) return;
         const gone = engine.stripLatestBuff(t);
         if (gone) log(engine, `🦂 ${p.name} Rider Slash ปาดบัฟ ${gone} ของ ${t.name}`);
@@ -193,6 +202,7 @@ function makeZect(cfg) {
       s.slash = false;
       s.ultReady = cdReady(engine, ULT_CD);
       engine.queueCutscene(p, CUT.slashFinal);
+      if (t) ultFx(engine, p, "zUltSlash", t, { final: true });
       if (!t || engine.skillDodge(p, t, "Rider Slash")) return;
       engine.dealMixed(t, SLASH.second, true);
       log(engine, `🦂 ${p.name} Rider Slash → ${t.name} -${SLASH.second} (ลดเกราะก่อน)`);
@@ -338,6 +348,15 @@ function makeZect(cfg) {
       if (s.shootArmed) out.push("Rider Shooting");
       return out;
     },
+    // ท่าตี/เสียงตีปกติเฉพาะตัว (client/src/board/zectFx.js · client/public/characters/zect/atk_*.m4a)
+    attackStyle(p) {
+      if (!isMe(p)) return null;
+      const s = st(p);
+      if (s.shootArmed) return "zDrakeUlt";
+      if (s.kickArmed) return "zKick";
+      return s.henshin ? cfg.style : null;
+    },
+    attackSound(p) { return isMe(p) && st(p).henshin ? cfg.sound : undefined; },
     ownEvade(p) { return isMe(p) && p.alive && p.zect && p.zect.henshin && require("../server/clockUp").activeMember(p) ? ZECT_DODGE : 0; },
 
     // Rider Kick: ตีปกติครั้งถัดไป

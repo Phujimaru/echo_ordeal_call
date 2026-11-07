@@ -5,7 +5,7 @@
 const { makeZect } = require("./_zect");
 
 module.exports = makeZect({
-  id: "daisuke", rider: "Kamen Rider Drake", ult: "shooting",
+  id: "daisuke", rider: "Kamen Rider Drake", style: "zDrake", sound: "zect_atk_drake", ult: "shooting",
   img: { base: "daisuke.webp", putOn: "drake_put_on.jpg", castOff: "daisuke_cass_off.jpg", clock: "daisuke_skill2.jpg", rider: "daisuke_skill3.jpg" },
   video: { henshin: "daisuke.mp4", castOff: "daisuke_skill1.mp4", clockUp: "daisuke_skill2.mp4", rider: "daisuke_skill3.mp4" },
 });

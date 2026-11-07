@@ -53,6 +53,7 @@ import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGho
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, isFaizFx } from "./faizFx";
+import { ZECT_FX_DUR, ZECT_HIT_P, ZECT_MS, isZectFx, zectFx } from "./zectFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
@@ -945,8 +946,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2072,7 +2073,7 @@ export const FX_DUR = {
   darkWave: 3000,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR,
 };
 
 
@@ -2406,6 +2407,7 @@ export function drawFrame(g, st, now) {
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);
     else if (isFaizFx(e.kind)) faizFx(g, e, now, lowQ);
+    else if (isZectFx(e.kind)) zectFx(g, e, now, lowQ); // ไรเดอร์ ZECT (zectFx.js)
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);

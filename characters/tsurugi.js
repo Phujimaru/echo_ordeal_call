@@ -6,7 +6,7 @@
 const { makeZect } = require("./_zect");
 
 module.exports = makeZect({
-  id: "tsurugi", rider: "Kamen Rider Sasword", ult: "slash",
+  id: "tsurugi", rider: "Kamen Rider Sasword", style: "zSasword", sound: "zect_atk_sasword", ult: "slash",
   img: { base: "tsurugi.jpg", putOn: "tsurugi_put_on.png", castOff: "tsurugi_cass_off.jpg", clock: "tsurugi_skill2.jpg", rider: "tsurugi_skill3.jpg" },
   video: {
     henshin: "tsurugi.mp4", castOff: "tsurugi_skill1.mp4", clockUp: "tsurugi_skill2.mp4",

@@ -1197,3 +1197,13 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **HUD รหัส** `FaizPhone.jsx` ใช้รูปตัวเครื่องเป็นพื้น ปุ่มเป็นพื้นที่กดวางทับ · รหัสส่งเป็น `useSkill` form · `skipsTurnQuota`/`skillFree`/`keepsMove` แยกตาม form
 - **เสียงที่ต้องหยุดกลางคัน** `startLoopSfx` + `pauseLoopSfx` / `resumeLoopSfx` (`client/src/audio.js`) — หลบคลิปโดยเล่นต่อจากจุดเดิม
 - ตัวเลือกใน `SkillChoices` ฟิลด์ `worn` = กรอบทองแต่ยังกดซ้ำได้ (ถอด)
+
+## 46. ช่วง Clock Up — หลายคนขยับพร้อมกันแบบเรียลไทม์ (ไรเดอร์ ZECT / Faiz Start Up — `server/clockUp.js` · `characters/_zect.js` · GRID_PLAN §7.28)
+
+- **ช่วง = ตาเดินเดียวที่มีสมาชิกหลายคน** (`match.clockUp`): `engine.clockUp.start(p, { kind, secs, max, music })` ในตาที่ p ถือ · `engine.clockUp.enter(p, opts)` นอกตา = เข้าร่วม (`join`) หรือแทรกเป็นตาพิเศษ kind `"clockUp"` (`TimeStop.interrupt` → `startExtra` → `beginExtra`) · `canEnter(p)` ปิดเมื่อเวลาหยุด/ตาพิเศษอื่น (ดิโอ/ดิเอโก้) และบอส AI
+- **ถือตา**: socket `onUnitEvent` เรียก `ClockUp.claim(id)` ก่อนทุกคำสั่ง → สลับ `match.actorId/match.action` ไปหาสมาชิกคนนั้น (ตาของคนอื่นเก็บที่ `members[id].act` · เดินแล้วสลับออก = `rebaseMove`) · เทสต์เรียก `ClockUp.claim` เอง
+- **เวลา**: ระหว่างช่วง `timers.startPhaseTimer(…, actionTimeUp)` ถูกบังคับเป็น 1 วิ (`forceSecond`) → `actionTimeUp` ส่งต่อ `tick()` ลดเวลาทุกสมาชิกเฉพาะตอน ACTION · `buildStateFor` ผ่าน `asViewer` = สมาชิกเห็น `actorId/action/timeLeft` ของตัวเอง
+- **นับการตี**: `strikeTarget` done → `afterStrike` (ยังไม่ครบ = `freshMove` + `resumeAction`) · ท่าไม้ตายที่ตีเป้า = `engine.clockUp.countHit(p)` + ฮุค `endsTurn` เมื่อครบ · ครบ/รอ/หมดเวลา = Clock Over (ฮุค `onClockDone(engine, p, why)`) → `memberFinish` ส่งตาให้คนต่อไป · ทุกคนจบ = ตาคืนเจ้าของแล้ว `finishActor` ตามปกติ (ตาพิเศษ → `resume`)
+- **เสียตาเดิน**: แทรก/เข้าร่วมก่อนถึงคิว → `p.clockSkipRound` → `nextActor` ข้าม (เดินไปแล้ว/กดในตาตัวเอง = ไม่เสีย)
+- **ชนกัน**: สมาชิกที่ยังไม่จบตีกันเอง → `startDuel` (ATTACKING 3 วิ) · socket `clockMash` → `mash` · ผู้ชนะ `attack.boardAttack` 1 ครั้ง (นับเป็นการตีของผู้ชนะ) · เสมอไม่มีใครตี · `pushApart` แยกฝั่งละ 2 ช่อง · client `ClockDuel` (`hud/ZectHud.jsx`)
+- **client**: `state.clockUp` (`publicInfo`) → ภาพค้าง `faizTrail: "clock"` (นานกว่า Start Up) · `.axel-world.clock` สีซีด ขอบเบลอ + `.full-force-speed` เส้นความเร็ว · เพลง `full_force` (`musicOf` ชนะทุกเพลงสกิล) · ปุ่มนอกตา `ClockUpButton` (`charAction` `zect:clock` / `inui:startup`)
