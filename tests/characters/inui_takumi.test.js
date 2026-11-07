@@ -85,7 +85,7 @@ test("555: คลิปครั้งแรกเท่านั้น · ว�
   assert.deepEqual(clips, [], "ครั้งที่ 2 ไม่มีวีดีโอ");
 });
 
-test("ปืน: ค้างโหมด หักตอนยิง · 106 ใช้ 2 นัด คริ 50 · 279 เติม 4 แต้ม", () => {
+test("ปืน: ค้างโหมด หักตอนยิง · 106 ใช้ 2 นัด คริ 50 · 279 เติม 2 แต้ม", () => {
   const { p, t } = opened();
   t.pos = { x: 5, y: 2 };
   dial("106");
@@ -100,10 +100,10 @@ test("ปืน: ค้างโหมด หักตอนยิง · 106 ใ
   assert.equal(inui.critPct(p), 0, "กระสุนไม่พอ 106");
   assert.deepEqual(inui.range(p), [1, 1]);
   engine.setActor("a");
-  p.skillPoints = 4;
+  p.skillPoints = 2;
   dial("279");
   assert.equal(p.inui.ammo, 4);
-  assert.equal(p.skillPoints, 0);
+  assert.equal(p.skillPoints, 0, "279 ใช้ 2 แต้ม");
   assert.equal(p.skillUsedRound, true, "279 กินโควตา");
 });
 
@@ -250,9 +250,10 @@ test("Exceed Charge: ใช้ไม่ได้ถ้าไม่แปลง�
   assert.equal(p.inui.exceed, null);
 });
 
-test("Axel: คริ 25 · 5 เทิร์นหมดเอง คลิปไม่ได้ใช้ คูลดาวน์ 3", () => {
+test("Axel: ระยะเดิน 6 ไม่มีคริ · 5 เทิร์นหมดเอง คลิปไม่ได้ใช้ คูลดาวน์ 3", () => {
   const { p } = axel();
-  assert.equal(inui.critPct(p), 25);
+  assert.equal(inui.critPct(p), 0);
+  assert.equal(engine.baseMovOf(p), 6);
   assert.equal(inui.skillHidden(p, "ultimate"), false);
   for (let i = 0; i < 4; i++) inui.onEndTurn(engine);
   assert.equal(p.inui.axel, true);
@@ -267,18 +268,19 @@ test("Axel: คริ 25 · 5 เทิร์นหมดเอง คลิป�
   assert.equal(p.inui.axel, true);
 });
 
-test("Start Up: 6 แต้ม · ตี 3 ครั้ง เติมเดิน 7 · บวกคริ/พลังโจมตี · จบแล้วคลิป Time Out", () => {
+test("Start Up: 4 แต้ม · ตี 3 ครั้ง เติมเดิน 7 · ไม่บวกคริ/พลังโจมตี · จบแล้วคลิป Time Out", () => {
   const { p, t } = axel();
   bag("knuckle"); // ถอด Axel? ไม่ — ทดสอบก่อนเข้า Start Up
   assert.equal(p.inui.axel, false, "สวมอุปกรณ์ทับ = ถอด Axel");
   p.inui.axel = true; p.inui.axelCd = 0; p.inui.knuckle = false; p.inui.lastGear = null; p.inui.axelLeft = 5;
   engine.setActor("a");
-  p.skillPoints = 6;
+  p.skillPoints = 4;
   engine.useSkill("a", "ultimate", []);
   assert.equal(p.skillPoints, 0);
   assert.equal(engine.action.locked, false);
   assert.equal(engine.baseMovOf(p), 7);
-  assert.equal(inui.critPct(p), 50);
+  assert.equal(inui.critPct(p), 0);
+  assert.equal(inui.damageBonus(engine, p), 0);
   assert.equal(inui.skillMusic(engine, p), null, "เพลงยังไม่ขึ้นระหว่างคลิป");
   // ช่วง Clock Up (server/clockUp.js): เวลา 10 วิอยู่ที่สมาชิก · คลิปจบ (clockSeconds) = เพลงเริ่ม
   assert.equal(engine.clockUp.memberOf(p).left, 10);
@@ -287,17 +289,35 @@ test("Start Up: 6 แต้ม · ตี 3 ครั้ง เติมเดิ
   assert.equal(inui.skillMusic(engine, p).music, "inui_axel");
   // ใส่ของใน Start Up: ไม่มีคลิป ไม่ล็อกเดิน ใส่พร้อมกันได้
   clips.length = 0;
-  bag("knuckle"); bag("pointer");
-  assert.equal(p.inui.knuckle && p.inui.pointer, true);
+  bag("knuckle");
+  assert.equal(inui.damageBonus(engine, p), 0, "Knuckle ไม่บวกความแรงใน Start Up");
+  bag("pointer");
+  assert.equal(p.inui.knuckle, false, "สวมได้ทีละชิ้น");
+  assert.equal(p.inui.pointer, true);
   assert.deepEqual(clips, []);
   assert.equal(engine.action.locked, false);
-  // ตีครั้งที่ 1 ติดคริ = คลิปตามอุปกรณ์ล่าสุด
-  Math.random = () => 0;
+  // Exceed ระหว่าง Start Up: 4 แต้มต่อครั้ง · โควตาไม่ขวาง · ไม่มีคลิปเริ่ม · คลิปตามอุปกรณ์ล่าสุดทุกครั้ง · ติดคริเฉยๆ ไม่มีคลิป
+  assert.equal(inui.preAttackClip(engine, p, { crit: true }), null);
+  assert.equal(p.skillUsedRound, true);
+  p.skillPoints = 8;
+  clips.length = 0;
+  dial("exceed");
+  assert.equal(p.skillPoints, 4);
+  assert.equal(p.inui.exceed.kind, "pointer");
+  assert.deepEqual(clips, []);
+  assert.equal(engine.baseMovOf(p), 7, "ไม่บวกระยะ Exceed");
+  assert.equal(inui.skillMusic(engine, p).music, "inui_axel");
   t.hp = 7; t.armor = 0;
-  assert.equal(inui.preAttackClip(engine, p, { crit: true }), inui.CUT.axelPointer);
-  p.inui.lastGear = "knuckle";
-  assert.equal(inui.preAttackClip(engine, p, { crit: true }), inui.CUT.axelCrit);
-  assert.equal(inui.preAttackClip(engine, p, { crit: false }), null);
+  engine.attackTarget("a", "b");
+  assert.equal(engine.gameState, "CUTSCENE", "คลิปเล่น");
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 3, "ความเสียหาย 4");
+  assert.ok(t.statuses.rooted > 0, "ถูกตรึง");
+  engine.setActor("a");
+  p.inui.exceedClip = "knuckle";
+  assert.equal(inui.preAttackClip(engine, p), inui.CUT.axelCrit);
+  p.inui.exceedClip = "pointer";
+  assert.equal(inui.preAttackClip(engine, p), inui.CUT.axelPointer);
   // จบตา (ทุกทาง) = คลิป Time Out กลับร่าง Faiz ถอดของ
   assert.equal(inui.extraStrike(engine, p), true);
   assert.equal(engine.action.locked, false);
@@ -310,7 +330,7 @@ test("Start Up: 6 แต้ม · ตี 3 ครั้ง เติมเดิ
   assert.equal(p.inui.axel, false);
   assert.equal(p.inui.knuckle, false);
   assert.equal(p.inui.faiz, true);
-  assert.equal(p.inui.axelCd, 4);
+  assert.equal(p.inui.axelCd, 3);
   clips.length = 0;
   inui.actorOutro(engine, p);
   assert.deepEqual(clips, [], "คิวครั้งเดียว");

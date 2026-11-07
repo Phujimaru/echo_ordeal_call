@@ -8,8 +8,8 @@
 //  ช่อง secondary: กระเป๋า SmartBrain form: "knuckle" | "pointer" | "axel" — กดซ้ำ = ถอด
 //  ช่อง ultimate: Start Up — โผล่เฉพาะตอนสวม axel_watch
 //
-//  วีดีโอเล่นครั้งแรกต่อเกมเท่านั้น ยกเว้น Exceed Charge ตีโดน + คลิปคริ · รอบหลังใช้เสียงแทน
-//  ไม่กินโควตา: ทุกอย่างที่ฟรี · กินโควตา: 279 / Exceed Charge / Start Up (ผู้ใช้เลือก 2026-11-05)
+//  วีดีโอเล่นครั้งแรกต่อเกมเท่านั้น ยกเว้น Exceed Charge ตีโดน · รอบหลังใช้เสียงแทน
+//  ไม่กินโควตา: ทุกอย่างที่ฟรี + Exceed Charge ระหว่าง Start Up · กินโควตา: 279 / Exceed Charge / Start Up (ผู้ใช้เลือก 2026-11-05)
 //  ทุกสกิลล็อกการเดิน ยกเว้น Exceed Charge และทุกอย่างระหว่าง Start Up
 //  ร่าง Faiz ไม่เพิ่มค่าสถานะ (ผู้ใช้เลือก) · ใส่ Knuckle/Pointer/Axel ต้องแปลงร่างก่อน · วางสาย = ถอดของทั้งหมด
 //  ปืน: กดรหัสแล้วค้างจนกระสุนหมด/เปลี่ยนรหัส/ใส่อุปกรณ์ · หักตอนยิงจริง (103 = 1 นัด · 106 = 2 นัด)
@@ -17,12 +17,13 @@
 //
 //  Start Up: คลิปจบแล้วนับ 10 วิ เฉพาะเวลาที่ผู้เล่นกดได้ (ฮุค clockSeconds — ฉากตี/คลิปไม่กินเวลา)
 //    ตีได้ 3 ครั้ง ระหว่างนั้นเดินได้ 7 ช่อง เติมใหม่ทุกครั้งที่ตี (ฮุค extraStrike + engine.freshMove)
-//    ใส่ Knuckle/Pointer พร้อมกันได้ ไม่มีคลิป · ติดคริ = คลิปตามอุปกรณ์ล่าสุด (Pointer: axel_ponter_hit · Knuckle: axel_crit)
+//    สวม Knuckle/Pointer ได้ทีละชิ้น สลับได้ ไม่มีคลิป · ไม่เพิ่มคริ/พลังโจมตีแล้ว (เนิฟ — ผู้ใช้สั่ง 2026-11-07)
+//    Exceed Charge ระหว่าง Start Up: 4 แต้มต่อครั้ง · ตีโดน = คลิปตามอุปกรณ์ล่าสุด (Pointer: axel_ponter_hit · Knuckle: axel_crit) ทุกครั้ง
 //    จบ (หมดเวลา / ครบ 3 ครั้ง / รอ) = คลิป axel_time_out (ฮุค actorOutro) กลับร่าง Faiz ถอดของ คูลดาวน์ 3 เทิร์น
 //
 //  Claude ตัดสินเอง (GRID_PLAN §7.27): Exceed Charge ปลดล็อกการเดินที่ค้างในตานั้น · ตีด้วย Exceed หลบได้ = เสียผล ·
-//    เป้าประชิดเท่านั้น ไม่ใช้กระสุน · คริ 106 บวกกับคริ Axel · เลือกอุปกรณ์ทับ axel_watch = ถอด Axel (คูลดาวน์) ·
-//    ฟื้นเลือด 2 เทิร์นต้องอยู่ร่างมนุษย์ติดกัน · exceed.m4a ใช้ตอนใส่ของใน Start Up (ไม่มีคลิปให้ซ้อน) · เสียง 103/106/279/ยิง ตัดจากไฟล์ซาวด์เอฟเฟกต์ของผู้ใช้โดยวิเคราะห์ความถี่ ยังไม่ได้ฟัง
+//    เป้าประชิดเท่านั้น ไม่ใช้กระสุน · เลือกอุปกรณ์ทับ axel_watch = ถอด Axel (คูลดาวน์) ·
+//    ฟื้นเลือด 2 เทิร์นต้องอยู่ร่างมนุษย์ติดกัน · เสียง 103/106/279/ยิง ตัดจากไฟล์ซาวด์เอฟเฟกต์ของผู้ใช้โดยวิเคราะห์ความถี่ ยังไม่ได้ฟัง
 // ============================================================
 
 const ID = "inui_takumi";
@@ -47,17 +48,16 @@ const CUT = {
 };
 const GUNS = { 103: { ammo: 1, crit: 0 }, 106: { ammo: 2, crit: 50 } };
 const AMMO = 4;
-const RELOAD_COST = 4;
+const RELOAD_COST = 2; // บัฟ 2026-11-07 (เดิม 4)
 const EXCEED_COST = 4;
 const EXCEED_DMG = 4;
 const EXCEED_MOV = 2;
 const AXEL_TURNS = 5;
 const AXEL_CD = 3;
-const AXEL_CRIT = 25;
+const AXEL_MOV = 6;
 const STARTUP_SECONDS = 10;
 const STARTUP_HITS = 3;
 const STARTUP_MOV = 7;
-const STARTUP_CRIT = 25;
 const BURN = 1;
 const ROOT_TURNS = 1;
 const HEAL_EVERY = 2;
@@ -93,17 +93,18 @@ function clipOnce(engine, p, key) {
 }
 
 // ---------- ร่าง Axel ----------
-//  คูลดาวน์นับลงตอนจบเทิร์น: จบระหว่างเทิร์น +1 (เทิร์นปัจจุบันไม่นับ) · จบตอนจบเทิร์น (atEnd) = เต็ม 3 เทิร์นถัดไปพอดี
-function endAxel(p, atEnd) {
+//  คูลดาวน์นับลงตอนจบเทิร์น รวมเทิร์นที่จบด้วย (ผู้ใช้สั่ง 2026-11-07: เลขที่เห็นเริ่มที่ 3)
+function endAxel(p) {
   const s = st(p);
   s.axel = false;
   s.axelLeft = 0;
-  s.axelCd = AXEL_CD + (atEnd ? 0 : 1);
+  s.axelCd = AXEL_CD;
 }
 function clearGear(s) { s.knuckle = false; s.pointer = false; s.lastGear = null; }
 function endStartUp(engine, p) {
   const s = st(p);
   s.startUp = null;
+  s.exceed = null;
   clearGear(s);
   endAxel(p);
 }
@@ -146,9 +147,12 @@ function dial(engine, p, form) {
     const kind = s.lastGear === "knuckle" || (s.knuckle && !s.pointer) ? "knuckle" : "pointer";
     s.exceed = { kind, round: engine.roundNumber };
     s.exceedAt = engine.severStamp();
-    // ปลดล็อกการเดินที่ค้างจากคำสั่งก่อนหน้า: ระยะเดิน +2 ระหว่าง Exceed Charge
-    if (engine.action) engine.action.locked = false;
-    if (!clipOnce(engine, p, kind === "knuckle" ? CUT.knuckleEx : CUT.pointerEx)) engine.sfx("inui_exceed");
+    if (s.startUp) engine.sfx("inui_exceed"); // นาฬิกา 10 วิเดินอยู่: ไม่ตัดเข้าคลิปเริ่ม
+    else {
+      // ปลดล็อกการเดินที่ค้างจากคำสั่งก่อนหน้า: ระยะเดิน +2 ระหว่าง Exceed Charge
+      if (engine.action) engine.action.locked = false;
+      if (!clipOnce(engine, p, kind === "knuckle" ? CUT.knuckleEx : CUT.pointerEx)) engine.sfx("inui_exceed");
+    }
     logTo(engine, `⚡ ${p.name} Exceed Charge — ${kind === "knuckle" ? "Faiz_nuckle" : "Faiz_pointer"}`);
   }
 }
@@ -174,16 +178,13 @@ function wear(engine, p, form) {
     logTo(engine, `🎒 ${p.name} ถอด ${form === "knuckle" ? "Faiz_nuckle" : "Faiz_pointer"}`);
     return;
   }
-  if (!up) {
-    if (s.axel) endAxel(p);
-    clearGear(s);
-  }
+  if (s.axel && !up) endAxel(p);
+  clearGear(s); // สวมได้ทีละชิ้นเสมอ · ระหว่าง Start Up สลับได้ ไม่มีคลิป (ผู้ใช้สั่ง 2026-11-07)
   stopGun(s); // ใส่อุปกรณ์ = ปิดโหมดปืนที่กดไว้ (ผู้ใช้สั่ง 2026-11-05) · กดรหัสใหม่ได้
   s[form] = true;
   s.lastGear = form;
   s.gearAt = engine.severStamp();
-  if (up) engine.sfx("inui_exceed");
-  else clipOnce(engine, p, form === "knuckle" ? CUT.knuckle : CUT.pointer);
+  if (!up) clipOnce(engine, p, form === "knuckle" ? CUT.knuckle : CUT.pointer);
   logTo(engine, `🎒 ${p.name} สวม ${form === "knuckle" ? "Faiz_nuckle" : "Faiz_pointer"}`);
 }
 
@@ -213,9 +214,9 @@ module.exports = {
       const cdLeft = s.axelCd;
       return {
         choices: [
-          { key: "knuckle", name: "Faiz_nuckle", img: IMG.knuckle, cost: 0, worn: s.knuckle, desc: "การโจมตีปกติแรงขึ้น 1 · Exceed Charge: ต่อย ความเสียหาย 4 ลุกไหม้ 1 · ระหว่าง Start Up: ตีโดน ลุกไหม้ 1" },
+          { key: "knuckle", name: "Faiz_nuckle", img: IMG.knuckle, cost: 0, worn: s.knuckle, desc: "การโจมตีปกติแรงขึ้น 1 · Exceed Charge: ต่อย ความเสียหาย 4 ลุกไหม้ 1 · ระหว่าง Start Up: ไม่เพิ่มความแรง ตีโดน ลุกไหม้ 1" },
           { key: "pointer", name: "Faiz_pointer", img: IMG.pointer, cost: 0, worn: s.pointer, desc: "แม่นยำตลอดที่สวม · Exceed Charge: เตะ ความเสียหาย 4 ถูกตรึง 1 เทิร์น · ระหว่าง Start Up: ตีโดน ถูกตรึง 1 เทิร์น" },
-          { key: "axel", name: "axel_watch", img: IMG.watch, cost: 0, worn: s.axel, cd: cdLeft, locked: cdLeft > 0 || !!s.startUp, left: cdLeft > 0 ? cdLeft : undefined, desc: `ร่าง Faiz Axel ${AXEL_TURNS} เทิร์น อัตราคริติคอล ${AXEL_CRIT}% · ปลดล็อก Start Up · จบแล้วคูลดาวน์ ${AXEL_CD} เทิร์น` },
+          { key: "axel", name: "axel_watch", img: IMG.watch, cost: 0, worn: s.axel, cd: cdLeft, locked: cdLeft > 0 || !!s.startUp, left: cdLeft > 0 ? cdLeft : undefined, desc: `ร่าง Faiz Axel ${AXEL_TURNS} เทิร์น ระยะเดิน ${AXEL_MOV} · ปลดล็อก Start Up · จบแล้วคูลดาวน์ ${AXEL_CD} เทิร์น` },
         ],
       };
     }
@@ -233,6 +234,7 @@ module.exports = {
   },
   skipsTurnQuota(p, tier, opts) {
     if (tier === "secondary") return true;
+    if (tier === "basic" && opts && opts.form === "exceed" && st(p).startUp) return true; // Start Up กินโควตาไปแล้ว: Exceed ใช้แต้มอย่างเดียว
     return tier === "basic" && !(opts && (opts.form === "279" || opts.form === "exceed"));
   },
   ignoresTurnQuota(p, tier, opts) { return module.exports.skipsTurnQuota(p, tier, opts); },
@@ -251,7 +253,7 @@ module.exports = {
       if (form === "hangup") return s.faiz && !s.startUp;
       if (form === "103" || form === "106") return !s.exceed && s.gun !== form && s.ammo >= GUNS[form].ammo;
       if (form === "279") return s.ammo < AMMO;
-      if (form === "exceed") return s.faiz && !s.exceed && !s.startUp && !s.axel && (s.knuckle || s.pointer);
+      if (form === "exceed") return s.faiz && !s.exceed && (!s.axel || !!s.startUp) && (s.knuckle || s.pointer);
       return false;
     }
     if (tier === "secondary") {
@@ -292,27 +294,23 @@ module.exports = {
     return gear === "pointer" ? "faizPoint" : gear === "knuckle" ? "faizKnuckle" : "faizFist";
   },
   attackSound(p) { if (!gunOn(p)) return undefined; return st(p).gun === "106" ? "inui_shot_burst" : "inui_shot"; },
-  critPct(p) {
-    const s = st(p);
-    return (s.axel ? AXEL_CRIT : 0) + (s.startUp ? STARTUP_CRIT : 0) + (gunOn(p) ? GUNS[s.gun].crit : 0);
-  },
+  critPct(p) { return gunOn(p) ? GUNS[st(p).gun].crit : 0; },
   damageBonus(engine, attacker) {
     if (!isInui(attacker)) return 0;
     const s = st(attacker);
-    return (s.knuckle ? 1 : 0) + (s.startUp ? 1 : 0);
+    return s.knuckle && !s.startUp ? 1 : 0; // ระหว่าง Start Up อุปกรณ์ให้แค่ผลต่อท้าย (ลุกไหม้/ถูกตรึง — ผู้ใช้สั่ง 2026-11-07)
   },
   attackFxNames(p) {
     const s = st(p), out = [];
-    if (s.knuckle) out.push("Faiz_nuckle +1");
-    if (s.startUp) out.push("Start Up +1");
+    if (s.knuckle && !s.startUp) out.push("Faiz_nuckle +1");
     return out;
   },
   fixedStrikeDamage(engine, attacker) { return st(attacker).exceed ? EXCEED_DMG : null; },
   auraAccurate(p) { return isInui(p) && st(p).pointer; },
   onStrikeLanded(engine, attacker, target) {
     const s = st(attacker), names = [];
-    const burn = s.exceed ? s.exceed.kind === "knuckle" : !!s.startUp && s.knuckle;
-    const root = s.exceed ? s.exceed.kind === "pointer" : !!s.startUp && s.pointer;
+    const burn = s.startUp ? s.knuckle : !!s.exceed && s.exceed.kind === "knuckle";
+    const root = s.startUp ? s.pointer : !!s.exceed && s.exceed.kind === "pointer";
     if (burn && engine.applyBurn(target, BURN)) names.push(`ลุกไหม้ ${BURN}`);
     if (root && engine.applyDebuff(target, "rooted", 1, ROOT_TURNS + (engine.hasActed(target.id) ? 1 : 0))) names.push(`ถูกตรึง ${ROOT_TURNS} เทิร์น`);
     return names;
@@ -329,17 +327,14 @@ module.exports = {
     spendAmmo(attacker);
   },
   onStrikeObject(engine, p) { spendAmmo(p); },
-  // Exceed Charge ลง = คลิปท่าไม้ตาย · ติดคริใน Start Up = คลิปตามอุปกรณ์ที่สวมล่าสุด
-  preAttackClip(engine, attacker, card) {
+  // Exceed Charge ลง = คลิปท่าไม้ตาย ทุกครั้ง · ระหว่าง Start Up = คลิป Axel ตามอุปกรณ์ที่สวมล่าสุด
+  preAttackClip(engine, attacker) {
     const s = st(attacker);
-    if (s.exceedClip) {
-      const kind = s.exceedClip;
-      s.exceedClip = null;
-      return kind === "knuckle" ? CUT.knuckleHit : CUT.pointerHit;
-    }
-    if (!s.startUp || !card.crit) return null;
-    const gear = s.lastGear || (s.pointer ? "pointer" : s.knuckle ? "knuckle" : null);
-    return gear === "pointer" ? CUT.axelPointer : gear === "knuckle" ? CUT.axelCrit : null;
+    if (!s.exceedClip) return null;
+    const kind = s.exceedClip;
+    s.exceedClip = null;
+    if (s.startUp) return kind === "knuckle" ? CUT.axelCrit : CUT.axelPointer;
+    return kind === "knuckle" ? CUT.knuckleHit : CUT.pointerHit;
   },
   // ตีครั้งที่ 1–2 ของ Start Up ไม่จบตา · เติมระยะเดิน 7 ช่อง
   extraStrike(engine, p) {
@@ -354,6 +349,7 @@ module.exports = {
     if (!isInui(p)) return null;
     const s = st(p);
     if (s.startUp) return STARTUP_MOV;
+    if (s.axel) return AXEL_MOV;
     return s.exceed ? 4 + EXCEED_MOV : null;
   },
   // เวลาตาเดินตอนกลับจากฉาก: คลิป Start Up จบ = เริ่ม 10 วิ · ฉากตี/คลิปอื่น = เวลาที่เหลือพอดี
@@ -399,7 +395,7 @@ module.exports = {
       if (s.axel) {
         s.axelLeft -= 1;
         if (s.axelLeft <= 0) {
-          endAxel(p, true);
+          endAxel(p);
           if (!clipOnce(engine, p, CUT.timeOutIdle)) engine.sfx("inui_timeout");
           logTo(engine, `⌚ ${p.name} Faiz Axel หมดเวลา`);
         }
@@ -417,8 +413,8 @@ module.exports = {
   skillMusic(engine, p) {
     if (!isInui(p) || !p.alive) return null;
     const s = st(p);
-    if (s.exceed) return { music: "inui_exceed_wait", at: s.exceedAt };
-    return s.startUp && s.startUp.started ? { music: "inui_axel", at: s.startUp.at } : null;
+    if (s.startUp && s.startUp.started) return { music: "inui_axel", at: s.startUp.at };
+    return s.exceed ? { music: "inui_exceed_wait", at: s.exceedAt } : null;
   },
 
   // ---------- ผลสกิลที่ตัดได้ (server/sever.js) ----------

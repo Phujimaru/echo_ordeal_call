@@ -20,7 +20,7 @@ const ROWS = [
 ];
 // แถวเมนูบนจอในรูป
 const MENU_Y = { 555: 220, 103: 241, 106: 262, 279: 283 };
-const RELOAD = 4, EXCEED = 4;
+const RELOAD = 2, EXCEED = 4;
 // เสียงปุ่มไล่ 3 จังหวะต่ำ กลาง สูง เหมือนเครื่องจริง (ทุกรหัสในไฟล์เสียงเรียงแบบนี้) · ตัวที่ 4 วนกลับ
 const keySfx = (typed) => `inui_key${(typed % 3) + 1}`;
 
@@ -85,7 +85,7 @@ export default function FaizPhone({ inui, points, skillUsed, onDial, onClose }) 
   }, []);
   useEffect(() => () => clearTimeout(errTimer.current), []);
 
-  const canExceed = inui.faiz && !inui.axel && !inui.exceed && !inui.startUp && (inui.knuckle || inui.pointer) && points >= EXCEED && !skillUsed;
+  const canExceed = inui.faiz && !inui.exceed && (!inui.axel || !!inui.startUp) && (inui.knuckle || inui.pointer) && points >= EXCEED && (!skillUsed || !!inui.startUp);
   const press = useCallback((k) => {
     if (k === "clear") { playSfx(keySfx(0)); setText(""); return; }
     if (k === "call") { playSfx(keySfx(0)); return; }

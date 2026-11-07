@@ -1011,7 +1011,7 @@ function statusEntries(p, full) {
     if (n.gun) out.push({ key: "inuiGun", v: 1, icon: "🔫", label: n.gun === "103" ? "Single Mode" : "Burst Mode", cls: "bg-red-500 text-white", desc: n.gun === "103" ? "ตีปกติระยะ 3 ใช้กระสุน 1 นัด" : "ตีปกติระยะ 3 อัตราคริติคอล 50% ใช้กระสุน 2 นัด" });
     if (n.knuckle) out.push({ key: "inuiKnuckle", v: 1, icon: "👊", label: "Faiz_nuckle", cls: "bg-slate-300 text-gray-900", desc: "การโจมตีปกติแรงขึ้น 1" });
     if (n.pointer) out.push({ key: "inuiPointer", v: 1, icon: "🎯", label: "Faiz_pointer", cls: "bg-slate-300 text-gray-900", desc: "แม่นยำตลอดที่สวม" });
-    if (n.axel) out.push({ key: "inuiAxel", v: n.axelLeft, turns: true, icon: "⌚", label: "Faiz Axel", cls: "bg-rose-600 text-white", desc: "อัตราคริติคอล 25% ใช้ Start Up ได้ ครบเวลากลับร่าง Faiz" });
+    if (n.axel) out.push({ key: "inuiAxel", v: n.axelLeft, turns: true, icon: "⌚", label: "Faiz Axel", cls: "bg-rose-600 text-white", desc: "ระยะเดิน 6 ใช้ Start Up ได้ ครบเวลากลับร่าง Faiz" });
     if (!n.axel && n.axelCd > 0) out.push({ key: "inuiAxelCd", v: n.axelCd, turns: true, icon: "⏳", label: "axel_watch", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงสวม axel_watch ได้อีก" });
     if (n.exceed) out.push({ key: "inuiExceed", v: 1, icon: "⚡", label: "Exceed Charge", cls: "bg-red-600 text-white", desc: n.exceed === "knuckle" ? "ระยะเดิน +2 ตีประชิดครั้งถัดไปในตานี้ ความเสียหาย 4 ลุกไหม้ 1" : "ระยะเดิน +2 ตีประชิดครั้งถัดไปในตานี้ ความเสียหาย 4 ถูกตรึง 1 เทิร์น" });
     if (n.startUp) out.push({ key: "inuiStartUp", v: 1, icon: "⏱️", label: `Start Up ${n.startUp.left}`, cls: "bg-gray-100 text-gray-900", desc: "ตีได้อีกตามจำนวนนี้ ก่อนหมดเวลา" });
