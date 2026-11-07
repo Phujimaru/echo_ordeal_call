@@ -296,6 +296,28 @@ test('วงจรจริง: ลำดับเดิน → ตาฮาค�
   assert.equal(match.actorIndex, 2);
 });
 
+test('สตั้นตอนฮาคุโนะเดินไปแล้ว: Judgment Bolt ติด 2 → ลดเหลือ 1 → ถูกข้ามตาเทิร์นหน้า', () => {
+  fakeTimers();
+  setup(2);
+  const Whistle = require('../server/whistle.js');
+  const m = boss('m'), f = boss('f');
+  match.turnOrder = [m.id, f.id, 'p0', 'p1'];
+  match.actorIndex = 2;
+  engine.setActor('p0');
+  assert.equal(action.hasActed(m.id), true);
+  assert.equal(action.hasActed(f.id), true);
+  engine.withEffectSource(P().p0, () => Whistle.cast(P().p0, 'judgmentBolt', 1));
+  assert.equal(m.statuses.stun, 2);
+  assert.equal(f.statuses.stun, 2);
+  m.statuses.stun--; f.statuses.stun--; // จบเทิร์น (endTurn)
+  match.turnOrder = [m.id, f.id, 'p0', 'p1'];
+  match.actorIndex = -1;
+  match.actorId = null;
+  action.nextActor();
+  assert.equal(match.actorId, 'p0', 'ฮาคุโนะทั้งคู่ถูกข้ามตา');
+  timers.startPhaseTimer = realStart;
+});
+
 test('ฮาคุโนะเห็นทะลุล่องหน/พุ่มหญ้า: เล็งได้ · ผู้เล่นยังมองไม่เห็นกันตามปกติ', () => {
   setup(1);
   park();

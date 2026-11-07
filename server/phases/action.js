@@ -749,7 +749,8 @@ function actionTimeUp() {
 // เดินไปแล้วในเทิร์นนี้ไหม (ตาของคนนี้ผ่านไปแล้ว — ไม่นับคนที่กำลังเดินอยู่)
 //  ระบบคู่: นับตามลำดับของเจ้าของ · ตาของฝ่ายนี้กำลังเล่น = ตัวที่จบแล้ว (ตี/รอ) นับว่าเดินแล้ว
 function hasActed(id) {
-  const side = Duo.sideKey(match.players[id]) || id;
+  //  มีชื่อตัวเองในลำดับ (ฮาคุโนะของ Moon Cell — summon.side = ฝ่ายบอส ไม่ใช่ id ในลำดับ) = ใช้ id ตรงๆ
+  const side = match.turnOrder.includes(id) ? id : (Duo.sideKey(match.players[id]) || id);
   const idx = match.turnOrder.indexOf(side);
   if (idx < 0) return false;
   if (idx === match.actorIndex && match.actorId === id) return false;
