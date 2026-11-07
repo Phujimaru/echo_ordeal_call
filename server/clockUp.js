@@ -404,6 +404,11 @@ function asViewer(viewerId, fn) {
     if (m && !m.done && viewerId !== match.actorId && match.gameState === "ACTION" && isActiveMember(viewerId)) {
       match.actorId = viewerId;
       match.action = m.act || { from: { ...match.players[viewerId].pos }, moved: false, locked: false };
+    } else if ((!m || m.done) && s.owner && match.players[s.owner] && match.actorId !== s.owner) {
+      // คนดู (ไม่ได้อยู่ในช่วง / Clock Over แล้ว): เห็นเจ้าของตาถือตาตลอดช่วง — ไม่ใช่สลับไปมาตามคนที่ส่งคำสั่ง (ป้าย "ตาของ…" เด้งรัว)
+      const om = s.members[s.owner];
+      match.actorId = s.owner;
+      if (om && om.act) match.action = om.act;
     }
     const own = m && !m.done ? m.left : Math.max(0, ...Object.values(s.members).filter((x) => !x.done).map((x) => x.left));
     match.timeLeft = own;

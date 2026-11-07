@@ -361,3 +361,19 @@ test("Clock Up หลายคน: สลับกันเดิน ทุก�
   assert.equal(engine.action.locked, false);
   assert.equal(engine.movOf(a), 7);
 });
+
+test("คนดู Clock Up เห็นเจ้าของตาถือตาตลอด — ไม่สลับตามคนที่ส่งคำสั่ง (ป้ายตาของ… ไม่เด้งรัว)", () => {
+  const [a, b] = setup(["daisuke", "tsurugi", "dummy"]);
+  rider(a); rider(b);
+  turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  tsurugi.charAction(engine, b, "zect:clock");
+  ClockUp.claim("b");
+  assert.equal(engine.actorId, "b");
+  assert.equal(engine.buildStateFor("c").actorId, "a", "คนดู");
+  assert.equal(engine.buildStateFor("b").actorId, "b", "สมาชิกเห็นตาของตัวเอง");
+  assert.equal(engine.buildStateFor("a").actorId, "a");
+  ClockUp.claim("a");
+  assert.equal(engine.buildStateFor("c").actorId, "a");
+  assert.equal(engine.actorId, "a", "คืนค่าหลังสร้าง state");
+});
