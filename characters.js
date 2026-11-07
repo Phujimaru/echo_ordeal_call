@@ -568,7 +568,7 @@ const CHARACTERS = [
     range: [1, 2],
     passive: {
       name: "Vampire",
-      desc: "ตีปกติ/สกิลโดนศัตรู 1 คน = BloodStack +1 + ฟื้นพลังชีวิต 1 · BloodStack 6: Time Meter จุ 8 · Za warudo คูลดาวน์ 3 + ทำงานทันที · BloodStack 8: ดาเมจสกิล +1 · ดูดเลือด +1 · กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1",
+      desc: "ตีปกติ/สกิลโดนศัตรู 1 คน = BloodStack +1 + ฟื้นพลังชีวิต 1 · BloodStack 4: ฟื้นพลังชีวิต +1 · BloodStack 6: Time Meter จุ 8 · Za warudo คูลดาวน์ 3 + ทำงานทันที · BloodStack 8: ดาเมจสกิล +1 · กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1 (ไม่รวมดาเมจต่อเทิร์น)",
     },
     passive2: {
       name: "Last Stand",

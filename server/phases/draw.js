@@ -90,6 +90,9 @@ function dealRound() {
     combat.broadcastHook("onRoundStartTick", engine, p);
     if (!p.alive) { skipFallen(p, cardHolder); continue; }
 
+    // ดาเมจต่อเทิร์น (DoT) ของสถานะต้นเทิร์น: match.dotTick = true ระหว่างนี้ (engine.dotTick — ดิโอ: กลางวัน/กลางคืนไม่มีผลกับ DoT)
+    match.dotTick = true;
+    try {
     // ---------- สิ่งแปลกปลอม (oblada, สถานะ Universal): ดาเมจ 1 ทุก 2 เทิร์น — ทำงานตอนเวลาคงเหลือเป็นเลขคี่ ----------
     {
       const dotDmg = ((p.statuses.oblada || 0) > 0 && p.statuses.oblada % 2 === 1) ? 1 : 0;
@@ -138,6 +141,7 @@ function dealRound() {
     // ---------- เลือดไหล (hbleed, สถานะ Universal patch 2.5): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 ----------
     tickBleed(engine, p);
     tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase
+    } finally { match.dotTick = false; }
     if (!p.alive) { skipFallen(p, cardHolder); continue; } // ตกรอบจากผลต้นเทิร์น = ไม่ได้ไพ่/ผลที่เหลือ
     // ช็อต (สถานะ Universal): โรล 15% ติดสตั้น — ต้องอยู่ก่อนบล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะเลื่อนไปมีผลเทิร์นถัดไป
     tickShock(engine, p);

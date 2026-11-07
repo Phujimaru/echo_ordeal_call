@@ -6,8 +6,8 @@
 //  Time Meter 0/6 (BloodStack 6 ขึ้นไป = 0/8): ตีปกติ +1 · ใช้สกิล +1 · เริ่มเทิร์นเป็นคนแรก +2 (ระหว่างหยุดเวลาไม่ได้)
 //  Vampire (ติดตัว): ตี/สกิลโดนศัตรู 1 คน = BloodStack +1 + ดูดเลือด 1 (ดิโอ +1 · ไม่มีดาเมจเพิ่ม)
 //    BloodStack 6 ขึ้นไป: Time Meter จุ 8 · คูลดาวน์ Za warudo 3 · Za warudo ทำงานทันที · คลิปครั้งเดียว
-//    BloodStack 8 ขึ้นไป: ดาเมจสกิลทุกท่า +1 · ดูดเลือด +1
-//    กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1
+//    BloodStack 4 ขึ้นไป: ดูดเลือด +1 · BloodStack 8 ขึ้นไป: ดาเมจสกิลทุกท่า +1 (ผู้ใช้ปรับ 2026-11-07)
+//    กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1 · ไม่ใช้กับดาเมจต่อเทิร์น (DoT ต้นเทิร์น — engine.dotTick)
 //    ถูกตี/ถูกสกิลถึงตาย = Last Stand กับผู้โจมตี (ครั้งเดียว): จั่ว/พอ เป้า 21 · แพ้ = ตาย · ชนะ (รวมเสมอ/แตกทั้งคู่) = ดูดเลือด 2
 //  Throwing knife (2 · คูลดาวน์ 3): 1 คนในแนวตรง 4 ทิศ ระยะ 4 · 1 + เลือดไหล 1 · ไม่ทะลุสิ่งกีดขวาง
 //  Stand (3): SHINEI! 2 ทะลุเกราะ + ไร้เยียวยา 2 · MUDAMUDAMUDA! 3 + ผุพัง 2 · แนว 2×1 · แบบละคูลดาวน์ 2
@@ -42,7 +42,7 @@ const ARMOR = 0;
 const MOV = 4;
 const RANGE = [1, 2];
 const METER = { max: 6, surge: 8, first: 2 };
-const BLOOD = { max: 10, surge: 6, frenzy: 8 };
+const BLOOD = { max: 10, thirst: 4, surge: 6, frenzy: 8 };
 const KNIFE = { cost: 2, cd: 3, len: 4, dmg: 1, bleed: 1 };
 const STAND_COST = 3;
 const STAND = {
@@ -91,7 +91,7 @@ const stopping = (p) => isDio(p) && !!st(p).stopping;
 const meterMax = (s) => (s.blood >= BLOOD.surge ? METER.surge : METER.max);
 const worldCd = (s) => (s.blood >= BLOOD.surge ? WORLD.cdSurge : WORLD.cd);
 const skillBonus = (s) => (s.blood >= BLOOD.frenzy ? 1 : 0);
-const drainOf = (s) => 1 + (s.blood >= BLOOD.frenzy ? 1 : 0);
+const drainOf = (s) => 1 + (s.blood >= BLOOD.thirst ? 1 : 0);
 function addMeter(p, n) {
   const s = st(p);
   if (s.stopping) return;
@@ -382,7 +382,7 @@ module.exports = {
 
   // ---------- กลางวัน/กลางคืน ----------
   adjustIncomingDamage(engine, p, n) {
-    if (!isDio(p) || !(n > 0)) return n;
+    if (!isDio(p) || !(n > 0) || engine.dotTick) return n;
     return Math.max(0, n + (engine.isNightRound(engine.worldRound) ? -1 : 1));
   },
 

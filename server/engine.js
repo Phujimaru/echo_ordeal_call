@@ -146,6 +146,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   dim: { layerOf: Dim.layerOf, same: Dim.same, ghost: Dim.ghost, enter: Dim.enter, leave: Dim.leave, membersOf: Dim.membersOf },
   // ยูนิตที่ถูกเรียก (server/summon.js — วาเลนไทน์): เรียก / เอาออกเงียบๆ / ของเจ้าของ / ตัวที่คุมได้
   summon: { spawn: Summon.spawn, remove: Summon.remove, ofOwner: Summon.ofOwner, controlledOf: Summon.controlledOf, CONTROL_SECONDS: Summon.CONTROL_SECONDS },
+  get dotTick() { return !!match.dotTick; }, // ดาเมจต่อเทิร์น (DoT) ของสถานะต้นเทิร์นกำลังลง
   get cmdSeq() { return match.cmdSeq || 0; }, // เลขคำสั่งของผู้เล่น (TimeStop.guard) — แยก "การโจมตี 1 ครั้ง"
   breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
   addChasm: action.addChasm, // ทำให้ช่องพัง ["x,y"…] (เรียวกิ — terrain "chasm" จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง

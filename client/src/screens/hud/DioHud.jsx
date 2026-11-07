@@ -22,7 +22,7 @@ export function DioGauge({ dio }) {
       <div className="dio-row">
         <span className="dio-label">Blood</span>
         <div className="dio-pips">
-          {Array.from({ length: dio.bloodMax }, (_, i) => <i key={i} className={`dio-pip red ${i < dio.blood ? "on" : ""} ${i === 5 || i === 7 ? "gate" : ""}`} />)}
+          {Array.from({ length: dio.bloodMax }, (_, i) => <i key={i} className={`dio-pip red ${i < dio.blood ? "on" : ""} ${i === 3 || i === 5 || i === 7 ? "gate" : ""}`} />)}
         </div>
         <b className="dio-num">{dio.blood}/{dio.bloodMax}</b>
       </div>

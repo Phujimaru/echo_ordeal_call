@@ -103,7 +103,7 @@ test('SHINEI! ทะลุเกราะ + ไร้เยียวยา · MU
   assert.ok(t.statuses.decay > 0);
 });
 
-test('BloodStack 6: Time Meter จุ 8 + คูลดาวน์ 3 · BloodStack 8: สกิล +1 ดูด +1', () => {
+test('BloodStack 6: Time Meter จุ 8 + คูลดาวน์ 3 · BloodStack 8: สกิล +1 · ดูด 2 (จาก BloodStack 4)', () => {
   const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
   d.dio.blood = 8; d.dio.clip6 = true; d.hp = 3; t.hp = 7; t.armor = 0;
   engine.setActor('d');
@@ -125,6 +125,32 @@ test('กลางวันโดน +1 · กลางคืนต้าน 1',
   assert.equal(dio.adjustIncomingDamage(engine, d, 2), day ? 1 : 3);
   engine.setRoundNumber(1);
   assert.equal(dio.adjustIncomingDamage(engine, d, 2), 3);
+});
+
+test('ดาเมจต่อเทิร์น (DoT) ต้นเทิร์นไม่โดนกลางวัน +1 / กลางคืน −1', () => {
+  const [d] = setup([['d', 'dio_brando', 3, 7]]);
+  const match = require('../../server/match');
+  engine.setRoundNumber(1);
+  d.hp = 9;
+  engine.applyBleed(d, 1);
+  match.dotTick = true;
+  try { require('../../characters/_universal_status').tickBleed(engine, d); } finally { match.dotTick = false; }
+  assert.equal(d.hp, 8, 'เลือดไหล 1 ไม่ +1 กลางวัน');
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../server/phases/draw.js'), 'utf8');
+  const on = src.indexOf('match.dotTick = true'), off = src.indexOf('match.dotTick = false');
+  assert.ok(on > 0 && on < src.indexOf('tickBleed(engine, p)') && src.indexOf('tickPoison(engine, p)') < off, 'ต้นเทิร์นห่อ DoT ทั้งหมด');
+});
+
+test('BloodStack 4 ขึ้นไป: ดูดเลือดฟื้น 2 · ต่ำกว่า 4 ฟื้น 1 · ดาเมจสกิลยังไม่ +1', () => {
+  for (const [blood, heal] of [[3, 1], [4, 2]]) {
+    const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+    d.dio.blood = blood; d.hp = 3; t.hp = 7; t.armor = 0;
+    engine.setActor('d');
+    engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
+    assert.equal(d.hp, 3 + heal, `BloodStack ${blood}`);
+    assert.equal(t.hp, 5, 'SHINEI! 2 ไม่มีโบนัส');
+    engine.clearPhaseTimer();
+  }
 });
 
 test('กด Za warudo ปกติ: ใช้ Meter ทั้งหมด · ต้นเทิร์นถัดไปได้ตาหยุดเวลา · จบ Action แล้วเวลาเดินต่อ ดาเมจลงพร้อมกัน', () => {

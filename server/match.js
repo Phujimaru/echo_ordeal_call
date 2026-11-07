@@ -51,6 +51,7 @@ const match = {
   flowWanted: false,   // engine.wantFlow(): มีฉากรอเล่นหลังคำสั่ง/ฉากตีนี้
   flowHandoff: null,   // engine.flowHandoff(): ฉากจบแล้วเข้าตาพิเศษ { id, kind }
   clockUp: null,       // ช่วง Clock Up (server/clockUp.js — ไรเดอร์ ZECT / Faiz Start Up): หลายคนขยับพร้อมกัน
+  dotTick: false,     // กำลังลงดาเมจต่อเทิร์นของสถานะต้นเทิร์น (phases/draw.js) — engine.dotTick
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
   tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
   shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)
