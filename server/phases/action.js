@@ -221,6 +221,8 @@ function movOf(p) {
   if (p && combat.firstHook("movBlocked", engine, p)) return 0; // เดินไม่ได้จากผลของคนอื่น (โจรุโน่: ลอยบนต้นไม้)
   const a = match.action && match.actorId === p.id ? match.action : null;
   if (a && a.canto) return a.cantoMov || 0;
+  // ช่วง Clock Up: ทุกการเดินได้ระยะเต็มจากช่องที่ยืน — ไม่หักโทษ ไม่สะสมระยะที่ใช้ไป (ผู้ใช้สั่ง 2026-11-07: ต้อง 7 เสมอ)
+  if (ClockUp.owns() && ClockUp.activeMember(p)) return baseMovOf(p);
   // Fodlan: ผลของด่าน/สภาพอากาศ (ฝนฟ้าผ่า −1 — server/fodlan/stageN.js movMod)
   const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + Fodlan.movMod(p));
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
@@ -237,6 +239,20 @@ function movPenalty(p, a) {
 // ระบบคู่: ตัวที่คุมอยู่ (p · ตา = match.action) เดินแล้วกำลังสลับออก (กระจกเงา — Duo.switchTo)
 //  → ตาที่เก็บไว้เริ่มใหม่จากช่องที่ยืน ด้วยระยะที่เหลือ (ผู้ใช้สั่ง 2026-10-18 — เดิมสลับออก = เดินต่อไม่ได้)
 //  ย้อนได้แค่ถึงช่องที่สลับออก · ไถล/ชนจนหลุดระยะ = เหลือ 0
+// ช่วง Clock Up: ตาเดินของสมาชิกเริ่มใหม่จากช่องที่ยืนเสมอ (ไม่ล็อกการเดิน ไม่ย้อนกลับจุดเริ่ม) — เรียกก่อน/หลังทุกการเดิน
+function clockFresh(p) {
+  const a = match.action;
+  if (!a || !p || !p.pos || match.actorId !== p.id || a.canto || a.noStrike) return;
+  if (!ClockUp.owns() || !ClockUp.activeMember(p) || (match.clockUp && match.clockUp.duel)) return;
+  a.from = { ...p.pos };
+  a.moved = false;
+  a.locked = false;
+  a.trail = null;
+  a.smashed = null;
+  a.iceUndo = null;
+  a.ambush = null;
+  delete a.movLeft;
+}
 function rebaseMove(p) {
   const a = match.action;
   if (!p || !p.pos || !a || !a.moved || match.actorId !== p.id) return;
@@ -750,6 +766,7 @@ function canAct(p, { move = false } = {}) {
 }
 // ใช้สกิล/ไอเทม/ซื้อของแล้ว เดินไม่ได้อีก (ยังโจมตีปกติได้) — GRID_PLAN §4 กฎพื้นฐาน
 function lockMove(p) {
+  if (ClockUp.owns() && ClockUp.activeMember(p)) return; // ช่วง Clock Up: ใช้สกิล/ไอเทมแล้วยังเดินได้เต็มระยะ
   if (canAct(p)) match.action.locked = true;
 }
 // เดินไม่ได้ ตีปกติไม่ได้ และไม่ได้เดินต่อหลังจบตา (ยังใช้สกิล/รอได้) — ขนมปังของเอมิลิโกะ
@@ -803,11 +820,11 @@ function moveTo(id, x, y, opts = {}) {
 }
 function walkTo(id, x, y, { step = false } = {}) {
   const p = match.players[id];
+  // ช่วง Clock Up (เรียลไทม์): เดินต่อจากช่องที่ยืนด้วยระยะเต็มเสมอ — ไม่ย้อนกลับไปเริ่มที่จุดเริ่มตา (ภาพไม่วาร์ปกลับ)
+  if (canAct(p, { move: true })) clockFresh(p);
   if (!canAct(p, { move: true }) || match.action.locked) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
-  // ช่วง Clock Up (เรียลไทม์): เดินต่อจากช่องที่ยืนด้วยระยะที่เหลือ — ไม่ย้อนกลับไปเริ่มที่จุดเริ่มตา (ภาพไม่วาร์ปกลับ)
-  if (ClockUp.owns() && match.action.moved) { rebaseMove(p); if (match.action.locked) return false; }
   const act = match.action, origin = act.from;
   if (x === origin.x && y === origin.y) return act.moved ? undoMove(id) : false;
   if (!step && x === p.pos.x && y === p.pos.y) return false; // คลิกช่องที่ยืนอยู่
@@ -853,6 +870,7 @@ function walkTo(id, x, y, { step = false } = {}) {
     act.trail = walked;
     act.locked = true;
     combat.runHook(trap.mod, "springTrap", engine, p, trap.tile, trap.info);
+    clockFresh(p);
     view.broadcastState();
     return true;
   }
@@ -872,6 +890,7 @@ function walkTo(id, x, y, { step = false } = {}) {
     if (act.dismount && p.pos.x === act.from.x && p.pos.y === act.from.y) { p.mountId = act.dismount; act.dismount = null; } // ชนตั้งแต่ก้าวแรก = ยังอยู่บนหลัง
     Visibility.onBump(p, match.players[hidden.id]);
     trampleAlong(p, walked, act.path);
+    clockFresh(p);
     view.broadcastState();
     return true;
   }
@@ -884,6 +903,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   if (entry <= 0) {
     afterWalk(p, walk, null, act.path, had.ice);
     trampleAlong(p, walk, act.path);
+    clockFresh(p);
     if (ClockUp.owns() && ClockUp.walked(p, act.path)) return true; // Clock Up: ภาพเดินพร้อมกัน + เดินไปติดสมาชิกฝั่งตรงข้าม = ชนกันทันที
     view.broadcastState();
     return true;
@@ -906,7 +926,7 @@ function walkTo(id, x, y, { step = false } = {}) {
     timers.clearPhaseTimer();
     match.gameState = "ATTACKING";
     timers.startPhaseTimer(Ice.fxSeconds(ctx), finishActor);
-  }
+  } else clockFresh(p);
   view.broadcastState();
   return true;
 }

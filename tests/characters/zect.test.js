@@ -92,7 +92,6 @@ test("Clock Up ในตาตัวเอง: 2 แต้ม · เดิน 7 
   t.pos = { x: 3, y: 2 };
   assert.equal(engine.attackTarget("a", "b"), true);
   engine.clearPhaseTimer();
-  engine.finishActor = engine.finishActor; // ไม่ได้ใช้
   // ฉากตีจบ → done ของ strikeTarget (ตัวจับเวลาเฟส) — เรียกตรง
   require("../../server/phases/attack");
   // จำลองฉากจบ: เรียก onExpire ที่ตั้งไว้ไม่ได้ (ล้างแล้ว) → ใช้ afterStrike ของระบบโดยตรง
@@ -309,7 +308,7 @@ test("เดินไปติดไรเดอร์ใน Clock Up = ชน�
   engine.action.from = { ...a.pos };
   assert.equal(engine.moveTo("a", 4, 5), true);
   assert.equal(engine.moveTo("a", 6, 5), true, "เดินต่อจากช่องที่ยืน");
-  assert.equal(engine.action.from.x, 4);
+  assert.equal(engine.action.from.x, 6, "ตาเริ่มใหม่จากช่องที่ยืน");
   assert.equal(engine.clockUp.active().duel, null);
   assert.equal(engine.moveTo("a", 8, 5), true);
   const d = engine.clockUp.active().duel;
@@ -320,4 +319,45 @@ test("เดินไปติดไรเดอร์ใน Clock Up = ชน�
   await new Promise((r) => setTimeout(r, 1000));
   assert.equal(d.open, true, "เดินถึง → เสียงกระแทก → หน้าต่างกดรัว");
   engine.clearPhaseTimer();
+});
+
+test("Clock Up: ทุกการเดินได้ระยะ 7 เต็มจากช่องที่ยืน · ไม่หักโทษ · ไม่ล็อกหลังเดิน/ใช้สกิล", () => {
+  const [a] = setup(["daisuke", "dummy"]);
+  rider(a);
+  turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  a.pos = { x: 2, y: 5 }; engine.players.b.pos = { x: 5, y: 9 };
+  engine.action.from = { ...a.pos };
+  a.statuses.slow = 2;
+  assert.equal(engine.movOf(a), 7, "เชื่องช้าไม่หัก");
+  assert.equal(engine.moveTo("a", 9, 5), true, "เดิน 7");
+  assert.equal(engine.action.locked, false);
+  assert.equal(engine.action.moved, false, "ตาเริ่มใหม่จากช่องที่ยืน");
+  assert.equal(engine.movOf(a), 7);
+  assert.equal(engine.moveTo("a", 2, 5), true, "เดินอีก 7");
+  require("../../server/phases/action").lockMove(a);
+  assert.equal(engine.action.locked, false, "ใช้สกิลแล้วยังเดินได้");
+  assert.equal(engine.moveTo("a", 9, 5), true, "เดินอีก 7");
+  assert.deepEqual(a.pos, { x: 9, y: 5 });
+});
+
+test("Clock Up หลายคน: สลับกันเดิน ทุกคนได้ระยะ 7 เต็มทุกครั้ง ไม่ล็อก", () => {
+  const [a, b] = setup(["daisuke", "tsurugi"]);
+  rider(a); rider(b);
+  turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  tsurugi.charAction(engine, b, "zect:clock");
+  a.pos = { x: 2, y: 5 }; b.pos = { x: 2, y: 7 };
+  engine.action.from = { ...a.pos };
+  ClockUp.memberOf(b).act = { from: { ...b.pos }, moved: false, locked: false };
+  const go = (id, x, y) => { ClockUp.claim(id); return engine.moveTo(id, x, y); };
+  for (let i = 0; i < 3; i++) {
+    const ax = i % 2 ? 2 : 9;
+    assert.equal(go("a", ax, 5), true, `a รอบ ${i}`);
+    assert.equal(go("b", ax, 7), true, `b รอบ ${i}`);
+    assert.equal(engine.movOf(b), 7);
+  }
+  ClockUp.claim("a");
+  assert.equal(engine.action.locked, false);
+  assert.equal(engine.movOf(a), 7);
 });
