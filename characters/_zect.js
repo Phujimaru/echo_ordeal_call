@@ -233,6 +233,11 @@ function makeZect(cfg) {
       if (!isMe(p) || !st(p).henshin) return null;
       return { name: cfg.rider, img: st(p).castOff ? IMG.castOff : IMG.putOn };
     },
+    // มองไม่เห็น (หมอก/พุ่มหญ้า): แปลงร่างแล้ว = ร่าง Masked เสมอ (ไม่บอก PUT ON/CAST OFF · ไม่ย้อนเป็นภาพคน)
+    unseenLook(p) {
+      if (!isMe(p) || !st(p).henshin) return null;
+      return { img: IMG.putOn, name: cfg.rider };
+    },
     skillHidden(p, tier) { return tier !== "basic" && !st(p).henshin; },
     skillPub(p, tier) {
       const s = st(p);

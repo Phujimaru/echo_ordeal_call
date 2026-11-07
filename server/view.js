@@ -431,9 +431,13 @@ function maskPub(o) {
 // ผู้ชมมองไม่เห็นคนนี้ (ล่องหน/พุ่มหญ้า/ม่านแดง — ผู้ใช้ตัดสิน "ข้อมูลอื่นซ่อน"): ค่าที่เปลี่ยนได้ลับๆ ไม่ส่ง
 //  (นักบินเปลี่ยนชิ้นส่วนระหว่างล่องหน = เลือด/แต้ม/แขนเปลี่ยน) · ค่าซ่อนเดียวกับ "ตาบอด"/"มืดบอด" ที่ client รับอยู่แล้ว
 //  (null = แถบ "???" · skillPoints -1 · ข้อมูลเฉพาะตัวละคร undefined) · ภาพประจำตัวตั้งต้น (ไม่บอกร่าง/ชุด Mark 42)
+//  ฮุค unseenLook(p) → { img, name } = หน้าตาที่คนมองไม่เห็นได้เห็นแทนภาพตั้งต้น (ไรเดอร์ ZECT: แปลงร่างแล้วเห็นร่าง Masked ไม่ใช่ภาพคน)
 function unseenPub(o, p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const look = hook && hook.unseenLook ? hook.unseenLook(p) : null;
+  const character = look ? { ...o.character, img: look.img || o.character.img, cover: look.img || o.character.cover, name: look.name || o.character.name } : o.character;
   return {
-    ...o, img: p.img, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
+    ...o, img: (look && look.img) || p.img, character, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
     mark42: null, statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
     muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,

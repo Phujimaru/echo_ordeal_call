@@ -1208,3 +1208,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เสียตาเดิน**: แทรก/เข้าร่วมก่อนถึงคิว → `p.clockSkipRound` → `nextActor` ข้าม (เดินไปแล้ว/กดในตาตัวเอง = ไม่เสีย)
 - **ชนกัน**: เดินไปติดสมาชิกฝั่งตรงข้ามที่ยังไม่จบ (หรือตีกันเอง) → `startDuel(p, t, done, leadMs)`: ATTACKING ทันที → รอหมากเดินถึง → `zect_parry` + boardFx `zectFx` `zClash` → 0.65 วิ → `duel.open` หน้าต่างกดรัว 3 วิ (publicInfo เห็นเฉพาะตอนเปิด · mash นับเฉพาะตอนเปิด) · socket `clockMash` → `mash` · ผู้ชนะ `attack.boardAttack` 1 ครั้ง (นับเป็นการตีของผู้ชนะ) · เสมอไม่มีใครตี · `pushApart` แยกฝั่งละ 2 ช่อง · client `ClockDuel` (`hud/ZectHud.jsx`)
 - **client**: `state.clockUp` (`publicInfo`) → ภาพค้าง `faizTrail: "clock"` (นานกว่า Start Up) · `.axel-world.clock` สีซีด ขอบเบลอ + `.full-force-speed` เส้นความเร็ว · เพลง `full_force` (`musicOf` ชนะทุกเพลงสกิล) · ปุ่มนอกตา `ClockUpButton` (`charAction` `zect:clock` / `inui:startup`)
+
+- **ระยะเดิน (2026-11-07):** สมาชิกเดินได้ระยะเต็ม (`baseMovOf`) จากช่องที่ยืนทุกครั้ง ไม่หักโทษ/ไม่สะสม · สกิล/ไอเทม/ไถล/กับดักไม่ล็อกการเดิน (`action.clockFresh`, `lockMove` ข้าม)
+- **คนดู:** ผู้เล่นที่ไม่ได้อยู่ในช่วง (หรือ Clock Over แล้ว) เห็นเจ้าของตาถือตาตลอดช่วง (`asViewer`) — ไม่เห็นการสลับคนถือตา ป้าย "ตาของ…" ไม่เด้งซ้ำ
+- **มองไม่เห็น:** ไรเดอร์ที่แปลงร่างแล้วขึ้นร่าง Masked (ฮุค `unseenLook`)

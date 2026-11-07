@@ -173,6 +173,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ขี่ผู้เล่นอื่น | `canRide / onMount / onFall / rideSound` — ระบบกลาง `server/ride.js` (GAME_SYSTEM §21) | socket `rideAsk` / `rideAnswer` |
 | ไม่มีดาเมจ/ดีบัฟจากคนอื่นแตะได้ | `untouchable(engine, p)` | `combat.applyDebuff` / `adjustIncomingDamage` |
 | ชื่อ/ปกตัวละครตามร่าง | `characterPub(engine, p)` → `{ name, img }` | `server/view.js` |
+| หน้าตาตอนคนอื่นมองไม่เห็น (หมอก/พุ่มหญ้า/ล่องหน — ปกติเป็นภาพตั้งต้น) | `unseenLook(p)` → `{ img, name }` (ไรเดอร์ ZECT: แปลงร่างแล้ว = ร่าง Masked ไม่ย้อนเป็นภาพคน) | `server/view.js` `unseenPub` |
 | ป้ายสกิลใช้ชื่อ/รูปของปุ่มตอนกด | `skillPub` คืน `flash: true` | `server/skills.js` |
 | เลือด/เกราะสูงสุดเฉพาะตัว | `maxHp(p)` / `maxArmor(p, base)` (base = MAX_ARMOR) | `combat.maxHpOf`/`maxArmorOf` |
 | ผลเมื่อเกราะลด (ทุกทาง) | `onArmorLost(engine, p)` (ฮิคารุ: ฟื้นพลังชีวิต 1) | `combat.loseArmor` |

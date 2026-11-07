@@ -377,3 +377,19 @@ test("คนดู Clock Up เห็นเจ้าของตาถือต�
   assert.equal(engine.buildStateFor("c").actorId, "a");
   assert.equal(engine.actorId, "a", "คืนค่าหลังสร้าง state");
 });
+
+test("มองไม่เห็น (หมอก/พุ่มหญ้า): ไรเดอร์ที่แปลงร่างแล้วขึ้นร่าง Masked ไม่ใช่ภาพคน", () => {
+  const [a] = setup(["daisuke", "dummy"]);
+  const Vis = require("../../server/visibility");
+  const real = Vis.hiddenFrom;
+  Vis.hiddenFrom = (viewer, p) => !!viewer && !!p && viewer.id === "b" && p.id === "a";
+  try {
+    let seen = engine.buildStateFor("b").players.find((p) => p.id === "a");
+    assert.equal(seen.img, a.img, "ยังไม่แปลงร่าง = ภาพตั้งต้น");
+    rider(a); // Henshin → CAST OFF
+    seen = engine.buildStateFor("b").players.find((p) => p.id === "a");
+    assert.equal(seen.img, daisuke.IMG.putOn);
+    assert.equal(seen.character.img, daisuke.IMG.putOn);
+    assert.equal(seen.hp, null, "ข้อมูลอื่นยังซ่อน");
+  } finally { Vis.hiddenFrom = real; }
+});
