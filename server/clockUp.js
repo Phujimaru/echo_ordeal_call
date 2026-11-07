@@ -16,7 +16,7 @@
 // ============================================================
 Object.assign(module.exports, {
   active, owns, memberOf, activeMember, isActiveMember, start, join, canEnter, enter, beginExtra,
-  claim, tick, afterStrike, countHit, memberFinish, duelWanted, startDuel, mash,
+  claim, tick, afterStrike, countHit, memberFinish, duelWanted, startDuel, mash, walked,
   asViewer, publicInfo, skipsRound, musicOf, forceSecond, reset,
 });
 
@@ -30,6 +30,10 @@ const Board = require("./board");
 
 const DUEL_SECONDS = 3;
 const DUEL_PUSH = 2;
+const STEP_MS = 70; // เดินในช่วง Clock Up: ms ต่อช่อง (client/src/board/BoardStage.jsx CLOCK_STEP_MS — ต้องตรงกัน)
+const CLASH_MS = 650; // ชนกัน: เสียงกระแทก + แสงปะทะบนกระดานก่อน แล้วหน้าต่างกดรัวค่อยขึ้น
+const { RESYNC_EVERY } = require("./constants");
+const { io } = require("./app");
 
 const action = () => require("./phases/action");
 
@@ -173,8 +177,21 @@ function tick() {
     return true;
   }
   restartClock();
-  view.broadcastState();
+  // ทุกวินาทีส่งแค่ "tick" (เวลาของผู้ชมแต่ละคน) — state ตัวเต็มทุกวิทำให้ทั้งจอ re-render = กระตุกเป็นจังหวะ (tickStore.js)
+  s.ticks = (s.ticks || 0) + 1;
+  if (s.ticks % RESYNC_EVERY === 0) view.broadcastState();
+  else emitTicks(s);
   return true;
+}
+function emitTicks(s) {
+  const live = Object.values(s.members).filter((x) => !x.done).map((x) => x.left);
+  const all = live.length ? Math.max(...live) : 0;
+  const Duo = require("./duo");
+  for (const p of Object.values(match.players)) {
+    if (p.duoOf || p.summon) continue;
+    const m = s.members[Duo.controlledId(p.id) || p.id];
+    io.to(p.id).emit("tick", m && !m.done ? m.left : all);
+  }
 }
 
 // ---------- นับการตี ----------
@@ -252,25 +269,56 @@ function end() {
 
 // ---------- ชนกัน: QTE กดรัว ----------
 function duelWanted(p, t) {
-  return !!(owns() && activeMember(p) && activeMember(t) && p.id !== t.id && !(match.clockUp && match.clockUp.duel));
+  return !!(owns() && activeMember(p) && activeMember(t) && p.id !== t.id && !(match.clockUp && match.clockUp.duel) && !combat.sameTeam(p, t));
 }
-function startDuel(p, t, done) {
+// ชนกัน: หมากหยุดทันที → (เดินถึงก่อน leadMs) → เสียงกระแทก + แสงปะทะ → หน้าต่างกดรัว DUEL_SECONDS วิ → ผล
+//  ระหว่างนี้ ATTACKING (นาฬิกาของช่วงหยุด) · duel.open = หน้าต่างกดรัวขึ้นแล้ว (client เห็นเฉพาะตอนเปิด)
+function startDuel(p, t, done, leadMs = 0) {
   const s = match.clockUp;
   timers.clearPhaseTimer();
-  match.action.locked = true;
-  s.duel = { a: p.id, b: t.id, counts: { [p.id]: 0, [t.id]: 0 }, until: Date.now() + DUEL_SECONDS * 1000, seq: ++duelSeq, winner: null };
-  // เสียงชนแรง (parry) — client เล่นตอนเห็น duel.seq ใหม่
-  engine.sfx("zect_parry");
-  match.lastLog.push(`💥 ${p.name} พุ่งชน ${t.name} — กดรัวแข่งกัน!`);
+  if (match.action) match.action.locked = true;
+  const d = { a: p.id, b: t.id, counts: { [p.id]: 0, [t.id]: 0 }, until: 0, seq: ++duelSeq, winner: null, open: false };
+  s.duel = d;
   match.gameState = "ATTACKING";
-  timers.startPhaseTimer(DUEL_SECONDS, () => resolveDuel(done));
+  match.lastLog.push(`💥 ${p.name} พุ่งชน ${t.name}`);
+  const live = () => match.clockUp === s && s.duel === d;
+  const clash = () => {
+    if (!live()) return;
+    // เสียงชนแรง (parry) มาก่อนทุกอย่าง + แสงปะทะกลางสองหมาก (client/src/board/zectFx.js zClash)
+    engine.sfx("zect_parry");
+    if (p.pos && t.pos) engine.boardFx("zectFx", { kind: "zClash", from: { ...p.pos }, to: { ...t.pos } });
+    timers.startPhaseTimer(CLASH_MS / 1000, open);
+  };
+  const open = () => {
+    if (!live()) return;
+    d.open = true;
+    d.until = Date.now() + DUEL_SECONDS * 1000;
+    timers.startPhaseTimer(DUEL_SECONDS, () => resolveDuel(done));
+    view.broadcastState();
+  };
+  if (leadMs > 0) timers.startPhaseTimer(leadMs / 1000, clash);
+  else clash();
   view.broadcastState();
   return true;
 }
+// เดินในช่วง Clock Up (action.walkTo — ก่อน broadcast): ภาพเดินเร็วตามเส้นทางให้ทุกคนเห็นพร้อมกัน (หลายคนเดินพร้อมกันได้)
+//  แล้วเช็คชน: หยุดติดสมาชิกฝั่งตรงข้ามที่ยังไม่จบ = ชนกันทันที (ผู้ใช้สั่ง 2026-11-07 — ไม่ต้องกดโจมตี)
+function walked(p, path) {
+  if (!owns() || match.actorId !== p.id || !activeMember(p)) return false;
+  const pts = Array.isArray(path) ? path.map((t) => ({ x: t.x, y: t.y })) : [];
+  if (pts.length > 1) view.emitVisible("clockWalk", { id: p.id, path: pts, step: STEP_MS, seq: ++walkSeq }, p);
+  const body = { ...p.pos, size: Math.max(1, p.boardSize | 0) };
+  const foe = Object.keys(match.clockUp.members).map((id) => match.players[id])
+    .find((u) => u && u.alive && u.pos && duelWanted(p, u) && Board.dist(body, { ...u.pos, size: Math.max(1, u.boardSize | 0) }) === 1);
+  if (!foe) return false;
+  const lead = Math.max(0, pts.length - 1) * STEP_MS + 40;
+  return startDuel(p, foe, () => action().finishActor(), lead);
+}
+let walkSeq = 0;
 let duelSeq = 0;
 function mash(id) {
   const d = match.clockUp && match.clockUp.duel;
-  if (!d || d.winner !== null || Date.now() > d.until) return;
+  if (!d || !d.open || d.winner !== null || Date.now() > d.until) return;
   if (!(id in d.counts)) return;
   d.counts[id] += 1;
 }
@@ -372,7 +420,7 @@ function publicInfo() {
   return {
     seq: s.seq, owner: s.owner, music: s.music,
     members: Object.entries(s.members).map(([id, m]) => ({ id, kind: m.kind, left: m.left, hits: m.hits, max: m.max, over: m.over })),
-    duel: s.duel ? { seq: s.duel.seq, a: s.duel.a, b: s.duel.b, until: s.duel.until, winner: s.duel.winner, result: s.duel.result || null } : null,
+    duel: s.duel && s.duel.open ? { seq: s.duel.seq, a: s.duel.a, b: s.duel.b, until: s.duel.until, winner: s.duel.winner, result: s.duel.result || null } : null,
     paused: !owns(),
   };
 }

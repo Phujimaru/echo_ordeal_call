@@ -140,7 +140,7 @@ test("แทรกหลังเดินไปแล้ว = ไม่เส�
   assert.equal(p.clockSkipRound, undefined, "เดินไปแล้ว ไม่เสียตา");
 });
 
-test("เข้าร่วม + ชนกัน: QTE กดรัว ผู้ชนะตี · แยกห่าง 2 ช่อง", () => {
+test("เข้าร่วม + ชนกัน: QTE กดรัว ผู้ชนะตี · แยกห่าง 2 ช่อง", async () => {
   const [a, b] = setup(["daisuke", "tsurugi"]);
   rider(a); rider(b);
   turnOf("a");
@@ -158,6 +158,11 @@ test("เข้าร่วม + ชนกัน: QTE กดรัว ผู้�
   assert.equal(engine.attackTarget("a", "b"), true);
   const d = engine.clockUp.active().duel;
   assert.ok(d, "ชนกัน = QTE");
+  assert.equal(engine.clockUp.active().duel.open, false, "เสียงกระแทกก่อน หน้าต่างกดรัวยังไม่ขึ้น");
+  engine.clockUp.mash("b");
+  assert.equal(d.counts.b, 0, "ยังไม่เปิด = ไม่นับ");
+  await new Promise((r) => setTimeout(r, 750));
+  assert.equal(d.open, true);
   for (let i = 0; i < 5; i++) engine.clockUp.mash("b");
   engine.clockUp.mash("a");
   assert.equal(d.counts.b, 5);
@@ -231,6 +236,7 @@ test("ชนกันจริง (ตัวจับเวลา): ผู้ช
   engine.action.from = { ...a.pos };
   b.armor = 0;
   engine.attackTarget("a", "b");
+  await new Promise((r) => setTimeout(r, 750));
   for (let i = 0; i < 3; i++) engine.clockUp.mash("a");
   await new Promise((r) => setTimeout(r, 3300));
   assert.equal(engine.lastAttack && engine.lastAttack.targetName, "b", "ผู้ชนะ (a) ตี b");
@@ -247,7 +253,7 @@ test("Rider Shooting ระหว่าง Clock Up = เสริมตีป�
   rider(p); turnOf("a");
   engine.useSkill("a", "secondary", []);
   engine.useSkill("a", "ultimate", []);
-  assert.equal(p.zect.shootArmed, true);
+  assert.equal(p.zect.armed, "shooting");
   assert.equal(engine.clockUp.memberOf(p).hits, 0);
   assert.equal(engine.action.locked, false, "กดแล้วยังเดินได้");
   assert.deepEqual(daisuke.skillArea(p, "ultimate", null), { kind: "self" });
@@ -256,6 +262,62 @@ test("Rider Shooting ระหว่าง Clock Up = เสริมตีป�
   assert.deepEqual(daisuke.beforeStrikeHit(engine, p, t), ["ล้างเกราะ 1"]);
   assert.equal(t.armor, 2);
   daisuke.onStrikeResolved(engine, p, t, { dodge: false });
-  assert.equal(p.zect.shootArmed, false);
+  assert.equal(p.zect.armed, null);
   assert.equal(daisuke.preAttackClip(engine, p), daisuke.CUT.rider);
+});
+
+test("ท่าไม้ตายใน Clock Up = บัฟตีปกติทุกท่า (ไม่เลือกช่อง): Sting พิษ+ผุพัง · Slash ฟันสอง+พิษ", () => {
+  Math.random = () => 0.99;
+  // Sting
+  let [p, t] = setup(["yaguruma", "dummy"]);
+  rider(p); turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  assert.deepEqual(yaguruma.skillArea(p, "ultimate", null), { kind: "self" });
+  engine.useSkill("a", "ultimate", []); // กดได้แม้ไม่มีใครในระยะ
+  assert.equal(p.zect.armed, "sting");
+  assert.equal(engine.clockUp.memberOf(p).hits, 0);
+  assert.equal(engine.action.locked, false);
+  assert.equal(yaguruma.skillPub(p, "ultimate").name, "Rider Sting ✓");
+  t.statuses.resist = 2;
+  assert.deepEqual(yaguruma.beforeStrikeHit(engine, p, t), ["ล้างต้านสถานะ"]);
+  assert.equal(yaguruma.damageBonus(engine, p, t), 2);
+  yaguruma.onStrikeLanded(engine, p, t);
+  assert.ok(t.statuses.poison > 0 && t.statuses.decay > 0);
+  yaguruma.onStrikeResolved(engine, p, t, { dodge: false });
+  assert.equal(yaguruma.preAttackClip(engine, p), yaguruma.CUT.rider);
+  // Slash
+  [p, t] = setup(["tsurugi", "dummy"]);
+  rider(p); turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  engine.useSkill("a", "ultimate", []);
+  assert.equal(p.zect.armed, "slash");
+  assert.equal(p.zect.slash, false, "ไม่มีฟันที่สองแยก");
+  t.armor = 0; t.hp = 7;
+  tsurugi.onStrikeResolved(engine, p, t, { dodge: false });
+  assert.equal(t.hp, 6, "ฟันที่สอง 1");
+  assert.ok(t.statuses.poison > 0);
+  assert.equal(tsurugi.preAttackClip(engine, p), tsurugi.CUT.slashFinal);
+});
+
+test("เดินไปติดไรเดอร์ใน Clock Up = ชนกันทันที (ไม่ต้องกดโจมตี) · เดินต่อจากช่องที่ยืน", async () => {
+  const [a, b] = setup(["daisuke", "tsurugi"]);
+  rider(a); rider(b);
+  turnOf("a");
+  engine.useSkill("a", "secondary", []);
+  tsurugi.charAction(engine, b, "zect:clock");
+  a.pos = { x: 2, y: 5 }; b.pos = { x: 9, y: 5 };
+  engine.action.from = { ...a.pos };
+  assert.equal(engine.moveTo("a", 4, 5), true);
+  assert.equal(engine.moveTo("a", 6, 5), true, "เดินต่อจากช่องที่ยืน");
+  assert.equal(engine.action.from.x, 4);
+  assert.equal(engine.clockUp.active().duel, null);
+  assert.equal(engine.moveTo("a", 8, 5), true);
+  const d = engine.clockUp.active().duel;
+  assert.ok(d, "ชนกันทันที");
+  assert.equal(d.a, "a");
+  assert.equal(engine.gameState, "ATTACKING");
+  assert.equal(d.open, false);
+  await new Promise((r) => setTimeout(r, 1000));
+  assert.equal(d.open, true, "เดินถึง → เสียงกระแทก → หน้าต่างกดรัว");
+  engine.clearPhaseTimer();
 });

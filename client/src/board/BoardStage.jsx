@@ -649,6 +649,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- แอนิเมชัน: เดิน (จาก action.path) / ถอย (ฉากตี) ----------
   const [animQ, setAnimQ] = useState([]);
   const anim = animQ[0] || null;
+  const [glides, setGlides] = useState({}); // ช่วง Clock Up: id → { key, path, stepMs } เดินพร้อมกัน (socket "clockWalk")
   const [fx, setFx] = useState([]);
   const fxSeq = useRef(0);
   const pushFx = useCallback((list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxSeq.current }))]), []);
@@ -1681,12 +1682,25 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const onZect = (ev) => {
       if (!ev || !ev.from || !ev.to || !(ev.kind in ZECT_FX_DUR)) return;
       pushFx([{ kind: ev.kind, x: ev.from.x, y: ev.from.y, to: { x: ev.to.x, y: ev.to.y }, final: !!ev.final }]);
+      // ชนกัน (Clock Up): จอสั่นทันทีพร้อมเสียงกระแทก แล้วสั่นซ้ำ
+      if (ev.kind === "zClash") { look({ x: Math.round((ev.from.x + ev.to.x) / 2), y: Math.round((ev.from.y + ev.to.y) / 2) }); if (!lowQ) { setShake((n) => n + 1); timers.current.push(setTimeout(() => setShake((n) => n + 1), 140)); } return; }
       if (!lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), ev.kind === "zUltSlash" ? 150 : 650));
     };
+    hitFx.current.zectFx = onZect; // ท่าไม้ตายเสริมตีปกติ (Clock Up): engine.boardFxAtHit — เล่นตรงจังหวะปะทะ
+    // ช่วง Clock Up (server/clockUp.js walked): เดินเร็วตามเส้นทาง ทุกคนเห็นพร้อมกัน · มาก่อน state — state ที่ตามมาไม่ต้องเลื่อนซ้ำ (dashSkip)
+    const onClockWalk = (ev) => {
+      const path = ev && Array.isArray(ev.path) ? ev.path.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : [];
+      if (path.length < 2 || ev.id == null) return;
+      const end = path[path.length - 1], a = path[path.length - 2];
+      dashSkip.current[ev.id] = end;
+      setGlides((g) => ({ ...g, [ev.id]: { key: ev.seq, path, stepMs: ev.step > 0 ? ev.step : 70 } }));
+      setFaces((f) => ({ ...f, [ev.id]: { x: Math.sign(end.x - a.x), y: Math.sign(end.y - a.y) } }));
+    };
+    socket.on("clockWalk", onClockWalk);
     socket.on("diegoFx", onDiego);
     socket.on("dioFx", onDio);
     socket.on("zectFx", onZect);
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
@@ -2546,6 +2560,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         cinema={cinema}
         shopLabel={state.shopTurnsLeft > 0 ? state.shopTurnsLeft : null}
         anim={anim}
+        glides={glides}
         fx={fx}
         zero={zeroProp}
         zeroScene={zScene}

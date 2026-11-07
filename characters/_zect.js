@@ -45,7 +45,7 @@ function fresh() {
     clockReady: 0, ultReady: 0,
     kick: 0, kickArmed: false, kickAt: 0, kickClip: false,
     slash: false, slashAt: 0,
-    endAfter: false, clockClipShown: false, shootArmed: false, shootClip: false,
+    endAfter: false, clockClipShown: false, armed: null, armClip: null, armAt: 0,
   };
 }
 
@@ -112,11 +112,13 @@ function makeZect(cfg) {
 
   // ---------- ท่าไม้ตาย ----------
   const ult = cfg.ult;
-  // ท่าที่ตีเป้าทันที (นับ 1 ครั้งระหว่าง Clock Up) — Rider Kick ไปนับตอนตีปกติ · Slash นับเฉพาะครั้งแรก
-  // Rider Shooting ระหว่าง Clock Up = เสริมตีปกติประชิดครั้งถัดไป (ผู้ใช้สั่ง 2026-11-07 — สู้ไรเดอร์ Clock Up ด้วยกันได้สูสี) · นับตอนตีลง
+  // ระหว่าง Clock Up ท่าไม้ตายทุกท่า = กดแล้วเป็นบัฟของตีปกติครั้งถัดไป ไม่ต้องเลือกช่อง (ผู้ใช้สั่ง 2026-11-07)
+  //  คลิปเล่นตอนตีลง (preAttackClip) · นับเป็นการตีครั้งนั้นเอง · Rider Kick เป็นแบบชาร์จแล้วเสริมตีปกติอยู่แล้ว
+  //  นอก Clock Up: Shooting/Sting/Slash ตีเป้าทันที (Slash นับครั้งแรก)
   const clockOn = (p) => !!require("../server/clockUp").activeMember(p);
-  const shootBuff = (p) => ult === "shooting" && clockOn(p);
-  const ultHits = (p) => (ult === "shooting" && !clockOn(p)) || ult === "sting" || (ult === "slash" && !st(p).slash);
+  const buffMode = (p) => ult !== "kick" && clockOn(p);
+  const ULT_NAME = { shooting: "Rider Shooting", sting: "Rider Sting", kick: "Rider Kick", slash: "Rider Slash" }[ult];
+  const ultHits = (p) => !buffMode(p) && (ult === "shooting" || ult === "sting" || (ult === "slash" && !st(p).slash));
   const ultArea = { shooting: { kind: "line", len: 5, width: 1, hostile: true }, sting: { kind: "target", range: 1, hostile: true }, kick: { kind: "self" }, slash: { kind: "target", range: 1, hostile: true } }[ult];
 
   // ท่าไม้ตายที่เป็นสกิล: เอฟเฟกต์บนกระดานหลังคลิปจบ (client/src/board/zectFx.js)
@@ -135,11 +137,13 @@ function makeZect(cfg) {
   function useUlt(engine, p, targets) {
     const s = st(p);
     const r = engine.roundNumber;
-    if (ult === "shooting" && clockOn(p)) {
-      s.shootArmed = true;
+    if (buffMode(p)) {
+      s.armed = ult;
+      s.armAt = engine.severStamp();
+      s.slash = false;
       s.ultReady = cdReady(engine, ULT_CD);
       engine.sfx("zect_kick_charge");
-      log(engine, `🔫 ${p.name} Rider Shooting — ตีปกติครั้งถัดไป`);
+      log(engine, `⚡ ${p.name} ${ULT_NAME} — ตีปกติครั้งถัดไป`);
       return;
     }
     if (ult === "shooting") {
@@ -242,17 +246,17 @@ function makeZect(cfg) {
         const step = Math.min(s.kick, KICK.steps.length - 1);
         return s.kickArmed ? { name: "Rider Kick ✓" } : { name: `Rider Kick ${s.kick}/${KICK.steps.length}`, cost: KICK.steps[step] };
       }
+      if (tier === "ultimate" && s.armed) return { name: `${ULT_NAME} ✓` };
       if (tier === "ultimate" && ult === "slash" && s.slash) return { name: "Rider Slash 2", cost: 0 };
-      if (tier === "ultimate" && ult === "shooting" && s.shootArmed) return { name: "Rider Shooting ✓" };
       return null;
     },
-    skillArea(p, tier, area) { return tier !== "ultimate" ? area : shootBuff(p) ? { kind: "self" } : ultArea; },
+    skillArea(p, tier, area) { return tier !== "ultimate" ? area : buffMode(p) ? { kind: "self" } : ultArea; },
     skillCost(p, tier, base) {
       const s = st(p);
       if (tier === "basic") return 0;
       if (tier === "secondary") return CLOCK_COST;
       if (ult === "kick") return KICK.steps[Math.min(s.kick, KICK.steps.length - 1)];
-      if (ult === "slash" && s.slash) return 0;
+      if (ult === "slash" && s.slash && !buffMode(p)) return 0;
       return base;
     },
     skillFree(p, tier) { return tier === "basic" || (tier === "ultimate" && ult === "slash" && st(p).slash); },
@@ -261,7 +265,7 @@ function makeZect(cfg) {
     ignoresTurnQuota(p, tier) { return tier === "basic" || (tier === "ultimate" && (ult === "kick" || (ult === "slash" && st(p).slash))); },
     keepsMove(engine, p, tier) {
       if (tier === "basic" || tier === "secondary") return true;
-      return ult === "kick" || ult === "slash" || shootBuff(p);
+      return ult === "kick" || ult === "slash" || buffMode(p);
     },
     silentFlash(p, tier) { return tier === "basic" || tier === "secondary"; },
     skillSound() { return null; },
@@ -279,7 +283,7 @@ function makeZect(cfg) {
       if (tier === "ultimate") {
         if (!s.castOff) return false;
         if (ult === "kick") return !s.kickArmed && cdLeft(s.ultReady, engine.roundNumber) === 0;
-        if (shootBuff(p)) return !s.shootArmed && cdLeft(s.ultReady, engine.roundNumber) === 0;
+        if (buffMode(p)) return !s.armed && cdLeft(s.ultReady, engine.roundNumber) === 0;
         if (ult === "slash" && s.slash) return foes(engine, p, targets).length > 0;
         if (cdLeft(s.ultReady, engine.roundNumber) > 0) return false;
         return ult === "shooting" ? true : foes(engine, p, targets).length > 0;
@@ -339,20 +343,21 @@ function makeZect(cfg) {
       if (!isMe(attacker)) return 0;
       const s = st(attacker);
       const mirror = inClock(engine, attacker) && target && engine.clockUp.activeMember(target) ? MIRROR_ATK : 0;
-      return (castOff(attacker) ? CAST_OFF_ATK : 0) + mirror + (s.kickArmed ? KICK.atk : 0) + (s.shootArmed ? SHOOT.atk : 0);
+      const armed = s.armed === "shooting" ? SHOOT.atk : s.armed === "sting" ? STING.atk : 0;
+      return (castOff(attacker) ? CAST_OFF_ATK : 0) + mirror + (s.kickArmed ? KICK.atk : 0) + armed;
     },
     attackFxNames(p) {
       const s = st(p), out = [];
       if (castOff(p)) out.push(`CAST OFF +${CAST_OFF_ATK}`);
       if (s.kickArmed) out.push("Rider Kick");
-      if (s.shootArmed) out.push("Rider Shooting");
+      if (s.armed) out.push(ULT_NAME);
       return out;
     },
     // ท่าตี/เสียงตีปกติเฉพาะตัว (client/src/board/zectFx.js · client/public/characters/zect/atk_*.m4a)
     attackStyle(p) {
       if (!isMe(p)) return null;
       const s = st(p);
-      if (s.shootArmed) return "zDrakeUlt";
+      if (s.armed === "shooting") return "zDrakeUlt";
       if (s.kickArmed) return "zKick";
       return s.henshin ? cfg.style : null;
     },
@@ -371,17 +376,33 @@ function makeZect(cfg) {
       const s = st(attacker);
       s.kickPierce = s.kickArmed && !!target && (target.statuses.resist || 0) > 0;
       if (s.kickPierce) return ["Rider Kick ทะลุเกราะ"];
-      // Rider Shooting (Clock Up): ล้างเกราะเป้า 1 ก่อนดาเมจ
-      if (s.shootArmed && target && target.alive && (target.armor || 0) > 0) {
+      if (!s.armed || !target || !target.alive) return [];
+      // ท่าไม้ตายเสริมตีปกติ (Clock Up): ผลก่อนดาเมจเหมือนท่าเดิม
+      if (s.armed === "shooting" && (target.armor || 0) > 0) {
         const strip = Math.min(SHOOT.strip, target.armor);
         target.armor -= strip;
         return [`ล้างเกราะ ${strip}`];
+      }
+      if (s.armed === "sting" && (target.statuses.resist || 0) > 0) {
+        delete target.statuses.resist;
+        if (target.statusAmt) delete target.statusAmt.resist;
+        return ["ล้างต้านสถานะ"];
+      }
+      if (s.armed === "slash") {
+        const gone = engine.stripLatestBuff(target);
+        return gone ? [`ปาดบัฟ ${gone}`] : [];
       }
       return [];
     },
     onStrikeLanded(engine, attacker, target) {
       if (!isMe(attacker)) return [];
       const s = st(attacker);
+      if (s.armed === "sting" && target && target.alive) {
+        const out = [];
+        if (engine.applyPoison(target, STING.poison)) out.push(`พิษร้าย ${STING.poison} เทิร์น`);
+        if (engine.applyDebuff(target, "decay", null, STING.decay)) out.push(`ผุพัง ${STING.decay} เทิร์น`);
+        return out;
+      }
       if (!s.kickArmed || !target || !target.alive || s.kickPierce) return [];
       const names = [];
       if (engine.applyShock(target, KICK.shock)) names.push(`ช็อต ${KICK.shock} เทิร์น`);
@@ -391,7 +412,23 @@ function makeZect(cfg) {
     onStrikeResolved(engine, attacker, target, res, { counter } = {}) {
       if (!isMe(attacker) || counter) return;
       const s = st(attacker);
-      if (s.shootArmed) { s.shootArmed = false; if (!res || !res.dodge) s.shootClip = true; return; }
+      if (s.armed) {
+        const kind = s.armed;
+        s.armed = null;
+        if (res && res.dodge) return;
+        s.armClip = kind === "slash" ? CUT.slashFinal : CUT.rider;
+        // เอฟเฟกต์ท่าไม้ตายตรงจังหวะปะทะ · Rider Slash: ฟันที่สองตามหลังตีปกติ (ลดเกราะก่อน) + พิษร้าย
+        const fxKind = { shooting: "zUltShoot", sting: "zUltSting", slash: "zUltSlash" }[kind];
+        if (target && target.pos && attacker.pos) engine.boardFxAtHit("zectFx", { kind: fxKind, from: { ...attacker.pos }, to: { ...target.pos }, final: kind === "slash" });
+        if (kind === "slash" && target && target.alive) {
+          engine.dealMixed(target, SLASH.second, true);
+          log(engine, `🦂 ${attacker.name} Rider Slash → ${target.name} -${SLASH.second} (ลดเกราะก่อน)`);
+          if (target.alive && target.hp <= 0) engine.instantDeath(target);
+          if (!target.alive) { target.pos = null; return; }
+          if (engine.applyPoison(target, SLASH.poison)) log(engine, `🦂 ${target.name} ติดพิษร้าย ${SLASH.poison} เทิร์น`);
+        }
+        return;
+      }
       if (!s.kickArmed) return;
       s.kickArmed = false;
       s.kickPierce = false;
@@ -402,7 +439,7 @@ function makeZect(cfg) {
     preAttackClip(engine, attacker) {
       if (!isMe(attacker)) return null;
       const s = st(attacker);
-      if (s.shootClip) { s.shootClip = false; return CUT.rider; }
+      if (s.armClip) { const k = s.armClip; s.armClip = null; return k; }
       if (!s.kickClip) return null;
       s.kickClip = false;
       return CUT.kickFinal;
@@ -412,7 +449,7 @@ function makeZect(cfg) {
       if (!isMe(p)) return;
       const s = st(p);
       if (s.slash) { s.slash = false; s.ultReady = cdReady(engine, ULT_CD); }
-      s.shootArmed = false;
+      s.armed = null;
     },
 
     // ---------- จังหวะเทิร์น ----------
@@ -435,7 +472,7 @@ function makeZect(cfg) {
     },
     onClockDone(engine, p, why) {
       if (!isMe(p)) return;
-      st(p).shootArmed = false; // เสริม Rider Shooting ใช้ได้เฉพาะใน Clock Up
+      st(p).armed = null; // ท่าไม้ตายเสริมตีปกติใช้ได้เฉพาะใน Clock Up
       engine.sfx("zect_clockover");
       void why;
     },
@@ -445,6 +482,7 @@ function makeZect(cfg) {
       if (!isMe(p) || !p.alive) return [];
       const s = st(p), out = [];
       if (s.slash) out.push({ key: "slash", label: "Rider Slash", at: s.slashAt, cancel: () => { s.slash = false; s.ultReady = cdReady(engine, ULT_CD); } });
+      if (s.armed) out.push({ key: "armed", label: ULT_NAME, at: s.armAt, cancel: () => { s.armed = null; } });
       if (s.kick > 0 || s.kickArmed) out.push({ key: "kick", label: "Rider Kick", at: s.kickAt, cancel: () => { s.kick = 0; s.kickArmed = false; } });
       if (s.henshin && s.castOff) out.push({ key: "castOff", label: "CAST OFF", at: s.modeAt, cancel: () => setCastOff(engine, p, false) });
       return out;
@@ -457,7 +495,7 @@ function makeZect(cfg) {
       return {
         basic: { cd: 0, locked: s.henshin && !!clock },
         secondary: { cd: cdLeft(s.clockReady, r), locked: !s.castOff || !!clock },
-        ultimate: { cd: ult === "kick" && s.kick > 0 ? 0 : cdLeft(s.ultReady, r), locked: !s.castOff || s.kickArmed },
+        ultimate: { cd: ult === "kick" && s.kick > 0 ? 0 : cdLeft(s.ultReady, r), locked: !s.castOff || s.kickArmed || !!s.armed },
       };
     },
     // players[].zect — ปุ่ม Clock Up นอกตา (ZectClock.jsx)

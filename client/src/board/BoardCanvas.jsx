@@ -32,6 +32,7 @@
 //               | { kind: "wheel", id, at, ms, dir } (โซระวิ่งในกรงจักร: ยืนที่ at เด้งถี่ขึ้นเรื่อยๆ ms มิลลิวินาที)
 //               | { kind: "fling", id, from, to, ms? } (ถูกเหวี่ยงลอยโค้งไปตกที่ to — ไกลได้หลายช่อง · ลงพื้น = สั่น)
 //               — เปลี่ยนอ็อบเจกต์ = เล่นใหม่ · จบแล้วเรียก onAnimDone()
+//   glides      { [id]: { key, path, stepMs } } — เดินตามเส้นทางพร้อมกันได้หลายตัว (ช่วง Clock Up) · key ใหม่ = เล่นใหม่ · ไม่เรียก onAnimDone
 //   fx          [{ key, kind: "slash"|"burst"|"float", x, y, text?, color?, size? }] — เอฟเฟกต์ครั้งเดียว เล่นเมื่อเห็น key ใหม่
 //               | { key, kind: "beam", x, y (ช่องคนยิง), dir: "up"|"down"|"left"|"right", len, color } — ลำแสง Beam Magnum
 //                 เริ่มช่องติดคนยิงยาว len ช่อง (ตัดที่ขอบกระดาน) · ตัวที่ยืนในแนวสั่นตอนลำแสงถึง · tone: "blue" = ปืนโซระ
@@ -287,6 +288,7 @@ export default function BoardCanvas(props) {
       rotTarget: null, turn: 0, turnFrom: 0, turnTo: 0, turnT0: 0, // มุมมอง (หน่วย 90° ต่อเนื่อง)
       hlRef: undefined, hl: prepareHighlights(null),
       anim: null,            // { obj, t0, startX, startY, done, hit }
+      glides: new Map(),     // id → { key, t0 } เดินคู่ขนาน (ช่วง Clock Up — prop glides)
       fxSeen: new Set(), fxRef: undefined, fxActive: [],
       hitT: new Map(),       // id → เวลาโดนตี (สั่น/แฟลช)
       grow: new Map(),       // id → { t0, from, to } กำลังเปลี่ยนขนาด (Echo ขยายร่าง)
@@ -614,6 +616,14 @@ export default function BoardCanvas(props) {
             const fin = animFinal(an.obj);
             if ((u.x === an.startX && u.y === an.startY) || (u.x === fin.x && u.y === fin.y)) { rx = fin.x; ry = fin.y; }
           }
+        }
+        // เดินคู่ขนาน (ช่วง Clock Up — หลายคนเดินพร้อมกัน ไม่ต่อคิว anim): เล่นตามเส้นทางนับจากเวลาที่เห็น key ใหม่
+        const gl = p.glides && p.glides[u.id];
+        if (gl && Array.isArray(gl.path) && gl.path.length > 1 && !(an && !an.done && an.obj.id === u.id)) {
+          let rec = st.glides.get(u.id);
+          if (!rec || rec.key !== gl.key) { rec = { key: gl.key, t0: now }; st.glides.set(u.id, rec); }
+          const gp = animPose({ kind: "move", path: gl.path, stepMs: gl.stepMs }, now - rec.t0);
+          if (!gp.done) { rx = gp.x; ry = gp.y; ox = 0; oy = 0; }
         }
         // ฉากของเคท & เอมิลิโกะ (บิน/ถูกดึง/พุ่ง/ฟื้น) ย้ายหมากเอง — ทับแอนิเมชันอื่น
         const sp = u.corpse ? null : shadowPose(st.fxActive, u.id, now);

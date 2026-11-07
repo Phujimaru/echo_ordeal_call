@@ -2644,7 +2644,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       )}
       {/* Start Up / ช่วง Clock Up (ไรเดอร์ ZECT): โลกสีซีด ขอบเบลอ · Start Up ในช่วง Clock Up ใช้เวลาของสมาชิก Faiz */}
       {(inuiUp || clockWorld) && <div className={`axel-world ${clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
-      {inuiUp && <AxelClock phase={phase} value={faizClock ? faizClock.left : undefined} />}
+      {inuiUp && <AxelClock phase={phase} value={faizClock && faizClock.id !== me?.id ? faizClock.left : undefined} />}
       {clockWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       <div className="deck-drawer" data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>

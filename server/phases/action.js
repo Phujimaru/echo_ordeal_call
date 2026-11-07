@@ -806,6 +806,8 @@ function walkTo(id, x, y, { step = false } = {}) {
   if (!canAct(p, { move: true }) || match.action.locked) return false;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (step && Board.dist(p.pos, { x, y }) !== 1) return false;
+  // ช่วง Clock Up (เรียลไทม์): เดินต่อจากช่องที่ยืนด้วยระยะที่เหลือ — ไม่ย้อนกลับไปเริ่มที่จุดเริ่มตา (ภาพไม่วาร์ปกลับ)
+  if (ClockUp.owns() && match.action.moved) { rebaseMove(p); if (match.action.locked) return false; }
   const act = match.action, origin = act.from;
   if (x === origin.x && y === origin.y) return act.moved ? undoMove(id) : false;
   if (!step && x === p.pos.x && y === p.pos.y) return false; // คลิกช่องที่ยืนอยู่
@@ -882,6 +884,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   if (entry <= 0) {
     afterWalk(p, walk, null, act.path, had.ice);
     trampleAlong(p, walk, act.path);
+    if (ClockUp.owns() && ClockUp.walked(p, act.path)) return true; // Clock Up: ภาพเดินพร้อมกัน + เดินไปติดสมาชิกฝั่งตรงข้าม = ชนกันทันที
     view.broadcastState();
     return true;
   }

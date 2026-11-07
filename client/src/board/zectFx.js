@@ -10,6 +10,7 @@
 //   zUltShoot  Rider Shooting: ลูกพลังงานยักษ์ → ลำแสงหนาไปเป้า → ระเบิด
 //   zUltSting  Rider Sting: สายฟ้าเหลืองรอบเข็ม → เข็มยักษ์แทง → รังผึ้งระเบิด
 //   zUltSlash  Rider Slash: ฟันไขว้พิษม่วง 2 จังหวะ (first / final)
+//  ช่วง Clock Up: zClash = หมากสองตัวชนกัน (แสงขาววาบ + คลื่นกระแทก + ประกายไฟแตกกระจาย + เส้นตัดตั้งฉาก) ก่อนหน้าต่างกดรัว
 import { P } from "./boardGeo";
 
 const TAU = Math.PI * 2;
@@ -18,6 +19,7 @@ const C = {
   bee: "255,205,40", beeDark: "40,30,10", beeHot: "255,250,200",
   gatack: "45,110,255", gold: "255,196,60", gatackHot: "210,230,255",
   sas: "176,70,255", sasHot: "240,210,255", poison: "120,255,90",
+  clash: "120,215,255", clashHot: "255,250,235", spark: "255,190,90",
 };
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rgba = (rgb, a) => `rgba(${rgb},${clamp01(a)})`;
@@ -27,7 +29,7 @@ export const ZECT_MS = { zDrake: 700, zBee: 720, zGatack: 760, zSasword: 820, zD
 // ท่าพุ่ง (lunge) ปะทะที่ ~385 ms ของ BoardCanvas · ปืนยิงจากที่ยืน
 export const ZECT_HIT_P = { zDrake: 0.42, zBee: 0.53, zGatack: 0.51, zSasword: 0.47, zDrakeUlt: 0.6, zKick: 0.55 };
 export const ZECT_LUNGE = new Set(["zBee", "zGatack", "zSasword"]);
-const ULT_MS = { zUltShoot: 1500, zUltSting: 1300, zUltSlash: 1100 };
+const ULT_MS = { zUltShoot: 1500, zUltSting: 1300, zUltSlash: 1100, zClash: 900 };
 export const ZECT_FX_DUR = { ...ZECT_MS, ...ULT_MS };
 export const isZectFx = (kind) => typeof kind === "string" && kind in ZECT_FX_DUR;
 
@@ -273,6 +275,33 @@ function ultSlash(g, e, p, seed) {
   droplets(g, B, p, seed, e.final ? 16 : 10, C.poison);
 }
 
+// ชนกัน (Clock Up): จุดกลางระหว่างสองหมาก · ช่วงแรกแสงขาวเต็มวง แล้วคลื่น/ประกายไฟกระจายออก
+function clash(g, e, p, seed) {
+  const A = bodyAt(e.x, e.y), B = bodyAt(e.to.x, e.to.y);
+  const mx = (A.bx + B.bx) / 2, my = (A.hy + B.hy) / 2, r = (A.r + B.r) / 2;
+  const o = easeOut(p), f = 1 - p;
+  const { ux, uy } = dirOf(A, B);
+  halo(g, mx, my, r * (1.4 + o * 4.5), C.clash, Math.min(1, f * 1.6));
+  if (p < 0.18) halo(g, mx, my, r * 3.2, C.clashHot, 1 - p / 0.18);
+  ring(g, mx, my, r * (0.6 + o * 7), C.clashHot, f, 7 * f + 1);
+  ring(g, mx, my, r * (0.3 + o * 4), C.clash, f * 0.9, 4 * f + 1);
+  // เส้นตัดตั้งฉากกับแนวชน (ใบมีดสองฝั่งกระทบกัน)
+  const L = r * (1.5 + o * 5);
+  g.lineCap = "round";
+  g.strokeStyle = rgba(C.clashHot, f); g.lineWidth = r * 0.22 * f + 1;
+  g.beginPath(); g.moveTo(mx - uy * L, my + ux * L); g.lineTo(mx + uy * L, my - ux * L); g.stroke();
+  g.strokeStyle = rgba(C.clash, f * 0.7); g.lineWidth = r * 0.08 + 1;
+  g.beginPath(); g.moveTo(mx - ux * L * 0.6, my - uy * L * 0.6); g.lineTo(mx + ux * L * 0.6, my + uy * L * 0.6); g.stroke();
+  // ประกายไฟ
+  for (let i = 0; i < 22; i++) {
+    const t = seed * 3 + i * 2.399, sp = 0.8 + ((i * 7) % 5) * 0.35;
+    const d0 = r * (0.2 + o * 1.6 * sp), d1 = d0 + r * (0.5 + 0.9 * f);
+    g.strokeStyle = rgba(i % 3 ? C.spark : C.clashHot, f); g.lineWidth = (1.5 + (i % 3)) * (0.4 + f);
+    g.beginPath(); g.moveTo(mx + Math.cos(t) * d0, my + Math.sin(t) * d0 * 0.75); g.lineTo(mx + Math.cos(t) * d1, my + Math.sin(t) * d1 * 0.75); g.stroke();
+  }
+  rays(g, mx, my, r * 0.4, r * (2 + o * 3), 12, seed, C.clashHot, f * 0.8, 2);
+}
+
 export function zectFx(g, e, now, lowQ) {
   if (!e.to) return;
   const dur = ZECT_FX_DUR[e.kind];
@@ -289,6 +318,7 @@ export function zectFx(g, e, now, lowQ) {
   else if (e.kind === "zUltShoot") ultShoot(g, e, p, seed);
   else if (e.kind === "zUltSting") ultSting(g, e, p, seed);
   else if (e.kind === "zUltSlash") ultSlash(g, e, p, seed);
+  else if (e.kind === "zClash") clash(g, e, p, seed);
   void lowQ;
   g.restore();
 }

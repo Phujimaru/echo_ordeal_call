@@ -189,11 +189,11 @@ const GAP = 34; // ms ระหว่างภาพ
 const trails = new Map(); // id → [{ x, y, t }]
 
 // คืนภาพค้างที่ต้องวาด (เก่าสุดก่อน) · a = ความทึบ · life/alpha = ช่วง Clock Up ค้างนานกว่า (ผู้ใช้สั่ง 2026-11-07)
-export function faizGhosts(id, now, x, y, life = LIFE, alpha = 0.5) {
+export function faizGhosts(id, now, x, y, life = LIFE, alpha = 0.5, gap = GAP) {
   let list = trails.get(id);
   if (!list) { list = []; trails.set(id, list); }
   const head = list[list.length - 1];
-  if (!head || (now - head.t >= GAP && (head.x !== x || head.y !== y))) list.push({ x, y, t: now });
+  if (!head || (now - head.t >= gap && (head.x !== x || head.y !== y))) list.push({ x, y, t: now });
   while (list.length && now - list[0].t > life) list.shift();
   return list.slice(0, -1).map((p) => ({ x: p.x, y: p.y, a: alpha * (1 - (now - p.t) / life) }));
 }
