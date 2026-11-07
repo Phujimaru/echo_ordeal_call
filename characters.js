@@ -563,7 +563,7 @@ const CHARACTERS = [
     avatar: 0,
     difficulty: "medium",
     unique: true, // เลือกได้แค่ 1 คนต่อเกม
-    img: "/characters/dio_brando/dio.webp",
+    img: "/characters/dio_brando/dio_cover.webp",
     mov: 4,
     range: [1, 2],
     passive: {
@@ -588,7 +588,7 @@ const CHARACTERS = [
       desc: "เลือก 1 อย่าง · แนว 2×1: SHINEI! 2 ทะลุเกราะ + ไร้เยียวยา 2 เทิร์น · MUDAMUDAMUDA! 3 + ผุพัง 2 เทิร์น (แบบละคูลดาวน์ 2 เทิร์น)",
       area: { kind: "line", len: 2, width: 1, hostile: true },
       cost: 3,
-      img: "/characters/dio_brando/dio_shine.jpg",
+      img: "/characters/dio_brando/dio_stand.webp",
       instant: true,
       effect: null,
     },

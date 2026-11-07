@@ -24,7 +24,7 @@ const Board = require("../server/board");
 const ID = "dio_brando";
 const DIR = "/characters/dio_brando";
 const IMG = {
-  base: `${DIR}/dio.webp`, world: `${DIR}/dio_timestop.jpg`, knife: `${DIR}/dio_knife.jpg`,
+  base: `${DIR}/dio_cover.webp`, stand: `${DIR}/dio_stand.webp`, world: `${DIR}/dio_timestop.jpg`, knife: `${DIR}/dio_knife.jpg`,
   shine: `${DIR}/dio_shine.jpg`, muda: `${DIR}/dio_muda.png`, roller: `${DIR}/dio_roadroller.jpg`,
 };
 const VIDEO = {

@@ -56,7 +56,7 @@ export default function DioFxDev({ units, setUnits, pushFx, setFocus, setFreeze 
       </div>
       {gauge && <DioGauge dio={{ meter: 5, meterMax: 8, blood: 7, bloodMax: 10, stopping: true, actions: 3, pending: 0 }} />}
       {gauge && <DioInterrupt dio={{ canInterrupt: true, interruptActions: 4 }} onPress={() => {}} />}
-      <LastStandDuel duel={duel} players={[{ id: "me", name: "ดิโอ บรันโด", img: "/characters/dio_brando/dio.webp" }, { id: "x", name: "มุยมิ", img: "/characters/muimi/muimi_skill3.webp" }]} onDraw={() => setDuel((d) => ({ ...d, hands: { ...d.hands, dio: [...d.hands.dio, ...cards(3)] }, scores: { ...d.scores, dio: d.scores.dio + 3 } }))} onStand={() => setDuel((d) => ({ ...d, winner: "dio", stood: { dio: true, foe: true }, hands: { ...d.hands, foe: cards(10, 5, 2) }, scores: { ...d.scores, foe: 17 } }))} />
+      <LastStandDuel duel={duel} players={[{ id: "me", name: "ดิโอ บรันโด", img: "/characters/dio_brando/dio_cover.webp" }, { id: "x", name: "มุยมิ", img: "/characters/muimi/muimi_skill3.webp" }]} onDraw={() => setDuel((d) => ({ ...d, hands: { ...d.hands, dio: [...d.hands.dio, ...cards(3)] }, scores: { ...d.scores, dio: d.scores.dio + 3 } }))} onStand={() => setDuel((d) => ({ ...d, winner: "dio", stood: { dio: true, foe: true }, hands: { ...d.hands, foe: cards(10, 5, 2) }, scores: { ...d.scores, foe: 17 } }))} />
     </>
   );
 }
