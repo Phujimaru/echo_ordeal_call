@@ -237,6 +237,10 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ไถลบนน้ำแข็ง (ระบบกลาง `server/ice.js`) | `onSlide(engine, p, n, ctx)` · `slideStrike(engine, p, target, n, ctx)` (ไถลชนศัตรู — ลงดาเมจเอง · เดินชน = จบตา) · `ownSpike(engine, p, ctx)` | `Ice.resolveEntry` |
 | วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit(u, dir, ctx, n = 1) / applySlow(t, turns = 3) / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 · ตัวใหญ่ 2×2 ขึ้นไปเดินเหยียบหนามน้ำแข็งได้ (`trampleSpikes` — ตัวใหญ่ใหม่ได้กติกานี้เอง) | `server/ice.js` |
 | ตีปกติไม่ได้ | `range: [1, 0]` ใน `characters.js` (ไม่มีช่องที่ตีถึง — ปืน GUTS ยังยิงได้) | – |
+| ไม่โดนผลลดระยะเดิน (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ) | `movCutImmune(p)` → true (ตรึง/เดินไม่ได้ยังมีผล · Ice Spike ติดตัว 4) | `action.movOf` · `Ice.applySlow` |
+| ไม่โดนผลของแผนที่ (น้ำแข็งกัด / สตั้นจากแผนที่) | `mapEffectImmune(p, kind)` → true · kind `"frostbite"` / `"stun"` (Ice Spike ติดตัว 5) — ผลแผนที่ใหม่ต้องถามฮุคนี้ | `server/fodlan/stage4.js` |
+| ท่าพุ่ง/ผลักเขียนเองที่หยุดเพราะหนามน้ำแข็งขวาง | `engine.ice.dashBump(u, dir)` (ส่ง iceFx เอง) / `engine.ice.bumpSpike(u, x, y, ctx)` (ในชุด iceFx ของตัวเอง) — หนามทำงานแบบไถลชน · `pushUnit` เรียกให้แล้ว | `server/ice.js` |
+| สกิลติดตัวช่องที่ 4–5 | `passive4` / `passive5` ใน characters.js (หน้าเลือกตัว + `view` ส่งให้แล้ว) | `CharacterSelect.jsx` |
 | ผู้เล่น 1 คนคุม 2 ตัว | `duo: "<id ตัวที่สอง>"` ใน characters.js (ตัวที่สอง `hidden: true`) — ระบบกลาง `server/duo.js` (GAME_SYSTEM §20 · ต้นแบบ เคท & เอมิลิโกะ) | `lobby.startMatch` |
 | สลับตัว/ตัวอีกตัวของฝ่าย | `engine.duo.switchTo / canSwitchTo / unitDone / otherUnit / moved` | `server/duo.js` |
 | เดินต่อหลังตี/รอ (canto) | `cantoMov(engine, p)` → ระยะ · `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น | `action.finishActor` |

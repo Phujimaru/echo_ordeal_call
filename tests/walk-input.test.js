@@ -51,15 +51,15 @@ test.afterEach(() => { engine.setGameMode('ffa'); engine.clearPhaseTimer(); });
 
 test('Ice Spike เดินตรงด้วยคีย์บอร์ดได้ครบระยะ (ทางที่เพิ่งเดินเป็นน้ำแข็งไม่ขวาง) · ทุกช่องที่เดินเป็นน้ำแข็ง', () => {
   const P = setup(1, [['I', 'ice_spike', 1, 5], ['B', 'dummy', 12, 9]]);
-  for (const x of [2, 3, 4, 5]) assert.equal(step('I', x, 5), true, `ก้าวไป x=${x}`);
-  assert.deepEqual(P.I.pos, { x: 5, y: 5 });
+  for (const x of [2, 3, 4]) assert.equal(step('I', x, 5), true, `ก้าวไป x=${x}`);
+  assert.deepEqual(P.I.pos, { x: 4, y: 5 });
   assert.equal(engine.action.locked, false, 'ไม่ไถล');
-  for (const x of [1, 2, 3, 4, 5]) assert.ok(iceAt(x, 5), `ช่อง ${x},5`);
-  assert.equal(step('I', 6, 5), false, 'เกินระยะเดิน 4');
-  assert.deepEqual(engine.action.path, [{ x: 4, y: 5 }, { x: 5, y: 5 }], 'ภาพเดิน = ก้าวล่าสุด');
+  for (const x of [1, 2, 3, 4]) assert.ok(iceAt(x, 5), `ช่อง ${x},5`);
+  assert.equal(step('I', 5, 5), false, 'เกินระยะเดิน 3');
+  assert.deepEqual(engine.action.path, [{ x: 3, y: 5 }, { x: 4, y: 5 }], 'ภาพเดิน = ก้าวล่าสุด');
   // วางน้ำแข็งเฉพาะช่องใหม่ (ช่องเดิมไม่เล่นซ้ำ)
   const lays = fxEvents().filter((e) => e.kind === 'lay');
-  assert.deepEqual(lays[lays.length - 1].tiles, [{ x: 5, y: 5 }]);
+  assert.deepEqual(lays[lays.length - 1].tiles, [{ x: 4, y: 5 }]);
 });
 
 test('Ice Spike ถอยกลับทับทางตัวเองด้วยคีย์บอร์ด = ไม่ไถล · ตัดเส้นทาง (น้ำแข็งช่องที่ถอยออกหาย) · ถึงจุดเริ่ม = ย้อน', () => {
@@ -71,12 +71,11 @@ test('Ice Spike ถอยกลับทับทางตัวเองด้�
   assert.ok(!iceAt(4, 5), 'ช่องที่ถอยออกไม่เป็นน้ำแข็งแล้ว');
   assert.ok(iceAt(3, 5));
   assert.deepEqual(engine.action.trail, [{ x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }]);
-  // เดินต่อแนวใหม่ได้ (ก้าวรวมยังไม่เกิน 4)
+  // เดินต่อแนวใหม่ได้ (ก้าวรวมยังไม่เกิน 3)
   assert.equal(step('I', 3, 6), true);
-  assert.equal(step('I', 3, 7), true);
-  assert.equal(step('I', 3, 8), false, 'ทางเดิมยาว 4 แล้ว และไม่มีทางอื่นที่สั้นกว่า');
+  assert.equal(step('I', 3, 7), false, 'ทางเดิมยาว 3 แล้ว และไม่มีทางอื่นที่สั้นกว่า');
   // ถอยถึงจุดเริ่ม = ย้อนการเดิน (น้ำแข็งหายหมด)
-  for (const [x, y] of [[3, 6], [3, 5], [2, 5], [1, 5]]) assert.equal(step('I', x, y), true);
+  for (const [x, y] of [[3, 5], [2, 5], [1, 5]]) assert.equal(step('I', x, y), true);
   assert.equal(engine.action.moved, false);
   for (const x of [1, 2, 3, 4]) assert.ok(!iceAt(x, 5), `ช่อง ${x},5`);
 });
@@ -97,8 +96,7 @@ test('คลิกหลังเดิน (คลิก/คีย์บอร�
   assert.equal(engine.moveTo('I', 3, 5), true);
   assert.equal(step('I', 4, 5), true);
   assert.deepEqual(engine.action.trail.map((t) => `${t.x},${t.y}`), ['1,5', '2,5', '3,5', '4,5']);
-  assert.equal(step('I', 5, 5), true);
-  assert.equal(step('I', 6, 5), false);
+  assert.equal(step('I', 5, 5), false, 'ระยะเดิน 3');
 });
 
 test('น้ำแข็งที่มีอยู่ก่อนตานี้ (ธารน้ำแข็งเก่า) ยังไถลตามปกติ ทั้งคลิกและคีย์บอร์ด', () => {

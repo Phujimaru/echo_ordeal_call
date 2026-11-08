@@ -224,7 +224,10 @@ function movOf(p) {
   // ช่วง Clock Up: ทุกการเดินได้ระยะเต็มจากช่องที่ยืน — ไม่หักโทษ ไม่สะสมระยะที่ใช้ไป (ผู้ใช้สั่ง 2026-11-07: ต้อง 7 เสมอ)
   if (ClockUp.owns() && ClockUp.activeMember(p)) return baseMovOf(p);
   // Fodlan: ผลของด่าน/สภาพอากาศ (ฝนฟ้าผ่า −1 — server/fodlan/stageN.js movMod)
-  const n = Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + Fodlan.movMod(p));
+  //  ฮุค movCutImmune (Ice Spike — ผู้ใช้สั่ง 2026-11-08): ไม่โดนผลลดระยะเดินทุกแบบ (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ) · ถูกตรึง/เดินไม่ได้ยังมีผล
+  const fod = Fodlan.movMod(p);
+  const n = Ice.movCutImmune(p) ? Math.max(0, baseMovOf(p) + Math.max(0, fod))
+    : Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + fod);
   return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)

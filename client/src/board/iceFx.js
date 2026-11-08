@@ -10,6 +10,7 @@
 //    iceBump       คนอื่นไถลชนคน (เบา)
 //    iceSpikeUp    หนามโผล่/ขึ้น Lv: วงน้ำแข็งบนพื้น (ตัวหนามพุ่งขึ้นจากพื้นวาดใน drawIceSpike ด้วย iceSpikeRise)
 //    iceSpikeBreak หนามแตก/หด: เศษหนามกระเด็น
+//    iceMelt       ทำลายธารน้ำแข็ง (Glacial Path ตัวเลือกทำลาย): แผ่นน้ำแข็งร้าวแตกเป็นเศษ
 //    iceSlow       ติดเชื่องช้า: เกล็ดน้ำแข็งเกาะรอบตัว
 //    iceRegen      ฟื้นจากไถล: ประกายเขียว-ฟ้าลอยขึ้น
 //    iceBurst      ติดตัว 3: วงคลื่นน้ำแข็งแผ่ 8 ช่องรอบตัว
@@ -29,7 +30,7 @@ function rngOf(seed) { let s = Math.abs(seed | 0) % 2147483646 || 1; return () =
 // จังหวะ (ms) — BoardStage ใช้คิวแอนิเมชัน/รอเหตุการณ์ถัดไป
 export const ICE_T = { slideStep: 62, hitStop: 190, layStep: 45, surge: 520 };
 export const ICE_FX_DUR = {
-  iceLay: 560, iceTrail: 1200, iceHit: 760, iceBump: 440, iceSpikeUp: 620, iceSpikeBreak: 700,
+  iceLay: 560, iceTrail: 1200, iceHit: 760, iceBump: 440, iceSpikeUp: 620, iceSpikeBreak: 700, iceMelt: 640,
   iceSlow: 950, iceRegen: 1000, iceBurst: 820, iceSurge: 1600, iceShake: 420,
 };
 export const isIceFx = (kind) => typeof kind === "string" && (kind in ICE_FX_DUR);
@@ -266,6 +267,22 @@ export function iceFx(g, e, now, lowQ) {
       const cx = e.x + 0.5, cy = e.y + 0.5, gone = !(e.lv > 0);
       if (!lowQ) { const [sx, sy, s] = P(cx, cy, 0.5); glow(g, sx, sy, s * 0.9, "190,230,255", 0.6 * (1 - p)); }
       burstShards(g, cx, cy, 0.5, gone ? 14 : 7, gone ? 0.8 : 0.5, t, T, e.x * 53 + e.y * 19 + (e.lv | 0), 0.1, lowQ);
+      return;
+    }
+    case "iceMelt": {
+      // แผ่นน้ำแข็งเต็มช่องจางหาย + รอยร้าวจากกลางช่อง + เศษกระเด็นต่ำ
+      const cx = e.x + 0.5, cy = e.y + 0.5;
+      g.save();
+      quad(g, e.x, e.y, 0.02 + 0.1 * easeOut3(p)); g.fillStyle = `rgba(225,246,255,${0.7 * (1 - p)})`; g.fill();
+      const R = rngOf(e.x * 41 + e.y * 23 + 7);
+      g.strokeStyle = `rgba(255,255,255,${0.9 * (1 - p)})`; g.lineWidth = 1.6;
+      for (let i = 0; i < 5; i++) {
+        const an = R() * TAU, d = 0.45 * easeOut3(clamp01(t / 220));
+        const a0 = P(cx, cy, 0.02), a1 = P(cx + Math.cos(an) * d, cy + Math.sin(an) * d, 0.02);
+        g.beginPath(); g.moveTo(a0[0], a0[1]); g.lineTo(a1[0], a1[1]); g.stroke();
+      }
+      g.restore();
+      burstShards(g, cx, cy, 0.05, 9, 0.5, t, T, e.x * 37 + e.y * 11 + 5, 0.07, lowQ);
       return;
     }
     case "iceSlow": {

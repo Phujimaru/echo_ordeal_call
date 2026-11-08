@@ -798,11 +798,19 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   หนาม — เสียเท่า Lv (`dealMixed` ต้นตอ = เจ้าของหนาม) + เชื่องช้า 1 เทิร์น · หนามลด 1 Lv · เจ้าของชนเอง = ฮุค `ownSpike` ·
   `pushUnit(u, dir, ctx, n = 1)` = ผลักทีละช่องสูงสุด n (ตัวใหญ่ = เด้ง · ช่องถัดไปไม่ว่าง = หยุดช่องก่อนหน้า + knock `collide`) ลงน้ำแข็ง = ไถลต่อแทนช่องที่เหลือ (ทอดสูงสุด 12)
   · ตายจากหนาม: `instantDeath` อยู่ใต้ต้นตอ = เจ้าของหนามด้วย → เจ้าของได้เครดิตสังหาร (ฮุค onKill)
+  · **ไถล / ถูกผลัก / พุ่งชน / เหยียบ เข้าหนาม = ทำงานเหมือนกัน** (ผู้ใช้สั่ง 2026-11-08): `pushUnit` ชนหนาม (ช่องถัดไปเป็นหนาม) → `bumpSpike(u, x, y, ctx)` → `spikeImpact` ·
+    ท่าพุ่งของตัวละครที่หยุดเพราะหนามขวาง → `engine.ice.dashBump(u, dir)` (ส่ง iceFx เอง · ผู้เรียกตัดสินว่าถูกขวางจริง — ใช้แล้ว: Lightning Sonic/Four Card ของคาซุมะ · พุ่ง Requiem ของโจรุโน่ · Papiyon/ถอยของคิงโอเจอร์)
+    · ท่าพุ่งที่พังสิ่งกีดขวางระหว่างทาง (`breakObstacles` — โซระ Mouse Separade / ตัว 3×3) = หนามแตกเฉยๆ · ตัวใหญ่ใช้ `trampleSpikes` · **ตัวละครใหม่ที่มีท่าพุ่ง/ผลักเองต้องเรียก `dashBump`/`bumpSpike`** (ยังไม่ได้ต่อ: โรลันด์ · ผลักแบบเขียนเองที่ไม่ผ่าน `pushUnit`)
 - **ผลัก/ดึงแบบบังคับลงน้ำแข็ง = ไถลต่อ** (ผู้ใช้ตัดสิน): ทุกที่ที่ตั้ง `pos` เองหลังผลัก/ดึง (Strium Ray, ปืนโซระดึง, ขยายร่างดันออก `resizeUnit`, น้ำวน, ถอยหลังตีสวน) เรียก
   `Ice.forcedSlides(moves, source)` (`moves = [{ id, from?, to, dir }]` — 1×1 ที่ยืนบนน้ำแข็งเท่านั้น · มี `from` = ใส่ knock นำหน้า) หลังเอฟเฟกต์ผลักเล่นแล้ว → iceFx ชุดเดียว
   · ก่อนส่งพิกัดให้ทุกคน (growFx / hikaruPush / iceFx) ตัวที่ถูกผลักต้อง `Ice.revealPushed(u)` ก่อน (ถูกดัน = เผยตัว: ออกจากพุ่ม + ฮุค onReveal "bump")
 - **เชื่องช้า** `statuses.slow` (`Ice.applySlow(t, turns = 3)`: −1 เดินใน `action.movOf` · ไม่ซ้อน · turns เทิร์น +1 ถ้าเป้าเดินไปแล้ว/กำลังเดิน · ต้านได้ · อยู่ใน `BASIC_DEBUFF_CLEAR`)
   · 3 เทิร์น = วางหนามทับคน · 1 เทิร์น = ไถลชนหนาม / ตัวใหญ่เหยียบหนาม / ระเบิดติดตัว 3
+  · **ได้ใหม่ = นับใหม่ตามผลล่าสุด** (ไม่เก็บค่ามากสุด — เหลือ 3 แล้วโดนผล 1 เทิร์น = 1 · ผู้ใช้สั่ง 2026-11-08 "ไม่สะสม")
+- **ไม่โดนผลลดระยะเดิน**: ฮุค `movCutImmune(p)` → true = `action.movOf` ไม่หักไพ่แตก/เชื่องช้า/`movPenalty`/สภาพอากาศ Fodlan ที่ติดลบ (ตรึง `rooted` / `movBlocked` ยังมีผล) และ `applySlow` ไม่ติด (`Ice.movCutImmune`) — Ice Spike ติดตัว 4
+- **ไม่โดนผลของแผนที่**: ฮุค `mapEffectImmune(p, kind)` — `"frostbite"` น้ำแข็งกัด (ไม่นับความอบอุ่น ไม่มีป้าย) / `"stun"` สตั้นจากแผนที่ (`server/fodlan/stage4.js mapImmune`) — Ice Spike ติดตัว 5 · ผลแผนที่ใหม่ที่ให้สตั้นต้องถามฮุคนี้
+- **ทำลายของตัวเอง** (Ice Spike ปุ่ม 2 ตัวเลือก สร้าง/ทำลาย — `skillPub` choices · `skillArea(opts.form === "break")` = `{ kind: "tile", place: "list", tiles }` ทั้งแผนที่):
+  `ownIceTiles/ownSpikeTiles(owner)` · `ownIceAt/ownSpikeAt` · `meltIce(x, y)` (iceFx `melt { tiles }` → client `iceMelt`) · `breakSpike(x, y)` (หายทุก Lv → ผู้เรียกวางน้ำแข็งแทน · iceFx `spikeDown lv 0` + `lay`)
 - **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 1, 1] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
   สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ขยายร่าง/วางตัวใหญ่ทับ = พัง (`breakObstacles` → `smashedSpikes`)
   · **ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนามได้** (`Board.bigFits` ไม่นับหนามเป็นสิ่งกีดขวาง · ไม่กินก้าวพัง) → `action.trampleAlong` → `Ice.trampleSpikes`:

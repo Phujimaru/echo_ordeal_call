@@ -117,6 +117,8 @@ function skillRows(sel) {
   push("ติดตัว", sel.passive);
   push("ติดตัว 2", sel.passive2);
   push("ติดตัว 3", sel.passive3);
+  push("ติดตัว 4", sel.passive4);
+  push("ติดตัว 5", sel.passive5);
   push("สกิลพื้นฐาน", sel.basic);
   push("สกิลรอง", sel.secondary);
   push("ท่าไม้ตาย", sel.ultimate);
@@ -166,7 +168,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   const withMode = (c) => {
     const m = c && Array.isArray(c.modes) ? c.modes.find((x) => x.key === modeKey(c)) : null;
     if (!m || !m.charName) return c;
-    return { ...c, name: m.charName, passive: m.passive, passive2: m.passive2, passive3: m.passive3, basic: m.basic, secondary: m.secondary, ultimate: m.ultimate };
+    return { ...c, name: m.charName, passive: m.passive, passive2: m.passive2, passive3: m.passive3, passive4: m.passive4, passive5: m.passive5, basic: m.basic, secondary: m.secondary, ultimate: m.ultimate };
   };
   const sel = roster.find((c) => c.id === picked);
   const shown = withMode(roster.find((c) => c.id === (picked || shownId)));
