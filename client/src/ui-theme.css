@@ -97,18 +97,18 @@
 :root[data-ui="dark"] .dd-btn { filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
 
 /* ---------- ปุ่มโจมตี ---------- */
-:root[data-ui="dark"] .ab { color: #e8f0fa; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
-:root[data-ui="dark"] .ab-bg { background: linear-gradient(90deg, #ff6b80 0 6px, transparent 6px), var(--ocw-lattice), var(--ocw-paper); }
-:root[data-ui="dark"] .ab-bg::before { border-color: rgba(127,184,230,.5); }
-:root[data-ui="dark"] .ab-bg::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%); }
-:root[data-ui="dark"] .ab-hex::after,
+:root[data-ui="dark"] .atkb { color: #e8f0fa; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+:root[data-ui="dark"] .atkb-bg { background: linear-gradient(90deg, #ff6b80 0 6px, transparent 6px), var(--ocw-lattice), var(--ocw-paper); }
+:root[data-ui="dark"] .atkb-bg::before { border-color: rgba(127,184,230,.5); }
+:root[data-ui="dark"] .atkb-bg::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%); }
+:root[data-ui="dark"] .atkb-hex::after,
 :root[data-ui="dark"] .bb-hex::after { background: var(--ocw-d-hex); }
-:root[data-ui="dark"] .ab-blade { fill: #e8f0fa; stroke: #0b1a35; }
-:root[data-ui="dark"] .ab-grip { stroke: #bcd6f2; }
-:root[data-ui="dark"] .ab-chev i { background: #ff6b80; }
-:root[data-ui="dark"] .ab-count,
+:root[data-ui="dark"] .atkb-blade { fill: #e8f0fa; stroke: #0b1a35; }
+:root[data-ui="dark"] .atkb-grip { stroke: #bcd6f2; }
+:root[data-ui="dark"] .atkb-chev i { background: #ff6b80; }
+:root[data-ui="dark"] .atkb-count,
 :root[data-ui="dark"] .bb-count { box-shadow: 0 0 0 2px var(--ocw-d-deep); }
-:root[data-ui="dark"] .ab[data-off="true"] .ab-bg { background: var(--ocw-lattice), linear-gradient(115deg, rgba(32,54,92,.9), rgba(20,38,70,.85)); }
+:root[data-ui="dark"] .atkb[data-off="true"] .atkb-bg { background: var(--ocw-lattice), linear-gradient(115deg, rgba(32,54,92,.9), rgba(20,38,70,.85)); }
 
 /* ---------- ปุ่มกระเป๋า ---------- */
 :root[data-ui="dark"] .bb { color: #e8f0fa; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
