@@ -1186,6 +1186,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ขอฉากจากนอก useSkill ของตัวเอง**: `engine.wantFlow()` (คิวคลิป/ผลหลังคลิป/จังหวะพักไว้ก่อน) — เล่นเมื่อจบคำสั่ง (`TimeStop.guard`) · จบฉากตี (`strikeTarget.done`) · ก่อนจบตา (`finishActor`)
 - **ข้อมูลต่อผู้ชม**: `state.dioDuel` จาก `duelView(engine, [viewerId, controlId])` — ของที่ต้องซ่อนจากบางคนใส่ใน `buildStateFor` ห้ามใช้ `boardPublic` (ส่งก้อนเดียวทุกคน)
 - คนที่เวลาหยุดอยู่ตีสวนไม่ได้ (`attack.counterAndPush` เช็ค `match.timeFreeze`)
+- **ราคา/จำนวนครั้งในร่างหยุดเวลาของดิโอ** (เนิฟ 2026-11-08): `actionCost` (มีด 1 · Stand `STAND_ACTIONS` 3 · Road Roller `ROLLER.actions` 3) · มีดจำกัด `KNIFE.stopUses` 2 ครั้งต่อการหยุดเวลา นับใน `p.dio.knives` รีเซ็ทใน `startStop` · ปิดปุ่มผ่าน `skillLocks` · มีดไม่ได้ BloodStack (`drain(..., { stack: false })`)
 - **Return to Zero ชนะดิโอทุกทาง (ผู้ใช้ย้ำ 2026-11-05)**: กดท่าไม้ตายนอกตาตัวเองไม่ผ่าน `useSkill` → เรียก `engine.timeStop.denyPress(p)` ก่อนหักอะไร = คิวคลิปแล้วกลับตาเดิม ไม่เสียอะไร · ดิโอกดซ้ำไม่ได้จนจบตาคนนั้น (`deniedAt` กันถ่วงเวลา) ·
   `rewindTurn` จดผู้หยุดเวลาก่อนย้อน แล้ว broadcast `onFreezeBroken` แม้จุดย้อนจดก่อนเวลาหยุด · ฮุค `rewindEndsExtra` = ถูกย้อนในตาพิเศษแล้วจบตานั้น ไม่เหลือตาแถม · ตาที่ถูกแทรกเก็บจุดย้อนทั้งตาใน `resume.turn` — `resumeFrom` คืน `match.tsTurn` (ไม่งั้นย้อนไปต้นตาพิเศษ) · เทสต์ `tests/characters/dio_vs_requiem.test.js`
 

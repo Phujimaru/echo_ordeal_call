@@ -5,6 +5,7 @@
 //  พลังชีวิต 9 · เกราะ 0 · เดิน 4 · ตีปกติ [1, 2] · พลังโจมตี 1
 //  Time Meter 0/6 (BloodStack 6 ขึ้นไป = 0/8): ตีปกติ +1 · ใช้สกิล +1 · เริ่มเทิร์นเป็นคนแรก +2 (ระหว่างหยุดเวลาไม่ได้)
 //  Vampire (ติดตัว): ตี/สกิลโดนศัตรู 1 คน = BloodStack +1 + ดูดเลือด 1 (ดิโอ +1 · ไม่มีดาเมจเพิ่ม)
+//    มีดไม่ได้ BloodStack (ยังดูดเลือด — เนิฟผู้ใช้ 2026-11-08)
 //    BloodStack 6 ขึ้นไป: Time Meter จุ 8 · คูลดาวน์ Za warudo 3 · Za warudo ทำงานทันที · คลิปครั้งเดียว
 //    BloodStack 4 ขึ้นไป: ดูดเลือด +1 · BloodStack 8 ขึ้นไป: ดาเมจสกิลทุกท่า +1 (ผู้ใช้ปรับ 2026-11-07)
 //    กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1 · ไม่ใช้กับดาเมจต่อเทิร์น (DoT ต้นเทิร์น — engine.dotTick)
@@ -13,7 +14,8 @@
 //  Stand (3): SHINEI! 2 ทะลุเกราะ + ไร้เยียวยา 2 · MUDAMUDAMUDA! 3 + ผุพัง 2 · แนว 2×1 · แบบละคูลดาวน์ 2
 //  Za warudo!!!!!! (Time Meter ทั้งหมด = จำนวน Action · คูลดาวน์ 4): ปกติทำงานต้นเทิร์นถัดไป ·
 //    กดตอนตาคนอื่นได้ (แทรกตา — เสียเพิ่ม 1 · รวมตอนคนอื่นหยุดเวลา แล้วคืนตาเขา)
-//  ร่างหยุดเวลา (ตาพิเศษ): มีด 1 Action · Stand 1 Action · ตีปกติ 1 Action (ไม่จบตา) · เดินฟรี · Road Roller 2 Action
+//  ร่างหยุดเวลา (ตาพิเศษ): มีด 1 Action (2 ครั้งต่อการหยุดเวลา) · Stand 3 Action · ตีปกติ 1 Action (ไม่จบตา) · เดินฟรี ·
+//    Road Roller 3 Action (เนิฟผู้ใช้ 2026-11-08 — เดิม มีด/Stand 1 · Road Roller 2 · มีดไม่จำกัด)
 //    ดาเมจลงพร้อมกันตอนเวลาเดินต่อ (ทอยหลบตอนกด) · Action หมด = เวลาเดินต่อ
 //  Road Roller: 1 คนในกรอบ 5×5 · ลอยออก → คลิป → รถตกพร้อมดิโอ → ต่อยรถรัวจนระเบิด · 3 · ดิโอลงข้างเป้า · เวลาเดินต่อทันที
 //
@@ -43,15 +45,16 @@ const MOV = 4;
 const RANGE = [1, 2];
 const METER = { max: 6, surge: 8, first: 2 };
 const BLOOD = { max: 10, thirst: 4, surge: 6, frenzy: 8 };
-const KNIFE = { cost: 2, cd: 3, len: 4, dmg: 1, bleed: 1 };
+const KNIFE = { cost: 2, cd: 3, len: 4, dmg: 1, bleed: 1, stopUses: 2 }; // stopUses = ครั้งต่อการหยุดเวลา 1 ครั้ง
 const STAND_COST = 3;
+const STAND_ACTIONS = 3; // ร่างหยุดเวลา
 const STAND = {
   shine: { name: "SHINEI!", img: IMG.shine, dmg: 2, pierce: true, status: "nohealing", turns: 2, cd: 2, sfx: SFX.shine },
   muda: { name: "MUDAMUDAMUDA!", img: IMG.muda, dmg: 3, pierce: false, status: "decay", turns: 2, cd: 2, sfx: SFX.muda },
 };
 const STAND_LEN = 2;
 const WORLD = { cd: 4, cdSurge: 3, tax: 1 };
-const ROLLER = { actions: 2, dmg: 3, reach: 2 };
+const ROLLER = { actions: 3, dmg: 3, reach: 2 };
 const LAST = { win: 2, seconds: 30, botStop: 17, target: 21 };
 // จังหวะเอฟเฟกต์ (วินาที) — ต้องตรงกับ DIO_FX ใน client/src/board/dioFx.js
 const FX = { knife: 0.55, shine: 0.95, muda: 2.4, press: 1.1, stop: 2.5, resume: 2.2, lift: 0.9, slam: 0.5, rush: 2.5, boom: 1.5, result: 3.6 };
@@ -78,7 +81,7 @@ function fresh() {
     meter: 0, blood: 0,
     knifeReady: 0, shineReady: 0, mudaReady: 0, worldReady: 0, worldSever: 0,
     pending: 0, pendingRound: 0, // Action ที่รอเริ่มหยุดเวลา (ต้นเทิร์นถัดไป / ตาที่แทรก)
-    stopping: false, actions: 0, savedQuota: false, deniedAt: null,
+    stopping: false, actions: 0, knives: 0, savedQuota: false, deniedAt: null, // knives = มีดที่ปาในการหยุดเวลาครั้งนี้
     lastUsed: false, duelPending: false, duelFoe: null, duel: null,
     clip6: false, want6: false, startVoice: false,
   };
@@ -103,16 +106,17 @@ function settle(engine, t) {
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
 }
 // Vampire: โดนศัตรู 1 คน = ดูดเลือด (ดิโอ +n · ไม่มีดาเมจเพิ่มจากการตี/สกิลนั้น — ผู้ใช้แก้ 2026-11-05) + BloodStack +1
-function drain(engine, p, t, at) {
+//  stack: false = ดูดเลือดอย่างเดียว ไม่ได้ BloodStack (มีด)
+function drain(engine, p, t, at, { stack = true } = {}) {
   const s = st(p);
   const n = drainOf(s);
   const healed = engine.healHp(p, n);
-  s.blood = Math.min(BLOOD.max, s.blood + 1);
-  if (s.blood >= BLOOD.surge && !s.clip6) { s.clip6 = true; s.want6 = true; }
+  if (stack) s.blood = Math.min(BLOOD.max, s.blood + 1);
+  if (stack && s.blood >= BLOOD.surge && !s.clip6) { s.clip6 = true; s.want6 = true; }
   fx(engine, p, "drain", { targetId: t.id, from: at || (t.pos ? { ...t.pos } : null), healed, blood: s.blood });
 }
 // ดาเมจสกิลของดิโอ 1 เป้า: ทอยหลบ (แม่นยำเจาะ) · กันทั้งก้อนได้ · BloodStack 8 +1 · เปราะบางบวก → ดูดเลือด
-function standHit(engine, p, t, name, base, pierce) {
+function standHit(engine, p, t, name, base, pierce, { stack = true } = {}) {
   t.wasAttacked = true;
   const at = t.pos ? { ...t.pos } : null;
   if (engine.skillDodge(p, t, name)) return { dodge: true };
@@ -123,7 +127,7 @@ function standHit(engine, p, t, name, base, pierce) {
   else engine.dealMixed(t, n, false);
   engine.log(`${p.name} ${name} → ${t.name} -${n}${pierce ? " (ทะลุเกราะ)" : ""}`);
   settle(engine, t);
-  drain(engine, p, t, at);
+  drain(engine, p, t, at, { stack });
   return { dmg: n };
 }
 // คลิป BloodStack 6: เล่นหลังเอฟเฟกต์/เสียงของท่านี้จบ (กฎผู้ใช้ 2026-11-03 — ไม่ซ้อนวีดีโอ)
@@ -151,8 +155,9 @@ function knifeCells(engine, p) {
 function throwKnife(engine, p, t) {
   const s = st(p);
   if (!s.stopping) s.knifeReady = engine.roundNumber + KNIFE.cd;
+  else s.knives = (s.knives || 0) + 1;
   const to = t.pos ? { ...t.pos } : null;
-  const res = standHit(engine, p, t, "Throwing knife", KNIFE.dmg, false);
+  const res = standHit(engine, p, t, "Throwing knife", KNIFE.dmg, false, { stack: false });
   if (res.dmg && t.alive && engine.applyBleed(t, KNIFE.bleed) > 0) engine.log(`🩸 ${t.name} เลือดไหล ${KNIFE.bleed}`);
   fx(engine, p, "knife", { from: { ...p.pos }, to, targetId: t.id, dodge: !!res.dodge, frozen: s.stopping });
   return FX.knife;
@@ -180,6 +185,7 @@ function startStop(engine, p, kind) {
   const s = st(p);
   s.stopping = true;
   s.actions = s.pending;
+  s.knives = 0;
   s.pending = 0;
   s.savedQuota = !!p.skillUsedRound;
   p.skillUsedRound = false;
@@ -364,11 +370,12 @@ function finishDuel(engine, p) {
   });
 }
 
-const actionCost = (tier) => (tier === "ultimate" ? ROLLER.actions : 1);
+const actionCost = (tier) => (tier === "ultimate" ? ROLLER.actions : tier === "secondary" ? STAND_ACTIONS : 1);
+const knifeLeft = (s) => Math.max(0, KNIFE.stopUses - (s.knives || 0));
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, SFX, HP, ARMOR, MOV, RANGE, METER, BLOOD, KNIFE, STAND, STAND_COST, WORLD, ROLLER, LAST, FX,
+  IMG, VIDEO, CUT, SFX, HP, ARMOR, MOV, RANGE, METER, BLOOD, KNIFE, STAND, STAND_COST, STAND_ACTIONS, WORLD, ROLLER, LAST, FX,
   isDio, handScore,
   duelResolveForTest: resolveDuel,
 
@@ -402,10 +409,10 @@ module.exports = {
     if (tier === "basic" && s.stopping) return { cost: 0, costLabel: "1 Action" };
     if (tier === "secondary") {
       return {
-        ...(s.stopping ? { cost: 0, costLabel: "1 Action" } : {}),
+        ...(s.stopping ? { cost: 0, costLabel: `${STAND_ACTIONS} Action` } : {}),
         choices: Object.keys(STAND).map((k) => ({
           key: k, name: STAND[k].name, img: STAND[k].img, desc: STAND_DESC[k], area: LINE_AREA,
-          cost: s.stopping ? 0 : STAND_COST, actions: s.stopping ? 1 : 0, cd: cdLeft(s[`${k}Ready`], r),
+          cost: s.stopping ? 0 : STAND_COST, actions: s.stopping ? STAND_ACTIONS : 0, cd: cdLeft(s[`${k}Ready`], r),
         })),
       };
     }
@@ -417,8 +424,8 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     if (!p.pos) return false;
     const t = (targets || []).map((id) => engine.players[id]).find((u) => foe(engine, p, u));
-    if (tier === "basic") return !!t && (s.stopping ? s.actions >= 1 : cdLeft(s.knifeReady, r) === 0);
-    if (tier === "secondary") return !!STAND[opts.form] && cdLeft(s[`${opts.form}Ready`], r) === 0 && (!s.stopping || s.actions >= 1);
+    if (tier === "basic") return !!t && (s.stopping ? s.actions >= 1 && knifeLeft(s) > 0 : cdLeft(s.knifeReady, r) === 0);
+    if (tier === "secondary") return !!STAND[opts.form] && cdLeft(s[`${opts.form}Ready`], r) === 0 && (!s.stopping || s.actions >= STAND_ACTIONS);
     if (tier === "ultimate") {
       if (s.stopping) return !!t && s.actions >= ROLLER.actions;
       return s.meter >= 1 && !s.pending && cdLeft(s.worldReady, r) === 0;
@@ -474,7 +481,11 @@ module.exports = {
     if (!isDio(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     if (s.stopping) {
-      return { basic: { cd: 0, locked: s.actions < 1 }, secondary: { cd: 0, locked: s.actions < 1 }, ultimate: { cd: 0, locked: s.actions < ROLLER.actions } };
+      return {
+        basic: { cd: 0, locked: s.actions < 1 || knifeLeft(s) === 0 },
+        secondary: { cd: 0, locked: s.actions < STAND_ACTIONS },
+        ultimate: { cd: 0, locked: s.actions < ROLLER.actions },
+      };
     }
     return {
       basic: { cd: cdLeft(s.knifeReady, r), locked: false },

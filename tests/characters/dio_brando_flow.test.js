@@ -108,7 +108,7 @@ test('สกิลศัตรูฆ่าดิโอกลางตา = ด�
 
 test('แทรกตา → เวลาหยุด → ใช้ Action หมด → เวลาเดินต่อ ดาเมจลง → กลับตาเดิม', (t) => {
   const [d, a] = setup([['d', 'dio_brando', 3, 7], ['a', 'dummy', 5, 7], ['c', 'dummy', 12, 7]]);
-  a.hp = 7; a.armor = 0; d.dio.meter = 2;
+  a.hp = 7; a.armor = 0; d.dio.meter = 4;
   engine.setActor('a');
   engine.startPhaseTimer(40, () => {});
   adv(t, 10);
@@ -119,8 +119,8 @@ test('แทรกตา → เวลาหยุด → ใช้ Action ห�
   assert.equal(engine.gameState, 'ACTION');
   assert.equal(engine.actorId, 'd');
   assert.ok(engine.timeStop.frozen());
-  assert.equal(d.dio.actions, 1);
-  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
+  assert.equal(d.dio.actions, 3);
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' }); // Stand 3 Action = หมด
   assert.equal(a.hp, 4, 'ดาเมจจริง (ผู้ชมยังเห็นเดิม)');
   adv(t, 8); // ฉากสกิล + เวลาเดินต่อ
   assert.equal(engine.timeStop.frozen(), null);
@@ -163,7 +163,7 @@ test('Road Roller → คลิป → ลงข้างเป้า → เว
   adv(t, 6);
   assert.equal(d.dio.actions, 5);
   engine.useSkill('d', 'ultimate', ['a']);
-  assert.equal(d.dio.actions, 3);
+  assert.equal(d.dio.actions, 2, 'Road Roller 3 Action');
   adv(t, 1);
   assert.equal(engine.gameState, 'CUTSCENE');
   adv(t, 5);

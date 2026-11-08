@@ -155,11 +155,11 @@ test('BloodStack 4 ขึ้นไป: ดูดเลือดฟื้น 2 ·
 
 test('กด Za warudo ปกติ: ใช้ Meter ทั้งหมด · ต้นเทิร์นถัดไปได้ตาหยุดเวลา · จบ Action แล้วเวลาเดินต่อ ดาเมจลงพร้อมกัน', () => {
   const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
-  d.dio.meter = 3; t.hp = 7; t.armor = 0;
+  d.dio.meter = 4; t.hp = 7; t.armor = 0;
   engine.setActor('d');
   engine.useSkill('d', 'ultimate', []);
   assert.equal(d.dio.meter, 0);
-  assert.equal(d.dio.pending, 3);
+  assert.equal(d.dio.pending, 4);
   assert.equal(d.dio.worldReady, engine.roundNumber + 4);
   engine.setRoundNumber(engine.roundNumber + 1);
   dio.onOrderBegin(engine);
@@ -168,14 +168,93 @@ test('กด Za warudo ปกติ: ใช้ Meter ทั้งหมด · �
   engine.timeStop.interrupt('d', 'dioWorld', 30);
   engine.clearPhaseTimer();
   assert.equal(d.dio.stopping, true);
-  assert.equal(d.dio.actions, 3);
+  assert.equal(d.dio.actions, 4);
   assert.ok(engine.timeStop.frozen());
   engine.setGameState('ACTION');
   engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'muda' });
   engine.clearPhaseTimer();
   assert.equal(t.hp, 4, 'ดาเมจจริงลงแล้ว (3)');
   assert.equal(engine.timeStop.frozen().held.t.hp, 7, 'ผู้ชมยังเห็นเลือดเดิม');
-  assert.equal(d.dio.actions, 2);
+  assert.equal(d.dio.actions, 1, 'Stand 3 Action');
+});
+
+// เนิฟผู้ใช้ 2026-11-08: มีด 1 Action ได้ 2 ครั้งต่อการหยุดเวลา · Stand / Road Roller 3 Action · มีดไม่ได้ BloodStack
+function enterStop(d, n) {
+  d.dio.pending = n;
+  d.dio.pendingRound = engine.roundNumber - 1;
+  engine.setGameState('ACTION');
+  engine.timeStop.interrupt('d', 'dioWorld', 30);
+  engine.clearPhaseTimer();
+  engine.setGameState('ACTION');
+  assert.equal(d.dio.stopping, true);
+  assert.equal(d.dio.actions, n);
+}
+
+test('ร่างหยุดเวลา: มีด 1 Action ใช้ได้ 2 ครั้ง · ครั้งที่ 3 กดไม่ได้ · หยุดเวลาครั้งใหม่นับใหม่', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 7, 7]]);
+  t.hp = 9; t.armor = 0;
+  enterStop(d, 6);
+  for (let i = 0; i < 2; i++) { engine.useSkill('d', 'basic', ['t']); engine.clearPhaseTimer(); engine.setGameState('ACTION'); }
+  assert.equal(d.dio.actions, 4);
+  assert.equal(d.dio.knives, 2);
+  assert.equal(dio.skillLocks(engine, d).basic.locked, true);
+  engine.useSkill('d', 'basic', ['t']);
+  engine.clearPhaseTimer();
+  assert.equal(d.dio.actions, 4, 'ครั้งที่ 3 ไม่ทำงาน ไม่เสีย Action');
+  assert.equal(d.dio.knives, 2);
+  assert.equal(d.dio.knifeReady, 0, 'มีดในร่างหยุดเวลาไม่ติดคูลดาวน์นอกร่าง');
+  // หยุดเวลาครั้งใหม่ = มีดนับใหม่
+  d.dio.stopping = false;
+  engine.timeStop.unfreeze();
+  enterStop(d, 2);
+  assert.equal(d.dio.knives, 0);
+  assert.equal(dio.skillLocks(engine, d).basic.locked, false);
+});
+
+test('ร่างหยุดเวลา: Stand ใช้ 3 Action · Action ไม่พอกดไม่ได้ · ป้ายบนปุ่มเป็น 3 Action', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  t.hp = 9; t.armor = 0;
+  enterStop(d, 2);
+  assert.equal(dio.skillLocks(engine, d).secondary.locked, true);
+  const pub = dio.skillPub(d, 'secondary');
+  assert.equal(pub.costLabel, '3 Action');
+  assert.ok(pub.choices.every((c) => c.actions === 3 && c.cost === 0));
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
+  engine.clearPhaseTimer();
+  assert.equal(d.dio.actions, 2, 'Action ไม่พอ ไม่ทำงาน');
+  assert.equal(t.hp, 9);
+  d.dio.actions = 3;
+  assert.equal(dio.skillLocks(engine, d).secondary.locked, false);
+  engine.useSkill('d', 'secondary', [], { dir: 'right', form: 'shine' });
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 7);
+  assert.equal(d.dio.actions, 0);
+});
+
+test('ร่างหยุดเวลา: Road Roller 3 Action · มี 2 กดไม่ได้', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 5, 7]]);
+  enterStop(d, 2);
+  assert.equal(dio.skillLocks(engine, d).ultimate.locked, true);
+  assert.equal(dio.skillPub(d, 'ultimate').costLabel, '3 Action');
+  assert.equal(dio.canUseSkill(engine, d, 'ultimate', ['t']), false);
+  d.dio.actions = 3;
+  assert.equal(dio.canUseSkill(engine, d, 'ultimate', ['t']), true);
+});
+
+test('มีดไม่ได้ BloodStack (ทั้งนอกและในร่างหยุดเวลา) แต่ยังดูดเลือด', () => {
+  const [d, t] = setup([['d', 'dio_brando', 3, 7], ['t', 'dummy', 7, 7]]);
+  d.dio.blood = 5; d.hp = 3; t.hp = 9; t.armor = 0;
+  engine.setActor('d');
+  engine.useSkill('d', 'basic', ['t']);
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 8);
+  assert.equal(d.dio.blood, 5, 'ไม่เพิ่ม');
+  assert.equal(d.dio.clip6, false, 'ไม่ถึง 6 ไม่มีคลิป');
+  assert.equal(d.hp, 5, 'BloodStack 4 ขึ้นไป ดูด 2');
+  enterStop(d, 2);
+  engine.useSkill('d', 'basic', ['t']);
+  engine.clearPhaseTimer();
+  assert.equal(d.dio.blood, 5);
 });
 
 test('แทรกตา: ใช้ Meter ทั้งหมด ได้ Action −1 · ต้องมีอย่างน้อย 2 · หลังจบกลับตาเดิมด้วยเวลาที่เหลือ', () => {
