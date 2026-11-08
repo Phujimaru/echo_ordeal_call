@@ -9,10 +9,10 @@
 //   sweet · heart · heartEnd · trapSet · trap · seal · wake2 · henshin · revert · bloodMoon
 //  ผลค้างบนตัว (u.otoya จาก BoardStage): kiva (ออร่าแดงดำ + ค้างคาวโคจร) · trap (ตราเขียวใต้เท้า) · wake2 (โซ่แดงที่ฐาน)
 //   playing (ไวโอลินลอยเหนือหัว) · heart (เป้า: โน้ตวนรอบตัว)
-//  ชั้นกระดาน: otoyaNight (ฟ้าแดง + จันทร์แดงมุมจอ ตลอดกลางคืนบังคับ) · otoyaLinks (สายโน้ตจากผู้สีถึงเป้า)
+//  ชั้นกระดาน: otoyaMoon (จันทร์แดงบนฟ้าของฉาก หลังกระดาน) + otoyaNight (ย้อมแดงทั้งจอ) ตลอดกลางคืนบังคับ · otoyaLinks (สายโน้ตจากผู้สีถึงเป้า)
 //  lowQ = ตัดอนุภาคครึ่งหนึ่ง · ลดการเคลื่อนไหว = นิ่ง
 // ============================================================
-import { P, gEllipse, glow } from "./boardGeo";
+import { P, PV, gEllipse, glow, sceneSize } from "./boardGeo";
 
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
@@ -265,16 +265,25 @@ export function otoUnitFront(g, u, now, wx, wy) {
 }
 
 // ---------- ชั้นกระดาน ----------
-// กลางคืนจันทร์แดง: ย้อมแดงทั้งจอ + จันทร์แดงมุมขวาบน (พิกัดแคนวาสจริง — เรียกหลังวาดพื้น ก่อนตัวละคร)
-export function otoyaNight(g, now, lowQ) {
+// กลางคืนจันทร์แดง: ย้อมแดงทั้งจอ (พิกัดแคนวาสจริง — เรียกหลังวาดพื้น ก่อนตัวละคร)
+export function otoyaNight(g) {
   const c = g.canvas, W = c.width, H = c.height;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = "rgba(120,0,18,0.2)"; g.fillRect(0, 0, W, H);
   const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
   vg.addColorStop(0, "rgba(60,0,10,0)"); vg.addColorStop(1, `rgba(${NIGHT},0.45)`);
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
-  const r = Math.min(W, H) * 0.07, mx = W * 0.86, my = H * 0.15;
+  g.restore();
+}
+// จันทร์แดงบนฟ้าของฉาก — พิกัดมุมมอง (หลังขอบไกลของกระดาน เยื้องขวา สูงจากพื้น) ซูม/เลื่อน/หมุนไปกับฉาก
+//  เรียกหลังวาดฉากหลัง ก่อนชั้นกระดาน → อยู่หลังกระดานและตัวละครเสมอ
+export function otoyaMoon(g, now, lowQ) {
+  const { cols, rows } = sceneSize();
+  const [mx, my, s] = PV(cols * 0.46, -rows / 2 - 3, 2.4);
+  if (!(s > 0)) return;
+  const r = 1.1 * s;
   const beat = REDUCED || lowQ ? 1 : 0.92 + 0.08 * Math.sin(now / 900);
+  g.save();
   g.globalCompositeOperation = "lighter"; glow(g, mx, my, r * 3.2 * beat, BLOOD, 0.45); g.globalCompositeOperation = "source-over";
   const mg = g.createRadialGradient(mx - r * 0.3, my - r * 0.3, r * 0.1, mx, my, r);
   mg.addColorStop(0, "rgba(255,120,110,1)"); mg.addColorStop(0.7, "rgba(200,20,30,1)"); mg.addColorStop(1, "rgba(120,0,14,1)");

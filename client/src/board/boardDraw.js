@@ -56,7 +56,7 @@ import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, i
 import { ZECT_FX_DUR, ZECT_HIT_P, ZECT_MS, isZectFx, zectFx } from "./zectFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
-import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaNight } from "./otoyaFx";
+import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaMoon, otoyaNight } from "./otoyaFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { DIVINE_FX_DUR, divineFx, isDivineFx } from "./divineFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
@@ -2121,14 +2121,16 @@ export function drawFrame(g, st, now) {
     } else blit(bake.scene);
   }
   L();
+  // จันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): บนฟ้าของฉาก หลังชั้นกระดาน
+  if (st.otoya && st.otoya.night && !colony) otoyaMoon(g, now, lowQ);
   // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
   const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
   if (T.animBack && !colony) T.animBack(g, f, lowQ ? 0 : now);
   if (colony) { /* พื้นวาดใน 3D */ }
   else if (bake && bake.board) { blit(bake.board); L(); }
   else drawBoardLayer(g, info, bv, night);
-  // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดง + จันทร์แดง ใต้ตัวละคร
-  if (st.otoya && st.otoya.night) otoyaNight(g, now, lowQ);
+  // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดงทั้งจอ ใต้ตัวละคร
+  if (st.otoya && st.otoya.night) otoyaNight(g);
   // วงเวทเคลื่อนไหว (ด่าน I)
   const pz = colony ? null : info.plaza;
   if (pz) {
