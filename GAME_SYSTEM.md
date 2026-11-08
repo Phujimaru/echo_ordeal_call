@@ -1212,3 +1212,13 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ระยะเดิน (2026-11-07):** สมาชิกเดินได้ระยะเต็ม (`baseMovOf`) จากช่องที่ยืนทุกครั้ง ไม่หักโทษ/ไม่สะสม · สกิล/ไอเทม/ไถล/กับดักไม่ล็อกการเดิน (`action.clockFresh`, `lockMove` ข้าม)
 - **คนดู:** ผู้เล่นที่ไม่ได้อยู่ในช่วง (หรือ Clock Over แล้ว) เห็นเจ้าของตาถือตาตลอดช่วง (`asViewer`) — ไม่เห็นการสลับคนถือตา ป้าย "ตาของ…" ไม่เด้งซ้ำ
 - **มองไม่เห็น:** ไรเดอร์ที่แปลงร่างแล้วขึ้นร่าง Masked (ฮุค `unseenLook`)
+
+## 47. เพศตัวละคร / กลางคืนบังคับ / บัฟค้างจากผู้สี (คุเรไน โอโตยะ — `characters/kurenai_otoya.js` · GRID_PLAN §7.29)
+
+- **เพศ**: ทุกตัวใน `characters.js` มี `gender` (`"f"` / `"m"` / `"n"`) · อ่านผ่าน `characters/_gender.js` `genderOf(u)` (ฮาคุโนะ = `summon.moon` · Moon Cell = ไร้เพศ · ยูนิตอื่น = ตาม `characterId`) · **ตัวละครใหม่ต้องใส่ `gender`** (เทสต์คุม) · ไม่ส่งให้ client / ไม่ขึ้นใน UI (ผู้ใช้)
+- **กลางคืนบังคับ**: `match.forcedNight = { from, until, by }` (เวลาโลก รวมปลาย) → `dayNight.isNightRound` คืน true ช่วงนั้น · ตั้งผ่าน `engine.setForcedNight(v)` · ล้างตอนเริ่มเกมและเปลี่ยนภูมิภาค · state `bloodMoon` → client `otoyaNight` (ย้อมแดง + จันทร์แดง)
+- **คริจากผลของคนอื่น**: ฮุค broadcast `auraCrit(engine, attacker)` → % · รวมใน `attack.ownCritPct` + `engine.critBonusFor` (`combat.auraCritOf`)
+- **มีคนเดิน**: ฮุค broadcast `onUnitWalked(engine, p)` (ต้น `action.afterWalk` ทุกก้าว) · ใช้คู่ `onForcedMove` เช็คระยะของผลที่ผูกกับตำแหน่ง
+- **บัฟค้างจากผู้สี** (ดนตรีในหัวใจ): สถานะบนตัวเป้าไม่เก็บใน `statuses` ถาวร — ป้าย `statuses.otoyaHeart` ต่ออายุทุก sync (`onEndTurn` หลังลูปลดเทิร์น) · ผลจริงคิดจากสถานะของผู้สี (`heartGiverOf`) ผ่าน `auraAtk` / `auraCrit` / `onRoundStartTick`
+- **กันทั้งก้อนแล้วถอย**: `onAttacked` + `blocksAttack` (แบบเฟิร์น) · ตีปกติ (`engine.inStrike()`) = จดไว้แล้วถอยใน `afterActorEnd` · ทางอื่นถอยทันทีด้วย `engine.ice.pushUnit(p, dir, ctx, 2)`
+

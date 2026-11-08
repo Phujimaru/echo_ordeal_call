@@ -43,7 +43,7 @@ function attackSoundOf(attacker) {
 // อัตราคริติคอลเฉพาะตัว (%) ของผู้ตี (ฮุค critPct — โซระ: ร่าง My-Th 20%) — รวมกับคริของสนามแล้วทอยครั้งเดียว
 function ownCritPct(attacker) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
-  return (hook && hook.critPct && hook.critPct(attacker)) || 0;
+  return ((hook && hook.critPct && hook.critPct(attacker)) || 0) + combat.auraCritOf(attacker); // + คริจากผลของคนอื่น (ฮุค broadcast auraCrit — คุเรไน: ดนตรีในหัวใจ)
 }
 // ตัวคูณคริติคอลของผู้ตี (ฮุค critMult — เซลิน: ราชาดอกไม้ ×3) · ไม่มี = ×2
 function critMultOf(attacker) {

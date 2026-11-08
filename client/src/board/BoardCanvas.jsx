@@ -62,6 +62,7 @@
 //   takutos     [{ id, x, y, size, emerald, sapphire, judgment, collapse }] — ทาวเบิร์นของทาคุโตะ: ดาบลอยข้างตัว / ดาบแห่งการพิพากษาพาดหลัง / ออร่าแดงช่วงพังทลาย
 //               (takutoFx.js) · fx takuto* · takutoPose ย้ายหมากตอนพุ่ง/สลับตำแหน่ง
 //   emiya       { ubw, units: [{ id, weapon }] } | null — เอมิยะ ชิโร่: โลก Unlimited Blade Works · อาวุธที่ถือ (emiyaFx.js) · fx emiya*
+//   otoya       { night: bool, links: [{ from, to }] } | null — คุเรไน โอโตยะ: ฟ้าจันทร์แดง (Wake Up 1) · สายโน้ตดนตรีในหัวใจ (otoyaFx.js) · units[].otoya = ผลค้างบนตัว
 //   ryougi      { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } | null — ผู้นำแห่งตระกูลเรียวกิ: เนตรมณะ (มืดจาง + รอยร้าวแดง) /
 //               ใบมีดที่มือ / ซากุระทั่วกระดาน · กองเลือด (ryougiFx.js) · map.terrain "chasm" = ช่องพัง · fx ryougi* · ryougiPose ย้ายหมากตอนตี/พุ่ง/ถูกเหวี่ยง
 //               units[].ryougiSlain + corpse = ศพที่ถูกเรียวกิสังหาร วาดเป็นกองเลือด
@@ -681,7 +682,7 @@ export default function BoardCanvas(props) {
         list.push({
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, otoya: u.otoya || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
@@ -734,7 +735,7 @@ export default function BoardCanvas(props) {
         shopPos: p.shopPos || null, shopLabel: p.shopLabel, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
-        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {

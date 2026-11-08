@@ -29,6 +29,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 9. เขียนเทสต์ `tests/characters/<id>.test.js`
 10. `npm test` (รัน 2-3 รอบเช็คความเสถียร) · `npx eslint server.js server characters characters.js client/src` · `cd client && npx vite build`
 
+## เพศตัวละคร (ต้องใส่ทุกตัว)
+
+- `characters.js` ทุกตัวต้องมี `gender: "f" | "m" | "n"` (เทสต์ `kurenai_otoya.test.js` คุม) · ไม่รู้ = ถามผู้ใช้ · อ่านด้วย `characters/_gender.js` `genderOf(u)` · ไม่แสดงใน UI (GAME_SYSTEM §47)
+- กลางคืนบังคับ: `engine.setForcedNight({ from, until, by })` (เวลาโลก) — ห้ามแก้ `cycleShift` เพื่อทำให้เป็นกลางคืน
+
 ## ไฟล์ที่ต้องแตะ
 
 | ไฟล์ | ทำอะไร |
@@ -130,6 +135,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | `onKill(engine, killer, victim)` | **ไม่ broadcast** — เฉพาะโมดูลของผู้สังหาร (`match.effectSourceId`) ผ่าน `runHook` |
 | `onBoardPlaced(engine)` | `action.placeOnBoard` — แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค/ห่วงเวลาซีโร่) · ไจโร: ลูกบนพื้นกลับมือ |
 | `afterActorEnd(engine, p)` → วินาที | `action.finishActor` — ตาเดินของ **ใครก็ได้** จบ (หลังผลของช่อง ก่อนไปตัว/คนถัดไป) · > 0 = ค้าง ATTACKING แล้วไปต่อ (ผลจบตาไม่ลงซ้ำ) · วาเลนไทน์: ตัวที่เหมือนกันวิ่งเข้าหา + ชน |
+| `auraCrit(engine, attacker)` → % | `attack.ownCritPct` / `engine.critBonusFor` — คริจากผลของคนอื่น (คุเรไน: ดนตรีในหัวใจ +25%) |
+| `onUnitWalked(engine, p)` | `action.afterWalk` — ใครก็ได้เดิน/ก้าว (คุเรไน: เป้าออกนอกระยะ = หยุดบัฟ) · คู่กับ `onForcedMove` |
 | `onDamageDealt(engine, src, victim)` | `combat.tookDamage` — src ทำให้ victim เสียหายจริง 1 หน่วย (ทุกช่องทาง) · แยกการโจมตีแต่ละครั้งด้วย `engine.cmdSeq` (วาเลนไทน์: แต้ม +1 ต่อการโจมตี) |
 
 | ต้องการ | ฮุค | เรียกจาก |

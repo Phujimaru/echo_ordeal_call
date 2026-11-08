@@ -46,6 +46,7 @@ const daisuke = require("./daisuke");
 const yaguruma = require("./yaguruma");
 const kagami = require("./kagami");
 const tsurugi = require("./tsurugi");
+const kurenai_otoya = require("./kurenai_otoya"); // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
   oberon_summer,
@@ -86,6 +87,7 @@ const CHARACTER_MODULES = [
   yaguruma,
   kagami,
   tsurugi,
+  kurenai_otoya,
 ];
 
 const CHAR_HOOKS = {};
