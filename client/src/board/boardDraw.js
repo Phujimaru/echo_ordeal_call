@@ -2235,7 +2235,11 @@ export function drawFrame(g, st, now) {
       // ไกลกล้อง = จางลงตามหมอกของฉาก 3D (ปลายอุโมงค์ไม่รก) · หมาก (keep) จางแค่นิดเดียว — ต้องเห็นศัตรูเสมอ
       //  นับจากระยะโฟกัสของกล้อง (colonyNear) — ซูมออกแล้วสิ่งปลูกสร้างรอบตัวไม่หายไปตามหมอก (บั๊ก "ขยับกล้องแล้วตึกหาย" 2026-11-09)
       const near = Number.isFinite(st.colonyNear) ? st.colonyNear : 5;
-      const dist = -depthOf(ax, ay), far = keep ? Math.min(0.3, Math.max(0, (dist - near - 10) / 30)) : Math.min(0.75, Math.max(0, (dist - near - 5) / 14));
+      const dist = -depthOf(ax, ay);
+      let far = keep ? Math.min(0.3, Math.max(0, (dist - near - 10) / 30)) : Math.min(0.75, Math.max(0, (dist - near - 5) / 14));
+      // สิ่งปลูกสร้างที่อยู่ติดกล้อง (ผนังข้าง/เพดานเหนือหัว) = จางหาย แทนการขยายใหญ่จนแตกเต็มมุมจอ
+      if (!keep && dist < 3.2) far = Math.max(far, Math.min(1, (3.2 - dist) / 1.6));
+      if (far >= 0.99) return;
       if (far > 0) { g.save(); g.globalAlpha *= 1 - far; }
       withLocalFrame(g, fr, fn);
       if (far > 0) g.restore();

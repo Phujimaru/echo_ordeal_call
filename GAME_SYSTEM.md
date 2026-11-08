@@ -1036,7 +1036,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ฉากตีดาบสี**: `attackHitFx(p)` → `"saberRed"` = ฟันไขว้แบบมีดโซระ (`mythSlashFx` tone red) · เสียงตีตรงจังหวะปะทะ
 
 ## 32. สนาม Colony: กระดานต่อวงรอบ / กำแพงกั้นปล้อง / อีเวนต์ต้นเทิร์น / ตายจริง (`server/colony.js` · `server/board.js` · GRID_PLAN §8.3)
-- สนาม = `match.world` (earth | colony) โหวตคู่กับโหมด · colony = `Colony.start()` วางกระดาน `MAPS[COLONY_AREA]` (16 × 40) · การเดินทางปิด (`Journey.active` false)
+- สนาม = `match.world` (earth | colony) โหวตคู่กับโหมด · colony = `Colony.start()` วางกระดาน `MAPS[COLONY_AREA]` (24 × 40 — ขยายจาก 16 เมื่อ 2026-11-09 · ประตู 6 · กระจก 3 · ลิฟต์ 9) · การเดินทางปิด (`Journey.active` false)
 - **กระดานต่อวงรอบ** (`map.wrap`): คอลัมน์ต่อกันเป็นวง · `Board.setWrap(cols)` ตอนวางกระดาน + ฟังก์ชันที่รับ map ตั้งเอง (`syncWrap`) · `dist`/`covers`/พื้นที่สกิล/เดิน นับวงรอบ ·
   ฟังก์ชันใน board.js คืน x ในช่วง 0..cols-1 เสมอ (`wx`) · ส่วนต่างคอลัมน์ที่สั้นสุด `Board.wdx(a, b)` · ตำแหน่งผู้เล่นถูกจัดเข้าช่วงก่อนบรอดแคสต์ทุกครั้ง (`Colony.normalize`)
   → **ตัวละครใหม่ที่คิดช่อง/ทิศเอง ให้ใช้ Board.wx / Board.wdx แทน x ± n ตรงๆ** (ไม่งั้นข้ามตะเข็บแล้วผลหาย)
@@ -1044,6 +1044,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - ต้นเทิร์น (`Colony.preRound` ต้น `draw.dealRound`): อีเวนต์ที่เตือนไว้ลงผล → มีฉาก = พักเฟส CUTSCENE (`state.colony.scene` + boardFx `colonyScene`) แล้วกลับมาแจกไพ่ ·
   จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`) — คืนวินาทีพัก (`HOLD_SECONDS`) → endTurn พักเฟส CUTSCENE ให้ฉากเล่นจบก่อนเช็กจบเกม (`colonyHoldThen`)
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
+- client (`board/colony3d.js`): ฉากอุโมงค์ 3D + กล้อง — ตามตัวที่เดินเฉพาะตอนหลุดจอ (เลื่อนตามแกนก่อน ยังไม่เห็นค่อยหมุนรอบ) · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน (รอบวงไม่จำกัด) · ล้อ = ซูม ·
+  Space/ปุ่มเป้า (`colonyHome`) = กลับที่ตัวเรา · สิ่งปลูกสร้างบังหมาก = จาง (`boardDraw` `behind` รวมบ้าน) · ติดกล้อง = จางหาย · ช่องพิเศษระหว่างเกม (น้ำแข็ง/เปียก/ไฟ) วาดในชั้น 2D ทับพื้น 3D
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)
 
 > **ตัวคูณดาเมจตีปกติ**: ฮุค `strikeMult(p)` → ×N (หลังคริ ก่อนเพดาน `damageCap` · หน้าคาดการณ์คิดด้วย) — คาซุมะ Straight Flush · King Form ดู GRID_PLAN §7.19.1

@@ -73,7 +73,7 @@
 //   dimView     "par" | "veil" | null — ชั้นมิติของตัวที่เราคุม: โลกคู่ขนาน / มองจากมิติหลบสายตา (ค่อยๆ เปลี่ยน 600ms)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //   colony      state.colony (สนาม Colony — map.wrap) → ฉาก 3D (colony3d.js) ใต้แคนวาสนี้ + ตัวฉายภาพทรงกระบอก (boardGeo.setCustomProjection)
-//               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัวเมื่อหลุดจอ · ลากซ้าย = เลื่อน · ลากขวา/Shift = หมุน/ก้มเงย · ล้อ = ซูม · Space = กลับที่ตัวเรา
+//               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัวเมื่อหลุดจอ · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน · ล้อ = ซูม · Space = กลับที่ตัวเรา
 //   colonyHome  ตัวเลขใดๆ — เปลี่ยนค่า = กล้อง Colony กลับมาที่ตัวเรา (ปุ่มเป้าใน BoardStage)
 //   colonyEvents [{ key, kind, data }] — boardFx ของ Colony (colonyScene/colonySeal/colonyBoom/colonyJump/colonyLift) เล่นเมื่อเห็น key ใหม่
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
@@ -858,8 +858,8 @@ export default function BoardCanvas(props) {
     st.suppressClick = false;
     if (st.cv3 && e.button <= 2) {
       if (e.button === 1) e.preventDefault();
-      // Colony: ลากซ้าย = เลื่อนกล้อง (ลากพื้น) · ลากขวา/กลาง หรือ Shift + ลากซ้าย = หมุน/ก้มเงย (ผู้ใช้บ่นขยับกล้องยาก 2026-11-09)
-      st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button, pan: e.button === 0 && !e.shiftKey };
+      // Colony: ลากซ้าย = หมุนกล้องรอบตัวอิสระ 360° + ก้มเงย (ผู้ใช้สั่ง 2026-11-09 "ควรจะหมุนได้รอบ") · ลากขวา/กลาง หรือ Shift + ลากซ้าย = เลื่อน (ลากพื้น)
+      st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button, pan: e.button !== 0 || e.shiftKey };
       try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
       return;
     }
