@@ -89,7 +89,7 @@ function Cells({ n, on, color, h, solidOver = 16 }) {
   return (
     <span className="hud-cells">
       {Array.from({ length: n }, (_, i) => (
-        <span key={i} style={{ height: h, background: i < on ? color : "rgba(255,255,255,0.12)" }} />
+        <span key={i} style={{ height: h, background: i < on ? color : "var(--hud-cell-off, rgba(255,255,255,0.12))" }} />
       ))}
     </span>
   );

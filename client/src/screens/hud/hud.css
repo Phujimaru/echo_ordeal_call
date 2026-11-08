@@ -108,7 +108,7 @@
 .hud-row-desc { padding: 0 12px 10px 44px; font: 300 13px/1.45 Kanit, sans-serif; color: #b9cde6; }
 .hud-cells { flex: 1; min-width: 40px; display: flex; gap: 3px; }
 .hud-cells > span { flex: 1; min-width: 2px; }
-.hud-cells-solid { position: relative; display: block; background: rgba(255, 255, 255, 0.12); }
+.hud-cells-solid { position: relative; display: block; background: var(--hud-cell-off, rgba(255, 255, 255, 0.12)); }
 .hud-cells-solid > span { position: absolute; left: 0; top: 0; bottom: 0; }
 
 .hud-st-head {
@@ -1136,9 +1136,11 @@
   --ocw-lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px);
   --ocw-paper: linear-gradient(115deg, #ffffff, #f7fafd 40%, #dce7f3);
   --ocw-ink: #1c3f6e;
-  --ocw-mute: #5a7aa3;
+  --ocw-mute: #46668f;
   --ocw-line: rgba(127,184,230,.75);
 }
+/* ช่องว่างของแถบทรัพยากร (Cells) บนพื้นขาว — เดิมขาวจางบนขาว มองไม่เห็น */
+.hud-dock { --hud-cell-off: rgba(28,63,110,.14); }
 /* กล่องกระจกทั่วไป + แผงตัวละคร + แถบทรัพยากร */
 .hud-dock .hud-glass, .hud-top:not([data-zero="true"]):not([data-colony="boom"]) {
   background: var(--ocw-lattice), var(--ocw-paper);
@@ -1158,6 +1160,7 @@
 .hud-top-region:hover .hud-top-name { color: #3d8bd9; }
 .hud-top .bd-timer-ring { stroke: rgba(28,63,110,.15); }
 .hud-top .bd-timer-arc { stroke: #3d8bd9; }
+.hud-top .bd-timer { --bd-timer-fg: var(--ocw-ink); --bd-timer-low: #d2455b; } /* ตัวเลขนาฬิกาบนพื้นขาว (เดิมขาวบนขาว) */
 .hud-top-div { background: rgba(61,139,217,.3); }
 .hud-prof-card {
   background: linear-gradient(90deg, #3d8bd9 0 4px, transparent 4px), var(--ocw-lattice), var(--ocw-paper);
@@ -1178,7 +1181,7 @@
 .hud-pips > span { background: rgba(110,44,122,.15); }
 .hud-pips > span[data-on="true"] { background: linear-gradient(180deg, #d7a8e6, #9b4f96); }
 .hud-sp-num { color: #6e2c7a; }
-.hud-sp-num > span { color: #a07fb0; }
+.hud-sp-num > span { color: #86589a; }
 .hud-res-strip, .hud-res-pack { background: var(--ocw-lattice), linear-gradient(90deg, #ffffff, #eef3f9); color: var(--ocw-ink); border-color: var(--ocw-line); }
 .hud-res-desc { color: var(--ocw-mute); }
 /* กรอบหกเหลี่ยม (รูปตัวละคร / ตราสกิล): ในกรอบเป็นขาวน้ำแข็งแทนกรมท่า */
@@ -1192,7 +1195,7 @@
   color: var(--ocw-ink);
 }
 .hud-skill-name { color: var(--ocw-mute); }
-.hud-skill[data-tier="ultimate"] .hud-skill-tier { color: #b07a10; }
+.hud-skill[data-tier="ultimate"] .hud-skill-tier { color: #8a5a10; }
 .hud-skill[data-tier="ultimate"] .hud-skill-label { border-color: rgba(214,166,58,.8); }
 .hud-skill-cost { background: #fffaf0; color: #8a5a10; border-color: #e0b04a; }
 .hud-skill-cost[data-cheap="true"] { background: linear-gradient(160deg, #ffe9a8, #f0c868); color: #3a2604; }
@@ -1260,9 +1263,9 @@
 .dd-dial .trk { stroke: rgba(255,255,255,.85); }
 .dd-dial .tick line { stroke: rgba(28,63,110,.45); }
 .dd-num { color: #1c3f6e; }
-.dd-num small { color: #5a7aa3; }
+.dd-num small { color: var(--ocw-mute); }
 .dd-num b { text-shadow: 0 0 14px rgba(127,184,230,.7); }
-.dd-num span { color: #3d8bd9; }
+.dd-num span { color: #2a6cb3; }
 .dd-dial[data-bust="true"] .dd-num b { color: #d2455b; text-shadow: 0 0 14px rgba(210,69,91,.5); }
 .dd-btn { overflow: hidden; filter: drop-shadow(0 6px 14px rgba(28,63,110,.3)); }
 .dd-btn::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--ocw-lattice-w, repeating-linear-gradient(60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px)); }

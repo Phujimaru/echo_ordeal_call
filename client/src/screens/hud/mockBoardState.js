@@ -262,15 +262,16 @@ function fitShop(s, taken, near) {
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) cand.push({ x, y });
   return cand.find((c) => ok(c.x, c.y) && (!near || Rules.dist(near, { x: c.x, y: c.y, size: SHOP_N }) === 1)) || null;
 }
-function mockShops(s, round, nearMe) {
+function mockShops(s, round, nearMe, nearKind = "apoth") {
   const out = [];
-  for (const kind of ["apoth", "forge", "cara"]) {
-    const pos = fitShop(s, out, kind === "apoth" ? nearMe : null) || fitShop(s, out, null);
+  const kinds = nearKind === "capsule" ? ["capsule", "apoth", "forge", "cara"] : ["apoth", "forge", "cara"];
+  for (const kind of kinds) {
+    const pos = fitShop(s, out, kind === nearKind ? nearMe : null) || fitShop(s, out, null);
     if (!pos) continue;
     const id = `shop_${kind}_${Math.ceil(round / 5)}`;
     out.push({
       id, kind, x: pos.x, y: pos.y, size: SHOP_N, turnsLeft: 5 - ((round - 1) % 5),
-      items: SHOP_ROLL[kind].map((it, i) => {
+      items: (SHOP_ROLL[kind] || [...SHOP_ROLL.apoth, ...SHOP_ROLL.forge, ...SHOP_ROLL.cara]).map((it, i) => {
         const sold = SOLD.has(`${kind}:${i}`);
         return { id: `${id}_${i}`, type: it.type, price: it.price, ...(it.value != null ? { value: it.value } : {}), stock: sold ? 0 : it.stockBase, stockMax: it.stockBase, sold, closed: false };
       }),
@@ -607,7 +608,7 @@ export function buildMockState(opts) {
     s.action.from = { ...me.pos };
   }
   if (s.masked) s.turnOrder = [];
-  s.shops = mockShops(s, round, opts.shopNear && me.pos ? { ...me.pos, size: me.size || 1 } : null);
+  s.shops = mockShops(s, round, opts.shopNear && me.pos ? { ...me.pos, size: me.size || 1 } : null, opts.shopKind || "apoth");
   if (s.gameState === "ACTION") s.forecast = forecastFor(s, s.controlId || s.youId);
   if (scn === "attack") {
     // ป้ายโบนัสในฉากตี (AttackTags) — ตัวอย่างผลทั้งสองฝั่งแบบที่ server strike() ใส่ใน skills

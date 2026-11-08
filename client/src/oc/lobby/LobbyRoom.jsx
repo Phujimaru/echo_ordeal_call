@@ -5,6 +5,7 @@ import { socket } from "../../socket";
 import { POSITIONS } from "../../data/positions";
 import { OcButton } from "../ui";
 import EmoteDock from "./EmoteDock";
+import { useUiTheme } from "../../uiTheme";
 
 const DEG = Math.PI / 180;
 
@@ -82,6 +83,7 @@ function Seat({ n, p, me, spot, i, hero }) {
 
 /** @param hero { arrival, hide } จาก useHeroArrival — ภาพตัวละครบินจากหน้าเลือกตัวลงตราของเรา */
 export default function LobbyRoom({ state, ring, vh, armed, onArm, lowQ, onToggleLowQ, skillConfirmOn, onToggleSkillConfirm, hero, onBack }) {
+  const [uiTheme, setUiTheme] = useUiTheme();
   const count = state.players.length;
   const me = state.players.find((p) => p.id === state.youId);
   const myReady = !!me?.ready;
@@ -103,6 +105,7 @@ export default function LobbyRoom({ state, ring, vh, armed, onArm, lowQ, onToggl
       <div className="ocl-prefs oc-enter d1">
         <Switch on={lowQ} label="ข้ามวิดีโอ" onToggle={onToggleLowQ} />
         <Switch on={skillConfirmOn} label="ถามก่อนใช้สกิล" onToggle={onToggleSkillConfirm} />
+        <Switch on={uiTheme === "dark"} label="โหมดมืด" onToggle={() => setUiTheme(uiTheme === "dark" ? "light" : "dark")} />
       </div>
 
       {/* วงโคจร + เส้นโยงที่นั่งถึงผิวโลก */}

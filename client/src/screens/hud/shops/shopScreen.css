@@ -1,6 +1,6 @@
 /* หน้าร้านค้าเต็มจอ — พอร์ตจากต้นแบบ .claude/plans/shop-three.html (ธีมขาว ORDEAL CALL) · คลาสทั้งหมดขึ้นต้น shs- */
 .shs-veil {
-  --ink: #1c3f6e; --mute: #5a7aa3; --line: rgba(127,184,230,.75);
+  --ink: #1c3f6e; --mute: #46668f; --line: rgba(127,184,230,.75);
   --sky: #7fb8e6; --azure: #3d8bd9; --hp: #d2455b; --gold: #e0b04a;
   --lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px), repeating-linear-gradient(-60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px);
   position: fixed; inset: 0; z-index: 52; background: radial-gradient(70% 70% at 50% 50%, rgba(28,63,110,.22), rgba(10,24,48,.58));
@@ -66,7 +66,8 @@
 .shs-buy span { position: relative; z-index: 1; }
 .shs-buy:hover:not(:disabled) { transform: translateY(-3px); filter: drop-shadow(0 0 16px rgba(255,255,255,.9)) drop-shadow(0 10px 18px rgba(28,63,110,.35)); }
 .shs-buy:active:not(:disabled) { transform: scale(.96); }
-.shs-buy:disabled { cursor: default; filter: grayscale(.8); opacity: .5; }
+.shs-buy:disabled { cursor: default; filter: none; color: var(--mute) !important; background: linear-gradient(115deg, #eef3f9, #dfe8f2); box-shadow: inset 0 0 0 2px rgba(127,184,230,.7); }
+.shs-buy:disabled::before { opacity: .5; }
 .shs-buy:disabled::after { animation: none; }
 @keyframes shsSheen { 45%, 100% { transform: translateX(130%); } }
 .shs-price { display: inline-flex; align-items: center; gap: 10px; font: 700 46px/1 "Chakra Petch"; color: #8a5a10; }
@@ -91,8 +92,12 @@
 .shs-cab[data-rows="3"] .shs-shelf { height: 148px; padding-bottom: 20px; }
 .shs-cab[data-rows="3"] .shs-shelf::after { height: 20px; }
 .shs-cab[data-rows="3"] .shs-jar { zoom: .64; }
+/* 3 ชั้น: โหลย่อ แต่ป้ายราคา/จำนวนต้องยังอ่านออก (ชดเชย zoom) */
+.shs-cab[data-rows="3"] .shs-tag > span { font-size: 36px; padding: 8px 16px 8px 14px; }
+.shs-cab[data-rows="3"] .shs-tag .shs-coin.s { width: 32px; height: 32px; }
+.shs-cab[data-rows="3"] .shs-cnt { min-width: 64px; height: 48px; font-size: 30px; }
 .shs-cab[data-rows="1"] .shs-shelf { height: 444px; }
-.shs-plate { position: absolute; left: 16px; bottom: 4px; z-index: 2; padding: 3px 14px; font: 600 15px/1.2 Kanit; color: #fff; background: linear-gradient(115deg, var(--c2), var(--c3)); clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+.shs-plate { position: absolute; left: 16px; bottom: 4px; z-index: 2; padding: 4px 16px; font: 600 19px/1.2 Kanit; color: #fff; background: linear-gradient(115deg, var(--c2), var(--c3)); clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); }
 .shs-cab[data-rows="3"] .shs-plate { bottom: 1px; }
 .shs-jar { position: relative; width: 220px; height: 200px; border: 0; padding: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform .25s cubic-bezier(.3,1.5,.5,1); }
 .shs-dome { position: relative; width: 140px; height: 150px; border-radius: 70px 70px 14px 14px; background: radial-gradient(70% 55% at 35% 25%, rgba(255,255,255,.95), rgba(255,255,255,.35) 45%, rgba(200,236,226,.35) 75%, rgba(150,210,195,.35));
@@ -169,7 +174,7 @@
 .shs-dials { margin-top: 22px; display: flex; gap: 18px; }
 .shs-dial { width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center; text-align: center; background: radial-gradient(circle, #fff 56%, transparent 57%), conic-gradient(#e07a2a calc(var(--p) * 1%), rgba(60,80,110,.12) 0); transition: background .3s; }
 .shs-dial b { display: block; font: 700 40px/1 "Chakra Petch"; color: var(--ink); }
-.shs-dial small { display: block; margin-top: 4px; font: 500 15px/1.1 Kanit; color: var(--mute); }
+.shs-dial small { display: block; margin-top: 4px; font: 500 19px/1.1 Kanit; color: var(--mute); }
 .shs-deal.row { margin-top: auto; width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
 .shs-anvil .shs-buy { min-width: 240px; }
 

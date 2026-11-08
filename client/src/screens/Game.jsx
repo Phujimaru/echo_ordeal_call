@@ -484,8 +484,8 @@ function JourneyInfoModal({ journey, onClose }) {
     <AvModal tone="white" label={`การเดินทาง · ภูมิภาคที่ ${journey.area}`} title={journey.name} onClose={onClose} width="min(34rem, 94vw)">
       <div className="flex flex-col gap-2">
         {rows.map((r) => (
-          <div key={r.k} className="rounded-xl px-3 py-2 border" style={{ borderColor: r.on ? `${a.color}aa` : "rgba(255,255,255,.1)", background: r.on ? `${a.color}1f` : "rgba(255,255,255,.03)", opacity: r.on ? 1 : 0.55 }}>
-            <div className="av-heading text-xs" style={{ color: r.on ? a.glow : "rgba(234,243,252,.6)" }}>{r.k}{r.on && r.k !== "ตลอดภูมิภาค" ? " (ตอนนี้)" : ""}</div>
+          <div key={r.k} className="rounded-xl px-3 py-2 border" style={{ borderColor: r.on ? `${a.color}aa` : "var(--avm-line, rgba(255,255,255,.1))", background: r.on ? `${a.color}1f` : "rgba(255,255,255,.03)", opacity: r.on ? 1 : 0.55 }}>
+            <div className="av-heading text-xs avm-k" style={{ "--avm-c": a.color, color: r.on ? `var(--avm-on, ${a.glow})` : "var(--avm-dim, rgba(234,243,252,.6))" }}>{r.k}{r.on && r.k !== "ตลอดภูมิภาค" ? " (ตอนนี้)" : ""}</div>
             <div className="text-sm leading-relaxed">{r.v}</div>
           </div>
         ))}
@@ -1213,13 +1213,13 @@ function StatusModal({ p, onClose, statusOnly }) {
     >
       <>
         {!statusOnly && (
-          <div className="av-heading text-sm mb-4" style={{ color: "rgba(234,243,252,.6)" }}>
+          <div className="av-heading text-sm mb-4" style={{ color: "var(--avm-dim, rgba(234,243,252,.6))" }}>
             {p.character?.name}
             {!p.connected && <span className="ml-2 text-xs" style={{ color: "var(--av-blood)" }}>• reconnecting</span>}
           </div>
         )}
         {items.length === 0 ? (
-          <div className="av-label py-4 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ไม่มีสถานะผิดปกติ</div>
+          <div className="av-label py-4 text-center" style={{ color: "var(--avm-dim, rgba(234,243,252,.4))" }}>ไม่มีสถานะผิดปกติ</div>
         ) : (
           <div className="flex flex-col gap-2">
             {items.map((it) => (
@@ -1258,13 +1258,13 @@ function StatusModal({ p, onClose, statusOnly }) {
                     <div className="min-w-0">
                       <div className="flex justify-between gap-2">
                         <span className="av-heading text-sm">
-                          {label} · <span style={{ color: "var(--av-gold-lit)" }}>{s.name}</span>
+                          {label} · <span style={{ color: "var(--avm-gold, var(--av-gold-lit))" }}>{s.name}</span>
                         </span>
-                        <span className="text-xs shrink-0" style={{ color: "rgba(234,243,252,.5)" }}>
+                        <span className="text-xs shrink-0" style={{ color: "var(--avm-dim, rgba(234,243,252,.5))" }}>
                           {s.cost != null ? `ใช้ ${s.cost}` : "ฟรี"}
                         </span>
                       </div>
-                      <div className="text-xs leading-snug" style={{ color: "rgba(234,243,252,.72)" }}>{s.desc}</div>
+                      <div className="text-xs leading-snug" style={{ color: "var(--avm-text, rgba(234,243,252,.72))" }}>{s.desc}</div>
                     </div>
                   </div>
                 ) : null
@@ -1469,7 +1469,7 @@ function InventoryModal({ me, myTurn, bagSlots = 5, onClose }) {
       right={<span className="av-chip"><span>{items.length}/{bagSlots}</span></span>}>
       <>
         {items.length === 0 ? (
-          <div className="av-label py-8 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ยังไม่มีของในคลัง</div>
+          <div className="av-label py-8 text-center" style={{ color: "var(--avm-dim, rgba(234,243,252,.4))" }}>ยังไม่มีของในคลัง</div>
         ) : (
           <div className="flex flex-col gap-2">
             {items.map((it) => {
@@ -1480,7 +1480,7 @@ function InventoryModal({ me, myTurn, bagSlots = 5, onClose }) {
                     <ItemIcon info={info} className="text-2xl h-10 w-10" />
                     <div className="min-w-0 flex-1">
                       <div className="av-heading text-sm">{info.label(it)}</div>
-                      <div className="text-xs leading-snug" style={{ color: "rgba(234,243,252,.62)" }}>{info.desc}</div>
+                      <div className="text-xs leading-snug" style={{ color: "var(--avm-text, rgba(234,243,252,.62))" }}>{info.desc}</div>
                     </div>
                     <AvButton className="px-4 py-1.5 text-xs shrink-0" disabled={!!turnBlock} title={turnBlock || ""} onClick={() => applyItem(it.uid)}>ใช้</AvButton>
                     <AvButton className="px-3 py-1.5 text-xs shrink-0" disabled={!myTurn} onClick={() => dropItem(it.uid)}>ทิ้ง</AvButton>
@@ -1554,13 +1554,13 @@ function CharModal({ ch, me, onClose }) {
               <div key={i} className="av-item">
                 <div className="flex justify-between gap-3">
                   <span className="av-heading text-sm">
-                    {label} · <span style={{ color: "var(--av-gold-lit)" }}>{s.name}</span>
+                    {label} · <span style={{ color: "var(--avm-gold, var(--av-gold-lit))" }}>{s.name}</span>
                   </span>
-                  <span className="text-xs shrink-0" style={{ color: "rgba(234,243,252,.5)" }}>
+                  <span className="text-xs shrink-0" style={{ color: "var(--avm-dim, rgba(234,243,252,.5))" }}>
                     {s.cost != null ? `ใช้ ${s.cost}` : "ฟรี"}
                   </span>
                 </div>
-                <div className="text-sm mt-1 leading-snug" style={{ color: "rgba(234,243,252,.78)" }}>{s.desc}</div>
+                <div className="text-sm mt-1 leading-snug" style={{ color: "var(--avm-text, rgba(234,243,252,.78))" }}>{s.desc}</div>
               </div>
             ) : null
           )}
@@ -1575,7 +1575,7 @@ function CharModal({ ch, me, onClose }) {
                     <span>{it.icon}</span>
                     <span>{it.label}{it.amt > 0 ? ` +${it.amt}` : ""}{showStatusValue(it) ? ` ${it.v}` : ""}</span>
                   </span>
-                  <span className="text-sm leading-snug" style={{ color: "rgba(234,243,252,.85)" }}>{it.desc}</span>
+                  <span className="text-sm leading-snug" style={{ color: "var(--avm-text, rgba(234,243,252,.85))" }}>{it.desc}</span>
                 </div>
               ))}
             </div>
@@ -1662,7 +1662,7 @@ function BoardTimer({ phaseKey }) {
       </svg>
       <span
         className="relative leading-none"
-        style={{ fontFamily: "var(--font-av-display)", fontWeight: 700, fontSize: "1.2rem", color: low ? "#ff8a94" : "#ffffff" }}
+        style={{ fontFamily: "var(--font-av-display)", fontWeight: 700, fontSize: "1.2rem", color: low ? "var(--bd-timer-low, #ff8a94)" : "var(--bd-timer-fg, #ffffff)" }}
       >
         {seconds}
       </span>
