@@ -1046,6 +1046,10 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
 - client (`board/colony3d.js`): ฉากอุโมงค์ 3D + กล้อง — ตามตัวที่เดินเฉพาะตอนหลุดจอ (เลื่อนตามแกนก่อน ยังไม่เห็นค่อยหมุนรอบ) · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน (รอบวงไม่จำกัด) · ล้อ = ซูม ·
   Space/ปุ่มเป้า (`colonyHome`) / ปุ่มหกเหลี่ยมรูปตัวเรากลางบน (โผล่เมื่อกล้องออกห่าง — `onColonyAway`) = กลับที่ตัวเรา · หมากนอกจอ = ลูกศรขอบจอสีประจำตัว + วงเลือด (`edgeMark`) · สิ่งปลูกสร้างบังหมาก = จาง (`boardDraw` `behind` รวมบ้าน) · ติดกล้อง = จางหาย · ช่องพิเศษระหว่างเกม (น้ำแข็ง/เปียก/ไฟ) วาดในชั้น 2D ทับพื้น 3D
+- **ลูกเล่นเมือง (GRID_PLAN §8.3.1)**: ช่องพิเศษ belt/rail/warp/watch (`TERRAIN_INFO` · `endTurnTile` belt/warp → `Colony.beltUnit`/`warpUnit`) · น้ำพุ = `map.heal` (healKind fountain) ·
+  ป้อมปืน terrain `turret` + `match.colony.turrets` (`fireTurrets` จบเทิร์น · เป้าตี `col:turret:i` → `Colony.strikeTurret`) · ฮุคกลาง: `action.rangeOf` → `Colony.rangeMod` (หอ +1 · ไฟดับ −1) ·
+  `areaRange` → `Colony.areaRangeMod` · `movOf` + `Colony.movBonus` (แรงโน้มถ่วงดับ) · attack.js ถอยหลังโดนสวน ×2 เมื่อ `Colony.gravityOff()` · อีเวนต์ตั้งล่วงหน้า 2 เทิร์น (`planTurn`) · boardFx colonyBelt/colonyWarp/colonyTurret/colonyTurretHit
+- ร้านใน Colony = แคปซูล 3 แบบ (`shop.placeCapsule(kind, x, y, final)` · `capsules()` · `clearCapsule(kind)` · ร้าน `capsule: true` 1×1 kind เดิม apoth/forge/cara)
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)
 
 > **ตัวคูณดาเมจตีปกติ**: ฮุค `strikeMult(p)` → ×N (หลังคริ ก่อนเพดาน `damageCap` · หน้าคาดการณ์คิดด้วย) — คาซุมะ Straight Flush · King Form ดู GRID_PLAN §7.19.1

@@ -83,7 +83,8 @@ test('TERRAIN_INFO: มีป้ายข้อมูลครบทุกชน
   for (const m of Object.values(Board.MAPS)) for (const kind of Object.values(m.special)) kinds.add(kind);
   for (const kind of kinds) {
     const info = Board.TERRAIN_INFO[kind];
-    assert.ok(info && info.name && info.desc && info.icon, `ป้ายของ ${kind}`);
+    // ช่องใหม่ไม่มี desc ได้ (กฎผู้ใช้: ห้ามข้อความอธิบายใน UI — ลูกเล่นเมือง Colony 2026-11-09)
+    assert.ok(info && info.name && info.icon, `ป้ายของ ${kind}`);
   }
   assert.equal(Board.tileInfo(Board.MAPS[1], 6, 6).name, 'วงเวทฟื้นฟู');
   assert.equal(Board.tileInfo(Board.MAPS[5], 6, 6).name, 'โอเอซิส');

@@ -23,7 +23,7 @@ import {
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
-import { drawCapsule, drawHouse, drawTower } from "./colonyProps";
+import { drawCapsule, drawFountain, drawHouse, drawTower, drawTurret, drawWatch } from "./colonyProps";
 import { drawShopStall, shopSize } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
@@ -2264,6 +2264,12 @@ export function drawFrame(g, st, now) {
     if (t.kind === "chasm") continue; // ช่องพังของเรียวกิ = หลุมบนพื้น (drawRyougiGround) ไม่มีสไปรต์
     if (t.kind === "breach") continue; // Colony: รูรั่ว = หลุมบนพื้น 3D (colony3d)
     // Colony: บ้าน · ตึก · ต้นไม้ — สไปรต์ยืนบนผิวโค้ง (ตึก/ต้นไม้บังตัวที่อยู่ไกลกว่า = จาง)
+    // Colony: ป้อมปืนรักษาการณ์ (หันตามข้อมูล state.colony.turrets · หลอดเลือด)
+    if (colony && t.kind === "turret") {
+      const tr = (st.colonyTurrets || []).find((q) => q.x === t.x && q.y === t.y) || null;
+      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, () => drawTurret(g, t.x, t.y, tr, night, now, st.hitT)) });
+      continue;
+    }
     if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree")) {
       // บังหมาก (ทุกชนิด รวมบ้าน) = โปร่ง แทนการทึบทับ — หมากต้องมองเห็นเสมอ
       const fade = behind(t.x, t.y);
@@ -2296,8 +2302,14 @@ export function drawFrame(g, st, now) {
     if (!iceSpikeLv(String((info.terrainKind && info.terrainKind[k]) || ""))) pushSpike(x, y, lv);
   }
   // Colony: ร้าน = แคปซูลเสบียง (ตกลงมาจากแกนตอนปรากฏ — st.colonyCapsule จาก colony3d.capsuleAt)
-  const cap = colony ? st.colonyCapsule : null;
-  if (cap) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now)) });
+  //  แคปซูล 3 แบบ = ร้าน 3 ร้าน (ยา/ช่าง/พ่อค้าเร่ — colonyProps.drawCapsule)
+  const caps = colony && Array.isArray(st.colonyCapsule) ? st.colonyCapsule : [];
+  for (const cap of caps) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now, cap.kind)) });
+  // Colony: น้ำพุ (จุดฟื้นฟู) · หอสังเกตการณ์ — สไปรต์เตี้ยบนช่องที่ยืนได้ (วาดก่อนหมากในช่องเดียวกัน)
+  if (colony) {
+    for (const hp of info.heal || []) { const hx = hp.x, hy = hp.y; items.push({ d: depthOf(hx + 0.5, hy + 0.5) + 0.02, f: onWall(hx + 0.5, hy + 0.5, () => drawFountain(g, hx, hy, night, lowQ ? 0 : now)) }); }
+    for (const sp of info.special) if (sp.kind === "watch") items.push({ d: depthOf(sp.x + 0.5, sp.y + 0.5) + 0.02, f: onWall(sp.x + 0.5, sp.y + 0.5, () => drawWatch(g, sp.x, sp.y, night, now)) });
+  }
   // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน ขนาด 2×2 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
   const shopList = Array.isArray(st.shops) ? st.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
   if (!colony) for (const sh of shopList) {
@@ -2361,7 +2373,7 @@ export function drawFrame(g, st, now) {
   if (storms) drawStormAir(g, storms, info, now, lowQ);
   // ป้าย "🏪 N" (เหลือ N เทิร์น) เหนือกลางร้านแต่ละร้าน · Colony = เฉพาะแคปซูลที่ลงถึงพื้นแล้ว
   for (const sh of shopList) {
-    if (!(sh.turnsLeft > 0) || (colony ? !cap : sh.kind === "capsule")) continue;
+    if (!(sh.turnsLeft > 0) || (colony ? !caps.some((c) => c.x === sh.x && c.y === sh.y && !(c.z > 0.05)) : sh.kind === "capsule" || sh.capsule)) continue;
     const n = colony ? 1 : shopSize(sh);
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
     const hide = storms && behindDome(storms, sh.x, sh.y) && clipOutDomes(g, storms);

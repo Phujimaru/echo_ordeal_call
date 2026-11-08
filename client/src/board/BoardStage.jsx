@@ -381,9 +381,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const fdBoard = state.fodlan && state.fodlan.board ? state.fodlan.board : null;
   const fodlanProp = useMemo(() => (fdBoard ? { ...fdBoard, stage: state.fodlan.stage, weather: state.fodlan.weather, vision: state.fodlanVision || null } : null),
     [fdBoard, state.fodlan, state.fodlanVision]);
-  const fdFoes = useMemo(() => (fdBoard && Array.isArray(fdBoard.objects)
-    ? fdBoard.objects.filter((o) => o && o.strike && Number.isFinite(o.x) && Number.isFinite(o.y)).map((o) => ({ id: o.id, pos: { x: o.x, y: o.y }, alive: true, size: 1, isFodlan: true, name: o.name || "" }))
-    : []), [fdBoard]);
+  //  + Colony: ป้อมปืนรักษาการณ์ (id "col:turret:i" — server/colony.js strikeTurret) ใช้ทางเดียวกัน
+  const colTurrets = state.colony && Array.isArray(state.colony.turrets) ? state.colony.turrets : null;
+  const fdFoes = useMemo(() => [
+    ...(fdBoard && Array.isArray(fdBoard.objects)
+      ? fdBoard.objects.filter((o) => o && o.strike && Number.isFinite(o.x) && Number.isFinite(o.y)).map((o) => ({ id: o.id, pos: { x: o.x, y: o.y }, alive: true, size: 1, isFodlan: true, name: o.name || "" }))
+      : []),
+    ...(colTurrets || []).map((t) => ({ id: `col:turret:${t.i}`, pos: { x: t.x, y: t.y }, alive: true, size: 1, isFodlan: true, name: "ป้อมปืนรักษาการณ์" })),
+  ], [fdBoard, colTurrets]);
   const hoverFd = hover && !hoverUnit && !hoverSeal && !hoverSpike && !hoverCorpse ? fdFoes.find((s) => samePos(s.pos, hover)) || null : null;
   const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
@@ -2037,11 +2042,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [pushFx, look, lowQ]);
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);
+  // หอสังเกตการณ์: เป้าอีเวนต์ของเทิร์น +2 ที่เห็นเฉพาะเรา (me.colony.foresee) รวมเข้าชั้นเตือน (ติดธง foresee — วาดจางกว่า)
+  const myForesee = me && me.colony && Array.isArray(me.colony.foresee) ? me.colony.foresee : null;
+  const colonyView = useMemo(() => (state.colony && myForesee && myForesee.length
+    ? { ...state.colony, tele: [...(state.colony.tele || []), ...myForesee.map((t) => ({ ...t, foresee: true }))] }
+    : state.colony || null), [state.colony, myForesee]);
   const [colonyHome, setColonyHome] = useState(0); // ปุ่มเป้า (Colony) = กล้องกลับมาที่ตัวเรา
   const [colonyAway, setColonyAway] = useState(false); // กล้อง Colony ออกห่างตัวเรา → ปุ่มกลับที่หมาก (หกเหลี่ยมรูปตัวเรา)
   useEffect(() => {
     let seq = 0;
-    const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift"];
+    const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift", "colonyBelt", "colonyWarp", "colonyTurret", "colonyTurretHit"];
     // ตายตอนปิดผนึก/ระเบิด (event มาก่อน state): ค้างร่างไว้ (ระบบร่างค้างเดียวกับดิเอโก้) จนม่านเหล็กปิด/แฟลช แล้วค่อยระเบิดตกรอบ
     const DEATH_AT = { colonySeal: 2300, colonyBoom: 2600 };
     const holdDead = (kind, data) => {
@@ -2054,9 +2064,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       for (const id of Object.keys(add)) timers.current.push(setTimeout(() => setDiegoGhosts((g) => { if (!g[id]) return g; const n = { ...g }; delete n[id]; return n; }), ms + 1500));
     };
     // กระโดดผ่านแกน / ลิฟต์ = ย้ายตำแหน่งตรงๆ (ไม่ใช่การเดิน) → จบฉากแล้วโฟกัสกล้องไปจุดลง (ไม่งั้นกล้องกลับไปค้างที่จุดเดิม)
-    const LAND_AT = { colonyJump: 1000, colonyLift: 900 };
+    const LAND_AT = { colonyJump: 1000, colonyLift: 900, colonyWarp: 900, colonyBelt: 700 };
     const followLand = (kind, data) => {
-      const ms = LAND_AT[kind], to = data && data.to;
+      const ms = LAND_AT[kind], to = data && (data.to || (Array.isArray(data.path) && data.path[data.path.length - 1]));
       if (ms && to && Number.isFinite(to.x) && Number.isFinite(to.y)) timers.current.push(setTimeout(() => look(to), ms));
     };
     const handlers = kinds.map((kind) => [kind, (data) => { holdDead(kind, data); followLand(kind, data); setColonyEvents((l) => [...l.slice(-23), { key: `${Date.now()}-${++seq}`, kind, data }]); }]);
@@ -2610,7 +2620,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         zeroScene={zScene}
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
-        colony={state.colony || null}
+        colony={colonyView}
         moon={state.moon || null}
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}

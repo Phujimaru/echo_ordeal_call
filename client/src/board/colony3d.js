@@ -89,14 +89,24 @@ function paintFloor(g, W, H, st) {
   for (let y = sealed * SEC; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     const k = `${x},${y}`, d = districtOf(y), x0 = X(x), y0 = Y(y);
     if (glass.includes(x)) {
-      // กระจกหน้าต่างยาว (มองเห็นอวกาศ) — กลางวัน = ฟ้าสะท้อน · กลางคืน = ดาว
+      // กระจกหน้าต่างยาว (มองเห็นอวกาศ) — กลางวัน = ฟ้าสะท้อน + เงาเมฆ · กลางคืน = ดาว + เนบิวลาจาง · กรอบเหล็กสองข้าง + คานขวางทุกช่อง
       const gr = g.createLinearGradient(x0, 0, x0 + px, 0);
       gr.addColorStop(0, C.glass[0]); gr.addColorStop(0.5, C.glass[1]); gr.addColorStop(1, C.glass[0]);
       g.fillStyle = gr; g.fillRect(x0, y0, px + 0.5, py + 0.5);
-      if (night) for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(255,255,255,${0.4 + hash(x, y, i) * 0.6})`; g.fillRect(x0 + hash(x, i, y) * px, y0 + hash(i, y, x) * py, 1.6, 1.6); }
-      else { g.fillStyle = "rgba(255,255,255,.35)"; g.beginPath(); g.moveTo(x0 + px * 0.2, y0 + py); g.lineTo(x0 + px * 0.45, y0 + py); g.lineTo(x0 + px * 0.75, y0); g.lineTo(x0 + px * 0.5, y0); g.closePath(); g.fill(); }
-      g.strokeStyle = C.glassRim; g.lineWidth = Math.max(1, px * 0.04); g.strokeRect(x0 + 1, y0 + 1, px - 2, py - 2);
-      continue;
+      if (night) {
+        const nb = g.createRadialGradient(x0 + px * hash(x, y, 31), y0 + py * hash(y, x, 32), 0, x0 + px / 2, y0 + py / 2, px * 0.9);
+        nb.addColorStop(0, `rgba(${120 + hash(x, y, 33) * 80 | 0},90,200,.22)`); nb.addColorStop(1, "rgba(60,40,120,0)");
+        g.fillStyle = nb; g.fillRect(x0, y0, px, py);
+        for (let i = 0; i < 9; i++) { const b = hash(x, y, i + 40); g.fillStyle = `rgba(255,255,255,${0.35 + b * 0.65})`; const r = b > 0.9 ? 1.4 : 0.8; g.beginPath(); g.arc(x0 + hash(x, i, y) * px, y0 + hash(i, y, x) * py, r, 0, TAU); g.fill(); }
+      } else {
+        g.fillStyle = "rgba(255,255,255,.32)"; g.beginPath(); g.moveTo(x0 + px * 0.2, y0 + py); g.lineTo(x0 + px * 0.45, y0 + py); g.lineTo(x0 + px * 0.75, y0); g.lineTo(x0 + px * 0.5, y0); g.closePath(); g.fill();
+        if (hash(x, y, 50) > 0.6) { const cg = g.createRadialGradient(x0 + px * 0.5, y0 + py * 0.5, 0, x0 + px * 0.5, y0 + py * 0.5, px * 0.45); cg.addColorStop(0, "rgba(255,255,255,.35)"); cg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = cg; g.fillRect(x0, y0, px, py); }
+      }
+      // กรอบเหล็ก: รางข้าง (หมุดย้ำ) + คานขวาง
+      g.fillStyle = night ? "#5b6b84" : "#c3cfdc"; g.fillRect(x0, y0, px * 0.07, py + 0.5); g.fillRect(x0 + px * 0.93, y0, px * 0.07, py + 0.5); g.fillRect(x0, y0 + py * 0.47, px, py * 0.06);
+      g.fillStyle = night ? "rgba(255,210,150,.55)" : "rgba(90,105,125,.55)";
+      for (const yy of [0.2, 0.8]) for (const xx of [0.035, 0.965]) { g.beginPath(); g.arc(x0 + px * xx, y0 + py * yy, px * 0.018, 0, TAU); g.fill(); }
+      if (special[k] !== "belt") continue; // สายพานพาดข้ามแถบกระจก = วาดสายพานทับต่อ
     }
     if (special[k] === "shallow") {
       // น้ำตื้น (แบบช่อง shallow ของกระดาน 2D)
@@ -105,6 +115,45 @@ function paintFloor(g, W, H, st) {
       g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(x0 + px * 0.14, y0 + py * 0.14, px * 0.72, py * 0.72);
       g.fillStyle = C.pebble;
       for (let i = 0; i < 6; i++) { g.beginPath(); g.ellipse(x0 + px * (0.15 + hash(i, x, y, 1) * 0.7), y0 + py * (0.15 + hash(y, x, i) * 0.7), px * 0.035, py * 0.02, 0, 0, TAU); g.fill(); }
+    } else if (special[k] === "belt") {
+      // สายพานทางด่วน: ยางดำ + ขอบเหลือง + ลูกศรตามทิศ (map.flow)
+      const right = (map.flow && map.flow[k]) !== "left";
+      g.fillStyle = night ? "#20262f" : "#3a414c"; g.fillRect(x0, y0 + py * 0.08, px + 0.5, py * 0.84);
+      g.fillStyle = night ? "#c99a2e" : "#f2b33c"; g.fillRect(x0, y0 + py * 0.08, px + 0.5, py * 0.07); g.fillRect(x0, y0 + py * 0.85, px + 0.5, py * 0.07);
+      g.fillStyle = night ? "rgba(120,220,255,.75)" : "rgba(160,235,255,.9)";
+      for (const c of [0.25, 0.65]) {
+        const cx = x0 + px * c, cy = y0 + py / 2, w = px * 0.16 * (right ? 1 : -1);
+        g.beginPath(); g.moveTo(cx - w, cy - py * 0.22); g.lineTo(cx + w, cy); g.lineTo(cx - w, cy + py * 0.22); g.lineTo(cx - w * 0.3, cy); g.closePath(); g.fill();
+      }
+    } else if (special[k] === "rail") {
+      // รางรถราง: หมอนไม้ + รางเหล็กคู่
+      g.fillStyle = night ? "#3b3f47" : "#b7b2a6"; g.fillRect(x0 + px * 0.06, y0, px * 0.88, py + 0.5);
+      g.fillStyle = night ? "#4a3a2c" : "#8a6a48";
+      for (let i = 0; i < 4; i++) g.fillRect(x0 + px * 0.1, y0 + py * (0.06 + i * 0.25), px * 0.8, py * 0.1);
+      g.fillStyle = night ? "#9fb0c8" : "#6d7682";
+      g.fillRect(x0 + px * 0.26, y0, px * 0.06, py + 0.5); g.fillRect(x0 + px * 0.68, y0, px * 0.06, py + 0.5);
+      g.fillStyle = "rgba(255,255,255,.45)"; g.fillRect(x0 + px * 0.27, y0, px * 0.015, py + 0.5); g.fillRect(x0 + px * 0.69, y0, px * 0.015, py + 0.5);
+    } else if (special[k] === "warp") {
+      // แท่นวาร์ป: วงแหวนซ้อนม่วงเรือง
+      const cx = x0 + px / 2, cy = y0 + py / 2;
+      g.fillStyle = night ? "#2a2148" : "#d9d2f2"; g.beginPath(); g.arc(cx, cy, px * 0.46, 0, TAU); g.fill();
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, px * 0.44); gr.addColorStop(0, "rgba(200,160,255,.95)"); gr.addColorStop(0.6, "rgba(140,90,255,.5)"); gr.addColorStop(1, "rgba(120,80,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, px * 0.44, 0, TAU); g.fill();
+      g.strokeStyle = "#b48cff"; g.lineWidth = Math.max(2, px * 0.05);
+      for (const r of [0.42, 0.28]) { g.beginPath(); g.arc(cx, cy, px * r, 0, TAU); g.stroke(); }
+    } else if (special[k] === "watch") {
+      // ฐานหอสังเกตการณ์: แผ่นหกเหลี่ยมเหล็ก + ขอบฟ้า
+      const cx = x0 + px / 2, cy = y0 + py / 2;
+      g.fillStyle = night ? "#46566e" : "#cfd9e4"; g.strokeStyle = night ? "#8fb4e6" : "#4d7fb8"; g.lineWidth = Math.max(2, px * 0.05);
+      g.beginPath(); for (let i = 0; i < 6; i++) { const a = i * TAU / 6 + Math.PI / 6; g.lineTo(cx + Math.cos(a) * px * 0.44, cy + Math.sin(a) * py * 0.44); } g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = night ? "rgba(140,190,255,.5)" : "rgba(77,127,184,.4)"; g.beginPath(); g.arc(cx, cy, px * 0.12, 0, TAU); g.fill();
+    } else if (map.heal && (Array.isArray(map.heal) ? map.heal.includes(k) : map.heal.has && map.heal.has(k))) {
+      // น้ำพุ: ลานหินกลม + อ่างน้ำ
+      const cx = x0 + px / 2, cy = y0 + py / 2;
+      g.fillStyle = night ? "#6d7584" : "#e6e1d6"; g.beginPath(); g.arc(cx, cy, px * 0.48, 0, TAU); g.fill();
+      g.fillStyle = night ? "#596173" : "#cfc8b8"; g.beginPath(); g.arc(cx, cy, px * 0.36, 0, TAU); g.fill();
+      g.fillStyle = C.water; g.beginPath(); g.arc(cx, cy, px * 0.3, 0, TAU); g.fill();
+      g.strokeStyle = C.waterRim; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, px * 0.2, 0, TAU); g.stroke();
     } else if (special[k] === "lift") {
       g.fillStyle = night ? "#3a4660" : "#dfe6ee"; g.fillRect(x0 + px * 0.06, y0 + py * 0.06, px * 0.88, py * 0.88);
       g.strokeStyle = "#d9a93f"; g.lineWidth = Math.max(2, px * 0.06);
@@ -114,6 +163,10 @@ function paintFloor(g, W, H, st) {
       // ถนนหิน (ย่านเมือง)
       g.fillStyle = C.road; g.fillRect(x0 + px * 0.04, y0 + py * 0.04, px * 0.92, py * 0.92);
       g.strokeStyle = C.roadRim; g.lineWidth = Math.max(1, px * 0.03); g.strokeRect(x0 + px * 0.04, y0 + py * 0.04, px * 0.92, py * 0.92);
+      // อิฐปูถนน (ลายเรียงสลับ)
+      g.strokeStyle = night ? "rgba(255,255,255,.06)" : "rgba(120,100,70,.12)"; g.lineWidth = 1;
+      for (let r = 1; r < 4; r++) { const yy = y0 + py * (0.04 + 0.92 * r / 4); g.beginPath(); g.moveTo(x0 + px * 0.04, yy); g.lineTo(x0 + px * 0.96, yy); g.stroke(); }
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) { const xx = x0 + px * (0.04 + 0.92 * (c + (r % 2 ? 0.5 : 1)) / 3); if (xx < x0 + px * 0.95) { g.beginPath(); g.moveTo(xx, y0 + py * (0.04 + 0.92 * r / 4)); g.lineTo(xx, y0 + py * (0.04 + 0.92 * (r + 1) / 4)); g.stroke(); } }
     } else if (d === "city") {
       // ลานหิน (ย่านตึก)
       g.strokeStyle = C.roadRim; g.lineWidth = Math.max(1, px * 0.025); g.strokeRect(x0 + px * 0.08, y0 + py * 0.08, px * 0.84, py * 0.84);
@@ -132,6 +185,16 @@ function paintFloor(g, W, H, st) {
       g.strokeStyle = "rgba(0,0,0,.18)"; g.lineWidth = 1; g.strokeRect(x0 + px * 0.08, y0 + py * 0.08, px * 0.84, py * 0.84);
       g.fillStyle = C.rivet;
       for (const [a, b] of [[0.18, 0.18], [0.82, 0.18], [0.18, 0.82], [0.82, 0.82]]) { g.beginPath(); g.arc(x0 + px * a, y0 + py * b, px * 0.04, 0, TAU); g.fill(); }
+    }
+    // เม็ดพื้นละเอียด (ไม่ให้พื้นเป็นสีแบนๆ)
+    for (let i = 0; i < 10; i++) { g.fillStyle = hash(x, y, 60 + i) > 0.5 ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)"; g.fillRect(x0 + hash(i, x, y + 7) * px, y0 + hash(y, i + 3, x) * py, px * 0.05, py * 0.05); }
+    // เงาโคนกำแพงกั้นปล้อง (แถวติดกำแพงทั้งสองฝั่ง)
+    const ys = y % SEC;
+    if ((ys === SEC - 1 || ys === 0) && y > 0 && y < ROWS - 1) {
+      const toWall = ys === SEC - 1; // ฝั่งบนของแถวนี้ติดกำแพง
+      const ao = g.createLinearGradient(0, toWall ? y0 : y0 + py, 0, toWall ? y0 + py * 0.6 : y0 + py * 0.4);
+      ao.addColorStop(0, night ? "rgba(0,0,10,.35)" : "rgba(20,40,60,.18)"); ao.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = ao; g.fillRect(x0, y0, px, py);
     }
     // หมากรุกจางของกระดาน
     g.fillStyle = (x + y) & 1 ? C.tile2 : C.tile; g.fillRect(x0, y0, px, py);
@@ -173,7 +236,22 @@ function paintOverlay(g, W, H, st) {
       if (d > 0 && d <= h.radius && y >= 0 && y < ROWS) tile(x, y, `rgba(150,70,255,${0.06 + 0.14 * (h.radius - d) / h.radius})`);
     }
   }
+  // ไฟดับ (กำลังมีผล) = ทั้งปล้องมืด
+  if (c.blackout != null) for (let y = c.blackout * SEC; y < (c.blackout + 1) * SEC; y++) for (let x = 0; x < COLS; x++) tile(x, y, "rgba(8,6,30,.55)");
+  // ป้อมปืน: แนวที่จะยิงตอนจบเทิร์น (3 ช่อง)
+  for (const tr of c.turrets || []) {
+    const v = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[tr.face];
+    if (!v) continue;
+    for (let i = 1; i <= 3; i++) { const yy = tr.y + v[1] * i; if (yy < 0 || yy >= ROWS) break; tile(tr.x + v[0] * i, yy, `rgba(255,60,60,${0.32 - i * 0.07})`); }
+  }
   for (const t of c.tele || []) {
+    g.globalAlpha = t.foresee ? 0.45 : 1; // หอสังเกตการณ์: เป้าของเทิร์น +2 จางกว่า
+    if (t.type === "tram") {
+      for (let y = (c.sealed | 0) * SEC; y < ROWS; y++) { tile(t.x, y, "rgba(255,170,40,.45)"); if (y % 2 === 0) tile(t.x, y, "rgba(40,20,0,.18)"); }
+      continue;
+    }
+    if (t.type === "blackout") { for (let y = t.sec * SEC; y < (t.sec + 1) * SEC; y++) for (let x = 0; x < COLS; x++) if ((x + y) % 2 === 0) tile(x, y, "rgba(60,40,140,.22)"); continue; }
+    if (t.type === "gravity") continue;
     if (t.type === "meteor") {
       for (let y = t.y - t.radius; y <= t.y + t.radius; y++) for (let x = t.x - t.radius; x <= t.x + t.radius; x++) {
         const d = Math.abs(x - t.x) + Math.abs(y - t.y);
@@ -191,6 +269,7 @@ function paintOverlay(g, W, H, st) {
       tile(t.x, t.y, "rgba(255,210,90,.3)");
     }
   }
+  g.globalAlpha = 1;
 }
 
 // ---------------------------------------------------------------- ตัวช่วยวางของบนผิว (แกน Y ของวัตถุ = ชี้เข้าแกนกระบอก)
@@ -230,10 +309,45 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const sun = new THREE.DirectionalLight(0xfff2dc, 0.9);
   sun.position.set(0, 0, -10); sun.target.position.set(0, 0, 40);
   scene.add(hemi, amb, sun, sun.target);
-  // แกนกลางเรืองแสงจางๆ (แสงประดิษฐ์ตามแกน)
-  const axisGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, ROWS, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.18, depthWrite: false }));
-  axisGlow.rotation.x = Math.PI / 2; axisGlow.position.z = ROWS / 2;
-  scene.add(axisGlow);
+  // ---- แกนแสงกลาง (ดวงอาทิตย์เทียมของโคโลนี): แกนสว่าง + รัศมีนุ่มแบบเฟรสเนล (หันด้านข้าง = จาง) + โคมทุกปล้อง
+  //  กลางวัน = ขาวอุ่นสว่าง · กลางคืน = ฟ้าจางแบบแสงจันทร์ · แกนเดียว ทั้งหมด 3 draw call
+  const sunLineMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uColor: { value: new THREE.Color(0xfff1d0) }, uPow: { value: 1 }, uTime: { value: 0 } },
+    // จางเมื่ออยู่ใกล้กล้อง (เงยมองแล้วแกนแสงไม่บังกลางจอ)
+    vertexShader: "varying vec3 vN; varying vec3 vV; varying float vZ; varying float vD; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vZ = position.y; vD = length(mv.xyz); gl_Position = projectionMatrix * mv; }",
+    fragmentShader: "uniform vec3 uColor; uniform float uPow; uniform float uTime; varying vec3 vN; varying vec3 vV; varying float vZ; varying float vD; void main(){ float f = abs(dot(vN, vV)); float a = pow(f, 4.0) * uPow * (0.85 + 0.15 * sin(vZ * 0.9 - uTime * 1.6)) * smoothstep(2.5, 9.0, vD); gl_FragColor = vec4(uColor * a, a); }",
+  });
+  const sunHalo = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, ROWS + 6, 24, 1, true), sunLineMat);
+  sunHalo.rotation.x = Math.PI / 2; sunHalo.position.z = ROWS / 2;
+  // แกนสว่าง: จางเมื่ออยู่ใกล้กล้อง (ไม่เป็นเส้นขาวพาดกลางจอตอนกล้องอยู่ใกล้แกน)
+  const sunCoreMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uColor: { value: new THREE.Color(0xfffbea) } },
+    vertexShader: "varying float vD; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vD = length(mv.xyz); gl_Position = projectionMatrix * mv; }",
+    fragmentShader: "uniform vec3 uColor; varying float vD; void main(){ gl_FragColor = vec4(uColor, smoothstep(3.5, 11.0, vD)); }",
+  });
+  const sunCore = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, ROWS + 6, 10, 1, true), sunCoreMat);
+  sunCore.rotation.x = Math.PI / 2; sunCore.position.z = ROWS / 2;
+  const nodeTex = glowTex("rgba(255,250,235,1)", "rgba(255,226,170,.35)");
+  const sunNodes = [];
+  for (let z = 0; z <= ROWS; z += SEC / 2) { const n = new THREE.Sprite(new THREE.SpriteMaterial({ map: nodeTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); n.position.set(0, 0, z); n.scale.setScalar(z % SEC ? 0.7 : 1.3); sunNodes.push(n); }
+  scene.add(sunHalo, sunCore, ...sunNodes);
+  // ---- เมฆลอยรอบแกน (สไปรต์นุ่ม · ไหลช้าๆ ตามแกน + วนรอบ) — กลางคืนจางเกือบหาย
+  const cloudTex = canvasTex(256, 128, (g, Wd, H) => {
+    for (let i = 0; i < 14; i++) {
+      const x = Wd * (0.2 + hash(i, 1, 9) * 0.6), y = H * (0.42 + hash(i, 2, 9) * 0.22), r = H * (0.18 + hash(i, 3, 9) * 0.22);
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(255,255,255,.55)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    }
+  });
+  const CLOUD_N = lowQ ? 8 : 22;
+  const cloudMat = new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.6 });
+  const clouds = Array.from({ length: CLOUD_N }, (_, i) => {
+    const sp = new THREE.Sprite(cloudMat); const sc = 2.2 + hash(i, 4, 2) * 2.6; sp.scale.set(sc * 2, sc, 1);
+    scene.add(sp);
+    return { sp, phi: hash(i, 5, 2) * TAU, z: hash(i, 6, 2) * ROWS, r: Rc * (0.42 + hash(i, 7, 2) * 0.2), v: 0.12 + hash(i, 8, 2) * 0.18 };
+  });
 
   // ---- พื้นผิวกระบอก + ชั้นเตือน
   const RES = lowQ ? 32 : 64;
@@ -333,8 +447,19 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const lifts = new THREE.Group(); scene.add(lifts);
   const liftDots = [];
   const spokeMat = new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.45, depthWrite: false });
+  const warpBeamTex = canvasTex(32, 128, (g, Wd, H) => { const gr = g.createLinearGradient(0, H, 0, 0); gr.addColorStop(0, "rgba(190,150,255,.7)"); gr.addColorStop(1, "rgba(190,150,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, Wd, H); });
+  const warpBeamMat = new THREE.MeshBasicMaterial({ map: warpBeamTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const warpBeamGeo = new THREE.CylinderGeometry(0.26, 0.32, 1.6, 16, 1, true);
+  const warpBeams = [];
   function buildLifts(map) {
-    lifts.clear(); liftDots.length = 0;
+    lifts.clear(); liftDots.length = 0; warpBeams.length = 0;
+    for (const [k, kind] of Object.entries(map.special || {})) {
+      if (kind !== "warp") continue;
+      const [x, y] = k.split(",").map(Number);
+      const b = new THREE.Mesh(warpBeamGeo, warpBeamMat);
+      placeOn(b, x + 0.5, y + 0.5, 0.7);
+      lifts.add(b); warpBeams.push(b);
+    }
     for (const [k, kind] of Object.entries(map.special || {})) {
       if (kind !== "lift") continue;
       const [x, y] = k.split(",").map(Number);
@@ -442,12 +567,27 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   // ---- รูรั่ว (ขอบเรือง + อนุภาคถูกดูด)
   const holeGroup = new THREE.Group(); scene.add(holeGroup);
   let holeSig = "";
+  // ขอบหลอมเรืองส้ม + วังวนม่วงหมุนรอบรู (ดึงสายตาว่าตรงนี้ดูดคน)
+  const vortexTex = canvasTex(256, 256, (g) => {
+    g.translate(128, 128);
+    for (let arm = 0; arm < 4; arm++) for (let i = 0; i < 90; i++) {
+      const t = i / 90, a = arm * TAU / 4 + t * 5.5, r = 18 + t * 104;
+      g.fillStyle = `rgba(${170 + t * 60 | 0},${90 + t * 60 | 0},255,${0.55 * (1 - t)})`;
+      g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 3 + t * 9, 0, TAU); g.fill();
+    }
+  });
+  const rimGeo = new THREE.TorusGeometry(0.42, 0.045, 6, 28), rimMat = new THREE.MeshBasicMaterial({ color: 0xff7a3a });
+  const vortexGeo = new THREE.PlaneGeometry(2.6, 2.6), vortexMat = new THREE.MeshBasicMaterial({ map: vortexTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const vortices = [];
   function buildHoles(holes) {
-    holeGroup.clear();
+    holeGroup.clear(); vortices.length = 0;
     for (const h of holes) for (const [x, y] of h.cells) {
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 6, 24), new THREE.MeshBasicMaterial({ color: 0xff6a3a }));
+      const rim = new THREE.Mesh(rimGeo, rimMat);
       placeOn(rim, x + 0.5, y + 0.5, 0.02); rim.rotateX(Math.PI / 2);
-      holeGroup.add(rim);
+      const vx = new THREE.Mesh(vortexGeo, vortexMat);
+      placeOn(vx, x + 0.5, y + 0.5, 0.03); vx.rotateX(Math.PI / 2);
+      vx.scale.setScalar(0.6 + (h.radius || 3) * 0.35);
+      holeGroup.add(rim, vx); vortices.push(vx);
     }
   }
   const partGeo = new THREE.BufferGeometry();
@@ -459,7 +599,8 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const partState = Array.from({ length: PART_N }, () => ({ t: Math.random(), hole: 0, ang: Math.random() * TAU, r: 1 + Math.random() * 3 }));
 
   // ---- แคปซูลเสบียง: สไปรต์ 2D (colonyProps.drawCapsule) — ที่นี่คิดแค่ความสูงตอนตกลงมา (capsuleAt)
-  let capsuleAtNow = null;
+  let capsulesNow = []; // แคปซูลเสบียง 3 แบบ (ยา/ช่าง/พ่อค้าเร่) ที่ลงอยู่ — state.colony.capsules
+  const capsuleDrops = new Map(); // "x,y" → { t0 } จังหวะตกในฉาก (t0 = 0 = ยังไม่ถึงคิว → ยังไม่วาด)
 
   // ---- เอฟเฟกต์ 3D (อุกกาบาต · ระเบิด · ลำแสงกวาด · เศษซาก · ตัวละครลอย)
   const fxGroup = new THREE.Group(); scene.add(fxGroup);
@@ -484,9 +625,48 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       geo.attributes.position.needsUpdate = true; pts.material.opacity = 1 - k; pts.material.transparent = true;
     } });
   }
+  // คลื่นกระแทกบนพื้น: วงแหวนขยายออก + จาง (bx, by = ช่องบนกระดาน)
+  const shockTex = canvasTex(256, 256, (g) => {
+    const gr = g.createRadialGradient(128, 128, 60, 128, 128, 128);
+    gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.7, "rgba(255,255,255,.15)"); gr.addColorStop(0.9, "rgba(255,255,255,.95)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  });
+  const shockGeo = new THREE.PlaneGeometry(1, 1);
+  function shockwave(bx, by, color = 0xffc070, size = 4, ms = 700) {
+    const m = new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ map: shockTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    placeOn(m, bx, by, 0.04); m.rotateX(Math.PI / 2);
+    addFx({ obj: m, t0: performance.now(), ms, tick: (k) => { m.scale.setScalar(0.3 + size * ease(k)); m.material.opacity = 1 - k; } });
+  }
+  // ประกายไฟพุ่งกระจาย (ตกตามแรงเหวี่ยงลงพื้น)
+  function sparks(pos, color = 0xffd890, n = 22, speed = 3, ms = 800) {
+    if (lowQ) n = Math.ceil(n / 3);
+    const geo = new THREE.BufferGeometry(), arr = new Float32Array(n * 3);
+    geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: meteorTex, color, size: 0.16, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const up = pos.clone().setZ(0).normalize().multiplyScalar(-1);
+    const vs = Array.from({ length: n }, () => new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(speed * (0.4 + Math.random())).addScaledVector(up, speed * 0.5));
+    addFx({ obj: pts, t0: performance.now(), ms, tick: (k) => {
+      const t = k * ms / 1000;
+      vs.forEach((v, i) => { const p = pos.clone().addScaledVector(v, t).addScaledVector(up, -6 * t * t); arr.set([p.x, p.y, p.z], i * 3); });
+      geo.attributes.position.needsUpdate = true; pts.material.opacity = 1 - k;
+    } });
+  }
+  // หางอนุภาค (ไฟ/แสง) ตามจุดที่เคลื่อน — getPos(k) คืนตำแหน่ง ณ ความคืบหน้า k
+  function trail(getPos, ms, color = 0xffa850, size = 0.28, n = 40) {
+    if (lowQ) n = Math.ceil(n / 2);
+    const geo = new THREE.BufferGeometry(), arr = new Float32Array(n * 3);
+    geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: meteorTex, color, size, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    addFx({ obj: pts, t0: performance.now(), ms: ms + 350, tick: (k) => {
+      const kk = k * (ms + 350) / ms;
+      for (let i = 0; i < n; i++) { const q = clamp(kk - i * 0.012, 0, 1); const p = getPos(q); arr.set([p.x + (Math.random() - 0.5) * 0.05 * i / n, p.y + (Math.random() - 0.5) * 0.05 * i / n, p.z], i * 3); }
+      geo.attributes.position.needsUpdate = true; pts.material.opacity = kk > 1 ? Math.max(0, 1 - (kk - 1) * 3) : 1;
+    } });
+  }
   function streak(from, to, ms, color = 0xffa850) {
+    trail((k) => from.clone().lerp(to, ease(k)), ms, color, 0.36, 46);
     const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: meteorTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color }));
-    head.scale.setScalar(0.7);
+    head.scale.setScalar(1.1);
     const lineGeo = new THREE.BufferGeometry().setFromPoints([from, from]);
     const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }));
     const g = new THREE.Group(); g.add(head, line);
@@ -502,13 +682,21 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const ring = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xff7ad8, transparent: true }));
     const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, z), new THREE.Vector3(0, 0, z)]);
     const ray = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0xfff0ff, transparent: true }));
-    const g = new THREE.Group(); g.add(ring, ray);
+    // ลำแสงหนาเรือง (ทรงกระบอกบวกแสง) จากแกนลงพื้น + จุดกระทบเรือง
+    const thick = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.16, Rc, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8ae0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const hit = new THREE.Sprite(new THREE.SpriteMaterial({ map: meteorTex, color: 0xff9ae6, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); hit.scale.setScalar(1.4);
+    const g = new THREE.Group(); g.add(ring, ray, thick, hit);
+    let lastSpark = 0;
     addFx({ obj: g, t0: performance.now(), ms, tick: (k) => {
       const sweep = ease(Math.min(1, k * 1.6)) * TAU;
       for (let i = 0; i <= N; i++) { const p = surf(phi0 + sweep * i / N, z, 0.06); arr.set([p.x, p.y, p.z], i * 3); }
       geo.attributes.position.needsUpdate = true; geo.setDrawRange(0, N + 1);
       ring.material.opacity = 1 - k * 0.8;
-      rayGeo.setFromPoints([new THREE.Vector3(0, 0, z), surf(phi0 + sweep, z, 0.06)]); ray.material.opacity = k < 0.65 ? 1 : 0;
+      const tip = surf(phi0 + sweep, z, 0.06), base = new THREE.Vector3(0, 0, z);
+      rayGeo.setFromPoints([base, tip]); ray.material.opacity = k < 0.65 ? 1 : 0;
+      thick.position.copy(base).lerp(tip, 0.5); thick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(base).normalize());
+      thick.material.opacity = k < 0.65 ? 0.55 + 0.25 * Math.sin(k * 60) : Math.max(0, 1 - (k - 0.65) * 4) * 0.5; hit.position.copy(tip); hit.material.opacity = k < 0.65 ? 1 : 0;
+      if (k < 0.65 && k - lastSpark > 0.05) { lastSpark = k; sparks(tip.clone(), 0xffa0f0, 8, 2.2, 500); }
     } });
   }
   // ตัวละครลอย (กระโดดผ่านแกน · ลิฟต์ · ถูกดูดออกนอกโคโลนี) — สไปรต์ภาพตัวละคร
@@ -527,6 +715,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   }
   const hidden = new Map(); // id → จนถึงเวลา (ms) — ชั้น 2D ไม่วาดตัวนี้ระหว่างฉากลอย
   function flyUnit(id, path, ms, opts = {}) {
+    if (!opts.shrink) trail((k) => path(ease(k)), ms, opts.color || 0xbfe6ff, 0.22, 30);
     const s = unitSprite(id); s.scale.setScalar(0.62); s.renderOrder = 10;
     hidden.set(id, performance.now() + ms + 60);
     addFx({ obj: s, t0: performance.now(), ms, tick: (k) => {
@@ -704,18 +893,38 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
             });
           });
         } else if (e.type === "capsule") {
-          capsuleDrop = { x: e.at.x, y: e.at.y, t0: 0 };
+          const dk = `${e.at.x},${e.at.y}`, drop = { t0: 0 };
+          capsuleDrops.set(dk, drop);
+          const tint = { apoth: 0x8fffc0, forge: 0xffb060, cara: 0xffe070 }[e.kind] || 0xffd890;
           queueShot(tileShot(e.at.x, e.at.y, { pitch: 0.95, dist: 6.8 }), 2400, () => {
-            capsuleDrop.t0 = now() + 400;
+            drop.t0 = now() + 400;
+            // ไอพ่นลงจากแกน: หางแสงสีตามชนิด
+            const top = surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, Rc * 0.95), bot = surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0.3);
+            later(400, () => trail((k) => top.clone().lerp(bot, ease(k)), 550, tint, 0.3, 30));
             later(250, () => sfx("colony_capsule_fall"));
             later(950, () => {
-              sfx("colony_capsule_land"); boom(surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0), 1.4, 600); R.shake = Math.max(R.shake, 0.7); if (e.crushed && e.crushed.to) animMoves([{ id: e.crushed.id, from: { x: e.at.x, y: e.at.y }, path: [e.crushed.to] }]); });
+              sfx("colony_capsule_land"); boom(surf(phiOf(e.at.x + 0.5), e.at.y + 0.5, 0), 1.4, 600); shockwave(e.at.x + 0.5, e.at.y + 0.5, tint, 3.2, 700); sparks(bot, tint, 18, 2.5, 700);
+              R.shake = Math.max(R.shake, 0.7); if (e.crushed && e.crushed.to) animMoves([{ id: e.crushed.id, from: { x: e.at.x, y: e.at.y }, path: [e.crushed.to] }]);
+            });
           });
         } else if (e.type === "pull") {
           const c0 = e.hole && e.hole[0];
           if (c0) queueShot(tileShot(c0[0], c0[1]), 1400, () => { R.shake = Math.max(R.shake, 0.3); sfx("colony_wind", 0.8); if ((e.sucked || []).length) later(300, () => sfx("colony_sucked")); for (const id of e.sucked || []) suckGhost(id, c0); animMoves(e.moves); });
         } else if (e.type === "drift") {
           queueShot({ axis: 0.55, dist: 8.4, k: 0.06, roll: 0.08 }, 1600, () => { R.shake = Math.max(R.shake, 0.3); sfx("colony_drift"); animMoves((e.moves || []).map((m) => ({ id: m.id, from: m.from, path: [m.to], ms: 700 }))); if (R.shot) R.shot.phi = R.cur.phi + DPHI; });
+        } else if (e.type === "tram") {
+          // รถรางวิ่งตามรางจากปลายปล้องที่เปิดไปถึงโดม (3 ตู้ · ไฟหน้า · ประกายล้อ) — ชนคนบนราง
+          queueShot(tileShot(e.x, clamp(R.cur.z - 0.5, minRowNow + 1, ROWS - 4), { pitch: 0.7, dist: 9, k: 0.1 }), 2600, () => {
+            sfx("colony_beam_charge", 0.6);
+            later(300, () => { tramRun(e.x, 1700); sfx("colony_drift"); });
+            later(900, () => { R.shake = Math.max(R.shake, 0.9); for (const id of e.hit || []) { const u = unitInfo.get(id); if (u) sparks(surf(phiOf(e.x + 0.5), u.y + 0.5, 0.3), 0xffd070, 16, 3, 600); } animMoves(e.moves); });
+          });
+        } else if (e.type === "gravity") {
+          // แรงโน้มถ่วงดับ: ฝุ่น/เศษของลอยขึ้นทั้งโคโลนี + กล้องลอยเอียง
+          queueShot({ dist: R.user.dist + 2, k: 0.05, roll: 0.06 }, 2000, () => { sfx("colony_wind", 0.6); gravityT0 = now(); R.shake = Math.max(R.shake, 0.4); });
+        } else if (e.type === "blackout") {
+          // ไฟดับทั้งปล้อง: ไฟกะพริบแล้วดับ
+          queueShot({ z: e.sec * SEC + 5, pitch: 0.95, dist: 10, k: 0.08 }, 2000, () => { sfx("colony_alarm_seal", 0.5); flickerT0 = now(); });
         }
       }
     } else if (kind === "colonySeal") {
@@ -744,13 +953,58 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       // ลงแล้ว: โฟกัสอยู่จุดลงทันที (BoardStage ส่ง focus ใหม่ตามมาอีกที) — กล้องไม่ย้อนกลับไปจุดกระโดด
       sfx("colony_jump");
       later(ms, () => { sfx("colony_stomp"); R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id) { goTo(to.x, to.y); R.focusKey = `${to.x},${to.y}`; } });
+    } else if (kind === "colonyBelt") {
+      // สายพาน: เลื่อนตามเส้นทาง + ประกายฟ้าใต้เท้า
+      animMoves([{ id: d.id, from: d.from, path: d.path || [], ms: 180 * ((d.path || []).length || 1) }]);
+      for (const c of d.path || []) later(180 * (d.path.indexOf(c) + 1), () => sparks(surf(phiOf(c.x + 0.5), c.y + 0.5, 0.05), 0x9fe8ff, 5, 1.2, 400));
+    } else if (kind === "colonyWarp") {
+      // วาร์ป: แสงม่วงพุ่งขึ้นจากแท่นต้นทาง → โผล่แท่นปลายทาง + คลื่นกระแทกทั้งสองฝั่ง
+      const a = surf(phiOf(d.from.x + 0.5), d.from.y + 0.5, 0.35), b = surf(phiOf(d.to.x + 0.5), d.to.y + 0.5, 0.35);
+      shockwave(d.from.x + 0.5, d.from.y + 0.5, 0xb48cff, 2.6, 600); sparks(a, 0xc8a8ff, 16, 2, 600);
+      flyUnit(d.id, (k) => a.clone().lerp(b, k).addScaledVector(new THREE.Vector3(0, 0, 0), 0), 800, { color: 0xc8a8ff });
+      later(800, () => { shockwave(d.to.x + 0.5, d.to.y + 0.5, 0xb48cff, 2.6, 600); sparks(b, 0xc8a8ff, 16, 2, 600); flash = Math.max(flash, 0.15); flashRGB = "200,170,255"; });
+      sfx("colony_lift");
+    } else if (kind === "colonyTurret") {
+      // ป้อมปืนยิงตอนจบเทิร์น: แสงปากกระบอก + กระสุนแสงแดงตามแนว + ประกายที่จุดโดน
+      for (const sh of d.shots || []) {
+        const v = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[sh.face] || [0, 1];
+        const from = surf(phiOf(sh.x + 0.5 + v[0] * 0.3), sh.y + 0.5 + v[1] * 0.3, 0.55), to = surf(phiOf(sh.x + 0.5 + wd(sh.x, sh.end.x)), sh.end.y + 0.5, 0.45);
+        streak(from, to, 220, 0xff4a3a);
+        sparks(from, 0xffb070, 6, 1.5, 300);
+        if (sh.hit) later(220, () => { sparks(to, 0xff6a50, 14, 2.4, 500); });
+      }
+      sfx("colony_meteor_hit", 0.35);
+    } else if (kind === "colonyTurretHit") {
+      const pos = surf(phiOf(d.x + 0.5), d.y + 0.5, 0.5);
+      sparks(pos, 0xffd890, d.hp > 0 ? 10 : 30, d.hp > 0 ? 2 : 3.5, 600);
+      if (d.hp <= 0) { boom(pos, 1.8, 700); shockwave(d.x + 0.5, d.y + 0.5, 0xff9a50, 2.4, 600); R.shake = Math.max(R.shake, 0.6); }
     } else if (kind === "colonyLift") {
       const from = d.from, to = d.to;
       sfx("colony_lift");
       flyUnit(d.id, (k) => surf(phiOf(lerp(from.x, from.x + wd(from.x, to.x), k) + 0.5), lerp(from.y, to.y, k) + 0.5, 0.3 + Math.sin(k * Math.PI) * Rc * 0.7), 900);
     }
   }
-  let capsuleDrop = null, sealAnim = null, jumpCam = null;
+  let sealAnim = null, jumpCam = null, gravityT0 = 0, flickerT0 = 0;
+  // รถราง 3 ตู้ (กล่อง + หน้าต่างเรือง + ไฟหน้า) วิ่งตามคอลัมน์ x จากปล้องที่เปิดถึงโดม
+  const tramTex = canvasTex(128, 64, (g, Wd, H) => {
+    g.fillStyle = "#e8eef5"; g.fillRect(0, 0, Wd, H);
+    g.fillStyle = "#2f6fb5"; g.fillRect(0, H * 0.62, Wd, H * 0.14);
+    for (let i = 0; i < 4; i++) { g.fillStyle = "#8fd0ff"; g.fillRect(8 + i * 30, H * 0.16, 22, H * 0.34); }
+  });
+  const tramMat = new THREE.MeshLambertMaterial({ map: tramTex }), tramGeo = new THREE.BoxGeometry(0.62, 0.55, 1.7);
+  function tramRun(x, ms) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 3; i++) { const car = new THREE.Mesh(tramGeo, tramMat); car.position.z = -i * 1.85; g.add(car); }
+    const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: meteorTex, color: 0xfff2c0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    head.scale.setScalar(1.6); head.position.z = 0.9; g.add(head);
+    const z0 = minRowNow - 6, z1 = ROWS + 6, phi = phiOf(x + 0.5);
+    addFx({ obj: g, t0: performance.now(), ms, tick: (k) => {
+      const z = lerp(z0, z1, k);
+      g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tan(phi), nrm(phi), AX));
+      surf(phi, z, 0.3, g.position);
+      if (Math.random() < 0.5) sparks(surf(phi, z - 0.6, 0.02), 0xffe0a0, 3, 1.2, 300);
+    } });
+  }
   // ---- ระเบิดตัวเองตอนจบ (~6 วิ · server พักเกม HOLD_SECONDS.boom):
   //  0–1.4 วิ ไฟลุกเป็นทอดจากปลายโดมไล่มาหากล้อง (มุมตามแกน) · 1.4–3.6 วิ ทั่วทั้งกระบอก + ควัน + กระจกแตก + กล้องหมุนเอียง/FOV ถ่าง
   //  กำแพงไฟวิ่งจากโดมเข้าหากล้อง (สไปรต์ 2D หลังกำแพงไฟถูกเผาหาย — burnFrom) · ชนกล้อง = แฟลชส้ม → ขาวค้าง
@@ -859,7 +1113,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       paintFloor(floorCv.getContext("2d"), floorCv.width, floorCv.height, { map, night, sealed: sealedNow, patched, glass: map.glass || [], holes });
       floorTex.needsUpdate = true;
     }
-    const oSig = JSON.stringify([c.tele, c.holes, c.sealIn, c.sealed]);
+    const oSig = JSON.stringify([c.tele, c.holes, c.sealIn, c.sealed, c.turrets, c.blackout]);
     if (oSig !== holeSig && !finale) {
       holeSig = oSig;
       paintOverlay(ovCv.getContext("2d"), ovCv.width, ovCv.height, { colony: { ...c, holes } });
@@ -876,11 +1130,16 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     capBottom.visible = sealedNow === 0;
     if (!sealAnim || !sealAnim.t0 || now() > sealAnim.t0 + 1800) setIrisIfNeeded(sealedNow > 0 ? sealedNow * SEC : null);
     alarm = Math.max(alarm * 0.98, c.countdown != null ? 0.35 : 0);
-    capsuleAtNow = c.capsule || null;
+    capsulesNow = Array.isArray(c.capsules) ? c.capsules : c.capsule ? [{ kind: "apoth", ...c.capsule }] : [];
     // ไฟห้องกลางวัน/กลางคืน
     hemi.intensity = night ? 0.45 : 1.25; amb.intensity = night ? 0.18 : 0.35; sun.intensity = night ? 0.15 : 0.9;
     domeMat.opacity = night ? 0.1 : 0.18;
     scene.fog.color.set(night ? 0x0b1830 : 0xdde9f4);
+    // แกนแสง/เมฆตามเวลา: กลางวันขาวอุ่นสว่าง · กลางคืนฟ้าจาง
+    sunLineMat.uniforms.uColor.value.set(night ? 0x8fb4ff : 0xfff1d0); sunLineMat.uniforms.uPow.value = night ? 0.3 : 0.6;
+    sunCoreMat.uniforms.uColor.value.set(night ? 0x9fc0ff : 0xfffbea);
+    for (const n of sunNodes) n.material.opacity = night ? 0.35 : 1;
+    cloudMat.opacity = night ? 0.12 : 0.6; cloudMat.color.set(night ? 0x9fb6d8 : 0xffffff);
   }
   let irisZ = undefined;
   function setIrisIfNeeded(z) { if (z !== irisZ) { irisZ = z; setIris(z, 0); } }
@@ -955,7 +1214,20 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     }
     for (const d of liftDots) { const k = (time / 0.9 + d.a.z * 0.13) % 1; d.dot.position.copy(d.a).lerp(d.b, k * 0.95); }
     earth.rotation.y = time * 0.02;
-    if (capsuleDrop && capsuleDrop.t0 && t > capsuleDrop.t0 + 600) capsuleDrop = null;
+    sunLineMat.uniforms.uTime.value = time;
+    // แรงโน้มถ่วงดับ (ทั้งเทิร์น): ฝุ่นลอยขึ้นเรื่อยๆ ทั่วโคโลนี
+    const grav = !!(colony && colony.gravity) || (gravityT0 && t - gravityT0 < 2000);
+    if (grav && !lowQ && Math.random() < 0.35) { const ph = Math.random() * TAU, z = R.cur.z + (Math.random() - 0.2) * 14; sparks(surf(ph, z, 0.05), 0xe8f0ff, 2, 0.8, 1600); }
+    // ไฟดับ: ช่วงเริ่ม (ฉาก) แสงกะพริบก่อนมืด
+    if (flickerT0 && t - flickerT0 < 1600) hemi.intensity = (night ? 0.45 : 1.25) * (Math.random() < 0.35 ? 0.3 : 1);
+    else if (flickerT0) { flickerT0 = 0; hemi.intensity = night ? 0.45 : 1.25; }
+    for (const c of clouds) {
+      const z = mod(c.z + time * c.v, ROWS + 8) - 4, ph = c.phi + time * 0.01;
+      c.sp.position.set(Math.cos(ph) * c.r, Math.sin(ph) * c.r, z);
+    }
+    for (let i = 0; i < vortices.length; i++) vortices[i].rotateZ(dt / 1000 * (1.6 + (i % 3) * 0.3));
+    warpBeamMat.opacity = 0.28 + 0.14 * Math.sin(time * 2.4);
+    for (const [dk, d] of capsuleDrops) if (d.t0 && t > d.t0 + 600) capsuleDrops.delete(dk);
     // ม่านเหล็กหมุนปิด
     if (sealAnim && sealAnim.t0) {
       const k = clamp((t - sealAnim.t0 - 500) / 1300, 0, 1);
@@ -1056,14 +1328,16 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     // แคปซูลเสบียงที่วาดตอนนี้ { x, y, z } (z = ความสูงระหว่างตก) · null = ไม่มี/ยังไม่ถึงจังหวะตกในฉาก
     // ม่านเหล็กปิด (เกือบสนิท) อยู่ระหว่างกล้องกับปล้องที่ปิด → แถว < ค่านี้ถูกบัง (ชั้น 2D ไม่วาดสไปรต์/เอฟเฟกต์) · null = ไม่บัง
     occludeBelow() { return iris && iris.visible && irisOpen < 0.3 ? iris.position.z : null; },
+    // แคปซูลเสบียงทุกลูกที่วาดตอนนี้ [{ kind, x, y, z }] (z = ความสูงระหว่างตก) — ยังไม่ถึงจังหวะตกในฉาก = ไม่อยู่ในรายการ
     capsuleAt(t) {
-      const c = capsuleAtNow;
-      if (!c) return null;
-      const d = capsuleDrop && capsuleDrop.x === c.x && capsuleDrop.y === c.y ? capsuleDrop : null;
-      if (d && !d.t0) return null;
-      if (d && t < d.t0) return null;
-      const k = d ? clamp((t - d.t0) / 550, 0, 1) : 1;
-      return { x: c.x, y: c.y, z: (1 - ease(k)) * Rc * 0.95 };
+      const out = [];
+      for (const c of capsulesNow) {
+        const d = capsuleDrops.get(`${c.x},${c.y}`);
+        if (d && (!d.t0 || t < d.t0)) continue;
+        const k = d ? clamp((t - d.t0) / 550, 0, 1) : 1;
+        out.push({ kind: c.kind, x: c.x, y: c.y, z: (1 - ease(k)) * Rc * 0.95 });
+      }
+      return out;
     },
     flash() { return flash; },
     flashColor() { return flashRGB; },
@@ -1118,6 +1392,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     },
     // ระยะกล้อง → จุดโฟกัส (ชั้น 2D ใช้ตัดสินการจางของสิ่งปลูกสร้างไกลๆ ให้สัมพันธ์กับระดับซูม)
     focusDist() { return R.armD || R.cur.dist; },
+    _look(x, y) { goTo(x, y); R.free = true; }, // dev: ส่องกล้องไปช่อง (x, y)
     _dbg() { return { cam: camera.position.toArray().map((v) => +v.toFixed(2)), r: +Math.hypot(camera.position.x, camera.position.y).toFixed(2), Rc: +Rc.toFixed(2), cur: { ...R.cur }, user: { ...R.user }, focus: R.focus, armD: R.armD, cap: capBottom.visible }; },
     toggleAxis() { R.user.axis = !R.user.axis; },
     skipShot() { if (R.shot) shotEnd = 0; shots.length = 0; },
