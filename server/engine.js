@@ -130,11 +130,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // เปลี่ยนขนาดตัวบนกระดาน (Echo ขยายร่าง) — ผลักคนที่ขวาง · พังสิ่งกีดขวาง · ส่ง growFx (action.resizeUnit)
   resizeUnit: action.resizeUnit,
   // ระบบคู่ (server/duo.js — เคท & เอมิลิโกะ): สลับตัวที่คุม / ตัวที่จบตาแล้ว / ตัวอีกตัวของฝ่าย
-  duo: { switchTo: Duo.switchTo, canSwitchTo: Duo.canSwitchTo, unitDone: Duo.unitDone, otherUnit: Duo.otherUnit, ownerOf: Duo.ownerOf, unitsOf: Duo.unitsOf, moved: Duo.moved },
+  duo: { switchTo: Duo.switchTo, canSwitchTo: Duo.canSwitchTo, unitDone: Duo.unitDone, otherUnit: Duo.otherUnit, ownerOf: Duo.ownerOf, unitsOf: Duo.unitsOf, moved: Duo.moved, revived: Duo.revived },
   // ช่องนี้ไถลได้ไหม (น้ำแข็ง / พื้นเปียก) — Board.isIce บนแผนที่ปัจจุบัน
   isSlick(x, y) { return Board.isIce(action.boardMap(), x, y); },
   // ระบำเขม่า (server/soot.js — เคท): ม่านแดง 8×8 · ขัง · มองไม่เห็นข้ามม่าน · ดาเมจต้นเทิร์น
-  soot: { inStormOf: Soot.ownStorm, stormOf: Soot.stormOf, trapOf: Soot.trapOf, cast: Soot.cast, strikeInside: Soot.strikeInside, storms: Soot.storms },
+  soot: { inStormOf: Soot.ownStorm, ownStormOf: Soot.ownStormOf, stormOf: Soot.stormOf, trapOf: Soot.trapOf, cast: Soot.cast, strikeInside: Soot.strikeInside, storms: Soot.storms },
   joinOrder: action.joinOrder, // ฟื้นคืนชีพกลางตาเดินแล้วได้เดินเทิร์นนี้ (ยูนะ)
   corpseKept: Duo.corpseKept,   // ร่างนี้ยังอยู่บนกระดานไหม (ระบบคู่ / ศพค้าง — ฮุค keepsCorpses)
   // ขี่ผู้เล่นอื่น (server/ride.js): ขี่อยู่ไหม / ตัวที่ถูกขี่ / คนที่ขี่ / ช่องจุดกลาง (ขี่ = ช่องของตัวที่ถูกขี่)

@@ -835,6 +835,9 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **พื้นเปียก**: `match.board.wet` (`Ice.layWet / dryWet / wetAt`) → special `"wet"` (`TERRAIN_INFO.slide` — `Board.isIce` = ไถลได้ทั้งน้ำแข็งและพื้นเปียก) · ถาวรจนเปลี่ยนภูมิภาค · iceFx kind `wet` / `dry`
 - **ม่านแดง** (`server/soot.js`): `match.board.storms` · ฝ่ายผู้ร่าย = ฝ่ายคู่ + เพื่อนร่วมทีม (`friendly` — `combat.sameTeam`: ไม่โดน ไม่ถูกขัง เห็นข้ามม่าน) · `Soot.trapOf/blockedFor` (ขัง — `action.boardBlocked(selfId)` · ทุกที่ที่ขยับตัวคนต้องส่ง id) · `Soot.hiddenByStorm` (Visibility — เล็ง/ตีใช้ `hiddenFromUnit`) · `tickRound` ต้นเทิร์น · `onEndTurn` นับเวลา · `view.activeSkillMusic` = `kate_storm`
 - **แส้เขม่า** เล็งได้แค่เอมิลิโกะหรือศัตรู (`sootAllowed` — เพื่อนร่วมทีมโหมด duo/trio ไม่ได้)
+- **ขยับตัวในคู่จากสกิลของอีกตัว** (แส้ดึง/ปีกพาบิน): `Duo.moved(u)` — ตั้งจุดเริ่มเดินใหม่ที่ช่องปัจจุบัน · ตัวนั้นเดินไปแล้วในตานี้ (`movLeft` จาก `rebaseMove`) = `locked` (เดินต่อไม่ได้ ยังตี/ใช้สกิลได้)
+- **ฟื้นกลางตา**: `Duo.revived(u)` (engine.duo.revived) ล้าง `done`/`acts` ของตัวนั้น = ได้ตาใหม่ คุม/เดิน/ตีได้ (ตื่นขึ้นอีกครั้ง — ล้างสถานะ + อ่อนแอ 1 เทิร์น)
+- **เดินเข้าม่านแดงของฝ่ายอื่น** (`Soot.sealsWalk(p, from)` — `action.moveTo` ทางเดินปกติ): จุดเริ่มตาอยู่นอกม่าน + จบในม่าน = `act.locked` (ย้อน/เดินต่อไม่ได้) · `Soot.ownStormOf(p)` = ม่านของฝ่ายตัวเองที่ยืนอยู่ (มืดบอดจนม่านหมด = `left`)
 - **มืดบอด** (`shadowMask`): `buildStateFor` → `state.masked` · หมากคนอื่น `maskPub` (สีขาว ไม่มีชื่อ/ภาพ/ตัวเลข) · `turnOrder: []` · log ว่าง
 
 ## 21. ศพค้าง / ขี่ผู้เล่นอื่น / วงออร่า (`server/ride.js` · `server/duo.js` — ยูนะ · ผู้ใช้ส่งสเปก 2026-10-18)

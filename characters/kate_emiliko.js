@@ -5,13 +5,14 @@
 //  ทั้งคู่: พลังชีวิต 3 เกราะ 2 · แต้มสกิลสูงสุด 16 ใช้ร่วมกัน ฟื้นเทิร์นละ 2 · ตีประชิด
 //  พื้นฐาน กระจกเงา (0): สลับตัวที่คุม (ไม่จำกัด · ไม่กินโควตา · ไม่ล็อกการเดิน · กดได้ระหว่างเดินต่อของเอมิลิโกะ)
 //    อีกตัวล้ม → ปุ่มเป็น ตื่นขึ้นอีกครั้ง (6): ร่างอยู่ในระยะ 4 → ฟื้นคืนชีพที่ร่าง พลังชีวิต 3 (เกราะ 0) · ไม่จำกัดครั้ง
-//      ตัวที่ฟื้นยังขยับไม่ได้ในตานี้ (Claude ตัดสิน)
+//      ล้างทุกสถานะเดิม แล้วติด "อ่อนแอ" 1 (ถึงจบเทิร์นนี้) · ตัวที่ฟื้นคุม/เดิน/ตีได้ตามปกติในตานี้ (ผู้ใช้สั่ง 2026-11-08)
 //  เอมิลิโกะ: เดิน 3 (ในระบำเขม่า 4) · รอง = เลือกอาวุธ (0 · ไม่กินโควตา · ไม่ล็อกการเดิน) — ไม้ถูพื้น (เริ่มต้น) / แจกัน / เครื่องดูดฝุ่น / ดาบเขม่า (ได้จากเคท)
 //    ติดตัว กำลังใจเต็มเปี่ยม: ตี/รอแล้วเดินต่อได้ 2 (ฮุค cantoMov — phases/action.js)
-//    แจกัน: ระยะตี 4 · น้ำสาดเปียกถึงเป้า · สลับอาวุธได้ระหว่างเดินต่อ → ถือไม้ถูพื้นไถลชนซ้ำ (ผู้ใช้สั่ง 2026-10-27)
-//    ท่าไม้ตาย ร่าเริงสุดๆ (6): แนว 4×3 ตามอาวุธ
-//  เคท: เดิน 4 (ในระบำเขม่า 6) · รอง = เลือกใช้ แส้เขม่า (2) / ดาบเขม่า (0 · ถือ/ให้/เรียกคืน) / ปีกเขม่า (4)
-//    ท่าไม้ตาย ระบำเขม่า (6 · คูลดาวน์ 5 เทิร์น ผู้ใช้สั่ง 2026-10-27): พายุ 8×8 3 เทิร์น · ติดตัว: ในพายุเดิน 6 + ตีปกติทำให้เป้ามืดบอด 1 เทิร์น
+//    แจกัน: ระยะตี 3 (2026-11-08 · เดิม 4) · น้ำสาดเปียกถึงเป้า · สลับอาวุธได้ระหว่างเดินต่อ → ถือไม้ถูพื้นไถลชนซ้ำ (ผู้ใช้สั่ง 2026-10-27)
+//    ท่าไม้ตาย ร่าเริงสุดๆ (4 · ผู้ใช้สั่ง 2026-11-08): แนว 4×3 ตามอาวุธ
+//  เคท: เดิน 4 (ในระบำเขม่า 6) · รอง = เลือกใช้ แส้เขม่า (2) / ดาบเขม่า (0 · ถือ/ให้/เรียกคืน) / ปีกเขม่า (3)
+//    ท่าไม้ตาย ระบำเขม่า (6 · คูลดาวน์ 5 เทิร์น ผู้ใช้สั่ง 2026-10-27): พายุ 8×8 3 เทิร์น · คนอื่นเดินเข้าม่านแล้วย้อนการเดินไม่ได้
+//    ติดตัว: ในม่านตัวเองเดิน 6 · แต้มสกิล +1 ทุกจบเทิร์น (นับเฉพาะเคท) · ตีปกติทำให้เป้ามืดบอดจนม่านหมด (ผู้ใช้สั่ง 2026-11-08)
 // ============================================================
 
 const Board = require("../server/board");
@@ -50,6 +51,8 @@ const REVIVE_RANGE = 4;
 const REVIVE_HP = 3;
 const CANTO_MOV = 2;
 const STORM_CD = 5; // ระบำเขม่า: คูลดาวน์หลังใช้ (ผู้ใช้สั่ง 2026-10-27)
+const STORM_REGEN = 1; // ติดตัวเคท: ยืนในม่านของตัวเองตอนจบเทิร์น = แต้มสกิล +1 (ผู้ใช้สั่ง 2026-11-08)
+const REVIVE_WEAK = 1; // ตื่นขึ้นอีกครั้ง: อ่อนแอ 1 (1 เทิร์น)
 const BREAD_USES = 3;
 const VACUUM_USES = 5; // เครื่องดูดฝุ่น: ใช้ได้ 5 ครั้งต่อเกม (ตีปกติ 1 · ท่าไม้ตาย 1) หมดแล้วกลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้
 const STORM_MOV = { [KATE]: 6, [EMI]: 4 };
@@ -60,19 +63,19 @@ const isSwordForm = (opts) => !!opts && SWORD_FORMS.includes(opts.form);
 // อาวุธของเอมิลิโกะ (เรียงตามปุ่ม) — ดาบเขม่าเลือกได้เมื่อเคทส่งให้แล้วเท่านั้น
 // desc = คำอธิบายย่อตอนชี้เมาส์ที่ตัวเลือก (ผู้ใช้สั่ง 2026-10-14)
 const WEAPONS = {
-  mop: { name: "ไม้ถูพื้น", img: IMG.mop, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 2 · ทางที่ไถลผ่านแห้ง" },
-  vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ระยะตี 4 · ตีปกติผลักเป้า 3 ช่อง (ชนเสียหาย 1) · ทางน้ำถึงเป้าและทางที่ถูกผลักเป็นพื้นเปียก · ตีแล้วสลับเป็นไม้ถูพื้นได้" },
-  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ (บัฟไม่ได้) · ดูดเป้ามาติดตัว · 5 ครั้งต่อเกม หมดแล้วกลับเป็นไม้ถูพื้น" },
-  sword: { name: "ดาบเขม่า", img: IMG.sword, desc: "พลังโจมตี +2" },
+  mop: { name: "ไม้ถูพื้น", img: IMG.mop, desc: "เดินเข้าพื้นเปียก ไถลจนสุดแนว ชนศัตรูเสียหาย 1 · ทางที่ไถลผ่านแห้ง" },
+  vase: { name: "แจกันใส่น้ำ", img: IMG.vase, desc: "ระยะตี 3 · ตีปกติผลักเป้า 3 ช่อง · ทางน้ำถึงเป้าและทางที่ถูกผลักเป็นพื้นเปียก · ตีแล้วสลับเป็นไม้ถูพื้นได้" },
+  vacuum: { name: "เครื่องดูดฝุ่น", img: IMG.vacuum, desc: "ระยะตี 3 · ความเสียหายเท่าระยะ สูงสุด 2 (บัฟไม่ได้) · ดูดเป้ามาติดตัว · 5 ครั้งต่อเกม หมดแล้วกลับเป็นไม้ถูพื้น" },
+  sword: { name: "ดาบเขม่า", img: IMG.sword, desc: "พลังโจมตี +1" },
 };
 const WEAPON_KEYS = Object.keys(WEAPONS);
 // ตัวเลือกของเขม่าควัน (เคท)
 const SOOT = {
-  whip: { name: "แส้เขม่า", img: IMG.whip, cost: 2, area: { kind: "target", range: 3 }, desc: "ระยะ 3 · เอมิลิโกะ = ดึงมาติดตัว · ศัตรู = พุ่งเข้าประชิด ความเสียหาย 1" },
-  hold: { name: "ดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "ถือดาบเอง พลังโจมตี +1" },
-  give: { name: "ส่งดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "target", range: 4 }, desc: "ส่งดาบให้เอมิลิโกะในระยะ 4 · เอมิลิโกะเลือกใช้ได้ พลังโจมตี +2" },
-  recall: { name: "เรียกดาบคืน", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "เอาดาบคืนจากเอมิลิโกะ พลังโจมตี +1" },
-  wings: { name: "ปีกเขม่า", img: IMG.wings, cost: 4, area: { kind: "line", len: 4, width: 1 }, desc: "เลือกทิศ บิน 4 ช่องข้ามทุกอย่าง · พาเอมิลิโกะที่ติดตัวไปด้วย" },
+  whip: { name: "แส้เขม่า", img: IMG.whip, cost: 2, area: { kind: "target", range: 3 }, desc: "ระยะ 3 · เอมิลิโกะ = ดึงมาติดตัว แต้มสกิล +1 · ศัตรู = พุ่งเข้าประชิด ห้ามใช้สกิล 1 เทิร์น" },
+  hold: { name: "ดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "ถือดาบเอง พลังโจมตี +1 · ตีปกติทำให้เป้ามืดบอด 1 เทิร์น" },
+  give: { name: "ส่งดาบเขม่า", img: IMG.sword, cost: 0, area: { kind: "target", range: 4 }, desc: "ส่งดาบให้เอมิลิโกะในระยะ 4 · เอมิลิโกะเลือกใช้ได้ พลังโจมตี +1" },
+  recall: { name: "เรียกดาบคืน", img: IMG.sword, cost: 0, area: { kind: "self" }, desc: "เอาดาบคืนจากเอมิลิโกะ พลังโจมตี +1 · ตีปกติทำให้เป้ามืดบอด 1 เทิร์น" },
+  wings: { name: "ปีกเขม่า", img: IMG.wings, cost: 3, area: { kind: "line", len: 4, width: 1 }, desc: "เลือกทิศ บิน 4 ช่องข้ามทุกอย่าง · พาเอมิลิโกะที่ติดตัวไปด้วย" },
 };
 
 // ฮุคที่ server เรียกโดยไม่ส่ง engine (mov) อ่านผ่านตัวนี้ (require ตอนเรียก — กัน require วน)
@@ -139,8 +142,10 @@ function revive(engine, p, m) {
   m.tempHp = 0; m.tempHpTurns = 0;
   m.pos = to;
   m.wasAttacked = false;
-  engine.duo.unitDone(m); // ฟื้นแล้วยังขยับไม่ได้ในตานี้
-  engine.log(`🪞✨ ${p.name} ปลุก ${m.name} ให้ตื่นขึ้นอีกครั้ง — พลังชีวิต ${m.hp}`);
+  // สถานะเดิมล้างหมดแล้ว (ด้านบน) → อ่อนแอ 1 เทิร์น (ถึงจบเทิร์นนี้ — ตัวที่ฟื้นได้คุมในตานี้)
+  engine.withEffectSource(null, () => engine.applyDebuff(m, "weak", REVIVE_WEAK, 1)); // ไม่มีต้นตอ — ดีบัฟจากฝ่ายเดียวกันถูกกันไว้ (friendlyEffectBlocked)
+  engine.duo.revived(m); // คุม/เดิน/ตีได้ตามปกติในตานี้ (ผู้ใช้สั่ง 2026-11-08)
+  engine.log(`🪞✨ ${p.name} ปลุก ${m.name} ให้ตื่นขึ้นอีกครั้ง — พลังชีวิต ${m.hp} · อ่อนแอ 1 เทิร์น`);
   engine.boardFx("shadowFx", { kind: "revive", by: p.id, id: m.id, at: { ...to } });
   return true;
 }
@@ -167,6 +172,15 @@ const shared = {
       p.inventory.push({ uid: `kebread_${p.id}`, type: "kebread", uses: BREAD_USES, price: 0 });
     }
   },
+  // ติดตัวเคท: จบเทิร์นขณะยืนในม่านแดงของฝ่ายตัวเอง = แต้มสกิล +1 (เคทเท่านั้น · ก่อนม่านนับเวลา — Soot.onEndTurn ตามหลัง)
+  onEndTurn(engine) {
+    for (const p of Object.values(engine.players)) {
+      if (!isKate(p) || p.summon || !p.alive || !inStorm(engine, p)) continue;
+      const before = p.skillPoints;
+      engine.addSkill(p, STORM_REGEN);
+      if (p.skillPoints > before) engine.log(`🌹 ${p.name} ฟื้นแต้มสกิล +${p.skillPoints - before} ในม่านแดง`);
+    }
+  },
   // ระยะเดิน: ในระบำเขม่า เคท 6 · เอมิลิโกะ 4
   mov(p) {
     if (!isPair(p)) return null;
@@ -188,7 +202,7 @@ const shared = {
 // ---------- เคท ----------
 const kate = {
   id: KATE,
-  IMG, WEAPONS, SOOT, BREAD_USES, VACUUM_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV, STORM_CD,
+  IMG, WEAPONS, SOOT, BREAD_USES, VACUUM_USES, MAX_SKILL, SKILL_REGEN, REVIVE_COST, REVIVE_RANGE, REVIVE_HP, CANTO_MOV, STORM_CD, STORM_REGEN,
   isKate, isEmi, isPair, weaponOf, inStorm,
   ...shared,
   skillCost(p, tier, base, opts) {
@@ -280,7 +294,7 @@ const kate = {
   skillPub(p, tier) {
     if (!isPair(p)) return null;
     if (tier === "basic" && reviveMode(p)) {
-      return { name: "ตื่นขึ้นอีกครั้ง", img: IMG.revive, cost: REVIVE_COST, desc: `ฟื้นคืนชีพอีกตัวที่ร่าง พลังชีวิต ${REVIVE_HP} (ร่างต้องอยู่ในระยะ ${REVIVE_RANGE})` };
+      return { name: "ตื่นขึ้นอีกครั้ง", img: IMG.revive, cost: REVIVE_COST, desc: `ฟื้นคืนชีพอีกตัวที่ร่าง พลังชีวิต ${REVIVE_HP} (ร่างต้องอยู่ในระยะ ${REVIVE_RANGE}) · ล้างทุกสถานะเดิม แล้วติดอ่อนแอ ${REVIVE_WEAK} (1 เทิร์น) · คุม เดิน โจมตีได้ตามปกติในตานี้` };
     }
     if (tier === "secondary") return { choices: choicesOf(p) };
     return null;
@@ -366,7 +380,7 @@ function sootSkill(engine, p, form, targets, opts) {
     engine.sfx("ke_sword");
     return "";
   }
-  if (form === "whip") return KC.whip(engine, p, engine.players[targets[0]], { st: s, mate: m });
+  if (form === "whip") return KC.whip(engine, p, engine.players[targets[0]], { mate: m });
   if (form === "wings") return KC.wings(engine, p, opts.dir, m);
   return "";
 }

@@ -6,10 +6,11 @@
 //   - ขัง: ทุกคนที่อยู่ข้างใน (ยกเว้นฝ่ายผู้ร่าย) ออกไม่ได้ — เดิน/ไถล/ถูกผลัก ข้ามขอบออกไปไม่ได้ · คนนอกเดินเข้ามาได้ (แล้วติด)
 //   - มองไม่เห็นข้ามม่าน: คนนอกไม่เห็นคนใน คนในไม่เห็นคนนอก (ฝ่ายผู้ร่ายเห็นทุกคน) · สกิลพื้นที่จากข้างนอกยังโดนคนใน
 //   - การสู้กันข้างในไม่ทำให้ใครโผล่ให้คนนอกเห็น (ม่านบังเอง ไม่เกี่ยวกับพุ่มหญ้า)
+//   - คนอื่น (ไม่ใช่ฝ่ายผู้ร่าย) เดินจากนอกม่านเข้ามา = การเดินตานั้นจบ ย้อน/เดินต่อไม่ได้ (sealsWalk — ผู้ใช้สั่ง 2026-11-08)
 //   เปลี่ยนภูมิภาค = ม่านหาย (match.board ใหม่)
 // ============================================================
 Object.assign(module.exports, {
-  storms, stormOf, ownStorm, trapOf, blockedFor, hiddenByStorm, cast, strikeInside, tickRound, onEndTurn, publicInfo, active,
+  storms, stormOf, ownStorm, ownStormOf, sealsWalk, trapOf, blockedFor, hiddenByStorm, cast, strikeInside, tickRound, onEndTurn, publicInfo, active,
   tileHiddenFrom,
 });
 
@@ -33,7 +34,17 @@ function friendly(s, p) {
   return !!(caster && combat.sameTeam(caster, p));
 }
 // p อยู่ในม่านของฝ่ายตัวเองไหม (ติดตัวเคท: เดิน 6/4 · ตีปกติทำให้มืดบอด) — ม่านของเพื่อนร่วมทีมก็นับ
-function ownStorm(p) { return !!(p && p.pos && storms().some((s) => friendly(s, p) && inside(s, p.pos))); }
+function ownStorm(p) { return !!ownStormOf(p); }
+// ม่านของฝ่ายตัวเองที่ p ยืนอยู่ข้างใน (ตัวที่เหลือเวลานานสุด) · ไม่อยู่ = null — ติดตัวเคท: มืดบอดจนม่านหมด
+function ownStormOf(p) {
+  if (!p || !p.pos) return null;
+  return storms().filter((s) => friendly(s, p) && inside(s, p.pos)).sort((a, b) => b.left - a.left)[0] || null;
+}
+// p เดินจาก from เข้ามาติดในม่านของฝ่ายอื่น (from อยู่นอกม่านนั้น) → การเดินตานี้ล็อก (action.moveTo)
+function sealsWalk(p, from) {
+  const s = trapOf(p);
+  return !!(s && from && !inside(s, from));
+}
 // ม่านที่ขัง p อยู่ (ข้างในม่านของฝ่ายอื่น) · ไม่ถูกขัง = null
 function trapOf(p) { return (p && p.pos && p.alive && storms().find((s) => !friendly(s, p) && inside(s, p.pos))) || null; }
 // ช่องที่ p เข้าไม่ได้เพราะถูกขัง (Set-like — Board ใช้แค่ .has) · ไม่ถูกขัง = null
