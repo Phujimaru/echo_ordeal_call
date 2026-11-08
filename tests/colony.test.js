@@ -173,7 +173,7 @@ test('แคปซูลเสบียง: ลงจอด = ร้านเป
   assert.ok(match.shopItems.length > 0, 'มีของขาย');
   assert.equal(a.hp, 5);
   assert.ok(!(a.pos.x === 6 && a.pos.y === 15), 'ถูกดันออกจากจุดลงจอด');
-  assert.equal(match.shopOpenedRound, 3);
+  assert.equal(require('../server/shop.js').capsule().openedRound, 3);
   match.colony.tele = [];
   startTurn(9);
   assert.equal(match.shopPos, null, 'ครบ 6 เทิร์น = แคปซูลจากไป');

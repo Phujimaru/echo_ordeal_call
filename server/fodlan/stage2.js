@@ -83,9 +83,8 @@ function plainFree(ctx, s, x, y, map = ctx.map()) {
   if (Board.specialAt(map, x, y) || Board.isHeal(map, x, y)) return false;
   const k = K(x, y);
   if (s.pillars.some((p) => K(p.x, p.y) === k) || s.crates.some((c) => K(c.x, c.y) === k) || s.torches.some((t) => K(t.x, t.y) === k)) return false;
-  const shop = ctx.match.shopPos;
-  if (shop && shop.x === x && shop.y === y) return false;
-  if ((map.shopSpots || []).some((p) => p.x === x && p.y === y)) return false;
+  if (require("../shop").shopAt(x, y)) return false;
+  if ((map.shopSpots || []).some((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2)) return false; // จุดร้าน 2×2
   return !ctx.unitAt(x, y);
 }
 // วางสิ่งกีดขวางที่ (x, y) แล้วช่องว่างที่เหลือยังต่อถึงกันหมดไหม (ไม่ตัดทางเดินของแผนที่)

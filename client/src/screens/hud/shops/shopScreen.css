@@ -1,0 +1,219 @@
+/* หน้าร้านค้าเต็มจอ — พอร์ตจากต้นแบบ .claude/plans/shop-three.html (ธีมขาว ORDEAL CALL) · คลาสทั้งหมดขึ้นต้น shs- */
+.shs-veil {
+  --ink: #1c3f6e; --mute: #5a7aa3; --line: rgba(127,184,230,.75);
+  --sky: #7fb8e6; --azure: #3d8bd9; --hp: #d2455b; --gold: #e0b04a;
+  --lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px), repeating-linear-gradient(-60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px);
+  position: fixed; inset: 0; z-index: 52; background: radial-gradient(70% 70% at 50% 50%, rgba(28,63,110,.22), rgba(10,24,48,.58));
+  animation: shsFade .2s ease both; font-family: Kanit, "Chakra Petch", sans-serif; color: var(--ink);
+}
+@keyframes shsFade { from { opacity: 0; } }
+.shs-veil * { box-sizing: border-box; }
+.shs-veil button { font: inherit; color: inherit; }
+.shs-stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--k, 1)); pointer-events: none; }
+
+/* ============ โครงร่วม ============ */
+.shs-shop { position: absolute; inset: 70px 120px 60px; pointer-events: auto; animation: shsIn .45s cubic-bezier(.2,1.1,.4,1) both; user-select: none; }
+@keyframes shsIn { from { opacity: 0; transform: translateY(28px) scale(.98); } }
+.shs-apoth { --c1: #c8f2e2; --c2: #2fa58c; --c3: #1c6e63; --b1: #5fd0b3; --b2: #2fa58c; --b3: #1c6e63; --j1: #5fd0b3; --j2: 95,208,179; }
+.shs-capsule { --c1: #dce7f3; --c2: #3d8bd9; --c3: #1c3f6e; --b1: #7fb8e6; --b2: #3d8bd9; --b3: #1c3f6e; --j1: #7fb8e6; --j2: 127,184,230; }
+.shs-forge { --c1: #ffe1b8; --c2: #e07a2a; --c3: #8a4310; --b1: #ffa45c; --b2: #e07a2a; --b3: #8a4310; }
+.shs-cara { --c1: #f1e3ff; --c2: #9b4f96; --c3: #4b1a52; --b1: #c98ac4; --b2: #9b4f96; --b3: #4b1a52; }
+
+.shs-frame { position: absolute; inset: 0; clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px);
+  background: var(--lattice), linear-gradient(160deg, #fff, #f2f7fc 50%, #e3edf7); box-shadow: inset 0 0 0 2px var(--line), inset 0 0 0 9px rgba(255,255,255,.7), inset 0 0 0 10px rgba(127,184,230,.45); }
+.shs-top { position: absolute; left: 0; right: 0; top: 0; height: 112px; display: flex; align-items: center; gap: 22px; padding: 0 40px 0 46px; z-index: 5; }
+.shs-crest { position: relative; width: 84px; height: 96px; flex: none; display: grid; place-items: center; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, var(--c1), var(--c2) 60%, var(--c3)); }
+.shs-crest::after { content: ""; position: absolute; inset: 4px; clip-path: inherit; background: radial-gradient(circle at 50% 30%, #fff, #eef3f9 60%, #d3e2f2); }
+.shs-crest span { position: relative; z-index: 1; font-size: 44px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(28,63,110,.3)); }
+.shs-ttl b { display: block; font: 700 48px/1.1 "Chakra Petch", Kanit; color: var(--ink); }
+.shs-ttl small { display: block; margin-top: 8px; font: 400 14px/1 Michroma, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--c2); }
+.shs-top-r { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.shs-chip { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 22px; font: 600 22px/1 Kanit; clip-path: polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px); }
+.shs-chip.turns { background: #fff; box-shadow: inset 0 0 0 2px var(--line); color: var(--ink); }
+.shs-chip.turns i { font-style: normal; font-size: 24px; }
+.shs-chip.gold { background: linear-gradient(115deg, #fffaf0, #f6e6c0); box-shadow: inset 0 0 0 2px rgba(214,166,58,.85); color: #8a5a10; font: 700 30px/1 "Chakra Petch"; }
+.shs-chip.gold b { min-width: 46px; text-align: right; display: inline-block; }
+.shs-chip.gold b.bump { animation: shsGoldDip .5s ease; }
+@keyframes shsGoldDip { 30% { transform: scale(.75); color: var(--hp); } }
+.shs-coin { display: inline-block; width: 30px; height: 30px; flex: none; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #fff6d6, #f3cf6e 55%, #d49a2c); box-shadow: inset 0 0 0 2px #a8781f, inset 0 0 0 6px rgba(255,246,214,.5); }
+.shs-coin.s { width: 22px; height: 22px; box-shadow: inset 0 0 0 1.5px #a8781f, inset 0 0 0 4px rgba(255,246,214,.5); }
+.shs-x { width: 56px; height: 56px; border: 0; cursor: pointer; font-size: 24px; background: rgba(127,184,230,.22); color: var(--ink); clip-path: polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px); transition: background .2s, transform .25s, color .2s; }
+.shs-veil .shs-x:hover { background: var(--hp); color: #fff; transform: rotate(90deg); }
+.shs-x:active { transform: rotate(90deg) scale(.9); }
+.shs-img { width: 1em; height: 1em; object-fit: contain; display: inline-block; vertical-align: middle; }
+
+/* แถบกระเป๋า */
+.shs-bagbar { position: absolute; right: 46px; bottom: 30px; z-index: 6; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 22px 0 16px; background: var(--lattice), linear-gradient(115deg, #fff, #eef3f9);
+  box-shadow: inset 0 0 0 2px var(--line); clip-path: polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px); }
+.shs-bagbar.left { right: auto; left: 64px; }
+.shs-bag-ico { width: 50px; height: 56px; display: grid; place-items: center; font-size: 30px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, #e6d4ff, #9b4f96); }
+.shs-bag-ico.hit { animation: shsBagHit .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes shsBagHit { 40% { transform: scale(1.25) rotate(-8deg); } }
+.shs-slots { display: flex; gap: 8px; }
+.shs-slot { width: 52px; height: 52px; display: grid; place-items: center; font-size: 28px; background: #fff; box-shadow: inset 0 0 0 2px rgba(127,184,230,.5); clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); animation: shsSlotIn .5s cubic-bezier(.2,1.6,.4,1); }
+.shs-slot.empty { background: rgba(255,255,255,.4); box-shadow: inset 0 0 0 2px rgba(127,184,230,.3); animation: none; }
+.shs-slot-it { font-size: 28px; line-height: 1; }
+@keyframes shsSlotIn { from { transform: scale(.3); } }
+.shs-bagbar > b { font: 700 24px/1 "Chakra Petch"; color: var(--mute); min-width: 44px; }
+.shs-bagbar[data-full="true"] > b { color: var(--hp); }
+
+/* ปุ่มซื้อ */
+.shs-buy { position: relative; overflow: hidden; height: 84px; min-width: 260px; padding: 0 34px; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 14px;
+  font: 700 34px/1 "Chakra Petch", Kanit !important; color: #fff !important; background: linear-gradient(115deg, var(--b1), var(--b2) 55%, var(--b3)); clip-path: polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.45); transition: transform .15s, filter .2s; filter: drop-shadow(0 8px 16px rgba(28,63,110,.3)); white-space: nowrap; }
+.shs-buy::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px); }
+.shs-buy::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.65) 50%, transparent 70%); transform: translateX(-130%); animation: shsSheen 2.6s 1s infinite; }
+.shs-buy span { position: relative; z-index: 1; }
+.shs-buy:hover:not(:disabled) { transform: translateY(-3px); filter: drop-shadow(0 0 16px rgba(255,255,255,.9)) drop-shadow(0 10px 18px rgba(28,63,110,.35)); }
+.shs-buy:active:not(:disabled) { transform: scale(.96); }
+.shs-buy:disabled { cursor: default; filter: grayscale(.8); opacity: .5; }
+.shs-buy:disabled::after { animation: none; }
+@keyframes shsSheen { 45%, 100% { transform: translateX(130%); } }
+.shs-price { display: inline-flex; align-items: center; gap: 10px; font: 700 46px/1 "Chakra Petch"; color: #8a5a10; }
+.shs-price[data-poor="true"] { color: var(--hp); }
+
+/* ของบินเข้ากระเป๋า + ประกาย */
+.shs-fx { position: absolute; inset: 0; pointer-events: none; }
+.shs-fly { position: absolute; z-index: 40; width: 64px; height: 64px; display: grid; place-items: center; font-size: 64px; line-height: 1; pointer-events: none; filter: drop-shadow(0 8px 10px rgba(28,63,110,.4)); animation: shsFly .7s cubic-bezier(.5,-.3,.6,1) forwards; }
+.shs-fly-it { font-size: 64px; line-height: 1; }
+@keyframes shsFly { to { transform: translate(var(--dx), var(--dy)) scale(.35) rotate(-20deg); opacity: .2; } }
+.shs-spark { position: absolute; z-index: 41; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, #fff, #ffe08a 50%, transparent 70%); animation: shsSpark .7s ease-out forwards; }
+@keyframes shsSpark { to { transform: translate(var(--sx), var(--sy)) scale(.2); opacity: 0; } }
+
+/* ============ 1) ร้านยาเจริญชัย / แคปซูลเสบียง ============ */
+.shs-cab { position: absolute; left: 64px; right: 64px; top: 140px; height: 478px; padding: 30px 40px 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(238,247,244,.9)); box-shadow: inset 0 0 0 3px #cfe6df, inset 0 0 0 12px #fff, inset 0 0 0 14px #bfe0d6, 0 14px 30px rgba(28,63,110,.12); }
+.shs-capsule .shs-cab { background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(234,242,251,.92)); box-shadow: inset 0 0 0 3px #cbdcef, inset 0 0 0 12px #fff, inset 0 0 0 14px #b7cfe9, 0 14px 30px rgba(28,63,110,.12); }
+.shs-cab::before { content: ""; position: absolute; left: 0; right: 0; top: -22px; height: 34px; background: linear-gradient(180deg, #fff, #e5f3ee); box-shadow: inset 0 0 0 3px #cfe6df; clip-path: polygon(2% 0, 98% 0, 100% 100%, 0 100%); }
+.shs-capsule .shs-cab::before { background: linear-gradient(180deg, #fff, #e3edf8); box-shadow: inset 0 0 0 3px #cbdcef; }
+.shs-shelf { position: relative; height: 222px; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 30px 26px; }
+.shs-shelf::after { content: ""; position: absolute; left: -10px; right: -10px; bottom: 0; height: 26px; background: linear-gradient(180deg, #fdfaf4, #e8dcc6); box-shadow: 0 10px 14px -6px rgba(90,60,20,.35), inset 0 -3px 0 #d8c7a6; }
+.shs-cab[data-rows="3"] .shs-shelf { height: 148px; padding-bottom: 20px; }
+.shs-cab[data-rows="3"] .shs-shelf::after { height: 20px; }
+.shs-cab[data-rows="3"] .shs-jar { zoom: .64; }
+.shs-cab[data-rows="1"] .shs-shelf { height: 444px; }
+.shs-plate { position: absolute; left: 16px; bottom: 4px; z-index: 2; padding: 3px 14px; font: 600 15px/1.2 Kanit; color: #fff; background: linear-gradient(115deg, var(--c2), var(--c3)); clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+.shs-cab[data-rows="3"] .shs-plate { bottom: 1px; }
+.shs-jar { position: relative; width: 220px; height: 200px; border: 0; padding: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform .25s cubic-bezier(.3,1.5,.5,1); }
+.shs-dome { position: relative; width: 140px; height: 150px; border-radius: 70px 70px 14px 14px; background: radial-gradient(70% 55% at 35% 25%, rgba(255,255,255,.95), rgba(255,255,255,.35) 45%, rgba(200,236,226,.35) 75%, rgba(150,210,195,.35));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.9), inset -10px -8px 20px rgba(47,165,140,.18), 0 6px 14px rgba(28,63,110,.12); display: grid; place-items: center; }
+.shs-dome::before { content: ""; position: absolute; top: -14px; left: 50%; width: 26px; height: 20px; margin-left: -13px; border-radius: 13px 13px 4px 4px; background: linear-gradient(180deg, #fff, #cfe6df); box-shadow: inset 0 0 0 2px #b5dccf; }
+.shs-dome::after { content: ""; position: absolute; left: 22px; top: 18px; width: 18px; height: 70px; border-radius: 10px; background: linear-gradient(180deg, rgba(255,255,255,.9), transparent); }
+.shs-dome .shs-it { font-size: 70px; line-height: 1; filter: drop-shadow(0 6px 6px rgba(28,63,110,.25)); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.shs-base { width: 160px; height: 18px; margin-top: -2px; border-radius: 4px; background: linear-gradient(180deg, #f6efe2, #d9c8a6); box-shadow: inset 0 -3px 0 #c4b08a; }
+.shs-ghosts { position: absolute; bottom: 18px; left: 50%; display: flex; transform: translateX(-50%); pointer-events: none; }
+.shs-ghosts i { width: 120px; height: 140px; margin: 0 -48px; border-radius: 60px 60px 10px 10px; background: rgba(200,236,226,.35); box-shadow: inset 0 0 0 2px rgba(255,255,255,.7); }
+.shs-tag { position: absolute; right: -14px; top: 46px; z-index: 3; display: flex; flex-direction: column; align-items: center; transform-origin: 50% -26px; animation: shsSwing 3.4s ease-in-out infinite; }
+.shs-tag::before { content: ""; width: 2px; height: 26px; background: #b59a6a; }
+.shs-tag > span { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; font: 700 24px/1 "Chakra Petch"; color: #6b4708; background: linear-gradient(180deg, #fffaf0, #f3e2b8); box-shadow: inset 0 0 0 2px #d6b46a; clip-path: polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%); }
+@keyframes shsSwing { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.shs-cnt { position: absolute; left: 10px; top: 52px; z-index: 3; min-width: 44px; height: 32px; padding: 0 8px; display: grid; place-items: center; font: 700 20px/1 "Chakra Petch"; color: #fff; background: linear-gradient(160deg, var(--b1), var(--b3)); clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.shs-jar:hover { transform: translateY(-10px); }
+.shs-jar:hover .shs-it { transform: scale(1.1) rotate(-6deg); }
+.shs-jar:active { transform: translateY(-4px) scale(.97); }
+.shs-jar[data-sel="true"] .shs-dome { box-shadow: inset 0 0 0 3px var(--j1), inset -10px -8px 20px rgba(var(--j2),.25), 0 0 0 6px rgba(var(--j2),.25), 0 0 30px rgba(var(--j2),.6); }
+.shs-jar[data-sel="true"] { transform: translateY(-14px); }
+.shs-jar[data-out="true"] .shs-dome .shs-it { opacity: .15; filter: grayscale(1); }
+.shs-soldout { position: absolute; top: 80px; left: 50%; z-index: 4; transform: translateX(-50%) rotate(-12deg); padding: 6px 16px; white-space: nowrap; font: 700 26px/1.1 Kanit; color: var(--hp); background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 3px var(--hp); }
+.shs-counter { position: absolute; left: 40px; right: 40px; bottom: 118px; height: 196px; display: flex; align-items: center; gap: 36px; padding: 0 44px; z-index: 4;
+  background: linear-gradient(180deg, #fdfaf4 0 18px, #f2e8d6 18px, #e6d6b8); box-shadow: 0 -2px 0 #fff, 0 16px 26px rgba(90,60,20,.25), inset 0 -4px 0 #d3bd94; }
+.shs-big { width: 176px; height: 176px; flex: none; margin-top: -64px; display: grid; place-items: center; font-size: 120px; border-radius: 95px 95px 20px 20px; background: radial-gradient(70% 55% at 35% 25%, #fff, rgba(220,242,235,.7)); box-shadow: inset 0 0 0 3px #fff, 0 10px 22px rgba(28,63,110,.2); }
+.shs-big-it { display: inline-block; font-size: 120px; line-height: 1; animation: shsBob 3s ease-in-out infinite, shsPop .35s cubic-bezier(.2,1.6,.4,1); filter: drop-shadow(0 8px 8px rgba(28,63,110,.3)); }
+@keyframes shsBob { 50% { transform: translateY(-8px); } }
+@keyframes shsPop { from { scale: .5; } }
+.shs-info { flex: 1; min-width: 0; }
+.shs-info .shs-nm { font: 700 44px/1.15 "Chakra Petch", Kanit; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shs-info .shs-sh { display: inline-block; margin-top: 12px; padding: 8px 18px; font: 500 24px/1.2 Kanit; color: var(--c3); background: rgba(var(--j2),.18); clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
+.shs-meta { margin-top: 14px; display: flex; gap: 24px; font: 500 20px/1 Kanit; color: var(--mute); }
+.shs-meta b { font: 700 24px/1 "Chakra Petch"; color: var(--ink); margin-left: 6px; }
+.shs-deal { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+
+/* ============ 2) โรงช่างลุงเริง ============ */
+.shs-peg { position: absolute; left: 64px; top: 128px; width: 980px; height: 720px; overflow: hidden;
+  background: radial-gradient(circle, rgba(60,80,110,.28) 3.2px, transparent 3.8px) 0 0 / 36px 36px, linear-gradient(160deg, #fbfcfe, #e3e9f1);
+  box-shadow: inset 0 0 0 3px #c4cfdc, inset 0 0 0 12px #f4f7fb, inset 0 0 0 14px #c4cfdc, 0 14px 30px rgba(28,63,110,.15); }
+.shs-bolt { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #aab6c6); box-shadow: inset 0 0 0 2px #8794a8; }
+.shs-bolt::after { content: ""; position: absolute; left: 4px; right: 4px; top: 9px; height: 2px; background: #7a879b; transform: rotate(35deg); }
+.shs-gear { position: absolute; font-size: 120px; line-height: 1; color: rgba(224,122,42,.18); animation: shsSpin 18s linear infinite; }
+.shs-gear.b { animation-direction: reverse; animation-duration: 12s; color: rgba(61,139,217,.14); }
+@keyframes shsSpin { to { transform: rotate(360deg); } }
+.shs-hang { --hs: 1; position: absolute; width: calc(330px * var(--hs)); height: calc(380px * var(--hs)); border: 0; padding: 0; background: none; cursor: pointer; transform-origin: 50% 0; animation: shsSway 4.5s ease-in-out infinite; }
+.shs-hang-in { position: absolute; left: 0; top: 0; width: 330px; height: 380px; transform: scale(var(--hs)); transform-origin: 0 0; }
+.shs-hang-in::before { content: ""; position: absolute; left: 50%; top: -6px; width: 34px; height: 46px; margin-left: -17px; border: 6px solid #8794a8; border-top: 0; border-radius: 0 0 20px 20px; clip-path: inset(30% 0 0 0); }
+.shs-hang-in::after { content: ""; position: absolute; left: 50%; top: -18px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #8794a8; }
+@keyframes shsSway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+.shs-plateT { position: absolute; left: 0; right: 0; top: 34px; bottom: 0; display: flex; flex-direction: column; align-items: center; padding: 30px 22px 22px;
+  background: linear-gradient(170deg, #ffffff, #eef2f7); clip-path: polygon(22px 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%,0 22px); box-shadow: inset 0 0 0 3px #c4cfdc, inset 0 6px 0 #e07a2a; transition: box-shadow .25s; }
+.shs-plateT .shs-bolt { top: 14px; } .shs-plateT .shs-bolt.l { left: 14px; } .shs-plateT .shs-bolt.r { right: 14px; }
+.shs-plateT .shs-it { font-size: 120px; line-height: 1.1; margin-top: 10px; filter: drop-shadow(0 10px 10px rgba(28,63,110,.25)); transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.shs-plateT .shs-nm { margin-top: 12px; font: 700 32px/1.15 "Chakra Petch", Kanit; color: var(--ink); text-align: center; }
+.shs-plateT .shs-row { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.shs-pr { display: flex; align-items: center; gap: 8px; font: 700 32px/1 "Chakra Petch"; color: #8a5a10; }
+.shs-ticks { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 60%; }
+.shs-ticks i { width: 14px; height: 22px; background: #e07a2a; clip-path: polygon(30% 0,100% 0,70% 100%,0 100%); }
+.shs-ticks i[data-on="false"] { background: rgba(60,80,110,.15); }
+.shs-hang:hover .shs-it { transform: rotate(-10deg) scale(1.08); }
+.shs-hang:active .shs-plateT { box-shadow: inset 0 0 0 4px #e07a2a, inset 0 6px 0 #e07a2a, 0 0 0 4px rgba(224,122,42,.3); }
+.shs-hang[data-sel="true"] { animation-play-state: paused; }
+.shs-hang[data-sel="true"] .shs-plateT { box-shadow: inset 0 0 0 4px #e07a2a, inset 0 6px 0 #e07a2a, 0 0 0 8px rgba(224,122,42,.18); }
+.shs-spot { --hs: 1; position: absolute; width: calc(520px * var(--hs)); height: calc(760px * var(--hs)); pointer-events: none; background: radial-gradient(40% 50% at 50% 55%, rgba(255,226,170,.55), transparent 70%); transition: left .4s cubic-bezier(.3,1.2,.5,1), top .4s; mix-blend-mode: multiply; }
+.shs-hang[data-out="true"] .shs-it { opacity: .2; filter: grayscale(1); }
+.shs-out { position: absolute; top: 120px; left: 50%; transform: translateX(-50%) rotate(-12deg); padding: 6px 18px; white-space: nowrap; font: 700 34px/1.1 Kanit; color: var(--hp); background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 3px var(--hp); }
+.shs-anvil { position: absolute; right: 64px; top: 128px; width: 560px; height: 720px; display: flex; flex-direction: column; align-items: center; padding: 34px 36px 36px; z-index: 3;
+  background: linear-gradient(180deg, #ffffff, #eef2f7); clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px)); box-shadow: inset 0 0 0 3px #c4cfdc; }
+.shs-anv-art { position: relative; width: 300px; height: 230px; flex: none; display: grid; place-items: end center; }
+.shs-anv-art .shs-it { position: relative; z-index: 2; font-size: 130px; line-height: 1; margin-bottom: 70px; animation: shsBob 3s ease-in-out infinite, shsPop .35s cubic-bezier(.2,1.6,.4,1); filter: drop-shadow(0 12px 10px rgba(28,63,110,.3)); }
+.shs-anv-art::after { content: ""; position: absolute; bottom: 0; left: 30px; right: 30px; height: 80px; background: linear-gradient(180deg, #7d8899, #4f5a6b); clip-path: polygon(0 0, 100% 0, 88% 35%, 70% 40%, 76% 100%, 24% 100%, 30% 40%, 12% 35%); }
+.shs-anvil > .shs-nm { margin-top: 18px; font: 700 44px/1.15 "Chakra Petch", Kanit; text-align: center; }
+.shs-anvil > .shs-sh { margin-top: 10px; padding: 8px 18px; font: 500 23px/1.2 Kanit; color: #8a4310; background: rgba(224,122,42,.14); clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
+.shs-dials { margin-top: 22px; display: flex; gap: 18px; }
+.shs-dial { width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center; text-align: center; background: radial-gradient(circle, #fff 56%, transparent 57%), conic-gradient(#e07a2a calc(var(--p) * 1%), rgba(60,80,110,.12) 0); transition: background .3s; }
+.shs-dial b { display: block; font: 700 40px/1 "Chakra Petch"; color: var(--ink); }
+.shs-dial small { display: block; margin-top: 4px; font: 500 15px/1.1 Kanit; color: var(--mute); }
+.shs-deal.row { margin-top: auto; width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+.shs-anvil .shs-buy { min-width: 240px; }
+
+/* ============ 3) พ่อค้าเร่ ============ */
+.shs-canopy { position: absolute; left: 40px; right: 40px; top: 118px; height: 190px; z-index: 2;
+  background: repeating-linear-gradient(90deg, #9b4f96 0 120px, #fbf3ff 120px 240px); clip-path: polygon(0 0, 100% 0, 100% 62%, 95% 100%, 90% 62%, 85% 100%, 80% 62%, 75% 100%, 70% 62%, 65% 100%, 60% 62%, 55% 100%, 50% 62%, 45% 100%, 40% 62%, 35% 100%, 30% 62%, 25% 100%, 20% 62%, 15% 100%, 10% 62%, 5% 100%, 0 62%);
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.08); filter: drop-shadow(0 10px 12px rgba(75,26,82,.25)); }
+.shs-canopy::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 26px; background: linear-gradient(180deg, #e0b04a, #b98a2a); }
+.shs-rug { position: absolute; left: 150px; right: 150px; top: 330px; height: 470px;
+  background: repeating-linear-gradient(45deg, rgba(155,79,150,.1) 0 14px, transparent 14px 28px), repeating-linear-gradient(-45deg, rgba(224,176,74,.12) 0 14px, transparent 14px 28px), linear-gradient(180deg, #fff8ff, #f3e6f6);
+  box-shadow: inset 0 0 0 10px #fff, inset 0 0 0 14px #c98ac4, inset 0 0 0 22px #fff, inset 0 0 0 25px #e0b04a; transform: perspective(1400px) rotateX(18deg); transform-origin: 50% 100%; }
+.shs-cards { position: absolute; left: 0; right: 0; top: 286px; display: flex; justify-content: center; gap: 120px; z-index: 3; perspective: 1600px; }
+.shs-cards[data-n="3"] { gap: 60px; }
+.shs-cards[data-n="4"], .shs-cards[data-n="5"] { gap: 24px; zoom: .8; }
+.shs-card { position: relative; width: 290px; height: 390px; border: 0; padding: 0; background: none; cursor: pointer; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,1.3,.5,1); }
+.shs-card[data-flip="false"] { transform: rotateY(180deg); pointer-events: none; }
+.shs-face, .shs-back { position: absolute; inset: 0; backface-visibility: hidden; clip-path: polygon(20px 0,calc(100% - 20px) 0,100% 20px,100% calc(100% - 20px),calc(100% - 20px) 100%,20px 100%,0 calc(100% - 20px),0 20px); }
+.shs-back { transform: rotateY(180deg); background: radial-gradient(circle at 50% 50%, #e0b04a 0 20px, transparent 21px), repeating-conic-gradient(from 0deg, #9b4f96 0 15deg, #7a3a7e 15deg 30deg); box-shadow: inset 0 0 0 10px #f1e3ff, inset 0 0 0 13px #e0b04a; }
+.shs-face { display: flex; flex-direction: column; align-items: center; padding: 34px 26px 26px; background: linear-gradient(170deg, #fffdf6, #f6ecff); box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 12px #c98ac4; transition: box-shadow .25s; }
+.shs-face::before { content: "✦"; position: absolute; top: 18px; left: 26px; font-size: 22px; color: #e0b04a; }
+.shs-face::after { content: "✦"; position: absolute; bottom: 18px; right: 26px; font-size: 22px; color: #e0b04a; }
+.shs-face .shs-it { font-size: 116px; line-height: 1.15; margin-top: 6px; filter: drop-shadow(0 12px 12px rgba(75,26,82,.3)); animation: shsBob 3.2s ease-in-out infinite; }
+.shs-face .shs-nm { margin-top: 16px; font: 700 34px/1.15 "Chakra Petch", Kanit; color: #4b1a52; text-align: center; }
+.shs-face .shs-sh { margin-top: 10px; font: 500 21px/1.25 Kanit; color: #7a3a7e; text-align: center; }
+.shs-face .shs-row { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.shs-face .shs-pr { font-size: 34px; }
+.shs-gems { display: flex; gap: 6px; }
+.shs-gems i { width: 18px; height: 18px; transform: rotate(45deg); background: linear-gradient(135deg, #f1e3ff, #9b4f96); box-shadow: 0 0 6px rgba(155,79,150,.5); }
+.shs-gems i[data-on="false"] { background: rgba(75,26,82,.12); box-shadow: none; }
+.shs-card:hover .shs-face { box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 12px #c98ac4, 0 0 40px rgba(224,176,74,.6); }
+.shs-card[data-flip="true"]:hover { transform: translateY(-14px) rotateZ(-1.5deg); }
+.shs-card[data-flip="true"]:active { transform: translateY(-6px) scale(.97); }
+.shs-card[data-sel="true"][data-flip="true"] { transform: translateY(-20px); }
+.shs-card[data-sel="true"] .shs-face { box-shadow: inset 0 0 0 5px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 13px #9b4f96, 0 0 0 8px rgba(224,176,74,.35), 0 0 50px rgba(224,176,74,.7); }
+.shs-card[data-out="true"] .shs-face { filter: grayscale(.9); opacity: .5; }
+.shs-hourglass { position: absolute; left: 70px; top: 340px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.shs-hg { position: relative; width: 90px; height: 140px; }
+.shs-hg::before, .shs-hg::after { content: ""; position: absolute; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, #e0b04a, #a8781f); border-radius: 4px; }
+.shs-hg::before { top: 0; } .shs-hg::after { bottom: 0; }
+.shs-hg i { position: absolute; left: 10px; right: 10px; top: 10px; bottom: 10px; background: rgba(255,255,255,.75); clip-path: polygon(0 0,100% 0,56% 50%,100% 100%,0 100%,44% 50%); box-shadow: inset 0 0 0 2px #c98ac4; }
+.shs-hg b { position: absolute; left: 22px; right: 22px; bottom: 12px; height: 34px; background: linear-gradient(180deg, #f3cf6e, #c4902a); clip-path: polygon(50% 0,100% 100%,0 100%); }
+.shs-hg u { position: absolute; left: 50%; top: 60px; width: 3px; height: 40px; margin-left: -1.5px; background: #e0b04a; animation: shsSand 1s linear infinite; }
+@keyframes shsSand { 50% { opacity: .4; } }
+.shs-hourglass > span { padding: 6px 14px; white-space: nowrap; font: 700 26px/1.1 "Chakra Petch", Kanit; color: #4b1a52; background: #fff; box-shadow: inset 0 0 0 2px #c98ac4; }
+.shs-cara-deal { position: absolute; left: 50%; bottom: 104px; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 30px; padding: 16px 20px 16px 30px; background: rgba(255,255,255,.9); box-shadow: inset 0 0 0 2px #c98ac4;
+  clip-path: polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px); }
+.shs-cara-deal .shs-nm { font: 700 34px/1.1 "Chakra Petch", Kanit; color: #4b1a52; white-space: nowrap; }

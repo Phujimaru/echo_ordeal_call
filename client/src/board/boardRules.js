@@ -1275,9 +1275,9 @@ function pickShopSpot(map, units, prev, rng = Math.random) {
   const s = free[Math.floor(rng() * free.length)];
   return { x: s.x, y: s.y };
 }
-// ยืนติดร้าน (ระยะ 1) ถึงซื้อได้
-function nearShop(pos, shopPos) {
-  return !!shopPos && dist(pos, shopPos) === 1;
+// ยืนติดร้าน (ระยะ 1 จากขอบร้าน · ร้าน size×size — 2×2 ตั้งแต่ 2026-11-08) ถึงซื้อได้
+function nearShop(pos, shop) {
+  return !!shop && dist(pos, { x: shop.x, y: shop.y, size: shop.size || 1 }) === 1;
 }
 
 // state.board จาก server ส่ง heal เป็น array ของ "x,y" — แปลงกลับเป็นรูปเดียวกับแผนที่ฝั่ง server ก่อนส่งให้ฟังก์ชันในไฟล์นี้

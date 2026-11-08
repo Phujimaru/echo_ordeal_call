@@ -283,9 +283,9 @@ function ultimate(engine, p, dir, ids) {
     const map = engine.boardMap();
     const keys = plan.tiles.map((t) => key(t.x, t.y)).filter((k) => k !== landKey && !(map.terrain[k] && Board.UNBREAKABLE.has(map.terrain[k]) && map.terrain[k] !== "chasm"));
     const razed = engine.breakObstacles([...keys, ...(landKey ? [landKey] : [])]);
-    const shop = engine.shopPos;
-    const shopHit = shop && (keys.includes(key(shop.x, shop.y)) || landKey === key(shop.x, shop.y)) ? { ...shop } : null;
-    if (shopHit) { engine.razeShop(); engine.log("🏪 ร้านค้ามายาพังทลาย — หายไปจนถึงรอบย้ายร้าน"); }
+    const hitShops = engine.razeShopsIn(new Set([...keys, ...(landKey ? [landKey] : [])]));
+    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, size: hitShops[0].size || 1, kind: hitShops[0].kind } : null;
+    if (shopHit) engine.log("🏪 ร้านค้าพังทลาย — หายไปจนถึงรอบปรากฏถัดไป");
     const fresh = engine.addChasm(keys);
 
     // เรียวกิลงช่องท้ายสุด แล้วผลักทุกคนบนแนว/ช่องที่ลงออกข้าง

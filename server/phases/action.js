@@ -146,9 +146,10 @@ function boardUnits(ref) {
 function boardBlocked(selfId = null) {
   const corpses = Duo.corpseKeys();
   const trap = selfId ? Soot.blockedFor(match.players[selfId]) : null;
-  if (!match.shopPos && !corpses.length && !trap) return null;
+  const shopKeys = shop.shopTiles(); // ร้านค้า 2×2 (หลายร้าน) — กินช่องทั้งก้อน
+  if (!shopKeys.size && !corpses.length && !trap) return null;
   const out = new Set(corpses);
-  if (match.shopPos) out.add(Board.key(match.shopPos.x, match.shopPos.y));
+  for (const k of shopKeys) out.add(k);
   return trap ? { has: (k) => out.has(k) || trap.has(k) } : out;
 }
 // เดินตามช่องดอกไม้ไม่เสียก้าว (Board.reachable opts.flowerWalk — ฮุค flowerWalk(p) · เซลิน: ราชาดอกไม้) · ถูกตรึง = ไม่ได้
@@ -353,8 +354,7 @@ function placeOnBoard(area) {
   Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
   match.board = { area };
   Board.setWrap(Board.isColonyArea(area) ? Board.COLONY.cols : 0); // Colony: กระดานต่อวงรอบ (dist/covers ใช้ค่านี้)
-  match.shopPos = null;
-  match.shopRazed = false;
+  shop.clearShops(); // ยกร้านออก — ต้นเทิร์นถัดไป (maybeMoveShop) ร้านปรากฏบนแผนที่ใหม่
   const map = boardMap();
   const alive = combat.alivePlayers();
   // ระบบคู่: จุดเกิดแจกต่อฝ่าย (ตัวแรกที่ยังอยู่) · อีกตัวลงช่องว่างติดกัน

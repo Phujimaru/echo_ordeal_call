@@ -40,15 +40,15 @@ function stockShop(...items) {
 function shopNextTo(p) { engine.setShopPos({ x: p.pos.x, y: p.pos.y - 1 }); }
 
 // ---------- การสุ่มสินค้า ----------
-const SHOP_TYPES = ['fortune', 'cardColor', 'cardCut', 'armor', 'cleanse', 'resist', 'windBoots', 'battery', 'lifeCrystal', 'armorCrystal'];
-test('openShop: ของทุกชนิดช่องละ 1 ไม่ซ้ำ · จำนวนที่ซื้อได้ต่อช่องสุ่ม 2–5 · id ขึ้นต้น shop_', () => {
+const SHOP_TYPES = ['fortune', 'cardColor', 'cardCut', 'armor', 'cleanse', 'resist'];
+test('openShop (ร้านยาเจริญชัย): ของทุกชนิดของร้านช่องละ 1 ไม่ซ้ำ · จำนวนที่ซื้อได้ต่อช่องสุ่ม 2–5 · id ขึ้นต้น apoth_', () => {
   const seenStock = new Set();
   for (let r = 0; r < 200; r++) {
     engine.openShop();
     const types = engine.shopItems.map((it) => it.type);
     assert.deepEqual([...types].sort(), [...SHOP_TYPES].sort(), 'ครบทุกชนิด ไม่ซ้ำ');
     for (const it of engine.shopItems) {
-      assert.ok(it.id.startsWith('shop_'));
+      assert.ok(it.id.startsWith('apoth_'));
       assert.ok(it.stockBase >= 2 && it.stockBase <= 5, `stock ${it.stockBase}`);
       assert.equal(it.stock, it.stockBase);
       assert.equal(it.sold, false);

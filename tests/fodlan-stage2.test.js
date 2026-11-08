@@ -159,6 +159,7 @@ test('คบเพลิง: ขายในร้าน 2 เหรียญเ
   toFog();
   park();
   const a = P(0), e = P(1), far = P(2);
+  Shop.maybeMoveShop(); // ต้นเทิร์นแรกของด่าน: ร้านปรากฏบนแผนที่ใหม่
   const torch = match.shopItems.find((it) => it.type === 'torch');
   assert.ok(torch, 'ร้านมีคบเพลิง');
   assert.equal(torch.price, 2);

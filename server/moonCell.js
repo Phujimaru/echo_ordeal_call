@@ -216,7 +216,7 @@ function pickPillars(rng = Math.random, night = false) {
   const map = action.boardMap(), base = Board.mapOf(match.board.area);
   const cell = cellUnit(), cellBox = cell && cell.pos ? Board.boxOf(cell) : null;
   const ok = (x, y) => x >= 0 && y >= 0 && x < map.cols && y < map.rows && !base.terrain[Board.key(x, y)]
-    && !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y)
+    && !require("./shop").shopAt(x, y)
     && !(cellBox && Board.covers(cellBox, x, y));
   const players = combat.alivePlayers().filter((p) => !p.summon && p.pos);
   const n = pillarCount(night), out = [], seen = new Set();

@@ -114,7 +114,7 @@ function enter() {
   const alive = combat.alivePlayers();
   const saved = {
     board: match.board,
-    shopPos: match.shopPos,
+    shops: match.shops, shopCycleRound: match.shopCycleRound,
     positions: Object.fromEntries(alive.filter((p) => p.pos).map((p) => [p.id, { ...p.pos }])),
     corpses: Duo.saveCorpses(), // ระบบคู่: ร่าง (placeOnBoard ย้ายร่างมาสนามเฉพาะ — ปลดผนึกต้องคืนช่องเดิม)
   };
@@ -367,7 +367,8 @@ function releaseBlast(breaker) {
 // กลับสนามเดิม (ตำแหน่งเดิม · ไม่ว่าง = ช่องว่างใกล้สุด) · ร้านกลับมา · match.zero = null
 function restoreBoard(z) {
   match.board = z.saved.board;
-  match.shopPos = z.saved.shopPos;
+  match.shops = z.saved.shops || [];
+  match.shopCycleRound = z.saved.shopCycleRound;
   match.zero = null;
   // ร่าง (ระบบคู่) กลับช่องเดิมก่อน — คนที่วางคืนจะไม่ลงทับ
   const corpses = z.saved.corpses || {};

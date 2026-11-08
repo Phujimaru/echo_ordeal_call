@@ -250,7 +250,7 @@ function finishRebirth(scene, impact) {
   match.forcedNight = null; // กลางคืนบังคับ (Wake Up 1) จบเมื่อเปลี่ยนภูมิภาค
   match.cycleShift = world - 1; // เทิร์นนี้ = กลางวันแรก (ตั้งค่าใหม่ตรงๆ ห้ามบวกสะสม — GAME_SYSTEM §10)
   for (const o of Object.values(match.players)) o.nightTaxTier = null; // ภาษีกลางคืนที่สุ่มไว้ต้นเทิร์นเป็นของภูมิภาคเดิม
-  shop.relocateShop(); // ร้านตั้งจุดใหม่ + ของใหม่ · shopOpenedRound = เทิร์นนี้
+  shop.clearShops(); shop.relocateShop(); // ร้านยา/โรงช่างปรากฏจุดใหม่ + ของใหม่ (พ่อค้าเร่จากไป) · รอบนับใหม่จากเทิร์นนี้
   match.lastLog.push(`🌍 โลกถือกำเนิดใหม่ — มาถึงภูมิภาคที่ ${to} ${Journey.AREAS[to - 1].name}`);
   action.finishActor(); // ตาเดินของคนใช้จบทันที (ตีต่อไม่ได้) → คนถัดไป / จบเทิร์น (บรอดแคสต์ในนั้น)
 }

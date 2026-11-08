@@ -153,7 +153,7 @@ function revive(engine, p, m) {
 function freeIgnoringCorpse(engine, x, y) {
   const map = engine.boardMap();
   if (x < 0 || y < 0 || x >= map.cols || y >= map.rows || map.terrain[`${x},${y}`]) return false;
-  if (engine.shopPos && engine.shopPos.x === x && engine.shopPos.y === y) return false;
+  if (engine.shopAt(x, y)) return false;
   return !engine.boardUnits().some((u) => u.x === x && u.y === y);
 }
 

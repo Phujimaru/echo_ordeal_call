@@ -215,9 +215,7 @@ function buildStateInner(viewerId) {
     attack: match.gameState === "ATTACKING" && !attackUnseen(viewer, match.lastAttack) ? match.lastAttack : null,
     dash: match.dash, // การพุ่งล่าสุดบนกระดาน (โซระ: Mouse Separade) — client เล่นตาม seq ใหม่
     log: masked ? [] : ((match.gameState === "ORDER" || match.gameState === "TRANSITION" || match.gameState === "GAMEOVER") ? Visibility.filterLog(match.lastLog, viewer) : []),
-    shop: match.shopItems, // ร้านค้ามายา (patch 2.3): สินค้าส่วนกลางร้านเดียว เห็นเหมือนกันทุกคน
-    shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
-    shopTurnsLeft: shop.shopTurnsLeft(), // อีกกี่เทิร์นร้านย้าย (รวมเทิร์นนี้)
+    shops: shop.publicShops(), // ร้านค้าบนแผนที่ 2×2 (ร้านยาเจริญชัย / โรงช่างลุงเริง / พ่อค้าเร่ · Colony แคปซูล 1×1): { id, kind, name, x, y, size, turnsLeft, items }
     bagSlots: BAG_SLOTS,
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
     // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว = ไม่ส่ง (ระเบียนรอลบตอนจบเทิร์น)

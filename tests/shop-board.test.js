@@ -40,7 +40,7 @@ test('ร้านค้า: ต้นเกมตั้งบนจุดร้
   engine.maybeMoveShop();
   const first = engine.shopPos;
   assert.ok(first && isSpot(first));
-  assert.equal(engine.shopItems.length, engine.shopCatalog().length);
+  assert.equal(engine.shopItems.length, engine.shopCatalog('apoth').length);
   assert.equal(engine.shopTurnsLeft(), 6);
   const ids = engine.shopItems.map((it) => it.id).join();
   for (let r = 2; r <= 6; r++) {

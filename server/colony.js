@@ -7,7 +7,7 @@
 //     โคโลนีหมุน (ทุก 3 เทิร์น) → ตั้งเป้าของเทิร์นหน้า → มีอีเวนต์ = พักเกม CUTSCENE ให้ client เล่นฉาก (scene) แล้วค่อยแจกไพ่
 //   จบเทิร์น (onEndTurn): รูรั่วอายุครบปิด · คูลดาวน์กระโดด · ประตูปิดผนึก (จบเทิร์น 5 / 9 / 13) · ครบ 23 = Colony ระเบิด (ทุกคนตาย = เสมอ)
 //  ตายจากผลของ Colony (ปิดผนึก · ถูกดูดเข้ารู · ระเบิด) = ตายจริง ฟื้นไม่ได้ (combat.instantDeath force — ผู้ใช้สั่ง)
-//  ร้านค้า = แคปซูลเสบียง (ใช้ระบบร้านเดิม match.shopPos/shopItems — shop.maybeMoveShop ข้ามเมื่ออยู่ใน Colony)
+//  ร้านค้า = แคปซูลเสบียง (ใช้ระบบร้าน match.shops ร้าน kind "capsule" 1×1 — shop.maybeMoveShop ข้ามเมื่ออยู่ใน Colony)
 //  กระโดด (ปุ่มพิเศษ ทุกคน): ไปฝั่งตรงข้าม (x + 8) สูงขึ้น 2 แถว · จบการเดิน (ยังตี/ใช้สกิลได้) · คูลดาวน์ 2 เทิร์น · ลงข้างศัตรู = กระทืบ 1
 //  ลิฟต์แกนกลาง: จบตาบนช่อง = ดีดขึ้น 4 แถว (phases/action.js tileEndEffect)
 //  พิกัด x ของทุกคนถูกจัดเข้าช่วง 0..15 ทุกครั้งก่อนบรอดแคสต์ (normalize) — ตัวละครที่เขียนตำแหน่งนอกช่วงเองจะถูกจัดให้
@@ -100,7 +100,7 @@ function preRound(resume) {
   s.eventsRound = turn;
   const events = [];
   // แคปซูลอายุครบ = จากไป
-  if (match.shopPos && turn - match.shopOpenedRound >= CAPSULE_TURNS) { match.shopPos = null; events.push({ type: "capsuleGone" }); }
+  { const cap = shop.capsule(); if (cap && turn - cap.openedRound >= CAPSULE_TURNS) { shop.clearCapsule(); events.push({ type: "capsuleGone" }); } }
   const due = s.tele.filter((t) => t.at === turn);
   s.tele = s.tele.filter((t) => t.at !== turn);
   const older = s.holes.slice();
@@ -156,7 +156,7 @@ function impactMeteor(t, turn) {
     killColony(p, "ถูกดูดออกนอกโคโลนี");
     sucked.push(p.id);
   }
-  if (match.shopPos && cells.some(([x, y]) => x === match.shopPos.x && y === match.shopPos.y)) { match.shopPos = null; match.lastLog.push("💥 อุกกาบาตชนแคปซูลเสบียง"); }
+  if (shop.capsule() && cells.some(([x, y]) => x === shop.capsule().x && y === shop.capsule().y)) { shop.clearCapsule(); match.lastLog.push("💥 อุกกาบาตชนแคปซูลเสบียง"); }
   const hole = makeHole(cells, glass ? GLASS_RADIUS : METEOR_RADIUS, turn);
   match.lastLog.push(`☄️ อุกกาบาตชนแถว ${t.y + 1} — รอยรั่ว`);
   const pull = pullHole(hole);
@@ -220,12 +220,8 @@ function landCapsule(t, turn) {
     crushed = { id: o.id, to };
   }
   if (!free(t.x, t.y)) return { type: "capsule", at: { x: t.x, y: t.y }, crushed, landed: false }; // ตัวใหญ่ทับอยู่ = ลงไม่ได้
-  match.shopPos = { x: t.x, y: t.y };
-  match.shopRazed = false;
-  match.shopOpenedRound = turn;
   st().capsuleFinal = !!t.final;
-  shop.openShop();
-  if (t.final) for (const it of match.shopItems) it.price = Math.ceil(it.price * 1.5); // แคปซูลสุดท้าย: ของแพงกว่า
+  shop.placeCapsule(t.x, t.y, !!t.final); // แคปซูลสุดท้าย: ของแพงกว่า ×1.5 (shop.placeCapsule)
   match.lastLog.push(t.final ? "📦 แคปซูลสุดท้าย · ปรากฏ" : "📦 แคปซูลเสบียง · ปรากฏ");
   return { type: "capsule", at: { x: t.x, y: t.y }, crushed, landed: true, final: !!t.final };
 }
@@ -241,7 +237,7 @@ function drift() {
   }
   return { type: "drift", moves };
 }
-const shopAt = (x, y) => match.shopPos && match.shopPos.x === mod(x, C.cols) && match.shopPos.y === y;
+const shopAt = (x, y) => { const c = shop.capsule(); return !!c && c.x === mod(x, C.cols) && c.y === y; };
 
 // ตั้งเป้าของเทิร์นถัดไป (เตือนล่วงหน้า 1 เทิร์น — ผู้เล่นเห็นเป้าแดงบนพื้น)
 //  อุกกาบาต 1 ลูก/เทิร์นตั้งแต่เทิร์น 2 (ช่วงนับถอยหลัง 2 ลูก) ใกล้ผู้เล่นสุ่ม · ลำแสงทุก 3 เทิร์นเริ่มเทิร์น 4 · แคปซูลในปล้องถัดขึ้นไป
@@ -274,7 +270,7 @@ function scheduleNext(turn) {
   if (turn === SEALS[2] && !s.capsuleFinal) {
     s.tele = s.tele.filter((t) => t.type !== "capsule");
     const sp = freeSpot(30, 38); if (sp) s.tele.push({ type: "capsule", ...sp, at: nt, final: true });
-  } else if (!match.shopPos && !pending && nt <= SEALS[2]) {
+  } else if (!shop.capsule() && !pending && nt <= SEALS[2]) {
     const sec = Math.min(s.sealed + (sealing ? 1 : 0) + 1, 3);
     const sp = freeSpot(sec * C.section + 1, sec * C.section + 8); if (sp) s.tele.push({ type: "capsule", ...sp, at: nt, final: false });
   }
@@ -320,7 +316,7 @@ function seal(si) {
   }
   s.tele = s.tele.filter((t) => t.y >= lo);
   s.holes = s.holes.filter((h) => h.cells.some(([, y]) => y >= lo));
-  if (match.shopPos && match.shopPos.y < lo) match.shopPos = null;
+  if (shop.capsule() && shop.capsule().y < lo) shop.clearCapsule();
   match.lastLog.push(`🚪 ปล้อง ${si + 1} ปิดผนึก`);
   engine.boardFx("colonySeal", { section: si + 1, dead });
 }
@@ -405,7 +401,7 @@ function publicInfo() {
     holes: s.holes.map((h) => ({ cells: h.cells, radius: h.radius, born: h.born })),
     patched: s.patched,
     tele: s.tele.map((t) => ({ ...t })),
-    capsule: match.shopPos ? { ...match.shopPos, final: !!s.capsuleFinal } : null,
+    capsule: shop.capsule() ? { x: shop.capsule().x, y: shop.capsule().y, final: !!s.capsuleFinal } : null,
     scene: s.scene ? { seq: s.scene.seq, active: !!s.scene.active, turn: s.scene.turn, events: s.scene.events } : null,
     walls: C.walls, doors: C.doors, glass: C.glass, section: C.section,
   };

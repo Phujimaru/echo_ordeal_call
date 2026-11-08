@@ -1,0 +1,118 @@
+// ร้านค้า 3 แห่ง 2×2 (GRID_PLAN §8.1): ร้านยาเจริญชัย / โรงช่างลุงเริง ปรากฏพร้อมกันทุก 6 เทิร์น · พ่อค้าเร่สุ่มโผล่ 25% อยู่ 2 เทิร์น
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { engine } = require('../server.js');
+const Board = require('../server/board.js');
+const match = require('../server/match.js');
+const Shop = require('../server/shop.js');
+
+const realRandom = Math.random;
+test.beforeEach(() => {
+  for (const k of Object.keys(engine.players)) delete engine.players[k];
+  match.shops = []; match.shopCycleRound = null;
+  engine.setGameState('PLAYING');
+  engine.setRoundNumber(1);
+});
+test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
+
+let uid = 0;
+function mkPlayer(pos, over = {}) {
+  const id = `t${++uid}`;
+  const p = Object.assign({
+    id, name: id, alive: true, characterId: 'dummy', hp: 5, armor: 2, skillPoints: 0,
+    gold: 50, inventory: [], cards: [], locked: false, busted: false,
+    statuses: {}, statusAmt: {}, cutsceneShown: {}, seen: {},
+    colorTrigger: { blue: 0, red: 0, green: 0, yellow: 0 },
+    dmgHp: 0, dmgArmor: 0, pos: { ...pos },
+  }, over);
+  engine.players[id] = p;
+  return p;
+}
+const kinds = () => match.shops.map((s) => s.kind).sort();
+const types = (s) => s.items.map((it) => it.type).sort();
+
+test('ต้นเกม: ร้านยา + โรงช่าง ปรากฏพร้อมกัน 2×2 · ของตามร้าน · ไม่ทับกัน ห่างกันอย่างน้อย 1 ช่อง', () => {
+  Math.random = () => 0.99; // พ่อค้าเร่ไม่โผล่
+  engine.maybeMoveShop();
+  assert.deepEqual(kinds(), ['apoth', 'forge']);
+  const apoth = Shop.shopById('apoth'), forge = Shop.shopById('forge');
+  assert.equal(apoth.size, 2);
+  assert.equal(forge.size, 2);
+  assert.deepEqual(types(apoth), [...Shop.SHOP_ITEMS.apoth].sort());
+  assert.deepEqual(types(forge), [...Shop.SHOP_ITEMS.forge].sort());
+  assert.ok(Board.dist({ x: apoth.x, y: apoth.y, size: 2 }, { x: forge.x, y: forge.y, size: 2 }) >= 2);
+  // 4 ช่องของร้าน = ช่องร้าน
+  for (const s of [apoth, forge]) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) assert.equal(Shop.shopAt(s.x + dx, s.y + dy), s);
+  const pub = engine.buildStateFor('none').shops;
+  assert.equal(pub.length, 2);
+  assert.equal(pub.find((s) => s.kind === 'apoth').name, 'ร้านยาเจริญชัย');
+  assert.equal(pub.find((s) => s.kind === 'forge').name, 'โรงช่างลุงเริง');
+  assert.equal(pub[0].turnsLeft, 6);
+});
+
+test('พ่อค้าเร่: สุ่มโผล่ 25% · ของ 2 ชนิด จำนวน 1–2 · อยู่ 2 เทิร์นแล้วจากไป', () => {
+  Math.random = () => 0.99;
+  engine.maybeMoveShop();
+  assert.equal(Shop.shopById('cara'), null);
+  engine.setRoundNumber(2);
+  Math.random = () => 0.1; // < 25%
+  Shop.tickMerchant();
+  const cara = Shop.shopById('cara');
+  assert.ok(cara, 'พ่อค้าเร่โผล่');
+  assert.equal(cara.size, 2);
+  assert.deepEqual(types(cara), [...Shop.SHOP_ITEMS.cara].sort());
+  for (const it of cara.items) assert.ok(it.stockBase >= 1 && it.stockBase <= 2);
+  assert.equal(Shop.shopTurnsLeftOf(cara), 2);
+  for (const o of match.shops.filter((s) => s !== cara)) assert.ok(Board.dist({ x: cara.x, y: cara.y, size: 2 }, { x: o.x, y: o.y, size: o.size }) >= 2, 'ไม่ติดร้านอื่น');
+  Math.random = () => 0.99;
+  engine.setRoundNumber(3);
+  Shop.tickMerchant();
+  assert.ok(Shop.shopById('cara'), 'เทิร์นที่ 2 ยังอยู่');
+  engine.setRoundNumber(4);
+  Shop.tickMerchant();
+  assert.equal(Shop.shopById('cara'), null, 'ครบ 2 เทิร์น = จากไป');
+});
+
+test('ซื้อ: ต้องยืนติดร้าน 2×2 นั้น (ขอบไหนก็ได้) · ซื้อของร้านอื่นจากร้านนี้ไม่ได้', () => {
+  Math.random = () => 0.99;
+  engine.maybeMoveShop();
+  const apoth = Shop.shopById('apoth'), forge = Shop.shopById('forge');
+  // ยืนติดขอบล่างช่องขวา
+  const p = mkPlayer({ x: apoth.x + 1, y: apoth.y + 2 });
+  engine.setGameState('ACTION');
+  match.actorId = p.id;
+  match.action = { locked: false, canto: false, from: { ...p.pos } };
+  assert.ok(Shop.nearShopOf(p, apoth));
+  assert.ok(!Shop.nearShopOf(p, forge));
+  const boots = forge.items[0];
+  Shop.buyShopItem(p.id, apoth.id, boots.id);
+  assert.equal(p.inventory.length, 0, 'ของโรงช่างซื้อที่ร้านยาไม่ได้');
+  Shop.buyShopItem(p.id, forge.id, boots.id);
+  assert.equal(p.inventory.length, 0, 'ไม่ได้ยืนติดโรงช่าง');
+  const armor = apoth.items.find((it) => it.type === 'armor');
+  Shop.buyShopItem(p.id, apoth.id, armor.id);
+  assert.equal(p.inventory.length, 1);
+  assert.equal(p.inventory[0].type, 'armor');
+});
+
+test('ร้านกันทาง: เดินผ่าน/ยืนบนช่องร้านไม่ได้', () => {
+  Math.random = () => 0.99;
+  engine.maybeMoveShop();
+  const apoth = Shop.shopById('apoth');
+  const p = mkPlayer({ x: apoth.x - 1, y: apoth.y });
+  const reach = Board.reachable(engine.boardMap(), { id: p.id, x: p.pos.x, y: p.pos.y }, 4, [], { blocked: Shop.shopTiles() });
+  for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    assert.ok(Shop.shopTiles().has(Board.key(apoth.x + dx, apoth.y + dy)));
+    assert.ok(!reach.has(Board.key(apoth.x + dx, apoth.y + dy)), 'ยืนบนร้านไม่ได้');
+  }
+});
+
+test('ร้านพัง: ร้านที่โดนแม้ช่องเดียวหายไป · ร้านอื่นอยู่', () => {
+  Math.random = () => 0.99;
+  engine.maybeMoveShop();
+  const apoth = Shop.shopById('apoth');
+  const hit = Shop.razeShopsIn(new Set([Board.key(apoth.x + 1, apoth.y + 1)]));
+  assert.equal(hit.length, 1);
+  assert.equal(hit[0].kind, 'apoth');
+  assert.deepEqual(kinds(), ['forge']);
+});

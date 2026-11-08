@@ -5,13 +5,23 @@
 //   cara  = พ่อค้าเร่ — เกวียน: ตัวไม้ขอบทอง · ล้อไม้ 4 ล้อ · ผ้าใบโค้งลายม่วง/ขาว · ตะเกียง · คริสตัลบนพรม
 //  เรขาคณิตอยู่ในพิกัดกระดาน (x, y, สูง z) แล้วฉายผ่าน P() → หมุนกล้อง/ซูมตามกระดาน · ด้านที่หันหลังกล้องไม่วาด (faceVisible)
 //  แสง: ด้านที่หันไปทางขวาของจอเข้มลง (แบบเดียวกับสไปรต์เดิม) · กลางคืนเข้มลง + ไฟอุ่น
-//  (x, y) = มุมบนซ้ายของร้าน · ยังใช้เฉพาะหน้าดูกระดาน (?board=1&shops=1)
+//  (x, y) = มุมบนซ้ายของร้าน · state.shops (กระดานจริง) + หน้าดูกระดาน (?board=1&shops=1)
 // ============================================================
 import { P, depthOf, faceVisible, glow, hexPath, shadeHex, viewAxes } from "./boardGeo";
 
 const TAU = Math.PI * 2;
 export const SHOP_SIZE = 2;
 export const SHOP_KINDS = ["apoth", "forge", "cara"];
+// ชื่อร้านตามชนิด (state.shops[i].kind) — capsule = แคปซูลเสบียง (Colony · 1 ช่อง)
+export const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง" };
+export const shopName = (kind) => SHOP_NAMES[kind] || SHOP_NAMES.apoth;
+export const shopSize = (sh) => Math.max(1, (sh && sh.size) | 0 || (sh && sh.kind === "capsule" ? 1 : SHOP_SIZE));
+// ช่อง (x, y) อยู่ในพื้นที่ร้านไหม (size×size จากมุมบนซ้าย)
+export function shopCovers(sh, x, y) {
+  if (!sh || !Number.isFinite(sh.x) || !Number.isFinite(sh.y)) return false;
+  const n = shopSize(sh);
+  return x >= sh.x && x < sh.x + n && y >= sh.y && y < sh.y + n;
+}
 
 // ---------- เรขาคณิต ----------
 function path3(g, pts) {

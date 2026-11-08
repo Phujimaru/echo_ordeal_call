@@ -1248,6 +1248,9 @@
 .hc-btn.end::after { content: ""; position: absolute; right: 12px; top: 50%; width: 9px; height: 9px; margin-top: -5px; border-top: 3px solid #fff; border-right: 3px solid #fff; transform: rotate(45deg); opacity: .85; animation: ocwNudge 1.4s ease-in-out infinite; }
 .hc-btn.shop { --hc-accent: #e0a526; background: linear-gradient(90deg, #e0a526 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #fffaf0, #f6e6c0); color: #6b4708; box-shadow: inset 0 0 0 1px rgba(214,166,58,.8); }
 .hc-btn.shop::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.9) 50%, transparent 70%); }
+.hc-btn.shop[data-kind="apoth"] { --hc-accent: #3fae8c; background: linear-gradient(90deg, #3fae8c 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #fffaf0, #f6e6c0); }
+.hc-btn.shop[data-kind="forge"] { --hc-accent: #c8662e; background: linear-gradient(90deg, #c8662e 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #fffaf0, #f6e6c0); }
+.hc-btn.shop[data-kind="cara"] { --hc-accent: #8a5cc8; background: linear-gradient(90deg, #8a5cc8 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #fffaf0, #f6e6c0); }
 .hc-btn.ride { --hc-accent: #d863a5; background: linear-gradient(90deg, #d863a5 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #fff7fb, #f6dbea); color: #8a2c6a; box-shadow: inset 0 0 0 1px rgba(216,99,165,.6); }
 .hc-btn.ride:disabled { background: var(--ocw-lattice), linear-gradient(115deg, rgba(238,243,249,.85), rgba(220,231,243,.75)); opacity: .5; }
 .hc-btn.ride[data-on="true"] { box-shadow: inset 0 0 0 2px #d863a5, 0 0 16px rgba(216,99,165,.7); }

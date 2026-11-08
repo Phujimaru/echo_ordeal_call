@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
 import { clampZoom, ZOOM_STEPS } from "./boardDraw";
 import { customProjection } from "./boardGeo";
+import { shopCovers, shopName, shopSize } from "./shopProps";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
@@ -234,17 +235,27 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // โหมดร่วมมือ (duo/trio/Moon Cell): หมากเพื่อนร่วมทีมมีวงเขียว + ป้าย "ทีม" (ผู้ใช้สั่ง 2026-10-27)
   const coopMode = teamMode || state.gameMode === "moon";
-  const shopPos = state.shopPos || null;
+  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง): ทุกช่องของร้านขวางทาง/ยืนไม่ได้
+  const shops = useMemo(() => (Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : []), [state.shops]);
+  const shopSig = shops.map((sh) => `${sh.x},${sh.y},${shopSize(sh)}`).join("|");
+  const shopTiles = useMemo(() => {
+    const out = [];
+    for (const part of shopSig ? shopSig.split("|") : []) {
+      const [x, y, n] = part.split(",").map(Number);
+      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push(key(Rules.wx(x + dx), y + dy));
+    }
+    return out;
+  }, [shopSig]);
   // ร่างของตัวที่ล้ม (ระบบคู่ — p.corpse): ขวางช่อง เดินข้ามได้ หยุดทับไม่ได้ → อยู่ทั้งใน blocked และ hop (ตรงกับ server)
   const corpseSig = state.players.filter((p) => p.corpse && Number.isFinite(p.corpse.x) && Number.isFinite(p.corpse.y)).map((p) => `${p.id}@${key(p.corpse.x, p.corpse.y)}`).join("|");
   const corpses = useMemo(() => (corpseSig ? corpseSig.split("|").map((s) => { const [id, k] = s.split("@"); const [x, y] = k.split(",").map(Number); return { id, x, y }; }) : []), [corpseSig]);
   const hop = useMemo(() => (corpses.length ? new Set(corpses.map((c) => key(c.x, c.y))) : null), [corpses]);
   const blocked = useMemo(() => {
-    if (!shopPos && !hop) return null;
+    if (!shopTiles.length && !hop) return null;
     const b = new Set(hop || []);
-    if (shopPos) b.add(key(shopPos.x, shopPos.y));
+    for (const k of shopTiles) b.add(k);
     return b;
-  }, [shopPos, hop]);
+  }, [shopTiles, hop]);
   const night = state.cycle === "night";
 
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
@@ -2445,7 +2456,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
-    if (samePos(shopPos, hover)) return { icon: "🏪", name: "ร้านค้ามายา", desc: state.shopTurnsLeft ? `เหลือ ${state.shopTurnsLeft} เทิร์น` : "" };
+    const shopHit = shops.find((sh) => shopCovers(sh, hover.x, hover.y));
+    if (shopHit) return { icon: "🏪", name: shopHit.name || shopName(shopHit.kind), desc: shopHit.turnsLeft > 0 ? `เหลือ ${shopHit.turnsLeft} เทิร์น` : "" };
     // Ice Spike: หนามน้ำแข็ง · ธารน้ำแข็ง (น้ำแข็งที่สร้างระหว่างเกม)
     const sp = spikeList.find((t) => samePos(t, hover));
     if (sp && sp.wall) return { icon: "🧊", name: "กำแพงน้ำแข็ง", desc: "" };
@@ -2456,7 +2468,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const ic = board && Array.isArray(board.ice) ? board.ice.find((t) => samePos(t, hover)) : null;
     if (ic) return { icon: "🧊", name: "ธารน้ำแข็ง", desc: `เหลือ ${ic.left ?? 0} เทิร์น` };
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shopPos, state.shopTurnsLeft, spikeList, board, celFlora]);
+  }, [hover, map, shops, spikeList, board, celFlora]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js
@@ -2580,7 +2592,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         map={displayBoard}
         units={units}
         highlights={highlights}
-        shopPos={shopPos}
+        shops={shops}
         night={night}
         lowQ={lowQ}
         rotation={rotation}
@@ -2589,7 +2601,6 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         onZoomChange={setZoom}
         focus={focus}
         cinema={cinema}
-        shopLabel={state.shopTurnsLeft > 0 ? state.shopTurnsLeft : null}
         anim={anim}
         glides={glides}
         fx={fx}

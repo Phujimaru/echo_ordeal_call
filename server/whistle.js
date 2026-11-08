@@ -129,7 +129,7 @@ function plainTiles(share) {
   for (let y = map.minRow | 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) {
     const k = Board.key(x, y);
     if (map.terrain[k] || (map.special && map.special[k]) || (map.heal && map.heal.has && map.heal.has(k))) continue;
-    if (match.shopPos && match.shopPos.x === x && match.shopPos.y === y) continue;
+    if (require("./shop").shopAt(x, y)) continue;
     out.push({ x, y });
   }
   for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }

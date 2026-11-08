@@ -66,7 +66,7 @@ function openTile(x, y, bridge = false) {
   const map = action.boardMap();
   const t = Board.inBounds(map, x, y) ? map.terrain[K(x, y)] : null;
   if (!Board.inBounds(map, x, y) || (t && !(bridge && (Board.TERRAIN_INFO[t] || {}).iceBridge))) return false;
-  return !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y);
+  return !require("./shop").shopAt(x, y);
 }
 
 // ---------- ชั้นบนแผนที่ ----------

@@ -55,9 +55,8 @@ const match = {
   dotTick: false,     // กำลังลงดาเมจต่อเทิร์นของสถานะต้นเทิร์น (phases/draw.js) — engine.dotTick
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
   tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
-  shopPos: null,       // ช่องที่ร้านค้ามายาตั้งอยู่ { x, y } (กินช่อง — เดิน/ยืน/ถอยเข้าไม่ได้) · null = ยังไม่ตั้ง (dealRound ตั้งให้)
-  shopRazed: false,    // ร้านถูกพัง (ท่าไม้ตายเรียวกิ) — ไม่ตั้งใหม่จนถึงรอบย้ายตามปกติ (shop.shopDue)
-  shopOpenedRound: 0,  // เทิร์นที่ร้านมาตั้งจุดนี้ — ครบ SHOP_INTERVAL_TURNS แล้วย้าย
+  shops: [],          // ร้านค้าบนแผนที่ (server/shop.js): [{ id, kind, x, y, size, items, openedRound, leaves }]
+  shopCycleRound: null, // เทิร์นที่ร้านยา/โรงช่างปรากฏรอบล่าสุด — ครบ SHOP_INTERVAL_TURNS แล้วปรากฏจุดใหม่
   roundNumber: 0,
   centralDeck: [], // กองกลาง 43 ใบ (สับใหม่ทุกรอบใน dealRound())
   lastLog: [],
@@ -70,7 +69,6 @@ const match = {
   transformCounter: 0, // ลำดับการเปิดร่าง (ใช้เลือกเพลงตอนสวนท่ากัน)
   lastAttack: null,    // ข้อมูลการโจมตีล่าสุด (อนิเมชันใครตีใคร)
   roundSkills: [],     // สกิลที่ใช้ในรอบ (เก็บประวัติ — instant เด้งตอนใช้ / หลังเปิดไพ่โชว์ตอนโจมตี)
-  shopItems: [],       // ร้านค้ามายา: สินค้าส่วนกลางของจุดปัจจุบัน (15 ชิ้น สุ่มใหม่ทุกครั้งที่ร้านย้าย)
   shopRoundSeq: 0,     // ลำดับรอบร้านค้า (ใช้สร้าง id สินค้าไม่ให้ซ้ำกันข้ามรอบ)
   // ---------- ห่วงเวลาซีโร่ (server/zeroTime.js · GRID_PLAN §8.2) ----------
   zero: null,          // ระหว่างอยู่ในห่วงเวลา: { saved, seals, pickups, pending, enteredRound } · null = ไม่ได้อยู่
@@ -78,5 +76,21 @@ const match = {
   zeroFrozen: 0,       // จำนวนเทิร์นที่อยู่ในห่วงเวลา — เวลาโลก = roundNumber − zeroFrozen (กลางวัน/กลางคืน · ภูมิภาค · ร้าน)
   zeroScene: null,     // ฉากที่ client เล่นระหว่างพักเกม { seq, active, mode: "enter" | "break" | "release", stage, seal, breakerId }
 };
+
+// ---------- ทางเข้ากันได้ของร้านเดียวแบบเดิม (เทสต์/โค้ดเก่า) — ร้านหลัก = ร้านแรกที่ไม่ใช่พ่อค้าเร่ ----------
+//  shopPos = จุดของร้านหลัก · ตั้งค่า = แทนร้านทั้งหมดด้วยร้านยา 1×1 ที่จุดนั้น (null = ไม่มีร้าน) · shopItems = ของในร้านหลัก
+//  โค้ดเกมใหม่ใช้ match.shops ผ่าน server/shop.js เท่านั้น
+const mainShop = () => (match.shops || []).find((s) => s.kind !== "cara") || null;
+Object.defineProperties(match, {
+  shopPos: {
+    get() { const s = mainShop(); return s ? { x: s.x, y: s.y } : null; },
+    set(v) { match.shops = v ? [{ id: "apoth", kind: "apoth", x: v.x, y: v.y, size: 1, items: (mainShop() || {}).items || [], openedRound: 0 }] : []; },
+  },
+  shopItems: {
+    get() { const s = mainShop(); return s ? s.items : []; },
+    set(v) { const s = mainShop(); if (s) s.items = v; else match.shops = [{ id: "apoth", kind: "apoth", x: -9, y: -9, size: 1, items: v, openedRound: 0 }]; },
+  },
+  shopRazed: { get() { return false; }, set() {} },
+});
 
 module.exports = match;

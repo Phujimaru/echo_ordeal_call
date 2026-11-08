@@ -24,7 +24,7 @@ import {
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
 import { drawCapsule, drawHouse, drawTower } from "./colonyProps";
-import { drawShopStall } from "./shopProps";
+import { drawShopStall, shopSize } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -88,7 +88,7 @@ export function pickTile(info, lx, ly) {
   return x >= 0 && y >= 0 && x < info.cols && y < info.rows ? { x, y } : null;
 }
 // ช่อง → จุดกลางช่องบนจอ (ตรรกะของเฟรมปกติ) — แปลงเป็น CSS px ด้วย computeView(w, h, cam) (มุมใกล้ต้องรู้ cam ของ BoardCanvas
-//  — ป้ายที่ต้องเกาะช่องจึงวาดในแคนวาสแทน เช่น shopLabel) · rotation (0..3) ไม่ใส่ = ใช้มุมที่กำลังแสดงอยู่ (รวมระหว่างหมุน)
+//  — ป้ายที่ต้องเกาะช่องจึงวาดในแคนวาสแทน เช่นป้ายร้าน) · rotation (0..3) ไม่ใส่ = ใช้มุมที่กำลังแสดงอยู่ (รวมระหว่างหมุน)
 export function tileCenter(x, y, z = 0, rotation) {
   if (rotation == null) { const p = P(x + 0.5, y + 0.5, z); return [p[0], p[1]]; }
   const prev = viewTurn();
@@ -359,9 +359,9 @@ function drawPlazaStatic(g, pz, C, night) {
   }
 }
 
-// ป้ายร้านค้าลอยเหนือแผง ("🏪 N" = เหลือ N เทิร์น) — วาดทับของบนกระดาน จึงตามซูม/เลื่อน/หมุนเอง
-function drawShopLabel(g, x, y, text) {
-  const [lx, ly] = P(x + 0.5, y + 0.5, 2.1);
+// ป้ายร้านค้าลอยเหนือแผง ("🏪 N" = เหลือ N เทิร์น) — วาดทับของบนกระดาน จึงตามซูม/เลื่อน/หมุนเอง · (x, y) = มุมบนซ้าย · n = ขนาดร้าน (กึ่งกลาง n×n)
+function drawShopLabel(g, x, y, text, n = 1) {
+  const [lx, ly] = P(x + n / 2, y + n / 2, n > 1 ? 2.9 : 2.1);
   g.save();
   g.font = `600 13px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
   const tw = g.measureText(text).width + 16, th = 18;
@@ -371,7 +371,7 @@ function drawShopLabel(g, x, y, text) {
   g.fillStyle = "#12264a"; g.fillText(text, lx, ly - th / 2 + 0.5);
   g.restore();
 }
-// แผงร้านค้ามายา (กินช่อง 1 ช่อง — GRID_PLAN §8.1)
+// แผงร้านค้ามายาแบบเดิม 1 ช่อง — ยังใช้ในฉากเรียวกิ (ryougiFx ctx.drawShop)
 function drawShop(g, x, y, C, now, night) {
   const [bx, by, s] = PA(x, y, 0.05);
   gEllipse(g, x + 0.5, y + 0.5, 0.46, 0, 28);
@@ -2082,7 +2082,7 @@ export const FX_DUR = {
 
 
 // =================================================================== frame
-//  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shopPos, shopLabel?, hover, fx (กำลังเล่น) }
+//  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shops (state.shops), hover, fx (กำลังเล่น) }
 //   grays? = รองโกมิเนียตที่กำลังชาร์จ [{ id, x, y, size, dir, left, tiles }] (grayFx.js)
 //   ferns? = เฟิร์นที่ Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะรออยู่ [{ id, x, y, size, empowered, boost }] (fernFx.js — แสงปลายคทา)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
@@ -2100,7 +2100,7 @@ export const FX_DUR = {
 //   turn = มุมมองตอนนี้ (หน่วย 90° ทศนิยมได้)
 //  คืน boxes = กล่องคลิกของตัวละคร (พิกัดตรรกะ) เรียงหน้า→หลัง
 export function drawFrame(g, st, now) {
-  const { info, view, dpr, bake, night, lowQ, units, hl, shopPos, hover, fx } = st;
+  const { info, view, dpr, bake, night, lowQ, units, hl, hover, fx } = st;
   setCamera(info, st.turn || 0);
   const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
   const L = () => g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
@@ -2279,14 +2279,14 @@ export function drawFrame(g, st, now) {
   // Colony: ร้าน = แคปซูลเสบียง (ตกลงมาจากแกนตอนปรากฏ — st.colonyCapsule จาก colony3d.capsuleAt)
   const cap = colony ? st.colonyCapsule : null;
   if (cap) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now)) });
-  // ร้าน 3 ร้าน ขนาด 2×2 (แผน shop-three · ยังอยู่ในหน้าดูกระดาน ?board=1&shops=1) — เรียงความลึกที่กลางพื้นที่ 2×2
-  if (Array.isArray(st.shops) && !colony) for (const sh of st.shops) {
-    if (!sh || !Number.isFinite(sh.x) || !Number.isFinite(sh.y)) continue;
-    items.push({ d: depthOf(sh.x + 1, sh.y + 1) + 0.05, f: () => drawShopStall(g, sh.kind, sh.x, sh.y, now, night) });
-  }
-  if (shopPos && !colony && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
-    const { x, y } = shopPos, fade = behind(x, y);
-    items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });
+  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน ขนาด 2×2 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
+  const shopList = Array.isArray(st.shops) ? st.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
+  if (!colony) for (const sh of shopList) {
+    if (sh.kind === "capsule") continue;
+    const n = shopSize(sh);
+    let fade = false;
+    for (let dy = 0; dy < n && !fade; dy++) for (let dx = 0; dx < n && !fade; dx++) fade = behind(sh.x + dx, sh.y + dy);
+    items.push({ d: depthOf(sh.x + n / 2, sh.y + n / 2) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShopStall(g, sh.kind, sh.x, sh.y, now, night); if (fade) g.restore(); } });
   }
   // Colony: แถบเลือด/ป้ายของหมากไม่ย่อตามระยะ (ชดเชย k ของกรอบหมุน) + หนาขึ้นอีกนิดให้อ่านง่ายบนผิวโค้ง
   const unitDraw = (u, ax, ay) => () => {
@@ -2340,10 +2340,13 @@ export function drawFrame(g, st, now) {
   for (const it of items) it.f();
   if (st.otoya && st.otoya.links && st.otoya.links.length) otoyaLinks(g, st.otoya.links, units, now, lowQ); // สายโน้ตดนตรีในหัวใจ (เหนือตัวละคร)
   if (storms) drawStormAir(g, storms, info, now, lowQ);
-  if (shopPos && st.shopLabel != null && st.shopLabel !== "" && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y) && (!colony || cap)) {
+  // ป้าย "🏪 N" (เหลือ N เทิร์น) เหนือกลางร้านแต่ละร้าน · Colony = เฉพาะแคปซูลที่ลงถึงพื้นแล้ว
+  for (const sh of shopList) {
+    if (!(sh.turnsLeft > 0) || (colony ? !cap : sh.kind === "capsule")) continue;
+    const n = colony ? 1 : shopSize(sh);
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
-    const hide = storms && behindDome(storms, shopPos.x, shopPos.y) && clipOutDomes(g, storms);
-    drawShopLabel(g, shopPos.x, shopPos.y, `🏪 ${st.shopLabel}`);
+    const hide = storms && behindDome(storms, sh.x, sh.y) && clipOutDomes(g, storms);
+    drawShopLabel(g, sh.x, sh.y, `🏪 ${sh.turnsLeft}`, n);
     if (hide) g.restore();
   }
   // อนุภาค (ข้ามเมื่อ lowQ) — ไม่วาดทับโดมเขม่าของม่านแดง (คนนอกต้องมองไม่เห็นข้างใน)

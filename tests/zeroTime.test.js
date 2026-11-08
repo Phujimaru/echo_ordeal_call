@@ -358,11 +358,11 @@ test('การเดินทาง: ภูมิภาคไม่เปลี
 test('ร้านค้า: ปิดในห่วงเวลา (shopPos null) · ปลดผนึกแล้วกลับที่เดิม · เหลือกี่เทิร์นนับตามเวลาโลก', () => {
   setup();
   engine.setRoundNumber(8);
-  match.shopPos = null; // บังคับให้ร้านปรากฏใหม่ที่เทิร์น 9
+  match.shops = []; match.shopCycleRound = null; // บังคับให้ร้านปรากฏใหม่ที่เทิร์น 9
   draw.dealRound(); engine.clearPhaseTimer();
   const pos = { ...match.shopPos };
-  const left = () => engine.buildStateFor('p0').shopTurnsLeft;
-  assert.equal(match.shopOpenedRound, 9);
+  const left = () => (engine.buildStateFor('p0').shops.find((s) => s.kind === 'apoth') || { turnsLeft: 0 }).turnsLeft;
+  assert.equal(match.shopCycleRound, 9);
   assert.equal(left(), SHOP_INTERVAL_TURNS);
   Zero.enter(); engine.clearPhaseTimer(); match.zeroScene.active = false;
   assert.equal(match.shopPos, null);

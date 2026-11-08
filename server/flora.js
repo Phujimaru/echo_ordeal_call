@@ -20,7 +20,7 @@ function has(b) { return !!(b && b.flora && Object.keys(b.flora).length); }
 // ปลูกพุ่มที่ช่องนี้ได้ไหม: ในกระดาน · ไม่ใช่สิ่งกีดขวาง (รวมหนาม/กำแพง) · ไม่ใช่ร้านค้า (มีคนยืนได้)
 function canBloom(map, x, y) {
   if (!match.board || !Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return false;
-  return !(match.shopPos && match.shopPos.x === x && match.shopPos.y === y);
+  return !require("./shop").shopAt(x, y);
 }
 // ปลูกพุ่ม → บันทึกที่ปลูกจริง [{ k, x, y, prev: { flora, ice, wet } }] (ไว้ย้อน)
 //  keep = ช่องที่มีพุ่มอยู่แล้วไม่แตะ (รอยเท้า: เหยียบพุ่มเดิมไม่รีเซ็ตเวลา) · ไม่ keep = ปลูกทับนับเวลาใหม่ (คฑาแห่งการรังสรรค์)

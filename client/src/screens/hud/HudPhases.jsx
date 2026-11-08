@@ -96,12 +96,15 @@ function extraRows(extra) {
 const extraBtn = (x) => (
   <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
 );
-export function HudCommand({ skills, attack, shop, ride, drop, extra, bag, undo, end }) {
+// shops = ร้านที่ยืนติดอยู่ [{ id?, name, kind, onClick }] — ปุ่มละร้าน (สีตาม kind)
+export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo, end }) {
   return (
     <section className="hc" aria-label="คำสั่ง">
       <div className="hud-skills hc-skills">{skills}</div>
       <div className="hc-col">
-        {shop && <button type="button" className="hc-btn shop" onClick={shop.onClick}><span className="ico">{SHOP}</span><b>ร้านค้ามายา</b></button>}
+        {(shops || []).map((sh, i) => (
+          <button key={sh.id || `${sh.kind}${i}`} type="button" className="hc-btn shop" data-kind={sh.kind || undefined} onClick={sh.onClick}><span className="ico">{SHOP}</span><b>{sh.name}</b></button>
+        ))}
         <AttackButton {...attack} />
         {ride && <button type="button" className="hc-btn ride" disabled={ride.disabled} onClick={ride.onClick}><span className="ico">🎠</span><b>ขี่</b></button>}
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}

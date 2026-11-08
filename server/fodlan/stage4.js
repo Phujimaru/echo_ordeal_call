@@ -225,13 +225,13 @@ function adjacentOut(ctx, st, p) {
   return (st.fires || []).filter((f) => !f.lit && ctx.adjacent(p, f.x, f.y));
 }
 function buildTiles(ctx, p) {
-  const map = ctx.map(), B = ctx.Board, shop = ctx.match.shopPos;
+  const map = ctx.map(), B = ctx.Board, shopAt = require("../shop").shopAt;
   const out = [];
   for (const c of B.footprint(p.pos.x, p.pos.y, ctx.action.sizeOf(p))) {
     for (const [dx, dy] of DIRS) {
       const x = c.x + dx, y = c.y + dy;
       if (!ctx.adjacent(p, x, y) || out.some((t) => t.x === x && t.y === y)) continue;
-      if (B.specialAt(map, x, y) || B.isHeal(map, x, y) || (shop && shop.x === x && shop.y === y)) continue;
+      if (B.specialAt(map, x, y) || B.isHeal(map, x, y) || shopAt(x, y)) continue;
       if (!ctx.free(x, y)) continue;
       out.push({ x, y });
     }

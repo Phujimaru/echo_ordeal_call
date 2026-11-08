@@ -187,7 +187,7 @@ function shopTrio(map) {
     if (out.length >= 3) break;
     if (free(c.x, c.y) && out.every((o) => apart(o, c))) out.push({ x: c.x, y: c.y });
   }
-  return out.map((p, i) => ({ ...p, kind: ["apoth", "forge", "cara"][i] }));
+  return out.map((p, i) => ({ ...p, id: `dev${i}`, kind: ["apoth", "forge", "cara"][i], size: 2, turnsLeft: 3 }));
 }
 
 const key = (x, y) => `${x},${y}`;
@@ -262,7 +262,7 @@ export default function BoardPreview() {
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const [otoyaDev, setOtoyaDev] = useState(null); // ?otoya=1: { night, links } (prop otoya ของ BoardCanvas)
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
-  const M = useMemo(() => ({ ...map, shop: SHOPS_ON ? null : shopOf(map) }), [map]);
+  const M = useMemo(() => ({ ...map, shop: null }), [map]); // ร้านแบบเดิม 1×1 เลิกใช้แล้ว — ?shops=1 = ร้าน 2×2 (shops)
   const shops = useMemo(() => (SHOPS_ON ? shopTrio(map) : null), [map]);
   const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 30, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
@@ -530,13 +530,11 @@ export default function BoardPreview() {
         ice={iceMock}
         units={viewUnits}
         highlights={highlights}
-        shopPos={M.shop}
         shops={shops}
         rotation={rotation}
         zoom={zoom === 1 ? 2 : 0} view={zoom === 2 ? "top" : "tilt"}
         onZoomChange={changeZoom}
         focus={focus}
-        shopLabel={3}
         night={night || !!(otoyaDev && otoyaDev.night)}
         otoya={otoyaDev}
         lowQ={lowQ}

@@ -151,19 +151,27 @@ const ME = "p0";
 const LOCKED_IN_PLAYING = new Set(["p1", "p3"]);
 
 // ร้านค้ามายา: ของทุกชนิดช่องละ 1 · จำนวนที่ซื้อได้ต่อช่อง 2–5 (รูปเดียวกับ server/shop.js openShop + id/stock/sold)
-const SHOP_ROLL = [
-  { type: "fortune", price: 5, stockBase: 3 },
-  { type: "cardColor", price: 5, stockBase: 2 },
-  { type: "cardCut", price: 5, stockBase: 4 },
-  { type: "armor", value: 1, price: 3, stockBase: 5 },
-  { type: "cleanse", price: 3, stockBase: 3 },
-  { type: "resist", price: 5, stockBase: 2 },
-  { type: "windBoots", price: 4, stockBase: 4 },
-  { type: "battery", price: 15, stockBase: 2 },
-  { type: "lifeCrystal", price: 15, stockBase: 2 },
-  { type: "armorCrystal", price: 15, stockBase: 3 },
-];
-const SOLD = new Set([1]); // หมดแล้ว (ซื้อครบ stockBase)
+// ร้าน 3 ร้าน (state.shops) — ของตามชนิดร้าน · SOLD = "kind:i" ที่ขายหมดแล้ว (ซื้อครบ stockBase)
+const SHOP_ROLL = {
+  apoth: [
+    { type: "fortune", price: 5, stockBase: 3 },
+    { type: "cardColor", price: 5, stockBase: 2 },
+    { type: "cardCut", price: 5, stockBase: 4 },
+    { type: "armor", value: 1, price: 3, stockBase: 5 },
+    { type: "cleanse", price: 3, stockBase: 3 },
+    { type: "resist", price: 5, stockBase: 2 },
+  ],
+  forge: [
+    { type: "windBoots", price: 4, stockBase: 4 },
+    { type: "battery", price: 15, stockBase: 2 },
+  ],
+  cara: [
+    { type: "lifeCrystal", price: 15, stockBase: 2 },
+    { type: "armorCrystal", price: 15, stockBase: 3 },
+  ],
+};
+const SOLD = new Set(["apoth:1"]);
+const SHOP_N = 2; // ร้าน 2×2
 
 // กระเป๋าของเรา (5 ช่อง — รูปเดียวกับ p.inventory ใน server/shop.js)
 const MY_BAG = [
@@ -230,8 +238,45 @@ function units(s, ref) {
   return s.players.filter((p) => p.alive && p.pos && (p.dim || null) === dim)
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.summon && p.summon.kind === "double" ? null : p.teamId || null }));
 }
+function shopTiles(sh) {
+  const n = sh.size || 1, out = [];
+  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push({ x: sh.x + dx, y: sh.y + dy });
+  return out;
+}
 function blockedOf(s) {
-  return s.shopPos ? new Set([Rules.key(s.shopPos.x, s.shopPos.y)]) : null;
+  if (!s.shops || !s.shops.length) return null;
+  return new Set(s.shops.flatMap((sh) => shopTiles(sh).map((t) => Rules.key(t.x, t.y))));
+}
+// หาที่ตั้งร้าน 2×2: พื้นว่างครบทุกช่อง (ไม่มีสิ่งกีดขวาง/จุดฟื้นฟู/คนยืน) ไม่ทับร้านอื่น (เว้น 1 ช่อง) · near = ต้องติดกล่องนี้ (ระยะ 1)
+function fitShop(s, taken, near) {
+  const map = Rules.mapOf(s.board.area);
+  const ok = (x, y) => {
+    for (let dy = 0; dy < SHOP_N; dy++) for (let dx = 0; dx < SHOP_N; dx++) {
+      const tx = x + dx, ty = y + dy;
+      if (!Rules.inBounds(map, tx, ty) || Rules.isObstacle(map, tx, ty) || Rules.isHeal(map, tx, ty)) return false;
+      if (s.players.some((p) => p.alive && p.pos && Rules.covers({ ...p.pos, size: p.size || 1 }, tx, ty))) return false;
+    }
+    return taken.every((o) => Rules.dist({ x, y, size: SHOP_N }, o) >= 2);
+  };
+  const cand = [...(map.shopSpots || [])];
+  for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) cand.push({ x, y });
+  return cand.find((c) => ok(c.x, c.y) && (!near || Rules.dist(near, { x: c.x, y: c.y, size: SHOP_N }) === 1)) || null;
+}
+function mockShops(s, round, nearMe) {
+  const out = [];
+  for (const kind of ["apoth", "forge", "cara"]) {
+    const pos = fitShop(s, out, kind === "apoth" ? nearMe : null) || fitShop(s, out, null);
+    if (!pos) continue;
+    const id = `shop_${kind}_${Math.ceil(round / 5)}`;
+    out.push({
+      id, kind, x: pos.x, y: pos.y, size: SHOP_N, turnsLeft: 5 - ((round - 1) % 5),
+      items: SHOP_ROLL[kind].map((it, i) => {
+        const sold = SOLD.has(`${kind}:${i}`);
+        return { id: `${id}_${i}`, type: it.type, price: it.price, ...(it.value != null ? { value: it.value } : {}), stock: sold ? 0 : it.stockBase, stockMax: it.stockBase, sold, closed: false };
+      }),
+    });
+  }
+  return out;
 }
 
 // ช่องว่างติดตัวเรา (ไว้วางร้าน "ติดเรา") — ลองล่าง/ซ้าย/ขวา/บน
@@ -521,9 +566,7 @@ export function buildMockState(opts) {
     cutscene: null,
     attack: null,
     log: [],
-    shop: SHOP_ROLL.map((it, i) => ({ id: `shop_${Math.ceil(round / 5)}_${i}`, ...it, bought: SOLD.has(i) ? it.stockBase : 0, stock: SOLD.has(i) ? 0 : it.stockBase, stockMax: it.stockBase, sold: SOLD.has(i), soldTo: SOLD.has(i) ? "p3" : null })),
-    shopPos: { x: 6, y: 2 },
-    shopTurnsLeft: 5 - ((round - 1) % 5),
+    shops: [],
     bagSlots: 5,
     deckLedger: ledger(),
     players,
@@ -564,7 +607,7 @@ export function buildMockState(opts) {
     s.action.from = { ...me.pos };
   }
   if (s.masked) s.turnOrder = [];
-  if (opts.shopNear && me.pos) s.shopPos = freeNeighbor(s, me.pos) || s.shopPos;
+  s.shops = mockShops(s, round, opts.shopNear && me.pos ? { ...me.pos, size: me.size || 1 } : null);
   if (s.gameState === "ACTION") s.forecast = forecastFor(s, s.controlId || s.youId);
   if (scn === "attack") {
     // ป้ายโบนัสในฉากตี (AttackTags) — ตัวอย่างผลทั้งสองฝั่งแบบที่ server strike() ใส่ใน skills
@@ -706,13 +749,12 @@ export function simulateEmit(prev, ev, payload = {}) {
     }
     case "buyShopItem": {
       if (!myTurn) return { state: prev };
-      const it = s.shop.find((x) => x.id === payload.itemId);
-      if (!it || it.sold || me.gold < it.price || me.inventory.length >= s.bagSlots) return { state: prev };
-      if (!s.shopPos || Rules.dist(me.pos, s.shopPos) !== 1) return { state: prev };
-      it.bought = (it.bought || 0) + 1;
-      it.stock = Math.max(0, (it.stockMax || 1) - it.bought);
+      const sh = (s.shops || []).find((x) => x.id === payload.shopId);
+      const it = sh ? sh.items.find((x) => x.id === payload.itemId) : null;
+      if (!it || it.sold || it.closed || me.gold < it.price || me.inventory.filter((x) => x.type !== "kebread").length >= s.bagSlots) return { state: prev };
+      if (!Rules.nearShop({ ...me.pos, size: me.size || 1 }, sh)) return { state: prev };
+      it.stock = Math.max(0, (it.stock ?? 1) - 1);
       it.sold = it.stock <= 0;
-      it.soldTo = me.id;
       me.gold -= it.price;
       me.inventory.push({ uid: `${it.id}_${me.inventory.length}_${it.bought}`, type: it.type, value: it.value, price: it.price, ...(it.type === "battery" ? { charge: 0 } : {}) });
       lockMove();

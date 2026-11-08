@@ -163,9 +163,9 @@ function ultimate(engine, p, ids, opts) {
   engine.skillBeat(CUT_SECONDS, () => {
     const keys = tiles.map((t) => key(t.x, t.y)).filter((k) => !(map.terrain[k] && Board.UNBREAKABLE.has(map.terrain[k]) && map.terrain[k] !== "chasm"));
     const razed = engine.breakObstacles(keys);
-    const shop = engine.shopPos;
-    const shopHit = shop && zone.has(key(shop.x, shop.y)) ? { ...shop } : null;
-    if (shopHit) { engine.razeShop(); engine.log("🏪 ร้านค้ามายาพังทลาย — หายไปจนถึงรอบย้ายร้าน"); }
+    const hitShops = engine.razeShopsIn(zone);
+    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, size: hitShops[0].size || 1, kind: hitShops[0].kind } : null;
+    if (shopHit) engine.log("🏪 ร้านค้าพังทลาย — หายไปจนถึงรอบปรากฏถัดไป");
     for (const o of Object.values(engine.players)) if (!o.alive && o.corpse && zone.has(key(o.corpse.x, o.corpse.y))) o.corpse = null;
     const fresh2 = engine.addChasm(keys);
     const pushes = pushAll(engine, p, band, zone);

@@ -274,13 +274,22 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   useDrawItem: shop.useDrawItem,
   hit: draw.hit,
   lock: draw.lock, // เปิดไพ่ (เทสต์ใช้ตรวจผลไพ่ครบชุดตอนเปิดไพ่)
-  get shopItems() { return match.shopItems; },
-  setShopItems(v) { match.shopItems = v; },
+  // ร้านค้าบนแผนที่ (server/shop.js — หลายร้าน 2×2): match.shops
+  get shops() { return match.shops || []; },
+  // ทางเข้ากันได้ของร้านเดียวแบบเดิม (เทสต์เก่า) — ดู match.js
   get shopPos() { return match.shopPos; },
   setShopPos(v) { match.shopPos = v; },
-  // ร้านถูกพัง (ท่าไม้ตายเรียวกิ — GRID_PLAN §7.17): หายไปจนถึงรอบย้ายตามปกติ (shop.shopDue)
-  razeShop() { match.shopPos = null; match.shopRazed = true; },
-  get shopRazed() { return !!match.shopRazed; },
+  get shopItems() { return match.shopItems; },
+  setShopItems(v) { match.shopItems = v; },
+  setShops(v) { match.shops = v; },
+  shopAt: shop.shopAt,
+  shopById: shop.shopById,
+  openShopAt: shop.openShopAt,
+  relocateShop: shop.relocateShop,
+  tickMerchant: shop.tickMerchant,
+  publicShops: shop.publicShops,
+  // ร้านถูกพัง (ท่าไม้ตายเรียวกิ/อรชุน — GRID_PLAN §7.17): ร้านที่ครอบช่องใน keys หายไปจนถึงรอบปรากฏถัดไป · คืนร้านที่พัง
+  razeShopsIn: shop.razeShopsIn,
   maybeMoveShop: shop.maybeMoveShop,
   shopTurnsLeft: shop.shopTurnsLeft,
   bagFull: shop.bagFull,

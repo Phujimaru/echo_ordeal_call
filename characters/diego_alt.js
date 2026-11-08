@@ -178,8 +178,7 @@ const fireAt = (engine, x, y) => { const L = engine.board && engine.board.diego;
 function openTile(engine, x, y) {
   const map = engine.boardMap();
   if (!Board.inBounds(map, x, y) || map.terrain[K(x, y)]) return false;
-  const shop = engine.shopPos;
-  return !(shop && shop.x === x && shop.y === y);
+  return !engine.shopAt(x, y);
 }
 const square3 = (engine, c) => engine.tileArea({ kind: "tile", square: 3 }, c).filter((t) => openTile(engine, t.x, t.y));
 const near4 = (t) => [{ x: t.x + 1, y: t.y }, { x: t.x - 1, y: t.y }, { x: t.x, y: t.y + 1 }, { x: t.x, y: t.y - 1 }];

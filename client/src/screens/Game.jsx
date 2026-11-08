@@ -22,6 +22,8 @@ import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
+import ShopScreen from "./hud/shops/ShopScreen";
+import { shopName } from "../board/shopProps";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
@@ -654,7 +656,7 @@ function OverlayLayer({ phase, attack, csSkipped, flash, notice, cycleFx, boardF
 function ModalMounts({
   showChar, ch, me, onCloseChar,
   statusView, statusViewIsSelf, onCloseStatus,
-  shopOpen, shop, onCloseShop, shopBlock, shopTurnsLeft,
+  shop = null, onCloseShop, shopBlock,
   bagOpen, onCloseBag, players, gameState, roundNumber,
   myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse,
   skillConfirm, onConfirmSkill, onCancelSkill,
@@ -663,7 +665,9 @@ function ModalMounts({
     <>
       {showChar && ch && <CharModal ch={ch} me={me} onClose={onCloseChar} />}
       {statusView && <StatusModal p={statusView} statusOnly={statusViewIsSelf} onClose={onCloseStatus} />}
-      {shopOpen && <ShopModal shop={shop} me={me} block={shopBlock} turnsLeft={shopTurnsLeft} onClose={onCloseShop} />}
+      {shop && (newBag
+        ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
+        : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
       {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} />}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
@@ -1345,7 +1349,7 @@ function ItemIcon({ info, className = "" }) {
 
 // ร้านค้ามายา: ร้านเดียว 15 ช่อง ตั้งบนแผนที่ — ย้ายจุด + สุ่มของใหม่ทุก 6 เทิร์น (GRID_PLAN §8.1)
 //  กริดขยายออกด้านข้าง (สูงสุด 5 คอลัมน์ = 3 แถว) ไม่ให้โมดัลยืดลงจนต้อง scroll แนวตั้ง
-function ShopHerald() {
+function ShopHerald({ name }) {
   const sparks = Array.from({ length: 14 }, (_, i) => {
     const a = (i / 14) * Math.PI * 2;
     const d = 12 + (i % 4) * 7;
@@ -1387,7 +1391,7 @@ function ShopHerald() {
           <path d="M31 16 L35.6 26.4 L47 27.6 L38.5 35.2 L41 46.4 L31 40.6 L21 46.4 L23.5 35.2 L15 27.6 L26.4 26.4 Z" fill="#1c3f6e" opacity="0.55" />
         </svg>
         <div className="relative min-w-0">
-          <div className="av-label">ร้านค้ามายา</div>
+          <div className="av-label">{name || shopName("apoth")}</div>
           <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">ปรากฏ</div>
         </div>
       </div>
@@ -1395,13 +1399,14 @@ function ShopHerald() {
   );
 }
 
-function ShopModal({ shop, me, block, turnsLeft, onClose }) {
-  const list = shop;
+function ShopModal({ shop, me, block, onClose }) {
+  const list = shop?.items || [];
+  const turnsLeft = shop?.turnsLeft || 0;
   return (
     <AvModal
       tone="white"
       label="ร้านค้า"
-      title="ร้านค้ามายา"
+      title={shop?.name || shopName(shop?.kind)}
       width="min(72rem, 94vw)"
       onClose={onClose}
       right={<span className="flex gap-2">
@@ -1436,7 +1441,7 @@ function ShopModal({ shop, me, block, turnsLeft, onClose }) {
                     <AvButton
                       className="w-full py-1.5 text-xs px-2"
                       disabled={sold || !afford || !!block}
-                      onClick={() => { playSfx("buy_something"); socket.emit("buyShopItem", { itemId: it.id }); }}
+                      onClick={() => { playSfx("buy_something"); socket.emit("buyShopItem", { shopId: shop.id, itemId: it.id }); }}
                     >
                       {it.closed ? "ปิดขาย" : sold ? "ขายแล้ว" : !afford ? "เหรียญไม่พอ" : block || "ซื้อ"}
                     </AvButton>
@@ -1828,7 +1833,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const prevCycle = useRef(null);
   const [statusViewId, setStatusViewId] = useState(null); // ดูสถานะผู้เล่นคนอื่น (แตะการ์ดตอนไม่ได้เลือกเป้า)
   const [bagOpen, setBagOpen] = useState(false);     // ร้านค้ามายา (patch 2.2 full): เปิดดูคลังของตัวเอง
-  const [shopOpen, setShopOpen] = useState(false);
+  const [shopId, setShopId] = useState(null); // ร้านที่เปิดดูอยู่ (state.shops[i].id) — null = ปิด
   const [colorPick, setColorPick] = useState(null); // ยาเปลี่ยนสีการ์ดช่วงจั่ว: { uid, card } — card = index การ์ดที่เลือก (null = ยังไม่เลือก)
   // นับครั้งการแสดง ไม่ใช่ true/false — ค่าต้องเปลี่ยนทุกครั้งที่เข้าช่วง ไม่งั้น React ไม่ remount
   // แล้วอนิเมชันจะเล่นแค่ครั้งแรกครั้งเดียวตลอดทั้งแมตช์
@@ -1841,7 +1846,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const announced = useRef({ draw: 0, atk: 0 });
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
   const [deckTab, setDeckTab] = useState(false);     // แถบกองการ์ดกลาง (จอคอม): หุบไว้เป็นค่าเริ่ม
-  const shopAutoShown = useRef(-1);                  // จำรอบร้านค้าที่เด้งอัตโนมัติไปแล้ว (กันเด้งซ้ำ)
+  const shopSeen = useRef(new Set());                // ร้านที่ประกาศ "ปรากฏ" ไปแล้ว (id ร้าน — กันเด้งซ้ำ)
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
   const phase = state.gameState;
@@ -1919,9 +1924,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // ยืนติดร้าน (ระยะ 1) — ตัวใหญ่ (Echo / ร่างใหญ่ของไรโด ฮิคารุ) นับจากขอบตัวทุกช่อง ตรงกับ server Board.nearShop(boxOf)
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
-  const nearShop = !!(me?.pos && state.shopPos && Rules.dist(boxOfP(me), state.shopPos) === 1);
-  const bagFull = (me?.inventory?.length || 0) >= (state.bagSlots || 5);
-  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !nearShop ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  //  ร้านบนกระดาน = state.shops (สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง) — ติดร้านไหนก็เปิดร้านนั้น
+  const shopList = Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
+  const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh)) : [];
+  const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (state.bagSlots || 5);
+  const openShop = shopId ? shopList.find((sh) => sh.id === shopId) || null : null; // ข้อมูลสดของร้านที่เปิดอยู่ (ร้านหายไป = ปิดเอง)
+  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !openShop || !nearShops.includes(openShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  const viewShop = (sh) => { if (!sh) return; clickSound(); socket.emit("viewShop", { shopId: sh.id }); setShopId(sh.id); };
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
   const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? `รอบตัว ${a.range}`
@@ -1966,14 +1975,19 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     if (prev !== "TRANSITION") playSfx("change_cutscene");
     pushScene("draw");
   }, [phase, state.roundNumber, pushScene]);
-  // ร้านค้ามายา (patch 2.2 full): เด้งหน้าร้านค้าอัตโนมัติครั้งเดียวทุกครั้งที่มีสินค้าชุดใหม่ (รอบร้านค้าเปลี่ยน)
+  // ร้านปรากฏ: ประกาศชื่อร้านใหม่ที่เพิ่งตั้งบนกระดาน (หลายร้านพร้อมกัน = ประกาศครั้งเดียว ชื่อต่อกัน)
+  const shopIdsSig = shopList.map((sh) => `${sh.id ?? `${sh.kind}@${sh.x},${sh.y}`}|${sh.kind || ""}|${sh.name || ""}`).join("~");
   useEffect(() => {
-    const seq = state.shop?.[0]?.id?.split("_")[1];
-    if (seq && shopAutoShown.current !== seq) {
-      shopAutoShown.current = seq;
-      pushScene("shop"); // ไม่ต้องหน่วง 2.7 วิเองแล้ว คิวจัดลำดับให้ต่อท้ายฉากต้นเทิร์นเอง
+    if (!shopIdsSig) return;
+    const fresh = [];
+    for (const part of shopIdsSig.split("~")) {
+      const [id, kind, name] = part.split("|");
+      if (shopSeen.current.has(id)) continue;
+      shopSeen.current.add(id);
+      fresh.push(name || shopName(kind));
     }
-  }, [state.shop, pushScene]);
+    if (fresh.length) pushScene("shop", { name: [...new Set(fresh)].join(" · ") }); // คิวจัดลำดับให้ต่อท้ายฉากต้นเทิร์นเอง
+  }, [shopIdsSig, pushScene]);
   // ผู้เล่นที่กำลังเปิดดูสถานะ (ข้อมูลสดจาก state ทุกครั้งที่ re-render)
   const statusView = statusViewId ? state.players.find((x) => x.id === statusViewId) : null;
   // กลางวัน/กลางคืน (patch 1.7): สลับทุก 3 เทิร์น — โอเบรอนสลับร่าง/ท่าไม้ตายตามช่วงเวลา
@@ -2418,7 +2432,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 </div>
 
                 <button
-                  onClick={() => { clickSound(); setShopOpen(true); }}
+                  onClick={() => { if (shopList[0]) viewShop(shopList[0]); }}
                   className="relative shrink-0 w-12 rounded-2xl grid place-items-center text-2xl shadow-lg border-2 border-black/40"
                   style={{ background: "linear-gradient(160deg,#dcefff,var(--color-echo-ice))" }}
                   title="ร้านค้า"
@@ -2448,7 +2462,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
         {scene?.kind === "atk" && <AttackCall key={scene.id} />}
 
-        {scene?.kind === "shop" && <ShopHerald key={scene.id} />}
+        {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
         {phase === "GAMEOVER" && (
           <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
@@ -2457,7 +2471,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <ModalMounts
           showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
           statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
-          shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
+          shop={openShop} onCloseShop={() => setShopId(null)} shopBlock={shopBlock}
           bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
           myTurn={myTurn} bagSlots={state.bagSlots}
           skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
@@ -2630,7 +2644,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 </>
               }
               attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, targets: attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
-              shop={nearShop && !canto ? { onClick: () => { clickSound(); socket.emit("viewShop"); setShopOpen(true); } } : null}
+              shops={canto ? null : nearShops.map((sh) => ({ id: sh.id, kind: sh.kind, name: sh.name || shopName(sh.kind), onClick: () => viewShop(sh) }))}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
               extra={(me?.actions || []).map((x) => {
@@ -2670,7 +2684,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ---------- แบนเนอร์รอบถัดไป ---------- */}
       {phase === "TRANSITION" && <RoundBanner round={state.roundNumber + 1} />}
 
-      {scene?.kind === "shop" && <ShopHerald key={scene.id} />}
+      {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
       {phase === "GAMEOVER" && (
         <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
@@ -2680,7 +2694,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       <ModalMounts
         showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
         statusView={statusView} statusViewIsSelf={!!statusView && sameSide(statusView, hand)} onCloseStatus={() => setStatusViewId(null)}
-        shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
+        shop={openShop} onCloseShop={() => setShopId(null)} shopBlock={shopBlock}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
         myTurn={myTurn && !canto && !me?.summon} bagSlots={state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}

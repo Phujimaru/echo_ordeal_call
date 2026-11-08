@@ -257,11 +257,11 @@ test('ดับสิ้นซะ: ร้านค้าในแนวพัง
   const { P, row } = setup([['R', 'ryougi', 0], ['B', 'dummy', 0, 1]]);
   engine.setActor('R');
   match.shopPos = { x: row.x + 3, y: row.y };
-  match.shopOpenedRound = 4;
+  match.shopCycleRound = 4;
   Math.random = () => 0.99;
   drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
   assert.equal(match.shopPos, null);
-  assert.equal(match.shopRazed, true);
+  assert.equal(match.shops.length, 0, 'ร้านพังหายไป');
   const shop = require('../../server/shop.js');
   assert.equal(shop.shopDue(), false, 'ไม่ตั้งร้านใหม่ทันที');
   // ลงกลับทางเดิม: ข้ามช่องพัง 7 ช่อง ไปลงจุดเริ่มเดิม (ช่องที่ยืนได้ท้ายสุด)

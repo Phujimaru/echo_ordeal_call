@@ -194,7 +194,7 @@ function wallPlan(engine, p, tile, orient, dir) {
   if (!rect || !tile) return null;
   const tiles = engine.tileArea({ kind: "tile", rect }, tile);
   const map = engine.boardMap();
-  const open = tiles.filter((t) => !map.terrain[Board.key(t.x, t.y)] && !(engine.shopPos && engine.shopPos.x === t.x && engine.shopPos.y === t.y));
+  const open = tiles.filter((t) => !map.terrain[Board.key(t.x, t.y)] && !engine.shopAt(t.x, t.y));
   if (!open.length) return null;
   const onWall = new Set(open.map((t) => Board.key(t.x, t.y)));
   const units = engine.boardUnits().filter((u) => Board.footprint(u.x, u.y, u.size || 1).some((c) => onWall.has(Board.key(c.x, c.y))));
