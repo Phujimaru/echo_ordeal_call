@@ -2189,17 +2189,21 @@ export function drawFrame(g, st, now) {
   // ตัวใหญ่: จุดกลางตัว (เรียงความลึก/จางสิ่งกีดขวางที่อยู่หลัง)
   const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return colony ? [0, depthOf(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0))] : toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
   // Colony: จุดบนจอของหมาก (ตัดสินว่าสิ่งกีดขวางสูงบังตัวที่อยู่ไกลกว่าไหม — เทียบในกรอบหมุนของสิ่งกีดขวาง)
-  const usc = colony ? units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return P(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); }) : null;
+  //  เทียบทั้งเท้าและหัว (z ≈ ความสูงหมาก) — หมากที่ยืนเยื้องหลังสิ่งปลูกสร้างแค่ครึ่งตัวก็ทำให้จาง
+  const usc = colony ? units.map((u) => { const h = Math.max(1, u.size | 0) / 2, x = u.rx + h + (u.ox || 0), y = u.ry + h + (u.oy || 0); return [P(x, y), P(x, y, 0.75 + (u.hz || 0))]; }) : null;
   const behind = (x, y) => {
     if (colony) {
       const fr = localFrame(x + 0.5, y + 0.5), d = depthOf(x + 0.5, y + 0.5);
       if (!fr) return false;
       const c = Math.cos(fr.th), s = Math.sin(fr.th);
-      return usc.some((p, i) => {
-        if (!(uv[i][1] < d) || !Number.isFinite(p[0])) return false;
-        const dx = p[0] - fr.x, dy = p[1] - fr.y, lx = dx * c + dy * s, ly = -dx * s + dy * c;
-        const S = fr.s * fr.k;
-        return Math.abs(lx) < S * 0.7 && ly < S * 0.15 && ly > -S * 2.4;
+      const S = fr.s * fr.k;
+      return usc.some((pp, i) => {
+        if (!(uv[i][1] < d)) return false;
+        return pp.some((p) => {
+          if (!Number.isFinite(p[0])) return false;
+          const dx = p[0] - fr.x, dy = p[1] - fr.y, lx = dx * c + dy * s, ly = -dx * s + dy * c;
+          return Math.abs(lx) < S * 0.85 && ly < S * 0.3 && ly > -S * 2.6;
+        });
       });
     }
     const [vx, vy] = toView(x + 0.5, y + 0.5);
@@ -2221,7 +2225,9 @@ export function drawFrame(g, st, now) {
       frameK = fr.k;
       const n0 = boxes.length;
       // ไกลกล้อง = จางลงตามหมอกของฉาก 3D (ปลายอุโมงค์ไม่รก) · หมาก (keep) จางแค่นิดเดียว — ต้องเห็นศัตรูเสมอ
-      const dist = -depthOf(ax, ay), far = keep ? Math.min(0.3, Math.max(0, (dist - 14) / 30)) : Math.min(0.9, Math.max(0, (dist - 6.5) / 10));
+      //  นับจากระยะโฟกัสของกล้อง (colonyNear) — ซูมออกแล้วสิ่งปลูกสร้างรอบตัวไม่หายไปตามหมอก (บั๊ก "ขยับกล้องแล้วตึกหาย" 2026-11-09)
+      const near = Number.isFinite(st.colonyNear) ? st.colonyNear : 5;
+      const dist = -depthOf(ax, ay), far = keep ? Math.min(0.3, Math.max(0, (dist - near - 10) / 30)) : Math.min(0.75, Math.max(0, (dist - near - 5) / 14));
       if (far > 0) { g.save(); g.globalAlpha *= 1 - far; }
       withLocalFrame(g, fr, fn);
       if (far > 0) g.restore();
@@ -2247,9 +2253,10 @@ export function drawFrame(g, st, now) {
     if (t.kind === "breach") continue; // Colony: รูรั่ว = หลุมบนพื้น 3D (colony3d)
     // Colony: บ้าน · ตึก · ต้นไม้ — สไปรต์ยืนบนผิวโค้ง (ตึก/ต้นไม้บังตัวที่อยู่ไกลกว่า = จาง)
     if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree")) {
-      const fade = t.kind !== "house" && behind(t.x, t.y);
+      // บังหมาก (ทุกชนิด รวมบ้าน) = โปร่ง แทนการทึบทับ — หมากต้องมองเห็นเสมอ
+      const fade = behind(t.x, t.y);
       const f0 = t.kind === "house" ? () => drawHouse(g, t.x, t.y, night) : t.kind === "tower" ? () => drawTower(g, t.x, t.y, night, now) : () => drawObstacle(g, t, octx, now);
-      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
+      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha *= 0.3; f0(); g.restore(); } : f0) });
       continue;
     }
     // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง

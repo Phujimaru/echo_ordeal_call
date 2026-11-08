@@ -73,7 +73,8 @@
 //   dimView     "par" | "veil" | null — ชั้นมิติของตัวที่เราคุม: โลกคู่ขนาน / มองจากมิติหลบสายตา (ค่อยๆ เปลี่ยน 600ms)
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //   colony      state.colony (สนาม Colony — map.wrap) → ฉาก 3D (colony3d.js) ใต้แคนวาสนี้ + ตัวฉายภาพทรงกระบอก (boardGeo.setCustomProjection)
-//               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัว · ลากซ้าย = หมุน/ก้มเงย · ลากขวา/Shift = เลื่อน · ล้อ = ซูม
+//               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัวเมื่อหลุดจอ · ลากซ้าย = เลื่อน · ลากขวา/Shift = หมุน/ก้มเงย · ล้อ = ซูม · Space = กลับที่ตัวเรา
+//   colonyHome  ตัวเลขใดๆ — เปลี่ยนค่า = กล้อง Colony กลับมาที่ตัวเรา (ปุ่มเป้าใน BoardStage)
 //   colonyEvents [{ key, kind, data }] — boardFx ของ Colony (colonyScene/colonySeal/colonyBoom/colonyJump/colonyLift) เล่นเมื่อเห็น key ใหม่
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
 //  พิกัด DOM ↔ กระดาน ภายนอก: tileCenter(x, y, z) (ตรรกะ ณ กล้องที่วาดล่าสุด) → computeView(w, h, cam) — cam อยู่ภายในคอมโพเนนต์นี้
@@ -342,7 +343,7 @@ export default function BoardCanvas(props) {
       // --- สนาม Colony: ฉาก 3D + ตัวฉายภาพทรงกระบอก (ไม่ใช่ Colony = คืนกล้องเอียงปกติ)
       const colony = !!(p.colony && p.map && p.map.wrap);
       if (colony && !st.cv3 && glRef.current) { try { st.cv3 = createColonyView(glRef.current, { lowQ }); } catch (err) { console.error("colony3d", err); st.cv3 = null; } }
-      if (import.meta.env.DEV) window.__colony3d = st.cv3 || null; // dev: เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))
+      if (import.meta.env.DEV && st.cv3) window.__colony3d = st.cv3; // dev (เฉพาะแคนวาสที่เป็น Colony — แคนวาสอื่นในหน้าไม่ทับเป็น null): เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))
       if (!colony && st.cv3) { st.cv3.dispose(); st.cv3 = null; }
       if (!st.cv3 && customProjection()) setCustomProjection(null);
       if (glRef.current) glRef.current.style.display = st.cv3 ? "block" : "none";
@@ -599,6 +600,7 @@ export default function BoardCanvas(props) {
           st.fxSeen.add("c" + ev.key);
           st.cv3.onEvent(ev.kind, ev.data);
         }
+        if (p.colonyHome !== st.colonyHome) { if (st.colonyHome !== undefined) { st.cv3.skipShot(); st.cv3.home(); } st.colonyHome = p.colonyHome; }
         st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema });
         setCustomProjection(st.cv3);
       }
@@ -735,7 +737,7 @@ export default function BoardCanvas(props) {
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
-        colony: !!st.cv3, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
+        colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {
         st.boxes = frame(g);
@@ -783,7 +785,7 @@ export default function BoardCanvas(props) {
       if (st.cv3 && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const mv = { ArrowUp: [0, -70], ArrowDown: [0, 70], ArrowLeft: [-70, 0], ArrowRight: [70, 0] }[e.code];
         if (mv) { e.preventDefault(); st.cv3.pan(-mv[0], -mv[1]); return; }
-        if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.recenter(); return; }
+        if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.home(); return; }
         if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }
       }
       if (!ARROWS[e.code] || !(clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -856,7 +858,8 @@ export default function BoardCanvas(props) {
     st.suppressClick = false;
     if (st.cv3 && e.button <= 2) {
       if (e.button === 1) e.preventDefault();
-      st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button, pan: e.button !== 0 || e.shiftKey };
+      // Colony: ลากซ้าย = เลื่อนกล้อง (ลากพื้น) · ลากขวา/กลาง หรือ Shift + ลากซ้าย = หมุน/ก้มเงย (ผู้ใช้บ่นขยับกล้องยาก 2026-11-09)
+      st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button, pan: e.button === 0 && !e.shiftKey };
       try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
       return;
     }

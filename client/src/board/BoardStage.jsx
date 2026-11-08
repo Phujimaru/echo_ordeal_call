@@ -2037,6 +2037,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [pushFx, look, lowQ]);
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);
+  const [colonyHome, setColonyHome] = useState(0); // ปุ่มเป้า (Colony) = กล้องกลับมาที่ตัวเรา
   useEffect(() => {
     let seq = 0;
     const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift"];
@@ -2612,6 +2613,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         moon={state.moon || null}
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}
+        colonyHome={colonyHome}
         songs={songs}
         grays={grays}
         ferns={ferns}
@@ -2690,6 +2692,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 L9 7 H15 L19 18 Z" /><path d="M7 13 H17 M12 7 V18" /></svg>
             : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /><path d="M4 12 H20 M12 4 V20" /></svg>}
         </button>
+        {state.colony && (
+          <button type="button" className="bs-tool bs-view" title="กลับที่ตัวเรา (Space)" onClick={() => { clickSound(); setColonyHome((n) => n + 1); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" /><path d="M12 2.5 V6 M12 18 V21.5 M2.5 12 H6 M18 12 H21.5" /></svg>
+          </button>
+        )}
         <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
           ระยะอันตราย
         </button>

@@ -17,7 +17,7 @@ import { playSfx } from "../audio";
 const COLS = 16, ROWS = 40, SEC = 10;
 const Rc = COLS / (2 * Math.PI), DPHI = (2 * Math.PI) / COLS;
 const TAU = Math.PI * 2;
-const FOV = 52;
+const FOV = 62; // มุมกว้าง (เดิม 52 — ผู้ใช้บ่นมุมแคบ 2026-11-09)
 const HEIGHT = { house: 0.5, tower: 1.35, tree: 0.95 };
 const mod = (x, n) => ((x % n) + n) % n;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -31,6 +31,8 @@ const nrm = (phi) => new THREE.Vector3(-Math.cos(phi), -Math.sin(phi), 0);
 const tan = (phi) => new THREE.Vector3(-Math.sin(phi), Math.cos(phi), 0);
 const surf = (phi, z, h = 0, out = new THREE.Vector3()) => out.set((Rc - h) * Math.cos(phi), (Rc - h) * Math.sin(phi), z);
 const AX = new THREE.Vector3(0, 0, 1);
+const TILT = 0.62; // มุมก้มเริ่มต้น (สูงขึ้นจาก 0.45 — เห็นพื้นรอบตัวกว้างกว่า)
+const ZOOM_DIST = [8.2, 6.8, 5.6, 4.4, 3.4]; // ระยะกล้องตามระดับซูม 0..4
 const DISTRICT = ["town", "forest", "city", "garden"];
 
 function canvasTex(w, h, paint, srgb = true) {
@@ -362,10 +364,13 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       for (let x = 0; x < W; x += 32) { g.fillStyle = (x / 32) % 2 ? "#97a3b4" : "#8592a4"; g.fillRect(x, 0, 32, H); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(x, 0, 1.5, H); }
       g.fillStyle = "#c9e8ff"; g.fillRect(0, H * 0.46, W, H * 0.08);
     });
-    bayTex.wrapS = THREE.RepeatWrapping; bayTex.repeat.set(2, 1);
-    const bay = new THREE.Mesh(new THREE.CylinderGeometry(Rc + 0.002, Rc + 0.002, 3.2, 64, 1, true), new THREE.MeshBasicMaterial({ map: bayTex, side: THREE.BackSide }));
-    bay.rotation.x = Math.PI / 2; bay.position.z = -1.6;
-    scene.add(bay);
+    bayTex.wrapS = THREE.RepeatWrapping; bayTex.wrapT = THREE.RepeatWrapping; bayTex.repeat.set(2, 4);
+    // ยาว 12 + ฝาปิดหลัง — หมุนกล้องมองเฉียงไปทางฝาท้ายแล้วไม่ทะลุเห็นอวกาศดำ (บั๊ก 2026-11-09)
+    const bay = new THREE.Mesh(new THREE.CylinderGeometry(Rc + 0.002, Rc + 0.002, 12, 64, 1, true), new THREE.MeshBasicMaterial({ map: bayTex, side: THREE.BackSide }));
+    bay.rotation.x = Math.PI / 2; bay.position.z = -6;
+    const bayEnd = new THREE.Mesh(new THREE.CircleGeometry(Rc + 0.01, 64), new THREE.MeshBasicMaterial({ color: 0x6f7b8e, side: THREE.DoubleSide }));
+    bayEnd.position.z = -12;
+    scene.add(bay, bayEnd);
   }
   const domeGroup = new THREE.Group(); domeGroup.position.z = ROWS; scene.add(domeGroup);
   const domeMat = new THREE.MeshStandardMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
@@ -518,8 +523,8 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
 
   // ---------------------------------------------------------------- กล้อง
   const R = {
-    cur: { phi: 0, z: 1.5, yaw: 0, pitch: 0.45, dist: 4.6, axis: 0, roll: 0, fov: FOV },
-    user: { yaw: 0, pitch: 0.45, dist: 4.6, panX: 0, panZ: 0, axis: false },
+    cur: { phi: 0, z: 1.5, yaw: 0, pitch: TILT, dist: 5.6, axis: 0, roll: 0, fov: FOV },
+    user: { yaw: 0, pitch: TILT, dist: 5.6, panX: 0, panZ: 0, axis: false },
     shot: null, shake: 0, punch: 0, armD: null, focus: { x: 0, y: 1 }, focusKey: "", rotBase: 0,
   };
   // แขนกล้องชนอะไรไหม: ผนังวงแหวน (3D) · ตึกสูง (สไปรต์ 2D — ไม่บังภาพแต่กล้องไม่ควรจมในตึก)
@@ -538,11 +543,21 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const phi = phiOf(f.x + 0.5 + R.user.panX), z = clamp(f.y + 0.5 + R.user.panZ, minRowNow + 0.5, ROWS - 0.5);
     const travel = Math.abs(angD(R.cur.phi, phi)) * Rc + Math.abs(z - R.cur.z);
     return {
-      phi, z, yaw: R.rotBase + R.user.yaw, pitch: clamp(R.user.pitch + Math.min(0.3, travel * 0.03), 0.12, 1.42),
-      dist: R.user.dist + Math.min(3.5, travel * 0.3) - R.punch * 1.1, axis: R.user.axis ? 1 : 0, roll: 0, fov: FOV, k: 0.085,
+      phi, z, yaw: R.rotBase + R.user.yaw, pitch: R.user.pitch, // ไม่ก้ม/ถอยตามระยะเดินทางแล้ว (เดิมกล้องเด้งเข้าออกทุกครั้งที่ตามตัว)
+      dist: R.user.dist + Math.min(1.2, travel * 0.12) - R.punch * 1.1, axis: R.user.axis ? 1 : 0, roll: 0, fov: FOV, k: 0.085,
     };
   }
   let minRowNow = 0, mapNow = null;
+  // จุดบนพื้นอยู่ในกรอบปลอดภัยของจอไหม (เว้นขอบ + แถบ HUD ล่าง) — ตัดสินว่าต้องเลื่อนกล้องตามหรือไม่
+  const _s = new THREE.Vector3();
+  function onScreen(bx, by) {
+    surf(phiOf(bx), by, 0.35, _s).applyMatrix4(camera.matrixWorldInverse);
+    if (-_s.z < 0.3) return false;
+    _s.applyMatrix4(camera.projectionMatrix);
+    return Math.abs(_s.x) < 0.78 && _s.y > -0.5 && _s.y < 0.78;
+  }
+  function goTo(x, y) { R.focus = { x, y }; R.user.panX = 0; R.user.panZ = 0; }
+  // (R.want = จุดที่ยังรอดูว่าต้องหมุนกล้องไปหาไหม — ดู update)
   const _n = new THREE.Vector3(), _T = new THREE.Vector3(), _F = new THREE.Vector3(), _fwd = new THREE.Vector3(), _back = new THREE.Vector3();
   const _C = new THREE.Vector3(), _L = new THREE.Vector3(), _P = new THREE.Vector3(), _up = new THREE.Vector3();
   function stepCamera(dt) {
@@ -698,7 +713,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       const from = d.from, to = d.to, ms = 1000;
       const a = surf(phiOf(from.x + 0.5), from.y + 0.5, 0.35), b = surf(phiOf(to.x + 0.5), to.y + 0.5, 0.35);
       flyUnit(d.id, (k) => a.clone().lerp(b, k), ms);
-      if (R.focusId === d.id || !R.focusId) {
+      if (R.focusId === d.id) {
         const phi0 = R.cur.phi, dir = Math.random() < 0.5 ? 1 : -1, t0 = now();
         R.shot = { phi: phi0, z: from.y + 0.5, axis: 0.85, dist: Math.max(4, R.user.dist), k: 0.3 };
         shotEnd = t0 + ms + 250;
@@ -706,7 +721,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       }
       // ลงแล้ว: โฟกัสอยู่จุดลงทันที (BoardStage ส่ง focus ใหม่ตามมาอีกที) — กล้องไม่ย้อนกลับไปจุดกระโดด
       sfx("colony_jump");
-      later(ms, () => { sfx("colony_stomp"); R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id || !R.focusId) { R.focus = { x: to.x, y: to.y }; R.user.panX = 0; R.user.panZ = 0; } });
+      later(ms, () => { sfx("colony_stomp"); R.shake = Math.max(R.shake, 0.35); if (R.focusId === d.id) { goTo(to.x, to.y); R.focusKey = `${to.x},${to.y}`; } });
     } else if (kind === "colonyLift") {
       const from = d.from, to = d.to;
       sfx("colony_lift");
@@ -853,16 +868,36 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const { map, colony, units, focus, rotation = 0, zoom = 2, view = "tilt", size, base, cinema } = p;
     if (!map) return;
     sync(map, colony, p.night);
-    for (const u of units || []) if (u && Number.isFinite(u.x)) unitInfo.set(u.id, { img: u.img, color: u.color, x: u.x, y: u.y });
+    for (const u of units || []) {
+      if (!u || !Number.isFinite(u.x)) continue;
+      unitInfo.set(u.id, { img: u.img, color: u.color, x: u.x, y: u.y });
+      if (u.isMe && u.alive !== false) { R.focusId = u.id; R.me = { x: u.x, y: u.y }; }
+    }
     // ปุ่มกระดานเดิม → กล้อง: Q/E (rotation) = หมุน 90° · ซูม 5 ระดับ = ระยะ · มุมบน = ก้มสุด · โฟกัส = ตัวที่กำลังเดิน
     if (R.rotInit == null) R.rotInit = rotation; // ค่าหมุนที่จำไว้จากกระดานปกติไม่ใช้ — เริ่มมองขึ้นตามแกนเสมอ
     R.rotBase = (rotation - R.rotInit) * Math.PI / 2;
-    const zoomDist = [6.6, 5.6, 4.6, 3.6, 2.8][clamp(zoom | 0, 0, 4)];
+    const zoomDist = ZOOM_DIST[clamp(zoom | 0, 0, 4)];
     if (R.zoomRef !== zoom) { R.zoomRef = zoom; R.user.dist = zoomDist; }
-    if (R.viewRef !== view) { R.viewRef = view; R.user.pitch = view === "top" ? 1.2 : 0.45; }
+    if (R.viewRef !== view) { R.viewRef = view; R.user.pitch = view === "top" ? 1.2 : TILT; }
+    // โฟกัสเปลี่ยน (เริ่มตาใคร/เดิน/โดนตี ...) = เลื่อนกล้องไปหาเฉพาะตอนจุดนั้นอยู่นอกจอ — ไม่หมุนทั้งอุโมงค์ทุกครั้งที่เปลี่ยนตา
+    //  (ผู้ใช้บ่น 2026-11-09 "มุมกล้องหมุนตลอดจนเวียนหัว") · ครั้งแรก = ไปหาเสมอ
     if (focus && Number.isFinite(focus.x)) {
       const fk = `${focus.x},${focus.y}`;
-      if (fk !== R.focusKey) { R.focusKey = fk; R.focus = { x: focus.x, y: focus.y }; R.user.panX = 0; R.user.panZ = 0; }
+      if (fk !== R.focusKey) {
+        const first = !R.focusKey;
+        R.focusKey = fk;
+        if (first) goTo(focus.x, focus.y);
+        else if (!onScreen(focus.x + 0.5, focus.y + 0.5)) {
+          // ขั้นแรก: เลื่อนตามแนวแกน (z) อย่างเดียว — ภาพไม่หมุน · ยังไม่เห็นหลังกล้องนิ่ง = ค่อยหมุนรอบกระบอกไปหา
+          const cx = mod(R.focus.x + R.user.panX, COLS);
+          R.want = { x: focus.x, y: focus.y, t: t + 650 };
+          goTo(cx, focus.y);
+        } else R.want = null;
+      }
+    }
+    if (R.want && t > R.want.t && !R.shot) {
+      if (!onScreen(R.want.x + 0.5, R.want.y + 0.5)) goTo(R.want.x, R.want.y);
+      R.want = null;
     }
     if (cinema && cinema.a && cinema.b && !R.shot) { R.punch = Math.max(R.punch, 0.6); }
     if (size && (size.w !== w || size.h !== h)) { w = size.w; h = size.h; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
@@ -1006,7 +1041,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     flashColor() { return flashRGB; },
     // ระเบิดตอนจบ: แถว > ค่านี้ถูกกำแพงไฟกลืนแล้ว (ชั้น 2D ไม่วาดสไปรต์) · null = ไม่มี
     burnFrom() { return finale && finale.front && finale.front.z != null ? finale.front.z : null; },
-    orbit(dx, dy) { R.user.yaw -= dx * 0.0045; R.user.pitch = clamp(R.user.pitch + dy * 0.004, 0.12, 1.42); },
+    orbit(dx, dy) { R.user.yaw -= dx * 0.0035; R.user.pitch = clamp(R.user.pitch + dy * 0.0035, 0.2, 1.42); },
     // เลื่อนกล้องแบบลากพื้น (dx, dy = พิกเซลจอที่ลาก): จุดบนพื้นใต้เมาส์ไปตามมือ — คิดจากทิศแกนกระดานบนจอจริง ณ จุดโฟกัส
     //  (กล้องหมุน/ก้มเงย/อยู่บนผนังด้านไหนก็ได้ ทิศบนจอตรงเสมอ)
     pan(dx, dy) {
@@ -1023,8 +1058,17 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       R.user.panX = clamp(R.user.panX + ux, -8, 8);
       R.user.panZ = clamp(R.user.panZ + uz, -40, 40);
     },
-    zoomBy(dy) { R.user.dist = clamp(R.user.dist * Math.exp(dy * 0.0012), 1.8, 13); },
+    zoomBy(dy) { R.user.dist = clamp(R.user.dist * Math.exp(dy * 0.0012), 2.4, 10); },
     recenter() { R.user.panX = 0; R.user.panZ = 0; },
+    // กลับมาที่ตัวเรา (Space / ปุ่มเป้า) — คืนมุมหมุน/ก้มที่ลากไว้ด้วย · ไม่มีตัวเรา (ตาย/ดูอยู่) = กลับจุดโฟกัสล่าสุด
+    home() {
+      R.want = null;
+      if (R.me) { goTo(R.me.x, R.me.y); R.focusKey = `${R.me.x},${R.me.y}`; } else this.recenter();
+      R.user.yaw = 0; R.user.pitch = R.viewRef === "top" ? 1.2 : TILT;
+    },
+    // ระยะกล้อง → จุดโฟกัส (ชั้น 2D ใช้ตัดสินการจางของสิ่งปลูกสร้างไกลๆ ให้สัมพันธ์กับระดับซูม)
+    focusDist() { return R.armD || R.cur.dist; },
+    _dbg() { return { cam: camera.position.toArray().map((v) => +v.toFixed(2)), r: +Math.hypot(camera.position.x, camera.position.y).toFixed(2), Rc: +Rc.toFixed(2), cur: { ...R.cur }, user: { ...R.user }, focus: R.focus, armD: R.armD, cap: capBottom.visible }; },
     toggleAxis() { R.user.axis = !R.user.axis; },
     skipShot() { if (R.shot) shotEnd = 0; shots.length = 0; },
     setFocusId(id) { R.focusId = id; },
