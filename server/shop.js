@@ -3,7 +3,7 @@
 Object.assign(module.exports, {
   goldCapOf, addGold, shopCatalog, shopItemName, openShop, openShopAt, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, shopTurnsLeftOf, bagFull, dropItem,
-  shopAt, shopTiles, shopById, razeShopsIn, capsule, placeCapsule, clearCapsule, clearShops, publicShops, nearShopOf, tickMerchant,
+  shopAt, shopTiles, shopById, razeShopsIn, capsule, capsules, placeCapsule, clearCapsule, clearShops, publicShops, nearShopOf, tickMerchant,
   giveItem, swapItem,
   grantInventoryItem, asleep, viewShop, buyShopItem,
   cardLabel, useInventoryItem, useDrawItem, chargeBatteries, cleansableOf,
@@ -48,7 +48,8 @@ function addGold(p, n) {
 //  match.shops = [{ id, kind, x, y, size, items, openedRound, leaves, razed }]
 //   apoth = ร้านยาเจริญชัย · forge = โรงช่างลุงเริง — ปรากฏพร้อมกันทุก SHOP_INTERVAL_TURNS เทิร์น คนละจุด (2×2)
 //   cara = พ่อค้าเร่ — สุ่มโผล่ MERCHANT_PCT% ต่อเทิร์น อยู่ MERCHANT_TURNS เทิร์น · ของหายาก ช่องละ MERCHANT_STOCK ชิ้น
-//   capsule = แคปซูลเสบียงของ Colony (1×1 · ขายทุกอย่าง · server/colony.js วาง/เก็บผ่าน placeCapsule/clearCapsule)
+//   Colony: ร้านทั้ง 3 มาเป็น "แคปซูลเสบียง" 1×1 ตกจากแกนกลาง (ผู้ใช้สั่ง 2026-11-09) — kind เดิม (apoth/forge/cara) + capsule: true ·
+//     server/colony.js วาง/เก็บผ่าน placeCapsule(kind, …)/clearCapsule(kind) · ชนิด "capsule" (ขายทุกอย่าง) ยังรองรับสำหรับเซฟเก่า
 //  ทุกร้านกินช่องทั้งก้อน (size×size) · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
 //  ของในร้าน: ชนิดละช่องเดียว ไม่ซ้ำ · สุ่มจำนวนที่ซื้อได้ต่อช่อง (ของกลาง ใครถึงก่อนได้ก่อน)
 const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง" };
@@ -237,8 +238,8 @@ function maybeMoveShop() {
 function shopTurnsLeftOf(s) {
   if (!s) return 0;
   const now = Zero.worldRound();
+  if (s.capsule || s.kind === "capsule") return Math.max(1, (s.openedRound || now) + (s.kind === "cara" ? 2 : SHOP_INTERVAL_TURNS) - now);
   if (s.kind === "cara") return Math.max(1, (s.leaves || now) - now);
-  if (s.kind === "capsule") return 0;
   return Math.max(1, (match.shopCycleRound || now) + SHOP_INTERVAL_TURNS - now);
 }
 function shopTurnsLeft() { return shopTurnsLeftOf(shopById("apoth") || shopsList()[0]); }
@@ -249,17 +250,21 @@ function razeShopsIn(keys) {
   return hit;
 }
 // Colony: แคปซูลเสบียง 1×1
-function capsule() { return shopById("capsule"); }
-function placeCapsule(x, y, final) {
-  const s = openShopAt("capsule", x, y, 1, { openedRound: match.roundNumber + 1 });
-  if (final) for (const it of s.items) it.price = Math.ceil(it.price * 1.5); // แคปซูลสุดท้าย: ของแพงกว่า
+function capsules() { return shopsList().filter((s) => s.capsule || s.kind === "capsule"); }
+function capsule() { return capsules()[0] || null; }
+// วางแคปซูลชนิด kind (apoth | forge | cara) — แทนแคปซูลชนิดเดียวกันที่มีอยู่ · final = แคปซูลสุดท้าย (ของแพงกว่า ×1.5)
+function placeCapsule(kind, x, y, final) {
+  if (typeof kind === "number") { final = y; y = x; x = kind; kind = "apoth"; } // ลายเซ็นเดิม placeCapsule(x, y, final)
+  const s = openShopAt(kind, x, y, 1, { openedRound: match.roundNumber + 1, capsule: true, final: !!final });
+  if (final) for (const it of s.items) it.price = Math.ceil(it.price * 1.5);
   return s;
 }
-function clearCapsule() { match.shops = shopsList().filter((s) => s.kind !== "capsule"); }
+// เก็บแคปซูล (kind = ชนิดเดียว · ไม่ระบุ = ทุกแคปซูล)
+function clearCapsule(kind) { match.shops = shopsList().filter((s) => !((s.capsule || s.kind === "capsule") && (!kind || s.kind === kind))); }
 function clearShops() { match.shops = []; match.shopCycleRound = null; }
 // สถานะที่ส่งให้ client (view.js)
 function publicShops() {
-  return shopsList().map((s) => ({ id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, size: s.size || 1, turnsLeft: shopTurnsLeftOf(s), items: s.items || [] }));
+  return shopsList().map((s) => ({ id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, size: s.size || 1, turnsLeft: shopTurnsLeftOf(s), items: s.items || [], ...(s.capsule ? { capsule: true } : {}) }));
 }
 // ผู้เล่นยืนติดร้านนี้ไหม (ตัวใหญ่นับจากขอบตัว)
 function nearShopOf(p, s) { return !!p && !!p.pos && !!s && Board.dist(Board.boxOf(p), shopBox(s)) === 1; }

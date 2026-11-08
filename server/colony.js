@@ -7,14 +7,16 @@
 //     โคโลนีหมุน (ทุก 3 เทิร์น) → ตั้งเป้าของเทิร์นหน้า → มีอีเวนต์ = พักเกม CUTSCENE ให้ client เล่นฉาก (scene) แล้วค่อยแจกไพ่
 //   จบเทิร์น (onEndTurn): รูรั่วอายุครบปิด · คูลดาวน์กระโดด · ประตูปิดผนึก (จบเทิร์น 5 / 9 / 13) · ครบ 23 = Colony ระเบิด (ทุกคนตาย = เสมอ)
 //  ตายจากผลของ Colony (ปิดผนึก · ถูกดูดเข้ารู · ระเบิด) = ตายจริง ฟื้นไม่ได้ (combat.instantDeath force — ผู้ใช้สั่ง)
-//  ร้านค้า = แคปซูลเสบียง (ใช้ระบบร้าน match.shops ร้าน kind "capsule" 1×1 — shop.maybeMoveShop ข้ามเมื่ออยู่ใน Colony)
-//  กระโดด (ปุ่มพิเศษ ทุกคน): ไปฝั่งตรงข้าม (x + 8) สูงขึ้น 2 แถว · จบการเดิน (ยังตี/ใช้สกิลได้) · คูลดาวน์ 2 เทิร์น · ลงข้างศัตรู = กระทืบ 1
+//  ร้านค้า = แคปซูลเสบียง 3 แบบ (ร้านยา/โรงช่าง/พ่อค้าเร่ — match.shops capsule: true 1×1 · shop.maybeMoveShop ข้ามเมื่ออยู่ใน Colony)
+//  กระโดด (ปุ่มพิเศษ ทุกคน): ไปฝั่งตรงข้าม (x + 12) สูงขึ้น 2 แถว · จบการเดิน (ยังตี/ใช้สกิลได้) · คูลดาวน์ 2 เทิร์น · ลงข้างศัตรู = กระทืบ 1
 //  ลิฟต์แกนกลาง: จบตาบนช่อง = ดีดขึ้น 4 แถว (phases/action.js tileEndEffect)
-//  พิกัด x ของทุกคนถูกจัดเข้าช่วง 0..15 ทุกครั้งก่อนบรอดแคสต์ (normalize) — ตัวละครที่เขียนตำแหน่งนอกช่วงเองจะถูกจัดให้
+//  ลูกเล่นเมือง (§8.3.1): สายพาน · วาร์ป · น้ำพุ · หอสังเกตการณ์ · ป้อมปืน · แรงโน้มถ่วงดับ · ไฟดับ · รถราง
+//  พิกัด x ของทุกคนถูกจัดเข้าช่วง 0..23 ทุกครั้งก่อนบรอดแคสต์ (normalize) — ตัวละครที่เขียนตำแหน่งนอกช่วงเองจะถูกจัดให้
 // ============================================================
 Object.assign(module.exports, {
   inWorld, active, reset, start, preRound, onEndTurn, mapLayer, layerVer, normalize,
   jump, canJump, liftUnit, publicInfo, playerInfo, jumpLanding, hudAction,
+  beltUnit, warpUnit, turretById: (i) => turretOf(i), rangeMod, areaRangeMod, movBonus, gravityOff, turretAt, canHitTurret, strikeTurret, capsules,
 });
 
 const Board = require("./board");
@@ -33,7 +35,19 @@ const CAPSULE_TURNS = 6;    // แคปซูลเสบียงอยู่ 
 const METEOR_RADIUS = 4, GLASS_RADIUS = 5;
 const BEAM_DMG = 3, CRUSH_DMG = 2, STOMP_DMG = 1;
 const LIFT_ROWS = 4;
-const SCENE_SECONDS = { meteor: 2.6, beam: 3, capsule: 2.4, pull: 1.4, drift: 1.6 };
+const SCENE_SECONDS = { meteor: 2.6, beam: 3, capsule: 2.4, pull: 1.4, drift: 1.6, tram: 2.6, gravity: 2, blackout: 2 };
+// ---- ยกเครื่องเมือง 2026-11-09 (GRID_PLAN §8.3.1 — ผู้ใช้เลือกลูกเล่น 8 อย่าง · ตัวเลขเป็นของ Claude) ----
+const BELT_STEPS = 3;               // สายพาน: จบตา = ถูกพาไป 3 ช่อง
+const CD_WARP = 2;                  // วาร์ป: คูลดาวน์รายคน 2 เทิร์น
+const WATCH_RANGE = 1;              // หอสังเกตการณ์: ระยะตีปกติ +1
+const TRAM_TURNS = [3, 7, 11, 15, 19], TRAM_DMG = 2; // รถราง: สลับราง · เสียหาย 2 + กระเด็นออกข้าง 1
+const GRAVITY_TURNS = [6, 11, 16, 21], GRAVITY_MOV = 2; // แรงโน้มถ่วงดับทั้งเทิร์น: เดิน +2 · ถอยหลังโดนสวน 2 ช่อง
+const BLACKOUT_TURNS = [4, 9, 14, 19]; // ไฟดับทั้งปล้อง: ระยะตีปกติ/สกิล −1 (ไม่ต่ำกว่า 1) ของคนในปล้องนั้น
+const TURRET_HP = 3, TURRET_RANGE = 3, TURRET_DMG = 1; // ป้อมปืน: จบเทิร์นยิงแนวที่หัน 3 ช่อง (คนแรก) แล้วหมุน 90° · ตีพังได้ (ครั้งละ 1)
+const FACES = ["up", "right", "down", "left"];
+// แคปซูลเสบียง 3 แบบ = ตัวแทนร้าน 3 ร้าน (ผู้ใช้สั่ง 2026-11-09): ยา + ช่าง ลงคู่กันทุกรอบ (อยู่ 6 เทิร์น) · พ่อค้าเร่สุ่มลง (อยู่ 2 เทิร์น)
+const CAP_KINDS = ["apoth", "forge", "cara"];
+const CARA_PCT = 30, CARA_TURNS = 2;
 // ฉากจบเทิร์นของ client (colony3d: ปิดผนึก = ม่านเหล็กหมุนปิด ~3.2 วิ · ระเบิด = ระเบิดต่อเนื่อง + แฟลช ~4 วิ + ขาวค้าง) — พักเกมให้เล่นจบก่อนสรุปผล/ขึ้นเทิร์นใหม่
 const HOLD_SECONDS = { seal: 4, boom: 6.5 };
 
@@ -46,7 +60,9 @@ const k = (x, y) => Board.key(mod(x, C.cols), y);
 function inWorld() { return match.world === "colony"; }
 function active() { return inWorld() && !!match.board && Board.isColonyArea(match.board.area); }
 function reset() {
-  match.colony = { sealed: 0, holes: [], tele: [], patched: [], jumpCd: {}, final: false, capsuleFinal: false, eventsRound: 0, scene: null, sceneSeq: 0, ver: 0 };
+  match.colony = { sealed: 0, holes: [], tele: [], patched: [], jumpCd: {}, warpCd: {}, final: false, capsuleFinal: false, eventsRound: 0, scene: null, sceneSeq: 0, ver: 0,
+    planned: 1, gravity: null, blackout: null, turretFx: null,
+    turrets: C.turrets.map(([x, y], i) => ({ i, x, y, hp: TURRET_HP, face: FACES[i % 4] })) };
 }
 // เริ่มแมตช์ในสนาม Colony (lobby.startMatch)
 function start() {
@@ -66,6 +82,7 @@ function mapLayer(map) {
   const s = st();
   const terrain = { ...map.terrain };
   for (const h of s.holes) for (const [x, y] of h.cells) terrain[k(x, y)] = "breach";
+  for (const t of s.turrets || []) if (t.hp <= 0) delete terrain[k(t.x, t.y)]; // ป้อมปืนที่พังแล้ว = ช่องว่าง
   return { ...map, terrain, minRow: minRow() };
 }
 const boardMap = () => action.boardMap();
@@ -99,14 +116,19 @@ function preRound(resume) {
   if (s.eventsRound === turn) return false;
   s.eventsRound = turn;
   const events = [];
-  // แคปซูลอายุครบ = จากไป
-  { const cap = shop.capsule(); if (cap && turn - cap.openedRound >= CAPSULE_TURNS) { shop.clearCapsule(); events.push({ type: "capsuleGone" }); } }
+  // แคปซูลอายุครบ = จากไป (ยา/ช่าง 6 เทิร์น · พ่อค้าเร่ 2 เทิร์น)
+  for (const cap of shop.capsules()) if (turn - cap.openedRound >= (cap.kind === "cara" ? CARA_TURNS : CAPSULE_TURNS)) { shop.clearCapsule(cap.kind); events.push({ type: "capsuleGone", kind: cap.kind }); }
+  if (s.gravity != null && s.gravity < turn) s.gravity = null;
+  if (s.blackout && s.blackout.turn < turn) s.blackout = null;
   const due = s.tele.filter((t) => t.at === turn);
   s.tele = s.tele.filter((t) => t.at !== turn);
   const older = s.holes.slice();
   for (const t of due.filter((t) => t.type === "beam")) events.push(impactBeam(t, turn));
   for (const t of due.filter((t) => t.type === "meteor")) events.push(impactMeteor(t, turn));
   for (const t of due.filter((t) => t.type === "capsule")) events.push(landCapsule(t, turn));
+  for (const t of due.filter((t) => t.type === "tram")) events.push(impactTram(t));
+  for (const t of due.filter((t) => t.type === "gravity")) { s.gravity = turn; match.lastLog.push("🪐 แรงโน้มถ่วงดับ"); events.push({ type: "gravity" }); }
+  for (const t of due.filter((t) => t.type === "blackout")) { if (t.sec * C.section >= minRow()) { s.blackout = { turn, sec: t.sec }; match.lastLog.push(`🌑 ไฟดับปล้อง ${t.sec + 1}`); events.push({ type: "blackout", sec: t.sec }); } }
   for (const h of older) if (s.holes.includes(h)) { const pull = pullHole(h); if (pull.moves.length || pull.sucked.length) events.push({ type: "pull", hole: h.cells, ...pull }); }
   if (turn > 1 && (turn - 1) % 3 === 0) events.push(drift());
   scheduleNext(turn);
@@ -156,7 +178,7 @@ function impactMeteor(t, turn) {
     killColony(p, "ถูกดูดออกนอกโคโลนี");
     sucked.push(p.id);
   }
-  if (shop.capsule() && cells.some(([x, y]) => x === shop.capsule().x && y === shop.capsule().y)) { shop.clearCapsule(); match.lastLog.push("💥 อุกกาบาตชนแคปซูลเสบียง"); }
+  for (const cap of shop.capsules()) if (cells.some(([x, y]) => x === cap.x && y === cap.y)) { shop.clearCapsule(cap.kind); match.lastLog.push("💥 อุกกาบาตชนแคปซูลเสบียง"); }
   const hole = makeHole(cells, glass ? GLASS_RADIUS : METEOR_RADIUS, turn);
   match.lastLog.push(`☄️ อุกกาบาตชนแถว ${t.y + 1} — รอยรั่ว`);
   const pull = pullHole(hole);
@@ -205,6 +227,7 @@ function pullHole(h) {
 }
 // แคปซูลเสบียงลงจอด: ช่องลงมีคน = เสีย 2 + ถูกดันไปช่องข้าง · ร้านเปิด (ของใหม่) อยู่ 6 เทิร์น
 function landCapsule(t, turn) {
+  const kind = CAP_KINDS.includes(t.kind) ? t.kind : "apoth";
   if (t.y < minRow()) return null;
   let crushed = null;
   const o = alive().find((p) => Board.footprint(p.pos.x, p.pos.y, Board.sizeOf({ size: p.boardSize })).some((c) => c.x === t.x && c.y === t.y));
@@ -219,11 +242,10 @@ function landCapsule(t, turn) {
     }
     crushed = { id: o.id, to };
   }
-  if (!free(t.x, t.y)) return { type: "capsule", at: { x: t.x, y: t.y }, crushed, landed: false }; // ตัวใหญ่ทับอยู่ = ลงไม่ได้
-  st().capsuleFinal = !!t.final;
-  shop.placeCapsule(t.x, t.y, !!t.final); // แคปซูลสุดท้าย: ของแพงกว่า ×1.5 (shop.placeCapsule)
-  match.lastLog.push(t.final ? "📦 แคปซูลสุดท้าย · ปรากฏ" : "📦 แคปซูลเสบียง · ปรากฏ");
-  return { type: "capsule", at: { x: t.x, y: t.y }, crushed, landed: true, final: !!t.final };
+  if (!free(t.x, t.y)) return { type: "capsule", kind, at: { x: t.x, y: t.y }, crushed, landed: false }; // ตัวใหญ่ทับอยู่ = ลงไม่ได้
+  if (t.final) st().capsuleFinal = true;
+  shop.placeCapsule(kind, t.x, t.y, !!t.final); // แคปซูลสุดท้าย: ของแพงกว่า ×1.5 (shop.placeCapsule)
+  return { type: "capsule", kind, at: { x: t.x, y: t.y }, crushed, landed: true, final: !!t.final };
 }
 // โคโลนีหมุน: ทุกคนเลื่อนข้าง 1 ช่อง (ช่องไม่ว่าง = ไม่ขยับ · ตัวใหญ่ไม่เลื่อน)
 function drift() {
@@ -237,16 +259,22 @@ function drift() {
   }
   return { type: "drift", moves };
 }
-const shopAt = (x, y) => { const c = shop.capsule(); return !!c && c.x === mod(x, C.cols) && c.y === y; };
+const shopAt = (x, y) => shop.capsules().some((c) => c.x === mod(x, C.cols) && c.y === y);
+function capsules() { return shop.capsules(); }
 
-// ตั้งเป้าของเทิร์นถัดไป (เตือนล่วงหน้า 1 เทิร์น — ผู้เล่นเห็นเป้าแดงบนพื้น)
-//  อุกกาบาต 1 ลูก/เทิร์นตั้งแต่เทิร์น 2 (ช่วงนับถอยหลัง 2 ลูก) ใกล้ผู้เล่นสุ่ม · ลำแสงทุก 3 เทิร์นเริ่มเทิร์น 4 · แคปซูลในปล้องถัดขึ้นไป
+// ตั้งเป้าอีเวนต์ล่วงหน้า 2 เทิร์น (ผู้เล่นทั่วไปเห็นแค่ของเทิร์นหน้า — คนบนหอสังเกตการณ์เห็นถึง 2 เทิร์น · publicInfo/playerInfo)
+//  อุกกาบาต 1 ลูก/เทิร์นตั้งแต่เทิร์น 2 (ช่วงนับถอยหลัง 2 ลูก) ใกล้ผู้เล่นสุ่ม · ลำแสงทุก 3 เทิร์นเริ่มเทิร์น 4 · รถราง/แรงโน้มถ่วง/ไฟดับตามตาราง
+//  แคปซูลเสบียงตั้งล่วงหน้า 1 เทิร์นเหมือนเดิม
+const sealedBy = (t) => SEALS.filter((x) => x < t).length;
 function scheduleNext(turn) {
   const s = st();
-  const nt = turn + 1;
-  const sealing = SEALS.includes(turn);
-  const lo = (s.sealed + (sealing ? 1 : 0)) * C.section;
-  const pool = alive();
+  for (let t = Math.max((s.planned | 0) + 1, turn + 1); t <= turn + 2; t++) { planTurn(t); s.planned = t; }
+  scheduleCapsules(turn);
+}
+function planTurn(nt) {
+  const s = st();
+  const lo = sealedBy(nt) * C.section;
+  const pool = alive().filter((p) => p.pos.y >= lo);
   const pick = () => pool[Math.floor(Math.random() * pool.length)];
   const map = boardMap();
   if (nt >= 2 && nt <= BOOM && pool.length) {
@@ -266,20 +294,41 @@ function scheduleNext(turn) {
     const a = pick();
     s.tele.push({ type: "beam", y: Math.max(lo, Math.min(C.rows - 1, a.pos.y + Math.floor(Math.random() * 4))), at: nt });
   }
-  const pending = s.tele.some((t) => t.type === "capsule");
+  const ti = TRAM_TURNS.indexOf(nt);
+  if (ti >= 0) s.tele.push({ type: "tram", x: C.rails[ti % C.rails.length], at: nt });
+  if (GRAVITY_TURNS.includes(nt)) s.tele.push({ type: "gravity", at: nt });
+  if (BLACKOUT_TURNS.includes(nt)) { const s0 = sealedBy(nt); s.tele.push({ type: "blackout", sec: s0 + Math.floor(Math.random() * (4 - s0)), at: nt }); }
+}
+function scheduleCapsules(turn) {
+  const s = st();
+  const nt = turn + 1;
+  const sealing = SEALS.includes(turn);
+  const caps = shop.capsules();
+  const pendingKind = (kd) => s.tele.some((t) => t.type === "capsule" && (t.kind || "apoth") === kd);
+  const taken = [];
+  const spot = (y0, y1) => { const sp = freeSpot(y0, y1, taken); if (sp) taken.push(sp); return sp; };
   if (turn === SEALS[2] && !s.capsuleFinal) {
-    s.tele = s.tele.filter((t) => t.type !== "capsule");
-    const sp = freeSpot(30, 38); if (sp) s.tele.push({ type: "capsule", ...sp, at: nt, final: true });
-  } else if (!shop.capsule() && !pending && nt <= SEALS[2]) {
+    // แคปซูลสุดท้าย (ยา + ช่าง) ลงปล้องสุดท้าย — ของแพงกว่า ×1.5
+    s.tele = s.tele.filter((t) => !(t.type === "capsule" && t.kind !== "cara"));
+    for (const kd of ["apoth", "forge"]) { const sp = spot(30, 38); if (sp) s.tele.push({ type: "capsule", kind: kd, ...sp, at: nt, final: true }); }
+  } else if (!caps.some((c) => c.kind !== "cara") && !pendingKind("apoth") && !pendingKind("forge") && nt <= SEALS[2]) {
     const sec = Math.min(s.sealed + (sealing ? 1 : 0) + 1, 3);
-    const sp = freeSpot(sec * C.section + 1, sec * C.section + 8); if (sp) s.tele.push({ type: "capsule", ...sp, at: nt, final: false });
+    for (const kd of ["apoth", "forge"]) { const sp = spot(sec * C.section + 1, sec * C.section + 8); if (sp) s.tele.push({ type: "capsule", kind: kd, ...sp, at: nt, final: false }); }
+  }
+  // พ่อค้าเร่: ไม่มีอยู่/ไม่รอลง = สุ่มลง CARA_PCT% ในปล้องที่ยังเปิด
+  if (!caps.some((c) => c.kind === "cara") && !pendingKind("cara") && nt <= BOOM && Math.random() * 100 < CARA_PCT) {
+    const s0 = sealedBy(nt), sec = s0 + Math.floor(Math.random() * (4 - s0));
+    const sp = spot(sec * C.section + 1, sec * C.section + 8);
+    if (sp) s.tele.push({ type: "capsule", kind: "cara", ...sp, at: nt, final: false });
   }
 }
-function freeSpot(y0, y1) {
+function freeSpot(y0, y1, taken = []) {
   const map = boardMap();
-  for (let g = 0; g < 80; g++) {
+  for (let g = 0; g < 120; g++) {
     const x = Math.floor(Math.random() * C.cols), y = y0 + Math.floor(Math.random() * (y1 - y0 + 1));
-    if (free(x, y) && !Board.specialAt(map, x, y)) return { x, y };
+    if (taken.some((t) => Math.abs(Board.wdx(t.x, x)) + Math.abs(t.y - y) < 3)) continue; // แคปซูลคู่ไม่ลงติดกัน
+    if (shopAt(x, y) || st().tele.some((t) => t.type === "capsule" && t.x === x && t.y === y)) continue;
+    if (free(x, y) && !Board.specialAt(map, x, y) && !Board.isHeal(map, x, y)) return { x, y };
   }
   return null;
 }
@@ -296,6 +345,8 @@ function onEndTurn() {
     return false;
   });
   for (const id of Object.keys(s.jumpCd)) { s.jumpCd[id]--; if (s.jumpCd[id] <= 0) delete s.jumpCd[id]; }
+  for (const id of Object.keys(s.warpCd || {})) { s.warpCd[id]--; if (s.warpCd[id] <= 0) delete s.warpCd[id]; }
+  fireTurrets();
   const si = SEALS.indexOf(turn);
   let hold = 0;
   if (si >= 0) { seal(si); hold = HOLD_SECONDS.seal; }
@@ -316,7 +367,7 @@ function seal(si) {
   }
   s.tele = s.tele.filter((t) => t.y >= lo);
   s.holes = s.holes.filter((h) => h.cells.some(([, y]) => y >= lo));
-  if (shop.capsule() && shop.capsule().y < lo) shop.clearCapsule();
+  for (const cap of shop.capsules()) if (cap.y < lo) shop.clearCapsule(cap.kind);
   match.lastLog.push(`🚪 ปล้อง ${si + 1} ปิดผนึก`);
   engine.boardFx("colonySeal", { section: si + 1, dead });
 }
@@ -384,6 +435,119 @@ function liftUnit(p) {
   engine.boardFx("colonyLift", { id: p.id, from, to: { ...p.pos } });
 }
 
+
+// ---------- ลูกเล่นของเมือง (GRID_PLAN §8.3.1) ----------
+const inSec = (y) => Math.floor(y / C.section);
+// รถรางวิ่งตามราง (คอลัมน์ x ทั้งแนว): ทุกคนที่ตัวทับคอลัมน์ เสีย 2 (ลดเกราะก่อน) + กระเด็นออกข้าง 1 ช่อง (ตัวใหญ่ไม่กระเด็น)
+function impactTram(t) {
+  const hit = [], moves = [];
+  for (const p of alive()) {
+    const size = Board.sizeOf({ size: p.boardSize });
+    if (!Board.footprint(p.pos.x, p.pos.y, size).some((c) => mod(c.x, C.cols) === t.x) || p.pos.y < minRow()) continue;
+    combat.dealMixed(p, TRAM_DMG);
+    hit.push(p.id);
+    if (p.alive && p.hp <= 0) combat.instantDeath(p);
+    if (!p.alive) { p.pos = null; continue; }
+    if (size > 1) continue;
+    const sides = Math.random() < 0.5 ? [1, -1] : [-1, 1];
+    for (const d of sides) {
+      const nx = mod(p.pos.x + d, C.cols);
+      if (!free(nx, p.pos.y, p.id)) continue;
+      moves.push({ id: p.id, from: { ...p.pos }, path: [{ x: nx, y: p.pos.y }] });
+      p.pos = { x: nx, y: p.pos.y };
+      break;
+    }
+  }
+  match.lastLog.push(`🚋 รถรางวิ่งผ่านราง${hit.length ? " — ชน" : ""}`);
+  return { type: "tram", x: t.x, hit, moves };
+}
+// สายพาน: ถูกพาไปตามทิศ สูงสุด 3 ช่อง (ช่องข้างหน้าไม่ว่าง = หยุด) — ตัวใหญ่ไม่ขึ้นสายพาน
+function beltUnit(p, dir) {
+  if (!active() || !p.pos || Board.sizeOf({ size: p.boardSize }) > 1) return;
+  const d = dir === "left" ? -1 : 1, from = { ...p.pos }, path = [];
+  for (let i = 0; i < BELT_STEPS; i++) {
+    const nx = mod(p.pos.x + d, C.cols);
+    if (!free(nx, p.pos.y, p.id)) break;
+    p.pos = { x: nx, y: p.pos.y }; path.push({ ...p.pos });
+  }
+  if (!path.length) return;
+  match.lastLog.push(`⏩ ${p.name} ไปกับสายพานทางด่วน`);
+  engine.boardFx("colonyBelt", { id: p.id, from, path });
+}
+// วาร์ป: ไปโผล่แท่นคู่ (ไม่ว่าง = ช่องว่างใกล้สุด) · คูลดาวน์รายคน 2 เทิร์น — ตัวใหญ่ไม่ใช้วาร์ป
+function warpUnit(p, x, y) {
+  if (!active() || !p.pos || Board.sizeOf({ size: p.boardSize }) > 1) return;
+  const s = st();
+  if ((s.warpCd || (s.warpCd = {}))[p.id] > 0) return;
+  const pair = C.warps.find((pr) => pr.some(([a, b]) => a === x && b === y));
+  if (!pair) return;
+  const [tx, ty] = pair.find(([a, b]) => !(a === x && b === y));
+  const to = free(tx, ty, p.id) ? { x: tx, y: ty } : nearestFree(tx, ty, p.id);
+  if (!to) return;
+  const from = { ...p.pos };
+  p.pos = { x: to.x, y: to.y };
+  s.warpCd[p.id] = CD_WARP;
+  match.lastLog.push(`🌀 ${p.name} วาร์ปข้ามโคโลนี`);
+  engine.boardFx("colonyWarp", { id: p.id, from, to: { ...p.pos } });
+}
+const onWatch = (p) => !!p && !!p.pos && Board.sizeOf({ size: p.boardSize }) <= 1 && C.watch.some(([x, y]) => x === p.pos.x && y === p.pos.y);
+const inBlackout = (p) => { const b = st().blackout; return !!b && b.turn === match.roundNumber && !!p.pos && inSec(p.pos.y) === b.sec; };
+// ระยะตีปกติ [rmin, rmax]: หอสังเกตการณ์ +1 · ไฟดับ −1 (ไม่ต่ำกว่า rmin และ 1)
+function rangeMod(p, r) {
+  if (!active() || !p || !Array.isArray(r)) return r;
+  let max = r[1] + (onWatch(p) ? WATCH_RANGE : 0) - (inBlackout(p) ? 1 : 0);
+  max = Math.max(r[0], 1, max);
+  return max === r[1] ? r : [r[0], max];
+}
+// ระยะสกิล (ตัวเลข): ไฟดับ −1 (ไม่ต่ำกว่า 1)
+function areaRangeMod(p, n) { return active() && n > 1 && inBlackout(p) ? n - 1 : n; }
+function gravityOff() { const g = active() ? st().gravity : null; return g != null && g === match.roundNumber; }
+function movBonus() { return gravityOff() ? GRAVITY_MOV : 0; }
+// ---------- ป้อมปืนรักษาการณ์ ----------
+function turretAt(x, y) { return (st().turrets || []).find((t) => t.hp > 0 && t.x === mod(x, C.cols) && t.y === y && t.y >= minRow()) || null; }
+const turretOf = (i) => (st().turrets || []).find((t) => t.i === i && t.hp > 0 && t.y >= minRow()) || null;
+function canHitTurret(p, i) {
+  const t = turretOf(i);
+  return !!t && !!p && !!p.pos && Board.inRange(action.rangeOf(p), Board.dist(Board.boxOf(p), { x: t.x, y: t.y, size: 1 }));
+}
+// ตีป้อม (เป้า "col:turret:i" — phases/action.js): เสีย 1 ต่อครั้ง · 0 = พัง (ช่องกลายเป็นที่ว่าง)
+function strikeTurret(p, i) {
+  const t = turretOf(i);
+  if (!t) return false;
+  t.hp--;
+  match.lastLog.push(t.hp > 0 ? `🔩 ${p.name} ตีป้อมปืน (เหลือ ${t.hp})` : `💥 ${p.name} ทำลายป้อมปืน`);
+  engine.boardFx("colonyTurretHit", { i: t.i, x: t.x, y: t.y, hp: t.hp, by: p.id });
+  bump();
+  return true;
+}
+// จบเทิร์น: ป้อมที่ยังอยู่ยิงแนวที่หัน 3 ช่อง (คนแรกที่ขวาง · สิ่งกีดขวางบัง) แล้วหมุนตามเข็ม 90°
+function fireTurrets() {
+  const s = st(), shots = [];
+  const map = boardMap();
+  for (const t of s.turrets || []) {
+    if (t.hp <= 0 || t.y < minRow()) continue;
+    const [dx, dy] = Board.LINE_DIRS[t.face];
+    let hitId = null, end = { x: t.x, y: t.y };
+    for (let i = 1; i <= TURRET_RANGE; i++) {
+      const x = mod(t.x + dx * i, C.cols), y = t.y + dy * i;
+      if (y < minRow() || y >= C.rows || Board.wallBlocks(map, x, t.y + dy * (i - 1), y)) break;
+      end = { x, y };
+      const o = alive().find((p) => Board.footprint(p.pos.x, p.pos.y, Board.sizeOf({ size: p.boardSize })).some((c) => mod(c.x, C.cols) === x && c.y === y));
+      if (o) {
+        combat.dealMixed(o, TURRET_DMG);
+        if (o.alive && o.hp <= 0) combat.instantDeath(o);
+        if (!o.alive) o.pos = null;
+        hitId = o.id; match.lastLog.push(`🔫 ป้อมปืนยิงโดน ${o.name}`);
+        break;
+      }
+      if (map.terrain[k(x, y)]) break;
+    }
+    shots.push({ i: t.i, x: t.x, y: t.y, face: t.face, end, hit: hitId });
+    t.face = FACES[(FACES.indexOf(t.face) + 1) % 4];
+  }
+  if (shots.length) engine.boardFx("colonyTurret", { shots });
+}
+
 // ---------- พิกัด / ข้อมูลที่ client เห็น ----------
 function normalize() {
   if (!active()) return;
@@ -400,8 +564,11 @@ function publicInfo() {
     countdown: turn > SEALS[2] ? BOOM - turn + 1 : null,
     holes: s.holes.map((h) => ({ cells: h.cells, radius: h.radius, born: h.born })),
     patched: s.patched,
-    tele: s.tele.map((t) => ({ ...t })),
-    capsule: shop.capsule() ? { x: shop.capsule().x, y: shop.capsule().y, final: !!s.capsuleFinal } : null,
+    tele: s.tele.filter((t) => t.at <= turn + 1).map((t) => ({ ...t })), // เป้าของเทิร์น +2 = เห็นเฉพาะคนบนหอสังเกตการณ์ (playerInfo)
+    capsules: shop.capsules().map((c) => ({ kind: c.kind, x: c.x, y: c.y, final: !!c.final })),
+    turrets: (s.turrets || []).filter((t) => t.hp > 0 && t.y >= minRow()).map((t) => ({ i: t.i, x: t.x, y: t.y, hp: t.hp, maxHp: TURRET_HP, face: t.face })),
+    gravity: gravityOff(), blackout: s.blackout && s.blackout.turn === turn ? s.blackout.sec : null,
+    rails: C.rails, warps: C.warps, watch: C.watch,
     scene: s.scene ? { seq: s.scene.seq, active: !!s.scene.active, turn: s.scene.turn, events: s.scene.events } : null,
     walls: C.walls, doors: C.doors, glass: C.glass, section: C.section,
   };
@@ -415,5 +582,7 @@ function hudAction(p) {
 // ข้อมูลรายคน (view.js ต่อท้ายผู้เล่น): คูลดาวน์กระโดด
 function playerInfo(p) {
   if (!inWorld() || !match.colony) return undefined;
-  return { jumpCd: st().jumpCd[p.id] || 0 };
+  const s = st();
+  return { jumpCd: s.jumpCd[p.id] || 0, warpCd: (s.warpCd || {})[p.id] || 0,
+    foresee: onWatch(p) ? s.tele.filter((t) => t.at === match.roundNumber + 2).map((t) => ({ ...t })) : undefined };
 }

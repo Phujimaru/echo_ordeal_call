@@ -13,6 +13,7 @@ const {
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../../characters/_universal_status");
 const Journey = require("../../characters/_journey");
 const { ATTACKFX_TIME } = require("../constants");
+const Colony = require("../colony");
 const Board = require("../board");
 const match = require("../match");
 const { engine } = require("../engine");
@@ -555,7 +556,12 @@ function counterAndPush(attacker, target, card) {
       card.push = { from, to, collide: push.collide, via: null };
       if (push.moved) {
         attacker.pos = { ...to };
-        match.lastLog.push(`↩️ ${attacker.name} ถอย 1 ช่อง`);
+        // Colony แรงโน้มถ่วงดับ (server/colony.js): ถอยต่ออีก 1 ช่อง (ไม่มีที่ = หยุด ไม่ชน)
+        if (!push.via && Colony.gravityOff()) {
+          const p2 = Board.pushback(action.boardMap(), attacker.pos, target.pos, action.boardUnits(), { selfId: attacker.id, blocked: action.boardBlocked(attacker.id) });
+          if (p2.moved && !p2.via) { attacker.pos = { x: p2.x, y: p2.y }; to.x = p2.x; to.y = p2.y; card.push.to = { ...to }; }
+        }
+        match.lastLog.push(`↩️ ${attacker.name} ถอย ${Math.abs(Board.wdx(from.x, to.x)) + Math.abs(to.y - from.y)} ช่อง`);
         slide = { id: attacker.id, to: { ...to }, dir: { x: to.x - from.x, y: to.y - from.y } };
       } else if (own) {
         card.push = null; // ผลักของผู้สวนชนอะไร = ไม่ขยับ ไม่เสียเพิ่ม

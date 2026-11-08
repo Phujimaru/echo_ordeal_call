@@ -230,7 +230,7 @@ function movOf(p) {
   const n = Ice.movCutImmune(p) ? Math.max(0, baseMovOf(p) + Math.max(0, fod))
     : Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + fod);
   // รองเท้าวายุ (ไอเทมร้านค้า): ระยะเดินตานี้ +a.movBonus — บวกหลังหักโทษ (ใช้ตอนไม่มีระยะเลยก็ยังเดินได้ตามรองเท้า)
-  const total = n + ((a && a.movBonus) || 0);
+  const total = n + ((a && a.movBonus) || 0) + Colony.movBonus(p); // Colony: แรงโน้มถ่วงดับ +2
   return a && a.movLeft != null ? Math.min(total, a.movLeft) : total;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
@@ -293,6 +293,9 @@ function counters(p, card) {
 // ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (Echo: ตัวใหญ่ขึ้น ตีไกลขึ้น)
 function rangeOf(p) {
   if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
+  return Colony.rangeMod(p, baseRangeOf(p)); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js)
+}
+function baseRangeOf(p) {
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.range ? hook.range(p) : null;
   if (Array.isArray(own)) return own;
@@ -472,7 +475,7 @@ function chargeTiles(p, dir, len) {
 // ระยะของสกิล (area.range) — "mov" = ระยะเดินปกติสูงสุดของผู้ใช้ (บัฟของโอเบรอน — ผู้ใช้ตัดสิน)
 function areaRange(p, area) {
   if (!area) return 0;
-  return area.range === "mov" ? baseMovOf(p) : (Number(area.range) || 0);
+  return area.range === "mov" ? baseMovOf(p) : Colony.areaRangeMod(p, Number(area.range) || 0); // Colony: ไฟดับ −1
 }
 // ตรวจระยะสกิลบนกระดาน แล้วคืนรายชื่อผู้โดน (playerId[]) ที่ส่งต่อให้ hook ของตัวละคร — null = ใช้ไม่ได้
 //  self: ไม่สนเป้า · target: เป้า 1 คนในระยะ (self = เลือกตัวเองได้) · aoe: ทุกคนในรัศมี (self = รวมตัวเอง)
@@ -1104,6 +1107,22 @@ function strikeTarget(id, targetId) {
     Ice.attackSpike(p, spikeK, done);
     return true;
   }
+ // Colony: ป้อมปืนรักษาการณ์ ("col:turret:i") — ระยะเหมือนตีคน · ครั้งละ 1 (server/colony.js strikeTurret)
+  const turretI = typeof targetId === "string" && targetId.startsWith("col:turret:") ? Number(targetId.slice(11)) : -1;
+  if (turretI >= 0) {
+    if (!canAct(p) || (match.action && match.action.noStrike) || !Colony.canHitTurret(p, turretI)) return false;
+    timers.clearPhaseTimer();
+    match.action.locked = true;
+    p.didAttackRound = true;
+    Visibility.onHostileAct(p, "strike");
+    const t = Colony.turretById(turretI);
+    if (t) strikeObject(p, { x: t.x, y: t.y });
+    Colony.strikeTurret(p, turretI);
+    match.gameState = "ATTACKING";
+    timers.startPhaseTimer(1.2, done);
+    view.broadcastState();
+    return true;
+  }
   // ของบนกระดานของด่าน Fodlan ("fd:…" — เสาเวทมืด / ต้นไม้แห้ง / กองหิมะ …): ระยะเหมือนตีคน · ผลอยู่ที่ server/fodlan/stageN.js strikeObject
   if (typeof targetId === "string" && targetId.startsWith("fd:")) {
     const obj = Fodlan.objects().find((o) => o.id === targetId);
@@ -1353,6 +1372,10 @@ function tileEndEffect(p) {
     match.lastLog.push(r ? `${info.icon} ${p.name} จบตาบน${info.name} — ติดลุกไหม้ ${fx.turns} เทิร์น` : `${info.icon} ${p.name} จบตาบน${info.name} — แต่ต้านสถานะผิดปกติไว้ได้`);
   } else if (fx.kind === "lift") {
     Colony.liftUnit(p); // Colony: ลิฟต์แกนกลาง ดีดขึ้น 4 แถว
+  } else if (fx.kind === "belt") {
+    Colony.beltUnit(p, fx.dir); // Colony: สายพานทางด่วน
+  } else if (fx.kind === "warp") {
+    Colony.warpUnit(p, fx.x, fx.y); // Colony: ประตูวาร์ป
   } else if (fx.kind === "whirl") {
     if (fx.to) {
       const from = { ...p.pos };

@@ -34,7 +34,7 @@ function clearColumn(y0, n) {
   for (let x = 0; x < Board.COLONY.cols; x++) {
     if (Board.COLONY.glass.includes(x)) continue;
     let ok = true;
-    for (let y = y0; y < y0 + n; y++) if (map.terrain[`${x},${y}`] || map.special[`${x},${y}`]) ok = false;
+    for (let y = y0; y < y0 + n; y++) if (map.terrain[`${x},${y}`] || (map.special[`${x},${y}`] && !['belt', 'rail'].includes(map.special[`${x},${y}`]))) ok = false;
     if (ok) return x;
   }
   throw new Error("no clear column");
@@ -184,13 +184,15 @@ test('แคปซูลเสบียง: ลงจอด = ร้านเป
 test('กระโดด: ไปฝั่งตรงข้าม สูงขึ้น 2 แถว · จบการเดิน · คูลดาวน์ 2 เทิร์น · ลงข้างศัตรู = กระทืบ 1', () => {
   setup(2);
   const [a, b] = Object.values(P());
-  put(a, 3, 4); put(b, 18, 5); // จุดลง (15, 6)
+  put(a, 3, 4); put(b, 3, 30);
   b.hp = 7; b.armor = 3;
-  put(b, 15, 7); // ติดจุดลงด้านล่าง
+  const land = Colony.jumpLanding(a); // ฝั่งตรงข้าม (x + 12) สูงขึ้น 2 แถว — ช่องไม่ว่าง = ช่องว่างใกล้สุด
+  assert.ok(Math.abs(Board.wdx(3, land.x)) >= 10 && land.y >= 5);
+  put(b, land.x, land.y + 1); // ติดจุดลงด้านล่าง
   actAs(a);
   assert.equal(Colony.canJump(a), true);
   assert.equal(Colony.jump(a.id), true);
-  assert.deepEqual(a.pos, { x: 15, y: 6 });
+  assert.deepEqual(a.pos, land);
   assert.equal(match.action.locked, true, 'จบการเดิน');
   assert.equal(b.armor, 2, 'กระทืบ 1 (ลดเกราะก่อน)');
   assert.equal(Colony.canJump(a), false, 'กระโดดซ้ำในตาเดียวกันไม่ได้');
@@ -232,9 +234,120 @@ test('ตั้งเป้าเทิร์นหน้า: อุกกาบ
   const cap = tele.find((t) => t.type === 'capsule');
   assert.ok(cap && cap.y >= 10 && cap.y < 20, 'แคปซูลแรกลงปล้อง 2');
   startTurn(3);
+  if (match.gameState === 'CUTSCENE') { draw.dealRound(); engine.clearPhaseTimer(); } // เทิร์น 3 มีรถราง = ฉาก → ข้ามฉากให้เลขเทิร์นขยับ
   assert.ok(match.colony.tele.some((t) => t.type === 'beam' && t.at === 4));
   const info = Colony.publicInfo();
   assert.equal(info.sealIn, 3, 'เทิร์น 3: ประตูปิดในอีก 3 เทิร์น (รวมเทิร์นนี้)');
   assert.deepEqual(info.doors, [0, 4, 8, 12, 16, 20]);
   assert.equal(info.countdown, null);
+});
+
+// ---------- ยกเครื่องเมือง 2026-11-09 (GRID_PLAN §8.3.1) ----------
+test('สายพานทางด่วน: จบตาบนสายพาน = ถูกพาไป 3 ช่องตามทิศ', () => {
+  setup(1);
+  const [a] = Object.values(P());
+  const map = action.boardMap();
+  const y = Board.COLONY.belts[0], dir = map.flow[`5,${y}`];
+  put(a, 5, y);
+  action.tileEndEffect(a);
+  assert.equal(a.pos.y, y);
+  assert.equal(Board.wdx(5, a.pos.x), dir === 'left' ? -3 : 3);
+});
+
+test('ประตูวาร์ป: โผล่แท่นคู่ · คูลดาวน์ 2 เทิร์น', () => {
+  setup(1);
+  const [a] = Object.values(P());
+  const [[x0, y0], [x1, y1]] = Board.COLONY.warps[0];
+  put(a, x0, y0);
+  action.tileEndEffect(a);
+  assert.deepEqual(a.pos, { x: x1, y: y1 });
+  action.tileEndEffect(a);
+  assert.deepEqual(a.pos, { x: x1, y: y1 }, 'คูลดาวน์ = วาร์ปซ้ำไม่ได้');
+  assert.equal(Colony.playerInfo(a).warpCd, 2);
+});
+
+test('หอสังเกตการณ์: ระยะตีปกติ +1 · เห็นเป้าเทิร์น +2 · คนอื่นเห็นแค่เทิร์นหน้า', () => {
+  setup(2);
+  const [a, b] = Object.values(P());
+  const [wx, wy] = Board.COLONY.watch[0];
+  put(a, wx + 3, wy); put(b, wx, wy + 5);
+  const base = action.rangeOf(a);
+  put(a, wx, wy);
+  assert.equal(action.rangeOf(a)[1], base[1] + 1);
+  const cur = match.roundNumber;
+  match.colony.tele.push({ type: 'meteor', x: 1, y: 30, at: cur + 2, radius: 4 });
+  assert.ok(!Colony.publicInfo().tele.some((t) => t.at === cur + 2), 'สาธารณะไม่เห็นเทิร์น +2');
+  assert.ok(Colony.playerInfo(a).foresee.some((t) => t.y === 30));
+  assert.equal(Colony.playerInfo(b).foresee, undefined);
+});
+
+test('ไฟดับทั้งปล้อง: ระยะตีปกติ/สกิล −1 ของคนในปล้อง (ไม่ต่ำกว่า 1) · แรงโน้มถ่วงดับ: เดิน +2', () => {
+  setup(2);
+  const [a, b] = Object.values(P());
+  put(a, 6, 12); put(b, 6, 25);
+  match.colony.blackout = { turn: match.roundNumber, sec: 1 };
+  const r = action.rangeOf(a);
+  assert.ok(r[1] >= 1 && r[1] >= r[0]);
+  assert.equal(action.areaRange(a, { range: 3 }), 2);
+  assert.equal(action.areaRange(b, { range: 3 }), 3, 'ปล้องอื่นไม่โดน');
+  assert.equal(action.areaRange(a, { range: 1 }), 1, 'ไม่ต่ำกว่า 1');
+  match.colony.blackout = null;
+  const m0 = action.movOf(a);
+  match.colony.gravity = match.roundNumber;
+  assert.equal(action.movOf(a), m0 + 2);
+  assert.equal(Colony.gravityOff(), true);
+  match.colony.gravity = null;
+});
+
+test('รถราง: คนบนรางเสีย 2 + กระเด็นออกข้าง 1 · ตามตารางเทิร์น 3 / 7 / …', () => {
+  setup(2);
+  const [a, b] = Object.values(P());
+  const rx = Board.COLONY.rails[0];
+  put(a, rx, 12); put(b, rx + 5, 12);
+  for (const p of [a, b]) { p.hp = 7; p.armor = 3; }
+  match.colony.tele = [{ type: 'tram', x: rx, at: 3 }];
+  startTurn(3);
+  assert.equal(a.hp + a.armor, 8);
+  assert.notEqual(a.pos.x, rx, 'กระเด็นออกจากราง');
+  assert.equal(b.hp + b.armor, 10);
+});
+
+test('ป้อมปืน: จบเทิร์นยิงแนวที่หัน (คนแรก เสีย 1) แล้วหมุน · ตีครบ 3 ครั้ง = พัง ช่องว่าง', () => {
+  setup(2);
+  const [a, b] = Object.values(P());
+  const t = match.colony.turrets[0];
+  t.face = 'down';
+  put(a, t.x, t.y + 2); put(b, t.x, t.y + 3);
+  for (const p of [a, b]) { p.hp = 7; p.armor = 3; }
+  engine.setRoundNumber(2); Colony.onEndTurn();
+  assert.equal(a.hp + a.armor, 9, 'คนแรกในแนวโดน');
+  assert.equal(b.hp + b.armor, 10, 'คนหลังไม่โดน');
+  assert.equal(t.face, 'left', 'หมุนตามเข็ม');
+  put(a, t.x, t.y + 1);
+  actAs(a);
+  assert.equal(Colony.canHitTurret(a, t.i), true);
+  for (let i = 0; i < 3; i++) Colony.strikeTurret(a, t.i);
+  assert.equal(Colony.turretAt(t.x, t.y), null);
+  assert.ok(!action.boardMap().terrain[`${t.x},${t.y}`], 'พังแล้ว = ช่องว่าง');
+});
+
+test('แคปซูลเสบียง 3 แบบ: ยา + ช่าง ลงคู่ (ขายของตามร้าน) · พ่อค้าเร่อยู่ 2 เทิร์น', () => {
+  setup(1);
+  const [a] = Object.values(P());
+  put(a, 0, 1);
+  match.colony.tele = [
+    { type: 'capsule', kind: 'apoth', x: 6, y: 15, at: 3, final: false },
+    { type: 'capsule', kind: 'forge', x: 12, y: 16, at: 3, final: false },
+    { type: 'capsule', kind: 'cara', x: 20, y: 25, at: 3, final: false },
+  ];
+  startTurn(3);
+  const shop = require('../server/shop.js');
+  assert.deepEqual(shop.capsules().map((c) => c.kind).sort(), ['apoth', 'cara', 'forge']);
+  const forge = shop.capsules().find((c) => c.kind === 'forge');
+  assert.ok(forge.items.every((it) => ['windBoots', 'battery'].includes(it.type)), 'โรงช่างขายของโรงช่าง');
+  assert.equal(Colony.publicInfo().capsules.length, 3);
+  match.colony.tele = [];
+  startTurn(5);
+  assert.ok(!shop.capsules().some((c) => c.kind === 'cara'), 'พ่อค้าเร่ครบ 2 เทิร์น = ไป');
+  assert.ok(shop.capsules().some((c) => c.kind === 'apoth'));
 });

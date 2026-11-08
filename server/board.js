@@ -67,6 +67,12 @@ const TERRAIN_INFO = {
   flame: { name: "พื้นไฟ", icon: "🔥", desc: "จบตา ติดลุกไหม้ 2", end: "flame", burn: 2 }, // Judgment Bolt ของนกหวีดอัญเชิญ (server/whistle.js) — ทีมผู้เป่าไม่โดน
   power: { name: "แท่นพลัง", icon: "🔮", desc: "พลังโจมตี +1", atk: 1 },
   lift: { name: "ลิฟต์แกนกลาง", icon: "⏫", desc: "จบตา ดีดขึ้น 4 แถว", end: "lift" }, // Colony (GRID_PLAN §8.3)
+  // Colony ยกเครื่อง 2026-11-09 (GRID_PLAN §8.3.1) — ไม่มี desc (กฎห้ามข้อความอธิบายใน UI)
+  belt: { name: "สายพานทางด่วน", icon: "⏩", end: "belt" },      // จบตา = ถูกพาไป 3 ช่องตามทิศ (map.flow)
+  rail: { name: "รางรถราง", icon: "🛤️" },                       // เดินได้ปกติ · รถรางวิ่งตามรางเป็นอีเวนต์ (server/colony.js)
+  warp: { name: "ประตูวาร์ป", icon: "🌀", end: "warp" },          // จบตา = โผล่แท่นคู่ (คูลดาวน์รายคน)
+  watch: { name: "หอสังเกตการณ์", icon: "🔭" },                   // ยืนอยู่ = ระยะตีปกติ +1 · เห็นเป้าอีเวนต์ล่วงหน้า 2 เทิร์น
+  fountain: { name: "น้ำพุ", icon: "⛲" },                        // จุดฟื้นฟูของ Colony (map.heal · healKind) — จบตา เลือด +1
 };
 
 // ---------- แผนที่รายภูมิภาค ----------
@@ -250,9 +256,18 @@ for (let i = 0; i < ZERO_STAGES; i++) {
 //  เขตตามปล้อง (ผู้ใช้สั่ง: สภาพแวดล้อมจำลองจากโลก): บ้านพัก · ป่า + บึง (น้ำตื้น) · ใจกลางเมือง (ตึก) · สวนชมวิว (ต้นไม้ + สระ)
 //  ผังสุ่มแบบกำหนดค่า (seed คงที่ — ต้นแบบ .claude/plans/colony.html genMap) · จุดเกิด 7 จุดแถว 1 กระจายรอบวง
 const COLONY_AREA = 20;
-// 24 คอลัมน์ (ผู้ใช้สั่ง 2026-11-09 "ขยายพื้นที่รอบวงให้กว้างขึ้น" — เดิม 16) · ประตู 6 บาน · กระจก 3 แถบ · ลิฟต์ 9 จุด
+// 24 คอลัมน์ (ผู้ใช้สั่ง 2026-11-09 "ขยายพื้นที่รอบวงให้กว้างขึ้น" — เดิม 16) · ประตู 6 · กระจก 3 · ลิฟต์ 9
+//  ยกเครื่องเป็นเมือง (ผู้ใช้สั่ง 2026-11-09 — GRID_PLAN §8.3.1): ถนนสายพานรอบวงปล้องละ 1 เส้น · รางรถราง 2 สาย (คอลัมน์ประตู 4 · 16 — วิ่งทะลุทุกปล้อง)
+//   แท่นวาร์ปคู่ปล้องละ 1 คู่ (ห่างครึ่งวง) · หอสังเกตการณ์ปล้องละ 1 · น้ำพุ (จุดฟื้นฟู) · ป้อมปืนรักษาการณ์ (ปล้อง 2–4)
 const COLONY = { cols: 24, rows: 40, section: 10, walls: [9, 19, 29], doors: [0, 4, 8, 12, 16, 20], glass: [2, 10, 18],
-  lifts: [[3, 7], [11, 7], [19, 7], [6, 17], [14, 17], [22, 17], [9, 27], [17, 27], [1, 27]] };
+  lifts: [[3, 7], [11, 7], [19, 7], [6, 17], [14, 17], [22, 17], [9, 27], [17, 27], [1, 27]],
+  belts: [4, 14, 24, 34],            // แถวสายพาน (ทั้งวง) · ทิศสลับ ขวา/ซ้าย
+  rails: [4, 16],                    // คอลัมน์รางรถราง (ตรงประตู — รถวิ่งทะลุกำแพงกั้นปล้อง)
+  warps: [[[7, 6], [19, 6]], [[1, 16], [13, 16]], [[7, 26], [19, 26]], [[1, 36], [13, 36]]],
+  watch: [[14, 8], [9, 12], [21, 22], [11, 32]],
+  turrets: [[17, 12], [6, 22], [13, 28], [21, 33]],
+  fountains: [[13, 6], [20, 12], [11, 21], [5, 32], [17, 37]],
+};
 function buildColonyMap() {
   let s = 11;
   const R = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -260,11 +275,18 @@ function buildColonyMap() {
   const m = (x) => ((x % C) + C) % C;
   const used = {}; // key → ชนิด
   const keep = new Set();
+  const spawns = [1, 5, 8, 12, 15, 19, 22].map((x, i) => ({ x, y: i % 2 ? 2 : 1 }));
+  for (const sp of spawns) for (const d of [[0, 0], [1, 0], [-1, 0], [0, 1]]) keep.add(key(m(sp.x + d[0]), sp.y + d[1]));
   for (const [x, y] of COLONY.lifts) for (const d of [0, 3, 4, 5]) keep.add(key(x, y + d));
+  for (const y of COLONY.belts) for (let x = 0; x < C; x++) keep.add(key(x, y));
+  for (const x of COLONY.rails) for (let y = 0; y < COLONY.rows; y++) keep.add(key(x, y));
+  // ช่องลูกเล่น + รอบตัว 1 ช่อง เว้นว่าง (เดินเข้าถึงได้เสมอ)
+  const feats = [...COLONY.warps.flat(), ...COLONY.watch, ...COLONY.fountains, ...COLONY.turrets];
+  for (const [x, y] of feats) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) keep.add(key(m(x + dx), y + dy));
   const free = (x, y, sec) => !COLONY.glass.includes(x) && !used[key(x, y)] && !keep.has(key(x, y)) && !(sec === 0 && y <= 2) && y % SEC !== SEC - 1 && y % SEC !== 0;
   const place = (sec, n, kind, shapes) => {
     let placed = 0, guard = 0;
-    while (placed < n && guard++ < 800) {
+    while (placed < n && guard++ < 1200) {
       const x = Math.floor(R() * C), y = sec * SEC + 1 + Math.floor(R() * (SEC - 2));
       const sh = shapes[Math.floor(R() * shapes.length)];
       const cells = sh.map(([dx, dy]) => [m(x + dx), y + dy]);
@@ -274,8 +296,8 @@ function buildColonyMap() {
     }
   };
   const pond = (sec, w, h) => {
-    for (let g = 0; g < 200; g++) {
-      const x = Math.floor(R() * C), y = sec * SEC + 2 + Math.floor(R() * (SEC - 3 - h));
+    for (let g = 0; g < 300; g++) {
+      const x = Math.floor(R() * C), y = sec * SEC + 1 + Math.floor(R() * (SEC - 2 - h));
       const cells = [];
       for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) if (!((i === 0 || i === w - 1) && (j === 0 || j === h - 1)) || w < 3) cells.push([m(x + i), y + j]);
       if (!cells.every(([cx, cy]) => free(cx, cy, sec))) continue;
@@ -283,20 +305,26 @@ function buildColonyMap() {
       return;
     }
   };
-  const ONE = [[0, 0]], H2 = [[0, 0], [1, 0]], V2 = [[0, 0], [0, 1]];
-  place(0, 16, "house", [ONE, H2, ONE]);
-  pond(1, 4, 3); pond(1, 3, 2); place(1, 22, "tree", [ONE]);
-  place(2, 14, "tower", [ONE, V2, H2]); place(2, 5, "tree", [ONE]);
-  pond(3, 3, 2); pond(3, 4, 3); place(3, 9, "tree", [ONE]);
-  const terrain = {}, special = {};
+  const ONE = [[0, 0]], H2 = [[0, 0], [1, 0]], V2 = [[0, 0], [0, 1]], SQ = [[0, 0], [1, 0], [0, 1], [1, 1]];
+  // ปล้อง 1 ย่านบ้านพัก · ปล้อง 2 ป่า + บึง · ปล้อง 3 ใจกลางเมือง (ตึกเป็นบล็อก) · ปล้อง 4 สวนชมวิว (ทะเลสาบ)
+  place(0, 15, "house", [ONE, H2, ONE, V2]); place(0, 4, "tree", [ONE]);
+  pond(1, 4, 3); pond(1, 3, 2); place(1, 20, "tree", [ONE, ONE, V2]);
+  place(2, 5, "tower", [SQ]); place(2, 9, "tower", [ONE, V2, H2]); place(2, 4, "tree", [ONE]);
+  pond(3, 5, 3); pond(3, 3, 2); place(3, 12, "tree", [ONE]); place(3, 3, "house", [ONE]);
+  const terrain = {}, special = {}, flow = {};
   for (const [k, kind] of Object.entries(used)) { if (kind === "water") special[k] = "shallow"; else terrain[k] = kind; }
   for (const [x, y] of COLONY.lifts) special[key(x, y)] = "lift";
+  COLONY.belts.forEach((y, i) => { for (let x = 0; x < C; x++) { if (COLONY.rails.includes(x)) continue; special[key(x, y)] = "belt"; flow[key(x, y)] = i % 2 ? "left" : "right"; } });
+  for (const x of COLONY.rails) for (let y = 0; y < COLONY.rows; y++) if (!special[key(x, y)]) special[key(x, y)] = "rail";
+  for (const pair of COLONY.warps) for (const [x, y] of pair) special[key(x, y)] = "warp";
+  for (const [x, y] of COLONY.watch) special[key(x, y)] = "watch";
+  for (const [x, y] of COLONY.turrets) terrain[key(x, y)] = "turret";
   return {
     area: COLONY_AREA, name: "Colony", cols: C, rows: COLONY.rows, wrap: true, minRow: 0,
     walls: COLONY.walls, doors: COLONY.doors, glass: COLONY.glass, section: SEC,
-    terrain, special, flow: {}, heal: new Set(), healKind: "heal",
-    spawns: [1, 5, 8, 12, 15, 19, 22].map((x, i) => ({ x, y: i % 2 ? 2 : 1 })),
-    shopSpots: [], // ร้านค้า = แคปซูลเสบียง (server/colony.js) ไม่ใช้จุดร้านค้า
+    terrain, special, flow, heal: new Set(COLONY.fountains.map(([x, y]) => key(x, y))), healKind: "fountain",
+    spawns,
+    shopSpots: [], // ร้านค้า = แคปซูลเสบียง 3 แบบ (server/colony.js) ไม่ใช้จุดร้านค้า
   };
 }
 MAPS[COLONY_AREA] = buildColonyMap();
@@ -985,6 +1013,8 @@ function endTurnTile(map, x, y, units = [], { selfId = null, blocked = null } = 
   if (info.end === "lava") return { kind, dmg: info.dmg };
   if (info.end === "flame") return { kind, turns: info.burn, x, y }; // พื้นไฟ (server/whistle.js flameEnd — เช็คทีมเจ้าของ)
   if (info.end === "lift") return { kind }; // Colony: ดีดขึ้น 4 แถว (server/colony.js liftUnit)
+  if (info.end === "belt") return { kind, dir: (map.flow && map.flow[key(x, y)]) || "right" }; // Colony: สายพาน (server/colony.js beltUnit)
+  if (info.end === "warp") return { kind, x, y }; // Colony: วาร์ปไปแท่นคู่ (server/colony.js warpUnit)
   if (info.end === "whirl") {
     const dir = map.flow && map.flow[key(x, y)];
     const v = LINE_DIRS[dir];
