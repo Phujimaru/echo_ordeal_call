@@ -1276,8 +1276,13 @@ function pickShopSpot(map, units, prev, rng = Math.random) {
   return { x: s.x, y: s.y };
 }
 // ยืนติดร้าน (ระยะ 1 จากขอบร้าน · ร้าน size×size — 2×2 ตั้งแต่ 2026-11-08) ถึงซื้อได้
+// ยืนติดร้านไหม — ร้านเป็นสี่เหลี่ยม w×h (ร้านปกติ 1×1 · พ่อค้าเร่ 2×1) · ข้อมูลเก่าที่มีแค่ size = จัตุรัส
 function nearShop(pos, shop) {
-  return !!shop && dist(pos, { x: shop.x, y: shop.y, size: shop.size || 1 }) === 1;
+  if (!shop) return false;
+  const w = shop.w || shop.size || 1, h = shop.h || shop.size || 1;
+  let best = Infinity;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) best = Math.min(best, dist(pos, { x: shop.x + dx, y: shop.y + dy, size: 1 }));
+  return best === 1;
 }
 
 // state.board จาก server ส่ง heal เป็น array ของ "x,y" — แปลงกลับเป็นรูปเดียวกับแผนที่ฝั่ง server ก่อนส่งให้ฟังก์ชันในไฟล์นี้

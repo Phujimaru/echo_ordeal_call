@@ -284,7 +284,7 @@ function ultimate(engine, p, dir, ids) {
     const keys = plan.tiles.map((t) => key(t.x, t.y)).filter((k) => k !== landKey && !(map.terrain[k] && Board.UNBREAKABLE.has(map.terrain[k]) && map.terrain[k] !== "chasm"));
     const razed = engine.breakObstacles([...keys, ...(landKey ? [landKey] : [])]);
     const hitShops = engine.razeShopsIn(new Set([...keys, ...(landKey ? [landKey] : [])]));
-    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, size: hitShops[0].size || 1, kind: hitShops[0].kind } : null;
+    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, w: hitShops[0].w || 1, h: hitShops[0].h || 1, kind: hitShops[0].kind } : null;
     if (shopHit) engine.log("🏪 ร้านค้าพังทลาย — หายไปจนถึงรอบปรากฏถัดไป");
     const fresh = engine.addChasm(keys);
 

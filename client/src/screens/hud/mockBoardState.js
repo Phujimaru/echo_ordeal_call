@@ -171,7 +171,7 @@ const SHOP_ROLL = {
   ],
 };
 const SOLD = new Set(["apoth:1"]);
-const SHOP_N = 2; // ร้าน 2×2
+const SHOP_DIM = { apoth: [1, 1], forge: [1, 1], cara: [2, 1], capsule: [1, 1] }; // ร้านปกติ 1×1 · พ่อค้าเร่ 2×1 (server/shop.js SHOP_DIMS)
 
 // กระเป๋าของเรา (5 ช่อง — รูปเดียวกับ p.inventory ใน server/shop.js)
 const MY_BAG = [
@@ -239,38 +239,42 @@ function units(s, ref) {
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, alive: true, teamId: p.summon && p.summon.kind === "double" ? null : p.teamId || null }));
 }
 function shopTiles(sh) {
-  const n = sh.size || 1, out = [];
-  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push({ x: sh.x + dx, y: sh.y + dy });
+  const w = sh.w || sh.size || 1, h = sh.h || sh.size || 1, out = [];
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) out.push({ x: sh.x + dx, y: sh.y + dy });
   return out;
 }
+// ระยะจากกล่อง a ถึงร้าน = ระยะถึงช่องที่ใกล้สุดของร้าน
+const shopGap = (a, sh) => Math.min(...shopTiles(sh).map((t) => Rules.dist(a, { ...t, size: 1 })));
 function blockedOf(s) {
   if (!s.shops || !s.shops.length) return null;
   return new Set(s.shops.flatMap((sh) => shopTiles(sh).map((t) => Rules.key(t.x, t.y))));
 }
-// หาที่ตั้งร้าน 2×2: พื้นว่างครบทุกช่อง (ไม่มีสิ่งกีดขวาง/จุดฟื้นฟู/คนยืน) ไม่ทับร้านอื่น (เว้น 1 ช่อง) · near = ต้องติดกล่องนี้ (ระยะ 1)
-function fitShop(s, taken, near) {
+// หาที่ตั้งร้าน w×h: พื้นว่างครบทุกช่อง (ไม่มีสิ่งกีดขวาง/จุดฟื้นฟู/คนยืน) ไม่ทับร้านอื่น (เว้น 1 ช่อง) · near = ต้องติดกล่องนี้ (ระยะ 1)
+function fitShop(s, taken, near, [W, H] = [1, 1]) {
   const map = Rules.mapOf(s.board.area);
   const ok = (x, y) => {
-    for (let dy = 0; dy < SHOP_N; dy++) for (let dx = 0; dx < SHOP_N; dx++) {
+    for (let dy = 0; dy < H; dy++) for (let dx = 0; dx < W; dx++) {
       const tx = x + dx, ty = y + dy;
       if (!Rules.inBounds(map, tx, ty) || Rules.isObstacle(map, tx, ty) || Rules.isHeal(map, tx, ty)) return false;
       if (s.players.some((p) => p.alive && p.pos && Rules.covers({ ...p.pos, size: p.size || 1 }, tx, ty))) return false;
     }
-    return taken.every((o) => Rules.dist({ x, y, size: SHOP_N }, o) >= 2);
+    const me = { x, y, w: W, h: H };
+    return taken.every((o) => Math.min(...shopTiles(me).map((t) => shopGap({ ...t, size: 1 }, o))) >= 2);
   };
   const cand = [...(map.shopSpots || [])];
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) cand.push({ x, y });
-  return cand.find((c) => ok(c.x, c.y) && (!near || Rules.dist(near, { x: c.x, y: c.y, size: SHOP_N }) === 1)) || null;
+  return cand.find((c) => ok(c.x, c.y) && (!near || shopGap(near, { x: c.x, y: c.y, w: W, h: H }) === 1)) || null;
 }
 function mockShops(s, round, nearMe, nearKind = "apoth") {
   const out = [];
   const kinds = nearKind === "capsule" ? ["capsule", "apoth", "forge", "cara"] : ["apoth", "forge", "cara"];
   for (const kind of kinds) {
-    const pos = fitShop(s, out, kind === nearKind ? nearMe : null) || fitShop(s, out, null);
+    const dim = SHOP_DIM[kind] || [1, 1];
+    const pos = fitShop(s, out, kind === nearKind ? nearMe : null, dim) || fitShop(s, out, null, dim);
     if (!pos) continue;
     const id = `shop_${kind}_${Math.ceil(round / 5)}`;
     out.push({
-      id, kind, x: pos.x, y: pos.y, size: SHOP_N, turnsLeft: 5 - ((round - 1) % 5),
+      id, kind, x: pos.x, y: pos.y, w: dim[0], h: dim[1], turnsLeft: 5 - ((round - 1) % 5),
       items: (SHOP_ROLL[kind] || [...SHOP_ROLL.apoth, ...SHOP_ROLL.forge, ...SHOP_ROLL.cara]).map((it, i) => {
         const sold = SOLD.has(`${kind}:${i}`);
         return { id: `${id}_${i}`, type: it.type, price: it.price, ...(it.value != null ? { value: it.value } : {}), stock: sold ? 0 : it.stockBase, stockMax: it.stockBase, sold, closed: false };

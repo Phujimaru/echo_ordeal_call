@@ -164,7 +164,7 @@ function ultimate(engine, p, ids, opts) {
     const keys = tiles.map((t) => key(t.x, t.y)).filter((k) => !(map.terrain[k] && Board.UNBREAKABLE.has(map.terrain[k]) && map.terrain[k] !== "chasm"));
     const razed = engine.breakObstacles(keys);
     const hitShops = engine.razeShopsIn(zone);
-    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, size: hitShops[0].size || 1, kind: hitShops[0].kind } : null;
+    const shopHit = hitShops.length ? { x: hitShops[0].x, y: hitShops[0].y, w: hitShops[0].w || 1, h: hitShops[0].h || 1, kind: hitShops[0].kind } : null;
     if (shopHit) engine.log("🏪 ร้านค้าพังทลาย — หายไปจนถึงรอบปรากฏถัดไป");
     for (const o of Object.values(engine.players)) if (!o.alive && o.corpse && zone.has(key(o.corpse.x, o.corpse.y))) o.corpse = null;
     const fresh2 = engine.addChasm(keys);
