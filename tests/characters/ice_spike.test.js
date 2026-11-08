@@ -519,60 +519,95 @@ test('เชื่องช้าได้ใหม่ = นับใหม่�
   assert.equal(P.B.statusAmt.slow, 1, 'ไม่ซ้อน −1');
 });
 
-test('Glacial Path ปุ่ม 2 ตัวเลือก (สร้าง/ทำลาย มี desc) · ทำลายธารน้ำแข็งของตัวเองที่ไหนก็ได้ · ของคนอื่น/น้ำแข็งแผนที่ไม่ได้ · ไม่ได้แต้มคืน', () => {
-  const P = setup([['I', 'ice_spike', 1, 5], ['J', 'ice_spike', 1, 12]]);
+const breakBtn = (id) => (view(id, id).actions || []).find((a) => a.key === 'iceBreak');
+const doBreak = (id, x, y) => ice.charAction(engine, engine.players[id], 'iceBreak', { tile: { x, y } });
+
+test('สกิลพื้นฐาน/รองไม่มีตัวเลือกทำลายแล้ว (ปุ่มเดียว · form break ไม่ทำลาย)', () => {
+  const P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 10, 5]]);
   engine.setActor('I');
-  const pub = view('I', 'I').character.basic;
-  assert.deepEqual(pub.choices.map((c) => c.key), ['lay', 'break']);
-  assert.ok(pub.choices.every((c) => typeof c.desc === 'string' && c.desc.length > 0), 'ทุกตัวเลือกมี desc');
-  assert.equal(pub.choices[1].locked, true, 'ไม่มีน้ำแข็งของตัวเอง = ทำลายไม่ได้');
-  Ice.layIce(12, 5, 'I'); // ห่าง 11 (เกินระยะสร้าง 8)
-  Ice.layIce(11, 5, 'J');
-  const brk = view('I', 'I').character.basic.choices[1];
-  assert.equal(brk.locked, false);
-  assert.equal(brk.area.place, 'list');
-  assert.deepEqual(brk.area.tiles, [{ x: 12, y: 5 }]);
+  const ch = view('I', 'I').character;
+  assert.equal(ch.basic.choices, undefined);
+  assert.equal(ch.secondary.choices, undefined);
+  assert.doesNotMatch(CHAR_BY_ID.ice_spike.basic.desc, /ทำลาย/);
+  assert.doesNotMatch(CHAR_BY_ID.ice_spike.secondary.desc, /ทำลาย/);
+  Ice.layIce(3, 5, 'I');
   P.I.skillPoints = 3;
-  engine.useSkill('I', 'basic', [], { tile: { x: 11, y: 5 }, form: 'break' });
-  assert.equal(engine.boardMap().special['11,5'], 'ice', 'ของอีกคนทำลายไม่ได้');
-  assert.equal(P.I.skillPoints, 3, 'ไม่ผ่าน = ไม่เสียแต้ม');
-  engine.useSkill('I', 'basic', [], { tile: { x: 12, y: 5 }, form: 'break' });
-  assert.equal(engine.boardMap().special['12,5'], undefined, 'ทำลายแล้ว');
-  assert.equal(P.I.skillPoints, 2, 'ราคา 1 · ไม่ได้แต้มคืน');
-  assert.ok(fxEvents().some((e) => e.kind === 'melt' && e.tiles[0].x === 12));
-  assert.equal(engine.action.locked, false, 'ก่อนเดิน = ยังเดินได้');
-  // ไม่ส่ง form = สร้างเหมือนเดิม
-  engine.useSkill('I', 'basic', [], { tile: { x: 3, y: 5 } });
-  assert.equal(engine.boardMap().special['3,5'], 'ice');
+  engine.useSkill('I', 'basic', [], { tile: { x: 3, y: 5 }, form: 'break' });
+  assert.equal(engine.boardMap().special['3,5'], 'ice', 'ไม่มีทางทำลายผ่านสกิลพื้นฐาน');
+  engine.useSkill('I', 'basic', [], { tile: { x: 4, y: 5 } });
+  assert.equal(engine.boardMap().special['4,5'], 'ice', 'สร้างตามปกติ');
 });
 
-test('หนามน้ำแข็ง ตัวเลือกทำลาย: หนามของตัวเองที่ไหนก็ได้ → ธารน้ำแข็งช่องเดิม · ไม่ได้แต้มคืน · นับโควตาเทิร์นละ 2 · ของคนอื่นไม่ได้', () => {
+test('ปุ่มทำลายบน HUD: ธารน้ำแข็ง/หนามของตัวเองทั้งแผนที่ · เทิร์นละ 2 ครั้ง · 0 แต้ม ไม่ได้แต้มคืน · ไม่กินโควตาหนาม · ของคนอื่นไม่ได้', () => {
   const P = setup([['I', 'ice_spike', 1, 5], ['J', 'ice_spike', 1, 12]]);
   engine.setActor('I');
+  let btn = breakBtn('I');
+  assert.ok(btn, 'มีปุ่มทำลาย');
+  assert.equal(btn.disabled, false);
+  assert.deepEqual(btn.tiles, [], 'ยังไม่มีน้ำแข็งของตัวเอง');
+  assert.equal(breakBtn('J').disabled, true, 'นอกตาตัวเอง = กดไม่ได้');
+  Ice.layIce(13, 5, 'I');            // ห่าง 12 (เกินระยะสร้าง 8)
   Ice.placeSpike(12, 5, 'I', 1);
-  Ice.raiseSpike('12,5', 2); // Lv3
+  Ice.raiseSpike('12,5', 2);         // Lv3
   Ice.placeSpike(10, 5, 'I', 1);
+  Ice.layIce(11, 5, 'J');
   Ice.placeSpike(8, 5, 'J', 1);
-  P.I.skillPoints = 8;
-  const brk = view('I', 'I').character.secondary.choices.find((c) => c.key === 'break');
-  assert.ok(brk.desc && !brk.locked);
-  assert.deepEqual(brk.area.tiles.map((t) => `${t.x},${t.y}`).sort(), ['10,5', '12,5']);
-  engine.useSkill('I', 'secondary', [], { tile: { x: 8, y: 5 }, form: 'break' });
-  assert.equal(terrainAt(8, 5), 'icespike1', 'หนามคนอื่นทำลายไม่ได้');
-  assert.equal(P.I.skillPoints, 8);
-  engine.useSkill('I', 'secondary', [], { tile: { x: 12, y: 5 }, form: 'break' });
-  assert.equal(terrainAt(12, 5), undefined, 'Lv3 หายทันที');
-  assert.equal(engine.boardMap().special['12,5'], 'ice', 'กลายเป็นธารน้ำแข็ง');
+  btn = breakBtn('I');
+  assert.deepEqual(btn.tiles.map((t) => `${t.x},${t.y}`).sort(), ['10,5', '12,5', '13,5']);
+  P.I.skillPoints = 4;
+  // ของคนอื่น = ไม่มีผล ไม่นับครั้ง
+  assert.equal(doBreak('I', 11, 5), false);
+  assert.equal(doBreak('I', 8, 5), false);
+  assert.equal(engine.boardMap().special['11,5'], 'ice');
+  assert.equal(terrainAt(8, 5), 'icespike1');
+  // ธารน้ำแข็งของตัวเอง
+  assert.equal(doBreak('I', 13, 5), true);
+  assert.equal(engine.boardMap().special['13,5'], undefined, 'น้ำแข็งหาย');
+  assert.ok(fxEvents().some((e) => e.kind === 'melt' && e.tiles[0].x === 13));
+  assert.equal(breakBtn('I').name.includes('1'), true, 'เหลือ 1 ครั้ง');
+  // หนามของตัวเอง Lv3 → หายทันที กลายเป็นธารน้ำแข็ง
+  assert.equal(doBreak('I', 12, 5), true);
+  assert.equal(terrainAt(12, 5), undefined);
+  assert.equal(engine.boardMap().special['12,5'], 'ice');
   assert.equal(Ice.iceAt(12, 5).owner, 'I');
-  assert.equal(P.I.skillPoints, 6, 'ราคา 2 · ไม่ได้แต้มคืน');
   const ev = fxEvents();
   assert.ok(ev.some((e) => e.kind === 'spikeDown' && e.x === 12 && e.lv === 0));
-  assert.ok(ev.some((e) => e.kind === 'lay' && e.tiles[0].x === 12));
-  engine.useSkill('I', 'secondary', [], { tile: { x: 3, y: 5 } }); // สร้าง = ครั้งที่ 2 ของเทิร์น
+  assert.equal(P.I.skillPoints, 4, 'ไม่ใช้แต้ม · ไม่ได้แต้มคืน');
+  assert.equal(P.I.skillUsedRound, false, 'ไม่นับเป็นการใช้สกิล');
+  // ครบ 2 ครั้ง
+  btn = breakBtn('I');
+  assert.equal(btn.disabled, true);
+  assert.deepEqual(btn.tiles, []);
+  assert.equal(doBreak('I', 10, 5), false, 'ครั้งที่ 3 ไม่ได้');
+  assert.equal(terrainAt(10, 5), 'icespike1');
+  // โควตาหนามยังเต็ม 2 ครั้ง
+  engine.useSkill('I', 'secondary', [], { tile: { x: 3, y: 5 } });
+  engine.useSkill('I', 'secondary', [], { tile: { x: 3, y: 7 } });
   assert.equal(terrainAt(3, 5), 'icespike1');
-  engine.useSkill('I', 'secondary', [], { tile: { x: 10, y: 5 }, form: 'break' });
-  assert.equal(terrainAt(10, 5), 'icespike1', 'เกินโควตาเทิร์นละ 2 ครั้ง');
-  assert.equal(view('I', 'I').character.secondary.choices.every((c) => c.locked), true);
+  assert.equal(terrainAt(3, 7), 'icespike1');
+  // เทิร์นถัดไป = กลับมา 2 ครั้ง
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor('I');
+  assert.equal(breakBtn('I').disabled, false);
+  assert.equal(doBreak('I', 10, 5), true);
+});
+
+test('ปุ่มทำลาย: ก่อนเดิน = ยังเดินได้ · หลังเดิน = ย้อนการเดินไม่ได้ · ไถลชนศัตรูแล้ว = กดไม่ได้ · ห้ามสกิลไม่มีผล', () => {
+  const P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 10, 5]]);
+  engine.setActor('I');
+  Ice.layIce(12, 5, 'I');
+  Ice.layIce(12, 7, 'I');
+  P.I.statuses.noskill = 2;
+  assert.equal(doBreak('I', 12, 5), true, 'ห้ามสกิลไม่มีผลกับปุ่มทำลาย');
+  assert.equal(engine.action.locked, false, 'ก่อนเดิน = ยังเดินได้');
+  assert.equal(engine.moveTo('I', 2, 5), true);
+  assert.equal(doBreak('I', 12, 7), true);
+  assert.equal(engine.action.locked, true, 'หลังเดิน = ย้อนการเดินไม่ได้');
+  P.I.iceBreakUses = 0;
+  P.I.iceStruckRound = engine.roundNumber;
+  Ice.layIce(12, 9, 'I');
+  assert.equal(breakBtn('I').disabled, true);
+  assert.equal(doBreak('I', 12, 9), false);
 });
 
 test('ถูกผลักชนหนาม = เสียเท่า Lv + เชื่องช้า 1 เทิร์น หนามลด 1 Lv · พุ่งชน (dashBump) ทำงานเหมือนกัน', () => {

@@ -410,7 +410,7 @@ function dashBump(u, dir) {
   if (hit) flush(ctx);
   return hit;
 }
-// ---------- ทำลายของตัวเอง (Ice Spike — ผู้ใช้สั่ง 2026-11-08) ----------
+// ---------- ทำลายของตัวเอง (Ice Spike ปุ่มทำลายบน HUD — ผู้ใช้สั่ง 2026-11-08 · characters/ice_spike.js charAction) ----------
 //  ธารน้ำแข็งที่ช่องนี้เป็นของ owner (ไม่ใช่น้ำแข็งถาวรของแผนที่) · ไม่มีหนามทับ
 function ownIceAt(x, y, owner) {
   const r = iceAt(x, y);

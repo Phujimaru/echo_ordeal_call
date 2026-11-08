@@ -10,10 +10,8 @@
 //    ไถลครั้งเดียว: ครบทุก 4 ช่อง = ฟื้นพลังชีวิต +1 · ครบทุก 2 ช่อง = แต้มสกิล +1
 //  ติดตัว 4 ย่างก้าวเหนือหิมะ (2026-11-08): ไม่โดนผลลดระยะเดิน (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ — ฮุค movCutImmune)
 //  ติดตัว 5 ร่างแห่งเหมันต์ (2026-11-08): ไม่โดนน้ำแข็งกัด/สตั้นจากแผนที่ (Fodlan ด่าน IV — ฮุค mapEffectImmune)
-//  พื้นฐาน Glacial Path (1 แต้ม · ไม่จำกัดครั้ง · ก่อน/หลังเดิน) ปุ่ม 2 ตัวเลือก: สร้าง = ธารน้ำแข็ง 1 ช่องในระยะ 8 ·
-//    ทำลาย = ธารน้ำแข็งของตัวเองช่องไหนก็ได้บนแผนที่ (ไม่ได้แต้มคืน)
-//  รอง หนามน้ำแข็ง (2 แต้ม · เทิร์นละ 2 ครั้ง · ก่อน/หลังเดิน) ปุ่ม 2 ตัวเลือก: สร้าง = หนาม Lv1 ในระยะ 8 (บนน้ำแข็ง = Lv2 · เกราะ 1 ทุก Lv) ·
-//    ทำลาย = หนามของตัวเองช่องไหนก็ได้ → กลายเป็นธารน้ำแข็งที่ช่องเดิม (ไม่ได้แต้มคืน · นับโควตาเทิร์นละ 2 ครั้ง)
+//  พื้นฐาน Glacial Path (1 แต้ม · ไม่จำกัดครั้ง · ก่อน/หลังเดิน): ธารน้ำแข็ง 1 ช่องในระยะ 8
+//  รอง หนามน้ำแข็ง (2 แต้ม · เทิร์นละ 2 ครั้ง · ก่อน/หลังเดิน): หนาม Lv1 ในระยะ 8 (บนน้ำแข็ง = Lv2 · เกราะ 1 ทุก Lv)
 //    วางทับคน = ผลักไปทิศที่เลือก 1 ช่อง + เชื่องช้า 3 เทิร์น (ตัวเอง: ผลักแต่ไม่เชื่องช้า)
 //    ไถล / ถูกผลัก / พุ่งชน เข้าหนาม = เสียเท่า Lv + เชื่องช้า 1 เทิร์น (server/ice.js spikeImpact · bumpSpike · dashBump) · เชื่องช้านับใหม่ ไม่สะสม
 //    ตัวใหญ่ (2×2 ขึ้นไป) เหยียบหนาม = หนามแตก + เสีย 0/1/2 ตาม Lv + เชื่องช้า 1 เทิร์น · เดินต่อได้ (server/ice.js trampleSpikes)
@@ -24,7 +22,12 @@
 //  Claude ตัดสินเอง (บอกผู้ใช้แล้ว — GRID_PLAN §7.9): ไถลชนเพื่อนร่วมทีม = หยุดเฉยๆ · ไถลชนตัวใหญ่ = ดาเมจแต่ไม่กระเด็น ·
 //   ไถลชนจากการถูกผลักด้วยสกิลตัวเอง = ดาเมจลงแต่ไม่จบตา (ทำอย่างอื่นต่อไม่ได้แล้ว) · ระเบิดครั้งเดียวต่อดาเมจหนึ่งก้อน (เศษทบ) ·
 //   คูลดาวน์ 6: กดเทิร์น N กดได้อีกเทิร์น N + 6 · Ice Surge ยกหนามของ Ice Spike ทุกคน · ฟื้นพลังกดซ้ำ = นับใหม่ 3 ขั้น
-//  Claude ตัดสินเอง 2026-11-08: ทำลายใช้ราคาเดียวกับสร้าง (รวมส่วนลดหนามระหว่าง Ice Surge) · ถูกตรึง/เดินไม่ได้ยังมีผล (ไม่ใช่การลดระยะเดิน) ·
+//  ทำลาย (ปุ่มพิเศษบน HUD ตำแหน่งเดียวกับขึ้น/ลงม้า — hudActions "iceBreak" + tiles → socket charAction { key, tile } · ผู้ใช้สั่ง 2026-11-08 รอบ Final):
+//    ธารน้ำแข็ง/หนามน้ำแข็งของตัวเอง 1 ช่องที่ไหนก็ได้บนแผนที่ · เทิร์นละ 2 ครั้ง · 0 แต้ม · ไม่ได้แต้มคืน · หนาม = หายทุก Lv แล้วเป็นธารน้ำแข็งช่องเดิม
+//    (แยกออกจากปุ่มพื้นฐาน/รองแล้ว — เดิมเป็นตัวเลือก "ทำลาย" ของสองปุ่มนั้น)
+//  Claude ตัดสินเอง (รอบ Final 2026-11-08): ทำลายได้เฉพาะของตัวเอง (ยึดที่ผู้ใช้เลือกไว้รอบก่อน) · ไม่ใช่สกิล = ไม่กินโควตา/ห้ามสกิลไม่มีผล ·
+//   ก่อนเดินแล้วยังเดินได้ หลังเดิน = ย้อนการเดินไม่ได้ (เหมือนสกิลของตัวเอง) · ไถลชนศัตรูไปแล้วในตานี้ = กดไม่ได้ · Ice Surge ไม่เพิ่มโควตา · เอฟเฟกต์/เสียงเดิม (melt / spikeDown)
+//  Claude ตัดสินเอง 2026-11-08: ถูกตรึง/เดินไม่ได้ยังมีผล (ไม่ใช่การลดระยะเดิน) ·
 //   ไม่โดนน้ำแข็งกัด = ไม่มีความอบอุ่นในด่าน IV · ท่าพุ่งที่พังสิ่งกีดขวางระหว่างทาง (โซระ Mouse Separade / ตัว 3×3) = หนามแตกเฉยๆ ไม่ทำงาน
 // ============================================================
 
@@ -45,7 +48,8 @@ const SURGE_TURNS = 3;    // บัฟ Ice Surge
 const SURGE_REGEN = 3;    // ฟื้นพลัง 3 ขั้น
 const SURGE_RANGE = 99;   // ระยะ "ทั้งสนาม" (เกินกระดาน 14×14 ทุกทิศ)
 const CAST_RANGE = 8;     // ระยะสร้างธารน้ำแข็ง/หนาม (characters.js area.range)
-const FORMS = ["lay", "break"]; // ตัวเลือกของปุ่มพื้นฐาน/รอง — ไม่ส่ง form = สร้าง (ทางเดิม)
+const BREAK_PER_TURN = 2; // ปุ่มทำลาย เทิร์นละ 2 ครั้ง
+const BREAK_KEY = "iceBreak";
 
 const isIceSpike = (p) => !!p && p.characterId === ID;
 // ระหว่างบัฟ Ice Surge
@@ -56,23 +60,20 @@ const spikesUsed = (p, round) => (p.iceSpikeRound === round ? p.iceSpikeUses || 
 const spikeLimit = (p) => (surging(p) ? SURGE_SPIKE_PER_TURN : SPIKE_PER_TURN);
 // คูลดาวน์ที่เหลือ (เทิร์น) จากเทิร์นที่กดได้อีก ready · 0 = กดได้
 const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
-const breaking = (opts) => !!opts && opts.form === "break";
-// skillPub/skillArea ไม่ได้รับ engine (แบบเซลิน eng())
-function eng() { return require("../server/engine").engine; }
-// พื้นที่ของตัวเลือกสร้าง (ระยะ 8 · Ice Surge ทั้งสนาม) / ทำลาย (ของตัวเองทั้งแผนที่ — รายการช่องจาก server)
-function layArea(p, tier) {
-  const range = surging(p) ? SURGE_RANGE : CAST_RANGE;
-  return tier === "basic" ? { kind: "tile", range, place: "ice" } : { kind: "tile", range, place: "spike", hostile: true };
+// ปุ่มทำลาย: ใช้ไปแล้วกี่ครั้งในเทิร์นนี้ · กดได้ไหม · ช่องที่เลือกได้ (ธารน้ำแข็ง + หนามของตัวเองทั้งแผนที่)
+const breaksUsed = (p, round) => (p.iceBreakRound === round ? p.iceBreakUses || 0 : 0);
+function breakReady(engine, p) {
+  const round = engine.roundNumber;
+  return isIceSpike(p) && p.alive && !!engine.canAct(p) && p.iceStruckRound !== round && breaksUsed(p, round) < BREAK_PER_TURN;
 }
-function breakArea(engine, p, tier) {
-  const tiles = tier === "basic" ? engine.ice.ownIceTiles(p.id) : engine.ice.ownSpikeTiles(p.id);
-  return { kind: "tile", range: SURGE_RANGE, place: "list", tiles };
+function breakTiles(engine, p) {
+  return [...engine.ice.ownIceTiles(p.id), ...engine.ice.ownSpikeTiles(p.id)].map((t) => ({ x: t.x, y: t.y }));
 }
 
 module.exports = {
   id: ID,
   IMG, STRIKE_MAX, REGEN_HP_EVERY, REGEN_SP_EVERY, OWN_SPIKE_SP, SPIKE_PER_TURN, SURGE_SPIKE_PER_TURN, ULT_COOLDOWN, SURGE_TURNS, SURGE_REGEN, SURGE_RANGE,
-  CAST_RANGE, isIceSpike, surging,
+  CAST_RANGE, BREAK_PER_TURN, BREAK_KEY, isIceSpike, surging,
 
   // เลือด 8 / เกราะ 2 · พลังโจมตีพื้นฐาน 0
   maxHp(p) { return isIceSpike(p) ? 8 : undefined; },
@@ -86,6 +87,8 @@ module.exports = {
     p.iceHurt = 0;          // ดาเมจที่ได้รับสะสม (ครบ 3 = ระเบิด)
     p.iceSpikeRound = 0;    // หนามน้ำแข็ง: เทิร์นที่ใช้ล่าสุด
     p.iceSpikeUses = 0;     //  … จำนวนครั้งในเทิร์นนั้น (เทิร์นละ 2 · Ice Surge เทิร์นละ 6)
+    p.iceBreakRound = 0;    // ปุ่มทำลาย: เทิร์นที่ใช้ล่าสุด
+    p.iceBreakUses = 0;     //  … จำนวนครั้งในเทิร์นนั้น (เทิร์นละ 2)
     p.iceUltReady = 0;      // Ice Surge: กดได้อีกเมื่อ roundNumber >= ค่านี้
     p.iceStruckRound = 0;   // เทิร์นที่ไถลชนศัตรูด้วยสกิลแล้ว (ทำอย่างอื่นต่อไม่ได้)
     p.iceSurgeAt = 0;       // ลำดับตอนได้ Ice Surge ล่าสุด (engine.severStamp — ตัดผลสกิล server/sever.js)
@@ -112,32 +115,10 @@ module.exports = {
   keepsMove(engine, p) {
     return isIceSpike(p) && !!engine.action && !engine.action.moved;
   },
-  // Ice Surge: ธารน้ำแข็ง/หนามน้ำแข็ง ระยะทั้งสนาม · หนามใช้แต้มลดลง 1 · ตัวเลือกทำลาย = ของตัวเองทั้งแผนที่
-  skillArea(p, tier, area, opts = {}) {
+  // Ice Surge: ธารน้ำแข็ง/หนามน้ำแข็ง ระยะทั้งสนาม · หนามใช้แต้มลดลง 1
+  skillArea(p, tier, area) {
     if (!isIceSpike(p) || (tier !== "basic" && tier !== "secondary")) return area;
-    if (breaking(opts)) return breakArea(eng(), p, tier);
     return surging(p) ? { ...area, range: SURGE_RANGE } : area;
-  },
-  // ปุ่มพื้นฐาน/รอง = 2 ตัวเลือก สร้าง / ทำลาย (ทุกตัวเลือกมี desc ให้ชี้เมาส์ — กฎผู้ใช้ 2026-10-19)
-  skillPub(p, tier) {
-    if (!isIceSpike(p) || (tier !== "basic" && tier !== "secondary")) return null;
-    const engine = eng(), round = engine.roundNumber;
-    const struck = p.iceStruckRound === round;
-    const full = tier === "secondary" && spikesUsed(p, round) >= spikeLimit(p);
-    const cost = module.exports.skillCost(p, tier, tier === "basic" ? 1 : 2);
-    const img = tier === "basic" ? IMG.skill1 : IMG.skill2;
-    const lay = layArea(p, tier), brk = breakArea(engine, p, tier);
-    const reach = lay.range >= SURGE_RANGE ? "ทั้งสนาม" : `ในระยะ ${lay.range}`;
-    const desc = tier === "basic"
-      ? { lay: `ธารน้ำแข็ง 1 ช่อง${reach} (6 เทิร์น)`, break: "ทำลายธารน้ำแข็งของตัวเอง 1 ช่องที่ไหนก็ได้บนแผนที่ (ไม่ได้แต้มคืน)" }
-      : { lay: `หนามน้ำแข็ง Lv1 1 ช่อง${reach} (3 เทิร์น · วางบนน้ำแข็ง = Lv2 · วางทับคน: ผลัก 1 ช่อง + เชื่องช้า 3 เทิร์น)`,
-        break: "ทำลายหนามน้ำแข็งของตัวเอง 1 อันที่ไหนก็ได้บนแผนที่ แล้วช่องนั้นเป็นธารน้ำแข็ง (ไม่ได้แต้มคืน · นับโควตาเทิร์นละ 2 ครั้ง)" };
-    return {
-      choices: [
-        { key: "lay", name: "สร้าง", img, desc: desc.lay, area: lay, cost, locked: struck || full, free: true },
-        { key: "break", name: "ทำลาย", img, desc: desc.break, area: brk, cost, locked: struck || full || !brk.tiles.length, free: true },
-      ],
-    };
   },
   skillCost(p, tier, base) {
     return isIceSpike(p) && surging(p) && tier === "secondary" ? Math.max(0, base - 1) : base;
@@ -151,11 +132,10 @@ module.exports = {
     if (p.iceStruckRound === round) return false;
     if (tier === "ultimate") return cdLeft(p.iceUltReady, round) === 0;
     const t = opts.tile;
-    if (!t || (opts.form != null && !FORMS.includes(opts.form))) return false;
-    if (tier === "basic") return breaking(opts) ? engine.ice.ownIceAt(t.x, t.y, p.id) : engine.ice.canLay(t.x, t.y);
+    if (!t) return false;
+    if (tier === "basic") return engine.ice.canLay(t.x, t.y);
     if (tier === "secondary") {
       if (spikesUsed(p, round) >= spikeLimit(p)) return false;
-      if (breaking(opts)) return engine.ice.ownSpikeAt(t.x, t.y, p.id);
       return !!engine.ice.canSpike(t.x, t.y, opts.dir);
     }
     return false;
@@ -165,12 +145,37 @@ module.exports = {
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     const Ice = engine.ice;
     const ctx = Ice.begin();
-    if (tier === "basic") (breaking(opts) ? meltOwnIce : castGlacialPath)(engine, p, opts.tile, ctx);
-    else if (tier === "secondary") { if (breaking(opts)) breakOwnSpike(engine, p, opts.tile, ctx); else castSpike(engine, p, opts.tile, opts.dir, ctx); }
+    if (tier === "basic") castGlacialPath(engine, p, opts.tile, ctx);
+    else if (tier === "secondary") castSpike(engine, p, opts.tile, opts.dir, ctx);
     else if (tier === "ultimate") castSurge(engine, p, ctx);
     Ice.flush(ctx);
-    if (ctx.events.length > 1 && !breaking(opts)) engine.skillBeat(Math.min(3, Ice.fxSeconds(ctx)), () => {}); // ทำลาย = แตก+น้ำแข็งเกิด สั้นๆ ไม่พักเกม
+    if (ctx.events.length > 1) engine.skillBeat(Math.min(3, Ice.fxSeconds(ctx)), () => {});
     return "";
+  },
+
+  // ---------- ปุ่มทำลายบน HUD (tiles = ธารน้ำแข็ง/หนามของตัวเองทั้งแผนที่ → socket charAction { key, tile }) ----------
+  hudActions(engine, p) {
+    if (!isIceSpike(p) || !p.alive) return undefined;
+    const ok = breakReady(engine, p);
+    const left = BREAK_PER_TURN - breaksUsed(p, engine.roundNumber);
+    return [{ key: BREAK_KEY, icon: "🔨", name: `ทำลาย ${left}/${BREAK_PER_TURN}`, tiles: ok ? breakTiles(engine, p) : [], disabled: !ok }];
+  },
+  // ไม่ใช่สกิล: 0 แต้ม · ไม่ได้แต้มคืน · ไม่กินโควตาสกิล · ก่อนเดิน = ยังเดินได้ · หลังเดิน = ย้อนการเดินไม่ได้แล้ว
+  //  ทำลายแล้วแตก+น้ำแข็งเกิดสั้นๆ ไม่พักเกม (ไม่มี skillBeat)
+  charAction(engine, p, key, { tile: t } = {}) {
+    if (!isIceSpike(p) || key !== BREAK_KEY || !t || !breakReady(engine, p)) return false;
+    const Ice = engine.ice;
+    const spike = Ice.ownSpikeAt(t.x, t.y, p.id);
+    if (!spike && !Ice.ownIceAt(t.x, t.y, p.id)) return false;
+    const round = engine.roundNumber;
+    p.iceBreakUses = breaksUsed(p, round) + 1;
+    p.iceBreakRound = round;
+    const ctx = Ice.begin();
+    (spike ? breakOwnSpike : meltOwnIce)(engine, p, t, ctx);
+    Ice.flush(ctx);
+    if (engine.action && engine.action.moved) engine.action.locked = true;
+    engine.broadcastState();
+    return true;
   },
 
   // ---------- ติดตัว 1: ช่องที่เดิน/ไถลผ่านเป็นธารน้ำแข็ง ----------
@@ -266,22 +271,19 @@ function castGlacialPath(engine, p, t, ctx) {
   engine.log(`🧊 ${p.name} Glacial Path — ธารน้ำแข็งที่ช่อง (${t.x}, ${t.y})`);
 }
 
-// พื้นฐาน ทำลาย: ธารน้ำแข็งของตัวเอง 1 ช่อง (ไม่ได้แต้มคืน)
+// ปุ่มทำลาย: ธารน้ำแข็งของตัวเอง 1 ช่องหายไป
 function meltOwnIce(engine, p, t, ctx) {
   if (!engine.ice.meltIce(t.x, t.y)) return;
   ctx.events.push({ kind: "melt", tiles: [{ x: t.x, y: t.y }], by: p.id });
-  engine.log(`🧊 ${p.name} Glacial Path — ทำลายธารน้ำแข็งที่ช่อง (${t.x}, ${t.y})`);
+  engine.log(`🧊 ${p.name} ทำลายธารน้ำแข็งที่ช่อง (${t.x}, ${t.y})`);
 }
-// รอง ทำลาย: หนามของตัวเองหายทันที (ทุก Lv) → ธารน้ำแข็งที่ช่องเดิม (ไม่ได้แต้มคืน · นับโควตา)
+// ปุ่มทำลาย: หนามของตัวเองหายทันที (ทุก Lv) → ธารน้ำแข็งที่ช่องเดิม
 function breakOwnSpike(engine, p, t, ctx) {
-  const round = engine.roundNumber;
-  p.iceSpikeUses = spikesUsed(p, round) + 1;
-  p.iceSpikeRound = round;
   const s = engine.ice.breakSpike(t.x, t.y);
   if (!s) return;
   ctx.events.push({ kind: "spikeDown", x: t.x, y: t.y, lv: 0, from: s.lv });
   if (engine.ice.layIce(t.x, t.y, p.id)) ctx.events.push({ kind: "lay", tiles: [{ x: t.x, y: t.y }], by: p.id });
-  engine.log(`🧊 ${p.name} หนามน้ำแข็ง — ทำลายหนาม Lv.${s.lv} กลายเป็นธารน้ำแข็ง`);
+  engine.log(`🧊 ${p.name} ทำลายหนามน้ำแข็ง Lv.${s.lv} กลายเป็นธารน้ำแข็ง`);
 }
 
 // รอง หนามน้ำแข็ง: มีคนยืน = ผลักไปทิศ dir ก่อน (ศัตรู + เชื่องช้า) แล้ววางหนามที่ช่องนั้น
