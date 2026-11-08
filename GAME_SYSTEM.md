@@ -1045,7 +1045,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   จบเทิร์น (`Colony.onEndTurn`): รูปิด · คูลดาวน์กระโดด · ปิดผนึก (boardFx `colonySeal`) · ระเบิด (`colonyBoom`) — คืนวินาทีพัก (`HOLD_SECONDS`) → endTurn พักเฟส CUTSCENE ให้ฉากเล่นจบก่อนเช็กจบเกม (`colonyHoldThen`)
 - ตายจากผลของสนาม = `combat.instantDeath(p, true)` (ข้ามกันตาย/ฟื้น) · ร้าน = แคปซูลเสบียง (ใช้ `match.shopPos` เดิม · `shop.maybeMoveShop` ข้ามใน Colony)
 - client (`board/colony3d.js`): ฉากอุโมงค์ 3D + กล้อง — ตามตัวที่เดินเฉพาะตอนหลุดจอ (เลื่อนตามแกนก่อน ยังไม่เห็นค่อยหมุนรอบ) · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน (รอบวงไม่จำกัด) · ล้อ = ซูม ·
-  Space/ปุ่มเป้า (`colonyHome`) = กลับที่ตัวเรา · สิ่งปลูกสร้างบังหมาก = จาง (`boardDraw` `behind` รวมบ้าน) · ติดกล้อง = จางหาย · ช่องพิเศษระหว่างเกม (น้ำแข็ง/เปียก/ไฟ) วาดในชั้น 2D ทับพื้น 3D
+  Space/ปุ่มเป้า (`colonyHome`) / ปุ่มหกเหลี่ยมรูปตัวเรากลางบน (โผล่เมื่อกล้องออกห่าง — `onColonyAway`) = กลับที่ตัวเรา · หมากนอกจอ = ลูกศรขอบจอสีประจำตัว + วงเลือด (`edgeMark`) · สิ่งปลูกสร้างบังหมาก = จาง (`boardDraw` `behind` รวมบ้าน) · ติดกล้อง = จางหาย · ช่องพิเศษระหว่างเกม (น้ำแข็ง/เปียก/ไฟ) วาดในชั้น 2D ทับพื้น 3D
 - กระโดด: socket `colonyJump` (`Colony.jump`) · boardFx `colonyJump` · ลิฟต์ = ช่องพิเศษ `lift` (`endTurnTile` → `Colony.liftUnit` · boardFx `colonyLift`)
 
 > **ตัวคูณดาเมจตีปกติ**: ฮุค `strikeMult(p)` → ×N (หลังคริ ก่อนเพดาน `damageCap` · หน้าคาดการณ์คิดด้วย) — คาซุมะ Straight Flush · King Form ดู GRID_PLAN §7.19.1

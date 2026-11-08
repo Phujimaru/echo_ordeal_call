@@ -1011,7 +1011,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   }
 
   // ---------------------------------------------------------------- ตัวฉายภาพให้ชั้น 2D (boardGeo.setCustomProjection)
-  const _v = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _ev = new THREE.Vector3();
   function project(x, y, z = 0) {
     surf(phiOf(x), y, z, _v);
     _v.applyMatrix4(camera.matrixWorldInverse);
@@ -1095,6 +1095,26 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       R.want = null; R.free = false;
       if (R.me) { goTo(R.me.x, R.me.y); R.focusKey = `${R.me.x},${R.me.y}`; } else this.recenter();
       R.user.yaw = 0; R.user.pitch = R.viewRef === "top" ? 1.2 : TILT;
+    },
+    // กล้องออกห่างจากตัวเรา (กล้องอิสระ หรือหมากเราหลุดจอ) — BoardStage โชว์ปุ่มกลับที่หมาก
+    away() { return !!R.me && (!!R.free || !onScreen(R.me.x + 0.5, R.me.y + 0.5)); },
+    // ลูกศรขอบจอชี้หมากที่อยู่นอกจอ: (bx, by) กลางตัว → { x, y, ang } พิกัด CSS ของแคนวาส · null = อยู่ในจอ
+    //  inset = { l, r, t, b } ระยะเว้นจากขอบ (HUD)
+    edgeMark(bx, by, inset) {
+      surf(phiOf(bx), by, 0.4, _ev).applyMatrix4(camera.matrixWorldInverse);
+      const behind = -_ev.z < 0.1;
+      let dx, dy;
+      if (!behind) {
+        _ev.applyMatrix4(camera.projectionMatrix);
+        const sx = (_ev.x + 1) / 2 * w, sy = (1 - _ev.y) / 2 * h;
+        if (sx > inset.l && sx < w - inset.r && sy > inset.t && sy < h - inset.b) return null;
+        dx = sx - w / 2; dy = sy - h / 2;
+      } else { dx = _ev.x; dy = -_ev.y; if (Math.abs(dx) + Math.abs(dy) < 1e-6) dy = 1; }
+      const hx = w / 2, hy = h / 2, l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+      const tx = dx > 0 ? (w - inset.r - hx) / dx : dx < 0 ? (inset.l - hx) / dx : Infinity;
+      const ty = dy > 0 ? (h - inset.b - hy) / dy : dy < 0 ? (inset.t - hy) / dy : Infinity;
+      const t = Math.min(tx, ty);
+      return { x: hx + dx * t, y: hy + dy * t, ang: Math.atan2(dy, dx) };
     },
     // ระยะกล้อง → จุดโฟกัส (ชั้น 2D ใช้ตัดสินการจางของสิ่งปลูกสร้างไกลๆ ให้สัมพันธ์กับระดับซูม)
     focusDist() { return R.armD || R.cur.dist; },

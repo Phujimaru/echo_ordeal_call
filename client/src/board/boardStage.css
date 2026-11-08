@@ -126,3 +126,13 @@
 @keyframes bsTagIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .bs-tags-name { opacity: 0; animation: bsTagIn .28s ease-out .4s both; }
 @media (prefers-reduced-motion: reduce) { .bs-tag, .bs-tags-name { animation: none; opacity: 1; } }
+/* Colony: ปุ่มกลับที่หมาก — หกเหลี่ยมรูปตัวเรา ใต้ป้ายตาเดินกลางบน · โผล่เมื่อกล้องออกห่างตัวเรา (2026-11-09) */
+.bs-home { position: absolute; top: 96px; left: 50%; z-index: 21; width: 84px; height: 96px; padding: 0; border: 0; background: none; cursor: pointer;
+  transform: translateX(-50%) scale(var(--bs-k, 1)); transform-origin: 50% 0; animation: bs-home-in .25s ease-out; filter: drop-shadow(0 4px 10px rgba(10,20,40,.35)); }
+.bs-home:hover { filter: drop-shadow(0 4px 14px rgba(240,200,104,.7)); }
+.bs-home-hex { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bs-home-hex polygon { fill: var(--c); stroke: #f0c868; stroke-width: 6; }
+.bs-home img { position: absolute; left: 12%; top: 12%; width: 76%; height: 76%; object-fit: cover; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.bs-home-aim { position: absolute; right: -6px; bottom: -2px; width: 32px; height: 32px; border-radius: 50%; background: #1d3557; padding: 3px; box-sizing: border-box; }
+.bs-home-aim * { fill: none; stroke: #f0c868; stroke-width: 2.2; }
+@keyframes bs-home-in { from { opacity: 0; transform: translateX(-50%) scale(calc(var(--bs-k, 1) * .7)); } to { opacity: 1; transform: translateX(-50%) scale(var(--bs-k, 1)); } }

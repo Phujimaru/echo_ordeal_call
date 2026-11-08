@@ -2038,6 +2038,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // สนาม Colony (GRID_PLAN §8.3): เหตุการณ์ของสนาม → ฉาก 3D ใน BoardCanvas (colony3d.js onEvent) · ค้างไว้ 24 อันล่าสุด (key กันเล่นซ้ำ)
   const [colonyEvents, setColonyEvents] = useState([]);
   const [colonyHome, setColonyHome] = useState(0); // ปุ่มเป้า (Colony) = กล้องกลับมาที่ตัวเรา
+  const [colonyAway, setColonyAway] = useState(false); // กล้อง Colony ออกห่างตัวเรา → ปุ่มกลับที่หมาก (หกเหลี่ยมรูปตัวเรา)
   useEffect(() => {
     let seq = 0;
     const kinds = ["colonyScene", "colonySeal", "colonyBoom", "colonyJump", "colonyLift"];
@@ -2614,6 +2615,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}
         colonyHome={colonyHome}
+        onColonyAway={setColonyAway}
         songs={songs}
         grays={grays}
         ferns={ferns}
@@ -2675,6 +2677,16 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       {/* โหมดเลือกเป้า: เหลือแค่ปุ่มยกเลิก (ผู้ใช้สั่ง — เลือก/ใช้ทำบนกระดาน) */}
       {pick && pick.onCancel && (
         <button type="button" className="bs-cancel" onClick={() => { clickSound(); pick.onCancel(); }}>✕ ยกเลิก</button>
+      )}
+
+      {/* Colony: กล้องออกห่างตัวเรา → ปุ่มกลับที่หมาก (รูปตัวเรา · กด = กล้องกลับ เหมือน Space) */}
+      {state.colony && colonyAway && me && me.alive !== false && (
+        <button type="button" className="bs-home" title="กลับที่ตัวเรา (Space)" style={{ "--c": me.color || "#3B82C4" }}
+          onClick={() => { clickSound(); setColonyHome((n) => n + 1); }}>
+          <svg className="bs-home-hex" viewBox="0 0 100 114" aria-hidden="true"><polygon points={HEX_PTS} /></svg>
+          {me.img && <img src={me.img} alt="" style={faceStyle(me)} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+          <svg className="bs-home-aim" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" /><path d="M12 2.5 V6 M12 18 V21.5 M2.5 12 H6 M18 12 H21.5" /></svg>
+        </button>
       )}
 
       {/* ปุ่มระยะอันตราย + หมุนกระดาน + ซูม */}

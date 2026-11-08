@@ -74,6 +74,7 @@
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //   colony      state.colony (สนาม Colony — map.wrap) → ฉาก 3D (colony3d.js) ใต้แคนวาสนี้ + ตัวฉายภาพทรงกระบอก (boardGeo.setCustomProjection)
 //               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัวเมื่อหลุดจอ · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน · ล้อ = ซูม · Space = กลับที่ตัวเรา
+//   onColonyAway(bool)  กล้อง Colony ออกห่างจากตัวเรา (อิสระ/หมากหลุดจอ) เปลี่ยน → แจ้ง (ปุ่มกลับที่หมาก)
 //   colonyHome  ตัวเลขใดๆ — เปลี่ยนค่า = กล้อง Colony กลับมาที่ตัวเรา (ปุ่มเป้าใน BoardStage)
 //   colonyEvents [{ key, kind, data }] — boardFx ของ Colony (colonyScene/colonySeal/colonyBoom/colonyJump/colonyLift) เล่นเมื่อเห็น key ใหม่
 //  ขนาด: เต็มกล่องแม่ (ResizeObserver) · devicePixelRatio สูงสุด 2 (lowQ = 1)
@@ -742,6 +743,32 @@ export default function BoardCanvas(props) {
       if (!zs) {
         st.boxes = frame(g);
         // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
+        // Colony: ลูกศรขอบจอชี้หมากที่อยู่นอกจอ (สีประจำตัว · ตัวเราขอบทอง) — เห็นทุกคนเสมอแม้หมุนกล้องไปทางอื่น
+        if (st.cv3 && !(st.cv3.flash() > 0.5)) {
+          const inset = { l: 70, r: 70, t: 96, b: 170 };
+          g.setTransform(dpr, 0, 0, dpr, 0, 0);
+          for (const u of list) {
+            if (u.corpse || st.cv3.hidden(u.id, now)) continue;
+            const hs = Math.max(1, u.size | 0) / 2, m = st.cv3.edgeMark(u.rx + hs, u.ry + hs, inset);
+            if (!m) continue;
+            const r = u.isMe ? 17 : 14;
+            g.save(); g.translate(m.x, m.y); g.globalAlpha = u.isMe ? 1 : 0.9;
+            g.rotate(m.ang);
+            g.fillStyle = u.color || "#7fb8e6"; g.strokeStyle = u.isMe ? "#f0c868" : "#ffffff"; g.lineWidth = u.isMe ? 3 : 2;
+            g.beginPath(); g.moveTo(r + 13, 0); g.lineTo(r - 2, -10); g.lineTo(r - 2, 10); g.closePath(); g.fill(); g.stroke();
+            g.rotate(-m.ang);
+            g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.stroke();
+            // เลือดที่เหลือ = วงขาวรอบใน (เต็มวง = เลือดเต็ม)
+            const hpK = u.maxHp > 0 ? Math.max(0, Math.min(1, (u.hp || 0) / u.maxHp)) : 1;
+            g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 3;
+            g.beginPath(); g.arc(0, 0, r - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpK); g.stroke();
+            if (u.ally) { g.fillStyle = "#ffffff"; g.beginPath(); g.arc(0, 0, 3.5, 0, Math.PI * 2); g.fill(); }
+            g.restore();
+          }
+          // กล้องออกห่างตัวเรา → BoardStage โชว์ปุ่มกลับที่หมาก
+          const away = st.cv3.away();
+          if (away !== st.colonyAway) { st.colonyAway = away; if (typeof p.onColonyAway === "function") p.onColonyAway(away); }
+        }
         const fl = st.cv3 ? st.cv3.flash() : 0;
         if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(${st.cv3.flashColor()},${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
       }
