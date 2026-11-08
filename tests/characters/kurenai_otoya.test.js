@@ -173,6 +173,25 @@ test('ดนตรีในหัวใจ: เป้าเดินออกน
   assert.equal(P.O.otoya.heart.targetId, 'F');
 });
 
+test('ท่าไม้ตาย: ไม่กินโควตาสกิล · กดได้หลังใช้สกิลอื่น · ยังเดินได้ด้วยระยะร่างใหม่ · ใช้หลุมพรางต่อในเทิร์นเดียวกัน', () => {
+  const P = setup([['O', 'kurenai_otoya', 3, 7], ['A', 'dummy', 12, 12]]);
+  P.O.hp = 3;
+  engine.setActor('O');
+  engine.useSkill('O', 'basic', []); // ปากหวาน = ใช้โควตา
+  assert.equal(P.O.skillUsedRound, true);
+  engine.useSkill('O', 'ultimate', []);
+  assert.ok(P.O.otoya.ultUntil > 0, 'แปลงได้แม้ใช้โควตาแล้ว');
+  // เทิร์นใหม่: แปลงร่างก่อน แล้วยังเดินและใช้สกิลร่างได้
+  P.O.skillUsedRound = false;
+  P.O.otoya.ultUntil = 0; P.O.otoya.ultUses = 0;
+  engine.setActor('O');
+  engine.useSkill('O', 'ultimate', []);
+  assert.equal(P.O.skillUsedRound, false, 'ไม่กินโควตา');
+  assert.equal(engine.action.locked, false, 'ยังเดินได้');
+  engine.useSkill('O', 'basic', []);
+  assert.ok(oto.skillPub(P.O, 'basic').active, 'หลุมพรางในเทิร์นเดียวกัน');
+});
+
 test('ท่าไม้ตาย: 0 แต้ม · 3 ครั้ง · 2 เทิร์น · พลังโจมตี +2 ระยะเดิน 5 · ชุดสกิลเปลี่ยน · ครั้งที่ 3 คืนร่างแล้วตาย', () => {
   const P = setup([['O', 'kurenai_otoya', 3, 7], ['A', 'dummy', 12, 12], ['B', 'dummy', 12, 2]]);
   kiva(P);

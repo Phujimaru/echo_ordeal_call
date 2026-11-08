@@ -18,6 +18,7 @@
 //
 //  ท่าไม้ตาย ขอแรงหน่อยสิเจ้าค้างคาว (0 · 3 ครั้งต่อเกม): แปลงร่าง Dark Kiva 2 เทิร์น (รวมเทิร์นที่กด)
 //     พลังโจมตี +2 · ระยะเดิน +1 · เปิดสกิลติดตัว 2 · กดซ้ำ/คืนร่างเองไม่ได้ระหว่างที่ยังมีผล
+//     ไม่กินโควตาสกิล + ยังเดินต่อได้ (ผู้ใช้ 2026-11-08 หลังออก 5.8.0) — แปลงแล้วใช้หลุมพราง/Wake Up ได้ในเทิร์นเดียวกัน
 //     คืนร่างครั้งที่ 3 แล้วเกมยังไม่จบ = ตาย (ชุบได้ตามปกติ — ผู้ใช้)
 //     คลิปแปลงร่างครั้งที่ 1/2/3 คนละคลิป
 //  ร่าง Dark Kiva
@@ -464,9 +465,10 @@ module.exports = {
     return area;
   },
   skillFree(p, tier) { return isOtoya(p) && tier === "secondary" && heartOn(p); },
-  skipsTurnQuota(p, tier) { return isOtoya(p) && tier === "secondary" && heartOn(p); },
-  ignoresTurnQuota(p, tier) { return isOtoya(p) && tier === "secondary" && heartOn(p); },
-  keepsMove(engine, p, tier) { return isOtoya(p) && tier === "secondary" && heartOn(p); },
+  // ยกเลิกดนตรีในหัวใจ / แปลงร่าง Dark Kiva (ผู้ใช้ 2026-11-08): ไม่กินโควตาสกิล กดได้แม้ใช้โควตาแล้ว และยังเดินต่อได้ (ระยะเดินร่างใหม่)
+  skipsTurnQuota(p, tier) { return isOtoya(p) && ((tier === "secondary" && heartOn(p)) || tier === "ultimate"); },
+  ignoresTurnQuota(p, tier) { return isOtoya(p) && ((tier === "secondary" && heartOn(p)) || tier === "ultimate"); },
+  keepsMove(engine, p, tier) { return isOtoya(p) && ((tier === "secondary" && heartOn(p)) || tier === "ultimate"); },
   silentFlash(p, tier) { return isOtoya(p) && tier === "secondary" && heartOn(p); },
   canUseSkill(engine, p, tier, targets, opts = {}) {
     if (!isOtoya(p)) return true;
@@ -601,7 +603,7 @@ module.exports = {
     return {
       basic: { locked: heart || basicCd > 0 || (ult ? trapOpen(engine, p) : p.hp >= engine.maxHpOf(p)), cd: basicCd },
       secondary: ult ? { locked: false } : { locked: !heart && cdLeft(s.heartReady, r) > 0, cd: heart ? 0 : cdLeft(s.heartReady, r), free: heart },
-      ultimate: { locked: heart || ult || s.ultUses >= ULT_USES },
+      ultimate: { locked: heart || ult || s.ultUses >= ULT_USES, free: true }, // free = ไม่กินโควตาสกิลของเทิร์น
     };
   },
 };
