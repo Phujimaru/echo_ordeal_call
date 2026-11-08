@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shop Prototypes</title>
+<!-- ต้นแบบร้านค้า 3 ร้าน (แผน .claude/plans/shop-three.md) — ธีมขาว ORDEAL CALL · แต่ละร้านหน้าตาของตัวเอง
+     เวที 1920 × 1080 ย่อพอดีจอ · แถบสลับร้านมุมซ้ายบนเป็นของต้นแบบเท่านั้น (ไม่อยู่ในเกม) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Kanit:wght@300;400;500;600;700&family=Michroma&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --ink: #1c3f6e; --mute: #5a7aa3; --line: rgba(127,184,230,.75);
+  --sky: #7fb8e6; --azure: #3d8bd9; --snow: #f7fafd; --frost: #dce7f3;
+  --hp: #d2455b; --gold: #e0b04a; --gold-d: #a8781f;
+  --lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px), repeating-linear-gradient(-60deg, rgba(61,139,217,.08) 0 1px, transparent 1px 16px);
+  --cut: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7a0; font-family: Kanit, "Chakra Petch", sans-serif; color: var(--ink); }
+button { font: inherit; color: inherit; }
+/* พื้นหลังกระดานจางๆ แทนเกมจริง */
+.world { position: fixed; inset: 0; background:
+  radial-gradient(60% 60% at 50% 45%, rgba(255,255,255,.25), transparent 70%),
+  repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 64px),
+  repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 2px, transparent 2px 64px),
+  linear-gradient(160deg, #a9cdb3, #7fae94); }
+.veil { position: fixed; inset: 0; background: radial-gradient(70% 70% at 50% 50%, rgba(28,63,110,.22), rgba(10,24,48,.58)); }
+.stage { position: fixed; left: 50%; top: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--k, .5)); }
+
+/* ---------- แถบสลับ (ต้นแบบ) ---------- */
+.proto { position: fixed; left: 12px; top: 12px; z-index: 50; display: flex; gap: 6px; padding: 6px; background: rgba(255,255,255,.92); box-shadow: 0 6px 18px rgba(28,63,110,.3); clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+.proto button { border: 0; padding: 7px 14px; cursor: pointer; background: transparent; font: 600 14px Kanit; color: var(--mute); }
+.proto button[data-on="true"] { background: var(--ink); color: #fff; }
+
+/* ============ โครงร่วมของทุกร้าน ============ */
+.shop { position: absolute; inset: 70px 120px 60px; display: none; }
+.shop[data-on="true"] { display: block; animation: shopIn .45s cubic-bezier(.2,1.1,.4,1) both; }
+@keyframes shopIn { from { opacity: 0; transform: translateY(28px) scale(.98); } }
+.frame { position: absolute; inset: 0; clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px);
+  background: var(--lattice), linear-gradient(160deg, #fff, #f2f7fc 50%, #e3edf7); box-shadow: inset 0 0 0 2px var(--line), inset 0 0 0 9px rgba(255,255,255,.7), inset 0 0 0 10px rgba(127,184,230,.45); }
+/* แถบบน */
+.top { position: absolute; left: 0; right: 0; top: 0; height: 112px; display: flex; align-items: center; gap: 22px; padding: 0 40px 0 46px; z-index: 5; }
+.crest { position: relative; width: 84px; height: 96px; flex: none; display: grid; place-items: center; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, var(--c1), var(--c2) 60%, var(--c3)); }
+.crest::after { content: ""; position: absolute; inset: 4px; clip-path: inherit; background: radial-gradient(circle at 50% 30%, #fff, #eef3f9 60%, #d3e2f2); }
+.crest span { position: relative; z-index: 1; font-size: 44px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(28,63,110,.3)); }
+.ttl b { display: block; font: 700 48px/1 "Chakra Petch", Kanit; color: var(--ink); }
+.ttl small { display: block; margin-top: 8px; font: 400 14px/1 Michroma; letter-spacing: .3em; text-transform: uppercase; color: var(--c2); }
+.top-r { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.chip { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 22px; font: 600 22px/1 Kanit; clip-path: polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px); }
+.chip.turns { background: #fff; box-shadow: inset 0 0 0 2px var(--line); color: var(--ink); }
+.chip.turns i { font-style: normal; font-size: 24px; }
+.chip.gold { background: linear-gradient(115deg, #fffaf0, #f6e6c0); box-shadow: inset 0 0 0 2px rgba(214,166,58,.85); color: #8a5a10; font: 700 30px/1 "Chakra Petch"; }
+.chip.gold b { min-width: 46px; text-align: right; }
+.chip.gold b.bump { animation: goldDip .5s ease; }
+@keyframes goldDip { 30% { transform: scale(.75); color: var(--hp); } }
+.coin { width: 30px; height: 30px; flex: none; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #fff6d6, #f3cf6e 55%, #d49a2c); box-shadow: inset 0 0 0 2px #a8781f, inset 0 0 0 6px rgba(255,246,214,.5); }
+.coin.s { width: 22px; height: 22px; box-shadow: inset 0 0 0 1.5px #a8781f, inset 0 0 0 4px rgba(255,246,214,.5); }
+.x { width: 56px; height: 56px; border: 0; cursor: pointer; font-size: 24px; background: rgba(127,184,230,.22); color: var(--ink); clip-path: polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px); transition: background .2s, transform .25s, color .2s; }
+.x:hover { background: var(--hp); color: #fff; transform: rotate(90deg); }
+/* แถบกระเป๋าล่าง */
+.bagbar { position: absolute; right: 46px; bottom: 30px; z-index: 6; display: flex; align-items: center; gap: 14px; height: 76px; padding: 0 22px 0 16px; background: var(--lattice), linear-gradient(115deg, #fff, #eef3f9);
+  box-shadow: inset 0 0 0 2px var(--line); clip-path: polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px); }
+.bag-ico { width: 50px; height: 56px; display: grid; place-items: center; font-size: 30px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, #e6d4ff, #9b4f96); }
+.bag-ico.hit { animation: bagHit .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes bagHit { 40% { transform: scale(1.25) rotate(-8deg); } }
+.slots { display: flex; gap: 8px; }
+.slot { width: 52px; height: 52px; display: grid; place-items: center; font-size: 28px; background: #fff; box-shadow: inset 0 0 0 2px rgba(127,184,230,.5); clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+.slot:empty { background: rgba(255,255,255,.4); box-shadow: inset 0 0 0 2px rgba(127,184,230,.3); }
+.slot.new { animation: slotIn .5s cubic-bezier(.2,1.6,.4,1); }
+@keyframes slotIn { from { transform: scale(.3); } }
+.bagbar b { font: 700 24px/1 "Chakra Petch"; color: var(--mute); min-width: 44px; }
+.bagbar[data-full="true"] b { color: var(--hp); }
+/* ปุ่มซื้อ (ทุกร้าน) */
+.buy { position: relative; overflow: hidden; height: 84px; min-width: 260px; padding: 0 34px; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 14px;
+  font: 700 34px/1 "Chakra Petch", Kanit; color: #fff; background: linear-gradient(115deg, var(--b1), var(--b2) 55%, var(--b3)); clip-path: polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.45); transition: transform .15s, filter .2s; filter: drop-shadow(0 8px 16px rgba(28,63,110,.3)); }
+.buy::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px); }
+.buy::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.65) 50%, transparent 70%); transform: translateX(-130%); animation: sheen 2.6s 1s infinite; }
+.buy span { position: relative; z-index: 1; }
+.buy:hover:not(:disabled) { transform: translateY(-3px); filter: drop-shadow(0 0 16px rgba(255,255,255,.9)) drop-shadow(0 10px 18px rgba(28,63,110,.35)); }
+.buy:active:not(:disabled) { transform: scale(.96); }
+.buy:disabled { cursor: default; filter: grayscale(.8); opacity: .5; }
+.buy:disabled::after { animation: none; }
+@keyframes sheen { 45%, 100% { transform: translateX(130%); } }
+.price { display: inline-flex; align-items: center; gap: 10px; font: 700 46px/1 "Chakra Petch"; color: #8a5a10; }
+.price[data-poor="true"] { color: var(--hp); }
+.stock-n { font: 700 22px/1 "Chakra Petch"; color: var(--mute); }
+/* ของบินเข้ากระเป๋า */
+.fly { position: absolute; z-index: 40; font-size: 64px; pointer-events: none; transition: transform .7s cubic-bezier(.5,-.3,.6,1), opacity .7s; filter: drop-shadow(0 8px 10px rgba(28,63,110,.4)); }
+.spark { position: absolute; z-index: 41; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, #fff, #ffe08a 50%, transparent 70%); animation: spark .7s ease-out forwards; }
+@keyframes spark { to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+
+/* ============ 1) ร้านยาเจริญชัย — ตู้ชั้นวาง + โหลแก้ว + เคาน์เตอร์ ============ */
+#apoth { --c1: #c8f2e2; --c2: #2fa58c; --c3: #1c6e63; --b1: #5fd0b3; --b2: #2fa58c; --b3: #1c6e63; }
+.cab { position: absolute; left: 64px; right: 64px; top: 140px; height: 478px; padding: 30px 40px 0; background:
+   linear-gradient(180deg, rgba(255,255,255,.9), rgba(238,247,244,.9)); box-shadow: inset 0 0 0 3px #cfe6df, inset 0 0 0 12px #fff, inset 0 0 0 14px #bfe0d6, 0 14px 30px rgba(28,63,110,.12); }
+.cab::before { content: ""; position: absolute; left: 0; right: 0; top: -22px; height: 34px; background: linear-gradient(180deg, #fff, #e5f3ee); box-shadow: inset 0 0 0 3px #cfe6df; clip-path: polygon(2% 0, 98% 0, 100% 100%, 0 100%); }
+.shelf { position: relative; height: 222px; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 30px 26px; }
+.shelf::after { content: ""; position: absolute; left: -10px; right: -10px; bottom: 0; height: 26px; background: linear-gradient(180deg, #fdfaf4, #e8dcc6); box-shadow: 0 10px 14px -6px rgba(90,60,20,.35), inset 0 -3px 0 #d8c7a6; }
+.plate { position: absolute; left: 16px; bottom: 4px; z-index: 2; padding: 3px 14px; font: 600 15px/1.2 Kanit; color: #fff; background: linear-gradient(115deg, #2fa58c, #1c6e63); clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+.jar { position: relative; width: 220px; height: 200px; border: 0; padding: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform .25s cubic-bezier(.3,1.5,.5,1); }
+.dome { position: relative; width: 140px; height: 150px; border-radius: 70px 70px 14px 14px; background: radial-gradient(70% 55% at 35% 25%, rgba(255,255,255,.95), rgba(255,255,255,.35) 45%, rgba(200,236,226,.35) 75%, rgba(150,210,195,.35));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.9), inset -10px -8px 20px rgba(47,165,140,.18), 0 6px 14px rgba(28,63,110,.12); display: grid; place-items: center; }
+.dome::before { content: ""; position: absolute; top: -14px; left: 50%; width: 26px; height: 20px; margin-left: -13px; border-radius: 13px 13px 4px 4px; background: linear-gradient(180deg, #fff, #cfe6df); box-shadow: inset 0 0 0 2px #b5dccf; }
+.dome::after { content: ""; position: absolute; left: 22px; top: 18px; width: 18px; height: 70px; border-radius: 10px; background: linear-gradient(180deg, rgba(255,255,255,.9), transparent); }
+.dome .it { font-size: 70px; line-height: 1; filter: drop-shadow(0 6px 6px rgba(28,63,110,.25)); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.base { width: 160px; height: 18px; margin-top: -2px; border-radius: 4px; background: linear-gradient(180deg, #f6efe2, #d9c8a6); box-shadow: inset 0 -3px 0 #c4b08a; }
+.ghosts { position: absolute; bottom: 18px; left: 50%; display: flex; gap: 0; transform: translateX(-50%); pointer-events: none; }
+.ghosts i { width: 120px; height: 140px; margin: 0 -48px; border-radius: 60px 60px 10px 10px; background: rgba(200,236,226,.35); box-shadow: inset 0 0 0 2px rgba(255,255,255,.7); }
+.tag { position: absolute; right: -14px; top: 46px; z-index: 3; display: flex; flex-direction: column; align-items: center; transform-origin: 50% -26px; animation: swing 3.4s ease-in-out infinite; }
+.tag::before { content: ""; width: 2px; height: 26px; background: #b59a6a; }
+.tag span { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; font: 700 24px/1 "Chakra Petch"; color: #6b4708; background: linear-gradient(180deg, #fffaf0, #f3e2b8); box-shadow: inset 0 0 0 2px #d6b46a; clip-path: polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%); }
+@keyframes swing { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.cnt { position: absolute; left: 10px; top: 52px; z-index: 3; min-width: 44px; height: 32px; padding: 0 8px; display: grid; place-items: center; font: 700 20px/1 "Chakra Petch"; color: #fff; background: linear-gradient(160deg, #5fd0b3, #1c6e63); clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.jar:hover { transform: translateY(-10px); }
+.jar:hover .it { transform: scale(1.1) rotate(-6deg); }
+.jar[data-sel="true"] .dome { box-shadow: inset 0 0 0 3px #5fd0b3, inset -10px -8px 20px rgba(47,165,140,.25), 0 0 0 6px rgba(95,208,179,.25), 0 0 30px rgba(95,208,179,.6); }
+.jar[data-sel="true"] { transform: translateY(-14px); }
+.jar[data-out="true"] .dome .it { opacity: .15; filter: grayscale(1); }
+.jar[data-out="true"] .tag { display: none; }
+.jar .soldout { display: none; position: absolute; top: 80px; left: 50%; z-index: 4; transform: translateX(-50%) rotate(-12deg); padding: 6px 16px; font: 700 26px/1 Kanit; color: var(--hp); background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 3px var(--hp); }
+.jar[data-out="true"] .soldout { display: block; }
+.counter { position: absolute; left: 40px; right: 40px; bottom: 118px; height: 196px; display: flex; align-items: center; gap: 36px; padding: 0 44px; z-index: 4;
+  background: linear-gradient(180deg, #fdfaf4 0 18px, #f2e8d6 18px, #e6d6b8); box-shadow: 0 -2px 0 #fff, 0 16px 26px rgba(90,60,20,.25), inset 0 -4px 0 #d3bd94; }
+.counter .big { width: 176px; height: 176px; margin-top: -64px; display: grid; place-items: center; font-size: 120px; border-radius: 95px 95px 20px 20px; background: radial-gradient(70% 55% at 35% 25%, #fff, rgba(220,242,235,.7)); box-shadow: inset 0 0 0 3px #fff, 0 10px 22px rgba(28,63,110,.2); }
+.counter .big span { animation: bob 3s ease-in-out infinite; filter: drop-shadow(0 8px 8px rgba(28,63,110,.3)); }
+@keyframes bob { 50% { transform: translateY(-8px); } }
+.info { flex: 1; min-width: 0; }
+.info .nm { font: 700 44px/1.1 "Chakra Petch", Kanit; color: var(--ink); }
+.info .sh { display: inline-block; margin-top: 12px; padding: 8px 18px; font: 500 24px/1.2 Kanit; color: #1c6e63; background: rgba(95,208,179,.18); clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
+.info .meta { margin-top: 14px; display: flex; gap: 24px; font: 500 20px/1 Kanit; color: var(--mute); }
+.info .meta b { font: 700 24px/1 "Chakra Petch"; color: var(--ink); margin-left: 6px; }
+.deal { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+
+/* ============ 2) โรงช่างลุงเริง — ผนังเหล็กรูพรุน + ตะขอ + โต๊ะทั่ง ============ */
+#forge { --c1: #ffe1b8; --c2: #e07a2a; --c3: #8a4310; --b1: #ffa45c; --b2: #e07a2a; --b3: #8a4310; }
+.peg { position: absolute; left: 64px; top: 128px; width: 980px; height: 720px; background:
+   radial-gradient(circle, rgba(60,80,110,.28) 3.2px, transparent 3.8px) 0 0 / 36px 36px,
+   linear-gradient(160deg, #fbfcfe, #e3e9f1); box-shadow: inset 0 0 0 3px #c4cfdc, inset 0 0 0 12px #f4f7fb, inset 0 0 0 14px #c4cfdc, 0 14px 30px rgba(28,63,110,.15); }
+.bolt { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #aab6c6); box-shadow: inset 0 0 0 2px #8794a8; }
+.bolt::after { content: ""; position: absolute; left: 4px; right: 4px; top: 9px; height: 2px; background: #7a879b; transform: rotate(35deg); }
+.gear { position: absolute; font-size: 120px; line-height: 1; color: rgba(224,122,42,.18); animation: spin 18s linear infinite; }
+.gear.b { animation-direction: reverse; animation-duration: 12s; color: rgba(61,139,217,.14); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hang { position: absolute; width: 330px; height: 380px; border: 0; padding: 0; background: none; cursor: pointer; transform-origin: 50% 0; animation: sway 4.5s ease-in-out infinite; }
+.hang::before { content: ""; position: absolute; left: 50%; top: -6px; width: 34px; height: 46px; margin-left: -17px; border: 6px solid #8794a8; border-top: 0; border-radius: 0 0 20px 20px; clip-path: inset(30% 0 0 0); }
+.hang::after { content: ""; position: absolute; left: 50%; top: -18px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #8794a8; }
+@keyframes sway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+.plateT { position: absolute; left: 0; right: 0; top: 34px; bottom: 0; display: flex; flex-direction: column; align-items: center; padding: 30px 22px 22px;
+  background: linear-gradient(170deg, #ffffff, #eef2f7); clip-path: polygon(22px 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%,0 22px); box-shadow: inset 0 0 0 3px #c4cfdc, inset 0 6px 0 #e07a2a; transition: box-shadow .25s; }
+.plateT .bolt { top: 14px; } .plateT .bolt.l { left: 14px; } .plateT .bolt.r { right: 14px; }
+.plateT .it { font-size: 120px; line-height: 1.1; margin-top: 10px; filter: drop-shadow(0 10px 10px rgba(28,63,110,.25)); transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.plateT .nm { margin-top: 12px; font: 700 32px/1.1 "Chakra Petch", Kanit; color: var(--ink); }
+.plateT .row { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.plateT .pr { display: flex; align-items: center; gap: 8px; font: 700 32px/1 "Chakra Petch"; color: #8a5a10; }
+.ticks { display: flex; gap: 5px; }
+.ticks i { width: 14px; height: 22px; background: #e07a2a; clip-path: polygon(30% 0,100% 0,70% 100%,0 100%); }
+.ticks i[data-on="false"] { background: rgba(60,80,110,.15); }
+.hang:hover .it { transform: rotate(-10deg) scale(1.08); }
+.hang[data-sel="true"] { animation-play-state: paused; }
+.hang[data-sel="true"] .plateT { box-shadow: inset 0 0 0 4px #e07a2a, inset 0 6px 0 #e07a2a, 0 0 0 8px rgba(224,122,42,.18); }
+.spot { position: absolute; width: 520px; height: 760px; pointer-events: none; background: radial-gradient(40% 50% at 50% 55%, rgba(255,226,170,.55), transparent 70%); transition: left .4s cubic-bezier(.3,1.2,.5,1), top .4s; mix-blend-mode: multiply; }
+.hang[data-out="true"] .it { opacity: .2; filter: grayscale(1); }
+.hang[data-out="true"] .plateT::after { content: "หมด"; position: absolute; top: 120px; left: 50%; transform: translateX(-50%) rotate(-12deg); padding: 6px 18px; font: 700 34px/1 Kanit; color: var(--hp); background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 3px var(--hp); }
+.anvil { position: absolute; right: 64px; top: 128px; width: 560px; height: 720px; display: flex; flex-direction: column; align-items: center; padding: 34px 36px 36px; z-index: 3;
+  background: linear-gradient(180deg, #ffffff, #eef2f7); clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px)); box-shadow: inset 0 0 0 3px #c4cfdc; }
+.anv-art { position: relative; width: 300px; height: 230px; display: grid; place-items: end center; }
+.anv-art .it { position: relative; z-index: 2; font-size: 130px; line-height: 1; margin-bottom: 70px; animation: bob 3s ease-in-out infinite; filter: drop-shadow(0 12px 10px rgba(28,63,110,.3)); }
+.anv-art::after { content: ""; position: absolute; bottom: 0; left: 30px; right: 30px; height: 80px; background: linear-gradient(180deg, #7d8899, #4f5a6b); clip-path: polygon(0 0, 100% 0, 88% 35%, 70% 40%, 76% 100%, 24% 100%, 30% 40%, 12% 35%); }
+.anv .nm { margin-top: 18px; font: 700 44px/1.1 "Chakra Petch", Kanit; text-align: center; }
+.anv .sh { margin-top: 10px; padding: 8px 18px; font: 500 23px/1.2 Kanit; color: #8a4310; background: rgba(224,122,42,.14); clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
+.dials { margin-top: 22px; display: flex; gap: 18px; }
+.dial { width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center; text-align: center; background: radial-gradient(circle, #fff 56%, transparent 57%), conic-gradient(#e07a2a calc(var(--p) * 1%), rgba(60,80,110,.12) 0); }
+.dial b { display: block; font: 700 40px/1 "Chakra Petch"; color: var(--ink); }
+.dial small { display: block; margin-top: 4px; font: 500 15px/1 Kanit; color: var(--mute); }
+.anv .deal { margin-top: auto; width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+.anv .buy { min-width: 240px; }
+
+/* ============ 3) พ่อค้าเร่ — เกวียนผ้าใบ + พรม + การ์ดพลิก ============ */
+#cara { --c1: #f1e3ff; --c2: #9b4f96; --c3: #4b1a52; --b1: #c98ac4; --b2: #9b4f96; --b3: #4b1a52; }
+.canopy { position: absolute; left: 40px; right: 40px; top: 118px; height: 190px; z-index: 2;
+  background: repeating-linear-gradient(90deg, #9b4f96 0 120px, #fbf3ff 120px 240px); clip-path: polygon(0 0, 100% 0, 100% 62%, 95% 100%, 90% 62%, 85% 100%, 80% 62%, 75% 100%, 70% 62%, 65% 100%, 60% 62%, 55% 100%, 50% 62%, 45% 100%, 40% 62%, 35% 100%, 30% 62%, 25% 100%, 20% 62%, 15% 100%, 10% 62%, 5% 100%, 0 62%);
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.08); filter: drop-shadow(0 10px 12px rgba(75,26,82,.25)); }
+.canopy::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 26px; background: linear-gradient(180deg, #e0b04a, #b98a2a); }
+.rug { position: absolute; left: 150px; right: 150px; top: 330px; height: 470px; background:
+   repeating-linear-gradient(45deg, rgba(155,79,150,.1) 0 14px, transparent 14px 28px),
+   repeating-linear-gradient(-45deg, rgba(224,176,74,.12) 0 14px, transparent 14px 28px),
+   linear-gradient(180deg, #fff8ff, #f3e6f6); box-shadow: inset 0 0 0 10px #fff, inset 0 0 0 14px #c98ac4, inset 0 0 0 22px #fff, inset 0 0 0 25px #e0b04a; transform: perspective(1400px) rotateX(18deg); transform-origin: 50% 100%; }
+.cards { position: absolute; left: 0; right: 0; top: 286px; display: flex; justify-content: center; gap: 120px; z-index: 3; perspective: 1600px; }
+.card { position: relative; width: 290px; height: 390px; border: 0; padding: 0; background: none; cursor: pointer; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,1.3,.5,1); }
+.card[data-flip="false"] { transform: rotateY(180deg); }
+.card .face, .card .back { position: absolute; inset: 0; backface-visibility: hidden; clip-path: polygon(20px 0,calc(100% - 20px) 0,100% 20px,100% calc(100% - 20px),calc(100% - 20px) 100%,20px 100%,0 calc(100% - 20px),0 20px); }
+.card .back { transform: rotateY(180deg); background: radial-gradient(circle at 50% 50%, #e0b04a 0 20px, transparent 21px), repeating-conic-gradient(from 0deg, #9b4f96 0 15deg, #7a3a7e 15deg 30deg); box-shadow: inset 0 0 0 10px #f1e3ff, inset 0 0 0 13px #e0b04a; }
+.card .face { display: flex; flex-direction: column; align-items: center; padding: 34px 26px 26px; background: linear-gradient(170deg, #fffdf6, #f6ecff); box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 12px #c98ac4; }
+.card .face::before { content: "✦"; position: absolute; top: 18px; left: 26px; font-size: 22px; color: #e0b04a; }
+.card .face::after { content: "✦"; position: absolute; bottom: 18px; right: 26px; font-size: 22px; color: #e0b04a; }
+.card .it { font-size: 116px; line-height: 1.15; margin-top: 6px; filter: drop-shadow(0 12px 12px rgba(75,26,82,.3)); animation: bob 3.2s ease-in-out infinite; }
+.card .nm { margin-top: 16px; font: 700 34px/1.1 "Chakra Petch", Kanit; color: #4b1a52; text-align: center; }
+.card .sh { margin-top: 10px; font: 500 21px/1.25 Kanit; color: #7a3a7e; text-align: center; }
+.card .row { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.card .pr { display: flex; align-items: center; gap: 8px; font: 700 34px/1 "Chakra Petch"; color: #8a5a10; }
+.gems { display: flex; gap: 6px; }
+.gems i { width: 18px; height: 18px; transform: rotate(45deg); background: linear-gradient(135deg, #f1e3ff, #9b4f96); box-shadow: 0 0 6px rgba(155,79,150,.5); }
+.gems i[data-on="false"] { background: rgba(75,26,82,.12); box-shadow: none; }
+.card:hover .face { box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 12px #c98ac4, 0 0 40px rgba(224,176,74,.6); }
+.card[data-flip="true"]:hover { transform: translateY(-14px) rotateZ(-1.5deg); }
+.card[data-sel="true"][data-flip="true"] { transform: translateY(-20px); }
+.card[data-sel="true"] .face { box-shadow: inset 0 0 0 5px #e0b04a, inset 0 0 0 10px #fff, inset 0 0 0 13px #9b4f96, 0 0 0 8px rgba(224,176,74,.35), 0 0 50px rgba(224,176,74,.7); }
+.card[data-out="true"] .face { filter: grayscale(.9); opacity: .5; }
+.hourglass { position: absolute; left: 70px; top: 340px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hg { position: relative; width: 90px; height: 140px; }
+.hg::before, .hg::after { content: ""; position: absolute; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, #e0b04a, #a8781f); border-radius: 4px; }
+.hg::before { top: 0; } .hg::after { bottom: 0; }
+.hg i { position: absolute; left: 10px; right: 10px; top: 10px; bottom: 10px; background: rgba(255,255,255,.75); clip-path: polygon(0 0,100% 0,56% 50%,100% 100%,0 100%,44% 50%); box-shadow: inset 0 0 0 2px #c98ac4; }
+.hg b { position: absolute; left: 22px; right: 22px; bottom: 12px; height: 34px; background: linear-gradient(180deg, #f3cf6e, #c4902a); clip-path: polygon(50% 0,100% 100%,0 100%); }
+.hg u { position: absolute; left: 50%; top: 60px; width: 3px; height: 40px; margin-left: -1.5px; background: #e0b04a; animation: sand 1s linear infinite; }
+@keyframes sand { 50% { opacity: .4; } }
+.hourglass span { padding: 6px 14px; font: 700 26px/1 "Chakra Petch", Kanit; color: #4b1a52; background: #fff; box-shadow: inset 0 0 0 2px #c98ac4; }
+.cara-deal { position: absolute; left: 50%; bottom: 104px; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 30px; padding: 16px 20px 16px 30px; background: rgba(255,255,255,.9); box-shadow: inset 0 0 0 2px #c98ac4;
+  clip-path: polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px); }
+.cara-deal .nm { font: 700 34px/1 "Chakra Petch", Kanit; color: #4b1a52; }
+
+/* ============ 4) บนกระดาน — ร้าน 2×2 ============ */
+#board { --c1: #dce7f3; --c2: #3d8bd9; --c3: #1c3f6e; }
+.grid { position: absolute; left: 50%; top: 170px; width: 1360px; height: 700px; transform: translateX(-50%) perspective(1600px) rotateX(32deg); transform-origin: 50% 100%;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.55) 0 2px, transparent 2px 85px), repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 2px, transparent 2px 85px), linear-gradient(160deg, #a9cdb3, #86b49b); box-shadow: 0 30px 60px rgba(28,63,110,.3); }
+.piece { position: absolute; width: 170px; height: 170px; display: grid; place-items: center; }
+.piece .pad { position: absolute; inset: 6px; background: rgba(255,255,255,.55); box-shadow: inset 0 0 0 3px #fff; }
+.stall { position: absolute; left: 14px; right: 14px; bottom: 18px; height: 150px; transform: rotateX(-32deg); transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; }
+.stall .roof { width: 100%; height: 56px; clip-path: polygon(8% 0,92% 0,100% 100%,0 100%); }
+.stall .body { width: 86%; flex: 1; display: grid; place-items: center; font-size: 46px; background: linear-gradient(180deg, #fff, #e8eef6); box-shadow: inset 0 0 0 3px rgba(28,63,110,.15); }
+.p1 .roof { background: repeating-linear-gradient(90deg, #2fa58c 0 22px, #fff 22px 44px); }
+.p2 .roof { background: linear-gradient(180deg, #8794a8, #5f6b7d); }
+.p2 .body { background: radial-gradient(circle, rgba(60,80,110,.25) 2.5px, transparent 3px) 0 0 / 16px 16px, linear-gradient(180deg, #fbfcfe, #e3e9f1); }
+.p3 .roof { height: 70px; border-radius: 70px 70px 0 0; clip-path: none; background: repeating-linear-gradient(90deg, #9b4f96 0 26px, #fbf3ff 26px 52px); }
+.p3 .body { background: linear-gradient(180deg, #e9d7b4, #c9a978); }
+.ptag { position: absolute; top: -34px; left: 50%; transform: translateX(-50%) rotateX(-32deg); padding: 4px 12px; white-space: nowrap; font: 600 18px/1.2 Kanit; color: #fff; clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.p1 .ptag { background: #1c6e63; } .p2 .ptag { background: #8a4310; } .p3 .ptag { background: #4b1a52; }
+.unit { position: absolute; width: 85px; height: 85px; display: grid; place-items: center; }
+.unit i { width: 58px; height: 66px; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); background: linear-gradient(160deg, #e6d4ff, #9b4f96); transform: rotateX(-32deg) translateY(-14px); box-shadow: 0 0 0 3px #fff; }
+.reach { position: absolute; width: 85px; height: 85px; background: rgba(95,208,179,.45); box-shadow: inset 0 0 0 2px #fff; }
+.board-note { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); display: flex; gap: 22px; }
+.board-note span { display: flex; align-items: center; gap: 10px; padding: 10px 18px; font: 600 22px/1 Kanit; background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 2px var(--line); }
+.board-note i { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+<div class="world"></div>
+<div class="veil"></div>
+<nav class="proto" aria-label="สลับร้าน (ต้นแบบ)">
+  <button data-to="apoth" data-on="true">ร้านยาเจริญชัย</button>
+  <button data-to="forge">โรงช่างลุงเริง</button>
+  <button data-to="cara">พ่อค้าเร่</button>
+  <button data-to="board">บนกระดาน 2×2</button>
+  <button id="reset">รีเซ็ต</button>
+</nav>
+<div class="stage" id="stage">
+
+  <!-- ========== 1) ร้านยาเจริญชัย ========== -->
+  <section class="shop" id="apoth" data-on="true">
+    <div class="frame"></div>
+    <header class="top">
+      <span class="crest"><span>⚗️</span></span>
+      <div class="ttl"><b>ร้านยาเจริญชัย</b><small>Charoenchai Pharmacy</small></div>
+      <div class="top-r">
+        <span class="chip turns"><i>⏳</i>เหลือ 4 เทิร์น</span>
+        <span class="chip gold"><span class="coin"></span><b data-gold>37</b></span>
+        <button class="x" aria-label="ปิด">✕</button>
+      </div>
+    </header>
+    <div class="cab">
+      <div class="shelf" data-shelf="draw"><span class="plate">ช่วงจั่ว</span></div>
+      <div class="shelf" data-shelf="turn"><span class="plate">ตาเดิน</span></div>
+    </div>
+    <div class="counter">
+      <div class="big"><span data-d="ico"></span></div>
+      <div class="info">
+        <div class="nm" data-d="nm"></div>
+        <div class="sh" data-d="sh"></div>
+        <div class="meta"><span>คงเหลือ<b data-d="left"></b></span><span>ในกระเป๋า<b data-d="own"></b></span></div>
+      </div>
+      <div class="deal">
+        <span class="price" data-d="price"><span class="coin"></span><b></b></span>
+        <button class="buy" data-buy><span>ซื้อ</span></button>
+      </div>
+    </div>
+    <div class="bagbar"><span class="bag-ico">👜</span><div class="slots"></div><b></b></div>
+  </section>
+
+  <!-- ========== 2) โรงช่างลุงเริง ========== -->
+  <section class="shop" id="forge">
+    <div class="frame"></div>
+    <header class="top">
+      <span class="crest"><span>⚙️</span></span>
+      <div class="ttl"><b>โรงช่างลุงเริง</b><small>Uncle Roeng's Workshop</small></div>
+      <div class="top-r">
+        <span class="chip turns"><i>⏳</i>เหลือ 4 เทิร์น</span>
+        <span class="chip gold"><span class="coin"></span><b data-gold>37</b></span>
+        <button class="x" aria-label="ปิด">✕</button>
+      </div>
+    </header>
+    <div class="peg">
+      <span class="gear" style="right:40px;bottom:30px">⚙</span>
+      <span class="gear b" style="right:150px;bottom:110px;font-size:80px">⚙</span>
+      <span class="bolt" style="left:22px;top:22px"></span><span class="bolt" style="right:22px;top:22px"></span>
+      <span class="bolt" style="left:22px;bottom:22px"></span><span class="bolt" style="right:22px;bottom:22px"></span>
+      <div class="spot" id="spot"></div>
+    </div>
+    <div class="anvil anv">
+      <div class="anv-art"><span class="it" data-d="ico"></span></div>
+      <div class="nm" data-d="nm"></div>
+      <div class="sh" data-d="sh"></div>
+      <div class="dials" data-d="dials"></div>
+      <div class="deal">
+        <span class="price" data-d="price"><span class="coin"></span><b></b></span>
+        <button class="buy" data-buy><span>ซื้อ</span></button>
+      </div>
+    </div>
+    <div class="bagbar" style="right:auto;left:64px"><span class="bag-ico">👜</span><div class="slots"></div><b></b></div>
+  </section>
+
+  <!-- ========== 3) พ่อค้าเร่ ========== -->
+  <section class="shop" id="cara">
+    <div class="frame"></div>
+    <header class="top">
+      <span class="crest"><span>🐎</span></span>
+      <div class="ttl"><b>พ่อค้าเร่</b><small>Wandering Merchant</small></div>
+      <div class="top-r">
+        <span class="chip gold"><span class="coin"></span><b data-gold>37</b></span>
+        <button class="x" aria-label="ปิด">✕</button>
+      </div>
+    </header>
+    <div class="canopy"></div>
+    <div class="rug"></div>
+    <div class="hourglass"><div class="hg"><i></i><b></b><u></u></div><span>เหลือ 2 เทิร์น</span></div>
+    <div class="cards"></div>
+    <div class="cara-deal">
+      <span class="nm" data-d="nm"></span>
+      <span class="price" data-d="price"><span class="coin"></span><b></b></span>
+      <button class="buy" data-buy><span>ซื้อ</span></button>
+    </div>
+    <div class="bagbar"><span class="bag-ico">👜</span><div class="slots"></div><b></b></div>
+  </section>
+
+  <!-- ========== 4) บนกระดาน ========== -->
+  <section class="shop" id="board">
+    <div class="frame" style="background:transparent;box-shadow:none"></div>
+    <header class="top">
+      <span class="crest"><span>🗺️</span></span>
+      <div class="ttl"><b>ร้านบนกระดาน</b><small>2 × 2 Tiles</small></div>
+    </header>
+    <div class="grid" id="grid"></div>
+    <div class="board-note">
+      <span><i style="background:rgba(95,208,179,.7)"></i>ยืนช่องนี้ = ซื้อได้</span>
+    </div>
+  </section>
+</div>
+
+<script>
+// ---------- ข้อมูลจำลอง (ตรงกับของจริงใน server/shop.js) ----------
+const DATA = {
+  apoth: [
+    { id: "fortune", shelf: "draw", ico: "🍀", nm: "ยาโชคลาภ", sh: "จั่วถัดไปได้ 19–21", price: 5, max: 3 },
+    { id: "cardColor", shelf: "draw", ico: "🎨", nm: "ยาเปลี่ยนสีการ์ด", sh: "เปลี่ยนสีการ์ด 1 ใบ", price: 5, max: 2 },
+    { id: "cardCut", shelf: "draw", ico: "✂️", nm: "กรรไกรตัดไพ่", sh: "ตัดไพ่ใบล่าสุด", price: 5, max: 4 },
+    { id: "armor", shelf: "turn", ico: "🔧", nm: "ยาฟื้นเกราะ +1", sh: "ฟื้นเกราะ", price: 3, max: 5 },
+    { id: "cleanse", shelf: "turn", ico: "💧", nm: "ยาล้างสถานะ", sh: "ล้างสถานะผิดปกติ", price: 3, max: 3 },
+    { id: "resist", shelf: "turn", ico: "🛡️", nm: "ยาต้านสถานะ", sh: "กันสถานะ 2 เทิร์น", price: 5, max: 2 },
+  ],
+  forge: [
+    { id: "windBoots", ico: "👟", nm: "รองเท้าวายุ", sh: "เดิน +2 ตานี้", price: 4, max: 4, dials: [["+2", "ระยะเดิน", 40], ["1", "ตา", 20]] },
+    { id: "battery", ico: "🔋", nm: "วงจรพลังงาน", sh: "แต้มสกิล +1/เทิร์น", price: 15, max: 2, dials: [["5", "ความจุ", 100], ["+1", "ต่อเทิร์น", 20]] },
+  ],
+  cara: [
+    { id: "lifeCrystal", ico: "💗", nm: "ผลึกชีวิต", sh: "พลังชีวิตสูงสุด +1", price: 15, max: 2 },
+    { id: "armorCrystal", ico: "💠", nm: "ผลึกเกราะ", sh: "เกราะสูงสุด +1", price: 15, max: 1 },
+  ],
+};
+const BAG_SLOTS = 5;
+let gold, bag, stock, sel;
+function reset() {
+  gold = 37; bag = ["🧪", "🔧"]; stock = {}; sel = { apoth: "fortune", forge: "windBoots", cara: "lifeCrystal" };
+  for (const k of Object.keys(DATA)) for (const it of DATA[k]) stock[it.id] = it.max;
+  stock.cardColor = 0; // ตัวอย่างของหมด
+  renderAll();
+}
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const itemOf = (shop) => DATA[shop].find((it) => it.id === sel[shop]);
+const stateOf = (it) => !stock[it.id] ? "หมด" : bag.length >= BAG_SLOTS ? "กระเป๋าเต็ม" : gold < it.price ? "เหรียญไม่พอ" : "ซื้อ";
+
+// ---------- ร้านยาเจริญชัย ----------
+function renderApoth() {
+  const root = $("#apoth");
+  for (const shelf of $$(".shelf", root)) {
+    $$(".jar", shelf).forEach((n) => n.remove());
+    for (const it of DATA.apoth.filter((x) => x.shelf === shelf.dataset.shelf)) {
+      const b = document.createElement("button");
+      b.className = "jar"; b.dataset.id = it.id;
+      b.dataset.sel = String(sel.apoth === it.id); b.dataset.out = String(!stock[it.id]);
+      const ghosts = Math.max(0, Math.min(3, stock[it.id] - 1));
+      b.innerHTML = `<span class="ghosts">${"<i></i>".repeat(ghosts)}</span>
+        <span class="dome"><span class="it">${it.ico}</span></span><span class="base"></span>
+        <span class="tag"><span><span class="coin s"></span>${it.price}</span></span>
+        ${stock[it.id] ? `<span class="cnt">×${stock[it.id]}</span>` : ""}<span class="soldout">หมด</span>`;
+      b.onclick = () => { sel.apoth = it.id; renderAll(); };
+      b.ondblclick = () => buy("apoth", b);
+      shelf.appendChild(b);
+    }
+  }
+  const it = itemOf("apoth");
+  $('[data-d="ico"]', root).textContent = it.ico;
+  $('[data-d="nm"]', root).textContent = it.nm;
+  $('[data-d="sh"]', root).textContent = it.sh;
+  $('[data-d="left"]', root).textContent = `${stock[it.id]}/${it.max}`;
+  $('[data-d="own"]', root).textContent = bag.filter((x) => x === it.ico).length;
+  deal(root, it, "apoth");
+}
+// ---------- โรงช่างลุงเริง ----------
+const HANG_POS = [[110, 110], [520, 230]];
+function renderForge() {
+  const root = $("#forge"), peg = $(".peg", root);
+  $$(".hang", peg).forEach((n) => n.remove());
+  DATA.forge.forEach((it, i) => {
+    const b = document.createElement("button");
+    b.className = "hang"; b.dataset.id = it.id;
+    b.style.left = HANG_POS[i][0] + "px"; b.style.top = HANG_POS[i][1] + "px"; b.style.animationDelay = `${-i * 1.7}s`;
+    b.dataset.sel = String(sel.forge === it.id); b.dataset.out = String(!stock[it.id]);
+    b.innerHTML = `<span class="plateT"><span class="bolt l"></span><span class="bolt r"></span>
+      <span class="it">${it.ico}</span><span class="nm">${it.nm}</span>
+      <span class="row"><span class="pr"><span class="coin s"></span>${it.price}</span>
+      <span class="ticks">${Array.from({ length: it.max }, (_, k) => `<i data-on="${k < stock[it.id]}"></i>`).join("")}</span></span></span>`;
+    b.onclick = () => { sel.forge = it.id; renderAll(); };
+    b.ondblclick = () => buy("forge", b);
+    peg.appendChild(b);
+    if (sel.forge === it.id) { const sp = $("#spot"); sp.style.left = (HANG_POS[i][0] - 95) + "px"; sp.style.top = (HANG_POS[i][1] - 170) + "px"; }
+  });
+  const it = itemOf("forge");
+  $('[data-d="ico"]', root).textContent = it.ico;
+  $('[data-d="nm"]', root).textContent = it.nm;
+  $('[data-d="sh"]', root).textContent = it.sh;
+  $('[data-d="dials"]', root).innerHTML = [...it.dials, [`${stock[it.id]}/${it.max}`, "คงเหลือ", it.max ? stock[it.id] / it.max * 100 : 0]]
+    .map(([v, l, p]) => `<div class="dial" style="--p:${p}"><div><b>${v}</b><small>${l}</small></div></div>`).join("");
+  deal(root, it, "forge");
+}
+// ---------- พ่อค้าเร่ ----------
+let caraFlipped = false;
+function renderCara() {
+  const root = $("#cara"), wrap = $(".cards", root);
+  wrap.innerHTML = "";
+  DATA.cara.forEach((it, i) => {
+    const b = document.createElement("button");
+    b.className = "card"; b.dataset.id = it.id;
+    b.dataset.flip = String(caraFlipped); b.dataset.sel = String(sel.cara === it.id); b.dataset.out = String(!stock[it.id]);
+    b.innerHTML = `<span class="back"></span><span class="face"><span class="it">${it.ico}</span><span class="nm">${it.nm}</span><span class="sh">${it.sh}</span>
+      <span class="row"><span class="pr"><span class="coin s"></span>${it.price}</span><span class="gems">${Array.from({ length: it.max }, (_, k) => `<i data-on="${k < stock[it.id]}"></i>`).join("")}</span></span></span>`;
+    b.onclick = () => { sel.cara = it.id; renderAll(); };
+    b.ondblclick = () => buy("cara", b);
+    wrap.appendChild(b);
+  });
+  const it = itemOf("cara");
+  $('[data-d="nm"]', root).textContent = it.nm;
+  deal(root, it, "cara");
+}
+function flipIn() {
+  caraFlipped = false; renderCara();
+  $$("#cara .card").forEach((c, i) => setTimeout(() => { c.dataset.flip = "true"; if (i === DATA.cara.length - 1) caraFlipped = true; }, 450 + i * 260));
+}
+// ---------- ร่วม ----------
+function deal(root, it, shop) {
+  const pr = $('[data-d="price"]', root);
+  $("b", pr).textContent = it.price;
+  pr.dataset.poor = String(gold < it.price);
+  const btn = $("[data-buy]", root), st = stateOf(it);
+  $("span", btn).textContent = st; btn.disabled = st !== "ซื้อ";
+  btn.onclick = () => buy(shop, $(`[data-id="${it.id}"]`, root));
+}
+function renderBag() {
+  for (const bar of $$(".bagbar")) {
+    $(".slots", bar).innerHTML = Array.from({ length: BAG_SLOTS }, (_, i) => `<span class="slot${i === bag.length - 1 && bar.dataset.new ? " new" : ""}">${bag[i] || ""}</span>`).join("");
+    $("b", bar).textContent = `${bag.length}/${BAG_SLOTS}`;
+    bar.dataset.full = String(bag.length >= BAG_SLOTS);
+  }
+  for (const g of $$("[data-gold]")) g.textContent = gold;
+}
+function renderAll() { renderApoth(); renderForge(); renderCara(); renderBag(); }
+function buy(shop, fromEl) {
+  const it = itemOf(shop);
+  if (stateOf(it) !== "ซื้อ") return;
+  const root = $("#" + shop), stage = $("#stage"), k = parseFloat(stage.style.getPropertyValue("--k")) || 1;
+  const sr = stage.getBoundingClientRect(), a = (fromEl || root).getBoundingClientRect(), bar = $(".bagbar", root).getBoundingClientRect();
+  const fx = (a.left + a.width / 2 - sr.left) / k, fy = (a.top + a.height / 3 - sr.top) / k;
+  const tx = (bar.left + 40 - sr.left) / k, ty = (bar.top + 10 - sr.top) / k;
+  const fly = document.createElement("span"); fly.className = "fly"; fly.textContent = it.ico;
+  fly.style.left = fx - 32 + "px"; fly.style.top = fy - 32 + "px"; stage.appendChild(fly);
+  for (let i = 0; i < 12; i++) { const s = document.createElement("span"); s.className = "spark"; const ang = (i / 12) * Math.PI * 2; s.style.left = fx + "px"; s.style.top = fy + "px"; s.style.setProperty("--dx", Math.cos(ang) * 90 + "px"); s.style.setProperty("--dy", Math.sin(ang) * 90 + "px"); stage.appendChild(s); setTimeout(() => s.remove(), 800); }
+  requestAnimationFrame(() => { fly.style.transform = `translate(${tx - fx}px, ${ty - fy}px) scale(.35) rotate(-20deg)`; fly.style.opacity = ".2"; });
+  setTimeout(() => {
+    fly.remove(); gold -= it.price; stock[it.id]--; bag.push(it.ico);
+    $$(".bagbar").forEach((b) => (b.dataset.new = "1")); renderAll(); $$(".bagbar").forEach((b) => delete b.dataset.new);
+    $$(".bag-ico").forEach((b) => { b.classList.remove("hit"); void b.offsetWidth; b.classList.add("hit"); });
+    $$("[data-gold]").forEach((g) => { g.classList.remove("bump"); void g.offsetWidth; g.classList.add("bump"); });
+  }, 680);
+}
+// ---------- บนกระดาน ----------
+function renderBoard() {
+  const g = $("#grid"), T = 85;
+  const pieces = [[2, 2, "p1", "ร้านยาเจริญชัย", "⚗️"], [8, 1, "p2", "โรงช่างลุงเริง", "⚙️"], [12, 4, "p3", "พ่อค้าเร่", "🐎"]];
+  g.innerHTML = "";
+  // ช่องที่ยืนแล้วซื้อได้ (ระยะ 1 จากขอบร้าน 2×2) — ของร้านแรก
+  const [sx, sy] = pieces[0];
+  for (let x = sx - 1; x <= sx + 2; x++) for (let y = sy - 1; y <= sy + 2; y++) {
+    const inside = x >= sx && x <= sx + 1 && y >= sy && y <= sy + 1;
+    const corner = (x === sx - 1 || x === sx + 2) && (y === sy - 1 || y === sy + 2);
+    if (inside || corner) continue;
+    const r = document.createElement("span"); r.className = "reach"; r.style.left = x * T + "px"; r.style.top = y * T + "px"; g.appendChild(r);
+  }
+  for (const [x, y, cls, name, ico] of pieces) {
+    const p = document.createElement("div"); p.className = `piece ${cls}`; p.style.left = x * T + "px"; p.style.top = y * T + "px";
+    p.innerHTML = `<span class="pad"></span><div class="stall"><span class="roof"></span><span class="body">${ico}</span></div><span class="ptag">${name}</span>`;
+    g.appendChild(p);
+  }
+  const u = document.createElement("span"); u.className = "unit"; u.style.left = (sx + 2) * T + "px"; u.style.top = (sy + 1) * T + "px"; u.innerHTML = "<i></i>"; g.appendChild(u);
+}
+// ---------- สลับร้าน / ย่อเวที ----------
+function show(id) {
+  $$(".shop").forEach((s) => (s.dataset.on = String(s.id === id)));
+  $$(".proto button[data-to]").forEach((b) => (b.dataset.on = String(b.dataset.to === id)));
+  if (id === "cara") flipIn();
+}
+$$(".proto button[data-to]").forEach((b) => (b.onclick = () => show(b.dataset.to)));
+$("#reset").onclick = () => { reset(); const on = $(".shop[data-on='true']"); if (on && on.id === "cara") flipIn(); };
+function fit() { $("#stage").style.setProperty("--k", Math.min(innerWidth / 1920, innerHeight / 1080)); }
+addEventListener("resize", fit); fit();
+addEventListener("keydown", (e) => {
+  const on = $(".shop[data-on='true']"); if (!on || !DATA[on.id]) return;
+  const list = DATA[on.id], i = list.findIndex((it) => it.id === sel[on.id]);
+  if (["ArrowRight", "ArrowDown", "d", "s"].includes(e.key)) { sel[on.id] = list[Math.min(list.length - 1, i + 1)].id; renderAll(); }
+  if (["ArrowLeft", "ArrowUp", "a", "w"].includes(e.key)) { sel[on.id] = list[Math.max(0, i - 1)].id; renderAll(); }
+  if (e.key === "Enter") buy(on.id, $(`[data-id="${sel[on.id]}"]`, on));
+});
+reset(); renderBoard();
+</script>
+</body>
+</html>

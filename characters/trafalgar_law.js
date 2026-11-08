@@ -301,11 +301,11 @@ function counterShock(engine, p, tile) {
 }
 
 // ---------- สกิลรอง: ตัวที่เลือกได้ ----------
-// Shambles: ตัวเอง / คนที่มาร์ก (ตัวใหญ่ = อยู่ใน Room ทั้งตัว) / วัตถุลอยที่ไม่มีใครยืนทับ · Shamble: ตัวเอง / คนที่มาร์ก (ไม่ใช่ยูนิตที่ถูกเรียก/คนใส่ Mark 42)
+// Shambles: ตัวเอง / คนที่มาร์ก (ตัวใหญ่ = อยู่ใน Room ทั้งตัว) / วัตถุลอยที่ไม่มีใครยืนทับ · Shamble: ตัวเอง / คนที่มาร์ก (ไม่ใช่ยูนิตที่ถูกเรียก)
 function unitPickable(engine, p, u, kind) {
   if (!u || !u.alive || !u.pos) return false;
   if (u.id !== p.id && !marked(p, u.id)) return false;
-  if (kind === "shamble" && (u.summon || u.mark42)) return false;
+  if (kind === "shamble" && u.summon) return false;
   return unitIn(engine, st(p).room, u, true); // ตัวใหญ่ต้องอยู่ใน Room ทั้งตัว (ผู้ใช้ตัดสิน 2026-10-26)
 }
 function pickTiles(engine, p, kind) {

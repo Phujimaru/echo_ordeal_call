@@ -27,7 +27,7 @@ const Summon = require("./summon");
 
 const SUFFIX = "~duo";
 // ฟิลด์ที่คู่ใช้ร่วมกับเจ้าของ (ทุกการอ่าน/เขียนบนระเบียนคู่ไปที่เจ้าของ)
-const SHARED = ["skillPoints", "gold", "inventory", "cards", "gutsShotTurn", "whistleReady"];
+const SHARED = ["skillPoints", "gold", "inventory", "cards", "whistleReady"];
 Object.assign(module.exports, { SUFFIX });
 
 function isPartner(p) { return !!(p && p.duoOf); }

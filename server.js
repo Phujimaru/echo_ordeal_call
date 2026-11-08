@@ -22,7 +22,6 @@ if (require.main === module) {
 const { server } = require("./server/app");
 const { engine } = require("./server/engine");
 const attack = require("./server/phases/attack");
-const characterRules = require("./server/characterRules");
 const combat = require("./server/combat");
 const summary = require("./server/phases/summary");
 require("./server/socket");
@@ -32,7 +31,6 @@ require("./server/socket");
 module.exports = {
   computeAttackBase: attack.computeAttackBase,
   resolveRound: summary.resolveRound, // เทสต์เรียกตรงๆ เพื่อพิสูจน์การตัดสินผู้ชนะ/ผู้แพ้จริง (ไม่จำลองเงื่อนไขเอง)
-  mark42Control: characterRules.mark42Control, // เกราะ Mark 42: เจ้าของคุมชุด (โค้ดจริงเรียกจาก socket)
   attackSoundOf: attack.attackSoundOf, // เสียงโจมตีปกติเฉพาะตัวละคร (เทสต์อ่านตรงนี้)
   engine,
   maxHpOf: combat.maxHpOf,

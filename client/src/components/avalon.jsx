@@ -388,9 +388,10 @@ export function Crest({ children, color = "var(--av-purple)", className = "", st
   );
 }
 
-export function AvModal({ label, title, right, onClose, children, width = "min(56rem, 94vw)", bodyClass = "" }) {
+// tone="white" = หน้าต่างในเกมแบบขาว ORDEAL CALL (avalon-screens.css .av-modal-white — ผู้ใช้สั่ง 2026-11-08)
+export function AvModal({ label, title, right, onClose, children, width = "min(56rem, 94vw)", bodyClass = "", tone = "" }) {
   return (
-    <div className="av-modal-veil" onClick={onClose}>
+    <div className={`av-modal-veil ${tone === "white" ? "av-modal-white" : ""}`} onClick={onClose}>
       <div className="av-modal" style={{ width }} onClick={(e) => e.stopPropagation()}>
         <div className="av-modal-head">
           <div className="min-w-0">

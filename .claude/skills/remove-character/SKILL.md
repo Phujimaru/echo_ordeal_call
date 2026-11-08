@@ -76,7 +76,7 @@ grep -rn "<id>\|<Id>\|<ID>\|<prefix>" --include=*.js --include=*.jsx --include=*
   (`curse` มี `applyCurse`/`tickCurseOnSkill` เหมือน `poison`/`shock`/`mend`) — เป็นคำศัพท์ร่วม
   ที่ตัวละครหน้าหยิบไปใช้ได้ ไม่ใช่เอฟเฟกต์ส่วนตัว
 - ระบบแกนที่เขาแค่ไป**เกาะ** ไม่ได้เป็นเจ้าของ: วงจรกลางวัน/กลางคืน (`isNightRound`) — **ห้ามลบโค้ดวัน/คืน** (GRID_PLAN §8)
-  · ระบบกระดาน (`server/board.js`, `phases/action.js`, `resolveArea`, `skillStrike`, `hasActed`) · Mark 42 · ปืน GUTS · การเดินทาง 7 ภูมิภาค
+  · ระบบกระดาน (`server/board.js`, `phases/action.js`, `resolveArea`, `skillStrike`, `hasActed`) · การเดินทาง 7 ภูมิภาค
 - ของที่ตัวละครอื่นยังอ่านอยู่ — `engine.skillStrike` / `engine.hasActed` เปิดไว้ให้ทุกตัวละคร แม้ตอนนี้จะมีคนใช้คนเดียว
 - โฟลเดอร์สื่อ `overload_force` (`server/mediaDirs.js`) เป็นแค่ชื่อโฟลเดอร์ที่เก็บเพลงท่าไม้ตายมุยมิ —
   **ระบบ Overload Force ถูกถอดออกไปแล้ว** ไม่ต้องตามหาหรือลบอะไรของระบบนั้น (ถ้าลบมุยมิ เพลงนั้นตายตามได้)

@@ -10,7 +10,7 @@ const FACE = {
 export const charKey = (p) => (p && (p.character?.id || p.charId || p.characterId)) || "";
 // สไตล์ <img> ให้หน้าตัวละครอยู่ที่ (50%, cy%) ของกรอบ (box = กว้าง/สูงของกรอบ) — ไม่รู้จักตัวละคร = cover ชิดบน
 export function faceStyle(p, { zoom, cy = 38, box = 0.873, big = false } = {}) {
-  // รูปที่แสดงไม่ใช่รูปประจำตัวละคร (เกราะ Mark 42 / ภาพท่าไม้ตาย) = จุดหน้าไม่ตรง → ครอปบนกลางแทน
+  // รูปที่แสดงไม่ใช่รูปประจำตัวละคร (ภาพท่าไม้ตาย) = จุดหน้าไม่ตรง → ครอปบนกลางแทน
   const f = p && p.img && p.character && p.character.img && p.img !== p.character.img ? null : FACE[charKey(p)];
   if (!f) return { width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 12%" };
   const Z = zoom || (big ? f.zb : f.zf), W = Z * 100, H = W * f.ar * box;

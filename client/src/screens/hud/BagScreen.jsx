@@ -2,7 +2,7 @@
 //  เวที 1920 × 1080 ย่อพอดีจอ · ซ้าย = ช่องกระเป๋าเต็มจำนวน (ช่องว่างเป็นกรอบเส้นประ) · ขวา = รายละเอียดของชิ้นที่เลือก + ปุ่มคำสั่ง
 //  เงื่อนไขทั้งหมดเหมือน InventoryModal เดิม (Game.jsx) — ใช้ได้เฉพาะตาตัวเอง = ปุ่มจาง ไม่มีข้อความบอก
 import { useEffect, useState } from "react";
-import { shopInfoOf, DRAW_ITEM_TYPES, MARK42_ARMOR } from "../../data/shop";
+import { shopInfoOf, DRAW_ITEM_TYPES, BATTERY_MAX } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
@@ -41,12 +41,16 @@ function Icon({ info, className = "" }) {
   return <span className={`bag-emoji ${className}`}>{info.icon}</span>;
 }
 
-export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots = 5, onPickGunAmmo, onPickSuit, onClose }) {
+// draw = ช่วงจั่ว (ยังไม่กด "พอ"): { fortuneFull, hasNumber, cardCount } — ใช้ได้เฉพาะไอเทมช่วงจั่ว (ผู้ใช้สั่ง 2026-11-08) · null = ไม่ใช่ช่วงจั่ว
+//  onDrawUse(item) = Game.jsx จัดการต่อ (ยาเปลี่ยนสี = ปิดกระเป๋าแล้วเลือกไพ่/สีบนมือ)
+// statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
+export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose }) {
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
-  const [gunOpen, setGunOpen] = useState(false);
   const [swapWith, setSwapWith] = useState(null); // id เพื่อนที่กำลังเลือกของมาแลก
+  const [amount, setAmount] = useState(1); // วงจรพลังงาน: จำนวนแต้มที่จะถอน
+  const [cleanseKey, setCleanseKey] = useState(null); // ยาล้างสถานะ: สถานะที่เลือกจะล้าง (ผู้ใช้สั่ง 2026-11-08 — เลือกเอง ลดทีละขั้น)
   const whistle = me?.whistle || null; // { cd, chance } · ยูนิตที่ถูกเรียก = ไม่มี
   const whistleSel = !!whistle && (selUid === WHISTLE || !items.length);
   const sel = whistleSel ? null : items.find((it) => it.uid === selUid) || items[0] || null;
@@ -60,16 +64,8 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   }, [onClose]);
 
   const adjacent = (a, b) => !!a?.pos && !!b?.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
-  // ชั้นมิติ (วาเลนไทน์): คนคนละชั้นกับเรา = ไม่ใช่เป้า · ยูนิตที่ถูกเรียก (p.summon) ใส่ชุดไม่ได้
+  // ชั้นมิติ (วาเลนไทน์): คนคนละชั้นกับเรา = ให้/แลกของไม่ได้
   const sameDim = (p) => (p.dim || null) === (me?.dim || null);
-  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42 && !p.summon && sameDim(p) && adjacent(me, p));
-  const suitOut = me?.mark42Owned || null;
-  const suitWearer = suitOut ? (players || []).find((p) => p.id === suitOut.wearerId) : null;
-  const ammoItems = items.filter((it) => it.type === "gutsAmmo");
-  // เป้ายิง = ศัตรู (ไม่นับอีกตัวของระบบคู่ฝ่ายเรา)
-  //  ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง ยิงได้เสมอ
-  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && sameDim(p)
-    && (p.summon?.kind === "double" || (!sameSide(p, me) && !(me?.teamId && p.teamId === me.teamId))));
   // ให้/แลกของ (โหมดร่วมมือ): เพื่อนร่วมทีมที่ยืนติดกัน · ของประจำตัวละครส่งต่อไม่ได้ (server/shop.js BOUND_ITEMS)
   const boxAdj = (a, b) => {
     if (!a?.pos || !b?.pos) return false;
@@ -81,24 +77,52 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
   const mates = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.summon && !sameSide(p, me) && sameDim(p)
     && !!me?.teamId && p.teamId === me.teamId && boxAdj(me, p));
   const bound = (it) => !it || BOUND_ITEMS.includes(it.type);
-  const canFire = myTurn && (me?.gutsShotTurn || 0) !== roundNumber && ammoItems.length > 0 && targets.length > 0;
 
   const emit = (ev, data) => { clickSound(); socket.emit(ev, data); };
-  const pick = (uid) => { clickSound(); setSelUid(uid); setGunOpen(false); setSwapWith(null); };
+  const pick = (uid) => { clickSound(); setSelUid(uid); setSwapWith(null); setAmount(1); setCleanseKey(null); };
 
   const info = sel ? shopInfoOf(sel) : null;
   const swapMate = sel && !bound(sel) && swapWith ? mates.find((m) => m.id === swapWith) || null : null;
   let actions = null;
   if (sel) {
     const type = sel.type;
-    if (type === "gutsGun") {
-      actions = <button type="button" className="bag-btn primary" disabled={!gunOpen && !canFire} onClick={() => { clickSound(); setGunOpen((v) => !v); }}>{gunOpen ? "ยกเลิก" : "ยิง"}</button>;
-    } else if (type === "mark42") {
+    if (DRAW_ITEM_TYPES.includes(type)) {
+      // ไอเทมช่วงจั่ว: กดใช้ได้เฉพาะช่วงจั่วก่อนกด "พอ"
+      const ok = !!draw && (type === "fortune" ? !draw.fortuneFull : type === "cardColor" ? draw.hasNumber : draw.cardCount > 0);
+      actions = <button type="button" className="bag-btn primary" disabled={!ok} onClick={() => { clickSound(); onDrawUse(sel); }}>ใช้</button>;
+    } else if (type === "battery") {
+      // วงจรพลังงาน: เลือกจำนวน (ไม่เกินที่ถังมี และไม่เกินที่แต้มสกิลยังว่าง) แล้วถอน
+      const room = Math.max(0, (me?.maxSkill || 0) - Math.max(0, me?.skillPoints || 0));
+      const max = Math.min(sel.charge || 0, room);
+      const n = Math.max(1, Math.min(amount, max || 1));
       actions = (
         <>
-          <button type="button" className="bag-btn primary" disabled={!myTurn || !!me?.mark42} onClick={() => emit("useInventoryItem", { uid: sel.uid, mode: "self" })}>ใส่ให้ตัวเอง</button>
-          <button type="button" className="bag-btn" disabled={!myTurn || !suitTargets.length} onClick={() => { clickSound(); onPickSuit(sel.uid, "give"); }}>ใส่ให้ผู้เล่นอื่น</button>
-          <button type="button" className="bag-btn warn" disabled={!myTurn || !suitTargets.length} onClick={() => { clickSound(); onPickSuit(sel.uid, "bomb"); }}>ใส่แล้วระเบิด</button>
+          <div className="bag-amount">
+            <button type="button" className="bag-btn sm" disabled={n <= 1} onClick={() => { clickSound(); setAmount(n - 1); }}>−</button>
+            <b>{n}</b>
+            <button type="button" className="bag-btn sm" disabled={n >= max} onClick={() => { clickSound(); setAmount(n + 1); }}>＋</button>
+          </div>
+          <button type="button" className="bag-btn primary" disabled={!myTurn || max <= 0} onClick={() => { emit("useInventoryItem", { uid: sel.uid, amount: n }); setAmount(1); }}>ใช้</button>
+        </>
+      );
+    } else if (type === "cleanse") {
+      // ยาล้างสถานะ: เลือกสถานะที่ติดอยู่ 1 อย่าง (ชิปไอคอน + ขั้นที่เหลือ) แล้วกดใช้ = ลด 1 ขั้น
+      const keys = me?.cleansable || [];
+      const all = statusOf && me ? statusOf(me) : [];
+      const list = keys.map((k) => all.find((s) => s.key === k) || { key: k, icon: "✦", label: k, n: null });
+      const chosen = list.find((s) => s.key === cleanseKey) ? cleanseKey : null;
+      actions = (
+        <>
+          <div className="bag-cleanse">
+            {list.map((s) => (
+              <button type="button" key={s.key} className={`bag-cl ${s.cls || ""}`} data-on={chosen === s.key ? "true" : "false"} title={s.label} onClick={() => { clickSound(); setCleanseKey(s.key); }}>
+                <span className="ic">{s.icon}</span>
+                <span className="nm">{s.label}</span>
+                {s.n != null && <b>{s.n}</b>}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="bag-btn primary" disabled={!myTurn || !chosen} onClick={() => { emit("useInventoryItem", { uid: sel.uid, status: chosen }); setCleanseKey(null); }}>ใช้</button>
         </>
       );
     } else if (type === "kebread") {
@@ -112,7 +136,7 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
           <button type="button" className="bag-btn" disabled={!myTurn || !canFeed} onClick={() => emit("useInventoryItem", { uid: sel.uid, targetId: kate.id })}>ป้อนเคท</button>
         </>
       );
-    } else if (type !== "gutsAmmo" && !DRAW_ITEM_TYPES.includes(type)) { // ยาช่วงจั่วไพ่ใช้จากกล่องข้างปุ่มจั่วเท่านั้น
+    } else {
       actions = <button type="button" className="bag-btn primary" disabled={!myTurn || sel.ready === false} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>ใช้</button>; // ready false = หัวใจของลอว์ที่บีบไปแล้วเทิร์นนี้
     }
   }
@@ -129,20 +153,6 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
             <span className="bag-lat">Inventory</span>
             <button type="button" className="bag-x" aria-label="ปิด" onClick={() => { clickSound(); onClose(); }}>✕</button>
           </div>
-
-          {suitOut && (
-            <div className="bag-suit">
-              <img src="/characters/Mark42/mark42.webp" alt="" />
-              <b>Mark 42</b>
-              <span className="bag-suit-who">{suitOut.self ? "คุณ" : suitOut.wearerName}</span>
-              <span className="bag-suit-ar">⛨ {suitOut.armor}/{MARK42_ARMOR}</span>
-              <span className="bag-suit-btns">
-                {!suitOut.self && <button type="button" className="bag-btn sm" disabled={!myTurn || !!me?.mark42 || !adjacent(me, suitWearer)} onClick={() => emit("mark42Control", { action: "recall" })}>เรียกคืน</button>}
-                <button type="button" className="bag-btn sm" disabled={!myTurn} onClick={() => emit("mark42Control", { action: "remove" })}>ถอด</button>
-                {!suitOut.self && <button type="button" className="bag-btn sm warn" disabled={!myTurn} onClick={() => emit("mark42Control", { action: "detonate" })}>ระเบิด</button>}
-              </span>
-            </div>
-          )}
 
           <div className="bag-body">
             <div className="bag-grid">
@@ -184,19 +194,6 @@ export default function BagScreen({ me, players, roundNumber, myTurn, bagSlots =
                   <div className="bag-detail-art"><Icon info={info} className="bag-detail-img" /></div>
                   <div className="bag-detail-name">{info.label(sel)}</div>
                   {info.short && <div className="bag-detail-short" title={info.desc}>{info.short}</div>}
-                  {gunOpen ? (
-                    <div className="bag-ammo">
-                      {ammoItems.map((a) => {
-                        const ai = shopInfoOf(a);
-                        return (
-                          <button type="button" key={a.uid} className="bag-ammo-btn" title={ai.label(a)} onClick={() => { clickSound(); setGunOpen(false); onPickGunAmmo(a); }}>
-                            <Icon info={ai} className="bag-ammo-img" />
-                            <span>{ai.short || ai.label(a)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
                   {swapMate && (
                     <div className="bag-ammo">
                       {(swapMate.inventory || []).filter((it) => !bound(it)).map((it) => {

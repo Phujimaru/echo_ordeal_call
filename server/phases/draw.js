@@ -163,13 +163,6 @@ function dealRound() {
     tickMend(engine, p);
     // "ฟื้นพลัง" (Ice Surge ของ Ice Spike): ต้นเทิร์นแต้มสกิล +1 ทีละขั้น
     tickSpRegen(engine, p);
-    // Gargorgon Ray (ปืนหน่วย GUTS Select): ผลหน่วง 1 เทิร์น — เช็คต้านสถานะตอนนี้ (เป้าหมายซื้อยาต้านมากันไว้ทัน)
-    //  ต้องอยู่ "ก่อน" บล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะข้ามไปมีผลอีกเทิร์นหนึ่ง
-    if (p.gutsGargorgonPending) {
-      p.gutsGargorgonPending = false;
-      if (combat.applyDebuff(p, "stun", null, 1)) match.lastLog.push(`🌑 ${p.name} โดน Gargorgon Ray เมื่อเทิร์นก่อน — ติดสถานะสตั้น 1 เทิร์น!`);
-      else match.lastLog.push(`🛡️ ${p.name} ต้านผลของ Gargorgon Ray ไว้ได้ — ไม่ติดสตั้น`);
-    }
     // สตั้น (สถานะพื้นฐาน patch 2.0.8): ทำอะไรไม่ได้จนจบเทิร์นหรือจนกว่าดีบัฟจะหมดเวลา
     if ((p.statuses.stun || 0) > 0) {
       if (!Duo.isOwner(p)) p.locked = true;

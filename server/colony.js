@@ -225,7 +225,7 @@ function landCapsule(t, turn) {
   match.shopOpenedRound = turn;
   st().capsuleFinal = !!t.final;
   shop.openShop();
-  if (t.final) for (const it of match.shopItems) it.price = Math.ceil(it.price * 1.5); // แคปซูลสุดท้าย: ของแพงกว่า (สุ่มเฉพาะของราคา 5 ขึ้นไป — shop.openShop)
+  if (t.final) for (const it of match.shopItems) it.price = Math.ceil(it.price * 1.5); // แคปซูลสุดท้าย: ของแพงกว่า
   match.lastLog.push(t.final ? "📦 แคปซูลสุดท้าย · ปรากฏ" : "📦 แคปซูลเสบียง · ปรากฏ");
   return { type: "capsule", at: { x: t.x, y: t.y }, crushed, landed: true, final: !!t.final };
 }

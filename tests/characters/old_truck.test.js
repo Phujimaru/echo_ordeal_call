@@ -211,12 +211,11 @@ test('ผู้พิทักษ์: คลิปเล่นตอนสวน
   assert.equal(ot.counterClip(engine, P.T, { counter: {} }), null, 'ครั้งที่ 2 ไม่เล่น');
 });
 
-test('ผู้พิทักษ์: สวนได้ไม่ว่าผู้ตีอยู่ไกลแค่ไหน · ปืน GUTS ไม่นับ · ผู้ตีหลบได้', () => {
+test('ผู้พิทักษ์: สวนได้ไม่ว่าผู้ตีอยู่ไกลแค่ไหน · ผู้ตีหลบได้', () => {
   const P = setup([['T', 'old_truck', 4, 7], ['K', 'kensaki_kazuma', 6, 7]]);
   toPrime(P);
   P.T.oldTruck.stance = true; P.T.oldTruck.stanceRound = engine.roundNumber;
-  assert.equal(ot.counters(P.T, { gun: 'normal' }), false);
-  assert.equal(ot.counters(P.T, {}), true);
+  assert.equal(ot.counters(P.T), true);
   engine.setActor('K');
   const k0 = vit(P.K);
   assert.ok(engine.attackTarget('K', 'T'), 'คาซุมะตีระยะ 2');

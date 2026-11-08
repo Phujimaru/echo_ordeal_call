@@ -3,7 +3,7 @@
 //  แถบ dev ลอยซ้ายกลางจอ (ไม่บังแถบบน/แถบลำดับเดิน/HUD ล่าง) ใช้สลับฉาก — ทุกค่าเขียนกลับลง URL ให้รีโหลดแล้วได้ฉากเดิม
 //
 //  พารามิเตอร์ URL:
-//   scn = playing | order | my | moved | other | attack | collide | gun | region
+//   scn = playing | order | my | moved | other | attack | collide | region
 //         (region = ตาเรา ที่ภูมิภาค area (ค่าเริ่ม VI) กลางคืน)
 //   area = 1..7 · night=1 · lowq=1 · team=1 (โหมด duo) · shop=1 (ร้านอยู่ติดเรา) · bar=0 (ซ่อนแถบ dev)
 //   drawer=1 = กดเปิดลิ้นชักสถานะให้หลังโหลด · measure=1 = วัดกล่อง HUD

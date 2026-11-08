@@ -45,7 +45,7 @@ test('ECHO_DEV_START_ROUND=13 + ECHO_DEV_START_AREA=3: เทิร์นแร�
   assert.deepEqual(engine.journeyRoute, [1, 3]);
   for (const p of [A, B]) {
     assert.ok(p.pos, 'ได้จุดเกิดบนกระดานภูมิภาคใหม่');
-    assert.equal(p.gold, 30);
+    assert.equal(p.gold, engine.GOLD_MAX);
     assert.equal(p.skillPoints, engine.maxSkillOf(p));
   }
 });

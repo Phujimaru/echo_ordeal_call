@@ -105,7 +105,7 @@ test('ซุ่มโจมตี: ศัตรูไม่เห็นข้อ
   engine.setActor('S');
   const enemyBefore = view('B', 'S');
   assert.equal(enemyBefore.pos, null);
-  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield', 'mark42']) assert.equal(enemyBefore[k], null, k);
+  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield']) assert.equal(enemyBefore[k], null, k);
   assert.equal(enemyBefore.skillPoints, -1);
   assert.deepEqual(enemyBefore.statuses, {});
   assert.equal(enemyBefore.sliver, undefined);
@@ -287,15 +287,13 @@ test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · 
   assert.equal(P.B.hp + P.B.armor, 6);
 });
 
-test('Beam Magnum: บันทึกดาเมจนับโล่/เกราะชุด Mark 42 ด้วย (ไม่ขึ้น -0)', () => {
+test('Beam Magnum: บันทึกดาเมจนับโล่ด้วย (ไม่ขึ้น -0)', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 3, 5], ['C', 'dummy', 5, 5]]);
   P.B.shield = 2;
-  P.C.mark42 = { armor: 7, ownerId: 'C' };
   engine.setActor('S');
   match.lastLog = [];
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(P.B.shield, 0);
-  assert.equal(P.C.mark42.armor, 3);
   assert.ok(match.lastLog.includes('💥 Beam Magnum → B -4 (ลดเกราะก่อน)'), match.lastLog.join(' | '));
   assert.ok(match.lastLog.includes('💥 Beam Magnum → C -4 (ลดเกราะก่อน)'), match.lastLog.join(' | '));
 });

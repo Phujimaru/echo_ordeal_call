@@ -16,7 +16,7 @@ const { NETRAMANA_KILL_CHANCE, netramanaActive, applySpRegen } = require("../cha
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
 const {
-  ATTACKFX_TIME, ACTION_TIME, GOLD_MAX, GUTS_AMMO, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG, MAX_HP,
+  ATTACKFX_TIME, ACTION_TIME, GOLD_MAX, MAX_HP,
   TRANSFORMS,
 } = require("./constants");
 const match = require("./match");
@@ -265,19 +265,13 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // ---------- ร้านค้ามายา (เปิดไว้ให้ tests/shop.test.js เรียกตรงๆ) ----------
   shopItemName: shop.shopItemName,
   grantInventoryItem: shop.grantInventoryItem,
-  GUTS_AMMO,
-  GUTS_GUN_PRICE,
-  GUTS_CHAA_TURNS,
-  GUTS_NURSE_DMG,
-  rollShopItem: shop.rollShopItem,
+  chargeBatteries: shop.chargeBatteries,
+  cleansableOf: shop.cleansableOf,
+  shopCatalog: shop.shopCatalog,
   openShop: shop.openShop,
   buyShopItem: shop.buyShopItem,
   useInventoryItem: shop.useInventoryItem,
   useDrawItem: shop.useDrawItem,
-  gutsFireTargetOf: shop.gutsFireTargetOf,
-  applyGutsBullet: shop.applyGutsBullet,
-  hasGutsGun: shop.hasGutsGun,
-  hasGutsWeapon: shop.hasGutsWeapon,
   hit: draw.hit,
   lock: draw.lock, // เปิดไพ่ (เทสต์ใช้ตรวจผลไพ่ครบชุดตอนเปิดไพ่)
   get shopItems() { return match.shopItems; },

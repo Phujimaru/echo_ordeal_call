@@ -468,7 +468,7 @@ module.exports = {
     return { name: CARDS.crystal.name, img: IMG.card("crystal") };
   },
   dodgeSure(engine, p) { return crystalOn(p) && st(p).crystalDodge > 0; },
-  counters(p, card) { return crystalOn(p) && !(card && card.gun); },
+  counters(p) { return crystalOn(p); },
   counterAnyRange(engine, p, attacker) {
     if (!crystalOn(p) || !p.pos || !attacker.pos) return false;
     if (!inRing(p, attacker, COUNTER_RING)) return false;

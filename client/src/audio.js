@@ -646,7 +646,6 @@ const VIDEO_BASE = 1;
 const LOUDNESS_GAIN = {
   "/characters/muimi/muimi_skill3_short.mp4": 0.88,
   "/characters/muimi/mumi_ub_hit.mp3": 0.79,
-  "/item/guts_key/shockwave_boost.mp4": 0.92,
   "/overload_force/overload_force_theme.mp3": 0.53,
   // การเดินทาง (วัดด้วย Web Audio: RMS บล็อก 0.4 วิ ตัดบล็อกที่เบากว่า -50 dBFS) — ไฟล์ที่เบากว่า -14 อยู่แล้วไม่อยู่ในตาราง
   //  ⚠️ map2 กลางคืน (Full Bloom in the Breeze.mp3) เบากว่าเป้า ~5 dB — ต้องเข้ารหัสใหม่ให้ดังขึ้นที่ตัวไฟล์ถ้าต้องการให้เท่ากัน

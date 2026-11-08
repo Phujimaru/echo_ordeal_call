@@ -396,10 +396,10 @@ test('Avalon: ใช้สกิลทุกครั้ง ความจุ +
   trace('kb');
   assert.equal(engine.maxSkillOf(P.S), 24, 'เต็ม +16 แล้วไม่เพิ่ม');
   P.S.skillPoints = 3;
-  P.S.inventory = [{ uid: 'sp1', type: 'skillPoint', value: 2 }];
-  shop.useInventoryItem('S', 'sp1');
+  P.S.inventory = [{ uid: 'bt1', type: 'battery', charge: 2 }];
+  shop.useInventoryItem('S', 'bt1', { amount: 2 });
   assert.equal(P.S.skillPoints, 3);
-  assert.equal(P.S.inventory.length, 1, 'ไม่เสียของ');
+  assert.equal(P.S.inventory[0].charge, 2, 'ถังไม่ถูกถอน');
 });
 
 test('ตัดผลสกิล: อาวุธ + UBW (ล่าสุดก่อน)', () => {

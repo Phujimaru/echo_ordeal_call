@@ -24,6 +24,7 @@ import {
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
 import { drawCapsule, drawHouse, drawTower } from "./colonyProps";
+import { drawShopStall } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -2276,6 +2277,11 @@ export function drawFrame(g, st, now) {
   // Colony: ร้าน = แคปซูลเสบียง (ตกลงมาจากแกนตอนปรากฏ — st.colonyCapsule จาก colony3d.capsuleAt)
   const cap = colony ? st.colonyCapsule : null;
   if (cap) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now)) });
+  // ร้าน 3 ร้าน ขนาด 2×2 (แผน shop-three · ยังอยู่ในหน้าดูกระดาน ?board=1&shops=1) — เรียงความลึกที่กลางพื้นที่ 2×2
+  if (Array.isArray(st.shops) && !colony) for (const sh of st.shops) {
+    if (!sh || !Number.isFinite(sh.x) || !Number.isFinite(sh.y)) continue;
+    items.push({ d: depthOf(sh.x + 1, sh.y + 1) + 0.05, f: () => drawShopStall(g, sh.kind, sh.x, sh.y, now, night) });
+  }
   if (shopPos && !colony && Number.isFinite(shopPos.x) && Number.isFinite(shopPos.y)) {
     const { x, y } = shopPos, fade = behind(x, y);
     items.push({ d: depthOf(x + 0.5, y + 0.5) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShop(g, x, y, C, now, night); if (fade) g.restore(); } });

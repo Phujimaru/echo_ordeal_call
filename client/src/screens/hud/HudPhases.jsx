@@ -1,11 +1,12 @@
 // HUD แยกตามช่วง (ดีไซน์ที่ผู้ใช้อนุมัติ 2026-10-09 — ต้นแบบ .claude/plans/game-ui-redesign.html)
 //  · DrawDock   — ช่วงจั่ว: เห็นแค่ไพ่ในมือ · หน้าปัดแต้ม 0–21 · ปุ่ม จั่ว / พอ (ชิดขอบล่างจอ ไพ่จมขอบจอเหมือนถือในมือ)
-//                 + กล่องไอเทมช่วงจั่ว หกเหลี่ยม 2 ก้อน (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด — ผู้ใช้สั่ง 2026-10-18)
+//                 + ปุ่มกระเป๋า (ไอเทมช่วงจั่วใช้ผ่านกระเป๋า — ผู้ใช้สั่ง 2026-11-08 แทนกล่องหกเหลี่ยมเดิม)
 //  · HudCommand — ตาของเรา: สกิล 3 ช่อง + ช่องคำสั่ง (โจมตี · ร้านค้า [เฉพาะยืนติดร้าน] · กระเป๋า · ย้อน / จบตา)
-//  · BagButton  — ตาคนอื่น: เปิดดูกระเป๋า (คนที่กำลังเดินแสดงที่บนกลางของกระดาน)
+//  · BagButton  — ช่วงจั่ว / ตาคนอื่น: เปิดกระเป๋า (คนที่กำลังเดินแสดงที่บนกลางของกระดาน)
 //  · PhaseCall  — ฉากเปิดช่วงจั่วไพ่ (หกเหลี่ยมขยาย + ไพ่ 3 ใบ)
 //  กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น · หน่วยออกแบบ = ฐาน 1440 × 810 (ขยายด้วย --hud-k ของ SelfHud)
 import Card from "../../components/Card";
+import { shopInfoOf } from "../../data/shop";
 
 const CAP = 21;
 const P = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -20,9 +21,9 @@ const TICKS = Array.from({ length: CAP + 1 }, (_, i) => {
 });
 
 // ---------- ช่วงจั่ว ----------
-//  items = { fortune, color } จาก DrawItems · pick = โหมดยาเปลี่ยนสี { card, onCard(i), onColor(color) } หรือ null
+//  pick = โหมดยาเปลี่ยนสี { card, onCard(i), onColor(color) } หรือ null
 const CARD_COLORS = ["red", "blue", "green", "yellow"];
-export function DrawDock({ cards, score, busted, handRef, draw, stand, items, pick }) {
+export function DrawDock({ cards, score, busted, handRef, draw, stand, pick, bag }) {
   const n = Array.isArray(cards) ? cards.length : 0;
   const val = Number.isFinite(score) ? score : 0;
   const frac = Math.max(0, Math.min(CAP, val)) / CAP;
@@ -73,40 +74,13 @@ export function DrawDock({ cards, score, busted, handRef, draw, stand, items, pi
         <button type="button" className="dd-btn draw" disabled={draw.disabled} onClick={draw.onClick}><span className="ico">＋</span><span><b>จั่ว</b><span className="lat">Draw</span></span></button>
         <button type="button" className="dd-btn stand" disabled={stand.disabled} onClick={stand.onClick}><span className="ico">✋</span><span><b>{stand.done ? "พร้อม" : "พอ"}</b><span className="lat">Stand</span></span></button>
       </div>
-      {items && <DrawItems {...items} />}
-    </div>
-  );
-}
-
-// ---------- กล่องไอเทมช่วงจั่ว: หกเหลี่ยม 2 ก้อน (ดึงจำนวนจากกระเป๋า · ไม่มี = "เหลือ 0" สีเทา กดไม่ได้) ----------
-const CLOVER = <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="17" cy="17" r="8" /><circle cx="31" cy="17" r="8" /><circle cx="17" cy="31" r="8" /><circle cx="31" cy="31" r="8" /><path className="stem" d="M24 24 C28 32 30 38 36 44" /></svg>;
-const PALETTE = <svg viewBox="0 0 48 48" aria-hidden="true"><path className="c1" d="M24 4 L33 9 V19 L24 24 L15 19 V9 Z" /><path className="c2" d="M34 21 L43 26 V36 L34 41 L25 36 V26 Z" /><path className="c3" d="M14 21 L23 26 V36 L14 41 L5 36 V26 Z" /></svg>;
-function DrawItem({ kind, name, icon, it }) {
-  const off = !it.count || it.disabled;
-  return (
-    <button type="button" className={`ddi ${kind}`} data-off={off ? "true" : "false"} data-active={it.active ? "true" : "false"} disabled={off && !it.active} onClick={it.onClick}>
-      <span className="ddi-hex">
-        <span className="ddi-in">
-          <span className="ddi-ico">{icon}</span>
-          <span className="ddi-n">เหลือ <b>{it.count}</b></span>
-        </span>
-      </span>
-      <span className="ddi-name">{name}</span>
-    </button>
-  );
-}
-export function DrawItems({ fortune, color }) {
-  return (
-    <div className="ddi-box" aria-label="ไอเทม">
-      <DrawItem kind="fortune" name="ยาโชคลาภ" icon={CLOVER} it={fortune} />
-      <DrawItem kind="color" name="ยาเปลี่ยนสีการ์ด" icon={PALETTE} it={color} />
+      {bag && <div className="dd-bag"><BagButton solo {...bag} /></div>}
     </div>
   );
 }
 
 // ---------- ตาของเรา: สกิล + ช่องคำสั่ง ----------
 const SWORD = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 38 L34 14 L38 6 L30 10 L6 34" /><path d="M8 28 L20 40 M4 44 L10 38" /></svg>;
-const BAG = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 18 H40 L37 42 H11 Z" /><path d="M17 18 V13 a7 7 0 0 1 14 0 V18" /><path d="M8 26 H40" /><path d="M21 26 V31 H27 V26" /></svg>;
 const SHOP = <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 18 L10 8 H38 L42 18 Z" /><path d="M6 18 a6 5 0 0 0 12 0 a6 5 0 0 0 12 0 a6 5 0 0 0 12 0" /><path d="M10 23 V41 H38 V23" /><path d="M20 41 V31 H28 V41" /></svg>;
 // extra = ปุ่มพิเศษของตัวละคร (state.players[].actions จากฮุค hudActions — ไจโร: ขึ้น/ลงม้า) [{ key, icon, name, disabled, cd, row, onClick }]
 //  row เดียวกันติดกัน = แบ่งครึ่งปุ่มวางคู่กันในแถวเดียว (ลอว์: ตัด | ทิ้ง)
@@ -122,19 +96,19 @@ function extraRows(extra) {
 const extraBtn = (x) => (
   <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
 );
-export function HudCommand({ skills, attack, shop, ride, drop, extra, onBag, undo, end }) {
+export function HudCommand({ skills, attack, shop, ride, drop, extra, bag, undo, end }) {
   return (
     <section className="hc" aria-label="คำสั่ง">
       <div className="hud-skills hc-skills">{skills}</div>
       <div className="hc-col">
         {shop && <button type="button" className="hc-btn shop" onClick={shop.onClick}><span className="ico">{SHOP}</span><b>ร้านค้ามายา</b></button>}
-        <button type="button" className="hc-btn atk" data-off={attack.disabled ? "true" : "false"} disabled={attack.disabled} onClick={attack.onClick}><span className="ico">{SWORD}</span><b>โจมตี</b></button>
+        <AttackButton {...attack} />
         {ride && <button type="button" className="hc-btn ride" disabled={ride.disabled} onClick={ride.onClick}><span className="ico">🎠</span><b>ขี่</b></button>}
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}
         {extraRows(extra).map((g) => (g.length > 1
           ? <div key={g[0].key} className="hc-row">{g.map(extraBtn)}</div>
           : extraBtn(g[0])))}
-        <button type="button" className="hc-btn bag" onClick={onBag}><span className="ico">{BAG}</span><b>กระเป๋า</b></button>
+        <BagButton {...bag} />
         <div className="hc-row">
           <button type="button" className="hc-btn" disabled={undo.disabled} onClick={undo.onClick}><b>↶ ย้อน</b></button>
           <button type="button" className="hc-btn end" disabled={end.disabled} onClick={end.onClick}><b>จบตา</b></button>
@@ -143,8 +117,76 @@ export function HudCommand({ skills, attack, shop, ride, drop, extra, onBag, und
     </section>
   );
 }
-export function BagButton({ onClick }) {
-  return <button type="button" className="hc-btn bag hc-solo" onClick={onClick}><span className="ico">{BAG}</span><b>กระเป๋า</b></button>;
+// ---------- ปุ่มโจมตี (ผู้ใช้สั่งทำใหม่ 2026-11-08) ----------
+//  ตราหกเหลี่ยมดาบไขว้ · เลขเป้าในระยะ · มีเป้า = แสงวิ่ง + ประกายเต้น · ชี้ = ดาบไขว้ฟันเข้าหากัน + เส้นฟันวาบ · ไม่มีเป้า = ปุ่มจาง
+const BLADES = (
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <g className="ab-b l"><path className="ab-blade" d="M14 50 L44 12 L50 10 L48 16 L18 54 Z" /><path className="ab-guard" d="M12 42 L22 52" /><path className="ab-grip" d="M15 51 L9 57" /></g>
+    <g className="ab-b r"><path className="ab-blade" d="M50 50 L20 12 L14 10 L16 16 L46 54 Z" /><path className="ab-guard" d="M52 42 L42 52" /><path className="ab-grip" d="M49 51 L55 57" /></g>
+  </svg>
+);
+export function AttackButton({ disabled = false, onClick, targets = 0 }) {
+  return (
+    <button type="button" className="ab" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+      <span className="ab-bg" aria-hidden="true" />
+      <span className="ab-slash" aria-hidden="true" />
+      <span className="ab-emb">
+        <span className="ab-hex" aria-hidden="true" />
+        <span className="ab-ico">{BLADES}</span>
+        {!disabled && targets > 0 && <span key={targets} className="ab-count">{targets}</span>}
+      </span>
+      <b>โจมตี</b>
+      <span className="ab-chev" aria-hidden="true"><i /><i /><i /></span>
+    </button>
+  );
+}
+
+// ---------- ปุ่มกระเป๋า (ผู้ใช้สั่งทำใหม่ 2026-11-08: "แค่กล่องเหลี่ยมๆ ไม่มีลูกเล่น") ----------
+//  หกเหลี่ยมใส่กระเป๋าหนัง — ชี้ = ฝากระเป๋าเปิด ของในกระเป๋าเด้งออกมาเป็นพัด · ช่อง 5 เม็ดบอกจำนวนของ
+//  ของเพิ่ม = กระเป๋าเด้ง (key = จำนวน) · hot = มีของที่กดใช้ได้ตอนนี้ (ช่วงจั่ว: ไอเทมช่วงจั่ว · ตาเดิน: วงจรพลังงานที่ถอนได้) → วงแสงเต้น
+//  solo = ใช้เดี่ยว (ช่วงจั่ว / ตาคนอื่น) ขนาดใหญ่ขึ้น
+const SATCHEL = (
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <path className="bb-body" d="M10 24 H54 L50 56 H14 Z" />
+    <path className="bb-strap" d="M22 24 V17 a10 10 0 0 1 20 0 V24" />
+    <path className="bb-seam" d="M13.5 46 H50.5" />
+    <g className="bb-flap">
+      <path d="M8 22 H56 L52 36 Q32 42 12 36 Z" />
+      <rect className="bb-clasp" x="28" y="33" width="8" height="8" rx="1.5" />
+    </g>
+  </svg>
+);
+export function BagButton({ onClick, items = [], slots = 5, hot = false, solo = false }) {
+  const n = items.filter((it) => it.type !== "kebread").length; // ขนมปังเอมิลิโกะไม่กินช่อง
+  const peek = items.slice(0, 4);
+  const mid = (peek.length - 1) / 2;
+  return (
+    <button type="button" className={`bb${solo ? " bb-solo" : ""}`} data-hot={hot ? "true" : "false"} data-full={n >= slots ? "true" : "false"} onClick={onClick}>
+      <span className="bb-bg" aria-hidden="true" />
+      <span className="bb-emb">
+        <span className="bb-hex" aria-hidden="true" />
+        <span className="bb-peek" aria-hidden="true">
+          {peek.map((it, i) => {
+            const info = shopInfoOf(it);
+            const d = i - mid;
+            return (
+              <span key={it.uid || i} className="bb-peek-it" style={{ "--d": i, "--x": `${d * 24}px`, "--y": `${-36 + Math.abs(d) * 6}px`, "--r": `${d * 14}deg` }}>
+                {info.img ? <img src={info.img} alt="" /> : info.icon}
+              </span>
+            );
+          })}
+        </span>
+        <span key={n} className="bb-icon">{SATCHEL}</span>
+        {n > 0 && <span key={`c${n}`} className="bb-count">{n}</span>}
+      </span>
+      <span className="bb-txt">
+        <b>กระเป๋า</b>
+        <span className="bb-pips" aria-label={`${n}/${slots}`}>
+          {Array.from({ length: slots }, (_, i) => <i key={i} data-on={i < n ? "true" : "false"} />)}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 // ---------- ฉากเปิดช่วงจั่วไพ่ ----------

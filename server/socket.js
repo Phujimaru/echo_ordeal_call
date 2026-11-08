@@ -11,7 +11,6 @@ const { io } = require("./app");
 const { MAX_ARMOR, MAX_HP, MAX_PLAYERS, RECONNECT_GRACE_MS } = require("./constants");
 const match = require("./match");
 const action = require("./phases/action");
-const characterRules = require("./characterRules");
 const combat = require("./combat");
 const draw = require("./phases/draw");
 const lobby = require("./lobby");
@@ -280,14 +279,12 @@ io.on('connection', (socket) => {
   }, 12);
   onUnitEvent(socket, 'viewShop', (id) => shop.viewShop(id), 8); // เปิดดูร้าน = ล็อกการเดิน
   onUnitEvent(socket, 'buyShopItem', (id, { itemId } = {}) => shop.buyShopItem(id, itemId), 8);
-  onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, mode } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, mode })), 8);
+  onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, amount, status } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, amount, status })), 8);
   onUnitEvent(socket, 'blowWhistle', (id) => combat.withEffectSource(match.players[id], () => require('./whistle').blow(id)), 8); // นกหวีดอัญเชิญมนต์อสูรเทพ (ช่องพิเศษที่ 6)
   onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
   // ให้/แลกของกับเพื่อนร่วมทีมที่ยืนติดกัน (โหมดร่วมมือ · ตาตัวเอง · ทันที)
   onUnitEvent(socket, 'giveItem', (id, { uid, toId } = {}) => shop.giveItem(id, uid, toId), 8);
   onUnitEvent(socket, 'swapItem', (id, { uid, toId, theirUid } = {}) => shop.swapItem(id, uid, toId, theirUid), 8);
-  // เกราะ Mark 42: เจ้าของคุมชุดที่ส่งออกไปแล้ว (recall / remove / detonate)
-  onUnitEvent(socket, 'mark42Control', (id, { action } = {}) => combat.withEffectSource(match.players[id], () => characterRules.mark42Control(id, action)), 6);
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
   onUnitEvent(socket, 'move', (id, { x, y, step } = {}) => action.moveTo(id, x, y, { step: step === true }), 12);
   onUnitEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);

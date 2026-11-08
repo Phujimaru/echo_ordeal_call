@@ -121,7 +121,7 @@ CHARS.funny_valentine = {
 // การเดินทาง 7 ภูมิภาค (characters/_journey.js AREAS)
 const AREAS = [
   { name: "อาณาจักรแห่งจุดเริ่มต้น", passive: null, day: "จบเทิร์นเลขคู่ ได้แต้มสกิลเพิ่ม +1", night: "ทุกเทิร์นสุ่มสกิลพื้นฐานหรือสกิลรองของแต่ละคนให้ใช้แต้มเพิ่มขึ้น +1 (ไม่รวมท่าไม้ตาย)" },
-  { name: "สวนดอกไม้ทุ่งหญ้าแสนอบอุ่น", passive: null, day: "จบเทิร์นมีโอกาส 30% ได้ไอเทมราคาไม่เกิน 5 เหรียญฟรี 1 ชิ้น", night: "ร้านค้ามายาซื้อได้ช่องละ 3 ชิ้น (ยกเว้นปืน / เกราะ Mark 42)" },
+  { name: "สวนดอกไม้ทุ่งหญ้าแสนอบอุ่น", passive: null, day: "จบเทิร์นมีโอกาส 30% ได้ไอเทมราคาไม่เกิน 5 เหรียญฟรี 1 ชิ้น", night: "ร้านค้ามายาซื้อได้ช่องละ 3 ชิ้น" },
   { name: "ป่าไม้ต้องสาป", passive: "ทุกสกิลใช้แต้มเพิ่มขึ้น +1 (เพดาน 8 แต้มเหมือนเดิม)", day: "โจมตีปกติพลาด 40% แต่ถ้าโดนแรงขึ้น +1 · สกิลที่เลือกศัตรูเป็นเป้าหมายพลาด 25% (พลาดได้แต้มคืน) — \"แม่นยำ\" ไม่พลาด", night: "ลุกไหม้ / เลือดไหล / พิษร้าย มีโอกาส 50% แรงขึ้น +1 ทุกครั้งที่ออกฤทธิ์" },
   { name: "คลื่นวงวนน้ำ", passive: "จบเทิร์นได้เหรียญเพิ่ม +1", day: "ร้านค้ามายาสุ่มเฉพาะสินค้าราคา 5 เหรียญขึ้นไป", night: "จบเทิร์นมีโอกาส 25% เสีย 2 เหรียญ — มีไม่พอจะเสียเท่าที่มีและโดนความเสียหาย 1" },
   { name: "ทะเลทรายไม่อาจหวนคืน", passive: "เกราะฟื้น +1 ทุกเทิร์น", day: "จบเทิร์นโดนความเสียหาย 1 (ลดเกราะก่อน)", night: "ใช้สกิลได้แต้มคืน 2 (ไม่เกินแต้มที่จ่ายจริง)" },
@@ -150,33 +150,28 @@ const ME = "p0";
 // ช่วงจั่ว: ใครกด "พอ" แล้ว
 const LOCKED_IN_PLAYING = new Set(["p1", "p3"]);
 
-// ร้านค้ามายา 15 ช่อง (รูปเดียวกับ server/shop.js rollShopItem + id/sold/soldTo)
+// ร้านค้ามายา: ของทุกชนิดช่องละ 1 · จำนวนที่ซื้อได้ต่อช่อง 2–5 (รูปเดียวกับ server/shop.js openShop + id/stock/sold)
 const SHOP_ROLL = [
-  { type: "cardColor", price: 5 },
-  { type: "fortune", price: 5 },
-  { type: "resist", price: 5 },
-  { type: "skillPoint", size: "small", value: 1, price: 2 },
-  { type: "skillPoint", size: "medium", value: 4, price: 6 },
-  { type: "skillPoint", size: "large", value: 6, price: 10 },
-  { type: "armor", value: 1, price: 3 },
-  { type: "armor", value: 1, price: 3 },
-  { type: "gutsGun", price: 15 },
-  { type: "gutsAmmo", ammo: "shockwave", price: 5 },
-  { type: "gutsAmmo", ammo: "gargorgon", price: 5 },
-  { type: "gutsAmmo", ammo: "thunder", price: 5 },
-  { type: "gutsAmmo", ammo: "nurse", price: 10 },
-  { type: "mark42", price: 25 },
-  { type: "resist", price: 5 },
-  { type: "skillPoint", size: "small", value: 1, price: 2 },
+  { type: "fortune", price: 5, stockBase: 3 },
+  { type: "cardColor", price: 5, stockBase: 2 },
+  { type: "cardCut", price: 5, stockBase: 4 },
+  { type: "armor", value: 1, price: 3, stockBase: 5 },
+  { type: "cleanse", price: 3, stockBase: 3 },
+  { type: "resist", price: 5, stockBase: 2 },
+  { type: "windBoots", price: 4, stockBase: 4 },
+  { type: "battery", price: 15, stockBase: 2 },
+  { type: "lifeCrystal", price: 15, stockBase: 2 },
+  { type: "armorCrystal", price: 15, stockBase: 3 },
 ];
-const SOLD = new Set([1, 6]);
+const SOLD = new Set([1]); // หมดแล้ว (ซื้อครบ stockBase)
 
 // กระเป๋าของเรา (5 ช่อง — รูปเดียวกับ p.inventory ใน server/shop.js)
 const MY_BAG = [
-  { uid: "inv_gun", type: "gutsGun", price: 15 },
-  { uid: "inv_thunder", type: "gutsAmmo", ammo: "thunder", price: 5 },
+  { uid: "inv_battery", type: "battery", price: 15, charge: 3 },
+  { uid: "inv_resist", type: "resist", price: 5 },
   { uid: "inv_armor", type: "armor", value: 1, price: 3 },
-  { uid: "inv_color", type: "cardColor", price: 5 }, // ไอเทมช่วงจั่ว — ยาโชคลาภไม่มี (ดูกล่องสีเทา "เหลือ 0")
+  { uid: "inv_color", type: "cardColor", price: 5 }, // ไอเทมช่วงจั่ว (เปิดกระเป๋าใช้ช่วงจั่ว)
+  { uid: "inv_cut", type: "cardCut", price: 5 },
 ];
 
 // ---------- ฉาก ----------
@@ -189,7 +184,6 @@ export const SCENARIOS = [
   { id: "other", label: "ตาคนอื่น" },
   { id: "attack", label: "ตี + สวน + ถอย" },
   { id: "collide", label: "ตี + สวน + ชน" },
-  { id: "gun", label: "ยิงปืน GUTS" },
   { id: "valentine", label: "วาเลนไทน์ หลบสายตา" },
   { id: "valclone", label: "วาเลนไทน์ ร่างแยก" },
 ];
@@ -278,12 +272,9 @@ function playerPublic(r, o) {
     cards: mine ? clone(r.cards) : null,
     score: show ? r.score : null,
     hp: r.hp, maxHp: 7, armor: r.armor, maxArmor: 3,
-    mark42: null,
-    ...(mine ? { mark42Owned: null, mark42BuyLock: 0 } : {}),
     shield: 0, tempHp: 0, skillPoints: r.sp, qte: undefined, maxSkill: 8,
     gold: r.gold, goldMax: 30,
     inventory: mine ? clone(MY_BAG) : null,
-    gutsShotTurn: mine ? 0 : undefined,
     muimiEmergencyUses: r.char === "muimi" ? 2 : undefined,
     muimiEmergencyMax: r.char === "muimi" ? 2 : undefined,
     muimiEmergencyUsed: r.char === "muimi" ? false : undefined,
@@ -425,28 +416,17 @@ function strikeCard(by, target, dmg) {
   };
 }
 
-// ฉากตี (ATTACKING) แบบ server/phases/attack.js boardAttack / gunAttack: ตี → สวน (ถ้าตีถึง) → ผู้ตีถอย 1 ช่อง (ชน = เสียเพิ่ม 1)
-//  gun = ชนิดกระสุน (ดาเมจจังหวะแรก 0 — ผลจริงตามชนิดกระสุน)
-export function simulateAttack(prev, byId, targetId, gun = null) {
+// ฉากตี (ATTACKING) แบบ server/phases/attack.js boardAttack: ตี → สวน (ถ้าตีถึง) → ผู้ตีถอย 1 ช่อง (ชน = เสียเพิ่ม 1)
+export function simulateAttack(prev, byId, targetId) {
   const s = clone(prev);
   const by = s.players.find((p) => p.id === byId);
   const target = s.players.find((p) => p.id === targetId);
   if (!by || !target || !by.pos || !target.pos) return prev;
   const fc = forecastFor({ ...s, gameState: "ACTION", actorId: byId }, byId) || {};
   const est = fc[targetId] || { dmg: atkOf(by), back: atkOf(target) };
-  const dmg = gun ? 0 : est.dmg;
-  if (gun) {
-    if (gun === "thunder") target.statuses.chaa = 2; // Thunder Bullet: สภาพชา 2 เทิร์น
-    if (byId === s.youId) {
-      const me = by;
-      const i = me.inventory.findIndex((it) => it.type === "gutsAmmo" && it.ammo === gun);
-      if (i >= 0) me.inventory.splice(i, 1);
-      me.gutsShotTurn = s.roundNumber;
-    }
-  } else {
-    dealMixed(target, dmg);
-  }
-  const card = { id: ++attackSeq, ...strikeCard(by, target, dmg), gun: gun || undefined, counter: null, push: null };
+  const dmg = est.dmg;
+  dealMixed(target, dmg);
+  const card = { id: ++attackSeq, ...strikeCard(by, target, dmg), counter: null, push: null };
   const map = Rules.mapOf(s.board.area);
   if (by.alive && target.alive && Rules.canCounter(target.range, by.pos, target.pos)) {
     dealMixed(by, est.back);
@@ -541,11 +521,10 @@ export function buildMockState(opts) {
     cutscene: null,
     attack: null,
     log: [],
-    shop: SHOP_ROLL.map((it, i) => ({ id: `shop_${Math.ceil(round / 5)}_${i}`, ...it, sold: SOLD.has(i), soldTo: SOLD.has(i) ? "p3" : null })),
+    shop: SHOP_ROLL.map((it, i) => ({ id: `shop_${Math.ceil(round / 5)}_${i}`, ...it, bought: SOLD.has(i) ? it.stockBase : 0, stock: SOLD.has(i) ? 0 : it.stockBase, stockMax: it.stockBase, sold: SOLD.has(i), soldTo: SOLD.has(i) ? "p3" : null })),
     shopPos: { x: 6, y: 2 },
     shopTurnsLeft: 5 - ((round - 1) % 5),
     bagSlots: 5,
-    gutsRange: [1, 4],
     deckLedger: ledger(),
     players,
   };
@@ -563,7 +542,7 @@ export function buildMockState(opts) {
     ];
   }
   // เรา = ลำดับ 2 (ฟ้าใส 19 แต้มเดินก่อน) · ตาคนอื่น = ตาของฟ้าใส
-  if (scn === "my" || scn === "moved" || scn === "attack" || scn === "collide" || scn === "gun") startTurn(s, s.controlId || ME);
+  if (scn === "my" || scn === "moved" || scn === "attack" || scn === "collide") startTurn(s, s.controlId || ME);
   if (scn === "other") startTurn(s, "p1");
   if (scn === "valentine") startTurn(s, ME);
   if (scn === "valclone") {
@@ -598,7 +577,6 @@ export function buildMockState(opts) {
     return r;
   }
   if (scn === "collide") return simulateAttack(s, ME, "p4");
-  if (scn === "gun") return simulateAttack(s, ME, "p1", "thunder"); // ยิงจากระยะ 3 — ฟ้าใสตีถึงแค่ 1 จึงไม่สวน
   return s;
 }
 
@@ -636,6 +614,9 @@ export function simulateEmit(prev, ev, payload = {}) {
         const c = me.cards[payload.cardIndex];
         if (!c || c.special || c.color === payload.color) return { state: prev };
         c.color = payload.color;
+      } else if (it.type === "cardCut") {
+        if (!me.cards.length) return { state: prev };
+        me.cards.pop();
       } else return { state: prev };
       me.inventory = me.inventory.filter((x) => x.uid !== payload.uid);
       return { state: s };
@@ -728,10 +709,12 @@ export function simulateEmit(prev, ev, payload = {}) {
       const it = s.shop.find((x) => x.id === payload.itemId);
       if (!it || it.sold || me.gold < it.price || me.inventory.length >= s.bagSlots) return { state: prev };
       if (!s.shopPos || Rules.dist(me.pos, s.shopPos) !== 1) return { state: prev };
-      it.sold = true;
+      it.bought = (it.bought || 0) + 1;
+      it.stock = Math.max(0, (it.stockMax || 1) - it.bought);
+      it.sold = it.stock <= 0;
       it.soldTo = me.id;
       me.gold -= it.price;
-      me.inventory.push({ uid: `${it.id}_${me.inventory.length}`, type: it.type, value: it.value, size: it.size, ammo: it.ammo, price: it.price });
+      me.inventory.push({ uid: `${it.id}_${me.inventory.length}_${it.bought}`, type: it.type, value: it.value, price: it.price, ...(it.type === "battery" ? { charge: 0 } : {}) });
       lockMove();
       return { state: s };
     }
@@ -743,11 +726,12 @@ export function simulateEmit(prev, ev, payload = {}) {
       if (!myTurn) return { state: prev };
       const it = me.inventory.find((x) => x.uid === payload.uid);
       if (!it) return { state: prev };
-      // ยิงปืน GUTS: กระสุน + เป้า → ฉากยิง (นับเป็นการโจมตีของตา)
-      if ((it.type === "gutsAmmo" || it.type === "gutsGun") && payload.targetId) {
-        const ammo = it.type === "gutsAmmo" ? it.ammo : (me.inventory.find((x) => x.type === "gutsAmmo") || {}).ammo;
-        if (!ammo) return { state: prev };
-        return { state: simulateAttack(s, me.id, payload.targetId, ammo), after: "attack" };
+      if (it.type === "battery") { // วงจรพลังงาน: ถอนตามจำนวน ถังอยู่ต่อ
+        const n = Math.min(it.charge || 0, Math.max(0, (me.maxSkill || 8) - me.skillPoints), payload.amount | 0);
+        if (n <= 0) return { state: prev };
+        it.charge -= n; me.skillPoints += n;
+        lockMove();
+        return { state: s };
       }
       me.inventory = me.inventory.filter((x) => x.uid !== payload.uid);
       lockMove();

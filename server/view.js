@@ -7,10 +7,9 @@ Object.assign(module.exports, {
 const { CHAR_BY_ID } = require("../characters");
 const CHAR_HOOKS = require("../characters/index");
 const { blindActive } = require("../characters/_universal_status");
-const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const { io } = require("./app");
-const { BAG_SLOTS, GUTS_RANGE, MAX_PLAYERS, TRANSFORMS } = require("./constants");
+const { BAG_SLOTS, MAX_PLAYERS, TRANSFORMS } = require("./constants");
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
@@ -34,9 +33,8 @@ const Moon = require("./moonCell");
 const Fodlan = require("./fodlan");
 const Dim = require("./dimension");
 
-// รูปที่แสดงบนสนาม: เกราะ Mark 42 > ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
+// รูปที่แสดงบนสนาม: ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
-  if (Mark42.suited(p)) return Mark42.IMG.suit; // เกราะ Mark 42: ภาพประจำตัวเป็นชุดเกราะระหว่างใส่
   const hook = CHAR_HOOKS[p.characterId];
   const img = hook && hook.displayImg ? hook.displayImg(p) : null; // มุยมิ: ระหว่าง “ดาบสะบั้น” ใช้ภาพท่าไม้ตาย
   return img || p.img;
@@ -221,7 +219,6 @@ function buildStateInner(viewerId) {
     shopPos: match.shopPos, // ช่องที่ร้านตั้งอยู่ (ซื้อได้เมื่อยืนติด — ระยะ 1)
     shopTurnsLeft: shop.shopTurnsLeft(), // อีกกี่เทิร์นร้านย้าย (รวมเทิร์นนี้)
     bagSlots: BAG_SLOTS,
-    gutsRange: GUTS_RANGE,
     deckLedger, // สมุดการ์ด 43 ใบ + สถานะจั่วแล้ว/ยัง (ของรอบปัจจุบัน) — กดที่กองการ์ดกลางเพื่อดู
     // ยูนิตที่ถูกเรียก (server/summon.js) ที่ตาย/หมดเวลาแล้ว = ไม่ส่ง (ระเบียนรอลบตอนจบเทิร์น)
     players: Object.values(match.players).filter((p) => !(p.summon && !p.alive)).map((p) => {
@@ -305,14 +302,11 @@ function buildStateInner(viewerId) {
         cardCount: p.cards.length,
         cards: blackout ? null : (mine ? p.cards : null),
         score: blackout ? null : ((show || promoShow || teamReveal) ? cardDeck.scoreOf(p) : null),
-        // ตาบอด: null = ซ่อนทั้งแถบ · เกราะ Mark 42: แสดงพลังชีวิต 0/0 + เกราะชุด x/7 (ค่าจริงซ่อนอยู่ข้างใต้ คืนตอนถอด)
-        //  (LifeBar วาดหัวใจตามจำนวน maxHp — 0 = ไม่มีหัวใจสักดวง แต่ยังไม่ใช่ null จึงไม่ขึ้น "???")
-        hp: blackout ? null : (Mark42.suited(p) ? 0 : p.hp),
-        maxHp: blackout ? null : (Mark42.suited(p) ? 0 : combat.maxHpOf(p)),
-        armor: blackout ? null : (Mark42.suited(p) ? p.mark42.armor : p.armor),
-        maxArmor: blackout ? null : (Mark42.suited(p) ? Mark42.SUIT_ARMOR : combat.maxArmorOf(p)),
-        mark42: Mark42.publicState(engine, p), // ใส่ชุดอยู่ไหม / ของใคร (เห็นทุกคน)
-        ...(mine ? Mark42.privateState(engine, p) : {}), // ชุดของเราที่ส่งออกไป / คูลดาวน์ซื้อ (เห็นเจ้าตัว)
+        // ตาบอด: null = ซ่อนทั้งแถบ
+        hp: blackout ? null : p.hp,
+        maxHp: blackout ? null : combat.maxHpOf(p),
+        armor: blackout ? null : p.armor,
+        maxArmor: blackout ? null : combat.maxArmorOf(p),
         shield: blackout ? null : p.shield,
         tempHp: p.tempHp || 0, // เลือดชั่วคราว (healOverflow)
         skillPoints: blackout ? -1 : p.skillPoints, // ตาบอด: ซ่อนแต้มสกิลของทุกคน (-1 = ซ่อน)
@@ -325,9 +319,9 @@ function buildStateInner(viewerId) {
         maxSkill: combat.maxSkillOf(p),
         gold: p.gold || 0, // ร้านค้ามายา (patch 2.2 full): เหรียญสะสม — ทุกคนเห็นของกันและกันได้
         goldMax: shop.goldCapOf(p), // เพดานเหรียญรายบุคคล
+        cleansable: mine ? shop.cleansableOf(p) : undefined, // ยาล้างสถานะ: ดีบัฟที่เลือกล้างได้ (เจ้าตัวเท่านั้น)
         inventory: mine || teamReveal ? (p.inventory || []) : null, // ของในคลัง — เห็นของตัวเอง + เพื่อนร่วมทีม (ให้/แลกของ)
         whistle: mine && !p.summon ? require("./whistle").publicOf(p) : undefined, // นกหวีดอัญเชิญมนต์อสูรเทพ { cd, chance } (ช่องพิเศษที่ 6 ของกระเป๋า)
-        gutsShotTurn: mine ? (p.gutsShotTurn || 0) : undefined, // ปืน GUTS Select: ยิงไปแล้วเทิร์นไหน (เทียบกับ roundNumber = ยิงครบโควตาแล้ว)
         muimiEmergencyUses: p.characterId === "muimi" ? (p.muimiEmergencyUses != null ? p.muimiEmergencyUses : CHAR_HOOKS.muimi.EMERGENCY_USES) : undefined,
         muimiEmergencyMax: p.characterId === "muimi" ? CHAR_HOOKS.muimi.EMERGENCY_USES : undefined,
         muimiEmergencyUsed: p.characterId === "muimi" ? p.muimiEmergencyUsedRound === match.roundNumber : undefined,
@@ -434,7 +428,7 @@ function maskPub(o) {
 
 // ผู้ชมมองไม่เห็นคนนี้ (ล่องหน/พุ่มหญ้า/ม่านแดง — ผู้ใช้ตัดสิน "ข้อมูลอื่นซ่อน"): ค่าที่เปลี่ยนได้ลับๆ ไม่ส่ง
 //  (นักบินเปลี่ยนชิ้นส่วนระหว่างล่องหน = เลือด/แต้ม/แขนเปลี่ยน) · ค่าซ่อนเดียวกับ "ตาบอด"/"มืดบอด" ที่ client รับอยู่แล้ว
-//  (null = แถบ "???" · skillPoints -1 · ข้อมูลเฉพาะตัวละคร undefined) · ภาพประจำตัวตั้งต้น (ไม่บอกร่าง/ชุด Mark 42)
+//  (null = แถบ "???" · skillPoints -1 · ข้อมูลเฉพาะตัวละคร undefined) · ภาพประจำตัวตั้งต้น (ไม่บอกร่าง)
 //  ฮุค unseenLook(p) → { img, name } = หน้าตาที่คนมองไม่เห็นได้เห็นแทนภาพตั้งต้น (ไรเดอร์ ZECT: แปลงร่างแล้วเห็นร่าง Masked ไม่ใช่ภาพคน)
 function unseenPub(o, p) {
   const hook = CHAR_HOOKS[p.characterId];
@@ -442,7 +436,7 @@ function unseenPub(o, p) {
   const character = look ? { ...o.character, img: look.img || o.character.img, cover: look.img || o.character.cover, name: look.name || o.character.name } : o.character;
   return {
     ...o, img: (look && look.img) || p.img, character, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
-    mark42: null, statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
+    statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
     muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน

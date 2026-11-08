@@ -228,7 +228,9 @@ function movOf(p) {
   const fod = Fodlan.movMod(p);
   const n = Ice.movCutImmune(p) ? Math.max(0, baseMovOf(p) + Math.max(0, fod))
     : Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + fod);
-  return a && a.movLeft != null ? Math.min(n, a.movLeft) : n;
+  // รองเท้าวายุ (ไอเทมร้านค้า): ระยะเดินตานี้ +a.movBonus — บวกหลังหักโทษ (ใช้ตอนไม่มีระยะเลยก็ยังเดินได้ตามรองเท้า)
+  const total = n + ((a && a.movBonus) || 0);
+  return a && a.movLeft != null ? Math.min(total, a.movLeft) : total;
 }
 // โทษระยะเดินจากของบนกระดานของคนอื่น (ฮุค broadcast movPenalty(engine, p, from) → จำนวน · ดิเอโก้: เริ่มตาเดินบนน้ำมัน −1)
 //  from = ช่องเริ่มตาเดิน (ไม่ได้อยู่ในตา = ช่องที่ยืน) · ซ้อนกับไพ่แตก/เชื่องช้าได้
@@ -278,7 +280,7 @@ function rebaseMove(p) {
 }
 // ตีสวนได้ไหม (ผู้ใช้ตัดสิน 2026-10-09: เลิกตีสวนแบบ FE แล้ว — เก็บกลไกไว้ให้ตัวละคร "สะท้อน" ในอนาคต)
 //  เปิดด้วยข้อมูลตัวละคร `counter: true` ใน characters.js หรือ p.counterBack (สถานะ/เทสต์)
-//  ฮุค counters(p, card) → true = สวนได้ตอนนี้ (ออพติมัส ไพร์ม: ท่าตั้งรับผู้พิทักษ์ · card = การ์ดฉากตี · card.gun = ปืน GUTS)
+//  ฮุค counters(p, card) → true = สวนได้ตอนนี้ (ออพติมัส ไพร์ม: ท่าตั้งรับผู้พิทักษ์ · card = การ์ดฉากตี)
 function counters(p, card) {
   if (!p) return false;
   if (p.counterBack === true) return true;

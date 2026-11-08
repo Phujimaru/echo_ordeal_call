@@ -1,4 +1,4 @@
-// ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง + ระยะปืน GUTS (GRID_PLAN §8.1 · ขั้น 4)
+// ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง (GRID_PLAN §8.1 · ขั้น 4)
 //  แผนที่ภูมิภาค I (server/board.js MAPS[1]) — จุดร้านค้า: (6,2) (1,3) (12,3) (1,10) (12,10) (7,11)
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -24,7 +24,7 @@ function mkPlayer(pos, over = {}) {
     gold: 0, inventory: [], cards: [], locked: false, busted: false,
     statuses: {}, statusAmt: {}, cutsceneShown: {}, seen: {},
     colorTrigger: { blue: 0, red: 0, green: 0, yellow: 0 },
-    dmgHp: 0, dmgArmor: 0, gutsShotTurn: 0, gutsGargorgonPending: false, pos: { ...pos },
+    dmgHp: 0, dmgArmor: 0, pos: { ...pos },
   }, over);
   engine.players[id] = p;
   return p;
@@ -33,21 +33,14 @@ const potion = (i = 0) => ({ id: `shop_9_${i}`, type: 'armor', value: 1, price: 
 function fill(p, n) {
   for (let i = 0; i < n; i++) p.inventory.push({ uid: `f_${p.id}_${i}`, type: 'resist', price: 5 });
 }
-function giveGun(p) { p.inventory.push({ uid: `gun_${p.id}`, type: 'gutsGun' }); }
-function giveAmmo(p, ammo, seen = true) {
-  if (seen) p.cutsceneShown[engine.GUTS_AMMO[ammo].cut] = true; // เคยดูวีดีโอแล้ว = ยิงแล้วเข้าฉากยิงทันที
-  const item = { uid: `ammo_${ammo}_${p.id}_${p.inventory.length}`, type: 'gutsAmmo', ammo };
-  p.inventory.push(item);
-  return item;
-}
 const isSpot = (pos) => SPOTS.some((s) => s.x === pos.x && s.y === pos.y);
 
 // ---------- ร้านตั้ง / ย้าย ----------
-test('ร้านค้า: ต้นเกมตั้งบนจุดร้านค้าพร้อมของ 15 ชิ้น · อยู่ 6 เทิร์น แล้วย้ายจุดใหม่ + สุ่มของใหม่', () => {
+test('ร้านค้า: ต้นเกมตั้งบนจุดร้านค้าพร้อมของครบทุกชนิด · อยู่ 6 เทิร์น แล้วย้ายจุดใหม่ + สุ่มของใหม่', () => {
   engine.maybeMoveShop();
   const first = engine.shopPos;
   assert.ok(first && isSpot(first));
-  assert.equal(engine.shopItems.length, 15);
+  assert.equal(engine.shopItems.length, engine.shopCatalog().length);
   assert.equal(engine.shopTurnsLeft(), 6);
   const ids = engine.shopItems.map((it) => it.id).join();
   for (let r = 2; r <= 6; r++) {
@@ -159,11 +152,8 @@ test('ให้/แลกของ (โหมดร่วมมือ): เพ�
     assert.equal(engine.swapItem(p.id, `f_${p.id}_1`, mate.id, 'm_0'), true);
     assert.deepEqual(p.inventory.map((it) => it.uid), ['m_0', 'bread']);
     assert.deepEqual(mate.inventory.map((it) => it.uid), [`f_${p.id}_1`, `f_${p.id}_0`]);
-    // ปืน GUTS มีได้กระบอกเดียว · กระเป๋าผู้รับเต็ม = ให้ไม่ได้
-    giveGun(p); giveGun(mate);
-    assert.equal(engine.giveItem(p.id, `gun_${p.id}`, mate.id), false);
-    assert.equal(engine.swapItem(p.id, `gun_${p.id}`, mate.id, `gun_${mate.id}`), true, 'แลกปืนกับปืนได้');
-    fill(mate, 2);
+    // กระเป๋าผู้รับเต็ม = ให้ไม่ได้
+    fill(mate, 3);
     assert.equal(engine.giveItem(p.id, 'm_0', mate.id), false, 'กระเป๋าเต็ม');
     // เพื่อนร่วมทีมเห็นกระเป๋ากัน · ศัตรูไม่เห็น
     assert.ok(engine.buildStateFor(p.id).players.find((x) => x.id === mate.id).inventory);
@@ -173,70 +163,12 @@ test('ให้/แลกของ (โหมดร่วมมือ): เพ�
   } finally { engine.setGameMode('ffa'); }
 });
 
-test('ยาลดไพ่ถอดออกจากร้านและของฟรี · ยาเปลี่ยนสีการ์ดกลับมาแล้ว (ไอเทมช่วงจั่ว — ผู้ใช้สั่ง 2026-10-18)', () => {
-  let color = 0;
-  for (let i = 0; i < 1500; i++) {
-    const t = engine.rollShopItem().type;
-    assert.ok(t !== 'cardRemove', t);
-    if (t === 'cardColor') color++;
+test('ไอเทมช่วงจั่ว: ยาเปลี่ยนสีการ์ด (2026-10-18) + กรรไกรตัดไพ่ (2026-11-08) อยู่ในร้าน · ยาลดไพ่ชื่อเดิม/ยาฟื้นแต้มสกิลไม่มีแล้ว', () => {
+  const types = engine.shopCatalog().map((it) => it.type);
+  assert.ok(types.includes('cardColor') && types.includes('cardCut'));
+  assert.ok(!types.includes('cardRemove') && !types.includes('skillPoint'));
+  for (let i = 0; i < 300; i++) {
     const g = engine.journeyGiftItem().type;
-    assert.ok(g !== 'cardRemove', g);
+    assert.ok(g !== 'cardRemove' && g !== 'skillPoint', g);
   }
-  assert.ok(color > 0, 'ร้านควรสุ่มได้ยาเปลี่ยนสีการ์ด');
-});
-
-// ---------- ปืน GUTS ----------
-test('ปืน GUTS: ยิงได้ระยะ 1–4 เท่านั้น', () => {
-  const p = mkPlayer({ x: 2, y: 4 });
-  giveGun(p);
-  const ammo = giveAmmo(p, 'thunder');
-  const d4 = mkPlayer({ x: 6, y: 4 });
-  const d5 = mkPlayer({ x: 2, y: 9 });
-  const d1 = mkPlayer({ x: 2, y: 5 });
-  engine.setActor(p.id);
-  assert.equal(engine.gutsFireTargetOf(p, ammo, d4.id), d4);
-  assert.equal(engine.gutsFireTargetOf(p, ammo, d1.id), d1);
-  assert.equal(engine.gutsFireTargetOf(p, ammo, d5.id), null, 'ห่าง 5');
-});
-
-test('ปืน GUTS = การโจมตีของตา: เข้าฉากยิงแล้วจบตา · เป้าประชิดสวนกลับ + ผู้ยิงถอย · ยิงจากไกลไม่โดนสวน', () => {
-  const p = mkPlayer({ x: 6, y: 4 }, { hp: 7, armor: 0 });
-  giveGun(p);
-  const near = mkPlayer({ x: 6, y: 5 }, { counterBack: true });
-  const a1 = giveAmmo(p, 'thunder');
-  engine.setActor(p.id);
-  engine.useInventoryItem(p.id, a1.uid, { targetId: near.id });
-  assert.equal(engine.gameState, 'ATTACKING');
-  assert.equal(engine.action.locked, true, 'ย้อนการเดินไม่ได้แล้ว');
-  assert.equal(engine.lastAttack.gun, 'thunder');
-  assert.ok(engine.lastAttack.counter, 'เป้าประชิดสวนกลับ');
-  assert.equal(p.hp, 6);
-  assert.deepEqual(p.pos, { x: 6, y: 3 }, 'ผู้ยิงถอย 1 ช่อง');
-  assert.equal(near.statuses.chaa, engine.GUTS_CHAA_TURNS);
-  engine.clearPhaseTimer();
-
-  const q = mkPlayer({ x: 10, y: 4 }, { hp: 7, armor: 0 });
-  giveGun(q);
-  const far = mkPlayer({ x: 13, y: 4 });
-  const a2 = giveAmmo(q, 'shockwave');
-  engine.setActor(q.id);
-  engine.useInventoryItem(q.id, a2.uid, { targetId: far.id });
-  assert.equal(engine.gameState, 'ATTACKING');
-  assert.equal(engine.lastAttack.counter, null, 'ห่าง 3 — ดาบตีไม่ถึง');
-  assert.equal(engine.lastAttack.push, null);
-  assert.equal(far.armor, 0);
-  assert.deepEqual(q.pos, { x: 10, y: 4 });
-});
-
-test('ปืน GUTS: กระสุนฆ่าเป้าได้ = เป้าหายจากกระดาน ไม่มีตีสวน', () => {
-  const p = mkPlayer({ x: 6, y: 4 });
-  giveGun(p);
-  const t = mkPlayer({ x: 6, y: 5 }, { hp: 1, armor: 0 });
-  const nurse = giveAmmo(p, 'nurse');
-  engine.setActor(p.id);
-  engine.useInventoryItem(p.id, nurse.uid, { targetId: t.id });
-  assert.equal(t.alive, false);
-  assert.equal(t.pos, null);
-  assert.equal(engine.lastAttack.counter, null);
-  assert.equal(engine.lastAttack.kill, true);
 });
