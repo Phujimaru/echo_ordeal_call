@@ -67,6 +67,19 @@ test("จั่วเลือกแบบที่ยังไม่ได้�
   assert.strictEqual(s.hand.length, 1);
 });
 
+test("มือเก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้ ใบเดิมไม่หาย", () => {
+  const { r, s } = setup();
+  s.started = true;
+  s.hand = [1, 2, 3, 4, 5].map((i) => ({ uid: `h${i}`, k: "ranga" }));
+  s.bonusDraw = 3;
+  roland.onRoundStartTick(engine, r);
+  assert.strictEqual(s.hand.length, roland.HAND_MAX);
+  assert.deepStrictEqual(s.hand.slice(0, 5).map((c) => c.uid), ["h1", "h2", "h3", "h4", "h5"]);
+  assert.strictEqual(s.bonusDraw, 0);
+  roland.onRoundStartTick(engine, r);
+  assert.strictEqual(s.hand.length, 6);
+});
+
 test("BS Page ใช้ได้ 2 ครั้งต่อเทิร์น ไม่กินโควตา และได้ Furioso charge เฉพาะแบบใหม่", () => {
   const { r, e, s } = setup();
   use("ranga", s, [E]);
@@ -173,7 +186,7 @@ test("Wheels: โดนในแนว 2×1 · คนใกล้สุดสต
   assert.strictEqual(r.armor, 3);
 });
 
-test("Crystal: พุ่งถึงเป้าปลายระยะ ไม่ผลัก · หลบ 1 ครั้ง · สวนกลับรัศมี 3", () => {
+test("Crystal: พุ่งถึงเป้าปลายระยะ ไม่ผลัก · หลบ 1 ครั้ง · สวนกลับกรอบ 3×3", () => {
   const { r, e, s } = setup(3);
   use("crystal", s, [], { dir: "right" });
   assert.deepStrictEqual(r.pos, { x: 6, y: 4 });
@@ -183,24 +196,57 @@ test("Crystal: พุ่งถึงเป้าปลายระยะ ไม�
   assert.ok(roland.grantedDodge(engine, r));
   assert.ok(!roland.grantedDodge(engine, r));
   assert.ok(roland.counters(r, null));
-  assert.ok(roland.counterAnyRange(engine, r, { pos: { x: 6, y: 7 } }));
-  assert.ok(!roland.counterAnyRange(engine, r, { pos: { x: 6, y: 8 } }));
+  assert.ok(roland.counterAnyRange(engine, r, { pos: { x: 7, y: 5 } }), "แนวทแยงในกรอบ 3×3");
+  assert.ok(roland.counterAnyRange(engine, r, { pos: { x: 6, y: 5 } }));
+  assert.ok(!roland.counterAnyRange(engine, r, { pos: { x: 8, y: 4 } }), "ห่าง 2 นอกกรอบ");
+  assert.ok(!roland.counterAnyRange(engine, r, { pos: { x: 6, y: 6 } }));
 });
 
-test("Crystal: ชนเพื่อน/ไม่มีเป้าในแนว กดไม่ได้", () => {
-  const { r, s } = setup(5);
+test("Crystal: ไม่มีเป้าก็ใช้ได้ · พุ่งสุดแนว 3 ช่อง · ได้หลบ + สวนกลับ", () => {
+  const { r, e, s } = setup(5);
   use("crystal", s, [], { dir: "right" });
-  assert.strictEqual(r.skillPoints, 5);
+  assert.strictEqual(r.skillPoints, 2);
+  assert.deepStrictEqual(r.pos, { x: 7, y: 4 });
+  assert.strictEqual(e.armor + e.hp, 10);
+  assert.ok(roland.dodgeSure(engine, r));
+  assert.ok(roland.counters(r, null));
 });
 
-test("Atelier Logic: ดาเมจ 2 ระยะ 3 · ประชิดผลัก 1 ช่อง", () => {
+test("Crystal: ชนสิ่งกีดขวางหยุดหน้าสิ่งกีดขวาง · ไม่เลือกทิศกดไม่ได้", () => {
+  const { r, s } = setup(5);
+  engine.boardMap().terrain = { "6,4": "rock" };
+  use("crystal", s, []);
+  assert.strictEqual(r.skillPoints, 5);
+  use("crystal", s, [], { dir: "right" });
+  assert.deepStrictEqual(r.pos, { x: 5, y: 4 });
+  assert.strictEqual(r.skillPoints, 2);
+});
+
+test("Atelier Logic: เลือกทิศ แนว 3×1 · ดาเมจ 2 · ประชิดผลัก 1 ช่องตามทิศ", () => {
   let c = setup(3);
-  use("logic", c.s, [E]);
+  use("logic", c.s, [], { dir: "right" });
   assert.strictEqual(c.e.armor, 1);
   assert.strictEqual(c.e.pos.x, 7);
   c = setup();
-  use("logic", c.s, [E]);
+  use("logic", c.s, [], { dir: "right" });
   assert.strictEqual(c.e.pos.x, 6);
+  assert.strictEqual(c.e.armor, 1);
+});
+
+test("Atelier Logic: โดนศัตรูคนแรกในแนวคนเดียว · นอกแนวกดไม่ได้", () => {
+  const { r, e, s } = setup();
+  const f = engine.players.f = player("f", "dummy");
+  f.pos = { x: 7, y: 4 }; f.statuses = {}; f.statusAmt = {}; f.hp = 7; f.armor = 3;
+  use("logic", s, [], { dir: "right" });
+  delete engine.players.f;
+  assert.strictEqual(e.armor, 1);
+  assert.strictEqual(f.armor + f.hp, 10);
+  r.skillPoints = 5;
+  use("logic", s, [], { dir: "up" });
+  assert.strictEqual(r.skillPoints, 5);
+  const c = setup(4);
+  use("logic", c.s, [], { dir: "right" });
+  assert.strictEqual(c.r.skillPoints, 5);
 });
 
 test("Durandal: ดาเมจ 1 สองครั้ง · ไม่มีเสริมพลัง", () => {

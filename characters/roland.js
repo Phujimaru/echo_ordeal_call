@@ -6,12 +6,13 @@
 //  Black Silence (ติดตัว): ไอเทมเติมแต้มสกิลไม่ได้ · เริ่มเกมได้การ์ดอาวุธ 3 ใบ · ต้นเทิร์นจั่ว 1 ใบ · การ์ดในมือไม่หมดอายุ (ผู้ใช้ปรับ 2026-11-05)
 //    จั่วเลือกแบบที่ยังไม่ได้ใช้ในรอบ Furioso นี้ก่อน · สร้างความเสียหายครบ 4 ครั้ง = Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 (นับทีละฮิต · ตีสวน/ตีปกติด้วย)
 //    ใช้การ์ดแบบที่ยังไม่เคยใช้ = Furioso charge +1 (ครบ 9 แบบ = ท่าไม้ตายพร้อม · ใช้แล้วนับใหม่)
-//  BS Page (พื้นฐาน): เลือกการ์ดในมือ · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
+//  BS Page (พื้นฐาน): เลือกการ์ดในมือ (เก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้) · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
 //    ดาเมจการ์ด = ค่าบนการ์ด + พลังโจมตี/เสริมพลัง (attack.skillStrike opts.bonus) · ไม่จบตา · เดินต่อไม่ได้
 //  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น + คูลดาวน์ของแต่ละแบบ · ใช้แล้วหัก Emotion · บัฟ 3 เทิร์น
 //  Furioso (ท่าไม้ตาย · คูลดาวน์ 4 เทิร์น): แนว 4×1 พุ่งชนศัตรูคนแรก · คลิปลงเมื่อไม่หลบ (เสียงคลิกงดตามกฎห้ามเสียงซ้อนวีดีโอ)
 //
-//  Claude ตัดสินเอง (GRID_PLAN §7.25): ดาเมจลงเกราะนับว่าสร้างความเสียหาย · Crystal หลบ + สวนกลับรัศมี 3 อยู่จนจบเทิร์น (ตีปกติเท่านั้น) ·
+//  ผู้ใช้ตัดสิน 2026-11-08: การ์ดรอบตัว = ประชิด 4 ทิศ · Logic แนว 3×1 โดนศัตรูคนแรก · Crystal สวนกลับกรอบ 3×3 จนจบเทิร์น · มือเกิน 6 ใบ = ใบที่เกินไม่ได้
+//  Claude ตัดสินเอง (GRID_PLAN §7.25): ดาเมจลงเกราะนับว่าสร้างความเสียหาย · Crystal ไม่มีเป้า = พุ่งสุดแนว (ตีปกติเท่านั้นที่โดนสวน) ·
 //    Fervent Beats เลือดเหลือ 1 แทนการตาย · ถูกตัดบัฟ = ตายเหมือนหมดเวลา · เศษน้ำแข็งค้างบนเป้าหลังบัฟหมด
 // ============================================================
 
@@ -30,9 +31,9 @@ const SFX = {
   heart: "roland_heart", death: "roland_death", atk: (k) => `roland_atk_${k}`,
 };
 const HP = 6, ARMOR = 4, MAX_SKILL = 5, MOV = 4;
-const START_CARDS = 3, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
+const START_CARDS = 3, HAND_MAX = 6, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
 const EGO_SHARED_CD = 5, EGO_TURNS = 3, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
-const LIES_MAX = 4, OLD_BOYS_SP = 2, MOOK_SP = 3, COUNTER_RANGE = 3, COUNTER_DMG = 1;
+const LIES_MAX = 4, OLD_BOYS_SP = 2, MOOK_SP = 3, COUNTER_RING = 1, COUNTER_DMG = 1; // สวนกลับ: กรอบ 3×3 รอบตัว (ห่างไม่เกิน 1 ทั้งแกน x และ y)
 const FURIOSO = { cost: 3, cd: 4, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
 const SHARD = "rolandIce";      // สแตกบนเป้า (ไม่ลดเทิร์น — NO_TICK_STATUS)
 const CRYSTAL = "rolandCrystal"; // ป้ายหลบ + สวนกลับ (ลดเองตอนจบเทิร์น)
@@ -44,12 +45,12 @@ const line2 = { kind: "line", len: 2, width: 1, hostile: true };
 const CARDS = {
   allas: { name: "Allas Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · อ่อนแอ 1 ในเทิร์นถัดไป" },
   zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
-  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +2" },
+  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +2 (ครั้งเดียว)" },
   mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
   ranga: { name: "Ranga Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เลือดไหล 1" },
   wheels: { name: "Wheels Industry", cost: 4, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
-  crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับในระยะ 3 ดาเมจ 1 (จนจบเทิร์น)" },
-  logic: { name: "Atelier Logic", cost: 2, area: { kind: "target", range: 3, hostile: true }, desc: "1 คนในระยะ 3 · ดาเมจ 2 · เป้าประชิดถูกผลัก 1 ช่อง" },
+  crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · ไม่มีเป้าก็ใช้ได้ · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับรอบตัว 3×3 ดาเมจ 1 (จนจบเทิร์น)" },
+  logic: { name: "Atelier Logic", cost: 2, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 ศัตรูคนแรก · ดาเมจ 2 · เป้าประชิดถูกผลัก 1 ช่อง" },
   durandal: { name: "Durandal", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 สองครั้ง" },
 };
 const CARD_KEYS = Object.keys(CARDS);
@@ -83,6 +84,11 @@ const nextTurnSpan = (engine, t, n = 1) => n + (engine.hasActed(t.id) ? 1 : 0);
 const pagesUsed = (s, r) => (s.pageRound === r ? s.pages : 0);
 const cardOf = (s, form) => s.hand.find((c) => c.uid === form) || null;
 const costOf = (s, k) => (s.lies ? s.lies[k] : CARDS[k].cost);
+// ช่องของ b อยู่ในกรอบรอบตัว a ระยะ n (นับแนวทแยง — กรอบ 3×3 เมื่อ n = 1) · รองรับตัวใหญ่ + กระดานวงรอบ
+function inRing(a, b, n) {
+  const B = Board(), ba = B.boxOf(a), bb = B.boxOf(b), fa = B.footprint(ba.x, ba.y, ba.size), fb = B.footprint(bb.x, bb.y, bb.size);
+  return fa.some((c) => fb.some((d) => Math.abs(B.wdx(c.x, d.x)) <= n && Math.abs(d.y - c.y) <= n));
+}
 const secretFx = (engine, p, kind) => engine.boardFxTo([p.id], FX, { kind });
 
 function fx(engine, p, kind, extra) {
@@ -91,11 +97,13 @@ function fx(engine, p, kind, extra) {
 
 // ---------- มือการ์ด ----------
 function drawOne(s) {
+  if (s.hand.length >= HAND_MAX) return false;
   const inHand = new Set(s.hand.map((c) => c.k));
   const unused = CARD_KEYS.filter((k) => !s.used.includes(k) && !inHand.has(k));
   const pool = unused.length ? unused : CARD_KEYS;
   s.seq += 1;
   s.hand.push({ uid: `c${s.seq}`, k: pool[Math.floor(Math.random() * pool.length)] });
+  return true;
 }
 function rollLies(s) {
   s.lies = Object.fromEntries(CARD_KEYS.map((k) => [k, Math.floor(Math.random() * (LIES_MAX + 1))]));
@@ -182,10 +190,6 @@ function push(engine, p, t, dir) {
   engine.ice.flush(ctx);
   return engine.ice.fxSeconds(ctx);
 }
-const awayDir = (from, t) => {
-  const dx = Math.sign(t.pos.x - from.x), dy = Math.sign(t.pos.y - from.y);
-  return Math.abs(t.pos.x - from.x) >= Math.abs(t.pos.y - from.y) ? { x: dx, y: 0 } : { x: 0, y: dy };
-};
 // พุ่งตามแนว: หยุดหน้าศัตรูคนแรก · ชนสิ่งกีดขวาง/ร้าน/พวกเดียวกัน = ไม่มีเป้า
 function planDash(engine, p, dir, len) {
   const passed = [];
@@ -208,6 +212,8 @@ function dashTo(engine, p, dir, passed) {
 // ---------- การ์ดแต่ละใบ ----------
 const foes = (engine, p, targets) => (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && !engine.sameTeam(p, t));
 const single = (engine, p, targets) => foes(engine, p, targets)[0] || null;
+// Atelier Logic: ศัตรูคนแรกในแนว (ใกล้ตัวสุด)
+const firstFoe = (engine, p, targets) => foes(engine, p, targets).sort((a, b) => Board().dist(Board().boxOf(p), Board().boxOf(a)) - Board().dist(Board().boxOf(p), Board().boxOf(b)))[0] || null;
 const sweeps = (k) => k === "wheels" || k === "oldboys" || k === "mook"; // แนว 2×1 โดนทุกคนในแนว
 // Mook: ทะลุเกราะ 1 → ดาเมจที่ลงจริง
 function pierceHit(engine, t) {
@@ -259,9 +265,17 @@ function playCard(engine, p, card, targets, opts) {
     p.statuses[CRYSTAL] = 1;
     s.crystalDodge = 1;
     s.crystalAt = engine.severStamp();
+    const from = { ...p.pos };
     const dash = dashTo(engine, p, opts.dir, plan.passed);
-    swing({ dir: opts.dir, to: { x: plan.stopAt.x, y: plan.stopAt.y } });
     const t = plan.hit;
+    const [ddx, ddy] = LINE()[opts.dir];
+    const end = plan.stopAt || plan.passed[plan.passed.length - 1] || from;
+    swing({ dir: opts.dir, to: t ? { x: end.x, y: end.y } : { x: Board().wx(end.x + ddx), y: end.y + ddy } }); // ไม่มีเป้า = ฟันไปข้างหน้า
+    if (!t) { // ไม่มีเป้า: พุ่งสุดแนว (ชนสิ่งกีดขวาง/พวกเดียวกันหยุด) · ได้หลบ + สวนกลับ
+      require("../server/skills").hitArea(p, plan.passed, []);
+      engine.skillBeat(BEAT.swing + dash + BEAT.after, () => {});
+      return;
+    }
     beat(BEAT.swing + dash, () => {
       require("../server/skills").hitArea(p, [...plan.passed, plan.stopAt], [t.id]);
       const at = t.pos ? { ...t.pos } : null;
@@ -272,7 +286,7 @@ function playCard(engine, p, card, targets, opts) {
     });
     return;
   }
-  const t = single(engine, p, targets);
+  const t = k === "logic" ? firstFoe(engine, p, targets) : single(engine, p, targets);
   const to = t && t.pos ? { ...t.pos } : null;
   swing({ targetId: t.id, to });
   beat(BEAT.swing, () => {
@@ -294,7 +308,7 @@ function playCard(engine, p, card, targets, opts) {
     }
     if (k === "zelkova") s.bonusDraw += 1;
     if (k === "logic" && !dodged && t.alive && t.pos && Board().dist(Board().boxOf(p), Board().boxOf(t)) === 1) {
-      hold += push(engine, p, t, awayDir(p.pos, t));
+      hold += push(engine, p, t, { x: LINE()[opts.dir][0], y: LINE()[opts.dir][1] });
     }
     engine.skillBeat(hold, () => {});
   });
@@ -396,8 +410,8 @@ function egoChoices(p, r) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, MOV, START_CARDS, PAGES_PER_TURN, EMOTION_MAX,
-  HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, EGO_TURNS, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RANGE, FURIOSO,
+  IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, MOV, START_CARDS, HAND_MAX, PAGES_PER_TURN, EMOTION_MAX,
+  HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, EGO_TURNS, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RING, FURIOSO,
   isRoland,
 
   resetCombat(p) { p.roland = isRoland(p) ? fresh() : null; },
@@ -457,7 +471,7 @@ module.exports = {
   counters(p, card) { return crystalOn(p) && !(card && card.gun); },
   counterAnyRange(engine, p, attacker) {
     if (!crystalOn(p) || !p.pos || !attacker.pos) return false;
-    if (Board().dist(Board().boxOf(p), Board().boxOf(attacker)) > COUNTER_RANGE) return false;
+    if (!inRing(p, attacker, COUNTER_RING)) return false;
     st(p).countering = true;
     return true;
   },
@@ -505,7 +519,8 @@ module.exports = {
     if (tier === "basic") {
       const c = cardOf(s, opts.form);
       if (!c || pagesUsed(s, r) >= PAGES_PER_TURN) return false;
-      if (c.k === "crystal") return !!LINE()[opts.dir] && !!planDash(engine, p, opts.dir, CARDS.crystal.area.len).hit;
+      if (c.k === "crystal") return !!LINE()[opts.dir];
+      if (c.k === "logic") return !!LINE()[opts.dir] && !!firstFoe(engine, p, targets);
       if (sweeps(c.k)) return foes(engine, p, targets).length > 0;
       return !!single(engine, p, targets);
     }
