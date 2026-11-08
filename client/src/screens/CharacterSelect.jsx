@@ -9,6 +9,7 @@ import { OcScreen, OcButton } from "../oc/ui";
 import { createCharRings } from "../oc/charselect/charRings";
 import { preloadPortraits, getPortrait, portraitDone } from "../oc/charselect/portraits";
 import "../oc/charselect/charselect.css";
+import CharStats from "../oc/charselect/CharStats";
 
 // หน้าเลือกตัวละคร (ORDEAL CALL): การ์ดตัวละครโคจรรอบลูกโลก หนึ่งวงต่อหนึ่งหมวด
 //  เปิดมา: วงทุกหมวดค่อยๆ ลากเส้นรอบโลก (แบบอะตอม) ระหว่างภาพตัวละครโหลดเบื้องหลัง การ์ดโผล่ทีละใบเมื่อภาพพร้อม
@@ -161,6 +162,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   const [desc, setDesc] = useState(null); // คำอธิบายที่ลอยข้างแผง { key, title, text, top|bottom, right }
   // การ์ดที่ลอยออกจากวง: [{ key, id, dir: "out" | "back", t0, dur, from }] — ตำแหน่งตั้งทุกเฟรมใน flyFrame
   const [flies, setFlies] = useState([]);
+  const [statsOpen, setStatsOpen] = useState(false); // แถบสถิติตัวละคร (oc/charselect/CharStats.jsx) — เปิดได้เฉพาะตอนยังไม่เลือกตัว
 
   // โหมดของตัวละคร (roster modes — นักบินปริศนา: สายลับ / ผู้กอบกู้) · โหมดที่มีร่าง = ชื่อ/สกิลของร่างนั้นบนแผง
   const [modeOf, setModeOf] = useState({}); // id → key ที่เลือก (ไม่เลือก = โหมดแรก)
@@ -205,10 +207,14 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   useEffect(() => { ringsRef.current?.select(picked); }, [picked]);
 
   // Esc = เลิกเลือก + ถอยกลับภาพรวม
-  const active = !!(focus || picked);
+  const active = !!(focus || picked || statsOpen);
   useEffect(() => {
     if (!active) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); cbRef.current.closeAll(); } };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (cbRef.current.statsOpen) cbRef.current.closeStats(); else cbRef.current.closeAll();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [active]);
@@ -237,6 +243,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   const choose = (id) => {
     if (performance.now() < holdUntil.current) return;
     clickSound();
+    setStatsOpen(false);
     if (id === picked) ringsRef.current?.select(id); // กดตัวเดิมซ้ำ (ที่หมุนออกไปแล้ว) = หมุนกลับมาหน้าสุด
     pick(id);
     const g = grouped.find((x) => x.chars.some((c) => c.id === id));
@@ -305,7 +312,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   };
 
   useLayoutEffect(() => {
-    cbRef.current = { choose, closeAll, onCardHover, flyFrame, statusMap, focusIdx, picked, byId: new Map(roster.map((c) => [c.id, c])) };
+    cbRef.current = { choose, closeAll, statsOpen, closeStats: () => setStatsOpen(false), onCardHover, flyFrame, statusMap, focusIdx, picked, byId: new Map(roster.map((c) => [c.id, c])) };
   });
 
   const onReady = (core) => {
@@ -427,8 +434,21 @@ export default function CharacterSelect({ roster, position, color: myColor, name
               {g.label}
             </button>
           ))}
+          <button
+            type="button"
+            className={`cs-chip stats oc-enter${statsOpen ? " on" : ""}`}
+            aria-pressed={statsOpen}
+            tabIndex={sel ? -1 : undefined}
+            style={{ "--c": "#1c3f6e", "--fg": "#fff", animationDelay: `${0.05 + (grouped.length + 1) * 0.035}s` }}
+            onClick={() => { clickSound(); setStatsOpen((v) => !v); }}
+          >
+            <svg className="cs-chip-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13.5h11M4.5 11V7.5M8 11V3.5M11.5 11V6" /></svg>
+            สถิติ
+          </button>
         </nav>
       </div>
+
+      {statsOpen && !sel && <CharStats groups={grouped} initialGroup={focus} onClose={() => setStatsOpen(false)} />}
 
       <div className="cs-top oc-enter">
         {title && <h1 className="oc-h2">{title}</h1>}

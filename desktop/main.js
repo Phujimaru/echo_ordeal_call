@@ -258,6 +258,7 @@ ipcMain.handle("echo:host", async () => {
     gameRoot: GAME_ROOT,
     version: VERSION,
     assetBaseUrl: ASSET_BASE_URL,
+    statsFile: path.join(app.getPath("userData"), "char-stats.json"),
     onExit: (code) => {
       if (win && !win.isDestroyed()) showLauncher(`ห้องหยุดทำงาน (รหัส ${code})`);
     },

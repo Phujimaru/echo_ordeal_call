@@ -259,3 +259,63 @@
 @keyframes cs-desc-in { from { opacity: 0; transform: translateY(-6px); } }
 @keyframes cs-desc-up { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .cs-desc { animation: none; } }
+
+/* ---------- แถบสถิติตัวละคร (CharStats.jsx) — ปุ่ม "สถิติ" ท้ายปุ่มหมวด · แผงชิดขวา ---------- */
+.cs-chip.stats { margin-top: 6px; }
+.cs-chip-ico { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linecap: round; transition: stroke 0.2s; }
+.cs-chip.on .cs-chip-ico { stroke: var(--fg); }
+
+.cst {
+  position: absolute; z-index: 6; right: max(28px, 3vw); top: 96px; bottom: 44px; width: min(580px, 46vw);
+  display: flex; flex-direction: column; box-sizing: border-box; padding: 18px 18px 12px;
+  background: var(--oc-glass); border: 1px solid var(--oc-line); color: var(--oc-ink);
+  box-shadow: 0 24px 48px -28px rgba(10, 24, 48, 0.55);
+  clip-path: var(--oc-cut);
+  animation: cst-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes cst-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cst { animation: none; } }
+
+.cst-top { display: flex; align-items: center; gap: 12px; }
+.cst-title { margin: 0; flex: 1; font: 600 22px/1.2 var(--oc-f-ui); }
+.cst-x {
+  appearance: none; border: 1px solid var(--oc-line); background: #fff; color: var(--oc-ink); cursor: pointer;
+  width: 32px; height: 32px; font: 600 14px/1 var(--oc-f-ui);
+}
+.cst-x:hover { background: var(--oc-frost); }
+.cst-x:focus-visible, .cst-chip:focus-visible, .cst-h:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+
+.cst-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 12px; }
+.cst-chip {
+  --c: var(--oc-azure);
+  appearance: none; cursor: pointer; padding: 6px 12px; font: 600 12px/1.2 var(--oc-f-ui); color: var(--oc-ink);
+  background: #fff; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); box-shadow: inset 3px 0 0 var(--c);
+  transition: background 0.2s, color 0.2s;
+}
+.cst-chip:hover { background: color-mix(in srgb, var(--c) 12%, #fff); }
+.cst-chip.on { background: var(--c); border-color: var(--c); color: #fff; box-shadow: none; }
+
+.cst-cols, .cst-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 56px 56px 150px; align-items: center; column-gap: 10px; }
+.cst-cols { padding: 0 8px 6px; border-bottom: 1px solid var(--oc-line); }
+.cst-cols .cst-h.name { grid-column: 1 / span 2; }
+.cst-h {
+  appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: right;
+  font: 600 12px/1.2 var(--oc-f-ui); color: var(--oc-ink-2, #4a6a92); white-space: nowrap;
+}
+span.cst-h { cursor: default; text-align: left; }
+.cst-h.on { color: var(--oc-azure); }
+
+.cst-list { list-style: none; margin: 0; padding: 4px 0 0; overflow-y: auto; flex: 1; min-height: 0; }
+.cst-row { padding: 5px 8px; border-left: 3px solid var(--c); margin-bottom: 3px; background: rgba(255, 255, 255, 0.6); }
+.cst-row:hover { background: color-mix(in srgb, var(--c) 10%, #fff); }
+.cst-face {
+  width: 36px; height: 36px; overflow: hidden; background: var(--oc-frost); display: grid; place-items: center; font-size: 20px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.cst-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.cst-name { font: 600 14px/1.25 var(--oc-f-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cst-num { font: 600 14px/1 var(--oc-f-ui); text-align: right; font-variant-numeric: tabular-nums; }
+.cst-rate { display: flex; align-items: center; gap: 8px; }
+.cst-rate b { width: 50px; text-align: right; font: 700 14px/1 var(--oc-f-ui); font-variant-numeric: tabular-nums; }
+.cst-bar { flex: 1; height: 6px; background: var(--oc-frost); overflow: hidden; }
+.cst-bar i { display: block; height: 100%; background: var(--c); transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }

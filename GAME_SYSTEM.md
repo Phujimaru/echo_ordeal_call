@@ -710,7 +710,7 @@ npm test    # node --test "tests/**/*.test.js"
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
 - กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
-- ระบบกลางที่มีเทสต์แยก: `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `char-stats` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
 
 ---
 
@@ -1236,3 +1236,12 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **บัฟค้างจากผู้สี** (ดนตรีในหัวใจ): สถานะบนตัวเป้าไม่เก็บใน `statuses` ถาวร — ป้าย `statuses.otoyaHeart` ต่ออายุทุก sync (`onEndTurn` หลังลูปลดเทิร์น) · ผลจริงคิดจากสถานะของผู้สี (`heartGiverOf`) ผ่าน `auraAtk` / `auraCrit` / `onRoundStartTick`
 - **กันทั้งก้อนแล้วถอย**: `onAttacked` + `blocksAttack` (แบบเฟิร์น) · ตีปกติ (`engine.inStrike()`) = จดไว้แล้วถอยใน `afterActorEnd` · ทางอื่นถอยทันทีด้วย `engine.ice.pushUnit(p, dir, ctx, 2)`
 
+
+## 48. สถิติตัวละคร — เลือก / ชนะ / อัตราชนะ เก็บที่เครื่อง host (`server/charStats.js` · ผู้ใช้สั่ง 2026-11-09)
+
+- **บันทึก**: `phases/endTurn.js` `gameOver` → `recordCharStats(resultOf)` ครั้งเดียวต่อแมตช์ (`match.statsRecorded` — รีเซ็ทใน `lobby.startMatch`) · ทุกทางจบเกม (ผู้ชนะที่ระบุ / Moon Cell / ทีม / อิสระ) ต้องเรียก — **ทางจบเกมใหม่ต้องเรียกด้วย**
+  · นับเฉพาะเจ้าของฝ่าย (`!p.summon && !p.duoOf` — บอส AI/ร่างแยก/ตัวที่สองของระบบคู่ไม่นับ) ที่ `p.characterId` · ผล: ทีมชนะ/คนสุดท้าย = `win` · ไม่มีผู้รอด = `draw` · ที่เหลือ `loss` · ผู้เล่นคนเดียว (ทดสอบ) ไม่นับ ยกเว้น Moon Cell
+- **ไฟล์**: `ECHO_STATS_FILE` (โปรแกรม ECHO ส่ง `<userData>/char-stats.json` — `desktop/room.js` · ไม่หายตอนอัปเดต) · ไม่ตั้ง = `data/char-stats.json` (gitignore) · ระหว่าง `node --test` ไม่ตั้ง env = หน่วยความจำอย่างเดียว · เขียนแบบ tmp → rename
+- **socket**: client ส่ง `charStats` (ขอ) → server ตอบ `charStats` `{ [characterId]: { picks, wins, losses, draws } }` · จบแมตช์ = `io.emit("charStats")` ให้ทุกคน
+- **client**: หน้าเลือกตัว ปุ่ม "สถิติ" ท้ายปุ่มหมวด → `oc/charselect/CharStats.jsx` (แผงขวา · กรองหมวด · กดหัวคอลัมน์ เลือก/ชนะ/อัตราชนะ = เรียง · Esc ปิด) · อัตราชนะ = ชนะ ÷ เลือก (ยังไม่เคยเลือก = "—")
+- เทสต์: `tests/char-stats.test.js`

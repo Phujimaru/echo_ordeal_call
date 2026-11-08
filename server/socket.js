@@ -26,6 +26,7 @@ const TimeStop = require("./timeStop");
 const ClockUp = require("./clockUp");
 const { engine } = require("./engine");
 const Colony = require("./colony");
+const CharStats = require("./charStats");
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
 const sessions = new Map();          // sessionToken -> playerId
@@ -170,6 +171,11 @@ io.on('connection', (socket) => {
   socket.emit("roster", publicRoster());
   socket.emit("positions", lobby.positionsFor(socket.id));
   socket.emit("takenChars", view.takenUniqueChars());
+  // สถิติตัวละครของเครื่อง host (server/charStats.js) — หน้าเลือกตัวขอเองตอนเปิดแถบสถิติ · จบแมตช์ = phases/endTurn.js ส่งให้ทุกคนอีกรอบ
+  safeOn(socket, 'charStats', () => {
+    if (!consumeEventQuota(socket, 'charStats', 5, 5_000)) return;
+    socket.emit("charStats", CharStats.snapshot());
+  });
 
   safeOn(socket, 'reconnectSession', ({ sessionToken } = {}) => {
     if (!consumeEventQuota(socket, 'reconnectSession', 3, 10_000)) return;

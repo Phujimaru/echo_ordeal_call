@@ -35,7 +35,7 @@ async function waitUntilReady(version, timeoutMs) {
 }
 
 // เปิดห้อง — คืน { ok: true, port } หรือ { ok: false, error: "<ข้อความภาษาไทย>" }
-async function start({ gameRoot, version, assetBaseUrl, onExit }) {
+async function start({ gameRoot, version, assetBaseUrl, statsFile, onExit }) {
   if (child) return { ok: true, port: PORT };
   if (!(await portFree(PORT))) {
     return { ok: false, error: `พอร์ต ${PORT} ถูกโปรแกรมอื่นใช้อยู่` };
@@ -43,6 +43,7 @@ async function start({ gameRoot, version, assetBaseUrl, onExit }) {
   const env = { ...process.env, PORT: String(PORT), ECHO_VERSION: version };
   delete env.ELECTRON_RUN_AS_NODE;
   if (assetBaseUrl) env.ASSET_BASE_URL = assetBaseUrl;
+  if (statsFile) env.ECHO_STATS_FILE = statsFile; // สถิติตัวละครของเครื่องนี้ (server/charStats.js) — อยู่ใน userData ไม่หายตอนอัปเดตโปรแกรม
   child = utilityProcess.fork(path.join(gameRoot, "server.js"), [], {
     cwd: gameRoot,
     env,

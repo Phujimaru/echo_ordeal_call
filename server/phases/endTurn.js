@@ -29,6 +29,8 @@ const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
+const CharStats = require("../charStats");
+const { io } = require("../app");
 
 function endTurn() {
   timers.clearPhaseTimer();
@@ -146,6 +148,8 @@ function gameOver() {
     match.winningTeamId = lobby.teamModeActive() || Moon.active() ? champ.teamId || null : null;
     if (Moon.active()) match.moon.result = "win";
     match.lastLog.push(`🏆 ${Duo.ownerOf(champ).name} คือผู้ชนะ!`);
+    const champOwner = Duo.ownerOf(champ);
+    recordCharStats((p) => (p === champOwner || (match.winningTeamId && p.teamId === match.winningTeamId) ? "win" : "loss"));
     timers.clearPhaseTimer();
     match.gameState = "GAMEOVER";
     match.timeLeft = 0;
@@ -159,6 +163,7 @@ function gameOver() {
     match.moon.result = res;
     match.winningTeamId = res === "win" ? TEAM_IDS[0] : null;
     match.lastLog.push(res === "win" ? "🏆 โค่นฮาคุโนะได้แล้ว — ผู้เล่นชนะ!" : "🌙 ผู้เล่นล้มหมด — ฮาคุโนะชนะ");
+    recordCharStats(() => (res === "win" ? "win" : "loss"));
     timers.clearPhaseTimer();
     match.gameState = "GAMEOVER";
     match.timeLeft = 0;
@@ -177,10 +182,13 @@ function gameOver() {
     } else {
       match.lastLog.push("ไม่มีทีมที่รอด — เสมอ");
     }
+    recordCharStats((p) => (!match.winningTeamId ? "draw" : p.teamId === match.winningTeamId ? "win" : "loss"));
   } else if (!lobby.teamModeActive() && total >= 2 && sidesLeft <= 1) {
     match.winningTeamId = null;
     if (sidesLeft === 1) match.lastLog.push(`🏆 ${Duo.ownerOf(stillAlive[0]).name} คือผู้ชนะคนสุดท้าย!`);
     else match.lastLog.push("ไม่มีผู้รอด — เสมอ");
+    const last = sidesLeft === 1 ? Duo.ownerOf(stillAlive[0]) : null;
+    recordCharStats((p) => (!last ? "draw" : p === last ? "win" : "loss"));
   } else {
     return false;
   }
@@ -189,6 +197,16 @@ function gameOver() {
   match.timeLeft = 0;
   view.broadcastState();
   return true;
+}
+
+// สถิติตัวละครที่เครื่อง host (server/charStats.js): ครั้งเดียวต่อแมตช์ · resultOf(เจ้าของฝ่าย) → "win" | "loss" | "draw"
+//  ผู้เล่นจริง = ไม่ใช่ยูนิตที่ถูกเรียก (บอส/ร่างแยก) และไม่ใช่ตัวที่สองของระบบคู่ · คนเดียว (ทดสอบ) ไม่นับ ยกเว้น Moon Cell
+function recordCharStats(resultOf) {
+  if (match.statsRecorded) return;
+  match.statsRecorded = true;
+  const sides = Object.values(match.players).filter((p) => !p.summon && !p.duoOf);
+  if (sides.length < 2 && !Moon.active()) return;
+  if (CharStats.recordMatch(sides.map((p) => ({ characterId: p.characterId, result: resultOf(p) })))) io.emit("charStats", CharStats.snapshot());
 }
 
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
