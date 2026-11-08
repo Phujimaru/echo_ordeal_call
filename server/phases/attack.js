@@ -3,7 +3,7 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   attackableTargets, attackSoundOf, computeAttackBase, strikeCard,
-  estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, skillDodge, doAttack, boardAttack, gunAttack,
+  estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, skillDodge, doAttack, boardAttack,
 });
 
 const CHAR_HOOKS = require("../../characters/index");
@@ -11,7 +11,6 @@ const {
   statusAmtOf, poisonAtkPenalty, invertActive, accurateActive,
 } = require("../../characters/_universal_status");
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("../../characters/_universal_status");
-const Mark42 = require("../../characters/_mark42");
 const Journey = require("../../characters/_journey");
 const { ATTACKFX_TIME } = require("../constants");
 const Board = require("../board");
@@ -87,7 +86,6 @@ function computeAttackBase(engine, attacker, target) {
   const empowerAtk = (attacker.statuses.empower || 0) > 0;
   const cardAtkBonus = attacker.statusAmt.cardAtkBonus || 0; // การ์ดแดงครบ 3 ใบตอนเปิดไพ่
 
-  const mark42Atk = Mark42.attackBonus(attacker); // เกราะ Mark 42: พลังโจมตี +1 ระหว่างใส่ (ungated ใครใส่ก็ได้)
   // การเดินทาง: ป่าไม้ต้องสาป กลางวัน (ตีโดนแรงขึ้น +1) / จุดสิ้นสุดของโลก กลางคืน (ทุกคน +1) — ผลสนาม ungated
   const journeyAtkFx = Journey.attackBonus(engine);
   const journeyAtk = journeyAtkFx ? journeyAtkFx.amount : 0;
@@ -109,10 +107,10 @@ function computeAttackBase(engine, attacker, target) {
   const auraAtk = auraAtkFx.reduce((n, r) => n + r.amount, 0);
   // Fodlan: ผลของด่าน (ถือศิลาตรา +1 — server/fodlan/stage5.js atkBonus) — ungated
   const fodlanAtk = require("../fodlan").atkBonus(attacker);
-  const base = baseHook + hookBonus + mark42Atk + journeyAtk + giftAtk + terrainAtk + zeroAtk + auraAtk + fodlanAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
+  const base = baseHook + hookBonus + journeyAtk + giftAtk + terrainAtk + zeroAtk + auraAtk + fodlanAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
-    empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, auraAtkFx, fodlanAtk,
+    empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, zeroAtkFx, auraAtkFx, fodlanAtk,
     ...hookCtx,
   };
 }
@@ -276,7 +274,7 @@ function strikeBody(attacker, target, counter) {
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
-  const { empowerAtk, cardAtkBonus, mark42Atk, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk, auraAtkFx } = atkCtx;
+  const { empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk, auraAtkFx } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
@@ -346,7 +344,6 @@ function strikeBody(attacker, target, counter) {
   const addFx = (x, side) => { if (x) fxSkills.push({ ...x, side }); };
   const atkFx = (name, img = view.displayImg(attacker)) => addFx({ name, img, by: attacker.name, color: lobby.colorOf(attacker) }, "atk");
   const defFx = (name, img = view.displayImg(target)) => addFx({ name, img, by: target.name, color: lobby.colorOf(target) }, "def");
-  if (mark42Atk > 0) atkFx(`เกราะ Mark 42 +${mark42Atk}`, Mark42.IMG.suit);
   if (journeyAtkFx) atkFx(journeyAtkFx.name, null);
   if (zeroAtkFx) atkFx(zeroAtkFx.name, null);
   if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
@@ -527,15 +524,6 @@ function boardAttack(attacker, target, done) {
 function strikeResolved(attacker, target, res, counter) {
   const hook = CHAR_HOOKS[attacker.characterId];
   if (hook && hook.onStrikeResolved) combat.withEffectSource(attacker, () => combat.runHook(hook, "onStrikeResolved", engine, attacker, target, res, { counter }));
-}
-// ยิงปืน GUTS บนกระดาน (ผลของกระสุนลงไปแล้วก่อนเรียก): ฉากยิง + ตีสวน/ถอยแบบเดียวกับตีปกติ
-//  card.gun = ชนิดกระสุน (dmg ของจังหวะแรกเป็น 0 — ผลจริงอยู่ใน log ตามชนิดกระสุน)
-function gunAttack(shooter, target, ammo, done) {
-  target.wasAttacked = true; // ถูกยิงนับว่าถูกโจมตี
-  combat.notifyAttacked(target, shooter, "gun");
-  const card = { id: ++match.attackSeq, ...strikeCard(shooter, target, { dmg: 0, kill: !target.alive }), gun: ammo, counter: null, push: null };
-  const slide = counterAndPush(shooter, target, card);
-  playAttackCard(card, shooter, target, slideThen(slide, target, done));
 }
 // ถอยลงน้ำแข็ง: ไถลต่อหลังฉากตีจบ (ก่อนผลหลังฉากตี/จบตา) — ชนตามกติกาไถลทุกอย่าง · ต้นตอ = คนที่ตีสวน
 function slideThen(slide, by, done) {

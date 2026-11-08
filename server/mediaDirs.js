@@ -1,5 +1,5 @@
-// โฟลเดอร์สื่อทั้งหมดที่เก็บบน Cloudflare R2 — /characters (รูป/วิดีโอ/เพลงตัวละคร), /item (ปืนหน่วย GUTS
-//  Select + คีย์/วีดีโอกระสุน), /overload_force (เพลงท่าไม้ตายมุยมิ — ระบบ Overload Force ถอดออกแล้ว), /theme_song + /effect_sound (เพลง/เสียง),
+// โฟลเดอร์สื่อทั้งหมดที่เก็บบน Cloudflare R2 — /characters (รูป/วิดีโอ/เพลงตัวละคร), /item (ไอเทม — นกหวีด),
+//  /overload_force (เพลงท่าไม้ตายมุยมิ — ระบบ Overload Force ถอดออกแล้ว), /theme_song + /effect_sound (เพลง/เสียง),
 //  /image (พื้นหลัง + สแปลช)
 //  /journey (เพลงการเดินทาง 7 ภูมิภาค กลางวัน/กลางคืน + map.mp3 ของฉากแผนที่) · /zero_time (เพลงห่วงเวลาซีโร่ 4 ระดับ + เสียงฟ้าผ่า)
 //  /colony (เพลง/เสียงเหตุการณ์ของสนาม Colony — GRID_PLAN §8.3) · /fodlan (เพลงด่าน + เสียงบรรยากาศ/เอฟเฟกต์โหมด Fodlan — GRID_PLAN §8.5) · /mooncell (ภาพฮาคุโนะ/Moon Cell · คลิป+เสียงท่าไม้ตาย · เพลงธีม — GRID_PLAN §8.4)

@@ -347,7 +347,8 @@ test('คลื่นดาบของดาบสนิม ทุบผนึ�
 // เนิฟ (ผู้ใช้สั่ง 2026-10-19): ท่าไม้ตายใช้แล้วจบตาเดินทันที — กันคอมโบประชิด คลื่นดาบ + ยา + ตีปกติในตาเดียว
 test('ท่าไม้ตายจบตาเดินทันทีหลังคลื่นดาบลง: ตีปกติ/ใช้ยา/เสบียงฉุกเฉินต่อไม่ได้', () => {
   const P = boardSetup([['M', 'muimi', 7, 9], ['A', 'dummy', 7, 8]]);
-  P.M.inventory = [{ uid: 'sp1', type: 'skillPoint', value: 4 }];
+  P.M.inventory = [{ uid: 'sp1', type: 'cleanse' }];
+  P.M.statuses.weak = 2; // มีดีบัฟให้ล้าง = ยาใช้ได้ถ้ายังอยู่ในตาเดิน
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'up' });
   assert.equal(P.A.hp, 5 - (1 + muimi.WAVE_ATK_BONUS), 'คลื่นดาบลงก่อนจบตา');
@@ -356,7 +357,7 @@ test('ท่าไม้ตายจบตาเดินทันทีหล�
   const hpA = P.A.hp;
   engine.attackTarget('M', 'A');
   assert.equal(P.A.hp, hpA, 'ตีปกติต่อไม่ได้');
-  engine.useInventoryItem('M', 'sp1');
+  engine.useInventoryItem('M', 'sp1', { status: 'weak' });
   assert.equal(P.M.inventory.length, 1, 'ใช้ยาต่อไม่ได้');
   const uses = P.M.muimiEmergencyUses;
   engine.useSkill('M', 'basic');

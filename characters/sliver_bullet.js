@@ -194,9 +194,9 @@ function reveal(engine, p, turns) {
   if (turns) s.revealUntil = Math.max(s.revealUntil, engine.roundNumber + turns - 1);
 }
 
-// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (ชุดรับแทนตัวจริง)
+// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว
 function pool(t) {
-  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
+  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0);
 }
 // คลิปเต็มครั้งแรกต่อเกม · ครั้งต่อไปการ์ดแจ้งเตือน (+ เสียง) — onlyFor = เฉพาะบางคน (ระหว่างล่องหน)
 function clipOnce(engine, p, key, onlyFor, sound) {

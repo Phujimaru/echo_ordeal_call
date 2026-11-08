@@ -69,7 +69,7 @@ test('พุ่มหญ้า: ศัตรูที่มองไม่เห
   const P = setup([['B', 'dummy', 6, 4], ['A', 'dummy', 6, 3], ['C', 'dummy', 4, 6]]);
   P.B.hp = 3; P.B.statuses.regen = 2;
   const fromA = view('A', 'B');
-  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield', 'mark42']) assert.equal(fromA[k], null, k);
+  for (const k of ['hp', 'maxHp', 'armor', 'maxArmor', 'shield']) assert.equal(fromA[k], null, k);
   assert.equal(fromA.skillPoints, -1);
   assert.deepEqual(fromA.statuses, {});
   assert.equal(view('C', 'B').hp, 3, 'ผืนเดียวกัน');

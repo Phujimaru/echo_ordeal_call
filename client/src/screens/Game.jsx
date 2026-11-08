@@ -1,4 +1,4 @@
-import { GUTS_AMMO_INFO, MARK42_ARMOR, shopInfoOf } from "../data/shop";
+import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -82,17 +82,15 @@ function isTargetable(p, iAmAttacker, c) {
   const friendly = c.teamModeActive && c.myTeamId && p.teamId === c.myTeamId;
   const self = p.id === c.myId;
   const normalAttackTarget = iAmAttacker && !friendly;
-  const gunTarget = !!c.gunSel && !self && !friendly;
   // โอเบรอน (ฤดูร้อน): โหมดเลือกเป้าหมายกลาง — ตัวเองกดปุ่ม "เลือกตัวเอง" บนแบนเนอร์
   //  anyone = เลือกศัตรูได้แม้โหมดทีม (โอเบรอนใช้ผลเสียของท่ากับศัตรูได้) · ไม่งั้นโหมดทีมเลือกได้เฉพาะเพื่อน (server กันซ้ำ)
   //  onlyIds = จำกัดเฉพาะบางคน
   const giftTarget = !!c.giftSel && (!c.giftSel.onlyIds || c.giftSel.onlyIds.includes(p.id)) && (c.giftSel.anyone || !c.teamModeActive || friendly);
-  return (normalAttackTarget || giftTarget || gunTarget) && p.alive;
+  return (normalAttackTarget || giftTarget) && p.alive;
 }
 // แตะ/คลิกการ์ดคู่ต่อสู้แล้วต้องทำอะไร — ไล่ตามโหมดเลือกเป้าหมายที่เปิดอยู่ ไม่มีเลยก็โจมตีปกติ
 function resolveAttackPick(id, c) {
   if (c.giftSel) return c.pickGift(id);
-  if (c.gunSel) return c.pickGunTarget(id);
   return socket.emit("attack", { targetId: id });
 }
 
@@ -481,7 +479,7 @@ function JourneyInfoModal({ journey, onClose }) {
     { k: "🌙 กลางคืน", v: journey.nightDesc, on: journey.night },
   ].filter(Boolean);
   return (
-    <AvModal label={`การเดินทาง · ภูมิภาคที่ ${journey.area}`} title={journey.name} onClose={onClose} width="min(34rem, 94vw)">
+    <AvModal tone="white" label={`การเดินทาง · ภูมิภาคที่ ${journey.area}`} title={journey.name} onClose={onClose} width="min(34rem, 94vw)">
       <div className="flex flex-col gap-2">
         {rows.map((r) => (
           <div key={r.k} className="rounded-xl px-3 py-2 border" style={{ borderColor: r.on ? `${a.color}aa` : "rgba(255,255,255,.1)", background: r.on ? `${a.color}1f` : "rgba(255,255,255,.03)", opacity: r.on ? 1 : 0.55 }}>
@@ -657,8 +655,8 @@ function ModalMounts({
   showChar, ch, me, onCloseChar,
   statusView, statusViewIsSelf, onCloseStatus,
   shopOpen, shop, onCloseShop, shopBlock, shopTurnsLeft,
-  bagOpen, onCloseBag, players, gameState, roundNumber, onPickGunAmmo,
-  myTurn, bagSlots, onPickSuit, newBag = false,
+  bagOpen, onCloseBag, players, gameState, roundNumber,
+  myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse,
   skillConfirm, onConfirmSkill, onCancelSkill,
 }) {
   return (
@@ -666,10 +664,10 @@ function ModalMounts({
       {showChar && ch && <CharModal ch={ch} me={me} onClose={onCloseChar} />}
       {statusView && <StatusModal p={statusView} statusOnly={statusViewIsSelf} onClose={onCloseStatus} />}
       {shopOpen && <ShopModal shop={shop} me={me} block={shopBlock} turnsLeft={shopTurnsLeft} onClose={onCloseShop} />}
-      {bagOpen && newBag && <BagScreen me={me} players={players} roundNumber={roundNumber} myTurn={myTurn} bagSlots={bagSlots} onPickGunAmmo={onPickGunAmmo} onPickSuit={onPickSuit} onClose={onCloseBag} />}
-      {bagOpen && !newBag && <InventoryModal me={me} players={players} gameState={gameState} roundNumber={roundNumber} onPickGunAmmo={onPickGunAmmo} myTurn={myTurn} bagSlots={bagSlots} onPickSuit={onPickSuit} onClose={onCloseBag} />}
+      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} />}
+      {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
-      <GutsVideoPreloader me={me} players={players} />
+      <CharVideoPreloader players={players} />
     </>
   );
 }
@@ -912,7 +910,7 @@ function statusEntries(p, full) {
     const g = p.gray;
     if (g.souls > 0) out.push({ key: "graySouls", v: 1, icon: "⚰️", label: `สัปเหร่อ ${g.souls}/${g.soulsMax}`, cls: "bg-slate-500 text-white", desc: "ศพละพลังโจมตีเพิ่ม 1 และรองโกมิเนียตแรงขึ้น 1 ครบแล้วเก็บศพได้แค่ฟื้นพลังชีวิต 2" });
     if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "ระยะตีปกติเป็น 2 ช่อง คริติคอลเพิ่ม 25% และตีโดนแล้วเป้าติดถูกตรึง 1 เทิร์น" });
-    if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "เดิน ตีปกติ ใช้สกิล และยิงปืน GUTS ไม่ได้ ศัตรูในแนวถูกตรึง ครบแล้วยิงลำแสงกว้าง 7 ช่องสุดกระดาน ดาเมจ 5 บวกศพที่เก็บ" });
+    if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "เดิน ตีปกติ และใช้สกิลไม่ได้ ศัตรูในแนวถูกตรึง ครบแล้วยิงลำแสงกว้าง 7 ช่องสุดกระดาน ดาเมจ 5 บวกศพที่เก็บ" });
     else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // ไจโร: ลูกเหล็กในมือ · สัดส่วนทองคำ · ม้า (พลังชีวิตม้า / รอเรียก) · เสริมท่าไม้ตาย · คูลดาวน์ (ตัวเลข/ไอคอนเท่านั้น)
@@ -1081,9 +1079,6 @@ function statusEntries(p, full) {
   if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "ความเสียหายที่ได้รับสะสมครบแล้วระเบิดผลักศัตรูรอบตัวออกไป 2 ช่อง และติดเชื่องช้า 1 เทิร์น" });
   // ยูกิ มาโคโตะ: นับถอยหลังเกิดใหม่เป็นประตู (ตัวเลขเท่านั้น — showV = โชว์เลขแม้เหลือ 1)
   if (p.yuki && p.yuki.left > 0) out.push({ key: "yukiCharge", v: p.yuki.left | 0, turns: true, showV: true, icon: "🚪", label: "เกิดใหม่เป็นประตู", cls: "bg-sky-300 text-gray-900", desc: "" });
-  // เกราะ Mark 42: ใส่ชุดอยู่ (ของใคร / เกราะชุดเหลือเท่าไหร่)
-  if (p.mark42) out.push({ key: "mark42", v: 1, icon: "🦾", label: `Mark 42 ${p.mark42.armor}/${p.mark42.max}`, cls: "bg-orange-500 text-gray-900",
-    desc: `ชุดของ ${p.mark42.ownerName} รับความเสียหายแทนตัวจริง และพลังโจมตีเพิ่ม 1 ชุดพังแล้วกลับร่างเดิม` });
   if (full && (p.shield || 0) > 0) out.push({ key: "shield", v: p.shield, icon: "🛡️", label: "โล่", cls: "bg-echo-armor", desc: "กันความเสียหายได้ตามจำนวนโล่" });
   if (full && (p.tempHp || 0) > 0) out.push({ key: "tempHp", v: p.tempHp, icon: "💛", label: "เลือดชั่วคราว", cls: "bg-echo-ice text-gray-900", desc: "รับความเสียหายก่อนพลังชีวิต หายเองใน 2 เทิร์น" });
   return out;
@@ -1174,6 +1169,20 @@ function StatusChips({ p, left, compact, grid, max = 5 }) {
 const isPermanentTurnValue = (it) => (it.v || 0) >= 99;
 const isPermanentStatus = (it) => PERMANENT_STATUS_KEYS.has(it.key) || isPermanentTurnValue(it);
 const showStatusValue = (it) => (it.v > 1 || (it.showV && it.v > 0)) && !isPermanentTurnValue(it);
+// หน้าคาดการณ์ผลการตี (BoardScenes ForecastScreen — ผู้ใช้สั่ง 2026-11-08): สถานะของทั้งสองฝั่ง · ชี้ = คำอธิบาย + จำนวนคงเหลือ
+//  rem = ข้อความจำนวนคงเหลือแบบเดียวกับ StatusModal ("เหลือ N เทิร์น" / "ถาวร" / "สะสม N")
+function forecastStatusItems(p) {
+  return statusEntries(p).map((it) => {
+    let rem = null;
+    if (it.v > 0) {
+      if (isPermanentTurnValue(it)) rem = "ถาวร";
+      else if (isPermanentStatus(it) || (!it.turns && !(it.key in (p.statuses || {})))) rem = it.v > 1 ? `สะสม ${it.v}` : null;
+      else rem = `เหลือ ${it.v} เทิร์น`;
+    }
+    const n = it.amt > 0 ? `+${it.amt}` : rem && rem !== "ถาวร" ? it.v : null; // เลขบนชิป: จำนวนซ้อน > เทิร์น/สะสมที่เหลือ
+    return { key: it.key, icon: it.icon, label: it.label, cls: it.cls, desc: it.desc, amt: it.amt || 0, rem, n };
+  });
+}
 
 // ---------- หน้าต่างดูสถานะ + รายละเอียดสกิลของผู้เล่น (แตะการ์ดผู้เล่นคนไหนก็ได้ตอนไม่ได้เลือกเป้า) ----------
 //  patch 1.9.1: เพิ่มรายละเอียดสกิลตัวละครของฝั่งตรงข้ามให้กดดูได้จากหน้ากระดาน
@@ -1185,6 +1194,7 @@ function StatusModal({ p, onClose, statusOnly }) {
     : [];
   return (
     <AvModal
+      tone="white"
       label={statusOnly ? "สถานะ" : "ข้อมูลผู้เล่น"}
       title={p.name}
       width="min(34rem, 94vw)"
@@ -1293,15 +1303,12 @@ function SkillConfirmModal({ confirm, onConfirm, onCancel }) {
 }
 
 // ---------- ร้านค้ามายา + คลังผู้เล่น (patch 2.2 full) ----------
-// รูปไอคอนไอเทมทั้งหมด: ดึงมาแคชไว้ตั้งแต่เข้าเกม (ไฟล์เล็ก) กันไอคอนโหลดช้าตอนเปิดร้าน/กระเป๋าครั้งแรก
-const ITEM_PRELOAD_IMGS = ["/item/guts_select_gun/guts_gun.webp", ...Object.values(GUTS_AMMO_INFO).map((a) => a.img)];
 // ไรโด ฮิคารุ: คลิปทุกตัว (เล่นครั้งเดียวต่อเกม — characters/_transforms.js)
 const HIKARU_CLIPS = ["form_blackking", "form_thunderdarambia", "form_kemurjin", "form_kingpandon", "form_doragory", "form_tiga",
   "hikaru_skill2", "hikaru_strium", "hikaru_skill3", "hikaru_strium_ray"];
-// วีดีโอกระสุนที่ผู้เล่นถืออยู่: โหลดล่วงหน้าไว้ในเบื้องหลัง (ไฟล์ 5-16MB) — ไม่งั้นตอนยิงจริงวีดีโอจะขึ้นช้า
+// วีดีโอท่าของตัวละครในแมตช์: โหลดล่วงหน้าไว้ในเบื้องหลัง — ไม่งั้นตอนใช้จริงวีดีโอจะขึ้นช้า
 //  แล้วโดนเวลาคัตซีนฝั่ง server ตัดจบก่อนวีดีโอเล่นจบ
-function GutsVideoPreloader({ me, players }) {
-  const ammoTypes = [...new Set((me?.inventory || []).filter((it) => it.type === "gutsAmmo").map((it) => it.ammo))];
+function CharVideoPreloader({ players }) {
   const preloadMuimi = (players || []).some((p) => p.character?.id === "muimi");
   const preloadSliver = (players || []).some((p) => p.character?.id === "sliver_bullet");
   const preloadSora = (players || []).some((p) => p.character?.id === "sora_otosumi");
@@ -1309,12 +1316,9 @@ function GutsVideoPreloader({ me, players }) {
   const preloadYuna = (players || []).some((p) => p.character?.id === "yuna");
   const preloadHikaru = (players || []).some((p) => p.character?.id === "raido_hikaru");
   const preloadGray = (players || []).some((p) => p.character?.id === "gray");
-  if (!ammoTypes.length && !preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira && !preloadYuna && !preloadGray) return null;
+  if (!preloadMuimi && !preloadSliver && !preloadSora && !preloadHikaru && !preloadKira && !preloadYuna && !preloadGray) return null;
   return (
     <div aria-hidden className="hidden">
-      {ammoTypes.map((a) => GUTS_AMMO_INFO[a] && (
-        <video key={a} src={GUTS_AMMO_INFO[a].video} preload="auto" muted playsInline />
-      ))}
       {preloadMuimi && <video src="/characters/muimi/muimi_skill3.mp4" preload="auto" muted playsInline />}
       {preloadMuimi && <video src="/characters/muimi/muimi_skill3_short.mp4" preload="auto" muted playsInline />}
       {preloadSliver && <video src="/characters/sliver_bullet/sliver_bullet_skill1.mp4" preload="auto" muted playsInline />}
@@ -1393,9 +1397,9 @@ function ShopHerald() {
 
 function ShopModal({ shop, me, block, turnsLeft, onClose }) {
   const list = shop;
-  const hasGun = (me?.inventory || []).some((i) => i.type === "gutsGun");
   return (
     <AvModal
+      tone="white"
       label="ร้านค้า"
       title="ร้านค้ามายา"
       width="min(72rem, 94vw)"
@@ -1407,37 +1411,34 @@ function ShopModal({ shop, me, block, turnsLeft, onClose }) {
     >
       <>
         {(!list || list.length === 0) ? (
-          <div className="av-label py-10 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ไม่มีของ</div>
+          <div className="av-label py-10 text-center" style={{ opacity: 0.5 }}>ไม่มีของ</div>
         ) : (
           <div className="grid grid-cols-5 gap-3">
             {list.map((it) => {
               const info = shopInfoOf(it);
               const sold = !!it.sold;
               const afford = (me?.gold ?? 0) >= it.price;
-              // เกราะ Mark 42: มีได้ชุดเดียว (ในกระเป๋าหรือส่งออกไปแล้ว) · ชุดพังจากการต่อสู้ ซื้อใหม่ไม่ได้ 10 เทิร์น
-              const suitLock = it.type === "mark42" ? (me?.mark42BuyLock || 0) : 0;
-              const owned = (it.type === "mark42" && (!!me?.mark42Owned || (me?.inventory || []).some((x) => x.type === "mark42"))) || (it.type === "gutsGun" && hasGun); // ปืนมีได้กระบอกเดียว
               return (
                 <div
                   key={it.id}
-                  className={`av-frame av-panel av-gild-hover relative p-3 flex flex-col items-center text-center gap-1.5 ${sold ? "opacity-40" : "av-panel-gilded"}`}
+                  className={`oc-shop-card relative p-3 flex flex-col items-center text-center gap-1.5 ${sold ? "sold" : ""}`}
                 >
                   <ItemIcon info={info} className="text-3xl h-12 w-12" />
                   <div className="av-heading text-xs leading-tight">{info.label(it)}</div>
                   {/* คำอธิบายย่อ (ผู้ใช้สั่ง 2026-10-09 · ฉบับเต็มชี้ค้างดูได้) */}
-                  {info.short && <div className="text-xs leading-snug" style={{ color: "rgba(234,243,252,.68)" }} title={info.desc}>{info.short}</div>}
+                  {info.short && <div className="oc-shop-short text-xs leading-snug" title={info.desc}>{info.short}</div>}
                   <div className="mt-auto w-full flex flex-col items-center gap-2 pt-2">
-                    <div className="av-label" style={{ fontSize: "0.7rem" }}>
+                    <div className="av-label oc-shop-price" style={{ fontSize: "0.7rem" }}>
                       🪙 {it.price}
-                      {/* การเดินทาง (ทุ่งดอกไม้ กลางคืน): ช่องนี้ซื้อได้หลายชิ้น */}
-                      {it.stockMax > 1 && !sold && <span style={{ color: "var(--av-gold-lit)" }}> · เหลือ {it.stock}/{it.stockMax}</span>}
+                      {/* จำนวนที่ยังซื้อได้ของช่องนี้ (สุ่ม 2–5 ต่อช่อง — ผู้ใช้สั่ง 2026-11-08) */}
+                      {it.stockMax > 0 && !sold && <span className="oc-shop-stock"> · เหลือ {it.stock}/{it.stockMax}</span>}
                     </div>
                     <AvButton
                       className="w-full py-1.5 text-xs px-2"
-                      disabled={sold || owned || suitLock > 0 || !afford || !!block}
+                      disabled={sold || !afford || !!block}
                       onClick={() => { playSfx("buy_something"); socket.emit("buyShopItem", { itemId: it.id }); }}
                     >
-                      {sold ? "ขายแล้ว" : owned ? "มีแล้ว" : suitLock > 0 ? `รออีก ${suitLock} เทิร์น` : !afford ? "เหรียญไม่พอ" : block || "ซื้อ"}
+                      {it.closed ? "ปิดขาย" : sold ? "ขายแล้ว" : !afford ? "เหรียญไม่พอ" : block || "ซื้อ"}
                     </AvButton>
                   </div>
                 </div>
@@ -1450,138 +1451,35 @@ function ShopModal({ shop, me, block, turnsLeft, onClose }) {
   );
 }
 
-function InventoryModal({ me, players, gameState, roundNumber, onPickGunAmmo, myTurn, bagSlots = 5, onPickSuit, onClose }) {
+function InventoryModal({ me, myTurn, bagSlots = 5, onClose }) {
   const items = me?.inventory || [];
-  // ปืนหน่วย GUTS Select: กดที่ปืน -> เลือกกระสุนในกระเป๋า -> ปิดกระเป๋าแล้วไปเลือกเป้าหมายบนกระดานต่อ
-  const [gunOpen, setGunOpen] = useState(false);
-  // เกราะ Mark 42: เลือกโหมดที่ต้องเลือกเป้าหมาย ("give" | "bomb") ของชุดในกระเป๋า (มือถือ — จอคอมเลือกบนกระดาน)
-  const [suitMode, setSuitMode] = useState(null);
-  // ใส่ให้ / ระเบิดใส่ / เรียกคืน ต้องยืนติดกัน (GRID_PLAN §8.1)
-  const adjacent = (a, b) => !!a?.pos && !!b?.pos && Math.abs(a.pos.x - b.pos.x) + Math.abs(a.pos.y - b.pos.y) === 1;
-  const suitTargets = (players || []).filter((p) => p.alive && p.id !== me?.id && !p.mark42 && (!me?.pos || adjacent(me, p)));
   // ใช้ของได้เฉพาะตาเดินของตัวเอง (ระบบกระดาน)
   const turnBlock = !myTurn ? "ใช้ได้เฉพาะตาของคุณ" : null;
-  const suitBlock = turnBlock;
-  const applySuit = (uid, mode, targetId) => { clickSound(); socket.emit("useInventoryItem", { uid, mode, targetId }); setSuitMode(null); };
-  const suitControl = (action) => { clickSound(); socket.emit("mark42Control", { action }); };
-  const suitOut = me?.mark42Owned || null;
-  const suitWearer = suitOut ? (players || []).find((p) => p.id === suitOut.wearerId) : null;
-  const recallBlock = suitBlock || (suitWearer && !adjacent(me, suitWearer) ? "ต้องยืนติดกัน" : null);
-
-  const ammoItems = items.filter((it) => it.type === "gutsAmmo");
-  const targets = (players || []).filter((p) => p.alive && p.id !== me?.id && !(me?.teamId && p.teamId === me.teamId));
-  // เหตุผลที่ยิงไม่ได้ (โชว์ให้เห็นเลย ไม่ปล่อยให้กดแล้วเงียบ)
-  const fireBlock =
-    !myTurn ? "ยิงได้เฉพาะตาของคุณ"
-    : me?.gray?.charge ? "รองโกมิเนียต"
-    : (me?.gutsShotTurn || 0) === roundNumber ? "ยิงไปแล้วในเทิร์นนี้ (1 นัด/เทิร์น)"
-    : ammoItems.length === 0 ? "ไม่มีกระสุน — ซื้อได้ที่ร้านค้ามายา"
-    : targets.length === 0 ? "ไม่มีเป้าหมายให้ยิง"
-    : null;
-
   function applyItem(uid) { clickSound(); socket.emit("useInventoryItem", { uid }); }
   // ทิ้งของ: ตาตัวเองเท่านั้น ไม่นับเป็นการใช้
   function dropItem(uid) { clickSound(); socket.emit("dropItem", { uid }); }
-  // ใส่ให้ / ระเบิดใส่: จอคอมไปเลือกคนที่ยืนติดกันบนกระดาน · มือถือเลือกจากรายชื่อด้านล่าง
-  function chooseSuitMode(uid, mode) {
-    clickSound();
-    if (onPickSuit) { onPickSuit(uid, mode); return; }
-    setSuitMode(suitMode === mode ? null : mode);
-  }
-  function toggleGun() { clickSound(); setGunOpen((v) => !v); }
-  // เลือกกระสุนแล้วเด้งไปโหมดเลือกเป้าหมายบนกระดานทันที (กดที่การ์ดผู้เล่นจริง ไม่ใช่กดชื่อในกระเป๋า)
-  function pickAmmo(a) {
-    clickSound();
-    setGunOpen(false);
-    onPickGunAmmo(a);
-  }
 
   return (
     <AvModal label="กระเป๋า" title={`กระเป๋าของ ${me?.name || ""}`} width="min(34rem, 94vw)" onClose={onClose}
       right={<span className="av-chip"><span>{items.length}/{bagSlots}</span></span>}>
       <>
-        {suitOut && (
-          <div className="av-item flex flex-col gap-2 mb-2" style={{ borderLeftColor: "#f97316" }}>
-            <div className="flex items-center gap-3">
-              <img src="/characters/Mark42/mark42.webp" alt="" className="h-10 w-10 rounded object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="av-heading text-sm">เกราะ Mark 42 — {suitOut.self ? "สวมอยู่ที่ตัวเอง" : `สวมอยู่ที่ ${suitOut.wearerName}`}</div>
-                <div className="text-xs" style={{ color: "rgba(234,243,252,.62)" }}>เกราะชุด {suitOut.armor}/{MARK42_ARMOR}</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!suitOut.self && <AvButton className="px-3 py-1.5 text-xs" disabled={!!recallBlock || !!me?.mark42} title={me?.mark42 ? "ใส่ชุดอยู่แล้ว" : recallBlock || ""} onClick={() => suitControl("recall")}>เรียกคืนมาใส่เอง</AvButton>}
-              <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock} title={suitBlock || ""} onClick={() => suitControl("remove")}>ถอดออก</AvButton>
-              {!suitOut.self && <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock} title={suitBlock || ""} onClick={() => suitControl("detonate")}>💥 สั่งระเบิด (2)</AvButton>}
-            </div>
-          </div>
-        )}
         {items.length === 0 ? (
           <div className="av-label py-8 text-center" style={{ color: "rgba(234,243,252,.4)" }}>ยังไม่มีของในคลัง</div>
         ) : (
           <div className="flex flex-col gap-2">
             {items.map((it) => {
               const info = shopInfoOf(it);
-              const isGun = it.type === "gutsGun";
-              const isAmmo = it.type === "gutsAmmo";
-              const isSuit = it.type === "mark42";
               return (
-                <div key={it.uid} className="av-item flex flex-col gap-2" style={isGun ? { borderLeftColor: "var(--av-gold-mid)" } : undefined}>
+                <div key={it.uid} className="av-item flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <ItemIcon info={info} className="text-2xl h-10 w-10" />
                     <div className="min-w-0 flex-1">
                       <div className="av-heading text-sm">{info.label(it)}</div>
                       <div className="text-xs leading-snug" style={{ color: "rgba(234,243,252,.62)" }}>{info.desc}</div>
                     </div>
-                    {isGun ? (
-                      <AvButton className="px-4 py-1.5 text-xs shrink-0" disabled={!gunOpen && !!fireBlock} title={fireBlock || ""} onClick={toggleGun}>
-                        {gunOpen ? "ยกเลิก" : "ยิง"}
-                      </AvButton>
-                    ) : isSuit ? (
-                      suitBlock ? <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>{suitBlock}</span> : null
-                    ) : isAmmo ? (
-                      <span className="av-label shrink-0 text-right" style={{ fontSize: "0.62rem" }}>ใช้ผ่านปืน</span>
-                    ) : (
-                      <AvButton className="px-4 py-1.5 text-xs shrink-0" disabled={!!turnBlock} title={turnBlock || ""} onClick={() => applyItem(it.uid)}>ใช้</AvButton>
-                    )}
+                    <AvButton className="px-4 py-1.5 text-xs shrink-0" disabled={!!turnBlock} title={turnBlock || ""} onClick={() => applyItem(it.uid)}>ใช้</AvButton>
                     <AvButton className="px-3 py-1.5 text-xs shrink-0" disabled={!myTurn} onClick={() => dropItem(it.uid)}>ทิ้ง</AvButton>
                   </div>
-                  {isSuit && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap gap-2">
-                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !!me?.mark42} title={me?.mark42 ? "ใส่ชุดอยู่แล้ว" : ""} onClick={() => applySuit(it.uid, "self")}>🦾 ใส่ให้ตัวเอง</AvButton>
-                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} title={!suitTargets.length ? "ต้องยืนติดกัน" : ""} onClick={() => chooseSuitMode(it.uid, "give")}>ใส่ให้ผู้เล่นอื่น</AvButton>
-                        <AvButton className="px-3 py-1.5 text-xs" disabled={!!suitBlock || !suitTargets.length} title={!suitTargets.length ? "ต้องยืนติดกัน" : ""} onClick={() => chooseSuitMode(it.uid, "bomb")}>💥 ใส่ให้แล้วระเบิด (2)</AvButton>
-                      </div>
-                      {suitMode && (
-                        <div className="rounded-lg bg-black/40 p-2">
-                          <div className="text-xs opacity-80 mb-1">{suitMode === "give" ? "เลือกคนที่จะใส่ชุดให้:" : "เลือกคนที่จะส่งชุดไประเบิดใส่:"}</div>
-                          <div className="flex flex-wrap gap-2">
-                            {suitTargets.map((t) => (
-                              <button key={t.id} className="text-xs font-bold rounded-lg px-3 py-1.5 border border-white/25 bg-white/10 hover:bg-white/20" onClick={() => applySuit(it.uid, suitMode, t.id)}>{t.name}</button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {isGun && !gunOpen && fireBlock && <div className="text-[11px]" style={{ color: "#e06a78" }}>⚠️ {fireBlock}</div>}
-                  {isGun && gunOpen && (
-                    <div className="rounded-lg bg-black/40 p-2">
-                      <div className="text-xs opacity-80 mb-1">เลือกกระสุน (เลือกแล้วไปจิ้มเป้าหมายบนกระดาน):</div>
-                      <div className="flex flex-wrap gap-2">
-                        {ammoItems.map((a) => {
-                          const ai = shopInfoOf(a);
-                          return (
-                            <button key={a.uid} className="flex flex-col items-center gap-1 w-20 rounded-lg border border-white/15 bg-black/30 p-1.5 hover:border-echo-ice transition-colors" onClick={() => pickAmmo(a)}>
-                              <ItemIcon info={ai} className="h-9 w-9" />
-                              <span className="text-[10px] leading-tight text-center">{ai.label(a)}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -1643,7 +1541,7 @@ function MobileOpponent({ p, phase, targetable, onAttack, onInspect, hostRef }) 
 function CharModal({ ch, me, onClose }) {
   const myStatuses = me ? statusEntries(me, true) : [];
   return (
-    <AvModal label="ข้อมูลตัวละคร" title={ch.name} width="min(34rem, 94vw)" onClose={onClose}>
+    <AvModal tone="white" label="ข้อมูลตัวละคร" title={ch.name} width="min(34rem, 94vw)" onClose={onClose}>
       <>
         <div className="flex flex-col gap-2">
           {[["สกิลติดตัว", ch.passive], ["สกิลพื้นฐาน", ch.basic], ["สกิลรอง", ch.secondary], ["ท่าไม้ตาย", ch.ultimate]].map(([label, s], i) =>
@@ -1914,8 +1812,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [notice, setNotice] = useState(null); // แปลงร่างซ้ำ (ครั้งที่ 2 เป็นต้นไป) เด้งแจ้งเตือนทันที ไม่หยุดเกม
   const [giftSel, setGiftSel] = useState(null);              // โอเบรอน (ฤดูร้อน): { tier, anyone } ที่กำลังรอจิ้มเป้าหมาย
   const [journeyInfoOpen, setJourneyInfoOpen] = useState(false);   // การเดินทาง: หน้าต่างอ่านผลของภูมิภาคปัจจุบัน
-  const [gunSel, setGunSel] = useState(null);                // ปืนหน่วย GUTS Select: กระสุนที่เลือกไว้ รอจิ้มเป้าหมายบนกระดาน (เลือกตัวเองไม่ได้)
-  // จอคอม (ระบบกระดาน): โหมดเลือกเป้า/ทิศบนกระดาน — { kind: "skill", tier } | { kind: "gun", item } | { kind: "suit", uid, mode }
+  // จอคอม (ระบบกระดาน): โหมดเลือกเป้า/ทิศบนกระดาน — { kind: "skill", tier }
   const [pickReq, setPickReq] = useState(null);
   // ปุ่ม "โจมตี" (ดีไซน์ใหม่): ศัตรูที่ตีถึงมาจาก BoardStage · กดแล้วเพิ่มเลข = BoardStage เปิดหน้าคาดการณ์ · fcOpen = ซ่อน HUD ทั้งหมด
   const [attackables, setAttackables] = useState([]);
@@ -1989,13 +1886,20 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const summaryWinners = rankedTiers[0]?.players || [];
   const summaryLosers = rankedTiers.slice(1).flatMap((t) => t.players);
   const done = hand && (hand.locked || !handAlive);
-  // ---------- ไอเทมช่วงจั่ว (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด) — ดึงจากกระเป๋า · ใช้ได้ก่อนกด "พอ" ----------
+  // ---------- ไอเทมช่วงจั่ว (ยาโชคลาภ · ยาเปลี่ยนสีการ์ด · กรรไกรตัดไพ่) — เปิดกระเป๋าใช้ได้ก่อนกด "พอ" (ผู้ใช้สั่ง 2026-11-08) ----------
   const drawOpen = phase === "PLAYING" && handAlive && !done;
-  const bagOf = (type) => (hand?.inventory || []).filter((it) => it.type === type);
-  const fortuneItems = bagOf("fortune");
-  const colorItems = bagOf("cardColor");
   const handNumberCards = Array.isArray(hand?.cards) && hand.cards.some((c) => !c.special);
-  const pickLive = !!colorPick && drawOpen && colorItems.some((it) => it.uid === colorPick.uid);
+  const drawBag = drawOpen ? { fortuneFull: (hand.statuses?.fortune || 0) >= 3, hasNumber: handNumberCards, cardCount: (hand.cards || []).length } : null;
+  // ใช้ไอเทมช่วงจั่วจากกระเป๋า: ยาเปลี่ยนสี = ปิดกระเป๋าแล้วเลือกไพ่ → สีบนมือ · อย่างอื่นส่งทันที
+  const useDrawFromBag = (it) => {
+    if (it.type === "cardColor") { setBagOpen(false); setColorPick({ uid: it.uid, card: null }); return; }
+    setColorPick(null);
+    socket.emit("useDrawItem", { uid: it.uid });
+  };
+  const pickLive = !!colorPick && drawOpen && (hand?.inventory || []).some((it) => it.uid === colorPick.uid);
+  // ปุ่มกระเป๋า: มีของที่กดใช้ได้ตอนนี้ = แสงเต้น (ช่วงจั่ว: ไอเทมช่วงจั่ว · ตาเดิน: วงจรพลังงานที่ถอนได้ — คิดต่อด้านล่างหลังรู้ myTurn)
+  const drawHot = !!drawBag && (hand?.inventory || []).some((it) => DRAW_ITEM_TYPES.includes(it.type)
+    && (it.type === "fortune" ? !drawBag.fortuneFull : it.type === "cardColor" ? drawBag.hasNumber : drawBag.cardCount > 0));
   useEffect(() => { if (colorPick && !pickLive) setColorPick(null); }, [colorPick, pickLive]);
   useEffect(() => {
     if (!colorPick) return undefined;
@@ -2241,25 +2145,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     setSkillConfirm(null);
     skill(t);
   };
-  // ปืนหน่วย GUTS Select: เลือกกระสุนจากกระเป๋าแล้วปิดกระเป๋า เข้าโหมดจิ้มเป้าหมายบนกระดาน -> จิ้มแล้วยิงทันที
-  const startGunPick = (ammoItem) => {
-    setBagOpen(false);
-    if (vp.w >= 768) setPickReq({ kind: "gun", item: ammoItem });
-    else setGunSel(ammoItem);
-  };
-  // เกราะ Mark 42 ใส่ให้ / ระเบิดใส่: ปิดกระเป๋าแล้วเลือกคนที่ยืนติดกันบนกระดาน
-  const startSuitPick = (uid, mode) => {
-    setBagOpen(false);
-    setPickReq({ kind: "suit", uid, mode });
-  };
   // หมดตาเรา / ของถูกใช้ไปแล้ว = ออกจากโหมดเลือกเป้า
   useEffect(() => {
     if (!pickReq) return;
-    const gone = (pickReq.kind === "gun" && !(me?.inventory || []).some((it) => it.uid === pickReq.item.uid))
-      || (pickReq.kind === "suit" && !(me?.inventory || []).some((it) => it.uid === pickReq.uid))
-      || (pickReq.kind === "action" && !(me?.actions || []).some((x) => x.key === pickReq.key && !x.disabled && Array.isArray(x.tiles) && x.tiles.length));
+    const gone = (pickReq.kind === "action" && !(me?.actions || []).some((x) => x.key === pickReq.key && !x.disabled && Array.isArray(x.tiles) && x.tiles.length));
     if (!myTurn || canto || gone) setPickReq(null);
-  }, [pickReq, myTurn, canto, me?.inventory, me?.actions]);
+  }, [pickReq, myTurn, canto, me?.actions]);
   // โหมดเลือกเป้าที่ส่งให้ BoardStage
   let boardPick = null;
   if (pickReq && me) {
@@ -2292,9 +2183,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         onPick: (dir) => { ohgerExit.current = true; socket.emit("useSkill", { tier: "secondary", dir }); done(); },
         onCancel: () => { ohgerExit.current = true; socket.emit("charAction", { key: "ohger:trigger" }); done(); },
       };
-    } else if (pickReq.kind === "gun") {
-      const item = pickReq.item;
-      boardPick = { kind: "target", range: state.gutsRange || [1, 4], allow: enemyOf, label: `ยิง ${shopInfoOf(item).label(item)}`, onPick: (id) => { socket.emit("useInventoryItem", { uid: item.uid, targetId: id }); done(); }, onCancel: done };
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
       boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
@@ -2303,25 +2191,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
       const tiles = act && Array.isArray(act.tiles) ? act.tiles : [];
       boardPick = { kind: "tile", place: "list", tiles, foot: Math.max(1, me.size | 0), label: act ? act.name : pickReq.key, onPick: (tile) => { socket.emit("charAction", { key: pickReq.key, tile }); done(); }, onCancel: done };
-    } else if (pickReq.kind === "suit") {
-      const { uid, mode } = pickReq;
-      boardPick = { kind: "target", range: [1, 1], allow: (p) => !p.mark42 && !p.summon && p.id !== me.id, label: mode === "bomb" ? "Mark 42 · ระเบิดใส่" : "Mark 42 · ใส่ให้", onPick: (id) => { socket.emit("useInventoryItem", { uid, mode, targetId: id }); done(); }, onCancel: done };
     }
   }
-  const pickGunTarget = (id) => {
-    socket.emit("useInventoryItem", { uid: gunSel.uid, targetId: id });
-    setGunSel(null);
-  };
   const pickGift = (id) => {
     socket.emit("useSkill", { tier: giftSel.tier, targets: [id], item: giftSel.item });
     setGiftSel(null);
   };
-  // ไอคอนไอเทม: ดึงมาแคชไว้ตั้งแต่เข้าเกม กันโหลดช้าตอนเปิดร้าน/กระเป๋าครั้งแรก
-  useEffect(() => { for (const src of ITEM_PRELOAD_IMGS) { const im = new Image(); im.src = src; } }, []);
-  // ปืน GUTS Select: หลุดโหมดเลือกเป้าหมายเมื่อออกจากช่วงจั่วไพ่/เปิดไพ่แล้ว หรือกระสุนนัดนั้นถูกใช้ไปแล้ว
-  useEffect(() => {
-    if (gunSel && (phase !== "PLAYING" || done || !(me?.inventory || []).some((it) => it.uid === gunSel.uid))) setGunSel(null);
-  }, [gunSel, phase, done, me?.inventory]);
   useEffect(() => {
     if (giftSel && (phase !== "PLAYING" || done)) setGiftSel(null);
   }, [giftSel, phase, done]);
@@ -2350,7 +2225,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
   // สถานะ+handler ของทุกโหมดเลือกเป้าหมาย มัดรวมไว้ที่เดียว ใช้ร่วมกันทั้ง layout มือถือและจอใหญ่ (ดู isTargetable/resolveAttackPick)
   const targetChain = {
-    gunSel, pickGunTarget,
     giftSel, pickGift,
     myId: me?.id,
     myTeamId: me?.teamId,
@@ -2392,12 +2266,6 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         {iAmAttacker && (
           <div className="shrink-0 text-center mt-1.5 text-lg font-black text-echo-ice animate-pulse text-hard">
             ⚔️ แตะการ์ดคู่ต่อสู้เพื่อโจมตี!
-          </div>
-        )}
-        {gunSel && (
-          <div className="shrink-0 text-center mt-1.5 text-hard">
-            <span className="text-lg font-black text-echo-hp animate-pulse">🔫 แตะเลือกเป้าหมาย {shopInfoOf(gunSel).label(gunSel)}</span>
-            <button onClick={() => { clickSound(); setGunSel(null); }} className="ml-2 text-sm font-bold bg-black/60 rounded-full px-3 py-1 border border-white/30">ยกเลิก</button>
           </div>
         )}
         {/* กลางจอ: กองการ์ดกลาง ทับตำแหน่งโลโก้เดิม (โลโก้เป็นแค่วอเตอร์มาร์กจางๆ ด้านหลัง) */}
@@ -2590,7 +2458,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
           statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
           shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
-          bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
+          bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
           myTurn={myTurn} bagSlots={state.bagSlots}
           skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         />
@@ -2640,7 +2508,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
       {state.board ? (
         <BoardStage state={state} me={me} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther}
-          atkSignal={atkSignal} onAttackables={setAttackables} onOverlay={setFcOpen} />
+          atkSignal={atkSignal} onAttackables={setAttackables} onOverlay={setFcOpen} statusOf={forecastStatusItems} />
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
@@ -2742,19 +2610,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 disabled: !(phase === "PLAYING" && handAlive && !done),
                 onClick: () => { clickSound(); setColorPick(null); socket.emit("lock"); },
               }}
-              items={{
-                fortune: {
-                  count: fortuneItems.length,
-                  disabled: !drawOpen || (hand.statuses?.fortune || 0) >= 3,
-                  onClick: () => { clickSound(); setColorPick(null); socket.emit("useDrawItem", { uid: fortuneItems[0]?.uid }); },
-                },
-                color: {
-                  count: colorItems.length,
-                  disabled: !drawOpen || !handNumberCards,
-                  active: pickLive,
-                  onClick: () => { clickSound(); setColorPick(pickLive ? null : { uid: colorItems[0]?.uid, card: null }); },
-                },
-              }}
+              bag={{ items: hand?.inventory || [], slots: state.bagSlots || 5, hot: drawHot, onClick: () => { clickSound(); setColorPick(null); setBagOpen(true); } }}
               pick={pickLive ? {
                 card: colorPick.card,
                 onCard: (i) => { clickSound(); setColorPick((cp) => cp && { ...cp, card: cp.card === i ? null : i }); },
@@ -2773,7 +2629,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
-              attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
+              attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, targets: attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shop={nearShop && !canto ? { onClick: () => { clickSound(); socket.emit("viewShop"); setShopOpen(true); } } : null}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
@@ -2791,11 +2647,15 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                   },
                 };
               })}
-              onBag={() => { clickSound(); setBagOpen(true); }}
+              bag={{
+                onClick: () => { clickSound(); setBagOpen(true); },
+                items: me?.inventory || [], slots: state.bagSlots || 5,
+                hot: !canto && (me?.inventory || []).some((it) => it.type === "battery" && (it.charge || 0) > 0) && (me?.skillPoints || 0) < (me?.maxSkill || 0),
+              }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
             />
-          ) : hudMode === "watch" ? <BagButton onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
+          ) : hudMode === "watch" ? <BagButton solo items={me?.inventory || []} slots={state.bagSlots || 5} onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
         />
       )}
 
@@ -2821,8 +2681,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         showChar={showChar} ch={ch} me={me} onCloseChar={() => setShowChar(false)}
         statusView={statusView} statusViewIsSelf={!!statusView && sameSide(statusView, hand)} onCloseStatus={() => setStatusViewId(null)}
         shopOpen={shopOpen} shop={state.shop} onCloseShop={() => setShopOpen(false)} shopBlock={shopBlock} shopTurnsLeft={state.shopTurnsLeft}
-        bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber} onPickGunAmmo={startGunPick}
-        myTurn={myTurn && !canto && !me?.summon} bagSlots={state.bagSlots} onPickSuit={startSuitPick} newBag={!!state.board}
+        bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
+        myTurn={myTurn && !canto && !me?.summon} bagSlots={state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
       />
       {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}

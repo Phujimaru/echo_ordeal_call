@@ -8,7 +8,6 @@
 // ============================================================
 const muimiImg = require("./muimi").IMG;   // มุยมิ: ใช้ path รูปจาก hook กลาง
 const sliverChar = require("./sliver_bullet"); // นักบินปริศนา: วีดีโอเปลี่ยนชิ้นส่วน / Beam Magnum
-const mark42 = require("./_mark42"); // เกราะ Mark 42 (ไอเทมร้านค้า): path วีดีโอชุดเดียวกับไฟล์ระบบ
 const sora = require("./sora_otosumi"); // โซระ: คลิปแปลงร่าง / Mouse Separade / ชน
 const kira = require("./kira"); // กิระ: คลิปสวมเกราะราชัน (ครั้งแรกต่อเกม)
 const hikaru = require("./raido_hikaru");
@@ -127,24 +126,12 @@ module.exports = function buildTransforms() {
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
     // ขบวนการจอมราชันคิงโอเจอร์ — คลิปแปลงร่างสำเร็จครั้งแรกต่อเกม (_ohger.js คิวเอง) · ความยาวจริง 20.47 / 18.43 / 16.27 / 20.47 / 21.67 วิ ปัดขึ้น
     ...Object.fromEntries(ohger.map((m) => [m.CUT.transform, { img: m.IMG.armor, video: m.VIDEO.transform, title: m.def.armorName, label: "สวมเกราะราชัน", seconds: OHGER_SECONDS[m.FORM], music: null, afterReveal: false }])),
-    // เกราะ Mark 42 (ไอเทม) — คิวจากโค้ดทุกครั้ง แล้วผลเกิดหลังคลิปจบ · seconds จาก mvhd (15.40 / 23.24 / 12.51 / 16.17) ปัดขึ้น
-    mark42Suitup:   { img: mark42.IMG.suit, video: mark42.VIDEO.suitup,   title: "เกราะ Mark 42", label: "สวมเกราะ",            seconds: 16, music: null, afterReveal: false },
-    mark42Recall:   { img: mark42.IMG.suit, video: mark42.VIDEO.recall,   title: "เกราะ Mark 42", label: "เรียกเกราะกลับมาสวม",  seconds: 24, music: null, afterReveal: false },
-    mark42SuitSome: { img: mark42.IMG.suit, video: mark42.VIDEO.suitSome, title: "เกราะ Mark 42", label: "ส่งเกราะไปสวมให้",     seconds: 13, music: null, afterReveal: false },
-    mark42Bomb:     { img: mark42.IMG.suit, video: mark42.VIDEO.bomb,     title: "เกราะ Mark 42", label: "ระเบิด!",              seconds: 17, music: null, afterReveal: false },
-    // ---------- ปืนหน่วย GUTS Select (ร้านค้ามายา) ----------
-    //  ไม่ใช่ของตัวละครไหน — เป็นไอเทมที่ใครซื้อก็ยิงได้ เล่นวีดีโอทุกครั้งที่ยิง (queueCutscene ตรงๆ ไม่ผ่าน triggerCutscene)
-    //  seconds วัดจาก mvhd atom จริง (+buffer ~0.5-1 วิ กันตัดก่อนจบ)
-    gutsShockwave: { img: "/item/guts_key/gomora_key.webp",    video: "/item/guts_key/shockwave_boost.mp4",    title: "SHOCKWAVE BULLET",   label: "ยิงปืนหน่วย GUTS Select", seconds: 11, music: null, afterReveal: false }, // shockwave_boost.mp4 ~9.51s
-    gutsGargorgon: { img: "/item/guts_key/gargorgon_key.webp", video: "/item/guts_key/gargorgon_ray.mp4",      title: "GARGORGON RAY",      label: "ยิงปืนหน่วย GUTS Select", seconds: 9,  music: null, afterReveal: false }, // gargorgon_ray.mp4 ~7.67s
-    gutsThunder:   { img: "/item/guts_key/eleking_key.webp",   video: "/item/guts_key/thunder_boost.mp4",      title: "THUNDER BULLET",     label: "ยิงปืนหน่วย GUTS Select", seconds: 7,  music: null, afterReveal: false }, // thunder_boost.mp4 ~5.38s
     // ---------- นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js — ช่องพิเศษที่ 6 ของกระเป๋า) ----------
     //  เต็มจอทุกครั้งที่เป่าติด · ผลลงหลังคลิป · ความยาวจริง 24.23 / 25.03 / 26.13 / 21.30 วิ ปัดขึ้น
     divineCrossWinds:   { img: "/item/divine_whistle/cross_winds.webp",   video: "/item/divine_whistle/cross_winds.mp4",   title: "CROSS WINDS",   label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 25, music: null, afterReveal: false },
     divineTsunami:      { img: "/item/divine_whistle/tsunami.webp",       video: "/item/divine_whistle/tsunami.mp4",       title: "TSUNAMI",       label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 26, music: null, afterReveal: false },
     divineDiamondDust:  { img: "/item/divine_whistle/diamond_dust.webp",  video: "/item/divine_whistle/diamond_dust.mp4",  title: "DIAMOND DUST",  label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 27, music: null, afterReveal: false },
     divineJudgmentBolt: { img: "/item/divine_whistle/judgment_bolt.webp", video: "/item/divine_whistle/judgment_bolt.mp4", title: "JUDGMENT BOLT", label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 22, music: null, afterReveal: false },
-    gutsNurse:     { img: "/item/guts_key/nurse_key.webp",     video: "/item/guts_key/nursedessei_cannon.mp4", title: "NURSEDESSEI CANNON", label: "ยิงปืนหน่วย GUTS Select", seconds: 16, music: null, afterReveal: false }, // nursedessei_cannon.mp4 ~14.40s
     // รถบรรทุกเก่า / ออพติมัส ไพร์ม — ความยาวจริง (ffprobe) 21.0 / 8.9 / 12.3 / 17.0 วิ ปัดขึ้น · ครั้งแรกต่อเกม (clipOnce ใน characters/old_truck.js)
     otTrueForm: { img: ot.IMG.truck, video: ot.VIDEO.trueForm, title: "ร่างที่แท้จริง", label: "รถบรรทุก", seconds: 21.5, music: null, afterReveal: false },
     otTransform: { img: ot.IMG.prime, video: ot.VIDEO.transform, title: "ออพติมัส ไพร์ม", label: "เปลี่ยนร่าง", seconds: 9.5, music: null, afterReveal: false },

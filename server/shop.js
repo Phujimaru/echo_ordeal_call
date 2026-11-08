@@ -1,35 +1,30 @@
-// เหรียญ + ร้านค้ามายา + ไอเทม/ปืน GUTS
+// เหรียญ + ร้านค้ามายา + ไอเทม
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  goldCapOf, addGold, rollShopItem, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
+  goldCapOf, addGold, shopCatalog, shopItemName, openShop, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, bagFull, dropItem,
   giveItem, swapItem,
-  grantInventoryItem, hasGutsGun, hasGutsWeapon, asleep, viewShop, buyShopItem,
-  cardLabel, useInventoryItem, useDrawItem, gutsFireTargetOf, applyGutsBullet,
+  grantInventoryItem, asleep, viewShop, buyShopItem,
+  cardLabel, useInventoryItem, useDrawItem, chargeBatteries, cleansableOf,
 });
 
 const CHAR_HOOKS = require("../characters/index");
-const Mark42 = require("../characters/_mark42");
 const Journey = require("../characters/_journey");
 const {
-  BAG_SLOTS, FORTUNE_MAX, GOLD_MAX, GUTS_AMMO, GUTS_AMMO_IDS, GUTS_CHAA_TURNS, GUTS_GUN_PRICE, GUTS_NURSE_DMG,
-  GUTS_RANGE, SHOP_AMMO_WEIGHTS, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_INTERVAL_TURNS,
-  SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_MAX_GUNS, SHOP_MAX_ITEMS, SHOP_MAX_MARK42,
-  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_SKILL_SIZES, SHOP_TORCH_PRICE, SHOP_WEIGHTS,
+  BAG_SLOTS, BATTERY_MAX, BATTERY_REGEN, FORTUNE_MAX, GOLD_MAX, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_BATTERY_PRICE,
+  SHOP_CARD_COLOR_PRICE, SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_INTERVAL_TURNS,
+  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE,
+  SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
 } = require("./constants");
+const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("../characters/_universal_status");
 const Board = require("./board");
 const cardDeck = require("./deck");
 const Duo = require("./duo");
 const match = require("./match");
 const { engine } = require("./engine");
 const action = require("./phases/action");
-const attack = require("./phases/attack");
-const characterRules = require("./characterRules");
 const combat = require("./combat");
-const cutscene = require("./cutscene");
-const timers = require("./timers");
 const view = require("./view");
-const Visibility = require("./visibility");
 const Zero = require("./zeroTime");
 const Dim = require("./dimension");
 const Colony = require("./colony");
@@ -49,97 +44,67 @@ function addGold(p, n) {
 }
 
 // ---------- ร้านค้ามายา (patch 2.3: ยุบร้านลุงเท่งเข้ามาเป็นร้านเดียว) ----------
-// สุ่มสินค้า 1 ชิ้นตามน้ำหนักใน SHOP_WEIGHTS
-//   allowGun = false (ปืนครบ SHOP_MAX_GUNS แล้ว) / allowMark42 = false (ชุดครบ SHOP_MAX_MARK42 แล้ว)
-//   -> น้ำหนักของที่เต็มโควตาตกไปรวมกับกระสุนธรรมดา
-function pickWeighted(entries) {
-  const total = entries.reduce((n, e) => n + e.w, 0);
-  let r = Math.random() * total;
-  for (const e of entries) { r -= e.w; if (r <= 0) return e.key; }
-  return entries[entries.length - 1].key;
+// รายการสินค้า (ผู้ใช้สั่ง 2026-11-08): ร้านขายของทุกชนิดช่องละ 1 ไม่ซ้ำกัน — ที่สุ่มคือ "จำนวนที่ซื้อได้" ช่องละ SHOP_STOCK_MIN–MAX ชิ้น
+//  ถอดออกจากเกมแล้ว: เกราะ Mark 42 · ปืน+กระสุน GUTS · ยาฟื้นแต้มสกิล · ลำดับ = ลำดับบนหน้าร้าน (ไอเทมช่วงจั่ว → ตาเดิน → ของถาวร)
+function shopCatalog() {
+  return [
+    { type: "fortune", price: SHOP_FORTUNE_PRICE },
+    { type: "cardColor", price: SHOP_CARD_COLOR_PRICE },
+    { type: "cardCut", price: SHOP_CARD_CUT_PRICE },
+    { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE },
+    { type: "cleanse", price: SHOP_CLEANSE_PRICE },
+    { type: "resist", price: SHOP_RESIST_PRICE },
+    { type: "windBoots", price: SHOP_WIND_BOOTS_PRICE },
+    { type: "battery", price: SHOP_BATTERY_PRICE },
+    { type: "lifeCrystal", price: SHOP_LIFE_CRYSTAL_PRICE },
+    { type: "armorCrystal", price: SHOP_ARMOR_CRYSTAL_PRICE },
+  ];
 }
-function rollShopAmmo() {
-  const ammoId = pickWeighted(GUTS_AMMO_IDS.map((id) => ({ key: id, w: SHOP_AMMO_WEIGHTS[id] || 1 })));
-  return { type: "gutsAmmo", ammo: ammoId, price: GUTS_AMMO[ammoId].price };
-}
-function rollShopItem(allowGun = true, allowMark42 = true) {
-  const weights = { ...SHOP_WEIGHTS };
-  if (!allowMark42) { weights.gutsAmmo += weights.mark42; weights.mark42 = 0; }
-  if (!allowGun) { weights.gutsAmmo += weights.gutsGun; weights.gutsGun = 0; }
-  const type = pickWeighted(Object.entries(weights).map(([key, w]) => ({ key, w })));
-  if (type === "cardColor") return { type: "cardColor", price: SHOP_CARD_COLOR_PRICE };
-  if (type === "fortune") return { type: "fortune", price: SHOP_FORTUNE_PRICE };
-  if (type === "resist") return { type: "resist", price: SHOP_RESIST_PRICE };
-  if (type === "skillPoint") {
-    const size = pickWeighted(SHOP_SKILL_SIZES.map((s) => ({ key: s.size, w: s.weight })));
-    const s = SHOP_SKILL_SIZES.find((x) => x.size === size);
-    return { type: "skillPoint", size: s.size, value: s.amount, price: s.price };
-  }
-  if (type === "gutsGun") return { type: "gutsGun", price: GUTS_GUN_PRICE };
-  if (type === "mark42") return { type: "mark42", price: Mark42.PRICE };
-  if (type === "gutsAmmo") return rollShopAmmo();
-  return { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE };
-}
+const rollStock = () => SHOP_STOCK_MIN + Math.floor(Math.random() * (SHOP_STOCK_MAX - SHOP_STOCK_MIN + 1));
 function shopItemName(item) {
   if (item.type === "cardColor") return "ยาเปลี่ยนสีการ์ด";
   if (item.type === "fortune") return "ยาโชคลาภ";
   if (item.type === "resist") return "ยาต้านสถานะ";
-  if (item.type === "skillPoint") return `ยาฟื้นแต้มสกิล +${item.value}`;
+  if (item.type === "cardCut") return "กรรไกรตัดไพ่";
+  if (item.type === "cleanse") return "ยาล้างสถานะ";
+  if (item.type === "battery") return "วงจรพลังงาน";
+  if (item.type === "lifeCrystal") return "ผลึกชีวิต";
+  if (item.type === "armorCrystal") return "ผลึกเกราะ";
+  if (item.type === "windBoots") return "รองเท้าวายุ";
   if (item.type === "armor") return `ยาฟื้นเกราะ +${item.value}`;
-  if (item.type === "gutsGun") return "ปืนหน่วย GUTS Select";
-  if (item.type === "mark42") return "เกราะ Mark 42";
-  if (item.type === "gutsAmmo") return (GUTS_AMMO[item.ammo] || {}).name || "กระสุน";
   if (item.type === "kebread") return "ขนมปัง";
   if (item.type === "giornoArrow") return "ธนู Requiem";
   if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
   if (item.type === "torch") return "คบเพลิง";
   return "สินค้า";
 }
-// เปิดร้านค้ามายา: สุ่มสินค้าใหม่ทั้งหมด SHOP_MAX_ITEMS ช่อง (สินค้าประเภทเดียวกันขึ้นซ้ำได้)
+// เปิดร้านค้ามายา: ของครบทุกชนิดช่องละ 1 · สุ่มจำนวนที่ซื้อได้ต่อช่องใหม่ (stockBase · ของกลาง ใครถึงก่อนได้ก่อน)
 function openShop() {
   match.shopRoundSeq++;
-  match.shopItems = [];
-  let guns = 0;
-  let suits = 0;
-  for (let i = 0; i < SHOP_MAX_ITEMS; i++) {
-    // การเดินทาง (คลื่นวงวนน้ำ กลางวัน): สุ่มซ้ำจนได้ของราคา 5 ขึ้นไป
-    const rolled = Journey.filterShopRoll(engine, () => rollShopItem(guns < SHOP_MAX_GUNS, suits < SHOP_MAX_MARK42));
-    if (rolled.type === "gutsGun") guns++;
-    if (rolled.type === "mark42") suits++;
-    match.shopItems.push({ id: `shop_${match.shopRoundSeq}_${i}`, ...rolled, sold: false, soldTo: null });
-  }
+  match.shopItems = shopCatalog().map((it, i) => ({ id: `shop_${match.shopRoundSeq}_${i}`, ...it, stockBase: rollStock(), bought: 0, sold: false, soldTo: null }));
   refreshShopForJourney();
-  match.lastLog.push(`🏪 ร้านค้ามายาปรากฏ — มีสินค้า ${match.shopItems.length} ชิ้น: ${match.shopItems.map(shopItemName).join(", ")}`);
+  match.lastLog.push(`🏪 ร้านค้ามายาปรากฏ — มีสินค้า ${match.shopItems.length} ชนิด`);
 }
-// การเดินทาง: ผลของภูมิภาคที่มีต่อร้านค้า "คิดใหม่ทุกต้นเทิร์น" (เรียกจาก dealRound + ตอนร้านเปิด + หลังซื้อ)
-//  ร้านเปิดทุก 6 เทิร์นแต่ของค้างอยู่ข้ามช่วงเวลา — เดิมคิดผลครั้งเดียวตอนเปิดร้าน ผลจึงช้ากว่าช่วงจริงทั้งช่วง
-//  (ร้านที่ปรากฏเทิร์น 6 ตอนกลางคืนของทุ่งดอกไม้ ของค้างข้ามไปถึงกลางวัน 7-9 และกลางคืนเทิร์น 10)
-//  · ทุ่งดอกไม้ กลางคืน: ช่องละหลายชิ้น — นับที่ซื้อไปแล้ว (bought) เทียบเพดานของช่วงเวลาปัจจุบัน
-//    sold = ครบเพดานแล้ว (client ใช้ sold ตัดสินว่ากดซื้อได้ไหม) · stock/stockMax ส่งไปโชว์ "เหลือ x/3"
-//  · คลื่นวงวนน้ำ กลางวัน: ช่องที่ยังไม่มีใครซื้อและราคาต่ำกว่า 5 ถูกสุ่มใหม่เป็นของราคา 5 ขึ้นไป
+// คิดจำนวนที่ยังซื้อได้ของทุกช่องใหม่ "ทุกต้นเทิร์น" (เรียกจาก dealRound + ตอนร้านเปิด + หลังซื้อ) — ผลของภูมิภาคเปลี่ยนตามช่วงเวลา
+//  ร้านอยู่ 6 เทิร์นข้ามกลางวัน/กลางคืน จึงต้องคิดใหม่ทุกเทิร์น ไม่ใช่ครั้งเดียวตอนเปิด
+//  · stockMax = stockBase + โบนัสภูมิภาค (ทุ่งดอกไม้ กลางคืน +2) · stock = ที่เหลือ · sold = หมด/ปิดขาย (client ใช้ตัดสินปุ่มซื้อ)
+//  · closed = ปิดขายชั่วคราว (คลื่นวงวนน้ำ กลางวัน: ของราคาต่ำกว่า 5)
 function refreshShopForJourney() {
   syncStageItems();
-  // ทุกโหมดใช้ตัวนับ bought ตัดสิน sold — ผลของภูมิภาคทำงานเฉพาะโหมดที่มีการเดินทาง (Journey.is/shopStock)
   if (!match.shopItems.length) return;
-  if (Journey.is(engine, 4, "day")) {
-    for (let i = 0; i < match.shopItems.length; i++) {
-      const it = match.shopItems[i];
-      if ((it.bought || 0) > 0 || it.sold || it.price >= Journey.WHIRL_SHOP_MIN_PRICE) continue;
-      const rolled = Journey.filterShopRoll(engine, () => rollShopItem(false, false)); // ไม่เพิ่มของโควตา (ปืน/Mark 42)
-      match.shopItems[i] = { id: `${it.id}_w`, ...rolled, sold: false, soldTo: null };
-    }
-  }
   for (const it of match.shopItems) {
     if (it.type === "torch") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II): ซื้อได้ไม่จำกัด
-    // ของที่ขายไปก่อนมีตัวนับ bought (ร้านจาก snapshot/เวอร์ชันเก่า) ถือว่าซื้อไป 1 ชิ้น
+    // ของจาก snapshot/เวอร์ชันเก่า (ไม่มีตัวนับ) = ช่องละ 1 ชิ้น
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
-    const limit = Journey.shopStock(engine, it);
-    it.sold = it.bought >= limit;
-    if (limit > 1) { it.stock = Math.max(0, limit - it.bought); it.stockMax = limit; }
-    else { delete it.stock; delete it.stockMax; }
+    if (it.stockBase == null) it.stockBase = 1;
+    const limit = it.stockBase + Journey.shopStockBonus(engine);
+    it.stockMax = limit;
+    it.stock = Math.max(0, limit - it.bought);
+    it.closed = Journey.shopClosed(engine, it);
+    it.sold = it.closed || it.stock <= 0;
   }
 }
-// Fodlan ด่าน II เรเมียร์ (server/fodlan/stage2.js): คบเพลิงขายเฉพาะตอนอยู่ด่านนี้ — ช่องต่อท้ายร้าน (ไม่นับ SHOP_MAX_ITEMS) · ออกจากด่าน = เอาออก
+// Fodlan ด่าน II เรเมียร์ (server/fodlan/stage2.js): คบเพลิงขายเฉพาะตอนอยู่ด่านนี้ — ช่องต่อท้ายร้าน · ออกจากด่าน = เอาออก
 //  เรียกทุกต้นเทิร์น/ตอนร้านเปิด/หลังซื้อ (ผ่าน refreshShopForJourney) + ตอนเข้าด่าน
 function syncStageItems() {
   const want = require("./fodlan/stage2").torchOnSale();
@@ -147,12 +112,12 @@ function syncStageItems() {
   if (want && !has) match.shopItems.push({ id: `shop_torch_${match.shopRoundSeq}`, type: "torch", price: SHOP_TORCH_PRICE, sold: false, soldTo: null, bought: 0 });
   else if (!want && has) match.shopItems = match.shopItems.filter((it) => it.type !== "torch");
 }
-// การเดินทาง (ทุ่งดอกไม้ กลางวัน): ของฟรีราคาไม่เกิน 5 ที่ใช้ได้ทันที — ไม่มีกระสุน (ใช้ไม่ได้ถ้าไม่มีปืน)
+// การเดินทาง (ทุ่งดอกไม้ กลางวัน): ของฟรีราคาไม่เกิน 5 ที่ใช้ได้ทันที
 function journeyGiftItem() {
-  const small = SHOP_SKILL_SIZES.find((x) => x.size === "small");
   const pool = [
     { type: "armor", value: SHOP_ARMOR_AMOUNT, price: SHOP_ARMOR_PRICE },
-    { type: "skillPoint", size: small.size, value: small.amount, price: small.price },
+    { type: "cleanse", price: SHOP_CLEANSE_PRICE },
+    { type: "cardCut", price: SHOP_CARD_CUT_PRICE },
     { type: "cardColor", price: SHOP_CARD_COLOR_PRICE },
     { type: "fortune", price: SHOP_FORTUNE_PRICE },
     { type: "resist", price: SHOP_RESIST_PRICE },
@@ -207,7 +172,7 @@ function dropItem(id, uid) {
 
 // ---------- ให้/แลกของกับเพื่อนร่วมทีม (โหมดร่วมมือ duo/trio/Moon Cell · ผู้ใช้สั่ง 2026-10-27) ----------
 //  ตาตัวเอง · ยืนติดเพื่อน (ระยะ 1 · ชั้นมิติเดียวกัน) · ทันที ไม่ต้องรอเพื่อนยืนยัน · ไม่นับเป็นการใช้ (ยังเดิน/ตีได้)
-//  ของประจำตัวละคร (ขนมปังเอมิลิโกะ · หัวใจของลอว์) ส่งต่อไม่ได้ · ปืน GUTS มีได้กระบอกเดียว · Mark 42 ผู้รับต้องยังไม่มีชุด
+//  ของประจำตัวละคร (ขนมปังเอมิลิโกะ · หัวใจของลอว์ · ธนู Requiem) ส่งต่อไม่ได้
 const BOUND_ITEMS = ["kebread", "lawHeart", "giornoArrow"];
 function tradeMate(p, mateId) {
   const m = match.players[mateId];
@@ -217,13 +182,6 @@ function tradeMate(p, mateId) {
   return Board.dist(Board.boxOf(p), Board.boxOf(m)) === 1 ? m : null;
 }
 const tradable = (it) => !!it && !BOUND_ITEMS.includes(it.type);
-// ผู้รับถือของชิ้นนี้ได้ไหม (ไม่นับ without = ชิ้นที่ผู้รับส่งออกไปในการแลก)
-function canHold(r, it, without) {
-  const bag = (r.inventory || []).filter((x) => x !== without);
-  if (it.type === "gutsGun" && bag.some((x) => x.type === "gutsGun")) return false;
-  if (it.type === "mark42" && (Mark42.ownsSuit(r) || bag.some((x) => x.type === "mark42"))) return false;
-  return true;
-}
 function tradeReady(id) {
   const p = match.players[id];
   if (!p || !p.alive || p.summon || !action.canAct(p) || asleep(p)) return null;
@@ -235,7 +193,7 @@ function giveItem(id, uid, mateId) {
   if (!m) return false;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   const item = idx >= 0 ? p.inventory[idx] : null;
-  if (!tradable(item) || bagFull(m) || !canHold(m, item)) return false;
+  if (!tradable(item) || bagFull(m)) return false;
   p.inventory.splice(idx, 1);
   (m.inventory = m.inventory || []).push(item);
   match.lastLog.push(`🎁 ${p.name} ให้ ${shopItemName(item)} กับ ${m.name}`);
@@ -248,7 +206,7 @@ function swapItem(id, uid, mateId, theirUid) {
   if (!m) return false;
   const mine = (p.inventory || []).find((it) => it.uid === uid);
   const theirs = (m.inventory || []).find((it) => it.uid === theirUid);
-  if (!tradable(mine) || !tradable(theirs) || !canHold(m, mine, theirs) || !canHold(p, theirs, mine)) return false;
+  if (!tradable(mine) || !tradable(theirs)) return false;
   p.inventory[p.inventory.indexOf(mine)] = theirs;
   m.inventory[m.inventory.indexOf(theirs)] = mine;
   match.lastLog.push(`🔄 ${p.name} แลก ${shopItemName(mine)} กับ ${shopItemName(theirs)} ของ ${m.name}`);
@@ -257,21 +215,15 @@ function swapItem(id, uid, mateId, theirUid) {
 }
 
 // แจกไอเทมเข้าคลังโดยตรง (ไม่ผ่านร้านค้า/ไม่เสียเหรียญ) — ใช้กับเอฟเฟกต์ตัวละครที่ "ได้รับไอเทม +1 ชิ้น"
-//  item = { type, value?, size?, ammo? } รูปแบบเดียวกับของในร้าน — คืน item ที่เข้าคลังจริง · กระเป๋าเต็ม = ไม่ได้ (null)
+//  item = { type, value?, size? } รูปแบบเดียวกับของในร้าน — คืน item ที่เข้าคลังจริง · กระเป๋าเต็ม = ไม่ได้ (null)
 function grantInventoryItem(p, item) {
   if (!p || !item || !item.type) return null;
   if (bagFull(p)) return null;
   p.inventory = p.inventory || [];
-  const entry = { uid: `grant_${item.type}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, size: item.size, ammo: item.ammo, price: item.price || 0 };
+  const entry = { uid: `grant_${item.type}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price || 0 };
+  if (item.type === "battery") entry.charge = 0;
   p.inventory.push(entry);
   return entry;
-}
-// ผู้เล่นมีปืนหน่วย GUTS Select อยู่ในกระเป๋าหรือยัง (มีได้กระบอกเดียว)
-function hasGutsGun(p) {
-  return (p.inventory || []).some((it) => it.type === "gutsGun");
-}
-function hasGutsWeapon(p) {
-  return hasGutsGun(p);
 }
 // ซื้อสินค้า: ใครกดก่อนได้ก่อน (Node เป็น single-thread — ประมวลผลทีละ event จึงไม่มี race condition จริง)
 // หลับไหล: "ออกการกระทำใดๆ ไม่ได้" — จั่ว/กดสกิลกันไว้ด้วย p.locked อยู่แล้ว
@@ -298,15 +250,15 @@ function buyShopItem(id, itemId) {
   if (!item || item.sold) return;
   if ((p.gold || 0) < item.price) return;
   p.inventory = p.inventory || [];
-  if (item.type === "gutsGun" && hasGutsGun(p)) return;
-  if (item.type === "mark42" && !Mark42.canBuy(engine, p)) return; // มีชุดอยู่แล้ว / ชุดเพิ่งพังจากการต่อสู้ (10 เทิร์น)
   if (item.type === "torch" && !require("./fodlan/stage2").torchOnSale()) return; // คบเพลิง: ขายเฉพาะ Fodlan ด่าน II
-  item.bought = (item.bought || 0) + 1; // ทุ่งดอกไม้ กลางคืน: ช่องละหลายชิ้น (refreshShopForJourney คิด sold/stock ใหม่)
+  item.bought = (item.bought || 0) + 1; // ช่องละหลายชิ้น (refreshShopForJourney คิด stock/sold ใหม่)
   item.soldTo = p.id;
   refreshShopForJourney();
   p.gold -= item.price;
   action.lockMove(p); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้)
-  p.inventory.push({ uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, size: item.size, ammo: item.ammo, price: item.price });
+  const entry = { uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price };
+  if (item.type === "battery") entry.charge = 0; // วงจรพลังงาน: ซื้อมาว่าง ชาร์จเองทุกจบเทิร์น
+  p.inventory.push(entry);
   match.lastLog.push(`🛍️ ${p.name} ซื้อ ${shopItemName(item)} จากร้านค้ามายา (-${item.price} เหรียญ)`);
   view.broadcastState();
 }
@@ -324,20 +276,6 @@ function useInventoryItem(id, uid, opts = {}) {
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];
-  // ---------- เกราะ Mark 42 (characters/_mark42.js): ใส่เอง / ใส่ให้คนอื่น / ใส่ให้คนอื่นแล้วระเบิด (ต้องยืนติดกัน) ----------
-  if (item.type === "mark42") {
-    const other = opts.targetId && opts.targetId !== p.id ? match.players[opts.targetId] : null;
-    if (other && Visibility.hiddenFromUnit(p, other)) return; // มองไม่เห็น = ส่งชุดให้ไม่ได้
-    if (other && !Dim.same(p, other)) return; // ชั้นมิติ (server/dimension.js): คนละชั้นส่งชุดให้ไม่ได้
-    const plan = Mark42.planUse(engine, p, item, opts.mode, opts.targetId);
-    if (!plan) return;
-    action.lockMove(p);
-    if (other) Visibility.onHostileAct(p, "item"); // ใช้ไอเทมใส่คนอื่น = โผล่จากพุ่ม · นักบินปริศนาปรากฏตัว
-    p.inventory.splice(idx, 1);
-    itemUsed(p, item);
-    characterRules.mark42Run(p, plan, null);
-    return;
-  }
   // ---------- ขนมปัง (ของประจำตัวเอมิลิโกะ · characters/kate_emiliko_combat.js): กินเอง / ป้อนเคทที่ยืนติดกัน ----------
   if (item.type === "kebread") {
     const hook = CHAR_HOOKS[p.characterId];
@@ -356,26 +294,66 @@ function useInventoryItem(id, uid, opts = {}) {
     hook.useCharItem(engine, p, item, opts);
     return;
   }
-  // ---------- ปืน GUTS: นับเป็นการโจมตีของตา (จบตา) ----------
-  if (item.type === "gutsAmmo") {
-    fireGuts(p, idx, item, opts.targetId);
+  // ---------- วงจรพลังงาน (ผู้ใช้สั่ง 2026-11-08): ถอนแต้มสกิลออกจากถังเท่าที่เลือก — ถังอยู่ในกระเป๋าต่อ ----------
+  //  opts.amount = จำนวนที่ถอน (ตัดเหลือเท่าที่ถังมี และเท่าที่แต้มสกิลยังว่างถึงเพดาน) · ถอนไม่ได้เลย = ไม่มีผล ไม่ล็อกการเดิน
+  if (item.type === "battery") {
+    if (combat.skillGainBlocked(p, "item")) return; // ฮุค blocksSkillGain (ชิโร่/เฟิร์น): ไอเทมเพิ่มแต้มไม่มีผล
+    const room = Math.max(0, combat.maxSkillOf(p) - (p.skillPoints || 0));
+    const want = Math.floor(Number(opts.amount));
+    const n = Math.min(item.charge || 0, room, Number.isFinite(want) && want > 0 ? want : 0);
+    if (n <= 0) return;
+    item.charge -= n;
+    combat.addSkill(p, n, "item");
+    match.lastLog.push(`🔋 ${p.name} ถอนแต้มสกิล +${n} จากวงจรพลังงาน (เหลือ ${item.charge}/${BATTERY_MAX})`);
+    action.lockMove(p);
+    itemUsed(p, item);
+    view.broadcastState();
+    return;
+  }
+  // ---------- รองเท้าวายุ (ผู้ใช้สั่ง 2026-11-08): ระยะเดินตานี้ +2 · ใช้แล้วยังเดินได้ (ไม่ล็อกการเดิน) ----------
+  //  ใช้ได้เมื่อยังเดินได้อยู่ (ยังไม่ได้ใช้สกิล/ไอเทม/ซื้อของ · ไม่ใช่เดินต่อหลังจบตา) · ใส่ซ้ำในตาเดียวกันได้ (ซ้อน)
+  if (item.type === "windBoots") {
+    const a = match.action;
+    if (!a || a.locked || a.canto) return;
+    a.movBonus = (a.movBonus || 0) + WIND_BOOTS_MOV;
+    if (a.movLeft != null) a.movLeft += WIND_BOOTS_MOV; // ระบบคู่: ระยะที่เหลือหลังสลับตัว
+    p.inventory.splice(idx, 1);
+    match.lastLog.push(`👟 ${p.name} สวมรองเท้าวายุ — ระยะเดินตานี้ +${WIND_BOOTS_MOV}`);
+    itemUsed(p, item);
+    view.broadcastState();
     return;
   }
   if (item.type === "resist") {
     p.statuses.resist = Math.max(p.statuses.resist || 0, SHOP_RESIST_TURNS);
     match.lastLog.push(`🛡️ ${p.name} ใช้ยาต้านสถานะ — ต้านสถานะผิดปกติ ${SHOP_RESIST_TURNS} เทิร์น จากคลัง`);
-  } else if (item.type === "skillPoint") {
-    if (combat.skillGainBlocked(p, "item")) return; // ฮุค blocksSkillGain (ชิโร่/เฟิร์น): ยาไม่มีผล = ใช้ไม่ได้ ไม่เสียของ
-    combat.addSkill(p, item.value, "item");
-    match.lastLog.push(`⚡ ${p.name} ใช้ยาฟื้นแต้มสกิล +${item.value} จากคลัง (เพดาน ${combat.maxSkillOf(p)})`);
+  } else if (item.type === "lifeCrystal") {
+    // ผลึกชีวิต: พลังชีวิตสูงสุด +1 ถาวร (ทั้งแมตช์) แล้วฟื้น 1 (เคารพสถานะห้ามฟื้น)
+    p.crystalHp = (p.crystalHp || 0) + 1;
+    combat.healHp(p, 1);
+    match.lastLog.push(`💗 ${p.name} ใช้ผลึกชีวิต — พลังชีวิตสูงสุด +1 (${combat.maxHpOf(p)})`);
+  } else if (item.type === "armorCrystal") {
+    // ผลึกเกราะ: เกราะสูงสุด +1 ถาวร (ทั้งแมตช์) แล้วฟื้นเกราะ 1
+    p.crystalArmor = (p.crystalArmor || 0) + 1;
+    combat.healArmor(p, 1);
+    match.lastLog.push(`💠 ${p.name} ใช้ผลึกเกราะ — เกราะสูงสุด +1 (${combat.maxArmorOf(p)})`);
+  } else if (item.type === "cleanse") {
+    // ยาล้างสถานะ (ผู้ใช้สั่ง 2026-11-08): ผู้ใช้เลือกสถานะเอง (opts.status) · ลดทีละ 1 ขั้น (ค่าของสถานะ −1 · ถึง 0 = หาย)
+    //  สถานะที่เลือกต้องเป็นดีบัฟที่ล้างได้และติดอยู่ (cleansableOf) — ไม่งั้นใช้ไม่ได้ ไม่เสียของ
+    const k = String(opts.status || "");
+    if (!cleansableOf(p).includes(k)) return;
+    p.statuses[k]--;
+    if (p.statuses[k] <= 0) {
+      delete p.statuses[k];
+      if (p.statusAmt) delete p.statusAmt[k];
+      if (p.statusAt) delete p.statusAt[k];
+    }
+    match.lastLog.push(`💧 ${p.name} ใช้ยาล้างสถานะ — ล้างสถานะผิดปกติ 1 ขั้น`);
   } else if (item.type === "armor") {
     const healed = combat.healArmor(p, item.value);
     match.lastLog.push(`🔧 ${p.name} ใช้ยาฟื้นเกราะ +${healed} จากคลัง`);
   } else if (item.type === "torch") {
     // คบเพลิง (Fodlan ด่าน II — server/fodlan/stage2.js): ปักบนช่องที่ยืน · นอกด่าน/ช่องมีคบเพลิงแล้ว = ใช้ไม่ได้ ไม่เสียของ
     if (!require("./fodlan/stage2").useTorch(p)) return;
-  } else if (item.type === "gutsGun") {
-    return; // ปืนเป็นไอเทมถาวร ไม่ใช่ของกดใช้ — ต้อง return ก่อนถึง splice ท้ายฟังก์ชัน ไม่งั้นปืนหายทันทีที่กด
   } else {
     return;
   }
@@ -390,7 +368,7 @@ function itemUsed(p, item) {
   if (hook && hook.onItemUsed) combat.runHook(hook, "onItemUsed", engine, p, item);
 }
 // ---------- ไอเทมช่วงจั่วไพ่ (ผู้ใช้สั่ง 2026-10-18) ----------
-//  ยาโชคลาภ / ยาเปลี่ยนสีการ์ด ใช้ได้เฉพาะช่วงจั่วไพ่ ก่อนกด "พอ" — ใช้จากกล่องข้างปุ่มจั่ว (ตาเดินกดใช้ไม่ได้)
+//  ยาโชคลาภ / ยาเปลี่ยนสีการ์ด / กรรไกรตัดไพ่ ใช้ได้เฉพาะช่วงจั่วไพ่ ก่อนกด "พอ" — เปิดกระเป๋าใช้ (ผู้ใช้สั่ง 2026-11-08 · ตาเดินกดใช้ไม่ได้)
 //  ไม่ล็อกการเดิน · ระบบคู่: เจ้าของถือไพ่/กระเป๋า (กระเป๋าใช้ร่วมกัน — server/duo.js SHARED)
 const CARD_COLOR_NAME = { red: "สีแดง", blue: "สีฟ้า", green: "สีเขียว", yellow: "สีเหลือง" };
 function useDrawItem(id, uid, opts = {}) {
@@ -403,6 +381,13 @@ function useDrawItem(id, uid, opts = {}) {
     if ((p.statuses.fortune || 0) >= FORTUNE_MAX) return; // เต็มเพดานแล้ว ไม่เสียของ
     p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);
     match.lastLog.push(`🍀 ${p.name} ใช้ยาโชคลาภ — ได้โชคลาภ +${SHOP_FORTUNE_AMOUNT}`);
+  } else if (item.type === "cardCut") {
+    // กรรไกรตัดไพ่ (เดิมคือยาลดไพ่ — ผู้ใช้สั่งคืน 2026-11-08): ตัดไพ่ใบล่าสุดในมือ คืนเข้ากองกลาง · ใช้ตอนไพ่แตกเพื่อกันแตกได้
+    if (!(p.cards || []).length) return;
+    const removed = p.cards.pop();
+    match.centralDeck.push(removed);
+    p.busted = cardDeck.bustedOf(p);
+    match.lastLog.push(`✂️ ${p.name} ใช้กรรไกรตัดไพ่ — ตัดไพ่ใบล่าสุด (${cardLabel(removed)}) คืนเข้ากองกลาง`);
   } else if (item.type === "cardColor") {
     const cardIndex = Number(opts.cardIndex);
     const target = Number.isInteger(cardIndex) ? (p.cards || [])[cardIndex] : null;
@@ -418,77 +403,16 @@ function useDrawItem(id, uid, opts = {}) {
   p.inventory.splice(idx, 1);
   view.broadcastState();
 }
-// ยิงปืน GUTS (GRID_PLAN §6/§8.1): นับเป็นการโจมตีของตา — ย้อนการเดินไม่ได้แล้ว และจบตาหลังฉากยิง
-//  ลำดับ: วีดีโอกระสุน (ครั้งแรกต่อคน) → ผลของกระสุน → ฉากยิง (ATTACKING) ที่มีตีสวนถ้าผู้ยิงอยู่ในระยะตีของเป้า → คนถัดไป
-function fireGuts(p, idx, item, targetId) {
-  const target = gutsFireTargetOf(p, item, targetId);
-  if (!target) return false; // ยิงไม่ได้ = ไม่เสียกระสุน
-  timers.clearPhaseTimer();
-  match.action.locked = true;
-  p.gutsShotTurn = match.roundNumber;
-  p.inventory.splice(idx, 1);
-  Visibility.onHostileAct(p, "gun"); // ยิงจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
-  match.lastLog.push(`🔫 ${p.name} ยิง ${GUTS_AMMO[item.ammo].name} ใส่ ${target.name}!`);
-  // วีดีโอเต็มจอของกระสุนแต่ละแบบเล่นครั้งเดียวต่อเกม "ต่อผู้ยิงแต่ละคน" (เก็บใน p.cutsceneShown เหมือน
-  //  วีดีโอแปลงร่างของตัวละคร — รีเซ็ตทุกแมตช์ใหม่ใน resetCombat) ครั้งต่อไปเป็นการ์ดแจ้งเตือนเล็ก ไม่หยุดกระดาน
-  const key = GUTS_AMMO[item.ammo].cut;
-  if (p.cutsceneShown[key]) cutscene.notifyTransform(p, key);
-  else { p.cutsceneShown[key] = true; cutscene.queueCutscene(p, key); }
-  // ห่อ withEffectSource ซ้ำ: คอลแบ็กทำงาน "หลังวีดีโอจบ" ซึ่งหลุดขอบเขต effectSourceId ของ onPlayerEvent ไปแล้ว
-  //  — ไม่ห่อ = friendly-fire check ไม่รู้ว่าใครยิง
-  cutscene.runCutsceneQueue(() => combat.withEffectSource(p, () => {
-    applyGutsBullet(p, item, target);
-    attack.gunAttack(p, target, item.ammo, action.finishActor);
-  }));
-  return true;
-}
-// ตรวจว่ายิงได้ไหม + คืนเป้าหมายที่ถูกต้อง (null = ยิงไม่ได้)
-//  ตาเดินของตัวเอง / ต้องมีปืน / 1 นัดต่อเทิร์น / เป้าเป็นศัตรูที่ยังอยู่ และห่างอยู่ในระยะ GUTS_RANGE
-function gutsFireTargetOf(p, item, targetId) {
-  if (!action.canAct(p) || p.summon) return null; // ยูนิตที่ถูกเรียก (ร่างแยก) ยิงไม่ได้
-  if (!hasGutsWeapon(p)) return null;
-  if (p.gutsShotTurn === match.roundNumber) return null;
-  const hook = CHAR_HOOKS[p.characterId];
-  if (hook && hook.blocksGuts && hook.blocksGuts(engine, p)) return null; // เกรย์: ชาร์จรองโกมิเนียตอยู่
-  if (!GUTS_AMMO[item.ammo]) return null;
-  const target = match.players[targetId];
-  if (!target || !target.alive || target.id === p.id || combat.sameTeam(p, target)) return null;
-  if (Visibility.hiddenFromUnit(p, target)) return null; // มองไม่เห็น = เล็งไม่ได้
-  if (!Dim.same(p, target)) return null; // ชั้นมิติ (server/dimension.js): คนละชั้นเล็งไม่ได้
-  if (!p.pos || !target.pos || !Board.inRange(GUTS_RANGE, Board.dist(Board.boxOf(p), Board.boxOf(target)))) return null;
-  return target;
-}
-// ให้ผลของกระสุน — เรียกหลังวีดีโอจบเท่านั้น (ดู pausePlayingForCutscene)
-function applyGutsBullet(p, item, target) {
-  // Nursedessei Cannon: ยิงเสร็จปืนพัง หายจากกระเป๋า ต้องซื้อใหม่ (พังแม้เป้าหมายจะตกรอบไปก่อนแล้ว)
-  if (GUTS_AMMO[item.ammo].breaksGun) {
-    const gunIdx = (p.inventory || []).findIndex((it) => it.type === "gutsGun");
-    if (gunIdx >= 0) p.inventory.splice(gunIdx, 1);
-  }
-  if (!target || !target.alive) { // เป้าหมายตกรอบระหว่างวีดีโอเล่น — กระสุนสูญเปล่า
-    match.lastLog.push(`💨 ${GUTS_AMMO[item.ammo].name} พลาดเป้า — ${target ? target.name : "เป้าหมาย"} ตกรอบไปก่อนแล้ว`);
-    return;
-  }
-  require("./timeStop").checkSure(target); // Return to Zero (โจรุโน่ Requiem): ปืนโดนย้อน 100%
-  if (item.ammo === "shockwave") {
-    const before = target.armor;
-    if (Mark42.suited(target)) Mark42.breakSuit(engine, target, "combat"); // เกราะ Mark 42: สลายเกราะ = ชุดพัง
-    else for (let i = 0; i < before; i++) { if (target.armor > 0) combat.loseArmor(target); }
-    match.lastLog.push(before > 0
-      ? `💥 Shockwave Bullet — เกราะของ ${target.name} ถูกทำลายทั้งหมด (-${before}) แต่พลังชีวิตจริงไม่ได้รับความเสียหาย`
-      : `💨 Shockwave Bullet — ${target.name} ไม่มีเกราะให้ทำลาย กระสุนสูญเปล่า`);
-  } else if (item.ammo === "gargorgon") {
-    target.gutsGargorgonPending = true;
-    match.lastLog.push(`🌑 Gargorgon Ray — ${target.name} จะติดสถานะสตั้นในเทิร์นถัดไป (ต้านทานได้)`);
-  } else if (item.ammo === "thunder") {
-    if (combat.applyDebuff(target, "chaa", null, GUTS_CHAA_TURNS)) match.lastLog.push(`⚡ Thunder Bullet — ${target.name} ติดสถานะ [สภาพชา] ${GUTS_CHAA_TURNS} เทิร์น (กดจั่ว 1 ครั้งได้ไพ่ 2 ใบ)`);
-    else match.lastLog.push(`🛡️ Thunder Bullet — ${target.name} ต้านสถานะผิดปกติไว้ได้ ไม่ติด [สภาพชา]`);
-  } else if (item.ammo === "nurse") {
-    combat.dealMixed(target, GUTS_NURSE_DMG);
-    match.lastLog.push(`☄️ Nursedessei Cannon — ${target.name} เสียหาย -${GUTS_NURSE_DMG} (ลดเกราะก่อน) และปืนของ ${p.name} พังหายไป!`);
-    if (target.alive && target.hp <= 0) {
-      combat.instantDeath(target);
-      if (!target.alive) match.lastLog.push(`💀 ${target.name} เลือดจริงหมด ตกรอบ!`);
+// วงจรพลังงาน: จบเทิร์นชาร์จ +BATTERY_REGEN ต่อถัง (เพดาน BATTERY_MAX) — เรียกจาก endTurn · ระบบคู่ใช้กระเป๋าร่วม = นับครั้งเดียวต่อฝ่าย
+function chargeBatteries() {
+  for (const p of Duo.cardHolders()) {
+    for (const it of p.inventory || []) {
+      if (it.type === "battery") it.charge = Math.min(BATTERY_MAX, (it.charge || 0) + BATTERY_REGEN);
     }
   }
+}
+// ดีบัฟที่ยาล้างสถานะล้างได้และกำลังติดอยู่ (คีย์ใน p.statuses) — ส่งให้เจ้าตัวเลือกในกระเป๋า (view.js cleansable)
+function cleansableOf(p) {
+  if (!p || !p.statuses) return [];
+  return BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP).filter((k) => (p.statuses[k] || 0) > 0);
 }

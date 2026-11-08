@@ -19,7 +19,6 @@ const {
   applyBuff: rawApplyBuff, applyDebuff: rawApplyDebuff, applySpellburden: rawApplySpellburden, clearAllDebuffs,
   noHealActive, invertActive, bleedHealPenalty,
 } = require("../characters/_universal_status");
-const Mark42 = require("../characters/_mark42");
 const { MAX_ARMOR, MAX_HP, MAX_SKILL, TEMP_HP_TURNS, TRANSFORMS } = require("./constants");
 const match = require("./match");
 const { engine } = require("./engine");
@@ -37,7 +36,8 @@ function maxHpOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxHp)) return p.summon.maxHp; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[p.characterId];
   // Fodlan: ร่างอสูรศิลาตรา เลือดสูงสุด +5 (server/fodlan/stage5.js persist.maxHpBonus)
-  return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + require("./fodlan").maxHpBonus(p);
+  // ผลึกชีวิต (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalHp — ล้างทุกแมตช์ใหม่)
+  return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + require("./fodlan").maxHpBonus(p) + ((p && p.crystalHp) || 0);
 }
 // ฟื้นเลือดจริงแบบเคารพสถานะ "ไม่ใช้งานต่อ" / "ไร้ทางเยียวยา" — คืนจำนวนที่ฟื้นได้จริง
 // ผกผัน (patch 2.2.1): การฟื้นเลือดกลับกลายเป็นเสียเลือดแทน (ไม่สนเกราะ)
@@ -210,10 +210,11 @@ function alivePlayers() { return Object.values(match.players).filter((p) => p.al
 function maxArmorOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxArmor)) return p.summon.maxArmor; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[p.characterId];
-  return hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR;
+  // ผลึกเกราะ (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalArmor)
+  return (hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR) + ((p && p.crystalArmor) || 0);
 }
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
-// force = true: ข้ามระบบกันตายทั้งหมด (เช่นเกราะ Mark 42) — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
+// force = true: ข้ามระบบกันตายทั้งหมด — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง
 //  force = "absolute": ตายแน่นอน ข้ามทุกด่าน (เพื่อนร่วมทีม/หยุดเวลา/กันตาย/ฟื้น/มิตรภาพ) — ระเบิดของยูกิ มาโคโตะ
 function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
@@ -224,8 +225,6 @@ function instantDeath(p, force) {
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
   if (p.summon) { Summon.onDeath(p); return; }
-  // เกราะ Mark 42: "ตาย" ระหว่างใส่ชุด (สังหารทันที ฯลฯ) = แค่ชุดพัง กลับร่างเดิม
-  if (!force && Mark42.suited(p)) { Mark42.breakSuit(engine, p, "combat"); return; }
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
   const deathHook = CHAR_HOOKS[p.characterId];
   // ฮุค deathless(engine, p) → true = ไม่ตายแม้ force (ฮุคตั้งเลือดเอง — ยูกิ มาโคโตะ: มิตรภาพ) · ยกเว้น "absolute"
@@ -282,8 +281,6 @@ function healOverflow(p, amount) {
 // เลือดจริงลด 1 หน่วย — เลือดชั่วคราวรับแทนก่อนเสมอ (หมดไปเพราะได้รับความเสียหาย)
 function loseHp(p) {
   if (friendlyEffectBlocked(p)) return;
-  // เกราะ Mark 42: เส้นทางที่เรียก loseHp ตรงๆ (ไม่ผ่านท่อดาเมจ) ก็ลงชุดแทน
-  if (Mark42.absorb(engine, p, 1)) return;
   if ((p.tempHp || 0) > 0) { p.tempHp--; tookDamage(p); return; }
   p.hp--; p.dmgHp++;
   tookDamage(p);
@@ -310,8 +307,6 @@ function untouchable(p) {
 
 function loseArmor(p) {
   if (friendlyEffectBlocked(p)) return;
-  // เกราะ Mark 42: ล้าง/สลายเกราะ ลงเกราะชุดแทนเกราะจริงที่ซ่อนอยู่ข้างใต้
-  if (Mark42.absorb(engine, p, 1)) return;
   p.armor--; p.dmgArmor++;
   // ไรโด ฮิคารุ (ร่าง UltraLive): เกราะที่เสียไปกลายเป็นฟื้นพลังชีวิต
   const hook = CHAR_HOOKS[p.characterId];
@@ -327,8 +322,6 @@ function layerAbsorb(p) {
 // ดาเมจแพ้จั่ว/ไพ่แตก 1 หน่วย: โล่ -> เกราะ -> เลือด
 function damageSoft(p) {
   if (!p.alive || friendlyEffectBlocked(p)) return;
-  // เกราะ Mark 42: ดาเมจแพ้จั่วลงชุดแทนตัวจริง
-  if (Mark42.absorb(engine, p, 1)) return;
   if (p.shield > 0) { p.shield--; return; }
   if (layerAbsorb(p)) return;
   if (p.armor > 0) loseArmor(p);
@@ -350,8 +343,6 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
       if (rf) { reflectBack(p, src, n, kind, rf); return 0; }
     }
   }
-  // เกราะ Mark 42: ชุดรับความเสียหายทุกชนิดแทนตัวจริงทั้งก้อน (ส่วนเกินหายไปพร้อมชุด = แค่กลับร่างเดิม)
-  if (n > 0 && Mark42.absorb(engine, p, n)) return 0;
   if (n > 0 && untouchable(p)) return 0;
   const hook = CHAR_HOOKS[p && p.characterId];
   n = hook && hook.adjustIncomingDamage ? hook.adjustIncomingDamage(engine, p, n, isNormalAttack, kind) : n;
@@ -371,7 +362,7 @@ function damageCapOf(source, kind) {
   return Number.isFinite(cap) ? Math.max(0, cap) : Infinity;
 }
 // ศัตรูโจมตีใส่ p (ฮุคของเป้า onAttacked(engine, p, attacker, kind) — kind: "strike" ตีปกติ/ตีสวน (รวมหลบพ้น) ·
-//  "skill" สกิลที่ทอยหลบ (skillDodge) · "gun" ปืน GUTS · "damage" ดาเมจจากศัตรูทางอื่น) — เรียกซ้ำได้หลายครั้งต่อการโจมตีเดียว
+//  "skill" สกิลที่ทอยหลบ (skillDodge) · "damage" ดาเมจจากศัตรูทางอื่น) — เรียกซ้ำได้หลายครั้งต่อการโจมตีเดียว
 //  ฮุคต้องแยกเองว่าเป็นการโจมตีเดิมไหม (เฟิร์น: คีย์ ผู้โจมตี + เทิร์น + ตาเดิน + engine.commandSeq)
 function notifyAttacked(p, attacker, kind) {
   if (!p || !p.alive || !attacker || attacker.id === p.id || sameTeam(attacker, p)) return;
@@ -493,16 +484,15 @@ function resetCombat(p) {
   p.skillUsedRound = false; // ใช้สกิลได้ 1 อันต่อเทิร์น
   p.ultRound = 0; // เทิร์นล่าสุดที่ใช้ท่าไม้ตาย (โจรุโน่ Requiem: โจมตีด้วยตานั้น = ย้อน 100%)
   // ---------- ร้านค้ามายา + เศรษฐกิจเหรียญ (patch 2.2 full) ----------
-  p.gold = 0;        // เหรียญสะสม (เพดาน 30)
-  p.inventory = [];  // ของที่ซื้อจากร้านค้า รอใช้ (รวมปืนหน่วย GUTS Select — หายทุกแมตช์ใหม่)
-  p.gutsShotTurn = 0;              // ปืนหน่วย GUTS Select: เทิร์นล่าสุดที่ยิงไป (1 นัด/เทิร์น)
+  p.gold = 0;        // เหรียญสะสม (เพดาน GOLD_MAX 100)
+  p.crystalHp = 0;     // ผลึกชีวิต: พลังชีวิตสูงสุดที่เพิ่มถาวร (แมตช์นี้)
+  p.crystalArmor = 0;  // ผลึกเกราะ: เกราะสูงสุดที่เพิ่มถาวร (แมตช์นี้)
+  p.inventory = [];  // ของที่ซื้อจากร้านค้า รอใช้ (หายทุกแมตช์ใหม่)
   p.whistleReady = 0;              // นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js): เป่าได้อีกตั้งแต่เทิร์นนี้
-  p.gutsGargorgonPending = false;  // Gargorgon Ray: รอแปลงเป็นสตั้นตอนต้นเทิร์นถัดไป
   p.tempHp = 0;           // เลือดชั่วคราวจากฮีลล้น (healOverflow)
   p.tempHpTurns = 0;      // เลือดชั่วคราวหายเองเมื่อครบ 2 เทิร์น
   p.sleepFresh = false; // หลับไหล: เทิร์นที่เพิ่งโดนกล่อมยังไม่เริ่มนับ/ยังโจมตีได้
   p.curseHitRound = 0;  // "คำสาป": เทิร์นล่าสุดที่คำสาปกินเลือดไป (1 ครั้ง/เทิร์น)
-  Mark42.resetCombat(p); // เกราะ Mark 42: ชุดที่ใส่อยู่ / ชุดที่ส่งออกไป / คูลดาวน์ซื้อ
   p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
   // ฟิลด์เฉพาะตัวของทุกตัวละคร (ฮุค resetCombat) — หลังล้างกระเป๋า (เอมิลิโกะได้ขนมปัง) · ก่อนคิดเลือด/เกราะเริ่มเกม (Echo/ฮิคารุ)
   //  โอเบรอน: คูลดาวน์ + สตั้นที่จองไว้ (ติดที่เป้าหมาย) · มุยมิ: โควตาเสบียง · นักบินปริศนา: แขน/ล่องหน · โซระ: ร่าง/อาวุธ

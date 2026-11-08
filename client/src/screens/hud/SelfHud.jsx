@@ -26,7 +26,7 @@ function hexA(h, a) {
 }
 
 // ป้ายภาษาอังกฤษจาก statusEntries → ไทย/ทับศัพท์ (แปลเฉพาะใน HUD ไม่แตะข้อมูลต้นทาง)
-//  ชื่อเฉพาะ (ชื่อท่า/ชื่ออาวุธ/ชื่อร่าง เช่น Resentful Scabbard, Rider Kick, Mark 42, PUT ON) คงเดิม
+//  ชื่อเฉพาะ (ชื่อท่า/ชื่ออาวุธ/ชื่อร่าง เช่น Resentful Scabbard, Rider Kick, PUT ON) คงเดิม
 const LABEL_TH = [
   ["Sun Charge", "ชาร์จสุริยะ"],
   ["Solar", "โซลาร์"],

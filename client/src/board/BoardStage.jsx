@@ -2,7 +2,7 @@
 //  BoardStage — กระดานเดินได้ในเกมจริง (จอคอม/แท็บเล็ต · GRID_PLAN §11)
 //  แปลง state จาก server → props ของ BoardCanvas + ส่ง socket ตอนผู้เล่นกด
 //   · ตาของเรา: ฟ้า = เดินถึง · แดง = เดินแล้วตีถึง · ชี้ศัตรู = แผนเดินเข้าไปตี + หน้าต่างคาดการณ์ + ลูกศรถอย
-//   · โหมดเลือกเป้า (pick) จาก Game.jsx: สกิล target / aoe / line · ปืน GUTS · Mark 42
+//   · โหมดเลือกเป้า (pick) จาก Game.jsx: สกิล target / aoe / line
 //   · นอกตาเรา: ชี้ตัวละคร = เห็นระยะเดิน/ตีของคนนั้น · กดตัวละคร = ดูสถานะ
 //   · แถบลำดับเดินด้านบน (หกเหลี่ยมใหญ่บนเส้นโคจร) · ฉากลำดับเดินเต็มจอตอน ORDER · ฉากตาเดิน (แบบ A) ทุกครั้งที่ขึ้นตาใหม่
 //   · กดศัตรู / ปุ่มโจมตี = หน้าคาดการณ์เต็มจอ (แทน HUD) → ยืนยัน = เดินเข้าไปตี · ฉากตี: กล้องซูมเข้าคู่ · หมากพุ่งชน · ปะทะ + เสียง
@@ -21,7 +21,6 @@ import { customProjection } from "./boardGeo";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
-import { GUTS_AMMO_INFO } from "../data/shop";
 import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
@@ -227,7 +226,7 @@ function AttackTags({ a, byId }) {
   );
 }
 
-export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay }) {
+export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay, statusOf }) {
   const phase = state.gameState;
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
   const mapRef = useRef(map);
@@ -479,7 +478,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (attackables.length) setFcId(attackables[0]);
   }
 
-  // ---------- โหมดเลือกเป้า (สกิล/ปืน/Mark 42) ----------
+  // ---------- โหมดเลือกเป้า (สกิล) ----------
   // กำแพงน้ำแข็งของเซลิน (tile place "wall" · contract §4): 3 ช่องตามแนว orient รอบช่องกลาง (h = แนวนอน x · v = แนวตั้ง y)
   //  ช่องที่วางได้ = ไม่ใช่สิ่งกีดขวาง/ร้าน · ต้องวางได้อย่างน้อย 1 ช่อง · มีตัวใหญ่ (2×2 ขึ้นไป) ในแนว = วางไม่ได้
   //  คนที่เรามองเห็นในแนว (units) = ต้องเลือกทิศผลักตั้งฉากกับกำแพง · orient หมุนได้ด้วยคลิกขวา / R / ล้อเมาส์
@@ -909,13 +908,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         }));
       }
       // ตีปกติเป็นลำแสง (นักบินปริศนา · byBeam = ความยาวช่อง): ยิงจากที่ยืน ลำแสงพุ่งไปหาเป้า ปลายลำแสงถึง = จังหวะปะทะ
-      const beam = !a.gun && a.byBeam > 0 && fromPos && tPos;
+      const beam = a.byBeam > 0 && fromPos && tPos;
       // ท่าตีเฉพาะตัว (Echo: คลื่นเสียง / ผมฟาด / ปาหิน) — ตีจากที่ยืน เอฟเฟกต์วิ่งจากตัวไปหาเป้า
       // โจรุโน่ (giornoFx.js): ตีปกติ = หมัดหนัก · ติดคริ = หมัดรัว
       const styleKey = a.byStyle === "gioPunch" && a.crit ? "gioRush" : a.byStyle;
-      const style = !a.gun && !beam && styleKey && STYLE_HIT[styleKey] && fromPos && tPos ? styleKey : null;
+      const style = !beam && styleKey && STYLE_HIT[styleKey] && fromPos && tPos ? styleKey : null;
       // ไจโรตีด้วยลูกเหล็กที่ขว้าง (gyroFx "throw") — ไม่พุ่งชนแม้อยู่ใกล้
-      const melee = !a.gun && !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const melee = !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
       //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
@@ -984,7 +983,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           }
           setShake((n) => n + 1);
           if (myth && !a.dodge && !lowQ) later(SORA_T.slash2, () => setShake((n) => n + 1));
-          const first = a.gun ? (GUTS_AMMO_INFO[a.gun]?.name || "ยิง") : a.dodge ? "หลบ" : a.byDeferDmg ? null : `-${a.dmg}`;
+          const first = a.dodge ? "หลบ" : a.byDeferDmg ? null : `-${a.dmg}`;
           pushFx([
             // คาซุมะ: ฉากปะทะอยู่ใน kazumaFx แล้ว (รอยฟัน/หมัด/สายฟ้า) — ไม่ซ้อนแสงแตกเดิม
             ...(kz && !a.dodge ? [] : [hk && !a.dodge
@@ -995,9 +994,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
               { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
               ...(e.kill && !sideStays(e.targetId) ? [{ kind: "float", x: e.at.x, y: e.at.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 22, z: lowQ ? 2.4 : 1.5 }] : []),
             ]),
-            ...(first == null ? [] : [{ kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.gun ? "#ffd27a" : a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.gun ? 20 : a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 }]),
+            ...(first == null ? [] : [{ kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 }]),
             // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
-            ...(a.crit && !a.dodge && !a.gun ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(a.crit && !a.dodge ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
             ...(a.kill && !sealT && !spikeT && !sideStays(a.targetId) ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) {
@@ -2703,6 +2702,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           fc={state.forecast ? state.forecast[fcPlan.foe.id] : null}
           counter={!!fcPlan.counter}
           accurate={!!(me.statuses && me.statuses.accurate > 0)}
+          statusOf={statusOf}
           onConfirm={confirmAttack} onCancel={cancelForecast}
         />,
         document.body,

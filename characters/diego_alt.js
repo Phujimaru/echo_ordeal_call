@@ -528,9 +528,8 @@ module.exports = {
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
   mov(p) { return isDiego(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
-  // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล STOP_SKILLS ครั้ง — ผู้ใช้สั่ง) · ปืน GUTS ก็ไม่ได้
+  // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล STOP_SKILLS ครั้ง — ผู้ใช้สั่ง)
   range(p) { return isDiego(p) ? (st(p).stopping ? [1, 0] : RANGE) : null; },
-  blocksGuts(engine, p) { return stopping(p); },
   voiceLines(p) { return isDiego(p) ? VOICE : null; },
   // ตีปกติระหว่างหยุดเวลา: ไม่ขึ้นเลขตอนปะทะ (ดาเมจโชว์ตอนเวลาเดินต่อ)
   deferStrikeDamage(p) { return stopping(p); },

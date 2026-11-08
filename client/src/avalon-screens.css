@@ -1118,3 +1118,43 @@
   14% { opacity: 1; }
   100% { transform: translate3d(3vw, -108vh, 0) scale(1.1); opacity: 0; }
 }
+
+/* ---------- หน้าต่างในเกมแบบขาว (AvModal tone="white" — ร้านค้า/สถานะ/ตัวละคร/การเดินทาง · ผู้ใช้สั่ง 2026-11-08) ----------
+   พื้นขาวหิมะ + ตาข่ายหกเหลี่ยมฟ้าจาง · ตัวอักษรน้ำเงินหมึก · ของข้างใน (av-item/av-chip/av-label) ปรับตาม */
+.av-modal-white {
+  --ocw-lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px);
+  background: radial-gradient(70% 70% at 50% 50%, rgba(28,63,110,.3), rgba(10,24,48,.66));
+}
+.av-modal-white .av-modal {
+  color: #1c3f6e;
+  background: var(--ocw-lattice), linear-gradient(170deg, #ffffff 0%, #f2f7fc 50%, #dce7f3 100%);
+  border-color: rgba(127,184,230,.75);
+  box-shadow: inset 0 0 0 1px rgba(127,184,230,.75), inset 0 0 0 6px rgba(255,255,255,.55), inset 0 0 0 7px rgba(127,184,230,.4);
+}
+.av-modal-white .av-modal-head { background: linear-gradient(100deg, rgba(127,184,230,.28), rgba(255,255,255,0)); }
+.av-modal-white .av-modal-head::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, #3d8bd9, #c99ad6); }
+.av-modal-white .av-modal-head .text-white { color: #1c3f6e; }
+.av-modal-white .av-label { color: #2a78c0; }
+.av-modal-white .av-modal-x { color: #1c3f6e; background: rgba(127,184,230,.2); border-color: rgba(61,139,217,.45); }
+.av-modal-white .av-modal-x:hover { color: #fff; background: #d2455b; border-color: #d2455b; transform: rotate(90deg); }
+.av-modal-white .av-item { background: linear-gradient(120deg, #ffffff, #eef3f9); border-color: rgba(127,184,230,.55); box-shadow: 0 4px 10px rgba(28,63,110,.08); }
+.av-modal-white .av-item:hover { border-color: #7fb8e6; box-shadow: 0 6px 14px rgba(28,63,110,.14); }
+.av-modal-white .av-chip { color: #1c3f6e; background: rgba(255,255,255,.85); border-color: rgba(61,139,217,.45); }
+.av-modal-white .av-chip-gold { color: #3a2604; background: linear-gradient(140deg, #ffe9a8, #f0c868); border-color: rgba(214,166,58,.8); }
+.av-modal-white .av-btn-ghost { color: #1c3f6e; background: rgba(255,255,255,.8); border-color: rgba(61,139,217,.45); }
+.av-modal-white .av-btn-ghost:hover:not(:disabled) { color: #1c3f6e; background: #e6f1fb; }
+.av-modal-white .av-btn { border-color: rgba(61,139,217,.55); }
+/* ตัวอักษรสีอ่อนที่เขียนไว้สำหรับพื้นกรมท่า */
+.av-modal-white .text-white, .av-modal-white .text-echo-white { color: #1c3f6e; }
+.av-modal-white .text-echo-ice, .av-modal-white .text-echo-cyan { color: #2a78c0; }
+.av-modal-white .opacity-90, .av-modal-white .opacity-80 { color: #2d4f7a; }
+/* ร้านค้า: การ์ดสินค้า */
+.av-modal-white .oc-shop-card { background: var(--ocw-lattice), linear-gradient(170deg, #ffffff, #eef3f9); box-shadow: inset 0 0 0 1px rgba(127,184,230,.7), 0 6px 14px rgba(28,63,110,.1);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); transition: transform .18s, box-shadow .2s; }
+.av-modal-white .oc-shop-card:not(.sold):hover { transform: translateY(-4px); box-shadow: inset 0 0 0 2px #7fb8e6, 0 12px 22px rgba(28,63,110,.2); }
+.av-modal-white .oc-shop-card:not(.sold):hover img, .av-modal-white .oc-shop-card:not(.sold):hover > span:first-child { transform: translateY(-3px) scale(1.08) rotate(-4deg); }
+.av-modal-white .oc-shop-card img, .av-modal-white .oc-shop-card > span:first-child { transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.av-modal-white .oc-shop-card.sold { opacity: .45; }
+.av-modal-white .oc-shop-short { color: #4a6a93; }
+.av-modal-white .oc-shop-price { color: #a8781f; }
+.av-modal-white .oc-shop-stock { color: #2a78c0; }

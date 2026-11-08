@@ -3,7 +3,7 @@
 //  รัน: node scripts/dev-bots.js [จำนวนบอท=3] [url=http://localhost:3000] [โหมด=ffa|duo|trio] [สนาม=earth|colony]
 //  บอท: พร้อม → โหวตโหมด (ทีม: เลือกทีมสลับกัน + ยืนยัน) → จั่วจนแต้ม ≥ 16 แล้ว "พอ"
 //   → ตาของตัวเอง: เดินก่อน (มีเหรียญ = แวะร้านบ้าง ไม่งั้นเข้าหาศัตรูใกล้สุด) แล้วสุ่มทำ (ให้ทดสอบครอบคลุม):
-//     ยิงปืน GUTS · ใช้สกิลที่แต้มพอ · ใช้ของในกระเป๋า · ซื้อของถ้ายืนติดร้าน → ตีถ้าถึง ไม่งั้น "รอ"
+//     ใช้สกิลที่แต้มพอ · ใช้ของในกระเป๋า · ซื้อของถ้ายืนติดร้าน → ตีถ้าถึง ไม่งั้น "รอ"
 const path = require("path");
 const { io } = require(path.join(__dirname, "..", "client", "node_modules", "socket.io-client"));
 const Board = require("../server/board");
@@ -96,15 +96,7 @@ function bot(i) {
         // หลังเดิน state ใหม่จะเรียก takeTurn อีกรอบ (moved = true) → ทำอย่างอื่นต่อ
       }
     }
-    // 2) ยิงปืน GUTS (จบตา)
-    const ammo = inv.find((it) => it.type === "gutsAmmo");
-    const gunRange = st.gutsRange || [1, 4];
-    if (!tried.gun && ammo && inv.some((it) => it.type === "gutsGun") && me.gutsShotTurn !== st.roundNumber && near(gunRange[0], gunRange[1]).length && chance(60)) {
-      tried.gun = true;
-      send("useInventoryItem", { uid: ammo.uid, targetId: pickOne(near(gunRange[0], gunRange[1])).id });
-      return;
-    }
-    // 3) สกิล (ครั้งเดียวต่อตา · สุ่ม)
+    // 2) สกิล (ครั้งเดียวต่อตา · สุ่ม)
     if (!tried.skill && !me.skillUsed && chance(45)) {
       tried.skill = true;
       const ch = me.character || {};
@@ -129,23 +121,22 @@ function bot(i) {
         return;
       }
     }
-    // 4) ของในกระเป๋าที่ใช้กับตัวเอง
-    const usable = inv.filter((it) => ["armor", "skillPoint", "resist", "fortune"].includes(it.type) || (it.type === "mark42" && !me.mark42));
+    // 3) ของในกระเป๋าที่ใช้กับตัวเอง
+    const usable = inv.filter((it) => ["armor", "resist", "cleanse"].includes(it.type));
     if (!tried.item && usable.length && chance(40)) {
       tried.item = true;
       const it = pickOne(usable);
-      send("useInventoryItem", it.type === "mark42" ? { uid: it.uid, mode: "self" } : { uid: it.uid });
+      send("useInventoryItem", { uid: it.uid });
       return;
     }
-    // 5) ซื้อของเมื่อยืนติดร้าน (ซื้อได้หลายชิ้น — tried นับต่อชิ้น)
+    // 4) ซื้อของเมื่อยืนติดร้าน (ซื้อได้หลายชิ้น — tried นับต่อชิ้น)
     const nearShop = st.shopPos && Board.dist(me.pos, st.shopPos) === 1;
     if ((tried.buy || 0) < 2 && nearShop && !bagFull) {
       tried.buy = (tried.buy || 0) + 1;
-      const hasGun = inv.some((it) => it.type === "gutsGun");
-      const ok = (st.shop || []).filter((it) => !it.sold && it.price <= (me.gold || 0) && !(it.type === "gutsGun" && hasGun) && !(it.type === "mark42" && me.mark42));
+      const ok = (st.shop || []).filter((it) => !it.sold && it.price <= (me.gold || 0));
       if (ok.length) { shopTrip = false; send("buyShopItem", { itemId: pickOne(ok).id }); return; }
     }
-    // 6) ตีถ้าถึง ไม่งั้น "รอ"
+    // 5) ตีถ้าถึง ไม่งั้น "รอ"
     const inReach = foes.find((f) => Board.inRange(range, Board.dist(me.pos, f.pos)));
     if (inReach) { send("attack", { targetId: inReach.id }); return; }
     send("endAction");

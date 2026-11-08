@@ -202,9 +202,9 @@ function charge(engine, p, dir) {
     engine.deferAfterCutscene(() => impact(engine, p, hit, start, stop, big, dir, fire));
   });
 }
-// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว + เกราะชุด Mark 42 (แบบเดียวกับ sliver_bullet)
+// ดาเมจที่ลงจริง: เลือด + เกราะ + โล่ + เลือดชั่วคราว (แบบเดียวกับ sliver_bullet)
 function pool(t) {
-  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0) + (t.mark42 ? t.mark42.armor || 0 : 0);
+  return (t.hp || 0) + (t.armor || 0) + (t.shield || 0) + (t.tempHp || 0);
 }
 // คลิปชนจบ: ระเบิดสีฟ้า + ดาเมจ 3 + สลับที่ · ตัวใหญ่ = ดาเมจ 4 แล้วผลักถอยหลังระเบิด (shove)
 //  Fire Frame (fire = ร่างตอนกด): ระเบิดสีไฟ + เป้ารอด = ลุกไหม้ 1

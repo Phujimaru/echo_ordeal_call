@@ -143,7 +143,7 @@ function checkHit(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
   if (hook && typeof hook.counterFires === "function") check(p, 1);
 }
-// การโจมตีที่ไม่ผ่านท่อดาเมจเสมอไป และโดน Return to Zero แน่นอน (ปืน GUTS · นกหวีด — ผู้ใช้สั่ง 2026-11-05)
+// การโจมตีที่ไม่ผ่านท่อดาเมจเสมอไป และโดน Return to Zero แน่นอน (นกหวีด — ผู้ใช้สั่ง 2026-11-05)
 function checkSure(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
   if (hook && typeof hook.counterFires === "function") check(p, 1, true);

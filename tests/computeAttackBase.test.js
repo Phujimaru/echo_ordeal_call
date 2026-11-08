@@ -1,6 +1,6 @@
 // Regression net for doAttack()'s damage-bonus formula, extracted as computeAttackBase()
 // (server/phases/attack.js). ล็อกพฤติกรรมของทุกเทอมที่ยังเหลืออยู่: ฐาน 1 · ฮุคตัวละคร (attackBaseOverride/damageBonus)
-// · บัฟกลาง (empower / cardAtkBonus) · เกราะ Mark 42 · ผลสนามการเดินทาง · บัฟพลังโจมตีของโอเบรอน (ungated)
+// · บัฟกลาง (empower / cardAtkBonus) · ผลสนามการเดินทาง · บัฟพลังโจมตีของโอเบรอน (ungated)
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { computeAttackBase, engine } = require('../server.js');
@@ -40,14 +40,6 @@ test('empowerAtk: +1', () => {
 test('cardAtkBonus (การ์ดแดงครบ 3 ใบ): +N', () => {
   assert.equal(base({ statusAmt: { cardAtkBonus: 2 } }), 3);
 });
-test('mark42Atk: +1 while wearing the suit, none once the wearer is down', () => {
-  assert.equal(base({ mark42: { armor: 3 } }), 2);
-  const attacker = mkPlayer({ mark42: { armor: 3 } });
-  const target = mkPlayer();
-  assert.equal(computeAttackBase(engine, attacker, target).mark42Atk, 1);
-  attacker.alive = false;
-  assert.equal(computeAttackBase(engine, attacker, target).mark42Atk, 0);
-});
 
 // ---------- ผลสนามการเดินทาง ----------
 test('journeyAtk: ป่าไม้ต้องสาปกลางวัน / จุดสิ้นสุดของโลกกลางคืน +1 · ภูมิภาคอื่นไม่บวก', () => {
@@ -80,6 +72,6 @@ test('muimi damageBonus: ดาบสะบั้น +TOWER_ATK_BONUS เฉพ�
 });
 
 test('all terms stack additively', () => {
-  assert.equal(base({ characterId: 'muimi', mark42: { armor: 3 }, statuses: { muimiTower: 2, empower: 1, obsVeil: 1 } }),
-    1 + muimi.TOWER_ATK_BONUS + 1 + 1 + oberon.VEIL_ATK);
+  assert.equal(base({ characterId: 'muimi', statuses: { muimiTower: 2, empower: 1, obsVeil: 1 } }),
+    1 + muimi.TOWER_ATK_BONUS + 1 + oberon.VEIL_ATK);
 });

@@ -108,7 +108,7 @@ function exposeBush(p) {
   if (p) p.exposedRound = match.roundNumber;
 }
 // โจมตีปกติ / ยิงปืน / ใช้ไอเทมใส่คนอื่น — พุ่มหญ้าโผล่ + ตัวละครล่องหนปรากฏตัว (hook onReveal(engine, p, "act", how))
-//  how = "strike" ตีปกติ (คน/ผนึก/หนาม) · "gun" ปืน GUTS · "slide" ไถลชน · "item" ใช้ไอเทมใส่คนอื่น (เฟิร์น: ไอเทมไม่ออกจากซ่อนเร้นมานา)
+//  how = "strike" ตีปกติ (คน/ผนึก/หนาม) · "slide" ไถลชน · "item" ใช้ไอเทมใส่คนอื่น (เฟิร์น: ไอเทมไม่ออกจากซ่อนเร้นมานา)
 function onHostileAct(p, how) {
   exposeBush(p);
   const hook = hookOf(p);

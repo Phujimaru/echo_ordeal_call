@@ -199,8 +199,38 @@ function Pips({ max, now, after, ar }) {
     </div>
   );
 }
-// ฝั่งหนึ่ง (แบบ D ที่ผู้ใช้เลือก 2026-10-09 — ไม่มีกล่อง): ชื่อ + เส้นสี · เลือด (ตัวเลขใหญ่ + ช่อง) · เกราะ (ตัวเลข + ช่อง) · ⚔ ◎ ✦
-function FdSide({ side, p, label, take, dmg, hit, crit, acc, lethal }) {
+// แถบสถานะ (ผู้ใช้สั่ง 2026-11-08): ไอคอน + จำนวน · ชี้ = การ์ดชื่อ / คำอธิบาย / จำนวนคงเหลือ
+//  items จาก Game.jsx forecastStatusItems ({ key, icon, label, cls, desc, amt, rem, n = เลขบนชิป }) · เกิน 8 = ช่องสุดท้ายเป็น +N (ชี้ดูรายชื่อที่เหลือ)
+const FD_ST_MAX = 8;
+function FdStatus({ items, side }) {
+  const [tip, setTip] = useState(null);
+  if (!items || !items.length) return null;
+  const cut = items.length > FD_ST_MAX;
+  const shown = cut ? items.slice(0, FD_ST_MAX - 1) : items;
+  const rest = cut ? items.slice(FD_ST_MAX - 1) : [];
+  const hover = (it) => ({ onMouseEnter: () => setTip(it), onMouseLeave: () => setTip((t) => (t === it ? null : t)) });
+  const more = cut ? { key: "__more", icon: `+${rest.length}`, label: rest.map((r) => r.label).join(" · "), desc: "", rem: null } : null;
+  return (
+    <div className={`fd-st ${side}`}>
+      {shown.map((it) => (
+        <span key={it.key} className={`fd-st-chip ${it.cls || ""}`} data-on={tip === it ? "true" : "false"} {...hover(it)}>
+          <span className="ic">{it.icon}</span>
+          {it.n != null && <b>{it.n}</b>}
+        </span>
+      ))}
+      {more && <span className="fd-st-chip more" data-on={tip === more ? "true" : "false"} {...hover(more)}><span className="ic">{more.icon}</span></span>}
+      {tip && (
+        <div className="fd-st-tip">
+          <div className="hd"><span className="ic">{tip.icon}</span><b>{tip.label}{tip.amt > 0 ? ` +${tip.amt}` : ""}</b></div>
+          {tip.desc && <p>{tip.desc}</p>}
+          {tip.rem && <span className="rem">{tip.rem}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+// ฝั่งหนึ่ง (แบบ D ที่ผู้ใช้เลือก 2026-10-09 — ไม่มีกล่อง): ชื่อ + เส้นสี · เลือด (ตัวเลขใหญ่ + ช่อง) · เกราะ (ตัวเลข + ช่อง) · ⚔ ◎ ✦ · สถานะ
+function FdSide({ side, p, label, take, dmg, hit, crit, acc, lethal, statuses }) {
   const after = afterHit(p, take || 0);
   const hp = p.hp || 0, ar = p.armor || 0;
   const hpMax = p.maxHp || Math.max(hp, 1), arMax = p.maxArmor || 0;
@@ -228,10 +258,11 @@ function FdSide({ side, p, label, take, dmg, hit, crit, acc, lethal }) {
         </div>
       )}
       <div className="fd-row">{side === "r" ? stats.reverse() : stats}</div>
+      <FdStatus items={statuses} side={side} />
     </div>
   );
 }
-export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, onCancel }) {
+export function ForecastScreen({ k, me, foe, fc, counter, accurate, statusOf, onConfirm, onCancel }) {
   // ตีเพื่อนร่วมทีม = ฟื้นพลังชีวิต (fc.heal — โจรุโน่: Gold Experience / Muda) · ไม่มีดาเมจ/สวน
   const heal = fc && Number.isFinite(fc.heal) ? fc.heal : null;
   const dmg = heal != null ? null : fc && Number.isFinite(fc.dmg) ? fc.dmg : null;
@@ -256,8 +287,8 @@ export function ForecastScreen({ k, me, foe, fc, counter, accurate, onConfirm, o
       <div className={`fd-art l ${isBleed(me) ? "bleed" : ""}`}><img src={me.img} alt="" style={bigArtStyle(me, { cx: 400 })} onError={hideBroken} /></div>
       <div className={`fd-art r ${isBleed(foe) ? "bleed" : ""}`}><img src={foe.img} alt="" style={bigArtStyle(foe, { cx: 320 })} onError={hideBroken} /></div>
       <div className="fd-fade" />
-      <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={shown} hit={hit} crit={crit} acc={accurate} lethal={false} />
-      <FdSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={bHit} crit={bCrit} acc={false} lethal={lethal} />
+      <FdSide side="l" p={me} label="คุณ" take={backDmg} dmg={shown} hit={hit} crit={crit} acc={accurate} lethal={false} statuses={statusOf ? statusOf(me) : null} />
+      <FdSide side="r" p={foe} label={foe.name} take={dmg || 0} dmg={back} hit={bHit} crit={bCrit} acc={false} lethal={lethal} statuses={statusOf ? statusOf(foe) : null} />
       <div className="fd-go">
         <button type="button" className="y" onClick={onConfirm}>{SWORD}โจมตี</button>
         <button type="button" className="n" onClick={onCancel}>ย้อน</button>

@@ -28,6 +28,7 @@
 //   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
+//   ?shops=1 = ร้าน 3 ร้าน ขนาด 2×2 (ร้านยาเจริญชัย / โรงช่างลุงเริง / พ่อค้าเร่ — แผน .claude/plans/shop-three.md · shopProps.js) แทนร้านเดิม 1×1
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
 import BoardCanvas from "./BoardCanvas";
@@ -172,6 +173,22 @@ function placeUnits(units, map, shop) {
   return out;
 }
 const shopOf = (map) => (map.shopSpots && map.shopSpots[0]) || null;
+// ?shops=1: หาที่ตั้งร้าน 2×2 สามร้าน — พื้นว่างครบ 4 ช่อง ไม่ทับจุดเกิด และห่างกันอย่างน้อย 1 ช่อง (ไล่จากจุดร้านของแผนที่ก่อน แล้วทั้งกระดาน)
+const SHOPS_ON = new URLSearchParams(location.search).get("shops") === "1";
+function shopTrio(map) {
+  const spawn = new Set((map.spawns || []).map((p) => `${p.x},${p.y}`));
+  const free = (x, y) => x >= 0 && y >= 0 && x + 1 < map.cols && y + 1 < map.rows
+    && [[0, 0], [1, 0], [0, 1], [1, 1]].every(([dx, dy]) => !map.terrain[`${x + dx},${y + dy}`] && !spawn.has(`${x + dx},${y + dy}`));
+  const apart = (a, b) => a.x > b.x + 2 || b.x > a.x + 2 || a.y > b.y + 2 || b.y > a.y + 2;
+  const cand = [...(map.shopSpots || [])];
+  for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) cand.push({ x, y });
+  const out = [];
+  for (const c of cand) {
+    if (out.length >= 3) break;
+    if (free(c.x, c.y) && out.every((o) => apart(o, c))) out.push({ x: c.x, y: c.y });
+  }
+  return out.map((p, i) => ({ ...p, kind: ["apoth", "forge", "cara"][i] }));
+}
 
 const key = (x, y) => `${x},${y}`;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -245,7 +262,8 @@ export default function BoardPreview() {
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const [otoyaDev, setOtoyaDev] = useState(null); // ?otoya=1: { night, links } (prop otoya ของ BoardCanvas)
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
-  const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
+  const M = useMemo(() => ({ ...map, shop: SHOPS_ON ? null : shopOf(map) }), [map]);
+  const shops = useMemo(() => (SHOPS_ON ? shopTrio(map) : null), [map]);
   const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 30, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
@@ -513,6 +531,7 @@ export default function BoardPreview() {
         units={viewUnits}
         highlights={highlights}
         shopPos={M.shop}
+        shops={shops}
         rotation={rotation}
         zoom={zoom === 1 ? 2 : 0} view={zoom === 2 ? "top" : "tilt"}
         onZoomChange={changeZoom}

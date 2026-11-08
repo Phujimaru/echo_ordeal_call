@@ -239,8 +239,6 @@ test('รองโกมิเนียต: 6 แต้ม · เลือกท
   P.G.skillUsedRound = false;
   engine.useSkill('G', 'basic', []);
   assert.equal(P.G.skillPoints, 2, 'สกิลอื่นใช้ไม่ได้');
-  P.G.inventory = [{ uid: 'gun', type: 'gutsGun' }, { uid: 'a1', type: 'gutsAmmo', ammo: Object.keys(engine.GUTS_AMMO)[0] }];
-  assert.equal(engine.gutsFireTargetOf(P.G, P.G.inventory[1], 'C'), null, 'ปืนยิงไม่ได้');
   const st = view('B', 'G').gray;
   assert.equal(st.charge.left, 2);
   assert.ok(st.charge.tiles.some((t) => t.x === 8 && t.y === 7), 'แนวลำแสงส่งให้ทุกคน');

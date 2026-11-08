@@ -370,25 +370,6 @@ test('Return to Zero: ไม่อยู่ร่าง Requiem = กดท่�
   engine.clearPhaseTimer();
 });
 
-test('Return to Zero: ปืน GUTS 100% (ทอยไม่ติดก็ย้อน) · ผลกระสุนไม่ลง · กระสุนคืน', () => {
-  const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 2, 7]]);
-  P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };
-  P.B.inventory = [{ uid: 'gun', type: 'gutsGun' }, { uid: 'am', type: 'gutsAmmo', ammo: 'thunder' }];
-  engine.setActor('B');
-  timeStop.mark(45);
-  Math.random = () => 0.99;
-  const combat = require('../../server/combat');
-  timeStop.guard(() => {
-    P.B.inventory.pop(); // กระสุนหลุดจากกระเป๋าตอนยิง
-    combat.withEffectSource(P.B, () => shop.applyGutsBullet(P.B, { ammo: 'thunder' }, P.G));
-  });
-  assert.equal(P.B.inventory.length, 2);
-  assert.ok(!(P.G.statuses.chaa > 0));
-  assert.deepEqual(calls.queue, ['gioRewind']);
-  assert.equal(engine.actorId, 'B');
-  engine.clearPhaseTimer();
-});
-
 test('Return to Zero: นกหวีดเป่าติด 100% · ผลมนต์ไม่ลง · คูลดาวน์นกหวีดคืน', () => {
   const P = setup([['G', 'giorno_giovanna', 4, 7], ['B', 'dummy', 2, 7]]);
   P.G.giorno.requiem = { until: engine.roundNumber + 2, at: 1 };

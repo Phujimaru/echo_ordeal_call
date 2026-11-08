@@ -9,7 +9,7 @@
 //   · mov / range / เลือด-เกราะสูงสุด จาก summon.* (action.baseMovOf / rangeOf · combat.maxHpOf / maxArmorOf)
 //  ตัวที่คุมได้ (controlled — ร่างแยก): แต้มสกิล/เหรียญ/กระเป๋า/ไพ่ ใช้ร่วมกับเจ้าของ (getter แบบระบบคู่)
 //   · Duo.turnUnits(เจ้าของ) = เจ้าของ + ตัวที่คุมได้ที่ยังอยู่ → ตาเดินเล่นต่อกันแบบระบบคู่ (match.duo) · ตัวละ CONTROL_SECONDS
-//   · ไม่ใช้สกิล/ไอเทม/ปืน GUTS/ขี่ใคร/ซื้อของ
+//   · ไม่ใช้สกิล/ไอเทม/ขี่ใคร/ซื้อของ
 //  ตาย = ฮุค onSummonDeath(engine, เจ้าของ, ตัวที่ตาย) ของโมดูลเจ้าของ · ระเบียนที่ตายถูกลบตอนจบเทิร์น (sweep)
 //  เปลี่ยนแผนที่ (placeOnBoard) / กลับห้องรอ (Duo.teardown) = ลบหมด
 // ============================================================
@@ -20,8 +20,8 @@ Object.assign(module.exports, {
 const match = require("./match");
 
 const CONTROL_SECONDS = 20; // เวลาคุมต่อร่างแยก (GRID_PLAN §7.13 — Claude ตัดสิน)
-const EMPTY = { skillPoints: () => 0, gold: () => 0, inventory: () => [], cards: () => [], gutsShotTurn: () => 0 };
-const SHARED = ["skillPoints", "gold", "inventory", "cards", "gutsShotTurn"]; // แบบเดียวกับระบบคู่ (server/duo.js)
+const EMPTY = { skillPoints: () => 0, gold: () => 0, inventory: () => [], cards: () => [] };
+const SHARED = ["skillPoints", "gold", "inventory", "cards"]; // แบบเดียวกับระบบคู่ (server/duo.js)
 Object.assign(module.exports, { CONTROL_SECONDS });
 
 function isSummon(p) { return !!(p && p.summon); }
@@ -50,8 +50,7 @@ function spawn(owner, o = {}) {
     tempHp: 0, tempHpTurns: 0, sleepFresh: false, pos: o.pos ? { ...o.pos } : null,
     dim: o.dim || null, dimGhost: false,
     dmgHp: 0, dmgArmor: 0, gainedSkill: 0, wasAttacked: false, didAttackRound: false,
-    boardSize: 1, exposedRound: 0, nightTaxTier: null, curseHitRound: 0, gutsGargorgonPending: false,
-    mark42: null, mark42Owned: null, mark42BuyLock: 0,
+    boardSize: 1, exposedRound: 0, nightTaxTier: null, curseHitRound: 0,
     colorTrigger: { red: 0, blue: 0, green: 0, yellow: 0 },
     summon: {
       kind: o.kind || "summon", ownerId: owner.id, side: controlled ? (owner.summon ? owner.summon.side : (owner.duoOf || owner.id)) : id,
@@ -71,7 +70,7 @@ function spawn(owner, o = {}) {
       });
     }
   } else {
-    Object.assign(rec, { skillPoints: 0, gold: 0, inventory: [], cards: [], gutsShotTurn: 0 });
+    Object.assign(rec, { skillPoints: 0, gold: 0, inventory: [], cards: [] });
   }
   match.players[id] = rec;
   return rec;

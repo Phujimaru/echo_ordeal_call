@@ -672,32 +672,12 @@ test('ขนมปัง: กินเอง/ป้อนเคทแล้ว �
 });
 
 // ---------- ความเสถียร (บั๊กที่เจอจาก probe — กติกาเดิมต้องเป็นจริง) ----------
-const Mark42 = require('../../characters/_mark42.js');
 const Visibility = require('../../server/visibility.js');
 const Zero = require('../../server/zeroTime.js');
 const Board = require('../../server/board.js');
 const draw = require('../../server/phases/draw.js');
 // ม่านแดงของ B (ศัตรู) ครอบ 1..8 × 1..8 — ขังเคท/เอมิลิโกะที่อยู่ข้างใน
 const enemyCurtain = (P) => Soot.cast(P.B, engine.tileArea({ kind: 'tile', square: 8 }, { x: 5, y: 5 }));
-
-test('Mark 42: ฝ่ายคู่มีชุดได้ชุดเดียว (GRID_PLAN §7.10) — อีกตัวสวมอยู่ = ซื้อไม่ได้ · ชุดพัง = คูลดาวน์ทั้งฝ่าย · ผู้เล่นทั่วไปไม่เกี่ยว', () => {
-  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
-  engine.setRoundNumber(5);
-  for (const u of [P.K, P[E], P.B]) Mark42.resetCombat(u);
-  assert.equal(Mark42.canBuy(engine, P[E]), true);
-  Mark42.equip(engine, P.K, P.K, Mark42.SUIT_ARMOR);
-  assert.equal(Mark42.canBuy(engine, P[E]), false, 'เคทสวมอยู่ เอมิลิโกะซื้อเพิ่มไม่ได้');
-  assert.equal(Mark42.canBuy(engine, P.K), false);
-  Mark42.breakSuit(engine, P.K, 'combat');
-  assert.equal(Mark42.buyLockLeft(engine, P[E]), 11, 'คูลดาวน์ของเคทนับทั้งฝ่าย');
-  assert.equal(Mark42.canBuy(engine, P[E]), false);
-  assert.equal(Mark42.canBuy(engine, P.B), true, 'ผู้เล่นทั่วไปไม่โดน');
-  engine.setRoundNumber(16);
-  assert.equal(Mark42.canBuy(engine, P[E]), true, 'พ้นคูลดาวน์');
-  // ชุดที่เอมิลิโกะส่งไปสวมให้ศัตรู = ฝ่ายนี้ยังมีชุดอยู่
-  Mark42.equip(engine, P[E], P.B, Mark42.SUIT_ARMOR);
-  assert.equal(Mark42.canBuy(engine, P.K), false);
-});
 
 test('ม่านแดง: ตัวที่ถูกขังในม่านศัตรูเล็ง/ตีคนนอกม่านไม่ได้ แม้อีกตัวอยู่ข้างนอก (ตีปกติ · แส้ · เครื่องดูดฝุ่น) · แผนที่ยังเห็นรวม', () => {
   // เคทติดอยู่ขอบในม่าน (8,5) · C นอกม่านติดกัน (9,5) · เอมิลิโกะอยู่นอกม่านเห็น C
@@ -925,60 +905,4 @@ test('ระบบคู่: ต้นเทิร์นม่านแดงฆ
   dealNow();
   assert.equal(P.K.alive, false);
   assert.equal(P.K.locked, true);
-});
-
-// ---------- Mark 42 ของฝ่ายคู่: ตัวไหนของฝ่ายก็คุมชุดได้ (ผู้ใช้ตัดสิน 2026-10-14) ----------
-const { mark42Control } = require('../../server.js');
-function suitSetup() {
-  // เอมิลิโกะ (4,5) ติด B (5,5) · เคท (2,5) ไม่ติดใคร
-  const P = setup([['K', 'kate', 2, 5], [E, null, 4, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 12, 12]]);
-  for (const u of Object.values(P)) Mark42.resetCombat(u);
-  P.K.inventory = [];
-  Mark42.equip(engine, P.K, P.B, Mark42.SUIT_ARMOR); // เคทซื้อแล้วส่งให้ B
-  return P;
-}
-const control = (id, act) => { engine.setActor(id); mark42Control(id, act); };
-
-test('Mark 42 ระบบคู่: ชุดที่เคทซื้อ เอมิลิโกะสั่งระเบิด/ถอด/เรียกคืนได้ · ระยะนับจากตัวที่สั่ง', () => {
-  let P = suitSetup();
-  assert.equal(Mark42.privateState(engine, P[E]).mark42Owned.wearerId, 'B', 'เอมิลิโกะเห็นชุดของฝ่าย');
-  const before = vit(P.B);
-  control(E, 'detonate');
-  assert.equal(P.B.mark42, null);
-  assert.equal(vit(P.B), before - Mark42.BOMB_DMG);
-  assert.equal(P.K.mark42Owned, null, 'ชุดหมดจากฝ่าย');
-  assert.equal(Mark42.canBuy(engine, P[E]), true);
-  // ถอด: ชุดกลับเข้ากระเป๋าที่ใช้ร่วมกัน
-  P = suitSetup();
-  control(E, 'remove');
-  assert.equal(P.B.mark42, null);
-  assert.equal(P.K.mark42Owned, null);
-  assert.equal(P.K.inventory.filter((it) => it.type === 'mark42').length, 1);
-  // เรียกคืน: ตัวที่เรียกต้องยืนติดคนใส่ · เรียกแล้วสวมเอง ถือสิทธิ์แทน
-  P = suitSetup();
-  engine.setActor('K');
-  assert.equal(Mark42.planControl(engine, P.K, 'recall'), null, 'เคทไม่ได้ยืนติด B');
-  control(E, 'recall');
-  assert.equal(P.B.mark42, null);
-  assert.equal(P[E].mark42.ownerId, E);
-  assert.deepEqual(P[E].mark42Owned, { wearerId: E });
-  assert.equal(P.K.mark42Owned, null);
-  assert.equal(Mark42.privateState(engine, P.K).mark42Owned.wearerId, E, 'เคทยังเห็นชุดของฝ่าย');
-  assert.equal(Mark42.privateState(engine, P[E]).mark42Owned.self, true);
-  // ชุดบนตัวเอมิลิโกะ: เคทถอดได้
-  engine.setActor('K');
-  assert.ok(Mark42.planControl(engine, P.K, 'remove'));
-  // เคทล้มแล้ว เอมิลิโกะยังคุมชุดที่เคทซื้อได้
-  P = suitSetup();
-  P.K.alive = false; P.K.hp = 0; P.K.pos = null;
-  control(E, 'detonate');
-  assert.equal(P.B.mark42, null, 'ระเบิดได้แม้คนซื้อล้มแล้ว');
-});
-
-test('Mark 42 ระบบคู่: ผู้เล่นทั่วไปคุมชุดของคนอื่นไม่ได้ (ไม่เปลี่ยน)', () => {
-  const P = suitSetup();
-  engine.setActor('C');
-  assert.equal(Mark42.planControl(engine, P.C, 'detonate'), null);
-  assert.equal(Mark42.planControl(engine, P.B, 'remove'), null, 'คนใส่ถอดเองไม่ได้');
-  assert.equal(Mark42.privateState(engine, P.C).mark42Owned, null);
 });
