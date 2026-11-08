@@ -13,6 +13,17 @@ function itemLook(c) {
   const info = shopInfoOf(c.item);
   return { name: info.label(c.item), img: info.img || null, icon: info.img ? null : info.icon };
 }
+// c.fresh = แบบที่ยังไม่ได้ใช้ (โรลันด์: การ์ดอาวุธที่ยังไม่นับเข้า Furioso charge) → Mark รูปดาบมุมขวาบน
+function SwordMark() {
+  return (
+    <span className="absolute top-1 right-1 w-7 h-7 grid place-items-center rounded-full bg-black/70 border border-white/70 shadow" aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+        <path d="M13 19l6-6M16 16l4 4M19 21l2-2" />
+      </svg>
+    </span>
+  );
+}
 const cdOf = (c) => (c.cd > 0 ? c.cd : c.locked && c.left > 0 ? c.left : 0);
 
 export default function SkillChoices({ title, choices = [], isOk = () => true, onPick, onClose }) {
@@ -48,7 +59,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                 {look.icon
                   ? <div className="w-full aspect-[3/4] grid place-items-center text-6xl bg-black/30">{look.icon}</div>
                   : <img src={look.img} alt="" className="w-full aspect-[3/4] object-cover" draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
-                {c.fresh && <span className="absolute top-1 right-1 text-sm font-black text-white drop-shadow" aria-hidden="true">◆</span>}
+                {c.fresh && <SwordMark />}
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
                   <span className="flex-1 text-sm font-bold text-white truncate">{look.name}</span>
                   {(c.cost || 0) > 0 && <span className="shrink-0 text-xs font-black text-sky-200">◆{c.cost}</span>}

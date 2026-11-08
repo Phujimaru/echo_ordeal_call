@@ -831,7 +831,7 @@ const STATUS_INFO = {
   rolandScars:   { icon: "🩹", label: "Scars", cls: "bg-amber-200 text-gray-900", desc: "ความเสียหายที่ได้รับลด 1 ถูกโจมตีมีโอกาส 20% ไม่เสียหาย" },
   rolandKiss:    { icon: "❄️", label: "A Kiss", cls: "bg-sky-200 text-gray-900", desc: "สร้างความเสียหายแล้วเป้าได้เศษน้ำแข็ง 1 ชิ้น" },
   rolandLies:    { icon: "🎞️", label: "Lies", cls: "bg-slate-300 text-gray-900", desc: "ราคาการ์ดอาวุธสุ่มใหม่ 0 ถึง 4 ทุกเทิร์น" },
-  rolandCrystal: { icon: "⚔️", label: "Crystal Atelier", cls: "bg-slate-200 text-gray-900", desc: "ถูกตีปกติแล้วสวนกลับในระยะ 3 ดาเมจ 1" },
+  rolandCrystal: { icon: "⚔️", label: "Crystal Atelier", cls: "bg-slate-200 text-gray-900", desc: "ถูกตีปกติแล้วสวนกลับรอบตัว 3×3 ดาเมจ 1" },
   rolandIce:     { icon: "🧊", label: "เศษน้ำแข็ง", cls: "bg-sky-300 text-gray-900", desc: "ครบ 5 ชิ้น สตั้นเทิร์นถัดไปและเสียดาเมจ 1" },
   // เคนซากิ คาซุมะ (เทิร์นที่เหลือ — ครั้งที่กันได้อยู่ในป้าย kazumaMetal ของบล็อกคาซุมะ)
   kazumaMetal:    { icon: "🛡️", label: "METAL", cls: "bg-slate-300 text-gray-900", desc: "กันการโจมตีของศัตรูทั้งก้อนตามจำนวนครั้งที่เหลือ จนจบเทิร์น" },
