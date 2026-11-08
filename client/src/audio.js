@@ -201,6 +201,10 @@ const FILES = {
   gio_req_loop: "/characters/giorno_giovanna/sfx/gio_req_loop.mp3",
   // เพลงระหว่างร่าง Requiem (state.skillMusic "gio_requiem") · ไฟล์ −14 LUFS
   gio_requiem: "/characters/giorno_giovanna/sfx/gio_req_theme.mp3",
+  // คุเรไน โอโตยะ (characters/kurenai_otoya.js): เพลง 渡 ระหว่างดนตรีในหัวใจ (ไฟล์ผู้ใช้ −14 LUFS) · เสียงสังเคราะห์ 2 ตัว (−14 LUFS)
+  otoya_heart: "/characters/kurenai_otoya/otoya_heart_music.mp3",
+  otoya_sweet: "/characters/kurenai_otoya/sfx/otoya_sweet.mp3",
+  otoya_trap: "/characters/kurenai_otoya/sfx/otoya_trap.mp3",
   // มหาเทพอรชุน: เสียงตี/สกิล/สับแผนที่ — ตัดจากคลิปที่ผู้ใช้ส่ง (−14 LUFS · ที่มาใน memory arjuna-spec)
   arj_bomb: "/characters/arjuna/sfx/arj_bomb.mp3",
   arj_arrow: "/characters/arjuna/sfx/arj_arrow.mp3",

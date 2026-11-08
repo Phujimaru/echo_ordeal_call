@@ -113,6 +113,10 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   get journeyRoute() { return match.journeyRoute; },
   setJourneyArea(v) { match.journeyArea = v; }, // เทสต์ตั้งภูมิภาคเอง (เกมจริงสุ่มใน phases/endTurn.js)
   setCycleShift(v) { match.cycleShift = Number(v) || 0; }, // เทสต์ตั้งช่วงเวลาเองได้
+  // กลางคืนบังคับ (เวลาโลก from..until รวมปลาย · null = ล้าง) — Wake Up 1 ของคุเรไน โอโตยะ · state.cycle อ่านผ่าน isNightRound
+  setForcedNight(v) { match.forcedNight = v ? { from: v.from, until: v.until, by: v.by || null } : null; },
+  get forcedNight() { return match.forcedNight; },
+  forcedNightAt: dayNight.forcedNightAt,
   // ---------- กระดาน (GRID_PLAN.md) — เทสต์ขับตาเดินผ่านตรงนี้ ----------
   get board() { return match.board; },
   get turnOrder() { return match.turnOrder; },
@@ -226,7 +230,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   accurateActive,
   journeyDotBonus() { return Journey.dotBonus(engine); },
   // อัตราคริเพิ่ม (%) ของผู้โจมตีจากสนาม (อาณาจักรน้ำแข็ง กลางวัน) — อ่านใน _universal_status.js
-  critBonusFor(p) { return Journey.critBonus(engine); },
+  critBonusFor(p) { return Journey.critBonus(engine) + combat.auraCritOf(p); }, // + ฮุค broadcast auraCrit (คุเรไน: ดนตรีในหัวใจ)
   journeyGiftItem: shop.journeyGiftItem,
   refreshShopForJourney: shop.refreshShopForJourney, // เทสต์: จำลองการขึ้นเทิร์นใหม่ของร้านค้า
   colorOf(p) { return lobby.colorOf(p); },

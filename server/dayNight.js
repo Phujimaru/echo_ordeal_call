@@ -1,7 +1,7 @@
 // ระบบกลางวัน/กลางคืน
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  isNightRound, morningBonusActive,
+  isNightRound, morningBonusActive, forcedNightAt,
 });
 
 const { CYCLE_TURNS } = require("./constants");
@@ -9,9 +9,15 @@ const match = require("./match");
 
 // สลับทุก CYCLE_TURNS เทิร์น เริ่มเกมเป็นกลางวัน — cycleShift เลื่อนวงจรทั้งเกม (เทสต์ตั้งผ่าน engine.setCycleShift)
 function isNightRound(n) {
+  if (forcedNightAt(n)) return true;
   const m = n - match.cycleShift;
   const block = m > 0 ? Math.floor((m - 1) / CYCLE_TURNS) : 0;
   return m > 0 && block % 2 === 1;
+}
+// กลางคืนบังคับ (match.forcedNight — Wake Up 1 ของคุเรไน โอโตยะ): เทิร์น from..until เป็นกลางคืนจันทร์แดง ไม่ว่าวงจรจะเป็นอะไร
+function forcedNightAt(n) {
+  const f = match.forcedNight;
+  return !!f && n >= f.from && n <= f.until;
 }
 // patch 2.1.7: เช้าที่กี่ (1 = เช้าแรกของเกม, 2 = เช้าที่สอง, ...) — ใช้กำหนดว่าเช้าไหนแจกแต้มสกิลโบนัส
 function dayCycleIndex(n) {

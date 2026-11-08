@@ -3,7 +3,8 @@
 
 const match = {
   cycleShift: 0, // เลื่อนวงจรกลางวัน/กลางคืนทั้งเกม (เทสต์ตั้งผ่าน engine.setCycleShift · ก่อกำเนิดใหม่ของ Echo ตั้ง = เทิร์นที่ใช้ − 1)
-  legStart: 1,   // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea) — ก่อกำเนิดใหม่ของ Echo ตั้ง = เทิร์นที่ใช้
+  legStart: 1,
+  forcedNight: null, // กลางคืนบังคับ { from, until, by } เวลาโลก (รวมทั้งสองปลาย) — Wake Up 1 ของคุเรไน โอโตยะ (dayNight.isNightRound) · ล้างเมื่อเปลี่ยนภูมิภาค   // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea) — ก่อกำเนิดใหม่ของ Echo ตั้ง = เทิร์นที่ใช้
 
   // ---------- สถานะเกมส่วนกลาง ----------
   players: {},

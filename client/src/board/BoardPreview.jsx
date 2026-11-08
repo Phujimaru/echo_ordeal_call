@@ -20,6 +20,7 @@
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
+//   ?otoya=1 = คุเรไน โอโตยะ · ปุ่มเล่นทุกเหตุการณ์ของ socket "otoyaFx" + สลับกลางคืนจันทร์แดง/สายดนตรี/Dark Kiva/หลุมพราง/Wake Up 2 (OtoyaFxDev.jsx)
 //   ?giorno=1 = โจรุโน่ โจวาน่า · ปุ่มเล่นทุกเหตุการณ์ของ socket "giornoFx" + ตีปกติ + สลับ Requiem/รอผลธนู/วนตาย/ต้นไม้/สะท้อน/Muda ที่ตัวหมาก (GiornoFxDev.jsx)
 //   ?divine=1 = นกหวีดอัญเชิญมนต์อสูรเทพ · ปุ่มเล่น 4 มนต์ (socket "divineFx" — DivineFxDev.jsx)
 //   ?ohger=1 = คิงโอเจอร์ · ปุ่มเล่น Ohger Finish 5 ร่าง + คลื่นดาบคุวากาตะ (socket "ohgerFx" — OhgerFxDev.jsx)
@@ -45,6 +46,7 @@ import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟ
 import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
 import DioFxDev from "./DioFxDev"; // ?dio=1 = ปุ่มเล่นเอฟเฟกต์ดิโอ บรันโด
 import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่นเอฟเฟกต์โจรุโน่
+import OtoyaFxDev from "./OtoyaFxDev"; // ?otoya=1 = ปุ่มเล่นเอฟเฟกต์คุเรไน โอโตยะ
 import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่นเอฟเฟกต์มหาเทพอรชุน
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
@@ -143,6 +145,7 @@ const LAW_DEV = Q.get("law") === "1";
 const OHGER_DEV = Q.get("ohger") === "1";
 const DIVINE_DEV = Q.get("divine") === "1";
 const GIORNO_DEV = Q.get("giorno") === "1";
+const OTOYA_DEV = Q.get("otoya") === "1";
 const DIO_DEV = Q.get("dio") === "1";
 const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
@@ -240,6 +243,7 @@ export default function BoardPreview() {
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
+  const [otoyaDev, setOtoyaDev] = useState(null); // ?otoya=1: { night, links } (prop otoya ของ BoardCanvas)
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: shopOf(map) }), [map]);
   const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 30, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
@@ -514,7 +518,8 @@ export default function BoardPreview() {
         onZoomChange={changeZoom}
         focus={focus}
         shopLabel={3}
-        night={night}
+        night={night || !!(otoyaDev && otoyaDev.night)}
+        otoya={otoyaDev}
         lowQ={lowQ}
         anim={anim}
         fx={fx}
@@ -565,6 +570,7 @@ export default function BoardPreview() {
       {CELINE_DEV && <CelineFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={iceMap} cel={celDev} setCel={setCelDev} />}
       {DIO_DEV && <DioFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setFreeze={setTimeFreeze} />}
       {GIORNO_DEV && <GiornoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {OTOYA_DEV && <OtoyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} otoya={otoyaDev} setOtoya={setOtoyaDev} />}
       {ARJUNA_DEV && <ArjunaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}

@@ -935,6 +935,7 @@ function walkTo(id, x, y, { step = false } = {}) {
 //  ctx = เหตุการณ์ไถลของการเดินนี้ (ไม่ไถล = null → ส่ง iceFx แยกเฉพาะผลของฮุค · anim = ภาพเดินของเหตุการณ์ walk)
 //  hadIce = ช่องที่การเดินก่อนหน้าในตานี้ทำเป็นน้ำแข็งไว้แล้ว (ยังเห็นอยู่บนจอ) — ไม่เล่นภาพวางน้ำแข็งซ้ำ
 function afterWalk(p, walk, ctx, anim, hadIce) {
+  if (p.alive) combat.broadcastHook("onUnitWalked", engine, p); // ฮุค broadcast: ใครก็ได้เดิน/ก้าว (คุเรไน: ดนตรีในหัวใจ หลุดเมื่อเป้าออกนอกระยะ)
   const hook = CHAR_HOOKS[p.characterId];
   if (!hook || !hook.afterWalk || !p.alive) return;
   const own = ctx ? ctx : Ice.begin();

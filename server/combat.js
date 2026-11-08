@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
   resetRoundDisplay, resetCombat,
   runHook, broadcastHook, damageCapOf, skillGainBlocked, notifyAttacked, attackBlocked,
-  reflectOf, statusReflected, firstHook,
+  reflectOf, statusReflected, firstHook, auraCritOf,
 });
 
 const { CHAR_BY_ID } = require("../characters");
@@ -155,6 +155,14 @@ function firstHook(name, ...args) {
     if (r) return r;
   }
   return null;
+}
+// อัตราคริติคอลเพิ่ม (%) ของ attacker จากผลที่คนอื่นให้ (ฮุค broadcast auraCrit(engine, attacker) → % — คุเรไน โอโตยะ: ดนตรีในหัวใจ)
+//  รวมในอัตราคริของตีปกติทุกทาง (attack.ownCritPct · engine.critBonusFor · หน้าคาดการณ์)
+function auraCritOf(attacker) {
+  if (!attacker) return 0;
+  let n = 0;
+  for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.auraCrit === "function") n += Number(runHook(mod, "auraCrit", engine, attacker)) || 0;
+  return n;
 }
 // ภาระเวท (spellburden) — จุดเดียวที่ทุกตัวละคร/ทุกเอฟเฟกต์ต้องใช้ใส่สถานะนี้
 //  กฎกลางอยู่ที่ _universal_status.js: สะสม +1 ถึง SPELLBURDEN_MAX · ใช้ซ้ำใส่คนเดิมไม่ต่ออายุ

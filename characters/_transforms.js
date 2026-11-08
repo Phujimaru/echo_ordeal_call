@@ -23,6 +23,7 @@ const roland = require("./roland"); // โรลันด์: Furioso — คล
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
+const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
@@ -159,6 +160,16 @@ module.exports = function buildTransforms() {
     gioShot: { img: gio.IMG.re.skill1, video: gio.VIDEO.shot, title: "กระสุนแห่งชีวิต", label: "ชีวิตทดแทน", seconds: 2.9, music: null, afterReveal: false },
     gioReUlt: { img: gio.IMG.re.skill3, video: gio.VIDEO.reUlt, title: "ขอให้ไปสู่ภพภูมิที่ดี", label: "Gold Experience Requiem", seconds: 11, music: null, afterReveal: false },
     gioReCrit: { img: gio.IMG.re.cover, video: gio.VIDEO.reCrit, title: "GOLD EXPERIENCE REQUIEM", label: "คริติคอล", seconds: 5.5, music: null, afterReveal: false },
+    // คุเรไน โอโตยะ — ความยาวจริง (ffprobe) +0.4 วิ · คลิปมีเสียงในตัว (music: null)
+    otoyaHenshin1: { img: oto.IMG.kiva, video: oto.VIDEO.henshin[0], title: "Dark Kiva", label: "ขอแรงหน่อยสิเจ้าค้างคาว", seconds: 15.7, music: null, afterReveal: false },
+    otoyaHenshin2: { img: oto.IMG.kiva, video: oto.VIDEO.henshin[1], title: "Dark Kiva", label: "ขอแรงหน่อยสิเจ้าค้างคาว", seconds: 11.5, music: null, afterReveal: false },
+    otoyaHenshin3: { img: oto.IMG.kiva, video: oto.VIDEO.henshin[2], title: "Dark Kiva", label: "ครั้งสุดท้าย", seconds: 16, music: null, afterReveal: false },
+    otoyaTrap: { img: oto.IMG.trap, video: oto.VIDEO.trap, title: "หลุมพราง", label: "Dark Kiva", seconds: 5.4, music: null, afterReveal: false },
+    otoyaWake1: { img: oto.IMG.wake, video: oto.VIDEO.wake1, title: "Wake Up 1", label: "จงตื่นขึ้น ครั้งสุดท้าย", seconds: 3.6, music: null, afterReveal: false },
+    otoyaWake1Fill: { img: oto.IMG.wake, video: oto.VIDEO.wake1Fill, title: "Wake Up 1", label: "จันทร์แดง", seconds: 6.6, music: null, afterReveal: false },
+    otoyaWake2: { img: oto.IMG.wake, video: oto.VIDEO.wake2, title: "Wake Up 2", label: "จงตื่นขึ้น ครั้งสุดท้าย", seconds: 3.4, music: null, afterReveal: false },
+    otoyaWake2Hit: { img: oto.IMG.kiva, video: oto.VIDEO.wake2Hit, title: "Darkness Moon Break", label: "Wake Up 2", seconds: 7.4, music: null, afterReveal: false },
+    otoyaDead: { img: oto.IMG.base, video: oto.VIDEO.dead, title: "คุเรไน โอโตยะ", label: "ครั้งสุดท้าย", seconds: 5.9, music: null, afterReveal: false },
     gioMuda: { img: gio.IMG.skill3, video: gio.VIDEO.muda, title: "Muda!!!!!!!", label: "โจรุโน่ โจวาน่า", seconds: 9.6, music: null, afterReveal: false },
     // อินุอิ ทาคุมิ — ความยาวจริง (ffprobe) +0.4 วิ
     ...Object.fromEntries([

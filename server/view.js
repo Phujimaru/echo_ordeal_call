@@ -176,6 +176,7 @@ function buildStateInner(viewerId) {
     roundNumber: match.roundNumber,
     deckEmpty: match.centralDeck.length === 0,
     cycle: nightNow ? "night" : "day", // กลางวัน/กลางคืน
+    bloodMoon: dayNight.forcedNightAt(Zero.worldRound()), // กลางคืนบังคับจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — client otoyaFx.js)
     // การเดินทาง (ffa/duo/trio): ภูมิภาค + กลางวัน/กลางคืน + คำอธิบายผลสนาม + ฉากแผนที่ที่กำลังพักเกมรอ
     journey: Journey.publicInfo(engine, match.journeyScene),
     // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): ระดับ · ผนึก 4 มุม · ของฟื้นพลังชีวิต · ฉากที่กำลังพักเกมรอ — null = ไม่ได้อยู่
@@ -368,6 +369,7 @@ function buildStateInner(viewerId) {
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
         ohger: hook && hook.ohgerState ? hook.ohgerState(engine, p) : undefined, // คิงโอเจอร์: แกนดาบ (ร่าง / ขั้นที่กด / ปุ่มที่ไฟกระพริบ / ชาร์จ Finish) — characters/_ohger.js
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
+        otoya: CHAR_HOOKS.kurenai_otoya.unitMark(engine, p), // คุเรไน: สายดนตรี (ใครก็ได้) / ร่าง Dark Kiva / หลุมพราง / Wake Up 2 (เจ้าตัว)
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
         allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
@@ -443,7 +445,7 @@ function unseenPub(o, p) {
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
-    diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, law: undefined, giorno: undefined,
+    diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, law: undefined, giorno: undefined, otoya: undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     actions: undefined,

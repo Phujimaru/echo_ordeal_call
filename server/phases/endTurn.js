@@ -246,6 +246,7 @@ function finishRebirth(scene, impact) {
   match.journeyRoute.push(to);
   action.placeOnBoard(to); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด (ยกร้านออก)
   match.legStart = world;      // เทิร์นนี้ = เทิร์นที่ 1 ของภูมิภาคใหม่ (Journey.legEnds/turnInArea)
+  match.forcedNight = null; // กลางคืนบังคับ (Wake Up 1) จบเมื่อเปลี่ยนภูมิภาค
   match.cycleShift = world - 1; // เทิร์นนี้ = กลางวันแรก (ตั้งค่าใหม่ตรงๆ ห้ามบวกสะสม — GAME_SYSTEM §10)
   for (const o of Object.values(match.players)) o.nightTaxTier = null; // ภาษีกลางคืนที่สุ่มไว้ต้นเทิร์นเป็นของภูมิภาคเดิม
   shop.relocateShop(); // ร้านตั้งจุดใหม่ + ของใหม่ · shopOpenedRound = เทิร์นนี้

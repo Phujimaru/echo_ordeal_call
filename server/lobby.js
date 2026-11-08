@@ -320,6 +320,7 @@ function startMatch() {
   const startRound = devStartRound();
   match.roundNumber = startRound - 1;
   match.cycleShift = 0;
+  match.forcedNight = null;
   match.legStart = 1;
   match.journeyScene = null;
   Zero.reset(); // ห่วงเวลาซีโร่: ยังไม่เกิด (ครั้งเดียวต่อเกม)
@@ -389,6 +390,7 @@ function backToLobby() {
   match.action = null;
   match.roundNumber = 0;
   match.cycleShift = 0;
+  match.forcedNight = null;
   match.legStart = 1;
   match.journeyScene = null;
   match.journeyArea = 1;

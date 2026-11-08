@@ -32,6 +32,7 @@
 const CHARACTERS = [
   {
     id: "muimi",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "มุยมิ",
     avatar: 0,
     difficulty: "easy",
@@ -75,6 +76,7 @@ const CHARACTERS = [
     // ---------- โอเบรอน (ฤดูร้อน) — ระดับกลาง — ดู characters/oberon_summer.js ----------
     //  ภาพสกิลใช้ภาพตอนเช้าของโอเบรอนตัวเก่า (ภาพประจำตัวเป็นภาพใหม่)
     id: "oberon_summer",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "โอเบรอน (ฤดูร้อน)",
     avatar: 0,
     difficulty: "medium",
@@ -118,6 +120,7 @@ const CHARACTERS = [
     //  id สะกด "sliver_bullet" ตามโฟลเดอร์สื่อเดิม · พลังชีวิต 5 / เกราะ 2 (sliver_bullet.maxHp/maxArmor)
     //  basic.cost 2 = ราคาตอนไม่มีแขน · มีแขน = 3 (sliver_bullet.skillCost — useSkill/buildStateFor สูตรเดียวกัน)
     id: "sliver_bullet",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "นักบินปริศนา",
     avatar: 0,
     difficulty: "easy",
@@ -200,6 +203,7 @@ const CHARACTERS = [
     // ---------- โซระ โอโตสุมิ — ระดับง่าย — ดู characters/sora_otosumi.js (GRID_PLAN §7.7) ----------
     //  ร่างโซระ ⇄ Kamen Rider My-Th · อาวุธมีด/ปืน (ปืน = ระยะตี [1, 3] ผ่านฮุค range) · ท่าไม้ตายพุ่งชนสลับที่
     id: "sora_otosumi",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "โซระ โอโตสุมิ",
     avatar: 0,
     difficulty: "easy",
@@ -243,6 +247,7 @@ const CHARACTERS = [
     //  ร่าง UltraLive 6 ร่าง (ระยะ/แนวตี/เกราะผ่านฮุค range/attackLane/maxArmor) · Ultraman Ginga ตัว 3×3
     //  ท่าไม้ตายสลับตามร่าง: Ginga Cross Shoot (4 แต้ม · 5×1) ⇄ Strium Ray (6 แต้ม · 5×3) — skillCost/skillArea/skillPub
     id: "raido_hikaru",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ไรโด ฮิคารุ",
     avatar: 0,
     difficulty: "medium",
@@ -290,6 +295,7 @@ const CHARACTERS = [
     //  ตีปกติไม่ได้ (range [1, 0] = ไม่มีช่องที่ตีถึง) · ดาเมจมาจากการไถลชนเท่านั้น
     //  สกิลชนิด tile = เลือกช่องบนกระดาน (place: ice / spike / any · square = กรอบรอบช่องที่เลือก)
     id: "ice_spike",
+    gender: "n", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "Ice Spike",
     avatar: 0,
     difficulty: "hard",
@@ -340,6 +346,7 @@ const CHARACTERS = [
     // ---------- กิระ (ราชาแมลงอวกาศ) — ระดับง่าย — ดู characters/kira.js ----------
     //  ร่างกิระ ⇄ ราชาแมลงอวกาศ (ตีปกติแนวตรง 4×1 ผ่านฮุค range/attackLane) · ท่าไม้ตายตายแล้วฟื้น (ฮุค preventDeath)
     id: "kira",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ราชาแมลงอวกาศ",
     avatar: 0,
     difficulty: "easy",
@@ -383,6 +390,7 @@ const CHARACTERS = [
     //  วงเพลง = รัศมีระยะเดินรอบตัว (ตามตัวไป · ขี่อยู่ = รอบคนที่ถูกขี่) · duo/trio: บัฟพวกเรา ดีบัฟศัตรู · ffa: ผลดีทุกคน ผลเสียทุกคนยกเว้นยูนะ
     //  ศพค้างบนกระดานระหว่างที่ยูนะยังอยู่ (ฮุค keepsCorpses — server/duo.js) · ขี่ผู้เล่นอื่น (server/ride.js)
     id: "yuna",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เด็กสาวเสื้อคลุมขาว",
     avatar: 0,
     difficulty: "special",
@@ -426,6 +434,7 @@ const CHARACTERS = [
     //  ศพค้างบนกระดานระหว่างที่เกรย์ยังอยู่ (ฮุค keepsCorpses) · ตีปกติใส่ศพประชิด = เก็บศพ (action.attackTarget "corpse:<id>")
     //  ท่าไม้ตายชาร์จ 2 เทิร์น ยิงต้นตาเดินของเทิร์น N+2 (ฮุค onActorReady)
     id: "gray",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เกรย์",
     avatar: 0,
     difficulty: "medium",
@@ -469,6 +478,7 @@ const CHARACTERS = [
     //  พลังชีวิต 6 เกราะ 2 (ฮุค maxHp/maxArmor) · ขี่ม้า: เดิน 5 ตี [1, 5] (ฮุค mov/range) · ไม่มีลูกในมือ = ตีไม่ได้
     //  ม้า = ปุ่มพิเศษบน HUD (ฮุค hudActions / charAction) · สัดส่วนทองคำจากการเดิน (ฮุค afterWalk)
     id: "gyro_zeppeli",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ไจโร เซปเปลี่",
     avatar: 0,
     difficulty: "hard",
@@ -514,6 +524,7 @@ const CHARACTERS = [
   {
     // ---------- ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก — ดู characters/diego_alt.js (GRID_PLAN §7.12) · หยุดเวลา server/timeStop.js ----------
     id: "diego_alt",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ดิเอโก้ แบรนโด (โลกคู่ขนาน)",
     avatar: 0,
     difficulty: "hard",
@@ -559,6 +570,7 @@ const CHARACTERS = [
     // ---------- ดิโอ บรันโด (Stardust Crusaders) — กลาง · unique — ดู characters/dio_brando.js (GRID_PLAN §7.26) ----------
   {
     id: "dio_brando",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ดิโอ บรันโด",
     avatar: 0,
     difficulty: "medium",
@@ -606,6 +618,7 @@ const CHARACTERS = [
     // ---------- ฟันนี่ วาเลนไทน์ — พิเศษ · unique — ดู characters/funny_valentine.js (GRID_PLAN §7.13) ----------
     //  ระบบกลาง: ชั้นมิติ server/dimension.js · ยูนิตที่ถูกเรียก server/summon.js · ฮุค afterActorEnd · target รูปเฉพาะ (cells)
     id: "funny_valentine",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ฟันนี่ วาเลนไทน์",
     avatar: 0,
     difficulty: "special",
@@ -651,6 +664,7 @@ const CHARACTERS = [
     //  ท่าไม้ตาย "ก่อกำเนิดใหม่" (ผู้ใช้ตัดสิน 2026-10-10) — ฉากโลกแตก + เปลี่ยนภูมิภาค/นับเวลาใหม่ (server/phases/endTurn.js journeyRebirth)
     //  ปลดล็อกแล้ว — เลือกได้แค่ 1 คนต่อเกม (ผู้ใช้สั่ง 2026-10-12)
     id: "echo",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "Echo",
     avatar: 0,
     difficulty: "special",
@@ -699,6 +713,7 @@ const CHARACTERS = [
     //  ผู้เล่น 1 คนคุม 2 ตัว: เลือก "kate" แล้วเริ่มแมตช์ได้ตัวที่สอง (duo: "emiliko") เกิดข้างกัน
     //  พลังชีวิต 3 เกราะ 2 ต่อตัว · แต้มสกิล 16 ใช้ร่วมกัน ฟื้นเทิร์นละ 2 · ตกรอบเมื่อล้มทั้งคู่
     id: "kate",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เคท",
     rosterName: "เคท & เอมิลิโกะ", // ชื่อบนการ์ดเลือกตัวละคร (ในเกมแต่ละตัวใช้ name ของตัวเอง)
     duo: "emiliko",
@@ -747,6 +762,7 @@ const CHARACTERS = [
   {
     // ---------- เอมิลิโกะ — ตัวที่สองของ "kate" (ระบบคู่ · เลือกเองไม่ได้) ----------
     id: "emiliko",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เอมิลิโกะ",
     hidden: true,
     avatar: 0,
@@ -794,6 +810,7 @@ const CHARACTERS = [
     // ---------- เฟิร์น — ระดับกลาง — ดู characters/fern.js (GRID_PLAN §7.14 · รื้อใหม่ 2026-10-21) ----------
     //  พลังชีวิต 5 เกราะ 2 (ฮุค maxHp/maxArmor) · Energy = แต้มสกิล เพดาน 10 เริ่มเต็ม · ตีปกติแนวตรง 3 ช่อง (attackLane) · ไม่มีตีสวน
     id: "fern",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เฟิร์น",
     avatar: 0,
     difficulty: "medium",
@@ -840,6 +857,7 @@ const CHARACTERS = [
     // ---------- องค์หญิงดอกไม้ เซลิน — พิเศษ — ดู characters/celine.js (GRID_PLAN §7.15) ----------
     //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · ระยะตีตามอาวุธ (ดาบ [1,1] · เวท [1,3] — ฮุค range)
     id: "celine",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "องค์หญิงดอกไม้ เซลิน",
     avatar: 0,
     difficulty: "special",
@@ -886,6 +904,7 @@ const CHARACTERS = [
     // ---------- ซึนาชิ ทาคุโตะ (Star Driver) — พิเศษ · unique — ดู characters/takuto.js (GRID_PLAN §7.16) ----------
     //  ร่างคนใช้สกิลไม่ได้ · ห่วงเวลาซีโร่ = ทาวเบิร์น 3×3 · ช่วงมิติพังทลาย (server/zeroTime.js) · ค่าฐาน 7/3/1
     id: "takuto",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ซึนาชิ ทาคุโตะ",
     hidden: true, // ปิดใช้งาน (ผู้ใช้สั่ง 2026-10-22 หลังปล่อย 5.6.24) — ไม่ขึ้นหน้าเลือกตัวละคร · server ไม่รับเลือก · โค้ดเก็บไว้ทั้งหมด
     avatar: 0,
@@ -934,6 +953,7 @@ const CHARACTERS = [
     // ---------- ผู้นำแห่งตระกูลเรียวกิ (Kara no Kyoukai — ร่าง Mirai Fukuin) — มหันตภัย · unique — ดู characters/ryougi.js (GRID_PLAN §7.17) ----------
     //  ค่าฐาน 7/3/1 · ตีปกติฟันแนวตรง 2 ช่อง · ช่องพัง (terrain "chasm") · ตัดผลสกิล (server/sever.js)
     id: "ryougi",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ผู้นำแห่งตระกูลเรียวกิ",
     avatar: 0,
     difficulty: "calamity",
@@ -978,6 +998,7 @@ const CHARACTERS = [
     //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · แต้มสกิล 0/8 (ความจุเพิ่มได้ถึง 24 — ฮุค maxSkill)
     //  ระยะ/ระยะเดิน/ท่าตีเปลี่ยนตามอาวุธที่ Trace On (ฮุค range / mov / attackLane / strikeRect / strikeRepeat)
     id: "emiya_shirou",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เอมิยะ ชิโร่",
     avatar: 0,
     difficulty: "hard",
@@ -1021,6 +1042,7 @@ const CHARACTERS = [
     //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · ร่างมนุษย์/ร่าง Blade · กองการ์ด Blay Rouzer → Rouze
     //  ระยะ/ระยะเดิน/ท่าตีเปลี่ยนตามผลการ์ดที่ Rouze ไว้ (ฮุค range / mov / strikeRect / attackLane / fixedStrikeDamage)
     id: "kensaki_kazuma",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "เคนซากิ คาซุมะ",
     avatar: 0,
     difficulty: "hard",
@@ -1063,6 +1085,7 @@ const CHARACTERS = [
     // ---------- อินุอิ ทาคุมิ (Kamen Rider Faiz) — ปานกลาง — ดู characters/inui_takumi.js (GRID_PLAN §7.27) ----------
     //  พลังชีวิต 7 / เกราะ 3 · พลังโจมตี 1 · ช่อง basic เปลี่ยนจากกระเป๋าเป็น Faiz Phone (FaizPhone.jsx) · รอง/ท่าไม้ตายซ่อนจนกว่าจะเปิด/สวม axel_watch
     id: "inui_takumi",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "อินุอิ ทาคุมิ",
     avatar: 0,
     difficulty: "medium",
@@ -1106,6 +1129,7 @@ const CHARACTERS = [
     //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 0 เสมอ (fixedStrikeDamage)
     //  ระยะตีปกติ = ทั้ง Room เฉพาะตอนยืนใน Room (ฮุค range / strikeAllows / strikeZone) · นอก Room ตีไม่ได้
     id: "trafalgar_law",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ทราฟาก้า ลอว์",
     avatar: 0,
     difficulty: "special",
@@ -1149,6 +1173,7 @@ const CHARACTERS = [
     // ---------- ยูกิ มาโคโตะ (Persona 3) — เอาฮา — ดู characters/yuki_makoto.js (GRID_PLAN §7.21) ----------
     //  พลังชีวิต 3 / เกราะ 2 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · มีแค่ท่าไม้ตาย
     id: "yuki_makoto",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ยูกิ มาโคโตะ",
     avatar: 0,
     difficulty: "fun",
@@ -1175,6 +1200,7 @@ const CHARACTERS = [
     // ---------- กิระ → คุวากาตะ โอเจอร์ (ขบวนการจอมราชันคิงโอเจอร์) — ง่าย — ดู characters/gira_ohger.js + characters/_ohger.js (GRID_PLAN §7.22) ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · สกิลพื้นฐาน + รองรวมเป็นแกนดาบบน HUD (client OhgerSword) · ท่าไม้ตายยังไม่มี
     id: "gira_ohger",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "กิระ",
     avatar: 0,
     difficulty: "easy",
@@ -1209,6 +1235,7 @@ const CHARACTERS = [
     // ---------- ยันมะ → ทอมโบ โอเจอร์ (ขบวนการจอมราชันคิงโอเจอร์) — ง่าย — ดู characters/yanma_ohger.js + characters/_ohger.js (GRID_PLAN §7.22) ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · สกิลพื้นฐาน + รองรวมเป็นแกนดาบบน HUD (client OhgerSword) · ท่าไม้ตายยังไม่มี
     id: "yanma_ohger",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ยันมะ",
     avatar: 0,
     difficulty: "easy",
@@ -1243,6 +1270,7 @@ const CHARACTERS = [
     // ---------- ฮิเมโนะ → คามาคิริ โอเจอร์ (ขบวนการจอมราชันคิงโอเจอร์) — ง่าย — ดู characters/himeno_ohger.js + characters/_ohger.js (GRID_PLAN §7.22) ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · สกิลพื้นฐาน + รองรวมเป็นแกนดาบบน HUD (client OhgerSword) · ท่าไม้ตายยังไม่มี
     id: "himeno_ohger",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ฮิเมโนะ",
     avatar: 0,
     difficulty: "easy",
@@ -1277,6 +1305,7 @@ const CHARACTERS = [
     // ---------- ริต้า → พาพิยอง โอเจอร์ (ขบวนการจอมราชันคิงโอเจอร์) — ง่าย — ดู characters/rita_ohger.js + characters/_ohger.js (GRID_PLAN §7.22) ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · สกิลพื้นฐาน + รองรวมเป็นแกนดาบบน HUD (client OhgerSword) · ท่าไม้ตายยังไม่มี
     id: "rita_ohger",
+    gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "ริต้า",
     avatar: 0,
     difficulty: "easy",
@@ -1311,6 +1340,7 @@ const CHARACTERS = [
     // ---------- คากุรากิ → ฮาจิ โอเจอร์ (ขบวนการจอมราชันคิงโอเจอร์) — ง่าย — ดู characters/kaguragi_ohger.js + characters/_ohger.js (GRID_PLAN §7.22) ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · สกิลพื้นฐาน + รองรวมเป็นแกนดาบบน HUD (client OhgerSword) · ท่าไม้ตายยังไม่มี
     id: "kaguragi_ohger",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "คากุรากิ",
     avatar: 0,
     difficulty: "easy",
@@ -1345,6 +1375,7 @@ const CHARACTERS = [
     // ---------- รถบรรทุกเก่า → รถบรรทุก ⇄ ออพติมัส ไพร์ม (Transformers ภาค 4–5) — ปานกลาง — ดู characters/old_truck.js ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดินตามร่าง 6 / 5 / 4 (ฮุค mov) · ปุ่มตามร่าง (skillHidden / skillPub)
     id: "old_truck",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "รถบรรทุกเก่า",
     avatar: 0,
     difficulty: "medium",
@@ -1387,6 +1418,7 @@ const CHARACTERS = [
     // ---------- โจรุโน่ โจวาน่า (JoJo ภาค 5 — Gold Experience) — ปานกลาง — ดู characters/giorno_giovanna.js ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ประชิด · ปุ่มพื้นฐาน/รอง = หลายตัวเลือก (skillPub choices)
     id: "giorno_giovanna",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "โจรุโน่ โจวาน่า",
     avatar: 0,
     difficulty: "medium",
@@ -1433,6 +1465,7 @@ const CHARACTERS = [
     // ---------- โรลันด์ (Black Silence) — ยาก — ดู characters/roland.js (GRID_PLAN §7.25) ----------
     //  พลังชีวิต 6 / เกราะ 4 / แต้มสกิล 5 (maxHp/maxArmor/maxSkill ในโมดูล) · พลังโจมตี 0 (attackBaseOverride)
     id: "roland",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "โรลันด์",
     avatar: 0,
     difficulty: "hard",
@@ -1476,6 +1509,7 @@ const CHARACTERS = [
     // ---------- มหาเทพอรชุน — พิเศษ — ดู characters/arjuna.js ----------
     //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ตีปกติระยะ 1–2 โดน 1 คน
     id: "arjuna",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "มหาเทพอรชุน",
     avatar: 0,
     difficulty: "special",
@@ -1518,6 +1552,7 @@ const CHARACTERS = [
     // ---------- คาซามะ ไดสุเกะ — ไรเดอร์ ZECT · ง่าย — ดู characters/daisuke.js + characters/_zect.js (GRID_PLAN §7.28) ----------
     //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
     id: "daisuke",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "คาซามะ ไดสุเกะ",
     avatar: 0,
     difficulty: "easy",
@@ -1560,6 +1595,7 @@ const CHARACTERS = [
     // ---------- โซ ยากุรุมะ — ไรเดอร์ ZECT · ง่าย — ดู characters/yaguruma.js + characters/_zect.js (GRID_PLAN §7.28) ----------
     //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
     id: "yaguruma",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "โซ ยากุรุมะ",
     avatar: 0,
     difficulty: "easy",
@@ -1602,6 +1638,7 @@ const CHARACTERS = [
     // ---------- คากามิ อาราตะ — ไรเดอร์ ZECT · ง่าย — ดู characters/kagami.js + characters/_zect.js (GRID_PLAN §7.28) ----------
     //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
     id: "kagami",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "คากามิ อาราตะ",
     avatar: 0,
     difficulty: "easy",
@@ -1644,6 +1681,7 @@ const CHARACTERS = [
     // ---------- คามิชิโร่ ซึรุงิ — ไรเดอร์ ZECT · ง่าย — ดู characters/tsurugi.js + characters/_zect.js (GRID_PLAN §7.28) ----------
     //  เริ่มเกมยังไม่แปลงร่าง (ปุ่ม Henshin) · ระยะเดิน/เกราะสูงสุดตามร่าง (ฮุค mov/maxArmor)
     id: "tsurugi",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "คามิชิโร่ ซึรุงิ",
     avatar: 0,
     difficulty: "easy",
@@ -1678,6 +1716,53 @@ const CHARACTERS = [
       area: { kind: "target", range: 1, hostile: true },
       cost: 4,
       img: "/characters/tsurugi/tsurugi_skill3.jpg",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
+    // ---------- คุเรไน โอโตยะ (Kamen Rider Kiva — Dark Kiva) — ยาก — ดู characters/kurenai_otoya.js · GRID_PLAN §7.29 ----------
+    //  ค่าพื้นฐานตามค่าเริ่มต้น HP 7 / เกราะ 3 / โจมตี 1 · ระยะเดิน 4 · ประชิด · ร่าง Dark Kiva เปลี่ยนปุ่มพื้นฐาน/รอง (skillPub)
+    id: "kurenai_otoya",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "คุเรไน โอโตยะ",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/kurenai_otoya/otoya.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "หนุ่มเจ้าเสน่ห์",
+      desc: "ตีปกติใส่ตัวละครหญิง −1 · ตัวละครชาย/ไร้เพศ +1 · คืนร่างจากท่าไม้ตาย: เยียวยาตัวเองเท่ากับพลังชีวิตที่เสียจากการใช้สกิลระหว่างร่างนั้น",
+    },
+    passive2: {
+      name: "ราชาผีดูดเลือด",
+      desc: "เฉพาะร่าง Dark Kiva: ตีปกติโดน เป้าติดเลือดไหล 1 · กลางคืนได้รับความเสียหายเบาลง 1 · ร่างครั้งที่ 3 ตีปกติโดน ฟื้นพลังชีวิต 2 · เสียพลังชีวิตจากสกิลไม่ทำให้ตาย · เลือดไหลบนตัวเอง = ฟื้นพลังชีวิตแทน",
+    },
+    basic: {
+      name: "ปากหวาน",
+      desc: "ฟื้นพลังชีวิตตัวเอง 1 + จำนวนตัวละครหญิงที่อยู่ในเกม (คูลดาวน์ 2 เทิร์น) · ร่าง Dark Kiva: กลายเป็น “หลุมพราง”",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/kurenai_otoya/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/kurenai_otoya.js
+    },
+    secondary: {
+      name: "ดนตรีในหัวใจ",
+      desc: "สีไวโอลินให้ 1 คนในระยะ 8 (duo/trio: เพื่อนร่วมทีม): พลังโจมตี +1 · เยียวยา 1/เทิร์น · คริติคอล +25% · แต้มสกิล +1/เทิร์น จนกว่าจะยกเลิก · ระหว่างนั้นเดิน ตี และใช้สกิลอื่นไม่ได้ · เป้าออกนอกระยะ/ตาย หรือตัวเองติดสตั้น = หยุด (หยุดแล้วคูลดาวน์ 3 เทิร์น) · ร่าง Dark Kiva: กลายเป็น “จงตื่นขึ้น ครั้งสุดท้าย”",
+      area: { kind: "target", range: 8 },
+      cost: 4,
+      img: "/characters/kurenai_otoya/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ขอแรงหน่อยสิเจ้าค้างคาว",
+      desc: "แปลงร่าง Dark Kiva 2 เทิร์น: พลังโจมตี +2 · ระยะเดิน +1 · หลุมพราง (เสียพลังชีวิต 1: ถึงตาเดินถัดไป ถูกโจมตี 1 ครั้ง = ไม่เสียหาย ถอย 2 ช่อง ผู้โจมตีถูกตรึง 1 เทิร์น) · จงตื่นขึ้น (เสียพลังชีวิต 1: Wake Up 1 กลางคืน 2 เทิร์น / Wake Up 2 กลางคืนเท่านั้น ตีครั้งถัดไปติดผุพัง 2 เทิร์น) · 3 ครั้งต่อเกม · คืนร่างครั้งที่ 3 แล้วเกมยังไม่จบ = ตาย",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/kurenai_otoya/skill3.webp",
       instant: true,
       effect: null,
     },

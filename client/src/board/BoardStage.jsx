@@ -43,6 +43,7 @@ import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
+import { otoyaEventFx } from "./otoyaFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaFourDur, kazumaSonicDur } from "./kazumaFx";
 import { ROLAND_FX, rolandEventFx } from "./rolandFx";
@@ -1246,6 +1247,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("giornoFx", onGio);
     return () => socket.off("giornoFx", onGio);
   }, [pushFx, look, lowQ]);
+  // คุเรไน โอโตยะ: socket "otoyaFx" { kind, id, at, size, to?, targetId?, tsize?, n? } → otoyaFx.js · เสียงมาจาก server
+  useEffect(() => {
+    const onOtoya = (e) => {
+      const f = otoyaEventFx(e);
+      if (!f || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      look(e.kind === "trap" || e.kind === "seal" ? e.to || e.at : e.at);
+      pushFx([f]);
+      if ((e.kind === "henshin" || e.kind === "trap") && !lowQ) timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 4, dur: 360 }]), 300));
+    };
+    socket.on("otoyaFx", onOtoya);
+    return () => socket.off("otoyaFx", onOtoya);
+  }, [pushFx, look, lowQ]);
   // มหาเทพอรชุน: socket "arjunaFx" { kind, id, at, size } → arjunaBoardFx.js · จุติเล่นกับทุกคนที่ติดสถานะ
   useEffect(() => {
     const onArj = (e) => {
@@ -2185,6 +2198,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
+      // คุเรไน โอโตยะ (otoyaFx.js): ร่าง Dark Kiva / หลุมพราง / Wake Up 2 / กำลังสีไวโอลิน · เป้าดนตรีในหัวใจ (ใครก็ได้)
+      otoya: !mk && p.otoya && (p.otoya.kiva || p.otoya.trap || p.otoya.wake2 || p.otoya.heartTo || p.otoya.heartBy) ? { kiva: !!p.otoya.kiva, trap: !!p.otoya.trap, wake2: !!p.otoya.wake2, playing: !!p.otoya.heartTo, heart: !!p.otoya.heartBy } : null,
       giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda || p.giorno.requiem || p.giorno.arrowWait || p.giorno.loop) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda, requiem: !!p.giorno.requiem, arrowWait: !!p.giorno.arrowWait, loop: !!p.giorno.loop } : null,
       // อรชุน: จุติ (ใครก็ติดได้) · ขจัดสิ่งแปลกปลอม (arjunaBoardFx.js)
       arjuna: !mk && p.statuses && (p.statuses.jutti > 0 || p.statuses.arjunaPurge > 0) ? { jutti: p.statuses.jutti > 0, purge: p.statuses.arjunaPurge > 0 } : null,
@@ -2266,6 +2281,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       .map((p) => ({ id: p.id, eyes: p.ryougi.eyes > 0, mind: p.ryougi.mind > 0, bloom: p.ryougi.bloom > 0 })).filter((r) => r.eyes || r.mind || r.bloom),
     blood: rBlood.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ x: b.x, y: b.y, size: Math.max(1, b.size | 0), id: b.id })),
   });
+  // คุเรไน โอโตยะ (otoyaFx.js): กลางคืนจันทร์แดง + สายโน้ตจากผู้สีไวโอลินถึงเป้า
+  const otoyaSig = JSON.stringify({
+    night: !!state.bloodMoon,
+    links: state.players.filter((p) => p.alive && p.pos && p.otoya && p.otoya.heartTo && sameDim(p)).map((p) => ({ from: p.id, to: p.otoya.heartTo })),
+  });
+  const otoyaProp = useMemo(() => { const o = JSON.parse(otoyaSig); return o.night || o.links.length ? o : null; }, [otoyaSig]);
   const ryougiProp = useMemo(() => { const r = JSON.parse(ryougiSig); return r.units.length || r.blood.length ? r : null; }, [ryougiSig]);
   // เอมิยะ ชิโร่ (emiyaFx.js): โลก Unlimited Blade Works (ชิโร่คนไหนก็ได้ที่กางอยู่) · อาวุธที่ถือลอยข้างตัว
   const emiyaSig = JSON.stringify({
@@ -2575,6 +2596,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ferns={ferns}
         takutos={takutos}
         ryougi={ryougiProp}
+        otoya={otoyaProp}
         emiya={emiyaProp}
         law={lawProp}
         gyroBalls={gyroBalls}
