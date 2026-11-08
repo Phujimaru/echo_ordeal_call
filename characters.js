@@ -580,7 +580,7 @@ const CHARACTERS = [
     range: [1, 2],
     passive: {
       name: "Vampire",
-      desc: "ตีปกติ/สกิลโดนศัตรู 1 คน = BloodStack +1 + ฟื้นพลังชีวิต 1 · BloodStack 4: ฟื้นพลังชีวิต +1 · BloodStack 6: Time Meter จุ 8 · Za warudo คูลดาวน์ 3 + ทำงานทันที · BloodStack 8: ดาเมจสกิล +1 · กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1 (ไม่รวมดาเมจต่อเทิร์น)",
+      desc: "ตีปกติ/สกิลโดนศัตรู 1 คน = BloodStack +1 (ยกเว้น Throwing knife) + ฟื้นพลังชีวิต 1 · BloodStack 4: ฟื้นพลังชีวิต +1 · BloodStack 6: Time Meter จุ 8 · Za warudo คูลดาวน์ 3 + ทำงานทันที · BloodStack 8: ดาเมจสกิล +1 · กลางวันโดนดาเมจ +1 · กลางคืนต้านดาเมจ 1 (ไม่รวมดาเมจต่อเทิร์น)",
     },
     passive2: {
       name: "Last Stand",
@@ -588,7 +588,7 @@ const CHARACTERS = [
     },
     basic: {
       name: "Throwing knife",
-      desc: "1 คนในแนวตรง 4 ทิศ ระยะ 4: ความเสียหาย 1 + เลือดไหล 1 (ไม่ทะลุสิ่งกีดขวาง · คูลดาวน์ 3 เทิร์น)",
+      desc: "1 คนในแนวตรง 4 ทิศ ระยะ 4: ความเสียหาย 1 + เลือดไหล 1 (ไม่ทะลุสิ่งกีดขวาง · ไม่ได้ BloodStack · คูลดาวน์ 3 เทิร์น)",
       area: { kind: "target", range: 4, cells: [] }, // cells จริงคิดใน skillArea (หยุดที่สิ่งกีดขวาง)
       cost: 2,
       img: "/characters/dio_brando/dio_knife.jpg",
@@ -606,7 +606,7 @@ const CHARACTERS = [
     },
     ultimate: {
       name: "Za warudo!!!!!!",
-      desc: "ใช้ Time Meter ทั้งหมด (1 หน่วย = 1 Action): เข้าร่างหยุดเวลาต้นเทิร์นถัดไปก่อนทุกคน · กดในตาคนอื่นได้ ทำงานทันที (เสียเพิ่ม 1) · ร่างหยุดเวลา: เดินฟรี · มีด/Stand/ตีปกติ 1 Action · Road Roller 2 Action · ดาเมจลงตอนเวลาเดินต่อ (คูลดาวน์ 4 เทิร์น)",
+      desc: "ใช้ Time Meter ทั้งหมด (1 หน่วย = 1 Action): เข้าร่างหยุดเวลาต้นเทิร์นถัดไปก่อนทุกคน · กดในตาคนอื่นได้ ทำงานทันที (เสียเพิ่ม 1) · ร่างหยุดเวลา: เดินฟรี · ตีปกติ 1 Action · มีด 1 Action (2 ครั้ง) · Stand 3 Action · Road Roller 3 Action · ดาเมจลงตอนเวลาเดินต่อ (คูลดาวน์ 4 เทิร์น)",
       area: { kind: "self" },
       cost: 0,
       img: "/characters/dio_brando/dio_timestop.jpg",
