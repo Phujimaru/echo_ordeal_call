@@ -901,6 +901,7 @@ function walkTo(id, x, y, { step = false } = {}) {
   p.pos = { x: end.x, y: end.y };
   smashAlong(p, walk, had.smashed);
   act.moved = true;
+  if (Soot.sealsWalk(p, act.from)) act.locked = true; // เดินเข้าม่านแดงของฝ่ายอื่น (ระบำเขม่า) = ย้อน/เดินต่อไม่ได้
   if (entry <= 0) {
     afterWalk(p, walk, null, act.path, had.ice);
     trampleAlong(p, walk, act.path);

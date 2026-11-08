@@ -1,27 +1,34 @@
 // ============================================================
 //  เคท & เอมิลิโกะ — ส่วนการต่อสู้ (ต่อท้ายฮุคใน characters/kate_emiliko.js)
-//   เอมิลิโกะ: ไม้ถูพื้น (ไถลบนพื้นเปียกชน 2 · ถูแห้ง) · แจกัน (ระยะ 4 · ตีผลัก 3 + พื้นเปียกตั้งแต่หน้าเอมิลิโกะถึงเป้า) · เครื่องดูดฝุ่น (ระยะ 3 · ดาเมจ = ระยะ · ดูด)
-//              ดาบเขม่า (+2) · ท่าไม้ตาย ร่าเริงสุดๆ (แนว 4×3 ตามอาวุธ)
+//   เอมิลิโกะ: ไม้ถูพื้น (ไถลบนพื้นเปียกชน 1 · ถูแห้ง) · แจกัน (ระยะ 3 · ตีผลัก 3 + พื้นเปียกตั้งแต่หน้าเอมิลิโกะถึงเป้า) · เครื่องดูดฝุ่น (ระยะ 3 · ดาเมจ = ระยะ สูงสุด 2 · ดูด)
+//              ดาบเขม่า (+1) · ท่าไม้ตาย ร่าเริงสุดๆ (แนว 4×3 ตามอาวุธ)
 //   เคท: ดาบเขม่า (+1) · แส้เขม่า · ปีกเขม่า · ท่าไม้ตาย ระบำเขม่า (server/soot.js) · ติดตัว: ในม่านตีแล้วเป้า "มืดบอด"
 //  การขยับคน (ผลัก/ดูด/ไถล) ส่งเป็น iceFx (server/ice.js) — client เล่นตามลำดับ · ท่าใหญ่ส่ง shadowFx
 //  Claude ตัดสินเอง (บอกผู้ใช้): ชนตอนถูกผลัก = เป้าเสีย 1 และคนที่ถูกชน (ถ้าเป็นศัตรู) เสีย 1 ด้วย · ตัวใหญ่ไม่ถูกผลัก/ดูด
-//   ทางที่ถูกผลัก = ช่องออกตัวถึงช่องก่อนช่องที่หยุด · ไม้ถูพื้นท่าไม้ตาย: ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ช่องที่ 5) ดาเมจ 2 หลบไม่ได้
-//   แส้ใส่ศัตรู: ดาเมจ 1 (+1 ถ้าเคทถือดาบ) หลบได้ · เครื่องดูดฝุ่นหลบได้
+//   ทางที่ถูกผลัก = ช่องออกตัวถึงช่องก่อนช่องที่หยุด · ไม้ถูพื้นท่าไม้ตาย: ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ช่องที่ 5)
 //   เครื่องดูดฝุ่นใช้ได้ 5 ครั้งต่อเกม (ผู้ใช้สั่ง 2026-10-14): ตีปกติ (ตีพลาด/ตีหนาม/ผนึกก็นับ) 1 · ท่าไม้ตาย 1 → หมด = กลับไปถือไม้ถูพื้น
+//  ปรับสมดุล 2026-11-08 (ผู้ใช้สั่ง): ไม้ถูพื้นไถลชน 2 → 1 · แจกันระยะ 4 → 3 ชนตอนถูกผลักไม่เสีย (ตีปกติ) · ดูดฝุ่นเพดาน 3 → 2
+//   ร่าเริงสุดๆ ดาเมจตายตัว (ไม่รับบัฟ · หลบได้ทุกแบบ): ไม้ถูพื้น 2 + ห้ามใช้สกิล 1 เทิร์น พื้นเปียกในแนวแห้ง · แจกัน 2 · ดูดฝุ่น 3 · ดาบ 4
+//   ดาบเขม่า +1 ทั้งคู่ · เคทถือดาบตีปกติ = เป้ามืดบอด 1 เทิร์น · ในม่านตัวเอง = มืดบอดจนม่านหมด
+//   แส้: ดึงเอมิลิโกะ = แต้มสกิล +1 · ศัตรู = พุ่งเข้าประชิด + ห้ามใช้สกิล 1 เทิร์น (ไม่มีดาเมจ · หลบได้)
 // ============================================================
 
 const Board = require("../server/board");
 const Duo = require("../server/duo");
 
-const MOP_DMG = 2;
+const MOP_DMG = 1;       // ไม้ถูพื้นไถลชน (ผู้ใช้สั่ง 2026-11-08: 2 → 1)
 const VASE_PUSH = 3;
-const VASE_RANGE = [1, 4]; // ผู้ใช้สั่ง 2026-10-27
+const VASE_RANGE = [1, 3]; // ผู้ใช้สั่ง 2026-11-08 (เดิม 4)
 const COLLIDE_DMG = 1;
 const VACUUM_RANGE = [1, 3];
+const VACUUM_MAX = 2;   // ดาเมจเท่าระยะ สูงสุด 2 (ผู้ใช้สั่ง 2026-11-08: 3 → 2)
 const SWORD_KATE = 1;
-const SWORD_EMI = 2;
+const SWORD_EMI = 1;    // ผู้ใช้สั่ง 2026-11-08 (เดิม 2)
 const CHEER_LEN = 4;
-const WHIP_DMG = 1;
+// ร่าเริงสุดๆ — ดาเมจตายตัวตามอาวุธ (ผู้ใช้สั่ง 2026-11-08)
+const CHEER_DMG = { mop: 2, vase: 2, vacuum: 3, sword: 4 };
+const NOSKILL_KEY = "noskill";
+const WHIP_SKILL = 1;   // แส้ดึงเอมิลิโกะ = แต้มสกิล +1
 const WINGS_LEN = 4;
 const MASK_KEY = "shadowMask";
 const BREAD_HP = 2;
@@ -50,7 +57,8 @@ function hurt(engine, by, t, n, label) {
 const enemyOf = (engine, a, b) => !!a && !!b && a.id !== b.id && !engine.sameTeam(a, b);
 // ผลักเป้าไปตามทิศ dir ทีละช่อง steps ช่อง (ชน = หยุด + ดาเมจชน) · wet = ทางที่ผ่านเป็นพื้นเปียก
 //  เข้าช่องที่ลื่นอยู่แล้ว (น้ำแข็ง/พื้นเปียกเดิม) = ไถลต่อตามกติกาน้ำแข็ง · คืน { moved, hit }
-function pushLine(engine, by, t, dir, steps, ctx, { wet = false, label = "ชน" } = {}) {
+//  collide = ดาเมจตอนชน (0 = ไม่เสีย — แจกันตีปกติ)
+function pushLine(engine, by, t, dir, steps, ctx, { wet = false, label = "ชน", collide = COLLIDE_DMG } = {}) {
   if (!t || !t.alive || !t.pos || steps <= 0) return { moved: 0, hit: null };
   if (engine.sizeOf(t) > 1) { ctx.events.push({ kind: "knock", id: t.id, from: { ...t.pos }, to: { ...t.pos }, collide: true }); return { moved: 0, hit: null }; }
   const trail = [];
@@ -73,14 +81,14 @@ function pushLine(engine, by, t, dir, steps, ctx, { wet = false, label = "ชน
     const laid = engine.ice.layWet(trail);
     if (laid.length) ctx.events.push({ kind: "wet", tiles: laid });
   }
-  if (hit) {
+  if (hit && collide > 0) {
     const other = engine.boardUnits().find((u) => engine.players[u.id] && engine.players[u.id].pos && u.id !== t.id
       && hit.x >= u.x && hit.x < u.x + (u.size || 1) && hit.y >= u.y && hit.y < u.y + (u.size || 1));
-    const dmg = hurt(engine, by, t, COLLIDE_DMG, `💥 ${t.name} ${label}`);
+    const dmg = hurt(engine, by, t, collide, `💥 ${t.name} ${label}`);
     ctx.events.push({ kind: "hit", id: t.id, by: by.id, x: t.pos ? t.pos.x : hit.x, y: t.pos ? t.pos.y : hit.y, dmg, kill: !t.alive });
     const o = other && engine.players[other.id];
     if (o && o.alive && enemyOf(engine, by, o)) {
-      const d2 = hurt(engine, by, o, COLLIDE_DMG, `💥 ${o.name} ถูก ${t.name} ชน`);
+      const d2 = hurt(engine, by, o, collide, `💥 ${o.name} ถูก ${t.name} ชน`);
       ctx.events.push({ kind: "hit", id: o.id, by: by.id, x: hit.x, y: hit.y, dmg: d2, kill: !o.alive });
     }
   }
@@ -117,6 +125,15 @@ function spendVacuum(engine, p, s) {
   engine.boardFx("shadowFx", { kind: "weapon", id: p.id, weapon: "mop" });
   engine.sfx("ke_w_mop");
 }
+// สถานะ "1 เทิร์น" ที่ให้คนอื่น: เป้าเดินไปแล้ว (หรือกำลังเดิน) = อยู่ถึงเทิร์นหน้า (GRID_PLAN §7.4)
+const oneTurn = (engine, t) => 1 + (engine.hasActed(t.id) || engine.actorId === t.id ? 1 : 0);
+// ห้ามใช้สกิล 1 เทิร์น (ต้านสถานะได้) → ติดไหม
+function silence(engine, by, t) {
+  if (!t || !t.alive) return false;
+  const ok = engine.withEffectSource(by, () => engine.applyDebuff(t, NOSKILL_KEY, 1, oneTurn(engine, t)));
+  if (ok) engine.log(`🔇 ${t.name} ห้ามใช้สกิล 1 เทิร์น`);
+  return !!ok;
+}
 // ย้ายคน from → to พร้อมเหตุการณ์ (ดูด/ดึง — ไม่ผ่านช่องกลาง)
 function relocate(engine, u, to, ctx) {
   const from = { ...u.pos };
@@ -151,10 +168,10 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
       }
       return [];
     },
-    // เครื่องดูดฝุ่น: ดาเมจ = ระยะห่าง (ไม่รับบัฟ/คริติคอล)
+    // เครื่องดูดฝุ่น: ดาเมจ = ระยะห่าง สูงสุด 2 (ไม่รับบัฟ/คริติคอล)
     fixedStrikeDamage(engine, attacker, target) {
       if (!isEmi(attacker) || weaponOf(attacker) !== "vacuum" || !attacker.pos || !target.pos) return null;
-      return engine.boxDist ? engine.boxDist(attacker, target) : dist(attacker.pos, target.pos);
+      return Math.min(VACUUM_MAX, engine.boxDist ? engine.boxDist(attacker, target) : dist(attacker.pos, target.pos));
     },
     attackStyle(p) {
       if (isKate(p)) return "keKate";
@@ -166,11 +183,14 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
       if (!isEmi(p)) return undefined;
       return `ke_hit_${weaponOf(p) || "mop"}`;
     },
-    // ติดตัวเคท: ตีปกติในม่านแดงของตัวเอง → เป้า "มืดบอด" 1 เทิร์น (ต้านสถานะได้)
+    // เคทตีปกติ → เป้า "มืดบอด" (ต้านสถานะได้): ในม่านแดงของตัวเอง (ติดตัว) = จนม่านหมด · ถือดาบเขม่า = 1 เทิร์น
     onStrikeLanded(engine, attacker, target) {
-      if (!isKate(attacker) || !engine.soot.inStormOf(attacker) || !target.alive) return [];
-      const acted = engine.hasActed(target.id) || engine.actorId === target.id;
-      if (!engine.applyDebuff(target, MASK_KEY, 1, 1 + (acted ? 1 : 0))) return [];
+      if (!isKate(attacker) || !target.alive) return [];
+      const storm = engine.soot.ownStormOf(attacker);
+      const turns = Math.max(storm ? storm.left : 0, st(attacker).sword === "kate" ? oneTurn(engine, target) : 0);
+      if (turns <= 0) return [];
+      if ((target.statuses[MASK_KEY] || 0) >= turns) return []; // ติดอยู่นานกว่าแล้ว
+      if (!engine.applyDebuff(target, MASK_KEY, 1, turns)) return [];
       engine.log(`🌫️ ${target.name} มืดบอด — ใครเป็นใคร`);
       engine.boardFx("shadowFx", { kind: "masked", id: target.id });
       engine.sfx("ke_masked");
@@ -188,7 +208,7 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
           const gap = lineBetween(engine, attacker.pos, target.pos);
           const wetGap = gap.length ? engine.ice.layWet(gap) : [];
           if (wetGap.length) ctx.events.push({ kind: "wet", tiles: wetGap });
-          pushLine(engine, attacker, target, awayDir(attacker.pos, target.pos), VASE_PUSH, ctx, { wet: true, label: "กระแทกขณะถูกผลัก" });
+          pushLine(engine, attacker, target, awayDir(attacker.pos, target.pos), VASE_PUSH, ctx, { wet: true, collide: 0 });
           engine.ice.flush(ctx);
           engine.sfx("ke_splash");
         };
@@ -224,7 +244,7 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
       if (dried.length) ctx.events.push({ kind: "dry", tiles: dried });
       engine.sfx("ke_slide");
     },
-    // ขนมปัง (ของประจำตัวเอมิลิโกะ · shop.useInventoryItem): กินเอง หรือป้อนเคทที่ยืนติดกัน → ฟื้นพลังชีวิต 2 เกราะ 1
+    // ขนมปัง (ของประจำตัวเอมิลิโกะ · shop.useInventoryItem): กินเอง หรือป้อนเคทที่ยืนติดกัน → ฟื้นพลังชีวิต 2 เกราะ 1 + ล้างดีบัฟ 1 ขั้น (ผู้ใช้สั่ง 2026-11-08)
     useBread(engine, p, item, opts = {}) {
       if (!isEmi(p) || !item || !(item.uses > 0)) return false;
       let t = p;
@@ -235,8 +255,9 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
       }
       const hp = engine.healHp(t, BREAD_HP);
       const ar = engine.healArmor(t, BREAD_ARMOR);
+      const cleansed = engine.cleanseOneStep(t);
       item.uses -= 1;
-      engine.log(`🍞 ${p.name} ${t === p ? "กินขนมปัง" : `ป้อนขนมปังให้ ${t.name}`} — ฟื้นพลังชีวิต +${hp} เกราะ +${ar} (เหลือ ${item.uses})`);
+      engine.log(`🍞 ${p.name} ${t === p ? "กินขนมปัง" : `ป้อนขนมปังให้ ${t.name}`} — ฟื้นพลังชีวิต +${hp} เกราะ +${ar}${cleansed ? " · ล้างดีบัฟ 1 ขั้น" : ""} (เหลือ ${item.uses})`);
       engine.boardFx("shadowFx", { kind: "bread", by: p.id, id: t.id });
       engine.sfx("ke_revive");
       return true;
@@ -252,8 +273,9 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
 }
 
 // ---------- แส้เขม่า (เคท · ระยะ 3) ----------
-//  เอมิลิโกะ = ดึงมาช่องติดตัวเคท · ศัตรู = เคทพุ่งไปช่องติดตัวเป้า แล้วฟาด 1 (+1 ถ้าถือดาบ · หลบได้)
-function whip(engine, p, t, { st: s, mate }) {
+//  เอมิลิโกะ = ดึงมาช่องติดตัวเคท + แต้มสกิล +1 · ศัตรู = เคทพุ่งไปช่องติดตัวเป้า แล้วห้ามใช้สกิล 1 เทิร์น (หลบได้ · ไม่มีดาเมจ)
+//  เอมิลิโกะที่ถูกดึงยังคุมได้ตามปกติ (engine.duo.moved — เดินไปแล้ว = เดินต่อไม่ได้ · ตี/รอแล้ว = สลับไปไม่ได้อยู่แล้ว)
+function whip(engine, p, t, { mate }) {
   if (!t || !t.pos || !p.pos) return "";
   const ctx = engine.ice.begin();
   if (mate && t.id === mate.id) {
@@ -262,7 +284,9 @@ function whip(engine, p, t, { st: s, mate }) {
     const from = { ...t.pos };
     relocate(engine, t, to, ctx);
     engine.boardFx("shadowFx", { kind: "whip", by: p.id, target: t.id, mode: "pull", from, to });
-    engine.log(`🖤 ${p.name} ใช้แส้เขม่าดึง ${t.name} มาข้างตัว`);
+    const before = p.skillPoints;
+    engine.addSkill(p, WHIP_SKILL);
+    engine.log(`🖤 ${p.name} ใช้แส้เขม่าดึง ${t.name} มาข้างตัว — แต้มสกิล +${p.skillPoints - before}`);
     engine.ice.flush(ctx);
     return "";
   }
@@ -270,11 +294,10 @@ function whip(engine, p, t, { st: s, mate }) {
   if (!to) { engine.log(`🖤 ${p.name} พุ่งเข้าหา ${t.name} ไม่ได้ — ไม่มีช่องว่าง`); return ""; }
   const from = { ...p.pos };
   if (to.x !== from.x || to.y !== from.y) { p.pos = to; ctx.events.push({ kind: "slide", id: p.id, path: [from, to], n: 1 }); }
-  let dmg = 0;
   const dodged = engine.skillDodge(p, t, "แส้เขม่า");
   t.wasAttacked = true;
-  if (!dodged) dmg = hurt(engine, p, t, WHIP_DMG + (s.sword === "kate" ? SWORD_KATE : 0), `🖤 ${p.name} แส้เขม่า`);
-  engine.boardFx("shadowFx", { kind: "whip", by: p.id, target: t.id, mode: "dash", from, to, hitAt: { x: t.pos ? t.pos.x : to.x, y: t.pos ? t.pos.y : to.y }, dmg, dodge: dodged });
+  if (!dodged) silence(engine, p, t);
+  engine.boardFx("shadowFx", { kind: "whip", by: p.id, target: t.id, mode: "dash", from, to, hitAt: { x: t.pos ? t.pos.x : to.x, y: t.pos ? t.pos.y : to.y }, dmg: 0, dodge: dodged });
   engine.ice.flush(ctx);
   return "";
 }
@@ -330,7 +353,7 @@ function storm(engine, p, opts) {
   return "";
 }
 
-// ร่าเริงสุดๆ (เอมิลิโกะ): แนว 4×3 ตามอาวุธ · s = สถานะของคู่ (st)
+// ร่าเริงสุดๆ (เอมิลิโกะ): แนว 4×3 ตามอาวุธ · s = สถานะของคู่ (st) · ดาเมจตายตัว CHEER_DMG (เกราะรับก่อน · หลบได้ทุกแบบ)
 function cheer(engine, p, targets, opts, s) {
   const v = DIRS[opts.dir];
   if (!v || !p.pos) return "";
@@ -343,11 +366,23 @@ function cheer(engine, p, targets, opts, s) {
   engine.skillBeat(CHEER_BEAT, () => {
     const ctx = engine.ice.begin();
     const label = `✨ ${p.name} ร่าเริงสุดๆ`;
+    const dmgOf = CHEER_DMG[w] || CHEER_DMG.mop;
+    // ทอยหลบก่อน (ทุกสกิลหลบได้) · โดน = ดาเมจตายตัว → true = โดน
+    const land = (t) => {
+      t.wasAttacked = true;
+      if (engine.skillDodge(p, t, "ร่าเริงสุดๆ")) return false;
+      hurt(engine, p, t, dmgOf, label);
+      return true;
+    };
     if (w === "mop") {
-      // ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ไกลสุดก่อน) · ดาเมจ 2 หลบไม่ได้ · แล้วเอมิลิโกะพุ่งตาม (ทางที่พุ่งเปียก)
+      // ถูพื้นเปียกเดิมทั้งแนว 4×3 ก่อน (คนที่ถูกผลักไม่ไถลต่อ) → ผลักศัตรูทั้งแนวไปพ้นปลายแนว (ไกลสุดก่อน) · ดาเมจ 2 + ห้ามใช้สกิล 1 เทิร์น
+      //  แล้วเอมิลิโกะพุ่งตาม (ไม่ต้องมีน้ำ)
+      const dried = engine.ice.dryWet([{ ...p.pos }, ...tiles]);
+      if (dried.length) ctx.events.push({ kind: "dry", tiles: dried });
       for (const t of foes.sort((a, b) => along(b) - along(a))) {
         if (!t.alive || !t.pos) continue;
-        hurt(engine, p, t, MOP_DMG, label);
+        if (!land(t)) continue;
+        if (t.alive) silence(engine, p, t);
         if (t.alive && t.pos) pushLine(engine, p, t, v, Math.max(0, CHEER_LEN + 1 - along(t)), ctx, { label: "กระแทกขณะถูกผลัก" });
       }
       const from = { ...p.pos };
@@ -360,26 +395,21 @@ function cheer(engine, p, targets, opts, s) {
       if (path.length > 1) {
         p.pos = { ...path[path.length - 1] };
         ctx.events.unshift({ kind: "slide", id: p.id, path, n: path.length - 1 });
-        const laid = engine.ice.layWet(path.slice(0, -1));
-        if (laid.length) ctx.events.push({ kind: "wet", tiles: laid });
         dash = { from, to: { ...p.pos } };
       }
     } else if (w === "vase") {
       for (const t of foes.sort((a, b) => along(b) - along(a))) {
         if (!t.alive || !t.pos) continue;
-        const r = engine.skillStrike(p, t, "ร่าเริงสุดๆ");
-        if (!r.dodge && t.alive && t.pos) pushLine(engine, p, t, v, VASE_PUSH, ctx, { wet: true, label: "กระแทกขณะถูกผลัก" });
+        if (land(t) && t.alive && t.pos) pushLine(engine, p, t, v, VASE_PUSH, ctx, { wet: true, label: "กระแทกขณะถูกผลัก" });
       }
       // น้ำสาดทั่วแนว 4×3 → พื้นเปียกทั้งพื้นที่ (หลังผลัก — ไม่ทำให้คนที่ถูกผลักไถลเพิ่ม) · ไม่โดนใครก็เปียก
       const laid = engine.ice.layWet(tiles);
       if (laid.length) ctx.events.push({ kind: "wet", tiles: laid });
     } else if (w === "vacuum") {
-      // ใกล้สุดก่อน: ดาเมจ = ระยะ (หลบได้) แล้วดูดเข้ามาใกล้ที่สุดเท่าที่มีช่องว่าง
+      // ใกล้สุดก่อน: ดาเมจ 3 (หลบได้) แล้วดูดเข้ามาใกล้ที่สุดเท่าที่มีช่องว่าง
       for (const t of foes.sort((a, b) => dist(p.pos, a.pos) - dist(p.pos, b.pos))) {
         if (!t.alive || !t.pos) continue;
-        t.wasAttacked = true;
-        if (engine.skillDodge(p, t, "ร่าเริงสุดๆ")) continue;
-        hurt(engine, p, t, dist(p.pos, t.pos), label);
+        if (!land(t)) continue;
         if (!t.alive || !t.pos || engine.sizeOf(t) > 1) continue;
         const back = { x: -v.x, y: -v.y };
         let steps = 0;
@@ -393,7 +423,7 @@ function cheer(engine, p, targets, opts, s) {
         }
       }
     } else {
-      for (const t of foes) if (t.alive && t.pos) engine.skillStrike(p, t, "ร่าเริงสุดๆ");
+      for (const t of foes) if (t.alive && t.pos) land(t);
     }
     engine.ice.flush(ctx);
     if (dash) engine.boardFx("shadowFx", { kind: "cheerDash", id: p.id, ...dash });
@@ -402,4 +432,4 @@ function cheer(engine, p, targets, opts, s) {
   return "";
 }
 
-module.exports = { hooks, whip, wings, storm, cheer };
+module.exports = { hooks, whip, wings, storm, cheer, CHEER_DMG, MOP_DMG, VACUUM_MAX, SWORD_EMI };

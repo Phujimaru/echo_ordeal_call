@@ -16,7 +16,7 @@
 Object.assign(module.exports, {
   isPartner, isOwner, ownerOf, partnerOf, unitsOf, sideKey, sideAlive, inGame, cardUnit, cardHolders,
   sideCount, setup, teardown, controlledId, startTurn, switchTo, canSwitchTo, nextUnit, unitDone, otherUnit,
-  moved, corpseKeys, corpseOf, corpseKept, keeperAlive, placeCorpses, saveCorpses, restoreCorpses, onDeath, clearSide,
+  moved, revived, corpseKeys, corpseOf, corpseKept, keeperAlive, placeCorpses, saveCorpses, restoreCorpses, onDeath, clearSide,
   turnUnits,
 });
 
@@ -151,10 +151,25 @@ function switchTo(u) {
   return true;
 }
 // ตัวของฝ่ายนี้ถูกย้ายโดยสกิล (แส้/ปีกของเคท) ระหว่างตาเดิน — ตาที่เก็บไว้ (ยังไม่เดิน) เริ่มเดินจากช่องใหม่
+//  ตัวนั้นเดินไปแล้วในตานี้ (ระยะที่เหลือจาก rebaseMove) = เดินต่อไม่ได้อีก · ยังตี/ใช้สกิลได้ (แส้/ปีกเขม่า — ผู้ใช้สั่ง 2026-11-08)
 function moved(u) {
   const d = match.duo;
   const a = d && d.acts[u.id];
-  if (a && !a.moved && u.pos) a.from = { ...u.pos };
+  if (!a || !u.pos) return;
+  const walked = a.moved || a.movLeft !== undefined || a.cantoMov !== undefined;
+  a.from = { ...u.pos };
+  a.moved = false;
+  a.path = null;
+  a.trail = null;
+  a.eye = null;
+  if (walked) a.locked = true;
+}
+// ตัวที่ล้มฟื้นคืนชีพกลางตา (ตื่นขึ้นอีกครั้ง) = ได้ตาใหม่ คุม/เดิน/ตีได้ตามปกติ
+function revived(u) {
+  const d = match.duo;
+  if (!d || !u) return;
+  delete d.done[u.id];
+  delete d.acts[u.id];
 }
 // ตัวที่กำลังคุมจบแล้ว (ตี/รอ)
 function unitDone(p) {
