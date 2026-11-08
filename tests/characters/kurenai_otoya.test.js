@@ -75,7 +75,7 @@ test('ข้อมูล: ยาก · เดิน 4 ประชิด · 2 / 
   assert.equal(genderOf({ characterId: 'moon_cell', summon: { moon: 'cell' } }), 'n');
 });
 
-test('ปากหวาน: ฟื้น 1 + จำนวนตัวละครหญิง (ทุกฝ่าย) · คูลดาวน์ 2 · เลือดเต็มกดไม่ได้', () => {
+test('ปากหวาน: ฟื้น 1 + จำนวนตัวละครหญิง (ทุกฝ่าย) สูงสุด 3 · คูลดาวน์ 2 · เลือดเต็มกดไม่ได้', () => {
   let P = setup([['O', 'kurenai_otoya', 3, 7], ['B', 'dummy', 12, 12]]);
   P.O.hp = 2;
   engine.setActor('O');
@@ -92,6 +92,8 @@ test('ปากหวาน: ฟื้น 1 + จำนวนตัวละค�
   P.O.skillUsedRound = false;
   engine.useSkill('O', 'basic', []);
   assert.equal(P.O.hp, 4, 'คูลดาวน์');
+  P = setup([['O', 'kurenai_otoya', 3, 7], ['F', 'fern', 12, 12], ['G', 'gray', 12, 2], ['C', 'celine', 2, 2]]);
+  assert.equal(oto.sweetHeal(engine, P.O), 3, '3 คน = สูงสุด 3');
   P = setup([['O', 'kurenai_otoya', 3, 7], ['B', 'dummy', 12, 12]]);
   engine.setActor('O');
   engine.useSkill('O', 'basic', []);

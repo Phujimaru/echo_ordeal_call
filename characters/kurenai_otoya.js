@@ -7,7 +7,7 @@
 //
 //  ร่างปกติ
 //   สกิลพื้นฐาน ปากหวาน (2 · คูลดาวน์ 2): ฟื้นพลังชีวิตตัวเอง = 1 + จำนวนตัวละครหญิงที่ยังอยู่ในเกม (ทุกฝ่าย)
-//     ไม่มีเลย 1 · 1 คน 2 · 2 คน 3 (ผู้ใช้) · 3 คนขึ้นไปบวกต่อทีละ 1 (Claude ต่อสูตรเอง)
+//     ไม่มีเลย 1 · 1 คน 2 · 2 คนขึ้นไป 3 (ผู้ใช้: สูงสุดไม่เกิน 3 — 2026-11-08)
 //     นับยูนิตที่ถูกเรียกเฉพาะฮาคุโนะ (ร่างแยก/ตัวเหมือนของวาเลนไทน์ไม่นับ — Claude ตัดสิน)
 //   สกิลรอง ดนตรีในหัวใจ (4): สีไวโอลินมอบบัฟให้ 1 คนในระยะ 8 (แมนฮัตตัน ทะลุทุกอย่าง — แค่เลือกเป้า)
 //     ffa ใครก็ได้ · duo/trio/Moon Cell เพื่อนร่วมทีมเท่านั้น · ไม่รวมตัวเอง
@@ -73,6 +73,7 @@ const MUSIC = "otoya_heart"; // 渡 (ไฟล์ผู้ใช้) — เล�
 const SFX = { sweet: "otoya_sweet", trap: "otoya_trap" }; // สังเคราะห์ (client/public/characters/kurenai_otoya/sfx/)
 
 const SWEET_CD = 2;
+const SWEET_MAX = 3;
 const HEART_RANGE = 8;
 const HEART_CD = 3;
 const HEART_ATK = 1;
@@ -151,7 +152,7 @@ function femaleCount(engine, p) {
   return Object.values(engine.players).filter((u) => u.alive && u.id !== p.id
     && (!u.summon || u.summon.moon === "f") && genderOf(u) === "f").length;
 }
-const sweetHeal = (engine, p) => 1 + femaleCount(engine, p);
+const sweetHeal = (engine, p) => Math.min(SWEET_MAX, 1 + femaleCount(engine, p));
 
 // ---------- ดนตรีในหัวใจ ----------
 function heartTarget(engine, p) {
@@ -282,7 +283,7 @@ function revert(engine, p) {
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, MUSIC, SFX, NAMES,
-  SWEET_CD, HEART_RANGE, HEART_CD, HEART_ATK, HEART_MEND, HEART_CRIT, HEART_SP,
+  SWEET_CD, SWEET_MAX, HEART_RANGE, HEART_CD, HEART_ATK, HEART_MEND, HEART_CRIT, HEART_SP,
   ULT_TURNS, ULT_USES, ULT_ATK, ULT_MOV, TRAP_CD, TRAP_BACK, TRAP_ROOT, WAKE_CD, NIGHT_TURNS, DECAY_TURNS, BLEED, LAST_HEAL, NIGHT_GUARD,
   CHARM_FEMALE, CHARM_OTHER,
   isOtoya, femaleCount, sweetHeal, heartGiverOf,
@@ -424,7 +425,7 @@ module.exports = {
     const eng = engineNow(), s = st(p), r = eng.roundNumber;
     const ult = ultOn(eng, p);
     if (tier === "basic") {
-      if (!ult) return { desc: `ฟื้นพลังชีวิต 1 + จำนวนตัวละครหญิงในเกม (ตอนนี้ ${sweetHeal(eng, p)}) (คูลดาวน์ ${SWEET_CD} เทิร์น)` };
+      if (!ult) return { desc: `ฟื้นพลังชีวิต 1 + จำนวนตัวละครหญิงในเกม สูงสุด ${SWEET_MAX} (ตอนนี้ ${sweetHeal(eng, p)}) (คูลดาวน์ ${SWEET_CD} เทิร์น)` };
       return {
         name: NAMES.trap, img: IMG.trap, active: trapOpen(eng, p),
         desc: `เสียพลังชีวิต ${HP_COST} (ไม่สนเกราะ) · ถึงตาเดินถัดไป: ศัตรูโจมตีโดน 1 ครั้ง = ไม่เสียหาย ถอยห่าง ${TRAP_BACK} ช่อง และผู้โจมตีถูกตรึง ${TRAP_ROOT} เทิร์น (คูลดาวน์ ${TRAP_CD} เทิร์น)`,
