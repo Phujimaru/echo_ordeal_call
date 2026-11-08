@@ -809,7 +809,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · **ได้ใหม่ = นับใหม่ตามผลล่าสุด** (ไม่เก็บค่ามากสุด — เหลือ 3 แล้วโดนผล 1 เทิร์น = 1 · ผู้ใช้สั่ง 2026-11-08 "ไม่สะสม")
 - **ไม่โดนผลลดระยะเดิน**: ฮุค `movCutImmune(p)` → true = `action.movOf` ไม่หักไพ่แตก/เชื่องช้า/`movPenalty`/สภาพอากาศ Fodlan ที่ติดลบ (ตรึง `rooted` / `movBlocked` ยังมีผล) และ `applySlow` ไม่ติด (`Ice.movCutImmune`) — Ice Spike ติดตัว 4
 - **ไม่โดนผลของแผนที่**: ฮุค `mapEffectImmune(p, kind)` — `"frostbite"` น้ำแข็งกัด (ไม่นับความอบอุ่น ไม่มีป้าย) / `"stun"` สตั้นจากแผนที่ (`server/fodlan/stage4.js mapImmune`) — Ice Spike ติดตัว 5 · ผลแผนที่ใหม่ที่ให้สตั้นต้องถามฮุคนี้
-- **ทำลายของตัวเอง** (Ice Spike ปุ่ม 2 ตัวเลือก สร้าง/ทำลาย — `skillPub` choices · `skillArea(opts.form === "break")` = `{ kind: "tile", place: "list", tiles }` ทั้งแผนที่):
+- **ทำลายของตัวเอง** (Ice Spike ปุ่มพิเศษบน HUD "ทำลาย" — `hudActions` key `iceBreak` + `tiles` = น้ำแข็ง/หนามของตัวเองทั้งแผนที่ → socket `charAction { key, tile }` · เทิร์นละ 2 ครั้ง (`p.iceBreakRound/iceBreakUses`) · ไม่ใช่สกิล — 0 แต้ม ไม่กินโควตา):
   `ownIceTiles/ownSpikeTiles(owner)` · `ownIceAt/ownSpikeAt` · `meltIce(x, y)` (iceFx `melt { tiles }` → client `iceMelt`) · `breakSpike(x, y)` (หายทุก Lv → ผู้เรียกวางน้ำแข็งแทน · iceFx `spikeDown lv 0` + `lay`)
 - **หนาม**: Lv1–3 เกราะ `SPIKE_ARMOR` [_, 1, 1, 1] · `left` 3 (ขึ้น Lv = นับใหม่) · ตีได้ด้วยเป้า `"spike:x,y"` (`action.attackTarget` → `attackSpike` ฉากตี `card.spike`) ·
   สกิลโจมตีพื้นที่ลงหนามด้วย (`skills.js` → `hitSpikesInArea`) · เกราะแตก = ลด Lv · ขยายร่าง/วางตัวใหญ่ทับ = พัง (`breakObstacles` → `smashedSpikes`)

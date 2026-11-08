@@ -567,6 +567,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3029"
       }
+    },
+    {
+      "name": "server-ice",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3031,
+      "env": {
+        "PORT": "3031",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-ice",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5201",
+        "--strictPort"
+      ],
+      "port": 5201,
+      "env": {
+        "ECHO_SERVER_PORT": "3031"
+      }
     }
   ]
 }
