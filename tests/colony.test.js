@@ -31,7 +31,7 @@ const P = () => engine.players;
 // แนวตั้งว่างยาว n ช่องในคอลัมน์ที่ไม่ใช่กระจก/ประตู (ไม่มีสิ่งกีดขวาง/ช่องพิเศษ) — ผังเป็นแบบสุ่มกำหนดค่า
 function clearColumn(y0, n) {
   const map = action.boardMap();
-  for (let x = 0; x < 16; x++) {
+  for (let x = 0; x < Board.COLONY.cols; x++) {
     if (Board.COLONY.glass.includes(x)) continue;
     let ok = true;
     for (let y = y0; y < y0 + n; y++) if (map.terrain[`${x},${y}`] || map.special[`${x},${y}`]) ok = false;
@@ -60,12 +60,12 @@ test.after(() => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
 });
 
-test('เริ่มแมตช์ในสนาม Colony: กระดาน 16×40 ต่อวงรอบ · ไม่มีการเดินทาง · จุดเกิดปล้องแรก', () => {
+test('เริ่มแมตช์ในสนาม Colony: กระดาน 24×40 ต่อวงรอบ · ไม่มีการเดินทาง · จุดเกิดปล้องแรก', () => {
   setup(3);
   assert.equal(match.board.area, Board.COLONY_AREA);
   const map = action.boardMap();
-  assert.equal(map.cols, 16); assert.equal(map.rows, 40); assert.equal(map.wrap, true);
-  assert.equal(Board.wrapCols(), 16);
+  assert.equal(map.cols, 24); assert.equal(map.rows, 40); assert.equal(map.wrap, true);
+  assert.equal(Board.wrapCols(), 24);
   assert.equal(Journey.active(engine), false, 'ไม่มีผลภูมิภาค/การเปลี่ยนภูมิภาค');
   for (const p of Object.values(P())) assert.ok(p.pos && p.pos.y <= 2, 'เกิดในแถว 0–2');
   assert.equal(match.colony.sealed, 0);
@@ -74,11 +74,13 @@ test('เริ่มแมตช์ในสนาม Colony: กระดา�
 test('กระดานต่อวงรอบ: ระยะข้ามตะเข็บ · เดินข้ามตะเข็บ · กำแพงกั้นปล้องผ่านได้แค่ประตู', () => {
   setup(2);
   const map = action.boardMap();
-  assert.equal(Board.dist({ x: 0, y: 5 }, { x: 15, y: 5 }), 1);
-  assert.equal(Board.dist({ x: 2, y: 5 }, { x: 10, y: 5 }), 8, 'ฝั่งตรงข้าม = ครึ่งวง');
-  const me = { id: 'a', x: 0, y: 5, alive: true };
+  assert.equal(Board.dist({ x: 0, y: 5 }, { x: 23, y: 5 }), 1);
+  assert.equal(Board.dist({ x: 2, y: 5 }, { x: 14, y: 5 }), 12, 'ฝั่งตรงข้าม = ครึ่งวง');
+  const free = (x, y) => !map.terrain[`${x},${y}`] && !map.special[`${x},${y}`];
+  const ry = [3, 4, 5, 6, 7, 8, 11, 12, 13, 14].find((y) => free(0, y) && free(23, y) && free(22, y));
+  const me = { id: 'a', x: 0, y: ry, alive: true };
   const reach = Board.reachable(map, me, 2, [me]);
-  assert.ok(reach.has('15,5') && reach.has('14,5'), 'เดินไปทางซ้ายข้ามตะเข็บได้');
+  assert.ok(reach.has(`23,${ry}`) && reach.has(`22,${ry}`), 'เดินไปทางซ้ายข้ามตะเข็บได้');
   // แถว 9 → 10: คอลัมน์ 2 ไม่ใช่ประตู (กำแพง) · คอลัมน์ 4 เป็นประตู
   assert.equal(Board.wallBlocks(map, 2, 9, 10), true);
   assert.equal(Board.wallBlocks(map, 4, 9, 10), false);
@@ -86,10 +88,10 @@ test('กระดานต่อวงรอบ: ระยะข้ามตะ
   assert.ok(!Board.reachable(map, wallUnit, 1, [wallUnit]).has('2,10'), 'ทะลุกำแพงไม่ได้');
   const doorUnit = { id: 'd', x: 4, y: 9, alive: true };
   assert.ok(Board.reachable(map, doorUnit, 1, [doorUnit]).has('4,10'), 'ผ่านประตูได้');
-  // พื้นที่สกิลข้ามตะเข็บ: ช่องคืนค่าในช่วง 0..15
+  // พื้นที่สกิลข้ามตะเข็บ: ช่องคืนค่าในช่วง 0..23
   const tiles = Board.tilesInRange(map, 0, 20, [1, 1]);
-  assert.ok(tiles.some((t) => t.x === 15 && t.y === 20));
-  assert.ok(tiles.every((t) => t.x >= 0 && t.x < 16));
+  assert.ok(tiles.some((t) => t.x === 23 && t.y === 20));
+  assert.ok(tiles.every((t) => t.x >= 0 && t.x < 24));
 });
 
 test('ปิดผนึกตอนจบเทิร์น 5: คนในปล้อง 1 ตายจริง (ฟื้นไม่ได้) · ปล้องที่ปิด = นอกกระดาน', () => {
@@ -129,7 +131,7 @@ test('อุกกาบาต: คนบนจุดตกถูกดูดอ
   setup(3);
   const [a, b, c] = Object.values(P());
   const x = clearColumn(2, 7);
-  put(a, x, 3); put(b, x, 6); put(c, (x + 8) % 16, 15);
+  put(a, x, 3); put(b, x, 6); put(c, (x + 12) % 24, 15);
   match.colony.tele = [{ type: 'meteor', x, y: 3, at: 4, radius: 4 }];
   Math.random = () => 0.999;
   startTurn(4);
@@ -182,13 +184,13 @@ test('แคปซูลเสบียง: ลงจอด = ร้านเป
 test('กระโดด: ไปฝั่งตรงข้าม สูงขึ้น 2 แถว · จบการเดิน · คูลดาวน์ 2 เทิร์น · ลงข้างศัตรู = กระทืบ 1', () => {
   setup(2);
   const [a, b] = Object.values(P());
-  put(a, 3, 4); put(b, 12, 5); // จุดลง (11, 6) → ศัตรูอยู่ติดกัน (12, 5)? ไม่ — ห่าง 2
+  put(a, 3, 4); put(b, 18, 5); // จุดลง (15, 6)
   b.hp = 7; b.armor = 3;
-  put(b, 11, 7); // ติดจุดลงด้านล่าง
+  put(b, 15, 7); // ติดจุดลงด้านล่าง
   actAs(a);
   assert.equal(Colony.canJump(a), true);
   assert.equal(Colony.jump(a.id), true);
-  assert.deepEqual(a.pos, { x: 11, y: 6 });
+  assert.deepEqual(a.pos, { x: 15, y: 6 });
   assert.equal(match.action.locked, true, 'จบการเดิน');
   assert.equal(b.armor, 2, 'กระทืบ 1 (ลดเกราะก่อน)');
   assert.equal(Colony.canJump(a), false, 'กระโดดซ้ำในตาเดียวกันไม่ได้');
@@ -212,12 +214,12 @@ test('ลิฟต์แกนกลาง: จบตาบนช่องลิ
 test('โคโลนีหมุน (ทุก 3 เทิร์น): ทุกคนเลื่อนข้าง 1 ช่อง · พิกัดเกินขอบถูกจัดเข้าช่วง', () => {
   setup(2);
   const [a, b] = Object.values(P());
-  put(a, 15, 3); put(b, 7, 3);
+  put(a, 23, 3); put(b, 7, 3);
   match.colony.tele = [];
   startTurn(4);
   assert.deepEqual(a.pos, { x: 0, y: 3 }, 'ข้ามตะเข็บไปคอลัมน์ 0');
   assert.deepEqual(b.pos, { x: 8, y: 3 });
-  put(a, 18, 3);
+  put(a, 26, 3);
   Colony.normalize();
   assert.deepEqual(a.pos, { x: 2, y: 3 });
 });
@@ -233,6 +235,6 @@ test('ตั้งเป้าเทิร์นหน้า: อุกกาบ
   assert.ok(match.colony.tele.some((t) => t.type === 'beam' && t.at === 4));
   const info = Colony.publicInfo();
   assert.equal(info.sealIn, 3, 'เทิร์น 3: ประตูปิดในอีก 3 เทิร์น (รวมเทิร์นนี้)');
-  assert.deepEqual(info.doors, [0, 4, 8, 12]);
+  assert.deepEqual(info.doors, [0, 4, 8, 12, 16, 20]);
   assert.equal(info.countdown, null);
 });

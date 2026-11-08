@@ -246,13 +246,14 @@ for (let i = 0; i < ZERO_STAGES; i++) {
 
 // ---------- Colony (GRID_PLAN §8.3) ----------
 //  ผิวด้านในของกระบอก คลี่เป็น 16 คอลัมน์ (ต่อวงรอบ) × 40 แถว · ปล้องละ 10 แถว (0–9 · 10–19 · 20–29 · ปล้องสุดท้าย 30–39)
-//  กำแพงกั้นปล้องอยู่ระหว่างแถว 9|10 · 19|20 · 29|30 ประตู 4 บาน (คอลัมน์ 0 · 4 · 8 · 12)
-//  แถบกระจก (คอลัมน์ 1 · 6 · 11) = พื้นธรรมดา (ใช้แค่ตอนวาด) · ลิฟต์แกนกลาง 6 จุด (จบตา = ดีดขึ้น 4 แถว)
+//  กำแพงกั้นปล้องอยู่ระหว่างแถว 9|10 · 19|20 · 29|30 ประตู 6 บาน (คอลัมน์ 0 · 4 · 8 · 12 · 16 · 20)
+//  แถบกระจก (คอลัมน์ 2 · 10 · 18) = พื้นธรรมดา (ใช้แค่ตอนวาด) · ลิฟต์ 9 จุด (จบตา = ดีดขึ้น 4 แถว)
 //  เขตตามปล้อง (ผู้ใช้สั่ง: สภาพแวดล้อมจำลองจากโลก): บ้านพัก · ป่า + บึง (น้ำตื้น) · ใจกลางเมือง (ตึก) · สวนชมวิว (ต้นไม้ + สระ)
 //  ผังสุ่มแบบกำหนดค่า (seed คงที่ — ต้นแบบ .claude/plans/colony.html genMap) · จุดเกิด 7 จุดแถว 1 กระจายรอบวง
 const COLONY_AREA = 20;
-const COLONY = { cols: 16, rows: 40, section: 10, walls: [9, 19, 29], doors: [0, 4, 8, 12], glass: [1, 6, 11],
-  lifts: [[2, 7], [10, 7], [5, 17], [13, 17], [7, 27], [15, 27]] };
+// 24 คอลัมน์ (ผู้ใช้สั่ง 2026-11-09 "ขยายพื้นที่รอบวงให้กว้างขึ้น" — เดิม 16) · ประตู 6 บาน · กระจก 3 แถบ · ลิฟต์ 9 จุด
+const COLONY = { cols: 24, rows: 40, section: 10, walls: [9, 19, 29], doors: [0, 4, 8, 12, 16, 20], glass: [2, 10, 18],
+  lifts: [[3, 7], [11, 7], [19, 7], [6, 17], [14, 17], [22, 17], [9, 27], [17, 27], [1, 27]] };
 function buildColonyMap() {
   let s = 11;
   const R = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -284,10 +285,10 @@ function buildColonyMap() {
     }
   };
   const ONE = [[0, 0]], H2 = [[0, 0], [1, 0]], V2 = [[0, 0], [0, 1]];
-  place(0, 11, "house", [ONE, H2, ONE]);
-  pond(1, 4, 3); place(1, 15, "tree", [ONE]);
-  place(2, 9, "tower", [ONE, V2, H2]); place(2, 3, "tree", [ONE]);
-  pond(3, 3, 2); place(3, 6, "tree", [ONE]);
+  place(0, 16, "house", [ONE, H2, ONE]);
+  pond(1, 4, 3); pond(1, 3, 2); place(1, 22, "tree", [ONE]);
+  place(2, 14, "tower", [ONE, V2, H2]); place(2, 5, "tree", [ONE]);
+  pond(3, 3, 2); pond(3, 4, 3); place(3, 9, "tree", [ONE]);
   const terrain = {}, special = {};
   for (const [k, kind] of Object.entries(used)) { if (kind === "water") special[k] = "shallow"; else terrain[k] = kind; }
   for (const [x, y] of COLONY.lifts) special[key(x, y)] = "lift";
@@ -295,7 +296,7 @@ function buildColonyMap() {
     area: COLONY_AREA, name: "Colony", cols: C, rows: COLONY.rows, wrap: true, minRow: 0,
     walls: COLONY.walls, doors: COLONY.doors, glass: COLONY.glass, section: SEC,
     terrain, special, flow: {}, heal: new Set(), healKind: "heal",
-    spawns: [1, 3, 5, 8, 10, 12, 14].map((x, i) => ({ x, y: i % 2 ? 2 : 1 })),
+    spawns: [1, 5, 8, 12, 15, 19, 22].map((x, i) => ({ x, y: i % 2 ? 2 : 1 })),
     shopSpots: [], // ร้านค้า = แคปซูลเสบียง (server/colony.js) ไม่ใช้จุดร้านค้า
   };
 }

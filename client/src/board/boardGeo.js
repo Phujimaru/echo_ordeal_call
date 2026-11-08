@@ -94,7 +94,8 @@ export function localFrame(ax, ay) {
   if (!C) return { x: 0, y: 0, th: 0, s: 1, k: 1 };
   const p0 = C.project(ax, ay, 0), p1 = C.project(ax, ay, 0.6);
   if (!(p0[2] > 0) || !(p1[2] > 0) || !Number.isFinite(p0[0]) || !Number.isFinite(p1[0])) return null;
-  return { x: p0[0], y: p0[1], th: Math.atan2(p1[0] - p0[0], p0[1] - p1[1]), s: p0[2], k: Math.min(1, FRAME_SMAX / p0[2]) };
+  // upright (กระดานแบน 2.5D ของ Colony) = สไปรต์ตั้งตรงบนจอเสมอ — ไม่เอียงตามมุมมองเพอร์สเปกทีฟ (ตึกด้านข้างจอดูล้ม)
+  return { x: p0[0], y: p0[1], th: C.upright ? 0 : Math.atan2(p1[0] - p0[0], p0[1] - p1[1]), s: p0[2], k: Math.min(1, FRAME_SMAX / p0[2]) };
 }
 export function withLocalFrame(g, fr, fn) {
   const C = CUSTOM;

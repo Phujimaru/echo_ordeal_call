@@ -2127,7 +2127,15 @@ export function drawFrame(g, st, now) {
   // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
   const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
   if (T.animBack && !colony) T.animBack(g, f, lowQ ? 0 : now);
-  if (colony) { /* พื้นวาดใน 3D */ }
+  if (colony) {
+    // พื้นวาดใน 3D — ช่องพิเศษที่เกิดระหว่างเกม (ธารน้ำแข็ง พื้นเปียก พื้นไฟ ...) วาดทับที่นี่ (เดิมไม่วาดเลย = มองไม่เห็นพื้นน้ำแข็ง · บั๊ก 2026-11-09)
+    //  น้ำตื้น/ลิฟต์ของสนาม = ระบายลงพื้น 3D อยู่แล้ว
+    for (const sp of info.special) {
+      if (sp.kind === "shallow" || sp.kind === "lift") continue;
+      bakeSpecial(g, sp, { night, C, area: info.area });
+      animSpecial(g, sp, { night, lowQ, area: info.area }, lowQ ? 0 : now);
+    }
+  }
   else if (bake && bake.board) { blit(bake.board); L(); }
   else drawBoardLayer(g, info, bv, night);
   // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดงทั้งจอ ใต้ตัวละคร
