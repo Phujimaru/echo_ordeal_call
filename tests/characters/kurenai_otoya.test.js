@@ -224,7 +224,7 @@ test('ท่าไม้ตาย: 0 แต้ม · 3 ครั้ง · 2 เ�
   assert.ok(calls.queue.includes('otoyaDead'));
 });
 
-test('หลุมพราง: เสียพลังชีวิต 1 · ถูกสกิลโจมตี = 0 ถอย 2 ช่อง ผู้โจมตีถูกตรึง · 1 ครั้ง · คูลดาวน์ 1', () => {
+test('หลุมพราง: เสียพลังชีวิต 1 · ถูกสกิลโจมตี = 0 ถอย 2 ช่อง ผู้โจมตีถูกตรึง · 1 ครั้ง · ไม่มีคูลดาวน์', () => {
   Math.random = () => 0.99;
   const P = setup([['O', 'kurenai_otoya', 4, 7], ['A', 'dummy', 3, 7]]);
   kiva(P);
@@ -232,6 +232,8 @@ test('หลุมพราง: เสียพลังชีวิต 1 · ถ
   engine.useSkill('O', 'basic', []);
   assert.equal(P.O.hp, hp - 1, 'ไม่สนเกราะ');
   assert.ok(oto.skillPub(P.O, 'basic').active, 'ตั้งท่า');
+  assert.equal(P.O.otoya.trapReady, engine.roundNumber, 'ไม่มีคูลดาวน์');
+  assert.equal(oto.canUseSkill(engine, P.O, 'basic', []), false, 'ตั้งท่าอยู่ = กดซ้ำไม่ได้');
   engine.setActor('A');
   const before = vit(P.O);
   const r = engine.skillStrike(P.A, P.O, 'ทดสอบ');
