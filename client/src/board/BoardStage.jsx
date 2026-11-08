@@ -1367,6 +1367,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
       if ((ev.kind === "spike" || ev.kind === "spikeUp" || ev.kind === "spikeDown" || ev.kind === "trample") && ok(ev)) noteLv(ev.x, ev.y);
       if (ev.kind === "lay") for (const t of pts(ev.tiles)) noteIce(t);
+      // ทำลายธารน้ำแข็ง (Ice Spike): ช่องที่หายยังเป็นน้ำแข็งจนเหตุการณ์ถึง
+      if (ev.kind === "melt") for (const t of pts(ev.tiles)) { const k = key(t.x, t.y); if (!(k in mask)) mask[k] = "ice"; }
       // พื้นเปียก (เอมิลิโกะ): ช่องเปียกใหม่ซ่อนไว้จนน้ำกระเซ็นถึง · ช่องที่ถูแห้งยังเปียกจนไม้ถูผ่าน
       if (ev.kind === "wet" || ev.kind === "dry") for (const t of pts(ev.tiles)) {
         const k = key(t.x, t.y), was = (bd.special || {})[k] || null;
@@ -1554,6 +1556,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           const n = Math.min(4, tiles.length), gap = n > 1 ? Math.min(600, (tiles.length - 1) * ICE_T.layStep) / (n - 1) : 0;
           for (let k = 0; k < n; k++) later(Math.round(k * Math.max(110, gap)), () => { if (live()) playSfx(pick2("is_gp_1", "is_gp_2")); });
           return 0;
+        }
+        case "melt": {
+          const tiles = pts(ev.tiles);
+          if (!tiles.length) return 0;
+          reveal(tiles);
+          pushFx(tiles.map((t) => ({ kind: "iceMelt", x: t.x, y: t.y })));
+          sfx("is_skill_2_broke");
+          look(tiles[0]);
+          return 120;
         }
         case "burst": {
           const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);

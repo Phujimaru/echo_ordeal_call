@@ -316,3 +316,21 @@ test('พายุหิมะ: กองไฟดับตลอด 3 เทิ
   Fodlan.onEndTurn(noWx);
   assert.equal(warmth(P.p0), 1);
 });
+
+test('Ice Spike (ติดตัว 5): ไม่โดนน้ำแข็งกัด/สตั้นจากแผนที่ · ไม่มีป้ายความอบอุ่น', () => {
+  const P = setup();
+  setFires([{ x: 5, y: 6 }]);
+  park(P, ['p1', 'p2']);
+  P.p0.characterId = 'ice_spike';
+  place(P.p0, 12, 2);
+  st().warmth.p0 = 0;
+  P.p0.armor = 1;
+  Math.random = () => 0; // สตั้นแน่ถ้าโดน
+  Fodlan.onEndTurn(noWx);
+  Fodlan.onEndTurn(noWx);
+  assert.equal(P.p0.armor, 1, 'ไม่เสียหาย');
+  assert.equal(P.p0.hp, 7);
+  assert.ok(!(P.p0.statuses.stun > 0), 'ไม่สตั้น');
+  assert.ok(!st().fx.some((e) => e.kind === 'frostbite' && e.id === 'p0'));
+  assert.ok(!(Fodlan.playerInfo(P.p0).badges || []).some((b) => b.key === 'frost' || b.key === 'warmth'));
+});

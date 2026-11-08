@@ -348,6 +348,8 @@ function buildStateInner(viewerId) {
           passive: charOver && charOver.passive !== undefined ? charOver.passive : ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
           passive2: charOver && charOver.passive2 !== undefined ? charOver.passive2 : ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
           passive3: ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike)
+          passive4: ch.passive4 ? { name: ch.passive4.name, desc: ch.passive4.desc } : null, // สกิลติดตัว 4–5 (Ice Spike)
+          passive5: ch.passive5 ? { name: ch.passive5.name, desc: ch.passive5.desc } : null,
           basic: basicPub,
           secondary: secondaryPub,
           ultimate: ultimatePub,

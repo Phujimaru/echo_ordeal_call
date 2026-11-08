@@ -255,19 +255,24 @@ function makeOhger(def) {
   function papiyon(engine, p, dir) {
     const [dx, dy] = LINE_DIRS[dir];
     const start = { ...p.pos };
-    let at = start, target = null;
+    let at = start, target = null, spiked = false;
     for (let i = 1; i <= NUM.papiyon.dash + 1; i++) {
       const x = start.x + dx * i, y = start.y + dy * i;
       const u = unitAt(engine, x, y);
       if (u && u.id !== p.id) { if (enemyOf(engine, p, u)) target = u; break; }
-      if (i > NUM.papiyon.dash || !engine.tileFree(x, y, p.id)) break;
+      if (i > NUM.papiyon.dash) break;
+      if (!engine.tileFree(x, y, p.id)) { spiked = !!engine.ice.spikeAt(x, y); break; } // ขวางด้วยหนามน้ำแข็ง = พุ่งชนหนาม (Ice Spike · dashBump)
       at = { x, y };
     }
     const path = [];
     for (let i = 0; i <= Math.abs(at.x - start.x) + Math.abs(at.y - start.y); i++) path.push({ x: start.x + dx * i, y: start.y + dy * i });
     if (path.length > 1) { p.pos = { ...at }; engine.setDash({ id: p.id, path, style: "ohger" }); }
     fx(engine, p, "dash", path.slice(1), { dir, target: target && target.pos ? { ...target.pos } : null });
-    if (!target) { engine.log(`🦋 ${p.name} พุ่งไปแต่ไม่มีเป้าหมาย`); return 0; }
+    if (!target) {
+      if (spiked) engine.skillBeat(BEAT.hit, () => engine.ice.dashBump(p, { x: dx, y: dy })); // หยุดเพราะหนามน้ำแข็ง = หนามทำงาน (หลังภาพพุ่ง)
+      engine.log(`🦋 ${p.name} พุ่งไปแต่ไม่มีเป้าหมาย`);
+      return 0;
+    }
     engine.skillBeat(BEAT.hit, () => engine.withEffectSource(p, () => {
       if (target.alive && hit(engine, p, target, NUM.papiyon.dmg, "พาพิยอง โอเจอร์ ฟินิช") === true) debuff(engine, target, "fragile", NUM.papiyon.fragile, NUM.papiyon.fragileTurns, "เปราะบาง");
     }));
@@ -292,22 +297,24 @@ function makeOhger(def) {
     if (!p.alive || !p.pos || !LINE_DIRS[dir] || engine.sizeOf(p) > 1) return false;
     const [dx, dy] = LINE_DIRS[dir];
     const start = { ...p.pos };
-    let at = start;
+    let at = start, spiked = false;
     for (let i = 1; i <= n; i++) {
       const x = start.x + dx * i, y = start.y + dy * i;
-      if (!engine.tileFree(x, y, p.id)) break;
+      if (!engine.tileFree(x, y, p.id)) { spiked = !!engine.ice.spikeAt(x, y); break; } // ถอยไปชนหนามน้ำแข็ง = หนามทำงาน (Ice Spike)
       at = { x, y };
     }
-    if (at === start) return false;
+    if (at === start) { if (spiked) engine.ice.dashBump(p, { x: dx, y: dy }); return false; }
     if (dash) {
       const path = [start];
       for (let i = 1; i <= Math.abs(at.x - start.x) + Math.abs(at.y - start.y); i++) path.push({ x: start.x + dx * i, y: start.y + dy * i });
       p.pos = { ...at };
       engine.setDash({ id: p.id, path, style: "ohger" });
+      if (spiked) engine.ice.dashBump(p, { x: dx, y: dy });
       return true;
     }
     const ctx = engine.ice.begin();
     knock(engine, ctx, p, at);
+    if (spiked && p.pos && p.pos.x === at.x && p.pos.y === at.y) engine.ice.bumpSpike(p, at.x + dx, at.y + dy, ctx);
     engine.ice.flush(ctx);
     return true;
   }

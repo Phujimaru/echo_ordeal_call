@@ -247,9 +247,14 @@ function loopRevive(engine, t, at) {
 // ไล่ช่องตามแนว: ชนศัตรูคนแรก (หลบพ้น = ผ่าน) · สิ่งกีดขวาง/ช่องที่ยืนไม่ได้ = หยุด
 function planDash(engine, p, dir) {
   const path = [{ ...p.pos }];
-  let hit = null;
+  let hit = null, spiked = false;
   for (const t of engine.chargeTiles(p, dir, RE_ULT_LEN)) {
-    if (t.wall || t.obstacle || t.shop) break;
+    if (t.wall || t.obstacle || t.shop) {
+      // ขวางด้วยหนามน้ำแข็ง = พุ่งชนหนาม (Ice Spike · dashBump) — spiked = ทิศพุ่ง
+      const end = path[path.length - 1];
+      if (engine.ice.isSpikeKind(t.obstacle)) spiked = { x: Math.sign(t.x - end.x), y: Math.sign(t.y - end.y) };
+      break;
+    }
     const o = t.unitId ? engine.players[t.unitId] : null;
     if (o && o.alive && !engine.sameTeam(p, o)) {
       o.wasAttacked = true;
@@ -258,7 +263,7 @@ function planDash(engine, p, dir) {
     if (o) continue; // ผ่านตัวคนได้ แต่หยุดซ้อนไม่ได้
     path.push({ x: t.x, y: t.y });
   }
-  return { path, hit };
+  return { path, hit, spiked };
 }
 function reUltImpact(engine, p, t) {
   if (!p.alive || !t.alive || !t.pos) return;
@@ -630,7 +635,7 @@ module.exports = {
     }
     if (tier === "ultimate" && s.requiem) {
       s.ultReady = engine.roundNumber + RE_ULT_CD + 1;
-      const { path, hit } = planDash(engine, p, opts.dir);
+      const { path, hit, spiked } = planDash(engine, p, opts.dir);
       s.clipNow = !!hit; // ชน = คลิป ไม่มีเสียงตัดหน้า
       if (!hit) voice(engine, p, "ultimate");
       engine.setDash({ id: p.id, path });
@@ -638,7 +643,10 @@ module.exports = {
         const end = path[path.length - 1];
         p.pos = { x: end.x, y: end.y };
         require("../server/skills").hitArea(p, path.slice(1), hit ? [hit.id] : []);
-        if (!hit) return;
+        if (!hit) {
+          if (spiked) engine.ice.dashBump(p, spiked); // หยุดเพราะหนามน้ำแข็ง = หนามทำงาน
+          return;
+        }
         engine.queueCutscene(p, CUT.reUlt);
         engine.deferAfterCutscene(() => reUltImpact(engine, p, hit));
       });

@@ -17,6 +17,13 @@
 //   · ฟืนเต็มแล้วตีต้นไม้ได้แต่ไม่ได้ฟืนเพิ่ม · ต้นไม้แห้งไม่หมด · กองไฟเล็กไม่ดับเพราะพายุ · ฟืน/ความอบอุ่นนับใหม่ทุกการมาเยือน
 // ============================================================
 const Ice = require("../ice");
+const CHAR_HOOKS = require("../../characters/index");
+
+// ฮุคตัวละคร mapEffectImmune(p, kind) → true = ไม่โดนผลของแผนที่ชนิดนั้น (Ice Spike: "frostbite" น้ำแข็งกัด + "stun" สตั้นจากแผนที่ — ผู้ใช้สั่ง 2026-11-08)
+function mapImmune(p, kind) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.mapEffectImmune && hook.mapEffectImmune(p, kind));
+}
 
 const WARM_MAX = 3;
 const FIRE_RANGE = 3;       // กองไฟใหญ่ (ผู้ใช้)
@@ -167,7 +174,7 @@ function onEndTurn(ctx, st) {
   st.warmth ||= {};
   const cold = [], frozen = [];
   for (const p of ctx.alive()) {
-    if (isSummon(p)) continue;
+    if (isSummon(p) || mapImmune(p, "frostbite")) continue; // ไม่โดนน้ำแข็งกัด = ความหนาวไม่มีผล (ไม่นับความอบอุ่น)
     const before = warmthOf(st, p);
     const now = isWarm(ctx, st, p, warm) ? Math.min(WARM_MAX, before + 1) : Math.max(0, before - 1);
     st.warmth[p.id] = now;
@@ -183,7 +190,7 @@ function onEndTurn(ctx, st) {
     const dealt = ctx.damage(p, FROST_DMG);
     ctx.log(`🥶 ${p.name} ถูกน้ำแข็งกัด — เสียหาย -${dealt} (ลดเกราะก่อน)`);
     let stun = false;
-    if (p.alive && ctx.rng() * 100 < STUN_PCT) {
+    if (p.alive && !mapImmune(p, "stun") && ctx.rng() * 100 < STUN_PCT) {
       if (ctx.Status.applyDebuff(p, "stun", null, 1)) { stun = true; ctx.log(`🧊 ${p.name} หนาวจนตัวแข็ง — ติดสตั้น 1 เทิร์น`); }
       else ctx.log(`🧊 ${p.name} ต้านความหนาวไว้ได้ (ต้านสถานะผิดปกติ)`);
     }
@@ -346,10 +353,14 @@ function publicInfo(ctx, st) {
 function playerInfo(ctx, st, p) {
   if (isSummon(p) || !p.alive) return undefined;
   const w = warmthOf(st, p);
+  if (mapImmune(p, "frostbite")) return logsInfo(st, p, w, []); // ไม่โดนน้ำแข็งกัด = ไม่มีป้ายความอบอุ่น
   const badges = [{ key: "warmth", icon: "🔥", label: `ความอบอุ่น ${w}/${WARM_MAX}`, cls: w >= WARM_MAX ? "bg-orange-300 text-gray-900" : w > 0 ? "bg-amber-200 text-gray-900" : "bg-sky-300 text-gray-900",
     desc: `จบเทิร์นอยู่ในระยะ ${FIRE_RANGE} ช่องจากกองไฟที่ลุกเพิ่ม 1 ไม่อยู่ลด 1 เหลือ 0 ติดน้ำแข็งกัด ติดลุกไหม้นับว่าอุ่น` }];
   if (w <= 0) badges.push({ key: "frost", icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900",
     desc: `จบเทิร์นเสียหาย ${FROST_DMG} เกราะรับก่อน และมีโอกาสสตั้น ${STUN_PCT}% จนกว่าจะได้ไออุ่น` });
+  return logsInfo(st, p, w, badges);
+}
+function logsInfo(st, p, w, badges) {
   const logs = logsOf(st, p);
   if (logs > 0) badges.push({ key: "logs", icon: "🪵", label: `ฟืน ${logs}/${LOG_MAX}`, cls: "bg-amber-700 text-white",
     desc: "เติมฟืนจุดกองไฟที่ดับใช้ 1 ก่อกองไฟเล็กใช้ 2" });

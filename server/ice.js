@@ -24,6 +24,7 @@ Object.assign(module.exports, {
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
+  movCutImmune, bumpSpike, dashBump, ownIceAt, ownSpikeAt, ownIceTiles, ownSpikeTiles, meltIce, breakSpike,
   wetAt, layWet, dryWet, layFlame, flameAt, placeWall, removeWall, wallsOf, isWallKind,
 });
 
@@ -272,11 +273,21 @@ function damageSpike(k, n) {
 }
 
 // ---------- เชื่องช้า ----------
-//  ระยะเดิน −1 (ไม่ซ้อน · ได้ใหม่ = นับใหม่ตาม turns) · คนที่เดินไปแล้วในเทิร์นนี้ (รวมคนที่กำลังเดิน) ได้ +1 = ครบ turns ตาเดินถัดไป
+//  ระยะเดิน −1 (ไม่ซ้อน · ได้ใหม่ = นับใหม่ตาม turns — เหลือ 3 แล้วโดนผล 1 เทิร์น = เหลือ 1 · ผู้ใช้สั่ง 2026-11-08 "ไม่สะสม แค่นับใหม่")
+//  คนที่เดินไปแล้วในเทิร์นนี้ (รวมคนที่กำลังเดิน) ได้ +1 = ครบ turns ตาเดินถัดไป
+//  ฮุค movCutImmune(p) → true = ไม่ติด (Ice Spike: ไม่โดนผลลดระยะเดิน)
 function applySlow(t, turns = SLOW_TURNS) {
-  if (!t || !t.alive) return false;
+  if (!t || !t.alive || movCutImmune(t)) return false;
   const acted = action.hasActed(t.id) || match.actorId === t.id;
-  return combat.applyDebuff(t, "slow", 1, turns + (acted ? 1 : 0));
+  const n = turns + (acted ? 1 : 0);
+  if (!combat.applyDebuff(t, "slow", 1, n)) return false;
+  if (t.statuses && t.statuses.slow) t.statuses.slow = n; // applyBuff เก็บค่ามากสุด — เชื่องช้านับใหม่ตามผลล่าสุด
+  return true;
+}
+// ไม่โดนผลลดระยะเดิน (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ) — ฮุคตัวละคร movCutImmune(p) · action.movOf ใช้ตัวเดียวกัน
+function movCutImmune(p) {
+  const hook = hookOf(p);
+  return !!(hook && hook.movCutImmune && hook.movCutImmune(p));
 }
 function slowed(p) { return ((p && p.statuses && p.statuses.slow) || 0) > 0; }
 
@@ -379,6 +390,57 @@ function spikeImpact(p, k, ctx) {
   if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); return; }
   if (!own && applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
 }
+// ตัว u ถูกพาไปทาง (x, y) แต่ชนสิ่งกีดขวางที่ช่องนั้น — เป็นหนามน้ำแข็ง (ไม่ใช่กำแพง) = หนามทำงานแบบไถลชน (spikeImpact)
+//  ผู้ใช้สั่ง 2026-11-08: ไถล / ถูกผลัก / พุ่งชน / เหยียบ เข้ากับหนาม = ทำงานเหมือนกัน · ตัวใหญ่ใช้กติกาเหยียบ (trampleSpikes) แทน
+//  คืน true = หนามทำงาน (ctx ได้เหตุการณ์ "spike")
+function bumpSpike(u, x, y, ctx) {
+  if (!u || !u.alive || !u.pos || action.sizeOf(u) > 1 || !match.board || !match.board.spikes) return false;
+  const k = K(x, y);
+  const s = match.board.spikes[k];
+  if (!s || s.wall) return false;
+  spikeImpact(u, k, ctx);
+  return true;
+}
+// ท่าพุ่งของตัวละครหยุดเพราะหนามน้ำแข็งขวางช่องถัดไป (dir = { x, y } ทิศพุ่ง) → หนามทำงาน + ส่ง iceFx เอง
+//  ผู้เรียกตัดสินว่าพุ่งถูกขวางจริง (ไม่ใช่หยุดเพราะครบระยะ) · ต้นแบบ: Lightning Sonic/Four Card (คาซุมะ) · พุ่งของ Requiem (โจรุโน่) · Papiyon (คิงโอเจอร์)
+function dashBump(u, dir) {
+  if (!u || !u.alive || !u.pos || !dir) return false;
+  const ctx = begin();
+  const hit = bumpSpike(u, u.pos.x + Math.sign(dir.x || 0), u.pos.y + Math.sign(dir.y || 0), ctx);
+  if (hit) flush(ctx);
+  return hit;
+}
+// ---------- ทำลายของตัวเอง (Ice Spike — ผู้ใช้สั่ง 2026-11-08) ----------
+//  ธารน้ำแข็งที่ช่องนี้เป็นของ owner (ไม่ใช่น้ำแข็งถาวรของแผนที่) · ไม่มีหนามทับ
+function ownIceAt(x, y, owner) {
+  const r = iceAt(x, y);
+  return !!r && r.owner === owner && !spikeAt(x, y);
+}
+function ownSpikeAt(x, y, owner) {
+  const s = spikeAt(x, y);
+  return !!s && !s.wall && s.owner === owner;
+}
+// ช่องทั้งหมดที่ owner ทำลายได้ → [{ x, y }]
+function ownIceTiles(owner) {
+  return Object.keys((match.board && match.board.ice) || {}).map(parseKey).filter((t) => ownIceAt(t.x, t.y, owner));
+}
+function ownSpikeTiles(owner) {
+  return Object.keys((match.board && match.board.spikes) || {}).map(parseKey).filter((t) => ownSpikeAt(t.x, t.y, owner));
+}
+// ทำลายธารน้ำแข็ง → true = หาย
+function meltIce(x, y) {
+  const b = match.board, k = K(x, y);
+  if (!b || !b.ice || !b.ice[k]) return false;
+  delete b.ice[k];
+  bumpVer();
+  return true;
+}
+// ทำลายหนาม (ทุก Lv หายทันที) → { x, y, lv } | null
+function breakSpike(x, y) {
+  const s = removeSpike(K(x, y));
+  return s ? { x, y, lv: s.lv } : null;
+}
+
 // ตัวใหญ่ (2×2 ขึ้นไป) เดินเหยียบหนาม (ผู้ใช้ปรับสมดุล 2026-10-20): หนามแตกทันทีทุก Lv · เสียเท่า Lv − 1 (0/1/2 · เกราะก่อน · ฆ่าได้ ·
 //  เจ้าของหนามเป็นต้นตอ) + เชื่องช้า 1 เทิร์น · เดินต่อได้ (ไม่หยุดที่หนาม — ผู้เรียกจัดการตาเดินเอง: action.trampleAlong)
 //  keys = ช่องหนามตามลำดับที่เหยียบ → เหตุการณ์ "trample" ใน ctx · คืน true = ยังมีชีวิต
@@ -424,7 +486,11 @@ function pushUnit(u, dir, ctx, n = 1) {
     if (Board.isIce(action.boardMap(), cur.x, cur.y)) break;
   }
   if (steps) { u.pos = { ...cur }; ctx.events.push({ kind: "knock", id: u.id, from, to: { ...cur } }); }
-  if (blocked) ctx.events.push({ kind: "knock", id: u.id, from: { ...cur }, to: { x: cur.x + dir.x, y: cur.y + dir.y }, collide: true });
+  if (blocked) {
+    ctx.events.push({ kind: "knock", id: u.id, from: { ...cur }, to: { x: cur.x + dir.x, y: cur.y + dir.y }, collide: true });
+    // ถูกผลักไปชนหนามน้ำแข็ง = หนามทำงานแบบไถลชน (ผู้ใช้สั่ง 2026-11-08)
+    if (bumpSpike(u, cur.x + dir.x, cur.y + dir.y, ctx) && !u.alive) return steps > 0;
+  }
   if (!steps) return false;
   const mark = ctx.events.length;
   resolveEntry(u, dir, ctx);

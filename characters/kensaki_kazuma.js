@@ -375,9 +375,9 @@ function rouze(engine, p, targets, opts) {
 function planSonic(engine, p, dir, len = SONIC.len) {
   const tiles = engine.chargeTiles(p, dir, len);
   const passed = [];
-  let hit = null, stopAt = null;
+  let hit = null, stopAt = null, spiked = false;
   for (const t of tiles) {
-    if (t.obstacle || t.shop) break;
+    if (t.obstacle || t.shop) { spiked = engine.ice.isSpikeKind(t.obstacle); break; } // ขวางด้วยหนามน้ำแข็ง = พุ่งชนหนาม (Ice Spike · dashBump)
     const o = t.unitId ? engine.players[t.unitId] : null;
     if (o) {
       if (o.alive && !engine.sameTeam(p, o)) { hit = o; stopAt = t; }
@@ -385,7 +385,7 @@ function planSonic(engine, p, dir, len = SONIC.len) {
     }
     passed.push(t);
   }
-  return { passed, hit, stopAt };
+  return { passed, hit, stopAt, spiked };
 }
 // ex = การ์ดที่เกินสูตร: KICK/MACH ระยะพุ่ง +1 · THUNDER ช็อต +1 · SLASH ดาเมจ +1 (ไม่เกิน 5) · BEAT แถวขวางกว้าง 1+2n ที่ช่องชน ·
 //  TACKLE กระเด็น +1 · TIME −10 วิ
@@ -394,7 +394,7 @@ function sonic(engine, p, dir, targets, ex = {}) {
   const start = { ...p.pos };
   const len = SONIC.len + (ex.kick || 0) + (ex.mach || 0);
   const dmg = Math.min(comboCap(p, "sonic"), SONIC.dmg + (ex.slash || 0));
-  const { passed, hit, stopAt } = planSonic(engine, p, dir, len);
+  const { passed, hit, stopAt, spiked } = planSonic(engine, p, dir, len);
   const path = [start, ...passed.map((t) => ({ x: t.x, y: t.y }))];
   const land = path[path.length - 1];
   p.pos = { x: land.x, y: land.y };
@@ -405,7 +405,11 @@ function sonic(engine, p, dir, targets, ex = {}) {
     if (!p.alive) return;
     const crossed = stopAt ? [...passed, stopAt] : passed;
     require("../server/skills").hitArea(p, crossed, hit ? [hit.id] : []);
-    if (!hit || !hit.alive || !hit.pos) { engine.log(`⚡ ${p.name} Lightning Sonic — ไม่โดนใคร`); return; }
+    if (!hit || !hit.alive || !hit.pos) {
+      if (spiked) engine.ice.dashBump(p, { x: LINE[dir][0], y: LINE[dir][1] }); // หยุดเพราะหนามน้ำแข็ง = หนามทำงาน
+      engine.log(`⚡ ${p.name} Lightning Sonic — ไม่โดนใคร`);
+      return;
+    }
     hit.wasAttacked = true;
     if (engine.skillDodge(p, hit, COMBOS.sonic.name)) {
       fx(engine, p, "sonicHit", { targetId: hit.id, to: { ...hit.pos }, dodge: true });
@@ -443,7 +447,7 @@ function fourCard(engine, p, dir, ex = {}) {
   if (!p.alive || !p.pos || !LINE[dir]) return;
   const start = { ...p.pos };
   const len = FOUR.len + (ex.kick || 0) + (ex.mach || 0);
-  const { passed, hit, stopAt } = planSonic(engine, p, dir, len);
+  const { passed, hit, stopAt, spiked } = planSonic(engine, p, dir, len);
   const path = [start, ...passed.map((t) => ({ x: t.x, y: t.y }))];
   const land = path[path.length - 1];
   p.pos = { x: land.x, y: land.y };
@@ -452,7 +456,12 @@ function fourCard(engine, p, dir, ex = {}) {
     if (!p.alive) return;
     const crossed = stopAt ? [...passed, stopAt] : passed;
     require("../server/skills").hitArea(p, crossed, hit ? [hit.id] : []);
-    if (!hit || !hit.alive || !hit.pos) { engine.sfx(SFX.dash); engine.log(`👑 ${p.name} Four Card — ไม่โดนใคร`); return; }
+    if (!hit || !hit.alive || !hit.pos) {
+      engine.sfx(SFX.dash);
+      if (spiked) engine.ice.dashBump(p, { x: LINE[dir][0], y: LINE[dir][1] }); // หยุดเพราะหนามน้ำแข็ง = หนามทำงาน
+      engine.log(`👑 ${p.name} Four Card — ไม่โดนใคร`);
+      return;
+    }
     hit.wasAttacked = true;
     if (engine.skillDodge(p, hit, COMBOS.four.name)) {
       fx(engine, p, "fourHit", { targetId: hit.id, to: { ...hit.pos }, dodge: true });
