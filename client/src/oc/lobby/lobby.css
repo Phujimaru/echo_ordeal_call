@@ -135,106 +135,115 @@
 
 /* ---------- เลือกโหมด ---------- */
 .ocl-vote .ocl-tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-/* ป้ายชื่อโหมด — กรอบคนละแบบต่อโหมด
-   กรอบวาดใน .ocl-mt-frame (::before = เส้นขอบ ::after = พื้น ตัดรูปด้วย --shape) · ::before/::after ของปุ่ม = ลวดลายประจำโหมด
-   ตัวแปร: --edge เส้นขอบ · --fill พื้น · --ink ตัวอักษร · --orn ลวดลาย · --k ขนาด (ModeVote ใส่ใน transform ทุกเฟรม) */
+/* ป้ายหมุดโหมด (ผู้ใช้สั่งทำใหม่ 2026-11-09 — ไม่เอากล่องเหลี่ยม)
+   วงไอคอนประจำโหมด + แคปซูลชื่อ + หางชี้ลงจุดบนลูกโลก · เลือกดูอยู่ = วงหมุนเรืองแสง + แสงวิ่งผ่าน · โหวตแล้ว = แคปซูลสีโหมด
+   ตัวแปร: --a สีประจำโหมด · --pin-bg พื้นแคปซูล · --pin-ink ตัวอักษร · --k ขนาด (ModeVote ใส่ใน transform ทุกเฟรม)
+   โหมดมืด: ui-theme.css เปลี่ยน --pin-bg/--pin-ink */
 .ocl-modetag {
-  --edge: var(--oc-sky); --fill: rgba(255, 255, 255, 0.95); --ink: var(--oc-ink); --orn: var(--oc-echo); --orn2: var(--oc-azure);
-  --shape: inset(0); --bw: 1.5px;
-  isolation: isolate; gap: 8px; padding: 9px 16px; color: var(--ink);
-  background: none; border: 0; font: 600 14px/1 var(--oc-f-ui);
-  filter: drop-shadow(0 6px 8px rgba(28, 63, 110, 0.16));
+  --a: var(--oc-echo); --pin-bg: rgba(255, 255, 255, 0.96); --pin-ink: var(--oc-ink); --pin-edge: color-mix(in srgb, var(--a) 40%, transparent);
+  isolation: isolate; padding: 0; gap: 0; border: 0; background: none; color: var(--pin-ink); overflow: visible;
+  font: 600 15px/1 var(--oc-f-ui);
+  filter: drop-shadow(0 8px 12px rgba(10, 24, 48, 0.28));
   transition: opacity 0.25s, filter 0.25s;
 }
-.ocl-modetag:hover, .ocl-modetag:focus-visible { --edge: var(--oc-azure); }
-.ocl-modetag.on { background: none; color: var(--ink); }
-.ocl-mt-frame { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
-.ocl-mt-frame::before, .ocl-mt-frame::after { content: ""; position: absolute; clip-path: var(--shape); transition: background 0.2s; }
-.ocl-mt-frame::before { inset: 0; background: var(--edge); }
-.ocl-mt-frame::after { inset: var(--bw); background: var(--fill); }
-.ocl-mt-name { white-space: nowrap; }
-.ocl-modetag::before, .ocl-modetag::after { content: ""; position: absolute; pointer-events: none; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
+.ocl-modetag[data-mode="ffa"] { --a: #b0509f; }
+.ocl-modetag[data-mode="duo"] { --a: #3d8bd9; }
+.ocl-modetag[data-mode="trio"] { --a: #24a37f; }
+.ocl-modetag[data-mode="moon"] { --a: #d9a531; }
+.ocl-modetag:hover, .ocl-modetag:focus-visible { outline: none; }
+.ocl-mt-body {
+  position: relative; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px 0 5px;
+  background: var(--pin-bg); border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--pin-edge);
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3), background 0.25s, box-shadow 0.25s;
+  overflow: hidden;
+}
+.ocl-modetag:hover .ocl-mt-body, .ocl-modetag:focus-visible .ocl-mt-body { transform: translateY(-3px); box-shadow: inset 0 0 0 1.5px var(--a); }
+.ocl-mt-disc {
+  position: relative; flex: none; width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a) 55%, #fff), var(--a) 70%);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--a) 60%, transparent);
+}
+.ocl-mt-disc svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ocl-modetag[data-mode="moon"] .ocl-mt-disc svg { fill: #fff; stroke: none; }
+.ocl-mt-ring { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px dashed #fff; opacity: 0; transition: opacity 0.25s; }
+.ocl-mt-name { white-space: nowrap; position: relative; }
+.ocl-modetag[data-mode="moon"] .ocl-mt-name { font: 400 13px/1 var(--oc-f-logo); letter-spacing: 0.14em; }
+/* แสงวิ่งผ่านแคปซูล */
+.ocl-mt-body::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 35%; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+}
+/* หางชี้ลงจุดบนลูกโลก + จุดเรืองแสงปลายหาง */
+.ocl-mt-tail {
+  position: absolute; left: 50%; top: 100%; width: 2px; height: 10px; margin-left: -1px; pointer-events: none;
+  background: linear-gradient(var(--a), color-mix(in srgb, var(--a) 30%, transparent));
+}
+.ocl-mt-tail::after {
+  content: ""; position: absolute; left: 50%; top: 9px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
+  background: var(--a); box-shadow: 0 0 8px var(--a);
+}
 
-/* อิสระ — หกเหลี่ยมหัวแหลม + เพชรสองข้าง (ต่างคนต่างไป) */
-.ocl-modetag[data-mode="ffa"] {
-  --shape: polygon(13px 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 13px 100%, 0 50%);
-  padding: 9px 22px;
+/* เลือกดูอยู่: ใหญ่ขึ้น วงหมุน แสงวิ่ง */
+.ocl-modetag.focus { --k: 1.12; z-index: 3; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--a) 55%, transparent)) drop-shadow(0 8px 12px rgba(10, 24, 48, 0.3)); }
+.ocl-modetag.focus .ocl-mt-body { box-shadow: inset 0 0 0 2px var(--a); }
+.ocl-modetag.focus .ocl-mt-ring { opacity: 0.9; animation: ocl-mt-spin 6s linear infinite; }
+.ocl-modetag.focus .ocl-mt-body::after { opacity: 1; animation: ocl-mt-shine 2.6s ease-in-out infinite; }
+.ocl-modetag.focus .ocl-mt-tail::after { animation: ocl-mt-pulse 1.4s ease-in-out infinite; }
+@keyframes ocl-mt-spin { to { transform: rotate(360deg); } }
+@keyframes ocl-mt-shine { 0% { left: -40%; } 60%, 100% { left: 120%; } }
+@keyframes ocl-mt-pulse { 50% { transform: scale(1.8); opacity: 0.5; } }
+/* โหวตแล้ว: แคปซูลสีโหมด */
+.ocl-modetag.on { --pin-bg: linear-gradient(120deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a) 55%, color-mix(in srgb, var(--a) 70%, #000)); --pin-ink: #fff; --pin-edge: rgba(255, 255, 255, 0.45); color: #fff; }
+.ocl-modetag.on .ocl-mt-disc { background: #fff; }
+.ocl-modetag.on .ocl-mt-disc svg { stroke: var(--a); }
+.ocl-modetag.on[data-mode="moon"] .ocl-mt-disc svg { fill: var(--a); }
+.ocl-modetag.on .ocl-mt-ring { border-color: var(--a); }
+/* เล่นไม่ได้ (คนไม่พอ/ปิดอยู่): ซีด */
+.ocl-modetag[data-blocked="true"] { --pin-ink: var(--oc-ink-3); }
+.ocl-modetag[data-blocked="true"] .ocl-mt-disc { filter: grayscale(1); opacity: 0.55; }
+.ocl-modetag[data-blocked="true"] .ocl-mt-tail { opacity: 0.4; }
+.ocl-modetag[data-blocked="true"]:not(.focus) .ocl-mt-body { box-shadow: inset 0 0 0 1.5px var(--oc-frost); }
+@media (prefers-reduced-motion: reduce) {
+  .ocl-modetag.focus .ocl-mt-ring, .ocl-modetag.focus .ocl-mt-body::after, .ocl-modetag.focus .ocl-mt-tail::after { animation: none; }
 }
-.ocl-modetag[data-mode="ffa"]::before, .ocl-modetag[data-mode="ffa"]::after {
-  top: 50%; width: 6px; height: 6px; margin-top: -3px; background: var(--orn); transform: rotate(45deg);
-}
-.ocl-modetag[data-mode="ffa"]::before { left: -9px; }
-.ocl-modetag[data-mode="ffa"]::after { right: -9px; }
 
-/* คู่หู — แคปซูล ขอบสองชั้น + ห่วงคล้องกันสองวง */
-.ocl-modetag[data-mode="duo"] { --shape: inset(0 round 999px); padding: 9px 18px 9px 40px; }
-.ocl-modetag[data-mode="duo"] .ocl-mt-frame::before, .ocl-modetag[data-mode="duo"] .ocl-mt-frame::after { border-radius: 999px; }
-.ocl-modetag[data-mode="duo"] .ocl-mt-frame::after { box-shadow: inset 0 0 0 2px var(--fill), inset 0 0 0 3px color-mix(in srgb, var(--edge) 45%, transparent); }
-.ocl-modetag[data-mode="duo"]::before, .ocl-modetag[data-mode="duo"]::after {
-  top: 50%; width: 11px; height: 11px; margin-top: -7px; border-radius: 50%; border: 2px solid var(--orn2);
-}
-.ocl-modetag[data-mode="duo"]::before { left: 12px; }
-.ocl-modetag[data-mode="duo"]::after { left: 19px; border-color: var(--orn); }
-
-/* สหายทั้ง 3 เอ๋ย — แปดเหลี่ยมตัดมุม + สามจุดเหนือป้าย + แถบล่าง */
-.ocl-modetag[data-mode="trio"] {
-  --shape: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
-  padding: 10px 18px 11px;
-}
-.ocl-modetag[data-mode="trio"]::before {
-  top: -10px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--orn);
-  box-shadow: -10px 0 0 var(--orn2), 10px 0 0 var(--orn2);
-}
-.ocl-modetag[data-mode="trio"]::after { left: 14px; right: 14px; bottom: 3px; height: 2px; background: var(--orn); opacity: 0.55; }
-
-/* Moon Cell — สี่เหลี่ยมมุมเฉียง + ลูกบาศก์ซ้อนสองชั้นทางซ้าย */
-.ocl-modetag[data-mode="moon"] {
-  --shape: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  padding: 10px 18px 10px 38px;
-}
-.ocl-modetag[data-mode="moon"] .ocl-mt-name { font: 400 14px/1 var(--oc-f-logo); letter-spacing: 0.16em; }
-.ocl-modetag[data-mode="moon"]::before, .ocl-modetag[data-mode="moon"]::after { top: 50%; width: 10px; height: 10px; margin-top: -5px; }
-.ocl-modetag[data-mode="moon"]::before { left: 12px; border: 1.5px solid var(--orn2); transform: translate(3px, -3px); }
-.ocl-modetag[data-mode="moon"]::after { left: 12px; background: var(--orn2); opacity: 0.85; }
-
-/* สถานะ (อยู่หลังกรอบประจำโหมดเพื่อทับค่า) */
-.ocl-modetag.focus {
-  --edge: var(--oc-echo); --k: 1.1; --bw: 2px; z-index: 3;
-  filter: drop-shadow(0 0 7px rgba(155, 79, 150, 0.45)) drop-shadow(0 8px 10px rgba(28, 63, 110, 0.2));
-}
-.ocl-modetag.on { --fill: linear-gradient(135deg, var(--oc-echo) 0%, var(--oc-echo-deep) 100%); --edge: var(--oc-echo-deep); --ink: #fff; --orn: #fff; --orn2: var(--oc-echo-glow); }
-.ocl-modetag.on.focus { --edge: var(--oc-azure); }
-.ocl-modetag.on .ocl-mt-frame::after { box-shadow: none; }
-.ocl-modetag[data-blocked="true"] {
-  --fill: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0 6px, rgba(220, 231, 243, 0.95) 6px 12px);
-  --ink: var(--oc-ink-3); --orn: var(--oc-ink-3); --orn2: var(--oc-frost);
-}
-.ocl-modetag[data-blocked="true"]:not(.focus):not(:hover) { --edge: var(--oc-frost); }
-
-/* ป้ายสนาม (ชั้นแรกของหน้าเลือกโหมด): โลก / Colony — ใหญ่กว่าป้ายโหมด มีขีดชี้ลงหาวัตถุ */
+/* ป้ายสนาม (ชั้นแรกของหน้าเลือกโหมด): โลก / Colony / ดวงจันทร์ + หมุด Origin / Fodlan บนโลก — แคปซูลมีจุดเรืองแสงนำหน้า + หางชี้ลง */
 .ocl-worldtag {
-  gap: 10px; padding: 11px 26px; font: 600 17px/1 var(--oc-f-ui); letter-spacing: 0.02em;
-  filter: drop-shadow(0 8px 12px rgba(28, 63, 110, 0.2)); transition: opacity 0.35s;
+  --a: var(--oc-azure); --pin-bg: rgba(255, 255, 255, 0.96); --pin-ink: var(--oc-ink);
+  gap: 10px; padding: 10px 22px 10px 16px; font: 600 16px/1 var(--oc-f-ui); letter-spacing: 0.02em; color: var(--pin-ink);
+  background: var(--pin-bg); border: 0; border-radius: 999px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--a) 55%, transparent);
+  filter: drop-shadow(0 8px 12px rgba(10, 24, 48, 0.28)); transition: opacity 0.35s, box-shadow 0.2s;
 }
-.ocl-worldtag .oc-latin { font: 400 16px/1 var(--oc-f-logo); letter-spacing: 0.22em; }
+.ocl-worldtag::before {
+  content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--a) 25%, transparent), 0 0 8px var(--a);
+}
+.ocl-worldtag:hover, .ocl-worldtag:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a); }
+.ocl-worldtag.on { --pin-bg: linear-gradient(120deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a) 60%); --pin-ink: #fff; }
+.ocl-worldtag.on::before { background: #fff; }
+.ocl-worldtag .oc-latin { font: 400 15px/1 var(--oc-f-logo); letter-spacing: 0.2em; }
 .ocl-worldtag::after {
-  content: ""; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 18px; margin-left: -0.75px;
-  background: linear-gradient(var(--oc-azure), transparent); pointer-events: none;
+  content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 18px; margin-left: -1px;
+  background: linear-gradient(var(--a), transparent); pointer-events: none;
 }
-.ocl-worldtag[data-world="colony"] { border-color: var(--oc-azure); }
-.ocl-worldtag[data-world="moon"] { border-color: var(--oc-echo); }
-/* หมุดสนามย่อยบนโลก (ModeVote ชั้น "earth"): Origin = ฟ้า · Fodlan = ทอง */
-.ocl-worldtag[data-world="origin"] { border-color: var(--oc-azure); }
-.ocl-worldtag[data-world="fodlan"] { border-color: #e0a63a; }
-.ocl-worldtag[data-world="fodlan"] .oc-latin { color: #9a6a18; }
+.ocl-worldtag[data-world="colony"] { --a: #3d8bd9; }
+.ocl-worldtag[data-world="moon"] { --a: #b0509f; }
+.ocl-worldtag[data-world="origin"] { --a: #3d8bd9; }
+.ocl-worldtag[data-world="fodlan"] { --a: #d9a531; }
 
 .ocl-dots { display: flex; gap: 3px; }
 .ocl-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: 0 0 0 1.5px #fff; }
+/* ชื่อภูมิภาคบนเส้นทาง: แคปซูลเล็ก + เลขโรมันในวง */
 .ocl-areatag {
   position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none; display: flex; align-items: center; gap: 5px;
-  font: 500 11px/1 var(--oc-f-ui); color: var(--oc-ink-2); text-shadow: 0 0 4px #fff, 0 0 2px #fff; transition: opacity 0.25s;
+  padding: 2px 9px 2px 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 1px rgba(176, 80, 159, 0.35), 0 3px 8px -3px rgba(10, 24, 48, 0.35);
+  font: 600 11px/1 var(--oc-f-ui); color: var(--oc-ink); transition: opacity 0.25s;
 }
-.ocl-areatag .oc-latin { font: 400 9px/1 var(--oc-f-logo); color: var(--oc-echo); letter-spacing: 0.06em; }
+.ocl-at-num {
+  flex: none; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center;
+  font: 400 8.5px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff; background: #b0509f;
+}
 .ocl-areatag.back { opacity: 0; }
 
 /* แผงโหมด: ซ่อนจนกว่าจะเลือกดูโหมด แล้วเลื่อนเข้ามาจากขวา (โลกเลื่อนซ้าย/ซูมผ่าน layout ใน Lobby.jsx) */

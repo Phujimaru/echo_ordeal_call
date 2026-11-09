@@ -20,6 +20,13 @@ import { OcButton, OcPanel } from "../ui";
 
 const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
 const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss" };
+// ไอคอนในวงหมุดโหมด (lobby.css .ocl-mt-disc)
+const MODE_ICONS = {
+  ffa: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9.5 9.5M4 5l1-1M13 12l-2.5 2.5M8.5 15.5L6 18M19 4L9.5 13.5M20 5l-1-1M11 12l2.5 2.5M15.5 15.5L18 18M4.5 19.5l2-2M19.5 19.5l-2-2" /></svg>,
+  duo: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></svg>,
+  trio: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="2.8" /><circle cx="6.5" cy="16" r="2.8" /><circle cx="17.5" cy="16" r="2.8" /><path d="M10.6 8.9L7.9 13.6M13.4 8.9l2.7 4.7M9.3 16h5.4" /></svg>,
+  moon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5a8 8 0 1 0 4 12.6A6.5 6.5 0 0 1 15.5 4.5z" /></svg>,
+};
 const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป" };
 const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 // หมุดโหมดของ Fodlan กระจุกรอบหมุด Fodlan (ทะเลเปิดระหว่างภูมิภาค III–IV ของ Origin)
@@ -459,11 +466,17 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         aria-pressed={focus === o.mode}
         onClick={() => preview(o.mode, false)}
       >
-        <span className="ocl-mt-frame" aria-hidden="true" />
-        <span className={`ocl-mt-name${LATIN_MODES.has(o.mode) ? " oc-latin" : ""}`}>{modeTitle(o.mode)}</span>
-        {voters.length > 0 && (
-          <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>
-        )}
+        <span className="ocl-mt-body">
+          <span className="ocl-mt-disc" aria-hidden="true">
+            <span className="ocl-mt-ring" />
+            {MODE_ICONS[o.mode]}
+          </span>
+          <span className={`ocl-mt-name${LATIN_MODES.has(o.mode) ? " oc-latin" : ""}`}>{modeTitle(o.mode)}</span>
+          {voters.length > 0 && (
+            <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>
+          )}
+        </span>
+        <span className="ocl-mt-tail" aria-hidden="true" />
       </button>
     );
   });
@@ -508,7 +521,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         })}
         {JOURNEY_AREAS.map((a, i) => (
           <span key={a.id} ref={(el) => { areaRefs.current[i] = el; }} className="ocl-areatag back" aria-hidden="true">
-            <span className="oc-latin">{a.numeral}</span>{a.short}
+            <span className="ocl-at-num oc-latin">{a.numeral}</span><span className="ocl-at-name">{a.short}</span>
           </span>
         ))}
       </div>
