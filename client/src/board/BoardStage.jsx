@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
 import { clampZoom, ZOOM_STEPS } from "./boardDraw";
 import { customProjection } from "./boardGeo";
-import { shopCovers, shopName, shopSize } from "./shopProps";
+import { shopCovers, shopName, shopDims } from "./shopProps";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
@@ -235,14 +235,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
   // โหมดร่วมมือ (duo/trio/Moon Cell): หมากเพื่อนร่วมทีมมีวงเขียว + ป้าย "ทีม" (ผู้ใช้สั่ง 2026-10-27)
   const coopMode = teamMode || state.gameMode === "moon";
-  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง): ทุกช่องของร้านขวางทาง/ยืนไม่ได้
+  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน · ร้านปกติ 1×1 · พ่อค้าเร่ 2×1 · Colony = แคปซูล 1 ช่อง): ทุกช่องของร้านขวางทาง/ยืนไม่ได้
   const shops = useMemo(() => (Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : []), [state.shops]);
-  const shopSig = shops.map((sh) => `${sh.x},${sh.y},${shopSize(sh)}`).join("|");
+  const shopSig = shops.map((sh) => `${sh.x},${sh.y},${shopDims(sh).join(",")}`).join("|");
   const shopTiles = useMemo(() => {
     const out = [];
     for (const part of shopSig ? shopSig.split("|") : []) {
-      const [x, y, n] = part.split(",").map(Number);
-      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push(key(Rules.wx(x + dx), y + dy));
+      const [x, y, w, h] = part.split(",").map(Number);
+      for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) out.push(key(Rules.wx(x + dx), y + dy));
     }
     return out;
   }, [shopSig]);

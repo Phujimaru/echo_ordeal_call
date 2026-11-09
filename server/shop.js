@@ -45,12 +45,13 @@ function addGold(p, n) {
 }
 
 // ---------- ร้านค้า 3 ร้าน (ผู้ใช้สั่ง 2026-11-08 · แผน .claude/plans/shop-three.md) ----------
-//  match.shops = [{ id, kind, x, y, size, items, openedRound, leaves, razed }]
-//   apoth = ร้านยาเจริญชัย · forge = โรงช่างลุงเริง — ปรากฏพร้อมกันทุก SHOP_INTERVAL_TURNS เทิร์น คนละจุด (2×2)
-//   cara = พ่อค้าเร่ — สุ่มโผล่ MERCHANT_PCT% ต่อเทิร์น อยู่ MERCHANT_TURNS เทิร์น · ของหายาก ช่องละ MERCHANT_STOCK ชิ้น
+//  match.shops = [{ id, kind, x, y, w, h, items, openedRound, leaves, razed }]  (x, y = มุมบนซ้าย · กว้าง w ตามแกน x · สูง h ตามแกน y)
+//   apoth = ร้านยาเจริญชัย · forge = โรงช่างลุงเริง — ปรากฏพร้อมกันทุก SHOP_INTERVAL_TURNS เทิร์น คนละจุด (1×1)
+//   cara = พ่อค้าเร่ (ร้านพิเศษ) — สุ่มโผล่ MERCHANT_PCT% ต่อเทิร์น อยู่ MERCHANT_TURNS เทิร์น · 2×1 · ของหายาก ช่องละ MERCHANT_STOCK ชิ้น
 //   Colony: ร้านทั้ง 3 มาเป็น "แคปซูลเสบียง" 1×1 ตกจากแกนกลาง (ผู้ใช้สั่ง 2026-11-09) — kind เดิม (apoth/forge/cara) + capsule: true ·
 //     server/colony.js วาง/เก็บผ่าน placeCapsule(kind, …)/clearCapsule(kind) · ชนิด "capsule" (ขายทุกอย่าง) ยังรองรับสำหรับเซฟเก่า
-//  ทุกร้านกินช่องทั้งก้อน (size×size) · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
+//  ขนาดร้าน (ผู้ใช้สั่ง 2026-11-09 — 2×2 ใหญ่เกิน): ร้านปกติ 1 ช่อง · ร้านพิเศษ 2×1 = SHOP_DIMS · แคปซูลทุกชนิด 1×1
+//  ทุกร้านกินช่องทั้งก้อน · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
 //  ของในร้าน: ชนิดละช่องเดียว ไม่ซ้ำ · สุ่มจำนวนที่ซื้อได้ต่อช่อง (ของกลาง ใครถึงก่อนได้ก่อน)
 const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง" };
 const SHOP_ITEMS = {
@@ -58,7 +59,7 @@ const SHOP_ITEMS = {
   forge: ["windBoots", "battery"],
   cara: ["lifeCrystal", "armorCrystal"],
 };
-const SHOP_SIZE = 2;
+const SHOP_DIMS = { apoth: [1, 1], forge: [1, 1], cara: [2, 1], capsule: [1, 1] };
 const MERCHANT_PCT = 25;
 const MERCHANT_TURNS = 2;
 const MERCHANT_STOCK = [1, 2];
@@ -99,25 +100,42 @@ function shopItemName(item) {
 function shopsList() { return match.shops || (match.shops = []); }
 function shopById(id) { return shopsList().find((s) => s.id === id) || null; }
 // ร้านที่ครอบช่อง (x, y) อยู่ (หรือ null)
+// ขนาดร้าน [w, h] (ร้านเก่าที่มีแค่ size = สี่เหลี่ยมจัตุรัส)
+function dimsOf(s) {
+  if (s.w) return [s.w, s.h || 1];
+  if (s.size) return [s.size, s.size];
+  return SHOP_DIMS[s.kind] || [1, 1];
+}
+// ช่องทั้งหมดของสี่เหลี่ยม w×h ที่มุม (x, y)
+function rectTiles(x, y, w, h) {
+  const out = [];
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) out.push({ x: x + dx, y: y + dy });
+  return out;
+}
+function tilesOfShop(s) { const [w, h] = dimsOf(s); return rectTiles(s.x, s.y, w, h); }
+// ระยะจากกล่อง (ตัวละคร {x, y, size}) ถึงร้าน = ระยะถึงช่องที่ใกล้สุดของร้าน
+function distToTiles(box, tiles) { return Math.min(...tiles.map((t) => Board.dist(box, { x: t.x, y: t.y, size: 1 }))); }
 function shopAt(x, y) {
-  return shopsList().find((s) => x >= s.x && x < s.x + (s.size || 1) && y >= s.y && y < s.y + (s.size || 1)) || null;
+  return shopsList().find((s) => tilesOfShop(s).some((t) => t.x === x && t.y === y)) || null;
 }
 // ทุกช่องที่ร้านกินอยู่ (Set ของ key "x,y")
 function shopTiles() {
   const out = new Set();
-  for (const s of shopsList()) for (let dx = 0; dx < (s.size || 1); dx++) for (let dy = 0; dy < (s.size || 1); dy++) out.add(Board.key(s.x + dx, s.y + dy));
+  for (const s of shopsList()) for (const t of tilesOfShop(s)) out.add(Board.key(t.x, t.y));
   return out;
 }
-function shopBox(s) { return { x: s.x, y: s.y, size: s.size || 1 }; }
 // สร้างของในร้าน (ชนิดละช่อง · สุ่มจำนวน)
 function stockShop(s) {
   match.shopRoundSeq = (match.shopRoundSeq || 0) + 1;
   s.items = shopCatalog(s.kind).map((it, i) => ({ id: `${s.id}_${match.shopRoundSeq}_${i}`, ...it, stockBase: rollStock(s.kind), bought: 0, sold: false, soldTo: null }));
 }
 // เปิดร้าน kind ที่จุด (x, y) — แทนร้าน kind เดิม (ถ้ามี)
-function openShopAt(kind, x, y, size = SHOP_SIZE, extra = {}) {
+//  (เดิมรับ size เป็นอาร์กิวเมนต์ที่ 4 — ยังรับได้ แต่ขนาดจริงมาจาก SHOP_DIMS)
+function openShopAt(kind, x, y, extra = {}, legacyExtra) {
+  if (typeof extra === "number") extra = legacyExtra || {};
   match.shops = shopsList().filter((s) => s.kind !== kind);
-  const s = { id: kind, kind, x, y, size, items: [], openedRound: Zero.worldRound(), razed: false, ...extra };
+  const [w, h] = SHOP_DIMS[kind] || [1, 1];
+  const s = { id: kind, kind, x, y, w, h, items: [], openedRound: Zero.worldRound(), razed: false, ...extra };
   stockShop(s);
   match.shops.push(s);
   refreshShopForJourney();
@@ -169,19 +187,19 @@ function journeyGiftItem() {
   ].filter((it) => it.price <= 5);
   return { ...pool[Math.floor(Math.random() * pool.length)] };
 }
-// ---------- ที่ตั้งร้านบนแผนที่ (GRID_PLAN §8.1 · 2×2) ----------
-//  จุดร้านค้า (map.shopSpots) = มุมบนซ้ายของร้าน 2×2 · ใช้ได้เมื่อ 4 ช่องอยู่ในกระดาน ไม่มี terrain ไม่มีคนยืน (ทุกชั้นมิติ)
-//  ไม่ทับร้านอื่น (เว้นห่างอย่างน้อย 1 ช่อง) · avoid = จุดเดิมของร้านนั้น (ไม่ซ้ำจุดเดิม)
-function spotFree(map, units, x, y, size, others) {
-  for (let dx = 0; dx < size; dx++) for (let dy = 0; dy < size; dy++) {
-    const tx = x + dx, ty = y + dy;
-    if (tx < 0 || ty < 0 || tx >= map.cols || ty >= map.rows) return false;
-    if (map.terrain[Board.key(tx, ty)]) return false;
-    if (units.some((u) => u.pos && Board.dist(Board.boxOf(u), { x: tx, y: ty, size: 1 }) === 0)) return false;
+// ---------- ที่ตั้งร้านบนแผนที่ (GRID_PLAN §8.1) ----------
+//  จุดร้านค้า (map.shopSpots) = มุมบนซ้ายของร้าน · ใช้ได้เมื่อทุกช่องของร้านอยู่ในกระดาน ไม่มี terrain ไม่มีคนยืน (ทุกชั้นมิติ)
+//  ไม่ทับร้านอื่น (เว้นห่างอย่างน้อย 1 ช่อง) · avoid = จุดเดิมของร้านนั้น (ไม่ซ้ำจุดเดิม) · dims = [w, h] ของร้านที่จะตั้ง
+function spotFree(map, units, x, y, dims, others) {
+  const tiles = rectTiles(x, y, dims[0], dims[1]);
+  for (const t of tiles) {
+    if (t.x < 0 || t.y < 0 || t.x >= map.cols || t.y >= map.rows) return false;
+    if (map.terrain[Board.key(t.x, t.y)]) return false;
+    if (units.some((u) => u.pos && Board.dist(Board.boxOf(u), { x: t.x, y: t.y, size: 1 }) === 0)) return false;
   }
-  return others.every((o) => Board.dist({ x, y, size }, shopBox(o)) >= 2);
+  return others.every((o) => Math.min(...tiles.map((t) => distToTiles({ x: t.x, y: t.y, size: 1 }, tilesOfShop(o)))) >= 2);
 }
-function pickSpots(n, keep = [], avoid = [], size = SHOP_SIZE) {
+function pickSpots(n, keep = [], avoid = [], dims = [1, 1]) {
   const map = action.boardMap();
   const units = Object.values(match.players).filter((p) => p.alive && p.pos);
   const out = [];
@@ -190,17 +208,17 @@ function pickSpots(n, keep = [], avoid = [], size = SHOP_SIZE) {
     if (out.length >= n) break;
     if (pass === 0 && avoid.some((a) => a && a.x === s.x && a.y === s.y)) continue; // รอบแรกเลี่ยงจุดเดิม · ไม่พอค่อยยอมใช้
     if (out.some((o) => o.x === s.x && o.y === s.y)) continue;
-    if (spotFree(map, units, s.x, s.y, size, [...keep, ...out.map((o) => ({ ...o, size }))])) out.push({ x: s.x, y: s.y });
+    if (spotFree(map, units, s.x, s.y, dims, [...keep, ...out.map((o) => ({ ...o, w: dims[0], h: dims[1] }))])) out.push({ x: s.x, y: s.y });
   }
   // จุดตั้งร้านของแผนที่ไม่พอ (เช่น ชั้นของด่านทับ) = หาช่องว่างขนาดร้านจากทั้งแผนที่ (ห่างจุดเกิดของผู้เล่นอย่างน้อย 2)
   if (out.length < n) {
     const cells = [];
-    for (let y = 1; y < map.rows - size; y++) for (let x = 1; x < map.cols - size; x++) cells.push({ x, y });
+    for (let y = 1; y < map.rows - dims[1]; y++) for (let x = 1; x < map.cols - dims[0]; x++) cells.push({ x, y });
     cells.sort(() => Math.random() - 0.5);
     for (const c of cells) {
       if (out.length >= n) break;
-      if (units.some((u) => Board.dist(Board.boxOf(u), { x: c.x, y: c.y, size }) < 2)) continue;
-      if (spotFree(map, units, c.x, c.y, size, [...keep, ...out.map((o) => ({ ...o, size }))])) out.push(c);
+      if (units.some((u) => distToTiles(Board.boxOf(u), rectTiles(c.x, c.y, dims[0], dims[1])) < 2)) continue;
+      if (spotFree(map, units, c.x, c.y, dims, [...keep, ...out.map((o) => ({ ...o, w: dims[0], h: dims[1] }))])) out.push(c);
     }
   }
   return out;
@@ -211,7 +229,7 @@ function relocateShop() {
   const keep = shopsList().filter((s) => s.kind === "cara");
   match.shops = keep;
   match.shopCycleRound = Zero.worldRound(); // เวลาโลก (ห่วงเวลาซีโร่ไม่นับ)
-  const spots = pickSpots(2, keep, prev);
+  const spots = pickSpots(2, keep, prev, SHOP_DIMS.apoth);
   if (spots[0]) openShopAt("apoth", spots[0].x, spots[0].y);
   if (spots[1]) openShopAt("forge", spots[1].x, spots[1].y);
 }
@@ -224,8 +242,8 @@ function tickMerchant() {
   const cur = shopById("cara");
   if (cur && now >= cur.leaves) { match.shops = shopsList().filter((s) => s !== cur); match.lastLog.push("🐎 พ่อค้าเร่จากไปแล้ว"); }
   if (shopById("cara") || Math.random() * 100 >= MERCHANT_PCT) return;
-  const spot = pickSpots(1, shopsList())[0];
-  if (spot) openShopAt("cara", spot.x, spot.y, SHOP_SIZE, { leaves: now + MERCHANT_TURNS });
+  const spot = pickSpots(1, shopsList(), [], SHOP_DIMS.cara)[0];
+  if (spot) openShopAt("cara", spot.x, spot.y, { leaves: now + MERCHANT_TURNS });
 }
 // ต้นเทิร์น (dealRound): ครบกำหนด = ร้านยา/โรงช่างปรากฏจุดใหม่ + ของใหม่ · พ่อค้าเร่สุ่มโผล่/จากไป · คิดผลของภูมิภาคใหม่
 function maybeMoveShop() {
@@ -245,7 +263,7 @@ function shopTurnsLeftOf(s) {
 function shopTurnsLeft() { return shopTurnsLeftOf(shopById("apoth") || shopsList()[0]); }
 // ร้านถูกพัง (ท่าไม้ตายเรียวกิ/อรชุน): ร้านที่ครอบช่องในพื้นที่หายไป (จนถึงรอบปรากฏถัดไป) — คืนร้านที่พัง
 function razeShopsIn(keys) {
-  const hit = shopsList().filter((s) => { for (let dx = 0; dx < (s.size || 1); dx++) for (let dy = 0; dy < (s.size || 1); dy++) if (keys.has(Board.key(s.x + dx, s.y + dy))) return true; return false; });
+  const hit = shopsList().filter((s) => tilesOfShop(s).some((t) => keys.has(Board.key(t.x, t.y))));
   if (hit.length) match.shops = shopsList().filter((s) => !hit.includes(s));
   return hit;
 }
@@ -255,7 +273,7 @@ function capsule() { return capsules()[0] || null; }
 // วางแคปซูลชนิด kind (apoth | forge | cara) — แทนแคปซูลชนิดเดียวกันที่มีอยู่ · final = แคปซูลสุดท้าย (ของแพงกว่า ×1.5)
 function placeCapsule(kind, x, y, final) {
   if (typeof kind === "number") { final = y; y = x; x = kind; kind = "apoth"; } // ลายเซ็นเดิม placeCapsule(x, y, final)
-  const s = openShopAt(kind, x, y, 1, { openedRound: match.roundNumber + 1, capsule: true, final: !!final });
+  const s = openShopAt(kind, x, y, { openedRound: match.roundNumber + 1, capsule: true, final: !!final, w: 1, h: 1 });
   if (final) for (const it of s.items) it.price = Math.ceil(it.price * 1.5);
   return s;
 }
@@ -264,10 +282,13 @@ function clearCapsule(kind) { match.shops = shopsList().filter((s) => !((s.capsu
 function clearShops() { match.shops = []; match.shopCycleRound = null; }
 // สถานะที่ส่งให้ client (view.js)
 function publicShops() {
-  return shopsList().map((s) => ({ id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, size: s.size || 1, turnsLeft: shopTurnsLeftOf(s), items: s.items || [], ...(s.capsule ? { capsule: true } : {}) }));
+  return shopsList().map((s) => {
+    const [w, h] = dimsOf(s);
+    return { id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, w, h, turnsLeft: shopTurnsLeftOf(s), items: s.items || [], ...(s.capsule ? { capsule: true } : {}) };
+  });
 }
 // ผู้เล่นยืนติดร้านนี้ไหม (ตัวใหญ่นับจากขอบตัว)
-function nearShopOf(p, s) { return !!p && !!p.pos && !!s && Board.dist(Board.boxOf(p), shopBox(s)) === 1; }
+function nearShopOf(p, s) { return !!p && !!p.pos && !!s && distToTiles(Board.boxOf(p), tilesOfShop(s)) === 1; }
 
 // ---------- กระเป๋า 5 ช่อง ----------
 //  ขนมปังของเอมิลิโกะ (ของประจำตัว) ไม่กินช่อง
@@ -540,4 +561,4 @@ function cleansableOf(p) {
   if (!p || !p.statuses) return [];
   return BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP).filter((k) => (p.statuses[k] || 0) > 0);
 }
-Object.assign(module.exports, { SHOP_NAMES, SHOP_ITEMS, MERCHANT_PCT, MERCHANT_TURNS });
+Object.assign(module.exports, { SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop });

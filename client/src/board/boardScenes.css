@@ -30,7 +30,7 @@
 .toc-orbit .o2 { stroke: rgba(61,139,217,.4); stroke-width: 1.2; stroke-dasharray: 3 9; }
 @keyframes tocDraw { from { stroke-dashoffset: 2200; } to { stroke-dashoffset: 0; } }
 .toc-head { position: absolute; top: 464px; left: 400px; width: 1920px; text-align: center; color: #1c3f6e; animation: tocDrop .5s ease .25s both; }
-.toc-lat { font-size: 15px; color: #3d8bd9; }
+.toc-lat { font-size: 15px; color: #2f73bd; }
 .toc-head h1 { margin: 10px 0 0; font: 700 78px/1.1 var(--oc-f-ui); position: relative; display: inline-block; }
 .toc-head h1::before, .toc-head h1::after { content: ""; position: absolute; top: 55%; width: 260px; height: 2px; background: linear-gradient(90deg, transparent, #3d8bd9); }
 .toc-head h1::before { right: calc(100% + 36px); } .toc-head h1::after { left: calc(100% + 36px); transform: scaleX(-1); }

@@ -1,0 +1,262 @@
+/* ============================================================
+   ธีม UI ในเกม — ไฟล์นี้ไม่อยู่ใน @layer (main.jsx) จึงชนะ utility ของ Tailwind (.text-white ฯลฯ) และสไตล์ใน @layer components
+   ส่วนที่ 1: แก้ตัวอักษรในหน้าต่างขาว (AvModal tone="white") — กฎเดิมใน avalon-screens.css อยู่ใน @layer components
+             จึงแพ้ .text-white เสมอ (หัวข้อเป็นขาวบนขาว) · สีแบบ inline ใน Game.jsx ใช้ตัวแปร --avm-* (ค่าเดิมเป็น fallback)
+   ส่วนที่ 2: โหมดมืด (ผู้ใช้สั่ง 2026-11-09) — ทับธีมขาวเมื่อ <html data-ui="dark"> (uiTheme.js · สลับที่ห้องรอ)
+   ============================================================ */
+.av-modal-white { --avm-dim: #46668f; --avm-text: #2d4f7a; --avm-gold: #8a5a10; --avm-line: rgba(61,139,217,.25); }
+.av-modal-white .avm-k { --avm-on: color-mix(in srgb, var(--avm-c, #3d8bd9) 55%, #0b1a35); }
+.av-modal-white .av-modal-head .text-white { color: #1c3f6e; }
+.av-modal-white .text-echo-ice,
+.av-modal-white .text-echo-cyan { color: #2a78c0; }
+:root[data-ui="dark"] .av-modal-white { --avm-dim: rgba(234,243,252,.6); --avm-text: rgba(234,243,252,.8); --avm-gold: var(--av-gold-lit); --avm-line: rgba(255,255,255,.12); }
+:root[data-ui="dark"] .av-modal-white .avm-k { --avm-on: color-mix(in srgb, var(--avm-c, #7fb8e6) 45%, #ffffff); }
+:root[data-ui="dark"] .av-modal-white .text-echo-ice,
+:root[data-ui="dark"] .av-modal-white .text-echo-cyan { color: #8cc4f0; }
+
+:root[data-ui="dark"] {
+  --ocw-lattice: repeating-linear-gradient(60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px);
+  --ocw-paper: linear-gradient(115deg, #18325c, #10254a 40%, #0a1834);
+  --ocw-ink: #e8f0fa;
+  --ocw-mute: #a9c2e2;
+  --ocw-line: rgba(127,184,230,.5);
+  --ocw-d-deep: #0b1a35;
+  --ocw-d-hex: radial-gradient(circle at 50% 30%, #2c4c7d, #17305a 58%, #0b1a35);
+}
+:root[data-ui="dark"] .hud-dock { --hud-cell-off: rgba(255,255,255,.14); }
+
+/* ---------- HUD: กล่องกระจก · ป้ายบน · แผงตัวละคร ---------- */
+:root[data-ui="dark"] .hud-dock .hud-glass,
+:root[data-ui="dark"] .hud-top:not([data-zero="true"]):not([data-colony="boom"]) { box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+:root[data-ui="dark"] .hud-top-region:hover .hud-top-name,
+:root[data-ui="dark"] .hud-name:hover,
+:root[data-ui="dark"] .hud-drawer-tab:hover,
+:root[data-ui="dark"] .hud-peek:hover,
+:root[data-ui="dark"] .deck-drawer-tab:hover { color: #8cc4f0; }
+:root[data-ui="dark"] .hud-top .bd-timer-ring { stroke: rgba(255,255,255,.16); }
+:root[data-ui="dark"] .hud-top .bd-timer-arc { stroke: #7fb8e6; }
+:root[data-ui="dark"] .hud-top .bd-timer { --bd-timer-low: #ff8a9a; }
+:root[data-ui="dark"] .hud-top-div { background: rgba(127,184,230,.3); }
+:root[data-ui="dark"] .hud-prof-card .sr.sr-big .sr-off { background: rgba(255,255,255,.14); }
+:root[data-ui="dark"] .hud-sp-strip {
+  background: var(--ocw-lattice), linear-gradient(90deg, #2c1a3c, #1c1030);
+  border-color: rgba(201,154,214,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  color: #f3e0fa;
+}
+:root[data-ui="dark"] .hud-sp-label { color: #d7a8e6; }
+:root[data-ui="dark"] .hud-pips > span { background: rgba(255,255,255,.14); }
+:root[data-ui="dark"] .hud-sp-num { color: #f3e0fa; }
+:root[data-ui="dark"] .hud-sp-num > span { color: #c9a2d8; }
+:root[data-ui="dark"] .hud-res-strip,
+:root[data-ui="dark"] .hud-res-pack { background: var(--ocw-lattice), linear-gradient(90deg, #15305a, #0e2140); }
+:root[data-ui="dark"] .hud-hexframe-dark { background: var(--ocw-d-deep); }
+:root[data-ui="dark"] .hud-hexframe-in { background: var(--ocw-d-hex); }
+:root[data-ui="dark"] .hud-skill-blank { color: rgba(232,240,250,.35); }
+:root[data-ui="dark"] .hud-skill-cd { background: rgba(10,24,52,.8); }
+:root[data-ui="dark"] .hud-skill[data-tier="ultimate"] .hud-skill-tier { color: #f0c868; }
+:root[data-ui="dark"] .hud-skill-cost { background: #2c2410; color: #f0c868; border-color: #c4902a; }
+:root[data-ui="dark"] .hud-skill-cost[data-cheap="true"] { background: linear-gradient(160deg, #ffe9a8, #f0c868); color: #3a2604; }
+:root[data-ui="dark"] .hud-skill-range { background: #2c1a3c; border-color: #9b4f96; color: #e0b6ef; }
+:root[data-ui="dark"] .hud-skill-ammo { background: rgba(10,24,52,.92); }
+:root[data-ui="dark"] .hud-skill-ammo > span { background: rgba(255,255,255,.18); }
+:root[data-ui="dark"] .hud-skill-ammo-n { color: #6fe0c8; }
+:root[data-ui="dark"] .hud-skill[data-state="ready"] .hud-skill-hex::after { background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.35) 50%, transparent 65%); }
+/* เหรียญ + แท็บสถานะ + ถาดการ์ด */
+:root[data-ui="dark"] .hud-gold-chip { color: #f0c868; }
+:root[data-ui="dark"] .hud-gold-chip::before { background: var(--ocw-lattice), linear-gradient(90deg, #2e2410, #1c1608); border-color: rgba(214,166,58,.7); }
+:root[data-ui="dark"] .hud-gold-max,
+:root[data-ui="dark"] .hud-gold-num { color: #f0c868; }
+:root[data-ui="dark"] .hud-gold-chip[data-full="true"] .hud-gold-num > b { color: #ffd77a; }
+:root[data-ui="dark"] .hud-gold-float { color: #ffd77a; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+:root[data-ui="dark"] .hud-drawer-count { background: rgba(127,184,230,.2); }
+:root[data-ui="dark"] .deck-drawer { box-shadow: inset 0 0 0 1px var(--ocw-line), 0 10px 24px rgba(0,0,0,.45); }
+:root[data-ui="dark"] .deck-drawer-tab { border-left-color: rgba(127,184,230,.3); }
+:root[data-ui="dark"] .deck-drawer-ico { background: var(--ocw-d-deep); }
+
+/* ---------- ปุ่มคำสั่ง (ย้อน / จบตา / ร้าน / ขี่) ---------- */
+:root[data-ui="dark"] .hc-btn { filter: drop-shadow(0 5px 12px rgba(0,0,0,.45)); }
+:root[data-ui="dark"] .hc-btn::before { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%); }
+:root[data-ui="dark"] .hc-btn:disabled { background: var(--ocw-lattice), linear-gradient(115deg, rgba(32,54,92,.9), rgba(20,38,70,.85)); }
+:root[data-ui="dark"] .hc-btn.shop,
+:root[data-ui="dark"] .hc-btn.shop[data-kind] {
+  background: linear-gradient(90deg, var(--hc-accent) 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #2e2410, #1a1508);
+  color: #f6dc96; box-shadow: inset 0 0 0 1px rgba(214,166,58,.6);
+}
+:root[data-ui="dark"] .hc-btn.shop::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.25) 50%, transparent 70%); }
+:root[data-ui="dark"] .hc-btn.ride { background: linear-gradient(90deg, #d863a5 0 5px, transparent 5px), var(--ocw-lattice), linear-gradient(115deg, #3a1630, #22101c); color: #f7b8dc; box-shadow: inset 0 0 0 1px rgba(216,99,165,.55); }
+:root[data-ui="dark"] .hc-btn.ride:disabled { background: var(--ocw-lattice), linear-gradient(115deg, rgba(32,54,92,.9), rgba(20,38,70,.85)); }
+
+/* ---------- ช่วงจั่ว: หน้าปัด ---------- */
+:root[data-ui="dark"] .dd-dial .disc { fill: #0f2140; stroke: rgba(127,184,230,.6); }
+:root[data-ui="dark"] .dd-dial .trk { stroke: rgba(255,255,255,.15); }
+:root[data-ui="dark"] .dd-dial .tick line { stroke: rgba(232,240,250,.45); }
+:root[data-ui="dark"] .dd-num { color: #e8f0fa; }
+:root[data-ui="dark"] .dd-num span { color: #8cc4f0; }
+:root[data-ui="dark"] .dd-dial[data-bust="true"] .dd-num b { color: #ff8a9a; }
+:root[data-ui="dark"] .dd-btn { filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+
+/* ---------- ปุ่มโจมตี ---------- */
+:root[data-ui="dark"] .atkb { color: #e8f0fa; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+:root[data-ui="dark"] .atkb-bg { background: linear-gradient(90deg, #ff6b80 0 6px, transparent 6px), var(--ocw-lattice), var(--ocw-paper); }
+:root[data-ui="dark"] .atkb-bg::before { border-color: rgba(127,184,230,.5); }
+:root[data-ui="dark"] .atkb-bg::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%); }
+:root[data-ui="dark"] .atkb-hex::after,
+:root[data-ui="dark"] .bb-hex::after { background: var(--ocw-d-hex); }
+:root[data-ui="dark"] .atkb-blade { fill: #e8f0fa; stroke: #0b1a35; }
+:root[data-ui="dark"] .atkb-grip { stroke: #bcd6f2; }
+:root[data-ui="dark"] .atkb-chev i { background: #ff6b80; }
+:root[data-ui="dark"] .atkb-count,
+:root[data-ui="dark"] .bb-count { box-shadow: 0 0 0 2px var(--ocw-d-deep); }
+:root[data-ui="dark"] .atkb[data-off="true"] .atkb-bg { background: var(--ocw-lattice), linear-gradient(115deg, rgba(32,54,92,.9), rgba(20,38,70,.85)); }
+
+/* ---------- ปุ่มกระเป๋า ---------- */
+:root[data-ui="dark"] .bb { color: #e8f0fa; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+:root[data-ui="dark"] .bb-bg { background: linear-gradient(90deg, #c98ac4 0 5px, transparent 5px), var(--ocw-lattice), var(--ocw-paper); }
+:root[data-ui="dark"] .bb-bg::before { border-color: rgba(127,184,230,.5); }
+:root[data-ui="dark"] .bb-bg::after { background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.3) 50%, transparent 65%); }
+:root[data-ui="dark"] .bb-pips i { background: rgba(127,184,230,.25); }
+
+/* ---------- กระเป๋า (BagScreen) ---------- */
+:root[data-ui="dark"] .bag-panel { background: var(--ocw-lattice), linear-gradient(160deg, #18325c, #10254a 45%, #0a1834);
+  box-shadow: inset 0 0 0 1px var(--ocw-line), inset 0 0 0 6px rgba(255,255,255,.03), inset 0 0 0 7px rgba(127,184,230,.3); }
+:root[data-ui="dark"] .bag-head { border-bottom-color: rgba(127,184,230,.25); }
+:root[data-ui="dark"] .bag-lat { color: #8cc4f0; }
+:root[data-ui="dark"] .bag-x { background: rgba(127,184,230,.16); }
+:root[data-ui="dark"] .bag-slot { background: linear-gradient(170deg, #1b3762, #112548); box-shadow: inset 0 0 0 1px var(--ocw-line), 0 6px 14px rgba(0,0,0,.3); }
+:root[data-ui="dark"] .bag-slot::after { background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.25) 50%, transparent 65%); }
+:root[data-ui="dark"] .bag-slot:hover { background: linear-gradient(170deg, #22426f, #15305a); box-shadow: inset 0 0 0 2px #7fb8e6, 0 10px 20px rgba(0,0,0,.4); }
+:root[data-ui="dark"] .bag-slot-img,
+:root[data-ui="dark"] .bag-detail-img { filter: drop-shadow(0 8px 10px rgba(0,0,0,.5)); }
+:root[data-ui="dark"] .bag-slot[data-sel="true"] { background: linear-gradient(170deg, #3a2050, #261438); box-shadow: inset 0 0 0 3px #c99ad6, 0 0 22px rgba(201,154,214,.4); }
+:root[data-ui="dark"] .bag-slot.empty { background: rgba(255,255,255,.04); outline-color: rgba(127,184,230,.25); box-shadow: none; }
+:root[data-ui="dark"] .bag-slot.empty i,
+:root[data-ui="dark"] .bag-detail-none i { background: rgba(127,184,230,.14); }
+:root[data-ui="dark"] .bag-detail { background: var(--ocw-lattice), linear-gradient(170deg, #18325c, #0f2140); }
+:root[data-ui="dark"] .bag-detail-short { color: #a9d0f5; background: rgba(127,184,230,.16); }
+:root[data-ui="dark"] .bag-ammo-btn { background: #18325c; }
+:root[data-ui="dark"] .bag-ammo-btn:hover { background: #2c1f44; }
+:root[data-ui="dark"] .bag-btn { background: var(--ocw-lattice), linear-gradient(115deg, #1e3c6a, #132a4e); }
+:root[data-ui="dark"] .bag-btn::after { background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.25) 50%, transparent 70%); }
+:root[data-ui="dark"] .bag-btn.primary { background: linear-gradient(115deg, #c98ac4, #9b4f96 45%, #6e2c7a); }
+:root[data-ui="dark"] .bag-btn.ghost { background: transparent; color: #a9d0f5; box-shadow: inset 0 0 0 1px rgba(127,184,230,.45); }
+:root[data-ui="dark"] .bag-btn.ghost:hover:not(:disabled) { color: #ff8a9a; box-shadow: inset 0 0 0 1px #ff8a9a; }
+:root[data-ui="dark"] .bag-slot-whistle { background: linear-gradient(170deg, #2e2410, #2a1838); box-shadow: inset 0 0 0 2px rgba(214,166,58,.7), 0 0 18px rgba(232,182,74,.2); }
+:root[data-ui="dark"] .bag-slot-whistle:hover { background: linear-gradient(170deg, #3a2e14, #34204a); }
+:root[data-ui="dark"] .bag-slot-whistle[data-sel="true"] { background: linear-gradient(170deg, #45361a, #3a2454); }
+:root[data-ui="dark"] .bag-slot-whistle .bag-slot-name,
+:root[data-ui="dark"] .bag-whistle-stats { color: #f0c868; }
+:root[data-ui="dark"] .bag-cl { color: #e8f0fa; background: #18325c; box-shadow: inset 0 0 0 2px rgba(127,184,230,.45); }
+:root[data-ui="dark"] .bag-cl:hover { box-shadow: inset 0 0 0 2px #7fb8e6, 0 4px 10px rgba(0,0,0,.35); }
+
+/* ---------- หน้าต่างในเกม (AvModal tone="white") ---------- */
+:root[data-ui="dark"] .av-modal-white {
+  --ocw-lattice: repeating-linear-gradient(60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px);
+  background: radial-gradient(70% 70% at 50% 50%, rgba(6,14,32,.45), rgba(4,10,24,.75));
+}
+:root[data-ui="dark"] .av-modal-white .av-modal {
+  color: #e8f0fa;
+  background: var(--ocw-lattice), linear-gradient(170deg, #18325c 0%, #10254a 50%, #0a1834 100%);
+  border-color: rgba(127,184,230,.5);
+  box-shadow: inset 0 0 0 1px rgba(127,184,230,.5), inset 0 0 0 6px rgba(255,255,255,.03), inset 0 0 0 7px rgba(127,184,230,.25);
+}
+:root[data-ui="dark"] .av-modal-white .av-modal-head { background: linear-gradient(100deg, rgba(127,184,230,.18), rgba(255,255,255,0)); }
+:root[data-ui="dark"] .av-modal-white .av-modal-head .text-white { color: #ffffff; }
+:root[data-ui="dark"] .av-modal-white .av-label { color: #8cc4f0; }
+:root[data-ui="dark"] .av-modal-white .av-modal-x { color: #e8f0fa; background: rgba(127,184,230,.15); border-color: rgba(127,184,230,.45); }
+:root[data-ui="dark"] .av-modal-white .av-item { background: linear-gradient(120deg, #18325c, #112548); border-color: rgba(127,184,230,.35); box-shadow: 0 4px 10px rgba(0,0,0,.25); }
+:root[data-ui="dark"] .av-modal-white .av-item:hover { border-color: #7fb8e6; box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+:root[data-ui="dark"] .av-modal-white .av-chip { color: #e8f0fa; background: rgba(10,24,52,.85); border-color: rgba(127,184,230,.45); }
+:root[data-ui="dark"] .av-modal-white .av-btn-ghost { color: #e8f0fa; background: rgba(24,50,92,.85); border-color: rgba(127,184,230,.45); }
+:root[data-ui="dark"] .av-modal-white .av-btn-ghost:hover:not(:disabled) { color: #ffffff; background: #22426f; }
+:root[data-ui="dark"] .av-modal-white .text-white,
+:root[data-ui="dark"] .av-modal-white .text-echo-white { color: #e8f0fa; }
+:root[data-ui="dark"] .av-modal-white .text-echo-ice,
+:root[data-ui="dark"] .av-modal-white .text-echo-cyan { color: #8cc4f0; }
+:root[data-ui="dark"] .av-modal-white .opacity-90,
+:root[data-ui="dark"] .av-modal-white .opacity-80 { color: #c9dcf2; }
+:root[data-ui="dark"] .av-modal-white .oc-shop-card { background: var(--ocw-lattice), linear-gradient(170deg, #18325c, #112548); box-shadow: inset 0 0 0 1px rgba(127,184,230,.45), 0 6px 14px rgba(0,0,0,.3); }
+:root[data-ui="dark"] .av-modal-white .oc-shop-card:not(.sold):hover { box-shadow: inset 0 0 0 2px #7fb8e6, 0 12px 22px rgba(0,0,0,.4); }
+:root[data-ui="dark"] .av-modal-white .oc-shop-short { color: #a9c2e2; }
+:root[data-ui="dark"] .av-modal-white .oc-shop-price { color: #f0c868; }
+:root[data-ui="dark"] .av-modal-white .oc-shop-stock { color: #8cc4f0; }
+
+/* ============ หน้าร้านค้า (shopScreen.css) ============ */
+:root[data-ui="dark"] .shs-veil {
+  --ink: #e8f0fa; --mute: #a9c2e2; --line: rgba(127,184,230,.5);
+  --lattice: repeating-linear-gradient(60deg, rgba(127,184,230,.08) 0 1px, transparent 1px 16px), repeating-linear-gradient(-60deg, rgba(127,184,230,.08) 0 1px, transparent 1px 16px);
+  background: radial-gradient(70% 70% at 50% 50%, rgba(6,14,32,.45), rgba(4,10,24,.75));
+}
+:root[data-ui="dark"] .shs-frame { background: var(--lattice), linear-gradient(160deg, #18325c, #10254a 50%, #0a1834);
+  box-shadow: inset 0 0 0 2px var(--line), inset 0 0 0 9px rgba(255,255,255,.03), inset 0 0 0 10px rgba(127,184,230,.3); }
+:root[data-ui="dark"] .shs-crest::after { background: var(--ocw-d-hex); }
+:root[data-ui="dark"] .shs-ttl small { color: var(--c1); }
+:root[data-ui="dark"] .shs-chip.turns { background: #10254a; }
+:root[data-ui="dark"] .shs-chip.gold { background: linear-gradient(115deg, #2e2410, #1c1608); color: #f0c868; box-shadow: inset 0 0 0 2px rgba(214,166,58,.7); }
+:root[data-ui="dark"] .shs-x { background: rgba(127,184,230,.15); }
+:root[data-ui="dark"] .shs-bagbar { background: var(--lattice), linear-gradient(115deg, #18325c, #10254a); }
+:root[data-ui="dark"] .shs-slot { background: #1b3762; box-shadow: inset 0 0 0 2px rgba(127,184,230,.45); }
+:root[data-ui="dark"] .shs-slot.empty { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 2px rgba(127,184,230,.25); }
+:root[data-ui="dark"] .shs-bagbar[data-full="true"] > b,
+:root[data-ui="dark"] .shs-price[data-poor="true"] { color: #ff8a9a; }
+:root[data-ui="dark"] .shs-price,
+:root[data-ui="dark"] .shs-pr { color: #f0c868; }
+:root[data-ui="dark"] .shs-buy:disabled { color: var(--mute) !important; background: linear-gradient(115deg, #1f3658, #16294a); box-shadow: inset 0 0 0 2px rgba(127,184,230,.4); }
+:root[data-ui="dark"] .shs-fly { filter: drop-shadow(0 8px 10px rgba(0,0,0,.6)); }
+/* 1) ร้านยา / แคปซูล — ตู้กระจกบนพื้นเข้ม + ชั้นไม้เข้ม */
+:root[data-ui="dark"] .shs-cab { background: linear-gradient(180deg, rgba(24,50,92,.92), rgba(14,36,62,.92));
+  box-shadow: inset 0 0 0 3px #2c5d58, inset 0 0 0 12px #10254a, inset 0 0 0 14px #2c6b60, 0 14px 30px rgba(0,0,0,.35); }
+:root[data-ui="dark"] .shs-capsule .shs-cab { background: linear-gradient(180deg, rgba(24,50,92,.92), rgba(14,32,62,.92));
+  box-shadow: inset 0 0 0 3px #2d4c78, inset 0 0 0 12px #10254a, inset 0 0 0 14px #3a5f92, 0 14px 30px rgba(0,0,0,.35); }
+:root[data-ui="dark"] .shs-cab::before { background: linear-gradient(180deg, #1e3c6a, #15305a); box-shadow: inset 0 0 0 3px #2c5d58; }
+:root[data-ui="dark"] .shs-capsule .shs-cab::before { background: linear-gradient(180deg, #1e3c6a, #15305a); box-shadow: inset 0 0 0 3px #2d4c78; }
+:root[data-ui="dark"] .shs-shelf::after { background: linear-gradient(180deg, #5a4630, #3b2c1c); box-shadow: 0 10px 14px -6px rgba(0,0,0,.5), inset 0 -3px 0 #2a1f12; }
+:root[data-ui="dark"] .shs-dome { background: radial-gradient(70% 55% at 35% 25%, rgba(255,255,255,.4), rgba(255,255,255,.1) 45%, rgba(95,208,179,.12) 75%, rgba(95,208,179,.2));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.4), inset -10px -8px 20px rgba(95,208,179,.15), 0 6px 14px rgba(0,0,0,.3); }
+:root[data-ui="dark"] .shs-dome::after { background: linear-gradient(180deg, rgba(255,255,255,.55), transparent); }
+:root[data-ui="dark"] .shs-base { background: linear-gradient(180deg, #6a5236, #4a3820); box-shadow: inset 0 -3px 0 #2e2214; }
+:root[data-ui="dark"] .shs-ghosts i { background: rgba(95,208,179,.1); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); }
+:root[data-ui="dark"] .shs-counter { background: linear-gradient(180deg, #3e3020 0 18px, #2e2416 18px, #221a10); box-shadow: 0 -2px 0 rgba(255,255,255,.08), 0 16px 26px rgba(0,0,0,.45), inset 0 -4px 0 #17110a; }
+:root[data-ui="dark"] .shs-big { background: radial-gradient(70% 55% at 35% 25%, #2c4c7d, rgba(24,50,92,.8)); box-shadow: inset 0 0 0 3px rgba(255,255,255,.25), 0 10px 22px rgba(0,0,0,.4); }
+:root[data-ui="dark"] .shs-info .shs-sh { color: var(--c1); background: rgba(var(--j2, 127,184,230), .2); }
+/* 2) โรงช่าง — กระดานรูเหล็กเข้ม */
+:root[data-ui="dark"] .shs-peg { background: radial-gradient(circle, rgba(200,215,235,.2) 3.2px, transparent 3.8px) 0 0 / 36px 36px, linear-gradient(160deg, #1e2d42, #121d2c);
+  box-shadow: inset 0 0 0 3px #34475f, inset 0 0 0 12px #172537, inset 0 0 0 14px #34475f, 0 14px 30px rgba(0,0,0,.4); }
+:root[data-ui="dark"] .shs-plateT { background: linear-gradient(170deg, #213249, #152234); box-shadow: inset 0 0 0 3px #34475f, inset 0 6px 0 #e07a2a; }
+:root[data-ui="dark"] .shs-hang:active .shs-plateT { box-shadow: inset 0 0 0 4px #e07a2a, inset 0 6px 0 #e07a2a, 0 0 0 4px rgba(224,122,42,.3); }
+:root[data-ui="dark"] .shs-hang[data-sel="true"] .shs-plateT { box-shadow: inset 0 0 0 4px #e07a2a, inset 0 6px 0 #e07a2a, 0 0 0 8px rgba(224,122,42,.22); }
+:root[data-ui="dark"] .shs-ticks i[data-on="false"] { background: rgba(255,255,255,.15); }
+:root[data-ui="dark"] .shs-spot { mix-blend-mode: screen; background: radial-gradient(40% 50% at 50% 55%, rgba(255,190,110,.22), transparent 70%); }
+:root[data-ui="dark"] .shs-anvil { background: linear-gradient(180deg, #213249, #152234); box-shadow: inset 0 0 0 3px #34475f; }
+:root[data-ui="dark"] .shs-anvil > .shs-sh { color: #ffb27a; background: rgba(224,122,42,.18); }
+:root[data-ui="dark"] .shs-dial { background: radial-gradient(circle, #152234 56%, transparent 57%), conic-gradient(#e07a2a calc(var(--p) * 1%), rgba(255,255,255,.12) 0); }
+/* 3) พ่อค้าเร่ — พรมม่วงเข้ม การ์ดม่วงกลางคืน */
+:root[data-ui="dark"] .shs-rug { background: repeating-linear-gradient(45deg, rgba(201,138,196,.1) 0 14px, transparent 14px 28px), repeating-linear-gradient(-45deg, rgba(224,176,74,.1) 0 14px, transparent 14px 28px), linear-gradient(180deg, #2c1a3c, #1c1028);
+  box-shadow: inset 0 0 0 10px #1a0f24, inset 0 0 0 14px #9b4f96, inset 0 0 0 22px #1a0f24, inset 0 0 0 25px #c4902a; }
+:root[data-ui="dark"] .shs-face { background: linear-gradient(170deg, #2e1c40, #1e1230); box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #1a0f24, inset 0 0 0 12px #9b4f96; }
+:root[data-ui="dark"] .shs-card:hover .shs-face { box-shadow: inset 0 0 0 4px #e0b04a, inset 0 0 0 10px #1a0f24, inset 0 0 0 12px #9b4f96, 0 0 40px rgba(224,176,74,.45); }
+:root[data-ui="dark"] .shs-card[data-sel="true"] .shs-face { box-shadow: inset 0 0 0 5px #e0b04a, inset 0 0 0 10px #1a0f24, inset 0 0 0 13px #c98ac4, 0 0 0 8px rgba(224,176,74,.3), 0 0 50px rgba(224,176,74,.55); }
+:root[data-ui="dark"] .shs-face .shs-nm,
+:root[data-ui="dark"] .shs-cara-deal .shs-nm { color: #f3e0fa; }
+:root[data-ui="dark"] .shs-face .shs-sh { color: #d7a8e6; }
+:root[data-ui="dark"] .shs-gems i[data-on="false"] { background: rgba(255,255,255,.14); }
+:root[data-ui="dark"] .shs-hg i { background: rgba(255,255,255,.16); }
+:root[data-ui="dark"] .shs-hourglass > span { color: #f3e0fa; background: #1e1230; box-shadow: inset 0 0 0 2px #9b4f96; }
+:root[data-ui="dark"] .shs-cara-deal { background: rgba(30,18,46,.94); box-shadow: inset 0 0 0 2px #9b4f96; }
+:root[data-ui="dark"] .shs-canopy { background: repeating-linear-gradient(90deg, #9b4f96 0 120px, #e3d0ee 120px 240px); }
+
+/* ---------- ฉากประกาศลำดับเดิน (boardScenes.css .toc-*) ---------- */
+:root[data-ui="dark"] .toc-bg::before { background: radial-gradient(60% 55% at 50% 50%, rgba(24,50,92,.97) 0%, rgba(16,37,74,.96) 45%, rgba(8,20,44,.96) 100%); }
+:root[data-ui="dark"] .toc-bg::after { background-image: linear-gradient(rgba(127,184,230,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(127,184,230,.08) 1px, transparent 1px); }
+:root[data-ui="dark"] .toc-head { color: #e8f0fa; }
+:root[data-ui="dark"] .toc-lat { color: #8cc4f0; }
+:root[data-ui="dark"] .toc-rk { color: rgba(10,24,52,.55); }
+:root[data-ui="dark"] .toc-fa { background: #17305a; }
+:root[data-ui="dark"] .toc-plate { background: #142c52; color: #e8f0fa; box-shadow: inset 0 0 0 1px rgba(127,184,230,.4), 0 14px 30px -12px rgba(0,0,0,.6); }
+:root[data-ui="dark"] .toc-col[data-first="true"] .toc-plate { box-shadow: 0 0 0 3px #e0a526, 0 18px 40px -10px rgba(224,165,38,.5); }
+:root[data-ui="dark"] .toc-ch,
+:root[data-ui="dark"] .toc-pts small { color: #a9c2e2; }
+:root[data-ui="dark"] .toc-pts { color: #e8f0fa; }
+:root[data-ui="dark"] .toc-col[data-bust="true"] .toc-pv { color: #ff8a9a; }
+:root[data-ui="dark"] .toc-stamp { background: rgba(10,24,52,.85); color: #ff8a9a; border-color: #ff8a9a; }
+:root[data-ui="dark"] .toc-flash { background: #8cc4f0; }

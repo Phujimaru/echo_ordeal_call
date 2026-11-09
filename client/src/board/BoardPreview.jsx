@@ -173,21 +173,23 @@ function placeUnits(units, map, shop) {
   return out;
 }
 const shopOf = (map) => (map.shopSpots && map.shopSpots[0]) || null;
-// ?shops=1: หาที่ตั้งร้าน 2×2 สามร้าน — พื้นว่างครบ 4 ช่อง ไม่ทับจุดเกิด และห่างกันอย่างน้อย 1 ช่อง (ไล่จากจุดร้านของแผนที่ก่อน แล้วทั้งกระดาน)
+// ?shops=1: หาที่ตั้งร้านสามร้าน (ร้านยา/โรงช่าง 1×1 · พ่อค้าเร่ 2×1) — พื้นว่างครบ ไม่ทับจุดเกิด และห่างกันอย่างน้อย 1 ช่อง
 const SHOPS_ON = new URLSearchParams(location.search).get("shops") === "1";
 function shopTrio(map) {
   const spawn = new Set((map.spawns || []).map((p) => `${p.x},${p.y}`));
-  const free = (x, y) => x >= 0 && y >= 0 && x + 1 < map.cols && y + 1 < map.rows
-    && [[0, 0], [1, 0], [0, 1], [1, 1]].every(([dx, dy]) => !map.terrain[`${x + dx},${y + dy}`] && !spawn.has(`${x + dx},${y + dy}`));
-  const apart = (a, b) => a.x > b.x + 2 || b.x > a.x + 2 || a.y > b.y + 2 || b.y > a.y + 2;
+  const DIM = [[1, 1], [1, 1], [2, 1]];
+  const free = (x, y, w, h) => x >= 0 && y >= 0 && x + w <= map.cols && y + h <= map.rows
+    && Array.from({ length: w * h }, (_, i) => [i % w, Math.floor(i / w)]).every(([dx, dy]) => !map.terrain[`${x + dx},${y + dy}`] && !spawn.has(`${x + dx},${y + dy}`));
+  const apart = (a, b) => a.x > b.x + b.w || b.x > a.x + a.w || a.y > b.y + b.h || b.y > a.y + a.h;
   const cand = [...(map.shopSpots || [])];
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) cand.push({ x, y });
   const out = [];
   for (const c of cand) {
     if (out.length >= 3) break;
-    if (free(c.x, c.y) && out.every((o) => apart(o, c))) out.push({ x: c.x, y: c.y });
+    const [w, h] = DIM[out.length], me = { x: c.x, y: c.y, w, h };
+    if (free(c.x, c.y, w, h) && out.every((o) => apart(o, me))) out.push(me);
   }
-  return out.map((p, i) => ({ ...p, id: `dev${i}`, kind: ["apoth", "forge", "cara"][i], size: 2, turnsLeft: 3 }));
+  return out.map((p, i) => ({ ...p, id: `dev${i}`, kind: ["apoth", "forge", "cara"][i], turnsLeft: 3 }));
 }
 
 const key = (x, y) => `${x},${y}`;

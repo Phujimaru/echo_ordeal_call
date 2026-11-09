@@ -23,7 +23,7 @@ import {
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
-import { drawShopStall, shopSize } from "./shopProps";
+import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -359,8 +359,8 @@ function drawPlazaStatic(g, pz, C, night) {
 }
 
 // ป้ายร้านค้าลอยเหนือแผง ("🏪 N" = เหลือ N เทิร์น) — วาดทับของบนกระดาน จึงตามซูม/เลื่อน/หมุนเอง · (x, y) = มุมบนซ้าย · n = ขนาดร้าน (กึ่งกลาง n×n)
-function drawShopLabel(g, x, y, text, n = 1) {
-  const [lx, ly] = P(x + n / 2, y + n / 2, n > 1 ? 2.9 : 2.1);
+function drawShopLabel(g, x, y, text, w = 1, h = 1, z = 2.1) {
+  const [lx, ly] = P(x + w / 2, y + h / 2, z);
   g.save();
   g.font = `600 13px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
   const tw = g.measureText(text).width + 16, th = 18;
@@ -2340,14 +2340,14 @@ export function drawFrame(g, st, now) {
   }
   // Colony: แคปซูลร้าน 3 แบบ · น้ำพุ · หอสังเกตการณ์ = โมเดล 3D ในฉาก (colonyModels.js)
   const caps = colony && Array.isArray(st.colonyCapsule) ? st.colonyCapsule : []; // ใช้ตัดสินป้ายร้าน (ลงถึงพื้นแล้ว)
-  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน ขนาด 2×2 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
+  // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน · ร้านปกติ 1×1 · พ่อค้าเร่ 2×1 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
   const shopList = Array.isArray(st.shops) ? st.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
   if (!colony) for (const sh of shopList) {
     if (sh.kind === "capsule") continue;
-    const n = shopSize(sh);
+    const [w, h] = shopDims(sh);
     let fade = false;
-    for (let dy = 0; dy < n && !fade; dy++) for (let dx = 0; dx < n && !fade; dx++) fade = behind(sh.x + dx, sh.y + dy);
-    items.push({ d: depthOf(sh.x + n / 2, sh.y + n / 2) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShopStall(g, sh.kind, sh.x, sh.y, now, night); if (fade) g.restore(); } });
+    for (let dy = 0; dy < h && !fade; dy++) for (let dx = 0; dx < w && !fade; dx++) fade = behind(sh.x + dx, sh.y + dy);
+    items.push({ d: depthOf(sh.x + w / 2, sh.y + h / 2) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShopStall(g, sh.kind, sh.x, sh.y, now, night); if (fade) g.restore(); } });
   }
   // Colony: แถบเลือด/ป้ายของหมากไม่ย่อตามระยะ (ชดเชย k ของกรอบหมุน) + หนาขึ้นอีกนิดให้อ่านง่ายบนผิวโค้ง
   const unitDraw = (u, ax, ay) => () => {
@@ -2404,10 +2404,10 @@ export function drawFrame(g, st, now) {
   // ป้าย "🏪 N" (เหลือ N เทิร์น) เหนือกลางร้านแต่ละร้าน · Colony = เฉพาะแคปซูลที่ลงถึงพื้นแล้ว
   for (const sh of shopList) {
     if (!(sh.turnsLeft > 0) || (colony ? !caps.some((c) => c.x === sh.x && c.y === sh.y && !(c.z > 0.05)) : sh.kind === "capsule" || sh.capsule)) continue;
-    const n = colony ? 1 : shopSize(sh);
+    const [w, h] = colony ? [1, 1] : shopDims(sh);
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
     const hide = storms && behindDome(storms, sh.x, sh.y) && clipOutDomes(g, storms);
-    drawShopLabel(g, sh.x, sh.y, `🏪 ${sh.turnsLeft}`, n);
+    drawShopLabel(g, sh.x, sh.y, `🏪 ${sh.turnsLeft}`, w, h, colony ? 2.1 : (SHOP_TOP_Z[sh.kind] || 1.6) + 0.42);
     if (hide) g.restore();
   }
   // อนุภาค (ข้ามเมื่อ lowQ) — ไม่วาดทับโดมเขม่าของม่านแดง (คนนอกต้องมองไม่เห็นข้างใน)

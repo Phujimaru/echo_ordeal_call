@@ -35,6 +35,7 @@ function readOpts() {
     lowQ: q.get("lowq") === "1",
     team: q.get("team") === "1",
     shopNear: q.get("shop") === "1",
+    shopKind: q.get("shopKind") || "", // ร้านที่ตั้งติดเรา: apoth (ค่าเริ่ม) / forge / cara / capsule — อ่านจาก URL อย่างเดียว
     // ระบบคู่ (เคท & เอมิลิโกะ): duo=1 · corpse=1 (เคทล้ม) · masked=1 (มืดบอด) — อ่านจาก URL อย่างเดียว
     duo: q.get("duo") === "1",
     corpse: q.get("corpse") === "1",

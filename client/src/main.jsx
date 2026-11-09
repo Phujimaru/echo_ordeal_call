@@ -5,6 +5,9 @@ import { createRoot } from "react-dom/client";
 import "./oc/theme.css";
 import App from "./App.jsx";
 import "./index.css";
+// โหมดมืดของ UI ในเกม: ตั้ง <html data-ui> ก่อนเรนเดอร์ + กฎทับธีมขาว (ต้องโหลดหลัง CSS อื่น)
+import "./uiTheme.js";
+import "./ui-theme.css";
 
 // ?moon = หน้าดูฉากบินจากโลกไปดวงจันทร์ (เฉพาะ dev · เก็บไว้ให้โหมดในอนาคต) — ดู oc/intro/MoonFlightPreview.jsx
 // ?colony = หน้าดูฉากเข้าด่าน Colony (หมุนรอบโลกแล้วพุ่งเข้าโคโลนี · ใช้หน้าเดียวกัน)

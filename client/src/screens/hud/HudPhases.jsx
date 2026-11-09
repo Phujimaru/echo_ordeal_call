@@ -124,22 +124,22 @@ export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo
 //  ตราหกเหลี่ยมดาบไขว้ · เลขเป้าในระยะ · มีเป้า = แสงวิ่ง + ประกายเต้น · ชี้ = ดาบไขว้ฟันเข้าหากัน + เส้นฟันวาบ · ไม่มีเป้า = ปุ่มจาง
 const BLADES = (
   <svg viewBox="0 0 64 64" aria-hidden="true">
-    <g className="ab-b l"><path className="ab-blade" d="M14 50 L44 12 L50 10 L48 16 L18 54 Z" /><path className="ab-guard" d="M12 42 L22 52" /><path className="ab-grip" d="M15 51 L9 57" /></g>
-    <g className="ab-b r"><path className="ab-blade" d="M50 50 L20 12 L14 10 L16 16 L46 54 Z" /><path className="ab-guard" d="M52 42 L42 52" /><path className="ab-grip" d="M49 51 L55 57" /></g>
+    <g className="atkb-b l"><path className="atkb-blade" d="M14 50 L44 12 L50 10 L48 16 L18 54 Z" /><path className="atkb-guard" d="M12 42 L22 52" /><path className="atkb-grip" d="M15 51 L9 57" /></g>
+    <g className="atkb-b r"><path className="atkb-blade" d="M50 50 L20 12 L14 10 L16 16 L46 54 Z" /><path className="atkb-guard" d="M52 42 L42 52" /><path className="atkb-grip" d="M49 51 L55 57" /></g>
   </svg>
 );
 export function AttackButton({ disabled = false, onClick, targets = 0 }) {
   return (
-    <button type="button" className="ab" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
-      <span className="ab-bg" aria-hidden="true" />
-      <span className="ab-slash" aria-hidden="true" />
-      <span className="ab-emb">
-        <span className="ab-hex" aria-hidden="true" />
-        <span className="ab-ico">{BLADES}</span>
-        {!disabled && targets > 0 && <span key={targets} className="ab-count">{targets}</span>}
+    <button type="button" className="atkb" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+      <span className="atkb-bg" aria-hidden="true" />
+      <span className="atkb-slash" aria-hidden="true" />
+      <span className="atkb-emb">
+        <span className="atkb-hex" aria-hidden="true" />
+        <span className="atkb-ico">{BLADES}</span>
+        {!disabled && targets > 0 && <span key={targets} className="atkb-count">{targets}</span>}
       </span>
       <b>โจมตี</b>
-      <span className="ab-chev" aria-hidden="true"><i /><i /><i /></span>
+      <span className="atkb-chev" aria-hidden="true"><i /><i /><i /></span>
     </button>
   );
 }
