@@ -1,5 +1,5 @@
 // สนาม Eos (GRID_PLAN §8.6 · server/fodlan/stage6.js · map6.js) — หมุดใหม่บนลูกโลก แผนที่เดียว 32×32 ผังธรรมชาติตามภูมิศาสตร์ Lucis
-//  เดิน +2 · ช็อโก้ (+3 · ป่า/น้ำตื้น 1 ก้าว · โดนดาเมจตกนก กลับคอก 3 เทิร์น) · รถ 3 คัน 2×2 บนถนน 10 ช่อง ชนคน 2
+//  เดิน +2 · โชโกโบะ (+3 · ป่า/น้ำตื้น 1 ก้าว · โดนดาเมจตกนก กลับคอก 3 เทิร์น) · รถ 3 คัน 2×2 บนถนน 10 ช่อง ชนคน 2
 //  ปีศาจกลางคืน 4 ตัว · อากาศ ฝนฟ้าคะนอง/หมอก
 //  ชนะ = ยึดเสา 5 ต้น (ร่ายพิธี 2 ตา) แต้ม 1/3/6/10/15 ต่อเทิร์น ถึง 20 · ตายแล้วฟื้นหลัง 3 เทิร์น · เห็นผู้เล่นอื่นในระยะเดิน + 4
 process.env.JOURNEY_START_SECONDS = '0';
@@ -21,7 +21,7 @@ const realRandom = Math.random;
 const realStart = timers.startPhaseTimer;
 const AREA = Board.EOS_AREA;
 const K = Board.key;
-const PARK = [[13, 13], [30, 0], [28, 6], [1, 1]]; // ที่โล่งห่างรถ/ช็อโก้/เสา
+const PARK = [[13, 13], [30, 0], [28, 6], [1, 1]]; // ที่โล่งห่างรถ/โชโกโบะ/เสา
 
 function setup(n = 3) {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
@@ -53,14 +53,14 @@ test.after(() => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
 });
 
-test('ผัง 32×32: จุดเกิด/ร้าน/ช็อโก้เดินถึงกันหมด · รถ 3 คันอยู่บนถนนและวิ่งถึงกัน · เสา 5 ต้นมีช่องติด · เมือง 3 แห่ง', () => {
+test('ผัง 32×32: จุดเกิด/ร้าน/โชโกโบะเดินถึงกันหมด · รถ 3 คันอยู่บนถนนและวิ่งถึงกัน · เสา 5 ต้นมีช่องติด · เมือง 3 แห่ง', () => {
   const m = Board.MAPS[AREA];
   assert.equal(m.cols, 32); assert.equal(m.rows, 32); assert.equal(m.name, 'Eos');
   assert.equal(m.spawns.length, 8);
   const s0 = m.spawns[0];
   const reach = new Set(Board.reachable(m, { id: 'w', x: s0.x, y: s0.y }, 999, []).keys());
   for (const s of [...m.spawns, ...m.shopSpots]) assert.ok(reach.has(K(s.x, s.y)), `ไปถึง ${K(s.x, s.y)}`);
-  for (const [x, y] of MAP6.CHOCOBOS) assert.ok(reach.has(K(x, y)), `ช็อโก้ ${x},${y}`);
+  for (const [x, y] of MAP6.CHOCOBOS) assert.ok(reach.has(K(x, y)), `โชโกโบะ ${x},${y}`);
   for (const pl of MAP6.PILLARS) {
     const [x, y] = pl.at;
     assert.equal(m.terrain[K(x, y)], 'fd_eos_pillar');
@@ -107,7 +107,7 @@ test('ระยะเดิน +2 ทุกคน', () => {
   assert.equal(action.movOf(P(0)), base + S6.MOV_BONUS);
 });
 
-test('ช็อโก้: จบตาบนช่อง = ขี่ · เดิน +3 + ป่าทึบ 1 ก้าว · โดนดาเมจตกนก กลับคอก เกิดใหม่หลัง 3 เทิร์น', () => {
+test('โชโกโบะ: จบตาบนช่อง = ขี่ · เดิน +3 + ป่าทึบ 1 ก้าว · โดนดาเมจตกนก กลับคอก เกิดใหม่หลัง 3 เทิร์น', () => {
   setup();
   const p = P(0), c = st().chocos[0];
   const before = action.movOf(p);
@@ -133,7 +133,7 @@ test('ช็อโก้: จบตาบนช่อง = ขี่ · เด�
   assert.ok(c.x != null && Math.abs(c.x - c.home.x) + Math.abs(c.y - c.home.y) <= 2);
 });
 
-test('ช็อโก้: ตัวใหญ่ขี่ไม่ได้ · ปุ่มลงวางนกข้างตัว', () => {
+test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ปุ่มลงวางนกข้างตัว', () => {
   setup();
   const p = P(0), c = st().chocos[1];
   p.boardSize = 2;
@@ -423,7 +423,7 @@ test('L8 ไฟเมือง: ดับไฟ = ปีศาจเข้าเ
   assert.ok(S6.inTown(s.daemons[0].x, s.daemons[0].y), 'ปีศาจเข้าเมืองที่ไฟดับ');
 });
 
-test('L9 ผักกิซาล: ขายทุกร้านใน Eos · ศัตรูขี่ช็อโก้ในระยะ = ตกนก · ไม่มี = เรียกช็อโก้มาข้างตัว', () => {
+test('L9 ผักกิซาล: ขายทุกร้านใน Eos · ศัตรูขี่โชโกโบะในระยะ = ตกนก · ไม่มี = เรียกโชโกโบะมาข้างตัว', () => {
   setup();
   shop.refreshShopForJourney();
   const s = st(), p = P(0), q = P(1);
@@ -434,11 +434,11 @@ test('L9 ผักกิซาล: ขายทุกร้านใน Eos · �
   p.pos = { x: q.pos.x - 3, y: q.pos.y };
   assert.ok(S6.useGysahl(p));
   assert.ok(!s.riders[q.id], 'ตกนก');
-  // เรียกช็อโก้มาหา
+  // เรียกโชโกโบะมาหา
   p.pos = { x: 13, y: 13 };
   assert.ok(S6.useGysahl(p));
   const near = s.chocos.some((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
-  assert.ok(near, 'ช็อโก้วิ่งมาข้างตัว');
+  assert.ok(near, 'โชโกโบะวิ่งมาข้างตัว');
 });
 
 test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ · ซากรถบนถนนขวางรถ', () => {

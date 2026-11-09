@@ -787,7 +787,8 @@ function drawUnit(g, u, now, boxes) {
   // ลำแสงจากฐานขึ้นรูป
   // hz = ลอยขึ้นระหว่างเดินกระโดด (หน่วยช่อง) · sq = ยุบ/ยืดตัว (Echo)
   const hexR = s * 0.4 * K;
-  let hy = by - s * 0.86 * K + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
+  // สนาม Eos มองจากด้านบน: หกเหลี่ยมวางตรงกลางช่องของตัวเอง (ไม่ลอยขึ้นไปทับช่องข้างบน — ผู้ใช้แจ้ง 2026-11-09)
+  let hy = (UI_PIECE && pitchOf() >= 80 ? by : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
   const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;

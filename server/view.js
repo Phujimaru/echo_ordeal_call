@@ -402,7 +402,7 @@ function buildStateInner(viewerId) {
         strikeZone: hook && hook.strikeZone ? hook.strikeZone(p) || undefined : undefined, // กรอบที่ตีปกติได้ { x0, y0, x1, y1 } (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room)
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
         takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
-        flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่ช็อโก้ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
+        flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่โชโกโบะ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
         flies: action.flies(p) || undefined, // บินได้ (โล่บินได้ของบานาจ): เดินทะลุแบบ ghost + ไม่ขวางทางใคร
         leash: mine ? action.leashOf(p) || undefined : undefined, // สายจูง { x, y, r }: ช่องที่หยุดได้ต้องห่างจุดนี้ไม่เกิน r

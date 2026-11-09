@@ -32,7 +32,7 @@
 | `publicInfo(ctx, st) → object` | state.fodlan.board | ข้อมูลให้ client วาด (เรือ ไฟ ช่องเตือน ฉาก fx …) |
 | `playerInfo(ctx, st, p) → object` | state.players[].fodlan | ความอบอุ่น · ศิลาตรา · ชีพจรเทพ |
 | `weatherEnd(ctx, st)` | จบเทิร์นที่สภาพอากาศสงบ | (Eos) ล้างผลของสภาพอากาศ |
-| `flatWalk(ctx, st, p) → bool` | action.js (Board.reachable opts.flatWalk) + view.js | (Eos) ขี่ช็อโก้ — ช่องกินหลายก้าว = 1 ก้าว |
+| `flatWalk(ctx, st, p) → bool` | action.js (Board.reachable opts.flatWalk) + view.js | (Eos) ขี่โชโกโบะ — ช่องกินหลายก้าว = 1 ก้าว |
 | `winner(ctx, st) → id ผู้เล่น \| null` | `Fodlan.eosWinner` → phases/endTurn.js gameOver | (Eos) ฝ่ายที่ครบแต้มยึดเสา |
 | `shields(ctx, st, attacker, target) → bool` | action.canStrike + targetOk | (Eos) โดมกำแพงเวท — ตีจากนอกโดมเข้าในไม่ได้ |
 | `persist: { preventDeath, atkBonus, maxHpBonus, onEndTurn, playerInfo }` | ฮุคเดียวกันข้างบน + combat.maxHpOf | **ผลค้างข้ามด่าน** — ถามทุกด่านที่ export ไม่ใช่แค่ด่านปัจจุบัน · ได้ `(ctx, st \| null, …)` (st = null เมื่อตอนนี้อยู่ด่านอื่น) · เก็บสถานะเองที่ `match.fodlan` · ชีพจรเทพ/ศิลาตรา/ร่างอสูร (ด่าน V) · playerInfo ต่อ badges |

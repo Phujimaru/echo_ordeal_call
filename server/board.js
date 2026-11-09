@@ -407,7 +407,7 @@ function moveCost(map, x, y) {
   return (info && info.cost) || 1;
 }
 // ก้าวที่ใช้เดินเข้าช่องนี้ตามตัวเลือกการเดิน — opts.flowerWalk (ราชาดอกไม้ของเซลิน): ช่องดอกไม้ = 0 ก้าว
-//  opts.flatWalk (ขี่ช็อโก้ — สนาม Eos): ช่องที่กินหลายก้าว (ป่าทึบ/น้ำตื้น) = 1 ก้าว
+//  opts.flatWalk (ขี่โชโกโบะ — สนาม Eos): ช่องที่กินหลายก้าว (ป่าทึบ/น้ำตื้น) = 1 ก้าว
 function stepCost(map, x, y, opts) {
   if (opts && opts.flatWalk) return Math.min(1, moveCost(map, x, y));
   if (opts && opts.flowerWalk) {

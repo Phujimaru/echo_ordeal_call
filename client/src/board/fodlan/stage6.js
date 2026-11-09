@@ -2,10 +2,10 @@
 //  ภาพของสนาม Eos (GRID_PLAN §8.6 — ธีม Final Fantasy XV · "ด่าน 6" ของตัวกลาง ./index.js) · กติกา server/fodlan/stage6.js · ผัง server/fodlan/map6.js
 //   อารมณ์: โลกกว้างแสงอบอุ่นยามบ่าย (กลางวัน) / ฟ้าน้ำเงินเข้ม ดาว ไฟเมืองเรือง (กลางคืน — เวลาปีศาจ)
 //   ธีม (อบ): ฟ้า + ภูเขาไกล + เงาตึกระฟ้าของนครหลวงหลังกระดาน · ข้างกระดาน: ต้นไม้/หิน/ทราย
-//   bakeSpecial (อบใต้เส้นตาราง): ถนนยางมะตอย+เส้นจราจร · ลานเมืองหินปู · ทราย · สะพาน · คอกช็อโก้
+//   bakeSpecial (อบใต้เส้นตาราง): ถนนยางมะตอย+เส้นจราจร · ลานเมืองหินปู · ทราย · สะพาน · คอกโชโกโบะ
 //   deco: น้ำลึก (ทะเลสาบ) + คลอง Altissia
 //   สิ่งกีดขวาง: ตึก (หน้าต่างติดไฟกลางคืน) · กำแพงเมือง · เสาไฟถนน · ต้นไม้ · หิน · ปั๊มน้ำมัน · อู่ซ่อมรถ
-//   items: รถ 3 คัน (เหลือง/แดง/เทา — วาดด้วยโค้ด ตามสีรถในภาพของผู้ใช้) · ช็อโก้ (ภาพผู้ใช้ /eos/img/chocobo.webp) ใต้คนขี่ · ปีศาจ (/eos/img/daemonN.webp)
+//   items: รถ 3 คัน (เหลือง/แดง/เทา — วาดด้วยโค้ด ตามสีรถในภาพของผู้ใช้) · โชโกโบะ (ภาพผู้ใช้ /eos/img/chocobo.webp) ใต้คนขี่ · ปีศาจ (/eos/img/daemonN.webp)
 //   air: ฝนฟ้าคะนอง · หมอก · ฉากเหตุการณ์ (fx) + เสียง (client/src/eos/eosAudio.js)
 //  ⚠️ ห้ามเรียกของจาก ./index ตอนโหลดไฟล์ (index import ไฟล์นี้ — วน) · ใช้ได้ในฟังก์ชันวาดเท่านั้น
 // ============================================================
@@ -309,7 +309,7 @@ export const theme = {
       const R = rng(t.x * 53 + t.y * 19);
       if (R() < 0.35) { const [px, py, s] = P(t.x + 0.2 + R() * 0.6, t.y + 0.2 + R() * 0.6); g.fillStyle = C.roadStain; g.beginPath(); g.ellipse(px, py, s * (0.1 + R() * 0.12), s * 0.04, R() * 3, 0, TAU); g.fill(); }
     }
-    // สะพาน (ไม้บนน้ำ) · คอกช็อโก้ (ฟาง)
+    // สะพาน (ไม้บนน้ำ) · คอกโชโกโบะ (ฟาง)
     for (const t of T.bridge) {
       quad(g, t.x - 0.02, t.y - 0.02); g.fillStyle = C.canal; g.fill();
       quad(g, t.x + 0.08, t.y - 0.02, 0.06); g.fillStyle = C.bridge; g.fill();
@@ -1068,7 +1068,7 @@ function drawCar(g, cx, cy, dir, col, night, now, moving) {
   if (moving && !night) void now;
 }
 
-// =================================================================== ช็อโก้ / ปีศาจ (ภาพ)
+// =================================================================== โชโกโบะ / ปีศาจ (ภาพ)
 function sprite(g, src, x, y, z, hTiles, flip = false, alpha = 1) {
   const im = img(src);
   const [sx, sy, s] = P(x, y, z);
@@ -1305,14 +1305,14 @@ export function items(list, g, fd, info, units, now, lowQ) {
       },
     });
   }
-  // ช็อโก้ว่างในคอก / ข้างทาง
+  // โชโกโบะว่างในคอก / ข้างทาง
   for (const c of fd.chocos || []) {
     if (c.x == null || c.rider) continue;
     const bob = lowQ ? 0 : Math.abs(Math.sin(now / 420 + c.x)) * 0.04;
     const flip = hash(c.x, c.y) < 0.5;
     list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => sprite(g, CHOCO_IMG, c.x + 0.5, c.y + 0.55, bob, 0.8, flip) });
   }
-  // ช็อโก้ใต้คนขี่ (ตามตำแหน่งวาดของหมาก)
+  // โชโกโบะใต้คนขี่ (ตามตำแหน่งวาดของหมาก)
   for (const [pid] of Object.entries(fd.riders || {})) {
     const u = unitAt(units, pid);
     if (!u) continue;
@@ -1519,7 +1519,7 @@ function stage2Fx(g, e, p, now, lowQ) {
         const [px, py, s] = P(x, y, 0.6 + Math.sin(k * Math.PI) * 1.6);
         g.globalAlpha = i ? 0.35 / i : 1; leaf(g, px, py, s * (i ? 0.7 : 1.2), now / 60 + i); g.globalAlpha = 1;
       }
-    } else { // ใบผักแตกกระจาย + ขนนกปลิวตามช็อโก้ที่วิ่ง
+    } else { // ใบผักแตกกระจาย + ขนนกปลิวตามโชโกโบะที่วิ่ง
       const q = lure ? (p - 0.45) / 0.55 : p;
       const [ax, ay, s] = P(at.x + 0.5, at.y + 0.5, 0.4);
       for (let i = 0; i < 7; i++) { const ang = hash(i, e.seq) * TAU, r = s * 0.6 * q; leaf(g, ax + Math.cos(ang) * r, ay + Math.sin(ang) * r * 0.6 - s * 0.3 * q, s, ang + q * 5); }

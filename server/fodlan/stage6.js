@@ -1,10 +1,10 @@
 // ============================================================
 //  สนาม Eos (GRID_PLAN §8.6 — เดิมชื่อ Lucid · ธีม Final Fantasy XV) — "ด่าน 6" ของตัวคุม server/fodlan.js ในโลก "eos"
-//  ผัง 32×32 + ข้อมูลรถ/ช็อโก้/โซน: server/fodlan/map6.js · ฮุคทั้งหมดดู server/fodlan/README.md
+//  ผัง 32×32 + ข้อมูลรถ/โชโกโบะ/โซน: server/fodlan/map6.js · ฮุคทั้งหมดดู server/fodlan/README.md
 //
 //  ขั้น 1 (ผู้ใช้สั่ง 2026-11-09):
 //   - ระยะเดินทุกคน +2 (แผนที่ใหญ่ — ผู้ใช้ยืนยัน)
-//   - ช็อโก้ 4 ตัว (คอกป่า Duscae 2 · คอกทะเลทราย 2): จบตาบนช่องช็อโก้ = ขึ้นขี่ · ขี่อยู่ เดิน +3 + ป่าทึบ/น้ำตื้นกิน 1 ก้าว
+//   - โชโกโบะ 4 ตัว (คอกป่า Duscae 2 · คอกทะเลทราย 2): จบตาบนช่องโชโกโบะ = ขึ้นขี่ · ขี่อยู่ เดิน +3 + ป่าทึบ/น้ำตื้นกิน 1 ก้าว
 //     โดนดาเมจ (เลือด+เกราะลด) = ตกนก → นกวิ่งกลับคอก เกิดใหม่หลัง 3 เทิร์น · ปุ่ม "ลง" วางนกไว้ช่องข้างตัว (ไม่เสียการเดิน)
 //     ขี่ไม่ได้: ตัวใหญ่หลายช่อง · บินได้ · ขี่ม้าอยู่ · ยูนิตที่ถูกเรียก (Claude ตัดสินแบบ Fire Emblem — ผู้ใช้มอบให้)
 //   - รถ 3 คัน 2×2 (นั่ง 4 · แบบเรือ Fodlan ด่าน I): ยืนบนรถทั้งตัว + ยังเดินได้ → ปุ่ม "ขับ" เลือกตำแหน่งใหม่บนถนนไม่เกิน 10 ช่อง
@@ -21,7 +21,7 @@
 const MAP = require("./map6");
 
 const MOV_BONUS = 2;          // ทุกคนบน Eos
-const CHOCO_MOV = 3;          // ขี่ช็อโก้
+const CHOCO_MOV = 3;          // ขี่โชโกโบะ
 const CHOCO_RESPAWN = 3;      // ตกนกแล้วเกิดใหม่ที่คอกหลัง N เทิร์น
 const CAR_RANGE = 10;         // ช่องที่รถวิ่งได้ต่อตา
 const CAR_HIT_DMG = 2;
@@ -119,7 +119,7 @@ function movMod(ctx, st, p) {
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
-// ============================================================ ช็อโก้
+// ============================================================ โชโกโบะ
 // ขี่ม้าอยู่ (ไจโร/ดิเอโก้ — characters/_horse.js เก็บ { mounted, horseHp } ในสถานะตัวละคร)
 function onHorse(p) {
   return Object.values(p || {}).some((v) => v && typeof v === "object" && !Array.isArray(v) && v.mounted === true && "horseHp" in v);
@@ -134,9 +134,9 @@ function mount(ctx, s, p, c) {
   s.riders[p.id] = { choco: c.id, mark: markOf(p) };
   ctx.bump();
   ctx.fx("choco_mount", { id: p.id, choco: c.id, x: c.x, y: c.y });
-  ctx.log(`🐤 ${p.name} ขี่ช็อโก้`);
+  ctx.log(`🐤 ${p.name} ขี่โชโกโบะ`);
 }
-// ช็อโก้วิ่งกลับคอก → เกิดใหม่หลัง CHOCO_RESPAWN เทิร์น
+// โชโกโบะวิ่งกลับคอก → เกิดใหม่หลัง CHOCO_RESPAWN เทิร์น
 function sendHome(ctx, s, c, from) {
   c.rider = null;
   c.x = null; c.y = null;
@@ -163,7 +163,7 @@ function checkRiders(ctx, s) {
     if (now < r.mark) {
       const c = unride(ctx, s, pid);
       ctx.fx("choco_fall", { id: p.id, x: p.pos.x, y: p.pos.y });
-      ctx.log(`🐤 ${p.name} ตกจากช็อโก้!`);
+      ctx.log(`🐤 ${p.name} ตกจากโชโกโบะ!`);
       if (c) sendHome(ctx, s, c, from);
     } else r.mark = now; // ฟื้นเลือด = จุดอ้างอิงใหม่
   }
@@ -179,7 +179,7 @@ function respawnChocos(ctx, s) {
     ctx.fx("choco_back", { choco: c.id, x: c.x, y: c.y });
   }
 }
-// ลงจากช็อโก้: วางนกไว้ช่องว่างข้างตัว
+// ลงจากโชโกโบะ: วางนกไว้ช่องว่างข้างตัว
 function dismountTiles(ctx, s, p) {
   const out = [];
   for (const [dx, dy] of ctx.Board.DIRS) {
@@ -316,7 +316,7 @@ function drive(ctx, s, p, tile) {
 }
 
 // ============================================================ ช่องว่าง
-// ช่องเดินได้ ว่าง (ไม่มีคน ไม่มีสิ่งกีดขวาง/ปีศาจ ไม่ใช่รถ/ช็อโก้)
+// ช่องเดินได้ ว่าง (ไม่มีคน ไม่มีสิ่งกีดขวาง/ปีศาจ ไม่ใช่รถ/โชโกโบะ)
 function tileFree(ctx, s, x, y, selfId = null) {
   if (!ctx.free(x, y, selfId)) return false;
   for (const c of s.cars) if (carKeys(c).has(K(x, y))) return false;
@@ -647,7 +647,7 @@ function sideSight(ctx, viewer) {
 //  ทุกปุ่มใช้ "การตีของตา" (แบบคันโยกเรือของ Fodlan ด่าน I) · ยืนติดของนั้น 4 ทิศ
 const DOME_TURNS = 3;          // L7 โดมอยู่ 3 เทิร์น
 const DOME_COOLDOWN = 2;       // ปิดแล้วพัก 2 เทิร์นก่อนเปิดใหม่
-const GYSAHL_RANGE = 4;        // L9 โยนล่อช็อโก้ของศัตรูในระยะนี้
+const GYSAHL_RANGE = 4;        // L9 โยนล่อโชโกโบะของศัตรูในระยะนี้
 const LEVER_SECS = 1.4, DOME_SECS = 1.6, SWITCH_SECS = 1.2, PUSH_SECS = 1.0;
 const listOf = (obj, kind) => ((obj && obj[kind]) || []).map(([x, y]) => ({ x, y }));
 const BRIDGES = listOf(MAP.map.special, "fd_eos_bridge");
@@ -736,7 +736,7 @@ function gysahlOnSale() {
   const F = require("../fodlan");
   return !!(F.active() && F.isEos() && F.stageState() && F.stageState().eos);
 }
-// ใช้จากกระเป๋า: ศัตรูขี่ช็อโก้ในระยะ = โยนล่อให้นกวิ่งหนี (คนขี่ตกนก) · ไม่มี = เรียกช็อโก้ว่างตัวใกล้สุดมาข้างตัว · ทำไม่ได้ = ไม่เสียของ
+// ใช้จากกระเป๋า: ศัตรูขี่โชโกโบะในระยะ = โยนล่อให้นกวิ่งหนี (คนขี่ตกนก) · ไม่มี = เรียกโชโกโบะว่างตัวใกล้สุดมาข้างตัว · ทำไม่ได้ = ไม่เสียของ
 function useGysahl(p) {
   if (!p || !p.alive || !p.pos || !gysahlOnSale()) return false;
   const F = require("../fodlan");
@@ -751,7 +751,7 @@ function useGysahl(p) {
       if (spot) { c.x = spot.x; c.y = spot.y; c.rider = null; } else sendHome(ctx, s, c, { ...u.pos });
       ctx.bump();
       ctx.fx("gysahl_lure", { from: { ...p.pos }, at: { ...u.pos }, to: spot || null, id: u.id, by: p.id });
-      ctx.log(`🥬 ${p.name} โยนผักกิซาล — ช็อโก้ของ ${u.name} วิ่งไล่ผักไป!`);
+      ctx.log(`🥬 ${p.name} โยนผักกิซาล — โชโกโบะของ ${u.name} วิ่งไล่ผักไป!`);
       p.exposedRound = ctx.match.roundNumber;
       return true;
     }
@@ -764,7 +764,7 @@ function useGysahl(p) {
   c.x = spot.x; c.y = spot.y;
   ctx.bump();
   ctx.fx("gysahl_call", { from, to: { ...spot }, by: p.id });
-  ctx.log(`🥬 ${p.name} ใช้ผักกิซาล — ช็อโก้วิ่งมาหา`);
+  ctx.log(`🥬 ${p.name} ใช้ผักกิซาล — โชโกโบะวิ่งมาหา`);
   return true;
 }
 // ---------- L10 ซากรถ (ผลักได้) ----------
@@ -1168,7 +1168,7 @@ function charAction(ctx, st, p, key, tile) {
     c.rider = null; c.x = tile.x; c.y = tile.y;
     ctx.bump();
     ctx.fx("choco_dismount", { id: p.id, choco: c.id, x: tile.x, y: tile.y });
-    ctx.log(`🐤 ${p.name} ลงจากช็อโก้`);
+    ctx.log(`🐤 ${p.name} ลงจากโชโกโบะ`);
     return true;
   }
   return false;
@@ -1303,7 +1303,7 @@ function playerInfo(ctx, st, p) {
   const s = st && st.eos;
   if (!s) return undefined;
   const badges = [];
-  if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "ช็อโก้", cls: "bg-yellow-300 text-gray-900" });
+  if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "โชโกโบะ", cls: "bg-yellow-300 text-gray-900" });
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
   if (!badges.length) return undefined;
   return { choco: riding(s, p), badges };

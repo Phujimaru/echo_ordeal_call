@@ -156,7 +156,7 @@ const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนก
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
-const EOS_PIECE_K = 0.8; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับช็อโก้
+const EOS_PIECE_K = 0.8; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับโชโกโบะ
 const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
@@ -789,7 +789,7 @@ export default function BoardCanvas(props) {
           else if (targeting) alpha *= 0.5;
         }
         list.push({
-          ...(p.rts && us <= 1 ? { k: EOS_PIECE_K } : {}), // สนาม Eos: หมากใหญ่พอๆ กับช็อโก้ (ผู้ใช้สั่ง 2026-11-09)
+          ...(p.rts && us <= 1 ? { k: EOS_PIECE_K } : {}), // สนาม Eos: หมากใหญ่พอๆ กับโชโกโบะ (ผู้ใช้สั่ง 2026-11-09)
           id: u.id, rx, ry, ox, oy, hz, sq, color: normColor(u.color), img: u.img, name: u.name,
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
           isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, otoya: u.otoya || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,

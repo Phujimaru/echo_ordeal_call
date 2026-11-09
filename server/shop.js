@@ -540,7 +540,7 @@ function useInventoryItem(id, uid, opts = {}) {
     // คบเพลิง (Fodlan ด่าน II — server/fodlan/stage2.js): ปักบนช่องที่ยืน · นอกด่าน/ช่องมีคบเพลิงแล้ว = ใช้ไม่ได้ ไม่เสียของ
     if (!require("./fodlan/stage2").useTorch(p)) return;
   } else if (item.type === "gysahl") {
-    // ผักกิซาล (Eos — server/fodlan/stage6.js): ล่อช็อโก้ของศัตรูในระยะ / เรียกช็อโก้มาหา · ใช้ไม่ได้ = ไม่เสียของ
+    // ผักกิซาล (Eos — server/fodlan/stage6.js): ล่อโชโกโบะของศัตรูในระยะ / เรียกโชโกโบะมาหา · ใช้ไม่ได้ = ไม่เสียของ
     if (!require("./fodlan/stage6").useGysahl(p)) return;
   } else {
     return;
