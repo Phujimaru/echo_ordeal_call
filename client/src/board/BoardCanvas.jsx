@@ -87,7 +87,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareDarkWave, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
-  setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom,
+  setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom, clampCamRts, rtsZoomRange, rtsZoomOf,
 } from "./boardDraw";
 import { boardPaused } from "./boardPause";
 import { hkBeamHitMs } from "./hikaruFx";
@@ -153,6 +153,7 @@ const zoomKOf = (pitch, lv) => (pitch === PITCH_BIRD ? ZOOM_LEVELS.top : ZOOM_LE
 const ZOOM_WHEEL_GAP = 130; // ล้อเมาส์/ทัชแพดยิงถี่ — ขยับได้ระดับละครั้งต่อช่วงนี้ (ms)
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
+const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
@@ -414,6 +415,12 @@ export default function BoardCanvas(props) {
       };
       const focusPt = (f) => (f && Number.isFinite(f.x) && Number.isFinite(f.y) ? project(f.x + 0.5, f.y + 0.5) : null);
       const zl = st.cv3 ? 0 : clampZoom(p.zoom); // Colony: ซูมด้วยกล้อง 3D (กล้อง 2D อยู่กับที่)
+      // กล้อง RTS ของแผนที่ใหญ่ (p.rts — สนาม Eos · GRID_PLAN §8.6): จออยู่ในแผนที่ตลอด (ไม่เห็นขอบ) · ซูมต่อเนื่อง · ลาก/ชิดขอบจอ/ลูกศร = เลื่อนได้ทุกระดับ
+      const rts = !!p.rts && !st.cv3;
+      const rr = rts ? rtsZoomRange(info, base, pitch === PITCH_BIRD) : null;
+      st.rts = rts; st.rtsRange = rr;
+      const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : cc(cam));
+      const zk = (lv) => (rts ? rtsZoomOf(rr, lv) : zoomKOf(pitch, lv));
       // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
       const cin = !st.cv3 && p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
       if (cin !== st.cinemaRef) {
@@ -423,18 +430,18 @@ export default function BoardCanvas(props) {
           if (!was) st.cinemaBack = st.camAnim ? { ...st.camAnim.to } : { ...st.cam };
           const [ax, ay] = project(cin.a.x + 0.5, cin.a.y + 0.5), [bx, by] = project(cin.b.x + 0.5, cin.b.y + 0.5);
           const z = Math.max(1, cin.z || 2);
-          startAnim(clampCam(info, base, { z, cx: (ax + bx) / 2, cy: (ay + by) / 2 - 18 / z }), CINEMA_MS);
+          startAnim(cc({ z, cx: (ax + bx) / 2, cy: (ay + by) / 2 - 18 / z }), CINEMA_MS);
         } else if (st.cinemaBack) {
-          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: zoomKOf(pitch, zl), cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
+          const back = zl === st.zoomLv ? st.cinemaBack : (zl ? { z: zk(zl), cx: st.cinemaBack.cx, cy: st.cinemaBack.cy } : { z: 1, cx: LW / 2, cy: LH / 2 });
           st.cinemaBack = null; st.zoomLv = zl;
-          startAnim(clampCam(info, base, back), CINEMA_MS);
+          startAnim(cc(back), CINEMA_MS);
         }
       }
       if (st.cinemaRef) { st.focusRef = p.focus; }
       else if (zl && st.zoomLv === zl && st.zoomPitch !== pitch) {
         // สลับมุมมองระหว่างมุมใกล้: คงจุดกลางไว้ ปรับขนาดขยายตามมุมใหม่
         st.zoomPitch = pitch;
-        startAnim(clampCam(info, base, { z: zoomKOf(pitch, zl), cx: st.cam.cx, cy: st.cam.cy }), ZOOM_MS);
+        startAnim(cc({ z: zk(zl), cx: st.cam.cx, cy: st.cam.cy }), ZOOM_MS);
       }
       else if (zl !== st.zoomLv) {
         const first = st.zoomLv === null;
@@ -442,7 +449,7 @@ export default function BoardCanvas(props) {
         st.zoomPitch = pitch;
         let to;
         if (zl) {
-          const z1 = zoomKOf(pitch, zl), a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
+          const z1 = zk(zl), a = st.zoomAnchor && now - st.zoomAnchor.t < 800 ? st.zoomAnchor : null, fp = focusPt(p.focus);
           const from = st.camAnim ? st.camAnim.to : st.cam;
           if (a) {
             // ล้อเมาส์: จุดใต้เมาส์อยู่ที่เดิมบนจอ
@@ -451,16 +458,17 @@ export default function BoardCanvas(props) {
           } else if (from.z > 1.001) to = { z: z1, cx: from.cx, cy: from.cy }; // เปลี่ยนระดับระหว่างซูมอยู่ = คงจุดกลางเดิม
           else if (fp) to = { z: z1, ...camFromEye(base, z1, fp[0], fp[1]) };
           else to = { z: z1, cx: from.cx, cy: from.cy };
-        } else to = { z: 1, cx: LW / 2, cy: LH / 2 };
+        } else if (rts) { const from = st.camAnim ? st.camAnim.to : st.cam; to = { z: zk(0), cx: from.cx, cy: from.cy }; }
+        else to = { z: 1, cx: LW / 2, cy: LH / 2 };
         st.zoomAnchor = null; st.pivot = null;
-        to = clampCam(info, base, to);
+        to = cc(to);
         if (first) { st.cam = to; st.camAnim = null; } else startAnim(to, ZOOM_MS);
       }
       if (p.focus !== st.focusRef) {
         st.focusRef = p.focus;
         const fp = focusPt(p.focus), goal = st.camAnim ? st.camAnim.to : st.cam;
-        if (fp && zl && !st.pivot && !(st.drag && st.drag.moved) && !inCamView(base, goal, fp[0], fp[1])) {
-          startAnim(clampCam(info, base, { z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+        if (fp && (zl || rts) && !st.pivot && !(st.drag && st.drag.moved) && !inCamView(base, goal, fp[0], fp[1])) {
+          startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
         }
       }
       if (st.camAnim) {
@@ -468,7 +476,7 @@ export default function BoardCanvas(props) {
         st.cam = { z: A.from.z + (A.to.z - A.from.z) * e, cx: A.from.cx + (A.to.cx - A.from.cx) * e, cy: A.from.cy + (A.to.cy - A.from.cy) * e };
         if (pr >= 1) { st.cam = A.to; st.camAnim = null; }
       }
-      if (zl && st.keys.size && dt > 0) {
+      if ((zl || rts) && st.keys.size && dt > 0) {
         let kx = 0, ky = 0;
         for (const c of st.keys) { const v = ARROWS[c]; if (v) { kx += v[0]; ky += v[1]; } }
         const sp = PAN_SPEED * dt / 1000 / st.cam.z;
@@ -479,12 +487,23 @@ export default function BoardCanvas(props) {
         st.cam = { z: st.cam.z, ...camFromEye(base, st.cam.z, sx, sy) };
         if (!turning) st.pivot = null;
       }
-      st.cam = clampCam(info, base, st.cam);
+      // RTS: เมาส์ชิดขอบจอ = เลื่อน (ไม่ลากอยู่ · หน้าต่างมีโฟกัส) · ปุ่มกลับที่ตัวเรา (p.camHome เปลี่ยน) = เลื่อนไปที่ focus
+      if (rts && st.ptr && !st.drag && dt > 0 && typeof document !== "undefined" && document.hasFocus()) {
+        const r = cvRef.current.getBoundingClientRect(), ex = st.ptr.clientX - r.left, ey = st.ptr.clientY - r.top;
+        const kx = ex < EDGE_PX ? -1 : ex > r.width - EDGE_PX ? 1 : 0, ky = ey < EDGE_PX ? -1 : ey > r.height - EDGE_PX ? 1 : 0;
+        if (kx || ky) { const sp = PAN_SPEED * dt / 1000 / st.cam.z; st.camAnim = null; st.cam = { ...st.cam, cx: st.cam.cx + kx * sp, cy: st.cam.cy + ky * sp }; }
+      }
+      if (rts && p.camHome !== st.camHome) {
+        const fp = st.camHome !== undefined ? focusPt(p.focus) : null;
+        st.camHome = p.camHome;
+        if (fp) startAnim(cc({ z: st.cam.z, ...camFromEye(base, st.cam.z, fp[0], fp[1]) }), FOCUS_MS);
+      }
+      st.cam = cc(st.cam);
       const view = st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base;
       st.view = view;
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
       //  ทุกระดับที่ซูมอยู่ใช้ชั้นอบความละเอียดเดียว (ของระดับสูงสุด) — เปลี่ยนระดับไม่ต้องอบใหม่
-      const res = lowQ || !zl ? dpr : Math.round(Math.min(2, dpr * zoomKOf(pitch, ZOOM_STEPS - 1)) * 100) / 100;
+      const res = lowQ || (!zl && !rts) ? dpr : Math.round(Math.min(2, dpr * (rts ? rr.max : zoomKOf(pitch, ZOOM_STEPS - 1))) * 100) / 100;
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
@@ -801,6 +820,16 @@ export default function BoardCanvas(props) {
     // ล้อเมาส์: ขึ้น = มุมใกล้ (ซูมเข้าหาจุดใต้เมาส์) · ลง = มุมปกติ (ต้อง passive: false เพื่อกันหน้าเลื่อน)
     const onWheel = (e) => {
       if (st.cv3 && !e.ctrlKey && e.deltaY) { e.preventDefault(); st.cv3.zoomBy(e.deltaY); return; } // Colony: ซูมต่อเนื่อง
+      // RTS (สนาม Eos): ล้อ = ซูมต่อเนื่องเข้าหาจุดใต้เมาส์ (ไม่ผ่านระดับ +/−)
+      if (st.rts && st.rtsRange && st.view && !e.ctrlKey && e.deltaY) {
+        e.preventDefault();
+        const from = st.camAnim ? st.camAnim.to : st.cam, rr = st.rtsRange;
+        const z1 = Math.max(rr.min, Math.min(rr.max, from.z * Math.exp(-Math.max(-120, Math.min(120, e.deltaY)) * 0.0022)));
+        const r = cv.getBoundingClientRect(), [lx, ly] = toLogical(st.view, e.clientX - r.left, e.clientY - r.top), k = from.z / z1;
+        st.camAnim = null;
+        st.cam = { z: z1, cx: lx - k * (lx - from.cx), cy: ly - k * (ly - from.cy) };
+        return;
+      }
       const pp = propsRef.current, cb = pp.onZoomChange;
       if (typeof cb !== "function" || e.ctrlKey || !e.deltaY) return;
       e.preventDefault();
@@ -827,7 +856,7 @@ export default function BoardCanvas(props) {
         if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.home(); return; }
         if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }
       }
-      if (!ARROWS[e.code] || !(clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!ARROWS[e.code] || !(st.rts || clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด
       if (!e.repeat && !st.keys.has(e.code)) {
@@ -902,7 +931,7 @@ export default function BoardCanvas(props) {
       try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
       return;
     }
-    if (!(clampZoom(propsRef.current.zoom) > 0) || e.button > 2) return;
+    if (!(st.rts || clampZoom(propsRef.current.zoom) > 0) || e.button > 2) return;
     if (e.button === 1) e.preventDefault(); // กันเมาส์กลางเลื่อนหน้าอัตโนมัติ
     st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button };
     try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
@@ -920,7 +949,7 @@ export default function BoardCanvas(props) {
     setHover(tile, unit ? unit.id : null);
     const p = propsRef.current, hl = st.hl, k = tile ? key(tile.x, tile.y) : null;
     const hot = !!unit || (k && (hl.move.has(k) || hl.attack.has(k) || hl.skill.has(k) || hl.aoe.has(k)));
-    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : clampZoom(p.zoom) > 0 ? "grab" : "default";
+    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : st.rts || clampZoom(p.zoom) > 0 ? "grab" : "default";
   };
   useLayoutEffect(() => {
     S.current.refreshHover = () => { const st = S.current; if (st.ptr && !(st.drag && st.drag.moved)) hoverAt(st.ptr); };
@@ -964,7 +993,7 @@ export default function BoardCanvas(props) {
       <canvas ref={glRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", pointerEvents: "none" }} />
       <canvas
         ref={cvRef}
-        style={{ position: "relative", display: "block", width: "100%", height: "100%", touchAction: props.colony || clampZoom(props.zoom) > 0 ? "none" : "manipulation" }}
+        style={{ position: "relative", display: "block", width: "100%", height: "100%", touchAction: props.colony || props.rts || clampZoom(props.zoom) > 0 ? "none" : "manipulation" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

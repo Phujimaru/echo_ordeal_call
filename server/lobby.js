@@ -12,7 +12,7 @@ const { POSITION_COLORS } = require("../characters");
 const Journey = require("../characters/_journey");
 const CHAR_HOOKS = require("../characters/index");
 const {
-  JOURNEY_START_SECONDS, FODLAN_START_SECONDS, RESERVATION_TTL_MS, TEAM_IDS,
+  JOURNEY_START_SECONDS, FODLAN_START_SECONDS, EOS_START_SECONDS, RESERVATION_TTL_MS, TEAM_IDS,
 } = require("./constants");
 const { io } = require("./app");
 const match = require("./match");
@@ -103,7 +103,7 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
   });
 }
 // สนามที่โหวตได้: โลก (Origin — การเดินทาง) / Fodlan (บนโลก — GRID_PLAN §8.5) / โคโลนี — มีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
-const WORLDS = ["earth", "fodlan", "colony", "moon"];
+const WORLDS = ["earth", "fodlan", "eos", "colony", "moon"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6)
 // โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
 function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon"); }
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
@@ -347,14 +347,15 @@ function startMatch() {
   //  (client นับเวลาฉากแผนที่จาก timeLeft ของเฟสนี้ จึงจบพร้อมกันทุกเครื่องแม้ฉากเปิดตัวของแต่ละคนจะช้าเร็วต่างกัน)
   // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก) · Moon Cell = ฉากบินอ้อมโลกไปดวงจันทร์ (client oc/intro/moonFlight.js)
   const journeyStart = (Journey.active(engine) || Colony.inWorld() || Moon.inWorld() || Fodlan.inWorld()) && JOURNEY_START_SECONDS > 0;
-  if (journeyStart) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
+  // Eos (§8.6): พักให้ฉากเปิดตัวผู้เล่นจบเหมือนสนามอื่น แต่ไม่มีฉากเดินทาง (แผนที่เดียว)
+  if (journeyStart && !Fodlan.isEos()) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
     //  (cutsceneInfo = null -> client วาดกระดานปกติไว้ใต้ฉากเปิดแมตช์ (MatchIntro) ซึ่งบังอยู่แล้ว)
     match.cutsceneInfo = null;
     match.gameState = "CUTSCENE";
     // Fodlan: ฉากดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน ยาวกว่า (client fodlan/stages.js FODLAN_INTRO_MS 13 วิ)
-    const sceneSecs = Fodlan.inWorld() ? FODLAN_START_SECONDS : JOURNEY_START_SECONDS;
+    const sceneSecs = Fodlan.isEos() ? EOS_START_SECONDS : Fodlan.inWorld() ? FODLAN_START_SECONDS : JOURNEY_START_SECONDS;
     timers.startPhaseTimer(gameIntroHoldSeconds() + sceneSecs, () => {
       if (match.journeyScene) match.journeyScene.active = false;
       cutscene.runCutsceneQueue(draw.dealRound);

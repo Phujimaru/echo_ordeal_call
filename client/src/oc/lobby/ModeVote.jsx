@@ -32,18 +32,32 @@ const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 // หมุดโหมดของ Fodlan กระจุกรอบหมุด Fodlan (ทะเลเปิดระหว่างภูมิภาค III–IV ของ Origin)
 const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
 // ชั้นหมุดสนามย่อยบนโลก: Origin = ภูมิภาค I ของการเดินทาง · Fodlan = หมุดสีทอง
-const SUBS = ["origin", "fodlan"];
-const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat] };
+// Eos (GRID_PLAN §8.6): หมุดที่ 3 บนโลก (มหาสมุทรซีกตะวันตก) — แผนที่เดียว 32×32
+const EOS_GEO = { lon: -28, lat: -6 };
+const EOS_MODE_GEO = { ffa: [EOS_GEO.lon - 12, EOS_GEO.lat + 8], duo: [EOS_GEO.lon + 4, EOS_GEO.lat - 8], trio: [EOS_GEO.lon + 16, EOS_GEO.lat + 8] };
+const SUBS = ["origin", "fodlan", "eos"];
+const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat] };
 const FODLAN_GOLD = 0xe0a63a;
+const EOS_BLUE = 0x7fd4ff;
+const SUB_COLORS = { fodlan: FODLAN_GOLD, eos: EOS_BLUE };
+// โซนของ Eos (server/fodlan/map6.js ZONES) — แผงโหวตแสดงชื่ออย่างเดียว
+const EOS_ZONES = [
+  { id: "insomnia", name: "Insomnia", color: "#7fd4ff" },
+  { id: "hammerhead", name: "Hammerhead", color: "#e0a63a" },
+  { id: "duscae", name: "Duscae", color: "#6fbf73" },
+  { id: "lake", name: "Cleigne", color: "#5a9fd6" },
+  { id: "altissia", name: "Altissia", color: "#9fe0e8" },
+];
 const ORDER = ["ffa", "duo", "trio"];
 const WORLDS = ["earth", "colony", "moon"];
-const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
-const LATIN_WORLDS = new Set(["origin", "fodlan", "colony"]);
+const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", colony: "Colony", moon: "ดวงจันทร์" };
+const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "colony"]);
 // ชื่อสนามตามที่ server เก็บ (ผลโหวต): earth = Origin
-const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
+const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", eos: "Eos", colony: "Colony", moon: "ดวงจันทร์" };
 // world ฝั่ง client → world ที่ส่งให้ server
 const serverWorld = (w) => (w === "origin" || w === "earth" || !w ? "earth" : w);
-const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan";
+const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan" || w === "eos";
+const EARTH_SUBS = new Set(["fodlan", "eos"]); // สนามย่อยบนโลกที่ server เก็บเป็น world ของตัวเอง
 const LATIN_MODES = new Set(["moon"]);
 // บอสของ Moon Cell (server/moonCell.js) — ชื่อ + พลังชีวิต/เกราะ
 const MOON_BOSSES = [
@@ -144,7 +158,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const enter = (w, sound) => { if (sound) clickSound(); onFocus(null); onWorld(w); };
   const back = () => {
     if (focus) { onFocus(null); return; }
-    if (world === "origin" || world === "fodlan") { onWorld("earth"); return; }
+    if (world === "origin" || world === "fodlan" || world === "eos") { onWorld("earth"); return; }
     if (world) { onWorld(null); return; }
     socket.emit("modeBackToLobby");
   };
@@ -185,10 +199,10 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
       return { g, stem, head, ring, hit, dir, k };
     };
     // หมุดโหมดสองชุด: Origin (ตำแหน่งเดิม) / Fodlan (รอบหมุด Fodlan)
-    const modeSets = { origin: {}, fodlan: {} };
-    const hitsBy = { origin: [], fodlan: [] };
+    const modeSets = { origin: {}, fodlan: {}, eos: {} };
+    const hitsBy = { origin: [], fodlan: [], eos: [] };
     for (const mode of ORDER) {
-      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO]]) {
+      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO]]) {
         const m = makePin(geo[mode], COLORS.azure, { mode });
         modeSets[set][mode] = m;
         hitsBy[set].push(m.hit);
@@ -197,7 +211,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const subs = {};
     const subHits = [];
     for (const sub of SUBS) {
-      const m = makePin(SUB_GEO[sub], sub === "fodlan" ? FODLAN_GOLD : COLORS.azure, { sub }, true);
+      const m = makePin(SUB_GEO[sub], SUB_COLORS[sub] || COLORS.azure, { sub }, true);
       m.ring.material.opacity = 0.7;
       subs[sub] = m;
       subHits.push(m.hit);
@@ -448,8 +462,8 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     s.focus = focus;
     for (const [k, pins] of Object.entries(s.modeSets)) for (const [mode, m] of Object.entries(pins)) m.ring.material.opacity = mode === focus && world === k ? 0.9 : 0;
     const set = s.modeSets[world];
-    if (set) { core.setAutoSpin(0); core.focusDir((set[focus] || (world === "fodlan" ? s.subs.fodlan : set.ffa)).dir); }
-    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).normalize()); } // เห็นทั้ง Origin และ Fodlan
+    if (set) { core.setAutoSpin(0); core.focusDir((set[focus] || (EARTH_SUBS.has(world) ? s.subs[world] : set.ffa)).dir); }
+    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).add(s.subs.eos.dir).normalize()); } // เห็น Origin · Fodlan · Eos
     else { core.focusDir(null); core.setAutoSpin(world === "colony" || world === "moon" ? 0.04 : 0.07); }
     if (s.route) { s.root.remove(s.route); s.route.geometry.dispose(); s.route.material.dispose(); s.route = null; }
     s.curve = null;
@@ -482,7 +496,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   // ป้ายโลกนับรวมทั้ง Origin และ Fodlan (สองสนามอยู่บนโลก) · ป้ายสนามย่อยนับแยก
   const worldVoters = (w) => state.players.filter((p) => {
     const pw = p.modeWorld || "earth";
-    return p.modeVote && (w === "earth" ? pw === "earth" || pw === "fodlan" : w === "origin" ? pw === "earth" : pw === w);
+    return p.modeVote && (w === "earth" ? pw === "earth" || EARTH_SUBS.has(pw) : w === "origin" ? pw === "earth" : pw === w);
   });
 
   const modeTags = () => options.map((o) => {
@@ -525,7 +539,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               key={w}
               type="button"
               ref={(el) => { worldRefs.current[w] = el; }}
-              className={`oc-tag ocl-worldtag back${myWorld === w || (w === "earth" && myWorld === "fodlan") ? " on" : ""}`}
+              className={`oc-tag ocl-worldtag back${myWorld === w || (w === "earth" && EARTH_SUBS.has(myWorld)) ? " on" : ""}`}
               data-world={w}
               onClick={() => enter(w, false)}
               tabIndex={world ? -1 : 0}
@@ -572,7 +586,18 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
-            {world === "fodlan" ? (
+            {world === "eos" ? (
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">โซน</div>
+                <ul className="ocl-jr-grid" style={{ "--cols": 2 }}>
+                  {EOS_ZONES.map((z) => (
+                    <li key={z.id} className="ocl-jr-tile" style={{ "--c": z.color, "--g": z.color }}>
+                      <span className="ocl-jr-name">{z.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : world === "fodlan" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ด่าน</div>
                 <JourneyPool list={FODLAN_STAGES} name={(st) => st.name} cols={2} />

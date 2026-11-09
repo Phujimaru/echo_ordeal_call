@@ -369,6 +369,14 @@ const FODLAN_DEFS = [require("./fodlan/map1"), require("./fodlan/map2"), require
 });
 const isFodlanArea = (area) => Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + FODLAN_STAGES;
 
+// ---------- Eos (GRID_PLAN §8.6) ----------
+//  area 45 = สนาม Eos แผนที่เดียว 32×32 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 6" — server/fodlan.js · กติกา server/fodlan/stage6.js)
+const EOS_AREA = FODLAN_AREA + FODLAN_STAGES;
+const EOS_DEF = require("./fodlan/map6");
+Object.assign(TERRAIN_INFO, EOS_DEF.TERRAIN || {});
+MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
+const isEosArea = (area) => Number(area) === EOS_AREA;
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -399,7 +407,9 @@ function moveCost(map, x, y) {
   return (info && info.cost) || 1;
 }
 // ก้าวที่ใช้เดินเข้าช่องนี้ตามตัวเลือกการเดิน — opts.flowerWalk (ราชาดอกไม้ของเซลิน): ช่องดอกไม้ = 0 ก้าว
+//  opts.flatWalk (ขี่ช็อโก้ — สนาม Eos): ช่องที่กินหลายก้าว (ป่าทึบ/น้ำตื้น) = 1 ก้าว
 function stepCost(map, x, y, opts) {
+  if (opts && opts.flatWalk) return Math.min(1, moveCost(map, x, y));
   if (opts && opts.flowerWalk) {
     const info = TERRAIN_INFO[specialAt(map, x, y)];
     if (info && info.flower) return 0;
@@ -1095,7 +1105,7 @@ function nearShop(pos, shop) {
 
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
-  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea,
+  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

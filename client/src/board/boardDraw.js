@@ -136,6 +136,57 @@ export function clampCam(info, base, cam) {
   cy = fit(cy, base.y0 + hh, base.y1 - hh);
   return { z: cam.z, cx, cy };
 }
+// ---------- กล้องแบบ RTS ของแผนที่ใหญ่ (สนาม Eos — GRID_PLAN §8.6 · ผู้ใช้สั่ง 2026-11-09) ----------
+//  จอต้องอยู่ "ในแผนที่" ตลอด — ไม่เห็นขอบกระดาน/พื้นที่ว่างด้านนอก: กรอบจอทั้ง 4 มุมต้องอยู่ในรูปสี่เหลี่ยมของกระดานบนจอ
+//  ซูมออกได้สุดแค่ระดับที่จอยังอยู่ในแผนที่ (rtsZoomRange.min) · ซูมเข้าสุด = ช่องใหญ่เท่าแผนที่ปกติ 14×14 ที่ซูมสุด
+//  ต้องตั้งกล้อง (setCamera) ก่อนเรียก
+export const RTS_ZOOM_MAX = { tilt: 2.4, top: 3.25 }; // × (ด้านยาวของกระดาน / 14)
+function boardQuad(info) { return [P(0, 0), P(info.cols, 0), P(info.cols, info.rows), P(0, info.rows)].map((q) => [q[0], q[1]]); }
+function inQuad(q, x, y) {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [ax, ay] = q[i], [bx, by] = q[(i + 1) % 4];
+    const c = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+    if (Math.abs(c) < 1e-9) continue;
+    const sg = c > 0 ? 1 : -1;
+    if (sign && sg !== sign) return false;
+    sign = sg;
+  }
+  return true;
+}
+function rectIn(q, cx, cy, hw, hh) {
+  return inQuad(q, cx - hw, cy - hh) && inQuad(q, cx + hw, cy - hh) && inQuad(q, cx + hw, cy + hh) && inQuad(q, cx - hw, cy + hh);
+}
+const halfOf = (base, z) => [(base.x1 - base.x0) / (2 * z), (base.y1 - base.y0) / (2 * z)];
+const centerOf = (q) => [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
+export function rtsZoomRange(info, base, top = false) {
+  const q = boardQuad(info), [cx, cy] = centerOf(q);
+  let lo = 1, hi = 40;
+  if (rectIn(q, cx, cy, ...halfOf(base, lo))) hi = lo;
+  else for (let i = 0; i < 26; i++) { const m = (lo + hi) / 2; if (rectIn(q, cx, cy, ...halfOf(base, m))) hi = m; else lo = m; }
+  const min = hi * 1.002;
+  const max = Math.max(min * 1.5, (top ? RTS_ZOOM_MAX.top : RTS_ZOOM_MAX.tilt) * Math.max(info.cols, info.rows) / 14);
+  return { min, max };
+}
+// ระดับซูมของปุ่ม +/− (5 ระดับ ไล่แบบเรขาคณิตจากต่ำสุดถึงสูงสุด)
+export function rtsZoomOf(range, lv) { return range.min * Math.pow(range.max / range.min, clampZoom(lv) / (ZOOM_STEPS - 1)); }
+export function clampCamRts(info, base, cam, range) {
+  const q = boardQuad(info), [ox, oy] = centerOf(q);
+  const z = Math.max(range.min, Math.min(range.max, cam.z || range.min));
+  const [hw, hh] = halfOf(base, z);
+  const ok = (x, y) => rectIn(q, x, y, hw, hh);
+  if (ok(cam.cx, cam.cy)) return { z, cx: cam.cx, cy: cam.cy };
+  // เลื่อนจากกลางกระดานไปหาจุดที่ต้องการให้ไกลสุดที่ยังอยู่ในแผนที่ แล้วไถลตามแนวแกน x / y
+  const search = (fx, fy, tx, ty) => {
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 18; i++) { const m = (lo + hi) / 2; if (ok(fx + (tx - fx) * m, fy + (ty - fy) * m)) lo = m; else hi = m; }
+    return [fx + (tx - fx) * lo, fy + (ty - fy) * lo];
+  };
+  let [x, y] = search(ox, oy, cam.cx, cam.cy);
+  [x] = search(x, y, cam.cx, y);
+  [, y] = search(x, y, x, cam.cy);
+  return { z, cx: x, cy: y };
+}
 // จุดกลางของส่วนที่มองเห็นเหนือ HUD ↔ จุดกลางกล้อง (ใช้หมุนรอบจุดกลางจอ / เลื่อนไปหาตัวละคร)
 export const camEyeY = (base, z, cy) => cy - hudOf(base, z) / 2;
 export const camFromEye = (base, z, sx, sy) => ({ cx: sx, cy: sy + hudOf(base, z) / 2 });

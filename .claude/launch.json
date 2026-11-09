@@ -631,6 +631,50 @@
       "env": {
         "ECHO_SERVER_PORT": "3033"
       }
+    },
+    {
+      "name": "server-eos",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
+    },
+    {
+      "name": "client-eos",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5201",
+        "--strictPort"
+      ],
+      "port": 5201,
+      "env": {
+        "ECHO_SERVER_PORT": "3041"
+      }
+    },
+    {
+      "name": "server-eos-night",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_START_ROUND": "4",
+        "ECHO_DEV_EOS_WEATHER": "eos_storm"
+      }
     }
   ]
 }

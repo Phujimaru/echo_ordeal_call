@@ -15,9 +15,9 @@
 //   สถานะของการมาเยือนแต่ละครั้ง = match.fodlan.s (ล้างทุกครั้งที่เข้าด่าน) · st.weather = สภาพอากาศของครั้งนี้ (อ่านอย่างเดียว)
 // ============================================================
 Object.assign(module.exports, {
-  inWorld, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
+  inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  movMod, flatWalk, eosWinner, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -36,13 +36,18 @@ const WEATHER_TURNS = 3;
 const WEATHER_PCT = 50;
 const WEATHER_FROM = 3; // เทิร์นแรกของการมาเยือนที่สภาพอากาศเกิดได้
 const WEATHER_KINDS = { 1: "storm", 2: "miasma", 3: "tsunami", 4: "blizzard", 5: "aura" };
-const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์" };
-const WEATHER_NAMES = { storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง" };
+const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์", 6: "Eos" };
+const WEATHER_NAMES = { storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง", eos_storm: "ฝนฟ้าคะนอง", eos_fog: "หมอก" };
+// สนาม Eos (GRID_PLAN §8.6) = "ด่าน 6" ของตัวคุมนี้ในโลก "eos": แผนที่เดียวทั้งแมตช์ (ไม่หมุนด่าน)
+//  สภาพอากาศเกิดซ้ำได้ — สงบแล้วพัก EOS_WX_GAP เทิร์นก่อนสุ่มใหม่ · ชนิดสุ่มเท่ากัน
+const EOS_STAGE = 6;
+const EOS_WEATHER = ["eos_storm", "eos_fog"];
+const EOS_WX_GAP = 2;
 const FX_KEEP = 24; // เหตุการณ์ล่าสุดที่ส่งให้ client เล่นฉาก (seq เพิ่มเรื่อยๆ — client เล่นเฉพาะ seq ที่ยังไม่เคยเห็น)
 // seq ของเหตุการณ์: เพิ่มอย่างเดียวตลอดอายุ server (ห้ามนับใหม่ต่อด่าน/แมตช์ — client จำ seq ที่เห็นแล้วข้ามแมตช์ → เอฟเฟคด่านถัดไปไม่ขึ้น)
 //  เริ่มจากเวลาตอนเปิด server = รีสตาร์ท server แล้วยังมากกว่าเลขเดิมที่ client จำไว้
 let FX_SEQ = Date.now();
-Object.assign(module.exports, { STAGES, WEATHER_KINDS, WEATHER_TURNS, WEATHER_PCT, WEATHER_FROM, STAGE_NAMES, WEATHER_NAMES });
+Object.assign(module.exports, { STAGES, EOS_STAGE, EOS_WEATHER, EOS_WX_GAP, WEATHER_KINDS, WEATHER_TURNS, WEATHER_PCT, WEATHER_FROM, STAGE_NAMES, WEATHER_NAMES });
 
 // โมดูลกติกาของแต่ละด่าน (โหลดตอนใช้ — ไฟล์ด่าน require ของใน server/ ได้โดยไม่วนตอนโหลด)
 const MODS = {};
@@ -53,8 +58,9 @@ function modOf(stage) {
   return MODS[stage];
 }
 
-function inWorld() { return match.world === "fodlan"; }
-function active() { return inWorld() && !!match.fodlan && !!match.board && Board.isFodlanArea(match.board.area); }
+function inWorld() { return match.world === "fodlan" || match.world === "eos"; }
+function isEos() { return match.world === "eos"; }
+function active() { return inWorld() && !!match.fodlan && !!match.board && (Board.isFodlanArea(match.board.area) || Board.isEosArea(match.board.area)); }
 function areaOf(stage) { return Board.FODLAN_AREA + stage - 1; }
 function stageNow() { return match.fodlan ? match.fodlan.stage : 1; }
 function weatherNow() { const w = match.fodlan && match.fodlan.weather; return w && w.left > 0 ? w : null; }
@@ -65,7 +71,8 @@ function rollWeather(stage, random = Math.random) {
   return random() * 100 < WEATHER_PCT ? { kind: WEATHER_KINDS[stage], left: WEATHER_TURNS } : null;
 }
 function reset() {
-  match.fodlan = { stage: 1, route: [1], weather: null, s: null };
+  const first = isEos() ? EOS_STAGE : 1;
+  match.fodlan = { stage: first, route: [first], weather: null, s: null };
 }
 
 // ---------- เครื่องมือกลางที่ส่งให้โมดูลด่าน ----------
@@ -170,7 +177,7 @@ function call(name, fallback, ...args) {
 function persistAll(name, ...args) {
   if (!active()) return [];
   const out = [];
-  for (let s = 1; s <= STAGES; s++) {
+  for (const s of isEos() ? [EOS_STAGE] : [1, 2, 3, 4, 5]) {
     const mod = modOf(s), fn = mod.persist && mod.persist[name];
     if (typeof fn !== "function") continue;
     try { out.push(fn(makeCtx(), s === stageNow() ? stageState() : null, ...args)); }
@@ -189,8 +196,11 @@ function enterStage() {
 // เริ่มแมตช์ในสนาม Fodlan (lobby.startMatch)
 function start() {
   reset();
-  action.placeOnBoard(areaOf(1));
+  action.placeOnBoard(areaOf(stageNow()));
   enterStage();
+  // dev: ECHO_DEV_EOS_WEATHER=eos_storm|eos_fog = สนาม Eos เริ่มพร้อมสภาพอากาศนั้น (ดูภาพ/เสียง)
+  const devWx = process.env.ECHO_DEV_EOS_WEATHER;
+  if (isEos() && EOS_WEATHER.includes(devWx)) startWeather(devWx);
 }
 // ด่านถัดไป: 2–5 ไม่ซ้ำด่านที่อยู่ตอนนี้ (ด่าน I เป็นจุดเริ่มต้นเท่านั้น — แบบการเดินทางของ Origin)
 function pickNext(from, random = Math.random) {
@@ -208,18 +218,29 @@ function onEndTurn(random = Math.random) {
   const w = match.fodlan.weather;
   if (w && w.left > 0) {
     w.left -= 1;
-    if (w.left <= 0) match.lastLog.push(`🌤️ ${WEATHER_NAMES[w.kind]} สงบลงแล้ว`);
+    if (w.left <= 0) {
+      match.lastLog.push(`🌤️ ${WEATHER_NAMES[w.kind]} สงบลงแล้ว`);
+      if (match.fodlan.s) match.fodlan.s.wxEnded = Zero.worldRound();
+      call("weatherEnd", undefined);
+      return; // เทิร์นที่เพิ่งสงบไม่สุ่มใหม่
+    }
   }
   const st = stageState();
   const round = Zero.worldRound();
+  if (isEos()) {
+    // Eos: ไม่มีอากาศอยู่ + ผ่านเทิร์นแรก + พักครบหลังครั้งก่อนสงบ → สุ่ม
+    if (!st || weatherNow() || round < WEATHER_FROM - 1 || (st.wxEnded && round - st.wxEnded < EOS_WX_GAP)) return;
+    if (random() * 100 < WEATHER_PCT) startWeather(EOS_WEATHER[Math.floor(random() * EOS_WEATHER.length) % EOS_WEATHER.length]);
+    return;
+  }
   if (!st || st.wxDone || Journey.legEnds(round, match.legStart) || Journey.turnInArea(round, match.legStart) < WEATHER_FROM - 1) return;
   if (rollWeather(match.fodlan.stage, random)) startWeather();
 }
 // สภาพอากาศของด่านปัจจุบันเริ่มตอนนี้ (อยู่ WEATHER_TURNS เทิร์น) → ฮุค weatherStart ของด่าน (กองไฟดับ …) · เทสต์เรียกตรงได้
-function startWeather() {
+function startWeather(kind = null) {
   const st = stageState();
   if (!active() || !st) return;
-  const nw = { kind: WEATHER_KINDS[match.fodlan.stage], left: WEATHER_TURNS };
+  const nw = { kind: kind || (isEos() ? EOS_WEATHER[0] : WEATHER_KINDS[match.fodlan.stage]), left: WEATHER_TURNS };
   match.fodlan.weather = nw;
   st.weather = nw;
   st.wxDone = true;
@@ -230,7 +251,7 @@ function startWeather() {
 // จบด่าน (ครบ 6 เทิร์น) → สุ่มด่านถัดไป → พักเกม CUTSCENE ให้ client เล่นฉากเปลี่ยนแผนที่ (fodlan/FodlanTravel.jsx)
 //  คืน true = จัดการแล้ว (ผู้เรียกหยุด) · startTimer = พักเฟสแล้วแจกไพ่ (phases/endTurn.js)
 function maybeAdvance(startTimer, random = Math.random) {
-  if (Zero.active() || !active() || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
+  if (isEos() || Zero.active() || !active() || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
   const st = match.fodlan;
   const from = st.stage;
   call("leave", undefined); // ฮุคของด่านที่กำลังออก (หลุมศพ: ศิลาตราหาย)
@@ -300,6 +321,10 @@ function strikeObject(p, id) {
   return secs === false ? false : Math.max(0.6, Number(secs) || 1);
 }
 function movMod(p) { return Number(call("movMod", 0, p)) || 0; }
+// เดินผ่านช่องที่กินหลายก้าวได้ 1 ก้าว (Board.reachable opts.flatWalk — Eos: ขี่ช็อโก้)
+function flatWalk(p) { return !!call("flatWalk", false, p); }
+// สนาม Eos: ฝ่ายที่ครบแต้มยึดเสา → id ผู้เล่นของฝ่ายนั้น (phases/endTurn.js gameOver) · null = ยังไม่มี
+function eosWinner() { return isEos() ? call("winner", null) || null : null; }
 function atkBonus(p) { return (Number(call("atkBonus", 0, p)) || 0) + sumOf(persistAll("atkBonus", p)); }
 function preventDeath(p) { return !!call("preventDeath", false, p) || persistAll("preventDeath", p).some(Boolean); }
 // เลือดสูงสุดเพิ่ม (combat.maxHpOf) — ร่างอสูรศิลาตรา +5

@@ -1289,3 +1289,15 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เสียงเด่นคนเดียว**: `audio.js FOCUS_SFX { คีย์: ms }` — เล่นเสียงนี้แล้วเพลงหยุด (`suspendMusic`) เสียงอื่นเบาลงเหลือ `FOCUS_OTHER` ลูปเสียงพัก จนครบเวลา (Enuma Elish)
 - ปุ่มหลายตัวเลือกที่มี `zone` (`{ x0, y0, side, cols, rows, gx, gy }`) = SkillChoices วาดแผนที่ย่อ (กรอบทอง + จุดผู้ใช้) แทนรูป
 - เอฟเฟกต์ `client/src/board/gilFx.js` (socket `gilFx` · state `players[].gil` → prop `gils`) · ช่องพังของลำแสงใช้ฉาก `ryougiFx crumble`
+
+## 51. สนาม Eos: แผนที่เดียว 32×32 / ยึดเสาชนะด้วยแต้ม / ตายแล้วฟื้น / ระยะมองเห็นผู้เล่น / กล้อง RTS (`server/fodlan/stage6.js` · `map6.js` · GRID_PLAN §8.6)
+- โลก `match.world = "eos"` (หมุดที่ 3 บนโลก คู่ Origin/Fodlan — `ModeVote.jsx` SUBS) · ใช้ตัวคุมกลางของ Fodlan เป็น **"ด่าน 6"** (area 45 = `Board.EOS_AREA` · `Fodlan.isEos()`) ฮุคทั้งชุดของ §36 ใช้ได้ · ไม่หมุนด่าน (`maybeAdvance` คืน false) · ไม่มีฉากเดินทาง (`EOS_START_SECONDS`)
+- ผังสร้างด้วย value noise ตามภูมิศาสตร์ Lucis (ASCII ใน `map6.js` — แก้แล้วรัน `tests/eos.test.js` เสมอ: เดินถึงกันหมด · รถ 2×2 วิ่งถึงกันบนถนน) · ช่องของ Eos ขึ้นต้น `fd_eos_` (ป่า/น้ำตื้นเป็นชนิดของตัวเอง กติกาเท่า forest/shallow)
+- ระยะเดิน +2 ทุกคน (ฮุค `movMod`) · ขี่ช็อโก้ +3 + **`Board.reachable` opts.flatWalk** (ช่องกินหลายก้าว = 1 — ฮุค Fodlan `flatWalk(p)` → action.js / view.js `players[].flatWalk` → BoardStage optsOf)
+- รถ 3 คัน 2×2 แบบเรือ Fodlan ด่าน I (ปุ่ม `fd:drive`) · ปีศาจกลางคืน = ของบนกระดานที่ตีได้ (`objects` id `fd:dm…`) เดิน/ตีเองใน `preRound` · สภาพอากาศเกิดซ้ำได้ (`EOS_WEATHER` · พัก `EOS_WX_GAP` · ฮุคใหม่ `weatherEnd`)
+- **ชนะ**: เสา 5 ต้น · ปุ่ม `fd:seize` ร่ายพิธี 2 ตา (ครั้งที่สองตาถัดไป · โดนดาเมจ/ออกห่าง/ตาย = แตก — `checkChannels`) · จบเทิร์นได้แต้ม `SCORE_TABLE` [0,1,3,6,10,15] ตามจำนวนเสา · ถึง `SCORE_GOAL` 20 → ฮุคใหม่ `winner` → `Fodlan.eosWinner()` → `phases/endTurn.js gameOver` ตั้ง `match.forcedWinnerId` (ไม่ใช้กติกาคนสุดท้ายที่รอด) · ฝ่าย = ทีม (โหมดทีม) / `Duo.sideKey`
+- **ตายแล้วฟื้น** `REVIVE_TURNS` 3 ที่จุดเกิดที่ไกลศัตรูสุด (`noteDeaths` / `reviveDue` ใน preRound — เลือด/เกราะเต็ม ล้างสถานะ ของ/เหรียญอยู่ครบ)
+- **ระยะมองเห็นผู้เล่นอื่น** (ไม่ใช่หมอก): ฮุค `hides` — เห็นศัตรูเฉพาะในระยะเดิน + `SIGHT_EXTRA` 4 ของฝ่ายตัวเอง (ทีมแชร์ · ล้มอยู่ = เห็นทั้งแผนที่ · `exposedRound` ยังเปิดเผย) · หมอก `eos_fog` ซ้อนอีกชั้น (ฮุค `vision`)
+- client: `client/src/board/fodlan/stage6.js` (พื้นวาดรวมด้วย **marching squares** `msFill` — ค่ากลางช่อง + noise → ขอบคด/ลบมุม · ไม่อบทีละช่อง) · รูป `/eos/img/*` (รถ 3 คันตัดพื้นหลังจากรูปของผู้ใช้ · ช็อโก้ · ปีศาจ) · เสียง `client/src/eos/eosAudio.js` (`/eos/sfx/*` Mixkit — ลูปพื้นตามโซนที่ตัวเรายืน `eosBedsFor`)
+- **กล้อง RTS** (prop `rts` ของ BoardCanvas — `state.world === "eos"`): `boardDraw.clampCamRts` = กรอบจอทั้ง 4 มุมต้องอยู่ในกระดาน (ไม่เห็นขอบ) · `rtsZoomRange` ซูมออกสุดเท่าที่ยังอยู่ในแผนที่ · ล้อเมาส์ซูมต่อเนื่อง · ลาก/ชิดขอบจอ (`EDGE_PX`)/ลูกศร เลื่อนได้ทุกระดับ · Q/E หมุน · Space/ปุ่มเป้า = กลับมาที่ตัวเรา (`camHome`)
+- dev: launch `server-eos` / `server-eos-night` (เริ่มเทิร์น 4 + `ECHO_DEV_EOS_WEATHER`) + `client-eos` (5201) · เทสต์ [tests/eos.test.js](tests/eos.test.js)

@@ -142,6 +142,12 @@ function colonyHoldThen(secs, onStart, next) {
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
+  // สนาม Eos (GRID_PLAN §8.6): ชนะด้วยแต้มยึดเสาเท่านั้น (ตายแล้วฟื้น — ไม่ใช้กติกาคนสุดท้ายที่รอด)
+  if (Fodlan.isEos() && Fodlan.active() && !match.forcedWinnerId) {
+    const w = Fodlan.eosWinner();
+    if (!w) return false;
+    match.forcedWinnerId = w;
+  }
   // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner): ชนะคนเดียวทุกโหมด (ทีมได้ winningTeamId · Moon Cell = ผู้เล่นชนะ)
   const champ = match.forcedWinnerId && match.players[match.forcedWinnerId];
   if (champ) {

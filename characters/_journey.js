@@ -77,7 +77,7 @@ const roll = (pct) => Math.random() * 100 < pct;
 
 function active(engine) {
   // สนาม Colony (§8.3) / Moon Cell (§8.4) / Fodlan (§8.5 — มีลำดับด่านของตัวเอง server/fodlan.js): ไม่มีการเดินทาง/ผลภูมิภาค
-  if (engine.world === "colony" || engine.world === "moon" || engine.world === "fodlan") return false;
+  if (engine.world === "colony" || engine.world === "moon" || engine.world === "fodlan" || engine.world === "eos") return false; // Eos (§8.6) เหมือน Fodlan
   return ["ffa", "duo", "trio"].includes(engine.gameMode);
 }
 function areaNow(engine) {
@@ -129,12 +129,12 @@ module.exports = {
   // ---------- กฎวัน/คืนเดิมที่ภูมิภาคเข้ามาแทน ----------
   // ภาษีสกิลกลางคืน (สุ่มพื้นฐาน/รอง +1) — ในการเดินทางเหลือเฉพาะ 1 กลางคืน
   nightTaxOn(engine, legacyNight) {
-    if (engine.world === "fodlan") return false; // Fodlan: กลางวัน/กลางคืนไม่มีผล (ผู้ใช้สั่ง)
+    if (engine.world === "fodlan" || engine.world === "eos") return false; // Fodlan + Eos: กลางวัน/กลางคืนไม่มีผล (ผู้ใช้สั่ง)
     return active(engine) ? is(engine, 1, "night") : legacyNight;
   },
   // แต้มสกิลโบนัสจบเทิร์น (ต่อคน) — ในการเดินทางแทนโบนัสเช้าคู่เดิมทั้งหมด
   skillBonus(engine, legacyMorning) {
-    if (engine.world === "fodlan") return 0; // Fodlan: ไม่มีแต้มเช้า (ผู้ใช้สั่ง)
+    if (engine.world === "fodlan" || engine.world === "eos") return 0; // Fodlan + Eos: ไม่มีแต้มเช้า (ผู้ใช้สั่ง)
     if (!active(engine)) return legacyMorning ? 1 : 0;
     let n = 0;
     if (is(engine, 1, "day") && worldRoundOf(engine) % 2 === 0) n += 1;

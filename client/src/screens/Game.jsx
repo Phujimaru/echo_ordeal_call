@@ -2597,6 +2597,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
         journey={state.journey && !state.colony && !state.moon && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
+          : state.fodlan && state.world === "eos" && (phase === "PLAYING" || inBoardTurn) // Eos (§8.6): ชื่อสนาม + สภาพอากาศ
+            ? { numeral: "✦", color: "#2f5f9c", glow: "#9fe2ff", name: "Eos", eos: true, weather: state.fodlan.weather, scores: (state.fodlan.board && state.fodlan.board.scores) || [], goal: (state.fodlan.board && state.fodlan.board.goal) || 20 }
           : state.fodlan && (phase === "PLAYING" || inBoardTurn) // Fodlan: ป้ายด่าน + สภาพอากาศ (ไม่มีหน้าผลภูมิภาค)
             ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather }
             : null}

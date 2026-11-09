@@ -15,6 +15,7 @@ import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
+import { eosAudio, eosBedsFor } from "./eos/eosAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
 import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
@@ -306,9 +307,20 @@ export default function App() {
   // Fodlan: เสียงบรรยากาศของด่าน (ป่า ฝน ชายหาด ลม …) ดังต่อเนื่องตลอดที่อยู่บนกระดาน · ออกจากแมตช์ = จางหาย
   //  ฉากเข้าด่าน/เปลี่ยนด่านสั่ง setStage เองตอนเข้าฉากด่าน — ที่นี่ตามให้ตรงกับ state (ด่าน/สภาพอากาศเปลี่ยน · รีคอนเนกต์)
   //  ระหว่างฉาก (เปิดแมตช์/เปลี่ยนแผนที่) ไม่ยุ่ง: ฉากแผนที่ไม่มีเสียงบรรยากาศ — ฉากเข้าด่านเปิดเสียงของด่านเองตอนเข้าฉากด่าน
-  const fdStage = stage === "connected" && state?.fodlan && isMatchPhase(state.gameState) ? state.fodlan.stage : null;
+  const fdStage = stage === "connected" && state?.fodlan && state.world !== "eos" && isMatchPhase(state.gameState) ? state.fodlan.stage : null;
   const fdWeather = !!(fdStage && state.fodlan.weather);
   const fdScene = !!(fdStage && state.fodlan.scene && state.fodlan.scene.active);
+  // Eos (GRID_PLAN §8.6): ลูปบรรยากาศตามโซนที่ตัวเรายืน + กลางคืน + สภาพอากาศ (client/src/eos/eosAudio.js)
+  const eosOn = stage === "connected" && state?.world === "eos" && !!state?.fodlan?.board && isMatchPhase(state.gameState);
+  const eosMe = eosOn ? state.players.find((p) => p.id === state.youId) : null;
+  const eosBeds = eosOn ? JSON.stringify(eosBedsFor(eosMe && eosMe.pos, !!state.fodlan.board.night, state.fodlan.weather && state.fodlan.weather.kind)) : "";
+  const eosStorm = eosOn && state.fodlan.weather && state.fodlan.weather.kind === "eos_storm";
+  useEffect(() => {
+    const ea = eosAudio();
+    if (!eosBeds) { ea.stop(1.5); return; }
+    ea.setBeds(JSON.parse(eosBeds), { fade: 2.5 });
+    ea.thunder(!!eosStorm);
+  }, [eosBeds, eosStorm]);
   useEffect(() => {
     const fa = fodlanAudio();
     if (!fdStage) { fa.stop(1.5); return; }

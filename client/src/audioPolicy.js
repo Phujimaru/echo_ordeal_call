@@ -5,7 +5,7 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   if (!phase) return { name: "lobby5" };
   if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(phase)) return { name: "lobby5" };
   // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ — การ์ด/ลูกโลกหมุนดิ่ง = เพลงห้องรอเดิม · เห็นแผนที่ทวีปแล้ว (fodlanMap) = เพลงฉากแผนที่ (ผู้ใช้สั่ง)
-  if (intro) return { name: state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" };
+  if (intro) return { name: state?.fodlan && state?.world !== "eos" && fodlanMap ? "fodlan_map" : "lobby5" };
   const cs = phase === "CUTSCENE" ? state.cutscene : null;
   if (cs && (!lowQ || cs.announce)) return { name: null };
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว
@@ -23,7 +23,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   // Moon Cell (GRID_PLAN §8.4): เพลงธีมของผู้ใช้ตลอดแมตช์ — เพลงท่าไม้ตายทับได้
   if (state?.moon && isMatchPhase(phase) && !state?.skillMusic) return { name: "moon_theme" };
   // Fodlan: ฉากเปลี่ยนแผนที่ = เพลงฉากแผนที่ · บนกระดาน = เพลงประจำด่าน (สภาพอากาศ = เพลงอีกแบบของด่านนั้น) — เพลงท่าไม้ตายทับได้
-  const fodlan = state?.fodlan;
+  //  Eos (§8.6) ใช้ state.fodlan ร่วม แต่ยังไม่มีเพลงของตัวเอง (ผู้ใช้: เพลงเอาไว้ก่อน) → เพลงกลางวัน/กลางคืนปกติ
+  const fodlan = state?.world === "eos" ? null : state?.fodlan;
   if (fodlan && isMatchPhase(phase)) {
     if (fodlan.scene?.active) return { name: "fodlan_map" };
     if (!state?.skillMusic) return { name: `fodlan_${fodlan.stage}${fodlan.weather ? "_wx" : ""}` };

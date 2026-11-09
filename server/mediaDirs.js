@@ -3,5 +3,6 @@
 //  /image (พื้นหลัง + สแปลช)
 //  /journey (เพลงการเดินทาง 7 ภูมิภาค กลางวัน/กลางคืน + map.mp3 ของฉากแผนที่) · /zero_time (เพลงห่วงเวลาซีโร่ 4 ระดับ + เสียงฟ้าผ่า)
 //  /colony (เพลง/เสียงเหตุการณ์ของสนาม Colony — GRID_PLAN §8.3) · /fodlan (เพลงด่าน + เสียงบรรยากาศ/เอฟเฟกต์โหมด Fodlan — GRID_PLAN §8.5) · /mooncell (ภาพฮาคุโนะ/Moon Cell · คลิป+เสียงท่าไม้ตาย · เพลงธีม — GRID_PLAN §8.4)
+//  /eos (ภาพหมาก/ปีศาจ + เสียงเอฟเฟกต์/บรรยากาศของสนาม Eos — GRID_PLAN §8.6)
 //  ใช้ร่วมกัน: server/app.js (redirect ไป R2) · desktop/ (แคชไฟล์สื่อในเครื่องผู้เล่น)
-module.exports = ["characters", "item", "overload_force", "theme_song", "effect_sound", "image", "journey", "zero_time", "colony", "fodlan", "mooncell"];
+module.exports = ["characters", "item", "overload_force", "theme_song", "effect_sound", "image", "journey", "zero_time", "colony", "fodlan", "mooncell", "eos"];

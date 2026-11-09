@@ -276,7 +276,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
   //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
   //  flowerWalk = ราชาดอกไม้ของเซลิน (p.flowerWalk) — ช่องดอกไม้ (TERRAIN_INFO flower) ไม่เสียก้าว
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk), zone: (p && p.strikeZone) || null });
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk), flatWalk: !!(p && p.flatWalk), zone: (p && p.strikeZone) || null });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)
@@ -2120,6 +2120,20 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     ? { ...state.colony, tele: [...(state.colony.tele || []), ...myForesee.map((t) => ({ ...t, foresee: true }))] }
     : state.colony || null), [state.colony, myForesee]);
   const [colonyHome, setColonyHome] = useState(0); // ปุ่มเป้า (Colony) = กล้องกลับมาที่ตัวเรา
+  // สนาม Eos (GRID_PLAN §8.6): กล้อง RTS — Space / ปุ่มเป้า = กลับมาที่ตัวเรา
+  const eosRts = state.world === "eos";
+  const [camHome, setCamHome] = useState(0);
+  const goHome = useCallback(() => { if (me && me.pos) look(me.pos); setCamHome((n) => n + 1); }, [me, look]);
+  useEffect(() => {
+    if (!eosRts) return undefined;
+    const onKey = (e) => {
+      if (e.code !== "Space" || e.ctrlKey || e.metaKey || e.altKey || e.repeat || (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) return;
+      e.preventDefault();
+      goHome();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [eosRts, goHome]);
   const [colonyAway, setColonyAway] = useState(false); // กล้อง Colony ออกห่างตัวเรา → ปุ่มกลับที่หมาก (หกเหลี่ยมรูปตัวเรา)
   useEffect(() => {
     let seq = 0;
@@ -2709,6 +2723,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}
         colonyHome={colonyHome}
+        rts={eosRts}
+        camHome={camHome}
         onColonyAway={setColonyAway}
         songs={songs}
         grays={grays}
@@ -2800,8 +2816,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
             ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 L9 7 H15 L19 18 Z" /><path d="M7 13 H17 M12 7 V18" /></svg>
             : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /><path d="M4 12 H20 M12 4 V20" /></svg>}
         </button>
-        {state.colony && (
-          <button type="button" className="bs-tool bs-view" title="กลับที่ตัวเรา (Space)" onClick={() => { clickSound(); setColonyHome((n) => n + 1); }}>
+        {(state.colony || eosRts) && (
+          <button type="button" className="bs-tool bs-view" title="กลับที่ตัวเรา (Space)" onClick={() => { clickSound(); if (eosRts) goHome(); else setColonyHome((n) => n + 1); }}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" /><path d="M12 2.5 V6 M12 18 V21.5 M2.5 12 H6 M18 12 H21.5" /></svg>
           </button>
         )}

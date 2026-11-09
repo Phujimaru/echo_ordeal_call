@@ -72,6 +72,8 @@ const REBIRTH_SECONDS = 18;
 // โหมด Fodlan (GRID_PLAN §8.5): ฉากเข้าแมตช์ 13 วิ (ดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน) · ฉากเปลี่ยนด่าน 10 วิ (client fodlan/stages.js) — +1 วิเผื่อเน็ตหน่วง
 //  เริ่มฉากตั้งแต่ฉากเปิดตัวผู้เล่น "เริ่มปิดฉาก" แบบเดียวกับ JOURNEY_START_SECONDS · env 0 = ไม่มีฉาก (เทสต์)
 const FODLAN_START_SECONDS = Math.max(0, Number(process.env.FODLAN_START_SECONDS ?? process.env.JOURNEY_START_SECONDS ?? 12));
+// Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักแค่ให้ฉากเปิดตัวผู้เล่นจบ (0 ตามการตั้งของเทสต์ที่ปิดฉากเดินทาง)
+const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 1)));
 const FODLAN_ADVANCE_SECONDS = Math.max(0, Number(process.env.FODLAN_ADVANCE_SECONDS ?? process.env.JOURNEY_ADVANCE_SECONDS ?? 11));
 const TEAM_IDS = ["A", "B", "C"];
 
@@ -86,5 +88,5 @@ module.exports = {
   SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_BATTERY_PRICE, BATTERY_MAX, BATTERY_REGEN,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
   TEMP_HP_TURNS, CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
-  REBIRTH_SECONDS, FODLAN_START_SECONDS, FODLAN_ADVANCE_SECONDS, TEAM_IDS, RESYNC_EVERY,
+  REBIRTH_SECONDS, FODLAN_START_SECONDS, EOS_START_SECONDS, FODLAN_ADVANCE_SECONDS, TEAM_IDS, RESYNC_EVERY,
 };

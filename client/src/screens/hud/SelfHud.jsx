@@ -655,7 +655,7 @@ function ZeroChip({ zero }) {
   );
 }
 // Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
-const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️" };
+const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️" };
 export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, players, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
   if (round == null && !journey && !zeroOn && !colony && !moon) return null;
@@ -692,7 +692,20 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, colon
             </span>
             <span className="hud-top-text">
               <span className="hud-top-name">{journey.name}</span>
-              <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
+              {journey.eos ? (
+                <span className="hud-top-sub">
+                  {/* Eos (GRID_PLAN §8.6): แต้มยึดเสาของแต่ละฝ่าย (จุดสี + แต้ม/เป้า · 🔷 = เสาที่ถือ) */}
+                  {(journey.scores || []).map((sc) => (
+                    <span key={sc.side} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
+                      <i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: sc.color, marginRight: 3 }} />
+                      {sc.score}/{journey.goal}{sc.held ? ` 🔷${sc.held}` : ""}
+                    </span>
+                  ))}
+                  {journey.weather && `${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}
+                </span>
+              ) : (
+                <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
+              )}
             </span>
           </button>
         </>
