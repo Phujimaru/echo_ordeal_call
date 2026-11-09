@@ -607,14 +607,35 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
 
             <section className="ocl-sec">
               <div className="ocl-seclabel">ผลโหวต <span>{votedCount} / {state.players.length}</span></div>
-              <ul className="ocl-tally">
-                {[...state.players].sort((a, b) => a.position - b.position).map((p) => (
-                  <li key={p.id}>
-                    <i style={{ background: p.color }} />
-                    <span className="nm">{p.name}{p.id === state.youId ? " (คุณ)" : ""}</span>
-                    <span className={p.modeVote ? "v" : "v none"}>{p.modeVote ? `${VOTE_WORLD_TITLES[p.modeWorld || "earth"]} · ${modeTitle(p.modeVote)}` : "–"}</span>
-                  </li>
+              {/* แถบรวม: ช่องละคน · โหวตแล้ว = สีโหมดที่โหวต (เรียงตามโหมด) · ยังไม่โหวต = ช่องว่าง */}
+              <div className="ocl-tl-bar" aria-hidden="true">
+                {[...state.players].sort((a, b) => (a.modeVote ? 0 : 1) - (b.modeVote ? 0 : 1) || String(a.modeVote).localeCompare(String(b.modeVote))).map((p) => (
+                  <i key={p.id} data-mode={p.modeVote || undefined} />
                 ))}
+              </div>
+              <ul className="ocl-tally">
+                {[...state.players].sort((a, b) => a.position - b.position).map((p) => {
+                  const img = p.character?.img || p.img;
+                  return (
+                    <li key={p.id} className={p.modeVote ? "voted" : ""} style={{ "--pc": p.color }}>
+                      <span className="ocl-tl-av">
+                        {img ? <img src={img} alt="" draggable="false" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
+                        <b>{(p.name || "?").slice(0, 1)}</b>
+                      </span>
+                      <span className="nm">{p.name}</span>
+                      {p.id === state.youId && <span className="ocl-tl-you">คุณ</span>}
+                      {p.modeVote ? (
+                        <span className="ocl-tl-vote" data-mode={p.modeVote}>
+                          <span className="ocl-tl-ico">{MODE_ICONS[p.modeVote]}</span>
+                          <span className={LATIN_MODES.has(p.modeVote) ? "oc-latin" : ""}>{modeTitle(p.modeVote)}</span>
+                          <small>{VOTE_WORLD_TITLES[p.modeWorld || "earth"]}</small>
+                        </span>
+                      ) : (
+                        <span className="ocl-tl-wait" aria-label="ยังไม่โหวต"><i /><i /><i /></span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
 
