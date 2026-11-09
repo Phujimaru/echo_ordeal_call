@@ -3,7 +3,7 @@
 Object.assign(module.exports, {
   goldCapOf, addGold, shopCatalog, shopItemName, openShop, openShopAt, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, shopTurnsLeftOf, bagFull, dropItem,
-  shopAt, shopTiles, shopById, razeShopsIn, capsule, capsules, placeCapsule, clearCapsule, clearShops, publicShops, nearShopOf, tickMerchant,
+  shopAt, shopTiles, shopById, restockAll, bagSlotsOf, remoteShop, razeShopsIn, capsule, capsules, placeCapsule, clearCapsule, clearShops, publicShops, nearShopOf, tickMerchant,
   giveItem, swapItem,
   grantInventoryItem, asleep, viewShop, buyShopItem,
   cardLabel, useInventoryItem, useDrawItem, chargeBatteries, cleansableOf,
@@ -31,8 +31,11 @@ const Dim = require("./dimension");
 const Colony = require("./colony");
 
 // เพดานเหรียญรายบุคคล
+//  ฮุค goldCap(p) → เพดานเฉพาะตัว (กิลกาเมช: 999)
 function goldCapOf(p) {
-  return GOLD_MAX;
+  const hook = p && CHAR_HOOKS[p.characterId];
+  const cap = hook && hook.goldCap ? hook.goldCap(p) : null;
+  return Number.isFinite(cap) ? cap : GOLD_MAX;
 }
 // จุดเดียวที่ "ได้รับเหรียญ" ผ่าน — คืนจำนวนที่เข้ากระเป๋าจริงหลังตัดตามเพดาน
 function addGold(p, n) {
@@ -98,6 +101,16 @@ function shopItemName(item) {
   return "สินค้า";
 }
 function shopsList() { return match.shops || (match.shops = []); }
+// รีสต็อกทุกร้านที่ตั้งอยู่ (ของใหม่ จำนวนสุ่มใหม่ · ไม่ย้ายจุด — ราชาที่แท้จริงของกิลกาเมช) → มีร้านให้รีสต็อกไหม
+function restockAll() {
+  const list = shopsList();
+  for (const s of list) {
+    stockShop(s);
+    if (s.final) for (const it of s.items) it.price = Math.ceil(it.price * 1.5); // แคปซูลสุดท้ายของ Colony แพงกว่า
+  }
+  refreshShopForJourney();
+  return list.length > 0;
+}
 function shopById(id) { return shopsList().find((s) => s.id === id) || null; }
 // ร้านที่ครอบช่อง (x, y) อยู่ (หรือ null)
 // ขนาดร้าน [w, h] (ร้านเก่าที่มีแค่ size = สี่เหลี่ยมจัตุรัส)
@@ -296,9 +309,19 @@ function publicShops() {
 function nearShopOf(p, s) { return !!p && !!p.pos && !!s && distToTiles(Board.boxOf(p), tilesOfShop(s)) === 1; }
 
 // ---------- กระเป๋า 5 ช่อง ----------
-//  ขนมปังของเอมิลิโกะ (ของประจำตัว) ไม่กินช่อง
+//  ขนมปังของเอมิลิโกะ (ของประจำตัว) ไม่กินช่อง · ฮุค bagSlots(p) → ความจุเฉพาะตัว (กิลกาเมช Gate of Babylon: 50)
+function bagSlotsOf(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  const n = hook && hook.bagSlots ? hook.bagSlots(p) : null;
+  return Number.isFinite(n) ? n : BAG_SLOTS;
+}
 function bagFull(p) {
-  return (p.inventory || []).filter((it) => it.type !== "kebread").length >= BAG_SLOTS;
+  return (p.inventory || []).filter((it) => it.type !== "kebread").length >= bagSlotsOf(p);
+}
+// ซื้อ/เปิดดูร้านจากระยะไกลได้ (ฮุค remoteShop(p) — กิลกาเมช Gate of Babylon) · ไม่ต้องยืนติดร้าน · ไม่ล็อกการเดิน
+function remoteShop(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.remoteShop && hook.remoteShop(p));
 }
 // ทิ้งของ: เฉพาะตาตัวเอง · ไม่นับเป็นการใช้ (ยังเดิน/ย้อนได้)
 function dropItem(id, uid) {
@@ -382,7 +405,9 @@ const adjacentShop = (p, shopId) => (shopId ? [shopById(shopId)] : shopsList()).
 function viewShop(id, shopId) {
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return;
-  if (!action.canAct(p) || match.action.locked) return;
+  if (!action.canAct(p)) return;
+  if (remoteShop(p)) { if (!shopId || !shopById(shopId)) return; view.broadcastState(); return; } // ซื้อจากระยะไกล = ไม่ล็อกการเดิน
+  if (match.action.locked) return;
   if (!adjacentShop(p, shopId)) return;
   action.lockMove(p);
   view.broadcastState();
@@ -394,7 +419,8 @@ function buyShopItem(id, shopId, itemId) {
   if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   const sh = shopId ? shopById(shopId) : shopsList().find((s) => (s.items || []).some((it) => it.id === itemId));
-  if (!nearShopOf(p, sh)) return; // ต้องยืนติดร้าน (ระยะ 1 จากขอบร้าน) — GRID_PLAN §8.1
+  const remote = remoteShop(p);
+  if (!sh || (!remote && !nearShopOf(p, sh))) return; // ต้องยืนติดร้าน (ระยะ 1 จากขอบร้าน) — GRID_PLAN §8.1 · Gate of Babylon ซื้อจากไหนก็ได้
   if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = (sh.items || []).find((it) => it.id === itemId);
   if (!item || item.sold) return;
@@ -405,7 +431,7 @@ function buyShopItem(id, shopId, itemId) {
   item.soldTo = p.id;
   refreshShopForJourney();
   p.gold -= item.price;
-  action.lockMove(p); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้)
+  if (!remote) action.lockMove(p); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
   const entry = { uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price };
   if (item.type === "battery") entry.charge = 0; // วงจรพลังงาน: ซื้อมาว่าง ชาร์จเองทุกจบเทิร์น
   p.inventory.push(entry);

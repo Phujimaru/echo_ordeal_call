@@ -27,6 +27,7 @@ const gio = require("./giorno_giovanna"); // โจรุโน่: คลิป
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
+const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
 const OHGER_SECONDS = { kuwagata: 21, tonbo: 19, kamakiri: 17, papiyon: 21, hachi: 22 };
@@ -157,6 +158,11 @@ module.exports = function buildTransforms() {
     otoyaWake2: { img: oto.IMG.wake, video: oto.VIDEO.wake2, title: "Wake Up 2", label: "จงตื่นขึ้น ครั้งสุดท้าย", seconds: 3.4, music: null, afterReveal: false },
     otoyaWake2Hit: { img: oto.IMG.kiva, video: oto.VIDEO.wake2Hit, title: "Darkness Moon Break", label: "Wake Up 2", seconds: 7.4, music: null, afterReveal: false },
     otoyaDead: { img: oto.IMG.base, video: oto.VIDEO.dead, title: "คุเรไน โอโตยะ", label: "ครั้งสุดท้าย", seconds: 5.9, music: null, afterReveal: false },
+    // กิลกาเมช (Fake) — ความยาวจริง (ffprobe) 16.0 / 13.8 / 17.7 / 14.2 วิ ปัดขึ้น · คลิปมีเสียงในตัว
+    gilEaDraw: { img: gil.IMG.skill1, video: gil.VIDEO.draw, title: "EA", label: "จงเห่าหอนซะสิ เจ้าพันธุ์ทาง", seconds: 16.3, music: null, afterReveal: false },
+    gilEaRoar: { img: gil.IMG.skill3, video: gil.VIDEO.roar, title: "EA", label: "พายุแห่งการแยกฟ้าดิน", seconds: 14.1, music: null, afterReveal: false },
+    gilGate: { img: gil.IMG.skill2, video: gil.VIDEO.gate, title: "Gate of Babylon", label: "เมตตาจากราชา", seconds: 18, music: null, afterReveal: false },
+    gilEnuma: { img: gil.IMG.skill3, video: gil.VIDEO.enuma, title: "Enuma Elish", label: "ดาบแยกฟ้าดิน", seconds: 14.5, music: null, afterReveal: false },
     gioMuda: { img: gio.IMG.skill3, video: gio.VIDEO.muda, title: "Muda!!!!!!!", label: "โจรุโน่ โจวาน่า", seconds: 9.6, music: null, afterReveal: false },
     // อินุอิ ทาคุมิ — ความยาวจริง (ffprobe) +0.4 วิ
     ...Object.fromEntries([

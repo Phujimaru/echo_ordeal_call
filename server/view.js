@@ -395,6 +395,10 @@ function buildStateInner(viewerId) {
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
+        gil: hook && hook.gilState ? hook.gilState(engine, p) : undefined, // กิลกาเมช: EA / ความมั่งคั่ง / กระสุน / พายุ (ช่องที่เล็ง) / อาวุธที่ปักค้าง / ชาร์จ Enuma Elish — GRID_PLAN §7.30
+        strikeRing: hook && hook.strikeRing ? !!hook.strikeRing(p) || undefined : undefined, // ตีปกติรอบตัว 8 ช่อง รวมทแยง (กิลกาเมช ถือ EA — action.laneVictims)
+        bagSlots: shop.bagSlotsOf(p), // ความจุกระเป๋าเฉพาะตัว (กิลกาเมช Gate of Babylon: 50 · ปกติ BAG_SLOTS)
+        remoteShop: shop.remoteShop(p) || undefined, // ซื้อจากร้านไหนก็ได้บนแผนที่ (กิลกาเมช Gate of Babylon)
         strikeZone: hook && hook.strikeZone ? hook.strikeZone(p) || undefined : undefined, // กรอบที่ตีปกติได้ { x0, y0, x1, y1 } (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room)
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
         takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
@@ -433,7 +437,7 @@ function maskPub(o) {
   return {
     ...o, masked: true, name: "", img: null, color: "#ffffff", teamId: null, position: null,
     hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, skillPoints: -1, score: null, statuses: {}, statusAmt: {},
-    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined, valentine: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, roland: undefined, law: undefined,
+    character: { ...o.character, name: "", img: null }, duoOf: null, duoWith: null, sora: undefined, hikaru: undefined, echo: undefined, sliver: undefined, shadow: undefined, yuna: undefined, gray: undefined, gyro: undefined, diego: undefined, fern: undefined, valentine: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, roland: undefined, law: undefined, gil: undefined,
   };
 }
 
@@ -453,6 +457,8 @@ function unseenPub(o, p) {
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
     diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, law: undefined, giorno: undefined, otoya: undefined,
+    // กิลกาเมช: อาวุธที่ปักค้าง/ช่องที่สายฟ้าเล็ง/แนว Enuma Elish ยังเห็น (อยู่บนพื้น ไม่บอกตำแหน่งตัว) · ค่าอื่นซ่อน
+    gil: o.gil ? { ea: false, wealth: null, wealthMax: o.gil.wealthMax, ammo: null, storm: o.gil.storm, warns: o.gil.warns, weapons: o.gil.weapons, charge: o.gil.charge ? { ...o.gil.charge } : null } : undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     actions: undefined,

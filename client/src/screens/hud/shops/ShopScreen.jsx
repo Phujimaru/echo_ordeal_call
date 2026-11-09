@@ -54,8 +54,9 @@ function BagBar({ items, bagSlots, hitN, left }) {
   return (
     <div className={`shs-bagbar${left ? " left" : ""}`} data-full={items.length >= bagSlots ? "true" : "false"}>
       <span key={hitN} className={`shs-bag-ico${hitN ? " hit" : ""}`}>👜</span>
+      {/* กระเป๋าใหญ่ (Gate of Babylon 50 ช่อง) = แสดงแค่ 6 ชิ้นล่าสุด + ตัวเลข */}
       <div className="shs-slots">
-        {Array.from({ length: slots }, (_, i) => {
+        {(bagSlots > 9 ? Array.from({ length: Math.min(6, items.length) }, (_, i) => items.length - Math.min(6, items.length) + i) : Array.from({ length: slots }, (_, i) => i)).map((i) => {
           const it = items[i];
           if (!it) return <span key={`e${i}`} className="shs-slot empty" />;
           const info = shopInfoOf(it);

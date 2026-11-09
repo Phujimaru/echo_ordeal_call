@@ -660,7 +660,7 @@ function ModalMounts({
   shop = null, onCloseShop, shopBlock,
   bagOpen, onCloseBag, players, gameState, roundNumber,
   myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse,
-  skillConfirm, onConfirmSkill, onCancelSkill,
+  skillConfirm, onConfirmSkill, onCancelSkill, remoteShops = null, onRemoteShop,
 }) {
   return (
     <>
@@ -669,7 +669,7 @@ function ModalMounts({
       {shop && (newBag
         ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
         : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
-      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} />}
+      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} />}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <CharVideoPreloader players={players} />
@@ -917,6 +917,14 @@ function statusEntries(p, full) {
     if (g.frenzy > 0) out.push({ key: "grayFrenzy", v: g.frenzy, turns: true, icon: "⛓️", label: "จงบ้าคลั่ง", cls: "bg-cyan-800 text-white", desc: "ระยะตีปกติเป็น 2 ช่อง คริติคอลเพิ่ม 25% และตีโดนแล้วเป้าติดถูกตรึง 1 เทิร์น" });
     if (g.charge) out.push({ key: "grayCharge", v: g.charge.left || 1, turns: true, icon: "✨", label: "รองโกมิเนียต", cls: "bg-amber-400 text-gray-900", desc: "เดิน ตีปกติ และใช้สกิลไม่ได้ ศัตรูในแนวถูกตรึง ครบแล้วยิงลำแสงกว้าง 7 ช่องสุดกระดาน ดาเมจ 5 บวกศพที่เก็บ" });
     else if (g.ultCd > 0) out.push({ key: "grayUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "รองโกมิเนียต", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+  }
+  // กิลกาเมช: ความมั่งคั่ง · ดาบ EA · พายุ · Enuma Elish ที่รอยิง
+  if (p.gil && p.gil.wealth != null) {
+    const g = p.gil;
+    out.push({ key: "gilWealth", v: 1, icon: "👑", label: `${g.wealth}/${g.wealthMax}`, cls: "bg-amber-400 text-gray-900", desc: "ได้ 1 ต่อไอเทมที่ยิงด้วยเมตตาจากราชา · Enuma Elish ใช้ 30" });
+    if (g.ea) out.push({ key: "gilEa", v: 1, icon: "🗡️", label: "EA", cls: "bg-rose-800 text-white", desc: "ตีปกติรอบตัว 8 ช่อง ดาเมจ 3 ผลักออก 1" });
+    if (g.storm) out.push({ key: "gilStorm", v: 1, icon: "⛈️", label: "พายุ", cls: "bg-red-900 text-white", desc: "จบเทิร์นสายฟ้าแดงผ่าช่องที่ศัตรูยืนอยู่ ดาเมจ 2" });
+    if (g.charge) out.push({ key: "gilEnuma", v: g.charge.left || 1, turns: true, icon: "🌌", label: "Enuma Elish", cls: "bg-red-700 text-white", desc: "ต้นตาเดินถัดไปยิงลำแสง ศัตรูในแนวตายทันที" });
   }
   // ไจโร: ลูกเหล็กในมือ · สัดส่วนทองคำ · ม้า (พลังชีวิตม้า / รอเรียก) · เสริมท่าไม้ตาย · คูลดาวน์ (ตัวเลข/ไอคอนเท่านั้น)
   if (p.gyro && p.gyro.hand != null) {
@@ -1930,9 +1938,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  ร้านบนกระดาน = state.shops (สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง) — ติดร้านไหนก็เปิดร้านนั้น
   const shopList = Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
   const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh)) : [];
-  const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (state.bagSlots || 5);
+  const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (me?.bagSlots || state.bagSlots || 5);
   const openShop = shopId ? shopList.find((sh) => sh.id === shopId) || null : null; // ข้อมูลสดของร้านที่เปิดอยู่ (ร้านหายไป = ปิดเอง)
-  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !openShop || !nearShops.includes(openShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  // Gate of Babylon (me.remoteShop — กิลกาเมช): ซื้อจากร้านไหนก็ได้บนแผนที่ ไม่ต้องยืนติด
+  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !openShop || (!nearShops.includes(openShop) && !me?.remoteShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   const viewShop = (sh) => { if (!sh) return; clickSound(); socket.emit("viewShop", { shopId: sh.id }); setShopId(sh.id); };
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
@@ -2507,8 +2516,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
           statusView={statusView} statusViewIsSelf={statusViewId === state.youId} onCloseStatus={() => setStatusViewId(null)}
           shop={openShop} onCloseShop={() => setShopId(null)} shopBlock={shopBlock}
           bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
-          myTurn={myTurn} bagSlots={state.bagSlots}
+          myTurn={myTurn} bagSlots={me?.bagSlots || state.bagSlots}
           skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
+          remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
         />
       </div>
     );
@@ -2658,7 +2668,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
                 disabled: !(phase === "PLAYING" && handAlive && !done),
                 onClick: () => { clickSound(); setColorPick(null); socket.emit("lock"); },
               }}
-              bag={{ items: hand?.inventory || [], slots: state.bagSlots || 5, hot: drawHot, onClick: () => { clickSound(); setColorPick(null); setBagOpen(true); } }}
+              bag={{ items: hand?.inventory || [], slots: hand?.bagSlots || me?.bagSlots || state.bagSlots || 5, hot: drawHot, onClick: () => { clickSound(); setColorPick(null); setBagOpen(true); } }}
               pick={pickLive ? {
                 card: colorPick.card,
                 onCard: (i) => { clickSound(); setColorPick((cp) => cp && { ...cp, card: cp.card === i ? null : i }); },
@@ -2697,13 +2707,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               })}
               bag={{
                 onClick: () => { clickSound(); setBagOpen(true); },
-                items: me?.inventory || [], slots: state.bagSlots || 5,
+                items: me?.inventory || [], slots: me?.bagSlots || state.bagSlots || 5,
                 hot: !canto && (me?.inventory || []).some((it) => it.type === "battery" && (it.charge || 0) > 0) && (me?.skillPoints || 0) < (me?.maxSkill || 0),
               }}
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
             />
-          ) : hudMode === "watch" ? <BagButton solo items={me?.inventory || []} slots={state.bagSlots || 5} onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
+          ) : hudMode === "watch" ? <BagButton solo items={me?.inventory || []} slots={me?.bagSlots || state.bagSlots || 5} onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
         />
       )}
 
@@ -2730,8 +2740,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         statusView={statusView} statusViewIsSelf={!!statusView && sameSide(statusView, hand)} onCloseStatus={() => setStatusViewId(null)}
         shop={openShop} onCloseShop={() => setShopId(null)} shopBlock={shopBlock}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
-        myTurn={myTurn && !canto && !me?.summon} bagSlots={state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
+        myTurn={myTurn && !canto && !me?.summon} bagSlots={me?.bagSlots || state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
+        remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
       />
       {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}
       {state.rideAsk && state.rideAsk.mine && (

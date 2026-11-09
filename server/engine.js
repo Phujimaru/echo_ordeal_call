@@ -232,7 +232,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // อัตราคริเพิ่ม (%) ของผู้โจมตีจากสนาม (อาณาจักรน้ำแข็ง กลางวัน) — อ่านใน _universal_status.js
   critBonusFor(p) { return Journey.critBonus(engine) + combat.auraCritOf(p); }, // + ฮุค broadcast auraCrit (คุเรไน: ดนตรีในหัวใจ)
   journeyGiftItem: shop.journeyGiftItem,
-  refreshShopForJourney: shop.refreshShopForJourney, // เทสต์: จำลองการขึ้นเทิร์นใหม่ของร้านค้า
+  refreshShopForJourney: shop.refreshShopForJourney,
+  restockShops: shop.restockAll, // รีสต็อกทุกร้านที่ตั้งอยู่ (กิลกาเมช ราชาที่แท้จริง: ทุก 2 เทิร์น) → มีร้านไหม // เทสต์: จำลองการขึ้นเทิร์นใหม่ของร้านค้า
   colorOf(p) { return lobby.colorOf(p); },
   nextTransformCounter() { return ++match.transformCounter; },
   startMatch: lobby.startMatch,

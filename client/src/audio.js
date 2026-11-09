@@ -377,6 +377,23 @@ const FILES = {
   gray_grave: "/characters/gray/sfx/gray_grave.mp3",   // Grave
   gray_reap: "/characters/gray/sfx/gray_reap.mp3",     // เก็บศพ
   gray_beam: "/characters/gray/sfx/gray_beam.mp3",     // ลำแสงรองโกมิเนียต: ชาร์จ 0–1.6 วิ → ระเบิดที่ 1.6 วิ → หางครืนถึง 3.8 วิ
+  // กิลกาเมช (Fake) — เสียงสังเคราะห์ (Claude · numpy) · characters/gilgamesh_fake.js SFX
+  gil_gate: "/characters/gilgamesh_fake/sfx/gil_gate.mp3",           // ประตูบาบิโลนเปิด (ก่อนชุดยิง)
+  gil_shot: "/characters/gilgamesh_fake/sfx/gil_shot.mp3",           // ยิง 1 นัด: ฟิ้ว + ปักโลหะ
+  gil_shot_big: "/characters/gilgamesh_fake/sfx/gil_shot_big.mp3",   // นัดสุดท้ายของชุด (ใหญ่สุด)
+  gil_ea_slash: "/characters/gilgamesh_fake/sfx/gil_ea_slash.mp3",   // ตีปกติด้วย EA (รอบตัว)
+  gil_thunder: "/characters/gilgamesh_fake/sfx/gil_thunder.mp3",     // พายุ: สายฟ้าแดงผ่า (จบเทิร์น)
+  gil_block: "/characters/gilgamesh_fake/sfx/gil_block.mp3",         // สมบัติโผล่มากันการโจมตี
+  gil_chain: "/characters/gilgamesh_fake/sfx/gil_chain.mp3",         // โซ่เอนคิดู
+  gil_enuma_charge: "/characters/gilgamesh_fake/sfx/gil_enuma_charge.mp3", // กด Enuma Elish (ครั้งที่ 2 ขึ้นไป — ครั้งแรกเป็นคลิป)
+  gil_enuma_fire: "/characters/gilgamesh_fake/sfx/gil_enuma_fire.mp3",     // ยิง Enuma Elish: เสียงจากวีดีโอผู้ใช้ — พูด "Enuma Elish!" → เว้นจังหวะ → ลำแสงที่ 3.25 วิ → ครืนถึง 10.9 วิ (หรี่ทุกเสียง — FOCUS_SFX)
+  gil_dissolve: "/characters/gilgamesh_fake/sfx/gil_dissolve.mp3",   // อาวุธที่ปักค้างสลายเป็นละอองทอง
+  gil_kneel: "/characters/gilgamesh_fake/sfx/gil_kneel.mp3",         // คุกเข่า (สตั้น)
+  gil_equip: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
+  gil_unequip: "/characters/gilgamesh_fake/sfx/gil_unequip.mp3",     // เก็บ EA
+  // เพลง (ไฟล์จากผู้ใช้ · loudnorm -14 LUFS): ชาร์จ Enuma Elish = bite down · พายุของ EA = STRANGEFAKE (state.skillMusic)
+  gil_bite_down: "/characters/gilgamesh_fake/gil_bite_down.mp3",
+  gil_strange_fake: "/characters/gilgamesh_fake/gil_strange_fake.mp3",
   // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
   // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
@@ -1059,13 +1076,26 @@ export function playSfx(name, opts) {
   if (group) return playQueued(group, name, opts);
   return playSfxNow(name, opts);
 }
+// เสียงที่ต้องเด่นคนเดียว (ผู้ใช้สั่ง 2026-11-09 — Enuma Elish ของกิลกาเมช): ระหว่างเล่น เพลงหยุด · เสียงอื่นเบาลงเหลือ FOCUS_OTHER · ลูปเสียงพัก
+const FOCUS_SFX = { gil_enuma_fire: 10900 };
+const FOCUS_OTHER = 0.12;
+let focusUntil = 0, focusName = null;
+function beginFocus(name, ms) {
+  focusName = name; focusUntil = Date.now() + ms;
+  for (const a of activeSfx.keys()) a.volume = Math.min(1, a.volume * FOCUS_OTHER);
+  if (loopSfx && !loopSfx.paused) loopSfx.pause();
+  const release = suspendMusic();
+  setTimeout(() => { release(); if (Date.now() >= focusUntil && loopSfx && loopSfx.paused) loopSfx.play().catch(() => {}); }, ms);
+}
+const focusGain = (name) => (focusUntil > Date.now() && name !== focusName ? FOCUS_OTHER : 1);
 function playSfxNow(name, opts) {
   if (!FILES[name]) return null;
+  if (FOCUS_SFX[name]) beginFocus(name, FOCUS_SFX[name]);
   const v = sfxVariant(name);
   if (missingSfx.has(v.path)) return null;
   const a = takeVoice(v.key, v.path);
   const gain = opts && Number.isFinite(opts.gain) ? Math.max(0, opts.gain) : 1;
-  const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * pathGain(v.path) * gain * sfxDuck());
+  const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * pathGain(v.path) * gain * sfxDuck() * focusGain(name));
   const ch = name !== "action_button" && ((opts && opts.voice) || isVoicePath(v.path)) ? "voice" : "sfx";
   sfxChannel.set(a, ch);
   a.volume = Math.min(1, base * masterGain() * channelGain(ch));

@@ -46,6 +46,7 @@ const daisuke = require("./daisuke");
 const yaguruma = require("./yaguruma");
 const kagami = require("./kagami");
 const tsurugi = require("./tsurugi");
+const gilgamesh_fake = require("./gilgamesh_fake"); // กิลกาเมช (Fake) — มหันตภัย · unique (EA · Gate of Babylon ปืนกลสมบัติ · Enuma Elish · กระเป๋า 50)
 const kurenai_otoya = require("./kurenai_otoya"); // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
@@ -88,6 +89,7 @@ const CHARACTER_MODULES = [
   kagami,
   tsurugi,
   kurenai_otoya,
+  gilgamesh_fake,
 ];
 
 const CHAR_HOOKS = {};

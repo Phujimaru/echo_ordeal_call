@@ -24,6 +24,20 @@ function SwordMark() {
     </span>
   );
 }
+// c.zone = กรอบพื้นที่บนแผนที่ย่อ (กิลกาเมช เมตตาจากราชา: { x0, y0, side, cols, rows, gx, gy }) — แทนรูปบนการ์ด
+function ZoneMap({ z }) {
+  const W = z.cols || 14, H = z.rows || 14;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full aspect-[3/4] bg-[#1b1306]" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <pattern id="zmGrid" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1 0H0V1" fill="none" stroke="rgba(255,220,140,.18)" strokeWidth=".06" /></pattern>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="url(#zmGrid)" />
+      <rect x={z.x0 + 0.05} y={z.y0 + 0.05} width={z.side - 0.1} height={z.side - 0.1} fill="rgba(255,206,92,.28)" stroke="#ffe8a6" strokeWidth=".14" />
+      <circle cx={z.gx + 0.5} cy={z.gy + 0.5} r=".42" fill="#fff6d6" stroke="#b07a10" strokeWidth=".1" />
+    </svg>
+  );
+}
 const cdOf = (c) => (c.cd > 0 ? c.cd : c.locked && c.left > 0 ? c.left : 0);
 
 export default function SkillChoices({ title, choices = [], isOk = () => true, onPick, onClose }) {
@@ -56,7 +70,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
                   on ? "border-amber-300" : "border-white/15"
                 } ${off ? "opacity-45 cursor-not-allowed" : c.active ? "cursor-default" : "hover:-translate-y-1 hover:border-sky-300"}`}
               >
-                {look.icon
+                {c.zone ? <ZoneMap z={c.zone} /> : look.icon
                   ? <div className="w-full aspect-[3/4] grid place-items-center text-6xl bg-black/30">{look.icon}</div>
                   : <img src={look.img} alt="" className="w-full aspect-[3/4] object-cover" draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                 {c.fresh && <SwordMark />}

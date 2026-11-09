@@ -599,6 +599,38 @@
       "env": {
         "ECHO_SERVER_PORT": "3031"
       }
+    },
+    {
+      "name": "server-gil",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3033,
+      "env": {
+        "PORT": "3033",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-gil",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5203",
+        "--strictPort"
+      ],
+      "port": 5203,
+      "env": {
+        "ECHO_SERVER_PORT": "3033"
+      }
     }
   ]
 }

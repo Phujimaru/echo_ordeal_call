@@ -186,9 +186,11 @@ export function BagButton({ onClick, items = [], slots = 5, hot = false, solo = 
       </span>
       <span className="bb-txt">
         <b>กระเป๋า</b>
-        <span className="bb-pips" aria-label={`${n}/${slots}`}>
-          {Array.from({ length: slots }, (_, i) => <i key={i} data-on={i < n ? "true" : "false"} />)}
-        </span>
+        {slots > 8 ? <span className="bb-pips-n">{n}/{slots}</span> : (
+          <span className="bb-pips" aria-label={`${n}/${slots}`}>
+            {Array.from({ length: slots }, (_, i) => <i key={i} data-on={i < n ? "true" : "false"} />)}
+          </span>
+        )}
       </span>
     </button>
   );

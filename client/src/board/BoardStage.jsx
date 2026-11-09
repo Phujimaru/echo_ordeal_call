@@ -32,6 +32,7 @@ import { ICE_T, iceSpikeLv, iceTrailDur, preloadIceArt } from "./iceFx";
 import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
+import { GIL_EVENT_FX, GIL_T } from "./gilFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
 import { GIO_EVENT_FX, GIO_FX_DUR, GIO_MS as STYLE_MS_GIO, GIO_REWIND_HIT, GIO_SLAM_HIT } from "./giornoFx";
@@ -461,7 +462,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const zone = !foe.isCorpse && me.strikeZone ? me.strikeZone : null;
     const inZone = (x, y) => !zone || (x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1);
     if (zone && !Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inZone(t.x, t.y))) return null;
-    const hits = (n) => inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    // ตีรอบตัว 8 ช่อง รวมทแยง (me.strikeRing — กิลกาเมช ถือ EA): ช่องยืนต้องติดเป้า (เชบีเชฟ 1)
+    const ring = !foe.isCorpse && !!me.strikeRing;
+    const cheb1 = (n) => { const a = { x: n.x, y: n.y, size: sizeOfP(me) }, b = boxOfP(foe); const dx = Math.max(0, a.x - (b.x + b.size - 1), b.x - (a.x + a.size - 1)), dy = Math.max(0, a.y - (b.y + b.size - 1), b.y - (a.y + a.size - 1)); return Math.max(dx, dy) === 1; };
+    const hits = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
     if (!best) {
@@ -475,7 +479,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
     // ตีเป็นกรอบ (me.strikeRect [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works): ทุกคนในกรอบทางทิศของเป้าโดนด้วย
     const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
-    const lane = laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect; // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
+    const ringLane = ring ? { tiles: (() => { const out = [], sz = sizeOfP(me); for (let y = stand.y - 1; y <= stand.y + sz; y++) for (let x = stand.x - 1; x <= stand.x + sz; x++) { if (x >= stand.x && x < stand.x + sz && y >= stand.y && y < stand.y + sz) continue; if (x >= 0 && y >= 0 && x < (map.cols || 14) && y < (map.rows || 14)) out.push({ x, y }); } return out; })() } : null;
+    const lane = ringLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !allyHit && !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
@@ -1265,6 +1270,37 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     };
     socket.on("grayFx", onGray);
     return () => socket.off("grayFx", onGray);
+  }, [pushFx, look, lowQ]);
+
+  // กิลกาเมช (Fake): socket "gilFx" { kind, id, at, ... } → gilFx.js · เสียงมาจาก server (engine.sfx)
+  //  gate = กล้องตามกิล · volleyEnd = คนที่คุกเข่า (knelt ids → ตำแหน่ง) · bolts/storm = จอสั่น · enuma = กล้องตามกลางแนว + จอสั่นตอนลำแสงออก
+  useEffect(() => {
+    const onGil = (e) => {
+      const kind = e && GIL_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      const f = { ...e, kind, x: e.at.x, y: e.at.y };
+      const list = playersRef.current;
+      if (e.kind === "gate") look(e.at);
+      if (e.kind === "volleyEnd") {
+        f.kneelAt = (e.knelt || []).map((id) => list.find((p) => p.id === id && p.pos)).filter(Boolean).map((p) => ({ x: p.pos.x, y: p.pos.y }));
+      }
+      if (e.kind === "shot" && e.big && !lowQ) timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 7, dur: 600 }]), GIL_T.travelBig));
+      if ((e.kind === "bolts" || e.kind === "storm") && !lowQ) setShake((n) => n + 1);
+      if (e.kind === "enuma") {
+        const tiles = Array.isArray(e.tiles) ? e.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)) : [];
+        if (tiles.length) {
+          const xs = tiles.map((t) => t.x), ys = tiles.map((t) => t.y);
+          look({ x: Math.round((Math.min(...xs) + Math.max(...xs)) / 2), y: Math.round((Math.min(...ys) + Math.max(...ys)) / 2) });
+        } else look(e.at);
+        if (!lowQ) {
+          timers.current.push(setTimeout(() => setShake((n) => n + 1), GIL_T.enumaHit));
+          timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: 12, dur: 1600 }]), GIL_T.enumaHit));
+        }
+      }
+      pushFx([f]);
+    };
+    socket.on("gilFx", onGil);
+    return () => socket.off("gilFx", onGil);
   }, [pushFx, look, lowQ]);
 
   // รถบรรทุกเก่า / ออพติมัส ไพร์ม: socket "optimusFx" { kind: arc | transform | stance | heal, id, at, dir?, tiles?, form? } → optimusFx.js
@@ -2314,6 +2350,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const graySig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.gray && p.gray.charge && Array.isArray(p.gray.charge.tiles))
     .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), dir: p.gray.charge.dir, left: p.gray.charge.left, tiles: p.gray.charge.tiles.map((t) => ({ x: t.x, y: t.y })) })));
   const grays = useMemo(() => { const list = JSON.parse(graySig); return list.length ? list : null; }, [graySig]);
+  // กิลกาเมช (p.gil): พายุ/ช่องที่สายฟ้าเล็ง/อาวุธที่ปักค้าง/แนว Enuma Elish (ทุกคนเห็น) · ถือ EA (ดาบหมุนข้างตัว) — gilFx.js
+  const gilSig = JSON.stringify(state.players.filter((p) => p.gil && (p.pos || (p.gil.weapons || []).length))
+    .map((p) => ({ id: p.id, x: p.pos ? p.pos.x : -9, y: p.pos ? p.pos.y : -9, size: sizeOfP(p), alive: !!p.alive && !!p.pos, ea: !!p.gil.ea, storm: !!p.gil.storm,
+      warns: p.gil.warns || [], weapons: p.gil.weapons || [], charge: p.gil.charge && Array.isArray(p.gil.charge.tiles) ? { dir: p.gil.charge.dir, tiles: p.gil.charge.tiles } : null })));
+  const gils = useMemo(() => { const list = JSON.parse(gilSig); return list.length ? list : null; }, [gilSig]);
   // เฟิร์น: Zoltraak ครั้งที่ 6 พร้อม (p.fern.empowered) / เพิ่มระยะรออยู่ (p.fern.boost) — แสงที่ปลายคทา (fernFx.js drawFernAir)
   //  เห็นเฉพาะตอนมีตำแหน่งบนกระดาน · ระหว่างซ่อนเร้นไม่วาด
   const fernSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.fern && !p.fern.conceal && (p.fern.empowered || p.fern.boost))
@@ -2671,6 +2712,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         onColonyAway={setColonyAway}
         songs={songs}
         grays={grays}
+        gils={gils}
         ferns={ferns}
         takutos={takutos}
         ryougi={ryougiProp}

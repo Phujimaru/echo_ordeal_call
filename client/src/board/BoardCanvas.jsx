@@ -48,6 +48,8 @@
 //               units[].rider = { img, color, name } → ตัวที่ขี่อยู่บนหลัง (ขี่ผู้เล่นอื่น — server/ride.js)
 //   grays       [{ id, x, y, size, dir, left, tiles }] — เกรย์กำลังชาร์จรองโกมิเนียต: สนามมืด + แนวลำแสงทอง + หอกลอยเหนือหัว (grayFx.js)
 //               fx ของเกรย์: gray* (grayFx.js — ท่าตีปกติ · keeper/grave/reap · grayBeam = ลำแสงรองโกมิเนียต)
+//   gils        [{ id, x, y, size, ea, storm, warns, weapons, charge }] — กิลกาเมช: พายุ/ช่องที่สายฟ้าเล็ง/อาวุธที่ปักค้าง/แนว Enuma Elish/วิมานะ/ดาบ EA (gilFx.js)
+//               fx ของกิลกาเมช: gil* (gilFx.js — socket "gilFx" · ท่าตีปกติ gilEa)
 //   ferns       [{ id, x, y, size, empowered, boost }] — เฟิร์นที่ Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะรออยู่: แสงที่ปลายคทา (fernFx.js)
 //               fx ของเฟิร์น: fern* (fernFx.js — fernZoltraak / fernZoltraakMax ตีปกติ · เหตุการณ์ socket "fernFx")
 //   gyroBalls   [{ owner, color, x, y, seq }] — ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ · gyroFx.js gyroBallItems)
@@ -735,7 +737,7 @@ export default function BoardCanvas(props) {
       const drawFrameOf = (target) => drawFrame(target, {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
+        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,

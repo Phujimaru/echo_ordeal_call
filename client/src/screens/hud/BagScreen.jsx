@@ -44,7 +44,9 @@ function Icon({ info, className = "" }) {
 // draw = ช่วงจั่ว (ยังไม่กด "พอ"): { fortuneFull, hasNumber, cardCount } — ใช้ได้เฉพาะไอเทมช่วงจั่ว (ผู้ใช้สั่ง 2026-11-08) · null = ไม่ใช่ช่วงจั่ว
 //  onDrawUse(item) = Game.jsx จัดการต่อ (ยาเปลี่ยนสี = ปิดกระเป๋าแล้วเลือกไพ่/สีบนมือ)
 // statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
-export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose }) {
+// shops = ร้านบนแผนที่ที่ซื้อจากระยะไกลได้ (Gate of Babylon ของกิลกาเมช — me.remoteShop) · null = ไม่มีปุ่มร้าน · onShop(ร้าน) = เปิดร้านนั้น
+const SHOP_CREST = { apoth: "⚗️", forge: "⚙️", cara: "🐎", capsule: "📦" };
+export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop }) {
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
@@ -151,11 +153,20 @@ export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = nu
             </span>
             <span className="bag-title">กระเป๋า</span>
             <span className="bag-lat">Inventory</span>
+            {Array.isArray(shops) && shops.length > 0 && (
+              <span className="bag-shops">
+                {shops.map((sh) => (
+                  <button type="button" key={sh.id} className="bag-shop-btn" disabled={!myTurn} onClick={() => { clickSound(); onShop && onShop(sh); }}>
+                    <span aria-hidden="true">{SHOP_CREST[sh.kind] || "🏪"}</span>{sh.name}
+                  </button>
+                ))}
+              </span>
+            )}
             <button type="button" className="bag-x" aria-label="ปิด" onClick={() => { clickSound(); onClose(); }}>✕</button>
           </div>
 
           <div className="bag-body">
-            <div className="bag-grid">
+            <div className={`bag-grid${slots > 9 ? " big" : ""}`}>
               {Array.from({ length: slots }, (_, i) => {
                 const it = items[i];
                 if (!it) return <div key={`e${i}`} className="bag-slot empty" aria-hidden="true"><i /></div>;

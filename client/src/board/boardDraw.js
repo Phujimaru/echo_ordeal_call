@@ -38,6 +38,7 @@ import { ICE_FX_DUR, drawIceSpike, drawPickArrows, iceFx, iceSpikeLv, iceSpikeRi
 import { SH_FX_DUR, SH_HIT_P, SH_MS, drawIdleWings, idleWingsDepth, isShadowFx, shadowBackDepth, shadowFx } from "./shadowFx";
 import { YUNA_FX_DUR, YUNA_HIT_P, YUNA_MS, drawRider, drawYunaZones, isYunaFx, yunaFx } from "./yunaFx";
 import { GRAY_FX_DUR, GRAY_HIT_P, GRAY_MS, drawGrayAir, drawGrayGround, grayFx, isGrayFx } from "./grayFx";
+import { GIL_FX_DUR, GIL_HIT_P, GIL_MS, drawGilAir, drawGilGround, gilFx, isGilFx } from "./gilFx";
 import { GYRO_FX_DUR, GYRO_RIDE_Z, gyroBallItems, gyroFx, gyroHorse, gyroUnitBack, gyroUnitFront, isGyroFx } from "./gyroFx";
 import {
   DIEGO_FX_DUR, DIEGO_RIDE_Z, diegoAmbientNow, diegoFireItems, diegoFx, diegoHorse, diegoTimeLayer, diegoUnitBack, diegoUnitFront, drawDiegoGround, isDiegoFx,
@@ -1086,8 +1087,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2213,13 +2214,14 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR,
 };
 
 
 // =================================================================== frame
 //  st = { info, view, dpr, bake, turn, night, lowQ, units (พร้อมวาด), hl, shops (state.shops), hover, fx (กำลังเล่น) }
 //   grays? = รองโกมิเนียตที่กำลังชาร์จ [{ id, x, y, size, dir, left, tiles }] (grayFx.js)
+//   gils? = กิลกาเมช [{ id, x, y, size, ea, storm, warns, weapons, charge }] (gilFx.js)
 //   ferns? = เฟิร์นที่ Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะรออยู่ [{ id, x, y, size, empowered, boost }] (fernFx.js — แสงปลายคทา)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
@@ -2303,6 +2305,9 @@ export function drawFrame(g, st, now) {
   // เกรย์ชาร์จรองโกมิเนียต / กำลังยิง (grayFx.js): สนามมืดลง + แนวลำแสงสีทอง — ใต้ไฮไลต์และตัวละคร
   const grays = st.grays && st.grays.length ? st.grays : null;
   if (grays || fx.some((e) => e.kind === "grayBeam")) drawGrayGround(g, grays, fx, view, now, lowQ);
+  // กิลกาเมช (gilFx.js): พายุ (ฟ้ามืดแดง) · ช่องที่สายฟ้าเล็ง · แนว Enuma Elish ที่รอยิง · อาวุธที่ปักค้าง · วิมานะใต้หมาก — ใต้ไฮไลต์และตัวละคร
+  const gils = st.gils && st.gils.length ? st.gils : null;
+  if (gils || fx.some((e) => e.kind === "gilEnuma")) drawGilGround(g, gils, units, fx, now, lowQ, view);
   // ยูกินับถอยหลังเกิดใหม่เป็นประตู (yukiFx.js): กระดานมืดลง ~25% — เรียกทุกเฟรมให้ค่อยๆ มืด/สว่างคืนเอง
   drawYukiDim(g, units, view, now);
   const ferns = st.ferns && st.ferns.length ? st.ferns : null; // เฟิร์น: แสงปลายคทา (วาดหลังตัวละคร — drawFernAir)
@@ -2522,6 +2527,8 @@ export function drawFrame(g, st, now) {
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
   if (grays) drawGrayAir(g, grays, units, now, lowQ);
+  // กิลกาเมช: ระลอกทองหลังตัว / ดาบ EA หมุนข้างตัว + ออร่าเกราะทอง · ฝนของพายุ (ทับตัวละคร)
+  if (gils) drawGilAir(g, gils, units, fx, now, lowQ, view);
   // เฟิร์น: แสงที่ปลายคทา (Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะ) — ทับตัวละคร
   if (ferns) drawFernAir(g, ferns, units, now, lowQ);
   // ราชาดอกไม้ (เซลิน): มงกุฎลอย + กลีบโคจร + ผีเสื้อ (ทับตัวละคร)
@@ -2571,6 +2578,7 @@ export function drawFrame(g, st, now) {
     else if (isArjFx(e.kind)) arjunaBoardFx(g, e, now, lowQ);
     else if (isYunaFx(e.kind)) yunaFx(g, e, now, lowQ);
     else if (isGrayFx(e.kind)) grayFx(g, e, now, lowQ, view);
+    else if (isGilFx(e.kind)) gilFx(g, e, now, lowQ); // กิลกาเมช (Fake) (gilFx.js)
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);

@@ -335,6 +335,14 @@ function canStrike(p, target) {
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
 function laneVictims(p, target) {
   if (!p.pos || !target || !target.pos) return null;
+  // ตีรอบตัว 8 ช่อง (ฮุค strikeRing + ringTiles — กิลกาเมช ถือ EA): ศัตรูทุกคนรอบตัวโดนด้วย
+  const ringHook = CHAR_HOOKS[p.characterId];
+  if (ringHook && ringHook.strikeRing && ringHook.strikeRing(p) && ringHook.ringTiles) {
+    const tiles = ringHook.ringTiles(engine, p);
+    const ids = Board.unitsOnTiles(boardUnits(), tiles).map((u) => u.id)
+      .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
+    return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+  }
   const rect = !lanes(p) && strikeRect(p);
   if (!lanes(p) && !rect) return null;
   const lane = rect ? Board.rectToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), rect[0], rect[1]) : Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face", laneLen(p));

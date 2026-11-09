@@ -1776,6 +1776,54 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- กิลกาเมช (Fake) — มหันตภัย · unique — ดู characters/gilgamesh_fake.js (GRID_PLAN §7.30) ----------
+    id: "gilgamesh_fake",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "กิลกาเมช (Fake)",
+    avatar: 0,
+    difficulty: "calamity",
+    unique: true, // เลือกได้แค่ 1 คนต่อเกม (ผู้ใช้สั่ง 2026-11-09)
+    img: "/characters/gilgamesh_fake/gilgamesh.webp",
+    //  พลังชีวิต 8 / เกราะ 3 (ฮุค maxHp ในโมดูล — Claude) · พลังโจมตี 1
+    mov: 4,
+    range: [1, 1], // มือเปล่าประชิด · ถือ EA = รอบตัว 8 ช่อง (ฮุค range/strikeRing/strikeAllows)
+    passive: {
+      name: "ราชาที่แท้จริง",
+      desc: "เริ่มเกม 100 เหรียญ (เพดาน 999) · ความมั่งคั่ง 0/30 · ร้านค้าทุกร้านรีสต็อกใหม่ทุก 2 เทิร์น",
+    },
+    passive2: {
+      name: "Gate of Babylon",
+      desc: "กระเป๋าเก็บได้ 50 ชิ้น · ซื้อของจากร้านไหนก็ได้บนแผนที่จากระยะไกล (เปิดจากกระเป๋า · ไม่ล็อกการเดิน)",
+    },
+    basic: {
+      name: "จงเห่าหอนซะสิ เจ้าพันธุ์ทาง",
+      desc: "สลับฟรีเทิร์นละครั้ง (ไม่นับเป็นการใช้สกิล): มือเปล่า = ถูกศัตรูโจมตี 30% ไอเทมในคลังโผล่มากันทั้งก้อนแล้วพัง + โซ่เอนคิดูตรึงผู้โจมตี 1 เทิร์น · ดาบ EA = ตีปกติโดนศัตรูทุกคนรอบตัว 8 ช่อง ดาเมจ 3 ผลักออก 1 แล้วเกิดพายุ: สายฟ้าแดงผ่าช่องที่ศัตรูยืนทุกจบเทิร์น ดาเมจ 2 จนกว่าจะเก็บดาบ",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/gilgamesh_fake/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/gilgamesh_fake.js (ปุ่ม 2 ตัวเลือก — skillPub choices)
+    },
+    secondary: {
+      name: "เมตตาจากราชา",
+      desc: "มือเปล่าเท่านั้น · ยิงไอเทมในคลังแบบปืนกล N นัด (1–14 หรือทั้งคลัง) ในกรอบ N×N รอบตัว (14 = ทั้งแผนที่) · แต่ละนัดสุ่มศัตรูในกรอบ ดาเมจ 1 (ลดเกราะก่อน) · ไอเทมที่ยิงหายไป · ความมั่งคั่ง +1 ต่อนัด · โดน 3 นัดขึ้นไปคุกเข่า (สตั้น 1 เทิร์น) · ใช้แล้วยังเดินได้",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/gilgamesh_fake/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Enuma Elish",
+      desc: "ใช้ความมั่งคั่ง 30 · ต้องถือ EA · เลือกทิศ: แนว 14×5 · ยิงต้นตาเดินถัดไปของกิล (ระหว่างรอเก็บดาบไม่ได้) · ได้แม่นยำ 1 เทิร์น · ศัตรูในแนวตายทันที · พื้นในแนวแตกหายไปจนเปลี่ยนภูมิภาค ร้านค้าในแนวหาย",
+      area: { kind: "line", len: 14, width: 5, hostile: true },
+      cost: 0,
+      img: "/characters/gilgamesh_fake/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
