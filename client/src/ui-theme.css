@@ -447,3 +447,6 @@
 :root[data-ui="dark"] .vic-mini[data-dead="true"] .vic-mname { color: #8fa9cc; }
 :root[data-ui="dark"] .vic-mch { color: #7f97b8; }
 :root[data-ui="dark"] .vic-tick { border-color: rgba(127, 184, 230, .6); }
+
+/* แผงโหมด (lobby.css .ocl-votepanel): พื้นแผ่นทึบน้ำเงินเข้ม */
+:root[data-ui="dark"] .oc-screen .ocl-votepanel { --ocp-plate: #13284a; }

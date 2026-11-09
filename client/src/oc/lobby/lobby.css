@@ -146,10 +146,10 @@
   filter: drop-shadow(0 8px 12px rgba(10, 24, 48, 0.28));
   transition: opacity 0.25s, filter 0.25s;
 }
-.ocl-modetag[data-mode="ffa"] { --a: #b0509f; }
+.ocl-modetag[data-mode="ffa"] { --a: #9b4f96; }
 .ocl-modetag[data-mode="duo"] { --a: #3d8bd9; }
-.ocl-modetag[data-mode="trio"] { --a: #24a37f; }
-.ocl-modetag[data-mode="moon"] { --a: #d9a531; }
+.ocl-modetag[data-mode="trio"] { --a: #1f8a6b; }
+.ocl-modetag[data-mode="moon"] { --a: #b8862a; }
 .ocl-modetag:hover, .ocl-modetag:focus-visible { outline: none; }
 .ocl-mt-body {
   position: relative; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px 0 5px;
@@ -160,8 +160,7 @@
 .ocl-modetag:hover .ocl-mt-body, .ocl-modetag:focus-visible .ocl-mt-body { transform: translateY(-3px); box-shadow: inset 0 0 0 1.5px var(--a); }
 .ocl-mt-disc {
   position: relative; flex: none; width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--a) 55%, #fff), var(--a) 70%);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--a) 60%, transparent);
+  background: var(--a);
 }
 .ocl-mt-disc svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ocl-modetag[data-mode="moon"] .ocl-mt-disc svg { fill: #fff; stroke: none; }
@@ -176,24 +175,23 @@
 /* หางชี้ลงจุดบนลูกโลก + จุดเรืองแสงปลายหาง */
 .ocl-mt-tail {
   position: absolute; left: 50%; top: 100%; width: 2px; height: 10px; margin-left: -1px; pointer-events: none;
-  background: linear-gradient(var(--a), color-mix(in srgb, var(--a) 30%, transparent));
+  background: var(--a);
 }
 .ocl-mt-tail::after {
   content: ""; position: absolute; left: 50%; top: 9px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
-  background: var(--a); box-shadow: 0 0 8px var(--a);
+  background: var(--a); transform: rotate(45deg); border-radius: 0;
 }
 
 /* เลือกดูอยู่: ใหญ่ขึ้น วงหมุน แสงวิ่ง */
-.ocl-modetag.focus { --k: 1.12; z-index: 3; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--a) 55%, transparent)) drop-shadow(0 8px 12px rgba(10, 24, 48, 0.3)); }
+.ocl-modetag.focus { --k: 1.12; z-index: 3; }
 .ocl-modetag.focus .ocl-mt-body { box-shadow: inset 0 0 0 2px var(--a); }
 .ocl-modetag.focus .ocl-mt-ring { opacity: 0.9; animation: ocl-mt-spin 6s linear infinite; }
-.ocl-modetag.focus .ocl-mt-body::after { opacity: 1; animation: ocl-mt-shine 2.6s ease-in-out infinite; }
 .ocl-modetag.focus .ocl-mt-tail::after { animation: ocl-mt-pulse 1.4s ease-in-out infinite; }
 @keyframes ocl-mt-spin { to { transform: rotate(360deg); } }
 @keyframes ocl-mt-shine { 0% { left: -40%; } 60%, 100% { left: 120%; } }
-@keyframes ocl-mt-pulse { 50% { transform: scale(1.8); opacity: 0.5; } }
+@keyframes ocl-mt-pulse { 50% { transform: rotate(45deg) scale(1.6); } }
 /* โหวตแล้ว: แคปซูลสีโหมด */
-.ocl-modetag.on { --pin-bg: linear-gradient(120deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a) 55%, color-mix(in srgb, var(--a) 70%, #000)); --pin-ink: #fff; --pin-edge: rgba(255, 255, 255, 0.45); color: #fff; }
+.ocl-modetag.on { --pin-bg: var(--a); --pin-ink: #fff; --pin-edge: transparent; color: #fff; }
 .ocl-modetag.on .ocl-mt-disc { background: #fff; }
 .ocl-modetag.on .ocl-mt-disc svg { stroke: var(--a); }
 .ocl-modetag.on[data-mode="moon"] .ocl-mt-disc svg { fill: var(--a); }
@@ -215,34 +213,32 @@
   filter: drop-shadow(0 8px 12px rgba(10, 24, 48, 0.28)); transition: opacity 0.35s, box-shadow 0.2s;
 }
 .ocl-worldtag::before {
-  content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--a);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--a) 25%, transparent), 0 0 8px var(--a);
+  content: ""; flex: none; width: 8px; height: 8px; background: var(--a); transform: rotate(45deg);
 }
 .ocl-worldtag:hover, .ocl-worldtag:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a); }
-.ocl-worldtag.on { --pin-bg: linear-gradient(120deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a) 60%); --pin-ink: #fff; }
+.ocl-worldtag.on { --pin-bg: var(--a); --pin-ink: #fff; }
 .ocl-worldtag.on::before { background: #fff; }
 .ocl-worldtag .oc-latin { font: 400 15px/1 var(--oc-f-logo); letter-spacing: 0.2em; }
 .ocl-worldtag::after {
   content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 18px; margin-left: -1px;
-  background: linear-gradient(var(--a), transparent); pointer-events: none;
+  background: var(--a); pointer-events: none;
 }
 .ocl-worldtag[data-world="colony"] { --a: #3d8bd9; }
-.ocl-worldtag[data-world="moon"] { --a: #b0509f; }
+.ocl-worldtag[data-world="moon"] { --a: #9b4f96; }
 .ocl-worldtag[data-world="origin"] { --a: #3d8bd9; }
-.ocl-worldtag[data-world="fodlan"] { --a: #d9a531; }
+.ocl-worldtag[data-world="fodlan"] { --a: #b8862a; }
 
 .ocl-dots { display: flex; gap: 3px; }
 .ocl-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; box-shadow: 0 0 0 1.5px #fff; }
 /* ชื่อภูมิภาคบนเส้นทาง: แคปซูลเล็ก + เลขโรมันในวง */
 .ocl-areatag {
   position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none; display: flex; align-items: center; gap: 5px;
-  padding: 2px 9px 2px 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 0 1px rgba(176, 80, 159, 0.35), 0 3px 8px -3px rgba(10, 24, 48, 0.35);
+  padding: 2px 9px 2px 2px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(155, 79, 150, 0.5);
   font: 600 11px/1 var(--oc-f-ui); color: var(--oc-ink); transition: opacity 0.25s;
 }
 .ocl-at-num {
   flex: none; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center;
-  font: 400 8.5px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff; background: #b0509f;
+  font: 400 8.5px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff; background: #9b4f96;
 }
 .ocl-areatag.back { opacity: 0; }
 
@@ -267,81 +263,6 @@
 .ocl-route .n { font: 400 11px/1 var(--oc-f-logo); color: var(--oc-azure); letter-spacing: 0.06em; }
 .ocl-route .tt { font: 500 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }
 .ocl-route li.first { color: var(--oc-echo); font-weight: 500; }
-/* เส้นทาง Origin: ภูมิภาค I (การ์ดใหญ่) → แถบสุ่ม → ตาราง II–VII (สีประจำภูมิภาค) */
-.ocl-journey { display: flex; flex-direction: column; gap: 10px; }
-.ocl-jr-badge {
-  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-  font: 400 11px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff;
-  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 75%);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-.ocl-jr-start {
-  display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border-radius: 999px;
-  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent);
-}
-.ocl-jr-start .ocl-jr-badge { width: 36px; height: 36px; font-size: 13px; }
-.ocl-jr-start b { flex: 1; font: 600 16px/1.2 var(--oc-f-ui); color: var(--oc-ink); }
-.ocl-jr-turns { font: 600 12px/1 var(--oc-f-ui); padding: 6px 10px; border-radius: 999px; color: var(--oc-ink); background: color-mix(in srgb, var(--c) 30%, transparent); font-variant-numeric: tabular-nums; }
-.ocl-jr-split { display: flex; align-items: center; gap: 8px; padding-left: 16px; font: 600 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
-.ocl-jr-dice { width: 18px; height: 18px; fill: none; stroke: var(--oc-echo); stroke-width: 1.8; }
-.ocl-jr-dice circle { fill: var(--oc-echo); stroke: none; }
-.ocl-jr-split span:first-of-type { color: var(--oc-echo); }
-.ocl-jr-every { margin-left: auto; font-variant-numeric: tabular-nums; }
-.ocl-jr-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; }
-.ocl-jr-tile {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 10px; border-radius: 14px; overflow: hidden;
-  background: linear-gradient(170deg, color-mix(in srgb, var(--c) 20%, transparent), color-mix(in srgb, var(--c) 4%, transparent) 70%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.ocl-jr-tile::after { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 70%; background: radial-gradient(closest-side, color-mix(in srgb, var(--g) 45%, transparent), transparent); pointer-events: none; }
-.ocl-jr-tile:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1.5px var(--c), 0 6px 14px -8px var(--c); }
-.ocl-jr-name { font: 600 12.5px/1.2 var(--oc-f-ui); color: var(--oc-ink); text-align: center; white-space: nowrap; }
-/* ผลโหวต (ผู้ใช้สั่งทำใหม่ 2026-11-09): แถบรวมสีโหมด + การ์ดผู้เล่น (รูปตัวละครในวงสีผู้เล่น · ป้ายโหมดที่โหวต / จุดรอ) */
-:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="ffa"] { --a: #b0509f; }
-:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="duo"] { --a: #3d8bd9; }
-:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="trio"] { --a: #24a37f; }
-:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="moon"] { --a: #d9a531; }
-.ocl-tl-bar { display: flex; gap: 3px; height: 6px; }
-.ocl-tl-bar i { flex: 1; border-radius: 999px; background: var(--oc-frost); transition: background 0.3s; }
-.ocl-tl-bar i[data-mode] { background: var(--a); box-shadow: 0 0 6px color-mix(in srgb, var(--a) 60%, transparent); }
-.ocl-tally { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 236px; overflow-y: auto; }
-.ocl-tally li {
-  display: flex; align-items: center; gap: 9px; padding: 5px 6px 5px 5px; border-radius: 999px;
-  background: color-mix(in srgb, var(--pc) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 22%, transparent);
-  font: 500 13px/1.2 var(--oc-f-ui); animation: ocl-tl-in 0.3s ease both;
-}
-.ocl-tally li.voted { background: color-mix(in srgb, var(--pc) 12%, transparent); }
-@keyframes ocl-tl-in { from { opacity: 0; transform: translateX(8px); } }
-.ocl-tl-av {
-  position: relative; flex: none; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
-  background: var(--pc); box-shadow: 0 0 0 2px var(--pc), 0 0 0 3.5px color-mix(in srgb, var(--pc) 35%, transparent);
-}
-.ocl-tl-av b { font: 700 13px/1 var(--oc-f-ui); color: #fff; }
-.ocl-tl-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
-.ocl-tally .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--oc-ink); font-weight: 600; }
-.ocl-tl-you { flex: none; font: 600 10px/1 var(--oc-f-ui); padding: 3px 6px; border-radius: 999px; color: #fff; background: var(--pc); }
-.ocl-tl-vote {
-  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 3px; border-radius: 999px;
-  font: 600 12px/1 var(--oc-f-ui); color: #fff;
-  background: linear-gradient(120deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a) 60%);
-  box-shadow: 0 2px 8px -3px var(--a); animation: ocl-tl-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-}
-.ocl-tl-vote .oc-latin { font: 400 10.5px/1 var(--oc-f-logo); letter-spacing: 0.1em; }
-.ocl-tl-vote small { font: 500 10px/1 var(--oc-f-ui); opacity: 0.85; padding-left: 6px; border-left: 1px solid rgba(255, 255, 255, 0.45); }
-.ocl-tl-ico { width: 20px; height: 20px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
-.ocl-tl-ico svg { width: 13px; height: 13px; fill: none; stroke: var(--a); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.ocl-tl-vote[data-mode="moon"] .ocl-tl-ico svg { fill: var(--a); stroke: none; }
-@keyframes ocl-tl-pop { from { transform: scale(0.6); opacity: 0; } }
-.ocl-tl-wait { flex: none; display: inline-flex; gap: 4px; padding: 0 10px; }
-.ocl-tl-wait i { width: 5px; height: 5px; border-radius: 50%; background: var(--oc-ink-3); animation: ocl-tl-dot 1.2s ease-in-out infinite; }
-.ocl-tl-wait i:nth-child(2) { animation-delay: 0.15s; }
-.ocl-tl-wait i:nth-child(3) { animation-delay: 0.3s; }
-@keyframes ocl-tl-dot { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .ocl-tally li, .ocl-tl-vote, .ocl-tl-wait i { animation: none; } }
-
 /* ---------- จัดทีม ---------- */
 .ocl-team-actions { position: absolute; top: 56px; right: var(--ocl-side); display: flex; gap: 10px; }
 .ocl-team-grid {
@@ -380,17 +301,111 @@
   .ocl-dock { padding: 6px 8px; gap: 4px; }
 }
 
-/* Moon Cell: การ์ดบอส (รูปในวงเรืองแสง + หลอดเลือด/เกราะเทียบ 25) */
-.ocl-boss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.ocl-boss {
-  --c: #b0509f;
-  display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 999px;
-  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 4%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent);
+/* ============================================================
+   เนื้อหาแผงโหมด (ผู้ใช้สั่งทำใหม่ 2026-11-09 — ภาษาเดียวกับธีม ORDEAL CALL ไม่ใช่สีพาสเทลไล่เฉด)
+   แผ่นทึบ + มุมตัด (--ocp-cut) · แถบสีประจำทึบด้านซ้าย/บน · ตราหกเหลี่ยมสีทึบ เลข Michroma · ป้ายสี่เหลี่ยมด้านขนาน
+   ไม่มีไล่สี/แสงเรือง/ขอบมน · --ocp-plate = พื้นแผ่น (โหมดมืด: ui-theme.css)
+   ============================================================ */
+.ocl-votepanel {
+  --ocp-plate: #fff;
+  --ocp-cut: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  --ocp-hex: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  --ocp-tag: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
 }
-.ocl-boss.core { --c: #d9a531; }
-.ocl-boss-face { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #0d1a33; box-shadow: 0 0 0 2px var(--c), 0 0 12px color-mix(in srgb, var(--c) 60%, transparent); }
-.ocl-boss-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; }
+.ocp-hexb {
+  flex: none; display: grid; place-items: center; width: 26px; height: 30px; clip-path: var(--ocp-hex);
+  background: color-mix(in srgb, var(--c) 80%, #0b1a35); color: #fff; font: 400 10px/1 var(--oc-f-logo); letter-spacing: 0.02em;
+}
+.ocp-tag {
+  flex: none; padding: 5px 10px; clip-path: var(--ocp-tag);
+  font: 600 11.5px/1 var(--oc-f-ui); color: var(--oc-ink); background: var(--oc-frost); font-variant-numeric: tabular-nums;
+}
+
+/* ---------- เส้นทาง (Origin / Fodlan): จุดเริ่ม → สุ่ม → ตาราง ---------- */
+.ocl-journey { display: flex; flex-direction: column; gap: 8px; }
+.ocl-jr-start {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 12px 9px 14px;
+  background: var(--ocp-plate); border: 1px solid var(--oc-line); clip-path: var(--ocp-cut);
+}
+.ocl-jr-start::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+.ocl-jr-start .ocl-jr-badge { width: 32px; height: 36px; font-size: 12px; }
+.ocl-jr-start b { flex: 1; font: 600 16px/1.2 var(--oc-f-ui); color: var(--oc-ink); }
+.ocl-jr-badge {
+  flex: none; display: grid; place-items: center; width: 26px; height: 30px; clip-path: var(--ocp-hex);
+  background: color-mix(in srgb, var(--c) 80%, #0b1a35); color: #fff; font: 400 10px/1 var(--oc-f-logo); letter-spacing: 0.02em;
+}
+.ocl-jr-turns {
+  flex: none; padding: 6px 11px; clip-path: var(--ocp-tag);
+  font: 600 12px/1 var(--oc-f-ui); color: #fff; background: var(--oc-ink); font-variant-numeric: tabular-nums;
+}
+:root[data-ui="dark"] .ocl-jr-turns { color: #0d1a33; }
+.ocl-jr-split { display: flex; align-items: center; gap: 8px; font: 600 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
+.ocl-jr-split::after { content: ""; flex: 1; height: 1px; background: var(--oc-line); order: 2; }
+.ocl-jr-dice { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--oc-azure); stroke-width: 1.8; }
+.ocl-jr-dice circle { fill: var(--oc-azure); stroke: none; }
+.ocl-jr-split > span:not(.ocl-jr-every) { color: var(--oc-azure); }
+.ocl-jr-every { order: 3; font-variant-numeric: tabular-nums; }
+.ocl-jr-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 6px; }
+.ocl-jr-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 10px;
+  background: var(--ocp-plate); border: 1px solid var(--oc-line); clip-path: var(--ocp-cut);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.ocl-jr-tile::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--c); }
+.ocl-jr-tile:hover { border-color: var(--c); transform: translateY(-1px); }
+.ocl-jr-name { font: 600 12.5px/1.2 var(--oc-f-ui); color: var(--oc-ink); text-align: center; white-space: nowrap; }
+
+/* ---------- ผลโหวต: แถบช่องละคน + แผ่นผู้เล่น ---------- */
+:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="ffa"] { --a: #9b4f96; }
+:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="duo"] { --a: #3d8bd9; }
+:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="trio"] { --a: #1f8a6b; }
+:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="moon"] { --a: #b8862a; }
+.ocl-tl-bar { display: flex; gap: 3px; height: 5px; }
+.ocl-tl-bar i { flex: 1; background: var(--oc-frost); transform: skewX(-24deg); transition: background 0.3s; }
+.ocl-tl-bar i[data-mode] { background: var(--a); }
+.ocl-tally { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; max-height: 236px; overflow-y: auto; }
+.ocl-tally li {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 5px 10px 5px 12px; box-sizing: border-box;
+  background: var(--ocp-plate); border: 1px solid var(--oc-line); clip-path: var(--ocp-cut);
+  font: 500 13px/1.2 var(--oc-f-ui); animation: ocl-tl-in 0.25s ease both;
+}
+.ocl-tally li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--pc); }
+@keyframes ocl-tl-in { from { opacity: 0; transform: translateX(6px); } }
+.ocl-tl-av { position: relative; flex: none; width: 28px; height: 32px; clip-path: var(--ocp-hex); background: var(--pc); display: grid; place-items: center; overflow: hidden; }
+.ocl-tl-av::after { content: ""; position: absolute; inset: 2px; clip-path: var(--ocp-hex); background: color-mix(in srgb, var(--pc) 75%, #0b1a35); z-index: 0; }
+.ocl-tl-av b { position: relative; z-index: 1; font: 700 12px/1 var(--oc-f-ui); color: #fff; }
+.ocl-tl-av img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); clip-path: var(--ocp-hex); object-fit: cover; object-position: 50% 18%; z-index: 2; }
+.ocl-tally .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--oc-ink); font-weight: 600; }
+.ocl-tl-you { flex: none; padding: 4px 8px; clip-path: var(--ocp-tag); font: 600 10.5px/1 var(--oc-f-ui); color: #fff; background: var(--pc); }
+.ocl-tl-vote {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 9px; clip-path: var(--ocp-tag);
+  font: 600 12px/1 var(--oc-f-ui); color: #fff; background: var(--a);
+  animation: ocl-tl-pop 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.ocl-tl-vote .oc-latin { font: 400 10.5px/1 var(--oc-f-logo); letter-spacing: 0.1em; }
+.ocl-tl-vote small { font: 500 10px/1 var(--oc-f-ui); padding-left: 6px; border-left: 1px solid rgba(255, 255, 255, 0.5); }
+.ocl-tl-ico { display: grid; place-items: center; }
+.ocl-tl-ico svg { width: 13px; height: 13px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ocl-tl-vote[data-mode="moon"] .ocl-tl-ico svg { fill: #fff; stroke: none; }
+@keyframes ocl-tl-pop { from { transform: translateX(8px); opacity: 0; } }
+.ocl-tl-wait { flex: none; display: inline-flex; gap: 5px; padding: 0 8px; }
+.ocl-tl-wait i { width: 5px; height: 5px; background: var(--oc-ink-3); transform: rotate(45deg); animation: ocl-tl-dot 1.2s steps(1) infinite; }
+.ocl-tl-wait i:nth-child(2) { animation-delay: 0.4s; }
+.ocl-tl-wait i:nth-child(3) { animation-delay: 0.8s; }
+@keyframes ocl-tl-dot { 0%, 66% { background: var(--oc-ink-3); } 33% { background: var(--oc-azure); } }
+@media (prefers-reduced-motion: reduce) { .ocl-tally li, .ocl-tl-vote, .ocl-tl-wait i { animation: none; } }
+
+/* ---------- Moon Cell: แผ่นบอส ---------- */
+.ocl-boss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ocl-boss {
+  --c: #9b4f96;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 14px;
+  background: var(--ocp-plate); border: 1px solid var(--oc-line); clip-path: var(--ocp-cut);
+}
+.ocl-boss::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+.ocl-boss.core { --c: #b8862a; }
+.ocl-boss-face { position: relative; flex: none; width: 42px; height: 48px; clip-path: var(--ocp-hex); background: var(--c); }
+.ocl-boss-face img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); clip-path: var(--ocp-hex); object-fit: cover; object-position: 50% 15%; background: #0d1a33; }
 .ocl-boss-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .ocl-boss-info b { font: 600 14px/1.2 var(--oc-f-ui); color: var(--oc-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ocl-boss-info b.oc-latin { font: 400 13px/1.2 var(--oc-f-logo); letter-spacing: 0.12em; }
@@ -399,28 +414,37 @@
 .ocl-boss-stats i { font-style: normal; width: 12px; text-align: center; }
 .ocl-boss-stats .hp i { color: #d2455b; }
 .ocl-boss-stats .ar i { color: #3d8bd9; }
-.ocl-boss-stats em { flex: none; height: 4px; border-radius: 999px; max-width: 120px; }
-.ocl-boss-stats .hp em { background: linear-gradient(90deg, #f07a8c, #d2455b); }
-.ocl-boss-stats .ar em { background: linear-gradient(90deg, #8cc4f0, #3d8bd9); }
+.ocl-boss-stats em { flex: none; height: 4px; max-width: 120px; transform: skewX(-24deg); }
+.ocl-boss-stats .hp em { background: #d2455b; }
+.ocl-boss-stats .ar em { background: #3d8bd9; }
 
-/* Colony: ปล้องเรียงลงตามเวลา · ระหว่างปล้อง = กุญแจ + เทิร์นที่ปิดผนึก · ท้ายสุด = ระเบิด + เทิร์นที่ระเบิด */
+/* ---------- Colony: ปล้องตามเวลา · กุญแจ = เทิร์นที่ปิดผนึก · ท้ายสุด = เทิร์นที่ระเบิด ---------- */
 .ocl-colony { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.ocl-cl-step { --c: color-mix(in srgb, #3d8bd9 calc(100% - var(--i) * 22%), #d2455b); display: flex; flex-direction: column; }
+.ocl-cl-step { --c: #3d8bd9; display: flex; flex-direction: column; }
+.ocl-cl-step:nth-child(2) { --c: #1f8a6b; }
+.ocl-cl-step:nth-child(3) { --c: #b8862a; }
+.ocl-cl-step:nth-child(4) { --c: #c0392b; }
 .ocl-cl-row {
-  display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 7px; border-radius: 999px;
-  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 4%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
+  position: relative; display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 14px;
+  background: var(--ocp-plate); border: 1px solid var(--oc-line); clip-path: var(--ocp-cut);
 }
-.ocl-cl-badge { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font: 400 10.5px/1 var(--oc-f-logo); background: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent); }
+.ocl-cl-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+.ocl-cl-badge {
+  flex: none; display: grid; place-items: center; width: 26px; height: 30px; clip-path: var(--ocp-hex);
+  background: color-mix(in srgb, var(--c) 80%, #0b1a35); color: #fff; font: 400 10px/1 var(--oc-f-logo);
+}
 .ocl-cl-row b { flex: 1; font: 600 14px/1.2 var(--oc-f-ui); color: var(--oc-ink); }
-.ocl-cl-turns { font: 600 11.5px/1 var(--oc-f-ui); padding: 5px 9px; border-radius: 999px; color: var(--oc-ink); background: color-mix(in srgb, var(--c) 22%, transparent); font-variant-numeric: tabular-nums; }
-.ocl-cl-link { display: flex; align-items: center; gap: 6px; margin-left: 20px; padding: 5px 0 5px 14px; border-left: 2px dashed color-mix(in srgb, var(--c) 55%, transparent); font: 700 11px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }
-.ocl-cl-link .ico { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; }
+.ocl-cl-turns { flex: none; padding: 5px 10px; clip-path: var(--ocp-tag); font: 600 11.5px/1 var(--oc-f-ui); color: var(--oc-ink); background: var(--oc-frost); font-variant-numeric: tabular-nums; }
+.ocl-cl-link {
+  display: flex; align-items: center; gap: 6px; margin-left: 26px; padding: 4px 0 4px 12px;
+  border-left: 2px solid var(--oc-line); font: 700 11px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums;
+}
+.ocl-cl-link .ico { display: grid; place-items: center; width: 20px; height: 20px; }
 .ocl-cl-link svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
-.ocl-cl-link.seal { color: #6f87a8; }
-.ocl-cl-link.seal .ico { background: color-mix(in srgb, #6f87a8 20%, transparent); }
-.ocl-cl-link.boom { color: #d2455b; border-left-color: transparent; }
-.ocl-cl-link.boom .ico { background: #d2455b; box-shadow: 0 0 10px rgba(210, 69, 91, 0.6); animation: ocl-cl-boom 1.6s ease-in-out infinite; }
-.ocl-cl-link.boom svg { fill: #fff; stroke: none; }
-@keyframes ocl-cl-boom { 50% { transform: scale(1.15); } }
-@media (prefers-reduced-motion: reduce) { .ocl-cl-link.boom .ico { animation: none; } }
+.ocl-cl-link.boom { border-left-color: transparent; padding-left: 0; margin-left: 14px; }
+.ocl-cl-link.boom .ico { width: auto; height: auto; }
+.ocl-cl-link.boom { color: #fff; }
+.ocl-cl-link.boom > span:last-child, .ocl-cl-link.boom .ico { background: #c0392b; padding: 5px 8px; clip-path: var(--ocp-tag); }
+.ocl-cl-link.boom svg { fill: #fff; stroke: none; animation: ocl-cl-boom 1.6s ease-in-out infinite; }
+@keyframes ocl-cl-boom { 50% { transform: rotate(45deg); } }
+@media (prefers-reduced-motion: reduce) { .ocl-cl-link.boom svg { animation: none; } }
