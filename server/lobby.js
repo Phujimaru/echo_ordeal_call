@@ -306,6 +306,7 @@ function startMatch() {
   match.winningTeamId = null;
   match.forcedWinnerId = null;
   match.statsRecorded = false;
+  match.kickedSides = 0;
   match.yukiBoom = null;
   match.arjunaUlt = null;
   match.endTurnHold = 0;

@@ -132,3 +132,18 @@
 .ocv-ch-track { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--oc-frost); }
 .ocv-ch-track i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--fill); background: var(--oc-azure); }
 .ocv-ch-s input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+
+/* ---------- รายชื่อผู้เล่น (คนเปิดห้อง — ไล่ออก) ---------- */
+.ocm-players { list-style: none; margin: 0; padding: 10px 0 0; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--oc-line); max-height: 260px; overflow-y: auto; }
+.ocm-player { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.ocm-dot { flex: none; width: 8px; height: 8px; background: #2fb36b; transform: rotate(45deg); }
+.ocm-player.is-off .ocm-dot { background: var(--oc-hp); }
+.ocm-pname { flex: 1; min-width: 0; font: 600 14px/1.2 var(--oc-f-ui); color: var(--oc-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ocm-player.is-off .ocm-pname { color: var(--oc-ink-3); }
+.ocm-kick {
+  appearance: none; flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer;
+  background: #fff; border: 1px solid var(--oc-line); color: var(--oc-hp); transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.ocm-kick svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ocm-kick:hover { background: var(--oc-hp); border-color: var(--oc-hp); color: #fff; }
+.ocm-kick:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }

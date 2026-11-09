@@ -1,7 +1,7 @@
 // Socket.io: เชื่อมต่อ/หลุด/กลับเข้า + รับคำสั่งผู้เล่น
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  scheduleDisconnectedRemoval, newPlayerRecord,
+  scheduleDisconnectedRemoval, newPlayerRecord, kickPlayer, isHostSocket,
 });
 
 const crypto = require("crypto");
@@ -22,6 +22,7 @@ const view = require("./view");
 const Duo = require("./duo");
 const Summon = require("./summon");
 const Ride = require("./ride");
+const endTurnPhase = require("./phases/endTurn");
 const TimeStop = require("./timeStop");
 const ClockUp = require("./clockUp");
 const { engine } = require("./engine");
@@ -108,6 +109,61 @@ function removeDisconnectedPlayer(playerId) {
   view.broadcastPositions();
 }
 
+// ---------- ไล่ผู้เล่นออก (คนเปิดห้องเท่านั้น — ผู้ใช้สั่ง 2026-11-09: คนออกกลางทางแต่ตัวยังค้าง เกมเดินต่อลำบาก) ----------
+//  คนเปิดห้อง = socket จากเครื่องนี้เอง (หน้าเกมของ host โหลดจาก http://127.0.0.1:PORT — desktop/main.js hostedBase)
+//  ก่อนเริ่มแมตช์: ลบที่นั่ง + ย้อนกลับห้องรอ (แบบคนออกเอง) · ระหว่างแมตช์: ตัวละคร + คู่ (ระบบคู่) + ยูนิตที่เรียกไว้หายจากกระดาน
+//   (ผลเหมือนตาย — ฮุค onDeath ผ่าน Summon.ownerLeft · คนขี่/ถูกขี่ลงหลัง) · ถึงตาของคนนี้อยู่ = ข้ามไปคนถัดไป · เหลือฝ่ายเดียว = จบเกม
+//  ไม่นับในสถิติตัวละคร (ลบก่อน gameOver) · หน้าของคนถูกไล่ได้ "kicked" แล้วหลุด (ลบ session — กลับเข้าห้องเดิมไม่ได้จนกว่าจะเข้าใหม่)
+function isHostSocket(socket) {
+  const a = String((socket && socket.handshake && socket.handshake.address) || "");
+  return a === "127.0.0.1" || a === "::1" || a === "::ffff:127.0.0.1";
+}
+function kickPlayer(targetId, byId = null) {
+  const p = match.players[targetId];
+  if (!p || p.summon || p.duoOf || targetId === byId) return false;
+  const wasPregame = lobby.pregameStateActive();
+  if (p.socketId) {
+    io.to(targetId).emit("kicked");
+    const s = io.sockets.sockets.get(p.socketId);
+    socketPlayerIds.delete(p.socketId);
+    if (s) setTimeout(() => s.disconnect(true), 50); // ให้ "kicked" ถึงก่อนตัดสาย
+  }
+  p.connected = false;
+  p.socketId = null;
+  const timer = disconnectTimers.get(targetId);
+  if (timer) clearTimeout(timer);
+  disconnectTimers.delete(targetId);
+  forgetPlayerSession(p);
+  if (!wasPregame) {
+    match.lastLog.push(`🚪 ${p.name} ถูกเชิญออกจากเกม`);
+    match.kickedSides = (match.kickedSides || 0) + 1;
+    const units = Duo.unitsOf(p);
+    for (const u of units) Ride.onDeath(u);
+    Summon.ownerLeft(p);
+    for (const u of units) if (u.id !== targetId) delete match.players[u.id];
+    if (match.duo && match.duo.ownerId === targetId) match.duo = null;
+  }
+  delete match.players[targetId];
+  const others = Object.keys(match.players);
+  if (!others.length) {
+    match.gameState = 'LOBBY';
+    timers.clearPhaseTimer();
+    match.actorId = null;
+  } else if (wasPregame) {
+    lobby.resetPregameFlowToLobby();
+  } else if (match.gameState === 'ACTION' && (match.actorId === targetId || !match.players[match.actorId])) {
+    match.duo = null;
+    action.nextActor();
+  } else if (match.gameState === 'PLAYING') {
+    if (!endTurnPhase.gameOver()) draw.checkAllLocked();
+  } else if (match.gameState === 'ACTION' || match.gameState === 'ORDER') {
+    endTurnPhase.gameOver();
+  }
+  view.broadcastState();
+  view.broadcastPositions();
+  return true;
+}
+
 // ห่อ handler ของ socket event ด้วย try/catch — payload ผิดรูปแบบ/บั๊กในโค้ดตัวละครจุดเดียว
 //  ไม่ควรทำให้ process ทั้งตัว crash (ตัดผู้เล่นทุกคนออกจากเกมพร้อมกัน) แค่ event นั้นไม่ทำงานพอ
 function safeOn(socket, event, handler) {
@@ -175,6 +231,13 @@ io.on('connection', (socket) => {
   safeOn(socket, 'charStats', () => {
     if (!consumeEventQuota(socket, 'charStats', 5, 5_000)) return;
     socket.emit("charStats", CharStats.snapshot());
+  });
+
+  // คนเปิดห้องไล่ผู้เล่นออก (เมนูมุมขวาบน — GameMenu.jsx)
+  safeOn(socket, 'kickPlayer', ({ playerId } = {}) => {
+    if (!consumeEventQuota(socket, 'kickPlayer', 4, 5_000) || !isHostSocket(socket)) return;
+    if (typeof playerId !== 'string' || playerId.length > 64) return;
+    kickPlayer(playerId, playerIdFor(socket));
   });
 
   safeOn(socket, 'reconnectSession', ({ sessionToken } = {}) => {

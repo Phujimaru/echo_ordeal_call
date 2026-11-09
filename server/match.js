@@ -17,6 +17,7 @@ const match = {
   teamCount: 0,
   winningTeamId: null,
   statsRecorded: false, // บันทึกสถิติตัวละครของแมตช์นี้แล้ว (server/charStats.js — phases/endTurn.js gameOver) · รีเซ็ทใน lobby.startMatch
+  kickedSides: 0, // ผู้เล่นที่ถูกไล่ออกระหว่างแมตช์ (server/socket.js kickPlayer) — นับรวมจำนวนฝ่ายตอนตัดสินผล (เหลือคนเดียว = ชนะ) · รีเซ็ทใน lobby.startMatch
   forcedWinnerId: null, // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner) · gameOver ข้ามกติกาปกติ
   yukiBoom: null,       // ฉากระเบิดของยูกิ { seq, by, x, y, size } — ส่งให้ client ตลอดช่วงพักจนจบเกม
   yukiBoomSeq: 0,

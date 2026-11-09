@@ -16,8 +16,11 @@ function set(next) {
   started = next;
   listeners.forEach((fn) => fn());
 }
-socket.on("state", (s) => set(!!s && !!s.gameState && !PRE_MATCH.has(s.gameState)));
-socket.on("sessionExpired", () => set(false));
+socket.on("state", (s) => {
+  setPlayers(s);
+  set(!!s && !!s.gameState && !PRE_MATCH.has(s.gameState));
+});
+socket.on("sessionExpired", () => { setPlayers(null); set(false); });
 
 const subscribe = (fn) => {
   listeners.add(fn);
@@ -25,4 +28,25 @@ const subscribe = (fn) => {
 };
 export function useMatchStarted() {
   return useSyncExternalStore(subscribe, () => started);
+}
+
+// ผู้เล่นในห้อง (คนเปิดห้องใช้ไล่ออก — GameMenu.jsx) · เฉพาะผู้เล่นจริง (ไม่รวมตัวคู่/ยูนิตที่ถูกเรียก)
+let roster = { list: [], youId: null };
+const rosterListeners = new Set();
+function setPlayers(s) {
+  const list = s && Array.isArray(s.players)
+    ? s.players.filter((p) => p && !p.summon && !p.duoOf).map((p) => ({ id: p.id, name: p.name, connected: p.connected !== false, characterId: p.characterId }))
+    : [];
+  const youId = (s && s.youId) || null;
+  const key = JSON.stringify([list, youId]);
+  if (key === roster.key) return;
+  roster = { list, youId, key };
+  rosterListeners.forEach((fn) => fn());
+}
+const subscribeRoster = (fn) => {
+  rosterListeners.add(fn);
+  return () => rosterListeners.delete(fn);
+};
+export function useRoomPlayers() {
+  return useSyncExternalStore(subscribeRoster, () => roster);
 }

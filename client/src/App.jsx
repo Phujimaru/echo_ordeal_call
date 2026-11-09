@@ -202,6 +202,13 @@ export default function App() {
       setState(null);
       setStage((current) => current === 'connected' ? 'setup' : current);
     };
+    // คนเปิดห้องไล่ออก (server/socket.js kickPlayer): ลืม session แล้วกลับหน้าแรกของโปรแกรม (เบราว์เซอร์ธรรมดา = หน้าเลือกที่นั่ง)
+    const onKicked = () => {
+      saveSessionToken(null);
+      setState(null);
+      if (window.echoApp?.leaveRoom) window.echoApp.leaveRoom().catch(() => setStage('setup'));
+      else setStage('setup');
+    };
     const onSessionInUse = () => console.warn('This game session is already connected in another tab.');
     const onRateLimited = ({ event } = {}) => console.warn(`Rate limited: ${event || 'socket event'}`);
     // join ล้มเหลว (ห้องเต็ม/เกมกำลังเล่นอยู่) -> ไม่มีการเปลี่ยนหน้าจริง ต้องปล่อยม่านเปิดเอง
@@ -232,6 +239,7 @@ export default function App() {
     socket.on('reconnected', onReconnected);
     socket.on('sessionExpired', onSessionExpired);
     socket.on('sessionInUse', onSessionInUse);
+    socket.on('kicked', onKicked);
     socket.on('rateLimited', onRateLimited);
     socket.on("full", onFull);
     socket.on("inProgress", onInProgress);
@@ -253,6 +261,7 @@ export default function App() {
       socket.off('reconnected', onReconnected);
       socket.off('sessionExpired', onSessionExpired);
       socket.off('sessionInUse', onSessionInUse);
+      socket.off('kicked', onKicked);
       socket.off('rateLimited', onRateLimited);
       socket.off("full", onFull);
       socket.off("inProgress", onInProgress);

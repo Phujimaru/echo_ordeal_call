@@ -283,3 +283,7 @@
 :root[data-ui="dark"] .ocm-item:hover { background: #21406f; }
 :root[data-ui="dark"] .ocm-item.is-danger { color: #ff8a9c; }
 :root[data-ui="dark"] .ocm-tag { background: transparent; }
+:root[data-ui="dark"] .ocm-players { border-top-color: rgba(255, 255, 255, 0.14); }
+:root[data-ui="dark"] .ocm-pname { color: #e8f0fa; }
+:root[data-ui="dark"] .ocm-player.is-off .ocm-pname { color: rgba(234, 243, 252, 0.45); }
+:root[data-ui="dark"] .ocm-kick { background: #18325c; border-color: rgba(127, 184, 230, 0.4); color: #ff8a9c; }

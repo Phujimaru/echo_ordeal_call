@@ -171,7 +171,7 @@ function gameOver() {
     return true;
   }
   const stillAlive = combat.alivePlayers().filter((p) => !p.summon); // ยูนิตที่ถูกเรียก (server/summon.js) ไม่นับเป็นผู้รอด
-  const total = Duo.sideCount(Object.values(match.players)); // ระบบคู่: นับต่อฝ่าย (สองตัวของผู้เล่นคนเดียวกัน = 1)
+  const total = Duo.sideCount(Object.values(match.players)) + (match.kickedSides || 0); // ระบบคู่: นับต่อฝ่าย (สองตัวของผู้เล่นคนเดียวกัน = 1) · + คนที่ถูกไล่ออก (socket.js kickPlayer)
   const sidesLeft = Duo.sideCount(stillAlive);
   const teamWin = lobby.remainingTeamWinInfo(stillAlive, total);
   if (teamWin.over) {
