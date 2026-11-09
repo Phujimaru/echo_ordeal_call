@@ -52,6 +52,8 @@ function fit() {
   if (Math.abs(sT) < 1e-9) sT = 0;
   HCe = Math.abs(cT) * BC / 2 + Math.abs(sT) * BR / 2;
   HRe = Math.abs(sT) * BC / 2 + Math.abs(cT) * BR / 2;
+  // กระดานใหญ่ (สนาม Eos หมุนอิสระทุกองศา): กรอบคงที่ทุกมุม — ไม่งั้นมุมเฉียงกรอบใหญ่ขึ้น กล้องแกว่งเหมือนจานเอียง (ผู้ใช้แจ้ง 2026-11-09)
+  if (Math.max(BC, BR) >= 24) { HCe = BC / 2; HRe = BR / 2; }
   CAMD = HRe >= 12 ? HRe * 2.6 : CAM_D;
   const dn = Math.max(1, CAMD - HRe * CS), df = CAMD + HRe * CS, farY = PITCH_DEG >= 80 ? BIRD_FAR_Y : FAR0 - (HRe - 6) * 7.5;
   FOC = Math.min((NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df)), MAX_NEAR_W * dn / (2 * HCe));
