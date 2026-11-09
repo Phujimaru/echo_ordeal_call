@@ -156,7 +156,6 @@ const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนก
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140;
-const RTS_EDGE_PAN = false; // สนาม Eos: เมาส์ชิดขอบจอไม่เลื่อนกล้อง (ผู้ใช้สั่ง 2026-11-10 ล็อกกล้องที่ตัวเรา)
 const RTS_LIVE_SCENE_MS = 9;
 const RTS_SHARP_PAD = 1.6; // ชั้นคมของกล้อง RTS กว้างกว่าจอกี่เท่า (เผื่อเลื่อนกล้องโดยไม่ต้องวาดใหม่)
 // เฟรมตรรกะเดียวกัน (k เท่ากัน) แต่กว้าง/สูงขึ้น m เท่ารอบจุดกลางจอ — ชั้นอบที่เลื่อนตามกล้องได้
@@ -525,7 +524,7 @@ export default function BoardCanvas(props) {
         st.cam = { z: A.from.z + (A.to.z - A.from.z) * e, cx: A.from.cx + (A.to.cx - A.from.cx) * e, cy: A.from.cy + (A.to.cy - A.from.cy) * e };
         if (pr >= 1) { st.cam = A.to; st.camAnim = null; }
       }
-      if (zl && !rts && st.keys.size && dt > 0) { // สนาม Eos: ลูกศรไม่เลื่อนกล้อง (ล็อกที่ตัวเรา)
+      if ((zl || rts) && st.keys.size && dt > 0) {
         let kx = 0, ky = 0;
         for (const c of st.keys) { const v = ARROWS[c]; if (v) { kx += v[0]; ky += v[1]; } }
         const sp = PAN_SPEED * dt / 1000 / st.cam.z;
@@ -537,7 +536,7 @@ export default function BoardCanvas(props) {
         if (!turning) st.pivot = null;
       }
       // RTS: เมาส์ชิดขอบจอ = เลื่อน (ไม่ลากอยู่ · หน้าต่างมีโฟกัส) · ปุ่มกลับที่ตัวเรา (p.camHome เปลี่ยน) = เลื่อนไปที่ focus
-      if (RTS_EDGE_PAN && rts && st.ptr && !st.drag && dt > 0 && typeof document !== "undefined" && document.hasFocus()) { // สนาม Eos: ปิดเลื่อนขอบจอ (ล็อกที่ตัวเรา)
+      if (rts && st.ptr && !st.drag && dt > 0 && typeof document !== "undefined" && document.hasFocus()) {
         const r = cvRef.current.getBoundingClientRect(), ex = st.ptr.clientX - r.left, ey = st.ptr.clientY - r.top;
         const kx = ex < EDGE_PX ? -1 : ex > r.width - EDGE_PX ? 1 : 0, ky = ey < EDGE_PX ? -1 : ey > r.height - EDGE_PX ? 1 : 0;
         if (kx || ky) { const sp = PAN_SPEED * dt / 1000 / st.cam.z; st.camAnim = null; st.cam = { ...st.cam, cx: st.cam.cx + kx * sp, cy: st.cam.cy + ky * sp }; }
@@ -558,9 +557,6 @@ export default function BoardCanvas(props) {
         st.camHome = p.camHome;
         if (fp) startAnim(cc({ z: st.cam.z, ...eyeTo(st.cam.z, fp[0], fp[1]) }), FOCUS_MS);
       }
-      // สนาม Eos (ผู้ใช้สั่ง 2026-11-10 "ห้ามเลื่อนหนีจากหมากตัวเอง ไม่งั้นแผนที่จะไม่มีประโยชน์"): กล้องล็อกที่ตัวเราเสมอ
-      //  ลาก/ขอบจอ/ลูกศร/focus ไปคนอื่น = ไม่เลื่อน · ซูม (ล้อ/ปุ่ม) กับหมุน Q/E ยังได้ · ฉากตี (cinema) ยังซูมเข้าคู่ที่ตีกันได้
-      if (rts && !st.cinemaRef) { const [sx, sy] = PV(0, 0); st.cam = { z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) }; }
       st.cam = cc(st.cam);
       const view = rts ? computeView(w, h, { ...st.cam, z: st.cam.z * RTS_BASE_Z }) : st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base; // RTS: z นับจากเฟรมอบที่ถอยออก
       st.view = view;
@@ -1043,7 +1039,6 @@ export default function BoardCanvas(props) {
       try { cvRef.current.setPointerCapture(e.pointerId); } catch { /* ไม่รองรับ */ }
       return;
     }
-    if (st.rts) return; // สนาม Eos: ลากเลื่อนกล้องไม่ได้ (ล็อกที่ตัวเรา)
     if (!(st.rts || clampZoom(propsRef.current.zoom) > 0) || e.button > 2) return;
     if (e.button === 1) e.preventDefault(); // กันเมาส์กลางเลื่อนหน้าอัตโนมัติ
     st.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, moved: e.button !== 0, button: e.button };
@@ -1062,7 +1057,7 @@ export default function BoardCanvas(props) {
     setHover(tile, unit ? unit.id : null);
     const p = propsRef.current, hl = st.hl, k = tile ? key(tile.x, tile.y) : null;
     const hot = !!unit || (k && (hl.move.has(k) || hl.attack.has(k) || hl.skill.has(k) || hl.aoe.has(k)));
-    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : !st.rts && clampZoom(p.zoom) > 0 ? "grab" : "default";
+    cvRef.current.style.cursor = hot && (p.onTileClick || p.onUnitClick) ? "pointer" : st.rts || clampZoom(p.zoom) > 0 ? "grab" : "default";
   };
   useLayoutEffect(() => {
     S.current.refreshHover = () => { const st = S.current; if (st.ptr && !(st.drag && st.drag.moved)) hoverAt(st.ptr); };
