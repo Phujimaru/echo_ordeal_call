@@ -4,7 +4,7 @@
 //
 //  const ea = eosAudio();
 //  ea.setBeds({ amb_forest_day: 1, wx_rain_loop: 0.8 }, { fade })   // ลูปพื้นตามโซน/กลางคืน/สภาพอากาศ (App.jsx)
-//  ea.sfx(key, { gain, delay })   ea.thunder(on)   ea.stop(fade)   ea.duck(k, ms)
+//  ea.sfx(key, { gain, delay, dur })   ea.thunder(on)   — dur (วินาที) = ตัดเสียงยาวให้จบพร้อมฉาก (จางออก 0.25 วิท้าย)   ea.stop(fade)   ea.duck(k, ms)
 //  ea.setMusic(key, { fade })      // เพลงของสนาม (day/night/battle_day/battle_night/tension/hunt) ครอสเฟด ~1.8 วิ · null = จางออก
 //  เพลง: /eos/music/<key>.mp3 (ไฟล์ผู้ใช้ Downloads/eos/sound · ตัดช่วงเงียบหัวท้าย + loudnorm −11.3 LUFS 192k แบบเพลงด่าน Fodlan)
 //   เล่นผ่าน <audio> + MediaElementSource (สตรีม ไม่ถอดรหัสทั้งเพลงเข้าหน่วยความจำ) · เพลงหลักของเกม (audioPolicy) เงียบระหว่างอยู่ Eos
@@ -211,7 +211,7 @@ export function eosAudio() {
     } catch { /* เสียงพังห้ามทำให้ฉากพัง */ }
   }
 
-  function sfx(key, { gain = 1, delay = 0 } = {}) {
+  function sfx(key, { gain = 1, delay = 0, dur = 0 } = {}) {
     try {
       if (!key || !ensure()) return;
       const play = (buf) => {
@@ -224,7 +224,14 @@ export function eosAudio() {
           src.buffer = buf;
           src.connect(g);
           src.onended = () => { try { g.disconnect(); } catch { /* ไม่เป็นไร */ } };
-          src.start(now() + Math.max(0, delay));
+          const t0 = now() + Math.max(0, delay);
+          src.start(t0);
+          if (dur > 0 && dur < buf.duration) {
+            const fade = Math.min(0.25, dur * 0.3);
+            g.gain.setValueAtTime(gain, t0 + dur - fade);
+            g.gain.linearRampToValueAtTime(0, t0 + dur);
+            src.stop(t0 + dur + 0.02);
+          }
         } catch { /* ข้าม */ }
       };
       const buf = buffers.get(key);
@@ -290,6 +297,11 @@ export function eosZoneAt(x, y) {
   const z = ZONES.find((r) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3]);
   return z ? z.id : "wild";
 }
+// เสียงพื้นเฉพาะจุด (ขั้น 4 — ตำแหน่งเดียวกับ server/fodlan/map6.js TUNNELS / CAMPS): ดังขึ้นเมื่อตัวเราเข้าใกล้ (ระยะ ≤ r ช่อง)
+const NEAR_BEDS = [
+  { key: "amb_tunnel", at: [[6, 4], [0, 18], [14, 12], [20, 31]], r: 3.5, gain: 0.85 },
+  { key: "amb_campfire", at: [[1, 13], [29, 12], [15, 24]], r: 3.5, gain: 0.8, day: 0.6 },
+];
 // { key: gain } สำหรับ setBeds — pos = ตำแหน่งตัวเรา (null = กลางแผนที่) · night · weather kind
 // dome = { rect } ตอนโดมกำแพงเวทของ Insomnia เปิด → เสียงหึ่ง (ดังเมื่อเราอยู่ในโดม/ใกล้)
 export function eosBedsFor(pos, night, weather, dome = null) {
@@ -313,6 +325,12 @@ export function eosBedsFor(pos, night, weather, dome = null) {
     const [x0, y0, x1, y1] = dome.rect;
     const inside = pos && pos.x >= x0 && pos.x <= x1 && pos.y >= y0 && pos.y <= y1;
     out.dome_hum = inside ? 0.7 : 0.3;
+  }
+  if (pos) for (const b of NEAR_BEDS) {
+    const d = Math.min(...b.at.map(([x, y]) => Math.hypot(pos.x - x, pos.y - y)));
+    if (d >= b.r) continue;
+    const g = Math.round(b.gain * (night || !b.day ? 1 : b.day) * (1 - d / (b.r + 0.5)) * 10) / 10; // ปัดทีละ 0.1 — ไม่ตั้งลูปใหม่ทุกก้าวเล็กๆ
+    if (g > 0) out[b.key] = g;
   }
   return out;
 }

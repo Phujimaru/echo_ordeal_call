@@ -1255,7 +1255,7 @@ function campMeal(ctx, s, p, kind) {
   q.buffs[p.id] = { kind, from: r, until: r + CAMP_TURNS - 1 };
   q.campCd[p.id] = r + CAMP_CD;
   ctx.bump();
-  ctx.fx("camp_meal", { id: p.id, kind, x: p.pos.x, y: p.pos.y });
+  ctx.fx("camp_meal", { id: p.id, meal: kind, x: p.pos.x, y: p.pos.y }); // ไม่ใช้ชื่อ kind (ctx.fx ใช้ kind เป็นชื่อเหตุการณ์)
   ctx.log(`🏕️ ${p.name} ตั้งแคมป์ — ${CAMP_MEALS[kind].name}`);
   ctx.useStrike(p, 1.2);
   return true;
@@ -1321,7 +1321,7 @@ function takeBounty(ctx, s, p) {
   const target = kind === "player" ? ctx.pick(foes, 1)[0] : null;
   q.bounty[p.id] = { kind, target: target ? target.id : null, name: target ? target.name : BOUNTY[kind].name, gold: BOUNTY[kind].gold };
   ctx.bump();
-  ctx.fx("hunt_board", { id: p.id, kind, target: target ? target.id : null });
+  ctx.fx("hunt_board", { id: p.id, bounty: kind, target: target ? target.id : null });
   ctx.log(`📜 ${p.name} รับค่าหัว: ${q.bounty[p.id].name}`);
   return true;
 }
@@ -1331,7 +1331,7 @@ function huntDone(ctx, s, by, kind, victimId = null) {
   if (!b || b.kind !== kind || (kind === "player" && b.target !== victimId)) return;
   delete q.bounty[by.id];
   const got = lazyShop().addGold(by, b.gold);
-  ctx.fx("hunt_done", { id: by.id, kind, gold: got });
+  ctx.fx("hunt_done", { id: by.id, bounty: kind, gold: got });
   ctx.log(`📜 ${by.name} ปิดค่าหัว ${b.name} ได้ ${got} เหรียญ`);
 }
 function onKill(ctx, st, victim, killerId) {

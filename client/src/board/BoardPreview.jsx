@@ -28,6 +28,7 @@
 //   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
+//   ?area=45 (&rts=1 กล้อง RTS) = สนาม Eos · window.__eosMe(x, y) ย้ายตัวเรา · window.__eosFd({ rail, pillars, tombs, … }) = แก้ state.fodlan.board จำลอง · window.__eosFx([{ kind, … }]) = เล่นฉากเหตุการณ์ (board/fodlan/stage6.js)
 //   ?shops=1 = ร้าน 3 ร้าน ขนาด 2×2 (ร้านยาเจริญชัย / โรงช่างลุงเริง / พ่อค้าเร่ — แผน .claude/plans/shop-three.md · shopProps.js) แทนร้านเดิม 1×1
 //  BFS ในไฟล์นี้เป็นของหน้าทดสอบเท่านั้น (ไม่คิดค่าเดินช่องพิเศษ) — เกมจริงคำนวณที่ server (server/board.js)
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -258,7 +259,7 @@ const btn = (on) => ({
 });
 
 export default function BoardPreview() {
-  const [area, setAreaState] = useState(() => qInt("area", 1, 30, 1));
+  const [area, setAreaState] = useState(() => qInt("area", 1, 60, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
@@ -266,7 +267,7 @@ export default function BoardPreview() {
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: null }), [map]); // ร้านแบบเดิม 1×1 เลิกใช้แล้ว — ?shops=1 = ร้าน 2×2 (shops)
   const shops = useMemo(() => (SHOPS_ON ? shopTrio(map) : null), [map]);
-  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 30, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 60, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;
@@ -288,6 +289,15 @@ export default function BoardPreview() {
   const iceOn = Q.get("ice") === "1";
   const [iceMock, setIceMock] = useState(() => (iceOn ? { lv: null } : null));
   useEffect(() => { window.__boardIce = (v) => setIceMock(v || null); return () => { delete window.__boardIce; }; }, []);
+  // สนาม Eos (?area=45): state.fodlan.board จำลอง + ฉากเหตุการณ์ (seq เพิ่มเรื่อยๆ)
+  const [eosFd, setEosFd] = useState(() => ({ stage: 6, fx: [], rail: { y: 20, warn: false, dir: 1 }, pillars: [], tombs: [] }));
+  useEffect(() => {
+    let seq = 1000;
+    window.__eosFd = (v) => setEosFd((o) => ({ ...o, ...(v || {}) }));
+    window.__eosFx = (list) => setEosFd((o) => ({ ...o, fx: [...o.fx, ...(list || []).map((e) => ({ ...e, seq: ++seq }))].slice(-24) }));
+    window.__eosMe = (x, y) => setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, x, y } : u))); // ย้ายตัวเรา (จุดหมุนกล้อง RTS)
+    return () => { delete window.__eosFd; delete window.__eosFx; delete window.__eosMe; };
+  }, []);
   // ยูนะ: window.__boardSongs([{ kind: "delete"|"smile"|"idol", x, y, r }]) = วงเพลงบนพื้น (prop songs)
   const [songsMock, setSongsMock] = useState(null);
   // ไจโร (?gyro=1): ลูกเหล็กบนพื้นจำลอง [{ owner, color, x, y, seq }] (prop gyroBalls)
@@ -557,6 +567,9 @@ export default function BoardPreview() {
         law={LAW_DEV ? lawDev : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
+        fodlan={map.area === 45 ? { ...eosFd, night } : null}
+        rts={map.area === 45 && Q.get("rts") === "1"}
+        selfPos={map.area === 45 && Q.get("rts") === "1" ? (units.find((u) => u.id === "me") || null) : null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
         onUnitClick={onUnitClick}
