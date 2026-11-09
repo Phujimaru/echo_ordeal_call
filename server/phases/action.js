@@ -592,6 +592,7 @@ function beginOrder() {
   view.broadcastState();
 }
 // เวลาต่อตาเดิน — เครื่องมือ dev: ECHO_DEV_ACTION_TIME=300 ยืดเวลาไว้ทดสอบ (ไม่ตั้ง = ACTION_TIME)
+const OFFLINE_TURN_SECONDS = 5; // ตาเดินของผู้เล่นที่หลุดอยู่ (ผู้ใช้สั่ง 2026-11-09 — คนออกกลางทางทำเกมเดินต่อลำบาก)
 function actionSeconds() {
   const n = Math.floor(Number(process.env.ECHO_DEV_ACTION_TIME));
   return Number.isFinite(n) && n > 0 ? n : ACTION_TIME;
@@ -652,7 +653,9 @@ function nextActor() {
       return !(skipHook && skipHook.skipsTurn && combat.runHook(skipHook, "skipsTurn", engine, u));
     });
     if (!units.length) continue;
-    const secs = units[0].summon ? Summon.CONTROL_SECONDS : turnSecondsOf(units[0], actionSeconds());
+    let secs = units[0].summon ? Summon.CONTROL_SECONDS : turnSecondsOf(units[0], actionSeconds());
+    // ผู้เล่นหลุดอยู่ (socket.js — รอกลับเข้าเกมได้ตลอด) = ตาเดินสั้นลง ไม่ต้องรอเต็มเวลา · บอส AI / ยูนิตที่ถูกเรียกไม่นับ
+    if (owner.connected === false && !owner.summon) secs = Math.min(secs, OFFLINE_TURN_SECONDS);
     if (owner.duoWith || units.length > 1 || units[0] !== owner) Duo.startTurn(owner, units);
     else {
       match.duo = null;

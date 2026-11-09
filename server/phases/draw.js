@@ -293,5 +293,6 @@ function checkAllLocked() {
   if (match.gameState !== "PLAYING") return;
   // QTE ที่ยังเล่นไม่จบ — คนอื่นจั่ว/เปิดไพ่ได้ตามปกติ แค่ยังไม่สรุปรอบให้
   // ถ้าไม่เหลือใครรอดเลยก็ต้องสรุปผลด้วยเช่นกัน ไม่งั้นเกมค้าง
-  if (Duo.cardHolders().every((p) => p.locked) && !qteSystem.qtePending()) summary.resolveRound();
+  //  ผู้เล่นที่หลุดอยู่ (socket.js) ไม่ต้องรอ — นับเหมือนกด "พอ" ด้วยไพ่ที่มี (ผลเท่าหมดเวลาช่วงจั่ว)
+  if (Duo.cardHolders().every((p) => p.locked || Duo.ownerOf(p).connected === false) && !qteSystem.qtePending()) summary.resolveRound();
 }

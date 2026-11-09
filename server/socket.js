@@ -416,6 +416,7 @@ io.on('connection', (socket) => {
       // During a match the player is parked indefinitely and may reclaim this
       // exact character/session whenever they return. Lobby slots still expire.
       if (lobby.pregameStateActive()) scheduleDisconnectedRemoval(playerId);
+      else draw.checkAllLocked(); // ช่วงจั่วไพ่: ไม่ต้องรอคนที่หลุด (phases/draw.js)
       view.broadcastState();
     }
     view.broadcastPositions();

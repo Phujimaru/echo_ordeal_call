@@ -74,3 +74,17 @@ test('ระบบคู่: ไล่เจ้าของ = ตัวคู่
   kickPlayer('p1', 'p0');
   assert.equal(Object.values(match.players).filter((p) => p.duoOf === 'p1').length, 0);
 });
+
+test('ผู้เล่นหลุดอยู่: ตาเดินเหลือ 5 วิ · ช่วงจั่วไม่ต้องรอ', () => {
+  const ps = setup(['muimi', 'fern', 'gray']);
+  ps[1].connected = false;
+  toAction(['p1', 'p0', 'p2']);
+  assert.equal(match.actorId, 'p1');
+  assert.ok(match.timeLeft <= 5);
+  // ช่วงจั่ว: คนอื่นกดพอครบ = สรุปรอบเลย (ไม่รอคนที่หลุด)
+  match.gameState = 'PLAYING';
+  ps[0].locked = true; ps[2].locked = true; ps[1].locked = false;
+  require('../server/phases/draw.js').checkAllLocked();
+  engine.clearPhaseTimer();
+  assert.notEqual(match.gameState, 'PLAYING');
+});
