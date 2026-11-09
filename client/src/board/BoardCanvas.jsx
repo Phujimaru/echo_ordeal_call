@@ -134,6 +134,7 @@ import { createColonyView } from "./colony3d";
 // ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
 const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
 
+const BUSY_HOLD = 600; // หลังมีอะไรขยับ วาด 60 เฟรมต่ออีกเท่านี้ (ms) ก่อนลดเหลือ 30 ตอนกระดานนิ่ง
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
 const STEP_MS = 120;   // เวลาเดินต่อ 1 ช่อง
 // เดินกระโดด (Echo — a.hop = ขนาดตัว): ช่องละ 1 กระโดด · ตัวใหญ่ช้าและหนักกว่า · ยุบตัวตอนลงพื้น
@@ -331,7 +332,16 @@ export default function BoardCanvas(props) {
       if (!paused) st.pausedAt = 0;
       else if (!st.pausedAt) st.pausedAt = now;
       if (paused && now - st.pausedAt < PAUSE_BAKE_AFTER) return;
-      const minGap = paused ? 250 : lowQ ? 1000 / 30 : 1000 / 60;
+      // กระดานนิ่ง (มีแค่ของขยับเบาๆ — ต้นไม้/น้ำ/ไฮไลต์กะพริบ) = 30 เฟรม · มีอะไรเกิดขึ้น = 60 เฟรมทันที แล้วค้างไว้อีก BUSY_HOLD
+      //  (ผู้ใช้ 2026-11-09 "เกมกระตุกตลอดเวลา": วาดทั้งกระดานใหม่ทุกเฟรมแม้ไม่มีอะไรเปลี่ยน — ลดงานครึ่งหนึ่งในเวลาส่วนใหญ่ของเกม)
+      const hovKey = st.hover ? `${st.hover.x},${st.hover.y}` : "";
+      const busyNow = p !== st.busyProps || hovKey !== st.busyHov || !!st.camAnim || !!st.drag || st.keys.size > 0
+        || st.fxActive.length > 0 || (st.anim && !st.anim.done) || st.turnFrom !== st.turnTo || !!p.cinema || !!(p.glides && Object.keys(p.glides).length);
+      st.busyProps = p; st.busyHov = hovKey;
+      if (busyNow) st.busyUntil = now + BUSY_HOLD;
+      const idle = now > (st.busyUntil || 0);
+      if (import.meta.env.DEV) window.__boardIdle = idle; // dev: ตรวจว่ากระดานเข้าโหมดนิ่งได้จริง
+      const minGap = paused ? 250 : lowQ || idle ? 1000 / 30 : 1000 / 60;
       const gap = now - st.lastDraw;
       if (gap < minGap - 1) return;
       st.lastDraw = gap < minGap * 2 ? now - (gap % minGap) : now;
