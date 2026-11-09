@@ -861,7 +861,11 @@ export default function BoardCanvas(props) {
       const frame = (target) => {
         if (target.reset) target.reset();
         else { target.setTransform(1, 0, 0, 1, 0, 0); target.globalCompositeOperation = "source-over"; target.globalAlpha = 1; target.filter = "none"; }
-        try { return drawFrameOf(target); } catch (err) {
+        try {
+          // dev: window.__echoFrameMs = [] → เก็บเวลาวาดแต่ละเฟรม (วัดความลื่นโดยไม่ขึ้นกับการหน่วงเฟรมของหน้าต่าง)
+          if (typeof window !== "undefined" && window.__echoFrameMs) { const t0 = performance.now(); const r = drawFrameOf(target); window.__echoFrameMs.push(performance.now() - t0); return r; }
+          return drawFrameOf(target);
+        } catch (err) {
           const msg = String((err && err.stack) || err);
           if (!st.drawErrs) st.drawErrs = new Set();
           if (!st.drawErrs.has(msg)) { st.drawErrs.add(msg); console.error("drawFrame", err); }

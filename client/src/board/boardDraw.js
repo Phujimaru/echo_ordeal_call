@@ -2312,6 +2312,9 @@ export const FX_DUR = {
 // ชั้นอบที่ย่อ/ขยายลงขนาดจอแล้ว (ชั้นอบ → { key: มุมกล้อง, c: แคนวาสขนาดจอ }) · มุมกล้องของเฟรมก่อน (เท่ากัน = กล้องนิ่ง)
 const SCREEN_CACHE = new WeakMap();
 let lastViewKey = "";
+// สนาม Eos: ชนิดสิ่งกีดขวางที่ไม่มีแอนิเมชัน (วาดรวมเป็นภาพเดียวตอนกล้องนิ่ง — drawFrame)
+const STATIC_OB = new Set(["fd_eos_bldg", "fd_eos_wall", "fd_eos_tree", "fd_eos_rock", "fd_eos_garage"]);
+const STATIC_CACHE = { key: null, prev: null, cv: null };
 export function drawFrame(g, st, now) {
   const { info, view, dpr, bake, night, lowQ, units, hl, hover, fx } = st;
   setCamera(info, st.turn || 0);
@@ -2488,6 +2491,7 @@ export function drawFrame(g, st, now) {
   };
   const boxes = [];
   const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
+  const statics = []; // ของนิ่งของสนาม Eos — ดู STATIC_CACHE
   // หนามน้ำแข็ง: Lv ที่แสดง = ค่าที่ BoardStage ค้างไว้ระหว่างเล่นเหตุการณ์ (ice.lv) หรือ terrain · พุ่งขึ้นจากพื้นตาม fx iceSpikeUp
   const ice = st.ice || null; // { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } — BoardStage ค้างไว้ระหว่างเล่น iceFx
   const iceLv = ice && ice.lv ? ice.lv : null;
@@ -2516,6 +2520,8 @@ export function drawFrame(g, st, now) {
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
     const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind, info.area)) && behind(t.x, t.y);
+    // สนาม Eos (กล้อง RTS): ตึก/กำแพง/ต้นไม้/หิน/อู่ ไม่ขยับ → เก็บไปวาดรวมเป็นภาพเดียว (STATIC_CACHE) ไม่วาดใหม่ทุกเฟรม
+    if (st.uiK && !colony && !fade && STATIC_OB.has(t.kind)) { statics.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, t }); continue; }
     const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
   }
@@ -2586,6 +2592,40 @@ export function drawFrame(g, st, now) {
   // ชิโร่: ดาบปักพื้นในโลก UBW · อาวุธที่ถือลอยข้างตัว
   if (em || emWorld) emiyaItems(items, g, em, units, fx, now, lowQ, info);
   if (vFx) for (const pu of valentinePuppets(fx, now, lowQ)) items.push({ d: depthOf(pu.rx + 0.5 + (pu.ox || 0), pu.ry + 0.5 + (pu.oy || 0)) + 0.0005, f: () => drawAnyUnit(g, pu, now, null) });
+  // ของนิ่ง (สนาม Eos): กล้องนิ่ง 2 เฟรมติด = วาดรวมลงแคนวาสเดียวแล้ววางทีเดียว (ประหยัด ~10–20ms/เฟรมตอนนิ่งที่จอ 1600×900)
+  //  ใต้ตัวละครทั้งหมด → ของนิ่งที่อยู่หน้าตัวละครและทับกล่องของตัวนั้น วาดซ้ำทับอีกที (ลำดับบัง/ถูกบังยังถูก)
+  //  กล้องขยับ (คีย์เปลี่ยนทุกเฟรม) = วาดสดในลำดับความลึกตามเดิม
+  if (statics.length) {
+    let sig = statics.length;
+    for (const o of statics) sig = (sig * 31 + o.t.x * 97 + o.t.y * 13 + o.t.kind.length) % 1000000007;
+    const vc = viewCenter();
+    const skey = `${g.canvas.width}x${g.canvas.height}|${dpr}|${view.k}|${view.ox}|${view.oy}|${viewTurn()}|${vc ? vc.x + "," + vc.y : ""}|${pitchOf()}|${night}|${sig}|${st.fodlan ? JSON.stringify(st.fodlan.lightsOff || null) : ""}`;
+    const sc = STATIC_CACHE;
+    if (sc.key !== skey && sc.prev === skey && typeof document !== "undefined") {
+      if (!sc.cv) sc.cv = document.createElement("canvas");
+      if (sc.cv.width !== g.canvas.width || sc.cv.height !== g.canvas.height) { sc.cv.width = g.canvas.width; sc.cv.height = g.canvas.height; }
+      const cg = sc.cv.getContext("2d");
+      cg.setTransform(1, 0, 0, 1, 0, 0); cg.clearRect(0, 0, sc.cv.width, sc.cv.height);
+      cg.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
+      for (const o of statics.slice().sort((a, b) => a.d - b.d)) drawObstacle(cg, o.t, octx, now);
+      sc.key = skey;
+    }
+    sc.prev = skey;
+    if (sc.key === skey) {
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(sc.cv, 0, 0); g.restore(); L();
+      // ตัวละครที่มีของนิ่งอยู่ข้างหน้าและทับกัน → วาดของนิ่งชิ้นนั้นซ้ำหลังตัวละคร (เรียงตามความลึก)
+      const ub = units.filter((u) => !u.corpse).map((u) => {
+        const h = Math.max(1, u.size | 0) / 2, ax = (u.rx != null ? u.rx : u.x) + h + (u.ox || 0), ay = (u.ry != null ? u.ry : u.y) + h + (u.oy || 0);
+        const [sx, sy, s] = P(ax, ay);
+        return { d: depthOf(ax, ay), x0: sx - s * h * 1.5, x1: sx + s * h * 1.5, y0: sy - s * 1.9 * h * 2, y1: sy + s * 0.3 };
+      });
+      for (const o of statics) {
+        const [sx, sy, s] = P(o.t.x + 0.5, o.t.y + 0.5);
+        const b = { x0: sx - s * 1.0, x1: sx + s * 1.0, y0: sy - s * 3.2, y1: sy + s * 0.6 };
+        if (ub.some((u) => o.d > u.d && b.x0 < u.x1 && b.x1 > u.x0 && b.y0 < u.y1 && b.y1 > u.y0)) items.push({ d: o.d, f: () => drawObstacle(g, o.t, octx, now) });
+      }
+    } else for (const o of statics) items.push({ d: o.d, f: () => drawObstacle(g, o.t, octx, now) });
+  }
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (st.otoya && st.otoya.links && st.otoya.links.length) otoyaLinks(g, st.otoya.links, units, now, lowQ); // สายโน้ตดนตรีในหัวใจ (เหนือตัวละคร)
