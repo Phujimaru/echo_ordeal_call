@@ -3,6 +3,7 @@
    ส่วนที่ 1: แก้ตัวอักษรในหน้าต่างขาว (AvModal tone="white") — กฎเดิมใน avalon-screens.css อยู่ใน @layer components
              จึงแพ้ .text-white เสมอ (หัวข้อเป็นขาวบนขาว) · สีแบบ inline ใน Game.jsx ใช้ตัวแปร --avm-* (ค่าเดิมเป็น fallback)
    ส่วนที่ 2: โหมดมืด (ผู้ใช้สั่ง 2026-11-09) — ทับธีมขาวเมื่อ <html data-ui="dark"> (uiTheme.js · สลับที่ปุ่มมุมขวาบน VolumeControl.jsx)
+             ครอบทั้งในเกม และหน้าก่อนเข้าเกม (.oc-screen: พื้นอวกาศ + ดาว · ตัวแปร --oc-* ในจอเป็นสีมืด) — UI ใหม่ที่ใส่สีขาวตายตัวต้องเพิ่มกฎมืดที่นี่
    ============================================================ */
 .av-modal-white { --avm-dim: #46668f; --avm-text: #2d4f7a; --avm-gold: #8a5a10; --avm-line: rgba(61,139,217,.25); }
 .av-modal-white .avm-k { --avm-on: color-mix(in srgb, var(--avm-c, #3d8bd9) 55%, #0b1a35); }
@@ -331,3 +332,74 @@
 :root[data-ui="dark"] .oc-mark { color: #8fa9cc; }
 :root[data-ui="dark"] .oc-mark b { color: #7fb8e6; }
 :root[data-ui="dark"] .oc-tick { border-color: rgba(127, 184, 230, .55); }
+
+/* ============================================================
+   โหมดมืด: หน้าก่อนเข้าเกม (.oc-screen — เลือกที่นั่ง · เลือกตัวละคร/สถิติ · ห้องรอ · โหวตสนาม · จัดทีม)
+   ตัวแปร ORDEAL CALL ภายในจอ = สีมืด (ตัวอักษรอ่อน · แผงน้ำเงินเข้ม) + ทับสีขาวที่เขียนตายตัวในแต่ละไฟล์
+   ============================================================ */
+:root[data-ui="dark"] .oc-screen {
+  --oc-snow: #0d1a33; --oc-paper: #1a3459; --oc-frost: #22395f; --oc-ice: #2a4772;
+  --oc-ink: #e8f0fa; --oc-ink-2: #a9c2e2; --oc-ink-3: #7891b3;
+  --oc-glass: rgba(12, 25, 49, 0.93); --oc-line: rgba(127, 184, 230, 0.32);
+  --ui-surf: #13284a; --ui-surf-a: rgba(15, 31, 59, 0.9); --ui-surf-hi: #1d3a63;
+  color: var(--oc-ink);
+}
+/* ตัวอักษรบนพื้นอวกาศ: ทุกหัวข้อ/ป้ายในจอ (ไม่ต้องไล่ทีละหน้า) */
+:root[data-ui="dark"] .oc-screen :is(.oc-h1, .oc-h2, .oc-label, .oc-muted) { color: var(--oc-ink); }
+:root[data-ui="dark"] .oc-screen :is(.oc-label, .oc-muted) { color: var(--oc-ink-2); }
+/* ปุ่ม/ช่องกรอก/ป้าย (theme.css) */
+:root[data-ui="dark"] .oc-screen :is(.oc-btn:not(.primary):not(.ghost), .oc-input, .oc-chip:not(.on)) { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .oc-btn:not(.primary):not(.ghost):hover { background: var(--ui-surf-hi); }
+:root[data-ui="dark"] .oc-screen .oc-input::placeholder { color: var(--oc-ink-3); }
+:root[data-ui="dark"] .oc-screen .oc-tag:not(.on) { background: var(--ui-surf-a); }
+/* เลือกที่นั่ง (seat.css) */
+:root[data-ui="dark"] .oc-screen .seat-tag.taken { background: repeating-linear-gradient(135deg, rgba(19, 40, 74, 0.92) 0 6px, rgba(34, 57, 95, 0.92) 6px 12px); }
+:root[data-ui="dark"] .oc-screen :is(.seat-swatches button, .seat-custom) { border-color: #0d1a33; }
+/* ห้องรอ / โหวตสนาม / จัดทีม (lobby.css) */
+:root[data-ui="dark"] .oc-screen .ocl-tether circle { fill: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-tether[data-status="ready"] circle { stroke: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-emb-face { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, transparent) 0 2px, transparent 2px 7px), var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-seat.me .ocl-emb-face { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 40%, #13284a) 0%, #0d1a33 100%); }
+:root[data-ui="dark"] .oc-screen .ocl-seat[data-status="empty"] .ocl-emb-face { background: rgba(19, 40, 74, 0.72); }
+:root[data-ui="dark"] .oc-screen .ocl-seal { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-seat.me .ocl-seat-info { background: rgba(12, 25, 49, 0.95); }
+:root[data-ui="dark"] .oc-screen .ocl-seat[data-status="empty"] .ocl-seat-info { background: rgba(12, 25, 49, 0.45); }
+:root[data-ui="dark"] .oc-screen .ocl-seat-state { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-seat[data-status="ready"] .ocl-seat-state { background: var(--oc-echo); color: #fff; }
+:root[data-ui="dark"] .oc-screen .ocl-switch i::after { background: #e8f0fa; }
+:root[data-ui="dark"] .oc-screen :is(.ocl-emotes button:hover, .ocl-emotes button[aria-pressed="true"]) { background: var(--ui-surf-hi); }
+:root[data-ui="dark"] .oc-screen .ocl-modetag { --fill: rgba(12, 25, 49, 0.95); }
+:root[data-ui="dark"] .oc-screen .ocl-modetag.on { --fill: linear-gradient(135deg, var(--oc-echo) 0%, var(--oc-echo-deep) 100%); }
+:root[data-ui="dark"] .oc-screen .ocl-modetag[data-blocked="true"] { --fill: repeating-linear-gradient(135deg, rgba(12, 25, 49, 0.95) 0 6px, rgba(30, 50, 84, 0.95) 6px 12px); }
+:root[data-ui="dark"] .oc-screen .ocl-dots i { box-shadow: 0 0 0 1.5px #0d1a33; }
+:root[data-ui="dark"] .oc-screen .ocl-areatag { text-shadow: none; color: #e8f0fa; background: rgba(8, 17, 34, 0.78); padding: 3px 6px; }
+:root[data-ui="dark"] .oc-screen .ocl-slot { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .ocl-slot[data-ready="true"] .ocl-slot-state { color: #fff; }
+/* เลือกตัวละคร (charselect.css) */
+:root[data-ui="dark"] .oc-screen .cs-me { background: var(--ui-surf-a); }
+:root[data-ui="dark"] .oc-screen .cs-chip:not(.on) { background: var(--ui-surf-a); }
+:root[data-ui="dark"] .oc-screen .cs-chip:not(.on):hover { background: color-mix(in srgb, var(--c) 22%, #13284a); }
+:root[data-ui="dark"] .oc-screen .cs-tip { background: #e8f0fa; color: #13284a; }
+:root[data-ui="dark"] .oc-screen .cs-fly-hex,
+:root[data-ui="dark"] .oc-screen .cs-node.empty::after,
+:root[data-ui="dark"] .oc-screen .cs-title-node::after { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .cs-title-plate::before { background: linear-gradient(105deg, color-mix(in srgb, var(--g) 22%, #13284a) 0%, rgba(12, 25, 49, 0.94) 62%); }
+:root[data-ui="dark"] .oc-screen .cs-flag.bad { background: color-mix(in srgb, var(--oc-hp) 22%, #13284a); color: #ff8a9c; }
+:root[data-ui="dark"] .oc-screen .cs-sk-plate::before { background: rgba(12, 25, 49, 0.92); }
+:root[data-ui="dark"] .oc-screen .cs-sk.k-ult .cs-sk-plate::before { background: linear-gradient(100deg, color-mix(in srgb, var(--oc-echo) 30%, #13284a) 0%, rgba(12, 25, 49, 0.94) 60%); }
+:root[data-ui="dark"] .oc-screen :is(.cs-sk:hover, .cs-sk:focus-visible, .cs-sk.on) .cs-sk-plate::before { background: color-mix(in srgb, var(--k) 22%, #13284a); }
+:root[data-ui="dark"] .oc-screen .cs-modes { background: var(--ui-surf-a); }
+:root[data-ui="dark"] .oc-screen .cs-confirm-why { background: var(--ui-surf); color: #ff8a9c; }
+:root[data-ui="dark"] .oc-screen .cs-desc { background: rgba(12, 25, 49, 0.97); }
+/* แผงสถิติ */
+:root[data-ui="dark"] .oc-screen :is(.cst-x, .cst-chip:not(.on)) { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .cst-chip:not(.on):hover { background: color-mix(in srgb, var(--c) 22%, #13284a); }
+:root[data-ui="dark"] .oc-screen :is(.cst-row, .cst-match) { background: rgba(19, 40, 74, 0.6); }
+:root[data-ui="dark"] .oc-screen :is(.cst-row:hover, .cst-row.open) { background: color-mix(in srgb, var(--c) 18%, #13284a); }
+:root[data-ui="dark"] .oc-screen .cst-vs { background: color-mix(in srgb, var(--c) 10%, #0f1f3b); }
+:root[data-ui="dark"] .oc-screen .cst-tab-n { background: rgba(127, 184, 230, 0.18); }
+/* หัวข้อทับลูกโลก (ช่วงลูกโลกซูมออกตอนเปิดหน้า) ยังอ่านได้ */
+:root[data-ui="dark"] .oc-screen :is(.oc-h1, .oc-h2, .oc-mark) { text-shadow: 0 1px 2px rgba(2, 4, 10, 0.85), 0 0 12px rgba(2, 4, 10, 0.7); }
+:root[data-ui="dark"] .oc-screen :is(.oc-panel, .cst, .cs-desc) :is(.oc-h1, .oc-h2) { text-shadow: none; }
+:root[data-ui="dark"] .oc-screen .cs-sk.k-ult .cs-sk-n { color: #e3b6ee; }
+:root[data-ui="dark"] .oc-screen .cs-sk-k { color: color-mix(in srgb, var(--k) 45%, #e8f0fa); }
