@@ -15,6 +15,9 @@ export function HexFrame({ gold = false, className = "", children }) {
   );
 }
 
+// ปุ่มลัดคีย์บอร์ด (Game.jsx — กดปุ่มที่มี data-hotkey ตรงกัน)
+const HOTKEY = { basic: "1", secondary: "2", ultimate: "3" };
+
 export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, onUse, ammo, cost, size, cooldown, variant, rangeLabel }) {
   const [broken, setBroken] = useState(false);
   const disabled = disabledProp;
@@ -40,8 +43,11 @@ export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, 
         data-usable={usable ? "true" : "false"}
         data-tier={tier}
         data-state={state}
+        data-hotkey={HOTKEY[tier]}
+        aria-keyshortcuts={HOTKEY[tier]}
         className="hud-skill"
       >
+        {HOTKEY[tier] && <kbd className="hk hk-skill" aria-hidden="true">{HOTKEY[tier]}</kbd>}
         <HexFrame gold={tier === "ultimate"} className="hud-skill-hex">
           {skill && skill.img && !broken ? (
             <img src={skill.img} alt="" onError={() => setBroken(true)} />

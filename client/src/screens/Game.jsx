@@ -2043,6 +2043,34 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     socket.on("transformNotice", onNotice);
     return () => socket.off("transformNotice", onNotice);
   }, []);
+  // ปุ่มลัดคีย์บอร์ด (ผู้ใช้สั่ง 2026-11-09): กดปุ่มบนจอที่มี data-hotkey ตรงกัน — กดไม่ได้ (disabled/ซ่อน) = ไม่ทำอะไร
+  //  1/2/3 = สกิล · F = โจมตี / จั่ว · Enter = จบตา / พอ · Z = ย้อน · B = กระเป๋า (ใช้ตำแหน่งปุ่ม e.code — แป้นโหมดไทยก็ใช้ได้)
+  //  มีหน้าต่าง/ฉากบังปุ่มอยู่ = ไม่กด · กำลังพิมพ์/โฟกัสอยู่บนปุ่ม (Enter) = ปล่อยให้เบราว์เซอร์จัดการเอง
+  useEffect(() => {
+    const KEY = { Digit1: "1", Numpad1: "1", Digit2: "2", Numpad2: "2", Digit3: "3", Numpad3: "3", KeyF: "F", KeyZ: "Z", KeyB: "B", Enter: "Enter", NumpadEnter: "Enter" };
+    const onKey = (e) => {
+      const hk = KEY[e.code];
+      if (!hk || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const el = document.activeElement;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (hk === "Enter" && el && el.closest && el.closest("button, a[href], [role='button']")) return;
+      const modal = Array.from(document.querySelectorAll("[aria-modal='true']")).pop() || null;
+      // ปุ่มต้องมองเห็นและไม่มีหน้าต่างอื่นบังอยู่ (ทดสอบจุดกลางปุ่ม — ฉากซ้อน/หน้าต่างเลือกท่า/กระเป๋า/ร้าน บัง = ไม่กด)
+      const onTop = (b) => {
+        const r = b.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return false;
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!hit && b.contains(hit);
+      };
+      const btn = Array.from(document.querySelectorAll(`[data-hotkey="${hk}"]`))
+        .find((b) => !b.disabled && b.getAttribute("aria-disabled") !== "true" && (!modal || modal.contains(b)) && onTop(b));
+      if (!btn) return;
+      e.preventDefault();
+      btn.click();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // เสียงสั้นๆ จาก server ที่ทุกคนได้ยิน (ไม่มีป้าย)
   //  f.voice = เสียงพากย์ของผู้เล่นคนนั้น (server/voice.js) — ตัดประโยคเก่าของคนเดียวกันก่อนพูดประโยคใหม่ (ไม่พูดซ้อนกัน)
   useEffect(() => {

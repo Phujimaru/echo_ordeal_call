@@ -1338,3 +1338,17 @@
 .bag-cl b { min-width: 22px; padding: 2px 6px; font: 700 15px/1 "Chakra Petch", sans-serif; color: #fff; background: #d2455b; border-radius: 9px; }
 .bag-cl:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 2px #7fb8e6, 0 4px 10px rgba(28,63,110,.15); }
 .bag-cl[data-on="true"] { box-shadow: inset 0 0 0 3px #9b4f96, 0 0 14px rgba(155,79,150,.45); transform: translateY(-2px); }
+
+/* ---------- ป้ายปุ่มลัดคีย์บอร์ด (data-hotkey — Game.jsx) ---------- */
+.hk {
+  position: absolute; top: 6px; right: 12px; z-index: 3; pointer-events: none;
+  min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center;
+  font: 700 11px/1 "Chakra Petch", sans-serif; color: rgba(28, 63, 110, .75);
+  background: rgba(255, 255, 255, .75); border: 1px solid rgba(28, 63, 110, .25); border-bottom-width: 2px; border-radius: 3px;
+}
+.hc-btn .hk, .dd-btn .hk { color: rgba(255, 255, 255, .9); background: rgba(0, 0, 0, .22); border-color: rgba(255, 255, 255, .35); }
+.atkb .hk { top: 4px; right: 4px; }
+.bb .hk { top: 4px; right: 6px; }
+.hk-skill { top: 0; right: auto; left: 2px; }
+button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
+:root[data-ui="dark"] .hk { color: rgba(234, 243, 252, .85); background: rgba(16, 34, 66, .8); border-color: rgba(127, 184, 230, .4); }

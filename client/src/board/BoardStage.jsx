@@ -336,6 +336,23 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // จุดที่กล้องมุมใกล้ควรเห็น (อ็อบเจกต์ใหม่ = เลื่อนไปถ้าอยู่นอกจอ)
   const [focus, setFocus] = useState(() => (me && me.pos ? { x: me.pos.x, y: me.pos.y } : null));
   const look = useCallback((pos) => { if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) setFocus({ x: pos.x, y: pos.y }); }, []);
+  // Tab / Shift+Tab = เลื่อนกล้องไปดูหมากตัวถัดไป/ก่อนหน้า (วนตามลำดับในรายชื่อ — รวมตัวเรา · ผู้ใช้สั่ง 2026-11-09)
+  const tabIdx = useRef(-1);
+  const unitsRef = useRef([]);
+  useEffect(() => { unitsRef.current = state.players.filter((p) => p.alive && p.pos && !(p.summon && !p.duoOf)); }, [state.players]);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      const list = unitsRef.current;
+      if (!list.length) return;
+      e.preventDefault();
+      tabIdx.current = (tabIdx.current + (e.shiftKey ? -1 : 1) + list.length) % list.length;
+      look(list[tabIdx.current].pos);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [look]);
   useEffect(() => {
     const onKey = (e) => {
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;

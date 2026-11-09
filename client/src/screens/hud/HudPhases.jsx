@@ -71,8 +71,8 @@ export function DrawDock({ cards, score, busted, handRef, draw, stand, pick, bag
         </div>
       </div>
       <div className="dd-btns">
-        <button type="button" className="dd-btn draw" disabled={draw.disabled} onClick={draw.onClick}><span className="ico">＋</span><span><b>จั่ว</b><span className="lat">Draw</span></span></button>
-        <button type="button" className="dd-btn stand" disabled={stand.disabled} onClick={stand.onClick}><span className="ico">✋</span><span><b>{stand.done ? "พร้อม" : "พอ"}</b><span className="lat">Stand</span></span></button>
+        <button type="button" className="dd-btn draw" data-hotkey="F" aria-keyshortcuts="F" disabled={draw.disabled} onClick={draw.onClick}><kbd className="hk" aria-hidden="true">F</kbd><span className="ico">＋</span><span><b>จั่ว</b><span className="lat">Draw</span></span></button>
+        <button type="button" className="dd-btn stand" data-hotkey="Enter" aria-keyshortcuts="Enter" disabled={stand.disabled} onClick={stand.onClick}><kbd className="hk" aria-hidden="true">↵</kbd><span className="ico">✋</span><span><b>{stand.done ? "พร้อม" : "พอ"}</b><span className="lat">Stand</span></span></button>
       </div>
       {bag && <div className="dd-bag"><BagButton solo {...bag} /></div>}
     </div>
@@ -113,8 +113,8 @@ export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo
           : extraBtn(g[0])))}
         <BagButton {...bag} />
         <div className="hc-row">
-          <button type="button" className="hc-btn" disabled={undo.disabled} onClick={undo.onClick}><b>↶ ย้อน</b></button>
-          <button type="button" className="hc-btn end" disabled={end.disabled} onClick={end.onClick}><b>จบตา</b></button>
+          <button type="button" className="hc-btn" data-hotkey="Z" aria-keyshortcuts="Z" disabled={undo.disabled} onClick={undo.onClick}><kbd className="hk" aria-hidden="true">Z</kbd><b>↶ ย้อน</b></button>
+          <button type="button" className="hc-btn end" data-hotkey="Enter" aria-keyshortcuts="Enter" disabled={end.disabled} onClick={end.onClick}><kbd className="hk" aria-hidden="true">↵</kbd><b>จบตา</b></button>
         </div>
       </div>
     </section>
@@ -130,7 +130,8 @@ const BLADES = (
 );
 export function AttackButton({ disabled = false, onClick, targets = 0 }) {
   return (
-    <button type="button" className="atkb" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+    <button type="button" className="atkb" data-hotkey="F" aria-keyshortcuts="F" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+      <kbd className="hk" aria-hidden="true">F</kbd>
       <span className="atkb-bg" aria-hidden="true" />
       <span className="atkb-slash" aria-hidden="true" />
       <span className="atkb-emb">
@@ -164,7 +165,8 @@ export function BagButton({ onClick, items = [], slots = 5, hot = false, solo = 
   const peek = items.slice(0, 4);
   const mid = (peek.length - 1) / 2;
   return (
-    <button type="button" className={`bb${solo ? " bb-solo" : ""}`} data-hot={hot ? "true" : "false"} data-full={n >= slots ? "true" : "false"} onClick={onClick}>
+    <button type="button" className={`bb${solo ? " bb-solo" : ""}`} data-hotkey="B" aria-keyshortcuts="B" data-hot={hot ? "true" : "false"} data-full={n >= slots ? "true" : "false"} onClick={onClick}>
+      <kbd className="hk" aria-hidden="true">B</kbd>
       <span className="bb-bg" aria-hidden="true" />
       <span className="bb-emb">
         <span className="bb-hex" aria-hidden="true" />
