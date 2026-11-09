@@ -163,10 +163,19 @@ export function ZoneCard({ zone, lite = false }) {
             </defs>
             <Art />
           </svg>
+          {/* ชื่ออยู่ในภาพ (ผู้ใช้สั่ง 2026-11-09 — "บอกชื่อพื้นที่ในภาพเลย มาข้างนอกมันมองยาก") */}
+          <div className="ezc-title">
+            <div className="ezc-name"><i /><b>{z.name}</b><i /></div>
+            <span className="ezc-latin">{z.latin}</span>
+          </div>
         </div>
       )}
-      <div className="ezc-name"><i /><b>{z.name}</b><i /></div>
-      <span className="ezc-latin">{z.latin}</span>
+      {lite && (
+        <div className="ezc-title">
+          <div className="ezc-name"><i /><b>{z.name}</b><i /></div>
+          <span className="ezc-latin">{z.latin}</span>
+        </div>
+      )}
     </div>
   );
 }

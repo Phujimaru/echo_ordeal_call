@@ -80,10 +80,23 @@
   letter-spacing: .5em; padding-left: .5em; color: var(--g); text-shadow: 0 2px 8px rgba(0,0,0,.9);
   opacity: 0; animation: ezc-name 650ms ease-out 560ms forwards;
 }
+/* ชื่อในภาพ: กลางแถบภาพ มีเงาเข้มรองตัวอักษร */
+.ezc-title { display: flex; flex-direction: column; align-items: center; }
+.ezc-art .ezc-title {
+  position: absolute; inset: 0; justify-content: center; z-index: 1;
+  background: radial-gradient(55% 70% at 50% 55%, rgba(0,0,0,.55), transparent 75%);
+}
+.ezc-art .ezc-name { margin-top: 0; }
+.ezc-art .ezc-name b { font-size: clamp(28px, 3vw, 46px); }
 @keyframes ezc-name { from { opacity: 0; transform: translateY(6px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 
 /* กลับเข้าพื้นที่เดิม: ป้ายเล็ก ไม่มีภาพ */
-.ezc.is-lite { top: 13vh; }
+.ezc.is-lite { top: 13vh; width: auto; }
+.ezc.is-lite .ezc-title {
+  padding: 8px 22px 10px; border-radius: 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 88%, transparent), color-mix(in srgb, var(--c) 28%, var(--bg)));
+  border: 1px solid color-mix(in srgb, var(--g) 35%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
 .ezc.is-lite .ezc-name { margin-top: 0; animation-delay: 60ms; }
 .ezc.is-lite .ezc-name b { font-size: clamp(18px, 1.7vw, 26px); }
 .ezc.is-lite .ezc-latin { animation-delay: 200ms; font-size: clamp(10px, .8vw, 12px); }

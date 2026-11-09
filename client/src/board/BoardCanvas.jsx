@@ -155,7 +155,14 @@ const ZOOM_WHEEL_GAP = 130; // ล้อเมาส์/ทัชแพดยิ
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
-const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
+const RTS_SHARP_MS = 140;
+const RTS_LIVE_SCENE_MS = 9;
+const RTS_SHARP_PAD = 1.6; // ชั้นคมของกล้อง RTS กว้างกว่าจอกี่เท่า (เผื่อเลื่อนกล้องโดยไม่ต้องวาดใหม่)
+// เฟรมตรรกะเดียวกัน (k เท่ากัน) แต่กว้าง/สูงขึ้น m เท่ารอบจุดกลางจอ — ชั้นอบที่เลื่อนตามกล้องได้
+function padView(v, m) {
+  const w = Math.round(v.w * m), h = Math.round(v.h * m), ox = v.ox + (w - v.w) / 2, oy = v.oy + (h - v.h) / 2;
+  return { ...v, w, h, ox, oy, x0: -ox / v.k, y0: -oy / v.k, x1: (w - ox) / v.k, y1: (h - oy) / v.k };
+} // ฉากรอบนอกวาดสดระหว่างเลื่อนกล้องได้ถ้าใช้เวลาไม่เกินนี้ (ms/เฟรม) // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
 const EOS_PIECE_K = 0.8; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับโชโกโบะ
 const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
@@ -575,7 +582,7 @@ export default function BoardCanvas(props) {
         return sc;
       };
       // RTS ระหว่างค้าง Q/E: ใช้ฉากที่อบไว้ล่าสุด (ไม่อบใหม่ทุกเฟรม) — ปล่อยปุ่มแล้วค่อยอบที่มุมใหม่
-      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && (st.yaw || camMoving) && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
+      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
       const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
       if (!turning && !st.cv3 && !(rts && !lowQ)) {
@@ -596,17 +603,39 @@ export default function BoardCanvas(props) {
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (rts && !turning && !lowQ && !st.cv3) {
         const still = !camMoving && !st.pivot;
-        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}|${vcK}`;
-        if (!still) st.stillAt = 0;
-        else if (st.sharpKey !== ck) {
+        // ชั้นคมอบกว้างกว่าจอ RTS_SHARP_PAD เท่า (ซูม/มุม/จุดหมุนเดียวกัน) → เลื่อนกล้อง (ลาก/ขอบจอ/ลูกศร) = เลื่อนภาพเดิม ไม่ต้องวาดพื้นสดทุกเฟรม
+        //  (ผู้ใช้แจ้ง 2026-11-09 "กดเมาส์ค้าง ภาพเบลอและหายบางส่วน" + วาดสดกิน ~20ms/เฟรม) · เลื่อนจนพ้นขอบชั้นคม = วาดสดจนนิ่งแล้วอบใหม่
+        const base2 = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${vcK}`;
+        const sv = st.sharp && st.sharpBase === base2 ? st.sharpView : null;
+        const covers = !!sv && sv.x0 <= view.x0 + 0.5 && sv.y0 <= view.y0 + 0.5 && sv.x1 >= view.x1 - 0.5 && sv.y1 >= view.y1 - 0.5;
+        if (covers) {
+          st.stillAt = 0;
+          bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: sv, res: dpr };
+          // นิ่งแล้วแต่ชั้นคมเหลือขอบน้อย (เลื่อนมาใกล้ขอบ) → อบใหม่ให้จออยู่กลางชั้นคม
+          const mx = (sv.x1 - sv.x0 - (view.x1 - view.x0)) / 2, my = (sv.y1 - sv.y0 - (view.y1 - view.y0)) / 2;
+          const off = Math.max(Math.abs((sv.x0 + sv.x1) / 2 - (view.x0 + view.x1) / 2) / Math.max(1, mx), Math.abs((sv.y0 + sv.y1) / 2 - (view.y0 + view.y1) / 2) / Math.max(1, my));
+          if (still && off > 0.6) st.sharpBase = null;
+        } else if (!still) {
+          st.stillAt = 0;
+          // ระหว่างลาก/เลื่อนนอกชั้นคม: วาดฉากรอบนอกสดที่มุมกล้องจริงด้วย (เหมือนพื้นกระดาน) — ใช้แคนวาสเดิมซ้ำ · หนักเกิน = ชั้นอบขยายไปก่อน
+          if (!st.yaw && (st.sceneMs == null || st.sceneMs < RTS_LIVE_SCENE_MS)) {
+            const t0 = performance.now();
+            const sc = bakeScene(info, view, dpr, night, lowQ, st.turn, true);
+            st.sceneMs = performance.now() - t0;
+            bake = { ...bake, scene: sc.scene, fore: sc.fore || bake.fore, marks: sc.marks, sceneFrom: null, view, res: dpr };
+          }
+        } else {
           if (!st.stillAt) st.stillAt = now;
           if (now - st.stillAt >= RTS_SHARP_MS) {
-            const sc = bakeScene(info, view, dpr, night, lowQ, st.turn);
-            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, view, dpr, night, st.turn, true) };
-            st.sharpKey = ck;
+            const ev = padView(view, RTS_SHARP_PAD);
+            const t0 = performance.now();
+            const sc = bakeScene(info, ev, dpr, night, lowQ, st.turn);
+            st.sceneMs = (performance.now() - t0) / (RTS_SHARP_PAD * RTS_SHARP_PAD);
+            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, ev, dpr, night, st.turn, true) };
+            st.sharpBase = base2; st.sharpView = ev;
+            bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: ev, res: dpr };
           }
         }
-        if (st.sharp && st.sharpKey === ck) bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view, res: dpr };
       }
       // --- ไฮไลต์
       if (p.highlights !== st.hlRef) { st.hlRef = p.highlights; st.hl = prepareHighlights(p.highlights); }

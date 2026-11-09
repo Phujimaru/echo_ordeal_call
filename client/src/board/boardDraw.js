@@ -284,20 +284,25 @@ export function prepareMap(map) {
 }
 
 // =================================================================== baked layers
-function layerCanvas(view, dpr) {
+// pool = ชื่อแคนวาสที่ใช้ซ้ำ (วาดสดทุกเฟรม — กล้อง RTS ระหว่างเลื่อน) · ไม่ใส่ = สร้างใหม่ (ชั้นอบเก็บแคช)
+const LAYER_POOL = new Map();
+function layerCanvas(view, dpr, pool = null) {
   const pw = Math.max(1, Math.round(view.w * dpr)), ph = Math.max(1, Math.round(view.h * dpr));
-  const cv = document.createElement("canvas"); cv.width = pw; cv.height = ph;
+  let cv = pool ? LAYER_POOL.get(pool) : null;
+  if (!cv) { cv = document.createElement("canvas"); if (pool) LAYER_POOL.set(pool, cv); }
+  if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
   const g = cv.getContext("2d");
+  if (pool) { g.setTransform(1, 0, 0, 1, 0, 0); g.filter = "none"; g.clearRect(0, 0, pw, ph); }
   g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
   return { cv, g };
 }
 // ชั้นฉาก (ไม่หมุนตามกระดาน) · turn = มุมที่ใช้คำนวณกล้อง (0 = กระดานนอน 16×12 · 1 = ตั้ง 12×16)
 //  คืน { scene, fore, marks } · marks = ตำแหน่งของที่ animBack ต้องใช้ (ใบพัด ไฟประภาคาร ฯลฯ)
-export function bakeScene(info, view, dpr, night, lowQ, turn = 0) {
+export function bakeScene(info, view, dpr, night, lowQ, turn = 0, live = false) {
   const prev = viewTurn();
   setCamera(info, turn);
   const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
-  const { cv, g } = layerCanvas(view, dpr);
+  const { cv, g } = layerCanvas(view, dpr, live ? "scene" : null); // live = วาดสดลงแคนวาสเดิมทุกเฟรม (ไม่สร้างใหม่)
   const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   // ขอบไกลของกระดานบนจอ (ฉากหลังวางอิงเส้นนี้)
   const bY = Math.min(P(0, 0)[1], P(info.cols, 0)[1], P(0, info.rows)[1], P(info.cols, info.rows)[1]);
@@ -312,7 +317,7 @@ export function bakeScene(info, view, dpr, night, lowQ, turn = 0) {
   // ใบไม้/ของเบลอหน้ากล้อง (ชั้นแยก วาดทับตัวละคร) — ต้องมี ctx.filter · lowQ ข้าม
   let fore = null;
   if (!lowQ && T.fore) {
-    const { cv: fc, g: f } = layerCanvas(view, dpr);
+    const { cv: fc, g: f } = layerCanvas(view, dpr, live ? "fore" : null);
     if ("filter" in f) {
       f.filter = `blur(${Math.max(2, 9 * dpr * view.k) / (dpr * view.k)}px)`;
       T.fore(f, c);
