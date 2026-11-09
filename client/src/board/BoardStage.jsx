@@ -2234,6 +2234,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       dim: !!pickValid && !pickValid.has(p.id),
       // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
       cloak: !!p.veiled,
+      // ผู้เล่นหลุดอยู่ (socket.js — ตาเดินเหลือ 5 วิ): ป้ายสายหลุดมุมหมาก · ตัวคู่/ร่างแยกดูจากเจ้าของ (boardDraw.js drawOffline)
+      offline: !mk && (() => { const ow = p.duoOf ? state.players.find((o) => o.id === p.duoOf) : p.summon ? state.players.find((o) => o.id === p.summon.ownerId) : p; return !!ow && ow.connected === false && !ow.summon; })(),
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)

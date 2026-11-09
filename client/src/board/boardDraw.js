@@ -572,6 +572,27 @@ function allyBadge(g, mx, my, UK) {
   g.fillStyle = ALLY; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
   g.fillStyle = "#08321f"; g.fillText("ทีม", mx, my + 0.5); g.textBaseline = "alphabetic";
 }
+// ผู้เล่นหลุด (ผู้ใช้สั่ง 2026-11-09): หกเหลี่ยมหมองลง + ป้ายกลมมุมขวาบน (ปลั๊กหลุด) เต้นช้าๆ
+function drawOffline(g, bx, hy, hexR, now) {
+  g.save();
+  hexPath(g, bx, hy, hexR); g.fillStyle = "rgba(20, 28, 44, 0.42)"; g.fill();
+  const r = Math.max(7, hexR * 0.36), cx = bx + hexR * 0.72, cy = hy - hexR * 0.62;
+  const pulse = REDUCED ? 0 : (Math.sin(now / 420) + 1) / 2;
+  g.beginPath(); g.arc(cx, cy, r * (1.25 + pulse * 0.25), 0, Math.PI * 2); g.fillStyle = `rgba(210, 69, 91, ${0.18 + pulse * 0.12})`; g.fill();
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = "#1a2236"; g.fill();
+  g.lineWidth = Math.max(1.5, r * 0.14); g.strokeStyle = "#d2455b"; g.stroke();
+  // ปลั๊กสองข้างแยกจากกัน + ขีดทแยง
+  const k = r / 10;
+  g.strokeStyle = "#ffffff"; g.lineCap = "round"; g.lineWidth = Math.max(1.2, 1.6 * k);
+  g.beginPath();
+  g.moveTo(cx - 6 * k, cy + 1 * k); g.lineTo(cx - 2.5 * k, cy + 1 * k);
+  g.moveTo(cx - 2.5 * k, cy - 2 * k); g.lineTo(cx - 2.5 * k, cy + 4 * k);
+  g.moveTo(cx + 2.5 * k, cy - 4 * k); g.lineTo(cx + 2.5 * k, cy + 2 * k);
+  g.moveTo(cx + 2.5 * k, cy - 1 * k); g.lineTo(cx + 6 * k, cy - 1 * k);
+  g.stroke();
+  g.strokeStyle = "#ff8a9c"; g.beginPath(); g.moveTo(cx - 6 * k, cy - 6 * k); g.lineTo(cx + 6 * k, cy + 6 * k); g.stroke();
+  g.restore();
+}
 function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
@@ -678,6 +699,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   if (u.otoya) otoUnitFront(g, u, now, wx, wy); // ค้างคาวโคจร · ไวโอลินเหนือหัว · โน้ตวนรอบเป้า
   if (u.giorno) gioUnitFront(g, u, now, wx, wy); // เปลวทอง Requiem ครึ่งหน้า · ธนูปักตัว (รอผลธนู)
+  if (u.offline && !tb) drawOffline(g, bx, hy, hexR, now);
   if (hitAge >= 0 && hitAge < 150 && !tb) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   if (u.yuki) yukiAuraFront(g, u, wx, wy, bx, by, hy, hexR, now, u.lowQ, UNIT_UI_K);
   g.globalAlpha = a;
