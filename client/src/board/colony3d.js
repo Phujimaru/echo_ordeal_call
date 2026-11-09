@@ -226,7 +226,9 @@ function paintFloor(g, W, H, st) {
 function paintOverlay(g, W, H, st) {
   g.clearRect(0, 0, W, H);
   const px = W / COLS, py = H / ROWS;
-  const tile = (x, y, col) => { g.fillStyle = col; g.fillRect(mod(x, COLS) * px, (ROWS - 1 - y) * py, px, py); };
+  // ช่องเตือน = สี่เหลี่ยมมุมมนเว้นขอบ (ไม่เป็นบล็อกแตก) — วาดที่ 32 px/ช่อง
+  const ins = px * 0.06, rr = px * 0.16;
+  const tile = (x, y, col) => { g.fillStyle = col; g.beginPath(); g.roundRect(mod(x, COLS) * px + ins, (ROWS - 1 - y) * py + ins, px - ins * 2, py - ins * 2, rr); g.fill(); };
   const c = st.colony;
   if (!c) return;
   if (c.sealIn != null && c.sealIn <= 1) for (let y = c.sealed * SEC; y < (c.sealed + 1) * SEC; y++) for (let x = 0; x < COLS; x++) tile(x, y, "rgba(255,50,40,.28)");
@@ -256,18 +258,13 @@ function paintOverlay(g, W, H, st) {
     if (t.type === "meteor") {
       for (let y = t.y - t.radius; y <= t.y + t.radius; y++) for (let x = t.x - t.radius; x <= t.x + t.radius; x++) {
         const d = Math.abs(x - t.x) + Math.abs(y - t.y);
-        if (d <= t.radius && y >= 0 && y < ROWS) tile(x, y, d === 0 ? "rgba(255,40,30,.75)" : `rgba(255,60,40,${0.12 + 0.12 * (t.radius - d) / t.radius})`);
+        if (d <= t.radius && y >= 0 && y < ROWS) tile(x, y, `rgba(255,60,40,${0.16 + 0.16 * (t.radius - d) / Math.max(1, t.radius)})`);
       }
-      const X = t.x * px + px / 2, Y = (ROWS - 1 - t.y) * py + py / 2;
-      g.strokeStyle = "rgba(255,230,220,.95)"; g.lineWidth = Math.max(2, px * 0.06);
-      g.beginPath(); g.arc(X, Y, px * 0.36, 0, TAU); g.moveTo(X - px * 0.5, Y); g.lineTo(X + px * 0.5, Y); g.moveTo(X, Y - py * 0.5); g.lineTo(X, Y + py * 0.5); g.stroke();
+      // เป้ากลาง = วงเล็งสามมิติ (buildMarks)
     } else if (t.type === "beam") {
       for (let x = 0; x < COLS; x++) tile(x, t.y, "rgba(255,70,160,.45)");
     } else if (t.type === "capsule") {
-      const X = t.x * px + px / 2, Y = (ROWS - 1 - t.y) * py + py / 2;
-      g.strokeStyle = "rgba(255,214,110,.95)"; g.lineWidth = Math.max(2, px * 0.07);
-      g.beginPath(); g.arc(X, Y, px * 0.38, 0, TAU); g.stroke();
-      tile(t.x, t.y, "rgba(255,210,90,.3)");
+      tile(t.x, t.y, "rgba(255,210,90,.3)"); // วงจุดลงจอด = buildMarks
     }
   }
   g.globalAlpha = 1;
@@ -355,7 +352,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const floorCv = document.createElement("canvas"); floorCv.width = COLS * RES; floorCv.height = ROWS * RES;
   const floorTex = new THREE.CanvasTexture(floorCv); floorTex.colorSpace = THREE.SRGBColorSpace; floorTex.anisotropy = 8;
   floorTex.wrapS = THREE.RepeatWrapping;
-  const ovCv = document.createElement("canvas"); ovCv.width = COLS * 16; ovCv.height = ROWS * 16;
+  const ovCv = document.createElement("canvas"); ovCv.width = COLS * (lowQ ? 16 : 32); ovCv.height = ROWS * (lowQ ? 16 : 32);
   const ovTex = new THREE.CanvasTexture(ovCv); ovTex.colorSpace = THREE.SRGBColorSpace;
   function tubeGeo(h) {
     const seg = COLS * 4, geo = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
@@ -595,6 +592,55 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       holeGroup.add(rim, vx); vortices.push(vx);
     }
   }
+  // ---- วงเล็งเป้าอีเวนต์ (อุกกาบาต = วงแดงหมุน ขนาดตามรัศมี · แคปซูล = วงทองจุดลงจอด) — แผ่นโค้งตามผิวกระบอก ภาพคม 512px
+  const reticleTex = (rgb, ticks) => canvasTex(512, 512, (g, W) => {
+    const c = W / 2;
+    g.lineCap = "round";
+    g.strokeStyle = `rgba(${rgb},.95)`; g.lineWidth = 10;
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(c, c, c * 0.9, i * TAU / 4 + 0.18, (i + 1) * TAU / 4 - 0.18); g.stroke(); }
+    g.lineWidth = 6; g.strokeStyle = `rgba(${rgb},.7)`;
+    g.setLineDash([18, 14]); g.beginPath(); g.arc(c, c, c * 0.72, 0, TAU); g.stroke(); g.setLineDash([]);
+    if (ticks) for (let i = 0; i < 4; i++) { const a = i * TAU / 4; g.lineWidth = 10; g.strokeStyle = `rgba(${rgb},.95)`; g.beginPath(); g.moveTo(c + Math.cos(a) * c * 0.98, c + Math.sin(a) * c * 0.98); g.lineTo(c + Math.cos(a) * c * 0.78, c + Math.sin(a) * c * 0.78); g.stroke(); }
+    const gr = g.createRadialGradient(c, c, 0, c, c, c * 0.6); gr.addColorStop(0, `rgba(${rgb},.35)`); gr.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(c, c, c * 0.6, 0, TAU); g.fill();
+  });
+  const coreTex = (rgb) => canvasTex(256, 256, (g, W) => {
+    const c = W / 2;
+    g.fillStyle = `rgba(${rgb},.95)`; g.beginPath(); g.moveTo(c, c - 34); g.lineTo(c + 34, c); g.lineTo(c, c + 34); g.lineTo(c - 34, c); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 7; g.beginPath(); g.arc(c, c, 70, 0, TAU); g.stroke();
+  });
+  const RET = { meteor: { ring: reticleTex("255,80,60", true), core: coreTex("255,90,70") }, capsule: { ring: reticleTex("255,210,100", false), core: coreTex("255,214,110") } };
+  // แผ่นสี่เหลี่ยม (ศูนย์กลาง cx, cy · ครึ่งกว้าง half ช่อง) โค้งตามพื้น ยกสูง hh
+  function patchGeo(cx, cy, half, hh) {
+    const n = 16, geo = new THREE.BufferGeometry(), pos = [], uv = [], idx = [], v = new THREE.Vector3();
+    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      const u = i / n, w2 = j / n;
+      surf(phiOf(cx + (u - 0.5) * 2 * half), cy + (w2 - 0.5) * 2 * half, hh, v);
+      pos.push(v.x, v.y, v.z); uv.push(u, w2);
+    }
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1; idx.push(a, b, c, b, d, c); }
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    return geo;
+  }
+  const markGroup = new THREE.Group(); scene.add(markGroup);
+  const marks = [];
+  function buildMarks(tele) {
+    for (const m of marks) { m.mesh.geometry.dispose(); m.mesh.material.map.dispose(); m.mesh.material.dispose(); }
+    markGroup.clear(); marks.length = 0;
+    for (const t of tele || []) {
+      if (t.type !== "meteor" && t.type !== "capsule") continue;
+      const R0 = RET[t.type], cx = t.x + 0.5, cy = t.y + 0.5;
+      const half = t.type === "meteor" ? Math.max(0.75, (t.radius || 0) + 0.55) : 0.7;
+      const op = t.foresee ? 0.45 : 1;
+      for (const [tex, hf, hh, spin] of [[R0.ring, half, 0.03, t.type === "meteor" ? 0.6 : -0.4], [R0.core, 0.45, 0.035, 0]]) {
+        const map = tex.clone(); map.center.set(0.5, 0.5); map.needsUpdate = true;
+        const mat = new THREE.MeshBasicMaterial({ map, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6 });
+        const mesh = new THREE.Mesh(patchGeo(cx, cy, hf, hh), mat);
+        markGroup.add(mesh); marks.push({ mesh, spin, op, core: !spin });
+      }
+    }
+  }
+
   const partGeo = new THREE.BufferGeometry();
   const PART_N = lowQ ? 80 : 240;
   const partPos = new Float32Array(PART_N * 3);
@@ -1125,6 +1171,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       paintOverlay(ovCv.getContext("2d"), ovCv.width, ovCv.height, { colony: { ...c, holes } });
       ovTex.needsUpdate = true;
       buildHoles(holes);
+      buildMarks(c.tele);
     }
     // ประตู: ป้ายนับถอยหลังเหนือประตูของวงแหวนที่จะปิด (เหลือ ≤ 3) · เหลือ 1 = แดง + ไฟกะพริบ
     const nextRow = (sealedNow + 1) * SEC - 1;
@@ -1237,6 +1284,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       c.sp.position.set(Math.cos(ph) * c.r, Math.sin(ph) * c.r, z);
     }
     for (let i = 0; i < vortices.length; i++) vortices[i].rotateZ(dt / 1000 * (1.6 + (i % 3) * 0.3));
+    for (const m of marks) { if (m.spin) m.mesh.material.map.rotation = time * m.spin; m.mesh.material.opacity = m.op * (m.core ? 0.7 + 0.3 * Math.sin(time * 5) : 0.85 + 0.15 * Math.sin(time * 3)); }
     warpBeamMat.opacity = 0.28 + 0.14 * Math.sin(time * 2.4);
     for (const [dk, d] of capsuleDrops) if (d.t0 && t > d.t0 + 600) capsuleDrops.delete(dk);
     // ม่านเหล็กหมุนปิด
@@ -1407,6 +1455,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     // ระยะกล้อง → จุดโฟกัส (ชั้น 2D ใช้ตัดสินการจางของสิ่งปลูกสร้างไกลๆ ให้สัมพันธ์กับระดับซูม)
     focusDist() { return R.armD || R.cur.dist; },
     _look(x, y) { goTo(x, y); R.free = true; }, // dev: ส่องกล้องไปช่อง (x, y)
+    _marks(tele) { buildMarks(tele); }, // dev: ลองวงเล็งเป้า
     _dbg() { return { cam: camera.position.toArray().map((v) => +v.toFixed(2)), r: +Math.hypot(camera.position.x, camera.position.y).toFixed(2), Rc: +Rc.toFixed(2), cur: { ...R.cur }, user: { ...R.user }, focus: R.focus, armD: R.armD, cap: capBottom.visible }; },
     toggleAxis() { R.user.axis = !R.user.axis; },
     skipShot() { if (R.shot) shotEnd = 0; shots.length = 0; },
