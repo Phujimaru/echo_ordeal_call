@@ -328,6 +328,7 @@ function buildStateInner(viewerId) {
         skillUsed: !!p.skillUsedRound,    // ใช้สกิลไปแล้วในเทิร์นนี้ (1 อันต่อเทิร์น)
         ready: !!p.ready,                 // ห้องรอ: กดพร้อมแล้วหรือยัง
         connected: p.connected !== false,
+        rematch: !!p.rematch,             // หน้าจบเกม: กด "อีกรอบ" แล้ว (lobby.rematchVote)
         alive: p.alive,
         statuses: show ? { ...p.statuses } : publicStatuses(p),
         statusAmt: p.statusAmt || {}, // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8)

@@ -5,7 +5,7 @@ Object.assign(module.exports, {
   resetModeVotes, resetPregameFlowToLobby, validGameMode, modeOptionsFor, currentTeamOptions, normWorld,
   modeVoteSummary, voteGameMode, chooseTeam, confirmTeam, remainingTeamWinInfo, releaseReservation,
   reservePosition, positionsFor, positionUsedByOther, checkLobbyReady, startSoloTest, startMatch, backToLobby,
-  relayLobbyEmote, modeSelectBackToLobby,
+  relayLobbyEmote, modeSelectBackToLobby, rematchVote,
 });
 
 const { POSITION_COLORS } = require("../characters");
@@ -380,6 +380,25 @@ function relayLobbyEmote(playerId, payload) {
   return true;
 }
 
+// ---------- เล่นอีกรอบ (หน้าจบเกม — ผู้ใช้สั่ง 2026-11-09) ----------
+//  ผู้เล่นที่ยังต่ออยู่กด "อีกรอบ" ครบทุกคน = กลับห้องรอแล้วเริ่มแมตช์ใหม่ทันทีด้วยโหมด/โลกเดิม (ไม่ต้องกดพร้อม/โหวตใหม่ · ทีม duo/trio สุ่มใหม่)
+//  คนที่หลุดอยู่ถูกตัดออกจากห้องก่อนเริ่ม · จำนวนคนไม่พอโหมดเดิม = ค้างที่ห้องรอตามปกติ · กดซ้ำ = ยกเลิก
+function rematchVote(playerId) {
+  if (match.gameState !== "GAMEOVER") return;
+  const p = match.players[playerId];
+  if (!p || p.summon || p.duoOf) return;
+  p.rematch = !p.rematch;
+  const voters = Object.values(match.players).filter((o) => !o.summon && !o.duoOf && o.connected !== false);
+  if (!voters.length || !voters.every((o) => o.rematch)) { view.broadcastState(); return; }
+  const mode = match.gameMode, world = match.world || "earth";
+  backToLobby();
+  for (const o of Object.values(match.players)) if (o.connected === false) socketLayer.dropPlayerNow(o.id);
+  const list = Object.values(match.players);
+  if (!list.length || !validGameMode(mode, list.length) || !worldHasMode(normWorld(world), mode)) { view.broadcastState(); return; }
+  for (const o of list) o.ready = true;
+  startTeamSetup(mode, world);
+}
+
 function backToLobby() {
   match.gameState = "LOBBY";
   resetTeamAssignments(true);
@@ -407,7 +426,7 @@ function backToLobby() {
   match.cutsceneInfo = null;
   Duo.teardown(); // ระบบคู่: ตัวที่สองหายไปจนกว่าจะเริ่มแมตช์ใหม่
   for (const p of Object.values(match.players)) {
-    p.cards = []; p.locked = false; p.busted = false; p.result = null; p.pos = null;
+    p.cards = []; p.locked = false; p.busted = false; p.result = null; p.pos = null; p.rematch = false;
     combat.resetRoundDisplay(p);
     combat.resetCombat(p);
     if (!p.connected) socketLayer.scheduleDisconnectedRemoval(p.id);

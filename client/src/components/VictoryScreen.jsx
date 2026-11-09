@@ -84,7 +84,7 @@ function Mini({ p, i, you }) {
   );
 }
 
-export default function VictoryScreen({ state, onBackToLobby }) {
+export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
   const [k, setK] = useState(stageK);
   useEffect(() => {
     const on = () => setK(stageK());
@@ -105,6 +105,13 @@ export default function VictoryScreen({ state, onBackToLobby }) {
       })),
     []
   );
+
+  // เล่นอีกรอบ: นับคนที่กดแล้ว / ผู้เล่นที่ยังต่ออยู่ (server/lobby.js rematchVote)
+  const again = useMemo(() => {
+    const list = (state.players || []).filter((p) => p && !p.summon && !p.duoOf && p.connected !== false);
+    return { on: list.filter((p) => p.rematch).length, total: list.length };
+  }, [state.players]);
+  const meAgain = !!(state.players || []).find((p) => p.id === state.youId)?.rematch;
 
   // ระบบคู่: ตัวที่สองไม่ใช่ผู้เล่นแยก · เจ้าของที่ล้มแต่คู่ยังรอด = ยังรอด
   const players = useMemo(() => rosterAlive(state.players), [state.players]);
@@ -221,10 +228,19 @@ export default function VictoryScreen({ state, onBackToLobby }) {
           </div>
         )}
 
-        <button type="button" className="vic-back" onClick={() => { clickSound(); onBackToLobby(); }}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 L4 12 L10 18 M4 12 H20" /></svg>
-          กลับห้องรอ
-        </button>
+        <div className="vic-actions">
+          {onRematch && (
+            <button type="button" className={`vic-back vic-again${meAgain ? " is-on" : ""}`} aria-pressed={meAgain} onClick={() => { clickSound(); onRematch(); }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95 M19 4.5v4h-4" /></svg>
+              อีกรอบ
+              <span className="vic-again-n">{again.on}/{again.total}</span>
+            </button>
+          )}
+          <button type="button" className="vic-back" onClick={() => { clickSound(); onBackToLobby(); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 L4 12 L10 18 M4 12 H20" /></svg>
+            กลับห้องรอ
+          </button>
+        </div>
       </div>
     </div>
   );

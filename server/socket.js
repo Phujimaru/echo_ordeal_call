@@ -1,7 +1,7 @@
 // Socket.io: เชื่อมต่อ/หลุด/กลับเข้า + รับคำสั่งผู้เล่น
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  scheduleDisconnectedRemoval, newPlayerRecord, kickPlayer, isHostSocket,
+  scheduleDisconnectedRemoval, newPlayerRecord, kickPlayer, isHostSocket, dropPlayerNow: removeDisconnectedPlayer,
 });
 
 const crypto = require("crypto");
@@ -387,6 +387,7 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);
   onPlayerEvent(socket, 'backToLobby', () => { if (match.gameState === 'GAMEOVER') lobby.backToLobby(); }, 2);
+  onPlayerEvent(socket, 'rematch', (id) => lobby.rematchVote(id), 4); // หน้าจบเกม: เล่นอีกรอบ (ครบทุกคน = เริ่มใหม่โหมดเดิม)
 
   safeOn(socket, "leave", () => {
     if (!consumeEventQuota(socket, 'leave', 2, 10_000)) return;

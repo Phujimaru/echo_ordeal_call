@@ -2465,7 +2465,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
         {phase === "GAMEOVER" && (
-          <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
+          <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} onRematch={() => socket.emit("rematch")} />
         )}
 
         <ModalMounts
@@ -2687,7 +2687,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
       {phase === "GAMEOVER" && (
-        <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} />
+        <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} onRematch={() => socket.emit("rematch")} />
       )}
 
       {/* ---------- modal รายละเอียดตัวละคร / ดูสถานะผู้เล่น / ร้าน / กระเป๋า ---------- */}
