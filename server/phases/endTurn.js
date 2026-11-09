@@ -206,7 +206,9 @@ function recordCharStats(resultOf) {
   match.statsRecorded = true;
   const sides = Object.values(match.players).filter((p) => !p.summon && !p.duoOf);
   if (sides.length < 2 && !Moon.active()) return;
-  if (CharStats.recordMatch(sides.map((p) => ({ characterId: p.characterId, result: resultOf(p) })))) io.emit("charStats", CharStats.snapshot());
+  const entries = sides.map((p) => ({ characterId: p.characterId, result: resultOf(p), name: p.name, teamId: p.teamId || null }));
+  const meta = { mode: match.gameMode, world: match.world || "earth", rounds: match.roundNumber || 0 };
+  if (CharStats.recordMatch(entries, meta)) io.emit("charStats", CharStats.snapshot());
 }
 
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก

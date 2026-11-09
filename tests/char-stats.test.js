@@ -72,5 +72,25 @@ test('ผู้เล่นคนเดียว (ทดสอบ) ไม่น�
   match.forcedWinnerId = 'p0';
   assert.equal(gameOver(), true);
   assert.equal(fs.existsSync(FILE), false);
-  assert.deepEqual(CharStats.snapshot(), {});
+  assert.deepEqual(CharStats.snapshot().chars, {});
+  assert.deepEqual(CharStats.snapshot().history, []);
+});
+
+test('ประวัติแมตช์ + ตัวต่อตัว (ทีมเดียวกันไม่นับ)', () => {
+  const ps = setup(['muimi', 'fern', 'gray', 'roland'], 'duo', ['A', 'A', 'B', 'B']);
+  ps[2].alive = false; ps[3].alive = false;
+  gameOver();
+  const snap = CharStats.snapshot();
+  assert.equal(snap.history.length, 1);
+  const h = snap.history[0];
+  assert.equal(h.mode, 'duo');
+  assert.deepEqual(h.players.map((p) => [p.characterId, p.result]).sort(), [['fern', 'win'], ['gray', 'loss'], ['muimi', 'win'], ['roland', 'loss']]);
+  assert.deepEqual(snap.matchups['muimi|gray'], { games: 1, wins: 1 });
+  assert.deepEqual(snap.matchups['gray|muimi'], { games: 1, wins: 0 });
+  assert.equal(snap.matchups['muimi|fern'], undefined); // ทีมเดียวกัน
+  // อ่านกลับจากไฟล์ได้ครบ
+  CharStats._reset();
+  const again = CharStats.snapshot();
+  assert.equal(again.history.length, 1);
+  assert.deepEqual(again.matchups['fern|roland'], { games: 1, wins: 1 });
 });

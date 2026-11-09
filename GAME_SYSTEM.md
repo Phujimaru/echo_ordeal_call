@@ -710,7 +710,7 @@ npm test    # node --test "tests/**/*.test.js"
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
 - กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
-- ระบบกลางที่มีเทสต์แยก: `char-stats` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `char-stats` · `kick` · `rematch` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
 
 ---
 
@@ -1248,6 +1248,22 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **บันทึก**: `phases/endTurn.js` `gameOver` → `recordCharStats(resultOf)` ครั้งเดียวต่อแมตช์ (`match.statsRecorded` — รีเซ็ทใน `lobby.startMatch`) · ทุกทางจบเกม (ผู้ชนะที่ระบุ / Moon Cell / ทีม / อิสระ) ต้องเรียก — **ทางจบเกมใหม่ต้องเรียกด้วย**
   · นับเฉพาะเจ้าของฝ่าย (`!p.summon && !p.duoOf` — บอส AI/ร่างแยก/ตัวที่สองของระบบคู่ไม่นับ) ที่ `p.characterId` · ผล: ทีมชนะ/คนสุดท้าย = `win` · ไม่มีผู้รอด = `draw` · ที่เหลือ `loss` · ผู้เล่นคนเดียว (ทดสอบ) ไม่นับ ยกเว้น Moon Cell
 - **ไฟล์**: `ECHO_STATS_FILE` (โปรแกรม ECHO ส่ง `<userData>/char-stats.json` — `desktop/room.js` · ไม่หายตอนอัปเดต) · ไม่ตั้ง = `data/char-stats.json` (gitignore) · ระหว่าง `node --test` ไม่ตั้ง env = หน่วยความจำอย่างเดียว · เขียนแบบ tmp → rename
-- **socket**: client ส่ง `charStats` (ขอ) → server ตอบ `charStats` `{ [characterId]: { picks, wins, losses, draws } }` · จบแมตช์ = `io.emit("charStats")` ให้ทุกคน
-- **client**: หน้าเลือกตัว ปุ่ม "สถิติ" ท้ายปุ่มหมวด → `oc/charselect/CharStats.jsx` (แผงขวา · กรองหมวด · กดหัวคอลัมน์ เลือก/ชนะ/อัตราชนะ = เรียง · Esc ปิด) · อัตราชนะ = ชนะ ÷ เลือก (ยังไม่เคยเลือก = "—")
+- **ประวัติแมตช์**: 50 แมตช์ล่าสุด `history: [{ at, mode, world, rounds, players: [{ characterId, name, result, teamId }] }]`
+- **ตัวต่อตัว**: `matchups["a|b"] = { games, wins }` — a เจอ b คนละฝั่งกี่แมตช์ / a ชนะกี่แมตช์ · ทีมเดียวกัน ตัวละครเดียวกัน และ Moon Cell ไม่นับ
+- **socket**: client ส่ง `charStats` (ขอ) → server ตอบ `charStats` `{ chars: { [characterId]: { picks, wins, losses, draws } }, history (ล่าสุดก่อน), matchups }` · จบแมตช์ = `io.emit("charStats")` ให้ทุกคน
+- **client**: หน้าเลือกตัว ปุ่ม "สถิติ" ท้ายปุ่มหมวด → `oc/charselect/CharStats.jsx` (แผงขวา · แท็บ ตัวละคร/ประวัติ · กรองหมวด · กดหัวคอลัมน์ เลือก/ชนะ/อัตราชนะ = เรียง · กดแถว = ตัวต่อตัว · Esc ปิด) · อัตราชนะ = ชนะ ÷ เลือก (ยังไม่เคยเลือก = "—")
 - เทสต์: `tests/char-stats.test.js`
+
+## 49. ห้องเล่น — ไล่ออก / ผู้เล่นหลุด / เล่นอีกรอบ / ปุ่มลัด / เสียงแยกช่อง / โหมดมืด (ผู้ใช้สั่ง 2026-11-09)
+
+- **ไล่ออก** (`server/socket.js` `kickPlayer` · socket `kickPlayer { playerId }`): คนเปิดห้องเท่านั้น (`isHostSocket` = socket จาก 127.0.0.1/::1 — หน้าเกมของ host โหลดจาก `http://127.0.0.1:PORT`) · ไล่ตัวเองไม่ได้
+  · ก่อนเริ่มแมตช์ = ลบที่นั่ง + ย้อนห้องรอ · ระหว่างแมตช์ = ตัว + คู่ (ระบบคู่) + ยูนิตที่เรียก หายจากกระดาน (`Ride.onDeath` · `Summon.ownerLeft` รันฮุค `onDeath`) · ถึงตาคนนั้นอยู่ = `nextActor` · ช่วงจั่ว = `checkAllLocked`
+  · `match.kickedSides` นับรวมใน `gameOver` (`total`) — ไล่จนเหลือฝ่ายเดียว = คนที่เหลือชนะ · คนที่ถูกไล่ไม่นับในสถิติ · client ได้ `kicked` → ลบ session แล้วกลับหน้าแรก (`App.jsx`)
+  · UI: เมนูมุมขวาบน (`oc/ui-extra/GameMenu.jsx` — เฉพาะ host · รายชื่อ + จุดออนไลน์/ออฟไลน์ + ปุ่มไล่ → ยืนยัน)
+- **ผู้เล่นหลุด** (กลับเข้าเกมเดิมได้ตลอดด้วย session token — ของเดิม): ตาเดินเหลือ `OFFLINE_TURN_SECONDS` 5 วิ (`phases/action.js` `nextActor`) · ช่วงจั่วนับเหมือนกด "พอ" (`phases/draw.js` `checkAllLocked` · หลุดตอนช่วงจั่ว = เช็กทันที)
+- **เล่นอีกรอบ** (`lobby.rematchVote` · socket `rematch` · `p.rematch` ใน state): หน้าจบเกม ปุ่ม "อีกรอบ n/N" · ผู้เล่นที่ยังต่ออยู่กดครบ = `backToLobby` → ตัดคนที่หลุด → `startTeamSetup(โหมดเดิม, โลกเดิม)` (duo/trio สุ่มทีมใหม่) · คนไม่พอโหมดเดิม = ค้างห้องรอ · กดซ้ำ = ยกเลิก
+- **ปุ่มลัด** (จอคอม · `Game.jsx`): กดปุ่มบนจอที่มี `data-hotkey` ตรงกัน (ปุ่ม disabled / มีอะไรบัง = ไม่กด) — 1/2/3 สกิล · F โจมตี/จั่ว · Enter จบตา/พอ · Z ย้อน · B กระเป๋า · ป้าย `<kbd class="hk">` บนปุ่ม · Tab/Shift+Tab = กล้องไปหมากถัดไป (`BoardStage.jsx`)
+  · ปุ่มใหม่ที่อยากให้มีปุ่มลัด: ใส่ `data-hotkey` + `aria-keyshortcuts` + `<kbd className="hk">` · ห้ามซ้ำกับ WASD (เดิน) Q/E (หมุน) R (หมุนกำแพง) V/Space/ลูกศร (กล้อง Colony)
+- **เสียงแยกช่อง** (`client/src/audio.js`): `music` / `sfx` / `voice` / `video` คูณต่อจากหลอดหลัก (`channelGain` · localStorage `echo_vol_ch`) · เสียงพากย์ = socket `sfx` ที่มี `voice` (Game.jsx ส่ง `{ voice: true }`) หรือไฟล์ใต้ `/voice/` · แผงเสียงมุมขวาบนมีหลอดแยก
+- **โหมดมืด**: ปุ่มมุมขวาบนข้างปุ่มเสียง (`components/VolumeControl.jsx`) ทุกหน้า · กดสลับทันที (`uiTheme.js`)
+- เทสต์: `tests/kick.test.js` · `tests/rematch.test.js`
