@@ -160,7 +160,14 @@
 /* ---------- แผงเมนูรวม (จัดใหม่ 2026-11-09): หมวด เสียง / การแสดงผล / ห้อง ---------- */
 .ocm-btn { padding: 0 12px 0 10px; }
 .ocm-sep { width: 1px; height: 18px; background: var(--oc-line); }
-.ocv-menu { width: 300px; max-height: calc(100vh - 90px); overflow-y: auto; gap: 0; padding: 4px 16px 14px; }
+.ocv-menu {
+  width: 300px; box-sizing: border-box; gap: 0; padding: 4px 16px 14px;
+  /* สูงเกินจอ (ห้องคนเยอะ + ขนาด UI ใหญ่) = เลื่อนได้ แต่ไม่โชว์แถบเลื่อน · ไม่มีเลื่อนแนวนอน */
+  max-height: calc((100vh - 90px) / var(--ui-scale, 1)); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.ocv-menu::-webkit-scrollbar { display: none; }
+.ocv-menu > * { min-width: 0; }
 .ocv-sec { display: flex; flex-direction: column; gap: 12px; padding: 14px 0; border-top: 1px solid var(--oc-line); }
 .ocv-sec:first-child { border-top: 0; }
 .ocv-sec-h { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
