@@ -450,3 +450,9 @@
 
 /* แผงโหมด (lobby.css .ocl-votepanel): พื้นแผ่นทึบน้ำเงินเข้ม */
 :root[data-ui="dark"] .oc-screen .ocl-votepanel { --ocp-plate: #13284a; }
+
+/* ---------- ฉากเปิดแมตช์ (oc/intro/intro.css .ocx): ป้ายผู้เล่นแผ่นน้ำเงินเข้ม · ม่านปิดเป็นอวกาศ · ตัวอักษรอ่อน ---------- */
+:root[data-ui="dark"] .ocx { --oc-ink: #e8f0fa; --oc-ink-2: #a9c2e2; --oc-line: rgba(127, 184, 230, 0.32); --oc-frost: #22395f; }
+:root[data-ui="dark"] .ocx-plate { background: rgba(14, 30, 58, 0.95); }
+:root[data-ui="dark"] .ocx-hex-face { background: #1a3459; }
+:root[data-ui="dark"] .ocx-veil { background: radial-gradient(120% 90% at 50% 46%, #0e1c38 0%, #070d1d 50%, #02040a 100%); }
