@@ -37,13 +37,14 @@ const GOLD_CAP = 999;
 const BAG = 50;
 const RESTOCK_TURNS = 2;
 const WEALTH_MAX = 30;
-const ULT_WEALTH = 30;
+const ULT_WEALTH = 20; // ผู้ใช้ 2026-11-09 (เดิม 30) · เก็บสะสมได้ถึง WEALTH_MAX
 const BLOCK_PCT = 30;
 const ROOT_TURNS = 1;
 const EA_DMG = 3;
 const BOLT_DMG = 2;
 const SHOT_DMG = 1;
 const KNEEL_HITS = 3;
+const CENTER_PCT = 45; // เมตตาจากราชา: % ที่ตกตรงตัวเป้า · ที่เหลือเฉไปรอบตัว 3×3 (Claude — ผู้ใช้ขอให้กระจาย ไม่โดน 100%)
 const ZONE_MAX = 14;
 const ULT_AREA = { kind: "line", len: 14, width: 5, hostile: true };
 // ของที่ไม่ใช่สมบัติสำหรับยิง/กัน (ของถาวร/ชาร์จ/ประจำตัวละคร)
@@ -222,38 +223,51 @@ function queueShot(engine, p, i) {
   engine.skillBeat(shotGap(i), () => queueShot(engine, p, i + 1));
 }
 // ยิง 1 นัด → false = หยุด (ไม่มีศัตรูในกรอบ / ไม่มีกระสุน / กิลไม่อยู่)
+//  กระจาย (ผู้ใช้ 2026-11-09 "ยิงไปบริเวณจุดที่เป้าหมายอยู่ ไม่ให้โดน 100%"): ทุกนัดเล็งศัตรูสุ่มในกรอบ แล้วตกรอบตัวเป้า 3×3 —
+//  ตรงตัว CENTER_PCT% · ที่เหลือเฉไปช่องข้างๆ (มีศัตรูยืนอยู่ = โดนคนนั้น · ว่าง = ปักพื้นเปล่า) — ไอเทมหาย/ความมั่งคั่ง +1 ทุกนัดเหมือนเดิม
 function fireShot(engine, p, i) {
   const s = st(p), v = s.volley;
   if (!p.alive || !p.pos) return false;
   const foes = foesIn(engine, p, v.zone.tiles);
   const ammo = ammoOf(p);
   if (!foes.length || !ammo.length) return false;
-  const t = pick(foes), item = pick(ammo);
+  const item = pick(ammo);
+  const aim = pick(foes);
+  let t = aim, spot = { ...aim.pos };
+  if (Math.random() * 100 >= CENTER_PCT) {
+    const map = engine.boardMap();
+    const own = new Set(Board.footprint(p.pos.x, p.pos.y, engine.sizeOf(p)).map((c) => Board.key(c.x, c.y)));
+    const near = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
+      .map(([dx, dy]) => ({ x: Board.wx(aim.pos.x + dx), y: aim.pos.y + dy }))
+      .filter((c) => c.y >= 0 && c.y < map.rows && c.x >= 0 && c.x < map.cols && !own.has(Board.key(c.x, c.y)) && !onTiles(aim, new Set([Board.key(c.x, c.y)])));
+    if (near.length) {
+      spot = pick(near);
+      const set = new Set([Board.key(spot.x, spot.y)]);
+      t = foes.find((u) => onTiles(u, set)) || null;
+    }
+  }
   p.inventory.splice(p.inventory.indexOf(item), 1);
   addWealth(p, 1);
   v.fired++;
   const big = i + 1 >= v.n;
-  const r = hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา");
-  if (!r.dodge) v.hits[t.id] = (v.hits[t.id] || 0) + 1;
-  v.hitIds.add(t.id);
-  // อาวุธปักลงพื้น: โดน = ช่องของเป้า · หลบ = ช่องข้างๆ (สุ่ม — ในกระดาน)
-  const at = t.pos ? { ...t.pos } : r.kill && v.lastPos[t.id] ? v.lastPos[t.id] : null;
-  const spot = at || { x: p.pos.x, y: p.pos.y };
+  const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา") : { dodge: true, miss: true };
+  if (t && !r.dodge) v.hits[t.id] = (v.hits[t.id] || 0) + 1;
+  if (t) v.hitIds.add(t.id);
+  // อาวุธปักลงพื้น: โดน = ช่องของเป้า · หลบ = ช่องข้างๆ (สุ่ม — ในกระดาน) · ตกพื้นเปล่า = ช่องนั้น
   let land = spot;
-  if (r.dodge) {
+  if (t && r.dodge) {
     const map = engine.boardMap();
     const opts = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
       .map(([dx, dy]) => ({ x: Board.wx(spot.x + dx), y: spot.y + dy }))
       .filter((c) => c.y >= 0 && c.y < map.rows && c.x >= 0 && c.x < map.cols);
     land = pick(opts) || spot;
   }
-  if (t.pos) v.lastPos[t.id] = { ...t.pos };
   const w = { x: land.x, y: land.y, k: ++s.wSeq, w: Math.floor(Math.random() * 6), big };
   s.weapons.push(w);
-  fx(engine, p, "shot", { i, n: v.n, to: { ...spot }, land: { x: land.x, y: land.y }, tid: t.id, hit: !r.dodge, kill: !!r.kill, big, w: w.w, k: w.k, item: item.type, seq: v.seq });
+  fx(engine, p, "shot", { i, n: v.n, to: { ...spot }, land: { x: land.x, y: land.y }, tid: t ? t.id : null, hit: !!t && !r.dodge, kill: !!r.kill, big, w: w.w, k: w.k, item: item.type, seq: v.seq });
   engine.sfx(big ? SFX.shotBig : SFX.shot);
-  if (!r.dodge) engine.log(`🗡️ ${shopName(engine, item)} พุ่งใส่ ${t.name} -${r.dealt}`);
-  else engine.log(`💨 ${t.name} หลบ ${shopName(engine, item)} ได้`);
+  if (t && !r.dodge) engine.log(`🗡️ ${shopName(engine, item)} พุ่งใส่ ${t.name} -${r.dealt}`);
+  else if (t) engine.log(`💨 ${t.name} หลบ ${shopName(engine, item)} ได้`);
   return true;
 }
 const shopName = (engine, item) => engine.shopItemName(item);
@@ -338,7 +352,7 @@ const c0dir = (a, b) => (Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? (b.x >= a.
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, SFX, MUSIC, GOLD_START, GOLD_CAP, BAG, RESTOCK_TURNS, WEALTH_MAX, ULT_WEALTH, BLOCK_PCT, EA_DMG, BOLT_DMG, SHOT_DMG,
-  KNEEL_HITS, ZONE_MAX, ULT_AREA, NON_AMMO, GATE_OPEN, SHOT_TAIL, ENUMA_HIT, ENUMA_TAIL,
+  KNEEL_HITS, CENTER_PCT, ZONE_MAX, ULT_AREA, NON_AMMO, GATE_OPEN, SHOT_TAIL, ENUMA_HIT, ENUMA_TAIL,
   isGil, ammoOf, zoneOf, countOptions, shotGap,
 
   resetCombat(p) {

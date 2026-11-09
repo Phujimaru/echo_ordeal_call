@@ -2237,6 +2237,9 @@ export const FX_DUR = {
 //          view/res = เฟรมปกติ + ความละเอียดที่ใช้อบ (ไม่ใส่ = เท่ากับ view/dpr)
 //   turn = มุมมองตอนนี้ (หน่วย 90° ทศนิยมได้)
 //  คืน boxes = กล่องคลิกของตัวละคร (พิกัดตรรกะ) เรียงหน้า→หลัง
+// ชั้นอบที่ย่อ/ขยายลงขนาดจอแล้ว (ชั้นอบ → { key: มุมกล้อง, c: แคนวาสขนาดจอ }) · มุมกล้องของเฟรมก่อน (เท่ากัน = กล้องนิ่ง)
+const SCREEN_CACHE = new WeakMap();
+let lastViewKey = "";
 export function drawFrame(g, st, now) {
   const { info, view, dpr, bake, night, lowQ, units, hl, hover, fx } = st;
   setCamera(info, st.turn || 0);
@@ -2245,8 +2248,27 @@ export function drawFrame(g, st, now) {
   // ชั้นอบ → จอ: เฟรมเดียวกัน = วางตรงพิกเซล · มุมใกล้/ความละเอียดต่าง = วาดตามพิกัดตรรกะ (ขยาย/เลื่อนตามกล้อง)
   const bv = (bake && bake.view) || view, bres = (bake && bake.res) || dpr;
   const exact = bres === dpr && bv.k === view.k && bv.ox === view.ox && bv.oy === view.oy;
+  // มุมใกล้ (ซูม) = ชั้นอบความละเอียดสูงต้องย่อ/ขยายลงจอ — แพงมากถ้าทำทุกเฟรม (3 ชั้น × หลายล้านพิกเซล — สาเหตุเกมกระตุก 2026-11-09)
+  //  กล้องนิ่ง = ย่อครั้งเดียวเก็บเป็นภาพขนาดจอ (SCREEN_CACHE) แล้ววางตรงพิกเซล · กล้องขยับ (เลื่อน/ซูม/จอสั่น) = ย่อสดเหมือนเดิม
+  const vkey = `${g.canvas.width}x${g.canvas.height}|${dpr}|${view.k}|${view.ox}|${view.oy}|${bv.k}|${bv.x0}|${bv.y0}|${bres}`;
+  const steady = vkey === lastViewKey;
+  lastViewKey = vkey;
   const blit = (cv) => {
     if (exact) { g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(cv, 0, 0); return; }
+    if (steady && typeof document !== "undefined") {
+      let e = SCREEN_CACHE.get(cv);
+      if (!e || e.key !== vkey) {
+        const c = e && e.c.width === g.canvas.width && e.c.height === g.canvas.height ? e.c : document.createElement("canvas");
+        c.width = g.canvas.width; c.height = g.canvas.height;
+        const x = c.getContext("2d");
+        x.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
+        x.drawImage(cv, bv.x0, bv.y0, cv.width / (bres * bv.k), cv.height / (bres * bv.k));
+        e = { key: vkey, c };
+        SCREEN_CACHE.set(cv, e);
+      }
+      g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(e.c, 0, 0);
+      return;
+    }
     L(); g.drawImage(cv, bv.x0, bv.y0, cv.width / (bres * bv.k), cv.height / (bres * bv.k));
   };
   // สนาม Colony: พื้น/ผนังกั้น/โดม วาดเป็น 3D ใต้แคนวาสนี้ (colony3d.js) — ชั้นนี้โปร่ง วาดไฮไลต์ + สไปรต์ 2D (บ้าน ตึก ต้นไม้ แคปซูล ตัวละคร)

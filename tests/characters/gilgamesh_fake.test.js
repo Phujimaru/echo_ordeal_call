@@ -146,7 +146,7 @@ test('เมตตาจากราชา: ยิง N นัด สุ่ม�
   const f0 = vit(P.F), z0 = vit(P.Z);
   P.G.inventory = [...items(5), { uid: 'bat', type: 'battery', charge: 0 }];
   P.G.gil.gateShown = true;
-  Math.random = () => 0.99;
+  Math.random = () => 0.1; // < CENTER_PCT = ทุกนัดตกตรงตัวเป้า
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'n5' });
   flush(t, 12000);
@@ -169,7 +169,7 @@ test('เมตตาจากราชา: เป้าตายกลางช
   P.B.hp = 1; P.B.armor = 1;
   P.G.inventory = items(8);
   P.G.gil.gateShown = true;
-  Math.random = () => 0.99;
+  Math.random = () => 0.1;
   P.G.gil.ea = true;
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'n8' });
@@ -192,7 +192,7 @@ test('เมตตาจากราชา: ครั้งแรกของเ
   assert.equal(pub[pub.length - 1].key, 'all');
   const z = gil.zoneOf(engine, P.G, 14);
   assert.deepEqual([z.x0, z.y0, z.side], [0, 0, 14]);
-  Math.random = () => 0.99;
+  Math.random = () => 0.1;
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'all' });
   assert.deepEqual(calls.queue, ['gilGate']);
@@ -216,20 +216,20 @@ test('มือเปล่า: ถูกตี 30% ไอเทมโผล่�
   assert.equal(gilFx('block').length, 1);
 });
 
-test('Enuma Elish: ความมั่งคั่ง 30 + ถือ EA · ยิงต้นตาเดินถัดไป · ศัตรูในแนวตายแน่นอน · แม่นยำ · ระหว่างรอเก็บดาบไม่ได้', (t) => {
+test('Enuma Elish: ความมั่งคั่ง 20 + ถือ EA · ยิงต้นตาเดินถัดไป · ศัตรูในแนวตายแน่นอน · แม่นยำ · ระหว่างรอเก็บดาบไม่ได้', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gilgamesh_fake', 3, 7, 't1'], ['B', 'dummy', 9, 8, 't2'], ['F', 'dummy', 8, 7, 't1'], ['D', 'dummy', 9, 2, 't2']], 'duo');
   engine.setActor('G');
   engine.useSkill('G', 'ultimate', [], { dir: 'right' });
   assert.equal(P.G.gil.charge, null, 'ไม่ถือ EA');
   P.G.gil.ea = true;
-  P.G.gil.wealth = 29;
+  P.G.gil.wealth = 19;
   engine.useSkill('G', 'ultimate', [], { dir: 'right' });
   assert.equal(P.G.gil.charge, null, 'ความมั่งคั่งไม่พอ');
-  P.G.gil.wealth = 30;
+  P.G.gil.wealth = 25;
   engine.useSkill('G', 'ultimate', [], { dir: 'right' });
   assert.ok(P.G.gil.charge);
-  assert.equal(P.G.gil.wealth, 0);
+  assert.equal(P.G.gil.wealth, 5, 'ใช้ 20');
   assert.deepEqual(calls.trig, ['gilEnuma']);
   P.G.gil.swapRound = -1;
   engine.useSkill('G', 'basic', [], { form: 'bare' });
@@ -285,4 +285,22 @@ test('อาวุธที่ปักค้าง: ต้นเทิร์น
   gil.onRoundStartTick(engine, P.G);
   assert.deepEqual(P.G.gil.weapons, []);
   assert.equal(gilFx('dissolve').length, 1);
+});
+
+test('เมตตาจากราชา: กระจาย — นัดที่ไม่ตกตรงตัว เฉไปช่องรอบตัวเป้า ว่าง = ปักพื้นเปล่า (ไอเทมหาย · ความมั่งคั่ง +1)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+  P.B.hp = 20; P.B.armor = 0;
+  P.G.inventory = items(3);
+  P.G.gil.gateShown = true;
+  Math.random = () => 0.99; // เฉ → ช่องรอบตัวเป้าที่ว่าง (ไม่ใช่ช่องของกิล)
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'n3' });
+  flush(t, 10000);
+  assert.equal(P.B.hp, 20, 'ไม่โดน');
+  assert.equal(P.G.inventory.length, 0);
+  assert.equal(P.G.gil.wealth, 3);
+  const shots = gilFx('shot');
+  assert.equal(shots.length, 3);
+  assert.ok(shots.every((s) => !s.hit && Math.abs(s.land.x - 7) <= 1 && Math.abs(s.land.y - 7) <= 1), 'ตกรอบตัวเป้า');
 });
