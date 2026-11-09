@@ -170,7 +170,9 @@ export function rtsZoomRange(info, base, top = false) {
   const vc = viewCenter(), mx = vc ? vc.x : info.cols / 2, my = vc ? vc.y : info.rows / 2, a = P(mx - 0.5, my), b = P(mx + 0.5, my); // วัดที่จุดหมุน (ตัวเรา)
   const tw = Math.max(1e-3, Math.hypot(b[0] - a[0], b[1] - a[1])), W = base.x1 - base.x0;
   void top;
-  const min = Math.max(1, hi * 0.72, W / (RTS_VIEW_TILES.far * tw));
+  // ไม่ผูกกับกรอบทั้งกระดาน (เปลี่ยนตามมุมหมุน/ตำแหน่งตัวเรา → ซูมกระโดดตอนหัน — ผู้ใช้แจ้ง 2026-11-09) · วัดจากขนาดช่องที่ตัวเราอย่างเดียว
+  void hi;
+  const min = Math.max(1, W / (RTS_VIEW_TILES.far * tw));
   const max = Math.max(min * 1.6, W / (RTS_VIEW_TILES.near * tw));
   return { min, max };
 }
@@ -852,12 +854,12 @@ function drawUnit(g, u, now, boxes) {
   if (u.isMe) {
     g.font = `600 ${11 * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
     const mw = g.measureText("คุณ").width + 10 * UK;
-    const mx = tb ? bx - pw / 2 - mw / 2 - 4 * UK : bx - hexR - 4, my = tb ? py + ph / 2 : hy - hexR * 0.87 - 2; // ร่างรถ: ข้างหลอดพลัง
+    const mx = tb ? bx - pw / 2 - mw / 2 - 4 * UK : UI_PIECE ? bx - hexR * 0.62 : bx - hexR - 4, my = tb ? py + ph / 2 : UI_PIECE ? hy - hexR * 0.72 : hy - hexR * 0.87 - 2; // Eos: ติดมุมหกเหลี่ยม (ไม่ลอย) // ร่างรถ: ข้างหลอดพลัง
     g.fillStyle = "#f0c868"; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
     g.fillStyle = "#3a2a08"; g.fillText("คุณ", mx, my + 0.5); g.textBaseline = "alphabetic";
   } else if (u.ally) allyBadge(g, tb ? bx - pw / 2 - 18 * UK : bx - hexR - 4, tb ? py + ph / 2 : hy - hexR * 0.87 - 2, UK);
   const tag = normTag(u.tag);
-  if (tag) drawTag(g, tb ? bx + pw / 2 + 14 * UK : bx + hexR + (tag.backs ? 10 + Math.min(6, tag.backs) * 7 : 22), tb ? py + ph / 2 : hy - hexR * 0.2, tag);
+  if (tag) drawTag(g, tb ? bx + pw / 2 + 14 * UK : bx + hexR + (tag.backs ? 10 + Math.min(6, tag.backs) * 7 : 22) * (UI_PIECE ? UK : 1), tb ? py + ph / 2 : hy - hexR * 0.2, tag);
   if (u.isActor) {
     const ay = (tb ? py - 6 : hy - hexR - 14) + Math.sin(now / 200) * 3;
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 8, ay - 9); g.lineTo(bx + 8, ay - 9); g.lineTo(bx, ay); g.closePath(); g.fill();

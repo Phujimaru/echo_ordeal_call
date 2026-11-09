@@ -23,7 +23,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   // Moon Cell (GRID_PLAN §8.4): เพลงธีมของผู้ใช้ตลอดแมตช์ — เพลงท่าไม้ตายทับได้
   if (state?.moon && isMatchPhase(phase) && !state?.skillMusic) return { name: "moon_theme" };
   // Fodlan: ฉากเปลี่ยนแผนที่ = เพลงฉากแผนที่ · บนกระดาน = เพลงประจำด่าน (สภาพอากาศ = เพลงอีกแบบของด่านนั้น) — เพลงท่าไม้ตายทับได้
-  //  Eos (§8.6) ใช้ state.fodlan ร่วม แต่ยังไม่มีเพลงของตัวเอง (ผู้ใช้: เพลงเอาไว้ก่อน) → เพลงกลางวัน/กลางคืนปกติ
+  //  Eos (§8.6) ใช้ state.fodlan ร่วม แต่มีเพลงของตัวเอง (eos/eosAudio.js setMusic — App.jsx เลือกตาม state) → เพลงหลักเงียบ · เพลงท่าไม้ตายยังทับได้
+  if (state?.world === "eos" && state?.fodlan?.board && isMatchPhase(phase) && !state?.skillMusic) return { name: null };
   const fodlan = state?.world === "eos" ? null : state?.fodlan;
   if (fodlan && isMatchPhase(phase)) {
     if (fodlan.scene?.active) return { name: "fodlan_map" };

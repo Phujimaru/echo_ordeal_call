@@ -706,7 +706,7 @@ module.exports = {
     { id: "wild", name: "Eos", rect: [0, 0, 31, 31] },
   ],
   // รถ 3 คัน (ผู้ใช้สั่ง — ภาพ car1–3) ขนาด 2×2 บนถนน — มุมบนซ้ายตอนเริ่ม: Insomnia · Hammerhead · Altissia
-  CAR_SIZE: 2,
+  CAR_SIZE: 1, // ผู้ใช้สั่ง 2026-11-09: รถ 1 ช่องแบบม้า (เดิม 2×2)
   CARS: [[15, 5], [27, 28], [5, 23]],
   // เสายึดพื้นที่ 5 ต้น (โซนละ 1 — ผู้ใช้สั่ง 2026-11-09: ชนะด้วยแต้ม 20) · สิ่งกีดขวาง fd_eos_pillar (ร่ายพิธีจากช่องติดเสา)
   PILLARS: [
@@ -759,7 +759,10 @@ function moveCost(map, x, y) {
 }
 // ก้าวที่ใช้เดินเข้าช่องนี้ตามตัวเลือกการเดิน — opts.flowerWalk (ราชาดอกไม้ของเซลิน): ช่องดอกไม้ = 0 ก้าว
 //  opts.flatWalk (ขี่โชโกโบะ — สนาม Eos): ช่องที่กินหลายก้าว (ป่าทึบ/น้ำตื้น) = 1 ก้าว
+//  opts.carWalk (ขับรถ — สนาม Eos): ถนน/พื้นเรียบเท่านั้น · ป่าทึบ น้ำตื้น น้ำแข็ง คอก/ช่องโชโกโบะ = เข้าไม่ได้
+const CAR_OFF = new Set(["fd_eos_forest", "fd_eos_shallow", "ice", "fd_eos_chocobo", "fd_eos_stable"]);
 function stepCost(map, x, y, opts) {
+  if (opts && opts.carWalk && CAR_OFF.has(specialAt(map, x, y))) return Infinity;
   if (opts && opts.flatWalk) return Math.min(1, moveCost(map, x, y));
   if (opts && opts.flowerWalk) {
     const info = TERRAIN_INFO[specialAt(map, x, y)];

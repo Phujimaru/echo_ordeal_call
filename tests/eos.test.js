@@ -1,5 +1,5 @@
 // สนาม Eos (GRID_PLAN §8.6 · server/fodlan/stage6.js · map6.js) — หมุดใหม่บนลูกโลก แผนที่เดียว 32×32 ผังธรรมชาติตามภูมิศาสตร์ Lucis
-//  เดิน +2 · โชโกโบะ (+3 · ป่า/น้ำตื้น 1 ก้าว · โดนดาเมจตกนก กลับคอก 3 เทิร์น) · รถ 3 คัน 2×2 บนถนน 10 ช่อง ชนคน 2
+//  เดิน +2 · โชโกโบะ (+3 · ป่า/น้ำตื้น 1 ก้าว · โดนดาเมจตกนก กลับคอก 3 เทิร์น) · รถ 3 คัน 1 ช่อง ขึ้นขี่แล้วขับแบบม้า (+3 · ถนน/พื้นเรียบ) ชน 2 · ผู้โดยสาร 3
 //  ปีศาจกลางคืน 4 ตัว · อากาศ ฝนฟ้าคะนอง/หมอก
 //  ชนะ = ยึดเสา 5 ต้น (ร่ายพิธี 2 ตา) แต้ม 1/3/6/10/15 ต่อเทิร์น ถึง 20 · ตายแล้วฟื้นหลัง 3 เทิร์น · เห็นผู้เล่นอื่นในระยะเดิน + 4
 process.env.JOURNEY_START_SECONDS = '0';
@@ -45,6 +45,7 @@ function actor(p) { match.gameState = 'ACTION'; match.actorId = p.id; match.acti
 const btn = (p, key) => Fodlan.hudActions(p).find((a) => a.key === key) || null;
 const total = (p) => p.hp + (p.armor || 0);
 const sameTile = (a, b) => a && b && a.x === b.x && a.y === b.y;
+const Duo = () => require('../server/duo.js');
 
 test.beforeEach(() => { timers.startPhaseTimer = (secs) => { match.timeLeft = Math.ceil(secs); }; });
 test.afterEach(() => { Math.random = realRandom; timers.startPhaseTimer = realStart; engine.clearPhaseTimer(); });
@@ -153,43 +154,75 @@ test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ ·
   assert.equal(action.boardMap().special[K(t.x, t.y)], 'fd_eos_chocobo');
 });
 
-test('รถ: ยืนบนรถ → ปุ่มขับ ปลายทางบนถนนไม่เกิน 10 ช่อง · คนบนรถไปด้วย · ใช้การเดินของตา', () => {
+test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม่เดิน = เดินเต็มระยะจากรถ) · เดิน +3 · รถวิ่งตามคนขับ · ป่า/น้ำตื้นเข้าไม่ได้ · ลงรถ รถจอดที่เดิม', () => {
   setup();
   const p = P(0), car = st().cars[1]; // Hammerhead
-  p.pos = { x: car.x, y: car.y };
+  p.pos = { x: car.x - 1, y: car.y };
+  if (Board.isObstacle(action.boardMap(), p.pos.x, p.pos.y)) p.pos = { x: car.x, y: car.y - 1 };
   actor(p);
-  const b = btn(p, 'fd:drive');
-  assert.ok(b && !b.disabled && b.tiles.length);
-  for (const t of b.tiles) {
-    assert.ok(Math.abs(t.x - car.x) + Math.abs(t.y - car.y) <= S6.CAR_RANGE);
-    for (const c of S6.carCells(t)) assert.ok(S6.ROAD.has(K(c.x, c.y)));
-  }
-  const to = b.tiles.reduce((a, t) => (Math.abs(t.x - car.x) + Math.abs(t.y - car.y) > Math.abs(a.x - car.x) + Math.abs(a.y - car.y) ? t : a));
-  assert.ok(Fodlan.charAction(p.id, 'fd:drive', to));
-  assert.ok(sameTile(car, to));
-  assert.ok(sameTile(p.pos, to));
-  assert.equal(match.action.locked, true);
-  assert.ok(!btn(p, 'fd:drive') || btn(p, 'fd:drive').disabled, 'ขับซ้ำในตาเดียวไม่ได้');
+  assert.equal(action.boardMap().terrain[K(car.x, car.y)], 'fd_eos_car', 'รถจอด = สิ่งกีดขวาง');
+  const mov0 = action.movOf(p);
+  const b = btn(p, 'fd:board');
+  assert.ok(b && !b.disabled);
+  assert.ok(Fodlan.charAction(p.id, 'fd:board', { x: car.x, y: car.y }));
+  assert.ok(sameTile(p.pos, car));
+  assert.equal(car.driver, p.id);
+  assert.equal(match.action.locked, false, 'ยังเดินต่อได้');
+  assert.ok(sameTile(match.action.from, car));
+  assert.equal(action.movOf(p), mov0 + S6.CAR_MOV);
+  assert.ok(Fodlan.carWalk(p));
+  assert.ok(!action.boardMap().terrain[K(car.x, car.y)], 'ขับอยู่ = ไม่ใช่สิ่งกีดขวาง');
+  const m = action.boardMap();
+  const forest = (MAP6.map.special.fd_eos_forest || [])[0];
+  assert.ok(Board.reachable(m, { id: p.id, x: forest[0] - 1, y: forest[1] }, 3, [], { carWalk: true }).get(K(forest[0], forest[1])) == null, 'ป่าทึบ: รถเข้าไม่ได้');
+  // เดิน = รถไปด้วย
+  const reach = Board.reachable(m, { id: p.id, ...p.pos }, action.movOf(p), [], { carWalk: true });
+  const far = [...reach.values()].find((n) => n.d >= 3 && !(n.x === p.pos.x && n.y === p.pos.y));
+  assert.ok(far);
+  p.pos = { x: far.x, y: far.y };
+  S6.syncCars(ctx(), st());
+  assert.ok(sameTile(car, p.pos), 'รถตามคนขับ');
+  // ลงรถ
+  const lv = btn(p, 'fd:leave');
+  assert.ok(lv && lv.tiles.length);
+  const at = { x: car.x, y: car.y };
+  assert.ok(Fodlan.charAction(p.id, 'fd:leave', lv.tiles[0]));
+  assert.equal(car.driver, null);
+  assert.ok(sameTile(car, at));
+  assert.ok(sameTile(p.pos, lv.tiles[0]));
 });
 
-test('รถ: ชนคนบนทาง 2 ดาเมจ + กระเด็นออกจากทาง · รถคันอื่นขวาง', () => {
+test('รถ: ชน = ใช้การโจมตี ศัตรูติดรถ 2 ดาเมจ + กระเด็น 1 ช่อง · ผู้โดยสาร (คนขับยอม) ไปกับรถ ไม่ร่วงตอนคนขับโดนตี · คนขับตาย = รถจอด ผู้โดยสารลง', () => {
   setup();
-  const p = P(0), q = P(1), car = st().cars[0]; // Insomnia (15,5) → ลงประตูเมือง
-  p.pos = { x: car.x, y: car.y };
-  q.pos = { x: 16, y: 8 };
-  const hp0 = total(q);
+  const p = P(0), q = P(1), r = P(2), car = st().cars[1];
+  car.x = 13; car.y = 13; car.driver = p.id; p.pos = { x: 13, y: 13 };
+  q.pos = { x: 14, y: 13 };
   actor(p);
-  const to = btn(p, 'fd:drive').tiles.find((t) => t.x === 15 && t.y === 9);
-  assert.ok(to);
-  assert.ok(Fodlan.charAction(p.id, 'fd:drive', to));
+  const hp0 = total(q);
+  const b = btn(p, 'fd:ram');
+  assert.ok(b && b.tiles.some((t) => sameTile(t, q.pos)));
+  assert.ok(Fodlan.charAction(p.id, 'fd:ram', { x: 14, y: 13 }));
   assert.equal(total(q), hp0 - S6.CAR_HIT_DMG);
-  for (const c of S6.carCells(to)) assert.ok(!sameTile(q.pos, c));
-  setup();
-  const c0 = st().cars[0], c2 = st().cars[2];
-  c2.x = 15; c2.y = 8;
-  const list = S6.carTargets(ctx(), st(), c0);
-  assert.ok(list.length > 0);
-  assert.ok(list.every((t) => t.y <= 6), 'ผ่านรถคันอื่นไม่ได้');
+  assert.ok(sameTile(q.pos, { x: 15, y: 13 }) || !q.alive || Board.isObstacle(action.boardMap(), 15, 13));
+  assert.ok(p.didAttackRound || match.action.noStrike || (btn(p, 'fd:ram') && btn(p, 'fd:ram').disabled), 'ชนแล้วใช้การโจมตี');
+  // ผู้โดยสาร
+  const Ride = require('../server/ride.js');
+  r.pos = { x: 13, y: 12 };
+  if (Board.isObstacle(action.boardMap(), 13, 12)) r.pos = { x: 12, y: 13 };
+  actor(r);
+  const seat = btn(r, 'fd:seat');
+  assert.ok(seat && seat.tiles.length);
+  assert.ok(Fodlan.charAction(r.id, 'fd:seat', { x: 13, y: 13 }));
+  assert.ok(match.rideAsk && match.rideAsk.to === p.id);
+  assert.ok(Ride.answer(Duo().sideKey(p), true));
+  assert.equal(r.mountId, p.id);
+  Ride.onAttacked(p, q);
+  assert.equal(r.mountId, p.id, 'อยู่ในรถ — ไม่ร่วง');
+  // คนขับตาย
+  combat.instantDeath ? combat.instantDeath(p, 'test') : (p.alive = false);
+  S6.syncCars(ctx(), st());
+  assert.equal(car.driver, null);
+  assert.ok(!r.mountId);
 });
 
 test('ปีศาจ: กลางคืนเกิด 4 ตัวนอกเมือง ห่างคน · ต้นเทิร์นเดินไล่ + ตี 2 · เข้าเมืองไม่ได้ · ฟ้าสางสลาย', () => {
@@ -348,6 +381,7 @@ test('แต้ม: ถือ 1/2/…/5 ต้น = 1/3/…/15 ต่อเท�
 
 test('ตายแล้วฟื้นหลัง 3 เทิร์นที่จุดเกิดที่ไกลศัตรูสุด เลือด/เกราะเต็ม', () => {
   setup();
+  match.cycleShift = 2; // กลางวันตลอดช่วงเทสต์ (กลางคืนมีปีศาจเกิด/ตีคนที่เพิ่งฟื้น)
   const p = P(0);
   match.roundNumber = 4;
   combat.instantDeath(p, true);
@@ -364,6 +398,7 @@ test('ตายแล้วฟื้นหลัง 3 เทิร์นที�
   const far = (t) => Math.min(...foes.map((f) => Math.abs(f.pos.x - t.x) + Math.abs(f.pos.y - t.y)));
   const best = Math.max(...Board.MAPS[AREA].spawns.map(far));
   assert.ok(far(p.pos) >= best - 3, 'ฟื้นใกล้จุดเกิดที่ไกลศัตรูสุด');
+  match.cycleShift = 0;
 });
 
 // ---------- ขั้น 2: ลูกเล่นปั่นป่วน (L6–L10) ----------
@@ -451,10 +486,6 @@ test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ �
   assert.ok(Fodlan.charAction(p.id, 'fd:push'));
   assert.equal(Math.abs(w.x - from.x) + Math.abs(w.y - from.y), 1);
   assert.equal(action.boardMap().terrain[K(w.x, w.y)], 'fd_eos_wreck');
-  // ซากรถบนถนนหน้ารถ Insomnia → รถลงไปไม่ได้
-  w.x = 15; w.y = 8;
-  const car = s.cars[0];
-  assert.ok(S6.carTargets(ctx(), s, car).every((t) => t.y <= 6));
 });
 
 // ---------- ขั้น 3: ลูกเล่นโจมตี (L11–L15) ----------

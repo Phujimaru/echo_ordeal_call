@@ -13,6 +13,7 @@ import { LW, P, PS, depthOf, faceVisible, gEllipse, glow, quad, rng, sceneSize }
 import { EOS_AREA, MAPS } from "../boardRules";
 import { fxActive, fxOnce, fxT } from "./index";
 import { eosAudio } from "../../eos/eosAudio";
+import { drawVitalBar } from "../boardDraw";
 
 const TAU = Math.PI * 2;
 const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -31,7 +32,7 @@ export const kinds = [
 export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret"];
 // ความยาวฉากของเหตุการณ์ (ms) — server ctx.fx
 export const fx = {
-  lightning: 1600, car_drive: 900, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
+  lightning: 1600, car_drive: 900, car_mount: 900, car_leave: 600, car_ram: 700, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
   daemon_spawn: 1600, daemon_move: 1100, daemon_attack: 900, daemon_hit: 600, daemon_struck: 500, daemon_die: 1200, daemon_dissolve: 1400,
   bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
   barrel_boom: 1600, crystal_break: 1100, flask: 1700, turret_shot: 750, mob_move: 1100, mob_attack: 900, mob_hit: 600, mob_die: 1300,
@@ -1037,7 +1038,6 @@ const pathOf = (fd, kind, id) => {
 };
 
 // =================================================================== รถ (2×2 · หันตามทิศที่วิ่งล่าสุด)
-const HEADING = new Map();
 function drawCar(g, cx, cy, dir, col, night, now, moving) {
   // ตัวรถในกรอบ 2×2: ยาว 1.7 กว้าง 0.95 (หันตาม dir: "h" แนวนอน / "v" แนวตั้ง)
   const L = 0.85, W = 0.47, h = 0.32;
@@ -1103,10 +1103,10 @@ function mobAttackOf(id, now) {
   const p = fxT(e, now, fx.mob_attack);
   return p < 1 ? { a, p } : null;
 }
-function hpPips(g, x, y, z, hp, maxHp, armor) {
-  const top = P(x, y, z), s = top[2], n = Math.max(1, maxHp || 5), w = s * Math.min(0.12, 1 / n);
-  for (let i = 0; i < n; i++) { g.fillStyle = i < hp ? "#e0324a" : "rgba(40,10,20,.7)"; g.fillRect(top[0] - (n * w) / 2 + i * w + 1, top[1], w - 2, s * 0.06); }
-  if (armor > 0) { g.fillStyle = "#8fb8e8"; g.fillRect(top[0] - (n * w) / 2, top[1] - s * 0.08, w * Math.min(armor, n) - 2, s * 0.05); }
+// หลอดเลือด/เกราะของปีศาจ/ศัตรู AI — แบบเดียวกับหมากผู้เล่น (boardDraw drawVitalBar) ขนาดตามช่อง (ผู้ใช้แจ้ง 2026-11-09: จุดแดงลอยอ่านไม่ออก)
+function hpPips(g, x, y, z, hp, maxHp, armor, maxArmor = armor) {
+  const top = P(x, y, z), s = top[2], UK = Math.max(0.35, s * 0.0085);
+  drawVitalBar(g, top[0], top[1], s * 0.62, { hp, maxHp: Math.max(1, maxHp || 5), armor, maxArmor: Math.max(armor || 0, maxArmor || 0) }, UK);
   return top;
 }
 // สัตว์ยักษ์มีเขา (สูง ≈ 1.8 ช่อง) · พิกัดจอที่เท้า · face = 1 หันขวา / -1 หันซ้าย
@@ -1277,30 +1277,40 @@ export function ground(g, fd, info, now) {
 // =================================================================== items (เรียงความลึกกับตัวละคร)
 export function items(list, g, fd, info, units, now, lowQ) {
   const night = !!fd.night || LAST_NIGHT;
+  // รถ 1 ช่อง (ผู้ใช้สั่ง 2026-11-09 — ขึ้นขี่แล้วขับแบบม้า): จอด = ตามตำแหน่งรถ · มีคนขับ = ใต้หมากคนขับ (ตามตำแหน่งวาดของหมาก วิ่งไปพร้อมกัน)
+  //  ภาพรถของผู้ใช้หันซ้ายเป็นค่าเริ่ม → กลับด้านตามทิศที่วิ่งบนจอ (หมุนกล้องได้) · ขึ้นรถ = รถยุบรับน้ำหนัก + ไฟหน้าวาบ · ชน = รถพุ่งไปครึ่งช่องแล้วถอย
   for (const c of fd.cars || []) {
-    const path = pathOf(fd, "car_drive", c.id);
-    const pos = smooth(c.id, c.x, c.y, now, CAR_MS, path);
-    if (pos.moving && path) {
-      const m = MOVES.get(c.id), k = Math.max(0, Math.min(1, (now - m.t0) / m.ms)), n = path.length - 1, i = Math.min(n - 1, Math.floor(ease(k) * n));
-      HEADING.set(c.id, path[i + 1].x !== path[i].x ? "h" : "v");
-    }
-    const dir = HEADING.get(c.id) || (ROAD_SET.has(K(c.x + 2, c.y)) || ROAD_SET.has(K(c.x - 1, c.y)) ? "h" : "v");
-    const cx = pos.x + 1, cy = pos.y + 1, col = CAR_COLORS[c.img] || CAR_COLORS[1];
-    // ภาพรถของผู้ใช้ (ตัดพื้นหลังแล้ว — /eos/img/carN.webp) · ยังโหลดไม่เสร็จ = รถวาดด้วยโค้ด · หมากคนนั่งวาดทับด้านบน (ความลึกน้อยกว่า)
-    const im = img(`/eos/img/car${c.img}.webp`);
-    const flip = (HEADING.get(c.id) || "h") === "h" && path && path.length > 1 && path[path.length - 1].x > path[0].x;
+    const drv = c.driver ? unitAt(units, c.driver) : null;
+    let cx, cy, moving = false;
+    if (drv) { cx = drv.x; cy = drv.y; }
+    else { const pos = smooth(c.id, c.x, c.y, now, CAR_MS); cx = pos.x + 0.5; cy = pos.y + 0.5; moving = pos.moving; }
+    const last = MOB_LAST.get(c.id);
+    if (last && Math.abs(cx - last.x) + Math.abs(cy - last.y) > 0.002) moving = true;
+    if (!MOB_HEAD.has(c.id)) MOB_HEAD.set(c.id, { dx: c.dx || -1, dy: c.dy || 0 });
+    const head = mobFacing(c.id, { x: cx, y: cy });
+    const flip = screenFace(cx, cy, head) > 0;
+    const mnt = lastFx("car_mount"), ramE = lastFx("car_ram");
+    const mk = mnt && mnt.car === c.id ? fxT(mnt, now, 700) : 1, rk = ramE && ramE.car === c.id ? fxT(ramE, now, 520) : 1;
+    let lx = 0, ly = 0;
+    if (rk >= 0 && rk < 1 && ramE.at) { const j = Math.sin(rk * Math.PI) * 0.45; lx = (ramE.at.x - ramE.x) * j; ly = (ramE.at.y - ramE.y) * j; }
+    const squash = mk >= 0 && mk < 1 ? Math.sin(mk * Math.PI * 2) * 0.06 * (1 - mk) : 0;
+    const im = img(`/eos/img/car${c.img}.webp`), col = CAR_COLORS[c.img] || CAR_COLORS[1];
+    const X = cx + lx, Y = cy + ly;
     list.push({
-      d: depthOf(cx, cy) - 0.6,
+      d: depthOf(X, Y) - (drv ? 0.02 : 0),
       f: () => {
-        if (!im) { drawCar(g, cx, cy, dir, col, night, now, pos.moving); return; }
-        const [sx, sy, s] = P(cx, cy + 0.55);
-        const w = s * 2.35, h = w * (im.naturalHeight / im.naturalWidth);
-        g.fillStyle = "rgba(0,0,0,.38)"; g.beginPath(); g.ellipse(sx, sy - s * 0.05, w * 0.48, s * 0.28, 0, 0, TAU); g.fill();
-        g.save(); g.translate(sx, sy); if (flip) g.scale(-1, 1);
+        const rumble = moving && !lowQ ? Math.sin(now / 45) * 0.012 : 0;
+        if (!im) { drawCar(g, X, Y, Math.abs(head.dx) >= Math.abs(head.dy) ? "h" : "v", col, night, now, moving); return; }
+        const [sx, sy, s] = P(X, Y + 0.12);
+        const w = s * 1.5, h = w * (im.naturalHeight / im.naturalWidth) * (1 - squash);
+        g.fillStyle = "rgba(0,0,0,.4)"; g.beginPath(); g.ellipse(sx, sy - s * 0.03, w * 0.46, s * 0.2, 0, 0, TAU); g.fill();
+        g.save(); g.translate(sx, sy - rumble * s); if (flip) g.scale(-1, 1);
         g.drawImage(im, -w / 2, -h, w, h); g.restore();
-        if (night) {
-          const hl = P(cx + (flip ? 0.7 : -0.7), cy + 0.6, 0.25);
-          glowAt(g, hl[0], hl[1], s * 0.9, "255,240,200", 0.55);
+        const hx = sx + (flip ? 1 : -1) * w * 0.42, hy = sy - h * 0.3;
+        if (night || (mk >= 0 && mk < 1)) glowAt(g, hx, hy, s * (night ? 0.7 : 0.45), "255,240,200", night ? 0.6 : 0.8 * (1 - mk));
+        if (moving && !lowQ) for (let i = 0; i < 4; i++) {
+          const t = ((now / 380) + i / 4) % 1, ex = sx - (flip ? 1 : -1) * (w * 0.5 + t * s * 0.5), ey = sy - s * (0.05 + t * 0.12);
+          g.fillStyle = `rgba(190,185,175,${0.32 * (1 - t)})`; g.beginPath(); g.arc(ex, ey, s * (0.05 + t * 0.1), 0, TAU); g.fill();
         }
       },
     });
@@ -1330,11 +1340,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         const [sx, sy, s] = P(cx, cy, 0);
         glowAt(g, sx, sy - s * 0.6, s * 1.1, "150,30,120", 0.35);
         sprite(g, daemonImg(d.kind), cx, cy, breathe, 1.45, d.kind % 2 === 0);
-        // พลังชีวิต (จุด) + เกราะ
-        const top = P(cx, cy, 1.6);
-        const n = d.maxHp || 5, w = s * 0.12;
-        for (let i = 0; i < n; i++) { g.fillStyle = i < d.hp ? "#e0324a" : "rgba(40,10,20,.7)"; g.fillRect(top[0] - (n * w) / 2 + i * w + 1, top[1], w - 2, s * 0.06); }
-        if (d.armor > 0) { g.fillStyle = "#8fb8e8"; g.fillRect(top[0] - (n * w) / 2, top[1] - s * 0.08, w * d.armor - 2, s * 0.05); }
+        hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
       },
     });
   }
@@ -1366,7 +1372,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
           sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
         }
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
-        const top = hpPips(g, cx, cy, beast ? 2.0 : 1.6, m.hp, m.maxHp, m.armor);
+        const top = hpPips(g, cx, cy, beast ? 2.0 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
       },
     });
@@ -1399,6 +1405,9 @@ function playFx(e) {
   switch (e.kind) {
     case "lightning": if (performance.now() - THUNDER_AT > 350) { THUNDER_AT = performance.now(); sfx("wx_lightning_strike", { gain: 0.9 }); } break;
     case "car_drive": sfx("car_start", { gain: 0.6 }); sfx("car_drive", { delay: 0.15 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.45 }); break;
+    case "car_mount": sfx("car_door"); sfx("car_start", { delay: 0.35, gain: 0.7 }); break;
+    case "car_leave": sfx("car_door"); break;
+    case "car_ram": sfx("car_drive", { gain: 0.7 }); sfx("car_hit", { delay: 0.18 }); break;
     case "choco_mount": sfx("chocobo_call"); sfx("chocobo_wings", { delay: 0.2, gain: 0.7 }); break;
     case "choco_dismount": sfx("chocobo_wings", { gain: 0.7 }); break;
     case "choco_fall": sfx("chocobo_call", { gain: 0.9 }); sfx("chocobo_run", { delay: 0.3, gain: 0.6 }); break;

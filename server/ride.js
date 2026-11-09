@@ -25,6 +25,11 @@ const Duo = require("./duo");
 const Visibility = require("./visibility");
 
 const hookOf = (p) => (p ? CHAR_HOOKS[p.characterId] : null);
+// สนาม Eos: รถ (คนขับ = ตัวที่ถูกขี่) รับผู้โดยสารได้หลายคน — server/fodlan/stage6.js carSeats/carDriver (require ทีหลัง กันวนกัน)
+const lazyFodlan = () => require("./fodlan");
+const carSeats = (p, t) => { try { return lazyFodlan().carSeats(p, t); } catch { return 0; } };
+const carDriver = (t) => { try { return lazyFodlan().carDriver(t); } catch { return false; } };
+function ridersOf(m) { return m ? Object.values(match.players).filter((r) => r.alive && r.mountId === m.id) : []; }
 
 // ตัวที่ถูกขี่ (ยังอยู่บนกระดาน) — ไม่มี = null
 function mountOf(p) {
@@ -64,9 +69,14 @@ function canAsk(p, t) {
   if (!p || !t || p.id === t.id || !t.alive || !t.pos || !p.pos) return false;
   if (p.summon || t.summon || (p.dim || null) !== (t.dim || null)) return false; // ยูนิตที่ถูกเรียก / คนละชั้นมิติ ขี่ไม่ได้
   if (!action.canAct(p) || match.action.locked || match.action.dismount) return false; // เพิ่งลงจากหลังตานี้ = ขึ้นใหม่ไม่ได้
-  if (p.mountId || t.mountId || riderOf(t) || riderOf(p)) return false;
-  const hook = hookOf(p);
-  if (!hook || !hook.canRide || !hook.canRide(engine, p)) return false;
+  if (p.mountId || t.mountId || riderOf(p)) return false;
+  const seats = carSeats(p, t);
+  if (seats > 0) { if (ridersOf(t).length >= seats) return false; }
+  else {
+    if (riderOf(t)) return false;
+    const hook = hookOf(p);
+    if (!hook || !hook.canRide || !hook.canRide(engine, p)) return false;
+  }
   if (action.sizeOf(t) > 1 || action.sizeOf(p) > 1) return false;
   if (Visibility.hiddenFromUnit(p, t)) return false;
   return Board.dist(action.boxOf(p), action.boxOf(t)) === 1;
@@ -133,10 +143,9 @@ function dismounted(p, reason = "walk") {
 function drop(id) {
   const m = match.players[id];
   if (!action.canAct(m, { move: true })) return false;
-  const r = riderOf(m);
-  if (!r) return false;
-  match.lastLog.push(`🙇 ${m.name} ให้ ${r.name} ลงจากหลัง`);
-  fall(r, "drop");
+  const rs = ridersOf(m);
+  if (!rs.length) return false;
+  for (const r of rs) { match.lastLog.push(`🙇 ${m.name} ให้ ${r.name} ลงจากหลัง`); fall(r, "drop"); }
   view.broadcastState();
   return true;
 }
@@ -147,6 +156,7 @@ function clearAll() {
 }
 // ตัวที่ถูกขี่ถูกโจมตี (attack.strike · combat.tookDamage จากผู้เล่นอื่น) → คนขี่ร่วง
 function onAttacked(target, source) {
+  if (carDriver(target)) return; // ผู้โดยสารในรถ — คนขับถูกตีไม่ร่วง
   const r = riderOf(target);
   if (!r || (source && source.id === r.id)) return;
   fall(r, "hit");
@@ -158,8 +168,7 @@ function onDeath(p) {
     if (!p.pos && m && m.pos) p.pos = { ...m.pos };
     p.mountId = null;
   }
-  const r = riderOf(p);
-  if (r) fall(r, "death");
+  for (const r of ridersOf(p)) fall(r, "death");
   if (match.rideAsk && (match.rideAsk.from === p.id || match.rideAsk.to === p.id)) match.rideAsk = null;
 }
 // คำขอขี่ที่ผู้ชมคนนี้ต้องเห็น (คนขอ / เจ้าของตัวที่ถูกขอ) — อื่นๆ = null

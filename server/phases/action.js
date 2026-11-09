@@ -265,7 +265,7 @@ function rebaseMove(p) {
   const all = walkUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -825,7 +825,7 @@ function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
   const seen = walkUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) };
   if (!inLeash(leashOf(p), { x, y })) return null; // สายจูง (โล่บินได้): ปลายทางต้องอยู่ในระยะ
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่

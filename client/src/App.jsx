@@ -15,8 +15,9 @@ import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
-import { eosAudio, eosBedsFor } from "./eos/eosAudio";
+import { eosAudio, eosBedsFor, eosMusicPicker } from "./eos/eosAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
+import { EOS_INTRO_MS } from "./eos/eosMeta";
 import EchoRebirth from "./oc/intro/EchoRebirth";
 import { ghostScreen } from "./oc/intro/screenGhost";
 import { OcScreen } from "./oc/ui";
@@ -321,6 +322,22 @@ export default function App() {
     ea.setBeds(JSON.parse(eosBeds), { fade: 2.5 });
     ea.thunder(!!eosStorm);
   }, [eosBeds, eosStorm]);
+  // Eos: เพลงของสนาม (สำรวจ กลางวัน/กลางคืน · ตึงเครียด · ล่า · ต่อสู้) — กติกาเลือกเพลงอยู่ที่ eosMusicPicker (eos/eosAudio.js)
+  //  เพลงหลักของเกมเงียบระหว่างอยู่ Eos (audioPolicy) · เพลงท่าไม้ตาย (skillMusic) / วีดีโอคัตซีน / ฉากเปิดแมตช์ = เพลงของสนามจางออก
+  const eosPickRef = useRef(null);
+  const [eosMusicTick, setEosMusicTick] = useState(0);
+  useEffect(() => {
+    const ea = eosAudio();
+    if (!eosOn) { eosPickRef.current = null; ea.setMusic(null); return; }
+    if (!eosPickRef.current) eosPickRef.current = eosMusicPicker();
+    const { key, recheckMs } = eosPickRef.current(state, Date.now());
+    const cs = phase === "CUTSCENE" ? state.cutscene : null;
+    const blocked = introOn || !!state.skillMusic || !!(cs && (!lowQ || cs.announce));
+    ea.setMusic(blocked ? null : key);
+    if (!recheckMs) return;
+    const t = setTimeout(() => setEosMusicTick((n) => n + 1), recheckMs);
+    return () => clearTimeout(t);
+  }, [eosOn, state, phase, introOn, lowQ, eosMusicTick]);
   useEffect(() => {
     const fa = fodlanAudio();
     if (!fdStage) { fa.stop(1.5); return; }
@@ -417,6 +434,10 @@ export default function App() {
   const startPendingJourney = () => {
     const pending = pendingJourneyRef.current;
     pendingJourneyRef.current = null;
+    // Eos (§8.6): ไม่มี journeyScene — server ยังพักเกม (CUTSCENE ช่วงเริ่มแมตช์ · EOS_START_SECONDS) = เล่นฉากเข้าสนาม (eos/EosCine.jsx)
+    if (worldRef.current === "eos") {
+      return prevGameStateRef.current === "CUTSCENE" && getTickSeconds() > 3 ? { eos: true, durationMs: journeyDurationMs(getTickSeconds(), EOS_INTRO_MS) } : null;
+    }
     const live = journeyStateRef.current?.scene || (fodlanRef.current?.scene ? { ...fodlanRef.current.scene } : null);
     if (pending && live?.active && live.seq === pending.seq) {
       if (worldRef.current === "colony") return { colony: true, durationMs: journeyDurationMs(getTickSeconds(), COLONY_MS) };

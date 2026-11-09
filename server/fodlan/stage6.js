@@ -23,9 +23,9 @@ const MAP = require("./map6");
 const MOV_BONUS = 2;          // ทุกคนบน Eos
 const CHOCO_MOV = 3;          // ขี่โชโกโบะ
 const CHOCO_RESPAWN = 3;      // ตกนกแล้วเกิดใหม่ที่คอกหลัง N เทิร์น
-const CAR_RANGE = 10;         // ช่องที่รถวิ่งได้ต่อตา
 const CAR_HIT_DMG = 2;
-const DAEMON_COUNT = 4;
+const DAEMON_COUNT = 10;      // ผู้ใช้สั่ง 2026-11-09: เกิดน้อยเกิน → มากขึ้น กระจายทั่วแผนที่ เกิดซ้ำทุกเทิร์นกลางคืน
+const DAEMON_REFILL = 3;      // กลางคืนเทิร์นถัดไป: เติมกลับไม่เกินกี่ตัว/เทิร์น จนครบ DAEMON_COUNT
 const DAEMON_HP = 5;
 const DAEMON_ARMOR = 1;
 const DAEMON_ATK = 2;
@@ -43,7 +43,6 @@ const REVIVE_TURNS = 3;       // ตายแล้วฟื้นหลัง 3
 const SIGHT_EXTRA = 4;        // เห็นผู้เล่นอื่นในระยะเดิน + 4 ช่อง
 const SECS = { dropship: 1.8, mobs: 1.4, revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
 
-const S = MAP.CAR_SIZE;
 const K = (x, y) => `${x},${y}`;
 const ROAD = new Set((MAP.map.special.fd_eos_road || []).map(([x, y]) => K(x, y)));
 const TOWNS = MAP.ZONES.filter((z) => z.town);
@@ -67,7 +66,7 @@ const nightAt = (ctx, round) => { try { return !!ctx.engine.isNightRound(round);
 function enter(ctx, st) {
   st.eos = {
     visit: ++VISIT, seq: 0,
-    cars: MAP.CARS.map(([x, y], i) => ({ id: `fd:car${i + 1}`, img: i + 1, x, y })),
+    cars: MAP.CARS.map(([x, y], i) => ({ id: `fd:car${i + 1}`, img: i + 1, x, y, driver: null, dx: -1, dy: 0 })),
     chocos: MAP.CHOCOBOS.map(([x, y], i) => ({ id: `fd:choco${i + 1}`, home: { x, y }, x, y, rider: null, back: 0 })),
     riders: {},      // id ผู้ขี่ → { choco, mark } (mark = เลือด+เกราะล่าสุด — ลดลง = ตกนก)
     daemons: [],
@@ -83,6 +82,8 @@ function enter(ctx, st) {
     crystals: [], crystalBack: MAP.CRYSTALS.map(([x, y]) => ({ at: { x, y }, round: 0 })),
     flasks: {}, mobs: [], beastBack: 1, dropship: null, dropNext: 0,
   };
+  // dev: วางรถคันแรกไว้ที่ช่องที่กำหนด (EOS_DEV_CAR="x,y" — ทดสอบการขึ้นรถในเบราว์เซอร์)
+  if (process.env.EOS_DEV_CAR) { const [x, y] = String(process.env.EOS_DEV_CAR).split(",").map(Number); if (Number.isFinite(x) && Number.isFinite(y)) Object.assign(st.eos.cars[0], { x, y }); }
   ctx.bump();
 }
 
@@ -91,7 +92,8 @@ function layer(ctx, st, map) {
   const s = st && st.eos;
   if (!s) return map;
   const terrain = { ...map.terrain }, special = { ...map.special };
-  for (const c of s.cars) for (const t of carCells(c)) special[K(t.x, t.y)] = "fd_eos_car";
+  syncCars(ctx, s);
+  for (const c of s.cars) if (!c.driver) terrain[K(c.x, c.y)] = "fd_eos_car"; // จอดอยู่ = สิ่งกีดขวาง (ขับอยู่ = อยู่ใต้คนขับ)
   for (const c of s.chocos) if (c.x != null && !c.rider) special[K(c.x, c.y)] = "fd_eos_chocobo";
   for (const d of s.daemons) terrain[K(d.x, d.y)] = "fd_eos_daemon";
   for (const w of s.wrecks || []) terrain[K(w.x, w.y)] = "fd_eos_wreck";
@@ -115,7 +117,7 @@ function riding(s, p) { return !!(s && p && s.riders[p.id]); }
 function movMod(ctx, st, p) {
   const s = st && st.eos;
   if (!s || !p) return 0;
-  return MOV_BONUS + (riding(s, p) ? CHOCO_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
+  return MOV_BONUS + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -124,8 +126,8 @@ function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 function onHorse(p) {
   return Object.values(p || {}).some((v) => v && typeof v === "object" && !Array.isArray(v) && v.mounted === true && "horseHp" in v);
 }
-function canRide(ctx, p) {
-  return !!(p && p.alive && p.pos && !p.summon && sizeOf(ctx, p) === 1 && !ctx.action.flies(p) && !onHorse(p));
+function canRide(ctx, p, s = null) {
+  return !!(p && p.alive && p.pos && !p.summon && !p.mountId && sizeOf(ctx, p) === 1 && !ctx.action.flies(p) && !onHorse(p) && !driving(s, p));
 }
 const markOf = (p) => (p.hp || 0) + (p.armor || 0);
 function chocoAt(s, x, y) { return s.chocos.find((c) => !c.rider && c.x === x && c.y === y) || null; }
@@ -154,7 +156,7 @@ function checkRiders(ctx, s) {
   for (const pid of Object.keys(s.riders)) {
     const p = ctx.match.players[pid], r = s.riders[pid];
     const from = p && p.pos ? { x: p.pos.x, y: p.pos.y } : null;
-    if (!p || !p.alive || !p.pos || !canRide(ctx, p)) {
+    if (!p || !p.alive || !p.pos || !canRide(ctx, p, s)) {
       const c = unride(ctx, s, pid);
       if (c) sendHome(ctx, s, c, from);
       continue;
@@ -190,136 +192,173 @@ function dismountTiles(ctx, s, p) {
 }
 
 // ============================================================ รถ
-function carCells(a) {
-  const out = [];
-  for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) out.push({ x: a.x + dx, y: a.y + dy });
-  return out;
+//  ผู้ใช้สั่ง 2026-11-09: "การขับรถคือการขี่แล้วขับ ไม่ใช่การกดแล้วไปตำแหน่ง — เหมือนม้า" · รถ 1 ช่อง · คนขับ + ผู้โดยสาร · ถนน + พื้นเรียบ
+//  - จอดอยู่ = สิ่งกีดขวาง (terrain fd_eos_car) · ปุ่ม "ขึ้นรถ" ตอนยืนติดรถ → เข้าไปนั่งช่องรถ
+//    ยังไม่ได้เดินตานี้ = เริ่มเดินจากรถเต็มระยะ · เดินแล้ว = ขึ้นได้แต่จบการเดินของตา (Claude ตัดสินแบบ Fire Emblem)
+//  - ขับอยู่: เดิน +CAR_MOV · ไปได้แค่ถนน/ลาน/ทราย/สะพาน/หญ้า (ป่าทึบ น้ำตื้น น้ำแข็ง ช่องโชโกโบะ ไม่ได้ — Board opts.carWalk) · รถวิ่งตามคนขับ
+//  - ปุ่ม "ชน" (ใช้การโจมตีของเทิร์น): ศัตรู/ปีศาจ/ทหาร/สัตว์ที่ติดรถ → CAR_HIT_DMG + กระเด็นออก 1 ช่อง
+//  - ปุ่ม "ลงรถ" (ไม่เสียการเดิน): ลงช่องว่างข้างตัว รถจอดที่เดิม · ผู้โดยสารลงหมด
+//  - ผู้โดยสาร: ปุ่ม "นั่งรถ" ข้างรถที่มีคนขับ → ขอขึ้น (ระบบขี่ server/ride.js — คนขับกดยอม) ได้อีก CAR_SEATS คน
+//    ถูกตีไม่ร่วง (อยู่ในรถ — ฮุค carDriver) · คนขับตาย = รถจอดช่องว่างใกล้สุด ผู้โดยสารลงหมด
+const CAR_MOV = 3;
+const CAR_SEATS = 3;
+const CAR_OFF = ["fd_eos_forest", "fd_eos_shallow", "ice", "fd_eos_chocobo", "fd_eos_stable"];
+function carCells(a) { return [{ x: a.x, y: a.y }]; }
+const carKeys = (a) => new Set([K(a.x, a.y)]);
+function carOf(ctx, s, p) { return p && s ? s.cars.find((c) => c.driver === p.id) || null : null; }
+function driving(s, p) { return !!(s && p && s.cars.some((c) => c.driver === p.id)); }
+function canDrive(ctx, s, p) {
+  return !!(p && p.alive && p.pos && !p.summon && !p.mountId && sizeOf(ctx, p) === 1 && !ctx.action.flies(p) && !onHorse(p) && !riding(s, p) && !driving(s, p));
 }
-const carKeys = (a) => new Set(carCells(a).map((c) => K(c.x, c.y)));
-const touches = (ctx, keys, p) => footOf(ctx, p).some((c) => keys.has(K(c.x, c.y)));
-const onCarFully = (ctx, c, p) => { const keys = carKeys(c); return footOf(ctx, p).every((t) => keys.has(K(t.x, t.y))); };
-function carOf(ctx, s, p) { return p && p.pos ? s.cars.find((c) => onCarFully(ctx, c, p)) || null : null; }
-// มุมบนซ้าย a ใช้ได้: ทั้งคันอยู่บนถนน · ไม่ทับรถคันอื่น
-function anchorOnRoad(s, car, a) {
-  for (const t of carCells(a)) if (!ROAD.has(K(t.x, t.y))) return false;
-  for (const t of carCells(a)) if ((s.wrecks || []).some((w) => w.x === t.x && w.y === t.y)) return false; // ซากรถขวางถนน
-  for (const t of carCells(a)) if ((s.barrels || []).some((o) => o.x === t.x && o.y === t.y) || (s.crystals || []).some((o) => o.x === t.x && o.y === t.y)) return false;
-  if (domeOn(s) && carCells(a).some((t) => DOME_GATES.some((d) => d.x === t.x && d.y === t.y))) return false; // โดมปิดประตูเมือง
-  for (const o of s.cars) {
-    if (o === car) continue;
-    const ok = carKeys(o);
-    if (carCells(a).some((t) => ok.has(K(t.x, t.y)))) return false;
+const carNear = (ctx, s, p) => s.cars.filter((c) => !c.driver && Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) === 1);
+const specialOf = (ctx, x, y) => {
+  const m = ctx.match.board || {};
+  if (m.ice && m.ice[K(x, y)]) return "ice";
+  const sp = MAP.map.special || {};
+  for (const name of CAR_OFF) if ((sp[name] || []).some(([a, b]) => a === x && b === y)) return name;
+  return null;
+};
+const carGround = (ctx, s, x, y) => !CAR_OFF.includes(specialOf(ctx, x, y)) && !s.chocos.some((c) => !c.rider && c.x === x && c.y === y);
+function passengersOf(ctx, driver) {
+  return Object.values(ctx.match.players).filter((u) => u.alive && driver && u.mountId === driver.id);
+}
+function dropPassengers(ctx, driver) {
+  const R = ctx.engine.ride;
+  for (const u of passengersOf(ctx, driver)) if (R && R.fall) R.fall(u, "car");
+}
+// จอดรถ (คนขับลง/ตาย/ออกจากกระดาน) · ช่องเดิมใช้ไม่ได้ (มีศพ/ตัวอื่น) = ช่องว่างใกล้สุดที่รถจอดได้
+function park(ctx, s, c, keepTile = true) {
+  const p = ctx.match.players[c.driver];
+  c.driver = null;
+  if (!keepTile || !tileFree(ctx, s, c.x, c.y)) {
+    const spot = freeNear(ctx, s, c.x, c.y, 5, null, (x, y) => (keepTile || x !== c.x || y !== c.y) && carGround(ctx, s, x, y));
+    if (spot) { c.x = spot.x; c.y = spot.y; }
   }
+  if (p) dropPassengers(ctx, p);
+  ctx.bump();
+}
+// รถวิ่งตามคนขับ · คนขับหาย = จอด
+function syncCars(ctx, s) {
+  for (const c of s.cars) {
+    if (!c.driver) continue;
+    const p = ctx.match.players[c.driver];
+    if (p && p.alive && p.pos) {
+      if (p.pos.x !== c.x || p.pos.y !== c.y) { c.dx = Math.sign(p.pos.x - c.x); c.dy = Math.sign(p.pos.y - c.y); c.x = p.pos.x; c.y = p.pos.y; }
+      continue;
+    }
+    if (p && p.pos == null && !p.alive) { park(ctx, s, c, false); continue; }
+    park(ctx, s, c, false);
+  }
+}
+function carWalk(ctx, st, p) { return driving(st && st.eos, p); }
+// ขึ้นรถ
+function boardCar(ctx, s, p, tile) {
+  if (!canDrive(ctx, s, p) || !canMove(ctx, p) || !tile) return false;
+  const c = carNear(ctx, s, p).find((o) => o.x === tile.x && o.y === tile.y);
+  if (!c) return false;
+  const a = ctx.match.action, from = { ...p.pos };
+  c.driver = p.id;
+  p.pos = { x: c.x, y: c.y };
+  if (a.moved || a.path || a.locked) ctx.action.lockMove(p);
+  else {
+    if (!a.eye) a.eye = { ...a.from };
+    a.from = { ...p.pos }; a.trail = null; a.path = null;
+  }
+  ctx.bump();
+  ctx.fx("car_mount", { id: p.id, car: c.id, img: c.img, from, x: c.x, y: c.y });
+  ctx.log(`🚗 ${p.name} ขึ้นรถ`);
   return true;
 }
-// ตำแหน่งที่ไปถึงได้ (BFS บนถนน ≤ CAR_RANGE ก้าว) → [{ x, y, d, path: [anchor…] }] · ปลายทางต้องว่าง (ไม่มีคนนอกรถ/ปีศาจ)
-function carTargets(ctx, s, car) {
-  const keys = carKeys(car);
-  const all = bodies(ctx);
-  if (all.some((p) => touches(ctx, keys, p) && !onCarFully(ctx, car, p))) return []; // คร่อมขอบรถ = ขับไม่ได้
-  const riders = new Set(all.filter((p) => touches(ctx, keys, p)).map((p) => p.id));
-  const blockedEnd = (a) => {
-    const ak = carKeys(a);
-    if (all.some((p) => !riders.has(p.id) && touches(ctx, ak, p))) return true;
-    if (s.daemons.some((d) => ak.has(K(d.x, d.y)))) return true;
-    if ((s.mobs || []).some((m) => ak.has(K(m.x, m.y)))) return true;
-    return false;
-  };
-  const start = { x: car.x, y: car.y, d: 0, prev: null };
-  const seen = new Map([[K(car.x, car.y), start]]);
-  const queue = [start], out = [];
-  for (let i = 0; i < queue.length; i++) {
-    const cur = queue[i];
-    if (cur.d >= CAR_RANGE) continue;
-    for (const [dx, dy] of ctx.Board.DIRS) {
-      const a = { x: cur.x + dx, y: cur.y + dy };
-      const k = K(a.x, a.y);
-      if (seen.has(k) || !anchorOnRoad(s, car, a)) continue;
-      const node = { ...a, d: cur.d + 1, prev: cur };
-      seen.set(k, node);
-      queue.push(node);
-      if (!blockedEnd(a)) out.push(node);
-    }
-  }
-  return out.map((n) => {
-    const path = [];
-    for (let c = n; c; c = c.prev) path.unshift({ x: c.x, y: c.y });
-    return { x: n.x, y: n.y, d: n.d, path };
-  });
-}
-// ช่องที่ผู้เล่นคลิกเลือกตำแหน่งรถ = มุมบนซ้าย
-const pickOf = (a) => ({ x: a.x, y: a.y });
-function shiftCorpses(ctx, keys, dx, dy) {
-  for (const p of Object.values(ctx.match.players)) {
-    if (!p.alive && p.corpse && keys.has(K(p.corpse.x, p.corpse.y))) p.corpse = { ...p.corpse, x: p.corpse.x + dx, y: p.corpse.y + dy };
-  }
-}
-// ชนคนบนทาง: ทุกคนที่ไม่ได้นั่งรถ (ไม่บิน) ที่ทับช่องรถช่วงไหนก็ได้ของทาง (ไม่รวมจุดเริ่ม)
-function runOver(ctx, s, car, path, riders, by) {
-  const swept = new Set();
-  for (const a of path.slice(1)) for (const t of carCells(a)) swept.add(K(t.x, t.y));
-  const end = carKeys(path[path.length - 1]);
-  const hits = [];
-  for (const p of bodies(ctx)) {
-    if (riders.has(p.id) || ctx.action.walksThrough(p) || !touches(ctx, swept, p)) continue;
-    const from = { x: p.pos.x, y: p.pos.y };
-    const dealt = ctx.damage(p, CAR_HIT_DMG);
-    if (p.alive && p.pos) {
-      const to = knockSpot(ctx, s, p, swept, end);
-      if (to) p.pos = to;
-    }
-    hits.push({ id: p.id, from, to: p.pos ? { ...p.pos } : null, dmg: dealt });
-    ctx.log(`🚗 ${by.name} ขับรถชน ${p.name} -${dealt}`);
-  }
-  for (const m of (s.mobs || []).slice()) {
-    if (!swept.has(K(m.x, m.y))) continue;
-    hits.push({ mob: m.id, from: { x: m.x, y: m.y }, dmg: CAR_HIT_DMG });
-    hurtMob(ctx, s, m, CAR_HIT_DMG, by);
-  }
-  for (const d of s.daemons.slice()) {
-    if (!swept.has(K(d.x, d.y))) continue;
-    hits.push({ daemon: d.id, from: { x: d.x, y: d.y }, dmg: CAR_HIT_DMG });
-    hurtDaemon(ctx, s, d, CAR_HIT_DMG, by);
-  }
-  return hits;
-}
-// กระเด็นออกจากทางรถ 1 ช่อง: ช่องว่างข้างตัวที่ไม่อยู่บนทางรถ (ไม่มี = ช่องว่างใกล้สุดนอกปลายทาง)
-function knockSpot(ctx, s, p, swept, end) {
+function leaveTiles(ctx, s, p) {
+  const out = [];
   for (const [dx, dy] of ctx.Board.DIRS) {
     const x = p.pos.x + dx, y = p.pos.y + dy;
-    if (!swept.has(K(x, y)) && tileFree(ctx, s, x, y, p.id)) return { x, y };
+    if (tileFree(ctx, s, x, y)) out.push({ x, y });
   }
-  const near = freeNear(ctx, s, p.pos.x, p.pos.y, 6, p.id, (x, y) => !end.has(K(x, y)));
-  return near;
+  return out;
 }
-function drive(ctx, s, p, tile) {
-  const car = carOf(ctx, s, p);
-  if (!car || !canMove(ctx, p) || !tile) return false;
-  const to = carTargets(ctx, s, car).find((a) => a.x === tile.x && a.y === tile.y);
-  if (!to) return false;
-  const keys = carKeys(car);
-  const riders = new Set(bodies(ctx).filter((u) => onCarFully(ctx, car, u)).map((u) => u.id));
-  const from = { x: car.x, y: car.y };
-  const dx = to.x - car.x, dy = to.y - car.y;
-  const hits = runOver(ctx, s, car, to.path, riders, p);
-  for (const id of riders) {
-    const u = ctx.match.players[id];
-    if (u && u.pos) u.pos = { x: u.pos.x + dx, y: u.pos.y + dy };
-  }
-  shiftCorpses(ctx, keys, dx, dy);
-  car.x = to.x; car.y = to.y;
+function leaveCar(ctx, s, p, tile) {
+  const c = carOf(ctx, s, p);
+  if (!c || !ctx.action.canAct(p) || !tile) return false;
+  if (!leaveTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
+  c.x = p.pos.x; c.y = p.pos.y;
+  dropPassengers(ctx, p);
+  c.driver = null;
+  const a = ctx.match.action;
+  p.pos = { x: tile.x, y: tile.y };
+  if (a) { a.from = { ...p.pos }; a.trail = null; a.path = null; a.locked = true; }
   ctx.bump();
-  ctx.action.lockMove(p);
-  ctx.fx("car_drive", { car: car.id, img: car.img, from, to: { x: to.x, y: to.y }, path: to.path, by: p.id, riders: [...riders], hits });
-  ctx.log(`🚗 ${p.name} ขับรถ ${to.d} ช่อง`);
+  ctx.fx("car_leave", { id: p.id, car: c.id, img: c.img, x: c.x, y: c.y, to: { ...tile } });
+  ctx.log(`🚗 ${p.name} ลงรถ`);
   return true;
+}
+// เป้าที่ชนได้: ผู้เล่นฝ่ายอื่น (ไม่บิน ไม่ได้นั่งรถคันนี้) · ปีศาจ · ทหาร/สัตว์ — ติดรถ
+function ramTargets(ctx, s, p) {
+  const out = [];
+  const adj = (x, y) => Math.abs(x - p.pos.x) + Math.abs(y - p.pos.y) === 1;
+  for (const u of bodies(ctx)) {
+    if (u.id === p.id || u.mountId === p.id || ctx.action.flies(u) || sizeOf(ctx, u) > 1) continue;
+    if (ctx.combat.sameTeam && ctx.combat.sameTeam(u, p)) continue;
+    if (adj(u.pos.x, u.pos.y)) out.push({ x: u.pos.x, y: u.pos.y });
+  }
+  for (const d of s.daemons) if (adj(d.x, d.y)) out.push({ x: d.x, y: d.y });
+  for (const m of s.mobs || []) if (adj(m.x, m.y)) out.push({ x: m.x, y: m.y });
+  return out;
+}
+function ram(ctx, s, p, tile) {
+  const c = carOf(ctx, s, p);
+  if (!c || !canStrike(ctx, p) || !tile) return false;
+  if (!ramTargets(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
+  const dx = tile.x - p.pos.x, dy = tile.y - p.pos.y;
+  const hits = [];
+  const u = bodies(ctx).find((o) => o.pos.x === tile.x && o.pos.y === tile.y && o.id !== p.id);
+  if (u) {
+    const from = { ...u.pos };
+    const dealt = ctx.damage(u, CAR_HIT_DMG);
+    if (u.alive && u.pos && tileFree(ctx, s, u.pos.x + dx, u.pos.y + dy, u.id)) u.pos = { x: u.pos.x + dx, y: u.pos.y + dy };
+    hits.push({ id: u.id, from, to: u.pos ? { ...u.pos } : null, dmg: dealt });
+    ctx.log(`🚗 ${p.name} ขับรถชน ${u.name} -${dealt}`);
+  }
+  const d = s.daemons.find((o) => o.x === tile.x && o.y === tile.y);
+  if (d) { hits.push({ daemon: d.id, from: { x: d.x, y: d.y }, dmg: CAR_HIT_DMG }); hurtDaemon(ctx, s, d, CAR_HIT_DMG, p); }
+  const m = (s.mobs || []).find((o) => o.x === tile.x && o.y === tile.y);
+  if (m) { hits.push({ mob: m.id, from: { x: m.x, y: m.y }, dmg: CAR_HIT_DMG }); hurtMob(ctx, s, m, CAR_HIT_DMG, p); }
+  c.dx = Math.sign(dx); c.dy = Math.sign(dy);
+  ctx.bump();
+  ctx.fx("car_ram", { car: c.id, img: c.img, by: p.id, x: p.pos.x, y: p.pos.y, at: { ...tile }, hits });
+  ctx.useStrike(p, 1);
+  return true;
+}
+// ผู้โดยสาร: รถที่มีคนขับติดตัว ยังมีที่นั่ง → ขอขึ้น (server/ride.js ask — คนขับกดยอม)
+function seatsLeft(ctx, s, driver) { return driving(s, driver) ? CAR_SEATS - passengersOf(ctx, driver).length : 0; }
+function boardTiles(ctx, s, p) {
+  if (!canDrive(ctx, s, p)) return [];
+  const out = [];
+  for (const c of s.cars) {
+    if (!c.driver || c.driver === p.id || Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) !== 1) continue;
+    const d = ctx.match.players[c.driver];
+    if (d && seatsLeft(ctx, s, d) > 0) out.push({ x: c.x, y: c.y });
+  }
+  return out;
+}
+// ฮุคของ server/ride.js: t ขับรถอยู่ = จำนวนที่นั่งผู้โดยสาร (0 = ไม่ใช่รถ)
+function carSeats(ctx, st, p, t) {
+  const s = st && st.eos;
+  if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
+  return CAR_SEATS;
+}
+function carDriver(ctx, st, p) { return driving(st && st.eos, p); }
+function askRide(ctx, s, p, tile) {
+  if (!tile || !boardTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
+  const c = s.cars.find((o) => o.driver && o.x === tile.x && o.y === tile.y);
+  return !!(c && require("../ride").ask(p.id, c.driver));
 }
 
 // ============================================================ ช่องว่าง
 // ช่องเดินได้ ว่าง (ไม่มีคน ไม่มีสิ่งกีดขวาง/ปีศาจ ไม่ใช่รถ/โชโกโบะ)
 function tileFree(ctx, s, x, y, selfId = null) {
   if (!ctx.free(x, y, selfId)) return false;
-  for (const c of s.cars) if (carKeys(c).has(K(x, y))) return false;
+  for (const c of s.cars) if (!c.driver && c.x === x && c.y === y) return false;
   if (s.chocos.some((c) => !c.rider && c.x === x && c.y === y)) return false;
   if (s.daemons.some((d) => d.x === x && d.y === y)) return false;
   if ((s.mobs || []).some((m) => m.x === x && m.y === y)) return false;
@@ -340,20 +379,35 @@ function freeNear(ctx, s, x0, y0, maxD = 4, selfId = null, extra = null) {
 
 // ============================================================ ปีศาจ
 const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-function spawnDaemons(ctx, s) {
+// กระจายทั่วแผนที่: แบ่งกระดานเป็นช่องตาราง 8×8 → สุ่มช่องละไม่เกิน 1 ตัวก่อน (ตารางที่ยังไม่มีปีศาจก่อน) แล้วค่อยซ้ำ
+function spawnDaemons(ctx, s, n = DAEMON_COUNT) {
   const map = ctx.map(), units = bodies(ctx);
-  const cand = [];
+  const cell = (t) => `${Math.floor(t.x / 8)},${Math.floor(t.y / 8)}`;
+  const buckets = new Map();
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) {
     if (blockedTown(s, x, y) || !tileFree(ctx, s, x, y)) continue;
     if (units.some((p) => footOf(ctx, p).some((t) => manhattan(t, { x, y }) < DAEMON_SPAWN_GAP))) continue;
-    cand.push({ x, y });
+    const k = cell({ x, y });
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push({ x, y });
   }
-  const picked = ctx.pick(cand, DAEMON_COUNT);
+  const taken = new Set(s.daemons.map(cell));
+  const keys = ctx.pick([...buckets.keys()], buckets.size);
+  keys.sort((a, b) => (taken.has(a) ? 1 : 0) - (taken.has(b) ? 1 : 0));
+  const picked = [];
+  for (let round = 0; picked.length < n && round < 4; round++) {
+    for (const k of keys) {
+      if (picked.length >= n) break;
+      const free = buckets.get(k).filter((t) => !picked.some((o) => manhattan(o, t) < 2));
+      const t = ctx.pick(free, 1)[0];
+      if (t) picked.push(t);
+    }
+  }
   for (const t of picked) s.daemons.push({ id: `fd:dm${++s.seq}`, x: t.x, y: t.y, hp: DAEMON_HP, armor: DAEMON_ARMOR, kind: 1 + (s.seq % 4) });
   if (picked.length) {
     ctx.bump();
     ctx.fx("daemon_spawn", { list: picked.map((t) => ({ x: t.x, y: t.y })) });
-    ctx.log(`👹 ราตรีมาเยือน — ปีศาจ ${picked.length} ตัวโผล่ขึ้นมา!`);
+    ctx.log(s.daemons.length > picked.length ? `👹 ปีศาจโผล่เพิ่มอีก ${picked.length} ตัว` : `👹 ราตรีมาเยือน — ปีศาจ ${picked.length} ตัวโผล่ขึ้นมา!`);
   }
   return picked.length;
 }
@@ -1084,6 +1138,8 @@ function preRound(ctx, st) {
   if (night && !s.night) secs = Math.max(secs, spawnDaemons(ctx, s) ? SECS.daemonSpawn : 0);
   else if (night && s.daemons.length) secs = Math.max(secs, actDaemons(ctx, s) ? SECS.daemonAct : 0);
   else if (!night && s.night) secs = Math.max(secs, dissolveDaemons(ctx, s) ? SECS.dawn : 0);
+  // เกิดซ้ำทุกเทิร์นกลางคืน (หลังตัวเดิมเดินแล้ว) จนครบ DAEMON_COUNT
+  if (night && s.night && s.daemons.length < DAEMON_COUNT) secs = Math.max(secs, spawnDaemons(ctx, s, Math.min(DAEMON_REFILL, DAEMON_COUNT - s.daemons.length)) ? SECS.daemonSpawn : 0);
   s.night = night;
   respawnProps(ctx, s);
   secs = Math.max(secs, dropshipTurn(ctx, s, turn));
@@ -1099,7 +1155,8 @@ function onUnitEnd(ctx, st, p) {
   checkRiders(ctx, s);
   checkChannels(ctx, s);
   noteDeaths(ctx, s);
-  if (!p || !p.alive || !p.pos || riding(s, p) || !canRide(ctx, p)) return;
+  syncCars(ctx, s);
+  if (!p || !p.alive || !p.pos || riding(s, p) || !canRide(ctx, p, s)) return;
   const c = chocoAt(s, p.pos.x, p.pos.y);
   if (c) mount(ctx, s, p, c);
 }
@@ -1126,10 +1183,22 @@ function hudActions(ctx, st, p) {
   const s = st && st.eos;
   if (!s || !p || !p.pos) return [];
   const out = [];
+  if (process.env.EOS_DEV_CAR === "near" && !s.devCar) { // dev: รถคันแรกมาจอดข้างคนแรกที่เปิดปุ่ม (ทดสอบในเบราว์เซอร์)
+    const t = leaveTiles(ctx, s, p).find((o) => carGround(ctx, s, o.x, o.y));
+    if (t) { Object.assign(s.cars[0], t); s.devCar = true; ctx.bump(); }
+  }
+  syncCars(ctx, s);
   const car = carOf(ctx, s, p);
   if (car) {
-    const list = canMove(ctx, p) ? carTargets(ctx, s, car) : [];
-    out.push({ key: "fd:drive", icon: "🚗", name: "ขับ", disabled: !list.length, tiles: list.map(pickOf) });
+    const rt = canStrike(ctx, p) ? ramTargets(ctx, s, p) : [];
+    out.push({ key: "fd:ram", icon: "💥", name: "ชน", disabled: !rt.length, tiles: rt });
+    const lt = ctx.action.canAct(p) ? leaveTiles(ctx, s, p) : [];
+    out.push({ key: "fd:leave", icon: "🚪", name: "ลงรถ", disabled: !lt.length, tiles: lt });
+  } else if (canDrive(ctx, s, p)) {
+    const near = carNear(ctx, s, p);
+    if (near.length) out.push({ key: "fd:board", icon: "🚗", name: "ขึ้นรถ", disabled: !canMove(ctx, p), tiles: near.map((c) => ({ x: c.x, y: c.y })) });
+    const bt = boardTiles(ctx, s, p);
+    if (bt.length) out.push({ key: "fd:seat", icon: "💺", name: "นั่งรถ", disabled: !canMove(ctx, p) || !!ctx.match.rideAsk, tiles: bt });
   }
   if (LEVER && ctx.adjacent(p, LEVER.x, LEVER.y)) out.push({ key: "fd:lever", icon: "🌉", name: s.bridgeUp ? "ลดสะพาน" : "ยกสะพาน", disabled: !canStrike(ctx, p) || bridgeOccupied(ctx) });
   if (DOME_CORE && ctx.adjacent(p, DOME_CORE.x, DOME_CORE.y)) out.push({ key: "fd:dome", icon: "🛡️", name: "โดม", disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
@@ -1152,7 +1221,10 @@ function hudActions(ctx, st, p) {
 function charAction(ctx, st, p, key, tile) {
   const s = st && st.eos;
   if (!s || !p || !p.pos) return false;
-  if (key === "fd:drive") return drive(ctx, s, p, tile);
+  if (key === "fd:board") return boardCar(ctx, s, p, tile);
+  if (key === "fd:leave") return leaveCar(ctx, s, p, tile);
+  if (key === "fd:ram") return ram(ctx, s, p, tile);
+  if (key === "fd:seat") return askRide(ctx, s, p, tile);
   if (key === "fd:seize") return seize(ctx, s, p);
   if (key === "fd:lever") return pullLever(ctx, s, p);
   if (key === "fd:dome") return raiseDome(ctx, s, p);
@@ -1267,10 +1339,10 @@ function publicInfo(ctx, st) {
   return {
     eos: true,
     night: !!s.night,
-    cars: s.cars.map((c) => ({ id: c.id, img: c.img, x: c.x, y: c.y, size: S })),
+    cars: s.cars.map((c) => ({ id: c.id, img: c.img, x: c.x, y: c.y, size: 1, driver: c.driver || null, dx: c.dx || 0, dy: c.dy || 0 })),
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home } })),
     riders,
-    daemons: s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, kind: d.kind })),
+    daemons: s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, maxArmor: DAEMON_ARMOR, kind: d.kind })),
     warn: [
       ...(s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
       ...(s.dropship && s.dropship.state === "warn" ? [0, 1].flatMap((dy) => [0, 1].map((dx) => ({ x: s.dropship.x + dx, y: s.dropship.y + dy, kind: "dropship" }))) : []),
@@ -1288,7 +1360,7 @@ function publicInfo(ctx, st) {
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
     barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
     crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element })),
-    mobs: (s.mobs || []).map((m) => ({ id: m.id, type: m.type, x: m.x, y: m.y, hp: m.hp, maxHp: m.type === "beast" ? BEAST.hp : MAGITEK.hp, armor: m.armor, aggro: m.aggro || null })),
+    mobs: (s.mobs || []).map((m) => ({ id: m.id, type: m.type, x: m.x, y: m.y, hp: m.hp, maxHp: m.type === "beast" ? BEAST.hp : MAGITEK.hp, armor: m.armor, maxArmor: m.type === "beast" ? BEAST.armor : MAGITEK.armor, aggro: m.aggro || null })),
     dropship: s.dropship ? { x: s.dropship.x, y: s.dropship.y, state: s.dropship.state } : null,
   };
 }
@@ -1304,19 +1376,20 @@ function playerInfo(ctx, st, p) {
   if (!s) return undefined;
   const badges = [];
   if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "โชโกโบะ", cls: "bg-yellow-300 text-gray-900" });
+  if (driving(s, p)) badges.push({ key: "car", icon: "🚗", label: "รถ", cls: "bg-amber-200 text-gray-900" });
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
   if (!badges.length) return undefined;
-  return { choco: riding(s, p), badges };
+  return { choco: riding(s, p), car: driving(s, p), badges };
 }
 
 module.exports = {
-  enter, weatherStart, layer, layerVer, movMod, flatWalk, preRound, onUnitEnd, onEndTurn,
+  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, explodeBarrel, throwFlask, fireTurret, actMobs, spawnBeast, dropshipTurn, respawnProps, hurtMob, TURRETS,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
-  carCells, carTargets, carOf, canRide, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,
-  MOV_BONUS, CHOCO_MOV, CHOCO_RESPAWN, CAR_RANGE, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,
+  carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,
+  MOV_BONUS, CHOCO_MOV, CHOCO_RESPAWN, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,
   LIGHTNING_COUNT, LIGHTNING_DMG,
 };

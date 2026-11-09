@@ -408,7 +408,10 @@ function moveCost(map, x, y) {
 }
 // ก้าวที่ใช้เดินเข้าช่องนี้ตามตัวเลือกการเดิน — opts.flowerWalk (ราชาดอกไม้ของเซลิน): ช่องดอกไม้ = 0 ก้าว
 //  opts.flatWalk (ขี่โชโกโบะ — สนาม Eos): ช่องที่กินหลายก้าว (ป่าทึบ/น้ำตื้น) = 1 ก้าว
+//  opts.carWalk (ขับรถ — สนาม Eos): ถนน/พื้นเรียบเท่านั้น · ป่าทึบ น้ำตื้น น้ำแข็ง คอก/ช่องโชโกโบะ = เข้าไม่ได้
+const CAR_OFF = new Set(["fd_eos_forest", "fd_eos_shallow", "ice", "fd_eos_chocobo", "fd_eos_stable"]);
 function stepCost(map, x, y, opts) {
+  if (opts && opts.carWalk && CAR_OFF.has(specialAt(map, x, y))) return Infinity;
   if (opts && opts.flatWalk) return Math.min(1, moveCost(map, x, y));
   if (opts && opts.flowerWalk) {
     const info = TERRAIN_INFO[specialAt(map, x, y)];

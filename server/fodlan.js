@@ -17,7 +17,7 @@
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, flatWalk, eosWinner, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  movMod, flatWalk, carWalk, carSeats, carDriver, eosWinner, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -323,6 +323,11 @@ function strikeObject(p, id) {
 function movMod(p) { return Number(call("movMod", 0, p)) || 0; }
 // เดินผ่านช่องที่กินหลายก้าวได้ 1 ก้าว (Board.reachable opts.flatWalk — Eos: ขี่โชโกโบะ)
 function flatWalk(p) { return !!call("flatWalk", false, p); }
+// ขับรถอยู่ (สนาม Eos): ไปได้แค่ถนน/พื้นเรียบ — Board.reachable opts.carWalk (ป่าทึบ น้ำตื้น น้ำแข็ง ช่องโชโกโบะ = เข้าไม่ได้)
+function carWalk(p) { return active() && !!call("carWalk", false, p); }
+// ระบบขี่ (server/ride.js): t ขับรถอยู่ = จำนวนที่นั่งผู้โดยสาร · carDriver = ตัวที่ถูกขี่เป็นรถ (ถูกตีแล้วผู้โดยสารไม่ร่วง)
+function carSeats(p, t) { return active() ? Number(call("carSeats", 0, p, t)) || 0 : 0; }
+function carDriver(p) { return active() && !!call("carDriver", false, p); }
 // สนาม Eos: ฝ่ายที่ครบแต้มยึดเสา → id ผู้เล่นของฝ่ายนั้น (phases/endTurn.js gameOver) · null = ยังไม่มี
 // เป้านี้ถูกป้องกันจากผู้ตีคนนี้ไหม (Eos: โดมกำแพงเวท — ตีจากนอกโดมเข้าไปไม่ได้) → action.canStrike / targetOk
 function shields(attacker, target) { return !!call("shields", false, attacker, target); }

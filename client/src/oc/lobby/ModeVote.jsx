@@ -16,6 +16,7 @@ import { createColonyModel } from "../../globe/colonyModel";
 import { createMoonModel } from "../../globe/moonModel";
 import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas";
 import { FODLAN_GEO, FODLAN_STAGES } from "../../fodlan/stages";
+import { EOS_GEO } from "../../eos/eosMeta";
 import { OcButton, OcPanel } from "../ui";
 
 const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
@@ -33,7 +34,6 @@ const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
 // ชั้นหมุดสนามย่อยบนโลก: Origin = ภูมิภาค I ของการเดินทาง · Fodlan = หมุดสีทอง
 // Eos (GRID_PLAN §8.6): หมุดที่ 3 บนโลก (มหาสมุทรซีกตะวันตก) — แผนที่เดียว 32×32
-const EOS_GEO = { lon: -28, lat: -6 };
 const EOS_MODE_GEO = { ffa: [EOS_GEO.lon - 12, EOS_GEO.lat + 8], duo: [EOS_GEO.lon + 4, EOS_GEO.lat - 8], trio: [EOS_GEO.lon + 16, EOS_GEO.lat + 8] };
 const SUBS = ["origin", "fodlan", "eos"];
 const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat] };

@@ -5,8 +5,13 @@
 //  const ea = eosAudio();
 //  ea.setBeds({ amb_forest_day: 1, wx_rain_loop: 0.8 }, { fade })   // ลูปพื้นตามโซน/กลางคืน/สภาพอากาศ (App.jsx)
 //  ea.sfx(key, { gain, delay })   ea.thunder(on)   ea.stop(fade)   ea.duck(k, ms)
+//  ea.setMusic(key, { fade })      // เพลงของสนาม (day/night/battle_day/battle_night/tension/hunt) ครอสเฟด ~1.8 วิ · null = จางออก
+//  เพลง: /eos/music/<key>.mp3 (ไฟล์ผู้ใช้ Downloads/eos/sound · ตัดช่วงเงียบหัวท้าย + loudnorm −11.3 LUFS 192k แบบเพลงด่าน Fodlan)
+//   เล่นผ่าน <audio> + MediaElementSource (สตรีม ไม่ถอดรหัสทั้งเพลงเข้าหน่วยความจำ) · เพลงหลักของเกม (audioPolicy) เงียบระหว่างอยู่ Eos
+//   เลือกเพลงจาก state ด้วย eosMusicPicker() ท้ายไฟล์ (App.jsx)
 // ============================================================
 import { masterGain, channelGain, onVolumeChange, isMusicSuspended, onMusicSuspend } from "../audio";
+import { sameSide } from "../duo";
 
 const BED_BASE = 0.5;    // ไฟล์เสียงพื้น −22 LUFS (−6 dB ≈ −28) · เพลงด่าน −11.3 × MUSIC_BASE 0.75 ≈ −13.8 → เพลงดังกว่าเสียงพื้นชัดเจน ~14 dB (ซ้อนฝน/ลมอีกชั้นยังห่าง ~11 dB)
 //  ผู้ใช้ลองแล้ว (2026-10-27): ที่ 1.4 "แทบไม่ได้ยินเพลง เสียงฉากดังกว่า" — ฝน/ลมเป็นเสียงกว้างทั้งย่าน ฟังดังกว่าตัวเลข LUFS
@@ -14,13 +19,21 @@ const SFX_BASE = 0.8;    // เสียงครั้งเดียวขอ�
 const THUNDER_GAIN = 0.6;
 const HOLD_OUT = 0.12, HOLD_IN = 0.8; // วินาที: เงียบเร็วตอนวีดีโอเริ่ม · ค่อยๆ กลับหลังวีดีโอจบ
 const url = (key) => `/eos/sfx/${key}.mp3`;
+const MUSIC_BASE = 0.75;     // เท่ากับ MUSIC_BASE ของ audio.js (เพลงด่าน −11.3 × 0.75 ≈ −13.8)
+const MUSIC_FADE = 1.8;      // วินาที ครอสเฟดระหว่างเพลง
+const MUSIC_RESTART = new Set(["battle_day", "battle_night", "hunt", "tension"]); // เพลงเหตุการณ์: ปิดไปนานแล้วกลับมา = เริ่มต้นเพลง
+const MUSIC_RESTART_MS = 20000;
+const musicUrl = (key) => `/eos/music/${key}.mp3`;
 
 let instance = null;
 
 export function eosAudio() {
   if (instance) return instance;
 
-  let ctx = null, master = null, hold = null, bedBus = null, sfxBus = null;
+  let ctx = null, master = null, hold = null, bedBus = null, sfxBus = null, musicBus = null;
+  const tracks = new Map();    // เพลง key → { el, gain, stopTimer, offAt }
+  let musicKey = null;         // เพลงที่ตั้งไว้ล่าสุด
+  let suspended = false;
   const buffers = new Map();   // key → AudioBuffer | null (null = โหลดไม่ได้)
   const loading = new Map();   // key → Promise<AudioBuffer|null>
   const beds = new Map();      // key → { src, gain, target }
@@ -52,6 +65,10 @@ export function eosAudio() {
     sfxBus = ctx.createGain();
     sfxBus.gain.value = SFX_BASE;
     sfxBus.connect(master);
+    musicBus = ctx.createGain();
+    musicBus.gain.value = MUSIC_BASE;
+    musicBus.connect(master);
+    suspended = isMusicSuspended();
     onVolumeChange(() => { try { master.gain.setTargetAtTime(masterGain() * channelGain("music"), now(), 0.05); } catch { /* ไม่เป็นไร */ } });
     onMusicSuspend((on) => {
       try {
@@ -60,9 +77,17 @@ export function eosAudio() {
         p.setValueAtTime(p.value, now());
         p.linearRampToValueAtTime(on ? 0 : 1, now() + (on ? HOLD_OUT : HOLD_IN));
       } catch { /* ไม่เป็นไร */ }
+      // วีดีโอ/เพลงประจำฉาก: พักเพลงของสนามจริงๆ (ไม่ใช่แค่เงียบ) แล้วเล่นต่อจากจุดเดิมเมื่อปล่อย
+      suspended = on;
+      const t = musicKey && tracks.get(musicKey);
+      if (t) { if (on) setTimeout(() => { if (suspended) t.el.pause(); }, HOLD_OUT * 1000 + 30); else playEl(t.el); }
     });
     // เบราว์เซอร์ยังไม่ให้เล่นเสียงเอง → ปลุกตอนผู้เล่นแตะจอ/กดปุ่มครั้งแรก
-    const resume = () => { if (ctx.state === "suspended") ctx.resume().catch(() => {}); };
+    const resume = () => {
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      const t = musicKey && !suspended && tracks.get(musicKey);
+      if (t && t.el.paused) playEl(t.el);
+    };
     window.addEventListener("pointerdown", resume);
     window.addEventListener("keydown", resume);
     resume();
@@ -141,6 +166,51 @@ export function eosAudio() {
     } catch { /* เสียงพังห้ามทำให้ฉากพัง */ }
   }
 
+  // ---------- เพลง ----------
+  function playEl(el) {
+    try { const p = el.play(); if (p && p.catch) p.catch(() => { /* ยังไม่ได้แตะจอ — resume() เล่นให้ทีหลัง */ }); } catch { /* ไม่เป็นไร */ }
+  }
+  function trackOf(key) {
+    let t = tracks.get(key);
+    if (t) return t;
+    const el = new Audio(musicUrl(key));
+    el.loop = true;
+    el.preload = "auto";
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    ctx.createMediaElementSource(el).connect(gain);
+    gain.connect(musicBus);
+    t = { el, gain, stopTimer: 0, offAt: 0 };
+    tracks.set(key, t);
+    return t;
+  }
+  function rampTo(param, v, fade) {
+    param.cancelScheduledValues(now());
+    param.setValueAtTime(param.value, now());
+    param.linearRampToValueAtTime(v, now() + Math.max(0.02, fade));
+  }
+  function setMusic(key, { fade = MUSIC_FADE } = {}) {
+    try {
+      key = key || null;
+      if (key === musicKey) return;
+      if (!ensure()) return;
+      const prev = musicKey && tracks.get(musicKey);
+      musicKey = key;
+      if (prev) {
+        rampTo(prev.gain.gain, 0, fade);
+        clearTimeout(prev.stopTimer);
+        prev.offAt = Date.now();
+        prev.stopTimer = setTimeout(() => { if (tracks.get(musicKey) !== prev) prev.el.pause(); }, fade * 1000 + 80);
+      }
+      if (!key) return;
+      const t = trackOf(key);
+      clearTimeout(t.stopTimer);
+      if (t.el.paused && MUSIC_RESTART.has(key) && Date.now() - t.offAt > MUSIC_RESTART_MS) { try { t.el.currentTime = 0; } catch { /* ยังไม่มี metadata */ } }
+      rampTo(t.gain.gain, 1, fade);
+      if (!suspended && t.el.paused) playEl(t.el);
+    } catch { /* เสียงพังห้ามทำให้ฉากพัง */ }
+  }
+
   function sfx(key, { gain = 1, delay = 0 } = {}) {
     try {
       if (!key || !ensure()) return;
@@ -193,6 +263,7 @@ export function eosAudio() {
       thunder(false);
       bedKey = null;
       for (const key of [...beds.keys()]) killBed(key, fade);
+      if (musicKey) setMusic(null, { fade });
     } catch { /* ไม่เป็นไร */ }
   }
 
@@ -200,7 +271,7 @@ export function eosAudio() {
     try { return Promise.all((keys || []).map((k) => load(k))).then(() => undefined); } catch { return Promise.resolve(); }
   }
 
-  instance = { preload, setBeds, sfx, thunder, stop, duck };
+  instance = { preload, setBeds, setMusic, sfx, thunder, stop, duck };
   return instance;
 }
 
@@ -244,4 +315,70 @@ export function eosBedsFor(pos, night, weather, dome = null) {
     out.dome_hum = inside ? 0.7 : 0.3;
   }
   return out;
+}
+
+// ---------- เลือกเพลงจาก state (Claude ตั้งกติกาเอง 2026-11-09 · GRID_PLAN §8.6 · GAME_SYSTEM §51) ----------
+//  ลำดับ: ต่อสู้ > ล่า > ตึงเครียด > สำรวจ (กลางวัน/กลางคืนตาม state.fodlan.board.night)
+//  - ต่อสู้ (battle_day/battle_night): มีฉากตี (state.attack) ที่ผู้เล่นเป็นคนตีหรือโดนตี · หรือ HP ของเรา/เพื่อน/ศัตรูที่มองเห็นลดลง
+//      → ค้างไว้ตลอดเทิร์นนั้น + เทิร์นถัดไป (roundNumber ≤ เทิร์นที่ปะทะ + 1) และอย่างน้อย 20 วิ
+//  - ล่า (hunt): เห็นศัตรูที่เป็นฝ่ายนำแต้มเสาเดี่ยวๆ (board.scores อันดับ 1 แต้ม > 0 และมากกว่าอันดับ 2 — "ค่าหัว")
+//      หรือเห็นศัตรูที่ HP ≤ ครึ่ง และน้อยกว่า HP เรา อยู่ห่าง (แมนฮัตตัน) ≤ ระยะเดินเรา + 1
+//  - ตึงเครียด (tension): เห็นศัตรูอย่างน้อย 1 คน (server ส่ง pos เฉพาะคนในระยะมองเห็น = ระยะเดิน + 4)
+//  - สำรวจ (day/night): อื่นๆ · ตัวเราล้มอยู่ (มองเห็นทั้งแผนที่) = ไม่นับ ล่า/ตึงเครียด
+//  กันกระพริบ: อยู่โหมดเดิมอย่างน้อย 8 วิ ก่อนสลับ (ยกเว้นเข้าโหมดต่อสู้ = ทันที)
+//  pick(state, nowMs) → { key, recheckMs } — recheckMs = เรียกใหม่หลังเวลานี้แม้ state ไม่เปลี่ยน (ครบเวลาค้าง)
+const MUSIC_HOLD_MS = 8000;
+const BATTLE_MIN_MS = 20000;
+export function eosMusicPicker() {
+  let mode = null, since = 0, hitRound = -99, hitAt = -1e12;
+  let hp = new Map();
+  return (state, nowMs) => {
+    const board = (state && state.fodlan && state.fodlan.board) || {};
+    const night = !!board.night;
+    const players = (state && state.players) || [];
+    const me = players.find((p) => p.id === state.youId) || null;
+    const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
+    const ally = (p) => !!me && (p.id === me.id || sameSide(p, me) || (teamMode && !!me.teamId && p.teamId === me.teamId));
+    const seen = (p) => p.alive && !!p.pos;
+    const round = state.roundNumber | 0;
+    const ids = new Set(players.map((p) => p.id));
+
+    // ปะทะ: HP ลด (เรา/เพื่อน หรือศัตรูที่เห็น) · ฉากตีที่มีผู้เล่นเกี่ยว
+    const next = new Map();
+    for (const p of players) {
+      if (typeof p.hp !== "number" || !(ally(p) || seen(p))) continue;
+      const was = hp.get(p.id);
+      if (was != null && p.hp < was) { hitRound = round; hitAt = nowMs; }
+      next.set(p.id, p.hp);
+    }
+    hp = next;
+    const a = state.attack;
+    if (a && (ids.has(a.byId) || ids.has(a.targetId))) { hitRound = round; hitAt = nowMs; }
+    const sinceHit = nowMs - hitAt;
+    const battle = round - hitRound <= 1 || sinceHit < BATTLE_MIN_MS;
+
+    let want = "explore";
+    if (battle) want = "battle";
+    else if (me && me.alive && me.pos) {
+      const foes = players.filter((p) => seen(p) && !ally(p));
+      const scores = board.scores || [];
+      const lead = scores[0] && scores[0].score > 0 && !(scores[1] && scores[1].score >= scores[0].score) ? scores[0].side : null;
+      const sideKey = (p) => (teamMode && p.teamId ? `t:${p.teamId}` : `p:${p.duoOf || p.id}`);
+      const prey = (e) => typeof e.hp === "number" && typeof me.hp === "number" && e.maxHp > 0 && e.hp * 2 <= e.maxHp && e.hp < me.hp
+        && Math.abs(e.pos.x - me.pos.x) + Math.abs(e.pos.y - me.pos.y) <= (me.mov | 0) + 1;
+      if (foes.some((e) => (lead && sideKey(e) === lead && sideKey(me) !== lead) || prey(e))) want = "hunt";
+      else if (foes.length) want = "tension";
+    }
+
+    const waits = [];
+    if (mode == null || (want !== mode && (want === "battle" || nowMs - since >= MUSIC_HOLD_MS))) {
+      if (want !== mode) { mode = want; since = nowMs; }
+    } else if (want !== mode) waits.push(MUSIC_HOLD_MS - (nowMs - since));
+    // ต่อสู้ที่ค้างด้วยเวลาขั้นต่ำ (เทิร์นผ่านไปแล้ว): เช็กใหม่ตอนครบ 20 วิ
+    if (battle && round - hitRound > 1) waits.push(BATTLE_MIN_MS - sinceHit);
+
+    const key = mode === "battle" ? (night ? "battle_night" : "battle_day") : mode === "hunt" ? "hunt" : mode === "tension" ? "tension" : night ? "night" : "day";
+    const w = waits.filter((v) => v > 0);
+    return { key, recheckMs: w.length ? Math.ceil(Math.min(...w)) + 50 : 0 };
+  };
 }

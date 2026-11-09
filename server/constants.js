@@ -57,6 +57,7 @@ const TEMP_HP_TURNS = 2; // เลือดชั่วคราว หายเ
 //  จบเทิร์นกลางวัน = ทุกคนได้แต้มสกิลเพิ่ม +1 แต่แจกเฉพาะเช้าที่ 2, 4, 6, ... (เช้าที่ 1, 3, 5, ... ไม่มีโบนัส — ดู morningBonusActive)
 //  กลางคืน = สุ่มสกิลพื้นฐาน/สกิลรองของแต่ละคนแพงขึ้น +1 ทุกเทิร์น (ดู nightTaxTier) — เกราะฟื้นทุก 2 เทิร์นเหมือนกันทั้งวัน/คืน
 const CYCLE_TURNS = 3;
+const EOS_CYCLE_TURNS = 5; // สนาม Eos: กลางวัน/กลางคืนช่วงละ 5 เทิร์น (ผู้ใช้สั่ง 2026-11-09)
 
 // การแปลงร่าง/cutscene ต่อสถานะ — ตาราง data ล้วนๆ ~160 บรรทัด ย้ายไป characters/_transforms.js แล้ว
 const TRANSFORMS = require("../characters/_transforms")();
@@ -73,8 +74,9 @@ const REBIRTH_SECONDS = 18;
 // โหมด Fodlan (GRID_PLAN §8.5): ฉากเข้าแมตช์ 13 วิ (ดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน) · ฉากเปลี่ยนด่าน 10 วิ (client fodlan/stages.js) — +1 วิเผื่อเน็ตหน่วง
 //  เริ่มฉากตั้งแต่ฉากเปิดตัวผู้เล่น "เริ่มปิดฉาก" แบบเดียวกับ JOURNEY_START_SECONDS · env 0 = ไม่มีฉาก (เทสต์)
 const FODLAN_START_SECONDS = Math.max(0, Number(process.env.FODLAN_START_SECONDS ?? process.env.JOURNEY_START_SECONDS ?? 12));
-// Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักแค่ให้ฉากเปิดตัวผู้เล่นจบ (0 ตามการตั้งของเทสต์ที่ปิดฉากเดินทาง)
-const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 1)));
+// Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักให้ฉากเปิดตัวผู้เล่น + ฉากเข้าสนาม Eos จบ (client eos/eosMeta.js EOS_INTRO_MS 12 วิ: ลูกโลกหมุน/ดิ่งลงหมุด Eos → ฉากบินเลียบขอบฟ้า)
+//  (0 ตามการตั้งของเทสต์ที่ปิดฉากเดินทาง)
+const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 12)));
 const FODLAN_ADVANCE_SECONDS = Math.max(0, Number(process.env.FODLAN_ADVANCE_SECONDS ?? process.env.JOURNEY_ADVANCE_SECONDS ?? 11));
 const TEAM_IDS = ["A", "B", "C"];
 
@@ -88,6 +90,6 @@ module.exports = {
   SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE,
   SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_BATTERY_PRICE, BATTERY_MAX, BATTERY_REGEN,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
-  TEMP_HP_TURNS, CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
+  TEMP_HP_TURNS, CYCLE_TURNS, EOS_CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,
   REBIRTH_SECONDS, FODLAN_START_SECONDS, EOS_START_SECONDS, FODLAN_ADVANCE_SECONDS, TEAM_IDS, RESYNC_EVERY,
 };
