@@ -45,7 +45,7 @@ const PAL = {
     ground1: "#6a7a48", ground2: "#3e4a2c", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
     grid: "rgba(30,34,20,.09)",
     grassA: "#7c8f4c", grassB: "#5f7838", sandEdge: "#b9a670", forestFloor: "#3c4f28", forestFloor2: "#55693a",
-    shore: "#cdbb86", shallow: "#5aa7b8", shoulder: "#8a7a5c", roadStain: "rgba(20,20,24,.25)", reed: "#5d6e33", pebble: "#9b8a6e",
+    shore: "#cdbb86", shallow: "#5aa7b8", bank: "#6b5a3c", shoulder: "#8a7a5c", roadLine: "#e8e2cf", roadStain: "rgba(20,20,24,.25)", reed: "#5d6e33", pebble: "#9b8a6e",
     dryGrass: "#a8935c", tuft: "#4f6a2c", flowers: ["#f2e27a", "#e9a0c2", "#ffffff", "#c9b3f0"], leafHi: "#7da150", palm: "#3f6a2a",
     stone: "#8c8d88", stone2: "#6a6b66", altRoof: "#c7653f", altWall: "#efe4cf", altWall2: "#d8c9ad", border: "rgba(255,245,215,.5)", spawn: "rgba(255,245,215,.45)",
     light: ["rgba(255,225,170,.12)", "rgba(30,20,10,.2)"], nightTint: null, shadow: "rgba(20,14,6,.35)",
@@ -60,7 +60,7 @@ const PAL = {
     ground1: "#1d2a2c", ground2: "#0a1012", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
     grid: "rgba(160,190,240,.07)",
     grassA: "#24372c", grassB: "#182a20", sandEdge: "#4a4434", forestFloor: "#101c14", forestFloor2: "#18281d",
-    shore: "#4d4636", shallow: "#1b3f52", shoulder: "#3a3428", roadStain: "rgba(0,0,0,.3)", reed: "#22301c", pebble: "#4a4236",
+    shore: "#4d4636", shallow: "#1b3f52", bank: "#241e16", shoulder: "#3a3428", roadLine: "#8c8770", roadStain: "rgba(0,0,0,.3)", reed: "#22301c", pebble: "#4a4236",
     dryGrass: "#4f4630", tuft: "#1a2a18", flowers: ["#8a8650", "#7a5a6e", "#9a9aa4", "#6e6488"], leafHi: "#2d4a28", palm: "#1d3320",
     stone: "#45464a", stone2: "#34353a", altRoof: "#5c3424", altWall: "#6c6658", altWall2: "#5a5446", border: "rgba(160,190,240,.38)", spawn: "rgba(170,200,255,.32)",
     light: ["rgba(90,120,220,.06)", "rgba(0,4,16,.38)"], nightTint: "rgba(8,14,40,.26)", shadow: "rgba(0,0,8,.5)",
@@ -104,6 +104,48 @@ function poly(g, pts) {
   g.closePath();
 }
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
+// เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
+const SUN = { x: 0.62, y: 0.38 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5 };
+function hull(pts) {
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.slice().reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function castShadows(g, C, night) {
+  const m = MAPS[EOS_AREA], tr = (m && m.terrain) || {};
+  g.save();
+  g.fillStyle = night ? "rgba(0,0,12,.22)" : "rgba(20,24,10,.26)";
+  g.beginPath();
+  for (const [k, kind] of Object.entries(tr)) {
+    if (!(kind in HEIGHT)) continue;
+    const [x, y] = k.split(",").map(Number);
+    const h = kind === "fd_eos_bldg" ? (BUILDING.get(k) || { h: 1.2 }).h : HEIGHT[kind];
+    // ต้นไม้/หิน/เสาไฟ = เงารูปทรงกลม (ช่องเล็กกว่าเต็มช่อง) · ตึก/กำแพง = กล่องเต็มช่อง
+    const inset = kind === "fd_eos_bldg" || kind === "fd_eos_wall" || kind === "fd_eos_garage" ? 0 : kind === "fd_eos_lamp" ? 0.44 : 0.22;
+    const ox = SUN.x * h, oy = SUN.y * h;
+    const sq = [[x + inset, y + inset], [x + 1 - inset, y + inset], [x + 1 - inset, y + 1 - inset], [x + inset, y + 1 - inset]];
+    const pts = hull([...sq, ...sq.map(([a, b]) => [a + ox, b + oy])]);
+    pts.forEach(([a, b], i) => { const q = P(a, b); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+    g.closePath();
+  }
+  g.fill("nonzero");
+  // เงามืดรอบฐานตึก/กำแพง (ขอบนุ่ม)
+  const solid = new Set(Object.entries(tr).filter(([, v]) => v === "fd_eos_bldg" || v === "fd_eos_wall" || v === "fd_eos_garage").map(([k]) => k));
+  g.restore();
+  msFill(g, solid, night ? "#000008" : "#141808", { cols: m.cols, rows: m.rows, th: 0.3, alpha: 0.18 });
+}
+// ไล่แสงบนผนัง: ล่างเข้ม → บนสว่าง (หลอกตาให้มีความลึก)
+function shadeFace(g, a, b, h, alpha) {
+  const p0 = P(a[0], a[1], 0), p1 = P(a[0], a[1], h);
+  const gr = g.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+  gr.addColorStop(0, `rgba(0,0,0,${alpha})`); gr.addColorStop(0.5, "rgba(0,0,0,0)"); gr.addColorStop(1, `rgba(255,255,255,${alpha * 0.35})`);
+  poly(g, [[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], h], [a[0], a[1], h]]);
+  g.fillStyle = gr; g.fill();
+}
 function box(g, x0, y0, x1, y1, h, top, side1, side2) {
   const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
   const faces = [];
@@ -117,8 +159,10 @@ function box(g, x0, y0, x1, y1, h, top, side1, side2) {
   faces.filter((f) => f.d > mid).forEach((f, i) => {
     poly(g, [[f.a[0], f.a[1], 0], [f.b[0], f.b[1], 0], [f.b[0], f.b[1], h], [f.a[0], f.a[1], h]]);
     g.fillStyle = i % 2 ? side1 : side2; g.fill();
+    if (h > 0.3) shadeFace(g, f.a, f.b, h, 0.28);
   });
   poly(g, c.map(([x, y]) => [x, y, h])); g.fillStyle = top; g.fill();
+  if (h > 0.3) { g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.stroke(); } // ขอบหลังคารับแสง
 }
 
 // =================================================================== ธีม (อบ)
@@ -215,15 +259,20 @@ export const theme = {
     for (const t of T.plaza) { quad(g, t.x - 0.01, t.y - 0.01); g.fillStyle = (t.x + t.y) % 2 ? C.plaza : C.plaza2; g.fill(); }
     // น้ำ: ชายฝั่งทราย → น้ำตื้น → น้ำลึก (ขอบคดตาม noise)
     msFill(g, wet, C.shore, { ...dim, jitter: 0.4, th: 0.28, seed: 3 });
-    msFill(g, wet, C.shallow, { ...dim, jitter: 0.4, th: 0.5, seed: 3 });
-    msFill(g, deep, C.water, { ...dim, jitter: 0.35, th: 0.5, seed: 4 });
-    msFill(g, deep, C.water2, { ...dim, jitter: 0.3, th: 0.78, seed: 5, alpha: 0.6 });
+    msFill(g, wet, C.bank, { ...dim, jitter: 0.4, th: 0.5, seed: 3 });                       // ผนังตลิ่ง (มองเห็นฝั่งไกล)
+    msFill(g, wet, C.shallow, { ...dim, jitter: 0.4, th: 0.5, seed: 3, oy: 0.16 });            // ผิวน้ำต่ำกว่าพื้น
+    msFill(g, deep, C.water, { ...dim, jitter: 0.35, th: 0.5, seed: 4, oy: 0.16 });
+    msFill(g, deep, C.water2, { ...dim, jitter: 0.3, th: 0.78, seed: 5, alpha: 0.6, oy: 0.16 });
     // คลองเมืองน้ำ: ขอบหิน
     for (const t of T.canal) { quad(g, t.x - 0.03, t.y - 0.03); g.fillStyle = C.curb; g.fill(); }
-    for (const t of T.canal) { quad(g, t.x + 0.07, t.y + 0.07); g.fillStyle = C.canal; g.fill(); }
+    for (const t of T.canal) { quad(g, t.x + 0.07, t.y + 0.07); g.fillStyle = C.bank; g.fill(); }
+    for (const t of T.canal) { quad(g, t.x + 0.07, t.y + 0.2); g.fillStyle = C.canal; g.fill(); } // น้ำในคลองต่ำกว่าขอบ
+    // เงาทอดตามทิศแสง (สิ่งกีดขวางที่สูง) + เงามืดรอบฐานตึก/กำแพง (ambient occlusion)
+    castShadows(g, C, c.night);
     // ถนน: ไหล่ทางดิน → ยางมะตอย (ขอบตรง เลี้ยวลบมุม 45°) → เส้นขอบถนน
-    msFill(g, road, C.shoulder, { ...dim, th: 0.3 });
-    msFill(g, road, C.road, { ...dim, th: 0.5 });
+    msFill(g, road, C.shoulder, { ...dim, th: 0.42 });
+    msFill(g, road, C.roadLine, { ...dim, th: 0.5 });   // เส้นขอบถนนสีขาว
+    msFill(g, road, C.road, { ...dim, th: 0.57 });
     // รอยล้อ/คราบน้ำมันบนถนน
     for (const t of T.road) {
       const R = rng(t.x * 53 + t.y * 19);
@@ -354,7 +403,7 @@ function mix(a, b, t) {
 }
 // marching squares (dual grid): ค่าที่กลางช่อง 1 = ในผืน · 0 = นอก (+ noise ที่ขอบ = โค้งไม่เท่ากัน) → เส้นขอบที่ระดับ th
 //  jitter 0 = ขอบตรงลบมุม 45° (ถนน) · > 0 = ขอบคดตาม noise (น้ำ ทราย ป่า) · th < 0.5 = ผืนขยายออก (ชายฝั่งรอบน้ำ)
-function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows = 32, alpha = 1 } = {}) {
+function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows = 32, alpha = 1, ox = 0, oy = 0 } = {}) {
   if (!set.size) return;
   const val = (x, y) => {
     const cx = Math.max(0, Math.min(cols - 1, x)), cy = Math.max(0, Math.min(rows - 1, y));
@@ -374,7 +423,7 @@ function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows
       if (a[2] >= th) pts.push([a[0], a[1]]);
       if ((a[2] >= th) !== (b[2] >= th)) { const t = (th - a[2]) / (b[2] - a[2]); pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
     }
-    pts.forEach(([px, py], i) => { const q = P(Math.max(0, Math.min(cols, px + 0.5)), Math.max(0, Math.min(rows, py + 0.5))); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+    pts.forEach(([px, py], i) => { const q = P(Math.max(0, Math.min(cols, px + 0.5 + ox)), Math.max(0, Math.min(rows, py + 0.5 + oy))); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
     g.closePath();
   }
   g.fill(); g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์
@@ -476,7 +525,9 @@ export function drawObstacle(g, t, ctx, now) {
     const b = BUILDING.get(K(x, y)), h = b ? b.h : 1.2, tone = b ? b.id % 3 : 0;
     const altissia = zone === "altissia";
     const top = altissia ? C.altRoof : C.bldg[tone], s1 = altissia ? C.altWall : C.bldg[(tone + 1) % 3], s2 = altissia ? C.altWall2 : C.bldg[(tone + 2) % 3];
-    box(g, x, y, x + 1, y + 1, altissia ? Math.min(h, 1.1) : h, top, s1, s2);
+    const hh = altissia ? Math.min(h, 1.1) : h;
+    box(g, x, y, x + 1, y + 1, hh, top, s1, s2);
+    if (!altissia && hh > 1.4 && hash(x, y + 7) < 0.45) box(g, x + 0.25, y + 0.3, x + 0.55, y + 0.6, hh + 0.14, C.bldg[(tone + 1) % 3], C.bldg[(tone + 2) % 3], C.bldg[tone]);
     const R = rng(x * 37 + y * 11);
     for (let zz = 0.25; zz < (altissia ? 1 : h) - 0.15; zz += 0.3) for (const fx2 of [0.3, 0.7]) {
       const lit = night && R() < 0.55;
@@ -786,6 +837,12 @@ export function air(g, fd, info, units, now, lowQ, view) {
         }
       }
     }
+  }
+  // หมอกบางตามระยะ (aerial perspective): ด้านไกล (บนจอ) จางเป็นสีฟ้า → ใกล้กล้องใส
+  if (!lowQ) {
+    const gr = g.createLinearGradient(0, Y0, 0, Y0 + H * 0.55);
+    gr.addColorStop(0, fd.night ? "rgba(40,60,110,.32)" : "rgba(205,222,240,.34)"); gr.addColorStop(1, "rgba(205,222,240,0)");
+    g.fillStyle = gr; g.fillRect(X0, Y0, W, H * 0.55);
   }
   if (flash > 0) { g.fillStyle = `rgba(232,240,255,${flash})`; g.fillRect(X0, Y0, W, H); }
   void info;
