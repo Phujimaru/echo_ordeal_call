@@ -128,8 +128,9 @@ function dimLayersOf(st, kind, now) {
 }
 // ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
-import { P as projectZ, PITCH_BIRD, PITCH_NORMAL, setPitch, setCustomProjection, customProjection } from "./boardGeo";
+import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, setPitch, setCustomProjection, customProjection } from "./boardGeo";
 import { createColonyView } from "./colony3d";
+import { setEosFast } from "./fodlan/stage6";
 
 // ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
 const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
@@ -153,6 +154,7 @@ const zoomKOf = (pitch, lv) => (pitch === PITCH_BIRD ? ZOOM_LEVELS.top : ZOOM_LE
 const ZOOM_WHEEL_GAP = 130; // ล้อเมาส์/ทัชแพดยิงถี่ — ขยับได้ระดับละครั้งต่อช่วงนี้ (ms)
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
+const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
 const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
@@ -396,8 +398,23 @@ export default function BoardCanvas(props) {
         if (pr >= 1) { st.turnTo = ((st.turnTo % 4) + 4) % 4; st.turn = st.turnFrom = st.turnTo; }
         else { turning = true; mix = ease(pr); st.turn = st.turnFrom + (st.turnTo - st.turnFrom) * mix; }
       }
+      // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง 2026-11-09): ค้าง Q/E = หมุนนุ่มต่อเนื่องทุกองศารอบตัวเรา (ไม่กระตุกทีละ 90°)
+      const yawDt = st.yawT ? Math.min(50, now - st.yawT) : 0;
+      st.yawT = st.yaw ? now : 0;
+      if (p.rts && !st.cv3 && st.yaw && !turning) {
+        st.turn = (((st.turn + st.yaw * YAW_SPEED * yawDt / 1000) % 4) + 4) % 4;
+        st.turnFrom = st.turnTo = st.turn;
+        turning = true; // วาดสด (ไม่อบ) ระหว่างหมุน
+        if (p.selfPos && Number.isFinite(p.selfPos.x)) st.pivot = { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 };
+        st.yawMoved = true;
+      } else if (st.yawMoved && !st.yaw) {
+        // ปล่อยปุ่ม: บอก BoardStage ทิศที่ใกล้สุด (WASD ตามมุมกล้อง) โดยไม่ให้เกิดแอนิเมชันหมุน 90°
+        st.yawMoved = false;
+        st.rotTarget = normRot(Math.round(st.turn));
+        if (typeof p.onYawSettle === "function") p.onYawSettle(st.rotTarget);
+      }
       // --- มุมกล้อง: มองจากด้านบน = 90° (ชั้นอบแยกตามมุม)
-      const pitch = p.view === "top" && !st.cv3 ? PITCH_BIRD : PITCH_NORMAL;
+      const pitch = p.view === "top" && !st.cv3 ? PITCH_BIRD : p.rts && !st.cv3 ? PITCH_LOW : PITCH_NORMAL;
       if (pitch !== st.pitch) {
         // เปลี่ยนมุมมอง: กล้องมุมใกล้คงจุดกลางบนกระดานไว้ (ตำแหน่งบนจอเปลี่ยนตามมุม)
         const was = st.pitch;
@@ -424,7 +441,7 @@ export default function BoardCanvas(props) {
       const rts = !!p.rts && !st.cv3;
       const rr = rts ? rtsZoomRange(info, base, pitch === PITCH_BIRD) : null;
       st.rts = rts; st.rtsRange = rr;
-      const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : cc(cam));
+      const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : clampCam(info, base, cam));
       const zk = (lv) => (rts ? rtsZoomOf(rr, lv) : zoomKOf(pitch, lv));
       // จุดบนจอ (sx, sy) → กลางกล้อง: RTS = กลางจอจริง (เผื่อ HUD ล่างเล็กน้อย) · ปกติ = กลางส่วนที่มองเห็นเหนือ HUD
       const eyeTo = (z, sx, sy) => (rts ? { cx: sx, cy: sy + 50 / (z * RTS_BASE_Z) } : camFromEye(base, z, sx, sy));
@@ -525,7 +542,7 @@ export default function BoardCanvas(props) {
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
-        const par = normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}`;
+        const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}`;
         let sc = st.scenes.get(sk);
         if (!sc) {
           sc = bakeScene(info, base, res, night, lowQ, par);
@@ -535,32 +552,35 @@ export default function BoardCanvas(props) {
         }
         return sc;
       };
-      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : sceneOf(turning ? st.turnTo : st.turn);
+      // RTS ระหว่างค้าง Q/E: ใช้ฉากที่อบไว้ล่าสุด (ไม่อบใหม่ทุกเฟรม) — ปล่อยปุ่มแล้วค่อยอบที่มุมใหม่
+      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
       const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
       if (!turning && !st.cv3) {
-        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${normRot(st.turn)}|${pitch}`;
+        const rk = rts ? Math.round(st.turn * 1000) / 1000 : normRot(st.turn);
+        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${rk}|${pitch}`;
         boardCv = st.boards.get(bk);
         if (!boardCv) {
-          boardCv = bakeBoard(info, base, res, night, normRot(st.turn));
+          boardCv = bakeBoard(info, base, res, night, rk, rts);
           st.boards.set(bk, boardCv);
           if (st.boards.size > 6) st.boards.delete(st.boards.keys().next().value);
         }
       }
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
+      setEosFast(rts && turning); // สนาม Eos: ระหว่างหมุน (วาดพื้นสด) ข้ามรายละเอียดเล็ก
       let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (rts && !turning && !lowQ && !st.cv3) {
         const still = !st.camAnim && !(st.drag && st.drag.moved) && !st.keys.size && !st.pivot;
-        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${normRot(st.turn)}|${pitch}|${view.k}|${view.ox}|${view.oy}`;
+        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}`;
         if (!still) st.stillAt = 0;
         else if (st.sharpKey !== ck) {
           if (!st.stillAt) st.stillAt = now;
           if (now - st.stillAt >= RTS_SHARP_MS) {
-            const sc = bakeScene(info, view, dpr, night, lowQ, normRot(st.turn) % 2);
-            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, view, dpr, night, normRot(st.turn)) };
+            const sc = bakeScene(info, view, dpr, night, lowQ, st.turn);
+            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, view, dpr, night, st.turn, true) };
             st.sharpKey = ck;
           }
         }
@@ -890,6 +910,7 @@ export default function BoardCanvas(props) {
         if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.home(); return; }
         if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }
       }
+      if (st.rts && (e.code === "KeyQ" || e.code === "KeyE") && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) { st.yaw = e.code === "KeyQ" ? -1 : 1; return; }
       if (!ARROWS[e.code] || !(st.rts || clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด
@@ -899,8 +920,8 @@ export default function BoardCanvas(props) {
       }
       st.keys.add(e.code);
     };
-    const onKeyUp = (e) => { st.keys.delete(e.code); };
-    const onBlur = () => { st.keys.clear(); st.drag = null; };
+    const onKeyUp = (e) => { st.keys.delete(e.code); if ((e.code === "KeyQ" && st.yaw < 0) || (e.code === "KeyE" && st.yaw > 0)) st.yaw = 0; };
+    const onBlur = () => { st.keys.clear(); st.drag = null; st.yaw = 0; };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);

@@ -367,9 +367,9 @@ function drawBoardLayer(g, info, view, night) {
   if (C.nightTint) { g.fillStyle = C.nightTint; g.fillRect(VX0, VY0, VW, VY1 - VY0); }
 }
 // อบชั้นกระดานที่มุม rotation (0..3)
-export function bakeBoard(info, view, dpr, night, rotation = 0) {
+export function bakeBoard(info, view, dpr, night, rotation = 0, exact = false) {
   const prev = viewTurn();
-  setCamera(info, normRot(rotation));
+  setCamera(info, exact ? rotation : normRot(rotation)); // exact = มุมทศนิยม (กล้อง RTS หมุนอิสระ)
   const { cv, g } = layerCanvas(view, dpr);
   drawBoardLayer(g, info, view, night);
   setViewTurn(prev);

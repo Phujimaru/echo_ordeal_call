@@ -41,7 +41,7 @@ const SCORE_TABLE = [0, 1, 3, 6, 10, 15];
 const SEIZE_SECS = 1.4;
 const REVIVE_TURNS = 3;       // ตายแล้วฟื้นหลัง 3 เทิร์น
 const SIGHT_EXTRA = 4;        // เห็นผู้เล่นอื่นในระยะเดิน + 4 ช่อง
-const SECS = { revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
+const SECS = { dropship: 1.8, mobs: 1.4, revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
 
 const S = MAP.CAR_SIZE;
 const K = (x, y) => `${x},${y}`;
@@ -79,6 +79,9 @@ function enter(ctx, st) {
     winner: null,
     bridgeUp: false, dome: null, domeReadyRound: 0, lightsOff: {},
     wrecks: MAP.WRECKS.map(([x, y], i) => ({ id: `fd:wreck${i + 1}`, x, y })),
+    barrels: MAP.BARRELS.map(([x, y], i) => ({ id: `fd:barrel${i + 1}`, x, y, home: { x, y } })), barrelBack: [],
+    crystals: [], crystalBack: MAP.CRYSTALS.map(([x, y]) => ({ at: { x, y }, round: 0 })),
+    flasks: {}, mobs: [], beastBack: 1, dropship: null, dropNext: 0,
   };
   ctx.bump();
 }
@@ -92,6 +95,12 @@ function layer(ctx, st, map) {
   for (const c of s.chocos) if (c.x != null && !c.rider) special[K(c.x, c.y)] = "fd_eos_chocobo";
   for (const d of s.daemons) terrain[K(d.x, d.y)] = "fd_eos_daemon";
   for (const w of s.wrecks || []) terrain[K(w.x, w.y)] = "fd_eos_wreck";
+  for (const b of s.barrels || []) terrain[K(b.x, b.y)] = "fd_eos_barrel";
+  for (const c of s.crystals || []) terrain[K(c.x, c.y)] = "fd_eos_crystal";
+  for (const m of s.mobs || []) terrain[K(m.x, m.y)] = "fd_eos_mob";
+  // น้ำที่แช่แข็ง (ขวดน้ำแข็ง) = เดินได้ (ไถลตามกติกาน้ำแข็ง)
+  const b = ctx.match.board || {};
+  for (const k of Object.keys(b.ice || {})) if (terrain[k] === "fd_eos_water" || terrain[k] === "fd_eos_canal") { delete terrain[k]; special[k] = "ice"; }
   if (s.bridgeUp) for (const t of BRIDGES) { terrain[K(t.x, t.y)] = "fd_eos_bridgeup"; delete special[K(t.x, t.y)]; }
   if (domeOn(s)) for (const t of DOME_GATES) terrain[K(t.x, t.y)] = "fd_eos_barrier";
   return { ...map, terrain, special };
@@ -194,6 +203,7 @@ function carOf(ctx, s, p) { return p && p.pos ? s.cars.find((c) => onCarFully(ct
 function anchorOnRoad(s, car, a) {
   for (const t of carCells(a)) if (!ROAD.has(K(t.x, t.y))) return false;
   for (const t of carCells(a)) if ((s.wrecks || []).some((w) => w.x === t.x && w.y === t.y)) return false; // ซากรถขวางถนน
+  for (const t of carCells(a)) if ((s.barrels || []).some((o) => o.x === t.x && o.y === t.y) || (s.crystals || []).some((o) => o.x === t.x && o.y === t.y)) return false;
   if (domeOn(s) && carCells(a).some((t) => DOME_GATES.some((d) => d.x === t.x && d.y === t.y))) return false; // โดมปิดประตูเมือง
   for (const o of s.cars) {
     if (o === car) continue;
@@ -212,6 +222,7 @@ function carTargets(ctx, s, car) {
     const ak = carKeys(a);
     if (all.some((p) => !riders.has(p.id) && touches(ctx, ak, p))) return true;
     if (s.daemons.some((d) => ak.has(K(d.x, d.y)))) return true;
+    if ((s.mobs || []).some((m) => ak.has(K(m.x, m.y)))) return true;
     return false;
   };
   const start = { x: car.x, y: car.y, d: 0, prev: null };
@@ -260,6 +271,11 @@ function runOver(ctx, s, car, path, riders, by) {
     hits.push({ id: p.id, from, to: p.pos ? { ...p.pos } : null, dmg: dealt });
     ctx.log(`🚗 ${by.name} ขับรถชน ${p.name} -${dealt}`);
   }
+  for (const m of (s.mobs || []).slice()) {
+    if (!swept.has(K(m.x, m.y))) continue;
+    hits.push({ mob: m.id, from: { x: m.x, y: m.y }, dmg: CAR_HIT_DMG });
+    hurtMob(ctx, s, m, CAR_HIT_DMG, by);
+  }
   for (const d of s.daemons.slice()) {
     if (!swept.has(K(d.x, d.y))) continue;
     hits.push({ daemon: d.id, from: { x: d.x, y: d.y }, dmg: CAR_HIT_DMG });
@@ -306,6 +322,8 @@ function tileFree(ctx, s, x, y, selfId = null) {
   for (const c of s.cars) if (carKeys(c).has(K(x, y))) return false;
   if (s.chocos.some((c) => !c.rider && c.x === x && c.y === y)) return false;
   if (s.daemons.some((d) => d.x === x && d.y === y)) return false;
+  if ((s.mobs || []).some((m) => m.x === x && m.y === y)) return false;
+  if ((s.barrels || []).some((b) => b.x === x && b.y === y) || (s.crystals || []).some((c) => c.x === x && c.y === y)) return false;
   return true;
 }
 function freeNear(ctx, s, x0, y0, maxD = 4, selfId = null, extra = null) {
@@ -772,6 +790,284 @@ function pushWreck(ctx, s, p) {
   return true;
 }
 
+// ============================================================ ขั้น 3: ลูกเล่นโจมตี (L11–L15 · ผู้ใช้สั่ง "ทำขั้น 3 ต่อ" — ตัวเลขเป็นข้อเสนอของ Claude)
+const BARREL_DMG = 2, BARREL_BURN = 2, BARREL_RESPAWN = 4;
+const CRYSTAL_RESPAWN = 5, FLASK_MAX = 2, FLASK_RANGE = 5;
+const FIRE_DMG = 1, FIRE_BURN = 2, THUNDER_DMG = 2, SHOCK_DMG = 2;
+const TURRET_RANGE = 6, TURRET_DMG = 2;
+const BEAST = { hp: 12, armor: 2, atk: 3, mov: 3, gold: 6, aggroTurns: 2, respawn: 6, wander: 2, reach: 2 };
+const MAGITEK = { hp: 4, armor: 1, atk: 2, mov: 3, gold: 2, count: 3, stay: 4 };
+const DROP_FROM = 4, DROP_PCT = 30, DROP_GAP = 6;
+const ELEMENTS = ["fire", "ice", "thunder"];
+const ELEMENT_NAMES = { fire: "ไฟ", ice: "น้ำแข็ง", thunder: "สายฟ้า" };
+const FLASK_SECS = 1.4, TURRET_SECS = 1.2;
+const TURRETS = listOf(MAP.map.terrain, "fd_eos_turret");
+const WATERY = new Set([...listOf(MAP.map.terrain, "fd_eos_water"), ...listOf(MAP.map.terrain, "fd_eos_canal"), ...listOf(MAP.map.special, "fd_eos_shallow")].map((t) => K(t.x, t.y)));
+const FOREST = new Set(listOf(MAP.map.special, "fd_eos_forest").map((t) => K(t.x, t.y)));
+const lazyIce = () => require("../ice");
+const area3 = (x, y) => { const out = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) out.push({ x: x + dx, y: y + dy }); return out; };
+const unitsOn = (ctx, tiles) => { const keys = new Set(tiles.map((t) => K(t.x, t.y))); return bodies(ctx).filter((p) => footOf(ctx, p).some((c) => keys.has(K(c.x, c.y)))); };
+function hitArea(ctx, s, tiles, dmg, by, extra = null) {
+  const hits = [];
+  for (const p of unitsOn(ctx, tiles)) {
+    const dealt = ctx.damage(p, dmg);
+    if (extra) extra(p);
+    hits.push({ id: p.id, dmg: dealt });
+  }
+  const keys = new Set(tiles.map((t) => K(t.x, t.y)));
+  for (const d of s.daemons.slice()) if (keys.has(K(d.x, d.y))) hurtDaemon(ctx, s, d, dmg, by);
+  for (const m of s.mobs.slice()) if (keys.has(K(m.x, m.y))) hurtMob(ctx, s, m, dmg, by);
+  return hits;
+}
+
+// ---------- L11 ถังน้ำมัน (ตีแล้วระเบิด 3×3 · ลูกโซ่) ----------
+function explodeBarrel(ctx, s, b, by, chain = new Set()) {
+  if (chain.has(b.id)) return [];
+  chain.add(b.id);
+  s.barrels = s.barrels.filter((o) => o !== b);
+  s.barrelBack.push({ at: b.home, round: ctx.match.roundNumber + BARREL_RESPAWN });
+  const tiles = area3(b.x, b.y).filter((t) => ctx.Board.inBounds(ctx.map(), t.x, t.y));
+  ctx.bump();
+  const hits = hitArea(ctx, s, tiles, BARREL_DMG, by, (p) => ctx.burn(p, BARREL_BURN));
+  ctx.fx("barrel_boom", { x: b.x, y: b.y, tiles, hits });
+  ctx.log(`💥 ถังน้ำมันระเบิด!${hits.length ? ` โดน ${hits.length} คน` : ""}`);
+  const keys = new Set(tiles.map((t) => K(t.x, t.y)));
+  for (const o of s.barrels.slice()) if (keys.has(K(o.x, o.y))) explodeBarrel(ctx, s, o, by, chain);
+  return hits;
+}
+// ---------- L12 หินพลังเวท → ขวดเวท ----------
+function flasksOf(s, p) { return (s.flasks[p.id] ||= []); }
+function breakCrystal(ctx, s, c, p) {
+  s.crystals = s.crystals.filter((o) => o !== c);
+  s.crystalBack.push({ at: c.home, round: ctx.match.roundNumber + CRYSTAL_RESPAWN });
+  ctx.bump();
+  const bag = flasksOf(s, p);
+  if (bag.length < FLASK_MAX) bag.push(c.element);
+  ctx.fx("crystal_break", { x: c.x, y: c.y, element: c.element, by: p.id });
+  ctx.log(`💎 ${p.name} ได้ขวดเวท${ELEMENT_NAMES[c.element]}`);
+}
+function flaskTiles(ctx, p) {
+  const map = ctx.map(), out = [];
+  for (let dy = -FLASK_RANGE; dy <= FLASK_RANGE; dy++) for (let dx = -FLASK_RANGE; dx <= FLASK_RANGE; dx++) {
+    if (Math.abs(dx) + Math.abs(dy) > FLASK_RANGE) continue;
+    const x = p.pos.x + dx, y = p.pos.y + dy;
+    if (ctx.Board.inBounds(map, x, y)) out.push({ x, y });
+  }
+  return out;
+}
+// ผืนน้ำที่ต่อกันจากช่องในวง (สายฟ้าลงน้ำ = ช็อตทั้งผืน)
+function waterBody(ctx, tiles) {
+  const b = ctx.match.board || {};
+  const wet = (x, y) => WATERY.has(K(x, y)) || !!(b.wet && b.wet[K(x, y)]);
+  const seen = new Set(), q = [];
+  for (const t of tiles) if (wet(t.x, t.y)) { seen.add(K(t.x, t.y)); q.push(t); }
+  for (let i = 0; i < q.length; i++) for (const [dx, dy] of ctx.Board.DIRS) {
+    const x = q[i].x + dx, y = q[i].y + dy, k = K(x, y);
+    if (!seen.has(k) && wet(x, y)) { seen.add(k); q.push({ x, y }); }
+  }
+  return q;
+}
+function throwFlask(ctx, s, p, element, tile) {
+  const bag = flasksOf(s, p), i = bag.indexOf(element);
+  if (i < 0 || !canStrike(ctx, p) || !tile || !flaskTiles(ctx, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
+  bag.splice(i, 1);
+  const map = ctx.map();
+  const tiles = area3(tile.x, tile.y).filter((t) => ctx.Board.inBounds(map, t.x, t.y));
+  let hits = [], shock = null;
+  if (element === "fire") {
+    hits = hitArea(ctx, s, tiles, FIRE_DMG, p, (u) => ctx.burn(u, FIRE_BURN));
+    // ไฟลามป่า: ช่องป่าในวง + ป่าที่ติดกัน 1 ช่อง
+    const burn = new Set(tiles.map((t) => K(t.x, t.y)));
+    for (const t of tiles) if (FOREST.has(K(t.x, t.y))) for (const [dx, dy] of ctx.Board.DIRS) if (FOREST.has(K(t.x + dx, t.y + dy))) burn.add(K(t.x + dx, t.y + dy));
+    try { lazyIce().layFlame([...burn].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }), p.id); } catch { /* ไม่มีพื้นไฟ */ }
+  } else if (element === "ice") {
+    hits = unitsOn(ctx, tiles).map((u) => { lazyIce().applySlow(u); return { id: u.id, dmg: 0 }; });
+    for (const t of tiles) if (WATERY.has(K(t.x, t.y))) { try { lazyIce().layIce(t.x, t.y, p.id, { bridge: true }); } catch { /* วางไม่ได้ */ } }
+    ctx.bump();
+  } else {
+    hits = hitArea(ctx, s, tiles, THUNDER_DMG, p);
+    const body = waterBody(ctx, tiles);
+    if (body.length) {
+      shock = body;
+      const already = new Set(hits.map((h) => h.id));
+      for (const u of unitsOn(ctx, body)) if (!already.has(u.id) && !ctx.action.walksThrough(u)) hits.push({ id: u.id, dmg: ctx.damage(u, SHOCK_DMG), shock: true });
+    }
+  }
+  ctx.match.action.locked = true;
+  p.exposedRound = ctx.match.roundNumber;
+  ctx.fx("flask", { element, from: { ...p.pos }, to: { ...tile }, tiles, shock, hits, by: p.id });
+  ctx.log(`🧪 ${p.name} ขว้างขวดเวท${ELEMENT_NAMES[element]}${hits.length ? ` โดน ${hits.length} คน` : ""}`);
+  ctx.useStrike(p, FLASK_SECS);
+  return true;
+}
+// ---------- L13 ป้อมปืนบนกำแพง Insomnia ----------
+function turretNear(ctx, p) { return TURRETS.find((t) => ctx.adjacent(p, t.x, t.y)) || null; }
+function turretTargets(ctx, s, p, t) {
+  const me = sideOf(p);
+  return bodies(ctx).filter((u) => sideOf(u) !== me && manhattan(u.pos, t) <= TURRET_RANGE && !ctx.Visibility.hiddenFromUnit(p, u)).map((u) => ({ x: u.pos.x, y: u.pos.y }));
+}
+function fireTurret(ctx, s, p, tile) {
+  const t = turretNear(ctx, p);
+  if (!t || !canStrike(ctx, p) || !tile) return false;
+  const target = bodies(ctx).find((u) => u.pos.x === tile.x && u.pos.y === tile.y);
+  if (!target || !turretTargets(ctx, s, p, t).some((c) => c.x === tile.x && c.y === tile.y)) return false;
+  const dealt = ctx.damage(target, TURRET_DMG);
+  ctx.match.action.locked = true;
+  p.exposedRound = ctx.match.roundNumber;
+  ctx.fx("turret_shot", { from: { x: t.x, y: t.y }, to: { ...tile }, target: target.id, dmg: dealt, by: p.id });
+  ctx.log(`🔫 ${p.name} ยิงป้อมปืนใส่ ${target.name} -${dealt}`);
+  ctx.useStrike(p, TURRET_SECS);
+  return true;
+}
+// ---------- L14 สัตว์ยักษ์ + L15 ทหารเหล็ก (ศัตรู AI ตัวเดียวกัน — s.mobs) ----------
+function hurtMob(ctx, s, m, n, by) {
+  let left = n;
+  const soak = Math.min(m.armor, left);
+  m.armor -= soak; left -= soak;
+  m.hp -= left;
+  if (by && m.type === "beast") { m.aggro = by.id; m.aggroUntil = ctx.match.roundNumber + BEAST.aggroTurns; }
+  if (m.hp > 0) { ctx.fx("mob_hit", { id: m.id, x: m.x, y: m.y, hp: m.hp }); return false; }
+  s.mobs = s.mobs.filter((o) => o !== m);
+  ctx.bump();
+  const gold = m.type === "beast" ? BEAST.gold : MAGITEK.gold;
+  const got = by ? lazyShop().addGold(by, gold) : 0;
+  if (m.type === "beast") s.beastBack = ctx.match.roundNumber + BEAST.respawn;
+  ctx.fx("mob_die", { id: m.id, type: m.type, x: m.x, y: m.y, by: by ? by.id : null });
+  ctx.log(`💥 ${by ? by.name : "ใครบางคน"} โค่น${m.type === "beast" ? "สัตว์ยักษ์" : "ทหารเหล็ก"}!${got ? ` ได้ ${got} เหรียญ` : ""}`);
+  return true;
+}
+function spawnBeast(ctx, s) {
+  const [hx, hy] = MAP.BEAST_HOME;
+  const at = freeNear(ctx, s, hx, hy, 4);
+  if (!at) return false;
+  s.mobs.push({ id: `fd:mob${++s.seq}`, type: "beast", x: at.x, y: at.y, hp: BEAST.hp, armor: BEAST.armor, aggro: null, aggroUntil: 0, home: { x: hx, y: hy } });
+  s.beastBack = 0;
+  ctx.bump();
+  ctx.fx("beast_roar", { x: at.x, y: at.y });
+  return true;
+}
+// ก้าวไปหาช่องติดเป้า (BFS ช่องว่าง) ไม่เกิน mov — เป้า = รายการผู้เล่น
+function stepMob(ctx, s, m, targets, mov) {
+  const adjT = (x, y) => targets.find((p) => footOf(ctx, p).some((t) => manhattan(t, { x, y }) === 1)) || null;
+  const here = adjT(m.x, m.y);
+  if (here) return { to: null, path: null, target: here };
+  const start = { x: m.x, y: m.y, prev: null }, seen = new Set([K(m.x, m.y)]), q = [start];
+  let goal = null;
+  for (let i = 0; i < q.length && !goal; i++) for (const [dx, dy] of ctx.Board.DIRS) {
+    const x = q[i].x + dx, y = q[i].y + dy, k = K(x, y);
+    if (seen.has(k) || !ctx.Board.inBounds(ctx.map(), x, y) || !tileFree(ctx, s, x, y) || (m.type === "magitek" && blockedTown(s, x, y))) continue;
+    seen.add(k);
+    const node = { x, y, prev: q[i] };
+    if (adjT(x, y)) { goal = node; break; }
+    q.push(node);
+  }
+  if (!goal) return { to: null, path: null, target: null };
+  const path = [];
+  for (let c = goal; c; c = c.prev) path.unshift({ x: c.x, y: c.y });
+  const n = Math.min(mov, path.length - 1);
+  return { to: path[n], path: path.slice(0, n + 1), target: adjT(path[n].x, path[n].y) };
+}
+function actMobs(ctx, s) {
+  if (!s.mobs.length) return 0;
+  const moves = [], attacks = [];
+  const round = ctx.match.roundNumber + 1;
+  for (const m of s.mobs.slice()) {
+    if (!s.mobs.includes(m)) continue;
+    const all = bodies(ctx).filter((p) => !ctx.action.walksThrough(p));
+    let targets, mov;
+    if (m.type === "beast") {
+      const agg = m.aggro && round <= m.aggroUntil + 1 ? ctx.match.players[m.aggro] : null;
+      if (agg && agg.alive && agg.pos) { targets = [agg]; mov = BEAST.mov; }
+      else {
+        m.aggro = null;
+        targets = all.filter((p) => manhattan(p.pos, m) <= BEAST.reach); // ใครเข้าใกล้ = โดน
+        mov = targets.length ? 1 : 0;
+      }
+    } else { targets = all.filter((p) => !footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))); mov = MAGITEK.mov; }
+    if (!targets.length) continue;
+    const r = stepMob(ctx, s, m, targets, mov);
+    if (r.to && (r.to.x !== m.x || r.to.y !== m.y)) {
+      moves.push({ id: m.id, type: m.type, from: { x: m.x, y: m.y }, to: { ...r.to }, path: r.path });
+      m.x = r.to.x; m.y = r.to.y;
+      ctx.bump();
+    }
+    // สัตว์ยักษ์ตีทุกคนที่ติดตัว (ล่อมาชนคนอื่นได้) · ทหารเหล็กตีเป้าตัวเดียว
+    const victims = m.type === "beast" ? all.filter((p) => footOf(ctx, p).some((t) => manhattan(t, m) === 1)) : r.target ? [r.target] : [];
+    const atk = m.type === "beast" ? BEAST.atk : MAGITEK.atk;
+    for (const v of victims) {
+      if (!v.alive) continue;
+      const dealt = ctx.damage(v, atk);
+      attacks.push({ id: m.id, type: m.type, x: m.x, y: m.y, target: v.id, dmg: dealt });
+      ctx.log(`${m.type === "beast" ? "🐗 สัตว์ยักษ์" : "🤖 ทหารเหล็ก"}โจมตี ${v.name} -${dealt}`);
+    }
+  }
+  if (moves.length) ctx.fx("mob_move", { moves });
+  if (attacks.length) ctx.fx("mob_attack", { attacks });
+  return moves.length || attacks.length ? 1 : 0;
+}
+// ยานลงจอด: สุ่ม (ไม่มียานอยู่ · พักครบ) → เตือนช่อง 2×2 → ต้นเทิร์นถัดไปลงจอด ปล่อยทหารเหล็ก 3 ตัว → ครบ 4 เทิร์นทหารที่เหลือขึ้นยานกลับ
+function dropZone(ctx, s) {
+  const map = ctx.map(), cand = [];
+  for (let y = 1; y < map.rows - 2; y++) for (let x = 1; x < map.cols - 2; x++) {
+    const cells = [{ x, y }, { x: x + 1, y }, { x, y: y + 1 }, { x: x + 1, y: y + 1 }];
+    if (cells.some((c) => townOf(c.x, c.y) || !tileFree(ctx, s, c.x, c.y))) continue;
+    if (bodies(ctx).some((p) => manhattan(p.pos, { x, y }) < 4)) continue;
+    cand.push({ x, y });
+  }
+  return ctx.pick(cand, 1)[0] || null;
+}
+function dropshipTurn(ctx, s, turn) {
+  let secs = 0;
+  const d = s.dropship;
+  if (d && d.state === "warn" && turn >= d.landAt) {
+    const spawned = [];
+    for (const c of [{ x: d.x, y: d.y }, { x: d.x + 1, y: d.y }, { x: d.x, y: d.y + 1 }, { x: d.x + 1, y: d.y + 1 }]) {
+      if (spawned.length >= MAGITEK.count) break;
+      const at = tileFree(ctx, s, c.x, c.y) ? c : freeNear(ctx, s, c.x, c.y, 2);
+      if (!at) continue;
+      const m = { id: `fd:mob${++s.seq}`, type: "magitek", x: at.x, y: at.y, hp: MAGITEK.hp, armor: MAGITEK.armor, aggro: null, ship: true };
+      s.mobs.push(m); spawned.push({ id: m.id, x: m.x, y: m.y });
+    }
+    d.state = "landed"; d.leaveAt = turn + MAGITEK.stay;
+    s.warn = (s.warn || []).filter((w) => w.kind !== "dropship");
+    ctx.bump();
+    ctx.fx("dropship_land", { x: d.x, y: d.y, spawned });
+    ctx.log(`🛸 ยานจักรวรรดิลงจอด — ทหารเหล็ก ${spawned.length} ตัว!`);
+    secs = SECS.dropship;
+  } else if (d && d.state === "landed" && turn >= d.leaveAt) {
+    s.mobs = s.mobs.filter((m) => !(m.type === "magitek" && m.ship));
+    s.dropship = null;
+    s.dropNext = turn + DROP_GAP;
+    ctx.bump();
+    ctx.fx("dropship_leave", { x: d.x, y: d.y });
+    ctx.log("🛸 ยานจักรวรรดิถอนกำลังกลับ");
+  } else if (!d && turn >= Math.max(DROP_FROM, s.dropNext || 0) && ctx.rng() * 100 < DROP_PCT) {
+    const z = dropZone(ctx, s);
+    if (z) {
+      s.dropship = { x: z.x, y: z.y, state: "warn", landAt: turn + 1 };
+      ctx.fx("dropship_warn", { x: z.x, y: z.y });
+      ctx.log("🚨 ยานจักรวรรดิกำลังจะลงจอด!");
+    }
+  }
+  return secs;
+}
+function respawnProps(ctx, s) {
+  const round = ctx.match.roundNumber + 1;
+  let changed = false;
+  s.barrelBack = s.barrelBack.filter((r) => {
+    if (round < r.round) return true;
+    if (!tileFree(ctx, s, r.at.x, r.at.y)) return true;
+    s.barrels.push({ id: `fd:barrel${++s.seq}`, x: r.at.x, y: r.at.y, home: r.at }); changed = true; return false;
+  });
+  s.crystalBack = s.crystalBack.filter((r) => {
+    if (round < r.round) return true;
+    if (!tileFree(ctx, s, r.at.x, r.at.y)) return true;
+    s.crystals.push({ id: `fd:crystal${++s.seq}`, x: r.at.x, y: r.at.y, home: r.at, element: ELEMENTS[Math.floor(ctx.rng() * 3) % 3] }); changed = true; return false;
+  });
+  if (!s.mobs.some((m) => m.type === "beast") && s.beastBack && round >= s.beastBack) changed = spawnBeast(ctx, s) || changed;
+  if (changed) ctx.bump();
+}
+
 // ============================================================ ต้นเทิร์น / จบตา / จบเทิร์น
 function preRound(ctx, st) {
   const s = st && st.eos;
@@ -789,7 +1085,11 @@ function preRound(ctx, st) {
   else if (night && s.daemons.length) secs = Math.max(secs, actDaemons(ctx, s) ? SECS.daemonAct : 0);
   else if (!night && s.night) secs = Math.max(secs, dissolveDaemons(ctx, s) ? SECS.dawn : 0);
   s.night = night;
-  checkRiders(ctx, s); // ปีศาจ/ฟ้าผ่าตีคนขี่ = ตกนก
+  respawnProps(ctx, s);
+  secs = Math.max(secs, dropshipTurn(ctx, s, turn));
+  if (actMobs(ctx, s)) secs = Math.max(secs, SECS.mobs);
+  checkChannels(ctx, s);
+  checkRiders(ctx, s); // ปีศาจ/ฟ้าผ่า/ศัตรูตีคนขี่ = ตกนก
   respawnChocos(ctx, s);
   return secs;
 }
@@ -836,6 +1136,11 @@ function hudActions(ctx, st, p) {
   const sw = switchNear(ctx, p);
   if (sw) out.push({ key: "fd:lights", icon: "💡", name: lit(s, sw.zone) ? "ดับไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p) });
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
+  for (const el of [...new Set(flasksOf(s, p))]) {
+    out.push({ key: `fd:flask:${el}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", name: `ขวด${ELEMENT_NAMES[el]}`, count: flasksOf(s, p).filter((e) => e === el).length, disabled: !canStrike(ctx, p), tiles: canStrike(ctx, p) ? flaskTiles(ctx, p) : [] });
+  }
+  const tur = turretNear(ctx, p);
+  if (tur) { const list = canStrike(ctx, p) ? turretTargets(ctx, s, p, tur) : []; out.push({ key: "fd:turret", icon: "🔫", name: "ป้อมปืน", disabled: !list.length, tiles: list }); }
   const sz = seizeState(ctx, s, p);
   if (sz) out.push({ key: "fd:seize", icon: "🔷", name: sz.pl.ch && sz.pl.ch.by === p.id ? "ยึด 2/2" : "ยึด", disabled: !sz.ok });
   if (riding(s, p)) {
@@ -853,6 +1158,8 @@ function charAction(ctx, st, p, key, tile) {
   if (key === "fd:dome") return raiseDome(ctx, s, p);
   if (key === "fd:lights") return flipLights(ctx, s, p);
   if (key === "fd:push") return pushWreck(ctx, s, p);
+  if (key === "fd:turret") return fireTurret(ctx, s, p, tile);
+  if (typeof key === "string" && key.startsWith("fd:flask:")) return throwFlask(ctx, s, p, key.slice(9), tile);
   if (key === "fd:dismount") {
     if (!riding(s, p) || !ctx.action.canAct(p) || !tile) return false;
     if (!dismountTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
@@ -871,11 +1178,23 @@ function charAction(ctx, st, p, key, tile) {
 function objects(ctx, st) {
   const s = st && st.eos;
   if (!s) return [];
-  return s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, kind: "daemon", name: "ปีศาจ", hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, look: d.kind, strike: true }));
+  return [
+    ...s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, kind: "daemon", name: "ปีศาจ", hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, look: d.kind, strike: true })),
+    ...(s.mobs || []).map((m) => ({ id: m.id, x: m.x, y: m.y, kind: m.type, name: m.type === "beast" ? "สัตว์ยักษ์" : "ทหารเหล็ก", hp: m.hp, maxHp: m.type === "beast" ? BEAST.hp : MAGITEK.hp, armor: m.armor, strike: true })),
+    ...(s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y, kind: "barrel", name: "ถังน้ำมัน", strike: true })),
+    ...(s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, kind: "crystal", name: "หินพลังเวท", element: c.element, strike: true })),
+  ];
 }
 function strikeObject(ctx, st, p, objId) {
   const s = st && st.eos;
-  const d = s && s.daemons.find((o) => o.id === objId);
+  if (!s) return false;
+  const b = (s.barrels || []).find((o) => o.id === objId);
+  if (b) { ctx.fx("barrel_hit", { x: b.x, y: b.y, by: p.id }); explodeBarrel(ctx, s, b, p); return 1.4; }
+  const c = (s.crystals || []).find((o) => o.id === objId);
+  if (c) { breakCrystal(ctx, s, c, p); return 1.1; }
+  const m = (s.mobs || []).find((o) => o.id === objId);
+  if (m) { ctx.fx("mob_struck", { id: m.id, x: m.x, y: m.y, by: p.id }); hurtMob(ctx, s, m, strikeDmg(p), p); return 1.1; }
+  const d = s.daemons.find((o) => o.id === objId);
   if (!d) return false;
   ctx.fx("daemon_struck", { id: d.id, x: d.x, y: d.y, by: p.id });
   hurtDaemon(ctx, s, d, strikeDmg(p), p);
@@ -952,7 +1271,10 @@ function publicInfo(ctx, st) {
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home } })),
     riders,
     daemons: s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, kind: d.kind })),
-    warn: (s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
+    warn: [
+      ...(s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
+      ...(s.dropship && s.dropship.state === "warn" ? [0, 1].flatMap((dy) => [0, 1].map((dx) => ({ x: s.dropship.x + dx, y: s.dropship.y + dy, kind: "dropship" }))) : []),
+    ],
     pillars: s.pillars.map((pl) => ({
       id: pl.id, zone: pl.zone, x: pl.x, y: pl.y, owner: pl.owner, color: pl.owner ? sideColor(ctx, pl.owner) : null,
       ch: pl.ch ? { by: pl.ch.by, color: sideColor(ctx, pl.ch.side), round: pl.ch.round } : null,
@@ -964,6 +1286,10 @@ function publicInfo(ctx, st) {
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA } : null,
     lightsOff: { ...(s.lightsOff || {}) },
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
+    barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
+    crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element })),
+    mobs: (s.mobs || []).map((m) => ({ id: m.id, type: m.type, x: m.x, y: m.y, hp: m.hp, maxHp: m.type === "beast" ? BEAST.hp : MAGITEK.hp, armor: m.armor, aggro: m.aggro || null })),
+    dropship: s.dropship ? { x: s.dropship.x, y: s.dropship.y, state: s.dropship.state } : null,
   };
 }
 function scoreList(ctx, s) {
@@ -975,14 +1301,19 @@ function scoreList(ctx, s) {
 }
 function playerInfo(ctx, st, p) {
   const s = st && st.eos;
-  if (!s || !riding(s, p)) return undefined;
-  return { choco: true, badges: [{ key: "choco", icon: "🐤", label: "ช็อโก้", cls: "bg-yellow-300 text-gray-900" }] };
+  if (!s) return undefined;
+  const badges = [];
+  if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "ช็อโก้", cls: "bg-yellow-300 text-gray-900" });
+  for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
+  if (!badges.length) return undefined;
+  return { choco: riding(s, p), badges };
 }
 
 module.exports = {
   enter, weatherStart, layer, layerVer, movMod, flatWalk, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
-  gysahlOnSale, useGysahl, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
+  gysahlOnSale, useGysahl, explodeBarrel, throwFlask, fireTurret, actMobs, spawnBeast, dropshipTurn, respawnProps, hurtMob, TURRETS,
+  BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carTargets, carOf, canRide, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,

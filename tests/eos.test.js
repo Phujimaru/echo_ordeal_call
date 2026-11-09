@@ -456,3 +456,138 @@ test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ �
   const car = s.cars[0];
   assert.ok(S6.carTargets(ctx(), s, car).every((t) => t.y <= 6));
 });
+
+// ---------- ขั้น 3: ลูกเล่นโจมตี (L11–L15) ----------
+test('L11 ถังน้ำมัน: ตีแล้วระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ · ระเบิดลูกโซ่ · เกิดใหม่ภายหลัง', () => {
+  setup();
+  const s = st(), p = P(0), q = P(1);
+  const b = s.barrels[0];
+  p.pos = { x: b.x - 1, y: b.y };
+  q.pos = { x: b.x + 1, y: b.y };
+  actor(p);
+  assert.ok(Fodlan.canHitObject(p, b.id));
+  const hq = total(q);
+  Fodlan.strikeObject(p, b.id);
+  assert.ok(!s.barrels.some((o) => o.id === b.id));
+  assert.equal(total(q), hq - S6.BARREL_DMG);
+  assert.ok((q.statuses.hburn || 0) > 0, 'ลุกไหม้');
+  // ลูกโซ่
+  setup();
+  const s2 = st();
+  s2.barrels = [{ id: 'fd:bA', x: 2, y: 2, home: { x: 2, y: 2 } }, { id: 'fd:bB', x: 3, y: 3, home: { x: 3, y: 3 } }]; // ไม่ใช่จุดร้านค้า (ร้านสุ่มมาเปิดทับได้)
+  S6.explodeBarrel(ctx(), s2, s2.barrels[0], P(0));
+  assert.equal(s2.barrels.length, 0, 'ถังข้างกันระเบิดต่อ');
+  match.roundNumber += 10; match.fodlan.s.preRoundDone = 0;
+  S6.respawnProps(ctx(), s2);
+  assert.equal(s2.barrels.length, 2, 'เกิดใหม่');
+});
+
+test('L12 หินพลังเวท → ขวดเวท · ไฟ = ลุกไหม้+พื้นไฟ · น้ำแข็ง = เชื่องช้า+น้ำเป็นน้ำแข็ง · สายฟ้าลงน้ำช็อตทั้งผืน', () => {
+  setup();
+  const s = st(), p = P(0), q = P(1);
+  S6.respawnProps(ctx(), s);
+  assert.equal(s.crystals.length, MAP6.CRYSTALS.length);
+  const c = s.crystals[0];
+  c.element = 'fire';
+  p.pos = nextToTile(c);
+  actor(p);
+  Fodlan.strikeObject(p, c.id);
+  assert.deepEqual(s.flasks[p.id], ['fire']);
+  // ไฟ
+  p.pos = { x: 13, y: 13 }; q.pos = { x: 15, y: 13 };
+  actor(p);
+  const b = btn(p, 'fd:flask:fire');
+  assert.ok(b && !b.disabled && b.tiles.some((t) => t.x === 15 && t.y === 13));
+  assert.ok(Fodlan.charAction(p.id, 'fd:flask:fire', { x: 15, y: 13 }));
+  assert.ok((q.statuses.hburn || 0) > 0);
+  assert.ok(match.board.flame && Object.keys(match.board.flame).length > 0, 'พื้นไฟ');
+  assert.equal((s.flasks[p.id] || []).length, 0);
+  // น้ำแข็ง: น้ำลึกริมทะเลสาบกลายเป็นทางเดิน
+  setup();
+  const s3 = st(), p3 = P(0), q3 = P(1);
+  s3.flasks[p3.id] = ['ice'];
+  const water = Object.entries(action.boardMap().terrain).find(([, v]) => v === 'fd_eos_water')[0].split(',').map(Number);
+  p3.pos = nextToTile({ x: water[0], y: water[1] }) || { x: 13, y: 13 };
+  q3.pos = { x: 30, y: 0 };
+  actor(p3);
+  const tiles = btn(p3, 'fd:flask:ice').tiles;
+  const aim = tiles.find((t) => t.x === water[0] && t.y === water[1]);
+  assert.ok(aim);
+  assert.ok(Fodlan.charAction(p3.id, 'fd:flask:ice', aim));
+  assert.ok(!Board.isObstacle(action.boardMap(), water[0], water[1]), 'น้ำแข็งเดินได้');
+  // สายฟ้า: คนยืนในน้ำตื้นผืนเดียวกันโดน
+  setup();
+  const s4 = st(), p4 = P(0), q4 = P(1);
+  s4.flasks[p4.id] = ['thunder'];
+  const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number));
+  const [ax, ay] = shallow[0];
+  const far = shallow.find(([x, y]) => Math.abs(x - ax) + Math.abs(y - ay) >= 4);
+  q4.pos = { x: far[0], y: far[1] };
+  p4.pos = { x: 13, y: 13 };
+  const aim2 = { x: ax, y: ay };
+  if (Math.abs(aim2.x - 13) + Math.abs(aim2.y - 13) > S6.FLASK_RANGE) p4.pos = nextToTile(aim2);
+  actor(p4);
+  const hq = total(q4);
+  assert.ok(Fodlan.charAction(p4.id, 'fd:flask:thunder', aim2));
+  assert.equal(total(q4), hq - S6.SHOCK_DMG, 'ช็อตทั้งผืนน้ำ');
+});
+
+test('L13 ป้อมปืน: ยืนติดป้อมบนกำแพง Insomnia ยิงศัตรูในระยะ 6 ดาเมจ 2', () => {
+  setup();
+  const p = P(0), q = P(1), t = S6.TURRETS[0];
+  assert.ok(t);
+  p.pos = { x: t.x, y: t.y - 1 };
+  q.pos = { x: t.x, y: t.y + 3 };
+  actor(p);
+  const b = btn(p, 'fd:turret');
+  assert.ok(b && !b.disabled && b.tiles.some((c) => c.x === q.pos.x && c.y === q.pos.y));
+  const hq = total(q);
+  assert.ok(Fodlan.charAction(p.id, 'fd:turret', q.pos));
+  assert.equal(total(q), hq - S6.TURRET_DMG);
+});
+
+test('L14 สัตว์ยักษ์: ตีคนที่เข้าใกล้ · ถูกตี = ไล่คนตี และตีทุกคนที่ติดตัว · ฆ่าได้ 6 เหรียญ', () => {
+  setup();
+  const s = st(), p = P(0), q = P(1);
+  match.roundNumber = 1;
+  S6.respawnProps(ctx(), s);
+  const m = s.mobs.find((o) => o.type === 'beast');
+  assert.ok(m);
+  p.pos = { x: m.x + 1, y: m.y };
+  if (Board.isObstacle(action.boardMap(), p.pos.x, p.pos.y)) p.pos = nextToTile(m);
+  const hp = total(p);
+  S6.actMobs(ctx(), s);
+  assert.equal(total(p), hp - S6.BEAST.atk, 'เข้าใกล้ = โดน');
+  // ถูกตี → ไล่คนตี
+  p.pos = { x: 1, y: 1 };
+  q.pos = { x: m.x + 4, y: m.y };
+  S6.hurtMob(ctx(), s, m, 1, q);
+  assert.equal(m.aggro, q.id);
+  S6.actMobs(ctx(), s);
+  assert.ok(Math.abs(m.x - q.pos.x) + Math.abs(m.y - q.pos.y) <= 2, 'วิ่งไล่คนตี');
+  const g0 = q.gold || 0;
+  S6.hurtMob(ctx(), s, m, 99, q);
+  assert.ok(!s.mobs.includes(m));
+  assert.equal((q.gold || 0) - g0, S6.BEAST.gold);
+});
+
+test('L15 ยานลงจอด: เตือน → ต้นเทิร์นถัดไปลงจอด ปล่อยทหารเหล็ก 3 ตัว ไล่ตี · ครบเวลาถอนกลับ', () => {
+  setup();
+  const s = st();
+  Math.random = () => 0.01; // สุ่มติด
+  S6.dropshipTurn(ctx(), s, 10);
+  Math.random = realRandom;
+  assert.ok(s.dropship && s.dropship.state === 'warn');
+  assert.ok(Fodlan.publicInfo().board.warn.some((w) => w.kind === 'dropship'));
+  S6.dropshipTurn(ctx(), s, 11);
+  assert.equal(s.dropship.state, 'landed');
+  assert.equal(s.mobs.filter((m) => m.type === 'magitek').length, S6.MAGITEK.count);
+  P(0).pos = { x: s.dropship.x + 3, y: s.dropship.y };
+  if (Board.isObstacle(action.boardMap(), P(0).pos.x, P(0).pos.y)) P(0).pos = { x: 13, y: 13 };
+  const before = s.mobs.map((m) => `${m.x},${m.y}`).join('|');
+  S6.actMobs(ctx(), s);
+  assert.notEqual(s.mobs.map((m) => `${m.x},${m.y}`).join('|'), before, 'ทหารเหล็กขยับ');
+  S6.dropshipTurn(ctx(), s, 11 + S6.MAGITEK.stay);
+  assert.equal(s.dropship, null);
+  assert.equal(s.mobs.filter((m) => m.type === 'magitek').length, 0);
+});

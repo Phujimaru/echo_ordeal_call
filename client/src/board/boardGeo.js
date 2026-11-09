@@ -25,8 +25,12 @@ export const parseKey = (k) => String(k).split(",").map(Number);
 //  ซูม/เลื่อนกล้อง (มุมใกล้) ไม่ยุ่งกับไฟล์นี้ — เป็นการขยายภาพ 2 มิติทั้งเฟรมใน computeView (cam)
 //  มุมกล้อง: ปกติ 32° (ผู้ใช้เลือก 2026-10-09 · เดิม 38°) · มุมมองจากด้านบน (bird's-eye) = 90° — setPitch() สลับได้ระหว่างเล่น
 export const PITCH_NORMAL = 32, PITCH_BIRD = 90;
+// สนาม Eos (กล้อง RTS — ผู้ใช้สั่ง 2026-11-09 "มุมก้มชัน/แบนเกินไป"): มุมต่ำกว่า เห็นไกลขึ้น
+export const PITCH_LOW = 26;
 let PITCH_DEG = PITCH_NORMAL, SN = 0, CS = 0, FOC0 = 0, FAR0 = 0;
 const CAM_D = 22;
+// ระยะกล้องจริง: กระดานลึกเกิน 24 ช่อง (สนาม Eos 32×32) ถอยกล้องตามความลึก — ไม่งั้นช่องใกล้ใหญ่กว่าช่องไกล ~4 เท่า (ภาพบิด/เบียด)
+let CAMD = CAM_D;
 export const NEAR_Y = 528;
 export const OX = 640;
 // ขอบไกลของกระดานลึก 12 ช่อง (ครึ่งลึก 6) ตามต้นแบบ 16 × 12 — กระดานที่ลึกกว่ายอมให้ขอบไกลสูงขึ้นช่องละ 7.5 px แล้วย่อกล้องให้พอดี
@@ -48,7 +52,8 @@ function fit() {
   if (Math.abs(sT) < 1e-9) sT = 0;
   HCe = Math.abs(cT) * BC / 2 + Math.abs(sT) * BR / 2;
   HRe = Math.abs(sT) * BC / 2 + Math.abs(cT) * BR / 2;
-  const dn = Math.max(1, CAM_D - HRe * CS), df = CAM_D + HRe * CS, farY = PITCH_DEG >= 80 ? BIRD_FAR_Y : FAR0 - (HRe - 6) * 7.5;
+  CAMD = HRe >= 12 ? HRe * 2.6 : CAM_D;
+  const dn = Math.max(1, CAMD - HRe * CS), df = CAMD + HRe * CS, farY = PITCH_DEG >= 80 ? BIRD_FAR_Y : FAR0 - (HRe - 6) * 7.5;
   FOC = Math.min((NEAR_Y - farY) / (HRe * SN * (1 / dn + 1 / df)), MAX_NEAR_W * dn / (2 * HCe));
   OY = NEAR_Y - HRe * SN * FOC / dn;
 }
@@ -71,7 +76,7 @@ export const sceneSize = () => ({ cols: HCe * 2, rows: HRe * 2 });
 
 // มุมมอง (X, Y, สูง z) → [sx, sy, สเกล] ในพิกัดตรรกะ
 export function PV(X, Y, z = 0) {
-  const depth = CAM_D - Y * CS - z * SN, s = FOC / depth;
+  const depth = CAMD - Y * CS - z * SN, s = FOC / depth;
   return [OX + X * s, OY + (Y * SN - z * CS) * s, s];
 }
 // กระดาน → มุมมอง [X, Y]
@@ -134,13 +139,13 @@ export function PS(x, y, z = 0) { return PV(x - HCe, y - HRe, z); }
 // ด้านข้างแนวตั้งของกล่อง (normal n ในพิกัดกระดาน ที่จุด px, py) หันเข้ากล้องไหม
 export function faceVisible(nx, ny, px, py) {
   const [X, Y] = toView(px, py), vx = nx * cT - ny * sT, vy = nx * sT + ny * cT;
-  return vx * -X + vy * (CAM_D * CS - Y) > 0;
+  return vx * -X + vy * (CAMD * CS - Y) > 0;
 }
 // จุดบนจอ (ตรรกะ) → มุมมอง {X, Y} บนพื้น (z = 0) · เหนือเส้นขอบฟ้า = null
 function unprojectView(sx, sy) {
   const v = (sy - OY) / FOC, den = SN + v * CS;
   if (den <= 1e-6) return null;
-  const Y = v * CAM_D / den, depth = CAM_D - Y * CS;
+  const Y = v * CAMD / den, depth = CAMD - Y * CS;
   if (depth <= 0.5) return null;
   return { X: (sx - OX) / (FOC / depth), Y };
 }

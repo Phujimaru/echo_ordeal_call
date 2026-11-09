@@ -25,13 +25,17 @@ export const kinds = [
   "fd_eos_forest", "fd_eos_shallow", "fd_eos_pillar",
   // ขั้น 2 (ลูกเล่นปั่นป่วน): คันโยกสะพาน · แท่นโดม · แผงไฟเมือง · ชั้น layer: สะพานที่ยก · กำแพงเวทที่ประตู · ซากรถ
   "fd_eos_lever", "fd_eos_domecore", "fd_eos_switch", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_wreck",
+  // ขั้น 3 (ลูกเล่นโจมตี): ถังน้ำมัน · แหล่งหินเวท · ป้อมปืนบนกำแพง · มอนสเตอร์ (วาดใน items)
+  "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob",
 ];
-export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier"];
+export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret"];
 // ความยาวฉากของเหตุการณ์ (ms) — server ctx.fx
 export const fx = {
   lightning: 1600, car_drive: 900, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
   daemon_spawn: 1600, daemon_move: 1100, daemon_attack: 900, daemon_hit: 600, daemon_struck: 500, daemon_die: 1200, daemon_dissolve: 1400,
   bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
+  barrel_boom: 1600, crystal_break: 1100, flask: 1700, turret_shot: 750, mob_move: 1100, mob_attack: 900, mob_hit: 600, mob_die: 1300,
+  beast_roar: 1300, dropship_warn: 1200, dropship_land: 2000, dropship_leave: 2000,
 };
 export const fogRGB = "150,165,185";
 const CAR_MS = 900, DAEMON_MS = 1000;
@@ -85,8 +89,9 @@ function img(src) {
   return im.complete && im.naturalWidth ? im : null;
 }
 const CHOCO_IMG = "/eos/img/chocobo.webp";
+const MAGITEK_IMG = "/eos/img/magitek.webp";
 const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 4 + 1}.webp`;
-export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 4; i++) img(daemonImg(i)); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); }
+export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 4; i++) img(daemonImg(i)); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); img(MAGITEK_IMG); }
 
 // แสงเรือง (อบครั้งเดียวต่อสี)
 const GLOW = new Map();
@@ -109,7 +114,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -118,28 +123,35 @@ function hull(pts) {
   for (const q of p.slice().reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
+let SHADOW_POLYS = null;
 function castShadows(g, C, night) {
   const m = MAPS[EOS_AREA], tr = (m && m.terrain) || {};
+  if (!SHADOW_POLYS) SHADOW_POLYS = shadowPolys(tr);
   g.save();
   g.fillStyle = night ? "rgba(0,0,12,.22)" : "rgba(20,24,10,.26)";
   g.beginPath();
+  for (const pts of SHADOW_POLYS) {
+    pts.forEach(([a, b], i) => { const q = P(a, b); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+    g.closePath();
+  }
+  g.fill("nonzero");
+  g.restore();
+  if (!SETS.solid) SETS.solid = new Set(Object.entries(tr).filter(([, v]) => v === "fd_eos_bldg" || v === "fd_eos_wall" || v === "fd_eos_garage" || v === "fd_eos_turret").map(([k]) => k));
+  msFill(g, SETS.solid, night ? "#000008" : "#141808", { cols: m.cols, rows: m.rows, th: 0.3, alpha: 0.18 });
+}
+function shadowPolys(tr) {
+  const out = [];
   for (const [k, kind] of Object.entries(tr)) {
     if (!(kind in HEIGHT)) continue;
     const [x, y] = k.split(",").map(Number);
     const h = kind === "fd_eos_bldg" ? (BUILDING.get(k) || { h: 1.2 }).h : HEIGHT[kind];
     // ต้นไม้/หิน/เสาไฟ = เงารูปทรงกลม (ช่องเล็กกว่าเต็มช่อง) · ตึก/กำแพง = กล่องเต็มช่อง
-    const inset = kind === "fd_eos_bldg" || kind === "fd_eos_wall" || kind === "fd_eos_garage" ? 0 : kind === "fd_eos_lamp" ? 0.44 : 0.22;
+    const inset = kind === "fd_eos_bldg" || kind === "fd_eos_wall" || kind === "fd_eos_garage" || kind === "fd_eos_turret" ? 0 : kind === "fd_eos_lamp" ? 0.44 : 0.22;
     const ox = SUN.x * h, oy = SUN.y * h;
     const sq = [[x + inset, y + inset], [x + 1 - inset, y + inset], [x + 1 - inset, y + 1 - inset], [x + inset, y + 1 - inset]];
-    const pts = hull([...sq, ...sq.map(([a, b]) => [a + ox, b + oy])]);
-    pts.forEach(([a, b], i) => { const q = P(a, b); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
-    g.closePath();
+    out.push(hull([...sq, ...sq.map(([a, b]) => [a + ox, b + oy])]));
   }
-  g.fill("nonzero");
-  // เงามืดรอบฐานตึก/กำแพง (ขอบนุ่ม)
-  const solid = new Set(Object.entries(tr).filter(([, v]) => v === "fd_eos_bldg" || v === "fd_eos_wall" || v === "fd_eos_garage").map(([k]) => k));
-  g.restore();
-  msFill(g, solid, night ? "#000008" : "#141808", { cols: m.cols, rows: m.rows, th: 0.3, alpha: 0.18 });
+  return out;
 }
 // ไล่แสงบนผนัง: ล่างเข้ม → บนสว่าง (หลอกตาให้มีความลึก)
 function shadeFace(g, a, b, h, alpha) {
@@ -203,7 +215,7 @@ export const theme = {
     skyFill(c, C.sky);
     if (night) {
       const R = rng(5);
-      for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + R() * 0.6})`; g.fillRect(VX0 + R() * VW, VY0 + R() * (bY - VY0 - 40), 1.2, 1.2); }
+      for (let i = 0; i < 320; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + R() * 0.6})`; g.fillRect(VX0 + R() * VW, VY0 + R() * (bY - VY0 - 40), 1.2, 1.2); }
       glow(g, VX0 + VW * 0.78, VY0 + 70, 60, "220,230,255", 0.6);
       g.fillStyle = "#e8eefc"; g.beginPath(); g.arc(VX0 + VW * 0.78, VY0 + 70, 14, 0, TAU); g.fill();
     } else glow(g, VX0 + VW * 0.25, bY - 120, 260, "255,215,150", 0.35);
@@ -246,12 +258,18 @@ export const theme = {
     if (info.area !== EOS_AREA) return;
     const T = TILES;
     // หญ้า: สีไล่ตาม noise ความถี่ต่ำ (ไม่มีลายตาหมากรุก)
-    for (let y = 0; y < info.rows; y++) for (let x = 0; x < info.cols; x++) {
-      const v = vnoise(x * 0.23, y * 0.23), w = vnoise(x * 0.61 + 9, y * 0.61 + 3);
-      quad(g, x - 0.02, y - 0.02, 0); g.fillStyle = mix(C.grassA, C.grassB, Math.min(1, v * 0.8 + w * 0.35)); g.fill();
+    // 8 ระดับสี วาดทีละระดับ (fill เดียวต่อระดับ — เร็วพอวาดสดตอนหมุน)
+    const GB = 8;
+    for (let b = 0; b < GB; b++) {
+      g.beginPath();
+      for (const t of GRASS_BUCKETS[b]) {
+        const a = P(t.x - 0.02, t.y - 0.02), b1 = P(t.x + 1.02, t.y - 0.02), c2 = P(t.x + 1.02, t.y + 1.02), d = P(t.x - 0.02, t.y + 1.02);
+        g.moveTo(a[0], a[1]); g.lineTo(b1[0], b1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]); g.closePath();
+      }
+      g.fillStyle = mix(C.grassA, C.grassB, (b + 0.5) / GB); g.fill();
     }
     const dim = { cols: info.cols, rows: info.rows };
-    const sand = setOf(T.sand), forest = setOf(T.forest), wet = setOf([...T.shallow, ...T.water]), deep = setOf(T.water), road = setOf(T.road);
+    const sand = setFor("sand", T.sand), forest = setFor("forest", T.forest), wet = setFor("wet", [...T.shallow, ...T.water]), deep = setFor("deep", T.water), road = setFor("road", T.road);
     // ทราย: ขอบนอกจาง (ทรายปนหญ้า) → เนื้อทราย
     msFill(g, sand, C.sandEdge, { ...dim, jitter: 0.45, th: 0.32, seed: 1, alpha: 0.75 });
     msFill(g, sand, C.sand, { ...dim, jitter: 0.45, th: 0.5, seed: 1 });
@@ -277,7 +295,7 @@ export const theme = {
     msFill(g, road, C.roadLine, { ...dim, th: 0.5 });   // เส้นขอบถนนสีขาว
     msFill(g, road, C.road, { ...dim, th: 0.57 });
     // รอยล้อ/คราบน้ำมันบนถนน
-    for (const t of T.road) {
+    if (!FAST) for (const t of T.road) {
       const R = rng(t.x * 53 + t.y * 19);
       if (R() < 0.35) { const [px, py, s] = P(t.x + 0.2 + R() * 0.6, t.y + 0.2 + R() * 0.6); g.fillStyle = C.roadStain; g.beginPath(); g.ellipse(px, py, s * (0.1 + R() * 0.12), s * 0.04, R() * 3, 0, TAU); g.fill(); }
     }
@@ -288,13 +306,14 @@ export const theme = {
       g.strokeStyle = "rgba(0,0,0,.32)"; g.lineWidth = 1;
       for (let i = 1; i < 5; i++) { const a = P(t.x + 0.1, t.y + i / 5, 0.06), b = P(t.x + 0.9, t.y + i / 5, 0.06); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
     }
-    msFill(g, setOf(T.stable), C.hay, { cols: info.cols, rows: info.rows, jitter: 0.3, th: 0.45, seed: 6 });
+    msFill(g, setFor("stable", T.stable), C.hay, { cols: info.cols, rows: info.rows, jitter: 0.3, th: 0.45, seed: 6 });
   },
   // ของชิ้นเล็กตามรอยต่อ (อบ — หลังเส้นตาราง): กก ริมน้ำ · ก้อนหินริมทราย · ดอกไม้/หญ้าในทุ่ง · พุ่มไม้ใต้ร่มป่า
   deco(c) {
     const { g, C, info } = c;
     if (info.area !== EOS_AREA) return;
     const T = TILES, isW = (x, y) => WATER_SET.has(K(x, y));
+    if (FAST) return; // ระหว่างหมุนอิสระ: ข้ามกก/หิน/ดอกไม้/พุ่มไม้ (กลับมาเมื่อปล่อยปุ่ม)
     // ประกายบนผิวน้ำ
     g.strokeStyle = C.foam; g.lineWidth = 1;
     for (const t of T.water) {
@@ -371,6 +390,16 @@ function tilesOf() {
   return out;
 }
 const TILES = tilesOf();
+// หญ้าทั้งกระดาน (ทุกช่อง — พื้นอื่นทับทีหลัง) แบ่ง 8 ระดับสีตาม noise ความถี่ต่ำ (คำนวณครั้งเดียว)
+const GRASS_BUCKETS = (() => {
+  const m = MAPS[EOS_AREA], out = Array.from({ length: 8 }, () => []);
+  if (!m) return out;
+  for (let y = 0; y < m.rows; y++) for (let x = 0; x < m.cols; x++) {
+    const v = Math.min(0.999, vnoise(x * 0.23, y * 0.23) * 0.8 + vnoise(x * 0.61 + 9, y * 0.61 + 3) * 0.35);
+    out[Math.floor(v * 8)].push({ x, y });
+  }
+  return out;
+})();
 const WATER_SET = new Set([...TILES.water, ...TILES.canal].map((t) => K(t.x, t.y)));
 const ROAD_SET = new Set(TILES.road.map((t) => K(t.x, t.y)));
 const BUILDING = (() => {
@@ -406,33 +435,52 @@ function mix(a, b, t) {
 }
 // marching squares (dual grid): ค่าที่กลางช่อง 1 = ในผืน · 0 = นอก (+ noise ที่ขอบ = โค้งไม่เท่ากัน) → เส้นขอบที่ระดับ th
 //  jitter 0 = ขอบตรงลบมุม 45° (ถนน) · > 0 = ขอบคดตาม noise (น้ำ ทราย ป่า) · th < 0.5 = ผืนขยายออก (ชายฝั่งรอบน้ำ)
-function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows = 32, alpha = 1, ox = 0, oy = 0 } = {}) {
-  if (!set.size) return;
+// รูปทรงคำนวณครั้งเดียวต่อชุดค่า (พิกัดกระดาน) แล้วเก็บไว้ — วาดแต่ละเฟรมแค่ฉายจุด (หมุนกล้องอิสระวาดสดทุกเฟรม — ผู้ใช้สั่ง "ภาพแตก/กระตุก")
+const MS_CACHE = new WeakMap();
+function msPolys(set, jitter, th, seed, cols, rows, ox, oy) {
+  let per = MS_CACHE.get(set);
+  if (!per) { per = new Map(); MS_CACHE.set(set, per); }
+  const key = `${jitter}|${th}|${seed}|${cols}x${rows}|${ox}|${oy}`;
+  if (per.has(key)) return per.get(key);
   const val = (x, y) => {
     const cx = Math.max(0, Math.min(cols - 1, x)), cy = Math.max(0, Math.min(rows - 1, y));
     const inside = set.has(K(cx, cy)), n = jitter ? vnoise(x * 0.7 + seed, y * 0.7 + seed * 2) * jitter : 0;
     return inside ? 1 - n : n;
   };
-  g.globalAlpha = alpha;
-  g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 1;
-  g.beginPath();
-  // เซลล์ระหว่างกลางช่อง (x, y)…(x+1, y+1) · ครอบเลยขอบกระดานครึ่งช่อง
+  const polys = [];
   for (let y = -1; y < rows; y++) for (let x = -1; x < cols; x++) {
     const c = [[x, y, val(x, y)], [x + 1, y, val(x + 1, y)], [x + 1, y + 1, val(x + 1, y + 1)], [x, y + 1, val(x, y + 1)]];
     if (c.every((q) => q[2] < th)) continue;
     const pts = [];
     for (let i = 0; i < 4; i++) {
-      const a = c[i], b = c[(i + 1) % 4];
-      if (a[2] >= th) pts.push([a[0], a[1]]);
-      if ((a[2] >= th) !== (b[2] >= th)) { const t = (th - a[2]) / (b[2] - a[2]); pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+      const p0 = c[i], p1 = c[(i + 1) % 4];
+      if (p0[2] >= th) pts.push([p0[0], p0[1]]);
+      if ((p0[2] >= th) !== (p1[2] >= th)) { const t = (th - p0[2]) / (p1[2] - p0[2]); pts.push([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t]); }
     }
-    pts.forEach(([px, py], i) => { const q = P(Math.max(0, Math.min(cols, px + 0.5 + ox)), Math.max(0, Math.min(rows, py + 0.5 + oy))); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+    polys.push(pts.map(([px, py]) => [Math.max(0, Math.min(cols, px + 0.5 + ox)), Math.max(0, Math.min(rows, py + 0.5 + oy))]));
+  }
+  per.set(key, polys);
+  return polys;
+}
+function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows = 32, alpha = 1, ox = 0, oy = 0 } = {}) {
+  if (!set.size) return;
+  const polys = msPolys(set, jitter, th, seed, cols, rows, ox, oy);
+  g.globalAlpha = alpha;
+  g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 1;
+  g.beginPath();
+  for (const pts of polys) {
+    pts.forEach(([px, py], i) => { const q = P(px, py); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
     g.closePath();
   }
-  g.fill(); g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์
+  g.fill(); if (!FAST) g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์ (ข้ามระหว่างหมุน)
   g.globalAlpha = 1;
 }
-const setOf = (list) => new Set(list.map((t) => K(t.x, t.y)));
+// ระหว่างหมุนกล้องอิสระ (วาดสดทุกเฟรม): ข้ามรายละเอียดเล็ก — BoardCanvas ตั้งผ่าน setEosFast
+let FAST = false;
+export function setEosFast(b) { FAST = !!b; }
+// ชุดช่องคงที่ (สร้างครั้งเดียว — msFill แคชรูปทรงตามชุด)
+const SETS = {};
+const setFor = (name, list) => (SETS[name] ||= new Set(list.map((t) => K(t.x, t.y))));
 
 // =================================================================== รูปทรง (พิกัดจอ)
 function treeShape(g, x, y, s, C, r = 0.5) {
@@ -723,6 +771,149 @@ function drawWreck(g, x, y, now) {
   g.fillStyle = "rgba(0,0,0,.75)"; g.fillRect(wp[0] - s * 0.07, wp[1] - s * 0.04, s * 0.14, s * 0.06);
 }
 
+// =================================================================== ขั้น 3: ลูกเล่นโจมตี (server/fodlan/stage6.js "ขั้น 3")
+const ELEM = {
+  fire: { rgb: "255,140,40", body: "#ff7a1c", hi: "#ffd27a", dark: "#a8360c" },
+  ice: { rgb: "120,225,255", body: "#7fdcff", hi: "#eafcff", dark: "#2a7fb0" },
+  thunder: { rgb: "185,130,255", body: "#b48cff", hi: "#fff6a0", dark: "#5a2fb0" },
+};
+const elemOf = (k) => ELEM[k] || ELEM.fire;
+const objAt = (key, x, y) => (LAST_FD && Array.isArray(LAST_FD[key]) ? LAST_FD[key].find((o) => o.x === x && o.y === y) : null);
+const seedOf = (id) => String(id).split("").reduce((a, ch) => a + ch.charCodeAt(0), 0);
+
+// เงาทอดของของบนชั้น layer (ถัง/หินเวท — ไม่อยู่ในผังที่อบ castShadows) · วาดใน ground()
+function dynShadow(g, x, y, h, inset, night) {
+  const ox = SUN.x * h, oy = SUN.y * h;
+  const sq = [[x + inset, y + inset], [x + 1 - inset, y + inset], [x + 1 - inset, y + 1 - inset], [x + inset, y + 1 - inset]];
+  const pts = hull([...sq, ...sq.map(([a, b]) => [a + ox, b + oy])]);
+  g.beginPath(); pts.forEach(([a, b], i) => { const q = P(a, b); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); }); g.closePath();
+  g.fillStyle = night ? "rgba(0,0,12,.22)" : "rgba(20,24,10,.26)"; g.fill();
+}
+
+// ทรงกระบอกตั้ง (ถังน้ำมัน / แป้นหมุนป้อม) · stripe = สีแถบเตือนอันตราย (ลายเฉียงดำ)
+function cylPath(g, t, b, rx, ry) {
+  g.beginPath(); g.moveTo(t[0] - rx, t[1]); g.lineTo(b[0] - rx, b[1]); g.ellipse(b[0], b[1], rx, ry, 0, Math.PI, 0, true); g.lineTo(t[0] + rx, t[1]);
+  g.ellipse(t[0], t[1], rx, ry, 0, 0, Math.PI, false); g.closePath();
+}
+function drum(g, cx, cy, r, h, col, stripe = null, z0 = 0) {
+  const b = P(cx, cy, z0), t = P(cx, cy, z0 + h), rx = b[2] * r, ry = rx * 0.5;
+  const gr = g.createLinearGradient(b[0] - rx, 0, b[0] + rx, 0);
+  gr.addColorStop(0, col.dark); gr.addColorStop(0.3, col.body); gr.addColorStop(0.5, col.hi); gr.addColorStop(0.68, col.body); gr.addColorStop(1, col.dark);
+  cylPath(g, t, b, rx, ry); g.fillStyle = gr; g.fill();
+  if (stripe) {
+    const lo = P(cx, cy, z0 + h * 0.48), up = P(cx, cy, z0 + h * 0.72);
+    g.save();
+    cylPath(g, up, lo, rx, ry); g.fillStyle = stripe; g.fill(); g.clip();
+    g.fillStyle = "rgba(22,18,14,.92)";
+    const bh = lo[1] - up[1] + ry * 2, w = rx * 0.3;
+    for (let i = -3; i < 9; i++) {
+      const x0 = lo[0] - rx + i * w * 2;
+      g.beginPath(); g.moveTo(x0, up[1] - ry); g.lineTo(x0 + w, up[1] - ry); g.lineTo(x0 + w - bh * 0.7, lo[1] + ry); g.lineTo(x0 - bh * 0.7, lo[1] + ry); g.closePath(); g.fill();
+    }
+    g.restore();
+  }
+  // สันถัง + ฝา + จุกเติม
+  g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1;
+  for (const k of [0.22, 0.86]) { const m = P(cx, cy, z0 + h * k); g.beginPath(); g.ellipse(m[0], m[1], rx, ry, 0, 0, Math.PI); g.stroke(); }
+  g.fillStyle = col.hi; g.beginPath(); g.ellipse(t[0], t[1], rx, ry, 0, 0, TAU); g.fill();
+  g.strokeStyle = col.dark; g.beginPath(); g.ellipse(t[0], t[1], rx * 0.8, ry * 0.8, 0, 0, TAU); g.stroke();
+  g.fillStyle = col.dark; g.beginPath(); g.arc(t[0] + rx * 0.42, t[1], Math.max(1, rx * 0.13), 0, TAU); g.fill();
+}
+
+// ---------- ถังน้ำมัน Hammerhead (แดง/เหลือง + แถบเตือน) ----------
+const DRUM_RED = { body: "#c8321f", dark: "#56120a", hi: "#ff8f72" }, DRUM_YEL = { body: "#e2b31a", dark: "#6e5005", hi: "#fff0a6" };
+function drawBarrel(g, x, y) {
+  const b = objAt("barrels", x, y), seed = b ? seedOf(b.id) : x * 7 + y;
+  const [bx, by, s] = P(x + 0.5, y + 0.58);
+  g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(bx, by, s * 0.4, s * 0.15, 0, 0, TAU); g.fill();
+  gEllipse(g, x + 0.66, y + 0.74, 0.2, 0.01, 14, 0.11); g.fillStyle = "rgba(18,12,8,.5)"; g.fill(); // คราบน้ำมัน
+  const A = hash(seed, 1) < 0.5 ? DRUM_RED : DRUM_YEL, B = A === DRUM_RED ? DRUM_YEL : DRUM_RED;
+  const drums = [
+    { x: x + 0.32, y: y + 0.34, r: 0.17, h: 0.38, col: B, st: B === DRUM_RED ? "#f2c21b" : "#e8e2cf" },
+    { x: x + 0.58, y: y + 0.6, r: 0.22, h: 0.5, col: A, st: A === DRUM_RED ? "#f2c21b" : "#e8e2cf" },
+  ].sort((p, q) => depthOf(p.x, p.y) - depthOf(q.x, q.y));
+  for (const d of drums) drum(g, d.x, d.y, d.r, d.h, d.col, d.st);
+}
+
+// ---------- แหล่งหินเวท (หิน + ผลึกเรืองตามธาตุ) ----------
+function shard(g, bx, by, len, w, ang, col, hi, a = 1) {
+  const tx = bx + Math.sin(ang) * len, ty = by - Math.cos(ang) * len, nx = Math.cos(ang) * w, ny = Math.sin(ang) * w;
+  const mx = bx + (tx - bx) * 0.55, my = by + (ty - by) * 0.55;
+  const a0 = g.globalAlpha;
+  g.globalAlpha = a0 * a; g.fillStyle = col;
+  g.beginPath(); g.moveTo(bx - nx * 0.6, by - ny * 0.6); g.lineTo(mx - nx, my - ny); g.lineTo(tx, ty); g.lineTo(mx + nx, my + ny); g.lineTo(bx + nx * 0.6, by + ny * 0.6); g.closePath(); g.fill();
+  g.globalAlpha = a0 * a * 0.6; g.fillStyle = hi;
+  g.beginPath(); g.moveTo(bx - nx * 0.6, by - ny * 0.6); g.lineTo(mx - nx, my - ny); g.lineTo(tx, ty); g.lineTo(mx, my); g.closePath(); g.fill();
+  g.globalAlpha = a0;
+}
+const SHARDS = [[-0.16, 0.04, 0.4, -0.55], [0.0, -0.02, 0.62, 0.05], [0.15, 0.03, 0.44, 0.5], [-0.05, 0.1, 0.28, -0.22], [0.24, 0.11, 0.24, 0.85]];
+function drawCrystal(g, x, y, C, night, now) {
+  const c = objAt("crystals", x, y), E = elemOf(c && c.element);
+  const [sx, sy, s] = P(x + 0.5, y + 0.6);
+  rockShape(g, sx, sy, s * 0.95, zoneAt(x, y) === "desert" ? C : { ...C, rock: C.stone, rock2: C.stone2 }, 0.5);
+  const pulse = 0.5 + 0.5 * Math.sin(now / 520 + x * 1.3 + y);
+  glowAt(g, sx, sy - s * 0.5, s * (night ? 1.25 : 0.9), E.rgb, (night ? 0.55 : 0.35) + 0.15 * pulse);
+  const R = rng(x * 31 + y * 17);
+  for (const [dx, dy, len, ang] of SHARDS) shard(g, sx + dx * s, sy - s * 0.32 + dy * s, s * len * (0.85 + R() * 0.3), s * 0.075, ang + (R() - 0.5) * 0.2, E.body, E.hi);
+  if (Math.sin(now / 260 + x * 5 + y) > 0.8) { // ประกาย
+    const px = sx + (R() - 0.5) * s * 0.4, py = sy - s * (0.55 + R() * 0.3), k = s * 0.06;
+    g.fillStyle = "rgba(255,255,255,.9)"; g.fillRect(px - 1, py - k, 2, k * 2); g.fillRect(px - k, py - 1, k * 2, 2);
+  }
+}
+
+// ---------- ป้อมปืนบนกำแพง Insomnia (หันตามเป้าล่าสุด / กวาดหาเป้า) ----------
+function rbox(g, cx, cy, ang, hl, hw, z0, z1, top, s1, s2) {
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  const c = [[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]].map(([u, v]) => [cx + u * ca - v * sa, cy + u * sa + v * ca]);
+  const mid = depthOf(cx, cy);
+  c.forEach((a, i) => {
+    const b = c[(i + 1) % 4];
+    if (depthOf((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) <= mid) return;
+    poly(g, [[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]]); g.fillStyle = i % 2 ? s1 : s2; g.fill();
+  });
+  poly(g, c.map(([px, py]) => [px, py, z1])); g.fillStyle = top; g.fill();
+  g.strokeStyle = "rgba(255,255,255,.16)"; g.lineWidth = 1; g.stroke();
+}
+const TURRET_GUN = "#1c1f24", TURRET_PLATE = { body: "#4a5058", dark: "#1e2227", hi: "#8a929c" };
+function turretShot(x, y, now) {
+  const e = lastFx("turret_shot");
+  return e && e.from && e.from.x === x && e.from.y === y ? { e, p: fxT(e, now, fx.turret_shot) } : null;
+}
+function drawTurret(g, x, y, C, now) {
+  box(g, x, y + 0.15, x + 1, y + 0.85, 0.75, C.wall, C.wall2, C.wall);
+  box(g, x + 0.16, y + 0.18, x + 0.84, y + 0.82, 0.88, C.stone, C.stone2, C.stone);
+  const cx = x + 0.5, cy = y + 0.5, sh = turretShot(x, y, now);
+  // มุม: ยิงล่าสุด = หันหาเป้า (ค้างไว้) · ไม่มี = กวาดช้าๆ หันออกนอกเมือง
+  const out = Math.atan2(cy - 4, cx - 15.5);
+  const a = sh && sh.e.to ? Math.atan2(sh.e.to.y + 0.5 - cy, sh.e.to.x + 0.5 - cx) : out + Math.sin(now / 2600 + x * 0.7) * 0.7;
+  const firing = !!sh && sh.p < 0.6, recoil = firing ? Math.abs(Math.sin(sh.p * 32)) * 0.07 : 0;
+  drum(g, cx, cy, 0.24, 0.1, TURRET_PLATE, null, 0.88);
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const tip = (off) => [cx + ca * (0.66 - recoil) - sa * off, cy + sa * (0.66 - recoil) + ca * off];
+  const guns = () => {
+    for (const off of [-0.07, 0.07]) {
+      const r0 = P(cx + ca * 0.1 - sa * off, cy + sa * 0.1 + ca * off, 1.13), t = tip(off), r1 = P(t[0], t[1], 1.13);
+      g.strokeStyle = TURRET_GUN; g.lineWidth = Math.max(2, r0[2] * 0.06); g.lineCap = "round";
+      g.beginPath(); g.moveTo(r0[0], r0[1]); g.lineTo(r1[0], r1[1]); g.stroke(); g.lineCap = "butt";
+    }
+  };
+  const front = depthOf(...tip(0)) > depthOf(cx, cy);
+  if (!front) guns();
+  rbox(g, cx - ca * recoil, cy - sa * recoil, a, 0.24, 0.2, 0.98, 1.24, "#6a727c", "#3a4048", "#4d545d");
+  if (front) {
+    guns();
+    const eye = P(cx + ca * 0.25, cy + sa * 0.25, 1.17);
+    g.fillStyle = "#ff3a28"; g.beginPath(); g.arc(eye[0], eye[1], Math.max(1.2, eye[2] * 0.03), 0, TAU); g.fill();
+    glowAt(g, eye[0], eye[1], eye[2] * 0.25, "255,60,40", 0.6);
+  }
+  const lt = P(cx, cy, 1.27);
+  if (Math.sin(now / 300 + x) > 0.2) glowAt(g, lt[0], lt[1], lt[2] * 0.3, "255,60,40", 0.7);
+  if (firing && Math.sin(sh.p * 60) > 0) for (const off of [-0.07, 0.07]) {
+    const t = tip(off), m = P(t[0] + ca * 0.06, t[1] + sa * 0.06, 1.13);
+    glowAt(g, m[0], m[1], m[2] * 0.45, "255,220,140", 0.95);
+  }
+}
+
 export function drawObstacle(g, t, ctx, now) {
   LAST_NIGHT = !!(ctx && ctx.night);
   const C = palOf(ctx), night = LAST_NIGHT;
@@ -735,6 +926,10 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_barrier") { drawBarrier(g, x, y, now); return; }
   if (kind === "fd_eos_switch") { drawSwitch(g, x, y, C, now); return; }
   if (kind === "fd_eos_wreck") { drawWreck(g, x, y, now); return; }
+  if (kind === "fd_eos_mob") return; // มอนสเตอร์วาดใน items
+  if (kind === "fd_eos_barrel") { drawBarrel(g, x, y); return; }
+  if (kind === "fd_eos_crystal") { drawCrystal(g, x, y, C, night, now); return; }
+  if (kind === "fd_eos_turret") { drawTurret(g, x, y, C, now); return; }
   const [sx, sy, s] = P(x + 0.5, y + 0.6);
   const zone = zoneAt(x, y), r = hash(x, y);
   if (kind === "fd_eos_tree") {
@@ -864,6 +1059,145 @@ function unitAt(units, id) {
   return { x: (u.rx != null ? u.rx : u.x) + (u.ox || 0) + 0.5, y: (u.ry != null ? u.ry : u.y) + (u.oy || 0) + 0.5 };
 }
 
+// =================================================================== ขั้น 3: มอนสเตอร์ (magitek = ภาพ /eos/img/magitek.webp · beast = วาดด้วยโค้ด) + ยานลำเลียง
+const MOB_MS = 1000;
+const MOB_HEAD = new Map(), MOB_LAST = new Map(); // id → ทิศที่หัน (พิกัดกระดาน) · ตำแหน่งเฟรมก่อน
+function mobFacing(id, pos) {
+  const l = MOB_LAST.get(id);
+  if (l && Math.abs(pos.x - l.x) + Math.abs(pos.y - l.y) > 0.002) MOB_HEAD.set(id, { dx: pos.x - l.x, dy: pos.y - l.y });
+  MOB_LAST.set(id, { x: pos.x, y: pos.y });
+  return MOB_HEAD.get(id) || { dx: 1, dy: 0 };
+}
+// ทิศบนกระดาน → หันซ้าย/ขวาบนจอ (ตามมุมกล้องที่หมุนได้)
+const screenFace = (x, y, h) => (P(x + h.dx, y + h.dy)[0] - P(x, y)[0] >= 0 ? 1 : -1);
+function mobAttackOf(id, now) {
+  const e = lastFx("mob_attack");
+  if (!e || !Array.isArray(e.attacks)) return null;
+  const a = e.attacks.find((it) => it.id === id);
+  if (!a) return null;
+  const p = fxT(e, now, fx.mob_attack);
+  return p < 1 ? { a, p } : null;
+}
+function hpPips(g, x, y, z, hp, maxHp, armor) {
+  const top = P(x, y, z), s = top[2], n = Math.max(1, maxHp || 5), w = s * Math.min(0.12, 1 / n);
+  for (let i = 0; i < n; i++) { g.fillStyle = i < hp ? "#e0324a" : "rgba(40,10,20,.7)"; g.fillRect(top[0] - (n * w) / 2 + i * w + 1, top[1], w - 2, s * 0.06); }
+  if (armor > 0) { g.fillStyle = "#8fb8e8"; g.fillRect(top[0] - (n * w) / 2, top[1] - s * 0.08, w * Math.min(armor, n) - 2, s * 0.05); }
+  return top;
+}
+// สัตว์ยักษ์มีเขา (สูง ≈ 1.8 ช่อง) · พิกัดจอที่เท้า · face = 1 หันขวา / -1 หันซ้าย
+function drawBeast(g, sx, sy, s, face, now, moving, lowQ, alpha = 1, sink = 0) {
+  const u = s, wk = moving && !lowQ ? now / 120 : 0, br = lowQ ? 0 : Math.sin(now / 650) * 0.02;
+  g.save(); g.globalAlpha *= alpha; g.translate(sx, sy + sink * u); g.scale(face, 1);
+  const L = (pts, col) => { g.fillStyle = col; g.beginPath(); pts.forEach(([a, b], i) => (i ? g.lineTo(a * u, b * u) : g.moveTo(a * u, b * u))); g.closePath(); g.fill(); };
+  const leg = (lx, ph, col) => {
+    const sw = moving ? Math.sin(wk + ph) * 0.1 : 0, lift = moving ? Math.max(0, Math.sin(wk + ph + 1.6)) * 0.05 : 0;
+    L([[lx - 0.15, -0.95], [lx + 0.15, -0.95], [lx + 0.1 + sw, -0.05 - lift], [lx - 0.12 + sw, -0.05 - lift]], col);
+    g.fillStyle = "#120a0e"; g.beginPath(); g.ellipse((lx - 0.01 + sw) * u, (-0.05 - lift) * u, 0.15 * u, 0.055 * u, 0, 0, TAU); g.fill();
+    g.fillStyle = "#d8cbb8";
+    for (const c of [-0.07, 0.02, 0.1]) L([[lx + c + sw, -0.08 - lift], [lx + c + sw + 0.08, -0.03 - lift], [lx + c + sw + 0.01, -0.02 - lift]], "#d8cbb8");
+  };
+  // ขาฝั่งไกล + หาง
+  leg(-0.4, 0, "#1c1118"); leg(0.36, Math.PI, "#1c1118");
+  g.strokeStyle = "#2a1822"; g.lineWidth = 0.09 * u; g.lineCap = "round";
+  g.beginPath(); g.moveTo(-0.5 * u, -1.08 * u); g.quadraticCurveTo(-0.95 * u, (-1.12 + br * 3) * u, -0.9 * u, -0.62 * u); g.stroke(); g.lineCap = "butt";
+  g.fillStyle = "#3a2030"; g.beginPath(); g.ellipse(-0.9 * u, -0.58 * u, 0.07 * u, 0.1 * u, 0, 0, TAU); g.fill();
+  // ลำตัว (ขนม่วงอมน้ำตาล ไล่เงา บนสว่าง → ล่างเข้ม) + หนอกไหล่
+  const gr = g.createLinearGradient(0, -1.6 * u, 0, -0.62 * u);
+  gr.addColorStop(0, "#7a5470"); gr.addColorStop(0.45, "#4a2c44"); gr.addColorStop(1, "#22131d");
+  g.fillStyle = gr;
+  g.beginPath(); g.ellipse(-0.05 * u, (-1.0 - br) * u, 0.6 * u, (0.4 + br) * u, 0, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(0.26 * u, (-1.22 - br) * u, 0.38 * u, 0.36 * u, -0.3, 0, TAU); g.fill();
+  g.fillStyle = "rgba(130,90,60,.3)"; g.beginPath(); g.ellipse(0, -0.76 * u, 0.42 * u, 0.1 * u, 0, 0, TAU); g.fill();
+  // แผงขนแข็งตามสันหลัง
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6, bx = -0.5 + t * 0.92, by = -1.32 - Math.sin(t * Math.PI) * 0.28 - br;
+    L([[bx - 0.07, by + 0.07], [bx + 0.02, by - 0.18 - (i % 2) * 0.07], [bx + 0.08, by + 0.08]], "#2a1626");
+  }
+  if (!lowQ) { // ลายขน
+    g.strokeStyle = "rgba(18,6,14,.45)"; g.lineWidth = Math.max(1, u * 0.015);
+    for (let i = 0; i < 10; i++) {
+      const fx0 = -0.5 + hash(i, 3) * 0.9, fy0 = -1.25 + hash(i, 4) * 0.4;
+      g.beginPath(); g.moveTo(fx0 * u, fy0 * u); g.quadraticCurveTo((fx0 - 0.04) * u, (fy0 + 0.06) * u, (fx0 - 0.02) * u, (fy0 + 0.12) * u); g.stroke();
+    }
+  }
+  // ขาฝั่งใกล้
+  leg(-0.26, Math.PI, "#3a2434"); leg(0.5, 0, "#3a2434");
+  // หัว (ก้มต่ำหน้าไหล่) + เขา
+  const hx = 0.72, hy = -1.02 - br;
+  const horn = (ox, col) => {
+    g.fillStyle = col; g.beginPath();
+    g.moveTo((hx - 0.12 + ox) * u, (hy - 0.12) * u);
+    g.bezierCurveTo((hx - 0.58 + ox) * u, (hy - 0.45) * u, (hx - 0.38 + ox) * u, (hy - 0.88) * u, (hx + 0.12 + ox) * u, (hy - 0.78) * u);
+    g.bezierCurveTo((hx - 0.22 + ox) * u, (hy - 0.7) * u, (hx - 0.36 + ox) * u, (hy - 0.4) * u, (hx + 0.06 + ox) * u, (hy - 0.16) * u);
+    g.closePath(); g.fill();
+  };
+  horn(-0.12, "#7a6a54");
+  L([[hx - 0.2, hy - 0.2], [hx + 0.12, hy - 0.22], [hx + 0.3, hy - 0.05], [hx + 0.28, hy + 0.12], [hx + 0.05, hy + 0.18], [hx - 0.2, hy + 0.12]], "#3e2638");
+  L([[hx - 0.05, hy + 0.1], [hx + 0.26, hy + 0.12], [hx + 0.2, hy + 0.25], [hx - 0.02, hy + 0.22]], "#24141f");
+  g.strokeStyle = "#e8dcc4"; g.lineWidth = 0.035 * u; g.lineCap = "round";
+  g.beginPath(); g.moveTo((hx + 0.2) * u, (hy + 0.16) * u); g.quadraticCurveTo((hx + 0.34) * u, (hy + 0.12) * u, (hx + 0.32) * u, (hy - 0.02) * u); g.stroke();
+  g.lineCap = "butt";
+  horn(0.04, "#d9cbaa");
+  g.strokeStyle = "rgba(90,70,50,.6)"; g.lineWidth = Math.max(1, u * 0.012);
+  const bz = (t, a, b, c, d) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
+  for (let i = 1; i < 6; i++) { // วงเขา (ตามแนวกลางเขา)
+    const k = i / 6.5, px = bz(k, hx - 0.05, hx - 0.36, hx - 0.33, hx + 0.16), py = bz(k, hy - 0.14, hy - 0.42, hy - 0.79, hy - 0.78), w = 0.06 * (1 - k * 0.7);
+    g.beginPath(); g.moveTo((px - w) * u, (py - w * 0.3) * u); g.lineTo((px + w) * u, (py + w * 0.3) * u); g.stroke();
+  }
+  // ตาเรือง
+  const ex = (hx + 0.17) * u, ey = (hy - 0.05) * u;
+  glowAt(g, ex, ey, 0.24 * u, "255,180,50", 0.9);
+  g.fillStyle = "#ffe27a"; g.beginPath(); g.ellipse(ex, ey, 0.045 * u, 0.025 * u, -0.2, 0, TAU); g.fill();
+  g.restore();
+}
+
+// ---------- ยานลำเลียง (2×2 · ลอย z ≈ 1.2) ----------
+const DROP_Z = 1.2;
+function dropZ(ds, now) {
+  const e = lastFx("dropship_land");
+  if (!e || e.x !== ds.x || e.y !== ds.y) return DROP_Z;
+  const k = fxT(e, now, fx.dropship_land);
+  return k < 1 ? DROP_Z + (1 - ease(Math.min(1, k / 0.65))) * 7 : DROP_Z;
+}
+function drawDropship(g, x, y, z, now, lowQ, alpha = 1) {
+  const b = z + (lowQ ? 0 : Math.sin(now / 700) * 0.05), cx = x + 1, cy = y + 1;
+  g.save(); g.globalAlpha *= alpha;
+  // ไอพ่นใต้เครื่องยนต์
+  for (const ex of [-0.83, 0.83]) {
+    const top = P(cx + ex, cy - 0.03, b), bot = P(cx + ex, cy - 0.03, Math.max(0, b - 0.9));
+    const gr = g.createLinearGradient(top[0], top[1], bot[0], bot[1]);
+    gr.addColorStop(0, "rgba(255,170,90,.55)"); gr.addColorStop(1, "rgba(255,120,60,0)");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(top[0] - top[2] * 0.12, top[1]); g.lineTo(top[0] + top[2] * 0.12, top[1]); g.lineTo(bot[0] + bot[2] * 0.2, bot[1]); g.lineTo(bot[0] - bot[2] * 0.2, bot[1]); g.closePath(); g.fill();
+    glowAt(g, top[0], top[1], top[2] * 0.55, "255,150,80", 0.8);
+  }
+  // [x0, y0, x1, y1, z0, z1, top, side1, side2]
+  const sub = [
+    [cx - 1.0, cy - 0.38, cx - 0.66, cy + 0.32, b + 0.04, b + 0.3, "#3a3f46", "#1a1d21", "#2a2e34"], // เครื่องยนต์ซ้าย
+    [cx + 0.66, cy - 0.38, cx + 1.0, cy + 0.32, b + 0.04, b + 0.3, "#3a3f46", "#1a1d21", "#2a2e34"], // เครื่องยนต์ขวา
+    [cx - 0.36, cy + 0.72, cx + 0.36, cy + 0.98, b + 0.06, b + 0.32, "#1b222b", "#0e1216", "#161b21"], // หัว (ห้องนักบิน)
+    [cx - 0.95, cy - 1.0, cx + 0.95, cy - 0.84, b + 0.3, b + 0.38, "#4a5058", "#22262b", "#33383e"], // ปีกท้าย
+  ];
+  const part = (q) => box(g, q[0], q[1], q[2], q[3], q[5], q[6], q[7], q[8], q[4]);
+  const hd = depthOf(cx, cy - 0.06), dOf = (q) => depthOf((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+  sub.filter((q) => dOf(q) < hd).forEach(part);
+  part([cx - 0.66, cy - 0.84, cx + 0.66, cy + 0.72, b, b + 0.42, "#5c626a", "#2a2e34", "#40454c"]); // ลำตัว
+  part([cx - 0.2, cy - 0.7, cx + 0.2, cy + 0.42, b + 0.42, b + 0.6, "#4a5058", "#24282e", "#34393f"]); // สันหลัง
+  sub.filter((q) => dOf(q) >= hd).forEach(part);
+  // แนวแผ่นเกราะ + กระจกห้องนักบินเรืองแดง
+  g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1;
+  for (const yy of [-0.35, 0.25]) { const a = P(cx - 0.66, cy + yy, b + 0.42), c = P(cx - 0.2, cy + yy, b + 0.42), d = P(cx + 0.2, cy + yy, b + 0.42), e = P(cx + 0.66, cy + yy, b + 0.42); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(c[0], c[1]); g.moveTo(d[0], d[1]); g.lineTo(e[0], e[1]); g.stroke(); }
+  poly(g, [[cx - 0.3, cy + 0.76, b + 0.33], [cx + 0.3, cy + 0.76, b + 0.33], [cx + 0.24, cy + 0.95, b + 0.33], [cx - 0.24, cy + 0.95, b + 0.33]]);
+  g.fillStyle = "rgba(255,60,40,.4)"; g.fill();
+  // ไฟแดงกะพริบตามมุม
+  const on = Math.sin(now / 260) > 0;
+  for (const [lx, ly, lz] of [[cx - 1.0, cy, b + 0.3], [cx + 1.0, cy, b + 0.3], [cx - 0.95, cy - 0.92, b + 0.38], [cx + 0.95, cy - 0.92, b + 0.38], [cx, cy + 0.98, b + 0.3]]) {
+    const q = P(lx, ly, lz);
+    g.fillStyle = on ? "#ff3a28" : "#5a1410"; g.beginPath(); g.arc(q[0], q[1], Math.max(1.2, q[2] * 0.03), 0, TAU); g.fill();
+    if (on) glowAt(g, q[0], q[1], q[2] * 0.3, "255,50,30", 0.75);
+  }
+  g.restore();
+}
+
 // =================================================================== ground (ใต้ไฮไลต์)
 export function ground(g, fd, info, now) {
   LAST_FD = fd;
@@ -884,6 +1218,33 @@ export function ground(g, fd, info, now) {
     const pos = smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "daemon_move", d.id));
     const [x, y, s] = P(pos.x + 0.5, pos.y + 0.5);
     g.fillStyle = "rgba(60,0,40,.35)"; g.beginPath(); g.ellipse(x, y, s * 0.45, s * 0.17, 0, 0, TAU); g.fill();
+  }
+  // ขั้น 3: เงาทอดของถัง/หินเวท · รอยไหม้ระเบิด · เงา/เป้าของยานลำเลียง
+  const night = !!fd.night || LAST_NIGHT;
+  for (const b of fd.barrels || []) dynShadow(g, b.x, b.y, HEIGHT.fd_eos_barrel, 0.2, night);
+  for (const c of fd.crystals || []) dynShadow(g, c.x, c.y, HEIGHT.fd_eos_crystal, 0.22, night);
+  for (const e of fxActive(fd, now)) {
+    if (e.kind !== "barrel_boom") continue;
+    const p = fxT(e, now, fx.barrel_boom);
+    for (const t of e.tiles || [{ x: e.x, y: e.y }]) {
+      const c = t.x === e.x && t.y === e.y;
+      gEllipse(g, t.x + 0.5, t.y + 0.5, c ? 0.5 : 0.36, 0.01, 18, c ? 0.5 : 0.32);
+      g.fillStyle = `rgba(16,10,8,${(c ? 0.7 : 0.45) * (1 - p * p)})`; g.fill();
+    }
+  }
+  const ds = fd.dropship;
+  if (ds && ds.state === "landed") {
+    const z = dropZ(ds, now);
+    gEllipse(g, ds.x + 1, ds.y + 1, 0.95, 0, 30, 0.8); g.fillStyle = `rgba(0,0,0,${Math.max(0.08, 0.42 - z * 0.04)})`; g.fill();
+  } else if (ds && ds.state === "warn") {
+    const cx = ds.x + 1, cy = ds.y + 1, a = 0.55 + 0.3 * Math.sin(now / 160);
+    g.strokeStyle = `rgba(255,50,40,${a})`; g.lineWidth = 2;
+    g.setLineDash([8, 6]); g.lineDashOffset = -now / 30; gEllipse(g, cx, cy, 1.15, 0.03, 40); g.stroke(); g.setLineDash([]);
+    gEllipse(g, cx, cy, 0.5, 0.03, 24); g.stroke();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const p0 = P(cx + dx * 0.6, cy + dy * 0.6, 0.03), p1 = P(cx + dx * 1.3, cy + dy * 1.3, 0.03);
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
+    }
   }
   void info;
 }
@@ -952,6 +1313,48 @@ export function items(list, g, fd, info, units, now, lowQ) {
       },
     });
   }
+  // ขั้น 3: มอนสเตอร์ (เลื่อนนุ่มตามเส้นทาง "mob_move" · พุ่งเข้าหาเป้าตอน "mob_attack")
+  const hitE = lastFx("mob_hit");
+  for (const m of fd.mobs || []) {
+    const beast = m.type === "beast";
+    const pos = smooth(`mob:${m.id}`, m.x, m.y, now, MOB_MS, pathOf(fd, "mob_move", m.id));
+    let head = mobFacing(m.id, pos), lunge = 0;
+    const atk = mobAttackOf(m.id, now), tu = atk ? unitAt(units, atk.a.target) : null;
+    if (tu) {
+      head = { dx: tu.x - (pos.x + 0.5), dy: tu.y - (pos.y + 0.5) };
+      MOB_HEAD.set(m.id, head);
+      lunge = Math.sin(Math.min(1, atk.p / 0.6) * Math.PI) * 0.24;
+    }
+    const hl = Math.hypot(head.dx, head.dy) || 1;
+    const cx = pos.x + 0.5 + (head.dx / hl) * lunge, cy = pos.y + 0.55 + (head.dy / hl) * lunge;
+    const hit = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
+    list.push({
+      d: depthOf(cx, cy),
+      f: () => {
+        const [sx, sy, s] = P(cx, cy);
+        const face = screenFace(cx, cy, head);
+        g.fillStyle = "rgba(0,0,0,.38)"; g.beginPath(); g.ellipse(sx, sy, s * (beast ? 0.6 : 0.3), s * (beast ? 0.21 : 0.11), 0, 0, TAU); g.fill();
+        const shake = hit < 1 ? Math.sin(hit * 50) * s * 0.03 * (1 - hit) : 0;
+        if (beast) drawBeast(g, sx + shake, sy, s, face, now, pos.moving, lowQ);
+        else {
+          const bob = pos.moving && !lowQ ? Math.abs(Math.sin(now / 140)) * 0.04 : 0;
+          sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
+        }
+        if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
+        const top = hpPips(g, cx, cy, beast ? 2.0 : 1.6, m.hp, m.maxHp, m.armor);
+        if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
+      },
+    });
+  }
+  // ขั้น 3: ยานลำเลียงจอดลอย (ทับคนที่อยู่ใต้ยาน)
+  const ds = fd.dropship;
+  if (ds && ds.state === "landed") {
+    const z = dropZ(ds, now);
+    list.push({
+      d: Math.max(depthOf(ds.x + 0.1, ds.y + 0.1), depthOf(ds.x + 1.9, ds.y + 0.1), depthOf(ds.x + 0.1, ds.y + 1.9), depthOf(ds.x + 1.9, ds.y + 1.9)),
+      f: () => drawDropship(g, ds.x, ds.y, z, now, lowQ),
+    });
+  }
   void info;
 }
 
@@ -988,6 +1391,34 @@ function playFx(e) {
     case "gysahl_lure": sfx("throw_swoosh"); sfx("chocobo_call", { delay: 0.55 }); sfx("chocobo_run", { delay: 0.75, gain: 0.7 }); break;
     case "gysahl_call": sfx("gysahl_munch"); sfx("chocobo_run", { delay: 0.15, gain: 0.7 }); break;
     case "wreck_push": sfx("wreck_push"); break;
+    // ขั้น 3
+    case "barrel_boom": sfx("barrel_hit", { gain: 0.6 }); sfx("barrel_explode", { delay: 0.08 }); break;
+    case "crystal_break": sfx("crystal_pick"); break;
+    case "flask": {
+      const el = e.element === "ice" ? "flask_ice" : e.element === "thunder" ? "flask_thunder" : "flask_fire";
+      sfx("throw_swoosh"); sfx("flask_shatter", { delay: 0.6 }); sfx(el, { delay: 0.66 });
+      if (e.element === "fire") sfx("fire_spread", { delay: 1.0, gain: 0.55 });
+      if (Array.isArray(e.shock) && e.shock.length) sfx("water_shock", { delay: 0.85 });
+      break;
+    }
+    case "turret_shot": sfx("turret_shot"); break;
+    case "mob_move": {
+      const ts = new Set((e.moves || []).map((m) => m.type));
+      if (ts.has("beast")) sfx("beast_step", { gain: 0.8 });
+      if (ts.has("magitek")) sfx("magitek_step", { gain: 0.7 });
+      break;
+    }
+    case "mob_attack": {
+      const ts = new Set((e.attacks || []).map((a) => a.type));
+      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 });
+      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 });
+      break;
+    }
+    case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); break;
+    case "beast_roar": sfx("beast_roar"); break;
+    case "dropship_warn": sfx("dropship_alarm"); break;
+    case "dropship_land": sfx("dropship_land"); break;
+    case "dropship_leave": sfx("dropship_land", { gain: 0.45 }); break;
     default: break;
   }
 }
@@ -1080,6 +1511,243 @@ function stage2Fx(g, e, p, now, lowQ) {
   }
   return false;
 }
+// ฉากของลูกเล่นขั้น 3 (คืน true = วาดแล้ว) · out.flash = แสงวาบทั้งจอ
+function flameTongue(g, x, y, h, w, a) {
+  if (!(a > 0 && h > 0)) return;
+  const gr = g.createLinearGradient(x, y, x, y - h);
+  gr.addColorStop(0, `rgba(255,80,20,${a})`); gr.addColorStop(0.5, `rgba(255,170,40,${a * 0.9})`); gr.addColorStop(1, "rgba(255,240,170,0)");
+  g.fillStyle = gr; g.beginPath(); g.moveTo(x - w, y); g.quadraticCurveTo(x - w * 0.9, y - h * 0.5, x, y - h); g.quadraticCurveTo(x + w * 0.9, y - h * 0.5, x + w, y); g.closePath(); g.fill();
+}
+function arcs(g, x, y, s, seed, a) { // ประกายไฟฟ้าเต้นบนผิวน้ำ (สุ่มใหม่ทุก 70ms)
+  const R = rng(seed);
+  g.lineJoin = "round";
+  for (let k = 0; k < 2; k++) {
+    const pts = [];
+    let px = x + (R() - 0.5) * s * 0.8, py = y + (R() - 0.5) * s * 0.35;
+    for (let i = 0; i < 6; i++) { pts.push([px, py]); px += (R() - 0.3) * s * 0.22; py += (R() - 0.5) * s * 0.14 - s * 0.02; }
+    const path = () => { g.beginPath(); pts.forEach(([u, v], i) => (i ? g.lineTo(u, v) : g.moveTo(u, v))); };
+    path(); g.strokeStyle = `rgba(120,200,255,${0.45 * a})`; g.lineWidth = Math.max(2, s * 0.06); g.stroke();
+    path(); g.strokeStyle = `rgba(240,250,255,${a})`; g.lineWidth = Math.max(1, s * 0.02); g.stroke();
+  }
+  glowAt(g, x, y, s * 0.7, "140,210,255", a * 0.5);
+}
+function slashFx(g, x, y, s, beast, p) {
+  const k = Math.min(1, p / 0.35), al = 1 - p;
+  if (beast) { // กรงเล็บ 3 เส้น
+    for (let i = -1; i <= 1; i++) {
+      const ox = i * s * 0.14, x0 = x - s * 0.38 + ox, y0 = y - s * 0.42, x1 = x0 + s * 0.7 * k, y1 = y0 + s * 0.7 * k;
+      g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x0 + s * 0.42 * k, y0 + s * 0.1 * k, x1, y1);
+      g.strokeStyle = `rgba(255,60,70,${al})`; g.lineWidth = Math.max(2, s * 0.07); g.stroke();
+      g.strokeStyle = `rgba(255,235,235,${al})`; g.lineWidth = Math.max(1, s * 0.02); g.stroke();
+    }
+    glowAt(g, x, y, s * 0.6, "255,70,60", al * 0.6);
+  } else { // ดาบฟันเป็นเสี้ยววงเดือน
+    const a0 = -2.5, a1 = a0 + 2.7 * k;
+    g.beginPath(); g.arc(x, y, s * 0.45, a0, a1); g.strokeStyle = `rgba(170,220,255,${al})`; g.lineWidth = Math.max(3, s * 0.1); g.stroke();
+    g.beginPath(); g.arc(x, y, s * 0.45, a0, a1); g.strokeStyle = `rgba(255,255,255,${al})`; g.lineWidth = Math.max(1, s * 0.03); g.stroke();
+    glowAt(g, x, y, s * 0.55, "170,220,255", al * 0.5);
+  }
+}
+function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
+  if (e.kind === "barrel_boom") {
+    const cx = e.x + 0.5, cy = e.y + 0.5, [, , s] = P(cx, cy);
+    if (p < 0.12) out.flash = Math.max(out.flash, 0.3 * (1 - p / 0.12));
+    // คลื่นกระแทก
+    const ring = ease(Math.min(1, p / 0.45));
+    if (ring < 1) { gEllipse(g, cx, cy, 0.3 + ring * 1.7, 0.05, 36); g.strokeStyle = `rgba(255,225,180,${0.75 * (1 - ring)})`; g.lineWidth = Math.max(1.5, s * 0.09 * (1 - ring)); g.stroke(); }
+    // เปลวไฟบนช่องรอบ 3×3
+    if (p < 0.75) for (const t of e.tiles || []) {
+      const q = p / 0.75;
+      for (let i = 0; i < (lowQ ? 1 : 3); i++) {
+        const b = P(t.x + 0.2 + hash(i, t.x * 7 + t.y + e.seq) * 0.6, t.y + 0.2 + hash(i + 4, t.x + t.y * 5 + e.seq) * 0.6);
+        flameTongue(g, b[0], b[1], b[2] * (0.35 + 0.35 * hash(i, e.seq)) * Math.sin(Math.min(1, q * 2.2) * Math.PI * 0.5) * (1 - q * 0.6), b[2] * 0.1, (1 - q) * 0.9);
+      }
+    }
+    // ควันดำลอยขึ้น
+    if (p > 0.15) puff(g, cx, cy, 0.5 + p * 1.3, (p - 0.15) / 0.85, e.seq, lowQ ? 5 : 12, "36,32,30", 0.24);
+    // ลูกไฟ
+    const fb = Math.min(1, p / 0.22), fade = p < 0.3 ? 1 : Math.max(0, 1 - (p - 0.3) / 0.4), f = P(cx, cy, 0.35 + p * 0.9);
+    glowAt(g, f[0], f[1], s * (0.6 + fb * 1.5), "255,140,30", 0.95 * fade);
+    glowAt(g, f[0], f[1], s * (0.3 + fb * 0.8), "255,240,190", fade);
+    // เศษเหล็ก + ประกายไฟ
+    if (!lowQ) for (let i = 0; i < 12; i++) {
+      const ang = hash(i, e.seq + 3) * TAU, d = Math.min(1, p * 1.6) * (0.6 + hash(i, e.seq) * 1.3), zz = Math.sin(Math.min(1, p * 1.6) * Math.PI) * (0.6 + hash(i, e.seq + 5) * 1.0);
+      const q = P(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, Math.max(0, zz));
+      g.fillStyle = i % 3 ? `rgba(60,30,20,${1 - p})` : `rgba(255,200,90,${1 - p})`; g.fillRect(q[0] - 2, q[1] - 2, i % 3 ? 4 : 2.5, i % 3 ? 3 : 2.5);
+    }
+    return true;
+  }
+  if (e.kind === "crystal_break") {
+    const E = elemOf(e.element), cx = e.x + 0.5, cy = e.y + 0.55, c = P(cx, cy, 0.45), s = c[2];
+    glowAt(g, c[0], c[1], s * (0.6 + p * 1.3), E.rgb, (1 - p) * 0.9);
+    for (let i = 0; i < (lowQ ? 6 : 14); i++) {
+      const ang = hash(i, e.seq) * TAU, d = p * (0.4 + hash(i + 1, e.seq) * 0.9), zz = 0.45 + Math.sin(p * Math.PI) * (0.3 + hash(i + 2, e.seq) * 0.6) - p * 0.35;
+      const q = P(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d * 0.8, Math.max(0.02, zz));
+      shard(g, q[0], q[1], q[2] * 0.16, q[2] * 0.045, ang + p * 8, E.body, E.hi, 1 - p);
+    }
+    // พลังเวทไหลเข้าหาคนเก็บ
+    const u = unitAt(units, e.by);
+    if (u && p > 0.2) for (let i = 0; i < 6; i++) {
+      const k = Math.max(0, Math.min(1, (p - 0.2) / 0.6 - i * 0.05));
+      if (k <= 0 || k >= 1) continue;
+      const q = P(cx + (u.x - cx) * k, cy + (u.y - cy) * k, 0.5 + Math.sin(k * Math.PI) * 0.6 + (hash(i, e.seq) - 0.5) * 0.2);
+      glowAt(g, q[0], q[1], q[2] * 0.22, E.rgb, 0.9 * (1 - k * 0.5));
+    }
+    return true;
+  }
+  if (e.kind === "flask") {
+    const E = elemOf(e.element), from = e.from, to = e.to;
+    if (!from || !to) return true;
+    const T = 0.36;
+    if (p < T) { // ขวดยาลอยโค้ง
+      const k = p / T, dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const pt = (kk) => P(from.x + 0.5 + (to.x - from.x) * kk, from.y + 0.5 + (to.y - from.y) * kk, 0.8 + Math.sin(kk * Math.PI) * (1 + dist * 0.25) - kk * 0.75);
+      if (!lowQ) for (let i = 1; i < 5; i++) { const kk = Math.max(0, k - i * 0.05), q = pt(kk); glowAt(g, q[0], q[1], q[2] * 0.15, E.rgb, 0.35 / i); }
+      const [px, py, s] = pt(k);
+      glowAt(g, px, py, s * 0.4, E.rgb, 0.6);
+      g.save(); g.translate(px, py); g.rotate(k * 11);
+      g.fillStyle = "rgba(220,235,240,.85)"; g.beginPath(); g.arc(0, 0, s * 0.09, 0, TAU); g.fill();
+      g.fillStyle = E.body; g.beginPath(); g.arc(0, s * 0.02, s * 0.065, 0, TAU); g.fill();
+      g.fillStyle = "rgba(220,235,240,.85)"; g.fillRect(-s * 0.03, -s * 0.15, s * 0.06, s * 0.08);
+      g.fillStyle = "#6b4a2a"; g.fillRect(-s * 0.025, -s * 0.18, s * 0.05, s * 0.04);
+      g.restore();
+      return true;
+    }
+    const q = (p - T) / (1 - T), tiles = e.tiles && e.tiles.length ? e.tiles : [to];
+    const c = P(to.x + 0.5, to.y + 0.5, 0.3);
+    glowAt(g, c[0], c[1], c[2] * (0.6 + q * 1.4), E.rgb, (1 - q) * 0.85);
+    if (!lowQ && q < 0.4) for (let i = 0; i < 8; i++) { // เศษแก้ว
+      const ang = hash(i, e.seq) * TAU, r = c[2] * 0.7 * (q / 0.4);
+      g.fillStyle = `rgba(230,245,255,${1 - q / 0.4})`; g.fillRect(c[0] + Math.cos(ang) * r, c[1] + Math.sin(ang) * r * 0.6 - c[2] * 0.2 * q, 2, 2);
+    }
+    tiles.forEach((t, ti) => {
+      const b = P(t.x + 0.5, t.y + 0.55), s = b[2];
+      if (e.element === "ice") { // หนามน้ำแข็งงอกจากพื้น
+        const grow = ease(Math.min(1, q * 3)), a = q < 0.7 ? 1 : 1 - (q - 0.7) / 0.3;
+        for (let i = 0; i < (lowQ ? 2 : 4); i++) {
+          const ox = (hash(i, ti + e.seq) - 0.5) * s * 0.6, oy = (hash(i + 3, ti + e.seq) - 0.5) * s * 0.25;
+          shard(g, b[0] + ox, b[1] + oy, s * (0.3 + 0.3 * hash(i + 5, ti)) * grow, s * 0.07, (hash(i + 7, ti) - 0.5) * 0.7, E.body, E.hi, a);
+        }
+        if (!lowQ) puff(g, t.x + 0.5, t.y + 0.55, 0.1, q, e.seq + ti, 4, "220,245,255", 0.12);
+      } else if (e.element === "thunder") { // สายฟ้าฟาดลงทุกช่อง
+        const a = q < 0.45 ? (Math.sin(now / 30 + ti) > -0.3 ? 1 : 0.35) : Math.max(0, 1 - (q - 0.45) / 0.4);
+        if (a > 0) bolt(g, b[0] + (hash(ti, e.seq) - 0.5) * 50, Y0 - 10, b[0], b[1], e.seq * 13 + ti + Math.floor(now / 90), Math.max(1.4, s * 0.04), a);
+        glowAt(g, b[0], b[1], s * 0.8, E.rgb, (1 - q) * 0.8);
+        if (!lowQ && q < 0.6) for (let i = 0; i < 4; i++) { const ang = hash(i, ti + e.seq) * TAU, r = s * 0.5 * q; g.fillStyle = `rgba(255,246,160,${1 - q})`; g.fillRect(b[0] + Math.cos(ang) * r, b[1] + Math.sin(ang) * r * 0.5 - s * 0.3 * q, 2, 2); }
+      } else { // ไฟลุก
+        const a = q < 0.6 ? 1 : 1 - (q - 0.6) / 0.4;
+        for (let i = 0; i < (lowQ ? 2 : 4); i++) {
+          const ox = (hash(i, ti + e.seq) - 0.5) * s * 0.6, oy = (hash(i + 3, ti + e.seq) - 0.5) * s * 0.25;
+          const h = s * (0.3 + 0.3 * hash(i + 5, ti)) * Math.min(1, q * 4) * (0.85 + 0.15 * Math.sin(now / 70 + i * 2 + ti));
+          flameTongue(g, b[0] + ox, b[1] + oy, h, s * 0.1, a * 0.95);
+        }
+        glowAt(g, b[0], b[1] - s * 0.15, s * 0.7, E.rgb, a * 0.5);
+      }
+    });
+    if (Array.isArray(e.shock) && q > 0.2) { // ไฟฟ้าแล่นบนผิวน้ำ
+      const a = Math.min(1, (q - 0.2) / 0.1) * (1 - Math.max(0, (q - 0.75) / 0.25));
+      e.shock.forEach((t, i) => { const b = P(t.x + 0.5, t.y + 0.5, 0.04); arcs(g, b[0], b[1], b[2], Math.floor(now / 70) * 31 + i * 7 + e.seq, a); });
+    }
+    return true;
+  }
+  if (e.kind === "turret_shot") {
+    const from = e.from, tgt = unitAt(units, e.target) || (e.to ? { x: e.to.x + 0.5, y: e.to.y + 0.5 } : null);
+    if (!from || !tgt) return true;
+    const fx0 = from.x + 0.5, fy0 = from.y + 0.5, ang = Math.atan2(tgt.y - fy0, tgt.x - fx0);
+    const m = P(fx0 + Math.cos(ang) * 0.72, fy0 + Math.sin(ang) * 0.72, 1.13), s = m[2];
+    for (let i = 0; i < 3; i++) {
+      const k = (p - i * 0.14) / 0.3;
+      if (k < 0 || k > 1) continue;
+      const jx = (hash(i, e.seq) - 0.5) * 0.25, jy = (hash(i + 2, e.seq) - 0.5) * 0.25, b = P(tgt.x + jx, tgt.y + jy, 0.55);
+      const h = Math.min(1, k * 1.6), tl = Math.max(0, h - 0.4);
+      const ax = m[0] + (b[0] - m[0]) * tl, ay = m[1] + (b[1] - m[1]) * tl, bx = m[0] + (b[0] - m[0]) * h, by = m[1] + (b[1] - m[1]) * h;
+      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by);
+      g.strokeStyle = "rgba(255,190,90,.35)"; g.lineWidth = Math.max(3, s * 0.08); g.stroke();
+      g.strokeStyle = "rgba(255,240,180,.95)"; g.lineWidth = Math.max(1.2, s * 0.025); g.stroke();
+      if (k < 0.3) glowAt(g, m[0], m[1], s * 0.5, "255,210,120", 1 - k / 0.3);
+      if (h >= 1) {
+        glowAt(g, b[0], b[1], s * 0.45, "255,200,120", 1 - k);
+        if (!lowQ) for (let j = 0; j < 5; j++) { const a2 = hash(j, e.seq + i) * TAU, r = s * 0.35 * (k - 0.6) / 0.4; g.fillStyle = `rgba(255,230,150,${1 - k})`; g.fillRect(b[0] + Math.cos(a2) * r, b[1] + Math.sin(a2) * r * 0.6, 2, 2); }
+      }
+    }
+    return true;
+  }
+  if (e.kind === "mob_attack") {
+    for (const a of e.attacks || []) {
+      const u = unitAt(units, a.target);
+      if (!u) continue;
+      const [x, y, s] = P(u.x, u.y, 0.6);
+      if (p > 0.25) slashFx(g, x, y, s, a.type === "beast", (p - 0.25) / 0.75);
+    }
+    return true;
+  }
+  if (e.kind === "mob_hit") {
+    if (lowQ) return true;
+    const m = MOVES.get(`mob:${e.id}`), pos = m ? posOf(m, now) : { x: e.x, y: e.y }, c = P(pos.x + 0.5, pos.y + 0.55, 0.8);
+    for (let i = 0; i < 8; i++) { const ang = hash(i, e.seq) * TAU, r = c[2] * 0.5 * p; g.fillStyle = `rgba(255,240,200,${1 - p})`; g.fillRect(c[0] + Math.cos(ang) * r, c[1] + Math.sin(ang) * r * 0.6, 2, 2); }
+    return true;
+  }
+  if (e.kind === "mob_die") {
+    const cx = e.x + 0.5, cy = e.y + 0.55, beast = e.type === "beast", [sx, sy, s] = P(cx, cy);
+    const head = MOB_HEAD.get(e.id) || { dx: 1, dy: 0 }, face = screenFace(cx, cy, head);
+    if (beast) { // ล้มลงจมเงาฝุ่นม่วง
+      drawBeast(g, sx, sy, s, face, now, false, lowQ, Math.max(0, 1 - p * 1.3), p * 0.5);
+      puff(g, cx, cy, 0.1, p, e.seq, lowQ ? 5 : 12, "70,40,70", 0.22);
+      glowAt(g, sx, sy - s * 0.8, s * 1.6, "150,60,140", (1 - p) * 0.5);
+    } else { // ระเบิดประกายไฟ + ควัน
+      const al = Math.max(0, 1 - p * 2);
+      if (al > 0) sprite(g, MAGITEK_IMG, cx, cy, -p * 0.3, 1.45, face > 0, al);
+      const c = P(cx, cy, 0.7);
+      glowAt(g, c[0], c[1], s * (0.5 + p * 1.2), "255,150,60", (1 - p) * 0.9);
+      if (!lowQ) for (let i = 0; i < 14; i++) {
+        const ang = hash(i, e.seq) * TAU, r = s * 1.1 * p;
+        g.fillStyle = `rgba(255,${180 + Math.floor(hash(i, 3) * 70)},90,${1 - p})`; g.fillRect(c[0] + Math.cos(ang) * r, c[1] + Math.sin(ang) * r * 0.6 - s * 0.4 * p + s * 0.6 * p * p, 2.5, 2.5);
+      }
+      if (p > 0.15) puff(g, cx, cy, 0.6 + p, (p - 0.15) / 0.85, e.seq, lowQ ? 4 : 9, "50,50,56", 0.18);
+    }
+    return true;
+  }
+  if (e.kind === "beast_roar") {
+    const m = MOVES.get(`mob:${e.id}`), pos = m ? posOf(m, now) : { x: e.x, y: e.y }, cx = pos.x + 0.5, cy = pos.y + 0.55;
+    for (let i = 0; i < 3; i++) {
+      const k = (p - i * 0.15) / 0.7;
+      if (k <= 0 || k >= 1) continue;
+      gEllipse(g, cx, cy, 0.5 + ease(k) * 3.2, 0.05, 44); g.strokeStyle = `rgba(255,200,170,${0.6 * (1 - k)})`; g.lineWidth = Math.max(1.5, 4 * (1 - k)); g.stroke();
+    }
+    const h = P(cx + 0.3, cy, 1.1), s = h[2];
+    for (let i = 0; i < 2; i++) { // คลื่นเสียงจากปาก
+      const k = (p * 2 - i * 0.4) % 1;
+      if (k < 0) continue;
+      g.beginPath(); g.ellipse(h[0], h[1], s * (0.2 + k * 0.9), s * (0.12 + k * 0.5), 0, 0, TAU); g.strokeStyle = `rgba(255,230,210,${0.5 * (1 - k) * (1 - p)})`; g.lineWidth = 2; g.stroke();
+    }
+    if (!lowQ) puff(g, cx, cy, 0.05, p, e.seq, 8, "160,140,120", 0.14);
+    return true;
+  }
+  if (e.kind === "dropship_warn") {
+    const c = P(e.x + 1, e.y + 1, 0.05);
+    glowAt(g, c[0], c[1], c[2] * 1.4, "255,40,30", (1 - p) * 0.5);
+    return true;
+  }
+  if (e.kind === "dropship_land") {
+    if (p > 0.4) {
+      const q = (p - 0.4) / 0.6;
+      puff(g, e.x + 1, e.y + 1, 0.05, q, e.seq, lowQ ? 6 : 16, "190,175,150", 0.28);
+      if (q < 0.6) { gEllipse(g, e.x + 1, e.y + 1, 0.8 + q * 2.4, 0.04, 40); g.strokeStyle = `rgba(230,220,200,${0.5 * (1 - q / 0.6)})`; g.lineWidth = 2; g.stroke(); }
+    }
+    for (const t of p > 0.6 ? e.spawned || [] : []) { // ทหารที่ลงจากยาน
+      const c = P(t.x + 0.5, t.y + 0.5, 0.6);
+      glowAt(g, c[0], c[1], c[2] * 0.7, "255,80,60", (1 - p) * 1.5);
+    }
+    return true;
+  }
+  if (e.kind === "dropship_leave") {
+    const z = DROP_Z + ease(p) * 8, al = p < 0.7 ? 1 : Math.max(0, 1 - (p - 0.7) / 0.3);
+    if (p < 0.5) puff(g, e.x + 1, e.y + 1, 0.05, p / 0.5, e.seq, lowQ ? 6 : 14, "190,175,150", 0.26);
+    drawDropship(g, e.x, e.y, z, now, lowQ, al);
+    return true;
+  }
+  return false;
+}
 let NIGHT_WAS = null;
 export function air(g, fd, info, units, now, lowQ, view) {
   for (const e of fd.fx || []) if (fx[e.kind] && fxOnce(e)) playFx(e);
@@ -1114,9 +1782,11 @@ export function air(g, fd, info, units, now, lowQ, view) {
     const p = off ? fxT(off, now, fx.dome_off) : 1;
     if (p < 1) drawDome(g, off.rect || TOWN_RECTS.insomnia, 1 + p * 0.06, 1 - p, now, lowQ);
   }
+  const out = { flash: 0 };
   for (const e of fxActive(fd, now)) {
     const p = fxT(e, now, fx[e.kind] || 1500);
     if (stage2Fx(g, e, p, now, lowQ)) continue;
+    if (stage3Fx(g, e, p, now, lowQ, units, out, Y0)) continue;
     if (e.kind === "lightning") {
       const [x, y, s] = P(e.x + 0.5, e.y + 0.5);
       if (p < 0.12) flash = Math.max(flash, 0.4 * (1 - p / 0.12));
@@ -1178,6 +1848,7 @@ export function air(g, fd, info, units, now, lowQ, view) {
     gr.addColorStop(0, fd.night ? "rgba(40,60,110,.32)" : "rgba(205,222,240,.34)"); gr.addColorStop(1, "rgba(205,222,240,0)");
     g.fillStyle = gr; g.fillRect(X0, Y0, W, H * 0.55);
   }
+  flash = Math.max(flash, out.flash);
   if (flash > 0) { g.fillStyle = `rgba(232,240,255,${flash})`; g.fillRect(X0, Y0, W, H); }
   void info;
 }

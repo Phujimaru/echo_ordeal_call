@@ -80,7 +80,7 @@ function reset() {
 function makeCtx() {
   const st = stageState();
   const ctx = {
-    match, engine, Board, action, combat, Status, view, timers,
+    match, engine, Board, action, combat, Status, view, timers, Visibility: require("./visibility"),
     stage: stageNow(),
     weather: weatherNow(),
     rng: Math.random,

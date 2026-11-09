@@ -360,12 +360,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       // ใช้ตำแหน่งปุ่ม (e.code) ไม่ใช่ตัวอักษร — แป้นโหมดไทย Q/E พิมพ์เป็น ๆ/ำ
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (state.world === "eos") return; // สนาม Eos: ค้าง Q/E หมุนอิสระ (BoardCanvas) — ไม่หมุนทีละ 90°
       if (e.code === "KeyQ") rotate(-1);
       else if (e.code === "KeyE") rotate(1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rotate]);
+  }, [rotate, state.world]);
   const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover) && sameDim(p)) : null; // คนคนละชั้น = ชี้ไม่ติด
   // ห่วงเวลาซีโร่: ผนึกที่ยังไม่แตก = เป้าตีได้ (หน่วยเทียม — ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย ไม่มีหน้าคาดการณ์)
   const zero = state.zero || null;
@@ -2732,6 +2733,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         rts={eosRts}
         camHome={camHome}
         selfPos={eosRts && me && me.alive !== false ? me.pos : null}
+        onYawSettle={eosRts ? setRotation : undefined}
         onColonyAway={setColonyAway}
         songs={songs}
         grays={grays}
