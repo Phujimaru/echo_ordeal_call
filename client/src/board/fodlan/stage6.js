@@ -9,7 +9,7 @@
 //   air: ฝนฟ้าคะนอง · หมอก · ฉากเหตุการณ์ (fx) + เสียง (client/src/eos/eosAudio.js)
 //  ⚠️ ห้ามเรียกของจาก ./index ตอนโหลดไฟล์ (index import ไฟล์นี้ — วน) · ใช้ได้ในฟังก์ชันวาดเท่านั้น
 // ============================================================
-import { LW, P, PS, depthOf, gEllipse, glow, quad, rng, sceneSize } from "../boardGeo";
+import { LW, P, PS, depthOf, faceVisible, gEllipse, glow, quad, rng, sceneSize } from "../boardGeo";
 import { EOS_AREA, MAPS } from "../boardRules";
 import { fxActive, fxOnce, fxT } from "./index";
 import { eosAudio } from "../../eos/eosAudio";
@@ -161,23 +161,33 @@ function shadeFace(g, a, b, h, alpha) {
   poly(g, [[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], h], [a[0], a[1], h]]);
   g.fillStyle = gr; g.fill();
 }
-function box(g, x0, y0, x1, y1, h, top, side1, side2, z0 = 0) {
+// กล่องบนกระดาน: ผนังที่หันหากล้องจริง (faceVisible — ถูกทั้งมุมหมุนเฉียงและกล้องมีมุมมองลึก · เดิมเทียบความลึกแบบง่าย = ผนังทะลุเมื่อหมุน)
+//  skip(nx, ny) → true = ไม่วาดผนังด้านนั้น (ผนังด้านในของตึกหลายช่อง) · สีตามทิศผนัง (แกน x = side1 · แกน y = side2) ไม่สลับตามลำดับ
+const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+function box(g, x0, y0, x1, y1, h, top, side1, side2, z0 = 0, skip = null) {
   const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-  const faces = [];
+  const vis = [];
   for (let i = 0; i < 4; i++) {
-    const a = c[i], b = c[(i + 1) % 4];
-    const pa = P(a[0], a[1]), pb = P(b[0], b[1]);
-    // ด้านที่หันหากล้อง: ขอบล่างอยู่ล่างจุดกลาง (ง่าย: เทียบความลึก)
-    faces.push({ a, b, d: depthOf((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), dy: (pa[1] + pb[1]) / 2 });
+    const a = c[i], b = c[(i + 1) % 4], [nx, ny] = SIDES[i];
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    if (!faceVisible(nx, ny, mx, my) || (skip && skip(nx, ny))) continue;
+    vis.push({ a, b, nx, ny });
+    poly(g, [[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], h], [a[0], a[1], h]]);
+    g.fillStyle = nx ? side1 : side2; g.fill();
+    if (h > 0.3 && !z0) shadeFace(g, a, b, h, 0.28);
   }
-  const mid = depthOf((x0 + x1) / 2, (y0 + y1) / 2);
-  faces.filter((f) => f.d > mid).forEach((f, i) => {
-    poly(g, [[f.a[0], f.a[1], z0], [f.b[0], f.b[1], z0], [f.b[0], f.b[1], h], [f.a[0], f.a[1], h]]);
-    g.fillStyle = i % 2 ? side1 : side2; g.fill();
-    if (h > 0.3 && !z0) shadeFace(g, f.a, f.b, h, 0.28);
-  });
   poly(g, c.map(([x, y]) => [x, y, h])); g.fillStyle = top; g.fill();
-  if (h > 0.3) { g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.stroke(); } // ขอบหลังคารับแสง
+  if (h > 0.3) {
+    // ขอบหลังคารับแสง — เฉพาะขอบนอก (ตึกหลายช่องไม่มีเส้นแบ่งกลางหลังคา)
+    g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const [nx, ny] = SIDES[i];
+      if (skip && skip(nx, ny)) continue;
+      const a = P(c[i][0], c[i][1], h), b = P(c[(i + 1) % 4][0], c[(i + 1) % 4][1], h);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+  }
+  return vis;
 }
 
 // =================================================================== ธีม (อบ)
@@ -390,6 +400,7 @@ function tilesOf() {
   return out;
 }
 const TILES = tilesOf();
+const STATIC_TR = (MAPS[EOS_AREA] && MAPS[EOS_AREA].terrain) || {}; // สิ่งกีดขวางคงที่ของผัง (หาช่องข้างเคียงของกำแพง/อู่)
 // หญ้าทั้งกระดาน (ทุกช่อง — พื้นอื่นทับทีหลัง) แบ่ง 8 ระดับสีตาม noise ความถี่ต่ำ (คำนวณครั้งเดียว)
 const GRASS_BUCKETS = (() => {
   const m = MAPS[EOS_AREA], out = Array.from({ length: 8 }, () => []);
@@ -944,20 +955,34 @@ export function drawObstacle(g, t, ctx, now) {
     const altissia = zone === "altissia";
     const top = altissia ? C.altRoof : C.bldg[tone], s1 = altissia ? C.altWall : C.bldg[(tone + 1) % 3], s2 = altissia ? C.altWall2 : C.bldg[(tone + 2) % 3];
     const hh = altissia ? Math.min(h, 1.1) : h;
-    box(g, x, y, x + 1, y + 1, hh, top, s1, s2);
+    const same = (nx, ny) => { const o = BUILDING.get(K(x + nx, y + ny)); return !!(o && b && o.id === b.id); }; // ผนังด้านในของตึกเดียวกัน
+    const faces = box(g, x, y, x + 1, y + 1, hh, top, s1, s2, 0, same);
     if (!altissia && hh > 1.4 && hash(x, y + 7) < 0.45) box(g, x + 0.25, y + 0.3, x + 0.55, y + 0.6, hh + 0.14, C.bldg[(tone + 1) % 3], C.bldg[(tone + 2) % 3], C.bldg[tone]);
+    // หน้าต่าง: เฉพาะผนังด้านนอกที่มองเห็นจริง (เดิมวาดผนังทิศเดียวเสมอ → หมุนกล้องแล้วหน้าต่างลอยทะลุตึก)
     const R = rng(x * 37 + y * 11);
-    for (let zz = 0.25; zz < (altissia ? 1 : h) - 0.15; zz += 0.3) for (const fx2 of [0.3, 0.7]) {
-      const lit = R() < 0.55 && night && !darkAt(x, y);
-      const p = P(x + fx2, y + 1, zz);
-      g.fillStyle = lit ? C.winLit : C.win; g.fillRect(p[0] - s * 0.05, p[1] - s * 0.08, s * 0.09, s * 0.1);
-      if (lit && R() < 0.25) glowAt(g, p[0], p[1] - s * 0.03, s * 0.18, "255,210,130", 0.35);
+    for (const f of faces) {
+      for (let zz = 0.25; zz < hh - 0.15; zz += 0.3) for (const t of [0.3, 0.7]) {
+        const lit = R() < 0.55 && night && !darkAt(x, y);
+        const px = f.a[0] + (f.b[0] - f.a[0]) * t + f.nx * 0.01, py = f.a[1] + (f.b[1] - f.a[1]) * t + f.ny * 0.01;
+        const p = P(px, py, zz);
+        g.fillStyle = lit ? C.winLit : C.win; g.fillRect(p[0] - s * 0.04, p[1] - s * 0.08, s * 0.08, s * 0.1);
+        if (lit && R() < 0.25) glowAt(g, p[0], p[1] - s * 0.03, s * 0.18, "255,210,130", 0.35);
+      }
     }
     return;
   }
   if (kind === "fd_eos_wall") {
-    box(g, x, y + 0.15, x + 1, y + 0.85, 0.75, C.wall, C.wall2, C.wall);
-    for (let i = 0; i < 3; i++) box(g, x + 0.05 + i * 0.33, y + 0.2, x + 0.25 + i * 0.33, y + 0.8, 0.9, C.wall, C.wall2, C.wall);
+    // หันตามแนวที่ต่อกัน (กำแพงข้างเมืองเป็นแนวตั้ง) · ไม่วาดผนังรอยต่อกับกำแพงช่องข้าง (เดิมเป็นแผ่นแนวนอนทุกช่อง = หมุนแล้วทะลุ)
+    const isW = (dx, dy) => { const k = STATIC_TR[K(x + dx, y + dy)]; return k === "fd_eos_wall" || k === "fd_eos_turret"; };
+    const vert = (isW(0, -1) || isW(0, 1)) && !(isW(-1, 0) || isW(1, 0));
+    const join = (nx, ny) => isW(nx, ny);
+    if (vert) {
+      box(g, x + 0.15, y, x + 0.85, y + 1, 0.75, C.wall, C.wall2, C.wall, 0, join);
+      for (let i = 0; i < 3; i++) box(g, x + 0.2, y + 0.05 + i * 0.33, x + 0.8, y + 0.25 + i * 0.33, 0.9, C.wall, C.wall2, C.wall);
+    } else {
+      box(g, x, y + 0.15, x + 1, y + 0.85, 0.75, C.wall, C.wall2, C.wall, 0, join);
+      for (let i = 0; i < 3; i++) box(g, x + 0.05 + i * 0.33, y + 0.2, x + 0.25 + i * 0.33, y + 0.8, 0.9, C.wall, C.wall2, C.wall);
+    }
     return;
   }
   if (kind === "fd_eos_lamp") {
@@ -975,7 +1000,7 @@ export function drawObstacle(g, t, ctx, now) {
     return;
   }
   if (kind === "fd_eos_garage") {
-    box(g, x + 0.02, y + 0.02, x + 0.98, y + 0.98, 0.9, "#9a8f7a", "#6f6656", "#827866");
+    box(g, x, y, x + 1, y + 1, 0.9, "#9a8f7a", "#6f6656", "#827866", 0, (nx, ny) => STATIC_TR[K(x + nx, y + ny)] === "fd_eos_garage"); // อู่หลายช่อง = หลังเดียว
     const on = night && !darkAt(x, y);
     const p = P(x + 0.5, y + 0.99, 0.35); g.fillStyle = on ? "#ffcc66" : "#3a3a3a"; g.fillRect(p[0] - s * 0.3, p[1] - s * 0.2, s * 0.6, s * 0.3);
     if (on) glowAt(g, p[0], p[1], s * 0.8, "255,200,100", 0.4);
