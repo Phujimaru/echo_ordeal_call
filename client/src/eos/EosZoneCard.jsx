@@ -6,6 +6,7 @@
 //  ข้อความมีแค่ชื่อพื้นที่ (กฎ UI) · ชื่อไทย = ทับศัพท์ชื่อเฉพาะ (Claude ตั้ง) · wild = ลูซิส (ผังทั้งผืนตามภูมิศาสตร์ Lucis)
 // ============================================================
 import { useEffect, useRef, useState } from "react";
+import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
 import { eosZoneAt } from "./eosAudio";
 import { EOS_ZONE_INFO } from "./eosMeta";
 import "./eosCine.css";
@@ -188,20 +189,24 @@ export default function EosZoneCard({ state }) {
   const seen = useRef({ last: null, visited: new Set() });
   const [card, setCard] = useState(null); // { zone, lite, key }
 
+  // ป้ายร้านค้าปรากฏขึ้นอยู่ = รอให้จบก่อน (ไม่ขึ้นซ้อนกัน — ui/noticeBus.js)
+  const [busy, setBusy] = useState(() => noticeBusy("zone"));
+  useEffect(() => onNotice(() => setBusy(noticeBusy("zone"))), []);
   useEffect(() => {
-    if (!zone || hold) return;
+    if (!zone || hold || busy) return;
     const s = seen.current;
     if (zone === s.last) return;
     s.last = zone;
     const lite = s.visited.has(zone);
     s.visited.add(zone);
     setCard({ zone, lite, key: Date.now() });
-  }, [zone, hold]);
+  }, [zone, hold, busy]);
 
   useEffect(() => {
     if (!card) return undefined;
+    beginNotice("zone");
     const id = setTimeout(() => setCard(null), card.lite ? LITE_MS : FULL_MS);
-    return () => clearTimeout(id);
+    return () => { clearTimeout(id); endNotice("zone"); };
   }, [card]);
 
   if (!card) return null;

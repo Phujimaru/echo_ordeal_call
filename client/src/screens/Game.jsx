@@ -2,6 +2,7 @@ import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
 import EosMap from "../eos/EosMap";
 import EosZoneCard from "../eos/EosZoneCard";
 import EosScoreboard from "../eos/EosScoreboard";
+import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1361,50 +1362,38 @@ function ItemIcon({ info, className = "" }) {
 
 // ร้านค้ามายา: ร้านเดียว 15 ช่อง ตั้งบนแผนที่ — ย้ายจุด + สุ่มของใหม่ทุก 6 เทิร์น (GRID_PLAN §8.1)
 //  กริดขยายออกด้านข้าง (สูงสุด 5 คอลัมน์ = 3 แถว) ไม่ให้โมดัลยืดลงจนต้อง scroll แนวตั้ง
+// ป้ายร้านค้าปรากฏ (ออกแบบใหม่ — ผู้ใช้สั่ง 2026-11-10 "ห้ามทำแบบเดิม · ของกลางทุกโหมด ทำให้สวย"):
+//  ป้ายร้านแขวนโซ่หย่อนลงจากขอบบน แกว่งแล้วนิ่ง · กระดิ่งร้านสั่น · ตราประทับ "ปรากฏ" กดลงบนป้าย · ฝุ่นทองร่วงตอนประทับ
+//  จบ = ดึงกลับขึ้นไป (ยาว SCENE_MS.shop) · ไม่มีข้อความอื่นนอกจากชื่อร้าน + "ปรากฏ"
 function ShopHerald({ name }) {
-  const sparks = Array.from({ length: 14 }, (_, i) => {
-    const a = (i / 14) * Math.PI * 2;
-    const d = 12 + (i % 4) * 7;
-    return {
-      sx: `${(Math.cos(a) * d).toFixed(1)}vw`,
-      sy: `${(Math.sin(a) * d * 0.7).toFixed(1)}vh`,
-      size: 3 + (i % 3) * 2,
-      delay: 0.2 + (i % 5) * 0.04,
-    };
-  });
+  const dust = Array.from({ length: 12 }, (_, i) => ({ x: (i * 37) % 100, d: (i % 4) * 0.07, s: 3 + (i % 3) * 2 }));
   return (
-    <div className="sh">
-      <div className="sh-ribbon">
-        {sparks.map((k, i) => (
-          <span
-            key={i}
-            className="sh-spark"
-            style={{
-              width: k.size,
-              height: k.size,
-              marginLeft: -k.size / 2,
-              marginTop: -k.size / 2,
-              "--sx": k.sx,
-              "--sy": k.sy,
-              animationDelay: `${k.delay}s`,
-            }}
-          />
-        ))}
-        <svg className="sh-coin relative shrink-0" width="62" height="62" viewBox="0 0 62 62" aria-hidden="true">
-          <defs>
-            <linearGradient id="shCoinG" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#f7fafd" />
-              <stop offset="45%" stopColor="#eaf3fc" />
-              <stop offset="100%" stopColor="#7fb8e6" />
-            </linearGradient>
-          </defs>
-          <circle cx="31" cy="31" r="26" fill="url(#shCoinG)" />
-          <circle cx="31" cy="31" r="21" fill="none" stroke="#1c3f6e" strokeWidth="1.4" opacity="0.6" />
-          <path d="M31 16 L35.6 26.4 L47 27.6 L38.5 35.2 L41 46.4 L31 40.6 L21 46.4 L23.5 35.2 L15 27.6 L26.4 26.4 Z" fill="#1c3f6e" opacity="0.55" />
-        </svg>
-        <div className="relative min-w-0">
-          <div className="av-label">{name || shopName("apoth")}</div>
-          <div className="av-title av-title-thai text-4xl leading-tight whitespace-nowrap">ปรากฏ</div>
+    <div className="shh" aria-hidden="true">
+      <div className="shh-hang">
+        <span className="shh-chain shh-chain-l" />
+        <span className="shh-chain shh-chain-r" />
+        <div className="shh-board">
+          <svg className="shh-bell" width="34" height="34" viewBox="0 0 34 34">
+            <path d="M17 4c1.2 0 2 .8 2 1.8v1c4.6 1 7.4 4.8 7.4 10.2v5.6l2.6 3H5l2.6-3V17c0-5.4 2.8-9.2 7.4-10.2v-1C15 4.8 15.8 4 17 4z" fill="url(#shhBellG)" stroke="#5a3a0c" strokeWidth="1.2" />
+            <circle cx="17" cy="29" r="2.6" fill="#5a3a0c" />
+            <defs>
+              <linearGradient id="shhBellG" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#fff2c4" />
+                <stop offset="55%" stopColor="#e7b450" />
+                <stop offset="100%" stopColor="#9a6a1c" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <svg className="shh-awning" viewBox="0 0 220 26" preserveAspectRatio="none">
+            {Array.from({ length: 11 }, (_, i) => (
+              <path key={i} d={`M${i * 20} 0h20v14q-10 12-20 0z`} fill={i % 2 ? "#f4ead2" : "#c8423a"} />
+            ))}
+          </svg>
+          <div className="shh-name">{name || shopName("apoth")}</div>
+          <div className="shh-stamp"><span>ปรากฏ</span></div>
+          <div className="shh-dust">
+            {dust.map((k, i) => <i key={i} style={{ left: `${k.x}%`, animationDelay: `${0.95 + k.d}s`, width: k.s, height: k.s }} />)}
+          </div>
         </div>
       </div>
     </div>
@@ -1877,7 +1866,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  ฉากถัดไปเริ่มนับเวลาก็ต่อเมื่อฉากก่อนหน้าเล่นจบแล้วเท่านั้น
   //  TRANSITION = ช่วงของแบนเนอร์เปลี่ยนเทิร์น · CUTSCENE = วีดีโอเต็มจอ — ทั้งคู่กั้นคิวไว้ก่อน
   const scene = sceneQ[0] || null;
-  const sceneBlocked = phase === "TRANSITION" || phase === "CUTSCENE";
+  // ป้ายอื่นนอกคิว (ป้ายเข้าพื้นที่ Eos) ขึ้นอยู่ = ป้ายร้านค้ารอก่อน ไม่ขึ้นซ้อน (ui/noticeBus.js)
+  const [otherNotice, setOtherNotice] = useState(() => noticeBusy("shop"));
+  useEffect(() => onNotice(() => setOtherNotice(noticeBusy("shop"))), []);
+  const sceneBlocked = phase === "TRANSITION" || phase === "CUTSCENE" || (scene?.kind === "shop" && otherNotice);
+  const shopShowing = scene?.kind === "shop" && !sceneBlocked;
+  useEffect(() => { if (shopShowing) { beginNotice("shop"); return () => endNotice("shop"); } return undefined; }, [shopShowing]);
   const pushScene = useCallback((kind, data) => {
     sceneSeq.current += 1;
     const entry = { kind, data, id: sceneSeq.current };
@@ -2509,7 +2503,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
 
         {scene?.kind === "atk" && <AttackCall key={scene.id} />}
 
-        {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
+        {shopShowing && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
         {phase === "GAMEOVER" && (
           <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} onRematch={() => socket.emit("rematch")} />
@@ -2744,7 +2738,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ---------- แบนเนอร์รอบถัดไป ---------- */}
       {phase === "TRANSITION" && <RoundBanner round={state.roundNumber + 1} />}
 
-      {scene?.kind === "shop" && <ShopHerald key={scene.id} name={scene.data?.name} />}
+      {shopShowing && <ShopHerald key={scene.id} name={scene.data?.name} />}
 
       {phase === "GAMEOVER" && (
         <VictoryScreen state={state} onBackToLobby={() => socket.emit("backToLobby")} onRematch={() => socket.emit("rematch")} />
