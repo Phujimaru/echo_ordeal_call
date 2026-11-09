@@ -361,3 +361,22 @@ span.cst-h { cursor: default; text-align: left; }
 .cst-match-pn b { font: 600 13px/1.2 var(--oc-f-ui); }
 .cst-match-pn small { font: 500 11px/1.2 var(--oc-f-ui); color: var(--oc-ink-2, #4a6a92); }
 .cst-match-res { flex: none; width: 18px; text-align: center; font: 700 13px/1 var(--oc-f-ui); }
+
+/* สมดุล: ค่าเฉลี่ย + ปุ่มกรองเฉพาะตัวที่แรง/อ่อนผิดปกติ · แถวที่เตือน = ลูกศร + พื้นอมสี */
+.cst-bal { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: -4px 0 8px; }
+.cst-avg { font: 600 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
+.cst-avg b { color: var(--oc-ink); font-variant-numeric: tabular-nums; margin-left: 4px; }
+.cst-balbtn {
+  appearance: none; cursor: pointer; display: inline-flex; gap: 3px; padding: 5px 9px; border-radius: 999px;
+  font: 700 11px/1 var(--oc-f-ui); background: transparent; border: 1px solid var(--oc-line);
+}
+.cst-balbtn .up { color: #d2455b; } .cst-balbtn .down { color: #3d8bd9; }
+.cst-balbtn:hover { border-color: var(--oc-azure); }
+.cst-balbtn.on { background: var(--oc-ink); border-color: var(--oc-ink); }
+.cst-balbtn:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+.cst-rate { position: relative; }
+.cst-flag { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); font: 700 10px/1 var(--oc-f-ui); font-style: normal; }
+.cst-flag.up { color: #d2455b; } .cst-flag.down { color: #3d8bd9; }
+.cst-row[data-bal="up"] { box-shadow: inset -3px 0 0 #d2455b; background: rgba(210, 69, 91, 0.08); }
+.cst-row[data-bal="down"] { box-shadow: inset -3px 0 0 #3d8bd9; background: rgba(61, 139, 217, 0.08); }
+.cst-rowbtn { padding-right: 20px; }

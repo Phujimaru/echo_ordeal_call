@@ -8,6 +8,9 @@ import { FALLBACK } from "../../data/avatars";
 //  แท็บ "ประวัติ": แมตช์ล่าสุด (เวลา · โหมด · จำนวนเทิร์น · ผู้เล่น/ตัวละคร/ผล)
 //  ไม่มีข้อความอธิบาย (CLAUDE.md) — ชื่อ ตัวเลข และแถบเท่านั้น
 const pct = (s) => (s && s.picks > 0 ? (s.wins / s.picks) * 100 : null);
+// สมดุล (ผู้ใช้สั่ง 2026-11-09): เทียบอัตราชนะกับค่าเฉลี่ยของทุกตัว — เล่นแล้วอย่างน้อย BAL_MIN ครั้ง และห่างเกิน BAL_GAP จุด = แรงไป ▲ / อ่อนไป ▼
+const BAL_MIN = 5;
+const BAL_GAP = 15;
 const pctText = (r) => (r == null ? "—" : `${r % 1 === 0 ? r : r.toFixed(1)}%`);
 const MODE_LABEL = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
 const WORLD_LABEL = { earth: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
@@ -59,13 +62,27 @@ export default function CharStats({ groups, initialGroup = null, onClose }) {
     return m;
   }, [groups]);
 
+  // อัตราชนะเฉลี่ยทั้งหมด (ชนะรวม ÷ เลือกรวม) — ฐานเทียบของสีเตือน
+  const avg = useMemo(() => {
+    let w = 0, n = 0;
+    for (const s of Object.values(stats || {})) { w += s.wins || 0; n += s.picks || 0; }
+    return n > 0 ? (w / n) * 100 : null;
+  }, [stats]);
+  const balOf = (s) => {
+    const r = pct(s);
+    if (avg == null || r == null || s.picks < BAL_MIN) return null;
+    return r >= avg + BAL_GAP ? "up" : r <= avg - BAL_GAP ? "down" : null;
+  };
+  const [onlyBal, setOnlyBal] = useState(false);
+
   const rows = useMemo(() => {
     const list = groups
       .filter((g) => !group || g.key === group)
-      .flatMap((g) => g.chars.map((c) => ({ c, g, s: (stats && stats[c.id]) || { picks: 0, wins: 0 } })));
+      .flatMap((g) => g.chars.map((c) => ({ c, g, s: (stats && stats[c.id]) || { picks: 0, wins: 0 } })))
+      .filter((r) => !onlyBal || balOf(r.s));
     const key = (r) => (sort === "picks" ? r.s.picks : sort === "wins" ? r.s.wins : pct(r.s) ?? -1);
     return list.sort((a, b) => key(b) - key(a) || b.s.picks - a.s.picks || b.s.wins - a.s.wins);
-  }, [groups, group, stats, sort]);
+  }, [groups, group, stats, sort, onlyBal, avg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ตัวต่อตัวของตัวที่เปิดอยู่: [{ id, games, wins }] เรียงตามจำนวนที่เจอ
   const versus = useMemo(() => {
@@ -112,6 +129,13 @@ export default function CharStats({ groups, initialGroup = null, onClose }) {
             ))}
           </nav>
 
+          <div className="cst-bal">
+            <span className="cst-avg">เฉลี่ย <b>{pctText(avg)}</b></span>
+            <button type="button" className={`cst-balbtn${onlyBal ? " on" : ""}`} aria-pressed={onlyBal} onClick={() => { clickSound(); setOnlyBal((v) => !v); }}>
+              <span className="up">▲</span><span className="down">▼</span>
+            </button>
+          </div>
+
           <div className="cst-cols">
             <span className="cst-h name">ตัวละคร</span>
             {head("picks", "เลือก")}
@@ -123,9 +147,10 @@ export default function CharStats({ groups, initialGroup = null, onClose }) {
             {rows.map(({ c, g, s }) => {
               const r = pct(s);
               const open = openId === c.id;
+              const bal = balOf(s);
               return (
                 <Fragment key={c.id}>
-                  <li className={`cst-row${open ? " open" : ""}`} style={{ "--c": g.color }}>
+                  <li className={`cst-row${open ? " open" : ""}`} data-bal={bal || undefined} style={{ "--c": g.color }}>
                     <button type="button" className="cst-rowbtn" aria-expanded={open} onClick={() => toggle(c.id)}>
                       <Face c={c} />
                       <span className="cst-name">{c.name}</span>
@@ -134,6 +159,7 @@ export default function CharStats({ groups, initialGroup = null, onClose }) {
                       <span className="cst-rate">
                         <span className="cst-bar" aria-hidden="true"><i style={{ width: `${r ?? 0}%` }} /></span>
                         <b>{pctText(r)}</b>
+                        {bal && <i className={`cst-flag ${bal}`} aria-label={bal === "up" ? "แรง" : "อ่อน"}>{bal === "up" ? "▲" : "▼"}</i>}
                       </span>
                     </button>
                   </li>

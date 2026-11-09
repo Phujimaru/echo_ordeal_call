@@ -405,3 +405,7 @@
 :root[data-ui="dark"] .oc-screen :is(.oc-panel, .cst, .cs-desc) :is(.oc-h1, .oc-h2) { text-shadow: none; }
 :root[data-ui="dark"] .oc-screen .cs-sk.k-ult .cs-sk-n { color: #e3b6ee; }
 :root[data-ui="dark"] .oc-screen .cs-sk-k { color: color-mix(in srgb, var(--k) 45%, #e8f0fa); }
+:root[data-ui="dark"] .oc-screen .cst-row[data-bal="up"] { background: rgba(210, 69, 91, 0.16); }
+:root[data-ui="dark"] .oc-screen .cst-row[data-bal="down"] { background: rgba(61, 139, 217, 0.18); }
+:root[data-ui="dark"] .oc-screen .cst-flag.up, :root[data-ui="dark"] .oc-screen .cst-balbtn:not(.on) .up { color: #ff8a9c; }
+:root[data-ui="dark"] .oc-screen .cst-flag.down, :root[data-ui="dark"] .oc-screen .cst-balbtn:not(.on) .down { color: #7fb8e6; }
