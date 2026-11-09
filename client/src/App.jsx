@@ -313,7 +313,7 @@ export default function App() {
   // Eos (GRID_PLAN §8.6): ลูปบรรยากาศตามโซนที่ตัวเรายืน + กลางคืน + สภาพอากาศ (client/src/eos/eosAudio.js)
   const eosOn = stage === "connected" && state?.world === "eos" && !!state?.fodlan?.board && isMatchPhase(state.gameState);
   const eosMe = eosOn ? state.players.find((p) => p.id === state.youId) : null;
-  const eosBeds = eosOn ? JSON.stringify(eosBedsFor(eosMe && eosMe.pos, !!state.fodlan.board.night, state.fodlan.weather && state.fodlan.weather.kind)) : "";
+  const eosBeds = eosOn ? JSON.stringify(eosBedsFor(eosMe && eosMe.pos, !!state.fodlan.board.night, state.fodlan.weather && state.fodlan.weather.kind, state.fodlan.board.dome)) : "";
   const eosStorm = eosOn && state.fodlan.weather && state.fodlan.weather.kind === "eos_storm";
   useEffect(() => {
     const ea = eosAudio();

@@ -77,6 +77,8 @@ function enter(ctx, st) {
     scores: {},      // ฝ่าย → แต้ม
     dead: {},        // id ผู้เล่น → เทิร์นที่ล้ม (ฟื้นต้นเทิร์น + REVIVE_TURNS)
     winner: null,
+    bridgeUp: false, dome: null, domeReadyRound: 0, lightsOff: {},
+    wrecks: MAP.WRECKS.map(([x, y], i) => ({ id: `fd:wreck${i + 1}`, x, y })),
   };
   ctx.bump();
 }
@@ -89,6 +91,9 @@ function layer(ctx, st, map) {
   for (const c of s.cars) for (const t of carCells(c)) special[K(t.x, t.y)] = "fd_eos_car";
   for (const c of s.chocos) if (c.x != null && !c.rider) special[K(c.x, c.y)] = "fd_eos_chocobo";
   for (const d of s.daemons) terrain[K(d.x, d.y)] = "fd_eos_daemon";
+  for (const w of s.wrecks || []) terrain[K(w.x, w.y)] = "fd_eos_wreck";
+  if (s.bridgeUp) for (const t of BRIDGES) { terrain[K(t.x, t.y)] = "fd_eos_bridgeup"; delete special[K(t.x, t.y)]; }
+  if (domeOn(s)) for (const t of DOME_GATES) terrain[K(t.x, t.y)] = "fd_eos_barrier";
   return { ...map, terrain, special };
 }
 function layerVer(ctx, st) {
@@ -188,6 +193,8 @@ function carOf(ctx, s, p) { return p && p.pos ? s.cars.find((c) => onCarFully(ct
 // มุมบนซ้าย a ใช้ได้: ทั้งคันอยู่บนถนน · ไม่ทับรถคันอื่น
 function anchorOnRoad(s, car, a) {
   for (const t of carCells(a)) if (!ROAD.has(K(t.x, t.y))) return false;
+  for (const t of carCells(a)) if ((s.wrecks || []).some((w) => w.x === t.x && w.y === t.y)) return false; // ซากรถขวางถนน
+  if (domeOn(s) && carCells(a).some((t) => DOME_GATES.some((d) => d.x === t.x && d.y === t.y))) return false; // โดมปิดประตูเมือง
   for (const o of s.cars) {
     if (o === car) continue;
     const ok = carKeys(o);
@@ -319,7 +326,7 @@ function spawnDaemons(ctx, s) {
   const map = ctx.map(), units = bodies(ctx);
   const cand = [];
   for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) {
-    if (inTown(x, y) || !tileFree(ctx, s, x, y)) continue;
+    if (blockedTown(s, x, y) || !tileFree(ctx, s, x, y)) continue;
     if (units.some((p) => footOf(ctx, p).some((t) => manhattan(t, { x, y }) < DAEMON_SPAWN_GAP))) continue;
     cand.push({ x, y });
   }
@@ -341,8 +348,8 @@ function dissolveDaemons(ctx, s) {
   return 1;
 }
 // เป้าที่ตีได้: ผู้เล่นบนกระดาน (ไม่บินลอยข้ามหัว · ไม่อยู่ในเมือง)
-function prey(ctx) {
-  return bodies(ctx).filter((p) => !ctx.action.walksThrough(p) && !footOf(ctx, p).some((t) => inTown(t.x, t.y)));
+function prey(ctx, s) {
+  return bodies(ctx).filter((p) => !ctx.action.walksThrough(p) && !footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y)));
 }
 // เดินไล่: BFS จากปีศาจ (ช่องว่าง นอกเมือง) หาช่องที่ติดเป้าใกล้สุด → เดินไปตามทางไม่เกิน DAEMON_MOV
 function stepDaemon(ctx, s, d, targets) {
@@ -358,7 +365,7 @@ function stepDaemon(ctx, s, d, targets) {
     const cur = queue[i];
     for (const [dx, dy] of ctx.Board.DIRS) {
       const x = cur.x + dx, y = cur.y + dy, k = K(x, y);
-      if (seen.has(k) || !ctx.Board.inBounds(map, x, y) || inTown(x, y) || !tileFree(ctx, s, x, y)) continue;
+      if (seen.has(k) || !ctx.Board.inBounds(map, x, y) || blockedTown(s, x, y) || !tileFree(ctx, s, x, y)) continue;
       seen.add(k);
       const node = { x, y, d: cur.d + 1, prev: cur };
       if (adjT(x, y)) { goal = node; break; }
@@ -376,7 +383,7 @@ function actDaemons(ctx, s) {
   const moves = [], attacks = [];
   for (const d of s.daemons.slice()) {
     if (!s.daemons.includes(d)) continue;
-    const targets = prey(ctx);
+    const targets = prey(ctx, s);
     if (!targets.length) break;
     const r = stepDaemon(ctx, s, d, targets);
     if (r.to && (r.to.x !== d.x || r.to.y !== d.y)) {
@@ -618,6 +625,153 @@ function sideSight(ctx, viewer) {
   return set;
 }
 
+// ============================================================ ขั้น 2: ลูกเล่นปั่นป่วน (L6–L10 · ผู้ใช้สั่ง 2026-11-09 — ตัวเลขเป็นข้อเสนอของ Claude)
+//  ทุกปุ่มใช้ "การตีของตา" (แบบคันโยกเรือของ Fodlan ด่าน I) · ยืนติดของนั้น 4 ทิศ
+const DOME_TURNS = 3;          // L7 โดมอยู่ 3 เทิร์น
+const DOME_COOLDOWN = 2;       // ปิดแล้วพัก 2 เทิร์นก่อนเปิดใหม่
+const GYSAHL_RANGE = 4;        // L9 โยนล่อช็อโก้ของศัตรูในระยะนี้
+const LEVER_SECS = 1.4, DOME_SECS = 1.6, SWITCH_SECS = 1.2, PUSH_SECS = 1.0;
+const listOf = (obj, kind) => ((obj && obj[kind]) || []).map(([x, y]) => ({ x, y }));
+const BRIDGES = listOf(MAP.map.special, "fd_eos_bridge");
+const LEVER = listOf(MAP.map.terrain, "fd_eos_lever")[0] || null;
+const DOME_CORE = listOf(MAP.map.terrain, "fd_eos_domecore")[0] || null;
+const SOLID = new Set(Object.values(MAP.map.terrain).flat().map(([x, y]) => K(x, y)));
+const INSOMNIA = (MAP.ZONES.find((z) => z.id === "insomnia") || { rect: [8, 0, 23, 8] }).rect;
+// ประตูของนครหลวง = ช่องเดินได้บนขอบกรอบเมือง (ยกเว้นขอบกระดาน)
+const DOME_GATES = (() => {
+  const [x0, y0, x1, y1] = INSOMNIA, out = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const edge = x === x0 || x === x1 || y === y1 || (y === y0 && y0 > 0);
+    if (edge && !SOLID.has(K(x, y))) out.push({ x, y });
+  }
+  return out;
+})();
+const inDome = (x, y) => inRect(INSOMNIA, x, y);
+function domeOn(s) { return !!(s && s.dome && s.dome.left > 0); }
+// ไฟเมืองดับ = ปีศาจเข้าได้
+function lit(s, zoneId) { return !(s && s.lightsOff && s.lightsOff[zoneId]); }
+function townOf(x, y) { const z = TOWNS.find((t) => inRect(t.rect, x, y)); return z ? z.id : null; }
+function blockedTown(s, x, y) { const z = townOf(x, y); return !!z && lit(s, z); }
+
+// ---------- L6 สะพานยก ----------
+function bridgeOccupied(ctx) {
+  const keys = new Set(BRIDGES.map((t) => K(t.x, t.y)));
+  return bodies(ctx).some((p) => footOf(ctx, p).some((c) => keys.has(K(c.x, c.y))));
+}
+function pullLever(ctx, s, p) {
+  if (!LEVER || !ctx.adjacent(p, LEVER.x, LEVER.y) || !canStrike(ctx, p) || bridgeOccupied(ctx)) return false;
+  s.bridgeUp = !s.bridgeUp;
+  ctx.match.action.locked = true;
+  ctx.bump();
+  ctx.fx("bridge", { up: s.bridgeUp, x: LEVER.x, y: LEVER.y, tiles: BRIDGES.map((t) => ({ ...t })), by: p.id });
+  ctx.log(`🌉 ${p.name} ${s.bridgeUp ? "ยกสะพาน Altissia ขึ้น" : "ลดสะพาน Altissia ลง"}`);
+  ctx.useStrike(p, LEVER_SECS);
+  return true;
+}
+// ---------- L7 โดมกำแพงเวท ----------
+function domeReady(ctx, s) { return !domeOn(s) && ctx.match.roundNumber >= (s.domeReadyRound || 0); }
+function raiseDome(ctx, s, p) {
+  if (!DOME_CORE || !ctx.adjacent(p, DOME_CORE.x, DOME_CORE.y) || !canStrike(ctx, p) || !domeReady(ctx, s)) return false;
+  const gateKeys = new Set(DOME_GATES.map((t) => K(t.x, t.y)));
+  if (bodies(ctx).some((u) => footOf(ctx, u).some((c) => gateKeys.has(K(c.x, c.y))))) return false; // มีคนยืนขวางประตู
+  s.dome = { left: DOME_TURNS, by: p.id };
+  ctx.match.action.locked = true;
+  ctx.bump();
+  ctx.fx("dome_on", { rect: INSOMNIA, gates: DOME_GATES.map((t) => ({ ...t })), by: p.id });
+  ctx.log(`🛡️ ${p.name} เปิดโดมกำแพงเวทของ Insomnia (${DOME_TURNS} เทิร์น)`);
+  ctx.useStrike(p, DOME_SECS);
+  return true;
+}
+function tickDome(ctx, s) {
+  if (!domeOn(s)) return;
+  s.dome.left -= 1;
+  if (s.dome.left > 0) return;
+  s.dome = null;
+  s.domeReadyRound = ctx.match.roundNumber + DOME_COOLDOWN;
+  ctx.bump();
+  ctx.fx("dome_off", { rect: INSOMNIA });
+  ctx.log("🛡️ โดมกำแพงเวทของ Insomnia สลายไป");
+}
+// ตีจากนอกโดมเข้าไปในโดมไม่ได้ (ตีปกติ + สกิลเป้าเดียว)
+function shields(ctx, st, attacker, target) {
+  const s = st && st.eos;
+  if (!domeOn(s) || !attacker || !attacker.pos || !target || !target.pos) return false;
+  const tIn = footOf(ctx, target).some((c) => inDome(c.x, c.y));
+  const aIn = footOf(ctx, attacker).some((c) => inDome(c.x, c.y));
+  return tIn && !aIn;
+}
+// ---------- L8 แผงไฟเมือง ----------
+function switchNear(ctx, p) { return MAP.SWITCHES.find((sw) => ctx.adjacent(p, sw.at[0], sw.at[1])) || null; }
+function flipLights(ctx, s, p) {
+  const sw = switchNear(ctx, p);
+  if (!sw || !canStrike(ctx, p)) return false;
+  s.lightsOff = s.lightsOff || {};
+  s.lightsOff[sw.zone] = !s.lightsOff[sw.zone];
+  ctx.match.action.locked = true;
+  ctx.fx("lights", { zone: sw.zone, off: s.lightsOff[sw.zone], x: sw.at[0], y: sw.at[1], by: p.id });
+  ctx.log(`💡 ${p.name} ${s.lightsOff[sw.zone] ? "ดับไฟ" : "เปิดไฟ"}เมือง ${ZONE_NAMES[sw.zone] || sw.zone}`);
+  ctx.useStrike(p, SWITCH_SECS);
+  return true;
+}
+// ---------- L9 ผักกิซาล (ไอเทม — server/shop.js) ----------
+function gysahlOnSale() {
+  const F = require("../fodlan");
+  return !!(F.active() && F.isEos() && F.stageState() && F.stageState().eos);
+}
+// ใช้จากกระเป๋า: ศัตรูขี่ช็อโก้ในระยะ = โยนล่อให้นกวิ่งหนี (คนขี่ตกนก) · ไม่มี = เรียกช็อโก้ว่างตัวใกล้สุดมาข้างตัว · ทำไม่ได้ = ไม่เสียของ
+function useGysahl(p) {
+  if (!p || !p.alive || !p.pos || !gysahlOnSale()) return false;
+  const F = require("../fodlan");
+  const ctx = F.makeCtx(), s = F.stageState().eos, side = sideOf(p);
+  const foes = Object.keys(s.riders).map((id) => ctx.match.players[id])
+    .filter((u) => u && u.alive && u.pos && sideOf(u) !== side && manhattan(u.pos, p.pos) <= GYSAHL_RANGE)
+    .sort((a, b) => manhattan(a.pos, p.pos) - manhattan(b.pos, p.pos));
+  if (foes.length) {
+    const u = foes[0], c = unride(ctx, s, u.id);
+    if (c) {
+      const spot = freeNear(ctx, s, u.pos.x + Math.sign(u.pos.x - p.pos.x) * 2, u.pos.y + Math.sign(u.pos.y - p.pos.y) * 2, 3, null);
+      if (spot) { c.x = spot.x; c.y = spot.y; c.rider = null; } else sendHome(ctx, s, c, { ...u.pos });
+      ctx.bump();
+      ctx.fx("gysahl_lure", { from: { ...p.pos }, at: { ...u.pos }, to: spot || null, id: u.id, by: p.id });
+      ctx.log(`🥬 ${p.name} โยนผักกิซาล — ช็อโก้ของ ${u.name} วิ่งไล่ผักไป!`);
+      p.exposedRound = ctx.match.roundNumber;
+      return true;
+    }
+  }
+  if (riding(s, p)) return false;
+  const free = s.chocos.filter((c) => c.x != null && !c.rider).sort((a, b) => manhattan(a, p.pos) - manhattan(b, p.pos));
+  const spot = dismountTiles(ctx, s, p)[0];
+  if (!free.length || !spot) return false;
+  const c = free[0], from = { x: c.x, y: c.y };
+  c.x = spot.x; c.y = spot.y;
+  ctx.bump();
+  ctx.fx("gysahl_call", { from, to: { ...spot }, by: p.id });
+  ctx.log(`🥬 ${p.name} ใช้ผักกิซาล — ช็อโก้วิ่งมาหา`);
+  return true;
+}
+// ---------- L10 ซากรถ (ผลักได้) ----------
+function wreckNear(ctx, s, p) { return (s.wrecks || []).filter((w) => ctx.adjacent(p, w.x, w.y)); }
+function pushTo(ctx, s, p, w) {
+  const dx = Math.sign(w.x - p.pos.x), dy = Math.sign(w.y - p.pos.y);
+  if (Math.abs(dx) + Math.abs(dy) !== 1) return null;
+  const to = { x: w.x + dx, y: w.y + dy };
+  if (!tileFree(ctx, s, to.x, to.y) || (s.wrecks || []).some((o) => o.x === to.x && o.y === to.y)) return null;
+  return to;
+}
+function pushWreck(ctx, s, p) {
+  if (!canStrike(ctx, p)) return false;
+  const w = wreckNear(ctx, s, p).find((o) => pushTo(ctx, s, p, o));
+  if (!w) return false;
+  const from = { x: w.x, y: w.y }, to = pushTo(ctx, s, p, w);
+  w.x = to.x; w.y = to.y;
+  ctx.match.action.locked = true;
+  ctx.bump();
+  ctx.fx("wreck_push", { id: w.id, from, to: { ...to }, by: p.id });
+  ctx.log(`🚙 ${p.name} ผลักซากรถ`);
+  ctx.useStrike(p, PUSH_SECS);
+  return true;
+}
+
 // ============================================================ ต้นเทิร์น / จบตา / จบเทิร์น
 function preRound(ctx, st) {
   const s = st && st.eos;
@@ -656,6 +810,7 @@ function onEndTurn(ctx, st) {
   checkChannels(ctx, s);
   noteDeaths(ctx, s);
   scoreRound(ctx, s);
+  tickDome(ctx, s);
 }
 
 // ============================================================ ปุ่ม HUD
@@ -676,6 +831,11 @@ function hudActions(ctx, st, p) {
     const list = canMove(ctx, p) ? carTargets(ctx, s, car) : [];
     out.push({ key: "fd:drive", icon: "🚗", name: "ขับ", disabled: !list.length, tiles: list.map(pickOf) });
   }
+  if (LEVER && ctx.adjacent(p, LEVER.x, LEVER.y)) out.push({ key: "fd:lever", icon: "🌉", name: s.bridgeUp ? "ลดสะพาน" : "ยกสะพาน", disabled: !canStrike(ctx, p) || bridgeOccupied(ctx) });
+  if (DOME_CORE && ctx.adjacent(p, DOME_CORE.x, DOME_CORE.y)) out.push({ key: "fd:dome", icon: "🛡️", name: "โดม", disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
+  const sw = switchNear(ctx, p);
+  if (sw) out.push({ key: "fd:lights", icon: "💡", name: lit(s, sw.zone) ? "ดับไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p) });
+  if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
   const sz = seizeState(ctx, s, p);
   if (sz) out.push({ key: "fd:seize", icon: "🔷", name: sz.pl.ch && sz.pl.ch.by === p.id ? "ยึด 2/2" : "ยึด", disabled: !sz.ok });
   if (riding(s, p)) {
@@ -689,6 +849,10 @@ function charAction(ctx, st, p, key, tile) {
   if (!s || !p || !p.pos) return false;
   if (key === "fd:drive") return drive(ctx, s, p, tile);
   if (key === "fd:seize") return seize(ctx, s, p);
+  if (key === "fd:lever") return pullLever(ctx, s, p);
+  if (key === "fd:dome") return raiseDome(ctx, s, p);
+  if (key === "fd:lights") return flipLights(ctx, s, p);
+  if (key === "fd:push") return pushWreck(ctx, s, p);
   if (key === "fd:dismount") {
     if (!riding(s, p) || !ctx.action.canAct(p) || !tile) return false;
     if (!dismountTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
@@ -796,6 +960,10 @@ function publicInfo(ctx, st) {
     goal: SCORE_GOAL,
     scores: scoreList(ctx, s),
     revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + REVIVE_TURNS })),
+    bridgeUp: !!s.bridgeUp,
+    dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA } : null,
+    lightsOff: { ...(s.lightsOff || {}) },
+    wrecks: (s.wrecks || []).map((w) => ({ ...w })),
   };
 }
 function scoreList(ctx, s) {
@@ -813,7 +981,8 @@ function playerInfo(ctx, st, p) {
 
 module.exports = {
   enter, weatherStart, layer, layerVer, movMod, flatWalk, preRound, onUnitEnd, onEndTurn,
-  hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner,
+  hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
+  gysahlOnSale, useGysahl, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carTargets, carOf, canRide, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,

@@ -365,3 +365,94 @@ test('ตายแล้วฟื้นหลัง 3 เทิร์นที�
   const best = Math.max(...Board.MAPS[AREA].spawns.map(far));
   assert.ok(far(p.pos) >= best - 3, 'ฟื้นใกล้จุดเกิดที่ไกลศัตรูสุด');
 });
+
+// ---------- ขั้น 2: ลูกเล่นปั่นป่วน (L6–L10) ----------
+const shop = require('../server/shop.js');
+const nextToTile = (t) => Board.DIRS.map(([dx, dy]) => ({ x: t.x + dx, y: t.y + dy })).find((c) => !Board.isObstacle(action.boardMap(), c.x, c.y));
+
+test('L6 สะพานยก: คันโยก Altissia ยก/ลดสะพานทั้งเมือง (ยก = เดินผ่านไม่ได้) · มีคนบนสะพาน = ยกไม่ได้', () => {
+  setup();
+  const p = P(0), lv = S6.LEVER, br = S6.BRIDGES[0];
+  assert.ok(lv && S6.BRIDGES.length >= 3);
+  p.pos = nextToTile(lv);
+  actor(p);
+  P(1).pos = { x: br.x, y: br.y };
+  assert.ok(btn(p, 'fd:lever').disabled, 'มีคนยืนบนสะพาน');
+  P(1).pos = { x: 30, y: 0 };
+  assert.ok(Fodlan.charAction(p.id, 'fd:lever'));
+  assert.equal(st().bridgeUp, true);
+  assert.ok(Board.isObstacle(action.boardMap(), br.x, br.y));
+  match.roundNumber += 1; actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:lever'));
+  assert.equal(st().bridgeUp, false);
+  assert.ok(!Board.isObstacle(action.boardMap(), br.x, br.y));
+});
+
+test('L7 โดม: แท่นกลาง Insomnia ปิดประตูเมือง 3 เทิร์น · ตีจากนอกเข้าในไม่ได้ · หมดแล้วพัก', () => {
+  setup();
+  const p = P(0), q = P(1), core = S6.DOME_CORE, gate = S6.DOME_GATES.find((g) => g.y === 8 && g.x === 15);
+  assert.ok(core && gate);
+  p.pos = nextToTile(core);
+  actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:dome'));
+  assert.ok(Board.isObstacle(action.boardMap(), gate.x, gate.y), 'ประตูเมืองปิด');
+  q.pos = { x: 15, y: 9 }; p.pos = { x: 15, y: 7 };
+  assert.ok(Fodlan.shields(q, p), 'ตีจากนอกเข้าในไม่ได้');
+  assert.ok(!action.canStrike(q, p));
+  assert.ok(!Fodlan.shields(p, q), 'จากในออกนอกได้');
+  for (let i = 0; i < S6.DOME_TURNS; i++) { Fodlan.onEndTurn(() => 0.99); match.roundNumber += 1; }
+  assert.ok(!Board.isObstacle(action.boardMap(), gate.x, gate.y), 'โดมสลาย');
+  p.pos = nextToTile(core); actor(p);
+  assert.ok(btn(p, 'fd:dome').disabled, 'พักหลังโดมสลาย');
+});
+
+test('L8 ไฟเมือง: ดับไฟ = ปีศาจเข้าเมืองนั้นได้ · เปิดคืนได้', () => {
+  setup();
+  const s = st(), p = P(0), sw = MAP6.SWITCHES.find((w) => w.zone === 'insomnia');
+  assert.ok(S6.blockedTown(s, 12, 4));
+  p.pos = nextToTile({ x: sw.at[0], y: sw.at[1] });
+  actor(p);
+  assert.equal(btn(p, 'fd:lights').name, 'ดับไฟ');
+  assert.ok(Fodlan.charAction(p.id, 'fd:lights'));
+  assert.ok(!S6.blockedTown(s, 12, 4));
+  // ปีศาจไล่คนในเมืองที่ไฟดับได้
+  P(1).pos = { x: 30, y: 0 }; p.pos = { x: 1, y: 1 }; // เป้าเดียวในเมือง
+  s.daemons = [{ id: 'fd:dmL', x: 15, y: 10, hp: 5, armor: 1, kind: 1 }];
+  const q = P(2); q.pos = { x: 13, y: 5 };
+  for (let i = 0; i < 3 && !S6.inTown(s.daemons[0].x, s.daemons[0].y); i++) S6.actDaemons(ctx(), s); // ทางประตูกลางมีรถ+เสาไฟขวาง → อ้อมประตูข้าง
+  assert.ok(S6.inTown(s.daemons[0].x, s.daemons[0].y), 'ปีศาจเข้าเมืองที่ไฟดับ');
+});
+
+test('L9 ผักกิซาล: ขายทุกร้านใน Eos · ศัตรูขี่ช็อโก้ในระยะ = ตกนก · ไม่มี = เรียกช็อโก้มาข้างตัว', () => {
+  setup();
+  shop.refreshShopForJourney();
+  const s = st(), p = P(0), q = P(1);
+  assert.ok(S6.gysahlOnSale());
+  const c = s.chocos[0];
+  q.pos = { x: c.x, y: c.y }; Fodlan.onUnitEnd(q);
+  assert.ok(s.riders[q.id]);
+  p.pos = { x: q.pos.x - 3, y: q.pos.y };
+  assert.ok(S6.useGysahl(p));
+  assert.ok(!s.riders[q.id], 'ตกนก');
+  // เรียกช็อโก้มาหา
+  p.pos = { x: 13, y: 13 };
+  assert.ok(S6.useGysahl(p));
+  const near = s.chocos.some((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
+  assert.ok(near, 'ช็อโก้วิ่งมาข้างตัว');
+});
+
+test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ · ซากรถบนถนนขวางรถ', () => {
+  setup();
+  const s = st(), p = P(0), w = s.wrecks[0];
+  p.pos = { x: w.x - 1, y: w.y };
+  if (Board.isObstacle(action.boardMap(), p.pos.x, p.pos.y)) p.pos = { x: w.x, y: w.y - 1 };
+  actor(p);
+  const from = { x: w.x, y: w.y };
+  assert.ok(Fodlan.charAction(p.id, 'fd:push'));
+  assert.equal(Math.abs(w.x - from.x) + Math.abs(w.y - from.y), 1);
+  assert.equal(action.boardMap().terrain[K(w.x, w.y)], 'fd_eos_wreck');
+  // ซากรถบนถนนหน้ารถ Insomnia → รถลงไปไม่ได้
+  w.x = 15; w.y = 8;
+  const car = s.cars[0];
+  assert.ok(S6.carTargets(ctx(), s, car).every((t) => t.y <= 6));
+});

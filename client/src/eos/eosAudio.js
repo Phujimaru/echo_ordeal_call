@@ -220,7 +220,8 @@ export function eosZoneAt(x, y) {
   return z ? z.id : "wild";
 }
 // { key: gain } สำหรับ setBeds — pos = ตำแหน่งตัวเรา (null = กลางแผนที่) · night · weather kind
-export function eosBedsFor(pos, night, weather) {
+// dome = { rect } ตอนโดมกำแพงเวทของ Insomnia เปิด → เสียงหึ่ง (ดังเมื่อเราอยู่ในโดม/ใกล้)
+export function eosBedsFor(pos, night, weather, dome = null) {
   const zone = pos ? eosZoneAt(pos.x, pos.y) : "wild";
   const out = {};
   const base = {
@@ -237,5 +238,10 @@ export function eosBedsFor(pos, night, weather) {
   if (night && !TOWN.has(zone)) out.amb_night_daemon = 0.55;
   if (weather === "eos_storm") out.wx_rain_loop = 0.9;
   if (weather === "eos_fog") out.wx_fog_loop = 0.8;
+  if (dome && dome.rect) {
+    const [x0, y0, x1, y1] = dome.rect;
+    const inside = pos && pos.x >= x0 && pos.x <= x1 && pos.y >= y0 && pos.y <= y1;
+    out.dome_hum = inside ? 0.7 : 0.3;
+  }
   return out;
 }

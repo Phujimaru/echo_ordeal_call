@@ -329,6 +329,7 @@ function canStrike(p, target) {
   // ฮุค strikeAllows(p, target) → false = ตีเป้านี้ไม่ได้ (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room — client ใช้ players[].strikeZone คัดเหมือนกัน)
   const zoneHook = CHAR_HOOKS[p.characterId];
   if (zoneHook && zoneHook.strikeAllows && !zoneHook.strikeAllows(p, target)) return false;
+  if (Fodlan.shields(p, target)) return false; // สนาม Eos: โดมกำแพงเวท (server/fodlan/stage6.js)
   if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
 }
@@ -532,6 +533,7 @@ function targetOk(p, area, range, t) {
   if (!Dim.same(p, t)) return false; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
   if (Visibility.hiddenFromUnit(p, t)) return false;
   if (!tauntAllows(p, t)) return false; // ถูกล่อเป้า: เล็งศัตรูได้เฉพาะตัวล่อ
+  if (Fodlan.shields(p, t)) return false; // สนาม Eos: โดมกำแพงเวท
   // รูปเฉพาะ (area.cells = [[dx, dy], …] นับจากช่องของผู้ใช้) — เป้าต้องทับช่องตามรูป แทนการนับระยะ
   if (Array.isArray(area.cells)) return cellsHit(p, area.cells, t);
   return Board.dist(boxOf(p), boxOf(t)) <= range;

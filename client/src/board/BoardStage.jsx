@@ -465,7 +465,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ตีรอบตัว 8 ช่อง รวมทแยง (me.strikeRing — กิลกาเมช ถือ EA): ช่องยืนต้องติดเป้า (เชบีเชฟ 1)
     const ring = !foe.isCorpse && !!me.strikeRing;
     const cheb1 = (n) => { const a = { x: n.x, y: n.y, size: sizeOfP(me) }, b = boxOfP(foe); const dx = Math.max(0, a.x - (b.x + b.size - 1), b.x - (a.x + a.size - 1)), dy = Math.max(0, a.y - (b.y + b.size - 1), b.y - (a.y + a.size - 1)); return Math.max(dx, dy) === 1; };
-    const hits = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    // โดมกำแพงเวท (Eos — server Fodlan.shields): เป้าอยู่ในโดม = ต้องยืนในโดมด้วยจึงตีถึง
+    const dome = !foe.isCorpse && fdBoard && fdBoard.dome && Array.isArray(fdBoard.dome.rect) ? fdBoard.dome.rect : null;
+    const inDome = (x, y) => x >= dome[0] && x <= dome[2] && y >= dome[1] && y <= dome[3];
+    const foeDomed = !!dome && Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inDome(t.x, t.y));
+    const domeOk = (n) => !foeDomed || Rules.footprint(n.x, n.y, sizeOfP(me)).some((t) => inDome(t.x, t.y));
+    const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
+    const hits = (n) => domeOk(n) && hits0(n);
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
     if (!best) {
@@ -495,7 +501,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
     }
     return { foe, ally: allyHit, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
-  }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked, fdBoard]); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : hoverFd ? planFor(hoverFd) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse, hoverFd]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
@@ -2725,6 +2731,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         colonyHome={colonyHome}
         rts={eosRts}
         camHome={camHome}
+        selfPos={eosRts && me && me.alive !== false ? me.pos : null}
         onColonyAway={setColonyAway}
         songs={songs}
         grays={grays}

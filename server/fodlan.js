@@ -17,7 +17,7 @@
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, flatWalk, eosWinner, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  movMod, flatWalk, eosWinner, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -324,6 +324,8 @@ function movMod(p) { return Number(call("movMod", 0, p)) || 0; }
 // เดินผ่านช่องที่กินหลายก้าวได้ 1 ก้าว (Board.reachable opts.flatWalk — Eos: ขี่ช็อโก้)
 function flatWalk(p) { return !!call("flatWalk", false, p); }
 // สนาม Eos: ฝ่ายที่ครบแต้มยึดเสา → id ผู้เล่นของฝ่ายนั้น (phases/endTurn.js gameOver) · null = ยังไม่มี
+// เป้านี้ถูกป้องกันจากผู้ตีคนนี้ไหม (Eos: โดมกำแพงเวท — ตีจากนอกโดมเข้าไปไม่ได้) → action.canStrike / targetOk
+function shields(attacker, target) { return !!call("shields", false, attacker, target); }
 function eosWinner() { return isEos() ? call("winner", null) || null : null; }
 function atkBonus(p) { return (Number(call("atkBonus", 0, p)) || 0) + sumOf(persistAll("atkBonus", p)); }
 function preventDeath(p) { return !!call("preventDeath", false, p) || persistAll("preventDeath", p).some(Boolean); }

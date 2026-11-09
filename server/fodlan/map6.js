@@ -7,16 +7,17 @@
 //   สคริปต์สร้าง: Claude (value noise · seed คงที่) — แก้ผังด้วยมือได้ แต่ต้องรันเทสต์ Eos ทุกครั้ง
 //  ผัง (x = 0..31 ซ้าย→ขวา · y = 0..31 เหนือ→ใต้):
 //   . หญ้า  = ถนน (fd_eos_road)  p ลานเมือง (fd_eos_plaza)  d ทราย (fd_eos_sand)  b สะพาน (fd_eos_bridge)  k คอกช็อโก้ (fd_eos_stable)
+//   V คันโยกสะพาน Altissia  Q แท่นโดม Insomnia  Z แผงไฟเมือง  (สิ่งกีดขวาง — ขั้น 2 ปั่นป่วน)
 //   F ป่าทึบ (fd_eos_forest — กติกาเท่า forest)  s น้ำตื้น (fd_eos_shallow — กติกาเท่า shallow)  X เสายึดพื้นที่
 //   B ตึก  W กำแพงเมือง  L เสาไฟถนน  T ต้นไม้  R หิน  ~ น้ำลึก  c คลอง  P ปั๊มน้ำมัน  G อู่ซ่อมรถ  (สิ่งกีดขวาง)
 const ROWS = [
   "..R....RWBBBBBp==pBBBBBW.FTFFF..", // y0
   ".....RR.WBBBppL==LppBBBW.FTFFF..", // y1
-  "...R....Wpppppp==pppBBBWFFTFF.FF", // y2
+  "...R....WpppQpp==pppBBBWFFTFF.FF", // y2
   "....R...WBpppBp==pBXppBWFT.FF.FF", // y3
   "....R...ppppLpp==ppLppppFFFFF..F", // y4
   "..R.R...WBBpppp==ppppBBWFFF.....", // y5
-  "..RRR...WpppBBp==pBppppWF.......", // y6
+  "..RRR...WpppBBp==pBpZppWF.......", // y6
   "..RR....WWppppL==LppppWWFFF.....", // y7
   ".T..R....WWpWWW==WWWpWW.FFFFF.FF", // y8
   ".......==============...FTTFFFFF", // y9
@@ -35,12 +36,12 @@ const ROWS = [
   "..===========================ddd", // y22
   ".....===========...=========dddd", // y23
   ".....===...........dddd====ddddd", // y24
-  ".pppL===pLppp.....dddddd====dRdd", // y25
+  ".ZppL===pLppV.....dddddd====dRdd", // y25
   ".BBpcp=BBpbpL.....ddddddd====RGG", // y26
   "~~~Xcpccpppcp.....RddXdddd===RGG", // y27
   "~~~~~bppccpcb....dddddddddd===dd", // y28
   "~~~~~~cpppccp....ddddddRddd===dd", // y29
-  "~~~~~~~BBpcBB....ddddddddddP==dd", // y30
+  "~~~~~~~BBpcBB....ddddddddZdP==dd", // y30
   "~~~~~~~~BpcBB...ddd..dddddddPddd", // y31
 ];
 const COLS = 32;
@@ -58,6 +59,7 @@ module.exports = {
       fd_eos_bldg: at("B"), fd_eos_wall: at("W"), fd_eos_lamp: at("L"), fd_eos_tree: at("T"), fd_eos_rock: at("R"),
       fd_eos_water: at("~"), fd_eos_canal: at("c"), fd_eos_pump: at("P"), fd_eos_garage: at("G"),
       fd_eos_pillar: at("X"), // = PILLARS ด้านล่าง
+      fd_eos_lever: at("V"), fd_eos_domecore: at("Q"), fd_eos_switch: at("Z"),
     },
     special: {
       fd_eos_road: at("="), fd_eos_plaza: at("p"), fd_eos_sand: at("d"), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
@@ -80,7 +82,13 @@ module.exports = {
     fd_eos_car: { name: "รถ", icon: "🚗" },           // ชั้น layer: ช่องรถ (ยืนบนรถ = นั่งรถ)
     fd_eos_chocobo: { name: "ช็อโก้", icon: "🐤" },   // ชั้น layer: ช่องที่ช็อโก้ยืน (จบตาบนช่องนี้ = ขึ้นขี่)
     fd_eos_daemon: { name: "ปีศาจ", icon: "👹" },
-    fd_eos_pillar: { name: "เสาคริสตัล", icon: "🔷" },     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
+    fd_eos_pillar: { name: "เสาคริสตัล", icon: "🔷" },
+    fd_eos_lever: { name: "คันโยกสะพาน", icon: "🔗" },
+    fd_eos_domecore: { name: "แท่นโดม", icon: "🛡️" },
+    fd_eos_switch: { name: "แผงไฟเมือง", icon: "💡" },
+    fd_eos_bridgeup: { name: "สะพานยก", icon: "🌉" },   // ชั้น layer: สะพานที่ยกขึ้น (เดินผ่านไม่ได้)
+    fd_eos_barrier: { name: "โดมกำแพงเวท", icon: "🛡️" }, // ชั้น layer: ประตูเมืองที่โดมปิด
+    fd_eos_wreck: { name: "ซากรถ", icon: "🚙" },        // ชั้น layer: ซากรถที่ผลักได้     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
   },
   // โซน (สี่เหลี่ยมรวมขอบ [x0, y0, x1, y1]) — เมืองที่มีไฟถนน = ปีศาจเข้าไม่ได้ · ใช้เลือกเสียงบรรยากาศฝั่ง client ด้วย
   ZONES: [
@@ -101,6 +109,9 @@ module.exports = {
     { zone: "insomnia", at: [19, 3] }, { zone: "hammerhead", at: [21, 27] }, { zone: "duscae", at: [23, 15] },
     { zone: "lake", at: [11, 17] }, { zone: "altissia", at: [3, 27] },
   ],
+  // ขั้น 2 (ปั่นป่วน): แผงไฟของแต่ละเมือง · ซากรถเริ่มต้น (ริมทาง — ผลักลงถนนเพื่อปิดทางได้)
+  SWITCHES: [{ zone: "insomnia", at: [20, 6] }, { zone: "hammerhead", at: [25, 30] }, { zone: "altissia", at: [1, 25] }],
+  WRECKS: [[9, 12], [30, 15], [19, 24]],
   // ช็อโก้ 4 ตัว (คอกละ 2): คอก Wiz ในป่า Duscae · คอกริมทะเลสาบ Cleigne
   CHOCOBOS: [[19, 15], [20, 16], [11, 12], [12, 12]],
 };

@@ -14,7 +14,7 @@ const Journey = require("../characters/_journey");
 const {
   BAG_SLOTS, BATTERY_MAX, BATTERY_REGEN, FORTUNE_MAX, GOLD_MAX, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_BATTERY_PRICE,
   SHOP_CARD_COLOR_PRICE, SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_INTERVAL_TURNS,
-  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE,
+  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
 } = require("./constants");
 const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("../characters/_universal_status");
@@ -98,6 +98,7 @@ function shopItemName(item) {
   if (item.type === "giornoArrow") return "ธนู Requiem";
   if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
   if (item.type === "torch") return "คบเพลิง";
+  if (item.type === "gysahl") return "ผักกิซาล";
   return "สินค้า";
 }
 function shopsList() { return match.shops || (match.shops = []); }
@@ -168,7 +169,7 @@ function openShop() {
 function refreshShopForJourney() {
   syncStageItems();
   for (const s of shopsList()) for (const it of s.items || []) {
-    if (it.type === "torch") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II): ซื้อได้ไม่จำกัด
+    if (it.type === "torch" || it.type === "gysahl") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
     if (it.stockBase == null) it.stockBase = 1;
     const limit = it.stockBase + Journey.shopStockBonus(engine);
@@ -186,6 +187,13 @@ function syncStageItems() {
     const has = (s.items || []).some((it) => it.type === "torch");
     if (want && !has) s.items.push({ id: `${s.id}_torch_${match.shopRoundSeq}`, type: "torch", price: SHOP_TORCH_PRICE, sold: false, soldTo: null, bought: 0 });
     else if (!want && has) s.items = s.items.filter((it) => it.type !== "torch");
+  }
+  // สนาม Eos (GRID_PLAN §8.6 L9): ผักกิซาลขายทุกร้าน
+  const eos = require("./fodlan/stage6").gysahlOnSale();
+  for (const s of shopsList()) {
+    const has = (s.items || []).some((it) => it.type === "gysahl");
+    if (eos && !has) s.items.push({ id: `${s.id}_gysahl_${match.shopRoundSeq}`, type: "gysahl", price: SHOP_GYSAHL_PRICE, sold: false, soldTo: null, bought: 0 });
+    else if (!eos && has) s.items = s.items.filter((it) => it.type !== "gysahl");
   }
 }
 // การเดินทาง (ทุ่งดอกไม้ กลางวัน): ของฟรีราคาไม่เกิน 5 ที่ใช้ได้ทันที
@@ -427,6 +435,7 @@ function buyShopItem(id, shopId, itemId) {
   if ((p.gold || 0) < item.price) return;
   p.inventory = p.inventory || [];
   if (item.type === "torch" && !require("./fodlan/stage2").torchOnSale()) return; // คบเพลิง: ขายเฉพาะ Fodlan ด่าน II
+  if (item.type === "gysahl" && !require("./fodlan/stage6").gysahlOnSale()) return; // ผักกิซาล: ขายเฉพาะ Eos
   item.bought = (item.bought || 0) + 1; // ช่องละหลายชิ้น (refreshShopForJourney คิด stock/sold ใหม่)
   item.soldTo = p.id;
   refreshShopForJourney();
@@ -530,6 +539,9 @@ function useInventoryItem(id, uid, opts = {}) {
   } else if (item.type === "torch") {
     // คบเพลิง (Fodlan ด่าน II — server/fodlan/stage2.js): ปักบนช่องที่ยืน · นอกด่าน/ช่องมีคบเพลิงแล้ว = ใช้ไม่ได้ ไม่เสียของ
     if (!require("./fodlan/stage2").useTorch(p)) return;
+  } else if (item.type === "gysahl") {
+    // ผักกิซาล (Eos — server/fodlan/stage6.js): ล่อช็อโก้ของศัตรูในระยะ / เรียกช็อโก้มาหา · ใช้ไม่ได้ = ไม่เสียของ
+    if (!require("./fodlan/stage6").useGysahl(p)) return;
   } else {
     return;
   }

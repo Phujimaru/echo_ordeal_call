@@ -379,6 +379,8 @@ export default function BoardCanvas(props) {
           const gp = unproject(st.cam.cx, camEyeY(base, st.cam.z, st.cam.cy));
           const cl = (v, hi) => Math.max(0, Math.min(hi, v));
           st.pivot = gp ? { x: cl(gp.x, info.cols), y: cl(gp.y, info.rows) } : { x: info.cols / 2, y: info.rows / 2 };
+          // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง 2026-11-09): Q/E หมุนรอบตัวหมากของเรา ไม่ใช่รอบกลางจอ (p.selfPos)
+          if (p.rts && p.selfPos && Number.isFinite(p.selfPos.x)) st.pivot = { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 };
         }
         let d = (((target - st.rotTarget) % 4) + 4) % 4;
         if (d === 3) d = -1;

@@ -23,12 +23,15 @@ export const kinds = [
   "fd_eos_bldg", "fd_eos_wall", "fd_eos_lamp", "fd_eos_tree", "fd_eos_rock", "fd_eos_water", "fd_eos_canal", "fd_eos_pump", "fd_eos_garage", "fd_eos_daemon",
   "fd_eos_road", "fd_eos_plaza", "fd_eos_sand", "fd_eos_bridge", "fd_eos_stable", "fd_eos_car", "fd_eos_chocobo",
   "fd_eos_forest", "fd_eos_shallow", "fd_eos_pillar",
+  // ขั้น 2 (ลูกเล่นปั่นป่วน): คันโยกสะพาน · แท่นโดม · แผงไฟเมือง · ชั้น layer: สะพานที่ยก · กำแพงเวทที่ประตู · ซากรถ
+  "fd_eos_lever", "fd_eos_domecore", "fd_eos_switch", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_wreck",
 ];
-export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar"];
+export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier"];
 // ความยาวฉากของเหตุการณ์ (ms) — server ctx.fx
 export const fx = {
   lightning: 1600, car_drive: 900, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
   daemon_spawn: 1600, daemon_move: 1100, daemon_attack: 900, daemon_hit: 600, daemon_struck: 500, daemon_die: 1200, daemon_dissolve: 1400,
+  bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
 };
 export const fogRGB = "150,165,185";
 const CAR_MS = 900, DAEMON_MS = 1000;
@@ -106,7 +109,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -146,7 +149,7 @@ function shadeFace(g, a, b, h, alpha) {
   poly(g, [[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], h], [a[0], a[1], h]]);
   g.fillStyle = gr; g.fill();
 }
-function box(g, x0, y0, x1, y1, h, top, side1, side2) {
+function box(g, x0, y0, x1, y1, h, top, side1, side2, z0 = 0) {
   const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
   const faces = [];
   for (let i = 0; i < 4; i++) {
@@ -157,9 +160,9 @@ function box(g, x0, y0, x1, y1, h, top, side1, side2) {
   }
   const mid = depthOf((x0 + x1) / 2, (y0 + y1) / 2);
   faces.filter((f) => f.d > mid).forEach((f, i) => {
-    poly(g, [[f.a[0], f.a[1], 0], [f.b[0], f.b[1], 0], [f.b[0], f.b[1], h], [f.a[0], f.a[1], h]]);
+    poly(g, [[f.a[0], f.a[1], z0], [f.b[0], f.b[1], z0], [f.b[0], f.b[1], h], [f.a[0], f.a[1], h]]);
     g.fillStyle = i % 2 ? side1 : side2; g.fill();
-    if (h > 0.3) shadeFace(g, f.a, f.b, h, 0.28);
+    if (h > 0.3 && !z0) shadeFace(g, f.a, f.b, h, 0.28);
   });
   poly(g, c.map(([x, y]) => [x, y, h])); g.fillStyle = top; g.fill();
   if (h > 0.3) { g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.stroke(); } // ขอบหลังคารับแสง
@@ -506,12 +509,232 @@ function hexRgb(h) {
   const n = parseInt(m[1], 16);
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
+// =================================================================== ขั้น 2: ลูกเล่นปั่นป่วน (server/fodlan/stage6.js "ขั้น 2")
+//  drawObstacle ได้แค่ t/x/y → อ่านสถานะจาก LAST_FD (ground() เก็บไว้ทุกเฟรม)
+const TOWN_RECTS = { insomnia: [8, 0, 23, 8], hammerhead: [24, 24, 31, 31], altissia: [0, 24, 12, 31] }; // = server map6 ZONES (town)
+const inRect = (r, x, y) => x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
+function townAt(x, y) { for (const [id, r] of Object.entries(TOWN_RECTS)) if (inRect(r, x, y)) return id; return null; }
+// ไฟเมืองดับ (แผงไฟ — fd.lightsOff[zone])
+function darkAt(x, y) { const z = townAt(x, y); return !!(z && LAST_FD && LAST_FD.lightsOff && LAST_FD.lightsOff[z]); }
+const lastFx = (kind) => (LAST_FD && Array.isArray(LAST_FD.fx) ? LAST_FD.fx.slice().reverse().find((e) => e.kind === kind) : null);
+// เสาไฟ: ดับ/ติด + กะพริบช่วงสับสวิตช์
+function lampOn(x, y, now) {
+  const z = townAt(x, y), e = lastFx("lights");
+  if (z && e && e.zone === z) {
+    const p = fxT(e, now, fx.lights);
+    if (p < 1) return Math.sin(now / 35 + x * 3) > (e.off ? p * 2 - 1 : 1 - p * 2);
+  }
+  return !darkAt(x, y);
+}
+
+// ---------- คันโยกสะพาน (เอียงตาม fd.bridgeUp · โยกตอนเหตุการณ์ "bridge") ----------
+const LEVER_TILT = 0.65;
+function leverAngle(now) {
+  const to = LAST_FD && LAST_FD.bridgeUp ? LEVER_TILT : -LEVER_TILT, e = lastFx("bridge");
+  if (!e) return to;
+  const k = ease(Math.min(1, fxT(e, now, fx.bridge) / 0.3));
+  return -to + to * 2 * k;
+}
+function drawLever(g, x, y, C, now) {
+  const [bx, by, s] = P(x + 0.5, y + 0.55);
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.34, s * 0.12, 0, 0, TAU); g.fill();
+  box(g, x + 0.24, y + 0.3, x + 0.76, y + 0.78, 0.26, C.stone, C.stone2, C.stone);
+  const piv = P(x + 0.5, y + 0.54, 0.27);
+  g.fillStyle = "#1c1f24"; g.fillRect(piv[0] - s * 0.05, piv[1] - s * 0.03, s * 0.1, s * 0.06);
+  const a = leverAngle(now), L = 0.55;
+  const end = P(x + 0.5, y + 0.54 + Math.sin(a) * L, 0.27 + Math.cos(a) * L);
+  g.strokeStyle = "#3a3f47"; g.lineWidth = Math.max(2.5, s * 0.07); g.lineCap = "round";
+  g.beginPath(); g.moveTo(piv[0], piv[1]); g.lineTo(end[0], end[1]); g.stroke();
+  g.strokeStyle = "rgba(255,255,255,.25)"; g.lineWidth = Math.max(1, s * 0.02);
+  g.beginPath(); g.moveTo(piv[0] - 1, piv[1]); g.lineTo(end[0] - 1, end[1]); g.stroke();
+  g.lineCap = "butt";
+  g.fillStyle = "#b8321f"; g.beginPath(); g.arc(end[0], end[1], Math.max(2, s * 0.06), 0, TAU); g.fill();
+  g.fillStyle = "rgba(255,190,170,.6)"; g.beginPath(); g.arc(end[0] - s * 0.02, end[1] - s * 0.02, Math.max(1, s * 0.02), 0, TAU); g.fill();
+}
+
+// ---------- สะพานยก (fd_eos_bridgeup แทนสะพานที่อบไว้ · ลดลง = เห็นสะพานที่อบ) ----------
+const BRIDGE_UP = 1.15; // มุมยก (rad) → ปลายสะพานสูง ≈ 0.9
+const CANAL_SET = new Set(TILES.canal.map((t) => K(t.x, t.y)));
+function bridgeLeaf(g, x, y, C, ang) {
+  // น้ำในคลองใต้สะพาน (ปิดสะพานที่อบไว้)
+  quad(g, x - 0.02, y - 0.02); g.fillStyle = C.bank; g.fill();
+  quad(g, x + 0.04, y + 0.12); g.fillStyle = C.canal; g.fill();
+  // คลองไหลซ้าย-ขวา = ข้ามแนวตั้ง (บานพับขอบบน) · คลองไหลบน-ล่าง = บานพับขอบซ้าย
+  const vert = !(CANAL_SET.has(K(x, y - 1)) || CANAL_SET.has(K(x, y + 1))) || CANAL_SET.has(K(x - 1, y)) || CANAL_SET.has(K(x + 1, y));
+  const L = 0.96, z0 = 0.06, run = Math.cos(ang) * L, top = z0 + Math.sin(ang) * L;
+  const pt = (u, w) => (vert ? [x + 0.08 + u * 0.84, y + 0.02 + w * run, z0 + w * (top - z0)] : [x + 0.02 + w * run, y + 0.08 + u * 0.84, z0 + w * (top - z0)]);
+  // เสาบานพับ
+  for (const u of [0, 1]) {
+    const [hx, hy] = pt(u, 0);
+    box(g, hx - 0.05, hy - 0.05, hx + 0.05, hy + 0.05, 0.34, "#4a3a2a", "#2e241a", "#3c2f22");
+  }
+  // ขอบหนา → หน้าไม้ + แนวไม้กระดาน
+  const face = [pt(0, 0), pt(1, 0), pt(1, 1), pt(0, 1)];
+  poly(g, face.map(([a, b, z]) => [a, b, z - 0.05])); g.fillStyle = "#2e2318"; g.fill();
+  poly(g, face); g.fillStyle = C.bridge; g.fill();
+  g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { const a = P(...pt(0, i / 6)), b = P(...pt(1, i / 6)); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  g.strokeStyle = "rgba(255,230,190,.18)"; poly(g, face); g.stroke();
+  // โซ่ยก (ยอดเสา → ปลายสะพาน)
+  if (ang > 0.1) {
+    g.strokeStyle = "rgba(30,30,34,.75)"; g.lineWidth = 1; g.setLineDash([2, 2]);
+    for (const u of [0, 1]) {
+      const [hx, hy] = pt(u, 0), a = P(hx, hy, 0.34), b = P(...pt(u, 1));
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    g.setLineDash([]);
+  }
+}
+
+// ---------- แท่นโดม (คริสตัลเรือง) ----------
+function drawDomeCore(g, x, y, C, night, now) {
+  const on = !!(LAST_FD && LAST_FD.dome);
+  const [bx, by, s] = P(x + 0.5, y + 0.55);
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.4, s * 0.14, 0, 0, TAU); g.fill();
+  box(g, x + 0.18, y + 0.18, x + 0.82, y + 0.82, 0.16, C.stone2, C.stone2, C.stone);
+  box(g, x + 0.3, y + 0.3, x + 0.7, y + 0.7, 0.42, C.stone, C.stone2, C.stone);
+  const pulse = 0.5 + 0.5 * Math.sin(now / (on ? 260 : 700));
+  g.strokeStyle = `rgba(140,220,255,${on ? 0.9 : 0.45 + 0.2 * pulse})`; g.lineWidth = 1.5;
+  gEllipse(g, x + 0.5, y + 0.5, 0.17, 0.43, 18); g.stroke();
+  // คริสตัลลอย
+  const bob = Math.sin(now / 600) * 0.04, top = P(x + 0.5, y + 0.5, 1.05 + bob), mid = P(x + 0.5, y + 0.5, 0.8 + bob), bot = P(x + 0.5, y + 0.5, 0.52 + bob), w = s * 0.13;
+  glowAt(g, mid[0], mid[1], s * (on ? 1.5 : night ? 1 : 0.7), "120,200,255", on ? 0.55 + 0.25 * pulse : night ? 0.45 : 0.3);
+  g.fillStyle = on ? "#bfeaff" : "#7fc6ee"; g.globalAlpha = 0.92;
+  g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(mid[0] + w, mid[1]); g.lineTo(bot[0], bot[1]); g.lineTo(mid[0] - w, mid[1]); g.closePath(); g.fill();
+  g.globalAlpha = 1;
+  g.fillStyle = "rgba(255,255,255,.65)"; g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(mid[0] - w * 0.2, mid[1]); g.lineTo(mid[0] - w, mid[1]); g.closePath(); g.fill();
+}
+
+// ---------- โดมกำแพงเวท (ทับกรอบ Insomnia ใน air · จาง ไม่บังของ) ----------
+function domeGrow(now) {
+  const e = lastFx("dome_on");
+  return e ? ease(fxT(e, now, fx.dome_on)) : 1;
+}
+const HEX = Array.from({ length: 6 }, (_, i) => [Math.cos(i / 6 * TAU + Math.PI / 6), Math.sin(i / 6 * TAU + Math.PI / 6)]);
+function hexPath(g, cx, cy, r, sq = 1) {
+  HEX.forEach(([a, b], i) => (i ? g.lineTo(cx + a * r, cy + b * r * sq) : g.moveTo(cx + a * r, cy + b * r * sq)));
+  g.closePath();
+}
+function drawDome(g, rect, k, alpha, now, lowQ) {
+  if (!(k > 0.01 && alpha > 0.01)) return;
+  const [x0, y0, x1, y1] = rect, cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2, rx = (x1 - x0 + 1) / 2 + 0.15, ry = (y1 - y0 + 1) / 2 + 0.15, H = 3.4 * k;
+  const S = (u, v) => P(cx + rx * Math.cos(v) * Math.cos(u), cy + ry * Math.cos(v) * Math.sin(u), H * Math.sin(v));
+  g.save();
+  // เงาโดม (ผิวจาง ไล่บนสว่าง)
+  const pts = [];
+  for (let i = 0; i < 28; i++) for (let j = 0; j <= 6; j++) { const q = S(i / 28 * TAU, j / 6 * Math.PI / 2); pts.push([q[0], q[1]]); }
+  const hl = hull(pts), apex = S(0, Math.PI / 2), foot = S(Math.PI / 2, 0);
+  const gr = g.createLinearGradient(apex[0], apex[1], foot[0], foot[1]);
+  gr.addColorStop(0, `rgba(190,235,255,${0.12 * alpha})`); gr.addColorStop(1, `rgba(90,170,255,${0.05 * alpha})`);
+  g.beginPath(); hl.forEach(([a, b], i) => (i ? g.lineTo(a, b) : g.moveTo(a, b))); g.closePath();
+  g.fillStyle = gr; g.fill();
+  g.strokeStyle = `rgba(170,225,255,${0.35 * alpha})`; g.lineWidth = 1.5; g.stroke();
+  // วงฐาน
+  g.beginPath();
+  for (let i = 0; i <= 48; i++) { const q = S(i / 48 * TAU, 0); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); }
+  g.strokeStyle = `rgba(140,215,255,${0.5 * alpha})`; g.lineWidth = 2; g.stroke();
+  // ลายหกเหลี่ยม (ผิวหน้าเข้มกว่าผิวหลัง) + ประกายวิ่ง
+  if (!lowQ) {
+    const rows = 6, glint = [];
+    g.lineWidth = 1;
+    for (const side of [-1, 1]) {
+      g.beginPath();
+      for (let j = 0; j < rows; j++) {
+        const v = (j + 0.5) / rows * Math.PI / 2, n = Math.max(6, Math.round(30 * Math.cos(v)));
+        for (let i = 0; i < n; i++) {
+          const u = (i + (j % 2) * 0.5) / n * TAU;
+          if (Math.sign(Math.sin(u)) !== side) continue;
+          const [px, py, s] = S(u, v), r = s * 0.42 * (0.55 + 0.45 * Math.cos(v));
+          hexPath(g, px, py, r, 0.55 + 0.45 * Math.sin(v));
+          if (Math.sin(now / 700 + i * 1.7 + j * 2.3) > 0.9) glint.push([px, py, r, 0.55 + 0.45 * Math.sin(v)]);
+        }
+      }
+      g.strokeStyle = `rgba(190,235,255,${(side > 0 ? 0.24 : 0.1) * alpha})`; g.stroke();
+    }
+    g.beginPath(); for (const [px, py, r, sq] of glint) hexPath(g, px, py, r, sq);
+    g.fillStyle = `rgba(200,240,255,${0.14 * alpha})`; g.fill();
+  }
+  g.restore();
+}
+function drawBarrier(g, x, y, now) {
+  const h = 1.15 * domeGrow(now);
+  if (h < 0.02) return;
+  const sh = 0.5 + 0.5 * Math.sin(now / 320 + x * 0.9 + y * 0.7);
+  box(g, x + 0.04, y + 0.04, x + 0.96, y + 0.96, h, `rgba(170,225,255,${0.22 + 0.1 * sh})`, `rgba(90,170,255,${0.28 + 0.1 * sh})`, `rgba(120,195,255,${0.24 + 0.1 * sh})`);
+  // ลายหกเหลี่ยมบนหน้ากำแพง (ขอบที่หันหากล้อง y+1)
+  const [, , s] = P(x + 0.5, y + 1);
+  g.beginPath();
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+    const zc = (row + 0.5) / 3 * h, xc = x + 0.18 + (col + (row % 2) * 0.5) * 0.3;
+    if (xc > x + 0.9) continue;
+    const c = P(xc, y + 0.96, zc);
+    hexPath(g, c[0], c[1], s * 0.1, 0.9);
+  }
+  g.strokeStyle = `rgba(200,240,255,${0.35 + 0.25 * sh})`; g.lineWidth = 1; g.stroke();
+  const m = P(x + 0.5, y + 0.5, h * 0.5);
+  glowAt(g, m[0], m[1], s * 0.9, "120,200,255", 0.35 + 0.2 * sh);
+}
+
+// ---------- แผงไฟเมือง (กล่องเหล็กบนเสา · ไฟเขียว = เปิด / แดง = ดับ) ----------
+function drawSwitch(g, x, y, C, now) {
+  const [bx, by, s] = P(x + 0.5, y + 0.55);
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(bx, by, s * 0.2, s * 0.07, 0, 0, TAU); g.fill();
+  const base = P(x + 0.5, y + 0.5), top = P(x + 0.5, y + 0.5, 0.62);
+  g.strokeStyle = "#3a3d42"; g.lineWidth = Math.max(2, s * 0.05); g.beginPath(); g.moveTo(base[0], base[1]); g.lineTo(top[0], top[1]); g.stroke();
+  box(g, x + 0.32, y + 0.4, x + 0.68, y + 0.62, 0.92, "#8a9098", "#5a6068", "#70767e", 0.56);
+  const off = darkAt(x, y), e = lastFx("lights");
+  const blink = !!e && e.x === x && e.y === y && fxT(e, now, fx.lights) < 1 && Math.sin(now / 45) > 0;
+  const d = P(x + 0.42, y + 0.63, 0.66);
+  g.fillStyle = "rgba(20,22,26,.6)"; g.fillRect(d[0] - s * 0.02, d[1] - s * 0.02, s * 0.18, s * 0.035);
+  const lp = P(x + 0.5, y + 0.63, 0.8);
+  g.fillStyle = blink ? "#ffffff" : off ? "#ff4a32" : "#50ff78"; g.beginPath(); g.arc(lp[0], lp[1], Math.max(1.5, s * 0.035), 0, TAU); g.fill();
+  glowAt(g, lp[0], lp[1], s * 0.35, off ? "255,70,50" : "80,255,120", 0.55 + 0.25 * Math.sin(now / 400));
+}
+
+// ---------- ซากรถ (ผลักได้ · เลื่อนนุ่มตอนถูกผลัก) ----------
+const WRECK_MS = 600;
+function drawWreck(g, x, y, now) {
+  const w = LAST_FD && Array.isArray(LAST_FD.wrecks) ? LAST_FD.wrecks.find((o) => o.x === x && o.y === y) : null;
+  const pos = w ? smooth(`wreck:${w.id}`, x, y, now, WRECK_MS) : { x, y };
+  const seed = w ? String(w.id).split("").reduce((a, ch) => a + ch.charCodeAt(0), 0) : x * 7 + y;
+  const hz = hash(seed, 5) < 0.6, mx = pos.x + 0.5, my = pos.y + 0.5;
+  const [cx, cy, s] = P(mx, my + 0.05);
+  g.fillStyle = "rgba(0,0,0,.4)"; g.beginPath(); g.ellipse(cx, cy, s * 0.48, s * 0.17, 0, 0, TAU); g.fill();
+  const ax = hz ? 0.42 : 0.26, ay = hz ? 0.26 : 0.42;
+  // ล้อแบน (ยางไหม้)
+  g.fillStyle = "#141210";
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const p = P(mx + dx * ax * 0.75, my + dy * ay * 0.85, 0.05);
+    g.beginPath(); g.ellipse(p[0], p[1], s * 0.08, s * 0.05, 0, 0, TAU); g.fill();
+  }
+  // ตัวถังสนิม + ห้องโดยสารยุบ
+  box(g, mx - ax, my - ay, mx + ax, my + ay, 0.27, "#6b3d24", "#3a2216", "#58311d", 0.06);
+  const ca = hz ? 0.2 : ay * 0.8, cb = hz ? ay * 0.8 : 0.2, off = hz ? -0.05 : 0;
+  box(g, mx - ca + off, my - cb, mx + ca + off, my + cb, 0.42, "#2a2420", "#1a1512", "#332b25", 0.27);
+  // รอยไหม้/สนิม
+  const R = rng(seed * 13 + 3);
+  for (let i = 0; i < 4; i++) {
+    const p = P(mx + (R() - 0.5) * ax * 1.6, my + (R() - 0.5) * ay * 1.6, 0.28);
+    g.fillStyle = i % 2 ? "rgba(150,70,30,.7)" : "rgba(15,12,10,.6)";
+    g.beginPath(); g.ellipse(p[0], p[1], s * (0.05 + R() * 0.06), s * 0.025, R() * 3, 0, TAU); g.fill();
+  }
+  // กระจกแตก
+  const wp = P(mx, my + cb, 0.35);
+  g.fillStyle = "rgba(0,0,0,.75)"; g.fillRect(wp[0] - s * 0.07, wp[1] - s * 0.04, s * 0.14, s * 0.06);
+}
+
 export function drawObstacle(g, t, ctx, now) {
   LAST_NIGHT = !!(ctx && ctx.night);
   const C = palOf(ctx), night = LAST_NIGHT;
   const { x, y, kind } = t;
   if (kind === "fd_eos_water" || kind === "fd_eos_canal" || kind === "fd_eos_daemon") return; // น้ำวาดในพื้น · ปีศาจใน items
   if (kind === "fd_eos_pillar") { drawPillar(g, t, C, night, now); return; }
+  if (kind === "fd_eos_lever") { drawLever(g, x, y, C, now); return; }
+  if (kind === "fd_eos_bridgeup") { const e = lastFx("bridge"); bridgeLeaf(g, x, y, C, e && e.up ? BRIDGE_UP * ease(fxT(e, now, fx.bridge)) : BRIDGE_UP); return; }
+  if (kind === "fd_eos_domecore") { drawDomeCore(g, x, y, C, night, now); return; }
+  if (kind === "fd_eos_barrier") { drawBarrier(g, x, y, now); return; }
+  if (kind === "fd_eos_switch") { drawSwitch(g, x, y, C, now); return; }
+  if (kind === "fd_eos_wreck") { drawWreck(g, x, y, now); return; }
   const [sx, sy, s] = P(x + 0.5, y + 0.6);
   const zone = zoneAt(x, y), r = hash(x, y);
   if (kind === "fd_eos_tree") {
@@ -530,7 +753,7 @@ export function drawObstacle(g, t, ctx, now) {
     if (!altissia && hh > 1.4 && hash(x, y + 7) < 0.45) box(g, x + 0.25, y + 0.3, x + 0.55, y + 0.6, hh + 0.14, C.bldg[(tone + 1) % 3], C.bldg[(tone + 2) % 3], C.bldg[tone]);
     const R = rng(x * 37 + y * 11);
     for (let zz = 0.25; zz < (altissia ? 1 : h) - 0.15; zz += 0.3) for (const fx2 of [0.3, 0.7]) {
-      const lit = night && R() < 0.55;
+      const lit = R() < 0.55 && night && !darkAt(x, y);
       const p = P(x + fx2, y + 1, zz);
       g.fillStyle = lit ? C.winLit : C.win; g.fillRect(p[0] - s * 0.05, p[1] - s * 0.08, s * 0.09, s * 0.1);
       if (lit && R() < 0.25) glowAt(g, p[0], p[1] - s * 0.03, s * 0.18, "255,210,130", 0.35);
@@ -546,9 +769,9 @@ export function drawObstacle(g, t, ctx, now) {
     const base = P(x + 0.5, y + 0.5), top = P(x + 0.5, y + 0.5, 1.5);
     g.strokeStyle = C.lamp; g.lineWidth = Math.max(2, s * 0.06); g.beginPath(); g.moveTo(base[0], base[1]); g.lineTo(top[0], top[1]); g.stroke();
     g.fillStyle = C.lamp; g.fillRect(top[0] - s * 0.1, top[1] - s * 0.04, s * 0.2, s * 0.06);
-    const fl = 0.85 + 0.15 * Math.sin(now / 170 + x);
-    g.fillStyle = night ? "#ffe2a0" : "#d8d3c0"; g.beginPath(); g.arc(top[0], top[1] + s * 0.04, s * 0.05, 0, TAU); g.fill();
-    if (night) { glowAt(g, top[0], top[1], s * 0.9, "255,210,130", 0.75 * fl); glowAt(g, base[0], base[1], s * 0.8, "255,200,120", 0.35 * fl); }
+    const fl = 0.85 + 0.15 * Math.sin(now / 170 + x), on = night && lampOn(x, y, now);
+    g.fillStyle = on ? "#ffe2a0" : night ? "#5a5a52" : "#d8d3c0"; g.beginPath(); g.arc(top[0], top[1] + s * 0.04, s * 0.05, 0, TAU); g.fill();
+    if (on) { glowAt(g, top[0], top[1], s * 0.9, "255,210,130", 0.75 * fl); glowAt(g, base[0], base[1], s * 0.8, "255,200,120", 0.35 * fl); }
     return;
   }
   if (kind === "fd_eos_pump") {
@@ -558,8 +781,9 @@ export function drawObstacle(g, t, ctx, now) {
   }
   if (kind === "fd_eos_garage") {
     box(g, x + 0.02, y + 0.02, x + 0.98, y + 0.98, 0.9, "#9a8f7a", "#6f6656", "#827866");
-    const p = P(x + 0.5, y + 0.99, 0.35); g.fillStyle = night ? "#ffcc66" : "#3a3a3a"; g.fillRect(p[0] - s * 0.3, p[1] - s * 0.2, s * 0.6, s * 0.3);
-    if (night) glowAt(g, p[0], p[1], s * 0.8, "255,200,100", 0.4);
+    const on = night && !darkAt(x, y);
+    const p = P(x + 0.5, y + 0.99, 0.35); g.fillStyle = on ? "#ffcc66" : "#3a3a3a"; g.fillRect(p[0] - s * 0.3, p[1] - s * 0.2, s * 0.6, s * 0.3);
+    if (on) glowAt(g, p[0], p[1], s * 0.8, "255,200,100", 0.4);
   }
 }
 
@@ -643,6 +867,12 @@ function unitAt(units, id) {
 // =================================================================== ground (ใต้ไฮไลต์)
 export function ground(g, fd, info, now) {
   LAST_FD = fd;
+  // สะพานกำลังลดลง (ชั้น layer ไม่มี fd_eos_bridgeup แล้ว — วาดบานสะพานตกลงทับสะพานที่อบไว้)
+  const be = lastFx("bridge");
+  if (be && !be.up && !fd.bridgeUp) {
+    const p = fxT(be, now, fx.bridge);
+    if (p < 1) for (const t of be.tiles || TILES.bridge) bridgeLeaf(g, t.x, t.y, PAL[fd.night || LAST_NIGHT ? "night" : "day"], BRIDGE_UP * (1 - ease(p)));
+  }
   // รอยไหม้ฟ้าผ่า
   for (const e of fxActive(fd, now)) {
     if (e.kind !== "lightning") continue;
@@ -751,8 +981,104 @@ function playFx(e) {
     case "daemon_struck": sfx("daemon_growl", { gain: 0.5 }); break;
     case "daemon_die": sfx("daemon_die"); break;
     case "daemon_dissolve": sfx("daemon_dissolve"); sfx("day_break", { delay: 0.5, gain: 0.7 }); break;
+    case "bridge": sfx("bridge_lever"); sfx("bridge_move", { delay: 0.35, gain: 0.85 }); break;
+    case "dome_on": sfx("dome_on"); break;
+    case "dome_off": sfx("dome_off"); break;
+    case "lights": sfx("lights_off", { gain: e.off ? 0.9 : 0.5 }); break;
+    case "gysahl_lure": sfx("throw_swoosh"); sfx("chocobo_call", { delay: 0.55 }); sfx("chocobo_run", { delay: 0.75, gain: 0.7 }); break;
+    case "gysahl_call": sfx("gysahl_munch"); sfx("chocobo_run", { delay: 0.15, gain: 0.7 }); break;
+    case "wreck_push": sfx("wreck_push"); break;
     default: break;
   }
+}
+// ฉากของลูกเล่นขั้น 2 (คืน true = วาดแล้ว)
+function puff(g, x, y, z, p, seed, n, rgb, size) {
+  for (let i = 0; i < n; i++) {
+    const ang = hash(i, seed) * TAU, r = (0.15 + 0.5 * p) * (0.6 + hash(i + 7, seed) * 0.6);
+    const [px, py, s] = P(x + Math.cos(ang) * r, y + Math.sin(ang) * r * 0.8, z + p * 0.3);
+    g.fillStyle = `rgba(${rgb},${0.45 * (1 - p)})`; g.beginPath(); g.arc(px, py, s * size * (0.6 + p), 0, TAU); g.fill();
+  }
+}
+function leaf(g, x, y, s, rot) {
+  g.save(); g.translate(x, y); g.rotate(rot);
+  g.fillStyle = "#5fbf3a"; g.beginPath(); g.ellipse(0, 0, s * 0.09, s * 0.035, 0, 0, TAU); g.fill();
+  g.fillStyle = "#8fe05a"; g.beginPath(); g.ellipse(s * 0.03, -s * 0.02, s * 0.06, s * 0.025, 0.6, 0, TAU); g.fill();
+  g.restore();
+}
+function feathers(g, from, to, p, seed) {
+  if (!from || !to) return;
+  for (let i = 0; i < 8; i++) {
+    const k = Math.min(1, p * 1.2 + hash(i, seed) * 0.2), x = from.x + (to.x - from.x) * k + 0.5, y = from.y + (to.y - from.y) * k + 0.5;
+    const [px, py, s] = P(x + (hash(i + 2, seed) - 0.5) * 0.6, y + (hash(i + 4, seed) - 0.5) * 0.6, 0.1 + hash(i + 6, seed) * 0.5);
+    g.fillStyle = `rgba(255,214,90,${0.8 * (1 - p)})`; g.beginPath(); g.ellipse(px, py, s * 0.05, s * 0.018, hash(i, 9) * 3 + p * 4, 0, TAU); g.fill();
+  }
+}
+function stage2Fx(g, e, p, now, lowQ) {
+  if (e.kind === "bridge") {
+    const [lx, ly, s] = P(e.x + 0.5, e.y + 0.5, 0.8);
+    if (p < 0.35) glowAt(g, lx, ly, s * 0.6, "255,220,160", (1 - p / 0.35) * 0.6);
+    if (!lowQ && p > 0.25) for (const t of e.tiles || []) puff(g, t.x + 0.5, t.y + 0.6, 0.05, (p - 0.25) / 0.75, e.seq + t.x, 6, "220,240,255", 0.07); // น้ำกระเซ็น
+    return true;
+  }
+  if (e.kind === "dome_on") {
+    const r = e.rect || TOWN_RECTS.insomnia, [cx, cy] = [(r[0] + r[2] + 1) / 2, (r[1] + r[3] + 1) / 2];
+    const rad = 2 + p * 9, a = (1 - p) * 0.8;
+    g.beginPath();
+    for (let i = 0; i <= 40; i++) { const u = i / 40 * TAU, q = P(cx + Math.cos(u) * rad, cy + Math.sin(u) * rad * 0.6, 0.05); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); }
+    g.strokeStyle = `rgba(160,225,255,${a})`; g.lineWidth = 3; g.stroke();
+    for (const t of e.gates || []) { const [gx, gy, s] = P(t.x + 0.5, t.y + 0.5, 0.5); glowAt(g, gx, gy, s * 1.1, "120,200,255", (1 - p) * 0.6); }
+    return true;
+  }
+  if (e.kind === "dome_off") {
+    if (lowQ) return true;
+    const r = e.rect || TOWN_RECTS.insomnia;
+    for (let i = 0; i < 26; i++) {
+      const x = r[0] + hash(i, e.seq) * (r[2] - r[0] + 1), y = r[1] + hash(i + 3, e.seq) * (r[3] - r[1] + 1);
+      const [px, py, s] = P(x, y, 0.5 + hash(i + 5, e.seq) * 2.6 - p * 1.2);
+      g.fillStyle = `rgba(190,235,255,${0.7 * (1 - p)})`; g.beginPath(); hexPath(g, px, py, s * 0.12, 0.8); g.fill();
+    }
+    return true;
+  }
+  if (e.kind === "lights") {
+    const [sx, sy, s] = P(e.x + 0.5, e.y + 0.6, 0.8);
+    glowAt(g, sx, sy, s * (0.5 + p), e.off ? "255,90,60" : "120,255,150", (1 - p) * 0.7);
+    if (!lowQ) for (let i = 0; i < 6; i++) { // ประกายไฟฟ้า
+      const ang = hash(i, e.seq) * TAU, rr = s * 0.5 * p;
+      g.fillStyle = `rgba(255,240,180,${1 - p})`; g.fillRect(sx + Math.cos(ang) * rr, sy + Math.sin(ang) * rr - s * 0.2 * p, 2, 2);
+    }
+    if (e.off && e.zone && TOWN_RECTS[e.zone]) { // เมืองมืดวูบ
+      const r = TOWN_RECTS[e.zone];
+      g.beginPath(); poly(g, [[r[0], r[1]], [r[2] + 1, r[1]], [r[2] + 1, r[3] + 1], [r[0], r[3] + 1]]);
+      g.fillStyle = `rgba(0,4,16,${0.3 * Math.sin(p * Math.PI)})`; g.fill();
+    }
+    return true;
+  }
+  if (e.kind === "gysahl_lure" || e.kind === "gysahl_call") {
+    const lure = e.kind === "gysahl_lure", from = lure ? e.from : e.to, at = lure ? e.at : e.to;
+    if (!from || !at) return true;
+    const tt = lure ? Math.min(1, p / 0.45) : 0;
+    if (lure && tt < 1) { // ผักลอยโค้งไปหาเป้า + เศษใบไม้ตามทาง
+      for (let i = 0; i < 4; i++) {
+        const k = Math.max(0, tt - i * 0.06), x = from.x + 0.5 + (at.x - from.x) * k, y = from.y + 0.5 + (at.y - from.y) * k;
+        const [px, py, s] = P(x, y, 0.6 + Math.sin(k * Math.PI) * 1.6);
+        g.globalAlpha = i ? 0.35 / i : 1; leaf(g, px, py, s * (i ? 0.7 : 1.2), now / 60 + i); g.globalAlpha = 1;
+      }
+    } else { // ใบผักแตกกระจาย + ขนนกปลิวตามช็อโก้ที่วิ่ง
+      const q = lure ? (p - 0.45) / 0.55 : p;
+      const [ax, ay, s] = P(at.x + 0.5, at.y + 0.5, 0.4);
+      for (let i = 0; i < 7; i++) { const ang = hash(i, e.seq) * TAU, r = s * 0.6 * q; leaf(g, ax + Math.cos(ang) * r, ay + Math.sin(ang) * r * 0.6 - s * 0.3 * q, s, ang + q * 5); }
+      glowAt(g, ax, ay, s * 0.8, "150,240,110", (1 - q) * 0.5);
+      if (lure) feathers(g, e.at, e.to, q, e.seq); else feathers(g, e.from, e.to, q, e.seq);
+    }
+    return true;
+  }
+  if (e.kind === "wreck_push") {
+    if (!e.to) return true;
+    puff(g, e.to.x + 0.5, e.to.y + 0.6, 0.05, p, e.seq, lowQ ? 4 : 9, "170,155,130", 0.1);
+    if (e.from) puff(g, e.from.x + 0.5, e.from.y + 0.6, 0.05, p, e.seq + 1, lowQ ? 2 : 5, "150,140,120", 0.08);
+    return true;
+  }
+  return false;
 }
 let NIGHT_WAS = null;
 export function air(g, fd, info, units, now, lowQ, view) {
@@ -781,8 +1107,16 @@ export function air(g, fd, info, units, now, lowQ, view) {
       glowAt(g, X0 + ph * W * 1.4 - W * 0.2, Y0 + hash(i, 6) * H, H * 0.35, fd.night ? "90,105,130" : "220,226,232", 0.22);
     }
   }
+  // โดมกำแพงเวท (ขึ้น = โตจากพื้น · สลาย = จางหาย)
+  if (fd.dome && Array.isArray(fd.dome.rect)) drawDome(g, fd.dome.rect, domeGrow(now), 1, now, lowQ);
+  else {
+    const off = lastFx("dome_off");
+    const p = off ? fxT(off, now, fx.dome_off) : 1;
+    if (p < 1) drawDome(g, off.rect || TOWN_RECTS.insomnia, 1 + p * 0.06, 1 - p, now, lowQ);
+  }
   for (const e of fxActive(fd, now)) {
     const p = fxT(e, now, fx[e.kind] || 1500);
+    if (stage2Fx(g, e, p, now, lowQ)) continue;
     if (e.kind === "lightning") {
       const [x, y, s] = P(e.x + 0.5, e.y + 0.5);
       if (p < 0.12) flash = Math.max(flash, 0.4 * (1 - p / 0.12));
