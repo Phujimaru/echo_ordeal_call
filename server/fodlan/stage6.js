@@ -15,6 +15,9 @@
 //   - สภาพอากาศ (server/fodlan.js สุ่ม — 50% ทุกจบเทิร์นตั้งแต่จบเทิร์น 2 · อยู่ 3 เทิร์น · สงบแล้วพัก 2 เทิร์น):
 //     ฝนฟ้าคะนอง eos_storm = เดิน −1 + ฟ้าผ่า 3 จุด/เทิร์น (ช่องเตือนก่อน → ต้นเทิร์นถัดไปผ่าจริง 2 ดาเมจ)
 //     หมอก eos_fog = มองเห็นแค่ระยะเดินของฝ่ายตัวเอง (แบบด่าน II)
+//     พายุทราย eos_sand (ขั้น 5 · L21 — GRID_PLAN §8.6 "พายุทรายเฉพาะโซนทะเลทราย มองเห็นในโซนแค่ 2 ช่อง"):
+//       ใครยืนในทะเลทราย Leide (รวม Hammerhead) = ฝ่ายอื่นเห็นได้เฉพาะเมื่อมีตัวของฝ่ายนั้นอยู่ห่างไม่เกิน 2 ช่อง
+//       คนในทะเลทรายเองก็เห็นผู้เล่นอื่นได้แค่ 2 ช่อง (ทั้งในและนอกโซน) · นอกทะเลทรายไม่มีผล (Claude ตัดสินรายละเอียด)
 //
 //  สถานะ = st.eos (สร้างใน enter) — ไม่มี = ฮุคไม่ทำอะไร
 // ============================================================
@@ -61,6 +64,10 @@ const sizeOf = (ctx, p) => Math.max(1, ctx.action.sizeOf(p) | 0);
 const footOf = (ctx, p) => ctx.Board.footprint(p.pos.x, p.pos.y, sizeOf(ctx, p));
 const stormOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_storm");
 const fogOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_fog");
+const sandOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_sand");
+const SAND_SIGHT = 2;
+const DESERT = (MAP.ZONES.find((z) => z.id === "desert") || { rect: [13, 20, 31, 31] }).rect;
+const inDesert = (x, y) => inRect(DESERT, x, y);
 const nightAt = (ctx, round) => { try { return !!ctx.engine.isNightRound(round); } catch { return false; } };
 
 // ============================================================ เข้าสนาม
@@ -1607,6 +1614,16 @@ function hides(ctx, st, viewer, target) {
   const me = ctx.match.players[viewer.id] || viewer;
   if (target.id === me.id || sideOf(target) === sideOf(me)) return false; // ฝ่ายเดียวกันเห็นกันเสมอ
   const foot = footOf(ctx, target);
+  if (sandOn(ctx)) {
+    // พายุทราย: เป้าในทะเลทราย หรือคนดูทั้งฝ่ายอยู่ในทะเลทรายหมด → ต้องมีตัวฝ่ายคนดูห่างไม่เกิน SAND_SIGHT
+    const eyes = bodies(ctx).filter((u) => sideOf(u) === sideOf(me));
+    const tIn = foot.some((t) => inDesert(t.x, t.y));
+    const allIn = eyes.length > 0 && eyes.every((u) => footOf(ctx, u).some((t) => inDesert(t.x, t.y)));
+    if (tIn || allIn) {
+      const near = eyes.some((u) => footOf(ctx, u).some((a) => foot.some((b) => manhattan(a, b) <= SAND_SIGHT)));
+      if (!near) return true;
+    }
+  }
   const fog = sideVision(ctx, st, viewer);
   if (fog && !foot.some((t) => fog.has(K(t.x, t.y)))) return true;
   const sight = sideSight(ctx, viewer);
@@ -1680,6 +1697,7 @@ module.exports = {
   gysahlOnSale, useGysahl, explodeBarrel, throwFlask, fireTurret, actMobs, spawnBeast, dropshipTurn, respawnProps, hurtMob, TURRETS,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
+  sandOn, inDesert, SAND_SIGHT,
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,

@@ -3017,6 +3017,35 @@ export function air(g, fd, info, units, now, lowQ, view) {
     }
     const slot = Math.floor(now / 7000), at = hash(slot, 9) * 5600, d = now - slot * 7000 - at;
     if (d >= 0 && d < 260) flash = Math.max(flash, (d < 70 || (d > 140 && d < 200) ? 0.2 : 0.05));
+  } else if (kind === "eos_sand") {
+    // พายุทราย (ขั้น 5 · L21): ม่านทรายหมุนเฉพาะเหนือทะเลทราย Leide (x 13–31 · y 20–31) + ฝุ่นพัดเฉียง · ตัวเราอยู่ในโซน = ทั้งจอขุ่นด้วย
+    const me = (units || []).find((u) => u.isMe && !u.corpse);
+    const mx = me ? (me.rx != null ? me.rx : me.x) : -1, my = me ? (me.ry != null ? me.ry : me.y) : -1;
+    const inside = mx >= 13 && my >= 20;
+    const tint = fd.night ? "60,44,26" : "196,160,108";
+    if (inside) { g.fillStyle = `rgba(${tint},${fd.night ? 0.42 : 0.36})`; g.fillRect(X0, Y0, W, H); }
+    // ม่านทรายบนโซน: วงหมุนหลายชั้นตามช่องในทะเลทราย (หนาแน่นกลางโซน)
+    const step = lowQ || FAST ? 3 : 2;
+    for (let y = 20; y <= 31; y += step) for (let x = 13; x <= 31; x += step) {
+      const ph = (now / (2600 + hash(x, y) * 1800) + hash(y, x)) % 1;
+      const [sx, sy, s] = P(x + 0.5 + Math.sin(ph * TAU) * 0.6, y + 0.5, 0.4 + hash(x, y + 3) * 0.6);
+      glowAt(g, sx, sy, s * (1.3 + hash(x + 1, y) * 0.9), tint, (inside ? 0.18 : 0.3) * (0.6 + 0.4 * Math.sin(ph * TAU * 2)));
+    }
+    if (!lowQ) {
+      const zf = Math.max(0.12, Math.min(1.6, W / LW));
+      g.strokeStyle = `rgba(${tint},${inside ? 0.55 : 0.3})`; g.lineWidth = 1.2 * zf; g.beginPath();
+      const n = inside ? 150 : 60;
+      for (let i = 0; i < n; i++) {
+        let x, y;
+        if (inside) { x = X0 + ((hash(i, 3) * W + now * (0.5 + hash(i, 2) * 0.4) * zf) % W); y = Y0 + hash(i, 1) * H + Math.sin(now / 300 + i) * 6 * zf; }
+        else {
+          const tx = 13 + hash(i, 3) * 19, ty = 20 + hash(i, 1) * 12, dx = ((now / 900 + hash(i, 4)) % 1) * 2.5;
+          const p = P(tx + dx, ty, 0.3 + hash(i, 5) * 0.8); x = p[0]; y = p[1];
+        }
+        g.moveTo(x, y); g.lineTo(x - 14 * zf, y + 3 * zf);
+      }
+      g.stroke();
+    }
   } else if (kind === "eos_fog" && !lowQ) {
     for (let i = 0; i < 10; i++) {
       const ph = (now / (22000 + i * 1500) + hash(i, 5)) % 1;

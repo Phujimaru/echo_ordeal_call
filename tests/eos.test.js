@@ -744,3 +744,20 @@ test('L19 ค่าหัว: ติดร้าน รับได้ทีล�
   assert.ok((p.gold || 0) > gold0);
   void q;
 });
+
+// ---------- ขั้น 5: พายุทราย (L21) ----------
+test('L21 พายุทราย: สุ่มได้ใน Eos · คนในทะเลทรายถูกเห็นเฉพาะระยะ 2 ช่อง · คนในทะเลทรายเห็นได้แค่ 2 ช่อง · นอกทะเลทรายปกติ', () => {
+  setup(2);
+  assert.ok(Fodlan.EOS_WEATHER.includes('eos_sand'));
+  Fodlan.startWeather('eos_sand');
+  const a = P(0), b = P(1);
+  const vis = (v, t) => !Fodlan.hides(v, t);
+  a.pos = { x: 20, y: 24 }; b.pos = { x: 23, y: 24 }; // ทะเลทรายทั้งคู่ ห่าง 3
+  assert.ok(S6.inDesert(20, 24));
+  assert.equal(vis(a, b), false);
+  b.pos = { x: 22, y: 24 }; // ห่าง 2
+  assert.equal(vis(a, b), true);
+  a.pos = { x: 13, y: 15 }; b.pos = { x: 15, y: 16 }; // นอกทะเลทราย ใกล้กัน = ปกติ
+  assert.equal(vis(a, b), true);
+  match.fodlan.weather = null;
+});
