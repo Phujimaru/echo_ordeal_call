@@ -19,8 +19,8 @@
 //      { moon }: กล้องโค้งอ้อมหลังโลก เห็นดวงจันทร์ + ลูกบาศก์ Moon Cell แล้วซูมเข้า (moonFlight.js · โหมด Moon Cell GRID_PLAN §8.4 · ดูได้ที่ ?moon)
 //      { fodlan, stage, weather }: ดิ่งลงหมุด Fodlan → ทะลุเมฆ → แผนที่ทวีป → โฉบลงด่าน → ฉากเข้าด่าน (fodlan/fodlanFlight.js · GRID_PLAN §8.5 · ?fodlan)
 //       prop fodlan = { stage, weather } (รู้ตั้งแต่เริ่มฉาก) = เริ่มสร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร ไม่ต้องรอ onOutro
-//      { eos }: ฉากเข้าสนาม Eos (GRID_PLAN §8.6) — โลกหมุนหาหมุด Eos → ดิ่งชน (eos/eosFlight.js) → แฟลชฟ้า → EosCine (canvas ทึบ)
-//       ทะลุเมฆ บินเลียบขอบฟ้า → อาวุธราชวงศ์ + ชื่อ → จางเผยกระดาน · ส่งต่อใต้แฟลช (EOS_HANDOFF)
+//      { eos, board, self, night }: ฉากเข้าสนาม Eos (GRID_PLAN §8.6) — โลกหมุนหาหมุด Eos → ดิ่งชน (eos/eosFlight.js) → แฟลชฟ้า
+//       → EosCine: ทะลุเมฆ บินเหนือกระดานจริง (eos/eosFly.js) ลดระดับลงหาหมากเรา → จางเผยกระดาน · ส่งต่อใต้แฟลช (EOS_HANDOFF)
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";
@@ -137,7 +137,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
   const [colony, setColony] = useState(null);     // ปลายฉากพุ่งเข้าโคโลนี { D }
   const [cdash, setCdash] = useState(false);      // ช่วงพุ่งเข้าท่าเทียบยาน (เส้นพุ่ง)
   const [fodlan, setFodlan] = useState(null);     // ฉากเข้าโหมด Fodlan { D, stage, weather }
-  const [eos, setEos] = useState(null);           // ฉากเข้าสนาม Eos { D }
+  const [eos, setEos] = useState(null);           // ฉากเข้าสนาม Eos { D, live, board, self, night }
   const prepRef = useRef(fodlanPrep);
   const mapRef = useRef(onFodlanMap); // Fodlan: เห็นแผนที่ทวีปแล้ว (App สลับเพลง)
   useLayoutEffect(() => { mapRef.current = onFodlanMap; });
@@ -186,8 +186,10 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         const D = Math.max(6000, Number(spec.durationMs) || EOS_INTRO_MS);
         tlRef.current.out = true;
         tlRef.current.eos = { at: performance.now(), D };
+        // ฉากบิน 3D สร้างไว้ตั้งแต่ตอนนี้ (ยังไม่วาด) → เริ่มเล่นตอนชน
+        setEos({ D: Math.round((1 - EOS_T.crash) * D), board: spec.board || null, self: spec.self || null, night: !!spec.night, live: false });
         setMode("eos");
-        at(EOS_T.crash * D, () => setEos({ D: Math.round((1 - EOS_T.crash) * D) }));
+        at(EOS_T.crash * D, () => setEos((e) => (e ? { ...e, live: true } : e)));
         at(EOS_HANDOFF * D, handoff);
         at(D, done);
       } else if (spec && spec.colony) {
@@ -483,7 +485,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       )}
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
       {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.stage} />}
-      {eos && <EosCine D={eos.D} lowQ={lowQ} />}
+      {eos && <EosCine D={eos.D} live={eos.live} board={eos.board} self={eos.self} night={eos.night} lowQ={lowQ} />}
     </div>
   );
 }

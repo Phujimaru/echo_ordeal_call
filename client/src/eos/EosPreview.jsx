@@ -1,6 +1,6 @@
 // ============================================================
 //  หน้าดูฉากของสนาม Eos (เฉพาะ dev)
-//   ?eos             = ฉากเปิดแมตช์ → ฉากเข้าสนาม Eos (EosCine) · &d=20000 ยืดฉาก · &lowq=1 · ดับเบิลคลิก = เล่นใหม่
+//   ?eos             = ฉากเปิดแมตช์ → ฉากเข้าสนาม Eos (EosCine) · &d=20000 ยืดฉาก · &lowq=1 · &at=x,y · &night=1 · ดับเบิลคลิก = เล่นใหม่
 //   ?eos=zone        = ป้ายเข้าพื้นที่ทุกโซนวนไป · &z=insomnia = โซนเดียว · &lite=1 = ป้ายเล็ก
 //  window.__eosU = 0..1 หยุดฉากเข้าสนามไว้ที่จุดนั้น
 // ============================================================
@@ -8,11 +8,15 @@ import { useEffect, useState } from "react";
 import MatchIntro from "../oc/intro/MatchIntro";
 import { EOS_INTRO_MS, EOS_ZONE_INFO } from "./eosMeta";
 import { ZoneCard } from "./EosZoneCard";
+import BOARD from "./eosPreviewBoard.json"; // ผังจาก server/fodlan/map6.js (สร้างด้วย node — เฉพาะพรีวิว)
 
 const Q = new URLSearchParams(location.search);
 const ZONE = Q.get("eos") === "zone";
 const LOWQ = Q.get("lowq") === "1";
 const D = Number(Q.get("d")) || EOS_INTRO_MS;
+// &at=x,y = ตำแหน่งหมากเรา (ค่าเริ่ม = จุดเกิดในนครหลวง) · &night=1
+const AT = (Q.get("at") || "11,4").split(",").map(Number);
+const NIGHT = Q.get("night") === "1";
 
 const mk = (id, name, color, img, position) => ({ id, name, color, position, connected: true, alive: true, img, character: { id: "muimi", img, name: "มุยมิ" } });
 const MUIMI = "/characters/muimi/muimi.webp";
@@ -26,7 +30,7 @@ function Intro() {
   const [run, setRun] = useState(0);
   return (
     <div style={{ position: "fixed", inset: 0, background: "radial-gradient(120% 90% at 50% 42%, #fff 0%, var(--oc-snow) 46%, #e2ecf7 100%)" }} onDoubleClick={() => setRun((r) => r + 1)}>
-      <MatchIntro key={run} players={PLAYERS} area={1} lowQ={LOWQ} onOutro={() => ({ eos: true, durationMs: D })} onHandoff={() => {}} onDone={() => {}} />
+      <MatchIntro key={run} players={PLAYERS} area={1} lowQ={LOWQ} onOutro={() => ({ eos: true, durationMs: D, board: BOARD, self: { x: AT[0], y: AT[1] }, night: NIGHT })} onHandoff={() => {}} onDone={() => {}} />
     </div>
   );
 }

@@ -4,7 +4,7 @@
 export const EOS_GEO = { lon: -28, lat: -6 };
 
 // ฉากเข้าสนาม (มิลลิวินาที — server/constants.js EOS_START_SECONDS ต้องพักนานพอ)
-//  ฉากเดียวต่อเนื่อง: ลูกโลกหมุนหาหมุด → ดิ่ง (eosFlight.js) → ชน = แฟลช → ทะลุเมฆ บินเลียบขอบฟ้า … (EosCine.jsx ยาว (1 − crash) × D)
+//  ฉากเดียวต่อเนื่อง: ลูกโลกหมุนหาหมุด → ดิ่ง (eosFlight.js) → ชน = แฟลช → ทะลุเมฆ บินเหนือกระดานจริงลงหาหมากเรา (EosCine.jsx + eosFly.js ยาว (1 − crash) × D)
 export const EOS_INTRO_MS = 12000;
 export const EOS_T = { turn: 0.13, dive: 0.15, crash: 0.25 };
 export const EOS_HANDOFF = EOS_T.crash + 0.03; // แฟลชทึบเต็มจอแล้ว → App ปิดลูกโลกร่วม + วางกระดานข้างใต้

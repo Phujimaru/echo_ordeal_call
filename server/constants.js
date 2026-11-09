@@ -74,7 +74,7 @@ const REBIRTH_SECONDS = 18;
 // โหมด Fodlan (GRID_PLAN §8.5): ฉากเข้าแมตช์ 13 วิ (ดิ่งลงหมุด → แผนที่ทวีป → ฉากเข้าด่าน) · ฉากเปลี่ยนด่าน 10 วิ (client fodlan/stages.js) — +1 วิเผื่อเน็ตหน่วง
 //  เริ่มฉากตั้งแต่ฉากเปิดตัวผู้เล่น "เริ่มปิดฉาก" แบบเดียวกับ JOURNEY_START_SECONDS · env 0 = ไม่มีฉาก (เทสต์)
 const FODLAN_START_SECONDS = Math.max(0, Number(process.env.FODLAN_START_SECONDS ?? process.env.JOURNEY_START_SECONDS ?? 12));
-// Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักให้ฉากเปิดตัวผู้เล่น + ฉากเข้าสนาม Eos จบ (client eos/eosMeta.js EOS_INTRO_MS 12 วิ: ลูกโลกหมุน/ดิ่งลงหมุด Eos → ฉากบินเลียบขอบฟ้า)
+// Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักให้ฉากเปิดตัวผู้เล่น + ฉากเข้าสนาม Eos จบ (client eos/eosMeta.js EOS_INTRO_MS 12 วิ: ลูกโลกหมุน/ดิ่งลงหมุด Eos → บินลงกระดานจริง)
 //  (0 ตามการตั้งของเทสต์ที่ปิดฉากเดินทาง)
 const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 12)));
 const FODLAN_ADVANCE_SECONDS = Math.max(0, Number(process.env.FODLAN_ADVANCE_SECONDS ?? process.env.JOURNEY_ADVANCE_SECONDS ?? 11));

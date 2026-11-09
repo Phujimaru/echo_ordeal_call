@@ -436,7 +436,13 @@ export default function App() {
     pendingJourneyRef.current = null;
     // Eos (§8.6): ไม่มี journeyScene — server ยังพักเกม (CUTSCENE ช่วงเริ่มแมตช์ · EOS_START_SECONDS) = เล่นฉากเข้าสนาม (eos/EosCine.jsx)
     if (worldRef.current === "eos") {
-      return prevGameStateRef.current === "CUTSCENE" && getTickSeconds() > 3 ? { eos: true, durationMs: journeyDurationMs(getTickSeconds(), EOS_INTRO_MS) } : null;
+      if (!(prevGameStateRef.current === "CUTSCENE" && getTickSeconds() > 3)) return null;
+      // ฉากบินลงกระดานจริง: ผังกระดาน + ตำแหน่งหมากเรา (eos/eosFly.js)
+      const me = state?.players?.find((p) => p.id === state.youId);
+      return {
+        eos: true, durationMs: journeyDurationMs(getTickSeconds(), EOS_INTRO_MS),
+        board: state?.board || null, self: me && me.alive !== false ? me.pos || null : null, night: !!state?.fodlan?.board?.night,
+      };
     }
     const live = journeyStateRef.current?.scene || (fodlanRef.current?.scene ? { ...fodlanRef.current.scene } : null);
     if (pending && live?.active && live.seq === pending.seq) {
