@@ -400,6 +400,7 @@ function rematchVote(playerId) {
 }
 
 function backToLobby() {
+  view.endSpectators(); // ผู้ชมกลับไปหน้าเลือกที่นั่ง (เข้าร่วมรอบใหม่ได้)
   match.gameState = "LOBBY";
   resetTeamAssignments(true);
   timers.clearPhaseTimer();

@@ -45,6 +45,9 @@ function journeyDurationMs(secondsLeft, designMs) {
 export default function App() {
   const [stage, setStage] = useState("setup"); // setup | character | connected (หน้าแรก/สร้างห้อง/เข้าร่วม อยู่ใน launcher ของโปรแกรม)
   const [state, setState] = useState(null);
+  // ผู้ชม (server/view.js spectatorState): matchLive = มีแมตช์กำลังเล่น (หน้าเลือกที่นั่งแสดงปุ่มชม) · spectating = กำลังดูอยู่
+  const [matchLive, setMatchLive] = useState(false);
+  const [spectating, setSpectating] = useState(false);
 
   // เสียงที่ดังบ่อยที่สุดในเกม: โหลดไว้ตั้งแต่เปิดหน้า ไม่ให้ไปสะดุดกลางแมตช์
   useEffect(() => installClickSound(), []); // เสียงคลิกทุกการกดทั้งเกม
@@ -218,11 +221,15 @@ export default function App() {
       navLockRef.current = false;
       alert("ขออภัย ห้องเต็มแล้ว (สูงสุด 7 คน)");
     };
+    // เข้าร่วมไม่ได้เพราะแมตช์กำลังเล่น = เข้าดูเป็นผู้ชมแทน (รอบหน้ากลับมาเลือกที่นั่งได้เอง — spectateEnd)
     const onInProgress = () => {
       curtainRef.current?.release();
       navLockRef.current = false;
-      alert("เกมกำลังเล่นอยู่ รอรอบใหม่ก่อนนะ");
+      socket.emit("spectate");
     };
+    const onMatchLive = (live) => setMatchLive(!!live);
+    const onSpectating = () => { setSpectating(true); setStage("connected"); };
+    const onSpectateEnd = () => { setSpectating(false); setState(null); setStage((cur) => (cur === "connected" ? "setup" : cur)); };
     const onPosTaken = () => {
       alert("ตำแหน่งนี้ถูกจองแล้ว เลือกใหม่นะ");
       setStage("setup");
@@ -243,6 +250,9 @@ export default function App() {
     socket.on('rateLimited', onRateLimited);
     socket.on("full", onFull);
     socket.on("inProgress", onInProgress);
+    socket.on("matchLive", onMatchLive);
+    socket.on("spectating", onSpectating);
+    socket.on("spectateEnd", onSpectateEnd);
     socket.on("positionTaken", onPosTaken);
     if (socket.connected) onConnect();
     // ข้อมูลตอนเชื่อมต่อที่มาถึงก่อนผูก listener (ดู connectData ใน socket.js)
@@ -265,6 +275,9 @@ export default function App() {
       socket.off('rateLimited', onRateLimited);
       socket.off("full", onFull);
       socket.off("inProgress", onInProgress);
+      socket.off("matchLive", onMatchLive);
+      socket.off("spectating", onSpectating);
+      socket.off("spectateEnd", onSpectateEnd);
       socket.off("positionTaken", onPosTaken);
     };
   }, []);
@@ -475,6 +488,12 @@ export default function App() {
   return (
     <SharedGlobeStage active={GLOBE_SCREENS.has(screenKey)}>
       <VolumeControl />
+      {stage === "setup" && matchLive && !spectating && (
+        <button type="button" className="oc-spec-btn" onClick={() => socket.emit("spectate")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>
+          ชม
+        </button>
+      )}
       <TransitionCurtain ref={curtainRef} screenKey={screenKey} />
       {screen}
       {/* ฉากลูกโลกลอยทับกระดาน (server พักเกมในเฟส CUTSCENE ที่ไม่มีคลิป) — วางนอก screen

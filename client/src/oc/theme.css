@@ -134,3 +134,15 @@
 .oc-enter { animation: oc-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .oc-enter.d1 { animation-delay: 0.08s; } .oc-enter.d2 { animation-delay: 0.16s; } .oc-enter.d3 { animation-delay: 0.24s; }
 @media (prefers-reduced-motion: reduce) { .oc-enter { animation: none; } }
+
+/* ปุ่มชม (หน้าเลือกที่นั่ง ตอนมีแมตช์กำลังเล่น — App.jsx) */
+.oc-spec-btn {
+  position: fixed; left: max(16px, 6vw); bottom: 40px; z-index: 60;
+  appearance: none; display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px 12px 18px; cursor: pointer;
+  font: 600 16px/1 var(--oc-f-ui); color: #fff; background: var(--oc-azure); border: 0; clip-path: var(--oc-cut);
+  transition: background 0.2s, transform 0.15s;
+}
+.oc-spec-btn svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linejoin: round; }
+.oc-spec-btn:hover { background: #2f74bd; }
+.oc-spec-btn:active { transform: translateY(1px); }
+.oc-spec-btn:focus-visible { outline: 2px solid var(--oc-ink); outline-offset: 3px; }

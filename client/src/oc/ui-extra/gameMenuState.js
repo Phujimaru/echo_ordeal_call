@@ -38,9 +38,10 @@ function setPlayers(s) {
     ? s.players.filter((p) => p && !p.summon && !p.duoOf).map((p) => ({ id: p.id, name: p.name, connected: p.connected !== false, characterId: p.characterId }))
     : [];
   const youId = (s && s.youId) || null;
-  const key = JSON.stringify([list, youId]);
+  const spectators = (s && s.spectators) || 0; // จำนวนผู้ชม (server/view.js)
+  const key = JSON.stringify([list, youId, spectators]);
   if (key === roster.key) return;
-  roster = { list, youId, key };
+  roster = { list, youId, spectators, key };
   rosterListeners.forEach((fn) => fn());
 }
 const subscribeRoster = (fn) => {

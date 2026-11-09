@@ -2,7 +2,17 @@
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
   displayImg, buildStateFor, broadcastState, broadcastPositions, takenUniqueChars, emitBoardFx, emitVisible,
+  spectatorState, spectatorCount, endSpectators,
 });
+// ---------- ผู้ชม (ผู้ใช้สั่ง 2026-11-09): socket ในห้อง "spectators" — ไม่มีระเบียนผู้เล่น ได้ state มุมมองคนนอก (ไม่เห็นไพ่ใคร) ----------
+const SPECTATOR_ID = "__spectator__";
+function spectatorCount() { const r = io.sockets.adapter.rooms.get("spectators"); return r ? r.size : 0; }
+function spectatorState() { return { ...buildStateFor(SPECTATOR_ID), youId: null, controlId: null, spectator: true }; }
+// กลับห้องรอ: ผู้ชมทุกคนออกจากโหมดผู้ชม (เข้าร่วมรอบใหม่ได้)
+function endSpectators() {
+  io.to("spectators").emit("spectateEnd");
+  io.in("spectators").socketsLeave("spectators");
+}
 
 const { CHAR_BY_ID } = require("../characters");
 const CHAR_HOOKS = require("../characters/index");
@@ -183,6 +193,7 @@ function buildStateInner(viewerId) {
     timeFreeze: TimeStop.frozen() ? { by: TimeStop.frozen().by } : null,
     clockUp: ClockUp.publicInfo(), // ช่วง Clock Up: สมาชิก (เวลา/การตี/Clock Over) + ชนกัน QTE กดรัว — client วาดเงาไล่ตาม + หน้าต่างกดรัว
     maxPlayers: MAX_PLAYERS,
+    spectators: spectatorCount(), // จำนวนผู้ชม (ป้ายตาเปิดบนจอ)
     youId: viewerId,
     fodlanVision: require("./fodlan").vision(viewer) || undefined, // Fodlan หมอก: ช่องที่ฉันมองเห็น ("x,y") — client วาดหมอกนอกช่องเหล่านี้
     controlId, // ระบบคู่: ตัวที่คุมอยู่ (ตัวละครทั่วไป = youId)
@@ -454,12 +465,15 @@ function zeroLocks(p, locks) {
 function broadcastState() {
   Colony.normalize(); // Colony: พิกัด x ทุกคนกลับเข้าช่วง 0..15 (กระดานต่อวงรอบ)
   for (const p of Object.values(match.players)) if (!p.duoOf && !p.summon) io.to(p.id).emit("state", buildStateFor(p.id)); // ตัวที่สองของระบบคู่ / ยูนิตที่ถูกเรียก ไม่มี socket
+  if (spectatorCount() > 0) io.to("spectators").emit("state", spectatorState());
 }
 function broadcastPositions() {
   const taken = takenUniqueChars();
+  const live = !lobby.pregameStateActive(); // แมตช์กำลังเล่นอยู่ = หน้าเลือกที่นั่งแสดงปุ่มชม
   for (const [sid, sock] of io.sockets.sockets) {
     sock.emit("positions", lobby.positionsFor(sid));
     sock.emit("takenChars", taken);
+    sock.emit("matchLive", live);
   }
 }
 // ตัวละคร unique ที่มีคนเลือกไปแล้วในแมตช์นี้ (หน้าเลือกตัวละครใช้ปิดการ์ดไม่ให้เลือกซ้ำ)

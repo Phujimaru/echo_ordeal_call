@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getMasterVolume, setMasterVolume, onVolumeChange, clickSound, VOLUME_CHANNELS, getChannelVolume, setChannelVolume } from "../audio";
 import { useUiTheme } from "../uiTheme";
 import { GameMenuPanel, MenuIcon } from "../oc/ui-extra/GameMenu";
-import { echoApp } from "../oc/ui-extra/gameMenuState";
+import { echoApp, useRoomPlayers, useMatchStarted } from "../oc/ui-extra/gameMenuState";
 import "../oc/ui-extra/volume.css";
 
 // ปุ่มเสียงมุมขวาบน (ทุกหน้า รวมกระดานเกมสีเข้ม) — ธีม ORDEAL CALL
@@ -69,6 +69,8 @@ export default function VolumeControl() {
   const [open, setOpen] = useState(null); // null | "vol" | "menu"
   const [vol, setVol] = useState(getMasterVolume());
   const [uiTheme, setUiTheme] = useUiTheme();
+  const { spectators } = useRoomPlayers(); // มีคนดูอยู่ = ป้ายตา + จำนวน (ระหว่างแมตช์)
+  const started = useMatchStarted();
   const dark = uiTheme === "dark";
   const lastOnRef = useRef(getMasterVolume() > 0 ? getMasterVolume() : 0.8); // ระดับก่อนกดปิดเสียง (กดอีกครั้งคืนค่านี้)
   const rootRef = useRef(null);
@@ -109,6 +111,12 @@ export default function VolumeControl() {
   return (
     <div className="ocv" ref={rootRef}>
       <div className="ocv-bar">
+        {started && spectators > 0 && (
+          <span className="ocv-spec" role="status" aria-label={`ผู้ชม ${spectators}`} title="ผู้ชม">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>
+            <b>{spectators}</b>
+          </span>
+        )}
         <button
           type="button"
           className={`ocv-btn${open === "vol" ? " is-open" : ""}${muted ? " is-muted" : ""}`}

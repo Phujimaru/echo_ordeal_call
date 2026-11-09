@@ -225,6 +225,7 @@ function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, c
 
 io.on('connection', (socket) => {
   socket.emit("roster", publicRoster());
+  socket.emit("matchLive", !lobby.pregameStateActive());
   socket.emit("positions", lobby.positionsFor(socket.id));
   socket.emit("takenChars", view.takenUniqueChars());
   // สถิติตัวละครของเครื่อง host (server/charStats.js) — หน้าเลือกตัวขอเองตอนเปิดแถบสถิติ · จบแมตช์ = phases/endTurn.js ส่งให้ทุกคนอีกรอบ
@@ -238,6 +239,21 @@ io.on('connection', (socket) => {
     if (!consumeEventQuota(socket, 'kickPlayer', 4, 5_000) || !isHostSocket(socket)) return;
     if (typeof playerId !== 'string' || playerId.length > 64) return;
     kickPlayer(playerId, playerIdFor(socket));
+  });
+
+  // ผู้ชม: เข้าดูแมตช์ที่กำลังเล่นอยู่ (คนที่ยังไม่ได้เป็นผู้เล่น) · ห้องรอ/ก่อนเริ่ม = ไม่มีอะไรให้ดู → spectateEnd
+  safeOn(socket, 'spectate', () => {
+    if (!consumeEventQuota(socket, 'spectate', 3, 10_000) || playerIdFor(socket)) return;
+    if (lobby.pregameStateActive()) { socket.emit('spectateEnd'); return; }
+    socket.join('spectators');
+    socket.data.wasSpectator = true;
+    socket.emit('spectating');
+    view.broadcastState(); // ผู้ชมใหม่ได้ state + ทุกคนเห็นจำนวนผู้ชมเปลี่ยน
+  });
+  safeOn(socket, 'stopSpectate', () => {
+    if (!socket.rooms.has('spectators')) return;
+    socket.leave('spectators');
+    view.broadcastState();
   });
 
   safeOn(socket, 'reconnectSession', ({ sessionToken } = {}) => {
@@ -406,6 +422,7 @@ io.on('connection', (socket) => {
   });
 
   safeOn(socket, 'disconnect', () => {
+    if (socket.data.wasSpectator) view.broadcastState();
     const playerId = socketPlayerIds.get(socket.id);
     socketPlayerIds.delete(socket.id);
     lobby.releaseReservation(socket.id);

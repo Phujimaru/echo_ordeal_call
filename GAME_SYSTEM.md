@@ -710,7 +710,7 @@ npm test    # node --test "tests/**/*.test.js"
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
 - กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
-- ระบบกลางที่มีเทสต์แยก: `char-stats` · `kick` · `rematch` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `char-stats` · `kick` · `rematch` · `spectator` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
 
 ---
 
@@ -1266,4 +1266,10 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   · ปุ่มใหม่ที่อยากให้มีปุ่มลัด: ใส่ `data-hotkey` + `aria-keyshortcuts` + `<kbd className="hk">` · ห้ามซ้ำกับ WASD (เดิน) Q/E (หมุน) R (หมุนกำแพง) V/Space/ลูกศร (กล้อง Colony)
 - **เสียงแยกช่อง** (`client/src/audio.js`): `music` / `sfx` / `voice` / `video` คูณต่อจากหลอดหลัก (`channelGain` · localStorage `echo_vol_ch`) · เสียงพากย์ = socket `sfx` ที่มี `voice` (Game.jsx ส่ง `{ voice: true }`) หรือไฟล์ใต้ `/voice/` · แผงเสียงมุมขวาบนมีหลอดแยก
 - **โหมดมืด**: ปุ่มมุมขวาบนข้างปุ่มเสียง (`components/VolumeControl.jsx`) ทุกหน้า · กดสลับทันที (`uiTheme.js`)
-- เทสต์: `tests/kick.test.js` · `tests/rematch.test.js`
+- **ผู้ชม** (`server/socket.js` socket `spectate` / `stopSpectate` · `server/view.js` `spectatorState`/`endSpectators`): socket ที่ไม่ใช่ผู้เล่นเข้าห้อง `spectators` ระหว่างแมตช์ → ได้ state มุมมองคนนอก (`youId: null`, `spectator: true` · ไม่เห็นไพ่ใคร) ทุกครั้งที่ `broadcastState`
+  · เข้าร่วมไม่ได้เพราะแมตช์กำลังเล่น (`inProgress`) = เข้าดูอัตโนมัติ · หน้าเลือกที่นั่งมีปุ่ม "ชม" เมื่อ `matchLive` · `backToLobby` = ผู้ชมทุกคนได้ `spectateEnd` กลับหน้าเลือกที่นั่ง · `state.spectators` = จำนวนผู้ชม (ป้ายตามุมขวาบน)
+  · state ใหม่ที่อ่านข้อมูลของผู้ชม (`viewerId`) ต้องรับ viewer ที่ไม่มีระเบียนผู้เล่นได้ (`tests/spectator.test.js` สร้างมุมมองผู้ชมกับตัวละครทุกตัว)
+- **เรียกความสนใจ** (`client/src/attention.js` → `desktop/main.js` `echoApp:attention`): ถึงตาเรา / ช่วงจั่วเริ่ม ขณะหน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ (โฟกัสแล้วหยุด)
+- **ป้ายหลุดบนหมาก** (`boardDraw.js` `drawOffline` · unit `offline` จาก BoardStage — ตัวคู่/ร่างแยกดูจากเจ้าของ)
+- **สมดุลในแผงสถิติ** (`CharStats.jsx`): เล่น ≥ 5 ครั้ง และอัตราชนะห่างค่าเฉลี่ยรวม ≥ 15 จุด = ▲/▼ · ปุ่มกรองเฉพาะตัวที่เตือน
+- เทสต์: `tests/kick.test.js` · `tests/rematch.test.js` · `tests/spectator.test.js`
