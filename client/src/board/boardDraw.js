@@ -140,7 +140,7 @@ export function clampCam(info, base, cam) {
 //  จอต้องอยู่ "ในแผนที่" ตลอด — ไม่เห็นขอบกระดาน/พื้นที่ว่างด้านนอก: กรอบจอทั้ง 4 มุมต้องอยู่ในรูปสี่เหลี่ยมของกระดานบนจอ
 //  ซูมออกได้สุดแค่ระดับที่จอยังอยู่ในแผนที่ (rtsZoomRange.min) · ซูมเข้าสุด = ช่องใหญ่เท่าแผนที่ปกติ 14×14 ที่ซูมสุด
 //  ต้องตั้งกล้อง (setCamera) ก่อนเรียก
-export const RTS_ZOOM_MAX = { tilt: 2.4, top: 3.25 }; // × (ด้านยาวของกระดาน / 14)
+export const RTS_VIEW_TILES = { far: 14, near: 9 }; // จำนวนช่องที่เห็นตามแนวกว้างของจอ ตอนซูมออกสุด / เข้าสุด
 function boardQuad(info) { return [P(0, 0), P(info.cols, 0), P(info.cols, info.rows), P(0, info.rows)].map((q) => [q[0], q[1]]); }
 function inQuad(q, x, y) {
   let sign = 0;
@@ -164,8 +164,14 @@ export function rtsZoomRange(info, base, top = false) {
   let lo = 1, hi = 40;
   if (rectIn(q, cx, cy, ...halfOf(base, lo))) hi = lo;
   else for (let i = 0; i < 26; i++) { const m = (lo + hi) / 2; if (rectIn(q, cx, cy, ...halfOf(base, m))) hi = m; else lo = m; }
-  const min = Math.max(1, hi * 0.72); // ถอยออกได้เลยขอบเล็กน้อย (นอกกระดานเป็นฉากต่อเนื่อง) — ไม่เบียด (ผู้ใช้สั่ง 2026-11-09)
-  const max = Math.max(min * 1.5, (top ? RTS_ZOOM_MAX.top : RTS_ZOOM_MAX.tilt) * Math.max(info.cols, info.rows) / 14);
+  // กล้องอยู่ใกล้ตัวผู้เล่น (ผู้ใช้สั่ง 2026-11-09: "ไกลเกินไป ซูมจนเห็นทั้งแผนที่ ไม่ตื่นเต้น")
+  //  เฟรมอบของ RTS เห็นราว ด้านยาว/0.62 ช่อง ตอน z = 1 → ซูมออกสุด ≈ 14 ช่อง · ซูมเข้าสุด ≈ 7 ช่อง (มุมบนช่องเล็กกว่า = คูณเพิ่ม)
+  // วัดความกว้างช่องจริงที่กลางกระดาน (มุมมองลึก = แถวหน้ากว้างกว่าแถวกลาง) → z ที่จอกว้างเท่า N ช่อง
+  const mx = info.cols / 2, my = info.rows / 2, a = P(mx - 0.5, my), b = P(mx + 0.5, my);
+  const tw = Math.max(1e-3, Math.hypot(b[0] - a[0], b[1] - a[1])), W = base.x1 - base.x0;
+  void top;
+  const min = Math.max(1, hi * 0.72, W / (RTS_VIEW_TILES.far * tw));
+  const max = Math.max(min * 1.6, W / (RTS_VIEW_TILES.near * tw));
   return { min, max };
 }
 // ระดับซูมของปุ่ม +/− (5 ระดับ ไล่แบบเรขาคณิตจากต่ำสุดถึงสูงสุด)
@@ -2517,6 +2523,8 @@ export function drawFrame(g, st, now) {
   }
   // Colony: แถบเลือด/ป้ายของหมากไม่ย่อตามระยะ (ชดเชย k ของกรอบหมุน) + หนาขึ้นอีกนิดให้อ่านง่ายบนผิวโค้ง
   const unitDraw = (u, ax, ay) => () => {
+    // สนาม Eos (กล้อง RTS ซูมใกล้): ป้าย/แถบเลือดบนหมากขนาดบนจอคงที่ ไม่ขยายตามซูม (ผู้ใช้สั่ง 2026-11-09 — ป้ายใหญ่เต็มจอ)
+    if (!colony && st.uiK) { UNIT_UI_K = st.uiK; try { drawAnyUnit(g, u, now, boxes); } finally { UNIT_UI_K = 1; } return; }
     if (!colony) { drawAnyUnit(g, u, now, boxes); return; }
     // แถบ/ป้ายบนหมาก: ขนาดบนจอคงที่ (ชดเชยการย่อ/ขยายของกรอบ) — หนาพอมองง่าย
     UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1));

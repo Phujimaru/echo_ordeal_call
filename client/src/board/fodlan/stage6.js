@@ -323,7 +323,7 @@ export const theme = {
     const { g, C, info } = c;
     if (info.area !== EOS_AREA) return;
     const T = TILES, isW = (x, y) => WATER_SET.has(K(x, y));
-    const lite = FAST; // ระหว่างกล้องเคลื่อน (วาดสด): ข้ามหิน/หญ้า/ดอกไม้เล็กๆ แต่คงพุ่มไม้ป่า/กก/ประกายน้ำ (ไม่ให้ภาพหาย)
+    const lite = false; // ผู้ใช้สั่ง "texture หาย" — วาดรายละเอียดครบแม้กล้องกำลังเคลื่อน
     // ประกายบนผิวน้ำ
     g.strokeStyle = C.foam; g.lineWidth = 1;
     for (const t of T.water) {
@@ -1310,7 +1310,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
     if (c.x == null || c.rider) continue;
     const bob = lowQ ? 0 : Math.abs(Math.sin(now / 420 + c.x)) * 0.04;
     const flip = hash(c.x, c.y) < 0.5;
-    list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => sprite(g, CHOCO_IMG, c.x + 0.5, c.y + 0.55, bob, 1.05, flip) });
+    list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => sprite(g, CHOCO_IMG, c.x + 0.5, c.y + 0.55, bob, 0.8, flip) });
   }
   // ช็อโก้ใต้คนขี่ (ตามตำแหน่งวาดของหมาก)
   for (const [pid] of Object.entries(fd.riders || {})) {
@@ -1785,10 +1785,12 @@ export function air(g, fd, info, units, now, lowQ, view) {
   if (kind === "eos_storm") {
     g.fillStyle = fd.night ? "rgba(2,5,16,.38)" : "rgba(20,28,40,.34)"; g.fillRect(X0, Y0, W, H);
     if (!lowQ) {
-      g.strokeStyle = "rgba(205,220,240,.42)"; g.lineWidth = 1; g.beginPath();
+      // ขนาดเส้นฝนคงที่บนจอ (กล้องซูมใกล้ = พิกัดตรรกะเล็กลง) — ไม่หนาเป็นแท่งตอนซูม
+      const zf = Math.max(0.12, Math.min(1.6, W / LW));
+      g.strokeStyle = "rgba(205,220,240,.42)"; g.lineWidth = zf; g.beginPath();
       for (let i = 0; i < 170; i++) {
-        const sp = 0.85 + hash(i, 2) * 0.5, y = Y0 + ((hash(i, 1) * H + now * sp) % (H + 40)) - 20, x = X0 + ((hash(i, 3) * W - (now * sp) * 0.25) % W + W) % W;
-        g.moveTo(x, y); g.lineTo(x - 5, y + 18);
+        const sp = (0.85 + hash(i, 2) * 0.5) * zf, y = Y0 + ((hash(i, 1) * H + now * sp) % (H + 40 * zf)) - 20 * zf, x = X0 + ((hash(i, 3) * W - (now * sp) * 0.25) % W + W) % W;
+        g.moveTo(x, y); g.lineTo(x - 5 * zf, y + 18 * zf);
       }
       g.stroke();
     }

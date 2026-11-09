@@ -822,6 +822,7 @@ export default function BoardCanvas(props) {
         }
       };
       const drawFrameOf = (target) => drawFrame(target, {
+        uiK: rts ? Math.max(0.45, Math.min(1, 1.15 / (st.cam.z * RTS_BASE_Z))) : 0, // Eos: ป้าย/แถบเลือดบนหมากไม่ขยายตามซูม
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,

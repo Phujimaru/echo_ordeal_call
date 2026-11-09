@@ -2130,6 +2130,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // สนาม Eos (GRID_PLAN §8.6): กล้อง RTS — Space / ปุ่มเป้า = กลับมาที่ตัวเรา
   const eosRts = state.world === "eos";
   const [camHome, setCamHome] = useState(0);
+  // สนาม Eos: เข้าแมตช์ = กล้องระยะใกล้ชิดตามหมากเรา (ซูมเข้าสุด — ผู้ใช้สั่ง 2026-11-09) · ไม่บันทึกทับค่าซูมของแผนที่อื่น
+  const [eosZoomed, setEosZoomed] = useState(false);
+  if (eosRts && !eosZoomed) { setEosZoomed(true); setZoomState(ZOOM_STEPS - 1); }
+  if (!eosRts && eosZoomed) setEosZoomed(false);
   const goHome = useCallback(() => { if (me && me.pos) look(me.pos); setCamHome((n) => n + 1); }, [me, look]);
   useEffect(() => {
     if (!eosRts) return undefined;

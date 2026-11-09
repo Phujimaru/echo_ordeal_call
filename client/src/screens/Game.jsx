@@ -1,4 +1,5 @@
 import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
+import EosMap from "../eos/EosMap";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1853,6 +1854,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  (เช่น จบคัตซีนท่าไม้ตาย)
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
+  const [eosMapOpen, setEosMapOpen] = useState(false); // สนาม Eos: แผนที่ภาพรวม (eos/EosMap.jsx)
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
   const [deckTab, setDeckTab] = useState(false);     // แถบกองการ์ดกลาง (จอคอม): หุบไว้เป็นค่าเริ่ม
   const shopSeen = useRef(new Set());                // ร้านที่ประกาศ "ปรากฏ" ไปแล้ว (id ร้าน — กันเด้งซ้ำ)
@@ -2582,6 +2584,13 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         </button>
       </div>
       {deckOpen && <DeckLedgerModal ledger={state.deckLedger || []} onClose={() => setDeckOpen(false)} />}
+      {/* สนาม Eos: ปุ่มแผนที่ภาพรวม ใต้แท็บกองการ์ด (กล้องอยู่ใกล้ตัวผู้เล่น — ผู้ใช้สั่ง 2026-11-09) */}
+      {state.world === "eos" && state.board && (
+        <button type="button" className="eos-map-btn" aria-label="แผนที่" data-away={fcOpen || phase === "ATTACKING" ? "true" : "false"} onClick={() => { clickSound(); setEosMapOpen(true); }}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M9 4v14M15 6v14" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+        </button>
+      )}
+      {eosMapOpen && state.world === "eos" && <EosMap state={state} onClose={() => setEosMapOpen(false)} />}
 
       {/* QTE — ลอยกลางจอ */}
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}
