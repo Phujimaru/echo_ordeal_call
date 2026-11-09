@@ -109,6 +109,7 @@ module.exports = {
     fd_eos_barrel: { name: "ถังน้ำมัน", icon: "🛢️" },     // ชั้น layer (ขั้น 3)
     fd_eos_crystal: { name: "หินพลังเวท", icon: "💎" },   // ชั้น layer (ขั้น 3)
     fd_eos_mob: { name: "ศัตรู", icon: "👾" },
+    fd_eos_chest: { name: "หีบสมบัติ", icon: "🎁" },  // ชั้น layer: หีบสมบัติ (ตีเปิด — PVE 2026-11-10)
     // ขั้น 4
     fd_eos_station: { name: "ชานชาลา", icon: "🚉" },
     fd_eos_tunnel: { name: "อุโมงค์", icon: "🕳️" },

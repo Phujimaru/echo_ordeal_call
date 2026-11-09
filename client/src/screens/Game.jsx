@@ -1,5 +1,6 @@
 import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
 import EosMap from "../eos/EosMap";
+import EosGuide from "../eos/EosGuide";
 import EosZoneCard from "../eos/EosZoneCard";
 import EosScoreboard from "../eos/EosScoreboard";
 import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
@@ -1845,6 +1846,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  (เช่น จบคัตซีนท่าไม้ตาย)
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
+  const [eosGuideOpen, setEosGuideOpen] = useState(false); // สนาม Eos: คู่มือ (eos/EosGuide.jsx — ผู้ใช้สั่ง 2026-11-10)
   const [eosMapOpen, setEosMapOpen] = useState(false); // สนาม Eos: แผนที่ภาพรวม (eos/EosMap.jsx)
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
   const [deckTab, setDeckTab] = useState(false);     // แถบกองการ์ดกลาง (จอคอม): หุบไว้เป็นค่าเริ่ม
@@ -1930,7 +1932,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const canto = myTurn && !!state.action.canto;
   // ปุ่มสกิลที่กดได้ระหว่างเดินต่อ (ตรงกับฮุค cantoSkill ฝั่ง server): พื้นฐาน · เอมิลิโกะ สลับอาวุธ (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
   const cantoTier = (tier) => (tier === "basic" && !me?.celine) || (tier === "secondary" && me?.character?.id === "emiliko");
-  const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
+  const teamMode = state.gameMode === "duo" || state.gameMode === "trio" || state.gameMode === "eos"; // eos = PVE ทุกคนทีมเดียว
   // ยืนติดร้าน (ระยะ 1) — ตัวใหญ่ (Echo / ร่างใหญ่ของไรโด ฮิคารุ) นับจากขอบตัวทุกช่อง ตรงกับ server Board.nearShop(boxOf)
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
   //  ร้านบนกระดาน = state.shops (สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง) — ติดร้านไหนก็เปิดร้านนั้น
@@ -2283,7 +2285,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     giftSel, pickGift,
     myId: me?.id,
     myTeamId: me?.teamId,
-    teamModeActive: state.gameMode === "duo" || state.gameMode === "trio",
+    teamModeActive: state.gameMode === "duo" || state.gameMode === "trio" || state.gameMode === "eos",
   };
 
   // ============================================================
@@ -2587,6 +2589,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         </button>
       )}
       {eosMapOpen && state.world === "eos" && <EosMap state={state} onClose={() => setEosMapOpen(false)} />}
+      {state.world === "eos" && state.board && (
+        <button type="button" className="eos-guide-btn" aria-label="คู่มือ" data-away={fcOpen || phase === "ATTACKING" ? "true" : "false"} onClick={() => { clickSound(); setEosGuideOpen(true); }}>?</button>
+      )}
+      {eosGuideOpen && state.world === "eos" && <EosGuide onClose={() => setEosGuideOpen(false)} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
       {state.world === "eos" && state.board && <EosScoreboard state={state} />}

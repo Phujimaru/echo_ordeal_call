@@ -701,6 +701,19 @@
         "ECHO_DEV_ACTION_TIME": "600",
         "ECHO_DEV_EOS_WEATHER": "eos_sand"
       }
+    },
+    {
+      "name": "server-eos-pve",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_START_ROUND": "6"
+      }
     }
   ]
 }

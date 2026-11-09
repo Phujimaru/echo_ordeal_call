@@ -143,10 +143,19 @@ function colonyHoldThen(secs, onStart, next) {
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
   // สนาม Eos (GRID_PLAN §8.6): ชนะด้วยแต้มยึดเสาเท่านั้น (ตายแล้วฟื้น — ไม่ใช้กติกาคนสุดท้ายที่รอด)
+  //  PVE (ผู้ใช้สั่ง 2026-11-10): แต้มรวมครบ = ผู้เล่นทุกคนชนะ · ผู้เล่นล้มหมดพร้อมกัน = แพ้ทุกคน
   if (Fodlan.isEos() && Fodlan.active() && !match.forcedWinnerId) {
-    const w = Fodlan.eosWinner();
-    if (!w) return false;
-    match.forcedWinnerId = w;
+    const res = Fodlan.eosOutcome();
+    if (!res) return false;
+    match.eosResult = res;
+    match.winningTeamId = res === "win" ? TEAM_IDS[0] : null;
+    match.lastLog.push(res === "win" ? "🏆 ปกป้อง Eos สำเร็จ — ผู้เล่นทุกคนชนะ!" : "🌑 ผู้เล่นล้มหมด — Eos ถูกความมืดกลืนกิน");
+    recordCharStats(() => (res === "win" ? "win" : "loss"));
+    timers.clearPhaseTimer();
+    match.gameState = "GAMEOVER";
+    match.timeLeft = 0;
+    view.broadcastState();
+    return true;
   }
   // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner): ชนะคนเดียวทุกโหมด (ทีมได้ winningTeamId · Moon Cell = ผู้เล่นชนะ)
   const champ = match.forcedWinnerId && match.players[match.forcedWinnerId];

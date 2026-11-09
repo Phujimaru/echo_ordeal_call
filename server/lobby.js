@@ -43,7 +43,7 @@ function colorOf(p) {
 }
 // Moon Cell (GRID_PLAN §8.4): ผู้เล่นทุกคนเป็นทีมเดียวกัน (ทีม A) สู้บอส — ใช้กติกาทีมเดิม (ตีกันไม่ได้ · ผลดีถึงเพื่อน)
 function teamModeActive() {
-  return match.gameMode === "duo" || match.gameMode === "trio" || match.gameMode === "moon";
+  return match.gameMode === "duo" || match.gameMode === "trio" || match.gameMode === "moon" || match.gameMode === "eos";
 }
 // "เป็นพวกเดียวกัน" สำหรับการมอบผลดี (ซัพพอร์ต) — duo/trio: ทีมเดียวกัน
 function isAlly(a, b) {
@@ -82,6 +82,7 @@ function validGameMode(mode, count = Object.keys(match.players).length) {
   if (mode === "duo") return count >= 4 && count % 2 === 0;
   if (mode === "trio") return count === 6;
   if (mode === "moon") return count >= 1; // Moon Cell: ผู้เล่นทุกคนร่วมทีมเดียว (1 คนก็ได้)
+  if (mode === "eos") return count >= 1; // Eos PVE (ผู้ใช้สั่ง 2026-11-10): ผู้เล่นทุกคนร่วมทีมเดียวสู้มอนเตอร์
   return false;
 }
 // โหมดที่ "พักใช้งาน" — โค้ดยังอยู่ครบ แต่ไม่โผล่ในหน้าโหวตโหมด และโหวตเข้าไม่ได้
@@ -92,6 +93,8 @@ const SUSPENDED_MODES = new Set(); // โหมดที่พักใช้ง
 function modeOptionsFor(count = Object.keys(match.players).length, world = "earth") {
   const list = world === "moon"
     ? [{ mode: "moon", label: "Moon Cell", size: count, group: "special" }]
+    : world === "eos"
+    ? [{ mode: "ffa", label: "Eos", size: count, group: "special" }] // Eos PVE: หมุดเดียว (โหวต "ffa" → startTeamSetup แปลงเป็นโหมด eos ทุกคนทีมเดียว)
     : [
       { mode: "ffa", label: "Free For All", size: 1, group: "normal" },
       { mode: "duo", label: "Duo", size: 2, group: "normal" },
@@ -105,7 +108,7 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
 // สนามที่โหวตได้: โลก (Origin — การเดินทาง) / Fodlan (บนโลก — GRID_PLAN §8.5) / โคโลนี — มีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
 const WORLDS = ["earth", "fodlan", "eos", "colony", "moon"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6)
 // โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
-function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon"); }
+function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon") && (world !== "eos" || mode === "ffa" || mode === "eos"); } // Eos = PVE หมุดเดียว
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
 const voteKey = (world, mode) => `${world}:${mode}`;
 function currentTeamOptions() {
@@ -161,8 +164,9 @@ function startTeamSetup(mode, world = "earth") {
   resetModeVotes();
   match.world = normWorld(world);
   if (!worldHasMode(match.world, mode)) { match.world = "earth"; return; }
-  if (mode === "moon") {
-    // Moon Cell: ทุกคนทีม A ยืนยันแล้ว → เข้าแมตช์ทันที (ไม่มีหน้าเลือกทีม)
+  if (match.world === "eos") mode = "eos"; // Eos (ผู้ใช้สั่ง 2026-11-10): PVE เสมอ — ผู้เล่นทุกคนทีมเดียวสู้มอนเตอร์
+  if (mode === "moon" || mode === "eos") {
+    // Moon Cell / Eos PVE: ทุกคนทีม A ยืนยันแล้ว → เข้าแมตช์ทันที (ไม่มีหน้าเลือกทีม)
     match.gameMode = mode;
     match.teamSize = count;
     match.teamCount = 1;

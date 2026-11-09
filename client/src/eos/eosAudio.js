@@ -342,7 +342,8 @@ export function eosBedsFor(pos, night, weather, dome = null) {
 }
 
 // ---------- เลือกเพลงจาก state (Claude ตั้งกติกาเอง 2026-11-09 · GRID_PLAN §8.6 · GAME_SYSTEM §51) ----------
-//  ลำดับ: ต่อสู้ > ล่า > ตึงเครียด > สำรวจ (กลางวัน/กลางคืนตาม state.fodlan.board.night)
+//  PVE (ผู้ใช้สั่ง 2026-11-10): "ตึงเครียด" = เห็นมอนเตอร์ในระยะแต่ยังไม่เข้ามาตี · เพลงล่าไม่ใช้แล้ว
+//  ลำดับ: ต่อสู้ > ตึงเครียด > สำรวจ (กลางวัน/กลางคืนตาม state.fodlan.board.night)
 //  - ต่อสู้ (battle_day/battle_night): มีฉากตี (state.attack) ที่ผู้เล่นเป็นคนตีหรือโดนตี · หรือ HP ของเรา/เพื่อน/ศัตรูที่มองเห็นลดลง
 //      → ค้างไว้ตลอดเทิร์นนั้น + เทิร์นถัดไป (roundNumber ≤ เทิร์นที่ปะทะ + 1) และอย่างน้อย 20 วิ
 //  - ล่า (hunt): เห็นศัตรูที่เป็นฝ่ายนำแต้มเสาเดี่ยวๆ (board.scores อันดับ 1 แต้ม > 0 และมากกว่าอันดับ 2 — "ค่าหัว")
@@ -361,37 +362,34 @@ export function eosMusicPicker() {
     const night = !!board.night;
     const players = (state && state.players) || [];
     const me = players.find((p) => p.id === state.youId) || null;
-    const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
-    const ally = (p) => !!me && (p.id === me.id || sameSide(p, me) || (teamMode && !!me.teamId && p.teamId === me.teamId));
-    const seen = (p) => p.alive && !!p.pos;
+    const isMob = (p) => !!(p.summon && p.summon.kind === "eosMob");
+    const ally = (p) => !!me && !isMob(p) && (p.id === me.id || sameSide(p, me) || !!board.pve || (!!me.teamId && p.teamId === me.teamId));
+    const sight = me && me.pos ? (me.mov | 0) + 4 : 0; // ระยะมองเห็นเดิม = ระยะเดิน + 4
+    const near = (p) => !!(me && me.pos && p.pos) && Math.abs(p.pos.x - me.pos.x) + Math.abs(p.pos.y - me.pos.y) <= sight;
+    const seen = (p) => p.alive && !!p.pos && near(p);
     const round = state.roundNumber | 0;
     const ids = new Set(players.map((p) => p.id));
 
     // ปะทะ: HP ลด (เรา/เพื่อน หรือศัตรูที่เห็น) · ฉากตีที่มีผู้เล่นเกี่ยว
     const next = new Map();
     for (const p of players) {
-      if (typeof p.hp !== "number" || !(ally(p) || seen(p))) continue;
+      if (typeof p.hp !== "number" || !((ally(p) && (p.id === me.id || near(p))) || seen(p))) continue; // PVE: เพื่อนไกลๆ โดนตี ไม่ใช่การต่อสู้ของเรา
       const was = hp.get(p.id);
       if (was != null && p.hp < was) { hitRound = round; hitAt = nowMs; }
       next.set(p.id, p.hp);
     }
     hp = next;
     const a = state.attack;
-    if (a && (ids.has(a.byId) || ids.has(a.targetId))) { hitRound = round; hitAt = nowMs; }
+    const byId = (id) => players.find((p) => p.id === id);
+    if (a && [a.byId, a.targetId].some((id) => { const p = byId(id); return p && (ally(p) ? p.id === (me && me.id) || near(p) : seen(p)); })) { hitRound = round; hitAt = nowMs; }
+    void ids;
     const sinceHit = nowMs - hitAt;
     const battle = round - hitRound <= 1 || sinceHit < BATTLE_MIN_MS;
 
     let want = "explore";
     if (battle) want = "battle";
     else if (me && me.alive && me.pos) {
-      const foes = players.filter((p) => seen(p) && !ally(p));
-      const scores = board.scores || [];
-      const lead = scores[0] && scores[0].score > 0 && !(scores[1] && scores[1].score >= scores[0].score) ? scores[0].side : null;
-      const sideKey = (p) => (teamMode && p.teamId ? `t:${p.teamId}` : `p:${p.duoOf || p.id}`);
-      const prey = (e) => typeof e.hp === "number" && typeof me.hp === "number" && e.maxHp > 0 && e.hp * 2 <= e.maxHp && e.hp < me.hp
-        && Math.abs(e.pos.x - me.pos.x) + Math.abs(e.pos.y - me.pos.y) <= (me.mov | 0) + 1;
-      if (foes.some((e) => (lead && sideKey(e) === lead && sideKey(me) !== lead) || prey(e))) want = "hunt";
-      else if (foes.length) want = "tension";
+      if (players.some((p) => seen(p) && !ally(p))) want = "tension";
     }
 
     const waits = [];

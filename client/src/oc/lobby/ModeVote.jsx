@@ -34,7 +34,8 @@ const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
 // ชั้นหมุดสนามย่อยบนโลก: Origin = ภูมิภาค I ของการเดินทาง · Fodlan = หมุดสีทอง
 // Eos (GRID_PLAN §8.6): หมุดที่ 3 บนโลก (มหาสมุทรซีกตะวันตก) — แผนที่เดียว 32×32
-const EOS_MODE_GEO = { ffa: [EOS_GEO.lon - 12, EOS_GEO.lat + 8], duo: [EOS_GEO.lon + 4, EOS_GEO.lat - 8], trio: [EOS_GEO.lon + 16, EOS_GEO.lat + 8] };
+// Eos = PVE (ผู้ใช้สั่ง 2026-11-10): หมุดโหมดเดียว (โหวต "ffa" → server เปลี่ยนเป็นโหมด eos ทุกคนทีมเดียว)
+const EOS_MODE_GEO = { ffa: [EOS_GEO.lon + 2, EOS_GEO.lat - 6] };
 const SUBS = ["origin", "fodlan", "eos"];
 const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat] };
 const FODLAN_GOLD = 0xe0a63a;
@@ -203,6 +204,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const hitsBy = { origin: [], fodlan: [], eos: [] };
     for (const mode of ORDER) {
       for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO]]) {
+        if (!geo[mode]) continue;
         const m = makePin(geo[mode], COLORS.azure, { mode });
         modeSets[set][mode] = m;
         hitsBy[set].push(m.hit);
@@ -582,8 +584,8 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         {panelOpt && (
           <OcPanel className="ocl-votepanel" data-mode={panelOpt.mode}>
             <div className="ocl-vp-head">
-              <h2 className={`oc-h2${LATIN_MODES.has(panelOpt.mode) ? " oc-latin" : ""}`}>{modeTitle(panelOpt.mode)}</h2>
-              <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
+              <h2 className={`oc-h2${LATIN_MODES.has(panelOpt.mode) && world !== "eos" ? " oc-latin" : ""}`}>{world === "eos" ? "ร่วมมือ" : modeTitle(panelOpt.mode)}</h2>
+              <span className="oc-muted">{world === "eos" ? "PVE" : MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
             {world === "eos" ? (

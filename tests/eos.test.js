@@ -28,10 +28,10 @@ function setup(n = 3) {
   for (let i = 0; i < n; i++) {
     engine.players['p' + i] = {
       id: 'p' + i, name: 'P' + i, position: i + 1, characterId: 'dummy', alive: true, connected: true,
-      cards: [], statuses: {}, statusAmt: {}, seen: {}, inventory: [],
+      cards: [], statuses: {}, statusAmt: {}, seen: {}, inventory: [], teamId: 'A', teamConfirmed: true,
     };
   }
-  engine.setGameMode('ffa');
+  engine.setGameMode('eos');
   match.world = 'eos';
   engine.startMatch();
   engine.clearPhaseTimer();
@@ -46,6 +46,8 @@ const btn = (p, key) => Fodlan.hudActions(p).find((a) => a.key === key) || null;
 const total = (p) => p.hp + (p.armor || 0);
 const sameTile = (a, b) => a && b && a.x === b.x && a.y === b.y;
 const Duo = () => require('../server/duo.js');
+const mob = (type, x, y, o = {}) => _m(S6.spawnMob(ctx(), st(), type, { x, y }, { hp: 5, armor: 1, atk: S6.DAEMON_ATK, mov: 4, gold: 2, ...o }, { look: 1, tier: 1 }));
+const _m = (r) => { if (r) r.summon.born = 0; return r; };
 
 test.beforeEach(() => { timers.startPhaseTimer = (secs) => { match.timeLeft = Math.ceil(secs); }; });
 test.afterEach(() => { Math.random = realRandom; timers.startPhaseTimer = realStart; engine.clearPhaseTimer(); });
@@ -84,12 +86,14 @@ test('ผัง 32×32: จุดเกิด/ร้าน/โชโกโบะ
   assert.ok(water.length < (Math.max(...xs) - Math.min(...xs) + 1) * (Math.max(...ys) - Math.min(...ys) + 1) * 0.85, 'ทะเลสาบเป็นก้อนโค้ง');
 });
 
-test('หมุด Eos บนลูกโลก: โหวตได้ ffa/duo/trio · เริ่มแมตช์ = แผนที่ Eos ด่าน 6 ไม่มีฉากเดินทาง · ไม่เปลี่ยนด่าน', () => {
+test('หมุด Eos บนลูกโลก: โหมด eos (PVE) อย่างเดียว · ทุกคนทีมเดียว · เริ่มแมตช์ = แผนที่ Eos ด่าน 6 ไม่มีฉากเดินทาง · ไม่เปลี่ยนด่าน', () => {
   const opts = lobby.modeOptionsFor(4, 'eos').map((o) => o.mode);
-  assert.ok(opts.includes('ffa'));
-  assert.ok(!opts.includes('moon'));
+  assert.deepEqual(opts, ['ffa']);
+  assert.ok(!lobby.modeOptionsFor(4, 'earth').some((o) => o.mode === 'eos'));
   assert.equal(lobby.normWorld('eos'), 'eos');
   setup();
+  assert.ok(lobby.teamModeActive());
+  assert.ok(combat.sameTeam(P(0), P(1)), 'ผู้เล่นทุกคนฝ่ายเดียวกัน');
   assert.equal(match.board.area, AREA);
   assert.ok(Fodlan.active() && Fodlan.isEos());
   assert.equal(Fodlan.stageNow(), 6);
@@ -195,19 +199,22 @@ test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม�
   assert.ok(!Fodlan.noSkill(p), 'ลงรถแล้วใช้สกิลได้');
 });
 
-test('รถ: ชน = ใช้การโจมตี ศัตรูติดรถ 2 ดาเมจ + กระเด็น 1 ช่อง · ผู้โดยสาร (คนขับยอม) ไปกับรถ ไม่ร่วงตอนคนขับโดนตี · คนขับตาย = รถจอด ผู้โดยสารลง', () => {
+test('รถ: ชน = ใช้การโจมตี มอนติดรถ 2 ดาเมจ + กระเด็น 1 ช่อง · ชนเพื่อนไม่ได้ · ผู้โดยสาร (คนขับยอม) ไม่ร่วงตอนคนขับโดนตี · คนขับตาย = รถจอด ผู้โดยสารลง', () => {
   setup();
   const p = P(0), q = P(1), r = P(2), car = st().cars[1];
   car.x = 13; car.y = 13; car.driver = p.id; p.pos = { x: 13, y: 13 };
-  q.pos = { x: 14, y: 13 };
+  q.pos = { x: 30, y: 0 };
+  const m = mob('daemon', 14, 13, { hp: 9, armor: 0 });
   actor(p);
-  const hp0 = total(q);
+  const hp0 = total(m);
   const b = btn(p, 'fd:ram');
-  assert.ok(b && b.tiles.some((t) => sameTile(t, q.pos)));
+  assert.ok(b && b.tiles.some((t) => sameTile(t, m.pos)));
+  q.pos = { x: 13, y: 14 };
+  assert.ok(!btn(p, 'fd:ram').tiles.some((t) => sameTile(t, q.pos)), 'เพื่อนไม่ใช่เป้าชน');
+  q.pos = { x: 30, y: 0 };
   assert.ok(Fodlan.charAction(p.id, 'fd:ram', { x: 14, y: 13 }));
-  assert.equal(total(q), hp0 - S6.CAR_HIT_DMG);
-  assert.ok(sameTile(q.pos, { x: 15, y: 13 }) || !q.alive || Board.isObstacle(action.boardMap(), 15, 13));
-  assert.ok(p.didAttackRound || match.action.noStrike || (btn(p, 'fd:ram') && btn(p, 'fd:ram').disabled), 'ชนแล้วใช้การโจมตี');
+  assert.equal(total(m), hp0 - S6.CAR_HIT_DMG);
+  assert.ok(sameTile(m.pos, { x: 15, y: 13 }) || Board.isObstacle(action.boardMap(), 15, 13));
   // ผู้โดยสาร
   const Ride = require('../server/ride.js');
   r.pos = { x: 13, y: 12 };
@@ -220,65 +227,81 @@ test('รถ: ชน = ใช้การโจมตี ศัตรูติ�
   assert.ok(Ride.answer(Duo().sideKey(p), true));
   assert.equal(r.mountId, p.id);
   assert.ok(Fodlan.noSkill(r), 'ผู้โดยสารใช้สกิลไม่ได้');
-  Ride.onAttacked(p, q);
+  Ride.onAttacked(p, m);
   assert.equal(r.mountId, p.id, 'อยู่ในรถ — ไม่ร่วง');
-  // คนขับตาย
-  combat.instantDeath ? combat.instantDeath(p, 'test') : (p.alive = false);
+  combat.instantDeath(p, 'test');
   S6.syncCars(ctx(), st());
   assert.equal(car.driver, null);
   assert.ok(!r.mountId);
 });
 
-test('ปีศาจ: กลางคืนเกิด 4 ตัวนอกเมือง ห่างคน · ต้นเทิร์นเดินไล่ + ตี 2 · เข้าเมืองไม่ได้ · ฟ้าสางสลาย', () => {
+test('ปีศาจ = ยูนิตจริง: กลางคืนเกิดนอกเมือง ห่างคน · ต้นเทิร์นเดินไล่ + ตี · เข้าเมืองไม่ได้ · สตั้นไม่ขยับ · ฟ้าสางสลาย', () => {
   setup();
   const s = st();
+  s.nightNo = 1;
   S6.spawnDaemons(ctx(), s);
-  assert.equal(s.daemons.length, S6.DAEMON_COUNT);
-  for (const d of s.daemons) {
-    assert.ok(!S6.inTown(d.x, d.y));
-    for (const p of Object.values(match.players)) assert.ok(Math.abs(p.pos.x - d.x) + Math.abs(p.pos.y - d.y) >= 3);
-    assert.equal(action.boardMap().terrain[K(d.x, d.y)], 'fd_eos_daemon');
+  const list = S6.mobsOf(ctx(), 'daemon');
+  assert.equal(list.length, S6.daemonCount(1));
+  for (const d of list) {
+    assert.ok(!S6.inTown(d.pos.x, d.pos.y));
+    for (const p of [P(0), P(1), P(2)]) assert.ok(Math.abs(p.pos.x - d.pos.x) + Math.abs(p.pos.y - d.pos.y) >= 3);
+    assert.ok(S6.isMob(d) && d.summon && !combat.sameTeam(d, P(0)), 'ศัตรูของผู้เล่น');
   }
-  s.daemons = [{ id: 'fd:dmT', x: 14, y: 12, hp: 5, armor: 1, kind: 1 }];
+  S6.dissolveDaemons(ctx(), s);
+  assert.equal(S6.mobsOf(ctx(), 'daemon').length, 0);
+  const d = mob('daemon', 14, 12);
   const p = P(0); p.pos = { x: 14, y: 15 };
   P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 12, y: 4 };
   const hp0 = total(p);
-  S6.actDaemons(ctx(), s);
-  const d = s.daemons[0];
-  assert.equal(Math.abs(d.x - p.pos.x) + Math.abs(d.y - p.pos.y), 1);
+  S6.actMonsters(ctx(), s);
+  assert.equal(Math.abs(d.pos.x - p.pos.x) + Math.abs(d.pos.y - p.pos.y), 1);
   assert.equal(total(p), hp0 - S6.DAEMON_ATK);
-  p.pos = { x: 11, y: 4 }; P(1).pos = { x: 9, y: 26 };
-  s.daemons = [{ id: 'fd:dmU', x: 14, y: 12, hp: 5, armor: 1, kind: 1 }];
-  S6.actDaemons(ctx(), s);
-  assert.ok(!S6.inTown(s.daemons[0].x, s.daemons[0].y));
-  S6.dissolveDaemons(ctx(), s);
-  assert.equal(s.daemons.length, 0);
+  // สตั้น = ไม่ขยับ ไม่ตี
+  p.pos = { x: 14, y: 17 };
+  const at = { ...d.pos }; d.statuses.stun = 1;
+  S6.actMonsters(ctx(), s);
+  assert.ok(sameTile(d.pos, at), 'สตั้นอยู่');
+  d.statuses.stun = 0;
+  // เข้าเมืองที่ไฟเปิดไม่ได้
+  p.pos = { x: 11, y: 4 }; P(1).pos = { x: 9, y: 26 }; P(2).pos = { x: 30, y: 0 };
+  for (let i = 0; i < 3; i++) S6.actMonsters(ctx(), s);
+  assert.ok(!S6.inTown(d.pos.x, d.pos.y));
 });
 
-test('ปีศาจ: ตีปกติใส่ได้ (เกราะ 1 ก่อน) ตายได้ 2 เหรียญ · กลางวัน→กลางคืนผ่าน preRound', () => {
+test('ปีศาจ: โจมตีปกติ/ผลัก/ไถลได้แบบผู้เล่น · ฆ่าแล้วได้เหรียญ + ของ · แกร่งขึ้นทุกคืน · กลางวัน→กลางคืนผ่าน preRound', () => {
   setup();
   const s = st(), p = P(0);
-  s.daemons = [{ id: 'fd:dmV', x: 14, y: 13, hp: 2, armor: 1, kind: 2 }];
+  const d = mob('daemon', 14, 13, { hp: 1, armor: 0 });
   actor(p);
-  assert.ok(Fodlan.canHitObject(p, 'fd:dmV'));
   const gold0 = p.gold || 0;
-  for (let i = 0; i < 6 && s.daemons.length; i++) Fodlan.strikeObject(p, 'fd:dmV');
-  assert.equal(s.daemons.length, 0);
-  assert.equal((p.gold || 0) - gold0, S6.DAEMON_GOLD);
+  Math.random = () => 0; // ของดรอปติด
+  match.effectSourceId = p.id;
+  combat.dealMixed(d, 5); combat.resolveDamageAftermath(d);
+  match.effectSourceId = null;
+  Math.random = realRandom;
+  assert.equal(d.alive, false);
+  assert.ok((p.gold || 0) > gold0, 'ได้เหรียญ');
+  assert.ok((p.inventory || []).length > 0, 'ได้ของ');
+  assert.equal(s.kills, 1);
+  // แกร่งขึ้นทุกคืน
+  const n1 = S6.daemonStats(1), n3 = S6.daemonStats(3);
+  assert.ok(n3.hp > n1.hp && n3.atk >= n1.atk && S6.daemonCount(3) > S6.daemonCount(1));
   const dn = require('../server/dayNight.js');
   let night = 1;
   for (let r = 1; r < 30; r++) if (dn.isNightRound(r)) { night = r; break; }
-  s.night = false; match.roundNumber = night - 1;
+  s.night = false; match.roundNumber = night - 1; match.fodlan.s.preRoundDone = 0;
   Fodlan.preRound(() => {});
-  assert.ok(s.daemons.length > 0);
+  assert.equal(s.nightNo, 1);
+  assert.ok(S6.mobsOf(ctx(), 'daemon').length > 0);
   let day = night;
   while (dn.isNightRound(day)) day++;
   s.night = true; match.roundNumber = day - 1; match.fodlan.s.preRoundDone = 0;
   Fodlan.preRound(() => {});
-  assert.equal(s.daemons.length, 0);
+  assert.equal(S6.mobsOf(ctx(), 'daemon').length, 0);
+  assert.equal(s.dayNo, 2);
 });
 
-test('สภาพอากาศ: ฝนฟ้าคะนองเดิน −1 + ฟ้าผ่า 2 · หมอกซ่อนศัตรูนอกระยะเดิน · สงบแล้วพัก 2 เทิร์น', () => {
+test('สภาพอากาศ: ฝนฟ้าคะนองเดิน −1 + ฟ้าผ่า 2 · หมอกซ่อนมอนนอกระยะเดิน · สงบแล้วพัก 2 เทิร์น', () => {
   setup();
   const p = P(0), q = P(1);
   const mov = action.movOf(p);
@@ -292,10 +315,12 @@ test('สภาพอากาศ: ฝนฟ้าคะนองเดิน �
   Fodlan.preRound(() => {});
   assert.equal(total(p), hp0 - S6.LIGHTNING_DMG);
   match.fodlan.weather = { kind: 'eos_fog', left: 3 }; match.fodlan.s.weather = match.fodlan.weather;
-  q.pos = { x: 14, y: 13 };
-  assert.ok(!Fodlan.hides(p, q));
-  q.pos = { x: 13 + action.movOf(p) + 2, y: 13 };
-  assert.ok(Fodlan.hides(p, q), 'หมอกซ่อนนอกระยะเดิน');
+  const d = mob('daemon', 14, 13);
+  assert.ok(!Fodlan.hides(p, d));
+  d.pos = { x: 13 + action.movOf(p) + 3, y: 13 };
+  assert.ok(Fodlan.hides(p, d), 'หมอกซ่อนมอนนอกระยะเดิน');
+  q.pos = { x: 30, y: 30 };
+  assert.ok(!Fodlan.hides(p, q), 'เพื่อนเห็นกันเสมอ');
   match.fodlan.weather.left = 1;
   Fodlan.onEndTurn(() => 0);
   assert.equal(Fodlan.weatherNow(), null);
@@ -307,24 +332,17 @@ test('สภาพอากาศ: ฝนฟ้าคะนองเดิน �
   assert.ok(Fodlan.EOS_WEATHER.includes(Fodlan.weatherNow().kind));
 });
 
-test('การมองเห็นผู้เล่นอื่น: เห็นในระยะเดิน + 4 ช่อง · ไกลกว่านั้นถูกซ่อน · ตัวเองเห็นเสมอ', () => {
+test('PVE: เพื่อนเห็นกันทั้งแผนที่ · มอนเห็นทั้งแผนที่เมื่ออากาศปกติ', () => {
   setup();
   const p = P(0), q = P(1);
-  const sight = S6.sideSight(ctx(), p);
-  assert.ok(sight && sight.has(K(13, 13)));
   q.pos = { x: 30, y: 0 };
-  assert.ok(!sight.has(K(30, 0)));
-  assert.ok(Fodlan.hides(p, q), 'ไกลเกินระยะ = ไม่เห็น');
-  q.pos = { x: 14, y: 13 };
   assert.ok(!Fodlan.hides(p, q));
-  q.pos = { x: 30, y: 0 };
-  q.exposedRound = match.roundNumber;
-  assert.ok(!Fodlan.hides(p, q));
-  q.exposedRound = 0;
+  const d = mob('daemon', 2, 30);
+  assert.ok(!Fodlan.hides(p, d));
   assert.ok(!Fodlan.hides(p, p));
 });
 
-test('เสา: ร่ายพิธี 2 ตา → ยึดได้ · ระหว่างนั้นโดนดาเมจ = พิธีแตก', () => {
+test('เสา: ร่ายพิธี 2 ตา → ยึดได้ · โดนดาเมจ = พิธีแตก · มอนตีเสา 2 ครั้ง = หลุดเป็นกลาง · ซ่อมเสาได้', () => {
   setup();
   const p = P(0), pl = st().pillars.find((o) => o.zone === 'insomnia');
   p.pos = { x: pl.x, y: pl.y - 1 };
@@ -334,17 +352,34 @@ test('เสา: ร่ายพิธี 2 ตา → ยึดได้ · ร
   assert.ok(b && !b.disabled);
   assert.ok(Fodlan.charAction(p.id, 'fd:seize'));
   assert.ok(pl.ch && pl.ch.by === p.id);
-  assert.equal(pl.owner, null);
   actor(p);
   assert.ok(btn(p, 'fd:seize').disabled, 'ครั้งที่สองต้องตาถัดไป');
   match.roundNumber = 3;
   actor(p);
-  b = btn(p, 'fd:seize');
-  assert.ok(b && !b.disabled);
   assert.ok(Fodlan.charAction(p.id, 'fd:seize'));
-  assert.equal(pl.owner, S6.sideOf(p));
+  assert.equal(pl.owner, S6.PVE);
   assert.equal(pl.ch, null);
+  // มอนตีเสา
+  const m = mob('magitek', pl.x + 1, pl.y);
+  if (!sameTile(m.pos, { x: pl.x + 1, y: pl.y })) m.pos = { x: pl.x, y: pl.y + 1 };
+  p.pos = { x: 1, y: 1 }; P(1).pos = { x: 30, y: 30 }; P(2).pos = { x: 1, y: 30 };
+  S6.actMonsters(ctx(), st());
+  assert.equal(pl.hits, 1);
+  assert.equal(pl.owner, S6.PVE);
+  // ซ่อม
+  p.pos = { x: pl.x, y: pl.y - 1 };
+  actor(p);
+  b = btn(p, 'fd:seize');
+  assert.ok(b && b.name === 'ซ่อมเสา' && !b.disabled);
+  assert.ok(Fodlan.charAction(p.id, 'fd:seize'));
+  assert.equal(pl.hits, 0);
+  p.pos = { x: 1, y: 1 };
+  m.summon.born = 0;
+  S6.actMonsters(ctx(), st()); S6.actMonsters(ctx(), st());
+  assert.equal(pl.owner, null, 'ตีครบ 2 = หลุด');
+  // พิธีแตกเมื่อโดนดาเมจ
   const q = P(1);
+  lobby; m.pos = { x: 30, y: 30 }; combat.instantDeath(m, true);
   q.pos = { x: pl.x - 1, y: pl.y };
   actor(q);
   assert.ok(Fodlan.charAction(q.id, 'fd:seize'));
@@ -352,38 +387,43 @@ test('เสา: ร่ายพิธี 2 ตา → ยึดได้ · ร
   combat.dealMixed(q, 1);
   S6.checkChannels(ctx(), st());
   assert.equal(pl.ch, null);
-  assert.equal(pl.owner, S6.sideOf(p));
 });
 
-test('แต้ม: ถือ 1/2/…/5 ต้น = 1/3/…/15 ต่อเทิร์น · ครบ 20 ชนะ (เกมจบ) · ไม่จบเพราะเหลือรอดคนเดียว', () => {
+test('แต้มรวม: ถือ 1/…/5 ต้น = 1/3/…/15 ต่อเทิร์น · ครบ 50 ทุกคนชนะ · ผู้เล่นล้มหมดพร้อมกัน = แพ้', () => {
   setup();
-  const s = st(), p = P(0), q = P(1);
-  const sp = S6.sideOf(p), sq = S6.sideOf(q);
-  s.pillars[0].owner = sp;
+  const s = st();
+  s.pillars[0].owner = S6.PVE;
   S6.scoreRound(ctx(), s);
-  assert.equal(s.scores[sp], 1);
-  s.pillars[1].owner = sp; s.pillars[2].owner = sq;
+  assert.equal(s.score, 1);
+  s.pillars[1].owner = S6.PVE;
   S6.scoreRound(ctx(), s);
-  assert.equal(s.scores[sp], 1 + 3);
-  assert.equal(s.scores[sq], 1);
-  combat.instantDeath(q, true); combat.instantDeath(P(2), true);
+  assert.equal(s.score, 1 + 3);
+  combat.instantDeath(P(1), true); combat.instantDeath(P(2), true);
   match.gameState = 'PLAYING';
-  assert.equal(endTurn.gameOver(), false);
-  assert.notEqual(match.gameState, 'GAMEOVER');
-  for (const pl of s.pillars) pl.owner = sp;
-  S6.scoreRound(ctx(), s);
-  assert.equal(s.scores[sp], 4 + 15);
-  assert.equal(Fodlan.eosWinner(), null);
-  S6.scoreRound(ctx(), s);
-  assert.equal(Fodlan.eosWinner(), p.id);
+  assert.equal(endTurn.gameOver(), false, 'ยังมีคนรอด = ไม่จบ');
+  for (const pl of s.pillars) pl.owner = S6.PVE;
+  S6.scoreRound(ctx(), s); S6.scoreRound(ctx(), s);
+  assert.equal(s.score, 4 + 30);
+  assert.equal(Fodlan.eosOutcome(), null);
   const info = Fodlan.publicInfo().board;
   assert.equal(info.goal, S6.SCORE_GOAL);
-  assert.equal(info.scores[0].side, sp);
+  assert.equal(info.score, 34);
+  assert.equal(info.rate, 15);
+  S6.scoreRound(ctx(), s); S6.scoreRound(ctx(), s);
+  assert.equal(Fodlan.eosOutcome(), 'win');
   assert.equal(endTurn.gameOver(), true);
   assert.equal(match.gameState, 'GAMEOVER');
+  assert.equal(match.winningTeamId, 'A');
+  // แพ้
+  setup();
+  match.gameState = 'PLAYING';
+  for (const p of [P(0), P(1), P(2)]) combat.instantDeath(p, true);
+  assert.equal(Fodlan.eosOutcome(), 'lose');
+  assert.equal(endTurn.gameOver(), true);
+  assert.equal(match.winningTeamId, null);
 });
 
-test('ตายแล้วฟื้นหลัง 3 เทิร์นที่จุดเกิดที่ไกลศัตรูสุด เลือด/เกราะเต็ม', () => {
+test('ตายแล้วฟื้นหลัง 3 เทิร์นที่จุดเกิดที่ไกลมอนสุด เลือด/เกราะเต็ม', () => {
   setup();
   match.cycleShift = 2; // กลางวันตลอดช่วงเทสต์ (กลางคืนมีปีศาจเกิด/ตีคนที่เพิ่งฟื้น)
   const p = P(0);
@@ -392,16 +432,13 @@ test('ตายแล้วฟื้นหลัง 3 เทิร์นที�
   assert.equal(p.alive, false);
   Fodlan.onUnitEnd(P(1));
   assert.equal(st().dead[p.id], 4);
+  assert.ok(Fodlan.publicInfo().board.revive.some((r) => r.id === p.id && r.at === 7));
   match.roundNumber = 5; match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
   assert.equal(p.alive, false);
   match.roundNumber = 6; match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
   assert.equal(p.alive, true);
   assert.equal(p.hp, combat.maxHpOf(p));
   assert.equal(p.armor, combat.maxArmorOf(p));
-  const foes = [P(1), P(2)];
-  const far = (t) => Math.min(...foes.map((f) => Math.abs(f.pos.x - t.x) + Math.abs(f.pos.y - t.y)));
-  const best = Math.max(...Board.MAPS[AREA].spawns.map(far));
-  assert.ok(far(p.pos) >= best - 3, 'ฟื้นใกล้จุดเกิดที่ไกลศัตรูสุด');
   match.cycleShift = 0;
 });
 
@@ -454,30 +491,33 @@ test('L8 ไฟเมือง: ดับไฟ = ปีศาจเข้าเ
   assert.equal(btn(p, 'fd:lights').name, 'ดับไฟ');
   assert.ok(Fodlan.charAction(p.id, 'fd:lights'));
   assert.ok(!S6.blockedTown(s, 12, 4));
-  // ปีศาจไล่คนในเมืองที่ไฟดับได้
-  P(1).pos = { x: 30, y: 0 }; p.pos = { x: 1, y: 1 }; // เป้าเดียวในเมือง
-  s.daemons = [{ id: 'fd:dmL', x: 15, y: 10, hp: 5, armor: 1, kind: 1 }];
+  P(1).pos = { x: 30, y: 0 }; p.pos = { x: 1, y: 1 };
+  const d = mob('daemon', 15, 10);
   const q = P(2); q.pos = { x: 13, y: 5 };
-  for (let i = 0; i < 3 && !S6.inTown(s.daemons[0].x, s.daemons[0].y); i++) S6.actDaemons(ctx(), s); // ทางประตูกลางมีรถ+เสาไฟขวาง → อ้อมประตูข้าง
-  assert.ok(S6.inTown(s.daemons[0].x, s.daemons[0].y), 'ปีศาจเข้าเมืองที่ไฟดับ');
+  for (let i = 0; i < 3 && !S6.inTown(d.pos.x, d.pos.y); i++) S6.actMonsters(ctx(), s);
+  assert.ok(S6.inTown(d.pos.x, d.pos.y), 'ปีศาจเข้าเมืองที่ไฟดับ');
 });
 
-test('L9 ผักกิซาล: ขายทุกร้านใน Eos · ศัตรูขี่โชโกโบะในระยะ = ตกนก · ไม่มี = เรียกโชโกโบะมาข้างตัว', () => {
+test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะมาข้างตัว · ขี่ได้ทันทีด้วยปุ่ม (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {
   setup();
   shop.refreshShopForJourney();
-  const s = st(), p = P(0), q = P(1);
+  const s = st(), p = P(0);
   assert.ok(S6.gysahlOnSale());
-  const c = s.chocos[0];
-  q.pos = { x: c.x, y: c.y }; Fodlan.onUnitEnd(q);
-  assert.ok(s.riders[q.id]);
-  p.pos = { x: q.pos.x - 3, y: q.pos.y };
-  assert.ok(S6.useGysahl(p));
-  assert.ok(!s.riders[q.id], 'ตกนก');
-  // เรียกโชโกโบะมาหา
   p.pos = { x: 13, y: 13 };
   assert.ok(S6.useGysahl(p));
-  const near = s.chocos.some((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
-  assert.ok(near, 'โชโกโบะวิ่งมาข้างตัว');
+  const c = s.chocos.find((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
+  assert.ok(c, 'โชโกโบะวิ่งมาข้างตัว');
+  actor(p);
+  const mov0 = action.movOf(p);
+  const b = btn(p, 'fd:mount');
+  assert.ok(b && !b.disabled && b.tiles.some((t) => sameTile(t, c)));
+  assert.ok(Fodlan.charAction(p.id, 'fd:mount', { x: c.x, y: c.y }));
+  assert.equal(c.rider, p.id);
+  assert.ok(sameTile(p.pos, c));
+  assert.equal(match.action.locked, false, 'ยังเดินต่อได้');
+  assert.ok(sameTile(match.action.from, c));
+  assert.equal(action.movOf(p), mov0 + S6.CHOCO_MOV);
+  assert.ok(S6.CHOCO_MOV < S6.CAR_MOV, 'โชโกโบะเดินเพิ่มน้อยกว่ารถ');
 });
 
 test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ · ซากรถบนถนนขวางรถ', () => {
@@ -493,23 +533,24 @@ test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ �
 });
 
 // ---------- ขั้น 3: ลูกเล่นโจมตี (L11–L15) ----------
-test('L11 ถังน้ำมัน: ตีแล้วระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ · ระเบิดลูกโซ่ · เกิดใหม่ภายหลัง', () => {
+test('L11 ถังน้ำมัน: ตีแล้วระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ (มอน · ไม่โดนเพื่อน) · ระเบิดลูกโซ่ · เกิดใหม่ภายหลัง', () => {
   setup();
   const s = st(), p = P(0), q = P(1);
   const b = s.barrels[0];
   p.pos = { x: b.x - 1, y: b.y };
-  q.pos = { x: b.x + 1, y: b.y };
+  q.pos = nextToTile({ x: b.x, y: b.y + 1 }) && !Board.isObstacle(action.boardMap(), b.x, b.y + 1) ? { x: b.x, y: b.y + 1 } : { x: 30, y: 0 };
+  const m = mob('magitek', b.x + 1, b.y, { hp: 9, armor: 0 });
   actor(p);
   assert.ok(Fodlan.canHitObject(p, b.id));
-  const hq = total(q);
+  const hm = total(m), hq = total(q);
   Fodlan.strikeObject(p, b.id);
   assert.ok(!s.barrels.some((o) => o.id === b.id));
-  assert.equal(total(q), hq - S6.BARREL_DMG);
-  assert.ok((q.statuses.hburn || 0) > 0, 'ลุกไหม้');
-  // ลูกโซ่
+  assert.equal(total(m), hm - S6.BARREL_DMG);
+  assert.ok((m.statuses.hburn || 0) > 0, 'ลุกไหม้');
+  assert.equal(total(q), hq, 'เพื่อนไม่โดน');
   setup();
   const s2 = st();
-  s2.barrels = [{ id: 'fd:bA', x: 2, y: 2, home: { x: 2, y: 2 } }, { id: 'fd:bB', x: 3, y: 3, home: { x: 3, y: 3 } }]; // ไม่ใช่จุดร้านค้า (ร้านสุ่มมาเปิดทับได้)
+  s2.barrels = [{ id: 'fd:bA', x: 2, y: 2, home: { x: 2, y: 2 } }, { id: 'fd:bB', x: 3, y: 3, home: { x: 3, y: 3 } }];
   S6.explodeBarrel(ctx(), s2, s2.barrels[0], P(0));
   assert.equal(s2.barrels.length, 0, 'ถังข้างกันระเบิดต่อ');
   match.roundNumber += 10; match.fodlan.s.preRoundDone = 0;
@@ -519,7 +560,7 @@ test('L11 ถังน้ำมัน: ตีแล้วระเบิด 3×3
 
 test('L12 หินพลังเวท → ขวดเวท · ไฟ = ลุกไหม้+พื้นไฟ · น้ำแข็ง = เชื่องช้า+น้ำเป็นน้ำแข็ง · สายฟ้าลงน้ำช็อตทั้งผืน', () => {
   setup();
-  const s = st(), p = P(0), q = P(1);
+  const s = st(), p = P(0);
   S6.respawnProps(ctx(), s);
   assert.equal(s.crystals.length, MAP6.CRYSTALS.length);
   const c = s.crystals[0];
@@ -528,16 +569,15 @@ test('L12 หินพลังเวท → ขวดเวท · ไฟ = ล�
   actor(p);
   Fodlan.strikeObject(p, c.id);
   assert.deepEqual(s.flasks[p.id], ['fire']);
-  // ไฟ
-  p.pos = { x: 13, y: 13 }; q.pos = { x: 15, y: 13 };
+  p.pos = { x: 13, y: 13 };
+  const m = mob('daemon', 15, 13, { hp: 9, armor: 0 });
   actor(p);
   const b = btn(p, 'fd:flask:fire');
   assert.ok(b && !b.disabled && b.tiles.some((t) => t.x === 15 && t.y === 13));
   assert.ok(Fodlan.charAction(p.id, 'fd:flask:fire', { x: 15, y: 13 }));
-  assert.ok((q.statuses.hburn || 0) > 0);
+  assert.ok((m.statuses.hburn || 0) > 0);
   assert.ok(match.board.flame && Object.keys(match.board.flame).length > 0, 'พื้นไฟ');
   assert.equal((s.flasks[p.id] || []).length, 0);
-  // น้ำแข็ง: น้ำลึกริมทะเลสาบกลายเป็นทางเดิน
   setup();
   const s3 = st(), p3 = P(0), q3 = P(1);
   s3.flasks[p3.id] = ['ice'];
@@ -545,86 +585,98 @@ test('L12 หินพลังเวท → ขวดเวท · ไฟ = ล�
   p3.pos = nextToTile({ x: water[0], y: water[1] }) || { x: 13, y: 13 };
   q3.pos = { x: 30, y: 0 };
   actor(p3);
-  const tiles = btn(p3, 'fd:flask:ice').tiles;
-  const aim = tiles.find((t) => t.x === water[0] && t.y === water[1]);
+  const aim = btn(p3, 'fd:flask:ice').tiles.find((t) => t.x === water[0] && t.y === water[1]);
   assert.ok(aim);
   assert.ok(Fodlan.charAction(p3.id, 'fd:flask:ice', aim));
   assert.ok(!Board.isObstacle(action.boardMap(), water[0], water[1]), 'น้ำแข็งเดินได้');
-  // สายฟ้า: คนยืนในน้ำตื้นผืนเดียวกันโดน
   setup();
-  const s4 = st(), p4 = P(0), q4 = P(1);
+  const s4 = st(), p4 = P(0);
   s4.flasks[p4.id] = ['thunder'];
   const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number));
   const [ax, ay] = shallow[0];
   const far = shallow.find(([x, y]) => Math.abs(x - ax) + Math.abs(y - ay) >= 4);
-  q4.pos = { x: far[0], y: far[1] };
+  const m4 = mob('daemon', far[0], far[1], { hp: 9, armor: 0 });
   p4.pos = { x: 13, y: 13 };
   const aim2 = { x: ax, y: ay };
   if (Math.abs(aim2.x - 13) + Math.abs(aim2.y - 13) > S6.FLASK_RANGE) p4.pos = nextToTile(aim2);
   actor(p4);
-  const hq = total(q4);
+  const hm = total(m4);
   assert.ok(Fodlan.charAction(p4.id, 'fd:flask:thunder', aim2));
-  assert.equal(total(q4), hq - S6.SHOCK_DMG, 'ช็อตทั้งผืนน้ำ');
+  assert.equal(total(m4), hm - S6.SHOCK_DMG, 'ช็อตทั้งผืนน้ำ');
 });
 
-test('L13 ป้อมปืน: ยืนติดป้อมบนกำแพง Insomnia ยิงศัตรูในระยะ 6 ดาเมจ 2', () => {
+test('L13 ป้อมปืน: ยืนติดป้อมบนกำแพง Insomnia ยิงมอนในระยะ 6 ดาเมจ 2 · ไม่เล็งเพื่อน', () => {
   setup();
   const p = P(0), q = P(1), t = S6.TURRETS[0];
-  assert.ok(t);
   p.pos = { x: t.x, y: t.y - 1 };
-  q.pos = { x: t.x, y: t.y + 3 };
+  q.pos = { x: t.x + 1, y: t.y + 3 };
+  const m = mob('daemon', t.x, t.y + 3, { hp: 9, armor: 0 });
   actor(p);
   const b = btn(p, 'fd:turret');
-  assert.ok(b && !b.disabled && b.tiles.some((c) => c.x === q.pos.x && c.y === q.pos.y));
-  const hq = total(q);
-  assert.ok(Fodlan.charAction(p.id, 'fd:turret', q.pos));
-  assert.equal(total(q), hq - S6.TURRET_DMG);
+  assert.ok(b && !b.disabled && b.tiles.some((c) => sameTile(c, m.pos)));
+  assert.ok(!b.tiles.some((c) => sameTile(c, q.pos)));
+  const hm = total(m);
+  assert.ok(Fodlan.charAction(p.id, 'fd:turret', m.pos));
+  assert.equal(total(m), hm - S6.TURRET_DMG);
 });
 
-test('L14 สัตว์ยักษ์: ตีคนที่เข้าใกล้ · ถูกตี = ไล่คนตี และตีทุกคนที่ติดตัว · ฆ่าได้ 6 เหรียญ', () => {
+test('L14 สัตว์ยักษ์: ตีคนที่เข้าใกล้ · ถูกตี = ไล่คนตี · ฆ่าได้เหรียญ + ของ', () => {
   setup();
   const s = st(), p = P(0), q = P(1);
   match.roundNumber = 1;
   S6.respawnProps(ctx(), s);
-  const m = s.mobs.find((o) => o.type === 'beast');
+  assert.equal(S6.mobsOf(ctx(), 'beast').length, 0, 'Deadeye ไม่เกิดเอง (ผู้ใช้สั่งเอาออก 2026-11-10)');
+  S6.spawnBeast(ctx(), s);
+  const m = S6.mobsOf(ctx(), 'beast')[0];
   assert.ok(m);
-  p.pos = { x: m.x + 1, y: m.y };
-  if (Board.isObstacle(action.boardMap(), p.pos.x, p.pos.y)) p.pos = nextToTile(m);
+  m.summon.born = 0;
+  p.pos = nextToTile(m.pos);
   const hp = total(p);
-  S6.actMobs(ctx(), s);
+  S6.actMonsters(ctx(), s);
   assert.equal(total(p), hp - S6.BEAST.atk, 'เข้าใกล้ = โดน');
-  // ถูกตี → ไล่คนตี
   p.pos = { x: 1, y: 1 };
-  q.pos = { x: m.x + 4, y: m.y };
-  S6.hurtMob(ctx(), s, m, 1, q);
-  assert.equal(m.aggro, q.id);
-  S6.actMobs(ctx(), s);
-  assert.ok(Math.abs(m.x - q.pos.x) + Math.abs(m.y - q.pos.y) <= 2, 'วิ่งไล่คนตี');
-  const g0 = q.gold || 0;
-  S6.hurtMob(ctx(), s, m, 99, q);
-  assert.ok(!s.mobs.includes(m));
+  q.pos = { x: m.pos.x + 4, y: m.pos.y };
+  if (Board.isObstacle(action.boardMap(), q.pos.x, q.pos.y)) q.pos = { x: m.pos.x, y: m.pos.y + 4 };
+  combat.dealMixed(m, 1);
+  Fodlan.onUnitEnd(q);
+  assert.equal(m.summon.aggro, q.id);
+  S6.actMonsters(ctx(), s);
+  assert.ok(Math.abs(m.pos.x - q.pos.x) + Math.abs(m.pos.y - q.pos.y) <= 2, 'วิ่งไล่คนตี');
+  const g0 = q.gold || 0, inv0 = (q.inventory || []).length;
+  match.effectSourceId = q.id;
+  combat.dealMixed(m, 99); combat.resolveDamageAftermath(m);
+  match.effectSourceId = null;
+  assert.equal(m.alive, false);
   assert.equal((q.gold || 0) - g0, S6.BEAST.gold);
+  assert.equal((q.inventory || []).length, inv0 + 1, 'สัตว์ยักษ์ดรอปของแน่นอน');
 });
 
-test('L15 ยานลงจอด: เตือน → ต้นเทิร์นถัดไปลงจอด ปล่อยทหารเหล็ก 3 ตัว ไล่ตี · ครบเวลาถอนกลับ', () => {
+test('L15 ยานลงจอด: กลางวันลงได้หลายลำคนละที่ · เตือน → ลงจอด ปล่อยทหารเหล็ก ไล่ตี/ตีเสา · ครบเวลาถอนกลับ', () => {
   setup();
   const s = st();
-  Math.random = () => 0.01; // สุ่มติด
-  S6.dropshipTurn(ctx(), s, 10);
+  match.cycleShift = 2;
+  Math.random = () => 0.01;
+  S6.dropshipTurn(ctx(), s, 2);
   Math.random = realRandom;
-  assert.ok(s.dropship && s.dropship.state === 'warn');
+  assert.ok(s.ships.length >= 1 && s.ships.every((d) => d.state === 'warn'));
+  if (s.ships.length > 1) assert.ok(Math.abs(s.ships[0].x - s.ships[1].x) + Math.abs(s.ships[0].y - s.ships[1].y) >= 9, 'คนละพื้นที่');
   assert.ok(Fodlan.publicInfo().board.warn.some((w) => w.kind === 'dropship'));
-  S6.dropshipTurn(ctx(), s, 11);
-  assert.equal(s.dropship.state, 'landed');
-  assert.equal(s.mobs.filter((m) => m.type === 'magitek').length, S6.MAGITEK.count);
-  P(0).pos = { x: s.dropship.x + 3, y: s.dropship.y };
-  if (Board.isObstacle(action.boardMap(), P(0).pos.x, P(0).pos.y)) P(0).pos = { x: 13, y: 13 };
-  const before = s.mobs.map((m) => `${m.x},${m.y}`).join('|');
-  S6.actMobs(ctx(), s);
-  assert.notEqual(s.mobs.map((m) => `${m.x},${m.y}`).join('|'), before, 'ทหารเหล็กขยับ');
-  S6.dropshipTurn(ctx(), s, 11 + S6.MAGITEK.stay);
-  assert.equal(s.dropship, null);
-  assert.equal(s.mobs.filter((m) => m.type === 'magitek').length, 0);
+  Math.random = () => 0.99;
+  S6.dropshipTurn(ctx(), s, 3);
+  Math.random = realRandom;
+  assert.ok(s.ships.every((d) => d.state === 'landed'));
+  const mt = S6.mobsOf(ctx(), 'magitek');
+  assert.ok(mt.length >= S6.MAGITEK.count);
+  for (const m of mt) m.summon.born = 0;
+  const before = mt.map((m) => `${m.pos.x},${m.pos.y}`).join('|');
+  S6.actMonsters(ctx(), s);
+  assert.notEqual(S6.mobsOf(ctx(), 'magitek').map((m) => `${m.pos.x},${m.pos.y}`).join('|'), before, 'ทหารเหล็กขยับ');
+  Math.random = () => 0.99;
+  S6.dropshipTurn(ctx(), s, 3 + S6.MAGITEK.stay);
+  Math.random = realRandom;
+  assert.equal(s.ships.length, 0);
+  assert.equal(S6.mobsOf(ctx(), 'magitek').length, 0);
+  match.cycleShift = 0;
 });
 
 // ---------- ขั้น 4: เดินทาง (L2–L4) + เก็บของ/บัฟ (L16–L19) ----------
@@ -661,8 +713,8 @@ test('L3 กอนโดลา / L4 อุโมงค์: ยืนบนท่
   p.pos = { x: m0[0], y: m0[1] };
   actor(p);
   const t = btn(p, 'fd:tunnel');
-  assert.ok(t && t.tiles.length === 1);
-  assert.ok(Fodlan.charAction(p.id, 'fd:tunnel', t.tiles[0]));
+  assert.ok(t && !t.disabled && !t.tiles, 'อุโมงค์: กดแล้วไปเลย (ไม่ต้องคลิกปากอีกฝั่งที่อยู่นอกจอ)');
+  assert.ok(Fodlan.charAction(p.id, 'fd:tunnel'));
   assert.ok(Math.abs(p.pos.x - m1[0]) + Math.abs(p.pos.y - m1[1]) <= 2);
 });
 
@@ -746,18 +798,37 @@ test('L19 ค่าหัว: ติดร้าน รับได้ทีล�
 });
 
 // ---------- ขั้น 5: พายุทราย (L21) ----------
-test('L21 พายุทราย: สุ่มได้ใน Eos · คนในทะเลทรายถูกเห็นเฉพาะระยะ 2 ช่อง · คนในทะเลทรายเห็นได้แค่ 2 ช่อง · นอกทะเลทรายปกติ', () => {
+test('L21 พายุทราย: สุ่มได้ใน Eos · มอนในทะเลทรายถูกเห็นเฉพาะระยะ 2 ช่อง · นอกทะเลทรายปกติ', () => {
   setup(2);
   assert.ok(Fodlan.EOS_WEATHER.includes('eos_sand'));
   Fodlan.startWeather('eos_sand');
-  const a = P(0), b = P(1);
+  const a = P(0); P(1).pos = { x: 1, y: 1 };
+  const d = mob('daemon', 23, 24);
   const vis = (v, t) => !Fodlan.hides(v, t);
-  a.pos = { x: 20, y: 24 }; b.pos = { x: 23, y: 24 }; // ทะเลทรายทั้งคู่ ห่าง 3
+  a.pos = { x: 20, y: 24 };
   assert.ok(S6.inDesert(20, 24));
-  assert.equal(vis(a, b), false);
-  b.pos = { x: 22, y: 24 }; // ห่าง 2
-  assert.equal(vis(a, b), true);
-  a.pos = { x: 13, y: 15 }; b.pos = { x: 15, y: 16 }; // นอกทะเลทราย ใกล้กัน = ปกติ
-  assert.equal(vis(a, b), true);
+  assert.equal(vis(a, d), false);
+  d.pos = { x: 22, y: 24 };
+  assert.equal(vis(a, d), true);
+  a.pos = { x: 13, y: 15 }; d.pos = { x: 15, y: 16 };
+  assert.equal(vis(a, d), true);
   match.fodlan.weather = null;
+});
+
+test('หีบสมบัติ: โผล่ตามที่รกร้างทุก 3 เทิร์น ห่างผู้เล่น · ตีหีบ = เหรียญ (+ของ)', () => {
+  setup();
+  const s = st(), p = P(0);
+  match.roundNumber = 1;
+  S6.respawnProps(ctx(), s);
+  assert.ok(s.chests.length >= 1 && s.chests.length <= S6.CHEST_MAX);
+  const c = s.chests[0];
+  assert.ok(!S6.inTown(c.x, c.y));
+  assert.equal(action.boardMap().terrain[K(c.x, c.y)], 'fd_eos_chest');
+  p.pos = nextToTile(c);
+  actor(p);
+  assert.ok(Fodlan.canHitObject(p, c.id));
+  const g0 = p.gold || 0;
+  Fodlan.strikeObject(p, c.id);
+  assert.ok(!s.chests.includes(c));
+  assert.ok((p.gold || 0) > g0);
 });

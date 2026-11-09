@@ -20,7 +20,7 @@
 //      { fodlan, stage, weather }: ดิ่งลงหมุด Fodlan → ทะลุเมฆ → แผนที่ทวีป → โฉบลงด่าน → ฉากเข้าด่าน (fodlan/fodlanFlight.js · GRID_PLAN §8.5 · ?fodlan)
 //       prop fodlan = { stage, weather } (รู้ตั้งแต่เริ่มฉาก) = เริ่มสร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร ไม่ต้องรอ onOutro
 //      { eos, board, self, night }: ฉากเข้าสนาม Eos (GRID_PLAN §8.6) — โลกหมุนหาหมุด Eos → ดิ่งชน (eos/eosFlight.js) → แฟลชฟ้า
-//       → EosCine: ทะลุเมฆ บินเหนือกระดานจริง (eos/eosFly.js) ลดระดับลงหาหมากเรา → จางเผยกระดาน · ส่งต่อใต้แฟลช (EOS_HANDOFF)
+//       → EosCine: ทะลุเมฆ บินเหนือกระดานจริง (eos/EosCine.jsx · eosPaint.js) ลดระดับลงหาหมากเรา → จางเผยกระดาน · ส่งต่อใต้แฟลช (EOS_HANDOFF)
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";

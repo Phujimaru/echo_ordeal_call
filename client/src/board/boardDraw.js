@@ -140,7 +140,7 @@ export function clampCam(info, base, cam) {
 //  จอต้องอยู่ "ในแผนที่" ตลอด — ไม่เห็นขอบกระดาน/พื้นที่ว่างด้านนอก: กรอบจอทั้ง 4 มุมต้องอยู่ในรูปสี่เหลี่ยมของกระดานบนจอ
 //  ซูมออกได้สุดแค่ระดับที่จอยังอยู่ในแผนที่ (rtsZoomRange.min) · ซูมเข้าสุด = ช่องใหญ่เท่าแผนที่ปกติ 14×14 ที่ซูมสุด
 //  ต้องตั้งกล้อง (setCamera) ก่อนเรียก
-export const RTS_VIEW_TILES = { far: 14, near: 9 }; // จำนวนช่องที่เห็นตามแนวกว้างของจอ ตอนซูมออกสุด / เข้าสุด
+export const RTS_VIEW_TILES = { far: 24, near: 6 }; // จำนวนช่องที่เห็นตามแนวกว้างของจอ ตอนซูมออกสุด / เข้าสุด (ผู้ใช้สั่ง 2026-11-10: เดิม 14/9 แคบ ซูมได้น้อย)
 function boardQuad(info) { return [P(0, 0), P(info.cols, 0), P(info.cols, info.rows), P(0, info.rows)].map((q) => [q[0], q[1]]); }
 function inQuad(q, x, y) {
   let sign = 0;
@@ -1039,6 +1039,13 @@ function drawAnyUnit(g, u, now, boxes) {
   yukiNoteUnit(g, u);
   // Moon Cell (moonFx.js): โมเดลลูกบาศก์ลอย แทนหมาก
   if (u.summon && u.summon.kind === "moonCell" && !u.corpse) { drawMoonCell(g, u, now, boxes, { UK: UNIT_UI_K, vitalBar: drawVitalBar, vitalHeight }); return; }
+  // มอนเตอร์ของสนาม Eos (ยูนิตที่ถูกเรียก — server/fodlan/stage6.js): ภาพตัว/หลอดเลือดวาดใน fodlan/stage6.js items · ที่นี่แค่กรอบคลิก + เป้าเล็ง
+  if (u.summon && u.summon.kind === "eosMob" && !u.corpse) {
+    const cx = u.rx + 0.5, cy = u.ry + 0.55, [sx, sy, s] = P(cx, cy, 0);
+    if (u.reticle) drawReticle(g, sx, sy - s * 0.55, Math.max(18, s * 0.5), u.reticle, now);
+    if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: sx - s * 0.45, y0: sy - s * 1.45, x1: sx + s * 0.45, y1: sy + s * 0.12 });
+    return;
+  }
   if (u.valMod || u.ghostDim || (u.summon && u.summon.kind === "double")) { drawValUnit(g, u, now, (uu, withBox) => drawAnyUnitBase(g, uu, now, withBox ? boxes : null)); return; }
   drawAnyUnitBase(g, u, now, boxes);
 }

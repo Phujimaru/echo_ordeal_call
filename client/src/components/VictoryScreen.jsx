@@ -157,6 +157,8 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
   // ระบบคู่: ตัวที่สองไม่ใช่ผู้เล่นแยก · เจ้าของที่ล้มแต่คู่ยังรอด = ยังรอด
   const players = useMemo(() => rosterAlive(state.players), [state.players]);
   const { heading, winners } = useMemo(() => {
+    // สนาม Eos (PVE — ผู้ใช้สั่ง 2026-11-10): ชนะ = ผู้เล่นทุกคน (คนที่ล้มรอฟื้นก็นับ) · แพ้ = ไม่มีผู้ชนะ
+    if (state.gameMode === "eos") return state.winningTeamId ? { heading: "Eos", winners: players } : { heading: "Eos", winners: [] };
     if (state.gameMode !== "ffa" && state.winningTeamId) {
       const ws = players.filter((p) => p.alive && p.teamId === state.winningTeamId);
       return { heading: `ทีม ${state.winningTeamId}`, winners: ws };

@@ -1373,3 +1373,17 @@ button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
 .bag-shop-btn:disabled { filter: grayscale(1); opacity: .55; cursor: default; }
 .bb-pips-n { font: 800 13px "Chakra Petch", sans-serif; color: #3d8bd9; letter-spacing: .5px; }
 .bag-shops + .bag-x { margin-left: 0; }
+
+/* ปุ่มพิเศษที่มีคำอธิบาย (สนาม Eos — HudPhases extraBtn desc): ชี้แล้วขึ้นการ์ดด้านซ้าย · ปุ่มที่กดไม่ได้ก็ชี้ดูได้ */
+.hc-tip { position: relative; display: flex; min-width: 0; }
+.hc-tip > .hc-btn { flex: 1 1 auto; min-width: 0; }
+.hc-tip > .hc-btn:disabled { pointer-events: none; }
+.hc-tip::after {
+  content: attr(data-tip); position: absolute; right: calc(100% + 12px); top: 50%; transform: translate(6px, -50%);
+  width: max-content; max-width: 260px; padding: 9px 12px; border-radius: 10px; z-index: 60;
+  background: rgba(12, 20, 36, .95); color: #eef4ff; border: 1px solid rgba(160, 200, 255, .35); box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+  font: 500 13px/1.45 "Kanit", sans-serif; white-space: pre-line; text-align: left;
+  opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease;
+}
+.hc-tip:hover::after { opacity: 1; transform: translate(0, -50%); }
+.hc-row .hc-tip { flex: 1; }

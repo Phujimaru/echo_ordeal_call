@@ -28,7 +28,7 @@ export const kinds = [
   // ขั้น 2 (ลูกเล่นปั่นป่วน): คันโยกสะพาน · แท่นโดม · แผงไฟเมือง · ชั้น layer: สะพานที่ยก · กำแพงเวทที่ประตู · ซากรถ
   "fd_eos_lever", "fd_eos_domecore", "fd_eos_switch", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_wreck",
   // ขั้น 3 (ลูกเล่นโจมตี): ถังน้ำมัน · แหล่งหินเวท · ป้อมปืนบนกำแพง · มอนสเตอร์ (วาดใน items)
-  "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob",
+  "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob", "fd_eos_chest",
   // ขั้น 4 (เดินทาง + เก็บของ): ชานชาลา · ปากอุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา (ช่องพิเศษ — วาดเองทั้งหมด) · สุสานราชวงศ์ (สิ่งกีดขวาง)
   "fd_eos_station", "fd_eos_tunnel", "fd_eos_dock", "fd_eos_camp", "fd_eos_fish", "fd_eos_tomb",
 ];
@@ -40,6 +40,8 @@ export const fx = {
   bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
   barrel_boom: 1600, crystal_break: 1100, flask: 1700, turret_shot: 750, mob_move: 1100, mob_attack: 900, mob_hit: 600, mob_die: 1300,
   beast_roar: 1300, dropship_warn: 1200, dropship_land: 2000, dropship_leave: 2000,
+  // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
+  pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // ขั้น 4 (ฉากฝั่ง client ยาวกว่าเวลาที่ server พักได้ — รถไฟวิ่งพ้นแผนที่ให้ครบขบวน)
   train_warn: 1800, train_pass: 3000, gondola: 2000, tunnel: 1500, camp_meal: 1500, fish: 2600, tomb_open: 2300, royal_drain: 1400, hunt_board: 1500, hunt_done: 1500, // 1500 = ค่าเริ่มของ fxActive (เหตุการณ์ที่ชื่อถูกทับ — p4Norm)
 };
@@ -1263,7 +1265,7 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_barrier") { drawBarrier(g, x, y, now); return; }
   if (kind === "fd_eos_switch") { drawSwitch(g, x, y, C, now); return; }
   if (kind === "fd_eos_wreck") { drawWreck(g, x, y, now); return; }
-  if (kind === "fd_eos_mob") return; // มอนสเตอร์วาดใน items
+  if (kind === "fd_eos_mob" || kind === "fd_eos_chest") return; // มอนสเตอร์ · หีบสมบัติ วาดใน items
   if (kind === "fd_eos_barrel") { drawBarrel(g, x, y); return; }
   if (kind === "fd_eos_crystal") { drawCrystal(g, x, y, C, night, now); return; }
   if (kind === "fd_eos_turret") { drawTurret(g, x, y, C, now); return; }
@@ -1404,6 +1406,13 @@ function sprite(g, src, x, y, z, hTiles, flip = false, alpha = 1) {
   g.drawImage(im, -w / 2, -h, w, h); g.restore();
   return [sx, sy, s];
 }
+// มอนเตอร์เป็นยูนิตจริง (server/summon.js): เดินเองต้นเทิร์น = เลื่อนตามเส้นทาง (smooth) · ถูกผลัก/ไถล/ดึง = ตามตำแหน่งวาดของหมาก (ระบบเดิมเล่นฉากให้)
+function mobPos(units, id, sm) {
+  if (sm.moving) return sm;
+  const u = (units || []).find((it) => it.id === id && !it.corpse);
+  if (!u) return sm;
+  return { x: (u.rx != null ? u.rx : u.x) + (u.ox || 0), y: (u.ry != null ? u.ry : u.y) + (u.oy || 0), moving: false };
+}
 function unitAt(units, id) {
   const u = (units || []).find((it) => it.id === id && !it.corpse);
   if (!u) return null;
@@ -1502,11 +1511,30 @@ function drawBeast(g, sx, sy, s, face, now, moving, lowQ, alpha = 1, sink = 0) {
   g.restore();
 }
 
+const shipsOf = (fd) => (Array.isArray(fd.ships) ? fd.ships : fd.dropship ? [fd.dropship] : []);
+// หีบสมบัติ: กล่องไม้ขอบทอง แสงทองระยิบ (เด้งเบาๆ ให้เห็นจากไกล)
+function drawChest(g, cx, cy, now, night, lowQ) {
+  const z = lowQ ? 0 : Math.abs(Math.sin(now / 520 + cx)) * 0.05;
+  const [sx, sy, s] = P(cx, cy);
+  g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.32, s * 0.12, 0, 0, TAU); g.fill();
+  box(g, cx - 0.26, cy - 0.18, cx + 0.26, cy + 0.18, 0.3 + z, "#8a5326", "#4a2a10", "#6e3f1a", z);
+  box(g, cx - 0.27, cy - 0.19, cx + 0.27, cy + 0.19, 0.42 + z, "#a8652e", "#5a3313", "#7d4820", 0.3 + z);
+  for (const k of [-0.15, 0.15]) box(g, cx + k - 0.03, cy - 0.2, cx + k + 0.03, cy + 0.2, 0.43 + z, "#f2c94c", "#9a7417", "#c99a22", 0.02 + z);
+  const lock = P(cx, cy + 0.2, 0.3 + z);
+  g.fillStyle = "#ffe27a"; g.fillRect(lock[0] - 2.5, lock[1] - 3, 5, 6);
+  const top = P(cx, cy, 0.6 + z);
+  glowAt(g, top[0], top[1], s * 0.55, "255,215,90", (night ? 0.55 : 0.32) + 0.15 * Math.sin(now / 300));
+  if (!lowQ) for (let i = 0; i < 3; i++) {
+    const k = ((now / 900) + i / 3) % 1, ang = i * 2.1 + now / 1400;
+    g.fillStyle = "rgba(255,240,170," + (1 - k) + ")";
+    g.fillRect(top[0] + Math.cos(ang) * s * 0.25, top[1] - k * s * 0.5, 2, 2);
+  }
+}
 // ---------- ยานลำเลียง (2×2 · ลอย z ≈ 1.2) ----------
 const DROP_Z = 1.2;
 function dropZ(ds, now) {
-  const e = lastFx("dropship_land");
-  if (!e || e.x !== ds.x || e.y !== ds.y) return DROP_Z;
+  const e = LAST_FD && Array.isArray(LAST_FD.fx) ? LAST_FD.fx.slice().reverse().find((ev) => ev.kind === "dropship_land" && ev.x === ds.x && ev.y === ds.y) : null;
+  if (!e) return DROP_Z;
   const k = fxT(e, now, fx.dropship_land);
   return k < 1 ? DROP_Z + (1 - ease(Math.min(1, k / 0.65))) * 7 : DROP_Z;
 }
@@ -2431,7 +2459,7 @@ export function ground(g, fd, info, now) {
   }
   // วงมืดใต้ปีศาจ
   for (const d of fd.daemons || []) {
-    const pos = smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "daemon_move", d.id));
+    const pos = smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "mob_move", d.id) || pathOf(fd, "daemon_move", d.id));
     const [x, y, s] = P(pos.x + 0.5, pos.y + 0.5);
     g.fillStyle = "rgba(60,0,40,.35)"; g.beginPath(); g.ellipse(x, y, s * 0.45, s * 0.17, 0, 0, TAU); g.fill();
   }
@@ -2449,7 +2477,7 @@ export function ground(g, fd, info, now) {
     }
   }
   p4Ground(g, fd, now, night); // ขั้น 4
-  const ds = fd.dropship;
+  for (const ds of shipsOf(fd)) { // ยานลงได้หลายลำพร้อมกัน (กลางวัน — ผู้ใช้สั่ง 2026-11-10)
   if (ds && ds.state === "landed") {
     const z = dropZ(ds, now);
     gEllipse(g, ds.x + 1, ds.y + 1, 0.95, 0, 30, 0.8); g.fillStyle = `rgba(0,0,0,${Math.max(0.08, 0.42 - z * 0.04)})`; g.fill();
@@ -2462,6 +2490,7 @@ export function ground(g, fd, info, now) {
       const p0 = P(cx + dx * 0.6, cy + dy * 0.6, 0.03), p1 = P(cx + dx * 1.3, cy + dy * 1.3, 0.03);
       g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
     }
+  }
   }
   void info;
 }
@@ -2523,7 +2552,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
   }
   // ปีศาจ
   for (const d of fd.daemons || []) {
-    const pos = smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "daemon_move", d.id));
+    const pos = mobPos(units, d.id, smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "mob_move", d.id) || pathOf(fd, "daemon_move", d.id)));
     const cx = pos.x + 0.5, cy = pos.y + 0.55;
     list.push({
       d: depthOf(cx, cy),
@@ -2540,7 +2569,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
   const hitE = lastFx("mob_hit");
   for (const m of fd.mobs || []) {
     const beast = m.type === "beast";
-    const pos = smooth(`mob:${m.id}`, m.x, m.y, now, MOB_MS, pathOf(fd, "mob_move", m.id));
+    const pos = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, MOB_MS, pathOf(fd, "mob_move", m.id)));
     let head = mobFacing(m.id, pos), lunge = 0;
     const atk = mobAttackOf(m.id, now), tu = atk ? unitAt(units, atk.a.target) : null;
     if (tu) {
@@ -2570,14 +2599,16 @@ export function items(list, g, fd, info, units, now, lowQ) {
     });
   }
   // ขั้น 3: ยานลำเลียงจอดลอย (ทับคนที่อยู่ใต้ยาน)
-  const ds = fd.dropship;
-  if (ds && ds.state === "landed") {
+  for (const ds of shipsOf(fd)) {
+    if (ds.state !== "landed") continue;
     const z = dropZ(ds, now);
     list.push({
       d: Math.max(depthOf(ds.x + 0.1, ds.y + 0.1), depthOf(ds.x + 1.9, ds.y + 0.1), depthOf(ds.x + 0.1, ds.y + 1.9), depthOf(ds.x + 1.9, ds.y + 1.9)),
       f: () => drawDropship(g, ds.x, ds.y, z, now, lowQ),
     });
   }
+  // หีบสมบัติ (ผู้ใช้สั่ง 2026-11-10 — ของให้ไปเก็บทั่วแผนที่)
+  for (const c of fd.chests || []) list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => drawChest(g, c.x + 0.5, c.y + 0.5, now, night, lowQ) });
   p4Items(list, g, fd, units, now, lowQ, night); // ขั้น 4
   void info;
 }
@@ -2609,7 +2640,7 @@ function playFx(e) {
     case "daemon_move": sfx("daemon_growl", { gain: 0.6 }); break;
     case "daemon_attack": sfx("daemon_attack"); break;
     case "daemon_struck": sfx("daemon_growl", { gain: 0.5 }); break;
-    case "daemon_die": sfx("daemon_die"); break;
+    case "daemon_die": sfx("daemon_die"); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
     case "daemon_dissolve": sfx("daemon_dissolve"); sfx("day_break", { delay: 0.5, gain: 0.7 }); break;
     case "bridge": sfx("bridge_lever"); sfx("bridge_move", { delay: 0.35, gain: 0.85 }); break;
     case "dome_on": sfx("dome_on"); break;
@@ -2633,15 +2664,21 @@ function playFx(e) {
       const ts = new Set((e.moves || []).map((m) => m.type));
       if (ts.has("beast")) sfx("beast_step", { gain: 0.8 });
       if (ts.has("magitek")) sfx("magitek_step", { gain: 0.7 });
+      if (ts.has("daemon")) sfx("daemon_growl", { gain: 0.6 });
       break;
     }
     case "mob_attack": {
       const ts = new Set((e.attacks || []).map((a) => a.type));
       if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 });
       if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 });
+      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 });
+      if ((e.pillars || []).length) sfx((e.pillars || []).some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25, gain: 0.8 });
       break;
     }
-    case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); break;
+    case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
+    case "pillar_repair": sfx("dome_on", { gain: 0.6 }); break;
+    case "chest_spawn": sfx("crystal_pick", { gain: 0.5 }); break;
+    case "chest_open": sfx("tomb_open", { gain: 0.8 }); sfx("hunt_done", { delay: 0.5 }); break;
     case "beast_roar": sfx("beast_roar"); break;
     case "dropship_warn": sfx("dropship_alarm"); break;
     case "dropship_land": sfx("dropship_land"); break;
@@ -2667,6 +2704,46 @@ function playFx(e) {
     case "hunt_done": sfx("hunt_done"); break;
     default: break;
   }
+}
+// ฉาก PVE (คืน true = วาดแล้ว): มอนตีเสา (วงแตกแดง) · เสาหลุด (ผลึกกระจาย) · ซ่อม (วงฟ้าหด) · หีบโผล่ (ลำแสงทอง) · เปิดหีบ (ประกายทอง)
+function pveFx(g, e, p, lowQ) {
+  if (e.kind === "pillar_hit" || e.kind === "pillar_lost" || e.kind === "pillar_repair") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.8);
+    const rgb = e.kind === "pillar_repair" ? "140,230,255" : "255,70,60";
+    const r = e.kind === "pillar_repair" ? s * (1.4 - p) : s * (0.4 + p * 1.2);
+    g.strokeStyle = `rgba(${rgb},${1 - p})`; g.lineWidth = Math.max(2, s * 0.06 * (1 - p));
+    g.beginPath(); g.ellipse(x, y + s * 0.5, r, r * 0.45, 0, 0, TAU); g.stroke();
+    glowAt(g, x, y, s * 1.2, rgb, (1 - p) * (e.kind === "pillar_lost" ? 0.9 : 0.5));
+    if (e.kind === "pillar_lost" && !lowQ) for (let i = 0; i < 14; i++) {
+      const ang = hash(i, e.seq) * TAU, d = s * (0.3 + p * 1.6) * (0.6 + hash(i, 2) * 0.4);
+      g.fillStyle = `rgba(180,230,255,${1 - p})`;
+      g.beginPath(); g.moveTo(x + Math.cos(ang) * d, y + Math.sin(ang) * d * 0.6 - s * 0.5 * (1 - p));
+      g.lineTo(x + Math.cos(ang + 0.2) * (d + s * 0.12), y + Math.sin(ang + 0.2) * (d + s * 0.12) * 0.6 - s * 0.5 * (1 - p));
+      g.lineTo(x + Math.cos(ang - 0.15) * (d + s * 0.05), y + Math.sin(ang - 0.15) * (d + s * 0.05) * 0.6 - s * 0.5 * (1 - p)); g.closePath(); g.fill();
+    }
+    return true;
+  }
+  if (e.kind === "chest_spawn") {
+    for (const c of e.list || []) {
+      const [x, y, s] = P(c.x + 0.5, c.y + 0.5);
+      const a = Math.sin(Math.min(1, p) * Math.PI);
+      g.fillStyle = `rgba(255,220,120,${0.35 * a})`;
+      g.fillRect(x - s * 0.18, y - s * 6, s * 0.36, s * 6);
+      glowAt(g, x, y, s * 0.9, "255,215,90", a * 0.8);
+    }
+    return true;
+  }
+  if (e.kind === "chest_open") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.4);
+    glowAt(g, x, y, s * (0.6 + p), "255,215,90", (1 - p) * 0.9);
+    if (!lowQ) for (let i = 0; i < 16; i++) {
+      const ang = hash(i, e.seq) * TAU, d = s * p * (0.8 + hash(i, 4)), up = s * (1.4 * p - 1.6 * p * p);
+      g.fillStyle = `rgba(255,${200 + Math.floor(hash(i, 5) * 55)},90,${1 - p})`;
+      g.beginPath(); g.arc(x + Math.cos(ang) * d, y + Math.sin(ang) * d * 0.5 - up, Math.max(1.5, s * 0.04), 0, TAU); g.fill();
+    }
+    return true;
+  }
+  return false;
 }
 // ฉากของลูกเล่นขั้น 2 (คืน true = วาดแล้ว)
 function puff(g, x, y, z, p, seed, n, rgb, size) {
@@ -3066,6 +3143,7 @@ export function air(g, fd, info, units, now, lowQ, view) {
     if (stage2Fx(g, e, p, now, lowQ)) continue;
     if (stage3Fx(g, e, p, now, lowQ, units, out, Y0)) continue;
     if (p4Fx(g, e, p, now, lowQ, units, out, !!fd.night)) continue;
+    if (pveFx(g, e, p, lowQ)) continue;
     if (e.kind === "lightning") {
       const [x, y, s] = P(e.x + 0.5, e.y + 0.5);
       if (p < 0.12) flash = Math.max(flash, 0.4 * (1 - p / 0.12));

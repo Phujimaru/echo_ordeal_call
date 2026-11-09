@@ -157,14 +157,15 @@ const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วิน
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140;
 const RTS_LIVE_SCENE_MS = 9;
-const RTS_SHARP_PAD = 1.6; // ชั้นคมของกล้อง RTS กว้างกว่าจอกี่เท่า (เผื่อเลื่อนกล้องโดยไม่ต้องวาดใหม่)
+const RTS_SHARP_PAD = 1.35; // 1.6 → 1.35 (2026-11-10: พื้นที่อบ 2.56 → 1.8 เท่าของจอ — อบเร็วขึ้น กระตุกน้อยลง)
+const RTS_SHARP_RES = 1.5; // ความละเอียดสูงสุดของชั้นคม (dpr) · RTS_SHARP_PAD = ชั้นคมกว้างกว่าจอกี่เท่า (เผื่อเลื่อนกล้องโดยไม่ต้องวาดใหม่)
 // เฟรมตรรกะเดียวกัน (k เท่ากัน) แต่กว้าง/สูงขึ้น m เท่ารอบจุดกลางจอ — ชั้นอบที่เลื่อนตามกล้องได้
 function padView(v, m) {
   const w = Math.round(v.w * m), h = Math.round(v.h * m), ox = v.ox + (w - v.w) / 2, oy = v.oy + (h - v.h) / 2;
   return { ...v, w, h, ox, oy, x0: -ox / v.k, y0: -oy / v.k, x1: (w - ox) / v.k, y1: (h - oy) / v.k };
 } // ฉากรอบนอกวาดสดระหว่างเลื่อนกล้องได้ถ้าใช้เวลาไม่เกินนี้ (ms/เฟรม) // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
 const EOS_PIECE_K = 0.8; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับโชโกโบะ
-const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
+const RTS_BASE_Z = 0.4; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด · 0.62 → 0.4 (ผู้ใช้สั่ง 2026-11-10 "มุมกว้างแคบเกิน ซูมได้น้อย")
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -465,6 +466,7 @@ export default function BoardCanvas(props) {
       const rts = !!p.rts && !st.cv3;
       const rr = rts ? rtsZoomRange(info, base, pitch === PITCH_BIRD) : null;
       st.rts = rts; st.rtsRange = rr;
+      if (import.meta.env.DEV && rts) window.__eosCam = { cam: st.cam, rr, zl: p.zoom }; // dev: ดูระดับซูมกล้อง RTS
       const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : clampCam(info, base, cam));
       const zk = (lv) => (rts ? rtsZoomOf(rr, lv) : zoomKOf(pitch, lv));
       // จุดบนจอ (sx, sy) → กลางกล้อง: RTS = กลางจอจริง (เผื่อ HUD ล่างเล็กน้อย) · ปกติ = กลางส่วนที่มองเห็นเหนือ HUD
@@ -610,7 +612,7 @@ export default function BoardCanvas(props) {
         const covers = !!sv && sv.x0 <= view.x0 + 0.5 && sv.y0 <= view.y0 + 0.5 && sv.x1 >= view.x1 - 0.5 && sv.y1 >= view.y1 - 0.5;
         if (covers) {
           st.stillAt = 0;
-          bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: sv, res: dpr };
+          bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: sv, res: st.sharp.res || dpr };
           // นิ่งแล้วแต่ชั้นคมเหลือขอบน้อย (เลื่อนมาใกล้ขอบ) → อบใหม่ให้จออยู่กลางชั้นคม
           const mx = (sv.x1 - sv.x0 - (view.x1 - view.x0)) / 2, my = (sv.y1 - sv.y0 - (view.y1 - view.y0)) / 2;
           const off = Math.max(Math.abs((sv.x0 + sv.x1) / 2 - (view.x0 + view.x1) / 2) / Math.max(1, mx), Math.abs((sv.y0 + sv.y1) / 2 - (view.y0 + view.y1) / 2) / Math.max(1, my));
@@ -626,14 +628,24 @@ export default function BoardCanvas(props) {
           }
         } else {
           if (!st.stillAt) st.stillAt = now;
+          // อบชั้นคมแบ่ง 2 เฟรม (ฉาก → กระดาน) — เดิมอบทั้งหมดในเฟรมเดียว = กระตุกทุกครั้งที่กล้องหยุด (ผู้ใช้แจ้ง 2026-11-10 "กระตุกเป็นจังหวะ")
+          //  ความละเอียดชั้นคมไม่เกิน RTS_SHARP_RES (จอ dpr 2 = ภาพใหญ่ 4 เท่า อบนานมาก)
           if (now - st.stillAt >= RTS_SHARP_MS) {
-            const ev = padView(view, RTS_SHARP_PAD);
-            const t0 = performance.now();
-            const sc = bakeScene(info, ev, dpr, night, lowQ, st.turn);
-            st.sceneMs = (performance.now() - t0) / (RTS_SHARP_PAD * RTS_SHARP_PAD);
-            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, ev, dpr, night, st.turn, true) };
-            st.sharpBase = base2; st.sharpView = ev;
-            bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: ev, res: dpr };
+            const rres = Math.min(dpr, RTS_SHARP_RES);
+            const pend = st.sharpPend && st.sharpPend.base === base2 ? st.sharpPend : null;
+            if (!pend) {
+              const ev = padView(view, RTS_SHARP_PAD);
+              const t0 = performance.now();
+              const sc = bakeScene(info, ev, rres, night, lowQ, st.turn);
+              st.sceneMs = (performance.now() - t0) / (RTS_SHARP_PAD * RTS_SHARP_PAD);
+              st.sharpPend = { base: base2, ev, sc };
+            } else {
+              const { ev, sc } = pend;
+              st.sharpPend = null;
+              st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, ev, rres, night, st.turn, true), res: rres };
+              st.sharpBase = base2; st.sharpView = ev;
+              bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: ev, res: rres };
+            }
           }
         }
       }

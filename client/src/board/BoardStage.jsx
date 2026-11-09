@@ -13,6 +13,7 @@
 //   · ฉากตีบนกระดาน (พุ่งชน → ปะทะ → สวน → ถอย/ชน) แทน AttackFx เต็มจอ — เสียงตีเล่นที่จังหวะปะทะ (App ไม่เล่นซ้ำในโหมดกระดาน)
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
+import { eosTileInfo, EOS_NAME_DESC } from "../eos/eosTileInfo";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
@@ -234,7 +235,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
   const mapRef = useRef(map);
   useLayoutEffect(() => { mapRef.current = map; });
-  const teamMode = state.gameMode === "duo" || state.gameMode === "trio";
+  const teamMode = state.gameMode === "duo" || state.gameMode === "trio" || state.gameMode === "eos"; // eos = PVE ทุกคนทีมเดียว
   // โหมดร่วมมือ (duo/trio/Moon Cell): หมากเพื่อนร่วมทีมมีวงเขียว + ป้าย "ทีม" (ผู้ใช้สั่ง 2026-10-27)
   const coopMode = teamMode || state.gameMode === "moon";
   // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน · ร้านปกติ 1×1 · พ่อค้าเร่ 2×1 · Colony = แคปซูล 1 ช่อง): ทุกช่องของร้านขวางทาง/ยืนไม่ได้
@@ -2132,7 +2133,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [camHome, setCamHome] = useState(0);
   // สนาม Eos: เข้าแมตช์ = กล้องระยะใกล้ชิดตามหมากเรา (ซูมเข้าสุด — ผู้ใช้สั่ง 2026-11-09) · ไม่บันทึกทับค่าซูมของแผนที่อื่น
   const [eosZoomed, setEosZoomed] = useState(false);
-  if (eosRts && !eosZoomed) { setEosZoomed(true); setZoomState(ZOOM_STEPS - 1); }
+  if (eosRts && !eosZoomed) { setEosZoomed(true); setZoomState(ZOOM_STEPS - 2); } // ช่วงซูมกว้างขึ้น (2026-11-10: 24↔6 ช่อง) → ขั้นรองสุด ≈ 8.5 ช่อง เท่ากล้องเริ่มเดิม
   if (!eosRts && eosZoomed) setEosZoomed(false);
   const goHome = useCallback(() => { if (me && me.pos) look(me.pos); setCamHome((n) => n + 1); }, [me, look]);
   useEffect(() => {
@@ -2585,8 +2586,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (fl) return { icon: "🌸", name: "พุ่มดอกไม้", desc: `เหลือ ${fl.left ?? 0} เทิร์น` };
     const ic = board && Array.isArray(board.ice) ? board.ice.find((t) => samePos(t, hover)) : null;
     if (ic) return { icon: "🧊", name: "ธารน้ำแข็ง", desc: `เหลือ ${ic.left ?? 0} เทิร์น` };
+    // สนาม Eos: ของบนแผนที่ทุกชนิดมีคำอธิบายตอนชี้ (ผู้ใช้สั่ง 2026-11-10)
+    if (state.world === "eos") {
+      const ei = eosTileInfo(state.fodlan && state.fodlan.board, state.players, hover.x, hover.y, state.roundNumber);
+      if (ei) return ei;
+      const ri = Rules.tileInfo(map, hover.x, hover.y);
+      return ri && !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
+    }
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shops, spikeList, board, celFlora]);
+  }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js

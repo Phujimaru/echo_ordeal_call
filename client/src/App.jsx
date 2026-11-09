@@ -437,7 +437,7 @@ export default function App() {
     // Eos (§8.6): ไม่มี journeyScene — server ยังพักเกม (CUTSCENE ช่วงเริ่มแมตช์ · EOS_START_SECONDS) = เล่นฉากเข้าสนาม (eos/EosCine.jsx)
     if (worldRef.current === "eos") {
       if (!(prevGameStateRef.current === "CUTSCENE" && getTickSeconds() > 3)) return null;
-      // ฉากบินลงกระดานจริง: ผังกระดาน + ตำแหน่งหมากเรา (eos/eosFly.js)
+      // ฉากบินลงกระดานจริง: ผังกระดาน + ตำแหน่งหมากเรา (eos/EosCine.jsx · eosPaint.js)
       const me = state?.players?.find((p) => p.id === state.youId);
       return {
         eos: true, durationMs: journeyDurationMs(getTickSeconds(), EOS_INTRO_MS),

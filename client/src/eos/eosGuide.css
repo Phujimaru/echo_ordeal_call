@@ -1,0 +1,32 @@
+/* คู่มือสนาม Eos — EosGuide.jsx */
+.eos-guide-back {
+  position: absolute; inset: 0; z-index: 70; display: grid; place-items: center;
+  background: rgba(6, 10, 20, .55); backdrop-filter: blur(3px);
+}
+.eos-guide {
+  --eg-bg: rgba(14, 22, 38, .96); --eg-line: rgba(160, 200, 255, .25); --eg-text: #eef4ff; --eg-dim: rgba(220, 232, 255, .7); --eg-acc: #7fd4ff;
+  width: min(760px, calc(100vw - 32px)); max-height: min(620px, calc(100vh - 40px)); display: flex; flex-direction: column;
+  background: var(--eg-bg); color: var(--eg-text); border: 1px solid var(--eg-line); border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5); font-family: "Kanit", sans-serif; overflow: hidden;
+}
+.eos-guide header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 8px; }
+.eos-guide h2 { margin: 0; font: 700 26px "Chakra Petch", sans-serif; letter-spacing: .08em; color: var(--eg-acc); }
+.eos-guide-x { border: 0; background: transparent; color: var(--eg-dim); font-size: 20px; cursor: pointer; width: 36px; height: 36px; border-radius: 10px; }
+.eos-guide-x:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.eos-guide nav { display: flex; gap: 6px; padding: 0 16px 10px; border-bottom: 1px solid var(--eg-line); flex-wrap: wrap; }
+.eos-guide nav button {
+  display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--eg-line); background: transparent; color: var(--eg-dim); font: 500 14px "Kanit", sans-serif;
+}
+.eos-guide nav button[data-on="true"] { background: var(--eg-acc); color: #0c1424; border-color: var(--eg-acc); }
+.eos-guide nav button:hover:not([data-on="true"]) { color: #fff; background: rgba(255, 255, 255, .06); }
+.eos-guide ul { list-style: none; margin: 0; padding: 12px 20px 18px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.eos-guide li { display: grid; grid-template-columns: 34px 150px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .05); }
+.eos-guide li .ico { font-size: 20px; text-align: center; }
+.eos-guide li b { font-weight: 600; font-size: 15px; }
+.eos-guide li p { margin: 0; color: var(--eg-dim); font-size: 14px; line-height: 1.5; }
+.eos-guide-btn { position: absolute; left: 0; top: calc(50% - 62px - 60px - 60px); z-index: 18; width: 52px; height: 52px; display: grid; place-items: center; border: 0; cursor: pointer;
+  font: 700 24px "Chakra Petch", sans-serif;
+  color: var(--ocw-ink, #1c3f6e); background: var(--ocw-lattice), var(--ocw-paper, #f4f8fc); box-shadow: inset 0 0 0 1px var(--ocw-line, rgba(61,139,217,.3)), 0 10px 24px rgba(28,63,110,.25); }
+.eos-guide-btn:hover { background: rgba(127,184,230,.22); color: #3d8bd9; }
+.eos-guide-btn[data-away="true"] { opacity: 0; visibility: hidden; }
