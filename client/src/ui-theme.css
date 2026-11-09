@@ -287,3 +287,47 @@
 :root[data-ui="dark"] .ocm-pname { color: #e8f0fa; }
 :root[data-ui="dark"] .ocm-player.is-off .ocm-pname { color: rgba(234, 243, 252, 0.45); }
 :root[data-ui="dark"] .ocm-kick { background: #18325c; border-color: rgba(127, 184, 230, 0.4); color: #ff8a9c; }
+
+/* ---------- พื้นหลังลูกโลก (หน้าเลือกที่นั่ง/ตัวละคร/ห้องรอ — .oc-screen): อวกาศดำ + ดวงดาว (ผู้ใช้สั่ง 2026-11-09) ---------- */
+:root[data-ui="dark"] .oc-screen:not(.is-shared) {
+  background: radial-gradient(120% 90% at 50% 42%, #0e1c38 0%, #070d1d 50%, #020409 100%);
+}
+:root[data-ui="dark"] .oc-screen:not(.is-shared)::before,
+:root[data-ui="dark"] .oc-screen:not(.is-shared)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; background-repeat: repeat;
+}
+/* ดาวเล็กกระจาย 3 ชั้นขนาดแผ่นต่างกัน (ไม่ซ้ำลายชัด) */
+:root[data-ui="dark"] .oc-screen:not(.is-shared)::before {
+  background-image:
+    radial-gradient(1px 1px at 23px 41px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 131px 97px, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 77px 173px, rgba(200,225,255,.8), transparent 60%),
+    radial-gradient(1px 1px at 189px 19px, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1px 1px at 167px 151px, rgba(255,240,220,.7), transparent 60%),
+    radial-gradient(1px 1px at 211px 207px, rgba(255,255,255,.5), transparent 60%),
+    radial-gradient(1.4px 1.4px at 311px 63px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 263px 287px, rgba(190,215,255,.7), transparent 60%),
+    radial-gradient(1px 1px at 47px 263px, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1.6px 1.6px at 353px 229px, rgba(255,255,255,.85), transparent 60%);
+  background-size: 230px 230px, 230px 230px, 230px 230px, 230px 230px, 230px 230px, 230px 230px, 380px 380px, 380px 380px, 380px 380px, 380px 380px;
+}
+/* ดาวสว่างกว่า กระพริบช้าๆ */
+:root[data-ui="dark"] .oc-screen:not(.is-shared)::after {
+  background-image:
+    radial-gradient(2px 2px at 97px 61px, #fff, transparent 60%),
+    radial-gradient(1.6px 1.6px at 401px 233px, rgba(205,228,255,.95), transparent 60%),
+    radial-gradient(2px 2px at 523px 457px, rgba(255,236,210,.95), transparent 60%),
+    radial-gradient(1.6px 1.6px at 233px 389px, #fff, transparent 60%),
+    radial-gradient(2.2px 2.2px at 587px 101px, #fff, transparent 60%);
+  background-size: 640px 560px;
+  animation: ui-stars-twinkle 5.5s ease-in-out infinite alternate;
+}
+@keyframes ui-stars-twinkle { from { opacity: .35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root[data-ui="dark"] .oc-screen:not(.is-shared)::after { animation: none; } }
+/* หัวข้อที่ลอยอยู่บนพื้นอวกาศ (ไม่อยู่ในแผงขาว) = ตัวอักษรสีอ่อน */
+:root[data-ui="dark"] :is(.seat-title, .ocl-title, .cs-top) :is(.oc-h1, .oc-h2),
+:root[data-ui="dark"] .oc-screen > .oc-h2 { color: #eaf2fc !important; }
+:root[data-ui="dark"] :is(.ocl-title, .cs-top) > .oc-label { color: #a9c2e2; }
+:root[data-ui="dark"] .oc-mark { color: #8fa9cc; }
+:root[data-ui="dark"] .oc-mark b { color: #7fb8e6; }
+:root[data-ui="dark"] .oc-tick { border-color: rgba(127, 184, 230, .55); }
