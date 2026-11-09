@@ -1,11 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { readFileSync } from "node:fs";
+
+// เลขเวอร์ชันของเกม = desktop/package.json (ที่เดียวที่ตั้งเลขตอนปล่อย) — ป้ายมุมจอ "ECHO 5.9 · ORDEAL CALL" (data/patch.js)
+let ECHO_VERSION = "0.0.0";
+try { ECHO_VERSION = JSON.parse(readFileSync(new URL("../desktop/package.json", import.meta.url), "utf8")).version; } catch { /* ไม่มีโฟลเดอร์ desktop */ }
 
 // ระหว่าง dev: React รันที่ :5173 แล้ว proxy /socket.io ไปหา server ที่ :3000
 // ตอน build: ออกไฟล์ไปที่ dist/ ให้ server (Express) เสิร์ฟเอง
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: { __ECHO_VERSION__: JSON.stringify(ECHO_VERSION) },
   server: {
     proxy: {
       // ECHO_SERVER_PORT = พอร์ต server ตอนรันทดสอบหลายชุดพร้อมกัน (ไม่ตั้ง = 3000)

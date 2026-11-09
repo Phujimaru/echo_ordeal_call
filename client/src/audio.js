@@ -879,7 +879,14 @@ try {
   if (h.get("music") && Number.isFinite(t)) handoff = { name: h.get("music"), t };
   const vol = h.has("vol") ? parseFloat(h.get("vol")) : NaN;
   if (Number.isFinite(vol) && vol >= 0 && vol <= 1) setMasterVolume(vol);
-  if (h.has("mt") || h.has("vol")) history.replaceState(null, "", location.pathname + location.search);
+  // &ui=dark|light = โหมดมืดที่ตั้งไว้ในหน้าแรกของโปรแกรม (desktop/main.js enterGame) → หน้าเกมใช้ค่าเดียวกัน
+  const ui = h.get("ui");
+  if (ui === "dark" || ui === "light") {
+    // ไม่ import uiTheme.js (เทสต์รันไฟล์นี้แบบสคริปต์) — เขียนค่าเดียวกับ uiTheme.setUiTheme: localStorage + <html data-ui>
+    try { localStorage.setItem("echo_ui_theme", ui); } catch { /* ไม่มีที่เก็บ */ }
+    if (typeof document !== "undefined") document.documentElement.dataset.ui = ui;
+  }
+  if (h.has("mt") || h.has("vol") || h.has("ui")) history.replaceState(null, "", location.pathname + location.search);
 } catch { /* ไม่มี location (เทสต์) */ }
 function applyHandoff(name, a) {
   if (!handoff || handoff.name !== name) return;

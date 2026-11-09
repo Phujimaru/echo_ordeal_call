@@ -10,11 +10,11 @@ if (location.protocol === "file:") {
     onMediaProgress: (callback) => ipcRenderer.on("echo:mediaProgress", (_e, progress) => callback(progress)),
     copy: (text) => ipcRenderer.invoke("echo:copy", text),
     host: () => ipcRenderer.invoke("echo:host"),
-    // musicTime = ตำแหน่งเพลง main5 (วินาที) · volume = ระดับเสียงหน้าแรก (0–1) → หน้าเกมเริ่มที่ระดับเดียวกัน
-    enterHostedRoom: (musicTime, volume) => ipcRenderer.invoke("echo:enterHostedRoom", musicTime, volume),
+    // musicTime = ตำแหน่งเพลง main5 (วินาที) · volume = ระดับเสียงหน้าแรก (0–1) · ui = โหมดมืด/สว่าง → หน้าเกมเริ่มที่ค่าเดียวกัน
+    enterHostedRoom: (musicTime, volume, ui) => ipcRenderer.invoke("echo:enterHostedRoom", musicTime, volume, ui),
     closeHostedRoom: () => ipcRenderer.invoke("echo:closeHostedRoom"),
     join: (address) => ipcRenderer.invoke("echo:join", address),
-    enterJoinedRoom: (musicTime, volume) => ipcRenderer.invoke("echo:enterJoinedRoom", musicTime, volume),
+    enterJoinedRoom: (musicTime, volume, ui) => ipcRenderer.invoke("echo:enterJoinedRoom", musicTime, volume, ui),
     quit: () => ipcRenderer.invoke("echo:quit"),
   });
 } else if (location.protocol === "http:") {

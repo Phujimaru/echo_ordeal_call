@@ -89,7 +89,7 @@ function cleanVolume(value) {
 
 // back = กลับมาจากห้อง (F10/ห้องปิด/โหลดหน้าเกมไม่ได้) → หน้าแรกข้ามหน้า "แตะเพื่อเริ่ม" ไปเมนูเลย
 // volume = ระดับเสียงล่าสุดในหน้าเกม → หน้าแรกใช้ต่อ
-function showLauncher(message, back = true, volume = null) {
+function showLauncher(message, back = true, volume = null, ui = null) {
   inGame = false;
   gameBase = null;
   pendingJoin = null;
@@ -97,12 +97,13 @@ function showLauncher(message, back = true, volume = null) {
   if (message) query.message = message;
   if (back) query.back = "1";
   if (cleanVolume(volume) != null) query.vol = String(cleanVolume(volume));
+  if (ui === "dark" || ui === "light") query.ui = ui; // โหมดมืดล่าสุดในหน้าเกม → หน้าแรกใช้ต่อ
   win.loadFile(LAUNCHER, { query });
 }
 
 // musicTime = ตำแหน่งเพลง main5 ของหน้าแรก (วินาที) → หน้าเกมเล่นต่อจากจุดเดิม · volume = ระดับเสียงหน้าแรก
 //  (client/src/audio.js อ่าน #music=…&mt=…&vol=… ครั้งเดียวตอนเปิดหน้า)
-function enterGame(base, musicTime, volume) {
+function enterGame(base, musicTime, volume, ui) {
   inGame = true;
   gameBase = base;
   const hash = new URLSearchParams();
@@ -113,6 +114,7 @@ function enterGame(base, musicTime, volume) {
   }
   const v = cleanVolume(volume);
   if (v != null) hash.set("vol", v.toFixed(2));
+  if (ui === "dark" || ui === "light") hash.set("ui", ui); // โหมดมืดของหน้าแรก (client/src/audio.js อ่าน)
   const h = hash.toString();
   win.loadURL(h ? `${base}/#${h}` : base);
 }
@@ -125,6 +127,19 @@ async function readGameVolume() {
       new Promise((resolve) => setTimeout(() => resolve(null), 400)),
     ]);
     return cleanVolume(value);
+  } catch {
+    return null;
+  }
+}
+
+// โหมดมืดที่ผู้เล่นตั้งในหน้าเกม (client/src/uiTheme.js) — อ่านไม่ได้ = null
+async function readGameTheme() {
+  try {
+    const value = await Promise.race([
+      win.webContents.executeJavaScript('localStorage.getItem("echo_ui_theme")', false),
+      new Promise((resolve) => setTimeout(() => resolve(null), 400)),
+    ]);
+    return value === "dark" || value === "light" ? value : null;
   } catch {
     return null;
   }
@@ -147,9 +162,10 @@ async function leaveRoom({ ask = true } = {}) {
     if (response !== 0 || !inGame) return false;
   }
   const volume = await readGameVolume();
+  const ui = await readGameTheme();
   if (!inGame) return false;
   room.stop();
-  showLauncher(null, true, volume);
+  showLauncher(null, true, volume, ui);
   return true;
 }
 
@@ -269,9 +285,9 @@ ipcMain.handle("echo:host", async () => {
 
 const hostedBase = () => `http://127.0.0.1:${room.PORT}`;
 
-ipcMain.handle("echo:enterHostedRoom", (_e, musicTime, volume) => {
+ipcMain.handle("echo:enterHostedRoom", (_e, musicTime, volume, ui) => {
   if (!room.isRunning()) return { ok: false, error: "ห้องยังไม่ได้เปิด" };
-  enterGame(hostedBase(), musicTime, volume);
+  enterGame(hostedBase(), musicTime, volume, ui);
   return { ok: true };
 });
 
@@ -303,11 +319,11 @@ ipcMain.handle("echo:join", async (_e, input) => {
 });
 
 // เข้าร่วม ขั้นที่ 2: เปลี่ยนไปหน้าเกมของห้องที่ตรวจผ่านแล้ว
-ipcMain.handle("echo:enterJoinedRoom", (_e, musicTime, volume) => {
+ipcMain.handle("echo:enterJoinedRoom", (_e, musicTime, volume, ui) => {
   if (!pendingJoin) return { ok: false, error: "ยังไม่ได้เลือกห้อง" };
   const base = pendingJoin;
   pendingJoin = null;
-  enterGame(base, musicTime, volume);
+  enterGame(base, musicTime, volume, ui);
   return { ok: true };
 });
 

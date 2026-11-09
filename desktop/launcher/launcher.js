@@ -99,10 +99,33 @@ function startMusic() {
 }
 startMusic();
 
-// ---------- มุมขวาบน: แผงเสียง / เมนู (เปิดได้ทีละแผง) ----------
+// ---------- มุมขวาบน: ปุ่มเมนูเดียว → แผง เสียง / การแสดงผล / ออกจากเกม ----------
 const BARS = 5;
 let lastOn = volume > 0 ? volume : 0.8; // ระดับก่อนกดปิดเสียง
-let openPanel = null; // null | "vol" | "menu"
+let menuOpen = false;
+
+// โหมดมืด (ชื่อเดียวกับในเกม — client/src/uiTheme.js) · localStorage ของหน้านี้แยกจากหน้าเกม → main.js ส่งค่าข้ามกันตอนเข้า/ออกห้อง (?ui= / #ui=)
+const THEME_KEY = "echo_ui_theme";
+let uiTheme = "light";
+try { uiTheme = localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"; } catch { /* ไม่มี storage */ }
+{
+  const fromGame = params.get("ui");
+  if (fromGame === "dark" || fromGame === "light") {
+    uiTheme = fromGame;
+    try { localStorage.setItem(THEME_KEY, uiTheme); } catch { /* ไม่มี storage */ }
+  }
+}
+function applyTheme() {
+  document.documentElement.dataset.ui = uiTheme;
+  const btn = document.getElementById("theme-btn");
+  if (btn) { btn.classList.toggle("is-on", uiTheme === "dark"); btn.setAttribute("aria-pressed", String(uiTheme === "dark")); }
+}
+applyTheme();
+function setTheme(t) {
+  uiTheme = t === "dark" ? "dark" : "light";
+  try { localStorage.setItem(THEME_KEY, uiTheme); } catch { /* ไม่มี storage */ }
+  applyTheme();
+}
 
 function setVolume(v) {
   volume = clampVol(v);
@@ -119,7 +142,7 @@ function renderVolume() {
   const pct = Math.round(volume * 100);
   const muted = volume <= 0;
   const lit = muted ? 0 : Math.max(1, Math.ceil(volume * BARS - 0.001));
-  $("vol-btn").classList.toggle("is-muted", muted);
+  $("menu-btn").classList.toggle("is-muted", muted);
   [...$("vol-bars").children].forEach((bar, i) => bar.classList.toggle("on", i < lit));
   $("vol-num").textContent = String(pct);
   $("vol-pct").classList.toggle("is-muted", muted);
@@ -132,14 +155,11 @@ function renderVolume() {
   $("vol-mute").setAttribute("aria-pressed", String(muted));
 }
 
-function setPanel(name) {
-  openPanel = name;
-  $("vol-panel").hidden = name !== "vol";
-  $("menu-panel").hidden = name !== "menu";
-  $("vol-btn").classList.toggle("is-open", name === "vol");
-  $("menu-btn").classList.toggle("is-open", name === "menu");
-  $("vol-btn").setAttribute("aria-expanded", String(name === "vol"));
-  $("menu-btn").setAttribute("aria-expanded", String(name === "menu"));
+function setPanel(open) {
+  menuOpen = !!open;
+  $("menu-panel").hidden = !menuOpen;
+  $("menu-btn").classList.toggle("is-open", menuOpen);
+  $("menu-btn").setAttribute("aria-expanded", String(menuOpen));
 }
 
 function initCorner() {
@@ -149,19 +169,20 @@ function initCorner() {
     $("vol-track").append(tick);
   }
   renderVolume();
-  $("vol-btn").addEventListener("click", () => setPanel(openPanel === "vol" ? null : "vol"));
-  $("menu-btn").addEventListener("click", () => setPanel(openPanel === "menu" ? null : "menu"));
+  applyTheme();
+  $("menu-btn").addEventListener("click", () => setPanel(!menuOpen));
+  $("theme-btn").addEventListener("click", () => setTheme(uiTheme === "dark" ? "light" : "dark"));
   $("vol-range").addEventListener("input", (e) => setVolume(Number(e.target.value) / 100));
   $("vol-mute").addEventListener("click", () => setVolume(volume <= 0 ? (lastOn > 0 ? lastOn : 0.8) : 0));
   $("menu-quit").addEventListener("click", quit);
   // คลิกนอกแผง / Esc = ปิดแผง (Esc ไม่ส่งต่อให้ปุ่มลัดอื่น เช่น Esc ในหน้าเข้าร่วม = ย้อนกลับ)
   document.addEventListener("pointerdown", (e) => {
-    if (openPanel && !$("ocv").contains(e.target)) setPanel(null);
+    if (menuOpen && !$("ocv").contains(e.target)) setPanel(false);
   }, true);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && openPanel) {
+    if (e.key === "Escape" && menuOpen) {
       e.stopImmediatePropagation();
-      setPanel(null);
+      setPanel(false);
     }
   }, true);
 }
@@ -404,7 +425,7 @@ async function join(event) {
     return;
   }
   status.textContent = "กำลังเข้าห้อง";
-  const entered = await enterRoom((t, v) => window.echo.enterJoinedRoom(t, v));
+  const entered = await enterRoom((t, v, ui) => window.echo.enterJoinedRoom(t, v, ui));
   if (!entered) button.disabled = false;
 }
 
@@ -426,7 +447,7 @@ async function enterRoom(go) {
   setPanel(null);
   fadeMusic(0, 850);
   await wait(900);
-  const result = await go(music.currentTime, volume);
+  const result = await go(music.currentTime, volume, uiTheme);
   if (result && result.ok) return true; // main.js กำลังโหลดหน้าเกม — หน้านี้จะถูกแทนที่
 
   // เข้าไม่สำเร็จ → ถอยกลับหน้าเดิม
@@ -470,7 +491,7 @@ async function init() {
   $("go-host").addEventListener("click", startHosting);
   $("go-join").addEventListener("click", openJoin);
   $("quit").addEventListener("click", quit);
-  $("enter-room").addEventListener("click", () => enterRoom((t, v) => window.echo.enterHostedRoom(t, v)));
+  $("enter-room").addEventListener("click", () => enterRoom((t, v, ui) => window.echo.enterHostedRoom(t, v, ui)));
   $("host-close").addEventListener("click", closeHosting);
   $("join-form").addEventListener("submit", join);
   $("join-back").addEventListener("click", goHome);

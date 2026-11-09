@@ -204,3 +204,54 @@ h2 { font: 600 26px/1.15 var(--f-ui); margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .enter, .tap { animation: none; }
 }
+
+/* ---------- แผงเมนู: ไอคอนกากบาทในปุ่มปิดเสียงเท่านั้น (ปุ่มเมนูซ่อนตามสถานะ) ---------- */
+.ocv-mute-ico .ocv-ico-x { display: inline; }
+.ocv-menu .ocm-item { width: 100%; }
+.oct-moon { fill: var(--azure); }
+
+/* ============================================================
+   โหมดมืด (html[data-ui="dark"] — ค่าเดียวกับในเกม: client/src/uiTheme.js · ส่งข้ามกันผ่าน main.js ?ui= / #ui=)
+   อวกาศดำ + ดาว · แผงน้ำเงินเข้ม · ตัวอักษรอ่อน — ชุดสีเดียวกับ client/src/ui-theme.css
+   ============================================================ */
+:root[data-ui="dark"] {
+  color-scheme: dark;
+  --snow: #0d1a33; --paper: #1a3459; --frost: #22395f; --ice: #2a4772;
+  --ink: #e8f0fa; --ink-2: #a9c2e2; --ink-3: #7891b3;
+  --glass: rgba(12, 25, 49, 0.9); --line: rgba(127, 184, 230, 0.32);
+}
+:root[data-ui="dark"] body { background: radial-gradient(120% 90% at 50% 42%, #0e1c38 0%, #070d1d 50%, #02040a 100%); }
+:root[data-ui="dark"] body::before {
+  background-image:
+    radial-gradient(1px 1px at 23px 41px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 131px 97px, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 77px 173px, rgba(200,225,255,.8), transparent 60%),
+    radial-gradient(1px 1px at 189px 19px, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1px 1px at 167px 151px, rgba(255,240,220,.7), transparent 60%),
+    radial-gradient(1.4px 1.4px at 311px 63px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 263px 287px, rgba(190,215,255,.7), transparent 60%),
+    radial-gradient(1.6px 1.6px at 353px 229px, rgba(255,255,255,.85), transparent 60%);
+  background-size: 230px 230px, 230px 230px, 230px 230px, 230px 230px, 230px 230px, 380px 380px, 380px 380px, 380px 380px;
+}
+:root[data-ui="dark"] .tick { border-color: rgba(127, 184, 230, 0.55); }
+:root[data-ui="dark"] .mark { color: #8fa9cc; }
+:root[data-ui="dark"] .echo-logo { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; } /* พื้นขาวของไฟล์ → ดำ (หายบนอวกาศ) · ตัวอักษรกรมท่า → อ่อน */
+:root[data-ui="dark"] :is(.btn:not(.primary):not(.ghost), .ip, .input, .notice, .copy) { background: #13284a; color: var(--ink); }
+:root[data-ui="dark"] .btn:not(.primary):not(.ghost):hover { background: #1d3a63; }
+:root[data-ui="dark"] .whiteout { background: #02040a; }
+/* แถบมุมขวาบน + แผงเมนู */
+:root[data-ui="dark"] .ocv-btn { background: rgba(16, 34, 66, 0.9); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-btn:hover { background: #18325c; }
+:root[data-ui="dark"] .ocv-ico-body { fill: #e8f0fa; }
+:root[data-ui="dark"] .ocm-ico-line { stroke: #e8f0fa; }
+:root[data-ui="dark"] .ocm-sep { background: rgba(127, 184, 230, 0.35); }
+:root[data-ui="dark"] .ocv-bars i:not(.on), :root[data-ui="dark"] .ocv-track { background: rgba(255, 255, 255, 0.16); }
+:root[data-ui="dark"] .ocv-panel { background: rgba(14, 30, 58, 0.95); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-sec { border-top-color: rgba(255, 255, 255, 0.12); }
+:root[data-ui="dark"] .ocv-sec-h { color: #a9c2e2; }
+:root[data-ui="dark"] .ocv-pct { color: #e8f0fa; }
+:root[data-ui="dark"] :is(.ocv-mute-ico, .ocv-row-btn, .ocm-item) { background: #18325c; border-color: rgba(127, 184, 230, 0.4); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-mute-ico.is-on { background: var(--echo); }
+:root[data-ui="dark"] .ocm-item.is-danger { color: #ff8a9c; }
+:root[data-ui="dark"] .ocv-switch { background: rgba(255, 255, 255, 0.16); }
+:root[data-ui="dark"] .oct-moon { fill: #ffd76a; }
