@@ -9,7 +9,7 @@ const Shop = require('../server/shop.js');
 const realRandom = Math.random;
 test.beforeEach(() => {
   for (const k of Object.keys(engine.players)) delete engine.players[k];
-  match.shops = []; match.shopCycleRound = null;
+  match.shops = []; match.shopCycleRound = null; match.merchantCycle = null;
   engine.setGameState('PLAYING');
   engine.setRoundNumber(1);
 });
@@ -76,6 +76,25 @@ test('พ่อค้าเร่: สุ่มโผล่ 25% · 2×1 · ข�
   engine.setRoundNumber(4);
   Shop.tickMerchant();
   assert.equal(Shop.shopById('cara'), null, 'ครบ 2 เทิร์น = จากไป');
+});
+
+test('พ่อค้าเร่: มาได้ครั้งเดียวต่อรอบภูมิภาค (6 เทิร์น) · ภูมิภาคใหม่มาได้อีก', () => {
+  Math.random = () => 0.99;
+  engine.setRoundNumber(1);
+  engine.maybeMoveShop();
+  Math.random = () => 0.1;
+  engine.setRoundNumber(2);
+  Shop.tickMerchant();
+  assert.ok(Shop.shopById('cara'));
+  engine.setRoundNumber(4);
+  Shop.tickMerchant(); // จากไป · สุ่มผ่านแต่รอบนี้มาแล้ว
+  assert.equal(Shop.shopById('cara'), null);
+  engine.setRoundNumber(5);
+  Shop.tickMerchant();
+  assert.equal(Shop.shopById('cara'), null, 'ไม่กลับมาในภูมิภาคเดิม');
+  engine.setRoundNumber(7);
+  engine.maybeMoveShop(); // ครบ 6 เทิร์น = รอบร้านใหม่
+  assert.ok(Shop.shopById('cara'), 'ภูมิภาคใหม่มาได้อีก');
 });
 
 test('ซื้อ: ต้องยืนติดร้านนั้น (ขอบไหนก็ได้) · ซื้อของร้านอื่นจากร้านนี้ไม่ได้', () => {

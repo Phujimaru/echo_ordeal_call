@@ -241,9 +241,14 @@ function tickMerchant() {
   const now = Zero.worldRound();
   const cur = shopById("cara");
   if (cur && now >= cur.leaves) { match.shops = shopsList().filter((s) => s !== cur); match.lastLog.push("🐎 พ่อค้าเร่จากไปแล้ว"); }
-  if (shopById("cara") || Math.random() * 100 >= MERCHANT_PCT) return;
+  // ครั้งเดียวต่อรอบภูมิภาค (6 เทิร์น — ผู้ใช้สั่ง 2026-11-09 เดิมโผล่ได้ซ้ำทุกครั้งที่จากไป): จำรอบร้านที่เคยมาแล้วไว้
+  const cycle = match.shopCycleRound == null ? 0 : match.shopCycleRound;
+  if (shopById("cara") || match.merchantCycle === cycle || Math.random() * 100 >= MERCHANT_PCT) return;
   const spot = pickSpots(1, shopsList(), [], SHOP_DIMS.cara)[0];
-  if (spot) openShopAt("cara", spot.x, spot.y, { leaves: now + MERCHANT_TURNS });
+  if (spot) {
+    openShopAt("cara", spot.x, spot.y, { leaves: now + MERCHANT_TURNS });
+    match.merchantCycle = cycle;
+  }
 }
 // ต้นเทิร์น (dealRound): ครบกำหนด = ร้านยา/โรงช่างปรากฏจุดใหม่ + ของใหม่ · พ่อค้าเร่สุ่มโผล่/จากไป · คิดผลของภูมิภาคใหม่
 function maybeMoveShop() {
@@ -279,7 +284,7 @@ function placeCapsule(kind, x, y, final) {
 }
 // เก็บแคปซูล (kind = ชนิดเดียว · ไม่ระบุ = ทุกแคปซูล)
 function clearCapsule(kind) { match.shops = shopsList().filter((s) => !((s.capsule || s.kind === "capsule") && (!kind || s.kind === kind))); }
-function clearShops() { match.shops = []; match.shopCycleRound = null; }
+function clearShops() { match.shops = []; match.shopCycleRound = null; match.merchantCycle = null; }
 // สถานะที่ส่งให้ client (view.js)
 function publicShops() {
   return shopsList().map((s) => {

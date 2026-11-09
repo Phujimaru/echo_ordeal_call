@@ -58,6 +58,7 @@ const match = {
   timeFreeze: null,    // ระหว่างหยุดเวลา { by, held: { [id]: ค่าตอนเริ่มหยุด }, doomed: [id] }
   tsSnap: null,        // จุดย้อนของตาเดินนี้ (มีคนตั้งรับด้วยการหยุดเวลา) { side, data }       // คำขอขี่ที่รอตอบ { from, to, seq } — server/ride.js (ยูนะ)
   shops: [],          // ร้านค้าบนแผนที่ (server/shop.js): [{ id, kind, x, y, size, items, openedRound, leaves }]
+  merchantCycle: null, // รอบร้าน (shopCycleRound) ที่พ่อค้าเร่มาแล้ว — มาได้ครั้งเดียวต่อรอบภูมิภาค (server/shop.js tickMerchant)
   shopCycleRound: null, // เทิร์นที่ร้านยา/โรงช่างปรากฏรอบล่าสุด — ครบ SHOP_INTERVAL_TURNS แล้วปรากฏจุดใหม่
   roundNumber: 0,
   centralDeck: [], // กองกลาง 43 ใบ (สับใหม่ทุกรอบใน dealRound())
