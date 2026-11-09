@@ -289,7 +289,7 @@
 .ocl-jr-dice circle { fill: var(--oc-echo); stroke: none; }
 .ocl-jr-split span:first-of-type { color: var(--oc-echo); }
 .ocl-jr-every { margin-left: auto; font-variant-numeric: tabular-nums; }
-.ocl-jr-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ocl-jr-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; }
 .ocl-jr-tile {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 10px; border-radius: 14px; overflow: hidden;
   background: linear-gradient(170deg, color-mix(in srgb, var(--c) 20%, transparent), color-mix(in srgb, var(--c) 4%, transparent) 70%);
@@ -379,3 +379,48 @@
   .ocl-emotes button { width: 36px; height: 36px; font-size: 19px; }
   .ocl-dock { padding: 6px 8px; gap: 4px; }
 }
+
+/* Moon Cell: การ์ดบอส (รูปในวงเรืองแสง + หลอดเลือด/เกราะเทียบ 25) */
+.ocl-boss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ocl-boss {
+  --c: #b0509f;
+  display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 999px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 4%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent);
+}
+.ocl-boss.core { --c: #d9a531; }
+.ocl-boss-face { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #0d1a33; box-shadow: 0 0 0 2px var(--c), 0 0 12px color-mix(in srgb, var(--c) 60%, transparent); }
+.ocl-boss-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; }
+.ocl-boss-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ocl-boss-info b { font: 600 14px/1.2 var(--oc-f-ui); color: var(--oc-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ocl-boss-info b.oc-latin { font: 400 13px/1.2 var(--oc-f-logo); letter-spacing: 0.12em; }
+.ocl-boss-stats { display: flex; flex-direction: column; gap: 4px; }
+.ocl-boss-stats > span { display: flex; align-items: center; gap: 6px; font: 600 11px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }
+.ocl-boss-stats i { font-style: normal; width: 12px; text-align: center; }
+.ocl-boss-stats .hp i { color: #d2455b; }
+.ocl-boss-stats .ar i { color: #3d8bd9; }
+.ocl-boss-stats em { flex: none; height: 4px; border-radius: 999px; max-width: 120px; }
+.ocl-boss-stats .hp em { background: linear-gradient(90deg, #f07a8c, #d2455b); }
+.ocl-boss-stats .ar em { background: linear-gradient(90deg, #8cc4f0, #3d8bd9); }
+
+/* Colony: ปล้องเรียงลงตามเวลา · ระหว่างปล้อง = กุญแจ + เทิร์นที่ปิดผนึก · ท้ายสุด = ระเบิด + เทิร์นที่ระเบิด */
+.ocl-colony { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ocl-cl-step { --c: color-mix(in srgb, #3d8bd9 calc(100% - var(--i) * 22%), #d2455b); display: flex; flex-direction: column; }
+.ocl-cl-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 7px; border-radius: 999px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 4%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
+}
+.ocl-cl-badge { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font: 400 10.5px/1 var(--oc-f-logo); background: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent); }
+.ocl-cl-row b { flex: 1; font: 600 14px/1.2 var(--oc-f-ui); color: var(--oc-ink); }
+.ocl-cl-turns { font: 600 11.5px/1 var(--oc-f-ui); padding: 5px 9px; border-radius: 999px; color: var(--oc-ink); background: color-mix(in srgb, var(--c) 22%, transparent); font-variant-numeric: tabular-nums; }
+.ocl-cl-link { display: flex; align-items: center; gap: 6px; margin-left: 20px; padding: 5px 0 5px 14px; border-left: 2px dashed color-mix(in srgb, var(--c) 55%, transparent); font: 700 11px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }
+.ocl-cl-link .ico { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; }
+.ocl-cl-link svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.ocl-cl-link.seal { color: #6f87a8; }
+.ocl-cl-link.seal .ico { background: color-mix(in srgb, #6f87a8 20%, transparent); }
+.ocl-cl-link.boom { color: #d2455b; border-left-color: transparent; }
+.ocl-cl-link.boom .ico { background: #d2455b; box-shadow: 0 0 10px rgba(210, 69, 91, 0.6); animation: ocl-cl-boom 1.6s ease-in-out infinite; }
+.ocl-cl-link.boom svg { fill: #fff; stroke: none; }
+@keyframes ocl-cl-boom { 50% { transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .ocl-cl-link.boom .ico { animation: none; } }

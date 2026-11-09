@@ -51,15 +51,48 @@ const MOON_BOSSES = [
   { id: "f", name: "คิชินามิ ฮาคุโนะ", img: "/mooncell/hakuno_f.webp", hp: 15, armor: 5 },
   { id: "cell", name: "Moon Cell", img: "/mooncell/moon_cell.webp", hp: 25, armor: 5, latin: true },
 ];
-// ปล้องของโคโลนี (GRID_PLAN §8.3 · แบบ B): ปิดผนึกตอนจบเทิร์น 5 / 9 / 13 · ระเบิดจบเทิร์น 23
+// ปล้องของโคโลนี (GRID_PLAN §8.3 · แบบ B): ปิดผนึกตอนจบเทิร์น 5 / 9 / 13 · ระเบิดจบเทิร์น 18 (server/colony.js SEALS / BOOM)
+const COLONY_SEALS = [5, 9, 13];
+const COLONY_BOOM = 18;
 const COLONY_SECTIONS = [
   { n: "I", name: "ย่านบ้านพัก", tt: "เทิร์น 1–5" },
   { n: "II", name: "ป่า", tt: "เทิร์น 6–9" },
   { n: "III", name: "ใจกลางเมือง", tt: "เทิร์น 10–13" },
-  { n: "IV", name: "สวนชมวิว", tt: "เทิร์น 14–23" },
+  { n: "IV", name: "สวนชมวิว", tt: "เทิร์น 14–18" },
 ];
 
 const modeTitle = (m) => MODE_TITLES[m] || m;
+
+const DICE = <svg className="ocl-jr-dice" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4" /><circle cx="9" cy="9" r="1.4" /><circle cx="15" cy="15" r="1.4" /><circle cx="15" cy="9" r="1.4" /><circle cx="9" cy="15" r="1.4" /><circle cx="12" cy="12" r="1.4" /></svg>;
+const LOCK = <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>;
+const BOOM_ICO = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2 5 4.5-2.5-1.5 5 4.5 2-4.5 2 1.5 5-4.5-2.5-2 5-2-5-4.5 2.5 1.5-5-4.5-2 4.5-2-1.5-5 4.5 2.5z" /></svg>;
+
+// เส้นทางแบบ "จุดเริ่มต้นเสมอ → สุ่มจากที่เหลือทุก T เทิร์น" (Origin / Fodlan) — การ์ดจุดเริ่ม + แถบสุ่ม + ตารางสีประจำพื้นที่
+function JourneyPool({ list, name = (a) => a.short || a.name, cols = 3 }) {
+  const [first, ...rest] = list;
+  return (
+    <div className="ocl-journey">
+      <div className="ocl-jr-start" style={{ "--c": first.color }}>
+        <span className="ocl-jr-badge oc-latin">{first.numeral}</span>
+        <b>{name(first)}</b>
+        <span className="ocl-jr-turns">{turnRange(0)}</span>
+      </div>
+      <div className="ocl-jr-split" aria-hidden="true">
+        {DICE}
+        <span>สุ่ม</span>
+        <span className="ocl-jr-every">ทุก {T} เทิร์น</span>
+      </div>
+      <ul className="ocl-jr-grid" style={{ "--cols": cols }}>
+        {rest.map((a) => (
+          <li key={a.id} className="ocl-jr-tile" style={{ "--c": a.color, "--g": a.glow }}>
+            <span className="ocl-jr-badge oc-latin">{a.numeral}</span>
+            <span className="ocl-jr-name">{name(a)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 const turnRange = (i) => (i === 0 ? `เทิร์น 1–${T}` : "สุ่ม");
 const worldOf = (o) => o.world || "earth";
 
@@ -542,63 +575,48 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
             {world === "fodlan" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ด่าน</div>
-                <ol className="ocl-route">
-                  {FODLAN_STAGES.map((st, i) => (
-                    <li key={st.id} className={i === 0 ? "first" : ""}>
-                      <span className="n oc-latin">{st.numeral}</span>
-                      <span>{st.name}</span>
-                      <span className="tt">{turnRange(i)}</span>
-                    </li>
-                  ))}
-                </ol>
+                <JourneyPool list={FODLAN_STAGES} name={(st) => st.name} cols={2} />
               </section>
             ) : world === "origin" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">เส้นทาง</div>
                 {/* ภูมิภาค I เสมอ → จากนั้นสุ่มจาก II–VII ทุก T เทิร์น (ผู้ใช้สั่งเปลี่ยนจากรายการ 2026-11-09) */}
-                <div className="ocl-journey">
-                  <div className="ocl-jr-start" style={{ "--c": JOURNEY_AREAS[0].color }}>
-                    <span className="ocl-jr-badge oc-latin">{JOURNEY_AREAS[0].numeral}</span>
-                    <b>{JOURNEY_AREAS[0].short}</b>
-                    <span className="ocl-jr-turns">{turnRange(0)}</span>
-                  </div>
-                  <div className="ocl-jr-split" aria-hidden="true">
-                    <svg className="ocl-jr-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4" /><circle cx="9" cy="9" r="1.4" /><circle cx="15" cy="15" r="1.4" /><circle cx="15" cy="9" r="1.4" /><circle cx="9" cy="15" r="1.4" /><circle cx="12" cy="12" r="1.4" /></svg>
-                    <span>สุ่ม</span>
-                    <span className="ocl-jr-every">ทุก {T} เทิร์น</span>
-                  </div>
-                  <ul className="ocl-jr-grid">
-                    {JOURNEY_AREAS.slice(1).map((a) => (
-                      <li key={a.id} className="ocl-jr-tile" style={{ "--c": a.color, "--g": a.glow }}>
-                        <span className="ocl-jr-badge oc-latin">{a.numeral}</span>
-                        <span className="ocl-jr-name">{a.short}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <JourneyPool list={JOURNEY_AREAS} />
               </section>
             ) : world === "moon" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">บอส</div>
-                <ol className="ocl-route ocl-bosses">
+                <ul className="ocl-boss-list">
                   {MOON_BOSSES.map((b) => (
-                    <li key={b.id}>
-                      <img className="n" src={b.img} alt="" draggable="false" />
-                      <span className={b.latin ? "oc-latin" : ""}>{b.name}</span>
-                      <span className="tt">♥ {b.hp} · ⛨ {b.armor}</span>
+                    <li key={b.id} className={`ocl-boss${b.id === "cell" ? " core" : ""}`}>
+                      <span className="ocl-boss-face"><img src={b.img} alt="" draggable="false" /></span>
+                      <span className="ocl-boss-info">
+                        <b className={b.latin ? "oc-latin" : ""}>{b.name}</b>
+                        <span className="ocl-boss-stats">
+                          <span className="hp"><i>♥</i>{b.hp}<em style={{ width: `${(b.hp / 25) * 100}%` }} /></span>
+                          <span className="ar"><i>⛨</i>{b.armor}<em style={{ width: `${(b.armor / 25) * 100}%` }} /></span>
+                        </span>
+                      </span>
                     </li>
                   ))}
-                </ol>
+                </ul>
               </section>
             ) : (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ปล้อง</div>
-                <ol className="ocl-route">
+                <ol className="ocl-colony">
                   {COLONY_SECTIONS.map((c, i) => (
-                    <li key={c.n} className={i === 0 ? "first" : ""}>
-                      <span className="n oc-latin">{c.n}</span>
-                      <span>{c.name}</span>
-                      <span className="tt">{c.tt}</span>
+                    <li key={c.n} className="ocl-cl-step" style={{ "--i": i }}>
+                      <div className="ocl-cl-row">
+                        <span className="ocl-cl-badge oc-latin">{c.n}</span>
+                        <b>{c.name}</b>
+                        <span className="ocl-cl-turns">{c.tt}</span>
+                      </div>
+                      {i < COLONY_SEALS.length ? (
+                        <div className="ocl-cl-link seal"><span className="ico">{LOCK}</span><span>{COLONY_SEALS[i]}</span></div>
+                      ) : (
+                        <div className="ocl-cl-link boom"><span className="ico">{BOOM_ICO}</span><span>{COLONY_BOOM}</span></div>
+                      )}
                     </li>
                   ))}
                 </ol>
