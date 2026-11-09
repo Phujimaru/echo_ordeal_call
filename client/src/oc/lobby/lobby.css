@@ -267,6 +267,39 @@
 .ocl-route .n { font: 400 11px/1 var(--oc-f-logo); color: var(--oc-azure); letter-spacing: 0.06em; }
 .ocl-route .tt { font: 500 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); font-variant-numeric: tabular-nums; }
 .ocl-route li.first { color: var(--oc-echo); font-weight: 500; }
+/* เส้นทาง Origin: ภูมิภาค I (การ์ดใหญ่) → แถบสุ่ม → ตาราง II–VII (สีประจำภูมิภาค) */
+.ocl-journey { display: flex; flex-direction: column; gap: 10px; }
+.ocl-jr-badge {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  font: 400 11px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 75%);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.ocl-jr-start {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border-radius: 999px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent);
+}
+.ocl-jr-start .ocl-jr-badge { width: 36px; height: 36px; font-size: 13px; }
+.ocl-jr-start b { flex: 1; font: 600 16px/1.2 var(--oc-f-ui); color: var(--oc-ink); }
+.ocl-jr-turns { font: 600 12px/1 var(--oc-f-ui); padding: 6px 10px; border-radius: 999px; color: var(--oc-ink); background: color-mix(in srgb, var(--c) 30%, transparent); font-variant-numeric: tabular-nums; }
+.ocl-jr-split { display: flex; align-items: center; gap: 8px; padding-left: 16px; font: 600 12px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
+.ocl-jr-split::before { content: ""; width: 2px; height: 18px; margin-right: 6px; background: linear-gradient(var(--oc-echo), transparent); border-radius: 2px; }
+.ocl-jr-dice { width: 18px; height: 18px; fill: none; stroke: var(--oc-echo); stroke-width: 1.8; }
+.ocl-jr-dice circle { fill: var(--oc-echo); stroke: none; }
+.ocl-jr-split span:first-of-type { color: var(--oc-echo); }
+.ocl-jr-every { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ocl-jr-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ocl-jr-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 10px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(170deg, color-mix(in srgb, var(--c) 20%, transparent), color-mix(in srgb, var(--c) 4%, transparent) 70%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.ocl-jr-tile::after { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 70%; background: radial-gradient(closest-side, color-mix(in srgb, var(--g) 45%, transparent), transparent); pointer-events: none; }
+.ocl-jr-tile:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1.5px var(--c), 0 6px 14px -8px var(--c); }
+.ocl-jr-name { font: 600 12.5px/1.2 var(--oc-f-ui); color: var(--oc-ink); text-align: center; white-space: nowrap; }
 .ocl-tally { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ocl-tally li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font: 500 13px/1.2 var(--oc-f-ui); }
 .ocl-tally i { width: 9px; height: 9px; border-radius: 50%; }

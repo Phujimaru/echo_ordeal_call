@@ -555,15 +555,27 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
             ) : world === "origin" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">เส้นทาง</div>
-                <ol className="ocl-route">
-                  {JOURNEY_AREAS.map((a, i) => (
-                    <li key={a.id} className={i === 0 ? "first" : ""}>
-                      <span className="n oc-latin">{a.numeral}</span>
-                      <span>{a.short}</span>
-                      <span className="tt">{turnRange(i)}</span>
-                    </li>
-                  ))}
-                </ol>
+                {/* ภูมิภาค I เสมอ → จากนั้นสุ่มจาก II–VII ทุก T เทิร์น (ผู้ใช้สั่งเปลี่ยนจากรายการ 2026-11-09) */}
+                <div className="ocl-journey">
+                  <div className="ocl-jr-start" style={{ "--c": JOURNEY_AREAS[0].color }}>
+                    <span className="ocl-jr-badge oc-latin">{JOURNEY_AREAS[0].numeral}</span>
+                    <b>{JOURNEY_AREAS[0].short}</b>
+                    <span className="ocl-jr-turns">{turnRange(0)}</span>
+                  </div>
+                  <div className="ocl-jr-split" aria-hidden="true">
+                    <svg className="ocl-jr-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4" /><circle cx="9" cy="9" r="1.4" /><circle cx="15" cy="15" r="1.4" /><circle cx="15" cy="9" r="1.4" /><circle cx="9" cy="15" r="1.4" /><circle cx="12" cy="12" r="1.4" /></svg>
+                    <span>สุ่ม</span>
+                    <span className="ocl-jr-every">ทุก {T} เทิร์น</span>
+                  </div>
+                  <ul className="ocl-jr-grid">
+                    {JOURNEY_AREAS.slice(1).map((a) => (
+                      <li key={a.id} className="ocl-jr-tile" style={{ "--c": a.color, "--g": a.glow }}>
+                        <span className="ocl-jr-badge oc-latin">{a.numeral}</span>
+                        <span className="ocl-jr-name">{a.short}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </section>
             ) : world === "moon" ? (
               <section className="ocl-sec">
