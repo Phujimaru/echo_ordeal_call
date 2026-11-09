@@ -88,7 +88,7 @@ test('ผัง 32×32: จุดเกิด/ร้าน/โชโกโบะ
 
 test('หมุด Eos บนลูกโลก: โหมด eos (PVE) อย่างเดียว · ทุกคนทีมเดียว · เริ่มแมตช์ = แผนที่ Eos ด่าน 6 ไม่มีฉากเดินทาง · ไม่เปลี่ยนด่าน', () => {
   const opts = lobby.modeOptionsFor(4, 'eos').map((o) => o.mode);
-  assert.deepEqual(opts, ['ffa']);
+  assert.deepEqual(opts, ['eos']);
   assert.ok(!lobby.modeOptionsFor(4, 'earth').some((o) => o.mode === 'eos'));
   assert.equal(lobby.normWorld('eos'), 'eos');
   setup();
@@ -241,7 +241,7 @@ test('ปีศาจ = ยูนิตจริง: กลางคืนเก
   s.nightNo = 1;
   S6.spawnDaemons(ctx(), s);
   const list = S6.mobsOf(ctx(), 'daemon');
-  assert.equal(list.length, S6.daemonCount(1));
+  assert.equal(list.length, S6.nightTarget(ctx(), s), 'จำนวนตามคืน × ความยาก × จำนวนผู้เล่น');
   for (const d of list) {
     assert.ok(!S6.inTown(d.pos.x, d.pos.y));
     for (const p of [P(0), P(1), P(2)]) assert.ok(Math.abs(p.pos.x - d.pos.x) + Math.abs(p.pos.y - d.pos.y) >= 3);
@@ -831,4 +831,164 @@ test('หีบสมบัติ: โผล่ตามที่รกร้า
   Fodlan.strikeObject(p, c.id);
   assert.ok(!s.chests.includes(c));
   assert.ok((p.gold || 0) > g0);
+});
+
+// ---------- PVE รอบสอง (GRID_PLAN §8.6 "PVE รอบสอง") ----------
+const EV = require('../server/fodlan/eosEvents.js');
+test('ความยาก: โหวตในหน้าเลือก (เสียงมากสุด · เท่ากัน = ปกติ) · ยากเลือดมากขึ้น · ปีศาจเพิ่มตามจำนวนผู้เล่น', () => {
+  setup();
+  const base = S6.daemonStats(1);
+  match.eosDiff = 'easy'; const e = EV.scaleStats(ctx(), base);
+  match.eosDiff = 'hard'; const h = EV.scaleStats(ctx(), base);
+  match.eosDiff = 'normal';
+  assert.ok(e.hp < base.hp && h.hp > base.hp && h.atk > e.atk);
+  const n3 = EV.scaleCount(ctx(), 10);
+  setup(1);
+  assert.ok(EV.scaleCount(ctx(), 10) < n3, 'คนน้อย = มอนน้อย');
+  for (const id of Object.keys(engine.players)) delete engine.players[id];
+  for (let i = 0; i < 3; i++) engine.players['v' + i] = { id: 'v' + i, name: 'V' + i, position: i + 1, characterId: 'dummy', alive: true, connected: true, cards: [], statuses: {}, statusAmt: {}, seen: {}, inventory: [] };
+  match.gameState = 'TEAM_MODE';
+  lobby.voteGameMode('v0', 'eos', 'eos', 'hard');
+  lobby.voteGameMode('v1', 'eos', 'eos', 'hard');
+  lobby.voteGameMode('v2', 'eos', 'eos', 'easy');
+  assert.equal(match.gameMode, 'eos');
+  assert.equal(match.eosDiff, 'hard');
+  engine.clearPhaseTimer();
+});
+
+test('ราชาปีศาจ: แต้มรวมถึง 25 = เตือน → ลงมา · ตีเสาทีเดียวหลุด · ล้มได้ = แต้ม +5 ทุกคนได้ของ · เกราะเสารับแทน', () => {
+  setup();
+  const s = st(), pl = s.pillars[0];
+  pl.owner = S6.PVE;
+  s.score = 24; s.pillars[1].owner = S6.PVE;
+  S6.scoreRound(ctx(), s);
+  const e = EV.ev(s);
+  assert.ok(e.bossFirst && e.bossWarn, 'เตือนบอส');
+  assert.ok(Fodlan.publicInfo().board.bossWarn);
+  EV.landBoss(ctx(), s, S6.H(), e.bossWarn.at);
+  const b = EV.bossAlive(ctx(), S6.H());
+  assert.ok(b && b.summon.trait === 'boss');
+  pl.ward = 1;
+  P(0).pos = { x: 30, y: 30 }; P(1).pos = { x: 30, y: 29 }; P(2).pos = { x: 30, y: 28 };
+  b.pos = nextToTile(pl);
+  b.summon.born = 0; b.summon.roarAt = 99;
+  S6.actMonsters(ctx(), s);
+  assert.equal(pl.ward, 0, 'โล่หายก่อน');
+  assert.equal(pl.hits, 1);
+  S6.actMonsters(ctx(), s);
+  assert.equal(pl.owner, null, 'บอสตี = หลุด');
+  const score0 = s.score, inv0 = (P(0).inventory || []).length;
+  match.effectSourceId = P(1).id; combat.dealMixed(b, 999); combat.resolveDamageAftermath(b); match.effectSourceId = null;
+  assert.equal(s.score, score0 + EV.BOSS.score);
+  assert.equal((P(0).inventory || []).length, inv0 + 1, 'ทุกคนได้ของ');
+});
+
+test('มอนพิเศษ: ปีศาจระเบิด (ติดตัว = ระเบิด 3×3) · ปีศาจหมอฟื้นเลือดพวก · ทหารเหล็กยิงไกล', () => {
+  setup();
+  const s = st(), p = P(0);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 1, y: 30 };
+  p.pos = { x: 13, y: 13 };
+  const bomb = S6.spawnMob(ctx(), s, 'daemon', { x: 14, y: 13 }, { hp: 3, armor: 0, atk: 3, mov: 4, gold: 1 }, { trait: 'bomber' }); bomb.summon.born = 0;
+  const hp = total(p);
+  S6.actMonsters(ctx(), s);
+  assert.equal(bomb.alive, false, 'ระเบิดตัวเองหาย');
+  assert.equal(total(p), hp - S6.TRAIT.bombDmg);
+  const hurtD = mob('daemon', 20, 14, { hp: 9 }); hurtD.hp = 3;
+  const heal = S6.spawnMob(ctx(), s, 'daemon', { x: 21, y: 14 }, { hp: 5, armor: 0, atk: 0, mov: 3, gold: 1 }, { trait: 'healer' }); heal.summon.born = 0;
+  S6.actMonsters(ctx(), s);
+  assert.ok(hurtD.hp > 3, 'หมอฟื้นเลือด');
+  const sn = S6.spawnMob(ctx(), s, 'magitek', { x: 13, y: 16 }, { hp: 4, armor: 0, atk: 2, mov: 3, gold: 1 }, { trait: 'sniper' }); sn.summon.born = 0;
+  const hp2 = total(p);
+  S6.actMonsters(ctx(), s);
+  assert.ok(sameTile(sn.pos, { x: 13, y: 16 }), 'ยิงจากที่เดิม');
+  assert.ok(total(p) < hp2, 'โดนยิงระยะ 3');
+});
+
+test('คืนพระจันทร์สีเลือด: ปีศาจ ×1.5 · ของรางวัล ×2', () => {
+  setup();
+  const s = st();
+  s.nightNo = 2;
+  const normal = S6.nightTarget(ctx(), s);
+  Math.random = () => 0.01;
+  EV.onNight(ctx(), s, S6.H(), true);
+  Math.random = realRandom;
+  assert.ok(EV.ev(s).blood);
+  assert.ok(S6.nightTarget(ctx(), s) > normal);
+  assert.equal(EV.bloodMul(s), 2);
+  EV.onDay(s);
+  assert.equal(EV.bloodMul(s), 1);
+});
+
+test('ภารกิจโซน: กวาดล้างครบ/สำรวจจุดสัญญาณ = แต้มรวม +3 · หมดเวลาหาย', () => {
+  setup();
+  const s = st(), e = EV.ev(s);
+  EV.spawnQuest(ctx(), s, S6.H(), 5);
+  const q = e.quests[0];
+  assert.ok(q);
+  const score0 = s.score || 0;
+  if (q.type === 'hunt') {
+    for (let i = 0; i < q.need; i++) EV.questKill(ctx(), s, S6.H(), { x: q.rect[0], y: q.rect[1] }, P(0));
+  } else {
+    P(0).pos = { x: q.x, y: q.y }; actor(P(0));
+    assert.ok(btn(P(0), 'fd:scout'));
+    assert.ok(Fodlan.charAction(P(0).id, 'fd:scout'));
+  }
+  assert.equal(s.score, score0 + EV.QUEST.score);
+  assert.ok(!e.quests.includes(q));
+  e.questNext = 0;
+  EV.spawnQuest(ctx(), s, S6.H(), 6);
+  assert.ok(e.quests.length >= 1);
+  EV.tickQuests(ctx(), s, S6.H(), 999);
+  assert.ok(e.quests.every((o) => o.until >= 999));
+});
+
+test('ช่วยเพื่อนฟื้นเร็ว: ดวงวิญญาณที่ช่องที่ล้ม · กดช่วย = เร็วขึ้น 1 เทิร์น ฟื้นข้างดวงวิญญาณ', () => {
+  setup();
+  match.cycleShift = 2;
+  const p = P(0), q = P(1), s = st();
+  match.roundNumber = 4;
+  p.pos = { x: 14, y: 13 };
+  combat.instantDeath(p, true);
+  Fodlan.onUnitEnd(q);
+  assert.ok(EV.ev(s).deathAt[p.id]);
+  q.pos = { x: 13, y: 13 };
+  actor(q);
+  const b = btn(q, 'fd:help');
+  assert.ok(b && !b.disabled);
+  assert.ok(Fodlan.charAction(q.id, 'fd:help'));
+  assert.equal(s.dead[p.id], 3);
+  match.roundNumber = 5; match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
+  assert.equal(p.alive, true, 'ฟื้นเร็วขึ้น 1 เทิร์น');
+  assert.ok(Math.abs(p.pos.x - 14) + Math.abs(p.pos.y - 13) <= 3, 'ฟื้นข้างดวงวิญญาณ');
+  match.cycleShift = 0;
+});
+
+test('เกราะเสา: ขายในร้าน Eos · ใช้ติดเสาที่ยึดไว้ = โล่ +1 (สูงสุด 2) · ไม่มีเสา = ไม่เสียของ', () => {
+  setup();
+  shop.refreshShopForJourney();
+  assert.ok((match.shops || []).some((sh) => (sh.items || []).some((it) => it.type === 'pillarWard')));
+  const s = st(), p = P(0), pl = s.pillars[0];
+  p.pos = { x: 13, y: 13 };
+  assert.equal(S6.useWard(p), false);
+  pl.owner = S6.PVE;
+  p.pos = nextToTile(pl);
+  assert.ok(S6.useWard(p)); assert.ok(S6.useWard(p));
+  assert.equal(pl.ward, 2);
+  assert.equal(S6.useWard(p), false, 'เต็มแล้ว');
+});
+
+test('ขบวนเสบียง: วิ่งตามถนน · มอนตีได้ ผู้เล่นตีไม่ได้ · ถึงปลายทาง = แต้มรวม +6', () => {
+  setup();
+  const s = st(), e = EV.ev(s);
+  P(0).pos = { x: 1, y: 1 }; P(1).pos = { x: 1, y: 2 }; P(2).pos = { x: 1, y: 3 };
+  EV.spawnConvoy(ctx(), s, S6.H(), 4);
+  const c = EV.convoyUnit(ctx(), s);
+  assert.ok(c && c.alive);
+  assert.ok(combat.sameTeam(c, P(0)), 'ฝ่ายผู้เล่น');
+  const d = mob('daemon', 0, 31);
+  assert.ok(!combat.sameTeam(c, d));
+  const score0 = s.score || 0;
+  for (let i = 0; i < 40 && e.convoy; i++) EV.moveConvoy(ctx(), s, S6.H());
+  assert.equal(e.convoy, null);
+  assert.equal(s.score, score0 + EV.CONVOY.score);
 });

@@ -72,7 +72,7 @@ export default function App() {
     if (state.gameState === "LOBBY" && !me.ready) socket.emit("toggleReady");
     // &world=colony = โหวตสนาม Colony · &world=moon = Moon Cell · &world=none = ไม่โหวตเอง (หยุดดูหน้าเลือกโหมด)
     const world = new URLSearchParams(location.search).get("world") || "earth";
-    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : "ffa", world });
+    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : world === "eos" ? "eos" : "ffa", world });
   }, [state]);
   const curtainRef = useRef(null); // ม่านเปลี่ยนฉาก — ควบคุมจังหวะปิด/เปิดจอตอนสลับหน้า
   // กันดับเบิ้ลคลิก/กดรัวบนปุ่มนำทาง (ถัดไป/ยืนยัน/ย้อนกลับ) ไม่ให้ยิงคำสั่งเปลี่ยนฉากซ้อนกัน

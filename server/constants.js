@@ -45,6 +45,7 @@ const WIND_BOOTS_MOV = 2;
 const BATTERY_MAX = 5;
 const BATTERY_REGEN = 1;
 const SHOP_TORCH_PRICE = 2;      // คบเพลิง (Fodlan ด่าน II เรเมียร์ — server/fodlan/stage2.js): ขายเฉพาะตอนอยู่ด่านนี้ ซื้อได้ไม่จำกัด
+const SHOP_PILLAR_WARD_PRICE = 4; // เกราะเสา (สนาม Eos PVE — server/fodlan/eosEvents.js): ขายทุกร้านเฉพาะ Eos ไม่จำกัด
 const SHOP_GYSAHL_PRICE = 2;     // ผักกิซาล (สนาม Eos — server/fodlan/stage6.js L9): ขายทุกร้านเฉพาะ Eos ซื้อได้ไม่จำกัด
 // ร้านค้ามายา (ผู้ใช้สั่ง 2026-11-08): ของทุกชนิดช่องละ 1 ไม่ซ้ำ — สุ่มจำนวนที่ซื้อได้ต่อช่อง SHOP_STOCK_MIN–MAX (รายการใน server/shop.js shopCatalog)
 //  ถอดออกจากเกมแล้ว: เกราะ Mark 42 · ปืน+กระสุน GUTS · ยาฟื้นแต้มสกิล · ไอเทมช่วงจั่ว (ยาโชคลาภ/ยาเปลี่ยนสีการ์ด/กรรไกรตัดไพ่) เปิดกระเป๋าใช้ช่วงจั่ว
@@ -87,7 +88,7 @@ module.exports = {
   ORDER_TIME_MS, ORDER_TIME, ACTION_TIME, DEFAULT_MOV, DEFAULT_RANGE, TRANSITION_TIME, RECONNECT_GRACE_MS, RESERVATION_TTL_MS,
   ATTACKFX_TIME, MAX_HP, MAX_ARMOR, MAX_SKILL, GOLD_MAX, GOLD_PER_TURN, GOLD_FIRST_BONUS,
   SHOP_INTERVAL_TURNS, BAG_SLOTS, SHOP_STOCK_MIN, SHOP_STOCK_MAX, SHOP_CARD_COLOR_PRICE, SHOP_FORTUNE_PRICE,
-  SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE,
+  SHOP_FORTUNE_AMOUNT, FORTUNE_MAX, SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_ARMOR_PRICE, SHOP_ARMOR_AMOUNT, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE,
   SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_BATTERY_PRICE, BATTERY_MAX, BATTERY_REGEN,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
   TEMP_HP_TURNS, CYCLE_TURNS, EOS_CYCLE_TURNS, TRANSFORMS, JOURNEY_START_SECONDS, JOURNEY_ADVANCE_SECONDS,

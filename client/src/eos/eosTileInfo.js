@@ -17,13 +17,19 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if (mob) {
     const list = [...(fd.daemons || []).map((d) => ({ ...d, type: "daemon" })), ...(fd.mobs || [])];
     const info = list.find((m) => m.id === mob.id) || {};
-    const m = MOB[info.type] || MOB.daemon;
+    const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
     return { icon: m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${m.desc}` };
   }
+  if (fd.convoy && at(fd.convoy, x, y)) return { icon: "🚚", name: "รถเสบียง", desc: `♥ ${fd.convoy.hp}/${fd.convoy.maxHp} — คุ้มกันตามเส้นประทองให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ · มอนเล็งรถด้วย` };
+  const sp = (fd.spirits || []).find((o) => at(o, x, y));
+  if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ยืนติดแล้วกด \"ช่วย\" (ใช้การโจมตี) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นตรงนี้" }; }
+  const qq = (fd.quests || []).find((o) => o.type === "scout" && at(o, x, y));
+  if (qq) return { icon: "📡", name: "จุดสัญญาณภารกิจ", desc: `ยืนบนช่องนี้แล้วกด "สำรวจ" — แต้มรวม +3 · เหลือ ${qq.left} เทิร์น` };
+  if (fd.bossWarn && at(fd.bossWarn, x, y)) return { icon: "⚠️", name: "วงเวทราชาปีศาจ", desc: "ราชาปีศาจจะลงที่นี่ต้นเทิร์นหน้า" };
   const pl = (fd.pillars || []).find((p) => at(p, x, y));
   if (pl) {
     const name = `เสาคริสตัล ${ZONE[pl.zone] || ""}`;
-    if (pl.owner) return { icon: "🔷", name, desc: `ยึดแล้ว — ให้แต้มรวมทุกจบเทิร์น · รอยโดนตี ${pl.hits || 0}/${pl.hp || 2} (ครบ = หลุดเป็นกลาง) · ยืนติดเสากด "ซ่อมเสา" ได้` };
+    if (pl.owner) return { icon: "🔷", name, desc: `ยึดแล้ว — ให้แต้มรวมทุกจบเทิร์น · รอยโดนตี ${pl.hits || 0}/${pl.hp || 2} (ครบ = หลุดเป็นกลาง) · โล่ ${pl.ward || 0}/${pl.wardMax || 2} · ยืนติดเสากด "ซ่อมเสา" หรือใช้เกราะเสา (ร้านค้า)` };
     if (pl.ch) return { icon: "🔷", name, desc: "กำลังร่ายพิธียึด — ตาถัดไปของคนร่ายกด \"ยึด\" อีกครั้ง" };
     return { icon: "🔷", name, desc: "เสากลาง — ยืนติดเสากด \"ยึด\" 2 ตาติดกัน (ใช้การโจมตีของตา) · แต้มต่อเทิร์น 1/3/6/10/15 ตามจำนวนเสาที่ถือ · รวมครบเป้าทุกคนชนะ" };
   }
@@ -59,4 +65,11 @@ export const EOS_NAME_DESC = {
   "คอกโชโกโบะ": "โชโกโบะที่ตกนกกลับมาเกิดใหม่ที่นี่หลัง 3 เทิร์น",
   "น้ำลึก": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางเดินได้",
   "คลอง": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางเดินได้",
+};
+// มอนพิเศษ / บอส / รถเสบียง / ดวงวิญญาณ / จุดสัญญาณ (PVE รอบสอง)
+export const EOS_TRAIT_INFO = {
+  boss: { icon: "👑", desc: "ราชาปีศาจ — มุ่งไปทำลายเสา (ตีทีเดียวหลุด) · กระทืบทุกคนรอบตัว · เรียกปีศาจทุก 2 เทิร์น · ล้มได้ แต้มรวม +5 ทุกคนได้ของ" },
+  bomber: { icon: "💣", desc: "ปีศาจระเบิด — ถึงตัวแล้วระเบิด 3×3 ดาเมจ 3 · โดนฆ่าก็ระเบิด (ตีจากระยะไกลปลอดภัยกว่า)" },
+  healer: { icon: "💚", desc: "ปีศาจหมอ — ไม่ตี แต่ฟื้นเลือดมอนในระยะ 2 ทุกต้นเทิร์น · ชอบหนี — ล้มก่อน" },
+  sniper: { icon: "🎯", desc: "ทหารเหล็กยิงไกล — ยิงคนในระยะ 3 ดาเมจ 2 โดยไม่ต้องเดินมา" },
 };

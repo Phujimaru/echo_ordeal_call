@@ -1,6 +1,9 @@
 import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
 import EosMap from "../eos/EosMap";
 import EosGuide from "../eos/EosGuide";
+import EosSituation from "../eos/EosSituation";
+import EosAlerts from "../eos/EosAlerts";
+import { eosSituation, SIT_COUNT as sitCount } from "../eos/eosSitData";
 import EosZoneCard from "../eos/EosZoneCard";
 import EosScoreboard from "../eos/EosScoreboard";
 import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
@@ -1846,6 +1849,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   //  (เช่น จบคัตซีนท่าไม้ตาย)
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
+  const [eosSitOpen, setEosSitOpen] = useState(false); // สนาม Eos: แผงสถานการณ์ตอนนี้ (eos/EosSituation.jsx)
   const [eosGuideOpen, setEosGuideOpen] = useState(false); // สนาม Eos: คู่มือ (eos/EosGuide.jsx — ผู้ใช้สั่ง 2026-11-10)
   const [eosMapOpen, setEosMapOpen] = useState(false); // สนาม Eos: แผนที่ภาพรวม (eos/EosMap.jsx)
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
@@ -2593,9 +2597,11 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <button type="button" className="eos-guide-btn" aria-label="คู่มือ" data-away={fcOpen || phase === "ATTACKING" ? "true" : "false"} onClick={() => { clickSound(); setEosGuideOpen(true); }}>?</button>
       )}
       {eosGuideOpen && state.world === "eos" && <EosGuide onClose={() => setEosGuideOpen(false)} />}
+      {eosSitOpen && state.world === "eos" && <EosSituation state={state} onClose={() => setEosSitOpen(false)} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
       {state.world === "eos" && state.board && <EosScoreboard state={state} />}
+      {state.world === "eos" && state.board && !eosSitOpen && <EosAlerts state={state} />}
 
       {/* QTE — ลอยกลางจอ */}
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}
@@ -2612,11 +2618,11 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         journey={state.journey && !state.colony && !state.moon && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : state.fodlan && state.world === "eos" && (phase === "PLAYING" || inBoardTurn) // Eos (§8.6): ชื่อสนาม + สภาพอากาศ
-            ? { numeral: "✦", color: "#2f5f9c", glow: "#9fe2ff", name: "Eos", eos: true, weather: state.fodlan.weather, scores: (state.fodlan.board && state.fodlan.board.scores) || [], goal: (state.fodlan.board && state.fodlan.board.goal) || 20 }
+            ? (() => { const sit = eosSituation(state).filter((s) => s.key !== "diff"); return { numeral: "✦", color: "#2f5f9c", glow: "#9fe2ff", name: "Eos", eos: true, sit, alert: sitCount(sit) }; })()
           : state.fodlan && (phase === "PLAYING" || inBoardTurn) // Fodlan: ป้ายด่าน + สภาพอากาศ (ไม่มีหน้าผลภูมิภาค)
             ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather }
             : null}
-        onJourney={state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
+        onJourney={state.world === "eos" ? () => { clickSound(); setEosSitOpen(true); } : state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}

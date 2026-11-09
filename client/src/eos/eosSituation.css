@@ -1,0 +1,31 @@
+/* แผงสถานการณ์ตอนนี้ (EosSituation.jsx) — ลงมาจากแถบซ้ายบน */
+.eos-sit-back { position: absolute; inset: 0; z-index: 68; background: rgba(6, 10, 20, .28); }
+.eos-sit {
+  --es-bg: rgba(14, 22, 38, .96); --es-line: rgba(160, 200, 255, .22); --es-text: #eef4ff; --es-dim: rgba(220, 232, 255, .72);
+  position: absolute; left: 14px; top: 70px; width: min(420px, calc(100vw - 28px)); max-height: calc(100vh - 220px); display: flex; flex-direction: column;
+  background: var(--es-bg); color: var(--es-text); border: 1px solid var(--es-line); border-radius: 16px; box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  font-family: "Kanit", sans-serif; overflow: hidden; animation: eos-sit-in .22s ease-out both;
+}
+@keyframes eos-sit-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.eos-sit header { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; border-bottom: 1px solid var(--es-line); }
+.eos-sit header b { font-size: 17px; }
+.eos-sit header span { color: var(--es-dim); font-size: 13px; flex: 1; }
+.eos-sit header button { border: 0; background: transparent; color: var(--es-dim); font-size: 16px; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; }
+.eos-sit header button:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.eos-sit ul { list-style: none; margin: 0; padding: 8px 10px 12px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.eos-sit li { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: start; padding: 9px 10px; border-radius: 11px;
+  background: rgba(255, 255, 255, .04); border-left: 3px solid rgba(160, 200, 255, .4); }
+.eos-sit li[data-tone="danger"] { border-left-color: #ff6a5a; background: linear-gradient(90deg, rgba(255, 80, 70, .14), rgba(255, 255, 255, .03) 70%); }
+.eos-sit li[data-tone="warn"] { border-left-color: #f0c868; }
+.eos-sit li[data-tone="good"] { border-left-color: #8fe3a0; }
+.eos-sit li[data-go="true"] { cursor: pointer; }
+.eos-sit li[data-go="true"]:hover { background: rgba(127, 212, 255, .1); }
+.eos-sit .ico { font-size: 19px; text-align: center; line-height: 1.3; }
+.eos-sit .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eos-sit .txt b { font-size: 14.5px; font-weight: 600; }
+.eos-sit .det { font-size: 13px; color: var(--es-dim); line-height: 1.45; }
+.eos-sit .todo { font-size: 13px; color: #9fe2ff; line-height: 1.45; }
+.eos-sit .go { color: #7fd4ff; font-size: 16px; align-self: center; }
+/* ปุ่มบนแถบซ้ายบน: จุดเตือนเมื่อมีเรื่องอันตราย */
+.hud-top-eosbadge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: #e5484d; color: #fff; font: 700 11px/1 "Chakra Petch", sans-serif; animation: eos-sit-pulse 1.4s ease-in-out infinite; }
+@keyframes eos-sit-pulse { 50% { box-shadow: 0 0 0 4px rgba(229, 72, 77, .25); } }

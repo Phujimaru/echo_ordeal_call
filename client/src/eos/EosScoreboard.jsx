@@ -72,6 +72,7 @@ export default function EosScoreboard({ state }) {
               <span className="eos-pl-gem" aria-hidden="true">{st === "own" ? "✦" : st === "ch" ? "⏳" : "○"}</span>
               <span className="eos-pl-name">{z.name}</span>
               <span className="eos-pl-hits" aria-label="รอยโดนตี">
+                {st === "own" && (pl.ward || 0) > 0 && <em className="eos-pl-ward" title="เกราะเสา — รับการตีแทนรอย">🛡{pl.ward}</em>}
                 {st === "own" && Array.from({ length: pl.hp || 2 }, (_, i) => <i key={i} data-on={i < (pl.hits || 0) ? "true" : undefined} />)}
                 {st === "ch" && by && (by.img ? <img src={by.img} alt="" /> : <em>{by.name}</em>)}
               </span>

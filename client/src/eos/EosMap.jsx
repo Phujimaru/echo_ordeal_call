@@ -61,7 +61,22 @@ export default function EosMap({ state, onClose }) {
       for (const d of fd.daemons || []) dot(d.x, d.y, 0.34, "#7a1f6e", "#2a0626");
       for (const m of fd.mobs || []) dot(m.x, m.y, m.type === "beast" ? 0.45 : 0.32, m.type === "beast" ? "#6b3f7a" : "#9aa0a8", "#1b1b22");
       for (const w of fd.wrecks || []) { g.fillStyle = "#6b4a32"; g.fillRect(w.x * T + 3, w.y * T + 3, T - 6, T - 6); }
-      if (fd.dropship) { g.strokeStyle = "#ff3b3b"; g.lineWidth = 2; g.strokeRect(fd.dropship.x * T, fd.dropship.y * T, T * 2, T * 2); }
+      // PVE รอบสอง: ยานทุกลำ · หีบ · ภารกิจ · ขบวนเสบียง (เส้นทาง) · ดวงวิญญาณ · บอส/วงเวท
+      for (const d of fd.ships || []) { g.strokeStyle = d.state === "warn" ? "#ff3b3b" : "#9aa0a8"; g.lineWidth = 2; g.setLineDash(d.state === "warn" ? [4, 3] : []); g.strokeRect(d.x * T, d.y * T, T * 2, T * 2); g.setLineDash([]); }
+      for (const c of fd.chests || []) { g.fillStyle = "#e0a63a"; g.fillRect(c.x * T + T * 0.2, c.y * T + T * 0.3, T * 0.6, T * 0.45); g.strokeStyle = "#5a3313"; g.lineWidth = 1; g.strokeRect(c.x * T + T * 0.2, c.y * T + T * 0.3, T * 0.6, T * 0.45); }
+      for (const q of fd.quests || []) {
+        if (q.type === "hunt" && q.rect) { g.strokeStyle = "rgba(255,190,80,.9)"; g.lineWidth = 2; g.setLineDash([6, 4]); g.strokeRect(q.rect[0] * T, q.rect[1] * T, (q.rect[2] - q.rect[0] + 1) * T, (q.rect[3] - q.rect[1] + 1) * T); g.setLineDash([]); }
+        else dot(q.x, q.y, 0.4, "#ffe08a", "#7a5a10");
+      }
+      if (fd.convoy) {
+        g.strokeStyle = "rgba(255,210,110,.9)"; g.lineWidth = 2; g.setLineDash([3, 4]); g.beginPath();
+        (fd.convoy.path || []).forEach((p, i) => (i ? g.lineTo((p.x + 0.5) * T, (p.y + 0.5) * T) : g.moveTo((p.x + 0.5) * T, (p.y + 0.5) * T))); g.stroke(); g.setLineDash([]);
+        g.fillStyle = "#e0a63a"; g.fillRect(fd.convoy.x * T + 2, fd.convoy.y * T + 2, T - 4, T - 4); g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.strokeRect(fd.convoy.x * T + 2, fd.convoy.y * T + 2, T - 4, T - 4);
+      }
+      for (const sp of fd.spirits || []) dot(sp.x, sp.y, 0.3, "#9fd8ff", "#1b3a5a");
+      if (fd.bossWarn) { g.strokeStyle = "#ff2a4a"; g.lineWidth = 3; g.beginPath(); g.arc((fd.bossWarn.x + 0.5) * T, (fd.bossWarn.y + 0.5) * T, T * 0.9, 0, Math.PI * 2); g.stroke(); }
+      const boss = fd.boss && (fd.daemons || []).find((d) => d.id === fd.boss);
+      if (boss) dot(boss.x, boss.y, 0.7, "#c21f4a", "#ffd34a");
     }
     // ผู้เล่นที่มองเห็น (state.players ส่งมาเฉพาะคนที่เรามองเห็น) · ตัวเราวงขาว
     for (const p of state.players || []) {

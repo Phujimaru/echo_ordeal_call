@@ -979,7 +979,6 @@ export default function BoardCanvas(props) {
         if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.home(); return; }
         if (e.code === "KeyV") { st.cv3.toggleAxis(); return; }
       }
-      if (st.rts && (e.code === "KeyQ" || e.code === "KeyE") && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) { st.yaw = e.code === "KeyQ" ? -1 : 1; return; }
       if (!ARROWS[e.code] || !(st.rts || clampZoom(propsRef.current.zoom) > 0) || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       // กดครั้งแรก = ขยับทันทีหนึ่งก้าว (กดแล้วปล่อยเร็วกว่า 1 เฟรมก็ยังขยับ) · ค้าง = เลื่อนต่อเนื่องในลูปวาด

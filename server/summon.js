@@ -91,6 +91,7 @@ function onDeath(p) {
   if (hook && hook.onSummonDeath) combat.runHook(hook, "onSummonDeath", engine, owner, p);
   if (p.summon.moon) require("./moonCell").onUnitDeath(p); // Moon Cell: ฮาคุโนะ/Moon Cell (ไม่มีเจ้าของจริง)
   if (p.summon.side === "eosmob") require("./fodlan/stage6").onMobDeath(p, match.effectSourceId); // Eos: มอนเตอร์ตาย → เหรียญ/ของดรอป
+  if (p.summon.convoy) require("./fodlan/stage6").onConvoyDeath(p); // Eos: รถเสบียงพัง
   p.pos = null;
 }
 // ลบระเบียนที่ตายแล้ว (จบเทิร์น)

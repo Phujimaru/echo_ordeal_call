@@ -303,6 +303,7 @@ function buildStateInner(viewerId) {
           ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
+        eosDiff: p.modeVote ? p.eosDiff || null : null, // ความยากที่โหวต (สนาม Eos)
         colony: Colony.playerInfo(p), // Colony: { jumpCd }
         fodlan: Fodlan.playerInfo(p), // Fodlan: ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … (server/fodlan/stageN.js playerInfo)
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)

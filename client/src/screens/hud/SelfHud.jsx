@@ -694,14 +694,9 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, colon
               <span className="hud-top-name">{journey.name}</span>
               {journey.eos ? (
                 <span className="hud-top-sub">
-                  {/* Eos (GRID_PLAN §8.6): แต้มยึดเสาของแต่ละฝ่าย (จุดสี + แต้ม/เป้า · 🔷 = เสาที่ถือ) */}
-                  {(journey.scores || []).map((sc) => (
-                    <span key={sc.side} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
-                      <i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: sc.color, marginRight: 3 }} />
-                      {sc.score}/{journey.goal}{sc.held ? ` 🔷${sc.held}` : ""}
-                    </span>
-                  ))}
-                  {journey.weather && `${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}
+                  {/* Eos PVE: ไอคอนสถานการณ์ตอนนี้ (กดปุ่ม = แผงสรุป EosSituation — ผู้ใช้สั่ง 2026-11-10) */}
+                  <span style={{ whiteSpace: "nowrap", letterSpacing: 1 }}>{(journey.sit || []).slice(0, 6).map((s) => s.icon).join(" ")}</span>
+                  {journey.alert > 0 && <span className="hud-top-eosbadge">{journey.alert}</span>}
                 </span>
               ) : (
                 <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>

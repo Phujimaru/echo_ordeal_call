@@ -63,3 +63,4 @@
 .eos-pl-gain { text-align: center; font-weight: 700; }
 .eos-pl-row[data-s="own"] .eos-pl-gain { color: var(--es-good); }
 .eos-pl-sum { display: flex; gap: 10px; justify-content: flex-end; padding: 4px 10px; border-radius: 10px; background: var(--es-bg); color: var(--es-text); font-size: 13px; border: 1px solid var(--es-line); }
+.eos-pl-hits .eos-pl-ward { font-size: 12px; color: #9fe2ff; margin-right: 2px; }

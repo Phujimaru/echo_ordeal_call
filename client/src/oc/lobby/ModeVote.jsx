@@ -19,23 +19,25 @@ import { FODLAN_GEO, FODLAN_STAGES } from "../../fodlan/stages";
 import { EOS_GEO } from "../../eos/eosMeta";
 import { OcButton, OcPanel } from "../ui";
 
-const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
-const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss" };
+const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell", eos: "ร่วมมือ" };
+const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss", eos: "PVE" };
 // ไอคอนในวงหมุดโหมด (lobby.css .ocl-mt-disc)
 const MODE_ICONS = {
   ffa: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9.5 9.5M4 5l1-1M13 12l-2.5 2.5M8.5 15.5L6 18M19 4L9.5 13.5M20 5l-1-1M11 12l2.5 2.5M15.5 15.5L18 18M4.5 19.5l2-2M19.5 19.5l-2-2" /></svg>,
   duo: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></svg>,
   trio: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="2.8" /><circle cx="6.5" cy="16" r="2.8" /><circle cx="17.5" cy="16" r="2.8" /><path d="M10.6 8.9L7.9 13.6M13.4 8.9l2.7 4.7M9.3 16h5.4" /></svg>,
   moon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5a8 8 0 1 0 4 12.6A6.5 6.5 0 0 1 15.5 4.5z" /></svg>,
+  // Eos (PVE ร่วมมือ): คริสตัลเสา + วงล้อมป้องกัน
+  eos: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l3.2 5.5L12 21 8.8 8.5z" /><path d="M8.8 8.5h6.4" /><path d="M4 14.5a8.5 8.5 0 0 0 16 0" /></svg>,
 };
-const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป" };
+const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป", eos: "1 คนขึ้นไป" };
 const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 // หมุดโหมดของ Fodlan กระจุกรอบหมุด Fodlan (ทะเลเปิดระหว่างภูมิภาค III–IV ของ Origin)
 const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
 // ชั้นหมุดสนามย่อยบนโลก: Origin = ภูมิภาค I ของการเดินทาง · Fodlan = หมุดสีทอง
 // Eos (GRID_PLAN §8.6): หมุดที่ 3 บนโลก (มหาสมุทรซีกตะวันตก) — แผนที่เดียว 32×32
-// Eos = PVE (ผู้ใช้สั่ง 2026-11-10): หมุดโหมดเดียว (โหวต "ffa" → server เปลี่ยนเป็นโหมด eos ทุกคนทีมเดียว)
-const EOS_MODE_GEO = { ffa: [EOS_GEO.lon + 2, EOS_GEO.lat - 6] };
+// Eos = PVE (ผู้ใช้สั่ง 2026-11-10): ไม่มีโหมดย่อย ffa/duo/trio — หมุดเดียว โหมด "eos" (ทุกคนทีมเดียว)
+const EOS_MODE_GEO = { eos: [EOS_GEO.lon + 2, EOS_GEO.lat - 6] };
 const SUBS = ["origin", "fodlan", "eos"];
 const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat] };
 const FODLAN_GOLD = 0xe0a63a;
@@ -50,6 +52,7 @@ const EOS_ZONES = [
   { id: "altissia", name: "Altissia", color: "#9fe0e8" },
 ];
 const ORDER = ["ffa", "duo", "trio"];
+const PIN_MODES = [...ORDER, "eos"]; // หมุดโหมดบนลูกโลก — eos มีเฉพาะชุด eos (geo ชุดอื่นไม่มี = ข้าม) · Colony ใช้ ORDER
 const WORLDS = ["earth", "colony", "moon"];
 const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", colony: "Colony", moon: "ดวงจันทร์" };
 const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "colony"]);
@@ -120,8 +123,8 @@ function useOptions(state, world) {
   ]);
   if (world === "earth") return []; // ชั้นหมุด Origin / Fodlan ยังไม่มีหมุดโหมด
   const w = serverWorld(world);
-  return list.filter((o) => (w === "moon" ? o.mode === "moon" : MODE_GEO[o.mode]) && worldOf(o) === w)
-    .sort((a, b) => ORDER.indexOf(a.mode) - ORDER.indexOf(b.mode));
+  return list.filter((o) => (w === "moon" ? o.mode === "moon" : w === "eos" ? o.mode === "eos" : MODE_GEO[o.mode]) && worldOf(o) === w)
+    .sort((a, b) => PIN_MODES.indexOf(a.mode) - PIN_MODES.indexOf(b.mode));
 }
 
 /**
@@ -147,11 +150,18 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const worldRef = useRef(world);
   useLayoutEffect(() => { optsRef.current = options; worldRef.current = world; });
 
-  const vote = (mode) => {
+  // ความยากของ Eos (ผู้ใช้สั่ง 2026-11-10 — เลือกในหน้าโหวต): ส่งไปพร้อมโหวต · โหวตแล้วเปลี่ยนความยาก = ส่งโหวตซ้ำ
+  const [eosDiff, setEosDiff] = useState("normal");
+  const vote = (mode, diff = eosDiff) => {
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
     clickSound();
-    socket.emit("selectGameMode", { mode, world: serverWorld(world) });
+    socket.emit("selectGameMode", { mode, world: serverWorld(world), ...(mode === "eos" ? { diff } : null) });
+  };
+  const pickDiff = (d) => {
+    setEosDiff(d);
+    const me = state.players.find((p) => p.id === state.youId);
+    if (me && me.modeVote === "eos") vote("eos", d); else clickSound();
   };
   // กดหมุด/ป้าย = เลือกดูอย่างเดียว ยังไม่โหวต (ผู้ใช้สั่ง: ต้องกดยืนยันก่อน) · ป้ายเป็นปุ่ม (เสียงคลิกมาเอง) หมุดบนโลกต้องเรียกเอง
   const preview = (mode, sound) => { if (sound && mode !== focus) clickSound(); onFocus(mode); };
@@ -202,7 +212,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     // หมุดโหมดสองชุด: Origin (ตำแหน่งเดิม) / Fodlan (รอบหมุด Fodlan)
     const modeSets = { origin: {}, fodlan: {}, eos: {} };
     const hitsBy = { origin: [], fodlan: [], eos: [] };
-    for (const mode of ORDER) {
+    for (const mode of PIN_MODES) {
       for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO]]) {
         if (!geo[mode]) continue;
         const m = makePin(geo[mode], COLORS.azure, { mode });
@@ -341,14 +351,14 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         mtag.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
         mtag.classList.toggle("back", w !== "moon");
       }
-      for (const mode of ORDER) {
+      for (const mode of PIN_MODES) {
         // ป้ายโหมดชุดเดียว: สนาม Origin/Fodlan = เกาะหมุดบนลูกโลก · Colony = เกาะหมุดบนตัวกระบอก
         const el = tagRefs.current[mode];
-        if (el && w === "colony") {
+        if (el && w === "colony" && s.cpins[mode]) {
           const p = core.project(s.cpins[mode].g.localToWorld(tmp.set(0, 0.24, 0)));
           el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
           el.classList.remove("back");
-        } else if (el && set) {
+        } else if (el && set && set[mode]) {
           const m = set[mode];
           const p = core.project(m.g.localToWorld(tmp.set(0, 0.17, 0)));
           el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -130%) scale(var(--k, 1))`;
@@ -584,11 +594,27 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         {panelOpt && (
           <OcPanel className="ocl-votepanel" data-mode={panelOpt.mode}>
             <div className="ocl-vp-head">
-              <h2 className={`oc-h2${LATIN_MODES.has(panelOpt.mode) && world !== "eos" ? " oc-latin" : ""}`}>{world === "eos" ? "ร่วมมือ" : modeTitle(panelOpt.mode)}</h2>
-              <span className="oc-muted">{world === "eos" ? "PVE" : MODE_SUBTITLES[panelOpt.mode]}</span>
+              <h2 className={`oc-h2${LATIN_MODES.has(panelOpt.mode) ? " oc-latin" : ""}`}>{modeTitle(panelOpt.mode)}</h2>
+              <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
             {world === "eos" ? (
+              <>
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">ความยาก</div>
+                <div className="ocl-diff" role="radiogroup" aria-label="ความยาก">
+                  {[["easy", "ง่าย"], ["normal", "ปกติ"], ["hard", "ยาก"]].map(([d, label]) => {
+                    const voters = state.players.filter((p) => p.modeVote === "eos" && p.eosDiff === d);
+                    return (
+                      <button key={d} type="button" role="radio" aria-checked={eosDiff === d} data-on={eosDiff === d ? "true" : undefined} data-d={d} onClick={() => pickDiff(d)}>
+                        <span className="ocl-diff-pips" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} data-on={i <= ["easy", "normal", "hard"].indexOf(d) ? "true" : undefined} />)}</span>
+                        <b>{label}</b>
+                        {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
               <section className="ocl-sec">
                 <div className="ocl-seclabel">โซน</div>
                 <ul className="ocl-jr-grid" style={{ "--cols": 2 }}>
@@ -599,6 +625,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
                   ))}
                 </ul>
               </section>
+              </>
             ) : world === "fodlan" ? (
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ด่าน</div>

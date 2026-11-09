@@ -634,9 +634,9 @@ const ROWS = [
   ".....===========...=========dddd", // y23
   ".....===...........dddd====ddddd", // y24
   ".ZppL===pLppV.....dddddd====dRdd", // y25
-  ".BBpcp=BBpbpL.....ddddddd====RGG", // y26
-  "~~~Xcpccpppcp.....RddXdddd===RGG", // y27
-  "~~~~~bppccpcb....dddddddddd===dd", // y28
+  ".Bppcp=BBpbpL.....ddddddd====RGG", // y26
+  "~~pXcpccpppcp.....RddXdddd===RGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
+  "~~pp~bppccpcb....dddddddddd===dd", // y28
   "~~~~~~cpppccp....ddddddRddd===dd", // y29
   "~~~~~~~BBpcBB....ddddddddZdP==dd", // y30
   "~~~~~~~~BpcBB...ddd..dddddddPddd", // y31

@@ -361,7 +361,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       // ใช้ตำแหน่งปุ่ม (e.code) ไม่ใช่ตัวอักษร — แป้นโหมดไทย Q/E พิมพ์เป็น ๆ/ำ
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (state.world === "eos") return; // สนาม Eos: ค้าง Q/E หมุนอิสระ (BoardCanvas) — ไม่หมุนทีละ 90°
+      // สนาม Eos: กลับมาหมุนทีละ 90° (กดครั้งเดียว — ผู้ใช้สั่ง 2026-11-10 · เดิมค้าง Q/E หมุนอิสระ)
       if (e.code === "KeyQ") rotate(-1);
       else if (e.code === "KeyE") rotate(1);
     };
@@ -2136,6 +2136,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   if (eosRts && !eosZoomed) { setEosZoomed(true); setZoomState(ZOOM_STEPS - 2); } // ช่วงซูมกว้างขึ้น (2026-11-10: 24↔6 ช่อง) → ขั้นรองสุด ≈ 8.5 ช่อง เท่ากล้องเริ่มเดิม
   if (!eosRts && eosZoomed) setEosZoomed(false);
   const goHome = useCallback(() => { if (me && me.pos) look(me.pos); setCamHome((n) => n + 1); }, [me, look]);
+  // สนาม Eos: แผงสถานการณ์ / ประกาศ กดแล้วกล้องไปดูจุดนั้น (window event "eos:look" { x, y })
+  useEffect(() => {
+    const onLook = (e) => { const at = e.detail; if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) look({ x: at.x, y: at.y }); };
+    window.addEventListener("eos:look", onLook);
+    return () => window.removeEventListener("eos:look", onLook);
+  }, [look]);
   useEffect(() => {
     if (!eosRts) return undefined;
     const onKey = (e) => {

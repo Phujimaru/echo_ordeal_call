@@ -1,0 +1,21 @@
+/* ประกาศเตือนของสนาม Eos (EosAlerts.jsx) — ซ้ายใต้แถบบน */
+.eos-alerts { position: absolute; left: 14px; top: 150px; z-index: 30; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.eos-alert {
+  position: relative; pointer-events: auto; display: flex; align-items: center; gap: 10px; min-width: 220px; max-width: 320px; padding: 8px 14px 10px 10px;
+  border: 1px solid rgba(160, 200, 255, .25); border-left: 4px solid #7fd4ff; border-radius: 12px; overflow: hidden; text-align: left;
+  background: rgba(14, 22, 38, .9); color: #eef4ff; box-shadow: 0 8px 22px rgba(0, 0, 0, .35); backdrop-filter: blur(6px);
+  font-family: "Kanit", sans-serif; cursor: pointer; animation: eos-al-in .35s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.eos-alert:disabled { cursor: default; }
+.eos-alert:not(:disabled):hover { filter: brightness(1.15); }
+.eos-alert[data-tone="danger"] { border-left-color: #ff5a4a; background: linear-gradient(90deg, rgba(90, 16, 16, .92), rgba(14, 22, 38, .9) 70%); }
+.eos-alert[data-tone="warn"] { border-left-color: #f0c868; }
+.eos-alert[data-tone="good"] { border-left-color: #8fe3a0; }
+.eos-alert .ico { font-size: 22px; }
+.eos-alert .txt { display: flex; flex-direction: column; line-height: 1.25; }
+.eos-alert .txt b { font-size: 14.5px; font-weight: 600; }
+.eos-alert .txt span { font-size: 12px; color: rgba(220, 232, 255, .7); }
+.eos-alert .life { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: currentColor; opacity: .35; transform-origin: left; animation: eos-al-life 4.5s linear forwards; }
+@keyframes eos-al-in { from { opacity: 0; transform: translateX(-24px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes eos-al-life { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .eos-alert, .eos-alert .life { animation: none; } }
