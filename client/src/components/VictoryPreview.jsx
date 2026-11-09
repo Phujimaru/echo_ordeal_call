@@ -37,5 +37,7 @@ export default function VictoryPreview() {
     const n = Math.min(7, Math.max(2, Number(q.get("n")) || 5));
     state = { gameMode: "ffa", winningTeamId: null, players: Array.from({ length: n }, (_, i) => mk(i, i === 0)), youId: "p0", roundNumber: 12 };
   }
-  return <VictoryScreen state={state} onBackToLobby={() => console.log("backToLobby")} />;
+  // สรุปผลแมตช์ตัวอย่าง (server/matchStats.js)
+  state.matchStats = Object.fromEntries(state.players.map((p, i) => [p.id, { dealt: [14, 9, 6, 11, 3, 7, 5][i % 7], taken: [8, 12, 10, 6, 14, 9, 7][i % 7], kills: [3, 1, 0, 2, 0, 1, 0][i % 7], skills: [6, 4, 3, 5, 2, 4, 1][i % 7] }]));
+  return <VictoryScreen state={state} onBackToLobby={() => console.log("backToLobby")} onRematch={() => console.log("rematch")} />;
 }

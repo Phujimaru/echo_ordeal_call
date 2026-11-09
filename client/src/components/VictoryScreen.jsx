@@ -21,6 +21,46 @@ function HexFace({ p, opts }) {
   return <img src={img} alt="" draggable={false} style={faceStyle({ ...p, img }, opts)} onError={() => setBroken(true)} />;
 }
 
+// สรุปผลแมตช์ (state.matchStats — server/matchStats.js): แผ่นต่อผู้เล่น · แถบดาเมจที่ทำเทียบสูงสุด · MVP = ทำดาเมจ + ล้ม×3 สูงสุด
+const SUM_COLS = [
+  { k: "dealt", label: "ทำ", ico: <path d="M5 19L19 5M14 5h5v5M5 14l5 5" /> },
+  { k: "taken", label: "รับ", ico: <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /> },
+  { k: "kills", label: "ล้ม", ico: <path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3zM9.5 11h.01M14.5 11h.01M10 19v2M14 19v2" /> },
+  { k: "skills", label: "สกิล", ico: <path d="M12 2l2.6 6.6L21 9l-5 4.4L17.4 21 12 17.3 6.6 21 8 13.4 3 9l6.4-.4z" /> },
+];
+function Summary({ players, stats, youId, onClose }) {
+  const rows = players.map((p) => ({ p, s: stats[p.id] || { dealt: 0, taken: 0, kills: 0, skills: 0 } }));
+  const score = (s) => s.dealt + s.kills * 3;
+  const top = Math.max(0, ...rows.map((r) => score(r.s)));
+  const maxDealt = Math.max(1, ...rows.map((r) => r.s.dealt));
+  rows.sort((a, b) => score(b.s) - score(a.s) || b.s.kills - a.s.kills);
+  return (
+    <div className="vic-sum" role="dialog" aria-label="สรุป">
+      <div className="vic-sum-head">
+        <b>สรุป</b>
+        {SUM_COLS.map((c) => (
+          <span key={c.k} className="vic-sum-col"><svg viewBox="0 0 24 24" aria-hidden="true">{c.ico}</svg>{c.label}</span>
+        ))}
+        <button type="button" className="vic-sum-x" aria-label="ปิด" onClick={() => { clickSound(); onClose(); }}>✕</button>
+      </div>
+      <ol className="vic-sum-list">
+        {rows.map(({ p, s }) => (
+          <li key={p.id} className={`vic-sum-row${!p.alive ? " dead" : ""}`} style={{ "--pc": p.color || "#3d8bd9" }}>
+            <span className="vic-sum-face"><HexFace p={p} /></span>
+            <span className="vic-sum-name">
+              <b>{p.name}</b>
+              {p.id === youId && <i className="vic-sum-you">คุณ</i>}
+              {top > 0 && score(s) === top && <i className="vic-sum-mvp">MVP</i>}
+              <em className="vic-sum-bar" aria-hidden="true"><span style={{ width: `${(s.dealt / maxDealt) * 100}%` }} /></em>
+            </span>
+            {SUM_COLS.map((c) => <span key={c.k} className="vic-sum-n">{s[c.k]}</span>)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function Crown() {
   return (
     <svg className="vic-crown" viewBox="0 0 64 48" aria-hidden="true">
@@ -85,6 +125,7 @@ function Mini({ p, i, you }) {
 }
 
 export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
+  const [sumOpen, setSumOpen] = useState(false);
   const [k, setK] = useState(stageK);
   useEffect(() => {
     const on = () => setK(stageK());
@@ -228,7 +269,15 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
           </div>
         )}
 
+        {sumOpen && state.matchStats && <Summary players={players} stats={state.matchStats} youId={state.youId} onClose={() => setSumOpen(false)} />}
+
         <div className="vic-actions">
+          {state.matchStats && (
+            <button type="button" className={`vic-back vic-sum-btn${sumOpen ? " is-on" : ""}`} aria-pressed={sumOpen} onClick={() => { clickSound(); setSumOpen((v) => !v); }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M10 19V5M15 19v-6M20 19V8" /></svg>
+              สรุป
+            </button>
+          )}
           {onRematch && (
             <button type="button" className={`vic-back vic-again${meAgain ? " is-on" : ""}`} aria-pressed={meAgain} onClick={() => { clickSound(); onRematch(); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95 M19 4.5v4h-4" /></svg>

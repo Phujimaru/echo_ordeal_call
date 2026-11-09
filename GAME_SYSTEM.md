@@ -1272,4 +1272,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เรียกความสนใจ** (`client/src/attention.js` → `desktop/main.js` `echoApp:attention`): ถึงตาเรา / ช่วงจั่วเริ่ม ขณะหน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ (โฟกัสแล้วหยุด)
 - **ป้ายหลุดบนหมาก** (`boardDraw.js` `drawOffline` · unit `offline` จาก BoardStage — ตัวคู่/ร่างแยกดูจากเจ้าของ)
 - **สมดุลในแผงสถิติ** (`CharStats.jsx`): เล่น ≥ 5 ครั้ง และอัตราชนะห่างค่าเฉลี่ยรวม ≥ 15 จุด = ▲/▼ · ปุ่มกรองเฉพาะตัวที่เตือน
-- เทสต์: `tests/kick.test.js` · `tests/rematch.test.js` · `tests/spectator.test.js`
+- **แถบมุมขวาบน** (`components/VolumeControl.jsx` — จัดใหม่ให้ไม่รก): [ป้ายผู้ชม] [อีโมต (ระหว่างแมตช์)] [เมนู] · แผงเมนูเดียว แบ่งหมวด เสียง / การแสดงผล (โหมดมืด · ขนาด UI `uiTheme.js` `--ui-scale` → `zoom` ของ `.hud-dock`/`.hud-top`/`.ocv`) / ห้อง (`GameMenuPanel embedded`) — ปุ่มตั้งค่าใหม่ใส่ในแผงนี้ ห้ามเพิ่มปุ่มลอยในแถบ
+- **อีโมตระหว่างแมตช์** (socket `gameEmote { emoji }` → `io.emit("gameEmote", { id, emoji })` · ชุดเดียวกับ `LOBBY_EMOTES` · 1 ครั้ง/1.2 วิ): ป้ายมุมตัดเหนือตัวที่คุมอยู่ (`boardDraw.js` `emoteFx`) — วาดเฉพาะตัวที่มองเห็น
+- **หมุดทีม** (socket `teamPing { x, y }` · โหมดทีม/Moon Cell): Alt + คลิกช่อง → เพื่อนร่วมทีมเท่านั้น (`teamPingFx`)
+- **สรุปผลแมตช์** (`server/matchStats.js` · `state.matchStats` ตอน GAMEOVER): ทำ/รับ (หน่วยที่เสีย — `combat.tookDamage`) · ล้ม (`combat.instantDeath` ต้นตอ `effectSourceId`) · สกิล (`skills.useSkill`) · นับที่เจ้าของฝ่าย · หน้าจบเกมปุ่ม "สรุป" + MVP (ทำ + ล้ม×3 สูงสุด)
+- เทสต์: `tests/kick.test.js` · `tests/rematch.test.js` (+ สรุปผลแมตช์) · `tests/spectator.test.js`

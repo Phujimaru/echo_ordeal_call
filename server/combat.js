@@ -252,6 +252,7 @@ function instantDeath(p, force) {
   // ต้นเหตุของการตาย = ผู้ที่ตั้ง effectSource ไว้ (ตีปกติ/สกิล/ผลักตอนขยายร่าง) → ฮุค onKill ของตัวละครผู้สังหารเท่านั้น
   //  (Echo — การกลืนกินระดับ EX)
   const killer = match.effectSourceId && match.players[match.effectSourceId];
+  require("./matchStats").onKill(p, match.effectSourceId); // สรุปผลแมตช์
   if (killer) runHook(CHAR_HOOKS[killer.characterId], "onKill", engine, killer, p);
 }
 
@@ -287,6 +288,7 @@ function loseHp(p) {
 }
 // เสียพลังชีวิต/เกราะ 1 หน่วย (ทุกช่องทาง) → ฮุค onDamageTaken ของตัวละคร (Ice Spike: สะสมไว้ระเบิด)
 function tookDamage(p) {
+  require("./matchStats").onDamage(p, match.effectSourceId); // สรุปผลแมตช์ (หน้าจบเกม)
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onDamageTaken) hook.onDamageTaken(engine, p, 1);
   // ถูกผู้เล่นอื่นทำให้เสียหาย = ถูกโจมตี — คนที่ขี่อยู่ร่วง (server/ride.js)

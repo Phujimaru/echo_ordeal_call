@@ -470,3 +470,11 @@
 :root[data-ui="dark"] .ocv-switch { background: rgba(255, 255, 255, 0.16); }
 :root[data-ui="dark"] .ocv-emo-face { stroke: #e8f0fa; }
 :root[data-ui="dark"] .ocv-emo-eye { fill: #e8f0fa; }
+
+:root[data-ui="dark"] .vic-sum { background: #0e1e3a; border-color: rgba(127, 184, 230, .5); color: #e8f0fa; }
+:root[data-ui="dark"] .vic-sum-head { border-bottom-color: #7fb8e6; }
+:root[data-ui="dark"] .vic-sum-col { color: #a9c2e2; }
+:root[data-ui="dark"] .vic-sum-x { background: #18325c; color: #e8f0fa; border-color: rgba(127, 184, 230, .45); }
+:root[data-ui="dark"] .vic-sum-row { background: #13284a; border-color: rgba(127, 184, 230, .3); }
+:root[data-ui="dark"] .vic-sum-bar { background: rgba(255, 255, 255, .12); }
+:root[data-ui="dark"] .vic-sum-btn { background: #3d8bd9; }

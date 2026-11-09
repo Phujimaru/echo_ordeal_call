@@ -56,3 +56,24 @@ test('นอกหน้าจบเกม = ไม่ทำอะไร', () =>
   lobby.rematchVote('p0');
   assert.ok(!match.players.p0.rematch);
 });
+
+test('สรุปผลแมตช์: ดาเมจที่ทำ/รับ · ล้ม · สกิล — นับที่เจ้าของ · เริ่มแมตช์ใหม่ล้าง', () => {
+  const Stats = require('../server/matchStats.js');
+  const combat = require('../server/combat.js');
+  setup(['muimi', 'fern']);
+  match.gameState = 'ACTION';
+  Stats.reset();
+  const [a, b] = Object.values(match.players);
+  match.effectSourceId = a.id;
+  combat.loseHp(b); combat.loseHp(b);
+  Stats.onSkill(a);
+  combat.instantDeath(b);
+  match.effectSourceId = null;
+  const s = Stats.publicStats();
+  assert.equal(s[a.id].dealt, 2);
+  assert.equal(s[b.id].taken, 2);
+  assert.equal(s[a.id].kills, 1);
+  assert.equal(s[a.id].skills, 1);
+  engine.startMatch(); engine.clearPhaseTimer();
+  assert.deepEqual(Stats.publicStats(), {});
+});

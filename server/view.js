@@ -194,6 +194,7 @@ function buildStateInner(viewerId) {
     clockUp: ClockUp.publicInfo(), // ช่วง Clock Up: สมาชิก (เวลา/การตี/Clock Over) + ชนกัน QTE กดรัว — client วาดเงาไล่ตาม + หน้าต่างกดรัว
     maxPlayers: MAX_PLAYERS,
     spectators: spectatorCount(), // จำนวนผู้ชม (ป้ายตาเปิดบนจอ)
+    matchStats: match.gameState === "GAMEOVER" ? require("./matchStats").publicStats() : undefined, // สรุปผลแมตช์ (หน้าจบเกม)
     youId: viewerId,
     fodlanVision: require("./fodlan").vision(viewer) || undefined, // Fodlan หมอก: ช่องที่ฉันมองเห็น ("x,y") — client วาดหมอกนอกช่องเหล่านี้
     controlId, // ระบบคู่: ตัวที่คุมอยู่ (ตัวละครทั่วไป = youId)

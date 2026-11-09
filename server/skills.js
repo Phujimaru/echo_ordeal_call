@@ -110,6 +110,7 @@ function runSkill(id, tier, targets, opts = {}) {
   }
   if (!skipsQuota) p.skillUsedRound = true;
   if (tier === "ultimate") p.ultRound = match.roundNumber;
+  require("./matchStats").onSkill(p); // สรุปผลแมตช์
   // "คำสาป" (สถานะ Universal): กดสกิลสำเร็จแล้ว = เสียพลังชีวิต 1 หน่วย (1 ครั้ง/เทิร์น)
   //  วางหลังหักแต้ม — กดไม่ผ่านเงื่อนไขด้านบนจะ return ไปก่อนถึงตรงนี้ คำสาปจึงไม่กินฟรี
   tickCurseOnSkill(engine, p);

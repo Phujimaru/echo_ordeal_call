@@ -307,6 +307,7 @@ function startMatch() {
   match.forcedWinnerId = null;
   match.statsRecorded = false;
   match.kickedSides = 0;
+  require("./matchStats").reset(); // สรุปผลแมตช์ (server/matchStats.js)
   match.yukiBoom = null;
   match.arjunaUlt = null;
   match.endTurnHold = 0;
