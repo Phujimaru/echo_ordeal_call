@@ -156,7 +156,7 @@ const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนก
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
-const EOS_PIECE_K = 1.35; // สนาม Eos: ขยายหมากหกเหลี่ยม
+const EOS_PIECE_K = 0.62; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับช็อโก้
 const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
@@ -824,7 +824,7 @@ export default function BoardCanvas(props) {
         }
       };
       const drawFrameOf = (target) => drawFrame(target, {
-        uiK: rts ? Math.max(0.45, Math.min(1, 1.15 / (st.cam.z * RTS_BASE_Z))) : 0, // Eos: ป้าย/แถบเลือดบนหมากไม่ขยายตามซูม
+        uiK: rts ? Math.max(0.7, Math.min(1.5, 1.7 / (st.cam.z * RTS_BASE_Z))) : 0, // Eos: ป้าย/แถบเลือดบนหมากไม่ขยายตามซูม
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
