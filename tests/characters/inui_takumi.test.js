@@ -349,3 +349,18 @@ test("Start Up: ตีโดนพร้อมอุปกรณ์ = ลุก�
   assert.equal(p.inui.faiz, false);
   assert.equal(p.inui.startUp, null);
 });
+
+test("Start Up จบโดย Exceed ยังไม่ได้ตีโดน = คืน 4 แต้ม · ถูกตัดผลไม่คืน", () => {
+  const { p } = axel();
+  p.skillPoints = 4;
+  engine.useSkill("a", "ultimate", []);
+  p.inui.startUp.started = true;
+  bag("pointer");
+  p.skillPoints = 4;
+  dial("exceed");
+  assert.equal(p.skillPoints, 0);
+  assert.ok(p.inui.exceed);
+  inui.actorOutro(engine, p);
+  assert.equal(p.skillPoints, 4, "คืน 4 แต้ม");
+  assert.equal(p.inui.exceed, null);
+});

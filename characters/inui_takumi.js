@@ -101,8 +101,15 @@ function endAxel(p) {
   s.axelCd = AXEL_CD;
 }
 function clearGear(s) { s.knuckle = false; s.pointer = false; s.lastGear = null; }
-function endStartUp(engine, p) {
+// refund = จบเอง (หมดเวลา / ตีครบ / รอ): Exceed ที่กดแล้วยังไม่ได้ตีโดน (แพ้/เสมอการกดรัวใน Clock Up) คืน 4 แต้ม (ผู้ใช้สั่ง 2026-11-09)
+//  ตีแล้วโดนหลบ = Exceed ถูกใช้ไปแล้ว ไม่คืน · ถูกตัดผลสกิล = ไม่คืน
+function endStartUp(engine, p, refund) {
   const s = st(p);
+  if (refund && s.exceed) {
+    const back = Math.min(EXCEED_COST, Math.max(0, engine.maxSkillOf(p) - (p.skillPoints || 0)));
+    p.skillPoints = (p.skillPoints || 0) + back;
+    if (back > 0) logTo(engine, `⚡ ${p.name} Exceed Charge ไม่ได้ใช้ — คืนแต้มสกิล ${back}`);
+  }
   s.startUp = null;
   s.exceed = null;
   clearGear(s);
@@ -365,7 +372,7 @@ module.exports = {
   actorOutro(engine, p) {
     const s = st(p);
     if (!s.startUp) return;
-    endStartUp(engine, p);
+    endStartUp(engine, p, true);
     if (!clipOnce(engine, p, CUT.timeOut)) engine.sfx("inui_timeout");
     logTo(engine, `⏱️ ${p.name} Time Out — กลับร่าง Faiz`);
   },
@@ -381,7 +388,7 @@ module.exports = {
   // สมาชิกช่วง Clock Up จบ (ตีครบ / หมดเวลา / รอ) — คนถือตาจบผ่าน actorOutro (คลิป) · จบนอกตา = เสียงแทนคลิป
   onClockDone(engine, p) {
     if (!isInui(p) || !st(p).startUp) return;
-    endStartUp(engine, p);
+    endStartUp(engine, p, true);
     engine.sfx("inui_timeout");
     logTo(engine, `⏱️ ${p.name} Time Out — กลับร่าง Faiz`);
   },
