@@ -64,6 +64,7 @@ function runSkill(id, tier, targets, opts = {}) {
   if (!action.canAct(p, { move: !!(hook && hook.cantoSkill && hook.cantoSkill(p, tier)) })) return;
   // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้ · ฮุค ignoresNoSkill(p, tier) = ช่องนี้ยังกดได้ (โรลันด์: BS Page)
   if ((p.statuses.noskill || 0) > 0 && !(hook && hook.ignoresNoSkill && hook.ignoresNoSkill(p, tier))) return;
+  if (require("./fodlan").noSkill(p)) return; // สนาม Eos: อยู่ในรถ = ใช้สกิลไม่ได้
   if (tier === "ultimate" && Zero.ultLocked(p)) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก (ยกเว้นฮุค zeroImmune · ช่วงมิติพังทลาย)
 
   // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)

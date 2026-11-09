@@ -21,6 +21,7 @@
 const MAP = require("./map6");
 
 const MOV_BONUS = 2;          // ทุกคนบน Eos
+const WALK_MAX = 5;           // ผู้ใช้สั่ง 2026-11-09: โบนัส +2 ดันระยะเดินได้ไม่เกิน 5 · ค่าเริ่มต้นเกิน 5 / บัฟระยะเดิน (รองเท้า ฯลฯ) ปล่อยตามเดิม · ขี่โชโกโบะ/ขับรถบวกเพิ่ม
 const CHOCO_MOV = 3;          // ขี่โชโกโบะ
 const CHOCO_RESPAWN = 3;      // ตกนกแล้วเกิดใหม่ที่คอกหลัง N เทิร์น
 const CAR_HIT_DMG = 2;
@@ -117,7 +118,9 @@ function riding(s, p) { return !!(s && p && s.riders[p.id]); }
 function movMod(ctx, st, p) {
   const s = st && st.eos;
   if (!s || !p) return 0;
-  return MOV_BONUS + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
+  const base = Number(ctx.action.baseMovOf ? ctx.action.baseMovOf(p) : require("../phases/action").baseMovOf(p)) || 0;
+  const walk = Math.max(0, Math.min(base + MOV_BONUS, WALK_MAX) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
+  return walk + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -344,10 +347,19 @@ function boardTiles(ctx, s, p) {
 // ฮุคของ server/ride.js: t ขับรถอยู่ = จำนวนที่นั่งผู้โดยสาร (0 = ไม่ใช่รถ)
 function carSeats(ctx, st, p, t) {
   const s = st && st.eos;
+  if (s) syncCars(ctx, s);
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
 function carDriver(ctx, st, p) { return driving(st && st.eos, p); }
+// อยู่ในรถ (คนขับ หรือผู้โดยสาร) = ใช้สกิลไม่ได้ (ผู้ใช้สั่ง 2026-11-09) · ตี/ชนยังได้
+function noSkill(ctx, st, p) {
+  const s = st && st.eos;
+  if (!s || !p) return false;
+  if (driving(s, p)) return true;
+  const m = p.mountId && ctx.match.players[p.mountId];
+  return !!(m && driving(s, m));
+}
 function askRide(ctx, s, p, tile) {
   if (!tile || !boardTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
   const c = s.cars.find((o) => o.driver && o.x === tile.x && o.y === tile.y);
@@ -1334,6 +1346,7 @@ function hides(ctx, st, viewer, target) {
 function publicInfo(ctx, st) {
   const s = st && st.eos;
   if (!s) return {};
+  syncCars(ctx, s); // รถที่มีคนขับตามตำแหน่งคนขับ (ชั้นแผนที่แคชไว้ — ไม่ได้เรียก layer ทุกครั้งที่เดิน)
   const riders = {};
   for (const [pid, r] of Object.entries(s.riders)) riders[pid] = r.choco;
   return {
@@ -1364,12 +1377,18 @@ function publicInfo(ctx, st) {
     dropship: s.dropship ? { x: s.dropship.x, y: s.dropship.y, state: s.dropship.state } : null,
   };
 }
+// ทุกฝ่ายในแมตช์ (กระดานแต้มของ client — ผู้ใช้สั่ง 2026-11-09 "UI ใหญ่บอกแต้มทุกคน + ใครนำ") · rate = แต้มที่จะได้จบเทิร์นนี้
 function scoreList(ctx, s) {
   const sides = new Set(Object.keys(s.scores));
   for (const pl of s.pillars) if (pl.owner) sides.add(pl.owner);
-  return [...sides].map((side) => ({
-    side, score: s.scores[side] || 0, held: s.pillars.filter((pl) => pl.owner === side).length, color: sideColor(ctx, side), name: sideName(ctx, side),
-  })).sort((a, b) => b.score - a.score);
+  for (const u of Object.values(ctx.match.players)) if (!u.summon && !u.duoOf) { const k = sideOf(u); if (k) sides.add(k); }
+  const imgOf = (u) => { try { return require("../view").displayImg(u); } catch { return null; } };
+  return [...sides].map((side) => {
+    const held = s.pillars.filter((pl) => pl.owner === side).length;
+    const members = Object.values(ctx.match.players).filter((u) => !u.summon && !u.duoOf && sideOf(u) === side)
+      .map((u) => ({ id: u.id, name: u.name, img: imgOf(u), alive: !!u.alive }));
+    return { side, score: s.scores[side] || 0, held, rate: SCORE_TABLE[Math.min(held, SCORE_TABLE.length - 1)] || 0, color: sideColor(ctx, side), name: sideName(ctx, side), members };
+  }).sort((a, b) => b.score - a.score || b.held - a.held);
 }
 function playerInfo(ctx, st, p) {
   const s = st && st.eos;
@@ -1383,13 +1402,13 @@ function playerInfo(ctx, st, p) {
 }
 
 module.exports = {
-  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, preRound, onUnitEnd, onEndTurn,
+  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, explodeBarrel, throwFlask, fireTurret, actMobs, spawnBeast, dropshipTurn, respawnProps, hurtMob, TURRETS,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,
-  MOV_BONUS, CHOCO_MOV, CHOCO_RESPAWN, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,
+  MOV_BONUS, WALK_MAX, CHOCO_MOV, CHOCO_RESPAWN, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,
   LIGHTNING_COUNT, LIGHTNING_DMG,
 };

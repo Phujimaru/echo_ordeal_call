@@ -1,6 +1,7 @@
 import { shopInfoOf, DRAW_ITEM_TYPES } from "../data/shop";
 import EosMap from "../eos/EosMap";
 import EosZoneCard from "../eos/EosZoneCard";
+import EosScoreboard from "../eos/EosScoreboard";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -2010,7 +2011,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // ห้ามจั่วการ์ดเพิ่มเทิร์นนี้
   const noDraw = !!(me && me.statuses?.nodraw);
   // ห้ามใช้สกิลเทิร์นนี้
-  const noSkill = !!(me && me.statuses?.noskill);
+  const noSkill = !!(me && (me.statuses?.noskill || me.stageNoSkill)); // stageNoSkill = สนาม Eos: อยู่ในรถ
   const isMuimi = ch?.id === "muimi"; // เสบียงฉุกเฉินไม่นับเป็นการใช้สกิลหลักของเทิร์น
   const basicFree = isMuimi; // สกิลพื้นฐานที่กดได้แม้ใช้โควตาเทิร์นแล้ว (เสบียงฉุกเฉิน) — ตัวอื่นมาจาก skillLocks.basic.free
   const muimiUltCd = isMuimi ? (me?.muimiUltCd || 0) : 0;
@@ -2594,6 +2595,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {eosMapOpen && state.world === "eos" && <EosMap state={state} onClose={() => setEosMapOpen(false)} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
+      {state.world === "eos" && state.board && <EosScoreboard state={state} />}
 
       {/* QTE — ลอยกลางจอ */}
       {me?.qte && <QtePanel key={me.qte.idx} qte={me.qte} />}

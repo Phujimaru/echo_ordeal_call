@@ -100,12 +100,13 @@ test('หมุด Eos บนลูกโลก: โหวตได้ ffa/duo/t
   assert.equal(match.board.area, AREA);
 });
 
-test('ระยะเดิน +2 ทุกคน', () => {
+test('ระยะเดิน +2 แต่ไม่เกิน 5', () => {
   setup();
   match.world = 'earth';
   const base = action.movOf(P(0));
   match.world = 'eos';
-  assert.equal(action.movOf(P(0)), base + S6.MOV_BONUS);
+  assert.equal(action.movOf(P(0)), Math.max(base, Math.min(base + S6.MOV_BONUS, S6.WALK_MAX)));
+  assert.ok(action.movOf(P(0)) <= Math.max(base, S6.WALK_MAX));
 });
 
 test('โชโกโบะ: จบตาบนช่อง = ขี่ · เดิน +3 + ป่าทึบ 1 ก้าว · โดนดาเมจตกนก กลับคอก เกิดใหม่หลัง 3 เทิร์น', () => {
@@ -171,6 +172,7 @@ test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม�
   assert.ok(sameTile(match.action.from, car));
   assert.equal(action.movOf(p), mov0 + S6.CAR_MOV);
   assert.ok(Fodlan.carWalk(p));
+  assert.ok(Fodlan.noSkill(p), 'อยู่ในรถใช้สกิลไม่ได้');
   assert.ok(!action.boardMap().terrain[K(car.x, car.y)], 'ขับอยู่ = ไม่ใช่สิ่งกีดขวาง');
   const m = action.boardMap();
   const forest = (MAP6.map.special.fd_eos_forest || [])[0];
@@ -190,6 +192,7 @@ test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม�
   assert.equal(car.driver, null);
   assert.ok(sameTile(car, at));
   assert.ok(sameTile(p.pos, lv.tiles[0]));
+  assert.ok(!Fodlan.noSkill(p), 'ลงรถแล้วใช้สกิลได้');
 });
 
 test('รถ: ชน = ใช้การโจมตี ศัตรูติดรถ 2 ดาเมจ + กระเด็น 1 ช่อง · ผู้โดยสาร (คนขับยอม) ไปกับรถ ไม่ร่วงตอนคนขับโดนตี · คนขับตาย = รถจอด ผู้โดยสารลง', () => {
@@ -216,6 +219,7 @@ test('รถ: ชน = ใช้การโจมตี ศัตรูติ�
   assert.ok(match.rideAsk && match.rideAsk.to === p.id);
   assert.ok(Ride.answer(Duo().sideKey(p), true));
   assert.equal(r.mountId, p.id);
+  assert.ok(Fodlan.noSkill(r), 'ผู้โดยสารใช้สกิลไม่ได้');
   Ride.onAttacked(p, q);
   assert.equal(r.mountId, p.id, 'อยู่ในรถ — ไม่ร่วง');
   // คนขับตาย
