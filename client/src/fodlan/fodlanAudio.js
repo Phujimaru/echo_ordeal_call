@@ -15,7 +15,7 @@
 //  hold = 0 ระหว่างเพลงถูกพัก (suspendMusic — วีดีโอท่า/เพลงประจำฉาก) แบบเดียวกับเพลงด่าน · คืนเสียงเมื่อปล่อย
 //  ทุกอย่างห่อ try/catch — เสียงพังห้ามทำให้ฉากพัง
 // ============================================================
-import { masterGain, onVolumeChange, isMusicSuspended, onMusicSuspend } from "../audio";
+import { masterGain, channelGain, onVolumeChange, isMusicSuspended, onMusicSuspend } from "../audio";
 import { FODLAN_STAGES } from "./stages";
 
 const BED_BASE = 0.5;    // ไฟล์เสียงพื้น −22 LUFS (−6 dB ≈ −28) · เพลงด่าน −11.3 × MUSIC_BASE 0.75 ≈ −13.8 → เพลงดังกว่าเสียงพื้นชัดเจน ~14 dB (ซ้อนฝน/ลมอีกชั้นยังห่าง ~11 dB)
@@ -47,7 +47,7 @@ export function fodlanAudio() {
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = masterGain();
+    master.gain.value = masterGain() * channelGain("music");
     // ตัวกันพีค: เสียงพื้นถูกดันเกิน 1 + เสียงครั้งเดียวซ้อนกัน ห้ามแตกที่ลำโพง
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20;
@@ -63,7 +63,7 @@ export function fodlanAudio() {
     sfxBus = ctx.createGain();
     sfxBus.gain.value = SFX_BASE;
     sfxBus.connect(master);
-    onVolumeChange(() => { try { master.gain.setTargetAtTime(masterGain(), now(), 0.05); } catch { /* ไม่เป็นไร */ } });
+    onVolumeChange(() => { try { master.gain.setTargetAtTime(masterGain() * channelGain("music"), now(), 0.05); } catch { /* ไม่เป็นไร */ } });
     onMusicSuspend((on) => {
       try {
         const p = hold.gain;

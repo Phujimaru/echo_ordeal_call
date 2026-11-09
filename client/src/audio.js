@@ -730,7 +730,7 @@ function musicPath(name) {
   return sequence ? sequence[musicCache[name]?._echoSequenceStage || 0] : FILES[name];
 }
 function trackVolume(name) {
-  return Math.min(1, MUSIC_BASE * pathGain(musicPath(name)) * (MUSIC_TRACK_SCALE[name] ?? 1) * masterGain() * (FEATURED_MUSIC[name] ? 1 : musicDuck));
+  return Math.min(1, MUSIC_BASE * pathGain(musicPath(name)) * (MUSIC_TRACK_SCALE[name] ?? 1) * masterGain() * channelGain("music") * (FEATURED_MUSIC[name] ? 1 : musicDuck));
 }
 
 // ---------- master volume (จำค่าไว้ใน localStorage) ----------
@@ -748,14 +748,40 @@ const volListeners = new Set();
 export function masterGain() { return Math.pow(masterVolume, 1.6); }
 
 export function getMasterVolume() { return masterVolume; }
-export function videoVolume(src) { return VIDEO_BASE * pathGain(src) * masterGain(); } // ให้ <video> ใช้ (ผ่าน curve เดียวกัน)
+
+// ---------- ระดับเสียงแยกช่อง (คูณต่อจาก master · จำใน localStorage "echo_vol_ch") ----------
+//  music = เพลง/เพลงประจำฉาก/ลูปเสียงแทนเพลง/เสียงบรรยากาศ Fodlan · sfx = เอฟเฟกต์ (รวมลูปคิงโอเจอร์)
+//  voice = เสียงพากย์ (socket "sfx" ที่มี voice หรือไฟล์ใต้ /voice/) · video = เสียงในคลิปวีดีโอ
+export const VOLUME_CHANNELS = ["music", "sfx", "voice", "video"];
+const channelVolume = { music: 1, sfx: 1, voice: 1, video: 1 };
+try {
+  const saved = JSON.parse(localStorage.getItem("echo_vol_ch") || "null");
+  if (saved && typeof saved === "object") for (const ch of VOLUME_CHANNELS) {
+    const v = Number(saved[ch]);
+    if (Number.isFinite(v)) channelVolume[ch] = Math.max(0, Math.min(1, v));
+  }
+} catch {}
+export function getChannelVolume(ch) { return channelVolume[ch] ?? 1; }
+export function channelGain(ch) { return Math.pow(channelVolume[ch] ?? 1, 1.6); }
+export function setChannelVolume(ch, v) {
+  if (!(ch in channelVolume)) return;
+  channelVolume[ch] = Math.max(0, Math.min(1, v));
+  try { localStorage.setItem("echo_vol_ch", JSON.stringify(channelVolume)); } catch {}
+  applyVolumes();
+}
+const isVoicePath = (path) => typeof path === "string" && path.includes("/voice/");
+const sfxChannel = new WeakMap(); // audio element → "sfx" | "voice"
+export function videoVolume(src) { return VIDEO_BASE * pathGain(src) * masterGain() * channelGain("video"); } // ให้ <video> ใช้ (ผ่าน curve เดียวกัน)
 export function onVolumeChange(fn) { volListeners.add(fn); return () => volListeners.delete(fn); }
 export function setMasterVolume(v) {
   masterVolume = Math.max(0, Math.min(1, v));
   try { localStorage.setItem("echo_vol", String(masterVolume)); } catch {}
+  applyVolumes();
+}
+function applyVolumes() {
   if (currentMusic) getMusic(currentMusic).volume = trackVolume(currentMusic);
   if (loopSfx) loopSfx.volume = loopVolume(loopSfx._echoName); // ลูปเสียงเฉพาะกิจต้องตามหลอดเสียงด้วย
-  for (const [a, base] of activeSfx) a.volume = base * masterGain();
+  for (const [a, base] of activeSfx) a.volume = Math.min(1, base * masterGain() * channelGain(sfxChannel.get(a) || "sfx"));
   volListeners.forEach((fn) => fn(masterVolume));
 }
 
@@ -1033,7 +1059,9 @@ function playSfxNow(name, opts) {
   const a = takeVoice(v.key, v.path);
   const gain = opts && Number.isFinite(opts.gain) ? Math.max(0, opts.gain) : 1;
   const base = name === "action_button" ? CLICK_BASE : Math.min(1, SFX_BASE * pathGain(v.path) * gain * sfxDuck());
-  a.volume = base * masterGain();
+  const ch = name !== "action_button" && ((opts && opts.voice) || isVoicePath(v.path)) ? "voice" : "sfx";
+  sfxChannel.set(a, ch);
+  a.volume = Math.min(1, base * masterGain() * channelGain(ch));
   a._echoPlay = ++playSeq;
   activeSfx.set(a, base);
   a.play().then(() => { if (!activeSfx.has(a)) a.pause(); }).catch(() => {
@@ -1096,7 +1124,10 @@ export function installClickSound(root = typeof document !== "undefined" ? docum
 const DUCK_LEVEL = 0.25;
 // ลูปเสียงเฉพาะกิจทำหน้าที่แทนเพลงประกอบ -> ใช้ระดับเดียวกับเพลง
 //  คิงโอเจอร์ (ohger_*): ลูปเป็นส่วนหนึ่งของเสียงกดดาบ → ระดับเสียงเอฟเฟกต์ ไม่ใช่ระดับเพลง (ผู้ใช้: ลูปเบาเกิน · ไฟล์ −16 LUFS เท่าเสียงกด)
-function loopVolume(name) { return Math.min(1, (String(name).startsWith("ohger_") ? SFX_BASE : MUSIC_BASE) * soundGain(name) * masterGain() * sfxDuck()); }
+function loopVolume(name) {
+  const ohger = String(name).startsWith("ohger_");
+  return Math.min(1, (ohger ? SFX_BASE : MUSIC_BASE) * soundGain(name) * masterGain() * channelGain(ohger ? "sfx" : "music") * sfxDuck());
+}
 export function startLoopSfx(name) {
   if (!FILES[name]) return null;
   stopLoopSfx();
@@ -1189,7 +1220,7 @@ export function playSceneMusic(name, { from = 0 } = {}) {
   const releaseMusic = suspendMusic();
   const a = new Audio(path);
   let k = 1, done = false, awaiting = false, raf = 0, fadeTimer = 0;
-  const setVol = () => { a.volume = Math.max(0, Math.min(1, MUSIC_BASE * pathGain(path) * masterGain() * k)); };
+  const setVol = () => { a.volume = Math.max(0, Math.min(1, MUSIC_BASE * pathGain(path) * masterGain() * channelGain("music") * k)); };
   setVol();
   if (from > 0) {
     const seek = () => { try { a.currentTime = from; } catch { /* ยังไม่มี metadata */ } };

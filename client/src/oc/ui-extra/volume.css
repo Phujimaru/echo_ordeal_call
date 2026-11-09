@@ -115,3 +115,20 @@
 .ocm-tag { font: 600 12px/1 var(--oc-f-ui); color: var(--oc-hp); padding: 5px 8px; border: 1px solid rgba(210, 69, 91, 0.4); background: #fff; }
 
 @media (prefers-reduced-motion: reduce) { .ocv-panel { animation: none; } }
+
+/* ---------- ปุ่มโหมดมืด (กดสลับทันที · uiTheme.js) ---------- */
+.oct-btn { padding: 0 10px; }
+.oct-sun { fill: var(--oc-echo); }
+.oct-ray { fill: none; stroke: var(--oc-echo); stroke-width: 1.6; stroke-linecap: round; }
+.oct-moon { fill: var(--oc-azure); }
+
+/* ---------- หลอดแยกช่อง (เพลง/เอฟเฟกต์/เสียงพากย์/วีดีโอ) ---------- */
+.ocv-chs { display: flex; flex-direction: column; gap: 9px; padding-top: 10px; border-top: 1px solid var(--oc-line); }
+.ocv-ch { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 18px; column-gap: 8px; row-gap: 2px; cursor: pointer; }
+.ocv-ch-t { font: 600 12px/1.2 var(--oc-f-ui); color: var(--oc-ink-2); }
+.ocv-ch-p { font: 600 12px/1.2 var(--oc-f-ui); color: var(--oc-ink); font-variant-numeric: tabular-nums; text-align: right; }
+.ocv-ch-s { grid-column: 1 / -1; position: relative; }
+.ocv-ch-s:has(input:focus-visible) { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+.ocv-ch-track { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--oc-frost); }
+.ocv-ch-track i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--fill); background: var(--oc-azure); }
+.ocv-ch-s input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }

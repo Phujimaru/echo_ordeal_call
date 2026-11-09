@@ -1,6 +1,6 @@
 // โหมดมืดของ UI ในเกม (ผู้ใช้สั่ง 2026-11-09) — ค่าเครื่องผู้เล่นล้วนๆ (localStorage) ไม่ส่งไป server
 //  ใส่ <html data-ui="dark"> → ui-theme.css ทับธีมขาว ORDEAL CALL (HUD · กระเป๋า · หน้าร้าน · หน้าต่างในเกม) · กระดานไม่เปลี่ยน
-//  สลับได้ที่ห้องรอ (oc/lobby/LobbyRoom.jsx ปุ่ม "โหมดมืด")
+//  สลับได้ทุกหน้าที่ปุ่มมุมขวาบน (components/VolumeControl.jsx — ข้างปุ่มเสียง)
 import { useEffect, useState } from "react";
 
 const KEY = "echo_ui_theme";

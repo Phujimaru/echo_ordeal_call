@@ -2,7 +2,7 @@
    ธีม UI ในเกม — ไฟล์นี้ไม่อยู่ใน @layer (main.jsx) จึงชนะ utility ของ Tailwind (.text-white ฯลฯ) และสไตล์ใน @layer components
    ส่วนที่ 1: แก้ตัวอักษรในหน้าต่างขาว (AvModal tone="white") — กฎเดิมใน avalon-screens.css อยู่ใน @layer components
              จึงแพ้ .text-white เสมอ (หัวข้อเป็นขาวบนขาว) · สีแบบ inline ใน Game.jsx ใช้ตัวแปร --avm-* (ค่าเดิมเป็น fallback)
-   ส่วนที่ 2: โหมดมืด (ผู้ใช้สั่ง 2026-11-09) — ทับธีมขาวเมื่อ <html data-ui="dark"> (uiTheme.js · สลับที่ห้องรอ)
+   ส่วนที่ 2: โหมดมืด (ผู้ใช้สั่ง 2026-11-09) — ทับธีมขาวเมื่อ <html data-ui="dark"> (uiTheme.js · สลับที่ปุ่มมุมขวาบน VolumeControl.jsx)
    ============================================================ */
 .av-modal-white { --avm-dim: #46668f; --avm-text: #2d4f7a; --avm-gold: #8a5a10; --avm-line: rgba(61,139,217,.25); }
 .av-modal-white .avm-k { --avm-on: color-mix(in srgb, var(--avm-c, #3d8bd9) 55%, #0b1a35); }
@@ -260,3 +260,26 @@
 :root[data-ui="dark"] .toc-col[data-bust="true"] .toc-pv { color: #ff8a9a; }
 :root[data-ui="dark"] .toc-stamp { background: rgba(10,24,52,.85); color: #ff8a9a; border-color: #ff8a9a; }
 :root[data-ui="dark"] .toc-flash { background: #8cc4f0; }
+
+/* ---------- ปุ่ม/แผงมุมขวาบน (VolumeControl · GameMenu) ---------- */
+:root[data-ui="dark"] .ocv-btn { background: rgba(16, 34, 66, 0.9); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.8); }
+:root[data-ui="dark"] .ocv-btn:hover { background: #18325c; }
+:root[data-ui="dark"] .ocv-ico-body,
+:root[data-ui="dark"] .ocm-btn-t { fill: #e8f0fa; color: #e8f0fa; }
+:root[data-ui="dark"] .ocm-ico-line { stroke: #e8f0fa; }
+:root[data-ui="dark"] .ocv-bars i:not(.on),
+:root[data-ui="dark"] .ocv-track,
+:root[data-ui="dark"] .ocv-ch-track { background: rgba(255, 255, 255, 0.16); }
+:root[data-ui="dark"] .oct-moon { fill: #ffd76a; }
+:root[data-ui="dark"] .ocv-panel { background: rgba(14, 30, 58, 0.95); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-label,
+:root[data-ui="dark"] .ocv-ch-t { color: #a9c2e2; }
+:root[data-ui="dark"] .ocv-pct,
+:root[data-ui="dark"] .ocv-ch-p { color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-chs { border-top-color: rgba(255, 255, 255, 0.14); }
+:root[data-ui="dark"] .ocv-mute,
+:root[data-ui="dark"] .ocm-item { background: #18325c; border-color: rgba(127, 184, 230, 0.4); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-mute:hover,
+:root[data-ui="dark"] .ocm-item:hover { background: #21406f; }
+:root[data-ui="dark"] .ocm-item.is-danger { color: #ff8a9c; }
+:root[data-ui="dark"] .ocm-tag { background: transparent; }

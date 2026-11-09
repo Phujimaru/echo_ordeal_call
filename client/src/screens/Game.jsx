@@ -2052,7 +2052,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       if (!f.voice) { playSfx(f.sound); return; }
       const prev = voices.get(f.voice);
       if (prev) stopSfx(prev.a, prev.id);
-      const a = playSfx(f.sound);
+      const a = playSfx(f.sound, { voice: true });
       if (a) voices.set(f.voice, { a, id: sfxPlayId(a) });
     };
     socket.on("sfx", onSfx);
