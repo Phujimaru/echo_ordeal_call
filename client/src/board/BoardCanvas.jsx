@@ -536,6 +536,10 @@ export default function BoardCanvas(props) {
       st.cam = cc(st.cam);
       const view = rts ? computeView(w, h, { ...st.cam, z: st.cam.z * RTS_BASE_Z }) : st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base; // RTS: z นับจากเฟรมอบที่ถอยออก
       st.view = view;
+      // กล้อง RTS: กล้องกำลังเคลื่อน (ลาก/ชิดขอบ/ลูกศร/ล้อ/แอนิเมชัน/หมุน) → วาดพื้นสดที่มุมกล้องจริงทุกเฟรม (คมตลอด ไม่ต้องรออบ)
+      const vk = `${view.k}|${view.ox}|${view.oy}|${st.turn}`;
+      if (vk !== st.prevVK) { st.prevVK = vk; st.moveUntil = now + 160; }
+      const camMoving = rts && (now < (st.moveUntil || 0) || !!st.camAnim || !!(st.drag && st.drag.moved) || st.keys.size > 0 || !!st.yaw);
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
       //  ทุกระดับที่ซูมอยู่ใช้ชั้นอบความละเอียดเดียว (ของระดับสูงสุด) — เปลี่ยนระดับไม่ต้องอบใหม่
       const res = lowQ || (!zl && !rts) ? dpr : Math.round(Math.min(2, dpr * (rts ? rr.max : zoomKOf(pitch, ZOOM_STEPS - 1))) * 100) / 100;
@@ -556,7 +560,7 @@ export default function BoardCanvas(props) {
       const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
       const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
-      if (!turning && !st.cv3) {
+      if (!turning && !st.cv3 && !(camMoving && !lowQ)) {
         const rk = rts ? Math.round(st.turn * 1000) / 1000 : normRot(st.turn);
         const bk = `${st.sig}|${w}x${h}|${res}|${night}|${rk}|${pitch}`;
         boardCv = st.boards.get(bk);
@@ -568,12 +572,12 @@ export default function BoardCanvas(props) {
       }
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
-      setEosFast(rts && turning); // สนาม Eos: ระหว่างหมุน (วาดพื้นสด) ข้ามรายละเอียดเล็ก
+      setEosFast(rts && (turning || camMoving)); // สนาม Eos: ระหว่างวาดพื้นสด ข้ามรายละเอียดเล็ก
       let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (rts && !turning && !lowQ && !st.cv3) {
-        const still = !st.camAnim && !(st.drag && st.drag.moved) && !st.keys.size && !st.pivot;
+        const still = !camMoving && !st.pivot;
         const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}`;
         if (!still) st.stillAt = 0;
         else if (st.sharpKey !== ck) {

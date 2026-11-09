@@ -313,7 +313,7 @@ export const theme = {
     const { g, C, info } = c;
     if (info.area !== EOS_AREA) return;
     const T = TILES, isW = (x, y) => WATER_SET.has(K(x, y));
-    if (FAST) return; // ระหว่างหมุนอิสระ: ข้ามกก/หิน/ดอกไม้/พุ่มไม้ (กลับมาเมื่อปล่อยปุ่ม)
+    const lite = FAST; // ระหว่างกล้องเคลื่อน (วาดสด): ข้ามหิน/หญ้า/ดอกไม้เล็กๆ แต่คงพุ่มไม้ป่า/กก/ประกายน้ำ (ไม่ให้ภาพหาย)
     // ประกายบนผิวน้ำ
     g.strokeStyle = C.foam; g.lineWidth = 1;
     for (const t of T.water) {
@@ -334,13 +334,13 @@ export const theme = {
       }
     }
     // ก้อนหินเล็ก/หญ้าแห้งริมทะเลทราย
-    for (const t of T.sand) {
+    if (!lite) for (const t of T.sand) {
       const R = rng(t.x * 91 + t.y * 13);
       if (R() < 0.3) { const [px, py, s] = P(t.x + R(), t.y + R()); g.fillStyle = C.pebble; g.beginPath(); g.ellipse(px, py, s * 0.06, s * 0.035, 0, 0, TAU); g.fill(); }
       if (R() < 0.25) { const [px, py, s] = P(t.x + R(), t.y + R()); g.strokeStyle = C.dryGrass; g.lineWidth = 1; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(px, py); g.lineTo(px + k * s * 0.05, py - s * 0.12); g.stroke(); } }
     }
     // ทุ่งหญ้า: ดอกไม้/กอหญ้า (เว้นถนน/เมือง)
-    for (const t of T.grass) {
+    if (!lite) for (const t of T.grass) {
       const R = rng(t.x * 17 + t.y * 71);
       for (let i = 0; i < 3; i++) {
         const [px, py, s] = P(t.x + R(), t.y + R());
