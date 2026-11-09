@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { getEarth } from "../globe/globeCore";
 import { towerHeight } from "./colonyProps";
+import { createColonyModels } from "./colonyModels";
 import { playSfx } from "../audio";
 
 const COLS = 24, ROWS = 40, SEC = 10; // 24 คอลัมน์ (ผู้ใช้สั่ง 2026-11-09 ขยายรอบวง — เดิม 16 · รัศมีอุโมงค์กว้างขึ้น 1.5 เท่า)
@@ -379,10 +380,14 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const overlay = new THREE.Mesh(tubeGeo(0.01), ovMat);
   scene.add(floor, overlay);
 
-  // ---- ของบนพื้น: บ้าน/ตึก/ต้นไม้ วาดเป็นสไปรต์ 2D ในชั้นบน (boardDraw → colonyProps.js) — ที่นี่เก็บแค่ความสูงให้แขนกล้องหลบ
+  // ---- ของบนพื้น: บ้าน/ตึก/ต้นไม้/ป้อม/หอ/น้ำพุ/แคปซูล = โมเดล 3D ยึดพื้น (colonyModels.js — ผู้ใช้สั่ง 2026-11-09 ไม่เอาสไปรต์ 2D หันตามกล้อง)
+  //  solidAt = ความสูงให้แขนกล้องหลบ
+  const models = createColonyModels({ placeOn, surfAt: (bx, by, hh, out) => surf(phiOf(bx), by, hh, out), lowQ });
+  scene.add(models.root);
   const solidAt = new Map(); // "x,y" → ความสูง
   let terrainSig = "", lastNight = null;
-  function buildProps(map) {
+  function buildProps(map, isNight) {
+    models.build(map, !!isNight);
     solidAt.clear();
     for (const [k, kind] of Object.entries(map.terrain || {})) {
       if (!HEIGHT[kind]) continue;
@@ -976,6 +981,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       sfx("colony_meteor_hit", 0.35);
     } else if (kind === "colonyTurretHit") {
       const pos = surf(phiOf(d.x + 0.5), d.y + 0.5, 0.5);
+      models.hitTurret(d.x, d.y, now());
       sparks(pos, 0xffd890, d.hp > 0 ? 10 : 30, d.hp > 0 ? 2 : 3.5, 600);
       if (d.hp <= 0) { boom(pos, 1.8, 700); shockwave(d.x + 0.5, d.y + 0.5, 0xff9a50, 2.4, 600); R.shake = Math.max(R.shake, 0.6); }
     } else if (kind === "colonyLift") {
@@ -1131,6 +1137,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     if (!sealAnim || !sealAnim.t0 || now() > sealAnim.t0 + 1800) setIrisIfNeeded(sealedNow > 0 ? sealedNow * SEC : null);
     alarm = Math.max(alarm * 0.98, c.countdown != null ? 0.35 : 0);
     capsulesNow = Array.isArray(c.capsules) ? c.capsules : c.capsule ? [{ kind: "apoth", ...c.capsule }] : [];
+    models.setTurrets(c.turrets);
     // ไฟห้องกลางวัน/กลางคืน
     hemi.intensity = night ? 0.45 : 1.25; amb.intensity = night ? 0.18 : 0.35; sun.intensity = night ? 0.15 : 0.9;
     domeMat.opacity = night ? 0.1 : 0.18;
@@ -1196,6 +1203,10 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
       if (k >= 1) jumpCam = null;
     }
     stepCamera(dt / 1000);
+    camera.updateMatrixWorld();
+    models.setCapsules(capsuleList(t));
+    models.clip(sealedNow * SEC, finale && finale.front && finale.front.z != null ? finale.front.z : null);
+    models.update(t, { camera, units });
     capBottom.visible = sealedNow === 0 && camera.position.z > 0.05;
     if (iris) iris.visible = camera.position.z > iris.position.z + 0.05;
     // ---- ภาพเคลื่อนไหว
@@ -1282,6 +1293,18 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     renderer.render(scene, camera);
   }
 
+  // แคปซูลเสบียงที่ต้องโชว์ตอนนี้ [{ kind, x, y, z }] (z = ความสูงระหว่างตก) — ยังไม่ถึงจังหวะตกในฉาก = ไม่อยู่ในรายการ
+  function capsuleList(t) {
+    const out = [];
+    for (const c of capsulesNow) {
+      const d = capsuleDrops.get(`${c.x},${c.y}`);
+      if (d && (!d.t0 || t < d.t0)) continue;
+      const k = d ? clamp((t - d.t0) / 550, 0, 1) : 1;
+      out.push({ kind: c.kind, x: c.x, y: c.y, z: (1 - ease(k)) * Rc * 0.95 });
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- ตัวฉายภาพให้ชั้น 2D (boardGeo.setCustomProjection)
   const _v = new THREE.Vector3(), _ev = new THREE.Vector3();
   function project(x, y, z = 0) {
@@ -1329,16 +1352,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     // ม่านเหล็กปิด (เกือบสนิท) อยู่ระหว่างกล้องกับปล้องที่ปิด → แถว < ค่านี้ถูกบัง (ชั้น 2D ไม่วาดสไปรต์/เอฟเฟกต์) · null = ไม่บัง
     occludeBelow() { return iris && iris.visible && irisOpen < 0.3 ? iris.position.z : null; },
     // แคปซูลเสบียงทุกลูกที่วาดตอนนี้ [{ kind, x, y, z }] (z = ความสูงระหว่างตก) — ยังไม่ถึงจังหวะตกในฉาก = ไม่อยู่ในรายการ
-    capsuleAt(t) {
-      const out = [];
-      for (const c of capsulesNow) {
-        const d = capsuleDrops.get(`${c.x},${c.y}`);
-        if (d && (!d.t0 || t < d.t0)) continue;
-        const k = d ? clamp((t - d.t0) / 550, 0, 1) : 1;
-        out.push({ kind: c.kind, x: c.x, y: c.y, z: (1 - ease(k)) * Rc * 0.95 });
-      }
-      return out;
-    },
+    capsuleAt(t) { return capsuleList(t); },
     flash() { return flash; },
     flashColor() { return flashRGB; },
     // ระเบิดตอนจบ: แถว > ค่านี้ถูกกำแพงไฟกลืนแล้ว (ชั้น 2D ไม่วาดสไปรต์) · null = ไม่มี

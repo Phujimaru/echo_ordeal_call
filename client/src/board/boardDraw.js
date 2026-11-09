@@ -23,7 +23,6 @@ import {
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
-import { drawCapsule, drawFountain, drawHouse, drawTower, drawTurret, drawWatch } from "./colonyProps";
 import { drawShopStall, shopSize } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
@@ -2263,20 +2262,8 @@ export function drawFrame(g, st, now) {
   for (const t of info.terrain) {
     if (t.kind === "chasm") continue; // ช่องพังของเรียวกิ = หลุมบนพื้น (drawRyougiGround) ไม่มีสไปรต์
     if (t.kind === "breach") continue; // Colony: รูรั่ว = หลุมบนพื้น 3D (colony3d)
-    // Colony: บ้าน · ตึก · ต้นไม้ — สไปรต์ยืนบนผิวโค้ง (ตึก/ต้นไม้บังตัวที่อยู่ไกลกว่า = จาง)
-    // Colony: ป้อมปืนรักษาการณ์ (หันตามข้อมูล state.colony.turrets · หลอดเลือด)
-    if (colony && t.kind === "turret") {
-      const tr = (st.colonyTurrets || []).find((q) => q.x === t.x && q.y === t.y) || null;
-      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, () => drawTurret(g, t.x, t.y, tr, night, now, st.hitT)) });
-      continue;
-    }
-    if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree")) {
-      // บังหมาก (ทุกชนิด รวมบ้าน) = โปร่ง แทนการทึบทับ — หมากต้องมองเห็นเสมอ
-      const fade = behind(t.x, t.y);
-      const f0 = t.kind === "house" ? () => drawHouse(g, t.x, t.y, night) : t.kind === "tower" ? () => drawTower(g, t.x, t.y, night, now) : () => drawObstacle(g, t, octx, now);
-      items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha *= 0.3; f0(); g.restore(); } : f0) });
-      continue;
-    }
+    // Colony: บ้าน · ตึก · ต้นไม้ · ป้อมปืน = โมเดล 3D ยึดพื้นในฉาก (colonyModels.js) — ชั้น 2D ไม่วาด
+    if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree" || t.kind === "turret")) continue;
     // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง
     if (t.kind === "icewall") {
       // หนามหิน Takt ของลอว์ (ชั้นหนามเดียวกัน · look "lawRock") — พุ่งขึ้นตามฉาก lawTakt
@@ -2301,15 +2288,8 @@ export function drawFrame(g, st, now) {
     const [x, y] = parseKey(k);
     if (!iceSpikeLv(String((info.terrainKind && info.terrainKind[k]) || ""))) pushSpike(x, y, lv);
   }
-  // Colony: ร้าน = แคปซูลเสบียง (ตกลงมาจากแกนตอนปรากฏ — st.colonyCapsule จาก colony3d.capsuleAt)
-  //  แคปซูล 3 แบบ = ร้าน 3 ร้าน (ยา/ช่าง/พ่อค้าเร่ — colonyProps.drawCapsule)
-  const caps = colony && Array.isArray(st.colonyCapsule) ? st.colonyCapsule : [];
-  for (const cap of caps) items.push({ d: depthOf(cap.x + 0.5, cap.y + 0.5) + 0.05, f: onWall(cap.x + 0.5, cap.y + 0.5, () => drawCapsule(g, cap.x, cap.y, cap.z || 0, night, now, cap.kind)) });
-  // Colony: น้ำพุ (จุดฟื้นฟู) · หอสังเกตการณ์ — สไปรต์เตี้ยบนช่องที่ยืนได้ (วาดก่อนหมากในช่องเดียวกัน)
-  if (colony) {
-    for (const hp of info.heal || []) { const hx = hp.x, hy = hp.y; items.push({ d: depthOf(hx + 0.5, hy + 0.5) + 0.02, f: onWall(hx + 0.5, hy + 0.5, () => drawFountain(g, hx, hy, night, lowQ ? 0 : now)) }); }
-    for (const sp of info.special) if (sp.kind === "watch") items.push({ d: depthOf(sp.x + 0.5, sp.y + 0.5) + 0.02, f: onWall(sp.x + 0.5, sp.y + 0.5, () => drawWatch(g, sp.x, sp.y, night, now)) });
-  }
+  // Colony: แคปซูลร้าน 3 แบบ · น้ำพุ · หอสังเกตการณ์ = โมเดล 3D ในฉาก (colonyModels.js)
+  const caps = colony && Array.isArray(st.colonyCapsule) ? st.colonyCapsule : []; // ใช้ตัดสินป้ายร้าน (ลงถึงพื้นแล้ว)
   // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน ขนาด 2×2 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
   const shopList = Array.isArray(st.shops) ? st.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
   if (!colony) for (const sh of shopList) {
