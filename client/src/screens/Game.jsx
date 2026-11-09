@@ -2053,7 +2053,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       if (!hk || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       const el = document.activeElement;
       if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-      if (hk === "Enter" && el && el.closest && el.closest("button, a[href], [role='button']")) return;
+      // Enter บนปุ่มที่โฟกัสด้วยคีย์บอร์ด (Tab) = กดปุ่มนั้นตามปกติ · โฟกัสค้างจากการคลิกเมาส์ = ใช้เป็นปุ่มลัด (ไม่กดปุ่มที่คลิกไปล่าสุดซ้ำ)
+      const onCtl = hk === "Enter" && el && el.closest && el.closest("button, a[href], [role='button']");
+      if (onCtl && el.matches(":focus-visible")) return;
       const modal = Array.from(document.querySelectorAll("[aria-modal='true']")).pop() || null;
       // ปุ่มต้องมองเห็นและไม่มีหน้าต่างอื่นบังอยู่ (ทดสอบจุดกลางปุ่ม — ฉากซ้อน/หน้าต่างเลือกท่า/กระเป๋า/ร้าน บัง = ไม่กด)
       const onTop = (b) => {
@@ -2064,6 +2066,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       };
       const btn = Array.from(document.querySelectorAll(`[data-hotkey="${hk}"]`))
         .find((b) => !b.disabled && b.getAttribute("aria-disabled") !== "true" && (!modal || modal.contains(b)) && onTop(b));
+      if (onCtl) { e.preventDefault(); el.blur(); }
       if (!btn) return;
       e.preventDefault();
       btn.click();
