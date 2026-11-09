@@ -71,7 +71,7 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 export const reducedMotion = () => REDUCED;
 
 // สีไฮไลต์ [พื้น, ขอบ]
-const OV = {
+export const OV = {
   move: ["rgba(61,139,217,.45)", "rgba(170,210,250,.85)"],
   attack: ["rgba(224,86,79,.38)", "rgba(255,160,150,.75)"],
   skill: ["rgba(139,92,246,.36)", "rgba(200,170,255,.85)"],
@@ -477,6 +477,42 @@ function cloakShimmer(g, cx, cy, r, now) {
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
 // สนาม Colony: ขยายแถบเลือด/ป้าย (หมากถูกย่อตามระยะกล้อง + จอถูกย่อ → แถบบางจนอ่านไม่ออก) — ตั้งจาก onWall ของ drawFrame
 let UNIT_UI_K = 1;
+// Colony: หมาก = เหรียญหกเหลี่ยมหนา 3 มิติ (จุดยอดเป็นพิกัดกระดาน ฉายผ่านกล้อง 3D → ยึดพื้น ไม่หันตามกล้อง) + ป้ายรูปตั้งบนเสา (ผู้ใช้ขอดู 2026-11-09)
+let PIECE3D = false;
+const COLONY_FLOOR = new Set(["shallow", "lift", "belt", "rail", "warp", "watch"]);
+const COIN_LIGHT = [-0.6, -0.8]; // ทิศแสง (พิกัดกระดาน) ให้ด้านข้างเหรียญสว่าง/มืดต่างกัน
+function hexCoin(g, u, wx, wy, K, now) {
+  const r = 0.36 * K, H = 0.13, n = 6, a0 = Math.PI / 6;
+  const ring = (rr, z, dx = 0, dy = 0) => Array.from({ length: n }, (_, i) => { const a = a0 + i * Math.PI * 2 / n; return P(wx + dx + Math.cos(a) * rr, wy + dy + Math.sin(a) * rr, z); });
+  const poly = (pts) => { g.beginPath(); pts.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); };
+  // เงา
+  poly(ring(r * 1.08, 0, 0.06, 0.08)); g.fillStyle = "rgba(0,0,0,.26)"; g.fill();
+  const B = ring(r, 0), T = ring(r, H);
+  if (!B.concat(T).every((q) => Number.isFinite(q[0]))) return;
+  // ด้านข้าง: เรียงไกล → ใกล้ · แรเงาตามทิศแสง
+  const sides = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n, am = a0 + (i + 0.5) * Math.PI * 2 / n, nx = Math.cos(am), ny = Math.sin(am);
+    sides.push({ i, j, d: depthOf(wx + nx * r, wy + ny * r), lit: nx * COIN_LIGHT[0] + ny * COIN_LIGHT[1] });
+  }
+  sides.sort((p, q) => p.d - q.d);
+  for (const f of sides) {
+    poly([B[f.i], B[f.j], T[f.j], T[f.i]]);
+    g.fillStyle = shadeHex(u.color, -0.42 + f.lit * 0.22); g.fill();
+    g.strokeStyle = "rgba(0,0,0,.18)"; g.lineWidth = 1; g.stroke();
+  }
+  // หน้าบน: สีที่นั่ง + ขอบขาว + ร่องหกเหลี่ยมด้านใน
+  poly(T); g.fillStyle = u.color; g.fill();
+  g.strokeStyle = "rgba(255,255,255,.92)"; g.lineWidth = 2; g.stroke();
+  poly(ring(r * 0.66, H)); g.fillStyle = shadeHex(u.color, -0.18); g.fill();
+  g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 1; g.stroke();
+  // ตัวเรา = ขอบทองรอบเหรียญ · เพื่อน = เขียว
+  if (u.isMe || u.ally) { poly(ring(r * 1.16, 0.01)); g.strokeStyle = u.isMe ? "#f0c868" : ALLY; g.lineWidth = 2.5; g.stroke(); }
+  if (u.isActor) {
+    const p = (now / 1100) % 1;
+    g.save(); g.globalAlpha *= 1 - p; poly(ring(r * (1.1 + p * 0.9), 0.02)); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.restore();
+  }
+}
 // ---------- หลอดพลังชีวิต/เกราะบนหมาก (ผู้ใช้สั่งออกแบบใหม่ 2026-10-25 — ต้องอ่านง่ายทั้งค่าปกติ 7/3 และค่าเยอะแบบบอส 15/5 · 25/5) ----------
 //  เกราะ = แคปซูลบางด้านบน · เลือด = แคปซูลหนาด้านล่าง · ยาวเท่ากัน (แต่ละหลอดเต็ม = เพดานของมันเอง)
 //  ≤ VITAL_TICK_ALL หน่วย = ขีดแบ่งทุกหน่วย · มากกว่า = ขีดเข้มทุก 5 หน่วย + เหรียญตัวเลขเลือดที่หัวหลอด + หลอดยาวขึ้น
@@ -578,9 +614,11 @@ function drawUnit(g, u, now, boxes) {
     }
     g.globalAlpha = a;
   } else faizTrailClear(u.id);
-  // ฐานแบบที่นั่ง (ทรงกระบอก)
+  // ฐานแบบที่นั่ง (ทรงกระบอก) · Colony = เหรียญหกเหลี่ยม 3 มิติ (hexCoin)
+  const P1 = P(wx, wy, PIECE3D ? 0.13 : 0.12);
+  if (PIECE3D) hexCoin(g, u, wx, wy, K, now);
+  else {
   gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
-  const P1 = P(wx, wy, 0.12);
   gEllipse(g, wx, wy, 0.32 * K, 0, 28); g.fillStyle = shadeHex(u.color, -0.25); g.fill();
   gEllipse(g, wx, wy, 0.32 * K, 0.12, 28); g.fillStyle = u.color; g.fill();
   g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 2; g.stroke();
@@ -597,6 +635,7 @@ function drawUnit(g, u, now, boxes) {
     const p = (now / 1100) % 1;
     g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.4 + p * 0.4) * K, 0.12, 28); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); g.globalAlpha = a;
   }
+  }
   // ลำแสงจากฐานขึ้นรูป
   // hz = ลอยขึ้นระหว่างเดินกระโดด (หน่วยช่อง) · sq = ยุบ/ยืดตัว (Echo)
   const hexR = s * 0.4 * K;
@@ -606,7 +645,13 @@ function drawUnit(g, u, now, boxes) {
   if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
-  if (!u.fly && !tb) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
+  if (PIECE3D && !u.fly && !tb) {
+    // เสาโลหะทรงกลม (ด้านซ้ายสว่าง/ขวามืด) ตั้งจากกลางเหรียญถึงป้ายรูป
+    const pw = Math.max(4, s * 0.05), sg = g.createLinearGradient(bx - pw / 2, 0, bx + pw / 2, 0);
+    sg.addColorStop(0, "#f4f7fb"); sg.addColorStop(0.45, "#b9c3cf"); sg.addColorStop(1, "#5d6876");
+    g.fillStyle = sg; g.fillRect(bx - pw / 2, hy, pw, P1[1] - hy);
+    g.fillStyle = hexA(u.color, 0.55); g.fillRect(bx - pw / 2, hy, pw, (P1[1] - hy) * 0.35);
+  } else if (!u.fly && !tb) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
   if (u.isActor && !tb) {
     const gl = g.createRadialGradient(bx, hy, hexR * 0.6, bx, hy, hexR * 1.7);
     gl.addColorStop(0, "rgba(255,255,255,.35)"); gl.addColorStop(1, "rgba(255,255,255,0)");
@@ -618,7 +663,11 @@ function drawUnit(g, u, now, boxes) {
   if (u.diego) diegoHorse(g, u, now, wx, wy, (u.hz || 0) - (u.diego.mounted || u.diego.charge ? DIEGO_RIDE_Z : 0));
   if (tb) { /* ร่างรถ: วาดรถไปแล้วด้านบน — ไม่มีหกเหลี่ยม */ }
   else if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
-  else unitHex(g, u, bx, hy, hexR);
+  else {
+    // Colony: ป้ายรูปมีความหนา — แผ่นหลังสีเข้มเยื้องลงขวา
+    if (PIECE3D) { const d = Math.max(2, hexR * 0.09); hexPath(g, bx + d * 0.6, hy + d, hexR + 3); g.fillStyle = shadeHex(u.color, -0.55); g.fill(); }
+    unitHex(g, u, bx, hy, hexR);
+  }
   if (u.isActor && !tb) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
   if (u.cloak && !REDUCED && !tb) cloakShimmer(g, bx, hy, hexR, now);
   // ขี่ผู้เล่นอื่น (ยูนะ): ตัวที่ขี่วาดเป็นหมากเล็กบนหลัง
@@ -2128,9 +2177,9 @@ export function drawFrame(g, st, now) {
   if (T.animBack && !colony) T.animBack(g, f, lowQ ? 0 : now);
   if (colony) {
     // พื้นวาดใน 3D — ช่องพิเศษที่เกิดระหว่างเกม (ธารน้ำแข็ง พื้นเปียก พื้นไฟ ...) วาดทับที่นี่ (เดิมไม่วาดเลย = มองไม่เห็นพื้นน้ำแข็ง · บั๊ก 2026-11-09)
-    //  น้ำตื้น/ลิฟต์ของสนาม = ระบายลงพื้น 3D อยู่แล้ว
+    //  ช่องของสนามเอง (น้ำตื้น ลิฟต์ สายพาน ราง วาร์ป หอ) = ระบายลงพื้น 3D อยู่แล้ว — วาดซ้ำชั้น 2D = ขอบเส้นประลอยทับกำแพง/ตึก (เห็นทะลุ)
     for (const sp of info.special) {
-      if (sp.kind === "shallow" || sp.kind === "lift") continue;
+      if (COLONY_FLOOR.has(sp.kind)) continue;
       bakeSpecial(g, sp, { night, C, area: info.area });
       animSpecial(g, sp, { night, lowQ, area: info.area }, lowQ ? 0 : now);
     }
@@ -2188,7 +2237,8 @@ export function drawFrame(g, st, now) {
   // ทราฟาก้า ลอว์ (lawFx.js): พื้น Room + ด้านหลังโดม — ใต้ไฮไลต์ (เรียกทุกเฟรม: จำ Room ที่มีอยู่แล้วตอนเฟรมแรก ไม่เล่นฉากกางซ้ำ)
   const law = st.law || null, lFx = fx.some((e) => isLawFx(e.kind));
   drawLawGround(g, law, fx, now, lowQ);
-  drawHighlights(g, info, hl, hover, now);
+  // Colony: ช่องไฮไลต์ (เดิน/ตี/สกิล/พื้นที่/อันตราย/เป้า) วาดลงพื้นในฉาก 3D (colony3d.paintHighlights) — กำแพง/ตึกบังได้ ไม่เห็นทะลุ
+  drawHighlights(g, info, colony ? { ...hl, danger: new Set(), move: new Set(), attack: new Set(), skill: new Set(), aoe: new Set(), ghost: new Set(), target: null } : hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
   if (T.overBoard && !colony) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
@@ -2304,8 +2354,8 @@ export function drawFrame(g, st, now) {
     if (!colony) { drawAnyUnit(g, u, now, boxes); return; }
     // แถบ/ป้ายบนหมาก: ขนาดบนจอคงที่ (ชดเชยการย่อ/ขยายของกรอบ) — หนาพอมองง่าย
     UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1));
-    drawAnyUnit(g, u, now, boxes);
-    UNIT_UI_K = 1;
+    PIECE3D = true;
+    try { drawAnyUnit(g, u, now, boxes); } finally { PIECE3D = false; UNIT_UI_K = 1; }
   };
   // ลอว์: ตัวที่ถูกมาร์ก = ร่างถูกตัดเป็นชิ้นลอยแยก (lawSliced อัปเดต/อบชิ้นส่วน · หมากวาดแบบ lawCut)
   const lCut = law || lFx ? lawSliced(law, units, fx, now, g, (c, uu) => drawAnyUnit(c, uu, now, null)) : null;

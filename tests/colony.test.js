@@ -113,12 +113,12 @@ test('ปิดผนึกตอนจบเทิร์น 5: คนในป�
   assert.equal(match.colony.sealed, 2); assert.equal(b.alive, false);
 });
 
-test('ครบเทิร์น 23 = Colony ระเบิด: ทุกคนตาย → เสมอ', () => {
+test('ครบเทิร์น 18 = Colony ระเบิด: ทุกคนตาย → เสมอ', () => {
   setup(2);
   const [a, b] = Object.values(P());
   put(a, 1, 33); put(b, 9, 35);
   match.colony.sealed = 3;
-  engine.setRoundNumber(23);
+  engine.setRoundNumber(Colony.BOOM);
   assert.ok(Colony.onEndTurn() > 0, "ระเบิด = พักให้ฉากเล่นจบ");
   assert.equal(a.alive, false); assert.equal(b.alive, false);
   assert.equal(endTurnPhase.gameOver(), true);

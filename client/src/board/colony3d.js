@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { getEarth } from "../globe/globeCore";
 import { towerHeight } from "./colonyProps";
 import { createColonyModels } from "./colonyModels";
+import { OV } from "./boardDraw";
 import { playSfx } from "../audio";
 
 const COLS = 24, ROWS = 40, SEC = 10; // 24 คอลัมน์ (ผู้ใช้สั่ง 2026-11-09 ขยายรอบวง — เดิม 16 · รัศมีอุโมงค์กว้างขึ้น 1.5 เท่า)
@@ -256,11 +257,8 @@ function paintOverlay(g, W, H, st) {
     if (t.type === "blackout") { for (let y = t.sec * SEC; y < (t.sec + 1) * SEC; y++) for (let x = 0; x < COLS; x++) if ((x + y) % 2 === 0) tile(x, y, "rgba(60,40,140,.22)"); continue; }
     if (t.type === "gravity") continue;
     if (t.type === "meteor") {
-      for (let y = t.y - t.radius; y <= t.y + t.radius; y++) for (let x = t.x - t.radius; x <= t.x + t.radius; x++) {
-        const d = Math.abs(x - t.x) + Math.abs(y - t.y);
-        if (d <= t.radius && y >= 0 && y < ROWS) tile(x, y, `rgba(255,60,40,${0.16 + 0.16 * (t.radius - d) / Math.max(1, t.radius)})`);
-      }
-      // เป้ากลาง = วงเล็งสามมิติ (buildMarks)
+      // ช่องที่ลูกตกจริง (แถบกระจก = 3 ช่องตามแถบ) — วงเล็งสามมิติเล็งตรงจุดนี้ (buildMarks · ผู้ใช้สั่ง 2026-11-09)
+      for (const dy of (st.glass || []).includes(t.x) ? [-1, 0, 1] : [0]) if (t.y + dy >= 0 && t.y + dy < ROWS) tile(t.x, t.y + dy, "rgba(255,50,35,.55)");
     } else if (t.type === "beam") {
       for (let x = 0; x < COLS; x++) tile(x, t.y, "rgba(255,70,160,.45)");
     } else if (t.type === "capsule") {
@@ -376,6 +374,47 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
   const ovMat = new THREE.MeshBasicMaterial({ map: ovTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   const overlay = new THREE.Mesh(tubeGeo(0.01), ovMat);
   scene.add(floor, overlay);
+  // ไฮไลต์ช่อง (เดิน/ตี/สกิล/พื้นที่/อันตราย/เป้า) = ชั้นพื้นในฉาก → กำแพง/ตึก/ต้นไม้บังได้ตามจริง (เดิมวาดชั้น 2D ทับทุกอย่าง = เห็นทะลุ)
+  const HLR = lowQ ? 24 : 40;
+  const hlCv = document.createElement("canvas"); hlCv.width = COLS * HLR; hlCv.height = ROWS * HLR;
+  const hlTex = new THREE.CanvasTexture(hlCv); hlTex.colorSpace = THREE.SRGBColorSpace; hlTex.anisotropy = 4;
+  const hlMat = new THREE.MeshBasicMaterial({ map: hlTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 });
+  const hlMesh = new THREE.Mesh(tubeGeo(0.015), hlMat);
+  scene.add(hlMesh);
+  let hlRef = null;
+  function paintHighlights(hl) {
+    const g = hlCv.getContext("2d"), W = hlCv.width, H = hlCv.height, px = W / COLS, py = H / ROWS;
+    g.clearRect(0, 0, W, H);
+    if (!hl) return;
+    const X = (x) => mod(x, COLS) * px, Y = (y) => (ROWS - 1 - y) * py;
+    const ins = px * 0.05, rr = px * 0.14;
+    const cell = (k, fill, stroke, lw = 2) => {
+      const [x, y] = k.split(",").map(Number);
+      if (!(y >= 0 && y < ROWS)) return;
+      g.beginPath(); g.roundRect(X(x) + ins, Y(y) + ins, px - ins * 2, py - ins * 2, rr);
+      if (fill) { g.fillStyle = fill; g.fill(); }
+      if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw * px / 40; g.stroke(); }
+    };
+    // ขอบรอบกลุ่มช่อง (ขอบที่ไม่ติดช่องในชุดเดียวกัน)
+    const outline = (set, col, lw) => {
+      g.strokeStyle = col; g.lineWidth = lw * px / 40; g.lineCap = "round"; g.beginPath();
+      for (const k of set) {
+        const [x, y] = k.split(",").map(Number), x0 = X(x), y0 = Y(y), has = (dx, dy) => set.has(`${mod(x + dx, COLS)},${y + dy}`);
+        if (!has(0, 1)) { g.moveTo(x0, y0); g.lineTo(x0 + px, y0); }
+        if (!has(0, -1)) { g.moveTo(x0, y0 + py); g.lineTo(x0 + px, y0 + py); }
+        if (!has(-1, 0)) { g.moveTo(x0, y0); g.lineTo(x0, y0 + py); }
+        if (!has(1, 0)) { g.moveTo(x0 + px, y0); g.lineTo(x0 + px, y0 + py); }
+      }
+      g.stroke();
+    };
+    if (hl.danger && hl.danger.size) { for (const k of hl.danger) cell(k, OV.danger[0]); outline(hl.danger, OV.danger[1], 3); }
+    for (const k of hl.move || []) cell(k, OV.move[0], OV.move[1]);
+    for (const k of hl.attack || []) cell(k, OV.attack[0], OV.attack[1]);
+    for (const k of hl.skill || []) cell(k, OV.skill[0], OV.skill[1]);
+    if (hl.aoe && hl.aoe.size) { for (const k of hl.aoe) cell(k, OV.aoe[0]); outline(hl.aoe, OV.aoe[1], 4); }
+    if (hl.ghost && hl.ghost.size) { for (const k of hl.ghost) cell(k, "rgba(255,255,255,.16)"); outline(hl.ghost, "rgba(255,255,255,.95)", 3); }
+    if (hl.target) for (let dy = 0; dy < (hl.targetSize || 1); dy++) for (let dx = 0; dx < (hl.targetSize || 1); dx++) cell(`${mod(hl.target.x + dx, COLS)},${hl.target.y + dy}`, "rgba(224,86,79,.55)", "#ffb0a8", 3);
+  }
 
   // ---- ของบนพื้น: บ้าน/ตึก/ต้นไม้/ป้อม/หอ/น้ำพุ/แคปซูล = โมเดล 3D ยึดพื้น (colonyModels.js — ผู้ใช้สั่ง 2026-11-09 ไม่เอาสไปรต์ 2D หันตามกล้อง)
   //  solidAt = ความสูงให้แขนกล้องหลบ
@@ -410,8 +449,27 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     });
   }
   // เรขาคณิตใช้ร่วมกันทุกช่อง (เดิมสร้างใหม่ทุกชิ้น ~300 ก้อน)
-  const GEO = { post: new THREE.BoxGeometry(0.08, 1.0, 0.14), lintel: new THREE.BoxGeometry(1.0, 0.09, 0.14), glow: new THREE.PlaneGeometry(0.84, 0.9),
-    shutter: new THREE.BoxGeometry(0.86, 0.92, 0.06), wall: new THREE.BoxGeometry(1.02, 0.8, 0.12), light: new THREE.BoxGeometry(0.6, 0.08, 0.13) };
+  // กำแพงกั้นปล้อง (ยกเครื่อง 2026-11-09): สูง 1.2 หนา 0.24 · แผ่นเหล็กมีรอยต่อ/หมุด · แถบเตือนเหลือง-ดำที่โคน · ราวบน · ไฟแถบทั้งสองหน้า
+  //  ประตู: เสาหนาลายเตือน · คานบนมีไฟ · ม่านแสงลายสแกน
+  const WALL_H = 1.2, WALL_T = 0.24;
+  const panelTex = (night) => canvasTex(128, 160, (g, W, H) => {
+    g.fillStyle = night ? "#7d8aa0" : "#e6ebf1"; g.fillRect(0, 0, W, H);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "rgba(255,255,255,.18)"); gr.addColorStop(1, "rgba(0,0,0,.12)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = night ? "rgba(20,30,50,.55)" : "rgba(80,95,115,.45)";
+    for (const y of [H * 0.33, H * 0.62]) g.fillRect(0, y, W, 2);
+    g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
+    g.fillStyle = night ? "#9aa6ba" : "#aeb9c6";
+    for (const y of [H * 0.06, H * 0.36, H * 0.65]) for (const x of [8, W - 8]) { g.beginPath(); g.arc(x, y, 2.5, 0, TAU); g.fill(); }
+    for (let i = -2; i < 12; i++) { g.fillStyle = i % 2 ? "#f2b33c" : "#2a2a2e"; g.beginPath(); g.moveTo(i * 14, H); g.lineTo(i * 14 + 14, H); g.lineTo(i * 14 + 28, H - 16); g.lineTo(i * 14 + 14, H - 16); g.closePath(); g.fill(); }
+  });
+  const PANEL = { d: panelTex(false), n: panelTex(true) };
+  const panelMat = new THREE.MeshLambertMaterial({ map: PANEL.d });
+  const capMat = new THREE.MeshLambertMaterial({ color: 0x8f9bab });
+  const scanTex = canvasTex(64, 128, (g, W, H) => { const gr = g.createLinearGradient(0, H, 0, 0); gr.addColorStop(0, "rgba(255,255,255,.9)"); gr.addColorStop(1, "rgba(255,255,255,.15)"); g.fillStyle = gr; g.fillRect(0, 0, W, H); g.fillStyle = "rgba(0,0,0,.5)"; for (let y = 0; y < H; y += 6) g.fillRect(0, y, W, 2); });
+  scanTex.wrapT = THREE.RepeatWrapping;
+  const GEO = { post: new THREE.BoxGeometry(0.13, WALL_H + 0.05, WALL_T + 0.04), lintel: new THREE.BoxGeometry(1.0, 0.16, WALL_T + 0.04), glow: new THREE.PlaneGeometry(0.76, WALL_H - 0.16),
+    shutter: new THREE.BoxGeometry(0.8, WALL_H - 0.14, 0.08), wall: new THREE.BoxGeometry(1.0, WALL_H, WALL_T), cap: new THREE.BoxGeometry(1.0, 0.06, WALL_T + 0.08), light: new THREE.BoxGeometry(0.62, 0.06, WALL_T + 0.02) };
+  const postMat = new THREE.MeshLambertMaterial({ map: canvasTex(32, 128, (g, W, H) => { g.fillStyle = "#c9d1db"; g.fillRect(0, 0, W, H); for (let i = -2; i < 12; i++) { g.fillStyle = i % 2 ? "#f2b33c" : "#2a2a2e"; g.beginPath(); g.moveTo(0, i * 12); g.lineTo(W, i * 12 + 10); g.lineTo(W, i * 12 + 16); g.lineTo(0, i * 12 + 6); g.closePath(); g.fill(); } g.fillStyle = "#c9d1db"; g.fillRect(0, 0, W, H * 0.55); }) });
   const shutterMat = new THREE.MeshLambertMaterial({ color: 0xa8382e });
   function buildWalls(map) {
     walls.clear(); wallLights.length = 0; doorGlows.length = 0; doorSigns.length = 0;
@@ -422,20 +480,21 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
         const door = doors.includes(x);
         const seg = new THREE.Group();
         if (door) {
-          for (const s of [-0.46, 0.46]) { const post = new THREE.Mesh(GEO.post, metal); post.position.set(s, 0.5, 0); seg.add(post); }
-          const lintel = new THREE.Mesh(GEO.lintel, metal); lintel.position.y = 0.96; seg.add(lintel);
-          const gm = new THREE.MeshBasicMaterial({ color: 0x5ad8ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false });
-          const glow = new THREE.Mesh(GEO.glow, gm); glow.position.y = 0.45; seg.add(glow);
+          for (const s of [-0.435, 0.435]) { const post = new THREE.Mesh(GEO.post, postMat); post.position.set(s, (WALL_H + 0.05) / 2, 0); seg.add(post); }
+          const lintel = new THREE.Mesh(GEO.lintel, capMat); lintel.position.y = WALL_H - 0.05; seg.add(lintel);
+          const gm = new THREE.MeshBasicMaterial({ color: 0x5ad8ff, map: scanTex, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+          const glow = new THREE.Mesh(GEO.glow, gm); glow.position.y = (WALL_H - 0.16) / 2; seg.add(glow);
           const shutter = new THREE.Mesh(GEO.shutter, shutterMat);
-          shutter.position.y = 0.46; shutter.scale.y = 0.001; shutter.visible = false; seg.add(shutter);
+          shutter.position.y = (WALL_H - 0.14) / 2; shutter.scale.y = 0.001; shutter.visible = false; seg.add(shutter);
           const sign = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false }));
-          sign.position.y = 1.35; sign.scale.setScalar(0.7); sign.visible = false; seg.add(sign);
+          sign.position.y = WALL_H + 0.45; sign.scale.setScalar(0.7); sign.visible = false; seg.add(sign);
           doorGlows.push({ row: r, mat: gm, shutter });
           doorSigns.push({ row: r, sprite: sign, n: null });
         } else {
-          const wall = new THREE.Mesh(GEO.wall, metal); wall.position.y = 0.4; seg.add(wall);
+          const wall = new THREE.Mesh(GEO.wall, panelMat); wall.position.y = WALL_H / 2; seg.add(wall);
+          const cap = new THREE.Mesh(GEO.cap, capMat); cap.position.y = WALL_H + 0.03; seg.add(cap);
           const lm = new THREE.MeshBasicMaterial({ color: x % 2 ? 0x50e68c : 0x50c8ff });
-          const light = new THREE.Mesh(GEO.light, lm); light.position.y = 0.58; seg.add(light);
+          const light = new THREE.Mesh(GEO.light, lm); light.position.y = WALL_H * 0.72; seg.add(light);
           wallLights.push({ row: r, mat: lm, base: x % 2 ? 0x50e68c : 0x50c8ff, i: x });
         }
         placeOn(seg, x + 0.5, z);
@@ -630,9 +689,10 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     for (const t of tele || []) {
       if (t.type !== "meteor" && t.type !== "capsule") continue;
       const R0 = RET[t.type], cx = t.x + 0.5, cy = t.y + 0.5;
-      const half = t.type === "meteor" ? Math.max(0.75, (t.radius || 0) + 0.55) : 0.7;
+      // เล็งตรงช่องที่ลูกตก (ไม่ใช่รัศมีดูด) · แถบกระจก = วงใหญ่ขึ้นคลุม 3 ช่อง
+      const half = t.type === "meteor" ? ((mapNow && (mapNow.glass || []).includes(t.x)) ? 1.45 : 0.72) : 0.7;
       const op = t.foresee ? 0.45 : 1;
-      for (const [tex, hf, hh, spin] of [[R0.ring, half, 0.03, t.type === "meteor" ? 0.6 : -0.4], [R0.core, 0.45, 0.035, 0]]) {
+      for (const [tex, hf, hh, spin] of [[R0.ring, half, 0.03, t.type === "meteor" ? 0.6 : -0.4], [R0.core, Math.min(0.45, half * 0.62), 0.035, 0]]) {
         const map = tex.clone(); map.center.set(0.5, 0.5); map.needsUpdate = true;
         const mat = new THREE.MeshBasicMaterial({ map, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6 });
         const mesh = new THREE.Mesh(patchGeo(cx, cy, hf, hh), mat);
@@ -1168,7 +1228,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const oSig = JSON.stringify([c.tele, c.holes, c.sealIn, c.sealed, c.turrets, c.blackout]);
     if (oSig !== holeSig && !finale) {
       holeSig = oSig;
-      paintOverlay(ovCv.getContext("2d"), ovCv.width, ovCv.height, { colony: { ...c, holes } });
+      paintOverlay(ovCv.getContext("2d"), ovCv.width, ovCv.height, { colony: { ...c, holes }, glass: map.glass || [] });
       ovTex.needsUpdate = true;
       buildHoles(holes);
       buildMarks(c.tele);
@@ -1188,6 +1248,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     // ไฟห้องกลางวัน/กลางคืน
     hemi.intensity = night ? 0.45 : 1.25; amb.intensity = night ? 0.18 : 0.35; sun.intensity = night ? 0.15 : 0.9;
     domeMat.opacity = night ? 0.1 : 0.18;
+    if (panelMat.map !== (night ? PANEL.n : PANEL.d)) { panelMat.map = night ? PANEL.n : PANEL.d; panelMat.needsUpdate = true; capMat.color.set(night ? 0x5d6a80 : 0x8f9bab); }
     scene.fog.color.set(night ? 0x0b1830 : 0xdde9f4);
     // แกนแสง/เมฆตามเวลา: กลางวันขาวอุ่นสว่าง · กลางคืนฟ้าจาง
     sunLineMat.uniforms.uColor.value.set(night ? 0x8fb4ff : 0xfff1d0); sunLineMat.uniforms.uPow.value = night ? 0.3 : 0.6;
@@ -1203,6 +1264,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     const { map, colony, units, focus, rotation = 0, zoom = 2, view = "tilt", size, base, cinema } = p;
     if (!map) return;
     sync(map, colony, p.night);
+    if (p.hl !== hlRef) { hlRef = p.hl; paintHighlights(p.hl); hlTex.needsUpdate = true; }
     for (const u of units || []) {
       if (!u || !Number.isFinite(u.x)) continue;
       unitInfo.set(u.id, { img: u.img, color: u.color, x: u.x, y: u.y });
@@ -1285,6 +1347,7 @@ export function createColonyView(canvas, { lowQ = false } = {}) {
     }
     for (let i = 0; i < vortices.length; i++) vortices[i].rotateZ(dt / 1000 * (1.6 + (i % 3) * 0.3));
     for (const m of marks) { if (m.spin) m.mesh.material.map.rotation = time * m.spin; m.mesh.material.opacity = m.op * (m.core ? 0.7 + 0.3 * Math.sin(time * 5) : 0.85 + 0.15 * Math.sin(time * 3)); }
+    scanTex.offset.y = -time * 0.25;
     warpBeamMat.opacity = 0.28 + 0.14 * Math.sin(time * 2.4);
     for (const [dk, d] of capsuleDrops) if (d.t0 && t > d.t0 + 600) capsuleDrops.delete(dk);
     // ม่านเหล็กหมุนปิด

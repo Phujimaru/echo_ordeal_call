@@ -602,7 +602,7 @@ export default function BoardCanvas(props) {
           st.cv3.onEvent(ev.kind, ev.data);
         }
         if (p.colonyHome !== st.colonyHome) { if (st.colonyHome !== undefined) { st.cv3.skipShot(); st.cv3.home(); } st.colonyHome = p.colonyHome; }
-        st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema });
+        st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema, hl });
         setCustomProjection(st.cv3);
       }
       // --- ตัวละครพร้อมวาด
