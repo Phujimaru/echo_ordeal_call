@@ -359,15 +359,40 @@ function drawPlazaStatic(g, pz, C, night) {
 }
 
 // ป้ายร้านค้าลอยเหนือแผง ("🏪 N" = เหลือ N เทิร์น) — วาดทับของบนกระดาน จึงตามซูม/เลื่อน/หมุนเอง · (x, y) = มุมบนซ้าย · n = ขนาดร้าน (กึ่งกลาง n×n)
-function drawShopLabel(g, x, y, text, w = 1, h = 1, z = 2.1) {
-  const [lx, ly] = P(x + w / 2, y + h / 2, z);
+// ป้ายนับเทิร์นของร้าน (ผู้ใช้สั่ง 2026-11-09 — เดิมเป็นกล่องเหลืองลอยเหนือร้าน): ป้ายไม้เล็กห้อยด้วยเชือกสองเส้นใต้ตราของร้าน
+//  ขอบ/หัวเชือกสีประจำร้าน · นาฬิกาทราย + ตัวเลขเทิร์นที่เหลือ · z = ระดับตราของร้าน (SHOP_TOP_Z)
+const SHOP_SIGN_ACCENT = { apoth: "#2fa58c", forge: "#c8662e", cara: "#8a5cc8", capsule: "#d9a531" };
+function drawShopLabel(g, x, y, turns, w = 1, h = 1, z = 2.1, kind = "apoth", night = false) {
+  const [ax, ay, s] = P(x + w / 2, y + h / 2, z);
+  const k = Math.max(0.55, Math.min(1.4, s / 64));
+  const accent = SHOP_SIGN_ACCENT[kind] || SHOP_SIGN_ACCENT.apoth;
+  const text = String(turns);
   g.save();
-  g.font = `600 13px ${F_UI}`; g.textAlign = "center"; g.textBaseline = "middle";
-  const tw = g.measureText(text).width + 16, th = 18;
-  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 6; g.shadowOffsetY = 2;
-  g.fillStyle = "#f0c868"; g.fillRect(lx - tw / 2, ly - th, tw, th);
+  g.font = `700 ${Math.round(13 * k)}px ${F_UI}`; g.textAlign = "left"; g.textBaseline = "middle";
+  const iw = 9 * k, pad = 6 * k, tw = g.measureText(text).width;
+  const bw = pad + iw + 4 * k + tw + pad, bh = 18 * k, drop = 9 * k, bx = ax - bw / 2, by = ay + drop, c = 4 * k;
+  // เชือกสองเส้นจากตราลงมาที่มุมบนของป้าย
+  g.strokeStyle = night ? "rgba(220,200,160,.8)" : "rgba(92,64,38,.85)"; g.lineWidth = Math.max(1, 1.2 * k);
+  g.beginPath(); g.moveTo(ax - bw * 0.22, ay); g.lineTo(bx + bw * 0.18, by); g.moveTo(ax + bw * 0.22, ay); g.lineTo(bx + bw * 0.82, by); g.stroke();
+  // แผ่นป้ายมุมตัด (ไม้อ่อน) + ขอบสีร้าน + แถบบนสีร้าน
+  g.beginPath();
+  g.moveTo(bx + c, by); g.lineTo(bx + bw, by); g.lineTo(bx + bw, by + bh - c); g.lineTo(bx + bw - c, by + bh); g.lineTo(bx, by + bh); g.lineTo(bx, by + c); g.closePath();
+  g.shadowColor = "rgba(0,0,0,.28)"; g.shadowBlur = 4 * k; g.shadowOffsetY = 1.5 * k;
+  g.fillStyle = night ? "#3a2c1c" : "#f6ecd6"; g.fill();
   g.shadowColor = "transparent";
-  g.fillStyle = "#12264a"; g.fillText(text, lx, ly - th / 2 + 0.5);
+  g.lineWidth = Math.max(1, 1.5 * k); g.strokeStyle = accent; g.stroke();
+  g.fillStyle = accent; g.fillRect(bx + c, by, bw - c, 2.5 * k);
+  // หมุดเชือก
+  g.fillStyle = accent;
+  for (const fx of [0.18, 0.82]) { g.beginPath(); g.arc(bx + bw * fx, by + 1.2 * k, 1.6 * k, 0, Math.PI * 2); g.fill(); }
+  // นาฬิกาทราย
+  const hx = bx + pad, hy = by + bh / 2 + 1 * k, hh = 10 * k;
+  g.fillStyle = night ? "#f0d9a8" : "#5c4026";
+  g.beginPath(); g.moveTo(hx, hy - hh / 2); g.lineTo(hx + iw, hy - hh / 2); g.lineTo(hx + iw / 2, hy); g.lineTo(hx + iw, hy + hh / 2); g.lineTo(hx, hy + hh / 2); g.lineTo(hx + iw / 2, hy); g.closePath(); g.fill();
+  g.fillStyle = accent; g.beginPath(); g.moveTo(hx + iw * 0.2, hy + hh / 2 - 0.5 * k); g.lineTo(hx + iw * 0.8, hy + hh / 2 - 0.5 * k); g.lineTo(hx + iw / 2, hy + hh * 0.12); g.closePath(); g.fill();
+  // ตัวเลข
+  g.fillStyle = night ? "#fff3d6" : "#3a2410";
+  g.fillText(text, hx + iw + 4 * k, by + bh / 2 + 1 * k);
   g.restore();
 }
 // แผงร้านค้ามายาแบบเดิม 1 ช่อง — ยังใช้ในฉากเรียวกิ (ryougiFx ctx.drawShop)
@@ -2470,7 +2495,7 @@ export function drawFrame(g, st, now) {
     const [w, h] = colony ? [1, 1] : shopDims(sh);
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
     const hide = storms && behindDome(storms, sh.x, sh.y) && clipOutDomes(g, storms);
-    drawShopLabel(g, sh.x, sh.y, `🏪 ${sh.turnsLeft}`, w, h, colony ? 2.1 : (SHOP_TOP_Z[sh.kind] || 1.6) + 0.42);
+    drawShopLabel(g, sh.x, sh.y, sh.turnsLeft, w, h, colony ? 1.7 : (SHOP_TOP_Z[sh.kind] || 1.6) - 0.05, sh.capsule ? "capsule" : sh.kind, night);
     if (hide) g.restore();
   }
   // อนุภาค (ข้ามเมื่อ lowQ) — ไม่วาดทับโดมเขม่าของม่านแดง (คนนอกต้องมองไม่เห็นข้างใน)
