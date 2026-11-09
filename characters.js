@@ -674,6 +674,7 @@ const CHARACTERS = [
     id: "echo",
     gender: "f", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
     name: "Echo",
+    hidden: true, // ปิดใช้งาน (ผู้ใช้สั่ง 2026-11-09 "ถอดตัวละคร Echo Queen ออกจากเกม") — ไม่ขึ้นหน้าเลือกตัวละคร · server ไม่รับเลือก · โค้ด/สื่อเก็บไว้ (branch รื้อ claude/echo-queen-rework-6c99e7 ยังอยู่)
     avatar: 0,
     difficulty: "special",
     unique: true, // เลือกได้แค่ 1 คนต่อเกม
