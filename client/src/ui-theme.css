@@ -409,3 +409,41 @@
 :root[data-ui="dark"] .oc-screen .cst-row[data-bal="down"] { background: rgba(61, 139, 217, 0.18); }
 :root[data-ui="dark"] .oc-screen .cst-flag.up, :root[data-ui="dark"] .oc-screen .cst-balbtn:not(.on) .up { color: #ff8a9c; }
 :root[data-ui="dark"] .oc-screen .cst-flag.down, :root[data-ui="dark"] .oc-screen .cst-balbtn:not(.on) .down { color: #7fb8e6; }
+
+/* ---------- หน้าจบเกม (components/victory.css) — อวกาศดำ + ดาว · ป้ายชื่อแผ่นน้ำเงินเข้ม · ตัวอักษรอ่อน ---------- */
+:root[data-ui="dark"] .vic-root { color: #e8f0fa; }
+:root[data-ui="dark"] .vic-bg { background: radial-gradient(70% 70% at 50% 44%, #13284a 0%, #070d1d 55%, #02040a 100%); }
+:root[data-ui="dark"] .vic-bg::before {
+  background-image:
+    radial-gradient(1px 1px at 23px 41px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 131px 97px, rgba(255,255,255,.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 77px 173px, rgba(200,225,255,.8), transparent 60%),
+    radial-gradient(1px 1px at 189px 19px, rgba(255,255,255,.6), transparent 60%),
+    radial-gradient(1.4px 1.4px at 311px 63px, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 263px 287px, rgba(190,215,255,.7), transparent 60%),
+    radial-gradient(1.6px 1.6px at 353px 229px, rgba(255,255,255,.85), transparent 60%);
+  background-size: 230px 230px, 230px 230px, 230px 230px, 230px 230px, 380px 380px, 380px 380px, 380px 380px;
+  background-position: 0 0;
+}
+:root[data-ui="dark"] .vic-bg::after {
+  background:
+    radial-gradient(38% 30% at 50% 46%, rgba(201, 154, 214, .22), transparent 70%),
+    radial-gradient(120% 100% at 50% 50%, transparent 60%, rgba(61, 139, 217, .18) 100%);
+}
+:root[data-ui="dark"] .vic-globe ellipse, :root[data-ui="dark"] .vic-globe circle, :root[data-ui="dark"] .vic-globe line { stroke: rgba(127, 184, 230, .22); }
+:root[data-ui="dark"] .vic-sat { fill: #13284a; }
+:root[data-ui="dark"] .vic-mote { background: #13284a; }
+:root[data-ui="dark"] .vic-round { color: #a9c2e2; }
+:root[data-ui="dark"] .vic-wm { -webkit-text-stroke-color: rgba(127, 184, 230, .18); }
+:root[data-ui="dark"] .vic-title { color: #f2f7fd; text-shadow: 0 2px 0 rgba(2, 4, 10, .6), 0 10px 30px rgba(127, 184, 230, .3); }
+:root[data-ui="dark"] .vic-plate { background: rgba(14, 30, 58, .95); color: #e8f0fa; filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .5)); }
+:root[data-ui="dark"] .vic-ch, :root[data-ui="dark"] .vic-grp-lb { color: #a9c2e2; }
+:root[data-ui="dark"] .vic-grp-lb[data-win="true"] { color: #e3b6ee; }
+:root[data-ui="dark"] .vic-mfa { background: #1a3459; }
+:root[data-ui="dark"] .vic-mfr { background: linear-gradient(160deg, #e8f0fa, var(--pc) 55%, color-mix(in srgb, var(--pc) 60%, #02040a)); }
+:root[data-ui="dark"] .vic-mini[data-dead="true"] .vic-mfr { background: linear-gradient(160deg, #a9c2e2, #5d708c 55%, #34445e); }
+:root[data-ui="dark"] .vic-mx { background: #13284a; }
+:root[data-ui="dark"] .vic-mname { color: #e8f0fa; }
+:root[data-ui="dark"] .vic-mini[data-dead="true"] .vic-mname { color: #8fa9cc; }
+:root[data-ui="dark"] .vic-mch { color: #7f97b8; }
+:root[data-ui="dark"] .vic-tick { border-color: rgba(127, 184, 230, .6); }
