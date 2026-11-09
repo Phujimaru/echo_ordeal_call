@@ -45,12 +45,12 @@ const CAR_COLORS = {
 // =================================================================== palette
 const PAL = {
   day: {
-    ground1: "#6a7a48", ground2: "#3e4a2c", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
-    grid: "rgba(30,34,20,.09)",
+    ground1: "#728647", ground2: "#647a3d", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
+    grid: "rgba(30,34,20,.09)", border: "rgba(0,0,0,0)",
     grassA: "#7c8f4c", grassB: "#5f7838", sandEdge: "#b9a670", forestFloor: "#3c4f28", forestFloor2: "#55693a",
     shore: "#cdbb86", shallow: "#5aa7b8", bank: "#6b5a3c", shoulder: "#8a7a5c", roadLine: "#e8e2cf", roadStain: "rgba(20,20,24,.25)", reed: "#5d6e33", pebble: "#9b8a6e",
     dryGrass: "#a8935c", tuft: "#4f6a2c", flowers: ["#f2e27a", "#e9a0c2", "#ffffff", "#c9b3f0"], leafHi: "#7da150", palm: "#3f6a2a",
-    stone: "#8c8d88", stone2: "#6a6b66", altRoof: "#c7653f", altWall: "#efe4cf", altWall2: "#d8c9ad", border: "rgba(255,245,215,.5)", spawn: "rgba(255,245,215,.45)",
+    stone: "#8c8d88", stone2: "#6a6b66", altRoof: "#c7653f", altWall: "#efe4cf", altWall2: "#d8c9ad", spawn: "rgba(255,245,215,.45)",
     light: ["rgba(255,225,170,.12)", "rgba(30,20,10,.2)"], nightTint: null, shadow: "rgba(20,14,6,.35)",
     sky: ["#7fb4e0", "#c7dcea", "#f2d9aa"], mtn: ["#7f8fa6", "#6a7c8a"], city: "#5d6b80", cityLit: null,
     grass: ["#7a8a4f", "#6d7e45", "#8b9659", "#5f6f3b"], road: "#4a4b4f", road2: "#3e3f43", lane: "rgba(240,228,180,.85)", curb: "#9a968c",
@@ -60,12 +60,12 @@ const PAL = {
     leaf: "#4d6b2f", leaf2: "#3b5524", trunk: "#5a4128", rock: "#a8784f", rock2: "#7d5638", lamp: "#2b2f36", lampOn: 0,
   },
   night: {
-    ground1: "#1d2a2c", ground2: "#0a1012", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
-    grid: "rgba(160,190,240,.07)",
+    ground1: "#1f3128", ground2: "#1a2a22", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
+    grid: "rgba(160,190,240,.07)", border: "rgba(0,0,0,0)",
     grassA: "#24372c", grassB: "#182a20", sandEdge: "#4a4434", forestFloor: "#101c14", forestFloor2: "#18281d",
     shore: "#4d4636", shallow: "#1b3f52", bank: "#241e16", shoulder: "#3a3428", roadLine: "#8c8770", roadStain: "rgba(0,0,0,.3)", reed: "#22301c", pebble: "#4a4236",
     dryGrass: "#4f4630", tuft: "#1a2a18", flowers: ["#8a8650", "#7a5a6e", "#9a9aa4", "#6e6488"], leafHi: "#2d4a28", palm: "#1d3320",
-    stone: "#45464a", stone2: "#34353a", altRoof: "#5c3424", altWall: "#6c6658", altWall2: "#5a5446", border: "rgba(160,190,240,.38)", spawn: "rgba(170,200,255,.32)",
+    stone: "#45464a", stone2: "#34353a", altRoof: "#5c3424", altWall: "#6c6658", altWall2: "#5a5446", spawn: "rgba(170,200,255,.32)",
     light: ["rgba(90,120,220,.06)", "rgba(0,4,16,.38)"], nightTint: "rgba(8,14,40,.26)", shadow: "rgba(0,0,8,.5)",
     sky: ["#03060f", "#0b1630", "#1c2a4a"], mtn: ["#121c2e", "#0e1624"], city: "#0d1424", cityLit: "#ffd27a",
     grass: ["#22342c", "#1c2c25", "#2a3c30", "#18261f"], road: "#24262c", road2: "#1c1e23", lane: "rgba(255,220,140,.6)", curb: "#4a4c52",
@@ -226,7 +226,7 @@ export const theme = {
     const { g, C, VX0, VX1, VW } = c, { cols, rows } = sceneSize();
     const rs = rng(91), band = 2.4 + Math.max(0, (VW - LW) / 60);
     const list = [];
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 160; i++) {
       list.push([-1.4 - rs() * band, rs() * (rows + 0.5), rs()]);
       list.push([cols + 0.4 + rs() * band, rs() * (rows + 0.5), rs()]);
     }

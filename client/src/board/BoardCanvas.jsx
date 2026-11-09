@@ -153,6 +153,8 @@ const zoomKOf = (pitch, lv) => (pitch === PITCH_BIRD ? ZOOM_LEVELS.top : ZOOM_LE
 const ZOOM_WHEEL_GAP = 130; // ล้อเมาส์/ทัชแพดยิงถี่ — ขยับได้ระดับละครั้งต่อช่วงนี้ (ms)
 const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนกล้อง (ไม่นับเป็นคลิก)
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
+const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
+const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -366,7 +368,8 @@ export default function BoardCanvas(props) {
       const { w, h } = st.size;
       const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
       if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
-      const base = computeView(w, h); // เฟรมปกติ (ชั้นอบใช้อันนี้เสมอ)
+      // เฟรมปกติ (ชั้นอบใช้อันนี้เสมอ) · กล้อง RTS (สนาม Eos): ถอยเฟรมออก (z 0.62) ให้ชั้นอบครอบเลยขอบกระดาน — ยืนชิดขอบแผนที่แล้วตัวเรายังอยู่กลางจอได้
+      const base = p.rts && !st.cv3 ? computeView(w, h, { z: RTS_BASE_Z, cx: LW / 2, cy: LH / 2 }) : computeView(w, h);
       st.base = base;
       // --- มุมมอง (หมุนนุ่มๆ ไปทางที่สั้นกว่า)
       const target = st.cv3 ? 0 : normRot(p.rotation); // Colony: หมุนมุมมองด้วยกล้อง 3D แทน
@@ -423,6 +426,8 @@ export default function BoardCanvas(props) {
       st.rts = rts; st.rtsRange = rr;
       const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : cc(cam));
       const zk = (lv) => (rts ? rtsZoomOf(rr, lv) : zoomKOf(pitch, lv));
+      // จุดบนจอ (sx, sy) → กลางกล้อง: RTS = กลางจอจริง (เผื่อ HUD ล่างเล็กน้อย) · ปกติ = กลางส่วนที่มองเห็นเหนือ HUD
+      const eyeTo = (z, sx, sy) => (rts ? { cx: sx, cy: sy + 50 / (z * RTS_BASE_Z) } : camFromEye(base, z, sx, sy));
       // กล้องฉากตี: เข้า = จำกล้องเดิมแล้วซูมเข้ากลางคู่ที่ตีกัน · ออก = คืนกล้องเดิม (ระหว่างฉากไม่สนใจ focus/ซูม)
       const cin = !st.cv3 && p.cinema && p.cinema.a && p.cinema.b ? p.cinema : null;
       if (cin !== st.cinemaRef) {
@@ -486,7 +491,7 @@ export default function BoardCanvas(props) {
       }
       if (st.pivot) {
         const [sx, sy] = project(st.pivot.x, st.pivot.y);
-        st.cam = { z: st.cam.z, ...camFromEye(base, st.cam.z, sx, sy) };
+        st.cam = { z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) };
         if (!turning) st.pivot = null;
       }
       // RTS: เมาส์ชิดขอบจอ = เลื่อน (ไม่ลากอยู่ · หน้าต่างมีโฟกัส) · ปุ่มกลับที่ตัวเรา (p.camHome เปลี่ยน) = เลื่อนไปที่ focus
@@ -495,13 +500,24 @@ export default function BoardCanvas(props) {
         const kx = ex < EDGE_PX ? -1 : ex > r.width - EDGE_PX ? 1 : 0, ky = ey < EDGE_PX ? -1 : ey > r.height - EDGE_PX ? 1 : 0;
         if (kx || ky) { const sp = PAN_SPEED * dt / 1000 / st.cam.z; st.camAnim = null; st.cam = { ...st.cam, cx: st.cam.cx + kx * sp, cy: st.cam.cy + ky * sp }; }
       }
+      // RTS: ตัวเราเดินไปช่องใหม่ (ไม่ได้ลากกล้องอยู่) → กล้องตามให้ตัวเราอยู่กลางจอ (ผู้ใช้สั่ง "ตัวเราอยู่กลางจอเสมอ")
+      const selfKey = rts && p.selfPos ? `${p.selfPos.x},${p.selfPos.y}` : null;
+      if (selfKey !== st.selfKey) {
+        const was = st.selfKey;
+        st.selfKey = selfKey;
+        if (selfKey && !(st.drag && st.drag.moved)) {
+          const [sx, sy] = project(p.selfPos.x + 0.5, p.selfPos.y + 0.5);
+          const to = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
+          if (was == null) { st.cam = to; st.camAnim = null; } else startAnim(to, FOCUS_MS);
+        }
+      }
       if (rts && p.camHome !== st.camHome) {
         const fp = st.camHome !== undefined ? focusPt(p.focus) : null;
         st.camHome = p.camHome;
-        if (fp) startAnim(cc({ z: st.cam.z, ...camFromEye(base, st.cam.z, fp[0], fp[1]) }), FOCUS_MS);
+        if (fp) startAnim(cc({ z: st.cam.z, ...eyeTo(st.cam.z, fp[0], fp[1]) }), FOCUS_MS);
       }
       st.cam = cc(st.cam);
-      const view = st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base;
+      const view = rts ? computeView(w, h, { ...st.cam, z: st.cam.z * RTS_BASE_Z }) : st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base; // RTS: z นับจากเฟรมอบที่ถอยออก
       st.view = view;
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
       //  ทุกระดับที่ซูมอยู่ใช้ชั้นอบความละเอียดเดียว (ของระดับสูงสุด) — เปลี่ยนระดับไม่ต้องอบใหม่
@@ -533,7 +549,23 @@ export default function BoardCanvas(props) {
       }
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
-      const bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
+      let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
+      // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
+      //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
+      if (rts && !turning && !lowQ && !st.cv3) {
+        const still = !st.camAnim && !(st.drag && st.drag.moved) && !st.keys.size && !st.pivot;
+        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${normRot(st.turn)}|${pitch}|${view.k}|${view.ox}|${view.oy}`;
+        if (!still) st.stillAt = 0;
+        else if (st.sharpKey !== ck) {
+          if (!st.stillAt) st.stillAt = now;
+          if (now - st.stillAt >= RTS_SHARP_MS) {
+            const sc = bakeScene(info, view, dpr, night, lowQ, normRot(st.turn) % 2);
+            st.sharp = { scene: sc.scene, fore: sc.fore, marks: sc.marks, board: bakeBoard(info, view, dpr, night, normRot(st.turn)) };
+            st.sharpKey = ck;
+          }
+        }
+        if (st.sharp && st.sharpKey === ck) bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view, res: dpr };
+      }
       // --- ไฮไลต์
       if (p.highlights !== st.hlRef) { st.hlRef = p.highlights; st.hl = prepareHighlights(p.highlights); }
       const hl = st.hl;

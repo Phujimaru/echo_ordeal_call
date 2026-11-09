@@ -164,27 +164,27 @@ export function rtsZoomRange(info, base, top = false) {
   let lo = 1, hi = 40;
   if (rectIn(q, cx, cy, ...halfOf(base, lo))) hi = lo;
   else for (let i = 0; i < 26; i++) { const m = (lo + hi) / 2; if (rectIn(q, cx, cy, ...halfOf(base, m))) hi = m; else lo = m; }
-  const min = hi * 1.002;
+  const min = Math.max(1, hi * 0.72); // ถอยออกได้เลยขอบเล็กน้อย (นอกกระดานเป็นฉากต่อเนื่อง) — ไม่เบียด (ผู้ใช้สั่ง 2026-11-09)
   const max = Math.max(min * 1.5, (top ? RTS_ZOOM_MAX.top : RTS_ZOOM_MAX.tilt) * Math.max(info.cols, info.rows) / 14);
   return { min, max };
 }
 // ระดับซูมของปุ่ม +/− (5 ระดับ ไล่แบบเรขาคณิตจากต่ำสุดถึงสูงสุด)
 export function rtsZoomOf(range, lv) { return range.min * Math.pow(range.max / range.min, clampZoom(lv) / (ZOOM_STEPS - 1)); }
+//  ผู้ใช้สั่ง (2026-11-09 รอบสอง): ตัวเราต้องอยู่กลางจอเสมอ → จุดกลางกล้องไปได้ทุกจุดในกระดาน (นอกกระดานเป็นฉากต่อเนื่อง — ธีม side/ground)
+//  แต่กรอบจอต้องไม่เลยชั้นที่อบไว้ (เฟรมปกติ — base) ไม่งั้นเห็นพื้นที่ว่างจริง
 export function clampCamRts(info, base, cam, range) {
   const q = boardQuad(info), [ox, oy] = centerOf(q);
   const z = Math.max(range.min, Math.min(range.max, cam.z || range.min));
   const [hw, hh] = halfOf(base, z);
-  const ok = (x, y) => rectIn(q, x, y, hw, hh);
-  if (ok(cam.cx, cam.cy)) return { z, cx: cam.cx, cy: cam.cy };
-  // เลื่อนจากกลางกระดานไปหาจุดที่ต้องการให้ไกลสุดที่ยังอยู่ในแผนที่ แล้วไถลตามแนวแกน x / y
-  const search = (fx, fy, tx, ty) => {
+  let x = cam.cx, y = cam.cy;
+  if (!inQuad(q, x, y)) {
     let lo = 0, hi = 1;
-    for (let i = 0; i < 18; i++) { const m = (lo + hi) / 2; if (ok(fx + (tx - fx) * m, fy + (ty - fy) * m)) lo = m; else hi = m; }
-    return [fx + (tx - fx) * lo, fy + (ty - fy) * lo];
-  };
-  let [x, y] = search(ox, oy, cam.cx, cam.cy);
-  [x] = search(x, y, cam.cx, y);
-  [, y] = search(x, y, x, cam.cy);
+    for (let i = 0; i < 18; i++) { const m = (lo + hi) / 2; if (inQuad(q, ox + (x - ox) * m, oy + (y - oy) * m)) lo = m; else hi = m; }
+    x = ox + (x - ox) * lo; y = oy + (y - oy) * lo;
+  }
+  const fit = (v, lo2, hi2) => (lo2 > hi2 ? (lo2 + hi2) / 2 : Math.min(hi2, Math.max(lo2, v)));
+  x = fit(x, base.x0 + hw, base.x1 - hw);
+  y = fit(y, base.y0 + hh, base.y1 - hh);
   return { z, cx: x, cy: y };
 }
 // จุดกลางของส่วนที่มองเห็นเหนือ HUD ↔ จุดกลางกล้อง (ใช้หมุนรอบจุดกลางจอ / เลื่อนไปหาตัวละคร)
