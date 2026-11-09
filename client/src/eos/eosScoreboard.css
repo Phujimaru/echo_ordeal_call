@@ -5,10 +5,27 @@
   --es-text: #eef4ff;
   --es-dim: rgba(220, 232, 255, .62);
   --es-gold: #f0c868;
-  position: absolute; right: 12px; top: 112px; z-index: 17;
-  width: 300px; display: flex; flex-direction: column; gap: 6px;
-  pointer-events: none; font-family: "Chakra Petch", "Kanit", sans-serif;
+  position: absolute; right: 0; top: 112px; z-index: 17;
+  display: flex; align-items: flex-start; pointer-events: none; font-family: "Chakra Petch", "Kanit", sans-serif;
 }
+/* แท็บเปิด/ปิด (ติดขอบขวา) · แผงสไลด์ออกจากขอบขวา */
+.eos-score-tab {
+  pointer-events: auto; cursor: pointer; display: flex; align-items: baseline; gap: 3px;
+  padding: 8px 10px 8px 12px; margin-top: 2px; border: 1px solid var(--es-line); border-right: 0;
+  border-left: 4px solid var(--side); border-radius: 12px 0 0 12px; background: var(--es-bg); color: var(--es-text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28); backdrop-filter: blur(6px); font: inherit;
+}
+.eos-score-tab span { font-size: 15px; }
+.eos-score-tab b { font-size: 18px; font-weight: 700; line-height: 1; }
+.eos-score-tab small { font-size: 11px; color: var(--es-dim); }
+.eos-score-tab i { font-style: normal; margin-left: 4px; color: var(--es-dim); font-size: 16px; }
+.eos-score-tab:hover { filter: brightness(1.15); }
+.eos-score-panel {
+  width: 300px; display: flex; flex-direction: column; gap: 6px; margin-right: 12px;
+  transition: transform .28s ease, opacity .28s ease; transform: translateX(0); opacity: 1; pointer-events: auto; cursor: pointer;
+}
+.eos-score[data-open="false"] .eos-score-panel { transform: translateX(110%); opacity: 0; pointer-events: none; width: 0; margin-right: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .eos-score-panel { transition: none; } }
 .eos-score-row {
   display: grid; grid-template-columns: 26px 36px 1fr auto auto; align-items: center; gap: 8px;
   padding: 6px 10px 6px 8px; border-radius: 12px; background: var(--es-bg);
