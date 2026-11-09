@@ -156,3 +156,55 @@
 }
 .ocv-spec svg { width: 18px; height: 18px; fill: none; stroke: var(--oc-azure); stroke-width: 1.8; stroke-linejoin: round; }
 .ocv-spec b { font: 600 14px/1 var(--oc-f-ui); font-variant-numeric: tabular-nums; }
+
+/* ---------- แผงเมนูรวม (จัดใหม่ 2026-11-09): หมวด เสียง / การแสดงผล / ห้อง ---------- */
+.ocm-btn { padding: 0 12px 0 10px; }
+.ocm-sep { width: 1px; height: 18px; background: var(--oc-line); }
+.ocv-menu { width: 300px; max-height: calc(100vh - 90px); overflow-y: auto; gap: 0; padding: 4px 16px 14px; }
+.ocv-sec { display: flex; flex-direction: column; gap: 12px; padding: 14px 0; border-top: 1px solid var(--oc-line); }
+.ocv-sec:first-child { border-top: 0; }
+.ocv-sec-h { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--oc-f-ui); color: var(--oc-ink-2); }
+.ocv-sec-h > span:first-child { flex: 1; display: flex; align-items: center; gap: 8px; }
+.ocv-sec-h > span:first-child::before { content: ""; width: 6px; height: 6px; background: var(--oc-azure); transform: rotate(45deg); }
+.ocv-sec-h .ocv-pct { font-size: 18px; }
+.ocv-mute-ico {
+  appearance: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
+  background: #fff; border: 1px solid var(--oc-line);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.ocv-mute-ico .ocv-ico { width: 16px; height: 16px; }
+.ocv-mute-ico:hover { border-color: var(--oc-azure); }
+.ocv-mute-ico.is-on { background: var(--oc-echo); border-color: var(--oc-echo); }
+.ocv-mute-ico.is-on .ocv-ico-body { fill: #fff; }
+.ocv-mute-ico.is-on .ocv-ico-x { stroke: #fff; }
+.ocv-menu .ocv-chs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 10px; padding-top: 2px; border-top: 0; }
+.ocv-row-btn {
+  appearance: none; display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; cursor: pointer; text-align: left;
+  font: 600 14px/1 var(--oc-f-ui); color: var(--oc-ink); background: #fff; border: 1px solid var(--oc-line);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.ocv-row-btn .ocv-ico { width: 18px; height: 18px; }
+.ocv-row-btn span { flex: 1; }
+.ocv-row-btn:hover { border-color: var(--oc-azure); }
+.ocv-row-btn:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+.ocv-switch { position: relative; flex: none; width: 34px; height: 18px; background: var(--oc-frost); transition: background 0.2s; }
+.ocv-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; background: #fff; transform: rotate(45deg); transition: left 0.2s; }
+.ocv-row-btn.is-on .ocv-switch { background: var(--oc-echo); }
+.ocv-row-btn.is-on .ocv-switch::after { left: 19px; }
+.ocm-embed { display: flex; flex-direction: column; gap: 10px; }
+
+/* ปุ่ม + แผงอีโมต (ระหว่างแมตช์) */
+.ocv-emo-btn { padding: 0 10px; }
+.ocv-emo-face { fill: none; stroke: var(--oc-ink); stroke-width: 1.5; }
+.ocv-emo-line { fill: none; stroke: var(--oc-azure); stroke-width: 1.6; stroke-linecap: round; }
+.ocv-emo-eye { fill: var(--oc-ink); }
+.ocv-emo-panel { width: auto; display: grid; grid-template-columns: repeat(4, 44px); gap: 6px; padding: 10px; }
+.ocv-emo {
+  appearance: none; width: 44px; height: 44px; padding: 0; cursor: pointer; display: grid; place-items: center;
+  background: #fff; border: 1px solid var(--oc-line);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.ocv-emo-e { font-size: 22px; line-height: 1; }
+.ocv-emo:hover { border-color: var(--oc-azure); transform: translateY(-2px); }
+.ocv-emo:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }

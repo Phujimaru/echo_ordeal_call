@@ -16,7 +16,7 @@ export function MenuIcon() {
   );
 }
 
-export function GameMenuPanel() {
+export function GameMenuPanel({ embedded = false } = {}) {
   const started = useMatchStarted();
   const [host, setHost] = useState(false);
   // ยืนยันไว้สำหรับช่วงไหน (ก่อน/ระหว่างแมตช์) — แมตช์เริ่ม/จบระหว่างเปิดแผง = ขั้นยืนยันเดิมหายเอง
@@ -58,7 +58,7 @@ export function GameMenuPanel() {
   const needConfirm = started || host;
 
   return (
-    <div className="ocv-panel ocm-panel" role="dialog" aria-label="เมนู">
+    <div className={embedded ? "ocm-embed" : "ocv-panel ocm-panel"} role={embedded ? undefined : "dialog"} aria-label={embedded ? undefined : "เมนู"}>
       {kickTarget ? (
         <>
           <div className="ocv-head">
@@ -83,7 +83,7 @@ export function GameMenuPanel() {
         </>
       ) : (
         <>
-          <span className="ocv-label">เมนู</span>
+          {!embedded && <span className="ocv-label">เมนู</span>}
           <button
             type="button"
             className="ocm-item is-danger"

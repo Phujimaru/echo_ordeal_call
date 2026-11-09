@@ -28,3 +28,31 @@ export function useUiTheme() {
 }
 
 apply(readUiTheme());
+
+// ---------- ขนาด UI ในเกม (ผู้ใช้สั่ง 2026-11-09): --ui-scale บน <html> → HUD/แถบมุมขวาบน zoom ตามค่า (ui-theme.css) ----------
+const SCALE_KEY = "echo_ui_scale";
+export const UI_SCALE_MIN = 0.8;
+export const UI_SCALE_MAX = 1.3;
+const scaleListeners = new Set();
+export function readUiScale() {
+  try {
+    const v = parseFloat(localStorage.getItem(SCALE_KEY));
+    return Number.isFinite(v) ? Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, v)) : 1;
+  } catch { return 1; }
+}
+function applyScale(v) { if (typeof document !== "undefined") document.documentElement.style.setProperty("--ui-scale", String(v)); }
+export function setUiScale(v) {
+  const n = Math.round(Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, Number(v) || 1)) * 20) / 20;
+  try { localStorage.setItem(SCALE_KEY, String(n)); } catch { /* ไม่มีที่เก็บ */ }
+  applyScale(n);
+  scaleListeners.forEach((f) => f(n));
+}
+export function useUiScale() {
+  const [s, setS] = useState(readUiScale);
+  useEffect(() => {
+    scaleListeners.add(setS);
+    return () => scaleListeners.delete(setS);
+  }, []);
+  return [s, setUiScale];
+}
+applyScale(readUiScale());

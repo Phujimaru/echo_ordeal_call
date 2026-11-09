@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getMasterVolume, setMasterVolume, onVolumeChange, clickSound, VOLUME_CHANNELS, getChannelVolume, setChannelVolume } from "../audio";
-import { useUiTheme } from "../uiTheme";
+import { useUiTheme, useUiScale, UI_SCALE_MIN, UI_SCALE_MAX } from "../uiTheme";
+import { socket } from "../socket";
+import { EMOTES } from "../oc/lobby/emotes";
 import { GameMenuPanel, MenuIcon } from "../oc/ui-extra/GameMenu";
 import { echoApp, useRoomPlayers, useMatchStarted } from "../oc/ui-extra/gameMenuState";
 import "../oc/ui-extra/volume.css";
 
-// ปุ่มเสียงมุมขวาบน (ทุกหน้า รวมกระดานเกมสีเข้ม) — ธีม ORDEAL CALL
-//  ปุ่มเล็ก = ไอคอนลำโพง + แท่งระดับ 5 ขั้น · กดแล้วเปิดแผงกระจก: หลอดเลื่อน + ปุ่มปิดเสียง
-//  ข้างกันมีปุ่มโหมดมืด (กดสลับทันที — ทุกหน้า · uiTheme.js) และปุ่ม "เมนู" (oc/ui-extra/GameMenu.jsx — เฉพาะในโปรแกรม ECHO) · เปิดได้ทีละแผง
-//  แผงเสียง: หลอดหลัก + หลอดแยกช่อง เพลง/เอฟเฟกต์/เสียงพากย์/วีดีโอ (audio.js setChannelVolume)
-//  หน้าแรกของโปรแกรม (desktop/launcher) มีปุ่มชุดเดียวกัน ใช้ volume.css ไฟล์นี้ร่วมกัน
+// แถบมุมขวาบน (ทุกหน้า รวมกระดาน) — ธีม ORDEAL CALL · จัดใหม่ 2026-11-09 (ผู้ใช้: ในกระดานต้องไม่รก)
+//  แถบ: [ป้ายผู้ชม (มีคนดู)] [อีโมต (ระหว่างแมตช์ · ผู้เล่น)] [เมนู = ลำโพง/ระดับเสียง + ขีดเมนู]
+//  แผงเมนูเดียว แบ่งหมวด: เสียง (หลัก + เพลง/เอฟเฟกต์/เสียงพากย์/วีดีโอ · ปิดเสียง) · การแสดงผล (โหมดมืด · ขนาด UI) · ห้อง (เฉพาะในโปรแกรม ECHO — GameMenu.jsx)
+//  หน้าแรกของโปรแกรม (desktop/launcher) ใช้ volume.css ไฟล์นี้ร่วมกัน (ปุ่มของตัวเอง)
 const BARS = 5;
 const CHANNEL_LABEL = { music: "เพลง", sfx: "เอฟเฟกต์", voice: "เสียงพากย์", video: "วีดีโอ" };
 
@@ -65,15 +66,19 @@ function SpeakerIcon({ muted }) {
   );
 }
 
+function Emoji({ e }) { return <span className="ocv-emo-e">{e}</span>; }
+
 export default function VolumeControl() {
-  const [open, setOpen] = useState(null); // null | "vol" | "menu"
+  const [open, setOpen] = useState(null); // null | "menu" | "emote"
   const [vol, setVol] = useState(getMasterVolume());
   const [uiTheme, setUiTheme] = useUiTheme();
-  const { spectators } = useRoomPlayers(); // มีคนดูอยู่ = ป้ายตา + จำนวน (ระหว่างแมตช์)
+  const [uiScale, setUiScale] = useUiScale();
+  const { spectators, youId } = useRoomPlayers(); // มีคนดูอยู่ = ป้ายตา + จำนวน (ระหว่างแมตช์)
   const started = useMatchStarted();
   const dark = uiTheme === "dark";
   const lastOnRef = useRef(getMasterVolume() > 0 ? getMasterVolume() : 0.8); // ระดับก่อนกดปิดเสียง (กดอีกครั้งคืนค่านี้)
   const rootRef = useRef(null);
+  const lastEmote = useRef(0);
 
   // ค่าหลอดอาจถูกเปลี่ยนจากที่อื่น (หรือคืนค่าจาก localStorage) — ต้องตามให้ทัน
   useEffect(() => onVolumeChange((v) => {
@@ -107,6 +112,16 @@ export default function VolumeControl() {
     clickSound();
     change(muted ? (lastOnRef.current > 0 ? lastOnRef.current : 0.8) : 0);
   };
+  const toggle = (k) => { clickSound(); setOpen((o) => (o === k ? null : k)); };
+  const canEmote = started && !!youId;
+  const sendEmote = useCallback((e) => {
+    const now = performance.now();
+    if (now - lastEmote.current < 1200) return; // server รับ 1 ครั้งต่อ 1.2 วิ
+    lastEmote.current = now;
+    socket.emit("gameEmote", { emoji: e });
+    setOpen(null);
+  }, []);
+  const scalePct = Math.round(uiScale * 100);
 
   return (
     <div className="ocv" ref={rootRef}>
@@ -117,78 +132,82 @@ export default function VolumeControl() {
             <b>{spectators}</b>
           </span>
         )}
+        {canEmote && (
+          <button type="button" className={`ocv-btn ocv-emo-btn${open === "emote" ? " is-open" : ""}`} onClick={() => toggle("emote")} aria-expanded={open === "emote"} aria-label="อีโมต" title="อีโมต">
+            <svg className="ocv-ico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2" className="ocv-emo-face" /><path d="M7 11.6c.8 1.2 1.8 1.8 3 1.8s2.2-.6 3-1.8" className="ocv-emo-line" /><circle cx="7.6" cy="8.2" r="1" className="ocv-emo-eye" /><circle cx="12.4" cy="8.2" r="1" className="ocv-emo-eye" /></svg>
+          </button>
+        )}
         <button
           type="button"
-          className={`ocv-btn${open === "vol" ? " is-open" : ""}${muted ? " is-muted" : ""}`}
-          onClick={() => { clickSound(); setOpen((o) => (o === "vol" ? null : "vol")); }}
-          aria-expanded={open === "vol"}
-          aria-label="เสียง"
-          title="เสียง"
+          className={`ocv-btn ocm-btn${open === "menu" ? " is-open" : ""}${muted ? " is-muted" : ""}`}
+          onClick={() => toggle("menu")}
+          aria-expanded={open === "menu"}
+          aria-label="เมนู"
+          title="เมนู"
         >
           <SpeakerIcon muted={muted} />
           <span className="ocv-bars" aria-hidden="true">
             {Array.from({ length: BARS }, (_, i) => <i key={i} className={i < lit ? "on" : ""} />)}
           </span>
+          <span className="ocm-sep" aria-hidden="true" />
+          <MenuIcon />
         </button>
-        <button
-          type="button"
-          className={`ocv-btn oct-btn${dark ? " is-dark" : ""}`}
-          onClick={() => { clickSound(); setUiTheme(dark ? "light" : "dark"); }}
-          aria-pressed={dark}
-          aria-label="โหมดมืด"
-          title="โหมดมืด"
-        >
-          <ThemeIcon dark={dark} />
-        </button>
-        {echoApp && (
-          <button
-            type="button"
-            className={`ocv-btn ocm-btn${open === "menu" ? " is-open" : ""}`}
-            onClick={() => { clickSound(); setOpen((o) => (o === "menu" ? null : "menu")); }}
-            aria-expanded={open === "menu"}
-            title="เมนู"
-          >
-            <MenuIcon />
-            <span className="ocm-btn-t">เมนู</span>
-          </button>
-        )}
       </div>
 
-      {open === "menu" && <GameMenuPanel />}
+      {open === "emote" && canEmote && (
+        <div className="ocv-panel ocv-emo-panel" role="dialog" aria-label="อีโมต">
+          {EMOTES.map((e) => (
+            <button key={e} type="button" className="ocv-emo" onClick={() => sendEmote(e)} aria-label={e}><Emoji e={e} /></button>
+          ))}
+        </div>
+      )}
 
-      {open === "vol" && (
-        <div className="ocv-panel" role="dialog" aria-label="เสียง">
-          <div className="ocv-head">
-            <span className="ocv-label">เสียง</span>
-            <span className={`ocv-pct${muted ? " is-muted" : ""}`}>{pct}<small>%</small></span>
-          </div>
+      {open === "menu" && (
+        <div className="ocv-panel ocv-menu" role="dialog" aria-label="เมนู">
+          <section className="ocv-sec">
+            <div className="ocv-sec-h">
+              <span>เสียง</span>
+              <span className={`ocv-pct${muted ? " is-muted" : ""}`}>{pct}<small>%</small></span>
+              <button type="button" className={`ocv-mute-ico${muted ? " is-on" : ""}`} aria-pressed={muted} aria-label="ปิดเสียง" title="ปิดเสียง" onClick={toggleMute}>
+                <SpeakerIcon muted />
+              </button>
+            </div>
+            <div className="ocv-slider" style={{ "--fill": `${pct}%` }}>
+              <span className="ocv-track" aria-hidden="true">
+                <i className="ocv-fill" />
+                {Array.from({ length: 11 }, (_, i) => <b key={i} style={{ left: `${i * 10}%` }} className={i * 10 <= pct ? "on" : ""} />)}
+              </span>
+              <span className="ocv-thumb" aria-hidden="true" />
+              <input type="range" min="0" max="100" step="5" value={pct} onChange={(e) => change(Number(e.target.value) / 100)} aria-label="เสียง" aria-valuetext={`${pct}%`} />
+            </div>
+            <div className="ocv-chs">
+              {VOLUME_CHANNELS.map((ch) => <ChannelSlider key={ch} ch={ch} />)}
+            </div>
+          </section>
 
-          <div className="ocv-slider" style={{ "--fill": `${pct}%` }}>
-            <span className="ocv-track" aria-hidden="true">
-              <i className="ocv-fill" />
-              {Array.from({ length: 11 }, (_, i) => <b key={i} style={{ left: `${i * 10}%` }} className={i * 10 <= pct ? "on" : ""} />)}
-            </span>
-            <span className="ocv-thumb" aria-hidden="true" />
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={pct}
-              onChange={(e) => change(Number(e.target.value) / 100)}
-              aria-label="เสียง"
-              aria-valuetext={`${pct}%`}
-            />
-          </div>
+          <section className="ocv-sec">
+            <div className="ocv-sec-h"><span>การแสดงผล</span></div>
+            <button type="button" className={`ocv-row-btn${dark ? " is-on" : ""}`} aria-pressed={dark} onClick={() => { clickSound(); setUiTheme(dark ? "light" : "dark"); }}>
+              <ThemeIcon dark={dark} />
+              <span>โหมดมืด</span>
+              <i className="ocv-switch" aria-hidden="true" />
+            </button>
+            <label className="ocv-ch ocv-scale">
+              <span className="ocv-ch-t">ขนาด UI</span>
+              <span className="ocv-ch-p">{scalePct}</span>
+              <span className="ocv-ch-s" style={{ "--fill": `${((uiScale - UI_SCALE_MIN) / (UI_SCALE_MAX - UI_SCALE_MIN)) * 100}%` }}>
+                <span className="ocv-ch-track" aria-hidden="true"><i /></span>
+                <input type="range" min={UI_SCALE_MIN * 100} max={UI_SCALE_MAX * 100} step="5" value={scalePct} onChange={(e) => setUiScale(Number(e.target.value) / 100)} aria-label="ขนาด UI" aria-valuetext={`${scalePct}%`} />
+              </span>
+            </label>
+          </section>
 
-          <div className="ocv-chs">
-            {VOLUME_CHANNELS.map((ch) => <ChannelSlider key={ch} ch={ch} />)}
-          </div>
-
-          <button type="button" className={`ocv-mute${muted ? " is-on" : ""}`} aria-pressed={muted} onClick={toggleMute}>
-            <SpeakerIcon muted />
-            ปิดเสียง
-          </button>
+          {echoApp && (
+            <section className="ocv-sec">
+              <div className="ocv-sec-h"><span>ห้อง</span></div>
+              <GameMenuPanel embedded />
+            </section>
+          )}
         </div>
       )}
     </div>

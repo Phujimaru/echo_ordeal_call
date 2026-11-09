@@ -458,3 +458,15 @@
 :root[data-ui="dark"] .ocx-veil { background: radial-gradient(120% 90% at 50% 46%, #0e1c38 0%, #070d1d 50%, #02040a 100%); }
 :root[data-ui="dark"] .ocv-spec { background: rgba(16, 34, 66, 0.9); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
 :root[data-ui="dark"] .oc-spec-btn:focus-visible { outline-color: #e8f0fa; }
+
+/* ---------- ขนาด UI (uiTheme.js --ui-scale): HUD ในเกม + แถบมุมขวาบน ---------- */
+.hud-dock, .hud-top, .ocv { zoom: var(--ui-scale, 1); }
+/* แผงเมนูรวม / อีโมต — โหมดมืด */
+:root[data-ui="dark"] .ocm-sep { background: rgba(127, 184, 230, 0.35); }
+:root[data-ui="dark"] .ocv-sec { border-top-color: rgba(255, 255, 255, 0.12); }
+:root[data-ui="dark"] .ocv-sec-h { color: #a9c2e2; }
+:root[data-ui="dark"] :is(.ocv-mute-ico, .ocv-row-btn, .ocv-emo) { background: #18325c; border-color: rgba(127, 184, 230, 0.4); color: #e8f0fa; }
+:root[data-ui="dark"] .ocv-mute-ico.is-on { background: var(--oc-echo); }
+:root[data-ui="dark"] .ocv-switch { background: rgba(255, 255, 255, 0.16); }
+:root[data-ui="dark"] .ocv-emo-face { stroke: #e8f0fa; }
+:root[data-ui="dark"] .ocv-emo-eye { fill: #e8f0fa; }
