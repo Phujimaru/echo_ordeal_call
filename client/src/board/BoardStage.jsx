@@ -687,6 +687,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [fx, setFx] = useState([]);
   const fxSeq = useRef(0);
   const pushFx = useCallback((list) => setFx((old) => [...old.slice(-30), ...list.map((f) => ({ ...f, key: ++fxSeq.current }))]), []);
+  // อีโมตระหว่างแมตช์ (socket "gameEmote" { id, emoji }): ฟองเหนือตัวนั้น — วาดเฉพาะตัวที่เราเห็นบนกระดาน (ชั้นมิติเดียวกัน · ไม่มืดบอด)
+  //  หมุดทีม (socket "teamPing" { x, y, by, color }): วงกระเพื่อมที่ช่อง (server ส่งเฉพาะเพื่อนร่วมทีม) · Alt + คลิกช่อง = ปัก
+  useEffect(() => {
+    const onEmote = ({ id, emoji } = {}) => {
+      const u = unitsRef.current.find((p) => p.id === id);
+      if (!u || u.masked || !emoji) return;
+      pushFx([{ kind: "emote", x: u.pos.x, y: u.pos.y, size: sizeOfP(u), emoji, color: u.color }]);
+    };
+    const onPing = ({ x, y, color } = {}) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      pushFx([{ kind: "teamPing", x, y, color: color || "#3d8bd9" }]);
+      playSfx("notificate");
+    };
+    socket.on("gameEmote", onEmote);
+    socket.on("teamPing", onPing);
+    return () => { socket.off("gameEmote", onEmote); socket.off("teamPing", onPing); };
+  }, [pushFx]);
+  const onPing = useCallback((x, y) => { if (coopMode && me) socket.emit("teamPing", { x, y }); }, [coopMode, me]);
   const [hold, setHold] = useState({}); // id → ช่องที่ค้างไว้ระหว่างฉากตี (ก่อนแอนิเมชันถอยเริ่ม)
   const [cinema, setCinema] = useState(null); // กล้องฉากตี { a, b, z }
   const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
@@ -2667,6 +2685,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         dimView={typeof myDim === "string" ? (myDim.startsWith("par") ? "par" : myDim.startsWith("veil") ? "veil" : null) : null}
         onAnimDone={onAnimDone}
         onTileClick={onTileClick}
+        onPing={coopMode && me ? onPing : undefined}
         onUnitClick={onUnitClick}
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
       />

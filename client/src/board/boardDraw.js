@@ -572,6 +572,47 @@ function allyBadge(g, mx, my, UK) {
   g.fillStyle = ALLY; g.fillRect(mx - mw / 2, my - 8 * UK, mw, 16 * UK);
   g.fillStyle = "#08321f"; g.fillText("ทีม", mx, my + 0.5); g.textBaseline = "alphabetic";
 }
+// อีโมตระหว่างแมตช์: ป้ายมุมตัดสีขาวเหนือหัวหมาก (ขอบสีผู้เล่น) เด้งเข้า ลอยขึ้นช้าๆ แล้วจาง
+function emoteFx(g, e, p) {
+  if (p < 0 || p > 1) return;
+  const h = Math.max(1, e.size || 1) / 2;
+  const [bx, by, s] = P(e.x + h, e.y + h);
+  const K = Math.max(1, e.size || 1);
+  const pop = p < 0.12 ? 0.6 + (p / 0.12) * 0.55 : p < 0.2 ? 1.15 - ((p - 0.12) / 0.08) * 0.15 : 1;
+  const a = p > 0.8 ? 1 - (p - 0.8) / 0.2 : 1;
+  const w = s * 0.62 * pop, cx = bx, cy = by - s * 1.55 * K - p * s * 0.25 - w * 0.5, c = Math.max(4, w * 0.16);
+  g.save();
+  g.globalAlpha = a;
+  g.beginPath();
+  g.moveTo(cx - w / 2 + c, cy - w / 2); g.lineTo(cx + w / 2, cy - w / 2); g.lineTo(cx + w / 2, cy + w / 2 - c);
+  g.lineTo(cx + w / 2 - c, cy + w / 2); g.lineTo(cx + w * 0.1, cy + w / 2); g.lineTo(cx, cy + w / 2 + w * 0.16); g.lineTo(cx - w * 0.1, cy + w / 2);
+  g.lineTo(cx - w / 2, cy + w / 2); g.lineTo(cx - w / 2, cy - w / 2 + c); g.closePath();
+  g.fillStyle = "#ffffff"; g.fill();
+  g.lineWidth = Math.max(2, w * 0.05); g.strokeStyle = e.color || "#3d8bd9"; g.stroke();
+  g.font = `${Math.round(w * 0.62)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(e.emoji, cx, cy + w * 0.04);
+  g.restore();
+}
+// หมุดทีม: ข้าวหลามตัดสีผู้ปัก + วงกระเพื่อม 3 ระลอกที่ช่อง
+function teamPingFx(g, e, p, now) {
+  if (p < 0 || p > 1) return;
+  const [bx, by, s] = P(e.x + 0.5, e.y + 0.5);
+  const a = p > 0.75 ? 1 - (p - 0.75) / 0.25 : 1;
+  g.save();
+  for (let i = 0; i < 3; i++) {
+    const q = ((p * 3 + i / 3) % 1);
+    g.globalAlpha = a * (1 - q);
+    g.beginPath(); g.ellipse(bx, by, s * (0.2 + q * 0.6), s * (0.2 + q * 0.6) * 0.5, 0, 0, Math.PI * 2);
+    g.lineWidth = 3; g.strokeStyle = e.color; g.stroke();
+  }
+  g.globalAlpha = a;
+  const bob = Math.sin(now / 160) * s * 0.04, d = s * 0.16, ty = by - s * 0.55 + bob;
+  g.beginPath(); g.moveTo(bx, ty - d); g.lineTo(bx + d * 0.75, ty); g.lineTo(bx, ty + d); g.lineTo(bx - d * 0.75, ty); g.closePath();
+  g.fillStyle = e.color; g.fill(); g.lineWidth = 2; g.strokeStyle = "#ffffff"; g.stroke();
+  g.beginPath(); g.moveTo(bx, ty + d); g.lineTo(bx, by); g.lineWidth = 2; g.strokeStyle = e.color; g.stroke();
+  g.restore();
+}
 // ผู้เล่นหลุด (ผู้ใช้สั่ง 2026-11-09): หกเหลี่ยมหมองลง + ป้ายกลมมุมขวาบน (ปลั๊กหลุด) เต้นช้าๆ
 function drawOffline(g, bx, hy, hexR, now) {
   g.save();
@@ -2144,7 +2185,7 @@ function darkWaveFx(g, e, now, lowQ) {
 }
 
 export const FX_DUR = {
-  darkWave: 3000,
+  darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
   ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR,
@@ -2481,7 +2522,9 @@ export function drawFrame(g, st, now) {
   for (const e of fx) {
     if (occ != null && Number.isFinite(e.y) && e.y < occ) continue;
     const p = (now - e.t0) / (FX_DUR[e.kind] || 1000);
-    if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
+    if (e.kind === "emote") emoteFx(g, e, p);
+    else if (e.kind === "teamPing") teamPingFx(g, e, p, now);
+    else if (e.kind === "slash") slashFx(g, e.x, e.y, p, e.rgb || "255,255,255");
     else if (e.kind === "burst") burstFx(g, e.x, e.y, p, e.rgb || "255,211,106");
     else if (e.kind === "beam") beamFx(g, e, now, lowQ);
     else if (e.kind === "quake") quakeFx(g, e, now, lowQ);

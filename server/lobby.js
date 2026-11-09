@@ -434,4 +434,4 @@ function backToLobby() {
   }
   view.broadcastState();
 }
-Object.assign(module.exports, { LOBBY_EMOTES });
+Object.assign(module.exports, { LOBBY_EMOTES }); // อีโมตระหว่างแมตช์ใช้ชุดเดียวกัน (socket.js gameEmote)

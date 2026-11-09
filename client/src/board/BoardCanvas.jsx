@@ -941,6 +941,8 @@ export default function BoardCanvas(props) {
     if (S.current.suppressClick) { S.current.suppressClick = false; return; }
     const { tile, unit } = locate(e);
     const p = propsRef.current;
+    // Alt + คลิก = ปักหมุดให้เพื่อนร่วมทีม (BoardStage onPing — โหมดทีม/Moon Cell)
+    if (e.altKey && typeof p.onPing === "function") { const at = tile || (unit && unit.pos); if (at) p.onPing(at.x, at.y); return; }
     if (unit && typeof p.onUnitClick === "function") { p.onUnitClick(unit.id); return; }
     if (tile && typeof p.onTileClick === "function") p.onTileClick(tile.x, tile.y);
   };

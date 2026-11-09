@@ -345,6 +345,22 @@ io.on('connection', (socket) => {
   });
   // ห้องรอ / เลือกโหมด / จัดทีม: ปักอีโมตบนลูกโลก — ส่งต่อให้ทุกคนในห้อง (1 ครั้งต่อ 600 ms)
   onPlayerEvent(socket, 'lobbyEmote', (id, payload) => lobby.relayLobbyEmote(id, payload), 1, 600);
+  // อีโมตระหว่างแมตช์ (ผู้ใช้สั่ง 2026-11-09): เด้งเหนือตัวที่ผู้เล่นคุมอยู่ — ทุกคน (และผู้ชม) ได้รับ · client วาดเฉพาะเมื่อมองเห็นตัวนั้น
+  onPlayerEvent(socket, 'gameEmote', (id, { emoji } = {}) => {
+    if (lobby.pregameStateActive() || !lobby.LOBBY_EMOTES.includes(emoji)) return;
+    const unitId = Duo.controlledId(id);
+    const u = match.players[unitId];
+    if (!u || !u.alive) return;
+    io.emit('gameEmote', { id: unitId, emoji });
+  }, 1, 1200);
+  // ปักหมุดบนกระดาน (โหมดทีม / Moon Cell): เพื่อนร่วมทีมเท่านั้นที่เห็น (รวมตัวเอง) · Alt + คลิกช่อง
+  onPlayerEvent(socket, 'teamPing', (id, { x, y } = {}) => {
+    if (lobby.pregameStateActive() || !(lobby.teamModeActive() || match.gameMode === 'moon')) return;
+    const p = match.players[id];
+    if (!p || !p.teamId || !Number.isInteger(x) || !Number.isInteger(y) || x < -64 || y < -64 || x > 256 || y > 256) return;
+    const payload = { x, y, by: id, color: lobby.colorOf(p) };
+    for (const o of Object.values(match.players)) if (!o.summon && !o.duoOf && o.teamId === p.teamId) io.to(o.id).emit('teamPing', payload);
+  }, 2, 1500);
 
   onPlayerEvent(socket, 'hit', (id) => draw.hit(id), 8);
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
