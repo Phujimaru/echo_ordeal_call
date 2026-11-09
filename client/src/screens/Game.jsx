@@ -30,6 +30,7 @@ import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRo
 import OhgerSword from "./hud/OhgerSword";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
+import { requestAttention } from "../attention";
 import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx, pauseLoopSfx, resumeLoopSfx } from "../audio";
 import BoardStage from "../board/BoardStage";
 import YukiBoom from "../board/YukiBoom";
@@ -1850,6 +1851,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
   const phase = state.gameState;
+  // ช่วงจั่วไพ่เริ่ม: หน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ (attention.js)
+  useEffect(() => { if (phase === "PLAYING") requestAttention(); }, [phase]);
   // อรชุน: ฉาก Mahapralaya (ArjunaUlt.jsx) · โหลดวีดีโอ/รูปหมากล่วงหน้าเมื่อมีอรชุนในเกม
   const arjunaRun = state.arjunaUlt ? {
     seq: state.arjunaUlt.seq, hits: state.arjunaUlt.hits,

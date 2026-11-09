@@ -22,6 +22,7 @@ import { shopCovers, shopName, shopDims } from "./shopProps";
 import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
+import { requestAttention } from "../attention";
 import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
 import { isZeroArea } from "./zeroTheme";
 import { faceStyle } from "./charFace";
@@ -2551,7 +2552,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }
   const endCall = useCallback(() => setCall(null), []);
   // เสียงฉากตาเดิน (ผู้ใช้ให้ไฟล์มา 2026-10-09): ตาเรา = notificate_mine · ตาคนอื่น = notificate
-  useEffect(() => { if (call) playSfx(me && sameSide(byId[call.id] || { id: call.id }, me) ? "notificate_mine" : "notificate"); }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!call) return;
+    const mine = !!me && sameSide(byId[call.id] || { id: call.id }, me);
+    playSfx(mine ? "notificate_mine" : "notificate");
+    if (mine) requestAttention(); // ถึงตาเรา: หน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ
+  }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- ฉากห่วงเวลาซีโร่ (ป้ายชื่อ/เฟส · เสียง) — ภาพบนกระดาน BoardCanvas เล่นเองจาก zeroScene ----------
   const zScene = zero && zero.scene ? zero.scene : null;

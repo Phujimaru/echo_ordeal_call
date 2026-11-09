@@ -23,5 +23,7 @@ if (location.protocol === "file:") {
   contextBridge.exposeInMainWorld("echoApp", {
     leaveRoom: () => ipcRenderer.invoke("echoApp:leaveRoom"),
     isHost: () => ipcRenderer.invoke("echoApp:isHost"),
+    // ถึงตาเรา/ช่วงจั่วไพ่ระหว่างที่หน้าต่างไม่ได้โฟกัส = ไอคอนบนแถบงานกระพริบ (หยุดเองเมื่อกลับมาที่หน้าต่าง)
+    attention: () => ipcRenderer.invoke("echoApp:attention"),
   });
 }

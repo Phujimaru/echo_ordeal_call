@@ -170,6 +170,7 @@ function createWindow() {
     },
   });
 
+  win.on("focus", () => { if (win && !win.isDestroyed()) win.flashFrame(false); }); // หยุดกระพริบ (echoApp:attention)
   win.webContents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown") return;
     if (input.key === "F11") {
@@ -327,6 +328,13 @@ function fromGamePage(event) {
 ipcMain.handle("echoApp:leaveRoom", async (event) => {
   if (!fromGamePage(event)) return false;
   return leaveRoom({ ask: false });
+});
+
+// ถึงตาเรา (หน้าเกมขอ): หน้าต่างไม่ได้โฟกัส = กระพริบไอคอนบนแถบงาน · กลับมาที่หน้าต่าง = หยุด (win focus ด้านล่าง)
+ipcMain.handle("echoApp:attention", (event) => {
+  if (!fromGamePage(event) || !win || win.isDestroyed() || win.isFocused()) return false;
+  win.flashFrame(true);
+  return true;
 });
 
 // เครื่องนี้เป็นคนเปิดห้องที่อยู่ตอนนี้ไหม (ออกแล้วห้องปิด)
