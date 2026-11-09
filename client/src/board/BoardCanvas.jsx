@@ -128,7 +128,7 @@ function dimLayersOf(st, kind, now) {
 }
 // ช่อง (x, y) อยู่ในตัวของ u ไหม (ตัวใหญ่ = size × size ช่อง นับจากมุมบนซ้าย)
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
-import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, setPitch, setCustomProjection, customProjection } from "./boardGeo";
+import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, PV, setPitch, setCustomProjection, customProjection, setViewCenter } from "./boardGeo";
 import { createColonyView } from "./colony3d";
 import { setEosFast } from "./fodlan/stage6";
 
@@ -156,7 +156,7 @@ const DRAG_PX = 6;     // ลากเกินนี้ = เลื่อนก
 const PAN_SPEED = 720; // ปุ่มลูกศร: ตรรกะ/วินาที ที่ z = 1
 const YAW_SPEED = 0.55;  // RTS: ค้าง Q/E หมุน (รอบละ 90° ต่อวินาที × ค่านี้)
 const RTS_SHARP_MS = 140; // RTS: กล้องนิ่งนานเท่านี้ (ms) แล้วอบชั้นพื้นใหม่ให้คมเท่าจอ
-const EOS_PIECE_K = 0.62; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับช็อโก้
+const EOS_PIECE_K = 0.8; // สนาม Eos (กล้องใกล้): ย่อหมากหกเหลี่ยมให้พอๆ กับช็อโก้
 const RTS_BASE_Z = 0.62; // RTS: เฟรมอบกว้างกว่าจอ (ซูมออก) — ดู base ในลูปวาด
 const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างขอบแคนวาสไม่เกินนี้ = เลื่อนกล้อง
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
@@ -428,6 +428,22 @@ export default function BoardCanvas(props) {
         }
       }
       setPitch(pitch);
+      // กล้อง RTS (สนาม Eos): จุดหมุนของมุมมอง = ตัวเรา (ไม่ใช่กลางกระดาน) — หมุนแล้วตัวเราไม่เข้าใกล้/ห่างกล้อง ขนาดคงที่
+      //  ตัวเราเดินไปช่องใหม่ = จุดหมุนเลื่อนตามนุ่มๆ (FOCUS_MS)
+      if (p.rts && !st.cv3) {
+        const tgt = p.selfPos && Number.isFinite(p.selfPos.x) ? { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 } : st.vcTo || { x: info.cols / 2, y: info.rows / 2 };
+        if (!st.vcTo || tgt.x !== st.vcTo.x || tgt.y !== st.vcTo.y) {
+          if (!st.vc || lowQ) { st.vc = { ...tgt }; st.vcAnim = null; }
+          else st.vcAnim = { from: { ...st.vc }, t0: now };
+          st.vcTo = tgt;
+        }
+        if (st.vcAnim) {
+          const k = Math.min(1, (now - st.vcAnim.t0) / FOCUS_MS), e = ease(k), f = st.vcAnim.from;
+          st.vc = { x: f.x + (st.vcTo.x - f.x) * e, y: f.y + (st.vcTo.y - f.y) * e };
+          if (k >= 1) { st.vc = { ...st.vcTo }; st.vcAnim = null; }
+        }
+        setViewCenter(st.vc);
+      } else { setViewCenter(null); st.vc = st.vcTo = st.vcAnim = null; }
       // --- กล้องมุมใกล้ (ซูม/เลื่อน) — คำนวณในพิกัดตรรกะของเฟรมปกติ
       setCamera(info, st.turn);
       const dt = Math.min(50, now - (st.lastT || now));
@@ -524,13 +540,13 @@ export default function BoardCanvas(props) {
         const was = st.selfKey;
         st.selfKey = selfKey;
         if (selfKey && !(st.drag && st.drag.moved)) {
-          const [sx, sy] = project(p.selfPos.x + 0.5, p.selfPos.y + 0.5);
+          const [sx, sy] = PV(0, 0); // จุดหมุน = ตัวเรา อยู่ที่ (0, 0) ของมุมมองเสมอ
           const to = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
           if (was == null) { st.cam = to; st.camAnim = null; } else startAnim(to, FOCUS_MS);
         }
       }
       if (rts && p.camHome !== st.camHome) {
-        const fp = st.camHome !== undefined ? focusPt(p.focus) : null;
+        const fp = st.camHome !== undefined ? PV(0, 0) : null;
         st.camHome = p.camHome;
         if (fp) startAnim(cc({ z: st.cam.z, ...eyeTo(st.cam.z, fp[0], fp[1]) }), FOCUS_MS);
       }
@@ -538,16 +554,17 @@ export default function BoardCanvas(props) {
       const view = rts ? computeView(w, h, { ...st.cam, z: st.cam.z * RTS_BASE_Z }) : st.cam.z > 1.0001 ? computeView(w, h, st.cam) : base; // RTS: z นับจากเฟรมอบที่ถอยออก
       st.view = view;
       // กล้อง RTS: กล้องกำลังเคลื่อน (ลาก/ชิดขอบ/ลูกศร/ล้อ/แอนิเมชัน/หมุน) → วาดพื้นสดที่มุมกล้องจริงทุกเฟรม (คมตลอด ไม่ต้องรออบ)
-      const vk = `${view.k}|${view.ox}|${view.oy}|${st.turn}`;
+      const vk = `${view.k}|${view.ox}|${view.oy}|${st.turn}|${st.vc ? st.vc.x + "," + st.vc.y : ""}`;
       if (vk !== st.prevVK) { st.prevVK = vk; st.moveUntil = now + 160; }
-      const camMoving = rts && (now < (st.moveUntil || 0) || !!st.camAnim || !!(st.drag && st.drag.moved) || st.keys.size > 0 || !!st.yaw);
+      const camMoving = rts && (now < (st.moveUntil || 0) || !!st.camAnim || !!st.vcAnim || !!(st.drag && st.drag.moved) || st.keys.size > 0 || !!st.yaw);
+      const vcK = st.vc ? `${st.vc.x},${st.vc.y}` : "";
       // ความละเอียดของชั้นอบ: มุมใกล้อบละเอียดขึ้น (ไม่เกิน 2 · lowQ = เท่าจอ) — ไม่ให้ภาพแตกตอนขยาย
       //  ทุกระดับที่ซูมอยู่ใช้ชั้นอบความละเอียดเดียว (ของระดับสูงสุด) — เปลี่ยนระดับไม่ต้องอบใหม่
       const res = lowQ || (!zl && !rts) ? dpr : Math.round(Math.min(2, dpr * (rts ? rr.max : zoomKOf(pitch, ZOOM_STEPS - 1))) * 100) / 100;
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
-        const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}`;
+        const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}|${vcK}`;
         let sc = st.scenes.get(sk);
         if (!sc) {
           sc = bakeScene(info, base, res, night, lowQ, par);
@@ -558,12 +575,12 @@ export default function BoardCanvas(props) {
         return sc;
       };
       // RTS ระหว่างค้าง Q/E: ใช้ฉากที่อบไว้ล่าสุด (ไม่อบใหม่ทุกเฟรม) — ปล่อยปุ่มแล้วค่อยอบที่มุมใหม่
-      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
+      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && (st.yaw || camMoving) && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
       const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
-      if (!turning && !st.cv3 && !(camMoving && !lowQ)) {
+      if (!turning && !st.cv3 && !(rts && !lowQ)) {
         const rk = rts ? Math.round(st.turn * 1000) / 1000 : normRot(st.turn);
-        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${rk}|${pitch}`;
+        const bk = `${st.sig}|${w}x${h}|${res}|${night}|${rk}|${pitch}|${vcK}`;
         boardCv = st.boards.get(bk);
         if (!boardCv) {
           boardCv = bakeBoard(info, base, res, night, rk, rts);
@@ -579,7 +596,7 @@ export default function BoardCanvas(props) {
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (rts && !turning && !lowQ && !st.cv3) {
         const still = !camMoving && !st.pivot;
-        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}`;
+        const ck = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}|${vcK}`;
         if (!still) st.stillAt = 0;
         else if (st.sharpKey !== ck) {
           if (!st.stillAt) st.stillAt = now;
@@ -824,7 +841,7 @@ export default function BoardCanvas(props) {
         }
       };
       const drawFrameOf = (target) => drawFrame(target, {
-        uiK: rts ? Math.max(0.7, Math.min(1.5, 1.7 / (st.cam.z * RTS_BASE_Z))) : 0, // Eos: ป้าย/แถบเลือดบนหมากไม่ขยายตามซูม
+        uiK: rts ? 1 : 0, // Eos: ป้าย/แถบเลือดบนหมากวัดจากขนาดหมาก (boardDraw UI_PIECE)
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,

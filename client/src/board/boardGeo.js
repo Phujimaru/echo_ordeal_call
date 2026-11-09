@@ -44,6 +44,13 @@ setTrig();
 const BIRD_FAR_Y = 70;
 // ขอบใกล้กว้างได้ไม่เกินนี้ (กระดานกว้างมาก = ย่อกล้องเพิ่ม ขอบไกลต่ำลง) · 16 × 12 = 1060 ไม่ถึง
 const MAX_NEAR_W = 1140;
+// จุดหมุนของมุมมอง (หน่วยช่องบนกระดาน) · null = กลางกระดาน
+//  สนาม Eos (กล้อง RTS — ผู้ใช้แจ้ง 2026-11-09 "หมุนไม่สม่ำเสมอ เหมือนจานเอียง หมากหด/ขยาย"): หมุนรอบตัวเราจริง
+//   เดิมหมุนรอบกลางกระดานแล้วเลื่อนภาพตาม → ตัวเราเข้าใกล้/ห่างกล้องระหว่างหมุน ขนาดเลยเปลี่ยน · ตอนนี้ตัวเราอยู่ที่ (0, 0) ของมุมมองเสมอ
+let PCX = null, PCY = null;
+export function setViewCenter(c) { PCX = c ? c.x : null; PCY = c ? c.y : null; }
+export const viewCenter = () => (PCX == null ? null : { x: PCX, y: PCY });
+const cxOf = () => (PCX == null ? BC / 2 : PCX), cyOf = () => (PCY == null ? BR / 2 : PCY);
 let BC = 16, BR = 12, TH = 0, cT = 1, sT = 0, HCe = 8, HRe = 6, FOC = FOC0, OY = NEAR_Y - 6 * SN * 66.25;
 function fit() {
   const a = TH * Math.PI / 2;
@@ -83,7 +90,7 @@ export function PV(X, Y, z = 0) {
 }
 // กระดาน → มุมมอง [X, Y]
 export function toView(x, y) {
-  const dx = x - BC / 2, dy = y - BR / 2;
+  const dx = x - cxOf(), dy = y - cyOf();
   return [dx * cT - dy * sT, dx * sT + dy * cT];
 }
 // ตัวฉายภาพแทนที่ (สนาม Colony — board/colony3d.js): { project(x, y, z) → [sx, sy, s], unproject(sx, sy) → {x, y} | null, depth(x, y) }
@@ -124,20 +131,22 @@ export function frameToScreen(fr, x, y) {
   return [fr.x + dx * c - dy * s, fr.y + dx * s + dy * c];
 }
 // ความลึก (Y ของมุมมอง) ของจุดบนกระดาน — ใช้เรียงของหน้า/หลัง
-export const depthOf = (x, y) => (CUSTOM ? CUSTOM.depth(x, y) : (x - BC / 2) * sT + (y - BR / 2) * cT);
+export const depthOf = (x, y) => (CUSTOM ? CUSTOM.depth(x, y) : (x - cxOf()) * sT + (y - cyOf()) * cT);
 // แกนของมุมมองในพิกัดกระดาน: f = ทิศเข้าหากล้อง · r = ทิศขวาของจอ
 export const viewAxes = () => ({ fx: sT, fy: cT, rx: cT, ry: -sT });
 // กระดาน (x, y, สูง z) → [sx, sy, สเกล]
 export function project(x, y, z = 0) {
   if (CUSTOM) return CUSTOM.project(x, y, z);
-  const dx = x - BC / 2, dy = y - BR / 2;
+  const dx = x - cxOf(), dy = y - cyOf();
   return PV(dx * cT - dy * sT, dx * sT + dy * cT, z);
 }
 export const P = project;
 // จุดยึดของสไปรต์: กลางช่อง (x, y) ขยับเข้าหากล้อง off ช่อง
 export function PA(x, y, off = 0, z = 0) { return P(x + 0.5 + sT * off, y + 0.5 + cT * off, z); }
 // ฉาก (x, y, z) → [sx, sy, สเกล]
-export function PS(x, y, z = 0) { return PV(x - HCe, y - HRe, z); }
+//  กรอบฉากยึดกับกลางกระดานเสมอ (จุดหมุนอยู่ที่ตัวเรา = เลื่อนกรอบตาม ไม่ให้ฉากรอบนอกไหลตามตัวเรา)
+const sceneOff = () => (PCX == null ? [0, 0] : toView(BC / 2, BR / 2));
+export function PS(x, y, z = 0) { const [ox, oy] = sceneOff(); return PV(x - HCe + ox, y - HRe + oy, z); }
 // ด้านข้างแนวตั้งของกล่อง (normal n ในพิกัดกระดาน ที่จุด px, py) หันเข้ากล้องไหม
 export function faceVisible(nx, ny, px, py) {
   const [X, Y] = toView(px, py), vx = nx * cT - ny * sT, vy = nx * sT + ny * cT;
@@ -156,12 +165,14 @@ export function unproject(sx, sy) {
   if (CUSTOM) return CUSTOM.unproject(sx, sy);
   const v = unprojectView(sx, sy);
   if (!v) return null;
-  return { x: v.X * cT + v.Y * sT + BC / 2, y: -v.X * sT + v.Y * cT + BR / 2 };
+  return { x: v.X * cT + v.Y * sT + cxOf(), y: -v.X * sT + v.Y * cT + cyOf() };
 }
 // จุดบนจอ → พิกัดฉาก
 export function unprojectScene(sx, sy) {
   const v = unprojectView(sx, sy);
-  return v ? { x: v.X + HCe, y: v.Y + HRe } : null;
+  if (!v) return null;
+  const [ox, oy] = sceneOff();
+  return { x: v.X + HCe - ox, y: v.Y + HRe - oy };
 }
 // ขนาดแคนวาสจริง (CSS px) → ตัวแปลงพิกัด ตรรกะ ↔ CSS · ย่อให้เห็นเฟรม 1280×720 ครบ แล้วต่อฉากรอบนอกให้เต็มจอ
 //  cam = { z, cx, cy } (ไม่ใส่ = มุมปกติ) — ขยาย z เท่า โดยให้จุดตรรกะ (cx, cy) อยู่กลางจอ (มุมใกล้)

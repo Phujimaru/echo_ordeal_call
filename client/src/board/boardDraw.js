@@ -20,7 +20,7 @@
 // ============================================================
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
-  pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn,
+  pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn, viewCenter,
   frameToScreen, localFrame, withLocalFrame,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
@@ -167,7 +167,7 @@ export function rtsZoomRange(info, base, top = false) {
   // กล้องอยู่ใกล้ตัวผู้เล่น (ผู้ใช้สั่ง 2026-11-09: "ไกลเกินไป ซูมจนเห็นทั้งแผนที่ ไม่ตื่นเต้น")
   //  เฟรมอบของ RTS เห็นราว ด้านยาว/0.62 ช่อง ตอน z = 1 → ซูมออกสุด ≈ 14 ช่อง · ซูมเข้าสุด ≈ 7 ช่อง (มุมบนช่องเล็กกว่า = คูณเพิ่ม)
   // วัดความกว้างช่องจริงที่กลางกระดาน (มุมมองลึก = แถวหน้ากว้างกว่าแถวกลาง) → z ที่จอกว้างเท่า N ช่อง
-  const mx = info.cols / 2, my = info.rows / 2, a = P(mx - 0.5, my), b = P(mx + 0.5, my);
+  const vc = viewCenter(), mx = vc ? vc.x : info.cols / 2, my = vc ? vc.y : info.rows / 2, a = P(mx - 0.5, my), b = P(mx + 0.5, my); // วัดที่จุดหมุน (ตัวเรา)
   const tw = Math.max(1e-3, Math.hypot(b[0] - a[0], b[1] - a[1])), W = base.x1 - base.x0;
   void top;
   const min = Math.max(1, hi * 0.72, W / (RTS_VIEW_TILES.far * tw));
@@ -493,10 +493,11 @@ function drawShop(g, x, y, C, now, night) {
 
 // =================================================================== units
 function unitHex(g, u, cx, cy, r, alpha = 1) {
+  const q = UI_PIECE ? Math.min(1, r / 26) : 1;
   g.save(); g.globalAlpha *= alpha;
-  hexPath(g, cx, cy, r + 3); g.fillStyle = "#0d1c36"; g.fill();
-  hexPath(g, cx, cy, r + 1.5); g.strokeStyle = u.color; g.lineWidth = 3; g.stroke();
-  g.save(); hexPath(g, cx, cy, r - 1); g.clip();
+  hexPath(g, cx, cy, r + 3 * q); g.fillStyle = "#0d1c36"; g.fill();
+  hexPath(g, cx, cy, r + 1.5 * q); g.strokeStyle = u.color; g.lineWidth = 3 * q; g.stroke();
+  g.save(); hexPath(g, cx, cy, r - 1 * q); g.clip();
   const e = u.masked ? null : getImg(u.img);
   if (u.masked) { g.fillStyle = "#ffffff"; g.fillRect(cx - r, cy - r, r * 2, r * 2); } // มืดบอด: ขาวล้วน
   else if (e && e.ok) cover(g, e.img, cx - r, cy - r * 0.87, r * 2, r * 1.74, 0.08);
@@ -560,6 +561,8 @@ function cloakShimmer(g, cx, cy, r, now) {
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
 // สนาม Colony: ขยายแถบเลือด/ป้าย (หมากถูกย่อตามระยะกล้อง + จอถูกย่อ → แถบบางจนอ่านไม่ออก) — ตั้งจาก onWall ของ drawFrame
 let UNIT_UI_K = 1;
+// สนาม Eos (กล้องใกล้): แถบเลือด/เกราะ/ป้ายวัดจากขนาดหมาก — เล็กกว่ารูปตัวละครเสมอ (ผู้ใช้สั่ง 2026-11-09) · ขอบหกเหลี่ยมบางตามขนาด
+let UI_PIECE = false;
 // Colony: หมาก = เหรียญหกเหลี่ยมหนา 3 มิติ (จุดยอดเป็นพิกัดกระดาน ฉายผ่านกล้อง 3D → ยึดพื้น ไม่หันตามกล้อง) + ป้ายรูปตั้งบนเสา (ผู้ใช้ขอดู 2026-11-09)
 let PIECE3D = false;
 const COLONY_FLOOR = new Set(["shallow", "lift", "belt", "rail", "warp", "watch"]);
@@ -607,8 +610,8 @@ function pillPath(g, x, y, w, h) {
 function vitalPill(g, x, y, w, h, val, max, top, bot, UK) {
   pillPath(g, x, y, w, h);
   g.fillStyle = "rgba(10,22,44,.9)"; g.fill();
-  g.lineWidth = Math.max(1, UK); g.strokeStyle = "rgba(255,255,255,.7)"; g.stroke();
-  const ins = Math.max(1, 1.3 * UK), ix = x + ins, iy = y + ins, iw = w - ins * 2, ih = h - ins * 2;
+  g.lineWidth = Math.min(h * 0.2, Math.max(1, UK)); g.strokeStyle = "rgba(255,255,255,.7)"; g.stroke();
+  const ins = Math.min(h * 0.25, Math.max(1, 1.3 * UK)), ix = x + ins, iy = y + ins, iw = w - ins * 2, ih = h - ins * 2;
   g.save(); pillPath(g, ix, iy, iw, ih); g.clip();
   g.fillStyle = "rgba(255,255,255,.07)"; g.fillRect(ix, iy, iw, ih);
   const k = max > 0 ? Math.max(0, Math.min(1, val / max)) : 0;
@@ -813,7 +816,7 @@ function drawUnit(g, u, now, boxes) {
     if (PIECE3D) { const d = Math.max(2, hexR * 0.09); hexPath(g, bx + d * 0.6, hy + d, hexR + 3); g.fillStyle = shadeHex(u.color, -0.55); g.fill(); }
     unitHex(g, u, bx, hy, hexR);
   }
-  if (u.isActor && !tb) { hexPath(g, bx, hy, hexR + 5); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.stroke(); }
+  if (u.isActor && !tb) { const q = UI_PIECE ? Math.min(1, hexR / 26) : 1; hexPath(g, bx, hy, hexR + 5 * q); g.strokeStyle = "#ffffff"; g.lineWidth = 2 * q; g.stroke(); }
   if (u.cloak && !REDUCED && !tb) cloakShimmer(g, bx, hy, hexR, now);
   // ขี่ผู้เล่นอื่น (ยูนะ): ตัวที่ขี่วาดเป็นหมากเล็กบนหลัง
   if (u.rider) drawRider(g, u.rider, bx, hy, hexR, now, unitHex, a);
@@ -833,7 +836,7 @@ function drawUnit(g, u, now, boxes) {
     if (boxes) boxes.push(unitBox(u, wx, wy, bx, by, s, hy, hexR, tb));
     return;
   }
-  const UK = UNIT_UI_K;
+  const UK = UI_PIECE ? hexR / 40 : UNIT_UI_K;
   const py = hy + hexR * 0.87 + 4 * UK;
   const pw = vitalBig(u) ? Math.max(hexR * 2.5, 70 * UK) : Math.max(hexR * 1.9, 48 * UK);
   const ph = drawVitalBar(g, bx, py, pw, u, UK) - py;
@@ -2524,7 +2527,7 @@ export function drawFrame(g, st, now) {
   // Colony: แถบเลือด/ป้ายของหมากไม่ย่อตามระยะ (ชดเชย k ของกรอบหมุน) + หนาขึ้นอีกนิดให้อ่านง่ายบนผิวโค้ง
   const unitDraw = (u, ax, ay) => () => {
     // สนาม Eos (กล้อง RTS ซูมใกล้): ป้าย/แถบเลือดบนหมากขนาดบนจอคงที่ ไม่ขยายตามซูม (ผู้ใช้สั่ง 2026-11-09 — ป้ายใหญ่เต็มจอ)
-    if (!colony && st.uiK) { UNIT_UI_K = st.uiK; try { drawAnyUnit(g, u, now, boxes); } finally { UNIT_UI_K = 1; } return; }
+    if (!colony && st.uiK) { UI_PIECE = true; try { drawAnyUnit(g, u, now, boxes); } finally { UI_PIECE = false; } return; }
     if (!colony) { drawAnyUnit(g, u, now, boxes); return; }
     // แถบ/ป้ายบนหมาก: ขนาดบนจอคงที่ (ชดเชยการย่อ/ขยายของกรอบ) — หนาพอมองง่าย
     UNIT_UI_K = Math.min(2.6, 1.3 / (frameK || 1));
