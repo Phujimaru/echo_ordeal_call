@@ -211,23 +211,23 @@ export function createEosFly(canvas, { board, self = null, lowQ = false, night =
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowQ ? 1 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = night ? 1.1 : 1.45;
+  renderer.toneMappingExposure = night ? 1.35 : 1.8; // สว่างขึ้น (Claude 2026-11-10: เดิมมืด/หม่น)
   renderer.shadowMap.enabled = !lowQ;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.debug.checkShaderErrors = false;
 
   const scene = new THREE.Scene();
-  const FOG = new THREE.Color(night ? "#1a1e33" : "#4a4060");
+  const FOG = new THREE.Color(night ? "#252a46" : "#6e6488");
   scene.background = FOG.clone();
-  scene.fog = new THREE.FogExp2(FOG, night ? 0.014 : 0.0095);
+  scene.fog = new THREE.FogExp2(FOG, night ? 0.010 : 0.006);
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 900);
   const disposables = [];
   const keep = (o) => { disposables.push(o); return o; };
 
   // ---------- แสง ----------
   const sunDir = new THREE.Vector3(-1, night ? 0.45 : 0.3, 0.42).normalize();
-  scene.add(new THREE.HemisphereLight(night ? "#4a5a9c" : "#8a8fd0", night ? "#151826" : "#3a2c22", night ? 1.1 : 1.6));
-  const sun = new THREE.DirectionalLight(night ? "#9fb4ff" : "#ffad78", night ? 1.1 : 2.8);
+  scene.add(new THREE.HemisphereLight(night ? "#5a6aac" : "#a0a4e0", night ? "#1c2030" : "#4a3a2c", night ? 1.45 : 2.1));
+  const sun = new THREE.DirectionalLight(night ? "#9fb4ff" : "#ffb888", night ? 1.4 : 3.2);
   sun.position.copy(sunDir).multiplyScalar(60);
   sun.target.position.set(0, 0, 0);
   sun.castShadow = !lowQ;

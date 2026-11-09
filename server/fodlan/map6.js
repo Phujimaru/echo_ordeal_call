@@ -13,8 +13,8 @@
 const ROWS = [
   "..R....RWBBBBBp==pBBBBBW.FTFFF..", // y0
   ".....RR.WBBBppL==LppBBBW.FTFFF..", // y1
-  "...R....WpppQpp==pppBBBWFFTFF.FF", // y2
-  "....R...WBpppBp==pBXppBWFT.FF.FF", // y3
+  "...R....WpppQpp==ppppBBWFFTFF.FF", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
+  "....R...WBpppBp==ppXppBWFT.FF.FF", // y3
   "....R...ppppLpp==ppLppppFFFFF..F", // y4
   "..R.R...WBBpppp==ppppBBWFFF.....", // y5
   "..RRR...WpppBBp==pBpZppWF.......", // y6
