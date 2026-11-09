@@ -921,7 +921,7 @@ function statusEntries(p, full) {
   // กิลกาเมช: ความมั่งคั่ง · ดาบ EA · พายุ · Enuma Elish ที่รอยิง
   if (p.gil && p.gil.wealth != null) {
     const g = p.gil;
-    out.push({ key: "gilWealth", v: 1, icon: "👑", label: `${g.wealth}/${g.wealthMax}`, cls: "bg-amber-400 text-gray-900", desc: "ได้ 1 ต่อไอเทมที่ยิงด้วยเมตตาจากราชา · Enuma Elish ใช้ 20" });
+    out.push({ key: "gilWealth", v: 1, icon: "👑", label: `${g.wealth}/${g.wealthMax}`, cls: "bg-amber-400 text-gray-900", desc: "ได้ 1 ต่อนัดที่โดนด้วยเมตตาจากราชา · Enuma Elish ใช้ 20" });
     if (g.ea) out.push({ key: "gilEa", v: 1, icon: "🗡️", label: "EA", cls: "bg-rose-800 text-white", desc: "ตีปกติรอบตัว 8 ช่อง ดาเมจ 3 ผลักออก 1" });
     if (g.storm) out.push({ key: "gilStorm", v: 1, icon: "⛈️", label: "พายุ", cls: "bg-red-900 text-white", desc: "จบเทิร์นสายฟ้าแดงผ่าช่องที่ศัตรูยืนอยู่ ดาเมจ 2" });
     if (g.charge) out.push({ key: "gilEnuma", v: g.charge.left || 1, turns: true, icon: "🌌", label: "Enuma Elish", cls: "bg-red-700 text-white", desc: "ต้นตาเดินถัดไปยิงลำแสง ศัตรูในแนวตายทันที" });

@@ -150,16 +150,17 @@ test('เมตตาจากราชา: ยิง N นัด สุ่ม�
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'n5' });
   flush(t, 12000);
-  assert.equal(P.B.hp, 15, 'โดน 5 นัด');
+  assert.equal(P.B.hp, 17, 'โดนได้ไม่เกิน 3 นัดต่อชุด');
   assert.equal(vit(P.F), f0, 'เพื่อนไม่โดน');
   assert.equal(vit(P.Z), z0, 'นอกกรอบ 5×5');
-  assert.equal(P.G.inventory.length, 1, 'ยิงไป 5 ชิ้น');
-  assert.equal(P.G.inventory[0].type, 'battery', 'ของพิเศษไม่ยิง');
-  assert.equal(P.G.gil.wealth, 5);
+  assert.equal(P.G.inventory.length, 3, 'ยิงไป 3 ชิ้น ศัตรูครบเพดาน = หยุด ของที่เหลืออยู่ในคลัง');
+  assert.ok(P.G.inventory.some((it) => it.type === 'battery'), 'ของพิเศษไม่ยิง');
+  assert.equal(P.G.gil.wealth, 3, '+1 ต่อนัดที่โดน');
   assert.ok((P.B.statuses.stun || 0) > 0, 'คุกเข่า');
-  assert.equal(gilFx('shot').length, 5);
-  assert.equal(P.G.gil.weapons.length, 5, 'อาวุธปักค้าง');
+  assert.equal(gilFx('shot').length, 3);
+  assert.equal(P.G.gil.weapons.length, 3, 'อาวุธปักค้าง');
   assert.equal(engine.action.locked, false, 'ยังเดินได้');
+  assert.equal(engine.action.noStrike, true, 'ตีปกติไม่ได้ในตานั้น');
   assert.equal(engine.gameState, 'ACTION');
 });
 
@@ -182,23 +183,25 @@ test('เมตตาจากราชา: เป้าตายกลางช
   assert.equal(P.G.gil.wealth, 2);
 });
 
-test('เมตตาจากราชา: ครั้งแรกของเกม = คลิป gate_of_babylon ก่อนยิง · กรอบ 14 = ทั้งแผนที่', (t) => {
+test('เมตตาจากราชา: ครั้งแรกของเกม = คลิป gate_of_babylon ก่อนยิง · กรอบ 14 = ทั้งแผนที่ · ไม่มีทั้งคลัง', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gilgamesh_fake', 2, 7], ['B', 'dummy', 12, 2]]);
   P.B.hp = 30; P.B.armor = 0;
   P.G.inventory = items(20);
   const pub = view('G', 'G').character.secondary.choices;
-  assert.equal(pub.length, 15, '1–14 + ทั้งคลัง');
-  assert.equal(pub[pub.length - 1].key, 'all');
+  assert.equal(pub.length, 14, '1–14 (ไม่มีทั้งคลัง)');
+  assert.equal(pub[pub.length - 1].key, 'n14');
   const z = gil.zoneOf(engine, P.G, 14);
   assert.deepEqual([z.x0, z.y0, z.side], [0, 0, 14]);
   Math.random = () => 0.1;
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'all' });
+  assert.deepEqual(calls.queue, [], 'ทั้งคลังถอดแล้ว');
+  engine.useSkill('G', 'secondary', [], { form: 'n14' });
   assert.deepEqual(calls.queue, ['gilGate']);
   flush(t, 40000);
-  assert.equal(P.B.hp, 10, 'ทั้งคลัง 20 นัด');
-  assert.equal(P.G.gil.wealth, 20);
+  assert.equal(P.B.hp, 27, 'เพดาน 3 นัด');
+  assert.equal(P.G.gil.wealth, 3);
 });
 
 test('มือเปล่า: ถูกตี 30% ไอเทมโผล่มากันทั้งก้อน แล้วพัง + โซ่เอนคิดูตรึงผู้โจมตี · ไม่มีไอเทม = ไม่กัน', (t) => {
@@ -299,7 +302,7 @@ test('เมตตาจากราชา: กระจาย — นัดท�
   flush(t, 10000);
   assert.equal(P.B.hp, 20, 'ไม่โดน');
   assert.equal(P.G.inventory.length, 0);
-  assert.equal(P.G.gil.wealth, 3);
+  assert.equal(P.G.gil.wealth, 0, 'ไม่โดน = ไม่ได้ความมั่งคั่ง');
   const shots = gilFx('shot');
   assert.equal(shots.length, 3);
   assert.ok(shots.every((s) => !s.hit && Math.abs(s.land.x - 7) <= 1 && Math.abs(s.land.y - 7) <= 1), 'ตกรอบตัวเป้า');
