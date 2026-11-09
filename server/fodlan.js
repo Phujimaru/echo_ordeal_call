@@ -17,7 +17,7 @@
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, eosWinner, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -330,6 +330,8 @@ function carSeats(p, t) { return active() ? Number(call("carSeats", 0, p, t)) ||
 function carDriver(p) { return active() && !!call("carDriver", false, p); }
 // ใช้สกิลไม่ได้ตอนนี้ (Eos: อยู่ในรถ) — server/skills.js runSkill · client ปุ่มสกิลเทา (view players[].stageNoSkill)
 function noSkill(p) { return active() && !!call("noSkill", false, p); }
+// มีคนตาย (combat.instantDeath) — ต้นตอ = match.effectSourceId · Eos: ปิดค่าหัวผู้เล่น
+function onKill(victim, killerId) { if (active()) call("onKill", undefined, victim, killerId); }
 // สนาม Eos: ฝ่ายที่ครบแต้มยึดเสา → id ผู้เล่นของฝ่ายนั้น (phases/endTurn.js gameOver) · null = ยังไม่มี
 // เป้านี้ถูกป้องกันจากผู้ตีคนนี้ไหม (Eos: โดมกำแพงเวท — ตีจากนอกโดมเข้าไปไม่ได้) → action.canStrike / targetOk
 function shields(attacker, target) { return !!call("shields", false, attacker, target); }

@@ -2306,7 +2306,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       ...(other ? { alpha: GHOST_ALPHA, ghostDim: true } : null),
       // ยูนิตที่ถูกเรียก (วาเลนไทน์): ร่างแยก clone / ตัวที่เหมือนกัน double (look = id เป้าที่เลียนหน้าตา)
       summon: !mk && p.summon ? { kind: p.summon.kind, look: p.summon.look || null } : null,
-      ...(carDrivers.has(p.id) ? { lift: 0.34 } : null), // สนาม Eos: คนขับนั่งบนรถ (หมากยกขึ้นเหนือหลังคา)
+      ...(carDrivers.has(p.id) ? { inCar: true } : null), // สนาม Eos: คนขับนั่งในรถ (boardDraw — ไม่มีฐาน/เสา รูปอยู่ในห้องโดยสาร)
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,

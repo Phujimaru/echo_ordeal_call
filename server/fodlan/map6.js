@@ -45,11 +45,22 @@ const ROWS = [
   "~~~~~~~~BpcBB...ddd..dddddddPddd", // y31
 ];
 const COLS = 32;
+// ขั้น 4 (เดินทาง + เก็บของ — GRID_PLAN §8.6 · ตำแหน่ง Claude เลือก): รางรถไฟพาดแผนที่แถว y = 20 (ตัดผ่านป่า = ป่าโล่งตามราง · ทางข้ามถนนคงถนนไว้)
+const RAIL_Y = 20;
+const STATIONS = [[2, 19], [29, 19]];                // ชานชาลา ตะวันตก (Cleigne) · ตะวันออก (Leide) — ยืนตอนรถไฟผ่าน = ไปอีกฝั่ง
+const TUNNELS = [[[6, 4], [0, 18]], [[14, 12], [20, 31]]]; // ปากอุโมงค์เป็นคู่: เนินเขาเหนือ ↔ ริมทะเลสาบ · ทุ่ง Duscae ↔ ทะเลทรายใต้
+const DOCKS = [[5, 26], [12, 28], [9, 31]];          // ท่าเรือกอนโดลา Altissia (ลานริมคลอง)
+const CAMPS = [[1, 13], [29, 12], [15, 24]];         // จุดตั้งแคมป์ (หินเรืองแสง)
+const FISH = [[12, 14], [10, 19], [12, 16]];         // จุดตกปลาริมทะเลสาบ Cleigne
+const TOMBS = [[1, 6], [30, 6], [18, 30]];           // สุสานราชวงศ์ (สิ่งกีดขวาง — ยืนติดแล้วเปิด)
 const at = (ch) => {
   const out = [];
   ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
   return out;
 };
+const not = (list, drop) => list.filter(([x, y]) => !drop.some(([a, b]) => a === x && b === y));
+const RAIL = Array.from({ length: COLS }, (_, x) => [x, RAIL_Y]);
+const P4 = [...STATIONS, ...TUNNELS.flat(), ...DOCKS, ...CAMPS, ...FISH];
 
 module.exports = {
   map: {
@@ -60,10 +71,12 @@ module.exports = {
       fd_eos_water: at("~"), fd_eos_canal: at("c"), fd_eos_pump: at("P"), fd_eos_garage: at("G"),
       fd_eos_pillar: at("X"), // = PILLARS ด้านล่าง
       fd_eos_lever: at("V"), fd_eos_domecore: at("Q"), fd_eos_switch: at("Z"), fd_eos_turret: at("U"),
+      fd_eos_tomb: TOMBS,
     },
     special: {
-      fd_eos_road: at("="), fd_eos_plaza: at("p"), fd_eos_sand: at("d"), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
-      fd_eos_forest: at("F"), fd_eos_shallow: at("s"),
+      fd_eos_road: not(at("="), P4), fd_eos_plaza: not(at("p"), P4), fd_eos_sand: not(at("d"), P4), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
+      fd_eos_forest: not(at("F"), [...RAIL, ...P4]), fd_eos_shallow: at("s"),
+      fd_eos_station: STATIONS, fd_eos_tunnel: TUNNELS.flat(), fd_eos_dock: DOCKS, fd_eos_camp: CAMPS, fd_eos_fish: FISH,
     },
     heal: [],
     // จุดเกิด 8 จุดกระจายทุกโซน (นครหลวง · เนินเขา · ป่าเหนือ · ฝั่งทะเลสาบ · ป่าตะวันออก · ทะเลทราย · เมืองน้ำ · ที่รกร้าง)
@@ -95,7 +108,14 @@ module.exports = {
     fd_eos_turret: { name: "ป้อมปืน", icon: "🔫" },
     fd_eos_barrel: { name: "ถังน้ำมัน", icon: "🛢️" },     // ชั้น layer (ขั้น 3)
     fd_eos_crystal: { name: "หินพลังเวท", icon: "💎" },   // ชั้น layer (ขั้น 3)
-    fd_eos_mob: { name: "ศัตรู", icon: "👾" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
+    fd_eos_mob: { name: "ศัตรู", icon: "👾" },
+    // ขั้น 4
+    fd_eos_station: { name: "ชานชาลา", icon: "🚉" },
+    fd_eos_tunnel: { name: "อุโมงค์", icon: "🕳️" },
+    fd_eos_dock: { name: "ท่ากอนโดลา", icon: "🛶" },
+    fd_eos_camp: { name: "แคมป์", icon: "🏕️" },
+    fd_eos_fish: { name: "จุดตกปลา", icon: "🎣" },
+    fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
   },
   // โซน (สี่เหลี่ยมรวมขอบ [x0, y0, x1, y1]) — เมืองที่มีไฟถนน = ปีศาจเข้าไม่ได้ · ใช้เลือกเสียงบรรยากาศฝั่ง client ด้วย
   ZONES: [
@@ -125,4 +145,5 @@ module.exports = {
   BEAST_HOME: [17, 17],
   // โชโกโบะ 4 ตัว (คอกละ 2): คอก Wiz ในป่า Duscae · คอกริมทะเลสาบ Cleigne
   CHOCOBOS: [[19, 15], [20, 16], [11, 12], [12, 12]],
+  RAIL_Y, RAIL, STATIONS, TUNNELS, DOCKS, CAMPS, FISH, TOMBS,
 };

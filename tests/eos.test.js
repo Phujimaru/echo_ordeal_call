@@ -626,3 +626,121 @@ test('L15 ยานลงจอด: เตือน → ต้นเทิร์
   assert.equal(s.dropship, null);
   assert.equal(s.mobs.filter((m) => m.type === 'magitek').length, 0);
 });
+
+// ---------- ขั้น 4: เดินทาง (L2–L4) + เก็บของ/บัฟ (L16–L19) ----------
+test('L2 รถไฟ: เตือนเทิร์นก่อน → ผ่าน: คนบนราง 3 ดาเมจ + กระเด็นออก · ยืนชานชาลา = ไปอีกฝั่ง · รอบถัดไป +4 สลับทิศ', () => {
+  setup();
+  const s = st(), q = S6.p4State(s), p = P(0), r = P(1);
+  p.pos = { x: 13, y: MAP6.RAIL_Y };
+  const [w, e] = MAP6.STATIONS;
+  r.pos = { x: w[0], y: w[1] };
+  const hp0 = total(p);
+  assert.ok(S6.trainTurn(ctx(), s, q.trainNext - 1) > 0);
+  assert.equal(q.trainWarn, true);
+  const next = q.trainNext, dir = q.trainDir;
+  S6.trainTurn(ctx(), s, next);
+  assert.equal(total(p), hp0 - S6.TRAIN_DMG);
+  assert.notEqual(p.pos.y, MAP6.RAIL_Y, 'กระเด็นออกจากราง');
+  assert.ok(Math.abs(r.pos.x - e[0]) + Math.abs(r.pos.y - e[1]) <= 3, 'ไปชานชาลาตะวันออก');
+  assert.equal(q.trainNext, next + S6.TRAIN_EVERY);
+  assert.equal(q.trainDir, -dir);
+});
+
+test('L3 กอนโดลา / L4 อุโมงค์: ยืนบนท่า/ปากอุโมงค์ → ไปจุดอื่น จบการเดินของตา', () => {
+  setup();
+  const p = P(0);
+  const [a, b] = MAP6.DOCKS;
+  p.pos = { x: a[0], y: a[1] };
+  actor(p);
+  const g = btn(p, 'fd:gondola');
+  assert.ok(g && !g.disabled && g.tiles.some((t) => t.x === b[0] && t.y === b[1]));
+  assert.ok(Fodlan.charAction(p.id, 'fd:gondola', { x: b[0], y: b[1] }));
+  assert.ok(sameTile(p.pos, { x: b[0], y: b[1] }));
+  assert.equal(match.action.locked, true);
+  const [m0, m1] = MAP6.TUNNELS[0];
+  p.pos = { x: m0[0], y: m0[1] };
+  actor(p);
+  const t = btn(p, 'fd:tunnel');
+  assert.ok(t && t.tiles.length === 1);
+  assert.ok(Fodlan.charAction(p.id, 'fd:tunnel', t.tiles[0]));
+  assert.ok(Math.abs(p.pos.x - m1[0]) + Math.abs(p.pos.y - m1[1]) <= 2);
+});
+
+test('L16 แคมป์: เลือกอาหาร (ใช้การตี) · สตูว์ ตี +1 · ข้าวกล่อง เดิน +1 · ปลาย่าง ฟื้นเลือดต้นเทิร์น · พักใช้ซ้ำ', () => {
+  setup();
+  const p = P(0), c = MAP6.CAMPS[0];
+  p.pos = { x: c[0], y: c[1] };
+  match.roundNumber = 3;
+  actor(p);
+  assert.equal(btn(p, 'fd:camp:atk').disabled, false);
+  assert.ok(Fodlan.charAction(p.id, 'fd:camp:atk'));
+  assert.equal(Fodlan.atkBonus(p), 1);
+  actor(p);
+  assert.ok(btn(p, 'fd:camp:mov').disabled, 'พักใช้ซ้ำ');
+  // ปลาย่าง
+  const q = S6.p4State(st());
+  q.buffs[p.id] = { kind: 'mend', from: 3, until: 5 };
+  p.hp = 3;
+  match.roundNumber = 4; match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
+  assert.equal(p.hp, 4);
+  q.buffs[p.id] = { kind: 'mov', from: 4, until: 6 };
+  const mov = action.movOf(p);
+  delete q.buffs[p.id];
+  assert.equal(action.movOf(p), mov - 1);
+});
+
+test('L17 ตกปลา / L18 สุสาน: ตกปลาใช้การตี · สุสานเปิดได้ครั้งเดียว อาวุธหลวงตี +1 ตาที่ตีเสียเลือด 1 (ไม่ถึงตาย)', () => {
+  setup();
+  const p = P(0), f = MAP6.FISH[0];
+  p.pos = { x: f[0], y: f[1] };
+  actor(p);
+  Math.random = () => 0.5; // เหรียญ
+  assert.ok(Fodlan.charAction(p.id, 'fd:fish'));
+  assert.ok(p.didAttackRound || match.action.noStrike || btn(p, 'fd:fish').disabled);
+  Math.random = realRandom;
+  const tb = MAP6.TOMBS[1];
+  p.pos = { x: tb[0] - 1, y: tb[1] };
+  if (Board.isObstacle(action.boardMap(), p.pos.x, p.pos.y)) p.pos = { x: tb[0], y: tb[1] + 1 };
+  actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:tomb'));
+  assert.equal(Fodlan.atkBonus(p), 1);
+  assert.ok(S6.p4State(st()).tombs[1]);
+  p.hp = 5; p.didAttackRound = true;
+  Fodlan.onUnitEnd(p);
+  assert.equal(p.hp, 4);
+  Fodlan.onUnitEnd(p);
+  assert.equal(p.hp, 4, 'เทิร์นละครั้ง');
+  p.hp = 1; match.roundNumber += 1;
+  Fodlan.onUnitEnd(p);
+  assert.equal(p.hp, 1, 'ไม่ถึงตาย');
+});
+
+test('L19 ค่าหัว: ติดร้าน รับได้ทีละ 1 · ฆ่าเป้าได้ = เหรียญ', () => {
+  setup();
+  const p = P(0), q = P(1);
+  const shop = require('../server/shop.js');
+  const keys = [...shop.shopTiles()];
+  assert.ok(keys.length > 0);
+  const [sx, sy] = keys[0].split(',').map(Number);
+  const spot = Board.DIRS.map(([dx, dy]) => ({ x: sx + dx, y: sy + dy })).find((t) => !shop.shopTiles().has(K(t.x, t.y)) && !Board.isObstacle(action.boardMap(), t.x, t.y));
+  p.pos = spot;
+  actor(p);
+  Math.random = () => 0.99; // ผู้เล่น
+  assert.ok(Fodlan.charAction(p.id, 'fd:bounty'));
+  Math.random = realRandom;
+  const b = S6.p4State(st()).bounty[p.id];
+  assert.ok(b);
+  assert.ok(!btn(p, 'fd:bounty'), 'ถือได้ทีละ 1');
+  const gold0 = p.gold || 0;
+  if (b.kind === 'player') {
+    const t = match.players[b.target];
+    match.effectSourceId = p.id;
+    combat.instantDeath(t, true);
+    match.effectSourceId = null;
+  } else {
+    S6.huntDone(ctx(), st(), p, b.kind);
+  }
+  assert.ok(!S6.p4State(st()).bounty[p.id]);
+  assert.ok((p.gold || 0) > gold0);
+  void q;
+});

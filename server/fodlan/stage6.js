@@ -120,7 +120,7 @@ function movMod(ctx, st, p) {
   if (!s || !p) return 0;
   const base = Number(ctx.action.baseMovOf ? ctx.action.baseMovOf(p) : require("../phases/action").baseMovOf(p)) || 0;
   const walk = Math.max(0, Math.min(base + MOV_BONUS, WALK_MAX) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
-  return walk + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
+  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + (stormOn(ctx) ? STORM_MOV : 0);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -351,6 +351,7 @@ function carSeats(ctx, st, p, t) {
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
+function atkBonus(ctx, st, p) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) : 0; }
 function carDriver(ctx, st, p) { return driving(st && st.eos, p); }
 // อยู่ในรถ (คนขับ หรือผู้โดยสาร) = ใช้สกิลไม่ได้ (ผู้ใช้สั่ง 2026-11-09) · ตี/ชนยังได้
 function noSkill(ctx, st, p) {
@@ -498,6 +499,7 @@ function hurtDaemon(ctx, s, d, n, by) {
   ctx.bump();
   const got = by ? lazyShop().addGold(by, DAEMON_GOLD) : 0;
   ctx.fx("daemon_die", { id: d.id, x: d.x, y: d.y, kind: d.kind, by: by ? by.id : null });
+  huntDone(ctx, s, by, "daemon");
   ctx.log(`💥 ${by ? by.name : "ใครบางคน"} กำจัดปีศาจ!${got ? ` ได้ ${got} เหรียญ` : ""}`);
   return true;
 }
@@ -999,6 +1001,7 @@ function hurtMob(ctx, s, m, n, by) {
   const got = by ? lazyShop().addGold(by, gold) : 0;
   if (m.type === "beast") s.beastBack = ctx.match.roundNumber + BEAST.respawn;
   ctx.fx("mob_die", { id: m.id, type: m.type, x: m.x, y: m.y, by: by ? by.id : null });
+  huntDone(ctx, s, by, m.type);
   ctx.log(`💥 ${by ? by.name : "ใครบางคน"} โค่น${m.type === "beast" ? "สัตว์ยักษ์" : "ทหารเหล็ก"}!${got ? ` ได้ ${got} เหรียญ` : ""}`);
   return true;
 }
@@ -1134,6 +1137,269 @@ function respawnProps(ctx, s) {
   if (changed) ctx.bump();
 }
 
+
+// ============================================================ ขั้น 4: เดินทาง (L2–L4) + เก็บของ/บัฟ (L16–L19) — ตัวเลข/รายละเอียด Claude ตัดสิน (ผู้ใช้สั่ง "Start phase 4")
+//  L2 รถไฟ: ทุก TRAIN_EVERY เทิร์น (เทิร์น 4, 8, …) วิ่งตามราง y = 20 สลับทิศ · เทิร์นก่อนผ่าน = เตือนทั้งราง
+//     ต้นเทิร์นที่ผ่าน: คนบนราง (ไม่บิน) TRAIN_DMG + กระเด็นออกข้างราง · ปีศาจ/ศัตรูบนราง TRAIN_DMG · รถจอดบนราง = ถูกดันออก
+//     ยืนบนชานชาลา = ขึ้นรถไฟ ไปลงชานชาลาอีกฝั่ง
+//  L3 กอนโดลา: ยืนบนท่า (Altissia) + ยังเดินได้ → เลือกท่าอื่น ไปทันที (จบการเดินของตา)
+//  L4 อุโมงค์: ยืนบนปากอุโมงค์ + ยังเดินได้ → ออกปากคู่ (จบการเดินของตา)
+//  L16 แคมป์: ยืนบนแคมป์ → เลือกอาหาร 1 อย่าง (ใช้การตี) บัฟ CAMP_TURNS เทิร์น · คนละ 1 ครั้งทุก CAMP_CD เทิร์น
+//      สตูว์ = ตี +1 · ปลาย่าง = ฟื้นเลือด 1 ทุกต้นเทิร์น · ข้าวกล่อง = เดิน +1
+//  L17 ตกปลา: ยืนบนจุดตกปลา (ใช้การตี) สุ่ม: ปลา (ฟื้นเลือด 2) · เหรียญ 3 · ปลาทอง (เหรียญ 6) · ปลายักษ์ลากลงน้ำ (ดาเมจ 2)
+//  L18 สุสานราชวงศ์ 3 แห่ง: ยืนติด → เปิด (ใช้การตี · แห่งละครั้งต่อแมตช์) ได้อาวุธหลวง ARM_TURNS เทิร์น: ตี +1 แต่ตาที่ตี เสียเลือด 1 (ไม่ถึงตาย)
+//  L19 บอร์ดล่าค่าหัว: ยืนติดร้าน → รับค่าหัว (ไม่ใช้การตี · ถือได้ครั้งละ 1): ปีศาจ / สัตว์ยักษ์ / ทหารเหล็ก / ผู้เล่นฝ่ายอื่น 1 คน → ล้มได้ = เหรียญ
+const TRAIN_EVERY = 4;
+const TRAIN_DMG = 3;
+const CAMP_TURNS = 3;
+const CAMP_CD = 4;
+const ARM_TURNS = 5;
+const CAMP_MEALS = {
+  atk: { icon: "🍲", name: "สตูว์", desc: "ตี +1 · 3 เทิร์น" },
+  mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้นเลือด 1 ทุกต้นเทิร์น · 3 เทิร์น" },
+  mov: { icon: "🍙", name: "ข้าวกล่อง", desc: "เดิน +1 · 3 เทิร์น" },
+};
+const BOUNTY = { daemon: { icon: "👹", name: "ปีศาจ", gold: 4 }, beast: { icon: "🦣", name: "สัตว์ยักษ์", gold: 8 }, magitek: { icon: "🤖", name: "ทหารเหล็ก", gold: 4 }, player: { icon: "🎯", name: "ผู้เล่น", gold: 6 } };
+const SECS4 = { train: 2.4, warn: 0.6 };
+const sameT = (a, b) => a && b && a.x === b.x && a.y === b.y;
+const onRail = (x, y) => y === MAP.RAIL_Y && x >= 0 && x < 32;
+const tl = ([x, y]) => ({ x, y });
+function p4State(s) {
+  if (!s.p4) s.p4 = { trainNext: TRAIN_EVERY, trainDir: 1, trainWarn: false, buffs: {}, campCd: {}, tombs: MAP.TOMBS.map(() => false), arms: {}, armPaid: {}, bounty: {} };
+  return s.p4;
+}
+// ---------- L2 รถไฟ ----------
+function trainTurn(ctx, s, turn) {
+  const q = p4State(s);
+  if (turn === q.trainNext - 1 && !q.trainWarn) {
+    q.trainWarn = true;
+    ctx.bump();
+    ctx.fx("train_warn", { dir: q.trainDir, y: MAP.RAIL_Y });
+    ctx.log("🚆 รถไฟกำลังมา — ออกจากราง!");
+    return SECS4.warn;
+  }
+  if (turn < q.trainNext) return 0;
+  const dir = q.trainDir, hits = [], carried = [];
+  // ขึ้นรถไฟ: คนบนชานชาลา → ชานชาลาอีกฝั่ง
+  const st = MAP.STATIONS.map(tl);
+  for (const p of bodies(ctx)) {
+    const i = st.findIndex((t) => sameT(t, p.pos));
+    if (i < 0 || sizeOf(ctx, p) > 1 || p.summon) continue;
+    const to = st[1 - i];
+    const spot = tileFree(ctx, s, to.x, to.y, p.id) ? to : freeNear(ctx, s, to.x, to.y, 3, p.id);
+    if (!spot) continue;
+    carried.push({ id: p.id, from: { ...p.pos }, to: { ...spot } });
+    p.pos = { x: spot.x, y: spot.y };
+  }
+  // ชนคนบนราง
+  for (const p of bodies(ctx)) {
+    if (!footOf(ctx, p).some((t) => onRail(t.x, t.y)) || ctx.action.flies(p) || carried.some((c) => c.id === p.id)) continue;
+    const from = { ...p.pos };
+    const dealt = ctx.damage(p, TRAIN_DMG);
+    if (p.alive && p.pos) {
+      const side = [MAP.RAIL_Y - 1, MAP.RAIL_Y + 1].map((y) => ({ x: p.pos.x, y })).find((t) => tileFree(ctx, s, t.x, t.y, p.id))
+        || freeNear(ctx, s, p.pos.x, p.pos.y, 3, p.id, (x, y) => !onRail(x, y));
+      if (side) p.pos = { x: side.x, y: side.y };
+    }
+    hits.push({ id: p.id, from, to: p.pos ? { ...p.pos } : null, dmg: dealt });
+    ctx.log(`🚆 รถไฟชน ${p.name} -${dealt}`);
+  }
+  for (const d of s.daemons.slice()) if (onRail(d.x, d.y)) { hits.push({ daemon: d.id, from: { x: d.x, y: d.y }, dmg: TRAIN_DMG }); hurtDaemon(ctx, s, d, TRAIN_DMG, null); }
+  for (const m of (s.mobs || []).slice()) if (onRail(m.x, m.y)) { hits.push({ mob: m.id, from: { x: m.x, y: m.y }, dmg: TRAIN_DMG }); hurtMob(ctx, s, m, TRAIN_DMG, null); }
+  for (const c of s.cars) if (!c.driver && onRail(c.x, c.y)) {
+    const spot = freeNear(ctx, s, c.x, c.y, 3, null, (x, y) => !onRail(x, y) && carGround(ctx, s, x, y));
+    if (spot) { c.x = spot.x; c.y = spot.y; }
+  }
+  for (const c of s.chocos) if (c.x != null && !c.rider && onRail(c.x, c.y)) sendHome(ctx, s, c, { x: c.x, y: c.y });
+  q.trainNext += TRAIN_EVERY;
+  q.trainDir = -dir;
+  q.trainWarn = false;
+  ctx.bump();
+  ctx.fx("train_pass", { dir, y: MAP.RAIL_Y, hits, carried });
+  if (carried.length) ctx.log(`🚆 รถไฟพา ${carried.map((c) => ctx.match.players[c.id].name).join(", ")} ข้ามแผนที่`);
+  return SECS4.train;
+}
+// ---------- L3 กอนโดลา / L4 อุโมงค์ ----------
+function travelTiles(ctx, s, p, list) {
+  const here = list.findIndex((t) => sameT(t, p.pos));
+  if (here < 0) return null;
+  return list.filter((_, i) => i !== here).map((t) => (tileFree(ctx, s, t.x, t.y, p.id) ? t : freeNear(ctx, s, t.x, t.y, 2, p.id))).filter(Boolean);
+}
+const tunnelOf = (p) => { for (const pair of MAP.TUNNELS) { const i = pair.findIndex(([x, y]) => x === p.pos.x && y === p.pos.y); if (i >= 0) return [tl(pair[i]), tl(pair[1 - i])]; } return null; };
+function canTravel(ctx, s, p) { return canMove(ctx, p) && sizeOf(ctx, p) === 1 && !driving(s, p); }
+function travel(ctx, s, p, tile, kind) {
+  if (!canTravel(ctx, s, p) || !tile) return false;
+  let opts;
+  if (kind === "gondola") opts = travelTiles(ctx, s, p, MAP.DOCKS.map(tl)) || [];
+  else { const t = tunnelOf(p); opts = t ? [tileFree(ctx, s, t[1].x, t[1].y, p.id) ? t[1] : freeNear(ctx, s, t[1].x, t[1].y, 2, p.id)].filter(Boolean) : []; }
+  const to = opts.find((t) => sameT(t, tile));
+  if (!to) return false;
+  const from = { ...p.pos };
+  p.pos = { x: to.x, y: to.y };
+  ctx.action.lockMove(p);
+  ctx.bump();
+  ctx.fx(kind, { id: p.id, from, to: { ...to } });
+  ctx.log(kind === "gondola" ? `🛶 ${p.name} นั่งกอนโดลา` : `🕳️ ${p.name} ลอดอุโมงค์`);
+  return true;
+}
+// ---------- L16 แคมป์ ----------
+const onSpot = (p, list) => list.some(([x, y]) => p.pos && x === p.pos.x && y === p.pos.y);
+function buffOf(s, p) {
+  const q = p4State(s), b = p && q.buffs[p.id];
+  return b && b.until >= (b.from || 0) ? b : null;
+}
+function campMeal(ctx, s, p, kind) {
+  const q = p4State(s);
+  if (!CAMP_MEALS[kind] || !onSpot(p, MAP.CAMPS) || !canStrike(ctx, p) || (q.campCd[p.id] || 0) > ctx.match.roundNumber) return false;
+  const r = ctx.match.roundNumber;
+  q.buffs[p.id] = { kind, from: r, until: r + CAMP_TURNS - 1 };
+  q.campCd[p.id] = r + CAMP_CD;
+  ctx.bump();
+  ctx.fx("camp_meal", { id: p.id, kind, x: p.pos.x, y: p.pos.y });
+  ctx.log(`🏕️ ${p.name} ตั้งแคมป์ — ${CAMP_MEALS[kind].name}`);
+  ctx.useStrike(p, 1.2);
+  return true;
+}
+// ---------- L17 ตกปลา ----------
+function fish(ctx, s, p) {
+  if (!onSpot(p, MAP.FISH) || !canStrike(ctx, p)) return false;
+  const r = Math.random();
+  let result, amount = 0;
+  if (r < 0.35) { result = "fish"; amount = ctx.combat.healHp ? ctx.combat.healHp(p, 2) : 0; }
+  else if (r < 0.6) { result = "coins"; amount = lazyShop().addGold(p, 3); }
+  else if (r < 0.75) { result = "gold"; amount = lazyShop().addGold(p, 6); }
+  else { result = "giant"; amount = ctx.damage(p, 2); }
+  ctx.bump();
+  ctx.fx("fish", { id: p.id, x: p.pos.x, y: p.pos.y, result, amount });
+  ctx.log(result === "fish" ? `🎣 ${p.name} ตกได้ปลา ฟื้นเลือด` : result === "giant" ? `🎣 ${p.name} โดนปลายักษ์ลากลงน้ำ -${amount}` : `🎣 ${p.name} ตกได้${result === "gold" ? "ปลาทอง" : "เหรียญ"} ${amount}`);
+  ctx.useStrike(p, 1.6);
+  return true;
+}
+// ---------- L18 สุสานราชวงศ์ ----------
+function tombNear(ctx, s, p) {
+  const q = p4State(s);
+  return MAP.TOMBS.findIndex(([x, y], i) => !q.tombs[i] && ctx.adjacent(p, x, y));
+}
+function hasArm(s, p) { const q = p4State(s), a = p && q.arms[p.id]; return !!a; }
+function openTomb(ctx, s, p) {
+  const q = p4State(s), i = tombNear(ctx, s, p);
+  if (i < 0 || !canStrike(ctx, p) || hasArm(s, p)) return false;
+  q.tombs[i] = true;
+  q.arms[p.id] = { until: ctx.match.roundNumber + ARM_TURNS - 1 };
+  ctx.bump();
+  ctx.fx("tomb_open", { id: p.id, x: MAP.TOMBS[i][0], y: MAP.TOMBS[i][1] });
+  ctx.log(`⚱️ ${p.name} ได้อาวุธหลวงจากสุสานราชวงศ์`);
+  ctx.useStrike(p, 1.6);
+  return true;
+}
+// ตาที่ตีด้วยอาวุธหลวง → เสียเลือด 1 (ไม่ถึงตาย) · เรียกตอนจบตา
+function armDrain(ctx, s, p) {
+  const q = p4State(s);
+  if (!p || !p.alive || !hasArm(s, p) || !p.didAttackRound) return;
+  const key = `${p.id}|${ctx.match.roundNumber}`;
+  if (q.armPaid[key]) return;
+  q.armPaid[key] = true;
+  if ((p.hp || 0) > 1) { p.hp -= 1; ctx.fx("royal_drain", { id: p.id, x: p.pos ? p.pos.x : 0, y: p.pos ? p.pos.y : 0 }); }
+}
+// ---------- L19 ค่าหัว ----------
+function shopNear(ctx, p) {
+  if (!p || !p.pos) return false;
+  const keys = lazyShop().shopTiles();
+  for (const k of keys) { const [x, y] = k.split(",").map(Number); if (ctx.adjacent(p, x, y)) return true; }
+  return false;
+}
+function takeBounty(ctx, s, p) {
+  const q = p4State(s);
+  if (!shopNear(ctx, p) || q.bounty[p.id] || !ctx.action.canAct(p)) return false;
+  const side = sideOf(p);
+  const foes = Object.values(ctx.match.players).filter((u) => u.alive && !u.summon && !u.duoOf && sideOf(u) !== side);
+  const kinds = ["daemon"];
+  if ((s.mobs || []).some((m) => m.type === "beast")) kinds.push("beast");
+  if ((s.mobs || []).some((m) => m.type === "magitek")) kinds.push("magitek");
+  if (foes.length) kinds.push("player", "player");
+  const kind = ctx.pick(kinds, 1)[0];
+  const target = kind === "player" ? ctx.pick(foes, 1)[0] : null;
+  q.bounty[p.id] = { kind, target: target ? target.id : null, name: target ? target.name : BOUNTY[kind].name, gold: BOUNTY[kind].gold };
+  ctx.bump();
+  ctx.fx("hunt_board", { id: p.id, kind, target: target ? target.id : null });
+  ctx.log(`📜 ${p.name} รับค่าหัว: ${q.bounty[p.id].name}`);
+  return true;
+}
+function huntDone(ctx, s, by, kind, victimId = null) {
+  if (!by || !s) return;
+  const q = p4State(s), b = q.bounty[by.id];
+  if (!b || b.kind !== kind || (kind === "player" && b.target !== victimId)) return;
+  delete q.bounty[by.id];
+  const got = lazyShop().addGold(by, b.gold);
+  ctx.fx("hunt_done", { id: by.id, kind, gold: got });
+  ctx.log(`📜 ${by.name} ปิดค่าหัว ${b.name} ได้ ${got} เหรียญ`);
+}
+function onKill(ctx, st, victim, killerId) {
+  const s = st && st.eos;
+  if (!s || !victim || victim.summon) return;
+  const by = killerId && ctx.match.players[killerId];
+  if (by && by.id !== victim.id) huntDone(ctx, s, by, "player", victim.id);
+}
+// ---------- ต้นเทิร์น: หมดอายุบัฟ/อาวุธ · ปลาย่างฟื้นเลือด ----------
+function p4PreRound(ctx, s, turn) {
+  const q = p4State(s), r = turn;
+  for (const [pid, b] of Object.entries(q.buffs)) {
+    if (b.until < r) { delete q.buffs[pid]; continue; }
+    const p = ctx.match.players[pid];
+    if (b.kind === "mend" && p && p.alive && ctx.combat.healHp) ctx.combat.healHp(p, 1);
+  }
+  for (const [pid, a] of Object.entries(q.arms)) if (a.until < r) delete q.arms[pid];
+  for (const k of Object.keys(q.armPaid)) if (Number(k.split("|")[1]) < r - 1) delete q.armPaid[k];
+  return trainTurn(ctx, s, turn);
+}
+function p4AtkBonus(s, p) {
+  const b = buffOf(s, p);
+  return (b && b.kind === "atk" ? 1 : 0) + (hasArm(s, p) ? 1 : 0);
+}
+function p4MovBonus(s, p) { const b = buffOf(s, p); return b && b.kind === "mov" ? 1 : 0; }
+function p4Hud(ctx, s, p, out) {
+  const q = p4State(s);
+  if (tunnelOf(p)) {
+    const t = tunnelOf(p), dest = canTravel(ctx, s, p) ? [tileFree(ctx, s, t[1].x, t[1].y, p.id) ? t[1] : freeNear(ctx, s, t[1].x, t[1].y, 2, p.id)].filter(Boolean) : [];
+    out.push({ key: "fd:tunnel", icon: "🕳️", name: "อุโมงค์", disabled: !dest.length, tiles: dest });
+  }
+  if (onSpot(p, MAP.DOCKS)) {
+    const dest = canTravel(ctx, s, p) ? travelTiles(ctx, s, p, MAP.DOCKS.map(tl)) || [] : [];
+    out.push({ key: "fd:gondola", icon: "🛶", name: "กอนโดลา", disabled: !dest.length, tiles: dest });
+  }
+  if (onSpot(p, MAP.CAMPS)) {
+    const off = !canStrike(ctx, p) || (q.campCd[p.id] || 0) > ctx.match.roundNumber;
+    for (const [k, m] of Object.entries(CAMP_MEALS)) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, disabled: off });
+  }
+  if (onSpot(p, MAP.FISH)) out.push({ key: "fd:fish", icon: "🎣", name: "ตกปลา", disabled: !canStrike(ctx, p) });
+  if (tombNear(ctx, s, p) >= 0) out.push({ key: "fd:tomb", icon: "⚱️", name: "สุสาน", disabled: !canStrike(ctx, p) || hasArm(s, p) });
+  if (shopNear(ctx, p) && !q.bounty[p.id]) out.push({ key: "fd:bounty", icon: "📜", name: "ค่าหัว", disabled: !ctx.action.canAct(p) });
+}
+function p4Action(ctx, s, p, key, tile) {
+  if (key === "fd:tunnel") return travel(ctx, s, p, tile, "tunnel");
+  if (key === "fd:gondola") return travel(ctx, s, p, tile, "gondola");
+  if (key === "fd:fish") return fish(ctx, s, p);
+  if (key === "fd:tomb") return openTomb(ctx, s, p);
+  if (key === "fd:bounty") return takeBounty(ctx, s, p);
+  if (typeof key === "string" && key.startsWith("fd:camp:")) return campMeal(ctx, s, p, key.slice(8));
+  return null;
+}
+function p4Public(ctx, s) {
+  const q = p4State(s);
+  return {
+    rail: { y: MAP.RAIL_Y, stations: MAP.STATIONS.map(tl), next: q.trainNext, warn: !!q.trainWarn, dir: q.trainDir },
+    tunnels: MAP.TUNNELS.map((pair) => pair.map(tl)), docks: MAP.DOCKS.map(tl), camps: MAP.CAMPS.map(tl), fish: MAP.FISH.map(tl),
+    tombs: MAP.TOMBS.map(([x, y], i) => ({ x, y, open: !!q.tombs[i] })),
+  };
+}
+function p4Badges(s, p, badges) {
+  const q = p4State(s), b = buffOf(s, p);
+  if (b) badges.push({ key: `meal_${b.kind}`, icon: CAMP_MEALS[b.kind].icon, label: CAMP_MEALS[b.kind].name, cls: "bg-orange-200 text-gray-900" });
+  if (hasArm(s, p)) badges.push({ key: "royal_arm", icon: "⚔️", label: "อาวุธหลวง", cls: "bg-indigo-300 text-gray-900" });
+  const h = q.bounty[p.id];
+  if (h) badges.push({ key: "bounty", icon: BOUNTY[h.kind].icon, label: h.name, cls: "bg-amber-300 text-gray-900" });
+}
+
 // ============================================================ ต้นเทิร์น / จบตา / จบเทิร์น
 function preRound(ctx, st) {
   const s = st && st.eos;
@@ -1156,6 +1422,7 @@ function preRound(ctx, st) {
   respawnProps(ctx, s);
   secs = Math.max(secs, dropshipTurn(ctx, s, turn));
   if (actMobs(ctx, s)) secs = Math.max(secs, SECS.mobs);
+  secs = Math.max(secs, p4PreRound(ctx, s, turn)); // ขั้น 4: รถไฟ · บัฟแคมป์ · อาวุธหลวงหมดอายุ
   checkChannels(ctx, s);
   checkRiders(ctx, s); // ปีศาจ/ฟ้าผ่า/ศัตรูตีคนขี่ = ตกนก
   respawnChocos(ctx, s);
@@ -1164,6 +1431,7 @@ function preRound(ctx, st) {
 function onUnitEnd(ctx, st, p) {
   const s = st && st.eos;
   if (!s) return;
+  armDrain(ctx, s, p); // ขั้น 4: ตาที่ตีด้วยอาวุธหลวง เสียเลือด 1
   checkRiders(ctx, s);
   checkChannels(ctx, s);
   noteDeaths(ctx, s);
@@ -1222,6 +1490,7 @@ function hudActions(ctx, st, p) {
   }
   const tur = turretNear(ctx, p);
   if (tur) { const list = canStrike(ctx, p) ? turretTargets(ctx, s, p, tur) : []; out.push({ key: "fd:turret", icon: "🔫", name: "ป้อมปืน", disabled: !list.length, tiles: list }); }
+  p4Hud(ctx, s, p, out); // ขั้น 4
   const sz = seizeState(ctx, s, p);
   if (sz) out.push({ key: "fd:seize", icon: "🔷", name: sz.pl.ch && sz.pl.ch.by === p.id ? "ยึด 2/2" : "ยึด", disabled: !sz.ok });
   if (riding(s, p)) {
@@ -1233,6 +1502,8 @@ function hudActions(ctx, st, p) {
 function charAction(ctx, st, p, key, tile) {
   const s = st && st.eos;
   if (!s || !p || !p.pos) return false;
+  const p4 = p4Action(ctx, s, p, key, tile);
+  if (p4 !== null) return p4;
   if (key === "fd:board") return boardCar(ctx, s, p, tile);
   if (key === "fd:leave") return leaveCar(ctx, s, p, tile);
   if (key === "fd:ram") return ram(ctx, s, p, tile);
@@ -1353,6 +1624,7 @@ function publicInfo(ctx, st) {
     eos: true,
     night: !!s.night,
     cars: s.cars.map((c) => ({ id: c.id, img: c.img, x: c.x, y: c.y, size: 1, driver: c.driver || null, dx: c.dx || 0, dy: c.dy || 0 })),
+    ...p4Public(ctx, s), // ขั้น 4: ราง/ชานชาลา · อุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา · สุสาน
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home } })),
     riders,
     daemons: s.daemons.map((d) => ({ id: d.id, x: d.x, y: d.y, hp: d.hp, maxHp: DAEMON_HP, armor: d.armor, maxArmor: DAEMON_ARMOR, kind: d.kind })),
@@ -1396,19 +1668,21 @@ function playerInfo(ctx, st, p) {
   const badges = [];
   if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "โชโกโบะ", cls: "bg-yellow-300 text-gray-900" });
   if (driving(s, p)) badges.push({ key: "car", icon: "🚗", label: "รถ", cls: "bg-amber-200 text-gray-900" });
+  p4Badges(s, p, badges);
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
   if (!badges.length) return undefined;
   return { choco: riding(s, p), car: driving(s, p), badges };
 }
 
 module.exports = {
-  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, preRound, onUnitEnd, onEndTurn,
+  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, explodeBarrel, throwFlask, fireTurret, actMobs, spawnBeast, dropshipTurn, respawnProps, hurtMob, TURRETS,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, actDaemons, dissolveDaemons, hurtDaemon, inTown, zoneAt, ROAD,
+  trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,
   MOV_BONUS, WALK_MAX, CHOCO_MOV, CHOCO_RESPAWN, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,
   LIGHTNING_COUNT, LIGHTNING_DMG,
 };

@@ -774,6 +774,7 @@ function drawUnit(g, u, now, boxes) {
   // ฐานแบบที่นั่ง (ทรงกระบอก) · Colony = เหรียญหกเหลี่ยม 3 มิติ (hexCoin)
   const P1 = P(wx, wy, PIECE3D ? 0.13 : 0.12);
   if (PIECE3D) hexCoin(g, u, wx, wy, K, now);
+  else if (u.inCar) { /* สนาม Eos: นั่งในรถ — ไม่มีฐานบนพื้น (รถวาดแทน · board/fodlan/stage6.js) */ }
   else {
   gEllipse(g, wx + 0.05, wy + 0.07, 0.36 * K, 0, 28); g.fillStyle = "rgba(0,0,0,.22)"; g.fill();
   gEllipse(g, wx, wy, 0.32 * K, 0, 28); g.fillStyle = shadeHex(u.color, -0.25); g.fill();
@@ -797,7 +798,8 @@ function drawUnit(g, u, now, boxes) {
   // hz = ลอยขึ้นระหว่างเดินกระโดด (หน่วยช่อง) · sq = ยุบ/ยืดตัว (Echo)
   const hexR = s * 0.4 * K;
   // สนาม Eos มองจากด้านบน: หกเหลี่ยมวางตรงกลางช่องของตัวเอง (ไม่ลอยขึ้นไปทับช่องข้างบน — ผู้ใช้แจ้ง 2026-11-09)
-  let hy = (UI_PIECE && pitchOf() >= 80 ? by : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
+  // นั่งในรถ (สนาม Eos — ผู้ใช้สั่ง 2026-11-09 "ให้เป็น 1 เดียวกับรถ ไม่ต้องมีขาหมาก"): รูปอยู่ระดับห้องโดยสาร ไม่ลอย
+  let hy = (UI_PIECE && pitchOf() >= 80 ? by : u.inCar ? by - s * 0.5 * K : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
   const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;
@@ -809,7 +811,7 @@ function drawUnit(g, u, now, boxes) {
     sg.addColorStop(0, "#f4f7fb"); sg.addColorStop(0.45, "#b9c3cf"); sg.addColorStop(1, "#5d6876");
     g.fillStyle = sg; g.fillRect(bx - pw / 2, hy, pw, P1[1] - hy);
     g.fillStyle = hexA(u.color, 0.55); g.fillRect(bx - pw / 2, hy, pw, (P1[1] - hy) * 0.35);
-  } else if (!u.fly && !tb) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
+  } else if (!u.fly && !tb && !u.inCar) { g.fillStyle = bm; g.fillRect(bx - 2.5, hy, 5, P1[1] - hy); } // fly = บินอยู่ (ปีกเขม่า) — ไม่มีแท่งต่อลงพื้น
   if (u.isActor && !tb) {
     const gl = g.createRadialGradient(bx, hy, hexR * 0.6, bx, hy, hexR * 1.7);
     gl.addColorStop(0, "rgba(255,255,255,.35)"); gl.addColorStop(1, "rgba(255,255,255,0)");

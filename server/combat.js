@@ -253,6 +253,7 @@ function instantDeath(p, force) {
   //  (Echo — การกลืนกินระดับ EX)
   const killer = match.effectSourceId && match.players[match.effectSourceId];
   require("./matchStats").onKill(p, match.effectSourceId); // สรุปผลแมตช์
+  try { require("./fodlan").onKill(p, match.effectSourceId); } catch { /* ไม่อยู่ในโลก Fodlan/Eos */ } // Eos: ค่าหัวผู้เล่น
   if (killer) runHook(CHAR_HOOKS[killer.characterId], "onKill", engine, killer, p);
 }
 
