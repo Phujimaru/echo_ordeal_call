@@ -19,7 +19,9 @@
 const { CHAR_BY_ID, CHARACTERS } = require("../characters.js");
 
 const ID = "echo";
-const REVERT_CD = 3;              // คืนร่างแล้วรอกี่เทิร์นก่อนเลือกใหม่ (ผู้ใช้เลือก)
+const REVERT_CD = 3;
+// คลิปสกิลที่เกิดจากร่างที่ Echo สวม: ชื่อบนคลิป = "Recollection Time" + โปรไฟล์ Echo มุมขวาล่าง (ผู้ใช้สั่ง 2026-11-10)
+const RECALL_TITLE = "Recollection Time";              // คืนร่างแล้วรอกี่เทิร์นก่อนเลือกใหม่ (ผู้ใช้เลือก)
 const KIND_SP = "sp", KIND_GOLD = "gold", KIND_HP = "hp";
 const DIARY_IMG = "/characters/echo/echo_diary.webp";
 // ตัวที่เลือกไม่ได้ (Claude ตัดสิน): ระบบคู่ (ผู้เล่น 1 คนคุม 2 ตัว — ตัวที่สองเกิดตอนเริ่มแมตช์เท่านั้น)
@@ -179,7 +181,7 @@ function gentleQueen(engine, p) {
 
 module.exports = {
   id: ID,
-  REVERT_CD, DIARY_IMG, BLOCKED,
+  REVERT_CD, DIARY_IMG, BLOCKED, RECALL_TITLE,
   isEcho, mimicking, statId, pickable, bookChoices, mimic, revert,
 
   // ---------- จุดที่ engine เรียกตรง (ไม่ผ่านฮุคตาม characterId — ตอนเปลี่ยนสกิล characterId เป็นของตัวอื่น) ----------
@@ -198,6 +200,12 @@ module.exports = {
       passive2: pas(other.passive),
       passive3: pas(other.passive2),
     };
+  },
+  // server/cutscene.js + engine.setArjunaUlt: คลิปของผู้เล่นคนนี้เกิดจากร่างที่สวมไหม → ป้ายโปรไฟล์ Echo (client RecallBadge)
+  recallOf(p) {
+    if (!mimicking(p)) return null;
+    const me = CHAR_BY_ID[ID];
+    return { img: me.cover || me.img, name: me.name, color: require("../server/lobby").colorOf(p) };
   },
   // view.js: ปุ่มพิเศษบน HUD ตอนเปลี่ยนสกิล = ไดอารี่ (คืนร่าง)
   queenActions(engine, p) {

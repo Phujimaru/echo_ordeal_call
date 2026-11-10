@@ -36,6 +36,7 @@ import { shopName } from "../board/shopProps";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
 import DiaryBook, { DiaryCenter } from "./hud/DiaryBook";
+import RecallBadge from "./hud/RecallBadge";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
 import OhgerSword from "./hud/OhgerSword";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
@@ -150,6 +151,8 @@ function Cutscene({ cs }) {
           {cs.label && <div className="text-lg sm:text-xl font-bold opacity-90 -mt-2">{cs.label}!</div>}
         </div>
       )}
+      {/* เจ้าหญิง Echo: คลิปของร่างที่สวมจากไดอารี่ = โปรไฟล์ Echo มุมขวาล่าง (cs.recall — characters/echo.js recallOf) */}
+      <RecallBadge recall={cs.recall} />
       {introDone && cs.title && ( // ไม่มีชื่อ (แปลงร่างไรเดอร์ ZECT) = ไม่ขึ้นตัวอักษรบนคลิป
         <div className="absolute top-[8%] inset-x-0 text-center px-4 transition-opacity duration-200">
           <div className="cut-title glitch text-4xl sm:text-6xl font-black" data-text={cs.title}>{cs.title}</div>
@@ -475,8 +478,9 @@ function TransformNotice({ n }) {
         )}
         <div className="text-left leading-tight">
           <div className="text-lg font-black" style={{ color: n.color }}>{n.name}</div>
-          <div className="text-sm font-bold text-echo-ice">{n.title} {n.label}!</div>
+          <div className="text-sm font-bold text-echo-ice">{n.label ? `${n.title} ${n.label}!` : n.title}</div>
         </div>
+        <RecallBadge recall={n.recall} small />
       </div>
     </div>
   );
@@ -1863,7 +1867,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   useEffect(() => { if (phase === "PLAYING") requestAttention(); }, [phase]);
   // อรชุน: ฉาก Mahapralaya (ArjunaUlt.jsx) · โหลดวีดีโอ/รูปหมากล่วงหน้าเมื่อมีอรชุนในเกม
   const arjunaRun = state.arjunaUlt ? {
-    seq: state.arjunaUlt.seq, hits: state.arjunaUlt.hits,
+    seq: state.arjunaUlt.seq, hits: state.arjunaUlt.hits, recall: state.arjunaUlt.recall || null,
     targets: (state.arjunaUlt.targets || []).slice(0, 6).map((id) => { const u = state.players.find((q) => q.id === id); return { id, img: u && !u.masked ? u.img : null, color: u ? u.color : null }; }),
   } : null;
   const arjunaInGame = state.players.some((q) => q.character && q.character.id === "arjuna");

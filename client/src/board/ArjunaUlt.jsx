@@ -6,6 +6,7 @@
 // ============================================================
 import { useEffect, useRef } from "react";
 import { playCutsceneVideo } from "../audio";
+import RecallBadge from "../screens/hud/RecallBadge";
 import { ARJUNA_ULT_MS, ARJUNA_ULT_SRC, buildArjunaScene, disposeArjunaScene, drawArjunaScene, preloadArjunaUlt } from "./arjunaFx";
 
 export default function ArjunaUlt({ run, lowQ, onDone, seekRef }) {
@@ -76,6 +77,8 @@ export default function ArjunaUlt({ run, lowQ, onDone, seekRef }) {
     <div key={run.seq} aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 400, pointerEvents: "auto", cursor: "default" }}>
       <video ref={vidRef} src={ARJUNA_ULT_SRC} preload="auto" playsInline style={{ display: "none" }} />
       <canvas ref={cvRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+      {/* เจ้าหญิง Echo สวมร่างอรชุน = โปรไฟล์ Echo มุมขวาล่าง */}
+      <RecallBadge recall={run.recall} />
     </div>
   );
 }
