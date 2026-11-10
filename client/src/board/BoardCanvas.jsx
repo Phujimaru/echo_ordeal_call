@@ -393,8 +393,17 @@ export default function BoardCanvas(props) {
           const gp = unproject(st.cam.cx, camEyeY(base, st.cam.z, st.cam.cy));
           const cl = (v, hi) => Math.max(0, Math.min(hi, v));
           st.pivot = gp ? { x: cl(gp.x, info.cols), y: cl(gp.y, info.rows) } : { x: info.cols / 2, y: info.rows / 2 };
-          // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง 2026-11-09): Q/E หมุนรอบตัวหมากของเรา ไม่ใช่รอบกลางจอ (p.selfPos)
-          if (p.rts && p.selfPos && Number.isFinite(p.selfPos.x)) st.pivot = { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 };
+          // กล้อง RTS (สนาม Eos): Q/E หมุนรอบจุดที่กล้องมองอยู่ (ปกติ = ตัวเรา) และย้ายศูนย์กลางมุมมองไปที่จุดนั้นด้วย
+          //  ผู้ใช้แจ้ง 2026-11-10 "หมุน 4 ทิศ ขยาย/หด และเอียงไม่เท่ากันสักมุม": เดิมมุมมองหมุนรอบตัวเรา/กลางแผนที่ แต่กล้องมองอีกจุด
+          //  (เลื่อนกล้องออก / ผู้ชมไม่มีหมาก) → จุดที่มองเข้าใกล้/ห่างกล้องต่างกันแต่ละทิศ · ตอนนี้จุดที่มองอยู่ที่ศูนย์กลางเสมอ = ทุกทิศเท่ากัน
+          if (p.rts && !st.cv3) {
+            const ge = unproject(st.cam.cx, st.cam.cy - 50 / (st.cam.z * RTS_BASE_Z));
+            const sp = p.selfPos && Number.isFinite(p.selfPos.x) ? { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 } : null;
+            const pt = ge ? { x: cl(ge.x, info.cols), y: cl(ge.y, info.rows) } : sp || st.pivot;
+            // มองตัวเราอยู่ (ห่างไม่ถึงครึ่งช่อง) = หมุนรอบตัวเราพอดี
+            st.pivot = sp && Math.hypot(pt.x - sp.x, pt.y - sp.y) < 0.6 ? sp : pt;
+            st.vcLock = st.pivot;
+          }
         }
         let d = (((target - st.rotTarget) % 4) + 4) % 4;
         if (d === 3) d = -1;
@@ -439,7 +448,8 @@ export default function BoardCanvas(props) {
       // กล้อง RTS (สนาม Eos): จุดหมุนของมุมมอง = ตัวเรา (ไม่ใช่กลางกระดาน) — หมุนแล้วตัวเราไม่เข้าใกล้/ห่างกล้อง ขนาดคงที่
       //  ตัวเราเดินไปช่องใหม่ = จุดหมุนเลื่อนตามนุ่มๆ (FOCUS_MS)
       if (p.rts && !st.cv3) {
-        const tgt = p.selfPos && Number.isFinite(p.selfPos.x) ? { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 } : st.vcTo || { x: info.cols / 2, y: info.rows / 2 };
+        // ศูนย์กลางมุมมอง = จุดที่หมุนรอบล่าสุด (vcLock — ค้างจนตัวเราเดิน/กดกลับที่ตัวเรา) · ไม่งั้น = ตัวเรา
+        const tgt = st.vcLock || (p.selfPos && Number.isFinite(p.selfPos.x) ? { x: p.selfPos.x + 0.5, y: p.selfPos.y + 0.5 } : st.vcTo || { x: info.cols / 2, y: info.rows / 2 });
         if (!st.vcTo || tgt.x !== st.vcTo.x || tgt.y !== st.vcTo.y) {
           if (!st.vc || lowQ) { st.vc = { ...tgt }; st.vcAnim = null; }
           else st.vcAnim = { from: { ...st.vc }, t0: now };
@@ -466,7 +476,7 @@ export default function BoardCanvas(props) {
       const rts = !!p.rts && !st.cv3;
       const rr = rts ? rtsZoomRange(info, base, pitch === PITCH_BIRD) : null;
       st.rts = rts; st.rtsRange = rr;
-      if (import.meta.env.DEV && rts) window.__eosCam = { cam: st.cam, rr, zl: p.zoom }; // dev: ดูระดับซูมกล้อง RTS
+      if (import.meta.env.DEV && rts) window.__eosCam = { cam: st.cam, rr, zl: p.zoom, turn: st.turn, vc: st.vc, pitch, eye: PV(0, 0), tile: (() => { const q0 = PV(-0.5, 0), q1 = PV(0.5, 0), q2 = PV(0, -0.5), q3 = PV(0, 0.5); return [q1[0] - q0[0], q3[1] - q2[1]]; })() }; // dev: ดูระดับซูม/มุมกล้อง RTS (ขนาดช่องที่ตัวเรา กว้าง × ลึก)
       const cc = (cam) => (rts ? clampCamRts(info, base, cam, rr) : clampCam(info, base, cam));
       const zk = (lv) => (rts ? rtsZoomOf(rr, lv) : zoomKOf(pitch, lv));
       // จุดบนจอ (sx, sy) → กลางกล้อง: RTS = กลางจอจริง (เผื่อ HUD ล่างเล็กน้อย) · ปกติ = กลางส่วนที่มองเห็นเหนือ HUD
@@ -548,6 +558,7 @@ export default function BoardCanvas(props) {
       if (selfKey !== st.selfKey) {
         const was = st.selfKey;
         st.selfKey = selfKey;
+        st.vcLock = null; // ตัวเราเดิน = ศูนย์กลางมุมมองกลับมาที่ตัวเรา
         if (selfKey && !(st.drag && st.drag.moved)) {
           const [sx, sy] = PV(0, 0); // จุดหมุน = ตัวเรา อยู่ที่ (0, 0) ของมุมมองเสมอ
           const to = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
@@ -555,6 +566,7 @@ export default function BoardCanvas(props) {
         }
       }
       if (rts && p.camHome !== st.camHome) {
+        if (st.camHome !== undefined) st.vcLock = null; // กดกลับที่ตัวเรา = ศูนย์กลางมุมมองกลับมาที่ตัวเรา
         const fp = st.camHome !== undefined ? PV(0, 0) : null;
         st.camHome = p.camHome;
         if (fp) startAnim(cc({ z: st.cam.z, ...eyeTo(st.cam.z, fp[0], fp[1]) }), FOCUS_MS);

@@ -21,7 +21,7 @@
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn, viewCenter,
-  frameToScreen, localFrame, withLocalFrame,
+  frameToScreen, localFrame, withLocalFrame, PV,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
@@ -305,7 +305,9 @@ export function bakeScene(info, view, dpr, night, lowQ, turn = 0, live = false) 
   const { cv, g } = layerCanvas(view, dpr, live ? "scene" : null); // live = วาดสดลงแคนวาสเดิมทุกเฟรม (ไม่สร้างใหม่)
   const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   // ขอบไกลของกระดานบนจอ (ฉากหลังวางอิงเส้นนี้)
-  const bY = Math.min(P(0, 0)[1], P(info.cols, 0)[1], P(0, info.rows)[1], P(info.cols, info.rows)[1]);
+  // กล้องหมุนรอบตัวเรา (สนาม Eos — viewCenter): เส้นขอบฟ้าอยู่ระยะคงที่จากตัวเราทุกทิศ (เกินมุมไกลสุดของกระดานเสมอ)
+  //  เดิมวางที่ขอบไกลของกระดาน — ระยะจากตัวเราถึงขอบต่างกันแต่ละทิศ หันแล้วเส้นขอบฟ้าขึ้นลง ดูเหมือนมุมเอียง/ซูมเปลี่ยน (ผู้ใช้แจ้ง 2026-11-10)
+  const bY = viewCenter() ? PV(0, -Math.hypot(info.cols, info.rows))[1] : Math.min(P(0, 0)[1], P(info.cols, 0)[1], P(0, info.rows)[1], P(info.cols, info.rows)[1]);
   const c = { g, C, night, lowQ, info, R: rngSeq(21), VX0, VY0, VX1, VY1, VW, bY, ...worldRange(view), marks: {} };
   // พื้นทั้งจอ
   const gr = g.createRadialGradient(640, 360, 120, 640, 360, Math.max(820, VW * 0.65));

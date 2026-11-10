@@ -2579,23 +2579,23 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {inuiUp && <AxelClock phase={phase} value={faizClock && faizClock.id !== me?.id ? faizClock.left : undefined} />}
       {clockWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
-      <div className="deck-drawer" data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
+      {/*  สนาม Eos (ผู้ใช้สั่ง 2026-11-10 "รวมทั้ง 3 อันในอันเดียว สไลด์ออกมาแล้วกดได้"): ปุ่มแผนที่ + คู่มืออยู่ในถาดเดียวกับกองการ์ด */}
+      <div className="deck-drawer" data-eos={state.world === "eos" && state.board ? "true" : undefined} data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
         <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
+        {state.world === "eos" && state.board && (
+          <div className="deck-drawer-extra">
+            <button type="button" aria-label="แผนที่" tabIndex={deckTab ? 0 : -1} onClick={() => { clickSound(); setEosMapOpen(true); }}>
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M9 4v14M15 6v14" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+            </button>
+            <button type="button" aria-label="คู่มือ" tabIndex={deckTab ? 0 : -1} className="q" onClick={() => { clickSound(); setEosGuideOpen(true); }}>?</button>
+          </div>
+        )}
         <button type="button" className="deck-drawer-tab" aria-expanded={deckTab} aria-label="กองการ์ดกลาง" onClick={() => { clickSound(); setDeckTab((v) => !v); }}>
           <span className="deck-drawer-ico" aria-hidden="true" /><span className="deck-drawer-arrow" aria-hidden="true">{deckTab ? "◂" : "▸"}</span>
         </button>
       </div>
       {deckOpen && <DeckLedgerModal ledger={state.deckLedger || []} onClose={() => setDeckOpen(false)} />}
-      {/* สนาม Eos: ปุ่มแผนที่ภาพรวม ใต้แท็บกองการ์ด (กล้องอยู่ใกล้ตัวผู้เล่น — ผู้ใช้สั่ง 2026-11-09) */}
-      {state.world === "eos" && state.board && (
-        <button type="button" className="eos-map-btn" aria-label="แผนที่" data-away={fcOpen || phase === "ATTACKING" ? "true" : "false"} onClick={() => { clickSound(); setEosMapOpen(true); }}>
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M9 4v14M15 6v14" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
-        </button>
-      )}
       {eosMapOpen && state.world === "eos" && <EosMap state={state} onClose={() => setEosMapOpen(false)} />}
-      {state.world === "eos" && state.board && (
-        <button type="button" className="eos-guide-btn" aria-label="คู่มือ" data-away={fcOpen || phase === "ATTACKING" ? "true" : "false"} onClick={() => { clickSound(); setEosGuideOpen(true); }}>?</button>
-      )}
       {eosGuideOpen && state.world === "eos" && <EosGuide onClose={() => setEosGuideOpen(false)} />}
       {eosSitOpen && state.world === "eos" && <EosSituation state={state} onClose={() => setEosSitOpen(false)} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
