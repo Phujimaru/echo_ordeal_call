@@ -78,11 +78,16 @@ test('ฮุค onRoundStartTick ที่โยน error: แจกรอบต
   }
 });
 
-test('instantDeath ซ้ำกับคนที่ตายแล้ว = ไม่ทำอะไร (Echo นับการสังหารครั้งเดียว)', () => {
-  const { p0, p1 } = setup(3, ['echo']);
-  engine.withEffectSource(p0, () => { engine.instantDeath(p1); engine.instantDeath(p1); });
+test('instantDeath ซ้ำกับคนที่ตายแล้ว = ไม่ทำอะไร (ฮุค onKill ของผู้สังหารถูกเรียกครั้งเดียว)', () => {
+  const { p0, p1 } = setup(3, ['muimi']);
+  const hk = CHAR_HOOKS.muimi, savedKill = hk.onKill;
+  let kills = 0;
+  hk.onKill = () => { kills++; };
+  try {
+    engine.withEffectSource(p0, () => { engine.instantDeath(p1); engine.instantDeath(p1); });
+  } finally { hk.onKill = savedKill; }
   assert.equal(p1.alive, false);
-  assert.equal(p0.echo.kills, 1);
+  assert.equal(kills, 1);
 });
 
 test('คำสาปกินผู้ใช้จนตายกลางสกิล: ไม่ระเบิด · สกิลไม่ลงผล (โอเบรอน นกจาบยามเช้าใส่ตัวเอง)', () => {

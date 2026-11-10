@@ -205,13 +205,13 @@ function tauntAllows(p, t) {
   return !set || set.has(t.id);
 }
 // ระยะเดินปกติสูงสุด (ก่อนหักโทษ) — บัฟของโอเบรอนใช้ค่านี้เป็นระยะส่ง (GRID_PLAN §5)
-//  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (Echo: ตัวใหญ่ขึ้น เดินได้น้อยลง)
+//  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (ไจโร: ขี่ม้า) · ค่าตั้งต้นของเจ้าหญิง Echo ตอนเปลี่ยนสกิล = ของ Echo (statId)
 function baseMovOf(p) {
   if (p.summon && Number.isFinite(p.summon.mov)) return p.summon.mov; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.mov ? hook.mov(p) : null;
   if (Number.isFinite(own)) return own;
-  const ch = CHAR_BY_ID[p.characterId];
+  const ch = CHAR_BY_ID[CHAR_HOOKS.echo.statId(p)];
   return ch && Number.isFinite(ch.mov) ? ch.mov : DEFAULT_MOV;
 }
 // ระยะเดินเทิร์นนี้: ไพ่แตก −1 · เชื่องช้า −1 (Ice Spike — ไม่ซ้อน)
@@ -290,7 +290,7 @@ function counters(p, card) {
   const ch = CHAR_BY_ID[p.characterId];
   return !!(ch && ch.counter);
 }
-// ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (Echo: ตัวใหญ่ขึ้น ตีไกลขึ้น)
+// ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (โซระ: ปืน)
 function rangeOf(p) {
   if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
   return Colony.rangeMod(p, baseRangeOf(p)); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js)
@@ -299,7 +299,7 @@ function baseRangeOf(p) {
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.range ? hook.range(p) : null;
   if (Array.isArray(own)) return own;
-  const ch = CHAR_BY_ID[p.characterId];
+  const ch = CHAR_BY_ID[CHAR_HOOKS.echo.statId(p)];
   return ch && Array.isArray(ch.range) ? ch.range : DEFAULT_RANGE;
 }
 // ตีปกติแบบแนวตรง (ฮุค attackLane — ไรโด ฮิคารุ): ตีได้เฉพาะแนวตรงจากขอบตัว · ทุกคนในแนวโดน

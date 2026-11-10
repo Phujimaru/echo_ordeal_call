@@ -80,7 +80,7 @@ test('ขยายร่างดันออกไม่ลงน้ำแข�
   assert.equal(fxIndex('iceFx'), -1);
 });
 
-test('ถูกดันไถลชนหนาม: เสียเท่า Lv + เชื่องช้า · ตาย = เจ้าของหนามเป็นผู้สังหาร (ไม่ใช่ Echo ผู้ดัน)', () => {
+test('ถูกดันไถลชนหนาม: เสียเท่า Lv + เชื่องช้า · ตาย = เจ้าของหนามเป็นผู้สังหาร (ไม่ใช่ตัวใหญ่ผู้ดัน)', () => {
   const P = setup([...GROW, ['I', 'ice_spike', 1, 8]]);
   lay([[6, 6], [7, 6]]);
   Ice.placeSpike(8, 6, 'I', 1);
@@ -91,7 +91,6 @@ test('ถูกดันไถลชนหนาม: เสียเท่า Lv
   assert.equal(P.V.alive, false, 'ดันออก -1 แล้วชนหนาม Lv1 -1');
   assert.equal(P.V.pos, null);
   assert.deepEqual(kills, [['I', 'V']], 'เจ้าของหนามได้เครดิต');
-  assert.equal(P.E.echo.kills, 0, 'Echo ไม่ได้การกลืนกิน');
   assert.equal(engine.boardMap().terrain['8,6'], undefined, 'หนาม Lv1 แตก');
   assert.ok(iceEvents().some((e) => e.kind === 'spike' && e.kill));
 });

@@ -107,12 +107,7 @@ function zoneThreat(z, zone) {
   return { ...z, threat };
 }
 // รูป 4 ทิศของตัวใหญ่บนกระดาน (หน้า/ข้าง/หลัง · มุมบน) — ตัวละครที่ไม่มีในนี้ใช้หมากหกเหลี่ยมเสมอ
-const BIG_ART = {
-  echo: {
-    front: "/characters/echo/echo_front.webp", side: "/characters/echo/echo_side.webp",
-    back: "/characters/echo/echo_back.webp", top: "/characters/echo/echo_top.webp",
-  },
-};
+const BIG_ART = {}; // ภาพตัวใหญ่หลายมุม (เดิม Echo ขยายร่าง — รื้อแล้ว 2026-11-10 · ตัวใหญ่ที่เหลือใช้ภาพหมากปกติ)
 // ทิศจากช่องเราไปช่องที่ชี้ (แกนที่ห่างกว่า) — ใช้กับสกิลแนว · size = ตัวใหญ่ (นับจากกลางตัว)
 function dirToward(from, to, size = 1) {
   if (!from || !to) return null;

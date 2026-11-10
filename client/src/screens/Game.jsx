@@ -35,6 +35,7 @@ import ShopScreen from "./hud/shops/ShopScreen";
 import { shopName } from "../board/shopProps";
 import HikaruForms from "./hud/HikaruForms";
 import SkillChoices from "./hud/SkillChoices";
+import DiaryBook, { DiaryCenter } from "./hud/DiaryBook";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
 import OhgerSword from "./hud/OhgerSword";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
@@ -867,7 +868,6 @@ function statusEntries(p, full) {
   }
   // Echo: ขยายร่าง (ถาวร) · คูลดาวน์มหึมา · พลังโจมตีจากการกลืนกิน
   if (p.echo && p.echo.stacks > 0) out.push({ key: "echoGrow", v: p.echo.stacks, icon: "🌌", label: "ขยายร่าง", cls: "bg-echo-magenta", desc: "เลือดสูงสุดเพิ่ม 2 ต่อระดับ อยู่ถาวรจนกว่าจะใช้ Overwrite" });
-  if (p.echo && p.echo.giantCd > 0) out.push({ key: "echoGiantCd", v: p.echo.giantCd, turns: true, icon: "⏳", label: "มหึมาพักฟื้น", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้มหึมาได้อีก" });
   if (p.echo && p.echo.kills > 0) out.push({ key: "echoKills", v: p.echo.kills, icon: "🍽️", label: "การกลืนกิน", cls: "bg-echo-ice text-gray-900", desc: "พลังโจมตีเพิ่มตามจำนวนที่ระบุ ถาวร" });
   if ((p.muimiUltCd || 0) > 0) {
     out.push({ key: "muimiUltCd", v: p.muimiUltCd, turns: true, icon: "⏳", label: "ดาบสะบั้นพักฟื้น", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
@@ -2675,7 +2675,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             />
           }
           mode={hudMode}
-          center={hudMode !== "draw" && me?.ohger ? (
+          center={hudMode !== "draw" && ch?.basic?.book ? (
+            // เจ้าหญิง Echo: สมุดไดอารี่กลาง HUD แทนช่องสกิลพื้นฐาน
+            <DiaryCenter skill={ch.basic} disabled={hudMode !== "turn" || slotOff("basic")} cooldown={giftCd("basic")} onOpen={() => requestSkillUse("basic", ch.basic, "พื้นฐาน", ch.basic.cost)} />
+          ) : hudMode !== "draw" && me?.ohger ? (
             <OhgerSword ohger={me.ohger} interactive={myTurn && !canto} onPress={(k) => socket.emit("charAction", { key: `ohger:${k}` })} />
           ) : hudMode === "draw" ? (
             <DrawDock
@@ -2704,7 +2707,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  {ch?.basic && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
+                  {ch?.basic && !ch.basic.book && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
                     : ch?.secondary && !me.ohger && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
@@ -2803,7 +2806,16 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {kzEvolve && me?.kazuma && (
         <EvolutionScene onClose={() => setKzEvolve(false)} onDone={() => socket.emit("useSkill", { tier: "basic", form: "evolution" })} />
       )}
-      {choiceOpen && ch?.[choiceOpen.tier]?.choices && (
+      {/* เจ้าหญิง Echo: ไดอารี่ความทรงจำ = สมุดเลือกตัวละคร (skill.book จาก characters/echo.js) */}
+      {choiceOpen && ch?.[choiceOpen.tier]?.choices && ch[choiceOpen.tier].book && (
+        <DiaryBook
+          choices={ch[choiceOpen.tier].choices}
+          isOk={choiceOk}
+          onClose={() => setChoiceOpen(null)}
+          onPick={(c) => pickChoice(choiceOpen.tier, c)}
+        />
+      )}
+      {choiceOpen && ch?.[choiceOpen.tier]?.choices && !ch[choiceOpen.tier].book && (
         <SkillChoices
           title={ch[choiceOpen.tier].name}
           choices={ch[choiceOpen.tier].choices}

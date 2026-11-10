@@ -13,7 +13,8 @@ function genderOf(u) {
     if (u.summon.moon === "f" || u.summon.moon === "m") return u.summon.moon; // ฮาคุโนะ
     if (u.summon.moon) return "n"; // Moon Cell
   }
-  const c = CHAR_BY_ID[u.characterId];
+  // เจ้าหญิง Echo สวมร่างจากไดอารี่ = ยังเป็น Echo (p.echoQ.mimic — characters/echo.js)
+  const c = CHAR_BY_ID[u.echoQ && u.echoQ.mimic ? "echo" : u.characterId];
   return (c && c.gender) || "n";
 }
 const isFemale = (u) => genderOf(u) === "f";

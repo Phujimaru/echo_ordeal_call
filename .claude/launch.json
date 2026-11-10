@@ -786,6 +786,38 @@
         "ECHO_DEV_START_ROUND": "6",
         "ECHO_DEV_EOS_WEATHER": "eos_fog"
       }
+    },
+    {
+      "name": "server-echoq",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3043,
+      "env": {
+        "PORT": "3043",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-echoq",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5207",
+        "--strictPort"
+      ],
+      "port": 5207,
+      "env": {
+        "ECHO_SERVER_PORT": "3043"
+      }
     }
   ]
 }

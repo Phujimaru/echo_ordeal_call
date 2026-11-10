@@ -45,6 +45,8 @@ const Dim = require("./dimension");
 
 // รูปที่แสดงบนสนาม: ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
 function displayImg(p) {
+  const look = CHAR_HOOKS.echo.lookOf(p); // เจ้าหญิง Echo สวมร่าง = ภาพบนกระดานของ Echo เสมอ
+  if (look) return look.boardImg;
   const hook = CHAR_HOOKS[p.characterId];
   const img = hook && hook.displayImg ? hook.displayImg(p) : null; // มุยมิ: ระหว่าง “ดาบสะบั้น” ใช้ภาพท่าไม้ตาย
   return img || p.img;
@@ -245,7 +247,9 @@ function buildStateInner(viewerId) {
       // การมองเห็น: ผู้ชมคนนี้มองไม่เห็น p (ล่องหน/พุ่มหญ้า/ม่านแดง) = ไม่ส่งตำแหน่ง + ซ่อนข้อมูลอื่น (unseenPub)
       const unseen = Visibility.hiddenFrom(viewer, p);
       const secret = unseen && !mine;
-      const charOver = !secret && hook && hook.characterPub ? hook.characterPub(engine, p) : null; // ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง
+      // ชื่อ/ปกตัวละครที่เปลี่ยนตามร่าง · เจ้าหญิง Echo สวมร่างจากไดอารี่ = หน้าตา Echo เสมอ (ผู้ใช้สั่ง — ปกไม่เปลี่ยนเด็ดขาด)
+      const echoLook = CHAR_HOOKS.echo.lookOf(p);
+      const charOver = echoLook || (!secret && hook && hook.characterPub ? hook.characterPub(engine, p) : null);
       const pub = (s) => (s ? { name: s.name, desc: s.desc, cost: s.cost, img: s.img, ammo: s.ammo, area: s.area || { kind: "self" } } : null);
       // ฮุค skillHidden(p, tier) → true = ไม่มีปุ่มช่องนี้ตามร่าง (รถบรรทุกเก่า: เห็นแค่ร่างที่แท้จริง · ร่างรถไม่มีสกิลรอง/ท่าไม้ตาย)
       const shown = (tierName) => !(!secret && hook && hook.skillHidden && hook.skillHidden(p, tierName));
@@ -347,6 +351,7 @@ function buildStateInner(viewerId) {
         statusAmt: p.statusAmt || {}, // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8)
         character: {
           id: ch.id,
+          face: echoLook ? "echo" : undefined, // ครอปหน้าตามภาพ Echo (client charFace.js) — ตอนสวมร่าง id เป็นของตัวที่เลือก
           // ภาพประจำตัวละคร (ไม่ผูกกับร่าง/แฝดที่กำลังคุมอยู่) — ฉากเปิดตัวตอนแมตช์เริ่มใช้ภาพนี้
           img: (charOver && charOver.img) || ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
           cover: (charOver && charOver.img) || ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน
@@ -354,7 +359,7 @@ function buildStateInner(viewerId) {
           // characterPub คืน passive/passive2 ได้ (บานาจ ลิงซ์: ชุดสกิลติดตัวของร่าง)
           passive: charOver && charOver.passive !== undefined ? charOver.passive : ch.passive ? { name: ch.passive.name, desc: ch.passive.desc } : null,
           passive2: charOver && charOver.passive2 !== undefined ? charOver.passive2 : ch.passive2 ? { name: ch.passive2.name, desc: ch.passive2.desc } : null, // สกิลติดตัว 2 (มุยมิ) — ตัวอื่นเป็น null
-          passive3: ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike)
+          passive3: charOver && charOver.passive3 !== undefined ? charOver.passive3 : ch.passive3 ? { name: ch.passive3.name, desc: ch.passive3.desc } : null, // สกิลติดตัว 3 (Ice Spike · เจ้าหญิง Echo: ติดตัว 2 ของร่างที่สวม)
           passive4: ch.passive4 ? { name: ch.passive4.name, desc: ch.passive4.desc } : null, // สกิลติดตัว 4–5 (Ice Spike)
           passive5: ch.passive5 ? { name: ch.passive5.name, desc: ch.passive5.desc } : null,
           basic: basicPub,
@@ -371,7 +376,6 @@ function buildStateInner(viewerId) {
         veiled: !unseen && Visibility.concealed(p),
         sliver: hook && hook.publicState ? hook.publicState(engine, p, viewer) : undefined, // นักบินปริศนา: แขน / ล่องหน
         dio: hook && hook.dioState ? hook.dioState(engine, p) : undefined, // ดิโอ: Time Meter / BloodStack / ร่างหยุดเวลา / ปุ่มแทรกตา
-        echo: hook && hook.echoState ? hook.echoState(engine, p) : undefined, // Echo: ขยายร่าง / ราชินี / คูลดาวน์มหึมา
         sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
@@ -412,7 +416,7 @@ function buildStateInner(viewerId) {
         taunt: (() => { const t = action.tauntOf(p); return t ? [...t] : undefined; })(), // ถูกล่อเป้า: id ตัวล่อที่ต้องเล็ง
         // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ฮุค hudActions) เห็นเจ้าตัว · กด = socket charAction { key } · มี tiles = เลือกช่องก่อน → { key, tile }
         actions: mine ? (() => { // + ปุ่มกระโดดของสนาม Colony (ทุกตัวละคร)
-          const own = hook && hook.hudActions ? hook.hudActions(engine, p) || [] : [];
+          const own = [...(hook && hook.hudActions ? hook.hudActions(engine, p) || [] : []), ...CHAR_HOOKS.echo.queenActions(engine, p)]; // + ไดอารี่คืนร่างของเจ้าหญิง Echo
           const cj = Colony.hudAction(p);
           const fd = Fodlan.hudActions(p); // Fodlan: ปุ่มกิมมิกของด่าน (ตกปลา · ขับเรือ · เครื่องยิงหิน · วางคบเพลิง … — key "fd:…")
           const all = [...own, ...(cj ? [cj] : []), ...fd];
@@ -451,7 +455,8 @@ function maskPub(o) {
 //  ฮุค unseenLook(p) → { img, name } = หน้าตาที่คนมองไม่เห็นได้เห็นแทนภาพตั้งต้น (ไรเดอร์ ZECT: แปลงร่างแล้วเห็นร่าง Masked ไม่ใช่ภาพคน)
 function unseenPub(o, p) {
   const hook = CHAR_HOOKS[p.characterId];
-  const look = hook && hook.unseenLook ? hook.unseenLook(p) : null;
+  // เจ้าหญิง Echo สวมร่างไรเดอร์ = ยังเป็นหน้าตา Echo (ไม่ใช่ร่าง Masked — ภาพไม่เปลี่ยนเด็ดขาด)
+  const look = !CHAR_HOOKS.echo.mimicking(p) && hook && hook.unseenLook ? hook.unseenLook(p) : null;
   const character = look ? { ...o.character, img: look.img || o.character.img, cover: look.img || o.character.cover, name: look.name || o.character.name } : o.character;
   return {
     ...o, img: (look && look.img) || p.img, character, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
@@ -491,8 +496,8 @@ function broadcastPositions() {
 function takenUniqueChars() {
   return [...new Set(
     Object.values(match.players)
-      .filter((p) => (CHAR_BY_ID[p.characterId] || {}).unique)
-      .map((p) => p.characterId)
+      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.statId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
+      .filter((id) => (CHAR_BY_ID[id] || {}).unique)
   )];
 }
 // ผู้ชมมองไม่เห็นทั้งคนตีและเป้าของฉากตีนี้ (ม่านแดงของเคท — สู้กันข้างในคนนอกไม่เห็น)
