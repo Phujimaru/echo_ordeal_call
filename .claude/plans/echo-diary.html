@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Diary</title>
+<style>
+  :root { --bg: #0b0716; --ink: #e9e2ff; --mute: #9c8fc4; --line: #2a2140; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, "Noto Sans Thai", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .stage { position: relative; width: 100%; aspect-ratio: 2000 / 1116; overflow: hidden; border-radius: 10px;
+    background: radial-gradient(ellipse at 50% 60%, #2b1b4d 0%, #120b24 55%, #07040f 100%); }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .shot { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity; }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #apparition { position: absolute; left: 0; top: 0; width: 26%; aspect-ratio: 3 / 4; opacity: 0; transform-origin: 50% 100%;
+    background-size: cover; background-position: 50% 20%;
+    -webkit-mask-image: radial-gradient(ellipse 48% 48% at 50% 46%, #000 38%, transparent 100%);
+    mask-image: radial-gradient(ellipse 48% 48% at 50% 46%, #000 38%, transparent 100%); }
+  #vignette { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(6, 3, 14, .55) 100%); }
+  #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    background: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), #fff8e6 0%, rgba(255, 236, 190, .9) 22%, rgba(214, 190, 255, .45) 50%, transparent 80%); }
+  .bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  button { background: #2a1f47; color: var(--ink); border: 1px solid #4b3b7a; border-radius: 8px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  button:hover { background: #3a2b62; }
+  .strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .strip figure { margin: 0; background: #140e26; border: 1px solid var(--line); border-radius: 8px; padding: 4px; cursor: pointer; }
+  .strip img { width: 100%; aspect-ratio: 2000 / 1116; object-fit: contain; display: block; }
+  .strip figcaption { font-size: 12px; color: var(--mute); padding-top: 3px; text-align: center; }
+  .strip figure.on { border-color: #b69cff; }
+  .strip figure.on figcaption { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="sky"></canvas>
+    <div class="shot" id="s_reading"><img src="echo-diary/reading.webp" alt=""></div>
+    <div class="shot" id="s_pov">
+      <img src="echo-diary/pov.webp" alt="">
+      <canvas id="povFx"></canvas>
+    </div>
+    <div class="shot" id="s_touch">
+      <img src="echo-diary/touch_plate.webp" alt="">
+      <canvas id="trail"></canvas>
+      <img id="hand" src="echo-diary/touch_hand.webp" alt="">
+    </div>
+    <div class="shot" id="s_face"><img src="echo-diary/face_lit.webp" alt=""></div>
+    <div class="shot" id="s_closed"><img src="echo-diary/book_closed.webp" alt=""></div>
+    <div id="apparition"></div>
+    <canvas id="fx"></canvas>
+    <div id="vignette"></div>
+    <div id="flash"></div>
+  </div>
+  <div class="bar">
+    <button id="playFull">เต็ม</button>
+    <button id="playShort">สั้น</button>
+  </div>
+  <div class="strip" id="strip"></div>
+</div>
+<script>
+// ============================================================
+//  ฉากไดอารี่ความทรงจำ (ต้นแบบ) — ภาพนิ่งทั้งหมด + กล้อง/แสง/อนุภาคด้วยโค้ด
+//  ไม่วาดรูปทรงกระดาษ/บิดภาพทับภาพวาด (ผู้ใช้: "เบี้ยว") · มือในช่วงนิ้วลากแยกเป็นชั้น (touch_hand) ทับแผ่นที่เติมกระดาษแล้ว (touch_plate)
+// ============================================================
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => x * x * (3 - 2 * x);
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeIn = (x) => x * x * x;
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+const inOut = (t, a, b, c, d) => ease(seg(t, a, b)) * (1 - ease(seg(t, c, d)));
+
+const stage = $("stage");
+const CANVASES = ["sky", "povFx", "trail", "fx"].map($);
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  const r = stage.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = r.width; H = r.height;
+  for (const c of CANVASES) { c.width = W * DPR; c.height = H * DPR; }
+}
+addEventListener("resize", resize); resize();
+const ctx = (c) => { const g = c.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); return g; };
+
+// ---------- จุดบนภาพ (สัดส่วน 0..1 ของภาพ 2000×1116) ----------
+const BOOK_IN_READING = [0.505, 0.62];
+// ภาพมุมถือสมุด: หน้าซ้าย/ขวา (ขอบกระดาษ) + จุดลายดาวที่ขอบหน้า
+const POV = {
+  left: [[0.120, 0.296], [0.405, 0.215], [0.566, 0.753], [0.300, 0.878]],
+  right: [[0.405, 0.215], [0.660, 0.075], [0.690, 0.660], [0.566, 0.753]],
+  center: [0.545, 0.40],
+  glints: [[0.150, 0.330], [0.265, 0.255], [0.380, 0.240], [0.440, 0.205], [0.575, 0.140], [0.640, 0.110], [0.690, 0.590], [0.555, 0.690], [0.330, 0.800], [0.220, 0.640]],
+};
+const FINGER0 = [0.500, 0.418];  // ปลายนิ้วในภาพนิ้วแตะ
+const DRAG = [-0.018, 0.17];     // ระยะลากนิ้ว (สัดส่วนของภาพ)
+
+// ---------- ฟ้าดาว (เลื่อนสวนกล้อง = มีมิติ) ----------
+const stars = Array.from({ length: 180 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3, p: Math.random() * 6.28, z: 0.3 + Math.random() }));
+function drawSky(now, a, cam) {
+  const g = ctx($("sky")); g.clearRect(0, 0, W, H);
+  for (const s of stars) {
+    const tw = 0.5 + 0.5 * Math.sin(now / 700 + s.p);
+    const x = (((s.x - cam.x * 0.04 * s.z + now * 0.000003 * s.z) % 1) + 1) % 1 * W;
+    const y = (((s.y - cam.y * 0.04 * s.z) % 1) + 1) % 1 * H;
+    g.fillStyle = `rgba(230,220,255,${(0.25 + 0.6 * tw) * a})`;
+    g.beginPath(); g.arc(x, y, s.r * (0.8 + cam.z * 0.3), 0, 6.28); g.fill();
+  }
+}
+
+// ---------- อนุภาค ----------
+let parts = [];
+function spawn(n, x, y, mode, o = {}) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, sp = mode === "burst" ? 160 + Math.random() * 420 : 20 + Math.random() * 50;
+    parts.push({ x, y, vx: mode === "wind" ? 40 + Math.random() * 90 : Math.cos(a) * sp * (mode === "rise" ? 0.4 : 1),
+      vy: mode === "rise" || mode === "wind" ? -(40 + Math.random() * 90) : Math.sin(a) * sp,
+      life: 0, max: (o.max || 1) * (0.9 + Math.random() * 1.1), r: (o.r || 1) * (1 + Math.random() * 2.4), gold: Math.random() < (o.gold ?? 0.7), mode, wob: Math.random() * 6.28 });
+  }
+}
+function drawParts(g, dt, now) {
+  g.globalCompositeOperation = "lighter";
+  parts = parts.filter((p) => (p.life += dt) < p.max);
+  for (const p of parts) {
+    if (p.mode === "burst") { p.vx *= 0.96; p.vy *= 0.96; }
+    if (p.mode === "rise" || p.mode === "wind") p.vx += Math.sin(now / 300 + p.wob) * 10 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    const k = Math.sin(Math.PI * p.life / p.max);
+    const col = p.gold ? "255,214,140" : "205,180,255";
+    glow(g, p.x, p.y, p.r * 5, `rgba(${col},${0.9 * k})`, `rgba(${col},0)`);
+  }
+  g.globalCompositeOperation = "source-over";
+}
+function glow(g, x, y, R, c0, c1, mid) {
+  const grd = g.createRadialGradient(x, y, 0, x, y, R);
+  grd.addColorStop(0, c0); if (mid) grd.addColorStop(mid[0], mid[1]); grd.addColorStop(1, c1);
+  g.fillStyle = grd; g.beginPath(); g.arc(x, y, R, 0, 6.28); g.fill();
+}
+function sparkle(g, x, y, s, a) { // ประกายสี่แฉก
+  g.save(); g.translate(x, y); g.globalAlpha = a; g.globalCompositeOperation = "lighter";
+  glow(g, 0, 0, s * 1.6, "rgba(255,240,200,.9)", "rgba(255,220,150,0)");
+  g.fillStyle = "rgba(255,250,230,1)";
+  for (let i = 0; i < 2; i++) {
+    g.rotate(Math.PI / 2 * i);
+    g.beginPath(); g.moveTo(0, -s * 2.4); g.quadraticCurveTo(s * 0.18, -s * 0.18, s * 2.4, 0); g.quadraticCurveTo(s * 0.18, s * 0.18, 0, s * 2.4);
+    g.quadraticCurveTo(-s * 0.18, s * 0.18, -s * 2.4, 0); g.quadraticCurveTo(-s * 0.18, -s * 0.18, 0, -s * 2.4); g.fill();
+  }
+  g.restore();
+}
+
+// ---------- กล้อง: ตั้ง transform ของช็อต (ดัน/แพนช้าๆ ไม่หมุน ไม่บิด) ----------
+function shot(id, op, cam) {
+  const s = $(id).style;
+  s.opacity = op;
+  s.transformOrigin = `${cam.ox * 100}% ${cam.oy * 100}%`;
+  s.transform = `translate(${cam.px || 0}%, ${cam.py || 0}%) scale(${cam.z})`;
+}
+const drift = (now, amp) => ({ px: Math.sin(now / 2300) * 0.25 * amp, py: Math.sin(now / 1900 + 1) * 0.3 * amp });
+
+// ---------- ช่วงต่างๆ ----------
+// 1 เปิดอ่าน → 2 หน้ากระดาษตื่น → 3 นิ้วลาก เส้นแสงตาม → 4 ภาพตัวละครลอยขึ้นจากหน้า → 5 ใบหน้าต้องแสง → 6 แสงวาบ
+const FULL = [
+  { k: "reading", img: "reading", at: 900, until: 1650 },
+  { k: "awaken", img: "pov", at: 2700, until: 3550 },
+  { k: "drag", img: "touch", at: 4700, until: 5450 },
+  { k: "reveal", img: "pov", at: 6300, until: 6900 },
+  { k: "face", img: "face_lit", at: 7500, until: 7950 },
+  { k: "flash", img: "face_lit", at: 8250, until: 99999 },
+];
+const APP_URL = "echo-diary/sample.jpg";
+$("apparition").style.backgroundImage = `url(${APP_URL})`;
+
+function frameFull(t, dt, now) {
+  const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
+  const pg = ctx($("povFx")); pg.clearRect(0, 0, W, H);
+  const tg = ctx($("trail")); tg.clearRect(0, 0, W, H);
+  let skyCam = { x: 0, y: 0, z: 0 };
+
+  // ---- 1 เปิดอ่าน: ดันกล้องช้าๆ แล้วเร่งพุ่งเข้าหนังสือ ----
+  {
+    const push = 0.12 * easeOut(seg(t, 0, 1400)) + 0.55 * easeIn(seg(t, 1250, 1750));
+    const op = inOut(t, 0, 450, 1550, 1800);
+    shot("s_reading", op, { ox: BOOK_IN_READING[0], oy: BOOK_IN_READING[1], z: 1 + push, ...drift(now, 1) });
+    skyCam = { x: push * 0.8, y: push * 0.3, z: push };
+    if (op > 0.3 && t < 1500 && Math.random() < 0.55) spawn(1, BOOK_IN_READING[0] * W + (Math.random() - 0.5) * W * 0.13, BOOK_IN_READING[1] * H, "rise");
+  }
+
+  // ---- 2 หน้ากระดาษตื่น: แสงกวาดผ่านหน้า · ลายดาวที่ขอบหน้าสว่างทีละดวง · ลมแสงพัดประกาย ----
+  const povA = inOut(t, 1600, 1900, 3450, 3750);
+  const povB = inOut(t, 5450, 5750, 6850, 7150);
+  {
+    const zA = lerp(1.1, 1, easeOut(seg(t, 1600, 2300))) + 0.03 * seg(t, 2300, 3700);
+    const zB = 1 + 0.06 * easeInOut(seg(t, 5450, 7100));
+    shot("s_pov", Math.max(povA, povB), { ox: POV.center[0], oy: POV.center[1], z: povA >= povB ? zA : zB, ...drift(now, 0.8) });
+    if (povA > 0) {
+      skyCam = { x: 0.3 + seg(t, 1600, 3700) * 0.1, y: 0.1, z: 0.1 };
+      // แสงกวาดเป็นแถบ จากสันออกไปขอบหน้า (สองหน้าพร้อมกัน) — ตัดตามรูปหน้ากระดาษ
+      for (const [page, dir] of [[POV.right, 1], [POV.left, -1]]) {
+        const k = easeInOut(seg(t, 2000, 2900));
+        if (k <= 0 || k >= 1) continue;
+        pg.save(); pg.beginPath(); page.forEach(([x, y], i) => (i ? pg.lineTo(x * W, y * H) : pg.moveTo(x * W, y * H))); pg.closePath(); pg.clip();
+        const sx = 0.48 * W + dir * k * 0.42 * W;
+        const band = pg.createLinearGradient(sx - 0.12 * W, 0, sx + 0.12 * W, 0);
+        band.addColorStop(0, "rgba(255,220,150,0)"); band.addColorStop(0.5, `rgba(255,236,190,${0.55 * Math.sin(Math.PI * k)})`); band.addColorStop(1, "rgba(255,220,150,0)");
+        pg.globalCompositeOperation = "lighter"; pg.fillStyle = band; pg.fillRect(0, 0, W, H); pg.restore();
+      }
+      // หน้ากระดาษเรืองทั้งหน้าเบาๆ หลังแสงกวาด
+      const warm = ease(seg(t, 2600, 3200)) * povA;
+      if (warm > 0) {
+        pg.save(); pg.globalCompositeOperation = "lighter";
+        for (const page of [POV.left, POV.right]) {
+          pg.beginPath(); page.forEach(([x, y], i) => (i ? pg.lineTo(x * W, y * H) : pg.moveTo(x * W, y * H))); pg.closePath();
+          pg.fillStyle = `rgba(255,214,150,${0.12 * warm * (0.8 + 0.2 * Math.sin(now / 180))})`; pg.fill();
+        }
+        pg.restore();
+      }
+      // ลายดาวสว่างทีละดวง
+      POV.glints.forEach(([x, y], i) => {
+        const s0 = 2350 + i * 70, a = Math.sin(Math.PI * seg(t, s0, s0 + 650));
+        if (a > 0) sparkle(pg, x * W, y * H, W * 0.006 * (0.6 + a), a * povA);
+      });
+      // ลมแสงพัดประกายขึ้นจากหน้า
+      if (t > 2100 && t < 3400 && Math.random() < 0.9) {
+        const page = Math.random() < 0.5 ? POV.left : POV.right;
+        const u = Math.random(), v = Math.random();
+        const x = lerp(lerp(page[0][0], page[1][0], u), lerp(page[3][0], page[2][0], u), v), y = lerp(lerp(page[0][1], page[1][1], u), lerp(page[3][1], page[2][1], u), v);
+        spawn(1, x * W, y * H, "wind", { max: 1.1 });
+      }
+    }
+  }
+
+  // ---- 3 นิ้วลาก: มือเลื่อนลงตามหน้ากระดาษ · เส้นแสงทองตามปลายนิ้ว · ลากจบ = แสงแผ่เป็นระลอก ----
+  {
+    const op = inOut(t, 3550, 3850, 5300, 5600);
+    const drag = easeInOut(seg(t, 3950, 4850));
+    const tip = [FINGER0[0] + DRAG[0] * drag, FINGER0[1] + DRAG[1] * drag];
+    // กล้องตามปลายนิ้ว
+    shot("s_touch", op, { ox: tip[0], oy: tip[1], z: 1.04 + 0.05 * seg(t, 3550, 5600), px: -drag * 1.2, py: -drag * 3, ...{} });
+    $("hand").style.transform = `translate(${DRAG[0] * drag * 100}%, ${DRAG[1] * drag * 100}%)`;
+    if (op > 0) {
+      skyCam = { x: 0.5, y: 0.2 + drag * 0.2, z: 0.2 };
+      // เส้นแสง (วาดใต้มือ)
+      const steps = 40, P0 = [FINGER0[0] * W, FINGER0[1] * H], P1 = [tip[0] * W, tip[1] * H];
+      const flare = ease(seg(t, 4850, 5050)) * (1 - 0.6 * seg(t, 5050, 5500));
+      if (drag > 0) {
+        tg.save(); tg.globalCompositeOperation = "lighter"; tg.lineCap = "round";
+        for (const [w, a] of [[W * 0.03, 0.18], [W * 0.012, 0.45], [W * 0.004, 0.95]]) {
+          tg.strokeStyle = `rgba(255,${a > 0.9 ? 248 : 214},${a > 0.9 ? 225 : 140},${a * (0.85 + 0.15 * Math.sin(now / 90)) * (1 + flare)})`;
+          tg.lineWidth = w * (1 + flare * 0.8);
+          tg.beginPath(); tg.moveTo(P0[0], P0[1]);
+          for (let i = 1; i <= steps; i++) { const k = i / steps; tg.lineTo(lerp(P0[0], P1[0], k), lerp(P0[1], P1[1], k)); }
+          tg.stroke();
+        }
+        tg.restore();
+        glow(tg, P1[0], P1[1], W * 0.05, "rgba(255,244,210,.95)", "rgba(255,210,130,0)", [0.3, "rgba(255,220,150,.5)"]);
+        if (drag < 1 && Math.random() < 0.9) spawn(2, P1[0], P1[1], "rise", { r: 0.8 });
+      } else {
+        glow(tg, P0[0], P0[1], W * 0.045 * ease(seg(t, 3700, 3950)), "rgba(255,244,210,.9)", "rgba(255,210,130,0)");
+      }
+      // แสงแผ่ออกจากเส้นเป็นระลอกนุ่ม (ไม่มีวงขอบแข็ง)
+      for (let i = 0; i < 3; i++) {
+        const s0 = 4850 + i * 200, k = seg(t, s0, s0 + 800);
+        if (k <= 0 || k >= 1) continue;
+        tg.save(); tg.globalCompositeOperation = "lighter";
+        const cx = (P0[0] + P1[0]) / 2, cy = (P0[1] + P1[1]) / 2, R = W * (0.06 + 0.26 * easeOut(k));
+        tg.translate(cx, cy); tg.scale(1, 0.7);
+        const grd = tg.createRadialGradient(0, 0, R * 0.55, 0, 0, R);
+        const a = 0.28 * Math.sin(Math.PI * k);
+        grd.addColorStop(0, "rgba(255,225,160,0)"); grd.addColorStop(0.7, `rgba(255,230,170,${a})`); grd.addColorStop(1, "rgba(255,225,160,0)");
+        tg.fillStyle = grd; tg.beginPath(); tg.arc(0, 0, R, 0, 6.28); tg.fill();
+        tg.restore();
+      }
+      if (t > 4850 && t - dt <= 4850) spawn(40, P1[0], P1[1], "burst", { r: 0.8 });
+    }
+  }
+
+  // ---- 4 ภาพตัวละครลอยขึ้นจากหน้ากระดาษ (ไม่บิดลงบนหน้า) ----
+  {
+    const rise = easeOut(seg(t, 5650, 6500));
+    const op = ease(seg(t, 5650, 6100)) * (1 - ease(seg(t, 6800, 7100)));
+    const a = $("apparition").style;
+    const cx = POV.center[0], baseY = 0.55;
+    a.opacity = op;
+    a.left = `${(cx - 0.13) * 100}%`;
+    a.top = `${(lerp(baseY, 0.0, rise)) * 100}%`;
+    a.transform = `scale(${lerp(0.3, 0.8, rise)}) translateY(${Math.sin(now / 900) * 1.2}%)`;
+    a.filter = `sepia(.3) saturate(1.05) brightness(${1.05 + 0.5 * (1 - rise)}) drop-shadow(0 0 ${22 * op}px rgba(255,214,150,.9))`;
+    if (op > 0) {
+      // เสาแสงจากหน้ากระดาษ
+      const colA = op * (0.5 + 0.1 * Math.sin(now / 120));
+      const x = cx * W, y0 = 0.62 * H;
+      const grd = fxg.createLinearGradient(0, y0, 0, 0);
+      grd.addColorStop(0, `rgba(255,230,170,${0.55 * colA})`); grd.addColorStop(1, "rgba(255,230,170,0)");
+      fxg.save(); fxg.globalCompositeOperation = "lighter"; fxg.fillStyle = grd;
+      fxg.beginPath(); fxg.moveTo(x - W * 0.05, y0); fxg.lineTo(x - W * 0.16, 0); fxg.lineTo(x + W * 0.16, 0); fxg.lineTo(x + W * 0.05, y0); fxg.closePath(); fxg.fill();
+      fxg.restore();
+      if (Math.random() < 0.8) spawn(1, x + (Math.random() - 0.5) * W * 0.12, y0, "rise", { max: 1.3 });
+    }
+  }
+
+  // ---- 5 ใบหน้าต้องแสง: ดันกล้องช้าๆ · แสงอุ่นจากล่างเต้นตามจังหวะ ----
+  {
+    const op = inOut(t, 7000, 7300, 8150, 8450);
+    shot("s_face", op, { ox: 0.48, oy: 0.38, z: 1 + 0.08 * easeInOut(seg(t, 7000, 8450)), ...drift(now, 0.7) });
+    if (op > 0) {
+      skyCam = { x: 0.7, y: 0.1, z: 0.3 };
+      fxg.save(); fxg.globalCompositeOperation = "lighter";
+      glow(fxg, 0.33 * W, 1.02 * H, W * 0.42 * (1 + 0.04 * Math.sin(now / 140)), `rgba(255,205,130,${0.35 * op})`, "rgba(255,200,120,0)");
+      fxg.restore();
+      if (Math.random() < 0.5) spawn(1, (0.18 + Math.random() * 0.3) * W, 0.98 * H, "rise", { max: 1.4 });
+    }
+  }
+
+  // ---- 6 แสงวาบ → จาง ----
+  setFlash(ease(seg(t, 8000, 8450)) * (1 - ease(seg(t, 8650, 9400))), [0.4, 0.75]);
+  if (t > 8400 && t - dt <= 8400) spawn(80, 0.4 * W, 0.75 * H, "burst");
+  // แสงวาบเล็กตอนเปลี่ยนช็อต (กลบรอยต่อ)
+  const cut = Math.max(...[1700, 3600, 5500, 7100].map((c) => Math.sin(Math.PI * seg(t, c - 180, c + 180)) * 0.35));
+  if (cut > 0) { fxg.save(); fxg.globalCompositeOperation = "lighter"; fxg.fillStyle = `rgba(255,236,200,${cut})`; fxg.fillRect(0, 0, W, H); fxg.restore(); }
+
+  drawSky(now, seg(t, 0, 500) * (1 - seg(t, 9000, 9600)), skyCam);
+  drawParts(fxg, dt / 1000, now);
+  hiliteAt(t);
+  return t < 9800;
+}
+
+// ---------- สั้น (~2.4 วิ): หนังสือลอย → เปิด (มุมถือ) → ตื่น → ภาพตัวละครขึ้น → วาบ ----
+function frameShort(t, dt, now) {
+  const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
+  ctx($("povFx")).clearRect(0, 0, W, H); ctx($("trail")).clearRect(0, 0, W, H);
+  shot("s_closed", inOut(t, 0, 300, 500, 750), { ox: 0.5, oy: 0.5, z: lerp(0.92, 1.06, easeOut(seg(t, 0, 750))), py: Math.sin(now / 500) * 0.8 });
+  shot("s_pov", inOut(t, 500, 750, 1950, 2350), { ox: POV.center[0], oy: POV.center[1], z: lerp(1.08, 1, easeOut(seg(t, 500, 1100))) });
+  POV.glints.forEach(([x, y], i) => { const s0 = 800 + i * 40, a = Math.sin(Math.PI * seg(t, s0, s0 + 450)); if (a > 0) sparkle(ctx($("povFx")), x * W, y * H, W * 0.005 * (0.6 + a), a); });
+  const rise = easeOut(seg(t, 1000, 1600)), op = ease(seg(t, 1000, 1300)) * (1 - ease(seg(t, 1950, 2350)));
+  const a = $("apparition").style;
+  a.opacity = op; a.left = `${(POV.center[0] - 0.13) * 100}%`; a.top = `${lerp(0.55, 0.08, rise) * 100}%`;
+  a.transform = `scale(${lerp(0.4, 1, rise)})`; a.filter = `drop-shadow(0 0 ${18 * op}px rgba(255,214,150,.85))`;
+  setFlash(ease(seg(t, 1600, 1850)) * (1 - ease(seg(t, 1900, 2400))), [POV.center[0], 0.4]);
+  if (t > 1750 && t - dt <= 1750) spawn(50, POV.center[0] * W, 0.4 * H, "burst");
+  drawSky(now, seg(t, 0, 300), { x: 0, y: 0, z: 0 });
+  drawParts(fxg, dt / 1000, now);
+  hiliteAt(-1);
+  return t < 2700;
+}
+
+function setFlash(op, at) {
+  stage.style.setProperty("--fx", at[0] * 100 + "%"); stage.style.setProperty("--fy", at[1] * 100 + "%");
+  $("flash").style.opacity = op;
+}
+function reset() {
+  for (const id of ["s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
+  $("apparition").style.opacity = 0; $("hand").style.transform = ""; setFlash(0, [0.5, 0.5]); parts = [];
+}
+
+// ---------- แถบลำดับ: กด = ค้างที่ช่วงนั้น (ยังขยับ) ----------
+const strip = $("strip");
+FULL.forEach((s, i) => {
+  const f = document.createElement("figure");
+  f.innerHTML = `<img src="echo-diary/${s.img}.webp" alt=""${s.k === "flash" ? ' style="filter:brightness(1.7) saturate(.5)"' : ""}><figcaption>${i + 1}</figcaption>`;
+  f.onclick = () => holdAt(s.at);
+  strip.appendChild(f);
+});
+function hiliteAt(t) {
+  const i = t < 0 ? -1 : FULL.findIndex((s) => t < s.until);
+  [...strip.children].forEach((f, k) => f.classList.toggle("on", k === i));
+}
+let raf = 0, started = false;
+function run(fn) {
+  started = true;
+  cancelAnimationFrame(raf); reset();
+  let last = performance.now();
+  const tick = (now) => { const dt = Math.min(50, now - last); last = now; if (fn(now, dt) !== false) raf = requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick);
+}
+function play(frame) { const t0 = performance.now(); run((now, dt) => frame(now - t0, dt, now)); }
+function holdAt(at) { run((now, dt) => { frameFull(at, dt, now); }); }
+$("playFull").onclick = () => play(frameFull);
+$("playShort").onclick = () => play(frameShort);
+reset();
+Promise.all([...document.images].map((im) => im.decode().catch(() => {}))).then(() => { if (!started) play(frameFull); });
+</script>
+</body>
+</html>

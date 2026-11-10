@@ -31,10 +31,12 @@ const TimeStop = require("./timeStop");
 const Dim = require("./dimension");
 const Summon = require("./summon");
 
+// ตัวละครเจ้าของค่าสถานะพื้นฐาน (เลือด/เกราะ/แต้มสกิลสูงสุด) — เจ้าหญิง Echo ตอนเปลี่ยนสกิลยังใช้ของ Echo (characters/echo.js)
+const statId = (p) => CHAR_HOOKS.echo.statId(p);
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxHp)) return p.summon.maxHp; // ยูนิตที่ถูกเรียก (server/summon.js)
-  const hook = p && CHAR_HOOKS[p.characterId];
+  const hook = p && CHAR_HOOKS[statId(p)];
   // Fodlan: ร่างอสูรศิลาตรา เลือดสูงสุด +5 (server/fodlan/stage5.js persist.maxHpBonus)
   // ผลึกชีวิต (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalHp — ล้างทุกแมตช์ใหม่)
   return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + require("./fodlan").maxHpBonus(p) + ((p && p.crystalHp) || 0);
@@ -74,7 +76,7 @@ function healArmor(p, amount) {
 }
 // พลังงานสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxSkill (เคท & เอมิลิโกะ: 16 ใช้ร่วมกัน)
 function maxSkillOf(p) {
-  const hook = p && CHAR_HOOKS[p.characterId];
+  const hook = p && CHAR_HOOKS[statId(p)];
   const own = hook && hook.maxSkill ? hook.maxSkill(p) : null;
   return Number.isFinite(own) ? own : MAX_SKILL;
 }
@@ -209,7 +211,7 @@ function alivePlayers() { return Object.values(match.players).filter((p) => p.al
 // เกราะสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxArmor (นักบินปริศนา 2)
 function maxArmorOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxArmor)) return p.summon.maxArmor; // ยูนิตที่ถูกเรียก (server/summon.js)
-  const hook = p && CHAR_HOOKS[p.characterId];
+  const hook = p && CHAR_HOOKS[statId(p)];
   // ผลึกเกราะ (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalArmor)
   return (hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR) + ((p && p.crystalArmor) || 0);
 }
@@ -487,6 +489,7 @@ function resetRoundDisplay(p) {
   p.wasAttacked = false; p.didAttackRound = false;
 }
 function resetCombat(p) {
+  CHAR_HOOKS.echo.restoreBase(p); // เจ้าหญิง Echo: ร่างที่สวมจากไดอารี่ไม่ค้างข้ามแมตช์
   p.ready = false; // ห้องรอ: ต้องกดพร้อมใหม่ทุกครั้งที่กลับมาห้องรอ/เริ่มแมตช์ใหม่
   p.skillPoints = 0; p.alive = true; p.shield = 0;
   p.statuses = {}; p.seen = {}; p.transformAt = 0;
@@ -503,7 +506,7 @@ function resetCombat(p) {
   p.tempHpTurns = 0;      // เลือดชั่วคราวหายเองเมื่อครบ 2 เทิร์น
   p.sleepFresh = false; // หลับไหล: เทิร์นที่เพิ่งโดนกล่อมยังไม่เริ่มนับ/ยังโจมตีได้
   p.curseHitRound = 0;  // "คำสาป": เทิร์นล่าสุดที่คำสาปกินเลือดไป (1 ครั้ง/เทิร์น)
-  p.boardSize = 1; // ขนาดตัวบนกระดาน (Echo ขยายร่าง — server/phases/action.js resizeUnit)
+  p.boardSize = 1; // ขนาดตัวบนกระดาน (ตัวใหญ่ — server/phases/action.js resizeUnit)
   // ฟิลด์เฉพาะตัวของทุกตัวละคร (ฮุค resetCombat) — หลังล้างกระเป๋า (เอมิลิโกะได้ขนมปัง) · ก่อนคิดเลือด/เกราะเริ่มเกม (Echo/ฮิคารุ)
   //  โอเบรอน: คูลดาวน์ + สตั้นที่จองไว้ (ติดที่เป้าหมาย) · มุยมิ: โควตาเสบียง · นักบินปริศนา: แขน/ล่องหน · โซระ: ร่าง/อาวุธ
   //  Echo: ขยายร่าง/จำนวนที่สังหาร · ฮิคารุ: UltraLive/กิงกะ · Ice Spike: ดาเมจสะสม/โควตา · เคท & เอมิลิโกะ: อาวุธ/ดาบเขม่า/ร่าง

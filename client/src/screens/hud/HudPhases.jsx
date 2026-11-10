@@ -94,7 +94,7 @@ function extraRows(extra) {
   return out;
 }
 const extraBtnRaw = (x) => (
-  <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.icon}</span><b>{x.name}{x.count > 1 ? ` ×${x.count}` : ""}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
+  <button key={x.key} type="button" className="hc-btn ride" data-on={x.on ? "true" : undefined} aria-pressed={x.on ? "true" : undefined} disabled={x.disabled} onClick={x.onClick}><span className="ico">{x.img ? <img className="ico-img" src={x.img} alt="" draggable={false} /> : x.icon}</span><b>{x.name}{x.count > 1 ? ` ×${x.count}` : ""}{x.cd > 0 ? ` ⏳${x.cd}` : ""}</b></button>
 );
 // desc = คำอธิบายตอนชี้ (สนาม Eos — ผู้ใช้สั่ง 2026-11-10 "หลายอย่างไม่มีคำอธิบาย") · ปุ่มที่กดไม่ได้ก็ชี้ดูได้ (wrapper รับ hover แทน)
 const extraBtn = (x) => (x.desc

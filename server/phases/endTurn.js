@@ -221,7 +221,8 @@ function recordCharStats(resultOf) {
   match.statsRecorded = true;
   const sides = Object.values(match.players).filter((p) => !p.summon && !p.duoOf);
   if (sides.length < 2 && !Moon.active()) return;
-  const entries = sides.map((p) => ({ characterId: p.characterId, result: resultOf(p), name: p.name, teamId: p.teamId || null }));
+  // เจ้าหญิง Echo ที่สวมร่างจากไดอารี่อยู่ตอนจบเกม = นับเป็น Echo (statId)
+  const entries = sides.map((p) => ({ characterId: CHAR_HOOKS.echo.statId(p), result: resultOf(p), name: p.name, teamId: p.teamId || null }));
   const meta = { mode: match.gameMode, world: match.world || "earth", rounds: match.roundNumber || 0 };
   if (CharStats.recordMatch(entries, meta)) io.emit("charStats", CharStats.snapshot());
 }

@@ -1,0 +1,218 @@
+/* เจ้าหญิง Echo — ไดอารี่ความทรงจำ (DiaryBook.jsx) · โทนตามหนังสือในฉากของ Echo: ปกม่วงลายทอง · กระดาษครีม · กรอบลาเวนเดอร์ · ดาวมุมหน้า */
+.db-overlay {
+  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; padding: 24px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255, 214, 150, .10), transparent 70%),
+    radial-gradient(ellipse at 50% 50%, rgba(28, 16, 54, .82), rgba(6, 3, 14, .92));
+  animation: db-fade .25s ease-out;
+}
+@keyframes db-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.db-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+.db-book {
+  --w: min(1120px, 88vw, calc((100vh - 150px) * 16 / 10.4));
+  position: relative; width: var(--w); aspect-ratio: 16 / 10.4;
+  perspective: 2200px;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, .55)) drop-shadow(0 0 40px rgba(255, 214, 150, .12));
+}
+
+/* ---------- เปิด/ปิดเล่ม ----------
+   เปิด: เล่มปิด (ปกหน้าทับครึ่งขวา) ลอยขึ้นจากกลางจอล่าง → เลื่อนเข้ากลาง พร้อมปกหมุนรอบสันไปทางซ้าย → หน้าซ้ายค่อยๆ ปรากฏ
+   ปิด: ย้อนกลับทุกอย่าง (animation-direction: reverse) */
+.db-book.is-opening { animation: db-book-in .9s cubic-bezier(.22, .9, .25, 1) both; }
+.db-book.is-closing { animation: db-book-in .7s cubic-bezier(.5, 0, .75, .2) reverse both; }
+@keyframes db-book-in {
+  0% { opacity: 0; transform: translate(-25%, 38vh) scale(.28) rotate(-4deg); }
+  30% { opacity: 1; transform: translate(-25%, 0) scale(.62) rotate(-2deg); }
+  55% { transform: translate(-25%, 0) scale(.66) rotate(0deg); }
+  100% { opacity: 1; transform: none; }
+}
+/* หน้าซ้าย/สิ่งที่อยู่ซ้ายของสัน ซ่อนจนปกพ้นครึ่งทาง */
+.db-book.is-opening .db-left, .db-book.is-opening .db-block, .db-book.is-opening .db-cover { animation: db-left-in .9s ease both; }
+.db-book.is-closing .db-left, .db-book.is-closing .db-block, .db-book.is-closing .db-cover { animation: db-left-in .7s ease reverse both; }
+@keyframes db-left-in { 0%, 55% { opacity: 0; } 80%, 100% { opacity: 1; } }
+.db-book.is-opening .db-turn, .db-book.is-closing .db-turn, .db-book.is-opening .db-ribbon, .db-book.is-closing .db-ribbon { opacity: 0; }
+.db-book.is-opening .db-card, .db-book.is-closing .db-card { pointer-events: none; }
+
+.db-fcover {
+  position: absolute; top: -10px; bottom: -10px; left: 50%; right: -14px; z-index: 6;
+  transform-origin: 0 50%; transform-style: preserve-3d;
+}
+.db-book.is-opening .db-fcover { animation: db-cover-open .9s cubic-bezier(.45, .05, .3, 1) both; }
+.db-book.is-closing .db-fcover { animation: db-cover-open .7s cubic-bezier(.45, .05, .3, 1) reverse both; }
+@keyframes db-cover-open {
+  0%, 30% { transform: rotateY(0deg); opacity: 1; }
+  85% { transform: rotateY(-178deg); opacity: 1; }
+  100% { transform: rotateY(-180deg); opacity: 0; }
+}
+.db-fcover-face { position: absolute; inset: 0; border-radius: 4px 12px 12px 4px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.db-fcover-out {
+  background: radial-gradient(ellipse at 40% 30%, #8a72c4, #5b4a8f 50%, #3a2d66);
+  box-shadow: inset 0 0 0 3px #d9b46a, inset 10px 0 18px rgba(0, 0, 0, .35), 0 10px 30px rgba(0, 0, 0, .45);
+  display: grid; place-items: center;
+}
+.db-fcover-art { width: 82%; height: 88%; filter: drop-shadow(0 0 6px rgba(242, 212, 140, .45)); }
+.db-fcover-in {
+  transform: rotateY(180deg); border-radius: 12px 4px 4px 12px;
+  background: radial-gradient(ellipse at 60% 40%, #4b3a7e, #2e2352);
+  box-shadow: inset 0 0 0 3px #d9b46a, inset -10px 0 18px rgba(0, 0, 0, .35);
+}
+.db-overlay.is-closing { animation: db-fade .7s ease reverse both; }
+
+/* ปกหนังสือด้านหลัง (ขอบม่วงลายทองที่ล้นออกมานอกหน้ากระดาษ) */
+.db-cover {
+  position: absolute; inset: -14px -18px; border-radius: 14px;
+  background:
+    linear-gradient(90deg, transparent 49.2%, rgba(0, 0, 0, .35) 50%, transparent 50.8%),
+    radial-gradient(ellipse at 30% 20%, #7a64b0, #4b3a7e 55%, #2e2352);
+  box-shadow: inset 0 0 0 2px #d9b46a, inset 0 0 0 5px #4b3a7e, inset 0 0 0 6px rgba(217, 180, 106, .55);
+}
+/* ความหนาของกระดาษใต้หน้า */
+.db-block {
+  position: absolute; inset: 4px -6px -8px -6px; border-radius: 6px;
+  background: repeating-linear-gradient(180deg, #efe4cc 0 2px, #e2d4b6 2px 3px);
+}
+
+.db-page {
+  position: absolute; top: 0; bottom: 0; width: 50%;
+  background:
+    radial-gradient(ellipse at 50% 40%, #fffaf0, #fbf3e1 60%, #f3e7cc);
+  overflow: hidden;
+}
+.db-left { left: 0; border-radius: 6px 0 0 6px; box-shadow: inset -26px 0 30px -18px rgba(110, 80, 60, .35); }
+.db-right { right: 0; border-radius: 0 6px 6px 0; box-shadow: inset 26px 0 30px -18px rgba(110, 80, 60, .35); }
+.db-page-inner { position: absolute; inset: 0; padding: 7% 8% 9%; }
+
+/* กรอบเส้นคู่สีลาเวนเดอร์ + ดาวมุม */
+.db-border { position: absolute; inset: 4.2% 4.6%; border: 1.5px solid #c7b2e6; border-radius: 10px; pointer-events: none; }
+.db-border::after { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(199, 178, 230, .65); border-radius: 7px; }
+.db-corner { position: absolute; width: 7%; color: #a98bd6; pointer-events: none; }
+.db-corner.tl { top: 2.6%; left: 3%; }
+.db-corner.tr { top: 2.6%; right: 3%; transform: scaleX(-1); }
+.db-corner.bl { bottom: 2.6%; left: 3%; transform: scaleY(-1); }
+.db-corner.br { bottom: 2.6%; right: 3%; transform: scale(-1, -1); }
+.db-num { position: absolute; bottom: 3.6%; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 700; color: #a98bd6; letter-spacing: .1em; }
+
+.db-grid { position: relative; height: 100%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 5% 6%; }
+
+.db-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; min-height: 0;
+  background: none; border: 0; padding: 0; cursor: pointer; transition: transform .18s ease;
+}
+.db-frame {
+  position: relative; width: 100%; flex: 1; min-height: 0; border-radius: 8px; overflow: hidden;
+  background: #e9ddf6; box-shadow: 0 0 0 2px #d9b46a, 0 0 0 4px #fff7e6, 0 0 0 5px #c7b2e6, 0 6px 12px rgba(80, 50, 120, .25);
+  transition: box-shadow .18s ease;
+}
+.db-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; }
+.db-name {
+  max-width: 100%; font-size: clamp(11px, 1.15vw, 15px); font-weight: 700; color: #5b4580;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.db-card:not(.is-off):hover { transform: translateY(-4px); }
+.db-card:not(.is-off):hover .db-frame { box-shadow: 0 0 0 2px #f2cf7e, 0 0 0 4px #fff7e6, 0 0 0 5px #b69cff, 0 0 22px rgba(255, 210, 130, .75), 0 10px 18px rgba(80, 50, 120, .3); }
+.db-card:focus-visible { outline: none; }
+.db-card:focus-visible .db-frame { box-shadow: 0 0 0 3px #b69cff, 0 0 0 5px #fff7e6; }
+.db-card.is-off { cursor: not-allowed; }
+.db-card.is-off img { filter: grayscale(1) brightness(.85); opacity: .55; }
+.db-card.is-off .db-name { color: #b3a6c6; }
+.db-lock { position: absolute; inset: 0; display: grid; place-items: center; font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4)); }
+
+/* สันกลาง */
+.db-spine {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 3%; transform: translateX(-50%); pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(110, 80, 60, .28) 45%, rgba(110, 80, 60, .38) 50%, rgba(110, 80, 60, .28) 55%, transparent);
+}
+
+/* ใบที่กำลังพลิก (หมุนรอบสัน) */
+.db-leaf {
+  position: absolute; top: 0; bottom: 0; width: 50%; transform-style: preserve-3d;
+  animation-timing-function: cubic-bezier(.45, .05, .3, 1); animation-fill-mode: both; z-index: 3;
+}
+.db-leaf.go-next { left: 50%; transform-origin: 0 50%; animation-name: db-flip-next; }
+.db-leaf.go-prev { left: 0; transform-origin: 100% 50%; animation-name: db-flip-prev; }
+@keyframes db-flip-next { from { transform: rotateY(0deg); } to { transform: rotateY(-180deg); } }
+@keyframes db-flip-prev { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+.db-leaf-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.db-leaf-face .db-page { left: 0; right: 0; width: 100%; }
+.db-back { transform: rotateY(180deg); }
+.db-leaf-face::after { /* เงาตามมุมพลิก */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(60, 40, 90, .0), rgba(60, 40, 90, .22));
+  animation: inherit; animation-name: db-shade;
+}
+@keyframes db-shade { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+.db-leaf .db-card { pointer-events: none; }
+
+/* มุมพลิกหน้า */
+.db-turn {
+  position: absolute; bottom: -6px; width: 46px; height: 46px; border-radius: 50%; z-index: 4;
+  display: grid; place-items: center; font-size: 30px; line-height: 1; color: #fff7e6; cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, #8a72c4, #4b3a7e); border: 2px solid #d9b46a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .45); transition: transform .15s ease, opacity .15s ease;
+}
+.db-prev { left: -26px; }
+.db-next { right: -26px; }
+.db-turn:not(:disabled):hover { transform: scale(1.1); box-shadow: 0 0 16px rgba(255, 210, 130, .7), 0 4px 10px rgba(0, 0, 0, .45); }
+.db-turn:disabled { opacity: 0; pointer-events: none; }
+
+/* ริบบิ้นที่คั่นหน้า */
+.db-ribbon {
+  position: absolute; left: calc(50% + 10px); bottom: -46px; width: 16px; height: 70px; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg, #5f4aa0, #7a64c0 50%, #5f4aa0);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+}
+
+.db-tip {
+  min-height: 3.2rem; max-width: min(760px, 90vw); padding: 8px 18px; border-radius: 12px; text-align: center;
+  display: flex; flex-direction: column; gap: 2px; color: #fff; font-size: 15px; line-height: 1.4;
+  background: rgba(20, 12, 40, .7); border: 1px solid rgba(217, 180, 106, .45);
+  opacity: 0; transition: opacity .15s ease;
+}
+.db-tip.is-on { opacity: 1; }
+.db-tip b { color: #f2cf7e; font-size: 16px; }
+
+/* ---------- สมุดกลาง HUD (DiaryCenter) — ตั้งลอยเหนือแผงล่าง ล้นขึ้นไปได้ (แบบแกนดาบคิงโอเจอร์) ---------- */
+.db-center { position: relative; width: 220px; height: 150px; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none; }
+.db-center-book {
+  position: absolute; left: 50%; bottom: 34px; width: 170px; height: 214px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+  transform: translateX(-50%); animation: db-float 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 16px 18px rgba(3, 10, 24, .55)) drop-shadow(0 0 18px rgba(255, 214, 150, .25));
+}
+@keyframes db-float { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-3deg); } 50% { transform: translateX(-50%) translateY(-8px) rotate(-1.5deg); } }
+.db-center-book img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform .25s cubic-bezier(.16, 1, .3, 1); }
+.db-center-glow {
+  position: absolute; inset: 6% -12% 4% 26%; border-radius: 50%;
+  background: radial-gradient(ellipse at 70% 50%, rgba(255, 226, 165, .95), rgba(255, 200, 120, 0) 70%);
+  opacity: .35; animation: db-slot-breathe 2.6s ease-in-out infinite; transition: opacity .25s ease;
+}
+.db-center-book[data-state="ready"]:hover img { transform: translateY(-10px) scale(1.06); }
+.db-center-book[data-state="ready"]:hover .db-center-glow { opacity: 1; animation: none; }
+.db-center-book[data-state="off"] { cursor: default; animation: none; transform: translateX(-50%) rotate(-3deg); }
+.db-center-book[data-state="off"] img { filter: grayscale(.75) brightness(.7); }
+.db-center-book[data-state="off"] .db-center-glow, .db-center-book[data-state="off"] .db-slot-motes { display: none; }
+.db-center-label {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 3px 12px; border-radius: 999px; pointer-events: none;
+  background: rgba(20, 12, 40, .78); border: 1px solid rgba(217, 180, 106, .6); color: #fff3d2; font-size: 14px; white-space: nowrap;
+}
+.db-center-label b { font-weight: 800; }
+.db-center-label span { color: #f2cf7e; font-weight: 900; font-size: 12px; }
+@keyframes db-slot-breathe { 0%, 100% { opacity: .25; } 50% { opacity: .5; } }
+.db-slot-motes i {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%; opacity: 0;
+  background: #ffe6a8; box-shadow: 0 0 7px 2px rgba(255, 214, 140, .8);
+  animation: db-mote 3s ease-out infinite;
+}
+.db-slot-motes i:nth-child(1) { left: 80%; top: 58%; animation-delay: 0s; }
+.db-slot-motes i:nth-child(2) { left: 66%; top: 72%; animation-delay: .5s; }
+.db-slot-motes i:nth-child(3) { left: 88%; top: 40%; animation-delay: 1s; }
+.db-slot-motes i:nth-child(4) { left: 54%; top: 64%; animation-delay: 1.5s; }
+.db-slot-motes i:nth-child(5) { left: 74%; top: 30%; animation-delay: 2s; }
+.db-slot-motes i:nth-child(6) { left: 60%; top: 48%; animation-delay: 2.5s; }
+@keyframes db-mote { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(14px, -60px); } }
+.db-slot-cd {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(3deg);
+  padding: 3px 10px; border-radius: 999px; font-weight: 900; font-size: 17px; color: #fff3d2;
+  background: rgba(20, 12, 40, .8); border: 1px solid rgba(217, 180, 106, .7);
+}

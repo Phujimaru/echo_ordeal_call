@@ -5,9 +5,10 @@
 const FACE = {
   muimi: { fx: 0.665, fy: 0.135, ar: 523 / 376, zf: 2.2, zb: 1.3, hs: 0.17 },
   oberon_summer: { fx: 0.64, fy: 0.26, ar: 875 / 512, zf: 1.5, zb: 1.15, hs: 0.23, bleed: true },
-  echo: { fx: 0.55, fy: 0.31, ar: 1080 / 933, zf: 1.6, zb: 1.1, hs: 0.36, bleed: true },
+  echo: { fx: 0.49, fy: 0.25, ar: 1080 / 944, zf: 1.7, zb: 1.15, hs: 0.3, bleed: true }, // เจ้าหญิง Echo (ภาพปกใหม่ 2026-11-10)
 };
-export const charKey = (p) => (p && (p.character?.id || p.charId || p.characterId)) || "";
+// character.face = ภาพที่แสดงเป็นของตัวอื่น (เจ้าหญิง Echo สวมร่างจากไดอารี่ — ภาพยังเป็น Echo)
+export const charKey = (p) => (p && (p.character?.face || p.character?.id || p.charId || p.characterId)) || "";
 // สไตล์ <img> ให้หน้าตัวละครอยู่ที่ (50%, cy%) ของกรอบ (box = กว้าง/สูงของกรอบ) — ไม่รู้จักตัวละคร = cover ชิดบน
 export function faceStyle(p, { zoom, cy = 38, box = 0.873, big = false } = {}) {
   // รูปที่แสดงไม่ใช่รูปประจำตัวละคร (ภาพท่าไม้ตาย) = จุดหน้าไม่ตรง → ครอปบนกลางแทน

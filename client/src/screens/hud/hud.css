@@ -1409,3 +1409,6 @@ button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
 .hc-grid .hc-btn .ico { font-size: 18px; flex: none; }
 .hc-grid .hc-btn b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .hc-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* ปุ่มพิเศษที่มีรูปแทนอีโมจิ (x.img — เจ้าหญิง Echo: ไดอารี่ความทรงจำ) */
+.hc-btn .ico .ico-img { width: 1.5em; height: 1.5em; object-fit: contain; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }

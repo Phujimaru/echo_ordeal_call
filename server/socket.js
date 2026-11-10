@@ -405,6 +405,11 @@ io.on('connection', (socket) => {
       require('./fodlan').charAction(id, key, ft);
       return;
     }
+    // เจ้าหญิง Echo: ไดอารี่คืนร่าง (ส่งตรงถึงโมดูล echo ไม่ว่าจะสวมร่างใครอยู่ — characters/echo.js)
+    if (p && typeof key === 'string' && key.startsWith('echo:')) {
+      if (combat.withEffectSource(p, () => CHAR_HOOKS.echo.queenAction(engine, p, key))) view.broadcastState();
+      return;
+    }
     const hook = p && CHAR_HOOKS[p.characterId];
     if (!hook || !hook.charAction || typeof key !== 'string') return;
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;

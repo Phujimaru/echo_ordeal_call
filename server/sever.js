@@ -18,11 +18,13 @@ function stamp() { return ++seq; }
 
 function list(engine, t) {
   if (!t || !t.alive) return [];
+  // เจ้าหญิง Echo ที่สวมร่างจากไดอารี่: ตัวร่างเองก็เป็นผลสกิล (เก่ากว่าผลของร่างนั้นเสมอ — ตัดผลของร่างก่อน แล้วค่อยคืนร่าง)
+  const mimic = CHAR_HOOKS.echo.mimicSeverables(engine, t);
   const hook = CHAR_HOOKS[t.characterId];
-  if (!hook || typeof hook.severables !== "function") return [];
+  if (!hook || typeof hook.severables !== "function") return mimic;
   let out = null;
   try { out = hook.severables(engine, t); } catch (err) { console.error(`[hook] ${hook.id}.severables โยน error:`, err); }
-  return Array.isArray(out) ? out.filter((e) => e && typeof e.cancel === "function") : [];
+  return [...mimic, ...(Array.isArray(out) ? out.filter((e) => e && typeof e.cancel === "function") : [])];
 }
 function latest(engine, t) {
   let best = null;

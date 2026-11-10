@@ -1,5 +1,5 @@
 // ตัดผลสกิล (server/sever.js — รากฐานจิตของเรียวกิ) — ฮุค severables ชุด A:
-//  muimi · oberon_summer · sliver_bullet · sora_otosumi · echo · raido_hikaru · ice_spike · kate/emiliko · kira
+//  muimi · oberon_summer · sliver_bullet · sora_otosumi · raido_hikaru · ice_spike · kate/emiliko · kira
 //  เปิดผล → sever.latest คืนอันล่าสุด → sever.cut ปิดผล + สกิลนั้นอยู่ในสภาพหลังหมดเวลาตามปกติ · ไม่มีผล = null
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
@@ -56,7 +56,7 @@ test.afterEach(() => {
 test('ทุกโมดูลชุด A: ฮุคถูกเรียกกับตัวละครอื่น = ไม่มีอะไรให้ตัด', () => {
   const P = setup([['A', 'muimi', 1, 5], ['B', 'dummy', 8, 5]]);
   P.A.statuses.muimiTower = 2;
-  for (const id of ['muimi', 'oberon_summer', 'sliver_bullet', 'sora_otosumi', 'echo', 'raido_hikaru', 'ice_spike', 'kate', 'emiliko', 'kira']) {
+  for (const id of ['muimi', 'oberon_summer', 'sliver_bullet', 'sora_otosumi', 'raido_hikaru', 'ice_spike', 'kate', 'emiliko', 'kira']) {
     assert.equal(typeof CHAR_HOOKS[id].severables, 'function', id);
     assert.deepEqual(CHAR_HOOKS[id].severables(engine, P.B), [], `${id} กับ dummy`);
   }
@@ -131,30 +131,6 @@ test('โซระ: ร่าง My-Th ตัด → กลับร่างโ
   assert.equal(S.sora.myth, false);
   assert.equal(hook.canUseSkill(engine, S, 'basic'), false, 'แปลงร่างเทิร์นละ 1 ครั้ง');
   assert.equal(engine.sever.latest(engine, S), null);
-});
-
-test('Echo: ราชินีตัด → ขยายร่างคงอยู่ คูลดาวน์มหึมาเดินต่อ · พลังโจมตีของ Overwrite ตัดได้', () => {
-  const P = setup([['E', 'echo', 1, 5], ['B', 'dummy', 8, 5]]);
-  const E = P.E, hook = CHAR_HOOKS.echo;
-  assert.equal(engine.sever.latest(engine, E), null);
-  cast(E, 'basic');
-  assert.equal(E.statuses.echoQueen, hook.QUEEN_TURNS);
-  assert.equal(latestKey(E), 'echoQueen');
-  engine.sever.cut(engine, E);
-  assert.ok(!E.statuses.echoQueen);
-  assert.equal(E.echo.stacks, 1, 'ขยายร่างที่ได้แล้วอยู่ต่อ');
-  assert.equal(hook.canUseSkill(engine, E, 'basic'), false, 'มหึมายังติดคูลดาวน์');
-  hook.onRoundStartTick(engine, E);
-  assert.equal(E.echo.stacks, 1, 'ไม่ได้ขยายร่างต้นเทิร์นอีก');
-  E.echo.stacks = 4;
-  cast(E, 'secondary');
-  assert.equal(E.statusAmt.echoOverwrite, 2);
-  const bonus = hook.damageBonus(engine, E);
-  assert.equal(latestKey(E), 'echoOverwrite');
-  engine.sever.cut(engine, E);
-  assert.ok(!E.statuses.echoOverwrite);
-  assert.equal(hook.damageBonus(engine, E), bonus - 2);
-  assert.equal(engine.sever.latest(engine, E), null);
 });
 
 test('ไรโด: ร่าง UltraLive ตัด → คืนร่าง + ร่างนั้นคูลดาวน์ · กิงกะตัด → จบ + คูลดาวน์กิงกะ · ตัว 1×1', () => {
