@@ -12,11 +12,14 @@ const lazySummon = () => require("../summon");
 
 // ---------- ความยาก ----------
 const DIFF = {
-  easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0 },
-  normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0 },
-  hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2 },
+  easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50 },
+  normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50 },
+  hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
 };
 const diffOf = (ctx) => DIFF[ctx.match.eosDiff] || DIFF.normal;
+// เป้าแต้มรวมตามความยาก · จุดเหตุการณ์ที่ผูกกับแต้ม (ราชาปีศาจ/การ์ดทีม/คืนสุดท้าย) ขยายตามสัดส่วนเป้า (ตั้งไว้ที่เป้า 50 — Claude ตัดสิน)
+const goalOf = (ctx) => diffOf(ctx).goal || 50;
+const markAt = (ctx, n) => Math.round(n * goalOf(ctx) / 50);
 const heads = (ctx) => Object.values(ctx.match.players).filter((p) => !p.summon && !p.duoOf).length || 1;
 const crowd = (ctx) => Math.max(0.8, Math.min(1.8, 0.6 + 0.2 * heads(ctx)));
 function scaleStats(ctx, st) {
@@ -69,7 +72,7 @@ function warnBoss(ctx, s, H, turn) {
 // แต้มรวมถึงครึ่ง → เตือนบอสครั้งแรก (เรียกจาก scoreRound)
 function onScore(ctx, s, H) {
   const e = ev(s);
-  if (!e.bossFirst && s.score >= BOSS.at) { e.bossFirst = true; warnBoss(ctx, s, H, ctx.match.roundNumber + 1); }
+  if (!e.bossFirst && s.score >= markAt(ctx, BOSS.at)) { e.bossFirst = true; warnBoss(ctx, s, H, ctx.match.roundNumber + 1); }
 }
 function landBoss(ctx, s, H, turn) {
   const e = ev(s), w = e.bossWarn;
@@ -397,7 +400,7 @@ function publicOf(ctx, s, H) {
     blood: !!e.blood,
     boss: e.boss || null,
     bossWarn: e.bossWarn ? { x: e.bossWarn.x, y: e.bossWarn.y, at: e.bossWarn.at } : null,
-    bossAt: BOSS.at, bossFirst: !!e.bossFirst,
+    bossAt: markAt(ctx, BOSS.at), bossFirst: !!e.bossFirst,
     quests: e.quests.map((q) => ({ id: q.id, type: q.type, zone: q.zone, rect: q.rect, x: q.x, y: q.y, need: q.need, have: q.have, left: Math.max(0, q.until - ctx.match.roundNumber + 1), by: q.by })),
     convoy: conv && conv.alive && conv.pos ? { id: conv.id, x: conv.pos.x, y: conv.pos.y, hp: conv.hp, maxHp: CONVOY.hp, armor: conv.armor, maxArmor: CONVOY.armor, from: e.convoy.from, to: e.convoy.to, goal: e.convoy.goal, path: conv.summon.path } : null,
     spirits: Object.entries(e.deathAt).filter(([pid]) => s.dead[pid] != null).map(([id, at]) => ({ id, x: at.x, y: at.y, helped: !!e.helped[id] })),
@@ -405,7 +408,7 @@ function publicOf(ctx, s, H) {
 }
 
 module.exports = {
-  init, ev, DIFF, diffOf, crowd, scaleStats, scaleCount, dropBonus, bloodMul, BLOOD, BOSS, QUEST, CONVOY, WARD_MAX,
+  init, ev, DIFF, diffOf, goalOf, markAt, crowd, scaleStats, scaleCount, dropBonus, bloodMul, BLOOD, BOSS, QUEST, CONVOY, WARD_MAX,
   onScore, warnBoss, landBoss, bossAlive, onBossDeath, onNight, onDay, spawnQuest, tickQuests, questKill, questDone, scoutQuest,
   wardTarget, useWard, noteDeathAt, spiritsNear, help, helpedSpot, onRevived, spawnConvoy, moveConvoy, onConvoyDeath, convoyUnit, roadPath, roadIn,
   preRound, hud, action, publicOf,
