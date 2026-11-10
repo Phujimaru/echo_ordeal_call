@@ -30,6 +30,7 @@ const WHISTLE = {
   chance: 20, lowChance: 70, lastChance: 100, // %
   failCd: 1, successCd: 10, failDmg: 1,
   rootTurns: 1, slowTurns: 3, stunTurns: 1, burnTurns: 2,
+  groundTurns: 5, // พื้นน้ำแข็ง/ไฟ/เปียกของมนต์อยู่ 5 จบเทิร์นแล้วหาย (ผู้ใช้สั่ง 2026-11-10 — เดิมถาวรจนเปลี่ยนแผนที่)
   wetShare: 0.4, iceShare: 0.5, flameShare: 0.4, // สัดส่วนช่องโล่งของแผนที่ที่กลายเป็นพื้นของมนต์
 };
 // key = คีย์คลิปใน TRANSFORMS (characters/_transforms.js)
@@ -184,17 +185,17 @@ function castTsunami(p, foes, ctx) {
     ctx.events.push({ kind: "knock", id: u.id, from, to: { ...to }, wave: true });
     moved.push(u.name);
   }
-  const wet = Ice.layWet(plainTiles(WHISTLE.wetShare));
+  const wet = Ice.layWet(plainTiles(WHISTLE.wetShare), WHISTLE.groundTurns);
   if (wet.length) ctx.events.push({ kind: "wet", tiles: wet, by: p.id });
   match.lastLog.push(`🌊 Tsunami — คลื่นยักษ์ซัด${moved.length ? `รวบ ${moved.join(", ")} เข้ากลางสนาม` : "ทั่วสนาม"} · พื้นเปียก ${wet.length} ช่อง`);
 }
 
-// Diamond Dust: เชื่องช้า 3 เทิร์น + ธารน้ำแข็งถาวร (จนเปลี่ยนแผนที่)
+// Diamond Dust: เชื่องช้า 3 เทิร์น + ธารน้ำแข็ง 5 เทิร์น
 function castDust(p, foes, ctx) {
   const names = [];
   for (const u of foes) if (Ice.applySlow(u, WHISTLE.slowTurns)) { names.push(u.name); ctx.events.push({ kind: "slow", id: u.id }); }
   const laid = [];
-  for (const t of plainTiles(WHISTLE.iceShare)) if (Ice.layIce(t.x, t.y, p.id, { perm: true })) laid.push(t);
+  for (const t of plainTiles(WHISTLE.iceShare)) if (Ice.layIce(t.x, t.y, p.id, { turns: WHISTLE.groundTurns })) laid.push(t);
   if (laid.length) ctx.events.push({ kind: "lay", tiles: laid, by: p.id, divine: true });
   match.lastLog.push(`❄️ Diamond Dust — พายุน้ำแข็งปกคลุมสนาม ${laid.length} ช่อง${names.length ? ` · เชื่องช้า ${WHISTLE.slowTurns} เทิร์น: ${names.join(", ")}` : ""}`);
 }
@@ -203,7 +204,7 @@ function castDust(p, foes, ctx) {
 function castBolt(p, foes, ctx, seq) {
   const names = [];
   for (const u of foes) if (debuffFor(u, "stun", WHISTLE.stunTurns)) names.push(u.name);
-  const fire = Ice.layFlame(plainTiles(WHISTLE.flameShare), p.id);
+  const fire = Ice.layFlame(plainTiles(WHISTLE.flameShare), p.id, WHISTLE.groundTurns);
   engine.boardFx("divineFx", { seq, spell: "judgmentBolt", land: true, by: p.id, hits: foes.map((u) => u.id), tiles: fire });
   match.lastLog.push(`⚡ Judgment Bolt — สายฟ้าพิพากษาฟาดทั่วสนาม · พื้นไฟ ${fire.length} ช่อง${names.length ? ` · สตั้น ${WHISTLE.stunTurns} เทิร์น: ${names.join(", ")}` : ""}`);
 }

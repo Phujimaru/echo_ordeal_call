@@ -110,7 +110,7 @@ test('Tsunami: รวบศัตรูเข้ากลาง + พื้น�
   assert.ok(Object.keys(match.board.wet || {}).length > 20);
 });
 
-test('Diamond Dust: ศัตรูเชื่องช้า 3 เทิร์น · ธารน้ำแข็งถาวรไม่ละลาย', () => {
+test('Diamond Dust: ศัตรูเชื่องช้า 3 เทิร์น · ธารน้ำแข็งอยู่ 5 จบเทิร์นแล้วหาย', () => {
   match.gameMode = 'ffa';
   const p = mk(freeSpot({ x: 3, y: 3 }));
   const foe = mk(freeSpot({ x: 9, y: 9 }));
@@ -120,8 +120,10 @@ test('Diamond Dust: ศัตรูเชื่องช้า 3 เทิร์
   assert.ok(!p.statuses.slow);
   const n = Object.keys(match.board.ice).length;
   assert.ok(n > 20);
-  for (let i = 0; i < 10; i++) require('../server/ice.js').onEndTurn();
-  assert.equal(Object.keys(match.board.ice).length, n);
+  for (let i = 0; i < 4; i++) require('../server/ice.js').onEndTurn();
+  assert.equal(Object.keys(match.board.ice).length, n, 'ครบ 4 จบเทิร์นยังอยู่');
+  require('../server/ice.js').onEndTurn();
+  assert.equal(Object.keys(match.board.ice).length, 0, 'จบเทิร์นที่ 5 หาย');
 });
 
 test('Judgment Bolt: ศัตรูสตั้น · พื้นไฟ = ลุกไหม้ 2 ตอนจบตา (ผู้เป่าไม่โดน)', () => {
@@ -139,4 +141,6 @@ test('Judgment Bolt: ศัตรูสตั้น · พื้นไฟ = ล�
   assert.ok(Whistle.flameEnd(foe, { x, y }));
   assert.equal(foe.statuses.hburn > 0 || (foe.statusAmt.hburn || 0) > 0, true);
   assert.equal(Whistle.flameEnd(p, { x, y }), null);
+  for (let i = 0; i < 5; i++) require('../server/ice.js').onEndTurn();
+  assert.equal(Object.keys(match.board.flame || {}).length, 0, 'พื้นไฟหายหลัง 5 จบเทิร์น');
 });
