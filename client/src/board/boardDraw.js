@@ -24,7 +24,8 @@ import {
   frameToScreen, localFrame, withLocalFrame, PV, setCustomProjection, customProjection, setCullView, onScreen, groundMatrix,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
-import { drawGroundGL } from "./groundGL";
+import { drawGroundGL, groundGLHas, groundGLReady } from "./groundGL";
+import { MAPS as RULE_MAPS } from "./boardRules";
 import { eosFast, setEosFast } from "./fodlan/stage6";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
@@ -365,7 +366,7 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
     }
   } else if (info.heal.length) bakeHeal(g, info, { night, C, area: info.area });
   // ช่องพิเศษ
-  for (const sp of info.special) bakeSpecial(g, sp, { night, C, area: info.area });
+  for (const sp of info.special) if (!flat || isStaticSp(info, sp)) bakeSpecial(g, sp, { night, C, area: info.area }); // flat (ภาพพื้นผิว) = เฉพาะช่องพิเศษของผัง · ที่เกิดระหว่างเกมวาดสดทับ
   // จุดเกิด
   for (const { x, y } of info.spawns) {
     g.strokeStyle = C.spawn; g.lineWidth = 1.5;
@@ -399,12 +400,21 @@ function boardLight(g, info, view, night) {
 const GT_S = 128; // px ต่อช่องของภาพพื้น (32 ช่อง = 4096px · อบ ~30–170ms ครั้งเดียวต่อพื้น) — ใช้ทั้งตอนนิ่งและขยับ (WebGL) จึงต้องคมพอซูมใกล้
 // ภาพพื้นขึ้นกับ "พื้น" เท่านั้น (ช่องพิเศษ · จุดฟื้นฟู · จุดเกิด · กลางวัน/กลางคืน) — ไม่ใช่ตำแหน่งมอน/รถ/สิ่งกีดขวาง
 //  (เดิมผูกกับ info ซึ่งเปลี่ยนทุกเทิร์นเพราะมอน/รถอยู่ในชั้นแผนที่ → อบใหม่ ~100ms ทุกครั้งที่กล้องขยับครั้งแรกของเทิร์น)
-let GROUND_TEX = null; // { key, cv }
+// ช่องพิเศษของผังเอง (ไม่เปลี่ยนทั้งเกม) อบลงภาพ · ช่องที่เกิดระหว่างเกม (น้ำแข็ง พื้นไฟ ดอกไม้ ฯลฯ) วาดสดทับ
+//  ผู้ใช้แจ้ง 2026-11-10 กระตุก: เดิมทุกช่องพิเศษใหม่ = อบภาพพื้นทั้งแผ่นใหม่ (30–170ms) · ตอนนี้ภาพขึ้นกับ ผัง + กลางวัน/กลางคืน เท่านั้น
+const STATIC_SP = new Map();
+function isStaticSp(info, sp) {
+  let set = STATIC_SP.get(info.area);
+  if (!set) { const m = RULE_MAPS[info.area]; const sp0 = (m && m.special) || {}; set = new Set(Array.isArray(sp0) ? sp0.map((t) => `${t.x},${t.y},${t.kind}`) : Object.entries(sp0).map(([k, kind]) => `${k},${kind}`)); STATIC_SP.set(info.area, set); }
+  return sp.kind !== "fd_eos_chocobo" && set.has(`${sp.x},${sp.y},${sp.kind}`); // โชโกโบะเดินไปมา = วาดสด
+}
+// ภาพพื้นแยกตามกลางวัน/กลางคืน — อบไว้ทั้งสองตั้งแต่เริ่มเกม (prewarmGround · เพื่อนผู้ใช้โอเคกับโหลดทีเดียวตอนเริ่ม) · WebGL = อัปขึ้นการ์ดจอแล้วคืนหน่วยความจำแคนวาส
+const GROUND_TEX = new Map(); // key → cv (เฉพาะตอนไม่มี WebGL / ยังไม่อัป)
 function groundKey(info, night) {
   if (info.__gk == null) {
     let h = 0;
     const add = (str) => { for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; };
-    for (const sp of info.special) if (sp.kind !== "fd_eos_chocobo") add(`${sp.x},${sp.y},${sp.kind},${sp.flow || ""};`); // โชโกโบะเดินไปมา (ไม่ใช่พื้น)
+    for (const sp of info.special) if (isStaticSp(info, sp)) add(`${sp.x},${sp.y},${sp.kind},${sp.flow || ""};`);
     for (const t of info.heal || []) add(`h${t.x},${t.y};`);
     for (const t of info.spawns || []) add(`s${t.x},${t.y};`);
     info.__gk = `${info.area}|${info.cols}x${info.rows}|${h}`;
@@ -413,9 +423,10 @@ function groundKey(info, night) {
 }
 function groundTexture(info, night) {
   const key = groundKey(info, night);
-  if (GROUND_TEX && GROUND_TEX.key === key) return GROUND_TEX.cv;
+  const had = GROUND_TEX.get(key);
+  if (had) return had;
   const W = info.cols * GT_S, H = info.rows * GT_S;
-  const cv = GROUND_TEX && GROUND_TEX.cv ? GROUND_TEX.cv : document.createElement("canvas");
+  const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const g = cv.getContext("2d");
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
@@ -426,15 +437,39 @@ function groundTexture(info, night) {
   setEosFast(false);
   try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true, true); }
   finally { setCustomProjection(prev); setEosFast(fast); }
-  GROUND_TEX = { key, cv };
+  for (const k of GROUND_TEX.keys()) if (!k.startsWith(info.__gk)) GROUND_TEX.delete(k); // ผังอื่น/พื้นเปลี่ยน = ทิ้ง
+  GROUND_TEX.set(key, cv);
   return cv;
+}
+// อบภาพพื้นกลางวัน + กลางคืนล่วงหน้า (เรียกครั้งเดียวตอนเริ่มเกมในสนาม Eos) — สะดุดทีเดียวตอนเริ่ม แล้วไม่ต้องอบระหว่างเล่น
+export function prewarmGround(info) {
+  if (!info || typeof document === "undefined") return;
+  const gl = groundGLReady();
+  for (const night of [false, true]) {
+    const key = groundKey(info, night);
+    if (gl && groundGLHas(key)) continue;
+    const cv = groundTexture(info, night);
+    if (gl && drawGroundGL(null, cv, key, null, info.cols, info.rows, true)) { GROUND_TEX.delete(key); cv.width = 1; cv.height = 1; }
+  }
 }
 // บิดภาพพื้นลงกระดานที่มุมกล้องปัจจุบัน (g อยู่ในพิกัดตรรกะแล้ว — L()) · N×N ชิ้น × 2 สามเหลี่ยม · ข้ามชิ้นที่อยู่นอกจอ/หลังกล้อง
 function drawGroundWarp(g, info, view, night, cullView = view) {
-  const tex = groundTexture(info, night);
+  const gkey = groundKey(info, night), onGpu = groundGLReady() && groundGLHas(gkey);
+  const tex = onGpu ? null : groundTexture(info, night);
   // WebGL: ทั้งแผ่นในครั้งเดียว ไม่มีรอยต่อ (ผู้ใช้แจ้ง 2026-11-10 กระพริบ) — ใช้ไม่ได้ค่อยตัดเป็นสามเหลี่ยมแบบเดิม
-  const T = themeOf(info.area), up = () => { if (!T.upright) return; setCullView(cullView); try { T.upright({ g, C: T.pal[night ? "night" : "day"], night, info }); } finally { setCullView(null); } };
-  if (drawGroundGL(g, tex, groundKey(info, night), groundMatrix(), info.cols, info.rows)) { up(); boardLight(g, info, view, night); return; }
+  const T = themeOf(info.area), up = () => {
+    const C = T.pal[night ? "night" : "day"];
+    setCullView(cullView);
+    try {
+      for (const sp of info.special) if (!isStaticSp(info, sp) && onScreen(sp.x + 0.5, sp.y + 0.5, 0.5)) bakeSpecial(g, sp, { night, C, area: info.area }); // ช่องพิเศษที่เกิดระหว่างเกม
+      if (T.upright) T.upright({ g, C, night, info });
+    } finally { setCullView(null); }
+  };
+  if (drawGroundGL(g, tex, gkey, groundMatrix(), info.cols, info.rows)) {
+    if (tex && GROUND_TEX.get(gkey) === tex) { GROUND_TEX.delete(gkey); tex.width = 1; tex.height = 1; } // อัปขึ้นการ์ดจอแล้ว = คืนหน่วยความจำ
+    up(); boardLight(g, info, view, night); return;
+  }
+  if (!tex) return;
   const cols = info.cols, rows = info.rows, N = 16, sx = cols / N, sy = rows / N;
   const pts = [];
   for (let j = 0; j <= N; j++) { const row = []; for (let i = 0; i <= N; i++) { const q = P(i * sx, j * sy, 0); row.push(q); } pts.push(row); }

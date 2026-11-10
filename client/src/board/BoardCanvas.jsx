@@ -85,7 +85,7 @@
 // ============================================================
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
+  bakeBoard, bakeScene, prewarmGround, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareDarkWave, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
   setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom, clampCamRts, rtsZoomRange, rtsZoomOf,
 } from "./boardDraw";
@@ -629,6 +629,8 @@ export default function BoardCanvas(props) {
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (warpAll) {
+        // เริ่มเกม: อบภาพพื้นกลางวัน + กลางคืนทีเดียว (ผู้ใช้ 2026-11-10 "โหลดตอนเริ่มเกมทีเดียว กระตุกทีเดียวเสร็จเลย")
+        if (st.warmed !== info.area) { st.warmed = info.area; prewarmGround(info); }
         // ฉากรอบนอก (ฟ้า/ป่ารอบกระดาน/ใบไม้หน้ากล้อง) วาดสดเฉพาะเฟรมที่มุมกล้องเปลี่ยน (~1.5ms) · นิ่ง = ใช้ภาพเดิม
         const lk = `${info.area}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}|${vcK}`;
         if (st.liveK !== lk || !st.liveSc) { st.liveSc = bakeScene(info, view, dpr, night, lowQ, st.turn, true); st.liveK = lk; }
