@@ -124,7 +124,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 
 | ฮุค | จังหวะ |
 |---|---|
-| `resetCombat(p)` | `combat.resetCombat()` ทุกแมตช์ — ล้างฟิลด์เฉพาะตัว (+ ค่าเริ่มใน `newPlayerRecord` ของ `server/socket.js`) |
+| `resetCombat(p)` | `combat.resetCombat()` ทุกแมตช์ — ล้างฟิลด์เฉพาะตัว (+ ค่าเริ่มใน `newPlayerRecord` ของ `server/socket.js`) · **ตายแล้วฟื้น (สนาม Eos) เรียกซ้ำผ่าน `combat.respawnReset`** — ของ/ร่างที่ใช้ได้ครั้งเดียวต่อเกมต้องอยู่ในสถานะที่ฮุคนี้สร้างใหม่ (ห้ามเก็บนอกฮุค) · ห้ามแจกเหรียญ/ของซ้ำโดยไม่เช็ค (respawnReset คืนเหรียญเดิม · ของชนิดที่ยังมีอยู่ไม่แจกซ้ำ) |
 | `onRoundStartTick(engine, p)` | ลูปต่อผู้เล่นของ `dealRound()` — ลงผลกับ `p` เท่านั้น (GAME_SYSTEM §7 กล่องเตือน) · `p` ตาย = ข้ามผลต้นเทิร์นที่เหลือ |
 | `onEndTurn(engine)` | `endTurn()` หลังลูปลดเทิร์นสถานะ (สตั้นที่ใส่ตรงนี้เต็มเทิร์นถัดไป) |
 | `onDeath(engine, p)` | `combat.instantDeath()` — มีคนตกรอบ (`p` = คนที่ตาย · `pos` ยังไม่ถูกล้าง) |

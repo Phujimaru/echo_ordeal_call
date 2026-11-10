@@ -30,7 +30,7 @@ const scaleCount = (ctx, n, extra = 1) => Math.max(1, Math.round(n * diffOf(ctx)
 const dropBonus = (ctx) => diffOf(ctx).drop;
 
 // ---------- สถานะ ----------
-const BOSS = { hp: 30, armor: 4, atk: 4, mov: 3, gold: 8, score: 5, at: 25, roarEvery: 2, pillarHits: 2 };
+const BOSS = { hp: 30, armor: 4, atk: 4, mov: 4, gold: 8, score: 5, at: 25, roarEvery: 2, pillarHits: 2 };
 const QUEST = { from: 3, max: 2, turns: 4, hunt: 3, score: 3, gold: 3, gap: 2 };
 const CONVOY = { from: 4, every: 6, hp: 12, armor: 2, step: 4, score: 6, gold: 4 };
 const BLOOD = { from: 2, pct: 35, count: 1.5 };
@@ -400,6 +400,7 @@ function publicOf(ctx, s, H) {
     blood: !!e.blood,
     boss: e.boss || null,
     bossWarn: e.bossWarn ? { x: e.bossWarn.x, y: e.bossWarn.y, at: e.bossWarn.at } : null,
+    bossQuake: e.quake ? { x: e.quake.x, y: e.quake.y, tiles: e.quake.tiles.map((t) => ({ ...t })) } : null, // แผ่นดินแยกที่เตือนไว้ (stage6 bossAct)
     bossAt: markAt(ctx, BOSS.at), bossFirst: !!e.bossFirst,
     quests: e.quests.map((q) => ({ id: q.id, type: q.type, zone: q.zone, rect: q.rect, x: q.x, y: q.y, need: q.need, have: q.have, left: Math.max(0, q.until - ctx.match.roundNumber + 1), by: q.by })),
     convoy: conv && conv.alive && conv.pos ? { id: conv.id, x: conv.pos.x, y: conv.pos.y, hp: conv.hp, maxHp: CONVOY.hp, armor: conv.armor, maxArmor: CONVOY.armor, from: e.convoy.from, to: e.convoy.to, goal: e.convoy.goal, path: conv.summon.path } : null,

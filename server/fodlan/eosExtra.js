@@ -65,16 +65,16 @@ const held = (s, zone) => s.pillars.some((pl) => pl.zone === zone && pl.owner);
 function powersOf(s) { return Object.keys(POWERS).filter((z) => held(s, z)); }
 function powerRound(ctx, s, H) {
   let secs = 0;
-  if (held(s, "insomnia")) {
+  { // ป้อมปืนของเสาที่ยึดไว้ยิงเอง (เดิมเฉพาะ Insomnia · 2026-11-11 ทุกโซนมีป้อมประจำเสา)
     const shots = [], used = new Set();
-    for (const t of H.TURRETS.filter((o) => !H.turretUp || H.turretUp(ctx, o))) { // ป้อมที่พังไม่ยิง
+    for (const t of H.TURRETS.filter((o) => held(s, H.turretZone(o)) && (!H.turretUp || H.turretUp(ctx, o)))) { // ป้อมที่พังไม่ยิง
       const m = H.mobsOf(ctx).filter((u) => !used.has(u.id) && H.manhattan(u.pos, t) <= POWER.turretRange).sort((a, b) => H.manhattan(a.pos, t) - H.manhattan(b.pos, t))[0];
       if (!m) continue;
       used.add(m.id);
       const to = { ...m.pos }, dealt = H.hurt(ctx, m, POWER.turretDmg);
       shots.push({ from: { x: t.x, y: t.y }, to, target: m.id, dmg: dealt });
     }
-    if (shots.length) { ctx.fx("power_turret", { shots }); ctx.log(`🔫 ป้อมปืน Insomnia ยิงอัตโนมัติ ${shots.length} นัด`); secs = Math.max(secs, 1.2); }
+    if (shots.length) { ctx.fx("power_turret", { shots }); ctx.log(`🔫 ป้อมปืนประจำเสายิงอัตโนมัติ ${shots.length} นัด`); secs = Math.max(secs, 1.2); }
   }
   if (held(s, "altissia")) {
     const pl = s.pillars.find((o) => o.zone === "altissia"), list = [];

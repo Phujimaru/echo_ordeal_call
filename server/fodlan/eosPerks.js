@@ -23,7 +23,9 @@ const CHALLENGES = [
   { key: "fast", icon: "⏱️", name: "ชนะภายใน 30 เทิร์น", turns: 30 },
   { key: "noDown", icon: "❤️", name: "ไม่มีใครล้ม" },
 ];
-const WALL = { turns: 3, max: 2 };
+// กำแพงไม้ (ผู้ใช้สั่ง 2026-11-11 "ไม้กั้นควรอยู่ป้องกันได้ ไม่ใช่อยู่แค่ 3 เทิร์น ควรถาวรและถูกพังได้"): อยู่ถาวรจนโดนทุบพัง
+//  ทน hp ครั้ง (หุ่นเกราะ/ราชาปีศาจทุบ 2) · ผู้เล่นยืนติดกด "ซ่อม" ได้ (stage6 fixWall) · รื้อเองได้ (ไม่ใช้การโจมตี)
+const WALL = { hp: 3, max: 2 };
 const GOLD = { from: 3, pct: 22, hp: 3, gold: 12, stay: 2, run: 4 };
 // อากาศ → มอน: ฝนฟ้าคะนอง = ทหารเหล็กลัดวงจร ตี −1 · หมอก = ปีศาจล่าในหมอก เดิน +1 · พายุทราย = ทหารเหล็กในทะเลทรายมองไม่เห็น ขยับเมื่อมีคนใกล้ ≤ 3
 const WEATHER_MOB = { stormMagitekAtk: -1, fogDaemonMov: 1, sandSight: 3 };
@@ -127,19 +129,28 @@ function placeWall(ctx, s, H, p, tile) {
   if (!wallTiles(ctx, s, H, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
   k.charges[p.id] -= 1;
   k.wallUsed[key] = true;
-  k.walls.push({ id: `fd:wall${++k.seq}`, x: tile.x, y: tile.y, until: ctx.match.roundNumber + WALL.turns });
+  k.walls.push({ id: `fd:wall${++k.seq}`, x: tile.x, y: tile.y, hp: WALL.hp, by: p.id });
   ctx.bump();
   ctx.fx("wall_up", { x: tile.x, y: tile.y, by: p.id });
-  ctx.log(`🧱 ${p.name} ตั้งกำแพงขวางทาง (${WALL.turns} เทิร์น)`);
+  ctx.log(`🧱 ${p.name} ตั้งกำแพงไม้ขวางทาง`);
   return true;
 }
 function tickWalls(ctx, s) {
-  const k = PK(s), turn = ctx.match.roundNumber + 1, gone = k.walls.filter((w) => turn > w.until);
-  if (!gone.length) return;
-  k.walls = k.walls.filter((w) => turn <= w.until);
-  for (const w of gone) ctx.fx("wall_down", { x: w.x, y: w.y });
+  const k = PK(s), turn = ctx.match.roundNumber + 1;
   for (const key of Object.keys(k.wallUsed)) if (Number(key.split("|")[1]) < turn - 1) delete k.wallUsed[key];
+}
+// รื้อกำแพงไม้ที่ติดตัว (ทางตันของตัวเอง) — ไม่ใช้การโจมตี · ไม่คืนจำนวน
+function razeTiles(ctx, s, H, p) {
+  return PK(s).walls.filter((w) => H.footOf(ctx, p).some((t) => Math.abs(t.x - w.x) + Math.abs(t.y - w.y) === 1)).map((w) => ({ x: w.x, y: w.y }));
+}
+function razeWall(ctx, s, H, p, tile) {
+  if (!tile || !ctx.action.canAct(p) || !razeTiles(ctx, s, H, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
+  const k = PK(s);
+  k.walls = k.walls.filter((w) => !(w.x === tile.x && w.y === tile.y));
   ctx.bump();
+  ctx.fx("wall_down", { x: tile.x, y: tile.y });
+  ctx.log(`🧱 ${p.name} รื้อกำแพงไม้`);
+  return true;
 }
 
 // ---------- โชโกโบะทอง ----------
@@ -222,12 +233,15 @@ function hud(ctx, s, H, p, out) {
     const used = !!k.wallUsed[`${p.id}|${ctx.match.roundNumber}`];
     const tiles = ctx.action.canAct(p) && !used ? wallTiles(ctx, s, H, p) : [];
     out.push({ key: "fd:wall", icon: "🧱", name: "กำแพง", count: k.charges[p.id], disabled: !tiles.length, tiles,
-      desc: `ตั้งกำแพงไม้ขวางทางช่องข้างตัว ${WALL.turns} เทิร์น — มอนเดินผ่านไม่ได้ (ไม่ใช้การโจมตี · ตาละครั้ง)` });
+      desc: `ตั้งกำแพงไม้ขวางทางช่องข้างตัว อยู่ถาวรจนพัง (ทน ${WALL.hp} ครั้ง · ซ่อมได้) — มอนเดินผ่านไม่ได้ (ไม่ใช้การโจมตี · ตาละครั้ง)` });
   }
+  const rz = ctx.action.canAct(p) ? razeTiles(ctx, s, H, p) : [];
+  if (rz.length) out.push({ key: "fd:raze", icon: "🪓", name: "รื้อ", tiles: rz, desc: "รื้อกำแพงไม้ที่ติดตัวออก (ไม่ใช้การโจมตี)" });
 }
 function action(ctx, s, H, p, key, tile) {
   if (typeof key === "string" && key.startsWith("fd:perk:")) return vote(ctx, s, p, key.slice(8));
   if (key === "fd:wall") return placeWall(ctx, s, H, p, tile);
+  if (key === "fd:raze") return razeWall(ctx, s, H, p, tile);
   return null;
 }
 function publicOf(ctx, s) {
@@ -237,7 +251,7 @@ function publicOf(ctx, s) {
     perkOffer: k.offer ? { id: k.offer.id, mark: k.offer.mark, choices: k.offer.choices.map((id) => ({ id, ...PERKS[id] })), votes: { ...k.offer.votes } } : null,
     perkAt: PERK_AT.map((n) => require("./eosEvents").markAt(ctx, n)),
     challenges: challengesOf(ctx, s),
-    walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, left: Math.max(0, w.until - ctx.match.roundNumber + 1) })),
+    walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, hp: w.hp ?? WALL.hp, max: WALL.hp })),
     wallCharges: { ...k.charges },
   };
 }

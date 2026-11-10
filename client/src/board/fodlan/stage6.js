@@ -43,7 +43,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -2088,6 +2088,124 @@ const FISH4 = p4List("fd_eos_fish").map((t) => {
 // สุสาน: ประตูหันเข้ากลางแผนที่
 const TOMBS4 = p4List("fd_eos_tomb").map((t) => { const dx = 15.5 - t.x, dy = 15.5 - t.y; return { ...t, f: Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy) || 1] }; });
 const tombAt = (x, y) => TOMBS4.find((t) => t.x === x && t.y === y) || { x, y, f: [0, 1] };
+// ---------- รถราง (ผู้ใช้สั่ง 2026-11-11 — server/fodlan/map6.js TRAMS · ลำดับวงรอบต้องตรงกัน) ----------
+//  รางวิ่งตามถนนระหว่างป้ายที่ติดกัน (Dijkstra: ถนน/ลาน 1 · ทราย/หญ้า 2 · น้ำตื้น/สะพาน 3 · ป่า 4 · สิ่งกีดขวาง/น้ำลึก ไม่ได้) · เกลาโค้ง Chaikin
+const TRAM_ORDER = ["insomnia", "duscae", "hammerhead", "altissia", "lake"];
+const TRAM_STOPS = (() => {
+  const at = p4List("fd_eos_tram"), want = { insomnia: [17, 4], duscae: [27, 15], hammerhead: [25, 27], altissia: [4, 24], lake: [12, 19] };
+  return TRAM_ORDER.map((z) => { const [x, y] = want[z]; return at.find((t) => t.x === x && t.y === y) ? { zone: z, x, y } : null; }).filter(Boolean);
+})();
+function tramRoute(a, b) {
+  const m = MAPS[EOS_AREA];
+  if (!m) return [[a.x + 0.5, a.y + 0.5], [b.x + 0.5, b.y + 0.5]];
+  const cost = (x, y) => {
+    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return 0;
+    const k = K(x, y), sp = m.special[k];
+    if (m.terrain[k]) return 0;
+    if (sp === "fd_eos_road" || sp === "fd_eos_plaza" || sp === "fd_eos_tram" || sp === "fd_eos_station") return 1;
+    if (sp === "fd_eos_forest") return 4;
+    if (sp === "fd_eos_shallow" || sp === "fd_eos_bridge") return 3;
+    return 2;
+  };
+  const start = K(a.x, a.y), goal = K(b.x, b.y), dist = new Map([[start, 0]]), prev = new Map(), open = [[0, a.x, a.y]];
+  while (open.length) {
+    open.sort((p, q) => p[0] - q[0]);
+    const [d, x, y] = open.shift(), k = K(x, y);
+    if (k === goal) break;
+    if (d > dist.get(k)) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const c = cost(x + dx, y + dy);
+      if (!c) continue;
+      const nk = K(x + dx, y + dy), nd = d + c;
+      if (dist.has(nk) && dist.get(nk) <= nd) continue;
+      dist.set(nk, nd); prev.set(nk, k); open.push([nd, x + dx, y + dy]);
+    }
+  }
+  const tiles = [];
+  for (let k = goal; k; k = prev.get(k)) { tiles.push(k.split(",").map(Number)); if (k === start) break; }
+  tiles.reverse();
+  let pts = (tiles.length > 1 ? tiles : [[a.x, a.y], [b.x, b.y]]).map(([x, y]) => [x + 0.5, y + 0.5]);
+  for (let it = 0; it < 3; it++) { // Chaikin
+    const o = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) { const [p, q] = [pts[i], pts[i + 1]]; o.push([p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]); }
+    o.push(pts[pts.length - 1]); pts = o;
+  }
+  return pts;
+}
+const TRAM_SEGS = TRAM_STOPS.map((a, i) => tramRoute(a, TRAM_STOPS[(i + 1) % TRAM_STOPS.length]));
+const TRAM_PATHS = new Map();
+// เส้นทางรถรางจากป้าย A ไป B (ทางวงรอบที่สั้นกว่า)
+function tramPath(za, zb) {
+  const key = `${za}>${zb}`;
+  if (TRAM_PATHS.has(key)) return TRAM_PATHS.get(key);
+  const n = TRAM_STOPS.length, ia = TRAM_STOPS.findIndex((t) => t.zone === za), ib = TRAM_STOPS.findIndex((t) => t.zone === zb);
+  if (ia < 0 || ib < 0) return null;
+  const fw = (ib - ia + n) % n, bw = (ia - ib + n) % n;
+  let pts = [];
+  if (fw <= bw) for (let i = 0; i < fw; i++) pts = pts.concat(TRAM_SEGS[(ia + i) % n].slice(i ? 1 : 0));
+  else for (let i = 0; i < bw; i++) pts = pts.concat(TRAM_SEGS[(ia - 1 - i + n) % n].slice().reverse().slice(i ? 1 : 0));
+  const len = [0];
+  for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const out = { pts, len };
+  TRAM_PATHS.set(key, out);
+  return out;
+}
+// อบลงพื้น: หมอนไม้ + รางเหล็กคู่ตามเส้นทาง · ลานป้าย
+function bakeTram(g, C, night) {
+  for (const pts of TRAM_SEGS) {
+    const nrm = (i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [-(b[1] - a[1]) / L, (b[0] - a[0]) / L]; };
+    // หมอน
+    g.beginPath();
+    let acc = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const seg = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      acc += seg;
+      if (acc < 0.3) continue;
+      acc = 0;
+      const [nx, ny] = nrm(i), [x, y] = pts[i], dx = -ny * 0.05, dy = nx * 0.05;
+      const q = [[x + nx * 0.17 - dx, y + ny * 0.17 - dy], [x + nx * 0.17 + dx, y + ny * 0.17 + dy], [x - nx * 0.17 + dx, y - ny * 0.17 + dy], [x - nx * 0.17 - dx, y - ny * 0.17 - dy]].map(([u, v]) => P(u, v, 0.012));
+      g.moveTo(q[0][0], q[0][1]); for (let j = 1; j < 4; j++) g.lineTo(q[j][0], q[j][1]); g.closePath();
+    }
+    g.fillStyle = hexA(C.sleeper, 0.85); g.fill();
+    // ราง 2 เส้น
+    for (const off of [-0.1, 0.1]) {
+      g.beginPath();
+      pts.forEach((p, i) => { const [nx, ny] = nrm(i), q = P(p[0] + nx * off, p[1] + ny * off, 0.02); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+      const w = P(pts[0][0], pts[0][1], 0)[2];
+      g.strokeStyle = C.rail; g.lineWidth = Math.max(1.2, w * 0.035); g.stroke();
+      g.strokeStyle = hexA(C.railHi, night ? 0.5 : 0.7); g.lineWidth = Math.max(0.6, w * 0.014); g.stroke();
+    }
+  }
+  for (const t of TRAM_STOPS) {
+    box(g, t.x + 0.06, t.y + 0.06, t.x + 0.94, t.y + 0.94, 0.07, C.platform, C.platform2, C.platform);
+    poly(g, [[t.x + 0.1, t.y + 0.1, 0.072], [t.x + 0.9, t.y + 0.1, 0.072], [t.x + 0.9, t.y + 0.15, 0.072], [t.x + 0.1, t.y + 0.15, 0.072]]); g.fillStyle = night ? "#7d6a24" : "#e2c13a"; g.fill();
+    poly(g, [[t.x + 0.1, t.y + 0.85, 0.072], [t.x + 0.9, t.y + 0.85, 0.072], [t.x + 0.9, t.y + 0.9, 0.072], [t.x + 0.1, t.y + 0.9, 0.072]]); g.fill();
+  }
+}
+// ป้ายรถราง: เสา + แผ่นป้ายเขียว + ไอคอน (เรืองตอนกลางคืน)
+function drawTramStop(g, t, night, now) {
+  const px = t.x + 0.78, py = t.y + 0.22, b = P(px, py, 0.07), top = P(px, py, 1.05);
+  g.strokeStyle = night ? "#2b3036" : "#5d666f"; g.lineWidth = Math.max(2, b[2] * 0.045); g.lineCap = "round";
+  g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(top[0], top[1]); g.stroke(); g.lineCap = "butt";
+  const s = top[2], w = s * 0.34, h = s * 0.26;
+  g.fillStyle = night ? "#1d6b52" : "#22a378"; g.beginPath(); g.roundRect(top[0] - w / 2, top[1] - h, w, h, h * 0.25); g.fill();
+  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = Math.max(1, s * 0.012); g.stroke();
+  emoji(g, "🚋", top[0], top[1] - h / 2, h * 0.7);
+  if (night) glowAt(g, top[0], top[1] - h / 2, s * 0.35, "120,255,200", 0.35 + 0.1 * Math.sin(now / 500 + t.x));
+}
+// ตัวรถราง (ยาว ~1.1 ช่อง) วิ่งตามเส้นทาง · หน้าต่างเป็นสีผู้โดยสาร
+function drawTram(g, x, y, ang, night, now, pass) {
+  rbox(g, x, y, ang, 0.55, 0.2, 0.04, 0.5, night ? "#5c8a78" : "#8fd1b6", night ? "#2f4d42" : "#3f7d68", night ? "#24392f" : "#2f5e4e");
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  for (const u of [-0.32, -0.1, 0.12, 0.34]) {
+    const w = P(x + ca * u, y + sa * u, 0.38);
+    g.fillStyle = pass || (night ? "#ffe9a8" : "#d8f3ff"); g.beginPath(); g.arc(w[0], w[1], Math.max(1.5, w[2] * 0.045), 0, TAU); g.fill();
+    if (night) glowAt(g, w[0], w[1], w[2] * 0.15, "255,230,160", 0.5);
+  }
+  const pole = P(x, y, 0.5), wire = P(x + ca * 0.2, y + sa * 0.2, 0.85);
+  g.strokeStyle = "#2a2d31"; g.lineWidth = Math.max(1, pole[2] * 0.02); g.beginPath(); g.moveTo(pole[0], pole[1]); g.lineTo(wire[0], wire[1]); g.stroke();
+  if (Math.sin(now / 90) > 0.6) glowAt(g, wire[0], wire[1], wire[2] * 0.12, "180,220,255", 0.9);
+}
 // ทางข้ามถนนบนราง (ถนนแนวเหนือ-ใต้ตัดราง) + เสาสัญญาณมุมทแยงของแต่ละทาง
 const CROSSINGS = (() => {
   const out = [];
@@ -2177,6 +2295,7 @@ function bakePier(g, cx, cy, d, len, w, C) {
 }
 function bakeP4(g, C, night) {
   bakeRail(g, C);
+  bakeTram(g, C, night);
   // ชานชาลา: พื้นคอนกรีตยกต่ำ + เส้นเหลืองริมราง + แนวแผ่นปู
   for (const t of STATIONS4) {
     box(g, t.x - 0.08, t.y + 0.06, t.x + 1.08, t.y + 0.98, 0.09, C.platform, C.platform2, C.platform);
@@ -2642,6 +2761,13 @@ function p4Items(list, g, fd, units, now, lowQ, night) {
   };
   for (const t of STATIONS4) push(depthOf(t.x + 0.5, t.y + 0.5 - t.rd * 0.3), () => drawStation(g, t, night, now, warn), K(t.x, t.y));
   for (const s of SIGNALS) push(depthOf(s.x, s.y), () => drawSignal(g, s.x, s.y, night, now, warn));
+  for (const t of TRAM_STOPS) push(depthOf(t.x + 0.78, t.y + 0.22), () => drawTramStop(g, t, night, now), K(t.x, t.y));
+  for (const e of activeOf(fd, now, "tram")) { // รถรางที่กำลังวิ่ง (ผู้โดยสาร = สีผู้เล่น)
+    const pp = tramPath(e.a, e.b);
+    if (!pp || pp.pts.length < 2) continue;
+    const k = ease(Math.min(1, fxT(e, now, fx.tram) * 1.05)), at = alongPath(pp, k), u = unitOf(units, e.id);
+    push(depthOf(at.x, at.y), () => drawTram(g, at.x, at.y, at.ang, night, now, u ? u.color : null));
+  }
   for (const t of TUNNELS4) {
     const [fx, fy] = t.f, front = faceVisible(fx, fy, t.x + 0.5 - fx * 0.14, t.y + 0.5 - fy * 0.14);
     push(front ? depthOf(t.x + 0.5, t.y + 0.5) - 0.02 : depthOf(t.x + 0.5 - fx * 0.6, t.y + 0.5 - fy * 0.6), () => drawTunnel(g, t, night), front ? null : K(t.x, t.y));
@@ -3213,6 +3339,10 @@ function playFx(e) {
     case "boss_warn": sfx("dropship_alarm", { gain: 0.7, dur: 2.4 }); sfx("daemon_growl", { delay: 0.4 }); break;
     case "boss_land": sfx("beast_roar"); sfx("barrel_explode", { delay: 0.2, gain: 0.8 }); break;
     case "boss_roar": sfx("beast_roar", { gain: 0.8 }); sfx("daemon_spawn", { delay: 0.4, gain: 0.7 }); break;
+    case "boss_quake_warn": sfx("beast_step", { gain: 0.9 }); sfx("dome_off", { delay: 0.2, gain: 0.5 }); break;
+    case "boss_quake": sfx("beast_step"); sfx("barrel_explode", { delay: 0.1, gain: 0.9 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
+    case "boss_enrage": sfx("beast_roar"); sfx("beast_roar", { delay: 0.5, gain: 0.7 }); break;
+    case "tram": sfx("train_horn", { gain: 0.45, dur: 1.2 }); sfx("chocobo_run", { delay: 0.3, gain: 0.35, dur: 1.8 }); break;
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
     case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
     case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
@@ -3324,7 +3454,7 @@ function drawBarricade(g, x, y, C, now) {
     g.fillStyle = "#d9c4a0"; g.beginPath(); g.moveTo(t0[0] - s * 0.04, t0[1] + 2); g.lineTo(t0[0], t0[1] - s * 0.08); g.lineTo(t0[0] + s * 0.04, t0[1] + 2); g.fill();
   }
   g.lineCap = "butt";
-  if (w && w.left != null) { const top = P(x + 0.5, y + 0.5, 0.95); emoji(g, ["", "①", "②", "③"][Math.min(3, w.left)] || "", top[0], top[1], Math.max(12, s * 0.22)); }
+  if (w && w.hp != null && w.hp < (w.max || 3)) hpPips(g, x + 0.5, y + 0.5, 0.95, w.hp, w.max || 3, 0, 0, "ally"); // ถาวร: หลอดเลือดเมื่อบุบ
   void C;
 }
 // โชโกโบะทอง: ภาพโชโกโบะ + ออร่าทอง + ประกายวิ่ง · ฝุ่นตอนวิ่ง
@@ -3810,6 +3940,16 @@ function pveGround(g, fd, now, lowQ) {
     g.restore();
   }
   if (sk.supply) { const [x, y, s] = P(sk.supply.x + 0.5, sk.supply.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 300); gEllipse(g, sk.supply.x + 0.5, sk.supply.y + 0.5, 1.6, 0.02, 30); g.strokeStyle = `rgba(255,210,110,${0.5 + 0.4 * k})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, x, y, s * 1.2, "255,210,110", 0.25 + 0.15 * k); }
+  const qk = fd.bossQuake; // แผ่นดินแยกที่ราชาปีศาจเตือนไว้: ช่องแดงกะพริบ (ระเบิดต้นเทิร์นหน้า)
+  if (qk) {
+    const k = 0.5 + 0.5 * Math.sin(now / 130);
+    for (const t of qk.tiles || []) {
+      const c = [P(t.x + 0.06, t.y + 0.06, 0.02), P(t.x + 0.94, t.y + 0.06, 0.02), P(t.x + 0.94, t.y + 0.94, 0.02), P(t.x + 0.06, t.y + 0.94, 0.02)];
+      g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath();
+      g.fillStyle = `rgba(255,40,30,${0.16 + 0.14 * k})`; g.fill();
+      g.strokeStyle = `rgba(255,90,60,${0.55 + 0.35 * k})`; g.lineWidth = 2; g.stroke();
+    }
+  }
   const w = fd.bossWarn;
   if (w) {
     const [x, y, s] = P(w.x + 0.5, w.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 160);
@@ -3874,6 +4014,22 @@ function pve2Fx(g, e, p, lowQ, units) {
     glowAt(g, x, y, s * (1 + p * 2), "255,130,40", (1 - p) * 0.95);
     if (!lowQ) for (let i = 0; i < 18; i++) { const a = hash(i, e.seq) * TAU, d = s * p * (1 + hash(i, 3) * 1.5); g.fillStyle = `rgba(255,${120 + Math.floor(hash(i, 5) * 120)},40,${1 - p})`; g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.55 - s * p, 3, 0, TAU); g.fill(); }
     if (p > 0.2) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, (p - 0.2) / 0.8, e.seq, lowQ ? 4 : 10, "60,50,50", 0.25);
+    return true;
+  }
+  if (e.kind === "boss_quake") { // แผ่นดินแยก: วงแดงแตกเป็นรอยร้าว + ฝุ่น
+    for (const t of e.tiles || []) {
+      const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.03);
+      glowAt(g, x, y, s * 0.9, "255,90,40", (1 - p) * 0.7);
+      if (!lowQ && p < 0.8) puff(g, t.x + 0.5, t.y + 0.5, 0.3 + p * 0.6, p, e.seq + t.x * 7 + t.y, 3, "120,95,80", 0.3 * (1 - p));
+    }
+    const [cx, cy, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
+    for (let r = 0; r < 2; r++) { const k = (p - r * 0.2) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(cx, cy); g.scale(1, 0.42); g.strokeStyle = `rgba(255,120,60,${0.9 * (1 - k)})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.8 + k * 2.6), 0, TAU); g.stroke(); g.restore(); }
+    return true;
+  }
+  if (e.kind === "boss_enrage") { // คลั่ง: ออร่าแดงพุ่ง
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9);
+    glowAt(g, x, y, s * (1.2 + p * 1.5), "255,30,40", (1 - p) * 0.85);
+    if (!lowQ) for (let i = 0; i < 14; i++) { const a = hash(i, e.seq) * TAU, d = s * (0.3 + p * 1.2); g.fillStyle = `rgba(255,${60 + Math.floor(hash(i, 4) * 80)},50,${1 - p})`; g.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.5 - s * p * 1.4, 3, 6); }
     return true;
   }
   if (e.kind === "boss_land" || e.kind === "boss_roar") {

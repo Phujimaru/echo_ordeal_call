@@ -1443,7 +1443,7 @@ test('ดาวท้าทาย: เสาหลุด/มีคนล้ม =
   assert.equal(c.filter((x) => x.star).length, 2);
 });
 
-test('กำแพงไม้: ขายในร้าน Eos · ใช้แล้ววางช่องข้างตัว มอนเดินผ่านไม่ได้ 3 เทิร์นแล้วหาย', () => {
+test('กำแพงไม้: ขายในร้าน Eos · วางช่องข้างตัว อยู่ถาวร · มอนทุบพังได้ · ซ่อม/รื้อได้', () => {
   setup();
   const s = st(), p = P(0);
   assert.ok(S6.useBarricade(p));
@@ -1454,9 +1454,29 @@ test('กำแพงไม้: ขายในร้าน Eos · ใช้แ�
   assert.ok(Fodlan.charAction(p.id, 'fd:wall', t));
   assert.ok(Board.isObstacle(action.boardMap(), t.x, t.y), 'เป็นสิ่งกีดขวาง');
   assert.equal(btn(p, 'fd:wall'), null, 'ใช้หมดแล้ว');
-  match.roundNumber += PK.WALL.turns + 1;
+  match.roundNumber += 10;
   PK.tickWalls(ctx(), s);
-  assert.ok(!Board.isObstacle(action.boardMap(), t.x, t.y), 'หมดเวลา = หาย');
+  assert.ok(Board.isObstacle(action.boardMap(), t.x, t.y), 'ไม่หมดเวลา (ถาวร)');
+  const m = S6.spawnMob(ctx(), s, 'daemon', { x: 0, y: 0 }, { hp: 5, armor: 0, atk: 2, mov: 3, gold: 1 }, {});
+  S6.hitWall(ctx(), s, m, t);
+  const w = PK.PK(s).walls[0];
+  assert.equal(w.hp, PK.WALL.hp - 1, 'โดนทุบเลือดลด');
+  actor(p); p.didAttackRound = false;
+  const fix = btn(p, 'fd:wallfix');
+  assert.ok(fix && !fix.disabled, 'ปุ่มซ่อมไม้กั้น');
+  assert.ok(Fodlan.charAction(p.id, 'fd:wallfix'));
+  assert.equal(w.hp, PK.WALL.hp, 'ซ่อมเต็ม');
+  for (let i = 0; i < PK.WALL.hp; i++) S6.hitWall(ctx(), s, m, t);
+  assert.ok(!Board.isObstacle(action.boardMap(), t.x, t.y), 'ทุบครบ = พัง');
+  // รื้อเอง
+  assert.ok(PK.addCharge(s, p));
+  actor(p);
+  const b2 = btn(p, 'fd:wall');
+  assert.ok(Fodlan.charAction(p.id, 'fd:wall', b2.tiles[0]));
+  const rz = btn(p, 'fd:raze');
+  assert.ok(rz && rz.tiles.length);
+  assert.ok(Fodlan.charAction(p.id, 'fd:raze', rz.tiles[0]));
+  assert.equal(PK.PK(s).walls.length, 0, 'รื้อแล้วหาย');
 });
 
 test('โชโกโบะทอง: กลางวันโผล่ วิ่งหนีผู้เล่น · ล้มได้ = เหรียญเยอะ + ของ · ครบเวลาหนีไป', () => {
@@ -1487,4 +1507,118 @@ test("Eos ระดับยาก: เป้า 100 · ราชาปีศา
   assert.equal(E.markAt(ctx("hard"), 40), 80);
   assert.equal(E.markAt(ctx("hard"), 25), 50);
   assert.equal(E.markAt(ctx("normal"), 25), 25);
+});
+
+// ---------- 2026-11-11: ผู้บัญชาการฝูงมอน · ราชาปีศาจดุขึ้น · ป้อมปืนประจำเสา · รถราง · เกิดใหม่รีเซ็ตของใช้ครั้งเดียว ----------
+const XT6 = require('../server/fodlan/eosExtra.js');
+const plOf = (zone) => st().pillars.find((o) => o.zone === zone);
+test('ผู้บัญชาการฝูงมอน: เสาที่ไม่มีคนเฝ้า = มอนแยกไปบุกเสา (ไม่ไล่คนที่อยู่ใกล้กว่า)', () => {
+  setup();
+  const s = st(), pl = plOf('lake');
+  pl.owner = S6.PVE;
+  P(0).pos = { x: 22, y: 22 }; P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  const hp0 = total(P(0));
+  const d = mob('daemon', 18, 22);
+  assert.ok(S6.openPillars(ctx(), s).includes(pl), 'เสาไม่มีคนเฝ้า');
+  assert.equal(S6.raidPlan(ctx(), s).get(d.id), pl, 'ได้หน้าที่บุกเสา');
+  for (let i = 0; i < 6 && pl.owner; i++) S6.actMonsters(ctx(), s);
+  assert.ok(pl.hits > 0 || !pl.owner, 'ไปตีเสา');
+  assert.equal(total(P(0)), hp0, 'ไม่หันไปไล่คน');
+});
+test('ทหารเหล็กเข้าเมืองที่ไฟเปิดได้ (ปีศาจยังเข้าไม่ได้) → ตีเสาในเมือง', () => {
+  setup();
+  const s = st(), pl = plOf('altissia');
+  pl.owner = S6.PVE;
+  const mg = mob('magitek', 8, 24, { mov: 3 });
+  assert.equal(S6.lightBound(mg), false);
+  assert.equal(S6.lightBound(mob('daemon', 30, 3)), true);
+  for (let i = 0; i < 6 && pl.owner && !pl.hits; i++) S6.actMonsters(ctx(), s);
+  assert.ok(pl.hits > 0 || !pl.owner, 'บุกถึงเสา Altissia');
+});
+function bossAt(x, y) {
+  const s = st();
+  const b = S6.spawnMob(ctx(), s, 'daemon', { x, y }, { hp: 30, armor: 4, atk: 4, mov: 4, gold: 8 }, { look: 4, tier: 1, trait: 'boss' });
+  b.summon.born = 0; b.summon.roarAt = 99;
+  return b;
+}
+test('ราชาปีศาจ: ไม่ยืนเฉยแม้เป้าอยู่ในเมือง · พุ่งชนคนในแนวตรง · แผ่นดินแยกเตือนก่อน 1 เทิร์น · คลั่งตอนเลือดครึ่ง', () => {
+  setup();
+  const s = st();
+  // ไล่เข้าเมือง (เดิมไฟเมืองกัน = ยืนนิ่ง)
+  P(0).pos = { x: 13, y: 3 }; P(1).pos = { x: 11, y: 3 }; P(2).pos = { x: 10, y: 2 };
+  const b = bossAt(14, 14);
+  const at0 = { ...b.pos };
+  S6.actMonsters(ctx(), s);
+  assert.ok(!sameTile(b.pos, at0), 'เดินเข้าหา');
+  // พุ่งชน
+  b.pos = { x: 12, y: 22 }; b.summon.chargeAt = -9;
+  P(0).pos = { x: 16, y: 22 }; P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  const hp0 = total(P(0));
+  S6.actMonsters(ctx(), s);
+  assert.deepEqual(b.pos, { x: 15, y: 22 }, "พุ่งไปติดตัว");
+  assert.ok(total(P(0)) < hp0, 'โดนชน');
+  assert.deepEqual(P(0).pos, { x: 17, y: 22 }, "กระเด็น 1 ช่อง");
+  // แผ่นดินแยก: คนใกล้ ≤ 3 → เตือน → เทิร์นหน้าโดน
+  const e = EV.ev(s);
+  assert.ok(e.quake && e.quake.tiles.length, 'เตือนวงแดง');
+  assert.ok(Fodlan.publicInfo().board.bossQuake, 'ส่งให้ client');
+  const victim = P(0), inRing = e.quake.tiles.some((t) => sameTile(t, victim.pos));
+  const hp1 = total(victim);
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), s);
+  if (inRing) assert.ok(total(victim) < hp1, 'ยืนในวง = โดน');
+  // คลั่ง
+  b.hp = 10;
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), s);
+  assert.ok(b.summon.enraged, 'คลั่ง');
+});
+test('ป้อมปืนประจำเสา: ทุกโซนมีป้อม · เสาโซนนั้นถูกยึด = ยิงเอง · มอนทุบพัง · ยืนติดสร้างใหม่ได้', () => {
+  setup();
+  const s = st();
+  for (const z of ['insomnia', 'hammerhead', 'duscae', 'lake', 'altissia']) assert.ok(S6.TURRETS.some((t) => S6.turretZone(t) === z), `ป้อม ${z}`);
+  const t = S6.TURRETS.find((o) => S6.turretZone(o) === 'lake');
+  plOf('lake').owner = S6.PVE;
+  const d = mob('daemon', t.x + 2, t.y + 1, { hp: 9 });
+  const hp0 = d.hp + d.armor;
+  XT6.powerRound(ctx(), s, S6.H());
+  assert.ok(d.hp + d.armor < hp0, 'ป้อมยิงเอง');
+  for (let i = 0; i < S6.CITY_WALL.hp; i++) S6.hitWall(ctx(), s, d, t);
+  assert.ok(!S6.turretUp(ctx(), t), 'ป้อมพัง');
+  const p = P(0);
+  p.pos = nextToTile(t);
+  actor(p);
+  const fix = btn(p, 'fd:wallfix');
+  assert.ok(fix && fix.name === 'สร้างป้อม');
+  assert.ok(Fodlan.charAction(p.id, 'fd:wallfix'));
+  assert.ok(S6.turretUp(ctx(), t), 'สร้างใหม่แล้ว');
+});
+test('รถราง: ยืนบนป้าย = ปุ่มไปป้ายอื่นทุกโซน · กดแล้วไปถึง (จบการเดิน)', () => {
+  setup();
+  const p = P(0), a = S6.TRAM_STOPS[0], b = S6.TRAM_STOPS.find((o) => o.zone === 'hammerhead');
+  assert.equal(S6.TRAM_STOPS.length, 5);
+  p.pos = { x: a.x, y: a.y };
+  actor(p);
+  const keys = Fodlan.hudActions(p).filter((o) => o.key.startsWith('fd:tram:')).map((o) => o.key);
+  assert.equal(keys.length, 4);
+  assert.ok(Fodlan.charAction(p.id, 'fd:tram:hammerhead'));
+  assert.ok(Math.abs(p.pos.x - b.x) + Math.abs(p.pos.y - b.y) <= 2, 'ถึงป้าย Hammerhead');
+  assert.ok(match.action.moved || match.action.locked || match.action.canto === false);
+});
+test('ตายแล้วฟื้น (Eos) = ของที่ใช้ได้ครั้งเดียวต่อเกมกลับมาใช้ได้ (King Form ของเคนซากิ) · เหรียญ/กระเป๋าคงเดิม', () => {
+  setup();
+  const s = st(), p = P(0);
+  p.characterId = 'kensaki_kazuma';
+  combat.resetCombat(p);
+  p.kazuma.kingUsed = true; p.kazuma.blade = true; p.kazuma.fusion = 3;
+  p.gold = 17; p.inventory = [{ uid: 'x1', type: 'armor', value: 2 }];
+  p.alive = false; p.hp = 0;
+  s.dead[p.id] = match.roundNumber;
+  match.roundNumber += S6.reviveTurns(s) + 1;
+  S6.reviveDue(ctx(), s);
+  assert.ok(p.alive, 'ฟื้น');
+  assert.equal(p.kazuma.kingUsed, false, 'King Form ใช้ได้อีก');
+  assert.equal(p.kazuma.blade, false, 'เกิดใหม่ร่างมนุษย์');
+  assert.equal(p.gold, 17);
+  assert.equal(p.inventory.length, 1);
 });

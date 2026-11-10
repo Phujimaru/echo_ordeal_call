@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   resolveDamageAftermath, healOverflow, loseHp, loseArmor,
   damageSoft, dealDirect, dealArmorOnly, dealMixed,
   addSkill, applyEffect, firePassive, skillByStatus, voidUltimateOnBust,
-  resetRoundDisplay, resetCombat,
+  resetRoundDisplay, resetCombat, respawnReset,
   runHook, broadcastHook, damageCapOf, skillGainBlocked, notifyAttacked, attackBlocked,
   reflectOf, statusReflected, firstHook, auraCritOf,
 });
@@ -517,4 +517,21 @@ function resetCombat(p) {
   // เลือด/เกราะเริ่มเกม: คำนวณหลังรีเซ็ต statuses แล้วเท่านั้น
   p.hp = maxHpOf(p);
   p.armor = maxArmorOf(p);
+}
+// ตายแล้วฟื้นแบบเกิดใหม่ (สนาม Eos — server/fodlan/stage6.js reviveDue) · ผู้ใช้สั่ง 2026-11-11:
+//  "ตัวละครที่ใช้อะไรได้ครั้งเดียวต่อเกม ตายแล้วฟื้นขึ้นมาใหม่ ก็ยังใช้ได้อีก เพราะตายไปแล้ว" (เช่น King Form ของเคนซากิ)
+//  = ล้างสถานะเฉพาะตัวทุกตัวละคร (ฮุค resetCombat — ร่าง/คูลดาวน์/โควตา/ของที่ใช้ไปแล้ว) เหมือนเริ่มเกมใหม่
+//  คงไว้: เหรียญ · กระเป๋า (ของประจำตัวที่ฮุคแจกเพิ่มเฉพาะที่หายไปแล้ว) · ผลึกเลือด/เกราะ · นกหวีด · วีดีโอที่เคยเล่น (ไม่เล่นซ้ำ)
+//  เลือด/เกราะ ผู้เรียกตั้งเองหลังจากนี้
+function respawnReset(p) {
+  CHAR_HOOKS.echo.restoreBase(p); // Echo: ร่างที่สวมจากไดอารี่จบไปพร้อมความตาย
+  const gold = p.gold, inv = Array.isArray(p.inventory) ? [...p.inventory] : [], shown = p.cutsceneShown;
+  p.statuses = {}; p.statusAmt = {}; p.seen = {}; p.transformAt = 0;
+  p.skillUsedRound = false; p.ultRound = 0;
+  p.tempHp = 0; p.tempHpTurns = 0; p.sleepFresh = false; p.boardSize = 1;
+  broadcastHook("resetCombat", p);
+  const added = (Array.isArray(p.inventory) ? p.inventory : []).filter((it) => it && !inv.includes(it) && !inv.some((o) => o && o.type === it.type));
+  p.inventory = [...inv, ...added];
+  p.gold = gold; // กิลกาเมช: เงินตั้งต้นไม่แจกซ้ำ
+  p.cutsceneShown = shown || {};
 }

@@ -24,10 +24,10 @@ const ROWS = [
   "...=======================......", // y10
   "...======........TF========F....", // y11
   "...==~~~s..kk....TFFFTTF=====...", // y12
-  "..===~~~~ssk...TTTFFFTTF.=====..", // y13
+  "..===~~~~ssk...TTTFFFTTFU=====..", // y13
   "..===~~~~~~s...FTTFFFTTF..F===..", // y14
   "..==~~~~~~~s...FTFFkkTTX....==..", // y15
-  "..==~~~~~~~s...FFFFkkTTFFF..==..", // y16
+  "..==~~~~~~~s.U.FFFFkkTTFFF..==..", // y16
   ".===~~~~~~sX...FTFFFFTFFFTF===..", // y17
   ".===ss~~sss....FFFTFFFFT.FF===..", // y18
   ".==.ssssss.....FFFFFTFFFTFF==...", // y19
@@ -36,8 +36,8 @@ const ROWS = [
   "..===========================ddd", // y22
   ".....===========...=========dddd", // y23
   ".....===...........dddd====ddddd", // y24
-  ".ZppL===pLppV.....dddddd====dRdd", // y25
-  ".Bppcp=BBpbpL.....ddddddd====RGG", // y26
+  ".ZUpL===pLppV.....dddddd====dRdd", // y25
+  ".Bppcp=BBpbpL.....dddddUd====RGG", // y26
   "~~pXcpccpppcp.....RddXdddd===RGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
   "~~pp~bppccpcb....dddddddddd===dd", // y28
   "~~~~~~cpppccp....ddddddRddd===dd", // y29
@@ -53,6 +53,13 @@ const DOCKS = [[5, 26], [12, 28], [9, 31]];          // ท่าเรือก
 const CAMPS = [[1, 13], [29, 12], [15, 24]];         // จุดตั้งแคมป์ (หินเรืองแสง)
 const FISH = [[12, 14], [10, 19], [12, 16]];         // จุดตกปลาริมทะเลสาบ Cleigne
 const TOMBS = [[1, 6], [30, 6], [18, 30]];           // สุสานราชวงศ์ (สิ่งกีดขวาง — ยืนติดแล้วเปิด)
+// รถรางเชื่อมทุกโซน (ผู้ใช้สั่ง 2026-11-11 "รถรางรถไฟสาย ที่เชื่อมสถานีแต่ละเมือง" — ตำแหน่ง Claude เลือก ใกล้เสาโซนละ 1 ป้าย)
+//  ลำดับ = วงรอบของสาย (client วาดรางระหว่างป้ายที่ติดกัน — client/src/board/fodlan/stage6.js TRAM_STOPS ต้องตรงกัน)
+const TRAMS = [
+  { zone: "insomnia", at: [17, 4] }, { zone: "duscae", at: [27, 15] }, { zone: "hammerhead", at: [25, 27] },
+  { zone: "altissia", at: [4, 24] }, { zone: "lake", at: [12, 19] },
+];
+// ป้อมปืนประจำเสา (ผู้ใช้สั่ง 2026-11-11 — "U" นอก Insomnia ข้างเสาโซนละ 1 ป้อม): ยิงเองต้นเทิร์นเมื่อเสาโซนนั้นถูกยึด · ยืนติดยิงเองได้ · มอนทุบพังได้ ซ่อม/ก่อใหม่ได้
 const at = (ch) => {
   const out = [];
   ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
@@ -60,7 +67,7 @@ const at = (ch) => {
 };
 const not = (list, drop) => list.filter(([x, y]) => !drop.some(([a, b]) => a === x && b === y));
 const RAIL = Array.from({ length: COLS }, (_, x) => [x, RAIL_Y]);
-const P4 = [...STATIONS, ...TUNNELS.flat(), ...DOCKS, ...CAMPS, ...FISH];
+const P4 = [...STATIONS, ...TUNNELS.flat(), ...DOCKS, ...CAMPS, ...FISH, ...TRAMS.map((t) => t.at)];
 
 module.exports = {
   map: {
@@ -77,6 +84,7 @@ module.exports = {
       fd_eos_road: not(at("="), P4), fd_eos_plaza: not(at("p"), P4), fd_eos_sand: not(at("d"), P4), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
       fd_eos_forest: not(at("F"), [...RAIL, ...P4]), fd_eos_shallow: at("s"),
       fd_eos_station: STATIONS, fd_eos_tunnel: TUNNELS.flat(), fd_eos_dock: DOCKS, fd_eos_camp: CAMPS, fd_eos_fish: FISH,
+      fd_eos_tram: TRAMS.map((t) => t.at),
     },
     heal: [],
     // จุดเกิด 8 จุดกระจายทุกโซน (นครหลวง · เนินเขา · ป่าเหนือ · ฝั่งทะเลสาบ · ป่าตะวันออก · ทะเลทราย · เมืองน้ำ · ที่รกร้าง)
@@ -117,6 +125,7 @@ module.exports = {
     fd_eos_dock: { name: "ท่ากอนโดลา", icon: "🛶" },
     fd_eos_camp: { name: "แคมป์", icon: "🏕️" },
     fd_eos_fish: { name: "จุดตกปลา", icon: "🎣" },
+    fd_eos_tram: { name: "ป้ายรถราง", icon: "🚋" },
     fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
   },
   // โซน (สี่เหลี่ยมรวมขอบ [x0, y0, x1, y1]) — เมืองที่มีไฟถนน = ปีศาจเข้าไม่ได้ · ใช้เลือกเสียงบรรยากาศฝั่ง client ด้วย
@@ -147,5 +156,5 @@ module.exports = {
   BEAST_HOME: [17, 17],
   // โชโกโบะ 4 ตัว (คอกละ 2): คอก Wiz ในป่า Duscae · คอกริมทะเลสาบ Cleigne
   CHOCOBOS: [[19, 15], [20, 16], [11, 12], [12, 12]],
-  RAIL_Y, RAIL, STATIONS, TUNNELS, DOCKS, CAMPS, FISH, TOMBS,
+  RAIL_Y, RAIL, STATIONS, TUNNELS, DOCKS, CAMPS, FISH, TOMBS, TRAMS,
 };
