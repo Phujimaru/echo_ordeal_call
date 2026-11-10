@@ -50,6 +50,8 @@ const FILES = {
   journey_7_night: "/journey/map7/Fire Emblem Engage Distorted Flash of Light.mp3",
   // โหมด Fodlan (GRID_PLAN §8.5 · ไฟล์จากผู้ใช้ 2026-10-27): เพลงต่อด่าน · _wx = ตอนเกิดสภาพอากาศ (ด่าน V = ออร่า)
   //  เริ่มเล่นตอนฉากเข้าด่าน (fodlan/fodlanFlight.js · FodlanTravel.jsx) · เสียงบรรยากาศแยกอยู่ fodlan/fodlanAudio.js
+  eos_intro: "/eos/music/somnus.mp3", // สนาม Eos: ฉากเปิด (Somnus — ผู้ใช้ส่งมา 2026-11-10)
+  eos_end: "/eos/music/omnis.mp3",    // สนาม Eos: หน้าจบเกม (Omnis Lacrima)
   fodlan_map: "/fodlan/music/map.mp3", // ฉากแผนที่ทวีป: ก่อนเข้าด่าน (ดิ่งลงโลก → แผนที่) + ระหว่างเปลี่ยนด่าน (ไฟล์ผู้ใช้ fodlanmap.mp3 ดันเป็น -11.6 LUFS)
   fodlan_1: "/fodlan/music/stage1.mp3",
   fodlan_1_wx: "/fodlan/music/stage1_wx.mp3",

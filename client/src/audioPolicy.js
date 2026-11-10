@@ -5,7 +5,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   if (!phase) return { name: "lobby5" };
   if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(phase)) return { name: "lobby5" };
   // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ — การ์ด/ลูกโลกหมุนดิ่ง = เพลงห้องรอเดิม · เห็นแผนที่ทวีปแล้ว (fodlanMap) = เพลงฉากแผนที่ (ผู้ใช้สั่ง)
-  if (intro) return { name: state?.fodlan && state?.world !== "eos" && fodlanMap ? "fodlan_map" : "lobby5" };
+  if (intro) return { name: state?.world === "eos" ? "eos_intro" : state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" }; // Eos: ฉากเปิด = Somnus
+  if (phase === "GAMEOVER" && state?.world === "eos") return { name: "eos_end" }; // Eos: หน้าจบเกม = Omnis Lacrima
   const cs = phase === "CUTSCENE" ? state.cutscene : null;
   if (cs && (!lowQ || cs.announce)) return { name: null };
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว

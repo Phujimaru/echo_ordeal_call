@@ -21,7 +21,7 @@ const HOLD_OUT = 0.12, HOLD_IN = 0.8; // วินาที: เงียบเ�
 const url = (key) => `/eos/sfx/${key}.mp3`;
 const MUSIC_BASE = 0.75;     // เท่ากับ MUSIC_BASE ของ audio.js (เพลงด่าน −11.3 × 0.75 ≈ −13.8)
 const MUSIC_FADE = 1.8;      // วินาที ครอสเฟดระหว่างเพลง
-const MUSIC_RESTART = new Set(["battle_day", "battle_night", "hunt", "tension"]); // เพลงเหตุการณ์: ปิดไปนานแล้วกลับมา = เริ่มต้นเพลง
+const MUSIC_RESTART = new Set(["battle_day", "battle_night", "hunt", "tension", "boss", "mech"]); // เพลงเหตุการณ์: ปิดไปนานแล้วกลับมา = เริ่มต้นเพลง
 const MUSIC_RESTART_MS = 20000;
 const musicUrl = (key) => `/eos/music/${key}.mp3`;
 
@@ -400,13 +400,19 @@ export function eosMusicPicker() {
     const sinceHit = nowMs - hitAt;
     const battle = round - hitRound <= 1 || sinceHit < BATTLE_MIN_MS;
 
+    // เพลงที่ผู้ใช้ส่งมา 2026-11-10: ราชาปีศาจ/คืนสุดท้าย = Apocalypsis Noctis · หุ่นเกราะในระยะ = Veiled in Black ·
+    //  มีค่าหัว = Hunt or Be Hunted · เดินเล่นในเมือง/ทะเลสาบ = เพลงประจำโซน
+    const bossOn = !!(board.boss && (board.daemons || []).some((d) => d.id === board.boss && (!me || !me.pos || Math.abs(d.x - me.pos.x) + Math.abs(d.y - me.pos.y) <= sight + 4)));
+    const mechNear = (board.mobs || []).some((m) => m.trait === "mech" && me && me.pos && Math.abs(m.x - me.pos.x) + Math.abs(m.y - me.pos.y) <= sight);
+    const bounty = !!(me && me.fodlan && Array.isArray(me.fodlan.badges) && me.fodlan.badges.some((b) => b.key === "bounty"));
     let want = "explore";
-    if (battle) want = "battle";
+    if (board.final || bossOn) want = "boss";
+    else if (mechNear) want = "mech";
+    else if (battle) want = "battle";
     else if (me && me.alive && me.pos) {
-      if (players.some((p) => seen(p) && !ally(p))) want = "tension";
+      if (players.some((p) => seen(p) && !ally(p))) want = bounty ? "hunt" : "tension";
+      else if (bounty) want = "hunt";
     }
-    // คืนสุดท้าย (PVE รอบสาม): เพลงล่าค่าหัวที่เร้าใจ แทนเพลงกลางคืน/ตึงเครียด (ปะทะยังเป็นเพลงต่อสู้)
-    if (!battle && state.fodlan && state.fodlan.board && state.fodlan.board.final) want = "hunt";
 
     const waits = [];
     if (mode == null || (want !== mode && (want === "battle" || nowMs - since >= MUSIC_HOLD_MS))) {
@@ -415,7 +421,10 @@ export function eosMusicPicker() {
     // ต่อสู้ที่ค้างด้วยเวลาขั้นต่ำ (เทิร์นผ่านไปแล้ว): เช็กใหม่ตอนครบ 20 วิ
     if (battle && round - hitRound > 1) waits.push(BATTLE_MIN_MS - sinceHit);
 
-    const key = mode === "battle" ? (night ? "battle_night" : "battle_day") : mode === "hunt" ? "hunt" : mode === "tension" ? "tension" : night ? "night" : "day";
+    const zone = me && me.pos ? eosZoneAt(me.pos.x, me.pos.y) : "wild";
+    const ZONE_SONG = { altissia: "altissia", hammerhead: "hammerhead", insomnia: "lestallum" };
+    const explore = ZONE_SONG[zone] || (zone === "lake" && !night ? "galdin" : night ? "night" : "day");
+    const key = mode === "boss" ? "boss" : mode === "mech" ? "mech" : mode === "battle" ? (night ? "battle_night" : "battle_day") : mode === "hunt" ? "hunt" : mode === "tension" ? "tension" : explore;
     const w = waits.filter((v) => v > 0);
     return { key, recheckMs: w.length ? Math.ceil(Math.min(...w)) + 50 : 0 };
   };

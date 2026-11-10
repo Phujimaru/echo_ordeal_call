@@ -78,3 +78,10 @@ test('Colony: เพลงตามปล้อง I/II/III · นับถอ�
   assert.equal(policy.musicForState(col({ sealed: 3, countdown: 2 }, { skillMusic: 'dummy' })).name, 'colony_alert');
   assert.equal(policy.musicForState(col({ sealed: 3, countdown: 1 }, { gameState: 'CUTSCENE', cutscene: null })).name, 'colony_alert');
 });
+
+test('Eos: ฉากเปิด = Somnus (eos_intro) · หน้าจบเกม = Omnis Lacrima (eos_end)', async () => {
+  const { musicForState } = await import('../client/src/audioPolicy.js');
+  assert.equal(musicForState({ gameState: 'ACTION', world: 'eos', fodlan: { board: {} } }, { intro: true }).name, 'eos_intro');
+  assert.equal(musicForState({ gameState: 'GAMEOVER', world: 'eos' }).name, 'eos_end');
+  assert.equal(musicForState({ gameState: 'GAMEOVER', world: 'origin' }).name, 'main_home');
+});
