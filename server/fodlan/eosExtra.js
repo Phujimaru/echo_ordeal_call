@@ -17,7 +17,7 @@ const COMBO = { atk: 1 };
 const NEST = { hp: 8, armor: 1, gold: 3, max: 3, burst: 3, drip: 1, gap: 8 };
 const GIANT = { hp: 36, armor: 3, gold: 5, from: 6, every: 8, step: 4, dmg: 3, score: 4 };
 const LIGHT = { r: 2 };
-const CIV = { hp: 4, max: 2, score: 2, gold: 4 };
+const CIV = { hp: 4, max: 2, score: 2, gold: 4, looks: 6 };
 const GAUGE = { max: 20, kill: 1, combo: 1, nest: 2, boss: 5, giant: 5, dmg: 4, r: 2 };
 const TITLES = [
   { key: "kills", icon: "⚔️", name: "นักล่า" },
@@ -268,7 +268,7 @@ function spawnCivs(ctx, s, H, freshNight) {
   }
   for (const t of out) {
     const owner = { id: "eoscivil", name: "Eos", position: 0, customColor: null, teamId: "A" };
-    const rec = lazySummon().spawn(owner, { kind: "eosCivilian", pos: t, hp: CIV.hp, armor: 0, mov: 0, range: [0, 0], name: "พลเรือน", img: null, color: "#f2d39b", data: { civilian: true, follow: null, look: (++X(s).seq) % 3 } });
+    const rec = lazySummon().spawn(owner, { kind: "eosCivilian", pos: t, hp: CIV.hp, armor: 0, mov: 0, range: [0, 0], name: "พลเรือน", img: null, color: "#f2d39b", data: { civilian: true, follow: null, look: (++X(s).seq) % CIV.looks } }); // ภาพคน 6 แบบ (ผู้ใช้ส่งมา 2026-11-10 — /eos/img/peopleN.webp)
     rec.teamId = "A";
   }
   if (out.length) { ctx.bump(); ctx.fx("civ_spawn", { list: out }); ctx.log(`🕊️ มีพลเรือนติดค้างกลางป่า ${out.length} คน — พาเข้าเมือง!`); }
@@ -381,7 +381,7 @@ function devSeed(ctx, s, H, turn) {
   const nAt = H.freeNear(ctx, s, p.pos.x + 3, p.pos.y, 3);
   if (nAt) H.spawnMob(ctx, s, "nest", nAt, { hp: NEST.hp, armor: NEST.armor, atk: 0, mov: 0, gold: NEST.gold }, {});
   const cAt = H.freeNear(ctx, s, p.pos.x - 2, p.pos.y + 1, 3);
-  if (cAt) { const rec = lazySummon().spawn({ id: "eoscivil", name: "Eos", position: 0, customColor: null, teamId: "A" }, { kind: "eosCivilian", pos: cAt, hp: CIV.hp, armor: 0, mov: 0, range: [0, 0], name: "พลเรือน", img: null, color: "#f2d39b", data: { civilian: true, follow: null, look: 1 } }); rec.teamId = "A"; }
+  if (cAt) { const rec = lazySummon().spawn({ id: "eoscivil", name: "Eos", position: 0, customColor: null, teamId: "A" }, { kind: "eosCivilian", pos: cAt, hp: CIV.hp, armor: 0, mov: 0, range: [0, 0], name: "พลเรือน", img: null, color: "#f2d39b", data: { civilian: true, follow: null, look: Math.floor(ctx.rng() * CIV.looks) } }); rec.teamId = "A"; }
   x.giantNext = turn;
   ctx.bump();
 }
