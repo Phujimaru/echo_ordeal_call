@@ -31,6 +31,22 @@
 .eos-score-arrow { font-style: normal; margin-left: 4px; color: var(--es-dim); font-size: 16px; }
 .eos-score-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .1); }
 .eos-score-bar b { display: block; height: 100%; background: linear-gradient(90deg, #7fd4ff, var(--es-gold)); transition: width .6s ease; }
+.eos-score-final { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #c03a6a; box-shadow: 0 0 4px #ff4a8a; }
+/* มาตรวัดทีม + พลังเสา (PVE รอบสาม) */
+.eos-gauge { pointer-events: auto; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 8px; min-width: 150px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }
+.eos-gauge-ico { font-size: 15px; filter: grayscale(.6); }
+.eos-gauge-bar { flex: 1; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.eos-gauge-bar b { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ff9b52, #ffd25a); transition: width .5s ease; }
+.eos-gauge[data-full="true"] { border-color: #ffd25a; box-shadow: 0 0 14px rgba(255, 200, 90, .55); }
+.eos-gauge[data-full="true"] .eos-gauge-ico { filter: none; animation: eos-gauge-pulse 1s ease-in-out infinite; }
+.eos-gauge[data-full="true"] .eos-gauge-bar b { background: linear-gradient(90deg, #ffd25a, #fff3c0, #ffd25a); background-size: 200% 100%; animation: eos-gauge-shine 1.4s linear infinite; }
+@keyframes eos-gauge-pulse { 50% { transform: scale(1.25); } }
+@keyframes eos-gauge-shine { to { background-position: -200% 0; } }
+.eos-final-chip { font-size: 15px; animation: eos-pl-blink 1.6s ease-in-out infinite; }
+.eos-powers { pointer-events: auto; display: flex; gap: 4px; padding: 4px 8px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }
+.eos-power { width: 26px; height: 26px; display: grid; place-items: center; font-size: 15px; border-radius: 8px; background: color-mix(in srgb, var(--z) 26%, transparent); border: 1px solid color-mix(in srgb, var(--z) 70%, transparent); }
+.eos-pl-pow { font-style: normal; font-size: 12px; margin-left: 6px; opacity: .35; filter: grayscale(1); }
+.eos-pl-pow[data-on="true"] { opacity: 1; filter: none; }
 @keyframes eos-pl-blink { 50% { opacity: .45; } }
 /* ฟื้นคืนชีพ */
 .eos-revive { pointer-events: auto; display: flex; gap: 6px; padding: 6px 10px 6px 8px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }

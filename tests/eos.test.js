@@ -992,3 +992,152 @@ test('ขบวนเสบียง: วิ่งตามถนน · มอ�
   assert.equal(e.convoy, null);
   assert.equal(s.score, score0 + EV.CONVOY.score);
 });
+
+// ---------------------------------------------------------------- PVE รอบสาม (server/fodlan/eosExtra.js)
+const XT = require('../server/fodlan/eosExtra.js');
+const kill = (u, by) => { match.effectSourceId = by ? by.id : null; combat.dealMixed(u, 999); combat.resolveDamageAftermath(u); match.effectSourceId = null; };
+
+test('คืนสุดท้าย: แต้มรวมถึง 40 = กลางคืนถาวร + เตือนบอส · ต้นเทิร์นมีคลื่นปีศาจรอบเสาที่ยึดไว้', () => {
+  setup();
+  const s = st();
+  s.pillars[0].owner = S6.PVE;
+  s.score = 39;
+  S6.scoreRound(ctx(), s);
+  assert.ok(XT.X(s).final, 'เริ่มคืนสุดท้าย');
+  assert.ok(engine.isNightRound(match.roundNumber + 5), 'กลางคืนถาวร');
+  assert.ok(EV.ev(s).bossWarn, 'บอสมาด้วย');
+  const before = S6.mobsOf(ctx(), 'daemon').length;
+  const n = XT.finalWave(ctx(), s, S6.H(), XT.X(s).final.from);
+  assert.ok(n > 0);
+  assert.equal(S6.mobsOf(ctx(), 'daemon').length, before + XT.FINAL.perPillar);
+  match.forcedNight = null;
+});
+
+test('พลังประจำเสา: Insomnia ป้อมยิงเอง · Altissia น้ำพุฟื้นเลือด · Duscae โชโกโบะ +1 · Hammerhead ชน +1', () => {
+  setup();
+  const s = st(), H = S6.H();
+  const t = S6.TURRETS[0];
+  const d = mob('daemon', t.x, t.y + 3, { hp: 9, armor: 0 });
+  assert.equal(XT.powerRound(ctx(), s, H), 0, 'ยังไม่ยึด = ไม่มีผล');
+  s.pillars.find((o) => o.zone === 'insomnia').owner = S6.PVE;
+  XT.powerRound(ctx(), s, H);
+  assert.equal(d.hp, 9 - XT.POWER.turretDmg, 'ป้อมยิงเอง');
+  const alt = s.pillars.find((o) => o.zone === 'altissia');
+  alt.owner = S6.PVE;
+  const p = P(0); p.pos = S6.H().freeNear(ctx(), s, alt.x, alt.y, 2, p.id); p.hp = 2;
+  XT.powerRound(ctx(), s, H);
+  assert.equal(p.hp, 3, 'น้ำพุฟื้นเลือด');
+  assert.equal(XT.movBonus(s, p, true, false), 0);
+  s.pillars.find((o) => o.zone === 'duscae').owner = S6.PVE;
+  assert.equal(XT.movBonus(s, p, true, false), XT.POWER.chocoMov);
+  s.pillars.find((o) => o.zone === 'hammerhead').owner = S6.PVE;
+  assert.equal(XT.ramBonus(s), XT.POWER.ramDmg);
+  assert.deepEqual(XT.powersOf(s).sort(), ['altissia', 'duscae', 'hammerhead', 'insomnia']);
+});
+
+test('ท่าร่วม: ตีมอนตัวที่เพื่อนตีแล้วในเทิร์นเดียวกัน = ตี +1 · ตัวเองตีซ้ำไม่ได้โบนัส · นับฉายา + มาตรวัด', () => {
+  setup();
+  const s = st(), H = S6.H();
+  const d = mob('daemon', 14, 13, { hp: 9, armor: 0 });
+  XT.snapshot(ctx(), s, H);
+  assert.equal(Fodlan.atkBonus(P(1), d), 0);
+  d.hp -= 2; XT.onUnitEnd(ctx(), s, H, P(0));
+  assert.equal(Fodlan.atkBonus(P(0), d), 0, 'คนเดิม = ไม่มีโบนัส');
+  assert.equal(Fodlan.atkBonus(P(1), d), XT.COMBO.atk, 'เพื่อน = +1');
+  const g0 = XT.X(s).gauge;
+  d.hp -= 2; XT.onUnitEnd(ctx(), s, H, P(1));
+  assert.equal(XT.X(s).stats.p1.combos, 1);
+  assert.ok(XT.X(s).gauge > g0);
+  match.roundNumber += 1;
+  assert.equal(Fodlan.atkBonus(P(2), d), 0, 'เทิร์นใหม่ = รีเซ็ต');
+});
+
+test('รังปีศาจ: กลางวันโผล่ (ห่างผู้เล่น/เมือง) · ค่ำพ่นปีศาจ · ทำลายได้เหรียญ + ฉายา', () => {
+  setup();
+  const s = st(), H = S6.H();
+  s.night = false; s.dayNo = 2;
+  XT.spawnNests(ctx(), s, H, 3);
+  const nests = S6.mobsOf(ctx(), 'nest');
+  assert.ok(nests.length >= 1);
+  for (const n of nests) assert.ok(!S6.inTown(n.pos.x, n.pos.y));
+  s.night = true; s.nightNo = 2;
+  const before = S6.mobsOf(ctx(), 'daemon').length;
+  XT.nestBurst(ctx(), s, H, true);
+  assert.ok(S6.mobsOf(ctx(), 'daemon').length > before, 'พ่นปีศาจ');
+  const g0 = P(0).gold || 0;
+  kill(nests[0], P(0));
+  assert.ok((P(0).gold || 0) > g0);
+  assert.equal(XT.X(s).stats.p0.nests, 1);
+});
+
+test('ยักษ์หิน: เตือนเส้นทาง → เดินทีละ 4 ช่อง เหยียบแถบกว้าง 3 · ล้มได้ = แต้ม +4 ทุกคนได้เหรียญ', () => {
+  setup();
+  const s = st(), H = S6.H(), x = XT.X(s);
+  x.giantNext = 1;
+  XT.giantTurn(ctx(), s, H, 1);
+  assert.equal(x.giant.state, 'warn');
+  const g = x.giant;
+  const band = XT.bandOf(ctx(), g, 0, XT.GIANT.step - 1);
+  const p = P(0), spot = band.find((t) => S6.H().tileFree(ctx(), s, t.x, t.y, p.id));
+  p.pos = { ...spot };
+  const hp = total(p);
+  XT.giantTurn(ctx(), s, H, 2);
+  assert.equal(total(p), hp - XT.GIANT.dmg, 'โดนเหยียบ');
+  const u = XT.giantUnit(ctx(), s);
+  assert.ok(u && u.alive);
+  const score0 = s.score || 0, gold0 = P(2).gold || 0;
+  kill(u, P(1));
+  assert.equal(s.score, score0 + XT.GIANT.score);
+  assert.ok((P(2).gold || 0) > gold0, 'ทุกคนได้เหรียญ');
+  assert.equal(x.giant, null);
+});
+
+test('แสงไฟแคมป์: ปีศาจไม่ตี/ไม่เดินเข้าวงไฟ · ราชาปีศาจไม่กลัว', () => {
+  setup();
+  const s = st(), [cx, cy] = MAP6.CAMPS[0];
+  const p = P(0); p.pos = S6.H().freeNear(ctx(), s, cx, cy, 1, p.id);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 30, y: 2 };
+  const out = S6.H().freeNear(ctx(), s, cx, cy, 5, null, (x, y) => !XT.lightSafe(S6.H(), x, y) && Math.abs(x - p.pos.x) + Math.abs(y - p.pos.y) <= 4);
+  const d = mob('daemon', out.x, out.y, { hp: 5, armor: 0 });
+  const hp = total(p);
+  S6.actMonsters(ctx(), s);
+  assert.equal(total(p), hp, 'ไม่โดนตี');
+  assert.ok(!XT.lightSafe(S6.H(), d.pos.x, d.pos.y), 'ไม่เข้าวงไฟ');
+});
+
+test('พลเรือน: ค่ำโผล่ · กดพาไป = ตามติดตัว · ถึงเมือง = แต้มรวม +2 + ฉายา', () => {
+  setup();
+  const s = st(), H = S6.H();
+  s.night = true;
+  XT.spawnCivs(ctx(), s, H, true);
+  const c = XT.civsOf(ctx())[0];
+  assert.ok(c && combat.sameTeam(c, P(0)));
+  const p = P(0);
+  p.pos = H.freeNear(ctx(), s, c.pos.x, c.pos.y, 1, p.id, (x, y) => Math.abs(x - c.pos.x) + Math.abs(y - c.pos.y) === 1);
+  actor(p);
+  assert.ok(btn(p, 'fd:escort'));
+  assert.ok(Fodlan.charAction(p.id, 'fd:escort', null));
+  p.pos = { x: 15, y: 6 }; // เข้าเมือง Insomnia
+  const score0 = s.score || 0;
+  XT.onUnitEnd(ctx(), s, H, p);
+  assert.equal(c.alive && !!c.pos, false, 'รอดแล้วหายจากกระดาน');
+  assert.equal(s.score, score0 + XT.CIV.score);
+  assert.equal(XT.X(s).stats.p0.saves, 1);
+});
+
+test('มาตรวัดทีม: ล้มมอนเติม · เต็มแล้วกดถล่มวง 5×5 ดาเมจ 4 · ฉายาจบเกม', () => {
+  setup();
+  const s = st(), H = S6.H();
+  const a = mob('daemon', 14, 13, { hp: 9, armor: 0 }), b = mob('daemon', 15, 14, { hp: 9, armor: 0 }), far = mob('daemon', 20, 13, { hp: 9, armor: 0 });
+  const p = P(0); actor(p);
+  assert.equal(btn(p, 'fd:barrage'), null);
+  XT.addGauge(ctx(), s, XT.GAUGE.max);
+  const bt = btn(p, 'fd:barrage');
+  assert.ok(bt && !bt.disabled);
+  assert.ok(Fodlan.charAction(p.id, 'fd:barrage', { x: 14, y: 13 }));
+  assert.equal(a.hp, 9 - XT.GAUGE.dmg); assert.equal(b.hp, 9 - XT.GAUGE.dmg); assert.equal(far.hp, 9);
+  assert.equal(XT.X(s).gauge, 0);
+  kill(far, P(2));
+  const t = Fodlan.publicInfo().board.titles;
+  assert.ok(t.some((o) => o.key === 'kills' && o.id === 'p2'));
+});

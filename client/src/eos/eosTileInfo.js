@@ -9,6 +9,8 @@ const MOB = {
   daemon: { icon: "👹", name: "ปีศาจ", desc: "โผล่ตอนกลางคืน แกร่งขึ้นทุกคืน · เดินไล่ผู้เล่นหรือไปตีเสาที่ยึดไว้ · เข้าเมืองที่ไฟเปิดไม่ได้ · ฟ้าสางสลาย · ล้มได้ = เหรียญ + มีโอกาสได้ของ" },
   magitek: { icon: "🤖", name: "ทหารเหล็ก", desc: "ลงจากยานจักรวรรดิ (กลางวันลงบ่อย หลายจุด) · มุ่งไปตีเสาที่ยึดไว้ก่อน · อยู่ 4 เทิร์นแล้วขึ้นยานกลับ · ล้มได้ = เหรียญ + ของ/ขวดเวท" },
   beast: { icon: "🦣", name: "สัตว์ยักษ์", desc: "ตีทุกคนที่เข้าใกล้ · โดนตีแล้วไล่คนตี" },
+  nest: { icon: "🔥", name: "รังปีศาจ", desc: "อยู่กับที่ ไม่ตี · ค่ำแล้วพ่นปีศาจ 3 ตัว และอีกตัวทุกเทิร์นกลางคืน · ทำลายได้ = เหรียญ + ของ" },
+  giant: { icon: "🗿", name: "ยักษ์หิน", desc: "เดินตัดแผนที่ทีละ 4 ช่อง เหยียบแถบกว้าง 3 ดาเมจ 3 ทุกตัว (มอนด้วย) · ช่องส้ม = จะเหยียบเทิร์นหน้า · ล้มได้ แต้มรวม +4 ทุกคนได้เหรียญ + ของ" },
 };
 
 export function eosTileInfo(fd, players, x, y, round = 0) {
@@ -20,6 +22,9 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
     return { icon: m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${m.desc}` };
   }
+  const cv = (fd.civs || []).find((c) => at(c, x, y));
+  if (cv) return { icon: "🕊️", name: "พลเรือน", desc: `♥ ${cv.hp}/${cv.maxHp} — ${cv.follow ? "กำลังตามคนพา · ถึงเมืองได้ = แต้มรวม +2" : "ยืนติดแล้วกด \"พาไป\" = ตามติดตัว · พาถึงเมือง แต้มรวม +2 คนพาได้เหรียญ + ของ"}` };
+  if (fd.giant && (fd.giant.next || []).some((t) => at(t, x, y))) return { icon: "🗿", name: "ทางเดินยักษ์หิน", desc: "ยักษ์หินจะเหยียบช่องนี้ต้นเทิร์นหน้า ดาเมจ 3" };
   if (fd.convoy && at(fd.convoy, x, y)) return { icon: "🚚", name: "รถเสบียง", desc: `♥ ${fd.convoy.hp}/${fd.convoy.maxHp} — คุ้มกันตามเส้นประทองให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ · มอนเล็งรถด้วย` };
   const sp = (fd.spirits || []).find((o) => at(o, x, y));
   if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ยืนติดแล้วกด \"ช่วย\" (ใช้การโจมตี) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นตรงนี้" }; }
@@ -43,7 +48,8 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if ((fd.wrecks || []).some((w) => at(w, x, y))) return { icon: "🚙", name: "ซากรถ", desc: "ยืนติดแล้วกด \"ผลัก\" ดันไป 1 ช่อง ใช้ปิดทางเดินของมอน" };
   if ((fd.tunnels || []).some((pair) => pair.some((t) => at(t, x, y)))) return { icon: "🕳️", name: "อุโมงค์", desc: "ยืนบนปากอุโมงค์ (ยังเดินได้) แล้วกด \"อุโมงค์\" — ออกปากอีกฝั่งทันที" };
   if ((fd.docks || []).some((t) => at(t, x, y))) return { icon: "🛶", name: "ท่ากอนโดลา", desc: "ยืนบนท่า (ยังเดินได้) แล้วเลือกท่าปลายทาง" };
-  if ((fd.camps || []).some((t) => at(t, x, y))) return { icon: "🏕️", name: "แคมป์", desc: "ยืนบนแคมป์ เลือกอาหาร (ใช้การโจมตี) บัฟ 3 เทิร์น: ตี +1 / ฟื้นเลือดทุกเทิร์น / เดิน +1" };
+  if ((fd.camps || []).some((t) => at(t, x, y))) return { icon: "🏕️", name: "แคมป์", desc: "ยืนบนแคมป์ เลือกอาหาร (ใช้การโจมตี) บัฟ 3 เทิร์น: ตี +1 / ฟื้นเลือดทุกเทิร์น / เดิน +1 · กลางคืน วงไฟ 2 ช่องรอบแคมป์ ปีศาจเข้าไม่ได้" };
+  if (fd.night && (fd.camps || []).some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) <= (fd.lightR || 2))) return { icon: "🔥", name: "วงไฟแคมป์", desc: "ปีศาจเข้าและตีคนในวงนี้ไม่ได้ (ราชาปีศาจ/ทหารเหล็กไม่กลัวไฟ)" };
   if ((fd.fish || []).some((t) => at(t, x, y))) return { icon: "🎣", name: "จุดตกปลา", desc: "ยืนแล้วกด \"ตกปลา\" (ใช้การโจมตี) — สุ่มได้ปลา/เหรียญ/ปลาทอง หรือโดนปลายักษ์ลาก" };
   const tomb = (fd.tombs || []).find((t) => at(t, x, y));
   if (tomb) return { icon: "⚱️", name: "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : "ยืนติดแล้วกด \"สุสาน\" — อาวุธหลวง 5 เทิร์น ตี +1 แต่ตาที่ตีเสียเลือด 1" };

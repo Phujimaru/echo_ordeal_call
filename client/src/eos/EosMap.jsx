@@ -74,6 +74,17 @@ export default function EosMap({ state, onClose }) {
         g.fillStyle = "#e0a63a"; g.fillRect(fd.convoy.x * T + 2, fd.convoy.y * T + 2, T - 4, T - 4); g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.strokeRect(fd.convoy.x * T + 2, fd.convoy.y * T + 2, T - 4, T - 4);
       }
       for (const sp of fd.spirits || []) dot(sp.x, sp.y, 0.3, "#9fd8ff", "#1b3a5a");
+      // PVE รอบสาม: เส้นทางยักษ์หิน · รังปีศาจ · ยักษ์หิน · พลเรือน
+      if (fd.giant && Array.isArray(fd.giant.path) && fd.giant.path.length) {
+        const pth = fd.giant.path;
+        g.strokeStyle = "rgba(255,140,60,.85)"; g.lineWidth = 3; g.setLineDash([6, 4]); g.beginPath();
+        g.moveTo((pth[0].x + 0.5) * T, (pth[0].y + 0.5) * T); g.lineTo((pth[pth.length - 1].x + 0.5) * T, (pth[pth.length - 1].y + 0.5) * T); g.stroke(); g.setLineDash([]);
+      }
+      for (const m of fd.mobs || []) {
+        if (m.type === "nest") dot(m.x, m.y, 0.42, "#c0309a", "#2a0626");
+        if (m.type === "giant") dot(m.x, m.y, 0.7, "#857c6d", "#78e6ff");
+      }
+      for (const c of fd.civs || []) dot(c.x, c.y, 0.32, "#ffe08a", c.follow ? "#ffffff" : "#7a5a10");
       if (fd.bossWarn) { g.strokeStyle = "#ff2a4a"; g.lineWidth = 3; g.beginPath(); g.arc((fd.bossWarn.x + 0.5) * T, (fd.bossWarn.y + 0.5) * T, T * 0.9, 0, Math.PI * 2); g.stroke(); }
       const boss = fd.boss && (fd.daemons || []).find((d) => d.id === fd.boss);
       if (boss) dot(boss.x, boss.y, 0.7, "#c21f4a", "#ffd34a");

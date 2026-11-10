@@ -1043,7 +1043,7 @@ function drawAnyUnit(g, u, now, boxes) {
   // Moon Cell (moonFx.js): โมเดลลูกบาศก์ลอย แทนหมาก
   if (u.summon && u.summon.kind === "moonCell" && !u.corpse) { drawMoonCell(g, u, now, boxes, { UK: UNIT_UI_K, vitalBar: drawVitalBar, vitalHeight }); return; }
   // มอนเตอร์ของสนาม Eos (ยูนิตที่ถูกเรียก — server/fodlan/stage6.js): ภาพตัว/หลอดเลือดวาดใน fodlan/stage6.js items · ที่นี่แค่กรอบคลิก + เป้าเล็ง
-  if (u.summon && (u.summon.kind === "eosMob" || u.summon.kind === "eosConvoy") && !u.corpse) { // รถเสบียงวาดใน stage6 items เช่นกัน
+  if (u.summon && (u.summon.kind === "eosMob" || u.summon.kind === "eosConvoy" || u.summon.kind === "eosCivilian") && !u.corpse) { // รถเสบียง/พลเรือนวาดใน stage6 items เช่นกัน
     const cx = u.rx + 0.5, cy = u.ry + 0.55, [sx, sy, s] = P(cx, cy, 0);
     if (u.reticle) drawReticle(g, sx, sy - s * 0.55, Math.max(18, s * 0.5), u.reticle, now);
     if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: sx - s * 0.45, y0: sy - s * 1.45, x1: sx + s * 0.45, y1: sy + s * 0.12 });

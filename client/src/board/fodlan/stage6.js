@@ -46,6 +46,9 @@ export const fx = {
   boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
+  // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
+  combo: 1100, power_turret: 1200, power_fountain: 1000, nest_spawn: 1200, nest_burst: 1400, giant_warn: 1600, giant_step: 1600, giant_leave: 1400, giant_die: 2400,
+  civ_spawn: 1200, civ_follow: 700, civ_saved: 1800, civ_lost: 1300, gauge_full: 1600, barrage: 1800, final_start: 3000, final_wave: 1400,
   // ขั้น 4 (ฉากฝั่ง client ยาวกว่าเวลาที่ server พักได้ — รถไฟวิ่งพ้นแผนที่ให้ครบขบวน)
   train_warn: 1800, train_pass: 3000, gondola: 2000, tunnel: 1500, camp_meal: 1500, fish: 2600, tomb_open: 2300, royal_drain: 1400, hunt_board: 1500, hunt_done: 1500, // 1500 = ค่าเริ่มของ fxActive (เหตุการณ์ที่ชื่อถูกทับ — p4Norm)
 };
@@ -2676,6 +2679,7 @@ export function ground(g, fd, info, now, lowQ = false) {
   }
   p4Ground(g, fd, now, night); // ขั้น 4
   pveGround(g, fd, now, lowQ);
+  pve3Ground(g, fd, now, lowQ); // วงไฟแคมป์ · เส้นทางยักษ์หิน
   for (const ds of shipsOf(fd)) { // ยานลงได้หลายลำพร้อมกัน (กลางวัน — ผู้ใช้สั่ง 2026-11-10)
   if (ds && ds.state === "landed") {
     const z = dropZ(ds, now);
@@ -2779,6 +2783,17 @@ export function items(list, g, fd, info, units, now, lowQ) {
   // ขั้น 3: มอนสเตอร์ (เลื่อนนุ่มตามเส้นทาง "mob_move" · พุ่งเข้าหาเป้าตอน "mob_attack")
   const hitE = lastFx("mob_hit");
   for (const m of fd.mobs || []) {
+    if (m.type === "nest") { // รังปีศาจ (อยู่กับที่)
+      const hn = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
+      list.push({ d: depthOf(m.x + 0.5, m.y + 0.5), f: () => drawNest(g, m, m.x + 0.5, m.y + 0.55, now, lowQ, hn) });
+      continue;
+    }
+    if (m.type === "giant") { // ยักษ์หิน (เดินตามเส้นทาง — เลื่อนนุ่ม)
+      const gp = smooth(`mob:${m.id}`, m.x, m.y, now, 1400);
+      const gh = mobFacing(m.id, gp), hg = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
+      list.push({ d: depthOf(gp.x + 0.5, gp.y + 0.55), f: () => drawGiant(g, m, gp.x + 0.5, gp.y + 0.55, now, lowQ, gp.moving, screenFace(gp.x + 0.5, gp.y + 0.5, gh) > 0 ? 1 : -1, hg) });
+      continue;
+    }
     const beast = m.type === "beast";
     const pos = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, MOB_MS, pathOf(fd, "mob_move", m.id)));
     let head = mobFacing(m.id, pos), lunge = 0;
@@ -2818,6 +2833,11 @@ export function items(list, g, fd, info, units, now, lowQ) {
     list.push({ d: depthOf(pos.x + 0.5, pos.y + 0.5), f: () => drawConvoy(g, pos.x + 0.5, pos.y + 0.5, head, c, now, night, lowQ) });
   }
   for (const sp of fd.spirits || []) list.push({ d: depthOf(sp.x + 0.5, sp.y + 0.5), f: () => drawSpirit(g, sp, now, lowQ) });
+  for (const c of fd.civs || []) { // พลเรือน (ยูนิตฝ่ายเรา — วาดแทนหมาก)
+    const cu = unitAt(units, c.id), pos = cu ? { x: cu.x, y: cu.y } : { x: c.x + 0.5, y: c.y + 0.5 };
+    const lead = c.follow ? unitAt(units, c.follow) : null;
+    list.push({ d: depthOf(pos.x, pos.y), f: () => drawCivilian(g, c, pos.x, pos.y + 0.05, now, lowQ, lead) });
+  }
   for (const q of fd.quests || []) if (q.type === "scout") list.push({ d: depthOf(q.x + 0.5, q.y + 0.5), f: () => drawBeacon(g, q, now, lowQ) });
   for (const pl of fd.pillars || []) if ((pl.ward || 0) > 0) list.push({ d: depthOf(pl.x + 0.5, pl.y + 0.5) + 0.01, f: () => drawWard(g, pl, now) });
   // ขั้น 3: ยานลำเลียงจอดลอย (ทับคนที่อยู่ใต้ยาน)
@@ -2918,6 +2938,24 @@ function playFx(e) {
     case "convoy_done": sfx("car_horn"); sfx("hunt_done", { delay: 0.4 }); break;
     case "convoy_fail": sfx("barrel_explode", { gain: 0.8 }); break;
     case "chest_spawn": sfx("crystal_pick", { gain: 0.5 }); break;
+    // PVE รอบสาม (ใช้เสียงที่มีอยู่แล้ว)
+    case "combo": sfx("car_hit", { gain: 0.6 }); sfx("royal_arms", { delay: 0.1, gain: 0.55 }); break;
+    case "power_turret": sfx("turret_shot", { gain: 0.8 }); break;
+    case "power_fountain": sfx("camp_buff", { gain: 0.5 }); break;
+    case "nest_spawn": sfx("daemon_spawn", { gain: 0.6 }); break;
+    case "nest_burst": sfx("daemon_spawn"); sfx("daemon_growl", { delay: 0.4, gain: 0.8 }); break;
+    case "giant_warn": sfx("beast_step", { gain: 0.9 }); sfx("beast_step", { delay: 0.6, gain: 0.9 }); sfx("beast_roar", { delay: 1.0, gain: 0.6 }); break;
+    case "giant_step": sfx("beast_step"); sfx("beast_step", { delay: 0.5 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
+    case "giant_leave": sfx("beast_step", { gain: 0.5 }); break;
+    case "giant_die": sfx("barrel_explode"); sfx("beast_roar", { delay: 0.2, gain: 0.8 }); sfx("hunt_done", { delay: 1.2 }); break;
+    case "civ_spawn": sfx("chocobo_call", { gain: 0.35 }); break;
+    case "civ_follow": sfx("chocobo_run", { gain: 0.4 }); break;
+    case "civ_saved": sfx("hunt_done"); sfx("camp_buff", { delay: 0.3, gain: 0.6 }); break;
+    case "civ_lost": sfx("daemon_attack", { gain: 0.6 }); break;
+    case "gauge_full": sfx("royal_arms", { gain: 0.8 }); break;
+    case "barrage": sfx("throw_swoosh"); sfx("barrel_explode", { delay: 0.5 }); sfx("barrel_explode", { delay: 0.8, gain: 0.8 }); break;
+    case "final_start": sfx("night_fall"); sfx("beast_roar", { delay: 0.6 }); sfx("dropship_alarm", { delay: 1.0, gain: 0.6, dur: 2.0 }); break;
+    case "final_wave": sfx("daemon_spawn"); break;
     case "chest_open": sfx("tomb_open", { gain: 0.8 }); sfx("hunt_done", { delay: 0.5 }); break;
     case "beast_roar": sfx("beast_roar"); break;
     case "dropship_warn": sfx("dropship_alarm"); break;
@@ -2944,6 +2982,208 @@ function playFx(e) {
     case "hunt_done": sfx("hunt_done"); break;
     default: break;
   }
+}
+// =================================================================== PVE รอบสาม: ภาพของระบบใหม่ (server/fodlan/eosExtra.js)
+// รังปีศาจ: เนินรากหนามสีม่วงดำ · แกนกลางเรืองชมพูเต้นเป็นจังหวะ · ควันม่วงลอยขึ้น
+function drawNest(g, m, cx, cy, now, lowQ, hit) {
+  const [sx, sy, s] = P(cx, cy);
+  const k = 0.5 + 0.5 * Math.sin(now / 420 + m.x);
+  g.save(); g.translate(sx, sy); g.scale(1, 0.42);
+  const gr = g.createRadialGradient(0, 0, s * 0.1, 0, 0, s * 0.85);
+  gr.addColorStop(0, `rgba(190,40,150,${0.35 + 0.2 * k})`); gr.addColorStop(1, "rgba(60,0,50,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, s * 0.85, 0, TAU); g.fill();
+  g.restore();
+  // ราก/หนามรอบเนิน (หลังก่อน หน้าทับ)
+  const thorns = [];
+  for (let i = 0; i < 9; i++) { const a = i / 9 * TAU + hash(i, m.x * 7 + m.y) * 0.4; thorns.push([a, 0.34 + hash(i, 5) * 0.12, 0.35 + hash(i, 9) * 0.3]); }
+  thorns.sort((a, b) => Math.sin(a[0]) - Math.sin(b[0]));
+  const thorn = ([a, r, h]) => {
+    const bx = cx + Math.cos(a) * r, by = cy + Math.sin(a) * r * 0.9;
+    const b0 = P(bx - Math.sin(a) * 0.06, by + Math.cos(a) * 0.06), b1 = P(bx + Math.sin(a) * 0.06, by - Math.cos(a) * 0.06), tip = P(bx + Math.cos(a) * 0.16, by + Math.sin(a) * 0.16, h);
+    g.fillStyle = "#2a0d24"; g.beginPath(); g.moveTo(b0[0], b0[1]); g.lineTo(tip[0], tip[1]); g.lineTo(b1[0], b1[1]); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(200,60,160,.45)"; g.lineWidth = 1; g.beginPath(); g.moveTo((b0[0] + b1[0]) / 2, (b0[1] + b1[1]) / 2); g.lineTo(tip[0], tip[1]); g.stroke();
+  };
+  for (const t of thorns) if (Math.sin(t[0]) < 0) thorn(t);
+  // เนิน
+  const top = P(cx, cy, 0.42), shake = hit < 1 ? Math.sin(hit * 50) * s * 0.03 * (1 - hit) : 0;
+  const mg = g.createRadialGradient(top[0] - s * 0.1, top[1], s * 0.05, sx, sy - s * 0.1, s * 0.5);
+  mg.addColorStop(0, "#5a1d4e"); mg.addColorStop(1, "#1c0818");
+  g.fillStyle = mg; g.beginPath(); g.ellipse(sx + shake, sy - s * 0.12, s * 0.4, s * 0.3, 0, Math.PI, 0); g.lineTo(sx + s * 0.4 + shake, sy - s * 0.12); g.ellipse(sx + shake, sy - s * 0.12, s * 0.4, s * 0.12, 0, 0, Math.PI); g.fill();
+  // ช่องแกนกลางเรือง
+  glowAt(g, sx + shake, sy - s * 0.32, s * (0.45 + k * 0.2), "255,60,190", 0.55 + 0.3 * k);
+  g.fillStyle = `rgba(255,${120 + Math.floor(k * 80)},220,.95)`; g.beginPath(); g.ellipse(sx + shake, sy - s * 0.3, s * 0.09, s * 0.06 + k * s * 0.02, 0, 0, TAU); g.fill();
+  for (const t of thorns) if (Math.sin(t[0]) >= 0) thorn(t);
+  if (!lowQ) for (let i = 0; i < 5; i++) { const ph = ((now / 1800) + i / 5) % 1, px = sx + Math.sin(i * 2.3 + now / 900) * s * 0.18, py = sy - s * (0.4 + ph * 1.1); g.fillStyle = `rgba(150,40,130,${0.45 * (1 - ph)})`; g.beginPath(); g.arc(px, py, s * (0.05 + ph * 0.08), 0, TAU); g.fill(); }
+  if (hit < 1) glowAt(g, sx, sy - s * 0.3, s * 0.7, "255,255,255", (1 - hit) * 0.7);
+  hpPips(g, cx, cy, 1.1, m.hp, m.maxHp, m.armor, m.maxArmor);
+}
+// ยักษ์หิน: ร่างหินสูง 3 ช่อง ขาสองต้น ลำตัวหินเหลี่ยม ตะไคร่เขียว อักษรรูนฟ้าเรือง ตาเรือง · ก้าวเดินโยกตัว
+function drawGiant(g, m, cx, cy, now, lowQ, moving, face, hit) {
+  const [sx, sy, s] = P(cx, cy);
+  const sway = moving && !lowQ ? Math.sin(now / 160) * s * 0.05 : 0, lift = moving && !lowQ ? Math.abs(Math.sin(now / 160)) * s * 0.06 : 0;
+  const shake = hit < 1 ? Math.sin(hit * 50) * s * 0.04 * (1 - hit) : 0;
+  const X0 = sx + shake;
+  g.fillStyle = "rgba(0,0,0,.42)"; g.beginPath(); g.ellipse(sx, sy, s * 1.0, s * 0.34, 0, 0, TAU); g.fill();
+  const stone = "#857c6d", dark = "#5a5348", hi = "#a69c8a", moss = "#5f7a3c", rune = "120,230,255";
+  const rk = 0.6 + 0.4 * Math.sin(now / 500);
+  // ขา
+  const leg = (dx, up) => { g.fillStyle = dark; g.fillRect(X0 + dx - s * 0.17, sy - s * 1.05 - up, s * 0.34, s * 1.05 + up * 0.2); g.fillStyle = stone; g.fillRect(X0 + dx - s * 0.17, sy - s * 1.05 - up, s * 0.22, s * 1.0); g.fillStyle = hi; g.fillRect(X0 + dx - s * 0.22, sy - s * 0.12 - up * 0.2, s * 0.44, s * 0.12); };
+  leg(-s * 0.3, moving ? lift : 0); leg(s * 0.3, moving ? s * 0.06 - lift : 0);
+  // ลำตัว
+  const bx = X0 + sway, by = sy - s * 1.0;
+  g.fillStyle = dark; g.beginPath(); g.moveTo(bx - s * 0.62, by); g.lineTo(bx - s * 0.75, by - s * 1.25); g.lineTo(bx + s * 0.75, by - s * 1.3); g.lineTo(bx + s * 0.62, by); g.closePath(); g.fill();
+  g.fillStyle = stone; g.beginPath(); g.moveTo(bx - s * 0.62, by); g.lineTo(bx - s * 0.75, by - s * 1.25); g.lineTo(bx + s * 0.2, by - s * 1.28); g.lineTo(bx + s * 0.12, by); g.closePath(); g.fill();
+  // ไหล่ + แขน
+  for (const d of [-1, 1]) {
+    const ax = bx + d * s * 0.85, ay = by - s * 1.15;
+    g.fillStyle = d * face > 0 ? stone : dark; g.beginPath(); g.ellipse(ax, ay, s * 0.26, s * 0.2, 0, 0, TAU); g.fill();
+    g.fillStyle = dark; g.fillRect(ax - s * 0.14, ay, s * 0.28, s * 0.95 + (moving ? Math.sin(now / 160 + d) * s * 0.05 : 0));
+    g.fillStyle = hi; g.beginPath(); g.ellipse(ax, ay + s * 1.0, s * 0.2, s * 0.16, 0, 0, TAU); g.fill();
+  }
+  // ตะไคร่
+  g.fillStyle = moss; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(bx + (hash(i, 3) - 0.5) * s * 1.1, by - s * (0.1 + hash(i, 7) * 1.1), s * 0.12, s * 0.06, 0, 0, TAU); g.fill(); }
+  // อักษรรูนบนอก
+  g.strokeStyle = `rgba(${rune},${0.55 + 0.4 * rk})`; g.lineWidth = Math.max(1.5, s * 0.035);
+  g.beginPath(); g.moveTo(bx - s * 0.25, by - s * 0.9); g.lineTo(bx, by - s * 0.55); g.lineTo(bx + s * 0.25, by - s * 0.9); g.moveTo(bx, by - s * 0.55); g.lineTo(bx, by - s * 0.25); g.stroke();
+  glowAt(g, bx, by - s * 0.6, s * 0.5, rune, 0.3 * rk);
+  // หัว
+  const hx = bx + face * s * 0.08, hy = by - s * 1.45;
+  g.fillStyle = dark; g.fillRect(hx - s * 0.3, hy - s * 0.42, s * 0.6, s * 0.46);
+  g.fillStyle = stone; g.fillRect(hx - s * 0.3, hy - s * 0.42, s * 0.4, s * 0.42);
+  for (const d of [-1, 1]) { const ex = hx + d * s * 0.12 + face * s * 0.05; glowAt(g, ex, hy - s * 0.22, s * 0.18, rune, 0.9); g.fillStyle = "#dffaff"; g.fillRect(ex - s * 0.05, hy - s * 0.24, s * 0.1, s * 0.04); }
+  if (hit < 1) glowAt(g, bx, by - s * 0.8, s * 1.2, "255,255,255", (1 - hit) * 0.6);
+  const top = P(cx, cy, 3.3), UK = Math.max(0.5, s * 0.012);
+  drawVitalBar(g, top[0], top[1], s * 1.3, { hp: m.hp, maxHp: Math.max(1, m.maxHp), armor: m.armor, maxArmor: Math.max(m.armor || 0, m.maxArmor || 0) }, UK);
+}
+// พลเรือน: คนตัวเล็กคลุมผ้า · ยังไม่มีคนพา = โบกมือ + วงทองเต้น · มีคนพา = เส้นประไปหาคนพา
+const CIV_CLOAK = ["#c96b4b", "#5b86b8", "#8a6bb0"];
+function drawCivilian(g, c, cx, cy, now, lowQ, lead) {
+  const [sx, sy, s] = P(cx, cy);
+  if (lead) {
+    const a = P(cx, cy, 0.05), b = P(lead.x, lead.y, 0.05);
+    g.strokeStyle = "rgba(255,230,160,.7)"; g.lineWidth = 2; g.setLineDash([4, 5]); g.lineDashOffset = -now / 40; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]);
+  } else {
+    const k = (now / 1100) % 1;
+    g.save(); g.translate(sx, sy); g.scale(1, 0.42); g.strokeStyle = `rgba(255,215,120,${0.9 * (1 - k)})`; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, s * (0.25 + k * 0.4), 0, TAU); g.stroke(); g.restore();
+  }
+  g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.2, s * 0.07, 0, 0, TAU); g.fill();
+  const bob = lowQ ? 0 : Math.abs(Math.sin(now / (lead ? 150 : 600))) * s * 0.03;
+  const cloak = CIV_CLOAK[(c.look || 0) % CIV_CLOAK.length];
+  g.fillStyle = cloak; g.beginPath(); g.moveTo(sx - s * 0.15, sy - bob); g.lineTo(sx - s * 0.1, sy - s * 0.48 - bob); g.lineTo(sx + s * 0.1, sy - s * 0.48 - bob); g.lineTo(sx + s * 0.15, sy - bob); g.closePath(); g.fill();
+  g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(sx, sy - s * 0.48 - bob, s * 0.12, s * 0.48);
+  g.fillStyle = "#f0c9a0"; g.beginPath(); g.arc(sx, sy - s * 0.58 - bob, s * 0.1, 0, TAU); g.fill();
+  g.fillStyle = cloak; g.beginPath(); g.arc(sx, sy - s * 0.62 - bob, s * 0.11, Math.PI, 0); g.fill();
+  if (!lead) { // โบกมือ
+    const w = Math.sin(now / 160) * 0.5;
+    g.strokeStyle = "#f0c9a0"; g.lineWidth = Math.max(2, s * 0.04); g.lineCap = "round";
+    g.beginPath(); g.moveTo(sx + s * 0.1, sy - s * 0.42 - bob); g.lineTo(sx + s * (0.2 + w * 0.08), sy - s * 0.7 - bob); g.stroke(); g.lineCap = "butt";
+  }
+  hpPips(g, cx, cy, 0.95, c.hp, c.maxHp, 0, 0);
+}
+// พื้น: วงไฟแคมป์ (กลางคืน — ปีศาจเข้าไม่ได้) · เส้นทางยักษ์หิน (เตือน = ทั้งเส้น · กำลังเดิน = แถบที่จะเหยียบเทิร์นหน้า)
+function pve3Ground(g, fd, now, lowQ) {
+  if (fd.night && Array.isArray(fd.camps)) {
+    const r = fd.lightR || 2;
+    for (const c of fd.camps) {
+      const [x, y, s] = P(c.x + 0.5, c.y + 0.5, 0.02);
+      glowAt(g, x, y, s * (r + 0.8), "255,190,110", 0.32 + 0.05 * Math.sin(now / 300 + c.x));
+      const pts = [[c.x + 0.5, c.y - r], [c.x + 1 + r, c.y + 0.5], [c.x + 0.5, c.y + 1 + r], [c.x - r, c.y + 0.5]].map(([a, b]) => P(a, b, 0.02));
+      g.strokeStyle = "rgba(255,200,120,.55)"; g.lineWidth = 2; g.setLineDash([6, 6]); g.lineDashOffset = -now / 60;
+      g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.stroke(); g.setLineDash([]);
+    }
+  }
+  const gi = fd.giant;
+  if (gi && Array.isArray(gi.path)) {
+    const k = 0.5 + 0.5 * Math.sin(now / 200);
+    if (gi.state === "warn") {
+      g.strokeStyle = `rgba(255,150,60,${0.35 + 0.25 * k})`; g.lineWidth = 3; g.setLineDash([14, 10]); g.lineDashOffset = -now / 30;
+      g.beginPath(); gi.path.forEach((t, i) => { const p = P(t.x + 0.5, t.y + 0.5, 0.03); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.stroke(); g.setLineDash([]);
+    }
+    for (const t of gi.next || []) {
+      quad(g, t.x, t.y, 0.06, 0.02); g.fillStyle = `rgba(255,90,40,${0.14 + 0.12 * k})`; g.fill();
+      g.strokeStyle = `rgba(255,120,60,${0.5 + 0.3 * k})`; g.lineWidth = 1.5; g.stroke();
+    }
+  }
+}
+// ฉาก PVE รอบสาม (คืน true = วาดแล้ว)
+function pve3Fx(g, e, p, lowQ, units, out) {
+  if (e.kind === "combo") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9 + p * 0.6);
+    for (let r = 0; r < 2; r++) { const k = Math.min(1, p * 1.6 - r * 0.25); if (k <= 0) continue; g.strokeStyle = `rgba(${r ? "255,210,90" : "120,220,255"},${1 - k})`; g.lineWidth = 4 * (1 - k) + 1; g.beginPath(); g.arc(x, y, s * (0.3 + k * 0.9), 0, TAU); g.stroke(); }
+    emoji(g, "🤝", x, y - s * 0.2 - p * s * 0.4, Math.max(16, s * 0.45), 1 - p * p);
+    return true;
+  }
+  if (e.kind === "power_turret") {
+    for (const sh of e.shots || []) {
+      const a = P(sh.from.x + 0.5, sh.from.y + 0.5, 1.1), b = P(sh.to.x + 0.5, sh.to.y + 0.5, 0.6), al = p < 0.35 ? 1 : Math.max(0, 1 - (p - 0.35) / 0.65);
+      const k = Math.min(1, p / 0.25), hx = a[0] + (b[0] - a[0]) * k, hy = a[1] + (b[1] - a[1]) * k;
+      g.strokeStyle = `rgba(120,220,255,${al})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(hx, hy); g.stroke();
+      glowAt(g, a[0], a[1], 22, "180,240,255", al * 0.8);
+      if (k >= 1) glowAt(g, b[0], b[1], 34, "255,200,120", al * 0.9);
+    }
+    return true;
+  }
+  if (e.kind === "power_fountain") {
+    for (const h of e.list || []) {
+      const [x, y, s] = P(h.x + 0.5, h.y + 0.5, 0.3 + p * 1.2);
+      if (!lowQ) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + p * 3; g.fillStyle = `rgba(140,215,255,${1 - p})`; g.beginPath(); g.ellipse(x + Math.cos(a) * s * 0.25, y + Math.sin(a) * s * 0.1 - i * 2, 2.5, 4, 0, 0, TAU); g.fill(); }
+      glowAt(g, x, y, s * 0.5, "140,215,255", (1 - p) * 0.7);
+    }
+    return true;
+  }
+  if (e.kind === "nest_spawn" || e.kind === "final_wave" || e.kind === "nest_burst") {
+    const rgb = e.kind === "final_wave" ? "255,40,70" : "200,50,170";
+    for (const t of e.list || []) {
+      const [x, y, s] = P(t.x + 0.5, t.y + 0.5), a = Math.sin(Math.min(1, p) * Math.PI);
+      glowAt(g, x, y - s * 0.3, s * (0.6 + p), rgb, a * 0.8);
+      if (e.kind === "nest_spawn") { g.fillStyle = `rgba(${rgb},${0.3 * a})`; g.fillRect(x - s * 0.2, y - s * 5, s * 0.4, s * 5); }
+      else if (!lowQ) puff(g, t.x + 0.5, t.y + 0.5, 0.1, p, e.seq + t.x, 5, "70,10,60", 0.12);
+    }
+    return true;
+  }
+  if (e.kind === "giant_step" || e.kind === "giant_warn") {
+    if (e.kind === "giant_step" && p < 0.25) out.flash = Math.max(out.flash || 0, 0.12 * (1 - p / 0.25));
+    if (!lowQ) for (const t of (e.band || []).filter((_, i) => i % 2 === 0)) puff(g, t.x + 0.5, t.y + 0.5, 0.05, p, e.seq + t.x * 3 + t.y, 3, "150,130,100", 0.16);
+    return true;
+  }
+  if (e.kind === "giant_die") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 1.2);
+    glowAt(g, x, y, s * (1 + p * 3), "140,230,255", (1 - p) * 0.8);
+    if (!lowQ) for (let i = 0; i < 22; i++) { const a = hash(i, e.seq) * TAU, d = s * p * (1 + hash(i, 2) * 2), fall = s * 2.2 * p * p; g.fillStyle = i % 3 ? "#857c6d" : "#5a5348"; g.fillRect(x + Math.cos(a) * d - 4, y + Math.sin(a) * d * 0.5 - s * 1.5 + fall, 8, 6); }
+    if (p > 0.3) puff(g, e.x + 0.5, e.y + 0.5, 0.1, (p - 0.3) / 0.7, e.seq, lowQ ? 4 : 12, "160,145,120", 0.3);
+    return true;
+  }
+  if (e.kind === "giant_leave") return true;
+  if (e.kind === "civ_spawn") {
+    for (const t of e.list || []) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.6); glowAt(g, x, y, s * (0.5 + p), "255,215,120", Math.sin(Math.min(1, p) * Math.PI) * 0.8); }
+    return true;
+  }
+  if (e.kind === "civ_saved") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.6 + p * 2);
+    glowAt(g, x, y, s * 0.8, "255,235,170", (1 - p) * 0.8);
+    emoji(g, "🕊️", x, y, Math.max(18, s * 0.5), 1 - p * p);
+    return true;
+  }
+  if (e.kind === "civ_lost") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5); glowAt(g, x, y, s * 0.7, "180,180,190", (1 - p) * 0.6); return true; }
+  if (e.kind === "civ_follow" || e.kind === "gauge_full") return true;
+  if (e.kind === "barrage") {
+    const tiles = e.tiles || [];
+    for (let i = 0; i < tiles.length; i++) {
+      const t = tiles[i], d = hash(i, e.seq) * 0.35, k = (p - d) / 0.35;
+      if (k < 0) continue;
+      const [x, y, s] = P(t.x + 0.5, t.y + 0.5);
+      if (k < 1) { const top = P(t.x + 0.5 - 1.2 * (1 - k), t.y + 0.5 - 0.6 * (1 - k), 9 * (1 - k)); g.strokeStyle = "rgba(255,210,120,.9)"; g.lineWidth = Math.max(2, s * 0.08); g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(top[0] + (x - top[0]) * 0.25, top[1] + (y - top[1]) * 0.25); g.stroke(); glowAt(g, top[0], top[1], s * 0.3, "255,230,160", 0.9); }
+      else { const q = Math.min(1, k - 1); glowAt(g, x, y, s * (0.5 + q * 0.6), "255,150,60", (1 - q) * 0.85); }
+    }
+    if (p > 0.3 && p < 0.5) out.flash = Math.max(out.flash || 0, 0.18);
+    return true;
+  }
+  if (e.kind === "final_start") {
+    if (p < 0.4) out.flash = Math.max(out.flash || 0, 0.25 * (1 - p / 0.4));
+    return true;
+  }
+  void units;
+  return false;
 }
 // =================================================================== PVE รอบสอง: ภาพของระบบใหม่
 const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" } };
@@ -3469,6 +3709,11 @@ export function air(g, fd, info, units, now, lowQ, view) {
   if (fd.blood) { // คืนพระจันทร์สีเลือด: ทั้งกระดานอมแดงเต้นช้าๆ
     g.fillStyle = `rgba(120,0,20,${0.2 + 0.05 * Math.sin(now / 900)})`; g.fillRect(X0, Y0, W, H);
   }
+  if (fd.final) { // คืนสุดท้าย: ม่านม่วงแดงเข้ม + ขอบจอมืด (vignette)
+    g.fillStyle = `rgba(50,0,40,${0.16 + 0.04 * Math.sin(now / 700)})`; g.fillRect(X0, Y0, W, H);
+    const vg = g.createRadialGradient(X0 + W / 2, Y0 + H / 2, Math.min(W, H) * 0.35, X0 + W / 2, Y0 + H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(30,0,20,.5)"); g.fillStyle = vg; g.fillRect(X0, Y0, W, H);
+  }
   if (kind === "eos_storm") {
     g.fillStyle = fd.night ? "rgba(2,5,16,.38)" : "rgba(20,28,40,.34)"; g.fillRect(X0, Y0, W, H);
     if (!lowQ) {
@@ -3534,6 +3779,7 @@ export function air(g, fd, info, units, now, lowQ, view) {
     if (p4Fx(g, e, p, now, lowQ, units, out, !!fd.night)) continue;
     if (pveFx(g, e, p, lowQ)) continue;
     if (pve2Fx(g, e, p, lowQ, units)) continue;
+    if (pve3Fx(g, e, p, lowQ, units, out)) continue;
     if (e.kind === "lightning") {
       const [x, y, s] = P(e.x + 0.5, e.y + 0.5);
       if (p < 0.12) flash = Math.max(flash, 0.4 * (1 - p / 0.12));

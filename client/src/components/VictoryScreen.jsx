@@ -81,7 +81,13 @@ function Crown() {
   );
 }
 
-function Winner({ p, x, w, i, you, multi }) {
+// ฉายาจบเกมของสนาม Eos (PVE รอบสาม — server/fodlan/eosExtra.js titlesOf): ไอคอน + ชื่อฉายา
+function Titles({ list }) {
+  if (!list || !list.length) return null;
+  return <div className="vic-titles">{list.map((t) => <span key={t.key} className="vic-title" title={`${t.name} · ${t.n}`}><i>{t.icon}</i>{t.name}</span>)}</div>;
+}
+
+function Winner({ p, x, w, i, you, multi, titles }) {
   const h = Math.round(w / 0.873);
   return (
     <div className="vic-win" data-multi={multi ? "true" : "false"} style={{ left: x, top: WIN_CY - h / 2, width: w, "--pc": p.color || "#9b4f96", "--d": `${i * 160}ms` }}>
@@ -103,12 +109,13 @@ function Winner({ p, x, w, i, you, multi }) {
           <span className="vic-ch">{p.character?.name || ""}</span>
           {you && <span className="vic-you">คุณ</span>}
         </div>
+        <Titles list={titles} />
       </div>
     </div>
   );
 }
 
-function Mini({ p, i, you }) {
+function Mini({ p, i, you, titles }) {
   return (
     <div className="vic-mini" data-dead={p.alive ? "false" : "true"} style={{ "--pc": p.color || "#3d8bd9", "--d": `${i * 90}ms` }}>
       <div className="vic-mhex">
@@ -120,6 +127,7 @@ function Mini({ p, i, you }) {
       </div>
       <div className="vic-mname">{p.name}{you && <i className="vic-mdot" />}</div>
       <div className="vic-mch">{p.character?.name || ""}</div>
+      <Titles list={titles} />
     </div>
   );
 }
@@ -182,6 +190,8 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
   }, [players, state.gameMode, state.winningTeamId, winners]);
 
   const lay = WIN_LAYOUT[Math.min(3, Math.max(1, winners.length))];
+  const eosTitles = state.gameMode === "eos" && state.fodlan && state.fodlan.board ? state.fodlan.board.titles || [] : [];
+  const titlesOf = (id) => eosTitles.filter((t) => t.id === id);
   const wGap = winners.length > 3 ? Math.min(lay.gap, 1500 / (winners.length - 1)) : lay.gap;
   let mi = 0;
 
@@ -255,7 +265,7 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
           <svg className="vic-empty" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX} /></svg>
         )}
         {winners.map((p, i) => (
-          <Winner key={p.id} p={p} i={i} w={lay.w} x={960 + (i - (winners.length - 1) / 2) * wGap - lay.w / 2} you={p.id === state.youId} multi={winners.length > 1} />
+          <Winner key={p.id} p={p} i={i} w={lay.w} x={960 + (i - (winners.length - 1) / 2) * wGap - lay.w / 2} you={p.id === state.youId} multi={winners.length > 1} titles={titlesOf(p.id)} />
         ))}
 
         {groups.length > 0 && (
@@ -264,7 +274,7 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
               <div key={g.id ?? "all"} className="vic-grp">
                 {g.id !== null && <div className="vic-grp-lb" data-win={g.id === state.winningTeamId ? "true" : "false"}>ทีม {g.id}</div>}
                 <div className="vic-grp-row">
-                  {g.players.map((p) => <Mini key={p.id} p={p} i={mi++} you={p.id === state.youId} />)}
+                  {g.players.map((p) => <Mini key={p.id} p={p} i={mi++} you={p.id === state.youId} titles={titlesOf(p.id)} />)}
                 </div>
               </div>
             ))}

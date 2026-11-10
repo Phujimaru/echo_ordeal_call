@@ -107,7 +107,7 @@ function computeAttackBase(engine, attacker, target) {
   }
   const auraAtk = auraAtkFx.reduce((n, r) => n + r.amount, 0);
   // Fodlan: ผลของด่าน (ถือศิลาตรา +1 — server/fodlan/stage5.js atkBonus) — ungated
-  const fodlanAtk = require("../fodlan").atkBonus(attacker);
+  const fodlanAtk = require("../fodlan").atkBonus(attacker, target);
   const base = baseHook + hookBonus + journeyAtk + giftAtk + terrainAtk + zeroAtk + auraAtk + fodlanAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,

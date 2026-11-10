@@ -391,6 +391,8 @@ export function eosMusicPicker() {
     else if (me && me.alive && me.pos) {
       if (players.some((p) => seen(p) && !ally(p))) want = "tension";
     }
+    // คืนสุดท้าย (PVE รอบสาม): เพลงล่าค่าหัวที่เร้าใจ แทนเพลงกลางคืน/ตึงเครียด (ปะทะยังเป็นเพลงต่อสู้)
+    if (!battle && state.fodlan && state.fodlan.board && state.fodlan.board.final) want = "hunt";
 
     const waits = [];
     if (mode == null || (want !== mode && (want === "battle" || nowMs - since >= MUSIC_HOLD_MS))) {

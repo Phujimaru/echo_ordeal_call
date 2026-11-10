@@ -338,7 +338,7 @@ function shields(attacker, target) { return !!call("shields", false, attacker, t
 function eosWinner() { return isEos() ? call("winner", null) || null : null; }
 // Eos PVE (GRID_PLAN §8.6 · ผู้ใช้สั่ง 2026-11-10): "win" แต้มรวมครบ · "lose" ผู้เล่นล้มหมดพร้อมกัน · null = ยังไม่จบ
 function eosOutcome() { return isEos() ? call("outcome", null) || null : null; }
-function atkBonus(p) { return (Number(call("atkBonus", 0, p)) || 0) + sumOf(persistAll("atkBonus", p)); }
+function atkBonus(p, target = null) { return (Number(call("atkBonus", 0, p, target)) || 0) + sumOf(persistAll("atkBonus", p)); } // target = เป้าของการตีปกติ (Eos ท่าร่วม)
 function preventDeath(p) { return !!call("preventDeath", false, p) || persistAll("preventDeath", p).some(Boolean); }
 // เลือดสูงสุดเพิ่ม (combat.maxHpOf) — ร่างอสูรศิลาตรา +5
 function maxHpBonus(p) { return p && !p.summon ? sumOf(persistAll("maxHpBonus", p)) : 0; }

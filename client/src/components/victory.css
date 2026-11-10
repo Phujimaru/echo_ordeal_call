@@ -310,3 +310,10 @@
 .vic-sum-bar { grid-column: 1 / -1; display: block; height: 5px; background: #dce7f3; }
 .vic-sum-bar span { display: block; height: 100%; background: var(--pc); }
 .vic-sum-n { font: 700 26px/1 var(--oc-f-ui); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ฉายาจบเกมของสนาม Eos */
+.vic-titles { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.vic-title { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 999px; font-size: 15px; font-weight: 700; color: #3a2a08; background: linear-gradient(180deg, #ffe7a3, #f0c25a); box-shadow: 0 2px 8px rgba(160, 110, 20, .35); white-space: nowrap; }
+.vic-title i { font-style: normal; }
+.vic-mini .vic-titles { margin-top: 4px; }
+.vic-mini .vic-title { font-size: 11px; padding: 2px 7px 2px 5px; }

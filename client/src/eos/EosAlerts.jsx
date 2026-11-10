@@ -29,6 +29,15 @@ function alertOf(e, fd) {
     case "convoy_done": return { icon: "🚚", title: "ขบวนเสบียงถึงแล้ว · +6", zone: "", tone: "good" };
     case "convoy_fail": return { icon: "💥", title: "ขบวนเสบียงถูกทำลาย", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "chest_spawn": return { icon: "🎁", title: `หีบสมบัติโผล่ ${(e.list || []).length} ใบ`, zone: "", tone: "good", at: (e.list || [])[0] };
+    // PVE รอบสาม
+    case "final_start": return { icon: "🌑", title: "คืนสุดท้าย", zone: "", tone: "danger" };
+    case "giant_warn": return { icon: "🗿", title: "ยักษ์หินกำลังมา", zone: e.path && e.path[0] ? zoneAt(e.path[0].x, e.path[0].y) : "", tone: "warn", at: e.path && e.path[0] };
+    case "giant_die": return { icon: "🗿", title: "ล้มยักษ์หิน · +4", zone: "", tone: "good" };
+    case "nest_spawn": return { icon: "🔥", title: `รังปีศาจโผล่ ${(e.list || []).length} แห่ง`, zone: e.list && e.list[0] ? zoneAt(e.list[0].x, e.list[0].y) : "", tone: "warn", at: (e.list || [])[0] };
+    case "civ_spawn": return { icon: "🕊️", title: "พลเรือนติดค้าง", zone: e.list && e.list[0] ? zoneAt(e.list[0].x, e.list[0].y) : "", tone: "good", at: (e.list || [])[0] };
+    case "civ_saved": return { icon: "🕊️", title: "พาพลเรือนถึงเมือง · +2", zone: zoneAt(e.x, e.y), tone: "good" };
+    case "civ_lost": return { icon: "💔", title: "พลเรือนถูกทำร้าย", zone: zoneAt(e.x, e.y), tone: "danger" };
+    case "gauge_full": return { icon: "☄️", title: "มาตรวัดทีมเต็ม", zone: "", tone: "good" };
     default: return null;
   }
 }

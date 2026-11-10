@@ -18,6 +18,28 @@ export function eosSituation(state) {
   const out = [];
   const round = state.roundNumber || 0;
   const me = (state.players || []).find((p) => p.id === state.youId);
+  // คืนสุดท้าย (PVE รอบสาม)
+  if (b.final) out.push({ key: "final", icon: "🌑", title: "คืนสุดท้าย", detail: `กลางคืนถาวร · ปีศาจบุกรอบเสาที่ยึดไว้ทุกเทิร์น · แต้มรวม ${b.score || 0}/${b.goal || 50}`, todo: "เฝ้าเสาให้ครบจนแต้มถึงเป้า — ใกล้ชนะแล้ว", tone: "danger" });
+  else if (b.finalAt && (b.score || 0) >= b.finalAt - 8) out.push({ key: "finalSoon", icon: "🌑", title: "คืนสุดท้ายใกล้มา", detail: `แต้มรวมถึง ${b.finalAt} = กลางคืนถาวร + คลื่นปีศาจบุกเสา (ตอนนี้ ${b.score || 0})`, todo: "ซ่อมเสา เสริมเกราะเสา เตรียมของ", tone: "warn" });
+  // มาตรวัดทีมเต็ม
+  if (b.gaugeMax && (b.gauge || 0) >= b.gaugeMax) out.push({ key: "gauge", icon: "☄️", title: "มาตรวัดทีมเต็ม", detail: "ถล่มวง 5×5 ที่ไหนก็ได้ ดาเมจ 4 ใส่มอนทุกตัวในวง", todo: "กดปุ่ม \"ถล่ม\" แล้วเลือกมอน (ใช้การโจมตีของตา)", tone: "good" });
+  // ยักษ์หิน
+  if (b.giant) {
+    const gm = (b.mobs || []).find((m) => m.id === b.giant.id);
+    const at = gm ? { x: gm.x, y: gm.y } : b.giant.path && b.giant.path[0] ? { x: b.giant.path[0].x, y: b.giant.path[0].y } : null;
+    out.push({ key: "giant", icon: "🗿", title: b.giant.state === "warn" ? "ยักษ์หินกำลังมา" : "ยักษ์หินเดินผ่าน", detail: `${gm ? `♥ ${gm.hp}/${gm.maxHp} · ` : ""}เดินทีละ 4 ช่อง เหยียบแถบกว้าง 3 ช่อง ดาเมจ 3 ทุกตัว (มอนด้วย) · ช่องส้ม = จะเหยียบเทิร์นหน้า`, todo: "หลบช่องส้ม · ล่อมอนให้โดนเหยียบ · รวมทีมล้มได้ แต้มรวม +4 ทุกคนได้ของ", tone: "warn", at });
+  }
+  // รังปีศาจ
+  const nests = (b.mobs || []).filter((m) => m.type === "nest");
+  if (nests.length) out.push({ key: "nests", icon: "🔥", title: `รังปีศาจ ${nests.length} แห่ง`, detail: "ค่ำแล้วรังพ่นปีศาจ 3 ตัว และเพิ่มอีกตัวทุกเทิร์นกลางคืน", todo: b.night ? "ทำลายรังเพื่อหยุดปีศาจที่เกิดเพิ่ม" : "ทำลายก่อนค่ำ — ได้เหรียญ + ของ", tone: b.night ? "danger" : "warn", at: { x: nests[0].x, y: nests[0].y } });
+  // พลเรือน
+  for (const c of b.civs || []) {
+    const lead = c.follow ? (state.players || []).find((u) => u.id === c.follow) : null;
+    out.push({ key: `civ${c.id}`, icon: "🕊️", title: lead ? `${lead.name} กำลังพาพลเรือน` : "พลเรือนติดค้าง", detail: `♥ ${c.hp}/${c.maxHp} · มอนเล็งพลเรือนด้วย`, todo: lead ? "พาเข้าเมือง (Insomnia / Hammerhead / Altissia) = แต้มรวม +2" : "ยืนติดแล้วกด \"พาไป\" — พลเรือนจะตามติดตัว", tone: "good", at: { x: c.x, y: c.y } });
+  }
+  // พลังประจำเสา
+  const POW = { insomnia: "🔫 ป้อมยิงเอง", altissia: "⛲ น้ำพุฟื้นเลือด", duscae: "🐤 โชโกโบะ +1", hammerhead: "🚗 รถ +1", lake: "🎣 ตกปลานำโชค" };
+  if ((b.powers || []).length) out.push({ key: "powers", icon: "✨", title: `พลังเสา ${b.powers.length}/5`, detail: b.powers.map((z) => POW[z] || z).join(" · "), todo: "เสาหลุด = พลังของโซนนั้นหายด้วย", tone: "good" });
   // บอส
   const boss = b.boss ? [...(b.daemons || [])].find((d) => d.id === b.boss) : null;
   if (boss) out.push({ key: "boss", icon: "👑", title: "ราชาปีศาจ", detail: `♥ ${boss.hp}/${boss.maxHp} · ⛨ ${boss.armor} · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · เรียกปีศาจทุก 2 เทิร์น`, todo: "รวมทีมล้มก่อนถึงเสา · ใช้เกราะเสากันไว้ · ล้มได้ แต้มรวม +5 ทุกคนได้ของ", tone: "danger", at: { x: boss.x, y: boss.y } });
@@ -65,7 +87,7 @@ export function eosSituation(state) {
   for (const e of b.fx || []) {
     if (e.round !== state.roundNumber) continue;
     if ((e.kind === "mob_die" || e.kind === "daemon_die" || e.kind === "chest_open") && e.by === (me && me.id)) { if (e.gold) got.push(`${e.gold} เหรียญ`); for (const n of e.loot || []) got.push(n); }
-    if (e.kind === "boss_die") for (const l of e.loot || []) if (me && l.id === me.id) got.push(l.name);
+    if (e.kind === "boss_die" || e.kind === "giant_die") for (const l of e.loot || []) if (me && l.id === me.id) got.push(l.name);
   }
   if (got.length) out.push({ key: "got", icon: "🎒", title: "ได้รับเทิร์นนี้", detail: got.join(" · "), todo: "ไอเทมอยู่ในกระเป๋า · ขวดเวทเป็นปุ่มพิเศษ", tone: "good" });
   out.push({ key: "diff", icon: "🎚️", title: `ความยาก: ${DIFF[b.diff] || "ปกติ"}`, detail: `แต้มรวม ${b.score || 0}/${b.goal || 50} · จบเทิร์นนี้ +${b.rate || 0}`, tone: "info" });

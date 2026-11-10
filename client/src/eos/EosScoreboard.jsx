@@ -18,6 +18,14 @@ const ZONE = {
   altissia: { name: "Altissia", color: "#ffe0a0" },
 };
 const RATE = [0, 1, 3, 6, 10, 15];
+// พลังประจำเสา (PVE รอบสาม — server/fodlan/eosExtra.js POWERS)
+const POWER = {
+  insomnia: { icon: "🔫", tip: "ป้อมปืนบนกำแพง Insomnia ยิงมอนใกล้สุดเองทุกต้นเทิร์น ดาเมจ 2" },
+  altissia: { icon: "⛲", tip: "ต้นเทิร์น: ทุกคนในระยะ 3 ช่องจากเสา Altissia ฟื้นเลือด 1" },
+  duscae: { icon: "🐤", tip: "ขี่โชโกโบะเดินเพิ่มอีก +1" },
+  hammerhead: { icon: "🚗", tip: "ขับรถเดินเพิ่ม +1 · ชนแรงขึ้น +1" },
+  lake: { icon: "🎣", tip: "ตกปลาไม่เจอปลายักษ์ · เหรียญ ×2" },
+};
 
 export default function EosScoreboard({ state }) {
   const [open, setOpen] = useState(false); // ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-11-09) — แท็บมีจุดเสา 5 ดวงบอกสถานะอยู่แล้ว
@@ -42,8 +50,21 @@ export default function EosScoreboard({ state }) {
             {b.pillars.map((pl) => <i key={pl.id} data-s={pl.owner ? (pl.hits ? "hit" : "own") : pl.ch ? "ch" : "free"} style={{ "--z": (ZONE[pl.zone] || {}).color }} />)}
           </span>
           <i className="eos-score-arrow" aria-hidden="true">{open ? "›" : "‹"}</i>
-          <span className="eos-score-bar"><b style={{ width: `${k * 100}%` }} /></span>
+          <span className="eos-score-bar"><b style={{ width: `${k * 100}%` }} />{b.finalAt && <i className="eos-score-final" style={{ left: `${(b.finalAt / goal) * 100}%` }} />}</span>
         </button>
+        {b.gaugeMax > 0 && (
+          <div className="eos-gauge" data-full={(b.gauge || 0) >= b.gaugeMax ? "true" : undefined}
+            title={`มาตรวัดทีม ${b.gauge || 0}/${b.gaugeMax} — ล้มมอน/ท่าร่วม/ทำลายรังเติม · เต็มแล้วกด "ถล่ม" วง 5×5 ดาเมจ 4 ที่ไหนก็ได้`}>
+            <span className="eos-gauge-ico" aria-hidden="true">☄️</span>
+            <span className="eos-gauge-bar"><b style={{ width: `${Math.min(1, (b.gauge || 0) / b.gaugeMax) * 100}%` }} /></span>
+            {b.final && <span className="eos-final-chip" title="คืนสุดท้าย — กลางคืนถาวร ปีศาจบุกเสาทุกเทิร์น">🌑</span>}
+          </div>
+        )}
+        {(b.powers || []).length > 0 && (
+          <div className="eos-powers">
+            {b.powers.map((z) => <span key={z} className="eos-power" style={{ "--z": (ZONE[z] || {}).color }} title={`พลังเสา ${(ZONE[z] || {}).name || z}: ${(POWER[z] || {}).tip || ""}`}>{(POWER[z] || {}).icon || "✨"}</span>)}
+          </div>
+        )}
         {dead.length > 0 && (
           <div className="eos-revive" title="เพื่อนที่ล้มจะฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด · ล้มหมดทุกคนพร้อมกัน = แพ้">
             {dead.map((r) => {
@@ -70,7 +91,7 @@ export default function EosScoreboard({ state }) {
           return (
             <div key={pl.id} role="listitem" className="eos-pl-row" data-s={st} style={{ "--z": z.color }} title={tip}>
               <span className="eos-pl-gem" aria-hidden="true">{st === "own" ? "✦" : st === "ch" ? "⏳" : "○"}</span>
-              <span className="eos-pl-name">{z.name}</span>
+              <span className="eos-pl-name">{z.name}{POWER[pl.zone] && <i className="eos-pl-pow" data-on={st === "own" ? "true" : undefined} title={POWER[pl.zone].tip}>{POWER[pl.zone].icon}</i>}</span>
               <span className="eos-pl-hits" aria-label="รอยโดนตี">
                 {st === "own" && (pl.ward || 0) > 0 && <em className="eos-pl-ward" title="เกราะเสา — รับการตีแทนรอย">🛡{pl.ward}</em>}
                 {st === "own" && Array.from({ length: pl.hp || 2 }, (_, i) => <i key={i} data-on={i < (pl.hits || 0) ? "true" : undefined} />)}
