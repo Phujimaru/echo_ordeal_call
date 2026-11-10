@@ -76,6 +76,9 @@ const PAL = {
     leaf: "#4d6b2f", leaf2: "#3b5524", trunk: "#5a4128", rock: "#a8784f", rock2: "#7d5638", lamp: "#2b2f36", lampOn: 0,
     ballast: "#948c7f", ballast2: "#6b645a", sleeper: "#4d3b2b", rail: "#3a3e44", railHi: "#cdd3db", platform: "#bdb8ad", platform2: "#8d897f", dirt: "#7a6648",
     tent: "#d2c29c", canvas2: "#a3926e",
+    marble: "#ddd2bb", marble2: "#c9bb9e", joint: "rgba(70,55,35,.16)", canalHi: "#4fa3ad", dune: "rgba(150,110,60,.2)", duneHi: "rgba(255,240,205,.32)", cactus: "#5f8a45", cactus2: "#46703a",
+    altWalls: ["#efe2c8", "#f2d2ae", "#e9bfa0", "#f1e3ae", "#e3d6c4"], altRoofs: ["#c7653f", "#b5562f", "#d27a4a"], shutter: "#4f7a5a", flower: ["#e0475b", "#f08cb0", "#ffd25a"],
+    roofUnit: "#c3c8cf", roofUnit2: "#9aa1ab",
   },
   night: {
     ground1: "#1f3128", ground2: "#1a2a22", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
@@ -93,6 +96,9 @@ const PAL = {
     leaf: "#1d3020", leaf2: "#142318", trunk: "#2a1f14", rock: "#4f3a2a", rock2: "#3a2a1e", lamp: "#1a1d22", lampOn: 1,
     ballast: "#403e3c", ballast2: "#2c2a29", sleeper: "#251c15", rail: "#1c1f23", railHi: "#7e8896", platform: "#57585e", platform2: "#3d3e44", dirt: "#3a3026",
     tent: "#6e6656", canvas2: "#4a4438",
+    marble: "#57534c", marble2: "#4a4640", joint: "rgba(0,0,0,.22)", canalHi: "#1d4f5c", dune: "rgba(0,0,0,.25)", duneHi: "rgba(180,190,220,.14)", cactus: "#24361f", cactus2: "#1a2a18",
+    altWalls: ["#6c6658", "#6e6152", "#685548", "#6c6650", "#625c54"], altRoofs: ["#5c3424", "#52301f", "#643c28"], shutter: "#2a3a30", flower: ["#6a2a34", "#6e4a5a", "#6e6040"],
+    roofUnit: "#3a4252", roofUnit2: "#2c3342",
   },
 };
 
@@ -160,7 +166,8 @@ function shadowPolys(tr) {
   for (const [k, kind] of Object.entries(tr)) {
     if (!(kind in HEIGHT)) continue;
     const [x, y] = k.split(",").map(Number);
-    const h = kind === "fd_eos_bldg" ? (BUILDING.get(k) || { h: 1.2 }).h : HEIGHT[kind];
+    const bd = BUILDING.get(k) || { id: 0, h: 1.2 };
+    const h = kind !== "fd_eos_bldg" ? HEIGHT[kind] : zoneAt(x, y) === "altissia" ? 0.95 + hash(bd.id, 9) * 0.3 : bd.h; // บ้าน Altissia เตี้ย + หลังคาจั่ว (drawAltHouse)
     // ต้นไม้/หิน/เสาไฟ = เงารูปทรงกลม (ช่องเล็กกว่าเต็มช่อง) · ตึก/กำแพง = กล่องเต็มช่อง
     const inset = kind === "fd_eos_bldg" || kind === "fd_eos_wall" || kind === "fd_eos_garage" || kind === "fd_eos_turret" ? 0 : kind === "fd_eos_lamp" ? 0.44 : 0.22;
     const ox = SUN.x * h, oy = SUN.y * h;
@@ -299,11 +306,28 @@ export const theme = {
     // ทราย: ขอบนอกจาง (ทรายปนหญ้า) → เนื้อทราย
     msFill(g, sand, C.sandEdge, { ...dim, jitter: 0.45, th: 0.32, seed: 1, alpha: 0.75 });
     msFill(g, sand, C.sand, { ...dim, jitter: 0.45, th: 0.5, seed: 1 });
+    // เนินทราย: ผืนสีเข้มกว่าตาม noise (ทะเลทรายไม่เป็นสีเดียวทั้งผืน)
+    msFill(g, setFor("dune", T.sand.filter((t) => vnoise(t.x * 0.34 + 4, t.y * 0.34 + 1) > 0.56)), C.sand2, { ...dim, jitter: 0.55, th: 0.5, seed: 8, alpha: 0.3 });
     // พื้นป่า: ดินชื้นเข้ม (ขอบคด)
     msFill(g, forest, C.forestFloor2, { ...dim, jitter: 0.4, th: 0.36, seed: 2 });
     msFill(g, forest, C.forestFloor, { ...dim, jitter: 0.4, th: 0.55, seed: 2 });
     // ลานเมือง (เมืองเป็นเส้นตรงได้ — หินปูพื้น)
-    for (const t of T.plaza) { quad(g, t.x - 0.01, t.y - 0.01); g.fillStyle = (t.x + t.y) % 2 ? C.plaza : C.plaza2; g.fill(); }
+    //  (เดิมสลับสีทีละช่องแบบตาหมากรุก → ดูเป็นกระดานหมากรุก) ตอนนี้: สีเดียวไล่อ่อนเข้มเล็กน้อยต่อช่อง + รอยต่อแผ่นหินแบบก่ออิฐ
+    //  Altissia = หินอ่อนครีมอุ่น · เมืองอื่น = หินเทา
+    for (const t of T.plaza) {
+      const alt = zoneAt(t.x, t.y) === "altissia";
+      quad(g, t.x, t.y, -0.012); g.fillStyle = mix(alt ? C.marble : C.plaza, alt ? C.marble2 : C.plaza2, hash(t.x * 3 + 1, t.y * 5 + 2) * 0.3); g.fill();
+    }
+    if (!FAST) {
+      g.strokeStyle = C.joint; g.lineWidth = 1; g.beginPath();
+      const ln = (x0, y0, x1, y1) => { const a = P(x0, y0), b = P(x1, y1); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); };
+      for (const t of T.plaza) {
+        ln(t.x, t.y + 0.5, t.x + 1, t.y + 0.5);
+        ln(t.x + 0.5, t.y, t.x + 0.5, t.y + 0.5);
+        ln(t.x + 0.25, t.y + 0.5, t.x + 0.25, t.y + 1); ln(t.x + 0.75, t.y + 0.5, t.x + 0.75, t.y + 1);
+      }
+      g.stroke();
+    }
     // น้ำ: ชายฝั่งทราย → น้ำตื้น → น้ำลึก (ขอบคดตาม noise)
     msFill(g, wet, C.shore, { ...dim, jitter: 0.4, th: 0.28, seed: 3 });
     msFill(g, wet, C.bank, { ...dim, jitter: 0.4, th: 0.5, seed: 3 });                       // ผนังตลิ่ง (มองเห็นฝั่งไกล)
@@ -311,9 +335,12 @@ export const theme = {
     msFill(g, deep, C.water, { ...dim, jitter: 0.35, th: 0.5, seed: 4, oy: 0.16 });
     msFill(g, deep, C.water2, { ...dim, jitter: 0.3, th: 0.78, seed: 5, alpha: 0.6, oy: 0.16 });
     // คลองเมืองน้ำ: ขอบหิน
-    for (const t of T.canal) { quad(g, t.x - 0.03, t.y - 0.03); g.fillStyle = C.curb; g.fill(); }
-    for (const t of T.canal) { quad(g, t.x + 0.07, t.y + 0.07); g.fillStyle = C.bank; g.fill(); }
-    for (const t of T.canal) { quad(g, t.x + 0.07, t.y + 0.2); g.fillStyle = C.canal; g.fill(); } // น้ำในคลองต่ำกว่าขอบ
+    //  ผืนต่อเนื่อง (เดิมวาดทีละช่อง → เห็นรอยต่อเป็นตาราง): ขอบหิน → ผนังคลอง → ผิวน้ำต่ำกว่าขอบ → แสงสะท้อนกลางคลอง
+    const canal = setFor("canalUnder", [...T.canal, ...T.bridge]); // สะพาน Altissia พาดคลอง → คลองต่อใต้สะพาน
+    msFill(g, canal, C.curb, { ...dim, th: 0.36 });
+    msFill(g, canal, C.bank, { ...dim, th: 0.45 });
+    msFill(g, canal, C.canal, { ...dim, th: 0.5, oy: 0.08 });
+    msFill(g, canal, C.canalHi, { ...dim, jitter: 0.35, th: 0.8, seed: 7, alpha: 0.5, oy: 0.08 });
     // เงาทอดตามทิศแสง (สิ่งกีดขวางที่สูง) + เงามืดรอบฐานตึก/กำแพง (ambient occlusion)
     castShadows(g, C, c.night);
     // ถนน: ไหล่ทางดิน → ยางมะตอย (ขอบตรง เลี้ยวลบมุม 45°) → เส้นขอบถนน
@@ -327,7 +354,6 @@ export const theme = {
     }
     // สะพาน (ไม้บนน้ำ) · คอกโชโกโบะ (ฟาง)
     for (const t of T.bridge) {
-      quad(g, t.x - 0.02, t.y - 0.02); g.fillStyle = C.canal; g.fill();
       quad(g, t.x + 0.08, t.y - 0.02, 0.06); g.fillStyle = C.bridge; g.fill();
       g.strokeStyle = "rgba(0,0,0,.32)"; g.lineWidth = 1;
       for (let i = 1; i < 5; i++) { const a = P(t.x + 0.1, t.y + i / 5, 0.06), b = P(t.x + 0.9, t.y + i / 5, 0.06); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
@@ -336,15 +362,30 @@ export const theme = {
     // ขั้น 4: รางรถไฟ · ชานชาลา · สะพานท่าเรือ/ท่าตกปลา · ลานแคมป์ · หน้าอุโมงค์
     bakeP4(g, C, c.night);
   },
+  // เส้นตาราง (boardDraw เรียกแทนตารางเต็มผืน): ขีดเฉพาะรอยต่อระหว่างช่องพื้นที่เดินได้ — ไม่ขีดทับน้ำ/คลอง/ตึก/กำแพง (เดิมน้ำเป็นตารางสี่เหลี่ยม)
+  //  รอยต่อที่ติดทราย = จางครึ่งหนึ่ง (ทรายสีอ่อน เส้นเดิมเด่นเกิน)
+  grid(c) {
+    const { g, C, info } = c;
+    if (info.area !== EOS_AREA) return false;
+    const segs = gridSegs(info.cols, info.rows);
+    g.strokeStyle = C.grid; g.lineWidth = 1;
+    for (const [list, a] of [[segs.norm, 1], [segs.soft, 0.5]]) {
+      g.globalAlpha = a; g.beginPath();
+      for (const [x0, y0, x1, y1] of list) { const p = P(x0, y0), q = P(x1, y1); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    return true;
+  },
   // ของชิ้นเล็กตามรอยต่อ (อบ — หลังเส้นตาราง): กก ริมน้ำ · ก้อนหินริมทราย · ดอกไม้/หญ้าในทุ่ง · พุ่มไม้ใต้ร่มป่า
   deco(c) {
     const { g, C, info } = c;
     if (info.area !== EOS_AREA) return;
     const T = TILES, isW = (x, y) => WATER_SET.has(K(x, y));
     const lite = false; // ผู้ใช้สั่ง "texture หาย" — วาดรายละเอียดครบแม้กล้องกำลังเคลื่อน
-    // ประกายบนผิวน้ำ
+    // ประกายบนผิวน้ำ (ทะเลสาบ/ทะเล + คลอง)
     g.strokeStyle = C.foam; g.lineWidth = 1;
-    for (const t of T.water) {
+    for (const t of [...T.water, ...T.canal]) {
       const R = rng(t.x * 31 + t.y * 17);
       g.globalAlpha = 0.3;
       for (let i = 0; i < 2; i++) { const yy = t.y + 0.2 + R() * 0.6, a = P(t.x + 0.1 + R() * 0.3, yy), b = P(t.x + 0.5 + R() * 0.4, yy); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
@@ -366,6 +407,22 @@ export const theme = {
       const R = rng(t.x * 91 + t.y * 13);
       if (R() < 0.3) { const [px, py, s] = P(t.x + R(), t.y + R()); g.fillStyle = C.pebble; g.beginPath(); g.ellipse(px, py, s * 0.06, s * 0.035, 0, 0, TAU); g.fill(); }
       if (R() < 0.25) { const [px, py, s] = P(t.x + R(), t.y + R()); g.strokeStyle = C.dryGrass; g.lineWidth = 1; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(px, py); g.lineTo(px + k * s * 0.05, py - s * 0.12); g.stroke(); } }
+    }
+    // ลอนทราย (ลมพัดทางเดียวกันทั้งทะเลทราย) + กระบองเพชรต้นเล็ก (เฉพาะช่องว่าง ไม่ติดถนน)
+    if (!lite) {
+      for (const t of T.sand) {
+        const R = rng(t.x * 61 + t.y * 43);
+        if (R() < 0.55) {
+          const x = t.x + R() * 0.3, y = t.y + 0.15 + R() * 0.7, w = 0.6 + R() * 0.35;
+          const a = P(x, y), m = P(x + w * 0.5, y - 0.06), b = P(x + w, y + 0.02);
+          g.strokeStyle = C.dune; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(m[0], m[1], b[0], b[1]); g.stroke();
+          g.strokeStyle = C.duneHi; g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.quadraticCurveTo(m[0], m[1] - 1.5, b[0], b[1] - 1.5); g.stroke();
+        }
+        if (R() < 0.11 && !STATIC_TR[K(t.x, t.y)] && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ROAD_SET.has(K(t.x + dx, t.y + dy)))) {
+          const [px, py, s] = P(t.x + 0.3 + R() * 0.4, t.y + 0.35 + R() * 0.4);
+          cactusShape(g, px, py, s * (0.75 + R() * 0.4), C, R());
+        }
+      }
     }
     // ทุ่งหญ้า: ดอกไม้/กอหญ้า (เว้นถนน/เมือง)
     if (!lite) for (const t of T.grass) {
@@ -501,7 +558,7 @@ function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows
     pts.forEach(([px, py], i) => { const q = P(px, py); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
     g.closePath();
   }
-  g.fill(); if (!FAST) g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์ (ข้ามระหว่างหมุน)
+  g.fill(); if (!FAST && alpha >= 1) g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์ (ข้ามระหว่างหมุน) · ชั้นโปร่งแสงไม่ขีด — เส้นซ้อนกันเห็นเป็นตาราง
   g.globalAlpha = 1;
 }
 // ระหว่างหมุนกล้องอิสระ (วาดสดทุกเฟรม): ข้ามรายละเอียดเล็ก — BoardCanvas ตั้งผ่าน setEosFast
@@ -537,6 +594,37 @@ function pineTree(g, x, y, s, C) {
     const w = s * (0.32 - i * 0.08), yy = y - s * (0.2 + i * 0.28);
     g.fillStyle = i % 2 ? C.leaf : C.leaf2; g.beginPath(); g.moveTo(x - w, yy); g.lineTo(x, yy - s * 0.42); g.lineTo(x + w, yy); g.closePath(); g.fill();
   }
+}
+// กระบองเพชรต้นเล็ก (ลำต้น + แขน 1–2 ข้าง · ด้านเงาเข้ม)
+function cactusShape(g, x, y, s, C, r = 0.5) {
+  g.fillStyle = C.shadow; g.beginPath(); g.ellipse(x + s * 0.05, y, s * 0.14, s * 0.045, 0, 0, TAU); g.fill();
+  g.lineCap = "round";
+  const stem = (x0, y0, x1, y1, w) => {
+    g.strokeStyle = C.cactus2; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.strokeStyle = C.cactus; g.lineWidth = w * 0.55; g.beginPath(); g.moveTo(x0 - w * 0.15, y0); g.lineTo(x1 - w * 0.15, y1); g.stroke();
+  };
+  const w = Math.max(2, s * 0.085), top = y - s * 0.42;
+  stem(x, y, x, top, w);
+  const arm = (dir, h0, h1) => { const ay = y - s * h0, ex = x + dir * s * 0.12; stem(x, ay, ex, ay, w * 0.75); stem(ex, ay, ex, y - s * h1, w * 0.75); };
+  arm(r < 0.5 ? -1 : 1, 0.2, 0.33);
+  if (r > 0.3) arm(r < 0.5 ? 1 : -1, 0.14, 0.24);
+  g.lineCap = "butt";
+}
+// ส่วนเส้นตาราง (สร้างครั้งเดียว): norm = รอยต่อพื้นทั่วไป · soft = ติดทราย · ไม่มีเส้นถ้าช่องใดช่องหนึ่งเป็นน้ำ/คลอง/ตึก/กำแพง/อู่/ป้อม
+let GRID_SEGS = null;
+function gridSegs(cols, rows) {
+  if (GRID_SEGS) return GRID_SEGS;
+  const BLOCK = new Set(["fd_eos_bldg", "fd_eos_wall", "fd_eos_garage", "fd_eos_turret"]);
+  const open = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows && !WATER_SET.has(K(x, y)) && !BLOCK.has(STATIC_TR[K(x, y)]);
+  const sand = setFor("sand", TILES.sand), out = { norm: [], soft: [] };
+  const push = (a, b, seg) => ((sand.has(a) || sand.has(b)) ? out.soft : out.norm).push(seg);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    if (!open(x, y)) continue;
+    if (open(x + 1, y)) push(K(x, y), K(x + 1, y), [x + 1, y, x + 1, y + 1]);
+    if (open(x, y + 1)) push(K(x, y), K(x, y + 1), [x, y + 1, x + 1, y + 1]);
+  }
+  GRID_SEGS = out;
+  return out;
 }
 function rockShape(g, x, y, s, C, r = 0.5) {
   const k = 0.7 + r * 0.6;
@@ -1285,15 +1373,17 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_rock") { rockShape(g, sx, sy, s, zone === "desert" ? C : { ...C, rock: C.stone, rock2: C.stone2 }, r); return; }
   if (kind === "fd_eos_bldg") {
     const b = BUILDING.get(K(x, y)), h = b ? b.h : 1.2, tone = b ? b.id % 3 : 0;
-    const altissia = zone === "altissia";
-    const top = altissia ? C.altRoof : C.bldg[tone], s1 = altissia ? C.altWall : C.bldg[(tone + 1) % 3], s2 = altissia ? C.altWall2 : C.bldg[(tone + 2) % 3];
-    const hh = altissia ? Math.min(h, 1.1) : h;
     const same = (nx, ny) => { const o = BUILDING.get(K(x + nx, y + ny)); return !!(o && b && o.id === b.id); }; // ผนังด้านในของตึกเดียวกัน
+    if (zone === "altissia") { drawAltHouse(g, x, y, b, same, C, night, s); return; }
+    const top = C.bldg[tone], s1 = C.bldg[(tone + 1) % 3], s2 = C.bldg[(tone + 2) % 3];
+    const hh = h;
     const faces = box(g, x, y, x + 1, y + 1, hh, top, s1, s2, 0, same);
-    if (!altissia && hh > 1.4 && hash(x, y + 7) < 0.45) box(g, x + 0.25, y + 0.3, x + 0.55, y + 0.6, hh + 0.14, C.bldg[(tone + 1) % 3], C.bldg[(tone + 2) % 3], C.bldg[tone]);
+    roofDeck(g, x, y, hh, top, same, C);
+    if (hh > 1.4 && hash(x, y + 7) < 0.45) box(g, x + 0.25, y + 0.3, x + 0.55, y + 0.6, hh + 0.14, C.bldg[(tone + 1) % 3], C.bldg[(tone + 2) % 3], C.bldg[tone]);
     // หน้าต่าง: เฉพาะผนังด้านนอกที่มองเห็นจริง (เดิมวาดผนังทิศเดียวเสมอ → หมุนกล้องแล้วหน้าต่างลอยทะลุตึก)
     const R = rng(x * 37 + y * 11);
     for (const f of faces) {
+      if (Math.abs(P(f.a[0], f.a[1], hh)[1] - P(f.a[0], f.a[1], 0)[1]) < s * 0.35) continue; // มุมบน: ผนังแบน ไม่วาดหน้าต่าง
       for (let zz = 0.25; zz < hh - 0.15; zz += 0.3) for (const t of [0.3, 0.7]) {
         const lit = R() < 0.55 && night && !darkAt(x, y);
         const px = f.a[0] + (f.b[0] - f.a[0]) * t + f.nx * 0.01, py = f.a[1] + (f.b[1] - f.a[1]) * t + f.ny * 0.01;
@@ -1337,6 +1427,110 @@ export function drawObstacle(g, t, ctx, now) {
     const on = night && !darkAt(x, y);
     const p = P(x + 0.5, y + 0.99, 0.35); g.fillStyle = on ? "#ffcc66" : "#3a3a3a"; g.fillRect(p[0] - s * 0.3, p[1] - s * 0.2, s * 0.6, s * 0.3);
     if (on) glowAt(g, p[0], p[1], s * 0.8, "255,200,100", 0.4);
+  }
+}
+
+// หลังคาตึกเมือง (Insomnia/Hammerhead): ขอบกันตก (parapet) ตามขอบนอกของตึก + พื้นหลังคาเข้มกว่า + เครื่องปรับอากาศ/ช่องระบาย
+//  (เดิมหลังคาเรียบสีเดียว → มองจากด้านบนเป็นกล่องเทาเปล่า)
+function roofDeck(g, x, y, hh, top, same, C) {
+  const iN = same(0, -1) ? 0 : 0.09, iS = same(0, 1) ? 0 : 0.09, iW = same(-1, 0) ? 0 : 0.09, iE = same(1, 0) ? 0 : 0.09;
+  poly(g, [[x + iW, y + iN, hh], [x + 1 - iE, y + iN, hh], [x + 1 - iE, y + 1 - iS, hh], [x + iW, y + 1 - iS, hh]]);
+  g.fillStyle = shadeCol(top, -0.1); g.fill();
+  const r = hash(x * 3 + 11, y * 5 + 7);
+  if (r < 0.32) {
+    const ux = x + 0.22 + hash(x, y * 2) * 0.3, uy = y + 0.22 + hash(x * 2, y) * 0.3;
+    box(g, ux, uy, ux + 0.24, uy + 0.18, hh + 0.12, C.roofUnit, C.roofUnit2, shadeCol(C.roofUnit, -0.18), hh);
+    const fc = P(ux + 0.12, uy + 0.09, hh + 0.12), s = fc[2];
+    g.strokeStyle = C.roofUnit2; g.lineWidth = 1; g.beginPath(); g.arc(fc[0], fc[1], s * 0.05, 0, TAU); g.stroke();
+  } else if (r < 0.48) {
+    const vx = x + 0.3 + hash(x, y + 3) * 0.35, vy = y + 0.3 + hash(x + 3, y) * 0.35;
+    poly(g, [[vx, vy, hh], [vx + 0.14, vy, hh], [vx + 0.14, vy + 0.14, hh], [vx, vy + 0.14, hh]]); g.fillStyle = "rgba(0,0,0,.28)"; g.fill();
+  }
+}
+// บ้านเมืองน้ำ Altissia (แบบเวนิส): ผนังพาสเทลต่อหลัง · หลังคาจั่วกระเบื้องดินเผา สันหลังคาตามแนวยาวของตึก (บ้านแถวต่อสันเดียวกัน)
+//  ขอบบัวสีขาวใต้ชายคา · หน้าต่างโค้งมีบานเกล็ดเขียว · กระถางดอกไม้ใต้หน้าต่างบางบาน · ประตูโค้ง · ปล่องไฟบางหลัง
+//  (เดิมเป็นกล่องส้มทึบ + จุดหน้าต่าง)
+const ALT_AXIS = new Map(); // id ตึก → "x" | "y" (แนวสันหลังคา = ด้านยาวของตึก)
+function altAxis(id) {
+  if (ALT_AXIS.has(id)) return ALT_AXIS.get(id);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [k, v] of BUILDING) if (v.id === id) { const [a, c] = k.split(",").map(Number); x0 = Math.min(x0, a); x1 = Math.max(x1, a); y0 = Math.min(y0, c); y1 = Math.max(y1, c); }
+  const ax = x1 - x0 >= y1 - y0 ? "x" : "y";
+  ALT_AXIS.set(id, ax);
+  return ax;
+}
+function drawAltHouse(g, x, y, b, same, C, night, s) {
+  const id = b ? b.id : 0, hh = 0.78 + hash(id, 9) * 0.3;
+  const wall = C.altWalls[id % C.altWalls.length], roof = C.altRoofs[id % C.altRoofs.length];
+  const faces = box(g, x, y, x + 1, y + 1, hh, wall, wall, shadeCol(wall, -0.1), 0, same);
+  const R = rng(x * 41 + y * 13);
+  for (const f of faces) {
+    for (const t of [0.3, 0.7]) {
+      const px = f.a[0] + (f.b[0] - f.a[0]) * t + f.nx * 0.01, py = f.a[1] + (f.b[1] - f.a[1]) * t + f.ny * 0.01;
+      const p = P(px, py, hh * 0.55), w = s * 0.07, hgt = s * 0.13;
+      if (Math.abs(P(px, py, hh)[1] - P(px, py, 0)[1]) < s * 0.35) continue; // มุมบน: ผนังแบนจนหน้าต่างกลายเป็นจุด — ไม่วาด
+      const lit = night && R() < 0.6;
+      // บานเกล็ด + หน้าต่างโค้ง
+      g.fillStyle = C.shutter; g.fillRect(p[0] - w * 1.05, p[1] - hgt * 0.5, w * 0.32, hgt); g.fillRect(p[0] + w * 0.73, p[1] - hgt * 0.5, w * 0.32, hgt);
+      g.fillStyle = lit ? C.winLit : "#3a3f4a";
+      g.beginPath(); g.moveTo(p[0] - w * 0.5, p[1] + hgt * 0.5); g.lineTo(p[0] - w * 0.5, p[1] - hgt * 0.2); g.arc(p[0], p[1] - hgt * 0.2, w * 0.5, Math.PI, 0); g.lineTo(p[0] + w * 0.5, p[1] + hgt * 0.5); g.closePath(); g.fill();
+      if (lit) glowAt(g, p[0], p[1], s * 0.16, "255,210,130", 0.3);
+      // กระถางดอกไม้
+      if (R() < 0.45) {
+        g.fillStyle = "#7a4a2a"; g.fillRect(p[0] - w * 0.6, p[1] + hgt * 0.5, w * 1.2, s * 0.025);
+        for (let i = 0; i < 3; i++) { g.fillStyle = C.flower[(i + id) % C.flower.length]; g.beginPath(); g.arc(p[0] - w * 0.4 + i * w * 0.4, p[1] + hgt * 0.5 - s * 0.008, Math.max(1, s * 0.018), 0, TAU); g.fill(); }
+      }
+      // ประตูโค้งชั้นล่าง (บางผนัง)
+      if (t === 0.3 && R() < 0.35) {
+        const d = P(px + (f.b[0] - f.a[0]) * 0.2, py + (f.b[1] - f.a[1]) * 0.2, 0);
+        g.fillStyle = "#5a3a26"; g.beginPath(); g.moveTo(d[0] - w * 0.55, d[1]); g.lineTo(d[0] - w * 0.55, d[1] - s * 0.13); g.arc(d[0], d[1] - s * 0.13, w * 0.55, Math.PI, 0); g.lineTo(d[0] + w * 0.55, d[1]); g.closePath(); g.fill();
+      }
+    }
+    // ขอบบัวสีขาวใต้ชายคา
+    const a = P(f.a[0], f.a[1], hh - 0.04), c2 = P(f.b[0], f.b[1], hh - 0.04);
+    g.strokeStyle = night ? "rgba(200,200,190,.35)" : "rgba(255,250,236,.9)"; g.lineWidth = Math.max(1.5, s * 0.035); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(c2[0], c2[1]); g.stroke();
+  }
+  // หลังคาจั่ว: สันตามแกนยาว · ปลายที่ติดบ้านหลังเดียวกันต่อสันไปถึงขอบช่อง (ไม่มีหน้าจั่วกลางตึก) · ชายคายื่นเฉพาะขอบนอก
+  const ax = altAxis(id), rz = hh + 0.34, e = 0.04;
+  const X0 = x - (same(-1, 0) ? 0 : e), X1 = x + 1 + (same(1, 0) ? 0 : e), Y0 = y - (same(0, -1) ? 0 : e), Y1 = y + 1 + (same(0, 1) ? 0 : e);
+  let pa, pb, sides;
+  if (ax === "x") {
+    pa = [same(-1, 0) ? x : x + 0.3, y + 0.5]; pb = [same(1, 0) ? x + 1 : x + 0.7, y + 0.5];
+    sides = [
+      { pts: [[X0, Y0, hh], [X1, Y0, hh], [pb[0], pb[1], rz], [pa[0], pa[1], rz]], n: [0, -1] },
+      { pts: [[X1, Y1, hh], [X0, Y1, hh], [pa[0], pa[1], rz], [pb[0], pb[1], rz]], n: [0, 1] },
+      same(-1, 0) ? null : { pts: [[X0, Y1, hh], [X0, Y0, hh], [pa[0], pa[1], rz]], n: [-1, 0] },
+      same(1, 0) ? null : { pts: [[X1, Y0, hh], [X1, Y1, hh], [pb[0], pb[1], rz]], n: [1, 0] },
+    ];
+  } else {
+    pa = [x + 0.5, same(0, -1) ? y : y + 0.3]; pb = [x + 0.5, same(0, 1) ? y + 1 : y + 0.7];
+    sides = [
+      { pts: [[X0, Y1, hh], [X0, Y0, hh], [pa[0], pa[1], rz], [pb[0], pb[1], rz]], n: [-1, 0] },
+      { pts: [[X1, Y0, hh], [X1, Y1, hh], [pb[0], pb[1], rz], [pa[0], pa[1], rz]], n: [1, 0] },
+      same(0, -1) ? null : { pts: [[X1, Y0, hh], [X0, Y0, hh], [pa[0], pa[1], rz]], n: [0, -1] },
+      same(0, 1) ? null : { pts: [[X0, Y1, hh], [X1, Y1, hh], [pb[0], pb[1], rz]], n: [0, 1] },
+    ];
+  }
+  const list = sides.filter(Boolean).map((f) => ({ ...f, front: faceVisible(f.n[0], f.n[1], x + 0.5 + f.n[0] * 0.5, y + 0.5 + f.n[1] * 0.5) ? 1 : 0 }));
+  list.sort((p, q) => p.front - q.front); // ด้านหลังก่อน แล้วด้านที่หันกล้องทับ
+  for (const f of list) {
+    poly(g, f.pts); g.fillStyle = shadeCol(roof, faceLit(f.n[0], f.n[1]) > 0 ? 0.1 : -0.16); g.fill();
+    // แนวกระเบื้อง: เส้นขนานชายคา 2 เส้น
+    g.strokeStyle = night ? "rgba(0,0,0,.25)" : "rgba(90,30,10,.22)"; g.lineWidth = 1;
+    const A = f.pts[0], B = f.pts[1], Cc = f.pts[2], D = f.pts[3] || f.pts[2];
+    for (const k of [0.35, 0.68]) {
+      const pu = P(A[0] + (D[0] - A[0]) * k, A[1] + (D[1] - A[1]) * k, A[2] + (D[2] - A[2]) * k);
+      const pv = P(B[0] + (Cc[0] - B[0]) * k, B[1] + (Cc[1] - B[1]) * k, B[2] + (Cc[2] - B[2]) * k);
+      g.beginPath(); g.moveTo(pu[0], pu[1]); g.lineTo(pv[0], pv[1]); g.stroke();
+    }
+  }
+  // สันหลังคา
+  const r0 = P(pa[0], pa[1], rz), r1 = P(pb[0], pb[1], rz);
+  g.strokeStyle = shadeCol(roof, -0.3); g.lineWidth = Math.max(1.5, s * 0.03); g.beginPath(); g.moveTo(r0[0], r0[1]); g.lineTo(r1[0], r1[1]); g.stroke();
+  // ปล่องไฟ (บางช่อง)
+  if (hash(x * 7, y * 3) < 0.22) {
+    const cx = x + 0.62, cy = y + 0.3;
+    box(g, cx, cy, cx + 0.12, cy + 0.12, rz + 0.08, shadeCol(roof, -0.05), shadeCol(roof, -0.2), shadeCol(roof, -0.32), hh + 0.15);
   }
 }
 

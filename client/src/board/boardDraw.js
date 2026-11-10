@@ -368,9 +368,12 @@ function drawBoardLayer(g, info, view, night) {
     gEllipse(g, x + 0.5, y + 0.5, 0.36, 0, 24); g.stroke(); gEllipse(g, x + 0.5, y + 0.5, 0.2, 0, 24); g.stroke();
   }
   // เส้นตาราง + ขอบกระดาน
-  g.strokeStyle = C.grid; g.lineWidth = 1;
-  for (let x = 0; x <= COLS; x++) { const a = P(x, 0), b = P(x, ROWS); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
-  for (let y = 0; y <= ROWS; y++) { const a = P(0, y), b = P(COLS, y); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  // ธีมวาดเส้นตารางเองได้ (T.grid — สนาม Eos: ไม่ขีดทับน้ำ/ตึก · ทรายเส้นจางกว่า)
+  if (T.grid && T.grid({ g, C, night, info })) { /* วาดแล้ว */ } else {
+    g.strokeStyle = C.grid; g.lineWidth = 1;
+    for (let x = 0; x <= COLS; x++) { const a = P(x, 0), b = P(x, ROWS); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    for (let y = 0; y <= ROWS; y++) { const a = P(0, y), b = P(COLS, y); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  }
   g.strokeStyle = C.border; g.lineWidth = 2;
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
   // ลายบนพื้นกระดานของธีม (ห่วงเวลาซีโร่: วงเวท + อักษรมิโกะ + ขอบทอง)
