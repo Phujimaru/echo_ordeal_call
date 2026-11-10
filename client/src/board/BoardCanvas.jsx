@@ -587,7 +587,7 @@ export default function BoardCanvas(props) {
       const tB0 = performance.now();
       const sceneOf = (turn) => {
         // จุดกลางมุมมองที่ใช้เป็นกุญแจฉาก: ระหว่างกล้องขยับ/หมุน (vc ขยับทุกเฟรม) ใช้ค่าเดิม — ไม่อบฉากใหม่ทุกเฟรม (วัด 2026-11-10: หมุนครั้งเดียวอบฉาก ~10 รอบ)
-        const vcS = (turning || st.vcAnim || camMoving) && st.sceneVcK != null ? st.sceneVcK : (st.sceneVcK = vcK);
+        const vcS = vcK; // ฉากต้องตรงกับกระดานทุกเฟรม (เคยค้างค่าเดิมระหว่างกล้องขยับ = ฉากเหลื่อมแล้วดีดกลับตอนนิ่ง — น่าจะเป็นอาการกระพริบที่ผู้ใช้เห็น)
         const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}|${vcS}`;
         let sc = st.scenes.get(sk);
         if (!sc) {
@@ -615,7 +615,9 @@ export default function BoardCanvas(props) {
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
       setEosFast(rts && (turning || camMoving)); // สนาม Eos: ระหว่างวาดพื้นสด ข้ามรายละเอียดเล็ก
-      st.warpGround = rts && (turning || camMoving); // พื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
+      // พื้นแบบพื้นผิวระหว่างกล้องขยับ: ปิดไว้ (ผู้ใช้แจ้ง 2026-11-10 "กระพริบทุกการขยับมุมกล้อง พอนิ่งหายเป็นปกติ" — รอยต่อชิ้นบิดภาพกระพริบบนการ์ดจอจริง)
+      //  หลังแก้เติมสีเป็นชุดแล้ว วาดพื้นสดเร็วพอ (A/B วัดแล้วใกล้เคียงกัน) · โค้ด drawGroundWarp เก็บไว้
+      st.warpGround = false; // พื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
       let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
