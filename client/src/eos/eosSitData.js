@@ -9,6 +9,7 @@ const WX = {
   eos_storm: { icon: "⛈️", title: "ฝนฟ้าคะนอง", detail: "เดิน −1 · ช่องเตือนแดงจะโดนฟ้าผ่าต้นเทิร์นหน้า ดาเมจ 2 · ทหารเหล็กลัดวงจร ตี −1", todo: "หลบออกจากช่องเตือนแดงก่อนจบตา · จังหวะดีที่จะบุกทหารเหล็ก" },
   eos_fog: { icon: "🌫️", title: "หมอก", detail: "มองเห็นมอนเตอร์แค่ในระยะเดินของฝ่ายเรา · ปีศาจล่าในหมอก เดิน +1", todo: "เดินเป็นกลุ่ม ระวังมอนที่โผล่จากหมอก" },
   eos_snow: { icon: "🌨️", title: "พายุหิมะ", detail: "ทุกคนและมอนทุกตัวเดิน −1 · ในเมืองหรือในวงไฟแคมป์ 2 ช่อง อุ่น = ไม่โดน", todo: "พักในเมือง/แคมป์ · มอนก็ช้าลง ใช้จังหวะนี้ล่าถอยหรือรวมกลุ่ม" },
+  eos_magnet: { icon: "🧲", title: "พายุแม่เหล็ก", detail: "มอนเห็นผู้เล่นแค่ 4 ช่อง (สัตว์ยักษ์ไม่โดน) · มินิแมพรวน", todo: "ย่องผ่านมอนได้ · แยกกันไปทำภารกิจ" },
   eos_sand: { icon: "🏜️", title: "พายุทราย", detail: "ในทะเลทราย Leide มองเห็นแค่ 2 ช่อง · ทหารเหล็กในทะเลทรายมองไม่เห็น ขยับเมื่อมีคนเข้าใกล้ 3 ช่อง", todo: "อย่าเข้าทะเลทรายคนเดียว · ย่องผ่านทหารเหล็กได้" },
 };
 const DIFF = { easy: "ง่าย", normal: "ปกติ", hard: "ยาก" };
@@ -56,6 +57,13 @@ export function eosSituation(state) {
   const warnShips = (b.ships || []).filter((d) => d.state === "warn"), landed = (b.ships || []).filter((d) => d.state === "landed");
   if (warnShips.length) out.push({ key: "shipWarn", icon: "🚨", title: `ยานจักรวรรดิกำลังลง ${warnShips.length} ลำ`, detail: "ช่องเตือนแดง 2×2 = จุดลงจอดต้นเทิร์นหน้า ปล่อยทหารเหล็กที่มุ่งไปตีเสา", todo: "ออกจากช่องเตือน · เตรียมกันเสาใกล้ๆ", tone: "warn", at: { x: warnShips[0].x, y: warnShips[0].y } });
   if (landed.length) out.push({ key: "ships", icon: "🛸", title: `ยานลงจอดอยู่ ${landed.length} ลำ`, detail: `ทหารเหล็ก ${(b.mobs || []).filter((m) => m.type === "magitek").length} ตัว · อยู่ 4 เทิร์นแล้วกลับ · ตัวตาแดง = ยิงไกล 3 ช่อง`, todo: "สกัดก่อนถึงเสา", tone: "warn", at: { x: landed[0].x, y: landed[0].y } });
+  // PVE รอบหก: ท้องฟ้า/รถไฟเสบียง
+  const sk = b.sky || {};
+  if (sk.eclipse) out.push({ key: "eclipse", icon: "🌑", title: "สุริยคราส", detail: `มืดกลางวันอีก ${sk.eclipse.left} เทิร์น · ปีศาจโผล่เหมือนกลางคืน`, todo: "อยู่ใกล้เมือง/แคมป์ · คราสหมด ปีศาจสลาย", tone: "danger" });
+  if (sk.fullMoon) out.push({ key: "moon", icon: "🌕", title: "คืนจันทร์เต็มดวง", detail: "สัตว์ยักษ์ตี +1 เดิน +1 เอื้อมไกลขึ้น · ล้มได้เหรียญ/ของ ×2", todo: "รวมทีมไปล่าสัตว์ยักษ์ — คุ้ม", tone: "warn" });
+  if (sk.meteor) out.push({ key: "meteor", icon: "☄️", title: `ฝนดาวตก ${sk.meteor.tiles.length} จุด`, detail: "วงส้มแดง = จุดตกต้นเทิร์นหน้า ดาเมจ 3 (ข้างๆ 1) · ตกแล้วเหลือหินพลังเวท", todo: "ออกจากวง · เทิร์นหน้าไปเก็บหิน (ตี = ได้ขวดเวท)", tone: "danger", at: sk.meteor.tiles[0] });
+  if (sk.supply) out.push({ key: "supply", icon: "🚂", title: "รถไฟขนเสบียงจอดอยู่", detail: `ขนแล้ว ${sk.supply.loads}/${sk.supply.max} · ออกในอีก ${sk.supply.left} เทิร์น`, todo: "ยืนบน/ติดชานชาลา กด \"ขนของ\" — แต้มรวม +1 เหรียญ 2 ต่อครั้ง", tone: "good", at: { x: sk.supply.x, y: sk.supply.y } });
+  if (b.dome && b.dome.maxHp) out.push({ key: "dome", icon: "🛡️", title: `โดม Insomnia เหลือ ${b.dome.left} เทิร์น`, detail: `บาเรียประตู ♥ ${b.dome.hp}/${b.dome.maxHp} · ผู้เล่นเดินทะลุได้ มอนผ่านไม่ได้แต่ทุบได้`, todo: "บาเรียหมด = โดมแตกก่อนเวลา", tone: "info" });
   // ขบวนเสบียง
   if (b.convoy) out.push({ key: "convoy", icon: "🚚", title: `ขบวนเสบียง ${ZONE[b.convoy.from] || ""} → ${ZONE[b.convoy.to] || ""}`, detail: `♥ ${b.convoy.hp}/${b.convoy.maxHp} · วิ่งตามเส้นประทองต้นทุกเทิร์น · มอนเล็งรถด้วย`, todo: "คุ้มกันให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ", tone: "good", at: { x: b.convoy.x, y: b.convoy.y } });
   // ภารกิจ

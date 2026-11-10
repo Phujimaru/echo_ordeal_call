@@ -23,6 +23,10 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
     return { icon: m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${m.desc}` };
   }
+  const sk = fd.sky || {};
+  if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "ตกต้นเทิร์นหน้า ดาเมจ 3 (ช่องติดกัน 1) · ตกแล้วเหลือหินพลังเวท" };
+  if (fd.dome && (fd.dome.gates || []).some((t) => at(t, x, y))) return { icon: "🛡️", name: "บาเรียประตูโดม", desc: `♥ ${fd.dome.hp}/${fd.dome.maxHp} (รวมทุกประตู) — ผู้เล่นทุกคนเดินทะลุได้ · มอนผ่านไม่ได้แต่ทุบได้ · บาเรียหมด = โดมแตก` };
+  if (sk.supply && Math.abs(sk.supply.x - x) + Math.abs(sk.supply.y - y) <= 0) return { icon: "🚂", name: "ชานชาลา · รถไฟขนเสบียง", desc: `ขนแล้ว ${sk.supply.loads}/${sk.supply.max} · ออกในอีก ${sk.supply.left} เทิร์น — ยืนบน/ติดชานชาลา กด "ขนของ" (ใช้การโจมตี) แต้มรวม +1 เหรียญ 2` };
   const wl = (fd.walls || []).find((w) => at(w, x, y));
   if (wl) return { icon: "🧱", name: "กำแพงไม้", desc: `มอนเดินผ่านไม่ได้ · เหลือ ${wl.left} เทิร์น` };
   const cv = (fd.civs || []).find((c) => at(c, x, y));
@@ -52,7 +56,7 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if (ch) return { icon: "🐤", name: "โชโกโบะ", desc: `${ch.maxHp ? `♥ ${ch.hp}/${ch.maxHp} — ` : ""}ยืนติดแล้วกด "ขี่" หรือจบตาบนช่องนี้ — เดิน +2 ผ่านป่า/น้ำตื้นกิน 1 ก้าว · ดาเมจที่คนขี่โดนเข้านกก่อน นกเลือดหมด = ตกนก นกกลับคอก · "ป้อนอาหาร" ฟื้น +2` };
   if ((fd.barrels || []).some((b) => at(b, x, y))) return { icon: "🛢️", name: "ถังน้ำมัน", desc: "โจมตีถัง = ระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ (ไม่โดนเพื่อน) · ถังข้างกันระเบิดต่อ" };
   const cr = (fd.crystals || []).find((c) => at(c, x, y));
-  if (cr) return { icon: "💎", name: "หินพลังเวท", desc: `โจมตีหิน = ได้ขวดเวท${cr.element === "fire" ? "ไฟ" : cr.element === "ice" ? "น้ำแข็ง" : "สายฟ้า"} (ถือได้ 2) ไว้ขว้างใส่มอน` };
+  if (cr) return { icon: "💎", name: cr.meteor ? "หินอุกกาบาต" : "หินพลังเวท", desc: `โจมตีหิน = ได้ขวดเวท${cr.element === "fire" ? "ไฟ" : cr.element === "ice" ? "น้ำแข็ง" : "สายฟ้า"} (ถือได้ 2) ไว้ขว้างใส่มอน` };
   if ((fd.wrecks || []).some((w) => at(w, x, y))) return { icon: "🚙", name: "ซากรถ", desc: "ยืนติดแล้วกด \"ผลัก\" ดันไป 1 ช่อง ใช้ปิดทางเดินของมอน" };
   if ((fd.tunnels || []).some((pair) => pair.some((t) => at(t, x, y)))) return { icon: "🕳️", name: "อุโมงค์", desc: "ยืนบนปากอุโมงค์ (ยังเดินได้) แล้วกด \"อุโมงค์\" — ออกปากอีกฝั่งทันที" };
   if ((fd.docks || []).some((t) => at(t, x, y))) return { icon: "🛶", name: "ท่ากอนโดลา", desc: "ยืนบนท่า (ยังเดินได้) แล้วเลือกท่าปลายทาง" };
@@ -91,6 +95,10 @@ export const EOS_TERRAIN_INFO = {
 export function eosTerrainInfo(map, x, y, fd = null, round = 0) {
   const k = map && map.terrain ? map.terrain[`${x},${y}`] : null;
   // กำแพงเมือง Insomnia (พังได้ — ผู้ใช้สั่ง 2026-11-10)
+  if (k === "fd_eos_turret" && fd) {
+    const cw = fd.cityWalls, h = cw && (cw.hurt || []).find((o) => o.x === x && o.y === y), max = (cw && cw.max) || 4;
+    return { icon: "🔫", name: "ป้อมปืน", desc: `♥ ${h ? h.hp : max}/${max} — ${EOS_NAME_DESC["ป้อมปืน"]} · มอนทุบได้ พังแล้วยิงไม่ได้ · ยืนติดกด "ซ่อมกำแพง" ซ่อม/สร้างใหม่` };
+  }
   if (k === "fd_eos_wall" && x >= 8 && x <= 23 && y <= 8) {
     const cw = fd && fd.cityWalls, h = cw && (cw.hurt || []).find((o) => o.x === x && o.y === y), max = (cw && cw.max) || 4;
     return { icon: "🧱", name: "กำแพง Insomnia", desc: `♥ ${h ? h.hp : max}/${max} — มอนที่เข้าทางประตูไม่ได้จะมาทุบกำแพง (หุ่นเกราะ/ราชาปีศาจทุบแรง 2 · หุ่นเกราะไม่กลัวไฟเมือง) · พังแล้วเดินผ่านได้ · ยืนติดกด "ซ่อมกำแพง" +2 (ใช้การโจมตี)` };

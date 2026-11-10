@@ -116,8 +116,9 @@ export default function EosMap({ state, onClose }) {
     }
   }, [state]);
   return (
-    <div className="eos-map" role="dialog" aria-label="แผนที่" onClick={onClose}>
+    <div className="eos-map" role="dialog" aria-label="แผนที่" onClick={onClose} data-magnet={state && state.fodlan && state.fodlan.weather && state.fodlan.weather.kind === "eos_magnet" ? "true" : undefined}>
       <canvas ref={ref} className="eos-map-canvas" />
+      <i className="eos-map-static" aria-hidden="true" />
     </div>
   );
 }

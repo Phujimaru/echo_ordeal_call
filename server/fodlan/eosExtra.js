@@ -67,7 +67,7 @@ function powerRound(ctx, s, H) {
   let secs = 0;
   if (held(s, "insomnia")) {
     const shots = [], used = new Set();
-    for (const t of H.TURRETS) {
+    for (const t of H.TURRETS.filter((o) => !H.turretUp || H.turretUp(ctx, o))) { // ป้อมที่พังไม่ยิง
       const m = H.mobsOf(ctx).filter((u) => !used.has(u.id) && H.manhattan(u.pos, t) <= POWER.turretRange).sort((a, b) => H.manhattan(a.pos, t) - H.manhattan(b.pos, t))[0];
       if (!m) continue;
       used.add(m.id);

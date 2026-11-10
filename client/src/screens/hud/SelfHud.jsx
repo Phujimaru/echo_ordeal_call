@@ -655,7 +655,7 @@ function ZeroChip({ zero }) {
   );
 }
 // Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
-const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️" };
+const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲" };
 export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, players, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
   if (round == null && !journey && !zeroOn && !colony && !moon) return null;

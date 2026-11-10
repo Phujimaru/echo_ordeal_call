@@ -508,13 +508,14 @@ test('L7 โดม: แท่นกลาง Insomnia ปิดประตู�
   p.pos = nextToTile(core);
   actor(p);
   assert.ok(Fodlan.charAction(p.id, 'fd:dome'));
-  assert.ok(Board.isObstacle(action.boardMap(), gate.x, gate.y), 'ประตูเมืองปิด');
+  assert.ok(S6.gateShut(st(), gate.x, gate.y), 'ประตูเมืองปิด (มอนผ่านไม่ได้)');
+  assert.ok(!Board.isObstacle(action.boardMap(), gate.x, gate.y), 'ผู้เล่นเดินทะลุบาเรียได้ (ใครเปิดก็ตาม)');
   q.pos = { x: 15, y: 9 }; p.pos = { x: 15, y: 7 };
   assert.ok(Fodlan.shields(q, p), 'ตีจากนอกเข้าในไม่ได้');
   assert.ok(!action.canStrike(q, p));
   assert.ok(!Fodlan.shields(p, q), 'จากในออกนอกได้');
   for (let i = 0; i < S6.DOME_TURNS; i++) { Fodlan.onEndTurn(() => 0.99); match.roundNumber += 1; }
-  assert.ok(!Board.isObstacle(action.boardMap(), gate.x, gate.y), 'โดมสลาย');
+  assert.ok(!S6.gateShut(st(), gate.x, gate.y), 'โดมสลาย');
   p.pos = nextToTile(core); actor(p);
   assert.ok(btn(p, 'fd:dome').disabled, 'พักหลังโดมสลาย');
 });
@@ -827,9 +828,15 @@ test('กำแพง Insomnia: โดมปิดประตู + คนอย
   const p = P(0); p.pos = { x: 11, y: 4 };
   const m = S6.spawnMob(ctx(), s, 'magitek', { x: 10, y: 10 }, { hp: 10, armor: 3, atk: 3, mov: 3, gold: 8 }, { trait: 'mech', tier: 1 });
   m.summon.born = 0;
-  for (let i = 0; i < 4 && !Object.keys(s.wallHp || {}).length && !Object.keys(s.wallBroken || {}).length; i++) S6.actMonsters(ctx(), s);
+  const hit = () => Object.keys(s.wallHp || {}).length || Object.keys(s.wallBroken || {}).length || (s.dome && s.dome.hp < S6.DOME_HP);
+  for (let i = 0; i < 4 && !hit(); i++) S6.actMonsters(ctx(), s);
   assert.ok(m.pos.y >= 9, 'ประตูปิด เข้าเมืองไม่ได้');
-  assert.ok(Object.keys(s.wallHp || {}).length || Object.keys(s.wallBroken || {}).length, 'กำแพงโดนทุบ');
+  assert.ok(hit(), 'ทุบกำแพงหรือบาเรียประตู');
+  // ทุบบาเรียจนหมด = โดมแตก
+  s.dome = { left: 3, by: 'x', hp: 1 };
+  const g = S6.DOME_GATES[0];
+  const r = S6.hitWall(ctx(), s, m, g);
+  assert.ok(r && r.gate && r.broke && !s.dome, 'โดมแตก');
 });
 
 test('พายุหิมะ: น้ำตื้นกลายเป็นน้ำแข็ง (เดิน 1 ก้าว) · หมดพายุกลับเป็นน้ำตื้น', () => {
@@ -839,6 +846,51 @@ test('พายุหิมะ: น้ำตื้นกลายเป็นน
   assert.equal(action.boardMap().special[k], 'ice');
   match.fodlan.weather = null; match.fodlan.s.weather = null;
   assert.equal(action.boardMap().special[k], 'fd_eos_shallow');
+});
+
+test('รอบหก: คราสกลางวัน = มืด 2 เทิร์น ปีศาจโผล่ ไม่นับเป็นคืน/วันใหม่', () => {
+  setup();
+  const s = st();
+  s.dayNo = 3;
+  const K0 = S6.SKY.sky(s);
+  K0.eclipse = { from: match.roundNumber + 1, until: match.roundNumber + 2 };
+  const n0 = s.nightNo || 0, d0 = s.dayNo;
+  match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
+  assert.equal(s.night, true, 'มืด');
+  assert.equal(s.nightNo || 0, n0, 'ไม่นับเป็นคืนใหม่');
+  assert.ok(S6.mobsOf(ctx(), 'daemon').length > 0, 'ปีศาจโผล่');
+  match.roundNumber += 2; match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {});
+  assert.equal(s.dayNo, d0, 'ไม่นับเป็นวันใหม่');
+});
+
+test('รอบหก: จันทร์เต็มดวง สัตว์ยักษ์ตี/เอื้อม +1 · ฝนดาวตกเตือนก่อนแล้วตก ดาเมจ + ทิ้งหิน · รถไฟขนเสบียง · พายุแม่เหล็ก', () => {
+  setup();
+  const s = st(), k = S6.SKY.sky(s);
+  k.moon = true;
+  assert.deepEqual(S6.SKY.beastMod(s), { atk: 1, mov: 1, reach: 1, goldMul: 2 });
+  // ดาวตก
+  const p = P(0);
+  k.meteor = { at: match.roundNumber + 1, tiles: [{ x: p.pos.x, y: p.pos.y }, { x: 20, y: 22 }] };
+  const h0 = p.hp + p.armor, c0 = s.crystals.length;
+  S6.SKY.preRound(ctx(), s, S6.H(), match.roundNumber + 1);
+  assert.equal(p.hp + p.armor, h0 - S6.SKY.METEOR.dmg);
+  assert.ok(s.crystals.length > c0, 'หินพลังเวทจากอุกกาบาต');
+  // รถไฟขนเสบียง
+  const stn = MAP6.STATIONS[0];
+  k.supply = { x: stn[0], y: stn[1], until: match.roundNumber + 2, loads: 0, by: {} };
+  p.pos = { x: stn[0], y: stn[1] };
+  actor(p);
+  const b = btn(p, 'fd:supply');
+  assert.ok(b && !b.disabled);
+  const sc = s.score || 0;
+  assert.ok(Fodlan.charAction(p.id, 'fd:supply'));
+  assert.equal(s.score, sc + S6.SKY.SUPPLY.score);
+  assert.equal(k.supply.loads, 1);
+  assert.ok(Fodlan.publicInfo().board.sky.supply);
+  // พายุแม่เหล็ก: ไกลเกิน 4 = มอนมองไม่เห็น
+  Fodlan.startWeather('eos_magnet');
+  assert.ok(S6.magnetOn(ctx()));
+  match.fodlan.weather = null; match.fodlan.s.weather = null;
 });
 
 test('อาหารทีม: ปลาในถุงไปทำที่แคมป์ — ปลาย่างทั้งทีม (1 ตัว) ทุกคนฟื้น 2 · งานเลี้ยงทีม (2 ตัว) ทุกคนตี +1 เดิน +1', () => {

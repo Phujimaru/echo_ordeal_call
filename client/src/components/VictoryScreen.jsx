@@ -84,7 +84,7 @@ function Crown() {
 // ฉายาจบเกมของสนาม Eos (PVE รอบสาม — server/fodlan/eosExtra.js titlesOf): ไอคอน + ชื่อฉายา
 function Titles({ list }) {
   if (!list || !list.length) return null;
-  return <div className="vic-titles">{list.map((t) => <span key={t.key} className="vic-title" title={`${t.name} · ${t.n}`}><i>{t.icon}</i>{t.name}</span>)}</div>;
+  return <div className="vic-titles">{list.map((t) => <span key={t.key} className="vic-ftitle" title={`${t.name} · ${t.n}`}><i>{t.icon}</i>{t.name}</span>)}</div>;
 }
 
 function Winner({ p, x, w, i, you, multi, titles }) {

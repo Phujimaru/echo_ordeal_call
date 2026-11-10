@@ -333,7 +333,8 @@ export function eosBedsFor(pos, night, weather, dome = null) {
   if (night && !TOWN.has(zone)) out.amb_night_daemon = 0.55;
   if (weather === "eos_storm") out.wx_rain_loop = 0.9;
   if (weather === "eos_fog") out.wx_fog_loop = 0.8;
-  if (weather === "eos_snow") out.wx_fog_loop = 1; // พายุหิมะ: ใช้ลูปลมของหมอก (ยังไม่มีเสียงพายุหิมะเฉพาะ)
+  if (weather === "eos_snow") out.wx_fog_loop = 1;
+  if (weather === "eos_magnet") out.wx_fog_loop = 0.6; // พายุแม่เหล็ก: ลมเบาๆ (ยังไม่มีเสียงเฉพาะ) // พายุหิมะ: ใช้ลูปลมของหมอก (ยังไม่มีเสียงพายุหิมะเฉพาะ)
   // พายุทราย (ขั้น 5): เฉพาะทะเลทราย — อยู่ในโซน = ดังเต็ม · ข้างนอกได้ยินแว่วๆ ตามระยะจากขอบโซน
   if (weather === "eos_sand") {
     const inside = zone === "desert" || zone === "hammerhead";

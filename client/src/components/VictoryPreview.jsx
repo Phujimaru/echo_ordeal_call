@@ -31,6 +31,11 @@ export default function VictoryPreview() {
       return mk(i, t === "B", t);
     });
     state = { gameMode: size === 3 ? "trio" : "duo", winningTeamId: "B", players, youId: "p2", roundNumber: 14 };
+  } else if (mode === "eos") { // ?victory=eos — PVE สนาม Eos (ดาวท้าทาย + ฉายา)
+    const players = Array.from({ length: Number(q.get("n")) || 1 }, (_, i) => mk(i, true, "A"));
+    state = { gameMode: "eos", winningTeamId: "A", players, youId: "p0", roundNumber: 31,
+      fodlan: { board: { challenges: [{ key: "noLoss", icon: "🔷", name: "เสาไม่หลุดเลย", star: true }, { key: "fast", icon: "⏱️", name: "ชนะภายใน 30 เทิร์น", star: true }, { key: "noDown", icon: "❤️", name: "ไม่มีใครล้ม", star: false }],
+        titles: [{ id: "p0", key: "saver", icon: "🕊️", name: "ผู้ช่วยชีวิต", n: 3 }] } } };
   } else if (mode === "draw") {
     state = { gameMode: "ffa", winningTeamId: null, players: Array.from({ length: 4 }, (_, i) => mk(i, false)), youId: "p0", roundNumber: 9 };
   } else {

@@ -47,7 +47,7 @@ export const fx = {
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
-  combo: 1100, power_turret: 1200, power_fountain: 1000, nest_spawn: 1200, nest_burst: 1400, giant_warn: 1600, giant_step: 1600, giant_leave: 1400, giant_die: 2400,
+  meteor_warn: 1200, meteor_impact: 1800, supply_arrive: 1600, supply_leave: 1400, supply_load: 1000, eclipse_start: 2200, eclipse_end: 1400, full_moon: 1800, combo: 1100, power_turret: 1200, power_fountain: 1000, nest_spawn: 1200, nest_burst: 1400, giant_warn: 1600, giant_step: 1600, giant_leave: 1400, giant_die: 2400,
   civ_spawn: 1200, civ_follow: 700, civ_saved: 1800, civ_lost: 1300, gauge_full: 1600, barrage: 1800, final_start: 3000, final_wave: 1400,
   // PVE รอบสี่: การ์ดทีม · กำแพงไม้ · โชโกโบะทอง
   perk_offer: 1600, perk_pick: 2200, wall_up: 900, wall_down: 800, gold_spawn: 1400, gold_leave: 1000,
@@ -1475,6 +1475,9 @@ function turretShot(x, y, now) {
   return e && e.from && e.from.x === x && e.from.y === y ? { e, p: fxT(e, now, fx.turret_shot) } : null;
 }
 function drawTurret(g, x, y, C, now) {
+  try { return drawTurretBody(g, x, y, C, now); } finally { wallCracks(g, x, y); } // ป้อมบนกำแพงพังได้ (รอยร้าว + หลอดเลือด)
+}
+function drawTurretBody(g, x, y, C, now) {
   box(g, x, y + 0.15, x + 1, y + 0.85, 0.75, C.wall, C.wall2, C.wall);
   box(g, x + 0.16, y + 0.18, x + 0.84, y + 0.82, 0.88, C.stone, C.stone2, C.stone);
   const cx = x + 0.5, cy = y + 0.5, sh = turretShot(x, y, now);
@@ -2452,6 +2455,13 @@ function drawTomb(g, x, y, C, night, now) {
   if (!FAST) for (let i = 0; i < 4; i++) { const a = now / 700 + i * TAU / 4, q = P(cx + Math.cos(a) * 0.22, cy + Math.sin(a) * 0.22, zc + Math.sin(a * 2) * 0.1); g.fillStyle = "rgba(190,230,255,.85)"; g.beginPath(); g.arc(q[0], q[1], Math.max(1, q[2] * 0.016), 0, TAU); g.fill(); }
   g.restore();
 }
+// ---------- รถไฟขนเสบียง (PVE รอบหก): จอดข้างชานชาลา หัวรถหันเข้ากลางแผนที่ ----------
+function supplyCars(sp) {
+  const dir = sp.x < MAP_W / 2 ? 1 : -1;
+  let o = 0;
+  const head = sp.x + 0.5 + dir * (TRAIN_LEN - 0.5);
+  return TRAIN_CARS.map((L, i) => { const front = head - dir * o, back = front - dir * L; o += L + TRAIN_GAP; return { i, a: Math.min(front, back), b: Math.max(front, back), front, dir }; });
+}
 // ---------- ขบวนรถไฟ (หัวรถจักร + ตู้โดยสาร 3 ตู้ · สีน้ำเงินเข้มขอบทอง) ----------
 const TRAIN_CARS = [2.3, 2.0, 2.0, 2.0], TRAIN_GAP = 0.14;
 const TRAIN_LEN = TRAIN_CARS.reduce((a, b) => a + b, 0) + TRAIN_GAP * (TRAIN_CARS.length - 1);
@@ -3061,6 +3071,9 @@ export function items(list, g, fd, info, units, now, lowQ) {
       f: () => drawDropship(g, ds.x, ds.y, z, now, lowQ),
     });
   }
+  if (fd.dome && Array.isArray(fd.dome.gates)) for (const t of fd.dome.gates) list.push({ d: depthOf(t.x + 0.5, t.y + 0.5), f: () => drawBarrier(g, t.x, t.y, now) }); // ผู้เล่นเดินทะลุได้ มอนทุบได้
+  const sup = fd.sky && fd.sky.supply;
+  if (sup) for (const car of supplyCars(sup)) list.push({ d: depthOf((car.a + car.b) / 2, RAIL_Y + 0.5), f: () => drawTrainCar(g, car, car.dir, night, now, []) });
   for (const w of (fd.cityWalls && fd.cityWalls.broken) || []) list.push({ d: depthOf(w.x + 0.5, w.y + 0.5), f: () => drawRubble(g, w.x, w.y, palOf({ night })) });
   // หีบสมบัติ (ผู้ใช้สั่ง 2026-11-10 — ของให้ไปเก็บทั่วแผนที่)
   for (const c of fd.chests || []) list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => drawChest(g, c.x + 0.5, c.y + 0.5, now, night, lowQ) });
@@ -3191,6 +3204,13 @@ function playFx(e) {
       break;
     case "gondola": sfx("gondola_row", { gain: 0.85, dur: 2.6 }); break;
     case "tunnel": sfx("tunnel_enter"); break;
+    case "meteor_warn": sfx("dome_off", { gain: 0.5 }); break;
+    case "meteor_impact": sfx("barrel_explode"); sfx("barrel_explode", { delay: 0.25, gain: 0.7 }); break;
+    case "supply_arrive": sfx("train_horn", { gain: 0.85, dur: 2.0 }); break;
+    case "supply_leave": sfx("train_horn", { gain: 0.6, dur: 1.6 }); break;
+    case "supply_load": sfx("crystal_pick", { gain: 0.8 }); break;
+    case "eclipse_start": sfx("night_fall", { gain: 0.9 }); break;
+    case "full_moon": sfx("night_fall", { gain: 0.6 }); sfx("beast_roar", { delay: 0.8, gain: 0.5 }); break;
     case "camp_meal": if (e.quiet) break; sfx("camp_ignite"); sfx("camp_meal", { delay: 0.25 }); sfx("camp_buff", { delay: 1.0, gain: 0.85 }); break;
     case "fish":
       sfx("fish_cast", { dur: 1.2 }); sfx("fish_bite", { delay: 1.05, dur: 1.4 });
@@ -3714,6 +3734,17 @@ function drawWard(g, pl, now) {
 }
 // พื้น: วงเวทเตือนบอส · กรอบโซนภารกิจกวาดล้าง · เส้นทางรถเสบียง
 function pveGround(g, fd, now, lowQ) {
+  const sk = fd.sky || {};
+  for (const t of (sk.meteor && sk.meteor.tiles) || []) { // จุดตกอุกกาบาต: วงส้มแดงซ้อน + กากบาท (ตกต้นเทิร์นหน้า ดาเมจ 3 · ข้างๆ 1)
+    const k = 0.5 + 0.5 * Math.sin(now / 150), [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.02);
+    g.save(); g.translate(x, y); g.scale(1, 0.42);
+    g.fillStyle = `rgba(255,90,30,${0.12 + 0.1 * k})`; g.beginPath(); g.arc(0, 0, s * 1.5, 0, TAU); g.fill();
+    g.strokeStyle = `rgba(255,120,40,${0.55 + 0.35 * k})`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, s * 0.55, 0, TAU); g.stroke();
+    g.strokeStyle = `rgba(255,170,80,${0.35 + 0.2 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 1.5, 0, TAU); g.stroke();
+    g.beginPath(); g.moveTo(-s * 0.3, -s * 0.3); g.lineTo(s * 0.3, s * 0.3); g.moveTo(s * 0.3, -s * 0.3); g.lineTo(-s * 0.3, s * 0.3); g.stroke();
+    g.restore();
+  }
+  if (sk.supply) { const [x, y, s] = P(sk.supply.x + 0.5, sk.supply.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 300); gEllipse(g, sk.supply.x + 0.5, sk.supply.y + 0.5, 1.6, 0.02, 30); g.strokeStyle = `rgba(255,210,110,${0.5 + 0.4 * k})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, x, y, s * 1.2, "255,210,110", 0.25 + 0.15 * k); }
   const w = fd.bossWarn;
   if (w) {
     const [x, y, s] = P(w.x + 0.5, w.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 160);
@@ -4097,6 +4128,15 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
     }
     return true;
   }
+  if (e.kind === "meteor_impact") {
+    for (const t of e.tiles || []) {
+      const fall = Math.min(1, p / 0.3), top = P(t.x + 0.5 - 3 * (1 - fall), t.y + 0.5, 12 * (1 - fall)), base = P(t.x + 0.5, t.y + 0.5, 0);
+      if (p < 0.3) { g.strokeStyle = "rgba(255,200,120,.9)"; g.lineWidth = 4; g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(top[0] - 30, top[1] - 40); g.stroke(); glowAt(g, top[0], top[1], base[2] * 0.6, "255,160,60", 0.9); }
+      else { const q = (p - 0.3) / 0.7; glowAt(g, base[0], base[1], base[2] * (0.6 + q * 1.4), "255,130,40", (1 - q) * 0.9); puff(g, t.x + 0.5, t.y + 0.5, 0.2, q, e.seq + t.x, lowQ ? 5 : 12, "120,100,90", 0.28); }
+    }
+    return true;
+  }
+  if (e.kind === "supply_load") { const c = P(e.x + 0.5, e.y + 0.5, 0.9 + p * 0.8); emoji(g, "📦", c[0], c[1], c[2] * 0.4, 1 - p); return true; }
   if (e.kind === "mob_attack") {
     for (const h of e.pillars || []) if (h.wall && h.at && p > 0.25) { const q = (p - 0.25) / 0.75; puff(g, h.at.x + 0.5, h.at.y + 0.5, 0.3, q, e.seq + h.at.x, lowQ ? 4 : (h.broke ? 14 : 7), "150,140,125", h.broke ? 0.3 : 0.18); }
     for (const a of e.attacks || []) {
@@ -4174,6 +4214,25 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
   }
   return false;
 }
+// ท้องฟ้าพิเศษ (PVE รอบหก): คราสกลางวัน = ม่านมืดอมแดง + ดวงอาทิตย์ดำมีวงแสง · จันทร์เต็มดวง = ดวงจันทร์ใหญ่ + แสงเงินอาบทั้งจอ
+function skyFx(g, fd, now, lowQ, X0, Y0, W, H) {
+  const sk = fd.sky || {};
+  if (sk.eclipse) {
+    g.fillStyle = "rgba(40,10,20,.22)"; g.fillRect(X0, Y0, W, H);
+    const cx = X0 + W * 0.82, cy = Y0 + H * 0.16, r = Math.min(W, H) * 0.06;
+    glowAt(g, cx, cy, r * 3.2, "255,170,90", 0.45 + (lowQ ? 0 : 0.1 * Math.sin(now / 600)));
+    g.fillStyle = "#07040a"; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(255,230,180,.85)"; g.lineWidth = Math.max(1.5, r * 0.08); g.beginPath(); g.arc(cx, cy, r * 1.02, 0, TAU); g.stroke();
+  }
+  if (sk.fullMoon) {
+    g.fillStyle = "rgba(170,190,230,.08)"; g.fillRect(X0, Y0, W, H);
+    const cx = X0 + W * 0.16, cy = Y0 + H * 0.14, r = Math.min(W, H) * 0.07;
+    glowAt(g, cx, cy, r * 3.5, "220,230,255", 0.4);
+    const gr = g.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+    gr.addColorStop(0, "#fffef2"); gr.addColorStop(1, "#d8dcc8"); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
+    g.fillStyle = "rgba(150,150,130,.35)"; for (const [a, b, c] of [[0.25, -0.2, 0.18], [-0.3, 0.15, 0.13], [0.1, 0.35, 0.1]]) { g.beginPath(); g.arc(cx + a * r, cy + b * r, c * r, 0, TAU); g.fill(); }
+  }
+}
 let NIGHT_WAS = null;
 export function air(g, fd, info, units, now, lowQ, view) {
   for (const e0 of fd.fx || []) { const e = p4Norm(e0); if (fx[e.kind] && fxOnce(e)) playFx(e); }
@@ -4250,12 +4309,25 @@ export function air(g, fd, info, units, now, lowQ, view) {
       const ph = (now / (5200 + i * 700) + hash(i, 8)) % 1;
       glowAt(g, X0 + W * (1.2 - ph * 1.4), Y0 + hash(i, 9) * H, H * 0.28, fd.night ? "160,180,215" : "250,252,255", 0.16 * gust);
     }
+  } else if (kind === "eos_magnet") {
+    // พายุแม่เหล็ก (PVE รอบหก): แสงออโรราเขียวม่วงพลิ้วเป็นริ้ว + จอกระพริบรบกวนเป็นช่วง
+    const zf = Math.max(0.12, Math.min(1.6, W / LW));
+    g.fillStyle = fd.night ? "rgba(20,10,40,.28)" : "rgba(60,40,90,.16)"; g.fillRect(X0, Y0, W, H);
+    if (!lowQ) for (let r = 0; r < 4; r++) {
+      const yb = Y0 + H * (0.12 + r * 0.09), rgb = r % 2 ? "120,255,190" : "190,120,255";
+      g.beginPath();
+      for (let i = 0; i <= 24; i++) { const x = X0 + (W * i) / 24, y = yb + Math.sin(i * 0.6 + now / (900 + r * 200) + r) * 18 * zf; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.strokeStyle = `rgba(${rgb},${0.18 + 0.08 * Math.sin(now / 500 + r)})`; g.lineWidth = 16 * zf; g.stroke();
+    }
+    const slot = Math.floor(now / 4200), d = now - slot * 4200 - hash(slot, 11) * 3400;
+    if (d >= 0 && d < 180 && !lowQ) { g.fillStyle = "rgba(200,255,230,.08)"; for (let i = 0; i < 12; i++) g.fillRect(X0, Y0 + hash(i, slot) * H, W, 2 * zf); }
   } else if (kind === "eos_fog" && !lowQ) {
     for (let i = 0; i < 10; i++) {
       const ph = (now / (22000 + i * 1500) + hash(i, 5)) % 1;
       glowAt(g, X0 + ph * W * 1.4 - W * 0.2, Y0 + hash(i, 6) * H, H * 0.35, fd.night ? "90,105,130" : "220,226,232", 0.22);
     }
   }
+  skyFx(g, fd, now, lowQ, X0, Y0, W, H); // คราส · จันทร์เต็มดวง (PVE รอบหก)
   // โดมกำแพงเวท (ขึ้น = โตจากพื้น · สลาย = จางหาย)
   if (fd.dome && Array.isArray(fd.dome.rect)) drawDome(g, fd.dome.rect, domeGrow(now), 1, now, lowQ);
   else {

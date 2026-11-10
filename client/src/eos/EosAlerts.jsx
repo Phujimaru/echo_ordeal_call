@@ -18,6 +18,14 @@ function alertOf(e, fd) {
   switch (e.kind) {
     case "dropship_warn": return { icon: "🚨", title: "ยานจักรวรรดิกำลังลง", zone: zoneAt(e.x, e.y), tone: "warn" };
     case "dropship_land": { const mk = (e.spawned || []).find((o) => o.mech); return mk ? { icon: "🦾", title: "หุ่นเกราะจักรวรรดิปรากฏ", zone: zoneAt(mk.x, mk.y), tone: "danger", at: mk } : null; }
+    case "meteor_warn": return { icon: "☄️", title: `ฝนดาวตก · ${(e.tiles || []).length} จุด`, zone: "ตกต้นเทิร์นหน้า", tone: "danger", at: (e.tiles || [])[0] };
+    case "meteor_impact": return { icon: "💎", title: `อุกกาบาตตก · หินพลังเวท ${(e.tiles || []).length}`, zone: "", tone: "good", at: (e.tiles || [])[0] };
+    case "eclipse_start": return { icon: "🌑", title: "สุริยคราส", zone: `มืด ${e.turns} เทิร์น`, tone: "danger" };
+    case "eclipse_end": return { icon: "☀️", title: "คราสผ่านไป", zone: "", tone: "good" };
+    case "full_moon": return { icon: "🌕", title: "คืนจันทร์เต็มดวง", zone: "สัตว์ยักษ์ดุ · ของ ×2", tone: "warn" };
+    case "supply_arrive": return { icon: "🚂", title: "รถไฟขนเสบียงจอด", zone: `${e.turns} เทิร์น`, tone: "good", at: { x: e.x, y: e.y } };
+    case "supply_leave": return { icon: "🚂", title: `รถไฟเสบียงออก · ขนได้ ${e.loads}`, zone: "", tone: "good" };
+    case "dome_off": return e.broken ? { icon: "🛡️", title: "โดมแตก!", zone: "Insomnia", tone: "danger" } : null;
     case "pillar_hit": return { icon: "💢", title: `เสาโดนตี ${e.hits}/2`, zone: pillarZone(fd, e.id), tone: "danger" };
     case "pillar_lost": return { icon: "💔", title: "เสาหลุด", zone: pillarZone(fd, e.id), tone: "danger" };
     case "boss_warn": return { icon: "⚠️", title: "ราชาปีศาจกำลังมา", zone: zoneAt(e.x, e.y), tone: "danger" };
