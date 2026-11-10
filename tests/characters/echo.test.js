@@ -234,3 +234,30 @@ test('ธนูของโจรุโน่: ได้ครั้งเดี
   engine.useSkill('E', 'basic', [], { form: 'giorno_giovanna' });
   assert.equal(arrows(), 0, 'สวมซ้ำไม่ได้ธนูอีก');
 });
+
+// ---------- คลิปของร่างที่สวม: ชื่อ "Recollection Time" + ป้ายโปรไฟล์ Echo (ผู้ใช้สั่ง 2026-11-10) ----------
+test('คลิปสกิลจากร่างที่สวม = Recollection Time + โปรไฟล์ Echo · ร่างตัวจริงไม่เปลี่ยน', () => {
+  const cutscene = require('../../server/cutscene.js');
+  const match = require('../../server/match.js');
+  const { TRANSFORMS } = require('../../server/constants.js');
+  const key = Object.keys(TRANSFORMS).find((k) => TRANSFORMS[k].video);
+  const P = setup([['E', 'echo', 1, 5], ['B', 'muimi', 8, 5]]);
+  const E = P.E;
+  actAs(E);
+  engine.useSkill('E', 'basic', [], { form: 'sora_otosumi' });
+  match.cutsceneQueue = [];
+  cutscene.queueCutscene(E, key);
+  cutscene.queueCutscene(P.B, key);
+  cutscene.runCutsceneQueue(() => {});
+  assert.equal(match.cutsceneInfo.title, 'Recollection Time');
+  assert.equal(match.cutsceneInfo.recall.img, CHAR_BY_ID.echo.img);
+  engine.clearPhaseTimer();
+  cutscene.runCutsceneQueue(() => {});
+  assert.equal(match.cutsceneInfo.title, TRANSFORMS[key].title, 'คนอื่นใช้ = ชื่อเดิม');
+  assert.equal(match.cutsceneInfo.recall, undefined);
+  engine.clearPhaseTimer();
+  match.cutsceneQueue = []; match.cutsceneInfo = null; match.gameState = 'ACTION';
+  engine.setArjunaUlt({ by: 'E', targets: [], hits: [] });
+  assert.ok(engine.players && match.arjunaUlt.recall, 'ฉาก Mahapralaya ก็มีป้าย');
+  engine.setArjunaUlt(null);
+});

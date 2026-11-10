@@ -20,6 +20,12 @@ const Zero = require("./zeroTime");
 // ============================================================
 //  cutscene
 // ============================================================
+// เจ้าหญิง Echo (characters/echo.js recallOf) — require ตอนเรียก (characters/ require server/ ตอนโหลด = วนกัน)
+const recallOf = (p) => require("../characters/index").echo.recallOf(p);
+const recallInfo = (recall) => {
+  const T = require("../characters/index").echo.RECALL_TITLE;
+  return { title: T, label: null, recall }; // ชื่อเดียวบนคลิป (ไม่มีชื่อท่า/ร่างเดิมต่อท้าย)
+};
 // ครั้งแรกต่อเกม/ต่อคน = เล่นวีดีโอเต็ม (หยุดกระดาน), ครั้งต่อไป = แค่การ์ดแจ้งเตือนเล็กๆ ไม่หยุดเกม
 function triggerCutscene(p, key) {
   // ท่าที่ไม่มีวีดีโอ (มีแต่ภาพ+เพลง) = แจ้งเตือนบนกระดานอย่างเดียว ไม่ตัดเข้าเฟส CUTSCENE
@@ -50,10 +56,12 @@ function queueCutscene(p, key, onlyFor) {
 function notifyTransform(p, key, onlyFor) {
   const t = TRANSFORMS[key];
   if (!t) return;
+  const recall = recallOf(p);
   const payload = {
     playerId: p.id, name: p.name,
     img: t.img, color: lobby.colorOf(p),
     title: t.title, label: t.label,
+    ...(recall ? recallInfo(recall) : {}),
   };
   if (Array.isArray(onlyFor)) { for (const id of onlyFor) io.to(id).emit("transformNotice", payload); return; }
   io.emit("transformNotice", payload);
@@ -142,7 +150,9 @@ function runSkillFlow(onDone) {
 function runCutsceneQueue(onDone) {
   if (match.cutsceneQueue.length === 0) { match.cutsceneInfo = null; onDone(); return; }
   const c = match.cutsceneQueue.shift();
-  match.cutsceneInfo = { ...c.info, id: ++match.cutsceneSeq }; // id ใหม่ทุกครั้ง -> client remount วีดีโอ
+  // เจ้าหญิง Echo สวมร่างอยู่ = คลิปของร่างนั้นชื่อ "Recollection Time" + ป้ายโปรไฟล์ Echo (recall — client RecallBadge)
+  const recall = recallOf(match.players[c.info.playerId]);
+  match.cutsceneInfo = { ...c.info, ...(recall ? recallInfo(recall) : {}), id: ++match.cutsceneSeq }; // id ใหม่ทุกครั้ง -> client remount วีดีโอ
   match.gameState = "CUTSCENE";
   timers.startPhaseTimer(c.seconds, () => runCutsceneQueue(onDone));
   view.broadcastState();

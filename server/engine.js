@@ -246,7 +246,11 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   declareWinner(p) { match.forcedWinnerId = p ? p.id : null; },
   setYukiBoom(b) { match.yukiBoom = b ? { seq: ++match.yukiBoomSeq, ...b } : null; },
   // มหาเทพอรชุน — ฉาก Mahapralaya ของ client (state.arjunaUlt) · keep = อัปเดตตัวเลขในฉากเดิม
-  setArjunaUlt(u, keep) { match.arjunaUlt = u ? { seq: keep ? match.arjunaUltSeq : ++match.arjunaUltSeq, ...u } : null; },
+  setArjunaUlt(u, keep) {
+    // + ป้ายโปรไฟล์เจ้าหญิง Echo เมื่อคนกดคือ Echo ที่สวมร่างอรชุน (characters/echo.js recallOf)
+    const recall = u ? require("../characters/index").echo.recallOf(match.players[u.by]) : null;
+    match.arjunaUlt = u ? { seq: keep ? match.arjunaUltSeq : ++match.arjunaUltSeq, ...u, recall } : null;
+  },
   arjunaUltOn() { return !!match.arjunaUlt; },
   voice(p, event) { return require("./voice").play(p, event); }, // เสียงพากย์เหตุการณ์เฉพาะตัว (อรชุน: จุติ/ตาย/สังหาร)
   inStrike() { return (match.strikeDepth || 0) > 0; }, // อยู่ระหว่างลงผลตีปกติไหม
