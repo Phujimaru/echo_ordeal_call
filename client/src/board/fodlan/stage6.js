@@ -3068,23 +3068,19 @@ function drawCivilian(g, c, cx, cy, now, lowQ, lead) {
   }
   g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.2, s * 0.07, 0, 0, TAU); g.fill();
   const bob = lowQ ? 0 : Math.abs(Math.sin(now / (lead ? 150 : 600))) * s * 0.03;
-  // ภาพคนจริง 6 แบบ (ผู้ใช้ส่งมา 2026-11-10): ป้ายภาพตั้งบนฐาน ขอบขาว · รอคนช่วย = โยกซ้ายขวา · มีคนพา = เด้งตามจังหวะเดิน
+  // ภาพคนจริง 6 แบบ (ผู้ใช้ส่งมา 2026-11-10 · ตัดพื้นหลังแล้ว): ภาพลอยบนกระดานแบบมอน (ไม่ใช่หมาก/การ์ด)
+  //  รอคนช่วย = ลอยขึ้นลงช้าๆ + เอียงซ้ายขวา · มีคนพา = เด้งตามจังหวะเดิน · หันตามทิศคนพา
   const ph = img(`/eos/img/people${((c.look || 0) % 6) + 1}.webp`);
   if (ph) {
-    const w = s * 0.5, h = w * 4 / 3, lift = s * 0.06 + bob, tilt = lead || lowQ ? 0 : Math.sin(now / 260) * 0.07;
-    g.fillStyle = "#4a3a2a"; g.beginPath(); g.ellipse(sx, sy - s * 0.02, s * 0.16, s * 0.05, 0, 0, TAU); g.fill();
-    g.fillStyle = "#6b5440"; g.fillRect(sx - s * 0.015, sy - lift - s * 0.02, s * 0.03, lift + s * 0.02);
-    g.save(); g.translate(sx, sy - lift); g.rotate(tilt);
-    const r = Math.max(3, w * 0.08), bx = -w / 2, by = -h;
-    const rr = (x, y, ww, hh, rad) => { g.beginPath(); g.moveTo(x + rad, y); g.arcTo(x + ww, y, x + ww, y + hh, rad); g.arcTo(x + ww, y + hh, x, y + hh, rad); g.arcTo(x, y + hh, x, y, rad); g.arcTo(x, y, x + ww, y, rad); g.closePath(); };
-    g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = s * 0.08; g.shadowOffsetY = s * 0.02;
-    rr(bx - 3, by - 3, w + 6, h + 6, r + 2); g.fillStyle = lead ? "#fff3cf" : "#ffffff"; g.fill();
-    g.shadowColor = "transparent";
-    g.save(); rr(bx, by, w, h, r); g.clip(); g.drawImage(ph, bx, by, w, h); g.restore();
-    rr(bx - 3, by - 3, w + 6, h + 6, r + 2); g.strokeStyle = lead ? "#e0a63a" : "rgba(255,215,120,.9)"; g.lineWidth = 1.5; g.stroke();
+    const ar = ph.naturalWidth / ph.naturalHeight, h = Math.min(s * 1.35, (s * 1.05) / ar), w = h * ar;
+    const hover = s * (0.08 + (lowQ ? 0 : lead ? Math.abs(Math.sin(now / 150)) * 0.06 : 0.03 + Math.sin(now / 700 + (c.look || 0)) * 0.03));
+    const tilt = lead || lowQ ? 0 : Math.sin(now / 900 + (c.look || 0)) * 0.04;
+    const flip = lead ? lead.x < cx : false;
+    g.save(); g.translate(sx, sy - hover); g.rotate(tilt); if (flip) g.scale(-1, 1);
+    g.drawImage(ph, -w / 2, -h, w, h);
     g.restore();
-    const UK = Math.max(0.35, s * 0.0085); // หลอดเลือดเหนือป้าย
-    drawVitalBar(g, sx, sy - lift - h - s * 0.12, s * 0.5, { hp: c.hp, maxHp: Math.max(1, c.maxHp || 4), armor: 0, maxArmor: 0 }, UK);
+    const UK = Math.max(0.35, s * 0.0085);
+    drawVitalBar(g, sx, sy - hover - h - s * 0.1, s * 0.5, { hp: c.hp, maxHp: Math.max(1, c.maxHp || 4), armor: 0, maxArmor: 0 }, UK);
     return;
   }
   const cloak = CIV_CLOAK[(c.look || 0) % CIV_CLOAK.length];
