@@ -131,6 +131,7 @@ const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >
 import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, PV, setPitch, setCustomProjection, customProjection, setViewCenter } from "./boardGeo";
 import { createColonyView } from "./colony3d";
 import { setEosFast } from "./fodlan/stage6";
+import { groundGLReady } from "./groundGL";
 
 // ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
 const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
@@ -599,8 +600,12 @@ export default function BoardCanvas(props) {
         return sc;
       };
       // RTS ระหว่างค้าง Q/E: ใช้ฉากที่อบไว้ล่าสุด (ไม่อบใหม่ทุกเฟรม) — ปล่อยปุ่มแล้วค่อยอบที่มุมใหม่
-      const scTo = st.cv3 ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
-      const scFrom = !st.cv3 && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
+      // สนาม Eos (กล้อง RTS) + WebGL ใช้ได้: พื้นกระดานมาจากภาพพื้นผิว WebGL ทุกเฟรม (นิ่งหรือขยับก็ภาพเดียวกัน) + ฉากรอบนอกวาดสดที่มุมกล้องจริง
+      //  ผู้ใช้แจ้ง 2026-11-10 "กระตุกตลอด คุณภาพแย่ลง": เดิมขยับ = พื้นแบบหนึ่ง · นิ่ง = อบชั้นคม (สะดุด ~145ms ทุกครั้งที่หยุด) แล้วสลับภาพ
+      //  ไม่มีการอบชั้นคมอีก — ไม่สะดุดตอนหยุด ไม่สลับภาพ · WebGL ใช้ไม่ได้ = แบบเดิม
+      const warpAll = rts && !lowQ && !st.cv3 && groundGLReady();
+      const scTo = st.cv3 || warpAll ? { scene: null, fore: null, marks: {} } : rts && st.yaw && st.lastSc ? st.lastSc : (st.lastSc = sceneOf(turning ? st.turnTo : st.turn));
+      const scFrom = !st.cv3 && !warpAll && turning && normRot(st.turnFrom) % 2 !== normRot(st.turnTo) % 2 ? sceneOf(st.turnFrom) : null;
       let boardCv = null;
       if (!turning && !st.cv3 && !(rts && !lowQ)) {
         const rk = rts ? Math.round(st.turn * 1000) / 1000 : normRot(st.turn);
@@ -614,21 +619,29 @@ export default function BoardCanvas(props) {
       }
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
-      setEosFast(rts && (turning || camMoving)); // สนาม Eos: ระหว่างวาดพื้นสด ข้ามรายละเอียดเล็ก
-      // พื้นแบบพื้นผิวระหว่างกล้องขยับ: ปิดไว้ (ผู้ใช้แจ้ง 2026-11-10 "กระพริบทุกการขยับมุมกล้อง พอนิ่งหายเป็นปกติ" — รอยต่อชิ้นบิดภาพกระพริบบนการ์ดจอจริง)
-      //  หลังแก้เติมสีเป็นชุดแล้ว วาดพื้นสดเร็วพอ (A/B วัดแล้วใกล้เคียงกัน) · โค้ด drawGroundWarp เก็บไว้
-      st.warpGround = false; // พื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
+      // สนาม Eos: ข้ามรายละเอียดเล็กระหว่างกล้องขยับ — ปิดแล้ว (2026-11-10): พื้นมาจากภาพพื้นผิว WebGL ไม่ได้วาดสด · ข้ามแล้วรายละเอียดโผล่/หายทุกครั้งที่ขยับ (ผู้ใช้แจ้งกระพริบ)
+      setEosFast(false);
+      // พื้นแบบพื้นผิวระหว่างกล้องขยับ: เคยปิด (ผู้ใช้แจ้ง "กระพริบทุกการขยับมุมกล้อง" — รอยต่อสามเหลี่ยม) แล้วกระตุกหนักกว่าเดิม
+      //  (ผู้ใช้แจ้ง 2026-11-10 · วัด: หมุน ~50fps → เปิดกลับ ~135fps) → เปิดกลับ วาดด้วย WebGL ทั้งแผ่นไม่มีรอยต่อ (groundGL.js)
+      const forceWarp = import.meta.env.DEV && typeof window !== "undefined" && !!window.__forceWarp; // dev: เทียบพื้นแบบพื้นผิวกับชั้นคมที่มุมเดียวกัน
+      st.warpGround = rts && (warpAll || turning || camMoving || forceWarp); // พื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
       let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
-      if (rts && !turning && !lowQ && !st.cv3) {
-        const still = !camMoving && !st.pivot;
+      if (warpAll) {
+        // ฉากรอบนอก (ฟ้า/ป่ารอบกระดาน/ใบไม้หน้ากล้อง) วาดสดเฉพาะเฟรมที่มุมกล้องเปลี่ยน (~1.5ms) · นิ่ง = ใช้ภาพเดิม
+        const lk = `${info.area}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}|${vcK}`;
+        if (st.liveK !== lk || !st.liveSc) { st.liveSc = bakeScene(info, view, dpr, night, lowQ, st.turn, true); st.liveK = lk; }
+        bake = { ...bake, scene: st.liveSc.scene, fore: st.liveSc.fore || bake.fore, marks: st.liveSc.marks, sceneFrom: null, board: null, view, res: dpr };
+        st.sharpBase = null; st.sharpPend = null;
+      } else if (rts && !turning && !lowQ && !st.cv3) {
+        const still = !camMoving && !st.pivot && !forceWarp;
         // ชั้นคมอบกว้างกว่าจอ RTS_SHARP_PAD เท่า (ซูม/มุม/จุดหมุนเดียวกัน) → เลื่อนกล้อง (ลาก/ขอบจอ/ลูกศร) = เลื่อนภาพเดิม ไม่ต้องวาดพื้นสดทุกเฟรม
         //  (ผู้ใช้แจ้ง 2026-11-09 "กดเมาส์ค้าง ภาพเบลอและหายบางส่วน" + วาดสดกิน ~20ms/เฟรม) · เลื่อนจนพ้นขอบชั้นคม = วาดสดจนนิ่งแล้วอบใหม่
         const base2 = `${st.sig}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${vcK}`;
         const sv = st.sharp && st.sharpBase === base2 ? st.sharpView : null;
         const covers = !!sv && sv.x0 <= view.x0 + 0.5 && sv.y0 <= view.y0 + 0.5 && sv.x1 >= view.x1 - 0.5 && sv.y1 >= view.y1 - 0.5;
-        if (covers) {
+        if (covers && !forceWarp) {
           st.stillAt = 0;
           // เพิ่งเปลี่ยนจากพื้นแบบพื้นผิว (กล้องขยับ) มาเป็นชั้นคม = ค่อยๆ จางเข้า SHARP_FADE_MS ไม่สลับวูบในเฟรมเดียว (ผู้ใช้แจ้ง "ฉากกระพริบรัวๆ")
           if (st.warpDrawn) st.fadeT0 = now;

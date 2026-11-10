@@ -10,7 +10,7 @@
 //   ขั้น 4: รางรถไฟ + ขบวนรถไฟ · ชานชาลา · อุโมงค์ · ท่า/เรือกอนโดลา · แคมป์ · จุดตกปลา · สุสานราชวงศ์ (ส่วน "ขั้น 4" ท้ายไฟล์) · เสายึดพื้นที่ 5 แบบตามโซน (drawPillar)
 //  ⚠️ ห้ามเรียกของจาก ./index ตอนโหลดไฟล์ (index import ไฟล์นี้ — วน) · ใช้ได้ในฟังก์ชันวาดเท่านั้น
 // ============================================================
-import { LW, P, PS, depthOf, faceVisible, gEllipse, glow, quad, rng, sceneSize } from "../boardGeo";
+import { LW, P, PS, depthOf, faceVisible, gEllipse, glow, onScreen, quad, rng, sceneSize } from "../boardGeo";
 import { EOS_AREA, MAPS } from "../boardRules";
 import { fxActive, fxOnce, fxT } from "./index";
 import { eosAudio } from "../../eos/eosAudio";
@@ -462,14 +462,14 @@ export const theme = {
           g.strokeStyle = C.dune; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(m[0], m[1], b[0], b[1]); g.stroke();
           g.strokeStyle = C.duneHi; g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1] - 1.5); g.quadraticCurveTo(m[0], m[1] - 1.5, b[0], b[1] - 1.5); g.stroke();
         }
-        if (R() < 0.11 && !STATIC_TR[K(t.x, t.y)] && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ROAD_SET.has(K(t.x + dx, t.y + dy)))) {
+        if (!c.flat && R() < 0.11 && !STATIC_TR[K(t.x, t.y)] && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ROAD_SET.has(K(t.x + dx, t.y + dy)))) {
           const [px, py, s] = P(t.x + 0.3 + R() * 0.4, t.y + 0.35 + R() * 0.4);
           cactusShape(g, px, py, s * (0.75 + R() * 0.4), C, R());
         }
       }
     }
     // ทุ่งหญ้า: ดอกไม้/กอหญ้า (เว้นถนน/เมือง)
-    if (!lite) for (const t of T.grass) {
+    if (!lite && !c.flat) for (const t of T.grass) { // flat = วาดสดทับ (upright)
       const R = rng(t.x * 17 + t.y * 71);
       for (let i = 0; i < 3; i++) {
         const [px, py, s] = P(t.x + R(), t.y + R());
@@ -495,8 +495,23 @@ export const theme = {
       g.save(); g.globalAlpha = c.night ? 0.07 : 0.16; g.fillStyle = `rgb(${C.ray})`;
       g.beginPath(); g.ellipse(px, py, s * (0.12 + R() * 0.15), s * (0.05 + R() * 0.05), R() * 3, 0, TAU); g.fill(); g.restore();
     }
+    if (c.flat) return; // ภาพพื้นแบบพื้นผิว (groundTexture): ของตั้งขึ้นวาดสดทับทีหลัง (upright)
     under.sort((a, b) => depthOf(a.x, a.y) - depthOf(b.x, b.y));
     for (const u of under) underItem(g, u, C, c.night);
+  },
+  // ของตั้งขึ้นบนพื้น (ไม้พื้นล่างในป่า + กระบองเพชรเล็ก) — วาดสดทับพื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
+  //  ผู้ใช้แจ้ง 2026-11-10 กระพริบ: ภาพพื้นมองตรงลงมาทำให้ของพวกนี้แบนตอนขยับ แล้วตั้งขึ้นตอนหยุด · ตัดของนอกจอ
+  upright(c) {
+    const { g, C, info } = c;
+    if (info.area !== EOS_AREA) return;
+    const list = uprightList();
+    for (const u of list) {
+      if (!onScreen(u.x, u.y, 0.5, 0.5)) continue;
+      if (u.k === "tuft") { const [px, py, s] = P(u.x, u.y); g.strokeStyle = C.tuft; g.lineWidth = 1; g.beginPath(); g.moveTo(px - s * 0.04, py); g.lineTo(px, py - s * 0.09); g.lineTo(px + s * 0.04, py); g.stroke(); }
+      else if (u.k === "gflower") { const [px, py, s] = P(u.x, u.y); g.fillStyle = C.flowers[Math.floor(u.v * C.flowers.length)]; g.beginPath(); g.arc(px, py - 1, Math.max(1, s * 0.025), 0, TAU); g.fill(); }
+      else if (u.k === "cactus") { const [px, py, s] = P(u.x, u.y); cactusShape(g, px, py, s * u.sc, C, u.v); }
+      else underItem(g, u, C, c.night);
+    }
   },
   ambient(g, f, t) {
     const { night, lowQ } = f;
@@ -629,6 +644,7 @@ const FILL_CHUNK = 48;
 // ระหว่างหมุนกล้องอิสระ (วาดสดทุกเฟรม): ข้ามรายละเอียดเล็ก — BoardCanvas ตั้งผ่าน setEosFast
 let FAST = false;
 export function setEosFast(b) { FAST = !!b; }
+export const eosFast = () => FAST;
 // ชุดช่องคงที่ (สร้างครั้งเดียว — msFill แคชรูปทรงตามชุด)
 const SETS = {};
 const setFor = (name, list) => (SETS[name] ||= new Set(list.map((t) => K(t.x, t.y))));
@@ -659,6 +675,41 @@ function pineTree(g, x, y, s, C) {
     const w = s * (0.32 - i * 0.08), yy = y - s * (0.2 + i * 0.28);
     g.fillStyle = i % 2 ? C.leaf : C.leaf2; g.beginPath(); g.moveTo(x - w, yy); g.lineTo(x, yy - s * 0.42); g.lineTo(x + w, yy); g.closePath(); g.fill();
   }
+}
+// ของตั้งขึ้นสำหรับวาดสด (ชุดเดียวกับที่ deco สุ่ม — rng เมล็ดเดียวกัน) · สร้างครั้งเดียว เรียงไกล→ใกล้ตามมุมกล้องปัจจุบัน
+let UPRIGHT = null, UPRIGHT_SORT = "";
+function uprightList() {
+  if (!UPRIGHT) {
+    const T = TILES, out = [];
+    for (const t of T.sand) {
+      const R = rng(t.x * 61 + t.y * 43);
+      if (R() < 0.55) { R(); R(); R(); }
+      if (R() < 0.11 && !STATIC_TR[K(t.x, t.y)] && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ROAD_SET.has(K(t.x + dx, t.y + dy)))) {
+        const x = t.x + 0.3 + R() * 0.4, y = t.y + 0.35 + R() * 0.4, sc = 0.75 + R() * 0.4;
+        out.push({ k: "cactus", x, y, sc, v: R() });
+      }
+    }
+    for (const t of T.grass) {
+      const R = rng(t.x * 17 + t.y * 71);
+      for (let i = 0; i < 3; i++) {
+        const x = t.x + R(), y = t.y + R();
+        if (R() < 0.5) out.push({ k: "tuft", x, y });
+        else if (R() < 0.3) out.push({ k: "gflower", x, y, v: R() });
+      }
+    }
+    for (const t of T.forest) {
+      const R = rng(t.x * 29 + t.y * 37), solid = !!STATIC_TR[K(t.x, t.y)];
+      if (R() < 0.7) out.push({ k: "fern", x: t.x + 0.15 + R() * 0.7, y: t.y + 0.15 + R() * 0.7, r: 0.09 + R() * 0.07, v: R() });
+      if (R() < 0.45) out.push({ k: "bush", x: t.x + 0.15 + R() * 0.7, y: t.y + 0.15 + R() * 0.7, r: 0.12 + R() * 0.08, v: R() });
+      if (R() < 0.12) out.push({ k: "shroom", x: t.x + 0.2 + R() * 0.6, y: t.y + 0.2 + R() * 0.6, r: 0.06, v: R() });
+      if (!solid && R() < 0.09) out.push({ k: "log", x: t.x + 0.5, y: t.y + 0.5, r: 0.36, v: R() });
+      if (R() < 0.35) out.push({ k: "flower", x: t.x + R(), y: t.y + R(), r: 0.03, v: R() });
+    }
+    UPRIGHT = out;
+  }
+  const a = P(0, 0), b = P(1, 0), sk = `${Math.round(a[0] - b[0])},${Math.round(a[1] - b[1])}`; // เรียงใหม่เมื่อทิศกล้องเปลี่ยน
+  if (sk !== UPRIGHT_SORT) { UPRIGHT_SORT = sk; UPRIGHT.sort((p, q) => depthOf(p.x, p.y) - depthOf(q.x, q.y)); }
+  return UPRIGHT;
 }
 // ไม้พื้นล่างในป่า (theme.deco — อบ)
 function underItem(g, u, C, night) {

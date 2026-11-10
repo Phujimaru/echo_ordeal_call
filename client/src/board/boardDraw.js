@@ -21,9 +21,11 @@
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn, viewCenter,
-  frameToScreen, localFrame, withLocalFrame, PV, setCustomProjection, customProjection, setCullView, onScreen,
+  frameToScreen, localFrame, withLocalFrame, PV, setCustomProjection, customProjection, setCullView, onScreen, groundMatrix,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
+import { drawGroundGL } from "./groundGL";
+import { eosFast, setEosFast } from "./fodlan/stage6";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -332,7 +334,7 @@ export function bakeScene(info, view, dpr, night, lowQ, turn = 0, live = false) 
 function rngSeq(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
 
 // ชั้นกระดาน (หมุนตามกระดาน) — ใช้ทั้งตอนอบและวาดสดระหว่างหมุน · g ต้องตั้ง transform ตรรกะไว้แล้ว
-function drawBoardLayer(g, info, view, night, noLight = false) {
+function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
   const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
   const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   const COLS = info.cols, ROWS = info.rows;
@@ -379,7 +381,7 @@ function drawBoardLayer(g, info, view, night, noLight = false) {
   g.strokeStyle = C.border; g.lineWidth = 2;
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
   // ลายบนพื้นกระดานของธีม (ห่วงเวลาซีโร่: วงเวท + อักษรมิโกะ + ขอบทอง)
-  if (T.deco) T.deco({ g, C, night, info, R: rngSeq(41), VX0, VY0, VX1, VY1, VW });
+  if (T.deco) T.deco({ g, C, night, info, R: rngSeq(41), VX0, VY0, VX1, VY1, VW, flat });
   if (!noLight) boardLight(g, info, view, night);
 }
 // แสงแดด / ความมืด (ทับทั้งจอ รวมฉากหลัง) — แยกออกมาให้พื้นแบบพื้นผิว (groundWarp) วาดทับหลังบิดภาพได้
@@ -394,7 +396,7 @@ function boardLight(g, info, view, night) {
 // ---------- พื้นกระดานแบบพื้นผิว (ลื่นตอนกล้องขยับ — วัด 2026-11-10: วาดพื้นสดทุกเฟรม ~77ms/เฟรมตอนหมุน) ----------
 //  อบพื้นทั้งกระดานครั้งเดียวเป็นภาพมองตรงลงมา (ช่องละ GT_S px) → ทุกเฟรมบิดภาพลงกระดานเอียงด้วยสามเหลี่ยมย่อย (affine ต่อชิ้น ≈ perspective)
 //  ของสูงบนพื้น (เนิน/ซุ้มอุโมงค์ ฯลฯ) จะแบนชั่วคราวระหว่างกล้องขยับ — หยุดแล้วชั้นคมวาดของจริงกลับมา
-const GT_S = 72; // px ต่อช่องของภาพพื้น (32 ช่อง = 2304px) — ใกล้สุดยังคมพอระหว่างกล้องขยับ
+const GT_S = 128; // px ต่อช่องของภาพพื้น (32 ช่อง = 4096px · อบ ~30–170ms ครั้งเดียวต่อพื้น) — ใช้ทั้งตอนนิ่งและขยับ (WebGL) จึงต้องคมพอซูมใกล้
 // ภาพพื้นขึ้นกับ "พื้น" เท่านั้น (ช่องพิเศษ · จุดฟื้นฟู · จุดเกิด · กลางวัน/กลางคืน) — ไม่ใช่ตำแหน่งมอน/รถ/สิ่งกีดขวาง
 //  (เดิมผูกกับ info ซึ่งเปลี่ยนทุกเทิร์นเพราะมอน/รถอยู่ในชั้นแผนที่ → อบใหม่ ~100ms ทุกครั้งที่กล้องขยับครั้งแรกของเทิร์น)
 let GROUND_TEX = null; // { key, cv }
@@ -419,14 +421,20 @@ function groundTexture(info, night) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
   const prev = customProjection();
   setCustomProjection({ project: (x, y) => [x * GT_S, y * GT_S, GT_S], unproject: (sx, sy) => ({ x: sx / GT_S, y: sy / GT_S }), depth: (x, y) => y });
-  try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true); }
-  finally { setCustomProjection(prev); }
+  // flat = ของตั้งขึ้น (ไม้พื้นล่าง/กระบองเพชร) ไม่อบลงภาพ — วาดสดทับ (theme.upright) · รายละเอียดครบเสมอ (เคยอบตอนกำลังขยับ = ขาดลายเล็กทั้งเกม)
+  const fast = eosFast();
+  setEosFast(false);
+  try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true, true); }
+  finally { setCustomProjection(prev); setEosFast(fast); }
   GROUND_TEX = { key, cv };
   return cv;
 }
 // บิดภาพพื้นลงกระดานที่มุมกล้องปัจจุบัน (g อยู่ในพิกัดตรรกะแล้ว — L()) · N×N ชิ้น × 2 สามเหลี่ยม · ข้ามชิ้นที่อยู่นอกจอ/หลังกล้อง
-function drawGroundWarp(g, info, view, night) {
+function drawGroundWarp(g, info, view, night, cullView = view) {
   const tex = groundTexture(info, night);
+  // WebGL: ทั้งแผ่นในครั้งเดียว ไม่มีรอยต่อ (ผู้ใช้แจ้ง 2026-11-10 กระพริบ) — ใช้ไม่ได้ค่อยตัดเป็นสามเหลี่ยมแบบเดิม
+  const T = themeOf(info.area), up = () => { if (!T.upright) return; setCullView(cullView); try { T.upright({ g, C: T.pal[night ? "night" : "day"], night, info }); } finally { setCullView(null); } };
+  if (drawGroundGL(g, tex, groundKey(info, night), groundMatrix(), info.cols, info.rows)) { up(); boardLight(g, info, view, night); return; }
   const cols = info.cols, rows = info.rows, N = 16, sx = cols / N, sy = rows / N;
   const pts = [];
   for (let j = 0; j <= N; j++) { const row = []; for (let i = 0; i <= N; i++) { const q = P(i * sx, j * sy, 0); row.push(q); } pts.push(row); }
@@ -457,6 +465,7 @@ function drawGroundWarp(g, info, view, night) {
     tri(A, B, Cc, u0, v0, u1, v0, u1, v1);
     tri(A, Cc, D, u0, v0, u1, v1, u0, v1);
   }
+  up();
   boardLight(g, info, view, night);
 }
 // อบชั้นกระดานที่มุม rotation (0..3)
@@ -2462,11 +2471,11 @@ export function drawFrame(g, st, now) {
   }
   else if (bake && bake.board) {
     // ชั้นคมจางเข้าทับพื้นแบบพื้นผิว (กล้องเพิ่งหยุด) — ไม่สลับวูบ
-    if (bake.boardFade != null && bake.boardFade < 1) { drawGroundWarp(g, info, view, night); g.globalAlpha = bake.boardFade; blit(bake.board); g.globalAlpha = 1; }
+    if (bake.boardFade != null && bake.boardFade < 1) { drawGroundWarp(g, info, view, night, view); g.globalAlpha = bake.boardFade; blit(bake.board); g.globalAlpha = 1; }
     else blit(bake.board);
     L();
   }
-  else if (st.warpGround && !colony) drawGroundWarp(g, info, bv, night); // กล้องขยับ: พื้นแบบพื้นผิว (เร็ว) แทนวาดสด
+  else if (st.warpGround && !colony) drawGroundWarp(g, info, bv, night, view); // กล้องขยับ: พื้นแบบพื้นผิว (เร็ว) แทนวาดสด
   else drawBoardLayer(g, info, bv, night);
   // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดงทั้งจอ ใต้ตัวละคร
   if (st.otoya && st.otoya.night) otoyaNight(g);
