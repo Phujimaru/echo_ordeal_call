@@ -149,7 +149,7 @@ export function onScreen(x, y, h = 2, w = 1) {
   if (!CULL || CUSTOM) return true;
   const a = project(x, y, 0), b = project(x, y, h);
   if (!(a[2] > 0) || !Number.isFinite(a[0])) return false;
-  const r = a[2] * (w * 0.9 + 0.6);
+  const r = a[2] * (w + 1.4); // เผื่อขอบกว้าง (ทรงพุ่มไม้/เงา/ป้าย) — ไม่ให้ของโผล่/หายที่ขอบจอตอนเลื่อน
   const top = Math.min(a[1], b[1]) - r, bot = Math.max(a[1], b[1]) + r;
   return a[0] + r >= CULL.x0 && a[0] - r <= CULL.x1 && bot >= CULL.y0 && top <= CULL.y1;
 }

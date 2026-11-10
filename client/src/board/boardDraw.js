@@ -395,12 +395,25 @@ function boardLight(g, info, view, night) {
 //  อบพื้นทั้งกระดานครั้งเดียวเป็นภาพมองตรงลงมา (ช่องละ GT_S px) → ทุกเฟรมบิดภาพลงกระดานเอียงด้วยสามเหลี่ยมย่อย (affine ต่อชิ้น ≈ perspective)
 //  ของสูงบนพื้น (เนิน/ซุ้มอุโมงค์ ฯลฯ) จะแบนชั่วคราวระหว่างกล้องขยับ — หยุดแล้วชั้นคมวาดของจริงกลับมา
 const GT_S = 72; // px ต่อช่องของภาพพื้น (32 ช่อง = 2304px) — ใกล้สุดยังคมพอระหว่างกล้องขยับ
-const GROUND_TEX = new WeakMap(); // info → { night, cv }
+// ภาพพื้นขึ้นกับ "พื้น" เท่านั้น (ช่องพิเศษ · จุดฟื้นฟู · จุดเกิด · กลางวัน/กลางคืน) — ไม่ใช่ตำแหน่งมอน/รถ/สิ่งกีดขวาง
+//  (เดิมผูกกับ info ซึ่งเปลี่ยนทุกเทิร์นเพราะมอน/รถอยู่ในชั้นแผนที่ → อบใหม่ ~100ms ทุกครั้งที่กล้องขยับครั้งแรกของเทิร์น)
+let GROUND_TEX = null; // { key, cv }
+function groundKey(info, night) {
+  if (info.__gk == null) {
+    let h = 0;
+    const add = (str) => { for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; };
+    for (const sp of info.special) if (sp.kind !== "fd_eos_chocobo") add(`${sp.x},${sp.y},${sp.kind},${sp.flow || ""};`); // โชโกโบะเดินไปมา (ไม่ใช่พื้น)
+    for (const t of info.heal || []) add(`h${t.x},${t.y};`);
+    for (const t of info.spawns || []) add(`s${t.x},${t.y};`);
+    info.__gk = `${info.area}|${info.cols}x${info.rows}|${h}`;
+  }
+  return `${info.__gk}|${night ? 1 : 0}`;
+}
 function groundTexture(info, night) {
-  let e = GROUND_TEX.get(info);
-  if (e && e.night === night) return e.cv;
+  const key = groundKey(info, night);
+  if (GROUND_TEX && GROUND_TEX.key === key) return GROUND_TEX.cv;
   const W = info.cols * GT_S, H = info.rows * GT_S;
-  const cv = e && e.cv ? e.cv : document.createElement("canvas");
+  const cv = GROUND_TEX && GROUND_TEX.cv ? GROUND_TEX.cv : document.createElement("canvas");
   cv.width = W; cv.height = H;
   const g = cv.getContext("2d");
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
@@ -408,7 +421,7 @@ function groundTexture(info, night) {
   setCustomProjection({ project: (x, y) => [x * GT_S, y * GT_S, GT_S], unproject: (sx, sy) => ({ x: sx / GT_S, y: sy / GT_S }), depth: (x, y) => y });
   try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true); }
   finally { setCustomProjection(prev); }
-  GROUND_TEX.set(info, { night, cv });
+  GROUND_TEX = { key, cv };
   return cv;
 }
 // บิดภาพพื้นลงกระดานที่มุมกล้องปัจจุบัน (g อยู่ในพิกัดตรรกะแล้ว — L()) · N×N ชิ้น × 2 สามเหลี่ยม · ข้ามชิ้นที่อยู่นอกจอ/หลังกล้อง
@@ -2447,7 +2460,12 @@ export function drawFrame(g, st, now) {
       animSpecial(g, sp, { night, lowQ, area: info.area }, lowQ ? 0 : now);
     }
   }
-  else if (bake && bake.board) { blit(bake.board); L(); }
+  else if (bake && bake.board) {
+    // ชั้นคมจางเข้าทับพื้นแบบพื้นผิว (กล้องเพิ่งหยุด) — ไม่สลับวูบ
+    if (bake.boardFade != null && bake.boardFade < 1) { drawGroundWarp(g, info, view, night); g.globalAlpha = bake.boardFade; blit(bake.board); g.globalAlpha = 1; }
+    else blit(bake.board);
+    L();
+  }
   else if (st.warpGround && !colony) drawGroundWarp(g, info, bv, night); // กล้องขยับ: พื้นแบบพื้นผิว (เร็ว) แทนวาดสด
   else drawBoardLayer(g, info, bv, night);
   // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดงทั้งจอ ใต้ตัวละคร
@@ -2597,7 +2615,7 @@ export function drawFrame(g, st, now) {
     }
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
-    if (!onScreen(t.x + 0.5, t.y + 0.5, 3.2)) continue; // นอกจอ = ไม่วาด (ตึกสูงสุด ~3 ช่อง)
+    if (!onScreen(t.x + 0.5, t.y + 0.5, 4)) continue; // นอกจอ = ไม่วาด (เผื่อของสูง ~4 ช่อง)
     const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind, info.area)) && behind(t.x, t.y);
     // สนาม Eos (กล้อง RTS): ตึก/กำแพง/ต้นไม้/หิน/อู่ ไม่ขยับ → เก็บไปวาดรวมเป็นภาพเดียว (STATIC_CACHE) ไม่วาดใหม่ทุกเฟรม
     if (st.uiK && !colony && !fade && STATIC_OB.has(t.kind)) { statics.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, t }); continue; }

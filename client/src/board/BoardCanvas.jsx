@@ -356,6 +356,7 @@ export default function BoardCanvas(props) {
       const idle = now > (st.busyUntil || 0);
       if (import.meta.env.DEV) window.__boardIdle = idle; // dev: ตรวจว่ากระดานเข้าโหมดนิ่งได้จริง
       const minGap = paused ? 250 : lowQ || idle ? 1000 / 30 : 1000 / 60;
+      const SHARP_FADE_MS = 180;
       const gap = now - st.lastDraw;
       if (gap < minGap - 1) return;
       st.lastDraw = gap < minGap * 2 ? now - (gap % minGap) : now;
@@ -627,7 +628,11 @@ export default function BoardCanvas(props) {
         const covers = !!sv && sv.x0 <= view.x0 + 0.5 && sv.y0 <= view.y0 + 0.5 && sv.x1 >= view.x1 - 0.5 && sv.y1 >= view.y1 - 0.5;
         if (covers) {
           st.stillAt = 0;
-          bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, sceneFrom: null, view: sv, res: st.sharp.res || dpr };
+          // เพิ่งเปลี่ยนจากพื้นแบบพื้นผิว (กล้องขยับ) มาเป็นชั้นคม = ค่อยๆ จางเข้า SHARP_FADE_MS ไม่สลับวูบในเฟรมเดียว (ผู้ใช้แจ้ง "ฉากกระพริบรัวๆ")
+          if (st.warpDrawn) st.fadeT0 = now;
+          const fade = st.fadeT0 ? Math.min(1, (now - st.fadeT0) / SHARP_FADE_MS) : 1;
+          if (fade >= 1) st.fadeT0 = 0; else st.busyUntil = now + BUSY_HOLD;
+          bake = { ...bake, scene: st.sharp.scene, fore: st.sharp.fore || bake.fore, marks: st.sharp.marks, board: st.sharp.board, boardFade: fade, sceneFrom: null, view: sv, res: st.sharp.res || dpr };
           // นิ่งแล้วแต่ชั้นคมเหลือขอบน้อย (เลื่อนมาใกล้ขอบ) → อบใหม่ให้จออยู่กลางชั้นคม
           const mx = (sv.x1 - sv.x0 - (view.x1 - view.x0)) / 2, my = (sv.y1 - sv.y0 - (view.y1 - view.y0)) / 2;
           const off = Math.max(Math.abs((sv.x0 + sv.x1) / 2 - (view.x0 + view.x1) / 2) / Math.max(1, mx), Math.abs((sv.y0 + sv.y1) / 2 - (view.y0 + view.y1) / 2) / Math.max(1, my));
@@ -900,6 +905,7 @@ export default function BoardCanvas(props) {
           return st.boxes || [];
         }
       };
+      st.warpDrawn = !!(st.warpGround && !bake.board); // เฟรมนี้วาดพื้นแบบพื้นผิว (ใช้ตัดสินจางเข้าชั้นคมเฟรมหน้า)
       const drawFrameOf = (target) => drawFrame(target, {
         uiK: rts ? 1 : 0, // Eos: ป้าย/แถบเลือดบนหมากวัดจากขนาดหมาก (boardDraw UI_PIECE)
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
