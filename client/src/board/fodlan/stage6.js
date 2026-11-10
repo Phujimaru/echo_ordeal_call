@@ -43,7 +43,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -3342,6 +3342,10 @@ function playFx(e) {
     case "boss_quake_warn": sfx("beast_step", { gain: 0.9 }); sfx("dome_off", { delay: 0.2, gain: 0.5 }); break;
     case "boss_quake": sfx("beast_step"); sfx("barrel_explode", { delay: 0.1, gain: 0.9 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
     case "boss_enrage": sfx("beast_roar"); sfx("beast_roar", { delay: 0.5, gain: 0.7 }); break;
+    case "mob_wave": sfx("dropship_alarm", { gain: 0.7, dur: 1.6 }); sfx("daemon_spawn", { delay: 0.4, gain: 0.8 }); break;
+    case "town_siege": sfx("daemon_attack", { gain: 0.5 }); break;
+    case "town_dark": sfx("lights_off"); sfx("beast_roar", { delay: 0.4, gain: 0.5 }); break;
+    case "town_light": sfx("dome_on", { gain: 0.7 }); break;
     case "tram": sfx("train_horn", { gain: 0.45, dur: 1.2 }); sfx("chocobo_run", { delay: 0.3, gain: 0.35, dur: 1.8 }); break;
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
     case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
@@ -3940,6 +3944,13 @@ function pveGround(g, fd, now, lowQ) {
     g.restore();
   }
   if (sk.supply) { const [x, y, s] = P(sk.supply.x + 0.5, sk.supply.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 300); gEllipse(g, sk.supply.x + 0.5, sk.supply.y + 0.5, 1.6, 0.02, 30); g.strokeStyle = `rgba(255,210,110,${0.5 + 0.4 * k})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, x, y, s * 1.2, "255,210,110", 0.25 + 0.15 * k); }
+  const mu = fd.muster; // ฝูงมอนรวมพลรอบจุดตั้งรับ: วงประแดงจาง (ระลอกบุก = วงเข้ม)
+  if (mu) {
+    const [x, y, s] = P(mu.x + 0.5, mu.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 400), r = ((mu.ring && mu.ring[1]) || 7) - 0.5;
+    g.save(); g.translate(x, y); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 4000);
+    g.setLineDash([s * 0.35, s * 0.25]); g.strokeStyle = mu.mode === "wave" ? `rgba(255,40,50,${0.6 + 0.3 * k})` : `rgba(255,80,80,${0.22 + 0.15 * k})`; g.lineWidth = mu.mode === "wave" ? 4 : 2.5;
+    g.beginPath(); g.arc(0, 0, s * r, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
+  }
   const qk = fd.bossQuake; // แผ่นดินแยกที่ราชาปีศาจเตือนไว้: ช่องแดงกะพริบ (ระเบิดต้นเทิร์นหน้า)
   if (qk) {
     const k = 0.5 + 0.5 * Math.sin(now / 130);
@@ -4024,6 +4035,20 @@ function pve2Fx(g, e, p, lowQ, units) {
     }
     const [cx, cy, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
     for (let r = 0; r < 2; r++) { const k = (p - r * 0.2) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(cx, cy); g.scale(1, 0.42); g.strokeStyle = `rgba(255,120,60,${0.9 * (1 - k)})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.8 + k * 2.6), 0, TAU); g.stroke(); g.restore(); }
+    return true;
+  }
+  if (e.kind === "mob_wave") { // ระลอกบุก: วงแดงหดเข้าหาจุดตั้งรับ
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
+    for (let r = 0; r < 3; r++) { const k = (p - r * 0.15) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(255,40,60,${0.85 * (1 - k)})`; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (7 - k * 5), 0, TAU); g.stroke(); g.restore(); }
+    return true;
+  }
+  if (e.kind === "town_siege") { // ปีศาจทุบไฟเมือง: ประกายม่วงที่ตัวปีศาจ
+    for (const h of e.list || []) { const [x, y, s] = P(h.x + 0.5, h.y + 0.5, 0.6); glowAt(g, x, y, s * (0.5 + p * 0.6), "190,80,255", (1 - p) * 0.8); }
+    return true;
+  }
+  if (e.kind === "town_light") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9);
+    glowAt(g, x, y, s * (1 + p * 4), "255,230,150", (1 - p) * 0.9);
     return true;
   }
   if (e.kind === "boss_enrage") { // คลั่ง: ออร่าแดงพุ่ง

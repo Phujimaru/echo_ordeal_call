@@ -1622,3 +1622,44 @@ test('ตายแล้วฟื้น (Eos) = ของที่ใช้ไ�
   assert.equal(p.gold, 17);
   assert.equal(p.inventory.length, 1);
 });
+test('รวมพล: ผู้เล่นกองกันอยู่ที่เดิม = มอนไปรอเป็นวงห่าง 5–7 ช่อง ไม่ทยอยเข้า · ครบจำนวนแล้วบุกพร้อมกัน', () => {
+  setup();
+  const s = st();
+  P(0).pos = { x: 20, y: 22 }; P(1).pos = { x: 21, y: 22 }; P(2).pos = { x: 20, y: 23 };
+  const hp0 = [0, 1, 2].map((i) => total(P(i)));
+  const round = () => match.roundNumber + 1;
+  s.muster = { c: { x: 20, y: 22 }, still: 5, since: round(), waveUntil: 0, mode: 'gather', tick: -1 };
+  const d = mob('daemon', 12, 22);
+  S6.actMonsters(ctx(), s);
+  const dist = Math.abs(d.pos.x - 20) + Math.abs(d.pos.y - 22);
+  assert.ok(dist >= S6.MUSTER.ring[0], `รอนอกวง (${dist})`);
+  assert.deepEqual([0, 1, 2].map((i) => total(P(i))), hp0, 'ยังไม่มีใครโดน');
+  // ครบจำนวน (3 + คน 3 = 6) → บุก
+  for (const [x, y] of [[14, 22], [15, 22], [26, 22], [25, 22], [20, 16], [20, 28]]) mob('daemon', x, y);
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), s);
+  assert.equal(s.muster.mode, 'wave', 'บุกพร้อมกัน');
+});
+test('ปิดล้อมเมือง: ปีศาจทุบไฟเมืองจนดับ = เข้าเมืองได้ · ยืนติดแผงไฟกดเปิดไฟคืน · ฟ้าสางไฟกลับเต็ม', () => {
+  setup();
+  const s = st(), d = mob('daemon', 23, 28), z = 'hammerhead';
+  assert.ok(S6.blockedTown(s, 26, 28));
+  for (let i = 0; i < S6.TOWN_LIGHT.hp; i++) S6.siegeLight(ctx(), s, d, z);
+  assert.equal(S6.lit(s, z), false, 'ไฟดับ');
+  assert.equal(S6.blockedTown(s, 26, 28), false, 'ปีศาจเข้าได้');
+  const p = P(0), sw = MAP6.SWITCHES.find((o) => o.zone === z);
+  p.pos = nextToTile({ x: sw.at[0], y: sw.at[1] });
+  actor(p);
+  const b = btn(p, 'fd:lightfix');
+  assert.ok(b && b.name === 'เปิดไฟ');
+  assert.ok(Fodlan.charAction(p.id, 'fd:lightfix'));
+  assert.ok(S6.lit(s, z), 'เปิดคืน');
+  S6.siegeLight(ctx(), s, d, z);
+  S6.restoreLights(ctx(), s);
+  assert.equal(Fodlan.publicInfo().board.townLight.hp[z], S6.TOWN_LIGHT.hp, 'ฟ้าสาง = เต็ม');
+  // ปีศาจที่ไปไหนไม่ได้แต่ยืนติดขอบเมือง = ทุบไฟเอง
+  P(0).pos = { x: 28, y: 30 }; P(1).pos = { x: 30, y: 29 }; P(2).pos = { x: 29, y: 31 };
+  d.pos = { x: 23, y: 28 };
+  for (let i = 0; i < 3; i++) { match.roundNumber += 1; S6.actMonsters(ctx(), s); }
+  assert.ok(Fodlan.publicInfo().board.townLight.hp[z] < S6.TOWN_LIGHT.hp, 'ทุบไฟ');
+});

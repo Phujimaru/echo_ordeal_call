@@ -50,6 +50,11 @@ function alertOf(e, fd) {
     case "gauge_full": return { icon: "☄️", title: "มาตรวัดทีมเต็ม", zone: "", tone: "good" };
     case "perk_offer": return { icon: "✨", title: `การ์ดทีม · โหวตเลือก 1 ใบ`, zone: `แต้มรวม ${e.mark}`, tone: "good" };
     case "perk_pick": { const c = (fd.perks || []).find((o) => o.id === e.perk); return { icon: c ? c.icon : "✨", title: `ทีมได้การ์ด ${c ? c.name : ""}`, zone: c ? c.desc : "", tone: "good" }; }
+    case "mob_wave": return { icon: "⚠️", title: `ฝูงมอน ${e.n} ตัวบุกพร้อมกัน`, zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "town_dark": return { icon: "🌑", title: "ไฟเมืองดับ · ปีศาจบุกเข้าเมือง", zone: ZN[e.zone] || "", tone: "danger" };
+    case "town_light": return e.relit ? { icon: "💡", title: "ไฟเมืองกลับมา", zone: ZN[e.zone] || "", tone: "good" } : null;
+    case "boss_quake_warn": return { icon: "🌋", title: "ราชาปีศาจกำลังทุบแผ่นดิน · ออกจากวงแดง", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "boss_enrage": return { icon: "😡", title: "ราชาปีศาจคลั่ง", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "gold_spawn": return { icon: "🐤", title: "โชโกโบะทองโผล่", zone: zoneAt(e.x, e.y), tone: "good" };
     default: return null;
   }

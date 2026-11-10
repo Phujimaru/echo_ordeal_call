@@ -712,6 +712,89 @@ function roamMob(ctx, s, m, mov) {
 //   เสาที่มีคนเฝ้า = ส่ง RAID.guarded ตัวไปกดดัน · หน่วยบุกเดินตรงไปเสา ตีเฉพาะคนที่ขวางหน้า/เฝ้าเสา · ป้อมปืนของเสานั้นเป็นเป้าด้วย
 //   มอนที่ติดพันผู้เล่นอยู่ (ห่าง ≤ RAID.engage) ไม่ถูกดึงไปบุก · หน้าที่ค้างข้ามเทิร์นจนเสาหลุด/ไปไม่ถึง · ตัวเลข Claude ตั้ง
 const RAID = { guardR: 3, open: 2, perNights: 2, guarded: 1, engage: 2 };
+// ============================================================ รวมพลแล้วบุกพร้อมกัน (ผู้ใช้เลือก 2026-11-11 — "เสายึดอยู่ต้นเดียว คนก็อยู่ที่เดียว" · ตัวเลข Claude ตั้ง)
+//  ผู้เล่นส่วนใหญ่ (≥ 60%) กองกันในรัศมี 4 และอยู่ที่เดิม (ขยับ ≤ 3) ติดกัน 2 เทิร์น = "ตั้งรับ" → มอนที่ยังไม่ติดพันไม่ทยอยเข้าไปให้ล้มทีละตัว
+//   ไปรอเป็นวงห่างจุดตั้งรับ 5–7 ช่อง · ครบ 3 + จำนวนผู้เล่น ตัว หรือรอครบ 3 เทิร์น = บุกพร้อมกันเป็นระลอก 2 เทิร์น (ประกาศเตือน) แล้วกลับไปรวมพลใหม่
+const MUSTER = { r: 4, share: 0.6, drift: 3, still: 2, ring: [5, 7], need: 3, perHead: 1, wait: 3, wave: 2 };
+const musterMob = (m) => { const t = mobType(m), tr = m.summon && m.summon.trait; return (t === "daemon" || t === "magitek") && tr !== "boss" && tr !== "healer"; };
+function musterTick(ctx, s, round) {
+  const hs = heroes(ctx);
+  if (!hs.length) { s.muster = null; return null; }
+  let c = null, size = 0;
+  for (const p of hs) { const n = hs.filter((o) => manhattan(o.pos, p.pos) <= MUSTER.r).length; if (n > size) { size = n; c = p.pos; } }
+  if (size < Math.max(1, Math.ceil(hs.length * MUSTER.share))) { s.muster = null; return null; }
+  let mu = s.muster;
+  if (!mu || manhattan(mu.c, c) > MUSTER.drift) mu = s.muster = { c: { ...c }, still: 0, since: round, waveUntil: 0, mode: null };
+  if (mu.tick === round) return mu;
+  mu.tick = round;
+  mu.still += 1;
+  if (round <= mu.waveUntil) { mu.mode = "wave"; return mu; }
+  if (mu.still < MUSTER.still) { mu.mode = null; return mu; }
+  if (mu.mode !== "gather") { mu.mode = "gather"; mu.since = round; }
+  const near = mobsOf(ctx).filter((m) => musterMob(m) && m.pos && manhattan(m.pos, mu.c) <= MUSTER.ring[1] + 1).length;
+  if (near >= MUSTER.need + MUSTER.perHead * hs.length || (near > 0 && round - mu.since >= MUSTER.wait)) {
+    mu.mode = "wave"; mu.waveUntil = round + MUSTER.wave - 1; mu.since = round + MUSTER.wave;
+    ctx.fx("mob_wave", { x: mu.c.x, y: mu.c.y, n: near });
+    ctx.log(`⚠️ ฝูงมอน ${near} ตัวล้อมรอบแล้ว — บุกพร้อมกัน!`);
+  }
+  return mu;
+}
+// เดินไปช่องว่างใกล้สุดที่ isGoal(x, y) (ผ่านช่องที่มอนพวกเดียวกันยืนได้แต่หยุดไม่ได้) — แบบเดียวกับลาดตระเวน
+function stepToward(ctx, s, m, mov, isGoal) {
+  const map = ctx.map(), town = lightBound(m), dark = XT.fearsLight(m);
+  const ok = (x, y) => ctx.Board.inBounds(map, x, y) && tileFree(ctx, s, x, y, m.id) && !gateShut(s, x, y) && !(town && blockedTown(s, x, y)) && !(dark && XT.lightSafe(H(), x, y));
+  if (isGoal(m.pos.x, m.pos.y)) return { to: null, path: null, hold: true };
+  const mobAt = mobTiles(ctx, m.id), seen = new Set([K(m.pos.x, m.pos.y)]), q = [{ x: m.pos.x, y: m.pos.y, prev: null }];
+  let goal = null;
+  for (let i = 0; i < q.length && !goal && i < 700; i++) for (const [dx, dy] of ctx.Board.DIRS) {
+    const x = q[i].x + dx, y = q[i].y + dy, k = K(x, y), pal = mobAt.has(k);
+    if (seen.has(k) || !(pal ? ctx.Board.inBounds(map, x, y) : ok(x, y))) continue;
+    seen.add(k);
+    const node = { x, y, prev: q[i] };
+    if (!pal && isGoal(x, y)) { goal = node; break; }
+    q.push(node);
+  }
+  if (!goal) return null;
+  const path = [];
+  for (let c = goal; c; c = c.prev) path.unshift({ x: c.x, y: c.y });
+  let n = Math.min(mov, path.length - 1);
+  while (n > 0 && mobAt.has(K(path[n].x, path[n].y))) n--;
+  return n > 0 ? { to: path[n], path: path.slice(0, n + 1) } : { to: null, path: null, hold: true };
+}
+// ============================================================ ปีศาจปิดล้อมเมือง (ผู้ใช้เลือก 2026-11-11): ปีศาจที่ยืนติดขอบเมืองที่ไฟเปิด ทุบไฟเมือง 1/ตัว/เทิร์น
+//  ไฟเมืองหมด = ไฟดับ (s.lightsOff) ปีศาจบุกเข้าเมืองได้ · ยืนติดแผงไฟกด "ซ่อมไฟ"/"เปิดไฟ" +4 · ฟ้าสาง = ไฟกลับเต็ม · ตัวเลข Claude ตั้ง
+const TOWN_LIGHT = { hp: 8, fix: 4 };
+const lightHp = (s, z) => (s.lightHp && s.lightHp[z] != null ? s.lightHp[z] : TOWN_LIGHT.hp);
+function townEdge(ctx, s, m) {
+  for (const [dx, dy] of ctx.Board.DIRS) { const x = m.pos.x + dx, y = m.pos.y + dy, z = townOf(x, y); if (z && lit(s, z)) return z; }
+  return null;
+}
+function siegeLight(ctx, s, m, z) {
+  (s.lightHp ||= {})[z] = Math.max(0, lightHp(s, z) - 1);
+  const out = s.lightHp[z] <= 0;
+  if (out) { (s.lightsOff ||= {})[z] = true; ctx.fx("town_dark", { zone: z }); ctx.log(`🌑 ไฟเมือง ${ZONE_NAMES[z] || z} ดับ! ปีศาจบุกเข้าเมืองได้ — ไปซ่อมที่แผงไฟ`); }
+  ctx.bump();
+  return { id: m.id, x: m.pos.x, y: m.pos.y, zone: z, hp: s.lightHp[z], out };
+}
+function restoreLights(ctx, s) {
+  const had = Object.values(s.lightsOff || {}).some(Boolean) || Object.keys(s.lightHp || {}).length > 0;
+  s.lightsOff = {}; s.lightHp = {};
+  if (had) { ctx.bump(); ctx.log("💡 ฟ้าสาง — ไฟเมืองกลับมาสว่างเต็ม"); }
+}
+function lightFixable(ctx, s, p) { const sw = switchNear(ctx, p); return sw && (!lit(s, sw.zone) || lightHp(s, sw.zone) < TOWN_LIGHT.hp) ? sw : null; }
+function fixLights(ctx, s, p) {
+  const sw = canStrike(ctx, p) ? lightFixable(ctx, s, p) : null;
+  if (!sw) return false;
+  const z = sw.zone, was = !lit(s, z);
+  (s.lightHp ||= {})[z] = Math.min(TOWN_LIGHT.hp, (was ? 0 : lightHp(s, z)) + TOWN_LIGHT.fix);
+  if (s.lightHp[z] >= TOWN_LIGHT.hp) delete s.lightHp[z];
+  if (s.lightsOff) delete s.lightsOff[z];
+  ctx.bump();
+  ctx.fx("town_light", { zone: z, x: sw.at[0], y: sw.at[1], by: p.id, relit: was });
+  ctx.log(`💡 ${p.name} ${was ? "เปิดไฟเมืองกลับมา" : "ซ่อมไฟเมือง"} ${ZONE_NAMES[z] || z}`);
+  ctx.useStrike(p, SWITCH_SECS);
+  return true;
+}
 const raider = (m) => { const t = mobType(m), tr = m.summon && m.summon.trait; return (t === "daemon" || t === "magitek") && tr !== "boss" && tr !== "healer"; };
 const guardedPl = (ctx, pl) => heroes(ctx).some((p) => manhattan(p.pos, pl) <= RAID.guardR);
 function openPillars(ctx, s) { return pillarGoals(s).filter((pl) => pl.owner && !guardedPl(ctx, pl)); }
@@ -961,6 +1044,7 @@ function actMonsters(ctx, s) {
   const ev = E.ev(s);
   if (ev.quake && !list.some((m) => m.id === ev.quake.by && m.alive)) ev.quake = null; // ราชาปีศาจล้มก่อนทุบ = วงหาย
   const plan = raidPlan(ctx, s);
+  const mu = musterTick(ctx, s, round), sieges = [];
   for (const m of list) {
     if (!m.alive || !m.pos || stuckMob(m) || m.summon.born === round) continue;
     const type = mobType(m), sm = m.summon;
@@ -1003,11 +1087,26 @@ function actMonsters(ctx, s) {
       r = stepMob(ctx, s, m, tg, [raidPl, ...plTurrets(ctx, raidPl)], mov);
       if (!r.to && !r.target && !r.pillar && !r.wall) sm.raid = null; // ไปไม่ถึง = เลิกบุก ล่าตามปกติ
     }
-    if (!r.to && !r.target && !r.pillar && !r.wall) r = targets.length || pillars.length ? stepMob(ctx, s, m, targets, pillars, mov) : r;
+    // รวมพล: ยังไม่ติดพัน = ไปรอที่วงรอบจุดตั้งรับ (ไม่ทยอยเข้าไปให้ล้มทีละตัว)
+    let held = false;
+    if (!raidPl && mu && mu.mode === "gather" && musterMob(m) && !all.some((p) => manhattan(p.pos, m.pos) <= RAID.engage)) {
+      const inRing = (x, y) => { const d = manhattan({ x, y }, mu.c); return d >= MUSTER.ring[0] && d <= MUSTER.ring[1] && !all.some((p) => manhattan(p.pos, { x, y }) <= RAID.engage); };
+      const g = stepToward(ctx, s, m, mov, inRing);
+      if (g) { held = true; if (g.to) r = { to: g.to, path: g.path, target: null, pillar: null }; }
+    }
+    if (!held && !r.to && !r.target && !r.pillar && !r.wall) r = targets.length || pillars.length ? stepMob(ctx, s, m, targets, pillars, mov) : r;
     // ไม่มีเป้า / ไปหาเป้าไม่ได้เลย = ลาดตระเวนเข้าหาผู้เล่น (สัตว์ยักษ์เฝ้าถิ่นเหมือนเดิม)
-    if (type !== "beast" && !r.to && !r.target && !r.pillar && !r.wall) { const w = roamMob(ctx, s, m, mov); if (w) r = { ...w, target: null, pillar: null }; }
+    // ปิดล้อม: ปีศาจไปหาใครไม่ได้ เพราะผู้เล่นหลบในเมืองที่ไฟเปิด = ไปยืนติดขอบเมืองนั้น (แล้วทุบไฟ)
+    if (!held && lightBound(m) && !r.to && !r.target && !r.pillar && !r.wall) {
+      const zs = new Set(heroes(ctx).map((p) => townOf(p.pos.x, p.pos.y)).filter((z) => z && lit(s, z)));
+      if (zs.size) {
+        const g = stepToward(ctx, s, m, mov, (x, y) => ctx.Board.DIRS.some(([dx, dy]) => zs.has(townOf(x + dx, y + dy)) && blockedTown(s, x + dx, y + dy)));
+        if (g) { held = true; if (g.to) r = { to: g.to, path: g.path, target: null, pillar: null }; }
+      }
+    }
+    if (held) { /* รอในวงรวมพล / ยืนล้อมเมือง */ } else if (type !== "beast" && !r.to && !r.target && !r.pillar && !r.wall) { const w = roamMob(ctx, s, m, mov); if (w) r = { ...w, target: null, pillar: null }; }
     else if (r.to || r.target || r.pillar) sm.roam = null;
-    if (!r.to && !r.target && !r.pillar && !r.wall) continue;
+    if (!r.to && !r.target && !r.pillar && !r.wall) { if (lightBound(m)) { const z = townEdge(ctx, s, m); if (z) sieges.push(siegeLight(ctx, s, m, z)); } continue; }
     if (r.to && (r.to.x !== m.pos.x || r.to.y !== m.pos.y)) {
       moves.push({ id: m.id, type, from: { ...m.pos }, to: { ...r.to }, path: r.path });
       const pv = Array.isArray(r.path) && r.path.length > 1 ? r.path[r.path.length - 2] : m.pos;
@@ -1029,6 +1128,7 @@ function actMonsters(ctx, s) {
       attacks.push({ id: m.id, type, x: m.pos.x, y: m.pos.y, target: v.id, dmg: dealt });
       ctx.log(`${type === "beast" ? "🐗" : type === "magitek" ? "🤖" : "👹"} ${m.name}โจมตี ${v.name} -${dealt}`);
     }
+    if (!victims.length && !r.pillar && !r.wall && lightBound(m)) { const z = townEdge(ctx, s, m); if (z) sieges.push(siegeLight(ctx, s, m, z)); } // ปิดล้อม: ติดขอบเมือง = ทุบไฟ
     if (!victims.length && !r.pillar && r.wall) { const wh = hitWall(ctx, s, m, r.wall); if (wh) pillarHits.push({ type, ...wh }); }
     if (!victims.length && r.pillar && r.pillar.kind === "turret") { const wh = hitWall(ctx, s, m, r.pillar); if (wh) pillarHits.push({ type, ...wh }); }
     else if (!victims.length && r.pillar) pillarHits.push({ id: m.id, type, x: m.pos.x, y: m.pos.y, at: { x: r.pillar.x, y: r.pillar.y }, ...hitPillar(ctx, s, r.pillar, m) });
@@ -1038,7 +1138,8 @@ function actMonsters(ctx, s) {
   if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits });
   if (heals.length) ctx.fx("mob_heal", { heals });
   if (shots.length) ctx.fx("mob_shot", { shots });
-  return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || out.big ? 1 : 0;
+  if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${TOWN_LIGHT.hp})`); }
+  return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big ? 1 : 0;
 }
 // ปีศาจหมอ: ฟื้นเลือดมอนในระยะ 2 (รวมตัวเอง) แล้วถอยห่างผู้เล่น / เกาะกลุ่มมอนตัวอื่น · ไม่ตี
 function healerAct(ctx, s, m, all, moves, heals) {
@@ -2149,7 +2250,7 @@ function preRound(ctx, st) {
   // คืนใหม่: ปีศาจรุ่นใหม่ (แกร่งขึ้นทุกคืน — ผู้ใช้สั่ง 2026-11-10) · ฟ้าสาง: ปีศาจสลาย วันใหม่ (ทหารเหล็กแกร่งขึ้น)
   const freshNight = night && !s.night, realNight = freshNight && !eclipse; // คราส = มืดแต่ไม่ใช่คืนใหม่
   if (realNight) s.nightNo = (s.nightNo || 0) + 1;
-  else if (!night && s.night) { if (!s.eclipseDark) s.dayNo = (s.dayNo || 1) + 1; secs = Math.max(secs, dissolveDaemons(ctx, s) ? SECS.dawn : 0); E.onDay(s); SKY.onDay(s); }
+  else if (!night && s.night) { if (!s.eclipseDark) s.dayNo = (s.dayNo || 1) + 1; secs = Math.max(secs, dissolveDaemons(ctx, s) ? SECS.dawn : 0); restoreLights(ctx, s); E.onDay(s); SKY.onDay(s); }
   s.night = night; s.eclipseDark = eclipse;
   secs = Math.max(secs, E.onNight(ctx, s, H(), realNight));
   secs = Math.max(secs, SKY.onNight(ctx, s, realNight, !!E.ev(s).blood)); // จันทร์เต็มดวง (คืนที่ไม่ใช่สีเลือด) // พระจันทร์สีเลือด (ก่อนเกิดปีศาจ — จำนวน ×1.5) · เตือนบอสต้นคืน
@@ -2235,7 +2336,8 @@ function hudActions(ctx, st, p) {
     out.push({ key: "fd:dome", icon: "🛡️", name: domeOn(s) ? `โดม ${s.dome.left}` : "โดม", cd, disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
   }
   const sw = switchNear(ctx, p);
-  if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 }); }
+  if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 || !lit(s, sw.zone) }); }
+  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ซ่อมไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${TOWN_LIGHT.hp}) · ไฟดับ = เปิดคืน ปีศาจเข้าเมืองไม่ได้อีก — ใช้การโจมตี` });
   const wf = wallFixTarget(ctx, s, p);
   if (wf) out.push({ key: "fd:wallfix", icon: wf.kind === "turret" ? "🔫" : "🧱", name: wf.broken && wf.kind === "turret" ? "สร้างป้อม" : FIX_NAMES[wf.kind], disabled: !canStrike(ctx, p),
     desc: wf.kind === "barricade" ? `ซ่อมกำแพงไม้ +${CITY_WALL.fix} (เต็ม ${PKS.WALL.hp}) — ใช้การโจมตี` : `${wf.kind === "turret" ? "ซ่อมป้อมปืน" : "ซ่อมกำแพง Insomnia"} +${CITY_WALL.fix} (พังแล้วสร้างใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
@@ -2317,6 +2419,7 @@ function charAction(ctx, st, p, key, tile) {
   if (key === "fd:lever") return pullLever(ctx, s, p);
   if (key === "fd:dome") return raiseDome(ctx, s, p);
   if (key === "fd:lights") return flipLights(ctx, s, p);
+  if (key === "fd:lightfix") return fixLights(ctx, s, p);
   if (key === "fd:push") return pushWreck(ctx, s, p);
   if (key === "fd:fix") return fixVehicle(ctx, s, p);
   if (key === "fd:wallfix") return fixWall(ctx, s, p);
@@ -2499,6 +2602,8 @@ function publicInfo(ctx, st) {
     bridgeUp: !!s.bridgeUp,
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA, hp: s.dome.hp ?? DOME_HP, maxHp: DOME_HP, gates: DOME_GATES.map((t) => ({ ...t })) } : null,
     lightsOff: { ...(s.lightsOff || {}) },
+    townLight: { max: TOWN_LIGHT.hp, hp: Object.fromEntries(TOWNS.map((z) => [z.id, lit(s, z.id) ? lightHp(s, z.id) : 0])) }, // ไฟเมืองที่ปีศาจทุบ (ปิดล้อม)
+    muster: s.muster && s.muster.mode ? { x: s.muster.c.x, y: s.muster.c.y, mode: s.muster.mode, ring: MUSTER.ring } : null,
     cityWalls: { max: CITY_WALL.hp, hurt: Object.entries(s.wallHp || {}).map(([k, hp]) => { const [x, y] = k.split(",").map(Number); return { x, y, hp }; }), broken: Object.keys(s.wallBroken || {}).map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) },
     domeReadyAt: s.domeReadyRound || 0,
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
@@ -2532,7 +2637,7 @@ module.exports = {
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
-  sandOn, inDesert, SAND_SIGHT, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
+  sandOn, inDesert, SAND_SIGHT, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, dissolveDaemons, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,
