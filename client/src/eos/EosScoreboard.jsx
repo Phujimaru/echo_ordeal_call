@@ -17,7 +17,7 @@ const ZONE = {
   lake: { name: "Cleigne", color: "#8fe3ff" },
   altissia: { name: "Altissia", color: "#ffe0a0" },
 };
-const RATE = [0, 1, 3, 6, 10, 15];
+const RATE = [0, 1, 2, 4, 6, 8];
 // พลังประจำเสา (PVE รอบสาม — server/fodlan/eosExtra.js POWERS)
 const POWER = {
   insomnia: { icon: "🔫", tip: "ป้อมปืนบนกำแพง Insomnia ยิงมอนใกล้สุดเองทุกต้นเทิร์น ดาเมจ 2" },

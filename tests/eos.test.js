@@ -1,7 +1,7 @@
 // สนาม Eos (GRID_PLAN §8.6 · server/fodlan/stage6.js · map6.js) — หมุดใหม่บนลูกโลก แผนที่เดียว 32×32 ผังธรรมชาติตามภูมิศาสตร์ Lucis
 //  เดิน +2 · โชโกโบะ (+3 · ป่า/น้ำตื้น 1 ก้าว · โดนดาเมจตกนก กลับคอก 3 เทิร์น) · รถ 3 คัน 1 ช่อง ขึ้นขี่แล้วขับแบบม้า (+3 · ถนน/พื้นเรียบ) ชน 2 · ผู้โดยสาร 3
 //  ปีศาจกลางคืน 4 ตัว · อากาศ ฝนฟ้าคะนอง/หมอก
-//  ชนะ = ยึดเสา 5 ต้น (ร่ายพิธี 2 ตา) แต้ม 1/3/6/10/15 ต่อเทิร์น ถึง 20 · ตายแล้วฟื้นหลัง 3 เทิร์น · เห็นผู้เล่นอื่นในระยะเดิน + 4
+//  ชนะ = ยึดเสา 5 ต้น (ร่ายพิธี 2 ตา) แต้ม 1/2/4/6/8 ต่อเทิร์น ถึง 20 · ตายแล้วฟื้นหลัง 3 เทิร์น · เห็นผู้เล่นอื่นในระยะเดิน + 4
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -433,19 +433,19 @@ test('แต้มรวม: ถือ 1/…/5 ต้น = 1/3/…/15 ต่อ�
   assert.equal(s.score, 1);
   s.pillars[1].owner = S6.PVE;
   S6.scoreRound(ctx(), s);
-  assert.equal(s.score, 1 + 3);
+  assert.equal(s.score, 1 + 2);
   combat.instantDeath(P(1), true); combat.instantDeath(P(2), true);
   match.gameState = 'PLAYING';
   assert.equal(endTurn.gameOver(), false, 'ยังมีคนรอด = ไม่จบ');
   for (const pl of s.pillars) pl.owner = S6.PVE;
   S6.scoreRound(ctx(), s); S6.scoreRound(ctx(), s);
-  assert.equal(s.score, 4 + 30);
+  assert.equal(s.score, 3 + 16);
   assert.equal(Fodlan.eosOutcome(), null);
   const info = Fodlan.publicInfo().board;
   assert.equal(info.goal, S6.SCORE_GOAL);
-  assert.equal(info.score, 34);
-  assert.equal(info.rate, 15);
-  S6.scoreRound(ctx(), s); S6.scoreRound(ctx(), s);
+  assert.equal(info.score, 19);
+  assert.equal(info.rate, 8);
+  for (let i = 0; i < 4; i++) S6.scoreRound(ctx(), s);
   assert.equal(Fodlan.eosOutcome(), 'win');
   assert.equal(endTurn.gameOver(), true);
   assert.equal(match.gameState, 'GAMEOVER');
