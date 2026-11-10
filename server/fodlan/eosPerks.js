@@ -40,7 +40,7 @@ const people = (ctx) => Object.values(ctx.match.players).filter((p) => !p.summon
 function onScore(ctx, s) {
   const k = PK(s);
   if (k.offer || s.result) return;
-  const at = PERK_AT[k.nextAt];
+  const at = PERK_AT[k.nextAt] == null ? null : require("./eosEvents").markAt(ctx, PERK_AT[k.nextAt]);
   if (at == null || (s.score || 0) < at) return;
   k.nextAt += 1;
   const pool = Object.keys(PERKS).filter((id) => !k.owned.includes(id));
@@ -235,7 +235,7 @@ function publicOf(ctx, s) {
   return {
     perks: k.owned.map((id) => ({ id, ...PERKS[id] })),
     perkOffer: k.offer ? { id: k.offer.id, mark: k.offer.mark, choices: k.offer.choices.map((id) => ({ id, ...PERKS[id] })), votes: { ...k.offer.votes } } : null,
-    perkAt: PERK_AT,
+    perkAt: PERK_AT.map((n) => require("./eosEvents").markAt(ctx, n)),
     challenges: challengesOf(ctx, s),
     walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, left: Math.max(0, w.until - ctx.match.roundNumber + 1) })),
     wallCharges: { ...k.charges },

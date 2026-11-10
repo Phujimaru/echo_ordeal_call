@@ -341,7 +341,7 @@ function barrage(ctx, s, H, p, tile) {
 // ---------- คืนสุดท้าย ----------
 function onScore(ctx, s, H) {
   const x = X(s);
-  if (x.final || s.result || (s.score || 0) < FINAL.at) return;
+  if (x.final || s.result || (s.score || 0) < require("./eosEvents").markAt(ctx, FINAL.at)) return;
   const from = ctx.match.roundNumber + 1;
   x.final = { from };
   try { ctx.engine.setForcedNight({ from, until: 99999, by: "eos" }); } catch { /* ไม่มี engine (เทสต์) */ }
@@ -446,7 +446,7 @@ function titlesOf(ctx, s) {
 function publicOf(ctx, s, H) {
   const x = X(s), g = x.giant;
   return {
-    final: x.final ? { from: x.final.from } : null, finalAt: FINAL.at,
+    final: x.final ? { from: x.final.from } : null, finalAt: require("./eosEvents").markAt(ctx, FINAL.at),
     powers: powersOf(s),
     gauge: x.gauge, gaugeMax: GAUGE.max,
     giant: g ? { id: g.id, state: g.state, axis: g.axis, at: g.at, path: g.path, idx: g.idx, next: bandOf(ctx, g, g.idx + 1, g.idx + GIANT.step) } : null,

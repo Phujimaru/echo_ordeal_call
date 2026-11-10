@@ -141,6 +141,16 @@ export function project(x, y, z = 0) {
   return PV(dx * cT - dy * sT, dx * sT + dy * cT, z);
 }
 export const P = project;
+// พื้นกระดาน (z = 0) → จอตรรกะ เป็นเมทริกซ์ 3×3 แบบ homogeneous: [sx·w, sy·w, w] = M · [x, y, 1] (PV เป็นกล้องรูเข็ม = homography พอดี)
+//  ใช้วาดภาพพื้นทั้งแผ่นด้วย WebGL ครั้งเดียว (boardDraw.drawGroundWarp) · ตัวฉายภาพแทนที่ (Colony) = null
+export function groundMatrix() {
+  if (CUSTOM) return null;
+  const cx = cxOf(), cy = cyOf();
+  const X = [cT, -sT, -cT * cx + sT * cy], Y = [sT, cT, -sT * cx - cT * cy];
+  const W = [-CS * Y[0], -CS * Y[1], CAMD - CS * Y[2]];
+  const row = (o, A, f) => [o * W[0] + f * A[0], o * W[1] + f * A[1], o * W[2] + f * A[2]];
+  return [row(OX, X, FOC), row(OY, Y, FOC * SN), W];
+}
 // ตัดของนอกจอ (วัด 2026-11-10: กล้องซูมใกล้เห็น ~20% ของแผนที่ แต่ของทุกชิ้นถูกวาดทุกเฟรมตอนกล้องขยับ)
 //  drawFrame ตั้งกรอบจอ (พิกัดตรรกะ) ทุกเฟรม · onScreen(x, y, h) = กล่องสูง h ช่องที่ (x, y) มีส่วนอยู่ในจอไหม · ไม่ตั้งกรอบ = true เสมอ
 let CULL = null;

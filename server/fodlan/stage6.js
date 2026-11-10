@@ -47,7 +47,7 @@ const LIGHTNING_DMG = 2;
 const STORM_MOV = -1;
 // โหมด PVE (ผู้ใช้สั่ง 2026-11-10 — แทนการแข่งยึดเสา): ผู้เล่นทุกคนฝ่ายเดียวกัน ยึดเสา 5 ต้น · แต้มรวมต่อเทิร์นตามจำนวนเสาที่ถือ
 //  ถึง 50 = ทุกคนชนะ · มอนเตอร์ตีเสาที่ยึดแล้ว 2 ครั้ง = เสาหลุดกลับเป็นกลาง · ผู้เล่นล้มหมดพร้อมกัน = แพ้
-const SCORE_GOAL = 50;
+const SCORE_GOAL = 50; // เป้าปกติ — ระดับยาก 100 (eosEvents.DIFF.goal / goalOf)
 const SCORE_TABLE = [0, 1, 2, 4, 6, 8]; // ปรับสมดุล 2026-11-10 (เดิม 1/3/6/10/15 — ผู้ใช้เลือกตามข้อเสนอ Claude)
 const PILLAR_HP = 2;          // มอนตีเสาครบกี่ครั้ง = เสาหลุด
 const PVE = "pve";            // ฝ่ายของผู้เล่นทุกคน
@@ -628,14 +628,18 @@ function stepMob(ctx, s, m, targets, pillars, mov) {
   const adjP = (x, y) => pillars.find((pl) => manhattan(pl, { x, y }) === 1) || null;
   const goalAt = (x, y) => adjT(x, y) || adjP(x, y);
   if (goalAt(m.pos.x, m.pos.y)) return { to: null, path: null, target: adjT(m.pos.x, m.pos.y), pillar: adjT(m.pos.x, m.pos.y) ? null : adjP(m.pos.x, m.pos.y) };
+  // มอนพวกเดียวกันขวางทาง (ต่อแถวหน้าประตู/ทางแคบ) = เดินผ่านแผนได้แต่หยุดบนช่องนั้นไม่ได้ (ผู้ใช้แจ้ง 2026-11-10 "มายืนออหน้าทางเข้า ไม่เข้ามาสักที")
+  const mobAt = mobTiles(ctx, m.id);
   const start = { x: m.pos.x, y: m.pos.y, prev: null }, seen = new Set([K(m.pos.x, m.pos.y)]), q = [start];
   let goal = null;
   for (let i = 0; i < q.length && !goal; i++) for (const [dx, dy] of ctx.Board.DIRS) {
     const x = q[i].x + dx, y = q[i].y + dy, k = K(x, y);
-    if (seen.has(k) || !ctx.Board.inBounds(ctx.map(), x, y) || !tileFree(ctx, s, x, y, m.id) || gateShut(s, x, y) || (town && blockedTown(s, x, y)) || (dark && XT.lightSafe(H(), x, y))) continue;
+    if (seen.has(k) || !ctx.Board.inBounds(ctx.map(), x, y) || gateShut(s, x, y) || (town && blockedTown(s, x, y)) || (dark && XT.lightSafe(H(), x, y))) continue;
+    const pal = mobAt.has(k);
+    if (!pal && !tileFree(ctx, s, x, y, m.id)) continue;
     seen.add(k);
     const node = { x, y, prev: q[i] };
-    if (goalAt(x, y)) { goal = node; break; }
+    if (!pal && goalAt(x, y)) { goal = node; break; }
     q.push(node);
   }
   if (!goal) return wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt);
@@ -646,10 +650,51 @@ function stepMob(ctx, s, m, targets, pillars, mov) {
     const alt = wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt, true);
     if (alt.to && alt.cost != null && alt.cost + SMART.detour < path.length - 1) return alt;
   }
-  const n = Math.min(mov, path.length - 1);
+  let n = Math.min(mov, path.length - 1);
+  while (n > 0 && mobAt.has(K(path[n].x, path[n].y))) n--; // หยุดก่อนช่องที่พวกเดียวกันยืน
   const to = path[n];
   const target = adjT(to.x, to.y);
   return { to, path: path.slice(0, n + 1), target, pillar: target ? null : adjP(to.x, to.y) };
+}
+const mobTiles = (ctx, selfId) => { const out = new Set(); for (const o of mobsOf(ctx)) if (o.id !== selfId && o.alive && o.pos) out.add(K(o.pos.x, o.pos.y)); return out; };
+// ลาดตระเวน: ไม่เห็นใคร / เป้าที่เห็นไปไม่ถึง (หนีเข้าเมืองที่ไฟเปิด ฯลฯ) = เดินไปจุดสุ่มที่ใกล้ผู้เล่นขึ้น แทนการยืนเฉย (ผู้ใช้แจ้ง 2026-11-10 "บางตัวก็ยืนเฉยๆ")
+//  จุดหมายค้างไว้จนถึง / ROAM.turns เทิร์น / ไปไม่ได้ · ตัวเลข Claude ตั้ง
+const ROAM = { near: 4, far: 9, tries: 24, turns: 4 };
+function roamMob(ctx, s, m, mov) {
+  const sm = m.summon, round = ctx.match.roundNumber + 1, map = ctx.map();
+  const town = mobType(m) !== "beast" && sm.trait !== "mech", dark = XT.fearsLight(m);
+  const ok = (x, y) => ctx.Board.inBounds(map, x, y) && tileFree(ctx, s, x, y, m.id) && !gateShut(s, x, y) && !(town && blockedTown(s, x, y)) && !(dark && XT.lightSafe(H(), x, y));
+  const hs = heroes(ctx);
+  const pick = () => {
+    let best = null, bs = Infinity;
+    for (let i = 0; i < ROAM.tries; i++) {
+      const d = ROAM.near + Math.floor(ctx.rng() * (ROAM.far - ROAM.near + 1)), a = ctx.rng() * Math.PI * 2;
+      const x = Math.round(m.pos.x + Math.cos(a) * d), y = Math.round(m.pos.y + Math.sin(a) * d);
+      if (!ok(x, y)) continue;
+      const sc = (hs.length ? Math.min(...hs.map((p) => manhattan(p.pos, { x, y }))) : 0) + ctx.rng() * 4;
+      if (sc < bs) { bs = sc; best = { x, y }; }
+    }
+    return best;
+  };
+  if (!sm.roam || round > sm.roam.until || (sm.roam.x === m.pos.x && sm.roam.y === m.pos.y)) { const t = pick(); sm.roam = t ? { ...t, until: round + ROAM.turns } : null; }
+  if (!sm.roam) return null;
+  const mobAt = mobTiles(ctx, m.id), goalK = K(sm.roam.x, sm.roam.y);
+  const start = { x: m.pos.x, y: m.pos.y, prev: null }, seen = new Set([K(m.pos.x, m.pos.y)]), q = [start];
+  let goal = null;
+  for (let i = 0; i < q.length && !goal && i < 600; i++) for (const [dx, dy] of ctx.Board.DIRS) {
+    const x = q[i].x + dx, y = q[i].y + dy, k = K(x, y);
+    if (seen.has(k) || !(mobAt.has(k) ? ctx.Board.inBounds(map, x, y) : ok(x, y))) continue;
+    seen.add(k);
+    const node = { x, y, prev: q[i] };
+    if (k === goalK) { goal = node; break; }
+    q.push(node);
+  }
+  if (!goal) { sm.roam = null; return null; }
+  const path = [];
+  for (let c = goal; c; c = c.prev) path.unshift({ x: c.x, y: c.y });
+  let n = Math.min(mov, path.length - 1);
+  while (n > 0 && mobAt.has(K(path[n].x, path[n].y))) n--;
+  return n > 0 ? { to: path[n], path: path.slice(0, n + 1) } : null;
 }
 const SMART = { detour: 3, barricadeCost: 3 };
 // ============================================================ กำแพงเมือง Insomnia พังได้ (ผู้ใช้สั่ง 2026-11-10 — ตัวเลข Claude ตั้ง)
@@ -826,8 +871,11 @@ function actMonsters(ctx, s) {
       // ทหารเหล็กเล็งเสาก่อน (มีเสาที่ยึดแล้ว = ไปหาเสา เว้นแต่มีคนติดตัวอยู่แล้ว)
       if (type === "magitek" && pillars.length && !all.some((p) => manhattan(p.pos, m.pos) === 1)) targets = [];
     }
-    if (!targets.length && !pillars.length) continue;
-    const r = stepMob(ctx, s, m, targets, pillars, mov);
+    let r = targets.length || pillars.length ? stepMob(ctx, s, m, targets, pillars, mov) : { to: null, path: null, target: null, pillar: null };
+    // ไม่มีเป้า / ไปหาเป้าไม่ได้เลย = ลาดตระเวนเข้าหาผู้เล่น (สัตว์ยักษ์เฝ้าถิ่นเหมือนเดิม)
+    if (type !== "beast" && !r.to && !r.target && !r.pillar && !r.wall) { const w = roamMob(ctx, s, m, mov); if (w) r = { ...w, target: null, pillar: null }; }
+    else if (r.to || r.target || r.pillar) sm.roam = null;
+    if (!r.to && !r.target && !r.pillar && !r.wall) continue;
     if (r.to && (r.to.x !== m.pos.x || r.to.y !== m.pos.y)) {
       moves.push({ id: m.id, type, from: { ...m.pos }, to: { ...r.to }, path: r.path });
       const pv = Array.isArray(r.path) && r.path.length > 1 ? r.path[r.path.length - 2] : m.pos;
@@ -1060,7 +1108,7 @@ function scoreRound(ctx, s) {
   s.lastGain = add;
   if (add > 0) {
     s.score = (s.score || 0) + add;
-    ctx.fx("score", { gains: [{ side: PVE, add, total: s.score, color: PVE_COLOR }], held: n, total: s.score, goal: SCORE_GOAL });
+    ctx.fx("score", { gains: [{ side: PVE, add, total: s.score, color: PVE_COLOR }], held: n, total: s.score, goal: E.goalOf(ctx) });
   }
   checkWin(ctx, s);
   E.onScore(ctx, s, H()); // แต้มรวมถึงครึ่ง = ราชาปีศาจครั้งแรก
@@ -1068,15 +1116,15 @@ function scoreRound(ctx, s) {
   PKS.onScore(ctx, s); // แต้มรวมถึง 10/20/30 = โหวตการ์ดอัปเกรดทีม
 }
 function checkWin(ctx, s) {
-  if (s.score >= SCORE_GOAL && !s.result) {
+  if (s.score >= E.goalOf(ctx) && !s.result) {
     s.result = "win";
-    ctx.log(`🏆 แต้มรวมครบ ${SCORE_GOAL} — ปกป้อง Eos สำเร็จ!`);
+    ctx.log(`🏆 แต้มรวมครบ ${E.goalOf(ctx)} — ปกป้อง Eos สำเร็จ!`);
   }
 }
 // แต้มรวมโบนัส (บอส · ภารกิจ · ขบวนเสบียง)
 function addScore(ctx, s, n, why) {
   s.score = (s.score || 0) + n;
-  ctx.fx("score_bonus", { add: n, total: s.score, why, goal: SCORE_GOAL });
+  ctx.fx("score_bonus", { add: n, total: s.score, why, goal: E.goalOf(ctx) });
   checkWin(ctx, s);
   E.onScore(ctx, s, H());
   XT.onScore(ctx, s, H());
@@ -2273,7 +2321,7 @@ function publicInfo(ctx, st) {
     ...XT.publicOf(ctx, s, H()), // final · powers · gauge · giant · civs · lightR · stats · titles
     sky: SKY.publicOf(ctx, s), // คราส · จันทร์เต็มดวง · ดาวตก · รถไฟขนเสบียง
     ...PKS.publicOf(ctx, s), // perks · perkOffer · perkAt · challenges · walls · wallCharges
-    goal: SCORE_GOAL,
+    goal: E.goalOf(ctx),
     score: s.score || 0,
     rate: rateOf(heldCount(s)),
     lastGain: s.lastGain || 0,

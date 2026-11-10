@@ -412,13 +412,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   useEffect(() => { if (hasGyro) preloadGyroArt(); }, [hasGyro]);
   const hasDiego = state.players.some((p) => !!p.diego);
   useEffect(() => { if (hasDiego) preloadDiegoArt(); }, [hasDiego]);
-  // เริ่มตาใคร (รวมตาเรา) → กล้องตามคนนั้น (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
+  // เริ่มตาเรา → กล้องมาที่ตัวเรา (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
+  //  ตาคนอื่นไม่ดึงกล้องไปหา (ผู้ใช้สั่ง 2026-11-10) · ตัวคู่/ยูนิตที่เราคุม = ตาเรา · คนดู (ไม่มีตัว) = ตามทุกตาเหมือนเดิม
   const [lookedTurn, setLookedTurn] = useState("");
   const turnKey = phase === "ACTION" && state.actorId ? `${state.roundNumber}|${state.actorId}` : lookedTurn;
   if (turnKey !== lookedTurn) {
     setLookedTurn(turnKey);
     const a = byId[state.actorId];
-    if (a && a.pos) setFocus({ x: a.pos.x, y: a.pos.y });
+    const mine = !me || (a && (a.id === me.id || a.duoOf === me.id || (a.summon && a.summon.ownerId === me.id)));
+    if (a && a.pos && mine) setFocus({ x: a.pos.x, y: a.pos.y });
   }
 
   // ---------- ระยะเดินของเรา ----------
@@ -918,7 +920,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         anims.push({ kind: "move", id, path, hop, seq: ++fxSeq.current });
         const a = path[path.length - 2], b = path[path.length - 1];
         setFaces((f) => ({ ...f, [id]: { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) } }));
-        look(now);
+        // คนอื่นเดิน = ไม่ดึงกล้องตาม (ผู้ใช้สั่ง 2026-11-10 ไม่ให้กล้องโดนดึงไปหาผู้เล่นอื่น) · คนดู = ตามเหมือนเดิม
+        if (!me || id === me.id || (mover && (mover.duoOf === me.id || (mover.summon && mover.summon.ownerId === me.id)))) look(now);
       }
     }
     // ฉากตี (ดีไซน์ใหม่): กล้องซูมเข้าคู่ → หมากพุ่งชน → ปะทะ (แสงแตก + จอสั่น/แฟลช + เลขดาเมจ + เสียงตี) → (สวน) → ถอย/ชน → กล้องคืน

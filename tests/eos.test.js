@@ -594,6 +594,30 @@ test('L10 ซากรถ: ผลักไป 1 ช่องตามทิศ �
 });
 
 // ---------- ขั้น 3: ลูกเล่นโจมตี (L11–L15) ----------
+test('มอนไม่ยืนเฉย: ไม่มีเป้า = ลาดตระเวน · พวกเดียวกันขวางทางแคบ = เดินต่อแถวผ่านแผนได้', () => {
+  setup();
+  const s = st();
+  for (const q of Object.values(match.players)) if (!q.summon) q.pos = null;
+  const m = S6.spawnMob(ctx(), s, 'magitek', { x: 20, y: 26 }, { hp: 10, armor: 1, atk: 2, mov: 3, gold: 2 }, { tier: 1 });
+  m.summon.born = 0;
+  for (const pl of s.pillars) { pl.owner = null; pl.ch = null; }
+  const at0 = { ...m.pos };
+  S6.actMonsters(ctx(), s);
+  assert.ok(m.pos.x !== at0.x || m.pos.y !== at0.y, 'ไม่มีเป้าก็ยังเดินลาดตระเวน');
+  // แถว: เป้าอยู่หลังมอนอีกตัว — ตัวหลังเดินเข้าใกล้ได้ (แผนผ่านช่องพวกเดียวกัน)
+  setup();
+  const s2 = st();
+  for (const q of Object.values(match.players)) if (!q.summon) q.pos = null;
+  const p = P(0); p.pos = { x: 20, y: 18 }; p.alive = true;
+  const a = S6.spawnMob(ctx(), s2, 'magitek', { x: 20, y: 22 }, { hp: 10, armor: 1, atk: 2, mov: 1, gold: 2 }, { tier: 1 });
+  const b = S6.spawnMob(ctx(), s2, 'magitek', { x: 20, y: 24 }, { hp: 10, armor: 1, atk: 2, mov: 3, gold: 2 }, { tier: 1 });
+  a.summon.born = 0; b.summon.born = 0;
+  const d0 = Math.abs(b.pos.x - p.pos.x) + Math.abs(b.pos.y - p.pos.y);
+  S6.actMonsters(ctx(), s2);
+  assert.ok(Math.abs(b.pos.x - p.pos.x) + Math.abs(b.pos.y - p.pos.y) < d0, 'ตัวหลังเข้าใกล้เป้า');
+  assert.ok(!(a.pos.x === b.pos.x && a.pos.y === b.pos.y), 'ไม่ยืนทับกัน');
+});
+
 test('L11 ถังน้ำมัน: ตีแล้วระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ (มอน · ไม่โดนเพื่อน) · ระเบิดลูกโซ่ · เกิดใหม่ภายหลัง', () => {
   setup();
   const s = st(), p = P(0), q = P(1);
@@ -1079,6 +1103,7 @@ test('ความยาก: โหวตในหน้าเลือก (เ�
   assert.equal(match.gameMode, 'eos');
   assert.equal(match.eosDiff, 'hard');
   engine.clearPhaseTimer();
+  match.eosDiff = 'normal'; // เทสต์ถัดไปใช้เป้า 50 (ยาก = 100)
 });
 
 test('ราชาปีศาจ: แต้มรวมถึง 25 = เตือน → ลงมา · ตีเสาทีเดียวหลุด · ล้มได้ = แต้ม +5 ทุกคนได้ของ · เกราะเสารับแทน', () => {
@@ -1451,4 +1476,15 @@ test('โชโกโบะทอง: กลางวันโผล่ วิ�
   const gold0 = P(1).gold || 0;
   kill(g, P(1));
   assert.ok((P(1).gold || 0) >= gold0 + PK.GOLD.gold);
+});
+
+test("Eos ระดับยาก: เป้า 100 · ราชาปีศาจ/การ์ดทีม/คืนสุดท้ายขยายตามสัดส่วน", () => {
+  const E = require("../server/fodlan/eosEvents");
+  const ctx = (diff) => ({ match: { eosDiff: diff } });
+  assert.equal(E.goalOf(ctx("hard")), 100);
+  assert.equal(E.goalOf(ctx("normal")), 50);
+  assert.equal(E.goalOf(ctx("easy")), 50);
+  assert.equal(E.markAt(ctx("hard"), 40), 80);
+  assert.equal(E.markAt(ctx("hard"), 25), 50);
+  assert.equal(E.markAt(ctx("normal"), 25), 25);
 });
