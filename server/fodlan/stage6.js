@@ -2027,15 +2027,23 @@ function travel(ctx, s, p, tile, kind) {
 const TRAM_STOPS = (MAP.TRAMS || []).map((t) => ({ zone: t.zone, x: t.at[0], y: t.at[1] }));
 const tramHere = (p) => (p && p.pos ? TRAM_STOPS.find((t) => sameT(t, p.pos)) || null : null);
 const tramDest = (ctx, s, p, t) => (tileFree(ctx, s, t.x, t.y, p.id) ? { x: t.x, y: t.y } : freeNear(ctx, s, t.x, t.y, 2, p.id));
+// โควตา (ผู้ใช้สั่ง 2026-11-11): คนละ 2 เที่ยว แล้วพัก 2 เทิร์น จึงได้อีก 2 เที่ยว
+const TRAM = { uses: 2, cd: 2 };
+const tramQ = (s, p) => { const q = p4State(s); q.tram ||= {}; return q.tram[p.id] || (q.tram[p.id] = { left: TRAM.uses, readyAt: 0 }); };
+const tramCd = (ctx, s, p) => Math.max(0, tramQ(s, p).readyAt - ctx.match.roundNumber);
+function tramLeft(ctx, s, p) { const t = tramQ(s, p); if (t.left <= 0 && tramCd(ctx, s, p) === 0) t.left = TRAM.uses; return t.left; }
 function rideTram(ctx, s, p, zone) {
   const a = tramHere(p), b = TRAM_STOPS.find((t) => t.zone === zone);
-  if (!a || !b || a === b || !canTravel(ctx, s, p)) return false;
+  if (!a || !b || a === b || !canTravel(ctx, s, p) || tramLeft(ctx, s, p) <= 0) return false;
   const to = tramDest(ctx, s, p, b);
   if (!to) return false;
   const from = { ...p.pos };
   p.pos = { x: to.x, y: to.y };
   ctx.action.lockMove(p);
   ctx.bump();
+  const tq = tramQ(s, p);
+  tq.left -= 1;
+  if (tq.left <= 0) tq.readyAt = ctx.match.roundNumber + TRAM.cd;
   ctx.fx("tram", { id: p.id, from, to: { ...to }, a: a.zone, b: b.zone });
   ctx.log(`🚋 ${p.name} นั่งรถรางไป ${ZONE_NAMES[b.zone] || b.zone}`);
   return true;
@@ -2190,9 +2198,12 @@ function p4Hud(ctx, s, p, out) {
     out.push({ key: "fd:gondola", icon: "🛶", name: "กอนโดลา", disabled: !dest.length, tiles: dest });
   }
   const tr = tramHere(p);
-  if (tr) for (const t of TRAM_STOPS) {
-    if (t === tr) continue;
-    out.push({ key: `fd:tram:${t.zone}`, icon: "🚋", name: ZONE_NAMES[t.zone] || t.zone, disabled: !canTravel(ctx, s, p) || !tramDest(ctx, s, p, t) });
+  if (tr) {
+    const left = tramLeft(ctx, s, p), cd = left > 0 ? 0 : tramCd(ctx, s, p);
+    for (const t of TRAM_STOPS) {
+      if (t === tr) continue;
+      out.push({ key: `fd:tram:${t.zone}`, icon: "🚋", name: ZONE_NAMES[t.zone] || t.zone, count: left, cd, disabled: !canTravel(ctx, s, p) || !tramDest(ctx, s, p, t) || left <= 0 });
+    }
   }
   if (onSpot(p, MAP.CAMPS)) {
     const off = !canStrike(ctx, p) || (q.campCd[p.id] || 0) > ctx.match.roundNumber;
@@ -2395,7 +2406,7 @@ function descOf(a, s, sz) {
     return "ร่ายพิธียึดเสา 2 ตาติดกัน (ใช้การโจมตีของตา) — ระหว่างนั้นโดนดาเมจ/ออกห่าง = พิธีแตก\nเสาที่ยึดได้ = แต้มรวมทุกจบเทิร์น";
   }
   if (a.key.startsWith("fd:flask:")) return FLASK_DESC[a.key.slice(9)] || "";
-  if (a.key.startsWith("fd:tram:")) return `นั่งรถรางไปป้าย ${ZONE_NAMES[a.key.slice(8)] || ""} (จบการเดินของตา)`;
+  if (a.key.startsWith("fd:tram:")) return `นั่งรถรางไปป้าย ${ZONE_NAMES[a.key.slice(8)] || ""} (จบการเดินของตา) · คนละ ${TRAM.uses} เที่ยว แล้วพัก ${TRAM.cd} เทิร์น`;
   void s;
   return HUD_DESC[a.key] || "";
 }
@@ -2639,7 +2650,7 @@ module.exports = {
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
-  sandOn, inDesert, SAND_SIGHT, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
+  sandOn, inDesert, SAND_SIGHT, TRAM, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, dissolveDaemons, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,

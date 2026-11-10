@@ -1685,3 +1685,18 @@ test('การ์ดทีมทุก 10 แต้มจนก่อนเป�
   assert.equal(PK.turretBonus(s), 1);
   assert.equal(Fodlan.publicInfo().board.townLight.max, S6.TOWN_LIGHT.hp + 4);
 });
+test('รถราง: คนละ 2 เที่ยว แล้วพัก 2 เทิร์นจึงนั่งได้อีก', () => {
+  setup();
+  const p = P(0), A = S6.TRAM_STOPS[0], B = S6.TRAM_STOPS[1];
+  const ride = (from, to) => { p.pos = { x: from.x, y: from.y }; actor(p); return Fodlan.charAction(p.id, `fd:tram:${to.zone}`); };
+  assert.ok(ride(A, B), 'เที่ยว 1');
+  assert.ok(ride(B, A), 'เที่ยว 2');
+  assert.equal(ride(A, B), false, 'หมดโควตา');
+  p.pos = { x: A.x, y: A.y }; actor(p);
+  const b = btn(p, `fd:tram:${B.zone}`);
+  assert.ok(b.disabled && b.cd === S6.TRAM.cd, 'แสดงคูลดาวน์');
+  match.roundNumber += 1;
+  assert.equal(ride(A, B), false, 'ยังพักอยู่');
+  match.roundNumber += 1;
+  assert.ok(ride(A, B), 'ครบ 2 เทิร์นได้อีก');
+});
