@@ -764,7 +764,8 @@ function stepToward(ctx, s, m, mov, isGoal) {
 // ============================================================ ปีศาจปิดล้อมเมือง (ผู้ใช้เลือก 2026-11-11): ปีศาจที่ยืนติดขอบเมืองที่ไฟเปิด ทุบไฟเมือง 1/ตัว/เทิร์น
 //  ไฟเมืองหมด = ไฟดับ (s.lightsOff) ปีศาจบุกเข้าเมืองได้ · ยืนติดแผงไฟกด "ซ่อมไฟ"/"เปิดไฟ" +4 · ฟ้าสาง = ไฟกลับเต็ม · ตัวเลข Claude ตั้ง
 const TOWN_LIGHT = { hp: 8, fix: 4 };
-const lightHp = (s, z) => (s.lightHp && s.lightHp[z] != null ? s.lightHp[z] : TOWN_LIGHT.hp);
+const lightMax = (s) => TOWN_LIGHT.hp + PKS.lightBonus(s); // การ์ดไฟเมืองแกร่ง +4
+const lightHp = (s, z) => (s.lightHp && s.lightHp[z] != null ? s.lightHp[z] : lightMax(s));
 function townEdge(ctx, s, m) {
   for (const [dx, dy] of ctx.Board.DIRS) { const x = m.pos.x + dx, y = m.pos.y + dy, z = townOf(x, y); if (z && lit(s, z)) return z; }
   return null;
@@ -781,13 +782,13 @@ function restoreLights(ctx, s) {
   s.lightsOff = {}; s.lightHp = {};
   if (had) { ctx.bump(); ctx.log("💡 ฟ้าสาง — ไฟเมืองกลับมาสว่างเต็ม"); }
 }
-function lightFixable(ctx, s, p) { const sw = switchNear(ctx, p); return sw && (!lit(s, sw.zone) || lightHp(s, sw.zone) < TOWN_LIGHT.hp) ? sw : null; }
+function lightFixable(ctx, s, p) { const sw = switchNear(ctx, p); return sw && (!lit(s, sw.zone) || lightHp(s, sw.zone) < lightMax(s)) ? sw : null; }
 function fixLights(ctx, s, p) {
   const sw = canStrike(ctx, p) ? lightFixable(ctx, s, p) : null;
   if (!sw) return false;
   const z = sw.zone, was = !lit(s, z);
-  (s.lightHp ||= {})[z] = Math.min(TOWN_LIGHT.hp, (was ? 0 : lightHp(s, z)) + TOWN_LIGHT.fix);
-  if (s.lightHp[z] >= TOWN_LIGHT.hp) delete s.lightHp[z];
+  (s.lightHp ||= {})[z] = Math.min(lightMax(s), (was ? 0 : lightHp(s, z)) + TOWN_LIGHT.fix);
+  if (s.lightHp[z] >= lightMax(s)) delete s.lightHp[z];
   if (s.lightsOff) delete s.lightsOff[z];
   ctx.bump();
   ctx.fx("town_light", { zone: z, x: sw.at[0], y: sw.at[1], by: p.id, relit: was });
@@ -968,9 +969,9 @@ function hitWall(ctx, s, m, w) {
     ctx.bump();
     return { id: m.id, x: m.pos.x, y: m.pos.y, at: { x: w.x, y: w.y }, wall: true, gate: true, hp: broke ? 0 : s.dome.hp, broke };
   }
-  if (PKS.wallAt(s, w.x, w.y)) { // กำแพงไม้ (ร้าน — ถาวรจนพัง): ทน PKS.WALL.hp ครั้ง
+  if (PKS.wallAt(s, w.x, w.y)) { // กำแพงไม้ (ร้าน — ถาวรจนพัง): ทน PKS.wallMax(s) ครั้ง
     const bw = PKS.PK(s).walls.find((o) => o.x === w.x && o.y === w.y);
-    bw.hp = (bw.hp ?? PKS.WALL.hp) - dmg;
+    bw.hp = (bw.hp ?? PKS.wallMax(s)) - dmg;
     const broke = bw.hp <= 0;
     if (broke) { PKS.PK(s).walls = PKS.PK(s).walls.filter((o) => o !== bw); ctx.log(`🧱 ${m.name}พังกำแพงไม้`); }
     ctx.bump();
@@ -989,7 +990,7 @@ function wallFixTarget(ctx, s, p) {
   for (const [dx, dy] of ctx.Board.DIRS) {
     const x = p.pos.x + dx, y = p.pos.y + dy, k = K(x, y), kind = isTurretTile(x, y) ? "turret" : "wall";
     const bw = PKS.PK(s).walls.find((o) => o.x === x && o.y === y);
-    if (bw) { if ((bw.hp ?? PKS.WALL.hp) < PKS.WALL.hp) return { x, y, broken: false, kind: "barricade" }; continue; }
+    if (bw) { if ((bw.hp ?? PKS.wallMax(s)) < PKS.wallMax(s)) return { x, y, broken: false, kind: "barricade" }; continue; }
     if (!cityWallKeys().has(k)) continue;
     if ((s.wallBroken || {})[k]) { if (tileFree(ctx, s, x, y)) return { x, y, broken: true, kind }; continue; }
     if (wallHp(s, k) < CITY_WALL.hp) return { x, y, broken: false, kind };
@@ -1001,7 +1002,7 @@ function fixWall(ctx, s, p) {
   const w = canStrike(ctx, p) ? wallFixTarget(ctx, s, p) : null;
   if (!w) return false;
   const k = K(w.x, w.y);
-  if (w.kind === "barricade") { const bw = PKS.PK(s).walls.find((o) => o.x === w.x && o.y === w.y); bw.hp = Math.min(PKS.WALL.hp, (bw.hp ?? PKS.WALL.hp) + CITY_WALL.fix); }
+  if (w.kind === "barricade") { const bw = PKS.PK(s).walls.find((o) => o.x === w.x && o.y === w.y); bw.hp = Math.min(PKS.wallMax(s), (bw.hp ?? PKS.wallMax(s)) + CITY_WALL.fix); }
   else if (w.broken) { delete s.wallBroken[k]; (s.wallHp ||= {})[k] = CITY_WALL.fix; }
   else { s.wallHp[k] = Math.min(CITY_WALL.hp, wallHp(s, k) + CITY_WALL.fix); if (s.wallHp[k] >= CITY_WALL.hp) delete s.wallHp[k]; }
   ctx.bump();
@@ -1138,7 +1139,7 @@ function actMonsters(ctx, s) {
   if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits });
   if (heals.length) ctx.fx("mob_heal", { heals });
   if (shots.length) ctx.fx("mob_shot", { shots });
-  if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${TOWN_LIGHT.hp})`); }
+  if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${lightMax(s)})`); }
   return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big ? 1 : 0;
 }
 // ปีศาจหมอ: ฟื้นเลือดมอนในระยะ 2 (รวมตัวเอง) แล้วถอยห่างผู้เล่น / เกาะกลุ่มมอนตัวอื่น · ไม่ตี
@@ -1225,6 +1226,7 @@ function onMobDeath(m, killerId) {
   const pool = { ...pool0, pct: Math.min(100, ((pool0.pct || 0) + E.dropBonus(ctx) + luck.pct) * mul), flask: pool0.flask ? Math.min(100, pool0.flask * mul) : 0 };
   const gold = by ? lazyShop().addGold(by, ((m.summon.gold || 0) + luck.gold) * mul) : 0;
   const got = by ? loot(ctx, s, by, pool) : [];
+  if (by && by.alive && PKS.hunterHeal(s) && ctx.combat.healHp) ctx.combat.healHp(by, PKS.hunterHeal(s)); // การ์ดนักล่า
   if (type === "beast") s.beastBack = ctx.match.roundNumber + BEAST.respawn;
   ctx.bump();
   ctx.fx(type === "daemon" ? "daemon_die" : "mob_die", { id: m.id, type, x: at ? at.x : 0, y: at ? at.y : 0, kind: m.summon.look, by: by ? by.id : null, gold, loot: got.map((g) => g.name) });
@@ -1770,7 +1772,7 @@ function fireTurret(ctx, s, p, tile) {
   if (!t || !canStrike(ctx, p) || !tile) return false;
   const target = bodies(ctx).find((u) => u.pos.x === tile.x && u.pos.y === tile.y);
   if (!target || !turretTargets(ctx, s, p, t).some((c) => c.x === tile.x && c.y === tile.y)) return false;
-  const dealt = hurt(ctx, target, TURRET_DMG, p);
+  const dealt = hurt(ctx, target, TURRET_DMG + PKS.turretBonus(s), p);
   ctx.match.action.locked = true;
   p.exposedRound = ctx.match.roundNumber;
   ctx.fx("turret_shot", { from: { x: t.x, y: t.y }, to: { ...tile }, target: target.id, dmg: dealt, by: p.id });
@@ -2337,10 +2339,10 @@ function hudActions(ctx, st, p) {
   }
   const sw = switchNear(ctx, p);
   if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 || !lit(s, sw.zone) }); }
-  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ซ่อมไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${TOWN_LIGHT.hp}) · ไฟดับ = เปิดคืน ปีศาจเข้าเมืองไม่ได้อีก — ใช้การโจมตี` });
+  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ซ่อมไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${lightMax(s)}) · ไฟดับ = เปิดคืน ปีศาจเข้าเมืองไม่ได้อีก — ใช้การโจมตี` });
   const wf = wallFixTarget(ctx, s, p);
   if (wf) out.push({ key: "fd:wallfix", icon: wf.kind === "turret" ? "🔫" : "🧱", name: wf.broken && wf.kind === "turret" ? "สร้างป้อม" : FIX_NAMES[wf.kind], disabled: !canStrike(ctx, p),
-    desc: wf.kind === "barricade" ? `ซ่อมกำแพงไม้ +${CITY_WALL.fix} (เต็ม ${PKS.WALL.hp}) — ใช้การโจมตี` : `${wf.kind === "turret" ? "ซ่อมป้อมปืน" : "ซ่อมกำแพง Insomnia"} +${CITY_WALL.fix} (พังแล้วสร้างใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
+    desc: wf.kind === "barricade" ? `ซ่อมกำแพงไม้ +${CITY_WALL.fix} (เต็ม ${PKS.wallMax(s)}) — ใช้การโจมตี` : `${wf.kind === "turret" ? "ซ่อมป้อมปืน" : "ซ่อมกำแพง Insomnia"} +${CITY_WALL.fix} (พังแล้วสร้างใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
   if (fixTargets(ctx, s, p).length) { const ft = fixTargets(ctx, s, p)[0]; out.push({ key: "fd:fix", icon: ft.kind === "car" ? "🔧" : "🥬", name: ft.kind === "car" ? "ซ่อมรถ" : "ป้อนอาหาร", disabled: !canStrike(ctx, p) }); }
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
   for (const el of [...new Set(flasksOf(s, p))]) {
@@ -2602,7 +2604,7 @@ function publicInfo(ctx, st) {
     bridgeUp: !!s.bridgeUp,
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA, hp: s.dome.hp ?? DOME_HP, maxHp: DOME_HP, gates: DOME_GATES.map((t) => ({ ...t })) } : null,
     lightsOff: { ...(s.lightsOff || {}) },
-    townLight: { max: TOWN_LIGHT.hp, hp: Object.fromEntries(TOWNS.map((z) => [z.id, lit(s, z.id) ? lightHp(s, z.id) : 0])) }, // ไฟเมืองที่ปีศาจทุบ (ปิดล้อม)
+    townLight: { max: lightMax(s), hp: Object.fromEntries(TOWNS.map((z) => [z.id, lit(s, z.id) ? lightHp(s, z.id) : 0])) }, // ไฟเมืองที่ปีศาจทุบ (ปิดล้อม)
     muster: s.muster && s.muster.mode ? { x: s.muster.c.x, y: s.muster.c.y, mode: s.muster.mode, ring: MUSTER.ring } : null,
     cityWalls: { max: CITY_WALL.hp, hurt: Object.entries(s.wallHp || {}).map(([k, hp]) => { const [x, y] = k.split(",").map(Number); return { x, y, hp }; }), broken: Object.keys(s.wallBroken || {}).map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) },
     domeReadyAt: s.domeReadyRound || 0,

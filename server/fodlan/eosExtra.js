@@ -71,7 +71,7 @@ function powerRound(ctx, s, H) {
       const m = H.mobsOf(ctx).filter((u) => !used.has(u.id) && H.manhattan(u.pos, t) <= POWER.turretRange).sort((a, b) => H.manhattan(a.pos, t) - H.manhattan(b.pos, t))[0];
       if (!m) continue;
       used.add(m.id);
-      const to = { ...m.pos }, dealt = H.hurt(ctx, m, POWER.turretDmg);
+      const to = { ...m.pos }, dealt = H.hurt(ctx, m, POWER.turretDmg + require("./eosPerks").turretBonus(s));
       shots.push({ from: { x: t.x, y: t.y }, to, target: m.id, dmg: dealt });
     }
     if (shots.length) { ctx.fx("power_turret", { shots }); ctx.log(`🔫 ป้อมปืนประจำเสายิงอัตโนมัติ ${shots.length} นัด`); secs = Math.max(secs, 1.2); }

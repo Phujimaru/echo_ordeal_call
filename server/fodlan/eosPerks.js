@@ -16,8 +16,16 @@ const PERKS = {
   surge: { icon: "☄️", name: "ใจเดียวกัน", desc: "มาตรวัดทีมเติม 2 เท่า" },
   fortune: { icon: "💰", name: "โชคลาภ", desc: "ล้มมอนได้เหรียญ +1 · โอกาสได้ของ +20%" },
   aegis: { icon: "🛡️", name: "เกราะคุ้มกัน", desc: "ต้นทุกเทิร์น ทุกคนฟื้นเกราะ 1" },
+  // เพิ่ม 2026-11-11 (การ์ดมาทุก 10 แต้ม — ระดับยากได้ 9 ครั้ง · ตัวเลข Claude ตั้ง)
+  marksman: { icon: "🎯", name: "ป้อมแม่นยำ", desc: "ป้อมปืนยิงแรง +1 (ทั้งกดยิงเองและยิงอัตโนมัติ)" },
+  timber: { icon: "🪵", name: "ไม้เนื้อแข็ง", desc: "กำแพงไม้ทนเพิ่ม 2 ครั้ง" },
+  beacon: { icon: "🔦", name: "ไฟเมืองแกร่ง", desc: "ไฟเมืองทนการทุบของปีศาจเพิ่ม 4" },
+  hunter: { icon: "🍖", name: "นักล่า", desc: "ล้มมอนได้ = ฟื้นเลือด 1" },
 };
-const PERK_AT = [10, 20, 30];
+// การ์ดทีม: แต้มรวมถึงทุก 10 แต้ม จนถึงก่อนเป้า (ผู้ใช้สั่ง 2026-11-11 — เดิม 10/20/30 ขยายตามเป้า) · ปกติ 10–40 (4 ครั้ง) · ยาก 10–90 (9 ครั้ง)
+const PERK_EVERY = 10;
+const PERK_AT = [10, 20, 30, 40]; // เป้า 50 (ใช้ perkMarks(ctx) — ตามเป้าจริงของความยาก)
+function perkMarks(ctx) { const goal = require("./eosEvents").goalOf(ctx), out = []; for (let n = PERK_EVERY; n < goal; n += PERK_EVERY) out.push(n); return out; }
 const CHALLENGES = [
   { key: "noLoss", icon: "🔷", name: "เสาไม่หลุดเลย" },
   { key: "fast", icon: "⏱️", name: "ชนะภายใน 30 เทิร์น", turns: 30 },
@@ -42,7 +50,7 @@ const people = (ctx) => Object.values(ctx.match.players).filter((p) => !p.summon
 function onScore(ctx, s) {
   const k = PK(s);
   if (k.offer || s.result) return;
-  const at = PERK_AT[k.nextAt] == null ? null : require("./eosEvents").markAt(ctx, PERK_AT[k.nextAt]);
+  const at = perkMarks(ctx)[k.nextAt] ?? null;
   if (at == null || (s.score || 0) < at) return;
   k.nextAt += 1;
   const pool = Object.keys(PERKS).filter((id) => !k.owned.includes(id));
@@ -87,6 +95,10 @@ const hpBonus = (s) => (has(s, "vital") ? 2 : 0);
 const pillarHpBonus = (s) => (has(s, "bastion") ? 1 : 0);
 const reviveCut = (s) => (has(s, "phoenix") ? 1 : 0);
 const gaugeMul = (s) => (has(s, "surge") ? 2 : 1);
+const turretBonus = (s) => (has(s, "marksman") ? 1 : 0);
+const wallMax = (s) => WALL.hp + (has(s, "timber") ? 2 : 0);
+const lightBonus = (s) => (has(s, "beacon") ? 4 : 0);
+const hunterHeal = (s) => (has(s, "hunter") ? 1 : 0);
 const fortune = (s) => (has(s, "fortune") ? { gold: 1, pct: 20 } : { gold: 0, pct: 0 });
 function aegisRound(ctx, s) {
   if (!has(s, "aegis")) return;
@@ -129,7 +141,7 @@ function placeWall(ctx, s, H, p, tile) {
   if (!wallTiles(ctx, s, H, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
   k.charges[p.id] -= 1;
   k.wallUsed[key] = true;
-  k.walls.push({ id: `fd:wall${++k.seq}`, x: tile.x, y: tile.y, hp: WALL.hp, by: p.id });
+  k.walls.push({ id: `fd:wall${++k.seq}`, x: tile.x, y: tile.y, hp: wallMax(s), by: p.id });
   ctx.bump();
   ctx.fx("wall_up", { x: tile.x, y: tile.y, by: p.id });
   ctx.log(`🧱 ${p.name} ตั้งกำแพงไม้ขวางทาง`);
@@ -233,7 +245,7 @@ function hud(ctx, s, H, p, out) {
     const used = !!k.wallUsed[`${p.id}|${ctx.match.roundNumber}`];
     const tiles = ctx.action.canAct(p) && !used ? wallTiles(ctx, s, H, p) : [];
     out.push({ key: "fd:wall", icon: "🧱", name: "กำแพง", count: k.charges[p.id], disabled: !tiles.length, tiles,
-      desc: `ตั้งกำแพงไม้ขวางทางช่องข้างตัว อยู่ถาวรจนพัง (ทน ${WALL.hp} ครั้ง · ซ่อมได้) — มอนเดินผ่านไม่ได้ (ไม่ใช้การโจมตี · ตาละครั้ง)` });
+      desc: `ตั้งกำแพงไม้ขวางทางช่องข้างตัว อยู่ถาวรจนพัง (ทน ${wallMax(s)} ครั้ง · ซ่อมได้) — มอนเดินผ่านไม่ได้ (ไม่ใช้การโจมตี · ตาละครั้ง)` });
   }
   const rz = ctx.action.canAct(p) ? razeTiles(ctx, s, H, p) : [];
   if (rz.length) out.push({ key: "fd:raze", icon: "🪓", name: "รื้อ", tiles: rz, desc: "รื้อกำแพงไม้ที่ติดตัวออก (ไม่ใช้การโจมตี)" });
@@ -249,9 +261,9 @@ function publicOf(ctx, s) {
   return {
     perks: k.owned.map((id) => ({ id, ...PERKS[id] })),
     perkOffer: k.offer ? { id: k.offer.id, mark: k.offer.mark, choices: k.offer.choices.map((id) => ({ id, ...PERKS[id] })), votes: { ...k.offer.votes } } : null,
-    perkAt: PERK_AT.map((n) => require("./eosEvents").markAt(ctx, n)),
+    perkAt: perkMarks(ctx),
     challenges: challengesOf(ctx, s),
-    walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, hp: w.hp ?? WALL.hp, max: WALL.hp })),
+    walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, hp: w.hp ?? wallMax(s), max: wallMax(s) })),
     wallCharges: { ...k.charges },
   };
 }
@@ -261,7 +273,7 @@ function wallAt(s, x, y) { return PK(s).walls.some((w) => w.x === x && w.y === y
 function goldReward(ctx, s, by) { void ctx; void s; void by; return { pct: 100, items: ["lifeCrystal", "armorCrystal", "windBoots", "fortune"] }; }
 
 module.exports = {
-  init, PK, PERKS, PERK_AT, CHALLENGES, WALL, GOLD, WEATHER_MOB, has,
+  init, PK, PERKS, PERK_AT, PERK_EVERY, perkMarks, turretBonus, wallMax, lightBonus, hunterHeal, CHALLENGES, WALL, GOLD, WEATHER_MOB, has,
   onScore, vote, resolve, tickOffer, movBonus, atkBonusVsMob, hpBonus, pillarHpBonus, reviveCut, gaugeMul, fortune, aegisRound,
   noteLost, noteDown, challengesOf, addCharge, wallTiles, placeWall, tickWalls, goldTurn, goldUnit, goldReward,
   preRound, hud, action, publicOf, layerWalls, wallAt,

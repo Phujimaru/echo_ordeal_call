@@ -1663,3 +1663,25 @@ test('ปิดล้อมเมือง: ปีศาจทุบไฟเม
   for (let i = 0; i < 3; i++) { match.roundNumber += 1; S6.actMonsters(ctx(), s); }
   assert.ok(Fodlan.publicInfo().board.townLight.hp[z] < S6.TOWN_LIGHT.hp, 'ทุบไฟ');
 });
+test('การ์ดทีมทุก 10 แต้มจนก่อนเป้า (ปกติ 4 ครั้ง · ยาก 9 ครั้ง) · การ์ดพอทุกครั้ง · การ์ดใหม่มีผล', () => {
+  const c = (diff) => ({ match: { eosDiff: diff } });
+  assert.deepEqual(PK.perkMarks(c('normal')), [10, 20, 30, 40]);
+  assert.deepEqual(PK.perkMarks(c('hard')), [10, 20, 30, 40, 50, 60, 70, 80, 90]);
+  assert.ok(Object.keys(PK.PERKS).length >= 9 + 2, 'ครั้งสุดท้ายของระดับยากยังมีให้เลือก 3 ใบ');
+  setup();
+  const s = st();
+  // ไล่แต้มจนครบ 4 ครั้ง (ปกติ) — เลือกใบแรกทุกครั้ง
+  for (const n of [10, 20, 30, 40]) {
+    s.score = n; PK.onScore(ctx(), s);
+    const o = PK.PK(s).offer;
+    assert.ok(o && o.mark === n, `การ์ดที่ ${n}`);
+    PK.resolve(ctx(), s);
+  }
+  s.score = 49; PK.onScore(ctx(), s);
+  assert.equal(PK.PK(s).offer, null, 'ไม่มีการ์ดเกินเป้า');
+  PK.PK(s).owned.push('timber', 'beacon', 'marksman', 'hunter');
+  assert.equal(PK.wallMax(s), PK.WALL.hp + 2);
+  assert.equal(PK.lightBonus(s), 4);
+  assert.equal(PK.turretBonus(s), 1);
+  assert.equal(Fodlan.publicInfo().board.townLight.max, S6.TOWN_LIGHT.hp + 4);
+});
