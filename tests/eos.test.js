@@ -127,16 +127,52 @@ test('โชโกโบะ: จบตาบนช่อง = ขี่ · เ�
   assert.ok(forest, 'คอก Duscae ติดป่า');
   assert.ok(Board.reachable(m, { id: p.id, x: c.x, y: c.y }, 1, [], { flatWalk: true }).has(K(forest.x, forest.y)));
   assert.ok(!Board.reachable(m, { id: p.id, x: c.x, y: c.y }, 1, []).has(K(forest.x, forest.y)), 'ไม่ขี่ = ป่ากิน 2 ก้าว');
+  // นกรับดาเมจแทนก่อน (ผู้ใช้สั่ง 2026-11-10) — เลือดคนขี่ไม่ลด · นกเลือดหมด = ตกนก ส่วนเกินเข้าคนขี่
+  const hp0 = p.hp, ar0 = p.armor;
   combat.dealMixed(p, 1);
+  Fodlan.onUnitEnd(P(1));
+  assert.ok(st().riders[p.id], 'ยังขี่อยู่');
+  assert.equal(c.hp, S6.CHOCO_HP - 1);
+  assert.equal(p.hp + p.armor, hp0 + ar0);
+  combat.dealMixed(p, S6.CHOCO_HP);
   Fodlan.onUnitEnd(P(1));
   assert.ok(!st().riders[p.id]);
   assert.equal(c.x, null);
+  assert.equal(p.hp + p.armor, hp0 + ar0 - 1, 'ส่วนเกิน 1 เข้าคนขี่');
   assert.equal(action.movOf(p), before);
   const back = c.back;
   match.roundNumber = back - 2; Fodlan.preRound(() => {});
   assert.equal(c.x, null);
   match.roundNumber = back - 1; Fodlan.preRound(() => {});
   assert.ok(c.x != null && Math.abs(c.x - c.home.x) + Math.abs(c.y - c.home.y) <= 2);
+  assert.equal(c.hp, S6.CHOCO_HP, 'กลับคอกแล้วหายดี');
+});
+
+test('รถมีเลือด: คนขับโดนตี รถรับแทน · รถพัง = คนขับลง รถจอดค้างขึ้นไม่ได้ · ซ่อมแล้วขับได้ · ป้อนอาหารโชโกโบะ', () => {
+  setup();
+  const p = P(0), car = st().cars[0];
+  car.driver = p.id; p.pos = { x: car.x, y: car.y };
+  const hp0 = p.hp + p.armor;
+  combat.dealMixed(p, 2);
+  assert.equal(car.hp, S6.CAR_HP - 2);
+  assert.equal(p.hp + p.armor, hp0);
+  combat.dealMixed(p, S6.CAR_HP);
+  assert.equal(car.hp, 0);
+  assert.ok(car.broken && !car.driver, 'รถพัง คนขับลง');
+  assert.ok(!(p.pos.x === car.x && p.pos.y === car.y), 'คนขับไม่อยู่ช่องรถ');
+  assert.equal(p.hp + p.armor, hp0 - 2, 'ส่วนเกินเข้าคนขับ');
+  actor(p);
+  if (Math.abs(p.pos.x - car.x) + Math.abs(p.pos.y - car.y) === 1) {
+    assert.ok(!btn(p, 'fd:board'), 'รถพังขึ้นไม่ได้');
+    const b = btn(p, 'fd:fix');
+    assert.ok(b && !b.disabled);
+    assert.ok(Fodlan.charAction(p.id, 'fd:fix'));
+    assert.equal(car.hp, S6.CAR_FIX);
+    assert.equal(car.broken, false);
+  }
+  const pub = Fodlan.publicInfo().board;
+  assert.equal(pub.cars[0].maxHp, S6.CAR_HP);
+  assert.equal(pub.chocos[0].hp, S6.CHOCO_HP);
 });
 
 test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ปุ่มลงวางนกข้างตัว', () => {
@@ -677,6 +713,24 @@ test('L15 ยานลงจอด: กลางวันลงได้หล�
   Math.random = realRandom;
   assert.equal(s.ships.length, 0);
   assert.equal(S6.mobsOf(ctx(), 'magitek').length, 0);
+  match.cycleShift = 0;
+});
+
+test('L15b หุ่นเกราะจักรวรรดิ: มีโอกาสลงมากับยาน ลำละไม่เกิน 1 · ถึกกว่าทหารเหล็ก · ภาพ magitek_ex', () => {
+  setup();
+  const s = st();
+  match.cycleShift = 2;
+  Math.random = () => 0.01;
+  S6.dropshipTurn(ctx(), s, 2);
+  S6.dropshipTurn(ctx(), s, 3);
+  Math.random = realRandom;
+  const mt = S6.mobsOf(ctx(), 'magitek');
+  const mechs = mt.filter((m) => m.summon.trait === 'mech');
+  assert.ok(mechs.length >= 1 && mechs.length <= s.ships.length, 'ลำละไม่เกิน 1');
+  const plain = mt.find((m) => !m.summon.trait);
+  if (plain) assert.ok(mechs[0].hp > plain.hp && mechs[0].armor > plain.armor);
+  assert.equal(mechs[0].img, '/eos/img/magitek_ex.webp');
+  assert.equal(Fodlan.publicInfo().board.mobs.find((m) => m.id === mechs[0].id).trait, 'mech');
   match.cycleShift = 0;
 });
 

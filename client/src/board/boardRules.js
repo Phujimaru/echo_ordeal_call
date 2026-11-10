@@ -625,9 +625,9 @@ const ROWS = [
   "..===~~~~~~s...FTTFFFTTF..F===..", // y14
   "..==~~~~~~~s...FTFFkkTTX....==..", // y15
   "..==~~~~~~~s...FFFFkkTTFFF..==..", // y16
-  ".===~~~~~~sX...FFFFFFFFFFFF===..", // y17
-  ".===ss~~sss....FFFFFFFFT.FF===..", // y18
-  ".==.ssssss.....FFFFFFFFFFFF==...", // y19
+  ".===~~~~~~sX...FTFFFFTFFFTF===..", // y17
+  ".===ss~~sss....FFFTFFFFT.FF===..", // y18
+  ".==.ssssss.....FFFFFTFFFTFF==...", // y19
   ".===............FFFFF......==..d", // y20
   ".======.......=======..ddR===ddd", // y21
   "..===========================ddd", // y22
@@ -706,7 +706,8 @@ module.exports = {
     fd_eos_barrel: { name: "ถังน้ำมัน", icon: "🛢️" },     // ชั้น layer (ขั้น 3)
     fd_eos_crystal: { name: "หินพลังเวท", icon: "💎" },   // ชั้น layer (ขั้น 3)
     fd_eos_mob: { name: "ศัตรู", icon: "👾" },
-    fd_eos_chest: { name: "หีบสมบัติ", icon: "🎁" },  // ชั้น layer: หีบสมบัติ (ตีเปิด — PVE 2026-11-10)
+    fd_eos_chest: { name: "หีบสมบัติ", icon: "🎁" },
+    fd_eos_barricade: { name: "กำแพงไม้", icon: "🧱" }, // ชั้น layer: กำแพงชั่วคราว (ไอเทมร้าน — PVE รอบสี่)  // ชั้น layer: หีบสมบัติ (ตีเปิด — PVE 2026-11-10)
     // ขั้น 4
     fd_eos_station: { name: "ชานชาลา", icon: "🚉" },
     fd_eos_tunnel: { name: "อุโมงค์", icon: "🕳️" },

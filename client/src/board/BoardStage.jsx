@@ -13,7 +13,7 @@
 //   · ฉากตีบนกระดาน (พุ่งชน → ปะทะ → สวน → ถอย/ชน) แทน AttackFx เต็มจอ — เสียงตีเล่นที่จังหวะปะทะ (App ไม่เล่นซ้ำในโหมดกระดาน)
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
-import { eosTileInfo, EOS_NAME_DESC } from "../eos/eosTileInfo";
+import { eosTileInfo, eosTerrainInfo, EOS_NAME_DESC } from "../eos/eosTileInfo";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
@@ -2319,6 +2319,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       ally: coopMode && !mk && !!me && p.id !== me.id && !!me.teamId && p.teamId === me.teamId && !isDoubleP(p),
+      // สนาม Eos (PVE — ผู้เล่นทุกคนทีมเดียวกัน): หลอดเลือดผู้เล่นสีเขียว (มอนวาดเองใน fodlan/stage6.js = แดง)
+      hpTone: state.world === "eos" && !mk && !(p.summon && !p.summon.controlled) ? "ally" : null,
       dim: !!pickValid && !pickValid.has(p.id),
       // ซ่อนจากศัตรูอยู่ (นักบินปริศนาซ่อนตัว / ยืนในพุ่ม) — เราเห็นเพราะเป็นตัวเอง/ทีมเดียวกัน → วาดจางแบบเงา
       cloak: !!p.veiled,
@@ -2367,7 +2369,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers]);
+  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
@@ -2578,6 +2580,33 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => el.removeEventListener("wheel", onWheel, { capture: true });
   }, [wallMode, dirPick, flipWall]);
 
+  // สนาม Eos: ของที่ตัวสูงยื่นบังช่องหลัง → ชี้ที่ตัวของก็ขึ้นป้ายของชิ้นนั้น (ผู้ใช้ 2026-11-10 "บางมุมรถพัง ชี้แล้วไม่บอก")
+  const tallTiles = useMemo(() => {
+    if (state.world !== "eos" || !map) return null;
+    const out = [], seen = new Set();
+    const add = (x, y, h) => { const k = `${x},${y}`; if (!seen.has(k)) { seen.add(k); out.push({ x, y, h }); } };
+    const fd = state.fodlan && state.fodlan.board;
+    if (fd) {
+      for (const p of fd.pillars || []) add(p.x, p.y, 3.2);
+      for (const q of fd.quests || []) if (q.type === "scout") add(q.x, q.y, 2.2);
+      for (const c of fd.cars || []) add(c.x, c.y, 1);
+      for (const w of fd.wrecks || []) add(w.x, w.y, 1);
+      for (const w of fd.walls || []) add(w.x, w.y, 1);
+      for (const c of fd.chests || []) add(c.x, c.y, 0.9);
+      for (const c of fd.barrels || []) add(c.x, c.y, 1);
+      for (const c of fd.crystals || []) add(c.x, c.y, 1.3);
+      for (const c of fd.tombs || []) add(c.x, c.y, 1.4);
+      if (fd.convoy) add(fd.convoy.x, fd.convoy.y, 1.2);
+    }
+    const TALL = { fd_eos_turret: 1.6, fd_eos_switch: 1.4, fd_eos_domecore: 1.6, fd_eos_lever: 1.2, fd_eos_camp: 1, fd_eos_station: 1.6, fd_eos_tomb: 1.4 };
+    for (const src of [map.special, map.terrain]) for (const [k, kind] of Object.entries(src || {})) {
+      if (!TALL[kind]) continue;
+      const [x, y] = k.split(",").map(Number);
+      add(x, y, TALL[kind]);
+    }
+    return out;
+  }, [state.world, state.fodlan, map]);
+
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
@@ -2597,7 +2626,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const ei = eosTileInfo(state.fodlan && state.fodlan.board, state.players, hover.x, hover.y, state.roundNumber);
       if (ei) return ei;
       const ri = Rules.tileInfo(map, hover.x, hover.y);
-      return ri && !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
+      if (!ri) return eosTerrainInfo(map, hover.x, hover.y);
+      return !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
     }
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
   }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber]);
@@ -2775,6 +2805,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         onPing={coopMode && me ? onPing : undefined}
         onUnitClick={onUnitClick}
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
+        tallTiles={tallTiles}
       />
 
       {/* คนที่กำลังเดิน (บนกลาง) — แทนแถบลำดับทุกคน (ผู้ใช้สั่ง 2026-10-09: เหลือเฉพาะคนที่เดินตอนนี้ + รูปโปรไฟล์) · ช่วงอื่นไม่มี */}

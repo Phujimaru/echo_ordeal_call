@@ -121,8 +121,11 @@ function img(src) {
 }
 const CHOCO_IMG = "/eos/img/chocobo.webp";
 const MAGITEK_IMG = "/eos/img/magitek.webp";
-const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 4 + 1}.webp`;
-export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 6; i++) img(`/eos/img/people${i}.webp`); for (let i = 1; i <= 4; i++) img(daemonImg(i)); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); img(MAGITEK_IMG); }
+const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 8 + 1}.webp`; // 8 แบบ (5–8 ผู้ใช้ส่งมา 2026-11-10)
+const GIANT_IMG = "/eos/img/giant.webp", MAGITEK_EX_IMG = "/eos/img/magitek_ex.webp";
+// ภาพกว้าง (ปีศาจมีปีก/งู) ไม่ให้กว้างเกิน wMax ช่อง
+function fitH(src, hMax, wMax = 2.1) { const im = img(src); return im ? Math.min(hMax, wMax / (im.naturalWidth / im.naturalHeight)) : hMax; }
+export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 6; i++) img(`/eos/img/people${i}.webp`); for (let i = 1; i <= 8; i++) img(daemonImg(i)); img(GIANT_IMG); img(MAGITEK_EX_IMG); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); img(MAGITEK_IMG); }
 
 // แสงเรือง (อบครั้งเดียวต่อสี)
 const GLOW = new Map();
@@ -1796,9 +1799,9 @@ function mobAttackOf(id, now) {
   return p < 1 ? { a, p } : null;
 }
 // หลอดเลือด/เกราะของปีศาจ/ศัตรู AI — แบบเดียวกับหมากผู้เล่น (boardDraw drawVitalBar) ขนาดตามช่อง (ผู้ใช้แจ้ง 2026-11-09: จุดแดงลอยอ่านไม่ออก)
-function hpPips(g, x, y, z, hp, maxHp, armor, maxArmor = armor) {
+function hpPips(g, x, y, z, hp, maxHp, armor, maxArmor = armor, hpTone = null) {
   const top = P(x, y, z), s = top[2], UK = Math.max(0.35, s * 0.0085);
-  drawVitalBar(g, top[0], top[1], s * 0.62, { hp, maxHp: Math.max(1, maxHp || 5), armor, maxArmor: Math.max(armor || 0, maxArmor || 0) }, UK);
+  drawVitalBar(g, top[0], top[1], s * 0.62, { hp, maxHp: Math.max(1, maxHp || 5), armor, maxArmor: Math.max(armor || 0, maxArmor || 0), hpTone }, UK);
   return top;
 }
 // สัตว์ยักษ์มีเขา (สูง ≈ 1.8 ช่อง) · พิกัดจอที่เท้า · face = 1 หันขวา / -1 หันซ้าย
@@ -1888,12 +1891,16 @@ function drawChest(g, cx, cy, now, night, lowQ) {
   }
 }
 // ---------- ยานลำเลียง (2×2 · ลอย z ≈ 1.2) ----------
-const DROP_Z = 1.2;
+const DROP_Z = 1.2, HOVER_Z = 3.6;
 function dropZ(ds, now) {
   const e = LAST_FD && Array.isArray(LAST_FD.fx) ? LAST_FD.fx.slice().reverse().find((ev) => ev.kind === "dropship_land" && ev.x === ds.x && ev.y === ds.y) : null;
-  if (!e) return DROP_Z;
+  // ลงต่ำปล่อยหุ่น → ลอยขึ้นค้างสูง ไม่บังหน้าตามอน (ผู้ใช้ 2026-11-10 "โดนยานบังหน้าตา ปล่อยหุ่นแล้วให้ยานลอยขึ้น")
+  if (!e) return HOVER_Z;
   const k = fxT(e, now, fx.dropship_land);
-  return k < 1 ? DROP_Z + (1 - ease(Math.min(1, k / 0.65))) * 7 : DROP_Z;
+  if (k >= 1) return HOVER_Z;
+  if (k < 0.55) return DROP_Z + (1 - ease(k / 0.55)) * 7;
+  if (k < 0.72) return DROP_Z;
+  return DROP_Z + ease((k - 0.72) / 0.28) * (HOVER_Z - DROP_Z);
 }
 function drawDropship(g, x, y, z, now, lowQ, alpha = 1) {
   const b = z + (lowQ ? 0 : Math.sin(now / 700) * 0.05), cx = x + 1, cy = y + 1;
@@ -2925,7 +2932,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
           g.save(); g.translate(sx, sy); g.scale(1, 0.42); g.rotate(now / 1600);
           g.strokeStyle = "rgba(120,255,170,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.6, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
         }
-        sprite(g, daemonImg(d.kind), cx, cy, breathe, d.trait === "bomber" ? 1.3 : 1.45, d.kind % 2 === 0);
+        sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "bomber" ? 1.3 : 1.45), d.kind % 2 === 0);
         if (d.trait === "bomber") { // ไส้ตะเกียงลุก + ตัวพองตามจังหวะ
           const k = 0.5 + 0.5 * Math.sin(now / 130);
           glowAt(g, sx, sy - s * 0.75, s * (0.45 + k * 0.25), "255,120,30", 0.55 + k * 0.3);
@@ -2978,11 +2985,12 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (beast) drawBeast(g, sx + shake, sy, s, face, now, pos.moving, lowQ);
         else {
           const bob = pos.moving && !lowQ ? Math.abs(Math.sin(now / 140)) * 0.04 : 0;
-          sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
+          if (m.trait === "mech") { glowAt(g, sx, sy - s * 0.7, s * 1.2, "255,70,50", 0.22 + 0.1 * Math.sin(now / 300)); sprite(g, MAGITEK_EX_IMG, cx + shake / s, cy, bob * 0.5, fitH(MAGITEK_EX_IMG, 2.0, 2.4), face > 0); } // หุ่นเกราะจักรวรรดิ (ภาพผู้ใช้)
+          else sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
           if (m.trait === "sniper") { const v = P(cx + face * 0.12, cy, 1.18); glowAt(g, v[0], v[1], s * 0.28, "255,40,40", 0.75 + 0.2 * Math.sin(now / 150)); g.fillStyle = "#ff4a3a"; g.fillRect(v[0] - 4, v[1] - 1.5, 8, 3); }
         }
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
-        const top = hpPips(g, cx, cy, beast ? 2.0 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
+        const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
       },
     });
@@ -3282,6 +3290,21 @@ function drawGiant(g, m, cx, cy, now, lowQ, moving, face, hit) {
   const [sx, sy, s] = P(cx, cy);
   const sway = moving && !lowQ ? Math.sin(now / 160) * s * 0.05 : 0, lift = moving && !lowQ ? Math.abs(Math.sin(now / 160)) * s * 0.06 : 0;
   const shake = hit < 1 ? Math.sin(hit * 50) * s * 0.04 * (1 - hit) : 0;
+  // ภาพยักษ์ (demon9 — ผู้ใช้ส่งมา 2026-11-10 "ใช้ demon9 แทนตัวยักษ์หิน") · ตัวอยู่ ~62% ของภาพ ดาบยื่นซ้าย → หันขวา = กลับด้าน
+  const gim = img(GIANT_IMG);
+  if (gim) {
+    g.fillStyle = "rgba(0,0,0,.42)"; g.beginPath(); g.ellipse(sx, sy, s * 1.1, s * 0.36, 0, 0, TAU); g.fill();
+    const h = s * 2.5, w = h * (gim.naturalWidth / gim.naturalHeight), stomp = moving && !lowQ ? lift * 0.6 : 0;
+    g.save(); g.translate(sx + shake, sy - stomp); if (face > 0) g.scale(-1, 1); g.rotate(moving && !lowQ ? Math.sin(now / 160) * 0.025 : 0);
+    g.drawImage(gim, -w * 0.62, -h, w, h); g.restore();
+    const ey = P(cx, cy, 2.25);
+    glowAt(g, ey[0] + shake, ey[1] - stomp, s * 0.35, "255,90,40", 0.25 + 0.15 * Math.sin(now / 500));
+    if (hit < 1) glowAt(g, sx, sy - s * 1.2, s * 1.4, "255,255,255", (1 - hit) * 0.6);
+    void sway;
+    const top = P(cx, cy, 2.9), UK = Math.max(0.5, s * 0.012);
+    drawVitalBar(g, top[0], top[1], s * 1.3, { hp: m.hp, maxHp: Math.max(1, m.maxHp), armor: m.armor, maxArmor: Math.max(m.armor || 0, m.maxArmor || 0) }, UK);
+    return;
+  }
   const X0 = sx + shake;
   g.fillStyle = "rgba(0,0,0,.42)"; g.beginPath(); g.ellipse(sx, sy, s * 1.0, s * 0.34, 0, 0, TAU); g.fill();
   const stone = "#857c6d", dark = "#5a5348", hi = "#a69c8a", moss = "#5f7a3c", rune = "120,230,255";
@@ -3339,7 +3362,7 @@ function drawCivilian(g, c, cx, cy, now, lowQ, lead) {
     g.drawImage(ph, -w / 2, -h, w, h);
     g.restore();
     const UK = Math.max(0.35, s * 0.0085);
-    drawVitalBar(g, sx, sy - hover - h - s * 0.1, s * 0.5, { hp: c.hp, maxHp: Math.max(1, c.maxHp || 4), armor: 0, maxArmor: 0 }, UK);
+    drawVitalBar(g, sx, sy - hover - h - s * 0.1, s * 0.5, { hp: c.hp, maxHp: Math.max(1, c.maxHp || 4), armor: 0, maxArmor: 0, hpTone: "civ" }, UK); // พลเรือน = หลอดฟ้า
     return;
   }
   const cloak = CIV_CLOAK[(c.look || 0) % CIV_CLOAK.length];
@@ -3352,7 +3375,7 @@ function drawCivilian(g, c, cx, cy, now, lowQ, lead) {
     g.strokeStyle = "#f0c9a0"; g.lineWidth = Math.max(2, s * 0.04); g.lineCap = "round";
     g.beginPath(); g.moveTo(sx + s * 0.1, sy - s * 0.42 - bob); g.lineTo(sx + s * (0.2 + w * 0.08), sy - s * 0.7 - bob); g.stroke(); g.lineCap = "butt";
   }
-  hpPips(g, cx, cy, 0.95, c.hp, c.maxHp, 0, 0);
+  hpPips(g, cx, cy, 0.95, c.hp, c.maxHp, 0, 0, "civ");
 }
 // พื้น: วงไฟแคมป์ (กลางคืน — ปีศาจเข้าไม่ได้) · เส้นทางยักษ์หิน (เตือน = ทั้งเส้น · กำลังเดิน = แถบที่จะเหยียบเทิร์นหน้า)
 function pve3Ground(g, fd, now, lowQ) {
@@ -3509,12 +3532,31 @@ function drawConvoy(g, cx, cy, head, c, now, night, lowQ) {
   const flip = screenFace(cx, cy, head) > 0;
   glowAt(g, sx, sy - s * 0.3, s * 1.2, "255,200,90", 0.25 + 0.1 * Math.sin(now / 400));
   g.fillStyle = "rgba(0,0,0,.4)"; g.beginPath(); g.ellipse(sx, sy - s * 0.03, s * 0.7, s * 0.22, 0, 0, TAU); g.fill();
-  if (im) { const w = s * 1.6, h = w * (im.naturalHeight / im.naturalWidth); g.save(); g.translate(sx, sy); if (flip) g.scale(-1, 1); g.drawImage(im, -w / 2, -h, w, h); g.restore(); }
-  for (let i = 0; i < 3; i++) { const b = P(cx + (i - 1) * 0.18, cy, 0.62 + (i === 1 ? 0.12 : 0)); g.fillStyle = i === 1 ? "#c98b3c" : "#a8702e"; g.fillRect(b[0] - 7, b[1] - 7, 14, 12); g.strokeStyle = "#5a3a12"; g.lineWidth = 1; g.strokeRect(b[0] - 7, b[1] - 7, 14, 12); }
-  const fl = P(cx - 0.25, cy, 1.25), wave = lowQ ? 0 : Math.sin(now / 200) * 3;
-  g.strokeStyle = "#ddd"; g.lineWidth = 2; g.beginPath(); g.moveTo(fl[0], fl[1] + 22); g.lineTo(fl[0], fl[1]); g.stroke();
-  g.fillStyle = "#7fd4ff"; g.beginPath(); g.moveTo(fl[0], fl[1]); g.lineTo(fl[0] + 18, fl[1] + 4 + wave); g.lineTo(fl[0], fl[1] + 10); g.closePath(); g.fill();
-  hpPips(g, cx, cy, 1.55, c.hp, c.maxHp, c.armor, c.maxArmor);
+  const w = s * 1.6, h = im ? w * (im.naturalHeight / im.naturalWidth) : s * 0.8;
+  g.save(); g.translate(sx, sy); if (flip) g.scale(-1, 1);
+  if (im) g.drawImage(im, -w / 2, -h, w, h);
+  // แร็คหลังคา + ลังสินค้ามัดสายรัด (วาดในพิกัดของภาพรถ — ติดไปกับรถ ไม่ลอย · ผู้ใช้ 2026-11-10 "กล่องลอยแปลกๆ ให้แปะไปกับรถ")
+  const roofY = -h * 0.93, rx0 = -w * 0.12, rx1 = w * 0.3;
+  g.fillStyle = "#26282c"; g.fillRect(rx0, roofY - 2, rx1 - rx0, 3);
+  for (const fx of [rx0 + 4, rx1 - 6]) g.fillRect(fx, roofY - 2, 2.5, h * 0.05);
+  const cw = (rx1 - rx0) / 2.6, ch = cw * 0.72;
+  const crate = (x, y, ww, hh, tone) => {
+    g.fillStyle = tone; g.fillRect(x, y - hh, ww, hh);
+    g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(x, y - hh, ww, hh * 0.22);
+    g.strokeStyle = "#5a3a12"; g.lineWidth = 1.2; g.strokeRect(x + 0.5, y - hh + 0.5, ww - 1, hh - 1);
+    g.beginPath(); g.moveTo(x + 1, y - hh + 1); g.lineTo(x + ww - 1, y - 1); g.stroke();
+  };
+  crate(rx0 + cw * 0.15, roofY - 2, cw, ch, "#b47a34");
+  crate(rx0 + cw * 1.2, roofY - 2, cw * 0.95, ch * 0.9, "#c98b3c");
+  crate(rx0 + cw * 0.65, roofY - 2 - ch * 0.88, cw * 0.9, ch * 0.8, "#d69a48");
+  g.strokeStyle = "rgba(40,30,20,.85)"; g.lineWidth = 2; // สายรัด
+  g.beginPath(); g.moveTo(rx0 + cw * 0.55, roofY); g.lineTo(rx0 + cw * 1.1, roofY - ch * 1.7); g.lineTo(rx0 + cw * 1.65, roofY); g.stroke();
+  // ธงเสบียงปักท้ายแร็ค
+  const px = rx1 - 3, wave = lowQ ? 0 : Math.sin(now / 200) * 3;
+  g.strokeStyle = "#ddd"; g.lineWidth = 2; g.beginPath(); g.moveTo(px, roofY); g.lineTo(px, roofY - h * 0.75); g.stroke();
+  g.fillStyle = "#7fd4ff"; g.beginPath(); g.moveTo(px, roofY - h * 0.75); g.lineTo(px + w * 0.16, roofY - h * 0.68 + wave); g.lineTo(px, roofY - h * 0.58); g.closePath(); g.fill();
+  g.restore();
+  hpPips(g, cx, cy, 1.55, c.hp, c.maxHp, c.armor, c.maxArmor, "ally"); // รถเสบียง = ฝ่ายเรา หลอดเขียว
   void night;
 }
 // ดวงวิญญาณเพื่อนที่ล้ม: เปลวฟ้าลอย + วงรอบ (ถูกช่วยแล้ว = ทอง)
@@ -3526,17 +3568,64 @@ function drawSpirit(g, sp, now, lowQ) {
   glowAt(g, t0[0], t0[1], s * 0.6, rgb, 0.7);
   g.fillStyle = `rgba(${rgb},.95)`; g.beginPath(); g.moveTo(t0[0], t0[1] - s * 0.3); g.quadraticCurveTo(t0[0] + s * 0.16, t0[1], t0[0], t0[1] + s * 0.14); g.quadraticCurveTo(t0[0] - s * 0.16, t0[1], t0[0], t0[1] - s * 0.3); g.fill();
 }
-// จุดสัญญาณภารกิจสำรวจ: ลำแสงทองสูง (เห็นจากไกล) + วงหมุน
+// จุดสัญญาณภารกิจสำรวจ: เสาวิทยุโครงเหล็กบนแท่นปูน + จานรับสัญญาณ + ไฟแดงกะพริบยอด + คลื่นวิทยุแผ่ออก + ลำแสงทองบอกตำแหน่งจากไกล
+//  (ผู้ใช้ 2026-11-10 "มีแค่นี่หรอที่ส่งสัญญาณ" — เดิมมีแค่ลำแสง + วง + อีโมจิ)
 function drawBeacon(g, q, now, lowQ) {
   const cx = q.x + 0.5, cy = q.y + 0.5, [bx, by, s] = P(cx, cy, 0);
-  g.save(); g.translate(bx, by); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 1200);
-  g.strokeStyle = "rgba(255,220,120,.75)"; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, s * 0.45, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
-  const top = P(cx, cy, 6), a = 0.28 + 0.1 * Math.sin(now / 300);
+  // วงพื้นหมุน (ทอง) + ขีดมุม 4 ทิศ
+  g.save(); g.translate(bx, by); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 1600);
+  g.strokeStyle = "rgba(255,220,120,.8)"; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, s * 0.46, 0, TAU); g.stroke();
+  g.lineWidth = 4; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; g.beginPath(); g.arc(0, 0, s * 0.56, a - 0.18, a + 0.18); g.stroke(); }
+  g.restore();
+  // ลำแสงทองสูง (เห็นจากไกล — อ่อนลงให้ตัวเสาเด่น)
+  const top = P(cx, cy, 6), a = 0.16 + 0.08 * Math.sin(now / 300);
   const gr = g.createLinearGradient(bx, by, top[0], top[1]);
-  gr.addColorStop(0, `rgba(255,225,140,${a + 0.2})`); gr.addColorStop(1, "rgba(255,225,140,0)");
-  g.fillStyle = gr; g.beginPath(); g.moveTo(bx - s * 0.16, by); g.lineTo(top[0] - s * 0.05, top[1]); g.lineTo(top[0] + s * 0.05, top[1]); g.lineTo(bx + s * 0.16, by); g.closePath(); g.fill();
-  const ic = P(cx, cy, 1.3 + (lowQ ? 0 : Math.sin(now / 420) * 0.1));
-  emoji(g, "📡", ic[0], ic[1], Math.max(14, s * 0.4));
+  gr.addColorStop(0, `rgba(255,225,140,${a + 0.12})`); gr.addColorStop(1, "rgba(255,225,140,0)");
+  g.fillStyle = gr; g.beginPath(); g.moveTo(bx - s * 0.2, by); g.lineTo(top[0] - s * 0.05, top[1]); g.lineTo(top[0] + s * 0.05, top[1]); g.lineTo(bx + s * 0.2, by); g.closePath(); g.fill();
+  // แท่นปูน (กล่องเตี้ย)
+  const r = 0.2, hB = 0.16;
+  const c0 = [[cx - r, cy - r], [cx + r, cy - r], [cx + r, cy + r], [cx - r, cy + r]];
+  const lo = c0.map(([x, y]) => P(x, y, 0)), hi = c0.map(([x, y]) => P(x, y, hB));
+  const side = (i, col) => { const j = (i + 1) % 4; g.fillStyle = col; g.beginPath(); g.moveTo(lo[i][0], lo[i][1]); g.lineTo(lo[j][0], lo[j][1]); g.lineTo(hi[j][0], hi[j][1]); g.lineTo(hi[i][0], hi[i][1]); g.closePath(); g.fill(); };
+  for (let i = 0; i < 4; i++) side(i, i % 2 ? "#5d6670" : "#77818c");
+  g.fillStyle = "#9aa5b1"; g.beginPath(); hi.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill();
+  // เสาโครงเหล็ก: 4 ขาสอบขึ้นยอด + คานไขว้
+  const H = 1.9, legs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  const at = (z) => { const w = 0.13 * (1 - z / H) + 0.025; return legs.map(([dx, dy]) => P(cx + dx * w, cy + dy * w, hB + z)); };
+  g.strokeStyle = "#c7cdd4"; g.lineWidth = Math.max(1.2, s * 0.03); g.lineCap = "round";
+  const bot = at(0), tp = at(H - hB);
+  for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(bot[i][0], bot[i][1]); g.lineTo(tp[i][0], tp[i][1]); g.stroke(); }
+  g.lineWidth = Math.max(0.8, s * 0.016); g.strokeStyle = "rgba(200,206,214,.75)";
+  for (let k = 0; k < 4; k++) {
+    const z0 = (H - hB) * k / 4, z1 = (H - hB) * (k + 1) / 4, A = at(z0), B = at(z1);
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; g.beginPath(); g.moveTo(A[i][0], A[i][1]); g.lineTo(B[j][0], B[j][1]); g.moveTo(A[j][0], A[j][1]); g.lineTo(B[i][0], B[i][1]); g.stroke(); }
+  }
+  // จานรับสัญญาณ (หันตามเวลาเล็กน้อย)
+  const dz = hB + H * 0.62, dp = P(cx, cy, dz), ang = lowQ ? 0.4 : 0.4 + Math.sin(now / 1800) * 0.5;
+  g.save(); g.translate(dp[0] + Math.cos(ang) * s * 0.12, dp[1]); g.rotate(-0.5 + ang * 0.3);
+  g.fillStyle = "#e9edf2"; g.beginPath(); g.ellipse(0, 0, s * 0.15, s * 0.07, 0, 0, TAU); g.fill();
+  g.fillStyle = "#b8c0c9"; g.beginPath(); g.ellipse(-s * 0.02, 0, s * 0.1, s * 0.045, 0, 0, TAU); g.fill();
+  g.strokeStyle = "#8a939d"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(s * 0.12, -s * 0.03); g.stroke();
+  g.restore();
+  // ไฟยอดกะพริบ + คลื่นวิทยุ 3 วงแผ่ออก
+  const tip = P(cx, cy, hB + H + 0.05), blink = lowQ ? 1 : (Math.sin(now / 260) > 0 ? 1 : 0.35);
+  g.strokeStyle = "#c7cdd4"; g.lineWidth = Math.max(1, s * 0.022); g.beginPath(); g.moveTo(tp[0][0] * 0.5 + tp[2][0] * 0.5, tp[0][1] * 0.5 + tp[2][1] * 0.5); g.lineTo(tip[0], tip[1]); g.stroke();
+  glowAt(g, tip[0], tip[1], s * 0.35, "255,70,70", 0.55 * blink);
+  g.fillStyle = `rgba(255,${blink > 0.5 ? 90 : 40},${blink > 0.5 ? 90 : 40},1)`; g.beginPath(); g.arc(tip[0], tip[1], Math.max(2, s * 0.045), 0, TAU); g.fill();
+  if (!lowQ) for (let i = 0; i < 3; i++) {
+    const f = ((now / 1500) + i / 3) % 1, rr = s * (0.15 + f * 0.75);
+    g.strokeStyle = `rgba(255,225,140,${(1 - f) * 0.75})`; g.lineWidth = 2;
+    g.beginPath(); g.arc(tip[0], tip[1], rr, -Math.PI * 0.85, -Math.PI * 0.55); g.stroke();
+    g.beginPath(); g.arc(tip[0], tip[1], rr, -Math.PI * 0.45, -Math.PI * 0.15); g.stroke();
+  }
+  // ป้ายนับเทิร์นที่เหลือ
+  if (q.left != null) {
+    const lp = P(cx, cy, hB + H + 0.55), w = Math.max(18, s * 0.42), h = Math.max(13, s * 0.26);
+    g.fillStyle = "rgba(20,26,40,.88)"; g.beginPath(); g.roundRect(lp[0] - w / 2, lp[1] - h / 2, w, h, h / 2); g.fill();
+    g.strokeStyle = "rgba(255,220,120,.9)"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#ffe08a"; g.font = `700 ${Math.round(h * 0.72)}px "Chakra Petch", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(`📡${q.left}`, lp[0], lp[1] + 0.5);
+  }
 }
 // โล่เสา: วงหกเหลี่ยมฟ้ารอบเสา (ชั้นละวง)
 function drawWard(g, pl, now) {

@@ -30,6 +30,8 @@ const MOV_BONUS = 2;          // ทุกคนบน Eos
 const WALK_MAX = 5;           // ผู้ใช้สั่ง 2026-11-09: โบนัส +2 ดันระยะเดินได้ไม่เกิน 5 · ค่าเริ่มต้นเกิน 5 / บัฟระยะเดิน (รองเท้า ฯลฯ) ปล่อยตามเดิม · ขี่โชโกโบะ/ขับรถบวกเพิ่ม
 const CHOCO_MOV = 2;          // ขี่โชโกโบะ (ผู้ใช้สั่ง 2026-11-10: น้อยกว่ารถ +3)
 const CHOCO_RESPAWN = 3;      // ตกนกแล้วเกิดใหม่ที่คอกหลัง N เทิร์น
+// พาหนะมีเลือด (ผู้ใช้สั่ง 2026-11-10 "รถพังได้ มีหลอดเลือดสีเขียว โชโกโบะก็เช่นกัน · โดนดาเมจเข้ารถ/นกก่อน · ซ่อม/รักษาได้") — ตัวเลข Claude ตั้ง
+const CAR_HP = 6, CHOCO_HP = 4, CAR_FIX = 3, CHOCO_FEED = 2, FIX_SECS = 1.0;
 const CAR_HIT_DMG = 2;
 const DAEMON_COUNT = 10;      // ผู้ใช้สั่ง 2026-11-09: เกิดน้อยเกิน → มากขึ้น กระจายทั่วแผนที่ เกิดซ้ำทุกเทิร์นกลางคืน
 const DAEMON_REFILL = 3;      // กลางคืนเทิร์นถัดไป: เติมกลับไม่เกินกี่ตัว/เทิร์น จนครบ DAEMON_COUNT
@@ -84,8 +86,8 @@ const nightAt = (ctx, round) => { try { return !!ctx.engine.isNightRound(round);
 function enter(ctx, st) {
   st.eos = {
     visit: ++VISIT, seq: 0,
-    cars: MAP.CARS.map(([x, y], i) => ({ id: `fd:car${i + 1}`, img: i + 1, x, y, driver: null, dx: -1, dy: 0 })),
-    chocos: MAP.CHOCOBOS.map(([x, y], i) => ({ id: `fd:choco${i + 1}`, home: { x, y }, x, y, rider: null, back: 0 })),
+    cars: MAP.CARS.map(([x, y], i) => ({ id: `fd:car${i + 1}`, img: i + 1, x, y, driver: null, dx: -1, dy: 0, hp: CAR_HP, broken: false })),
+    chocos: MAP.CHOCOBOS.map(([x, y], i) => ({ id: `fd:choco${i + 1}`, home: { x, y }, x, y, rider: null, back: 0, hp: CHOCO_HP })),
     riders: {},      // id ผู้ขี่ → { choco, mark } (mark = เลือด+เกราะล่าสุด — ลดลง = ตกนก)
     night: false, // เทิร์นแรกเป็นกลางคืน (เริ่มแมตช์กลางเทิร์น — dev) = ปีศาจเกิดต้นเทิร์นแรก
     nightNo: 0, dayNo: 1, // คืนที่เท่าไหร่ (ปีศาจแกร่งขึ้นทุกคืน) · วันที่เท่าไหร่ (ทหารเหล็กแกร่งขึ้นทุกวัน)
@@ -187,14 +189,71 @@ function checkRiders(ctx, s) {
       if (c) sendHome(ctx, s, c, from);
       continue;
     }
-    const now = markOf(p);
-    if (now < r.mark) {
-      const c = unride(ctx, s, pid);
-      ctx.fx("choco_fall", { id: p.id, x: p.pos.x, y: p.pos.y });
-      ctx.log(`🐤 ${p.name} ตกจากโชโกโบะ!`);
-      if (c) sendHome(ctx, s, c, from);
-    } else r.mark = now; // ฟื้นเลือด = จุดอ้างอิงใหม่
+    r.mark = markOf(p); // นกรับดาเมจแทนแล้ว (absorbDamage) — ตกนกเมื่อนกเลือดหมดเท่านั้น
   }
+}
+// ============================================================ พาหนะรับดาเมจแทน (combat → fodlan.absorbDamage → ที่นี่ · ทีละ 1 หน่วย)
+function absorbDamage(ctx, st, p) {
+  const s = st && st.eos;
+  if (!s || !p || !p.alive || !p.pos) return false;
+  const r = s.riders[p.id];
+  const c = r ? s.chocos.find((o) => o.id === r.choco) : null;
+  if (c) {
+    c.hp = Math.max(0, (c.hp ?? CHOCO_HP) - 1);
+    ctx.bump();
+    if (c.hp <= 0) {
+      const from = { x: p.pos.x, y: p.pos.y };
+      unride(ctx, s, p.id);
+      ctx.fx("choco_fall", { id: p.id, x: from.x, y: from.y });
+      ctx.log(`🐤 โชโกโบะของ ${p.name} บาดเจ็บหนัก วิ่งกลับคอก!`);
+      sendHome(ctx, s, c, from);
+    }
+    return true;
+  }
+  const car = carOf(ctx, s, p);
+  if (car) {
+    car.hp = Math.max(0, (car.hp ?? CAR_HP) - 1);
+    ctx.bump();
+    if (car.hp <= 0) breakCar(ctx, s, p, car);
+    return true;
+  }
+  return false;
+}
+// รถพัง: คนขับกระเด็นลงช่องข้างรถ · ผู้โดยสารลง · รถจอดค้างเป็นสิ่งกีดขวาง ขับไม่ได้จนกว่าจะซ่อม
+function breakCar(ctx, s, p, car) {
+  car.broken = true;
+  const spot = leaveTiles(ctx, s, p)[0] || null;
+  if (spot) {
+    p.pos = { x: spot.x, y: spot.y };
+    const a = ctx.match.action;
+    if (a && ctx.match.actorId === p.id) { a.from = { ...p.pos }; a.trail = null; a.path = null; a.locked = true; }
+  }
+  park(ctx, s, car, true);
+  ctx.fx("car_break", { id: p.id, car: car.id, x: car.x, y: car.y, to: spot });
+  ctx.log(`💥 รถของ ${p.name} พัง!`);
+}
+// ซ่อมรถ/ป้อนอาหารโชโกโบะ: พาหนะที่ติดตัว (หรือที่ตัวเองขับ/ขี่) เลือดไม่เต็ม — เลือกคันที่เลือดน้อยสุด
+function fixTargets(ctx, s, p) {
+  if (!p || !p.pos) return [];
+  const out = [];
+  const near = (x, y) => x != null && Math.abs(x - p.pos.x) + Math.abs(y - p.pos.y) <= 1;
+  for (const c of s.cars) if ((c.hp ?? CAR_HP) < CAR_HP && (c.driver === p.id || (!c.driver && near(c.x, c.y)) || (c.driver && near(c.x, c.y)))) out.push({ kind: "car", o: c, k: (c.hp ?? CAR_HP) / CAR_HP });
+  for (const c of s.chocos) if (c.x != null && (c.hp ?? CHOCO_HP) < CHOCO_HP && (c.rider === p.id || near(c.x, c.y))) out.push({ kind: "choco", o: c, k: (c.hp ?? CHOCO_HP) / CHOCO_HP });
+  return out.sort((a, b) => a.k - b.k);
+}
+function fixVehicle(ctx, s, p) {
+  if (!canStrike(ctx, p)) return false;
+  const t = fixTargets(ctx, s, p)[0];
+  if (!t) return false;
+  const o = t.o, max = t.kind === "car" ? CAR_HP : CHOCO_HP, add = t.kind === "car" ? CAR_FIX : CHOCO_FEED;
+  const was = o.hp ?? max;
+  o.hp = Math.min(max, was + add);
+  if (t.kind === "car" && o.broken && o.hp > 0) o.broken = false;
+  ctx.bump();
+  ctx.fx("vehicle_fix", { id: p.id, kind: t.kind, target: o.id, x: o.x, y: o.y, amount: o.hp - was });
+  ctx.log(t.kind === "car" ? `🔧 ${p.name} ซ่อมรถ +${o.hp - was}` : `🥬 ${p.name} ป้อนผักกิซาลให้โชโกโบะ +${o.hp - was}`);
+  ctx.useStrike(p, FIX_SECS);
+  return true;
 }
 function respawnChocos(ctx, s) {
   const round = ctx.match.roundNumber + 1;
@@ -202,7 +261,7 @@ function respawnChocos(ctx, s) {
     if (c.x != null || c.rider || round < c.back) continue;
     const spot = freeNear(ctx, s, c.home.x, c.home.y, 2);
     if (!spot) continue;
-    c.x = spot.x; c.y = spot.y; c.back = 0;
+    c.x = spot.x; c.y = spot.y; c.back = 0; c.hp = CHOCO_HP; // พักที่คอกหายดี
     ctx.bump();
     ctx.fx("choco_back", { choco: c.id, x: c.x, y: c.y });
   }
@@ -257,7 +316,7 @@ function driving(s, p) { return !!(s && p && s.cars.some((c) => c.driver === p.i
 function canDrive(ctx, s, p) {
   return !!(p && p.alive && p.pos && !p.summon && !p.mountId && sizeOf(ctx, p) === 1 && !ctx.action.flies(p) && !onHorse(p) && !riding(s, p) && !driving(s, p));
 }
-const carNear = (ctx, s, p) => s.cars.filter((c) => !c.driver && Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) === 1);
+const carNear = (ctx, s, p) => s.cars.filter((c) => !c.driver && !c.broken && Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) === 1);
 const specialOf = (ctx, x, y) => {
   const m = ctx.match.board || {};
   if (m.ice && m.ice[K(x, y)]) return "ice";
@@ -436,7 +495,7 @@ function freeNear(ctx, s, x0, y0, maxD = 4, selfId = null, extra = null) {
 const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const MOB_NAMES = { daemon: "ปีศาจ", beast: "สัตว์ยักษ์", magitek: "ทหารเหล็ก", nest: "รังปีศาจ", giant: "ยักษ์หิน", gold: "โชโกโบะทอง" };
 const MOB_COLORS = { daemon: "#8a2f9c", beast: "#7a5230", magitek: "#59636f", nest: "#5a1a4a", giant: "#7d7568", gold: "#f2c21b" };
-const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 4 + 1}.webp`;
+const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 8 + 1}.webp`;
 // ค่าพลังตามคืน/วัน (n = 1, 2, 3 …) — Claude ตั้งตัวเลข
 function daemonStats(n) {
   const k = Math.max(0, (n | 0) - 1);
@@ -453,7 +512,7 @@ function spawnMob(ctx, s, type, at, stats, extra = {}) {
   const rec = lazySummon().spawn(MOB_OWNER, {
     kind: "eosMob", pos: { x: at.x, y: at.y }, hp: stats.hp, armor: stats.armor, mov: stats.mov, range: [1, 1],
     name: (extra.trait && TRAIT_NAMES[extra.trait]) || (MOB_NAMES[type] + (extra.tier > 1 ? ` ${"I".repeat(Math.min(3, extra.tier))}` : "")),
-    img: type === "daemon" ? daemonImg(look) : type === "magitek" ? "/eos/img/magitek.webp" : null,
+    img: type === "daemon" ? daemonImg(look) : type === "magitek" ? (extra.trait === "mech" ? "/eos/img/magitek_ex.webp" : "/eos/img/magitek.webp") : null,
     color: MOB_COLORS[type],
     data: { side: MOB_SIDE, eos: s.visit, mobType: type, atk: stats.atk, gold: stats.gold, look, tier: extra.tier || 1, trait: extra.trait || null, roarAt: ctx.match.roundNumber + 1, ship: extra.ship || null, home: extra.home || null, aggro: null, aggroUntil: 0, mark: stats.hp + stats.armor, born: ctx.match.roundNumber + 1 },
   });
@@ -461,7 +520,7 @@ function spawnMob(ctx, s, type, at, stats, extra = {}) {
 }
 const mobType = (m) => (m && m.summon ? m.summon.mobType : null);
 // มอนพิเศษมีนิสัย (ผู้ใช้เลือก 2026-11-10): ระเบิด · หมอ · ยิงไกล · บอส (ราชาปีศาจ — eosEvents)
-const TRAIT_NAMES = { bomber: "ปีศาจระเบิด", healer: "ปีศาจหมอ", sniper: "ทหารเหล็กยิงไกล", boss: "ราชาปีศาจ" };
+const TRAIT_NAMES = { bomber: "ปีศาจระเบิด", healer: "ปีศาจหมอ", sniper: "ทหารเหล็กยิงไกล", boss: "ราชาปีศาจ", mech: "หุ่นเกราะจักรวรรดิ" };
 const TRAIT = { bombDmg: 3, healAmt: 2, healReach: 2, sniperRange: 3, sniperDmg: 2, healerMax: 2 };
 function pickTrait(ctx, s) {
   if ((s.nightNo || 0) < 2) return null;
@@ -474,6 +533,7 @@ function traitStats(st, trait) {
   if (trait === "bomber") return { ...st, hp: Math.max(1, Math.round(st.hp * 0.7)), armor: 0, atk: TRAIT.bombDmg };
   if (trait === "healer") return { ...st, atk: 0, mov: Math.max(3, st.mov - 1) };
   if (trait === "sniper") return { ...st, hp: Math.max(1, st.hp - 1), atk: TRAIT.sniperDmg };
+  if (trait === "mech") return { ...st, hp: st.hp * 2 + 2, armor: st.armor + 2, atk: st.atk + 1, mov: Math.max(2, st.mov - 1), gold: st.gold * 3 + 2 }; // หุ่นเกราะ: ถึก ตีแรง เดินช้า เหรียญเยอะ
   return st;
 }
 // ความเสียหายจากด่านที่มีต้นเหตุ (by = ผู้เล่น — ฆ่าได้ = เครดิต/ของรางวัล · พวกเดียวกันไม่โดน)
@@ -508,7 +568,7 @@ function spawnDaemons(ctx, s, n = nightTarget(ctx, s)) {
   }
   const tier = Math.max(1, s.nightNo || 1), stats = E.scaleStats(ctx, daemonStats(tier));
   const had = mobsOf(ctx, "daemon").length;
-  for (const t of picked) { const trait = pickTrait(ctx, s); spawnMob(ctx, s, "daemon", t, traitStats(stats, trait), { look: 1 + (++s.seq % 4), tier, trait }); }
+  for (const t of picked) { const trait = pickTrait(ctx, s); spawnMob(ctx, s, "daemon", t, traitStats(stats, trait), { look: 1 + (++s.seq % 8), tier, trait }); }
   if (picked.length) {
     ctx.bump();
     ctx.fx("daemon_spawn", { list: picked.map((t) => ({ x: t.x, y: t.y })), tier });
@@ -614,7 +674,7 @@ function actMonsters(ctx, s) {
       if (round >= (sm.roarAt || 0) + E.BOSS.roarEvery) {
         sm.roarAt = round;
         const st = E.scaleStats(ctx, daemonStats(Math.max(1, s.nightNo || 1))), spawned = [];
-        for (let i = 0; i < 2; i++) { const at = freeNear(ctx, s, m.pos.x, m.pos.y, 3); if (at) { const d = spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 4), tier: s.nightNo || 1 }); spawned.push({ id: d.id, x: at.x, y: at.y }); } }
+        for (let i = 0; i < 2; i++) { const at = freeNear(ctx, s, m.pos.x, m.pos.y, 3); if (at) { const d = spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 8), tier: s.nightNo || 1 }); spawned.push({ id: d.id, x: at.x, y: at.y }); } }
         if (spawned.length) ctx.fx("boss_roar", { id: m.id, x: m.pos.x, y: m.pos.y, spawned });
       }
       const adjP = all.filter((p) => footOf(ctx, p).some((tt) => manhattan(tt, m.pos) === 1));
@@ -1157,6 +1217,7 @@ const FIRE_DMG = 1, FIRE_BURN = 2, THUNDER_DMG = 2, SHOCK_DMG = 2;
 const TURRET_RANGE = 6, TURRET_DMG = 2;
 const BEAST = { hp: 12, armor: 2, atk: 3, mov: 3, gold: 6, aggroTurns: 2, respawn: 6, wander: 2, reach: 2 };
 const MAGITEK = { hp: 4, armor: 1, atk: 2, mov: 3, gold: 2, count: 3, stay: 4 };
+const MECH = { chance: 0.25, perDay: 0.1 }; // หุ่นเกราะ: โอกาสต่อยาน 25% + 10% ต่อวันที่ผ่านไป
 const DROP_FROM = 2; // ยานลงได้ตั้งแต่เทิร์น 2 (กลางวันลงบ่อย — dropshipTurn)
 const ELEMENTS = ["fire", "ice", "thunder"];
 const ELEMENT_NAMES = { fire: "ไฟ", ice: "น้ำแข็ง", thunder: "สายฟ้า" };
@@ -1321,10 +1382,13 @@ function dropshipTurn(ctx, s, turn) {
         spawned.push({ id: m.id, x: at.x, y: at.y, sniper: tr === "sniper" });
       }
       if (spawned.length < n) { const extra = freeNear(ctx, s, d.x, d.y, 3); if (extra) { const m = spawnMob(ctx, s, "magitek", extra, stats, { ship: d.id, tier }); spawned.push({ id: m.id, x: extra.x, y: extra.y }); } }
+      // หุ่นเกราะจักรวรรดิ (ภาพจากผู้ใช้ 2026-11-10 "หุ่นพิเศษที่จะมีโอกาสโผล่มาพร้อมกองทัพ") — ลำละไม่เกิน 1 ตัว · โอกาส MECH.chance (Claude ตั้ง)
+      let mech = false;
+      if (ctx.rng() < MECH.chance + MECH.perDay * Math.max(0, tier - 1)) { const at = freeNear(ctx, s, d.x, d.y, 3); if (at) { const m = spawnMob(ctx, s, "magitek", at, traitStats(stats, "mech"), { ship: d.id, tier, trait: "mech" }); spawned.push({ id: m.id, x: at.x, y: at.y, mech: true }); mech = true; } }
       d.state = "landed"; d.leaveAt = turn + MAGITEK.stay;
       ctx.bump();
       ctx.fx("dropship_land", { id: d.id, x: d.x, y: d.y, spawned });
-      ctx.log(`🛸 ยานจักรวรรดิลงจอด — ทหารเหล็ก ${spawned.length} ตัว!`);
+      ctx.log(`🛸 ยานจักรวรรดิลงจอด — ทหารเหล็ก ${spawned.length - (mech ? 1 : 0)} ตัว${mech ? " + หุ่นเกราะจักรวรรดิ!" : "!"}`);
       secs = SECS.dropship;
     } else if (d.state === "landed" && turn >= d.leaveAt) {
       for (const m of mobsOf(ctx, "magitek")) if (m.summon.ship === d.id) lazySummon().remove(m);
@@ -1759,6 +1823,7 @@ function hudActions(ctx, st, p) {
   if (DOME_CORE && ctx.adjacent(p, DOME_CORE.x, DOME_CORE.y)) out.push({ key: "fd:dome", icon: "🛡️", name: "โดม", disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
   const sw = switchNear(ctx, p);
   if (sw) out.push({ key: "fd:lights", icon: "💡", name: lit(s, sw.zone) ? "ดับไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p) });
+  if (fixTargets(ctx, s, p).length) { const ft = fixTargets(ctx, s, p)[0]; out.push({ key: "fd:fix", icon: ft.kind === "car" ? "🔧" : "🥬", name: ft.kind === "car" ? "ซ่อมรถ" : "ป้อนอาหาร", disabled: !canStrike(ctx, p) }); }
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
   for (const el of [...new Set(flasksOf(s, p))]) {
     out.push({ key: `fd:flask:${el}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", name: `ขวด${ELEMENT_NAMES[el]}`, count: flasksOf(s, p).filter((e) => e === el).length, disabled: !canStrike(ctx, p), tiles: canStrike(ctx, p) ? flaskTiles(ctx, p) : [] });
@@ -1784,7 +1849,8 @@ const HUD_DESC = {
   "fd:seat": "ขอนั่งรถที่เพื่อนขับ (คนขับต้องกดยอม) — ไปกับรถ ไม่ร่วงตอนคนขับโดนตี",
   "fd:ram": `ขับชนมอนเตอร์ที่ติดรถ: ดาเมจ ${CAR_HIT_DMG} + กระเด็น 1 ช่อง (ใช้การโจมตีของตา)`,
   "fd:leave": "ลงจากรถ (ไม่เสียการเดิน) — รถจอดไว้ที่เดิม ผู้โดยสารลงหมด",
-  "fd:mount": `กระโดดขึ้นหลังโชโกโบะ — ยังไม่ได้เดิน = เดินต่อจากนกได้เต็มระยะ +${CHOCO_MOV}\nผ่านป่า/น้ำตื้นกิน 1 ก้าว · โดนดาเมจ = ตกนก`,
+  "fd:mount": `กระโดดขึ้นหลังโชโกโบะ — ยังไม่ได้เดิน = เดินต่อจากนกได้เต็มระยะ +${CHOCO_MOV}\nผ่านป่า/น้ำตื้นกิน 1 ก้าว · โดนดาเมจ นกรับแทนก่อน (นกเลือดหมด = ตกนก นกกลับคอก)`,
+  "fd:fix": `ซ่อมรถ +${CAR_FIX} / ป้อนผักให้โชโกโบะ +${CHOCO_FEED} — คันหรือตัวที่ติดตัวหรือที่ขับ/ขี่อยู่ เลือดน้อยสุดก่อน · รถพังซ่อมแล้วขับได้อีก (ใช้การโจมตี)`,
   "fd:dismount": "ลงจากโชโกโบะ วางนกไว้ช่องข้างตัว (ไม่เสียการเดิน)",
   "fd:lever": "ยก/ลดสะพานทั้งเมือง Altissia — ยกขึ้น = เดินข้ามไม่ได้ (ใช้การโจมตีของตา)",
   "fd:dome": `เปิดโดมกำแพงเวท Insomnia ${DOME_TURNS} เทิร์น — ปิดประตูเมือง ตีจากนอกโดมเข้าไปไม่ได้ (ใช้การโจมตี)`,
@@ -1832,6 +1898,7 @@ function charAction(ctx, st, p, key, tile) {
   if (key === "fd:dome") return raiseDome(ctx, s, p);
   if (key === "fd:lights") return flipLights(ctx, s, p);
   if (key === "fd:push") return pushWreck(ctx, s, p);
+  if (key === "fd:fix") return fixVehicle(ctx, s, p);
   if (key === "fd:turret") return fireTurret(ctx, s, p, tile);
   if (typeof key === "string" && key.startsWith("fd:flask:")) return throwFlask(ctx, s, p, key.slice(9), tile);
   if (key === "fd:dismount") {
@@ -1981,9 +2048,9 @@ function publicInfo(ctx, st) {
   return {
     eos: true,
     night: !!s.night,
-    cars: s.cars.map((c) => ({ id: c.id, img: c.img, x: c.x, y: c.y, size: 1, driver: c.driver || null, dx: c.dx || 0, dy: c.dy || 0 })),
+    cars: s.cars.map((c) => ({ id: c.id, img: c.img, x: c.x, y: c.y, size: 1, driver: c.driver || null, dx: c.dx || 0, dy: c.dy || 0, hp: c.hp ?? CAR_HP, maxHp: CAR_HP, broken: !!c.broken })),
     ...p4Public(ctx, s), // ขั้น 4: ราง/ชานชาลา · อุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา · สุสาน
-    chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home } })),
+    chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home }, hp: c.hp ?? CHOCO_HP, maxHp: CHOCO_HP })),
     riders,
     daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null })),
     warn: [
@@ -2031,6 +2098,7 @@ function playerInfo(ctx, st, p) {
 }
 
 module.exports = {
+  absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED,
   enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,

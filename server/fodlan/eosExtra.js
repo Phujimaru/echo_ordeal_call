@@ -156,7 +156,7 @@ function nestBurst(ctx, s, H, freshNight) {
     for (let i = 0; i < n; i++) {
       const at = H.freeNear(ctx, s, nest.pos.x, nest.pos.y, 2, null, (xx, yy) => !lightSafe(H, xx, yy) && !H.townOf(xx, yy));
       if (!at) break;
-      const d = H.spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 4), tier });
+      const d = H.spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 8), tier });
       out.push({ id: d.id, x: at.x, y: at.y, nest: nest.id });
     }
   }
@@ -361,7 +361,7 @@ function finalWave(ctx, s, H, turn) {
       cand.push(t);
     }
     for (const t of ctx.pick(cand, FINAL.perPillar)) {
-      const d = H.spawnMob(ctx, s, "daemon", t, st, { look: 1 + (++s.seq % 4), tier });
+      const d = H.spawnMob(ctx, s, "daemon", t, st, { look: 1 + (++s.seq % 8), tier });
       out.push({ id: d.id, x: t.x, y: t.y, pillar: pl.id });
     }
   }

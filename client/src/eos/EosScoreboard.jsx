@@ -27,8 +27,27 @@ const POWER = {
   lake: { icon: "🎣", tip: "ตกปลาไม่เจอปลายักษ์ · เหรียญ ×2" },
 };
 
+// การ์ดคำอธิบาย: ชี้ = ขึ้นทางซ้าย · กด = ปักค้าง (ชี้ออก = ปิด) — ผู้ใช้ 2026-11-10 "เอาเมาส์ชี้หรือกดอะไรไม่ได้ ไม่มีคำอธิบาย ออกแบบ UI ดีๆหน่อย"
+function Tip({ icon, title, lines, children }) {
+  const [on, setOn] = useState(false);
+  return (
+    <span className="eos-tipw" onMouseEnter={() => setOn(true)} onMouseLeave={() => setOn(false)}
+      onPointerDown={(e) => { if (e.pointerType !== "mouse") setOn((v) => !v); }} onFocus={() => setOn(true)} onBlur={() => setOn(false)}>
+      {children}
+      {on && (
+        <span className="eos-tip" role="tooltip">
+          <span className="eos-tip-head"><span className="eos-tip-ico">{icon}</span><b>{title}</b></span>
+          {lines.filter(Boolean).map((l, i) => <span key={i} className="eos-tip-line">{l}</span>)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default function EosScoreboard({ state }) {
-  const [open, setOpen] = useState(false); // ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-11-09) — แท็บมีจุดเสา 5 ดวงบอกสถานะอยู่แล้ว
+  const [open, setOpen] = useState(false);
+  const [fold, setFoldRaw] = useState(() => { try { return localStorage.getItem("eos.hudFold") === "1"; } catch { return false; } });
+  const setFold = (f) => setFoldRaw((v) => { const n = typeof f === "function" ? f(v) : f; try { localStorage.setItem("eos.hudFold", n ? "1" : "0"); } catch { /* ไม่มีที่เก็บ */ } return n; }); // ปิดไว้ก่อน (ผู้ใช้สั่ง 2026-11-09) — แท็บมีจุดเสา 5 ดวงบอกสถานะอยู่แล้ว
   const b = state && state.fodlan && state.fodlan.board;
   if (!b || !b.pve || !Array.isArray(b.pillars)) return null;
   const goal = b.goal || 50, score = b.score || 0, rate = b.rate || 0;
@@ -38,49 +57,90 @@ export default function EosScoreboard({ state }) {
   const round = state.roundNumber || 0;
   const k = Math.max(0, Math.min(1, score / goal));
   const toggle = () => setOpen((v) => !v);
+  const gauge = b.gauge || 0, gaugeFull = b.gaugeMax > 0 && gauge >= b.gaugeMax;
   return (
     <div className="eos-score" data-open={open ? "true" : "false"}>
-      <div className="eos-score-col">
-        <button type="button" className="eos-score-tab" onClick={toggle} aria-expanded={open} aria-label="เสา"
-          title={`แต้มรวมของทุกคน ${score}/${goal} — ครบแล้วชนะ · จบเทิร์นได้ +${rate} ตามจำนวนเสาที่ยึดไว้ (${RATE.slice(1).join("/")} ต่อ 1–5 ต้น)`}>
-          <span className="eos-score-ico">🔷</span>
-          <b>{score}</b><small>/{goal}</small>
-          {rate > 0 && <em className="eos-score-rate">+{rate}</em>}
-          <span className="eos-score-dots" aria-hidden="true">
-            {b.pillars.map((pl) => <i key={pl.id} data-s={pl.owner ? (pl.hits ? "hit" : "own") : pl.ch ? "ch" : "free"} style={{ "--z": (ZONE[pl.zone] || {}).color }} />)}
-          </span>
-          <i className="eos-score-arrow" aria-hidden="true">{open ? "›" : "‹"}</i>
+      {/* การ์ดเดียว (ผู้ใช้ 2026-11-10 "ดูรก ให้พับเก็บได้ ปรับหน้าตาใหม่") — หัว = แต้มรวม (กด = แผงรายเสา) · ▾ = พับ/กางเนื้อหา */}
+      <div className="eos-hud" data-fold={fold ? "true" : undefined}>
+        <div className="eos-hud-head">
+          <Tip icon="🔷" title={`แต้มรวมทีม ${score}/${goal}`} lines={[
+            "ทั้งทีมเก็บแต้มร่วมกัน — ครบเป้าแล้วทุกคนชนะ",
+            `ยึดเสาคริสตัล = ได้แต้มทุกจบเทิร์น (ถือ 1–5 ต้น = ${RATE.slice(1).join("/")})`,
+            rate > 0 ? `จบเทิร์นนี้จะได้ +${rate}` : "ยังไม่มีเสา — ยังไม่ได้แต้มต่อเทิร์น",
+            "เพชร 5 เม็ด = เสาแต่ละโซน (ทึบ = ยึดแล้ว · กะพริบ = กำลังร่าย/โดนตี)",
+            "กดเพื่อดูรายละเอียดรายเสา",
+          ]}>
+            <button type="button" className="eos-hud-score" onClick={toggle} aria-expanded={open} aria-label="แต้มรวมทีม">
+              <span className="eos-hud-gem" aria-hidden="true">◆</span>
+              <b>{score}</b><small>/{goal}</small>
+              {rate > 0 && <em className="eos-score-rate">+{rate}</em>}
+              <span className="eos-score-dots" aria-hidden="true">
+                {b.pillars.map((pl) => <i key={pl.id} data-s={pl.owner ? (pl.hits ? "hit" : "own") : pl.ch ? "ch" : "free"} style={{ "--z": (ZONE[pl.zone] || {}).color }} />)}
+              </span>
+            </button>
+          </Tip>
+          <button type="button" className="eos-hud-fold" onClick={() => setFold((v) => !v)} aria-label={fold ? "กาง" : "พับ"} aria-expanded={!fold}>{fold ? "▸" : "▾"}</button>
           <span className="eos-score-bar"><b style={{ width: `${k * 100}%` }} />{b.finalAt && <i className="eos-score-final" style={{ left: `${(b.finalAt / goal) * 100}%` }} />}</span>
-        </button>
-        {b.gaugeMax > 0 && (
-          <div className="eos-gauge" data-full={(b.gauge || 0) >= b.gaugeMax ? "true" : undefined}
-            title={`มาตรวัดทีม ${b.gauge || 0}/${b.gaugeMax} — ล้มมอน/ท่าร่วม/ทำลายรังเติม · เต็มแล้วกด "ถล่ม" วง 5×5 ดาเมจ 4 ที่ไหนก็ได้`}>
-            <span className="eos-gauge-ico" aria-hidden="true">☄️</span>
-            <span className="eos-gauge-bar"><b style={{ width: `${Math.min(1, (b.gauge || 0) / b.gaugeMax) * 100}%` }} /></span>
-            {b.final && <span className="eos-final-chip" title="คืนสุดท้าย — กลางคืนถาวร ปีศาจบุกเสาทุกเทิร์น">🌑</span>}
-          </div>
-        )}
-        {(b.perks || []).length > 0 && (
-          <div className="eos-powers eos-perks-row">
-            {b.perks.map((c) => <span key={c.id} className="eos-power" style={{ "--z": "#ffd25a" }} title={`การ์ดทีม ${c.name}: ${c.desc}`}>{c.icon}</span>)}
-          </div>
-        )}
-        {(b.powers || []).length > 0 && (
-          <div className="eos-powers">
-            {b.powers.map((z) => <span key={z} className="eos-power" style={{ "--z": (ZONE[z] || {}).color }} title={`พลังเสา ${(ZONE[z] || {}).name || z}: ${(POWER[z] || {}).tip || ""}`}>{(POWER[z] || {}).icon || "✨"}</span>)}
-          </div>
-        )}
-        {dead.length > 0 && (
-          <div className="eos-revive" title="เพื่อนที่ล้มจะฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด · ล้มหมดทุกคนพร้อมกัน = แพ้">
-            {dead.map((r) => {
-              const left = Math.max(0, (r.at || 0) - round);
-              return (
-                <span key={r.id} className="eos-revive-face" data-soon={left <= 1 ? "true" : undefined} title={`${r.p.name} ฟื้นในอีก ${left} เทิร์น`}>
-                  {r.p.img ? <img src={r.p.img} alt="" /> : <i style={{ background: r.p.color || "#888" }} />}
-                  <b>{left}</b>
+        </div>
+        {!fold && (
+          <div className="eos-hud-body">
+            {b.gaugeMax > 0 && (
+              <Tip icon="☄️" title={`มาตรวัดทีม ${gauge}/${b.gaugeMax}`} lines={[
+                "เติมเมื่อ: ล้มมอนเตอร์ · ท่าร่วม (หลายคนตีมอนตัวเดียวกัน) · ทำลายรัง",
+                "เต็มแล้ว: ปุ่ม \"ถล่ม\" ขึ้นในแถบคำสั่ง — เลือกจุดไหนก็ได้ วง 5×5 ดาเมจ 4",
+                gaugeFull ? "เต็มแล้ว — ใช้ได้เลย" : `อีก ${b.gaugeMax - gauge} จะเต็ม`,
+                b.final ? "คืนสุดท้าย: กลางคืนถาวร ปีศาจบุกเสาทุกเทิร์น" : "",
+              ]}>
+                <div className="eos-hud-row eos-gauge" data-full={gaugeFull ? "true" : undefined}>
+                  <span className="eos-hud-label">☄️ มาตรวัดทีม</span>
+                  <span className="eos-gauge-num">{gaugeFull ? "พร้อม!" : `${gauge}/${b.gaugeMax}`}</span>
+                  <span className="eos-gauge-bar"><b style={{ width: `${Math.min(1, gauge / b.gaugeMax) * 100}%` }} /></span>
+                  {b.final && <span className="eos-final-chip">🌑 คืนสุดท้าย</span>}
+                </div>
+              </Tip>
+            )}
+            {(b.perks || []).length > 0 && (
+              <div className="eos-hud-row eos-hud-chips">
+                <span className="eos-hud-label">✨ การ์ดทีม</span>
+                <span className="eos-power-row">
+                  {b.perks.map((c) => (
+                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}`} lines={[c.desc, "ได้จากโหวตตอนแต้มรวมถึง 10/20/30 · ติดทั้งทีมจนจบเกม"]}>
+                      <span className="eos-power" style={{ "--z": "#e0a92a" }}>{c.icon}</span>
+                    </Tip>
+                  ))}
                 </span>
-              );
-            })}
+              </div>
+            )}
+            {(b.powers || []).length > 0 && (
+              <div className="eos-hud-row eos-hud-chips">
+                <span className="eos-hud-label">🔷 พลังเสา</span>
+                <span className="eos-power-row">
+                  {b.powers.map((z) => (
+                    <Tip key={z} icon={(POWER[z] || {}).icon || "✨"} title={`พลังเสา ${(ZONE[z] || {}).name || z}`} lines={[(POWER[z] || {}).tip || "", "ทำงานตลอดที่ทีมยังถือเสาต้นนี้ · เสาหลุด = พลังหาย"]}>
+                      <span className="eos-power" style={{ "--z": (ZONE[z] || {}).color }}>{(POWER[z] || {}).icon || "✨"}</span>
+                    </Tip>
+                  ))}
+                </span>
+              </div>
+            )}
+            {dead.length > 0 && (
+              <div className="eos-hud-row eos-hud-chips">
+                <span className="eos-hud-label">🕯️ รอฟื้น</span>
+                <span className="eos-power-row">
+                  {dead.map((r) => {
+                    const left = Math.max(0, (r.at || 0) - round);
+                    return (
+                      <Tip key={r.id} icon="🕯️" title={`${r.p.name} ฟื้นในอีก ${left} เทิร์น`} lines={["ฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด", "ยืนติดดวงวิญญาณแล้วกด \"ช่วย\" = ฟื้นเร็วขึ้น 1 เทิร์น", "ล้มหมดทุกคนพร้อมกัน = แพ้"]}>
+                        <span className="eos-revive-face" data-soon={left <= 1 ? "true" : undefined}>
+                          {r.p.img ? <img src={r.p.img} alt="" /> : <i style={{ background: r.p.color || "#888" }} />}
+                          <b>{left}</b>
+                        </span>
+                      </Tip>
+                    );
+                  })}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

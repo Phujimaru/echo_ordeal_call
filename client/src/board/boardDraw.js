@@ -557,9 +557,10 @@ function drawTag(g, x, y, tag) {
   g.fillStyle = tag.bust ? "#fff" : isNum ? "#f0d070" : "#dbe8f7"; g.fillText(tag.text, x, y + 1);
   g.textBaseline = "alphabetic";
 }
-function drawReticle(g, x, y, r, kind, now) {
-  const col = kind === "aoe" ? "#ffcf5a" : kind === "attack" ? "#ff8f84" : "#c9a2ff";
-  const rot = now / 900, rr = r + 10 + Math.sin(now / 220) * 2;
+// ally = ฝ่ายเดียวกัน (สนาม Eos: เพื่อน/พลเรือน/รถเสบียง) → วงเขียว · แดงเฉพาะศัตรู (ผู้ใช้ 2026-11-10 "สีแดงให้เป็นวงมอน")
+function drawReticle(g, x, y, r, kind, now, ally = false, pad = 10) {
+  const col = kind === "aoe" ? "#ffcf5a" : kind === "attack" ? (ally ? "#6fe39a" : "#ff8f84") : "#c9a2ff";
+  const rot = now / 900, rr = r + pad + Math.sin(now / 220) * 2;
   g.strokeStyle = col; g.lineWidth = 2.5;
   for (let k = 0; k < 4; k++) { const a = rot + k * Math.PI / 2; g.beginPath(); g.arc(x, y, rr, a, a + 0.9); g.stroke(); }
 }
@@ -644,6 +645,7 @@ export function vitalBig(u) { const [mh, ma] = vitalMax(u); return mh > VITAL_TI
 // ความสูงรวมของหลอด (ใช้วางป้ายเหนือ/ใต้หลอด)
 export function vitalHeight(u, UK = 1) { const [, ma] = vitalMax(u); return (ma > 0 ? 6.5 * UK : 0) + 8 * UK; }
 // วาดหลอดกลางที่ cx ขอบบนที่ y กว้าง w → คืนขอบล่าง
+const HP_TONES = { foe: ["#ff9aa6", "#d93a50", "#ef5a6a", "#9e1f33"], ally: ["#a6f2c0", "#26a65a", "#4cc97a", "#1a7a40"], civ: ["#fff0a6", "#e0b020", "#f5cc3c", "#a87a10"] };
 export function drawVitalBar(g, cx, y, w, u, UK = 1) {
   const [maxHp, maxAr] = vitalMax(u);
   const hp = Math.max(0, Math.min(maxHp, u.hp | 0)), ar = Math.max(0, Math.min(maxAr, u.armor | 0));
@@ -652,13 +654,15 @@ export function drawVitalBar(g, cx, y, w, u, UK = 1) {
   const x = cx - w / 2 + br * 1.2, bw = w - br * 1.2;
   let yy = y;
   if (maxAr > 0) { vitalPill(g, x, yy, bw, 5 * UK, ar, maxAr, "#d8eeff", "#4f97e0", UK); yy += 6.5 * UK; }
-  vitalPill(g, x, yy, bw, 8 * UK, hp, maxHp, "#ff9aa6", "#d93a50", UK);
+  // สีหลอดเลือด (u.hpTone): ally = เขียว (ผู้เล่นทีมเดียวกันในสนาม Eos — ผู้ใช้สั่ง 2026-11-10) · civ = ฟ้า (พลเรือน) · ไม่ใส่ = แดงเดิม
+  const tone = HP_TONES[u.hpTone] || HP_TONES.foe;
+  vitalPill(g, x, yy, bw, 8 * UK, hp, maxHp, tone[0], tone[1], UK);
   const bottom = yy + 8 * UK;
   if (big) {
     const ex = cx - w / 2 + br, ey = (y + bottom) / 2;
     g.beginPath(); g.arc(ex, ey, br + 1.5 * UK, 0, Math.PI * 2); g.fillStyle = "#ffffff"; g.fill();
     g.beginPath(); g.arc(ex, ey, br, 0, Math.PI * 2);
-    const gr = g.createLinearGradient(0, ey - br, 0, ey + br); gr.addColorStop(0, "#ef5a6a"); gr.addColorStop(1, "#9e1f33"); g.fillStyle = gr; g.fill();
+    const gr = g.createLinearGradient(0, ey - br, 0, ey + br); gr.addColorStop(0, tone[2]); gr.addColorStop(1, tone[3]); g.fillStyle = gr; g.fill();
     g.font = `700 ${(hp >= 10 ? 9.5 : 11) * UK}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillStyle = "#ffffff"; g.fillText(String(hp), ex, ey + 0.5 * UK); g.textBaseline = "alphabetic";
   }
@@ -878,7 +882,7 @@ function drawUnit(g, u, now, boxes) {
     const ay = (tb ? py - 6 : hy - hexR - 14) + Math.sin(now / 200) * 3;
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 8, ay - 9); g.lineTo(bx + 8, ay - 9); g.lineTo(bx, ay); g.closePath(); g.fill();
   }
-  if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now); else drawReticle(g, bx, hy, hexR, u.reticle, now); }
+  if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now, u.hpTone === "ally"); else drawReticle(g, bx, hy, hexR, u.reticle, now, u.hpTone === "ally"); }
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
@@ -999,7 +1003,7 @@ function drawBigUnit(g, u, now, boxes) {
     const ay = py - 10 + Math.sin(now / 200) * 3;
     g.fillStyle = "#fff"; g.beginPath(); g.moveTo(bx - 9, ay - 10); g.lineTo(bx + 9, ay - 10); g.lineTo(bx, ay); g.closePath(); g.fill();
   }
-  if (u.reticle) drawReticle(g, bx, (top + by) / 2, Math.max(20, (by - top) * 0.45), u.reticle, now);
+  if (u.reticle) drawReticle(g, bx, (top + by) / 2, Math.max(20, (by - top) * 0.45), u.reticle, now, u.hpTone === "ally");
   g.restore();
   if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: left - 4, y0: top - 4, x1: right + 4, y1: by + s * es * 0.35 });
 }
@@ -1047,7 +1051,7 @@ function drawAnyUnit(g, u, now, boxes) {
   // มอนเตอร์ของสนาม Eos (ยูนิตที่ถูกเรียก — server/fodlan/stage6.js): ภาพตัว/หลอดเลือดวาดใน fodlan/stage6.js items · ที่นี่แค่กรอบคลิก + เป้าเล็ง
   if (u.summon && (u.summon.kind === "eosMob" || u.summon.kind === "eosConvoy" || u.summon.kind === "eosCivilian") && !u.corpse) { // รถเสบียง/พลเรือนวาดใน stage6 items เช่นกัน
     const cx = u.rx + 0.5, cy = u.ry + 0.55, [sx, sy, s] = P(cx, cy, 0);
-    if (u.reticle) drawReticle(g, sx, sy - s * 0.55, Math.max(18, s * 0.5), u.reticle, now);
+    if (u.reticle) drawReticle(g, sx, sy - s * 0.5, Math.max(12, s * 0.34), u.reticle, now, u.summon.kind !== "eosMob", 4); // วงเล็กลง (ผู้ใช้ 2026-11-10 "วงใหญ่เกิน")
     if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: depthOf(cx, cy), x0: sx - s * 0.45, y0: sy - s * 1.45, x1: sx + s * 0.45, y1: sy + s * 0.12 });
     return;
   }

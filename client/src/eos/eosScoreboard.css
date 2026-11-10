@@ -1,85 +1,131 @@
-/* แผงเสา + แต้มรวม (PVE) ของสนาม Eos — EosScoreboard.jsx */
+/* แผงเสา + แต้มรวม (PVE) ของสนาม Eos — EosScoreboard.jsx
+   การ์ดเดียวมุมขวาบน (2026-11-10 "ดูรก ให้พับเก็บได้") · สีตามธีม UI: ปกติ = กระจกขาว · <html data-ui="dark"> = กระจกมืด (ui-theme.css) */
 .eos-score {
-  --es-bg: rgba(14, 22, 38, .84);
-  --es-line: rgba(160, 200, 255, .22);
+  --es-bg: rgba(255, 255, 255, .93);
+  --es-bg2: rgba(236, 244, 252, .9);
+  --es-line: rgba(61, 139, 217, .28);
+  --es-text: #1c3f6e;
+  --es-dim: #5a7aa3;
+  --es-track: rgba(30, 70, 130, .12);
+  --es-gold: #c88a14;
+  --es-good: #1f9a52;
+  --es-bad: #d6455a;
+  --es-accent: #3d8bd9;
+  --es-shadow: 0 8px 22px rgba(20, 50, 100, .18);
+  --es-solid: #ffffff;
+  position: absolute; right: 10px; top: 112px; z-index: 17;
+  display: flex; align-items: flex-start; flex-direction: row-reverse; gap: 8px; pointer-events: none; font-family: "Kanit", sans-serif;
+}
+:root[data-ui="dark"] .eos-score {
+  --es-bg: rgba(14, 22, 38, .9);
+  --es-bg2: rgba(28, 40, 64, .85);
+  --es-line: rgba(160, 200, 255, .2);
   --es-text: #eef4ff;
   --es-dim: rgba(220, 232, 255, .62);
+  --es-track: rgba(255, 255, 255, .1);
   --es-gold: #f0c868;
   --es-good: #9fe2a0;
   --es-bad: #ff7a6a;
-  position: absolute; right: 0; top: 112px; z-index: 17;
-  display: flex; align-items: flex-start; flex-direction: row-reverse; gap: 8px; pointer-events: none; font-family: "Chakra Petch", "Kanit", sans-serif;
+  --es-accent: #7fd4ff;
+  --es-shadow: 0 8px 22px rgba(0, 0, 0, .35);
+  --es-solid: #121c30;
 }
-.eos-score-col { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-/* แท็บ (ติดขอบขวา) */
-.eos-score-tab {
-  position: relative; pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 4px;
-  padding: 8px 10px 12px 12px; border: 1px solid var(--es-line); border-right: 0;
-  border-left: 4px solid #7fd4ff; border-radius: 12px 0 0 12px; background: var(--es-bg); color: var(--es-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .28); backdrop-filter: blur(6px); font: inherit; overflow: hidden;
+.eos-hud-score b, .eos-hud-score small, .eos-hud-score em, .eos-hud-label, .eos-gauge-num, .eos-tip-head b, .eos-tip-line { background: none; } /* กันกฎธีมขาวทาพื้นหลังตัวอักษร (ห้ามโดน .eos-tip/.eos-power — span ที่มีพื้นเอง) */
+/* ---------- การ์ดหลัก ---------- */
+.eos-hud {
+  pointer-events: auto; width: 232px; border-radius: 14px; overflow: visible; color: var(--es-text);
+  background: var(--es-bg); border: 1px solid var(--es-line); box-shadow: var(--es-shadow); backdrop-filter: blur(8px);
 }
-.eos-score-tab:hover { filter: brightness(1.15); }
-.eos-score-ico { font-size: 15px; }
-.eos-score-tab > b { font-size: 20px; font-weight: 700; line-height: 1; }
-.eos-score-tab > small { font-size: 11px; color: var(--es-dim); }
-.eos-score-rate { font-style: normal; color: var(--es-good); font-weight: 700; font-size: 13px; margin-left: 2px; }
-.eos-score-dots { display: flex; gap: 3px; margin-left: 6px; }
+.eos-hud-head { position: relative; display: flex; align-items: center; padding: 8px 6px 11px 12px; }
+.eos-hud-head > .eos-tipw { flex: 1; min-width: 0; }
+.eos-hud-score { flex: 1; display: flex; align-items: baseline; gap: 3px; border: 0; padding: 0; background: none; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.eos-hud-gem { color: var(--es-accent); font-size: 15px; margin-right: 3px; align-self: center; }
+.eos-hud-score > b { font: 700 22px/1 "Chakra Petch", sans-serif; }
+.eos-hud-score > small { font: 500 12px "Chakra Petch", sans-serif; color: var(--es-dim); }
+.eos-score-rate { font-style: normal; color: var(--es-good); font: 700 13px "Chakra Petch", sans-serif; margin-left: 4px; }
+.eos-score-dots { display: flex; gap: 4px; margin-left: auto; align-self: center; padding-right: 4px; }
 .eos-score-dots i { width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid var(--z); background: transparent; }
 .eos-score-dots i[data-s="own"] { background: var(--z); box-shadow: 0 0 6px var(--z); }
 .eos-score-dots i[data-s="hit"] { background: var(--z); border-color: var(--es-bad); box-shadow: 0 0 6px var(--es-bad); animation: eos-pl-blink 1s ease-in-out infinite; }
-.eos-score-dots i[data-s="ch"] { background: rgba(255, 255, 255, .35); animation: eos-pl-blink 1.4s ease-in-out infinite; }
-.eos-score-arrow { font-style: normal; margin-left: 4px; color: var(--es-dim); font-size: 16px; }
-.eos-score-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .1); }
-.eos-score-bar b { display: block; height: 100%; background: linear-gradient(90deg, #7fd4ff, var(--es-gold)); transition: width .6s ease; }
+.eos-score-dots i[data-s="ch"] { background: color-mix(in srgb, var(--z) 40%, transparent); animation: eos-pl-blink 1.4s ease-in-out infinite; }
+:root:not([data-ui="dark"]) .eos-score-dots i { filter: saturate(1.6) brightness(.82); }
+.eos-hud-fold { width: 26px; height: 26px; flex: none; border: 0; border-radius: 8px; background: none; color: var(--es-dim); font-size: 14px; cursor: pointer; }
+.eos-hud-fold:hover { background: var(--es-track); color: var(--es-text); }
+.eos-score-bar { position: absolute; left: 12px; right: 12px; bottom: 5px; height: 4px; border-radius: 2px; background: var(--es-track); }
+.eos-score-bar b { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--es-accent), var(--es-gold)); transition: width .6s ease; }
 .eos-score-final { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #c03a6a; box-shadow: 0 0 4px #ff4a8a; }
-/* มาตรวัดทีม + พลังเสา (PVE รอบสาม) */
-.eos-gauge { pointer-events: auto; display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 8px; min-width: 150px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }
-.eos-gauge-ico { font-size: 15px; filter: grayscale(.6); }
-.eos-gauge-bar { flex: 1; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
-.eos-gauge-bar b { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ff9b52, #ffd25a); transition: width .5s ease; }
-.eos-gauge[data-full="true"] { border-color: #ffd25a; box-shadow: 0 0 14px rgba(255, 200, 90, .55); }
-.eos-gauge[data-full="true"] .eos-gauge-ico { filter: none; animation: eos-gauge-pulse 1s ease-in-out infinite; }
-.eos-gauge[data-full="true"] .eos-gauge-bar b { background: linear-gradient(90deg, #ffd25a, #fff3c0, #ffd25a); background-size: 200% 100%; animation: eos-gauge-shine 1.4s linear infinite; }
-@keyframes eos-gauge-pulse { 50% { transform: scale(1.25); } }
+.eos-hud-body { border-top: 1px solid var(--es-line); padding: 4px 0 6px; animation: eos-hud-open .2s ease-out both; }
+@keyframes eos-hud-open { from { opacity: 0; transform: translateY(-4px); } }
+.eos-hud-body > .eos-tipw { display: block; }
+.eos-hud-row { padding: 6px 12px; cursor: help; }
+.eos-hud-row + .eos-hud-row, .eos-hud-body > .eos-tipw + .eos-hud-row { border-top: 1px dashed transparent; }
+.eos-hud-row:hover { background: var(--es-track); }
+.eos-hud-label { font: 500 12.5px "Kanit", sans-serif; color: var(--es-dim); white-space: nowrap; }
+/* มาตรวัดทีม */
+.eos-gauge { display: grid; grid-template-columns: 1fr auto; align-items: center; row-gap: 5px; }
+.eos-gauge-num { font: 700 13px "Chakra Petch", sans-serif; color: var(--es-text); }
+.eos-gauge-bar { grid-column: 1 / -1; height: 7px; border-radius: 4px; background: var(--es-track); overflow: hidden; }
+.eos-gauge-bar b { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ff9b52, #ffc83a); transition: width .5s ease; }
+.eos-gauge[data-full="true"] .eos-gauge-num, .eos-gauge[data-full="true"] .eos-hud-label { color: var(--es-gold); }
+.eos-gauge[data-full="true"] .eos-gauge-bar b { background: linear-gradient(90deg, #ffc83a, #fff3c0, #ffc83a); background-size: 200% 100%; animation: eos-gauge-shine 1.4s linear infinite; }
 @keyframes eos-gauge-shine { to { background-position: -200% 0; } }
-.eos-final-chip { font-size: 15px; animation: eos-pl-blink 1.6s ease-in-out infinite; }
-.eos-powers { pointer-events: auto; display: flex; gap: 4px; padding: 4px 8px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }
-.eos-power { width: 26px; height: 26px; display: grid; place-items: center; font-size: 15px; border-radius: 8px; background: color-mix(in srgb, var(--z) 26%, transparent); border: 1px solid color-mix(in srgb, var(--z) 70%, transparent); }
+.eos-final-chip { grid-column: 1 / -1; font: 600 12px "Kanit", sans-serif; color: #d0457e; }
+/* แถวชิป: ป้ายซ้าย ไอคอนขวา */
+.eos-hud-chips { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: default; }
+.eos-power-row { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: wrap; }
+.eos-power { width: 28px; height: 28px; display: grid; place-items: center; font-size: 16px; border-radius: 8px; cursor: help;
+  background: color-mix(in srgb, var(--z) 18%, transparent); border: 1px solid color-mix(in srgb, var(--z) 60%, transparent); transition: transform .15s, box-shadow .15s; }
+.eos-power-row .eos-tipw:hover .eos-power { transform: translateY(-2px); box-shadow: 0 0 10px color-mix(in srgb, var(--z) 60%, transparent); }
 .eos-pl-pow { font-style: normal; font-size: 12px; margin-left: 6px; opacity: .35; filter: grayscale(1); }
 .eos-pl-pow[data-on="true"] { opacity: 1; filter: none; }
 .eos-stars { display: inline-flex; gap: 2px; }
-.eos-stars i { font-style: normal; font-size: 15px; color: #ffd25a; text-shadow: 0 0 6px rgba(255,210,90,.6); }
-.eos-stars i[data-ok="false"] { color: rgba(255,255,255,.25); text-shadow: none; }
+.eos-stars i { font-style: normal; font-size: 15px; color: #e0a92a; text-shadow: 0 0 6px rgba(255,210,90,.5); }
+.eos-stars i[data-ok="false"] { color: var(--es-track); text-shadow: none; }
 @keyframes eos-pl-blink { 50% { opacity: .45; } }
 /* ฟื้นคืนชีพ */
-.eos-revive { pointer-events: auto; display: flex; gap: 6px; padding: 6px 10px 6px 8px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }
-.eos-revive-face { position: relative; width: 34px; height: 34px; border-radius: 9px; overflow: hidden; border: 2px solid rgba(255, 255, 255, .25); filter: grayscale(.85) brightness(.8); }
+.eos-revive-face { position: relative; width: 30px; height: 30px; border-radius: 8px; overflow: hidden; border: 2px solid var(--es-line); filter: grayscale(.85) brightness(.85); display: block; cursor: help; }
 .eos-revive-face[data-soon="true"] { filter: none; border-color: var(--es-gold); box-shadow: 0 0 10px rgba(240, 200, 104, .6); }
 .eos-revive-face img, .eos-revive-face i { width: 100%; height: 100%; object-fit: cover; display: block; }
-.eos-revive-face b { position: absolute; right: 1px; bottom: 0; font-size: 15px; font-weight: 800; color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000; }
-/* แผงรายเสา */
+.eos-revive-face b { position: absolute; right: 1px; bottom: 0; font-size: 14px; font-weight: 800; color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000; }
+/* ---------- แผงรายเสา (กดแต้มรวม) ---------- */
 .eos-score-panel {
   width: 230px; display: flex; flex-direction: column; gap: 5px;
   transition: transform .28s ease, opacity .28s ease; transform: translateX(0); opacity: 1; pointer-events: auto; cursor: pointer;
 }
 .eos-score[data-open="false"] .eos-score-panel { transform: translateX(110%); opacity: 0; pointer-events: none; width: 0; overflow: hidden; }
-@media (prefers-reduced-motion: reduce) { .eos-score-panel { transition: none; } .eos-score-dots i { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .eos-score-panel, .eos-hud-body { transition: none; animation: none; } .eos-score-dots i { animation: none !important; } }
 .eos-pl-row {
   display: grid; grid-template-columns: 20px 1fr auto 18px; align-items: center; gap: 8px;
   padding: 6px 10px 6px 8px; border-radius: 10px; background: var(--es-bg);
-  border: 1px solid var(--es-line); border-left: 4px solid rgba(255, 255, 255, .18);
-  color: var(--es-dim); box-shadow: 0 4px 14px rgba(0, 0, 0, .25); backdrop-filter: blur(6px);
+  border: 1px solid var(--es-line); border-left: 4px solid var(--es-line);
+  color: var(--es-dim); box-shadow: var(--es-shadow); backdrop-filter: blur(6px);
 }
 .eos-pl-row[data-s="own"] { border-left-color: var(--z); color: var(--es-text); background: linear-gradient(90deg, color-mix(in srgb, var(--z) 22%, transparent), var(--es-bg) 75%); }
-.eos-pl-row[data-s="ch"] { border-left-color: rgba(255, 255, 255, .6); color: var(--es-text); }
+.eos-pl-row[data-s="ch"] { border-left-color: var(--es-accent); color: var(--es-text); }
 .eos-pl-gem { text-align: center; color: var(--z); font-size: 14px; }
+:root:not([data-ui="dark"]) .eos-pl-gem { filter: saturate(1.6) brightness(.8); }
 .eos-pl-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eos-pl-hits { display: flex; gap: 3px; align-items: center; }
-.eos-pl-hits i { width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid rgba(255, 255, 255, .35); }
+.eos-pl-hits i { width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid var(--es-line); }
 .eos-pl-hits i[data-on="true"] { background: var(--es-bad); border-color: var(--es-bad); box-shadow: 0 0 6px var(--es-bad); }
 .eos-pl-hits img { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; }
 .eos-pl-hits em { font-style: normal; font-size: 11px; }
 .eos-pl-gain { text-align: center; font-weight: 700; }
 .eos-pl-row[data-s="own"] .eos-pl-gain { color: var(--es-good); }
 .eos-pl-sum { display: flex; gap: 10px; justify-content: flex-end; padding: 4px 10px; border-radius: 10px; background: var(--es-bg); color: var(--es-text); font-size: 13px; border: 1px solid var(--es-line); }
-.eos-pl-hits .eos-pl-ward { font-size: 12px; color: #9fe2ff; margin-right: 2px; }
+.eos-pl-hits .eos-pl-ward { font-size: 12px; color: var(--es-accent); margin-right: 2px; }
+/* ---------- การ์ดคำอธิบาย (ชี้/แตะ) ---------- */
+.eos-tipw { position: relative; display: inline-flex; pointer-events: auto; }
+.eos-tip {
+  position: absolute; right: calc(100% + 14px); top: 50%; transform: translateY(-50%); z-index: 5;
+  width: 270px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 11px; pointer-events: none;
+  border-radius: 12px; background: var(--es-solid, #fff); color: var(--es-text); text-align: left; white-space: normal;
+  border: 1px solid var(--es-line); box-shadow: var(--es-shadow); backdrop-filter: blur(10px);
+  font: 400 12.5px/1.45 "Kanit", sans-serif; animation: eos-tip-in .14s ease-out both;
+}
+.eos-tip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.eos-tip-head b { font-size: 14.5px; font-weight: 600; color: var(--es-text); }
+.eos-tip-ico { font-size: 20px; }
+.eos-tip-line { color: var(--es-dim); padding-left: 10px; position: relative; }
+.eos-tip-line::before { content: ""; position: absolute; left: 0; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: var(--es-gold); }
+@keyframes eos-tip-in { from { opacity: 0; transform: translate(6px, -50%); } }

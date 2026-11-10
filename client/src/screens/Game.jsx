@@ -2649,7 +2649,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
               duo={duoPick}
               name={me.character?.name || me.name}
               onName={() => { clickSound(); setShowChar(true); }}
-              teamId={me.teamId}
+              teamId={state.gameMode === "eos" ? null : me.teamId} // Eos: ทุกคนทีมเดียว ไม่ต้องมีป้าย (ผู้ใช้ 2026-11-10)
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}

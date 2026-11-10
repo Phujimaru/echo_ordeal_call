@@ -319,8 +319,14 @@ function loseArmor(p) {
 // ชั้นรับดาเมจก่อนเกราะของตัวละคร (ฮุค absorbDamage(engine, p) → true = รับไว้ 1 หน่วย — ไจโร: ม้าวาลคิรี)
 //  อยู่หลังโล่ ก่อนเกราะ · ดาเมจทะลุเกราะ (dealDirect) ข้ามชั้นนี้
 function layerAbsorb(p) {
+  if (stageAbsorb(p)) return true;
   const hook = CHAR_HOOKS[p.characterId];
   return !!(hook && hook.absorbDamage && runHook(hook, "absorbDamage", engine, p));
+}
+// ชั้นรับดาเมจของสนาม (server/fodlan.js absorbDamage — สนาม Eos: รถ/โชโกโบะรับแทนคนขับ/คนขี่ก่อน · ผู้ใช้สั่ง 2026-11-10)
+//  ก่อนชั้นของตัวละคร · รวมดาเมจทะลุเกราะด้วย (dealDirect)
+function stageAbsorb(p) {
+  return !!(p && p.alive && require("./fodlan").absorbDamage(p));
 }
 // ดาเมจแพ้จั่ว/ไพ่แตก 1 หน่วย: โล่ -> เกราะ -> เลือด
 function damageSoft(p) {
@@ -386,6 +392,7 @@ function dealDirect(p, n, isNormalAttack) {
   for (let i = 0; i < n; i++) {
     if (!p.alive) return;
     if (p.shield > 0) { p.shield--; continue; }
+    if (stageAbsorb(p)) continue;
     loseHp(p);
   }
 }

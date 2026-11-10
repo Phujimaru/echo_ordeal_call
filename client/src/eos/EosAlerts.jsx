@@ -17,6 +17,7 @@ const pillarZone = (fd, id) => { const pl = (fd.pillars || []).find((o) => o.id 
 function alertOf(e, fd) {
   switch (e.kind) {
     case "dropship_warn": return { icon: "🚨", title: "ยานจักรวรรดิกำลังลง", zone: zoneAt(e.x, e.y), tone: "warn" };
+    case "dropship_land": { const mk = (e.spawned || []).find((o) => o.mech); return mk ? { icon: "🦾", title: "หุ่นเกราะจักรวรรดิปรากฏ", zone: zoneAt(mk.x, mk.y), tone: "danger", at: mk } : null; }
     case "pillar_hit": return { icon: "💢", title: `เสาโดนตี ${e.hits}/2`, zone: pillarZone(fd, e.id), tone: "danger" };
     case "pillar_lost": return { icon: "💔", title: "เสาหลุด", zone: pillarZone(fd, e.id), tone: "danger" };
     case "boss_warn": return { icon: "⚠️", title: "ราชาปีศาจกำลังมา", zone: zoneAt(e.x, e.y), tone: "danger" };
@@ -38,7 +39,8 @@ function alertOf(e, fd) {
     case "civ_saved": return { icon: "🕊️", title: "พาพลเรือนถึงเมือง · +2", zone: zoneAt(e.x, e.y), tone: "good" };
     case "civ_lost": return { icon: "💔", title: "พลเรือนถูกทำร้าย", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "gauge_full": return { icon: "☄️", title: "มาตรวัดทีมเต็ม", zone: "", tone: "good" };
-    case "perk_pick": return { icon: "✨", title: "ได้การ์ดทีม", zone: "", tone: "good" };
+    case "perk_offer": return { icon: "✨", title: `การ์ดทีม · โหวตเลือก 1 ใบ`, zone: `แต้มรวม ${e.mark}`, tone: "good" };
+    case "perk_pick": { const c = (fd.perks || []).find((o) => o.id === e.perk); return { icon: c ? c.icon : "✨", title: `ทีมได้การ์ด ${c ? c.name : ""}`, zone: c ? c.desc : "", tone: "good" }; }
     case "gold_spawn": return { icon: "🐤", title: "โชโกโบะทองโผล่", zone: zoneAt(e.x, e.y), tone: "good" };
     default: return null;
   }

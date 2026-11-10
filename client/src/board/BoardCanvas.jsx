@@ -1035,6 +1035,19 @@ export default function BoardCanvas(props) {
         if (Math.hypot(lx - sx, ly - sy) < s * 1.1) { tile = { x: sl.x, y: sl.y }; break; }
       }
     }
+    // ของสูงบนแผนที่ (props.tallTiles [{ x, y, h }] — สนาม Eos): ชี้ตัวของที่ยื่นขึ้นไปบังช่องหลัง = ช่องของชิ้นนั้น (ชิ้นหน้าสุดชนะ)
+    const tall = propsRef.current.tallTiles;
+    const tk0 = tile ? key(tile.x, tile.y) : null, hl0 = st.hl;
+    const actable = tk0 && hl0 && (hl0.move.has(tk0) || hl0.attack.has(tk0) || hl0.skill.has(tk0) || hl0.aoe.has(tk0)); // ช่องที่กดเดิน/ตีได้ ชนะเสมอ
+    if (!unit && !actable && Array.isArray(tall) && tall.length && !(tile && tall.some((t) => t.x === tile.x && t.y === tile.y))) {
+      let best = null, bestY = -Infinity;
+      for (const t of tall) {
+        const [bx, by, s] = projectZ(t.x + 0.5, t.y + 0.5, 0), [, ty] = projectZ(t.x + 0.5, t.y + 0.5, t.h || 1);
+        const hw = s * 0.5;
+        if (lx >= bx - hw && lx <= bx + hw && ly >= Math.min(by, ty) - hw * 0.3 && ly <= by + hw * 0.35 && by > bestY) { best = t; bestY = by; }
+      }
+      if (best) tile = { x: best.x, y: best.y };
+    }
     if (tile) {
       // กล่องรูปตัวหมากสูงทับ 1–2 ช่องด้านหลัง: คนที่ยืนบนช่องใต้เมาส์ชนะเสมอ ·
       //  ช่องว่างที่กดได้ (เดิน/สกิล/ตีหมู่) ชนะกล่องของตัวที่ยืนช่องอื่น — ไม่งั้นเดินถอยไปทางหลังตัวเองไม่ได้

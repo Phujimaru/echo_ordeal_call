@@ -17,7 +17,7 @@
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
-  movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, eosOutcome, shields, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, eosOutcome, shields, absorbDamage, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
 const Board = require("./board");
@@ -335,6 +335,8 @@ function onKill(victim, killerId) { if (active()) call("onKill", undefined, vict
 // สนาม Eos: ฝ่ายที่ครบแต้มยึดเสา → id ผู้เล่นของฝ่ายนั้น (phases/endTurn.js gameOver) · null = ยังไม่มี
 // เป้านี้ถูกป้องกันจากผู้ตีคนนี้ไหม (Eos: โดมกำแพงเวท — ตีจากนอกโดมเข้าไปไม่ได้) → action.canStrike / targetOk
 function shields(attacker, target) { return !!call("shields", false, attacker, target); }
+// ดาเมจ 1 หน่วยของ p ถูกพาหนะของด่านรับแทนไหม (combat.layerAbsorb — สนาม Eos: รถ/โชโกโบะ)
+function absorbDamage(p) { return !!call("absorbDamage", false, p); }
 function eosWinner() { return isEos() ? call("winner", null) || null : null; }
 // Eos PVE (GRID_PLAN §8.6 · ผู้ใช้สั่ง 2026-11-10): "win" แต้มรวมครบ · "lose" ผู้เล่นล้มหมดพร้อมกัน · null = ยังไม่จบ
 function eosOutcome() { return isEos() ? call("outcome", null) || null : null; }
