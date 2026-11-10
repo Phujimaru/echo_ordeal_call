@@ -6,9 +6,9 @@
 // ============================================================
 const ZONE = { insomnia: "Insomnia", hammerhead: "Hammerhead", duscae: "Duscae", forest: "ป่าดัสเค", lake: "Cleigne", altissia: "Altissia", desert: "Leide", wild: "Eos" };
 const WX = {
-  eos_storm: { icon: "⛈️", title: "ฝนฟ้าคะนอง", detail: "เดิน −1 · ช่องเตือนแดงจะโดนฟ้าผ่าต้นเทิร์นหน้า ดาเมจ 2", todo: "หลบออกจากช่องเตือนแดงก่อนจบตา" },
-  eos_fog: { icon: "🌫️", title: "หมอก", detail: "มองเห็นมอนเตอร์แค่ในระยะเดินของฝ่ายเรา", todo: "เดินเป็นกลุ่ม ระวังมอนที่โผล่จากหมอก" },
-  eos_sand: { icon: "🏜️", title: "พายุทราย", detail: "ในทะเลทราย Leide มองเห็นแค่ 2 ช่อง", todo: "อย่าเข้าทะเลทรายคนเดียว" },
+  eos_storm: { icon: "⛈️", title: "ฝนฟ้าคะนอง", detail: "เดิน −1 · ช่องเตือนแดงจะโดนฟ้าผ่าต้นเทิร์นหน้า ดาเมจ 2 · ทหารเหล็กลัดวงจร ตี −1", todo: "หลบออกจากช่องเตือนแดงก่อนจบตา · จังหวะดีที่จะบุกทหารเหล็ก" },
+  eos_fog: { icon: "🌫️", title: "หมอก", detail: "มองเห็นมอนเตอร์แค่ในระยะเดินของฝ่ายเรา · ปีศาจล่าในหมอก เดิน +1", todo: "เดินเป็นกลุ่ม ระวังมอนที่โผล่จากหมอก" },
+  eos_sand: { icon: "🏜️", title: "พายุทราย", detail: "ในทะเลทราย Leide มองเห็นแค่ 2 ช่อง · ทหารเหล็กในทะเลทรายมองไม่เห็น ขยับเมื่อมีคนเข้าใกล้ 3 ช่อง", todo: "อย่าเข้าทะเลทรายคนเดียว · ย่องผ่านทหารเหล็กได้" },
 };
 const DIFF = { easy: "ง่าย", normal: "ปกติ", hard: "ยาก" };
 
@@ -21,6 +21,10 @@ export function eosSituation(state) {
   // คืนสุดท้าย (PVE รอบสาม)
   if (b.final) out.push({ key: "final", icon: "🌑", title: "คืนสุดท้าย", detail: `กลางคืนถาวร · ปีศาจบุกรอบเสาที่ยึดไว้ทุกเทิร์น · แต้มรวม ${b.score || 0}/${b.goal || 50}`, todo: "เฝ้าเสาให้ครบจนแต้มถึงเป้า — ใกล้ชนะแล้ว", tone: "danger" });
   else if (b.finalAt && (b.score || 0) >= b.finalAt - 8) out.push({ key: "finalSoon", icon: "🌑", title: "คืนสุดท้ายใกล้มา", detail: `แต้มรวมถึง ${b.finalAt} = กลางคืนถาวร + คลื่นปีศาจบุกเสา (ตอนนี้ ${b.score || 0})`, todo: "ซ่อมเสา เสริมเกราะเสา เตรียมของ", tone: "warn" });
+  // การ์ดทีมรอโหวต · โชโกโบะทอง
+  if (b.perkOffer) out.push({ key: "perk", icon: "✨", title: "โหวตการ์ดทีม", detail: b.perkOffer.choices.map((c) => `${c.icon} ${c.name}`).join(" · "), todo: "กดเลือกการ์ดกลางจอด้านบน — ใบที่เสียงมากสุดได้", tone: "good" });
+  const gold = (b.mobs || []).find((m) => m.type === "gold");
+  if (gold) out.push({ key: "gold", icon: "🐤", title: "โชโกโบะทอง", detail: "วิ่งหนีทุกต้นเทิร์น · อยู่ 2 เทิร์นแล้วหายไป", todo: "ไล่ตีให้ล้ม = เหรียญ 12 + ของ", tone: "good", at: { x: gold.x, y: gold.y } });
   // มาตรวัดทีมเต็ม
   if (b.gaugeMax && (b.gauge || 0) >= b.gaugeMax) out.push({ key: "gauge", icon: "☄️", title: "มาตรวัดทีมเต็ม", detail: "ถล่มวง 5×5 ที่ไหนก็ได้ ดาเมจ 4 ใส่มอนทุกตัวในวง", todo: "กดปุ่ม \"ถล่ม\" แล้วเลือกมอน (ใช้การโจมตีของตา)", tone: "good" });
   // ยักษ์หิน

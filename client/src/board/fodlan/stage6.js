@@ -28,7 +28,7 @@ export const kinds = [
   // ขั้น 2 (ลูกเล่นปั่นป่วน): คันโยกสะพาน · แท่นโดม · แผงไฟเมือง · ชั้น layer: สะพานที่ยก · กำแพงเวทที่ประตู · ซากรถ
   "fd_eos_lever", "fd_eos_domecore", "fd_eos_switch", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_wreck",
   // ขั้น 3 (ลูกเล่นโจมตี): ถังน้ำมัน · แหล่งหินเวท · ป้อมปืนบนกำแพง · มอนสเตอร์ (วาดใน items)
-  "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob", "fd_eos_chest",
+  "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob", "fd_eos_chest", "fd_eos_barricade",
   // ขั้น 4 (เดินทาง + เก็บของ): ชานชาลา · ปากอุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา (ช่องพิเศษ — วาดเองทั้งหมด) · สุสานราชวงศ์ (สิ่งกีดขวาง)
   "fd_eos_station", "fd_eos_tunnel", "fd_eos_dock", "fd_eos_camp", "fd_eos_fish", "fd_eos_tomb",
 ];
@@ -49,6 +49,8 @@ export const fx = {
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
   combo: 1100, power_turret: 1200, power_fountain: 1000, nest_spawn: 1200, nest_burst: 1400, giant_warn: 1600, giant_step: 1600, giant_leave: 1400, giant_die: 2400,
   civ_spawn: 1200, civ_follow: 700, civ_saved: 1800, civ_lost: 1300, gauge_full: 1600, barrage: 1800, final_start: 3000, final_wave: 1400,
+  // PVE รอบสี่: การ์ดทีม · กำแพงไม้ · โชโกโบะทอง
+  perk_offer: 1600, perk_pick: 2200, wall_up: 900, wall_down: 800, gold_spawn: 1400, gold_leave: 1000,
   // ขั้น 4 (ฉากฝั่ง client ยาวกว่าเวลาที่ server พักได้ — รถไฟวิ่งพ้นแผนที่ให้ครบขบวน)
   train_warn: 1800, train_pass: 3000, gondola: 2000, tunnel: 1500, camp_meal: 1500, fish: 2600, tomb_open: 2300, royal_drain: 1400, hunt_board: 1500, hunt_done: 1500, // 1500 = ค่าเริ่มของ fxActive (เหตุการณ์ที่ชื่อถูกทับ — p4Norm)
 };
@@ -143,7 +145,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 0.7, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -401,6 +403,30 @@ export const theme = {
       for (let i = 0; i < 2; i++) { const yy = t.y + 0.2 + R() * 0.6, a = P(t.x + 0.1 + R() * 0.3, yy), b = P(t.x + 0.5 + R() * 0.4, yy); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
     }
     g.globalAlpha = 1;
+    // ทะเลสาบ Cleigne (ปรับภาพ 2026-11-10): ใบบัวสีเขียวมีดอกชมพู ใกล้ฝั่ง · เรือพายไม้จอดริมฝั่งบางจุด
+    for (const t of T.water) {
+      if (t.x > 13 || t.y < 10 || t.y > 21) continue;
+      const nearShore = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]].some(([dx, dy]) => !isW(t.x + dx, t.y + dy));
+      const R = rng(t.x * 113 + t.y * 7);
+      if (nearShore) for (let i = 0; i < 3; i++) {
+        if (R() > 0.55) continue;
+        const [px, py, s] = P(t.x + R(), t.y + R(), 0), r = s * (0.07 + R() * 0.06), a0 = R() * TAU;
+        g.fillStyle = c.night ? "#1f4a2c" : "#4f9a46"; g.beginPath(); g.moveTo(px, py); g.ellipse(px, py, r, r * 0.55, 0, a0 + 0.35, a0 + TAU - 0.05); g.closePath(); g.fill();
+        g.strokeStyle = c.night ? "rgba(0,0,0,.3)" : "rgba(30,70,30,.45)"; g.lineWidth = 1; g.stroke();
+        if (R() < 0.3) { g.fillStyle = c.night ? "#a06a8a" : "#f4a6c8"; g.beginPath(); g.arc(px + r * 0.2, py - r * 0.15, Math.max(1.5, r * 0.32), 0, TAU); g.fill(); g.fillStyle = "#fff3a0"; g.beginPath(); g.arc(px + r * 0.2, py - r * 0.15, Math.max(0.8, r * 0.12), 0, TAU); g.fill(); }
+      }
+      if (nearShore && hash(t.x * 3, t.y * 5) < 0.07) { // เรือพาย
+        const [bx, by, s] = P(t.x + 0.5, t.y + 0.5, 0.05), ang = hash(t.x, t.y) * Math.PI;
+        g.save(); g.translate(bx, by); g.scale(1, 0.55); g.rotate(ang);
+        g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(s * 0.03, s * 0.05, s * 0.36, s * 0.13, 0, 0, TAU); g.fill();
+        g.fillStyle = c.night ? "#3a2a1c" : "#7a5230"; g.beginPath(); g.ellipse(0, 0, s * 0.34, s * 0.12, 0, 0, TAU); g.fill();
+        g.fillStyle = c.night ? "#4a3626" : "#a87a4a"; g.beginPath(); g.ellipse(0, 0, s * 0.27, s * 0.075, 0, 0, TAU); g.fill();
+        g.strokeStyle = c.night ? "#2a1e14" : "#5a3a20"; g.lineWidth = Math.max(1, s * 0.02);
+        for (const k of [-0.1, 0.08]) { g.beginPath(); g.moveTo(s * k, -s * 0.07); g.lineTo(s * k, s * 0.07); g.stroke(); }
+        g.beginPath(); g.moveTo(-s * 0.02, 0); g.lineTo(-s * 0.2, s * 0.24); g.moveTo(-s * 0.02, 0); g.lineTo(-s * 0.2, -s * 0.24); g.stroke();
+        g.restore();
+      }
+    }
     // กกริมน้ำตื้น
     g.strokeStyle = C.reed; g.lineWidth = 1.2;
     for (const t of T.shallow) {
@@ -1493,6 +1519,7 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_switch") { drawSwitch(g, x, y, C, now); return; }
   if (kind === "fd_eos_wreck") { drawWreck(g, x, y, now); return; }
   if (kind === "fd_eos_mob" || kind === "fd_eos_chest") return; // มอนสเตอร์ · หีบสมบัติ วาดใน items
+  if (kind === "fd_eos_barricade") { drawBarricade(g, x, y, C, now); return; }
   if (kind === "fd_eos_barrel") { drawBarrel(g, x, y); return; }
   if (kind === "fd_eos_crystal") { drawCrystal(g, x, y, C, night, now); return; }
   if (kind === "fd_eos_turret") { drawTurret(g, x, y, C, now); return; }
@@ -1553,11 +1580,7 @@ export function drawObstacle(g, t, ctx, now) {
     if (on) { glowAt(g, top[0], top[1], s * 0.9, "255,210,130", 0.75 * fl); glowAt(g, base[0], base[1], s * 0.8, "255,200,120", 0.35 * fl); }
     return;
   }
-  if (kind === "fd_eos_pump") {
-    box(g, x + 0.3, y + 0.3, x + 0.7, y + 0.7, 0.75, "#c63b2b", "#8f2418", "#a52d1f");
-    const p = P(x + 0.5, y + 0.71, 0.5); g.fillStyle = "#f4f0e6"; g.fillRect(p[0] - s * 0.08, p[1] - s * 0.06, s * 0.16, s * 0.09);
-    return;
-  }
+  if (kind === "fd_eos_pump") { drawPump(g, x, y, C, night, now, s); return; }
   if (kind === "fd_eos_garage") {
     box(g, x, y, x + 1, y + 1, 0.9, "#9a8f7a", "#6f6656", "#827866", 0, (nx, ny) => STATIC_TR[K(x + nx, y + ny)] === "fd_eos_garage"); // อู่หลายช่อง = หลังเดียว
     const on = night && !darkAt(x, y);
@@ -2916,6 +2939,12 @@ export function items(list, g, fd, info, units, now, lowQ) {
   // ขั้น 3: มอนสเตอร์ (เลื่อนนุ่มตามเส้นทาง "mob_move" · พุ่งเข้าหาเป้าตอน "mob_attack")
   const hitE = lastFx("mob_hit");
   for (const m of fd.mobs || []) {
+    if (m.type === "gold") { // โชโกโบะทอง (วิ่งหนี — ภาพโชโกโบะเรืองทอง + ประกาย)
+      const gp = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, 700, pathOf(fd, "mob_move", m.id)));
+      const gh = mobFacing(m.id, gp);
+      list.push({ d: depthOf(gp.x + 0.5, gp.y + 0.55), f: () => drawGoldChoco(g, m, gp.x + 0.5, gp.y + 0.55, now, lowQ, gp.moving, screenFace(gp.x + 0.5, gp.y + 0.5, gh) > 0) });
+      continue;
+    }
     if (m.type === "nest") { // รังปีศาจ (อยู่กับที่)
       const hn = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
       list.push({ d: depthOf(m.x + 0.5, m.y + 0.5), f: () => drawNest(g, m, m.x + 0.5, m.y + 0.55, now, lowQ, hn) });
@@ -3089,6 +3118,12 @@ function playFx(e) {
     case "barrage": sfx("throw_swoosh"); sfx("barrel_explode", { delay: 0.5 }); sfx("barrel_explode", { delay: 0.8, gain: 0.8 }); break;
     case "final_start": sfx("night_fall"); sfx("beast_roar", { delay: 0.6 }); sfx("dropship_alarm", { delay: 1.0, gain: 0.6, dur: 2.0 }); break;
     case "final_wave": sfx("daemon_spawn"); break;
+    case "perk_offer": sfx("hunt_board"); sfx("crystal_pick", { delay: 0.3, gain: 0.7 }); break;
+    case "perk_pick": sfx("royal_arms"); sfx("camp_buff", { delay: 0.3, gain: 0.8 }); break;
+    case "wall_up": sfx("wreck_push", { gain: 0.8 }); break;
+    case "wall_down": sfx("wreck_push", { gain: 0.4 }); break;
+    case "gold_spawn": sfx("chocobo_call"); sfx("hunt_done", { delay: 0.3, gain: 0.6 }); break;
+    case "gold_leave": sfx("chocobo_run", { gain: 0.7 }); break;
     case "chest_open": sfx("tomb_open", { gain: 0.8 }); sfx("hunt_done", { delay: 0.5 }); break;
     case "beast_roar": sfx("beast_roar"); break;
     case "dropship_warn": sfx("dropship_alarm"); break;
@@ -3117,6 +3152,55 @@ function playFx(e) {
   }
 }
 // =================================================================== PVE รอบสาม: ภาพของระบบใหม่ (server/fodlan/eosExtra.js)
+// ปั๊มน้ำมัน Hammerhead (ปรับภาพ 2026-11-10 — ผู้ใช้: "ปั๊มยังโล่ง"): เกาะคอนกรีต · ตู้จ่ายแดงจอขาว · สายยาง · หลังคาปั๊มขาวขอบแดง บนเสา
+//  กลางคืน = ไฟใต้หลังคาส่องลงพื้น + แถบนีออนส้มขอบหลังคา
+function drawPump(g, x, y, C, night, now, s) {
+  box(g, x + 0.1, y + 0.1, x + 0.9, y + 0.9, 0.08, night ? "#5a5a60" : "#c9c4b8", night ? "#3a3a40" : "#9a958a", night ? "#45454b" : "#aca79c");
+  box(g, x + 0.32, y + 0.36, x + 0.68, y + 0.64, 0.66, "#c63b2b", "#8f2418", "#a52d1f", 0.08);
+  const d = P(x + 0.5, y + 0.65, 0.48); g.fillStyle = night ? "#bfe4ff" : "#f4f0e6"; g.fillRect(d[0] - s * 0.07, d[1] - s * 0.05, s * 0.14, s * 0.08);
+  if (night) glowAt(g, d[0], d[1], s * 0.2, "190,228,255", 0.5);
+  const h0 = P(x + 0.66, y + 0.5, 0.45), h1 = P(x + 0.82, y + 0.62, 0.12), hc = P(x + 0.86, y + 0.48, 0.3);
+  g.strokeStyle = "#1e1e22"; g.lineWidth = Math.max(1.5, s * 0.025); g.beginPath(); g.moveTo(h0[0], h0[1]); g.quadraticCurveTo(hc[0], hc[1], h1[0], h1[1]); g.stroke();
+  // หลังคาปั๊ม: เสาที่มุม + แผ่นหลังคา (วาดท้ายสุด ทับตู้จ่าย)
+  box(g, x + 0.08, y + 0.08, x + 0.18, y + 0.18, 1.32, "#e8e4da", "#b8b3a8", "#cfcabf", 0.08);
+  const faces = box(g, x - 0.04, y - 0.04, x + 1.04, y + 1.04, 1.46, night ? "#d8d4ca" : "#f2efe8", "#c63b2b", "#a52d1f", 1.32);
+  if (night) {
+    const u = P(x + 0.5, y + 0.5, 1.3); glowAt(g, u[0], u[1] + s * 0.4, s * 0.9, "255,236,200", 0.5);
+    const fl = 0.8 + 0.2 * Math.sin(now / 300 + x);
+    for (const f of faces) { const a = P(f.a[0], f.a[1], 1.38), b = P(f.b[0], f.b[1], 1.38); g.strokeStyle = `rgba(255,150,60,${fl})`; g.lineWidth = Math.max(2, s * 0.03); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  }
+  void C;
+}
+// กำแพงไม้ชั่วคราว (ไอเทมร้าน — PVE รอบสี่): แผงไม้ไขว้ปลายแหลม 3 แผ่น + กระสอบทรายที่ฐาน
+function drawBarricade(g, x, y, C, now) {
+  const w = LAST_FD && Array.isArray(LAST_FD.walls) ? LAST_FD.walls.find((o) => o.x === x && o.y === y) : null;
+  const e = lastFx("wall_up"), rise = e && e.x === x && e.y === y ? ease(Math.min(1, fxT(e, now, fx.wall_up))) : 1;
+  const [cx, cy, s] = P(x + 0.5, y + 0.55);
+  g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(cx, cy, s * 0.46, s * 0.15, 0, 0, TAU); g.fill();
+  for (let i = 0; i < 4; i++) { const b = P(x + 0.2 + i * 0.2, y + 0.7, 0.05); g.fillStyle = i % 2 ? "#b49a6a" : "#c9b07c"; g.beginPath(); g.ellipse(b[0], b[1], s * 0.11, s * 0.06, 0, 0, TAU); g.fill(); }
+  const h = 0.62 * rise;
+  for (const [a, b] of [[0.12, 0.88], [0.18, 0.82]]) {
+    const p0 = P(x + a, y + 0.5, 0.05), p1 = P(x + b, y + 0.5, h * 0.55);
+    g.strokeStyle = "#5a3d22"; g.lineWidth = Math.max(3, s * 0.07); g.lineCap = "round"; g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
+  }
+  for (let i = 0; i < 3; i++) { // แผ่นไม้ตั้งปลายแหลม
+    const u = 0.22 + i * 0.28, b0 = P(x + u, y + 0.45, 0), t0 = P(x + u + (i - 1) * 0.04, y + 0.45, h);
+    g.strokeStyle = i % 2 ? "#7a5530" : "#8a6238"; g.lineWidth = Math.max(4, s * 0.09); g.beginPath(); g.moveTo(b0[0], b0[1]); g.lineTo(t0[0], t0[1]); g.stroke();
+    g.fillStyle = "#d9c4a0"; g.beginPath(); g.moveTo(t0[0] - s * 0.04, t0[1] + 2); g.lineTo(t0[0], t0[1] - s * 0.08); g.lineTo(t0[0] + s * 0.04, t0[1] + 2); g.fill();
+  }
+  g.lineCap = "butt";
+  if (w && w.left != null) { const top = P(x + 0.5, y + 0.5, 0.95); emoji(g, ["", "①", "②", "③"][Math.min(3, w.left)] || "", top[0], top[1], Math.max(12, s * 0.22)); }
+  void C;
+}
+// โชโกโบะทอง: ภาพโชโกโบะ + ออร่าทอง + ประกายวิ่ง · ฝุ่นตอนวิ่ง
+function drawGoldChoco(g, m, cx, cy, now, lowQ, moving, flip) {
+  const [sx, sy, s] = P(cx, cy);
+  glowAt(g, sx, sy - s * 0.5, s * 1.2, "255,210,80", 0.55 + 0.2 * Math.sin(now / 200));
+  const bob = moving && !lowQ ? Math.abs(Math.sin(now / 90)) * 0.06 : Math.abs(Math.sin(now / 400)) * 0.03;
+  g.save(); g.filter = "sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.15)"; sprite(g, CHOCO_IMG, cx, cy, bob, 1.05, flip); g.restore();
+  if (!lowQ) for (let i = 0; i < 6; i++) { const a = now / 300 + i * 1.05, r = s * (0.35 + 0.1 * Math.sin(now / 250 + i)); const px = sx + Math.cos(a) * r, py = sy - s * 0.55 + Math.sin(a) * r * 0.5; g.fillStyle = `rgba(255,240,170,${0.6 + 0.4 * Math.sin(now / 120 + i)})`; g.fillRect(px - 1.5, py - 1.5, 3, 3); }
+  hpPips(g, cx, cy, 1.25, m.hp, m.maxHp, m.armor, m.maxArmor);
+}
 // รังปีศาจ (ออกแบบใหม่ 2026-11-10 — ผู้ใช้: "รังดูแปลกๆ เป็นก้อนๆ"): หลุมดินแตกมีรอยร้าวเรืองชมพู · รากหนวดดำแผ่บนพื้น
 //  ตัวรัง = รังไข่ทรงหยดน้ำคว่ำสูง ~1 ช่อง ผิวเป็นซี่โครงโค้ง ไล่สีดำม่วง → ม่วงแดง · รอยแยกกลางเรืองชมพูเต้นตามจังหวะหัวใจ
 //  เขาโค้ง 3 อันบนยอด · สปอร์ลอยขึ้น · โดนตี = สั่น + วาบขาว
@@ -3360,6 +3444,14 @@ function pve3Fx(g, e, p, lowQ, units, out) {
     return true;
   }
   if (e.kind === "giant_leave") return true;
+  if (e.kind === "perk_offer" || e.kind === "perk_pick") { if (e.kind === "perk_pick" && p < 0.3) out.flash = Math.max(out.flash || 0, 0.12 * (1 - p / 0.3)); return true; }
+  if (e.kind === "wall_up" || e.kind === "wall_down") { if (!lowQ) puff(g, e.x + 0.5, e.y + 0.5, 0.05, p, e.seq, 6, "160,140,110", 0.14); return true; }
+  if (e.kind === "gold_spawn" || e.kind === "gold_leave") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.6), a = Math.sin(Math.min(1, p) * Math.PI);
+    glowAt(g, x, y, s * (0.6 + p * 1.2), "255,215,90", a * 0.9);
+    if (e.kind === "gold_spawn") { g.fillStyle = `rgba(255,225,120,${0.35 * a})`; g.fillRect(x - s * 0.18, y - s * 5, s * 0.36, s * 5); }
+    return true;
+  }
   if (e.kind === "civ_spawn") {
     for (const t of e.list || []) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.6); glowAt(g, x, y, s * (0.5 + p), "255,215,120", Math.sin(Math.min(1, p) * Math.PI) * 0.8); }
     return true;

@@ -38,6 +38,8 @@ function alertOf(e, fd) {
     case "civ_saved": return { icon: "🕊️", title: "พาพลเรือนถึงเมือง · +2", zone: zoneAt(e.x, e.y), tone: "good" };
     case "civ_lost": return { icon: "💔", title: "พลเรือนถูกทำร้าย", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "gauge_full": return { icon: "☄️", title: "มาตรวัดทีมเต็ม", zone: "", tone: "good" };
+    case "perk_pick": return { icon: "✨", title: "ได้การ์ดทีม", zone: "", tone: "good" };
+    case "gold_spawn": return { icon: "🐤", title: "โชโกโบะทองโผล่", zone: zoneAt(e.x, e.y), tone: "good" };
     default: return null;
   }
 }

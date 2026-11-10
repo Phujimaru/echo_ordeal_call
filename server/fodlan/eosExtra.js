@@ -49,6 +49,7 @@ function stat(s, pid, key, n = 1) {
   st[key] = (st[key] || 0) + n;
 }
 function addGauge(ctx, s, n) {
+  n *= require("./eosPerks").gaugeMul(s); // การ์ดใจเดียวกัน = ×2
   const x = X(s), was = x.gauge;
   x.gauge = Math.min(GAUGE.max, x.gauge + n);
   if (was < GAUGE.max && x.gauge >= GAUGE.max) { ctx.fx("gauge_full", {}); ctx.log("☄️ มาตรวัดทีมเต็ม — พร้อมถล่ม!"); }

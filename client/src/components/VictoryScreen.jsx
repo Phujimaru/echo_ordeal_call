@@ -192,6 +192,7 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
   const lay = WIN_LAYOUT[Math.min(3, Math.max(1, winners.length))];
   const eosTitles = state.gameMode === "eos" && state.fodlan && state.fodlan.board ? state.fodlan.board.titles || [] : [];
   const titlesOf = (id) => eosTitles.filter((t) => t.id === id);
+  const eosStars = state.gameMode === "eos" && state.fodlan && state.fodlan.board ? state.fodlan.board.challenges || [] : [];
   const wGap = winners.length > 3 ? Math.min(lay.gap, 1500 / (winners.length - 1)) : lay.gap;
   let mi = 0;
 
@@ -261,6 +262,9 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
           <rect className="vic-node" x="1732" y="462" width="16" height="16" transform="rotate(45 1740 470)" />
         </svg>
 
+        {eosStars.length > 0 && (
+          <div className="vic-stars">{eosStars.map((c) => <span key={c.key} data-on={c.star ? "true" : "false"} title={c.name}><i>★</i>{c.icon}</span>)}</div>
+        )}
         {winners.length === 0 && (
           <svg className="vic-empty" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={HEX} /></svg>
         )}

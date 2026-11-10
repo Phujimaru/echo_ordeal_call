@@ -6,6 +6,7 @@ import EosAlerts from "../eos/EosAlerts";
 import { eosSituation, SIT_COUNT as sitCount } from "../eos/eosSitData";
 import EosZoneCard from "../eos/EosZoneCard";
 import EosScoreboard from "../eos/EosScoreboard";
+import EosPerks from "../eos/EosPerks";
 import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
 import { useTick, TickSeconds } from "../tickStore";
 import { PERMANENT_STATUS_KEYS } from "../data/permanentStatus";
@@ -2601,6 +2602,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
       {state.world === "eos" && state.board && <EosScoreboard state={state} />}
+      {state.world === "eos" && state.board && <EosPerks state={state} />}
       {state.world === "eos" && state.board && !eosSitOpen && <EosAlerts state={state} />}
 
       {/* QTE — ลอยกลางจอ */}

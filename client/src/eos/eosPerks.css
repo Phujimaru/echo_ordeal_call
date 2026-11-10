@@ -1,0 +1,39 @@
+/* โหวตการ์ดอัปเกรดทีม (EosPerks.jsx) — กลางจอด้านบน · การ์ดหกเหลี่ยมยาว แสงทอง */
+.eos-perks {
+  position: absolute; left: 50%; top: 92px; z-index: 40; transform: translateX(-50%);
+  padding: 12px 16px 16px; border-radius: 18px; color: #f4f8ff; font-family: "Kanit", sans-serif;
+  background: linear-gradient(180deg, rgba(26,36,60,.96), rgba(12,18,32,.96));
+  box-shadow: inset 0 0 0 1px rgba(255,214,120,.45), 0 18px 44px rgba(0,0,0,.45);
+  animation: eos-perks-in .45s cubic-bezier(.2,.9,.3,1.15) both;
+}
+.eos-perks header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.eos-perks header b { font-size: 18px; flex: 1; letter-spacing: .02em; }
+.eos-perks header .mark { min-width: 34px; height: 26px; display: grid; place-items: center; border-radius: 8px; font: 700 15px "Chakra Petch", sans-serif; color: #2a1c04; background: linear-gradient(180deg, #ffe7a3, #f0c25a); }
+.eos-perks header button { border: 0; background: transparent; color: rgba(230,238,255,.75); font-size: 18px; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; }
+.eos-perks header button:hover { background: rgba(255,255,255,.08); }
+.eos-perks .cards { display: flex; gap: 12px; }
+.eos-perks .card {
+  position: relative; width: 132px; min-height: 150px; padding: 16px 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  border: 0; cursor: pointer; color: inherit; font-family: inherit;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+  background: linear-gradient(170deg, rgba(255,214,120,.16), rgba(255,255,255,.04) 55%), rgba(30,42,70,.95);
+  box-shadow: inset 0 0 0 1px rgba(255,214,120,.35);
+  animation: eos-perk-card .5s cubic-bezier(.2,.9,.3,1.2) both; animation-delay: calc(var(--i) * 90ms + 120ms);
+  transition: transform .18s, box-shadow .18s, background .18s;
+}
+.eos-perks .card:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 1px rgba(255,214,120,.8), 0 0 22px rgba(255,200,90,.35); }
+.eos-perks .card[data-mine="true"] { background: linear-gradient(170deg, rgba(255,214,120,.42), rgba(255,214,120,.1) 70%), rgba(40,46,60,.98); box-shadow: inset 0 0 0 2px #ffd25a, 0 0 26px rgba(255,200,90,.5); }
+.eos-perks .card .ico { font-size: 38px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
+.eos-perks .card b { font-size: 16px; font-weight: 600; text-align: center; line-height: 1.2; }
+.eos-perks .voters { display: flex; gap: 4px; min-height: 26px; flex-wrap: wrap; justify-content: center; }
+.eos-perks .voters img, .eos-perks .voters i { width: 24px; height: 24px; border-radius: 7px; object-fit: cover; border: 1.5px solid rgba(255,255,255,.7); display: block; }
+.eos-perk-pill {
+  position: absolute; left: 50%; top: 92px; z-index: 40; transform: translateX(-50%); border: 0; cursor: pointer;
+  padding: 6px 14px; border-radius: 999px; font: 600 14px "Kanit", sans-serif; color: #2a1c04; background: linear-gradient(180deg, #ffe7a3, #f0c25a);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.eos-perk-pill[data-pending="true"] { animation: eos-perk-blink 1.1s ease-in-out infinite; }
+@keyframes eos-perks-in { from { opacity: 0; transform: translate(-50%, -16px) scale(.96); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes eos-perk-card { from { opacity: 0; transform: translateY(18px) rotateX(40deg); } to { opacity: 1; transform: none; } }
+@keyframes eos-perk-blink { 50% { box-shadow: 0 0 0 4px rgba(255,210,90,.45), 0 6px 18px rgba(0,0,0,.35); } }
+@media (prefers-reduced-motion: reduce) { .eos-perks, .eos-perks .card, .eos-perk-pill { animation: none; } }

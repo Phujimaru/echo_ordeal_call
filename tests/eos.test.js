@@ -1142,3 +1142,89 @@ test('มาตรวัดทีม: ล้มมอนเติม · เต�
   const t = Fodlan.publicInfo().board.titles;
   assert.ok(t.some((o) => o.key === 'kills' && o.id === 'p2'));
 });
+
+// ---------------------------------------------------------------- PVE รอบสี่ (server/fodlan/eosPerks.js)
+const PK = require('../server/fodlan/eosPerks.js');
+
+test('การ์ดอัปเกรดทีม: แต้มถึง 10 = เสนอ 3 ใบ · โหวตครบ = ได้ใบที่เสียงมากสุด · ผลจริง (เดิน/ตีมอน/เสาแกร่ง/ฟื้นไว)', () => {
+  setup();
+  const s = st();
+  s.score = 9; s.pillars[0].owner = S6.PVE;
+  S6.scoreRound(ctx(), s);
+  const o = PK.PK(s).offer;
+  assert.ok(o && o.choices.length === 3, 'มีการ์ดให้เลือก');
+  o.choices = ['swift', 'might', 'bastion'];
+  const mov0 = action.movOf(P(0));
+  for (const i of [0, 1]) Fodlan.charAction(P(i).id, 'fd:perk:swift');
+  assert.ok(PK.PK(s).offer, 'ยังโหวตไม่ครบ');
+  Fodlan.charAction(P(2).id, 'fd:perk:might');
+  assert.equal(PK.PK(s).offer, null);
+  assert.deepEqual(PK.PK(s).owned, ['swift']);
+  assert.equal(action.movOf(P(0)), mov0 + 1, 'เดิน +1');
+  PK.PK(s).owned.push('might', 'bastion', 'phoenix');
+  const d = mob('daemon', 14, 13, { hp: 9 });
+  assert.ok(Fodlan.atkBonus(P(0), d) >= 1, 'ตีมอน +1');
+  assert.equal(S6.pillarHp(s), S6.PILLAR_HP + 1);
+  assert.equal(S6.reviveTurns(s), S6.REVIVE_TURNS - 1);
+});
+
+test('การ์ดอัปเกรด: โหวตไม่ครบภายในเทิร์น = ตัดสินต้นเทิร์นถัดไป · ทนทาน = เลือดสูงสุด +2', () => {
+  setup();
+  const s = st();
+  s.score = 19; PK.PK(s).nextAt = 1; s.pillars[0].owner = S6.PVE;
+  S6.scoreRound(ctx(), s);
+  PK.PK(s).offer.choices = ['vital', 'aegis', 'surge'];
+  const max0 = combat.maxHpOf(P(0));
+  match.roundNumber += 1;
+  PK.tickOffer(ctx(), s);
+  assert.deepEqual(PK.PK(s).owned, ['vital'], 'ไม่มีใครโหวต = ใบแรก');
+  assert.equal(combat.maxHpOf(P(0)), max0 + 2);
+});
+
+test('ดาวท้าทาย: เสาหลุด/มีคนล้ม = ดาวดับ · ชนะ = ได้ดาวที่ทำสำเร็จ', () => {
+  setup();
+  const s = st();
+  let c = PK.challengesOf(ctx(), s);
+  assert.ok(c.every((x) => x.ok));
+  PK.noteLost(s);
+  c = PK.challengesOf(ctx(), s);
+  assert.equal(c.find((x) => x.key === 'noLoss').ok, false);
+  s.result = 'win';
+  c = PK.challengesOf(ctx(), s);
+  assert.equal(c.filter((x) => x.star).length, 2);
+});
+
+test('กำแพงไม้: ขายในร้าน Eos · ใช้แล้ววางช่องข้างตัว มอนเดินผ่านไม่ได้ 3 เทิร์นแล้วหาย', () => {
+  setup();
+  const s = st(), p = P(0);
+  assert.ok(S6.useBarricade(p));
+  actor(p);
+  const b = btn(p, 'fd:wall');
+  assert.ok(b && b.tiles.length);
+  const t = b.tiles[0];
+  assert.ok(Fodlan.charAction(p.id, 'fd:wall', t));
+  assert.ok(Board.isObstacle(action.boardMap(), t.x, t.y), 'เป็นสิ่งกีดขวาง');
+  assert.equal(btn(p, 'fd:wall'), null, 'ใช้หมดแล้ว');
+  match.roundNumber += PK.WALL.turns + 1;
+  PK.tickWalls(ctx(), s);
+  assert.ok(!Board.isObstacle(action.boardMap(), t.x, t.y), 'หมดเวลา = หาย');
+});
+
+test('โชโกโบะทอง: กลางวันโผล่ วิ่งหนีผู้เล่น · ล้มได้ = เหรียญเยอะ + ของ · ครบเวลาหนีไป', () => {
+  setup();
+  const s = st(), H = S6.H();
+  s.night = false; s.dayNo = 1;
+  Math.random = () => 0.01;
+  ctx().rng; // ctx.rng = Math.random
+  PK.goldTurn(ctx(), s, H, 4);
+  Math.random = realRandom;
+  const g = PK.goldUnit(ctx(), H);
+  assert.ok(g, 'โผล่');
+  const near = Math.min(...H.heroes(ctx()).map((p) => H.manhattan(p.pos, g.pos)));
+  PK.goldTurn(ctx(), s, H, 5);
+  const near2 = Math.min(...H.heroes(ctx()).map((p) => H.manhattan(p.pos, g.pos)));
+  assert.ok(near2 >= near, 'วิ่งหนี');
+  const gold0 = P(1).gold || 0;
+  kill(g, P(1));
+  assert.ok((P(1).gold || 0) >= gold0 + PK.GOLD.gold);
+});

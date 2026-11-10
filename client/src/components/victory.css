@@ -317,3 +317,11 @@
 .vic-title i { font-style: normal; }
 .vic-mini .vic-titles { margin-top: 4px; }
 .vic-mini .vic-title { font-size: 11px; padding: 2px 7px 2px 5px; }
+
+/* ดาวท้าทายสนาม Eos */
+.vic-stars { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); display: flex; gap: 22px; z-index: 5; }
+.vic-stars span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 22px; opacity: .45; filter: grayscale(1); }
+.vic-stars span i { font-style: normal; font-size: 64px; line-height: 1; color: #ffd25a; text-shadow: 0 0 22px rgba(255,200,90,.7), 0 4px 10px rgba(0,0,0,.35); }
+.vic-stars span[data-on="true"] { opacity: 1; filter: none; animation: vic-star-pop .6s cubic-bezier(.2,.9,.3,1.4) both; }
+.vic-stars span:nth-child(2) { animation-delay: .25s; } .vic-stars span:nth-child(3) { animation-delay: .5s; }
+@keyframes vic-star-pop { from { transform: scale(.2) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }

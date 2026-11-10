@@ -5,6 +5,14 @@
 //  กดที่ไหนก็ได้ / Esc = ปิด
 // ============================================================
 import { useEffect, useRef } from "react";
+import { paintEos } from "./eosPaint";
+// ภาพวาดแผนที่ทั้งผืน (eosPaint.js — ผู้ใช้สั่ง 2026-11-10 "แผนที่ภาพรวมทำให้สวย") วาดครั้งเดียวต่อกลางวัน/คืน + จำนวนสิ่งกีดขวาง
+let PAINT = null;
+function paintedMap(board, night) {
+  const key = `${night ? 1 : 0}|${Object.keys(board.terrain || {}).length}|${board.cols}x${board.rows}`;
+  if (!PAINT || PAINT.key !== key) { try { PAINT = { key, ...paintEos(board, { size: 1024, night }) }; } catch { PAINT = null; } }
+  return PAINT;
+}
 
 const TERRAIN_COLOR = {
   fd_eos_bldg: "#8d97a5", fd_eos_wall: "#a59a85", fd_eos_lamp: "#6e7480", fd_eos_tree: "#3f6a2a", fd_eos_rock: "#8a7058",
@@ -37,14 +45,18 @@ export default function EosMap({ state, onClose }) {
     cv.width = size * dpr; cv.height = size * dpr;
     const g = cv.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.fillStyle = GRASS; g.fillRect(0, 0, size, size);
-    const terr = b.terrain || {}, spec = b.special || {};
-    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-      const k = `${x},${y}`, col = TERRAIN_COLOR[terr[k]] || SPECIAL_COLOR[spec[k]];
-      if (!col) continue;
-      g.fillStyle = col; g.fillRect(x * T, y * T, T + 0.5, T + 0.5);
-    }
     const fd = state.fodlan && state.fodlan.board;
+    const art = paintedMap(b, !!(fd && fd.night));
+    if (art) g.drawImage(art.canvas, 0, 0, size, size);
+    else {
+      g.fillStyle = GRASS; g.fillRect(0, 0, size, size);
+      const terr = b.terrain || {}, spec = b.special || {};
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const k = `${x},${y}`, col = TERRAIN_COLOR[terr[k]] || SPECIAL_COLOR[spec[k]];
+        if (!col) continue;
+        g.fillStyle = col; g.fillRect(x * T, y * T, T + 0.5, T + 0.5);
+      }
+    }
     const dot = (x, y, r, fill, stroke) => {
       g.beginPath(); g.arc((x + 0.5) * T, (y + 0.5) * T, r * T, 0, Math.PI * 2);
       g.fillStyle = fill; g.fill();

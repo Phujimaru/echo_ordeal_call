@@ -23,6 +23,7 @@
 // ============================================================
 const MAP = require("./map6");
 const E = require("./eosEvents"); // PVE รอบสอง: ความยาก · บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
+const PKS = require("./eosPerks"); // PVE รอบสี่: การ์ดอัปเกรดทีม · ดาวท้าทาย · กำแพงชั่วคราว · โชโกโบะทอง
 const XT = require("./eosExtra"); // PVE รอบสาม: คืนสุดท้าย · พลังประจำเสา · ท่าร่วม · รังปีศาจ · ยักษ์หิน · แสงไฟแคมป์ · พลเรือน · มาตรวัดทีม · ฉายา
 
 const MOV_BONUS = 2;          // ทุกคนบน Eos
@@ -104,6 +105,7 @@ function enter(ctx, st) {
   for (const p of Object.values(ctx.match.players)) if (isMob(p) || (p.summon && p.summon.convoy)) lazySummon().remove(p); // แมตช์ใหม่: มอน/รถเสบียงเก่าหายหมด
   E.init(st.eos);
   XT.init(st.eos);
+  PKS.init(st.eos);
   // dev: วางรถคันแรกไว้ที่ช่องที่กำหนด (EOS_DEV_CAR="x,y" — ทดสอบการขึ้นรถในเบราว์เซอร์)
   if (process.env.EOS_DEV_CAR) { const [x, y] = String(process.env.EOS_DEV_CAR).split(",").map(Number); if (Number.isFinite(x) && Number.isFinite(y)) Object.assign(st.eos.cars[0], { x, y }); }
   ctx.bump();
@@ -121,6 +123,7 @@ function layer(ctx, st, map) {
   for (const b of s.barrels || []) terrain[K(b.x, b.y)] = "fd_eos_barrel";
   for (const c of s.crystals || []) terrain[K(c.x, c.y)] = "fd_eos_crystal";
   for (const c of s.chests || []) terrain[K(c.x, c.y)] = "fd_eos_chest";
+  PKS.layerWalls(s, terrain); // กำแพงชั่วคราว (ไอเทมร้าน)
   // น้ำที่แช่แข็ง (ขวดน้ำแข็ง) = เดินได้ (ไถลตามกติกาน้ำแข็ง)
   const b = ctx.match.board || {};
   for (const k of Object.keys(b.ice || {})) if (terrain[k] === "fd_eos_water" || terrain[k] === "fd_eos_canal") { delete terrain[k]; special[k] = "ice"; }
@@ -140,7 +143,7 @@ function movMod(ctx, st, p) {
   if (!s || !p) return 0;
   const base = Number(ctx.action.baseMovOf ? ctx.action.baseMovOf(p) : require("../phases/action").baseMovOf(p)) || 0;
   const walk = Math.max(0, Math.min(base + MOV_BONUS, WALK_MAX) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
-  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + (stormOn(ctx) ? STORM_MOV : 0);
+  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (stormOn(ctx) ? STORM_MOV : 0);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -386,7 +389,7 @@ function carSeats(ctx, st, p, t) {
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
-function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
+function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
 function carDriver(ctx, st, p) { return driving(st && st.eos, p); }
 // อยู่ในรถ (คนขับ หรือผู้โดยสาร) = ใช้สกิลไม่ได้ (ผู้ใช้สั่ง 2026-11-09) · ตี/ชนยังได้
 function noSkill(ctx, st, p) {
@@ -431,8 +434,8 @@ function freeNear(ctx, s, x0, y0, maxD = 4, selfId = null, extra = null) {
 //  เป้า: ผู้เล่นที่ใกล้สุด หรือเสาที่ผู้เล่นยึดไว้ (ตี PILLAR_HP ครั้ง = เสาหลุด) · ทหารเหล็กเล็งเสาก่อน
 //  ตาย = server/summon.js onDeath → onMobDeath: เหรียญ + ของดรอป + ค่าหัว (ผู้ใช้สั่ง "กำจัดมอนต้องได้ของ")
 const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-const MOB_NAMES = { daemon: "ปีศาจ", beast: "สัตว์ยักษ์", magitek: "ทหารเหล็ก", nest: "รังปีศาจ", giant: "ยักษ์หิน" };
-const MOB_COLORS = { daemon: "#8a2f9c", beast: "#7a5230", magitek: "#59636f", nest: "#5a1a4a", giant: "#7d7568" };
+const MOB_NAMES = { daemon: "ปีศาจ", beast: "สัตว์ยักษ์", magitek: "ทหารเหล็ก", nest: "รังปีศาจ", giant: "ยักษ์หิน", gold: "โชโกโบะทอง" };
+const MOB_COLORS = { daemon: "#8a2f9c", beast: "#7a5230", magitek: "#59636f", nest: "#5a1a4a", giant: "#7d7568", gold: "#f2c21b" };
 const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 4 + 1}.webp`;
 // ค่าพลังตามคืน/วัน (n = 1, 2, 3 …) — Claude ตั้งตัวเลข
 function daemonStats(n) {
@@ -558,6 +561,8 @@ function stepMob(ctx, s, m, targets, pillars, mov) {
   return { to, path: path.slice(0, n + 1), target, pillar: target ? null : adjP(to.x, to.y) };
 }
 // มอนตีเสา: ครบ PILLAR_HP ครั้ง = เสาหลุดกลับเป็นกลาง (พิธีที่กำลังร่ายก็แตก)
+const pillarHp = (s) => PILLAR_HP + PKS.pillarHpBonus(s); // การ์ดเสาแกร่ง +1
+const reviveTurns = (s) => REVIVE_TURNS - PKS.reviveCut(s); // การ์ดฟื้นไว −1
 function hitPillar(ctx, s, pl, m) {
   if (pl.ch) { breakChannel(ctx, pl); if (!pl.owner) return { id: pl.id, broke: "channel" }; }
   if (!pl.owner) return { id: pl.id };
@@ -568,12 +573,13 @@ function hitPillar(ctx, s, pl, m) {
     return { id: pl.id, ward: pl.ward };
   }
   pl.hits = (pl.hits || 0) + 1;
-  if (pl.hits < PILLAR_HP) {
-    ctx.fx("pillar_hit", { id: pl.id, x: pl.x, y: pl.y, hits: pl.hits, by: m.id });
-    ctx.log(`🔷 ${m.name} โจมตีเสา ${ZONE_NAMES[pl.zone] || ""} (${pl.hits}/${PILLAR_HP})`);
+  if (pl.hits < pillarHp(s)) {
+    ctx.fx("pillar_hit", { id: pl.id, x: pl.x, y: pl.y, hits: pl.hits, hp: pillarHp(s), by: m.id });
+    ctx.log(`🔷 ${m.name} โจมตีเสา ${ZONE_NAMES[pl.zone] || ""} (${pl.hits}/${pillarHp(s)})`);
     return { id: pl.id, hits: pl.hits };
   }
   pl.owner = null; pl.hits = 0;
+  PKS.noteLost(s); // ดาวท้าทาย "เสาไม่หลุดเลย"
   ctx.bump();
   ctx.fx("pillar_lost", { id: pl.id, x: pl.x, y: pl.y, by: m.id });
   ctx.log(`💔 เสา ${ZONE_NAMES[pl.zone] || ""} ถูกมอนเตอร์ทำลายพิธี — หลุดกลับเป็นกลาง!`);
@@ -587,14 +593,16 @@ function actMonsters(ctx, s) {
   for (const m of list) {
     if (!m.alive || !m.pos || stuckMob(m) || m.summon.born === round) continue;
     const type = mobType(m), sm = m.summon;
-    if (type === "nest" || type === "giant") continue; // รังอยู่กับที่ · ยักษ์หินเดินตามเส้นทาง (eosExtra.giantTurn)
+    if (type === "nest" || type === "giant" || type === "gold") continue; // โชโกโบะทองวิ่งหนีเอง (eosPerks.goldTurn)
+    // อากาศ → มอน (PVE รอบสี่): พายุทราย = ทหารเหล็กในทะเลทรายไม่เห็นใคร ขยับเมื่อมีคนใกล้ ≤ 3
+    if (type === "magitek" && sandOn(ctx) && inDesert(m.pos.x, m.pos.y) && !heroes(ctx).some((p) => manhattan(p.pos, m.pos) <= PKS.WEATHER_MOB.sandSight)) continue; // รังอยู่กับที่ · ยักษ์หินเดินตามเส้นทาง (eosExtra.giantTurn)
     const all = prey(ctx, s, m);
     // ---- นิสัยพิเศษ ----
     if (sm.trait === "healer") { healerAct(ctx, s, m, all, moves, heals); continue; }
     if (sm.trait === "sniper") {
       const t = all.filter((p) => manhattan(p.pos, m.pos) <= TRAIT.sniperRange).sort((a, b) => manhattan(a.pos, m.pos) - manhattan(b.pos, m.pos))[0];
       if (t) {
-        const dealt = ctx.combat.withEffectSource(m, () => ctx.damage(t, Math.max(1, sm.atk | 0)));
+        const dealt = ctx.combat.withEffectSource(m, () => ctx.damage(t, Math.max(1, (sm.atk | 0) + (stormOn(ctx) ? PKS.WEATHER_MOB.stormMagitekAtk : 0))));
         shots.push({ id: m.id, from: { ...m.pos }, to: { ...t.pos }, target: t.id, dmg: dealt });
         ctx.log(`🎯 ${m.name}ยิง ${t.name} -${dealt}`);
         continue;
@@ -622,7 +630,7 @@ function actMonsters(ctx, s) {
       else if (r.target && r.target.alive) { const dealt = ctx.combat.withEffectSource(m, () => ctx.damage(r.target, Math.max(1, sm.atk | 0))); attacks.push({ id: m.id, type: "boss", x: m.pos.x, y: m.pos.y, target: r.target.id, dmg: dealt }); }
       continue;
     }
-    let targets = [], pillars = [], mov = Math.max(0, ctx.action.movOf(m) | 0);
+    let targets = [], pillars = [], mov = Math.max(0, (ctx.action.movOf(m) | 0) + (type === "daemon" && fogOn(ctx) ? PKS.WEATHER_MOB.fogDaemonMov : 0)); // หมอก = ปีศาจล่าในหมอก เดิน +1
     if (type === "beast") {
       const agg = sm.aggro && round <= sm.aggroUntil + 1 ? ctx.match.players[sm.aggro] : null;
       if (agg && agg.alive && agg.pos) targets = [agg];
@@ -648,7 +656,7 @@ function actMonsters(ctx, s) {
       if (all.some((p) => footOf(ctx, p).some((tt) => manhattan(tt, m.pos) === 1))) booms.push(bomberBlast(ctx, s, m, true));
       continue;
     }
-    const atk = Math.max(1, sm.atk | 0);
+    const atk = Math.max(1, (sm.atk | 0) + (type === "magitek" && stormOn(ctx) ? PKS.WEATHER_MOB.stormMagitekAtk : 0)); // ฝนฟ้าคะนอง = ทหารเหล็กลัดวงจร ตี −1
     // สัตว์ยักษ์ตีทุกคนที่ติดตัว (ล่อมาชนคนอื่นได้) · อื่นๆ ตีเป้าตัวเดียว · ไม่มีคนติด = ตีเสา
     const victims = type === "beast" ? all.filter((p) => footOf(ctx, p).some((t) => manhattan(t, m.pos) === 1)) : r.target ? [r.target] : [];
     for (const v of victims) {
@@ -713,6 +721,7 @@ const DROP_POOL = {
   magitek: { pct: 40, items: ["armor", "resist", "battery"], flask: 35 },
   beast: { pct: 100, items: ["lifeCrystal", "armorCrystal", "windBoots"] },
   nest: { pct: 70, items: ["armor", "cleanse", "resist", "fortune"], flask: 40 },
+  gold: { pct: 100, items: ["lifeCrystal", "armorCrystal", "windBoots", "fortune"] },
 };
 function itemOf(type) {
   const C = require("../constants");
@@ -745,9 +754,9 @@ function onMobDeath(m, killerId) {
   E.questKill(ctx, s, H(), at, by);
   if (XT.onMobDeath(ctx, s, H(), m, by)) return; // ท่าร่วม · ฉายา · มาตรวัดทีม · ยักษ์หิน (แจกของเอง)
   if (m.summon.trait === "boss") { if (by) lazyShop().addGold(by, m.summon.gold || 0); E.onBossDeath(ctx, s, H(), m, by); huntDone(ctx, s, by, type); return; }
-  const mul = E.bloodMul(s), pool0 = DROP_POOL[type] || {};
-  const pool = { ...pool0, pct: Math.min(100, ((pool0.pct || 0) + E.dropBonus(ctx)) * mul), flask: pool0.flask ? Math.min(100, pool0.flask * mul) : 0 };
-  const gold = by ? lazyShop().addGold(by, (m.summon.gold || 0) * mul) : 0;
+  const mul = E.bloodMul(s), pool0 = DROP_POOL[type] || {}, luck = PKS.fortune(s); // การ์ดโชคลาภ: เหรียญ +1 · โอกาสได้ของ +20%
+  const pool = { ...pool0, pct: Math.min(100, ((pool0.pct || 0) + E.dropBonus(ctx) + luck.pct) * mul), flask: pool0.flask ? Math.min(100, pool0.flask * mul) : 0 };
+  const gold = by ? lazyShop().addGold(by, ((m.summon.gold || 0) + luck.gold) * mul) : 0;
   const got = by ? loot(ctx, s, by, pool) : [];
   if (type === "beast") s.beastBack = ctx.match.roundNumber + BEAST.respawn;
   ctx.bump();
@@ -871,6 +880,7 @@ function scoreRound(ctx, s) {
   checkWin(ctx, s);
   E.onScore(ctx, s, H()); // แต้มรวมถึงครึ่ง = ราชาปีศาจครั้งแรก
   XT.onScore(ctx, s, H()); // แต้มรวมถึง 40 = คืนสุดท้าย
+  PKS.onScore(ctx, s); // แต้มรวมถึง 10/20/30 = โหวตการ์ดอัปเกรดทีม
 }
 function checkWin(ctx, s) {
   if (s.score >= SCORE_GOAL && !s.result) {
@@ -885,6 +895,7 @@ function addScore(ctx, s, n, why) {
   checkWin(ctx, s);
   E.onScore(ctx, s, H());
   XT.onScore(ctx, s, H());
+  PKS.onScore(ctx, s);
 }
 // ผลแมตช์ (phases/endTurn.js gameOver): "win" = แต้มครบ · "lose" = ผู้เล่นล้มหมดพร้อมกัน (ไม่มีใครเหลือรอเพื่อนฟื้น)
 function outcome(ctx, st) {
@@ -912,7 +923,8 @@ function noteDeaths(ctx, s) {
     if (p.summon || p.alive) { delete s.dead[p.id]; continue; }
     if (s.dead[p.id] == null) {
       s.dead[p.id] = ctx.match.roundNumber;
-      ctx.log(`🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${REVIVE_TURNS} เทิร์น`);
+      PKS.noteDown(s); // ดาวท้าทาย "ไม่มีใครล้ม"
+      ctx.log(`🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${reviveTurns(s)} เทิร์น`);
     }
   }
 }
@@ -932,7 +944,7 @@ function reviveDue(ctx, s) {
   const turn = ctx.match.roundNumber + 1, back = [];
   for (const [pid, r] of Object.entries(s.dead)) {
     const p = ctx.match.players[pid];
-    if (!p || p.alive || p.summon || turn < r + REVIVE_TURNS) continue;
+    if (!p || p.alive || p.summon || turn < r + reviveTurns(s)) continue;
     const spot = E.helpedSpot(ctx, s, H(), p) || reviveSpot(ctx, s, p); // ถูกเพื่อนช่วย = ฟื้นข้างดวงวิญญาณ
     if (!spot) continue;
     E.onRevived(s, pid);
@@ -1681,6 +1693,7 @@ function preRound(ctx, st) {
   secs = Math.max(secs, p4PreRound(ctx, s, turn)); // ขั้น 4: รถไฟ · บัฟแคมป์ · อาวุธหลวงหมดอายุ
   secs = Math.max(secs, E.preRound(ctx, s, H(), turn, false, false)); // บอสลง · ภารกิจโซน · ขบวนเสบียง
   secs = Math.max(secs, XT.preRound(ctx, s, H(), turn, freshNight)); // พลังเสา · รังปีศาจ · คืนสุดท้าย · พลเรือน · ยักษ์หิน
+  secs = Math.max(secs, PKS.preRound(ctx, s, H(), turn)); // การ์ดอัปเกรด (ตัดสินโหวต) · เกราะคุ้มกัน · กำแพงหมดเวลา · โชโกโบะทอง
   checkChannels(ctx, s);
   checkRiders(ctx, s); // ปีศาจ/ฟ้าผ่า/ศัตรูตีคนขี่ = ตกนก
   respawnChocos(ctx, s);
@@ -1755,6 +1768,7 @@ function hudActions(ctx, st, p) {
   p4Hud(ctx, s, p, out); // ขั้น 4
   E.hud(ctx, s, H(), p, out); // ช่วยเพื่อน · สำรวจภารกิจ
   XT.hud(ctx, s, H(), p, out); // พาพลเรือน · ถล่ม (มาตรวัดทีมเต็ม)
+  PKS.hud(ctx, s, H(), p, out); // กำแพงชั่วคราว
   const sz = seizeState(ctx, s, p);
   if (sz) out.push({ key: "fd:seize", icon: "🔷", name: sz.repair ? "ซ่อมเสา" : sz.pl.ch && sz.pl.ch.by === p.id ? "ยึด 2/2" : "ยึด", disabled: !sz.ok });
   if (riding(s, p)) {
@@ -1790,7 +1804,7 @@ const FLASK_DESC = {
 };
 function descOf(a, s, sz) {
   if (a.key === "fd:seize") {
-    if (sz && sz.repair) return `ซ่อมเสาที่มอนเตอร์ตี — ล้างรอยตี (ตีครบ ${PILLAR_HP} ครั้ง = เสาหลุด) · ใช้การโจมตีของตา`;
+    if (sz && sz.repair) return `ซ่อมเสาที่มอนเตอร์ตี — ล้างรอยตี (ตีครบ ${pillarHp(s)} ครั้ง = เสาหลุด) · ใช้การโจมตีของตา`;
     return "ร่ายพิธียึดเสา 2 ตาติดกัน (ใช้การโจมตีของตา) — ระหว่างนั้นโดนดาเมจ/ออกห่าง = พิธีแตก\nเสาที่ยึดได้ = แต้มรวมทุกจบเทิร์น";
   }
   if (a.key.startsWith("fd:flask:")) return FLASK_DESC[a.key.slice(9)] || "";
@@ -1806,6 +1820,8 @@ function charAction(ctx, st, p, key, tile) {
   if (ex !== null) { if (ex && key === "fd:help") XT.stat(s, p.id, "saves"); return ex; }
   const xt = XT.action(ctx, s, H(), p, key, tile);
   if (xt !== null) return xt;
+  const pk = PKS.action(ctx, s, H(), p, key, tile);
+  if (pk !== null) return pk;
   if (key === "fd:board") return boardCar(ctx, s, p, tile);
   if (key === "fd:leave") return leaveCar(ctx, s, p, tile);
   if (key === "fd:ram") return ram(ctx, s, p, tile);
@@ -1936,6 +1952,14 @@ function useWard(p) {
   if (ok) XT.stat(s, p.id, "guard");
   return ok;
 }
+// กำแพงไม้ (ไอเทมร้าน Eos — server/shop.js) → เพิ่มจำนวนที่วางได้ (ปุ่ม "กำแพง" บน HUD) · เต็มแล้ว = ไม่เสียของ
+function useBarricade(p) {
+  if (!p || !p.alive || !gysahlOnSale()) return false;
+  const F = require("../fodlan");
+  const ctx = F.makeCtx(), s = F.stageState().eos, ok = PKS.addCharge(s, p);
+  if (ok) { ctx.bump(); ctx.log(`🧱 ${p.name} เตรียมกำแพงไม้ (กด "กำแพง" เพื่อวาง)`); }
+  return ok;
+}
 function onCivDeath(c) {
   const F = require("../fodlan");
   if (!F.active() || !F.isEos() || !F.stageState() || !F.stageState().eos) return;
@@ -1969,18 +1993,19 @@ function publicInfo(ctx, st) {
     pillars: s.pillars.map((pl) => ({
       id: pl.id, zone: pl.zone, x: pl.x, y: pl.y, owner: pl.owner, color: pl.owner ? sideColor(ctx, pl.owner) : null,
       ch: pl.ch ? { by: pl.ch.by, color: sideColor(ctx, pl.ch.side), round: pl.ch.round } : null,
-      hits: pl.hits || 0, hp: PILLAR_HP, ward: pl.ward || 0, wardMax: E.WARD_MAX,
+      hits: pl.hits || 0, hp: pillarHp(s), ward: pl.ward || 0, wardMax: E.WARD_MAX,
     })),
     pve: true,
     ...E.publicOf(ctx, s, H()), // diff · blood · boss · bossWarn · quests · convoy · spirits
     ...XT.publicOf(ctx, s, H()), // final · powers · gauge · giant · civs · lightR · stats · titles
+    ...PKS.publicOf(ctx, s), // perks · perkOffer · perkAt · challenges · walls · wallCharges
     goal: SCORE_GOAL,
     score: s.score || 0,
     rate: rateOf(heldCount(s)),
     lastGain: s.lastGain || 0,
     nightNo: s.nightNo || 0, dayNo: s.dayNo || 1, kills: s.kills || 0,
     cycleLeft: (() => { const r = ctx.match.roundNumber, n0 = nightAt(ctx, r); let k = 1; while (k < 12 && nightAt(ctx, r + k) === n0) k++; return k; })(), // อีกกี่เทิร์นสลับกลางวัน/คืน
-    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + REVIVE_TURNS })),
+    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + reviveTurns(s) })),
     chests: (s.chests || []).map((c) => ({ id: c.id, x: c.x, y: c.y })),
     bridgeUp: !!s.bridgeUp,
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA } : null,
@@ -2008,7 +2033,9 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
-  gysahlOnSale, useGysahl, wardOnSale, useWard, onConvoyDeath, onCivDeath, H, addScore, bomberBlast, healerAct, TRAIT, pickTrait, nightTarget, explodeBarrel, throwFlask, fireTurret, actMonsters, spawnBeast, dropshipTurn, respawnProps, hurt, TURRETS, outcome, onMobDeath, isMob, mobsOf, spawnMob, spawnChests, openChest, mountNear, hitPillar,
+  gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
+  // ผลค้างทั้งแมตช์ (fodlan.persistAll): การ์ดทนทาน = เลือดสูงสุด +2
+  persist: { maxHpBonus(ctx, st, p) { return st && st.eos && p && !p.summon ? PKS.hpBonus(st.eos) : 0; } }, addScore, bomberBlast, healerAct, TRAIT, pickTrait, nightTarget, explodeBarrel, throwFlask, fireTurret, actMonsters, spawnBeast, dropshipTurn, respawnProps, hurt, TURRETS, outcome, onMobDeath, isMob, mobsOf, spawnMob, spawnChests, openChest, mountNear, hitPillar,
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์

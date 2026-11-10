@@ -47,6 +47,9 @@
 .eos-power { width: 26px; height: 26px; display: grid; place-items: center; font-size: 15px; border-radius: 8px; background: color-mix(in srgb, var(--z) 26%, transparent); border: 1px solid color-mix(in srgb, var(--z) 70%, transparent); }
 .eos-pl-pow { font-style: normal; font-size: 12px; margin-left: 6px; opacity: .35; filter: grayscale(1); }
 .eos-pl-pow[data-on="true"] { opacity: 1; filter: none; }
+.eos-stars { display: inline-flex; gap: 2px; }
+.eos-stars i { font-style: normal; font-size: 15px; color: #ffd25a; text-shadow: 0 0 6px rgba(255,210,90,.6); }
+.eos-stars i[data-ok="false"] { color: rgba(255,255,255,.25); text-shadow: none; }
 @keyframes eos-pl-blink { 50% { opacity: .45; } }
 /* ฟื้นคืนชีพ */
 .eos-revive { pointer-events: auto; display: flex; gap: 6px; padding: 6px 10px 6px 8px; border-radius: 12px 0 0 12px; background: var(--es-bg); border: 1px solid var(--es-line); border-right: 0; backdrop-filter: blur(6px); }

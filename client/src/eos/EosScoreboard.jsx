@@ -60,6 +60,11 @@ export default function EosScoreboard({ state }) {
             {b.final && <span className="eos-final-chip" title="คืนสุดท้าย — กลางคืนถาวร ปีศาจบุกเสาทุกเทิร์น">🌑</span>}
           </div>
         )}
+        {(b.perks || []).length > 0 && (
+          <div className="eos-powers eos-perks-row">
+            {b.perks.map((c) => <span key={c.id} className="eos-power" style={{ "--z": "#ffd25a" }} title={`การ์ดทีม ${c.name}: ${c.desc}`}>{c.icon}</span>)}
+          </div>
+        )}
         {(b.powers || []).length > 0 && (
           <div className="eos-powers">
             {b.powers.map((z) => <span key={z} className="eos-power" style={{ "--z": (ZONE[z] || {}).color }} title={`พลังเสา ${(ZONE[z] || {}).name || z}: ${(POWER[z] || {}).tip || ""}`}>{(POWER[z] || {}).icon || "✨"}</span>)}
@@ -106,6 +111,11 @@ export default function EosScoreboard({ state }) {
           <span className="eos-score-rate">+{rate}</span>
           {(b.nightNo || 0) > 0 && <span title="คืนที่ — ปีศาจแกร่งขึ้นทุกคืน">🌙 {b.nightNo}</span>}
           {(b.kills || 0) > 0 && <span title="มอนเตอร์ที่กำจัดแล้ว">⚔ {b.kills}</span>}
+          {(b.challenges || []).length > 0 && (
+            <span className="eos-stars">
+              {b.challenges.map((c) => <i key={c.key} data-ok={c.ok ? "true" : "false"} title={`ดาวท้าทาย: ${c.name}${c.ok ? "" : " (พลาดแล้ว)"}`}>★</i>)}
+            </span>
+          )}
         </div>
       </div>
     </div>

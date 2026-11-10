@@ -304,7 +304,7 @@ function charAction(id, key, tile) {
   const p = match.players[id];
   if (!active() || !p || !p.alive) return false;
   const ok = combat.withEffectSource(p, () => call("charAction", false, p, key, tile));
-  if (ok && match.gameState === "ACTION") view.broadcastState();
+  if (ok) view.broadcastState(); // ทุกช่วง (โหวตการ์ดทีม Eos กดได้ตอนจั่วการ์ดด้วย — เดิมเฉพาะ ACTION = หน้าจอไม่อัปเดต)
   return !!ok;
 }
 // ของบนกระดานของด่าน (ตีได้ = strike: true) — id "fd:…"
