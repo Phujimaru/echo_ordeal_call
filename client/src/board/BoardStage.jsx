@@ -2305,6 +2305,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return out;
   }, [state.players]);
   const carDrivers = useMemo(() => new Set(((state.fodlan && state.fodlan.board && state.fodlan.board.cars) || []).map((c) => c.driver).filter(Boolean)), [state.fodlan]);
+  // สนาม Eos: ขับรถ/ขี่โชโกโบะ = หลอดบนตัวเป็นเลือดของพาหนะ (เขียว) แทนเลือด/เกราะของคน (ผู้ใช้สั่ง 2026-11-10 — พาหนะรับดาเมจก่อน)
+  const vehicleBars = useMemo(() => {
+    const fd = state.fodlan && state.fodlan.board, out = {};
+    if (!fd) return out;
+    for (const c of fd.cars || []) if (c.driver && c.maxHp) out[c.driver] = { hp: c.hp ?? c.maxHp, maxHp: c.maxHp };
+    for (const c of fd.chocos || []) if (c.rider && c.maxHp) out[c.rider] = { hp: c.hp ?? c.maxHp, maxHp: c.maxHp };
+    return out;
+  }, [state.fodlan]);
   const units = useMemo(() => state.players.filter((p) => p.alive && p.pos && !p.ride).map((p) => {
     const at = iceHold[p.id] || hold[p.id] || p.pos;
     const mk = !!p.masked; // "มืดบอด": ขาวล้วน ไม่มีชื่อ/รูป/แถบเลือด
@@ -2316,7 +2324,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       ...(carDrivers.has(p.id) ? { inCar: true } : null), // สนาม Eos: คนขับนั่งในรถ (boardDraw — ไม่มีฐาน/เสา รูปอยู่ในห้องโดยสาร)
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
-      hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0,
+      ...(vehicleBars[p.id] && !mk ? { hp: vehicleBars[p.id].hp, maxHp: vehicleBars[p.id].maxHp, armor: 0, maxArmor: 0 } : { hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0 }),
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       ally: coopMode && !mk && !!me && p.id !== me.id && !!me.teamId && p.teamId === me.teamId && !isDoubleP(p),
       // สนาม Eos (PVE — ผู้เล่นทุกคนทีมเดียวกัน): หลอดเลือดผู้เล่นสีเขียว (มอนวาดเองใน fodlan/stage6.js = แดง)
@@ -2369,7 +2377,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world]);
+  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
@@ -2626,7 +2634,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const ei = eosTileInfo(state.fodlan && state.fodlan.board, state.players, hover.x, hover.y, state.roundNumber);
       if (ei) return ei;
       const ri = Rules.tileInfo(map, hover.x, hover.y);
-      if (!ri) return eosTerrainInfo(map, hover.x, hover.y);
+      if (!ri) {
+        const fdb = state.fodlan && state.fodlan.board;
+        if (fdb && fdb.cityWalls && (fdb.cityWalls.broken || []).some((w) => w.x === hover.x && w.y === hover.y)) return { icon: "🧱", name: "ซากกำแพง", desc: EOS_NAME_DESC["ซากกำแพง"] };
+        return eosTerrainInfo(map, hover.x, hover.y, fdb, state.roundNumber);
+      }
       return !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
     }
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null

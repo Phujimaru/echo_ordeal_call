@@ -796,6 +796,51 @@ test('L16 แคมป์: เลือกอาหาร (ใช้การต
   assert.equal(action.movOf(p), mov - 1);
 });
 
+test('กำแพง Insomnia: ประตูปิด → มอนมาทุบกำแพง (หุ่นเกราะแรง 2) · พังแล้วเดินผ่านได้ · ผู้เล่นซ่อม/ก่อใหม่ได้ · โดมพัก 5 เทิร์น', () => {
+  setup();
+  const s = st();
+  const wall = Object.entries(action.boardMap().terrain).map(([k, v]) => [k.split(',').map(Number), v]).find(([[x, y], v]) => v === 'fd_eos_wall' && y === 8 && x === 10);
+  assert.ok(wall, 'มีกำแพงแถวล่างของ Insomnia');
+  const [wx, wy] = wall[0];
+  const m = S6.spawnMob(ctx(), s, 'magitek', { x: wx, y: wy + 1 }, { hp: 10, armor: 3, atk: 3, mov: 2, gold: 8 }, { trait: 'mech', tier: 1 });
+  const hit = S6.hitWall(ctx(), s, m, { x: wx, y: wy });
+  assert.ok(hit && hit.wall && hit.hp === S6.CITY_WALL.hp - 2);
+  S6.hitWall(ctx(), s, m, { x: wx, y: wy });
+  assert.ok(s.wallBroken[`${wx},${wy}`], 'พัง');
+  assert.ok(!action.boardMap().terrain[`${wx},${wy}`], 'ช่องโล่งเดินผ่านได้');
+  const p = P(0);
+  p.pos = { x: wx, y: wy + 1 }; m.pos = { x: wx + 3, y: wy + 3 };
+  actor(p);
+  const b = btn(p, 'fd:wallfix');
+  assert.ok(b && !b.disabled);
+  assert.ok(Fodlan.charAction(p.id, 'fd:wallfix'));
+  assert.ok(!s.wallBroken[`${wx},${wy}`], 'ก่อขึ้นใหม่');
+  assert.equal(action.boardMap().terrain[`${wx},${wy}`], 'fd_eos_wall');
+  assert.equal(S6.DOME_COOLDOWN, 5);
+});
+
+test('กำแพง Insomnia: โดมปิดประตู + คนอยู่ในเมือง → หุ่นเกราะนอกกำแพงเดินมาทุบกำแพง', () => {
+  setup();
+  const s = st();
+  s.dome = { left: 3, by: 'x' }; ctx().bump();
+  for (const q of Object.values(match.players)) if (!q.summon) q.pos = null;
+  const p = P(0); p.pos = { x: 11, y: 4 };
+  const m = S6.spawnMob(ctx(), s, 'magitek', { x: 10, y: 10 }, { hp: 10, armor: 3, atk: 3, mov: 3, gold: 8 }, { trait: 'mech', tier: 1 });
+  m.summon.born = 0;
+  for (let i = 0; i < 4 && !Object.keys(s.wallHp || {}).length && !Object.keys(s.wallBroken || {}).length; i++) S6.actMonsters(ctx(), s);
+  assert.ok(m.pos.y >= 9, 'ประตูปิด เข้าเมืองไม่ได้');
+  assert.ok(Object.keys(s.wallHp || {}).length || Object.keys(s.wallBroken || {}).length, 'กำแพงโดนทุบ');
+});
+
+test('พายุหิมะ: น้ำตื้นกลายเป็นน้ำแข็ง (เดิน 1 ก้าว) · หมดพายุกลับเป็นน้ำตื้น', () => {
+  setup();
+  const k = Object.entries(action.boardMap().special).find(([, v]) => v === 'fd_eos_shallow')[0];
+  Fodlan.startWeather('eos_snow');
+  assert.equal(action.boardMap().special[k], 'ice');
+  match.fodlan.weather = null; match.fodlan.s.weather = null;
+  assert.equal(action.boardMap().special[k], 'fd_eos_shallow');
+});
+
 test('อาหารทีม: ปลาในถุงไปทำที่แคมป์ — ปลาย่างทั้งทีม (1 ตัว) ทุกคนฟื้น 2 · งานเลี้ยงทีม (2 ตัว) ทุกคนตี +1 เดิน +1', () => {
   setup();
   const p = P(0), mate = P(1), c = MAP6.CAMPS[0];

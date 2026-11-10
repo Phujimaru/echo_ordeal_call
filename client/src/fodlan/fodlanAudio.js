@@ -216,5 +216,6 @@ export function fodlanAudio() {
   }
 
   instance = { preload, setStage, sfx, thunder, stop, duck };
+  if (import.meta.hot) import.meta.hot.dispose(() => { stop(0.01); instance = null; }); // dev: โหลดโมดูลใหม่ = ปิดลูปชุดเก่า (กันเสียงซ้อน)
   return instance;
 }

@@ -1302,3 +1302,5 @@ export function playSceneMusic(name, { from = 0 } = {}) {
     stop,
   };
 }
+// โมดูลนี้ถูกโหลดใหม่ระหว่างเล่น (dev/HMR) = หยุดเพลงชุดเก่าก่อน ไม่งั้นเล่นซ้อนกับชุดใหม่ (ผู้ใช้ให้เช็กเพลงซ้อน 2026-11-10)
+if (import.meta.hot) import.meta.hot.dispose(() => { try { stopMusic(); stopLoopSfx(); } catch { /* ไม่เป็นไร */ } });

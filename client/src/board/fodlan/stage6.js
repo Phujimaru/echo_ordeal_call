@@ -1572,6 +1572,7 @@ export function drawObstacle(g, t, ctx, now) {
       box(g, x, y + 0.15, x + 1, y + 0.85, 0.75, C.wall, C.wall2, C.wall, 0, join);
       for (let i = 0; i < 3; i++) box(g, x + 0.05 + i * 0.33, y + 0.2, x + 0.25 + i * 0.33, y + 0.8, 0.9, C.wall, C.wall2, C.wall);
     }
+    wallCracks(g, x, y);
     return;
   }
   if (kind === "fd_eos_lamp") {
@@ -1888,6 +1889,37 @@ function drawChest(g, cx, cy, now, night, lowQ) {
     const k = ((now / 900) + i / 3) % 1, ang = i * 2.1 + now / 1400;
     g.fillStyle = "rgba(255,240,170," + (1 - k) + ")";
     g.fillRect(top[0] + Math.cos(ang) * s * 0.25, top[1] - k * s * 0.5, 2, 2);
+  }
+}
+// ---------- กำแพงเมือง Insomnia ที่โดนทุบ (ผู้ใช้สั่ง 2026-11-10 "กำแพงต้องพังได้") ----------
+function wallInfo(x, y) {
+  const cw = LAST_FD && LAST_FD.cityWalls;
+  if (!cw) return null;
+  const h = (cw.hurt || []).find((o) => o.x === x && o.y === y);
+  return h ? { hp: h.hp, max: cw.max || 4 } : null;
+}
+// รอยร้าวตามความเสียหาย + หลอดเลือดกำแพง
+function wallCracks(g, x, y) {
+  const w = wallInfo(x, y);
+  if (!w) return;
+  const dmg = 1 - w.hp / w.max, n = Math.ceil(dmg * 4);
+  g.strokeStyle = "rgba(30,24,20,.85)"; g.lineWidth = 1.6; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const ax = x + 0.2 + hash(x * 7 + i, y) * 0.6, z0 = 0.15 + hash(x, y * 3 + i) * 0.5;
+    let p0 = P(ax, y + 0.85, z0); g.beginPath(); g.moveTo(p0[0], p0[1]);
+    for (let j = 1; j <= 3; j++) { const q = P(ax + (hash(i, j + x) - 0.5) * 0.25, y + 0.85, z0 + j * 0.12); g.lineTo(q[0], q[1]); p0 = q; }
+    g.stroke();
+  }
+  g.lineCap = "butt";
+  hpPips(g, x + 0.5, y + 0.5, 1.15, w.hp, w.max, 0, 0, "ally");
+}
+// ซากกำแพงที่พัง (ช่องเดินผ่านได้): กองหิน + ฝุ่น
+function drawRubble(g, x, y, C) {
+  const [sx, sy, s] = P(x + 0.5, y + 0.6);
+  g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(sx, sy, s * 0.45, s * 0.16, 0, 0, TAU); g.fill();
+  for (let i = 0; i < 7; i++) {
+    const bx = x + 0.2 + hash(x + i, y * 5) * 0.6, by = y + 0.25 + hash(x * 3, y + i) * 0.55, sz = 0.08 + hash(i, x + y) * 0.1;
+    box(g, bx - sz, by - sz, bx + sz, by + sz, sz * 1.2, C.wall, C.wall2, C.wall);
   }
 }
 // ---------- ยานลำเลียง (2×2 · ลอย z ≈ 1.2) ----------
@@ -2892,7 +2924,10 @@ export function items(list, g, fd, info, units, now, lowQ) {
         const w = s * 1.5, h = w * (im.naturalHeight / im.naturalWidth) * (1 - squash);
         g.fillStyle = "rgba(0,0,0,.4)"; g.beginPath(); g.ellipse(sx, sy - s * 0.03, w * 0.46, s * 0.2, 0, 0, TAU); g.fill();
         g.save(); g.translate(sx, sy - rumble * s); if (flip) g.scale(-1, 1);
-        g.drawImage(im, -w / 2, -h, w, h); g.restore();
+        if (c.broken) g.filter = "grayscale(.7) brightness(.55)"; // รถพัง: ซีดดำ + ควัน
+        g.drawImage(im, -w / 2, -h, w, h); g.filter = "none"; g.restore();
+        if (c.broken && !lowQ) for (let i = 0; i < 5; i++) { const t = ((now / 900) + i / 5) % 1; g.fillStyle = `rgba(60,60,64,${0.45 * (1 - t)})`; g.beginPath(); g.arc(sx + Math.sin(i * 2 + t * 3) * s * 0.12, sy - h * 0.7 - t * s * 0.9, s * (0.08 + t * 0.16), 0, TAU); g.fill(); }
+        if (!drv && c.maxHp) hpPips(g, X, Y, 1.05, c.hp ?? c.maxHp, c.maxHp, 0, 0, "ally"); // รถจอด: หลอดเลือดรถ (คนขับอยู่ = หลอดบนตัวคนขับเป็นของรถแทน)
         const hx = sx + (flip ? 1 : -1) * w * 0.42, hy = sy - h * 0.3;
         if (night || (mk >= 0 && mk < 1)) glowAt(g, hx, hy, s * (night ? 0.7 : 0.45), "255,240,200", night ? 0.6 : 0.8 * (1 - mk));
         if (moving && !lowQ) for (let i = 0; i < 4; i++) {
@@ -2907,7 +2942,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
     if (c.x == null || c.rider) continue;
     const bob = lowQ ? 0 : Math.abs(Math.sin(now / 420 + c.x)) * 0.04;
     const flip = hash(c.x, c.y) < 0.5;
-    list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => sprite(g, CHOCO_IMG, c.x + 0.5, c.y + 0.55, bob, 0.8, flip) });
+    list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => { sprite(g, CHOCO_IMG, c.x + 0.5, c.y + 0.55, bob, 0.8, flip); if (c.maxHp) hpPips(g, c.x + 0.5, c.y + 0.55, 0.95, c.hp ?? c.maxHp, c.maxHp, 0, 0, "ally"); } });
   }
   // โชโกโบะใต้คนขี่ (ตามตำแหน่งวาดของหมาก)
   for (const [pid] of Object.entries(fd.riders || {})) {
@@ -3026,6 +3061,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
       f: () => drawDropship(g, ds.x, ds.y, z, now, lowQ),
     });
   }
+  for (const w of (fd.cityWalls && fd.cityWalls.broken) || []) list.push({ d: depthOf(w.x + 0.5, w.y + 0.5), f: () => drawRubble(g, w.x, w.y, palOf({ night })) });
   // หีบสมบัติ (ผู้ใช้สั่ง 2026-11-10 — ของให้ไปเก็บทั่วแผนที่)
   for (const c of fd.chests || []) list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => drawChest(g, c.x + 0.5, c.y + 0.5, now, night, lowQ) });
   p4Items(list, g, fd, units, now, lowQ, night); // ขั้น 4
@@ -3092,7 +3128,9 @@ function playFx(e) {
       if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 });
       if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 });
       if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 });
-      if ((e.pillars || []).length) sfx((e.pillars || []).some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25, gain: 0.8 });
+      const walls = (e.pillars || []).filter((h) => h.wall), pls = (e.pillars || []).filter((h) => !h.wall);
+      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25, gain: 0.8 });
+      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25, gain: 0.7 });
       break;
     }
     case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
@@ -3525,12 +3563,41 @@ function drawBoss(g, d, cx, cy, sx, sy, s, now, lowQ, breathe) {
   g.restore();
   glowAt(g, sx, sy - s * 1.2, s * 1.8, "200,20,90", 0.45 + 0.1 * Math.sin(now / 300));
   sprite(g, daemonImg(4), cx, cy, breathe * 2, 2.6, false);
-  const cr = P(cx, cy, 2.75);
-  g.fillStyle = "#ffd34a"; g.beginPath();
-  g.moveTo(cr[0] - 16, cr[1]); g.lineTo(cr[0] - 16, cr[1] - 12); g.lineTo(cr[0] - 8, cr[1] - 5); g.lineTo(cr[0], cr[1] - 16); g.lineTo(cr[0] + 8, cr[1] - 5); g.lineTo(cr[0] + 16, cr[1] - 12); g.lineTo(cr[0] + 16, cr[1]); g.closePath(); g.fill();
-  glowAt(g, cr[0], cr[1] - 6, 26, "255,210,80", 0.5);
   const top = P(cx, cy, 2.95), UK = Math.max(0.5, s * 0.012);
   drawVitalBar(g, top[0], top[1], s * 1.4, { hp: d.hp, maxHp: Math.max(1, d.maxHp), armor: d.armor, maxArmor: Math.max(d.armor || 0, d.maxArmor || 0) }, UK);
+  drawCrown(g, top[0], top[1] - 6 * UK + (lowQ ? 0 : Math.sin(now / 500) * 1.5 * UK), 15 * UK, now, lowQ); // มงลอยเหนือหลอด (ผู้ใช้ 2026-11-10 "มงไม่ค่อยสวย" — เดิมแบนทับหลังหลอด)
+}
+// มงกุฎราชาปีศาจ: ทองไล่เฉด + ขอบเข้ม + ฐานคาดแถบ + อัญมณีแดงกลาง + ปลายแหลมมีลูกแก้ว · w = ครึ่งความกว้าง
+function drawCrown(g, x, y, w, now, lowQ) {
+  const h = w * 1.05, base = w * 0.36;
+  glowAt(g, x, y - h * 0.45, w * 2.2, "255,200,80", 0.35 + (lowQ ? 0 : 0.1 * Math.sin(now / 400)));
+  g.save(); g.translate(x, y);
+  const body = () => {
+    g.beginPath();
+    g.moveTo(-w, 0); g.lineTo(-w, -base);
+    g.lineTo(-w * 1.05, -h * 0.95); g.lineTo(-w * 0.5, -h * 0.5); // แหลมซ้าย
+    g.lineTo(0, -h * 1.2); // แหลมกลาง
+    g.lineTo(w * 0.5, -h * 0.5); g.lineTo(w * 1.05, -h * 0.95); // แหลมขวา
+    g.lineTo(w, -base); g.lineTo(w, 0); g.closePath();
+  };
+  const gr = g.createLinearGradient(0, -h * 1.2, 0, 0);
+  gr.addColorStop(0, "#fff3b0"); gr.addColorStop(0.45, "#ffcc3a"); gr.addColorStop(1, "#b9780c");
+  body(); g.fillStyle = gr; g.fill();
+  g.lineJoin = "round"; g.lineWidth = Math.max(1.2, w * 0.12); g.strokeStyle = "#5a3606"; g.stroke();
+  // ฐานคาดแถบ
+  g.fillStyle = "#8f5a0a"; g.fillRect(-w, -base, w * 2, base * 0.42);
+  g.fillStyle = "rgba(255,240,180,.55)"; g.fillRect(-w * 0.92, -base * 0.98, w * 1.84, base * 0.12);
+  // ลูกแก้วปลายแหลม
+  for (const [px, py, r] of [[-w * 1.05, -h * 0.95, w * 0.14], [0, -h * 1.2, w * 0.16], [w * 1.05, -h * 0.95, w * 0.14]]) {
+    g.fillStyle = "#fff6cf"; g.beginPath(); g.arc(px, py, r, 0, TAU); g.fill(); g.strokeStyle = "#5a3606"; g.lineWidth = Math.max(1, w * 0.08); g.stroke();
+  }
+  // อัญมณีแดงกลาง + เพชรข้าง
+  const gem = (gx, gy, r, c1, c2) => { g.beginPath(); g.moveTo(gx, gy - r); g.lineTo(gx + r * 0.8, gy); g.lineTo(gx, gy + r); g.lineTo(gx - r * 0.8, gy); g.closePath(); const q = g.createLinearGradient(gx, gy - r, gx, gy + r); q.addColorStop(0, c1); q.addColorStop(1, c2); g.fillStyle = q; g.fill(); g.strokeStyle = "#3a1a04"; g.lineWidth = Math.max(0.8, w * 0.06); g.stroke(); };
+  gem(0, -base * 1.55, w * 0.3, "#ff8a9a", "#a3001f");
+  gem(-w * 0.6, -base * 1.25, w * 0.17, "#9fe8ff", "#1f6fa8");
+  gem(w * 0.6, -base * 1.25, w * 0.17, "#9fe8ff", "#1f6fa8");
+  if (!lowQ) { const k = (now / 1400) % 1; g.fillStyle = `rgba(255,255,255,${0.9 * (1 - k)})`; g.beginPath(); g.arc(-w * 0.2 + k * w * 0.1, -base * 1.75, w * 0.07, 0, TAU); g.fill(); } // ประกายวิบ
+  g.restore();
 }
 // รถเสบียง: รถบรรทุกภาพผู้ใช้ (car2) + ลังเสบียง + ธงคุ้มกัน · หลอดเลือดฟ้า
 function drawConvoy(g, cx, cy, head, c, now, night, lowQ) {
@@ -4031,6 +4098,7 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
     return true;
   }
   if (e.kind === "mob_attack") {
+    for (const h of e.pillars || []) if (h.wall && h.at && p > 0.25) { const q = (p - 0.25) / 0.75; puff(g, h.at.x + 0.5, h.at.y + 0.5, 0.3, q, e.seq + h.at.x, lowQ ? 4 : (h.broke ? 14 : 7), "150,140,125", h.broke ? 0.3 : 0.18); }
     for (const a of e.attacks || []) {
       const u = unitAt(units, a.target);
       if (!u) continue;

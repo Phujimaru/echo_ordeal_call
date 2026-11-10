@@ -278,9 +278,21 @@ export function eosAudio() {
     try { return Promise.all((keys || []).map((k) => load(k))).then(() => undefined); } catch { return Promise.resolve(); }
   }
 
-  instance = { preload, setBeds, setMusic, sfx, thunder, stop, duck };
+  // ปิดทุกเสียงของตัวนี้ทันที (โมดูลถูกโหลดใหม่ระหว่างเล่น — dev/HMR · ไม่งั้นเพลงชุดเก่าเล่นซ้อนเพลงชุดใหม่: ผู้ใช้เจอ 2026-11-10)
+  function destroy() {
+    try {
+      thunder(false);
+      for (const t of tracks.values()) { clearTimeout(t.stopTimer); try { t.el.pause(); t.el.src = ""; } catch { /* ไม่เป็นไร */ } }
+      tracks.clear();
+      for (const key of [...beds.keys()]) killBed(key, 0.01);
+      if (ctx && ctx.close) ctx.close().catch(() => {});
+    } catch { /* ไม่เป็นไร */ }
+  }
+
+  instance = { preload, setBeds, setMusic, sfx, thunder, stop, duck, destroy };
   return instance;
 }
+if (import.meta.hot) import.meta.hot.dispose(() => { if (instance) instance.destroy(); instance = null; });
 
 // ---------- ลูปพื้นตามโซนที่ตัวเรายืน (โซนเดียวกับ server/fodlan/map6.js ZONES) ----------
 const ZONES = [
