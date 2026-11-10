@@ -385,12 +385,16 @@ export function eosMusicPicker() {
     const ids = new Set(players.map((p) => p.id));
 
     // ปะทะ: HP ลด (เรา/เพื่อน หรือศัตรูที่เห็น) · ฉากตีที่มีผู้เล่นเกี่ยว
+    // ปะทะ = เลือด+เกราะลด (เดิมดูแค่เลือด — สกิลผลัก/พุ่งชนที่โดนเกราะก่อนไม่เปลี่ยนเพลง: ผู้ใช้แจ้ง 2026-11-10)
+    //  + ศัตรูที่เห็นถูกย้ายตำแหน่งระหว่างตาเดินของเรา (ผลัก/ดึง/กระเด็น — มอนเดินเองแค่ต้นเทิร์น)
+    const myTurn = !!me && state.actorId === me.id;
     const next = new Map();
     for (const p of players) {
       if (typeof p.hp !== "number" || !((ally(p) && (p.id === me.id || near(p))) || seen(p))) continue; // PVE: เพื่อนไกลๆ โดนตี ไม่ใช่การต่อสู้ของเรา
-      const was = hp.get(p.id);
-      if (was != null && p.hp < was) { hitRound = round; hitAt = nowMs; }
-      next.set(p.id, p.hp);
+      const was = hp.get(p.id), now = { v: (p.hp || 0) + (p.armor || 0), x: p.pos ? p.pos.x : null, y: p.pos ? p.pos.y : null };
+      if (was != null && now.v < was.v) { hitRound = round; hitAt = nowMs; }
+      if (was != null && myTurn && !ally(p) && (now.x !== was.x || now.y !== was.y)) { hitRound = round; hitAt = nowMs; }
+      next.set(p.id, now);
     }
     hp = next;
     const a = state.attack;
