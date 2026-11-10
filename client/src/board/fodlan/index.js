@@ -14,7 +14,7 @@
 //  หมอก (fd.vision = ["x,y"] ช่องที่เรามองเห็น) วาดให้ทุกด่านที่ server ส่งมา
 //  ห้าม import regionThemes / boardDraw จากไฟล์ด่าน (วนกัน) — ใช้ ../boardGeo, ../boardProps ได้
 // ============================================================
-import { P, PA, quad, key } from "../boardGeo";
+import { P, PA, quad, key, onScreen } from "../boardGeo";
 import * as S1 from "./stage1";
 import * as S2 from "./stage2";
 import * as S3 from "./stage3";
@@ -114,17 +114,34 @@ function drawWarn(g, list, now) {
 function drawFog(g, info, vision, now, lowQ, rgb = "150,160,170") {
   if (!Array.isArray(vision)) return;
   const seen = new Set(vision);
-  g.save();
+  // จัดกลุ่มตามความทึบ (ปัดทีละ 0.02) แล้วเติมเป็นชุด — เดิมเติมทีละช่อง ~900 ครั้ง/เฟรม (วัด 2026-11-10: หมอก ~2% ของเวลาทั้งหมด)
+  const groups = new Map();
   for (let y = 0; y < info.rows; y++) for (let x = 0; x < info.cols; x++) {
-    if (seen.has(key(x, y))) continue;
+    if (seen.has(key(x, y)) || !onScreen(x + 0.5, y + 0.5, 0.2)) continue;
     // ขอบหมอกบางลงข้างช่องที่มองเห็น
     const edge = seen.has(key(x + 1, y)) || seen.has(key(x - 1, y)) || seen.has(key(x, y + 1)) || seen.has(key(x, y - 1));
     const drift = lowQ ? 0 : 0.05 * Math.sin(now / 1400 + x * 0.9 + y * 0.6);
-    quad(g, x, y, -0.02);
-    g.fillStyle = `rgba(${rgb},${(edge ? 0.62 : 0.86) + drift})`;
+    const a = Math.round(((edge ? 0.62 : 0.86) + drift) * 50) / 50;
+    let list = groups.get(a);
+    if (!list) groups.set(a, (list = []));
+    list.push(x, y);
+  }
+  g.save();
+  for (const [a, list] of groups) {
+    g.fillStyle = `rgba(${rgb},${a})`;
+    g.beginPath();
+    for (let i = 0; i < list.length; i += 2) {
+      quadPath(g, list[i], list[i + 1], 0.02); // ขยายออก 0.02 ช่อง (เท่าของเดิม quad inset −0.02) กันรอยต่อ
+      if ((i / 2 + 1) % 48 === 0) { g.fill(); g.beginPath(); }
+    }
     g.fill();
   }
   g.restore();
+}
+// เส้นรอบช่อง (ต่อท้ายเส้นทางเดิม ไม่ beginPath) — ใช้เติมหลายช่องในครั้งเดียว
+function quadPath(g, x, y, pad = 0) {
+  const a = P(x - pad, y - pad), b = P(x + 1 + pad, y - pad), c = P(x + 1 + pad, y + 1 + pad), d = P(x - pad, y + 1 + pad);
+  g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath();
 }
 
 // ---------- เรียกจาก boardDraw.drawFrame ----------

@@ -741,6 +741,51 @@
         "ECHO_DEV_ACTION_TIME": "600",
         "ECHO_DEV_START_ROUND": "6"
       }
+    },
+    {
+      "name": "server-eos-x-night-storm",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_EOS_EXTRA": "1",
+        "ECHO_DEV_START_ROUND": "6",
+        "ECHO_DEV_EOS_WEATHER": "eos_storm"
+      }
+    },
+    {
+      "name": "server-eos-x-night-snow",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_EOS_EXTRA": "1",
+        "ECHO_DEV_START_ROUND": "6",
+        "ECHO_DEV_EOS_WEATHER": "eos_snow"
+      }
+    },
+    {
+      "name": "server-eos-x-night-fog",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_EOS_EXTRA": "1",
+        "ECHO_DEV_START_ROUND": "6",
+        "ECHO_DEV_EOS_WEATHER": "eos_fog"
+      }
     }
   ]
 }

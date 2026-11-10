@@ -3699,11 +3699,14 @@ function drawBeacon(g, q, now, lowQ) {
   const at = (z) => { const w = 0.13 * (1 - z / H) + 0.025; return legs.map(([dx, dy]) => P(cx + dx * w, cy + dy * w, hB + z)); };
   g.strokeStyle = "#c7cdd4"; g.lineWidth = Math.max(1.2, s * 0.03); g.lineCap = "round";
   const bot = at(0), tp = at(H - hB);
-  for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(bot[i][0], bot[i][1]); g.lineTo(tp[i][0], tp[i][1]); g.stroke(); }
-  g.lineWidth = Math.max(0.8, s * 0.016); g.strokeStyle = "rgba(200,206,214,.75)";
-  for (let k = 0; k < 4; k++) {
-    const z0 = (H - hB) * k / 4, z1 = (H - hB) * (k + 1) / 4, A = at(z0), B = at(z1);
-    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; g.beginPath(); g.moveTo(A[i][0], A[i][1]); g.lineTo(B[j][0], B[j][1]); g.moveTo(A[j][0], A[j][1]); g.lineTo(B[i][0], B[i][1]); g.stroke(); }
+  g.beginPath(); for (let i = 0; i < 4; i++) { g.moveTo(bot[i][0], bot[i][1]); g.lineTo(tp[i][0], tp[i][1]); } g.stroke(); // ขาเสา 4 ขา (ขีดครั้งเดียว)
+  if (!FAST && !lowQ) { // คานไขว้ (ข้ามระหว่างกล้องขยับ / โหมดประหยัด)
+    g.lineWidth = Math.max(0.8, s * 0.016); g.strokeStyle = "rgba(200,206,214,.75)"; g.beginPath();
+    for (let k = 0; k < 4; k++) {
+      const z0 = (H - hB) * k / 4, z1 = (H - hB) * (k + 1) / 4, A = at(z0), B = at(z1);
+      for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; g.moveTo(A[i][0], A[i][1]); g.lineTo(B[j][0], B[j][1]); g.moveTo(A[j][0], A[j][1]); g.lineTo(B[i][0], B[i][1]); }
+    }
+    g.stroke();
   }
   // จานรับสัญญาณ (หันตามเวลาเล็กน้อย)
   const dz = hB + H * 0.62, dp = P(cx, cy, dz), ang = lowQ ? 0.4 : 0.4 + Math.sin(now / 1800) * 0.5;
