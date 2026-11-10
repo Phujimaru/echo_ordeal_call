@@ -37,11 +37,11 @@ const WEATHER_PCT = 50;
 const WEATHER_FROM = 3; // เทิร์นแรกของการมาเยือนที่สภาพอากาศเกิดได้
 const WEATHER_KINDS = { 1: "storm", 2: "miasma", 3: "tsunami", 4: "blizzard", 5: "aura" };
 const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์", 6: "Eos" };
-const WEATHER_NAMES = { storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง", eos_storm: "ฝนฟ้าคะนอง", eos_fog: "หมอก", eos_sand: "พายุทราย" };
+const WEATHER_NAMES = { storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง", eos_storm: "ฝนฟ้าคะนอง", eos_fog: "หมอก", eos_sand: "พายุทราย", eos_snow: "พายุหิมะ" };
 // สนาม Eos (GRID_PLAN §8.6) = "ด่าน 6" ของตัวคุมนี้ในโลก "eos": แผนที่เดียวทั้งแมตช์ (ไม่หมุนด่าน)
 //  สภาพอากาศเกิดซ้ำได้ — สงบแล้วพัก EOS_WX_GAP เทิร์นก่อนสุ่มใหม่ · ชนิดสุ่มเท่ากัน
 const EOS_STAGE = 6;
-const EOS_WEATHER = ["eos_storm", "eos_fog", "eos_sand"]; // ขั้น 5 (L21): พายุทรายเฉพาะทะเลทราย Leide
+const EOS_WEATHER = ["eos_storm", "eos_fog", "eos_sand", "eos_snow"]; // ขั้น 5 (L21): พายุทรายเฉพาะทะเลทราย Leide · พายุหิมะ (ผู้ใช้สั่ง 2026-11-10)
 const EOS_WX_GAP = 2;
 const FX_KEEP = 24; // เหตุการณ์ล่าสุดที่ส่งให้ client เล่นฉาก (seq เพิ่มเรื่อยๆ — client เล่นเฉพาะ seq ที่ยังไม่เคยเห็น)
 // seq ของเหตุการณ์: เพิ่มอย่างเดียวตลอดอายุ server (ห้ามนับใหม่ต่อด่าน/แมตช์ — client จำ seq ที่เห็นแล้วข้ามแมตช์ → เอฟเฟคด่านถัดไปไม่ขึ้น)
@@ -198,7 +198,7 @@ function start() {
   reset();
   action.placeOnBoard(areaOf(stageNow()));
   enterStage();
-  // dev: ECHO_DEV_EOS_WEATHER=eos_storm|eos_fog|eos_sand = สนาม Eos เริ่มพร้อมสภาพอากาศนั้น (ดูภาพ/เสียง)
+  // dev: ECHO_DEV_EOS_WEATHER=eos_storm|eos_fog|eos_sand|eos_snow = สนาม Eos เริ่มพร้อมสภาพอากาศนั้น (ดูภาพ/เสียง)
   const devWx = process.env.ECHO_DEV_EOS_WEATHER;
   if (isEos() && EOS_WEATHER.includes(devWx)) startWeather(devWx);
 }

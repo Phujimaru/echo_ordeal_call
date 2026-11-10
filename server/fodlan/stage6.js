@@ -76,6 +76,11 @@ const sizeOf = (ctx, p) => Math.max(1, ctx.action.sizeOf(p) | 0);
 const footOf = (ctx, p) => ctx.Board.footprint(p.pos.x, p.pos.y, sizeOf(ctx, p));
 const stormOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_storm");
 const fogOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_fog");
+// พายุหิมะ (ผู้ใช้สั่ง 2026-11-10 — ผลเป็นข้อเสนอของ Claude): ทุกคนและมอนทุกตัวเดิน −1 · ในเมืองหรือในวงไฟแคมป์ (2 ช่อง) อุ่น = ไม่โดน
+const snowOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_snow");
+const SNOW_MOV = -1, SNOW_WARM_R = 2;
+function warmAt(x, y) { return !!townOf(x, y) || MAP.CAMPS.some(([cx, cy]) => Math.abs(cx - x) + Math.abs(cy - y) <= SNOW_WARM_R); }
+const snowMov = (ctx, u) => (snowOn(ctx) && u && u.pos && !warmAt(u.pos.x, u.pos.y) ? SNOW_MOV : 0);
 const sandOn = (ctx) => !!(ctx.weather && ctx.weather.kind === "eos_sand");
 const SAND_SIGHT = 2;
 const DESERT = (MAP.ZONES.find((z) => z.id === "desert") || { rect: [13, 20, 31, 31] }).rect;
@@ -145,7 +150,7 @@ function movMod(ctx, st, p) {
   if (!s || !p) return 0;
   const base = Number(ctx.action.baseMovOf ? ctx.action.baseMovOf(p) : require("../phases/action").baseMovOf(p)) || 0;
   const walk = Math.max(0, Math.min(base + MOV_BONUS, WALK_MAX) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
-  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (stormOn(ctx) ? STORM_MOV : 0);
+  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (stormOn(ctx) ? STORM_MOV : 0) + snowMov(ctx, p);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -448,7 +453,19 @@ function carSeats(ctx, st, p, t) {
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
-function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
+function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) + weakBonus(p, target) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
+// หันหน้าของมอน (summon.face = ทิศหลักแกนเดียว) — หุ่นเกราะใช้หาด้านหลัง
+function faceTo(sm, dx, dy) {
+  if (!sm || (!dx && !dy)) return;
+  sm.face = Math.abs(dx) >= Math.abs(dy) ? { dx: Math.sign(dx), dy: 0 } : { dx: 0, dy: Math.sign(dy) };
+}
+// คนตีอยู่ด้านหลังหุ่นเกราะ (ฝั่งตรงข้ามทิศที่หัน) → แรง +MECH.weak
+function behindMech(p, m) {
+  const f = m && m.summon && m.summon.face;
+  if (!f || !p || !p.pos || !m.pos || m.summon.trait !== "mech") return false;
+  return (p.pos.x - m.pos.x) * f.dx + (p.pos.y - m.pos.y) * f.dy < 0;
+}
+function weakBonus(p, target) { return behindMech(p, target) ? MECH.weak : 0; }
 function carDriver(ctx, st, p) { return driving(st && st.eos, p); }
 // อยู่ในรถ (คนขับ หรือผู้โดยสาร) = ใช้สกิลไม่ได้ (ผู้ใช้สั่ง 2026-11-09) · ตี/ชนยังได้
 function noSkill(ctx, st, p) {
@@ -690,7 +707,7 @@ function actMonsters(ctx, s) {
       else if (r.target && r.target.alive) { const dealt = ctx.combat.withEffectSource(m, () => ctx.damage(r.target, Math.max(1, sm.atk | 0))); attacks.push({ id: m.id, type: "boss", x: m.pos.x, y: m.pos.y, target: r.target.id, dmg: dealt }); }
       continue;
     }
-    let targets = [], pillars = [], mov = Math.max(0, (ctx.action.movOf(m) | 0) + (type === "daemon" && fogOn(ctx) ? PKS.WEATHER_MOB.fogDaemonMov : 0)); // หมอก = ปีศาจล่าในหมอก เดิน +1
+    let targets = [], pillars = [], mov = Math.max(1, (ctx.action.movOf(m) | 0) + (type === "daemon" && fogOn(ctx) ? PKS.WEATHER_MOB.fogDaemonMov : 0) + snowMov(ctx, m)); // พายุหิมะ = มอนเดิน −1 (เดินได้อย่างน้อย 1) // หมอก = ปีศาจล่าในหมอก เดิน +1
     if (type === "beast") {
       const agg = sm.aggro && round <= sm.aggroUntil + 1 ? ctx.match.players[sm.aggro] : null;
       if (agg && agg.alive && agg.pos) targets = [agg];
@@ -709,6 +726,8 @@ function actMonsters(ctx, s) {
     const r = stepMob(ctx, s, m, targets, pillars, mov);
     if (r.to && (r.to.x !== m.pos.x || r.to.y !== m.pos.y)) {
       moves.push({ id: m.id, type, from: { ...m.pos }, to: { ...r.to }, path: r.path });
+      const pv = Array.isArray(r.path) && r.path.length > 1 ? r.path[r.path.length - 2] : m.pos;
+      faceTo(sm, r.to.x - pv.x, r.to.y - pv.y);
       m.pos = { x: r.to.x, y: r.to.y };
       ctx.bump();
     }
@@ -721,6 +740,7 @@ function actMonsters(ctx, s) {
     const victims = type === "beast" ? all.filter((p) => footOf(ctx, p).some((t) => manhattan(t, m.pos) === 1)) : r.target ? [r.target] : [];
     for (const v of victims) {
       if (!v.alive) continue;
+      if (v.pos) faceTo(sm, v.pos.x - m.pos.x, v.pos.y - m.pos.y); // หันหน้าเข้าหาคนที่ตี
       const dealt = ctx.combat.withEffectSource(m, () => ctx.damage(v, atk));
       attacks.push({ id: m.id, type, x: m.pos.x, y: m.pos.y, target: v.id, dmg: dealt });
       ctx.log(`${type === "beast" ? "🐗" : type === "magitek" ? "🤖" : "👹"} ${m.name}โจมตี ${v.name} -${dealt}`);
@@ -1217,7 +1237,7 @@ const FIRE_DMG = 1, FIRE_BURN = 2, THUNDER_DMG = 2, SHOCK_DMG = 2;
 const TURRET_RANGE = 6, TURRET_DMG = 2;
 const BEAST = { hp: 12, armor: 2, atk: 3, mov: 3, gold: 6, aggroTurns: 2, respawn: 6, wander: 2, reach: 2 };
 const MAGITEK = { hp: 4, armor: 1, atk: 2, mov: 3, gold: 2, count: 3, stay: 4 };
-const MECH = { chance: 0.25, perDay: 0.1 }; // หุ่นเกราะ: โอกาสต่อยาน 25% + 10% ต่อวันที่ผ่านไป
+const MECH = { chance: 0.25, perDay: 0.1, weak: 2 }; // weak = ตีจากด้านหลังแรง +2 (ผู้ใช้เลือกไอเดีย 2026-11-10) // หุ่นเกราะ: โอกาสต่อยาน 25% + 10% ต่อวันที่ผ่านไป
 const DROP_FROM = 2; // ยานลงได้ตั้งแต่เทิร์น 2 (กลางวันลงบ่อย — dropshipTurn)
 const ELEMENTS = ["fire", "ice", "thunder"];
 const ELEMENT_NAMES = { fire: "ไฟ", ice: "น้ำแข็ง", thunder: "สายฟ้า" };
@@ -1479,6 +1499,12 @@ const TRAIN_DMG = 3;
 const CAMP_TURNS = 3;
 const CAMP_CD = 4;
 const ARM_TURNS = 5;
+// อาหารทีม (ผู้ใช้เลือกไอเดีย 2026-11-10 "ทำอาหารที่แคมป์จากปลาที่ตกได้ บัฟแรงขึ้น ให้ทั้งทีมกิน") — ใช้ปลาในถุง · ตัวเลข Claude ตั้ง
+const FISH_MAX = 3;
+const TEAM_MEALS = {
+  grill: { icon: "🍢", name: "ปลาย่างทั้งทีม", fish: 1, desc: "ใช้ปลา 1 — ทุกคนในทีมฟื้นเลือด 2 ทันที + ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
+  feast: { icon: "🥘", name: "งานเลี้ยงทีม", fish: 2, desc: "ใช้ปลา 2 — ทุกคนในทีม ตี +1 · เดิน +1 · ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
+};
 const CAMP_MEALS = {
   atk: { icon: "🍲", name: "สตูว์", desc: "ตี +1 · 3 เทิร์น" },
   mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้นเลือด 1 ทุกต้นเทิร์น · 3 เทิร์น" },
@@ -1572,7 +1598,25 @@ function buffOf(s, p) {
   const q = p4State(s), b = p && q.buffs[p.id];
   return b && b.until >= (b.from || 0) ? b : null;
 }
+const fishOf = (s, p) => (p4State(s).catch || {})[p.id] || 0;
+function teamMeal(ctx, s, p, kind) {
+  const q = p4State(s), m = TEAM_MEALS[kind];
+  if (!m || !onSpot(p, MAP.CAMPS) || !canStrike(ctx, p) || fishOf(s, p) < m.fish) return false;
+  const r = ctx.match.roundNumber;
+  q.catch[p.id] -= m.fish;
+  const team = heroes(ctx).filter((u) => u.alive && !u.summon && (u.id === p.id || !ctx.combat.sameTeam || ctx.combat.sameTeam(u, p)));
+  for (const u of team) {
+    q.buffs[u.id] = { kind: kind === "grill" ? "mend" : "feast", from: r, until: r + CAMP_TURNS - 1 };
+    if (kind === "grill" && ctx.combat.healHp) ctx.combat.healHp(u, 2);
+    ctx.fx("camp_meal", { id: u.id, meal: kind, x: p.pos.x, y: p.pos.y, quiet: u.id !== p.id });
+  }
+  ctx.bump();
+  ctx.log(`🏕️ ${p.name} ทำ${m.name} — ทั้งทีม ${team.length} คนได้กิน`);
+  ctx.useStrike(p, 1.4);
+  return true;
+}
 function campMeal(ctx, s, p, kind) {
+  if (TEAM_MEALS[kind]) return teamMeal(ctx, s, p, kind);
   const q = p4State(s);
   if (!CAMP_MEALS[kind] || !onSpot(p, MAP.CAMPS) || !canStrike(ctx, p) || (q.campCd[p.id] || 0) > ctx.match.roundNumber) return false;
   const r = ctx.match.roundNumber;
@@ -1589,13 +1633,18 @@ function fish(ctx, s, p) {
   if (!onSpot(p, MAP.FISH) || !canStrike(ctx, p)) return false;
   const luck = XT.fishLuck(s), r = luck ? Math.random() * 0.75 : Math.random(); // พลังเสา Cleigne: ไม่เจอปลายักษ์ · เหรียญ ×2
   let result, amount = 0;
-  if (r < 0.35) { result = "fish"; amount = ctx.combat.healHp ? ctx.combat.healHp(p, 2) : 0; }
+  if (r < 0.35) { // ได้ปลาเข้าถุง (ถือได้ FISH_MAX — เต็มแล้วกินเลย ฟื้นเลือด 2) · เอาไปทำอาหารทีมที่แคมป์
+    const q = p4State(s); q.catch ||= {};
+    result = "fish";
+    if ((q.catch[p.id] || 0) < FISH_MAX) { q.catch[p.id] = (q.catch[p.id] || 0) + 1; amount = 0; }
+    else amount = ctx.combat.healHp ? ctx.combat.healHp(p, 2) : 0;
+  }
   else if (r < 0.6) { result = "coins"; amount = lazyShop().addGold(p, luck ? 6 : 3); }
   else if (r < 0.75) { result = "gold"; amount = lazyShop().addGold(p, luck ? 12 : 6); }
   else { result = "giant"; amount = ctx.damage(p, 2); }
   ctx.bump();
   ctx.fx("fish", { id: p.id, x: p.pos.x, y: p.pos.y, result, amount });
-  ctx.log(result === "fish" ? `🎣 ${p.name} ตกได้ปลา ฟื้นเลือด` : result === "giant" ? `🎣 ${p.name} โดนปลายักษ์ลากลงน้ำ -${amount}` : `🎣 ${p.name} ตกได้${result === "gold" ? "ปลาทอง" : "เหรียญ"} ${amount}`);
+  ctx.log(result === "fish" ? (amount ? `🎣 ${p.name} ตกได้ปลา (ถุงเต็ม — กินเลย ฟื้นเลือด)` : `🎣 ${p.name} ตกได้ปลา (มี ${fishOf(s, p)})`) : result === "giant" ? `🎣 ${p.name} โดนปลายักษ์ลากลงน้ำ -${amount}` : `🎣 ${p.name} ตกได้${result === "gold" ? "ปลาทอง" : "เหรียญ"} ${amount}`);
   ctx.useStrike(p, 1.6);
   return true;
 }
@@ -1671,7 +1720,7 @@ function p4PreRound(ctx, s, turn) {
   for (const [pid, b] of Object.entries(q.buffs)) {
     if (b.until < r) { delete q.buffs[pid]; continue; }
     const p = ctx.match.players[pid];
-    if (b.kind === "mend" && p && p.alive && ctx.combat.healHp) ctx.combat.healHp(p, 1);
+    if ((b.kind === "mend" || b.kind === "feast") && p && p.alive && ctx.combat.healHp) ctx.combat.healHp(p, 1);
   }
   for (const [pid, a] of Object.entries(q.arms)) if (a.until < r) delete q.arms[pid];
   for (const k of Object.keys(q.armPaid)) if (Number(k.split("|")[1]) < r - 1) delete q.armPaid[k];
@@ -1679,9 +1728,9 @@ function p4PreRound(ctx, s, turn) {
 }
 function p4AtkBonus(s, p) {
   const b = buffOf(s, p);
-  return (b && b.kind === "atk" ? 1 : 0) + (hasArm(s, p) ? 1 : 0);
+  return (b && (b.kind === "atk" || b.kind === "feast") ? 1 : 0) + (hasArm(s, p) ? 1 : 0);
 }
-function p4MovBonus(s, p) { const b = buffOf(s, p); return b && b.kind === "mov" ? 1 : 0; }
+function p4MovBonus(s, p) { const b = buffOf(s, p); return b && (b.kind === "mov" || b.kind === "feast") ? 1 : 0; }
 function p4Hud(ctx, s, p, out) {
   const q = p4State(s);
   if (tunnelOf(p)) {
@@ -1695,6 +1744,8 @@ function p4Hud(ctx, s, p, out) {
   if (onSpot(p, MAP.CAMPS)) {
     const off = !canStrike(ctx, p) || (q.campCd[p.id] || 0) > ctx.match.roundNumber;
     for (const [k, m] of Object.entries(CAMP_MEALS)) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, disabled: off });
+    const has = fishOf(s, p);
+    for (const [k, m] of Object.entries(TEAM_MEALS)) if (has > 0) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, count: m.fish, disabled: !canStrike(ctx, p) || has < m.fish });
   }
   if (onSpot(p, MAP.FISH)) out.push({ key: "fd:fish", icon: "🎣", name: "ตกปลา", disabled: !canStrike(ctx, p) });
   if (tombNear(ctx, s, p) >= 0) out.push({ key: "fd:tomb", icon: "⚱️", name: "สุสาน", disabled: !canStrike(ctx, p) || hasArm(s, p) });
@@ -1719,7 +1770,10 @@ function p4Public(ctx, s) {
 }
 function p4Badges(s, p, badges) {
   const q = p4State(s), b = buffOf(s, p);
-  if (b) badges.push({ key: `meal_${b.kind}`, icon: CAMP_MEALS[b.kind].icon, label: CAMP_MEALS[b.kind].name, cls: "bg-orange-200 text-gray-900" });
+  const bm = b && (CAMP_MEALS[b.kind] || (b.kind === "feast" ? TEAM_MEALS.feast : null));
+  if (bm) badges.push({ key: `meal_${b.kind}`, icon: bm.icon, label: bm.name, cls: "bg-orange-200 text-gray-900" });
+  const fc = (q.catch || {})[p.id] || 0;
+  if (fc) badges.push({ key: "fish_bag", icon: "🐟", label: `ปลา ×${fc}`, cls: "bg-sky-200 text-gray-900" });
   if (hasArm(s, p)) badges.push({ key: "royal_arm", icon: "⚔️", label: "อาวุธหลวง", cls: "bg-indigo-300 text-gray-900" });
   const h = q.bounty[p.id];
   if (h) badges.push({ key: "bounty", icon: BOUNTY[h.kind].icon, label: h.name, cls: "bg-amber-300 text-gray-900" });
@@ -1859,7 +1913,7 @@ const HUD_DESC = {
   "fd:turret": `ยิงมอนเตอร์ในระยะ ${TURRET_RANGE} ช่อง ดาเมจ ${TURRET_DMG} (ใช้การโจมตี)`,
   "fd:tunnel": "ลอดอุโมงค์ไปออกปากอีกฝั่งทันที (จบการเดินของตา)",
   "fd:gondola": "นั่งกอนโดลาไปท่าอื่นใน Altissia (จบการเดินของตา)",
-  "fd:fish": "ตกปลา (ใช้การโจมตี): ปลาฟื้นเลือด 2 · เหรียญ · ปลาทอง · หรือปลายักษ์ลากลงน้ำ ดาเมจ 2",
+  "fd:fish": "ตกปลา (ใช้การโจมตี): ได้ปลาเข้าถุง (ถือได้ 3 — เอาไปทำอาหารทีมที่แคมป์) · เหรียญ · ปลาทอง · หรือปลายักษ์ลากลงน้ำ ดาเมจ 2",
   "fd:tomb": `เปิดสุสานราชวงศ์ (แห่งละครั้ง): อาวุธหลวง ${ARM_TURNS} เทิร์น ตี +1 แต่ตาที่ตีเสียเลือด 1`,
   "fd:bounty": "รับค่าหัวจากบอร์ดร้าน — ล้มเป้าหมายได้ = เหรียญ (ถือได้ทีละใบ)",
 };
@@ -2080,7 +2134,7 @@ function publicInfo(ctx, st) {
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
     barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
     crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element })),
-    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null })),
+    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null , face: m.summon.face || null})),
     ships: (s.ships || []).map((d) => ({ id: d.id, x: d.x, y: d.y, state: d.state })),
     dropship: (s.ships || []).find((d) => d.state === "landed") || null,
   };
@@ -2098,7 +2152,7 @@ function playerInfo(ctx, st, p) {
 }
 
 module.exports = {
-  absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED,
+  absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
   enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,

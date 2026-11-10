@@ -2013,7 +2013,7 @@ const occupied = (units) => { const s = new Set(); for (const u of units || []) 
 const activeOf = (fd, now, kind) => fxActive(fd, now).map(p4Norm).filter((e) => e.kind === kind);
 // server ctx.fx = { kind, ...data } → data.kind ทับชื่อเหตุการณ์ของ camp_meal ("atk"/"mend"/"mov") และ hunt_board/hunt_done ("daemon"/"beast"/"magitek"/"player")
 //  แปลงกลับเป็นชื่อเหตุการณ์ (meal / bounty = ชนิดเดิม) · รูปแบบที่ถูก { kind: "camp_meal", meal } ก็ใช้ได้
-const MEAL_KINDS = new Set(["atk", "mend", "mov"]), BOUNTY_KINDS = new Set(["daemon", "beast", "magitek", "player"]);
+const MEAL_KINDS = new Set(["atk", "mend", "mov", "grill", "feast"]), BOUNTY_KINDS = new Set(["daemon", "beast", "magitek", "player"]);
 function p4Norm(e) {
   if (!e) return e;
   if (MEAL_KINDS.has(e.kind)) return { ...e, kind: "camp_meal", meal: e.kind };
@@ -2574,8 +2574,8 @@ function p4Items(list, g, fd, units, now, lowQ, night) {
   void lowQ;
 }
 // ---------- ฉากเหตุการณ์ (air — ทับตัวละคร) ----------
-const CAMP_ICON = { atk: "🍲", mend: "🐟", mov: "🍙" };
-const CAMP_RGB = { atk: "255,120,60", mend: "110,255,150", mov: "110,210,255" };
+const CAMP_ICON = { atk: "🍲", mend: "🐟", mov: "🍙", grill: "🍢", feast: "🥘" };
+const CAMP_RGB = { atk: "255,120,60", mend: "110,255,150", mov: "110,210,255", grill: "255,190,90", feast: "255,215,110" };
 const BOUNTY_ICON = { daemon: "👹", beast: "🦣", magitek: "🤖", player: "🎯" };
 function emoji(g, ch, x, y, size, a = 1) {
   g.save(); g.globalAlpha *= a; g.font = `${Math.max(8, size) | 0}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
@@ -2985,7 +2985,14 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (beast) drawBeast(g, sx + shake, sy, s, face, now, pos.moving, lowQ);
         else {
           const bob = pos.moving && !lowQ ? Math.abs(Math.sin(now / 140)) * 0.04 : 0;
-          if (m.trait === "mech") { glowAt(g, sx, sy - s * 0.7, s * 1.2, "255,70,50", 0.22 + 0.1 * Math.sin(now / 300)); sprite(g, MAGITEK_EX_IMG, cx + shake / s, cy, bob * 0.5, fitH(MAGITEK_EX_IMG, 2.0, 2.4), face > 0); } // หุ่นเกราะจักรวรรดิ (ภาพผู้ใช้)
+          if (m.trait === "mech") {
+            if (m.face) { // จุดอ่อนด้านหลัง (ตีจากฝั่งนี้แรง +2): ลูกศรส้มบนพื้นฝั่งตรงข้ามทิศที่หัน
+              const bx0 = cx - m.face.dx * 0.62, by0 = cy - m.face.dy * 0.62, k = 0.55 + 0.35 * Math.sin(now / 220);
+              gEllipse(g, bx0, by0, 0.26, 0.02, 20); g.fillStyle = `rgba(255,150,40,${0.18 * k})`; g.fill(); g.strokeStyle = `rgba(255,170,60,${k})`; g.lineWidth = 2.5; g.stroke();
+              const a0 = P(bx0 - m.face.dx * 0.12, by0 - m.face.dy * 0.12, 0.03), a1 = P(bx0 + m.face.dx * 0.14, by0 + m.face.dy * 0.14, 0.03);
+              g.strokeStyle = `rgba(255,200,90,${k})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a0[0], a0[1]); g.lineTo(a1[0], a1[1]); g.stroke();
+            }
+            glowAt(g, sx, sy - s * 0.7, s * 1.2, "255,70,50", 0.22 + 0.1 * Math.sin(now / 300)); sprite(g, MAGITEK_EX_IMG, cx + shake / s, cy, bob * 0.5, fitH(MAGITEK_EX_IMG, 2.0, 2.4), face > 0); } // หุ่นเกราะจักรวรรดิ (ภาพผู้ใช้)
           else sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
           if (m.trait === "sniper") { const v = P(cx + face * 0.12, cy, 1.18); glowAt(g, v[0], v[1], s * 0.28, "255,40,40", 0.75 + 0.2 * Math.sin(now / 150)); g.fillStyle = "#ff4a3a"; g.fillRect(v[0] - 4, v[1] - 1.5, 8, 3); }
         }
@@ -3146,7 +3153,7 @@ function playFx(e) {
       break;
     case "gondola": sfx("gondola_row", { gain: 0.85, dur: 2.6 }); break;
     case "tunnel": sfx("tunnel_enter"); break;
-    case "camp_meal": sfx("camp_ignite"); sfx("camp_meal", { delay: 0.25 }); sfx("camp_buff", { delay: 1.0, gain: 0.85 }); break;
+    case "camp_meal": if (e.quiet) break; sfx("camp_ignite"); sfx("camp_meal", { delay: 0.25 }); sfx("camp_buff", { delay: 1.0, gain: 0.85 }); break;
     case "fish":
       sfx("fish_cast", { dur: 1.2 }); sfx("fish_bite", { delay: 1.05, dur: 1.4 });
       if (e.result === "giant") sfx("fish_drag", { delay: 1.35, dur: 2.6 });
@@ -4158,6 +4165,22 @@ export function air(g, fd, info, units, now, lowQ, view) {
         g.moveTo(x, y); g.lineTo(x - 14 * zf, y + 3 * zf);
       }
       g.stroke();
+    }
+  } else if (kind === "eos_snow") {
+    // พายุหิมะ (ผู้ใช้สั่ง 2026-11-10): ม่านขาวฟ้า + เกล็ดหิมะปลิวเฉียง (ขนาดคงที่บนจอ) + ลมหอบเป็นระลอก
+    const zf = Math.max(0.12, Math.min(1.6, W / LW)), gust = 0.5 + 0.5 * Math.sin(now / 1700);
+    g.fillStyle = fd.night ? `rgba(40,55,85,${0.3 + 0.06 * gust})` : `rgba(225,236,248,${0.26 + 0.08 * gust})`; g.fillRect(X0, Y0, W, H);
+    const n = lowQ ? 70 : FAST ? 140 : 230;
+    g.fillStyle = fd.night ? "rgba(220,232,255,.75)" : "rgba(255,255,255,.92)";
+    for (let i = 0; i < n; i++) {
+      const sp = (0.05 + hash(i, 2) * 0.06) * zf, r = (0.8 + hash(i, 4) * 2.2) * zf;
+      const y = Y0 + ((hash(i, 1) * H + now * sp) % (H + 20 * zf)) - 10 * zf;
+      const x = X0 + ((hash(i, 3) * W - now * sp * (1.4 + gust) + Math.sin(now / 600 + i) * 8 * zf) % W + W) % W;
+      g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    }
+    if (!lowQ) for (let i = 0; i < 6; i++) { // ลมหิมะเป็นแผ่นจางวิ่งผ่าน
+      const ph = (now / (5200 + i * 700) + hash(i, 8)) % 1;
+      glowAt(g, X0 + W * (1.2 - ph * 1.4), Y0 + hash(i, 9) * H, H * 0.28, fd.night ? "160,180,215" : "250,252,255", 0.16 * gust);
     }
   } else if (kind === "eos_fog" && !lowQ) {
     for (let i = 0; i < 10; i++) {

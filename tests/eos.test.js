@@ -796,6 +796,56 @@ test('L16 แคมป์: เลือกอาหาร (ใช้การต
   assert.equal(action.movOf(p), mov - 1);
 });
 
+test('อาหารทีม: ปลาในถุงไปทำที่แคมป์ — ปลาย่างทั้งทีม (1 ตัว) ทุกคนฟื้น 2 · งานเลี้ยงทีม (2 ตัว) ทุกคนตี +1 เดิน +1', () => {
+  setup();
+  const p = P(0), mate = P(1), c = MAP6.CAMPS[0];
+  p.pos = { x: c[0], y: c[1] };
+  match.roundNumber = 3;
+  const q = S6.p4State(st());
+  actor(p);
+  assert.ok(!btn(p, 'fd:camp:grill'), 'ไม่มีปลา = ไม่มีปุ่ม');
+  q.catch = { [p.id]: 1 };
+  actor(p);
+  assert.ok(btn(p, 'fd:camp:feast').disabled, 'ปลาไม่พอ');
+  mate.hp = Math.max(1, mate.hp - 3); const h0 = mate.hp;
+  assert.ok(Fodlan.charAction(p.id, 'fd:camp:grill'));
+  assert.equal(q.catch[p.id], 0);
+  assert.equal(mate.hp, h0 + 2, 'เพื่อนที่อยู่ไกลก็ได้กิน');
+  q.catch[p.id] = 2;
+  const a0 = Fodlan.atkBonus(mate), m0 = action.movOf(mate);
+  match.roundNumber = 4; actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:camp:feast'));
+  assert.equal(Fodlan.atkBonus(mate), a0 + 1);
+  assert.equal(action.movOf(mate), m0 + 1);
+});
+
+test('หุ่นเกราะ: ตีจากด้านหลัง (ฝั่งตรงข้ามทิศที่หัน) แรง +2 · ด้านหน้าไม่ได้', () => {
+  setup();
+  const p = P(0), s = st();
+  const at = { x: 16, y: 14 };
+  const m = S6.spawnMob(ctx(), s, 'magitek', at, { hp: 10, armor: 3, atk: 3, mov: 2, gold: 8 }, { trait: 'mech', tier: 1 });
+  m.summon.face = { dx: 1, dy: 0 };
+  p.pos = { x: at.x - 1, y: at.y };
+  const back = Fodlan.atkBonus(p, m);
+  p.pos = { x: at.x + 1, y: at.y };
+  const front = Fodlan.atkBonus(p, m);
+  assert.equal(back - front, S6.MECH.weak);
+  assert.deepEqual(Fodlan.publicInfo().board.mobs.find((o) => o.id === m.id).face, { dx: 1, dy: 0 });
+});
+
+test('พายุหิมะ: ทุกคนเดิน −1 · ในเมือง/ข้างแคมป์อุ่น ไม่โดน', () => {
+  setup();
+  const p = P(0), c = MAP6.CAMPS[0];
+  p.pos = { x: 16, y: 14 };
+  const mov = action.movOf(p);
+  Fodlan.startWeather('eos_snow');
+  assert.equal(action.movOf(p), mov - 1);
+  p.pos = { x: c[0], y: c[1] };
+  const warm = action.movOf(p);
+  match.fodlan.weather = null; match.fodlan.s.weather = null;
+  assert.equal(warm, action.movOf(p), 'ข้างแคมป์ไม่ช้า');
+});
+
 test('L17 ตกปลา / L18 สุสาน: ตกปลาใช้การตี · สุสานเปิดได้ครั้งเดียว อาวุธหลวงตี +1 ตาที่ตีเสียเลือด 1 (ไม่ถึงตาย)', () => {
   setup();
   const p = P(0), f = MAP6.FISH[0];
