@@ -21,7 +21,7 @@
 import {
   F_TH, F_UI, LH, LW, NEAR_Y, P, PA, computeView, depthOf, gEllipse, glow, hexA, hexPath, key, normColor, parseKey, project,
   pitchOf, quad, rgbOf, setBoardSize, setViewTurn, shadeHex, toLogical, toView, unproject, viewAxes, viewTurn, viewCenter,
-  frameToScreen, localFrame, withLocalFrame, PV,
+  frameToScreen, localFrame, withLocalFrame, PV, setCustomProjection, customProjection, setCullView, onScreen,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
@@ -332,7 +332,7 @@ export function bakeScene(info, view, dpr, night, lowQ, turn = 0, live = false) 
 function rngSeq(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
 
 // ชั้นกระดาน (หมุนตามกระดาน) — ใช้ทั้งตอนอบและวาดสดระหว่างหมุน · g ต้องตั้ง transform ตรรกะไว้แล้ว
-function drawBoardLayer(g, info, view, night) {
+function drawBoardLayer(g, info, view, night, noLight = false) {
   const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
   const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   const COLS = info.cols, ROWS = info.rows;
@@ -380,11 +380,71 @@ function drawBoardLayer(g, info, view, night) {
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
   // ลายบนพื้นกระดานของธีม (ห่วงเวลาซีโร่: วงเวท + อักษรมิโกะ + ขอบทอง)
   if (T.deco) T.deco({ g, C, night, info, R: rngSeq(41), VX0, VY0, VX1, VY1, VW });
-  // แสงแดด / ความมืด (ทับทั้งจอ รวมฉากหลัง)
+  if (!noLight) boardLight(g, info, view, night);
+}
+// แสงแดด / ความมืด (ทับทั้งจอ รวมฉากหลัง) — แยกออกมาให้พื้นแบบพื้นผิว (groundWarp) วาดทับหลังบิดภาพได้
+function boardLight(g, info, view, night) {
+  const T = themeOf(info.area), C = T.pal[night ? "night" : "day"];
+  const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, VW = VX1 - VX0;
   const gr = g.createLinearGradient(VX0, VY0, VX1, VY1);
   gr.addColorStop(0, C.light[0]); gr.addColorStop(0.45, "rgba(255,255,255,0)"); gr.addColorStop(1, C.light[1]);
   g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
   if (C.nightTint) { g.fillStyle = C.nightTint; g.fillRect(VX0, VY0, VW, VY1 - VY0); }
+}
+// ---------- พื้นกระดานแบบพื้นผิว (ลื่นตอนกล้องขยับ — วัด 2026-11-10: วาดพื้นสดทุกเฟรม ~77ms/เฟรมตอนหมุน) ----------
+//  อบพื้นทั้งกระดานครั้งเดียวเป็นภาพมองตรงลงมา (ช่องละ GT_S px) → ทุกเฟรมบิดภาพลงกระดานเอียงด้วยสามเหลี่ยมย่อย (affine ต่อชิ้น ≈ perspective)
+//  ของสูงบนพื้น (เนิน/ซุ้มอุโมงค์ ฯลฯ) จะแบนชั่วคราวระหว่างกล้องขยับ — หยุดแล้วชั้นคมวาดของจริงกลับมา
+const GT_S = 72; // px ต่อช่องของภาพพื้น (32 ช่อง = 2304px) — ใกล้สุดยังคมพอระหว่างกล้องขยับ
+const GROUND_TEX = new WeakMap(); // info → { night, cv }
+function groundTexture(info, night) {
+  let e = GROUND_TEX.get(info);
+  if (e && e.night === night) return e.cv;
+  const W = info.cols * GT_S, H = info.rows * GT_S;
+  const cv = e && e.cv ? e.cv : document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+  const prev = customProjection();
+  setCustomProjection({ project: (x, y) => [x * GT_S, y * GT_S, GT_S], unproject: (sx, sy) => ({ x: sx / GT_S, y: sy / GT_S }), depth: (x, y) => y });
+  try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true); }
+  finally { setCustomProjection(prev); }
+  GROUND_TEX.set(info, { night, cv });
+  return cv;
+}
+// บิดภาพพื้นลงกระดานที่มุมกล้องปัจจุบัน (g อยู่ในพิกัดตรรกะแล้ว — L()) · N×N ชิ้น × 2 สามเหลี่ยม · ข้ามชิ้นที่อยู่นอกจอ/หลังกล้อง
+function drawGroundWarp(g, info, view, night) {
+  const tex = groundTexture(info, night);
+  const cols = info.cols, rows = info.rows, N = 16, sx = cols / N, sy = rows / N;
+  const pts = [];
+  for (let j = 0; j <= N; j++) { const row = []; for (let i = 0; i <= N; i++) { const q = P(i * sx, j * sy, 0); row.push(q); } pts.push(row); }
+  const { x0: VX0, y0: VY0, x1: VX1, y1: VY1 } = view, pad = 40;
+  const ok = (q) => q && Number.isFinite(q[0]) && Number.isFinite(q[1]) && q[2] > 0;
+  const tri = (p0, p1, p2, u0, v0, u1, v1, u2, v2) => {
+    // texture (u, v) → screen (x, y): แก้สมการ affine จาก 3 จุด
+    const du1 = u1 - u0, dv1 = v1 - v0, du2 = u2 - u0, dv2 = v2 - v0, det = du1 * dv2 - du2 * dv1;
+    if (!det) return;
+    const ax = p1[0] - p0[0], ay = p1[1] - p0[1], bx = p2[0] - p0[0], by = p2[1] - p0[1];
+    const a = (ax * dv2 - bx * dv1) / det, b = (ay * dv2 - by * dv1) / det, c = (bx * du1 - ax * du2) / det, d = (by * du1 - ay * du2) / det;
+    const e = p0[0] - a * u0 - c * v0, f = p0[1] - b * u0 - d * v0;
+    // ขยายสามเหลี่ยมออกเล็กน้อย (ครึ่งพิกเซล) กันรอยต่อขาวระหว่างชิ้น
+    const cx = (p0[0] + p1[0] + p2[0]) / 3, cy = (p0[1] + p1[1] + p2[1]) / 3, grow = (q) => { const dx = q[0] - cx, dy = q[1] - cy, l = Math.hypot(dx, dy) || 1; return [q[0] + dx / l * 0.7, q[1] + dy / l * 0.7]; };
+    const q0 = grow(p0), q1 = grow(p1), q2 = grow(p2);
+    g.save();
+    g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.lineTo(q2[0], q2[1]); g.closePath(); g.clip();
+    g.transform(a, b, c, d, e, f);
+    g.drawImage(tex, 0, 0);
+    g.restore();
+  };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const A = pts[j][i], B = pts[j][i + 1], Cc = pts[j + 1][i + 1], D = pts[j + 1][i];
+    if (!ok(A) || !ok(B) || !ok(Cc) || !ok(D)) continue;
+    const minX = Math.min(A[0], B[0], Cc[0], D[0]), maxX = Math.max(A[0], B[0], Cc[0], D[0]), minY = Math.min(A[1], B[1], Cc[1], D[1]), maxY = Math.max(A[1], B[1], Cc[1], D[1]);
+    if (maxX < VX0 - pad || minX > VX1 + pad || maxY < VY0 - pad || minY > VY1 + pad) continue;
+    const u0 = i * sx * GT_S, v0 = j * sy * GT_S, u1 = (i + 1) * sx * GT_S, v1 = (j + 1) * sy * GT_S;
+    tri(A, B, Cc, u0, v0, u1, v0, u1, v1);
+    tri(A, Cc, D, u0, v0, u1, v1, u0, v1);
+  }
+  boardLight(g, info, view, night);
 }
 // อบชั้นกระดานที่มุม rotation (0..3)
 export function bakeBoard(info, view, dpr, night, rotation = 0, exact = false) {
@@ -2388,6 +2448,7 @@ export function drawFrame(g, st, now) {
     }
   }
   else if (bake && bake.board) { blit(bake.board); L(); }
+  else if (st.warpGround && !colony) drawGroundWarp(g, info, bv, night); // กล้องขยับ: พื้นแบบพื้นผิว (เร็ว) แทนวาดสด
   else drawBoardLayer(g, info, bv, night);
   // กลางคืนจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): ย้อมแดงทั้งจอ ใต้ตัวละคร
   if (st.otoya && st.otoya.night) otoyaNight(g);
@@ -2439,6 +2500,7 @@ export function drawFrame(g, st, now) {
   if (st.moon && !colony) drawMoonGround(g, st.moon, info, now, lowQ);
   // Fodlan (board/fodlan/): ของบนพื้นของด่าน + ช่องเตือนกะพริบแดง — ใต้ไฮไลต์
   const fd = st.fodlan || null;
+  setCullView(st.uiK && !colony ? view : null); // สนาม Eos (กล้อง RTS): ตัดของนอกจอ
   if (fd) drawFodlanGround(g, fd, info, now, lowQ);
   // ทราฟาก้า ลอว์ (lawFx.js): พื้น Room + ด้านหลังโดม — ใต้ไฮไลต์ (เรียกทุกเฟรม: จำ Room ที่มีอยู่แล้วตอนเฟรมแรก ไม่เล่นฉากกางซ้ำ)
   const law = st.law || null, lFx = fx.some((e) => isLawFx(e.kind));
@@ -2535,6 +2597,7 @@ export function drawFrame(g, st, now) {
     }
     const sLv = iceSpikeLv(t.kind);
     if (sLv) { const k = key(t.x, t.y); pushSpike(t.x, t.y, iceLv && k in iceLv ? iceLv[k] : sLv); continue; }
+    if (!onScreen(t.x + 0.5, t.y + 0.5, 3.2)) continue; // นอกจอ = ไม่วาด (ตึกสูงสุด ~3 ช่อง)
     const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind, info.area)) && behind(t.x, t.y);
     // สนาม Eos (กล้อง RTS): ตึก/กำแพง/ต้นไม้/หิน/อู่ ไม่ขยับ → เก็บไปวาดรวมเป็นภาพเดียว (STATIC_CACHE) ไม่วาดใหม่ทุกเฟรม
     if (st.uiK && !colony && !fade && STATIC_OB.has(t.kind)) { statics.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, t }); continue; }
@@ -2554,6 +2617,7 @@ export function drawFrame(g, st, now) {
   if (!colony) for (const sh of shopList) {
     if (sh.kind === "capsule") continue;
     const [w, h] = shopDims(sh);
+    if (!onScreen(sh.x + w / 2, sh.y + h / 2, 2.5, Math.max(w, h))) continue;
     let fade = false;
     for (let dy = 0; dy < h && !fade; dy++) for (let dx = 0; dx < w && !fade; dx++) fade = behind(sh.x + dx, sh.y + dy);
     items.push({ d: depthOf(sh.x + w / 2, sh.y + h / 2) + 0.05, f: () => { if (fade) { g.save(); g.globalAlpha = 0.45; } drawShopStall(g, sh.kind, sh.x, sh.y, now, night); if (fade) g.restore(); } });
@@ -2757,6 +2821,7 @@ export function drawFrame(g, st, now) {
   // พาข้ามโลก (วาเลนไทน์): พื้นที่ของแนวพลิกกลับหัวแล้วตั้งตรง
   if (vFx) valentineFlip(g, fx, now, lowQ, view, dpr);
   if (bake && bake.fore) { g.globalAlpha = gioForeAlpha(fx, now); if (g.globalAlpha > 0) blit(bake.fore); g.globalAlpha = 1; }
+  setCullView(null);
   g.setTransform(1, 0, 0, 1, 0, 0);
   boxes.sort((a, b) => b.d - a.d);
   return boxes;

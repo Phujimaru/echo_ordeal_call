@@ -141,6 +141,18 @@ export function project(x, y, z = 0) {
   return PV(dx * cT - dy * sT, dx * sT + dy * cT, z);
 }
 export const P = project;
+// ตัดของนอกจอ (วัด 2026-11-10: กล้องซูมใกล้เห็น ~20% ของแผนที่ แต่ของทุกชิ้นถูกวาดทุกเฟรมตอนกล้องขยับ)
+//  drawFrame ตั้งกรอบจอ (พิกัดตรรกะ) ทุกเฟรม · onScreen(x, y, h) = กล่องสูง h ช่องที่ (x, y) มีส่วนอยู่ในจอไหม · ไม่ตั้งกรอบ = true เสมอ
+let CULL = null;
+export function setCullView(v) { CULL = v ? { x0: v.x0, y0: v.y0, x1: v.x1, y1: v.y1 } : null; }
+export function onScreen(x, y, h = 2, w = 1) {
+  if (!CULL || CUSTOM) return true;
+  const a = project(x, y, 0), b = project(x, y, h);
+  if (!(a[2] > 0) || !Number.isFinite(a[0])) return false;
+  const r = a[2] * (w * 0.9 + 0.6);
+  const top = Math.min(a[1], b[1]) - r, bot = Math.max(a[1], b[1]) + r;
+  return a[0] + r >= CULL.x0 && a[0] - r <= CULL.x1 && bot >= CULL.y0 && top <= CULL.y1;
+}
 // จุดยึดของสไปรต์: กลางช่อง (x, y) ขยับเข้าหากล้อง off ช่อง
 export function PA(x, y, off = 0, z = 0) { return P(x + 0.5 + sT * off, y + 0.5 + cT * off, z); }
 // ฉาก (x, y, z) → [sx, sy, สเกล]

@@ -306,12 +306,15 @@ export const theme = {
     // 8 ระดับสี วาดทีละระดับ (fill เดียวต่อระดับ — เร็วพอวาดสดตอนหมุน)
     const GB = 8;
     for (let b = 0; b < GB; b++) {
+      g.fillStyle = mix(C.grassA, C.grassB, (b + 0.5) / GB);
       g.beginPath();
+      let n = 0;
       for (const t of GRASS_BUCKETS[b]) {
         const a = P(t.x - 0.02, t.y - 0.02), b1 = P(t.x + 1.02, t.y - 0.02), c2 = P(t.x + 1.02, t.y + 1.02), d = P(t.x - 0.02, t.y + 1.02);
         g.moveTo(a[0], a[1]); g.lineTo(b1[0], b1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]); g.closePath();
+        if (++n % FILL_CHUNK === 0) { g.fill(); g.beginPath(); } // เติมเป็นชุด (เส้นทางเดียวหลายร้อยรูป = ช้ามากบน GPU canvas)
       }
-      g.fillStyle = mix(C.grassA, C.grassB, (b + 0.5) / GB); g.fill();
+      g.fill();
     }
     const dim = { cols: info.cols, rows: info.rows };
     const sand = setFor("sand", T.sand), forest = setFor("forest", T.forest), wet = setFor("wet", [...T.shallow, ...T.water]), deep = setFor("deep", T.water), road = setFor("road", T.road);
@@ -335,7 +338,8 @@ export const theme = {
     }
     if (!FAST) {
       g.strokeStyle = C.joint; g.lineWidth = 1; g.beginPath();
-      const ln = (x0, y0, x1, y1) => { const a = P(x0, y0), b = P(x1, y1); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); };
+      let nj = 0;
+      const ln = (x0, y0, x1, y1) => { const a = P(x0, y0), b = P(x1, y1); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); if (++nj % 96 === 0) { g.stroke(); g.beginPath(); } };
       for (const t of T.plaza) {
         ln(t.x, t.y + 0.5, t.x + 1, t.y + 0.5);
         ln(t.x + 0.5, t.y, t.x + 0.5, t.y + 0.5);
@@ -386,7 +390,8 @@ export const theme = {
     g.strokeStyle = C.grid; g.lineWidth = 1;
     for (const [list, a] of [[segs.norm, 1], [segs.soft, 0.5]]) {
       g.globalAlpha = a; g.beginPath();
-      for (const [x0, y0, x1, y1] of list) { const p = P(x0, y0), q = P(x1, y1); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); }
+      let n = 0;
+      for (const [x0, y0, x1, y1] of list) { const p = P(x0, y0), q = P(x1, y1); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); if (++n % 96 === 0) { g.stroke(); g.beginPath(); } } // ขีดเป็นชุด (เส้นเดียว 1400 ท่อน ช้ามาก)
       g.stroke();
     }
     g.globalAlpha = 1;
@@ -608,14 +613,19 @@ function msFill(g, set, color, { jitter = 0, th = 0.5, seed = 0, cols = 32, rows
   const polys = msPolys(set, jitter, th, seed, cols, rows, ox, oy);
   g.globalAlpha = alpha;
   g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 1;
+  const edge = !FAST && alpha >= 1; // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์ (ข้ามระหว่างหมุน) · ชั้นโปร่งแสงไม่ขีด — เส้นซ้อนกันเห็นเป็นตาราง
   g.beginPath();
+  let n = 0;
   for (const pts of polys) {
     pts.forEach(([px, py], i) => { const q = P(px, py); if (i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
     g.closePath();
+    if (++n % FILL_CHUNK === 0) { g.fill(); if (edge) g.stroke(); g.beginPath(); } // เติมเป็นชุด — เส้นทางเดียวหลายร้อยรูปช้ากว่า ~10 เท่า (วัด 2026-11-10)
   }
-  g.fill(); if (!FAST && alpha >= 1) g.stroke(); // เส้นบางสีเดียวกันปิดรอยต่อระหว่างเซลล์ (ข้ามระหว่างหมุน) · ชั้นโปร่งแสงไม่ขีด — เส้นซ้อนกันเห็นเป็นตาราง
+  g.fill(); if (edge) g.stroke();
   g.globalAlpha = 1;
 }
+// ขนาดชุดเติมสี: Chrome (GPU canvas) เติมเส้นทางเดียวที่มีรูปย่อย 4000 รูป ~130ms แต่แบ่งเป็นชุดละ 20–100 รูป ~10ms (วัดบน RTX 5060 2026-11-10)
+const FILL_CHUNK = 48;
 // ระหว่างหมุนกล้องอิสระ (วาดสดทุกเฟรม): ข้ามรายละเอียดเล็ก — BoardCanvas ตั้งผ่าน setEosFast
 let FAST = false;
 export function setEosFast(b) { FAST = !!b; }

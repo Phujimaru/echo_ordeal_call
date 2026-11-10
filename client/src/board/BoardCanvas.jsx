@@ -585,7 +585,9 @@ export default function BoardCanvas(props) {
       // --- ชั้นอบ: ฉาก (ตามแนวกระดาน ตั้ง/นอน) + กระดาน (ตามมุม)
       const tB0 = performance.now();
       const sceneOf = (turn) => {
-        const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}|${vcK}`;
+        // จุดกลางมุมมองที่ใช้เป็นกุญแจฉาก: ระหว่างกล้องขยับ/หมุน (vc ขยับทุกเฟรม) ใช้ค่าเดิม — ไม่อบฉากใหม่ทุกเฟรม (วัด 2026-11-10: หมุนครั้งเดียวอบฉาก ~10 รอบ)
+        const vcS = (turning || st.vcAnim || camMoving) && st.sceneVcK != null ? st.sceneVcK : (st.sceneVcK = vcK);
+        const par = rts ? Math.round(turn * 1000) / 1000 : normRot(turn) % 2, sk = `${info.area}|${info.cols}x${info.rows}|${w}x${h}|${res}|${night}|${lowQ}|${par}|${pitch}|${vcS}`;
         let sc = st.scenes.get(sk);
         if (!sc) {
           sc = bakeScene(info, base, res, night, lowQ, par);
@@ -612,6 +614,7 @@ export default function BoardCanvas(props) {
       const tB = performance.now() - tB0;
       if (tB > 8 && st.camAnim) st.camAnim.t0 += tB; // ไม่นับเวลาอบเข้าไปในการซูม/เลื่อน
       setEosFast(rts && (turning || camMoving)); // สนาม Eos: ระหว่างวาดพื้นสด ข้ามรายละเอียดเล็ก
+      st.warpGround = rts && (turning || camMoving); // พื้นแบบพื้นผิวระหว่างกล้องขยับ (boardDraw.drawGroundWarp)
       let bake = { scene: scTo.scene, fore: scTo.fore, marks: scTo.marks, board: boardCv, sceneFrom: scFrom && scFrom.scene, mix, view: base, res };
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
@@ -899,7 +902,7 @@ export default function BoardCanvas(props) {
       };
       const drawFrameOf = (target) => drawFrame(target, {
         uiK: rts ? 1 : 0, // Eos: ป้าย/แถบเลือดบนหมากวัดจากขนาดหมาก (boardDraw UI_PIECE)
-        info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl,
+        info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null,
