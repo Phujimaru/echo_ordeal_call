@@ -4,10 +4,10 @@
 export const EOS_GEO = { lon: -28, lat: -6 };
 
 // ฉากเข้าสนาม (มิลลิวินาที — server/constants.js EOS_START_SECONDS ต้องพักนานพอ)
-//  ฉากเดียวต่อเนื่อง: ลูกโลกหมุนหาหมุด → ดิ่ง (eosFlight.js) → ชน = แฟลช → ทะลุเมฆ บินเหนือกระดานจริงลงหาหมากเรา (EosCine.jsx + eosPaint.js ยาว (1 − crash) × D)
-export const EOS_INTRO_MS = 12000;
-export const EOS_T = { turn: 0.13, dive: 0.15, crash: 0.25 };
-export const EOS_HANDOFF = EOS_T.crash + 0.03; // แฟลชทึบเต็มจอแล้ว → App ปิดลูกโลกร่วม + วางกระดานข้างใต้
+//  ฉากเดียวต่อเนื่อง: ลูกโลกหมุนหาหมุด → ดิ่ง (eosFlight.js) → ชน = แฟลช → ฉาก 3 มิติดินแดน Lucis (eosTheatre.js) + ชั้น DOM (EosCine.jsx) → แฟลชขาว
+export const EOS_INTRO_MS = 14000;
+// สัดส่วนเวลา (คูณ D): โลกหมุน → ดิ่ง → ชน = แฟลช → ฉาก 3 มิติ (eosTheatre.js): ชื่อ EOS (reveal) · ร่อนตามถนน (glide) · เสายิงแสง (pillars) · ชื่อโซนเกิด (title) → แฟลชขาว
+export const EOS_T = { turn: 0.11, dive: 0.13, crash: 0.22, reveal: 0.29, glide: 0.47, pillars: 0.61, title: 0.79 };
 
 // ป้ายเข้าพื้นที่ — โซนตาม server/fodlan/map6.js ZONES (eosZoneAt ใน eosAudio.js)
 // ชื่อ (ไทย = ทับศัพท์) · สี (c หลัก · g เรือง · bg พื้นภาพ)

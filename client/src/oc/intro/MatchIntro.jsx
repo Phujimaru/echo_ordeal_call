@@ -20,7 +20,7 @@
 //      { fodlan, stage, weather }: ดิ่งลงหมุด Fodlan → ทะลุเมฆ → แผนที่ทวีป → โฉบลงด่าน → ฉากเข้าด่าน (fodlan/fodlanFlight.js · GRID_PLAN §8.5 · ?fodlan)
 //       prop fodlan = { stage, weather } (รู้ตั้งแต่เริ่มฉาก) = เริ่มสร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร ไม่ต้องรอ onOutro
 //      { eos, board, self, night }: ฉากเข้าสนาม Eos (GRID_PLAN §8.6) — โลกหมุนหาหมุด Eos → ดิ่งชน (eos/eosFlight.js) → แฟลชฟ้า
-//       → EosCine: ทะลุเมฆ บินเหนือกระดานจริง (eos/EosCine.jsx · eosPaint.js) ลดระดับลงหาหมากเรา → จางเผยกระดาน · ส่งต่อใต้แฟลช (EOS_HANDOFF)
+//       → ฉาก 3 มิติดินแดน Lucis (eos/eosTheatre.js) + ชั้น DOM (eos/EosCine.jsx) → แฟลชขาวส่งต่อ (D − 240)
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";
@@ -38,7 +38,7 @@ import { createFodlanFlight } from "../../fodlan/fodlanFlight";
 import FodlanCine from "../../fodlan/FodlanCine";
 import { FODLAN_INTRO_MS, clampFodlanStage } from "../../fodlan/stages";
 import EosCine from "../../eos/EosCine";
-import { EOS_INTRO_MS, EOS_HANDOFF, EOS_T } from "../../eos/eosMeta";
+import { EOS_INTRO_MS } from "../../eos/eosMeta";
 import { createEosFlight } from "../../eos/eosFlight";
 
 const FINALE_MS = 2900;
@@ -182,15 +182,13 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         at(D - 240, handoff);
         at(D, done);
       } else if (spec && spec.eos) {
-        // Eos: การ์ดไหลออก → โลกหมุนหาหมุด Eos → ดิ่งชน → (แฟลช) EosCine ต่อจนจบ → จางเผยกระดาน
+        // Eos: การ์ดไหลออก → โลกหมุนหาหมุด Eos → ดิ่งชน → (แฟลช) ฉาก 3 มิติดินแดน Lucis (eos/eosTheatre.js) → แฟลชขาวส่งต่อ
         const D = Math.max(6000, Number(spec.durationMs) || EOS_INTRO_MS);
         tlRef.current.out = true;
-        tlRef.current.eos = { at: performance.now(), D };
-        // ฉากบิน 3D สร้างไว้ตั้งแต่ตอนนี้ (ยังไม่วาด) → เริ่มเล่นตอนชน
-        setEos({ D: Math.round((1 - EOS_T.crash) * D), board: spec.board || null, self: spec.self || null, night: !!spec.night, live: false });
+        tlRef.current.eos = { at: performance.now(), D, night: !!spec.night };
+        setEos({ D, self: spec.self || null });
         setMode("eos");
-        at(EOS_T.crash * D, () => setEos((e) => (e ? { ...e, live: true } : e)));
-        at(EOS_HANDOFF * D, handoff);
+        at(D - 240, handoff);
         at(D, done);
       } else if (spec && spec.colony) {
         // โคโลนี: การ์ดไหลออก → เหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยาน → แฟลชขาวส่งต่อ
@@ -350,8 +348,9 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       // ---------- Eos: หมุน → ดิ่งลงหมุด ----------
       const ev = tlRef.current.eos;
       if (ev) {
-        if (!eosCam) eosCam = createEosFlight(core, { lowQ, wrapEl: stageEl, start });
-        eosCam.frame(import.meta.env.DEV && window.__eosGU != null ? window.__eosGU : clamp01((now - ev.at) / ev.D));
+        if (!eosCam) eosCam = createEosFlight(core, { lowQ, wrapEl: stageEl, start, night: ev.night });
+        // dev: window.__eosGU = 0..1 หยุดฉากไว้ที่จุดนั้น (ตรวจภาพทีละช่วง)
+        eosCam.frame(import.meta.env.DEV && window.__eosGU != null ? window.__eosGU : clamp01((now - ev.at) / ev.D), (now - start) / 1000);
         return;
       }
       // ---------- บินอ้อมโลกไปดวงจันทร์ ----------
@@ -485,7 +484,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       )}
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
       {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.stage} />}
-      {eos && <EosCine D={eos.D} live={eos.live} board={eos.board} self={eos.self} night={eos.night} lowQ={lowQ} />}
+      {eos && <EosCine D={eos.D} self={eos.self} />}
     </div>
   );
 }

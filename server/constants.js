@@ -77,7 +77,7 @@ const REBIRTH_SECONDS = 18;
 const FODLAN_START_SECONDS = Math.max(0, Number(process.env.FODLAN_START_SECONDS ?? process.env.JOURNEY_START_SECONDS ?? 12));
 // Eos (GRID_PLAN §8.6): ไม่มีฉากเดินทาง — พักให้ฉากเปิดตัวผู้เล่น + ฉากเข้าสนาม Eos จบ (client eos/eosMeta.js EOS_INTRO_MS 12 วิ: ลูกโลกหมุน/ดิ่งลงหมุด Eos → บินลงกระดานจริง)
 //  (0 ตามการตั้งของเทสต์ที่ปิดฉากเดินทาง)
-const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 12)));
+const EOS_START_SECONDS = Math.max(0, Number(process.env.EOS_START_SECONDS ?? (Number(process.env.JOURNEY_START_SECONDS) === 0 ? 0 : 14))); // ฉากเปิด Eos 3 มิติ (eos/eosTheatre.js) 14 วิ
 const FODLAN_ADVANCE_SECONDS = Math.max(0, Number(process.env.FODLAN_ADVANCE_SECONDS ?? process.env.JOURNEY_ADVANCE_SECONDS ?? 11));
 const TEAM_IDS = ["A", "B", "C"];
 
