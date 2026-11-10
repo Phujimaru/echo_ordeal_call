@@ -325,6 +325,8 @@ function playerPublic(r, o) {
     shield: 0, tempHp: 0, skillPoints: r.sp, qte: undefined, maxSkill: 8,
     gold: r.gold, goldMax: 30,
     inventory: mine ? clone(MY_BAG) : null,
+    // ?acts=N = ปุ่มพิเศษ N อัน (ดูการจัดวางปุ่มคำสั่ง)
+    actions: mine && typeof location !== "undefined" && Number(new URLSearchParams(location.search).get("acts")) > 0 ? [["fd:mount", "🐤", "ขี่"], ["fd:seize", "🔷", "ยึด"], ["fd:lights", "💡", "สาดไฟ (อีก 3)"], ["fd:fix", "🔧", "ซ่อมรถ"], ["fd:supply", "📦", "ขนของ"]].slice(0, Number(new URLSearchParams(location.search).get("acts"))).map(([key, icon, name]) => ({ key, icon, name })) : undefined,
     muimiEmergencyUses: r.char === "muimi" ? 2 : undefined,
     muimiEmergencyMax: r.char === "muimi" ? 2 : undefined,
     muimiEmergencyUsed: r.char === "muimi" ? false : undefined,

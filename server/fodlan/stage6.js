@@ -591,6 +591,7 @@ function spawnDaemons(ctx, s, n = nightTarget(ctx, s)) {
   }
   const tier = Math.max(1, s.nightNo || 1), stats = E.scaleStats(ctx, daemonStats(tier));
   const had = mobsOf(ctx, "daemon").length;
+  picked.splice(mobRoom(ctx)); // เพดานมอน
   for (const t of picked) { const trait = pickTrait(ctx, s); spawnMob(ctx, s, "daemon", t, traitStats(stats, trait), { look: 1 + (++s.seq % 8), tier, trait }); }
   if (picked.length) {
     ctx.bump();
@@ -622,7 +623,8 @@ const stuckMob = (m) => ((m.statuses.stun || 0) > 0) || ((m.statuses.sleep || 0)
 // ก้าวไปหาช่องที่ติดเป้า (ผู้เล่น/เสา) ใกล้สุด — BFS ช่องว่าง ไม่เกิน mov · เป้าที่ติดอยู่แล้ว = ไม่เดิน
 function stepMob(ctx, s, m, targets, pillars, mov) {
   const town = mobType(m) !== "beast" && !(m.summon && m.summon.trait === "mech"), dark = XT.fearsLight(m); // หุ่นเกราะไม่สนไฟเมือง (ตัวทะลวงกำแพง Insomnia)
-  const adjT = (x, y) => targets.find((p) => footOf(ctx, p).some((t) => manhattan(t, { x, y }) === 1)) || null;
+  // ติดหลายคน = ตีคนที่เลือด+เกราะน้อยสุดก่อน (มอนฉลาดขึ้น — ผู้ใช้ 2026-11-10)
+  const adjT = (x, y) => targets.filter((p) => footOf(ctx, p).some((t) => manhattan(t, { x, y }) === 1)).sort((a, b) => ((a.hp || 0) + (a.armor || 0)) - ((b.hp || 0) + (b.armor || 0)))[0] || null;
   const adjP = (x, y) => pillars.find((pl) => manhattan(pl, { x, y }) === 1) || null;
   const goalAt = (x, y) => adjT(x, y) || adjP(x, y);
   if (goalAt(m.pos.x, m.pos.y)) return { to: null, path: null, target: adjT(m.pos.x, m.pos.y), pillar: adjT(m.pos.x, m.pos.y) ? null : adjP(m.pos.x, m.pos.y) };
@@ -639,11 +641,17 @@ function stepMob(ctx, s, m, targets, pillars, mov) {
   if (!goal) return wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt);
   const path = [];
   for (let c = goal; c; c = c.prev) path.unshift({ x: c.x, y: c.y });
+  // มอนฉลาดขึ้น (ผู้ใช้แจ้ง 2026-11-10 "ไม่ทำลายสิ่งกีดขวางเพื่อพุ่งเข้ามา เดินอ้อมเฉยๆ"): ทางอ้อมยาวกว่าทางทุบ ≥ SMART.detour ก้าว = ทุบ
+  if (path.length - 1 > mov) {
+    const alt = wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt, true);
+    if (alt.to && alt.cost != null && alt.cost + SMART.detour < path.length - 1) return alt;
+  }
   const n = Math.min(mov, path.length - 1);
   const to = path[n];
   const target = adjT(to.x, to.y);
   return { to, path: path.slice(0, n + 1), target, pillar: target ? null : adjP(to.x, to.y) };
 }
+const SMART = { detour: 3, barricadeCost: 3 };
 // ============================================================ กำแพงเมือง Insomnia พังได้ (ผู้ใช้สั่ง 2026-11-10 — ตัวเลข Claude ตั้ง)
 //  ทางปกติไปไม่ถึง (ประตูปิดด้วยโดม ฯลฯ) = หาทางที่ทะลุกำแพงได้ (กำแพง 1 ช่องนับเป็น WALL_COST ก้าว) → เดินไปติดกำแพงแล้วทุบ
 //  ทุบครบ CITY_WALL.hp = ช่องนั้นพังเดินผ่านได้ · ผู้เล่นยืนติดกด "ซ่อมกำแพง" (+2 · ใช้การโจมตี) · ช่องพังซ่อมกลับได้ถ้าไม่มีใครยืน
@@ -654,24 +662,24 @@ let GATE_KEYS = null;
 const gateKey = (x, y) => (GATE_KEYS || (GATE_KEYS = new Set(DOME_GATES.map((t) => K(t.x, t.y))))).has(K(x, y));
 const gateShut = (s, x, y) => domeOn(s) && gateKey(x, y);
 // ช่องที่มอนทุบได้: กำแพง/ป้อมที่ยังไม่พัง · ประตูโดมตอนโดมเปิด
-const breakable = (ctx, s, x, y) => isCityWall(ctx, s, x, y) || gateShut(s, x, y);
+const breakable = (ctx, s, x, y) => isCityWall(ctx, s, x, y) || gateShut(s, x, y) || PKS.wallAt(s, x, y);
 const isCityWall = (ctx, s, x, y) => cityWallKeys().has(K(x, y)) && !(s.wallBroken || {})[K(x, y)];
 const wallHp = (s, k) => (s.wallHp && s.wallHp[k] != null ? s.wallHp[k] : CITY_WALL.hp);
-function wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt) {
+function wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt, compare = false) {
   const none = { to: null, path: null, target: null, pillar: null };
-  if (!targets.some((p) => p.pos && inRect(INSOMNIA, p.pos.x, p.pos.y)) && !pillars.some((pl) => inRect(INSOMNIA, pl.x, pl.y))) return none;
+  if (!compare && !targets.length && !pillars.length) return none;
   // Dijkstra แบบถังน้ำ (ค่าเดิน 1 หรือ WALL_COST)
   const cost = new Map([[K(m.pos.x, m.pos.y), 0]]), prev = new Map(), buckets = [[{ x: m.pos.x, y: m.pos.y }]];
   let goal = null;
   for (let c = 0; c < buckets.length && !goal && c < 400; c++) for (const n of buckets[c] || []) {
     if (cost.get(K(n.x, n.y)) !== c) continue;
-    if (c > 0 && !breakable(ctx, s, n.x, n.y) && goalAt(n.x, n.y)) { goal = n; break; }
+    if (c > 0 && goalAt(n.x, n.y)) { goal = n; break; } // ช่องทุบได้ที่ติดเป้า = เป้าหมาย (ทุบแล้วถึงตัว)
     for (const [dx, dy] of ctx.Board.DIRS) {
       const x = n.x + dx, y = n.y + dy, k = K(x, y);
       if (!ctx.Board.inBounds(ctx.map(), x, y)) continue;
       const wall = breakable(ctx, s, x, y);
       if (!wall && (!tileFree(ctx, s, x, y, m.id) || (town && blockedTown(s, x, y)) || (dark && XT.lightSafe(H(), x, y)))) continue;
-      const nc = c + (wall ? CITY_WALL.cost : 1);
+      const nc = c + (wall ? (PKS.wallAt(s, x, y) ? SMART.barricadeCost : CITY_WALL.cost) : 1);
       if (cost.has(k) && cost.get(k) <= nc) continue;
       cost.set(k, nc); prev.set(k, n);
       (buckets[nc] ||= []).push({ x, y });
@@ -684,7 +692,7 @@ function wallRoute(ctx, s, m, targets, pillars, mov, town, dark, goalAt) {
   if (wi < 1) return none;
   const n = Math.min(mov, wi - 1), to = path[n];
   const wall = n === wi - 1 ? path[wi] : null; // ถึงหน้ากำแพงตานี้ = ทุบ
-  return { to, path: path.slice(0, n + 1), target: null, pillar: null, wall };
+  return { to, path: path.slice(0, n + 1), target: null, pillar: null, wall, cost: cost.get(K(goal.x, goal.y)) };
 }
 function hitWall(ctx, s, m, w) {
   const k = K(w.x, w.y);
@@ -695,6 +703,14 @@ function hitWall(ctx, s, m, w) {
     if (broke) { s.dome = null; s.domeReadyRound = ctx.match.roundNumber + DOME_COOLDOWN; ctx.fx("dome_off", { rect: INSOMNIA, broken: true }); ctx.log(`🛡️ โดมกำแพงเวทแตก! ${m.name}ทุบบาเรียประตูจนพัง`); }
     ctx.bump();
     return { id: m.id, x: m.pos.x, y: m.pos.y, at: { x: w.x, y: w.y }, wall: true, gate: true, hp: broke ? 0 : s.dome.hp, broke };
+  }
+  if (PKS.wallAt(s, w.x, w.y)) { // กำแพงไม้ชั่วคราว (ร้าน): ทนได้ 2 ครั้ง
+    const bw = PKS.PK(s).walls.find((o) => o.x === w.x && o.y === w.y);
+    bw.hp = (bw.hp ?? 2) - dmg;
+    const broke = bw.hp <= 0;
+    if (broke) { PKS.PK(s).walls = PKS.PK(s).walls.filter((o) => o !== bw); ctx.log(`🧱 ${m.name}พังกำแพงไม้`); }
+    ctx.bump();
+    return { id: m.id, x: m.pos.x, y: m.pos.y, at: { x: w.x, y: w.y }, wall: true, hp: broke ? 0 : bw.hp, broke };
   }
   if (!isCityWall(ctx, s, w.x, w.y)) return null;
   (s.wallHp ||= {})[k] = Math.max(0, wallHp(s, k) - dmg);
@@ -779,7 +795,7 @@ function actMonsters(ctx, s) {
       if (round >= (sm.roarAt || 0) + E.BOSS.roarEvery) {
         sm.roarAt = round;
         const st = E.scaleStats(ctx, daemonStats(Math.max(1, s.nightNo || 1))), spawned = [];
-        for (let i = 0; i < 2; i++) { const at = freeNear(ctx, s, m.pos.x, m.pos.y, 3); if (at) { const d = spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 8), tier: s.nightNo || 1 }); spawned.push({ id: d.id, x: at.x, y: at.y }); } }
+        for (let i = 0; i < 2 && mobRoom(ctx) > 0; i++) { const at = freeNear(ctx, s, m.pos.x, m.pos.y, 3); if (at) { const d = spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 8), tier: s.nightNo || 1 }); spawned.push({ id: d.id, x: at.x, y: at.y }); } }
         if (spawned.length) ctx.fx("boss_roar", { id: m.id, x: m.pos.x, y: m.pos.y, spawned });
       }
       const adjP = all.filter((p) => footOf(ctx, p).some((tt) => manhattan(tt, m.pos) === 1));
@@ -1198,6 +1214,25 @@ const inDome = (x, y) => inRect(INSOMNIA, x, y);
 function domeOn(s) { return !!(s && s.dome && s.dome.left > 0); }
 // ไฟเมืองดับ = ปีศาจเข้าได้
 function lit(s, zoneId) { return !(s && s.lightsOff && s.lightsOff[zoneId]); }
+// ---------- จังหวะเหตุการณ์ใหญ่ (ผู้ใช้แจ้ง 2026-11-10 "หลายเหตุการณ์เกิดพร้อมกัน จนรับมือได้ยาก") ----------
+//  เหตุการณ์ใหญ่ = ยักษ์หิน · ราชาปีศาจ (เตือน/อยู่) · ขบวนเสบียง · คราส · ฝนดาวตก · รถไฟขนเสบียง · คืนสุดท้าย
+//  ทีละอย่าง + เว้นอย่างน้อย BIG_GAP เทิร์นหลังเริ่มอันก่อน — อันที่ถึงคิวแต่ติดอยู่ เลื่อนออกไปเอง
+const BIG_GAP = 3;
+// เพดานมอนบนแผนที่พร้อมกัน (ผู้ใช้แจ้ง 2026-11-10 "ช่วงสุดท้ายมอนเยอะจนไม่มีทางต่อกร") — ไม่นับรัง/ยักษ์หิน/โชโกโบะทอง/ราชาปีศาจ
+const MOB_CAP = { base: 12, perHero: 4, max: 28 };
+function mobRoom(ctx) {
+  const heroesN = heroes(ctx).filter((p) => !p.summon).length || 1;
+  const cap = Math.min(MOB_CAP.max, MOB_CAP.base + MOB_CAP.perHero * (heroesN - 1));
+  const have = mobsOf(ctx).filter((m) => { const t = mobType(m); return t !== "nest" && t !== "giant" && t !== "gold" && m.summon.trait !== "boss"; }).length;
+  return Math.max(0, cap - have);
+}
+function bigBusy(ctx, s) {
+  const e = E.ev(s), x = s.x || {}, k = s.sky || {};
+  const boss = !!e.bossWarn || mobsOf(ctx, "daemon").some((d) => d.summon.trait === "boss");
+  return !!(x.giant || x.final || boss || e.convoy || k.eclipse || k.meteor || k.supply);
+}
+function bigFree(ctx, s, turn) { return !bigBusy(ctx, s) && turn - (s.bigLast ?? -99) >= BIG_GAP; }
+function bigStart(s, turn) { s.bigLast = turn; }
 function townOf(x, y) { const z = TOWNS.find((t) => inRect(t.rect, x, y)); return z ? z.id : null; }
 function blockedTown(s, x, y) { const z = townOf(x, y); return !!z && lit(s, z); }
 
@@ -1250,14 +1285,26 @@ function shields(ctx, st, attacker, target) {
 }
 // ---------- L8 แผงไฟเมือง ----------
 function switchNear(ctx, p) { return MAP.SWITCHES.find((sw) => ctx.adjacent(p, sw.at[0], sw.at[1])) || null; }
+// แผงไฟเมือง = ไฟสาด (ผู้ใช้แจ้ง 2026-11-10 "สวิตช์ไฟในเมืองไม่มีประโยชน์อะไรเลย" — เดิมเปิด/ดับไฟ ซึ่งเปิดอยู่แล้วตลอด)
+//  ไฟเมืองเปิดถาวร · กดแผง = แสงสาดจ้า: ปีศาจ/ทหารเหล็ก/หุ่นเกราะในระยะ FLASH.r จากแผง มึน 1 เทิร์น + ปีศาจโดนแสงไหม้ FLASH.dmg · พักเครื่อง FLASH.cd เทิร์น
+const FLASH = { r: 6, dmg: 1, cd: 5 };
+const flashCd = (ctx, s, zone) => Math.max(0, ((s.flashReady || {})[zone] || 0) - ctx.match.roundNumber);
 function flipLights(ctx, s, p) {
   const sw = switchNear(ctx, p);
-  if (!sw || !canStrike(ctx, p)) return false;
-  s.lightsOff = s.lightsOff || {};
-  s.lightsOff[sw.zone] = !s.lightsOff[sw.zone];
+  if (!sw || !canStrike(ctx, p) || flashCd(ctx, s, sw.zone) > 0) return false;
+  const at = { x: sw.at[0], y: sw.at[1] }, hits = [];
+  for (const m of mobsOf(ctx)) {
+    const t = mobType(m);
+    if (!m.alive || !m.pos || t === "nest" || t === "giant" || t === "gold" || manhattan(m.pos, at) > FLASH.r) continue;
+    if (ctx.combat.applyDebuff) ctx.combat.applyDebuff(m, "stun", 1, 1);
+    const dealt = t === "daemon" && m.summon.trait !== "boss" ? hurt(ctx, m, FLASH.dmg, p) : 0;
+    hits.push({ id: m.id, x: m.pos.x, y: m.pos.y, dmg: dealt });
+  }
+  (s.flashReady ||= {})[sw.zone] = ctx.match.roundNumber + FLASH.cd;
   ctx.match.action.locked = true;
-  ctx.fx("lights", { zone: sw.zone, off: s.lightsOff[sw.zone], x: sw.at[0], y: sw.at[1], by: p.id });
-  ctx.log(`💡 ${p.name} ${s.lightsOff[sw.zone] ? "ดับไฟ" : "เปิดไฟ"}เมือง ${ZONE_NAMES[sw.zone] || sw.zone}`);
+  ctx.bump();
+  ctx.fx("city_flash", { zone: sw.zone, x: at.x, y: at.y, r: FLASH.r, hits, by: p.id });
+  ctx.log(`💡 ${p.name} สาดไฟเมือง ${ZONE_NAMES[sw.zone] || sw.zone} — มอน ${hits.length} ตัวตาพร่า`);
   ctx.useStrike(p, SWITCH_SECS);
   return true;
 }
@@ -1613,6 +1660,8 @@ function p4State(s) {
 // ---------- L2 รถไฟ ----------
 function trainTurn(ctx, s, turn) {
   const q = p4State(s);
+  // รถไฟขนเสบียงจอดอยู่ = รถไฟปกติรอ (กันรถไฟชนขบวนที่จอด — ผู้ใช้แจ้ง 2026-11-10)
+  if (s.sky && s.sky.supply && turn >= q.trainNext - 1) { q.trainNext = Math.max(q.trainNext, turn + 3); q.trainWarn = false; return 0; }
   if (turn === q.trainNext - 1 && !q.trainWarn) {
     q.trainWarn = true;
     ctx.bump();
@@ -1971,10 +2020,10 @@ function hudActions(ctx, st, p) {
   if (LEVER && ctx.adjacent(p, LEVER.x, LEVER.y)) out.push({ key: "fd:lever", icon: "🌉", name: s.bridgeUp ? "ลดสะพาน" : "ยกสะพาน", disabled: !canStrike(ctx, p) || bridgeOccupied(ctx) });
   if (DOME_CORE && ctx.adjacent(p, DOME_CORE.x, DOME_CORE.y)) {
     const cd = domeOn(s) ? 0 : Math.max(0, (s.domeReadyRound || 0) - ctx.match.roundNumber);
-    out.push({ key: "fd:dome", icon: "🛡️", name: domeOn(s) ? `โดม (เหลือ ${s.dome.left})` : cd > 0 ? `โดม (อีก ${cd})` : "โดม", disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
+    out.push({ key: "fd:dome", icon: "🛡️", name: domeOn(s) ? `โดม ${s.dome.left}` : "โดม", cd, disabled: !canStrike(ctx, p) || !domeReady(ctx, s) });
   }
   const sw = switchNear(ctx, p);
-  if (sw) out.push({ key: "fd:lights", icon: "💡", name: lit(s, sw.zone) ? "ดับไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p) });
+  if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 }); }
   if (wallFixTarget(ctx, s, p)) out.push({ key: "fd:wallfix", icon: "🧱", name: "ซ่อมกำแพง", disabled: !canStrike(ctx, p), desc: `ซ่อมกำแพง Insomnia +${CITY_WALL.fix} (ช่องที่พังก่อขึ้นใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
   if (fixTargets(ctx, s, p).length) { const ft = fixTargets(ctx, s, p)[0]; out.push({ key: "fd:fix", icon: ft.kind === "car" ? "🔧" : "🥬", name: ft.kind === "car" ? "ซ่อมรถ" : "ป้อนอาหาร", disabled: !canStrike(ctx, p) }); }
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
@@ -2008,7 +2057,7 @@ const HUD_DESC = {
   "fd:dismount": "ลงจากโชโกโบะ วางนกไว้ช่องข้างตัว (ไม่เสียการเดิน)",
   "fd:lever": "ยก/ลดสะพานทั้งเมือง Altissia — ยกขึ้น = เดินข้ามไม่ได้ (ใช้การโจมตีของตา)",
   "fd:dome": `เปิดโดมกำแพงเวท Insomnia ${DOME_TURNS} เทิร์น — ปิดประตูเมือง ตีจากนอกโดมเข้าไปไม่ได้ (ใช้การโจมตี)`,
-  "fd:lights": "เปิด/ดับไฟเมือง — ไฟเปิด = ปีศาจและทหารเหล็กเข้าเมืองไม่ได้ (ใช้การโจมตี)",
+  "fd:lights": `สาดไฟจ้า: มอนในระยะ ${FLASH.r} ช่องจากแผงมึน 1 เทิร์น · ปีศาจโดนแสงไหม้ ${FLASH.dmg} · พัก ${FLASH.cd} เทิร์น (ใช้การโจมตี)`,
   "fd:push": "ผลักซากรถไป 1 ช่อง ใช้ปิดทาง (ใช้การโจมตี)",
   "fd:turret": `ยิงมอนเตอร์ในระยะ ${TURRET_RANGE} ช่อง ดาเมจ ${TURRET_DMG} (ใช้การโจมตี)`,
   "fd:tunnel": "ลอดอุโมงค์ไปออกปากอีกฝั่งทันที (จบการเดินของตา)",
@@ -2164,7 +2213,7 @@ function hides(ctx, st, viewer, target) {
 let H_CACHE = null;
 function H() {
   if (H_CACHE) return H_CACHE;
-  H_CACHE = { turretUp, p4State, spawnMob, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
+  H_CACHE = { mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
   return H_CACHE;
 }
 // เกราะเสา (ไอเทมร้าน Eos — server/shop.js) · ใช้ไม่ได้ = ไม่เสียของ
@@ -2258,7 +2307,7 @@ function playerInfo(ctx, st, p) {
 }
 
 module.exports = {
-  H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
+  FLASH, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
   enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,

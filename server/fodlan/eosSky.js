@@ -25,7 +25,9 @@ function maybeEclipse(ctx, s, turn, nightNatural) {
   const k = sky(s);
   if (nightNatural || k.eclipse && turn <= k.eclipse.until) return false;
   if ((s.dayNo || 1) < ECLIPSE.fromDay || k.eclipseDay === (s.dayNo || 1)) return false;
-  if (ctx.rng() * 100 >= ECLIPSE.pct) return false;
+  const H = require("./stage6").H();
+  if (!H.bigFree(ctx, s, turn) || ctx.rng() * 100 >= ECLIPSE.pct) return false;
+  H.bigStart(s, turn);
   k.eclipse = { from: turn, until: turn + ECLIPSE.turns - 1 };
   k.eclipseDay = s.dayNo || 1;
   ctx.fx("eclipse_start", { turns: ECLIPSE.turns });
@@ -73,7 +75,7 @@ function meteorTurn(ctx, s, H, turn) {
     ctx.log(`☄️ อุกกาบาตตกลงมา!${hits.length ? ` โดน ${hits.length} ตัว` : ""}${crystals.length ? ` · หินพลังเวท ${crystals.length} ก้อน` : ""}`);
     return 1.8;
   }
-  if (k.meteor || turn < k.meteorNext || ctx.rng() * 100 >= METEOR.pct) return 0;
+  if (k.meteor || turn < k.meteorNext || !H.bigFree(ctx, s, turn) || ctx.rng() * 100 >= METEOR.pct) return 0;
   const map = ctx.map(), cand = [];
   for (let y = 1; y < map.rows - 1; y++) for (let x = 1; x < map.cols - 1; x++) {
     if (H.townOf(x, y) || !H.tileFree(ctx, s, x, y) || H.onRail(x, y)) continue;
@@ -83,6 +85,7 @@ function meteorTurn(ctx, s, H, turn) {
   for (const t of ctx.pick(cand, cand.length)) { if (tiles.every((o) => H.manhattan(o, t) >= 5)) tiles.push(t); if (tiles.length >= METEOR.count) break; }
   if (!tiles.length) return 0;
   k.meteor = { at: turn + 1, tiles };
+  H.bigStart(s, turn);
   ctx.bump();
   ctx.fx("meteor_warn", { tiles });
   ctx.log(`☄️ ฝนดาวตก! อุกกาบาตจะตก ${tiles.length} จุดต้นเทิร์นหน้า — ออกจากวงแดง`);
@@ -93,8 +96,12 @@ function meteorTurn(ctx, s, H, turn) {
 function supplyTurn(ctx, s, H, turn) {
   const k = sky(s);
   if (k.supply && turn > k.supply.until) return leaveSupply(ctx, s, H, turn);
-  if (k.supply || turn < k.supplyNext || ctx.rng() * 100 >= SUPPLY.pct) return 0;
+  if (k.supply || turn < k.supplyNext || !H.bigFree(ctx, s, turn) || ctx.rng() * 100 >= SUPPLY.pct) return 0;
+  // รถไฟปกติจะผ่านภายในช่วงจอด (หรือกำลังเตือน) = ไม่มาจอด (ผู้ใช้แจ้ง "รถไฟจอดรอกับรถไฟที่สร้างความเสียหายมาพร้อมกัน")
+  const q0 = H.p4State(s);
+  if (q0.trainWarn || q0.trainNext <= turn + SUPPLY.stay + 1) return 0;
   const st = H.MAP.STATIONS[Math.floor(ctx.rng() * H.MAP.STATIONS.length) % H.MAP.STATIONS.length];
+  H.bigStart(s, turn);
   k.supply = { x: st[0], y: st[1], until: turn + SUPPLY.stay - 1, loads: 0, by: {} };
   const q = H.p4State(s);
   q.trainNext = Math.max(q.trainNext, turn + SUPPLY.stay + 2); // รถไฟปกติรอจนขบวนเสบียงออก

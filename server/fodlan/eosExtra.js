@@ -154,6 +154,7 @@ function nestBurst(ctx, s, H, freshNight) {
   const tier = Math.max(1, s.nightNo || 1), st = E.scaleStats(ctx, H.daemonStats(tier));
   for (const nest of nestsOf(ctx, H)) {
     for (let i = 0; i < n; i++) {
+      if (H.mobRoom && H.mobRoom(ctx) <= 0) break; // เพดานมอน
       const at = H.freeNear(ctx, s, nest.pos.x, nest.pos.y, 2, null, (xx, yy) => !lightSafe(H, xx, yy) && !H.townOf(xx, yy));
       if (!at) break;
       const d = H.spawnMob(ctx, s, "daemon", at, st, { look: 1 + (++s.seq % 8), tier });
@@ -182,6 +183,8 @@ function giantTurn(ctx, s, H, turn) {
   let g = x.giant;
   if (!g) {
     if (turn < x.giantNext || x.final) return 0;
+    if (H.bigFree && !H.bigFree(ctx, s, turn)) { x.giantNext = turn + 1; return 0; } // เหตุการณ์ใหญ่อื่นอยู่ = รอ
+    if (H.bigStart) H.bigStart(s, turn);
     const map = ctx.map(), axis = ctx.rng() < 0.5 ? "x" : "y", dir = ctx.rng() < 0.5 ? 1 : -1;
     const lines = [];
     for (let v = 3; v <= (axis === "x" ? map.rows : map.cols) - 4; v++) if (axis !== "x" || Math.abs(v - H.MAP.RAIL_Y) > 1) lines.push(v);
@@ -361,6 +364,7 @@ function finalWave(ctx, s, H, turn) {
       cand.push(t);
     }
     for (const t of ctx.pick(cand, FINAL.perPillar)) {
+      if (H.mobRoom && H.mobRoom(ctx) <= 0) break; // เพดานมอน
       const d = H.spawnMob(ctx, s, "daemon", t, st, { look: 1 + (++s.seq % 8), tier });
       out.push({ id: d.id, x: t.x, y: t.y, pillar: pl.id });
     }

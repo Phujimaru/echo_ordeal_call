@@ -291,6 +291,8 @@ function convoyRoute(ctx, s, H, c, goal) {
 function spawnConvoy(ctx, s, H, turn) {
   const e = ev(s);
   if (e.convoy || turn < e.convoyNext) return 0;
+  if (H.bigFree && !H.bigFree(ctx, s, turn)) { e.convoyNext = turn + 1; return 0; } // เหตุการณ์ใหญ่อื่นอยู่ = รอ
+  if (H.bigStart) H.bigStart(s, turn);
   e.convoyNext = turn + CONVOY.every;
   const [a, b] = ctx.pick(TOWNS3, 2);
   const ra = roadIn(H, a), rb = roadIn(H, b);

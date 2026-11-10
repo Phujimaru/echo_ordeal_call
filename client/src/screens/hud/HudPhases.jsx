@@ -112,9 +112,12 @@ export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo
         <AttackButton {...attack} />
         {ride && <button type="button" className="hc-btn ride" disabled={ride.disabled} onClick={ride.onClick}><span className="ico">🎠</span><b>ขี่</b></button>}
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}
-        {extraRows(extra).map((g) => (g.length > 1
-          ? <div key={g[0].key} className="hc-row">{g.map(extraBtn)}</div>
-          : extraBtn(g[0])))}
+        {(extra || []).length >= 3
+          // ปุ่มพิเศษ 3 อันขึ้นไป = ตาราง 2 คอลัมน์ปุ่มเตี้ย (ผู้ใช้แจ้ง 2026-11-10 "ปุ่ม UI เยอะและสูงขึ้นเรื่อยๆ")
+          ? <div className="hc-grid">{extra.map(extraBtn)}</div>
+          : extraRows(extra).map((g) => (g.length > 1
+            ? <div key={g[0].key} className="hc-row">{g.map(extraBtn)}</div>
+            : extraBtn(g[0])))}
         <BagButton {...bag} />
         <div className="hc-row">
           <button type="button" className="hc-btn" data-hotkey="Z" aria-keyshortcuts="Z" disabled={undo.disabled} onClick={undo.onClick}><kbd className="hk" aria-hidden="true">Z</kbd><b>↶ ย้อน</b></button>

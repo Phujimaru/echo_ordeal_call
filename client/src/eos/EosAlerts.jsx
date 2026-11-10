@@ -18,6 +18,7 @@ function alertOf(e, fd) {
   switch (e.kind) {
     case "dropship_warn": return { icon: "🚨", title: "ยานจักรวรรดิกำลังลง", zone: zoneAt(e.x, e.y), tone: "warn" };
     case "dropship_land": { const mk = (e.spawned || []).find((o) => o.mech); return mk ? { icon: "🦾", title: "หุ่นเกราะจักรวรรดิปรากฏ", zone: zoneAt(mk.x, mk.y), tone: "danger", at: mk } : null; }
+    case "city_flash": return { icon: "💡", title: `สาดไฟเมือง · มอน ${(e.hits || []).length} ตัวตาพร่า`, zone: "", tone: "good" };
     case "meteor_warn": return { icon: "☄️", title: `ฝนดาวตก · ${(e.tiles || []).length} จุด`, zone: "ตกต้นเทิร์นหน้า", tone: "danger", at: (e.tiles || [])[0] };
     case "meteor_impact": return { icon: "💎", title: `อุกกาบาตตก · หินพลังเวท ${(e.tiles || []).length}`, zone: "", tone: "good", at: (e.tiles || [])[0] };
     case "eclipse_start": return { icon: "🌑", title: "สุริยคราส", zone: `มืด ${e.turns} เทิร์น`, tone: "danger" };

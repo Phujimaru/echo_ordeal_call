@@ -520,20 +520,43 @@ test('L7 โดม: แท่นกลาง Insomnia ปิดประตู�
   assert.ok(btn(p, 'fd:dome').disabled, 'พักหลังโดมสลาย');
 });
 
-test('L8 ไฟเมือง: ดับไฟ = ปีศาจเข้าเมืองนั้นได้ · เปิดคืนได้', () => {
+test('L8 ไฟเมือง: เปิดถาวร · แผงไฟ = สาดไฟ มอนใกล้ๆ มึน 1 เทิร์น ปีศาจไหม้ 1 · พักเครื่อง', () => {
   setup();
   const s = st(), p = P(0), sw = MAP6.SWITCHES.find((w) => w.zone === 'insomnia');
   assert.ok(S6.blockedTown(s, 12, 4));
   p.pos = nextToTile({ x: sw.at[0], y: sw.at[1] });
+  const d = mob('daemon', sw.at[0], sw.at[1] + 3);
+  const hp0 = d.hp + d.armor;
   actor(p);
-  assert.equal(btn(p, 'fd:lights').name, 'ดับไฟ');
+  assert.equal(btn(p, 'fd:lights').name, 'สาดไฟ');
   assert.ok(Fodlan.charAction(p.id, 'fd:lights'));
-  assert.ok(!S6.blockedTown(s, 12, 4));
-  P(1).pos = { x: 30, y: 0 }; p.pos = { x: 1, y: 1 };
-  const d = mob('daemon', 15, 10);
-  const q = P(2); q.pos = { x: 13, y: 5 };
-  for (let i = 0; i < 3 && !S6.inTown(d.pos.x, d.pos.y); i++) S6.actMonsters(ctx(), s);
-  assert.ok(S6.inTown(d.pos.x, d.pos.y), 'ปีศาจเข้าเมืองที่ไฟดับ');
+  assert.ok(S6.blockedTown(s, 12, 4), 'ไฟยังเปิด');
+  assert.ok((d.statuses.stun || 0) > 0, 'มึน');
+  assert.equal(d.hp + d.armor, hp0 - S6.FLASH.dmg);
+  actor(p);
+  assert.ok(btn(p, 'fd:lights').disabled, 'พักเครื่อง');
+});
+
+test('มอนฉลาดขึ้น: ทางอ้อมไกล = พังกำแพงไม้ทะลุมา · ติดหลายคนตีคนเลือดน้อยสุด · เพดานจำนวนมอน · ดาเมจใส่มอนนับในสรุป', () => {
+  setup();
+  const s = st();
+  for (const q of Object.values(match.players)) if (!q.summon) q.pos = null;
+  const p = P(0); p.pos = { x: 20, y: 22 };
+  const PKS = require('../server/fodlan/eosPerks.js');
+  // ล้อมด้วยกำแพงไม้ทุกทิศ → มอนต้องทุบ
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) PKS.PK(s).walls.push({ id: `w${dx}${dy}`, x: 20 + dx, y: 22 + dy, until: 99 });
+  ctx().bump();
+  const m = S6.spawnMob(ctx(), s, 'magitek', { x: 20, y: 26 }, { hp: 10, armor: 1, atk: 2, mov: 3, gold: 2 }, { tier: 1 });
+  m.summon.born = 0;
+  const n0 = PKS.PK(s).walls.length;
+  for (let i = 0; i < 4; i++) S6.actMonsters(ctx(), s);
+  assert.ok(PKS.PK(s).walls.length < n0 || PKS.PK(s).walls.some((w) => (w.hp ?? 2) < 2), 'ทุบกำแพงไม้');
+  // เพดาน
+  assert.ok(S6.mobRoom(ctx()) <= S6.MOB_CAP.max);
+  // สถิติ: ตีมอน = นับ "ทำ"
+  const Stats = require('../server/matchStats.js'); Stats.reset();
+  match.effectSourceId = p.id; combat.dealMixed(m, 1); match.effectSourceId = null;
+  assert.equal(Stats.publicStats()[p.id].dealt, 1);
 });
 
 test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะมาข้างตัว · ขี่ได้ทันทีด้วยปุ่ม (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {

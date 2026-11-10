@@ -37,7 +37,7 @@ export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar
 export const fx = {
   lightning: 1600, car_drive: 900, car_mount: 900, car_leave: 600, car_ram: 700, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
   daemon_spawn: 1600, daemon_move: 1100, daemon_attack: 900, daemon_hit: 600, daemon_struck: 500, daemon_die: 1200, daemon_dissolve: 1400,
-  bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
+  bridge: 1600, dome_on: 1800, dome_off: 1400, lights: 900, city_flash: 1300, gysahl_lure: 1300, gysahl_call: 1100, wreck_push: 700,
   barrel_boom: 1600, crystal_break: 1100, flask: 1700, turret_shot: 750, mob_move: 1100, mob_attack: 900, mob_hit: 600, mob_die: 1300,
   beast_roar: 1300, dropship_warn: 1200, dropship_land: 2000, dropship_leave: 2000,
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
@@ -3124,6 +3124,7 @@ function playFx(e) {
     case "dome_on": sfx("dome_on"); break;
     case "dome_off": sfx("dome_off"); break;
     case "lights": sfx("lights_off", { gain: e.off ? 0.9 : 0.5 }); break;
+    case "city_flash": sfx("lights_off", { gain: 0.9 }); sfx("dome_on", { delay: 0.1, gain: 0.5 }); break;
     case "gysahl_lure": sfx("throw_swoosh"); sfx("chocobo_call", { delay: 0.55 }); sfx("chocobo_run", { delay: 0.75, gain: 0.7 }); break;
     case "gysahl_call": sfx("gysahl_munch"); sfx("chocobo_run", { delay: 0.15, gain: 0.7 }); break;
     case "wreck_push": sfx("wreck_push"); break;
@@ -4138,6 +4139,13 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
     }
     return true;
   }
+  if (e.kind === "city_flash") { // ไฟสาดเมือง: วงแสงขาวแผ่จากแผงไฟ + ประกายบนมอนที่ตาพร่า
+    const c = P(e.x + 0.5, e.y + 0.5, 0.5), k = 1 - p;
+    glowAt(g, c[0], c[1], c[2] * (1 + p * (e.r || 6) * 1.4), "255,250,220", 0.75 * k);
+    gEllipse(g, e.x + 0.5, e.y + 0.5, 0.5 + p * (e.r || 6), 0.03, 48); g.strokeStyle = `rgba(255,245,200,${0.8 * k})`; g.lineWidth = 3; g.stroke();
+    for (const h of e.hits || []) { const q = P(h.x + 0.5, h.y + 0.5, 1.2); emoji(g, "💫", q[0], q[1], q[2] * 0.35, k); }
+    return true;
+  }
   if (e.kind === "meteor_impact") {
     for (const t of e.tiles || []) {
       const fall = Math.min(1, p / 0.3), top = P(t.x + 0.5 - 3 * (1 - fall), t.y + 0.5, 12 * (1 - fall)), base = P(t.x + 0.5, t.y + 0.5, 0);
@@ -4224,24 +4232,17 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
   }
   return false;
 }
-// ท้องฟ้าพิเศษ (PVE รอบหก): คราสกลางวัน = ม่านมืดอมแดง + ดวงอาทิตย์ดำมีวงแสง · จันทร์เต็มดวง = ดวงจันทร์ใหญ่ + แสงเงินอาบทั้งจอ
+// ท้องฟ้าพิเศษ (PVE รอบหก): คราสกลางวัน = ม่านมืดอมแดง + ขอบจอมืด · จันทร์เต็มดวง = แสงเงินอาบทั้งจอ
+//  (เลิกวาดดวงอาทิตย์/ดวงจันทร์เป็นวงกลมแปะมุมจอ — ผู้ใช้ 2026-11-10 "ดวงอาทิตย์แปะลอยตามจอ ตลกมาก")
 function skyFx(g, fd, now, lowQ, X0, Y0, W, H) {
   const sk = fd.sky || {};
   if (sk.eclipse) {
-    g.fillStyle = "rgba(40,10,20,.22)"; g.fillRect(X0, Y0, W, H);
-    const cx = X0 + W * 0.82, cy = Y0 + H * 0.16, r = Math.min(W, H) * 0.06;
-    glowAt(g, cx, cy, r * 3.2, "255,170,90", 0.45 + (lowQ ? 0 : 0.1 * Math.sin(now / 600)));
-    g.fillStyle = "#07040a"; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
-    g.strokeStyle = "rgba(255,230,180,.85)"; g.lineWidth = Math.max(1.5, r * 0.08); g.beginPath(); g.arc(cx, cy, r * 1.02, 0, TAU); g.stroke();
+    g.fillStyle = "rgba(40,10,20,.24)"; g.fillRect(X0, Y0, W, H);
+    const vg = g.createRadialGradient(X0 + W / 2, Y0 + H / 2, Math.min(W, H) * 0.3, X0 + W / 2, Y0 + H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(60,10,0,${0.45 + (lowQ ? 0 : 0.05 * Math.sin(now / 900))})`);
+    g.fillStyle = vg; g.fillRect(X0, Y0, W, H);
   }
-  if (sk.fullMoon) {
-    g.fillStyle = "rgba(170,190,230,.08)"; g.fillRect(X0, Y0, W, H);
-    const cx = X0 + W * 0.16, cy = Y0 + H * 0.14, r = Math.min(W, H) * 0.07;
-    glowAt(g, cx, cy, r * 3.5, "220,230,255", 0.4);
-    const gr = g.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-    gr.addColorStop(0, "#fffef2"); gr.addColorStop(1, "#d8dcc8"); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
-    g.fillStyle = "rgba(150,150,130,.35)"; for (const [a, b, c] of [[0.25, -0.2, 0.18], [-0.3, 0.15, 0.13], [0.1, 0.35, 0.1]]) { g.beginPath(); g.arc(cx + a * r, cy + b * r, c * r, 0, TAU); g.fill(); }
-  }
+  if (sk.fullMoon) { g.fillStyle = "rgba(170,190,230,.1)"; g.fillRect(X0, Y0, W, H); }
 }
 let NIGHT_WAS = null;
 export function air(g, fd, info, units, now, lowQ, view) {

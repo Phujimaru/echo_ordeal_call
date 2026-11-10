@@ -18,9 +18,11 @@ function rec(id) {
 function reset() { match.matchStats = {}; }
 function onDamage(target, sourceId) {
   const to = ownerIdOf(target);
-  if (!to || (target && target.summon)) return; // ยูนิตที่ถูกเรียกเสียหาย ไม่นับเป็นของเจ้าของ
-  rec(to).taken += 1;
+  if (!to) return;
   const from = ownerIdOf(match.players[sourceId]);
+  // ยูนิตที่ถูกเรียกเสียหาย: ไม่นับเป็น "รับ" ของเจ้าของ แต่นับเป็น "ทำ" ของคนตี (สนาม Eos: มอนเป็นยูนิตที่ถูกเรียก — ผู้ใช้แจ้ง 2026-11-10 "ตีมอนตั้งเยอะ เลขการโจมตีไม่นับ")
+  if (target && target.summon) { if (from && from !== to && match.players[from] && !match.players[from].summon) rec(from).dealt += 1; return; }
+  rec(to).taken += 1;
   if (from && from !== to) rec(from).dealt += 1;
 }
 function onKill(victim, killerId) {

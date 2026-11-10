@@ -1402,3 +1402,10 @@ button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
   background: repeating-linear-gradient(0deg, rgba(180,255,220,.12) 0 2px, transparent 2px 5px); mix-blend-mode: screen; animation: eos-map-scan 1.2s linear infinite; }
 @keyframes eos-map-jitter { 50% { transform: translate(2px, -1px); } }
 @keyframes eos-map-scan { to { background-position: 0 40px; } }
+/* ปุ่มพิเศษหลายอัน = ตาราง 2 คอลัมน์ ปุ่มเตี้ย (2026-11-10) */
+.hc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.hc-grid .hc-btn, .hc-grid .hc-tip > .hc-btn { height: 46px; gap: 6px; padding: 0 8px; width: 100%; }
+.hc-grid .hc-tip { display: flex; min-width: 0; }
+.hc-grid .hc-btn .ico { font-size: 18px; flex: none; }
+.hc-grid .hc-btn b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hc-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
