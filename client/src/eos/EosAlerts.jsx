@@ -73,9 +73,11 @@ export default function EosAlerts({ state }) {
       {list.map((a) => (
         <button key={a.id} type="button" className="eos-alert" data-tone={a.tone} disabled={!a.at}
           onClick={() => a.at && window.dispatchEvent(new CustomEvent("eos:look", { detail: a.at }))}>
-          <span className="ico">{a.icon}</span>
-          <span className="txt"><b>{a.title}</b>{a.zone && <span>{a.zone}</span>}</span>
-          <i className="life" />
+          <span className="badge" aria-hidden="true"><span className="ico">{a.icon}</span></span>
+          <span className="txt"><b>{a.title}</b>{a.zone && <span className="zone">{a.zone}</span>}</span>
+          {a.at && <span className="go" aria-hidden="true">›</span>}
+          <i className="sweep" aria-hidden="true" />
+          <i className="life" aria-hidden="true" />
         </button>
       ))}
     </div>

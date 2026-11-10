@@ -28,9 +28,9 @@ const ROWS = [
   "..===~~~~~~s...FTTFFFTTF..F===..", // y14
   "..==~~~~~~~s...FTFFkkTTX....==..", // y15
   "..==~~~~~~~s...FFFFkkTTFFF..==..", // y16
-  ".===~~~~~~sX...FFFFFFFFFFFF===..", // y17
-  ".===ss~~sss....FFFFFFFFT.FF===..", // y18
-  ".==.ssssss.....FFFFFFFFFFFF==...", // y19
+  ".===~~~~~~sX...FTFFFFTFFFTF===..", // y17
+  ".===ss~~sss....FFFTFFFFT.FF===..", // y18
+  ".==.ssssss.....FFFFFTFFFTFF==...", // y19
   ".===............FFFFF......==..d", // y20
   ".======.......=======..ddR===ddd", // y21
   "..===========================ddd", // y22
