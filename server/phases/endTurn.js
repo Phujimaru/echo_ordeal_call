@@ -32,6 +32,7 @@ const Fodlan = require("../fodlan");
 const CharStats = require("../charStats");
 const { io } = require("../app");
 
+const EOS_MOB_CONTROL = new Set(["stun", "sleep", "rooted", "slow"]); // = server/fodlan/stage6.js MOB_CONTROL
 function endTurn() {
   timers.clearPhaseTimer();
   match.actorId = null;
@@ -44,6 +45,8 @@ function endTurn() {
       if (NO_TICK_STATUS.has(k)) continue;
       // หลับไหล: เทิร์นที่เพิ่งโดนกล่อม ยังไม่เริ่มนับ (เริ่มหลับจริงเทิร์นถัดไป)
       if (k === "sleep" && p.sleepFresh) { p.sleepFresh = false; continue; }
+      // มอนเตอร์สนาม Eos เดินต้นเทิร์นถัดไป (ก่อนผู้เล่น) — สถานะคุมตัวลดหลังมอนได้ตาของตัวเองแทน (stage6 tickMobControl · ผู้ใช้แจ้ง 2026-11-11 "สตั้นมอนแค่ 1 เทิร์น ไม่มีประโยชน์")
+      if (p.summon && p.summon.kind === "eosMob" && EOS_MOB_CONTROL.has(k)) continue;
       p.statuses[k]--;
       if (p.statuses[k] <= 0) {
         delete p.statuses[k];

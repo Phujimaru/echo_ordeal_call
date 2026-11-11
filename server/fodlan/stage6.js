@@ -632,6 +632,20 @@ function prey(ctx, s, m) {
   return heroes(ctx).filter((p) => !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)));
 }
 const pillarGoals = (s) => s.pillars.filter((pl) => pl.owner || pl.ch);
+// สถานะคุมตัวของมอน (สตั้น/หลับ/ตรึง/เชื่องช้า) นับตามตาเดินของมอนเอง: endTurn ไม่ลด (phases/endTurn.js EOS_MOB_CONTROL)
+//  ลดทีละ 1 หลังช่วงมอนของต้นเทิร์น (ท้าย preRound — หลังยักษ์หิน/โชโกโบะทองด้วย) → สตั้น 1 เทิร์น = มอนข้ามตาของมันจริง 1 ครั้ง
+const MOB_CONTROL = ["stun", "sleep", "rooted", "slow"];
+function tickMobControl(ctx) {
+  for (const m of mobsOf(ctx)) {
+    if (!m.statuses) continue;
+    for (const k of MOB_CONTROL) {
+      if (!(m.statuses[k] > 0)) continue;
+      if (k === "sleep" && m.sleepFresh) { m.sleepFresh = false; continue; }
+      m.statuses[k] -= 1;
+      if (m.statuses[k] <= 0) { delete m.statuses[k]; if (m.statusAmt) delete m.statusAmt[k]; }
+    }
+  }
+}
 const stuckMob = (m) => ((m.statuses.stun || 0) > 0) || ((m.statuses.sleep || 0) > 0 && !m.sleepFresh);
 // ก้าวไปหาช่องที่ติดเป้า (ผู้เล่น/เสา) ใกล้สุด — BFS ช่องว่าง ไม่เกิน mov · เป้าที่ติดอยู่แล้ว = ไม่เดิน
 function stepMob(ctx, s, m, targets, pillars, mov) {
@@ -2309,6 +2323,7 @@ function preRound(ctx, st) {
   checkChannels(ctx, s);
   checkRiders(ctx, s); // ปีศาจ/ฟ้าผ่า/ศัตรูตีคนขี่ = ตกนก
   respawnChocos(ctx, s);
+  tickMobControl(ctx); // มอนได้ตาไปแล้ว = สถานะคุมตัวลด 1
   return secs;
 }
 function onUnitEnd(ctx, st, p) {
@@ -2675,7 +2690,7 @@ module.exports = {
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
-  sandOn, inDesert, SAND_SIGHT, LM, dimLights, eosPriceMul, TRAM, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
+  sandOn, inDesert, SAND_SIGHT, MOB_CONTROL, tickMobControl, LM, dimLights, eosPriceMul, TRAM, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
   sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, dissolveDaemons, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,

@@ -1774,3 +1774,28 @@ test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → �
     assert.equal(s.result, 'win', 'ล้มได้ = ชนะ');
   } finally { match.eosDiff = 'normal'; }
 });
+test('สตั้นมอน Eos นับตามตาเดินของมอน: สตั้น 1 เทิร์นจากตาผู้เล่น = มอนข้ามตาต้นเทิร์นหน้าจริง 1 ครั้ง (เดิมหมดก่อนมอนได้เดิน)', () => {
+  setup();
+  const s = st(), p = P(0);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  p.pos = { x: 20, y: 22 };
+  const d = mob('daemon', 22, 22);
+  combat.applyDebuff(d, 'stun', 1, 1);
+  const at0 = { ...d.pos }, hp0 = total(p);
+  // จบเทิร์นของผู้เล่น → ลดสถานะ (มอนไม่ลด) → ต้นเทิร์นหน้ามอนได้ตา
+  for (const u of Object.values(match.players)) for (const k of Object.keys(u.statuses || {})) if (!(u.summon && u.summon.kind === 'eosMob' && S6.MOB_CONTROL.includes(k))) { u.statuses[k]--; if (u.statuses[k] <= 0) delete u.statuses[k]; }
+  assert.equal(d.statuses.stun, 1, 'จบเทิร์นแล้วยังสตั้นอยู่');
+  match.roundNumber += 1;
+  Fodlan.preRound(() => {});
+  assert.deepEqual(d.pos, at0, 'ไม่ขยับ');
+  assert.equal(total(p), hp0, 'ไม่ตี');
+  assert.ok(!(d.statuses.stun > 0), 'หลังตาของมอน สตั้นหมด');
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), s);
+  assert.ok(!sameTile(d.pos, at0) || total(p) < hp0, 'เทิร์นถัดไปขยับ/ตีได้');
+});
+test('endTurn ไม่ลดสถานะคุมตัวของมอน Eos', () => {
+  const src = require('fs').readFileSync(require.resolve('../server/phases/endTurn.js'), 'utf8');
+  assert.ok(/EOS_MOB_CONTROL\.has\(k\)/.test(src));
+  for (const k of S6.MOB_CONTROL) assert.ok(src.includes(`"${k}"`), k);
+});

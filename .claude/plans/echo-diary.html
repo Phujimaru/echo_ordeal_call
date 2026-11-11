@@ -10,22 +10,46 @@
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, "Noto Sans Thai", sans-serif; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
   .stage { position: relative; width: 100%; aspect-ratio: 2000 / 1116; overflow: hidden; border-radius: 10px;
-    background: radial-gradient(ellipse at 50% 60%, #2b1b4d 0%, #120b24 55%, #07040f 100%); }
+    /* ผู้ใช้: ไม่เอาพื้นหลังอวกาศ — พื้นม่วงนุ่มเรียบๆ ให้การ์ดที่หมุนรอบตัวเป็นฉากหลัง */
+    background: radial-gradient(ellipse 70% 80% at 50% 50%, #4a3680 0%, #2c1f55 55%, #171030 100%); }
+  #orbit { position: absolute; inset: 0; pointer-events: none; z-index: 0; isolation: isolate; } /* วงการ์ดอยู่หลังภาพ Echo เสมอ */
+  .oc { position: absolute; left: 0; top: 0; width: 5.6%; aspect-ratio: 2 / 3; opacity: 0; perspective: 700px; will-change: transform, opacity; }
+  .oc-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .oc { backface-visibility: hidden; transform-style: flat; }
+  .oc-f, .oc-b { position: absolute; inset: 0; border-radius: 7% / 5%; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    box-shadow: inset 0 0 0 1.5px #e3c27a, inset 0 0 0 3px #3a2a6c, inset 0 0 0 3.6px #b99a5a, 0 2px 8px rgba(10, 5, 30, .45); }
+  .oc-f { background: #3a2a6c; }
+  .oc-f span { position: absolute; left: 9%; top: 7%; right: 9%; bottom: 7%; overflow: hidden; border-radius: 2px; }
+  .oc-f img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .oc-b { transform: rotateY(180deg); background: linear-gradient(160deg, #6f58b8, #4a3685 60%, #3a2a6c); }
+  .oc-b svg { width: 100%; height: 100%; display: block; }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .shot { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity; }
   .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-  #apparition { position: absolute; left: 0; top: 0; width: 26%; aspect-ratio: 3 / 4; opacity: 0; transform-origin: 50% 100%;
-    background-size: cover; background-position: 50% 20%;
-    -webkit-mask-image: radial-gradient(ellipse 48% 48% at 50% 46%, #000 38%, transparent 100%);
-    mask-image: radial-gradient(ellipse 48% 48% at 50% 46%, #000 38%, transparent 100%); }
+  /* ไพ่ตัวละคร: ลอยกลางไดอารี่ หมุน 2 รอบ (ผู้ใช้สั่ง) · หน้าไพ่ = ภาพตัวละคร · หลังไพ่ = ลายปกไดอารี่ · ไม่มีเอฟเฟคที่ตัวภาพ */
+  #apparition { position: absolute; left: 0; top: 0; width: 9%; aspect-ratio: 2 / 3; opacity: 0; perspective: 1000px; }
+  .card-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 6% / 4%;
+    overflow: hidden; background: #f4ead2; padding: 5.5%; box-shadow: inset 0 0 0 2px #e3c27a, inset 0 0 0 5px #f4ead2, inset 0 0 0 6px #b99a5a; }
+  .card-front { background: linear-gradient(160deg, #5b4699, #3a2a6c 55%, #2b1f52); padding: 0; }
+  .card-art { position: absolute; left: 10.5%; top: 8%; width: 79%; height: 84%; overflow: hidden; border-radius: 2px; background: #241a40; }
+  .card-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; }
+  .card-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .card-back { transform: rotateY(180deg); background: linear-gradient(160deg, #6f58b8, #4a3685 60%, #3a2a6c); padding: 0; }
+  .card-back svg { width: 100%; height: 100%; display: block; }
+  /* โทนสีเดียวกันทุกช็อต: ลดความสดนิด + ม่วงกลางคืนบางๆ (ภาพเจนต่างชุดให้เข้ากัน) */
+  .shot img { filter: saturate(.93) contrast(1.03); }
+  #grade { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+    background: radial-gradient(ellipse 80% 75% at 50% 45%, rgba(150, 120, 230, .16), rgba(60, 35, 130, .42)); }
   #vignette { position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(6, 3, 14, .55) 100%); }
   #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none;
     background: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), #fff8e6 0%, rgba(255, 236, 190, .9) 22%, rgba(214, 190, 255, .45) 50%, transparent 80%); }
   .bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  select { background: #2a1f47; color: var(--ink); border: 1px solid #4b3b7a; border-radius: 8px; padding: 8px 10px; font: inherit; }
   button { background: #2a1f47; color: var(--ink); border: 1px solid #4b3b7a; border-radius: 8px; padding: 8px 16px; font: inherit; cursor: pointer; }
   button:hover { background: #3a2b62; }
-  .strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .strip { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
   .strip figure { margin: 0; background: #140e26; border: 1px solid var(--line); border-radius: 8px; padding: 4px; cursor: pointer; }
   .strip img { width: 100%; aspect-ratio: 2000 / 1116; object-fit: contain; display: block; }
   .strip figcaption { font-size: 12px; color: var(--mute); padding-top: 3px; text-align: center; }
@@ -37,7 +61,59 @@
 <div class="wrap">
   <div class="stage" id="stage">
     <canvas id="sky"></canvas>
-    <div class="shot" id="s_reading"><img src="echo-diary/reading.webp" alt=""></div>
+    <div id="orbit"></div>
+    <div class="shot" id="s_fclosed"><img src="echo-diary/front_closed.webp" alt=""></div>
+    <div class="shot" id="s_flift"><img src="echo-diary/front_lift.webp" alt=""></div>
+    <div class="shot" id="s_reading"><img src="echo-diary/reading.webp" alt="">
+      <div id="apparition"><div class="card-in">
+        <div class="card-face card-front"><div class="card-art"><img id="cardArt" src="echo-diary/sample.jpg" alt=""></div>
+          <svg class="card-frame" viewBox="0 0 200 300" aria-hidden="true">
+            <defs>
+              <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fff1c4"/><stop offset=".35" stop-color="#e3c27a"/><stop offset=".6" stop-color="#b8904a"/><stop offset="1" stop-color="#f3d897"/>
+              </linearGradient>
+              <g id="corner">
+                <path d="M6 34 Q6 6 34 6" fill="none" stroke="url(#gold)" stroke-width="2.2"/>
+                <path d="M12 40 Q12 12 40 12" fill="none" stroke="url(#gold)" stroke-width="1"/>
+                <circle cx="13" cy="13" r="5.5" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.4"/>
+                <path d="M13 8.6 l1.2 3.2 3.2 1.2 -3.2 1.2 -1.2 3.2 -1.2 -3.2 -3.2 -1.2 3.2 -1.2 Z" fill="#fff3d2"/>
+                <circle cx="44" cy="8.5" r="1.3" fill="#e3c27a"/><circle cx="8.5" cy="44" r="1.3" fill="#e3c27a"/>
+              </g>
+            </defs>
+            <!-- ขอบนอกทองหนา + เส้นในบาง (ทับขอบภาพให้ภาพจมอยู่ในกรอบ) -->
+            <rect x="3" y="3" width="194" height="294" rx="11" fill="none" stroke="url(#gold)" stroke-width="3.2"/>
+            <rect x="8.5" y="8.5" width="183" height="283" rx="8" fill="none" stroke="#e3c27a" stroke-width=".8" opacity=".75"/>
+            <rect x="20" y="23" width="160" height="254" rx="2" fill="none" stroke="url(#gold)" stroke-width="2.4"/>
+            <rect x="23.5" y="26.5" width="153" height="247" rx="1" fill="none" stroke="#fff1c4" stroke-width=".6" opacity=".7"/>
+            <use href="#corner"/>
+            <use href="#corner" transform="translate(200 0) scale(-1 1)"/>
+            <use href="#corner" transform="translate(0 300) scale(1 -1)"/>
+            <use href="#corner" transform="translate(200 300) scale(-1 -1)"/>
+            <!-- เหรียญพระจันทร์บน / ดาวล่าง กึ่งกลางขอบ -->
+            <path d="M78 23 Q100 9 122 23" fill="none" stroke="url(#gold)" stroke-width="1.6"/>
+            <circle cx="100" cy="17" r="9" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.8"/>
+            <path d="M103.5 11.2 A6.4 6.4 0 1 0 103.5 22.8 A5 5 0 1 1 103.5 11.2 Z" fill="#f2d48c"/>
+            <path d="M78 277 Q100 291 122 277" fill="none" stroke="url(#gold)" stroke-width="1.6"/>
+            <circle cx="100" cy="283" r="8" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.8"/>
+            <path d="M100 277.4 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z" fill="#fff3d2"/>
+            <!-- จุดทองข้างขอบ -->
+            <circle cx="11" cy="150" r="2" fill="#e3c27a"/><circle cx="189" cy="150" r="2" fill="#e3c27a"/>
+            <path d="M11 132 V142 M11 158 V168 M189 132 V142 M189 158 V168" stroke="#e3c27a" stroke-width="1" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="card-face card-back"><svg viewBox="0 0 200 300" aria-hidden="true">
+          <rect x="9" y="9" width="182" height="282" rx="10" fill="none" stroke="#e3c27a" stroke-width="2.4"/>
+          <rect x="17" y="17" width="166" height="266" rx="7" fill="none" stroke="#e3c27a" stroke-width="1" opacity=".7"/>
+          <circle cx="100" cy="150" r="58" fill="none" stroke="#e3c27a" stroke-width="1.4" opacity=".8"/>
+          <circle cx="100" cy="150" r="47" fill="none" stroke="#e3c27a" stroke-width=".8" opacity=".6"/>
+          <path d="M112 112 A40 40 0 1 0 112 188 A32 32 0 1 1 112 112 Z" fill="#f2d48c"/>
+          <path d="M128 132 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z" fill="#fff3d2"/>
+          <path d="M100 34 l2.4 6.6 6.6 2.4 -6.6 2.4 -2.4 6.6 -2.4 -6.6 -6.6 -2.4 6.6 -2.4 Z" fill="#e3c27a"/>
+          <path d="M100 252 l2.4 6.6 6.6 2.4 -6.6 2.4 -2.4 6.6 -2.4 -6.6 -6.6 -2.4 6.6 -2.4 Z" fill="#e3c27a"/>
+          <circle cx="30" cy="30" r="3" fill="#e3c27a"/><circle cx="170" cy="30" r="3" fill="#e3c27a"/><circle cx="30" cy="270" r="3" fill="#e3c27a"/><circle cx="170" cy="270" r="3" fill="#e3c27a"/>
+        </svg></div>
+      </div></div>
+    </div>
     <div class="shot" id="s_pov">
       <img src="echo-diary/pov.webp" alt="">
       <canvas id="povFx"></canvas>
@@ -49,7 +125,7 @@
     </div>
     <div class="shot" id="s_face"><img src="echo-diary/face_lit.webp" alt=""></div>
     <div class="shot" id="s_closed"><img src="echo-diary/book_closed.webp" alt=""></div>
-    <div id="apparition"></div>
+    <div id="grade"></div>
     <canvas id="fx"></canvas>
     <div id="vignette"></div>
     <div id="flash"></div>
@@ -57,6 +133,8 @@
   <div class="bar">
     <button id="playFull">เต็ม</button>
     <button id="playShort">สั้น</button>
+    <select id="cardPick"></select>
+    <select id="bgPick"></select>
   </div>
   <div class="strip" id="strip"></div>
 </div>
@@ -101,7 +179,139 @@ const DRAG = [-0.018, 0.17];     // ระยะลากนิ้ว (สัด
 
 // ---------- ฟ้าดาว (เลื่อนสวนกล้อง = มีมิติ) ----------
 const stars = Array.from({ length: 180 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3, p: Math.random() * 6.28, z: 0.3 + Math.random() }));
-function drawSky(now, a, cam) {
+// ฉากหลังด้วยการ์ดหมุน — 5 แบบให้ผู้ใช้เลือก (ผู้ใช้ 2026-11-10: "ลองทำทุกแบบให้ฉันดู")
+//  ทุกแบบอยู่หลังภาพ Echo · ไม่ซูม ไม่เด้ง · การ์ดมีหน้า (ภาพตัวละคร) และหลัง (ลายไดอารี่) พลิกได้
+//  จำนวนการ์ดคำนวณจากจำนวนตัวละครเสมอ (ผู้ใช้: ตัวละครเพิ่ม/ลดได้ในอนาคต) — ไม่มีเลขตายตัว ทุกตัวต้องได้ขึ้นอย่างน้อยหนึ่งใบ
+const BG_MODES = [
+  { k: "wall", name: "1 ผนังการ์ดพลิกเป็นคลื่น" },
+  { k: "wings", name: "2 ปีกแห่งความทรงจำ" },
+  { k: "fall", name: "3 การ์ดโปรยลงมา" },
+  { k: "rise", name: "4 สายการ์ดลอยขึ้น" },
+  { k: "fan", name: "5 พัดครึ่งวงกลม" },
+];
+let bgMode = "fall"; // ผู้ใช้เลือกแบบที่ 3
+const ROSTER_N = () => CARD_ROSTER.length;
+const FALL_N = () => Math.max(ROSTER_N(), 54); // ผู้ใช้: ลดความหนาแน่นลง (84 แน่นไป)
+const wallGrid = () => { // ผนังเต็มจอ: อย่างน้อย 15×6 · ตัวละครมากกว่าช่อง = เพิ่มคอลัมน์/แถวให้พอ (การ์ดเล็กลงเอง)
+  let cols = 15, rows = 6;
+  while (cols * rows < ROSTER_N()) { cols += 2; rows = Math.round(cols * 0.4); }
+  return { cols, rows };
+};
+const BACK_SVG = '<svg viewBox="0 0 200 300"><rect x="12" y="12" width="176" height="276" rx="10" fill="none" stroke="#e3c27a" stroke-width="4"/><circle cx="100" cy="150" r="52" fill="none" stroke="#e3c27a" stroke-width="3" opacity=".8"/><path d="M112 114 A38 38 0 1 0 112 186 A30 30 0 1 1 112 114 Z" fill="#f2d48c"/><path d="M128 132 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z" fill="#fff3d2"/></svg>';
+let pool = null;
+function buildPool() {
+  const box = $("orbit");
+  pool = [];
+  const g = wallGrid();
+  const POOL_N = Math.max(ROSTER_N(), FALL_N(), (g.cols + 1) * g.rows);
+  for (let k = 0; k < POOL_N; k++) {
+    const c = CARD_ROSTER[k % CARD_ROSTER.length];
+    const d = document.createElement("div"); d.className = "oc";
+    d.innerHTML = '<div class="oc-in"><div class="oc-f"><span><img src="' + c.img + '" alt="" style="object-position:' + c.x + '% ' + c.y + '%;transform-origin:' + c.x + '% ' + c.y + '%;transform:scale(' + c.z + ')"></span></div><div class="oc-b">' + BACK_SVG + '</div></div>';
+    box.appendChild(d);
+    pool.push({ d, inner: d.firstElementChild, r1: Math.random(), r2: Math.random(), r3: Math.random(), r4: Math.random() });
+  }
+}
+// วางการ์ดหนึ่งใบ: x,y = จุดกลาง (สัดส่วนจอ) · rot = หมุนในระนาบ (องศา) · flip = พลิก (0 หน้า / 180 หลัง) · sc = ขนาด
+function place(c, o) {
+  const st = c.d.style;
+  st.transform = "translate(" + o.x * W + "px, " + o.y * H + "px) translate(-50%, -50%) rotate(" + (o.rot || 0) + "deg) scale(" + (o.sc || 1) + ")";
+  st.opacity = o.op; st.zIndex = o.z || 0;
+  // ฟิลเตอร์ตั้งเฉพาะตอนค่าเปลี่ยน — เปลี่ยนทุกเฟรม (โดยเฉพาะเบลอ) ทำให้การ์ดสั่นพร่า
+  const f = (o.blur ? "blur(" + o.blur + "px) " : "") + "brightness(" + (o.dim || 1).toFixed(2) + ")";
+  if (c.f !== f) { st.filter = f; c.f = f; }
+  c.inner.style.transform = "rotateY(" + (o.flip || 0) + "deg)";
+}
+const BG = {
+  // 1 ผนังการ์ดเต็มจอ คว่ำอยู่ → พลิกหงายเป็นคลื่นจากหลังตัว Echo ออกไปขอบจอ (เริ่มตอนแง้มปก)
+  wall(t, a) {
+    const { cols, rows } = wallGrid(), cw = 1 / cols, ch = 1 / rows;
+    let k = 0;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols + 1; c++, k++) {
+      const card = pool[k];
+      const x = (c + (r % 2 ? 0 : 0.5)) * cw, y = (r + 0.5) * ch;
+      const dist = Math.hypot((x - 0.5) * (W / H), y - 0.5);
+      const t0 = 800 + dist * 1400;
+      const f = easeInOut(seg(t, t0, t0 + 650));
+      place(card, { x, y, flip: 180 * (1 - f), sc: (cw / 0.056) * 0.86, op: a * 0.85, dim: 0.72 });
+    }
+    return k;
+  },
+  // 2 ตั้งการ์ดหลังตัว → คลี่ออกเป็นปีกสองข้าง (ชั้นใน/ชั้นนอก) พลิกหงายระหว่างคลี่ แล้วหยุดนิ่ง
+  wings(t, a) {
+    const piv = [0.5, 0.56];
+    const per = Math.ceil(ROSTER_N() / 2), nIn = Math.max(3, Math.round(per * 0.43)), nOut = Math.max(3, per - nIn); // แบ่งตัวละครครึ่งซ้าย/ขวา แล้วแบ่งชั้นใน/นอก
+    const layers = [{ n: nIn, R: 0.3, sc: 1.0, a0: 35, a1: 115, d: 0 }, { n: nOut, R: 0.5, sc: 1.15, a0: 30, a1: 122, d: 150 }];
+    let k = 0;
+    for (const L of layers) for (const side of [-1, 1]) for (let i = 0; i < L.n; i++, k++) {
+      const card = pool[k];
+      const u = i / (L.n - 1);
+      const t0 = 700 + L.d + u * 900, open = easeInOut(seg(t, t0, t0 + 900));
+      const ang = side * lerp(4, lerp(L.a0, L.a1, u), open);
+      const rad = ang * Math.PI / 180, R = lerp(0.12, L.R, open);
+      const x = piv[0] + Math.sin(rad) * R * 1.7 * (H / W), y = piv[1] - Math.cos(rad) * R * 0.85; // ยืดออกด้านข้าง = ทรงปีก ไม่ใช่วงกลม
+      place(card, { x, y, rot: ang * 0.8, flip: 180 * (1 - open), sc: L.sc, op: a * (0.25 + 0.65 * ease(seg(t, t0 - 300, t0 + 200))), z: L.d ? 1 : 2, dim: 0.8 });
+    }
+    return k;
+  },
+  // 3 การ์ดโปรยลงมา (ผู้ใช้เลือก — ปรับให้ดีขึ้น): ร่วงช้าแบบใบไม้ ไม่ใช่หมุนติ้ว
+  //  · ตำแหน่งกระจายสม่ำเสมอด้วยอัตราส่วนทองคำ (ไม่จับกลุ่ม ไม่เว้นโหว่) ตัวละครเพิ่ม/ลดก็ยังกระจายเท่ากัน
+  //  · 3 ชั้นความลึก: ไกล = เล็ก เบลอ จาง ช้า · ใกล้ = ใหญ่ ชัด เร็วขึ้นนิด
+  //  · ลมอ่อนพัดเฉียงไปทางขวาทั้งฉาก + แกว่งซ้ายขวาช้าๆ และเอียงตามทิศที่แกว่ง (แบบใบไม้)
+  //  · พลิกช้า หนึ่งรอบต่อหลายวินาที · หน้าที่หันเข้ากล้องสว่างกว่า · จางเข้า/ออกที่ขอบบนล่าง ไม่โผล่ทันที
+  fall(t, a, now) {
+    const n = FALL_N(), PHI = 0.6180339887; // หนาขึ้น (ผู้ใช้: ดูห่าง) — จำนวนตามพื้นที่จอ ตัวละครมากกว่านั้นก็ได้ขึ้นครบ
+    for (let k = 0; k < n; k++) {
+      const c = pool[k];
+      const layer = k % 3, depth = [0.3, 0.62, 0.95][layer] + (c.r1 - 0.5) * 0.12;
+      const period = lerp(26000, 15000, depth);           // เวลาร่วงจากบนลงล่าง (ช้า)
+      const u = (now / period + ((k * PHI * 7.3) % 1)) % 1;   // จังหวะเริ่มกระจายเท่ากัน
+      const lane = ((k * PHI) % 1) * 1.06 - 0.03;
+      const swayPh = now / lerp(5200, 3800, depth) + c.r2 * 6.28;
+      const x = lane + (u - 0.5) * 0.07 + Math.sin(swayPh) * lerp(0.008, 0.02, depth);
+      const y = lerp(-0.16, 1.16, u);
+      const tilt = -12 + 24 * c.r3 + Math.cos(swayPh) * 14;     // เอียงตามทิศที่แกว่ง
+      const flip = (c.r4 * 360 + now / lerp(40, 24, depth)) % 360; // พลิกช้า
+      const edge = ease(seg(u, 0, 0.08)) * (1 - ease(seg(u, 0.9, 1)));
+      place(c, { x, y, rot: tilt, flip, sc: lerp(0.6, 1.2, depth),
+        op: a * edge * lerp(0.4, 0.95, depth), blur: layer === 0 ? 1.6 : 0, z: layer * 10 + k % 10,
+        dim: lerp(0.6, 0.92, depth) }); // ความสว่างคงที่ต่อใบ (ไม่กะพริบตามมุมพลิก)
+    }
+    return n;
+  },
+  // 4 สายการ์ดลอยขึ้นจากล่างจอ วนขึ้นสองข้างตัว Echo เป็นริบบิ้น พลิกตลอดทาง จางที่ด้านบน
+  rise(t, a, now) {
+    const n = ROSTER_N();
+    for (let k = 0; k < n; k++) {
+      const c = pool[k], side = k % 2 ? 1 : -1, period = 9000;
+      const u = (now / period + k / n) % 1;
+      const ph = side > 0 ? 0 : Math.PI;
+      const x = 0.5 + side * (0.24 + 0.08 * u) + Math.sin(u * Math.PI * 2 + ph) * 0.06, y = lerp(1.12, -0.12, u);
+      const depth = (Math.cos(u * Math.PI * 2 + ph) + 1) / 2;
+      place(c, { x, y, rot: side * (10 + 25 * u), flip: (u * 540 + k * 30) % 360, sc: lerp(0.7, 1.05, depth),
+        op: a * Math.sin(Math.PI * u) * lerp(0.5, 0.95, depth), z: Math.round(depth * 10), dim: lerp(0.7, 0.95, depth) });
+    }
+    return n;
+  },
+  // 5 พัดครึ่งวงกลมหลังไหล่: ซ้อนกันอยู่ตรงกลาง → กางออกจากซ้ายไปขวา พลิกหงายตอนกาง แล้วหยุด
+  fan(t, a) {
+    const piv = [0.5, 0.66], n = ROSTER_N(), R = 0.5; // ทุกตัวอยู่ในพัด · ตัวละครมากขึ้น = การ์ดซ้อนกันแน่นขึ้นแบบไพ่ในมือ
+    for (let k = 0; k < n; k++) {
+      const c = pool[k], u = k / (n - 1);
+      const t0 = 700 + u * 1100, open = easeInOut(seg(t, t0, t0 + 800));
+      const ang = lerp(0, lerp(-84, 84, u), open), rad = ang * Math.PI / 180;
+      const x = piv[0] + Math.sin(rad) * R * (H / W), y = piv[1] - Math.cos(rad) * R;
+      place(c, { x, y, rot: ang, flip: 180 * (1 - open), sc: 1.25, op: a * (0.3 + 0.6 * ease(seg(t, 300, 900))), z: k, dim: 0.82 });
+    }
+    return n;
+  },
+};
+function drawOrbit(now, a, t) {
+  if (!pool) buildPool();
+  const used = BG[bgMode](t == null ? 9999 : t, a, now);
+  for (let k = used; k < pool.length; k++) pool[k].d.style.opacity = 0;
+}
+function drawSky(now, a, t) { ctx($("sky")).clearRect(0, 0, W, H); drawOrbit(now, a, t); return; const cam = { x: 0, y: 0, z: 0 };
   const g = ctx($("sky")); g.clearRect(0, 0, W, H);
   for (const s of stars) {
     const tw = 0.5 + 0.5 * Math.sin(now / 700 + s.p);
@@ -122,12 +332,14 @@ function spawn(n, x, y, mode, o = {}) {
       life: 0, max: (o.max || 1) * (0.9 + Math.random() * 1.1), r: (o.r || 1) * (1 + Math.random() * 2.4), gold: Math.random() < (o.gold ?? 0.7), mode, wob: Math.random() * 6.28 });
   }
 }
+// ตัดช็อต = ประกายของช็อตเก่าจางเร็ว (ไม่ให้ลอยค้างบังหน้าในช็อตถัดไป)
+function fadeParts(sec) { for (const p of parts) p.max = Math.min(p.max, p.life + sec); }
 function drawParts(g, dt, now) {
   g.globalCompositeOperation = "lighter";
   parts = parts.filter((p) => (p.life += dt) < p.max);
   for (const p of parts) {
     if (p.mode === "burst") { p.vx *= 0.96; p.vy *= 0.96; }
-    if (p.mode === "rise" || p.mode === "wind") p.vx += Math.sin(now / 300 + p.wob) * 10 * dt;
+    if (p.mode === "rise" || p.mode === "wind") p.vx *= 1; // ไม่ส่าย
     p.x += p.vx * dt; p.y += p.vy * dt;
     const k = Math.sin(Math.PI * p.life / p.max);
     const col = p.gold ? "255,214,140" : "205,180,255";
@@ -157,24 +369,99 @@ function shot(id, op, cam) {
   const s = $(id).style;
   s.opacity = op;
   s.transformOrigin = `${cam.ox * 100}% ${cam.oy * 100}%`;
-  s.transform = `translate(${cam.px || 0}%, ${cam.py || 0}%) scale(${cam.z})`;
+  s.transform = "none"; // ผู้ใช้: ห้ามซูมเข้า/ออก (และไม่แพน — ภาพนิ่งเต็มจอ ขยับได้แค่แสง/อนุภาค/ไพ่)
 }
-const drift = (now, amp) => ({ px: Math.sin(now / 2300) * 0.25 * amp, py: Math.sin(now / 1900 + 1) * 0.3 * amp });
+const drift = () => ({}); // ผู้ใช้: ห้ามเด้ง/ส่าย — กล้องเคลื่อนเป็นเส้นตรงนุ่มๆ เท่านั้น
 
 // ---------- ช่วงต่างๆ ----------
-// 1 เปิดอ่าน → 2 หน้ากระดาษตื่น → 3 นิ้วลาก เส้นแสงตาม → 4 ภาพตัวละครลอยขึ้นจากหน้า → 5 ใบหน้าต้องแสง → 6 แสงวาบ
-const FULL = [
-  { k: "reading", img: "reading", at: 900, until: 1650 },
-  { k: "awaken", img: "pov", at: 2700, until: 3550 },
-  { k: "drag", img: "touch", at: 4700, until: 5450 },
-  { k: "reveal", img: "pov", at: 6300, until: 6900 },
-  { k: "face", img: "face_lit", at: 7500, until: 7950 },
-  { k: "flash", img: "face_lit", at: 8250, until: 99999 },
+// 1 เปิดอ่าน → 2 หน้ากระดาษตื่น → 3 นิ้วลาก เส้นแสงตาม → 4 ภาพตัวละครลอยขึ้นจากหน้า → 5 ใบหน้าต้องแสง (จบ — ผู้ใช้ตัดแสงวาบออก)
+// เวลาเป็นของทั้งฉาก (รวมช่วงเปิดฉาก 1400 ms ข้างหน้า)
+const FULL = [ // ผู้ใช้ 2026-11-10: เหลือ 3 ภาพ — ปิด → แง้ม → สมุดเปิด (การ์ดลอยออกจากกลางหนังสือในช็อตนี้)
+  { k: "closed", img: "front_closed", at: 400, until: 750 },
+  { k: "lift", img: "front_lift", at: 1300, until: 1800 },
+  { k: "open", img: "reading", at: 4800, until: 99999 },
 ];
-const APP_URL = "echo-diary/sample.jpg";
-$("apparition").style.backgroundImage = `url(${APP_URL})`;
 
-function frameFull(t, dt, now) {
+// การ์ดตัวละครจริง: ภาพปกของแต่ละตัว + จุดครอป (x,y %) และซูม (z) ให้เห็นหน้าในกรอบการ์ด (ข้อ 3)
+//  ในเกมจะย้ายตารางนี้ไปไว้ฝั่ง client (ตัวที่ไม่อยู่ในตาราง = กลางภาพ 50% 18% ไม่ซูม)
+const CARD_ROSTER = [
+  { id: "muimi", name: "มุยมิ", img: "/client/public/characters/muimi/muimi.webp", x: 55, y: 0, z: 1.7 },
+  { id: "oberon_summer", name: "โอเบรอน (ฤดูร้อน)", img: "/client/public/characters/oberon(summer)/oberon_summer.webp", x: 50, y: 8, z: 1.4 },
+  { id: "sliver_bullet", name: "นักบินปริศนา", img: "/client/public/characters/sliver_bullet/sliver_bullet_banagher.png", x: 22, y: 12, z: 1.3 },
+  { id: "sora_otosumi", name: "โซระ โอโตสุมิ", img: "/client/public/characters/sora_otosumi/sora.jpg", x: 50, y: 18, z: 1 },
+  { id: "raido_hikaru", name: "ไรโด ฮิคารุ", img: "/client/public/characters/raido_hikaru/hikaru.jpg", x: 50, y: 18, z: 1 },
+  { id: "ice_spike", name: "Ice Spike", img: "/client/public/characters/ice_spike/ice_spike.webp", x: 50, y: 18, z: 1 },
+  { id: "kira", name: "ราชาแมลงอวกาศ", img: "/client/public/characters/kira/kira.webp", x: 50, y: 18, z: 1 },
+  { id: "yuna", name: "เด็กสาวเสื้อคลุมขาว", img: "/client/public/characters/yuna/yuna.webp", x: 50, y: 18, z: 1 },
+  { id: "gray", name: "เกรย์", img: "/client/public/characters/gray/gray.webp", x: 50, y: 18, z: 1 },
+  { id: "gyro_zeppeli", name: "ไจโร เซปเปลี่", img: "/client/public/characters/gyro_zeppeli/gyro.webp", x: 45, y: 12, z: 1.3 },
+  { id: "diego_alt", name: "ดิเอโก้ แบรนโด (โลกคู่ขนาน)", img: "/client/public/characters/diego_alt/diego.png", x: 50, y: 10, z: 1.3 },
+  { id: "dio_brando", name: "ดิโอ บรันโด", img: "/client/public/characters/dio_brando/dio_cover.webp", x: 50, y: 18, z: 1 },
+  { id: "funny_valentine", name: "ฟันนี่ วาเลนไทน์", img: "/client/public/characters/funny_valentine/valentine.webp", x: 45, y: 10, z: 1.3 },
+  { id: "fern", name: "เฟิร์น", img: "/client/public/characters/fern/fern.webp", x: 50, y: 15, z: 1.2 },
+  { id: "celine", name: "องค์หญิงดอกไม้ เซลิน", img: "/client/public/characters/celine/celine.webp", x: 50, y: 22, z: 1.35 },
+  { id: "ryougi", name: "ผู้นำแห่งตระกูลเรียวกิ", img: "/client/public/characters/ryougi/ryougi.webp", x: 50, y: 12, z: 1.4 },
+  { id: "emiya_shirou", name: "เอมิยะ ชิโร่", img: "/client/public/characters/emiya_shirou/emiya.webp", x: 50, y: 18, z: 1 },
+  { id: "kensaki_kazuma", name: "เคนซากิ คาซุมะ", img: "/client/public/characters/kensaki_kazuma/kazuma.webp", x: 50, y: 18, z: 1 },
+  { id: "inui_takumi", name: "อินุอิ ทาคุมิ", img: "/client/public/characters/inui_takumi/inui.webp", x: 50, y: 8, z: 1.5 },
+  { id: "trafalgar_law", name: "ทราฟาก้า ลอว์", img: "/client/public/characters/trafalgar_law/law.webp", x: 50, y: 18, z: 1 },
+  { id: "yuki_makoto", name: "ยูกิ มาโคโตะ", img: "/client/public/characters/yuki_makoto/yuki_makoto.webp", x: 50, y: 18, z: 1 },
+  { id: "gira_ohger", name: "กิระ", img: "/client/public/characters/gira_ohger/gira.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "yanma_ohger", name: "ยันมะ", img: "/client/public/characters/yanma_ohger/yanma.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "himeno_ohger", name: "ฮิเมโนะ", img: "/client/public/characters/himeno_ohger/himeno.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "rita_ohger", name: "ริต้า", img: "/client/public/characters/rita_ohger/rita.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "kaguragi_ohger", name: "คากุรากิ", img: "/client/public/characters/kaguragi_ohger/kaguragi.webp", x: 50, y: 6, z: 1.6 },
+  { id: "old_truck", name: "รถบรรทุกเก่า", img: "/client/public/characters/old_truck/old_truck.webp", x: 50, y: 18, z: 1 },
+  { id: "giorno_giovanna", name: "โจรุโน่ โจวาน่า", img: "/client/public/characters/giorno_giovanna/giorno.webp", x: 50, y: 18, z: 1 },
+  { id: "roland", name: "โรลันด์", img: "/client/public/characters/roland/roland.webp", x: 50, y: 20, z: 1.15 },
+  { id: "arjuna", name: "มหาเทพอรชุน", img: "/client/public/characters/arjuna/arjuna.webp", x: 48, y: 22, z: 1.9 },
+  { id: "daisuke", name: "คาซามะ ไดสุเกะ", img: "/client/public/characters/daisuke/daisuke.webp", x: 50, y: 18, z: 1 },
+  { id: "yaguruma", name: "โซ ยากุรุมะ", img: "/client/public/characters/yaguruma/yaguruma.webp", x: 50, y: 18, z: 1 },
+  { id: "kagami", name: "คากามิ อาราตะ", img: "/client/public/characters/kagami/kagami.jpeg", x: 50, y: 18, z: 1 },
+  { id: "tsurugi", name: "คามิชิโร่ ซึรุงิ", img: "/client/public/characters/tsurugi/tsurugi.jpg", x: 50, y: 18, z: 1 },
+  { id: "kurenai_otoya", name: "คุเรไน โอโตยะ", img: "/client/public/characters/kurenai_otoya/otoya.webp", x: 50, y: 18, z: 1 },
+  { id: "gilgamesh_fake", name: "กิลกาเมช (Fake)", img: "/client/public/characters/gilgamesh_fake/gilgamesh.webp", x: 50, y: 18, z: 1 },
+];
+function setCardChar(c) {
+  const im = $("cardArt");
+  im.src = c.img; im.style.objectPosition = `${c.x}% ${c.y}%`; im.style.transformOrigin = `${c.x}% ${c.y}%`; im.style.transform = `scale(${c.z})`;
+}
+// รอยนิ้วลาก (ช็อตนิ้วลาก) ค้างเป็นเส้นทองบนหน้าขวาในช็อตการ์ด — การ์ดโผล่ขึ้นจากเส้นนี้
+const POV_LINE = [[0.585, 0.451], [0.632, 0.648]];
+const LINE_MID = [(POV_LINE[0][0] + POV_LINE[1][0]) / 2, (POV_LINE[0][1] + POV_LINE[1][1]) / 2];
+function drawPageLine(g, a) {
+  if (a <= 0) return;
+  const [[x0, y0], [x1, y1]] = POV_LINE;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (const [w, al, col] of [[0.026, 0.2, "255,214,140"], [0.01, 0.5, "255,214,140"], [0.0035, 0.95, "255,248,225"]]) {
+    g.strokeStyle = `rgba(${col},${al * a})`; g.lineWidth = W * w;
+    g.beginPath(); g.moveTo(x0 * W, y0 * H); g.lineTo(x1 * W, y1 * H); g.stroke();
+  }
+  g.restore();
+}
+// ไพ่ตัวละครลอยขึ้นจากกลางไดอารี่ (กลางสัน) แล้วหมุนรอบแกนตั้ง 2 รอบ จบที่หน้าไพ่
+const DIARY_MID = [0.495, 0.5];   // กลางสันสมุดในภาพมุมถือ (pov.webp)
+const CARD_LEAN = -8;             // เอนตามสันสมุดเล็กน้อย (องศา)
+function cardAt(t, t0, spinMs, op) {
+  const a = $("apparition").style, inner = $("apparition").firstElementChild.style;
+  // ไพ่ลอยออกจากหนังสือพร้อมหมุน (ขนาดคงที่ ไม่เด้ง) → ถึงที่แล้วหยุดหมุนพอดี หันภาพตัวละครเข้าจอ
+  const x = seg(t, t0, t0 + spinMs);
+  const move = easeInOut(x);
+  const spin = easeInOut(x);
+  a.opacity = op;
+  // ช่วงแรก (ครึ่งแรก): ไพ่ขึ้นตรงๆ จากใต้เส้นทองจนพ้นเส้นทั้งใบ (ตัดส่วนที่ยังอยู่ใต้เส้น) · ช่วงหลัง: เลื่อนไปกลางจอ · หมุนตลอดทั้งสองช่วง
+  const up = easeInOut(clamp(x / 0.5)), slide = easeInOut(clamp((x - 0.5) / 0.5));
+  const startCy = LINE_MID[1] + 0.2017, outCy = LINE_MID[1] - 0.2017 - 0.01;
+  const cx = lerp(LINE_MID[0], 0.5, slide), cy = lerp(lerp(startCy, outCy, up), 0.4, slide);
+  a.left = `${(cx - 0.075) * 100}%`;
+  a.top = `${(cy - 0.2017) * 100}%`;
+  a.transform = `rotate(${CARD_LEAN * slide}deg)`;
+  const shown = clamp((LINE_MID[1] - (cy - 0.2017)) / 0.403);
+  a.clipPath = up >= 1 ? "none" : `inset(-20% -40% ${(1 - shown) * 100}% -40%)`;
+  inner.transform = `rotateY(${-720 * (1 - spin)}deg)`;
+}
+const CUT56 = 5450, CUT67 = Infinity, END0 = 7900, END1 = 8300; // ตัดตรง นิ้วลาก → ไพ่ · ไม่มีช็อตหน้า Echo แล้ว
+function frameMain(t, dt, now) {
   const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
   const pg = ctx($("povFx")); pg.clearRect(0, 0, W, H);
   const tg = ctx($("trail")); tg.clearRect(0, 0, W, H);
@@ -183,15 +470,21 @@ function frameFull(t, dt, now) {
   // ---- 1 เปิดอ่าน: ดันกล้องช้าๆ แล้วเร่งพุ่งเข้าหนังสือ ----
   {
     const push = 0.12 * easeOut(seg(t, 0, 1400)) + 0.55 * easeIn(seg(t, 1250, 1750));
-    const op = inOut(t, 0, 450, 1550, 1800);
+    const op = t >= 0 && t < SKIP_AT ? 1 : 0; // ตัดตรงเข้า-ออก (ไม่ซ้อนภาพ)
     shot("s_reading", op, { ox: BOOK_IN_READING[0], oy: BOOK_IN_READING[1], z: 1 + push, ...drift(now, 1) });
     skyCam = { x: push * 0.8, y: push * 0.3, z: push };
     if (op > 0.3 && t < 1500 && Math.random() < 0.55) spawn(1, BOOK_IN_READING[0] * W + (Math.random() - 0.5) * W * 0.13, BOOK_IN_READING[1] * H, "rise");
+    if (op > 0) { // แสงขั้นที่ 2: หน้ากระดาษเรืองอ่อนๆ (ต่อจากแสงรั่วร่องปก)
+      fxg.save(); fxg.globalCompositeOperation = "lighter";
+      glow(fxg, 0.5 * W, 0.64 * H, W * 0.17, `rgba(255,222,155,${0.3 * (0.5 + 0.5 * ease(seg(t, 0, 900)))})`, "rgba(255,214,140,0)");
+      fxg.restore();
+    }
   }
 
   // ---- 2 หน้ากระดาษตื่น: แสงกวาดผ่านหน้า · ลายดาวที่ขอบหน้าสว่างทีละดวง · ลมแสงพัดประกาย ----
-  const povA = inOut(t, 1600, 1900, 3450, 3750);
-  const povB = inOut(t, 5450, 5750, 6850, 7150);
+  const povA = 0; // ผู้ใช้ตัดช่วง "หน้ากระดาษตื่น" ออก (ข้ามเวลาช่วงนี้ใน frameFull)
+  const povB = t >= CUT56 ? 1 - ease(seg(t, END0, END1)) : 0; // ตัดตรงจากนิ้วลาก · เป็นช็อตสุดท้าย (ผู้ใช้ตัดช็อตหน้า Echo) ค่อยจางพร้อมฟ้าดาว
+  if (povB > 0) drawPageLine(pg, 1 - 0.45 * ease(seg(t, 6400, 7200)));
   {
     const zA = lerp(1.1, 1, easeOut(seg(t, 1600, 2300))) + 0.03 * seg(t, 2300, 3700);
     const zB = 1 + 0.06 * easeInOut(seg(t, 5450, 7100));
@@ -214,7 +507,7 @@ function frameFull(t, dt, now) {
         pg.save(); pg.globalCompositeOperation = "lighter";
         for (const page of [POV.left, POV.right]) {
           pg.beginPath(); page.forEach(([x, y], i) => (i ? pg.lineTo(x * W, y * H) : pg.moveTo(x * W, y * H))); pg.closePath();
-          pg.fillStyle = `rgba(255,214,150,${0.12 * warm * (0.8 + 0.2 * Math.sin(now / 180))})`; pg.fill();
+          pg.fillStyle = `rgba(255,214,150,${0.12 * warm * 1})`; pg.fill();
         }
         pg.restore();
       }
@@ -235,7 +528,7 @@ function frameFull(t, dt, now) {
 
   // ---- 3 นิ้วลาก: มือเลื่อนลงตามหน้ากระดาษ · เส้นแสงทองตามปลายนิ้ว · ลากจบ = แสงแผ่เป็นระลอก ----
   {
-    const op = inOut(t, 3550, 3850, 5300, 5600);
+    const op = inOut(t, 3550, 3850, 99998, 99999) * (t < CUT56 ? 1 : 0);
     const drag = easeInOut(seg(t, 3950, 4850));
     const tip = [FINGER0[0] + DRAG[0] * drag, FINGER0[1] + DRAG[1] * drag];
     // กล้องตามปลายนิ้ว
@@ -249,7 +542,7 @@ function frameFull(t, dt, now) {
       if (drag > 0) {
         tg.save(); tg.globalCompositeOperation = "lighter"; tg.lineCap = "round";
         for (const [w, a] of [[W * 0.03, 0.18], [W * 0.012, 0.45], [W * 0.004, 0.95]]) {
-          tg.strokeStyle = `rgba(255,${a > 0.9 ? 248 : 214},${a > 0.9 ? 225 : 140},${a * (0.85 + 0.15 * Math.sin(now / 90)) * (1 + flare)})`;
+          tg.strokeStyle = `rgba(255,${a > 0.9 ? 248 : 214},${a > 0.9 ? 225 : 140},${a * 1 * (1 + flare)})`;
           tg.lineWidth = w * (1 + flare * 0.8);
           tg.beginPath(); tg.moveTo(P0[0], P0[1]);
           for (let i = 1; i <= steps; i++) { const k = i / steps; tg.lineTo(lerp(P0[0], P1[0], k), lerp(P0[1], P1[1], k)); }
@@ -274,77 +567,106 @@ function frameFull(t, dt, now) {
         tg.fillStyle = grd; tg.beginPath(); tg.arc(0, 0, R, 0, 6.28); tg.fill();
         tg.restore();
       }
-      if (t > 4850 && t - dt <= 4850) spawn(40, P1[0], P1[1], "burst", { r: 0.8 });
     }
   }
 
-  // ---- 4 ภาพตัวละครลอยขึ้นจากหน้ากระดาษ (ไม่บิดลงบนหน้า) ----
-  {
-    const rise = easeOut(seg(t, 5650, 6500));
-    const op = ease(seg(t, 5650, 6100)) * (1 - ease(seg(t, 6800, 7100)));
-    const a = $("apparition").style;
-    const cx = POV.center[0], baseY = 0.55;
-    a.opacity = op;
-    a.left = `${(cx - 0.13) * 100}%`;
-    a.top = `${(lerp(baseY, 0.0, rise)) * 100}%`;
-    a.transform = `scale(${lerp(0.3, 0.8, rise)}) translateY(${Math.sin(now / 900) * 1.2}%)`;
-    a.filter = `sepia(.3) saturate(1.05) brightness(${1.05 + 0.5 * (1 - rise)}) drop-shadow(0 0 ${22 * op}px rgba(255,214,150,.9))`;
-    if (op > 0) {
-      // เสาแสงจากหน้ากระดาษ
-      const colA = op * (0.5 + 0.1 * Math.sin(now / 120));
-      const x = cx * W, y0 = 0.62 * H;
-      const grd = fxg.createLinearGradient(0, y0, 0, 0);
-      grd.addColorStop(0, `rgba(255,230,170,${0.55 * colA})`); grd.addColorStop(1, "rgba(255,230,170,0)");
-      fxg.save(); fxg.globalCompositeOperation = "lighter"; fxg.fillStyle = grd;
-      fxg.beginPath(); fxg.moveTo(x - W * 0.05, y0); fxg.lineTo(x - W * 0.16, 0); fxg.lineTo(x + W * 0.16, 0); fxg.lineTo(x + W * 0.05, y0); fxg.closePath(); fxg.fill();
-      fxg.restore();
-      if (Math.random() < 0.8) spawn(1, x + (Math.random() - 0.5) * W * 0.12, y0, "rise", { max: 1.3 });
-    }
-  }
+  // ---- 4 ไพ่ตัวละครลอยขึ้นกลางไดอารี่ หมุน 2 รอบ ----
+  cardAt(t, 5600, 1500, ease(seg(t, 5600, 5750)));
+  if (t > 6950 && t - dt <= 6950) fadeParts(0.25);
 
   // ---- 5 ใบหน้าต้องแสง: ดันกล้องช้าๆ · แสงอุ่นจากล่างเต้นตามจังหวะ ----
   {
-    const op = inOut(t, 7000, 7300, 8150, 8450);
-    shot("s_face", op, { ox: 0.48, oy: 0.38, z: 1 + 0.08 * easeInOut(seg(t, 7000, 8450)), ...drift(now, 0.7) });
+    const op = (t >= CUT67 ? 1 : 0) * (1 - ease(seg(t, 9100, 9500))); // ตัดตรงจากช็อตไพ่ · ช็อตสุดท้ายค่อยจางพร้อมฟ้าดาว
+    shot("s_face", op, { ox: 0.48, oy: 0.38, z: 1 + 0.08 * easeInOut(seg(t, 7000, 9100)), ...drift(now, 0.7) });
     if (op > 0) {
       skyCam = { x: 0.7, y: 0.1, z: 0.3 };
       fxg.save(); fxg.globalCompositeOperation = "lighter";
-      glow(fxg, 0.33 * W, 1.02 * H, W * 0.42 * (1 + 0.04 * Math.sin(now / 140)), `rgba(255,205,130,${0.35 * op})`, "rgba(255,200,120,0)");
+      glow(fxg, 0.33 * W, 1.02 * H, W * 0.42, `rgba(255,205,130,${0.35 * op})`, "rgba(255,200,120,0)");
       fxg.restore();
-      if (Math.random() < 0.5) spawn(1, (0.18 + Math.random() * 0.3) * W, 0.98 * H, "rise", { max: 1.4 });
+      if (Math.random() < 0.4) spawn(1, (0.3 + Math.random() * 0.42) * W, (0.9 + Math.random() * 0.08) * H, "rise", { max: 0.4, r: 0.8 });
     }
   }
 
-  // ---- 6 แสงวาบ → จาง ----
-  setFlash(ease(seg(t, 8000, 8450)) * (1 - ease(seg(t, 8650, 9400))), [0.4, 0.75]);
-  if (t > 8400 && t - dt <= 8400) spawn(80, 0.4 * W, 0.75 * H, "burst");
   // แสงวาบเล็กตอนเปลี่ยนช็อต (กลบรอยต่อ)
-  const cut = Math.max(...[1700, 3600, 5500, 7100].map((c) => Math.sin(Math.PI * seg(t, c - 180, c + 180)) * 0.35));
+  const cut = 0; // ไม่วาบตอนเปลี่ยนช็อต
   if (cut > 0) { fxg.save(); fxg.globalCompositeOperation = "lighter"; fxg.fillStyle = `rgba(255,236,200,${cut})`; fxg.fillRect(0, 0, W, H); fxg.restore(); }
 
-  drawSky(now, seg(t, 0, 500) * (1 - seg(t, 9000, 9600)), skyCam);
+  drawSky(now, seg(t, -1800, -1300) * (1 - seg(t, END0, END1)), t < 0 ? { x: 0, y: 0, z: 0 } : skyCam);
+  drawParts(fxg, dt / 1000, now);
+  return t < END1 + 100;
+}
+// ---------- 0 เปิดฉาก: ด้านหน้า ถือสมุดปิด → นิ้วแง้มปก (ภาพผู้ใช้ 2 ภาพ) แล้วค่อยตัดเข้ามุมหลังไหล่ ----------
+const OPEN = 3000;
+const SKIP_AT = 1900, SKIP = 1950; // เวลาใน frameMain ที่ 1900–3850 ถูกตัดทิ้ง
+// แสงรั่วจากร่องปกที่แง้ม (ภาพ front_lift: ขอบหน้ากระดาษในร่องปก จากล่างซ้ายไปบนขวา)
+const SLIT = [[0.4975, 0.65], [0.6025, 0.529]];
+// ฉากเต็ม 3 ช็อต: ถือสมุดปิด → แง้มปก แสงรั่ว → (ตัดตรง) สมุดเปิด หน้ากระดาษเรือง → การ์ดลอยออกจากกลางหนังสือ หมุน 2 รอบ หยุดหันภาพตัวละคร → จาง
+const SHOT3 = 1800, CARD_T0 = 2500, CARD_MS = 1800, FADE0 = 5300, FADE1 = 5700;
+const BOOK_GUTTER = [0.5, 0.655]; // กลางหนังสือ (ร่องกลางระหว่างสองหน้า) ในภาพ reading.webp
+function frameFull(t, dt, now) {
+  const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
+  ctx($("povFx")).clearRect(0, 0, W, H); ctx($("trail")).clearRect(0, 0, W, H);
+  const end = 1 - ease(seg(t, FADE0, FADE1));
+  const closed = inOut(t, 0, 250, 900, 1100), lift = t < SHOT3 ? ease(seg(t, 700, 900)) : 0, open = t >= SHOT3 ? end : 0;
+  shot("s_fclosed", closed, {}); shot("s_flift", lift, {}); shot("s_reading", open, {});
+  fxg.save(); fxg.globalCompositeOperation = "lighter";
+  // แสงรั่วจากร่องปกที่แง้ม (สมุดเท่านั้น)
+  const leak = lift * ease(seg(t, 900, 1700));
+  if (leak > 0) {
+    for (let i = 0; i <= 8; i++) {
+      const k = i / 8, x = lerp(SLIT[0][0], SLIT[1][0], k) * W, y = lerp(SLIT[0][1], SLIT[1][1], k) * H;
+      glow(fxg, x, y, W * 0.035, `rgba(255,222,155,${0.32 * leak})`, "rgba(255,214,140,0)");
+    }
+    if (Math.random() < 0.35 * leak) { const k = Math.random(); spawn(1, lerp(SLIT[0][0], SLIT[1][0], k) * W, lerp(SLIT[0][1], SLIT[1][1], k) * H, "rise", { max: 0.9, r: 0.7 }); }
+  }
+  // สมุดเปิด: หน้ากระดาษเรือง ค่อยๆ สว่างขึ้นจนการ์ดออกมา
+  if (open > 0) {
+    const warm = (0.45 + 0.55 * ease(seg(t, SHOT3, CARD_T0 + 300))) * open;
+    glow(fxg, BOOK_GUTTER[0] * W, BOOK_GUTTER[1] * H, W * 0.18, `rgba(255,222,155,${0.34 * warm})`, "rgba(255,214,140,0)");
+    if (t < CARD_T0 + CARD_MS && Math.random() < 0.5) spawn(1, (BOOK_GUTTER[0] + (Math.random() - 0.5) * 0.16) * W, BOOK_GUTTER[1] * H, "rise", { max: 0.9 });
+  }
+  fxg.restore();
+  cardRise(t, open);
+  if (t > SHOT3 && t - dt <= SHOT3) fadeParts(0.2);
+  drawSky(now, seg(t, 0, 400) * end, t);
   drawParts(fxg, dt / 1000, now);
   hiliteAt(t);
-  return t < 9800;
+  return t < FADE1 + 100;
+}
+// การ์ด: ขึ้นตรงๆ จากร่องกลางหนังสือ (ส่วนที่ยังอยู่ในหนังสือถูกซ่อน) พร้อมหมุน 2 รอบ แล้วหยุดหันภาพตัวละครเข้าจอ — ขนาดคงที่ ไม่เด้ง
+function cardRise(t, op) { cardRiseAt(t, op, CARD_T0, CARD_MS); }
+function cardRiseAt(t, op, T0, MS) {
+  const el = $("apparition"), a = el.style, inner = el.firstElementChild.style;
+  const x = seg(t, T0, T0 + MS);
+  const k = easeInOut(x);
+  // ไพ่กว้าง 9% ของจอ (สูง ≈ 24% ของจอ) · หยุดเหนือหัว Echo ให้เห็นหน้า (ผู้ใช้)
+  const HALF = 0.09 * 1.5 * (2000 / 1116) / 2, cy = lerp(BOOK_GUTTER[1] + HALF, 0.5, k); // หยุดลอยอยู่กลางหนังสือ (ผู้ใช้ — เลิกลอยเหนือหัว)
+  a.opacity = t >= T0 ? op : 0;
+  a.left = `${(BOOK_GUTTER[0] - 0.045) * 100}%`;
+  a.top = `${(cy - HALF) * 100}%`;
+  a.transform = "none";
+  const shown = clamp((BOOK_GUTTER[1] - (cy - HALF)) / (HALF * 2));
+  a.clipPath = shown >= 1 ? "none" : `inset(-20% -40% ${(1 - shown) * 100}% -40%)`;
+  inner.transform = `rotateY(${-720 * (1 - k)}deg)`;
 }
 
-// ---------- สั้น (~2.4 วิ): หนังสือลอย → เปิด (มุมถือ) → ตื่น → ภาพตัวละครขึ้น → วาบ ----
+// ---------- สั้น (~2.4 วิ ครั้งที่ 2 เป็นต้นไป): แง้มปก → (ตัดตรง) สมุดเปิด การ์ดลอยออกจากกลางหนังสือ หมุน 2 รอบ → จาง ----
 function frameShort(t, dt, now) {
   const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
   ctx($("povFx")).clearRect(0, 0, W, H); ctx($("trail")).clearRect(0, 0, W, H);
-  shot("s_closed", inOut(t, 0, 300, 500, 750), { ox: 0.5, oy: 0.5, z: lerp(0.92, 1.06, easeOut(seg(t, 0, 750))), py: Math.sin(now / 500) * 0.8 });
-  shot("s_pov", inOut(t, 500, 750, 1950, 2350), { ox: POV.center[0], oy: POV.center[1], z: lerp(1.08, 1, easeOut(seg(t, 500, 1100))) });
-  POV.glints.forEach(([x, y], i) => { const s0 = 800 + i * 40, a = Math.sin(Math.PI * seg(t, s0, s0 + 450)); if (a > 0) sparkle(ctx($("povFx")), x * W, y * H, W * 0.005 * (0.6 + a), a); });
-  const rise = easeOut(seg(t, 1000, 1600)), op = ease(seg(t, 1000, 1300)) * (1 - ease(seg(t, 1950, 2350)));
-  const a = $("apparition").style;
-  a.opacity = op; a.left = `${(POV.center[0] - 0.13) * 100}%`; a.top = `${lerp(0.55, 0.08, rise) * 100}%`;
-  a.transform = `scale(${lerp(0.4, 1, rise)})`; a.filter = `drop-shadow(0 0 ${18 * op}px rgba(255,214,150,.85))`;
-  setFlash(ease(seg(t, 1600, 1850)) * (1 - ease(seg(t, 1900, 2400))), [POV.center[0], 0.4]);
-  if (t > 1750 && t - dt <= 1750) spawn(50, POV.center[0] * W, 0.4 * H, "burst");
-  drawSky(now, seg(t, 0, 300), { x: 0, y: 0, z: 0 });
+  const CUT = 700, T0 = 850, MS = 1100, F0 = 2200, F1 = 2500;
+  const end = 1 - ease(seg(t, F0, F1));
+  const lift = t < CUT ? ease(seg(t, 0, 200)) : 0, open = t >= CUT ? end : 0;
+  shot("s_flift", lift, {}); shot("s_reading", open, {});
+  fxg.save(); fxg.globalCompositeOperation = "lighter";
+  if (lift > 0) for (let i = 0; i <= 8; i++) { const k = i / 8; glow(fxg, lerp(SLIT[0][0], SLIT[1][0], k) * W, lerp(SLIT[0][1], SLIT[1][1], k) * H, W * 0.035, `rgba(255,222,155,${0.32 * lift * ease(seg(t, 100, 600))})`, "rgba(255,214,140,0)"); }
+  if (open > 0) glow(fxg, BOOK_GUTTER[0] * W, BOOK_GUTTER[1] * H, W * 0.18, `rgba(255,222,155,${0.34 * open})`, "rgba(255,214,140,0)");
+  fxg.restore();
+  cardRiseAt(t, open, T0, MS);
+  drawSky(now, seg(t, 0, 250) * end, t);
   drawParts(fxg, dt / 1000, now);
   hiliteAt(-1);
-  return t < 2700;
+  return t < F1 + 100;
 }
 
 function setFlash(op, at) {
@@ -352,7 +674,7 @@ function setFlash(op, at) {
   $("flash").style.opacity = op;
 }
 function reset() {
-  for (const id of ["s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
+  for (const id of ["s_fclosed", "s_flift", "s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
   $("apparition").style.opacity = 0; $("hand").style.transform = ""; setFlash(0, [0.5, 0.5]); parts = [];
 }
 
@@ -378,6 +700,18 @@ function run(fn) {
 }
 function play(frame) { const t0 = performance.now(); run((now, dt) => frame(now - t0, dt, now)); }
 function holdAt(at) { run((now, dt) => { frameFull(at, dt, now); }); }
+{ // ตัวเลือกตัวละครบนการ์ด (เครื่องมือของหน้าต้นแบบ ไม่ใช่ UI ในเกม)
+  const sel = $("cardPick");
+  CARD_ROSTER.forEach((c, i) => { const o = document.createElement("option"); o.value = i; o.textContent = c.name; sel.appendChild(o); });
+  sel.onchange = () => { setCardChar(CARD_ROSTER[+sel.value]); play(frameFull); };
+  sel.value = 0; setCardChar(CARD_ROSTER[0]);
+}
+{ // เลือกแบบฉากหลัง (เครื่องมือของหน้าต้นแบบ)
+  const sel = $("bgPick");
+  BG_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m.k; o.textContent = m.name; sel.appendChild(o); });
+  sel.value = bgMode;
+  sel.onchange = () => { bgMode = sel.value; play(frameFull); };
+}
 $("playFull").onclick = () => play(frameFull);
 $("playShort").onclick = () => play(frameShort);
 reset();
