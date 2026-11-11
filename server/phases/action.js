@@ -344,6 +344,13 @@ function laneVictims(p, target) {
       .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
     return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
   }
+  // ตีโดนทุกศัตรูในระยะตีรอบตัว (ฮุค strikeArea — เฟิร์นบนสนาม Eos: Zoltraak ระยะ 4/8 แมนฮัตตันจากกรอบตัว · ไม่สนสิ่งกีดขวาง)
+  if (ringHook && ringHook.strikeArea && ringHook.strikeArea(p)) {
+    const tiles = Board.tilesInRange(boardMap(), p.pos.x, p.pos.y, rangeOf(p), sizeOf(p));
+    const ids = Board.unitsOnTiles(boardUnits(), tiles).map((u) => u.id)
+      .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
+    return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+  }
   const rect = !lanes(p) && strikeRect(p);
   if (!lanes(p) && !rect) return null;
   const lane = rect ? Board.rectToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), rect[0], rect[1]) : Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face", laneLen(p));

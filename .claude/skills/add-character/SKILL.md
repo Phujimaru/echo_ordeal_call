@@ -265,6 +265,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | target รูปเฉพาะ (กรอบ/ทรงที่ไม่ใช่ระยะ) | `area: { kind: "target", range, cells: [[dx, dy], …] }` (นับจากช่องผู้ใช้ · range = ป้าย) | `action.resolveArea` |
 | ตีปกติได้เฉพาะในกรอบ (พื้นที่ค้างของตัวเอง) | `strikeAllows(p, target)` → false = ตีไม่ได้ + `strikeZone(p)` → `{ x0, y0, x1, y1 }` (client คัดช่องยืน/เป้า/ระยะอันตรายให้เอง) · ระยะทั้งกรอบ = `range` `[1, 30]` (ลอว์ Room — GAME_SYSTEM §35) | `action.canStrike` · `view.buildStateFor` |
 | ศพค้างเฉพาะคนที่ตายในเงื่อนไขของตัวเอง | `claimsCorpse(u, dead)` (ถามตอนตาย · จด `dead.corpseKeeper` — ศพอยู่จนผู้เก็บตาย) | `server/duo.js` `claimCorpse` / `keptFor` |
+| ตีปกติโดนศัตรูทุกตัวในระยะตีรอบตัว (ข้าวหลามตัด) | `strikeArea(p)` → true · เล็งตาม `range` ปกติ · client `players[].strikeArea` ไฮไลต์ทั้งวง (เฟิร์นบนสนาม Eos — GAME_SYSTEM §50) | `action.laneVictims` · BoardStage `planFor` |
+| เพดานระยะเดินของ Eos เฉพาะตัว / มอน Eos ไม่เล็ง | `eosWalkMax(p)` → เพดานแทน 5 · `hiddenFromMobs(p)` → true = ตัดออกจาก `prey` ของมอน (เฟิร์น ซ่อนเร้นมานาบน Eos) | `server/fodlan/stage6.js` movMod / prey |
 | ตีปกติรอบตัว 8 ช่อง (รวมทแยง) | `strikeRing(p)` + `ringTiles(engine, p)` + `range` `[1, 2]` + `strikeAllows` (เชบีเชฟ 1) — client `players[].strikeRing` (กิลกาเมช ถือ EA — GAME_SYSTEM §50) | `action.laneVictims` · BoardStage `planFor` |
 | กระเป๋า/เพดานเหรียญเฉพาะตัว · ซื้อจากระยะไกล · รีสต็อกร้าน | `bagSlots(p)` · `goldCap(p)` · `remoteShop(p)` · `engine.restockShops()` (กิลกาเมช Gate of Babylon / ราชาที่แท้จริง) | `server/shop.js` |
 | เสียงที่ต้องเด่นคนเดียว (เพลงหยุด เสียงอื่นเบา) | `client/src/audio.js FOCUS_SFX { คีย์: ms }` (Enuma Elish) | `audio.playSfx` |
