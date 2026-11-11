@@ -216,7 +216,8 @@ module.exports = {
     const s = st(p);
     if (s.used[key] === engine.roundNumber) return false;
     s.used[key] = engine.roundNumber;
-    engine.sfx(SFX[key]);
+    // กดเสียงใหม่ = ตัดเสียงเก่าของปุ่มทั้งหมด (ขู่ 1 / ขู่ 2 / กล่องดนตรี — ผู้ใช้สั่ง 2026-11-11) · ใช้คิวเสียงพากย์ต่อคน (client ตัดตาม voice)
+    engine.sfx(SFX[key], null, { voice: `freddy:${p.id}` });
     engine.broadcastState();
     return true;
   },
