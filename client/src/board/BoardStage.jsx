@@ -470,7 +470,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const inDome = (x, y) => x >= dome[0] && x <= dome[2] && y >= dome[1] && y <= dome[3];
     const foeDomed = !!dome && Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inDome(t.x, t.y));
     const domeOk = (n) => !foeDomed || Rules.footprint(n.x, n.y, sizeOfP(me)).some((t) => inDome(t.x, t.y));
-    // ตีโดนทุกศัตรูในระยะรอบตัว (me.strikeArea — เฟิร์นบนสนาม Eos): เล็งแบบระยะปกติ · ไฮไลต์ทุกช่องในระยะ
+    // ตีโดนทุกศัตรูในระยะรอบตัว (me.strikeArea — ยังไม่มีตัวไหนใช้): เล็งแบบระยะปกติ · ไฮไลต์ทุกช่องในระยะ
     const area = !foe.isCorpse && !!me.strikeArea;
     const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     const hits = (n) => domeOk(n) && hits0(n);
