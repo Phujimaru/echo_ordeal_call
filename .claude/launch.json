@@ -818,38 +818,6 @@
       "env": {
         "ECHO_SERVER_PORT": "3043"
       }
-    },
-    {
-      "name": "server-noctis",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "server.js"
-      ],
-      "port": 3045,
-      "env": {
-        "PORT": "3045",
-        "ECHO_DEV_ACTION_TIME": "600",
-        "ECHO_DEV_RICH": "1",
-        "JOURNEY_START_SECONDS": "0"
-      }
-    },
-    {
-      "name": "client-noctis",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "--prefix",
-        "client",
-        "run",
-        "dev",
-        "--",
-        "--port",
-        "5209",
-        "--strictPort"
-      ],
-      "port": 5209,
-      "env": {
-        "ECHO_SERVER_PORT": "3045"
-      }
     }
   ]
 }

@@ -1316,12 +1316,3 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - dev: launch `server-eos` / `server-eos-night` (เริ่มเทิร์น 4 + `ECHO_DEV_EOS_WEATHER`) + `client-eos` (5201) · เทสต์ [tests/eos.test.js](tests/eos.test.js)
 
 **ชั้นรับดาเมจของสนาม (2026-11-10):** `combat.layerAbsorb(p)` ถาม `fodlan.absorbDamage(p)` ก่อนฮุค `absorbDamage` ของตัวละคร (และ `dealDirect` ก็ถาม) → ด่านที่ export `absorbDamage(ctx, st, p)` คืน true = รับดาเมจ 1 หน่วยแทน · สนาม Eos ใช้ให้รถ/โชโกโบะรับแทนคนขับ/คนขี่ (§51)
-
-## 52. ไม่ไถล / พลาดเองของผู้ตี / ขวางการตายของคนอื่น / วาร์ปตีปกติ (น็อตทิส — `characters/noctis.js` · GRID_PLAN §7.31)
-
-- **ไม่ไถลบนน้ำแข็ง/พื้นเปียก**: ฮุค `noSlide(p)` → `action.noSlide` → `Board.reachable/trailCost/stepPath` opts `noSlide` (น้ำแข็งเป็นช่องปกติ) + `Ice.resolveEntry` ข้าม · state `players[].noSlide` → client `optsOf(p)` (แก้ `server/board.js` แล้วรัน `scripts/gen-board-rules.js`)
-- **ผู้ตีพลาดเอง**: ฮุค `strikeMiss(p)` → `{ name, img }` = ตีปกติครั้งนั้นพลาด (ทอยหลังด่านหลบของเป้า ก่อนป่าพลาดเป้า · แม่นยำเจาะได้) · หน้าคาดการณ์คูณ `strikeHitPct(p)` → % (Sword of the Tall 60)
-- **ขวางการตายของคนอื่น**: ฮุค broadcast `rescuesDeath(engine, p, force)` ใน `combat.instantDeath` (หลังยูนิตที่ถูกเรียก ก่อน `deathless` · รวม absolute) → true = ไม่ตาย (ฮุคตั้งเลือดเอง) — หัวใจของเหล่าปวงชน: คิวคลิป + `skillBeat(..., { open: true })` รอผู้เล่นที่ตายแล้วตัดสินผ่าน socket `noctisHeart { yes }` → `engine.releaseBeat()` · เข้าช่วย = ผู้โจมตี `instantDeath(absolute)` + `declareWinner`
-- **วาร์ปแล้วตีปกติ (Warp Strike)**: ปุ่ม HUD `tiles` = ช่องตามแนวที่มีศัตรู → ย้าย `p.pos` + `engine.setDash` แล้วเรียก `engine.attackTarget` (ท่อตีปกติเต็ม) โดยตั้งสถานะชั่วคราวให้ `range` = [1, 30] · คนอื่นในแนว (ทะลุ) ใช้ท่อ `strikeRing` + `ringTiles` ของ `laneVictims`
-- ตีปกติ 2 ครั้งเดินต่อระหว่างนั้น (Swords of the Wanderer): `afterStrike` เก็บระยะที่เหลือ (`engine.rebaseMove` + `movOf`) → `extraStrike` เปิดการเดินด้วย `movLeft` → `cantoMov` หลังครั้งที่ 2
-- ตัวเลือกบนปุ่มหลายตัวเลือกใส่ `fit: "contain"` = รูปไอคอนไม่ crop (`SkillChoices.jsx`)

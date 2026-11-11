@@ -227,8 +227,6 @@ function instantDeath(p, force) {
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
   if (p.summon) { Summon.onDeath(p); return; }
-  // ฮุค broadcast rescuesDeath(engine, p, force) → true = มีคนอื่นมาขวางการตายนี้ (ฮุคตั้งเลือดเอง — น็อตทิส: หัวใจของเหล่าปวงชน · รวม absolute)
-  if (firstHook("rescuesDeath", engine, p, force)) return;
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
   const deathHook = CHAR_HOOKS[p.characterId];
   // ฮุค deathless(engine, p) → true = ไม่ตายแม้ force (ฮุคตั้งเลือดเอง — ยูกิ มาโคโตะ: มิตรภาพ) · ยกเว้น "absolute"

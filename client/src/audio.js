@@ -392,29 +392,6 @@ const FILES = {
   gil_dissolve: "/characters/gilgamesh_fake/sfx/gil_dissolve.mp3",   // อาวุธที่ปักค้างสลายเป็นละอองทอง
   gil_kneel: "/characters/gilgamesh_fake/sfx/gil_kneel.mp3",         // คุกเข่า (สตั้น)
   gil_equip: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
-  // น็อคทิส — เสียงสังเคราะห์เฉพาะตัว (.claude/plans/noctis-sfx.py · ยังไม่มีใครฟัง) · เสียงตีปะทะอยู่ต้นไฟล์
-  noct_arm: "/characters/noctis/sfx/noct_arm.mp3",
-  noct_heed: "/characters/noctis/sfx/noct_heed.mp3",
-  noct_warp: "/characters/noctis/sfx/noct_warp.mp3",
-  noct_point: "/characters/noctis/sfx/noct_point.mp3",
-  noct_throw: "/characters/noctis/sfx/noct_throw.mp3",
-  noct_ruin: "/characters/noctis/sfx/noct_ruin.mp3",
-  noct_end: "/characters/noctis/sfx/noct_end.mp3",
-  noct_atk_wise: "/characters/noctis/sfx/noct_atk_wise.mp3",
-  noct_atk_axe: "/characters/noctis/sfx/noct_atk_axe.mp3",
-  noct_atk_bow: "/characters/noctis/sfx/noct_atk_bow.mp3",
-  noct_atk_wanderer: "/characters/noctis/sfx/noct_atk_wanderer.mp3",
-  noct_atk_mystic: "/characters/noctis/sfx/noct_atk_mystic.mp3",
-  noct_atk_star: "/characters/noctis/sfx/noct_atk_star.mp3",
-  noct_atk_tall: "/characters/noctis/sfx/noct_atk_tall.mp3",
-  noct_atk_shield: "/characters/noctis/sfx/noct_atk_shield.mp3",
-  noct_atk_mace: "/characters/noctis/sfx/noct_atk_mace.mp3",
-  noct_atk_scepter: "/characters/noctis/sfx/noct_atk_scepter.mp3",
-  noct_atk_trident: "/characters/noctis/sfx/noct_atk_trident.mp3",
-  noct_atk_katana: "/characters/noctis/sfx/noct_atk_katana.mp3",
-  noct_atk_father: "/characters/noctis/sfx/noct_atk_father.mp3",
-  noct_atk_engine: "/characters/noctis/sfx/noct_atk_engine.mp3",
-  noct_magna_insomnia: "/characters/noctis/noct_magna_insomnia.mp3", // เพลงระหว่างปลดปล่อยพลังที่แท้จริง (ไฟล์ผู้ใช้ · loudnorm -14 LUFS แบบเพลงกิลกาเมช)
   gil_unequip: "/characters/gilgamesh_fake/sfx/gil_unequip.mp3",     // เก็บ EA
   // เพลง (ไฟล์จากผู้ใช้ · loudnorm -14 LUFS): ชาร์จ Enuma Elish = bite down · พายุของ EA = STRANGEFAKE (state.skillMusic)
   gil_bite_down: "/characters/gilgamesh_fake/gil_bite_down.mp3",

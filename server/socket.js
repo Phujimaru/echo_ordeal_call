@@ -415,8 +415,6 @@ io.on('connection', (socket) => {
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
     combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key, { tile: t }));
   }, 8);
-  // หัวใจของเหล่าปวงชน (น็อตทิส): ผู้เล่นน็อตทิสที่ตายแล้วเลือกเข้าช่วย/ปล่อย (characters/noctis.js heartAction)
-  onPlayerEvent(socket, 'noctisHeart', (id, { yes } = {}) => { CHAR_HOOKS.noctis.heartAction(engine, id, yes === true); }, 6);
   // Last Stand ของดิโอ: จั่ว/พอ ของสองฝ่ายที่ดวลกัน (characters/dio_brando.js)
   onUnitEvent(socket, 'dioDuel', (id, { action: act } = {}) => {
     if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
