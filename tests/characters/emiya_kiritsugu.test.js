@@ -51,8 +51,9 @@ function setup({ points = 8 } = {}) {
 }
 const use = (tier, form, extra = {}) => engine.useSkill("a", tier, extra.targets || [], { form, ...extra });
 
-test("ค่าพื้นฐาน: พลังชีวิต 7 · เกราะ 3 · เดิน 4 · ประชิด · ตีปกติปืนกล", () => {
+test("ค่าพื้นฐาน: พลังชีวิต 7 · เกราะ 3 · เดิน 4 · ตีปกติปืนกลระยะ 1–3", () => {
   const { p } = setup();
+  assert.deepEqual(engine.rangeOf(p), [1, 3]);
   assert.equal(engine.maxHpOf(p), 7);
   assert.equal(p.hp, 7);
   assert.equal(engine.baseMovOf(p), 4);
@@ -326,4 +327,20 @@ test("ตาย/เปลี่ยนแผนที่ = กับดักห�
   assert.equal(sv.length, 1);
   sv[0].cancel();
   assert.equal(p.kiri.freeAccel, false);
+});
+
+test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่องไม่ได้ · ตัวประชิดสวนจากห่าง 3 ไม่ได้", () => {
+  const { p, t } = setup();
+  Math.random = () => 0.99; // ไม่หลบ ไม่คริ
+  t.pos = { x: 8, y: 5 };
+  t.hp = 7; t.armor = 0;
+  engine.attackTarget("a", "b");
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 6);
+  assert.equal(p.hp, 7, "ไม่โดนสวน");
+  engine.setActor("a");
+  t.pos = { x: 9, y: 5 };
+  engine.attackTarget("a", "b");
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 6, "เกินระยะ");
 });

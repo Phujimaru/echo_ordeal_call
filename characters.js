@@ -1193,10 +1193,10 @@ const CHARACTERS = [
     difficulty: "medium",
     img: "/characters/emiya_kiritsugu/kiritsugu.webp",
     mov: 4,
-    range: [1, 1],
+    range: [1, 3], // ปืนกล Calico M950 (ผู้ใช้สั่ง 2026-11-11)
     passive: {
       name: "เวทย์ตะกั่ว",
-      desc: "ตีปกติด้วยปืนกล Calico M950 · ตีปกตินอก Time Alter อัตราคริติคอล 50% · สนาม Eos: ติดคริติคอลได้ใน Time Alter ด้วย",
+      desc: "ตีปกติด้วยปืนกล Calico M950 ระยะ 1–3 · ตีปกตินอก Time Alter อัตราคริติคอล 50% · สนาม Eos: ติดคริติคอลได้ใน Time Alter ด้วย",
     },
     passive2: {
       name: "อดีนาลีน",
