@@ -1450,6 +1450,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  เหตุการณ์อื่น = เกิดทันทีแล้วรอสั้นๆ (ค้างภาพตอนชนเต็ม/ฉากคุก) · จบทั้งชุด = ปล่อยภาพที่ค้างไว้ให้ตรง state ผลสุดท้าย
   const byIdRef = useRef(byId);
   useLayoutEffect(() => { byIdRef.current = byId; });
+  const myIdRef = useRef(null); // ตัวที่เราคุมอยู่ (onClockWalk: วิ่งจบแล้วส่งตีที่รอไว้)
+  const pendingAttack = useRef(null); // เดินแล้วตีต่อ: เป้าที่รอตีหลังเดินถึงช่องยืน
+  useLayoutEffect(() => { myIdRef.current = me ? me.id : null; });
   const finishIce = (run) => {
     if (!run || run.done) return;
     run.done = true; run.active = false;
@@ -1832,8 +1835,19 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (path.length < 2 || ev.id == null) return;
       const end = path[path.length - 1], a = path[path.length - 2];
       dashSkip.current[ev.id] = end;
-      setGlides((g) => ({ ...g, [ev.id]: { key: ev.seq, path, stepMs: ev.step > 0 ? ev.step : 70 } }));
+      const stepMs = ev.step > 0 ? ev.step : 70;
+      setGlides((g) => ({ ...g, [ev.id]: { key: ev.seq, path, stepMs } }));
       setFaces((f) => ({ ...f, [ev.id]: { x: Math.sign(end.x - a.x), y: Math.sign(end.y - a.y) } }));
+      // เดินแล้วตีต่อในช่วง Clock Up: การเดินแบบนี้ไม่ผ่านคิวแอนิเมชัน (anim) — ตีที่รอไว้ต้องส่งเองตอนวิ่งถึง
+      //  (บัค 2026-11-11: กดตีเป้าที่ต้องเดินไปก่อน = เดินแล้วไม่ตี + กดตีซ้ำไม่ได้ทั้งช่วง — คริซุงุ Time Alter / ไรเดอร์ ZECT / Start Up)
+      if (ev.id === myIdRef.current && pendingAttack.current) {
+        const pa = pendingAttack.current;
+        timers.current.push(setTimeout(() => {
+          if (pendingAttack.current !== pa) return;
+          pendingAttack.current = null;
+          socket.emit("attack", { targetId: pa });
+        }, (path.length - 1) * stepMs + 60));
+      }
     };
     socket.on("clockWalk", onClockWalk);
     socket.on("diegoFx", onDiego);
@@ -2209,8 +2223,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => { for (const [k, fn] of handlers) socket.off(k, fn); };
   }, [look]);
 
-  // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
-  const pendingAttack = useRef(null);
+  // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี (pendingAttack ประกาศไว้ข้างบน — onClockWalk ใช้ด้วย)
   const animRef = useRef(null);
   useLayoutEffect(() => { animRef.current = anim; });
   const onAnimDone = useCallback(() => {
