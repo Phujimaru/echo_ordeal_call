@@ -33,7 +33,8 @@ const dropBonus = (ctx) => diffOf(ctx).drop;
 
 // ---------- สถานะ ----------
 const BOSS = { hp: 30, armor: 4, atk: 4, mov: 4, gold: 8, score: 5, at: 25, roarEvery: 2, pillarHits: 2 };
-const QUEST = { from: 3, max: 2, turns: 4, hunt: 3, score: 3, gold: 3, gap: 2 };
+const QUEST = { from: 3, max: 2, turns: 4, hunt: 3, score: 3, gold: 3, gap: 2, guard: 3, guardTurns: 6, guardPct: 0.5, guardMobs: 2 };
+// ภารกิจเฝ้าเมือง (ผู้ใช้สั่ง 2026-11-12 — ให้ผู้เล่นกระจายไปหลายเมือง · ตัวเลข Claude ตั้ง): เมืองขอคนเฝ้า · จบเทิร์นมีคนอยู่ในเมือง = นับ 1 · ครบ 3 ภายใน 6 เทิร์น = สำเร็จ · เริ่มแล้วมีมอนบุกเมืองนั้น 2 ตัว
 const CONVOY = { from: 4, every: 6, hp: 12, armor: 2, step: 4, score: 6, gold: 4 };
 const BLOOD = { from: 2, pct: 35, count: 1.5 };
 const WARD_MAX = 2;
@@ -152,7 +153,7 @@ function spawnQuest(ctx, s, H, turn) {
     const rect = zoneRect(H, zone);
     if (!rect) continue;
     const isTown = !!H.MAP.ZONES.find((o) => o.id === zone && o.town);
-    const type = isTown || ctx.rng() < 0.45 ? "scout" : "hunt";
+    const type = isTown ? (ctx.rng() < QUEST.guardPct ? "guard" : "scout") : ctx.rng() < 0.45 ? "scout" : "hunt";
     let at = null;
     if (type === "scout") {
       const cand = [];
@@ -160,12 +161,13 @@ function spawnQuest(ctx, s, H, turn) {
       at = ctx.pick(cand, 1)[0];
       if (!at) continue;
     } else at = { x: Math.round((rect[0] + rect[2]) / 2), y: Math.round((rect[1] + rect[3]) / 2) };
-    const q = { id: `q${++e.seq}`, type, zone, rect: [...rect], x: at.x, y: at.y, need: type === "hunt" ? QUEST.hunt : 1, have: 0, until: turn + QUEST.turns - 1, by: [] };
+    const q = { id: `q${++e.seq}`, type, zone, rect: [...rect], x: at.x, y: at.y, need: type === "hunt" ? QUEST.hunt : type === "guard" ? QUEST.guard : 1, have: 0, until: turn + (type === "guard" ? QUEST.guardTurns : QUEST.turns) - 1, by: [] };
+    if (type === "guard") guardRaid(ctx, s, H, q);
     e.quests.push(q);
     e.questNext = turn + QUEST.gap;
     ctx.bump();
     ctx.fx("quest_new", { quest: q.id, qtype: type, zone, x: at.x, y: at.y });
-    ctx.log(`📯 ภารกิจใหม่ที่ ${H.ZONE_NAMES[zone] || zone}: ${type === "hunt" ? `กวาดล้างมอน ${q.need} ตัว` : "สำรวจจุดสัญญาณ"}`);
+    ctx.log(`📯 ภารกิจใหม่ที่ ${H.ZONE_NAMES[zone] || zone}: ${type === "hunt" ? `กวาดล้างมอน ${q.need} ตัว` : type === "guard" ? `เฝ้าเมือง ${q.need} เทิร์น` : "สำรวจจุดสัญญาณ"}`);
     return 1;
   }
   return 0;
@@ -184,8 +186,29 @@ function questDone(ctx, s, H, q) {
   ctx.fx("quest_done", { quest: q.id, qtype: q.type, zone: q.zone, x: q.x, y: q.y, by: q.by });
   ctx.log(`📯 ภารกิจ ${H.ZONE_NAMES[q.zone] || q.zone} สำเร็จ! แต้มรวม +${QUEST.score}`);
 }
+// ภารกิจเฝ้าเมือง: มอนบุกจากขอบเมือง (ทหารเหล็ก — เข้าเมืองที่ไฟเปิดได้)
+function guardRaid(ctx, s, H, q) {
+  const [x0, y0, x1, y1] = q.rect, edge = [];
+  for (let y = y0 - 2; y <= y1 + 2; y++) for (let x = x0 - 2; x <= x1 + 2; x++) { const out = x < x0 || x > x1 || y < y0 || y > y1; if (out && H.tileFree(ctx, s, x, y) && !H.heroes(ctx).some((p) => H.manhattan(p.pos, { x, y }) < 3)) edge.push({ x, y }); }
+  const tier = Math.max(1, s.dayNo || s.nightNo || 1), st = scaleStats(ctx, { hp: 5 + tier, armor: 1 + Math.floor(tier / 2), atk: 2 + Math.floor(tier / 2), mov: 4, gold: 3 });
+  for (const at of ctx.pick(edge, Math.min(edge.length, QUEST.guardMobs))) { const m = H.spawnMob(ctx, s, "magitek", at, st, { tier }); if (m) m.summon.born = 0; }
+}
+// จบเทิร์น (ต้นเทิร์นถัดไป): มีคนอยู่ในเมือง = นับ
+function tickGuard(ctx, s, H) {
+  for (const q of ev(s).quests.slice()) {
+    if (q.type !== "guard") continue;
+    const here = H.heroes(ctx).filter((p) => p.alive && p.pos && H.inRect(q.rect, p.pos.x, p.pos.y));
+    if (!here.length) continue;
+    q.have += 1;
+    for (const p of here) if (!q.by.includes(p.id)) q.by.push(p.id);
+    ctx.bump();
+    if (q.have >= q.need) questDone(ctx, s, H, q);
+    else ctx.fx("quest_step", { quest: q.id, have: q.have, need: q.need, x: q.x, y: q.y });
+  }
+}
 function tickQuests(ctx, s, H, turn) {
   const e = ev(s);
+  tickGuard(ctx, s, H);
   for (const q of e.quests.slice()) if (turn > q.until) {
     e.quests = e.quests.filter((o) => o !== q);
     ctx.fx("quest_fail", { quest: q.id, zone: q.zone, x: q.x, y: q.y });

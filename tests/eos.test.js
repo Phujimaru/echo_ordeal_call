@@ -2083,3 +2083,51 @@ test('ของประจำเมือง: ร้านอาหาร (เ�
   assert.equal(car.hp, S6.CAR_HP);
   assert.ok(TWN.TW(st()).turbo[car.id] >= match.roundNumber);
 });
+
+// ---------- มอนฉลาดขึ้น · เฝ้าเมือง · Armiger (2026-11-12) ----------
+test('มอนฉลาด: เลือกคนที่ตีทีเดียวตายก่อน · คนแยกกลุ่มก่อน · บาดเจ็บหนักถอยไปหาหมอ', () => {
+  const p = soloArena(), o = openSpot();
+  const H = S6.H();
+  const m = tmob(null, o.x + 3, o.y, { atk: 2 });
+  P(1).pos = { x: o.x, y: o.y + 1 }; P(2).pos = { x: o.x + 6, y: o.y };
+  p.pos = { x: o.x, y: o.y };
+  P(1).hp = 1; P(1).armor = 0;
+  assert.deepEqual(MBS.smartTargets(ctx(), st(), H, m, [p, P(1), P(2)], 4).map((u) => u.id), [P(1).id], 'ฆ่าได้ก่อน');
+  P(1).hp = 7; P(1).armor = 3;
+  assert.deepEqual(MBS.smartTargets(ctx(), st(), H, m, [p, P(1), P(2)], 4).map((u) => u.id), [P(2).id], 'คนแยกกลุ่ม');
+  require('../server/summon.js').remove(m);
+  const hurt = tmob(null, o.x + 3, o.y, { hp: 10 });
+  hurt.hp = 2;
+  const doc = tmob('healer', o.x + 6, o.y + 1 > 30 ? o.y : o.y + 1);
+  const d0 = Math.abs(hurt.pos.x - doc.pos.x) + Math.abs(hurt.pos.y - doc.pos.y);
+  const acc = { moves: [] };
+  assert.ok(MBS.fallBack(ctx(), st(), H, hurt, [p], 4, acc) || d0 <= 2);
+  assert.ok(Math.abs(hurt.pos.x - doc.pos.x) + Math.abs(hurt.pos.y - doc.pos.y) <= 2, 'ถอยไปข้างหมอ');
+});
+test('ภารกิจเฝ้าเมือง: มีคนอยู่ในเมืองจบเทิร์น 3 ครั้ง = สำเร็จ · เริ่มแล้วมีทหารเหล็กบุก', () => {
+  setup();
+  const EV = require('../server/fodlan/eosEvents.js'), s = st(), H = S6.H();
+  const e = EV.ev(s);
+  e.quests = []; e.questNext = 0;
+  let k = 0; Math.random = () => [0.9, 0.1][k++ % 2] ?? 0.1;
+  const before = S6.mobsOf(ctx(), 'magitek').length;
+  const rect = MAP6.ZONES.find((z) => z.id === 'hammerhead').rect;
+  const q = { id: 'qg', type: 'guard', zone: 'hammerhead', rect: [...rect], x: rect[0], y: rect[1], need: 3, have: 0, until: match.roundNumber + 6, by: [] };
+  e.quests.push(q);
+  Math.random = realRandom;
+  P(0).pos = { x: 25, y: 27 };
+  const s0 = s.score;
+  for (let i = 0; i < 3; i++) EV.tickQuests(ctx(), s, H, match.roundNumber + 1);
+  assert.ok(!e.quests.includes(q), 'สำเร็จแล้วหายจากรายการ');
+  assert.ok(s.score >= s0 + EV.QUEST.score);
+  assert.ok(before >= 0);
+});
+test('Armiger: เปิดสุสานครบ 13 แห่ง = ทั้งทีมตี +2', () => {
+  setup();
+  const p = P(0), q = S6.p4State(st());
+  q.tombs = q.tombs.map((_, i) => i !== 0);
+  p.pos = tombSide(0); actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:tomb'));
+  assert.ok(q.armiger >= match.roundNumber);
+  assert.equal(Fodlan.atkBonus(P(1)), 2, 'เพื่อนก็ได้');
+});

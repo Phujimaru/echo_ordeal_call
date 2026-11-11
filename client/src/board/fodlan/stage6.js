@@ -45,7 +45,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -3426,6 +3426,7 @@ function playFx(e) {
     case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
     case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
     case "town_garage": sfx("car_start", { gain: 0.8 }); break;
+    case "armiger": sfx("royal_arms", { gain: 1 }); sfx("tomb_open", { delay: 0.3, gain: 0.7 }); break;
     case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
     case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
     case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
@@ -4180,12 +4181,13 @@ function pveGround(g, fd, now, lowQ) {
     glowAt(g, x, y, s * 1.8, "255,30,60", 0.35 + 0.25 * k);
   }
   for (const q of fd.quests || []) {
-    if (q.type !== "hunt" || !q.rect) continue;
+    if ((q.type !== "hunt" && q.type !== "guard") || !q.rect) continue;
+    const guard = q.type === "guard"; // เฝ้าเมือง = กรอบฟ้า · กวาดล้าง = กรอบส้ม
     const [x0, y0, x1, y1] = q.rect;
     const c = [P(x0, y0, 0.02), P(x1 + 1, y0, 0.02), P(x1 + 1, y1 + 1, 0.02), P(x0, y1 + 1, 0.02)];
     const qa = 0.55 + 0.25 * Math.sin(now / 400);
-    g.beginPath(); c.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = "rgba(255,190,80,.06)"; g.fill();
-    g.strokeStyle = `rgba(255,200,100,${qa})`; g.lineWidth = 3; g.lineCap = "round";
+    g.beginPath(); c.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = guard ? "rgba(120,190,255,.07)" : "rgba(255,190,80,.06)"; g.fill();
+    g.strokeStyle = guard ? `rgba(140,200,255,${qa})` : `rgba(255,200,100,${qa})`; g.lineWidth = 3; g.lineCap = "round";
     for (let i = 0; i < 4; i++) { // มุมกรอบ (ขายาว 1 ช่อง)
       const a = c[i], b = c[(i + 1) % 4], d = c[(i + 3) % 4];
       const lb = Math.min(0.35, 1 / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]) / a[2])), ld = Math.min(0.35, 1 / Math.max(1, Math.hypot(d[0] - a[0], d[1] - a[1]) / a[2]));
@@ -4234,6 +4236,11 @@ function pve2Fx(g, e, p, lowQ, units) {
       g.strokeStyle = `rgba(255,230,220,${al})`; g.lineWidth = 1; g.stroke();
       glowAt(g, b[0], b[1], 30, "255,80,60", al * 0.8);
     }
+    return true;
+  }
+  if (e.kind === "armiger") { // Armiger: อาวุธวิญญาณสีฟ้าหมุนรอบทุกคน
+    for (const id of e.ids || []) { const u = unitOf(units, id); if (!u) continue; const [x, y, s] = P(u.x, u.y, 0.6); glowAt(g, x, y, s * (0.7 + p), "120,190,255", (1 - p) * 0.9);
+      if (!lowQ) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + p * 6, q = P(u.x + Math.cos(a) * 0.55, u.y + Math.sin(a) * 0.55, 0.8 + Math.sin(a * 2) * 0.15); g.strokeStyle = `rgba(200,235,255,${1 - p})`; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - q[2] * 0.2); g.lineTo(q[0], q[1] + q[2] * 0.2); g.stroke(); } }
     return true;
   }
   if (e.kind === "town_garage" || e.kind === "town_diner" || e.kind === "town_shrine" || e.kind === "town_ranch") {

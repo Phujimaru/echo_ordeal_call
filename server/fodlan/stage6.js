@@ -1127,12 +1127,13 @@ function actMonsters(ctx, s) {
         mov = targets.length ? Math.min(mov, 1 + SKY.beastMod(s).mov) : 0;
       }
     } else {
-      targets = all;
+      targets = (type === "daemon" || type === "magitek") && sm.trait !== "boss" ? MBS.smartTargets(ctx, s, H(), m, all, mov) : all; // ฆ่าได้ก่อน · คนแยกกลุ่มก่อน
       pillars = pillarGoals(s);
       // ทหารเหล็กเล็งเสาก่อน (มีเสาที่ยึดแล้ว = ไปหาเสา เว้นแต่มีคนติดตัวอยู่แล้ว)
       if (type === "magitek" && pillars.length && !all.some((p) => manhattan(p.pos, m.pos) === 1)) targets = [];
     }
     let r = { to: null, path: null, target: null, pillar: null };
+    if ((type === "daemon" || type === "magitek") && MBS.fallBack(ctx, s, H(), m, all, mov, acc)) continue; // บาดเจ็บหนัก = ถอยไปหาปีศาจหมอ
     const raidPl = plan.get(m.id);
     if (raidPl) { // หน่วยบุก: ตรงไปเสา (หรือป้อมปืนของเสา) · ตีเฉพาะคนที่ติดตัว/ยืนเฝ้าเสา
       const tg = all.filter((p) => manhattan(p.pos, m.pos) <= 1 || manhattan(p.pos, raidPl) <= RAID.guardR);
@@ -2175,6 +2176,8 @@ function tombNear(ctx, s, p) {
   return MAP.TOMBS.findIndex(([x, y], i) => !q.tombs[i] && ctx.adjacent(p, x, y));
 }
 function hasArm(s, p) { const q = p4State(s), a = p && q.arms[p.id]; return !!a; }
+const ARMIGER = { atk: 2, turns: 3, heal: 3 };
+const armigerOn = (ctx, s) => (p4State(s).armiger ?? -1) >= ctx.match.roundNumber;
 const armRec = (s, p) => (p ? p4State(s).arms[p.id] || null : null);
 function openTomb(ctx, s, p) {
   const q = p4State(s), i = tombNear(ctx, s, p);
@@ -2185,6 +2188,13 @@ function openTomb(ctx, s, p) {
   ctx.bump();
   ctx.fx("tomb_open", { id: p.id, x: MAP.TOMBS[i][0], y: MAP.TOMBS[i][1], w: a.id });
   ctx.log(`⚱️ ${p.name} ได้อาวุธจักรพรรดิ ${a.name} — ${a.desc}`);
+  // เปิดครบ 13 สุสาน = Armiger (ผู้ใช้สั่ง 2026-11-12 · Claude ตั้ง): ทั้งทีมตี +2 3 เทิร์น + ฟื้นเลือด 3
+  if (!q.armiger && q.tombs.every(Boolean)) {
+    q.armiger = ctx.match.roundNumber + ARMIGER.turns - 1;
+    for (const o of heroes(ctx)) if (o.alive && ctx.combat.healHp) ctx.combat.healHp(o, ARMIGER.heal);
+    ctx.fx("armiger", { by: p.id, ids: heroes(ctx).map((o) => o.id) });
+    ctx.log(`👑 อาวุธจักรพรรดิครบ 13 อัน — Armiger! ทั้งทีมตี +${ARMIGER.atk} ${ARMIGER.turns} เทิร์น`);
+  }
   ctx.useStrike(p, 1.6);
   return true;
 }
@@ -2251,7 +2261,7 @@ function p4PreRound(ctx, s, turn) {
 }
 function p4AtkBonus(s, p) {
   const b = buffOf(s, p);
-  return (b && (b.kind === "atk" || b.kind === "feast") ? 1 : 0) + AR.atkOf(armRec(s, p)); // อาวุธจักรพรรดิ: ตีเพิ่มตามอาวุธ
+  return (b && (b.kind === "atk" || b.kind === "feast") ? 1 : 0) + AR.atkOf(armRec(s, p)) + ((p4State(s).armiger ?? -1) >= (s.roundNow || 0) ? ARMIGER.atk : 0); // อาวุธจักรพรรดิ: ตีเพิ่มตามอาวุธ · Armiger
 }
 function p4MovBonus(s, p) { const b = buffOf(s, p); return b && (b.kind === "mov" || b.kind === "feast") ? 1 : 0; }
 function p4Hud(ctx, s, p, out) {
@@ -2298,6 +2308,7 @@ function p4Public(ctx, s) {
     rail: { y: MAP.RAIL_Y, stations: MAP.STATIONS.map(tl), next: q.trainNext, warn: !!q.trainWarn, dir: q.trainDir },
     tunnels: MAP.TUNNELS.map((pair) => pair.map(tl)), docks: MAP.DOCKS.map(tl), camps: MAP.CAMPS.map(tl), fish: MAP.FISH.map(tl),
     tombs: MAP.TOMBS.map(([x, y], i) => { const a = AR.armAt(i); return { x, y, open: !!q.tombs[i], w: a.id, name: a.name, desc: a.desc, img: AR.imgOf(a.id) }; }),
+    armiger: (q.armiger ?? -1) >= ctx.match.roundNumber ? q.armiger : null,
     arms: Object.fromEntries(Object.entries(q.arms).map(([pid, r]) => { const a = AR.defOf(r); return [pid, { w: a.id, name: a.name, img: AR.imgOf(a.id), until: r.until }]; })),
     trams: TRAM_STOPS.map((t) => ({ ...t })),
   };
@@ -2308,6 +2319,7 @@ function p4Badges(s, p, badges) {
   if (bm) badges.push({ key: `meal_${b.kind}`, icon: bm.icon, label: bm.name, cls: "bg-orange-200 text-gray-900" });
   const fc = (q.catch || {})[p.id] || 0;
   if (fc) badges.push({ key: "fish_bag", icon: "🐟", label: `ปลา ×${fc}`, cls: "bg-sky-200 text-gray-900" });
+  if ((q.armiger ?? -1) >= (s.roundNow || 0)) badges.push({ key: "armiger", icon: "👑", label: "Armiger", cls: "bg-sky-300 text-gray-900" });
   if (hasArm(s, p)) badges.push({ key: "royal_arm", icon: "⚔️", label: AR.defOf(armRec(s, p)).name, cls: "bg-indigo-300 text-gray-900" });
   const h = q.bounty[p.id];
   if (h) badges.push({ key: "bounty", icon: BOUNTY[h.kind].icon, label: h.name, cls: "bg-amber-300 text-gray-900" });
@@ -2318,6 +2330,7 @@ function preRound(ctx, st) {
   const s = st && st.eos;
   if (!s) return 0;
   s.lamentOn = LM.on(ctx);
+  s.roundNow = ctx.match.roundNumber + 1; // เทิร์นปัจจุบัน (ฟังก์ชันที่ไม่มี ctx — Armiger)
   if (process.env.ECHO_DEV_EOS_AT && !s.devAt) { const [ax, ay] = process.env.ECHO_DEV_EOS_AT.split(",").map(Number), h = heroes(ctx)[0], to = h && freeNear(ctx, s, ax, ay, 3); if (to) { s.devAt = true; h.pos = { ...to }; ctx.bump(); } } // dev: วางผู้เล่นคนแรกที่ช่องนี้ (ดูภาพแต่ละเมือง)
   const healed = require("../phases/action").expireChasm(CHASM_TURNS);
   if (healed.length) { ctx.fx("eos_chasm_heal", { tiles: healed.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) }); ctx.bump(); }

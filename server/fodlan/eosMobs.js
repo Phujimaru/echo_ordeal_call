@@ -130,7 +130,12 @@ const pullable = (ctx, p) => p && p.alive && p.pos && !p.summon && !p.mountId &&
 function act(ctx, s, H, m, all, acc) {
   const tr = traitOf(m), sm = m.summon, atk = Math.max(1, sm.atk | 0);
   if (tr === "archer") {
-    kite(ctx, s, H, m, all, movOf(ctx, m), MB.archer.scare + 1, MB.archer.range, acc);
+    const shields = H.mobsOf(ctx).filter((o) => o !== m && o.alive && o.pos && o.summon.trait === "shield");
+    const cover = (x, y) => shields.some((o) => H.manhattan(o.pos, { x, y }) === 1 && nearestD(H, all, o.pos) < nearestD(H, all, { x, y }));
+    const covered = shields.length && cover(m.pos.x, m.pos.y) && nearestD(H, all, m.pos) <= MB.archer.range;
+    const g = shields.length && !covered && all.length ? H.stepToward(ctx, s, m, movOf(ctx, m), (x, y) => { const d = nearestD(H, all, { x, y }); return d >= 2 && d <= MB.archer.range && cover(x, y); }) : null;
+    if (g && g.to) { acc.moves.push({ id: m.id, type: H.mobType(m), from: { ...m.pos }, to: { ...g.to }, path: g.path }); m.pos = { ...g.to }; ctx.bump(); }
+    else if (!covered) kite(ctx, s, H, m, all, movOf(ctx, m), MB.archer.scare + 1, MB.archer.range, acc);
     const t = weakest(all.filter((p) => near(H, p.pos, m.pos) <= MB.archer.range));
     if (t) { const n = shoot(ctx, m, t, atk, "arrow", acc, H); ctx.log(`🏹 ${m.name}ยิง ${t.name} -${n}`); }
     return true;
@@ -252,9 +257,36 @@ function onDeath(ctx, s, H, m) {
   if (kids.length) { ctx.fx("mob_split", { id: m.id, x: m.pos.x, y: m.pos.y, kids }); ctx.log(`🪨 ${m.name}แตกออกเป็น ${kids.length} ร่าง!`); }
   return kids;
 }
+// ---------- มอนฉลาดขึ้น (ผู้ใช้สั่ง 2026-11-12 "ต้องทำให้มอนฉลาดกว่านี้ ให้มันเก่งขึ้น") — ใช้กับปีศาจ/ทหารเหล็กทั่วไปทุกตัว ----------
+const SMART = { killReach: 1, isoR: 3, isoReach: 3, hurt: 0.35, healerR: 10 };
+const eff = (p) => (p.hp || 0) + (p.armor || 0);
+// เลือกเหยื่อ: ① คนที่ตีทีเดียวตายได้ในระยะเดิน ② คนที่ยืนแยกจากกลุ่ม (ไม่มีเพื่อนในระยะ 3) ③ ทุกคน
+function smartTargets(ctx, s, H, m, all, mov) {
+  if (!all.length) return all;
+  const atk = Math.max(1, (m.summon.atk | 0)), reach = (p) => H.manhattan(p.pos, m.pos) <= mov + SMART.killReach;
+  const kill = all.filter((p) => reach(p) && eff(p) <= atk);
+  if (kill.length) return kill;
+  const iso = all.filter((p) => H.manhattan(p.pos, m.pos) <= mov + SMART.isoReach && !all.some((o) => o !== p && H.manhattan(o.pos, p.pos) <= SMART.isoR));
+  return iso.length ? iso.sort((a, b) => eff(a) - eff(b)) : all;
+}
+// บาดเจ็บหนัก (เลือด ≤ 35%) + มีปีศาจหมอในระยะ 10 + ไม่มีใครให้ฆ่าได้ทันที → ถอยไปหาหมอ (คืน true = ตานี้ถอยแล้ว)
+function fallBack(ctx, s, H, m, all, mov, acc) {
+  const sm = m.summon, tr = sm.trait;
+  if (tr === "boss" || tr === "healer" || tr === "bomber" || tr === "swarm" || !(sm.maxHp > 0) || m.hp > sm.maxHp * SMART.hurt) return false;
+  const atk = Math.max(1, sm.atk | 0);
+  if (all.some((p) => H.footOf(ctx, p).some((t) => H.manhattan(t, m.pos) === 1) && eff(p) <= atk)) return false; // ฆ่าได้เลย = ไม่ถอย
+  const doc = H.mobsOf(ctx).filter((o) => o !== m && o.alive && o.pos && o.summon.trait === "healer" && H.manhattan(o.pos, m.pos) <= SMART.healerR).sort((a, b) => H.manhattan(a.pos, m.pos) - H.manhattan(b.pos, m.pos))[0];
+  if (!doc || H.manhattan(doc.pos, m.pos) <= 2) return false;
+  const g = H.stepToward(ctx, s, m, mov, (x, y) => H.manhattan({ x, y }, doc.pos) <= 2);
+  if (!g || !g.to) return false;
+  acc.moves.push({ id: m.id, type: H.mobType(m), from: { ...m.pos }, to: { ...g.to }, path: g.path });
+  m.pos = { x: g.to.x, y: g.to.y };
+  ctx.bump();
+  return true;
+}
 function publicOf(ctx, s) {
   const M = MS(s);
   return { mobRunes: M.runes.map((r) => ({ id: r.id, by: r.by, x: r.x, y: r.y })) };
 }
 
-module.exports = { MB, SPECIAL_PCT, MAGITEK_PCT, DAEMON_POOL, MAGITEK_POOL, NEW_TRAITS, isNew, nameOf, pickDaemon, pickMagitek, stats, afterSpawn, act, beforeAct, incoming, onDeath, publicOf, MS };
+module.exports = { SMART, smartTargets, fallBack, MB, SPECIAL_PCT, MAGITEK_PCT, DAEMON_POOL, MAGITEK_POOL, NEW_TRAITS, isNew, nameOf, pickDaemon, pickMagitek, stats, afterSpawn, act, beforeAct, incoming, onDeath, publicOf, MS };
