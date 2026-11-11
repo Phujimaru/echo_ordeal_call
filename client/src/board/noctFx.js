@@ -25,6 +25,8 @@ export const NOCT_ARMS = {
   father: "Sword-of-the-Father", engine: "Engine-Blade",
 };
 const ROYAL = Object.keys(NOCT_ARMS).filter((k) => k !== "engine");
+// ภาพ Engine Blade ตั้งตรงปลายชี้ลง (อาวุธอื่นวางเฉียงปลายชี้ขึ้นขวา) — หมุนให้เข้าชุดกัน
+const BASE_ROT = { engine: Math.PI + 0.6 };
 
 // ---------- จังหวะ (ms) ----------
 const STRIKE_MS = 820, STRIKE_HIT = 0.55;
@@ -91,7 +93,7 @@ function drawArm(g, key, x, y, L, ang, a, ghost = false, lowQ = false) {
   const s = L / Math.max(w, h);
   g.save();
   g.translate(x, y);
-  g.rotate(ang);
+  g.rotate(ang + (BASE_ROT[key] || 0));
   g.globalAlpha = Math.min(1, a);
   if (ghost && !lowQ) { g.globalCompositeOperation = "lighter"; glow(g, 0, 0, L * 0.55, CYAN, 0.25 * a); }
   g.drawImage(src, -w * s / 2, -h * s / 2, w * s, h * s);
@@ -276,9 +278,9 @@ function endFx(g, e, t, lowQ) {
   if (fall < 1) {
     const y = lerp(sy, ty - ts * 1.1, easeIn2(fall));
     streak(g, tx, sy, tx, y, ts * 0.25, 0.9, VIOLET);
-    drawArm(g, "engine", tx, y, ts * 3, Math.PI, 1, true, lowQ);
+    drawArm(g, "engine", tx, y, ts * 3, Math.PI - 0.6, 1, true, lowQ); // ปลายชี้ลงตรง
   } else {
-    drawArm(g, "engine", tx, ty - ts * 1.1, ts * 3, Math.PI, 1 - after, true, lowQ);
+    drawArm(g, "engine", tx, ty - ts * 1.1, ts * 3, Math.PI - 0.6, 1 - after, true, lowQ);
     shards(g, tx, ty, ts * 2.4, after, 77, lowQ ? 10 : 26, 1 - after);
     g.save(); g.globalCompositeOperation = "lighter";
     if (!lowQ) glow(g, tx, ty, ts * (1.5 + 3 * after), VIOLET, 0.75 * (1 - after));
