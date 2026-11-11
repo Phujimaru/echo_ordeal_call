@@ -2620,9 +2620,16 @@ function drawTomb(g, x, y, C, night, now) {
   const fin = P(cx, cy, 1.08), fin2 = P(cx, cy, 1.18);
   g.strokeStyle = night ? "#6e6a5c" : "#b9a76a"; g.lineWidth = Math.max(1.5, fin[2] * 0.025); g.beginPath(); g.moveTo(fin[0], fin[1]); g.lineTo(fin2[0], fin2[1]); g.stroke();
   if (open && ok >= 1) return;
-  // อาวุธหลวงวิญญาณลอยหมุนเหนือสุสาน (ยังไม่เปิด)
+  // อาวุธจักรพรรดิลอยเหนือสุสาน (ยังไม่เปิด — ภาพอาวุธจริงของสุสานนี้ · 2026-11-12)
   const al = open ? 1 - Math.min(1, ok / 0.45) : 1;
   if (al <= 0) return;
+  if (info && info.img && img(info.img)) {
+    const zc = 1.35 + Math.sin(now / 900 + x) * 0.07, c = P(cx, cy, zc + 0.35);
+    glowAt(g, c[0], c[1], c[2] * 0.8, "120,190,255", (night ? 0.75 : 0.5) * al);
+    sprite(g, info.img, cx, cy, zc, 0.85, false, al);
+    if (!FAST) for (let i = 0; i < 4; i++) { const a = now / 700 + i * TAU / 4, q = P(cx + Math.cos(a) * 0.24, cy + Math.sin(a) * 0.24, zc + 0.3 + Math.sin(a * 2) * 0.1); g.fillStyle = `rgba(190,230,255,${0.85 * al})`; g.beginPath(); g.arc(q[0], q[1], Math.max(1, q[2] * 0.016), 0, TAU); g.fill(); }
+    return;
+  }
   const zc = 1.55 + Math.sin(now / 900 + x) * 0.06, rot = now / 1400, ca = Math.cos(rot), sa = Math.sin(rot);
   const tipP = P(cx, cy, zc - 0.32), hilt = P(cx, cy, zc + 0.12), pom = P(cx, cy, zc + 0.24), g0 = P(cx - ca * 0.11, cy - sa * 0.11, zc + 0.12), g1 = P(cx + ca * 0.11, cy + sa * 0.11, zc + 0.12);
   g.save(); g.globalAlpha *= al;
@@ -2969,10 +2976,14 @@ function p4Fx(g, e, p, now, lowQ, units, out, night) {
         g.fillStyle = gr; g.fillRect(b0[0] - s * 0.18 * a, b1[1], s * 0.36 * a, b0[1] - b1[1]);
       }
       const u = unitOf(units, e.id);
-      if (u && p > 0.4 && p < 0.85) { // อาวุธหลวงพุ่งเข้าหาผู้เปิด
+      if (u && p > 0.4 && p < 0.85) { // อาวุธจักรพรรดิพุ่งเข้าหาผู้เปิด
         const k = ease((p - 0.4) / 0.45), x = cx + (u.x - cx) * k, y = cy + (u.y - cy) * k, z = 1.55 + Math.sin(k * Math.PI) * 0.7 - k * 0.9, c = P(x, y, z), a2 = P(x + (u.x - cx) * 0.05, y + (u.y - cy) * 0.05, z - 0.3);
         glowAt(g, c[0], c[1], c[2] * 0.6, "150,210,255", 0.9);
+        const wi = e.w ? `/eos/img/arms/${e.w}.webp` : null;
+        if (wi && img(wi)) { sprite(g, wi, x, y, z - 0.35, 0.8, false, 1); }
+        else {
         g.strokeStyle = "rgba(235,248,255,.95)"; g.lineWidth = Math.max(1.5, c[2] * 0.022); g.lineCap = "round"; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(a2[0], a2[1]); g.stroke(); g.lineCap = "butt";
+        }
         if (!lowQ) for (let i = 1; i < 6; i++) { const kk = Math.max(0, k - i * 0.04), q2 = P(cx + (u.x - cx) * kk, cy + (u.y - cy) * kk, 1.55 + Math.sin(kk * Math.PI) * 0.7 - kk * 0.9); glowAt(g, q2[0], q2[1], q2[2] * 0.18, "150,210,255", 0.4 / i); }
       }
       if (u && p >= 0.82) { const q = (p - 0.82) / 0.18, c = P(u.x, u.y, 0.5); gEllipse(g, u.x, u.y, 0.3 + q * 0.6, 0.03, 26); g.strokeStyle = `rgba(160,215,255,${0.9 * (1 - q)})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, c[0], c[1], c[2] * 1.0, "150,210,255", 0.8 * (1 - q)); }

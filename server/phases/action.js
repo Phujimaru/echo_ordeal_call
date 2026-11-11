@@ -308,7 +308,7 @@ function counters(p, card) {
 // ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (โซระ: ปืน)
 function rangeOf(p) {
   if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
-  return Colony.rangeMod(p, baseRangeOf(p)); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js)
+  return Fodlan.rangeMod(p, Colony.rangeMod(p, baseRangeOf(p))); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js) · Eos: Bow of the Clever +2
 }
 function baseRangeOf(p) {
   const hook = CHAR_HOOKS[p.characterId];

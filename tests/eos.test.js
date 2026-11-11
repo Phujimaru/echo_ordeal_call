@@ -1984,3 +1984,65 @@ test('ราชาปีศาจ: ยาก 4 คน = 2 ตัว เลือ
   setup(3);
   assert.equal(EV.bossCount(ctx(), st()), 1);
 });
+
+// ---------- อาวุธจักรพรรดิ 13 อัน (server/fodlan/eosArms.js — 2026-11-12) ----------
+const AR = require('../server/fodlan/eosArms.js');
+const tombSide = (i) => { const [x, y] = MAP6.TOMBS[i]; return [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].map(([a, b]) => ({ x: a, y: b })).find((t) => Board.inBounds(action.boardMap(), t.x, t.y) && !Board.isObstacle(action.boardMap(), t.x, t.y)); };
+test('อาวุธจักรพรรดิ: สุสาน 13 แห่ง ทุกแห่งมีช่องยืนติด · ภาพครบ · แต่ละแห่งอาวุธไม่ซ้ำ', () => {
+  setup();
+  assert.equal(MAP6.TOMBS.length, 13);
+  assert.equal(AR.ARMS.length, 13);
+  assert.equal(new Set(AR.ARMS.map((a) => a.id)).size, 13);
+  const fs = require('fs'), path = require('path');
+  for (let i = 0; i < 13; i++) {
+    assert.ok(tombSide(i), `สุสาน ${i} มีช่องยืนติด`);
+    assert.equal(action.boardMap().terrain[K(...MAP6.TOMBS[i])], 'fd_eos_tomb');
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'client', 'public', AR.imgOf(AR.ARMS[i].id))), `ภาพ ${AR.ARMS[i].id}`);
+  }
+  const pub = Fodlan.publicInfo().board.tombs;
+  assert.equal(pub.length, 13);
+  assert.ok(pub.every((t) => t.name && t.img && t.desc));
+});
+const openArm = (p, id) => { const i = AR.ARMS.findIndex((a) => a.id === id); p.pos = tombSide(i); actor(p); assert.ok(Fodlan.charAction(p.id, 'fd:tomb'), id); return i; };
+test('อาวุธจักรพรรดิ: เปลี่ยนอาวุธได้ · Father ตี +2 ไม่ดูดเลือด · Bow ระยะ +2 · Katana ทะลุเกราะ · Wanderer คริ 35 · Shield ลดดาเมจจากมอน', () => {
+  setup();
+  const p = P(0);
+  const r0 = action.rangeOf(p)[1];
+  openArm(p, 'clever');
+  assert.equal(action.rangeOf(p)[1], r0 + 2);
+  assert.equal(Fodlan.atkBonus(p), 0);
+  openArm(p, 'father');
+  assert.equal(S6.p4State(st()).arms[p.id].w, 'father', 'เปลี่ยนอาวุธ');
+  assert.equal(action.rangeOf(p)[1], r0);
+  assert.equal(Fodlan.atkBonus(p), 2);
+  p.hp = 5; p.didAttackRound = true; Fodlan.onUnitEnd(p);
+  assert.equal(p.hp, 5, 'Father ไม่เสียเลือด');
+  openArm(p, 'warrior');
+  assert.ok(Fodlan.strikePierces(p));
+  openArm(p, 'wanderer');
+  assert.equal(Fodlan.critPct(p), 35);
+  openArm(p, 'just');
+  const d = mob('daemon', p.pos.x + 30 > 31 ? 0 : 0, 0, { hp: 9 });
+  d.pos = null;
+  const t0 = total(p);
+  combat.withEffectSource(d, () => ctx().damage(p, 3));
+  assert.equal(t0 - total(p), 2, 'Shield of the Just −1');
+});
+test('อาวุธจักรพรรดิ: ผลตอนตีปกติลง (Wise ฟื้นเกราะ · Mystic ฟื้นเลือด · Tall ผลัก · Fierce สตั้น · Oracle แทงทะลุ · Rogue ช้า)', () => {
+  setup();
+  const p = P(0), H = S6.H();
+  const hit = (id, target) => { S6.p4State(st()).arms[p.id] = { until: match.roundNumber + 5, w: id }; return Fodlan.onStrikeLanded(p, target); };
+  p.pos = { x: 13, y: 13 };
+  const d = mob('daemon', 14, 13, { hp: 9 });
+  p.armor = 0; hit('wise', d); assert.equal(p.armor, 1);
+  p.hp = 3; hit('mystic', d); assert.equal(p.hp, 4);
+  hit('rogue', d); assert.ok(d.statuses.slow > 0);
+  Math.random = () => 0; hit('fierce', d); assert.ok(d.statuses.stun > 0); Math.random = realRandom;
+  const behind = { x: 15, y: 13 };
+  if (H.tileFree(ctx(), st(), behind.x, behind.y)) {
+    const d2 = mob('daemon', 15, 13, { hp: 9 });
+    const h2 = d2.hp + d2.armor; hit('oracle', d); assert.equal(h2 - (d2.hp + d2.armor), 2, 'แทงทะลุ 2');
+    require('../server/summon.js').remove(d2);
+    hit('tall', d); assert.deepEqual(d.pos, { x: 15, y: 13 }, 'ผลักถอย 1');
+  }
+});

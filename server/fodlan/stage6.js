@@ -26,6 +26,7 @@ const E = require("./eosEvents"); // PVE รอบสอง: ความยา�
 const PKS = require("./eosPerks"); // PVE รอบสี่: การ์ดอัปเกรดทีม · ดาวท้าทาย · กำแพงชั่วคราว · โชโกโบะทอง
 const XT = require("./eosExtra");
 const SKY = require("./eosSky");
+const AR = require("./eosArms"); // อาวุธจักรพรรดิ 13 อัน (2026-11-12)
 const MBS = require("./eosMobs"); // มอนรูปแบบใหม่ 8 แบบ (2026-11-12): พลธนู · โล่ · พ่นใย · วาร์ป · โซ่ลาก · วงเวท · ฝูงจิ๋ว · แยกร่าง
 const LM = require("./eosLament"); // ความยาก Lament + ผู้คร่ำครวญ (2026-11-11) // PVE รอบหก: คราสกลางวัน · จันทร์เต็มดวง · ฝนดาวตก · รถไฟขนเสบียง · พายุแม่เหล็ก // PVE รอบสาม: คืนสุดท้าย · พลังประจำเสา · ท่าร่วม · รังปีศาจ · ยักษ์หิน · แสงไฟแคมป์ · พลเรือน · มาตรวัดทีม · ฉายา
 
@@ -2173,21 +2174,23 @@ function tombNear(ctx, s, p) {
   return MAP.TOMBS.findIndex(([x, y], i) => !q.tombs[i] && ctx.adjacent(p, x, y));
 }
 function hasArm(s, p) { const q = p4State(s), a = p && q.arms[p.id]; return !!a; }
+const armRec = (s, p) => (p ? p4State(s).arms[p.id] || null : null);
 function openTomb(ctx, s, p) {
   const q = p4State(s), i = tombNear(ctx, s, p);
-  if (i < 0 || !canStrike(ctx, p) || hasArm(s, p)) return false;
+  if (i < 0 || !canStrike(ctx, p)) return false; // ถืออยู่แล้ว = เปลี่ยนเป็นอันใหม่
+  const a = AR.armAt(i);
   q.tombs[i] = true;
-  q.arms[p.id] = { until: ctx.match.roundNumber + ARM_TURNS - 1 };
+  q.arms[p.id] = { until: ctx.match.roundNumber + ARM_TURNS - 1, w: a.id };
   ctx.bump();
-  ctx.fx("tomb_open", { id: p.id, x: MAP.TOMBS[i][0], y: MAP.TOMBS[i][1] });
-  ctx.log(`⚱️ ${p.name} ได้อาวุธหลวงจากสุสานราชวงศ์`);
+  ctx.fx("tomb_open", { id: p.id, x: MAP.TOMBS[i][0], y: MAP.TOMBS[i][1], w: a.id });
+  ctx.log(`⚱️ ${p.name} ได้อาวุธจักรพรรดิ ${a.name} — ${a.desc}`);
   ctx.useStrike(p, 1.6);
   return true;
 }
 // ตาที่ตีด้วยอาวุธหลวง → เสียเลือด 1 (ไม่ถึงตาย) · เรียกตอนจบตา
 function armDrain(ctx, s, p) {
   const q = p4State(s);
-  if (!p || !p.alive || !hasArm(s, p) || !p.didAttackRound) return;
+  if (!p || !p.alive || !hasArm(s, p) || !p.didAttackRound || !AR.drains(armRec(s, p))) return; // Sword of the Father ไม่ดูดเลือด
   const key = `${p.id}|${ctx.match.roundNumber}`;
   if (q.armPaid[key]) return;
   q.armPaid[key] = true;
@@ -2247,7 +2250,7 @@ function p4PreRound(ctx, s, turn) {
 }
 function p4AtkBonus(s, p) {
   const b = buffOf(s, p);
-  return (b && (b.kind === "atk" || b.kind === "feast") ? 1 : 0) + (hasArm(s, p) ? 1 : 0);
+  return (b && (b.kind === "atk" || b.kind === "feast") ? 1 : 0) + AR.atkOf(armRec(s, p)); // อาวุธจักรพรรดิ: ตีเพิ่มตามอาวุธ
 }
 function p4MovBonus(s, p) { const b = buffOf(s, p); return b && (b.kind === "mov" || b.kind === "feast") ? 1 : 0; }
 function p4Hud(ctx, s, p, out) {
@@ -2275,7 +2278,7 @@ function p4Hud(ctx, s, p, out) {
     for (const [k, m] of Object.entries(TEAM_MEALS)) if (has > 0) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, count: m.fish, disabled: !canStrike(ctx, p) || has < m.fish });
   }
   if (onSpot(p, MAP.FISH)) out.push({ key: "fd:fish", icon: "🎣", name: "ตกปลา", disabled: !canStrike(ctx, p) });
-  if (tombNear(ctx, s, p) >= 0) out.push({ key: "fd:tomb", icon: "⚱️", name: "สุสาน", disabled: !canStrike(ctx, p) || hasArm(s, p) });
+  { const ti = tombNear(ctx, s, p); if (ti >= 0) { const a = AR.armAt(ti); out.push({ key: "fd:tomb", icon: "⚔️", name: a.name, desc: `อาวุธจักรพรรดิ ${ARM_TURNS} เทิร์น: ${a.desc}${a.noDrain ? "" : " · ตาที่ตีเสียเลือด 1"}${hasArm(s, p) ? " · เปลี่ยนจากอาวุธที่ถือ" : ""}`, disabled: !canStrike(ctx, p) }); } }
   if (shopNear(ctx, p) && !q.bounty[p.id]) out.push({ key: "fd:bounty", icon: "📜", name: "ค่าหัว", disabled: !ctx.action.canAct(p) });
 }
 function p4Action(ctx, s, p, key, tile) {
@@ -2293,7 +2296,8 @@ function p4Public(ctx, s) {
   return {
     rail: { y: MAP.RAIL_Y, stations: MAP.STATIONS.map(tl), next: q.trainNext, warn: !!q.trainWarn, dir: q.trainDir },
     tunnels: MAP.TUNNELS.map((pair) => pair.map(tl)), docks: MAP.DOCKS.map(tl), camps: MAP.CAMPS.map(tl), fish: MAP.FISH.map(tl),
-    tombs: MAP.TOMBS.map(([x, y], i) => ({ x, y, open: !!q.tombs[i] })),
+    tombs: MAP.TOMBS.map(([x, y], i) => { const a = AR.armAt(i); return { x, y, open: !!q.tombs[i], w: a.id, name: a.name, desc: a.desc, img: AR.imgOf(a.id) }; }),
+    arms: Object.fromEntries(Object.entries(q.arms).map(([pid, r]) => { const a = AR.defOf(r); return [pid, { w: a.id, name: a.name, img: AR.imgOf(a.id), until: r.until }]; })),
     trams: TRAM_STOPS.map((t) => ({ ...t })),
   };
 }
@@ -2303,7 +2307,7 @@ function p4Badges(s, p, badges) {
   if (bm) badges.push({ key: `meal_${b.kind}`, icon: bm.icon, label: bm.name, cls: "bg-orange-200 text-gray-900" });
   const fc = (q.catch || {})[p.id] || 0;
   if (fc) badges.push({ key: "fish_bag", icon: "🐟", label: `ปลา ×${fc}`, cls: "bg-sky-200 text-gray-900" });
-  if (hasArm(s, p)) badges.push({ key: "royal_arm", icon: "⚔️", label: "อาวุธหลวง", cls: "bg-indigo-300 text-gray-900" });
+  if (hasArm(s, p)) badges.push({ key: "royal_arm", icon: "⚔️", label: AR.defOf(armRec(s, p)).name, cls: "bg-indigo-300 text-gray-900" });
   const h = q.bounty[p.id];
   if (h) badges.push({ key: "bounty", icon: BOUNTY[h.kind].icon, label: h.name, cls: "bg-amber-300 text-gray-900" });
 }
@@ -2460,7 +2464,7 @@ const HUD_DESC = {
   "fd:tunnel": "ลอดอุโมงค์ไปออกปากอีกฝั่งทันที (จบการเดินของตา)",
   "fd:gondola": "นั่งกอนโดลาไปท่าอื่นใน Altissia (จบการเดินของตา)",
   "fd:fish": "ตกปลา (ใช้การโจมตี): ได้ปลาเข้าถุง (ถือได้ 3 — เอาไปทำอาหารทีมที่แคมป์) · เหรียญ · ปลาทอง · หรือปลายักษ์ลากลงน้ำ ดาเมจ 2",
-  "fd:tomb": `เปิดสุสานราชวงศ์ (แห่งละครั้ง): อาวุธหลวง ${ARM_TURNS} เทิร์น ตี +1 แต่ตาที่ตีเสียเลือด 1`,
+  "fd:tomb": `เปิดสุสานราชวงศ์ (แห่งละครั้ง): อาวุธจักรพรรดิ ${ARM_TURNS} เทิร์น — แต่ละอันผลต่างกัน · ตาที่ตีเสียเลือด 1`,
   "fd:bounty": "รับค่าหัวจากบอร์ดร้าน — ล้มเป้าหมายได้ = เหรียญ (ถือได้ทีละใบ)",
 };
 const FLASK_DESC = {
@@ -2712,7 +2716,11 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   FLASH, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  incoming(ctx, st, p, n, src) { return st && st.eos && isMob(p) ? MBS.incoming(ctx, st.eos, p, n, src) : n; }, // ทหารโล่
+  incoming(ctx, st, p, n, src) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return MBS.incoming(ctx, s, p, n, src); return src && isMob(src) ? AR.guard(armRec(s, p), n) : n; }, // ทหารโล่ · Shield of the Just
+  rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
+  critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
+  strikePierces(ctx, st, p) { const s = st && st.eos; return !!(s && p && !p.summon && AR.piercesOf(armRec(s, p))); }, // Katana of the Warrior
+  onStrikeLanded(ctx, st, p, target) { const s = st && st.eos, r = s && p && !p.summon ? armRec(s, p) : null; return r ? AR.landed(ctx, s, H(), p, r, target) : null; },
   preventDeath(ctx, st, p) { return !!(st && st.eos) && PKS.gutsSave(ctx, st.eos, p); }, // การ์ดใจสู้
   enter, weatherStart, layer, keepsTile, CHASM_TURNS, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,

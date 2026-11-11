@@ -64,7 +64,7 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if (fd.night && (fd.camps || []).some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) <= (fd.lightR || 2))) return { icon: "🔥", name: "วงไฟแคมป์", desc: "ปีศาจเข้าและตีคนในวงนี้ไม่ได้ (ราชาปีศาจ/ทหารเหล็กไม่กลัวไฟ)" };
   if ((fd.fish || []).some((t) => at(t, x, y))) return { icon: "🎣", name: "จุดตกปลา", desc: "ยืนแล้วกด \"ตกปลา\" (ใช้การโจมตี) — สุ่มได้ปลาเข้าถุง (ถือได้ 3 · เอาไปทำอาหารทีมที่แคมป์)/เหรียญ/ปลาทอง หรือโดนปลายักษ์ลาก" };
   const tomb = (fd.tombs || []).find((t) => at(t, x, y));
-  if (tomb) return { icon: "⚱️", name: "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : "ยืนติดแล้วกด \"สุสาน\" — อาวุธหลวง 5 เทิร์น ตี +1 แต่ตาที่ตีเสียเลือด 1" };
+  if (tomb) return { icon: "⚔️", name: tomb.name || "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : `อาวุธจักรพรรดิ — ยืนติดแล้วกดชื่ออาวุธ (ใช้การโจมตี) · 5 เทิร์น: ${tomb.desc || "ตี +1"}${tomb.w === "father" ? "" : " · ตาที่ตีเสียเลือด 1"}` };
   if ((fd.trams || []).some((t) => at(t, x, y))) return { icon: "🚋", name: "ป้ายรถราง", desc: "ยืนบนป้ายแล้วกดชื่อโซน = นั่งรถรางไปป้ายนั้นทันที (จบการเดินของตา) · คนละ 2 เที่ยว แล้วพัก 2 เทิร์น · มีป้ายทุกโซน ใกล้เสา" };
   if (fd.rail) {
     if ((fd.rail.stations || []).some((t) => at(t, x, y))) return { icon: "🚉", name: "ชานชาลา", desc: `ยืนรอตอนรถไฟผ่าน = ไปชานชาลาอีกฝั่ง · รถไฟมาเทิร์น ${fd.rail.next}` };

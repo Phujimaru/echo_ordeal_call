@@ -16,7 +16,7 @@
 // ============================================================
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
-  mapLayer, keepsTile, incomingDamage, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
+  mapLayer, keepsTile, incomingDamage, rangeMod, critPct, strikePierces, onStrikeLanded, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
   movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, eosOutcome, shields, absorbDamage, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
@@ -273,6 +273,11 @@ function maybeAdvance(startTimer, random = Math.random) {
 // ช่องที่ท่าทำลายพื้นที่ (engine.addChasm) พังไม่ได้ — true = กันไว้
 // ดาเมจที่ยูนิตของด่านได้รับ (combat.adjustIncomingDamage — Eos: ทหารโล่ตีจากหน้าเหลือ 1)
 function incomingDamage(p, n, src) { const r = call("incoming", n, p, n, src); return Number.isFinite(r) ? r : n; }
+// อาวุธจักรพรรดิ (Eos): ระยะตีปกติ · คริ · ทะลุเกราะ · ผลเมื่อตีปกติลง
+function rangeMod(p, r) { const v = call("rangeMod", r, p, r); return Array.isArray(v) ? v : r; }
+function critPct(p) { return Number(call("critPct", 0, p)) || 0; }
+function strikePierces(p, t) { return !!call("strikePierces", false, p, t); }
+function onStrikeLanded(p, t) { return call("onStrikeLanded", null, p, t); }
 function keepsTile(k) { return !!call("keepsTile", false, k); }
 function mapLayer(map) { return call("layer", map, map) || map; }
 function layerVer() {
