@@ -606,7 +606,8 @@ function playAttackCard(card, attacker, target, done) {
   const clips = [[attacker, clipBefore(attacker, card)], [target, card.counter ? counterClip(target, card) : null]].filter(([, k]) => k);
   if (!clips.length) { show(); return; }
   const held = match.cutsceneQueue.splice(0);
-  for (const [p, k] of clips) cutscene.queueCutscene(p, k);
+  //  คีย์เป็น { key, onlyFor } ได้ = คลิปที่เห็นเฉพาะบางคน (เฟรดดี้: จัมป์สแกร์ไม่เล่นบนจอของเฟรดดี้เอง)
+  for (const [p, k] of clips) cutscene.queueCutscene(p, typeof k === "object" ? k.key : k, typeof k === "object" ? k.onlyFor : undefined);
   if (!match.cutsceneQueue.length) { match.cutsceneQueue.push(...held); show(); return; }
   cutscene.runCutsceneQueue(() => { match.cutsceneQueue.push(...held); show(); });
 }

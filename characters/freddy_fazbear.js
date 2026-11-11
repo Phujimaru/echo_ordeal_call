@@ -6,7 +6,7 @@
 //    กลางวัน: ล่องหนตลอด (ไม่หลุดเมื่อตี) · ระยะเดิน 4 · พลังโจมตี 4 · ไม่มีอะไรแตะได้ (untouchable — ผู้ใช้สั่ง 2026-11-11
 //      "ตอนเช้าจะทำอะไรมันไม่ได้เลย นอกจากสู้มินิเกมให้ชนะ") · เข้าใกล้ = เพลงดังให้ทุกคนที่อยู่ใกล้ได้ยิน (ระยะ NEAR · per-viewer ใน view.js)
 //      ตีปกติ (ประชิด) → ทอยหลบก่อน (engine.skillDodge) — หลบพ้น = ไม่ขึ้นฉากประตู วาปออกเลย
-//      ไม่พ้น → มินิเกมประตู 10 วิ (ฮุค interceptStrike): เป้าเลือกประตูที่จะปิด · เฟรดดี้เลือกประตูที่จะเข้า
+//      ไม่พ้น → มินิเกมประตู 10 วิ (ฮุค interceptStrike): เป้าเลือกประตูที่จะปิด · ประตูที่เฟรดดี้เข้า = สุ่ม (เฟรดดี้รอดูผล)
 //        ปิดผิด = จอดำ → คลิปจัมป์สแกร์ → ตีลง (ผ่านด่านหลบมาแล้ว — match.strikeSure) → วาปออก ~5 ช่อง
 //        ปิดถูก = เฟรดดี้เสียหาย 3 (เกราะรับก่อน) + วาปไปที่ใหม่ ~5 ช่อง
 //    ปุ่ม HUD: ขู่ 1 / ขู่ 2 (เสียงขู่ — กดได้ตลอด) · กล่องดนตรี (เฉพาะกลางคืน) — แค่เสียง ปุ่มละครั้งต่อเทิร์น
@@ -136,7 +136,7 @@ module.exports = {
     }
     const s = st(p);
     const d = { freddyId: p.id, foeId: target.id, close: null, enter: null, picked: { freddy: false, foe: false }, result: null };
-    if (botSide(p)) { d.enter = randDoor(); d.picked.freddy = true; }
+    d.enter = randDoor(); d.picked.freddy = true; // เฟรดดี้ไม่ต้องเลือก — สุ่มประตูให้ (ผู้ใช้สั่ง 2026-11-11) · จอเฟรดดี้แค่รอดูผล
     if (botSide(target)) { d.close = randDoor(); d.picked.foe = true; }
     s.door = d;
     engine.log(`🚪 ${p.name} มาถึงหน้าห้องของ ${target.name}`);
@@ -182,10 +182,14 @@ module.exports = {
   },
 
   // คลิปจัมป์สแกร์ก่อนฉากตี: ชนะมินิเกมประตู (กลางวัน) / ตีปกติกลางคืนทุกครั้ง · เสียงตีลงหลังคลิปจบ (ไม่ซ้อน)
-  preAttackClip(engine, p, card) {
-    if (!isFreddy(p) || (card && card.counter && card.targetId === p.id)) return null;
-    if (st(p).scare) { st(p).scare = false; return CUT.scare; }
-    return nightNow(engine) ? CUT.night : null;
+  //  ไม่เล่นบนจอของเฟรดดี้เอง (ผู้ใช้สั่ง 2026-11-11 "คนไปหลอกจะ jump scare ตัวเองทำไม") — onlyFor = ทุกคนยกเว้นเฟรดดี้
+  preAttackClip(engine, p) {
+    if (!isFreddy(p)) return null;
+    let key = null;
+    if (st(p).scare) { st(p).scare = false; key = CUT.scare; } else if (nightNow(engine)) key = CUT.night;
+    if (!key) return null;
+    const onlyFor = Object.values(engine.players).filter((o) => !o.summon && o.id !== p.id).map((o) => o.id);
+    return onlyFor.length ? { key, onlyFor } : null;
   },
   // กลางคืน: เดินแล้วมีเสียงฝีเท้า (ทุกคนได้ยิน · ครั้งเดียวต่อตาเดิน) — afterWalk ถูกเรียกใหม่ทุกก้าว
   afterWalk(engine, p) {
@@ -201,8 +205,8 @@ module.exports = {
   hudActions(engine, p) {
     if (!isFreddy(p) || !p.alive) return undefined;
     const s = st(p), r = engine.roundNumber, off = !engine.canAct(p);
-    const btn = (key, icon, name) => ({ key, icon, name, on: false, cd: 0, disabled: off || s.used[key] === r });
-    const list = [btn("growl1", "🐻", "ขู่ 1"), btn("growl2", "🐻", "ขู่ 2")];
+    const btn = (key, icon, name, row) => ({ key, icon, name, row, on: false, cd: 0, disabled: off || s.used[key] === r });
+    const list = [btn("growl1", "🐻", "ขู่ 1", "growl"), btn("growl2", "🐻", "ขู่ 2", "growl")]; // แบ่งครึ่งแถวเดียว (ผู้ใช้สั่ง)
     if (nightNow(engine)) list.push(btn("box", "🎵", "กล่องดนตรี"));
     return list;
   },

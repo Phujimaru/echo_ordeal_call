@@ -87,19 +87,21 @@ test('กลางวัน ตี → มินิเกมประตู: ป
   const before = vit(P.D);
   const Cut = require('../../server/cutscene.js');
   const realQ = Cut.queueCutscene, cuts = [];
-  Cut.queueCutscene = (p, key) => { cuts.push(key); };
+  Cut.queueCutscene = (p, key, onlyFor) => { cuts.push({ key, onlyFor }); };
   t.after(() => { Cut.queueCutscene = realQ; });
   assert.equal(engine.attackTarget('F', 'D'), true);
   const v = fz.doorView(engine, ['D']);
   assert.equal(v.side, 'foe');
   assert.equal(fz.doorView(engine, ['F']).side, 'freddy');
-  assert.equal(fz.doorAction(engine, 'D', 'left'), true);
-  assert.equal(fz.doorView(engine, ['F']).close, null, 'เฟรดดี้ไม่เห็นประตูที่ปิดก่อนผลออก');
-  assert.equal(fz.doorAction(engine, 'F', 'right'), true);
+  assert.equal(fz.doorAction(engine, 'F', 'left'), false, 'เฟรดดี้ไม่ต้องเลือก (สุ่มให้)');
+  assert.equal(fz.doorView(engine, ['D']).enter, null, 'เป้าไม่เห็นประตูที่เฟรดดี้เข้าก่อนผลออก');
+  assert.equal(fz.doorAction(engine, 'D', 'left'), true); // สุ่ม 0.99 = ประตูขวา
   assert.equal(fz.doorView(engine, ['F']).result, 'enter');
   flush(t, 3000);
   assert.equal(before - vit(P.D), 4);
-  assert.ok(cuts.includes(fz.CUT.scare), 'คลิปจัมป์สแกร์ก่อนฉากตี');
+  const cut = cuts.find((c) => c.key === fz.CUT.scare);
+  assert.ok(cut, 'คลิปจัมป์สแกร์ก่อนฉากตี');
+  assert.deepEqual(cut.onlyFor, ['D'], 'ไม่เล่นบนจอของเฟรดดี้');
   flush(t, 4000);
   const d = Math.abs(P.F.pos.x - 4) + Math.abs(P.F.pos.y - 7);
   assert.ok(d >= 1 && d <= 5, `ตีโดนแล้ววาปออก (ระยะ ${d})`);
@@ -112,7 +114,6 @@ test('กลางวัน ปิดถูก = เฟรดดี้เสี�
   const before = vit(P.D), fBefore = vit(P.F), from = { ...P.F.pos };
   engine.attackTarget('F', 'D');
   fz.doorAction(engine, 'D', 'right');
-  fz.doorAction(engine, 'F', 'right');
   flush(t, 3000);
   assert.equal(vit(P.D), before);
   assert.equal(fBefore - vit(P.F), 3);
@@ -175,6 +176,7 @@ test('ปุ่ม HUD: ขู่กดได้ตลอด · กล่อง�
   const P = setup([['F', 'freddy_fazbear', 4, 7], ['D', 'dummy', 5, 7]]);
   engine.setActor('F');
   assert.deepEqual(fz.hudActions(engine, P.F).map((a) => a.key), ['growl1', 'growl2']);
+  assert.ok(fz.hudActions(engine, P.F).every((a) => a.row === 'growl'), 'ปุ่มขู่แบ่งครึ่งแถวเดียว');
   assert.equal(fz.charAction(engine, P.F, 'box'), false);
   assert.equal(fz.charAction(engine, P.F, 'growl1'), true);
   assert.equal(fz.charAction(engine, P.F, 'growl1'), false);
