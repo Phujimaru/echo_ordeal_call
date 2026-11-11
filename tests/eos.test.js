@@ -677,7 +677,7 @@ test('L12 หินพลังเวท → ขวดเวท · ไฟ = ล�
   setup();
   const s4 = st(), p4 = P(0);
   s4.flasks[p4.id] = ['thunder'];
-  const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number));
+  const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number)).filter(([, y]) => y >= 10); // ผืนทะเลสาบ Cleigne (บึงเล็กข้าง Insomnia เป็นอีกผืน)
   const [ax, ay] = shallow[0];
   const far = shallow.find(([x, y]) => Math.abs(x - ax) + Math.abs(y - ay) >= 4);
   const m4 = mob('daemon', far[0], far[1], { hp: 9, armor: 0 });

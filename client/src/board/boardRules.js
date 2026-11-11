@@ -609,17 +609,17 @@ const EOS_DEF = (() => { const module = { exports: {} }; // สนาม Eos (GR
 //   F ป่าทึบ (fd_eos_forest — กติกาเท่า forest)  s น้ำตื้น (fd_eos_shallow — กติกาเท่า shallow)  X เสายึดพื้นที่
 //   B ตึก  W กำแพงเมือง  L เสาไฟถนน  T ต้นไม้  R หิน  ~ น้ำลึก  c คลอง  P ปั๊มน้ำมัน  G อู่ซ่อมรถ  (สิ่งกีดขวาง)
 const ROWS = [
-  "..R.....WBBBBBp==pBBBBBW..T.....", // y0
-  "......R.WBBBppL==LppBBBW........", // y1
-  "........WpppQpp==ppppBBW........", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
-  "........WBpppBp==ppXppBW.....T..", // y3
-  "........ppppLpp==ppLpppp........", // y4
-  "........WBBpppp==ppppBBW........", // y5
-  "........WpppBBp==pBpZppW........", // y6
-  "........WWppppL==LppppWW...T....", // y7
-  ".T.......WWpWUW==WUWpWW..T......", // y8
-  ".......==============.....T.....", // y9
-  "...=======================......", // y10
+  "T..B.BT.WBBBBBp==pBBBBBW.T...ss~", // y0
+  "...BpB..WBBBppL==LppBBBW....sss~", // y1
+  ".L.p.p..WpppQpp==ppppBBW.L..ss..", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
+  "...p.p..WBpppBp==ppXppBW....p.T.", // y3
+  "..======ppppLpp==ppLpppp===.....", // y4
+  "B..=..pBWBBpppp==ppppBBW..=..L..", // y5
+  "B..=.pppWpppBBp==pBpZppWT.=.....", // y6
+  "T..=..LTWWppppL==LppppWW..=..T..", // y7
+  ".T.=.....WWpWUW==WUWpWW..L=.....", // y8
+  "...=...==============.....=...T.", // y9
+  "...========================.....", // y10
   "...======........TF========F....", // y11
   "...==~~~s..kk....TFFFTTF=====...", // y12
   "..===~~~~ssk...TTTFFFTTFU=====..", // y13
