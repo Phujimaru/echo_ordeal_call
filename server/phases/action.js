@@ -1177,6 +1177,27 @@ function strikeTarget(id, targetId) {
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
+  // ฮุค interceptStrike(engine, p, target) → { after } = รับช่วงการตีนี้ (เฟรดดี้: มินิเกมประตู) — ฉากที่ฮุคคิวไว้ (skillBeat) เล่นก่อน
+  //  after() คืน "strike" = ตีลงต่อโดยข้ามด่านหลบ (match.strikeSure) · ตัวเลข = วินาทีพักฉากก่อนจบตา
+  const icHook = CHAR_HOOKS[p.characterId];
+  const ic = icHook && icHook.interceptStrike ? combat.withEffectSource(p, () => combat.runHook(icHook, "interceptStrike", engine, p, target)) : null;
+  if (ic && typeof ic.after === "function") {
+    p.didAttackRound = true;
+    require("../cutscene").runSkillFlow(() => {
+      if (endTurnPhase.gameOver()) return;
+      const r = combat.withEffectSource(p, ic.after);
+      if (r === "strike" && p.alive && p.pos && target.alive && target.pos) {
+        match.strikeSure = p.id;
+        try { attack.boardAttack(p, target, done); } finally { match.strikeSure = null; }
+        return;
+      }
+      if (endTurnPhase.gameOver()) return;
+      match.gameState = "ATTACKING";
+      timers.startPhaseTimer(Number(r) > 0 ? Number(r) : 0.6, done);
+      view.broadcastState();
+    });
+    return true;
+  }
   attack.boardAttack(p, target, done);
   return true;
 }

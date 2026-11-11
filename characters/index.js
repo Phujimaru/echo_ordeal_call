@@ -36,6 +36,7 @@ const old_truck = require("./old_truck"); // รถบรรทุกเก่�
 const arjuna = require("./arjuna"); // มหาเทพอรชุน — พิเศษ (จุติ · โบนัสตามชนิดดีบัฟ · แถบ 4 ช่องผ่าโลกทั้งแมพ)
 const roland = require("./roland"); // โรลันด์ Black Silence — ยาก · unique (การ์ดอาวุธ 9 แบบ · Emotion · Furioso)
 const giorno_giovanna = require("./giorno_giovanna"); // โจรุโน่ โจวาน่า — ปานกลาง (สะท้อน · ต้นไม้หลบ/ตรึง · Muda ฮีลแล้วสตั้น · ตีเพื่อน = ฮีล)
+const freddy_fazbear = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์ — เอาฮา (ไม่มีสกิล · กลางวันล่องหน + มินิเกมประตู · กลางคืนเดิน 9)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -90,6 +91,7 @@ const CHARACTER_MODULES = [
   tsurugi,
   kurenai_otoya,
   gilgamesh_fake,
+  freddy_fazbear,
 ];
 
 const CHAR_HOOKS = {};

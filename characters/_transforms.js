@@ -20,6 +20,7 @@ const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: 
 const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ: แปลงร่าง (ครั้งแรกต่อเกม) · มือเปล่าติดคริ (ก่อนฉากตี) · ท่า Lightning 3 แบบ (ตอนโดน)
 const roland = require("./roland"); // โรลันด์: Furioso — คลิปผู้ใช้
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
+const freddy = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์: จัมป์สแกร์ (ชนะมินิเกมประตู)
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
 const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
@@ -203,6 +204,9 @@ module.exports = function buildTransforms() {
       [3, "slashFirst", "Rider Slash", "ท่าไม้ตาย", "rider", 7.9],
       [3, "slashFinal", "Rider Slash", "ท่าไม้ตาย", "rider", 3.9],
     ].map(([n, k, title, label, img, seconds]) => [ZECT[n].CUT[k], { img: ZECT[n].IMG[img], video: ZECT[n].VIDEO[k], title, label, seconds, music: null, afterReveal: false }])),
+    // เฟรดดี้ — ความยาวจริง 1.5 วิ · ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร")
+    [freddy.CUT.scare]: { img: freddy.IMG.card, video: freddy.VIDEO.scare, title: "", label: "", seconds: 1.9, music: null, afterReveal: false, noIntro: true },
+    [freddy.CUT.night]: { img: freddy.IMG.card, video: freddy.VIDEO.night, title: "", label: "", seconds: 1.4, music: null, afterReveal: false, noIntro: true },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

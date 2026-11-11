@@ -163,6 +163,12 @@ const FILES = {
   // รถบรรทุกเก่า / ออพติมัส ไพร์ม — Mixkit ฟรี (ต้นฉบับ .claude/plans/old-truck-sfx-src/ · สคริปต์ old-truck-sfx.sh · -16 LUFS)
   //  slash/ram/counter = ตีปกติ (ดาบ / ร่างรถ / ฟันสวน) · transform/stance = ปุ่มหลังเล่นคลิปไปแล้ว · ult = คลื่นครึ่งวง · heal = ฟื้นพลังชีวิต
   ot_slash: "/characters/old_truck/sfx/ot_slash.mp3",
+  freddy_music: "/characters/freddy_fazbear/music.mp3", // เฟรดดี้: เพลงตอนเข้าใกล้ (กลางวัน) — ไฟล์จากผู้ใช้
+  freddy_door: "/characters/freddy_fazbear/sfx/door.mp3", // เฟรดดี้: ประตูปิด (มินิเกมประตู — สังเคราะห์ด้วย ffmpeg)
+  freddy_box: "/characters/freddy_fazbear/sfx/music_box.mp3", // เฟรดดี้: ปุ่มกล่องดนตรี (HUD)
+  freddy_growl_1: "/characters/freddy_fazbear/sfx/growl_1.mp3", // เฟรดดี้: ปุ่มขู่ (HUD · สุ่ม 2 แบบ)
+  freddy_growl_2: "/characters/freddy_fazbear/sfx/growl_2.mp3",
+  freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน
   ot_ram: "/characters/old_truck/sfx/ot_ram.mp3",
   ot_counter: "/characters/old_truck/sfx/ot_counter.mp3",
   ot_transform: "/characters/old_truck/sfx/ot_transform.mp3",

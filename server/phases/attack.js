@@ -192,7 +192,8 @@ function strikeBody(attacker, target, counter) {
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
   combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: กันการโจมตี / หลุดซ่อนเร้นมานา) — ก่อนทอยหลบ
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
-  const accurate = accurateActive(attacker);
+  //  match.strikeSure = ผู้ตีที่ผ่านด่านหลบมาแล้ว (เฟรดดี้: ชนะมินิเกมประตู) — ข้ามทุกด่านหลบเหมือนแม่นยำ
+  const accurate = accurateActive(attacker) || (!counter && match.strikeSure === attacker.id);
 
   // หลบได้แน่นอนจากผลของคนอื่น (broadcast grantedDodge(engine, เป้า, ผู้ตี) → { name, img } — โจรุโน่: จงกำเนิดใหม่ 1 ครั้ง) · แม่นยำเจาะได้
   const granted = !accurate && combat.firstHook("grantedDodge", engine, target, attacker);

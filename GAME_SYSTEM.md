@@ -1316,3 +1316,14 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - dev: launch `server-eos` / `server-eos-night` (เริ่มเทิร์น 4 + `ECHO_DEV_EOS_WEATHER`) + `client-eos` (5201) · เทสต์ [tests/eos.test.js](tests/eos.test.js)
 
 **ชั้นรับดาเมจของสนาม (2026-11-10):** `combat.layerAbsorb(p)` ถาม `fodlan.absorbDamage(p)` ก่อนฮุค `absorbDamage` ของตัวละคร (และ `dealDirect` ก็ถาม) → ด่านที่ export `absorbDamage(ctx, st, p)` คืน true = รับดาเมจ 1 หน่วยแทน · สนาม Eos ใช้ให้รถ/โชโกโบะรับแทนคนขับ/คนขี่ (§51)
+
+## 52. รับช่วงการตีปกติ (มินิเกมก่อนตีลง) / ภาพตัวเต็มแทนหมาก (เฟรดดี้ ฟาซแบร์ — `characters/freddy_fazbear.js` · ผู้ใช้สั่ง 2026-11-11)
+
+- **ฮุค `interceptStrike(engine, p, target)`** (`action.strikeTarget` หลังด่านระยะ/มองเห็น ก่อน `attack.boardAttack`) → `{ after }` = ฮุครับช่วงการตีครั้งนี้
+  - ฮุคคิวฉากเอง (`engine.skillBeat(sec, fn, { open: true })` — ฉากรอผู้เล่นเลือก · ครบแล้ว `engine.releaseBeat()`) → server เล่น `runSkillFlow` จนจบแล้วเรียก `after()`
+  - `after()` คืน `"strike"` = ตีลงต่อด้วยท่อปกติ (`boardAttack` เต็ม) โดย **ข้ามทุกด่านหลบ** (`match.strikeSure = ผู้ตี` → `attack.strikeBody` นับเหมือนแม่นยำ · ไม่ใช้กับตีสวน) · ตัวเลข = วินาทีพักฉาก ATTACKING แล้วจบตา
+  - ด่านหลบที่ต้องทอยก่อนฉาก = `engine.skillDodge(p, target, "การโจมตี")` ในฮุค
+- **มินิเกมประตู**: state per-viewer `freddyDoor` (`doorView` — ประตูของอีกฝ่ายซ่อนจนผลออก) · socket `freddyDoor { door: left|right }` → `doorAction` · ยูนิตที่ถูกเรียก/หลุดเน็ต = สุ่มให้ · client `screens/hud/FreddyDoors.jsx` (ภาพห้อง `room.webp` · ช่องประตูทาดำ · ปิด = แผงประตูจากภาพเดิมเลื่อนลง) · dev `?freddy=foe|freddy|watch`
+- **ภาพตัวเต็มแทนหมาก**: state ตัวละคร `standee: url` → `client/src/board/freddyFx.js drawStandee` (ใน `drawUnit` ทางเดียวกับร่างรถของออพติมัส — ไม่มีเสา/หกเหลี่ยม · หลอดพลัง/กล่องคลิกตามกรอบภาพ)
+- **เพลงตอนเข้าใกล้ (per-viewer)**: state `freddyNear` (`nearView` — ผู้ชมอยู่ห่าง ≤ 3 ช่องตอนกลางวัน) → client `startLoopSfx("freddy_music")` · มินิเกม/คลิป = หยุด
+- PVE (สนาม Eos / Moon Cell): ร่างกลางคืนตลอด · พลังโจมตี 6 · คริ 50% · เทสต์ [tests/characters/freddy_fazbear.test.js](tests/characters/freddy_fazbear.test.js)

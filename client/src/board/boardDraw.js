@@ -34,6 +34,7 @@ import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme"
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
+import { drawStandee, hasStandee } from "./freddyFx";
 import { DIO_FX_DUR, DIO_HIT_P, DIO_MS, dioFx, dioUnitBack, isDioFx } from "./dioFx";
 import { GIO_FX_DUR, GIO_HIT_P, GIO_MS, gioForeAlpha, gioRewindLayer, gioUnitBack, gioUnitFront, giornoFx, isGioFx } from "./giornoFx";
 import { ARJ_FX_DUR, ARJ_HIT_P, ARJ_MS, arjUnitBack, arjunaBoardFx, isArjFx } from "./arjunaBoardFx";
@@ -927,7 +928,8 @@ function drawUnit(g, u, now, boxes) {
   // นั่งในรถ (สนาม Eos — ผู้ใช้สั่ง 2026-11-09 "ให้เป็น 1 เดียวกับรถ ไม่ต้องมีขาหมาก"): รูปอยู่ระดับห้องโดยสาร ไม่ลอย
   let hy = (UI_PIECE && pitchOf() >= 80 ? by : u.inCar ? by - s * 0.5 * K : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
-  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : null;
+  //  เฟรดดี้ ฟาซแบร์ (freddyFx.js): ภาพตัวเต็มแทนหมาก — ไม่มีเสา/หกเหลี่ยม เหมือนร่างรถ
+  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? drawStandee(g, u, now, wx, wy, u.hz || 0) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));

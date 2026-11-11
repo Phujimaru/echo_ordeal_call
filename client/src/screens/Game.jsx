@@ -27,6 +27,7 @@ import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
+import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
@@ -2174,6 +2175,17 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     else if (!inuiUp && inuiUpRef.current) { inuiUpRef.current = false; stopLoopSfx(); return; }
     if (inuiUp) { if (phase === "ACTION") resumeLoopSfx(); else pauseLoopSfx(); } // เดินตามนาฬิกา 10 วิ: ฉากตี/คลิปพักทั้งคู่
   }, [inuiUp, phase]);
+  // เฟรดดี้ (กลางวัน): ผู้ชมอยู่ใกล้ = เพลงวนจนออกห่าง (state.freddyNear — per-viewer) · ไม่ทับลูปของคนอื่น
+  //  มินิเกมประตู / คลิป = ไม่มีเพลงนี้
+  const freddyLoop = inuiUp || ohgerLoop || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
+  const freddyLoopRef = useRef(null);
+  useEffect(() => {
+    if (freddyLoopRef.current === freddyLoop) return;
+    if (freddyLoopRef.current) stopLoopSfx();
+    freddyLoopRef.current = freddyLoop;
+    if (freddyLoop) startLoopSfx(freddyLoop);
+  }, [freddyLoop]);
+  useEffect(() => () => { if (freddyLoopRef.current) stopLoopSfx(); }, []);
   const ohgerLoopRef = useRef(null);
   useEffect(() => {
     if (ohgerLoopRef.current === ohgerLoop) return;
@@ -2834,6 +2846,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
       <ClockDuel clock={state.clockUp || null} players={state.players} myId={me?.id} onMash={mashClock} />
+      {/* เฟรดดี้ ฟาซแบร์: มินิเกมประตู 10 วิ (state.freddyDoor — characters/freddy_fazbear.js) */}
+      <FreddyDoors door={state.freddyDoor || null} onPick={(d) => { clickSound(); socket.emit("freddyDoor", { door: d }); }} />
       <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}

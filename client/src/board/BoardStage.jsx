@@ -2345,6 +2345,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
+      standee: !mk && p.freddy ? p.freddy.standee || null : null, // เฟรดดี้: ภาพตัวเต็มแทนหมาก (freddyFx.js)
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
       // คุเรไน โอโตยะ (otoyaFx.js): ร่าง Dark Kiva / หลุมพราง / Wake Up 2 / กำลังสีไวโอลิน · เป้าดนตรีในหัวใจ (ใครก็ได้)

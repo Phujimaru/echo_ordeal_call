@@ -28,7 +28,7 @@ const saved = { triggerCutscene: engine.triggerCutscene, queueCutscene: engine.q
 test.before(() => { engine.triggerCutscene = () => {}; engine.queueCutscene = () => {}; engine.skillFlash = () => {}; engine.boardFx = () => {}; });
 test.after(() => { Object.assign(engine, saved); engine.clearPhaseTimer(); });
 
-const ids = CHARACTERS.filter((c) => !c.hidden && c.id !== 'echo' && !echo.BLOCKED.has(c.id)).map((c) => c.id);
+const ids = CHARACTERS.filter((c) => !c.hidden && c.id !== 'echo' && !echo.BLOCKED.has(c.id) && (c.basic || c.secondary || c.ultimate)).map((c) => c.id);
 
 for (const id of ids) {
   test(`สวมร่าง ${id} → ใช้สกิล → ต้นเทิร์น → คืนร่าง`, () => {

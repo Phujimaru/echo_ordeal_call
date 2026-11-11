@@ -205,6 +205,8 @@ function buildStateInner(viewerId) {
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
+    freddyDoor: CHAR_HOOKS.freddy_fazbear.doorView(engine, [viewerId, controlId].filter(Boolean)), // มินิเกมประตูของเฟรดดี้ (ประตูอีกฝ่ายซ่อนจนผลออก)
+    freddyNear: CHAR_HOOKS.freddy_fazbear.nearView(engine, [controlId || viewerId].filter(Boolean)), // เพลงเฟรดดี้: ผู้ชมอยู่ใกล้ (กลางวัน)
     turnOrder: masked ? [] : match.turnOrder,
     actorIndex: masked ? -1 : match.actorIndex, // ตำแหน่งในลำดับของฝ่ายที่เดินล่าสุด (ตาพิเศษหยุดเวลา = ยังไม่เลื่อน) — คิว 2 คนถัดไปด้านขวา
     masked,
@@ -384,6 +386,7 @@ function buildStateInner(viewerId) {
         otoya: CHAR_HOOKS.kurenai_otoya.unitMark(engine, p), // คุเรไน: สายดนตรี (ใครก็ได้) / ร่าง Dark Kiva / หลุมพราง / Wake Up 2 (เจ้าตัว)
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
         allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
+        freddy: hook && hook.freddyState ? hook.freddyState(engine, p) : undefined, // เฟรดดี้: ภาพตัวบนกระดาน · กลางคืน
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)

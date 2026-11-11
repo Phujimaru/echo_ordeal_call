@@ -51,7 +51,8 @@ const match = {
   cmdSeq: 0,           // เลขคำสั่งของผู้เล่น (TimeStop.guard ชั้นนอกสุด +1) — ตัวละครใช้แยก "การโจมตี 1 ครั้ง" (วาเลนไทน์: สกิลติดตัว)
   // ---------- หยุดเวลา (server/timeStop.js — ดิเอโก้) ----------
   extraTurns: [],      // ตาเดินพิเศษที่รอคิว [{ id, kind }] — nextActor เล่นก่อนเลื่อนลำดับ
-  flowWanted: false,   // engine.wantFlow(): มีฉากรอเล่นหลังคำสั่ง/ฉากตีนี้
+  flowWanted: false,
+  strikeSure: null,    // ผู้ตีที่ผ่านด่านหลบมาแล้ว (เฟรดดี้: ชนะมินิเกมประตู) — attack.strikeBody ข้ามด่านหลบ   // engine.wantFlow(): มีฉากรอเล่นหลังคำสั่ง/ฉากตีนี้
   flowHandoff: null,   // engine.flowHandoff(): ฉากจบแล้วเข้าตาพิเศษ { id, kind }
   clockUp: null,       // ช่วง Clock Up (server/clockUp.js — ไรเดอร์ ZECT / Faiz Start Up): หลายคนขยับพร้อมกัน
   dotTick: false,     // กำลังลงดาเมจต่อเทิร์นของสถานะต้นเทิร์น (phases/draw.js) — engine.dotTick
