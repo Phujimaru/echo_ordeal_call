@@ -2318,6 +2318,7 @@ function preRound(ctx, st) {
   const s = st && st.eos;
   if (!s) return 0;
   s.lamentOn = LM.on(ctx);
+  if (process.env.ECHO_DEV_EOS_AT && !s.devAt) { const [ax, ay] = process.env.ECHO_DEV_EOS_AT.split(",").map(Number), h = heroes(ctx)[0], to = h && freeNear(ctx, s, ax, ay, 3); if (to) { s.devAt = true; h.pos = { ...to }; ctx.bump(); } } // dev: วางผู้เล่นคนแรกที่ช่องนี้ (ดูภาพแต่ละเมือง)
   const healed = require("../phases/action").expireChasm(CHASM_TURNS);
   if (healed.length) { ctx.fx("eos_chasm_heal", { tiles: healed.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) }); ctx.bump(); }
   checkRiders(ctx, s);

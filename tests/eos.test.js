@@ -2055,7 +2055,7 @@ test('ของประจำเมือง: มีครบ (อู่ · ร
   assert.ok(TWN.SPOTS.garage.length && TWN.SPOTS.shrine.length === 1 && TWN.SPOTS.diner.length === 2 && TWN.SPOTS.ranch.length === 1);
   for (const t of [...TWN.SPOTS.shrine, ...TWN.SPOTS.diner, ...TWN.SPOTS.ranch]) assert.ok(sideOf(t), `${t.x},${t.y}`);
   const m = action.boardMap();
-  assert.equal(m.heal.size, 5);
+  assert.equal(m.heal.size, 4);
   assert.equal(m.healKind, 'fountain');
 });
 test('ของประจำเมือง: ร้านอาหาร (เหรียญ/ปลา) · ศาลทั้งทีมเกราะ +2 · ฟาร์มเรียกโชโกโบะ · อู่ซ่อม + เทอร์โบ', () => {

@@ -150,7 +150,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0, fd_eos_shrine: 1.3, fd_eos_diner: 1.0, fd_eos_ranch: 1.1 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0, fd_eos_shrine: 1.65, fd_eos_diner: 1.0, fd_eos_ranch: 1.1 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -3052,8 +3052,48 @@ function p4AirAlways(g, fd, now) {
 }
 
 // =================================================================== ground (ใต้ไฮไลต์)
+// อ่างน้ำพุกลางลาน Altissia (ช่องฟื้นฟู map.heal 2×2) — พื้น: ขอบหินกลม + น้ำกระเพื่อม · กลางอ่าง (items): เสาน้ำพุ 3 ชั้น + สายน้ำ
+let FOUNTAIN = null, FOUNTAIN_SIG = ""; // คำนวณจาก info.heal ของกระดาน (fountainFrom)
+function fountainFrom(info) {
+  const h = (info && info.heal) || [];
+  const sig = h.map((t) => `${t.x},${t.y}`).join("|");
+  if (sig === FOUNTAIN_SIG) return FOUNTAIN;
+  FOUNTAIN_SIG = sig;
+  if (!h.length) return (FOUNTAIN = null);
+  const xs = h.map((t) => t.x), ys = h.map((t) => t.y);
+  return (FOUNTAIN = { x: (Math.min(...xs) + Math.max(...xs) + 1) / 2, y: (Math.min(...ys) + Math.max(...ys) + 1) / 2, r: (Math.max(...xs) - Math.min(...xs) + 1) / 2 - 0.06 });
+}
+function fountainBasin(g, now, night, lowQ) {
+  const F = FOUNTAIN; if (!F) return;
+  gEllipse(g, F.x, F.y, F.r + 0.06, 0.0, 40); g.fillStyle = "rgba(0,0,0,.18)"; g.fill();
+  gEllipse(g, F.x, F.y, F.r, 0.16, 40); g.fillStyle = night ? "#8d939c" : "#e4e1d8"; g.fill(); // ขอบหิน
+  gEllipse(g, F.x, F.y, F.r - 0.12, 0.13, 40); g.fillStyle = night ? "#1f4f6e" : "#4fa3cf"; g.fill(); // ผิวน้ำ
+  if (!lowQ) for (let i = 0; i < 3; i++) { const k = ((now / 1800) + i / 3) % 1; gEllipse(g, F.x, F.y, 0.2 + k * (F.r - 0.35), 0.135, 32); g.strokeStyle = `rgba(220,245,255,${0.45 * (1 - k)})`; g.lineWidth = 1.5; g.stroke(); }
+  gEllipse(g, F.x, F.y, F.r - 0.12, 0.13, 40); g.strokeStyle = night ? "rgba(150,210,255,.35)" : "rgba(255,255,255,.55)"; g.lineWidth = 1.2; g.stroke();
+}
+function fountainCore(g, now, night, lowQ) {
+  const F = FOUNTAIN;
+  if (!F) return;
+  const tier = (r, z0, z1, col, top) => frustum(g, regPoly(F.x, F.y, r, 10), z0, regPoly(F.x, F.y, r * 0.92, 10), z1, col, top);
+  tier(0.3, 0.13, 0.28, night ? "#9aa0a8" : "#ece9e0", night ? "#2a5a7a" : "#5fb3dc");
+  tier(0.07, 0.28, 0.5, night ? "#a2a8b0" : "#f2efe8", null);
+  tier(0.17, 0.5, 0.56, night ? "#a8aeb6" : "#f6f3ec", night ? "#2a5a7a" : "#6cc0e6");
+  const top = P(F.x, F.y, 0.7), s = top[2];
+  glowAt(g, top[0], top[1], s * 0.5, "180,230,255", night ? 0.55 : 0.35);
+  if (lowQ) return;
+  // สายน้ำพุ่งขึ้นแล้วโค้งลงอ่าง (8 สาย) + ละออง
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * TAU + now / 4000;
+    const p0 = P(F.x, F.y, 0.6), pm = P(F.x + Math.cos(a) * 0.3, F.y + Math.sin(a) * 0.3, 0.85), p1 = P(F.x + Math.cos(a) * 0.62, F.y + Math.sin(a) * 0.62, 0.15);
+    g.strokeStyle = night ? "rgba(170,220,255,.55)" : "rgba(235,250,255,.8)"; g.lineWidth = Math.max(1.2, s * 0.018);
+    g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(pm[0], pm[1] - s * 0.08, p1[0], p1[1]); g.stroke();
+  }
+  for (let i = 0; i < 10; i++) { const k = ((now / 900) + hash(i, 4)) % 1, a = hash(i, 9) * TAU, q = P(F.x + Math.cos(a) * 0.15 * k, F.y + Math.sin(a) * 0.15 * k, 0.6 + k * 0.3); g.fillStyle = `rgba(235,250,255,${0.8 * (1 - k)})`; g.beginPath(); g.arc(q[0], q[1], Math.max(1, s * 0.012), 0, TAU); g.fill(); }
+}
 export function ground(g, fd, info, now, lowQ = false) {
   LAST_FD = fd;
+  fountainFrom(info);
+  fountainBasin(g, now, !!fd.night || LAST_NIGHT, lowQ);
   // สะพานกำลังลดลง (ชั้น layer ไม่มี fd_eos_bridgeup แล้ว — วาดบานสะพานตกลงทับสะพานที่อบไว้)
   const be = lastFx("bridge");
   if (be && !be.up && !fd.bridgeUp) {
@@ -3109,6 +3149,7 @@ export function ground(g, fd, info, now, lowQ = false) {
 // =================================================================== items (เรียงความลึกกับตัวละคร)
 export function items(list, g, fd, info, units, now, lowQ) {
   const night = !!fd.night || LAST_NIGHT;
+  if (fountainFrom(info)) list.push({ d: depthOf(FOUNTAIN.x, FOUNTAIN.y), f: () => fountainCore(g, now, night, lowQ) });
   // รถ 1 ช่อง (ผู้ใช้สั่ง 2026-11-09 — ขึ้นขี่แล้วขับแบบม้า): จอด = ตามตำแหน่งรถ · มีคนขับ = ใต้หมากคนขับ (ตามตำแหน่งวาดของหมาก วิ่งไปพร้อมกัน)
   //  ภาพรถของผู้ใช้หันซ้ายเป็นค่าเริ่ม → กลับด้านตามทิศที่วิ่งบนจอ (หมุนกล้องได้) · ขึ้นรถ = รถยุบรับน้ำหนัก + ไฟหน้าวาบ · ชน = รถพุ่งไปครึ่งช่องแล้วถอย
   for (const c of fd.cars || []) {
@@ -3469,15 +3510,27 @@ function playFx(e) {
 // ---------- ของประจำเมือง (2026-11-12) ----------
 // ศาลเทพธิดา Altissia: ฐานหินขาว 2 ชั้น + เสา 4 ต้น + หลังคาโดมฟ้า + แสงเรืองกลาง (ใช้ได้ = เรืองแรง)
 function drawShrine(g, x, y, night, now) {
-  const ready = !LAST_FD || LAST_FD.shrineReady !== false, s = P(x + 0.5, y + 0.5)[2];
-  box(g, x + 0.04, y + 0.04, x + 0.96, y + 0.96, 0.1, night ? "#9aa4b4" : "#eef1f5", night ? "#6c7484" : "#c4cad4", night ? "#7c8494" : "#d4dae2");
-  box(g, x + 0.14, y + 0.14, x + 0.86, y + 0.86, 0.2, night ? "#a8b2c2" : "#f7f9fb", night ? "#747c8c" : "#cdd3dc", night ? "#848c9c" : "#dde2e9", 0.1);
-  for (const [cx, cy] of [[0.24, 0.24], [0.76, 0.24], [0.76, 0.76], [0.24, 0.76]]) box(g, x + cx - 0.05, y + cy - 0.05, x + cx + 0.05, y + cy + 0.05, 1.0, "#f4f4f0", "#c8c8c0", "#dadad2", 0.2);
-  const c = P(x + 0.5, y + 0.5, 0.62), k = 0.6 + 0.4 * Math.sin(now / 520 + x);
-  glowAt(g, c[0], c[1], s * (ready ? 0.7 : 0.35), "150,210,255", (ready ? 0.65 : 0.2) * k);
-  g.fillStyle = ready ? "#dff4ff" : "#9aa8b8"; g.beginPath(); g.arc(c[0], c[1], s * 0.07, 0, TAU); g.fill();
-  box(g, x + 0.12, y + 0.12, x + 0.88, y + 0.88, 1.08, night ? "#4f7fb0" : "#6fa6dc", "#3f6c9c", "#4a78aa", 1.0);
-  const top = P(x + 0.5, y + 0.5, 1.3); g.fillStyle = "#e8c25a"; g.beginPath(); g.arc(top[0], top[1], s * 0.05, 0, TAU); g.fill();
+  const ready = !LAST_FD || LAST_FD.shrineReady !== false, cx = x + 0.5, cy = y + 0.5, s = P(cx, cy)[2], k = 0.6 + 0.4 * Math.sin(now / 520 + x);
+  const st = night ? "#a3acba" : "#f1f3f6", st2 = night ? "#7d8594" : "#d3d8df";
+  frustum(g, sqPts(cx, cy, 0.48), 0, sqPts(cx, cy, 0.48), 0.07, st2, st2);
+  frustum(g, sqPts(cx, cy, 0.42), 0.07, sqPts(cx, cy, 0.42), 0.14, st, st);
+  frustum(g, sqPts(cx, cy, 0.36), 0.14, sqPts(cx, cy, 0.36), 0.2, st2, st);
+  // รูปปั้นเทพธิดา: ชุดยาวทรงกรวย + ศีรษะ + แขนชูลูกแก้ว
+  frustum(g, regPoly(cx, cy, 0.11, 8), 0.2, regPoly(cx, cy, 0.04, 8), 0.72, night ? "#c9ced8" : "#fbfbf8", null);
+  const head = P(cx, cy, 0.8); g.fillStyle = night ? "#d3d8e0" : "#ffffff"; g.beginPath(); g.arc(head[0], head[1], s * 0.05, 0, TAU); g.fill();
+  const orb = P(cx, cy, 0.98);
+  glowAt(g, orb[0], orb[1], s * (ready ? 0.75 : 0.3), "140,205,255", (ready ? 0.8 : 0.25) * k);
+  g.fillStyle = ready ? "#e6f7ff" : "#8f9dae"; g.beginPath(); g.arc(orb[0], orb[1], s * 0.055, 0, TAU); g.fill();
+  // เสา 4 ต้น + หลังคาโดม
+  for (const [dx, dy] of [[-0.3, -0.3], [0.3, -0.3], [0.3, 0.3], [-0.3, 0.3]]) frustum(g, regPoly(cx + dx, cy + dy, 0.045, 6), 0.2, regPoly(cx + dx, cy + dy, 0.04, 6), 1.12, night ? "#c4cad4" : "#f7f7f2", null);
+  frustum(g, sqPts(cx, cy, 0.4), 1.12, sqPts(cx, cy, 0.4), 1.2, st2, st);
+  for (let i = 0; i < 4; i++) { const r0 = 0.38 * Math.cos(i / 4 * Math.PI / 2), r1 = 0.38 * Math.cos((i + 1) / 4 * Math.PI / 2), z0 = 1.2 + 0.32 * Math.sin(i / 4 * Math.PI / 2), z1 = 1.2 + 0.32 * Math.sin((i + 1) / 4 * Math.PI / 2); frustum(g, regPoly(cx, cy, Math.max(0.02, r0), 12), z0, regPoly(cx, cy, Math.max(0.02, r1), 12), z1, night ? "#4b7db0" : "#6aa7de", i === 3 ? (night ? "#4b7db0" : "#6aa7de") : null); }
+  const tip = P(cx, cy, 1.62); g.fillStyle = "#e8c25a"; g.beginPath(); g.arc(tip[0], tip[1], s * 0.045, 0, TAU); g.fill();
+  if (ready) { // พร้อมใช้: ลำแสงฟ้าบางๆ พุ่งจากยอด
+    const b0 = P(cx, cy, 1.62), b1 = P(cx, cy, 3.4), gr = g.createLinearGradient(b0[0], b0[1], b1[0], b1[1]);
+    gr.addColorStop(0, `rgba(170,225,255,${0.45 * k})`); gr.addColorStop(1, "rgba(170,225,255,0)");
+    g.fillStyle = gr; g.fillRect(b0[0] - s * 0.05, b1[1], s * 0.1, b0[1] - b1[1]);
+  }
 }
 // ร้านอาหาร: ตึกชั้นเดียวผนังครีม หลังคาแดง กันสาดลายทาง ป้ายไฟ
 function drawDiner(g, x, y, night, now) {

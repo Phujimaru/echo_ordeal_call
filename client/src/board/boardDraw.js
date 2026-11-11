@@ -27,6 +27,7 @@ import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
 import { drawGroundGL, groundGLHas, groundGLReady } from "./groundGL";
 import { MAPS as RULE_MAPS } from "./boardRules";
 import { eosFast, setEosFast } from "./fodlan/stage6";
+const EOS_HEAL_AREA = 45; // สนาม Eos (boardRules EOS_AREA = FODLAN_AREA + FODLAN_STAGES)
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -366,7 +367,7 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
     for (const { x, y } of info.heal) {
       quad(g, x, y, 0.06); g.strokeStyle = night ? "rgba(255,225,140,.55)" : "rgba(217,169,63,.55)"; g.lineWidth = 1.4; g.stroke();
     }
-  } else if (info.heal.length) bakeHeal(g, info, { night, C, area: info.area });
+  } else if (info.heal.length && info.area !== EOS_HEAL_AREA) bakeHeal(g, info, { night, C, area: info.area }); // สนาม Eos: อ่างน้ำพุวาดเองใน fodlan/stage6
   // ช่องพิเศษ
   for (const sp of info.special) if (!flat || isStaticSp(info, sp)) bakeSpecial(g, sp, { night, C, area: info.area }); // flat (ภาพพื้นผิว) = เฉพาะช่องพิเศษของผัง · ที่เกิดระหว่างเกมวาดสดทับ
   // จุดเกิด
@@ -2533,7 +2534,7 @@ export function drawFrame(g, st, now) {
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
   if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
-  if (info.heal.length && !pz && !colony) animHeal(g, info, { night, C, area: info.area }, tA);
+  if (info.heal.length && !pz && !colony && info.area !== EOS_HEAL_AREA) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
   drawRyougiGround(g, ry, info, fx, now, lowQ, { view, C });

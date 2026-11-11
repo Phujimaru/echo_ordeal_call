@@ -897,6 +897,19 @@
       "env": {
         "ECHO_SERVER_PORT": "3047"
       }
+    },
+    {
+      "name": "server-eos-at",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_EOS_AT": "7,27"
+      }
     }
   ]
 }
