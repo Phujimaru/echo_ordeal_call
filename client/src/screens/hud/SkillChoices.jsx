@@ -72,7 +72,7 @@ export default function SkillChoices({ title, choices = [], isOk = () => true, o
               >
                 {c.zone ? <ZoneMap z={c.zone} /> : look.icon
                   ? <div className="w-full aspect-[3/4] grid place-items-center text-6xl bg-black/30">{look.icon}</div>
-                  : <img src={look.img} alt="" className="w-full aspect-[3/4] object-cover" draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+                  : <img src={look.img} alt="" className={`w-full aspect-[3/4] ${c.fit === "contain" ? "object-contain p-2 bg-black/30" : "object-cover"}`} draggable={false} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                 {c.fresh && <SwordMark />}
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
                   <span className="flex-1 text-sm font-bold text-white truncate">{look.name}</span>

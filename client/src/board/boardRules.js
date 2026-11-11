@@ -973,7 +973,7 @@ function reachable(map, unit, mov, units, opts = {}) {
         const nd = cur.d + stepCost(map, nx, ny, opts);
         if (nd > mov) continue;
         const node = { x: nx, y: ny, d: nd, prev: cur };
-        if (isIce(map, nx, ny)) {
+        if (!opts.noSlide && isIce(map, nx, ny)) { // opts.noSlide = ไม่ไถล (น็อตทิส Trident) — น้ำแข็ง/พื้นเปียกเป็นช่องปกติ
           if (other) continue; // เพื่อนยืนบนน้ำแข็ง = เข้าไม่ได้
           const s = slideLine(map, nx, ny, dx, dy, units, unit.id, blocked);
           let end = node;
@@ -1105,11 +1105,11 @@ function trailCost(map, unit, trail, units, opts = {}) {
       d += st.cost;
       continue;
     }
-    if (i > 1 && (specialAt(map, a.x, a.y) === "quicksand" || isIce(map, a.x, a.y))) return Infinity;
+    if (i > 1 && (specialAt(map, a.x, a.y) === "quicksand" || (!opts.noSlide && isIce(map, a.x, a.y)))) return Infinity;
     const hopped = !!(hop && hop.has(key(t.x, t.y)));
     if (hopped ? last : isObstacle(map, t.x, t.y, blocked)) return Infinity;
     const o = unitAt(units, t.x, t.y);
-    if (o && o.id !== unit.id && (last || !isAlly(unit, o) || isIce(map, t.x, t.y))) return Infinity;
+    if (o && o.id !== unit.id && (last || !isAlly(unit, o) || (!opts.noSlide && isIce(map, t.x, t.y)))) return Infinity;
     d += stepCost(map, t.x, t.y, opts);
   }
   return d;
@@ -1129,7 +1129,7 @@ function stepPath(map, unit, mov, units, trail, to, opts = {}) {
   const ext = [...tr.map((t) => ({ x: t.x, y: t.y })), { x: to.x, y: to.y }];
   if (trailCost(map, unit, ext, units, opts) <= mov) return ext;
   const reach = reachable(map, unit, mov, units, opts);
-  if (!opts.ghost && sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
+  if (!opts.ghost && !opts.noSlide && sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
     const at = reach.get(key(cur.x, cur.y));
     if (!at || at.slide) return null;
     const via = [...pathTo(reach, cur.x, cur.y), { x: to.x, y: to.y }];

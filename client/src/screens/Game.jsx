@@ -1090,6 +1090,13 @@ function statusEntries(p, full) {
     if (c.swapCd > 0) out.push({ key: "celineSwapCd", v: c.swapCd, turns: true, icon: "🔁", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้คฑาแห่งการเคลื่อนย้ายได้อีก" });
     if (c.inBloom) out.push({ key: "celineTea", v: 1, icon: "🍵", label: c.teaNeed ? `${c.tea || 0}/${c.teaNeed}` : "เวลาน้ำชา", cls: "bg-lime-300 text-gray-900", desc: "ต้นเทิร์นยืนในพุ่มติดกันครบ 2 เทิร์น ฟื้นพลังชีวิต 1 แล้วนับใหม่ ระหว่างอยู่ในพุ่มอัตราคริติคอลเพิ่ม 20%" });
   }
+  // น็อตทิส: ปลดปล่อยพลังที่แท้จริง (เทิร์นที่เหลือ) · ขานรับ เหล่าราชา · หลบจาก Warp Point
+  if (p.noct) {
+    const n = p.noct;
+    if (n.unleashLeft > 0) out.push({ key: "noctUnleash", v: n.unleashLeft, turns: true, icon: "👑", label: "ปลดปล่อย", cls: "bg-sky-300 text-gray-900", desc: "ระยะเดิน +2 · ตีปกติระยะ 1–4 สุ่มอาวุธ · แต้มสกิล +1 ต่อเทิร์น · ไม่เสียพลังชีวิตตัวเอง" });
+    if (n.heed) out.push({ key: "noctHeed", v: 1, icon: "⚔️", label: "ขานรับ", cls: "bg-amber-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่เสียพลังชีวิตตัวเอง · แม่นยำ · ผลที่เป็นโอกาสติดแน่นอน" });
+    if (n.dodge) out.push({ key: "noctDodge", v: 1, icon: "🌀", label: "Warp Point", cls: "bg-white/20", desc: "หลบการโจมตีครั้งถัดไป" });
+  }
   // ไรโด ฮิคารุ: ร่าง UltraLive (นับเทิร์นที่เหลือ) · สโตเรี่ยม · Strium Brace · หมอกเคมู · คูลดาวน์
   if (p.hikaru) {
     const h = p.hikaru;
@@ -2834,6 +2841,19 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
       <ClockDuel clock={state.clockUp || null} players={state.players} myId={me?.id} onMash={mashClock} />
+      {me?.noct?.heart && (
+        // หัวใจของเหล่าปวงชน (น็อตทิส — characters/noctis.js): ผู้เล่นน็อตทิสที่ตายแล้วเลือกเข้าช่วย/ปล่อย
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/55">
+          <div className="flex flex-col items-center gap-5 px-10 py-7 rounded-2xl bg-echo-navy/95 border border-sky-200/40 shadow-2xl">
+            <div className="text-2xl font-black tracking-wide text-white">หัวใจของเหล่าปวงชน</div>
+            <div className="text-lg font-bold text-white/90">{me.noct.heart.attacker} ⚔️ {me.noct.heart.victim}</div>
+            <div className="flex gap-4">
+              <button type="button" className="px-7 py-3 rounded-xl bg-sky-300 text-gray-900 text-lg font-black hover:-translate-y-0.5 transition-transform" onClick={() => { clickSound(); socket.emit("noctisHeart", { yes: true }); }}>เข้าช่วย</button>
+              <button type="button" className="px-7 py-3 rounded-xl bg-white/15 text-white text-lg font-black hover:-translate-y-0.5 transition-transform" onClick={() => { clickSound(); socket.emit("noctisHeart", { yes: false }); }}>ปล่อย</button>
+            </div>
+          </div>
+        </div>
+      )}
       <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}

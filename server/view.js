@@ -400,6 +400,7 @@ function buildStateInner(viewerId) {
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
+        noct: hook && hook.noctState ? hook.noctState(engine, p) : undefined, // น็อตทิส: อาวุธ / ขานรับ / ปลดปล่อย / หัวใจของเหล่าปวงชน (รอตัดสิน) — GRID_PLAN §7.31
         gil: hook && hook.gilState ? hook.gilState(engine, p) : undefined, // กิลกาเมช: EA / ความมั่งคั่ง / กระสุน / พายุ (ช่องที่เล็ง) / อาวุธที่ปักค้าง / ชาร์จ Enuma Elish — GRID_PLAN §7.30
         strikeRing: hook && hook.strikeRing ? !!hook.strikeRing(p) || undefined : undefined, // ตีปกติรอบตัว 8 ช่อง รวมทแยง (กิลกาเมช ถือ EA — action.laneVictims)
         bagSlots: shop.bagSlotsOf(p), // ความจุกระเป๋าเฉพาะตัว (กิลกาเมช Gate of Babylon: 50 · ปกติ BAG_SLOTS)
@@ -410,6 +411,7 @@ function buildStateInner(viewerId) {
         stageNoSkill: Fodlan.noSkill(p) || undefined, // Eos: อยู่ในรถ = ใช้สกิลไม่ได้ (ปุ่มสกิลเทา)
         carWalk: Fodlan.carWalk(p) || undefined, // Eos: ขับรถ — ถนน/พื้นเรียบเท่านั้น (Rules.reachable opts.carWalk)
         flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่โชโกโบะ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
+        noSlide: action.noSlide(p) || undefined, // ไม่ไถลบนน้ำแข็ง/พื้นเปียก (น็อตทิส Trident — Rules opts.noSlide)
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
         flies: action.flies(p) || undefined, // บินได้ (โล่บินได้ของบานาจ): เดินทะลุแบบ ghost + ไม่ขวางทางใคร
         leash: mine ? action.leashOf(p) || undefined : undefined, // สายจูง { x, y, r }: ช่องที่หยุดได้ต้องห่างจุดนี้ไม่เกิน r

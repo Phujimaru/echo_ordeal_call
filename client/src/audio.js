@@ -391,7 +391,10 @@ const FILES = {
   gil_enuma_fire: "/characters/gilgamesh_fake/sfx/gil_enuma_fire.mp3",     // ยิง Enuma Elish: เสียงจากวีดีโอผู้ใช้ — พูด "Enuma Elish!" → เว้นจังหวะ → ลำแสงที่ 3.25 วิ → ครืนถึง 10.9 วิ (หรี่ทุกเสียง — FOCUS_SFX)
   gil_dissolve: "/characters/gilgamesh_fake/sfx/gil_dissolve.mp3",   // อาวุธที่ปักค้างสลายเป็นละอองทอง
   gil_kneel: "/characters/gilgamesh_fake/sfx/gil_kneel.mp3",         // คุกเข่า (สตั้น)
-  gil_equip: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
+  gil_equip: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",
+  // น็อตทิส — ยืมเสียงชักอาวุธ/ประตูของกิลกาเมชไปก่อน (characters/noctis.js) · ยังไม่มีใครฟัง
+  noct_arm: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",
+  noct_heed: "/characters/gilgamesh_fake/sfx/gil_gate.mp3",         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
   gil_unequip: "/characters/gilgamesh_fake/sfx/gil_unequip.mp3",     // เก็บ EA
   // เพลง (ไฟล์จากผู้ใช้ · loudnorm -14 LUFS): ชาร์จ Enuma Elish = bite down · พายุของ EA = STRANGEFAKE (state.skillMusic)
   gil_bite_down: "/characters/gilgamesh_fake/gil_bite_down.mp3",

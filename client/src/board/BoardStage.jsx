@@ -272,7 +272,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  lane = ตีปกติแบบแนวตรง (ไรโด ฮิคารุ: แบล็คคิง / กิงกะ) — ระยะอันตรายเป็นแนวตรงจากขอบตัว
   //  ghost = อยู่ในมิติหลบสายตา (p.valentine.veil) — เดินทะลุทุกอย่าง เหลือแค่ขอบกระดาน (Board.reachable ghost)
   //  flowerWalk = ราชาดอกไม้ของเซลิน (p.flowerWalk) — ช่องดอกไม้ (TERRAIN_INFO flower) ไม่เสียก้าว
-  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk), flatWalk: !!(p && p.flatWalk), carWalk: !!(p && p.carWalk), zone: (p && p.strikeZone) || null });
+  const optsOf = (p) => ({ isAlly, blocked, hop, smash: !!(p && p.smash), lane: !!(p && p.lane), ghost: veiledP(p) || fliesP(p), flowerWalk: !!(p && p.flowerWalk), noSlide: !!(p && p.noSlide), flatWalk: !!(p && p.flatWalk), carWalk: !!(p && p.carWalk), zone: (p && p.strikeZone) || null });
   // ช่องที่ p ตีปกติถึงจากช่อง (x, y) — แนวตรง (lane) หรือระยะแมนฮัตตัน
   const strikeTiles = (p, x, y, range) => (p && p.lane ? Rules.laneTiles(map, x, y, sizeOfP(p), range) : Rules.tilesInRange(map, x, y, range, sizeOfP(p)));
   // ตัวที่เหมือนกัน (summon double) = ฝ่ายกลาง: ทุกคนในชั้นเดียวกันตีได้ (ไม่ใช่เพื่อนใคร)

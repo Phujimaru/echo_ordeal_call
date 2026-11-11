@@ -152,7 +152,8 @@ function estimateHitOn(attacker, target) {
     const coverPct = cover ? pct(cover.pct) : 0;
     const missPct = pct(Journey.attackMissPct(engine));
     const ownPct = pct(ownEvadeOf(target));
-    const hit = (100 - evadePct) * (100 - ownPct) * (100 - coverPct) * (100 - missPct) / 1000000;
+    const selfHit = hookOf(attacker, "strikeHitPct"); // แม่นยำของผู้ตีเอง % (น็อตทิส Sword-of-the-Tall 60) · คู่กับ strikeMiss
+    const hit = (100 - evadePct) * (100 - ownPct) * (100 - coverPct) * (100 - missPct) / 1000000 * (Number.isFinite(selfHit) ? pct(selfHit) / 100 : 1);
     return Math.round(hit);
   } catch { return null; }
 }
@@ -270,6 +271,13 @@ function strikeBody(attacker, target, counter) {
   }
 
   // การเดินทาง (ป่าไม้ต้องสาป กลางวัน): โจมตีพลาด 40% — ฝั่งผู้ตีพลาดเอง แต่ "แม่นยำ" ก็เจาะได้เหมือนด่านหลบ
+  // โอกาสพลาดของผู้ตีเอง (ฮุค strikeMiss(engine, ผู้ตี, เป้า) → { name } = พลาด — น็อตทิส Sword-of-the-Tall แม่นยำ 60%) · แม่นยำเจาะได้
+  const ownMiss = !accurate && hookOf(attacker, "strikeMiss");
+  if (ownMiss) {
+    target.wasAttacked = true;
+    match.lastLog.push(`💨 ${attacker.name} ${ownMiss.name} — การ${verb}พลาด`);
+    return { dmg: 0, dodge: true, kill: false, skills: [...preSkills, { name: ownMiss.name, img: ownMiss.img || null, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }] };
+  }
   const miss = !accurate && Journey.tryAttackMiss(engine, attacker, target);
   if (miss) return { dmg: 0, dodge: true, kill: false, skills: [...preSkills, { ...miss, by: attacker.name, color: lobby.colorOf(attacker), side: "atk" }] };
 

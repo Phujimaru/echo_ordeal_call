@@ -27,6 +27,7 @@ const gio = require("./giorno_giovanna"); // โจรุโน่: คลิป
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
+const noct = require("./noctis"); // น็อตทิส: ทุกคลิปเล่นทุกครั้ง (ffprobe +0.4 วิ)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
@@ -159,6 +160,14 @@ module.exports = function buildTransforms() {
     otoyaWake2Hit: { img: oto.IMG.kiva, video: oto.VIDEO.wake2Hit, title: "Darkness Moon Break", label: "Wake Up 2", seconds: 7.4, music: null, afterReveal: false },
     otoyaDead: { img: oto.IMG.base, video: oto.VIDEO.dead, title: "คุเรไน โอโตยะ", label: "ครั้งสุดท้าย", seconds: 5.9, music: null, afterReveal: false },
     // กิลกาเมช (Fake) — ความยาวจริง (ffprobe) 16.0 / 13.8 / 17.7 / 14.2 วิ ปัดขึ้น · คลิปมีเสียงในตัว
+    ...Object.fromEntries(Object.entries(noct.ARMS).filter(([, a]) => a.clip).map(([k, a]) => [noct.heedCut(k), { img: a.img, video: a.clip, title: a.name, label: "ขานรับ เหล่าราชา", seconds: a.clipSec, music: null, afterReveal: false }])),
+    noctRuin: { img: noct.IMG.ruin, video: noct.VIDEO.ruin, title: "ทำลายให้สิ้น", label: "น็อตทิส", seconds: 4.4, music: null, afterReveal: false },
+    noctUnleash: { img: noct.IMG.unleash, video: noct.VIDEO.unleash, title: "ปลดปล่อยพลังที่แท้จริง", label: "น็อตทิส", seconds: 14.4, music: null, afterReveal: false },
+    noctEnd: { img: noct.IMG.end, video: noct.VIDEO.end, title: "ให้มันจบตรงนี้แหละ", label: "น็อตทิส", seconds: 29.7, music: null, afterReveal: false },
+    noctGuts: { img: noct.IMG.base, video: noct.VIDEO.guts, title: "สายเลือดราชา", label: "น็อตทิส", seconds: 4.7, music: null, afterReveal: false },
+    noctDeath: { img: noct.IMG.base, video: noct.VIDEO.death, title: "น็อตทิส", label: "หัวใจของเหล่าปวงชน", seconds: 23.9, music: null, afterReveal: false },
+    noctAtlas: { img: noct.IMG.base, video: noct.VIDEO.atlas, title: "หัวใจของเหล่าปวงชน", label: "น็อตทิส", seconds: 23.3, music: null, afterReveal: false },
+    noctLastGame: { img: noct.IMG.end, video: noct.VIDEO.lastGame, title: "หัวใจของเหล่าปวงชน", label: "น็อตทิส", seconds: 31.1, music: null, afterReveal: false },
     gilEaDraw: { img: gil.IMG.skill1, video: gil.VIDEO.draw, title: "EA", label: "จงเห่าหอนซะสิ เจ้าพันธุ์ทาง", seconds: 16.3, music: null, afterReveal: false },
     gilEaRoar: { img: gil.IMG.skill3, video: gil.VIDEO.roar, title: "EA", label: "พายุแห่งการแยกฟ้าดิน", seconds: 14.1, music: null, afterReveal: false },
     gilGate: { img: gil.IMG.skill2, video: gil.VIDEO.gate, title: "Gate of Babylon", label: "เมตตาจากราชา", seconds: 18, music: null, afterReveal: false },

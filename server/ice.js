@@ -324,6 +324,7 @@ function resolveEntry(p, dir, ctx) {
   if (!p || !p.alive || !p.pos || action.sizeOf(p) > 1 || ctx.depth > MAX_CHAIN) return;
   const map = action.boardMap();
   if (!Board.isIce(map, p.pos.x, p.pos.y)) return;
+  if (action.noSlide(p)) return; // ไม่ไถล (ฮุค noSlide — น็อตทิส Trident)
   ctx.depth++;
   const s = Board.slideLine(map, p.pos.x, p.pos.y, dir.x, dir.y, units(), p.id, action.boardBlocked(p.id));
   p.pos = { x: s.x, y: s.y };

@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
   actionTimeUp, clockOf, freshMove, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap, flowerWalk, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
+  walkUndoPatch, startMap, flowerWalk, noSlide, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -152,6 +152,11 @@ function boardBlocked(selfId = null) {
   for (const k of shopKeys) out.add(k);
   return trap ? { has: (k) => out.has(k) || trap.has(k) } : out;
 }
+// ไม่ไถลบนน้ำแข็ง/พื้นเปียก (Board opts.noSlide · ฮุค noSlide(p) — น็อตทิส: Trident-of-the-Oracle) · Ice.resolveEntry ข้ามด้วย
+function noSlide(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.noSlide && hook.noSlide(p));
+}
 // เดินตามช่องดอกไม้ไม่เสียก้าว (Board.reachable opts.flowerWalk — ฮุค flowerWalk(p) · เซลิน: ราชาดอกไม้) · ถูกตรึง = ไม่ได้
 function flowerWalk(p) {
   if (!p || ((p.statuses && p.statuses.rooted) || 0) > 0) return false;
@@ -265,7 +270,7 @@ function rebaseMove(p) {
   const all = walkUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), noSlide: noSlide(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -825,7 +830,7 @@ function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
   const seen = walkUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), noSlide: noSlide(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) };
   if (!inLeash(leashOf(p), { x, y })) return null; // สายจูง (โล่บินได้): ปลายทางต้องอยู่ในระยะ
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
