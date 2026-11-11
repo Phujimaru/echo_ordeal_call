@@ -147,6 +147,10 @@ function layer(ctx, st, map) {
   if (snowOn(ctx)) for (const [k, v] of Object.entries(special)) if (v === "fd_eos_shallow") special[k] = "ice"; // พายุหิมะ: น้ำตื้นแข็ง (เดิน 1 ก้าว แต่ลื่นไถล)
   return { ...map, terrain, special };
 }
+// ช่องพังจากท่าทำลายพื้นที่ (เรียวกิ/อรชุน/กิลกาเมช — engine.addChasm): เสายึดพังไม่ได้ · ช่องพังคืนสภาพเองหลัง 2 เทิร์น (ผู้ใช้สั่ง 2026-11-12)
+const CHASM_TURNS = 2;
+const PILLAR_KEYS = new Set(MAP.PILLARS.map((pl) => K(pl.at[0], pl.at[1])));
+function keepsTile(ctx, st, k) { return !!(st && st.eos) && PILLAR_KEYS.has(k); }
 function layerVer(ctx, st) {
   const s = st && st.eos;
   return s ? `e${s.visit}|w${Object.keys(s.wallBroken || {}).length}|${snowOn(ctx) ? "s" : ""}` : "x"; // กำแพงพัง/พายุหิมะเปลี่ยนแผนที่
@@ -2296,6 +2300,8 @@ function preRound(ctx, st) {
   const s = st && st.eos;
   if (!s) return 0;
   s.lamentOn = LM.on(ctx);
+  const healed = require("../phases/action").expireChasm(CHASM_TURNS);
+  if (healed.length) { ctx.fx("eos_chasm_heal", { tiles: healed.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) }); ctx.bump(); }
   checkRiders(ctx, s);
   checkChannels(ctx, s);
   noteDeaths(ctx, s);
@@ -2692,7 +2698,8 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   FLASH, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  enter, weatherStart, layer, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
+  preventDeath(ctx, st, p) { return !!(st && st.eos) && PKS.gutsSave(ctx, st.eos, p); }, // การ์ดใจสู้
+  enter, weatherStart, layer, keepsTile, CHASM_TURNS, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
   gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
   // ผลค้างทั้งแมตช์ (fodlan.persistAll): การ์ดทนทาน = เลือดสูงสุด +2

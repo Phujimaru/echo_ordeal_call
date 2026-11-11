@@ -122,8 +122,8 @@ export default function EosScoreboard({ state }) {
                 <span className="eos-hud-label">✨ การ์ดทีม</span>
                 <span className="eos-power-row">
                   {b.perks.map((c) => (
-                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}`} lines={[c.desc, "ได้จากโหวตทุก 10 แต้ม · ติดทั้งทีมจนจบเกม"]}>
-                      <span className="eos-power" style={{ "--z": "#e0a92a" }}>{c.icon}</span>
+                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}${c.max > 1 ? ` Lv ${c.lv}` : ""}`} lines={[c.desc, "ได้จากโหวตทุก 10 แต้ม · ติดทั้งทีมจนจบเกม"]}>
+                      <span className="eos-power" style={{ "--z": "#e0a92a" }}>{c.icon}{c.lv > 1 && <sup className="eos-perk-lv">{c.lv}</sup>}</span>
                     </Tip>
                   ))}
                 </span>

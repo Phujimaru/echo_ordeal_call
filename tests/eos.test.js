@@ -1399,13 +1399,13 @@ test('มาตรวัดทีม: ล้มมอนเติม · เต�
 // ---------------------------------------------------------------- PVE รอบสี่ (server/fodlan/eosPerks.js)
 const PK = require('../server/fodlan/eosPerks.js');
 
-test('การ์ดอัปเกรดทีม: แต้มถึง 10 = เสนอ 3 ใบ · โหวตครบ = ได้ใบที่เสียงมากสุด · ผลจริง (เดิน/ตีมอน/เสาแกร่ง/ฟื้นไว)', () => {
+test('การ์ดอัปเกรดทีม: แต้มถึง 10 = เสนอ 5 ใบ · โหวตครบ = ได้ใบที่เสียงมากสุด · ผลจริง (เดิน/ตีมอน/เสาแกร่ง/ฟื้นไว)', () => {
   setup();
   const s = st();
   s.score = 9; s.pillars[0].owner = S6.PVE;
   S6.scoreRound(ctx(), s);
   const o = PK.PK(s).offer;
-  assert.ok(o && o.choices.length === 3, 'มีการ์ดให้เลือก');
+  assert.ok(o && o.choices.length === 5, 'มีการ์ดให้เลือก 5 ใบ');
   o.choices = ['swift', 'might', 'bastion'];
   const mov0 = action.movOf(P(0));
   for (const i of [0, 1]) Fodlan.charAction(P(i).id, 'fd:perk:swift');
@@ -1671,7 +1671,7 @@ test('การ์ดทีมทุก 10 แต้มจนก่อนเป�
   const c = (diff) => ({ match: { eosDiff: diff } });
   assert.deepEqual(PK.perkMarks(c('normal')), [10, 20, 30, 40]);
   assert.deepEqual(PK.perkMarks(c('hard')), [10, 20, 30, 40, 50, 60, 70, 80, 90]);
-  assert.ok(Object.keys(PK.PERKS).length >= 9 + 2, 'ครั้งสุดท้ายของระดับยากยังมีให้เลือก 3 ใบ');
+  assert.ok(Object.values(PK.PERKS).reduce((n, c) => n + c.max, 0) >= 9 + PK.PERK_CHOICES, 'ครั้งสุดท้ายของระดับยากยังมีให้เลือกครบ');
   setup();
   const s = st();
   // ไล่แต้มจนครบ 4 ครั้ง (ปกติ) — เลือกใบแรกทุกครั้ง
@@ -1683,7 +1683,7 @@ test('การ์ดทีมทุก 10 แต้มจนก่อนเป�
   }
   s.score = 49; PK.onScore(ctx(), s);
   assert.equal(PK.PK(s).offer, null, 'ไม่มีการ์ดเกินเป้า');
-  PK.PK(s).owned.push('timber', 'beacon', 'marksman', 'hunter');
+  PK.PK(s).owned = ['timber', 'beacon', 'marksman', 'hunter']; // ใบแรกที่สุ่มอาจซ้อนระดับ — ตั้งใหม่ให้แน่นอน
   assert.equal(PK.wallMax(s), PK.WALL.hp + 2);
   assert.equal(PK.lightBonus(s), 4);
   assert.equal(PK.turretBonus(s), 1);
@@ -1812,4 +1812,50 @@ test('เพดานมอนพร้อมกันขยายตามค�
     assert.equal(room('hard'), 25);
     assert.equal(room('lament'), LMx.LAMENT.cap.base + LMx.LAMENT.cap.perHero * 2);
   } finally { match.eosDiff = 'normal'; }
+});
+
+test('ท่าทำลายพื้นที่ใน Eos: เสายึดพังไม่ได้ · ช่องพังคืนสภาพเองหลัง 2 เทิร์น', () => {
+  setup(2);
+  const pl = MAP6.PILLARS[0], pk = K(pl.at[0], pl.at[1]);
+  match.roundNumber = 4;
+  const got = engine.addChasm([pk, '13,14', '14,14']);
+  assert.ok(!got.includes(pk), 'เสาไม่กลายเป็นช่องพัง');
+  assert.equal(action.boardMap().terrain[pk], 'fd_eos_pillar');
+  assert.deepEqual(action.breakObstacles ? action.breakObstacles([pk]) : [], []);
+  assert.equal(action.boardMap().terrain['13,14'], 'chasm');
+  const tick = () => { match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {}); match.roundNumber++; };
+  tick(); tick();
+  assert.equal(action.boardMap().terrain['13,14'], 'chasm', 'ยังพังอยู่ระหว่าง 2 เทิร์น');
+  tick();
+  assert.notEqual(action.boardMap().terrain['13,14'], 'chasm', 'ครบ 2 เทิร์นแล้วคืนสภาพ');
+  assert.equal(match.board.chasm.length, 0);
+});
+
+test('การ์ดทีมซ้อนระดับ: เลือกใบเดิมซ้ำ = Lv ถัดไป ผลบวกเพิ่ม · เต็ม max แล้วไม่สุ่มมาอีก · ฟื้นตัว/เงินเดือน/ใจสู้', () => {
+  setup();
+  const s = st(), k = PK.PK(s);
+  const mov0 = action.movOf(P(0));
+  k.owned.push('swift', 'swift');
+  assert.equal(action.movOf(P(0)), mov0 + 2, 'ฝีเท้าไว Lv2 = เดิน +2');
+  const pub = Fodlan.publicInfo().board;
+  assert.equal(pub.perks.find((c) => c.id === 'swift').lv, 2);
+  s.score = 10; PK.onScore(ctx(), s);
+  assert.ok(!k.offer.choices.includes('swift'), 'เต็ม max แล้วไม่สุ่มมาอีก');
+  assert.equal(k.offer.choices.length, PK.PERK_CHOICES);
+  k.offer.choices = ['might', 'regen', 'purse', 'guts', 'vital'];
+  assert.equal(Fodlan.publicInfo().board.perkOffer.choices[0].lv, 1, 'การ์ดที่เสนอแสดง Lv ถัดไป');
+  k.offer = null;
+  k.owned.push('regen', 'purse');
+  P(0).hp = 2;
+  const g0 = P(0).gold || 0;
+  PK.aegisRound(ctx(), s);
+  assert.equal(P(0).hp, 3, 'ฟื้นตัว: ต้นเทิร์นฟื้นเลือด 1');
+  assert.equal((P(0).gold || 0) - g0, 2, 'เงินเดือน: ต้นเทิร์นได้เหรียญ 2');
+  k.offer = { id: 99, at: match.roundNumber, choices: ['guts'], votes: {}, mark: 20 };
+  PK.resolve(ctx(), s);
+  assert.equal(k.guts[P(1).id], 1);
+  P(1).hp = 1;
+  P(1).hp = 0; combat.instantDeath(P(1));
+  assert.ok(P(1).alive, 'ใจสู้: รอดจากการล้ม');
+  assert.equal(k.guts[P(1).id], 0);
 });
