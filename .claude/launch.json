@@ -863,6 +863,40 @@
         "ECHO_DEV_EOS_LAMENT": "1",
         "ECHO_DEV_START_ROUND": "6"
       }
+    },
+    {
+      "name": "server-kiri",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3047,
+      "env": {
+        "PORT": "3047",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-kiri",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5211",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5211,
+      "env": {
+        "ECHO_SERVER_PORT": "3047"
+      }
     }
   ]
 }

@@ -242,27 +242,29 @@ function shoot(engine, p, targets) {
 }
 
 // ---------- อดีนาลีน / การเอาตัวรอด ----------
-function lethal(p, n, kind) {
-  if (kind === "armor") return false;
-  const pad = (p.shield || 0) + (kind === "direct" ? 0 : p.armor || 0);
-  return n >= (p.hp || 0) + pad;
+// การเอาตัวรอด: จดค่าก่อนโดนไว้ทุกครั้งที่ความเสียหายลงจริง (ลงทันที / อดีนาลีนลง) → ตายจริง (ฮุค preventDeath) = คืนค่าเดิม = ความเสียหาย 0
+//  เช็คจากผลจริงหลังทุกตัวปรับความเสียหาย (เปราะบาง · ออร่า · ฯลฯ) ไม่คาดเดาล่วงหน้า (แก้บัค 2026-11-11: อดีนาลีนฆ่าตายทั้งที่ควรรอด)
+function snapHit(engine, p) {
+  st(p).preHit = { hp: p.hp, armor: p.armor, shield: p.shield || 0, tempHp: p.tempHp || 0, seq: engine.cmdSeq, round: engine.roundNumber };
 }
 // ความเสียหายถึงตาย: 50% กันไว้ + Double Accel ฟรีตาเดินถัดไป (1 ครั้งต่อเกม · ทอยไม่ผ่านไม่เสียสิทธิ์)
-function survive(engine, p, n, kind) {
-  const s = st(p);
-  if (s.lastUsed || !lethal(p, n, kind)) return false;
+function survive(engine, p) {
+  const s = st(p), h = s.preHit;
+  s.preHit = null;
+  if (s.lastUsed || !h || h.seq !== engine.cmdSeq || h.round !== engine.roundNumber || !(h.hp > 0)) return false;
   if (Math.random() * 100 >= LAST_PCT) return false;
+  p.hp = h.hp; p.armor = h.armor; p.shield = h.shield; p.tempHp = h.tempHp;
   s.lastUsed = true;
   s.freeAccel = true;
   s.freeAt = engine.severStamp();
-  engine.log(`⏳ ${p.name} การเอาตัวรอดขั้นสุดยอด — รอดจากความเสียหาย ${n}`);
+  engine.log(`⏳ ${p.name} การเอาตัวรอดขั้นสุดยอด — ไม่ได้รับความเสียหาย`);
   return true;
 }
 function land(engine, p, hit) {
   const s = st(p);
   if (!p.alive) return;
-  if (survive(engine, p, hit.n, hit.kind)) return;
   const src = engine.players[hit.src] || null;
+  snapHit(engine, p);
   s.landing = true;
   try {
     const deal = () => {
@@ -273,6 +275,7 @@ function land(engine, p, hit) {
     if (src) engine.withEffectSource(src, deal); else deal();
   } finally { s.landing = false; }
   engine.log(`💢 ${p.name} อดีนาลีนหมด — ความเสียหาย ${hit.n} ลง`);
+  if (p.alive && p.hp > 0) s.preHit = null;
   if (p.alive && p.hp <= 0) {
     if (src) engine.withEffectSource(src, () => engine.instantDeath(p)); else engine.instantDeath(p);
     if (!p.alive) p.pos = null;
@@ -461,8 +464,10 @@ module.exports = {
       engine.log(`💢 ${p.name} อดีนาลีน — ความเสียหาย ${n} ลงอีก ${ADREN_DELAY} เทิร์น`);
       return 0;
     }
-    return survive(engine, p, n, kind) ? 0 : n;
+    snapHit(engine, p); // ลงทันที (ไม่มีต้นตอ) — ตายจริงแล้ว preventDeath ตัดสิน
+    return n;
   },
+  preventDeath(engine, p) { return isMe(p) && survive(engine, p); },
   onRoundStartTick(engine, p) {
     if (!isMe(p) || !p.alive) return;
     const s = st(p), r = engine.roundNumber;

@@ -344,3 +344,30 @@ test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่อง
   engine.clearPhaseTimer();
   assert.equal(t.hp, 6, "เกินระยะ");
 });
+
+test("การเอาตัวรอด: อดีนาลีนลงหลายก้อนในเทิร์นเดียว ก้อนที่ถึงตาย = ความเสียหาย 0 (คืนค่าก่อนโดน)", () => {
+  const { p } = setup();
+  p.hp = 4; p.armor = 0;
+  const r = engine.roundNumber;
+  p.kiri.pending = [{ round: r, n: 3, kind: "mixed", src: "b" }, { round: r, n: 3, kind: "mixed", src: "b" }];
+  Math.random = () => 0.1;
+  kiri.onRoundStartTick(engine, p);
+  assert.equal(p.alive, true);
+  assert.equal(p.hp, 1, "ก้อนแรกลง · ก้อนที่สองถึงตาย = ไม่ได้รับ");
+  assert.equal(p.kiri.lastUsed, true);
+  // ใช้สิทธิ์แล้ว: ครั้งต่อไปตายจริง
+  p.kiri.pending = [{ round: r, n: 3, kind: "mixed", src: "b" }];
+  kiri.onRoundStartTick(engine, p);
+  assert.equal(p.alive, false);
+});
+
+test("การเอาตัวรอด: ทอยไม่ผ่าน = ตาย · ไม่เสียสิทธิ์ถ้ายังไม่เคยผ่าน", () => {
+  const { p } = setup();
+  p.hp = 2; p.armor = 0;
+  const r = engine.roundNumber;
+  p.kiri.pending = [{ round: r, n: 5, kind: "mixed", src: "b" }];
+  Math.random = () => 0.99;
+  kiri.onRoundStartTick(engine, p);
+  assert.equal(p.alive, false);
+  assert.equal(p.kiri.lastUsed, false);
+});
