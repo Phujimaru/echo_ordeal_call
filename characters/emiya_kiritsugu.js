@@ -60,11 +60,12 @@ const LAST_PCT = 50;
 const MIN_MAX_HP = 1;
 
 const ARSENAL = {
-  smoke: { name: "ระเบิดควัน", desc: `โยนรอบตัว 8 ช่อง → ม่านควันรูป + 5 ช่อง อยู่ ${SMOKE_TURNS} เทิร์น ยืนในควัน = ศัตรูนอกควันมองไม่เห็น (ใช้แล้วยังเดินได้)` },
-  mine: { name: "กับดักระเบิด", desc: `โยนรอบตัว 8 ช่อง (ช่องที่ไม่มีศัตรู) · ศัตรูเหยียบ = ความเสียหาย ${MINE_DMG} (หลบได้) · ทุกคนเห็นไฟกะพริบ · วางได้ ${MINE_MAX} อัน วางเพิ่ม = อันเก่าสุดหาย (สนาม Eos ไม่จำกัด)` },
+  smoke: { name: "ระเบิดควัน", desc: `โยนรอบตัว 8 ช่อง → แตกเป็นม่านควันทันที รูป + 5 ช่อง อยู่ ${SMOKE_TURNS} เทิร์น ยืนในควัน = ศัตรูนอกควันมองไม่เห็น (ใช้แล้วยังเดินได้)` },
+  mine: { name: "กับดักระเบิด", desc: `โยนรอบตัว 8 ช่อง (ช่องที่ไม่มีศัตรู) · ศัตรูเหยียบ = ระเบิด 3×3 (9 ช่อง) ศัตรูทุกตัวในวงเสียหาย ${MINE_DMG} (หลบได้) · ทุกคนเห็นไฟกะพริบ · วางได้ ${MINE_MAX} อัน วางเพิ่ม = อันเก่าสุดหาย (สนาม Eos ไม่จำกัด)` },
   bandage: { name: "ผ่าพันแผล", desc: `ฟื้นเกราะ ${BANDAGE}` },
 };
 const ARSENAL_KEYS = Object.keys(ARSENAL);
+const ARSENAL_PER_TURN = 2; // ผู้ใช้ 2026-11-12: PVP 2 ครั้งต่อเทิร์น (ไม่กินโควตาสกิล) · สนาม Eos ไม่จำกัด
 const ALTER_KEYS = Object.keys(ALTER);
 
 const Board = () => require("../server/board");
@@ -88,6 +89,7 @@ function fresh() {
     hpLost: 0,
     pending: [], landing: false,
     lastUsed: false, freeAccel: false, freeAt: 0,
+    arsenalRound: 0, arsenalUses: 0,
   };
 }
 function st(p) { return p.kiri || (p.kiri = fresh()); }
@@ -115,6 +117,12 @@ function around(engine, p, form) {
   return out;
 }
 const tileIn = (list, t) => !!t && list.some((c) => c.x === t.x && c.y === t.y);
+// คลังแสงเหลือกี่ครั้งในเทิร์นนี้ (สนาม Eos = ไม่จำกัด → Infinity)
+function arsenalLeft(engine, p) {
+  if (isEos()) return Infinity;
+  const s = st(p);
+  return ARSENAL_PER_TURN - (s.arsenalRound === engine.roundNumber ? s.arsenalUses : 0);
+}
 
 // ---------- ม่านควัน (match.board.smoke — Ice.overlayOf วางเป็น special "smoke") ----------
 function laySmoke(engine, p, at) {
@@ -151,16 +159,28 @@ function layMine(engine, p, at) {
   engine.boardFx("kiriFx", { kind: "throw", id: p.id, from: { ...p.pos }, to: { ...at }, item: "mine" });
   engine.sfx("kiri_place");
 }
+// ศัตรูเหยียบ = ระเบิด 3×3 (9 ช่อง) รอบกับดัก (ผู้ใช้ 2026-11-12) · ศัตรูทุกตัวในวงโดน แยกทอยหลบ · เพื่อน/ตัวเองไม่โดน
+const BLAST = [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => [dx, dy]));
+function blastTiles(engine, at) {
+  const B = Board(), map = engine.boardMap();
+  return BLAST.map(([dx, dy]) => ({ x: B.wx ? B.wx(at.x + dx) : at.x + dx, y: at.y + dy })).filter((t) => B.inBounds(map, t.x, t.y));
+}
 function explode(engine, owner, u, mine) {
   const s = st(owner);
   s.mines = s.mines.filter((m) => m !== mine);
-  engine.boardFx("kiriFx", { kind: "boom", at: { x: mine.x, y: mine.y } });
+  const B = Board(), tiles = blastTiles(engine, mine);
+  const hit = Object.values(engine.players).filter((v) => v.alive && v.pos && v.id !== owner.id && !engine.sameTeam(owner, v)
+    && (v.id === u.id || tiles.some((t) => B.covers({ x: v.pos.x, y: v.pos.y, size: engine.sizeOf(v) }, t.x, t.y))));
+  engine.boardFx("kiriFx", { kind: "boom", at: { x: mine.x, y: mine.y }, tiles });
   engine.sfx("diego_explode");
   engine.withEffectSource(owner, () => {
-    if (engine.skillDodge(owner, u, "กับดักระเบิด")) return;
-    engine.dealMixed(u, MINE_DMG, false);
-    engine.log(`💣 ${u.name} เหยียบกับดักระเบิดของ ${owner.name} — ความเสียหาย ${MINE_DMG}`);
-    if (u.alive && u.hp <= 0) { engine.instantDeath(u); if (!u.alive) u.pos = null; }
+    for (const v of hit) {
+      if (!v.alive) continue;
+      if (engine.skillDodge(owner, v, "กับดักระเบิด")) continue;
+      engine.dealMixed(v, MINE_DMG, false);
+      engine.log(`💣 ${v.name} โดนกับดักระเบิดของ ${owner.name} — ความเสียหาย ${MINE_DMG}`);
+      if (v.alive && v.hp <= 0) { engine.instantDeath(v); if (!v.alive) v.pos = null; }
+    }
   });
 }
 
@@ -300,8 +320,8 @@ module.exports = {
           key: k, name: ARSENAL[k].name, img: IMG.arsenal, desc: `${ARSENAL[k].name}: ${ARSENAL[k].desc}`, cost: ARSENAL_COST,
           area: module.exports.skillArea(p, "basic", null, { form: k }),
           ...(k === "mine" && !isEos() ? { left: MINE_MAX - s.mines.length } : {}),
-          locked: k === "bandage" && p.armor >= engine.maxArmorOf(p),
-          free: inAlter(p),
+          locked: arsenalLeft(engine, p) <= 0 || (k === "bandage" && p.armor >= engine.maxArmorOf(p)),
+          free: true,
         })),
       };
     }
@@ -342,11 +362,11 @@ module.exports = {
   // Time Alter / เติมกระสุน ไม่กินโควตา · ระหว่าง Time Alter ทุกสกิลไม่กินโควตา (นับเป็น 1 ครั้งของ Time Alter แทน)
   skipsTurnQuota(p, tier) {
     if (!isMe(p)) return false;
-    return inAlter(p) || tier === "secondary" || (tier === "ultimate" && !st(p).loaded);
+    return inAlter(p) || tier === "basic" || tier === "secondary" || (tier === "ultimate" && !st(p).loaded);
   },
   ignoresTurnQuota(p, tier) {
     if (!isMe(p)) return false;
-    return inAlter(p) || (tier === "ultimate" && !st(p).loaded);
+    return inAlter(p) || tier === "basic" || (tier === "ultimate" && !st(p).loaded);
   },
   keepsMove(engine, p, tier, opts = {}) {
     if (!isMe(p)) return false;
@@ -372,7 +392,7 @@ module.exports = {
     const s = st(p);
     if (!p.pos) return false;
     if (tier === "basic") {
-      if (!ARSENAL[opts.form]) return false;
+      if (!ARSENAL[opts.form] || arsenalLeft(engine, p) <= 0) return false;
       if (opts.form === "bandage") return p.armor < engine.maxArmorOf(p);
       return tileIn(around(engine, p, opts.form), opts.tile);
     }
@@ -391,6 +411,8 @@ module.exports = {
     const s = st(p);
     const counts = tier !== "secondary" && inAlter(p);
     if (tier === "basic") {
+      if (s.arsenalRound !== engine.roundNumber) { s.arsenalRound = engine.roundNumber; s.arsenalUses = 0; }
+      s.arsenalUses += 1;
       const at = opts.tile;
       if (opts.form === "smoke") {
         laySmoke(engine, p, at);
@@ -521,7 +543,7 @@ module.exports = {
     if (!isMe(p)) return undefined;
     const s = st(p);
     return {
-      basic: { cd: 0, locked: false },
+      basic: { cd: 0, locked: arsenalLeft(engine, p) <= 0 },
       secondary: { cd: s.freeAccel ? 0 : cdLeft(s.alterReady, engine.roundNumber), locked: !!s.alter || !!engine.clockUp.activeMember(p) },
       ultimate: { cd: 0, locked: s.shots <= 0 },
     };

@@ -165,6 +165,16 @@ function throwFx(g, e, p, lowQ) {
 function boomFx(g, e, p, seed, lowQ) {
   const B = bodyAt(e.x, e.y);
   const cx = B.bx, cy = B.by - B.s * 0.1;
+  // วงระเบิด 3×3: พื้นทุกช่องในวงวาบส้มแล้วไหม้ดำจาง + ลูกไฟย่อยแต่ละช่อง (ตรงกับ server blastTiles)
+  if (Array.isArray(e.tiles)) {
+    for (const t of e.tiles) {
+      const [tx, ty, ts] = P(t.x + 0.5, t.y + 0.5);
+      const a = p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85;
+      g.fillStyle = rgba(p < 0.35 ? ORANGE : "40,30,26", a * (p < 0.35 ? 0.55 : 0.4));
+      g.beginPath(); g.ellipse(tx, ty, ts * 0.5, ts * 0.25, 0, 0, TAU); g.fill();
+      if (!lowQ && (t.x !== e.x || t.y !== e.y) && p < 0.5) glow(g, tx, ty - ts * 0.2 * easeOut(p / 0.5), ts * (0.18 + 0.3 * easeOut(p / 0.5)), FIRE, (1 - p / 0.5) * 0.8);
+    }
+  }
   if (p < 0.12) glow(g, cx, cy, B.s * 1.3, "255,230,180", 1 - p / 0.12);
   const f = clamp01(p / 0.55), fo = easeOut(f);
   // ลูกไฟ

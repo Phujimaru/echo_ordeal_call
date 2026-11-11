@@ -1859,7 +1859,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const kind = ev && KIRI_KIND[ev.kind];
       const from = ev && (ev.from || ev.at);
       if (!kind || !(kind in KIRI_FX_DUR) || !from) return;
-      pushFx([{ kind, x: from.x, y: from.y, to: ev.to ? { x: ev.to.x, y: ev.to.y } : null, item: ev.item || null }]);
+      const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
+      pushFx([{ kind, x: from.x, y: from.y, to: ev.to ? { x: ev.to.x, y: ev.to.y } : null, item: ev.item || null, tiles }]);
       if (kind === "kiriBoom" && !lowQ) setShake((n) => n + 1);
       if (kind === "kiriShot" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 120));
     };

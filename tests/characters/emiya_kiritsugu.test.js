@@ -86,7 +86,7 @@ test("โยนได้เฉพาะรอบตัว 8 ช่อง · ไ�
 
 test("กับดักระเบิด: ช่องศัตรูวางไม่ได้ · 3 อัน อันเก่าสุดหาย · ศัตรูเหยียบ = 3 หลบได้", () => {
   const { p, u } = setup({ points: 20 });
-  const lay = (x, y) => { p.skillUsedRound = false; engine.setActor("a"); use("basic", "mine", { tile: { x, y } }); };
+  const lay = (x, y) => { p.kiri.arsenalUses = 0; engine.setActor("a"); use("basic", "mine", { tile: { x, y } }); };
   lay(6, 5); // มีศัตรูยืน
   assert.equal(p.kiri.mines.length, 0);
   lay(4, 4); lay(4, 5); lay(4, 6); lay(5, 4);
@@ -95,13 +95,19 @@ test("กับดักระเบิด: ช่องศัตรูวาง
   // สนาม Eos ไม่จำกัด (ทดสอบผ่านฮุคตรง — Fodlan ปิดอยู่จึงจำลองด้วยการเติมเอง)
   const pub = kiri.boardPublic(engine);
   assert.equal(pub.kiritsugu.mines.length, 3, "ทุกคนเห็น");
-  // ศัตรูเหยียบ
+  // ศัตรูเหยียบ = ระเบิด 3×3: คนเหยียบ + ศัตรูในวงโดน · ตัวเองไม่โดน
   Math.random = () => 0.99;
-  u.pos = { x: 4, y: 3 };
+  u.pos = { x: 3, y: 3 };
+  const t = engine.players.b;
+  t.pos = { x: 3, y: 6 }; t.hp = 7; t.armor = 0; // ห่างจากกับดัก (4,5) แนวทแยง = ในวง 3×3
+  p.armor = 0;
   engine.setActor("c");
+  engine.moveTo("c", 3, 5); // ผ่าน (3,4) → (3,5) ไม่มีกับดัก
   engine.moveTo("c", 4, 5);
   assert.deepEqual(u.pos, { x: 4, y: 5 }, "เหยียบช่องแรกที่มีกับดัก หยุดตรงนั้น");
   assert.equal(u.hp, 4);
+  assert.equal(t.hp, 4, "ศัตรูในวง 3×3 โดนด้วย");
+  assert.equal(p.hp, 7, "เจ้าของกับดักไม่โดน (ยืน 5,5 อยู่ในวง)");
   assert.equal(p.kiri.mines.length, 2);
 });
 
@@ -370,4 +376,28 @@ test("การเอาตัวรอด: ทอยไม่ผ่าน = ต
   kiri.onRoundStartTick(engine, p);
   assert.equal(p.alive, false);
   assert.equal(p.kiri.lastUsed, false);
+});
+
+test("คลังแสง: 2 ครั้งต่อเทิร์น ไม่กินโควตาสกิล · ครั้งที่ 3 ไม่เสียแต้ม · เทิร์นใหม่นับใหม่ · Eos ไม่จำกัด", () => {
+  const { p } = setup({ points: 20 });
+  p.armor = 0;
+  use("basic", "bandage");
+  use("basic", "smoke", { tile: { x: 4, y: 5 } });
+  assert.equal(p.skillPoints, 16);
+  assert.equal(p.skillUsedRound, false, "ไม่นับโควตา");
+  use("basic", "bandage");
+  assert.equal(p.skillPoints, 16, "ครั้งที่ 3 ใช้ไม่ได้");
+  assert.equal(kiri.skillLocks(engine, p).basic.locked, true);
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor("a");
+  p.armor = 0;
+  use("basic", "bandage");
+  assert.equal(p.skillPoints, 14, "เทิร์นใหม่นับใหม่");
+  const Fodlan = require("../../server/fodlan");
+  const real = Fodlan.isEos;
+  Fodlan.isEos = () => true;
+  try {
+    for (let i = 0; i < 3; i++) { p.armor = 0; use("basic", "bandage"); }
+    assert.equal(p.skillPoints, 8, "Eos ไม่จำกัด");
+  } finally { Fodlan.isEos = real; }
 });
