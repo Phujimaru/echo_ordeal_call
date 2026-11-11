@@ -237,26 +237,31 @@ test('ช่องท่าไม้ตาย: ปกติ = ปลดปล่
   assert.equal(noct.skillPub(P.N, 'ultimate').choices, undefined, 'ไม่มีตัวเลือกซ้ำ');
   P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
   assert.equal(noct.skillPub(P.N, 'ultimate').name, 'ให้มันจบตรงนี้แหละ');
-  assert.deepEqual(noct.skillArea(P.N, 'ultimate', { kind: 'self' }), noct.END_AREA);
+  assert.deepEqual(noct.skillArea(P.N, 'ultimate', { kind: 'self' }), { kind: 'self' });
   assert.ok(noct.skillMusic(engine, P.N), 'เพลงระหว่างปลดปล่อย');
 });
 
-test('ให้มันจบตรงนี้แหละ: เลือดตัวเองเหลือ 1 · ดาเมจ 9 ไม่ฆ่า · ล้างบัฟ · ครั้งเดียว', () => {
-  const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 6, 7]]);
+test('ให้มันจบตรงนี้แหละ: 0 แต้ม · พลังชีวิตเหลือ 1 · ตีปกติครั้งถัดไป = คลิป all royal Arms · ดาเมจ 9 ไม่ฆ่า · ล้างบัฟ · ครั้งเดียว', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 4, 7]]);
   P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
   P.B.hp = 7; P.B.armor = 3;
   engine.applyBuff(P.B, 'might', 1, 2);
   Math.random = () => 0.99;
   engine.setActor('N');
-  engine.useSkill('N', 'ultimate', [], { form: 'end', dir: 'right' });
+  engine.useSkill('N', 'ultimate', [], {});
   assert.equal(P.N.hp, 1);
-  assert.deepEqual(P.N.pos, { x: 5, y: 7 }, 'วาร์ปไปหน้าเป้า');
-  for (const fn of match.afterCutscene.splice(0)) fn();
+  assert.equal(P.N.skillPoints, 8, 'ไม่ใช้แต้ม');
+  assert.equal(P.N.noct.endArmed, true);
+  assert.equal(noct.preAttackClip(engine, P.N), 'noctEnd');
+  engine.attackTarget('N', 'B');
   assert.equal(P.B.alive, true);
   assert.equal(P.B.hp, 1);
   assert.equal(P.B.armor, 0);
   assert.ok(!(P.B.statuses.might > 0), 'ล้างบัฟ');
-  assert.equal(noct.canUseSkill(engine, P.N, 'ultimate', ['B'], { form: 'end' }), false);
+  flush(t, 60000);
+  assert.equal(P.N.noct.endArmed, false);
+  assert.equal(noct.canUseSkill(engine, P.N, 'ultimate', [], {}), false, 'ครั้งเดียวต่อเกม');
 });
 
 test('กันตาย: ตายครั้งแรก = เลือด 2 เกราะ +1 + คลิป · ครั้งที่สองตาย', () => {

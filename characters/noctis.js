@@ -90,7 +90,6 @@ const UNLEASH_TURNS = 5;
 const UNLEASH_MOV = 2;
 const UNLEASH_RANGE = [1, 4];
 const END_COST = 0; // ผู้ใช้ 2026-11-11: ไม่ใช้แต้ม — จ่ายด้วยพลังชีวิตที่ลดเหลือ 1
-const END_AREA = { kind: "line", len: 4, width: 1, hostile: true };
 const END_DMG = 9;
 const GUTS_HP = 2;
 const GUTS_ARMOR = 1;
@@ -353,18 +352,6 @@ function secForm(p, opts = {}) {
 }
 const ruinCd = (engine, p) => (eosMode(engine) ? 0 : Math.max(0, st(p).ruinReady - engine.roundNumber));
 
-// ---------- ให้มันจบตรงนี้แหละ ----------
-function endItHere(engine, p, ids) {
-  const t = engine.players[ids[0]];
-  if (!t || !foeOf(engine, p, t)) return;
-  fx(engine, p, "end", { to: { ...t.pos } });
-  engine.sfx("noct_end");
-  const r = hurt(engine, p, t, END_DMG, "ให้มันจบตรงนี้แหละ", { noKill: true });
-  if (r.dodge) { engine.log(`💨 ${t.name} หลบ ให้มันจบตรงนี้แหละ ได้`); return; }
-  let n = 0;
-  while (engine.stripLatestBuff(t)) n++;
-  engine.log(`👑 ให้มันจบตรงนี้แหละ → ${t.name} -${r.dealt}${n ? ` · ล้างบัฟ ${n}` : ""}`);
-}
 
 // ---------- หัวใจของเหล่าปวงชน ----------
 const heartMode = (engine) => !eosMode(engine) && engine.world !== "moon";
@@ -410,7 +397,7 @@ module.exports = {
   id: ID,
   IMG, VIDEO, CUT, ARMS, HEED_POWER, heedCut, ARM_KEYS, ROYAL_KEYS, HP, ARMOR, WISE_DIST, WISE_PCT, AXE_MOV, BOW_RANGE, STAR_RANGE, TRIDENT_RANGE, CRIT_PCT,
   TALL_HIT, TALL_BLEED, MACE_PUSH, MACE_DMG, SCEPTER_PCT, WARP_COST, WARP_LEN, POINT_RANGE, HEED_COST, RUIN_COST, RUIN_CD, RUIN_AREA, RUIN_DMG,
-  RUIN_EOS_RANGE, RUIN_SHOTS, RUIN_BLAST, UNLEASH_COST, UNLEASH_TURNS, UNLEASH_MOV, UNLEASH_RANGE, END_COST, END_AREA, END_DMG, GUTS_HP,
+  RUIN_EOS_RANGE, RUIN_SHOTS, RUIN_BLAST, UNLEASH_COST, UNLEASH_TURNS, UNLEASH_MOV, UNLEASH_RANGE, END_COST, END_DMG, GUTS_HP,
   HEART_SECONDS,
   isNoct, warpTiles, pointTiles,
 
@@ -444,6 +431,7 @@ module.exports = {
   damageBonus(engine, attacker) { return isNoct(attacker) ? (ARMS[weaponOf(attacker)].atk || 0) + (heeding(attacker) ? HEED_POWER : 0) : 0; },
   // ขานรับ เหล่าราชา + อาวุธราชวงศ์: คลิปท่าของอาวุธนั้นก่อนฉากตีทุกครั้ง (Engine Blade ไม่มีคลิป)
   preAttackClip(engine, attacker) {
+    if (isNoct(attacker) && st(attacker).endArmed) return CUT.end; // ให้มันจบตรงนี้แหละ: all royal Arms
     if (!heeding(attacker)) return null;
     const w = weaponOf(attacker);
     return ARMS[w] && ARMS[w].clip ? heedCut(w) : null;
@@ -462,6 +450,7 @@ module.exports = {
   strikeRepeat(p) {
     if (!isNoct(p)) return 0;
     const s = st(p), w = weaponOf(p);
+    if (s.endArmed) return 0;
     if (s.warp && s.warp.double) return 1;
     if (s.unleash && w === "wanderer") return 1;
     if (w !== "katana") return 0;
@@ -480,8 +469,18 @@ module.exports = {
     if (heeding(attacker)) out.push(`ขานรับ เหล่าราชา — เสริมพลัง +${HEED_POWER}`);
     return out;
   },
+  // ให้มันจบตรงนี้แหละ: ดาเมจ 9 ตายตัว (ไม่ทำให้ตาย — onStrikeLanded ดึงเลือดกลับเป็น 1) · หน้าคาดการณ์เห็น 9
+  fixedStrikeDamage(engine, attacker) { return isNoct(attacker) && st(attacker).endArmed ? END_DMG : null; },
   onStrikeLanded(engine, attacker, target) {
     if (!isNoct(attacker) || !target.alive) return [];
+    if (st(attacker).endArmed) {
+      if (target.hp <= 0) target.hp = 1; // ไม่ทำให้เป้าตาย
+      let n = 0;
+      while (engine.stripLatestBuff(target)) n++;
+      fx(engine, attacker, "end", { to: target.pos ? { ...target.pos } : null });
+      engine.sfx("noct_end");
+      return ["ให้มันจบตรงนี้แหละ", ...(n ? [`ล้างบัฟ ${n}`] : [])];
+    }
     const w = weaponOf(attacker), out = [];
     if (w === "mystic" && chance(attacker, MYSTIC_PCT)) {
       const key = pick(["nohealing", "decay"]);
@@ -537,6 +536,7 @@ module.exports = {
     if (!isNoct(p)) return;
     const s = st(p);
     s.heed = false;
+    s.endArmed = false;
     s.warp = null;
     s.pushDir = null;
     // Wanderer: เก็บระยะเดินที่เหลือไว้เดินต่อ
@@ -719,8 +719,8 @@ module.exports = {
         return { name: "ปลดปล่อยพลังที่แท้จริง", img: IMG.unleash, cost: UNLEASH_COST, area: { kind: "self" }, flash: true,
           desc: `${UNLEASH_TURNS} เทิร์น · ระยะเดิน +${UNLEASH_MOV} · ตีปกติระยะ 1–4 · ทุกการตีสุ่มอาวุธราชวงศ์ · แต้มสกิล +1 ต่อเทิร์น · ไม่เสียพลังชีวิตตัวเอง (ระหว่างนี้ช่องนี้เปลี่ยนเป็นให้มันจบตรงนี้แหละ)` };
       }
-      return { name: "ให้มันจบตรงนี้แหละ", img: IMG.end, cost: END_COST, area: END_AREA, flash: true,
-        desc: `เลือกทิศ แนว 4×1 วาร์ปไปฟันศัตรูคนแรก · พลังชีวิตตัวเองเหลือ 1 · ดาเมจ ${END_DMG} (ไม่ทำให้ตาย) · ล้างบัฟเป้าทั้งหมด · ครั้งเดียวต่อเกม` };
+      return { name: "ให้มันจบตรงนี้แหละ", img: IMG.end, cost: END_COST, area: { kind: "self" }, flash: true, active: !!s.endArmed,
+        desc: `พลังชีวิตตัวเองเหลือ 1 · การตีปกติครั้งถัดไป (รวม Warp Strike) ดาเมจ ${END_DMG} (ไม่ทำให้ตาย) · ล้างบัฟเป้าทั้งหมด · ครั้งเดียวต่อเกม` };
     }
     return null;
   },
@@ -740,7 +740,7 @@ module.exports = {
       if (m) return { kind: "target", range: RUIN_EOS_RANGE, count: Number(m[1]), hostile: true };
       return { kind: "self" };
     }
-    if (tier === "ultimate") return ultForm(p) === "end" ? END_AREA : { kind: "self" };
+    if (tier === "ultimate") return { kind: "self" };
     return area;
   },
   canUseSkill(engine, p, tier, targets, opts = {}) {
@@ -760,7 +760,7 @@ module.exports = {
     if (tier === "ultimate") {
       const uf = ultForm(p);
       if (uf === "unleash") return true;
-      if (uf === "end") return !s.endUsed && (targets || []).some((id) => foeOf(engine, p, engine.players[id]));
+      if (uf === "end") return !s.endUsed && !s.endArmed;
       return false;
     }
     return false;
@@ -769,7 +769,7 @@ module.exports = {
   ignoresTurnQuota(p, tier) { return isNoct(p) && tier === "basic"; },
   keepsMove(engine, p, tier) { return isNoct(p) && tier === "basic"; },
   silentFlash(p, tier) { return isNoct(p) && tier === "basic"; },
-  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? secForm(p, opts) !== "heed" : tier === "ultimate" && ultForm(p) === "end"); },
+  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? secForm(p, opts) !== "heed" : false); },
   skillSound() { return null; },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isNoct(p)) return "";
@@ -807,17 +807,13 @@ module.exports = {
       return "";
     }
     if (tier === "ultimate" && f === "end") {
+      // ผู้ใช้ 2026-11-11: เป็นการเสริมตีปกติครั้งถัดไป — กดแล้วพลังชีวิตเหลือ 1 · ตีครั้งถัดไป (รวม Warp Strike) = คลิป all royal Arms → ดาเมจ 9 ไม่ฆ่า + ล้างบัฟ
       s.endUsed = true;
-      const foes = foesInLine(engine, p, opts.dir, END_AREA.len);
-      const t = foes.length ? foes[0].u : null;
-      p.hp = 1; // ลดพลังชีวิตตัวเองเหลือ 1 (แม้เป้าหลบ)
-      if (t) {
-        const land = landNear(engine, p, t, opts.dir);
-        if (land) teleport(engine, p, land, "warp");
-      }
-      engine.triggerCutscene(p, CUT.end);
-      engine.log(`👑 ${p.name} ให้มันจบตรงนี้แหละ`);
-      if (t) engine.deferAfterCutscene(() => engine.withEffectSource(p, () => { endItHere(engine, p, [t.id]); engine.hitArea(p, [{ ...t.pos || p.pos }], [t.id]); }));
+      s.endArmed = true;
+      s.endSever = engine.severStamp();
+      p.hp = 1;
+      fx(engine, p, "heed", {});
+      engine.log(`👑 ${p.name} ให้มันจบตรงนี้แหละ — การโจมตีครั้งถัดไป`);
       return "";
     }
     return "";
@@ -850,6 +846,7 @@ module.exports = {
     const s = st(p), out = [];
     if (s.unleash) out.push({ key: "unleash", label: "ปลดปล่อยพลังที่แท้จริง", at: s.unleash.sever || 0, cancel: () => { s.unleash = null; } });
     if (s.heed) out.push({ key: "heed", label: "ขานรับ เหล่าราชา", at: s.heedSever || 0, cancel: () => { s.heed = false; } });
+    if (s.endArmed) out.push({ key: "end", label: "ให้มันจบตรงนี้แหละ", at: s.endSever || 0, cancel: () => { s.endArmed = false; } });
     return out;
   },
 
@@ -859,7 +856,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber, h = s.heart;
     const name = (id) => (engine.players[id] || {}).name || "";
     return {
-      weapon: s.weapon, heed: s.heed, swapped: s.swapRound === r, dodge: s.dodge,
+      weapon: s.weapon, heed: s.heed, endArmed: !!s.endArmed, swapped: s.swapRound === r, dodge: s.dodge,
       unleashLeft: s.unleash ? Math.max(1, s.unleash.until - r + 1) : 0,
       heart: h && h.deciding ? { victim: name(h.victimId), attacker: name(h.attackerId) } : null,
     };
