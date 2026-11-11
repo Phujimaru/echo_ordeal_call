@@ -399,6 +399,7 @@ function buildStateInner(viewerId) {
         emiya: hook && hook.emiyaState ? hook.emiyaState(engine, p) : undefined, // ชิโร่: อาวุธ / เทิร์น+ครั้งที่เหลือ / คูลดาวน์ / UBW / ความจุที่เพิ่ม — GRID_PLAN §7.18
         roland: hook && hook.rolandState ? hook.rolandState(engine, p) : undefined, // โรลันด์: Emotion / Furioso charge / BS Page ที่เหลือ
         zect: hook && hook.zectState ? hook.zectState(engine, p) : undefined, // ไรเดอร์ ZECT: ร่าง / ปุ่ม Clock Up นอกตา — GRID_PLAN §7.28
+        kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21

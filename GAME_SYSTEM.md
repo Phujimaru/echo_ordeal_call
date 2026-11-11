@@ -1335,3 +1335,11 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ภาพตัวเต็มแทนหมาก**: state ตัวละคร `standee: url` → `client/src/board/freddyFx.js drawStandee` (ใน `drawUnit` ทางเดียวกับร่างรถของออพติมัส — ไม่มีเสา/หกเหลี่ยม · หลอดพลัง/กล่องคลิกตามกรอบภาพ)
 - **เพลงตอนเข้าใกล้ (per-viewer)**: state `freddyNear` (`nearView` — ผู้ชมอยู่ห่าง ≤ 3 ช่องตอนกลางวัน) → client `startLoopSfx("freddy_music")` · มินิเกม/คลิป = หยุด
 - PVE (สนาม Eos / Moon Cell): ร่างกลางคืนตลอด · พลังโจมตี 6 · คริ 50% · เทสต์ [tests/characters/freddy_fazbear.test.js](tests/characters/freddy_fazbear.test.js)
+
+## 53. ดาเมจเลื่อนลงทีหลัง / ม่านควัน / กับดักที่ทุกคนเห็น / Time Alter ในระบบ Clock Up (เอมิยะ คริซุงุ — `characters/emiya_kiritsugu.js` · GRID_PLAN §7.31)
+
+- **ดาเมจเลื่อนลงทีหลัง (อดีนาลีน)**: ฮุคของเป้า `adjustIncomingDamage` คืน 0 แล้วจด `{ round, n, kind, src }` · ลงใน `onRoundStartTick` ผ่าน `engine.withEffectSource(src, () => engine.dealMixed/dealDirect/dealArmorOnly)` โดยตั้งธง `landing` ให้ฮุคปล่อยผ่าน · ตายเอง `engine.instantDeath` แล้วล้าง `pos`
+- **ม่านควัน**: `match.board.smoke = { "x,y": { owner, left } }` → `Ice.overlayOf` วาง special `"smoke"` (`Board.TERRAIN_INFO.smoke.bush` = ซ่อนตัวแบบพุ่ม) · `Ice.hasOverlay` นับด้วย · เปลี่ยนค่าต้อง `iceVer++` · client วาดใน `boardProps.js` (`bakeSpecial`/`animSpecial` case smoke)
+- **กับดักที่ทุกคนเห็น**: เก็บที่ตัวเจ้าของ (`p.kiri.mines`) · ทำงานผ่านฮุค broadcast `walkTrap`/`springTrap` (แบบตาข่ายดิเอโก้) · ส่งทุกคนผ่าน `boardPublic` → `state.board.kiritsugu.mines` → BoardCanvas prop `kiri` → `drawKiriGround`
+- **Time Alter = ช่วง Clock Up kind `"alter"`**: ตาตัวเอง `engine.clockUp.start` · นอกตา `charAction "kiri:double" | "kiri:square"` → `engine.clockUp.enter` (ปุ่ม 2 ปุ่มใน `ZectHud ClockUpButton`) · สกิลระหว่างช่วงเรียก `engine.clockUp.countHit` + ฮุค `endsTurn` เมื่อครบ · client: `faizTrail "alter"` = เงาค้างสีส้ม (`KIRI_GHOST`) · `.axel-world.alter` = จอโทนส้ม · ไม่มีเส้นความเร็ว FULL FORCE
+- เทสต์ `tests/characters/emiya_kiritsugu.test.js`

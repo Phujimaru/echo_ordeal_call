@@ -546,6 +546,11 @@ export function bakeSpecial(g, sp, ctx) {
   const { x, y, kind } = sp, { night } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {
+    case "smoke": {
+      // ม่านควัน (เอมิยะ คริซุงุ — ระเบิดควัน): พื้นหม่นเทา ควันลอยวาดใน animSpecial
+      quad(g, x, y, 0.02); g.fillStyle = night ? "rgba(150,156,160,.32)" : "rgba(120,126,130,.3)"; g.fill();
+      break;
+    }
     case "flame": {
       // พื้นไฟ (Judgment Bolt — นกหวีดอัญเชิญ): พื้นไหม้เกรียม + รอยแตกเรืองส้ม/ม่วงจากสายฟ้า
       const R = rng(x * 59 + y * 31 + 7);
@@ -731,6 +736,19 @@ export function animSpecial(g, sp, ctx, t) {
   const { x, y, kind } = sp, { night, lowQ } = ctx;
   const [cx, cy, s] = PA(x, y, 0);
   switch (kind) {
+    case "smoke": {
+      // ควันหนาลอยวน — ก้อนควันเลื่อนช้าๆ ซ้อนกันจนมองทะลุไม่ได้ (lowQ = ก้อนนิ่ง 2 ก้อน)
+      const n = lowQ ? 2 : 4;
+      for (let i = 0; i < n; i++) {
+        const ph = t / (2600 + i * 700) + i * 1.9 + x * 0.7 + y * 1.3;
+        const [bx, by, sc] = P(x + 0.5 + Math.sin(ph) * 0.18, y + 0.5 + Math.cos(ph * 0.8) * 0.15, 0.25 + 0.12 * ((i + Math.sin(ph)) % 1));
+        const r = sc * (0.42 + 0.08 * Math.sin(ph * 1.7));
+        const gr = g.createRadialGradient(bx, by, r * 0.1, bx, by, r);
+        gr.addColorStop(0, night ? "rgba(190,196,200,.55)" : "rgba(214,216,214,.6)"); gr.addColorStop(1, "rgba(200,204,206,0)");
+        g.fillStyle = gr; g.beginPath(); g.arc(bx, by - sc * 0.15, r, 0, Math.PI * 2); g.fill();
+      }
+      break;
+    }
     case "flame": {
       const p = 0.5 + 0.5 * Math.sin(t / 170 + x * 2.3 + y);
       g.save(); g.globalCompositeOperation = "lighter";

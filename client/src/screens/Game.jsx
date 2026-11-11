@@ -2169,6 +2169,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
   const clockWorld = !!state.clockUp && !state.clockUp.paused; // ช่วง Clock Up (server/clockUp.js) — ตัวหยุดเวลาแทรก = ปิด
   const faizClock = state.clockUp ? state.clockUp.members.find((m) => m.kind === "faiz" && !m.over) : null;
+  const alterWorld = clockWorld && state.clockUp.members.some((m) => m.kind === "alter" && !m.over); // เอมิยะ คริซุงุ Time Alter: จอโทนส้ม
   const inuiUpRef = useRef(false);
   useEffect(() => {
     if (inuiUp && !inuiUpRef.current) { inuiUpRef.current = true; startLoopSfx("inui_startup"); }
@@ -2592,9 +2593,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
       {/* Start Up / ช่วง Clock Up (ไรเดอร์ ZECT): โลกสีซีด ขอบเบลอ · Start Up ในช่วง Clock Up ใช้เวลาของสมาชิก Faiz */}
-      {(inuiUp || clockWorld) && <div className={`axel-world ${clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
+      {(inuiUp || clockWorld) && <div className={`axel-world ${alterWorld && !inuiUp ? "alter" : clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
       {inuiUp && <AxelClock phase={phase} value={faizClock && faizClock.id !== me?.id ? faizClock.left : undefined} />}
-      {clockWorld && !lowQ && <div className="full-force-speed" />}
+      {clockWorld && !alterWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       {/*  สนาม Eos (ผู้ใช้สั่ง 2026-11-10 "รวมทั้ง 3 อันในอันเดียว สไลด์ออกมาแล้วกดได้"): ปุ่มแผนที่ + คู่มืออยู่ในถาดเดียวกับกองการ์ด */}
       <div className="deck-drawer" data-eos={state.world === "eos" && state.board ? "true" : undefined} data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>

@@ -57,6 +57,7 @@
 //   diego       { oil: [{x,y}], fire: [{x,y,left}], ash: [{x,y}], nets: [{x,y,color}] } | null — ชั้นพื้นของดิเอโก้ แบรนโด (diegoFx.js)
 //               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
+//   kiri        { mines: [{x,y,color}] } | null — กับดักระเบิดของเอมิยะ คริซุงุ (kiriFx.js drawKiriGround)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
@@ -928,7 +929,7 @@ export default function BoardCanvas(props) {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
-        diego: p.diego || null, timeFreeze: p.timeFreeze || null,
+        diego: p.diego || null, timeFreeze: p.timeFreeze || null, kiri: p.kiri || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);

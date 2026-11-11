@@ -4,6 +4,12 @@
   animation: zectPulse 1.1s ease-in-out infinite; transition: transform .12s ease; }
 .zect-clock.faiz { border-color: #ff4a57; box-shadow: 0 0 22px rgba(255, 60, 80, .7); animation-name: zectPulseRed; }
 .zect-clock:hover { transform: scale(1.05); }
+/* เอมิยะ คริซุงุ: Time Alter 2 ปุ่มซ้อนแนวตั้ง — ส้ม */
+.kiri-alter-pick { position: fixed; right: 26px; bottom: 170px; z-index: 40; display: flex; flex-direction: column; gap: 10px; }
+.kiri-alter-pick .zect-clock { position: relative; right: auto; bottom: auto; }
+.zect-clock.kiri { border-color: #ff9a3c; box-shadow: 0 0 22px rgba(255, 140, 40, .7); animation-name: zectPulseOrange; }
+.zect-clock.kiri .zect-clock-name { text-shadow: 0 2px 4px #000, 0 0 8px #ff8a1e; }
+@keyframes zectPulseOrange { 50% { box-shadow: 0 0 36px rgba(255, 150, 50, 1); } }
 .zect-clock img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .82; }
 .zect-clock-name { position: absolute; left: 8px; bottom: 6px; font-size: 18px; font-weight: 900; color: #fff; letter-spacing: .04em; text-shadow: 0 2px 4px #000, 0 0 8px #3fc6ff; }
 .zect-clock.faiz .zect-clock-name { text-shadow: 0 2px 4px #000, 0 0 8px #ff3344; }

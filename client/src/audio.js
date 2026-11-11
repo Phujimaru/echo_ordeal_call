@@ -587,6 +587,11 @@ const FILES = {
   // อินุอิ ทาคุมิ: เสียงจากผู้ใช้ · ปุ่ม 3 เสียงไล่ระดับ key1/2/3 + ENTER + 103/106/279/ยิง ตัดจาก Sound Effects Henshin And Finisher · standby จาก "เสียงปุ่มและ standby"
   ...Object.fromEntries(["key1", "key2", "key3", "enter", "standby", "henshin2", "exceed", "single", "burst", "charge", "shot", "shot_burst", "startup", "timeout"].map((k) => [`inui_${k}`, `/characters/inui_takumi/sfx/inui_${k}.m4a`])),
   inui_axel: "/characters/inui_takumi/inui_axel_theme.m4a", // เล่นตลอด Start Up
+  // เอมิยะ คริซุงุ: kiri_alter = time_altersong ของผู้ใช้ (ตลอด Time Alter) · smg/smoke/place สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
+  kiri_alter: "/characters/emiya_kiritsugu/kiri_alter_theme.m4a",
+  kiri_smg: "/characters/emiya_kiritsugu/sfx/kiri_smg.mp3",
+  kiri_smoke: "/characters/emiya_kiritsugu/sfx/kiri_smoke.mp3",
+  kiri_place: "/characters/emiya_kiritsugu/sfx/kiri_place.mp3",
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)
   //  parry (ชนกัน) / clock_over / kick_charge = สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   full_force: "/theme_song/FULL FORCE.mp3",
@@ -740,7 +745,7 @@ const MUSIC_TRACK_SCALE = {
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
-const FEATURED_MUSIC = { inui_axel: 1, full_force: 1, kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
+const FEATURED_MUSIC = { kiri_alter: 1, inui_axel: 1, full_force: 1, kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
 function sfxDuck() {
   const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
   return d ?? 1;

@@ -42,6 +42,7 @@ import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { dioEventFx } from "./dioFx";
 import { ZECT_LUNGE, ZECT_FX_DUR } from "./zectFx";
+import { KIRI_FX_DUR } from "./kiriFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
@@ -981,7 +982,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
       //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
-      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz") || style.startsWith("kiri") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
       const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
@@ -1835,7 +1836,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("diegoFx", onDiego);
     socket.on("dioFx", onDio);
     socket.on("zectFx", onZect);
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("clockWalk", onClockWalk); };
+    // เอมิยะ คริซุงุ (kiriFx.js): โยนของ / กับดักระเบิด / Thompson Contender
+    const KIRI_KIND = { throw: "kiriThrow", boom: "kiriBoom", shot: "kiriShot" };
+    const onKiri = (ev) => {
+      const kind = ev && KIRI_KIND[ev.kind];
+      const from = ev && (ev.from || ev.at);
+      if (!kind || !(kind in KIRI_FX_DUR) || !from) return;
+      pushFx([{ kind, x: from.x, y: from.y, to: ev.to ? { x: ev.to.x, y: ev.to.y } : null, item: ev.item || null }]);
+      if (kind === "kiriBoom" && !lowQ) setShake((n) => n + 1);
+      if (kind === "kiriShot" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 120));
+    };
+    socket.on("kiriFx", onKiri);
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
@@ -2353,7 +2365,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
-      faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? "clock" : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
+      faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? (state.clockUp.members.some((m) => m.id === p.id && m.kind === "alter") ? "alter" : "clock") : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
       aura: p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
@@ -2431,6 +2443,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     oil: dBoard && Array.isArray(dBoard.oil) ? dBoard.oil : [], fire: dBoard && Array.isArray(dBoard.fire) ? dBoard.fire : [], ash: dBoard && Array.isArray(dBoard.ash) ? dBoard.ash : [],
     nets: state.players.filter((p) => p.diego && Array.isArray(p.diego.nets)).flatMap((p) => p.diego.nets.filter((n) => n && Number.isFinite(n.x) && Number.isFinite(n.y)).map((n) => ({ x: n.x, y: n.y, color: p.color }))),
   });
+  // เอมิยะ คริซุงุ: กับดักระเบิด board.kiritsugu.mines (ทุกคนเห็น · ม่านควันเป็นช่องพิเศษ "smoke" ในแผนที่อยู่แล้ว)
+  const kiriSig = JSON.stringify(state.board && state.board.kiritsugu && Array.isArray(state.board.kiritsugu.mines) ? state.board.kiritsugu.mines : []);
+  const kiriGround = useMemo(() => { const mines = JSON.parse(kiriSig); return mines.length ? { mines } : null; }, [kiriSig]);
   const diegoGround = useMemo(() => { const d = JSON.parse(diegoSig); return d.oil.length || d.fire.length || d.ash.length || d.nets.length ? d : null; }, [diegoSig]);
   // เซลิน (celineFx.js): พุ่มดอกไม้ · ราชาดอกไม้ (p.celine.king > 0 — มงกุฎ/กลีบโคจร) · กำแพงค้างถึงจังหวะปะทะ · พรีวิวกำแพงตอนเลือกช่อง
   const kingSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.celine && p.celine.king > 0 && sameDim(p))
@@ -2825,6 +2840,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         law={lawProp}
         gyroBalls={gyroBalls}
         diego={diegoGround}
+        kiri={kiriGround}
         timeFreeze={state.timeFreeze || null}
         valentine={state.board && state.board.valentine ? state.board.valentine : null}
         celine={celineProp}

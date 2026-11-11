@@ -57,6 +57,7 @@ const TERRAIN_INFO = {
   oasis: { name: "โอเอซิส", icon: "🌴", desc: "จบตา ฟื้นพลังชีวิต +1" },
   flowers: { name: "พุ่มดอกไม้สูง", icon: "🌸", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true, flower: true },
   bloom: { name: "พุ่มดอกไม้", icon: "🌷", desc: "หลบหลีก +20% · ซ่อนตัว", evade: 20, bush: true, flower: true }, // เซลิน (ชั้นทับช่องเดิม — server/flora.js)
+  smoke: { name: "ม่านควัน", icon: "💨", desc: "ซ่อนตัว", bush: true }, // เอมิยะ คริซุงุ: ระเบิดควัน (match.board.smoke — Ice.overlayOf)
   forest: { name: "ป่าทึบ", icon: "🌲", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
   thorns: { name: "หนามพิษ", icon: "🥀", desc: "จบตา ติดพิษร้าย 1 เทิร์น", end: "thorns", poison: 1 },
   shallow: { name: "น้ำตื้น", icon: "💧", desc: "เดิน 2 ก้าว", cost: 2 },

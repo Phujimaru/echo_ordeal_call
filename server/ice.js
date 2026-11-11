@@ -74,7 +74,7 @@ function openTile(x, y, bridge = false) {
 //   special "wet" (Board.TERRAIN_INFO slide) = ไถลแบบเดียวกับน้ำแข็งทุกอย่าง · น้ำแข็งทับอยู่ = เป็นน้ำแข็ง
 function hasOverlay(b) {
   return !!b && ((b.ice && Object.keys(b.ice).length > 0) || (b.spikes && Object.keys(b.spikes).length > 0)
-    || (b.wet && Object.keys(b.wet).length > 0) || (b.flame && Object.keys(b.flame).length > 0) || Flora.has(b));
+    || (b.wet && Object.keys(b.wet).length > 0) || (b.flame && Object.keys(b.flame).length > 0) || Flora.has(b) || (b.smoke && Object.keys(b.smoke).length > 0)); // ม่านควัน (เอมิยะ คริซุงุ)
 }
 // รวมชั้นเข้าแผนที่ (เรียกจาก action.boardMap — terrain ส่งมาเป็นสำเนาแล้ว)
 function overlayOf(b, terrain, special) {
@@ -84,6 +84,7 @@ function overlayOf(b, terrain, special) {
   for (const k of Object.keys(b.flame || {})) if (!terrain[k] && sp[k] !== "ice" && sp[k] !== "wet") sp[k] = "flame"; // พื้นไฟ (Judgment Bolt — server/whistle.js)
   for (const [k, s] of Object.entries(b.spikes || {})) terrain[k] = s.wall ? "icewall" : `icespike${s.lv}`;
   Flora.overlay(b, terrain, sp); // พุ่มดอกไม้ของเซลิน (server/flora.js) — ชั้นบนสุดของช่องพิเศษ
+  for (const k of Object.keys(b.smoke || {})) if (!terrain[k]) sp[k] = "smoke"; // ม่านควันของเอมิยะ คริซุงุ (characters/emiya_kiritsugu.js) — ทับทุกชั้น · ซ่อนตัวแบบพุ่ม
   return { terrain, special: sp };
 }
 // ข้อมูลส่ง client (view.boardPublic)
