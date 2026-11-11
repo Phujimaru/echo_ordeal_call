@@ -330,6 +330,12 @@ function ruinEos(engine, p, ids) {
   engine.hitArea(p, spots, [...targets.map((t) => t.id), ...hit]);
 }
 const eosMode = (engine) => engine.gameMode === "eos";
+// ช่องสกิลรอง (ผู้ใช้ 2026-11-11): ปกติ = ขานรับ เหล่าราชา · ระหว่างปลดปล่อยพลังที่แท้จริง = ทำลายให้สิ้น (ไม่อยู่พร้อมกัน)
+function secForm(p, opts = {}) {
+  const f = opts.form;
+  if (!st(p).unleash) return "heed";
+  return f && /^ruin\d?$/.test(f) ? f : "ruin";
+}
 const ruinCd = (engine, p) => (eosMode(engine) ? 0 : Math.max(0, st(p).ruinReady - engine.roundNumber));
 
 // ---------- ให้มันจบตรงนี้แหละ ----------
@@ -670,20 +676,22 @@ module.exports = {
       };
     }
     if (tier === "secondary") {
-      const heed = { key: "heed", name: "ขานรับ เหล่าราชา", img: IMG.heed, cost: HEED_COST, area: { kind: "self" }, active: s.heed, locked: s.heed,
-        desc: "ขานรับ เหล่าราชา: ตีปกติ/Warp Strike ครั้งถัดไปพลังโจมตี +1 · ไม่เสียพลังชีวิตตัวเอง · แม่นยำ · ผลที่เป็นโอกาสติดแน่นอน · ไม่มีผลเสียของอาวุธ" };
-      const cd = ruinCd(engine, p);
+      if (!s.unleash) {
+        return { name: "ขานรับ เหล่าราชา", img: IMG.heed, cost: HEED_COST, area: { kind: "self" }, flash: true,
+          desc: "ตีปกติ/Warp Strike ครั้งถัดไปพลังโจมตี +1 · ไม่เสียพลังชีวิตตัวเอง · แม่นยำ · ผลที่เป็นโอกาสติดแน่นอน · ไม่มีผลเสียของอาวุธ (ระหว่างปลดปล่อยพลังที่แท้จริงเปลี่ยนเป็นทำลายให้สิ้น)" };
+      }
       if (!eosMode(engine)) {
-        return { choices: [heed, { key: "ruin", name: "ทำลายให้สิ้น", img: IMG.ruin, cost: RUIN_COST, area: RUIN_AREA, cd, locked: cd > 0,
-          desc: `ทำลายให้สิ้น: เลือกทิศ แนว 6×3 · ดาเมจ ${RUIN_DMG} (ลดเกราะก่อน) · คูลดาวน์ ${RUIN_CD} เทิร์น` }] };
+        return { name: "ทำลายให้สิ้น", img: IMG.ruin, cost: RUIN_COST, area: RUIN_AREA, flash: true,
+          desc: `เลือกทิศ แนว 6×3 · ดาเมจ ${RUIN_DMG} (ลดเกราะก่อน) · คูลดาวน์ ${RUIN_CD} เทิร์น` };
       }
       const near = p.pos ? Object.values(engine.players).filter((t) => foeOf(engine, p, t) && Board.dist(Board.boxOf(p), Board.boxOf(t)) <= RUIN_EOS_RANGE).length : 0;
       return {
-        choices: [heed, ...RUIN_EOS_COUNTS.map((n) => ({
+        name: "ทำลายให้สิ้น", img: IMG.ruin, flash: true,
+        choices: RUIN_EOS_COUNTS.map((n) => ({
           key: `ruin${n}`, name: `ทำลายให้สิ้น ×${n}`, img: IMG.ruin, cost: RUIN_COST,
           area: { kind: "target", range: RUIN_EOS_RANGE, count: n, hostile: true }, locked: near < n,
           desc: `ทำลายให้สิ้น: เลือกศัตรู ${n} ตัวในระยะ ${RUIN_EOS_RANGE} · อาวุธ ${RUIN_SHOTS} ชิ้นแบ่งยิง ชิ้นละ 1 · ศัตรูรอบตัวเป้าโดนระเบิด ${RUIN_BLAST}`,
-        }))],
+        })),
       };
     }
     if (tier === "ultimate") {
@@ -701,15 +709,16 @@ module.exports = {
   skillCost(p, tier, base, opts = {}) {
     if (!isNoct(p)) return base;
     if (tier === "basic") return 0;
-    if (tier === "secondary") return opts.form === "heed" ? HEED_COST : RUIN_COST;
+    if (tier === "secondary") return secForm(p, opts) === "heed" ? HEED_COST : RUIN_COST;
     if (tier === "ultimate") return opts.form === "end" ? END_COST : UNLEASH_COST;
     return base;
   },
   skillArea(p, tier, area, opts = {}) {
     if (!isNoct(p)) return area;
     if (tier === "secondary") {
-      if (opts.form === "ruin") return RUIN_AREA;
-      const m = /^ruin(\d)$/.exec(opts.form || "");
+      const f = secForm(p, opts);
+      if (f === "ruin") return RUIN_AREA;
+      const m = /^ruin(\d)$/.exec(f);
       if (m) return { kind: "target", range: RUIN_EOS_RANGE, count: Number(m[1]), hostile: true };
       return { kind: "self" };
     }
@@ -723,9 +732,11 @@ module.exports = {
     const f = opts.form;
     if (tier === "basic") return !!ARMS[f] && f !== s.weapon && s.swapRound !== engine.roundNumber && !s.unleash;
     if (tier === "secondary") {
-      if (f === "heed") return !s.heed;
-      if (f === "ruin") return !eosMode(engine) && ruinCd(engine, p) === 0;
-      if (/^ruin\d$/.test(f || "")) return eosMode(engine) && (targets || []).every((id) => foeOf(engine, p, engine.players[id]));
+      const sf = secForm(p, opts);
+      if (sf === "heed") return !s.heed && !s.unleash;
+      if (!s.unleash) return false;
+      if (sf === "ruin") return !eosMode(engine) && ruinCd(engine, p) === 0;
+      if (/^ruin\d$/.test(sf)) return eosMode(engine) && (targets || []).every((id) => foeOf(engine, p, engine.players[id]));
       return false;
     }
     if (tier === "ultimate") {
@@ -739,11 +750,11 @@ module.exports = {
   ignoresTurnQuota(p, tier) { return isNoct(p) && tier === "basic"; },
   keepsMove(engine, p, tier) { return isNoct(p) && tier === "basic"; },
   silentFlash(p, tier) { return isNoct(p) && tier === "basic"; },
-  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? opts.form !== "heed" : tier === "ultimate" && opts.form === "end"); },
+  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? secForm(p, opts) !== "heed" : tier === "ultimate" && opts.form === "end"); },
   skillSound() { return null; },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isNoct(p)) return "";
-    const s = st(p), r = engine.roundNumber, f = opts.form;
+    const s = st(p), r = engine.roundNumber, f = tier === "secondary" ? secForm(p, opts) : opts.form;
     if (tier !== "basic") s.skillTurn = turnKey(engine);
     if (tier === "basic") {
       s.weapon = f;
@@ -835,7 +846,7 @@ module.exports = {
     const s = st(p);
     return {
       basic: { locked: s.swapRound === engine.roundNumber || !!s.unleash },
-      secondary: { locked: s.heed && ruinCd(engine, p) > 0 },
+      secondary: s.unleash ? { cd: ruinCd(engine, p), locked: ruinCd(engine, p) > 0 } : { locked: s.heed },
       ultimate: { locked: !!s.unleash && s.endUsed },
     };
   },

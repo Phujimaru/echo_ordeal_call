@@ -188,18 +188,32 @@ test('Wise: สกิลจากผู้ที่ห่าง ≥4 ช่อ�
   assert.equal(noct.grantedDodge(engine, P.N, P.C), null);
 });
 
-test('ทำลายให้สิ้น (PVP): แนว 6×3 ดาเมจ 4 · คูลดาวน์ 3', () => {
+test('ช่องสกิลรอง: ปกติ = ขานรับ (ทำลายให้สิ้นกดไม่ได้) · ระหว่างปลดปล่อย = ทำลายให้สิ้น (ขานรับกดไม่ได้)', () => {
+  const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 6, 7]]);
+  engine.setActor('N');
+  assert.equal(noct.skillPub(P.N, 'secondary').name, 'ขานรับ เหล่าราชา');
+  assert.deepEqual(noct.skillArea(P.N, 'secondary', { kind: 'self' }, { form: 'ruin' }), { kind: 'self' }, 'ส่งฟอร์มทำลายให้สิ้นมาก็ยังเป็นขานรับ');
+  P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
+  assert.equal(noct.skillPub(P.N, 'secondary').name, 'ทำลายให้สิ้น');
+  assert.deepEqual(noct.skillArea(P.N, 'secondary', { kind: 'self' }), noct.RUIN_AREA);
+  assert.equal(noct.canUseSkill(engine, P.N, 'secondary', [], { form: 'heed' }), true, 'ไม่ส่งฟอร์มก็เป็นทำลายให้สิ้น');
+  engine.useSkill('N', 'secondary', [], { form: 'heed' });
+  assert.equal(P.N.noct.heed, false, 'ระหว่างปลดปล่อยขานรับไม่ได้');
+});
+
+test('ทำลายให้สิ้น (PVP · ระหว่างปลดปล่อย): แนว 6×3 ดาเมจ 4 · คูลดาวน์ 3', () => {
   const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 6, 8], ['C', 'dummy', 10, 7]]);
   P.B.hp = 10; P.B.armor = 0; P.C.hp = 10; P.C.armor = 0;
+  P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
   Math.random = () => 0.99;
   engine.setActor('N');
-  engine.useSkill('N', 'secondary', [], { form: 'ruin', dir: 'right' });
+  engine.useSkill('N', 'secondary', [], { dir: 'right' });
   assert.deepEqual(calls.trig, ['noctRuin']);
   // ผลลงหลังคลิป (afterCutscene)
   for (const fn of match.afterCutscene.splice(0)) fn();
   assert.equal(P.B.hp, 6);
   assert.equal(P.C.hp, 10, 'นอกแนว 6');
-  assert.equal(noct.skillPub(P.N, 'secondary').choices.find((c) => c.key === 'ruin').cd, 3);
+  assert.equal(noct.skillLocks(engine, P.N).secondary.cd, 3);
 });
 
 test('ปลดปล่อยพลังที่แท้จริง: เดิน 6 · ระยะ 1–4 · ไม่เสียเลือดตัวเอง · แต้ม +1 ต่อเทิร์น · 5 เทิร์น', () => {
