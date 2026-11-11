@@ -38,6 +38,7 @@ function dealRound() {
   // Fodlan: เหตุการณ์ต้นเทิร์นของด่าน (ฟ้าผ่า · ห่าธนู · ไฟมังกร · ซึนามิ …) — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
   if (Fodlan.preRound(dealRound)) return;
   match.roundNumber++;
+  require("../soloDummy").ensure(); // เล่นคนเดียว (ทดสอบ): หุ่นยืนเฉย 1 ตัว (server/soloDummy.js)
   if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
   match.lastLog = Moon.takeLog(); // บันทึกต้นเทิร์นของ Moon Cell (ไม่มี = ว่าง)
