@@ -1103,6 +1103,10 @@ test('ความยาก: โหวตในหน้าเลือก (เ�
   assert.equal(match.gameMode, 'eos');
   assert.equal(match.eosDiff, 'hard');
   engine.clearPhaseTimer();
+  match.gameState = 'TEAM_MODE'; match.gameMode = null; // Lament โหวตชนะได้จริง (เคยตกเป็นปกติ)
+  for (const id of Object.keys(engine.players)) lobby.voteGameMode(id, 'eos', 'eos', 'lament');
+  assert.equal(match.eosDiff, 'lament');
+  engine.clearPhaseTimer();
   match.eosDiff = 'normal'; // เทสต์ถัดไปใช้เป้า 50 (ยาก = 100)
 });
 

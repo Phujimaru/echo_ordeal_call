@@ -124,9 +124,9 @@ function modeVoteSummary() {
 // ความยากของ Eos (PVE — ผู้ใช้สั่ง 2026-11-10: เลือกในหน้าโหวต) · โหวตพร้อมโหมด · เสียงมากสุดชนะ เท่ากัน = ปกติ
 const EOS_DIFFS = ["easy", "normal", "hard", "lament"]; // lament = สูงกว่ายาก (2026-11-11 · server/fodlan/eosLament.js)
 function eosDiffOf(list) {
-  const n = { easy: 0, normal: 0, hard: 0 };
+  const n = Object.fromEntries(EOS_DIFFS.map((d) => [d, 0]));
   for (const p of list) if (EOS_DIFFS.includes(p.eosDiff)) n[p.eosDiff]++;
-  const top = Math.max(n.easy, n.normal, n.hard);
+  const top = Math.max(...EOS_DIFFS.map((d) => n[d]));
   if (!top) return "normal";
   const win = EOS_DIFFS.filter((d) => n[d] === top);
   return win.length === 1 ? win[0] : "normal";
