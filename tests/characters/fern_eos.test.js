@@ -1,5 +1,5 @@
 // เฟิร์น — บัฟเฉพาะสนาม Eos (GRID_PLAN §7.14 "บัฟเฉพาะ Eos" · characters/fern.js)
-//  เกราะ 3 · เดินฐาน 4 (+2 = 6) · Zoltraak ทุกศัตรูในระยะ 4 รอบตัว (ทะลุสิ่งกีดขวาง) · กัน 2 ครั้ง + คูลดาวน์ 3 ·
+//  เกราะ 3 · เดินฐาน 4 (+2 = 6) · Zoltraak ลำแสงแนวตรง 4 ช่อง (ทะลุสิ่งกีดขวาง) · กัน 2 ครั้ง + คูลดาวน์ 3 ·
 //  ร่ายต่อเนื่อง ตีเพิ่ม 2 + ดาเมจ +1 · เพิ่มระยะ 8 (2 Energy · คอมโบค้างทั้งตาเดิน) · ซ่อนเร้นมานา +6 / +2 ต่อเทิร์น / ฮีล 1 ทุกเทิร์น / มอนไม่เห็น
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
@@ -106,10 +106,10 @@ test('ค่าสถานะ Eos: พลังชีวิต 5 · เกร�
   const me = view('p0', 'p0');
   const sec = me.character.secondary;
   assert.equal(sec.cost, 2);
-  assert.match(sec.desc, /ระยะ 8/);
+  assert.match(sec.desc, /แนวตรง 8/);
   assert.match(me.character.basic.desc, /ตีปกติเพิ่ม 2 ครั้ง/);
   assert.match(me.character.ultimate.desc, /Energy \+6/);
-  assert.match(me.character.passive2.desc, /ระยะ 4 รอบตัว/);
+  assert.match(me.character.passive2.desc, /แนวตรง 4 ช่อง/);
   assert.match(me.character.passive.desc, /กันได้ 2 ครั้ง/);
   // Echo สวมสกิลเฟิร์น: ค่าสถานะเป็นของ Echo
   const E = { id: 'e', characterId: 'fern', echoQ: { mimic: 'fern' }, statuses: {}, statusAmt: {} };
@@ -125,39 +125,39 @@ test('ค่าสถานะ Eos: พลังชีวิต 5 · เกร�
   assert.equal(action.baseMovOf(F), 3);
   assert.equal(fern.skillCost(F, 'secondary', 3), 3);
   assert.equal(fern.attackLane(F), true);
-  assert.equal(fern.strikeArea(F), false);
   F.skillPoints = 10;
   assert.equal(action.rangeOf(F), CHAR_BY_ID.fern.range);
   match.world = 'eos';
 });
 
-test('Zoltraak (Eos): ศัตรูทุกตัวในระยะ 4 รอบตัวโดนพร้อมกัน ดาเมจ 2 · ทะลุสิ่งกีดขวาง · 1 Energy ต่อการตี · ระยะ 5 ไม่โดน · เพื่อนไม่โดน', () => {
+test('Zoltraak (Eos): ลำแสงแนวตรงด้านเดียว 4 ช่อง ดาเมจ 2 · ทะลุสิ่งกีดขวาง · ทุกศัตรูในแนวโดน · นอกแนว/อีกฝั่ง/ช่องที่ 5 ไม่โดน · เพื่อนไม่โดน', () => {
   const { F, A } = setup();
   const s = strip(12);
   F.pos = { x: s.x + 5, y: s.y };
-  const T = mob(s.x + 7, s.y);           // เป้าหลัก ระยะ 2
-  const B = mob(s.x + 3, s.y + 2);       // อีกฝั่ง ทแยง ระยะ 4
-  const C = mob(s.x + 4, s.y - 2);       // ข้างบน ระยะ 3
-  const FAR = mob(s.x + 10, s.y);        // ระยะ 5
-  A.pos = { x: s.x + 4, y: s.y + 1 };
+  const T = mob(s.x + 7, s.y);           // เป้าหลัก ช่องที่ 2 ทางขวา
+  const L = mob(s.x + 9, s.y);           // ช่องที่ 4 แนวเดียวกัน
+  const FAR = mob(s.x + 10, s.y);        // ช่องที่ 5
+  const BACK = mob(s.x + 3, s.y);        // อีกฝั่ง (ซ้าย) ระยะ 2
+  const SIDE = mob(s.x + 7, s.y - 1);    // นอกแนว ระยะ 3
+  A.pos = { x: s.x + 8, y: s.y };        // เพื่อนในแนว
   A.hp = 7; A.armor = 0;
-  // หินขวางระหว่างเฟิร์นกับเป้าหลัก
-  match.board.extraTerrain = match.board.extraTerrain || null;
   const map = action.boardMap();
-  map.terrain[K(s.x + 6, s.y)] = 'rock';
+  map.terrain[K(s.x + 6, s.y)] = 'rock'; // หินขวางระหว่างเฟิร์นกับเป้า
   assert.ok(Board.isObstacle(map, s.x + 6, s.y));
   engine.setActor('p0');
   assert.deepEqual(action.rangeOf(F), [1, 4]);
+  assert.equal(fern.attackLane(F), true);
+  assert.equal(action.canStrike(F, SIDE), false, 'นอกแนวตีไม่ได้');
   assert.equal(strikeNow('p0', T.id), true);
   delete map.terrain[K(s.x + 6, s.y)];
   assert.equal(F.skillPoints, 9, 'ตีครั้งเดียวเสีย 1');
   assert.equal(T.hp, 18);
-  assert.equal(B.hp, 18, 'ระยะ 4 อีกฝั่งโดนด้วย');
-  assert.equal(C.hp, 18);
-  assert.equal(FAR.hp, 20, 'ระยะ 5 ไม่โดน');
+  assert.equal(L.hp, 18, 'ช่องที่ 4 ในแนวโดน');
+  assert.equal(FAR.hp, 20, 'ช่องที่ 5 ไม่โดน');
+  assert.equal(BACK.hp, 20, 'อีกฝั่งไม่โดน');
+  assert.equal(SIDE.hp, 20, 'นอกแนวไม่โดน');
   assert.equal(A.hp, 7, 'เพื่อนไม่โดน');
-  // ฝั่ง client เห็น strikeArea
-  assert.equal(view('p0', 'p0').strikeArea, true);
+  assert.ok(!view('p0', 'p0').strikeArea);
 });
 
 test('ผู้เชี่ยวชาญเวทมนต์พื้นฐาน (Eos): กันได้ 2 การโจมตี แล้วคูลดาวน์ 3 เทิร์น · ครั้งที่ 3 โดน', () => {
@@ -211,19 +211,19 @@ test('ร่ายต่อเนื่อง (Eos): ตีเพิ่ม 2 ค
   assert.equal(fern.canUseSkill(engine, F, 'basic'), true);
 });
 
-test('เพิ่มระยะ (Eos): ตีครั้งถัดไประยะ 8 รอบตัว (ครั้งเดียว) · คอมโบร่ายต่อเนื่อง = ระยะ 8 อยู่ทุกครั้งในตาเดินนั้น', () => {
+test('เพิ่มระยะ (Eos): ตีครั้งถัดไปแนวตรง 8 ช่อง (ครั้งเดียว) · คอมโบร่ายต่อเนื่อง = ระยะ 8 อยู่ทุกครั้งในตาเดินนั้น', () => {
   const { F } = setup();
   const s = strip(14);
   F.pos = { x: s.x + 1, y: s.y };
-  const M = mob(s.x + 8, s.y + 1);        // ระยะ 8
-  const N = mob(s.x + 6, s.y - 2);        // ระยะ 7
+  const M = mob(s.x + 9, s.y);            // ช่องที่ 8 ในแนว
+  const N = mob(s.x + 7, s.y);            // ช่องที่ 6 ในแนว
   engine.setActor('p0');
   engine.useSkill('p0', 'secondary', []);
   assert.equal(F.skillPoints, 8, 'เพิ่มระยะ 2 Energy');
   assert.deepEqual(action.rangeOf(F), [1, 8]);
   assert.equal(strikeNow('p0', M.id), true);
   assert.equal(M.hp, 18);
-  assert.equal(N.hp, 18, 'วงระยะ 8 โดนทุกตัว');
+  assert.equal(N.hp, 18, 'แนว 8 ช่องโดนทุกตัว');
   assert.equal(F.fern.boost, false, 'ไม่มีคอมโบ = หมดหลังตี 1 ครั้ง');
   assert.deepEqual(action.rangeOf(F), [1, 4]);
   // คอมโบ: ร่ายต่อเนื่อง + เพิ่มระยะ
@@ -276,12 +276,12 @@ test('ซ่อนเร้นมานา (Eos): Energy +6 ทันที · �
   match.world = 'eos';
 });
 
-test('ตีครบ 4 → ครั้งที่ 5 เสริมพลัง (Eos ยังอยู่): ฟรี · ทะลุเกราะทุกตัวในระยะ · รีเซ็ทการกันได้ 2 ครั้งใหม่', () => {
+test('ตีครบ 4 → ครั้งที่ 5 เสริมพลัง (Eos ยังอยู่): ฟรี · ทะลุเกราะทุกตัวในแนว · รีเซ็ทการกันได้ 2 ครั้งใหม่', () => {
   const { F } = setup();
   const s = strip(8);
   F.pos = { x: s.x + 2, y: s.y };
   const M = mob(s.x + 4, s.y, { armor: 3 });
-  const N = mob(s.x + 2, s.y + 3, { armor: 3 });
+  const N = mob(s.x + 5, s.y, { armor: 3 });  // แนวเดียวกัน ช่องที่ 3
   F.fern.count = 4; F.fern.shieldReady = 99; F.fern.shieldUsed = 1;
   engine.setActor('p0');
   assert.equal(strikeNow('p0', M.id), true);

@@ -26,7 +26,7 @@
 //
 //  บัฟเฉพาะสนาม Eos (ผู้ใช้สั่ง 2026-11-11 · GRID_PLAN §7.14 "บัฟเฉพาะ Eos") — นอก Eos ทุกอย่างตามด้านบน:
 //    เกราะ 3 · ระยะเดินฐาน 4 (+2 ของ Eos เต็ม = 6 — ฮุค eosWalkMax ข้ามเพดาน 5) · ค่าสถานะผ่าน statId (Echo สวมร่างไม่ได้ค่าเหล่านี้)
-//    Zoltraak = ศัตรูทุกตัวในระยะ 4 รอบตัว (แมนฮัตตันจากกรอบตัว — ฮุค strikeArea · ไม่สนสิ่งกีดขวาง) โดนพร้อมกัน · เพิ่มระยะ = ระยะ 8
+//    Zoltraak = ลำแสงแนวตรงด้านเดียว 4 ช่อง (4×1 เลือกทิศได้ 4 ทิศ — attackLane เหมือนนอก Eos · ทะลุสิ่งกีดขวาง · ทุกศัตรูในแนวโดน) · เพิ่มระยะ = แนว 8 ช่อง
 //    ติดตัว: กันได้ 2 การโจมตี แล้วคูลดาวน์ 3 เทิร์น (ได้ 2 ครั้งใหม่) · ตีครบ 4 → ครั้งที่ 5 เสริมพลังยังอยู่ (รีเซ็ทการกัน = ได้ 2 ครั้งใหม่)
 //    ร่ายต่อเนื่อง: ตีเพิ่ม 2 ครั้ง + ตีปกติดาเมจ +1 ในตาเดินนี้ · เพิ่มระยะ 2 Energy · คอมโบกับร่ายต่อเนื่อง = ระยะ 8 อยู่ทั้งตาเดิน
 //    ซ่อนเร้นมานา: Energy +6 ทันที · ต้นเทิร์น +2 · ฟื้นพลังชีวิต 1 ทุกเทิร์น · ศัตรูมองไม่เห็นเลย (ไม่มีระยะ 2) + มอน AI ไม่เล็ง (ฮุค hiddenFromMobs)
@@ -80,7 +80,7 @@ const isFern = (p) => !!p && p.characterId === ID;
 const EOS_ARMOR = 3;
 const EOS_MOV = 4;
 const EOS_WALK_MAX = 6;          // ฐาน 4 + โบนัสเดินของ Eos 2 เต็ม (stage6 movMod ปกติตันที่ 5 — ผู้ใช้เลือก 6)
-const EOS_RANGE = [1, 4];        // Zoltraak: ทุกศัตรูในระยะนี้รอบตัว
+const EOS_RANGE = [1, 4];        // Zoltraak: ความยาวลำแสงแนวตรง (4×1)
 const EOS_BOOST_RANGE = [1, 8];
 const EOS_SHIELD_CHARGES = 2;    // กันได้ 2 การโจมตีแล้วคูลดาวน์ SHIELD_CD
 const EOS_CAST_EXTRA = 2;        // ร่ายต่อเนื่อง: ตีเพิ่ม 2 ครั้ง
@@ -224,9 +224,7 @@ module.exports = {
     if (eosOn()) return st(p).boost ? EOS_BOOST_RANGE : EOS_RANGE;
     return st(p).boost ? BOOST_RANGE : null;
   },
-  attackLane(p) { return isFern(p) && !eosOn(); },
-  // Eos: ตีปกติโดนศัตรูทุกตัวในระยะรอบตัว (action.laneVictims · client me.strikeArea)
-  strikeArea(p) { return isFern(p) && eosOn(); },
+  attackLane(p) { return isFern(p); }, // Eos ก็แนวตรง (ผู้ใช้ 2026-11-12: ลำแสงด้านเดียว ไม่ใช่รอบตัว) — ยาว EOS_RANGE/EOS_BOOST_RANGE
   attackBaseOverride(engine, attacker) {
     if (!isFern(attacker)) return 1;
     return ZOLT_DMG + (eosOn() && st(attacker).castOn ? EOS_CAST_DMG : 0);
@@ -330,7 +328,7 @@ module.exports = {
     if (tier === "ultimate" && concealOn(p)) out.active = true;
     if (isFern(p) && eosOn()) {
       if (tier === "basic") out.desc = `ตีปกติเพิ่ม ${EOS_CAST_EXTRA} ครั้ง และตีปกติความเสียหาย +${EOS_CAST_DMG} ในตาเดินนี้ (ไม่นับโควตาสกิล · คูลดาวน์ 1 เทิร์น)`;
-      if (tier === "secondary") out.desc = `ตีปกติครั้งถัดไป 1 ครั้งเป็นระยะ ${EOS_BOOST_RANGE[1]} รอบตัว (ค้างจนกว่าจะตี · ใช้คู่ร่ายต่อเนื่อง = ระยะ ${EOS_BOOST_RANGE[1]} ทุกครั้งในตาเดินนั้น) (ไม่นับโควตาสกิล · คูลดาวน์ 2 เทิร์น)`;
+      if (tier === "secondary") out.desc = `ตีปกติครั้งถัดไป 1 ครั้งเป็นแนวตรง ${EOS_BOOST_RANGE[1]} ช่อง (ค้างจนกว่าจะตี · ใช้คู่ร่ายต่อเนื่อง = แนว ${EOS_BOOST_RANGE[1]} ช่อง ทุกครั้งในตาเดินนั้น) (ไม่นับโควตาสกิล · คูลดาวน์ 2 เทิร์น)`;
       if (tier === "ultimate") out.desc = `ล่องหน (ศัตรูมองไม่เห็น · เดิน/จั่วได้) · Energy +${EOS_CONCEAL_GAIN} แล้ว +${CONCEAL_REGEN} ทุกต้นเทิร์น · ฟื้นพลังชีวิต ${CONCEAL_HEAL} ทุกเทิร์น · กดอีกครั้ง/ตี/ใช้สกิลอื่น = ออก · ถูกศัตรูโจมตี = ออก + สตั้นเทิร์นหน้า (ไม่นับโควตาสกิล · เริ่มเกมคูลดาวน์ ${CONCEAL_START_CD} เทิร์น · คูลดาวน์ ${CONCEAL_CD} เทิร์นหลังออก)`;
     }
     return Object.keys(out).length ? out : null;
@@ -345,7 +343,7 @@ module.exports = {
       },
       passive2: {
         name: "Zoltraak",
-        desc: `Energy สูงสุด ${ENERGY_MAX} (เริ่มเกมเต็ม · ฟื้นได้จากซ่อนเร้นมานาเท่านั้น) · ตีปกติ: ลำแสงทะลุสิ่งกีดขวาง ศัตรูทุกตัวในระยะ ${EOS_RANGE[1]} รอบตัวเสียหาย ${ZOLT_DMG} · ใช้ ${ZOLT_COST} Energy ต่อการตี (หมด = ตีไม่ได้)`,
+        desc: `Energy สูงสุด ${ENERGY_MAX} (เริ่มเกมเต็ม · ฟื้นได้จากซ่อนเร้นมานาเท่านั้น) · ตีปกติ: ลำแสงแนวตรง ${EOS_RANGE[1]} ช่อง ทะลุสิ่งกีดขวาง ศัตรูทุกตัวในแนวเสียหาย ${ZOLT_DMG} · ใช้ ${ZOLT_COST} Energy ต่อการตี (หมด = ตีไม่ได้)`,
       },
     };
   },
