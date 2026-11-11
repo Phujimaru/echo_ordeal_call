@@ -122,7 +122,7 @@ function modeVoteSummary() {
   }));
 }
 // ความยากของ Eos (PVE — ผู้ใช้สั่ง 2026-11-10: เลือกในหน้าโหวต) · โหวตพร้อมโหมด · เสียงมากสุดชนะ เท่ากัน = ปกติ
-const EOS_DIFFS = ["easy", "normal", "hard"];
+const EOS_DIFFS = ["easy", "normal", "hard", "lament"]; // lament = สูงกว่ายาก (2026-11-11 · server/fodlan/eosLament.js)
 function eosDiffOf(list) {
   const n = { easy: 0, normal: 0, hard: 0 };
   for (const p of list) if (EOS_DIFFS.includes(p.eosDiff)) n[p.eosDiff]++;

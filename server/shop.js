@@ -144,7 +144,10 @@ function shopTiles() {
 function stockShop(s) {
   match.shopRoundSeq = (match.shopRoundSeq || 0) + 1;
   s.items = shopCatalog(s.kind).map((it, i) => ({ id: `${s.id}_${match.shopRoundSeq}_${i}`, ...it, stockBase: rollStock(s.kind), bought: 0, sold: false, soldTo: null }));
+  const mul = eosPriceMul();
+  if (mul !== 1) for (const it of s.items) it.price = Math.ceil(it.price * mul); // Eos Lament: ร้านแพง ×1.5
 }
+function eosPriceMul() { try { return require("./fodlan/stage6").eosPriceMul(); } catch { return 1; } }
 // เปิดร้าน kind ที่จุด (x, y) — แทนร้าน kind เดิม (ถ้ามี)
 //  (เดิมรับ size เป็นอาร์กิวเมนต์ที่ 4 — ยังรับได้ แต่ขนาดจริงมาจาก SHOP_DIMS)
 function openShopAt(kind, x, y, extra = {}, legacyExtra) {
@@ -194,14 +197,14 @@ function syncStageItems() {
   const eos = require("./fodlan/stage6").gysahlOnSale();
   for (const s of shopsList()) {
     const has = (s.items || []).some((it) => it.type === "gysahl");
-    if (eos && !has) s.items.push({ id: `${s.id}_gysahl_${match.shopRoundSeq}`, type: "gysahl", price: SHOP_GYSAHL_PRICE, sold: false, soldTo: null, bought: 0 });
+    if (eos && !has) s.items.push({ id: `${s.id}_gysahl_${match.shopRoundSeq}`, type: "gysahl", price: Math.ceil(SHOP_GYSAHL_PRICE * eosPriceMul()), sold: false, soldTo: null, bought: 0 });
     else if (!eos && has) s.items = s.items.filter((it) => it.type !== "gysahl");
     // เกราะเสา (Eos PVE — ผู้ใช้สั่ง 2026-11-10)
     const hw = (s.items || []).some((it) => it.type === "pillarWard");
-    if (eos && !hw) s.items.push({ id: `${s.id}_ward_${match.shopRoundSeq}`, type: "pillarWard", price: SHOP_PILLAR_WARD_PRICE, sold: false, soldTo: null, bought: 0 });
+    if (eos && !hw) s.items.push({ id: `${s.id}_ward_${match.shopRoundSeq}`, type: "pillarWard", price: Math.ceil(SHOP_PILLAR_WARD_PRICE * eosPriceMul()), sold: false, soldTo: null, bought: 0 });
     else if (!eos && hw) s.items = s.items.filter((it) => it.type !== "pillarWard");
     const hb = (s.items || []).some((it) => it.type === "barricade");
-    if (eos && !hb) s.items.push({ id: `${s.id}_wall_${match.shopRoundSeq}`, type: "barricade", price: SHOP_BARRICADE_PRICE, sold: false, soldTo: null, bought: 0 });
+    if (eos && !hb) s.items.push({ id: `${s.id}_wall_${match.shopRoundSeq}`, type: "barricade", price: Math.ceil(SHOP_BARRICADE_PRICE * eosPriceMul()), sold: false, soldTo: null, bought: 0 });
     else if (!eos && hb) s.items = s.items.filter((it) => it.type !== "barricade");
   }
 }

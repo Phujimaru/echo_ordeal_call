@@ -15,6 +15,7 @@ const DIFF = {
   easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50 },
   normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50 },
   hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
+  lament: { hp: 1.6, cnt: 1.5, atk: 2, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · กติกาเฉพาะ server/fodlan/eosLament.js)
 };
 const diffOf = (ctx) => DIFF[ctx.match.eosDiff] || DIFF.normal;
 // เป้าแต้มรวมตามความยาก · จุดเหตุการณ์ที่ผูกกับแต้ม (ราชาปีศาจ/การ์ดทีม/คืนสุดท้าย) ขยายตามสัดส่วนเป้า (ตั้งไว้ที่เป้า 50 — Claude ตัดสิน)
@@ -72,7 +73,7 @@ function warnBoss(ctx, s, H, turn) {
 // แต้มรวมถึงครึ่ง → เตือนบอสครั้งแรก (เรียกจาก scoreRound)
 function onScore(ctx, s, H) {
   const e = ev(s);
-  if (!e.bossFirst && s.score >= markAt(ctx, BOSS.at)) { e.bossFirst = true; warnBoss(ctx, s, H, ctx.match.roundNumber + 1); }
+  if (!e.bossFirst && s.score >= (ctx.match.eosDiff === "lament" ? BOSS.at : markAt(ctx, BOSS.at))) { e.bossFirst = true; warnBoss(ctx, s, H, ctx.match.roundNumber + 1); }
 }
 function landBoss(ctx, s, H, turn) {
   const e = ev(s), w = e.bossWarn;
@@ -89,6 +90,16 @@ function landBoss(ctx, s, H, turn) {
   ctx.bump();
   ctx.fx("boss_land", { id: m.id, x: at.x, y: at.y });
   ctx.log("👑 ราชาปีศาจปรากฏ! มันมุ่งไปทำลายเสา");
+  // Lament: คืนสุดท้ายมาพร้อมกัน 2 ตัว
+  if (ctx.match.eosDiff === "lament" && s.x && s.x.final) {
+    const at2 = bossSpot(ctx, s, H);
+    if (at2 && H.tileFree(ctx, s, at2.x, at2.y)) {
+      const m2 = H.spawnMob(ctx, s, "daemon", at2, st, { look: 4, tier: Math.max(1, s.nightNo || 1), trait: "boss" });
+      m2.name = "ราชาปีศาจ";
+      ctx.fx("boss_land", { id: m2.id, x: at2.x, y: at2.y });
+      ctx.log("👑 ราชาปีศาจตัวที่สองปรากฏ!");
+    }
+  }
   return 2.2;
 }
 function onBossDeath(ctx, s, H, m, by) {

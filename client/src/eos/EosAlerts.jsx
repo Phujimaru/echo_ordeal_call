@@ -50,6 +50,13 @@ function alertOf(e, fd) {
     case "gauge_full": return { icon: "☄️", title: "มาตรวัดทีมเต็ม", zone: "", tone: "good" };
     case "perk_offer": return { icon: "✨", title: `การ์ดทีม · โหวตเลือก 1 ใบ`, zone: `แต้มรวม ${e.mark}`, tone: "good" };
     case "perk_pick": { const c = (fd.perks || []).find((o) => o.id === e.perk); return { icon: c ? c.icon : "✨", title: `ทีมได้การ์ด ${c ? c.name : ""}`, zone: c ? c.desc : "", tone: "good" }; }
+    case "lament_warn": return { icon: "💀", title: "ผู้คร่ำครวญกำลังมา", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "lament_land": return { icon: "💀", title: "ผู้คร่ำครวญปรากฏ", zone: "ล้มให้ได้จึงชนะ", tone: "danger", at: { x: e.x, y: e.y } };
+    case "lament_phase": return { icon: "💀", title: e.phase === 2 ? "เพลงไว้อาลัย" : "น้ำตาสวรรค์", zone: "", tone: "danger", at: { x: e.x, y: e.y } };
+    case "lament_lines": return { icon: "💧", title: "แนวน้ำตาบนพื้น · ออกจากแนว", zone: "", tone: "danger", at: (e.tiles || [])[0] };
+    case "lament_die": return { icon: "🏆", title: "ผู้คร่ำครวญสลายไป · +10", zone: "", tone: "good" };
+    case "lament_curse": { const c = ((fd.lament && fd.lament.curses) || []).find((o) => o.id === e.curse); return { icon: c ? c.icon : "🩸", title: `คำสาป ${c ? c.name : ""}`, zone: c ? c.desc : "", tone: "danger" }; }
+    case "lament_life": return { icon: "🕯️", title: `ชีวิตทีมเหลือ ${e.left}`, zone: "", tone: e.left <= 2 ? "danger" : "warn" };
     case "mob_wave": return { icon: "⚠️", title: `ฝูงมอน ${e.n} ตัวบุกพร้อมกัน`, zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
     case "town_dark": return { icon: "🌑", title: "ไฟเมืองดับ · ปีศาจบุกเข้าเมือง", zone: ZN[e.zone] || "", tone: "danger" };
     case "town_light": return e.relit ? { icon: "💡", title: "ไฟเมืองกลับมา", zone: ZN[e.zone] || "", tone: "good" } : null;

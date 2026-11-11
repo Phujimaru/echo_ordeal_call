@@ -99,12 +99,30 @@ export default function EosScoreboard({ state }) {
                 </div>
               </Tip>
             )}
+            {b.lament && (
+              <Tip icon="💀" title="Lament" lines={[
+                `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} — ใครล้มก็ลด 1 · หมด = แพ้`,
+                b.lament.rage && b.lament.rage.atk ? `มอนดุขึ้น ตี +${b.lament.rage.atk} เดิน +${b.lament.rage.mov}` : "มอนดุขึ้นทุก 10 เทิร์น",
+                b.lament.dead ? "ผู้คร่ำครวญถูกโค่นแล้ว" : `แต้มรวม ${b.lament.at} = ผู้คร่ำครวญมา · ต้องล้มมันจึงชนะ`,
+              ]}>
+                <div className="eos-hud-row eos-hud-chips">
+                  <span className="eos-hud-label">💀 ชีวิต {Math.max(0, b.lament.lives - b.lament.downs)}/{b.lament.lives}</span>
+                  <span className="eos-power-row">
+                    {(b.lament.curses || []).map((c) => (
+                      <Tip key={c.id} icon={c.icon} title={`คำสาป · ${c.name}`} lines={[c.desc]}>
+                        <span className="eos-power" style={{ "--z": "#7a3fd0" }}>{c.icon}</span>
+                      </Tip>
+                    ))}
+                  </span>
+                </div>
+              </Tip>
+            )}
             {(b.perks || []).length > 0 && (
               <div className="eos-hud-row eos-hud-chips">
                 <span className="eos-hud-label">✨ การ์ดทีม</span>
                 <span className="eos-power-row">
                   {b.perks.map((c) => (
-                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}`} lines={[c.desc, "ได้จากโหวตตอนแต้มรวมถึง 10/20/30 · ติดทั้งทีมจนจบเกม"]}>
+                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}`} lines={[c.desc, "ได้จากโหวตทุก 10 แต้ม · ติดทั้งทีมจนจบเกม"]}>
                       <span className="eos-power" style={{ "--z": "#e0a92a" }}>{c.icon}</span>
                     </Tip>
                   ))}

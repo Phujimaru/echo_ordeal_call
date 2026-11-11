@@ -80,6 +80,7 @@ function resolve(ctx, s) {
   k.owned.push(best);
   k.offer = null;
   if (best === "vital") for (const p of people(ctx)) if (p.alive && ctx.combat.healHp) ctx.combat.healHp(p, 2);
+  require("./eosLament").onPerk(ctx, s); // Lament: การ์ดทุกใบมาพร้อมคำสาป
   ctx.bump();
   ctx.fx("perk_pick", { perk: best, votes: count });
   ctx.log(`✨ ทีมเลือกการ์ด ${PERKS[best].icon} ${PERKS[best].name} — ${PERKS[best].desc}`);
@@ -91,10 +92,10 @@ function tickOffer(ctx, s) {
 }
 const movBonus = (s) => (has(s, "swift") ? 1 : 0);
 const atkBonusVsMob = (s) => (has(s, "might") ? 1 : 0);
-const hpBonus = (s) => (has(s, "vital") ? 2 : 0);
+const hpBonus = (s) => (has(s, "vital") ? 2 : 0) - (require("./eosLament").curse(s, "frail") ? 1 : 0); // คำสาปเลือดจาง −1
 const pillarHpBonus = (s) => (has(s, "bastion") ? 1 : 0);
 const reviveCut = (s) => (has(s, "phoenix") ? 1 : 0);
-const gaugeMul = (s) => (has(s, "surge") ? 2 : 1);
+const gaugeMul = (s) => (has(s, "surge") ? 2 : 1) * (require("./eosLament").curse(s, "drain") ? 0.5 : 1); // คำสาปใจแตกสลาย ×0.5
 const turretBonus = (s) => (has(s, "marksman") ? 1 : 0);
 const wallMax = (s) => WALL.hp + (has(s, "timber") ? 2 : 0);
 const lightBonus = (s) => (has(s, "beacon") ? 4 : 0);

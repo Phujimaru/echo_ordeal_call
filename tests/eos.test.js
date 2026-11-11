@@ -1700,3 +1700,77 @@ test('รถราง: คนละ 2 เที่ยว แล้วพัก 2
   match.roundNumber += 1;
   assert.ok(ride(A, B), 'ครบ 2 เทิร์นได้อีก');
 });
+// ---------- Lament (2026-11-11 · server/fodlan/eosLament.js) ----------
+const LMx = require('../server/fodlan/eosLament.js');
+function lamentOn() { match.eosDiff = 'lament'; st().lamentOn = true; }
+test('Lament: โหวตได้ · เลือด/จำนวน/พลังตีสูงกว่ายาก · เป้า 100 · เสาเปราะ หลุดแล้วแต้ม −3 · ร้าน ×1.5 · มอนดุขึ้นทุก 10 เทิร์น', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    assert.equal(EV.goalOf(ctx()), 100);
+    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk > EV.DIFF.hard.atk);
+    assert.equal(S6.pillarHp(s), 1, 'ตีทีเดียวหลุด');
+    const pl = s.pillars[3]; pl.owner = S6.PVE; s.score = 10;
+    const d = mob('daemon', 0, 0);
+    S6.hitPillar(ctx(), s, pl, d);
+    assert.equal(pl.owner, null);
+    assert.equal(s.score, 7, 'แต้มรวม −3');
+    assert.equal(S6.eosPriceMul(), 1.5);
+    match.roundNumber = 19;
+    assert.deepEqual(LMx.rage(ctx()), { atk: 2, mov: 2 });
+  } finally { match.eosDiff = 'normal'; }
+});
+test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    for (let i = 0; i < 6; i++) mob('daemon', 2 + i * 2, 1);
+    s.night = true; s.dayNo = 1;
+    const before = S6.mobsOf(ctx(), 'daemon').length;
+    S6.dissolveDaemons(ctx(), s);
+    assert.equal(S6.mobsOf(ctx(), 'daemon').length, before - Math.ceil(before / 2), 'เหลือครึ่ง');
+    // คำสาป
+    s.score = 10; PK.onScore(ctx(), s); PK.resolve(ctx(), s);
+    assert.equal(LMx.L(s).curses.length, 1, 'ได้คำสาป 1');
+    // ชีวิตทีม 3 + คน 3 = 6
+    const lives = LMx.livesOf(ctx());
+    assert.equal(lives, 6);
+    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; p.alive = true; }
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    s.score = 90; S6.scoreRound(ctx(), s);
+    const l = LMx.L(s);
+    assert.ok(l.warn, 'เตือน');
+    LMx.landLord(ctx(), s, S6.H(), l.warn.at);
+    const lord = LMx.lordUnit(ctx(), S6.H(), s);
+    assert.ok(lord && lord.summon.mobType === 'lament', 'ลงแล้ว');
+    lord.summon.born = 0;
+    P(0).pos = { x: 20, y: 22 }; P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+    P(0).hp = 2;
+    const hp0 = total(P(0));
+    S6.actMonsters(ctx(), s);
+    assert.ok(Math.abs(lord.pos.x - 20) + Math.abs(lord.pos.y - 22) === 1, 'วูบมาติดตัว');
+    assert.ok(total(P(0)) < hp0 || !P(0).alive, 'โดนเคียว');
+    // เฟส 2: เตือนแนวน้ำตา
+    P(0).alive = true; P(0).hp = 9;
+    lord.hp = Math.floor(lord.summon.maxHp * 0.5);
+    match.roundNumber = 1; // round 2 = คู่
+    S6.actMonsters(ctx(), s);
+    assert.ok(l.lines && l.lines.tiles.length, 'แนวน้ำตา');
+    assert.ok(Fodlan.publicInfo().board.lament.lines, 'ส่ง client');
+    // แต้มครบแต่ยังไม่ชนะ
+    s.score = 120; S6.scoreRound(ctx(), s);
+    assert.notEqual(s.result, 'win', 'ต้องล้มผู้คร่ำครวญก่อน');
+    match.effectSourceId = P(1).id; combat.dealMixed(lord, 999); combat.resolveDamageAftermath(lord); match.effectSourceId = null;
+    assert.ok(l.dead);
+    assert.equal(s.result, 'win', 'ล้มได้ = ชนะ');
+  } finally { match.eosDiff = 'normal'; }
+});

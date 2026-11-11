@@ -43,7 +43,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -122,10 +122,10 @@ function img(src) {
 const CHOCO_IMG = "/eos/img/chocobo.webp";
 const MAGITEK_IMG = "/eos/img/magitek.webp";
 const daemonImg = (k) => `/eos/img/daemon${((Number(k) || 1) - 1) % 8 + 1}.webp`; // 8 แบบ (5–8 ผู้ใช้ส่งมา 2026-11-10)
-const GIANT_IMG = "/eos/img/giant.webp", MAGITEK_EX_IMG = "/eos/img/magitek_ex.webp";
+const GIANT_IMG = "/eos/img/giant.webp", MAGITEK_EX_IMG = "/eos/img/magitek_ex.webp", LAMENT_IMG = "/eos/img/lament.webp"; // ผู้คร่ำครวญ (ภาพจากผู้ใช้ 2026-11-11 — ตัดพื้นหลังแล้ว)
 // ภาพกว้าง (ปีศาจมีปีก/งู) ไม่ให้กว้างเกิน wMax ช่อง
 function fitH(src, hMax, wMax = 2.1) { const im = img(src); return im ? Math.min(hMax, wMax / (im.naturalWidth / im.naturalHeight)) : hMax; }
-export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 6; i++) img(`/eos/img/people${i}.webp`); for (let i = 1; i <= 8; i++) img(daemonImg(i)); img(GIANT_IMG); img(MAGITEK_EX_IMG); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); img(MAGITEK_IMG); }
+export function preloadEosArt() { img(CHOCO_IMG); for (let i = 1; i <= 6; i++) img(`/eos/img/people${i}.webp`); for (let i = 1; i <= 8; i++) img(daemonImg(i)); img(GIANT_IMG); img(MAGITEK_EX_IMG); img(LAMENT_IMG); for (let i = 1; i <= 3; i++) img(`/eos/img/car${i}.webp`); img(MAGITEK_IMG); }
 
 // แสงเรือง (อบครั้งเดียวต่อสี)
 const GLOW = new Map();
@@ -3189,6 +3189,12 @@ export function items(list, g, fd, info, units, now, lowQ) {
       list.push({ d: depthOf(m.x + 0.5, m.y + 0.5), f: () => drawNest(g, m, m.x + 0.5, m.y + 0.55, now, lowQ, hn) });
       continue;
     }
+    if (m.type === "lament") { // ผู้คร่ำครวญ (บอสท้ายเกม Lament — วูบไปมา ไม่เดิน)
+      const bl = lastFx("lament_blink"), bk = bl && bl.id === m.id && bl.from ? fxT(bl, now, fx.lament_blink) : 1;
+      const hl = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
+      list.push({ d: depthOf(m.x + 0.5, m.y + 0.55), f: () => drawLament(g, m, m.x + 0.5, m.y + 0.55, now, lowQ, bk, hl, fd.lament ? fd.lament.phase : 1) });
+      continue;
+    }
     if (m.type === "giant") { // ยักษ์หิน (เดินตามเส้นทาง — เลื่อนนุ่ม)
       const gp = smooth(`mob:${m.id}`, m.x, m.y, now, 1400);
       const gh = mobFacing(m.id, gp), hg = hitE && hitE.id === m.id ? fxT(hitE, now, fx.mob_hit) : 1;
@@ -3342,6 +3348,15 @@ function playFx(e) {
     case "boss_quake_warn": sfx("beast_step", { gain: 0.9 }); sfx("dome_off", { delay: 0.2, gain: 0.5 }); break;
     case "boss_quake": sfx("beast_step"); sfx("barrel_explode", { delay: 0.1, gain: 0.9 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
     case "boss_enrage": sfx("beast_roar"); sfx("beast_roar", { delay: 0.5, gain: 0.7 }); break;
+    case "lament_warn": sfx("beast_roar", { gain: 0.6 }); sfx("night_fall", { delay: 0.3, gain: 0.8 }); break;
+    case "lament_land": sfx("dropship_land", { gain: 0.9 }); sfx("beast_roar", { delay: 0.5 }); sfx("night_fall", { delay: 0.8, gain: 0.7 }); break;
+    case "lament_blink": sfx("throw_swoosh", { gain: 0.8 }); break;
+    case "lament_phase": sfx("beast_roar"); sfx("lights_off", { delay: 0.4, gain: 0.7 }); break;
+    case "lament_lines": sfx("dome_off", { gain: 0.6 }); break;
+    case "lament_tears": sfx("wx_lightning_strike", { gain: 0.6 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.2 }); break;
+    case "lament_die": sfx("barrel_explode"); sfx("beast_roar", { delay: 0.3 }); sfx("hunt_done", { delay: 1.6 }); break;
+    case "lament_curse": sfx("daemon_spawn", { gain: 0.6 }); break;
+    case "lament_life": sfx("lights_off", { gain: 0.5 }); break;
     case "mob_wave": sfx("dropship_alarm", { gain: 0.7, dur: 1.6 }); sfx("daemon_spawn", { delay: 0.4, gain: 0.8 }); break;
     case "town_siege": sfx("daemon_attack", { gain: 0.5 }); break;
     case "town_dark": sfx("lights_off"); sfx("beast_roar", { delay: 0.4, gain: 0.5 }); break;
@@ -3547,6 +3562,34 @@ function drawNest(g, m, cx, cy, now, lowQ, hit) {
   hpPips(g, cx, cy, 1.25, m.hp, m.maxHp, m.armor, m.maxArmor);
 }
 // ยักษ์หิน: ร่างหินสูง 3 ช่อง ขาสองต้น ลำตัวหินเหลี่ยม ตะไคร่เขียว อักษรรูนฟ้าเรือง ตาเรือง · ก้าวเดินโยกตัว
+// ผู้คร่ำครวญ: ภาพผู้ใช้ สูง ~3 ช่อง ลอยเหนือพื้น · ม่านควันม่วงใต้ตัว · หยดน้ำตาเรืองฟ้า · วูบมา = ค่อยๆ ปรากฏ · เฟส 3 ออร่าแดง
+function drawLament(g, m, cx, cy, now, lowQ, blink, hit, phase) {
+  const [sx, sy, s] = P(cx, cy);
+  const appear = blink < 1 ? Math.min(1, blink * 1.6) : 1, float = lowQ ? 0 : Math.sin(now / 700) * s * 0.06;
+  const rgb = phase >= 3 ? "230,40,60" : phase === 2 ? "150,60,230" : "90,120,255";
+  g.save(); g.translate(sx, sy); g.scale(1, 0.42);
+  const gr = g.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 1.8);
+  gr.addColorStop(0, `rgba(${rgb},.55)`); gr.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, s * 1.8, 0, TAU); g.fill();
+  if (!lowQ) { g.rotate(-now / 1400); g.setLineDash([s * 0.3, s * 0.2]); g.strokeStyle = `rgba(${rgb},.6)`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, s * 1.35, 0, TAU); g.stroke(); g.setLineDash([]); }
+  g.restore();
+  glowAt(g, sx, sy - s * 1.6, s * 2.4, rgb, (0.4 + 0.12 * Math.sin(now / 350)) * appear);
+  const im = img(LAMENT_IMG);
+  if (im) {
+    const h = s * 3.1, w = h * (im.naturalWidth / im.naturalHeight), shake = hit < 1 ? Math.sin(hit * 50) * s * 0.05 * (1 - hit) : 0;
+    g.save(); g.globalAlpha *= appear; g.translate(sx + shake, sy - s * 0.25 + float);
+    if (blink < 1) g.filter = `blur(${(1 - appear) * 6}px) brightness(${1 + (1 - appear)})`;
+    g.drawImage(im, -w * 0.58, -h, w, h); g.filter = "none"; g.restore();
+  }
+  if (!lowQ) for (let i = 0; i < 5; i++) { // น้ำตาเรืองแสงร่วงจากหน้า
+    const t = ((now / 1100) + i / 5) % 1, tx = sx + (hash(i, 7) - 0.5) * s * 0.5, ty = sy - s * 2.7 + t * s * 2.4;
+    g.fillStyle = `rgba(170,220,255,${0.55 * (1 - t)})`; g.beginPath(); g.ellipse(tx, ty, 1.2, 2.4, 0, 0, TAU); g.fill();
+  }
+  if (hit < 1) glowAt(g, sx, sy - s * 1.5, s * 1.6, "255,255,255", (1 - hit) * 0.6);
+  const top = P(cx, cy, 3.5), UK = Math.max(0.55, s * 0.013);
+  drawVitalBar(g, top[0], top[1], s * 1.6, { hp: m.hp, maxHp: Math.max(1, m.maxHp), armor: m.armor, maxArmor: Math.max(m.armor || 0, m.maxArmor || 0) }, UK);
+  emoji(g, "💀", top[0], top[1] - 10 * UK, 13 * UK);
+}
 function drawGiant(g, m, cx, cy, now, lowQ, moving, face, hit) {
   const [sx, sy, s] = P(cx, cy);
   const sway = moving && !lowQ ? Math.sin(now / 160) * s * 0.05 : 0, lift = moving && !lowQ ? Math.abs(Math.sin(now / 160)) * s * 0.06 : 0;
@@ -3944,6 +3987,23 @@ function pveGround(g, fd, now, lowQ) {
     g.restore();
   }
   if (sk.supply) { const [x, y, s] = P(sk.supply.x + 0.5, sk.supply.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 300); gEllipse(g, sk.supply.x + 0.5, sk.supply.y + 0.5, 1.6, 0.02, 30); g.strokeStyle = `rgba(255,210,110,${0.5 + 0.4 * k})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, x, y, s * 1.2, "255,210,110", 0.25 + 0.15 * k); }
+  const lm = fd.lament; // Lament: วงเรียกผู้คร่ำครวญ · แนวน้ำตาสวรรค์ (ช่องฟ้าเรือง — ตกต้นเทิร์นหน้า ดาเมจ 4)
+  if (lm && lm.warn) {
+    const [x, y, s] = P(lm.warn.x + 0.5, lm.warn.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 200);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); if (!lowQ) g.rotate(-now / 900);
+    for (const [r, a] of [[2.2, 0.9], [1.5, 0.6], [0.8, 0.4]]) { g.strokeStyle = `rgba(140,80,255,${a * (0.6 + 0.4 * k)})`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, s * r, 0, TAU); g.stroke(); }
+    g.restore();
+    glowAt(g, x, y, s * 2.4, "130,70,255", 0.35 + 0.25 * k);
+  }
+  if (lm && lm.lines) {
+    const k = 0.5 + 0.5 * Math.sin(now / 140);
+    for (const t of lm.lines) {
+      const c = [P(t.x + 0.08, t.y + 0.08, 0.02), P(t.x + 0.92, t.y + 0.08, 0.02), P(t.x + 0.92, t.y + 0.92, 0.02), P(t.x + 0.08, t.y + 0.92, 0.02)];
+      g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath();
+      g.fillStyle = `rgba(120,190,255,${0.16 + 0.14 * k})`; g.fill();
+      g.strokeStyle = `rgba(170,220,255,${0.55 + 0.35 * k})`; g.lineWidth = 2; g.stroke();
+    }
+  }
   const mu = fd.muster; // ฝูงมอนรวมพลรอบจุดตั้งรับ: วงประแดงจาง (ระลอกบุก = วงเข้ม)
   if (mu) {
     const [x, y, s] = P(mu.x + 0.5, mu.y + 0.5, 0.02), k = 0.5 + 0.5 * Math.sin(now / 400), r = ((mu.ring && mu.ring[1]) || 7) - 0.5;
@@ -4035,6 +4095,25 @@ function pve2Fx(g, e, p, lowQ, units) {
     }
     const [cx, cy, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
     for (let r = 0; r < 2; r++) { const k = (p - r * 0.2) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(cx, cy); g.scale(1, 0.42); g.strokeStyle = `rgba(255,120,60,${0.9 * (1 - k)})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.8 + k * 2.6), 0, TAU); g.stroke(); g.restore(); }
+    return true;
+  }
+  if (e.kind === "lament_blink" && e.from) { // วูบ: ควันม่วงจุดเดิม → จุดใหม่
+    for (const [t, a] of [[e.from, 1 - p], [e.to, p]]) { if (!t) continue; const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 1); glowAt(g, x, y, s * 1.4, "120,60,200", 0.7 * a); }
+    return true;
+  }
+  if (e.kind === "lament_tears") { // น้ำตาสวรรค์: ลำแสงฟ้าตกลงทุกช่องในแนว
+    for (const t of e.tiles || []) {
+      const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.02), top = P(t.x + 0.5, t.y + 0.5, 6);
+      const k = Math.max(0, 1 - Math.abs(p - 0.3) * 2.2);
+      if (k > 0) { g.strokeStyle = `rgba(160,210,255,${0.8 * k})`; g.lineWidth = Math.max(2, s * 0.18 * k); g.beginPath(); g.moveTo(top[0], top[1]); g.lineTo(x, y); g.stroke(); }
+      glowAt(g, x, y, s * 0.8, "150,200,255", (1 - p) * 0.7);
+    }
+    return true;
+  }
+  if (e.kind === "lament_land" || e.kind === "lament_phase" || e.kind === "lament_die") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05), die = e.kind === "lament_die";
+    for (let r = 0; r < 4; r++) { const k = (p - r * 0.12) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = die ? `rgba(200,230,255,${0.9 * (1 - k)})` : `rgba(150,70,240,${0.85 * (1 - k)})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.8 + k * 6), 0, TAU); g.stroke(); g.restore(); }
+    if (die) glowAt(g, x, y - s * 1.5, s * (2 + p * 4), "220,235,255", (1 - p) * 0.9);
     return true;
   }
   if (e.kind === "mob_wave") { // ระลอกบุก: วงแดงหดเข้าหาจุดตั้งรับ
