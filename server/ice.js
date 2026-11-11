@@ -24,7 +24,7 @@ Object.assign(module.exports, {
   begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
-  movCutImmune, bumpSpike, dashBump, ownIceAt, ownSpikeAt, ownIceTiles, ownSpikeTiles, meltIce, breakSpike,
+  movCutImmune, bumpSpike, dashBump, shockWave, ownIceAt, ownSpikeAt, ownIceTiles, ownSpikeTiles, meltIce, breakSpike,
   wetAt, layWet, dryWet, layFlame, flameAt, placeWall, removeWall, wallsOf, isWallKind,
 });
 
@@ -313,6 +313,7 @@ function fxSeconds(ctx) {
     else if (e.kind === "spike" || e.kind === "bump" || e.kind === "crash" || e.kind === "trample") ms += 350;
     else if (e.kind === "surge") ms += 1200;
     else if (e.kind === "burst") ms += 600;
+    else if (e.kind === "shock") ms += 520;
   }
   return Math.max(1.2, Math.min(8, ms / 1000 + 0.8));
 }
@@ -353,6 +354,8 @@ function impact(p, hit, dir, n, ctx) {
       const kill = !u.alive;
       ctx.events.push({ kind: "hit", id: u.id, by: p.id, x: hit.x, y: hit.y, dmg, kill, max: n >= (hook.STRIKE_MAX || 4), style: (res && res.style) || null });
       ctx.strikes.push({ by: p.id, target: u.id, dmg, attack: !(res && res.attack === false) });
+      // ฮุค afterSlideStrike (Ice Spike ใน Eos: Shock Wave รอบเป้า — เป้าไม่โดน) — เล่นหลังภาพชน ก่อนเป้ากระเด็น
+      if (hook.afterSlideStrike) combat.withEffectSource(p, () => hook.afterSlideStrike(engine, p, u, n, { x: hit.x, y: hit.y }, ctx));
       if (kill) { u.pos = null; match.lastLog.push(`💀 ${u.name} เลือดจริงหมด ตกรอบ!`); return; }
       if (res && res.knock === false) return;
     } else {
@@ -391,8 +394,14 @@ function spikeImpact(p, k, ctx) {
   }
   lowerSpike(k);
   ctx.events.push(ev);
-  if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); return; }
-  if (!own && applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
+  if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); }
+  else if (!own && applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
+  spikeShock(owner, { x, y }, lv, p, ctx);
+}
+// หนามทำงาน (ไถล/ผลัก/พุ่งชน/เหยียบ) → ฮุคเจ้าของหนาม spikeShock(engine, owner, at, lv, hitter, ctx) (Ice Spike ใน Eos: Shock Wave รอบหนาม)
+function spikeShock(owner, at, lv, hitter, ctx) {
+  const hook = hookOf(owner);
+  if (hook && hook.spikeShock) combat.withEffectSource(owner, () => hook.spikeShock(engine, owner, at, lv, hitter, ctx));
 }
 // ตัว u ถูกพาไปทาง (x, y) แต่ชนสิ่งกีดขวางที่ช่องนั้น — เป็นหนามน้ำแข็ง (ไม่ใช่กำแพง) = หนามทำงานแบบไถลชน (spikeImpact)
 //  ผู้ใช้สั่ง 2026-11-08: ไถล / ถูกผลัก / พุ่งชน / เหยียบ เข้ากับหนาม = ทำงานเหมือนกัน · ตัวใหญ่ใช้กติกาเหยียบ (trampleSpikes) แทน
@@ -470,8 +479,9 @@ function trampleSpikes(p, keys, ctx) {
     ev.kill = !p.alive;
     match.lastLog.push(`🧊 ${p.name} เหยียบหนามน้ำแข็ง Lv.${s.lv} — แตก${ev.dmg ? ` -${ev.dmg} (ลดเกราะก่อน)` : ""}`);
     ctx.events.push(ev);
-    if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); break; }
+    if (ev.kill) { p.pos = null; match.lastLog.push(`💀 ${p.name} เลือดจริงหมด ตกรอบ!`); spikeShock(owner, { x, y }, s.lv, p, ctx); break; }
     if (applySlow(p, SPIKE_SLOW_TURNS)) ctx.events.push({ kind: "slow", id: p.id });
+    spikeShock(owner, { x, y }, s.lv, p, ctx);
   }
   return p.alive;
 }
@@ -714,6 +724,17 @@ function flushBursts() {
   return any;
 }
 function burstNow(p) {
+  // ฮุค burstSpec(engine, p) → { range, dmg } = ระเบิดแบบ Shock Wave (Ice Spike ใน Eos: ดาเมจ + ระยะแมนฮัตตันตาม LV · ผลัก 2 + เชื่องช้า 1)
+  const hook = hookOf(p);
+  const spec = hook && hook.burstSpec ? hook.burstSpec(engine, p) : null;
+  if (spec) {
+    const ctx = begin();
+    ctx.events.push({ kind: "burst", id: p.id, x: p.pos.x, y: p.pos.y });
+    const ev = shockWave(p, p.pos, { range: spec.range, dmg: spec.dmg, push: BURST_PUSH, slow: BURST_SLOW_TURNS, label: spec.label }, ctx);
+    match.lastLog.push(`❄️ ${p.name} สะสมความเสียหายครบ ${BURST_AT} — Shock Wave ระยะ ${spec.range} โดน ${ev.hits.length} ตัว`);
+    flush(ctx);
+    return;
+  }
   const ctx = begin();
   ctx.events.push({ kind: "burst", id: p.id, x: p.pos.x, y: p.pos.y });
   const near = Object.values(match.players).filter((o) => o.alive && o.pos && o.id !== p.id && !combat.sameTeam(p, o) && (o.dim || null) === (p.dim || null) // ชั้นมิติ (server/dimension.js): คนละชั้นไม่โดน
@@ -727,4 +748,44 @@ function burstNow(p) {
   });
   match.lastLog.push(`❄️ ${p.name} สะสมความเสียหายครบ ${BURST_AT} — ระเบิดน้ำแข็งผลักศัตรูรอบตัว ${near.length} คน`);
   flush(ctx);
+}
+
+// ---------- Shock Wave (Ice Spike ในสนาม Eos — GRID_PLAN §7.9 "บัฟเฉพาะ Eos") ----------
+//  คลื่นจากช่อง center ({ x, y, size? }) โดนศัตรูของ src ทุกตัวที่ระยะแมนฮัตตัน ≤ range (ตัวใหญ่ = วัดจากขอบตัว) · ชั้นมิติเดียวกัน
+//  o = { range, dmg, exclude: [id], push: n ช่อง (ทิศออกจาก center), slow: เทิร์น, label }
+//  ดาเมจเกราะก่อน · ฆ่าได้ · หลบได้ (ทอยหลบสกิล — แม่นยำเจาะ) · หลบพ้น = ไม่โดนทั้งดาเมจ/ผลัก/เชื่องช้า
+//  → เหตุการณ์ { kind: "shock", x, y, size, r, by, hits: [{ id, dmg, kill, dodge }] } (ตามด้วย knock/slide/slow ของคนที่ถูกผลัก)
+function shockWave(src, center, o, ctx) {
+  const box = { x: center.x, y: center.y, size: center.size || 1 };
+  const ev = { kind: "shock", x: box.x, y: box.y, size: box.size, r: o.range, by: src.id, hits: [] };
+  ctx.events.push(ev);
+  const skip = new Set([src.id, ...(o.exclude || [])]);
+  const near = Object.values(match.players).filter((u) => u.alive && u.pos && !skip.has(u.id) && !combat.sameTeam(src, u)
+    && (u.dim || null) === (src.dim || null) && Board.dist(action.boxOf(u), box) <= o.range)
+    .sort((a, b) => Board.dist(action.boxOf(b), box) - Board.dist(action.boxOf(a), box)); // ไกลก่อน — ผลักออกไม่ชนกันเอง
+  const label = o.label || "Shock Wave";
+  const mid = { x: box.x + (box.size - 1) / 2, y: box.y + (box.size - 1) / 2 };
+  combat.withEffectSource(src, () => {
+    for (const u of near) {
+      if (!u.alive || !u.pos) continue;
+      if (attack.skillDodge(src, u, ` ${label}`)) { ev.hits.push({ id: u.id, dmg: 0, dodge: true }); continue; }
+      const before = (u.hp || 0) + (u.armor || 0);
+      if (o.dmg > 0) {
+        combat.dealMixed(u, o.dmg, false);
+        if (u.alive && u.hp <= 0) combat.instantDeath(u);
+      }
+      u.wasAttacked = true;
+      const hit = { id: u.id, dmg: Math.max(0, before - ((u.hp || 0) + (u.armor || 0))), kill: !u.alive };
+      ev.hits.push(hit);
+      match.lastLog.push(`❄️ ${src.name} ${label} — ${u.name} -${hit.dmg} (ลดเกราะก่อน)`);
+      if (hit.kill) { u.pos = null; match.lastLog.push(`💀 ${u.name} เลือดจริงหมด ตกรอบ!`); continue; }
+      if (o.push > 0) {
+        const c = { x: u.pos.x + (action.sizeOf(u) - 1) / 2, y: u.pos.y + (action.sizeOf(u) - 1) / 2 };
+        const d = { x: Math.sign(c.x - mid.x), y: Math.sign(c.y - mid.y) };
+        if (d.x || d.y) pushUnit(u, d, ctx, o.push);
+      }
+      if (o.slow > 0 && u.alive && applySlow(u, o.slow)) ctx.events.push({ kind: "slow", id: u.id });
+    }
+  });
+  return ev;
 }

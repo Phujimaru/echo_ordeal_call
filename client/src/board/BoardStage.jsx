@@ -1681,6 +1681,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           look(at);
           return 180;
         }
+        // Shock Wave (Ice Spike ในสนาม Eos): คลื่นข้าวหลามตัดระยะ r จาก { x, y, size } · hits = ใครโดนเท่าไร / หลบ / ตาย
+        case "shock": {
+          if (!ok(ev)) return 0;
+          const n = Math.max(1, ev.size | 0);
+          pushFx([{ kind: "iceShock", x: ev.x, y: ev.y, size: n, r: Math.max(1, ev.r | 0) }]);
+          sfx("is_burst");
+          shake(4 + Math.min(4, (ev.hits || []).length));
+          if ((ev.r | 0) < 20) look({ x: ev.x + (n - 1) / 2, y: ev.y + (n - 1) / 2 });
+          for (const h of ev.hits || []) {
+            const at = posOf(h.id);
+            if (!at) continue;
+            if (h.dodge) { float(at, "หลบ", "#d8f2ff", 0, 24); continue; }
+            pushFx([{ kind: "iceBump", x: at.x, y: at.y, hitIds: [h.id] }]);
+            if (h.dmg > 0) float(at, `-${h.dmg}`, "#d8f2ff");
+            if (h.kill) die(h.id, at);
+          }
+          return 260;
+        }
         case "surge": {
           // ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว · หนามที่ขึ้น Lv ตามมาเป็น spikeUp
           const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);

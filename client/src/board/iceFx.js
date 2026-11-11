@@ -14,6 +14,7 @@
 //    iceSlow       ติดเชื่องช้า: เกล็ดน้ำแข็งเกาะรอบตัว
 //    iceRegen      ฟื้นจากไถล: ประกายเขียว-ฟ้าลอยขึ้น
 //    iceBurst      ติดตัว 3: วงคลื่นน้ำแข็งแผ่ 8 ช่องรอบตัว
+//    iceShock      Shock Wave (Ice Spike ในสนาม Eos): คลื่นข้าวหลามตัดแผ่ถึงระยะ r (แมนฮัตตัน) จากช่อง/ตัว { x, y, size, r }
 //    iceSurge      ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว + เสาแสงเย็น + ประกาย
 //    iceShake      ไม่วาด — จอสั่น (BoardCanvas เลื่อนกล้องตาม iceShakeOffset) { amp }
 //  วาดด้วย canvas ล้วน · lowQ = ตัดอนุภาค/เรืองซ้อน · ลดการเคลื่อนไหว = ไม่สั่น/ไม่เต้น
@@ -31,7 +32,7 @@ function rngOf(seed) { let s = Math.abs(seed | 0) % 2147483646 || 1; return () =
 export const ICE_T = { slideStep: 62, hitStop: 190, layStep: 45, surge: 520 };
 export const ICE_FX_DUR = {
   iceLay: 560, iceTrail: 1200, iceHit: 760, iceBump: 440, iceSpikeUp: 620, iceSpikeBreak: 700, iceMelt: 640,
-  iceSlow: 950, iceRegen: 1000, iceBurst: 820, iceSurge: 1600, iceShake: 420,
+  iceSlow: 950, iceRegen: 1000, iceBurst: 820, iceShock: 900, iceSurge: 1600, iceShake: 420,
 };
 export const isIceFx = (kind) => typeof kind === "string" && (kind in ICE_FX_DUR);
 // ระยะเล่นของหางไถล (ตามความยาวเส้นทาง)
@@ -321,6 +322,25 @@ export function iceFx(g, e, now, lowQ) {
       if (!lowQ) { sq(r * 0.8, 0.03); g.strokeStyle = `rgba(140,205,255,${0.8 * (1 - p)})`; g.lineWidth = 2; g.stroke(); }
       g.restore();
       burstShards(g, cx, cy, 0.4, 14, 1.4, t, T, e.x * 19 + e.y * 23 + 5, 0.09, lowQ);
+      return;
+    }
+    case "iceShock": {
+      // คลื่นข้าวหลามตัด (ระยะแมนฮัตตัน) 2 ชั้นแผ่จากกลางตัว ถึงขอบระยะ r · ทั้งสนาม = ภาพสูงสุด 16 ช่อง
+      const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, R0 = Math.min(16, Math.max(1, e.r | 0)) + n / 2;
+      const dia = (rr, z) => { const a = P(cx, cy - rr, z), b = P(cx + rr, cy, z), c = P(cx, cy + rr, z), d = P(cx - rr, cy, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); };
+      g.save();
+      const waves = lowQ ? 1 : 2;
+      for (let i = 0; i < waves; i++) {
+        const q = clamp01((t - i * 140) / (T - 260));
+        if (q <= 0 || q >= 1) continue;
+        const rr = 0.35 + (R0 - 0.35) * easeOut3(q), a = 1 - q;
+        dia(rr, 0.03);
+        if (i === 0) { g.fillStyle = `rgba(185,230,255,${0.22 * a})`; g.fill(); }
+        g.strokeStyle = `rgba(${i ? "140,205,255" : "250,253,255"},${a})`; g.lineWidth = (i ? 2.5 : 4.5) * a + 1; g.stroke();
+      }
+      if (!lowQ) { const [gx, gy, gs] = P(cx, cy, 0.2); glow(g, gx, gy, gs * 1.2, "170,225,255", 0.5 * (1 - p)); }
+      g.restore();
+      burstShards(g, cx, cy, 0.3, lowQ ? 6 : 12 + Math.min(10, (e.r | 0) * 2), Math.min(2.4, 0.5 + R0 * 0.35), t, T, e.x * 23 + e.y * 41 + (e.r | 0), 0.08, lowQ);
       return;
     }
     case "iceSurge": {
