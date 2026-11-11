@@ -2811,11 +2811,27 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     setOrderDx(dx);
   }, [orderSig, map, state.actorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // สนาม Eos: แผงแต้ม/เสามุมขวาบน (EosScoreboard — พับ/กางได้) อยู่ที่เดียวกับคิวคนถัดไป → คิวลงไปอยู่ใต้แผง (ผู้ใช้แจ้ง 2026-11-12 ซ้อนบังกัน)
+  const [queueTop, setQueueTop] = useState(0);
+  useEffect(() => {
+    const upd = () => {
+      const el = document.querySelector(".eos-score"), root = rootRef.current;
+      const r = el ? el.getBoundingClientRect() : null;
+      const rt = root ? root.getBoundingClientRect() : null;
+      const v = r && r.height > 0 && rt ? Math.round(Math.min(r.bottom - rt.top + 10, rt.height - 250)) : 0; // แผงกางยาว = ไม่ดันคิวตกจอ
+      setQueueTop((o) => (o === v ? o : v));
+    };
+    upd();
+    const t = setInterval(upd, 700);
+    window.addEventListener("resize", upd);
+    return () => { clearInterval(t); window.removeEventListener("resize", upd); };
+  }, []);
+
   if (!map) return null;
   return (
-    <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
+    <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"} data-queue-low={queueTop ? "true" : "false"}
       data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"}
-      style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null) }}>
+      style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null), ...(queueTop ? { "--bs-queue-top": `${queueTop}px` } : null) }}>
       <BoardCanvas
         map={displayBoard}
         units={units}
