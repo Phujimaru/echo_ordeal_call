@@ -2176,9 +2176,18 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     else if (!inuiUp && inuiUpRef.current) { inuiUpRef.current = false; stopLoopSfx(); return; }
     if (inuiUp) { if (phase === "ACTION") resumeLoopSfx(); else pauseLoopSfx(); } // เดินตามนาฬิกา 10 วิ: ฉากตี/คลิปพักทั้งคู่
   }, [inuiUp, phase]);
+  // เอมิยะ คริซุงุ Time Alter: เสียงหัวใจเต้นวนตลอดช่วง (ผู้ใช้สั่ง 2026-11-11 · Mixkit "Fast Heartbeat") · คลิปเล่น = พัก (ห้ามซ้อนวีดีโอ) · Start Up ของอินุอิมาก่อน
+  const alterBeat = alterWorld && !inuiUp;
+  const alterBeatRef = useRef(false);
+  useEffect(() => {
+    if (alterBeat && !alterBeatRef.current) { alterBeatRef.current = true; startLoopSfx("kiri_heart"); }
+    else if (!alterBeat && alterBeatRef.current) { alterBeatRef.current = false; stopLoopSfx(); return; }
+    if (alterBeat) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
+  }, [alterBeat, phase]);
+  useEffect(() => () => { if (alterBeatRef.current) stopLoopSfx(); }, []);
   // เฟรดดี้ (กลางวัน): ผู้ชมอยู่ใกล้ = เพลงวนจนออกห่าง (state.freddyNear — per-viewer) · ไม่ทับลูปของคนอื่น
   //  มินิเกมประตู / คลิป = ไม่มีเพลงนี้
-  const freddyLoop = inuiUp || ohgerLoop || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
+  const freddyLoop = inuiUp || alterBeat || ohgerLoop || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
   const freddyLoopRef = useRef(null);
   useEffect(() => {
     if (freddyLoopRef.current === freddyLoop) return;

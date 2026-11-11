@@ -592,6 +592,10 @@ const FILES = {
   kiri_smg: "/characters/emiya_kiritsugu/sfx/kiri_smg.mp3",
   kiri_smoke: "/characters/emiya_kiritsugu/sfx/kiri_smoke.mp3",
   kiri_place: "/characters/emiya_kiritsugu/sfx/kiri_place.mp3",
+  // Mixkit (ใช้ฟรี ไม่ต้องให้เครดิต): reload = Handgun release + movement + click ผสมเป็นหักลำกล้อง-ใส่กระสุน-ปิด · bandage = "Duct tape bandage" · heart = "Fast Heartbeat" ตัดเป็นลูป 8.2 วิ (ลูปตลอด Time Alter)
+  kiri_reload: "/characters/emiya_kiritsugu/sfx/kiri_reload.mp3",
+  kiri_bandage: "/characters/emiya_kiritsugu/sfx/kiri_bandage.mp3",
+  kiri_heart: "/characters/emiya_kiritsugu/sfx/kiri_heart.mp3",
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)
   //  parry (ชนกัน) / clock_over / kick_charge = สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   full_force: "/theme_song/FULL FORCE.mp3",

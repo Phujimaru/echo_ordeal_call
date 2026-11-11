@@ -23,7 +23,7 @@
 //    อดีนาลีนเลื่อนเฉพาะความเสียหายที่มีต้นตอเป็นศัตรู (ผลสนาม/ลุกไหม้ที่ไม่มีต้นตอลงทันที) · เกราะหักตอนลงจริง · สังหารทันทีไม่ถูกเลื่อน
 //    การเอาตัวรอด: เช็คตอนความเสียหายจะลงจริง (รวมตอนอดีนาลีนลง) · ทอยไม่ผ่าน = ยังไม่เสียสิทธิ์ · Double Accel ฟรี (ไม่ใช้แต้ม ไม่ลดความจุ)
 //    เติมกระสุนล็อกการเดินแบบสกิลปกติ · คลิปเล่นทุกครั้ง ยกเว้น reload_when_alter / skill3_hit ครั้งเดียวต่อเกม (ผู้ใช้สั่ง) (Time Alter ตามแบบ · Thompson ยิง + โดนเมื่อไม่หลบ) ไม่มีเสียงเอฟเฟกต์ซ้อน
-//    ตีปกติ = ปืนกล Calico M950 (ผู้ใช้สั่ง 2026-11-11 · ระยะประชิดเดิม) · เสียงปืนกล/ควัน/วางกับดัก สังเคราะห์เอง ยังไม่มีคนฟัง · ระเบิด/เติมกระสุนใช้เสียงของดิเอโก้
+//    ตีปกติ = ปืนกล Calico M950 (ผู้ใช้สั่ง 2026-11-11 · ระยะประชิดเดิม) · เสียงปืนกล/ควัน/วางกับดัก สังเคราะห์เอง ยังไม่มีคนฟัง · ระเบิดใช้เสียงของดิเอโก้ · เติมกระสุน/พันผ้า/หัวใจเต้นระหว่าง Time Alter จาก Mixkit (ผู้ใช้อนุญาตให้โหลด 2026-11-11)
 // ============================================================
 
 const ID = "emiya_kiritsugu";
@@ -353,8 +353,9 @@ module.exports = {
   // คลิปมีเสียงของตัวเอง (Time Alter / ยิง) → ไม่มีเสียงเอฟเฟกต์ · ควัน/เติมกระสุนมีเสียง · กับดักเล่นใน layMine
   skillSound(p, tier, opts = {}) {
     if (!isMe(p)) return null;
-    if (tier === "ultimate") return st(p).loaded || inAlter(p) ? null : "diego_reload"; // ใน Time Alter: คลิป/เสียงเล่นใน applyInstantSkill
+    if (tier === "ultimate") return st(p).loaded || inAlter(p) ? null : "kiri_reload"; // ใน Time Alter: คลิป/เสียงเล่นใน applyInstantSkill
     if (tier === "basic" && opts.form === "smoke") return "kiri_smoke";
+    if (tier === "basic" && opts.form === "bandage") return "kiri_bandage";
     return null;
   },
   endsTurn(engine, p, tier) {
@@ -409,7 +410,7 @@ module.exports = {
     } else if (tier === "ultimate") {
       if (s.loaded) shoot(engine, p, targets);
       else {
-        if (inAlter(p) && !clipOnce(engine, p, CUT.alterReload)) engine.sfx("diego_reload"); // รอบหลังไม่มีคลิป = เสียงเติมกระสุน
+        if (inAlter(p) && !clipOnce(engine, p, CUT.alterReload)) engine.sfx("kiri_reload"); // รอบหลังไม่มีคลิป = เสียงเติมกระสุน
         s.loaded = true;
         engine.log(`🔫 ${p.name} เติมกระสุน Thompson Contender`);
       }
