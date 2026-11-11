@@ -12,9 +12,10 @@ const lazySummon = () => require("../summon");
 
 // ---------- ความยาก ----------
 const DIFF = {
-  easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50 },
-  normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50 },
-  hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
+  // cap = ตัวคูณเพดานมอนพร้อมกัน (ผู้ใช้สั่ง 2026-11-11 — เดิมเพดานเท่ากันทุกระดับ คืนหลังๆ ยากกับปกติจำนวนเท่ากัน · Lament ใช้เพดานของตัวเอง eosLament.LAMENT.cap)
+  easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50, cap: 0.8 },
+  normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50, cap: 1 },
+  hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100, cap: 1.25 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
   lament: { hp: 1.6, cnt: 1.5, atk: 2, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · กติกาเฉพาะ server/fodlan/eosLament.js)
 };
 const diffOf = (ctx) => DIFF[ctx.match.eosDiff] || DIFF.normal;

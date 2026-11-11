@@ -1799,3 +1799,13 @@ test('endTurn ไม่ลดสถานะคุมตัวของมอน
   assert.ok(/EOS_MOB_CONTROL\.has\(k\)/.test(src));
   for (const k of S6.MOB_CONTROL) assert.ok(src.includes(`"${k}"`), k);
 });
+test('เพดานมอนพร้อมกันขยายตามความยาก: ง่าย ×0.8 · ปกติ ×1 · ยาก ×1.25 · Lament เพดานของตัวเอง', () => {
+  setup(); // 3 คน = เพดานปกติ 20
+  const room = (d) => { match.eosDiff = d; return S6.mobRoom(ctx()); };
+  try {
+    assert.equal(room('normal'), 20);
+    assert.equal(room('easy'), 16);
+    assert.equal(room('hard'), 25);
+    assert.equal(room('lament'), LMx.LAMENT.cap.base + LMx.LAMENT.cap.perHero * 2);
+  } finally { match.eosDiff = 'normal'; }
+});

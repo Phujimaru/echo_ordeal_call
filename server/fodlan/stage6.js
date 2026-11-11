@@ -1541,7 +1541,8 @@ const MOB_CAP = { base: 12, perHero: 4, max: 28 };
 function mobRoom(ctx) {
   const heroesN = heroes(ctx).filter((p) => !p.summon).length || 1;
 const C = LM.on(ctx) ? LM.LAMENT.cap : MOB_CAP; // Lament: เพดานมอนสูงขึ้น
-  const cap = Math.min(C.max, C.base + C.perHero * (heroesN - 1));
+  const mul = LM.on(ctx) ? 1 : (E.diffOf(ctx).cap || 1); // ความยาก: ง่าย ×0.8 · ปกติ ×1 · ยาก ×1.25
+  const cap = Math.round(Math.min(C.max, C.base + C.perHero * (heroesN - 1)) * mul);
   const have = mobsOf(ctx).filter((m) => { const t = mobType(m); return t !== "nest" && t !== "giant" && t !== "gold" && t !== "lament" && m.summon.trait !== "boss"; }).length;
   return Math.max(0, cap - have);
 }
