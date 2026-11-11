@@ -609,7 +609,7 @@ const EOS_DEF = (() => { const module = { exports: {} }; // สนาม Eos (GR
 //   F ป่าทึบ (fd_eos_forest — กติกาเท่า forest)  s น้ำตื้น (fd_eos_shallow — กติกาเท่า shallow)  X เสายึดพื้นที่
 //   B ตึก  W กำแพงเมือง  L เสาไฟถนน  T ต้นไม้  R หิน  ~ น้ำลึก  c คลอง  P ปั๊มน้ำมัน  G อู่ซ่อมรถ  (สิ่งกีดขวาง)
 const ROWS = [
-  "T..B.BT.WBBBBBp==pBBBBBW.T...ss~", // y0
+  "T..B.BT.WBBBBBp==pBBBBBW..T..ss~", // y0
   "...BpB..WBBBppL==LppBBBW....sss~", // y1
   ".L.p.p..WpppQpp==ppppBBW.L..ss..", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
   "...p.p..WBpppBp==ppXppBW....p.T.", // y3
@@ -620,27 +620,27 @@ const ROWS = [
   ".T.=.....WWpWUW==WUWpWW..L=.....", // y8
   "...=...==============.....=...T.", // y9
   "...========================.....", // y10
-  "...======........TF========F....", // y11
+  "...======.BpBp...TF========F....", // y11
   "...==~~~s..kk....TFFFTTF=====...", // y12
-  "..===~~~~ssk...TTTFFFTTFU=====..", // y13
-  "..===~~~~~~s...FTTFFFTTF..F===..", // y14
-  "..==~~~~~~~s...FTFFkkTTX....==..", // y15
-  "..==~~~~~~~s.U.FFFFkkTTFFF..==..", // y16
-  ".===~~~~~~sX...FTFFFFTFFFTF===..", // y17
-  ".===ss~~sss....FFFTFFFFT.FF===..", // y18
-  ".==.ssssss.....FFFFFTFFFTFF==...", // y19
+  "..===~~~~ssk..LTT...F.HFU=====..", // y13
+  "..===~~~~~~s...FTT...FTT..F===..", // y14
+  "..==~~~~~~~s...F..FkkTTX....==..", // y15
+  "..==~~~~~~~s.U.FF.FkkTTFFF..==..", // y16
+  ".===~~~~~~sXpp.F..T..TFFFTF===..", // y17
+  ".===ss~~ssspDp.FF..T..FT.FF===..", // y18
+  ".==.ssssss.ppp.FFFFFTFFFTFF==...", // y19
   ".===............FFFFF......==..d", // y20
-  ".======.......=======..ddR===ddd", // y21
+  ".======.......=======..ddd===ddd", // y21
   "..===========================ddd", // y22
   ".....===========...=========dddd", // y23
-  ".....===...........dddd====ddddd", // y24
-  ".ZUpL===pLppV.....dddddd====dRdd", // y25
-  ".Bppcp=BBpbpL.....dddddUd====RGG", // y26
-  "~~pXcpccpppcp.....RddXdddd===RGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
-  "~~pp~bppccpcb....dddddddddd===dd", // y28
-  "~~~~~~cpppccp....ddddddRddd===dd", // y29
-  "~~~~~~~BBpcBB....ddddddddZdP==dd", // y30
-  "~~~~~~~~BpcBB...ddd..dddddddPddd", // y31
+  ".....===...........dddd====pppBB", // y24
+  ".ZUpL===ppLpV.....ddddpp====pDBB", // y25
+  ".Bppcp=pBpbpL.....ddddpUp====pGG", // y26
+  "~~pXcpppppccp.....RddXpppp===pGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
+  "~~pp~bpppppcb....dddddLpppp===pL", // y28
+  "~~~~~cpppppcp....dddddpBBpp===pU", // y29
+  "~~~~~~cpSpcBB....ddddddppZpP==pL", // y30
+  "~~~~~~~~ppcpp...ddd..dddLpppPppp", // y31
 ];
 const COLS = 32;
 // ขั้น 4 (เดินทาง + เก็บของ — GRID_PLAN §8.6 · ตำแหน่ง Claude เลือก): รางรถไฟพาดแผนที่แถว y = 20 (ตัดผ่านป่า = ป่าโล่งตามราง · ทางข้ามถนนคงถนนไว้)
@@ -678,6 +678,8 @@ module.exports = {
       fd_eos_pillar: at("X"), // = PILLARS ด้านล่าง
       fd_eos_lever: at("V"), fd_eos_domecore: at("Q"), fd_eos_switch: at("Z"), fd_eos_turret: at("U"),
       fd_eos_tomb: TOMBS,
+      // ของประจำเมือง (2026-11-12 — server/fodlan/eosTowns.js): S ศาลเทพธิดา Altissia · D ร้านอาหาร (Hammerhead + หมู่บ้านทะเลสาบ) · H บ้านฟาร์มโชโกโบะ Duscae
+      fd_eos_shrine: at("S"), fd_eos_diner: at("D"), fd_eos_ranch: at("H"),
     },
     special: {
       fd_eos_road: not(at("="), P4), fd_eos_plaza: not(at("p"), P4), fd_eos_sand: not(at("d"), P4), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
@@ -685,7 +687,7 @@ module.exports = {
       fd_eos_station: STATIONS, fd_eos_tunnel: TUNNELS.flat(), fd_eos_dock: DOCKS, fd_eos_camp: CAMPS, fd_eos_fish: FISH,
       fd_eos_tram: TRAMS.map((t) => t.at),
     },
-    heal: [],
+    heal: [[6, 28], [7, 28], [8, 28], [7, 29], [8, 29]], healKind: "fountain", // ลานน้ำพุ Altissia (จบตา เลือด +1)
     // จุดเกิด 8 จุดกระจายทุกโซน (นครหลวง · เนินเขา · ป่าเหนือ · ฝั่งทะเลสาบ · ป่าตะวันออก · ทะเลทราย · เมืองน้ำ · ที่รกร้าง)
     spawns: [[3, 5], [28, 4], [11, 4], [1, 9], [31, 13], [14, 26], [23, 30], [31, 21]],
     shopSpots: [[19, 6], [24, 28], [9, 26], [15, 15], [24, 18], [26, 3], [5, 6]],
@@ -725,7 +727,10 @@ module.exports = {
     fd_eos_camp: { name: "แคมป์", icon: "🏕️" },
     fd_eos_fish: { name: "จุดตกปลา", icon: "🎣" },
     fd_eos_tram: { name: "ป้ายรถราง", icon: "🚋" },
-    fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
+    fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },
+    fd_eos_shrine: { name: "ศาลเทพธิดา", icon: "⛩️" },
+    fd_eos_diner: { name: "ร้านอาหาร", icon: "🍽️" },
+    fd_eos_ranch: { name: "บ้านฟาร์มโชโกโบะ", icon: "🐤" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
   },
   // โซน (สี่เหลี่ยมรวมขอบ [x0, y0, x1, y1]) — เมืองที่มีไฟถนน = ปีศาจเข้าไม่ได้ · ใช้เลือกเสียงบรรยากาศฝั่ง client ด้วย
   ZONES: [

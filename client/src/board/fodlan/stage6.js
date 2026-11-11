@@ -31,8 +31,10 @@ export const kinds = [
   "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob", "fd_eos_chest", "fd_eos_barricade",
   // ขั้น 4 (เดินทาง + เก็บของ): ชานชาลา · ปากอุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา (ช่องพิเศษ — วาดเองทั้งหมด) · สุสานราชวงศ์ (สิ่งกีดขวาง)
   "fd_eos_station", "fd_eos_tunnel", "fd_eos_dock", "fd_eos_camp", "fd_eos_fish", "fd_eos_tomb",
+  // ของประจำเมือง (2026-11-12 — server/fodlan/eosTowns.js): ศาลเทพธิดา Altissia · ร้านอาหาร · บ้านฟาร์มโชโกโบะ
+  "fd_eos_shrine", "fd_eos_diner", "fd_eos_ranch",
 ];
-export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret", "fd_eos_tomb"];
+export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret", "fd_eos_tomb", "fd_eos_shrine", "fd_eos_diner", "fd_eos_ranch"];
 // ความยาวฉากของเหตุการณ์ (ms) — server ctx.fx
 export const fx = {
   lightning: 1600, car_drive: 900, car_mount: 900, car_leave: 600, car_ram: 700, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
@@ -43,7 +45,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -148,7 +150,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0, fd_eos_shrine: 1.3, fd_eos_diner: 1.0, fd_eos_ranch: 1.1 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -1591,6 +1593,9 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_crystal") { drawCrystal(g, x, y, C, night, now); return; }
   if (kind === "fd_eos_turret") { drawTurret(g, x, y, C, now); return; }
   if (kind === "fd_eos_tomb") { drawTomb(g, x, y, C, night, now); return; }
+  if (kind === "fd_eos_shrine") { drawShrine(g, x, y, night, now); return; }
+  if (kind === "fd_eos_diner") { drawDiner(g, x, y, night, now); return; }
+  if (kind === "fd_eos_ranch") { drawRanch(g, x, y, night, now); return; }
   const [sx, sy, s] = P(x + 0.5, y + 0.6);
   const zone = zoneAt(x, y), r = hash(x, y);
   if (kind === "fd_eos_tree") {
@@ -3379,6 +3384,10 @@ function playFx(e) {
     case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
     case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
     case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
+    case "town_garage": sfx("car_start", { gain: 0.8 }); break;
+    case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
+    case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
+    case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
     case "mob_pull": sfx("car_hit", { gain: 0.6 }); break;
     case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
     case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
@@ -3457,6 +3466,40 @@ function playFx(e) {
 // =================================================================== PVE รอบสาม: ภาพของระบบใหม่ (server/fodlan/eosExtra.js)
 // ปั๊มน้ำมัน Hammerhead (ปรับภาพ 2026-11-10 — ผู้ใช้: "ปั๊มยังโล่ง"): เกาะคอนกรีต · ตู้จ่ายแดงจอขาว · สายยาง · หลังคาปั๊มขาวขอบแดง บนเสา
 //  กลางคืน = ไฟใต้หลังคาส่องลงพื้น + แถบนีออนส้มขอบหลังคา
+// ---------- ของประจำเมือง (2026-11-12) ----------
+// ศาลเทพธิดา Altissia: ฐานหินขาว 2 ชั้น + เสา 4 ต้น + หลังคาโดมฟ้า + แสงเรืองกลาง (ใช้ได้ = เรืองแรง)
+function drawShrine(g, x, y, night, now) {
+  const ready = !LAST_FD || LAST_FD.shrineReady !== false, s = P(x + 0.5, y + 0.5)[2];
+  box(g, x + 0.04, y + 0.04, x + 0.96, y + 0.96, 0.1, night ? "#9aa4b4" : "#eef1f5", night ? "#6c7484" : "#c4cad4", night ? "#7c8494" : "#d4dae2");
+  box(g, x + 0.14, y + 0.14, x + 0.86, y + 0.86, 0.2, night ? "#a8b2c2" : "#f7f9fb", night ? "#747c8c" : "#cdd3dc", night ? "#848c9c" : "#dde2e9", 0.1);
+  for (const [cx, cy] of [[0.24, 0.24], [0.76, 0.24], [0.76, 0.76], [0.24, 0.76]]) box(g, x + cx - 0.05, y + cy - 0.05, x + cx + 0.05, y + cy + 0.05, 1.0, "#f4f4f0", "#c8c8c0", "#dadad2", 0.2);
+  const c = P(x + 0.5, y + 0.5, 0.62), k = 0.6 + 0.4 * Math.sin(now / 520 + x);
+  glowAt(g, c[0], c[1], s * (ready ? 0.7 : 0.35), "150,210,255", (ready ? 0.65 : 0.2) * k);
+  g.fillStyle = ready ? "#dff4ff" : "#9aa8b8"; g.beginPath(); g.arc(c[0], c[1], s * 0.07, 0, TAU); g.fill();
+  box(g, x + 0.12, y + 0.12, x + 0.88, y + 0.88, 1.08, night ? "#4f7fb0" : "#6fa6dc", "#3f6c9c", "#4a78aa", 1.0);
+  const top = P(x + 0.5, y + 0.5, 1.3); g.fillStyle = "#e8c25a"; g.beginPath(); g.arc(top[0], top[1], s * 0.05, 0, TAU); g.fill();
+}
+// ร้านอาหาร: ตึกชั้นเดียวผนังครีม หลังคาแดง กันสาดลายทาง ป้ายไฟ
+function drawDiner(g, x, y, night, now) {
+  const s = P(x + 0.5, y + 0.5)[2];
+  box(g, x + 0.08, y + 0.08, x + 0.92, y + 0.92, 0.72, night ? "#8a8070" : "#efe2c6", night ? "#5f574a" : "#c9b994", night ? "#6f665a" : "#dccba6");
+  box(g, x + 0.02, y + 0.02, x + 0.98, y + 0.98, 0.86, night ? "#7a2a22" : "#c9473a", "#8f2a20", "#a5352a", 0.72);
+  for (let i = 0; i < 4; i++) { const a = P(x + 0.12 + i * 0.2, y + 0.99, 0.62), b = P(x + 0.22 + i * 0.2, y + 0.99, 0.62); g.fillStyle = i % 2 ? "#f4efe6" : "#d24a3c"; g.fillRect(a[0], a[1], Math.max(2, b[0] - a[0]), s * 0.08); }
+  const sign = P(x + 0.5, y + 0.5, 1.12), on = night || Math.sin(now / 700 + x) > -2;
+  g.fillStyle = "#2a1a14"; g.fillRect(sign[0] - s * 0.2, sign[1] - s * 0.07, s * 0.4, s * 0.14);
+  g.fillStyle = night ? "#ffd27a" : "#ffe9b0"; g.fillRect(sign[0] - s * 0.16, sign[1] - s * 0.035, s * 0.32, s * 0.07);
+  if (night && on) glowAt(g, sign[0], sign[1], s * 0.8, "255,200,110", 0.5);
+}
+// บ้านฟาร์มโชโกโบะ Duscae: บ้านไม้ หลังคาเหลือง + รั้วไม้เตี้ย
+function drawRanch(g, x, y, night, now) {
+  const s = P(x + 0.5, y + 0.5)[2];
+  box(g, x + 0.12, y + 0.12, x + 0.88, y + 0.88, 0.7, night ? "#6a4f36" : "#a8764a", night ? "#4a3624" : "#7a5434", night ? "#58402c" : "#8f633e");
+  box(g, x + 0.06, y + 0.06, x + 0.94, y + 0.94, 0.86, night ? "#8f7a2c" : "#f2c63a", "#b8922a", "#d0a630", 0.7);
+  const ridge = P(x + 0.5, y + 0.5, 1.1), ridge0 = P(x + 0.06, y + 0.5, 0.86), ridge1 = P(x + 0.94, y + 0.5, 0.86);
+  g.fillStyle = night ? "#a68e34" : "#ffd84a"; g.beginPath(); g.moveTo(ridge0[0], ridge0[1]); g.lineTo(ridge[0], ridge[1]); g.lineTo(ridge1[0], ridge1[1]); g.closePath(); g.fill();
+  const w = P(x + 0.5, y + 0.95, 0.4); g.fillStyle = night ? "#ffcf7a" : "#3a2a1c"; g.fillRect(w[0] - s * 0.08, w[1] - s * 0.1, s * 0.16, s * 0.16);
+  if (night) glowAt(g, w[0], w[1], s * 0.5, "255,200,120", 0.4 + 0.1 * Math.sin(now / 400));
+}
 function drawPump(g, x, y, C, night, now, s) {
   box(g, x + 0.1, y + 0.1, x + 0.9, y + 0.9, 0.08, night ? "#5a5a60" : "#c9c4b8", night ? "#3a3a40" : "#9a958a", night ? "#45454b" : "#aca79c");
   box(g, x + 0.32, y + 0.36, x + 0.68, y + 0.64, 0.66, "#c63b2b", "#8f2418", "#a52d1f", 0.08);
@@ -4138,6 +4181,14 @@ function pve2Fx(g, e, p, lowQ, units) {
       g.strokeStyle = `rgba(255,230,220,${al})`; g.lineWidth = 1; g.stroke();
       glowAt(g, b[0], b[1], 30, "255,80,60", al * 0.8);
     }
+    return true;
+  }
+  if (e.kind === "town_garage" || e.kind === "town_diner" || e.kind === "town_shrine" || e.kind === "town_ranch") {
+    const rgb = e.kind === "town_garage" ? "255,190,90" : e.kind === "town_diner" ? "255,150,90" : e.kind === "town_shrine" ? "150,210,255" : "255,220,90";
+    const pts = e.kind === "town_shrine" ? (e.ids || []).map((id) => unitOf(units, id)).filter(Boolean).map((u) => ({ x: u.x, y: u.y })) : [];
+    const at = e.kind === "town_garage" ? { x: e.x + 0.5, y: e.y + 0.5 } : e.kind === "town_ranch" ? { x: e.to.x + 0.5, y: e.to.y + 0.5 } : { x: e.x + 0.5, y: e.y + 0.5 };
+    for (const q of [at, ...pts]) { const [x, y, s] = P(q.x, q.y, 0.5); glowAt(g, x, y, s * (0.5 + p), rgb, (1 - p) * 0.85); }
+    if (!lowQ && e.kind === "town_garage") for (let i = 0; i < 8; i++) { const a = hash(i, e.seq) * TAU, d = p * 0.6; const [x, y] = P(at.x + Math.cos(a) * d, at.y + Math.sin(a) * d, 0.3 + p * 0.5); g.fillStyle = `rgba(255,220,120,${1 - p})`; g.fillRect(x - 1.5, y - 1.5, 3, 3); }
     return true;
   }
   if (e.kind === "mob_blink") { // ควันม่วงจุดเดิม → จุดใหม่

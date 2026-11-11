@@ -26,6 +26,7 @@ const E = require("./eosEvents"); // PVE รอบสอง: ความยา�
 const PKS = require("./eosPerks"); // PVE รอบสี่: การ์ดอัปเกรดทีม · ดาวท้าทาย · กำแพงชั่วคราว · โชโกโบะทอง
 const XT = require("./eosExtra");
 const SKY = require("./eosSky");
+const TWN = require("./eosTowns"); // ของประจำเมือง (2026-11-12): อู่ · ร้านอาหาร · ศาลเทพธิดา · ฟาร์มโชโกโบะ
 const AR = require("./eosArms"); // อาวุธจักรพรรดิ 13 อัน (2026-11-12)
 const MBS = require("./eosMobs"); // มอนรูปแบบใหม่ 8 แบบ (2026-11-12): พลธนู · โล่ · พ่นใย · วาร์ป · โซ่ลาก · วงเวท · ฝูงจิ๋ว · แยกร่าง
 const LM = require("./eosLament"); // ความยาก Lament + ผู้คร่ำครวญ (2026-11-11) // PVE รอบหก: คราสกลางวัน · จันทร์เต็มดวง · ฝนดาวตก · รถไฟขนเสบียง · พายุแม่เหล็ก // PVE รอบสาม: คืนสุดท้าย · พลังประจำเสา · ท่าร่วม · รังปีศาจ · ยักษ์หิน · แสงไฟแคมป์ · พลเรือน · มาตรวัดทีม · ฉายา
@@ -167,7 +168,7 @@ function movMod(ctx, st, p) {
   const capHook = require("../../characters/index")[p.characterId]; // ฮุค eosWalkMax(p) → เพดานเฉพาะตัว (เฟิร์น: ฐาน 4 +2 = 6 — ผู้ใช้สั่ง 2026-11-11)
   const cap = Number((capHook && capHook.eosWalkMax && capHook.eosWalkMax(p)) || WALK_MAX);
   const walk = Math.max(0, Math.min(base + MOV_BONUS, cap) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
-  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (stormOn(ctx) ? STORM_MOV : 0) + snowMov(ctx, p);
+  return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (driving(s, p) ? TWN.carMov(ctx, s, H(), p) : 0) + (stormOn(ctx) ? STORM_MOV : 0) + snowMov(ctx, p);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
 
@@ -2434,6 +2435,7 @@ function hudActions(ctx, st, p) {
   const tur = turretNear(ctx, p);
   if (tur) { const list = canStrike(ctx, p) ? turretTargets(ctx, s, p, tur) : []; out.push({ key: "fd:turret", icon: "🔫", name: "ป้อมปืน", disabled: !list.length, tiles: list }); }
   p4Hud(ctx, s, p, out); // ขั้น 4
+  TWN.hud(ctx, s, H(), p, out); // ของประจำเมือง
   E.hud(ctx, s, H(), p, out); // ช่วยเพื่อน · สำรวจภารกิจ
   XT.hud(ctx, s, H(), p, out); // พาพลเรือน · ถล่ม (มาตรวัดทีมเต็ม)
   SKY.hud(ctx, s, H(), p, out); // ขนเสบียงขึ้นรถไฟ
@@ -2485,6 +2487,8 @@ function descOf(a, s, sz) {
 function charAction(ctx, st, p, key, tile) {
   const s = st && st.eos;
   if (!s || !p || !p.pos) return false;
+  const tw = TWN.action(ctx, s, H(), p, key);
+  if (tw !== null) return tw;
   const p4 = p4Action(ctx, s, p, key, tile);
   if (p4 !== null) return p4;
   const ex = E.action(ctx, s, H(), p, key, tile);
@@ -2616,7 +2620,7 @@ function hides(ctx, st, viewer, target) {
 let H_CACHE = null;
 function H() {
   if (H_CACHE) return H_CACHE;
-  H_CACHE = { stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
+  H_CACHE = { carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
   return H_CACHE;
 }
 // เกราะเสา (ไอเทมร้าน Eos — server/shop.js) · ใช้ไม่ได้ = ไม่เสียของ
@@ -2675,7 +2679,8 @@ function publicInfo(ctx, st) {
     ...E.publicOf(ctx, s, H()), // diff · blood · boss · bossWarn · quests · convoy · spirits
     ...XT.publicOf(ctx, s, H()), // final · powers · gauge · giant · civs · lightR · stats · titles
     sky: SKY.publicOf(ctx, s), // คราส · จันทร์เต็มดวง · ดาวตก · รถไฟขนเสบียง
-    ...MBS.publicOf(ctx, s), // วงเวทของมอนที่รอระเบิด
+    ...MBS.publicOf(ctx, s),
+    ...TWN.publicOf(ctx, s), // ของประจำเมือง // วงเวทของมอนที่รอระเบิด
     ...LM.publicOf(ctx, s), // Lament: ชีวิตทีม · คำสาป · ผู้คร่ำครวญ
     ...PKS.publicOf(ctx, s), // perks · perkOffer · perkAt · challenges · walls · wallCharges
     goal: E.goalOf(ctx),

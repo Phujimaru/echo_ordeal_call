@@ -2046,3 +2046,40 @@ test('อาวุธจักรพรรดิ: ผลตอนตีปกต
     hit('tall', d); assert.deepEqual(d.pos, { x: 15, y: 13 }, 'ผลักถอย 1');
   }
 });
+
+// ---------- ของประจำเมือง (server/fodlan/eosTowns.js — 2026-11-12) ----------
+const TWN = require('../server/fodlan/eosTowns.js');
+const sideOf = (t) => [[t.x - 1, t.y], [t.x + 1, t.y], [t.x, t.y - 1], [t.x, t.y + 1]].map(([x, y]) => ({ x, y })).find((q) => Board.inBounds(action.boardMap(), q.x, q.y) && !Board.isObstacle(action.boardMap(), q.x, q.y) && S6.H().tileFree(ctx(), st(), q.x, q.y));
+test('ของประจำเมือง: มีครบ (อู่ · ร้านอาหาร 2 · ศาล · ฟาร์ม) ทุกที่มีช่องยืนติด · ลานน้ำพุ Altissia ฟื้นเลือด', () => {
+  setup();
+  assert.ok(TWN.SPOTS.garage.length && TWN.SPOTS.shrine.length === 1 && TWN.SPOTS.diner.length === 2 && TWN.SPOTS.ranch.length === 1);
+  for (const t of [...TWN.SPOTS.shrine, ...TWN.SPOTS.diner, ...TWN.SPOTS.ranch]) assert.ok(sideOf(t), `${t.x},${t.y}`);
+  const m = action.boardMap();
+  assert.equal(m.heal.size, 5);
+  assert.equal(m.healKind, 'fountain');
+});
+test('ของประจำเมือง: ร้านอาหาร (เหรียญ/ปลา) · ศาลทั้งทีมเกราะ +2 · ฟาร์มเรียกโชโกโบะ · อู่ซ่อม + เทอร์โบ', () => {
+  setup();
+  const p = P(0), q = P(1);
+  p.pos = sideOf(TWN.SPOTS.diner[0]); actor(p);
+  p.gold = 10; p.hp = 2;
+  assert.ok(Fodlan.charAction(p.id, 'fd:diner'));
+  assert.equal(p.gold, 6); assert.ok(p.hp >= 5);
+  assert.equal(S6.p4State(st()).buffs[p.id].kind, 'feast');
+  p.pos = sideOf(TWN.SPOTS.shrine[0]); actor(p);
+  p.armor = 0; q.armor = 0;
+  assert.ok(Fodlan.charAction(p.id, 'fd:shrine'));
+  assert.equal(p.armor, 2); assert.equal(q.armor, 2, 'ทั้งทีม');
+  actor(p); assert.equal(Fodlan.charAction(p.id, 'fd:shrine'), false, 'คูลดาวน์');
+  p.pos = sideOf(TWN.SPOTS.ranch[0]); actor(p); p.gold = 5;
+  assert.ok(Fodlan.charAction(p.id, 'fd:ranch'));
+  assert.ok(st().chocos.some((c) => Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) <= 2), 'โชโกโบะมาข้างตัว');
+  const g = TWN.SPOTS.garage[0], car = st().cars[0];
+  const at = sideOf(g); p.pos = { ...at };
+  const spot = sideOf({ x: at.x, y: at.y }) || { x: at.x - 1, y: at.y };
+  car.x = spot.x; car.y = spot.y; car.hp = 1; car.driver = null;
+  actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:garage'));
+  assert.equal(car.hp, S6.CAR_HP);
+  assert.ok(TWN.TW(st()).turbo[car.id] >= match.roundNumber);
+});
