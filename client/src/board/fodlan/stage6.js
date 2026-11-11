@@ -43,7 +43,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -3164,7 +3164,8 @@ export function items(list, g, fd, info, units, now, lowQ) {
           g.save(); g.translate(sx, sy); g.scale(1, 0.42); g.rotate(now / 1600);
           g.strokeStyle = "rgba(120,255,170,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.6, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
         }
-        sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "bomber" ? 1.3 : 1.45), d.kind % 2 === 0);
+        sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "swarm" ? 0.85 : d.trait === "splitling" ? 1.0 : d.trait === "bomber" ? 1.3 : d.trait === "splitter" || d.trait === "shield" ? 1.6 : 1.45), d.kind % 2 === 0);
+        drawTraitMark(g, d, cx, cy, d.trait === "swarm" ? 1.25 : 2.0, now, lowQ);
         if (d.trait === "bomber") { // ไส้ตะเกียงลุก + ตัวพองตามจังหวะ
           const k = 0.5 + 0.5 * Math.sin(now / 130);
           glowAt(g, sx, sy - s * 0.75, s * (0.45 + k * 0.25), "255,120,30", 0.55 + k * 0.3);
@@ -3232,6 +3233,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
             }
             glowAt(g, sx, sy - s * 0.7, s * 1.2, "255,70,50", 0.22 + 0.1 * Math.sin(now / 300)); sprite(g, MAGITEK_EX_IMG, cx + shake / s, cy, bob * 0.5, fitH(MAGITEK_EX_IMG, 2.0, 2.4), face > 0); } // หุ่นเกราะจักรวรรดิ (ภาพผู้ใช้)
           else sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
+          drawTraitMark(g, m, cx, cy, 2.0, now, lowQ);
           if (m.trait === "sniper") { const v = P(cx + face * 0.12, cy, 1.18); glowAt(g, v[0], v[1], s * 0.28, "255,40,40", 0.75 + 0.2 * Math.sin(now / 150)); g.fillStyle = "#ff4a3a"; g.fillRect(v[0] - 4, v[1] - 1.5, 8, 3); }
         }
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
@@ -3365,6 +3367,12 @@ function playFx(e) {
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
     case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
     case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
+    case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
+    case "mob_pull": sfx("car_hit", { gain: 0.6 }); break;
+    case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
+    case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
+    case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;
+    case "mob_block": sfx("pillar_ward_hit", { gain: 0.6 }); break;
     case "mob_boom": sfx("barrel_explode"); break;
     case "blood_moon": sfx("night_fall"); sfx("daemon_growl", { delay: 0.8, gain: 0.8 }); break;
     case "quest_new": sfx("hunt_board"); break;
@@ -3811,7 +3819,26 @@ function pve3Fx(g, e, p, lowQ, units, out) {
   return false;
 }
 // =================================================================== PVE รอบสอง: ภาพของระบบใหม่
-const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" } };
+const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" }, archer: { rgb: "255,210,90" }, shield: { rgb: "120,170,255" }, weaver: { rgb: "235,235,235" }, blinker: { rgb: "190,90,255" }, hooker: { rgb: "170,170,190" }, rune: { rgb: "255,70,200" }, swarm: { rgb: "255,90,90" }, splitter: { rgb: "200,150,90" }, splitling: { rgb: "200,150,90" } };
+// มอนรูปแบบใหม่ (server/fodlan/eosMobs.js — 2026-11-12): ไอคอนลอยเหนือหัว + โล่ฝั่งที่หัน
+const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨" };
+function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
+  const tr = m.trait;
+  if (tr === "shield" && m.face) { // โล่ใหญ่ฝั่งที่หัน (ตีจากฝั่งนี้เหลือ 1)
+    const a = P(cx + m.face.dx * 0.42 - m.face.dy * 0.3, cy + m.face.dy * 0.42 - m.face.dx * 0.3, 0.05), b = P(cx + m.face.dx * 0.42 + m.face.dy * 0.3, cy + m.face.dy * 0.42 + m.face.dx * 0.3, 0.05);
+    const a2 = P(cx + m.face.dx * 0.42 - m.face.dy * 0.3, cy + m.face.dy * 0.42 - m.face.dx * 0.3, 0.95), b2 = P(cx + m.face.dx * 0.42 + m.face.dy * 0.3, cy + m.face.dy * 0.42 + m.face.dx * 0.3, 0.95);
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(b2[0], b2[1]); g.lineTo(a2[0], a2[1]); g.closePath();
+    g.fillStyle = "rgba(90,140,230,.35)"; g.fill(); g.strokeStyle = "rgba(170,210,255,.9)"; g.lineWidth = 2.5; g.stroke();
+  }
+  const ic = TRAIT_ICON[tr];
+  if (!ic) return;
+  const [x, y, s] = P(cx, cy, h);
+  const bob = lowQ ? 0 : Math.sin(now / 380 + cx) * 2;
+  const rgb = (TRAIT_LOOK[tr] || {}).rgb || "255,255,255";
+  glowAt(g, x, y - s * 0.12 + bob, s * 0.3, rgb, m.cd ? 0.25 : 0.6);
+  g.save(); g.globalAlpha = m.cd ? 0.5 : 1; g.font = Math.max(11, Math.round(s * 0.3)) + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
+}
 // ราชาปีศาจ: ร่างใหญ่ 2.6 ช่อง · ออร่าแดงม่วงหมุน · มงกุฎเรือง · หลอดเลือดใหญ่
 function drawBoss(g, d, cx, cy, sx, sy, s, now, lowQ, breathe) {
   g.save(); g.translate(sx, sy); g.scale(1, 0.4);
@@ -4011,6 +4038,21 @@ function pveGround(g, fd, now, lowQ) {
     g.setLineDash([s * 0.35, s * 0.25]); g.strokeStyle = mu.mode === "wave" ? `rgba(255,40,50,${0.6 + 0.3 * k})` : `rgba(255,80,80,${0.22 + 0.15 * k})`; g.lineWidth = mu.mode === "wave" ? 4 : 2.5;
     g.beginPath(); g.arc(0, 0, s * r, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
   }
+  for (const rn of fd.mobRunes || []) { // วงเวทของมอน (eosMobs — ระเบิดต้นเทิร์นหน้า)
+    const k = 0.5 + 0.5 * Math.sin(now / 150);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const tx = rn.x + dx, ty = rn.y + dy;
+      const c = [P(tx + 0.06, ty + 0.06, 0.02), P(tx + 0.94, ty + 0.06, 0.02), P(tx + 0.94, ty + 0.94, 0.02), P(tx + 0.06, ty + 0.94, 0.02)];
+      g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath();
+      g.fillStyle = `rgba(255,60,200,${0.12 + 0.12 * k})`; g.fill();
+    }
+    const [x, y, s] = P(rn.x + 0.5, rn.y + 0.5, 0.03);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 900);
+    g.strokeStyle = `rgba(255,110,220,${0.6 + 0.35 * k})`; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(0, 0, s * 1.45, 0, TAU); g.stroke();
+    g.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; const px = Math.cos(a) * s * 1.3, py = Math.sin(a) * s * 1.3; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); g.stroke();
+    g.restore();
+  }
   const qk = fd.bossQuake; // แผ่นดินแยกที่ราชาปีศาจเตือนไว้: ช่องแดงกะพริบ (ระเบิดต้นเทิร์นหน้า)
   if (qk) {
     const k = 0.5 + 0.5 * Math.sin(now / 130);
@@ -4074,12 +4116,46 @@ function pve2Fx(g, e, p, lowQ, units) {
   if (e.kind === "mob_shot") {
     for (const sh of e.shots || []) {
       const a = P(sh.from.x + 0.5, sh.from.y + 0.5, 1.1), b = P(sh.to.x + 0.5, sh.to.y + 0.5, 0.8), al = p < 0.3 ? 1 : Math.max(0, 1 - (p - 0.3) / 0.7);
+      if (sh.kind === "arrow" || sh.kind === "web") { // ลูกธนู / ก้อนใย พุ่งเป็นวิถีโค้ง
+        const q = Math.min(1, p / 0.45), hx = a[0] + (b[0] - a[0]) * q, hy = a[1] + (b[1] - a[1]) * q - Math.sin(q * Math.PI) * 26;
+        if (q < 1) { glowAt(g, hx, hy, 14, sh.kind === "web" ? "240,240,240" : "255,210,90", 0.9); g.fillStyle = sh.kind === "web" ? "#f4f4f4" : "#ffd75a"; g.beginPath(); g.arc(hx, hy, sh.kind === "web" ? 5 : 3, 0, TAU); g.fill(); }
+        else if (sh.kind === "web") { g.strokeStyle = `rgba(240,240,240,${al})`; g.lineWidth = 1.2; for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] + Math.cos(an) * 22, b[1] + Math.sin(an) * 12); g.stroke(); } for (const r of [8, 15, 22]) { g.beginPath(); g.ellipse(b[0], b[1], r, r * 0.55, 0, 0, TAU); g.stroke(); } }
+        else glowAt(g, b[0], b[1], 22, "255,200,80", al * 0.8);
+        continue;
+      }
       g.strokeStyle = `rgba(255,60,50,${al})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
       g.strokeStyle = `rgba(255,230,220,${al})`; g.lineWidth = 1; g.stroke();
       glowAt(g, b[0], b[1], 30, "255,80,60", al * 0.8);
     }
     return true;
   }
+  if (e.kind === "mob_blink") { // ควันม่วงจุดเดิม → จุดใหม่
+    for (const b of e.list || []) {
+      if (!lowQ) { puff(g, b.from.x + 0.5, b.from.y + 0.5, 0.5 + p, p, e.seq + 1, 8, "150,70,220", 0.35); puff(g, b.to.x + 0.5, b.to.y + 0.5, 0.5 + p, p, e.seq + 2, 8, "150,70,220", 0.35); }
+      const [x, y, s] = P(b.to.x + 0.5, b.to.y + 0.5, 0.6); glowAt(g, x, y, s * (0.6 + p), "190,90,255", (1 - p) * 0.8);
+    }
+    return true;
+  }
+  if (e.kind === "mob_pull") { // โซ่จากมอนถึงเป้า (เป้าถูกลากตามโซ่)
+    for (const c of e.list || []) {
+      const a = P(c.x + 0.5, c.y + 0.5, 0.8), q = Math.min(1, p / 0.5), fx0 = c.from.x + (c.to.x - c.from.x) * q, fy0 = c.from.y + (c.to.y - c.from.y) * q, b = P(fx0 + 0.5, fy0 + 0.5, 0.8), al = p < 0.6 ? 1 : (1 - p) / 0.4;
+      g.strokeStyle = `rgba(200,200,215,${al})`; g.lineWidth = 3; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]);
+      glowAt(g, b[0], b[1], 18, "220,220,240", al * 0.7);
+    }
+    return true;
+  }
+  if (e.kind === "mob_rune_set") { for (const r of e.list || []) { const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.05); glowAt(g, x, y, s * (0.8 + p * 1.2), "255,80,210", (1 - p) * 0.8); } return true; }
+  if (e.kind === "mob_rune") {
+    for (const r of e.list || []) {
+      const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.3);
+      if (r.fizzle) { glowAt(g, x, y, s * 0.8, "200,160,220", (1 - p) * 0.4); continue; }
+      glowAt(g, x, y, s * (1 + p * 1.8), "255,70,210", (1 - p) * 0.95);
+      if (!lowQ) puff(g, r.x + 0.5, r.y + 0.5, 0.4 + p, p, e.seq + r.x, 8, "200,60,180", 0.3);
+    }
+    return true;
+  }
+  if (e.kind === "mob_split") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.6); glowAt(g, x, y, s * (0.8 + p), "220,170,100", (1 - p) * 0.8); if (!lowQ) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, p, e.seq, 10, "150,120,90", 0.3); return true; }
+  if (e.kind === "mob_block") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9); glowAt(g, x, y, s * 0.7, "140,190,255", (1 - p) * 0.9); return true; }
   if (e.kind === "mob_boom") {
     const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5);
     glowAt(g, x, y, s * (1 + p * 2), "255,130,40", (1 - p) * 0.95);

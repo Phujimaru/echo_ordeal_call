@@ -16,7 +16,7 @@
 // ============================================================
 Object.assign(module.exports, {
   inWorld, isEos, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
-  mapLayer, keepsTile, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
+  mapLayer, keepsTile, incomingDamage, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
   movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, eosOutcome, shields, absorbDamage, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
 });
 
@@ -271,6 +271,8 @@ function maybeAdvance(startTimer, random = Math.random) {
 // ---------- จุดเสียบเข้า engine (ดูตารางใน server/fodlan/README.md) ----------
 // ชั้นแผนที่ของด่าน (action.boardMap → layeredMap) — คืน map ใหม่ (ไม่มีฮุค = เดิม)
 // ช่องที่ท่าทำลายพื้นที่ (engine.addChasm) พังไม่ได้ — true = กันไว้
+// ดาเมจที่ยูนิตของด่านได้รับ (combat.adjustIncomingDamage — Eos: ทหารโล่ตีจากหน้าเหลือ 1)
+function incomingDamage(p, n, src) { const r = call("incoming", n, p, n, src); return Number.isFinite(r) ? r : n; }
 function keepsTile(k) { return !!call("keepsTile", false, k); }
 function mapLayer(map) { return call("layer", map, map) || map; }
 function layerVer() {

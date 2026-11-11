@@ -1859,3 +1859,128 @@ test('การ์ดทีมซ้อนระดับ: เลือกใบ
   assert.ok(P(1).alive, 'ใจสู้: รอดจากการล้ม');
   assert.equal(k.guts[P(1).id], 0);
 });
+
+// ---------- มอนรูปแบบใหม่ 8 แบบ (server/fodlan/eosMobs.js — 2026-11-12) ----------
+const MBS = require('../server/fodlan/eosMobs.js');
+const tmob = (trait, x, y, o = {}) => _m(S6.spawnMob(ctx(), st(), 'daemon', { x, y }, { hp: 6, armor: 0, atk: 2, mov: 4, gold: 1, ...o }, { look: 1, tier: 1, trait }));
+function soloArena() {
+  setup(3);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  match.roundNumber = 5; st().nightNo = 3;
+  return P(0);
+}
+const freeAt = (x, y) => S6.H().tileFree(ctx(), st(), x, y);
+function openSpot(dx = 0) { // หาแนวว่าง 7 ช่องแนวนอน
+  for (let y = 4; y < 28; y++) for (let x = 2; x < 22; x++) {
+    let ok = true;
+    for (let i = 0; i < 7 && ok; i++) ok = freeAt(x + i, y) && !S6.blockedTown(st(), x + i, y);
+    for (let i = 0; i < 7 && ok; i++) ok = freeAt(x + i, y + 1) && freeAt(x + i, y - 1);
+    if (ok) return { x: x + dx, y };
+  }
+  throw new Error('ไม่มีที่ว่าง');
+}
+test('มอนใหม่: พลธนูถอยออกเมื่อมีคนประชิดแล้วยิง · ตัวพ่นใยตรึง + 1', () => {
+  const p = soloArena(), o = openSpot();
+  p.pos = { x: o.x, y: o.y };
+  const a = tmob('archer', o.x + 1, o.y);
+  const t0 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.ok(Math.abs(a.pos.x - p.pos.x) + Math.abs(a.pos.y - p.pos.y) >= 3, 'ถอยออกไป');
+  assert.equal(total(p), t0 - 2, 'ยิงโดน');
+  require('../server/summon.js').remove(a);
+  const w = tmob('weaver', o.x + 3, o.y);
+  const t1 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.ok(p.statuses.rooted > 0, 'ติดใย');
+  assert.equal(total(p), t1 - 1);
+  assert.ok(w.summon.cdUntil > match.roundNumber, 'คูลดาวน์');
+});
+test('มอนใหม่: ทหารโล่ ตีจากหน้าเหลือ 1 ตีจากหลังเต็ม · ตัววาร์ปไปติดคนเลือดน้อย · โซ่ลากเข้ามาติดตัว', () => {
+  const p = soloArena(), o = openSpot();
+  const sh = tmob('shield', o.x + 2, o.y, { hp: 20 });
+  sh.summon.face = { dx: -1, dy: 0 };
+  p.pos = { x: o.x + 1, y: o.y };
+  const h0 = sh.hp + sh.armor;
+  combat.withEffectSource(p, () => ctx().damage(sh, 4));
+  assert.equal(h0 - (sh.hp + sh.armor), 1, 'ด้านหน้า = 1');
+  p.pos = { x: o.x + 3, y: o.y };
+  const h1 = sh.hp + sh.armor;
+  combat.withEffectSource(p, () => ctx().damage(sh, 4));
+  assert.equal(h1 - (sh.hp + sh.armor), 4, 'ด้านหลัง = เต็ม');
+  require('../server/summon.js').remove(sh);
+  p.pos = { x: o.x, y: o.y };
+  const b = tmob('blinker', o.x + 6, o.y);
+  const t0 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.equal(Math.abs(b.pos.x - p.pos.x) + Math.abs(b.pos.y - p.pos.y), 1, 'วาร์ปมาติดตัว');
+  assert.ok(total(p) < t0);
+  require('../server/summon.js').remove(b);
+  const hk = tmob('hooker', o.x + 4, o.y);
+  S6.actMonsters(ctx(), st());
+  assert.deepEqual(p.pos, { x: o.x + 3, y: o.y }, 'ถูกลากมาติดตัว');
+  assert.ok(hk.summon.cdUntil > match.roundNumber);
+});
+test('มอนใหม่: วงเวทเตือนก่อน 1 เทิร์นแล้วระเบิด · นักเวทตายก่อน = วงหาย', () => {
+  const p = soloArena(), o = openSpot();
+  p.pos = { x: o.x, y: o.y };
+  const r = tmob('rune', o.x + 4, o.y);
+  S6.actMonsters(ctx(), st());
+  const pub = Fodlan.publicInfo().board.mobRunes;
+  assert.equal(pub.length, 1);
+  assert.deepEqual([pub[0].x, pub[0].y], [o.x, o.y]);
+  const t0 = total(p);
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), st());
+  assert.equal(total(p), t0 - 3, 'ยืนในวง = โดน 3');
+  // วงใหม่แล้วฆ่านักเวท
+  const runes = MBS.MS(st()).runes;
+  assert.equal(runes.length, 1, 'วางวงใหม่');
+  require('../server/summon.js').remove(r);
+  match.roundNumber += 1;
+  const t1 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.equal(total(p), t1, 'นักเวทหายไป วงไม่ระเบิด');
+  assert.equal(MBS.MS(st()).runes.length, 0);
+});
+test('มอนใหม่: ฝูงจิ๋วมาเป็นฝูง 5 ตัว · ตัวแยกร่างล้มแล้วแตก 2 ร่าง · ยาก/คืนแรกก็มีมอนพิเศษ', () => {
+  soloArena();
+  const o = openSpot();
+  const st0 = MBS.stats({ hp: 6, armor: 1, atk: 2, mov: 4, gold: 2 }, 'swarm');
+  assert.equal(st0.hp, 1);
+  const lead = tmob('swarm', o.x + 3, o.y + 6 > 30 ? o.y : o.y, st0);
+  MBS.afterSpawn(ctx(), st(), S6.H(), lead, st0, { look: 1, tier: 1, trait: 'swarm' });
+  assert.equal(S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'swarm').length, 5);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  const sp = tmob('splitter', o.x + 3, o.y);
+  P(0).pos = { x: o.x, y: o.y };
+  combat.withEffectSource(P(0), () => ctx().damage(sp, 99));
+  const kids = S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'splitling');
+  assert.equal(kids.length, 2, 'แตก 2 ร่าง');
+  assert.ok(kids.every((k) => k.hp >= 1 && k.summon.maxHp <= 3));
+  combat.withEffectSource(P(0), () => ctx().damage(kids[0], 99));
+  assert.equal(S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'splitling').length, 1, 'ร่างเล็กไม่แตกซ้ำ');
+  match.eosDiff = 'hard'; st().nightNo = 1;
+  let seq = 0; Math.random = () => [0.1, 0.5][seq++ % 2];
+  const got = MBS.pickDaemon(ctx(), st(), S6.H());
+  assert.ok(got, 'ยาก คืนแรก มีมอนพิเศษ');
+  match.eosDiff = 'normal';
+  assert.equal(MBS.pickDaemon(ctx(), st(), S6.H()), null, 'ปกติ คืนแรกยังไม่มี');
+});
+test('ราชาปีศาจ: ยาก 4 คน = 2 ตัว เลือดต่อตัวไม่บาน · ปกติ 3 คน = 1 ตัว', () => {
+  const EV = require('../server/fodlan/eosEvents.js');
+  setup(4);
+  const s = st();
+  match.eosDiff = 'hard';
+  assert.equal(EV.bossCount(ctx(), s), 2);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  EV.warnBoss(ctx(), s, S6.H(), match.roundNumber + 1);
+  EV.landBoss(ctx(), s, S6.H(), EV.ev(s).bossWarn.at);
+  const bosses = S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'boss');
+  assert.equal(bosses.length, 2);
+  const single = Math.round(EV.BOSS.hp * EV.DIFF.hard.hp * (1 + 0.2 * 3));
+  assert.ok(bosses[0].summon.maxHp < single, 'เลือดต่อตัวน้อยกว่าตัวเดียว');
+  match.eosDiff = 'normal';
+  setup(3);
+  assert.equal(EV.bossCount(ctx(), st()), 1);
+});
