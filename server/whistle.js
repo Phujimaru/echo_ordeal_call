@@ -95,8 +95,10 @@ function blow(id) {
   const S = SPELLS[spell];
   Visibility.onHostileAct(p, "item");
   match.lastLog.push(`📯 ${p.name} เป่านกหวีดอัญเชิญมนต์อสูรเทพ — ${S.name}!`);
-  // คลิปเต็มจอทุกครั้งที่เป่าติด (ผู้ใช้สั่ง 2026-11-03)
-  engine.queueCutscene(p, S.cut);
+  // คลิปเต็มจอทุกครั้งที่เป่าติด (ผู้ใช้สั่ง 2026-11-03) · ฮุค whistleClip(p, spell) → คีย์คลิปแทนของกลาง (น็อคทิส: Diamond Dust / Tsunami)
+  const clipHook = require("../characters/index")[p.characterId];
+  const own = clipHook && typeof clipHook.whistleClip === "function" ? clipHook.whistleClip(p, spell) : null;
+  engine.queueCutscene(p, own || S.cut);
   // หลังคลิป: ฉากมนต์บนกระดาน (พัก) → ผลจริง + เหตุการณ์ขยับตัว (พักตามเวลาแอนิเมชัน) → กลับตาเดินเวลาที่เหลือ
   match.afterCutscene.push(() => {
     const seq = (match.divineSeq = (match.divineSeq || 0) + 1);

@@ -161,6 +161,8 @@ module.exports = function buildTransforms() {
     otoyaDead: { img: oto.IMG.base, video: oto.VIDEO.dead, title: "คุเรไน โอโตยะ", label: "ครั้งสุดท้าย", seconds: 5.9, music: null, afterReveal: false },
     // กิลกาเมช (Fake) — ความยาวจริง (ffprobe) 16.0 / 13.8 / 17.7 / 14.2 วิ ปัดขึ้น · คลิปมีเสียงในตัว
     ...Object.fromEntries(Object.entries(noct.ARMS).filter(([, a]) => a.clip).map(([k, a]) => [noct.heedCut(k), { img: a.img, video: a.clip, title: a.name, label: "ขานรับ เหล่าราชา", seconds: a.clipSec, music: null, afterReveal: false }])),
+    noctDiamondDust: { img: noct.IMG.base, video: noct.VIDEO.diamondDust, title: "Diamond Dust", label: "น็อคทิส ลูซิส เคลัม", seconds: 24, music: null, afterReveal: false },
+    noctTsunami: { img: noct.IMG.base, video: noct.VIDEO.tsunami, title: "Tsunami", label: "น็อคทิส ลูซิส เคลัม", seconds: 25.6, music: null, afterReveal: false },
     noctRuin: { img: noct.IMG.ruin, video: noct.VIDEO.ruin, title: "ทำลายให้สิ้น", label: "น็อคทิส ลูซิส เคลัม", seconds: 4.4, music: null, afterReveal: false },
     noctUnleash: { img: noct.IMG.unleash, video: noct.VIDEO.unleash, title: "ปลดปล่อยพลังที่แท้จริง", label: "น็อคทิส ลูซิส เคลัม", seconds: 14.4, music: null, afterReveal: false },
     noctEnd: { img: noct.IMG.end, video: noct.VIDEO.end, title: "ให้มันจบตรงนี้แหละ", label: "น็อคทิส ลูซิส เคลัม", seconds: 29.7, music: null, afterReveal: false },

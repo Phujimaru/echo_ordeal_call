@@ -313,3 +313,11 @@ test('หัวใจของเหล่าปวงชน: น็อตทิ
   engine.withEffectSource(Q.A, () => { Q.B.hp = 0; engine.instantDeath(Q.B); });
   assert.equal(Q.B.alive, false);
 });
+
+test('นกหวีดอัญเชิญ: Diamond Dust / Tsunami = คลิปของน็อคทิส · อย่างอื่นใช้คลิปกลาง', () => {
+  const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 8, 7]]);
+  assert.equal(noct.whistleClip(P.N, 'diamondDust'), 'noctDiamondDust');
+  assert.equal(noct.whistleClip(P.N, 'tsunami'), 'noctTsunami');
+  assert.equal(noct.whistleClip(P.N, 'crossWinds'), null);
+  assert.equal(noct.whistleClip(P.B, 'tsunami'), null);
+});

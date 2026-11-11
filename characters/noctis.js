@@ -21,9 +21,10 @@ const IMG = {
 const VIDEO = {
   ruin: `${DIR}/noct_ruin.mp4`, unleash: `${DIR}/noct_unleash.mp4`, end: `${DIR}/noct_end.mp4`, guts: `${DIR}/noct_guts.mp4`,
   death: `${DIR}/noct_death.mp4`, atlas: `${DIR}/noct_atlas.mp4`, lastGame: `${DIR}/noct_last_game.mp4`,
+  diamondDust: `${DIR}/noct_diamond_dust.mp4`, tsunami: `${DIR}/noct_tsunami.mp4`, // นกหวีดอัญเชิญ (ผู้ใช้ 2026-11-11)
 };
 const MUSIC = { unleash: "noct_magna_insomnia" }; // เพลงระหว่างปลดปล่อยพลังที่แท้จริง (ไฟล์ผู้ใช้ Magna Insomnia — client/src/audio.js)
-const CUT = { ruin: "noctRuin", unleash: "noctUnleash", end: "noctEnd", guts: "noctGuts", death: "noctDeath", atlas: "noctAtlas", lastGame: "noctLastGame" };
+const CUT = { diamondDust: "noctDiamondDust", tsunami: "noctTsunami", ruin: "noctRuin", unleash: "noctUnleash", end: "noctEnd", guts: "noctGuts", death: "noctDeath", atlas: "noctAtlas", lastGame: "noctLastGame" };
 
 const armImg = (f) => `${DIR}/arms/${f}.webp`;
 const armClip = (f) => `${DIR}/arms/${f}.mp4`; // คลิปตีปกติตอนติดขานรับ เหล่าราชา (ไฟล์ผู้ใช้ 2026-11-11)
@@ -836,6 +837,11 @@ module.exports = {
     return false;
   },
 
+  // นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js): ได้ Diamond Dust / Tsunami = คลิปของน็อคทิสแทนคลิปกลาง (ผู้ใช้ 2026-11-11)
+  whistleClip(p, spell) {
+    if (!isNoct(p)) return null;
+    return spell === "diamondDust" ? CUT.diamondDust : spell === "tsunami" ? CUT.tsunami : null;
+  },
   skillMusic(engine, p) {
     if (!isNoct(p) || !p.alive || !st(p).unleash) return null;
     return { music: MUSIC.unleash, at: st(p).unleash.at || 0 };
