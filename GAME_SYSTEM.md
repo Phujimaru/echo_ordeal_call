@@ -1285,6 +1285,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - เทสต์: `tests/kick.test.js` · `tests/rematch.test.js` (+ สรุปผลแมตช์) · `tests/spectator.test.js`
 
 ## 50. ตีรอบตัว 8 ช่อง / กระเป๋า+เพดานเหรียญเฉพาะตัว / ซื้อจากระยะไกล / รีสต็อกร้าน / เสียงเด่นคนเดียว (กิลกาเมช (Fake) — `characters/gilgamesh_fake.js` · GRID_PLAN §7.30)
+- **ตีปกติโดนทุกศัตรูในระยะรอบตัว**: ฮุค `strikeArea(p)` → true · เล็งเป้าตามระยะแมนฮัตตันปกติ (`range`) · `action.laneVictims` คืนศัตรูทุกตัวใน `Board.tilesInRange` ของกรอบตัว ·
+  client `players[].strikeArea` → BoardStage `planFor` ไฮไลต์ทุกช่องในระยะ (เฟิร์นบนสนาม Eos · GRID_PLAN §7.14) · สนาม Eos: ฮุค `eosWalkMax(p)` (เพดานเดินเฉพาะตัว) + `hiddenFromMobs(p)` (มอน AI ไม่เล็ง — stage6 `prey`)
 - **ตีปกติรอบตัว 8 ช่อง (รวมแนวทแยง)**: ฮุค `strikeRing(p)` → true + `ringTiles(engine, p)` → ช่องรอบตัว · ระยะ `range` `[1, 2]` + `strikeAllows` (ระยะเชบีเชฟ = 1) ·
   `action.laneVictims` คืนศัตรูทุกคนในวงเป็น `card.extra` · client `players[].strikeRing` → BoardStage `planFor` คัดช่องยืนที่ติดเป้า (เชบีเชฟ 1) + ไฮไลต์ทั้งวง
 - **กระเป๋าเฉพาะตัว**: ฮุค `bagSlots(p)` → ความจุ (`shop.bagSlotsOf` — `bagFull` · state `players[].bagSlots` · client ใช้ `me.bagSlots || state.bagSlots`) ·

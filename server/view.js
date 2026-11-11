@@ -405,6 +405,7 @@ function buildStateInner(viewerId) {
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
         gil: hook && hook.gilState ? hook.gilState(engine, p) : undefined, // กิลกาเมช: EA / ความมั่งคั่ง / กระสุน / พายุ (ช่องที่เล็ง) / อาวุธที่ปักค้าง / ชาร์จ Enuma Elish — GRID_PLAN §7.30
+        strikeArea: hook && hook.strikeArea ? !!hook.strikeArea(p) || undefined : undefined, // ตีปกติโดนศัตรูทุกตัวในระยะตีรอบตัว (เฟิร์นบนสนาม Eos — action.laneVictims)
         strikeRing: hook && hook.strikeRing ? !!hook.strikeRing(p) || undefined : undefined, // ตีปกติรอบตัว 8 ช่อง รวมทแยง (กิลกาเมช ถือ EA — action.laneVictims)
         bagSlots: shop.bagSlotsOf(p), // ความจุกระเป๋าเฉพาะตัว (กิลกาเมช Gate of Babylon: 50 · ปกติ BAG_SLOTS)
         remoteShop: shop.remoteShop(p) || undefined, // ซื้อจากร้านไหนก็ได้บนแผนที่ (กิลกาเมช Gate of Babylon)

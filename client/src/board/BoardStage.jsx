@@ -470,6 +470,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const inDome = (x, y) => x >= dome[0] && x <= dome[2] && y >= dome[1] && y <= dome[3];
     const foeDomed = !!dome && Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inDome(t.x, t.y));
     const domeOk = (n) => !foeDomed || Rules.footprint(n.x, n.y, sizeOfP(me)).some((t) => inDome(t.x, t.y));
+    // ตีโดนทุกศัตรูในระยะรอบตัว (me.strikeArea — เฟิร์นบนสนาม Eos): เล็งแบบระยะปกติ · ไฮไลต์ทุกช่องในระยะ
+    const area = !foe.isCorpse && !!me.strikeArea;
     const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     const hits = (n) => domeOk(n) && hits0(n);
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
@@ -486,7 +488,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ตีเป็นกรอบ (me.strikeRect [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works): ทุกคนในกรอบทางทิศของเป้าโดนด้วย
     const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
     const ringLane = ring ? { tiles: (() => { const out = [], sz = sizeOfP(me); for (let y = stand.y - 1; y <= stand.y + sz; y++) for (let x = stand.x - 1; x <= stand.x + sz; x++) { if (x >= stand.x && x < stand.x + sz && y >= stand.y && y < stand.y + sz) continue; if (x >= 0 && y >= 0 && x < (map.cols || 14) && y < (map.rows || 14)) out.push({ x, y }); } return out; })() } : null;
-    const lane = ringLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
+    const areaLane = area && !ring ? { tiles: Rules.tilesInRange(map, stand.x, stand.y, range, sizeOfP(me)) } : null;
+    const lane = ringLane || areaLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !allyHit && !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;

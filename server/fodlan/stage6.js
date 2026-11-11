@@ -118,6 +118,8 @@ function enter(ctx, st) {
   XT.init(st.eos);
   PKS.init(st.eos);
   SKY.init(st.eos);
+  // เกราะสูงสุดที่ขึ้นกับสนาม Eos (ฮุค maxArmor — เฟิร์น 3): resetCombat ตั้งเกราะก่อนสถานะ Eos มี → เติมให้เต็มตอนเข้าด่าน (ไม่ลดใคร)
+  for (const p of Object.values(ctx.match.players)) if (p.alive && !p.summon) p.armor = Math.max(p.armor || 0, ctx.combat.maxArmorOf(p));
   // dev: วางรถคันแรกไว้ที่ช่องที่กำหนด (EOS_DEV_CAR="x,y" — ทดสอบการขึ้นรถในเบราว์เซอร์)
   if (process.env.EOS_DEV_CAR) { const [x, y] = String(process.env.EOS_DEV_CAR).split(",").map(Number); if (Number.isFinite(x) && Number.isFinite(y)) Object.assign(st.eos.cars[0], { x, y }); }
   ctx.bump();
@@ -156,7 +158,9 @@ function movMod(ctx, st, p) {
   const s = st && st.eos;
   if (!s || !p) return 0;
   const base = Number(ctx.action.baseMovOf ? ctx.action.baseMovOf(p) : require("../phases/action").baseMovOf(p)) || 0;
-  const walk = Math.max(0, Math.min(base + MOV_BONUS, WALK_MAX) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
+  const capHook = require("../../characters/index")[p.characterId]; // ฮุค eosWalkMax(p) → เพดานเฉพาะตัว (เฟิร์น: ฐาน 4 +2 = 6 — ผู้ใช้สั่ง 2026-11-11)
+  const cap = Number((capHook && capHook.eosWalkMax && capHook.eosWalkMax(p)) || WALK_MAX);
+  const walk = Math.max(0, Math.min(base + MOV_BONUS, cap) - base); // เดินเท้า: +2 แต่ไม่เกิน 5 · ตัวที่ค่าเริ่มต้นเกิน 5 อยู่แล้ว/บัฟระยะเดิน = ปล่อยตามเดิม (ผู้ใช้สั่ง)
   return walk + p4MovBonus(s, p) + (riding(s, p) ? CHOCO_MOV : 0) + (driving(s, p) ? CAR_MOV : 0) + XT.movBonus(s, p, riding(s, p), driving(s, p)) + PKS.movBonus(s) + (stormOn(ctx) ? STORM_MOV : 0) + snowMov(ctx, p);
 }
 function flatWalk(ctx, st, p) { return riding(st && st.eos, p); }
@@ -625,11 +629,16 @@ function dissolveDaemons(ctx, s) {
 //  ปีศาจกลัวแสง เข้าเมืองที่ไฟเปิดไม่ได้ · ทหารเหล็ก/หุ่นเกราะ (เครื่องจักร) และราชาปีศาจบุกเข้าเมืองได้ — กำแพง โดม ป้อมปืน คือของรับมือ
 const lightBound = (m) => mobType(m) === "daemon" && !(m.summon && m.summon.trait === "boss");
 // เป้าที่ตีได้: ผู้เล่นบนกระดาน (ไม่บินลอยข้ามหัว · ปีศาจ/ทหารเหล็กเข้าเมืองที่ไฟเปิดไม่ได้)
+//  ฮุค hiddenFromMobs(p) → true = มอนมองไม่เห็นเลย ไม่เล็ง/ไม่เดินไปหา (เฟิร์น: ซ่อนเร้นมานาบน Eos — ผู้ใช้สั่ง 2026-11-11) · ตีพื้นที่ยังโดน
+function mobBlind(p) {
+  const h = require("../../characters/index")[p.characterId];
+  return !!(h && h.hiddenFromMobs && h.hiddenFromMobs(p));
+}
 function prey(ctx, s, m) {
   const town = lightBound(m); // ไฟเมืองกันเฉพาะปีศาจ (เครื่องจักร/ราชาปีศาจเข้าได้ — 2026-11-11)
   const dark = XT.fearsLight(m); // ปีศาจ (ไม่ใช่ราชา) ไม่เข้าวงไฟแคมป์
   const blind = magnetOn(ctx) && mobType(m) !== "beast";
-  return heroes(ctx).filter((p) => !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)));
+  return heroes(ctx).filter((p) => !mobBlind(p) && !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)));
 }
 const pillarGoals = (s) => s.pillars.filter((pl) => pl.owner || pl.ch);
 // สถานะคุมตัวของมอน (สตั้น/หลับ/ตรึง/เชื่องช้า) นับตามตาเดินของมอนเอง: endTurn ไม่ลด (phases/endTurn.js EOS_MOB_CONTROL)
@@ -2692,7 +2701,7 @@ module.exports = {
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
   sandOn, inDesert, SAND_SIGHT, MOB_CONTROL, tickMobControl, LM, dimLights, eosPriceMul, TRAM, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
-  sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
+  prey, sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, dissolveDaemons, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,
   MOV_BONUS, WALK_MAX, CHOCO_MOV, CHOCO_RESPAWN, CAR_HIT_DMG, DAEMON_COUNT, DAEMON_HP, DAEMON_ARMOR, DAEMON_ATK, DAEMON_MOV, DAEMON_GOLD,

@@ -985,13 +985,13 @@ function statusEntries(p, full) {
   // เฟิร์น: ซ่อนเร้นมานา (อยู่ในโหมด/คูลดาวน์) · เพิ่มระยะ (รอตีครั้งถัดไป) · นับ Zoltraak n/need (ครบ = ครั้งเสริมพลังพร้อม) · ผู้เชี่ยวชาญเวทมนต์พื้นฐาน คูลดาวน์การกัน (ตัวเลข/ไอคอนเท่านั้น)
   if (p.fern) {
     const f = p.fern;
-    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
+    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: f.eos ? "ล่องหน ศัตรูมองไม่เห็น ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุกเทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" : "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
     else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
-    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
+    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: f.eos ? "ตีปกติครั้งถัดไปโดนศัตรูทุกตัวในระยะ 8 รอบตัว ค้างไว้จนกว่าจะตี" : "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
     if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: `Zoltraak ${f.need || 4}/${f.need || 4}`, cls: "bg-fuchsia-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่ใช้ Energy ทะลุเกราะทุกคนในแนว ตีแล้วรีเซ็ทคูลดาวน์ทุกอย่างและเริ่มนับใหม่" });
     else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/${f.need || 4}`, cls: "bg-violet-200 text-gray-900", desc: `ตีปกติครบ ${f.need || 4} ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง` });
     if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงกันการโจมตีได้อีก" });
-    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
+    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: f.eos ? `ผู้เชี่ยวชาญเวทมนต์พื้นฐาน ${f.shieldLeft}` : "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: f.eos ? `การโจมตีของศัตรูอีก ${f.shieldLeft} ครั้งถูกกันทั้งหมด ความเสียหายเป็น 0` : "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
   }
   // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
   if (p.takuto) {
