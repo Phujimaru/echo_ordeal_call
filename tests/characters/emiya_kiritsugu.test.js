@@ -329,7 +329,7 @@ test("ตาย/เปลี่ยนแผนที่ = กับดักห�
   assert.equal(p.kiri.freeAccel, false);
 });
 
-test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่องไม่ได้ · ตัวประชิดสวนจากห่าง 3 ไม่ได้", () => {
+test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่องไม่ได้", () => {
   const { p, t } = setup();
   Math.random = () => 0.99; // ไม่หลบ ไม่คริ
   t.pos = { x: 8, y: 5 };
@@ -337,7 +337,7 @@ test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่อง
   engine.attackTarget("a", "b");
   engine.clearPhaseTimer();
   assert.equal(t.hp, 6);
-  assert.equal(p.hp, 7, "ไม่โดนสวน");
+  assert.equal(p.hp, 7, "ตีปกติไม่มีตีสวน (GRID_PLAN §6)");
   engine.setActor("a");
   t.pos = { x: 9, y: 5 };
   engine.attackTarget("a", "b");
