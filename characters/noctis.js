@@ -71,6 +71,8 @@ const KATANA_P3 = 25;
 const WARP_COST = 1;
 const WARP_LEN = { base: 4, wise: 6, axe: 3, bow: 6 };
 const POINT_RANGE = 4;
+const WARP_THROW_S = 0.4; // อาวุธพุ่งถึงเป้า (client noctFx throw 380 ms)
+const WARP_LAND_S = 0.55; // ร่างวาร์ปตามไปประกอบร่าง
 // สกิลรอง / ท่าไม้ตาย
 const HEED_COST = 3;
 const HEED_POWER = 1; // ขานรับ: อาวุธที่ถือได้รับการเสริมพลัง (พลังโจมตี +1 — ผู้ใช้ 2026-11-11)
@@ -87,7 +89,7 @@ const UNLEASH_COST = 6;
 const UNLEASH_TURNS = 5;
 const UNLEASH_MOV = 2;
 const UNLEASH_RANGE = [1, 4];
-const END_COST = 6;
+const END_COST = 0; // ผู้ใช้ 2026-11-11: ไม่ใช้แต้ม — จ่ายด้วยพลังชีวิตที่ลดเหลือ 1
 const END_AREA = { kind: "line", len: 4, width: 1, hostile: true };
 const END_DMG = 9;
 const GUTS_HP = 2;
@@ -264,19 +266,25 @@ function warpStrike(engine, p, tile) {
   };
   s.pushDir = DIR4[dir];
   const land = stay ? null : landNear(engine, p, target, dir);
+  // ผู้ใช้ 2026-11-11: อาวุธต้องพุ่งไปถึงก่อน → ร่างแตกเป็นผลึกวาร์ปตาม → ตี (พักฉากด้วย skillBeat — ตาเดินกลับเป็น ACTION แล้วค่อยตี)
   fx(engine, p, "throw", { dir, to: { ...target.pos }, weapon: w || weaponOf(p) });
   engine.sfx("noct_throw");
-  if (land) teleport(engine, p, land, "warp");
   engine.log(`🗡️ ${p.name} Warp Strike → ${target.name}`);
-  const ok = engine.attackTarget(p.id, target.id);
-  if (!ok) { // ตีไม่ได้ (ไม่น่าเกิด) = คืนทุกอย่าง
+  if (engine.action) engine.action.locked = true;
+  const refund = () => {
     s.warp = null;
     s.pushDir = null;
     p.skillPoints += WARP_COST;
-    if (land) p.pos = from;
+    if (land && p.alive) p.pos = from;
     engine.broadcastState();
-    return false;
-  }
+  };
+  const strike = () => {
+    if (!p.alive || !target.alive || !target.pos || !engine.canAct(p)) { refund(); return; }
+    if (!engine.attackTarget(p.id, target.id)) refund();
+  };
+  engine.skillBeat(WARP_THROW_S, () => { if (land && p.alive) teleport(engine, p, land, "warp"); });
+  engine.skillBeat(land ? WARP_LAND_S : 0.05, () => { setTimeout(strike, 0); }); // ตีหลังฉากจบ (ตาเดินกลับมาเป็น ACTION ก่อน)
+  engine.pausePlayingForCutscene();
   return true;
 }
 function warpPoint(engine, p, tile) {
@@ -300,6 +308,7 @@ function ruinPvp(engine, p, dir) {
   const victims = engine.boardUnits().filter((u) => set.has(Board.key(u.x, u.y)) || Board.footprint(u.x, u.y, u.size || 1).some((c) => set.has(Board.key(c.x, c.y))))
     .map((u) => engine.players[u.id]).filter((t) => foeOf(engine, p, t));
   fx(engine, p, "ruin", { dir, tiles });
+  engine.sfx("noct_ruin");
   for (const t of victims) {
     const r = hurt(engine, p, t, RUIN_DMG, "ทำลายให้สิ้น");
     engine.log(r.dodge ? `💨 ${t.name} หลบทำลายให้สิ้นได้` : `⚔️ ทำลายให้สิ้น → ${t.name} -${r.dealt}`);
@@ -320,6 +329,7 @@ function ruinEos(engine, p, ids) {
     spots.push(at);
   });
   fx(engine, p, "ruinEos", { spots });
+  engine.sfx("noct_ruin");
   // ระเบิดซ้ำ: ศัตรูรอบตัวเป้าแต่ละตัว (8 ช่อง) ดาเมจ 2
   const hit = new Set();
   for (const c of spots) {
@@ -348,6 +358,7 @@ function endItHere(engine, p, ids) {
   const t = engine.players[ids[0]];
   if (!t || !foeOf(engine, p, t)) return;
   fx(engine, p, "end", { to: { ...t.pos } });
+  engine.sfx("noct_end");
   const r = hurt(engine, p, t, END_DMG, "ให้มันจบตรงนี้แหละ", { noKill: true });
   if (r.dodge) { engine.log(`💨 ${t.name} หลบ ให้มันจบตรงนี้แหละ ได้`); return; }
   let n = 0;

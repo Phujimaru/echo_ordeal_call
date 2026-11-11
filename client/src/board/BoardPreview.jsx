@@ -42,7 +42,8 @@ import DiegoFxDev from "./DiegoFxDev"; // ?diego=1 = ปุ่มเล่นเ
 import ValentineFxDev from "./ValentineFxDev"; // ?valentine=1 = ปุ่มเล่นเอฟเฟกต์ฟันนี่ วาเลนไทน์
 import FernFxDev from "./FernFxDev"; // ?fern=1 = ปุ่มเล่นเอฟเฟกต์เฟิร์น
 import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่นเอฟเฟกต์เซลิน
-import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
+import EmiyaFxDev from "./EmiyaFxDev";
+import NoctFxDev from "./NoctFxDev"; // ?noctis=1 = ปุ่มเล่นเอฟเฟกต์น็อคทิส (+ &zoom=2 มองจากด้านบน) // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
 import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
@@ -142,6 +143,7 @@ const FERN_DEV = Q.get("fern") === "1";
 const CELINE_DEV = Q.get("celine") === "1";
 const TAKUTO_DEV = Q.get("takuto") === "1";
 const EMIYA_DEV = Q.get("emiya") === "1";
+const NOCT_DEV = Q.get("noctis") === "1";
 const KAZUMA_DEV = Q.get("kazuma") === "1";
 const LAW_DEV = Q.get("law") === "1";
 const OHGER_DEV = Q.get("ohger") === "1";
@@ -153,7 +155,7 @@ const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
-  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : OHGER_DEV ? OhgerFxDev.units(baseUnits()) : baseUnits());
+  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : NOCT_DEV ? NoctFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : OHGER_DEV ? OhgerFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -313,7 +315,8 @@ export default function BoardPreview() {
   // เซลิน (?celine=1): พุ่มดอกไม้ [{ x, y, left, made }] → special "bloom" · กำแพง [{ x, y }] → terrain "icewall" · ราชาดอกไม้ (me)
   const [celDev, setCelDev] = useState({ flora: [], walls: [], king: false });
   // ทาคุโตะ (?takuto=1): ดาบลอย/ออร่า { emerald, sapphire, judgment, collapse } → prop takutos · ช่วงมิติพังทลาย (เทิร์นที่เหลือ) → zero.collapse
-  const [emDev, setEmDev] = useState({ weapon: null, ubw: false }); // ชิโร่ (?emiya=1): อาวุธที่ถือ / โลก UBW → prop emiya
+  const [emDev, setEmDev] = useState({ weapon: null, ubw: false });
+  const [ndDev, setNdDev] = useState({ weapon: "engine", unleash: false, heed: false, dodge: false }); // น็อคทิส (?noctis=1) → prop noctis // ชิโร่ (?emiya=1): อาวุธที่ถือ / โลก UBW → prop emiya
   const [lawDev, setLawDev] = useState(() => LawFxDev.empty); // ลอว์ (?law=1): prop law + หนามหิน → terrain "icewall"
   const [tkSwords, setTkSwords] = useState({ emerald: true, sapphire: true, judgment: false, collapse: false });
   const [tkCollapse, setTkCollapse] = useState(null);
@@ -565,6 +568,7 @@ export default function BoardPreview() {
         celine={celineMock}
         takutos={takutoMock}
         law={LAW_DEV ? lawDev : null}
+        noctis={NOCT_DEV ? [{ id: "me", ...ndDev }] : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
         fodlan={map.area === 45 ? { ...eosFd, night } : null}
@@ -604,6 +608,7 @@ export default function BoardPreview() {
       {GIORNO_DEV && <GiornoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {OTOYA_DEV && <OtoyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} otoya={otoyaDev} setOtoya={setOtoyaDev} />}
       {ARJUNA_DEV && <ArjunaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {NOCT_DEV && <NoctFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} nd={ndDev} setNd={setNdDev} />}
       {EMIYA_DEV && <EmiyaFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} em={emDev} setEm={setEmDev} />}
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}

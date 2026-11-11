@@ -160,8 +160,10 @@ test('Warp Strike: 1 แต้ม · ขว้างแนว 4 วาร์ป�
   assert.ok(warp.tiles.some((c) => c.x === 7 && c.y === 7));
   assert.ok(!warp.tiles.some((c) => c.y === 2), 'C ห่าง 5 = นอกแนว');
   assert.equal(noct.charAction(engine, P.N, 'warp', { tile: { x: 5, y: 7 } }), true);
-  assert.deepEqual(P.N.pos, { x: 6, y: 7 });
+  assert.deepEqual(P.N.pos, { x: 3, y: 7 }, 'อาวุธไปก่อน ร่างยังไม่วาร์ป');
   assert.equal(P.N.skillPoints, 7);
+  flush(t, 1500);
+  assert.deepEqual(P.N.pos, { x: 6, y: 7 });
   assert.equal(P.B.hp, 19);
   flush(t, 6000);
 });
