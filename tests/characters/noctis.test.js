@@ -229,8 +229,19 @@ test('ปลดปล่อยพลังที่แท้จริง: เด
   assert.equal(until - engine.roundNumber, 4);
 });
 
+test('ช่องท่าไม้ตาย: ปกติ = ปลดปล่อย · ระหว่างปลดปล่อย = ให้มันจบตรงนี้แหละ', () => {
+  const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 6, 7]]);
+  assert.equal(noct.skillPub(P.N, 'ultimate').name, 'ปลดปล่อยพลังที่แท้จริง');
+  assert.equal(noct.skillPub(P.N, 'ultimate').choices, undefined, 'ไม่มีตัวเลือกซ้ำ');
+  P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
+  assert.equal(noct.skillPub(P.N, 'ultimate').name, 'ให้มันจบตรงนี้แหละ');
+  assert.deepEqual(noct.skillArea(P.N, 'ultimate', { kind: 'self' }), noct.END_AREA);
+  assert.ok(noct.skillMusic(engine, P.N), 'เพลงระหว่างปลดปล่อย');
+});
+
 test('ให้มันจบตรงนี้แหละ: เลือดตัวเองเหลือ 1 · ดาเมจ 9 ไม่ฆ่า · ล้างบัฟ · ครั้งเดียว', () => {
   const P = setup([['N', 'noctis', 3, 7], ['B', 'dummy', 6, 7]]);
+  P.N.noct.unleash = { cast: 1, until: 5, sever: 0 };
   P.B.hp = 7; P.B.armor = 3;
   engine.applyBuff(P.B, 'might', 1, 2);
   Math.random = () => 0.99;

@@ -34,6 +34,7 @@ import { dryTileFx, shadowEventFx, wetTileFx } from "./shadowFx";
 import { YUNA_EVENT_FX } from "./yunaFx";
 import { GRAY_BEAM, GRAY_EVENT_FX, grayChains } from "./grayFx";
 import { GIL_EVENT_FX, GIL_T } from "./gilFx";
+import { NOCT_EVENT_FX, preloadNoct } from "./noctFx";
 import { FERN_EVENT_FX, FERN_SFX_LEAD } from "./fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "./optimusFx";
 import { GIO_EVENT_FX, GIO_FX_DUR, GIO_MS as STYLE_MS_GIO, GIO_REWIND_HIT, GIO_SLAM_HIT } from "./giornoFx";
@@ -1309,6 +1310,22 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => socket.off("gilFx", onGil);
   }, [pushFx, look, lowQ]);
 
+  // น็อคทิส: socket "noctFx" { kind, id, at, ... } → noctFx.js (เสียงมาจาก server) · วาร์ป/ขว้าง = กล้องตาม · ทำลายให้สิ้น/ให้มันจบ = จอสั่น
+  useEffect(() => {
+    const onNoct = (e) => {
+      const kind = e && NOCT_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      preloadNoct();
+      const f = { ...e, kind, x: e.at.x, y: e.at.y };
+      if (e.kind === "warp" && e.to) look(e.to);
+      if ((e.kind === "end" || e.kind === "ruinEos") && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), e.kind === "end" ? 520 : 700));
+      if (e.kind === "ruin" && !lowQ) setShake((n) => n + 1);
+      pushFx([f]);
+    };
+    socket.on("noctFx", onNoct);
+    return () => socket.off("noctFx", onNoct);
+  }, [pushFx, look, lowQ]);
+
   // รถบรรทุกเก่า / ออพติมัส ไพร์ม: socket "optimusFx" { kind: arc | transform | stance | heal, id, at, dir?, tiles?, form? } → optimusFx.js
   //  เสียงมาจาก server (engine.sfx — characters/old_truck.js) · ท่าไม้ตาย: กล้องตามกลางวง + จอสั่นตอนคลื่นปะทะ
   useEffect(() => {
@@ -2397,6 +2414,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     .map((p) => ({ id: p.id, x: p.pos ? p.pos.x : -9, y: p.pos ? p.pos.y : -9, size: sizeOfP(p), alive: !!p.alive && !!p.pos, ea: !!p.gil.ea, storm: !!p.gil.storm,
       warns: p.gil.warns || [], weapons: p.gil.weapons || [], charge: p.gil.charge && Array.isArray(p.gil.charge.tiles) ? { dir: p.gil.charge.dir, tiles: p.gil.charge.tiles } : null })));
   const gils = useMemo(() => { const list = JSON.parse(gilSig); return list.length ? list : null; }, [gilSig]);
+  // น็อคทิส (p.noct): อาวุธที่ถือลอยข้างตัว / Armiger หมุนรอบตัวตอนปลดปล่อย / เรืองตอนขานรับ / ผลึกตอนหลบได้ — noctFx.js drawNoctAir
+  const noctSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.noct)
+    .map((p) => ({ id: p.id, weapon: p.noct.weapon || "engine", unleash: (p.noct.unleashLeft || 0) > 0, heed: !!p.noct.heed, dodge: !!p.noct.dodge })));
+  const noctis = useMemo(() => { const list = JSON.parse(noctSig); if (list.length) preloadNoct(); return list.length ? list : null; }, [noctSig]);
   // เฟิร์น: Zoltraak ครั้งที่ 6 พร้อม (p.fern.empowered) / เพิ่มระยะรออยู่ (p.fern.boost) — แสงที่ปลายคทา (fernFx.js drawFernAir)
   //  เห็นเฉพาะตอนมีตำแหน่งบนกระดาน · ระหว่างซ่อนเร้นไม่วาด
   const fernSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.fern && !p.fern.conceal && (p.fern.empowered || p.fern.boost))
@@ -2798,6 +2819,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         songs={songs}
         grays={grays}
         gils={gils}
+        noctis={noctis}
         ferns={ferns}
         takutos={takutos}
         ryougi={ryougiProp}

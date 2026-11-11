@@ -393,8 +393,18 @@ const FILES = {
   gil_kneel: "/characters/gilgamesh_fake/sfx/gil_kneel.mp3",         // คุกเข่า (สตั้น)
   gil_equip: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",
   // น็อตทิส — ยืมเสียงชักอาวุธ/ประตูของกิลกาเมชไปก่อน (characters/noctis.js) · ยังไม่มีใครฟัง
-  noct_arm: "/characters/gilgamesh_fake/sfx/gil_equip.mp3",
-  noct_heed: "/characters/gilgamesh_fake/sfx/gil_gate.mp3",         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
+  noct_arm: "/characters/roland/sfx/roland_shard.mp3",           // เรียกอาวุธ: ผลึกรวมตัว
+  noct_heed: "/characters/emiya_shirou/sfx/emiya_trace.mp3",          // ขานรับ เหล่าราชา
+  noct_warp: "/characters/roland/sfx/roland_shatter.mp3",        // วาร์ป: ร่างแตกเป็นผลึก
+  noct_point: "/characters/roland/sfx/roland_shard.mp3",         // Warp Point
+  noct_throw: "/characters/emiya_shirou/sfx/emiya_throw.mp3",         // ขว้างอาวุธ (Warp Strike)
+  // เสียงตีตามอาวุธ (characters/noctis.js attackSound — ยืมเสียงอาวุธของโรลันด์/ชิโร่ · ยังไม่มีใครฟัง)
+  noct_atk_wise: "/characters/roland/sfx/roland_atk_durandal.mp3", noct_atk_axe: "/characters/roland/sfx/roland_atk_zelkova.mp3", noct_atk_bow: "/characters/emiya_shirou/sfx/emiya_atk_hrunting.mp3",
+  noct_atk_wanderer: "/characters/roland/sfx/roland_atk_crystal.mp3", noct_atk_mystic: "/characters/roland/sfx/roland_atk_ranga.mp3", noct_atk_star: "/characters/emiya_shirou/sfx/emiya_throw.mp3",
+  noct_atk_tall: "/characters/roland/sfx/roland_atk_wheels.mp3", noct_atk_shield: "/characters/roland/sfx/roland_atk_oldboys.mp3", noct_atk_mace: "/characters/roland/sfx/roland_atk_oldboys.mp3",
+  noct_atk_scepter: "/characters/emiya_shirou/sfx/emiya_atk_rule.mp3", noct_atk_trident: "/characters/roland/sfx/roland_atk_allas.mp3", noct_atk_katana: "/characters/roland/sfx/roland_atk_mook.mp3",
+  noct_atk_father: "/characters/emiya_shirou/sfx/emiya_atk_excalibur.mp3", noct_atk_engine: "/characters/roland/sfx/roland_atk_durandal.mp3",
+  noct_magna_insomnia: "/characters/noctis/noct_magna_insomnia.mp3", // เพลงระหว่างปลดปล่อยพลังที่แท้จริง (ไฟล์ผู้ใช้)         // ชัก EA (ครั้งที่ 2 ขึ้นไป)
   gil_unequip: "/characters/gilgamesh_fake/sfx/gil_unequip.mp3",     // เก็บ EA
   // เพลง (ไฟล์จากผู้ใช้ · loudnorm -14 LUFS): ชาร์จ Enuma Elish = bite down · พายุของ EA = STRANGEFAKE (state.skillMusic)
   gil_bite_down: "/characters/gilgamesh_fake/gil_bite_down.mp3",

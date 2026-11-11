@@ -16,12 +16,13 @@ const ID = "noctis";
 const DIR = "/characters/noctis";
 const IMG = {
   // ภาพจากผู้ใช้ 2026-11-11: noctis.jpg (ปก) · skill2.jpg (สกิลรอง) · skill3.jpg (ท่าไม้ตาย)
-  base: `${DIR}/noctis.webp`, heed: `${DIR}/skill2.webp`, ruin: `${DIR}/skill2.webp`, unleash: `${DIR}/skill3.webp`, end: `${DIR}/skill3.webp`,
+  base: `${DIR}/noctis.webp`, heed: `${DIR}/skill2.webp`, ruin: `${DIR}/skill2_2.webp`, unleash: `${DIR}/skill3.webp`, end: `${DIR}/skill3_2.webp`, // skil2.2.jpg / skill3.2.jpg = ร่างที่สองของช่อง
 };
 const VIDEO = {
   ruin: `${DIR}/noct_ruin.mp4`, unleash: `${DIR}/noct_unleash.mp4`, end: `${DIR}/noct_end.mp4`, guts: `${DIR}/noct_guts.mp4`,
   death: `${DIR}/noct_death.mp4`, atlas: `${DIR}/noct_atlas.mp4`, lastGame: `${DIR}/noct_last_game.mp4`,
 };
+const MUSIC = { unleash: "noct_magna_insomnia" }; // เพลงระหว่างปลดปล่อยพลังที่แท้จริง (ไฟล์ผู้ใช้ Magna Insomnia — client/src/audio.js)
 const CUT = { ruin: "noctRuin", unleash: "noctUnleash", end: "noctEnd", guts: "noctGuts", death: "noctDeath", atlas: "noctAtlas", lastGame: "noctLastGame" };
 
 const armImg = (f) => `${DIR}/arms/${f}.webp`;
@@ -238,6 +239,7 @@ function teleport(engine, p, to, kind) {
   st(p).movedRound = engine.roundNumber;
   engine.setDash({ id: p.id, path: [from, { ...p.pos }] });
   fx(engine, p, kind, { from, to: { ...p.pos } });
+  engine.sfx(kind === "point" ? "noct_point" : "noct_warp");
 }
 
 // ---------- Warp Strike ----------
@@ -262,7 +264,8 @@ function warpStrike(engine, p, tile) {
   };
   s.pushDir = DIR4[dir];
   const land = stay ? null : landNear(engine, p, target, dir);
-  fx(engine, p, "throw", { dir, to: { ...target.pos }, weapon: w || "engine" });
+  fx(engine, p, "throw", { dir, to: { ...target.pos }, weapon: w || weaponOf(p) });
+  engine.sfx("noct_throw");
   if (land) teleport(engine, p, land, "warp");
   engine.log(`🗡️ ${p.name} Warp Strike → ${target.name}`);
   const ok = engine.attackTarget(p.id, target.id);
@@ -331,6 +334,8 @@ function ruinEos(engine, p, ids) {
 }
 const eosMode = (engine) => engine.gameMode === "eos";
 // ช่องสกิลรอง (ผู้ใช้ 2026-11-11): ปกติ = ขานรับ เหล่าราชา · ระหว่างปลดปล่อยพลังที่แท้จริง = ทำลายให้สิ้น (ไม่อยู่พร้อมกัน)
+// ช่องท่าไม้ตาย (ผู้ใช้ 2026-11-11): ปกติ = ปลดปล่อยพลังที่แท้จริง · ระหว่างปลดปล่อย = ให้มันจบตรงนี้แหละ
+const ultForm = (p) => (st(p).unleash ? "end" : "unleash");
 function secForm(p, opts = {}) {
   const f = opts.form;
   if (!st(p).unleash) return "heed";
@@ -453,6 +458,10 @@ module.exports = {
     if (!roll(KATANA_P2)) return 0;
     return roll(KATANA_P3) ? 2 : 1;
   },
+  // ท่าตีบนกระดาน (client/src/board/noctFx.js): อาวุธที่ถือพุ่งเข้าเป้า · ปลดปล่อย = อาวุธจากวง Armiger 3 ชิ้นต่อกัน
+  attackStyle(p) { return isNoct(p) ? (st(p).unleash ? "noct_armiger" : `noct_${weaponOf(p)}`) : null; },
+  // เสียงตีตามชนิดอาวุธ (ยืมเสียงอาวุธของโรลันด์/ชิโร่ — client/src/audio.js noct_atk_*)
+  attackSound(p) { return isNoct(p) ? `noct_atk_${weaponOf(p)}` : undefined; },
   attackFxNames(attacker) {
     if (!isNoct(attacker)) return [];
     const w = weaponOf(attacker), out = [];
@@ -695,14 +704,12 @@ module.exports = {
       };
     }
     if (tier === "ultimate") {
-      return {
-        choices: [
-          { key: "unleash", name: "ปลดปล่อยพลังที่แท้จริง", img: IMG.unleash, cost: UNLEASH_COST, area: { kind: "self" }, active: !!s.unleash, locked: !!s.unleash,
-            desc: `ปลดปล่อยพลังที่แท้จริง: ${UNLEASH_TURNS} เทิร์น · ระยะเดิน +${UNLEASH_MOV} · ตีปกติระยะ 1–4 · ทุกการตีสุ่มอาวุธราชวงศ์ · แต้มสกิล +1 ต่อเทิร์น · ไม่เสียพลังชีวิตตัวเอง` },
-          { key: "end", name: "ให้มันจบตรงนี้แหละ", img: IMG.end, cost: END_COST, area: END_AREA, locked: s.endUsed, left: s.endUsed ? 0 : 1,
-            desc: `ให้มันจบตรงนี้แหละ: เลือกทิศ แนว 4×1 วาร์ปไปฟันศัตรูคนแรก · พลังชีวิตตัวเองเหลือ 1 · ดาเมจ ${END_DMG} (ไม่ทำให้ตาย) · ล้างบัฟเป้าทั้งหมด · ครั้งเดียวต่อเกม` },
-        ],
-      };
+      if (!s.unleash) {
+        return { name: "ปลดปล่อยพลังที่แท้จริง", img: IMG.unleash, cost: UNLEASH_COST, area: { kind: "self" }, flash: true,
+          desc: `${UNLEASH_TURNS} เทิร์น · ระยะเดิน +${UNLEASH_MOV} · ตีปกติระยะ 1–4 · ทุกการตีสุ่มอาวุธราชวงศ์ · แต้มสกิล +1 ต่อเทิร์น · ไม่เสียพลังชีวิตตัวเอง (ระหว่างนี้ช่องนี้เปลี่ยนเป็นให้มันจบตรงนี้แหละ)` };
+      }
+      return { name: "ให้มันจบตรงนี้แหละ", img: IMG.end, cost: END_COST, area: END_AREA, flash: true,
+        desc: `เลือกทิศ แนว 4×1 วาร์ปไปฟันศัตรูคนแรก · พลังชีวิตตัวเองเหลือ 1 · ดาเมจ ${END_DMG} (ไม่ทำให้ตาย) · ล้างบัฟเป้าทั้งหมด · ครั้งเดียวต่อเกม` };
     }
     return null;
   },
@@ -710,7 +717,7 @@ module.exports = {
     if (!isNoct(p)) return base;
     if (tier === "basic") return 0;
     if (tier === "secondary") return secForm(p, opts) === "heed" ? HEED_COST : RUIN_COST;
-    if (tier === "ultimate") return opts.form === "end" ? END_COST : UNLEASH_COST;
+    if (tier === "ultimate") return ultForm(p) === "end" ? END_COST : UNLEASH_COST;
     return base;
   },
   skillArea(p, tier, area, opts = {}) {
@@ -722,7 +729,7 @@ module.exports = {
       if (m) return { kind: "target", range: RUIN_EOS_RANGE, count: Number(m[1]), hostile: true };
       return { kind: "self" };
     }
-    if (tier === "ultimate") return opts.form === "end" ? END_AREA : { kind: "self" };
+    if (tier === "ultimate") return ultForm(p) === "end" ? END_AREA : { kind: "self" };
     return area;
   },
   canUseSkill(engine, p, tier, targets, opts = {}) {
@@ -740,8 +747,9 @@ module.exports = {
       return false;
     }
     if (tier === "ultimate") {
-      if (f === "unleash") return !s.unleash;
-      if (f === "end") return !s.endUsed && (targets || []).some((id) => foeOf(engine, p, engine.players[id]));
+      const uf = ultForm(p);
+      if (uf === "unleash") return true;
+      if (uf === "end") return !s.endUsed && (targets || []).some((id) => foeOf(engine, p, engine.players[id]));
       return false;
     }
     return false;
@@ -750,11 +758,11 @@ module.exports = {
   ignoresTurnQuota(p, tier) { return isNoct(p) && tier === "basic"; },
   keepsMove(engine, p, tier) { return isNoct(p) && tier === "basic"; },
   silentFlash(p, tier) { return isNoct(p) && tier === "basic"; },
-  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? secForm(p, opts) !== "heed" : tier === "ultimate" && opts.form === "end"); },
+  ownsAreaHit(p, tier, opts = {}) { return isNoct(p) && (tier === "secondary" ? secForm(p, opts) !== "heed" : tier === "ultimate" && ultForm(p) === "end"); },
   skillSound() { return null; },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isNoct(p)) return "";
-    const s = st(p), r = engine.roundNumber, f = tier === "secondary" ? secForm(p, opts) : opts.form;
+    const s = st(p), r = engine.roundNumber, f = tier === "secondary" ? secForm(p, opts) : tier === "ultimate" ? ultForm(p) : opts.form;
     if (tier !== "basic") s.skillTurn = turnKey(engine);
     if (tier === "basic") {
       s.weapon = f;
@@ -782,7 +790,7 @@ module.exports = {
       return "";
     }
     if (tier === "ultimate" && f === "unleash") {
-      s.unleash = { cast: r, until: r + UNLEASH_TURNS - 1, sever: engine.severStamp() };
+      s.unleash = { cast: r, until: r + UNLEASH_TURNS - 1, sever: engine.severStamp(), at: engine.nextTransformCounter() };
       engine.triggerCutscene(p, CUT.unleash);
       engine.log(`👑 ${p.name} ปลดปล่อยพลังที่แท้จริง (${UNLEASH_TURNS} เทิร์น)`);
       return "";
@@ -821,6 +829,10 @@ module.exports = {
     return false;
   },
 
+  skillMusic(engine, p) {
+    if (!isNoct(p) || !p.alive || !st(p).unleash) return null;
+    return { music: MUSIC.unleash, at: st(p).unleash.at || 0 };
+  },
   // ---------- ผลสกิลที่ตัดได้ (server/sever.js) ----------
   severables(engine, p) {
     if (!isNoct(p) || !p.alive) return [];

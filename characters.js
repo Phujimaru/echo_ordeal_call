@@ -1805,7 +1805,7 @@ const CHARACTERS = [
     // ---------- น็อตทิส — มหันตภัย · unique — ดู characters/noctis.js (GRID_PLAN §7.31) ----------
     id: "noctis",
     gender: "m",
-    name: "น็อตทิส",
+    name: "น็อคทิส ลูซิส เคลัม",
     avatar: 0,
     difficulty: "calamity",
     unique: true,
