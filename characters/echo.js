@@ -4,6 +4,7 @@
 //  ค่าพื้นฐาน: สเปกไม่ระบุ = พลังชีวิต 7 / เกราะ 3 / พลังโจมตี 1 · เดิน 4 · ตีประชิด · ตัว 1×1 ตลอด (ไม่ขยายร่างแล้ว)
 //  สกิลพื้นฐาน ไดอารี่ความทรงจำ (0 แต้ม): เปิดสมุด เลือกตัวละครในเกม → ได้สกิลพื้นฐาน/รอง/ท่าไม้ตาย + สกิลติดตัวของตัวนั้น
 //    เลือกได้ทุกตัว ยกเว้นตัวที่ซ้ำไม่ได้ (unique) ที่อยู่ในเกมนี้แล้ว · ตัวปกติซ้ำได้
+//    ตัวที่มีแต่สกิลติดตัว (ไม่มีช่องสกิล เช่นเฟรดดี้) ก็สวมได้ — ได้สกิลติดตัวครบ (ผู้ใช้ 2026-11-12)
 //    คัดลอกทุกอย่างของตัวนั้น รวมค่าสถานะ (เลือด/เกราะ/แต้มสกิลสูงสุด · ระยะเดิน/ระยะตีพื้นฐาน — ผู้ใช้สั่ง 2026-11-12 แทนกติกาเดิม "ค่าสถานะของ Echo ตลอด")
 //    ยกเว้นโปรไฟล์ (ชื่อ/ภาพปก/ภาพบนกระดาน = Echo เสมอ) และสกิลติดตัวของ Echo เอง (ราชินีผู้อ่อนโยน) ที่ยังติดอยู่
 //    หลังเปลี่ยนแล้ว ไดอารี่กลายเป็นปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล) กดคืนร่าง → คูลดาวน์ 3 เทิร์นก่อนเลือกใหม่ (ผู้ใช้เลือก)
@@ -56,11 +57,16 @@ const statId = (p) => p && p.characterId;
 const baseId = (p) => (mimicking(p) ? ID : p && p.characterId);
 
 // ---------- รายชื่อตัวละครในสมุด ----------
+// มีอะไรให้สวม: สกิลอย่างน้อยหนึ่งช่อง หรือสกิลติดตัว (ตัวที่มีแต่สกิลติดตัวอย่างเฟรดดี้ก็สวมได้ — ผู้ใช้ 2026-11-12)
+function hasKit(ch) {
+  return !!(ch.basic || ch.secondary || ch.ultimate || ch.passive || ch.passive2);
+}
 function skillLine(ch) {
   const out = [];
   if (ch.basic) out.push(`พื้นฐาน: ${ch.basic.name}`);
   if (ch.secondary) out.push(`รอง: ${ch.secondary.name}`);
   if (ch.ultimate) out.push(`ท่าไม้ตาย: ${ch.ultimate.name}`);
+  if (!out.length) for (const ps of [ch.passive, ch.passive2]) if (ps && ps.name) out.push(`ติดตัว: ${ps.name}`);
   return out.join(" · ");
 }
 // ตัวละครซ้ำไม่ได้ที่อยู่ในเกมนี้แล้ว (นับทั้งตัวที่เลือกมาจริงและร่างที่ Echo คนอื่นสวมอยู่ — Echo มีได้คนเดียว แต่กันไว้)
@@ -76,7 +82,7 @@ function takenUnique(engine, self) {
 function pickable(engine, p, id) {
   const ch = CHAR_BY_ID[id];
   if (!ch || ch.hidden || id === ID || BLOCKED.has(id) || ch.duoOnly) return false;
-  if (!ch.basic && !ch.secondary && !ch.ultimate) return false;
+  if (!hasKit(ch)) return false;
   if (ch.unique && takenUnique(engine, p).has(id)) return false;
   return true;
 }
@@ -84,7 +90,7 @@ function bookChoices(engine, p) {
   const out = [];
   for (const ch of CHARACTERS) {
     if (!ch || ch.hidden || ch.id === ID || BLOCKED.has(ch.id) || ch.duoOnly) continue;
-    if (!ch.basic && !ch.secondary && !ch.ultimate) continue;
+    if (!hasKit(ch)) continue;
     const ok = pickable(engine, p, ch.id);
     out.push({
       key: ch.id,
