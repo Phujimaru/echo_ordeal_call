@@ -49,7 +49,7 @@ test('ค่าพื้นฐาน: พลังชีวิต 7 เกรา
   assert.equal(CHAR_BY_ID.echo.ultimate, undefined);
 });
 
-test('ไดอารี่: เปลี่ยนเป็นสกิลของตัวที่เลือก · ค่าสถานะ/ภาพยังเป็นของ Echo · ไม่กินโควตา', () => {
+test('ไดอารี่: คัดลอกทุกอย่างของตัวที่เลือก (รวมค่าสถานะ) · ภาพ/ชื่อ/สกิลติดตัวของตัวเองยังเป็นของ Echo · ไม่กินโควตา', () => {
   const P = setup([['E', 'echo', 1, 5], ['B', 'muimi', 8, 5]]);
   const E = P.E;
   actAs(E);
@@ -57,8 +57,9 @@ test('ไดอารี่: เปลี่ยนเป็นสกิลขอ
   assert.equal(E.characterId, 'fern');
   assert.equal(E.echoQ.mimic, 'fern');
   assert.equal(E.skillUsedRound, false, 'ไม่นับเป็นการใช้สกิล');
-  assert.equal(engine.maxSkillOf(E), 8, 'แต้มสกิลสูงสุดของ Echo ไม่ใช่ Energy 10 ของเฟิร์น');
-  assert.equal(engine.maxHpOf(E), 7);
+  assert.equal(engine.maxSkillOf(E), engine.maxSkillOf({ characterId: 'fern', statuses: {} }), 'แต้มสกิลสูงสุดเป็นของเฟิร์น (ผู้ใช้สั่ง 2026-11-12: คัดลอกค่าสถานะด้วย)');
+  assert.equal(engine.maxHpOf(E), engine.maxHpOf({ characterId: 'fern', statuses: {} }), 'เลือดสูงสุดเป็นของเฟิร์น');
+  assert.ok(E.hp <= engine.maxHpOf(E), 'เลือดเดิมไม่เกินเพดานใหม่');
   const me = pub(E);
   assert.equal(me.character.name, CHAR_BY_ID.echo.name);
   assert.equal(me.character.img, CHAR_BY_ID.echo.img);
@@ -131,7 +132,8 @@ test('เริ่มแมตช์ใหม่ = กลับร่าง Echo
   actAs(E);
   engine.useSkill('E', 'basic', [], { form: 'gyro_zeppeli' });
   assert.equal(E.characterId, 'gyro_zeppeli');
-  assert.equal(CHAR_HOOKS.echo.statId(E), 'echo');
+  assert.equal(CHAR_HOOKS.echo.statId(E), 'gyro_zeppeli', 'ค่าสถานะตามร่างที่สวม');
+  assert.equal(CHAR_HOOKS.echo.baseId(E), 'echo', 'ตัวตนจริง (สถิติจบเกม / ตัว unique) ยังเป็น Echo');
   engine.startMatch();
   engine.clearPhaseTimer();
   assert.equal(E.characterId, 'echo');
@@ -260,4 +262,18 @@ test('คลิปสกิลจากร่างที่สวม = Recollec
   engine.setArjunaUlt({ by: 'E', targets: [], hits: [] });
   assert.ok(engine.players && match.arjunaUlt.recall, 'ฉาก Mahapralaya ก็มีป้าย');
   engine.setArjunaUlt(null);
+});
+
+test('สวมร่างคริซุงุ: ระยะตีปกติ 1–3 ของคริซุงุ (ค่าสถานะคัดลอกตามร่าง — ผู้ใช้สั่ง 2026-11-12) · คืนร่างกลับประชิด', () => {
+  const P = setup([['E', 'echo', 1, 5], ['B', 'muimi', 8, 5]]);
+  const E = P.E;
+  actAs(E);
+  engine.useSkill('E', 'basic', [], { form: 'emiya_kiritsugu' });
+  assert.equal(E.characterId, 'emiya_kiritsugu');
+  assert.deepEqual(engine.rangeOf(E), [1, 3]);
+  assert.deepEqual(pub(E).range, [1, 3], 'หน้าเกมได้ระยะ 1–3 (ไม่ต้องเดินเข้าไปประชิด)');
+  actAs(E);
+  assert.ok(echo.queenAction(engine, E, 'echo:diary'));
+  assert.equal(E.characterId, 'echo');
+  assert.deepEqual(engine.rangeOf(E), [1, 1]);
 });

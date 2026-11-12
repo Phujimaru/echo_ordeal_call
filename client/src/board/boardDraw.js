@@ -24,8 +24,10 @@ import {
   frameToScreen, localFrame, withLocalFrame, PV, setCustomProjection, customProjection, setCullView, onScreen, groundMatrix,
 } from "./boardGeo";
 import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
-import { drawGroundGL } from "./groundGL";
+import { drawGroundGL, groundGLHas, groundGLReady } from "./groundGL";
+import { MAPS as RULE_MAPS } from "./boardRules";
 import { eosFast, setEosFast } from "./fodlan/stage6";
+const EOS_HEAL_AREA = 45; // สนาม Eos (boardRules EOS_AREA = FODLAN_AREA + FODLAN_STAGES)
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -33,6 +35,7 @@ import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme"
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
+import { drawStandee, hasStandee } from "./freddyFx";
 import { DIO_FX_DUR, DIO_HIT_P, DIO_MS, dioFx, dioUnitBack, isDioFx } from "./dioFx";
 import { GIO_FX_DUR, GIO_HIT_P, GIO_MS, gioForeAlpha, gioRewindLayer, gioUnitBack, gioUnitFront, giornoFx, isGioFx } from "./giornoFx";
 import { ARJ_FX_DUR, ARJ_HIT_P, ARJ_MS, arjUnitBack, arjunaBoardFx, isArjFx } from "./arjunaBoardFx";
@@ -57,6 +60,7 @@ import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir,
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, isFaizFx } from "./faizFx";
 import { ZECT_FX_DUR, ZECT_HIT_P, ZECT_MS, isZectFx, zectFx } from "./zectFx";
+import { KIRI_FX_DUR, KIRI_GHOST, KIRI_HIT_P, KIRI_MS, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaMoon, otoyaNight } from "./otoyaFx";
@@ -363,9 +367,9 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
     for (const { x, y } of info.heal) {
       quad(g, x, y, 0.06); g.strokeStyle = night ? "rgba(255,225,140,.55)" : "rgba(217,169,63,.55)"; g.lineWidth = 1.4; g.stroke();
     }
-  } else if (info.heal.length) bakeHeal(g, info, { night, C, area: info.area });
+  } else if (info.heal.length && info.area !== EOS_HEAL_AREA) bakeHeal(g, info, { night, C, area: info.area }); // สนาม Eos: อ่างน้ำพุวาดเองใน fodlan/stage6
   // ช่องพิเศษ
-  for (const sp of info.special) bakeSpecial(g, sp, { night, C, area: info.area });
+  for (const sp of info.special) if (!flat || isStaticSp(info, sp)) bakeSpecial(g, sp, { night, C, area: info.area }); // flat (ภาพพื้นผิว) = เฉพาะช่องพิเศษของผัง · ที่เกิดระหว่างเกมวาดสดทับ
   // จุดเกิด
   for (const { x, y } of info.spawns) {
     g.strokeStyle = C.spawn; g.lineWidth = 1.5;
@@ -399,12 +403,21 @@ function boardLight(g, info, view, night) {
 const GT_S = 128; // px ต่อช่องของภาพพื้น (32 ช่อง = 4096px · อบ ~30–170ms ครั้งเดียวต่อพื้น) — ใช้ทั้งตอนนิ่งและขยับ (WebGL) จึงต้องคมพอซูมใกล้
 // ภาพพื้นขึ้นกับ "พื้น" เท่านั้น (ช่องพิเศษ · จุดฟื้นฟู · จุดเกิด · กลางวัน/กลางคืน) — ไม่ใช่ตำแหน่งมอน/รถ/สิ่งกีดขวาง
 //  (เดิมผูกกับ info ซึ่งเปลี่ยนทุกเทิร์นเพราะมอน/รถอยู่ในชั้นแผนที่ → อบใหม่ ~100ms ทุกครั้งที่กล้องขยับครั้งแรกของเทิร์น)
-let GROUND_TEX = null; // { key, cv }
+// ช่องพิเศษของผังเอง (ไม่เปลี่ยนทั้งเกม) อบลงภาพ · ช่องที่เกิดระหว่างเกม (น้ำแข็ง พื้นไฟ ดอกไม้ ฯลฯ) วาดสดทับ
+//  ผู้ใช้แจ้ง 2026-11-10 กระตุก: เดิมทุกช่องพิเศษใหม่ = อบภาพพื้นทั้งแผ่นใหม่ (30–170ms) · ตอนนี้ภาพขึ้นกับ ผัง + กลางวัน/กลางคืน เท่านั้น
+const STATIC_SP = new Map();
+function isStaticSp(info, sp) {
+  let set = STATIC_SP.get(info.area);
+  if (!set) { const m = RULE_MAPS[info.area]; const sp0 = (m && m.special) || {}; set = new Set(Array.isArray(sp0) ? sp0.map((t) => `${t.x},${t.y},${t.kind}`) : Object.entries(sp0).map(([k, kind]) => `${k},${kind}`)); STATIC_SP.set(info.area, set); }
+  return sp.kind !== "fd_eos_chocobo" && set.has(`${sp.x},${sp.y},${sp.kind}`); // โชโกโบะเดินไปมา = วาดสด
+}
+// ภาพพื้นแยกตามกลางวัน/กลางคืน — อบไว้ทั้งสองตั้งแต่เริ่มเกม (prewarmGround · เพื่อนผู้ใช้โอเคกับโหลดทีเดียวตอนเริ่ม) · WebGL = อัปขึ้นการ์ดจอแล้วคืนหน่วยความจำแคนวาส
+const GROUND_TEX = new Map(); // key → cv (เฉพาะตอนไม่มี WebGL / ยังไม่อัป)
 function groundKey(info, night) {
   if (info.__gk == null) {
     let h = 0;
     const add = (str) => { for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; };
-    for (const sp of info.special) if (sp.kind !== "fd_eos_chocobo") add(`${sp.x},${sp.y},${sp.kind},${sp.flow || ""};`); // โชโกโบะเดินไปมา (ไม่ใช่พื้น)
+    for (const sp of info.special) if (isStaticSp(info, sp)) add(`${sp.x},${sp.y},${sp.kind},${sp.flow || ""};`);
     for (const t of info.heal || []) add(`h${t.x},${t.y};`);
     for (const t of info.spawns || []) add(`s${t.x},${t.y};`);
     info.__gk = `${info.area}|${info.cols}x${info.rows}|${h}`;
@@ -413,9 +426,10 @@ function groundKey(info, night) {
 }
 function groundTexture(info, night) {
   const key = groundKey(info, night);
-  if (GROUND_TEX && GROUND_TEX.key === key) return GROUND_TEX.cv;
+  const had = GROUND_TEX.get(key);
+  if (had) return had;
   const W = info.cols * GT_S, H = info.rows * GT_S;
-  const cv = GROUND_TEX && GROUND_TEX.cv ? GROUND_TEX.cv : document.createElement("canvas");
+  const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const g = cv.getContext("2d");
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
@@ -426,15 +440,39 @@ function groundTexture(info, night) {
   setEosFast(false);
   try { drawBoardLayer(g, info, { x0: 0, y0: 0, x1: W, y1: H, w: W, h: H, k: 1, ox: 0, oy: 0 }, night, true, true); }
   finally { setCustomProjection(prev); setEosFast(fast); }
-  GROUND_TEX = { key, cv };
+  for (const k of GROUND_TEX.keys()) if (!k.startsWith(info.__gk)) GROUND_TEX.delete(k); // ผังอื่น/พื้นเปลี่ยน = ทิ้ง
+  GROUND_TEX.set(key, cv);
   return cv;
+}
+// อบภาพพื้นกลางวัน + กลางคืนล่วงหน้า (เรียกครั้งเดียวตอนเริ่มเกมในสนาม Eos) — สะดุดทีเดียวตอนเริ่ม แล้วไม่ต้องอบระหว่างเล่น
+export function prewarmGround(info) {
+  if (!info || typeof document === "undefined") return;
+  const gl = groundGLReady();
+  for (const night of [false, true]) {
+    const key = groundKey(info, night);
+    if (gl && groundGLHas(key)) continue;
+    const cv = groundTexture(info, night);
+    if (gl && drawGroundGL(null, cv, key, null, info.cols, info.rows, true)) { GROUND_TEX.delete(key); cv.width = 1; cv.height = 1; }
+  }
 }
 // บิดภาพพื้นลงกระดานที่มุมกล้องปัจจุบัน (g อยู่ในพิกัดตรรกะแล้ว — L()) · N×N ชิ้น × 2 สามเหลี่ยม · ข้ามชิ้นที่อยู่นอกจอ/หลังกล้อง
 function drawGroundWarp(g, info, view, night, cullView = view) {
-  const tex = groundTexture(info, night);
+  const gkey = groundKey(info, night), onGpu = groundGLReady() && groundGLHas(gkey);
+  const tex = onGpu ? null : groundTexture(info, night);
   // WebGL: ทั้งแผ่นในครั้งเดียว ไม่มีรอยต่อ (ผู้ใช้แจ้ง 2026-11-10 กระพริบ) — ใช้ไม่ได้ค่อยตัดเป็นสามเหลี่ยมแบบเดิม
-  const T = themeOf(info.area), up = () => { if (!T.upright) return; setCullView(cullView); try { T.upright({ g, C: T.pal[night ? "night" : "day"], night, info }); } finally { setCullView(null); } };
-  if (drawGroundGL(g, tex, groundKey(info, night), groundMatrix(), info.cols, info.rows)) { up(); boardLight(g, info, view, night); return; }
+  const T = themeOf(info.area), up = () => {
+    const C = T.pal[night ? "night" : "day"];
+    setCullView(cullView);
+    try {
+      for (const sp of info.special) if (!isStaticSp(info, sp) && onScreen(sp.x + 0.5, sp.y + 0.5, 0.5)) bakeSpecial(g, sp, { night, C, area: info.area }); // ช่องพิเศษที่เกิดระหว่างเกม
+      if (T.upright) T.upright({ g, C, night, info });
+    } finally { setCullView(null); }
+  };
+  if (drawGroundGL(g, tex, gkey, groundMatrix(), info.cols, info.rows)) {
+    if (tex && GROUND_TEX.get(gkey) === tex) { GROUND_TEX.delete(gkey); tex.width = 1; tex.height = 1; } // อัปขึ้นการ์ดจอแล้ว = คืนหน่วยความจำ
+    up(); boardLight(g, info, view, night); return;
+  }
+  if (!tex) return;
   const cols = info.cols, rows = info.rows, N = 16, sx = cols / N, sy = rows / N;
   const pts = [];
   for (let j = 0; j <= N; j++) { const row = []; for (let i = 0; i <= N; i++) { const q = P(i * sx, j * sy, 0); row.push(q); } pts.push(row); }
@@ -854,11 +892,13 @@ function drawUnit(g, u, now, boxes) {
     g.strokeStyle = "#ff2433"; g.lineWidth = 3; g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.42 + p * 0.3) * K, 0.04, 30); g.stroke(); g.globalAlpha = a;
   }
   if (u.faizTrail) {
-    const clock = u.faizTrail === "clock"; // ช่วง Clock Up (ไรเดอร์ ZECT): เงาค้างนานขึ้น · ห่างกันขึ้น (ภาพค้างน้อยลง = วาดเบาลง)
+    // ช่วง Clock Up (ไรเดอร์ ZECT): เงาค้างนานขึ้น · ห่างกันขึ้น (ภาพค้างน้อยลง = วาดเบาลง) · "alter" = Time Alter ของคริซุงุ: เงาสีส้ม
+    const alter = u.faizTrail === "alter", clock = u.faizTrail === "clock" || alter;
     for (const t of faizGhosts(u.id, now, wx, wy, clock ? 1300 : undefined, clock ? 0.62 : undefined, clock ? 55 : undefined)) {
       const [gx, gy, gs] = P(t.x, t.y);
       g.globalAlpha = a * t.a;
       unitHex(g, u, gx, gy - gs * 0.86 * K, gs * 0.4 * K);
+      if (alter) { hexPath(g, gx, gy - gs * 0.86 * K, gs * 0.4 * K + 3); g.fillStyle = `rgba(${KIRI_GHOST},0.62)`; g.fill(); }
     }
     g.globalAlpha = a;
   } else faizTrailClear(u.id);
@@ -892,7 +932,8 @@ function drawUnit(g, u, now, boxes) {
   // นั่งในรถ (สนาม Eos — ผู้ใช้สั่ง 2026-11-09 "ให้เป็น 1 เดียวกับรถ ไม่ต้องมีขาหมาก"): รูปอยู่ระดับห้องโดยสาร ไม่ลอย
   let hy = (UI_PIECE && pitchOf() >= 80 ? by : u.inCar ? by - s * 0.5 * K : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
-  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : null;
+  //  เฟรดดี้ ฟาซแบร์ (freddyFx.js): ภาพตัวเต็มแทนหมาก — ไม่มีเสา/หกเหลี่ยม เหมือนร่างรถ
+  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? drawStandee(g, u, now, wx, wy, u.hz || 0) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_UI_K) - 4 * UNIT_UI_K - hexR * 0.87 - 4 * UNIT_UI_K;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
@@ -1257,8 +1298,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2384,7 +2425,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR,
 };
 
 
@@ -2493,7 +2534,7 @@ export function drawFrame(g, st, now) {
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
   if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
-  if (info.heal.length && !pz && !colony) animHeal(g, info, { night, C, area: info.area }, tA);
+  if (info.heal.length && !pz && !colony && info.area !== EOS_HEAL_AREA) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
   drawRyougiGround(g, ry, info, fx, now, lowQ, { view, C });
@@ -2518,6 +2559,8 @@ export function drawFrame(g, st, now) {
   const amb = diegoAmbientNow(st.timeFreeze || null, now);
   const dGround = st.diego || null, dFx = dGround || fx.some((e) => isDiegoFx(e.kind));
   if (dFx) drawDiegoGround(g, dGround, fx, now, lowQ, amb);
+  // เอมิยะ คริซุงุ (kiriFx.js): กับดักระเบิด ไฟแดงกะพริบ (ทุกคนเห็น) — ใต้ไฮไลต์
+  if (st.kiri) drawKiriGround(g, st.kiri, now, lowQ);
   // โลกคู่ขนาน (วาเลนไทน์): ตะเข็บบางรอบขอบกระดาน — บนพื้น ใต้ไฮไลต์
   if (st.dimLayers && st.dimLayers.length) valentineDimGround(g, info, st.dimLayers, now, lowQ);
   // เซลิน (celineFx.js): พรมกลีบใต้พุ่มดอกไม้ · วงเถาวัลย์ทองใต้ราชาดอกไม้ — ใต้ไฮไลต์
@@ -2827,6 +2870,7 @@ export function drawFrame(g, st, now) {
     else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);
     else if (isFaizFx(e.kind)) faizFx(g, e, now, lowQ);
     else if (isZectFx(e.kind)) zectFx(g, e, now, lowQ); // ไรเดอร์ ZECT (zectFx.js)
+    else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);

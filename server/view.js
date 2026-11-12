@@ -205,6 +205,8 @@ function buildStateInner(viewerId) {
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
+    freddyDoor: CHAR_HOOKS.freddy_fazbear.doorView(engine, [viewerId, controlId].filter(Boolean)), // มินิเกมประตูของเฟรดดี้ (ประตูอีกฝ่ายซ่อนจนผลออก)
+    freddyNear: CHAR_HOOKS.freddy_fazbear.nearView(engine, [controlId || viewerId].filter(Boolean)), // เพลงเฟรดดี้: ผู้ชมอยู่ใกล้ (กลางวัน)
     turnOrder: masked ? [] : match.turnOrder,
     actorIndex: masked ? -1 : match.actorIndex, // ตำแหน่งในลำดับของฝ่ายที่เดินล่าสุด (ตาพิเศษหยุดเวลา = ยังไม่เลื่อน) — คิว 2 คนถัดไปด้านขวา
     masked,
@@ -384,6 +386,7 @@ function buildStateInner(viewerId) {
         otoya: CHAR_HOOKS.kurenai_otoya.unitMark(engine, p), // คุเรไน: สายดนตรี (ใครก็ได้) / ร่าง Dark Kiva / หลุมพราง / Wake Up 2 (เจ้าตัว)
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
         allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
+        freddy: hook && hook.freddyState ? hook.freddyState(engine, p) : undefined, // เฟรดดี้: ภาพตัวบนกระดาน · กลางคืน
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
@@ -396,11 +399,13 @@ function buildStateInner(viewerId) {
         emiya: hook && hook.emiyaState ? hook.emiyaState(engine, p) : undefined, // ชิโร่: อาวุธ / เทิร์น+ครั้งที่เหลือ / คูลดาวน์ / UBW / ความจุที่เพิ่ม — GRID_PLAN §7.18
         roland: hook && hook.rolandState ? hook.rolandState(engine, p) : undefined, // โรลันด์: Emotion / Furioso charge / BS Page ที่เหลือ
         zect: hook && hook.zectState ? hook.zectState(engine, p) : undefined, // ไรเดอร์ ZECT: ร่าง / ปุ่ม Clock Up นอกตา — GRID_PLAN §7.28
+        kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
         gil: hook && hook.gilState ? hook.gilState(engine, p) : undefined, // กิลกาเมช: EA / ความมั่งคั่ง / กระสุน / พายุ (ช่องที่เล็ง) / อาวุธที่ปักค้าง / ชาร์จ Enuma Elish — GRID_PLAN §7.30
+        strikeArea: hook && hook.strikeArea ? !!hook.strikeArea(p) || undefined : undefined, // ตีปกติโดนศัตรูทุกตัวในระยะตีรอบตัว (ยังไม่มีตัวไหนใช้ — action.laneVictims)
         strikeRing: hook && hook.strikeRing ? !!hook.strikeRing(p) || undefined : undefined, // ตีปกติรอบตัว 8 ช่อง รวมทแยง (กิลกาเมช ถือ EA — action.laneVictims)
         bagSlots: shop.bagSlotsOf(p), // ความจุกระเป๋าเฉพาะตัว (กิลกาเมช Gate of Babylon: 50 · ปกติ BAG_SLOTS)
         remoteShop: shop.remoteShop(p) || undefined, // ซื้อจากร้านไหนก็ได้บนแผนที่ (กิลกาเมช Gate of Babylon)
@@ -496,7 +501,7 @@ function broadcastPositions() {
 function takenUniqueChars() {
   return [...new Set(
     Object.values(match.players)
-      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.statId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
+      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.baseId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
       .filter((id) => (CHAR_BY_ID[id] || {}).unique)
   )];
 }

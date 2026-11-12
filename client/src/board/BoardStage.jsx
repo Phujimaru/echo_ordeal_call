@@ -42,6 +42,7 @@ import { gyroEventFx, preloadGyroArt } from "./gyroFx";
 import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { dioEventFx } from "./dioFx";
 import { ZECT_LUNGE, ZECT_FX_DUR } from "./zectFx";
+import { KIRI_FX_DUR } from "./kiriFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
@@ -469,6 +470,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const inDome = (x, y) => x >= dome[0] && x <= dome[2] && y >= dome[1] && y <= dome[3];
     const foeDomed = !!dome && Rules.footprint(foe.pos.x, foe.pos.y, sizeOfP(foe)).some((t) => inDome(t.x, t.y));
     const domeOk = (n) => !foeDomed || Rules.footprint(n.x, n.y, sizeOfP(me)).some((t) => inDome(t.x, t.y));
+    // ตีโดนทุกศัตรูในระยะรอบตัว (me.strikeArea — ยังไม่มีตัวไหนใช้): เล็งแบบระยะปกติ · ไฮไลต์ทุกช่องในระยะ
+    const area = !foe.isCorpse && !!me.strikeArea;
     const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     const hits = (n) => domeOk(n) && hits0(n);
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
@@ -485,7 +488,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     // ตีเป็นกรอบ (me.strikeRect [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works): ทุกคนในกรอบทางทิศของเป้าโดนด้วย
     const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
     const ringLane = ring ? { tiles: (() => { const out = [], sz = sizeOfP(me); for (let y = stand.y - 1; y <= stand.y + sz; y++) for (let x = stand.x - 1; x <= stand.x + sz; x++) { if (x >= stand.x && x < stand.x + sz && y >= stand.y && y < stand.y + sz) continue; if (x >= 0 && y >= 0 && x < (map.cols || 14) && y < (map.rows || 14)) out.push({ x, y }); } return out; })() } : null;
-    const lane = ringLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
+    const areaLane = area && !ring ? { tiles: Rules.tilesInRange(map, stand.x, stand.y, range, sizeOfP(me)) } : null;
+    const lane = ringLane || areaLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
     // ตีสวนเฉพาะคนที่มีความสามารถ (foe.counter — ตอนนี้ไม่มีใคร)
     const counter = !allyHit && !!foe.counter && Rules.canCounter(foe.range || [1, 1], stand, foe.pos);
     let push = null;
@@ -981,7 +985,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
       //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
-      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz") || style.startsWith("kiri") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
       const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
@@ -1446,6 +1450,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  เหตุการณ์อื่น = เกิดทันทีแล้วรอสั้นๆ (ค้างภาพตอนชนเต็ม/ฉากคุก) · จบทั้งชุด = ปล่อยภาพที่ค้างไว้ให้ตรง state ผลสุดท้าย
   const byIdRef = useRef(byId);
   useLayoutEffect(() => { byIdRef.current = byId; });
+  const myIdRef = useRef(null); // ตัวที่เราคุมอยู่ (onClockWalk: วิ่งจบแล้วส่งตีที่รอไว้)
+  const pendingAttack = useRef(null); // เดินแล้วตีต่อ: เป้าที่รอตีหลังเดินถึงช่องยืน
+  useLayoutEffect(() => { myIdRef.current = me ? me.id : null; });
   const finishIce = (run) => {
     if (!run || run.done) return;
     run.done = true; run.active = false;
@@ -1681,6 +1688,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           look(at);
           return 180;
         }
+        // Shock Wave (Ice Spike ในสนาม Eos): คลื่นข้าวหลามตัดระยะ r จาก { x, y, size } · hits = ใครโดนเท่าไร / หลบ / ตาย
+        case "shock": {
+          if (!ok(ev)) return 0;
+          const n = Math.max(1, ev.size | 0);
+          pushFx([{ kind: "iceShock", x: ev.x, y: ev.y, size: n, r: Math.max(1, ev.r | 0) }]);
+          sfx("is_burst");
+          shake(4 + Math.min(4, (ev.hits || []).length));
+          if ((ev.r | 0) < 20) look({ x: ev.x + (n - 1) / 2, y: ev.y + (n - 1) / 2 });
+          for (const h of ev.hits || []) {
+            const at = posOf(h.id);
+            if (!at) continue;
+            if (h.dodge) { float(at, "หลบ", "#d8f2ff", 0, 24); continue; }
+            pushFx([{ kind: "iceBump", x: at.x, y: at.y, hitIds: [h.id] }]);
+            if (h.dmg > 0) float(at, `-${h.dmg}`, "#d8f2ff");
+            if (h.kill) die(h.id, at);
+          }
+          return 260;
+        }
         case "surge": {
           // ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว · หนามที่ขึ้น Lv ตามมาเป็น spikeUp
           const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
@@ -1810,14 +1835,37 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (path.length < 2 || ev.id == null) return;
       const end = path[path.length - 1], a = path[path.length - 2];
       dashSkip.current[ev.id] = end;
-      setGlides((g) => ({ ...g, [ev.id]: { key: ev.seq, path, stepMs: ev.step > 0 ? ev.step : 70 } }));
+      const stepMs = ev.step > 0 ? ev.step : 70;
+      setGlides((g) => ({ ...g, [ev.id]: { key: ev.seq, path, stepMs } }));
       setFaces((f) => ({ ...f, [ev.id]: { x: Math.sign(end.x - a.x), y: Math.sign(end.y - a.y) } }));
+      // เดินแล้วตีต่อในช่วง Clock Up: การเดินแบบนี้ไม่ผ่านคิวแอนิเมชัน (anim) — ตีที่รอไว้ต้องส่งเองตอนวิ่งถึง
+      //  (บัค 2026-11-11: กดตีเป้าที่ต้องเดินไปก่อน = เดินแล้วไม่ตี + กดตีซ้ำไม่ได้ทั้งช่วง — คริซุงุ Time Alter / ไรเดอร์ ZECT / Start Up)
+      if (ev.id === myIdRef.current && pendingAttack.current) {
+        const pa = pendingAttack.current;
+        timers.current.push(setTimeout(() => {
+          if (pendingAttack.current !== pa) return;
+          pendingAttack.current = null;
+          socket.emit("attack", { targetId: pa });
+        }, (path.length - 1) * stepMs + 60));
+      }
     };
     socket.on("clockWalk", onClockWalk);
     socket.on("diegoFx", onDiego);
     socket.on("dioFx", onDio);
     socket.on("zectFx", onZect);
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("clockWalk", onClockWalk); };
+    // เอมิยะ คริซุงุ (kiriFx.js): โยนของ / กับดักระเบิด / Thompson Contender
+    const KIRI_KIND = { throw: "kiriThrow", boom: "kiriBoom", shot: "kiriShot" };
+    const onKiri = (ev) => {
+      const kind = ev && KIRI_KIND[ev.kind];
+      const from = ev && (ev.from || ev.at);
+      if (!kind || !(kind in KIRI_FX_DUR) || !from) return;
+      const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
+      pushFx([{ kind, x: from.x, y: from.y, to: ev.to ? { x: ev.to.x, y: ev.to.y } : null, item: ev.item || null, tiles }]);
+      if (kind === "kiriBoom" && !lowQ) setShake((n) => n + 1);
+      if (kind === "kiriShot" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 120));
+    };
+    socket.on("kiriFx", onKiri);
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
@@ -2176,8 +2224,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     return () => { for (const [k, fn] of handlers) socket.off(k, fn); };
   }, [look]);
 
-  // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี
-  const pendingAttack = useRef(null);
+  // เดินแล้วตีต่อ: รอแอนิเมชันเดินจบก่อนค่อยสั่งตี (pendingAttack ประกาศไว้ข้างบน — onClockWalk ใช้ด้วย)
   const animRef = useRef(null);
   useLayoutEffect(() => { animRef.current = anim; });
   const onAnimDone = useCallback(() => {
@@ -2335,7 +2382,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       // เคทยืนในม่านแดงของตัวเอง = ปีกเขม่ากางค้าง (มืดบอด = ไม่เห็น)
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
-      faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? "clock" : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
+      faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? (state.clockUp.members.some((m) => m.id === p.id && m.kind === "alter") ? "alter" : "clock") : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
       aura: p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
@@ -2345,6 +2392,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
+      standee: !mk && p.freddy ? p.freddy.standee || null : null, // เฟรดดี้: ภาพตัวเต็มแทนหมาก (freddyFx.js)
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
       // คุเรไน โอโตยะ (otoyaFx.js): ร่าง Dark Kiva / หลุมพราง / Wake Up 2 / กำลังสีไวโอลิน · เป้าดนตรีในหัวใจ (ใครก็ได้)
@@ -2412,6 +2460,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     oil: dBoard && Array.isArray(dBoard.oil) ? dBoard.oil : [], fire: dBoard && Array.isArray(dBoard.fire) ? dBoard.fire : [], ash: dBoard && Array.isArray(dBoard.ash) ? dBoard.ash : [],
     nets: state.players.filter((p) => p.diego && Array.isArray(p.diego.nets)).flatMap((p) => p.diego.nets.filter((n) => n && Number.isFinite(n.x) && Number.isFinite(n.y)).map((n) => ({ x: n.x, y: n.y, color: p.color }))),
   });
+  // เอมิยะ คริซุงุ: กับดักระเบิด board.kiritsugu.mines (ทุกคนเห็น · ม่านควันเป็นช่องพิเศษ "smoke" ในแผนที่อยู่แล้ว)
+  const kiriSig = JSON.stringify(state.board && state.board.kiritsugu && Array.isArray(state.board.kiritsugu.mines) ? state.board.kiritsugu.mines : []);
+  const kiriGround = useMemo(() => { const mines = JSON.parse(kiriSig); return mines.length ? { mines } : null; }, [kiriSig]);
   const diegoGround = useMemo(() => { const d = JSON.parse(diegoSig); return d.oil.length || d.fire.length || d.ash.length || d.nets.length ? d : null; }, [diegoSig]);
   // เซลิน (celineFx.js): พุ่มดอกไม้ · ราชาดอกไม้ (p.celine.king > 0 — มงกุฎ/กลีบโคจร) · กำแพงค้างถึงจังหวะปะทะ · พรีวิวกำแพงตอนเลือกช่อง
   const kingSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.celine && p.celine.king > 0 && sameDim(p))
@@ -2760,11 +2811,27 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     setOrderDx(dx);
   }, [orderSig, map, state.actorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // สนาม Eos: แผงแต้ม/เสามุมขวาบน (EosScoreboard — พับ/กางได้) อยู่ที่เดียวกับคิวคนถัดไป → คิวลงไปอยู่ใต้แผง (ผู้ใช้แจ้ง 2026-11-12 ซ้อนบังกัน)
+  const [queueTop, setQueueTop] = useState(0);
+  useEffect(() => {
+    const upd = () => {
+      const el = document.querySelector(".eos-score"), root = rootRef.current;
+      const r = el ? el.getBoundingClientRect() : null;
+      const rt = root ? root.getBoundingClientRect() : null;
+      const v = r && r.height > 0 && rt ? Math.round(Math.min(r.bottom - rt.top + 10, rt.height - 250)) : 0; // แผงกางยาว = ไม่ดันคิวตกจอ
+      setQueueTop((o) => (o === v ? o : v));
+    };
+    upd();
+    const t = setInterval(upd, 700);
+    window.addEventListener("resize", upd);
+    return () => { clearInterval(t); window.removeEventListener("resize", upd); };
+  }, []);
+
   if (!map) return null;
   return (
-    <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"}
+    <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"} data-queue-low={queueTop ? "true" : "false"}
       data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"}
-      style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null) }}>
+      style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null), ...(queueTop ? { "--bs-queue-top": `${queueTop}px` } : null) }}>
       <BoardCanvas
         map={displayBoard}
         units={units}
@@ -2806,6 +2873,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         law={lawProp}
         gyroBalls={gyroBalls}
         diego={diegoGround}
+        kiri={kiriGround}
         timeFreeze={state.timeFreeze || null}
         valentine={state.board && state.board.valentine ? state.board.valentine : null}
         celine={celineProp}

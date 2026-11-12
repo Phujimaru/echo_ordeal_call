@@ -23,6 +23,14 @@
 //      ทุก 2 เทิร์น (ต้นเทิร์น N+2, N+4 …) · เดิน/จั่ว/ไอเทมได้ · กดเข้าเงียบ (silentFlash · เอฟเฟกต์/เสียงเฉพาะฝ่ายตัวเอง)
 //    ออก: กดยกเลิก · ตี (ตีปกติ/ไถลชน — onReveal "act" ยกเว้นไอเทม) · ใช้สกิลพื้นฐาน/รอง · ศัตรูโจมตีใส่ที่ไม่ถูกกัน
 //      (หลบพ้นก็นับ) = หลุด + สตั้นเต็มเทิร์นถัดไป (onEndTurn — ใส่ตรง ไม่ทอยต้าน) · คูลดาวน์ 4 นับจากเทิร์นที่ออก (N → N+4)
+//
+//  บัฟเฉพาะสนาม Eos (ผู้ใช้สั่ง 2026-11-11 · GRID_PLAN §7.14 "บัฟเฉพาะ Eos") — นอก Eos ทุกอย่างตามด้านบน:
+//    เกราะ 3 · ระยะเดินฐาน 4 (+2 ของ Eos เต็ม = 6 — ฮุค eosWalkMax ข้ามเพดาน 5) · ค่าสถานะผ่าน statId (Echo สวมร่างไม่ได้ค่าเหล่านี้)
+//    Zoltraak = ลำแสงแนวตรงด้านเดียว 4 ช่อง (4×1 เลือกทิศได้ 4 ทิศ — attackLane เหมือนนอก Eos · ทะลุสิ่งกีดขวาง · ทุกศัตรูในแนวโดน) · เพิ่มระยะ = แนว 8 ช่อง
+//    ติดตัว: กันได้ 2 การโจมตี แล้วคูลดาวน์ 3 เทิร์น (ได้ 2 ครั้งใหม่) · ตีครบ 4 → ครั้งที่ 5 เสริมพลังยังอยู่ (รีเซ็ทการกัน = ได้ 2 ครั้งใหม่)
+//    ร่ายต่อเนื่อง: ตีเพิ่ม 2 ครั้ง + ตีปกติดาเมจ +1 ในตาเดินนี้ · เพิ่มระยะ 2 Energy · คอมโบกับร่ายต่อเนื่อง = ระยะ 8 อยู่ทั้งตาเดิน
+//    ซ่อนเร้นมานา: Energy +6 ทันที · ต้นเทิร์น +2 · ฟื้นพลังชีวิต 1 ทุกเทิร์น · ศัตรูมองไม่เห็นเลย (ไม่มีระยะ 2) + มอน AI ไม่เล็ง (ฮุค hiddenFromMobs)
+//      กติกาออก/สตั้น/คูลดาวน์ 4 คงเดิม (ผู้ใช้เลือกเก็บไว้)
 // ============================================================
 const Board = require("../server/board");
 
@@ -67,6 +75,26 @@ const STUN_TURNS = 1;
 const NO_STRIKE = [1, 0];
 
 const isFern = (p) => !!p && p.characterId === ID;
+
+// ---------- บัฟเฉพาะสนาม Eos ----------
+const EOS_ARMOR = 3;
+const EOS_MOV = 4;
+const EOS_WALK_MAX = 6;          // ฐาน 4 + โบนัสเดินของ Eos 2 เต็ม (stage6 movMod ปกติตันที่ 5 — ผู้ใช้เลือก 6)
+const EOS_RANGE = [1, 4];        // Zoltraak: ความยาวลำแสงแนวตรง (4×1)
+const EOS_BOOST_RANGE = [1, 8];
+const EOS_SHIELD_CHARGES = 2;    // กันได้ 2 การโจมตีแล้วคูลดาวน์ SHIELD_CD
+const EOS_CAST_EXTRA = 2;        // ร่ายต่อเนื่อง: ตีเพิ่ม 2 ครั้ง
+const EOS_CAST_DMG = 1;          //   + ดาเมจตีปกติ +1 ในตาเดินนั้น
+const EOS_BOOST_COST = 2;
+const EOS_CONCEAL_GAIN = 6;
+const EOS_CONCEAL_HEAL_EVERY = 1;
+function eosOn() {
+  const Fodlan = require("../server/fodlan");
+  const m = require("../server/match");
+  return !!(Fodlan.isEos() && m.fodlan && m.fodlan.s && m.fodlan.s.eos);
+}
+// ค่าสถานะของร่างเฟิร์นจริง (Echo สวมสกิลเฟิร์น = statId "echo" — ค่าสถานะของ Echo ไม่เปลี่ยน)
+const fernStats = (p) => !!p && require("./echo").statId(p) === ID;
 function fresh() {
   return {
     shieldReady: 0,      // การกันพร้อมเมื่อ roundNumber >= ค่านี้
@@ -81,6 +109,9 @@ function fresh() {
     concealReady: null,  // null = ยังไม่ตั้ง (ตั้งต้นเทิร์นแรก = เทิร์นนั้น + 4)
     stunPending: false,
     last: null,          // ผลของการกดล่าสุด (silentFlash/skillSound อ่านหลัง applyInstantSkill) "enter" | "exit" | "cast" | "boost"
+    shieldUsed: 0,       // Eos: การกันที่ใช้ไปในรอบนี้ (ครบ EOS_SHIELD_CHARGES = คูลดาวน์)
+    castOn: false,       // Eos: ร่ายต่อเนื่องในตาเดินนี้ (ตีปกติ +1 · เพิ่มระยะค้างทั้งตาเดิน)
+    boostSpent: false,   // Eos: เพิ่มระยะถูกใช้ระหว่างคอมโบ — หมดตอนจบตาเดิน
     castSever: 0, boostSever: 0, // ลำดับตอนได้ผลสกิล (engine.severStamp — ฮุค severables · ซ่อนเร้นมานาเก็บใน conceal.sever)
   };
 }
@@ -122,8 +153,9 @@ function shieldReady(engine, p) { return engine.roundNumber >= st(p).shieldReady
 // ---------- ซ่อนเร้นมานา ----------
 function enterConceal(engine, p) {
   const s = st(p), r = engine.roundNumber;
-  s.conceal = { since: r, healAt: r + CONCEAL_HEAL_EVERY, sever: engine.severStamp() };
-  const got = gainEnergy(engine, p, CONCEAL_GAIN);
+  const eos = eosOn();
+  s.conceal = { since: r, healAt: r + (eos ? EOS_CONCEAL_HEAL_EVERY : CONCEAL_HEAL_EVERY), every: eos ? EOS_CONCEAL_HEAL_EVERY : CONCEAL_HEAL_EVERY, sever: engine.severStamp() };
+  const got = gainEnergy(engine, p, eos ? EOS_CONCEAL_GAIN : CONCEAL_GAIN);
   const own = audience(engine, p);
   fx(engine, p, "conceal", own);
   sound(engine, p, SFX.conceal, own);
@@ -146,12 +178,20 @@ function exitConceal(engine, p, why) {
   }
 }
 
+// ตีที่ตุนไว้/ร่ายต่อเนื่องของ Eos หมดเมื่อจบตาเดิน · เพิ่มระยะที่ใช้ระหว่างคอมโบหมดด้วย
+function endCombo(s) {
+  s.extra = 0;
+  s.castOn = false;
+  if (s.boostSpent) { s.boost = false; s.boostSpent = false; }
+}
+
 // ---------- ครั้งเสริมพลัง: รีเซ็ทคูลดาวน์ทุกอย่าง ----------
 function resetAll(s) {
   s.castReady = 0;
   s.boostReady = 0;
   s.concealReady = 0;
   s.shieldReady = 0;
+  s.shieldUsed = 0;
 }
 
 module.exports = {
@@ -159,6 +199,8 @@ module.exports = {
   IMG, SFX, FX, STYLE, STYLE_MAX, PASSIVE, PIERCE_FX, HP, ARMOR, ENERGY_MAX, ZOLT_COST, ZOLT_DMG, EMPOWER_AT, SHIELD_CD,
   CAST_CD, BOOST_CD, BOOST_RANGE, CONCEAL_START_CD, CONCEAL_GAIN, CONCEAL_REGEN, CONCEAL_HEAL, CONCEAL_HEAL_EVERY,
   CONCEAL_SIGHT, CONCEAL_CD, STUN_TURNS,
+  EOS_ARMOR, EOS_MOV, EOS_WALK_MAX, EOS_RANGE, EOS_BOOST_RANGE, EOS_SHIELD_CHARGES, EOS_CAST_EXTRA, EOS_CAST_DMG, EOS_BOOST_COST,
+  EOS_CONCEAL_GAIN, EOS_CONCEAL_HEAL_EVERY, eosOn,
   isFern, concealOn, empowered,
 
   resetCombat(p) {
@@ -166,7 +208,10 @@ module.exports = {
     if (isFern(p)) p.skillPoints = ENERGY_MAX; // Energy เริ่มเกมเต็ม
   },
   maxHp() { return HP; },
-  maxArmor() { return ARMOR; },
+  maxArmor() { return eosOn() ? EOS_ARMOR : ARMOR; },
+  // Eos: ระยะเดินฐาน 4 · โบนัสเดินของ Eos +2 เต็ม (เพดาน 6 แทน 5 — server/fodlan/stage6.js movMod)
+  mov(p) { return fernStats(p) && eosOn() ? EOS_MOV : null; },
+  eosWalkMax(p) { return fernStats(p) ? EOS_WALK_MAX : null; },
   maxSkill(p) { return isFern(p) ? ENERGY_MAX : undefined; },
   skillRegen(p) { return isFern(p) ? 0 : 1; },
   // Energy ฟื้นจากซ่อนเร้นมานาเท่านั้น (src "fern") — ทุกทางอื่นที่ผ่าน combat.addSkill ถูกกัน
@@ -176,10 +221,14 @@ module.exports = {
   range(p) {
     if (!isFern(p)) return null;
     if ((p.skillPoints || 0) < ZOLT_COST && !empowered(p)) return NO_STRIKE;
+    if (eosOn()) return st(p).boost ? EOS_BOOST_RANGE : EOS_RANGE;
     return st(p).boost ? BOOST_RANGE : null;
   },
-  attackLane(p) { return isFern(p); },
-  attackBaseOverride(engine, attacker) { return isFern(attacker) ? ZOLT_DMG : 1; },
+  attackLane(p) { return isFern(p); }, // Eos ก็แนวตรง (ผู้ใช้ 2026-11-12: ลำแสงด้านเดียว ไม่ใช่รอบตัว) — ยาว EOS_RANGE/EOS_BOOST_RANGE
+  attackBaseOverride(engine, attacker) {
+    if (!isFern(attacker)) return 1;
+    return ZOLT_DMG + (eosOn() && st(attacker).castOn ? EOS_CAST_DMG : 0);
+  },
   attackStyle(p) { return isFern(p) ? (empowered(p) ? STYLE_MAX : STYLE) : null; },
   // ร่าย/ชาร์จก่อนลำแสงปะทะ 1.5 วิ (ตามไฟล์เสียง ZOLTRAAK FIre) → ฉากตียาวขึ้น 1 วิ
   attackFxExtra(p) { return isFern(p) ? ZOLT_FX_EXTRA : 0; },
@@ -200,7 +249,8 @@ module.exports = {
   afterStrike(engine, p) {
     if (!isFern(p)) return;
     const s = st(p);
-    s.boost = false;
+    if (s.boost && s.castOn && eosOn()) s.boostSpent = true; // Eos คอมโบร่ายต่อเนื่อง: ระยะ 8 อยู่ทั้งตาเดิน
+    else s.boost = false;
     if (s.count >= EMPOWER_AT) {
       s.count = 0;
       resetAll(s);
@@ -225,7 +275,11 @@ module.exports = {
     if (s.blockKey === key || s.hitKey === key) return;
     if (shieldReady(engine, p)) {
       s.blockKey = key;
-      s.shieldReady = engine.roundNumber + SHIELD_CD;
+      // Eos: กันได้ 2 การโจมตีก่อนติดคูลดาวน์
+      if (!eosOn() || ++s.shieldUsed >= EOS_SHIELD_CHARGES) {
+        s.shieldUsed = 0;
+        s.shieldReady = engine.roundNumber + SHIELD_CD;
+      }
       fx(engine, p, "shield");
       sound(engine, p, SFX.shield);
       engine.log(`🛡️ ${p.name} ${PASSIVE} — กันการโจมตีของ ${attacker.name}`);
@@ -243,9 +297,11 @@ module.exports = {
   stealthed(p) { return concealOn(p); },
   // ซ่อนเร้นมานา: ศัตรูในระยะ 2 (แมนฮัตตัน · กรอบตัว) มองเห็น
   seenBy(engine, viewer, target) {
-    if (!concealOn(target) || !viewer.pos || !target.pos) return false;
+    if (!concealOn(target) || !viewer.pos || !target.pos || eosOn()) return false; // Eos: ศัตรูมองไม่เห็นเลย
     return Board.dist(Board.boxOf(viewer), Board.boxOf(target)) <= CONCEAL_SIGHT;
   },
+  // Eos: มอน AI ไม่เล็ง/ไม่เดินไปหา/ไม่ตีเฟิร์นที่ซ่อนเร้นมานาอยู่ (server/fodlan/stage6.js prey) — โดนพื้นที่ยังโดนได้
+  hiddenFromMobs(p) { return concealOn(p) && eosOn(); },
   // ลงมือ (Visibility.onHostileAct): ตีปกติ/ปืน/ไถลชน = ออกจากซ่อนเร้นก่อนลงผล · ใช้ไอเทมใส่คนอื่นไม่ออก (ไอเทมใช้ได้ระหว่างโหมด)
   //  ถูกพื้นที่โจมตี ("hit") ตัดสินที่ onAttacked (ถูกกัน = ไม่หลุด) · ถูกชน ("bump") ไม่หลุด
   onReveal(engine, p, kind, how) {
@@ -256,6 +312,7 @@ module.exports = {
   // ---------- สกิล ----------
   // ท่าไม้ตายฟรีจริงทุกครั้ง (เข้า/ยกเลิก — ภาระเวทไม่บวก)
   skillFree(p, tier) { return isFern(p) && tier === "ultimate"; },
+  skillCost(p, tier, base) { return isFern(p) && tier === "secondary" && eosOn() ? EOS_BOOST_COST : base; },
   skipsTurnQuota(p) { return isFern(p); }, // ทุกสกิลไม่กินโควตา (ใช้พื้นฐาน/รองแล้วใช้สกิลอื่นต่อได้)
   ignoresTurnQuota(p, tier) { return isFern(p) && tier === "ultimate" && concealOn(p); }, // ยกเลิก
   keepsMove(engine, p, tier) { return isFern(p) && tier === "ultimate"; },
@@ -267,8 +324,28 @@ module.exports = {
     return null;
   },
   skillPub(p, tier) {
-    if (tier === "ultimate" && concealOn(p)) return { active: true };
-    return null;
+    const out = {};
+    if (tier === "ultimate" && concealOn(p)) out.active = true;
+    if (isFern(p) && eosOn()) {
+      if (tier === "basic") out.desc = `ตีปกติเพิ่ม ${EOS_CAST_EXTRA} ครั้ง และตีปกติความเสียหาย +${EOS_CAST_DMG} ในตาเดินนี้ (ไม่นับโควตาสกิล · คูลดาวน์ 1 เทิร์น)`;
+      if (tier === "secondary") out.desc = `ตีปกติครั้งถัดไป 1 ครั้งเป็นแนวตรง ${EOS_BOOST_RANGE[1]} ช่อง (ค้างจนกว่าจะตี · ใช้คู่ร่ายต่อเนื่อง = แนว ${EOS_BOOST_RANGE[1]} ช่อง ทุกครั้งในตาเดินนั้น) (ไม่นับโควตาสกิล · คูลดาวน์ 2 เทิร์น)`;
+      if (tier === "ultimate") out.desc = `ล่องหน (ศัตรูมองไม่เห็น · เดิน/จั่วได้) · Energy +${EOS_CONCEAL_GAIN} แล้ว +${CONCEAL_REGEN} ทุกต้นเทิร์น · ฟื้นพลังชีวิต ${CONCEAL_HEAL} ทุกเทิร์น · กดอีกครั้ง/ตี/ใช้สกิลอื่น = ออก · ถูกศัตรูโจมตี = ออก + สตั้นเทิร์นหน้า (ไม่นับโควตาสกิล · เริ่มเกมคูลดาวน์ ${CONCEAL_START_CD} เทิร์น · คูลดาวน์ ${CONCEAL_CD} เทิร์นหลังออก)`;
+    }
+    return Object.keys(out).length ? out : null;
+  },
+  // คำอธิบายติดตัวตอนอยู่สนาม Eos
+  characterPub(engine, p) {
+    if (!isFern(p) || !eosOn()) return null;
+    return {
+      passive: {
+        name: PASSIVE,
+        desc: `ศัตรูโจมตีใส่ = กันดาเมจของการโจมตีนั้นทั้งหมด (กันได้ ${EOS_SHIELD_CHARGES} ครั้ง · ไม่นับว่าถูกโจมตี · ครบแล้วคูลดาวน์ ${SHIELD_CD} เทิร์น) · ตี Zoltraak ครบ ${EMPOWER_AT} ครั้ง → ครั้งที่ ${EMPOWER_AT + 1} ไม่ใช้ Energy · ทะลุเกราะ · รีเซ็ทคูลดาวน์ทุกสกิลและการกัน แล้วนับใหม่`,
+      },
+      passive2: {
+        name: "Zoltraak",
+        desc: `Energy สูงสุด ${ENERGY_MAX} (เริ่มเกมเต็ม · ฟื้นได้จากซ่อนเร้นมานาเท่านั้น) · ตีปกติ: ลำแสงแนวตรง ${EOS_RANGE[1]} ช่อง ทะลุสิ่งกีดขวาง ศัตรูทุกตัวในแนวเสียหาย ${ZOLT_DMG} · ใช้ ${ZOLT_COST} Energy ต่อการตี (หมด = ตีไม่ได้)`,
+      },
+    };
   },
   canUseSkill(engine, p, tier) {
     if (!isFern(p)) return true;
@@ -284,11 +361,13 @@ module.exports = {
     if (tier === "basic") {
       if (s.conceal) exitConceal(engine, p, "skill");
       s.castReady = r + CAST_CD;
-      s.extra++;
+      const eos = eosOn();
+      s.extra += eos ? EOS_CAST_EXTRA : 1;
+      if (eos) s.castOn = true;
       s.castSever = engine.severStamp();
       s.last = "cast";
       fx(engine, p, "cast");
-      engine.log(`✨ ${p.name} ร่ายต่อเนื่อง — ตีปกติเพิ่ม +1 ในตาเดินนี้`);
+      engine.log(eos ? `✨ ${p.name} ร่ายต่อเนื่อง — ตีปกติเพิ่ม +${EOS_CAST_EXTRA} · ความเสียหาย +${EOS_CAST_DMG} ในตาเดินนี้` : `✨ ${p.name} ร่ายต่อเนื่อง — ตีปกติเพิ่ม +1 ในตาเดินนี้`);
       return "";
     }
     if (tier === "secondary") {
@@ -298,7 +377,7 @@ module.exports = {
       s.boostReady = r + BOOST_CD;
       s.last = "boost";
       fx(engine, p, "boost");
-      engine.log(`✨ ${p.name} เพิ่มระยะ — ตีปกติครั้งถัดไประยะ ${BOOST_RANGE[1]}`);
+      engine.log(`✨ ${p.name} เพิ่มระยะ — ตีปกติครั้งถัดไประยะ ${(eosOn() ? EOS_BOOST_RANGE : BOOST_RANGE)[1]}`);
       return "";
     }
     if (tier === "ultimate") {
@@ -318,14 +397,14 @@ module.exports = {
     const got = gainEnergy(engine, p, CONCEAL_REGEN);
     let healed = 0;
     if (r >= s.conceal.healAt) {
-      s.conceal.healAt += CONCEAL_HEAL_EVERY;
+      s.conceal.healAt += s.conceal.every || CONCEAL_HEAL_EVERY;
       healed = engine.healHp(p, CONCEAL_HEAL);
     }
     if (got || healed) engine.log(`✨ ${p.name} ซ่อนเร้นมานา —${got ? ` Energy +${got}` : ""}${healed ? ` พลังชีวิต +${healed}` : ""}`);
   },
   // ตีที่ตุนไว้ใช้ได้เฉพาะตาเดินนั้น
-  onActorStart(engine, p) { if (isFern(p)) st(p).extra = 0; },
-  onActorEnd(engine, p) { if (isFern(p)) st(p).extra = 0; },
+  onActorStart(engine, p) { if (isFern(p)) endCombo(st(p)); },
+  onActorEnd(engine, p) { if (isFern(p)) endCombo(st(p)); },
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isFern(p)) continue;
@@ -342,6 +421,8 @@ module.exports = {
     const s = st(p);
     s.conceal = null;
     s.extra = 0;
+    s.castOn = false;
+    s.boostSpent = false;
     s.stunPending = false;
   },
 
@@ -357,13 +438,13 @@ module.exports = {
     if (s.boost) {
       out.push({
         key: "boost", label: "เพิ่มระยะ", at: s.boostSever,
-        cancel: () => { s.boost = false; engine.log(`✨ เพิ่มระยะของ ${p.name} หมดลง`); },
+        cancel: () => { s.boost = false; s.boostSpent = false; engine.log(`✨ เพิ่มระยะของ ${p.name} หมดลง`); },
       });
     }
     if (s.extra > 0) {
       out.push({
         key: "cast", label: "ร่ายต่อเนื่อง", at: s.castSever,
-        cancel: () => { s.extra = 0; engine.log(`✨ ร่ายต่อเนื่องของ ${p.name} หมดลง`); },
+        cancel: () => { s.extra = 0; s.castOn = false; engine.log(`✨ ร่ายต่อเนื่องของ ${p.name} หมดลง`); },
       });
     }
     return out;
@@ -384,6 +465,7 @@ module.exports = {
       basicCd: cdLeft(s.castReady, r),
       boostCd: cdLeft(s.boostReady, r),
       concealCd: s.conceal ? 0 : concealCdOf(s, r),
+      ...(eosOn() ? { eos: true, shieldLeft: cdLeft(s.shieldReady, r) === 0 ? EOS_SHIELD_CHARGES - s.shieldUsed : 0 } : {}),
     };
   },
   skillLocks(engine, p) {

@@ -5,7 +5,7 @@
 //  กติกากระดานล้วน (เดิน/ระยะ/สวน/ถอย) อยู่ใน server/board.js — ไฟล์นี้แค่ต่อเข้ากับ match
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  placeOnBoard, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
+  placeOnBoard, expireChasm, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
@@ -82,13 +82,28 @@ function addChasm(keys) {
   for (const k of keys) {
     const [x, y] = k.split(",").map(Number);
     if (have.has(k) || !Board.inBounds(map, x, y)) continue;
+    if (Fodlan.keepsTile(k)) continue; // ด่าน Fodlan กันช่องสำคัญไว้ (Eos: เสายึด)
     have.add(k);
     out.push(k);
   }
   if (!out.length) return out;
+  const at = (match.board.chasmAt ||= {});
+  for (const k of out) at[k] = match.roundNumber; // เทิร์นที่พัง (Eos คืนสภาพ — expireChasm)
   match.board.chasm = [...have];
   match.board.chasmVer = (match.board.chasmVer || 0) + 1;
   return out;
+}
+// ช่องพังที่อยู่มาครบ turns เทิร์น → คืนสภาพ (สนาม Eos — ผู้ใช้สั่ง 2026-11-12) · คืนคีย์ที่คืนสภาพ
+function expireChasm(turns) {
+  const b = match.board;
+  if (!b || !b.chasm || !b.chasm.length || !(turns > 0)) return [];
+  const at = b.chasmAt || {};
+  const back = b.chasm.filter((k) => match.roundNumber - (at[k] ?? match.roundNumber) >= turns);
+  if (!back.length) return back;
+  b.chasm = b.chasm.filter((k) => !back.includes(k));
+  for (const k of back) delete at[k];
+  b.chasmVer = (b.chasmVer || 0) + 1;
+  return back;
 }
 // พังสิ่งกีดขวางชุดนี้ (ช่องที่ไม่มีของข้าม) → คืนรายการ { x, y, kind } ที่พังจริง
 function breakObstacles(keys) {
@@ -97,7 +112,7 @@ function breakObstacles(keys) {
   const out = [];
   for (const k of keys) {
     const kind = map.terrain[k];
-    if (!kind || Board.UNBREAKABLE.has(kind)) continue; // ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
+    if (!kind || Board.UNBREAKABLE.has(kind) || Fodlan.keepsTile(k)) continue; // เสายึด Eos ก็พังไม่ได้ · ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
     if (Ice.isSpikeKind(kind) || Ice.isWallKind(kind)) {
       // หนามน้ำแข็ง (Ice Spike) / กำแพงน้ำแข็ง (เซลิน): พังแล้วหายจากชั้นหนาม (เก็บไว้คืนตอนกดย้อนการเดิน)
       (match.board.smashedSpikes ||= {})[k] = Ice.removeSpike(k);
@@ -293,7 +308,7 @@ function counters(p, card) {
 // ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (โซระ: ปืน)
 function rangeOf(p) {
   if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
-  return Colony.rangeMod(p, baseRangeOf(p)); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js)
+  return Fodlan.rangeMod(p, Colony.rangeMod(p, baseRangeOf(p))); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js) · Eos: Bow of the Clever +2
 }
 function baseRangeOf(p) {
   const hook = CHAR_HOOKS[p.characterId];
@@ -340,6 +355,13 @@ function laneVictims(p, target) {
   const ringHook = CHAR_HOOKS[p.characterId];
   if (ringHook && ringHook.strikeRing && ringHook.strikeRing(p) && ringHook.ringTiles) {
     const tiles = ringHook.ringTiles(engine, p);
+    const ids = Board.unitsOnTiles(boardUnits(), tiles).map((u) => u.id)
+      .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
+    return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+  }
+  // ตีโดนทุกศัตรูในระยะตีรอบตัว (ฮุค strikeArea — ระยะแมนฮัตตันจากกรอบตัว · ไม่สนสิ่งกีดขวาง · ยังไม่มีตัวไหนใช้)
+  if (ringHook && ringHook.strikeArea && ringHook.strikeArea(p)) {
+    const tiles = Board.tilesInRange(boardMap(), p.pos.x, p.pos.y, rangeOf(p), sizeOf(p));
     const ids = Board.unitsOnTiles(boardUnits(), tiles).map((u) => u.id)
       .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
     return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
@@ -1177,6 +1199,27 @@ function strikeTarget(id, targetId) {
   timers.clearPhaseTimer();
   match.action.locked = true;
   Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
+  // ฮุค interceptStrike(engine, p, target) → { after } = รับช่วงการตีนี้ (เฟรดดี้: มินิเกมประตู) — ฉากที่ฮุคคิวไว้ (skillBeat) เล่นก่อน
+  //  after() คืน "strike" = ตีลงต่อโดยข้ามด่านหลบ (match.strikeSure) · ตัวเลข = วินาทีพักฉากก่อนจบตา
+  const icHook = CHAR_HOOKS[p.characterId];
+  const ic = icHook && icHook.interceptStrike ? combat.withEffectSource(p, () => combat.runHook(icHook, "interceptStrike", engine, p, target)) : null;
+  if (ic && typeof ic.after === "function") {
+    p.didAttackRound = true;
+    require("../cutscene").runSkillFlow(() => {
+      if (endTurnPhase.gameOver()) return;
+      const r = combat.withEffectSource(p, ic.after);
+      if (r === "strike" && p.alive && p.pos && target.alive && target.pos) {
+        match.strikeSure = p.id;
+        try { attack.boardAttack(p, target, done); } finally { match.strikeSure = null; }
+        return;
+      }
+      if (endTurnPhase.gameOver()) return;
+      match.gameState = "ATTACKING";
+      timers.startPhaseTimer(Number(r) > 0 ? Number(r) : 0.6, done);
+      view.broadcastState();
+    });
+    return true;
+  }
   attack.boardAttack(p, target, done);
   return true;
 }

@@ -419,6 +419,10 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'dioDuel', (id, { action: act } = {}) => {
     if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
   }, 12);
+  // มินิเกมประตูของเฟรดดี้: เป้าเลือกประตูที่จะปิด / เฟรดดี้เลือกประตูที่จะเข้า (characters/freddy_fazbear.js)
+  onUnitEvent(socket, 'freddyDoor', (id, { door } = {}) => {
+    if (door === 'left' || door === 'right') CHAR_HOOKS.freddy_fazbear.doorAction(engine, id, door);
+  }, 12);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'clockMash', (id) => ClockUp.mash(Duo.controlledId(id)), 40, 1000); // Clock Up ชนกัน: กดรัว
   onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);

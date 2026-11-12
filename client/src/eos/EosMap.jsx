@@ -77,7 +77,7 @@ export default function EosMap({ state, onClose }) {
       for (const d of fd.ships || []) { g.strokeStyle = d.state === "warn" ? "#ff3b3b" : "#9aa0a8"; g.lineWidth = 2; g.setLineDash(d.state === "warn" ? [4, 3] : []); g.strokeRect(d.x * T, d.y * T, T * 2, T * 2); g.setLineDash([]); }
       for (const c of fd.chests || []) { g.fillStyle = "#e0a63a"; g.fillRect(c.x * T + T * 0.2, c.y * T + T * 0.3, T * 0.6, T * 0.45); g.strokeStyle = "#5a3313"; g.lineWidth = 1; g.strokeRect(c.x * T + T * 0.2, c.y * T + T * 0.3, T * 0.6, T * 0.45); }
       for (const q of fd.quests || []) {
-        if (q.type === "hunt" && q.rect) { g.strokeStyle = "rgba(255,190,80,.9)"; g.lineWidth = 2; g.setLineDash([6, 4]); g.strokeRect(q.rect[0] * T, q.rect[1] * T, (q.rect[2] - q.rect[0] + 1) * T, (q.rect[3] - q.rect[1] + 1) * T); g.setLineDash([]); }
+        if ((q.type === "hunt" || q.type === "guard") && q.rect) { g.strokeStyle = q.type === "guard" ? "rgba(120,190,255,.9)" : "rgba(255,190,80,.9)"; g.lineWidth = 2; g.setLineDash([6, 4]); g.strokeRect(q.rect[0] * T, q.rect[1] * T, (q.rect[2] - q.rect[0] + 1) * T, (q.rect[3] - q.rect[1] + 1) * T); g.setLineDash([]); }
         else dot(q.x, q.y, 0.4, "#ffe08a", "#7a5a10");
       }
       if (fd.convoy) {

@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Diary</title>
+<style>
+  :root { --bg: #0b0716; --ink: #e9e2ff; --mute: #9c8fc4; --line: #2a2140; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, "Noto Sans Thai", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .stage { position: relative; width: 100%; aspect-ratio: 2000 / 1116; overflow: hidden; border-radius: 10px;
+    background: radial-gradient(ellipse at 50% 60%, #2b1b4d 0%, #120b24 55%, #07040f 100%); }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .shot { position: absolute; inset: 0; opacity: 0; will-change: transform, opacity; }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  /* ไพ่ตัวละคร: ลอยกลางไดอารี่ หมุน 2 รอบ (ผู้ใช้สั่ง) · หน้าไพ่ = ภาพตัวละคร · หลังไพ่ = ลายปกไดอารี่ · ไม่มีเอฟเฟคที่ตัวภาพ */
+  #apparition { position: absolute; left: 0; top: 0; width: 15%; aspect-ratio: 2 / 3; opacity: 0; perspective: 1000px; }
+  .card-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 6% / 4%;
+    overflow: hidden; background: #f4ead2; padding: 5.5%; box-shadow: inset 0 0 0 2px #e3c27a, inset 0 0 0 5px #f4ead2, inset 0 0 0 6px #b99a5a; }
+  .card-front { background: linear-gradient(160deg, #5b4699, #3a2a6c 55%, #2b1f52); padding: 0; }
+  .card-art { position: absolute; left: 10.5%; top: 8%; width: 79%; height: 84%; overflow: hidden; border-radius: 2px; background: #241a40; }
+  .card-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; }
+  .card-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .card-back { transform: rotateY(180deg); background: linear-gradient(160deg, #6f58b8, #4a3685 60%, #3a2a6c); padding: 0; }
+  .card-back svg { width: 100%; height: 100%; display: block; }
+  /* โทนสีเดียวกันทุกช็อต: ลดความสดนิด + ม่วงกลางคืนบางๆ (ภาพเจนต่างชุดให้เข้ากัน) */
+  .shot img { filter: saturate(.93) contrast(1.03); }
+  #grade { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+    background: radial-gradient(ellipse 80% 75% at 50% 45%, rgba(150, 120, 230, .16), rgba(60, 35, 130, .42)); }
+  #vignette { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(6, 3, 14, .55) 100%); }
+  #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none;
+    background: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), #fff8e6 0%, rgba(255, 236, 190, .9) 22%, rgba(214, 190, 255, .45) 50%, transparent 80%); }
+  .bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  select { background: #2a1f47; color: var(--ink); border: 1px solid #4b3b7a; border-radius: 8px; padding: 8px 10px; font: inherit; }
+  button { background: #2a1f47; color: var(--ink); border: 1px solid #4b3b7a; border-radius: 8px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  button:hover { background: #3a2b62; }
+  .strip { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .strip figure { margin: 0; background: #140e26; border: 1px solid var(--line); border-radius: 8px; padding: 4px; cursor: pointer; }
+  .strip img { width: 100%; aspect-ratio: 2000 / 1116; object-fit: contain; display: block; }
+  .strip figcaption { font-size: 12px; color: var(--mute); padding-top: 3px; text-align: center; }
+  .strip figure.on { border-color: #b69cff; }
+  .strip figure.on figcaption { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="sky"></canvas>
+    <div class="shot" id="s_fclosed"><img src="echo-diary/front_closed.webp" alt=""></div>
+    <div class="shot" id="s_flift"><img src="echo-diary/front_lift.webp" alt=""></div>
+    <div class="shot" id="s_reading"><img src="echo-diary/reading.webp" alt=""></div>
+    <div class="shot" id="s_pov">
+      <img src="echo-diary/pov.webp" alt="">
+      <div id="apparition"><div class="card-in">
+        <div class="card-face card-front"><div class="card-art"><img id="cardArt" src="echo-diary/sample.jpg" alt=""></div>
+          <svg class="card-frame" viewBox="0 0 200 300" aria-hidden="true">
+            <defs>
+              <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fff1c4"/><stop offset=".35" stop-color="#e3c27a"/><stop offset=".6" stop-color="#b8904a"/><stop offset="1" stop-color="#f3d897"/>
+              </linearGradient>
+              <g id="corner">
+                <path d="M6 34 Q6 6 34 6" fill="none" stroke="url(#gold)" stroke-width="2.2"/>
+                <path d="M12 40 Q12 12 40 12" fill="none" stroke="url(#gold)" stroke-width="1"/>
+                <circle cx="13" cy="13" r="5.5" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.4"/>
+                <path d="M13 8.6 l1.2 3.2 3.2 1.2 -3.2 1.2 -1.2 3.2 -1.2 -3.2 -3.2 -1.2 3.2 -1.2 Z" fill="#fff3d2"/>
+                <circle cx="44" cy="8.5" r="1.3" fill="#e3c27a"/><circle cx="8.5" cy="44" r="1.3" fill="#e3c27a"/>
+              </g>
+            </defs>
+            <!-- ขอบนอกทองหนา + เส้นในบาง (ทับขอบภาพให้ภาพจมอยู่ในกรอบ) -->
+            <rect x="3" y="3" width="194" height="294" rx="11" fill="none" stroke="url(#gold)" stroke-width="3.2"/>
+            <rect x="8.5" y="8.5" width="183" height="283" rx="8" fill="none" stroke="#e3c27a" stroke-width=".8" opacity=".75"/>
+            <rect x="20" y="23" width="160" height="254" rx="2" fill="none" stroke="url(#gold)" stroke-width="2.4"/>
+            <rect x="23.5" y="26.5" width="153" height="247" rx="1" fill="none" stroke="#fff1c4" stroke-width=".6" opacity=".7"/>
+            <use href="#corner"/>
+            <use href="#corner" transform="translate(200 0) scale(-1 1)"/>
+            <use href="#corner" transform="translate(0 300) scale(1 -1)"/>
+            <use href="#corner" transform="translate(200 300) scale(-1 -1)"/>
+            <!-- เหรียญพระจันทร์บน / ดาวล่าง กึ่งกลางขอบ -->
+            <path d="M78 23 Q100 9 122 23" fill="none" stroke="url(#gold)" stroke-width="1.6"/>
+            <circle cx="100" cy="17" r="9" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.8"/>
+            <path d="M103.5 11.2 A6.4 6.4 0 1 0 103.5 22.8 A5 5 0 1 1 103.5 11.2 Z" fill="#f2d48c"/>
+            <path d="M78 277 Q100 291 122 277" fill="none" stroke="url(#gold)" stroke-width="1.6"/>
+            <circle cx="100" cy="283" r="8" fill="#3a2a6c" stroke="url(#gold)" stroke-width="1.8"/>
+            <path d="M100 277.4 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z" fill="#fff3d2"/>
+            <!-- จุดทองข้างขอบ -->
+            <circle cx="11" cy="150" r="2" fill="#e3c27a"/><circle cx="189" cy="150" r="2" fill="#e3c27a"/>
+            <path d="M11 132 V142 M11 158 V168 M189 132 V142 M189 158 V168" stroke="#e3c27a" stroke-width="1" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="card-face card-back"><svg viewBox="0 0 200 300" aria-hidden="true">
+          <rect x="9" y="9" width="182" height="282" rx="10" fill="none" stroke="#e3c27a" stroke-width="2.4"/>
+          <rect x="17" y="17" width="166" height="266" rx="7" fill="none" stroke="#e3c27a" stroke-width="1" opacity=".7"/>
+          <circle cx="100" cy="150" r="58" fill="none" stroke="#e3c27a" stroke-width="1.4" opacity=".8"/>
+          <circle cx="100" cy="150" r="47" fill="none" stroke="#e3c27a" stroke-width=".8" opacity=".6"/>
+          <path d="M112 112 A40 40 0 1 0 112 188 A32 32 0 1 1 112 112 Z" fill="#f2d48c"/>
+          <path d="M128 132 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z" fill="#fff3d2"/>
+          <path d="M100 34 l2.4 6.6 6.6 2.4 -6.6 2.4 -2.4 6.6 -2.4 -6.6 -6.6 -2.4 6.6 -2.4 Z" fill="#e3c27a"/>
+          <path d="M100 252 l2.4 6.6 6.6 2.4 -6.6 2.4 -2.4 6.6 -2.4 -6.6 -6.6 -2.4 6.6 -2.4 Z" fill="#e3c27a"/>
+          <circle cx="30" cy="30" r="3" fill="#e3c27a"/><circle cx="170" cy="30" r="3" fill="#e3c27a"/><circle cx="30" cy="270" r="3" fill="#e3c27a"/><circle cx="170" cy="270" r="3" fill="#e3c27a"/>
+        </svg></div>
+      </div></div>
+      <canvas id="povFx"></canvas>
+    </div>
+    <div class="shot" id="s_touch">
+      <img src="echo-diary/touch_plate.webp" alt="">
+      <canvas id="trail"></canvas>
+      <img id="hand" src="echo-diary/touch_hand.webp" alt="">
+    </div>
+    <div class="shot" id="s_face"><img src="echo-diary/face_lit.webp" alt=""></div>
+    <div class="shot" id="s_closed"><img src="echo-diary/book_closed.webp" alt=""></div>
+    <div id="grade"></div>
+    <canvas id="fx"></canvas>
+    <div id="vignette"></div>
+    <div id="flash"></div>
+  </div>
+  <div class="bar">
+    <button id="playFull">เต็ม</button>
+    <button id="playShort">สั้น</button>
+    <select id="cardPick"></select>
+  </div>
+  <div class="strip" id="strip"></div>
+</div>
+<script>
+// ============================================================
+//  ฉากไดอารี่ความทรงจำ (ต้นแบบ) — ภาพนิ่งทั้งหมด + กล้อง/แสง/อนุภาคด้วยโค้ด
+//  ไม่วาดรูปทรงกระดาษ/บิดภาพทับภาพวาด (ผู้ใช้: "เบี้ยว") · มือในช่วงนิ้วลากแยกเป็นชั้น (touch_hand) ทับแผ่นที่เติมกระดาษแล้ว (touch_plate)
+// ============================================================
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => x * x * (3 - 2 * x);
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeIn = (x) => x * x * x;
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const lerp = (a, b, k) => a + (b - a) * k;
+const inOut = (t, a, b, c, d) => ease(seg(t, a, b)) * (1 - ease(seg(t, c, d)));
+
+const stage = $("stage");
+const CANVASES = ["sky", "povFx", "trail", "fx"].map($);
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  const r = stage.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = r.width; H = r.height;
+  for (const c of CANVASES) { c.width = W * DPR; c.height = H * DPR; }
+}
+addEventListener("resize", resize); resize();
+const ctx = (c) => { const g = c.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); return g; };
+
+// ---------- จุดบนภาพ (สัดส่วน 0..1 ของภาพ 2000×1116) ----------
+const BOOK_IN_READING = [0.505, 0.62];
+// ภาพมุมถือสมุด: หน้าซ้าย/ขวา (ขอบกระดาษ) + จุดลายดาวที่ขอบหน้า
+const POV = {
+  left: [[0.120, 0.296], [0.405, 0.215], [0.566, 0.753], [0.300, 0.878]],
+  right: [[0.405, 0.215], [0.660, 0.075], [0.690, 0.660], [0.566, 0.753]],
+  center: [0.545, 0.40],
+  glints: [[0.150, 0.330], [0.265, 0.255], [0.380, 0.240], [0.440, 0.205], [0.575, 0.140], [0.640, 0.110], [0.690, 0.590], [0.555, 0.690], [0.330, 0.800], [0.220, 0.640]],
+};
+const FINGER0 = [0.500, 0.418];  // ปลายนิ้วในภาพนิ้วแตะ
+const DRAG = [-0.018, 0.17];     // ระยะลากนิ้ว (สัดส่วนของภาพ)
+
+// ---------- ฟ้าดาว (เลื่อนสวนกล้อง = มีมิติ) ----------
+const stars = Array.from({ length: 180 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3, p: Math.random() * 6.28, z: 0.3 + Math.random() }));
+function drawSky(now, a) { const cam = { x: 0, y: 0, z: 0 }; // ฟ้าดาวนิ่ง ไม่ขยับตามช็อต (ห้ามซูม)
+  const g = ctx($("sky")); g.clearRect(0, 0, W, H);
+  for (const s of stars) {
+    const tw = 0.5 + 0.5 * Math.sin(now / 700 + s.p);
+    const x = (((s.x - cam.x * 0.04 * s.z + now * 0.000003 * s.z) % 1) + 1) % 1 * W;
+    const y = (((s.y - cam.y * 0.04 * s.z) % 1) + 1) % 1 * H;
+    g.fillStyle = `rgba(230,220,255,${(0.25 + 0.6 * tw) * a})`;
+    g.beginPath(); g.arc(x, y, s.r * (0.8 + cam.z * 0.3), 0, 6.28); g.fill();
+  }
+}
+
+// ---------- อนุภาค ----------
+let parts = [];
+function spawn(n, x, y, mode, o = {}) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, sp = mode === "burst" ? 160 + Math.random() * 420 : 20 + Math.random() * 50;
+    parts.push({ x, y, vx: mode === "wind" ? 40 + Math.random() * 90 : Math.cos(a) * sp * (mode === "rise" ? 0.4 : 1),
+      vy: mode === "rise" || mode === "wind" ? -(40 + Math.random() * 90) : Math.sin(a) * sp,
+      life: 0, max: (o.max || 1) * (0.9 + Math.random() * 1.1), r: (o.r || 1) * (1 + Math.random() * 2.4), gold: Math.random() < (o.gold ?? 0.7), mode, wob: Math.random() * 6.28 });
+  }
+}
+// ตัดช็อต = ประกายของช็อตเก่าจางเร็ว (ไม่ให้ลอยค้างบังหน้าในช็อตถัดไป)
+function fadeParts(sec) { for (const p of parts) p.max = Math.min(p.max, p.life + sec); }
+function drawParts(g, dt, now) {
+  g.globalCompositeOperation = "lighter";
+  parts = parts.filter((p) => (p.life += dt) < p.max);
+  for (const p of parts) {
+    if (p.mode === "burst") { p.vx *= 0.96; p.vy *= 0.96; }
+    if (p.mode === "rise" || p.mode === "wind") p.vx *= 1; // ไม่ส่าย
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    const k = Math.sin(Math.PI * p.life / p.max);
+    const col = p.gold ? "255,214,140" : "205,180,255";
+    glow(g, p.x, p.y, p.r * 5, `rgba(${col},${0.9 * k})`, `rgba(${col},0)`);
+  }
+  g.globalCompositeOperation = "source-over";
+}
+function glow(g, x, y, R, c0, c1, mid) {
+  const grd = g.createRadialGradient(x, y, 0, x, y, R);
+  grd.addColorStop(0, c0); if (mid) grd.addColorStop(mid[0], mid[1]); grd.addColorStop(1, c1);
+  g.fillStyle = grd; g.beginPath(); g.arc(x, y, R, 0, 6.28); g.fill();
+}
+function sparkle(g, x, y, s, a) { // ประกายสี่แฉก
+  g.save(); g.translate(x, y); g.globalAlpha = a; g.globalCompositeOperation = "lighter";
+  glow(g, 0, 0, s * 1.6, "rgba(255,240,200,.9)", "rgba(255,220,150,0)");
+  g.fillStyle = "rgba(255,250,230,1)";
+  for (let i = 0; i < 2; i++) {
+    g.rotate(Math.PI / 2 * i);
+    g.beginPath(); g.moveTo(0, -s * 2.4); g.quadraticCurveTo(s * 0.18, -s * 0.18, s * 2.4, 0); g.quadraticCurveTo(s * 0.18, s * 0.18, 0, s * 2.4);
+    g.quadraticCurveTo(-s * 0.18, s * 0.18, -s * 2.4, 0); g.quadraticCurveTo(-s * 0.18, -s * 0.18, 0, -s * 2.4); g.fill();
+  }
+  g.restore();
+}
+
+// ---------- กล้อง: ตั้ง transform ของช็อต (ดัน/แพนช้าๆ ไม่หมุน ไม่บิด) ----------
+function shot(id, op, cam) {
+  const s = $(id).style;
+  s.opacity = op;
+  s.transformOrigin = `${cam.ox * 100}% ${cam.oy * 100}%`;
+  s.transform = "none"; // ผู้ใช้: ห้ามซูมเข้า/ออก (และไม่แพน — ภาพนิ่งเต็มจอ ขยับได้แค่แสง/อนุภาค/ไพ่)
+}
+const drift = () => ({}); // ผู้ใช้: ห้ามเด้ง/ส่าย — กล้องเคลื่อนเป็นเส้นตรงนุ่มๆ เท่านั้น
+
+// ---------- ช่วงต่างๆ ----------
+// 1 เปิดอ่าน → 2 หน้ากระดาษตื่น → 3 นิ้วลาก เส้นแสงตาม → 4 ภาพตัวละครลอยขึ้นจากหน้า → 5 ใบหน้าต้องแสง (จบ — ผู้ใช้ตัดแสงวาบออก)
+// เวลาเป็นของทั้งฉาก (รวมช่วงเปิดฉาก 1400 ms ข้างหน้า)
+const FULL = [
+  { k: "closed", img: "front_closed", at: 400, until: 750 },
+  { k: "lift", img: "front_lift", at: 1300, until: 1800 },
+  { k: "reading", img: "reading", at: 2700, until: 3700 },
+  { k: "open", img: "face_lit", at: 4300, until: 4900 },
+  ...[
+    { k: "drag", img: "touch", at: 4700, until: 5450 },
+    { k: "reveal", img: "pov", at: 6900, until: 99999 },
+  ].map((s) => {
+    const back = (v) => (v >= 3850 ? v - 1950 : v) + 3000; // ช่วงหน้ากระดาษตื่นถูกตัด · ช่วงเปิดฉาก 3000 ms
+    return { ...s, at: back(s.at), until: back(s.until) };
+  }),
+];
+
+// การ์ดตัวละครจริง: ภาพปกของแต่ละตัว + จุดครอป (x,y %) และซูม (z) ให้เห็นหน้าในกรอบการ์ด (ข้อ 3)
+//  ในเกมจะย้ายตารางนี้ไปไว้ฝั่ง client (ตัวที่ไม่อยู่ในตาราง = กลางภาพ 50% 18% ไม่ซูม)
+const CARD_ROSTER = [
+  { id: "muimi", name: "มุยมิ", img: "/client/public/characters/muimi/muimi.webp", x: 55, y: 0, z: 1.7 },
+  { id: "oberon_summer", name: "โอเบรอน (ฤดูร้อน)", img: "/client/public/characters/oberon(summer)/oberon_summer.webp", x: 50, y: 8, z: 1.4 },
+  { id: "sliver_bullet", name: "นักบินปริศนา", img: "/client/public/characters/sliver_bullet/sliver_bullet_banagher.png", x: 22, y: 12, z: 1.3 },
+  { id: "sora_otosumi", name: "โซระ โอโตสุมิ", img: "/client/public/characters/sora_otosumi/sora.jpg", x: 50, y: 18, z: 1 },
+  { id: "raido_hikaru", name: "ไรโด ฮิคารุ", img: "/client/public/characters/raido_hikaru/hikaru.jpg", x: 50, y: 18, z: 1 },
+  { id: "ice_spike", name: "Ice Spike", img: "/client/public/characters/ice_spike/ice_spike.webp", x: 50, y: 18, z: 1 },
+  { id: "kira", name: "ราชาแมลงอวกาศ", img: "/client/public/characters/kira/kira.webp", x: 50, y: 18, z: 1 },
+  { id: "yuna", name: "เด็กสาวเสื้อคลุมขาว", img: "/client/public/characters/yuna/yuna.webp", x: 50, y: 18, z: 1 },
+  { id: "gray", name: "เกรย์", img: "/client/public/characters/gray/gray.webp", x: 50, y: 18, z: 1 },
+  { id: "gyro_zeppeli", name: "ไจโร เซปเปลี่", img: "/client/public/characters/gyro_zeppeli/gyro.webp", x: 45, y: 12, z: 1.3 },
+  { id: "diego_alt", name: "ดิเอโก้ แบรนโด (โลกคู่ขนาน)", img: "/client/public/characters/diego_alt/diego.png", x: 50, y: 10, z: 1.3 },
+  { id: "dio_brando", name: "ดิโอ บรันโด", img: "/client/public/characters/dio_brando/dio_cover.webp", x: 50, y: 18, z: 1 },
+  { id: "funny_valentine", name: "ฟันนี่ วาเลนไทน์", img: "/client/public/characters/funny_valentine/valentine.webp", x: 45, y: 10, z: 1.3 },
+  { id: "fern", name: "เฟิร์น", img: "/client/public/characters/fern/fern.webp", x: 50, y: 15, z: 1.2 },
+  { id: "celine", name: "องค์หญิงดอกไม้ เซลิน", img: "/client/public/characters/celine/celine.webp", x: 50, y: 22, z: 1.35 },
+  { id: "ryougi", name: "ผู้นำแห่งตระกูลเรียวกิ", img: "/client/public/characters/ryougi/ryougi.webp", x: 50, y: 12, z: 1.4 },
+  { id: "emiya_shirou", name: "เอมิยะ ชิโร่", img: "/client/public/characters/emiya_shirou/emiya.webp", x: 50, y: 18, z: 1 },
+  { id: "kensaki_kazuma", name: "เคนซากิ คาซุมะ", img: "/client/public/characters/kensaki_kazuma/kazuma.webp", x: 50, y: 18, z: 1 },
+  { id: "inui_takumi", name: "อินุอิ ทาคุมิ", img: "/client/public/characters/inui_takumi/inui.webp", x: 50, y: 8, z: 1.5 },
+  { id: "trafalgar_law", name: "ทราฟาก้า ลอว์", img: "/client/public/characters/trafalgar_law/law.webp", x: 50, y: 18, z: 1 },
+  { id: "yuki_makoto", name: "ยูกิ มาโคโตะ", img: "/client/public/characters/yuki_makoto/yuki_makoto.webp", x: 50, y: 18, z: 1 },
+  { id: "gira_ohger", name: "กิระ", img: "/client/public/characters/gira_ohger/gira.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "yanma_ohger", name: "ยันมะ", img: "/client/public/characters/yanma_ohger/yanma.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "himeno_ohger", name: "ฮิเมโนะ", img: "/client/public/characters/himeno_ohger/himeno.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "rita_ohger", name: "ริต้า", img: "/client/public/characters/rita_ohger/rita.jpg", x: 50, y: 6, z: 1.6 },
+  { id: "kaguragi_ohger", name: "คากุรากิ", img: "/client/public/characters/kaguragi_ohger/kaguragi.webp", x: 50, y: 6, z: 1.6 },
+  { id: "old_truck", name: "รถบรรทุกเก่า", img: "/client/public/characters/old_truck/old_truck.webp", x: 50, y: 18, z: 1 },
+  { id: "giorno_giovanna", name: "โจรุโน่ โจวาน่า", img: "/client/public/characters/giorno_giovanna/giorno.webp", x: 50, y: 18, z: 1 },
+  { id: "roland", name: "โรลันด์", img: "/client/public/characters/roland/roland.webp", x: 50, y: 20, z: 1.15 },
+  { id: "arjuna", name: "มหาเทพอรชุน", img: "/client/public/characters/arjuna/arjuna.webp", x: 48, y: 22, z: 1.9 },
+  { id: "daisuke", name: "คาซามะ ไดสุเกะ", img: "/client/public/characters/daisuke/daisuke.webp", x: 50, y: 18, z: 1 },
+  { id: "yaguruma", name: "โซ ยากุรุมะ", img: "/client/public/characters/yaguruma/yaguruma.webp", x: 50, y: 18, z: 1 },
+  { id: "kagami", name: "คากามิ อาราตะ", img: "/client/public/characters/kagami/kagami.jpeg", x: 50, y: 18, z: 1 },
+  { id: "tsurugi", name: "คามิชิโร่ ซึรุงิ", img: "/client/public/characters/tsurugi/tsurugi.jpg", x: 50, y: 18, z: 1 },
+  { id: "kurenai_otoya", name: "คุเรไน โอโตยะ", img: "/client/public/characters/kurenai_otoya/otoya.webp", x: 50, y: 18, z: 1 },
+  { id: "gilgamesh_fake", name: "กิลกาเมช (Fake)", img: "/client/public/characters/gilgamesh_fake/gilgamesh.webp", x: 50, y: 18, z: 1 },
+];
+function setCardChar(c) {
+  const im = $("cardArt");
+  im.src = c.img; im.style.objectPosition = `${c.x}% ${c.y}%`; im.style.transformOrigin = `${c.x}% ${c.y}%`; im.style.transform = `scale(${c.z})`;
+}
+// รอยนิ้วลาก (ช็อตนิ้วลาก) ค้างเป็นเส้นทองบนหน้าขวาในช็อตการ์ด — การ์ดโผล่ขึ้นจากเส้นนี้
+const POV_LINE = [[0.585, 0.451], [0.632, 0.648]];
+const LINE_MID = [(POV_LINE[0][0] + POV_LINE[1][0]) / 2, (POV_LINE[0][1] + POV_LINE[1][1]) / 2];
+function drawPageLine(g, a) {
+  if (a <= 0) return;
+  const [[x0, y0], [x1, y1]] = POV_LINE;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (const [w, al, col] of [[0.026, 0.2, "255,214,140"], [0.01, 0.5, "255,214,140"], [0.0035, 0.95, "255,248,225"]]) {
+    g.strokeStyle = `rgba(${col},${al * a})`; g.lineWidth = W * w;
+    g.beginPath(); g.moveTo(x0 * W, y0 * H); g.lineTo(x1 * W, y1 * H); g.stroke();
+  }
+  g.restore();
+}
+// ไพ่ตัวละครลอยขึ้นจากกลางไดอารี่ (กลางสัน) แล้วหมุนรอบแกนตั้ง 2 รอบ จบที่หน้าไพ่
+const DIARY_MID = [0.495, 0.5];   // กลางสันสมุดในภาพมุมถือ (pov.webp)
+const CARD_LEAN = -8;             // เอนตามสันสมุดเล็กน้อย (องศา)
+function cardAt(t, t0, spinMs, op) {
+  const a = $("apparition").style, inner = $("apparition").firstElementChild.style;
+  // ไพ่ลอยออกจากหนังสือพร้อมหมุน (ขนาดคงที่ ไม่เด้ง) → ถึงที่แล้วหยุดหมุนพอดี หันภาพตัวละครเข้าจอ
+  const x = seg(t, t0, t0 + spinMs);
+  const move = easeInOut(x);
+  const spin = easeInOut(x);
+  a.opacity = op;
+  // ช่วงแรก (ครึ่งแรก): ไพ่ขึ้นตรงๆ จากใต้เส้นทองจนพ้นเส้นทั้งใบ (ตัดส่วนที่ยังอยู่ใต้เส้น) · ช่วงหลัง: เลื่อนไปกลางจอ · หมุนตลอดทั้งสองช่วง
+  const up = easeInOut(clamp(x / 0.5)), slide = easeInOut(clamp((x - 0.5) / 0.5));
+  const startCy = LINE_MID[1] + 0.2017, outCy = LINE_MID[1] - 0.2017 - 0.01;
+  const cx = lerp(LINE_MID[0], 0.5, slide), cy = lerp(lerp(startCy, outCy, up), 0.4, slide);
+  a.left = `${(cx - 0.075) * 100}%`;
+  a.top = `${(cy - 0.2017) * 100}%`;
+  a.transform = `rotate(${CARD_LEAN * slide}deg)`;
+  const shown = clamp((LINE_MID[1] - (cy - 0.2017)) / 0.403);
+  a.clipPath = up >= 1 ? "none" : `inset(-20% -40% ${(1 - shown) * 100}% -40%)`;
+  inner.transform = `rotateY(${-720 * (1 - spin)}deg)`;
+}
+const CUT56 = 5450, CUT67 = Infinity, END0 = 7900, END1 = 8300; // ตัดตรง นิ้วลาก → ไพ่ · ไม่มีช็อตหน้า Echo แล้ว
+function frameMain(t, dt, now) {
+  const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
+  const pg = ctx($("povFx")); pg.clearRect(0, 0, W, H);
+  const tg = ctx($("trail")); tg.clearRect(0, 0, W, H);
+  let skyCam = { x: 0, y: 0, z: 0 };
+
+  // ---- 1 เปิดอ่าน: ดันกล้องช้าๆ แล้วเร่งพุ่งเข้าหนังสือ ----
+  {
+    const push = 0.12 * easeOut(seg(t, 0, 1400)) + 0.55 * easeIn(seg(t, 1250, 1750));
+    const op = t >= 0 && t < SKIP_AT ? 1 : 0; // ตัดตรงเข้า-ออก (ไม่ซ้อนภาพ)
+    shot("s_reading", op, { ox: BOOK_IN_READING[0], oy: BOOK_IN_READING[1], z: 1 + push, ...drift(now, 1) });
+    skyCam = { x: push * 0.8, y: push * 0.3, z: push };
+    if (op > 0.3 && t < 1500 && Math.random() < 0.55) spawn(1, BOOK_IN_READING[0] * W + (Math.random() - 0.5) * W * 0.13, BOOK_IN_READING[1] * H, "rise");
+    if (op > 0) { // แสงขั้นที่ 2: หน้ากระดาษเรืองอ่อนๆ (ต่อจากแสงรั่วร่องปก)
+      fxg.save(); fxg.globalCompositeOperation = "lighter";
+      glow(fxg, 0.5 * W, 0.64 * H, W * 0.17, `rgba(255,222,155,${0.3 * (0.5 + 0.5 * ease(seg(t, 0, 900)))})`, "rgba(255,214,140,0)");
+      fxg.restore();
+    }
+  }
+
+  // ---- 2 หน้ากระดาษตื่น: แสงกวาดผ่านหน้า · ลายดาวที่ขอบหน้าสว่างทีละดวง · ลมแสงพัดประกาย ----
+  const povA = 0; // ผู้ใช้ตัดช่วง "หน้ากระดาษตื่น" ออก (ข้ามเวลาช่วงนี้ใน frameFull)
+  const povB = t >= CUT56 ? 1 - ease(seg(t, END0, END1)) : 0; // ตัดตรงจากนิ้วลาก · เป็นช็อตสุดท้าย (ผู้ใช้ตัดช็อตหน้า Echo) ค่อยจางพร้อมฟ้าดาว
+  if (povB > 0) drawPageLine(pg, 1 - 0.45 * ease(seg(t, 6400, 7200)));
+  {
+    const zA = lerp(1.1, 1, easeOut(seg(t, 1600, 2300))) + 0.03 * seg(t, 2300, 3700);
+    const zB = 1 + 0.06 * easeInOut(seg(t, 5450, 7100));
+    shot("s_pov", Math.max(povA, povB), { ox: POV.center[0], oy: POV.center[1], z: povA >= povB ? zA : zB, ...drift(now, 0.8) });
+    if (povA > 0) {
+      skyCam = { x: 0.3 + seg(t, 1600, 3700) * 0.1, y: 0.1, z: 0.1 };
+      // แสงกวาดเป็นแถบ จากสันออกไปขอบหน้า (สองหน้าพร้อมกัน) — ตัดตามรูปหน้ากระดาษ
+      for (const [page, dir] of [[POV.right, 1], [POV.left, -1]]) {
+        const k = easeInOut(seg(t, 2000, 2900));
+        if (k <= 0 || k >= 1) continue;
+        pg.save(); pg.beginPath(); page.forEach(([x, y], i) => (i ? pg.lineTo(x * W, y * H) : pg.moveTo(x * W, y * H))); pg.closePath(); pg.clip();
+        const sx = 0.48 * W + dir * k * 0.42 * W;
+        const band = pg.createLinearGradient(sx - 0.12 * W, 0, sx + 0.12 * W, 0);
+        band.addColorStop(0, "rgba(255,220,150,0)"); band.addColorStop(0.5, `rgba(255,236,190,${0.55 * Math.sin(Math.PI * k)})`); band.addColorStop(1, "rgba(255,220,150,0)");
+        pg.globalCompositeOperation = "lighter"; pg.fillStyle = band; pg.fillRect(0, 0, W, H); pg.restore();
+      }
+      // หน้ากระดาษเรืองทั้งหน้าเบาๆ หลังแสงกวาด
+      const warm = ease(seg(t, 2600, 3200)) * povA;
+      if (warm > 0) {
+        pg.save(); pg.globalCompositeOperation = "lighter";
+        for (const page of [POV.left, POV.right]) {
+          pg.beginPath(); page.forEach(([x, y], i) => (i ? pg.lineTo(x * W, y * H) : pg.moveTo(x * W, y * H))); pg.closePath();
+          pg.fillStyle = `rgba(255,214,150,${0.12 * warm * 1})`; pg.fill();
+        }
+        pg.restore();
+      }
+      // ลายดาวสว่างทีละดวง
+      POV.glints.forEach(([x, y], i) => {
+        const s0 = 2350 + i * 70, a = Math.sin(Math.PI * seg(t, s0, s0 + 650));
+        if (a > 0) sparkle(pg, x * W, y * H, W * 0.006 * (0.6 + a), a * povA);
+      });
+      // ลมแสงพัดประกายขึ้นจากหน้า
+      if (t > 2100 && t < 3400 && Math.random() < 0.9) {
+        const page = Math.random() < 0.5 ? POV.left : POV.right;
+        const u = Math.random(), v = Math.random();
+        const x = lerp(lerp(page[0][0], page[1][0], u), lerp(page[3][0], page[2][0], u), v), y = lerp(lerp(page[0][1], page[1][1], u), lerp(page[3][1], page[2][1], u), v);
+        spawn(1, x * W, y * H, "wind", { max: 1.1 });
+      }
+    }
+  }
+
+  // ---- 3 นิ้วลาก: มือเลื่อนลงตามหน้ากระดาษ · เส้นแสงทองตามปลายนิ้ว · ลากจบ = แสงแผ่เป็นระลอก ----
+  {
+    const op = inOut(t, 3550, 3850, 99998, 99999) * (t < CUT56 ? 1 : 0);
+    const drag = easeInOut(seg(t, 3950, 4850));
+    const tip = [FINGER0[0] + DRAG[0] * drag, FINGER0[1] + DRAG[1] * drag];
+    // กล้องตามปลายนิ้ว
+    shot("s_touch", op, { ox: tip[0], oy: tip[1], z: 1.04 + 0.05 * seg(t, 3550, 5600), px: -drag * 1.2, py: -drag * 3, ...{} });
+    $("hand").style.transform = `translate(${DRAG[0] * drag * 100}%, ${DRAG[1] * drag * 100}%)`;
+    if (op > 0) {
+      skyCam = { x: 0.5, y: 0.2 + drag * 0.2, z: 0.2 };
+      // เส้นแสง (วาดใต้มือ)
+      const steps = 40, P0 = [FINGER0[0] * W, FINGER0[1] * H], P1 = [tip[0] * W, tip[1] * H];
+      const flare = ease(seg(t, 4850, 5050)) * (1 - 0.6 * seg(t, 5050, 5500));
+      if (drag > 0) {
+        tg.save(); tg.globalCompositeOperation = "lighter"; tg.lineCap = "round";
+        for (const [w, a] of [[W * 0.03, 0.18], [W * 0.012, 0.45], [W * 0.004, 0.95]]) {
+          tg.strokeStyle = `rgba(255,${a > 0.9 ? 248 : 214},${a > 0.9 ? 225 : 140},${a * 1 * (1 + flare)})`;
+          tg.lineWidth = w * (1 + flare * 0.8);
+          tg.beginPath(); tg.moveTo(P0[0], P0[1]);
+          for (let i = 1; i <= steps; i++) { const k = i / steps; tg.lineTo(lerp(P0[0], P1[0], k), lerp(P0[1], P1[1], k)); }
+          tg.stroke();
+        }
+        tg.restore();
+        glow(tg, P1[0], P1[1], W * 0.05, "rgba(255,244,210,.95)", "rgba(255,210,130,0)", [0.3, "rgba(255,220,150,.5)"]);
+        if (drag < 1 && Math.random() < 0.9) spawn(2, P1[0], P1[1], "rise", { r: 0.8 });
+      } else {
+        glow(tg, P0[0], P0[1], W * 0.045 * ease(seg(t, 3700, 3950)), "rgba(255,244,210,.9)", "rgba(255,210,130,0)");
+      }
+      // แสงแผ่ออกจากเส้นเป็นระลอกนุ่ม (ไม่มีวงขอบแข็ง)
+      for (let i = 0; i < 3; i++) {
+        const s0 = 4850 + i * 200, k = seg(t, s0, s0 + 800);
+        if (k <= 0 || k >= 1) continue;
+        tg.save(); tg.globalCompositeOperation = "lighter";
+        const cx = (P0[0] + P1[0]) / 2, cy = (P0[1] + P1[1]) / 2, R = W * (0.06 + 0.26 * easeOut(k));
+        tg.translate(cx, cy); tg.scale(1, 0.7);
+        const grd = tg.createRadialGradient(0, 0, R * 0.55, 0, 0, R);
+        const a = 0.28 * Math.sin(Math.PI * k);
+        grd.addColorStop(0, "rgba(255,225,160,0)"); grd.addColorStop(0.7, `rgba(255,230,170,${a})`); grd.addColorStop(1, "rgba(255,225,160,0)");
+        tg.fillStyle = grd; tg.beginPath(); tg.arc(0, 0, R, 0, 6.28); tg.fill();
+        tg.restore();
+      }
+    }
+  }
+
+  // ---- 4 ไพ่ตัวละครลอยขึ้นกลางไดอารี่ หมุน 2 รอบ ----
+  cardAt(t, 5600, 1500, ease(seg(t, 5600, 5750)));
+  if (t > 6950 && t - dt <= 6950) fadeParts(0.25);
+
+  // ---- 5 ใบหน้าต้องแสง: ดันกล้องช้าๆ · แสงอุ่นจากล่างเต้นตามจังหวะ ----
+  {
+    const op = (t >= CUT67 ? 1 : 0) * (1 - ease(seg(t, 9100, 9500))); // ตัดตรงจากช็อตไพ่ · ช็อตสุดท้ายค่อยจางพร้อมฟ้าดาว
+    shot("s_face", op, { ox: 0.48, oy: 0.38, z: 1 + 0.08 * easeInOut(seg(t, 7000, 9100)), ...drift(now, 0.7) });
+    if (op > 0) {
+      skyCam = { x: 0.7, y: 0.1, z: 0.3 };
+      fxg.save(); fxg.globalCompositeOperation = "lighter";
+      glow(fxg, 0.33 * W, 1.02 * H, W * 0.42, `rgba(255,205,130,${0.35 * op})`, "rgba(255,200,120,0)");
+      fxg.restore();
+      if (Math.random() < 0.4) spawn(1, (0.3 + Math.random() * 0.42) * W, (0.9 + Math.random() * 0.08) * H, "rise", { max: 0.4, r: 0.8 });
+    }
+  }
+
+  // แสงวาบเล็กตอนเปลี่ยนช็อต (กลบรอยต่อ)
+  const cut = 0; // ไม่วาบตอนเปลี่ยนช็อต
+  if (cut > 0) { fxg.save(); fxg.globalCompositeOperation = "lighter"; fxg.fillStyle = `rgba(255,236,200,${cut})`; fxg.fillRect(0, 0, W, H); fxg.restore(); }
+
+  drawSky(now, seg(t, -1800, -1300) * (1 - seg(t, END0, END1)), t < 0 ? { x: 0, y: 0, z: 0 } : skyCam);
+  drawParts(fxg, dt / 1000, now);
+  return t < END1 + 100;
+}
+// ---------- 0 เปิดฉาก: ด้านหน้า ถือสมุดปิด → นิ้วแง้มปก (ภาพผู้ใช้ 2 ภาพ) แล้วค่อยตัดเข้ามุมหลังไหล่ ----------
+const OPEN = 3000;
+const SKIP_AT = 1900, SKIP = 1950; // เวลาใน frameMain ที่ 1900–3850 ถูกตัดทิ้ง
+// แสงรั่วจากร่องปกที่แง้ม (ภาพ front_lift: ขอบหน้ากระดาษในร่องปก จากล่างซ้ายไปบนขวา)
+const SLIT = [[0.4975, 0.65], [0.6025, 0.529]];
+// 0 เปิดฉาก: ถือสมุดปิด → แง้มปก แสงรั่ว → (ตัดตรง) สมุดเปิด แสงขึ้นหน้า → (ตัดตรง) มุมหลังไหล่
+function frameFull(t, dt, now) {
+  // ลำดับ (ผู้ใช้สลับ): ปิด → แง้ม → [1800] ข้ามไหล่ (เวลา main 0–1900) → [3700] หน้าตรง สมุดเปิด → [4900] นิ้วลาก (main 3850+)
+  const OPEN_AT = 3700, OPEN_END = 4900;
+  const tm = t < OPEN_AT ? t - 1800 : t < OPEN_END ? -1 : t - OPEN_END + SKIP_AT;
+  const more = frameMain(tm >= SKIP_AT ? tm + SKIP : tm, dt, now);
+  const closed = inOut(t, 0, 250, 900, 1100), lift = t < 1800 ? ease(seg(t, 700, 900)) : 0, open = t >= OPEN_AT && t < OPEN_END ? 1 : 0;
+  shot("s_fclosed", closed, {}); shot("s_flift", lift, {}); if (t < OPEN_END) shot("s_face", open, {});
+  const fxg = ctx($("fx"));
+  fxg.save(); fxg.globalCompositeOperation = "lighter";
+  // แสงรั่วจากร่องปก: ค่อยๆ สว่างขึ้นระหว่างแง้ม (อยู่ที่สมุดเท่านั้น)
+  const leak = lift * ease(seg(t, 900, 1700));
+  if (leak > 0) {
+    for (let i = 0; i <= 8; i++) {
+      const k = i / 8, x = lerp(SLIT[0][0], SLIT[1][0], k) * W, y = lerp(SLIT[0][1], SLIT[1][1], k) * H;
+      glow(fxg, x, y, W * 0.035, `rgba(255,222,150,${0.32 * leak})`, "rgba(255,214,140,0)");
+    }
+    if (Math.random() < 0.35 * leak) { const k = Math.random(); spawn(1, lerp(SLIT[0][0], SLIT[1][0], k) * W, lerp(SLIT[0][1], SLIT[1][1], k) * H, "rise", { max: 0.9, r: 0.7 }); }
+  }
+  // สมุดเปิด: แสงอุ่นจากหน้ากระดาษส่องขึ้นหน้า
+  if (open > 0) {
+    const warm = 0.25 + 0.75 * ease(seg(t, OPEN_AT, OPEN_AT + 700));
+    glow(fxg, 0.45 * W, 1.02 * H, W * 0.42, `rgba(255,205,130,${0.48 * warm})`, "rgba(255,200,120,0)");
+    if (Math.random() < 0.4) spawn(1, (0.3 + Math.random() * 0.42) * W, (0.9 + Math.random() * 0.08) * H, "rise", { max: 0.45, r: 0.8 });
+  }
+  fxg.restore();
+  if ((t > OPEN_AT && t - dt <= OPEN_AT) || (t > OPEN_END && t - dt <= OPEN_END)) fadeParts(0.2);
+  hiliteAt(t);
+  return more;
+}
+
+// ---------- สั้น (~2.4 วิ): หนังสือลอย → เปิด (มุมถือ) → ตื่น → ภาพตัวละครขึ้น → วาบ ----
+function frameShort(t, dt, now) {
+  const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
+  ctx($("povFx")).clearRect(0, 0, W, H); ctx($("trail")).clearRect(0, 0, W, H);
+  shot("s_closed", inOut(t, 0, 250, 750, 950), { ox: 0.5, oy: 0.5, z: lerp(0.92, 1.06, easeOut(seg(t, 0, 750))) });
+  shot("s_pov", inOut(t, 450, 700, 1950, 2350), { ox: POV.center[0], oy: POV.center[1], z: lerp(1.08, 1, easeOut(seg(t, 500, 1100))) });
+  POV.glints.forEach(([x, y], i) => { const s0 = 800 + i * 40, a = Math.sin(Math.PI * seg(t, s0, s0 + 450)); if (a > 0) sparkle(ctx($("povFx")), x * W, y * H, W * 0.005 * (0.6 + a), a); });
+  cardAt(t, 1000, 750, ease(seg(t, 1000, 1150)) * (1 - ease(seg(t, 1950, 2350))));
+
+  setFlash(ease(seg(t, 1600, 1850)) * (1 - ease(seg(t, 1900, 2400))), [POV.center[0], 0.4]);
+  // (ไม่มีประกายระเบิด — ห้ามเด้ง)
+  drawSky(now, seg(t, 0, 300), { x: 0, y: 0, z: 0 });
+  drawParts(fxg, dt / 1000, now);
+  hiliteAt(-1);
+  return t < 2700;
+}
+
+function setFlash(op, at) {
+  stage.style.setProperty("--fx", at[0] * 100 + "%"); stage.style.setProperty("--fy", at[1] * 100 + "%");
+  $("flash").style.opacity = op;
+}
+function reset() {
+  for (const id of ["s_fclosed", "s_flift", "s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
+  $("apparition").style.opacity = 0; $("hand").style.transform = ""; setFlash(0, [0.5, 0.5]); parts = [];
+}
+
+// ---------- แถบลำดับ: กด = ค้างที่ช่วงนั้น (ยังขยับ) ----------
+const strip = $("strip");
+FULL.forEach((s, i) => {
+  const f = document.createElement("figure");
+  f.innerHTML = `<img src="echo-diary/${s.img}.webp" alt=""${s.k === "flash" ? ' style="filter:brightness(1.7) saturate(.5)"' : ""}><figcaption>${i + 1}</figcaption>`;
+  f.onclick = () => holdAt(s.at);
+  strip.appendChild(f);
+});
+function hiliteAt(t) {
+  const i = t < 0 ? -1 : FULL.findIndex((s) => t < s.until);
+  [...strip.children].forEach((f, k) => f.classList.toggle("on", k === i));
+}
+let raf = 0, started = false;
+function run(fn) {
+  started = true;
+  cancelAnimationFrame(raf); reset();
+  let last = performance.now();
+  const tick = (now) => { const dt = Math.min(50, now - last); last = now; if (fn(now, dt) !== false) raf = requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick);
+}
+function play(frame) { const t0 = performance.now(); run((now, dt) => frame(now - t0, dt, now)); }
+function holdAt(at) { run((now, dt) => { frameFull(at, dt, now); }); }
+{ // ตัวเลือกตัวละครบนการ์ด (เครื่องมือของหน้าต้นแบบ ไม่ใช่ UI ในเกม)
+  const sel = $("cardPick");
+  CARD_ROSTER.forEach((c, i) => { const o = document.createElement("option"); o.value = i; o.textContent = c.name; sel.appendChild(o); });
+  sel.onchange = () => { setCardChar(CARD_ROSTER[+sel.value]); play(frameFull); };
+  sel.value = 0; setCardChar(CARD_ROSTER[0]);
+}
+$("playFull").onclick = () => play(frameFull);
+$("playShort").onclick = () => play(frameShort);
+reset();
+Promise.all([...document.images].map((im) => im.decode().catch(() => {}))).then(() => { if (!started) play(frameFull); });
+</script>
+</body>
+</html>

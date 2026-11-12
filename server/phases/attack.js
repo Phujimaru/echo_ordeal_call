@@ -43,7 +43,7 @@ function attackSoundOf(attacker) {
 // อัตราคริติคอลเฉพาะตัว (%) ของผู้ตี (ฮุค critPct — โซระ: ร่าง My-Th 20%) — รวมกับคริของสนามแล้วทอยครั้งเดียว
 function ownCritPct(attacker) {
   const hook = attacker && CHAR_HOOKS[attacker.characterId];
-  return ((hook && hook.critPct && hook.critPct(attacker)) || 0) + combat.auraCritOf(attacker); // + คริจากผลของคนอื่น (ฮุค broadcast auraCrit — คุเรไน: ดนตรีในหัวใจ)
+  return ((hook && hook.critPct && hook.critPct(attacker)) || 0) + combat.auraCritOf(attacker) + require("../fodlan").critPct(attacker); // + Eos: Swords of the Wanderer // + คริจากผลของคนอื่น (ฮุค broadcast auraCrit — คุเรไน: ดนตรีในหัวใจ)
 }
 // ตัวคูณคริติคอลของผู้ตี (ฮุค critMult — เซลิน: ราชาดอกไม้ ×3) · ไม่มี = ×2
 function critMultOf(attacker) {
@@ -192,7 +192,8 @@ function strikeBody(attacker, target, counter) {
   Ride.onAttacked(target, attacker); // ถูกตีปกติ (รวมหลบพ้น) = คนที่ขี่อยู่บนหลังร่วง (server/ride.js)
   combat.notifyAttacked(target, attacker, "strike"); // ฮุคของเป้า onAttacked (เฟิร์น: กันการโจมตี / หลุดซ่อนเร้นมานา) — ก่อนทอยหลบ
   // "แม่นยำ" (บัฟ Universal): เจาะการหลบหลีกทุกแบบของเป้าหมาย (โล่กันครั้งยังกันได้ตามปกติ)
-  const accurate = accurateActive(attacker);
+  //  match.strikeSure = ผู้ตีที่ผ่านด่านหลบมาแล้ว (เฟรดดี้: ชนะมินิเกมประตู) — ข้ามทุกด่านหลบเหมือนแม่นยำ
+  const accurate = accurateActive(attacker) || (!counter && match.strikeSure === attacker.id);
 
   // หลบได้แน่นอนจากผลของคนอื่น (broadcast grantedDodge(engine, เป้า, ผู้ตี) → { name, img } — โจรุโน่: จงกำเนิดใหม่ 1 ครั้ง) · แม่นยำเจาะได้
   const granted = !accurate && combat.firstHook("grantedDodge", engine, target, attacker);
@@ -311,7 +312,7 @@ function strikeBody(attacker, target, counter) {
   if (blockFx) dmg = 0;
   // ตีปกติทะลุเกราะ (ฮุค strikePierces(engine, ผู้ตี, เป้า) → true — เฟิร์น: Zoltraak ครั้งที่ 6 · ทุกคนในแนว) = ข้ามเกราะเข้าเลือด (โล่ยังกัน)
   const pierceHook = CHAR_HOOKS[attacker.characterId];
-  const pierce = !!(pierceHook && pierceHook.strikePierces && combat.runHook(pierceHook, "strikePierces", engine, attacker, target));
+  const pierce = !!(pierceHook && pierceHook.strikePierces && combat.runHook(pierceHook, "strikePierces", engine, attacker, target)) || require("../fodlan").strikePierces(attacker, target); // Eos: Katana of the Warrior
 
   const shieldBefore = target.shield;
   match.lastReflect = null;
@@ -334,6 +335,7 @@ function strikeBody(attacker, target, counter) {
   // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
   const landedHook = CHAR_HOOKS[attacker.characterId];
   const landedFx = landedHook && landedHook.onStrikeLanded && target.alive ? landedHook.onStrikeLanded(engine, attacker, target, { counter }) || [] : [];
+  if (!counter && target.alive) require("../fodlan").onStrikeLanded(attacker, target); // Eos: อาวุธจักรพรรดิ (ฟื้นเกราะ/ผลัก/สตั้น/แทงทะลุ …)
   // เลือดหมดจากการตี = ตกรอบทันที (เดิมกวาดตอนจบเทิร์น — บนกระดานคนตายต้องหายจากช่องก่อนตีสวน/คนถัดไป)
   if (target.alive && target.hp <= 0) {
     combat.instantDeath(target);
@@ -605,7 +607,8 @@ function playAttackCard(card, attacker, target, done) {
   const clips = [[attacker, clipBefore(attacker, card)], [target, card.counter ? counterClip(target, card) : null]].filter(([, k]) => k);
   if (!clips.length) { show(); return; }
   const held = match.cutsceneQueue.splice(0);
-  for (const [p, k] of clips) cutscene.queueCutscene(p, k);
+  //  คีย์เป็น { key, onlyFor } ได้ = คลิปที่เห็นเฉพาะบางคน (เฟรดดี้: จัมป์สแกร์ไม่เล่นบนจอของเฟรดดี้เอง)
+  for (const [p, k] of clips) cutscene.queueCutscene(p, typeof k === "object" ? k.key : k, typeof k === "object" ? k.onlyFor : undefined);
   if (!match.cutsceneQueue.length) { match.cutsceneQueue.push(...held); show(); return; }
   cutscene.runCutsceneQueue(() => { match.cutsceneQueue.push(...held); show(); });
 }

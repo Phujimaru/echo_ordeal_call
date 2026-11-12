@@ -307,3 +307,64 @@ test('เมตตาจากราชา: กระจาย — นัดท�
   assert.equal(shots.length, 3);
   assert.ok(shots.every((s) => !s.hit && Math.abs(s.land.x - 7) <= 1 && Math.abs(s.land.y - 7) <= 1), 'ตกรอบตัวเป้า');
 });
+
+// ---------- สนาม Eos (PVE): เมตตาจากราชากลับไปแบบก่อนปรับสมดุล 2026-11-09 + ยิงแม่น (ผู้ใช้ 2026-11-11) ----------
+test('Eos: ทั้งคลังกลับมา · ยิงจนหมดคลัง ตรงตัวทุกนัด หลบไม่ได้ · ไม่มีเพดานต่อคน · ความมั่งคั่ง +1 ทุกนัด · ตีปกติต่อได้', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gilgamesh_fake', 2, 7], ['B', 'dummy', 12, 2]]);
+  engine.setGameMode('eos');
+  P.B.hp = 30; P.B.armor = 0;
+  P.B.statuses.evade = 9; P.B.statusAmt.evade = 100; // หลบ 100% — ยังโดนทุกนัด
+  P.G.inventory = [...items(20), { uid: 'bat', type: 'battery', charge: 0 }];
+  P.G.gil.gateShown = true;
+  const pub = view('G', 'G').character.secondary.choices;
+  assert.equal(pub.length, 15, '1–14 + ทั้งคลัง');
+  assert.equal(pub[pub.length - 1].key, 'all');
+  assert.match(pub[0].desc, /หลบไม่ได้/);
+  Math.random = () => 0.99; // โหมดปกติ = เฉทุกนัด · Eos ต้องตรงตัว
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'all' });
+  flush(t, 40000);
+  assert.equal(P.B.hp, 10, 'ทั้งคลัง 20 นัด โดนครบ');
+  assert.equal(P.G.inventory.length, 1, 'ยิงหมดคลัง เหลือของพิเศษ');
+  assert.equal(P.G.inventory[0].type, 'battery');
+  assert.equal(P.G.gil.wealth, 20, '+1 ทุกนัด');
+  const shots = gilFx('shot');
+  assert.equal(shots.length, 20);
+  assert.ok(shots.every((s) => s.hit && s.tid === 'B' && s.to.x === 12 && s.to.y === 2), 'ตรงตัวทุกนัด');
+  assert.ok(!engine.action.noStrike, 'ตีปกติต่อได้');
+});
+
+test('Eos: ×N ก็ตรงตัว + ความมั่งคั่งทุกนัด · โหมดอื่น (ffa) ยังเฉ/หลบได้/ไม่มีทั้งคลัง/ตีไม่ได้', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  let P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+  engine.setGameMode('eos');
+  P.B.hp = 20; P.B.armor = 0;
+  P.G.inventory = items(5);
+  P.G.gil.gateShown = true;
+  Math.random = () => 0.99;
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'n5' });
+  flush(t, 12000);
+  assert.equal(P.B.hp, 15, '5 นัด ไม่ติดเพดาน 3');
+  assert.equal(P.G.gil.wealth, 5);
+  assert.ok(!engine.action.noStrike);
+
+  for (const k of Object.keys(calls)) calls[k] = [];
+  P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+  P.B.hp = 20; P.B.armor = 0;
+  P.B.statuses.evade = 9; P.B.statusAmt.evade = 100;
+  P.G.inventory = items(20);
+  P.G.gil.gateShown = true;
+  const pub = view('G', 'G').character.secondary.choices;
+  assert.equal(pub.length, 14, 'ไม่มีทั้งคลังนอก Eos');
+  Math.random = () => 0.1; // ตกตรงตัว — แต่หลบ 100%
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'all' });
+  assert.equal(P.G.inventory.length, 20, 'ทั้งคลังใช้ไม่ได้นอก Eos');
+  engine.useSkill('G', 'secondary', [], { form: 'n5' });
+  flush(t, 12000);
+  assert.equal(P.B.hp, 20, 'หลบได้นอก Eos');
+  assert.equal(P.G.gil.wealth, 0, 'หลบ = ไม่ได้ความมั่งคั่ง');
+  assert.equal(engine.action.noStrike, true, 'ตีปกติไม่ได้นอก Eos');
+});

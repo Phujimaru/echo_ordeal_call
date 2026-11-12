@@ -28,7 +28,35 @@ const SUM_COLS = [
   { k: "kills", label: "ล้ม", ico: <path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3zM9.5 11h.01M14.5 11h.01M10 19v2M14 19v2" /> },
   { k: "skills", label: "สกิล", ico: <path d="M12 2l2.6 6.6L21 9l-5 4.4L17.4 21 12 17.3 6.6 21 8 13.4 3 9l6.4-.4z" /> },
 ];
-function Summary({ players, stats, youId, onClose }) {
+// สนาม Eos (server/fodlan/stage6.js publicSum — 2026-11-12): ไอคอนมอนตาม key (นิสัย หรือชนิด)
+const EOS_MOB_ICON = { daemon: "👹", magitek: "🤖", beast: "🦣", nest: "🔥", giant: "🗿", gold: "🐤", lament: "💀", boss: "👑", bomber: "💣", healer: "💚", mech: "🦾", sniper: "🎯", archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", swarm: "🦇", splitter: "🪨", splitling: "🪨" };
+const topCause = (c) => { const e = Object.entries(c || {}).sort((a, b) => b[1] - a[1])[0]; return e ? e[0] : null; };
+function EosSummary({ eos, rows }) {
+  const top = Math.max(1, ...(eos.mobDmg || []).map((m) => m.n));
+  return (
+    <div className="vic-eos">
+      <ol className="vic-eos-mobs">
+        {(eos.mobDmg || []).map((m) => (
+          <li key={m.key}><i>{EOS_MOB_ICON[m.key] || "👹"}</i><b>{m.name}</b><em><span style={{ width: `${(m.n / top) * 100}%` }} /></em><span>{m.n}</span></li>
+        ))}
+      </ol>
+      <ul className="vic-eos-who">
+        {rows.map(({ p }) => {
+          const d = (eos.deaths || {})[p.id] || 0, c = topCause((eos.causes || {})[p.id]), el = (eos.elites || {})[p.id] || 0, bo = (eos.bosses || {})[p.id] || 0;
+          return (
+            <li key={p.id} style={{ "--pc": p.color || "#3d8bd9" }}>
+              <b>{p.name}</b>
+              <span title="ล้ม">💀 {d}{c ? <i>{EOS_MOB_ICON[c] || "👹"}</i> : null}</span>
+              <span title="หัวหน้า">⭐ {el}</span>
+              <span title="ราชาปีศาจ">👑 {bo}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+function Summary({ players, stats, youId, onClose, eos = null }) {
   const rows = players.map((p) => ({ p, s: stats[p.id] || { dealt: 0, taken: 0, kills: 0, skills: 0 } }));
   const score = (s) => s.dealt + s.kills * 3;
   const top = Math.max(0, ...rows.map((r) => score(r.s)));
@@ -57,6 +85,7 @@ function Summary({ players, stats, youId, onClose }) {
           </li>
         ))}
       </ol>
+      {eos && <EosSummary eos={eos} rows={rows} />}
     </div>
   );
 }
@@ -285,7 +314,7 @@ export default function VictoryScreen({ state, onBackToLobby, onRematch }) {
           </div>
         )}
 
-        {sumOpen && state.matchStats && <Summary players={players} stats={state.matchStats} youId={state.youId} onClose={() => setSumOpen(false)} />}
+        {sumOpen && state.matchStats && <Summary players={players} stats={state.matchStats} youId={state.youId} onClose={() => setSumOpen(false)} eos={state.gameMode === "eos" && state.fodlan && state.fodlan.board ? state.fodlan.board.eosSum || null : null} />}
 
         <div className="vic-actions">
           {state.matchStats && (

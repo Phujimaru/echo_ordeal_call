@@ -48,6 +48,8 @@
   background: linear-gradient(90deg, rgba(16,34,66,.9), rgba(16,34,66,.96)); clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%); border-top: 3px solid var(--bs-c); }
 .bs-q-plate b { font: 700 22px/1.1 var(--oc-f-ui); max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
 .bs-root[data-order-low="true"] .bs-queue { top: calc(var(--bs-order-top, 54px) + 118px); }
+/* สนาม Eos: คิวอยู่ใต้แผงแต้มมุมขวาบน (BoardStage วัด .eos-score → --bs-queue-top) */
+.bs-root[data-queue-low="true"] .bs-queue { top: var(--bs-queue-top); }
 /* หน้าคาดการณ์เปิด = ซ่อนทุกอย่างที่ลอยบนกระดาน */
 .bs-root[data-fc="true"] .bs-queue,
 .bs-root[data-fc="true"] .bs-actor, .bs-root[data-fc="true"] .bs-tools, .bs-root[data-fc="true"] .bs-tile, .bs-root[data-fc="true"]::before { display: none; }

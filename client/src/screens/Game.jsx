@@ -27,6 +27,7 @@ import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
+import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
@@ -934,7 +935,7 @@ function statusEntries(p, full) {
   // กิลกาเมช: ความมั่งคั่ง · ดาบ EA · พายุ · Enuma Elish ที่รอยิง
   if (p.gil && p.gil.wealth != null) {
     const g = p.gil;
-    out.push({ key: "gilWealth", v: 1, icon: "👑", label: `${g.wealth}/${g.wealthMax}`, cls: "bg-amber-400 text-gray-900", desc: "ได้ 1 ต่อนัดที่โดนด้วยเมตตาจากราชา · Enuma Elish ใช้ 20" });
+    out.push({ key: "gilWealth", v: 1, icon: "👑", label: `${g.wealth}/${g.wealthMax}`, cls: "bg-amber-400 text-gray-900", desc: "ได้ 1 ต่อนัดที่โดนด้วยเมตตาจากราชา (สนาม Eos: ทุกนัด) · Enuma Elish ใช้ 20" });
     if (g.ea) out.push({ key: "gilEa", v: 1, icon: "🗡️", label: "EA", cls: "bg-rose-800 text-white", desc: "ตีปกติรอบตัว 8 ช่อง ดาเมจ 3 ผลักออก 1" });
     if (g.storm) out.push({ key: "gilStorm", v: 1, icon: "⛈️", label: "พายุ", cls: "bg-red-900 text-white", desc: "จบเทิร์นสายฟ้าแดงผ่าช่องที่ศัตรูยืนอยู่ ดาเมจ 2" });
     if (g.charge) out.push({ key: "gilEnuma", v: g.charge.left || 1, turns: true, icon: "🌌", label: "Enuma Elish", cls: "bg-red-700 text-white", desc: "ต้นตาเดินถัดไปยิงลำแสง ศัตรูในแนวตายทันที" });
@@ -984,13 +985,13 @@ function statusEntries(p, full) {
   // เฟิร์น: ซ่อนเร้นมานา (อยู่ในโหมด/คูลดาวน์) · เพิ่มระยะ (รอตีครั้งถัดไป) · นับ Zoltraak n/need (ครบ = ครั้งเสริมพลังพร้อม) · ผู้เชี่ยวชาญเวทมนต์พื้นฐาน คูลดาวน์การกัน (ตัวเลข/ไอคอนเท่านั้น)
   if (p.fern) {
     const f = p.fern;
-    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
+    if (f.conceal) out.push({ key: "fernConceal", v: 1, icon: "🫥", label: "ซ่อนเร้นมานา", cls: "bg-indigo-400 text-gray-900", desc: f.eos ? "ล่องหน ศัตรูมองไม่เห็น ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุกเทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" : "ล่องหน ศัตรูเห็นได้แค่ในระยะ 2 ช่อง ต้นเทิร์นได้ Energy 2 และฟื้นพลังชีวิต 1 ทุก 2 เทิร์น ตีหรือใช้สกิลแล้วหลุด ถูกโจมตีแล้วหลุดและสตั้น 1 เทิร์น" });
     else if (f.concealCd > 0) out.push({ key: "fernConcealCd", v: f.concealCd, turns: true, icon: "⏳", label: "ซ่อนเร้นมานา", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
-    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
+    if (f.boost) out.push({ key: "fernBoost", v: 1, icon: "📏", label: "เพิ่มระยะ", cls: "bg-sky-300 text-gray-900", desc: f.eos ? "ตีปกติครั้งถัดไปโดนศัตรูทุกตัวในระยะ 8 รอบตัว ค้างไว้จนกว่าจะตี" : "ตีปกติครั้งถัดไปยิงไกลเป็นแนว 6 ช่อง ค้างไว้จนกว่าจะตี" });
     if (f.empowered) out.push({ key: "fernEmpowered", v: 1, icon: "🌟", label: `Zoltraak ${f.need || 4}/${f.need || 4}`, cls: "bg-fuchsia-300 text-gray-900", desc: "ตีปกติครั้งถัดไปไม่ใช้ Energy ทะลุเกราะทุกคนในแนว ตีแล้วรีเซ็ทคูลดาวน์ทุกอย่างและเริ่มนับใหม่" });
     else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/${f.need || 4}`, cls: "bg-violet-200 text-gray-900", desc: `ตีปกติครบ ${f.need || 4} ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง` });
     if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงกันการโจมตีได้อีก" });
-    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
+    else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: f.eos ? `ผู้เชี่ยวชาญเวทมนต์พื้นฐาน ${f.shieldLeft}` : "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: f.eos ? `การโจมตีของศัตรูอีก ${f.shieldLeft} ครั้งถูกกันทั้งหมด ความเสียหายเป็น 0` : "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
   }
   // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
   if (p.takuto) {
@@ -2168,12 +2169,33 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
   const clockWorld = !!state.clockUp && !state.clockUp.paused; // ช่วง Clock Up (server/clockUp.js) — ตัวหยุดเวลาแทรก = ปิด
   const faizClock = state.clockUp ? state.clockUp.members.find((m) => m.kind === "faiz" && !m.over) : null;
+  const alterWorld = clockWorld && state.clockUp.members.some((m) => m.kind === "alter" && !m.over); // เอมิยะ คริซุงุ Time Alter: จอโทนส้ม
   const inuiUpRef = useRef(false);
   useEffect(() => {
     if (inuiUp && !inuiUpRef.current) { inuiUpRef.current = true; startLoopSfx("inui_startup"); }
     else if (!inuiUp && inuiUpRef.current) { inuiUpRef.current = false; stopLoopSfx(); return; }
     if (inuiUp) { if (phase === "ACTION") resumeLoopSfx(); else pauseLoopSfx(); } // เดินตามนาฬิกา 10 วิ: ฉากตี/คลิปพักทั้งคู่
   }, [inuiUp, phase]);
+  // เอมิยะ คริซุงุ Time Alter: เสียงหัวใจเต้นวนตลอดช่วง (ผู้ใช้สั่ง 2026-11-11 · Mixkit "Fast Heartbeat") · คลิปเล่น = พัก (ห้ามซ้อนวีดีโอ) · Start Up ของอินุอิมาก่อน
+  const alterBeat = alterWorld && !inuiUp;
+  const alterBeatRef = useRef(false);
+  useEffect(() => {
+    if (alterBeat && !alterBeatRef.current) { alterBeatRef.current = true; startLoopSfx("kiri_heart"); }
+    else if (!alterBeat && alterBeatRef.current) { alterBeatRef.current = false; stopLoopSfx(); return; }
+    if (alterBeat) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
+  }, [alterBeat, phase]);
+  useEffect(() => () => { if (alterBeatRef.current) stopLoopSfx(); }, []);
+  // เฟรดดี้ (กลางวัน): ผู้ชมอยู่ใกล้ = เพลงวนจนออกห่าง (state.freddyNear — per-viewer) · ไม่ทับลูปของคนอื่น
+  //  มินิเกมประตู / คลิป = ไม่มีเพลงนี้
+  const freddyLoop = inuiUp || alterBeat || ohgerLoop || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
+  const freddyLoopRef = useRef(null);
+  useEffect(() => {
+    if (freddyLoopRef.current === freddyLoop) return;
+    if (freddyLoopRef.current) stopLoopSfx();
+    freddyLoopRef.current = freddyLoop;
+    if (freddyLoop) startLoopSfx(freddyLoop);
+  }, [freddyLoop]);
+  useEffect(() => () => { if (freddyLoopRef.current) stopLoopSfx(); }, []);
   const ohgerLoopRef = useRef(null);
   useEffect(() => {
     if (ohgerLoopRef.current === ohgerLoop) return;
@@ -2580,9 +2602,9 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
       )}
       {/* Start Up / ช่วง Clock Up (ไรเดอร์ ZECT): โลกสีซีด ขอบเบลอ · Start Up ในช่วง Clock Up ใช้เวลาของสมาชิก Faiz */}
-      {(inuiUp || clockWorld) && <div className={`axel-world ${clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
+      {(inuiUp || clockWorld) && <div className={`axel-world ${alterWorld && !inuiUp ? "alter" : clockWorld && !inuiUp ? "clock" : ""}`} data-low={lowQ ? "true" : "false"} />}
       {inuiUp && <AxelClock phase={phase} value={faizClock && faizClock.id !== me?.id ? faizClock.left : undefined} />}
-      {clockWorld && !lowQ && <div className="full-force-speed" />}
+      {clockWorld && !alterWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       {/*  สนาม Eos (ผู้ใช้สั่ง 2026-11-10 "รวมทั้ง 3 อันในอันเดียว สไลด์ออกมาแล้วกดได้"): ปุ่มแผนที่ + คู่มืออยู่ในถาดเดียวกับกองการ์ด */}
       <div className="deck-drawer" data-eos={state.world === "eos" && state.board ? "true" : undefined} data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
@@ -2834,6 +2856,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
       <ClockDuel clock={state.clockUp || null} players={state.players} myId={me?.id} onMash={mashClock} />
+      {/* เฟรดดี้ ฟาซแบร์: มินิเกมประตู 10 วิ (state.freddyDoor — characters/freddy_fazbear.js) */}
+      <FreddyDoors door={state.freddyDoor || null} onPick={(d) => { clickSound(); socket.emit("freddyDoor", { door: d }); }} />
       <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}

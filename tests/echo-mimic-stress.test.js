@@ -34,7 +34,7 @@ test.after(() => { Object.assign(engine, saved); engine.clearPhaseTimer(); });
 
 const USED = [];
 test.after(() => { if (process.env.ECHO_STRESS_LOG) require('fs').writeFileSync(process.env.ECHO_STRESS_LOG, USED.join(String.fromCharCode(10))); });
-const ids = CHARACTERS.filter((c) => !c.hidden && c.id !== 'echo' && !echo.BLOCKED.has(c.id)).map((c) => c.id);
+const ids = CHARACTERS.filter((c) => !c.hidden && c.id !== 'echo' && !echo.BLOCKED.has(c.id) && (c.basic || c.secondary || c.ultimate)).map((c) => c.id);
 
 function myTurn(t, E) {
   // ตาเดินของ E ใหม่ (ล้างคิวฉาก/ตัวจับเวลาที่ค้างจากตาก่อน)
@@ -44,7 +44,7 @@ function myTurn(t, E) {
   if (!E.alive) return false;
   engine.setActor('E');
   match.gameState = 'ACTION';
-  E.skillUsedRound = false; E.skillPoints = Math.max(E.skillPoints, 6);
+  E.skillUsedRound = false; E.skillPoints = Math.max(E.skillPoints, Math.min(6, engine.maxSkillOf(E))); // เพดานตามร่างที่สวม (โรลันด์ 5)
   return true;
 }
 function tryAll(t, E) {

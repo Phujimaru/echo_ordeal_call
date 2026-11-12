@@ -57,6 +57,7 @@
 //   diego       { oil: [{x,y}], fire: [{x,y,left}], ash: [{x,y}], nets: [{x,y,color}] } | null — ชั้นพื้นของดิเอโก้ แบรนโด (diegoFx.js)
 //               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
+//   kiri        { mines: [{x,y,color}] } | null — กับดักระเบิดของเอมิยะ คริซุงุ (kiriFx.js drawKiriGround)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
@@ -85,7 +86,7 @@
 // ============================================================
 import { useEffect, useLayoutEffect, useRef } from "react";
 import {
-  bakeBoard, bakeScene, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
+  bakeBoard, bakeScene, prewarmGround, beamColors, camEyeY, camFromEye, clampCam, computeView, drawFrame, FX_DUR, GROW_MS, inCamView, key, LH, LW, smashDur,
   mapSignature, normColor, normRot, pickTile, prepareBeam, prepareDarkWave, prepareQuake, prepareHighlights, prepareMap, project, reducedMotion, rgbString,
   setCamera, SORA_T, toLogical, unproject, ZOOM_LEVELS, ZOOM_STEPS, clampZoom, clampCamRts, rtsZoomRange, rtsZoomOf,
 } from "./boardDraw";
@@ -530,7 +531,18 @@ export default function BoardCanvas(props) {
         st.focusRef = p.focus;
         const fp = focusPt(p.focus), goal = st.camAnim ? st.camAnim.to : st.cam;
         if (fp && (zl || rts) && !st.pivot && !(st.drag && st.drag.moved) && !inCamView(base, goal, fp[0], fp[1])) {
-          startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+          // RTS: มุมมองฉายแบบมีจุดกลาง (ตัวเรา) — เลื่อนกล้องไปไกลโดยจุดกลางค้างที่ตัวเรา = ฉากตรงนั้นถูกมองเฉียง ดูเอียง (ผู้ใช้แจ้ง 2026-11-12)
+          //  → ย้ายจุดกลางมุมมองไปที่เหตุการณ์ (vcLock — ค้างจนตัวเราเดิน/กดกลับที่ตัวเรา) แล้วกล้องตามจุดกลางนุ่มๆ (vcFollow)
+          if (rts && !lowQ) { st.vcLock = { x: p.focus.x + 0.5, y: p.focus.y + 0.5 }; st.vcFollow = true; st.camAnim = null; }
+          else startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+        }
+      }
+      if (st.vcFollow) { // จุดกลางมุมมองกำลังเลื่อน (vcAnim) → กล้องอยู่ที่จุดกลางเสมอ
+        if (!rts || (st.drag && st.drag.moved) || st.pivot) st.vcFollow = false;
+        else {
+          const [sx, sy] = PV(0, 0);
+          st.cam = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
+          if (!st.vcAnim && st.vcTo && st.vcLock && st.vcTo.x === st.vcLock.x && st.vcTo.y === st.vcLock.y) st.vcFollow = false;
         }
       }
       if (st.camAnim) {
@@ -629,6 +641,8 @@ export default function BoardCanvas(props) {
       // กล้อง RTS (สนาม Eos — ผู้ใช้สั่ง "ภาพแตก"): กล้องนิ่งเกิน RTS_SHARP_MS → อบฉาก+กระดานใหม่ที่มุมกล้องปัจจุบันความละเอียดเท่าจอ
       //  (drawFrame วางตรงพิกเซล — คมทุกระดับซูม) · ระหว่างเลื่อน/ซูม/หมุนใช้ชั้นอบเดิมขยายไปก่อน
       if (warpAll) {
+        // เริ่มเกม: อบภาพพื้นกลางวัน + กลางคืนทีเดียว (ผู้ใช้ 2026-11-10 "โหลดตอนเริ่มเกมทีเดียว กระตุกทีเดียวเสร็จเลย")
+        if (st.warmed !== info.area) { st.warmed = info.area; prewarmGround(info); }
         // ฉากรอบนอก (ฟ้า/ป่ารอบกระดาน/ใบไม้หน้ากล้อง) วาดสดเฉพาะเฟรมที่มุมกล้องเปลี่ยน (~1.5ms) · นิ่ง = ใช้ภาพเดิม
         const lk = `${info.area}|${w}x${h}|${dpr}|${night}|${st.turn}|${pitch}|${view.k}|${view.ox}|${view.oy}|${vcK}`;
         if (st.liveK !== lk || !st.liveSc) { st.liveSc = bakeScene(info, view, dpr, night, lowQ, st.turn, true); st.liveK = lk; }
@@ -868,7 +882,7 @@ export default function BoardCanvas(props) {
           ...(p.rts && us <= 1 ? { k: EOS_PIECE_K } : {}), // สนาม Eos: หมากใหญ่พอๆ กับโชโกโบะ (ผู้ใช้สั่ง 2026-11-09)
           id: u.id, rx, ry, ox, oy, hz, sq, inCar: !!u.inCar, color: normColor(u.color), img: u.img, name: u.name, // inCar = นั่งในรถ (สนาม Eos) — ไม่มีฐาน/เสา รูปอยู่ในรถ
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, giorno: u.giorno || null, otoya: u.otoya || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, standee: u.standee || null, giorno: u.giorno || null, otoya: u.otoya || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,
@@ -926,7 +940,7 @@ export default function BoardCanvas(props) {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
-        diego: p.diego || null, timeFreeze: p.timeFreeze || null,
+        diego: p.diego || null, timeFreeze: p.timeFreeze || null, kiri: p.kiri || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);

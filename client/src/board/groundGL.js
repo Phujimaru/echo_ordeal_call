@@ -5,7 +5,7 @@
 //   GPU ฉายแบบ perspective ตรงทุกพิกเซล ไม่มีรอยต่อ · mipmap + anisotropic กันภาพพื้นไกลๆ ระยิบ
 //  ใช้ไม่ได้ (ไม่มี WebGL2 / context หาย) → คืน false ให้ผู้เรียกใช้วิธีเดิม
 // ============================================================
-let S = null; // { cv, gl, prog, buf, tex, texSrc, texKey, uM, uSize, uBoard, fail }
+let S = null; // { cv, gl, prog, buf, texs: Map(key → WebGLTexture), uM, uSize, uBoard, fail }
 
 const VS = `#version 300 es
 in vec2 aPos;
@@ -41,10 +41,9 @@ function init() {
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
-    const tex = gl.createTexture();
     const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
     cv.addEventListener("webglcontextlost", (e) => { e.preventDefault(); S = { fail: true }; });
-    S = { cv, gl, prog, buf, tex, aniso, texSrc: null, texKey: null, aPos: gl.getAttribLocation(prog, "aPos"), uM: gl.getUniformLocation(prog, "uM"), uSize: gl.getUniformLocation(prog, "uSize"), uBoard: gl.getUniformLocation(prog, "uBoard"), fail: false };
+    S = { cv, gl, prog, buf, aniso, texs: new Map(), aPos: gl.getAttribLocation(prog, "aPos"), uM: gl.getUniformLocation(prog, "uM"), uSize: gl.getUniformLocation(prog, "uSize"), uBoard: gl.getUniformLocation(prog, "uBoard"), fail: false };
     return S;
   } catch (e) {
     if (import.meta.env && import.meta.env.DEV) console.warn("groundGL off:", e && e.message);
@@ -56,11 +55,16 @@ function init() {
 // ใช้ WebGL2 วาดพื้นได้ไหม (สร้าง context ครั้งแรกที่ถาม)
 export function groundGLReady() { const st = typeof document !== "undefined" ? init() : null; return !!(st && !st.gl.isContextLost()); }
 
-// อัปโหลดภาพพื้น (ครั้งเดียวต่อภาพ) — src = แคนวาสภาพพื้นมองตรงลงมา · key เปลี่ยน = อัปใหม่
+// มีภาพพื้นนี้บนการ์ดจอแล้วไหม
+export function groundGLHas(key) { return !!(S && !S.fail && S.texs.has(key)); }
+// อัปโหลดภาพพื้น (ครั้งเดียวต่อ key · เก็บได้ 2 ภาพ = กลางวัน + กลางคืน ของผังเดียวกัน)
 function upload(st, src, key) {
-  if (st.texSrc === src && st.texKey === key) return;
   const gl = st.gl;
-  gl.bindTexture(gl.TEXTURE_2D, st.tex);
+  let tex = st.texs.get(key);
+  if (tex) { gl.bindTexture(gl.TEXTURE_2D, tex); return true; }
+  if (!src) return false;
+  tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
   gl.generateMipmap(gl.TEXTURE_2D);
@@ -69,18 +73,22 @@ function upload(st, src, key) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   if (st.aniso) gl.texParameterf(gl.TEXTURE_2D, st.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(st.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
-  st.texSrc = src; st.texKey = key;
+  const base = key.slice(0, key.lastIndexOf("|"));
+  for (const [k, t] of st.texs) if (!k.startsWith(base)) { gl.deleteTexture(t); st.texs.delete(k); } // ผัง/พื้นเปลี่ยน = ทิ้งของเก่า
+  st.texs.set(key, tex);
+  return true;
 }
 
 // วาดภาพพื้นลง g (canvas 2D ที่ตั้ง transform เป็นพิกัดตรรกะอยู่) · M = boardGeo.groundMatrix() · คืน true = วาดแล้ว
-export function drawGroundGL(g, src, key, M, cols, rows) {
-  if (!M) return false;
+export function drawGroundGL(g, src, key, M, cols, rows, uploadOnly = false) {
+  if (!M && !uploadOnly) return false;
   const st = init();
   if (!st || st.gl.isContextLost()) return false;
+  if (uploadOnly) return upload(st, src, key); // อัปล่วงหน้า (prewarmGround)
   const gl = st.gl, W = g.canvas.width, H = g.canvas.height;
   if (!W || !H) return false;
   if (st.cv.width !== W || st.cv.height !== H) { st.cv.width = W; st.cv.height = H; }
-  upload(st, src, key);
+  if (!upload(st, src, key)) return false;
   // พิกัดตรรกะ → พิกเซลจอ ด้วย transform ปัจจุบันของ g (a c e / b d f) แล้วคูณเข้ากับ M
   const t = g.getTransform();
   const [r0, r1, r2] = M;
@@ -97,7 +105,7 @@ export function drawGroundGL(g, src, key, M, cols, rows) {
   gl.uniformMatrix3fv(st.uM, false, m);
   gl.uniform2f(st.uSize, W, H);
   gl.uniform2f(st.uBoard, cols, rows);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, st.tex);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, st.texs.get(key));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(st.cv, 0, 0); g.restore();
   return true;

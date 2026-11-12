@@ -32,6 +32,7 @@ const Fodlan = require("../fodlan");
 const CharStats = require("../charStats");
 const { io } = require("../app");
 
+const EOS_MOB_CONTROL = new Set(["stun", "sleep", "rooted", "slow"]); // = server/fodlan/stage6.js MOB_CONTROL
 function endTurn() {
   timers.clearPhaseTimer();
   match.actorId = null;
@@ -44,6 +45,8 @@ function endTurn() {
       if (NO_TICK_STATUS.has(k)) continue;
       // หลับไหล: เทิร์นที่เพิ่งโดนกล่อม ยังไม่เริ่มนับ (เริ่มหลับจริงเทิร์นถัดไป)
       if (k === "sleep" && p.sleepFresh) { p.sleepFresh = false; continue; }
+      // มอนเตอร์สนาม Eos เดินต้นเทิร์นถัดไป (ก่อนผู้เล่น) — สถานะคุมตัวลดหลังมอนได้ตาของตัวเองแทน (stage6 tickMobControl · ผู้ใช้แจ้ง 2026-11-11 "สตั้นมอนแค่ 1 เทิร์น ไม่มีประโยชน์")
+      if (p.summon && p.summon.kind === "eosMob" && EOS_MOB_CONTROL.has(k)) continue;
       p.statuses[k]--;
       if (p.statuses[k] <= 0) {
         delete p.statuses[k];
@@ -221,8 +224,8 @@ function recordCharStats(resultOf) {
   match.statsRecorded = true;
   const sides = Object.values(match.players).filter((p) => !p.summon && !p.duoOf);
   if (sides.length < 2 && !Moon.active()) return;
-  // เจ้าหญิง Echo ที่สวมร่างจากไดอารี่อยู่ตอนจบเกม = นับเป็น Echo (statId)
-  const entries = sides.map((p) => ({ characterId: CHAR_HOOKS.echo.statId(p), result: resultOf(p), name: p.name, teamId: p.teamId || null }));
+  // เจ้าหญิง Echo ที่สวมร่างจากไดอารี่อยู่ตอนจบเกม = นับเป็น Echo (baseId)
+  const entries = sides.map((p) => ({ characterId: CHAR_HOOKS.echo.baseId(p), result: resultOf(p), name: p.name, teamId: p.teamId || null }));
   const meta = { mode: match.gameMode, world: match.world || "earth", rounds: match.roundNumber || 0 };
   if (CharStats.recordMatch(entries, meta)) io.emit("charStats", CharStats.snapshot());
 }

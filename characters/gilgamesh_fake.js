@@ -47,6 +47,9 @@ const KNEEL_HITS = 3;
 const HIT_CAP = 3; // เมตตาจากราชา: โดนคนเดียวกันได้ไม่เกินกี่นัดต่อชุด (ผู้ใช้เลือก 2026-11-09)
 const CENTER_PCT = 45; // เมตตาจากราชา: % ที่ตกตรงตัวเป้า · ที่เหลือเฉไปรอบตัว 3×3 (Claude — ผู้ใช้ขอให้กระจาย ไม่โดน 100%)
 const ZONE_MAX = 14;
+// สนาม Eos (PVE ร่วมมือ): เมตตาจากราชากลับไปแบบก่อนปรับสมดุล 2026-11-09 + ยิงแม่น (ผู้ใช้ 2026-11-11) —
+//  มีทั้งคลัง · ไม่มีเพดานต่อคน · ตกตรงตัวทุกนัด หลบไม่ได้ · ความมั่งคั่ง +1 ทุกนัดที่ยิง · ยิงแล้วยังตีปกติได้ · โหมดอื่นคงเดิม
+const eosMode = (engine) => !!engine && engine.gameMode === "eos";
 const ULT_AREA = { kind: "line", len: 14, width: 5, hostile: true };
 // ของที่ไม่ใช่สมบัติสำหรับยิง/กัน (ของถาวร/ชาร์จ/ประจำตัวละคร)
 const NON_AMMO = ["battery", "lifeCrystal", "armorCrystal", "kebread", "lawHeart", "giornoArrow"];
@@ -120,22 +123,24 @@ function foesIn(engine, p, tiles) {
   const set = new Set(tiles.map((t) => Board.key(t.x, t.y)));
   return Object.values(engine.players).filter((t) => foeOf(engine, p, t) && onTiles(t, set));
 }
-// ตัวเลือกจำนวน: 1..min(กระสุน, 14) + "ทั้งคลัง" เมื่อกระสุนเกิน 14
-function countOptions(p) {
+// ตัวเลือกจำนวน: 1..min(กระสุน, 14) · Eos: + "ทั้งคลัง" เมื่อกระสุนเกิน 14 (กรอบ 14 = ทั้งแผนที่)
+function countOptions(p, eos = false) {
   const ammo = ammoOf(p).length, out = [];
   for (let n = 1; n <= Math.min(ammo, ZONE_MAX); n++) out.push({ key: `n${n}`, n });
-  return out; // "ทั้งคลัง" ถอดออก (ผู้ใช้ 2026-11-09) — สูงสุด 14 นัดต่อชุด
+  if (eos && ammo > ZONE_MAX) out.push({ key: "all", n: ammo, all: true });
+  return out; // โหมดอื่น "ทั้งคลัง" ถอดออก (ผู้ใช้ 2026-11-09) — สูงสุด 14 นัดต่อชุด
 }
-const countOfForm = (p, form) => {
+const countOfForm = (p, form, eos = false) => {
   const ammo = ammoOf(p).length;
+  if (eos && form === "all") return ammo;
   const n = Number(String(form || "").replace(/^n/, ""));
   return Number.isInteger(n) && n > 0 ? Math.min(n, ammo, ZONE_MAX) : 0;
 };
 
 // ---------- ตาย/ดาเมจจากสกิลของกิล (นอกท่อ skillStrike — ต้องจัดการคนตายเอง) ----------
-function hurt(engine, p, t, n, reason) {
+function hurt(engine, p, t, n, reason, sure = false) {
   t.wasAttacked = true;
-  if (engine.skillDodge(p, t, reason)) return { dodge: true };
+  if (!sure && engine.skillDodge(p, t, reason)) return { dodge: true }; // sure = แม่นยำ (Eos: เมตตาจากราชา)
   const amt = n + (engine.statusAmtOf(t, "fragile") || 0);
   const before = (t.hp || 0) + (t.armor || 0);
   engine.dealMixed(t, amt);
@@ -227,8 +232,9 @@ function queueShot(engine, p, i) {
 function fireShot(engine, p, i) {
   const s = st(p), v = s.volley;
   if (!p.alive || !p.pos) return false;
+  const eos = !!v.eos;
   // เพดานต่อคน (ผู้ใช้ 2026-11-09 — เดิมฆ่าคนได้ในเทิร์นเดียว): โดนได้ไม่เกิน HIT_CAP นัดต่อชุด · ครบทุกคนในกรอบแล้ว = หยุด ของที่เหลืออยู่ในคลัง
-  const capped = (u) => (v.hits[u.id] || 0) >= HIT_CAP;
+  const capped = (u) => !eos && (v.hits[u.id] || 0) >= HIT_CAP; // Eos: ไม่มีเพดาน
   const foes = foesIn(engine, p, v.zone.tiles).filter((u) => !capped(u));
   const ammo = ammoOf(p);
   if (!foes.length || !ammo.length) return false;
@@ -240,7 +246,7 @@ function fireShot(engine, p, i) {
     .map(([dx, dy]) => ({ x: Board.wx(u.pos.x + dx), y: u.pos.y + dy }))
     .filter((c) => c.y >= 0 && c.y < map.rows && c.x >= 0 && c.x < map.cols && !own.has(Board.key(c.x, c.y)) && !onTiles(u, new Set([Board.key(c.x, c.y)])));
   let t = aim, spot = { ...aim.pos };
-  if (Math.random() * 100 >= CENTER_PCT) {
+  if (!eos && Math.random() * 100 >= CENTER_PCT) { // Eos: ตกตรงตัวทุกนัด
     const near = nearOf(aim);
     if (near.length) {
       spot = pick(near);
@@ -252,9 +258,10 @@ function fireShot(engine, p, i) {
   p.inventory.splice(p.inventory.indexOf(item), 1);
   v.fired++;
   const big = i + 1 >= v.n;
-  const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา") : { dodge: true, miss: true };
-  // ความมั่งคั่ง +1 เฉพาะนัดที่โดน (ผู้ใช้ 2026-11-09 — เดิมได้ทุกนัดที่ยิง)
-  if (t && !r.dodge) { v.hits[t.id] = (v.hits[t.id] || 0) + 1; addWealth(p, 1); }
+  const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา", eos) : { dodge: true, miss: true };
+  // ความมั่งคั่ง +1 เฉพาะนัดที่โดน (ผู้ใช้ 2026-11-09 — เดิมได้ทุกนัดที่ยิง) · Eos: ทุกนัดที่ยิง
+  if (t && !r.dodge) v.hits[t.id] = (v.hits[t.id] || 0) + 1;
+  if (eos || (t && !r.dodge)) addWealth(p, 1);
   if (t) v.hitIds.add(t.id);
   // อาวุธปักลงพื้น: โดน = ช่องของเป้า · หลบ = ช่องข้างๆ (สุ่ม — ในกระดาน) · ตกพื้นเปล่า = ช่องนั้น
   let land = spot;
@@ -355,7 +362,7 @@ module.exports = {
   id: ID,
   IMG, VIDEO, CUT, SFX, MUSIC, GOLD_START, GOLD_CAP, BAG, RESTOCK_TURNS, WEALTH_MAX, ULT_WEALTH, BLOCK_PCT, EA_DMG, BOLT_DMG, SHOT_DMG,
   KNEEL_HITS, HIT_CAP, CENTER_PCT, ZONE_MAX, ULT_AREA, NON_AMMO, GATE_OPEN, SHOT_TAIL, ENUMA_HIT, ENUMA_TAIL,
-  isGil, ammoOf, zoneOf, countOptions, shotGap,
+  isGil, ammoOf, zoneOf, countOptions, shotGap, eosMode,
 
   resetCombat(p) {
     p.gil = isGil(p) ? fresh() : null;
@@ -457,13 +464,16 @@ module.exports = {
     if (tier === "secondary") {
       const engine = require("../server/engine").engine;
       const map = p.pos ? engine.boardMap() : null;
+      const eos = eosMode(engine);
       return {
-        choices: countOptions(p).map((o) => {
+        choices: countOptions(p, eos).map((o) => {
           const z = p.pos ? zoneOf(engine, p, o.n) : null;
           const side = Math.min(o.n, ZONE_MAX);
           return {
             key: o.key, name: o.all ? `ทั้งคลัง ×${o.n}` : `×${o.n}`, img: IMG.skill2, cost: 0, area: { kind: "self" },
-            desc: `ยิง ${o.n} นัด ในกรอบ ${side}×${side}`,
+            desc: eos
+              ? `ยิง ${o.n} นัด ในกรอบ ${side}×${side} · ตรงตัวทุกนัด หลบไม่ได้ · ความมั่งคั่ง +1 ต่อนัด · ตีปกติต่อได้`
+              : `ยิง ${o.n} นัด ในกรอบ ${side}×${side} · ตกตรงตัว ${CENTER_PCT}% · โดนคนเดียวกันได้ไม่เกิน ${HIT_CAP} นัด · ความมั่งคั่ง +1 ต่อนัดที่โดน · ตีปกติไม่ได้ในตานั้น`,
             zone: z && map ? { x0: z.x0, y0: z.y0, side: z.side, cols: map.cols, rows: map.rows, gx: p.pos.x, gy: p.pos.y } : null,
             locked: !!s.ea || !z || !foesIn(engine, p, z.tiles).length,
           };
@@ -485,7 +495,7 @@ module.exports = {
     }
     if (tier === "secondary") {
       if (s.ea || s.volley) return false;
-      const n = countOfForm(p, opts.form);
+      const n = countOfForm(p, opts.form, eosMode(engine));
       if (!n) return false;
       return foesIn(engine, p, zoneOf(engine, p, n).tiles).length > 0;
     }
@@ -524,10 +534,12 @@ module.exports = {
       return "";
     }
     if (tier === "secondary") {
-      const n = countOfForm(p, opts.form);
+      const eos = eosMode(engine);
+      const n = countOfForm(p, opts.form, eos);
       const z = zoneOf(engine, p, n);
-      s.volley = { n, zone: z, fired: 0, hits: {}, hitIds: new Set(), lastPos: {}, seq: engine.nextTransformCounter() };
-      if (engine.action) engine.action.noStrike = true; // ยิงแล้วตีปกติ (รวมดาบ EA) ไม่ได้ในตานี้ — ยังเดินได้ (ผู้ใช้ 2026-11-09)
+      s.volley = { n, zone: z, fired: 0, hits: {}, hitIds: new Set(), lastPos: {}, seq: engine.nextTransformCounter(), eos };
+      // ยิงแล้วตีปกติ (รวมดาบ EA) ไม่ได้ในตานี้ — ยังเดินได้ (ผู้ใช้ 2026-11-09) · Eos ตีต่อได้
+      if (engine.action && !eos) engine.action.noStrike = true;
       if (!s.gateShown) {
         s.gateShown = true;
         engine.queueCutscene(p, CUT.gate);

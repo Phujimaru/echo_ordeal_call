@@ -9,7 +9,7 @@ const GROUND = {
 };
 const WATER = new Set(["fd_eos_water", "fd_eos_canal"]);
 const GRASS = [112, 140, 72];
-const BUILD = new Set(["fd_eos_bldg", "fd_eos_garage", "fd_eos_pump", "fd_eos_tomb"]);
+const BUILD = new Set(["fd_eos_bldg", "fd_eos_garage", "fd_eos_pump", "fd_eos_tomb", "fd_eos_shrine", "fd_eos_diner", "fd_eos_ranch"]);
 const WALL = new Set(["fd_eos_wall", "fd_eos_turret"]);
 
 function hash(x, y, s = 0) { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); }
@@ -91,7 +91,7 @@ export function paintEos(board, { size = 1536, night = false } = {}) {
     if (!BUILD.has(tk) && !WALL.has(tk)) continue;
     const h = WALL.has(tk) ? 0.18 : 0.22 + hash(x, y, 9) * 0.3;
     g.fillStyle = "rgba(0,0,0,.32)"; g.fillRect((x + 0.1 + h) * T, (y + 0.1 + h) * T, T * 0.84, T * 0.84);
-    const roof = WALL.has(tk) ? "#b3a68c" : tk === "fd_eos_garage" ? "#9a8f7a" : tk === "fd_eos_pump" ? "#c94a33" : tk === "fd_eos_tomb" ? "#6f6a60" : ["#8d97a5", "#7d8796", "#a0a9b6"][Math.floor(hash(x, y, 2) * 3)];
+    const roof = WALL.has(tk) ? "#b3a68c" : tk === "fd_eos_garage" ? "#9a8f7a" : tk === "fd_eos_pump" ? "#c94a33" : tk === "fd_eos_tomb" ? "#6f6a60" : tk === "fd_eos_shrine" ? "#6fa6dc" : tk === "fd_eos_diner" ? "#c9473a" : tk === "fd_eos_ranch" ? "#f2c63a" : ["#8d97a5", "#7d8796", "#a0a9b6"][Math.floor(hash(x, y, 2) * 3)];
     g.fillStyle = "rgba(40,44,52,.55)"; g.fillRect((x + 0.08) * T, (y + 0.08 + 0.84 - 0.1) * T, T * 0.84, T * 0.14); // ผนังด้านใต้ (ดูนูน)
     g.fillStyle = roof; g.fillRect((x + 0.08) * T, (y + 0.06) * T, T * 0.84, T * 0.8);
     g.fillStyle = "rgba(255,255,255,.16)"; g.fillRect((x + 0.08) * T, (y + 0.08) * T, T * 0.84, T * 0.12);

@@ -68,8 +68,8 @@ export function eosSituation(state) {
   if (b.convoy) out.push({ key: "convoy", icon: "🚚", title: `ขบวนเสบียง ${ZONE[b.convoy.from] || ""} → ${ZONE[b.convoy.to] || ""}`, detail: `♥ ${b.convoy.hp}/${b.convoy.maxHp} · วิ่งตามเส้นประทองต้นทุกเทิร์น · มอนเล็งรถด้วย`, todo: "คุ้มกันให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ", tone: "good", at: { x: b.convoy.x, y: b.convoy.y } });
   // ภารกิจ
   for (const q of b.quests || []) out.push({
-    key: q.id, icon: q.type === "hunt" ? "⚔️" : "📡", title: `ภารกิจ ${ZONE[q.zone] || q.zone}: ${q.type === "hunt" ? "กวาดล้าง" : "สำรวจ"}`,
-    detail: q.type === "hunt" ? `ล้มมอนในกรอบโซน ${q.have}/${q.need} · เหลือ ${q.left} เทิร์น` : `ไปยืนบนลำแสงทองแล้วกด "สำรวจ" · เหลือ ${q.left} เทิร์น`,
+    key: q.id, icon: q.type === "hunt" ? "⚔️" : q.type === "guard" ? "🛡️" : "📡", title: `ภารกิจ ${ZONE[q.zone] || q.zone}: ${q.type === "hunt" ? "กวาดล้าง" : q.type === "guard" ? "เฝ้าเมือง" : "สำรวจ"}`,
+    detail: q.type === "hunt" ? `ล้มมอนในกรอบโซน ${q.have}/${q.need} · เหลือ ${q.left} เทิร์น` : q.type === "guard" ? `จบเทิร์นมีคนอยู่ในเมือง ${q.have}/${q.need} · เหลือ ${q.left} เทิร์น` : `ไปยืนบนลำแสงทองแล้วกด "สำรวจ" · เหลือ ${q.left} เทิร์น`,
     todo: "สำเร็จ = แต้มรวม +3 · คนทำได้เหรียญ + ของ", tone: "good", at: { x: q.x, y: q.y },
   });
   // พระจันทร์สีเลือด · กลางวัน/คืน
