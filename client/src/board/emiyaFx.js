@@ -13,7 +13,7 @@
 //   trace (วงจรเวทฟ้าวิ่งขึ้นรอบตัว → โครงลวดอาวุธก่อตัวเหนือหัว) · weaponBreak (อาวุธแตกเป็นละอองฟ้า) · capacity (ประกายฟ้าวนขึ้น)
 //   avalon (ฝักดาบทองเรือง + วงแสงเขียวทอง) · throw / throwHit (ดาบคู่หมุนไปหาเป้า) · ruleHit (วงเวทแตก) · stun (ดาวหมุนเหนือหัว)
 //   caladbolg (ลูกศรสว่านพุ่งตามแนว) · caladbolgBlast (ระเบิด Broken Phantasm รัศมี 2) · caladbolgSplash (เลขดาเมจรอบวง)
-//   smash (ดาบหินฟาดพื้น คลื่นฝุ่น/รอยแตกตามแนว 4×3) · rho (โล่ดอกไม้ 7 กลีบ) · excalibur / excaliburHit (ลำแสงทองแนว 5×3)
+//   smash (ดาบหินฟาดพื้น คลื่นฝุ่น/รอยแตกตามแนว 4×3) · rho (โล่ดอกไม้ 7 กลีบ) · excalibur / excaliburHit (ลำแสงทองแนว 7×1)
 //   ubw (วงไฟแผ่จากตัวชิโร่ทั่วกระดาน → โลกแห่งดาบ) · ubwEnd (โลกแห่งดาบจางหาย)
 //  ชั้นค้าง (prop emiya ของ BoardCanvas = { ubw, units: [{ id, weapon }] }):
 //   drawEmiyaWorld = พื้นโทนส้มซีเปีย (ใต้ไฮไลต์) · emiyaItems = ดาบปักพื้น + อาวุธที่ถือลอยข้างตัว (เรียงความลึก) · drawEmiyaSky = เฟืองยักษ์ + ประกายไฟ (ทับตัวละคร)
@@ -539,7 +539,7 @@ function eventFx(g, e, now, lowQ) {
         g.save(); g.globalCompositeOperation = "lighter";
         for (const t of tiles) {
           const d = Math.abs(t.x + 0.5 - A.cx) * Math.abs(dir[0]) + Math.abs(t.y + 0.5 - A.cy) * Math.abs(dir[1]);
-          if (d > run * 5.6) continue;
+          if (d > run * 7.6) continue;
           tileQuad(g, t.x, t.y, 0.04);
           g.globalCompositeOperation = "source-over"; g.fillStyle = rgba(GOLD, 0.32 * bk); g.fill();
           g.globalCompositeOperation = "lighter";
@@ -552,7 +552,7 @@ function eventFx(g, e, now, lowQ) {
           return d > m.d ? { d, t } : m;
         }, { d: -1, t: null }) : null;
         if (end && end.t) {
-          const L = Math.min(end.d, run * 5.6);
+          const L = Math.min(end.d, run * 7.6);
           const a = P(A.cx, A.cy, 0.6), b = P(A.cx + dir[0] * L, A.cy + dir[1] * L, 0.6);
           g.lineCap = "round";
           for (const [w, c, al] of [[A.s * 0.9, GOLD, 0.16], [A.s * 0.38, GOLD_L, 0.3], [A.s * 0.1, WHITE, 0.7]]) {

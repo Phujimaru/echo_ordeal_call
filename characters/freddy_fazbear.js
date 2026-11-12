@@ -22,6 +22,7 @@
 // ============================================================
 
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "freddy_fazbear";
 const DIR = "/characters/freddy_fazbear";
@@ -114,21 +115,24 @@ module.exports = {
 
   resetCombat(p) { p.freddy = isFreddy(p) ? fresh() : null; },
 
+  // ลบสกิลติดตัว (server/passiveSeal.js): ระยะเดิน/พลังโจมตีกลางวัน-กลางคืนถือเป็นค่าพื้นฐานของตัว — คงไว้
+  //  (ไม่งั้นเฟรดดี้ที่ไม่มีสกิลเหลือแค่ตัวเปล่า) · ปิด: ล่องหน/แตะไม่ได้/มินิเกมประตู/วาป/เดินต่อ 3/ฟื้นจากสังหาร/เพลงใกล้ตัว ·
+  //  ร้านพิซซ่ายามค่ำคืน: พลังโจมตี 6 → ร่างกลางคืน 3 · คริ 50% ไม่มี (ยังเป็นร่างกลางคืนตลอดใน PVE)
   mov(p) { return isFreddy(p) ? (nightNow(eng()) ? MOV.night : MOV.day) : null; },
   attackBaseOverride(engine, attacker) {
     if (!isFreddy(attacker)) return 1;
-    return pveMode(engine) ? ATK.pve : nightNow(engine) ? ATK.night : ATK.day;
+    return pveMode(engine) && PassiveSeal.on(attacker) ? ATK.pve : nightNow(engine) ? ATK.night : ATK.day;
   },
-  critPct(p) { return isFreddy(p) && pveMode(eng()) ? PVE_CRIT : 0; },
+  critPct(p) { return isFreddy(p) && pveMode(eng()) && PassiveSeal.on(p) ? PVE_CRIT : 0; },
 
   // กลางวัน: ล่องหนตลอด · ไม่มีอะไรแตะได้ (ยกเว้นโทษปิดประตูทันของตัวเอง)
-  stealthed(p) { return isFreddy(p) && p.alive && !nightNow(eng()); },
-  untouchable(engine, p) { return isFreddy(p) && !nightNow(engine) && !st(p).penalty; },
+  stealthed(p) { return isFreddy(p) && p.alive && !nightNow(eng()) && PassiveSeal.on(p); },
+  untouchable(engine, p) { return isFreddy(p) && !nightNow(engine) && !st(p).penalty && PassiveSeal.on(p); },
 
   // ตีปกติกลางวัน: ทอยหลบ → มินิเกมประตู (action.strikeTarget เรียก — คืน { after } = รับช่วงการตีนี้ไปทั้งก้อน)
   //  after() คืน "strike" = ตีลงต่อ (ข้ามด่านหลบ) · ตัวเลข = วินาทีพักฉากก่อนจบตา
   interceptStrike(engine, p, target) {
-    if (!isFreddy(p) || nightNow(engine)) return null;
+    if (!isFreddy(p) || nightNow(engine) || PassiveSeal.sealed(p)) return null; // ลบสกิลติดตัว = ตีปกติธรรมดา
     if (engine.skillDodge(p, target, "การโจมตี")) {
       target.wasAttacked = true;
       warp(engine, p);
@@ -223,15 +227,15 @@ module.exports = {
   },
   // ตีจบ: กลางคืน = เดินต่อ 3 ช่อง · กลางวัน (ชนะมินิเกมประตู) = วาปออกไปที่ใหม่ ~5 ช่อง (ผู้ใช้สั่ง 2026-11-11)
   afterStrike(engine, p) {
-    if (!isFreddy(p) || !p.alive || !p.pos) return;
+    if (!isFreddy(p) || !p.alive || !p.pos || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: ไม่เดินต่อ/ไม่วาป
     if (nightNow(engine)) st(p).cantoRound = engine.roundNumber;
     else warp(engine, p);
   },
   cantoMov(engine, p) {
-    return isFreddy(p) && nightNow(engine) && st(p).cantoRound === engine.roundNumber ? CANTO : 0;
+    return isFreddy(p) && nightNow(engine) && st(p).cantoRound === engine.roundNumber && PassiveSeal.on(p) ? CANTO : 0;
   },
   onKill(engine, killer, victim) {
-    if (!isFreddy(killer) || !killer.alive || !victim || victim.summon) return;
+    if (!isFreddy(killer) || !killer.alive || !victim || victim.summon || PassiveSeal.sealed(killer)) return; // ลบสกิลติดตัว
     const n = engine.healHp(killer, KILL_HEAL);
     if (n > 0) engine.log(`🐻 ${killer.name} สังหาร ${victim.name} — ฟื้นพลังชีวิต +${n}`);
   },
@@ -241,7 +245,7 @@ module.exports = {
   // เพลงตอนเข้าใกล้ (กลางวัน): ผู้ชมคนนี้ (ตัวที่คุม) อยู่ห่างเฟรดดี้ไม่เกิน NEAR · เฟรดดี้เองได้ยินเมื่อมีศัตรูอยู่ใกล้
   nearView(engine, ids) {
     if (nightNow(engine)) return false;
-    const fs = Object.values(engine.players).filter((o) => isFreddy(o) && o.alive && o.pos);
+    const fs = Object.values(engine.players).filter((o) => isFreddy(o) && o.alive && o.pos && PassiveSeal.on(o)); // ลบสกิลติดตัว = ไม่ล่องหน ไม่มีเพลง
     if (!fs.length) return false;
     const me = ids.map((id) => engine.players[id]).filter((u) => u && u.alive && u.pos);
     for (const f of fs) {

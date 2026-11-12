@@ -12,6 +12,7 @@
 //  เอฟเฟกต์ client: socket "gilFx" { kind, id, ... } → client/src/board/gilFx.js · สถานะ players[].gil (gilState)
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "gilgamesh_fake";
 const DIR = "/characters/gilgamesh_fake";
@@ -370,9 +371,10 @@ module.exports = {
   },
   maxHp() { return MAX_HP; },
   // ---------- ราชาที่แท้จริง / Gate of Babylon ----------
-  goldCap(p) { return isGil(p) ? GOLD_CAP : null; },
-  bagSlots(p) { return isGil(p) ? BAG : null; },
-  remoteShop(p) { return isGil(p); },
+  //  ลบสกิลติดตัว (server/passiveSeal.js): เพดานเหรียญ/ความจุกระเป๋ากลับเป็นค่าปกติ (ของ/เหรียญที่มีอยู่ไม่หาย แค่เพิ่มเกินไม่ได้) · ซื้อระยะไกลไม่ได้
+  goldCap(p) { return isGil(p) && PassiveSeal.on(p) ? GOLD_CAP : null; },
+  bagSlots(p) { return isGil(p) && PassiveSeal.on(p) ? BAG : null; },
+  remoteShop(p) { return isGil(p) && PassiveSeal.on(p); },
   onRoundStartTick(engine, p) {
     if (!isGil(p) || !p.alive) return;
     const s = st(p);
@@ -384,7 +386,7 @@ module.exports = {
     }
     // ร้านค้ารีสต็อกทุก 2 เทิร์น (ทุกร้าน · ทุกคนได้ประโยชน์)
     const r = engine.roundNumber;
-    if (engine.restockShops && (s.restockRound == null || r - s.restockRound >= RESTOCK_TURNS)) {
+    if (engine.restockShops && PassiveSeal.on(p) && (s.restockRound == null || r - s.restockRound >= RESTOCK_TURNS)) { // ลบสกิลติดตัว: ไม่สั่งรีสต็อก
       if (s.restockRound != null && engine.restockShops()) engine.log(`👑 ราชาสั่งเติมสินค้า — ร้านค้าทุกร้านรีสต็อกใหม่`);
       s.restockRound = r;
     }

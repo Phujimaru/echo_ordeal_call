@@ -800,6 +800,7 @@ const STATUS_INFO = {
   spellflow: { icon: "🌀", label: "กระแสเวท", cls: "bg-echo-cyan text-gray-900", desc: "สกิลทุกช่องถูกลงตามจำนวนที่ระบุ" },
   spellburden: { icon: "⛓️", label: "ภาระเวท", cls: "bg-echo-hp", desc: "สกิลทุกช่องแพงขึ้นตามจำนวนที่ระบุ สูงสุด 2 และไม่เกิน 8 แต้ม" },
   manaSeal:  { icon: "⛔", label: "ผนึกพลังงาน", cls: "bg-echo-hp", desc: "ฟื้นแต้มสกิลไม่ได้ทุกช่องทาง" },
+  noPassive: { icon: "🚫", label: "ลบสกิลติดตัว", cls: "bg-echo-hp", desc: "สกิลติดตัวไม่ทำงาน" },
   manaLeech: { icon: "🩸", label: "ดูดซับเวท", cls: "bg-echo-magenta", desc: "ใช้สกิลหรือได้แต้มสกิล มีโอกาส 35% ถูกขโมยแต้มสกิล 1" },
   manaRupture: { icon: "💥", label: "ระเบิดมานา", cls: "bg-echo-hp", desc: "ครบ 2 เทิร์นแล้วระเบิด แต้มสกิลยิ่งน้อยยิ่งเสียหายมาก" },
   drunk: { icon: "🍷", label: "มึนเมา", cls: "bg-echo-magenta", desc: "ใช้สกิลหรือจั่วไพ่มีโอกาสติดห้ามจั่ว ห้ามสกิล หรือสตั้น" },
@@ -1011,13 +1012,13 @@ function statusEntries(p, full) {
   if (p.emiya) {
     const e = p.emiya;
     const W = {
-      kb: ["⚔️", "Kanshou & Bakuya", "ตีปกติ 1 ครั้งฟัน 2 ฮิต อัตราคริติคอลเพิ่ม 30%"],
-      hrunting: ["🏹", "Hrunting & Caladbolg II", "ตีได้ไกล 1 ถึง 4 ช่อง ระยะเดินลด 1"],
-      rule: ["🗡️", "Rule Breaker", "ตีโดนแล้วเป้าใช้สกิลไม่ได้จนจบตาเดินถัดไป และติดผนึกพลังงาน 2 เทิร์น"],
-      nine: ["🪨", "Nine Lives Blade Works", "พลังโจมตีเพิ่ม 1 ตีโดนศัตรูทุกคนในกรอบ 2×3 ทางทิศของเป้า"],
+      kb: ["⚔️", "Kanshou & Bakuya", "ตีปกติ 1 ครั้งฟัน 2 ฮิต อัตราคริติคอลเพิ่ม 20% · ระหว่าง Unlimited Blade Works ตีโดนติดเลือดไหล 1 เทิร์น"],
+      hrunting: ["🏹", "Hrunting & Caladbolg II", "ตีได้ไกล 1 ถึง 4 ช่อง ระยะเดินลด 1 · ระหว่าง Unlimited Blade Works ไม่ลดระยะเดิน พลังโจมตีเพิ่ม 1"],
+      rule: ["🗡️", "Rule Breaker", "ตีโดนแล้วเป้าใช้สกิลไม่ได้จนจบตาเดินถัดไป และติดผนึกพลังงาน 2 เทิร์น · ระหว่าง Unlimited Blade Works ลบสกิลติดตัวของเป้า 2 เทิร์น"],
+      nine: ["🪨", "Nine Lives Blade Works", "พลังโจมตีเพิ่ม 1 ตีโดนศัตรูทุกคนในกรอบ 2×3 ทางทิศของเป้า · ระหว่าง Unlimited Blade Works ผลักทุกคนที่โดน 2 ช่อง"],
       excalibur: ["✨", "Excalibur", "พลังโจมตีเพิ่ม 1 ตีแนว 3 ช่องโดนทุกคน ตีโดนแล้วติดเปราะบาง 2 เทิร์น"],
     }[e.weapon];
-    if (W) out.push({ key: "emiyaWeapon", v: e.weaponTurns || 1, turns: true, icon: W[0], label: `${W[1]} ×${e.usesLeft}`, cls: e.weapon === "excalibur" ? "bg-amber-300 text-gray-900" : "bg-sky-200 text-gray-900", desc: W[2] });
+    if (W) out.push({ key: "emiyaWeapon", v: e.weaponTurns || 1, turns: true, icon: W[0], label: e.usesLeft == null ? W[1] : `${W[1]} ×${e.usesLeft}`, cls: e.weapon === "excalibur" ? "bg-amber-300 text-gray-900" : "bg-sky-200 text-gray-900", desc: W[2] });
     if (e.traceCd > 0) out.push({ key: "emiyaTraceCd", v: e.traceCd, turns: true, icon: "⏳", label: "Trace On", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ Trace On ได้อีก" });
     if (e.wsCd > 0) out.push({ key: "emiyaWsCd", v: e.wsCd, turns: true, icon: "⏳", label: "Weapon Skill", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้สกิลรองได้อีก" });
     if (e.ultCd > 0) out.push({ key: "emiyaUltCd", v: e.ultCd, turns: true, icon: "⏳", label: "Unlimited Blade Works", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });

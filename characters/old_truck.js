@@ -22,6 +22,7 @@
 //  ไฟล์จากผู้ใช้ (Downloads/optimus — 2026-11-03) · ตัวหมากรถ = ภาพรถตัดพื้นหลัง (หมากนั่งบนรถแบบม้าของไจโร — optimusFx.js)
 //  เสียง Mixkit ฟรี (ผู้ใช้อนุญาตให้โหลด) — .claude/plans/old-truck-sfx.sh
 // ============================================================
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "old_truck";
 const DIR = "/characters/old_truck";
@@ -93,7 +94,8 @@ function fresh() {
 function st(p) { return p.oldTruck || (p.oldTruck = fresh()); }
 const formOf = (p) => (isTruck(p) ? st(p).form : null);
 const primeOn = (p) => formOf(p) === "prime";
-const awake = (p) => isTruck(p) && st(p).form !== "old"; // สกิลติดตัวไพร์มทำงาน
+const awake = (p) => isTruck(p) && st(p).form !== "old"; // ร่างที่มีสกิลติดตัวไพร์ม
+const primeLive = (p) => awake(p) && PassiveSeal.on(p);   // สกิลติดตัวไพร์มทำงาน (ลบสกิลติดตัว — server/passiveSeal.js)
 const guardCd = (engine, p) => Math.max(0, (st(p).guardReady || 0) - engine.roundNumber);
 
 // คลิปครั้งแรกต่อเกม → true = คิวแล้ว
@@ -111,7 +113,7 @@ function fx(engine, p, kind, extra = {}) {
 
 // ไพร์ม: โอกาส 30% ฟื้นพลังชีวิต 1–2 → ข้อความป้าย | null
 function primeHeal(engine, p) {
-  if (!awake(p) || !p.alive || Math.random() * 100 >= HEAL_PCT) return null;
+  if (!primeLive(p) || !p.alive || Math.random() * 100 >= HEAL_PCT) return null;
   const want = Math.random() < 0.5 ? 1 : 2;
   const healed = engine.healHp(p, want);
   if (!(healed > 0)) return null;
@@ -121,7 +123,7 @@ function primeHeal(engine, p) {
   return `ไพร์ม — ฟื้นพลังชีวิต +${healed}`;
 }
 function primeCrit(p) {
-  if (awake(p)) st(p).crit = true;
+  if (primeLive(p)) st(p).crit = true;
 }
 
 function setForm(engine, p, form) {
@@ -189,7 +191,7 @@ module.exports = {
     return PRIME_ATK;
   },
   attackFxNames(attacker, atkCtx) { return atkCtx && atkCtx.otPrime && !st(attacker).countering ? [`ออพติมัส ไพร์ม +${atkCtx.otPrime}`] : []; },
-  critPct(p) { return awake(p) && !st(p).countering && st(p).crit ? CRIT_PCT : 0; },
+  critPct(p) { return primeLive(p) && !st(p).countering && st(p).crit ? CRIT_PCT : 0; },
   attackStyle(p) {
     if (!isTruck(p)) return null;
     const s = st(p);
@@ -376,7 +378,7 @@ module.exports = {
     return {
       form: s.form, stance: !!s.stance, guardCd: guardCd(engine, p),
       regen: s.regen, regenMax: REGEN_TURNS,
-      crit: awake(p) && !!s.crit,
+      crit: primeLive(p) && !!s.crit,
     };
   },
   skillLocks(engine, p) {

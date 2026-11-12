@@ -26,6 +26,8 @@
 //    ตีปกติ = ปืนกล Calico M950 ระยะ 1–3 (ผู้ใช้สั่ง 2026-11-11) · เสียงปืนกล/ควัน/วางกับดัก สังเคราะห์เอง ยังไม่มีคนฟัง · ระเบิดใช้เสียงของดิเอโก้ · เติมกระสุน/พันผ้า/หัวใจเต้นระหว่าง Time Alter จาก Mixkit (ผู้ใช้อนุญาตให้โหลด 2026-11-11)
 // ============================================================
 
+const PassiveSeal = require("../server/passiveSeal");
+
 const ID = "emiya_kiritsugu";
 const DIR = "/characters/emiya_kiritsugu";
 const IMG = {
@@ -448,7 +450,7 @@ module.exports = {
   attackStyle(p) { return isMe(p) ? "kiriSmg" : undefined; },
   attackSound(p) { return isMe(p) ? "kiri_smg" : undefined; },
   mov(p) { return isMe(p) && inAlter(p) ? ALTER_MOV : null; },
-  critPct(p) { return isMe(p) && (!inAlter(p) || isEos()) ? CRIT : 0; },
+  critPct(p) { return isMe(p) && (!inAlter(p) || isEos()) && PassiveSeal.on(p) ? CRIT : 0; }, // ลบสกิลติดตัว: เวทย์ตะกั่วไม่มีคริ (ระยะ 1–3 = ค่าพื้นฐาน คงไว้)
   damageBonus(engine, attacker) { return isMe(attacker) && inAlter(attacker) && isEos() ? EOS_ATK : 0; },
   attackFxNames(p) { return isMe(p) && inAlter(p) && isEos() ? [`Time Alter +${EOS_ATK}`] : []; },
   onClockDone(engine, p) { if (isMe(p)) st(p).alter = null; },
@@ -479,6 +481,7 @@ module.exports = {
     if (!isMe(p) || n <= 0) return n;
     const s = st(p);
     if (s.landing) return n;
+    if (PassiveSeal.sealed(p)) return n; // ลบสกิลติดตัว (server/passiveSeal.js): อดีนาลีนไม่เลื่อน — ลงทันที (ที่เลื่อนไว้แล้วยังลงตามกำหนด)
     const kind = arguments[4] || "mixed";
     const src = engine.effectSourceId && engine.players[engine.effectSourceId];
     if (src && src.id !== p.id && !engine.sameTeam(src, p)) {
@@ -489,7 +492,7 @@ module.exports = {
     snapHit(engine, p); // ลงทันที (ไม่มีต้นตอ) — ตายจริงแล้ว preventDeath ตัดสิน
     return n;
   },
-  preventDeath(engine, p) { return isMe(p) && survive(engine, p); },
+  preventDeath(engine, p) { return isMe(p) && PassiveSeal.on(p) && survive(engine, p); }, // ลบสกิลติดตัว: ไม่มีการเอาตัวรอด (ไม่เสียสิทธิ์)
   onRoundStartTick(engine, p) {
     if (!isMe(p) || !p.alive) return;
     const s = st(p), r = engine.roundNumber;

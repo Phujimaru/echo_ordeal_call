@@ -20,6 +20,7 @@
 // ============================================================
 
 const ID = "kira";
+const PassiveSeal = require("../server/passiveSeal");
 const DIR = "/characters/kira";
 // ไฟล์จากผู้ใช้ (Downloads/gira(alter) — 2026-10-14) · ปุ่มถอดเกราะใช้รูปกิระ
 const IMG = {
@@ -199,6 +200,8 @@ function squeeze(engine, p, origin, dir, ids) {
   if (ctx.events.length) engine.skillBeat(engine.ice.fxSeconds(ctx), () => {});
 }
 
+const waveOn = (p) => kingOn(p) && PassiveSeal.on(p);
+
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, MUSIC, SFX, AURA_DMG, ROOT_TURNS, KING_RANGE, WAVE, WAVE_DMG, ULT_TURNS, ULT_USES, ULT_ATK, REVIVE_HP, REGEN_TURNS, REGEN_HP, REGEN_SP,
@@ -208,13 +211,14 @@ module.exports = {
   displayImg(p) { return kingOn(p) ? IMG.king : null; },
 
   // ---------- ตีปกติ ----------
-  range(p) { return kingOn(p) ? KING_RANGE : null; },
-  attackLane(p) { return kingOn(p); },
+  // คลื่นแนวตรง 4×1 = สกิลติดตัว บดขยี้ส่วนเกิน — ลบสกิลติดตัว (server/passiveSeal.js) = ตีประชิดปกติ
+  range(p) { return waveOn(p) ? KING_RANGE : null; },
+  attackLane(p) { return waveOn(p); },
   // ท่าตีบนกระดาน: คลื่นฟันดำขอบแดงตามแนว (client/src/board/kiraFx.js — ผู้ใช้สั่ง 2026-10-15 · เดิมเป็นลำแสงม่วง)
-  attackStyle(p) { return kingOn(p) ? "kiraSlash" : null; },
+  attackStyle(p) { return waveOn(p) ? "kiraSlash" : null; },
   attackSound(p) {
     if (!isKira(p)) return undefined;
-    return kingOn(p) ? SFX.sweep : SFX.hit;
+    return waveOn(p) ? SFX.sweep : SFX.hit;
   },
   // อัฐิราชา: พลังโจมตี +2 (ตีปกติ · ตีสวน — ท่อ strike)
   damageBonus(engine, attacker, target, ctx) {
@@ -312,6 +316,7 @@ module.exports = {
     for (const p of Object.values(engine.players)) {
       if (!isKira(p) || !p.alive) continue;
       const s = st(p);
+      if (!PassiveSeal.on(p)) continue; // ลบสกิลติดตัว: ไม่มีออร่า · ร่างกิระไม่นับเพิ่ม ไม่ฟื้น (ค่าที่นับไว้คงเดิม)
       if (s.king) { auraTick(engine, p); continue; }
       if (s.switchRound === engine.roundNumber) continue;
       s.calm++;

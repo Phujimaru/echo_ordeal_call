@@ -31,6 +31,7 @@
 //  เสียง: วีดีโอขึ้น = ไม่มีเสียงเอฟเฟกต์/พากย์ก่อนหรือซ้อน (กฎผู้ใช้ 2026-11-03) · คลิปท่าไม้ตาย/คริเล่นซ้ำได้ อื่นๆ ครั้งเดียว
 //  ไฟล์จากผู้ใช้ (Downloads/giono + Gold Experience SFX + เสียงพากย์ ASBR) — ตัดเสียงด้วย ffmpeg (.claude/plans/giorno-media.md)
 // ============================================================
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "giorno_giovanna";
 const DIR = "/characters/giorno_giovanna";
@@ -192,6 +193,9 @@ const friendOf = (engine, p, t) => !!t && (t.id === p.id || engine.sameTeam(p, t
 const reflectOn = (engine, p) => isGio(p) && !!st(p).reflect && live(engine, p, st(p).reflect);
 const treeOn = (engine, t) => !!t && !!t.giornoTree && live(engine, t, t.giornoTree);
 const reqOn = (p) => isGio(p) && !!st(p).requiem;
+// สกิลติดตัวทำงาน (ลบสกิลติดตัว — server/passiveSeal.js) · ร่าง Requiem: "นี่แหละ คือ Requiem" (พลังโจมตี/คริ/ย้อน — ระยะเดิน 6 เป็นค่าพื้นฐานของร่าง ไม่ปิด)
+const gioLive = (p) => isGio(p) && PassiveSeal.on(p);
+const reqLive = (p) => reqOn(p) && PassiveSeal.on(p);
 const lines = (p) => (reqOn(p) ? VOICE_RE : VOICE);
 
 // ---------- Gold Experience Requiem ----------
@@ -374,15 +378,15 @@ module.exports = {
   },
   displayImg(p) { return reqOn(p) ? IMG.re.cover : null; },
   mov(p) { return reqOn(p) ? REQ_MOV : null; },
-  damageBonus(engine, attacker) { return reqOn(attacker) ? REQ_ATK : 0; },
+  damageBonus(engine, attacker) { return reqLive(attacker) ? REQ_ATK : 0; },
 
   // ---------- นี่แหละ คือ Requiem: Return to Zero (server/timeStop.js) ----------
-  counterArmed(engine, p) { return reqOn(p); },
+  counterArmed(engine, p) { return reqLive(p); },
   rewindsTurn: true,
   // ทอยครั้งเดียวต่อคำสั่ง (ตีหลายฮิต/ท่าพื้นที่) · ฮาคุโนะ (AI Moon Cell) ไม่ย้อน · ร่างแยกที่ผู้เล่นคุมย้อนตามปกติ
   //  sure = นกหวีด ย้อน 100% (TimeStop.checkSure)
   counterFires(engine, p, src, sure) {
-    if (!reqOn(p) || require("../server/moonCell").isBoss(src)) return false;
+    if (!reqLive(p) || require("../server/moonCell").isBoss(src)) return false;
     if (sure) return true;
     const s = st(p);
     if (s.rollSeq !== engine.cmdSeq) {
@@ -403,12 +407,12 @@ module.exports = {
   },
 
   // ---------- ตีปกติ ----------
-  critPct(p) { return isGio(p) && !st(p).muda ? CRIT_PCT + (reqOn(p) ? REQ_CRIT : 0) : 0; },
+  critPct(p) { return gioLive(p) && !st(p).muda ? CRIT_PCT + (reqOn(p) ? REQ_CRIT : 0) : 0; },
   attackStyle(p) { return isGio(p) ? "gioPunch" : null; }, // หมัดหนัก 1 หมัด · ติดคริ = client เปลี่ยนเป็นหมัดรัว gioRush (client/src/board/giornoFx.js)
   attackSound(p) { return isGio(p) ? SFX.punch : undefined; },
   // เศษเดนมนุษย์อย่างแกน่ะ…: ทอยเฉพาะตอนเข้าเงื่อนไข (ไม่แตะ Math.random ของคนอื่น)
   fixedStrikeDamage(engine, attacker, target, ctx = {}) {
-    if (!isGio(attacker) || ctx.estimate || ctx.counter) return null;
+    if (!gioLive(attacker) || ctx.estimate || ctx.counter) return null;
     const s = st(attacker);
     if (s.requiem || s.muda || s.rageUsed || attacker.hp > RAGE_HP) return null; // ร่าง Requiem: สกิลติดตัว 2 ไม่ทำงาน
     if (Math.random() * 100 >= RAGE_PCT) return null;
@@ -451,8 +455,9 @@ module.exports = {
   voiceLines(p) { return isGio(p) ? { turn: st(p).arrowWait ? [] : lines(p).turn, struck: lines(p).struck } : null; },
 
   // ---------- ตีปกติใส่เพื่อนร่วมทีม (action.strikeTarget) → วินาทีของฉาก ----------
-  strikesAllies(p) { return isGio(p); },
-  allyHealOn(engine, p) { return isGio(p) ? (st(p).muda ? MUDA_HEAL : ALLY_HEAL) : null; }, // หน้าคาดการณ์
+  //  ลบสกิลติดตัว = ตีเพื่อนไม่ได้ (ยกเว้น Muda ที่ค้างอยู่ — ผลของท่าไม้ตาย)
+  strikesAllies(p) { return isGio(p) && (PassiveSeal.on(p) || !!st(p).muda); },
+  allyHealOn(engine, p) { return isGio(p) ? (st(p).muda ? MUDA_HEAL : PassiveSeal.on(p) ? ALLY_HEAL : null) : null; }, // หน้าคาดการณ์
   allyStrike(engine, p, t) {
     if (!isGio(p) || !t || !t.alive || !engine.sameTeam(p, t)) return 0;
     const s = st(p);
@@ -462,6 +467,7 @@ module.exports = {
       engine.queueCutscene(p, CUT.muda);
       return ALLY_STRIKE_SECONDS;
     }
+    if (PassiveSeal.sealed(p)) return 0;
     const healed = engine.healHp(t, ALLY_HEAL);
     engine.log(`✨ ${p.name} Gold Experience → ${t.name} ฟื้นพลังชีวิต +${healed}`);
     fx(engine, t, "heal", { from: p.id, n: healed });

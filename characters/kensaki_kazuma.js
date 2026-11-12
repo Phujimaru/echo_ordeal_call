@@ -38,6 +38,7 @@
 //    Royal Straight Flush (TIME FUSION ABSORB EVOLUTION CHANGE): คลื่นดาบ 4×3 · ดาเมจ 6 ลดเกราะก่อน · ทอยหลบรายคน · แล้วกลับร่าง Blade
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "kensaki_kazuma";
 const DIR = "/characters/kensaki_kazuma";
@@ -678,7 +679,8 @@ module.exports = {
   // ช่างหัวมันสิ: ตีปกติที่ไม่มีผลการ์ดค้าง คริ 50% (ทั้งสองร่าง) · มีผลการ์ดค้าง = ♠K ใบละ 20% (ไม่บวกกับ 50%)
   critPct(p) {
     if (!isKazuma(p)) return 0;
-    return armedOf(p) ? cardN(p, "king") * KING_CRIT : CRIT_PCT;
+    if (armedOf(p)) return cardN(p, "king") * KING_CRIT; // ผลการ์ด (ไม่ใช่สกิลติดตัว)
+    return PassiveSeal.on(p) ? CRIT_PCT : 0; // ลบสกิลติดตัว (server/passiveSeal.js)
   },
   // คลิปก่อนฉากตี: ท่า Lightning ที่โดน (ไม่หลบ — Slash: คนไหนในแนวโดนก็นับ) · ไม่มีผลการ์ด + ติดคริ = "มือเปล่าติดคริ"
   preAttackClip(engine, attacker, card) {
@@ -730,7 +732,7 @@ module.exports = {
     if (!isKazuma(p)) return;
     const s = st(p);
     if (s.armed) s.armed = null;
-    if (!s.blade) return;
+    if (!s.blade || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว = ไม่ได้แต้ม
     const before = p.skillPoints || 0;
     engine.addSkill(p, STRIKE_SP, "kazuma");
     if ((p.skillPoints || 0) > before) engine.log(`🪲 ${p.name} Blade — ตีปกติ แต้มสกิล +${STRIKE_SP}`);

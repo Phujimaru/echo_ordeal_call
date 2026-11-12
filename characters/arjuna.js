@@ -18,6 +18,7 @@
 // ============================================================
 const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("./_universal_status");
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "arjuna";
 const DIR = "/characters/arjuna";
@@ -207,7 +208,7 @@ module.exports = {
   onJutti(engine, p) {
     if (!engine.arjunaUltOn()) engine.sfx("arj_lamp"); // ใครติดจุติก็มีเสียง · ระหว่างฉากวีดีโอเงียบ
     if (!isArjuna(p)) return;
-    engine.addSkill(p, JUTTI_SKILL, "passive");
+    if (PassiveSeal.on(p)) engine.addSkill(p, JUTTI_SKILL, "passive"); // ลบสกิลติดตัว (server/passiveSeal.js)
     say(engine, p, "jutti");
   },
   onDeath(engine, p) { if (isArjuna(p)) say(engine, p, "death"); },
@@ -242,12 +243,12 @@ module.exports = {
   },
   // เพดานตามชนิดการโจมตี — สิ่งอื่นที่ไม่ใช่ตีปกติ/ท่าไม้ตาย (ปืน ไอเทม) ไม่จำกัด
   damageCap(engine, p, kind) {
-    if (!isArjuna(p)) return null;
+    if (!isArjuna(p) || PassiveSeal.sealed(p)) return null; // ลบสกิลติดตัว = ไม่มีเพดาน
     if (st(p).ulting) return ULT_CAP;
     return kind === "strike" || engine.inStrike() ? STRIKE_CAP : null;
   },
   onStrikeLanded(engine, attacker, target) {
-    if (!isArjuna(attacker) || !target || engine.sameTeam(attacker, target) || !debuffKinds(target)) return [];
+    if (!isArjuna(attacker) || PassiveSeal.sealed(attacker) || !target || engine.sameTeam(attacker, target) || !debuffKinds(target)) return [];
     engine.addSkill(attacker, 1, "passive");
     return ["ความสมบูรณ์แบบ"];
   },

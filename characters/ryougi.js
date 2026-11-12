@@ -16,12 +16,15 @@
 //    ทุกคน (รวมเพื่อน · ศพ) ที่อยู่บนแนว/ช่องที่ลง ถูกผลักออกข้าง (ว่างทั้งสองข้าง = สุ่ม · ไม่ว่าง = ปลิวไปที่ยืนได้ใกล้จุดเดิมที่สุด)
 //  mystical eye of death perception (ติดตัว): ตีปกติ + สกิลโจมตีสังหารทันที 5% (เนตรมณะเปิดอยู่ = 25% ทั้งตีปกติและท่าไม้ตาย) · หลังท่าไม้ตาย 3 เทิร์น (นับเทิร์นที่กด)
 //    พลังโจมตี +1 (สถานะ ryougiBloom) + ต้านสถานะผิดปกติ · ระหว่างนี้ฉากตีปกติเป็นกระโดดฟันข้ามหัว (ryougiLeap)
+//    ลบสกิลติดตัว (server/passiveSeal.js): ตีปกติเป้าเดียว (ไม่ฟันแนว) · ไม่มีสังหาร 5% (เนตรมณะ 20% ของสกิลยังอยู่)
+//      · ไม่บวกพลังโจมตีหลังท่าไม้ตาย · ปล่อยท่าไม้ตายระหว่างติด = ไม่ได้พลังโจมตี/ต้านสถานะ (ต้านสถานะที่ติดไปแล้วอยู่ต่อ)
 //  ถูกเรียวกิสังหารทันที = ฉากร่างแยกสองซีก → กองเลือดบนพื้น (board.ryougi.blood · ภาพเฉย ไม่ขวางทาง · อยู่จนเปลี่ยนภูมิภาค)
 //
 //  Claude ตัดสินเอง (บันทึกใน GRID_PLAN §7.17): ท่าไม้ตายไม่หลบ (แบบทาวววว มิสไซล์) · ผนึกห่วงเวลาซีโร่ไม่พัง · ช่องลงที่พังอยู่แล้ว/เป็นผนึก
 //    = ถอยมาช่องยืนได้ที่ใกล้สุดในแนว (ไม่มีเลย = อยู่ที่เดิม) · ทอยสังหารก่อนดาเมจ (สังหารแล้วไม่ต้องลงดาเมจ)
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 const { NETRAMANA_KILL_CHANCE, netramanaActive } = require("./_universal_status");
 
 const ID = "ryougi";
@@ -136,7 +139,8 @@ function slain(engine, p, t, at, how) {
   voice(engine, p, VOICE_KILL);
 }
 // ทอยสังหารทันทีของสกิลโจมตี (5% · เนตรมณะเปิดอยู่ = 25% — ผู้ใช้สั่ง 2026-10-22) → true = ตายแล้ว
-const skillKillChance = (p) => KILL_CHANCE + (netramanaActive(p) ? NETRAMANA_KILL_CHANCE : 0);
+//  ลบสกิลติดตัว = ไม่มี 5% ของติดตัว (เนตรมณะเป็นผลสกิล — ยังบวก)
+const skillKillChance = (p) => (PassiveSeal.on(p) ? KILL_CHANCE : 0) + (netramanaActive(p) ? NETRAMANA_KILL_CHANCE : 0);
 function trySkillKill(engine, p, t) {
   const pct = skillKillChance(p);
   if (!(Math.random() < pct)) return false;
@@ -307,7 +311,7 @@ function ultimate(engine, p, dir, ids) {
 
     // หลังปล่อยท่าไม้ตาย: พลังโจมตี +1 + ต้านสถานะ 3 เทิร์น (นับเทิร์นนี้) · ซากุระโปรยทั่วแผนที่
     engine.skillBeat(CRUMBLE_SECONDS, () => {
-      if (!p.alive) return;
+      if (!p.alive || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว = ไม่ได้ผลหลังท่าไม้ตาย
       p.statuses[BLOOM] = BLOOM_TURNS;
       engine.applyBuff(p, "resist", null, BLOOM_TURNS);
       st(p).bloomAt = engine.severStamp();
@@ -333,11 +337,12 @@ module.exports = {
   onDeath(engine, p) { if (isRyougi(p)) voice(engine, p, VOICE_DEATH); },
 
   // ---------- ตีปกติ ----------
-  attackLane(p) { return isRyougi(p); },
-  laneLen(p) { return isRyougi(p) ? LANE_LEN : 0; }, // ฟันแนว 2 ช่องหน้าตัวเสมอ (เท่าปลายระยะ [1, 2] — ผู้ใช้ 2026-10-23)
-  killChance(p) { return isRyougi(p) ? KILL_CHANCE : 0; },
-  damageBonus(engine, attacker) { return bloomOn(attacker) ? BLOOM_ATK : 0; },
-  attackFxNames(attacker) { return bloomOn(attacker) ? [`ดับสิ้นซะ — พลังโจมตี +${BLOOM_ATK}`] : []; },
+  // ลบสกิลติดตัว (server/passiveSeal.js) = ตีปกติเป้าเดียว · ไม่มีสังหาร 5%
+  attackLane(p) { return isRyougi(p) && PassiveSeal.on(p); },
+  laneLen(p) { return isRyougi(p) && PassiveSeal.on(p) ? LANE_LEN : 0; }, // ฟันแนว 2 ช่องหน้าตัวเสมอ (เท่าปลายระยะ [1, 2] — ผู้ใช้ 2026-10-23)
+  killChance(p) { return isRyougi(p) && PassiveSeal.on(p) ? KILL_CHANCE : 0; },
+  damageBonus(engine, attacker) { return bloomOn(attacker) && PassiveSeal.on(attacker) ? BLOOM_ATK : 0; },
+  attackFxNames(attacker) { return bloomOn(attacker) && PassiveSeal.on(attacker) ? [`ดับสิ้นซะ — พลังโจมตี +${BLOOM_ATK}`] : []; },
   attackStyle(p) { return isRyougi(p) ? (bloomOn(p) ? "ryougiLeap" : "ryougiSlash") : null; },
   attackSound(p) { return isRyougi(p) ? (bloomOn(p) ? "ryougi_leap" : "ryougi_slash") : undefined; },
   attackFxExtra(p) { return bloomOn(p) ? LEAP_EXTRA : 0; },

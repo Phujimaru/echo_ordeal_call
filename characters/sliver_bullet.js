@@ -45,6 +45,7 @@
 
 const { CHAR_BY_ID } = require("../characters.js"); // ข้อมูลไม่มี require ต่อ — ไม่วนกลับมาที่นี่
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "sliver_bullet";
 const DIR = "/characters/sliver_bullet";
@@ -162,7 +163,9 @@ function pilots(engine) { return Object.values(engine.players).filter(isPilot); 
 const isBanagher = (p) => isPilot(p) && st(p).form === "banagher";
 const isPilotForm = (p) => isPilot(p) && st(p).form !== "banagher";
 const unicornOn = (p) => isBanagher(p) && !!st(p).unicorn;
-const ntdOn = (p) => isBanagher(p) && (st(p).ntd || !!st(p).unicorn); // ผลของ NT-D (ปุ่ม หรือ New Type Paradise)
+// ลบสกิลติดตัว (server/passiveSeal.js): ปุ่ม NT-D (สกิลติดตัว NT-D ทำงาน) ไม่ออกฤทธิ์ระหว่างติด — สถานะปุ่มค้างไว้ ไม่ล้าง
+//  New Type Paradise ระหว่างยูนิคอร์น = ผลของท่าไม้ตาย จึงไม่ถูกปิด
+const ntdOn = (p) => isBanagher(p) && ((st(p).ntd && PassiveSeal.on(p)) || !!st(p).unicorn); // ผลของ NT-D (ปุ่ม หรือ New Type Paradise)
 const funnelsOf = (engine, p) => engine.summon.ofOwner(p.id, "funnel");
 const boxOf = (engine, p) => { const id = st(p).box; const b = id && engine.players[id]; return b && b.alive && b.pos ? b : null; };
 
@@ -508,12 +511,13 @@ module.exports = {
   attackFxNames(attacker) { return ntdOn(attacker) ? [unicornOn(attacker) ? "New Type Paradise" : "NT-D"] : []; },
 
   // ---------- ซุ่มโจมตี (นักบินเท่านั้น) ----------
-  stealthed(p) { return isPilotForm(p) && st(p).hidden; },
+  stealthed(p) { return isPilotForm(p) && st(p).hidden && PassiveSeal.on(p); }, // ลบสกิลติดตัว = มองเห็นทันที
   // เริ่มเกม / ต้นเทิร์น: หมดเวลาปรากฏตัวแล้ว + เงื่อนไขจริง = ล่องหน
   refresh(engine) {
     for (const p of pilots(engine)) {
       const s = st(p);
       if (!p.alive || s.form === "banagher") { s.hidden = false; continue; }
+      if (PassiveSeal.sealed(p)) { if (s.hidden) reveal(engine, p, 0); continue; } // ลบสกิลติดตัว (server/passiveSeal.js) = ไม่ล่องหน
       if (!conditionHolds(engine, p)) { if (s.hidden) reveal(engine, p, 0); continue; }
       if (!s.hidden && engine.roundNumber > s.revealUntil) { s.hidden = true; s.hiddenAt = engine.severStamp(); }
     }
@@ -733,7 +737,7 @@ module.exports = {
     for (const p of pilots(engine)) {
       if (!p.alive || !isBanagher(p)) continue;
       const s = st(p);
-      if (s.ntd && !s.unicorn) {
+      if (s.ntd && !s.unicorn && PassiveSeal.on(p)) { // ลบสกิลติดตัว = NT-D ไม่ออกฤทธิ์ จึงไม่หักแต้ม
         if ((p.skillPoints || 0) >= B.ntdUpkeep) p.skillPoints -= B.ntdUpkeep;
         else { s.ntd = false; engine.log(`🦄 ${p.name} แต้มสกิลไม่พอ — NT-D ปิด`); }
       }
@@ -765,7 +769,7 @@ module.exports = {
       return [{ key: "wear", icon: "📦", name: "สวม", img: IMG.laplace, disabled: !(engine.canAct(p) && nearBox(engine, p)) }];
     }
     const out = [];
-    out.push({ key: "ntd", icon: "🦄", name: "NT-D", img: IMG.ntd, on: ntdOn(p), disabled: !!s.unicorn || s.ntdRound === r || !engine.canAct(p) });
+    out.push({ key: "ntd", icon: "🦄", name: "NT-D", img: IMG.ntd, on: ntdOn(p), disabled: !!s.unicorn || s.ntdRound === r || !engine.canAct(p) || (!s.ntd && PassiveSeal.sealed(p)) });
     if (ntdOn(p)) {
       const ok = dashReady(engine, p);
       out.push({ key: "dash", icon: "💨", name: "พุ่ง", tiles: ok ? dashTiles(engine, p).map(tile) : [], disabled: !ok });
@@ -786,6 +790,7 @@ module.exports = {
     if (!isBanagher(p)) return;
     if (key === "ntd") {
       if (s.unicorn || s.ntdRound === r) return;
+      if (!s.ntd && PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: เปิด NT-D ไม่ได้ (ปิดได้)
       s.ntdRound = r;
       s.ntd = !s.ntd;
       if (s.ntd) {
@@ -817,7 +822,7 @@ module.exports = {
     return {
       form: s.form,
       arm: !!s.arm,
-      hidden: inside ? !!s.hidden : false,
+      hidden: inside ? !!s.hidden && PassiveSeal.on(p) : false,
       revealLeft: s.form !== "banagher" && !s.hidden && s.revealUntil >= r ? s.revealUntil - r + 1 : 0,
       box: s.box || null,
       ammo: s.ammo, ammoMax: B.ammo, reloadNeed: !!s.reloadNeed,

@@ -32,6 +32,7 @@ const CHAR_HOOKS = require("../characters/index");
 const { statusAmtOf, poisonAtkPenalty, invertActive } = require("../characters/_universal_status");
 const { ATTACKFX_TIME } = require("./constants");
 const Board = require("./board");
+const PassiveSeal = require("./passiveSeal"); // ลบสกิลติดตัว (Ice Spike)
 const match = require("./match");
 const { engine } = require("./engine");
 const combat = require("./combat");
@@ -718,6 +719,7 @@ function flushBursts() {
   for (const p of Object.values(match.players)) {
     if ((p.iceHurt || 0) < BURST_AT) continue;
     if (!p.alive || !p.pos) { p.iceHurt = 0; continue; }
+    if (PassiveSeal.sealed(p)) continue; // ลบสกิลติดตัว (Ice Spike ติดตัว 3): ไม่ระเบิด · ค่าสะสมค้างไว้
     p.iceHurt -= BURST_AT;
     burstNow(p);
     any = true;

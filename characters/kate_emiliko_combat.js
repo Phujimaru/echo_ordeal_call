@@ -15,6 +15,7 @@
 
 const Board = require("../server/board");
 const Duo = require("../server/duo");
+const PassiveSeal = require("../server/passiveSeal");
 
 const MOP_DMG = 1;       // ไม้ถูพื้นไถลชน (ผู้ใช้สั่ง 2026-11-08: 2 → 1)
 const VASE_PUSH = 3;
@@ -186,7 +187,7 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
     // เคทตีปกติ → เป้า "มืดบอด" (ต้านสถานะได้): ในม่านแดงของตัวเอง (ติดตัว) = จนม่านหมด · ถือดาบเขม่า = 1 เทิร์น
     onStrikeLanded(engine, attacker, target) {
       if (!isKate(attacker) || !target.alive) return [];
-      const storm = engine.soot.ownStormOf(attacker);
+      const storm = PassiveSeal.on(attacker) ? engine.soot.ownStormOf(attacker) : null; // มืดบอดจนม่านหมด = ติดตัว (ลบสกิลติดตัว = เหลือแค่ของดาบ)
       const turns = Math.max(storm ? storm.left : 0, st(attacker).sword === "kate" ? oneTurn(engine, target) : 0);
       if (turns <= 0) return [];
       if ((target.statuses[MASK_KEY] || 0) >= turns) return []; // ติดอยู่นานกว่าแล้ว

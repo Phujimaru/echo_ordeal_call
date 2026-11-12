@@ -34,6 +34,7 @@
 // ============================================================
 
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal"); // ลบสกิลติดตัว (server/passiveSeal.js)
 
 const ID = "ice_spike";
 const DIR = "/characters/ice_spike";
@@ -107,8 +108,9 @@ module.exports = {
   maxArmor(p, base) { return isIceSpike(p) ? 2 : base; },
   attackBaseOverride(engine, p) { return isIceSpike(p) ? 0 : 1; },
   // ติดตัว 4: ไม่โดนผลลดระยะเดิน (action.movOf · Ice.applySlow) · ติดตัว 5: ไม่โดนน้ำแข็งกัด/สตั้นจากแผนที่ (server/fodlan/stage4.js)
-  movCutImmune(p) { return isIceSpike(p); },
-  mapEffectImmune(p, kind) { return isIceSpike(p) && (kind === "frostbite" || kind === "stun"); },
+  //  ลบสกิลติดตัว = ไม่กันทั้งสองอย่าง
+  movCutImmune(p) { return isIceSpike(p) && PassiveSeal.on(p); },
+  mapEffectImmune(p, kind) { return isIceSpike(p) && PassiveSeal.on(p) && (kind === "frostbite" || kind === "stun"); },
 
   resetCombat(p) {
     p.iceHurt = 0;          // ดาเมจที่ได้รับสะสม (ครบ 3 = ระเบิด)
@@ -207,7 +209,7 @@ module.exports = {
 
   // ---------- ติดตัว 1: ช่องที่เดิน/ไถลผ่านเป็นธารน้ำแข็ง ----------
   afterWalk(engine, p, tiles, ctx) {
-    if (!isIceSpike(p)) return [];
+    if (!isIceSpike(p) || PassiveSeal.sealed(p)) return []; // ลบสกิลติดตัว = ไม่วางน้ำแข็ง
     const recs = [], laid = [];
     const seen = new Set();
     for (const t of tiles) {
@@ -228,7 +230,7 @@ module.exports = {
   // ถูกผลัก/กระเด็น/ดึง (ระบบกลาง Ice.forcedMoved — ผู้ใช้สั่ง 2026-10-22): ทางที่ถูกพาผ่านเป็นธารน้ำแข็งเหมือนเดินเอง (ย้อนไม่ได้)
   //  ctx = ชุดเหตุการณ์ iceFx ที่ยังไม่ส่ง (ต่อท้าย) · null = ส่งชุดของตัวเอง
   onForcedMove(engine, u, tiles, ctx) {
-    if (!isIceSpike(u) || !u.alive || !Array.isArray(tiles) || !tiles.length) return;
+    if (!isIceSpike(u) || !u.alive || PassiveSeal.sealed(u) || !Array.isArray(tiles) || !tiles.length) return;
     const laid = [];
     const seen = new Set();
     for (const t of tiles) {
@@ -244,6 +246,8 @@ module.exports = {
   },
 
   // ---------- ติดตัว 2: ไถลชนศัตรู ----------
+  // ลบสกิลติดตัว = ไถลชนแบบคนทั่วไป (ศัตรูกระเด็น 1 ช่อง ไม่เสียเลือด · server/ice.js impact)
+  slideStrikes(engine, p) { return PassiveSeal.on(p); },
   slideStrike(engine, p, u, n) {
     if (!isIceSpike(p)) return 0;
     const lv = eosLv();
@@ -277,7 +281,7 @@ module.exports = {
 
   // ---------- ติดตัว 3: ฟื้นจากการไถล · สะสมดาเมจ ----------
   onSlide(engine, p, n, ctx) {
-    if (!isIceSpike(p)) return;
+    if (!isIceSpike(p) || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว = ไม่ฟื้น
     const kHp = Math.floor(n / REGEN_HP_EVERY), kSp = Math.floor(n / REGEN_SP_EVERY);
     if (kHp <= 0 && kSp <= 0) return;
     const hp = kHp > 0 ? engine.healHp(p, kHp) : 0;
@@ -290,7 +294,7 @@ module.exports = {
     }
   },
   onDamageTaken(engine, p, n) {
-    if (isIceSpike(p) && p.alive) engine.ice.noteHurt(p, n);
+    if (isIceSpike(p) && p.alive && PassiveSeal.on(p)) engine.ice.noteHurt(p, n); // ลบสกิลติดตัว = ไม่สะสม
   },
   // ชนหนามของตัวเอง = แต้มสกิล +2 (ไม่เสียหาย ไม่เชื่องช้า)
   ownSpike(engine, p) {

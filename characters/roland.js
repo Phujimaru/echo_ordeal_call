@@ -16,6 +16,8 @@
 //    Fervent Beats เลือดเหลือ 1 แทนการตาย · ถูกตัดบัฟ = ตายเหมือนหมดเวลา · เศษน้ำแข็งค้างบนเป้าหลังบัฟหมด
 // ============================================================
 
+const PassiveSeal = require("../server/passiveSeal");
+
 const ID = "roland";
 const DIR = "/characters/roland";
 const IMG = {
@@ -117,6 +119,7 @@ function gainSp(engine, p, n, why) {
 }
 // สร้างความเสียหายครบ 4 ครั้ง: Emotion +1 · แต้มสกิล +1 · พลังชีวิต +1
 function countDamage(engine, p) {
+  if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว (server/passiveSeal.js) — Black Silence ไม่นับ
   const s = st(p);
   s.hits += 1;
   if (s.hits < HITS_PER_EMOTION) return;
@@ -132,7 +135,7 @@ function countDamage(engine, p) {
 }
 function markUsed(engine, p, k) {
   const s = st(p);
-  if (s.used.includes(k)) return;
+  if (s.used.includes(k) || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: Furioso charge ไม่เพิ่ม
   s.used.push(k);
   if (chargeOf(s) < CARD_KINDS) return;
   fx(engine, p, "ready", {});
@@ -419,15 +422,17 @@ module.exports = {
   maxArmor() { return ARMOR; },
   maxSkill() { return MAX_SKILL; },
   mov(p) { return isRoland(p) ? MOV + (egoOn(p, "urging") ? 1 : 0) : null; },
-  blocksSkillGain(p, src) { return isRoland(p) && src === "item"; },
+  blocksSkillGain(p, src) { return isRoland(p) && src === "item" && PassiveSeal.on(p); }, // ลบสกิลติดตัว = ข้อเสียหายด้วย
   attackBaseOverride(engine, attacker) { return egoOn(attacker, "fervent") ? FERVENT_ATK : 0; },
 
   // ---------- จังหวะเทิร์น ----------
   onRoundStartTick(engine, p) {
     if (!isRoland(p)) return;
     const s = st(p);
-    const n = s.started ? 1 + s.bonusDraw : START_CARDS;
-    s.started = true;
+    // ลบสกิลติดตัว: ไม่จั่วจาก Black Silence (เริ่มเกม 3 ใบ / ต้นเทิร์น 1 ใบ) · จั่วเพิ่มจากการ์ด (Zelkova ฯลฯ) ยังได้
+    const sealed = PassiveSeal.sealed(p);
+    const n = sealed ? (s.started ? s.bonusDraw : 0) : s.started ? 1 + s.bonusDraw : START_CARDS;
+    if (!sealed) s.started = true;
     s.bonusDraw = 0;
     for (let i = 0; i < n; i++) drawOne(s);
     secretFx(engine, p, "draw");

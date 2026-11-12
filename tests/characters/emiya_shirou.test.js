@@ -166,7 +166,7 @@ test('Trace On นอกตาตัวเองกดไม่ได้ · Exca
   assert.equal(P.S.emiya.weapon, null, '1 ครั้งต่อเกม');
 });
 
-test('UBW: Trace On ไม่มีคูลดาวน์ · ระยะเดิน +1 · Hrunting ระยะ 1–4 เดิน −1', () => {
+test('UBW: Trace On ไม่มีคูลดาวน์ · ระยะเดิน +1 · Hrunting ระยะ 1–4 เดิน −1 (UBW: ไม่ลด)', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
   engine.setActor('S');
   P.S.skillPoints = 8;
@@ -174,7 +174,7 @@ test('UBW: Trace On ไม่มีคูลดาวน์ · ระยะเ�
   assert.deepEqual(action.rangeOf(P.S), [1, 4]);
   assert.equal(action.baseMovOf(P.S), 3);
   P.S.emiya.ubwEnd = engine.roundNumber + 2;
-  assert.equal(action.baseMovOf(P.S), 4, 'UBW +1 · ธนู −1');
+  assert.equal(action.baseMovOf(P.S), 5, 'UBW +1 · ธนูไม่ลดระยะเดินระหว่าง UBW');
   trace('kb');
   assert.equal(P.S.emiya.weapon, 'kb', 'UBW: ไม่มีคูลดาวน์');
   assert.equal(action.baseMovOf(P.S), 5);
@@ -199,16 +199,17 @@ test('อาวุธหาย: ตีปกติ+สกิลรองรว�
   assert.equal(Q.S.emiya.weapon, null, 'หลังจบเทิร์นที่ 5 หาย');
 });
 
-test('Kanshou & Bakuya: ตี 1 ครั้ง = 2 ฮิต · แต้มสกิล +1 · นับใช้ 1 ครั้ง · คริ 30%', () => {
+test('Kanshou & Bakuya: ตี 1 ครั้ง = 2 ฮิต · แต้มสกิล +1 · นับใช้ 1 ครั้ง · คริ 20% · นอก UBW ไม่ติดเลือดไหล', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1]]);
   engine.setActor('S');
   trace('kb');
-  assert.equal(emiya.critPct(P.S), 30);
+  assert.equal(emiya.critPct(P.S), 20);
   drain(() => engine.attackTarget('S', 'A'));
   assert.equal(P.A.armor, 1, '2 ฮิต × 1');
   assert.equal(match.lastAttack.repeat.length, 1);
   assert.equal(P.S.skillPoints, 8, '8 − 1 + 1');
   assert.equal(P.S.emiya.uses, 1);
+  assert.ok(!P.A.statuses.hbleed, 'นอก UBW = ไม่ติดเลือดไหล');
 });
 
 test('ไม่มีอาวุธ: ตีปกติไม่ได้แต้ม · สกิลรองใช้ไม่ได้', () => {
@@ -247,7 +248,7 @@ test('Nine Lives Blade Works: พลังโจมตี +1 · ตีกรอ�
   assert.equal(match.lastAttack.byLane.length, 6);
 });
 
-test('Excalibur: ตีแนว 3×1 โดนทุกคนในแนว · เปราะบาง +1 · ตีครบ 2 ครั้งหาย', () => {
+test('Excalibur: ตีแนว 3×1 โดนทุกคนในแนว · เปราะบาง +1 · ตีกี่ครั้งก็ไม่หาย อยู่ครบ 2 เทิร์น', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1], ['B', 'dummy', 3], ['C', 'dummy', 4]]);
   engine.setActor('S');
   P.S.emiya.ubwEnd = engine.roundNumber + 3;
@@ -259,12 +260,16 @@ test('Excalibur: ตีแนว 3×1 โดนทุกคนในแนว ·
   assert.equal(P.A.statuses.fragile, 2);
   assert.equal(engine.statusAmtOf(P.A, 'fragile'), 1);
   assert.equal(P.S.emiya.weapon, 'excalibur');
-  engine.setActor('S');
-  drain(() => engine.attackTarget('S', 'A'));
-  assert.equal(P.S.emiya.weapon, null, 'ตีครบ 2 ครั้ง');
+  for (let i = 0; i < 2; i++) { engine.setActor('S'); drain(() => engine.attackTarget('S', 'A')); }
+  assert.equal(P.S.emiya.weapon, 'excalibur', 'ตี 3 ครั้งยังอยู่ (ไม่นับครั้ง)');
+  assert.equal(emiya.emiyaState(engine, P.S).usesLeft, null);
+  nextRound(P);
+  assert.equal(P.S.emiya.weapon, 'excalibur', 'เทิร์นที่ 2 ยังถือ');
+  nextRound(P);
+  assert.equal(P.S.emiya.weapon, null, 'หลังจบเทิร์นที่ 2 หาย');
 });
 
-test('Throwing Blade: ระยะ 4 · ดาเมจ 1 + เลือดไหล 2 · นอกระยะไม่เสียแต้ม · คูลดาวน์ร่วม 4', () => {
+test('Throwing Blade: ระยะ 4 · ดาเมจ 1 + เลือดไหล 1 · นอกระยะไม่เสียแต้ม · คูลดาวน์ร่วม 4', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 4], ['B', 'dummy', 5]]);
   engine.setActor('S');
   trace('kb');
@@ -273,7 +278,7 @@ test('Throwing Blade: ระยะ 4 · ดาเมจ 1 + เลือดไ�
   drain(() => engine.useSkill('S', 'secondary', ['A']));
   assert.equal(P.S.skillPoints, 4);
   assert.equal(P.A.armor, 2);
-  assert.equal(P.A.statuses.hbleed, 2);
+  assert.equal(P.A.statuses.hbleed, 1);
   assert.equal(engine.action.locked, true);
   assert.equal(P.S.emiya.wsReady, engine.roundNumber + 4);
   assert.equal(P.S.emiya.uses, 1);
@@ -310,20 +315,21 @@ test('Ground Smash: ดาเมจ 3 · ผลัก 2 ช่อง · ชน�
   assert.equal(P.C.armor, 3, 'นอกแนว 4');
 });
 
-test('Rho Aias: คุ้มครอง −1 + ต้านสถานะ 2 เทิร์น', () => {
+test('Rho Aias: 4 แต้ม · คุ้มครอง −1 + ต้านสถานะ 2 เทิร์น', () => {
   const P = setup([['S', 'emiya_shirou', 0]]);
   engine.setActor('S');
   trace('rule');
   P.S.skillPoints = 5;
+  assert.equal(skills.skillCostOf(P.S, 'secondary', 0), 4);
   engine.useSkill('S', 'secondary', [], {});
-  assert.equal(P.S.skillPoints, 0);
+  assert.equal(P.S.skillPoints, 1);
   assert.equal(P.S.statuses.guard, 2);
   assert.equal(engine.statusAmtOf(P.S, 'guard'), 1);
   assert.equal(P.S.statuses.resist, 2);
 });
 
-test('Ex calibruuuu!: แนว 5×3 ดาเมจ 4 · คุ้มครองไม่มีผล · ใช้แล้ว Excalibur หาย', () => {
-  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2], ['B', 'dummy', 5, 1], ['C', 'dummy', 6]]);
+test('Ex calibruuuu!: แนว 7×1 ดาเมจ 5 · คุ้มครอง/หลบไม่มีผล · ใช้แล้ว Excalibur ยังอยู่', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2], ['B', 'dummy', 5, 1], ['C', 'dummy', 7], ['D', 'dummy', 8]]);
   engine.setActor('S');
   P.S.emiya.ubwEnd = engine.roundNumber + 3;
   P.S.emiya.capBonus = 8; P.S.skillPoints = 14;
@@ -331,10 +337,11 @@ test('Ex calibruuuu!: แนว 5×3 ดาเมจ 4 · คุ้มครอ�
   P.A.statuses.guard = 2; P.A.statusAmt.guard = 1;
   P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
   drain(() => engine.useSkill('S', 'secondary', [], { dir: 'right' }));
-  assert.equal(P.A.armor, 0); assert.equal(P.A.hp, 6, 'คุ้มครอง/หลบไม่มีผล 4');
-  assert.equal(P.B.hp, 6);
-  assert.equal(P.C.armor, 3, 'นอกแนว 5');
-  assert.equal(P.S.emiya.weapon, null);
+  assert.equal(P.A.armor, 0); assert.equal(P.A.hp, 5, 'คุ้มครอง/หลบไม่มีผล 5');
+  assert.equal(P.B.armor, 3, 'แนวกว้าง 1 — แถวข้างไม่โดน');
+  assert.equal(P.C.hp, 5, 'ช่องที่ 7 โดน');
+  assert.equal(P.D.armor, 3, 'นอกแนว 7');
+  assert.equal(P.S.emiya.weapon, 'excalibur', 'ไม่หายหลังใช้สกิลรอง');
 });
 
 test('Unlimited Blade Works: 12 แต้ม · 6 เทิร์น · ต้นเทิร์นแต้ม +1 · คูลดาวน์สกิลรองลดเพิ่ม · คูลดาวน์ 6 หลังจบ', () => {
@@ -381,25 +388,112 @@ test('Avalon: ได้รับความเสียหาย = เยีย
   assert.equal(P.S.statuses.mend, 2, 'เทิร์น 8 ติดได้อีก');
 });
 
-test('Avalon: ใช้สกิลทุกครั้ง ความจุ +1 ไม่เกิน 24 · ยาฟื้นแต้มใช้ไม่ได้', () => {
+test('Avalon: ใช้สกิลทุกครั้ง ความจุ +2 ไม่เกิน 28 · ไอเทมฟื้นแต้มใช้ได้', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
   engine.setActor('S');
   trace('kb');
-  assert.equal(engine.maxSkillOf(P.S), 9);
+  assert.equal(engine.maxSkillOf(P.S), 10);
   trace('rule');
-  assert.equal(engine.maxSkillOf(P.S), 9, 'กดไม่ผ่าน (คูลดาวน์) = ไม่เพิ่ม');
-  P.S.emiya.capBonus = 15;
+  assert.equal(engine.maxSkillOf(P.S), 10, 'กดไม่ผ่าน (คูลดาวน์) = ไม่เพิ่ม');
+  P.S.emiya.capBonus = 19;
   P.S.emiya.traceReady = 0;
   trace('rule');
-  assert.equal(engine.maxSkillOf(P.S), 24);
+  assert.equal(engine.maxSkillOf(P.S), 28, '+19 → +20 (ชนเพดาน)');
   P.S.emiya.traceReady = 0;
   trace('kb');
-  assert.equal(engine.maxSkillOf(P.S), 24, 'เต็ม +16 แล้วไม่เพิ่ม');
+  assert.equal(engine.maxSkillOf(P.S), 28, 'เต็ม +20 แล้วไม่เพิ่ม');
   P.S.skillPoints = 3;
   P.S.inventory = [{ uid: 'bt1', type: 'battery', charge: 2 }];
   shop.useInventoryItem('S', 'bt1', { amount: 2 });
-  assert.equal(P.S.skillPoints, 3);
-  assert.equal(P.S.inventory[0].charge, 2, 'ถังไม่ถูกถอน');
+  assert.equal(P.S.skillPoints, 5, 'ไอเทมฟื้นแต้มได้');
+});
+
+test('Avalon: สนาม Eos ความจุเพิ่มไม่มีเพดาน', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
+  const prev = match.gameMode;
+  match.gameMode = 'eos';
+  try {
+    engine.setActor('S');
+    P.S.emiya.capBonus = 40;
+    trace('kb');
+    assert.equal(P.S.emiya.capBonus, 42);
+    assert.equal(engine.maxSkillOf(P.S), 50);
+  } finally { match.gameMode = prev; }
+});
+
+test('ลบสกิลติดตัว: Avalon ไม่ทำงาน (ไม่เยียวยา · ความจุไม่เพิ่ม · ตีไม่ได้แต้ม) แต่อาวุธยังใช้ได้', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1]]);
+  engine.setActor('S');
+  P.S.statuses.noPassive = 2;
+  trace('kb');
+  assert.equal(P.S.emiya.weapon, 'kb');
+  assert.equal(engine.maxSkillOf(P.S), 8, 'ความจุไม่เพิ่ม');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.S.skillPoints, 7, 'ตีไม่ได้แต้ม');
+  assert.equal(P.S.emiya.uses, 1, 'อาวุธยังนับครั้ง');
+  engine.dealMixed(P.S, 1);
+  assert.ok(!P.S.statuses.mend, 'ไม่เยียวยา');
+});
+
+// ---------- ผลระหว่าง Unlimited Blade Works (บัฟ 2026-11-12) ----------
+test('UBW · Kanshou & Bakuya: ตีโดนติดเลือดไหล 1 เทิร์น', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1]]);
+  engine.setActor('S');
+  P.S.emiya.ubwEnd = engine.roundNumber + 3;
+  trace('kb');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.statuses.hbleed, 1, 'ติดเลือดไหล 1 (2 ฮิตไม่ซ้อน)');
+  engine.setActor('S');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.statuses.hbleed, 2, 'การโจมตีครั้งใหม่ติดเพิ่ม');
+  assert.ok(match.lastAttack.skills.some((s) => /เลือดไหล/.test(s.name)), 'ป้ายในฉากตี');
+});
+
+test('UBW · Hrunting: พลังโจมตี +1 (นอก UBW ไม่ได้)', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 3], ['B', 'dummy', -3]]);
+  engine.setActor('S');
+  trace('hrunting');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.armor, 2, 'นอก UBW 1');
+  engine.setActor('S');
+  P.S.emiya.ubwEnd = engine.roundNumber + 3;
+  drain(() => engine.attackTarget('S', 'B'));
+  assert.equal(P.B.armor, 1, 'UBW 2');
+});
+
+test('UBW · Rule Breaker: ตีโดนลบสกิลติดตัวของเป้า 2 เทิร์น · ต้านสถานะกันได้ · นอก UBW ไม่ลบ', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 1], ['B', 'dummy', -1], ['C', 'dummy', 0, 1]]);
+  engine.setActor('S');
+  trace('rule');
+  drain(() => engine.attackTarget('S', 'C'));
+  assert.ok(!P.C.statuses.noPassive, 'นอก UBW');
+  P.S.emiya.ubwEnd = engine.roundNumber + 3;
+  P.S.emiya.uses = 0;
+  engine.setActor('S');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.statuses.noPassive, 2);
+  assert.ok(engine.passiveSealed(P.A));
+  P.B.statuses.resist = 2;
+  P.S.emiya.uses = 0;
+  engine.setActor('S');
+  drain(() => engine.attackTarget('S', 'B'));
+  assert.ok(!P.B.statuses.noPassive, 'ต้านสถานะ');
+});
+
+test('UBW · Nine Lives: ทุกคนที่โดนในกรอบถูกผลักออก 2 ช่อง (นอก UBW ไม่ผลัก)', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2], ['B', 'dummy', 1, 1]]);
+  engine.setActor('S');
+  trace('nine');
+  const ax = P.A.pos.x, bx = P.B.pos.x;
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.pos.x, ax, 'นอก UBW ไม่ผลัก');
+  P.S.emiya.ubwEnd = engine.roundNumber + 3;
+  P.S.emiya.uses = 0;
+  engine.setActor('S');
+  drain(() => engine.attackTarget('S', 'A'));
+  assert.equal(P.A.pos.x, ax + 2, 'เป้าหลักผลัก 2');
+  assert.equal(P.B.pos.x, bx + 2, 'คนในกรอบผลัก 2');
+  assert.equal(P.B.pos.y, P.S.pos.y + 1, 'ผลักตามทิศของกรอบ (แนวนอน)');
 });
 
 test('ตัดผลสกิล: อาวุธ + UBW (ล่าสุดก่อน)', () => {

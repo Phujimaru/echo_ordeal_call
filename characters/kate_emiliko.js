@@ -17,6 +17,7 @@
 
 const Board = require("../server/board");
 const Duo = require("../server/duo");
+const PassiveSeal = require("../server/passiveSeal");
 const KC = require("./kate_emiliko_combat"); // ส่วนการต่อสู้ (อาวุธ / แส้ / ปีก / ม่านแดง / ท่าไม้ตาย)
 
 const KATE = "kate";
@@ -162,7 +163,8 @@ const shared = {
   maxHp(p) { return isPair(p) ? MAX_HP : undefined; },
   maxArmor(p, base) { return isPair(p) ? MAX_ARMOR : base; },
   maxSkill(p) { return isPair(p) ? MAX_SKILL : undefined; },
-  skillRegen(p) { return isPair(p) ? SKILL_REGEN : 1; },
+  // ฟื้นเทิร์นละ 2 = สกิลติดตัว เคท & เอมิลิโกะ — ลบสกิลติดตัว (server/passiveSeal.js) = ฟื้นปกติ 1 (ระบบคู่ที่เหลือคงไว้ ไม่งั้นทั้งคู่พัง)
+  skillRegen(p) { return isPair(p) ? (PassiveSeal.on(p) ? SKILL_REGEN : 1) : 1; },
   resetCombat(p) {
     if (!isPair(p)) return;
     p.shadow = isKate(p) ? fresh() : undefined;
@@ -176,6 +178,7 @@ const shared = {
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isKate(p) || p.summon || !p.alive || !inStorm(engine, p)) continue;
+      if (!PassiveSeal.on(p)) continue; // ลบสกิลติดตัว
       const before = p.skillPoints;
       engine.addSkill(p, STORM_REGEN);
       if (p.skillPoints > before) engine.log(`🌹 ${p.name} ฟื้นแต้มสกิล +${p.skillPoints - before} ในม่านแดง`);
@@ -184,7 +187,7 @@ const shared = {
   // ระยะเดิน: ในระบำเขม่า เคท 6 · เอมิลิโกะ 4
   mov(p) {
     if (!isPair(p)) return null;
-    return inStorm(E(), p) ? STORM_MOV[p.characterId] : null;
+    return inStorm(E(), p) && PassiveSeal.on(p) ? STORM_MOV[p.characterId] : null; // ลบสกิลติดตัว = เดินปกติ
   },
   // กระจกเงาสลับตัวได้ระหว่างเดินต่อของเอมิลิโกะ · เอมิลิโกะสลับอาวุธได้ด้วย (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
   cantoSkill(p, tier) { return isPair(p) && (tier === "basic" || (tier === "secondary" && isEmi(p))); },
@@ -312,7 +315,7 @@ const kate = {
     return { ...(basic ? { basic: { locked: true } } : {}), ...(cd ? { ultimate: { locked: true, cd } } : {}) };
   },
   // เอมิลิโกะเดินต่อหลังตี/รอ
-  cantoMov(engine, p) { return isEmi(p) && p.alive ? CANTO_MOV : 0; },
+  cantoMov(engine, p) { return isEmi(p) && p.alive && PassiveSeal.on(p) ? CANTO_MOV : 0; }, // กำลังใจเต็มเปี่ยม (ลบสกิลติดตัว = ไม่มี)
   // ข้อมูลให้ client (แผงตัวเรา / ปุ่มเลือก)
   shadowState(engine, p) {
     if (!isPair(p)) return undefined;

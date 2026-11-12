@@ -17,6 +17,7 @@
 //   · ถูกผลัก/ดึงระหว่างนับยังขยับตามปกติ
 //   · โหมดทีม/Moon Cell: ยูกิชนะคนเดียวตามสเปก (เพื่อนร่วมทีมตายด้วย · winningTeamId = ทีมของยูกิ)
 // ============================================================
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "yuki_makoto";
 const DIR = "/characters/yuki_makoto";
@@ -66,7 +67,7 @@ module.exports = {
 
   // ---------- มิตรภาพ (combat.instantDeath — ถามแม้ force · ไม่ถามเมื่อ "absolute") ----------
   deathless(engine, p) {
-    if (!isYuki(p)) return false;
+    if (!isYuki(p) || PassiveSeal.sealed(p)) return false; // ลบสกิลติดตัว = ตายได้ตามปกติ (server/passiveSeal.js)
     p.hp = HP;
     p.armor = ARMOR;
     engine.log(`🤝 ${p.name} มิตรภาพ — ฟื้นคืนชีพ (พลังชีวิต ${HP} · เกราะ ${ARMOR})`);

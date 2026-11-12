@@ -24,6 +24,7 @@
 //    ม่าน 2 ครั้ง = +2 · นกจาบ 2 ครั้ง = ต้นเทิร์นเสีย 2 + 2 · ความฝัน 2 ครั้ง = +8 และถ้าจบพร้อมกัน สตั้น 3 + 3 เทิร์น
 // ============================================================
 
+const PassiveSeal = require("../server/passiveSeal");
 const ID = "oberon_summer";
 const DIR = "/characters/oberon(summer)";
 // ภาพประจำตัว (ป้ายบัฟในฉากตี — phases/attack.js) · ภาพสกิลอยู่ใน characters.js (ภาพตอนเช้าของโอเบรอนตัวเก่า)
@@ -237,6 +238,7 @@ module.exports = {
     // สกิลติดตัว หน้าไหว้หลังหลอก: ไม่ถูกโจมตีปกติในเทิร์นนี้ -> แต้มสกิล +1 และเหรียญ +1
     for (const p of engine.alivePlayers()) {
       if (!isOberon(p) || p.wasAttacked) continue;
+      if (!PassiveSeal.on(p)) continue; // ลบสกิลติดตัว (server/passiveSeal.js)
       engine.addSkill(p, 1, "passive");
       engine.addGold(p, 1);
       engine.log(`🎭 ${p.name} หน้าไหว้หลังหลอก — ไม่ถูกโจมตีเลยเทิร์นนี้ ได้แต้มสกิล +1 และเหรียญ +1`);

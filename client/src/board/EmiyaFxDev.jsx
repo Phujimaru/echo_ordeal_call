@@ -124,10 +124,10 @@ export default function EmiyaFxDev({ units, pushFx, setFocus, map, em, setEm }) 
     if (hit.length) setTimeout(() => { pushFx(hit.map((u) => ({ kind: "float", x: u.x, y: u.y, text: "-3", size: 30, z: 1.5 }))); play({ kind: "stun", ids: hit.map((u) => u.id) }); }, 750);
   };
   const excal = () => {
-    const f = foes()[0], dir = f ? dirTo(f) : "right", tiles = line(dir, 5, 3);
+    const f = foes()[0], dir = f ? dirTo(f) : "right", tiles = line(dir, 7, 1);
     play({ kind: "excalibur", dir, tiles });
     const hit = hitsOn(tiles);
-    setTimeout(() => play({ kind: "excaliburHit", hits: hit.map((u) => ({ id: u.id, dmg: 4 })) }, null), 1400);
+    setTimeout(() => play({ kind: "excaliburHit", hits: hit.map((u) => ({ id: u.id, dmg: 5 })) }, null), 1400);
   };
   const ubw = (on) => {
     setEm((s) => ({ ...s, ubw: on }));

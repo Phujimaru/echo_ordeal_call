@@ -45,6 +45,7 @@
 // ============================================================
 const Board = require("../server/board");
 const { genderOf } = require("./_gender");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "kurenai_otoya";
 const DIR = "/characters/kurenai_otoya";
@@ -205,6 +206,14 @@ const syncAll = (engine) => { for (const o of otoyas(engine)) syncHeart(engine, 
 // ---------- ค่าใช้จ่ายพลังชีวิต (ไม่สนเกราะ · ไม่ทำให้ตาย — ราชาผีดูดเลือด) ----------
 function payHp(engine, p, name) {
   const s = st(p);
+  // ลบสกิลติดตัว (server/passiveSeal.js): ราชาผีดูดเลือดไม่กัน — เสียพลังชีวิตถึงตายได้
+  if (PassiveSeal.sealed(p)) {
+    engine.loseHp(p);
+    s.ultHpLost += HP_COST;
+    engine.log(`🦇 ${p.name} ${name} — เสียพลังชีวิต ${HP_COST} (ไม่สนเกราะ)`);
+    if (p.alive && p.hp <= 0) { engine.instantDeath(p); if (!p.alive) { p.pos = null; engine.log(`💀 ${p.name} ตกรอบ!`); } }
+    return;
+  }
   if (p.hp <= HP_COST) { engine.log(`🦇 ${p.name} ${name} — ราชาผีดูดเลือด ไม่เสียพลังชีวิต (เหลือ ${p.hp})`); return; }
   engine.loseHp(p);
   s.ultHpLost += HP_COST;
@@ -270,7 +279,7 @@ function revert(engine, p) {
   s.ultHpLost = 0;
   fx(engine, p, "revert");
   engine.log(`🦇 ${p.name} คืนร่างจาก Dark Kiva`);
-  if (lost > 0 && p.alive) {
+  if (lost > 0 && p.alive && PassiveSeal.on(p)) { // ลบสกิลติดตัว: หนุ่มเจ้าเสน่ห์ไม่เยียวยาตอนคืนร่าง
     engine.applyMend(p, 1, lost);
     engine.log(`💚 ${p.name} ${NAMES.charm} — เยียวยา ${lost} เทิร์น (พลังชีวิตที่เสียจากสกิล)`);
   }
@@ -312,7 +321,7 @@ module.exports = {
   damageBonus(engine, attacker, target, ctx) {
     if (!isOtoya(attacker)) return 0;
     const g = genderOf(target);
-    const charm = g === "f" ? CHARM_FEMALE : CHARM_OTHER;
+    const charm = PassiveSeal.sealed(attacker) ? 0 : g === "f" ? CHARM_FEMALE : CHARM_OTHER; // ลบสกิลติดตัว: หนุ่มเจ้าเสน่ห์ ±1 ไม่มี
     ctx.otoyaCharm = charm;
     const ult = ultOn(engine, attacker) ? ULT_ATK : 0;
     ctx.otoyaUlt = ult;
@@ -330,9 +339,10 @@ module.exports = {
     if (!isOtoya(attacker) || !ultOn(engine, attacker) || !target) return [];
     const s = st(attacker);
     const tags = [];
+    const king = PassiveSeal.on(attacker); // ลบสกิลติดตัว: ราชาผีดูดเลือดไม่ทำงาน (Wake Up 2 ยังทำงาน)
     if (target.alive) {
       engine.withEffectSource(attacker, () => {
-        if (engine.applyBleed(target, BLEED)) tags.push(`เลือดไหล ${BLEED}`);
+        if (king && engine.applyBleed(target, BLEED)) tags.push(`เลือดไหล ${BLEED}`);
         if (s.wake2) {
           s.wake2 = false;
           s.wake2Hit = true;
@@ -341,7 +351,7 @@ module.exports = {
         }
       });
     }
-    if (lastForm(engine, attacker)) {
+    if (king && lastForm(engine, attacker)) {
       const got = engine.healHp(attacker, LAST_HEAL);
       if (got > 0) tags.push(`ฟื้นพลังชีวิต ${got}`);
     }
@@ -356,13 +366,14 @@ module.exports = {
 
   // ราชาผีดูดเลือด: กลางคืนได้รับความเสียหายเบาลง 1
   adjustIncomingDamage(engine, p, n) {
-    if (!isOtoya(p) || !(n > 0) || !ultOn(engine, p) || !nightNow(engine)) return n;
+    if (!isOtoya(p) || !(n > 0) || !ultOn(engine, p) || !nightNow(engine) || PassiveSeal.sealed(p)) return n;
     return Math.max(0, n - NIGHT_GUARD);
   },
   // เลือดไหลบนตัวเอง = ฟื้นพลังชีวิตแทน · ไม่ลดการฟื้น
-  hbleedHeals(p) { return isOtoya(p); },
-  hbleedHarmless(p) { return isOtoya(p); },
-  hbleedLabel(p) { return isOtoya(p) ? NAMES.king : null; },
+  //  ลบสกิลติดตัว = เลือดไหลเป็นเลือดไหลปกติ
+  hbleedHeals(p) { return isOtoya(p) && PassiveSeal.on(p); },
+  hbleedHarmless(p) { return isOtoya(p) && PassiveSeal.on(p); },
+  hbleedLabel(p) { return isOtoya(p) && PassiveSeal.on(p) ? NAMES.king : null; },
 
   // ---------- ดนตรีในหัวใจ: ผลบนตัวเป้า (ฮุค broadcast) ----------
   auraAtk(engine, attacker) {

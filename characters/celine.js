@@ -25,12 +25,15 @@
 //  สวนดอกไม้ (ติดตัว 2): ทุกช่องที่เดินผ่าน (รวมช่องออกตัว/ปลาย) เกิดพุ่มใต้เท้า 5 เทิร์น (afterWalk — ย้อนการเดินได้ · บัฟ 2026-10-22 เดิม 3)
 //    · ถูกผลัก/กระเด็น/ดึงก็เกิดตามทางที่ถูกพาผ่าน (onForcedMove — ผู้ใช้สั่ง 2026-10-22) · สลับตำแหน่ง (วาร์ป) ไม่เกิด
 //    · เหยียบพุ่มเดิมไม่นับเวลาใหม่
+//  ลบสกิลติดตัว (server/passiveSeal.js): ซ่อนในพุ่มได้ตามกติกากลาง · ไม่มีคริในพุ่ม · การรักษาของคฑาไม่ติดคริ · เวลาน้ำชาไม่นับ/ไม่ฟื้น
+//    · เดิน/ถูกผลักไม่เกิดพุ่ม · คริของอาวุธ (ดาบมังกรแดง) / ราชาดอกไม้ ของตีปกติยังอยู่ (ผลอาวุธ/ท่าไม้ตาย)
 //  เสียงพากย์ตอนตี: เล่นเองตอนเริ่มฉากตี (preAttackClip) — ติดคริ = ไม่เล่น (คลิปคริมีเสียงของตัวเอง — ผู้ใช้สั่ง 2026-10-22)
 //  ตีปกติติดคริ = คลิปคริตามสายอาวุธก่อนฉากตีทุกครั้ง (ฮุค preAttackClip — server/phases/attack.js)
 //  เอฟเฟกต์: engine.boardFx("celineFx", …) ตามสัญญา .claude/plans/celine-contract.md §5
 // ============================================================
 const Board = require("../server/board");
 const Flora = require("../server/flora");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "celine";
 const DIR = "/characters/celine";
@@ -144,10 +147,11 @@ function inBloom(engine, p) {
 }
 // อัตราคริของเซลิน (%) ไม่รวมคริสนาม: ดาบมังกรแดง 50 · ในพุ่ม +20 · ราชาดอกไม้ +50
 function ownCrit(engine, p) {
-  return (weaponOf(p).crit || 0) + (inBloom(engine, p) ? BUSH_CRIT : 0) + (kingOn(p) ? KING_CRIT : 0);
+  return (weaponOf(p).crit || 0) + (PassiveSeal.on(p) && inBloom(engine, p) ? BUSH_CRIT : 0) + (kingOn(p) ? KING_CRIT : 0);
 }
 // ทอยคริของการรักษา (อัตราเดียวกับตีปกติ: สนาม + เฉพาะตัว) → ตัวคูณ (1 = ไม่ติด)
 function healCrit(engine, p) {
+  if (PassiveSeal.sealed(p)) return 1; // ลบสกิลติดตัว = การรักษาไม่ติดคริ
   const pct = (engine.critBonusFor(p) || 0) + ownCrit(engine, p);
   if (!(pct > 0) || Math.random() * 100 >= pct) return 1;
   return kingOn(p) ? 3 : 2;
@@ -306,11 +310,11 @@ module.exports = {
   voiceLines(p) { return isCeline(p) ? VOICE : null; },
 
   // ---------- การมองเห็น / การเดิน ----------
-  bushExposed(p) { return isCeline(p); },
+  bushExposed(p) { return isCeline(p) && PassiveSeal.on(p); }, // ลบสกิลติดตัว = จุดด้อยหายชั่วคราว
   flowerWalk(p) { return kingOn(p); },
   // ทุกช่องที่เดิน/ไถลผ่านเกิดพุ่ม (เหยียบพุ่มเดิมไม่นับเวลาใหม่) — บันทึก { k, undo } ไว้ย้อนการเดิน
   afterWalk(engine, p, tiles) {
-    if (!isCeline(p) || !p.alive) return [];
+    if (!isCeline(p) || !p.alive || PassiveSeal.sealed(p)) return []; // ลบสกิลติดตัว = ไม่เกิดพุ่ม
     const recs = Flora.lay(engine.boardMap(), tiles, p.id, TRAIL_TURNS, { keep: true });
     if (!recs.length) return [];
     // เดินใหม่ทุกก้าว (คีย์บอร์ด) server ถอดพุ่มของตานี้แล้วปลูกใหม่ทั้งเส้น — เอฟเฟกต์งอกเฉพาะช่องที่ยังไม่เคยงอกในตานี้
@@ -510,7 +514,8 @@ module.exports = {
       const got = (p.skillPoints || 0) - before;
       if (got > 0) engine.log(`👑 ${p.name} ราชาดอกไม้ — แต้มสกิล +${got}`);
     }
-    // เวลาน้ำชา: ต้นเทิร์นยืนในพุ่มติดกัน 2 เทิร์น = ฟื้น 1 (ไม่ติดคริ) แล้วนับใหม่
+    // เวลาน้ำชา: ต้นเทิร์นยืนในพุ่มติดกัน 2 เทิร์น = ฟื้น 1 (ไม่ติดคริ) แล้วนับใหม่ · ลบสกิลติดตัว = ไม่นับ/ไม่ฟื้น (ค่าที่นับไว้คงเดิม)
+    if (PassiveSeal.sealed(p)) return;
     const s = st(p);
     if (!inBloom(engine, p)) { s.teaStreak = 0; return; }
     s.teaStreak += 1;
@@ -529,7 +534,7 @@ module.exports = {
   },
   // ถูกผลัก/กระเด็น/ดึง: ทางที่ถูกพาผ่านเกิดพุ่ม (ย้อนไม่ได้ · วาร์ปไม่เกิด) — ระบบกลาง Ice.forcedMoved
   onForcedMove(engine, u, tiles) {
-    if (!isCeline(u) || !u.alive || !Array.isArray(tiles) || !tiles.length) return;
+    if (!isCeline(u) || !u.alive || !Array.isArray(tiles) || !tiles.length || PassiveSeal.sealed(u)) return; // ลบสกิลติดตัว
     const recs = Flora.lay(engine.boardMap(), tiles, u.id, TRAIL_TURNS, { keep: true });
     if (!recs.length) return;
     fx(engine, u, "trail", { tiles: recs.map((r) => ({ x: r.x, y: r.y })) });

@@ -26,6 +26,8 @@
 //    ฟื้นเลือด 2 เทิร์นต้องอยู่ร่างมนุษย์ติดกัน · เสียง 103/106/279/ยิง ตัดจากไฟล์ซาวด์เอฟเฟกต์ของผู้ใช้โดยวิเคราะห์ความถี่ ยังไม่ได้ฟัง
 // ============================================================
 
+const PassiveSeal = require("../server/passiveSeal");
+
 const ID = "inui_takumi";
 const DIR = "/characters/inui_takumi";
 const IMG = {
@@ -330,7 +332,7 @@ module.exports = {
       s.exceed = null;
       return;
     }
-    if (!res.dodge && !geared(s)) engine.addSkill(attacker, 1);
+    if (!res.dodge && !geared(s) && PassiveSeal.on(attacker)) engine.addSkill(attacker, 1); // ลบสกิลติดตัว (server/passiveSeal.js)
     spendAmmo(attacker);
   },
   onStrikeObject(engine, p) { spendAmmo(p); },
@@ -408,6 +410,7 @@ module.exports = {
         }
       }
       if (s.faiz) { s.humanTurns = 0; continue; }
+      if (PassiveSeal.sealed(p)) continue; // ลบสกิลติดตัว: ไม่นับเทิร์นร่างมนุษย์/ไม่ฟื้น (ค่าที่นับไว้ไม่หาย)
       s.humanTurns += 1;
       if (s.humanTurns < HEAL_EVERY) continue;
       s.humanTurns = 0;
