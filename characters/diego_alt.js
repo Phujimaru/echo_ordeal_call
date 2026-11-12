@@ -20,12 +20,15 @@
 //    · ใช้แล้วเวลาเดินต่อ + จบตา · คลิป intro ทุกครั้ง · ชน = คลิป final
 //  อัจฉริยะ จอมวางแผน (ติดตัว): เล่ห์เหลี่ยม สูงสุด 10 · +1 ต่อการใช้คลังเครื่องมือ · +1 ต่อเหตุการณ์ (ชุ่มน้ำมัน/ระเบิด/ตาข่ายดักติด/กองไฟเผาศัตรู)
 //  ม้าคู่ใจ ซิลเวอร์ บูลเล็ต (ติดตัว · characters/_horse.js): เลือด 3 รับก่อนเกราะ · เดิน +1 · ตาย = เรียกไม่ได้ 3 เทิร์น
+//  ลบสกิลติดตัว (server/passiveSeal.js): เล่ห์เหลี่ยมไม่เพิ่ม (ที่มีอยู่ใช้ได้) · โดนไฟ/ระเบิด/แอ่งน้ำมันของตัวเอง (เพื่อนร่วมทีมยังไม่โดน)
+//    · ม้าไม่รับดาเมจ/ไม่เพิ่มระยะเดิน · ขึ้น/ลงม้าไม่ได้ (สถานะขี่ค้างไว้ — กลอุบายยังเช็คขี่ม้าตามเดิม)
 //
 //  ทุกอย่างเก็บที่ p.diego (หลายคนไม่ปนกัน) · แอ่งน้ำมัน/กองไฟ/ขี้เถ้า = ชั้นพื้นกลาง match.board.diego (มีเจ้าของ)
 //  เอฟเฟกต์: engine.boardFx("diegoFx", { kind, id, color, … }) — client/src/board/diegoFx.js (session diego-fx)
 // ============================================================
 const Board = require("../server/board");
 const Horse = require("./_horse");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "diego_alt";
 const DIR = "/characters/diego_alt";
@@ -146,14 +149,16 @@ const stopping = (p) => isDiego(p) && !!st(p).stopping;
 const sideIds = (engine, p) => Object.values(engine.players).filter((o) => o.id === p.id || engine.sameTeam(p, o)).map((o) => o.id);
 const allyView = (engine, p, viewer) => !!viewer && (viewer.id === p.id || engine.sameTeam(p, viewer));
 function addCunning(engine, p, n) {
+  if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว (server/passiveSeal.js)
   const s = st(p);
   const before = s.cunning;
   s.cunning = Math.min(CUNNING_MAX, s.cunning + n);
   if (s.cunning > before && p.pos) fx(engine, p, "cunning", { at: { ...p.pos }, gain: s.cunning - before });
 }
 // ดาเมจเครื่องมือ 1 ครั้ง (เกราะก่อน · ฆ่าได้ · ไม่หลบ) → ที่ลงจริง · ผู้เรียกอยู่ในนามดิเอโก้ (effectSource)
-function hurt(engine, p, t, n, label) {
-  if (!foe(engine, p, t)) return 0;
+// self = ดิเอโก้โดนของตัวเอง (ลบสกิลติดตัว — selfHit)
+function hurt(engine, p, t, n, label, self = false) {
+  if (!foe(engine, p, t) && !(self && t && t.alive && t.id === p.id)) return 0;
   const before = (t.hp || 0) + (t.armor || 0);
   t.wasAttacked = true;
   engine.dealMixed(t, n, false);
@@ -202,16 +207,19 @@ function unitsOn(engine, tiles) {
     && Board.footprint(u.pos.x, u.pos.y, engine.sizeOf(u)).some((c) => set.has(K(c.x, c.y))));
 }
 const netted = (t) => ((t && t.statuses && t.statuses.diegoNet) || 0) > 0;
+// ไม่โดนไฟ/ระเบิด/แอ่งน้ำมันของตัวเอง = ติดตัว · ถูกลบสกิลติดตัว = โดนของตัวเอง (เพื่อนร่วมทีมยังไม่โดน)
+const selfHit = (p, t) => !!t && t.id === p.id && t.alive && PassiveSeal.sealed(p);
 
 // ระเบิด: ทุกคนในชุดช่อง (ไม่นับผู้จุด/เพื่อนร่วมทีม) −2 + ลุกไหม้ → ช่องทั้งหมดเป็นกองไฟ (นับเวลาใหม่) · คืนรายชื่อที่โดน
 function explode(engine, p, tiles, at) {
   const L = layers(engine);
   const hits = [];
   for (const t of unitsOn(engine, tiles)) {
-    if (!foe(engine, p, t)) continue;
+    const self = selfHit(p, t);
+    if (!foe(engine, p, t) && !self) continue;
     hits.push(t.id);
     const burn = netted(t) ? NET_BURN : BURN;
-    hurt(engine, p, t, EXPLODE_DMG, `${p.name} ระเบิดน้ำมัน`);
+    hurt(engine, p, t, EXPLODE_DMG, `${p.name} ระเบิดน้ำมัน`, self);
     if (t.alive && engine.applyBurn(t, burn) > 0) engine.log(`🔥 ${t.name} ลุกไหม้ ${burn} เทิร์น`);
   }
   const until = engine.roundNumber + FIRE_TURNS;
@@ -526,7 +534,7 @@ module.exports = {
   resetCombat(p) { p.diego = isDiego(p) ? fresh() : null; },
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
-  mov(p) { return isDiego(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
+  mov(p) { return isDiego(p) ? (st(p).mounted && PassiveSeal.on(p) ? MOV_HORSE : MOV) : null; },
   // ตาหยุดเวลา: ตีปกติไม่ได้ (เปลี่ยนเป็นกดสกิล STOP_SKILLS ครั้ง — ผู้ใช้สั่ง)
   range(p) { return isDiego(p) ? (st(p).stopping ? [1, 0] : RANGE) : null; },
   voiceLines(p) { return isDiego(p) ? VOICE : null; },
@@ -534,9 +542,14 @@ module.exports = {
   deferStrikeDamage(p) { return stopping(p); },
 
   // ---------- ม้า ----------
-  absorbDamage(engine, p) { return isDiego(p) && Horse.absorb(engine, p, st(p), horseCfg); },
-  hudActions(engine, p) { return isDiego(p) && p.alive ? [Horse.action(engine, p, st(p))] : undefined; },
-  charAction(engine, p, key) { return isDiego(p) && key === "horse" && Horse.toggle(engine, p, st(p), horseCfg); },
+  // ลบสกิลติดตัว: ม้าไม่รับดาเมจ · ขึ้น/ลงม้าไม่ได้
+  absorbDamage(engine, p) { return isDiego(p) && PassiveSeal.on(p) && Horse.absorb(engine, p, st(p), horseCfg); },
+  hudActions(engine, p) {
+    if (!isDiego(p) || !p.alive) return undefined;
+    const a = Horse.action(engine, p, st(p));
+    return [PassiveSeal.sealed(p) ? { ...a, disabled: true } : a];
+  },
+  charAction(engine, p, key) { return isDiego(p) && key === "horse" && PassiveSeal.on(p) && Horse.toggle(engine, p, st(p), horseCfg); },
 
   // ---------- สกิล ----------
   skillCost(p, tier, base, opts) {
@@ -715,7 +728,7 @@ module.exports = {
     const o = oilAt(engine, from.x, from.y);
     if (!o) return 0;
     const owner = engine.players[o.owner];
-    return owner && (owner.id === p.id || engine.sameTeam(owner, p)) ? 0 : OIL_SLOW;
+    return owner && ((owner.id === p.id && PassiveSeal.on(p)) || (owner.id !== p.id && engine.sameTeam(owner, p))) ? 0 : OIL_SLOW;
   },
   walkTrap(engine, p, t) { return netOver(engine, p, t.x, t.y); },
   springTrap(engine, p, t, info) { spring(engine, p, info); },
@@ -736,13 +749,13 @@ module.exports = {
     for (const c of Board.footprint(p.pos.x, p.pos.y, engine.sizeOf(p))) {
       const f = fireAt(engine, c.x, c.y);
       const owner = f && engine.players[f.owner];
-      if (!f || (owner && (owner.id === p.id || engine.sameTeam(owner, p)))) continue;
+      if (!f || (owner && ((owner.id === p.id && PassiveSeal.on(p)) || (owner.id !== p.id && engine.sameTeam(owner, p))))) continue;
       const burn = () => engine.applyBurn(p, BURN);
       const got = owner ? engine.withEffectSource(owner, burn) : burn();
       if (got > 0) {
         engine.log(`🔥 ${p.name} ยืนอยู่บนกองไฟ — ลุกไหม้ ${BURN} เทิร์น`);
         engine.boardFx("diegoFx", { kind: "burn", id: owner ? owner.id : null, targetId: p.id, at: { x: c.x, y: c.y } });
-        if (owner && isDiego(owner) && owner.alive) addCunning(engine, owner, 1);
+        if (owner && owner.id !== p.id && isDiego(owner) && owner.alive) addCunning(engine, owner, 1);
       }
       break;
     }

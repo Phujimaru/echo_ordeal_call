@@ -22,6 +22,7 @@
 //  ทุกอย่างเก็บที่ p.dio · เอฟเฟกต์: engine.boardFx("dioFx", { kind, id, color, … }) — client/src/board/dioFx.js
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "dio_brando";
 const DIR = "/characters/dio_brando";
@@ -91,14 +92,16 @@ function fx(engine, p, kind, data) {
   engine.boardFx("dioFx", { kind, id: p.id, color: engine.colorOf(p), ...data });
 }
 const stopping = (p) => isDio(p) && !!st(p).stopping;
-const meterMax = (s) => (s.blood >= BLOOD.surge ? METER.surge : METER.max);
-const worldCd = (s) => (s.blood >= BLOOD.surge ? WORLD.cdSurge : WORLD.cd);
-const skillBonus = (s) => (s.blood >= BLOOD.frenzy ? 1 : 0);
-const drainOf = (s) => 1 + (s.blood >= BLOOD.thirst ? 1 : 0);
+// ลบสกิลติดตัว (server/passiveSeal.js): ผลขั้น BloodStack ไม่ทำงาน (สแตกที่มีไม่หาย)
+const bloodOn = (p) => (PassiveSeal.on(p) ? st(p).blood : 0);
+const meterMax = (p) => (bloodOn(p) >= BLOOD.surge ? METER.surge : METER.max);
+const worldCd = (p) => (bloodOn(p) >= BLOOD.surge ? WORLD.cdSurge : WORLD.cd);
+const skillBonus = (p) => (bloodOn(p) >= BLOOD.frenzy ? 1 : 0);
+const drainOf = (p) => 1 + (bloodOn(p) >= BLOOD.thirst ? 1 : 0);
 function addMeter(p, n) {
   const s = st(p);
-  if (s.stopping) return;
-  s.meter = Math.min(meterMax(s), s.meter + n);
+  if (s.stopping || PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: Time Meter ไม่เพิ่ม (Last Stand)
+  s.meter = Math.max(s.meter, Math.min(meterMax(p), s.meter + n));
 }
 // ตายตอนผลลง: ระหว่างหยุดเวลา instantDeath ค้างไว้เอง (ตกรอบตอนเวลาเดินต่อ)
 function settle(engine, t) {
@@ -108,8 +111,9 @@ function settle(engine, t) {
 // Vampire: โดนศัตรู 1 คน = ดูดเลือด (ดิโอ +n · ไม่มีดาเมจเพิ่มจากการตี/สกิลนั้น — ผู้ใช้แก้ 2026-11-05) + BloodStack +1
 //  stack: false = ดูดเลือดอย่างเดียว ไม่ได้ BloodStack (มีด)
 function drain(engine, p, t, at, { stack = true } = {}) {
+  if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: Vampire ไม่ดูดเลือด/ไม่ได้ BloodStack
   const s = st(p);
-  const n = drainOf(s);
+  const n = drainOf(p);
   const healed = engine.healHp(p, n);
   if (stack) s.blood = Math.min(BLOOD.max, s.blood + 1);
   if (stack && s.blood >= BLOOD.surge && !s.clip6) { s.clip6 = true; s.want6 = true; }
@@ -122,7 +126,7 @@ function standHit(engine, p, t, name, base, pierce, { stack = true } = {}) {
   if (engine.skillDodge(p, t, name)) return { dodge: true };
   const block = engine.attackBlocked(t, p);
   if (block) { engine.log(`🛡️ ${t.name} ${block.name} — กัน${name}ของ ${p.name}`); return { blocked: true }; }
-  const n = base + skillBonus(st(p)) + engine.statusAmtOf(t, "fragile");
+  const n = base + skillBonus(p) + engine.statusAmtOf(t, "fragile");
   if (pierce) engine.dealDirect(t, n);
   else engine.dealMixed(t, n, false);
   engine.log(`${p.name} ${name} → ${t.name} -${n}${pierce ? " (ทะลุเกราะ)" : ""}`);
@@ -220,10 +224,10 @@ function pressWorld(engine, p) {
   s.pending = s.meter;
   s.pendingRound = engine.roundNumber;
   s.meter = 0;
-  s.worldReady = engine.roundNumber + worldCd(s);
+  s.worldReady = engine.roundNumber + worldCd(p);
   s.worldSever = engine.severStamp();
   fx(engine, p, "press", { at: { ...p.pos } });
-  if (s.blood >= BLOOD.surge) {
+  if (bloodOn(p) >= BLOOD.surge) {
     engine.skillBeat(FX.press, () => {});
     engine.flowHandoff(p.id, "dioWorld");
   }
@@ -247,7 +251,7 @@ function interrupt(engine, p) {
   if (engine.timeStop.denyPress(p)) { s.deniedAt = denyKey(engine); return true; }
   s.pending = s.meter - WORLD.tax;
   s.meter = 0;
-  s.worldReady = engine.roundNumber + worldCd(s);
+  s.worldReady = engine.roundNumber + worldCd(p);
   s.worldSever = engine.severStamp();
   p.ultRound = engine.roundNumber;
   engine.skillFlash({ name: "Za warudo!!!!!!", img: IMG.world, by: p.name, color: engine.colorOf(p) });
@@ -389,7 +393,7 @@ module.exports = {
 
   // ---------- กลางวัน/กลางคืน ----------
   adjustIncomingDamage(engine, p, n) {
-    if (!isDio(p) || !(n > 0) || engine.dotTick) return n;
+    if (!isDio(p) || !(n > 0) || engine.dotTick || PassiveSeal.sealed(p)) return n; // ลบสกิลติดตัว: ไม่มีผลกลางวัน/กลางคืน
     return Math.max(0, n + (engine.isNightRound(engine.worldRound) ? -1 : 1));
   },
 
@@ -539,7 +543,7 @@ module.exports = {
     if (!isDio(p)) return false;
     const s = st(p);
     if (s.duelPending) { p.hp = 1; return true; } // โดนซ้ำก่อนเริ่มดวล
-    if (s.lastUsed) return false;
+    if (s.lastUsed || PassiveSeal.sealed(p)) return false; // ลบสกิลติดตัว: ไม่มี Last Stand (ไม่เสียสิทธิ์)
     const src = engine.effectSourceId && engine.players[engine.effectSourceId];
     if (!src || !foe(engine, p, src)) return false; // สถานะ/ไฟ/ของบนพื้น (ไม่มีผู้โจมตี) = ตายเลย
     s.lastUsed = true;
@@ -598,7 +602,7 @@ module.exports = {
     if (!isDio(p)) return undefined;
     const s = st(p);
     return {
-      meter: s.meter, meterMax: meterMax(s), blood: s.blood, bloodMax: BLOOD.max,
+      meter: s.meter, meterMax: meterMax(p), blood: s.blood, bloodMax: BLOOD.max,
       stopping: !!s.stopping, actions: s.actions, pending: s.pending, lastUsed: !!s.lastUsed,
       worldCd: cdLeft(s.worldReady, engine.roundNumber), canInterrupt: canInterrupt(engine, p),
       interruptActions: Math.max(0, s.meter - WORLD.tax),

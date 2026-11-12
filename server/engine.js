@@ -335,6 +335,9 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   HBLEED_MAX,
   bleedActive,
   applyBleed: (p, n) => (combat.statusReflected(p, (src) => applyBleed(src, n)) ? 0 : applyBleed(p, n)), // สะท้อนได้ (combat.statusReflected) · "เลือดไหล" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
+  // "ลบสกิลติดตัว" (สถานะ Universal · server/passiveSeal.js): จุดเดียวที่ใส่สถานะนี้ — ดีบัฟปกติ (ต้าน/สะท้อน/ล้างได้) · คืน true = ติด
+  applyPassiveSeal: (p, turns) => combat.applyDebuff(p, require("./passiveSeal").KEY, null, turns),
+  passiveSealed: (p) => require("./passiveSeal").sealed(p),
   applyBurn: (p, n) => (combat.statusReflected(p, (src) => applyBurn(src, n)) ? 0 : applyBurn(p, n)), // สะท้อนได้ · "ลุกไหม้" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
   EVADE_TURNS,
   applyEvade, // "หลบหลีก" (สถานะ Universal): 1 เทิร์นเสมอ · ไม่ซ้อน (ได้ซ้ำ = รีเฟรช · % ใช้ค่ามากสุด)

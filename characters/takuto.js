@@ -12,6 +12,9 @@
 //        ตีปกติเป็นการปาเป้าเดียวระยะ 1–4 ความเสียหายตายตัว 4 (คลิป duosword_hit ก่อนฉากตีทุกครั้ง) แล้วดาบทั้งสองหาย · จบช่วงนี้ = แยกเป็น 2 เล่มเดิม
 //  เมื่อสิ่งที่อยากทำ และควรจะทำเป็นเรื่องเดียวกัน (ติดตัว 2): โอกาสเกิดห่วงเวลาซีโร่ +45% (ยังมีชีวิต) · ไม่โดนผลเสียของห่วงเวลา
 //    (กัดกินทุกเทิร์น · ฟ้าผ่า · ล็อกท่าไม้ตาย · แรงปลดผนึก) — ฮุค zeroChanceBonus / zeroImmune ใน server/zeroTime.js
+//  ลบสกิลติดตัว (server/passiveSeal.js): ไม่แปลงร่าง (ต้นเทิร์นลองใหม่หลังหมดสถานะ) · ไม่พุ่ง · เฟส 2/4/ห่วงเวลาถูกทำลายที่เกิดระหว่างติด = ไม่ได้ผล
+//    · ช่วงพังทลาย: เดิน 5 · ไม่บวกพลังโจมตี · ดาบไม่รวมร่าง/ดาบแห่งการพิพากษาไม่ทำงาน (ดาบ 2 เล่มยังอยู่) · โอกาสห่วงเวลา +45%/ภูมิคุ้มกัน/ช่วงพังทลาย 5 เทิร์น ไม่ทำงาน
+//    · คงไว้: ร่างทาวเบิร์นที่แปลงแล้ว (ร่างค้าง — ย่อกลับกลางเกมพังตำแหน่งตัว 3×3) · ร่างคนใช้สกิลไม่ได้ (สกิลทั้งชุดใช้ร่างทาวเบิร์น)
 //  ดาบอันเจิดจรัด (พื้นฐาน · ปุ่ม 2 ตัวเลือก · 2 แต้ม · ไม่กินโควตา · ใช้แล้วยังเดินได้ · เรียกซ้ำไม่ได้ถ้ายังอยู่) อยู่ 5 เทิร์น (statuses)
 //    เอเมอรูด: ตีปกติฟื้นพลังชีวิตเท่าความเสียหายจริงที่ทำได้ (รวมเกราะ · รวมทุกคนในการตีครั้งเดียว) สูงสุด 2 · แซฟไฟร์: ตีปกติแบบกิงกะ (ทั้งด้าน 3 ช่อง)
 //  ดาบประกายแสง (รอง · 4 · ต้องถือ 2 เล่ม · คูลดาวน์ 3): แนว 5×3 ศัตรูทุกคนเสียหาย 4 → สลับตำแหน่งกับศัตรูที่ไกลที่สุด (ทาคุโตะไปลงที่เป้า
@@ -23,6 +26,7 @@
 //    · แรงปลดผนึกลงตอนผนึกอันสุดท้ายแตก (ตอนกลับสนามเดิมไม่มี) · ช่วงพังทลายนับเทิร์นที่ผนึกแตกเป็นเทิร์นแรก
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "takuto";
 const DIR = "/characters/takuto";
@@ -121,7 +125,7 @@ const tauburn = (p) => isTakuto(p) && st(p).form === "tauburn";
 const has = (p, sword) => ((p.statuses && p.statuses[SWORDS[sword].status]) || 0) > 0;
 const bothSwords = (p) => has(p, "emerald") && has(p, "sapphire");
 const collapsing = () => { const e = eng(); return !!(e.zeroCollapsing && e.zeroCollapsing()); };
-const judgmentOn = (p) => tauburn(p) && st(p).judgment && bothSwords(p);
+const judgmentOn = (p) => tauburn(p) && st(p).judgment && bothSwords(p) && PassiveSeal.on(p); // ลบสกิลติดตัว = ดาบแห่งการพิพากษาไม่ทำงาน
 function fx(engine, p, kind, extra) {
   engine.boardFx(FX, { kind, id: p.id, color: engine.colorOf(p), ...(p.pos ? { at: { ...p.pos } } : {}), size: engine.sizeOf(p), ...extra });
 }
@@ -156,6 +160,7 @@ function becomeTauburn(engine, p) {
 }
 // เฟส 2 / 4 (ครั้งแรก) — คลิปเล่นต่อจากฉากผนึกแตก (zeroTime.afterScene)
 function reachStage(engine, p, stage) {
+  if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว (server/passiveSeal.js) — เฟสที่ถึงระหว่างติดไม่ได้ผล
   const s = st(p);
   if (stage >= 2 && !s.seen2) {
     s.seen2 = true;
@@ -175,7 +180,7 @@ function reachStage(engine, p, stage) {
 // ดาบ 2 เล่ม → ดาบแห่งการพิพากษา (ช่วงมิติพังทลายเท่านั้น)
 function tryMerge(engine, p) {
   const s = st(p);
-  if (s.judgment || !tauburn(p) || !bothSwords(p) || !collapsing()) return false;
+  if (s.judgment || !tauburn(p) || !bothSwords(p) || !collapsing() || PassiveSeal.sealed(p)) return false;
   s.judgment = true;
   s.sever.judgment = engine.severStamp();
   const show = () => { if (p.alive && p.pos) { fx(engine, p, "merge", {}); engine.sfx("takuto_merge"); } };
@@ -216,7 +221,7 @@ function dashTiles(engine, p, seenOnly = true) {
 }
 function dashReady(engine, p) {
   const s = st(p), a = engine.action;
-  return tauburn(p) && s.dash && engine.canAct(p) && !!a && !a.moved && !a.locked && !a.canto && s.dashRound !== engine.roundNumber;
+  return tauburn(p) && s.dash && PassiveSeal.on(p) && engine.canAct(p) && !!a && !a.moved && !a.locked && !a.canto && s.dashRound !== engine.roundNumber;
 }
 function dash(engine, p, tile) {
   if (!dashReady(engine, p) || !tile) return false;
@@ -359,15 +364,16 @@ module.exports = {
   },
 
   // ---------- ห่วงเวลาซีโร่ (server/zeroTime.js) ----------
-  zeroChanceBonus(engine) { return Object.values(engine.players).some((o) => isTakuto(o) && o.alive) ? ZERO_BONUS : 0; },
-  zeroImmune(p) { return isTakuto(p); },
-  zeroCollapseTurns(engine) { return Object.values(engine.players).some((o) => isTakuto(o) && o.alive) ? COLLAPSE_TURNS : 0; },
+  // ลบสกิลติดตัว (server/passiveSeal.js): เช็คต่อคน
+  zeroChanceBonus(engine) { return Object.values(engine.players).some((o) => isTakuto(o) && o.alive && PassiveSeal.on(o)) ? ZERO_BONUS : 0; },
+  zeroImmune(p) { return isTakuto(p) && PassiveSeal.on(p); },
+  zeroCollapseTurns(engine) { return Object.values(engine.players).some((o) => isTakuto(o) && o.alive && PassiveSeal.on(o)) ? COLLAPSE_TURNS : 0; },
   onZeroStage(engine, stage) {
     for (const p of Object.values(engine.players)) if (isTakuto(p) && p.alive && tauburn(p)) engine.withEffectSource(p, () => reachStage(engine, p, stage));
   },
   onZeroCollapse(engine) {
     for (const p of Object.values(engine.players)) {
-      if (!isTakuto(p) || !p.alive) continue;
+      if (!isTakuto(p) || !p.alive || PassiveSeal.sealed(p)) continue; // ลบสกิลติดตัว
       engine.withEffectSource(p, () => {
         if (tauburn(p)) reachStage(engine, p, 4); // ผนึกแตกหลายอันพร้อมกัน = ได้ผลเฟสที่ข้ามไปด้วย
         const s = st(p);
@@ -384,7 +390,7 @@ module.exports = {
   mov(p) {
     if (!isTakuto(p)) return null;
     if (!tauburn(p)) return HUMAN_MOV;
-    return collapsing() ? COLLAPSE_MOV : TAUBURN_MOV;
+    return collapsing() && PassiveSeal.on(p) ? COLLAPSE_MOV : TAUBURN_MOV;
   },
   range(p) {
     if (!tauburn(p)) return null;
@@ -394,11 +400,11 @@ module.exports = {
   smashes(p) { return tauburn(p) && Math.max(1, p.boardSize | 0) >= SIZE; },
 
   // ---------- ตีปกติ ----------
-  damageBonus(engine, attacker) { return tauburn(attacker) && st(attacker).awakened ? COLLAPSE_ATK : 0; },
+  damageBonus(engine, attacker) { return tauburn(attacker) && st(attacker).awakened && PassiveSeal.on(attacker) ? COLLAPSE_ATK : 0; },
   attackFxNames(attacker) {
     if (!tauburn(attacker)) return [];
     if (judgmentOn(attacker)) return ["ดาบแห่งการพิพากษา"];
-    return st(attacker).awakened ? [`ทาวเบิร์น +${COLLAPSE_ATK}`] : [];
+    return st(attacker).awakened && PassiveSeal.on(attacker) ? [`ทาวเบิร์น +${COLLAPSE_ATK}`] : [];
   },
   fixedStrikeDamage(engine, attacker) { return judgmentOn(attacker) ? JUDGMENT_DMG : null; },
   attackStyle(p) {
@@ -522,7 +528,7 @@ module.exports = {
 
   // ---------- ปุ่มพุ่งบน HUD (tiles = ช่องปลาย → socket charAction { key, tile }) ----------
   hudActions(engine, p) {
-    if (!tauburn(p) || !st(p).dash || !p.alive) return undefined;
+    if (!tauburn(p) || !st(p).dash || !p.alive) return undefined; // ลบสกิลติดตัว = ปุ่มปิด (dashReady)
     const ok = dashReady(engine, p);
     return [{ key: "dash", icon: "💨", name: "พุ่ง", tiles: ok ? dashTiles(engine, p).map((t) => ({ x: t.x, y: t.y })) : [], disabled: !ok }];
   },
@@ -533,7 +539,7 @@ module.exports = {
   onRoundStartTick(engine, p) {
     if (!isTakuto(p) || !p.alive || !p.pos) return;
     const s = st(p);
-    if (s.form === "human" && engine.zeroActive()) { becomeTauburn(engine, p); return; }
+    if (s.form === "human" && engine.zeroActive()) { if (PassiveSeal.on(p)) becomeTauburn(engine, p); return; } // ลบสกิลติดตัว = ยังไม่แปลง
     if (s.form === "tauburn" && engine.sizeOf(p) !== SIZE) engine.resizeUnit(p, SIZE);
     if (s.judgment && !engine.zeroCollapsing()) { s.judgment = false; engine.log(`⚔️ ${p.name} — ดาบแห่งการพิพากษาแยกกลับเป็น 2 เล่ม`); }
   },

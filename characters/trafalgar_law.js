@@ -19,6 +19,7 @@
 //    หนามหินอยู่ถึงต้นตาเดินถัดไปของลอว์ · Shamble ตัดส่วนเกินเพดาน · พิษร้ายตั้ง 3 (= ออกฤทธิ์ 2 ครั้ง) · หัวใจบีบได้ 1 ครั้งต่อเทิร์น ต่อดวง
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "trafalgar_law";
 const DIR = "/characters/trafalgar_law";
@@ -211,7 +212,7 @@ function awayDir(engine, from, t) {
 // ---------- ตัดพื้น (ปุ่ม HUD · นับเป็นการตี 1 ครั้ง) ----------
 function cutTiles(engine, p) {
   const s = st(p);
-  if (!lawIn(engine, p) || strikesLeft(engine, p) <= 0 || s.objects.length >= MAX_OBJECTS) return [];
+  if (!lawIn(engine, p) || PassiveSeal.sealed(p) || strikesLeft(engine, p) <= 0 || s.objects.length >= MAX_OBJECTS) return [];
   return roomTiles(s.room).filter((t) => engine.tileFree(t.x, t.y) && !objAt(s, t.x, t.y));
 }
 function cut(engine, p, tile) {
@@ -249,7 +250,7 @@ function dropObject(engine, p, tile) {
 
 // ---------- Counter Shock (ปุ่ม HUD · 0 แต้ม · 3 ครั้งต่อเกม) ----------
 function shockTargets(engine, p) {
-  if (!isLaw(p) || !p.alive || !p.pos || st(p).shocks <= 0) return [];
+  if (!isLaw(p) || !p.alive || !p.pos || st(p).shocks <= 0 || PassiveSeal.sealed(p)) return [];
   const box = { x: p.pos.x, y: p.pos.y, size: engine.sizeOf(p) };
   return Object.values(engine.players).filter((d) => !d.alive && !d.summon && d.corpse && engine.corpseKept(d)
     && Board.dist(box, { x: d.corpse.x, y: d.corpse.y, size: 1 }) === 1);
@@ -571,24 +572,28 @@ module.exports = {
   resetCombat(p) { p.law = isLaw(p) ? fresh() : null; },
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
-  skillRegen(p) { return lawIn(eng(), p) ? ROOM_REGEN : 1; },
+  skillRegen(p) { return lawIn(eng(), p) && PassiveSeal.on(p) ? ROOM_REGEN : 1; },
 
   // ---------- ตีปกติ: เฉพาะใน Room · ระยะทั้ง Room · ท่าไม้ตายที่รอตี = ประชิด ----------
+  //  ลบสกิลติดตัว (server/passiveSeal.js): ตีปกติไม่ได้ (ระยะพื้นฐาน [1, 0]) · ไม่มาร์ก · ไม่ตีซ้ำ · ตัดพื้น/Counter Shock/ศพ/แต้มใน Room ปิด
+  //   ท่าไม้ตายที่รอตี (Gamma Knife / Mess) ยังตีประชิดได้ 1 ครั้ง (ผลของท่าไม้ตาย) แล้วจบตา
   range(p) {
     if (!isLaw(p)) return null;
     const engine = eng();
     if (!lawIn(engine, p) || strikesLeft(engine, p) <= 0) return [1, 0];
-    return armedOf(engine, p) ? [1, 1] : [1, FAR];
+    if (armedOf(engine, p)) return [1, 1];
+    return PassiveSeal.on(p) ? [1, FAR] : [1, 0];
   },
   strikeAllows(p, target) {
     if (!isLaw(p)) return true;
     const engine = eng();
-    return lawIn(engine, p) && strikesLeft(engine, p) > 0 && unitIn(engine, st(p).room, target, false);
+    return lawIn(engine, p) && strikesLeft(engine, p) > 0 && (PassiveSeal.on(p) || !!armedOf(engine, p)) && unitIn(engine, st(p).room, target, false);
   },
   strikeZone(p) {
     if (!isLaw(p)) return null;
     const engine = eng();
     if (!lawIn(engine, p) || strikesLeft(engine, p) <= 0) return null;
+    if (PassiveSeal.sealed(p) && !armedOf(engine, p)) return null;
     const r = st(p).room;
     return { x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 };
   },
@@ -618,9 +623,11 @@ module.exports = {
   onStrikeLanded(engine, attacker, target) {
     if (!isLaw(attacker) || !target || !target.alive || engine.sameTeam(attacker, target)) return [];
     const s = st(attacker);
-    if (!s.marks.includes(target.id)) s.marks.push(target.id);
-    fx(engine, attacker, "mark", { targetId: target.id, to: target.pos ? { ...target.pos } : null });
-    engine.sfx(SFX.mark);
+    if (PassiveSeal.on(attacker)) { // ลบสกิลติดตัว = ไม่มาร์ก
+      if (!s.marks.includes(target.id)) s.marks.push(target.id);
+      fx(engine, attacker, "mark", { targetId: target.id, to: target.pos ? { ...target.pos } : null });
+      engine.sfx(SFX.mark);
+    }
     const a = armedOf(engine, attacker);
     if (!a) return [];
     if (a.kind === "gamma") return gammaKnife(engine, attacker, target);
@@ -644,7 +651,7 @@ module.exports = {
     useStrike(engine, p);
     st(p).armed = null;
   },
-  extraStrike(engine, p) { return isLaw(p); }, // ตีแล้วไม่จบตา (จบด้วย "รอ" / หมดเวลา)
+  extraStrike(engine, p) { return isLaw(p) && PassiveSeal.on(p); }, // ตีแล้วไม่จบตา (จบด้วย "รอ" / หมดเวลา)
   onActorEnd(engine, p) {
     if (!isLaw(p)) return;
     const s = st(p);
@@ -669,7 +676,7 @@ module.exports = {
 
   // ---------- ศพที่ตายใน Room (server/duo.js claimCorpse) ----------
   claimsCorpse(u, dead) {
-    if (!isLaw(u) || !u.alive || !dead || !dead.pos) return false;
+    if (!isLaw(u) || !u.alive || !dead || !dead.pos || PassiveSeal.sealed(u)) return false;
     const room = st(u).room;
     return !!room && inRect(room, dead.pos.x, dead.pos.y);
   },

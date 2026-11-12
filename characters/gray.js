@@ -23,8 +23,11 @@
 //    ตีปกติใส่ศพที่ประชิด = เก็บศพ (จบตาแบบตีปกติ): ศพหายจากกระดาน (ฟื้นคืนชีพที่ใช้ศพทำไม่ได้แล้ว)
 //      · ฟื้นพลังชีวิต 2 · พลังโจมตี +1 ถาวร (สูงสุด +2) · รองโกมิเนียต +1 ต่อศพ (สูงสุด 2 ศพ)
 //      · ศพเคท/เอมิลิโกะที่อีกตัวยังรอด เกิดใหม่ข้างตัวที่รอดเมื่อเปลี่ยนภูมิภาค (Duo.placeCorpses ทำอยู่แล้ว)
+//    ลบสกิลติดตัว (server/passiveSeal.js): เก็บศพไม่ได้ · พลังโจมตีจากศพ/รองโกมิเนียต +ศพ ไม่ออกฤทธิ์ (ศพที่เก็บไว้ไม่หาย)
+//      · ศพค้างบนกระดานยังอยู่ (keepsCorpses ไม่ปิด — ปิดแล้ว Duo.onDeath ล้างศพทุกคนถาวร = ลบของที่มีอยู่)
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "gray";
 const DIR = "/characters/gray";
@@ -118,7 +121,8 @@ function beamVictims(engine, p, tiles) {
   return Object.values(engine.players).filter((t) => t.alive && t.pos && t.id !== p.id
     && Board.footprint(t.pos.x, t.pos.y, engine.sizeOf(t)).some((c) => set.has(Board.key(c.x, c.y))));
 }
-const ultDamage = (p) => ULT_DMG + SOUL_DMG * Math.min(SOUL_MAX, st(p).souls);
+// ลบสกิลติดตัว (server/passiveSeal.js): ศพไม่บวกดาเมจ (นับตอนลำแสงลง)
+const ultDamage = (p) => ULT_DMG + (PassiveSeal.on(p) ? SOUL_DMG * Math.min(SOUL_MAX, st(p).souls) : 0);
 // ชาร์จ (จบเทิร์น N): ศัตรูในแนวถูกตรึงจนถึงตอนยิง — turns = เทิร์นที่ติด (เรียกหลังลดเทิร์นสถานะ = นับจากเทิร์นหน้า)
 function bind(engine, p, turns) {
   if (!p.pos) return;
@@ -213,7 +217,7 @@ module.exports = {
   },
   // สัปเหร่อ: พลังโจมตี +1 ต่อศพ (สูงสุด +2) — ตีปกติ · สกิลที่ตีด้วยพลังโจมตี
   damageBonus(engine, attacker, target, ctx) {
-    if (!isGray(attacker)) return 0;
+    if (!isGray(attacker) || PassiveSeal.sealed(attacker)) return 0; // ลบสกิลติดตัว (server/passiveSeal.js)
     const n = Math.min(SOUL_MAX, st(attacker).souls);
     if (n > 0) ctx.graySouls = n;
     return n;
@@ -221,7 +225,7 @@ module.exports = {
   attackFxNames(attacker, atkCtx) { return atkCtx && atkCtx.graySouls ? [`สัปเหร่อ +${atkCtx.graySouls}`] : []; },
 
   // ---------- เก็บศพ (action.attackTarget "corpse:<id>") ----------
-  canReapCorpse(engine, p, dead) { return isGray(p) && !charging(p) && corpseNear(engine, p, dead); },
+  canReapCorpse(engine, p, dead) { return isGray(p) && PassiveSeal.on(p) && !charging(p) && corpseNear(engine, p, dead); }, // ลบสกิลติดตัว = เก็บศพไม่ได้
   // ลงผลแล้วคืนจำนวนวินาทีของฉาก (เฟส ATTACKING) ก่อนจบตา
   reapCorpse(engine, p, dead) {
     const s = st(p);
@@ -364,7 +368,7 @@ module.exports = {
     return {
       souls: s.souls, soulsMax: SOUL_MAX,
       frenzy: s.frenzy,
-      reaper: !c, // เก็บศพได้ (client: ศพประชิด = เป้าตีปกติ)
+      reaper: !c && PassiveSeal.on(p), // เก็บศพได้ (client: ศพประชิด = เป้าตีปกติ)
       ultCd: c ? 0 : cdLeft(s.ultReady, r),
       charge: c && p.pos ? { dir: c.dir, cast: c.cast, fire: c.fire, left: Math.max(0, c.fire - r), tiles: beamTiles(engine, p, c.dir) } : null,
     };

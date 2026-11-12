@@ -32,6 +32,7 @@
 // ============================================================
 
 const ID = "yuna";
+const PassiveSeal = require("../server/passiveSeal");
 const DIR = "/characters/yuna";
 // ไฟล์จากผู้ใช้ (Downloads/yuna_new — 2026-10-18) · yuna.webp = yuna_normal.png · yuna_idol.webp = yuna.png (ลดขนาด)
 const IMG = {
@@ -274,6 +275,7 @@ module.exports = {
   keepsCorpses(p) { return isYuna(p); },
   canRide(engine, p) {
     if (!isYuna(p)) return false;
+    if (!PassiveSeal.on(p)) return false; // ลบสกิลติดตัว (server/passiveSeal.js): ขอขี่ไม่ได้
     return !(((p.statuses && p.statuses.yunaNoRide) || 0) > 0) && !vanishOn(engine, p) && !vanishPending(engine, p);
   },
   rideSound(p, kind) { return kind === "ask" ? SFX.rideAsk : SFX.rideNo; },
@@ -299,6 +301,7 @@ module.exports = {
   // ---------- ตายแล้วฟื้นเอง (คำอวยพรสุดท้ายที่ยังไม่ได้ใช้) ----------
   preventDeath(engine, p) {
     if (!isYuna(p)) return false;
+    if (!PassiveSeal.on(p)) return false; // ลบสกิลติดตัว: คำอวยพรสุดท้ายไม่ทำงานกับตัวเอง (ยังไม่นับว่าใช้ — ปุ่มยังกดฟื้นคนอื่นได้)
     const s = st(p);
     if (s.blessUsed) return false;
     s.blessUsed = true;

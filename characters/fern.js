@@ -13,6 +13,8 @@
 //    (ข) นับการตี Zoltraak (คน/ผนึก/หนาม · 1 ครั้งต่อการตี — afterStrike) ครบ 4 (บัฟ 2026-10-24 — เดิม 5) → ครั้งที่ 5: ไม่เสีย Energy + ทะลุเกราะทุกคนในแนว
 //        (ฮุค strikePierces) + จบฉากตีแล้วรีเซ็ทคูลดาวน์ทุกอย่าง (ร่ายต่อเนื่อง/เพิ่มระยะ/ซ่อนเร้นมานา รวมคูลดาวน์เริ่มเกม/การกัน)
 //        แล้วนับ 0 ใหม่ (ครั้งที่เสริมพลังไม่นับ)
+//    ลบสกิลติดตัว (server/passiveSeal.js): (ก) ไม่กัน — ถูกโจมตีตามปกติ · (ข) ไม่นับเพิ่ม · ครั้งเสริมพลังไม่ทำงาน (ที่นับไว้ไม่หาย)
+//    · ติดตัว 2 Zoltraak (Energy/ตีแนว) ไม่ปิด — เป็นกติกาตีปกติ/แต้มของตัวละคร ปิดแล้วตีไม่ได้เลย
 //  สกิลพื้นฐาน ร่ายต่อเนื่อง (2 Energy · ตัวเอง): ตีปกติ +1 ครั้งในตาเดินนี้ (ฮุค extraStrike) · กดเทิร์น N → กดได้อีก N+2
 //  สกิลรอง เพิ่มระยะ (3 Energy · ตัวเอง): ตีปกติครั้งถัดไป 1 ครั้งเป็นแนว [1, 6] (ค้างข้ามเทิร์นจนกว่าจะตี) · กดเทิร์น N → N+2
 //    · ค้างอยู่แล้วกดซ้ำไม่ได้ (Claude ตัดสิน — กันเสีย Energy เปล่า)
@@ -33,6 +35,7 @@
 //      กติกาออก/สตั้น/คูลดาวน์ 4 คงเดิม (ผู้ใช้เลือกเก็บไว้)
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "fern";
 const DIR = "/characters/fern";
@@ -118,7 +121,7 @@ function fresh() {
 function st(p) { return p.fern || (p.fern = fresh()); }
 const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
 const concealOn = (p) => isFern(p) && !!st(p).conceal;
-const empowered = (p) => isFern(p) && st(p).count >= EMPOWER_AT;
+const empowered = (p) => isFern(p) && st(p).count >= EMPOWER_AT && PassiveSeal.on(p); // ลบสกิลติดตัว = ครั้งเสริมพลังไม่ทำงาน
 // คูลดาวน์ซ่อนเร้นมานาก่อนตั้งค่าเริ่มเกม (ช่วงก่อนเทิร์นแรก) = เต็ม 4
 function concealCdOf(s, r) { return s.concealReady == null ? CONCEAL_START_CD : cdLeft(s.concealReady, r); }
 
@@ -251,6 +254,7 @@ module.exports = {
     const s = st(p);
     if (s.boost && s.castOn && eosOn()) s.boostSpent = true; // Eos คอมโบร่ายต่อเนื่อง: ระยะ 8 อยู่ทั้งตาเดิน
     else s.boost = false;
+    if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: ไม่นับ/ไม่รีเซ็ท
     if (s.count >= EMPOWER_AT) {
       s.count = 0;
       resetAll(s);
@@ -273,7 +277,7 @@ module.exports = {
     if (!isFern(p) || !p.alive) return;
     const s = st(p), key = attackKey(engine, attacker);
     if (s.blockKey === key || s.hitKey === key) return;
-    if (shieldReady(engine, p)) {
+    if (shieldReady(engine, p) && PassiveSeal.on(p)) { // ลบสกิลติดตัว = ไม่กัน
       s.blockKey = key;
       // Eos: กันได้ 2 การโจมตีก่อนติดคูลดาวน์
       if (!eosOn() || ++s.shieldUsed >= EOS_SHIELD_CHARGES) {
@@ -289,7 +293,7 @@ module.exports = {
     if (s.conceal) exitConceal(engine, p, "hit");
   },
   blocksAttack(engine, p, attacker) {
-    if (!isFern(p) || st(p).blockKey !== attackKey(engine, attacker)) return null;
+    if (!isFern(p) || PassiveSeal.sealed(p) || st(p).blockKey !== attackKey(engine, attacker)) return null;
     return { name: PASSIVE, img: IMG.base };
   },
 
@@ -459,7 +463,7 @@ module.exports = {
       conceal: !!s.conceal,
       count: Math.min(s.count, EMPOWER_AT),
       need: EMPOWER_AT,
-      empowered: s.count >= EMPOWER_AT,
+      empowered: empowered(p),
       boost: !!s.boost,
       shieldCd: cdLeft(s.shieldReady, r),
       basicCd: cdLeft(s.castReady, r),

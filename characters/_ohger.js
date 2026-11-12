@@ -19,6 +19,7 @@
 //   สถานะที่ติดตอนตาเดินเรา: เป้าที่เดินไปแล้วในเทิร์นนี้ได้ +1 เทิร์น (แบบถูกตรึงของกิระ) · พิษร้าย +1 (ลดก่อนออกฤทธิ์ แบบ Gamma Knife) ·
 //   คืนร่างไม่ล็อกการเดิน · ฮาจิถอยเมื่อถูกตีปกติ/ยิง/ถูกสกิลทำดาเมจ (1 ครั้งต่อการโจมตี) — ถอยหลังตาเดินของผู้โจมตีจบ
 // ============================================================
+const PassiveSeal = require("../server/passiveSeal");
 
 const SEQ = [2, 3, 4, 5, 1];
 const FINISH_PULLS = 3;
@@ -155,6 +156,8 @@ function makeOhger(def) {
   const isMe = (p) => !!p && p.characterId === ID && !p.summon;
   const st = (p) => p.ohger || (p.ohger = fresh());
   const armored = (p) => isMe(p) && !!st(p).armored;
+  // สกิลติดตัวจอมราชันในร่างสวมเกราะ (ลบสกิลติดตัว — server/passiveSeal.js)
+  const kingArmored = (p) => armored(p) && PassiveSeal.on(p);
   const canTransform = (engine, p) => isMe(p) && !st(p).armored && st(p).armRound !== engine.roundNumber;
   const canRevert = (engine, p) => armored(p) && st(p).armRound < engine.roundNumber && !st(p).phase;
   function canFinish(engine, p) {
@@ -478,14 +481,14 @@ function makeOhger(def) {
     // ---------- จอมราชัน ----------
     onEndTurn(engine) {
       for (const p of Object.values(engine.players)) {
-        if (!isMe(p) || !p.alive || st(p).armored) continue;
+        if (!isMe(p) || !p.alive || st(p).armored || PassiveSeal.sealed(p)) continue; // ลบสกิลติดตัว = ไม่ฟื้น
         const healed = engine.healHp(p, HUMAN_REGEN);
         if (healed > 0) engine.log(`👑 ${p.name} จอมราชัน — ฟื้นพลังชีวิต +${healed}`);
       }
     },
     onRoundStartTick(engine, p) { if (isMe(p)) p._ohgerRound = engine.roundNumber; },
     damageBonus(engine, attacker, target, ctx) {
-      if (!armored(attacker)) return 0;
+      if (!kingArmored(attacker)) return 0;
       if (ctx) ctx.ohgerArmor = ARMOR_ATK;
       return ARMOR_ATK;
     },
@@ -515,11 +518,12 @@ function makeOhger(def) {
       }
     },
     beforeStrikeHit(engine, a, t) {
-      if (FORM === "kamakiri" && armored(a) && t) st(a).preHp[t.id] = Math.max(0, t.hp || 0);
+      if (FORM === "kamakiri" && kingArmored(a) && t) st(a).preHp[t.id] = Math.max(0, t.hp || 0);
       return [];
     },
     afterBoardAttack(engine, a) {
       if (FORM !== "kuwagata" || !armored(a)) return null;
+      if (PassiveSeal.sealed(a)) { st(a).lastDir = null; return null; } // ลบสกิลติดตัว
       const s = st(a), dir = s.lastDir && OPPOSITE[s.lastDir];
       s.lastDir = null;
       if (!dir || !roll(NUM.kuwagataWave.pct)) return null;
@@ -534,7 +538,7 @@ function makeOhger(def) {
     },
     // ทอมโบ: 25% ได้ตีปกติครั้งที่ 2 (ครั้งเดียวต่อตาเดิน)
     extraStrike(engine, p) {
-      if (FORM !== "tonbo" || !armored(p) || !p.alive) return false;
+      if (FORM !== "tonbo" || !kingArmored(p) || !p.alive) return false;
       const s = st(p);
       if (s.twiceUsed || !roll(NUM.tonboTwice.pct)) return false;
       s.twiceUsed = true;
@@ -543,12 +547,12 @@ function makeOhger(def) {
     },
     // พาพิยอง: ตีปกติโดน 20% ติดถูกตรึง 1 เทิร์น
     onStrikeLanded(engine, a, t) {
-      if (FORM !== "papiyon" || !armored(a) || !t || !t.alive || !roll(NUM.papiyonRoot.pct)) return [];
+      if (FORM !== "papiyon" || !kingArmored(a) || !t || !t.alive || !roll(NUM.papiyonRoot.pct)) return [];
       return debuff(engine, t, "rooted", 1, NUM.papiyonRoot.turns, "ถูกตรึง") ? ["ถูกตรึง"] : [];
     },
     // ฮาจิ: ถูกโจมตี 50% → หลังตาเดินของผู้โจมตีจบ ถอยห่าง 2 ช่อง + เทิร์นถัดไปเดิน +2
     onAttacked(engine, p, attacker, kind) {
-      if (FORM !== "hachi" || !armored(p) || !p.alive || !attacker || attacker.id === p.id || engine.sameTeam(p, attacker)) return;
+      if (FORM !== "hachi" || !kingArmored(p) || !p.alive || !attacker || attacker.id === p.id || engine.sameTeam(p, attacker)) return;
       if (!["strike", "gun", "damage"].includes(kind)) return;
       const s = st(p);
       if (s.fleeSeq === engine.commandSeq) return;

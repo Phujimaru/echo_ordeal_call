@@ -32,6 +32,7 @@
 // ============================================================
 
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "sora_otosumi";
 const DIR = "/characters/sora_otosumi";
@@ -301,7 +302,7 @@ module.exports = {
     return KNIFE_BONUS;
   },
   attackFxNames(attacker, atkCtx) { return atkCtx && atkCtx.soraKnife ? [`My-Th Edge มีด +${atkCtx.soraKnife}`] : []; },
-  critPct(p) { return mythOn(p) ? CRIT_PCT : 0; },
+  critPct(p) { return mythOn(p) && PassiveSeal.on(p) ? CRIT_PCT : 0; }, // คริ 20% = สกิลติดตัว เพื่อคุณหนู (ลบสกิลติดตัว = ไม่มี)
   attackBeam(p) { return gunOn(p) ? GUN_BEAM : 0; },
   attackBeamTone(p) { return gunOn(p) ? "blue" : null; },
   attackHitFx(p) { return knifeOn(p) ? "mythSlash" : null; },
@@ -445,6 +446,7 @@ module.exports = {
         continue;
       }
       if (s.myth || s.formRound === engine.roundNumber) continue;
+      if (!PassiveSeal.on(p)) continue; // ลบสกิลติดตัว (server/passiveSeal.js): ไม่นับเพิ่ม ไม่ฟื้น · ค่าที่นับไว้คงเดิม
       s.calm++;
       if (s.calm < REGEN_TURNS) continue;
       s.calm = 0;

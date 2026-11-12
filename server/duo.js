@@ -24,6 +24,7 @@ const { CHAR_BY_ID } = require("../characters");
 const Board = require("./board");
 const match = require("./match");
 const Summon = require("./summon");
+const PassiveSeal = require("./passiveSeal");
 
 const SUFFIX = "~duo";
 // ฟิลด์ที่คู่ใช้ร่วมกับเจ้าของ (ทุกการอ่าน/เขียนบนระเบียนคู่ไปที่เจ้าของ)
@@ -189,9 +190,11 @@ function nextUnit({ summonsOnly = false } = {}) {
 //   คนเก็บร่างคนสุดท้ายตาย = ร่างของคนอื่นหายหมด (ระบบคู่ที่อีกตัวยังรอดยังทิ้งร่างตามปกติ)
 function corpseOf(p) { return p && !p.alive && p.corpse ? p.corpse : null; }
 // มีคนเก็บร่าง (ฮุค keepsCorpses) ที่ยังอยู่ไหม — require ตอนเรียก (characters/index ← โมดูลตัวละคร ← server/duo วนกัน)
-function keeperAlive() {
+//  fresh = ใช้ตัดสินศพใหม่ตอนตาย: คนเก็บร่างที่ติดลบสกิลติดตัว (server/passiveSeal.js) ไม่นับ → คนที่ตายระหว่างนั้นไม่ทิ้งศพ
+//   ศพที่ค้างอยู่แล้วยังอยู่ต่อ (ไม่ส่ง fresh = นับคนเก็บร่างทุกคนที่ยังอยู่)
+function keeperAlive(fresh = false) {
   const HOOKS = require("../characters/index");
-  return Object.values(match.players).some((u) => u.alive && HOOKS[u.characterId] && HOOKS[u.characterId].keepsCorpses && HOOKS[u.characterId].keepsCorpses(u));
+  return Object.values(match.players).some((u) => u.alive && (!fresh || PassiveSeal.on(u)) && HOOKS[u.characterId] && HOOKS[u.characterId].keepsCorpses && HOOKS[u.characterId].keepsCorpses(u));
 }
 const isPair = (p) => !!(p && (p.duoWith || p.duoOf));
 // ศพเฉพาะคน (ฮุค claimsCorpse(u, dead) — ลอว์: ตายใน Room): ตอนตายจดผู้เก็บไว้ที่ dead.corpseKeeper · ผู้เก็บยังอยู่ = ศพค้าง
@@ -202,8 +205,8 @@ function claimCorpse(dead) {
   const u = Object.values(match.players).find((o) => o.alive && o.id !== dead.id && !o.summon && HOOKS[o.characterId] && HOOKS[o.characterId].claimsCorpse && HOOKS[o.characterId].claimsCorpse(o, dead));
   if (u) dead.corpseKeeper = u.id;
 }
-function keptFor(dead) {
-  if (keeperAlive()) return true;
+function keptFor(dead, fresh = false) {
+  if (keeperAlive(fresh)) return true;
   const u = dead && dead.corpseKeeper && match.players[dead.corpseKeeper];
   return !!(u && u.alive);
 }
@@ -225,7 +228,7 @@ function corpseKeys() {
 function onDeath(p) {
   if (!p || p.summon) return; // ยูนิตที่ถูกเรียกไม่ทิ้งศพ
   claimCorpse(p);
-  const keep = keptFor(p);
+  const keep = keptFor(p, true);
   if (p.pos && (keep || (isPair(p) && sideAlive(p)))) p.corpse = { ...p.pos };
   if (isPair(p) && !sideAlive(p)) clearSide(p);
   // ผู้เก็บร่างที่ตายไป (คนนี้เองก็ได้) = ร่างที่ไม่มีใครเก็บแล้วหาย

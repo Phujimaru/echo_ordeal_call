@@ -3,6 +3,7 @@
 // ============================================================
 
 const ID = "muimi";
+const PassiveSeal = require("../server/passiveSeal");
 
 const EMERGENCY_USES = 2; // ต้องตรงกับ basic.ammo ใน characters.js (เทสต์เช็คให้)
 const EMERGENCY_HEAL = 2;
@@ -240,9 +241,11 @@ module.exports = {
     if (!isMuimi(attacker)) return null;
     if (towerActive(attacker)) {
       const hp = engine.healHp(attacker, TOWER_HEAL);
-      attacker.statuses.muimiTower += TOWER_EXTEND;
-      engine.log(`⚔️ ${attacker.name} ดาบสะบั้น — ฟื้นพลังชีวิต +${hp} และยืดเวลาท่าไม้ตาย +${TOWER_EXTEND} เทิร์น`);
-      return { mode: "tower", hp, sp: 0, extended: true };
+      // ยืดเวลา = สกิลติดตัว ใจที่ไม่ยอมแพ้ — ลบสกิลติดตัว (server/passiveSeal.js) = ไม่ยืด (ฟื้นพลังชีวิตเป็นผลของท่าไม้ตาย ยังได้)
+      const extended = PassiveSeal.on(attacker);
+      if (extended) attacker.statuses.muimiTower += TOWER_EXTEND;
+      engine.log(`⚔️ ${attacker.name} ดาบสะบั้น — ฟื้นพลังชีวิต +${hp}${extended ? ` และยืดเวลาท่าไม้ตาย +${TOWER_EXTEND} เทิร์น` : ""}`);
+      return { mode: "tower", hp, sp: 0, extended };
     }
     if (rustyActive(attacker)) {
       const hp = engine.healHp(attacker, RUSTY_HEAL);

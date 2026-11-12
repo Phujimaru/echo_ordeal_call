@@ -17,6 +17,7 @@
 
 // เวลาตาเดิน (อ่านตอนเรียก — server/constants ← _transforms ← โมดูลนี้ require วนกัน)
 const actionTime = () => require("../server/constants").ACTION_TIME;
+const PassiveSeal = require("../server/passiveSeal"); // ลบสกิลติดตัว (server/passiveSeal.js)
 
 const ZECT_IDS = new Set(["daisuke", "yaguruma", "kagami", "tsurugi"]);
 const MOV = { human: null, putOn: 3, castOff: 5, clock: 7 };
@@ -347,7 +348,8 @@ function makeZect(cfg) {
     damageBonus(engine, attacker, target) {
       if (!isMe(attacker)) return 0;
       const s = st(attacker);
-      const mirror = inClock(engine, attacker) && target && engine.clockUp.activeMember(target) ? MIRROR_ATK : 0;
+      // สกิลติดตัว Zect: ตีคนที่ Clock Up ด้วยกัน +1 (ลบสกิลติดตัว = ไม่ได้)
+      const mirror = PassiveSeal.on(attacker) && inClock(engine, attacker) && target && engine.clockUp.activeMember(target) ? MIRROR_ATK : 0;
       const armed = s.armed === "shooting" ? SHOOT.atk : s.armed === "sting" ? STING.atk : 0;
       return (castOff(attacker) ? CAST_OFF_ATK : 0) + mirror + (s.kickArmed ? KICK.atk : 0) + armed;
     },
@@ -367,7 +369,8 @@ function makeZect(cfg) {
       return s.henshin ? cfg.style : null;
     },
     attackSound(p) { return isMe(p) && st(p).henshin ? cfg.sound : undefined; },
-    ownEvade(p) { return isMe(p) && p.alive && p.zect && p.zect.henshin && require("../server/clockUp").activeMember(p) ? ZECT_DODGE : 0; },
+    // สกิลติดตัว Zect: หลบ 25% ระหว่าง Clock Up (ลบสกิลติดตัว = ไม่ได้)
+    ownEvade(p) { return isMe(p) && p.alive && PassiveSeal.on(p) && p.zect && p.zect.henshin && require("../server/clockUp").activeMember(p) ? ZECT_DODGE : 0; },
 
     // Rider Kick: ตีปกติครั้งถัดไป
     strikePierces(engine, attacker, target) { return isMe(attacker) && st(attacker).kickArmed && !!target && (target.statuses.resist || 0) > 0; },
@@ -462,6 +465,7 @@ function makeZect(cfg) {
       if (!isMe(p) || !p.alive) return;
       const s = st(p);
       if (!s.henshin || s.castOff) { s.putOnTurns = 0; return; }
+      if (PassiveSeal.sealed(p)) return; // ลบสกิลติดตัว: ไม่นับเพิ่ม/ไม่ฟื้น (ค่าที่นับไว้ไม่หาย)
       s.putOnTurns += 1;
       if (s.putOnTurns < PUT_ON_EVERY) return;
       s.putOnTurns = 0;

@@ -15,11 +15,14 @@
 //  การหมุนทองคำ (ติดตัว): ขี่ม้าเดิน = สัดส่วนทองคำ + ช่วงเดินตรงยาวสุดของตา (afterWalk · ย้อนเดินได้) สูงสุด 30
 //  ม้าคู่ใจ วาลคิรี (ปุ่มพิเศษบน HUD — hudActions/charAction): เลือด 3 รับดาเมจก่อนเกราะ (absorbDamage) · ตาย = เรียกไม่ได้ 2 เทิร์น
 //
+//  ลบสกิลติดตัว (server/passiveSeal.js): ตีโดนไม่ผลัก · ตีสวนถอยแบบปกติ · ขี่ม้าเดินไม่ได้ทองคำ · ม้าไม่รับดาเมจ/ไม่เพิ่มระยะเดิน-ตี
+//    · ขึ้น/ลงม้าไม่ได้ (สถานะขี่ค้างไว้ตามเดิม) · ระบบลูกเหล็ก (ไม่มีลูก = ตีไม่ได้) คงไว้ — เป็นอาวุธหลัก ปิดแล้วสกิลทั้งชุดพัง
 //  ทุกอย่างเก็บที่ p.gyro (ไจโรหลายคนในแมตช์ไม่ปนกัน) · ดาเมจจากลูกห่อ withEffectSource(เจ้าของลูก)
 //  เอฟเฟกต์: engine.boardFx("gyroFx", { kind, id, color, … }) — client/src/board/gyroFx.js (session gyro-fx)
 //   server ลงผลทั้งหมดตอนส่งเหตุการณ์ (แบบ iceFx) แล้วพักฉากตาม GYRO_FX (ms) ผ่าน engine.skillBeat
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "gyro_zeppeli";
 const DIR = "/characters/gyro_zeppeli";
@@ -435,6 +438,8 @@ function longestRun(tiles) {
 }
 
 // ---------- ม้า ----------
+// ม้าทำงาน (ขี่อยู่ + ไม่ถูกลบสกิลติดตัว)
+const riding = (p) => st(p).mounted && PassiveSeal.on(p);
 function horseReady(engine, p) { return cdLeft(st(p).horseReadyRound, engine.roundNumber) === 0; }
 function setMounted(engine, p, on) {
   const s = st(p);
@@ -458,12 +463,12 @@ module.exports = {
   resetCombat(p) { p.gyro = isGyro(p) ? fresh() : null; },
   maxHp() { return HP; },
   maxArmor() { return ARMOR; },
-  mov(p) { return isGyro(p) ? (st(p).mounted ? MOV_HORSE : MOV) : null; },
+  mov(p) { return isGyro(p) ? (riding(p) ? MOV_HORSE : MOV) : null; },
   // ไม่มีลูกในมือ = ไม่มีช่องที่ตีถึง (ตีสวนก็ไม่ได้)
   range(p) {
     if (!isGyro(p)) return null;
     if (hand(p) <= 0) return NO_STRIKE;
-    return st(p).mounted ? RANGE_HORSE : RANGE;
+    return riding(p) ? RANGE_HORSE : RANGE;
   },
   attackSound(p) { return isGyro(p) ? (st(p).empowered ? SFX.breaker : SFX.hit) : undefined; },
   voiceLines(p) { return isGyro(p) ? VOICE : null; },
@@ -485,7 +490,8 @@ module.exports = {
     const empowered = !counter && s.empowered;
     const hit = !(res && res.dodge);
     // ตีโดน (ไม่เสริม) = ลูกตกช่องที่เป้าถูกผลักไป · ตีสวน = รู้ช่องหลังผลัก (afterCounterPush) · หลบ/เสริม/ตาย = ช่องเป้า
-    const pushes = hit && !empowered && target.alive && target.pos;
+    // ลบสกิลติดตัว: ตีโดนไม่ผลัก (ตีสวนถอยแบบปกติ — ลูกยังตามผู้ตีไปช่องหลังถอย)
+    const pushes = hit && !empowered && target.alive && target.pos && (counter || PassiveSeal.on(attacker));
     const at = !target.pos ? null : pushes && !counter ? knockLand(engine, attacker, target) : landTile(engine, attacker, target);
     const ball = at ? dropBall(attacker, at) : null;
     if (ball && pushes) ball.stick = target.id;
@@ -519,7 +525,7 @@ module.exports = {
   },
   // ไจโรตีสวน: ลูกผลักผู้ตี 1 ช่อง แทนการถอยปกติ (ตีสวนพลาด = ไม่ผลัก · ชน = ไม่เสียเพิ่ม)
   counterPush(engine, counterer, attacker, res) {
-    if (!isGyro(counterer)) return null;
+    if (!isGyro(counterer) || PassiveSeal.sealed(counterer)) return null; // ลบสกิลติดตัว = ถอยปกติ
     return { push: !(res && res.dodge) };
   },
   afterBoardAttack(engine, attacker, target, res) {
@@ -528,6 +534,7 @@ module.exports = {
     st(attacker).pending = null;
     if (!pend || pend.targetId !== target.id || !pend.hit || !res || res.dodge) { settleBall(engine, attacker, target); return null; }
     if (pend.breaker) return () => (target.alive && target.pos ? breaker(engine, attacker, target, pend) : 0);
+    if (PassiveSeal.sealed(attacker)) { settleBall(engine, attacker, target); return null; } // ลบสกิลติดตัว = ไม่ผลัก
     return () => { knockOne(engine, attacker, target, pend); };
   },
   // ตีผนึกมิโกะ / หนามน้ำแข็ง: ใช้ลูกเหมือนตีคน (ลูกตกช่องนั้น) · ตีเสริมใส่ของ = เสริมหมดไปเฉยๆ
@@ -544,7 +551,7 @@ module.exports = {
 
   // ---------- ม้า: ชั้นเลือดรับดาเมจก่อนเกราะ ----------
   absorbDamage(engine, p) {
-    if (!isGyro(p)) return false;
+    if (!isGyro(p) || PassiveSeal.sealed(p)) return false; // ลบสกิลติดตัว = ม้าไม่รับดาเมจ
     const s = st(p);
     if (!s.mounted || s.horseHp <= 0) return false;
     s.horseHp--;
@@ -560,11 +567,11 @@ module.exports = {
     if (!isGyro(p) || !p.alive) return undefined;
     const s = st(p);
     const cd = s.mounted ? 0 : cdLeft(s.horseReadyRound, engine.roundNumber);
-    return [{ key: "horse", icon: "🐎", name: s.mounted ? "ลงม้า" : "ขึ้นม้า", on: s.mounted, cd, disabled: !engine.canAct(p) || cd > 0 }];
+    return [{ key: "horse", icon: "🐎", name: s.mounted ? "ลงม้า" : "ขึ้นม้า", on: s.mounted, cd, disabled: !engine.canAct(p) || cd > 0 || PassiveSeal.sealed(p) }];
   },
   // ปุ่มขึ้น/ลงม้า: ตาเดินของตัวเอง · 0 แต้ม · ไม่นับเป็นการใช้สกิล · ไม่ล็อกการเดิน (ระยะเดิน/ตีปรับทันที)
   charAction(engine, p, key) {
-    if (!isGyro(p) || key !== "horse" || !engine.canAct(p)) return false;
+    if (!isGyro(p) || key !== "horse" || !engine.canAct(p) || PassiveSeal.sealed(p)) return false; // ลบสกิลติดตัว
     const ok = setMounted(engine, p, !st(p).mounted);
     if (ok) engine.broadcastState();
     return ok;
@@ -620,7 +627,7 @@ module.exports = {
 
   // ---------- การหมุนทองคำ: ขี่ม้าเดิน = ช่วงเดินตรงยาวสุดของตา (ถูกเรียกใหม่ทุกครั้งด้วยเส้นทางเต็มจากจุดเริ่มตา) ----------
   afterWalk(engine, p, tiles) {
-    if (!isGyro(p) || !st(p).mounted) return [];
+    if (!isGyro(p) || !riding(p)) return []; // ลบสกิลติดตัว = ไม่ได้ทองคำ
     const s = st(p);
     const prev = s.golden;
     const run = longestRun(tiles);

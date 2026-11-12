@@ -20,6 +20,7 @@
 // ============================================================
 
 const { CHAR_BY_ID, CHARACTERS } = require("../characters.js");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "echo";
 const REVERT_CD = 3;
@@ -338,6 +339,7 @@ module.exports = {
   // ต้นเทิร์น (ทุกโมดูล — เช็คเองว่าเป็น Echo ไหม เพราะตอนเปลี่ยนสกิล characterId เป็นของตัวอื่น)
   onRoundStartTick(engine, p) {
     if (!isEcho(p) || !p.alive) return;
+    if (!PassiveSeal.on(p)) return; // ลบสกิลติดตัว (server/passiveSeal.js) — สกิลติดตัวของร่างที่สวมเช็คเองในโค้ดของตัวนั้น (p เดียวกัน)
     gentleQueen(engine, p);
   },
 

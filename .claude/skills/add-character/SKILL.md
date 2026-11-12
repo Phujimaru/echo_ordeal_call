@@ -36,6 +36,13 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - ฮุค `resetCombat` ของตัวใหม่ถูกเรียกตอน Echo สวมร่าง — ห้ามแจกของ/รีเซ็ตแต้ม/เงินซ้ำได้ (Echo เก็บ `KEEP_ON_MIMIC` ไว้ให้ แต่ฟิลด์ใหม่ที่ควรค้างต้องเพิ่มเข้าไป) · ผลค้างต้องตัดได้ตอนคืนร่าง (`severables`)
 - รัน `tests/echo-mimic-all.test.js` + `tests/echo-mimic-stress.test.js` ทุกครั้ง · ห้ามเพิ่มเข้า `BLOCKED` เองโดยไม่ถามผู้ใช้
 
+## สกิลติดตัวต้องปิดได้ด้วย "ลบสกิลติดตัว" (ระบบกลาง 2026-11-12 · GAME_SYSTEM §30.1)
+
+- สถานะ Universal `noPassive` (Rule Breaker ของชิโร่ระหว่าง UBW · ใส่ด้วย `engine.applyPassiveSeal(p, turns)`) — ติดอยู่ = สกิลติดตัวทุกช่องไม่ทำงาน
+- **ไม่มีตัวกรองฮุคอัตโนมัติ**: โค้ดที่ทำให้สกิลติดตัว (`passive`/`passive2`/…) ทำงาน ต้องเช็ค `PassiveSeal.on(p)` เอง (`const PassiveSeal = require("../server/passiveSeal")`)
+  — ปิดเฉพาะส่วนที่เป็นสกิลติดตัว ห้ามปิดผลของสกิลกด/ท่าไม้ตาย/อาวุธ/ร่าง · ค่าสะสมไม่ล้าง (แค่ไม่เพิ่ม/ไม่ออกฤทธิ์) · ฮุคที่วนทุกคนเช็คต่อคน
+- เทสต์: ติด `p.statuses.noPassive = 2` แล้วผลสกิลติดตัวไม่เกิด (ดูแบบใน `tests/passive-seal-*.test.js`)
+
 ## เพศตัวละคร (ต้องใส่ทุกตัว)
 
 - `characters.js` ทุกตัวต้องมี `gender: "f" | "m" | "n"` (เทสต์ `kurenai_otoya.test.js` คุม) · ไม่รู้ = ถามผู้ใช้ · อ่านด้วย `characters/_gender.js` `genderOf(u)` · ไม่แสดงใน UI (GAME_SYSTEM §47)

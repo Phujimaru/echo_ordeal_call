@@ -1023,11 +1023,22 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ตีซ้ำเป้าเดิมในการตีครั้งเดียว**: ฮุค `strikeRepeat(p)` → จำนวนฮิตเพิ่ม (ชิโร่ Kanshou & Bakuya 1 = 2 ฮิต แบบอาวุธ Brave) — `attack.boardAttack` เรียก `strike()` เต็มท่อซ้ำ (หลบ/คริ/ผลตีโดน/`onStrikeResolved`) จนเป้าหรือผู้ตีตาย ·
   ผลอยู่ใน `card.repeat` [{ dmg, dodge, kill, crit, skills }] · ฉากตียาวขึ้น 0.5 วิ/ฮิต · client เล่นฮิตเพิ่มห่าง `EMIYA_REPEAT_MS` (300ms) หลังฮิตแรก (ตกรอบที่ฮิตไหน ระเบิดตอนนั้น) · `afterStrike` ยังเรียกครั้งเดียวต่อการตี
 - **ราคาตั้งต้นเกินเพดาน `SKILL_COST_MAX`** (ชิโร่ UBW 12): `skills.skillCostOf` คงราคาเดิม — เพดานกันแค่ตัวปรับขาขึ้น (กลางคืน/การเดินทาง/ภาระเวท) ไม่ให้ดันเกิน `max(SKILL_COST_MAX, ราคาเดิม)` · ความจุแต้มเฉพาะตัวเพิ่มระหว่างเกมได้ด้วยฮุค `maxSkill(p)`
-- **ไอเทมที่ไม่มีผล = ใช้ไม่ได้**: วงจรพลังงานของคนที่ `blocksSkillGain(p, "item")` (ชิโร่/เฟิร์น) — `shop.useInventoryItem` คืนก่อนใช้ ประจุไม่หาย ไม่ล็อกการเดิน (เดิมคือยาฟื้นแต้มสกิล — ถอดออกแล้ว 2026-11-08)
-- **ชิโร่**: สถานะ `p.emiya` { weapon, uses, weaponEnd, weaponAt, traceReady, wsReady, ultReady, capBonus, avalonReady, excalUsed, ubwEnd, ubwAt } · สถานะ `emiyaUbw` (ป้ายเทิร์นของ UBW — ค่าจริงคือ `ubwEnd`) ·
+- **ไอเทมที่ไม่มีผล = ใช้ไม่ได้**: วงจรพลังงานของคนที่ `blocksSkillGain(p, "item")` (เฟิร์น · ชิโร่เลิกใช้แล้ว 2026-11-12) — `shop.useInventoryItem` คืนก่อนใช้ ประจุไม่หาย ไม่ล็อกการเดิน (เดิมคือยาฟื้นแต้มสกิล — ถอดออกแล้ว 2026-11-08)
+- **ชิโร่**: สถานะ `p.emiya` { weapon, uses, weaponEnd, weaponAt, traceReady, wsReady, ultReady, capBonus, avalonReady, excalUsed, ninePush, bleedKey, ubwEnd, ubwAt } · สถานะ `emiyaUbw` (ป้ายเทิร์นของ UBW — ค่าจริงคือ `ubwEnd`) ·
   อาวุธ = ฮุค `range` / `mov` / `attackLane` / `strikeRect` / `strikeRepeat` / `critPct` / `damageBonus` / `onStrikeLanded` ตามอาวุธที่ถือ · สกิลรองเปลี่ยนตามอาวุธ (`skillPub` + `skillArea` + `skillCost` — Caladbolg II ราคา = ความจุ ÷ 2 · `ownsAreaHit` แล้ว `engine.hitArea` ตอนลูกศรถึง) ·
-  Avalon: `onDamageTaken` (เสียหาย 1 หน่วยทุกทาง) ขณะพร้อม = `applyMend(p, 1, 2)` แล้วคูลดาวน์ 3 · ใช้สกิลสำเร็จทุกครั้งความจุ +1 (ใน `applyInstantSkill`) · `severables` = อาวุธ + UBW · dev `ECHO_DEV_EMIYA_CAP=N` (ความจุเพิ่มตั้งแต่เริ่ม)
+  Avalon: `onDamageTaken` (เสียหาย 1 หน่วยทุกทาง) ขณะพร้อม = `applyMend(p, 1, 2)` แล้วคูลดาวน์ 3 · ใช้สกิลสำเร็จทุกครั้งความจุ +2 เพดาน +20 (Eos ไม่จำกัด · ใน `applyInstantSkill`) ·
+  ผลระหว่าง UBW (2026-11-12): K&B เลือดไหล 1 ต่อการโจมตี (`engine.cmdSeq`) · Hrunting ไม่ลดเดิน + `damageBonus` +1 · Rule Breaker `engine.applyPassiveSeal(เป้า, 2)` · Nine Lives จด id ที่โดนใน `onStrikeLanded` แล้วผลักใน `afterBoardAttack` (`ice.pushUnit` 2) · `severables` = อาวุธ + UBW · dev `ECHO_DEV_EMIYA_CAP=N` (ความจุเพิ่มตั้งแต่เริ่ม)
 - เอฟเฟกต์ `engine.boardFx("emiyaFx", { kind, id, color, at, size, … })` (client `emiyaFx.js` · หน้าทดสอบ `?board=1&emiya=1`) · ตีปกติ `attackStyle` = `emiyaKB|emiyaBow|emiyaRule|emiyaNine|emiyaExcal` · เสียง `emiya_*` · คลิป `emiyaCaladbolgBefore/After` + `emiyaUbw` (`characters/_transforms.js`)
+
+
+### 30.1 ลบสกิลติดตัว (`noPassive`) — สถานะ Universal (2026-11-12 · ต้นทาง: Rule Breaker ของชิโร่ระหว่าง UBW · `server/passiveSeal.js`)
+- ติดอยู่ = **สกิลติดตัวทุกช่อง** (`passive` / `passive2` / `passive3` … ของตัวที่สวมอยู่ รวมสกิลติดตัวของเจ้าหญิง Echo) ไม่ทำงานชั่วคราว
+- ใส่ผ่าน **`engine.applyPassiveSeal(p, turns)`** เท่านั้น (= `applyDebuff(p, "noPassive", null, turns)` — เคารพต้านสถานะ/สะท้อน/ชั้นมิติ/ทีม · คืน true = ติด) · อ่าน `engine.passiveSealed(p)` หรือ `PassiveSeal.on(p)` / `.sealed(p)`
+- ดีบัฟปกติ: ลดทีละเทิร์นตอนจบเทิร์น · อยู่ใน `BASIC_DEBUFF_CLEAR` (ต้านสถานะ/ล้างดีบัฟล้างได้) · ป้ายใน client `STATUS_INFO.noPassive` (🚫 ลบสกิลติดตัว)
+- **ไม่มีตัวกรองฮุคอัตโนมัติ** — ฮุคตัวละครผสมทั้งสกิลกด/อาวุธ/ร่างและสกิลติดตัว · โค้ดสกิลติดตัวของแต่ละตัว **ต้องเช็ค `PassiveSeal.on(p)` เอง**
+  (`const PassiveSeal = require("../server/passiveSeal")` — ไฟล์ไม่ require อะไร ไม่วน) · ตัวละครใหม่ที่มีสกิลติดตัวต้องทำ + เทสต์ (add-character SKILL.md)
+- ไม่กระทบ: ค่าพื้นฐาน (HP/เกราะ/เดิน/ระยะตี) · ผลของสกิลกด/ท่าไม้ตาย/อาวุธ/ร่างที่กดแปลง · สถานะที่ติดไปแล้ว · ค่าสะสมของสกิลติดตัว (ไม่หาย แค่ไม่เพิ่ม/ไม่ออกฤทธิ์ระหว่างติด)
+- เทสต์: `tests/passive-seal-*.test.js` (ครอบทุกตัวละคร) + `tests/characters/emiya_shirou.test.js`
 
 ## 31. โหมดตัวละคร / ยูนิตบินได้ + สายจูง / ล่อเป้า (นักบินปริศนา–บานาจ ลิงซ์ — `characters/sliver_bullet.js` · GRID_PLAN §7.5.1)
 - **โหมดในหน้าเลือกตัว**: characters.js `modes: [{ key, name, form? }]` + `forms: { <form>: { name, img, passive, passive2, basic, secondary, ultimate } }` · `publicRoster` ส่ง `modes` (โหมดที่มีร่าง = ชื่อ/สกิลของร่าง) ·

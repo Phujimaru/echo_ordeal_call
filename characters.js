@@ -981,7 +981,7 @@ const CHARACTERS = [
   },
   {
     // ---------- เอมิยะ ชิโร่ (Fate/stay night [UBW]) — ยาก — ดู characters/emiya_shirou.js (GRID_PLAN §7.18) ----------
-    //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · แต้มสกิล 0/8 (ความจุเพิ่มได้ถึง 24 — ฮุค maxSkill)
+    //  พลังชีวิต 7 / เกราะ 3 (maxHp/maxArmor ในโมดูล) · พลังโจมตี 1 · แต้มสกิล 0/8 (ความจุเพิ่มได้ถึง 28 · สนาม Eos ไม่จำกัด — ฮุค maxSkill)
     //  ระยะ/ระยะเดิน/ท่าตีเปลี่ยนตามอาวุธที่ Trace On (ฮุค range / mov / attackLane / strikeRect / strikeRepeat)
     id: "emiya_shirou",
     gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
@@ -993,11 +993,11 @@ const CHARACTERS = [
     range: [1, 1],
     passive: {
       name: "Avalon Magecraft",
-      desc: "ได้รับความเสียหาย: เยียวยา 1 นาน 2 เทิร์น (คูลดาวน์ 3 เทิร์น) · ใช้สกิลแต่ละครั้ง ความจุแต้มสกิล +1 (เพิ่มได้ไม่เกิน 16) · ไอเทมฟื้นแต้มสกิลใช้ไม่ได้ · ตีปกติขณะถืออาวุธ แต้มสกิล +1",
+      desc: "ได้รับความเสียหาย: เยียวยา 1 นาน 2 เทิร์น (คูลดาวน์ 3 เทิร์น) · ใช้สกิลแต่ละครั้ง ความจุแต้มสกิล +2 (เพิ่มได้ไม่เกิน 20 · สนาม Eos ไม่จำกัด) · ไอเทมฟื้นแต้มสกิลได้ · ตีปกติขณะถืออาวุธ แต้มสกิล +1",
     },
     basic: {
       name: "Trace On",
-      desc: "เลือกอาวุธ 1 ใน 5: Kanshou & Bakuya (1) · Hrunting & Caladbolg II (2) · Rule Breaker (3) · Nine Lives Blade Works (4) · Excalibur (5 · เฉพาะตอน Unlimited Blade Works · 1 ครั้งต่อเกม) · อาวุธอยู่ 5 เทิร์น ตีปกติ+สกิลรองรวม 3 ครั้งหาย · กดใหม่ = เปลี่ยนอาวุธ (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · คูลดาวน์ 2 เทิร์น)",
+      desc: "เลือกอาวุธ 1 ใน 5: Kanshou & Bakuya (1) · Hrunting & Caladbolg II (2) · Rule Breaker (3) · Nine Lives Blade Works (4) · Excalibur (5 · เฉพาะตอน Unlimited Blade Works · 1 ครั้งต่อเกม) · อาวุธอยู่ 5 เทิร์น ตีปกติ+สกิลรองรวม 3 ครั้งหาย (Excalibur อยู่ 2 เทิร์น ไม่นับครั้ง) · กดใหม่ = เปลี่ยนอาวุธ (ไม่นับโควตาสกิล · ใช้แล้วยังเดินได้ · คูลดาวน์ 2 เทิร์น)",
       area: { kind: "self" },
       cost: 0, // ราคาจริงตามอาวุธที่เลือก (ตัวเลือกบอกเอง — skillCost)
       img: "/characters/emiya_shirou/emiya_trace.webp",

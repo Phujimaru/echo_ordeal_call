@@ -24,6 +24,7 @@
 // ============================================================
 
 const ID = "raido_hikaru";
+const PassiveSeal = require("../server/passiveSeal");
 const DIR = "/characters/raido_hikaru";
 const IMG = {
   base: `${DIR}/hikaru.jpg`,
@@ -239,6 +240,7 @@ function setForm(engine, p, key) {
 function braceTick(engine, p) {
   const s = st(p);
   if (s.strium || engine.zeroActive() || engine.isNightRound(engine.worldRound)) return false;
+  if (!PassiveSeal.on(p)) return false; // ลบสกิลติดตัว (server/passiveSeal.js): ไม่นับเพิ่ม · ค่าที่สะสมไว้คงเดิม
   s.brace = Math.min(BRACE_MAX, s.brace + 1);
   if (s.brace < BRACE_MAX) return false;
   s.strium = true;
@@ -371,6 +373,7 @@ module.exports = {
   // เกราะลด 1 = ฟื้นพลังชีวิต 1 (ร่าง 1–6 · combat.loseArmor)
   onArmorLost(engine, p) {
     if (!inForm(p) || !p.alive) return;
+    if (!PassiveSeal.on(p)) return; // ลบสกิลติดตัว (ร่าง UltraLive)
     if (engine.healHp(p, ARMOR_LOSS_HEAL) > 0) engine.log(`🔆 ${p.name} UltraLive — เกราะลด ฟื้นพลังชีวิต +${ARMOR_LOSS_HEAL}`);
   },
 
@@ -411,7 +414,7 @@ module.exports = {
   },
 
   // ---------- ล่องหน (ร่างมนุษย์ดาวเคมู) — ระบบกลาง server/visibility.js ----------
-  stealthed(p) { return formOf(p) === "kemur" && !!st(p).hidden; },
+  stealthed(p) { return formOf(p) === "kemur" && !!st(p).hidden && PassiveSeal.on(p); }, // ลบสกิลติดตัว = มองเห็น
   onReveal(engine, p) {
     if (!isHikaru(p) || !p.alive) return;
     reveal(engine, p);
@@ -521,6 +524,7 @@ module.exports = {
         const snap = s.kemurSnap || { hp: 0, armor: 0, attacked: false };
         const hit = (p.dmgHp || 0) > snap.hp || (p.dmgArmor || 0) > snap.armor || (!!p.wasAttacked && !snap.attacked);
         s.kemurSnap = null;
+        if (!PassiveSeal.on(p)) continue; // ลบสกิลติดตัว: ไม่นับเทิร์นสงบเพิ่ม (ค่าเดิมคงไว้)
         s.kemurCalm = hit ? 0 : s.kemurCalm + 1;
         if (s.kemurCalm >= KEMUR_CALM) {
           s.kemurCalm = 0;

@@ -13,12 +13,14 @@
 //    justice (4): สุ่มพลังชีวิต 2–4 · เกราะ 1–3 · แต้มสกิล 2–5 + ล้างสถานะทั้งหมด
 //  ตัวที่เหมือนกัน: จบตาเดินของเป้า (ฮุค afterActorEnd) = วิ่งเข้าหา (เดิน 5) · ถึงตัว = ชน · ทำลายได้ (พลังชีวิต 3 · เกราะ 2)
 //  สันติภาพและความยุติธรรม (ติดตัว): ทำดาเมจจริง = แต้มสกิล +1 ต่อการโจมตี 1 ครั้ง (ฮุค onDamageDealt + engine.cmdSeq)
+//    · ลบสกิลติดตัว (server/passiveSeal.js) = ไม่ได้แต้ม (เช็คที่ grant — ร่างแยก/ตัวเหมือนด้วย)
 //
 //  ทุกอย่างของตัวจริงเก็บที่ p.valentine · ร่างแยก = ระเบียน characterId เดียวกัน + p.summon (ฮุคต้องแยก isVal / isValUnit)
 //  เอฟเฟกต์: engine.boardFx("valentineFx", { kind, id: ตัวจริง, … }) — client/src/board/valentineFx.js (จังหวะ VAL_FX ต้องตรงกัน)
 //   เหตุการณ์ของตัวที่เหมือนกัน (doubleSpawn/doubleRun/menger/doubleBreak): id = ตัวเหมือน · ownerId = ตัวจริง
 // ============================================================
 const Board = require("../server/board");
+const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "funny_valentine";
 const DIR = "/characters/funny_valentine";
@@ -169,7 +171,7 @@ const doublesOn = (engine, targetId) => Object.values(engine.players).filter((d)
 
 // ---------- สกิลติดตัว: สันติภาพและความยุติธรรม ----------
 function grant(engine, owner, unit) {
-  if (!owner.alive) return;
+  if (!owner.alive || PassiveSeal.sealed(owner)) return; // ลบสกิลติดตัว (server/passiveSeal.js)
   const before = owner.skillPoints;
   engine.addSkill(owner, 1, "passive");
   const got = owner.skillPoints - before;
