@@ -29,6 +29,13 @@ description: เพิ่มตัวละครใหม่หรือรื�
 9. เขียนเทสต์ `tests/characters/<id>.test.js`
 10. `npm test` (รัน 2-3 รอบเช็คความเสถียร) · `npx eslint server.js server characters characters.js client/src` · `cd client && npx vite build`
 
+## Echo ต้องสวมร่างตัวใหม่ได้ (กฎผู้ใช้ 2026-11-12)
+
+- เจ้าหญิง Echo (`characters/echo.js`) ต้องสวมร่างได้ทุกตัว — ตัวใหม่ต้องขึ้นในสมุดไดอารี่และใช้ได้จริงตอน Echo สวม (สกิล + สกิลติดตัว · ตัวที่มีแต่สกิลติดตัวก็สวมได้ `hasKit`)
+- ค่าสถานะอ่านผ่าน `statId(p)` · ตัวตนจริง (unique/สถิติ) ผ่าน `baseId(p)` — อย่าอ่าน `CHAR_BY_ID[p.characterId]` ตรงๆ เพื่อเช็คตัวตน
+- ฮุค `resetCombat` ของตัวใหม่ถูกเรียกตอน Echo สวมร่าง — ห้ามแจกของ/รีเซ็ตแต้ม/เงินซ้ำได้ (Echo เก็บ `KEEP_ON_MIMIC` ไว้ให้ แต่ฟิลด์ใหม่ที่ควรค้างต้องเพิ่มเข้าไป) · ผลค้างต้องตัดได้ตอนคืนร่าง (`severables`)
+- รัน `tests/echo-mimic-all.test.js` + `tests/echo-mimic-stress.test.js` ทุกครั้ง · ห้ามเพิ่มเข้า `BLOCKED` เองโดยไม่ถามผู้ใช้
+
 ## เพศตัวละคร (ต้องใส่ทุกตัว)
 
 - `characters.js` ทุกตัวต้องมี `gender: "f" | "m" | "n"` (เทสต์ `kurenai_otoya.test.js` คุม) · ไม่รู้ = ถามผู้ใช้ · อ่านด้วย `characters/_gender.js` `genderOf(u)` · ไม่แสดงใน UI (GAME_SYSTEM §47)
