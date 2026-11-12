@@ -75,7 +75,7 @@ test('ตัวที่ซ้ำไม่ได้และอยู่ใน�
   const E = P.E;
   assert.equal(echo.pickable(engine, E, 'ryougi'), false);
   assert.equal(echo.pickable(engine, E, 'muimi'), true);
-  assert.equal(echo.pickable(engine, E, 'kate'), false, 'ระบบคู่เลือกไม่ได้');
+  assert.equal(echo.pickable(engine, E, 'kate'), true, 'ระบบคู่เลือกได้ — Echo อีกคนเกิดข้างๆ (ผู้ใช้ 2026-11-12)');
   assert.equal(echo.pickable(engine, E, 'echo'), false);
   const book = pub(E).character.basic;
   assert.equal(book.book, true);

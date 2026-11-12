@@ -353,7 +353,7 @@ function buildStateInner(viewerId) {
         statusAmt: p.statusAmt || {}, // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8)
         character: {
           id: ch.id,
-          face: echoLook ? "echo" : undefined, // ครอปหน้าตามภาพ Echo (client charFace.js) — ตอนสวมร่าง id เป็นของตัวที่เลือก
+          face: echoLook ? (CHAR_HOOKS.echo.isClone(p) ? "echoClone" : "echo") : undefined, // โคลน Echo = ภาพกลับด้าน // ครอปหน้าตามภาพ Echo (client charFace.js) — ตอนสวมร่าง id เป็นของตัวที่เลือก
           // ภาพประจำตัวละคร (ไม่ผูกกับร่าง/แฝดที่กำลังคุมอยู่) — ฉากเปิดตัวตอนแมตช์เริ่มใช้ภาพนี้
           img: (charOver && charOver.img) || ch.cover || ch.img, // ภาพปก (เคท & เอมิลิโกะ) — หน้าสรุป/ฉากเปิดแมตช์
           cover: (charOver && charOver.img) || ch.cover || null, // ภาพปก (ถ้ามี) — หน้าสรุปแต้มใช้แทนรูปบนกระดาน

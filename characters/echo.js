@@ -27,8 +27,10 @@ const REVERT_CD = 3;
 const RECALL_TITLE = "Recollection Time";              // คืนร่างแล้วรอกี่เทิร์นก่อนเลือกใหม่ (ผู้ใช้เลือก)
 const KIND_SP = "sp", KIND_GOLD = "gold", KIND_HP = "hp";
 const DIARY_IMG = "/characters/echo/echo_diary.webp";
+// โคลนตอนสวมร่างเคท & เอมิลิโกะ: ภาพ Echo กลับด้าน โทนเงาม่วงเข้ม (ผู้ใช้เลือก 2026-11-12)
+const CLONE_IMG = "/characters/echo/echo_cover_shadow.webp";
 // ตัวที่เลือกไม่ได้ (Claude ตัดสิน): ระบบคู่ (ผู้เล่น 1 คนคุม 2 ตัว — ตัวที่สองเกิดตอนเริ่มแมตช์เท่านั้น)
-const BLOCKED = new Set(["kate", "emiliko"]);
+const BLOCKED = new Set([]); // ว่าง — Echo ต้องสวมร่างได้ทุกตัว (กฎผู้ใช้ 2026-11-12) · ห้ามเพิ่มเองโดยไม่ถามผู้ใช้
 // ฟิลด์ที่ฮุค resetCombat ของบางตัวเขียนทับตอนเริ่มเกม แต่ตอนสวมร่างกลางเกมต้องคงของเดิม (ไม่งั้นเป็นช่องโกง/ล้างดีบัฟฟรี)
 //  ทรัพยากร: แต้ม (เฟิร์น = Energy เต็ม) · เหรียญ (กิลกาเมช = 100) · กระเป๋า (โจรุโน่ = ธนู) · เลือด/เกราะ/สถานะ
 //  ผลจากคนอื่นที่ติดบนตัว: TIME ของคาซุมะ · ม่าน/นกจาบ/ความฝันของโอเบรอน · คำอวยพรของยูนะ · การขี่ · ต้นไม้ของโจรุโน่ · ถูกเรียวกิสังหาร
@@ -38,7 +40,7 @@ const KEEP_ON_MIMIC = [
   "mountId", "lastRidePos", "giornoTree", "ryougiSlain",
 ];
 // ของประจำตัวที่ resetCombat แจก — ได้ครั้งเดียวต่อเกม (ไม่ปั๊มด้วยการสวมร่างซ้ำ) และหายตอนคืนร่างถ้ายังไม่ใช้
-const KIT_ITEMS = { giorno_giovanna: "giornoArrow" };
+const KIT_ITEMS = { giorno_giovanna: "giornoArrow", kate: "kebread" }; // เคท: ขนมปังของเอมิลิโกะ (ได้ตอนโคลนเกิด)
 
 const isEchoId = (p) => !!p && p.characterId === ID;
 const mimicking = (p) => !!(p && p.echoQ && p.echoQ.mimic);
@@ -132,6 +134,7 @@ function mimic(engine, p, id) {
   // แต้มสกิล/เลือด/เกราะไม่เกินเพดานของร่างใหม่ (ฮุคบางตัวเติมค่าเริ่มต้นเอง)
   clampVitals(engine, p);
   engine.log(`📖 ${p.name} เปิดไดอารี่ความทรงจำ — ได้สกิลของ ${ch ? ch.rosterName || ch.name : id}`);
+  if (ch && ch.duo) spawnClone(engine, p); // ตัวละครคู่: Echo อีกคนเกิดข้างๆ
   return ch ? ch.rosterName || ch.name : id;
 }
 function clampVitals(engine, p) {
@@ -153,11 +156,79 @@ function severAll(engine, p) {
   }
   return cut;
 }
+// ---------- สวมร่างเคท & เอมิลิโกะ (ตัวละครคู่) = Echo อีกคนเกิดข้างๆ (ผู้ใช้ 2026-11-12) ----------
+//  Echo = เคท (เจ้าของ) · โคลน = เอมิลิโกะ (ระเบียนคู่แบบ server/duo.js — id "<Echo>~duo" · ใช้แต้ม/เหรียญ/กระเป๋าร่วมกัน)
+//  หน้าตาโคลน = Echo กลับด้าน โทนเงาม่วงเข้ม · ชื่อ Echo
+//  โคลนตาย = หายไป (ไม่ทิ้งร่าง) · Echo เล่นต่อในร่างเคทคนเดียว (กระจกเงา/ตื่นขึ้นอีกครั้งใช้ไม่ได้ — ไม่มีคู่)
+//  Echo ตาย = โคลนหายไปด้วย (ฝ่ายนี้ตกรอบ) · คืนร่าง = โคลนหาย
+const isClone = (p) => !!(p && p.echoClone);
+function cloneOf(p) {
+  const id = p && p.duoWith;
+  const u = id && require("../server/match").players[id];
+  return u && u.echoClone ? u : null;
+}
+function spawnClone(engine, p) {
+  const Duo = require("../server/duo");
+  const match = require("../server/match");
+  const partnerId = CHAR_BY_ID[p.characterId] && CHAR_BY_ID[p.characterId].duo;
+  const ch = partnerId && CHAR_BY_ID[partnerId];
+  if (!ch || cloneOf(p) || !p.pos) return null;
+  const at = engine.nearFreeTile(p.pos);
+  if (!at) return null;
+  const id = p.id + Duo.SUFFIX;
+  const me = CHAR_BY_ID[ID];
+  const mate = {
+    id, duoOf: p.id, echoClone: true, connected: true, ready: true, socketId: null, sessionToken: null,
+    teamId: p.teamId || null, teamConfirmed: true, modeVote: null,
+    name: me.name, customColor: p.customColor, position: p.position,
+    characterId: ch.id, avatar: 0, img: CLONE_IMG,
+    locked: true, busted: false, result: null,
+    hp: 0, armor: 0, alive: true, shield: 0, statuses: {}, statusAmt: {},
+    seen: {}, transformAt: 0, cutsceneShown: {}, skillUsedRound: false, ultRound: 0,
+    tempHp: 0, tempHpTurns: 0, sleepFresh: false, pos: { ...at }, boardSize: 1,
+    dmgHp: 0, dmgArmor: 0, gainedSkill: 0, wasAttacked: false, corpse: null,
+  };
+  for (const k of ["skillPoints", "gold", "inventory", "cards", "whistleReady"]) {
+    Object.defineProperty(mate, k, {
+      enumerable: true, configurable: true,
+      get() { const own = match.players[mate.duoOf]; return own ? own[k] : undefined; },
+      set(v) { const own = match.players[mate.duoOf]; if (own) own[k] = v; },
+    });
+  }
+  match.players[id] = mate;
+  p.duoWith = id;
+  // สถานะเฉพาะตัวของคู่ (ฮุค resetCombat ของเคท & เอมิลิโกะ — ขนมปังได้ครั้งเดียวต่อเกม)
+  const s = st(p);
+  const invBefore = new Set((p.inventory || []).map((it) => it && it.uid));
+  const hook = lazyHooks()[ch.id];
+  if (hook && typeof hook.resetCombat === "function") lazyCombat().runHook(hook, "resetCombat", mate);
+  const bread = (p.inventory || []).filter((it) => it && it.type === KIT_ITEMS.kate && !invBefore.has(it.uid));
+  if (bread.length && (s.kits || []).includes(KIT_ITEMS.kate)) p.inventory = p.inventory.filter((it) => !bread.includes(it));
+  else if (bread.length) s.kits = [...(s.kits || []), KIT_ITEMS.kate];
+  const c = lazyCombat();
+  mate.hp = c.maxHpOf(mate);
+  mate.armor = c.maxArmorOf(mate);
+  if (match.duo && match.duo.ownerId === p.id) match.duo.done[id] = true; // ตานี้โคลนยังไม่ได้เดิน — เริ่มเดินตาหน้า
+  engine.log(`🪞 ${p.name} — Echo อีกคนปรากฏข้างกาย (${ch.name})`);
+  if (engine.boardFx) engine.boardFx("shadowFx", { kind: "revive", by: p.id, id, at: { ...at } });
+  return mate;
+}
+// โคลนหาย (คืนร่าง / Echo ตาย / โคลนตาย / จบชีวิตแบบเกิดใหม่) — ลบระเบียนออกจากแมตช์
+function removeClone(p) {
+  const match = require("../server/match");
+  const m = cloneOf(p);
+  if (p) delete p.duoWith;
+  if (!m) return;
+  if (match.duo && match.duo.ownerId === p.id) { delete match.duo.acts[m.id]; match.duo.done[m.id] = true; }
+  delete match.players[m.id];
+}
+
 function revert(engine, p, { cooldown = true, silent = false } = {}) {
   const s = st(p);
   if (!s.mimic) return false;
   const was = CHAR_BY_ID[s.mimic];
   if (p.alive) severAll(engine, p);
+  removeClone(p); // เคท & เอมิลิโกะ: Echo อีกคนหายไป
   if (p.alive && p.pos && engine.sizeOf(p) > 1) engine.resizeUnit(p, 1);
   // ของประจำตัวของร่างนั้นที่ยังไม่ใช้ = หาย (โจรุโน่: ธนู)
   const kitType = KIT_ITEMS[s.mimic];
@@ -192,15 +263,20 @@ function gentleQueen(engine, p) {
 module.exports = {
   id: ID,
   REVERT_CD, DIARY_IMG, BLOCKED, RECALL_TITLE,
-  isEcho, mimicking, statId, baseId, pickable, bookChoices, mimic, revert,
+  isEcho, mimicking, statId, baseId, pickable, bookChoices, mimic, revert, isClone, cloneOf, CLONE_IMG,
 
   // ---------- จุดที่ engine เรียกตรง (ไม่ผ่านฮุคตาม characterId — ตอนเปลี่ยนสกิล characterId เป็นของตัวอื่น) ----------
   // combat.resetCombat: เริ่ม/จบแมตช์ = กลับร่างตัวเองก่อนทุกอย่าง
   restoreBase(p) {
-    if (mimicking(p)) { p.characterId = ID; p.echoQ.mimic = null; }
+    if (mimicking(p)) { removeClone(p); p.characterId = ID; p.echoQ.mimic = null; }
   },
   // view.js: หน้าตาตอนเปลี่ยนสกิล — ชื่อ/ภาพปก/ภาพบนกระดานของ Echo · สกิลติดตัว = Echo + ตัวที่เลือก
   lookOf(p) {
+    if (isClone(p)) { // โคลน: Echo กลับด้าน โทนเงาม่วง · สกิลติดตัวของเอมิลิโกะ
+      const me = CHAR_BY_ID[ID], other = CHAR_BY_ID[p.characterId] || {};
+      const pas = (x) => (x ? { name: x.name, desc: x.desc } : null);
+      return { name: me.name, img: CLONE_IMG, boardImg: CLONE_IMG, passive: pas(other.passive), passive2: pas(other.passive2), passive3: null };
+    }
     if (!mimicking(p)) return null;
     const me = CHAR_BY_ID[ID], other = CHAR_BY_ID[p.echoQ.mimic] || {};
     const pas = (x) => (x ? { name: x.name, desc: x.desc } : null);
@@ -241,6 +317,20 @@ module.exports = {
   resetCombat(p) {
     if (isEchoId(p)) p.echoQ = fresh();
     else if (!mimicking(p)) p.echoQ = null;
+  },
+  // ฮุค broadcast ตอนใครก็ตามตาย: โคลนตาย = หายไป (ไม่ทิ้งร่าง) · Echo ที่มีโคลนตาย = โคลนหายด้วย ฝ่ายนี้ตกรอบ
+  onDeath(engine, dead) {
+    if (isClone(dead)) {
+      // ระเบียนยังอยู่ (ตาย ไม่มีร่าง = ไม่ขึ้นบนกระดาน) — ลบตอนคืนร่าง · ไม่ลบกลางตาเดิน (อาจเป็นตัวที่กำลังคุม)
+      dead.corpse = null;
+      engine.log(`🪞 Echo อีกคนเลือนหายไป`);
+      return;
+    }
+    if (mimicking(dead) && cloneOf(dead)) {
+      const m = cloneOf(dead);
+      m.alive = false; m.hp = 0; m.corpse = null; m.result = "dead"; m.locked = true;
+      dead.corpse = null; dead.result = "dead"; dead.locked = true;
+    }
   },
   // ตีปกติร่างตัวเอง = คลื่นเสียง (ท่าเดิมของ Echo 1×1)
   attackStyle(p) { return isEchoId(p) ? "echo" : null; },
