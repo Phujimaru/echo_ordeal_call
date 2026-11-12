@@ -58,6 +58,9 @@ const BREAK_KEY = "iceBreak";
 const EOS_LV_MAX = 5;
 const EOS_STACK = [0, 6, 12, 18, 24, 30];  // ติดตัว 2: ความเสียหายไถลชนซ้อนทับสูงสุดตาม LV
 const EOS_SHOCK_R = [0, 2, 2, 3, 3, 5];    // ระยะ Shock Wave ทุกแบบตาม LV (แมนฮัตตัน)
+const EOS_SHOCK_PCT = [0, 50, 50, 75, 75, 100]; // ติดตัว 2: Shock Wave จากไถลชน = % ของที่ซ้อนทับตาม LV (ปัดลง — ได้ 0 ก็ 0 · ผู้ใช้ตอบ 2026-11-12)
+const EOS_PIERCE_LV = 2;                   // LV.2 ขึ้นไป: ไถลทะลุศัตรูทุกตัวในแนว (server/ice.js pierceLine) · ทำลายเทิร์นละ 4
+const EOS_BREAK_PER_TURN = 4;
 const EOS_BURST_DMG = 3;                   // ติดตัว 3: Shock Wave 3 หน่วย (ผลัก 2 + เชื่องช้า 1 — ค่าเดิมของ server/ice.js)
 const EOS_SURGE_DMG = 2;                   // Ice Surge: Shock Wave 2 หน่วยทั้งสนาม
 const EOS_SURGE_SPIKE_LV = 3;              // ระหว่าง Ice Surge หนามที่สร้างใหม่ = Lv3 ทันที
@@ -90,8 +93,10 @@ const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
 const breaksUsed = (p, round) => (p.iceBreakRound === round ? p.iceBreakUses || 0 : 0);
 function breakReady(engine, p) {
   const round = engine.roundNumber;
-  return isIceSpike(p) && p.alive && !!engine.canAct(p) && p.iceStruckRound !== round && breaksUsed(p, round) < BREAK_PER_TURN;
+  return isIceSpike(p) && p.alive && !!engine.canAct(p) && p.iceStruckRound !== round && breaksUsed(p, round) < breakLimit();
 }
+// ปุ่มทำลาย: เทิร์นละ 2 · Eos LV.2 ขึ้นไป = 4
+function breakLimit() { return eosLv() >= EOS_PIERCE_LV ? EOS_BREAK_PER_TURN : BREAK_PER_TURN; }
 function breakTiles(engine, p) {
   return [...engine.ice.ownIceTiles(p.id), ...engine.ice.ownSpikeTiles(p.id)].map((t) => ({ x: t.x, y: t.y }));
 }
@@ -99,7 +104,7 @@ function breakTiles(engine, p) {
 module.exports = {
   id: ID,
   IMG, STRIKE_MAX, REGEN_HP_EVERY, REGEN_SP_EVERY, OWN_SPIKE_SP, SPIKE_PER_TURN, SURGE_SPIKE_PER_TURN, ULT_COOLDOWN, SURGE_TURNS, SURGE_REGEN, SURGE_RANGE,
-  CAST_RANGE, BREAK_PER_TURN, BREAK_KEY, isIceSpike, surging,
+  CAST_RANGE, BREAK_PER_TURN, BREAK_KEY, isIceSpike, surging, EOS_SHOCK_PCT, EOS_PIERCE_LV, EOS_BREAK_PER_TURN, breakLimit,
   EOS_STACK, EOS_SHOCK_R, EOS_BURST_DMG, EOS_SURGE_DMG, EOS_SURGE_SPIKE_LV, eosLv,
 
   // เลือด 8 / เกราะ 2 · พลังโจมตีพื้นฐาน 0
@@ -184,8 +189,9 @@ module.exports = {
   hudActions(engine, p) {
     if (!isIceSpike(p) || !p.alive) return undefined;
     const ok = breakReady(engine, p);
-    const left = BREAK_PER_TURN - breaksUsed(p, engine.roundNumber);
-    return [{ key: BREAK_KEY, icon: "🔨", name: `ทำลาย ${left}/${BREAK_PER_TURN}`, tiles: ok ? breakTiles(engine, p) : [], disabled: !ok }];
+    const max = breakLimit();
+    const left = max - breaksUsed(p, engine.roundNumber);
+    return [{ key: BREAK_KEY, icon: "🔨", name: `ทำลาย ${left}/${max}`, tiles: ok ? breakTiles(engine, p) : [], disabled: !ok }];
   },
   // ไม่ใช่สกิล: 0 แต้ม · ไม่ได้แต้มคืน · ไม่กินโควตาสกิล · ก่อนเดิน = ยังเดินได้ · หลังเดิน = ย้อนการเดินไม่ได้แล้ว
   //  ทำลายแล้วแตก+น้ำแข็งเกิดสั้นๆ ไม่พักเกม (ไม่มี skillBeat)
@@ -254,13 +260,17 @@ module.exports = {
     return dmg;
   },
 
-  // Eos ติดตัว 2: ชนแล้ว Shock Wave รอบเป้า — 50% ของความเสียหายที่ซ้อนทับ (ปัดลง ขั้นต่ำ 1 — Claude ตัดสิน) · ระยะตาม LV ·
+  // Eos ติดตัว 2 (LV.2 ขึ้นไป): ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง — ทุกตัวที่ผ่านโดนชน (ดาเมจ = ช่องที่ไถลมาถึงตัวนั้น + Shock Wave · ไม่กระเด็น)
+  //  ตัวที่ขวางปลายทาง = ชน + กระเด็น 1 ช่อง (ผู้ใช้ตอบ 2026-11-12 "โดนชนครบทุกตัว") · ไม่ทะลุเพื่อน/สิ่งกีดขวาง
+  slidePierce(engine, p) { return isIceSpike(p) && eosLv() >= EOS_PIERCE_LV; },
+  // Eos ติดตัว 2: ชนแล้ว Shock Wave รอบเป้า — 50/50/75/75/100% ของความเสียหายที่ซ้อนทับตาม LV (ปัดลง · ผู้ใช้สั่ง 2026-11-12) · ระยะตาม LV ·
   //  เป้าที่ถูกชนไม่โดน (กระเด็นถอย 1 ช่องตามกติกาเดิมของ server/ice.js impact)
   afterSlideStrike(engine, p, u, n, at, ctx) {
     const lv = isIceSpike(p) ? eosLv() : 0;
     if (!lv) return;
-    const stacked = Math.min(EOS_STACK[lv], n);
-    engine.ice.shockWave(p, boxAt(engine, u, at), { range: EOS_SHOCK_R[lv], dmg: Math.max(1, Math.floor(stacked / 2)), exclude: [u.id], label: "Shock Wave" }, ctx);
+    const dmg = Math.floor(Math.min(EOS_STACK[lv], n) * EOS_SHOCK_PCT[lv] / 100);
+    if (dmg <= 0) return; // ปัดลงได้ 0 = คลื่นไม่มีผล (ไม่เล่นภาพ)
+    engine.ice.shockWave(p, boxAt(engine, u, at), { range: EOS_SHOCK_R[lv], dmg, exclude: [u.id], label: "Shock Wave" }, ctx);
   },
   // Eos ติดตัว 3: ดาเมจสะสมครบ 3 → Shock Wave 3 หน่วยรอบตัว ระยะตาม LV (แทนวง 8 ช่อง) · ผลัก 2 + เชื่องช้า 1 (server/ice.js burstNow)
   burstSpec(engine, p) {
@@ -309,7 +319,7 @@ module.exports = {
     return {
       passive2: {
         name: `แรงปะทะเหมันต์ Lv.${lv}`,
-        desc: `ไถลชนศัตรู: ความเสียหาย +1 ต่อช่องที่ไถล (ซ้อนทับสูงสุด ${EOS_STACK[lv]} · ไม่ติดคริติคอล ไม่รับบัฟพลังโจมตี · หลบไม่ได้) · ชนแล้ว Shock Wave ระยะ ${r}: ความเสียหาย 50% ของที่ซ้อนทับ (เป้าที่ถูกชนไม่โดน กระเด็นตามทิศ 1 ช่อง) · ไถลชนตอนเดิน = นับเป็นการโจมตี จบตา · Lv ขึ้นทุก 20% ของแต้มรวม (สูงสุด Lv.${EOS_LV_MAX})`,
+        desc: `ไถลชนศัตรู: ความเสียหาย +1 ต่อช่องที่ไถล (ซ้อนทับสูงสุด ${EOS_STACK[lv]} · ไม่ติดคริติคอล ไม่รับบัฟพลังโจมตี · หลบไม่ได้) · ชนแล้ว Shock Wave ระยะ ${r}: ความเสียหาย ${EOS_SHOCK_PCT[lv]}% ของที่ซ้อนทับ ปัดลง (เป้าที่ถูกชนไม่โดน กระเด็นตามทิศ 1 ช่อง) ·${lv >= EOS_PIERCE_LV ? " ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง (ทุกตัวที่ผ่านโดนชน ตัวที่ขวางปลายทางกระเด็น 1 ช่อง) · ทำลายเทิร์นละ 4 ครั้ง ·" : ""} ไถลชนตอนเดิน = นับเป็นการโจมตี จบตา · Lv ขึ้นทุก 20% ของแต้มรวม (สูงสุด Lv.${EOS_LV_MAX})`,
       },
       passive3: {
         name: ch.passive3.name,
