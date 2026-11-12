@@ -250,20 +250,20 @@ test("Double Accel: รีโหลด + ยิง = 2 action พอดี · �
   assert.equal(p.kiri.loaded, true);
 });
 
-test("Eos Thompson: ทุกตัวในแนว · สังหาร 100% (บอสไม่โดนสังหาร)", () => {
+test("Eos Thompson: ทุกตัวในแนว · 50% สังหาร · ไม่สังหาร/บอส = พลังโจมตี +5", () => {
   const { t, u } = setup();
   u.pos = { x: 8, y: 5 };
   u.summon = { trait: "boss" };
   const Fodlan = require("../../server/fodlan");
   const real = Fodlan.isEos;
   Fodlan.isEos = () => true;
-  Math.random = () => 0.99; // ไม่หลบ (พื้นโล่ง) · สังหารแน่นอนแม้ทอยสูงสุด
+  Math.random = () => 0.3; // ไม่หลบ (พื้นโล่ง) · ทอยสังหาร 50% ผ่าน
   try {
     engine.useSkill("a", "ultimate", [], { dir: "right" });
   } finally { Fodlan.isEos = real; delete u.summon; }
   assert.equal(t.alive, false, "สังหาร");
   assert.equal(u.alive, true, "บอสไม่โดนสังหาร");
-  assert.equal(u.hp, 6);
+  assert.equal(u.hp, 1, "บอส: พลังโจมตี 1 + 5 = 6");
 });
 
 test("อดีนาลีน: ความเสียหายจากศัตรูลงอีก 2 เทิร์น · แต่ละเทิร์นแยกกัน", () => {
@@ -400,4 +400,17 @@ test("คลังแสง: 2 ครั้งต่อเทิร์น ไม
     for (let i = 0; i < 3; i++) { p.armor = 0; use("basic", "bandage"); }
     assert.equal(p.skillPoints, 8, "Eos ไม่จำกัด");
   } finally { Fodlan.isEos = real; }
+});
+
+test("Eos Thompson: ทอยสังหารไม่ผ่าน = ความเสียหาย พลังโจมตี +5 + ดีบัฟ", () => {
+  const { t } = setup();
+  t.hp = 20; t.armor = 0;
+  const Fodlan = require("../../server/fodlan");
+  const real = Fodlan.isEos;
+  Fodlan.isEos = () => true;
+  Math.random = () => 0.99; // ไม่หลบ · ทอยสังหารไม่ผ่าน
+  try { engine.useSkill("a", "ultimate", [], { dir: "right" }); } finally { Fodlan.isEos = real; }
+  assert.equal(t.alive, true);
+  assert.equal(t.hp, 14, "1 + 5 = 6");
+  assert.ok(t.statuses.noskill > 0);
 });

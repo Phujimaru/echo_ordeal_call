@@ -15,7 +15,7 @@
 //    สกิลระหว่าง Time Alter ไม่กินโควตา แต่นับเป็น 1 ครั้ง (countHit · ครั้งสุดท้าย = endsTurn)
 //  Thompson Contender (ultimate · ยิง 0 แต้ม · แนว 6×1) — เริ่มเกมมีกระสุนพร้อมยิง · ยิงแล้วต้องเติม 4 แต้ม (ไม่กินโควตา) · 3 นัดต่อเกม
 //    โดนศัตรูคนแรก: skillStrike ตามพลังโจมตี + ห้ามใช้สกิล/ผนึกพลังงาน/ผุพัง 3 เทิร์น · ไม่นับเป็นการโจมตีปกติ
-//    Eos: ทุกตัวในแนว · สังหาร 100% เมื่อไม่หลบ (ผู้ใช้ 2026-11-12 — เดิม 50%) (บอสไม่โดนสังหาร — โดนความเสียหาย+ดีบัฟแทน)
+//    Eos: ทุกตัวในแนว · 50% สังหาร · ไม่สังหาร = พลังโจมตีครั้งนั้น +5 (ผู้ใช้ 2026-11-12) (บอสไม่โดนสังหาร — โดนความเสียหาย+ดีบัฟแทน)
 //  สกิลติดตัว: เวทย์ตะกั่ว (คริ 50% นอก Time Alter · Eos ใน Time Alter ด้วย) · อดีนาลีน (ฮุค adjustIncomingDamage เก็บความเสียหายจากศัตรู
 //    ไว้ลงต้นเทิร์น round+2 — onRoundStartTick) · การเอาตัวรอดขั้นสุดยอด (ความเสียหายถึงตาย 50% กันได้ + Double Accel ฟรีตาเดินถัดไป · 1 ครั้งต่อเกม)
 //
@@ -53,7 +53,8 @@ const SHOTS = 3;
 const RELOAD_COST = 4;
 const SHOT_LEN = 6;
 const DEBUFF_TURNS = 3;
-const EOS_KILL = 100; // ผู้ใช้ 2026-11-12 (เดิม 50)
+const EOS_KILL = 50; // ผู้ใช้ 2026-11-12: กลับเป็น 50% (ช่วงสั้นๆ เคยเป็น 100%)
+const EOS_MISS_ATK = 5; // Eos: ทอยสังหารไม่ผ่าน (หรือบอส) = พลังโจมตีครั้งนั้น +5 (ผู้ใช้ 2026-11-12)
 const CRIT = 50;
 const ADREN_DELAY = 2;
 const LAST_PCT = 50;
@@ -251,7 +252,7 @@ function shoot(engine, p, targets) {
       if (!t.alive) t.pos = null;
       continue;
     }
-    engine.skillStrike(p, t, "Thompson Contender", { sure: true });
+    engine.skillStrike(p, t, "Thompson Contender", { sure: true, bonus: eos ? EOS_MISS_ATK : 0 });
     if (!t.alive) continue;
     const turns = DEBUFF_TURNS + (engine.hasActed(t.id) ? 1 : 0);
     engine.applyDebuff(t, "noskill", 1, turns);
