@@ -22,19 +22,16 @@
 .fd-freddy { position: absolute; left: 50%; bottom: 4%; height: 82%; transform: translateX(-50%); filter: brightness(.38) contrast(1.15); opacity: 0; animation: fdLurk .6s ease-out .05s both; }
 .fd-right .fd-freddy { transform: translateX(-50%) scaleX(-1); }
 
-/* ปุ่ม: ช่องประตู + แผงข้างประตู */
-.fd-hit, .fd-panel { position: absolute; pointer-events: auto; border: 0; padding: 0; background: transparent; cursor: pointer; }
-.fd-hit:disabled, .fd-panel:disabled { cursor: default; pointer-events: none; }
-.fd-left .fd-hit { left: 20.05%; top: 12.5%; width: 8.33%; height: 67.1%; }
-.fd-right .fd-hit { left: 72.66%; top: 17.13%; width: 8.07%; height: 62.5%; }
+/* ปุ่ม: สวิตช์ข้างประตูเท่านั้น (ผู้ใช้สั่ง 2026-11-12) */
+.fd-panel { position: absolute; pointer-events: auto; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.fd-panel:disabled { cursor: default; pointer-events: none; }
 .fd-left .fd-panel { left: 15.3%; top: 35.8%; width: 3.1%; height: 19.6%; }
 .fd-right .fd-panel { left: 83.2%; top: 34.6%; width: 3.5%; height: 20.2%; }
 .fd-panel { border-radius: 4px; box-shadow: 0 0 0 2px rgba(255, 70, 70, .0); animation: fdPulse 1.1s ease-in-out infinite; }
 .fd-panel.foe { --fd-glow: 120, 255, 140; }
 .fd-panel.freddy { --fd-glow: 255, 60, 60; }
 .fd-panel:disabled { animation: none; }
-.fd-hit:not(:disabled):hover, .fd-panel:not(:disabled):hover { background: rgba(var(--fd-glow, 255, 255, 255), .16); box-shadow: 0 0 22px rgba(var(--fd-glow, 255, 255, 255), .55); }
-.fd-hit { --fd-glow: 255, 255, 255; }
+.fd-panel:not(:disabled):hover { background: rgba(var(--fd-glow, 255, 255, 255), .16); box-shadow: 0 0 22px rgba(var(--fd-glow, 255, 255, 255), .55); }
 
 /* ผล enter (ปิดผิด): จอดำทันที → คลิปจัมป์สแกร์ */
 .fd-black { position: absolute; inset: 0; z-index: 4; background: #000; }

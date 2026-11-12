@@ -31,8 +31,10 @@ export const kinds = [
   "fd_eos_barrel", "fd_eos_crystal", "fd_eos_turret", "fd_eos_mob", "fd_eos_chest", "fd_eos_barricade",
   // ขั้น 4 (เดินทาง + เก็บของ): ชานชาลา · ปากอุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา (ช่องพิเศษ — วาดเองทั้งหมด) · สุสานราชวงศ์ (สิ่งกีดขวาง)
   "fd_eos_station", "fd_eos_tunnel", "fd_eos_dock", "fd_eos_camp", "fd_eos_fish", "fd_eos_tomb",
+  // ของประจำเมือง (2026-11-12 — server/fodlan/eosTowns.js): ศาลเทพธิดา Altissia · ร้านอาหาร · บ้านฟาร์มโชโกโบะ
+  "fd_eos_shrine", "fd_eos_diner", "fd_eos_ranch",
 ];
-export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret", "fd_eos_tomb"];
+export const tall = ["fd_eos_bldg", "fd_eos_tree", "fd_eos_lamp", "fd_eos_pillar", "fd_eos_bridgeup", "fd_eos_barrier", "fd_eos_turret", "fd_eos_tomb", "fd_eos_shrine", "fd_eos_diner", "fd_eos_ranch"];
 // ความยาวฉากของเหตุการณ์ (ms) — server ctx.fx
 export const fx = {
   lightning: 1600, car_drive: 900, car_mount: 900, car_leave: 600, car_ram: 700, choco_mount: 900, choco_dismount: 700, choco_fall: 1100, choco_home: 1400, choco_back: 900,
@@ -43,7 +45,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, boss_big_warn: 1500, boss_big: 1900, boss_guards: 1600, boss_dark: 1100, camp_rest: 1200, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, elite_spawn: 1600, elite_down: 1400, elite_blast: 1400, elite_drain: 900, elite_thorns: 700, elite_regen: 1000, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -148,7 +150,7 @@ function poly(g, pts) {
 // กล่อง 3 มิติบนกระดาน (x0..x1, y0..y1, สูง h) — วาดด้านที่หันหากล้อง + หลังคา
 // เงาทอด: แสงจากทิศตะวันตกเฉียงเหนือของกระดาน → เงาไปทาง +x +y (กลางคืน = แสงจันทร์ เงาจางกว่า)
 const SUN = { x: 0.62, y: 0.38 };
-const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0 };
+const HEIGHT = { fd_eos_bldg: null, fd_eos_wall: 0.85, fd_eos_tree: 1.25, fd_eos_rock: 0.55, fd_eos_lamp: 1.4, fd_eos_pump: 1.0, fd_eos_garage: 0.9, fd_eos_pillar: 1.5, fd_eos_lever: 0.45, fd_eos_domecore: 0.7, fd_eos_switch: 0.8, fd_eos_barrel: 0.5, fd_eos_crystal: 0.75, fd_eos_turret: 1.25, fd_eos_tomb: 1.0, fd_eos_shrine: 1.65, fd_eos_diner: 1.0, fd_eos_ranch: 1.1 };
 function hull(pts) {
   const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -1591,6 +1593,9 @@ export function drawObstacle(g, t, ctx, now) {
   if (kind === "fd_eos_crystal") { drawCrystal(g, x, y, C, night, now); return; }
   if (kind === "fd_eos_turret") { drawTurret(g, x, y, C, now); return; }
   if (kind === "fd_eos_tomb") { drawTomb(g, x, y, C, night, now); return; }
+  if (kind === "fd_eos_shrine") { drawShrine(g, x, y, night, now); return; }
+  if (kind === "fd_eos_diner") { drawDiner(g, x, y, night, now); return; }
+  if (kind === "fd_eos_ranch") { drawRanch(g, x, y, night, now); return; }
   const [sx, sy, s] = P(x + 0.5, y + 0.6);
   const zone = zoneAt(x, y), r = hash(x, y);
   if (kind === "fd_eos_tree") {
@@ -2620,9 +2625,16 @@ function drawTomb(g, x, y, C, night, now) {
   const fin = P(cx, cy, 1.08), fin2 = P(cx, cy, 1.18);
   g.strokeStyle = night ? "#6e6a5c" : "#b9a76a"; g.lineWidth = Math.max(1.5, fin[2] * 0.025); g.beginPath(); g.moveTo(fin[0], fin[1]); g.lineTo(fin2[0], fin2[1]); g.stroke();
   if (open && ok >= 1) return;
-  // อาวุธหลวงวิญญาณลอยหมุนเหนือสุสาน (ยังไม่เปิด)
+  // อาวุธจักรพรรดิลอยเหนือสุสาน (ยังไม่เปิด — ภาพอาวุธจริงของสุสานนี้ · 2026-11-12)
   const al = open ? 1 - Math.min(1, ok / 0.45) : 1;
   if (al <= 0) return;
+  if (info && info.img && img(info.img)) {
+    const zc = 1.35 + Math.sin(now / 900 + x) * 0.07, c = P(cx, cy, zc + 0.35);
+    glowAt(g, c[0], c[1], c[2] * 0.8, "120,190,255", (night ? 0.75 : 0.5) * al);
+    sprite(g, info.img, cx, cy, zc, 0.85, false, al);
+    if (!FAST) for (let i = 0; i < 4; i++) { const a = now / 700 + i * TAU / 4, q = P(cx + Math.cos(a) * 0.24, cy + Math.sin(a) * 0.24, zc + 0.3 + Math.sin(a * 2) * 0.1); g.fillStyle = `rgba(190,230,255,${0.85 * al})`; g.beginPath(); g.arc(q[0], q[1], Math.max(1, q[2] * 0.016), 0, TAU); g.fill(); }
+    return;
+  }
   const zc = 1.55 + Math.sin(now / 900 + x) * 0.06, rot = now / 1400, ca = Math.cos(rot), sa = Math.sin(rot);
   const tipP = P(cx, cy, zc - 0.32), hilt = P(cx, cy, zc + 0.12), pom = P(cx, cy, zc + 0.24), g0 = P(cx - ca * 0.11, cy - sa * 0.11, zc + 0.12), g1 = P(cx + ca * 0.11, cy + sa * 0.11, zc + 0.12);
   g.save(); g.globalAlpha *= al;
@@ -2969,10 +2981,14 @@ function p4Fx(g, e, p, now, lowQ, units, out, night) {
         g.fillStyle = gr; g.fillRect(b0[0] - s * 0.18 * a, b1[1], s * 0.36 * a, b0[1] - b1[1]);
       }
       const u = unitOf(units, e.id);
-      if (u && p > 0.4 && p < 0.85) { // อาวุธหลวงพุ่งเข้าหาผู้เปิด
+      if (u && p > 0.4 && p < 0.85) { // อาวุธจักรพรรดิพุ่งเข้าหาผู้เปิด
         const k = ease((p - 0.4) / 0.45), x = cx + (u.x - cx) * k, y = cy + (u.y - cy) * k, z = 1.55 + Math.sin(k * Math.PI) * 0.7 - k * 0.9, c = P(x, y, z), a2 = P(x + (u.x - cx) * 0.05, y + (u.y - cy) * 0.05, z - 0.3);
         glowAt(g, c[0], c[1], c[2] * 0.6, "150,210,255", 0.9);
+        const wi = e.w ? `/eos/img/arms/${e.w}.webp` : null;
+        if (wi && img(wi)) { sprite(g, wi, x, y, z - 0.35, 0.8, false, 1); }
+        else {
         g.strokeStyle = "rgba(235,248,255,.95)"; g.lineWidth = Math.max(1.5, c[2] * 0.022); g.lineCap = "round"; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(a2[0], a2[1]); g.stroke(); g.lineCap = "butt";
+        }
         if (!lowQ) for (let i = 1; i < 6; i++) { const kk = Math.max(0, k - i * 0.04), q2 = P(cx + (u.x - cx) * kk, cy + (u.y - cy) * kk, 1.55 + Math.sin(kk * Math.PI) * 0.7 - kk * 0.9); glowAt(g, q2[0], q2[1], q2[2] * 0.18, "150,210,255", 0.4 / i); }
       }
       if (u && p >= 0.82) { const q = (p - 0.82) / 0.18, c = P(u.x, u.y, 0.5); gEllipse(g, u.x, u.y, 0.3 + q * 0.6, 0.03, 26); g.strokeStyle = `rgba(160,215,255,${0.9 * (1 - q)})`; g.lineWidth = 2.5; g.stroke(); glowAt(g, c[0], c[1], c[2] * 1.0, "150,210,255", 0.8 * (1 - q)); }
@@ -3036,8 +3052,48 @@ function p4AirAlways(g, fd, now) {
 }
 
 // =================================================================== ground (ใต้ไฮไลต์)
+// อ่างน้ำพุกลางลาน Altissia (ช่องฟื้นฟู map.heal 2×2) — พื้น: ขอบหินกลม + น้ำกระเพื่อม · กลางอ่าง (items): เสาน้ำพุ 3 ชั้น + สายน้ำ
+let FOUNTAIN = null, FOUNTAIN_SIG = ""; // คำนวณจาก info.heal ของกระดาน (fountainFrom)
+function fountainFrom(info) {
+  const h = (info && info.heal) || [];
+  const sig = h.map((t) => `${t.x},${t.y}`).join("|");
+  if (sig === FOUNTAIN_SIG) return FOUNTAIN;
+  FOUNTAIN_SIG = sig;
+  if (!h.length) return (FOUNTAIN = null);
+  const xs = h.map((t) => t.x), ys = h.map((t) => t.y);
+  return (FOUNTAIN = { x: (Math.min(...xs) + Math.max(...xs) + 1) / 2, y: (Math.min(...ys) + Math.max(...ys) + 1) / 2, r: (Math.max(...xs) - Math.min(...xs) + 1) / 2 - 0.06 });
+}
+function fountainBasin(g, now, night, lowQ) {
+  const F = FOUNTAIN; if (!F) return;
+  gEllipse(g, F.x, F.y, F.r + 0.06, 0.0, 40); g.fillStyle = "rgba(0,0,0,.18)"; g.fill();
+  gEllipse(g, F.x, F.y, F.r, 0.16, 40); g.fillStyle = night ? "#8d939c" : "#e4e1d8"; g.fill(); // ขอบหิน
+  gEllipse(g, F.x, F.y, F.r - 0.12, 0.13, 40); g.fillStyle = night ? "#1f4f6e" : "#4fa3cf"; g.fill(); // ผิวน้ำ
+  if (!lowQ) for (let i = 0; i < 3; i++) { const k = ((now / 1800) + i / 3) % 1; gEllipse(g, F.x, F.y, 0.2 + k * (F.r - 0.35), 0.135, 32); g.strokeStyle = `rgba(220,245,255,${0.45 * (1 - k)})`; g.lineWidth = 1.5; g.stroke(); }
+  gEllipse(g, F.x, F.y, F.r - 0.12, 0.13, 40); g.strokeStyle = night ? "rgba(150,210,255,.35)" : "rgba(255,255,255,.55)"; g.lineWidth = 1.2; g.stroke();
+}
+function fountainCore(g, now, night, lowQ) {
+  const F = FOUNTAIN;
+  if (!F) return;
+  const tier = (r, z0, z1, col, top) => frustum(g, regPoly(F.x, F.y, r, 10), z0, regPoly(F.x, F.y, r * 0.92, 10), z1, col, top);
+  tier(0.3, 0.13, 0.28, night ? "#9aa0a8" : "#ece9e0", night ? "#2a5a7a" : "#5fb3dc");
+  tier(0.07, 0.28, 0.5, night ? "#a2a8b0" : "#f2efe8", null);
+  tier(0.17, 0.5, 0.56, night ? "#a8aeb6" : "#f6f3ec", night ? "#2a5a7a" : "#6cc0e6");
+  const top = P(F.x, F.y, 0.7), s = top[2];
+  glowAt(g, top[0], top[1], s * 0.5, "180,230,255", night ? 0.55 : 0.35);
+  if (lowQ) return;
+  // สายน้ำพุ่งขึ้นแล้วโค้งลงอ่าง (8 สาย) + ละออง
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * TAU + now / 4000;
+    const p0 = P(F.x, F.y, 0.6), pm = P(F.x + Math.cos(a) * 0.3, F.y + Math.sin(a) * 0.3, 0.85), p1 = P(F.x + Math.cos(a) * 0.62, F.y + Math.sin(a) * 0.62, 0.15);
+    g.strokeStyle = night ? "rgba(170,220,255,.55)" : "rgba(235,250,255,.8)"; g.lineWidth = Math.max(1.2, s * 0.018);
+    g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(pm[0], pm[1] - s * 0.08, p1[0], p1[1]); g.stroke();
+  }
+  for (let i = 0; i < 10; i++) { const k = ((now / 900) + hash(i, 4)) % 1, a = hash(i, 9) * TAU, q = P(F.x + Math.cos(a) * 0.15 * k, F.y + Math.sin(a) * 0.15 * k, 0.6 + k * 0.3); g.fillStyle = `rgba(235,250,255,${0.8 * (1 - k)})`; g.beginPath(); g.arc(q[0], q[1], Math.max(1, s * 0.012), 0, TAU); g.fill(); }
+}
 export function ground(g, fd, info, now, lowQ = false) {
   LAST_FD = fd;
+  fountainFrom(info);
+  fountainBasin(g, now, !!fd.night || LAST_NIGHT, lowQ);
   // สะพานกำลังลดลง (ชั้น layer ไม่มี fd_eos_bridgeup แล้ว — วาดบานสะพานตกลงทับสะพานที่อบไว้)
   const be = lastFx("bridge");
   if (be && !be.up && !fd.bridgeUp) {
@@ -3093,6 +3149,7 @@ export function ground(g, fd, info, now, lowQ = false) {
 // =================================================================== items (เรียงความลึกกับตัวละคร)
 export function items(list, g, fd, info, units, now, lowQ) {
   const night = !!fd.night || LAST_NIGHT;
+  if (fountainFrom(info)) list.push({ d: depthOf(FOUNTAIN.x, FOUNTAIN.y), f: () => fountainCore(g, now, night, lowQ) });
   // รถ 1 ช่อง (ผู้ใช้สั่ง 2026-11-09 — ขึ้นขี่แล้วขับแบบม้า): จอด = ตามตำแหน่งรถ · มีคนขับ = ใต้หมากคนขับ (ตามตำแหน่งวาดของหมาก วิ่งไปพร้อมกัน)
   //  ภาพรถของผู้ใช้หันซ้ายเป็นค่าเริ่ม → กลับด้านตามทิศที่วิ่งบนจอ (หมุนกล้องได้) · ขึ้นรถ = รถยุบรับน้ำหนัก + ไฟหน้าวาบ · ชน = รถพุ่งไปครึ่งช่องแล้วถอย
   for (const c of fd.cars || []) {
@@ -3164,14 +3221,17 @@ export function items(list, g, fd, info, units, now, lowQ) {
           g.save(); g.translate(sx, sy); g.scale(1, 0.42); g.rotate(now / 1600);
           g.strokeStyle = "rgba(120,255,170,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.6, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
         }
-        sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "bomber" ? 1.3 : 1.45), d.kind % 2 === 0);
+        if (d.elite) eliteRing(g, cx, cy, now, lowQ);
+        sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "swarm" ? 0.85 : d.trait === "splitling" ? 1.0 : d.trait === "bomber" ? 1.3 : d.trait === "splitter" || d.trait === "shield" ? 1.6 : 1.45), d.kind % 2 === 0);
+        drawTraitMark(g, d, cx, cy, d.trait === "swarm" ? 1.25 : 2.0, now, lowQ);
         if (d.trait === "bomber") { // ไส้ตะเกียงลุก + ตัวพองตามจังหวะ
           const k = 0.5 + 0.5 * Math.sin(now / 130);
           glowAt(g, sx, sy - s * 0.75, s * (0.45 + k * 0.25), "255,120,30", 0.55 + k * 0.3);
           if (!lowQ) for (let i = 0; i < 4; i++) { const a = now / 90 + i * 1.6; g.fillStyle = `rgba(255,${180 + i * 15},80,${0.9 - i * 0.15})`; g.fillRect(sx + Math.cos(a) * s * 0.12, sy - s * 1.35 - ((now / 6 + i * 13) % 14), 2, 2); }
         }
         if (d.trait === "healer") { const top = P(cx, cy, 1.75); g.fillStyle = "#7dffaa"; g.fillRect(top[0] - 2, top[1] - 7, 4, 14); g.fillRect(top[0] - 7, top[1] - 2, 14, 4); }
-        hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
+        const top = hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
+        if (d.elite) eliteMark(g, d.elite, top, s, now, lowQ);
       },
     });
   }
@@ -3222,6 +3282,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         const shake = hit < 1 ? Math.sin(hit * 50) * s * 0.03 * (1 - hit) : 0;
         if (beast) drawBeast(g, sx + shake, sy, s, face, now, pos.moving, lowQ);
         else {
+          if (m.elite) eliteRing(g, cx, cy, now, lowQ);
           const bob = pos.moving && !lowQ ? Math.abs(Math.sin(now / 140)) * 0.04 : 0;
           if (m.trait === "mech") {
             if (m.face) { // จุดอ่อนด้านหลัง (ตีจากฝั่งนี้แรง +2): ลูกศรส้มบนพื้นฝั่งตรงข้ามทิศที่หัน
@@ -3232,11 +3293,13 @@ export function items(list, g, fd, info, units, now, lowQ) {
             }
             glowAt(g, sx, sy - s * 0.7, s * 1.2, "255,70,50", 0.22 + 0.1 * Math.sin(now / 300)); sprite(g, MAGITEK_EX_IMG, cx + shake / s, cy, bob * 0.5, fitH(MAGITEK_EX_IMG, 2.0, 2.4), face > 0); } // หุ่นเกราะจักรวรรดิ (ภาพผู้ใช้)
           else sprite(g, MAGITEK_IMG, cx + shake / s, cy, bob, 1.45, face > 0); // ภาพหันซ้าย → หันขวาให้กลับด้าน
+          drawTraitMark(g, m, cx, cy, 2.0, now, lowQ);
           if (m.trait === "sniper") { const v = P(cx + face * 0.12, cy, 1.18); glowAt(g, v[0], v[1], s * 0.28, "255,40,40", 0.75 + 0.2 * Math.sin(now / 150)); g.fillStyle = "#ff4a3a"; g.fillRect(v[0] - 4, v[1] - 1.5, 8, 3); }
         }
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
         const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
+        if (m.elite) eliteMark(g, m.elite, top, s, now, lowQ);
       },
     });
   }
@@ -3345,6 +3408,11 @@ function playFx(e) {
     case "boss_warn": sfx("dropship_alarm", { gain: 0.7, dur: 2.4 }); sfx("daemon_growl", { delay: 0.4 }); break;
     case "boss_land": sfx("beast_roar"); sfx("barrel_explode", { delay: 0.2, gain: 0.8 }); break;
     case "boss_roar": sfx("beast_roar", { gain: 0.8 }); sfx("daemon_spawn", { delay: 0.4, gain: 0.7 }); break;
+    case "boss_big_warn": sfx("daemon_growl", { gain: 0.9 }); sfx("dome_off", { delay: 0.25, gain: 0.6 }); break;
+    case "boss_big": sfx(e.kind === "beam" ? "royal_arms" : "barrel_explode", { gain: 0.9 }); sfx("beast_step", { delay: 0.15 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.35 }); break;
+    case "boss_guards": sfx("beast_roar", { gain: 0.8 }); break;
+    case "boss_dark": sfx("dome_off", { gain: 0.5 }); break;
+    case "camp_rest": sfx("camp_buff", { gain: 0.4 }); break;
     case "boss_quake_warn": sfx("beast_step", { gain: 0.9 }); sfx("dome_off", { delay: 0.2, gain: 0.5 }); break;
     case "boss_quake": sfx("beast_step"); sfx("barrel_explode", { delay: 0.1, gain: 0.9 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
     case "boss_enrage": sfx("beast_roar"); sfx("beast_roar", { delay: 0.5, gain: 0.7 }); break;
@@ -3365,7 +3433,23 @@ function playFx(e) {
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
     case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
     case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
+    case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
+    case "town_garage": sfx("car_start", { gain: 0.8 }); break;
+    case "armiger": sfx("royal_arms", { gain: 1 }); sfx("tomb_open", { delay: 0.3, gain: 0.7 }); break;
+    case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
+    case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
+    case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
+    case "mob_pull": sfx("car_hit", { gain: 0.6 }); break;
+    case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
+    case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
+    case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;
+    case "mob_block": sfx("pillar_ward_hit", { gain: 0.6 }); break;
     case "mob_boom": sfx("barrel_explode"); break;
+    case "elite_spawn": sfx("daemon_growl", { gain: 0.8 }); sfx("royal_arms", { delay: 0.2, gain: 0.35 }); break;
+    case "elite_down": sfx("hunt_done", { gain: 0.7 }); break;
+    case "elite_blast": sfx("barrel_explode"); break;
+    case "elite_drain": sfx("camp_buff", { gain: 0.35 }); break;
+    case "elite_thorns": sfx("pillar_ward_hit", { gain: 0.5 }); break;
     case "blood_moon": sfx("night_fall"); sfx("daemon_growl", { delay: 0.8, gain: 0.8 }); break;
     case "quest_new": sfx("hunt_board"); break;
     case "quest_done": sfx("hunt_done"); sfx("royal_arms", { delay: 0.3, gain: 0.6 }); break;
@@ -3438,6 +3522,52 @@ function playFx(e) {
 // =================================================================== PVE รอบสาม: ภาพของระบบใหม่ (server/fodlan/eosExtra.js)
 // ปั๊มน้ำมัน Hammerhead (ปรับภาพ 2026-11-10 — ผู้ใช้: "ปั๊มยังโล่ง"): เกาะคอนกรีต · ตู้จ่ายแดงจอขาว · สายยาง · หลังคาปั๊มขาวขอบแดง บนเสา
 //  กลางคืน = ไฟใต้หลังคาส่องลงพื้น + แถบนีออนส้มขอบหลังคา
+// ---------- ของประจำเมือง (2026-11-12) ----------
+// ศาลเทพธิดา Altissia: ฐานหินขาว 2 ชั้น + เสา 4 ต้น + หลังคาโดมฟ้า + แสงเรืองกลาง (ใช้ได้ = เรืองแรง)
+function drawShrine(g, x, y, night, now) {
+  const ready = !LAST_FD || LAST_FD.shrineReady !== false, cx = x + 0.5, cy = y + 0.5, s = P(cx, cy)[2], k = 0.6 + 0.4 * Math.sin(now / 520 + x);
+  const st = night ? "#a3acba" : "#f1f3f6", st2 = night ? "#7d8594" : "#d3d8df";
+  frustum(g, sqPts(cx, cy, 0.48), 0, sqPts(cx, cy, 0.48), 0.07, st2, st2);
+  frustum(g, sqPts(cx, cy, 0.42), 0.07, sqPts(cx, cy, 0.42), 0.14, st, st);
+  frustum(g, sqPts(cx, cy, 0.36), 0.14, sqPts(cx, cy, 0.36), 0.2, st2, st);
+  // รูปปั้นเทพธิดา: ชุดยาวทรงกรวย + ศีรษะ + แขนชูลูกแก้ว
+  frustum(g, regPoly(cx, cy, 0.11, 8), 0.2, regPoly(cx, cy, 0.04, 8), 0.72, night ? "#c9ced8" : "#fbfbf8", null);
+  const head = P(cx, cy, 0.8); g.fillStyle = night ? "#d3d8e0" : "#ffffff"; g.beginPath(); g.arc(head[0], head[1], s * 0.05, 0, TAU); g.fill();
+  const orb = P(cx, cy, 0.98);
+  glowAt(g, orb[0], orb[1], s * (ready ? 0.75 : 0.3), "140,205,255", (ready ? 0.8 : 0.25) * k);
+  g.fillStyle = ready ? "#e6f7ff" : "#8f9dae"; g.beginPath(); g.arc(orb[0], orb[1], s * 0.055, 0, TAU); g.fill();
+  // เสา 4 ต้น + หลังคาโดม
+  for (const [dx, dy] of [[-0.3, -0.3], [0.3, -0.3], [0.3, 0.3], [-0.3, 0.3]]) frustum(g, regPoly(cx + dx, cy + dy, 0.045, 6), 0.2, regPoly(cx + dx, cy + dy, 0.04, 6), 1.12, night ? "#c4cad4" : "#f7f7f2", null);
+  frustum(g, sqPts(cx, cy, 0.4), 1.12, sqPts(cx, cy, 0.4), 1.2, st2, st);
+  for (let i = 0; i < 4; i++) { const r0 = 0.38 * Math.cos(i / 4 * Math.PI / 2), r1 = 0.38 * Math.cos((i + 1) / 4 * Math.PI / 2), z0 = 1.2 + 0.32 * Math.sin(i / 4 * Math.PI / 2), z1 = 1.2 + 0.32 * Math.sin((i + 1) / 4 * Math.PI / 2); frustum(g, regPoly(cx, cy, Math.max(0.02, r0), 12), z0, regPoly(cx, cy, Math.max(0.02, r1), 12), z1, night ? "#4b7db0" : "#6aa7de", i === 3 ? (night ? "#4b7db0" : "#6aa7de") : null); }
+  const tip = P(cx, cy, 1.62); g.fillStyle = "#e8c25a"; g.beginPath(); g.arc(tip[0], tip[1], s * 0.045, 0, TAU); g.fill();
+  if (ready) { // พร้อมใช้: ลำแสงฟ้าบางๆ พุ่งจากยอด
+    const b0 = P(cx, cy, 1.62), b1 = P(cx, cy, 3.4), gr = g.createLinearGradient(b0[0], b0[1], b1[0], b1[1]);
+    gr.addColorStop(0, `rgba(170,225,255,${0.45 * k})`); gr.addColorStop(1, "rgba(170,225,255,0)");
+    g.fillStyle = gr; g.fillRect(b0[0] - s * 0.05, b1[1], s * 0.1, b0[1] - b1[1]);
+  }
+}
+// ร้านอาหาร: ตึกชั้นเดียวผนังครีม หลังคาแดง กันสาดลายทาง ป้ายไฟ
+function drawDiner(g, x, y, night, now) {
+  const s = P(x + 0.5, y + 0.5)[2];
+  box(g, x + 0.08, y + 0.08, x + 0.92, y + 0.92, 0.72, night ? "#8a8070" : "#efe2c6", night ? "#5f574a" : "#c9b994", night ? "#6f665a" : "#dccba6");
+  box(g, x + 0.02, y + 0.02, x + 0.98, y + 0.98, 0.86, night ? "#7a2a22" : "#c9473a", "#8f2a20", "#a5352a", 0.72);
+  for (let i = 0; i < 4; i++) { const a = P(x + 0.12 + i * 0.2, y + 0.99, 0.62), b = P(x + 0.22 + i * 0.2, y + 0.99, 0.62); g.fillStyle = i % 2 ? "#f4efe6" : "#d24a3c"; g.fillRect(a[0], a[1], Math.max(2, b[0] - a[0]), s * 0.08); }
+  const sign = P(x + 0.5, y + 0.5, 1.12), on = night || Math.sin(now / 700 + x) > -2;
+  g.fillStyle = "#2a1a14"; g.fillRect(sign[0] - s * 0.2, sign[1] - s * 0.07, s * 0.4, s * 0.14);
+  g.fillStyle = night ? "#ffd27a" : "#ffe9b0"; g.fillRect(sign[0] - s * 0.16, sign[1] - s * 0.035, s * 0.32, s * 0.07);
+  if (night && on) glowAt(g, sign[0], sign[1], s * 0.8, "255,200,110", 0.5);
+}
+// บ้านฟาร์มโชโกโบะ Duscae: บ้านไม้ หลังคาเหลือง + รั้วไม้เตี้ย
+function drawRanch(g, x, y, night, now) {
+  const s = P(x + 0.5, y + 0.5)[2];
+  box(g, x + 0.12, y + 0.12, x + 0.88, y + 0.88, 0.7, night ? "#6a4f36" : "#a8764a", night ? "#4a3624" : "#7a5434", night ? "#58402c" : "#8f633e");
+  box(g, x + 0.06, y + 0.06, x + 0.94, y + 0.94, 0.86, night ? "#8f7a2c" : "#f2c63a", "#b8922a", "#d0a630", 0.7);
+  const ridge = P(x + 0.5, y + 0.5, 1.1), ridge0 = P(x + 0.06, y + 0.5, 0.86), ridge1 = P(x + 0.94, y + 0.5, 0.86);
+  g.fillStyle = night ? "#a68e34" : "#ffd84a"; g.beginPath(); g.moveTo(ridge0[0], ridge0[1]); g.lineTo(ridge[0], ridge[1]); g.lineTo(ridge1[0], ridge1[1]); g.closePath(); g.fill();
+  const w = P(x + 0.5, y + 0.95, 0.4); g.fillStyle = night ? "#ffcf7a" : "#3a2a1c"; g.fillRect(w[0] - s * 0.08, w[1] - s * 0.1, s * 0.16, s * 0.16);
+  if (night) glowAt(g, w[0], w[1], s * 0.5, "255,200,120", 0.4 + 0.1 * Math.sin(now / 400));
+}
 function drawPump(g, x, y, C, night, now, s) {
   box(g, x + 0.1, y + 0.1, x + 0.9, y + 0.9, 0.08, night ? "#5a5a60" : "#c9c4b8", night ? "#3a3a40" : "#9a958a", night ? "#45454b" : "#aca79c");
   box(g, x + 0.32, y + 0.36, x + 0.68, y + 0.64, 0.66, "#c63b2b", "#8f2418", "#a52d1f", 0.08);
@@ -3811,7 +3941,84 @@ function pve3Fx(g, e, p, lowQ, units, out) {
   return false;
 }
 // =================================================================== PVE รอบสอง: ภาพของระบบใหม่
-const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" } };
+const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" }, archer: { rgb: "255,210,90" }, shield: { rgb: "120,170,255" }, weaver: { rgb: "235,235,235" }, blinker: { rgb: "190,90,255" }, hooker: { rgb: "170,170,190" }, rune: { rgb: "255,70,200" }, swarm: { rgb: "255,90,90" }, splitter: { rgb: "200,150,90" }, splitling: { rgb: "200,150,90" } };
+// มอนรูปแบบใหม่ (server/fodlan/eosMobs.js — 2026-11-12): ไอคอนลอยเหนือหัว + โล่ฝั่งที่หัน
+const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨" };
+function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
+  const tr = m.trait;
+  if (tr === "shield" && m.face) { // โล่ใหญ่ฝั่งที่หัน (ตีจากฝั่งนี้เหลือ 1)
+    const a = P(cx + m.face.dx * 0.42 - m.face.dy * 0.3, cy + m.face.dy * 0.42 - m.face.dx * 0.3, 0.05), b = P(cx + m.face.dx * 0.42 + m.face.dy * 0.3, cy + m.face.dy * 0.42 + m.face.dx * 0.3, 0.05);
+    const a2 = P(cx + m.face.dx * 0.42 - m.face.dy * 0.3, cy + m.face.dy * 0.42 - m.face.dx * 0.3, 0.95), b2 = P(cx + m.face.dx * 0.42 + m.face.dy * 0.3, cy + m.face.dy * 0.42 + m.face.dx * 0.3, 0.95);
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(b2[0], b2[1]); g.lineTo(a2[0], a2[1]); g.closePath();
+    g.fillStyle = "rgba(90,140,230,.35)"; g.fill(); g.strokeStyle = "rgba(170,210,255,.9)"; g.lineWidth = 2.5; g.stroke();
+  }
+  const ic = TRAIT_ICON[tr];
+  if (!ic) return;
+  const [x, y, s] = P(cx, cy, h);
+  const bob = lowQ ? 0 : Math.sin(now / 380 + cx) * 2;
+  const rgb = (TRAIT_LOOK[tr] || {}).rgb || "255,255,255";
+  glowAt(g, x, y - s * 0.12 + bob, s * 0.3, rgb, m.cd ? 0.25 : 0.6);
+  g.save(); g.globalAlpha = m.cd ? 0.5 : 1; g.font = Math.max(11, Math.round(s * 0.3)) + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
+}
+// ท่าใหญ่ราชาปีศาจ (server/fodlan/eosBoss.js — 2026-11-12): ช่องม่วงกะพริบ + ลวดลายตามท่า
+const BIG_RGB = { beam: "190,60,255", ring: "255,50,150", meteor: "255,110,40", dark: "110,40,200", dark_zone: "60,10,110" };
+function bigQuad(g, t, z = 0.02) { const c = [P(t.x + 0.05, t.y + 0.05, z), P(t.x + 0.95, t.y + 0.05, z), P(t.x + 0.95, t.y + 0.95, z), P(t.x + 0.05, t.y + 0.95, z)]; g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); }
+function drawBigWarn(g, bb, now, lowQ) {
+  if (bb.kind === "dark_zone") { // เขตทมิฬค้าง: พื้นมืดม่วง + หมอกวน (ไม่กะพริบ = ไม่ใช่คำเตือน)
+    for (const t of bb.tiles || []) {
+      bigQuad(g, t, 0.015); g.fillStyle = "rgba(40,0,85,.62)"; g.fill(); g.strokeStyle = `rgba(160,80,255,${0.45 + 0.15 * Math.sin(now / 400)})`; g.lineWidth = 1.5; g.stroke();
+      if (!lowQ) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.25 + 0.1 * Math.sin(now / 500 + t.x * 1.7 + t.y)); glowAt(g, x, y, s * 0.5, "120,40,220", 0.3); }
+    }
+    return;
+  }
+  const rgb = BIG_RGB[bb.kind] || BIG_RGB.beam, k = 0.5 + 0.5 * Math.sin(now / 110);
+  for (const t of bb.tiles || []) {
+    bigQuad(g, t);
+    g.fillStyle = `rgba(${rgb},${0.18 + 0.16 * k})`; g.fill();
+    g.strokeStyle = `rgba(${rgb},${0.55 + 0.4 * k})`; g.lineWidth = 2; g.stroke();
+  }
+  if (bb.kind === "beam" && bb.dir && bb.tiles && bb.tiles.length && !lowQ) { // ลูกศรไหลตามแนวลำแสง
+    const mid = bb.tiles.filter((_, i) => i % 3 === 1);
+    mid.forEach((t, i) => {
+      const ph = ((now / 600 + i * 0.12) % 1), cx = t.x + 0.5 + bb.dir.dx * (ph - 0.5) * 0.6, cy = t.y + 0.5 + bb.dir.dy * (ph - 0.5) * 0.6;
+      const a = P(cx - bb.dir.dx * 0.18 - bb.dir.dy * 0.18, cy - bb.dir.dy * 0.18 - bb.dir.dx * 0.18, 0.04), b = P(cx + bb.dir.dx * 0.18, cy + bb.dir.dy * 0.18, 0.04), c = P(cx - bb.dir.dx * 0.18 + bb.dir.dy * 0.18, cy - bb.dir.dy * 0.18 + bb.dir.dx * 0.18, 0.04);
+      g.strokeStyle = `rgba(235,190,255,${0.8 * Math.sin(ph * Math.PI)})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.stroke();
+    });
+  }
+  for (const c of bb.centers || []) { // เป้าอุกกาบาต: วงซ้อนหมุน + เงาที่ใหญ่ขึ้น
+    const [x, y, s] = P(c.x + 0.5, c.y + 0.5, 0.03);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 500);
+    g.strokeStyle = `rgba(255,160,60,${0.6 + 0.35 * k})`; g.lineWidth = 3; g.setLineDash([s * 0.2, s * 0.12]); g.beginPath(); g.arc(0, 0, s * 1.3, 0, TAU); g.stroke(); g.setLineDash([]);
+    g.fillStyle = `rgba(40,10,0,${0.25 + 0.15 * k})`; g.beginPath(); g.arc(0, 0, s * (0.5 + 0.3 * k), 0, TAU); g.fill();
+    g.restore();
+  }
+}
+// มอนหัวหน้า (server/fodlan/eosElite.js — 2026-11-12): วงทองหมุนใต้เท้า + มงเล็ก + ไอคอนคุณสมบัติเหนือหลอดเลือด
+const ELITE_ICON = { swift: "💨", armored: "🪨", vampiric: "🩸", volatile: "💥", commander: "🚩", regen: "✚", thorns: "🌵" };
+function eliteRing(g, cx, cy, now, lowQ) {
+  const [sx, sy, s] = P(cx, cy - 0.05, 0.02);
+  const k = 0.7 + 0.3 * Math.sin(now / 260);
+  g.save(); g.translate(sx, sy); g.scale(1, 0.42);
+  const gr = g.createRadialGradient(0, 0, s * 0.15, 0, 0, s * 0.75);
+  gr.addColorStop(0, `rgba(255,215,90,${0.4 * k})`); gr.addColorStop(1, "rgba(255,170,40,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, s * 0.75, 0, TAU); g.fill();
+  g.strokeStyle = `rgba(255,220,110,${0.85 * k})`; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, s * 0.55, 0, TAU); g.stroke();
+  if (!lowQ) { g.rotate(now / 700); g.setLineDash([s * 0.12, s * 0.1]); g.strokeStyle = `rgba(255,240,170,${0.7 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.66, 0, TAU); g.stroke(); g.setLineDash([]); }
+  g.restore();
+  glowAt(g, sx, sy - s * 0.7, s * 1.0, "255,200,70", 0.25 * k);
+}
+function eliteMark(g, list, top, s, now, lowQ) { // มงเล็กกลาง + ไอคอนคุณสมบัติสองข้าง เรียงแถวเดียวชิดเหนือหลอดเลือด
+  const UK = Math.max(0.35, (top[2] || s) * 0.0085), y = top[1] - 9 * UK, fs = 10 * UK, w = fs * 1.05; // ผืนผ้าใบย่อขยายตามซูมอยู่แล้ว (UK มักติดขั้นต่ำ) — ห้ามมีขั้นต่ำเป็นพิกเซล
+  drawCrown(g, top[0], y + 3 * UK, 5 * UK, now, true);
+  g.save(); g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+  list.forEach((a, i) => {
+    const x = top[0] + (i % 2 ? 1 : -1) * (w * (1 + Math.floor(i / 2)) + 1 * UK);
+    glowAt(g, x, y, fs * 0.7, "255,200,70", lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + i));
+    g.fillText(ELITE_ICON[a] || "★", x, y);
+  });
+  g.restore();
+}
 // ราชาปีศาจ: ร่างใหญ่ 2.6 ช่อง · ออร่าแดงม่วงหมุน · มงกุฎเรือง · หลอดเลือดใหญ่
 function drawBoss(g, d, cx, cy, sx, sy, s, now, lowQ, breathe) {
   g.save(); g.translate(sx, sy); g.scale(1, 0.4);
@@ -4011,6 +4218,22 @@ function pveGround(g, fd, now, lowQ) {
     g.setLineDash([s * 0.35, s * 0.25]); g.strokeStyle = mu.mode === "wave" ? `rgba(255,40,50,${0.6 + 0.3 * k})` : `rgba(255,80,80,${0.22 + 0.15 * k})`; g.lineWidth = mu.mode === "wave" ? 4 : 2.5;
     g.beginPath(); g.arc(0, 0, s * r, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
   }
+  for (const rn of fd.mobRunes || []) { // วงเวทของมอน (eosMobs — ระเบิดต้นเทิร์นหน้า)
+    const k = 0.5 + 0.5 * Math.sin(now / 150);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const tx = rn.x + dx, ty = rn.y + dy;
+      const c = [P(tx + 0.06, ty + 0.06, 0.02), P(tx + 0.94, ty + 0.06, 0.02), P(tx + 0.94, ty + 0.94, 0.02), P(tx + 0.06, ty + 0.94, 0.02)];
+      g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath();
+      g.fillStyle = `rgba(255,60,200,${0.12 + 0.12 * k})`; g.fill();
+    }
+    const [x, y, s] = P(rn.x + 0.5, rn.y + 0.5, 0.03);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); if (!lowQ) g.rotate(now / 900);
+    g.strokeStyle = `rgba(255,110,220,${0.6 + 0.35 * k})`; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(0, 0, s * 1.45, 0, TAU); g.stroke();
+    g.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; const px = Math.cos(a) * s * 1.3, py = Math.sin(a) * s * 1.3; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); g.stroke();
+    g.restore();
+  }
+  for (const bb of fd.bossBig || []) drawBigWarn(g, bb, now, lowQ); // ท่าใหญ่ของราชาปีศาจที่เตือนไว้ (eosBoss)
   const qk = fd.bossQuake; // แผ่นดินแยกที่ราชาปีศาจเตือนไว้: ช่องแดงกะพริบ (ระเบิดต้นเทิร์นหน้า)
   if (qk) {
     const k = 0.5 + 0.5 * Math.sin(now / 130);
@@ -4031,12 +4254,13 @@ function pveGround(g, fd, now, lowQ) {
     glowAt(g, x, y, s * 1.8, "255,30,60", 0.35 + 0.25 * k);
   }
   for (const q of fd.quests || []) {
-    if (q.type !== "hunt" || !q.rect) continue;
+    if ((q.type !== "hunt" && q.type !== "guard") || !q.rect) continue;
+    const guard = q.type === "guard"; // เฝ้าเมือง = กรอบฟ้า · กวาดล้าง = กรอบส้ม
     const [x0, y0, x1, y1] = q.rect;
     const c = [P(x0, y0, 0.02), P(x1 + 1, y0, 0.02), P(x1 + 1, y1 + 1, 0.02), P(x0, y1 + 1, 0.02)];
     const qa = 0.55 + 0.25 * Math.sin(now / 400);
-    g.beginPath(); c.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = "rgba(255,190,80,.06)"; g.fill();
-    g.strokeStyle = `rgba(255,200,100,${qa})`; g.lineWidth = 3; g.lineCap = "round";
+    g.beginPath(); c.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = guard ? "rgba(120,190,255,.07)" : "rgba(255,190,80,.06)"; g.fill();
+    g.strokeStyle = guard ? `rgba(140,200,255,${qa})` : `rgba(255,200,100,${qa})`; g.lineWidth = 3; g.lineCap = "round";
     for (let i = 0; i < 4; i++) { // มุมกรอบ (ขายาว 1 ช่อง)
       const a = c[i], b = c[(i + 1) % 4], d = c[(i + 3) % 4];
       const lb = Math.min(0.35, 1 / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]) / a[2])), ld = Math.min(0.35, 1 / Math.max(1, Math.hypot(d[0] - a[0], d[1] - a[1]) / a[2]));
@@ -4074,12 +4298,84 @@ function pve2Fx(g, e, p, lowQ, units) {
   if (e.kind === "mob_shot") {
     for (const sh of e.shots || []) {
       const a = P(sh.from.x + 0.5, sh.from.y + 0.5, 1.1), b = P(sh.to.x + 0.5, sh.to.y + 0.5, 0.8), al = p < 0.3 ? 1 : Math.max(0, 1 - (p - 0.3) / 0.7);
+      if (sh.kind === "arrow" || sh.kind === "web") { // ลูกธนู / ก้อนใย พุ่งเป็นวิถีโค้ง
+        const q = Math.min(1, p / 0.45), hx = a[0] + (b[0] - a[0]) * q, hy = a[1] + (b[1] - a[1]) * q - Math.sin(q * Math.PI) * 26;
+        if (q < 1) { glowAt(g, hx, hy, 14, sh.kind === "web" ? "240,240,240" : "255,210,90", 0.9); g.fillStyle = sh.kind === "web" ? "#f4f4f4" : "#ffd75a"; g.beginPath(); g.arc(hx, hy, sh.kind === "web" ? 5 : 3, 0, TAU); g.fill(); }
+        else if (sh.kind === "web") { g.strokeStyle = `rgba(240,240,240,${al})`; g.lineWidth = 1.2; for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] + Math.cos(an) * 22, b[1] + Math.sin(an) * 12); g.stroke(); } for (const r of [8, 15, 22]) { g.beginPath(); g.ellipse(b[0], b[1], r, r * 0.55, 0, 0, TAU); g.stroke(); } }
+        else glowAt(g, b[0], b[1], 22, "255,200,80", al * 0.8);
+        continue;
+      }
       g.strokeStyle = `rgba(255,60,50,${al})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
       g.strokeStyle = `rgba(255,230,220,${al})`; g.lineWidth = 1; g.stroke();
       glowAt(g, b[0], b[1], 30, "255,80,60", al * 0.8);
     }
     return true;
   }
+  if (e.kind === "armiger") { // Armiger: อาวุธวิญญาณสีฟ้าหมุนรอบทุกคน
+    for (const id of e.ids || []) { const u = unitOf(units, id); if (!u) continue; const [x, y, s] = P(u.x, u.y, 0.6); glowAt(g, x, y, s * (0.7 + p), "120,190,255", (1 - p) * 0.9);
+      if (!lowQ) for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + p * 6, q = P(u.x + Math.cos(a) * 0.55, u.y + Math.sin(a) * 0.55, 0.8 + Math.sin(a * 2) * 0.15); g.strokeStyle = `rgba(200,235,255,${1 - p})`; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - q[2] * 0.2); g.lineTo(q[0], q[1] + q[2] * 0.2); g.stroke(); } }
+    return true;
+  }
+  if (e.kind === "town_garage" || e.kind === "town_diner" || e.kind === "town_shrine" || e.kind === "town_ranch") {
+    const rgb = e.kind === "town_garage" ? "255,190,90" : e.kind === "town_diner" ? "255,150,90" : e.kind === "town_shrine" ? "150,210,255" : "255,220,90";
+    const pts = e.kind === "town_shrine" ? (e.ids || []).map((id) => unitOf(units, id)).filter(Boolean).map((u) => ({ x: u.x, y: u.y })) : [];
+    const at = e.kind === "town_garage" ? { x: e.x + 0.5, y: e.y + 0.5 } : e.kind === "town_ranch" ? { x: e.to.x + 0.5, y: e.to.y + 0.5 } : { x: e.x + 0.5, y: e.y + 0.5 };
+    for (const q of [at, ...pts]) { const [x, y, s] = P(q.x, q.y, 0.5); glowAt(g, x, y, s * (0.5 + p), rgb, (1 - p) * 0.85); }
+    if (!lowQ && e.kind === "town_garage") for (let i = 0; i < 8; i++) { const a = hash(i, e.seq) * TAU, d = p * 0.6; const [x, y] = P(at.x + Math.cos(a) * d, at.y + Math.sin(a) * d, 0.3 + p * 0.5); g.fillStyle = `rgba(255,220,120,${1 - p})`; g.fillRect(x - 1.5, y - 1.5, 3, 3); }
+    return true;
+  }
+  if (e.kind === "mob_blink") { // ควันม่วงจุดเดิม → จุดใหม่
+    for (const b of e.list || []) {
+      if (!lowQ) { puff(g, b.from.x + 0.5, b.from.y + 0.5, 0.5 + p, p, e.seq + 1, 8, "150,70,220", 0.35); puff(g, b.to.x + 0.5, b.to.y + 0.5, 0.5 + p, p, e.seq + 2, 8, "150,70,220", 0.35); }
+      const [x, y, s] = P(b.to.x + 0.5, b.to.y + 0.5, 0.6); glowAt(g, x, y, s * (0.6 + p), "190,90,255", (1 - p) * 0.8);
+    }
+    return true;
+  }
+  if (e.kind === "mob_pull") { // โซ่จากมอนถึงเป้า (เป้าถูกลากตามโซ่)
+    for (const c of e.list || []) {
+      const a = P(c.x + 0.5, c.y + 0.5, 0.8), q = Math.min(1, p / 0.5), fx0 = c.from.x + (c.to.x - c.from.x) * q, fy0 = c.from.y + (c.to.y - c.from.y) * q, b = P(fx0 + 0.5, fy0 + 0.5, 0.8), al = p < 0.6 ? 1 : (1 - p) / 0.4;
+      g.strokeStyle = `rgba(200,200,215,${al})`; g.lineWidth = 3; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]);
+      glowAt(g, b[0], b[1], 18, "220,220,240", al * 0.7);
+    }
+    return true;
+  }
+  if (e.kind === "mob_rune_set") { for (const r of e.list || []) { const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.05); glowAt(g, x, y, s * (0.8 + p * 1.2), "255,80,210", (1 - p) * 0.8); } return true; }
+  if (e.kind === "mob_rune") {
+    for (const r of e.list || []) {
+      const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.3);
+      if (r.fizzle) { glowAt(g, x, y, s * 0.8, "200,160,220", (1 - p) * 0.4); continue; }
+      glowAt(g, x, y, s * (1 + p * 1.8), "255,70,210", (1 - p) * 0.95);
+      if (!lowQ) puff(g, r.x + 0.5, r.y + 0.5, 0.4 + p, p, e.seq + r.x, 8, "200,60,180", 0.3);
+    }
+    return true;
+  }
+  if (e.kind === "mob_split") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.6); glowAt(g, x, y, s * (0.8 + p), "220,170,100", (1 - p) * 0.8); if (!lowQ) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, p, e.seq, 10, "150,120,90", 0.3); return true; }
+  if (e.kind === "mob_block") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9); glowAt(g, x, y, s * 0.7, "140,190,255", (1 - p) * 0.9); return true; }
+  if (e.kind === "elite_spawn" || e.kind === "elite_down") { // เสาแสงทอง (เกิด) / ระเบิดทอง (ล้ม)
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
+    const up = e.kind === "elite_spawn";
+    glowAt(g, x, y - s * (up ? 0.9 : 0.5), s * (up ? 1.2 + p : 0.8 + p * 1.6), "255,205,80", (1 - p) * 0.9);
+    if (up) { g.fillStyle = `rgba(255,230,140,${0.35 * (1 - p)})`; g.fillRect(x - s * 0.18, y - s * 3, s * 0.36, s * 3); }
+    for (let r = 0; r < 2; r++) { const k = (p - r * 0.25) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(255,215,90,${0.9 * (1 - k)})`; g.lineWidth = 4 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.5 + k * 1.6), 0, TAU); g.stroke(); g.restore(); }
+    if (!up && !lowQ) for (let i = 0; i < 14; i++) { const a = hash(i, e.seq) * TAU, d = s * p * (0.8 + hash(i, 7)); g.fillStyle = `rgba(255,${200 + Math.floor(hash(i, 2) * 50)},90,${1 - p})`; g.fillRect(x + Math.cos(a) * d, y - s * 0.6 + Math.sin(a) * d * 0.55 - s * p * 0.6, 3, 3); }
+    return true;
+  }
+  if (e.kind === "elite_blast") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5);
+    glowAt(g, x, y, s * (1 + p * 2.2), "255,170,50", (1 - p) * 0.95);
+    for (const t of e.tiles || []) { const [tx, ty, ts] = P(t.x + 0.5, t.y + 0.5, 0.03); glowAt(g, tx, ty, ts * 0.7, "255,120,40", (1 - p) * 0.5); }
+    if (p > 0.2) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, (p - 0.2) / 0.8, e.seq, lowQ ? 4 : 10, "70,55,45", 0.25);
+    return true;
+  }
+  if (e.kind === "elite_drain" && e.from) { // ด้ายเลือดจากเป้ากลับเข้าตัว
+    const a = P(e.from.x + 0.5, e.from.y + 0.5, 0.8), b = P(e.x + 0.5, e.y + 0.5, 0.9), q = Math.min(1, p / 0.7);
+    const hx = a[0] + (b[0] - a[0]) * q, hy = a[1] + (b[1] - a[1]) * q;
+    g.strokeStyle = `rgba(220,30,60,${0.8 * (1 - p)})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(hx, hy); g.stroke();
+    glowAt(g, hx, hy, 14, "255,40,70", 0.9 * (1 - p));
+    return true;
+  }
+  if (e.kind === "elite_thorns") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.7); glowAt(g, x, y, s * (0.6 + p * 0.6), "140,230,90", (1 - p) * 0.85); return true; }
+  if (e.kind === "elite_regen") { for (const r of e.list || []) { const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.9 + p * 0.6); glowAt(g, x, y, s * 0.6, "120,255,150", (1 - p) * 0.8); } return true; }
   if (e.kind === "mob_boom") {
     const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5);
     glowAt(g, x, y, s * (1 + p * 2), "255,130,40", (1 - p) * 0.95);
@@ -4087,6 +4383,17 @@ function pve2Fx(g, e, p, lowQ, units) {
     if (p > 0.2) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, (p - 0.2) / 0.8, e.seq, lowQ ? 4 : 10, "60,50,50", 0.25);
     return true;
   }
+  if (e.kind === "boss_big") { // ลงจริง: ช่องสว่างวาบ · ลำแสง = เสาแสงตามแนว · อุกกาบาต = ลูกไฟตกจากฟ้า · วงแหวน = คลื่นกระจาย
+    const rgb = BIG_RGB[e.move] || BIG_RGB.beam;
+    for (const t of e.tiles || []) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.05); glowAt(g, x, y, s * (0.5 + p * 0.5), rgb, (1 - p) * 0.75); }
+    if (e.move === "beam") for (const t of (e.tiles || []).filter((_, i) => i % 3 === 1)) { const a = P(t.x + 0.5, t.y + 0.5, 0), b = P(t.x + 0.5, t.y + 0.5, 2.2 * (1 - p)); g.strokeStyle = `rgba(240,200,255,${0.9 * (1 - p)})`; g.lineWidth = Math.max(2, a[2] * 0.35 * (1 - p)); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    if (e.move === "meteor") for (const c of e.centers || []) { const q = Math.min(1, p / 0.35); const [x, y, s] = P(c.x + 0.5, c.y + 0.5, 6 * (1 - q)); glowAt(g, x, y, s * (q < 1 ? 0.5 : 0.8 + p), "255,140,40", q < 1 ? 0.95 : (1 - p) * 1.2); if (q >= 1 && !lowQ) puff(g, c.x + 0.5, c.y + 0.5, 0.4 + p, (p - 0.35) / 0.65, e.seq + c.x, 8, "70,50,40", 0.3); }
+    if (e.move === "ring") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05); g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(${rgb},${0.9 * (1 - p)})`; g.lineWidth = 8 * (1 - p) + 2; g.beginPath(); g.arc(0, 0, s * (3 + p * 2.5), 0, TAU); g.stroke(); g.restore(); }
+    return true;
+  }
+  if (e.kind === "boss_dark") { for (const t of e.tiles || []) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.3 + p * 0.5); glowAt(g, x, y, s * 0.45, "140,50,240", (1 - p) * 0.6); } return true; }
+  if (e.kind === "camp_rest") { for (const u of e.list || []) { const [x, y, s] = P(u.x + 0.5, u.y + 0.5, 0.9 + p * 0.7); glowAt(g, x, y, s * 0.5, "255,200,110", (1 - p) * 0.8); } return true; }
+  if (e.kind === "boss_guards") { for (const u of e.spawned || []) { const [x, y, s] = P(u.x + 0.5, u.y + 0.5, 0.6); glowAt(g, x, y, s * (0.6 + p), "200,30,90", (1 - p) * 0.9); } return true; }
   if (e.kind === "boss_quake") { // แผ่นดินแยก: วงแดงแตกเป็นรอยร้าว + ฝุ่น
     for (const t of e.tiles || []) {
       const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.03);

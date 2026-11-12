@@ -1,6 +1,6 @@
 // ============================================================
 //  โหวตการ์ดอัปเกรดทีม (สนาม Eos PVE รอบสี่ — server/fodlan/eosPerks.js)
-//   แต้มรวมถึง 10/20/30 → การ์ด 3 ใบกลางจอด้านบน · กดใบไหน = โหวต (เปลี่ยนใจได้) · หน้าเพื่อนที่โหวตแสดงใต้การ์ด
+//   แต้มรวมถึงทุก 10 แต้ม → การ์ด 5 ใบกลางจอด้านบน (ใบเดิมซ้ำได้ = Lv ถัดไป — ผู้ใช้สั่ง 2026-11-12) · กดใบไหน = โหวต (เปลี่ยนใจได้) · หน้าเพื่อนที่โหวตแสดงใต้การ์ด
 //   ผู้ใช้สั่ง 2026-11-10 "ไม่มีคำอธิบาย คืออะไรก็ไม่รู้ อยู่ๆ ก็มาให้เลือกแล้วหายไป" → อนุญาตคำอธิบาย:
 //    หัวแผงบอกว่าคืออะไร/ได้มาเพราะอะไร/ปิดโหวตเมื่อไร · ทุกใบแสดงผลของการ์ด · จำนวนคนโหวต
 //    เลือกแล้ว = ป้ายประกาศผล (การ์ด + ผล) ค้าง 6 วิ · หุบได้ (▾) — ยังไม่โหวต = ป้ายเล็กกะพริบ
@@ -38,7 +38,7 @@ export default function EosPerks({ state }) {
     return (
       <div className="eos-perk-result" role="status">
         <span className="ico">{result.icon}</span>
-        <span className="txt"><small>ทีมได้การ์ด</small><b>{result.name}</b><span>{result.desc}</span></span>
+        <span className="txt"><small>ทีมได้การ์ด</small><b>{result.name}{result.max > 1 ? ` Lv ${result.lv}` : ""}</b><span>{result.desc}</span></span>
       </div>
     );
   }
@@ -70,6 +70,7 @@ export default function EosPerks({ state }) {
               {mine === c.id && <em className="mine">โหวตแล้ว</em>}
               <span className="ico">{c.icon}</span>
               <b>{c.name}</b>
+              {c.max > 1 && <em className="lv">Lv {c.lv}</em>}
               <span className="desc">{c.desc}</span>
               <span className="voters">
                 {voters.map((p) => (p.img ? <img key={p.id} src={p.img} alt="" /> : <i key={p.id} style={{ background: p.color || "#888" }} />))}

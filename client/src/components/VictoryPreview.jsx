@@ -35,7 +35,9 @@ export default function VictoryPreview() {
     const players = Array.from({ length: Number(q.get("n")) || 1 }, (_, i) => mk(i, true, "A"));
     state = { gameMode: "eos", winningTeamId: "A", players, youId: "p0", roundNumber: 31,
       fodlan: { board: { challenges: [{ key: "noLoss", icon: "🔷", name: "เสาไม่หลุดเลย", star: true }, { key: "fast", icon: "⏱️", name: "ชนะภายใน 30 เทิร์น", star: true }, { key: "noDown", icon: "❤️", name: "ไม่มีใครล้ม", star: false }],
-        titles: [{ id: "p0", key: "saver", icon: "🕊️", name: "ผู้ช่วยชีวิต", n: 3 }] } } };
+        titles: [{ id: "p0", key: "saver", icon: "🕊️", name: "ผู้ช่วยชีวิต", n: 3 }],
+        eosSum: { turns: 31, mobDmg: [{ key: "boss", name: "ราชาปีศาจ", n: 41 }, { key: "archer", name: "ปีศาจพลธนู", n: 23 }, { key: "magitek", name: "ทหารเหล็ก", n: 17 }, { key: "hooker", name: "ปีศาจโซ่ลาก", n: 9 }, { key: "swarm", name: "ปีศาจจิ๋ว", n: 6 }],
+          deaths: { p0: 2, p1: 0, p2: 3 }, causes: { p0: { boss: 2 }, p2: { archer: 2, boss: 1 } }, elites: { p0: 1, p1: 3 }, bosses: { p1: 1 } } } } };
   } else if (mode === "draw") {
     state = { gameMode: "ffa", winningTeamId: null, players: Array.from({ length: 4 }, (_, i) => mk(i, false)), youId: "p0", roundNumber: 9 };
   } else {

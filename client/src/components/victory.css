@@ -325,3 +325,21 @@
 .vic-stars span[data-on="true"] { opacity: 1; filter: none; animation: vic-star-pop .6s cubic-bezier(.2,.9,.3,1.4) both; }
 .vic-stars span:nth-child(2) { animation-delay: .25s; } .vic-stars span:nth-child(3) { animation-delay: .5s; }
 @keyframes vic-star-pop { from { transform: scale(.2) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* สรุปสนาม Eos (2026-11-12): มอนที่ทำดาเมจใส่ทีมมากสุด 5 อันดับ · ต่อผู้เล่น ล้ม/สาเหตุ/หัวหน้า/ราชาปีศาจ */
+.vic-eos { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 16px; padding-top: 14px; border-top: 2px solid #1c3f6e; }
+.vic-eos-mobs, .vic-eos-who { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.vic-eos-mobs li { display: grid; grid-template-columns: 30px 150px 1fr 48px; align-items: center; column-gap: 10px; font: 600 17px/1.2 var(--oc-f-ui); }
+.vic-eos-mobs li i { font-style: normal; font-size: 22px; text-align: center; }
+.vic-eos-mobs li b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vic-eos-mobs li em { display: block; height: 8px; background: #dce7f3; }
+.vic-eos-mobs li em span { display: block; height: 100%; background: #c0392b; }
+.vic-eos-mobs li > span { text-align: right; font: 700 20px/1 var(--oc-f-ui); font-variant-numeric: tabular-nums; }
+.vic-eos-who li { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 90px 64px 64px; align-items: center; column-gap: 10px; padding: 6px 8px 6px 14px; background: #f4f8fc; font: 600 17px/1.2 var(--oc-f-ui); }
+.vic-eos-who li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--pc); }
+.vic-eos-who li b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vic-eos-who li span { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vic-eos-who li span i { font-style: normal; margin-left: 6px; }
+:root[data-ui="dark"] .vic-eos { border-top-color: #7fb8e6; }
+:root[data-ui="dark"] .vic-eos-who li { background: #13284a; }
+:root[data-ui="dark"] .vic-eos-mobs li em { background: rgba(255, 255, 255, .12); }

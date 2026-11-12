@@ -129,3 +129,7 @@
 .eos-tip-line { color: var(--es-dim); padding-left: 10px; position: relative; }
 .eos-tip-line::before { content: ""; position: absolute; left: 0; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: var(--es-gold); }
 @keyframes eos-tip-in { from { opacity: 0; transform: translate(6px, -50%); } }
+
+/* ระดับการ์ดทีม (ซ้อนได้ — 2026-11-12) */
+.eos-power:has(.eos-perk-lv) { position: relative; }
+.eos-power .eos-perk-lv { position: absolute; right: -3px; bottom: -3px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 7px; background: #e0a92a; color: #1a1206; font-size: 9px; font-weight: 800; line-height: 13px; text-align: center; }

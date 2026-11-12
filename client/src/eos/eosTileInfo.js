@@ -21,7 +21,8 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const list = [...(fd.daemons || []).map((d) => ({ ...d, type: "daemon" })), ...(fd.mobs || [])];
     const info = list.find((m) => m.id === mob.id) || {};
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
-    return { icon: m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${m.desc}` };
+    const el = (info.elite || []).map((k) => ELITE_INFO[k]).filter(Boolean);
+    return { icon: el.length ? "👑" : m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${el.length ? `หัวหน้า: ${el.join(" · ")} · ล้มได้ = เหรียญ ×3 + ของแน่นอน + แต้มรวม +1\n` : ""}${m.desc}` };
   }
   const sk = fd.sky || {};
   if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "ตกต้นเทิร์นหน้า ดาเมจ 3 (ช่องติดกัน 1) · ตกแล้วเหลือหินพลังเวท" };
@@ -37,6 +38,10 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ยืนติดแล้วกด \"ช่วย\" (ใช้การโจมตี) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นตรงนี้" }; }
   const qq = (fd.quests || []).find((o) => o.type === "scout" && at(o, x, y));
   if (qq) return { icon: "📡", name: "จุดสัญญาณภารกิจ", desc: `ยืนบนช่องนี้แล้วกด "สำรวจ" — แต้มรวม +3 · เหลือ ${qq.left} เทิร์น` };
+  const bb = (fd.bossBig || []).find((o) => (o.tiles || []).some((t) => at(t, x, y)));
+  if (bb && bb.kind === "dark_zone") return { icon: "🌑", name: "เขตทมิฬ", desc: `ยืนในเขตตอนต้นเฟสมอนเสีย 1 · เหลือ ${bb.left} เทิร์น · ราชาปีศาจล้ม = เขตหาย` };
+  if (bb && bb.kind === "dark") return { icon: "🌑", name: "เขตทมิฬ", desc: "ราชาปีศาจจะปล่อยท่านี้ตาหน้า ดาเมจ 2 แล้วพื้นมืดค้าง 2 เทิร์น" };
+  if (bb) return { icon: bb.kind === "beam" ? "🔦" : bb.kind === "ring" ? "⭕" : "☄️", name: bb.kind === "beam" ? "ลำแสงทมิฬ" : bb.kind === "ring" ? "วงแหวนมรณะ" : "ฝนอุกกาบาต", desc: `ราชาปีศาจจะปล่อยท่านี้ลงช่องนี้ตาหน้า ดาเมจ ${bb.kind === "beam" ? 4 : 3} · ราชาปีศาจล้มก่อน = ไม่ลง` };
   if (fd.bossWarn && at(fd.bossWarn, x, y)) return { icon: "⚠️", name: "วงเวทราชาปีศาจ", desc: "ราชาปีศาจจะลงที่นี่ต้นเทิร์นหน้า" };
   const pl = (fd.pillars || []).find((p) => at(p, x, y));
   if (pl) {
@@ -63,8 +68,13 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if ((fd.camps || []).some((t) => at(t, x, y))) return { icon: "🏕️", name: "แคมป์", desc: "ยืนบนแคมป์ เลือกอาหาร (ใช้การโจมตี) บัฟ 3 เทิร์น: ตี +1 / ฟื้นเลือดทุกเทิร์น / เดิน +1 · มีปลาจากการตกปลา = ทำอาหารให้ทั้งทีม (ปลาย่างทั้งทีม 1 ตัว · งานเลี้ยงทีม 2 ตัว) · กลางคืน วงไฟ 2 ช่องรอบแคมป์ ปีศาจเข้าไม่ได้" };
   if (fd.night && (fd.camps || []).some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) <= (fd.lightR || 2))) return { icon: "🔥", name: "วงไฟแคมป์", desc: "ปีศาจเข้าและตีคนในวงนี้ไม่ได้ (ราชาปีศาจ/ทหารเหล็กไม่กลัวไฟ)" };
   if ((fd.fish || []).some((t) => at(t, x, y))) return { icon: "🎣", name: "จุดตกปลา", desc: "ยืนแล้วกด \"ตกปลา\" (ใช้การโจมตี) — สุ่มได้ปลาเข้าถุง (ถือได้ 3 · เอาไปทำอาหารทีมที่แคมป์)/เหรียญ/ปลาทอง หรือโดนปลายักษ์ลาก" };
+  const ts = fd.townSpots || {};
+  if ((ts.shrine || []).some((t) => at(t, x, y))) return { icon: "⛩️", name: "ศาลเทพธิดา", desc: `ยืนติดแล้วกด "ศาลเทพธิดา" (ใช้การโจมตี) — ทั้งทีมฟื้นเกราะ 2 · ทั้งทีมครั้งเดียวทุก 4 เทิร์น${fd.shrineReady === false ? " · ยังไม่พร้อม" : ""}` };
+  if ((ts.diner || []).some((t) => at(t, x, y))) return { icon: "🍽️", name: "ร้านอาหาร", desc: "ยืนติดแล้วกด \"ร้านอาหาร\" (ใช้การโจมตี) — 4 เหรียญหรือปลา 1: ฟื้นเลือด 3 + งานเลี้ยง 3 เทิร์น (ตี +1 · เดิน +1 · ฟื้นเลือดทุกเทิร์น)" };
+  if ((ts.ranch || []).some((t) => at(t, x, y))) return { icon: "🐤", name: "ฟาร์มโชโกโบะ", desc: "ยืนติดแล้วกด \"เรียกโชโกโบะ\" (3 เหรียญ · ใช้การโจมตี) — โชโกโบะที่ว่างวิ่งมาข้างตัว" };
+  if ((ts.garage || []).some((t) => at(t, x, y))) return { icon: "🔧", name: "อู่ Hammerhead", desc: "ยืนติดอู่ (ขับรถอยู่ หรือรถจอดติดตัว) กด \"อู่\" — ซ่อมรถเต็ม + เทอร์โบ เดิน +2 3 เทิร์น" };
   const tomb = (fd.tombs || []).find((t) => at(t, x, y));
-  if (tomb) return { icon: "⚱️", name: "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : "ยืนติดแล้วกด \"สุสาน\" — อาวุธหลวง 5 เทิร์น ตี +1 แต่ตาที่ตีเสียเลือด 1" };
+  if (tomb) return { icon: "⚔️", name: tomb.name || "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : `อาวุธจักรพรรดิ — ยืนติดแล้วกดชื่ออาวุธ (ใช้การโจมตี) · 5 เทิร์น: ${tomb.desc || "ตี +1"}${tomb.w === "father" ? "" : " · ตาที่ตีเสียเลือด 1"}` };
   if ((fd.trams || []).some((t) => at(t, x, y))) return { icon: "🚋", name: "ป้ายรถราง", desc: "ยืนบนป้ายแล้วกดชื่อโซน = นั่งรถรางไปป้ายนั้นทันที (จบการเดินของตา) · คนละ 2 เที่ยว แล้วพัก 2 เทิร์น · มีป้ายทุกโซน ใกล้เสา" };
   if (fd.rail) {
     if ((fd.rail.stations || []).some((t) => at(t, x, y))) return { icon: "🚉", name: "ชานชาลา", desc: `ยืนรอตอนรถไฟผ่าน = ไปชานชาลาอีกฝั่ง · รถไฟมาเทิร์น ${fd.rail.next}` };
@@ -111,9 +121,11 @@ export function eosTerrainInfo(map, x, y, fd = null, round = 0) {
   const t = k && EOS_TERRAIN_INFO[k];
   return t ? { icon: t.icon, name: t.name, desc: t.desc || EOS_NAME_DESC[t.name] || "" } : null;
 }
+// มอนหัวหน้า (server/fodlan/eosElite.js — 2026-11-12)
+const ELITE_INFO = { swift: "💨 ว่องไว เดิน +2", armored: "🪨 เกราะหนา +3", vampiric: "🩸 ดูดเลือด", volatile: "💥 ล้มแล้วระเบิด 3×3 ดาเมจ 2", commander: "🚩 มอนรอบตัว 2 ช่องตี +1", regen: "✚ ฟื้นเลือด 2 ทุกเทิร์น", thorns: "🌵 ตีประชิดโดนสวน 1" };
 // มอนพิเศษ / บอส / รถเสบียง / ดวงวิญญาณ / จุดสัญญาณ (PVE รอบสอง)
 export const EOS_TRAIT_INFO = {
-  boss: { icon: "👑", desc: "ราชาปีศาจ — ไล่ทั้งคนและเสา ไม่กลัวไฟ บุกเข้าเมืองได้ · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · พุ่งชนคนที่อยู่แนวตรง 2–6 ช่อง (+1 กระเด็น) · ทุบแผ่นดินแยกวงแดงรัศมี 2 (ออกจากวงทันเทิร์นหน้า = รอด) · เลือดครึ่งคลั่ง ตี +1 เดิน +1 · เรียกปีศาจทุก 2 เทิร์น · ล้มได้ แต้มรวม +5 ทุกคนได้ของ" },
+  boss: { icon: "👑", desc: "ราชาปีศาจ — ไล่ทั้งคนและเสา ไม่กลัวไฟ บุกเข้าเมืองได้ · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · พุ่งชนคนที่อยู่แนวตรง 2–6 ช่อง (+1 กระเด็น) · ทุบแผ่นดินแยกวงแดงรัศมี 2 (ออกจากวงทันเทิร์นหน้า = รอด) · ท่าใหญ่ทุก 3 เทิร์น เตือนก่อน 1 เทิร์น (ลำแสง/วงแหวน/อุกกาบาต) · เลือดครึ่งคลั่ง ตี +1 เดิน +1 ท่าใหญ่ทุก 2 เทิร์น · เลือด 30% เรียกองครักษ์ แล้วสลับใช้เขตทมิฬ · เรียกปีศาจทุก 2 เทิร์น · ล้มได้ แต้มรวม +5 ทุกคนได้ของ" },
   bomber: { icon: "💣", desc: "ปีศาจระเบิด — ถึงตัวแล้วระเบิด 3×3 ดาเมจ 3 · โดนฆ่าก็ระเบิด (ตีจากระยะไกลปลอดภัยกว่า)" },
   healer: { icon: "💚", desc: "ปีศาจหมอ — ไม่ตี แต่ฟื้นเลือดมอนในระยะ 2 ทุกต้นเทิร์น · ชอบหนี — ล้มก่อน" },
   mech: { icon: "🦾", desc: "หุ่นเกราะจักรวรรดิ — มีโอกาสลงมากับยานจักรวรรดิ · ถึก เกราะหนา ตีแรง แต่เดินช้า · จุดอ่อนด้านหลัง (วงส้มบนพื้น): ตีจากฝั่งนั้นแรง +2 · ล้มได้เหรียญเยอะ · ขึ้นยานกลับพร้อมทหารเหล็ก" },

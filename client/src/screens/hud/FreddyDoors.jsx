@@ -1,6 +1,6 @@
 // ============================================================
 //  มินิเกมประตูของเฟรดดี้ ฟาซแบร์ (characters/freddy_fazbear.js doorView)
-//  ภาพห้องจากผู้ใช้ (room.webp 16:9) · ประตูซ้าย/ขวา = ปุ่ม (กดที่ช่องประตูหรือแผงปุ่มข้างประตู)
+//  ภาพห้องจากผู้ใช้ (room.webp 16:9) · ประตูซ้าย/ขวา = กดได้เฉพาะสวิตช์ข้างประตู (ผู้ใช้สั่ง 2026-11-12 — ช่องประตูกดไม่ได้)
 //  เป้า (foe): กดปิดประตู → ประตูเหล็กเลื่อนลง · เฟรดดี้: กดเลือกประตูที่จะเข้า → เงาเฟรดดี้ยืนหน้าประตู
 //  ผลออก (result): เปิดทั้งสองฝ่าย — blocked = ประตูปิดตรงตัว (กระแทก) · enter = จอดำทันที แล้ว server ตัดเข้าคลิปจัมป์สแกร์
 //  เสียงประตู (freddy_door): คนปิดได้ยินตอนกด · คนอื่นได้ยินตอนผลออกแบบปิดทัน · ปิดผิด = ไม่มีเสียง (ไม่ซ้อนคลิป)
@@ -44,13 +44,6 @@ export function FreddyDoors({ door, onPick }) {
                 {here && <img className="fd-freddy" src={token} alt="" draggable={false} />}
                 <div className="fd-shutter"><div className="fd-shut-img" style={{ backgroundImage: `url(${room})` }} /></div>
               </div>
-              <button
-                type="button"
-                className="fd-hit"
-                aria-label={d === "left" ? "ประตูซ้าย" : "ประตูขวา"}
-                disabled={!mine}
-                onClick={() => pick(d)}
-              />
               <button
                 type="button"
                 className={`fd-panel ${side === "foe" ? "foe" : "freddy"}`}

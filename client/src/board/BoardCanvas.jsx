@@ -531,7 +531,18 @@ export default function BoardCanvas(props) {
         st.focusRef = p.focus;
         const fp = focusPt(p.focus), goal = st.camAnim ? st.camAnim.to : st.cam;
         if (fp && (zl || rts) && !st.pivot && !(st.drag && st.drag.moved) && !inCamView(base, goal, fp[0], fp[1])) {
-          startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+          // RTS: มุมมองฉายแบบมีจุดกลาง (ตัวเรา) — เลื่อนกล้องไปไกลโดยจุดกลางค้างที่ตัวเรา = ฉากตรงนั้นถูกมองเฉียง ดูเอียง (ผู้ใช้แจ้ง 2026-11-12)
+          //  → ย้ายจุดกลางมุมมองไปที่เหตุการณ์ (vcLock — ค้างจนตัวเราเดิน/กดกลับที่ตัวเรา) แล้วกล้องตามจุดกลางนุ่มๆ (vcFollow)
+          if (rts && !lowQ) { st.vcLock = { x: p.focus.x + 0.5, y: p.focus.y + 0.5 }; st.vcFollow = true; st.camAnim = null; }
+          else startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+        }
+      }
+      if (st.vcFollow) { // จุดกลางมุมมองกำลังเลื่อน (vcAnim) → กล้องอยู่ที่จุดกลางเสมอ
+        if (!rts || (st.drag && st.drag.moved) || st.pivot) st.vcFollow = false;
+        else {
+          const [sx, sy] = PV(0, 0);
+          st.cam = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
+          if (!st.vcAnim && st.vcTo && st.vcLock && st.vcTo.x === st.vcLock.x && st.vcTo.y === st.vcLock.y) st.vcFollow = false;
         }
       }
       if (st.camAnim) {

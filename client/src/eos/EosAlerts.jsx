@@ -33,7 +33,7 @@ function alertOf(e, fd) {
     case "boss_land": return { icon: "👑", title: "ราชาปีศาจปรากฏ", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "boss_die": return { icon: "🏆", title: "โค่นราชาปีศาจ · +5", zone: "", tone: "good" };
     case "blood_moon": return { icon: "🩸", title: "คืนพระจันทร์สีเลือด", zone: "", tone: "warn" };
-    case "quest_new": return { icon: e.qtype === "hunt" ? "⚔️" : "📡", title: `ภารกิจใหม่ · ${e.qtype === "hunt" ? "กวาดล้าง" : "สำรวจ"}`, zone: ZN[e.zone] || "", tone: "good" };
+    case "quest_new": return { icon: e.qtype === "hunt" ? "⚔️" : e.qtype === "guard" ? "🛡️" : "📡", title: `ภารกิจใหม่ · ${e.qtype === "hunt" ? "กวาดล้าง" : e.qtype === "guard" ? "เฝ้าเมือง" : "สำรวจ"}`, zone: ZN[e.zone] || "", tone: "good" };
     case "quest_done": return { icon: "📯", title: "ภารกิจสำเร็จ · +3", zone: ZN[e.zone] || "", tone: "good" };
     case "convoy_start": return { icon: "🚚", title: "ขบวนเสบียงออกเดินทาง", zone: `${ZN[e.from] || ""} → ${ZN[e.to] || ""}`, tone: "good" };
     case "convoy_done": return { icon: "🚚", title: "ขบวนเสบียงถึงแล้ว · +6", zone: "", tone: "good" };
@@ -61,6 +61,8 @@ function alertOf(e, fd) {
     case "town_dark": return { icon: "🌑", title: "ไฟเมืองดับ · ปีศาจบุกเข้าเมือง", zone: ZN[e.zone] || "", tone: "danger" };
     case "town_light": return e.relit ? { icon: "💡", title: "ไฟเมืองกลับมา", zone: ZN[e.zone] || "", tone: "good" } : null;
     case "boss_quake_warn": return { icon: "🌋", title: "ราชาปีศาจกำลังทุบแผ่นดิน · ออกจากวงแดง", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "boss_big_warn": return { icon: e.move === "beam" ? "🔦" : e.move === "ring" ? "⭕" : e.move === "dark" ? "🌑" : "☄️", title: `ราชาปีศาจเตรียม${e.move === "beam" ? "ลำแสงทมิฬ" : e.move === "ring" ? "วงแหวนมรณะ" : e.move === "dark" ? "เขตทมิฬ" : "ฝนอุกกาบาต"} · ออกจากช่องสี`, zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "boss_guards": return { icon: "🛡️", title: "ราชาปีศาจเรียกองครักษ์", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
     case "boss_enrage": return { icon: "😡", title: "ราชาปีศาจคลั่ง", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "gold_spawn": return { icon: "🐤", title: "โชโกโบะทองโผล่", zone: zoneAt(e.x, e.y), tone: "good" };
     default: return null;

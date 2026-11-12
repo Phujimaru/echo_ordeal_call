@@ -11,38 +11,38 @@
 //   F ป่าทึบ (fd_eos_forest — กติกาเท่า forest)  s น้ำตื้น (fd_eos_shallow — กติกาเท่า shallow)  X เสายึดพื้นที่
 //   B ตึก  W กำแพงเมือง  L เสาไฟถนน  T ต้นไม้  R หิน  ~ น้ำลึก  c คลอง  P ปั๊มน้ำมัน  G อู่ซ่อมรถ  (สิ่งกีดขวาง)
 const ROWS = [
-  "..R....RWBBBBBp==pBBBBBW.FTFFF..", // y0
-  ".....RR.WBBBppL==LppBBBW.FTFFF..", // y1
-  "...R....WpppQpp==ppppBBWFFTFF.FF", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
-  "....R...WBpppBp==ppXppBWFT.FF.FF", // y3
-  "....R...ppppLpp==ppLppppFFFFF..F", // y4
-  "..R.R...WBBpppp==ppppBBWFFF.....", // y5
-  "..RRR...WpppBBp==pBpZppWF.......", // y6
-  "..RR....WWppppL==LppppWWFFF.....", // y7
-  ".T..R....WWpWUW==WUWpWW.FFFFF.FF", // y8
-  ".......==============...FTTFFFFF", // y9
-  "...=======================......", // y10
-  "...======........TF========F....", // y11
+  "T..B.BT.WBBBBBp==pBBBBBW..T..ss~", // y0
+  "...BpB..WBBBppL==LppBBBW....sss~", // y1
+  ".L.p.p..WpppQpp==ppppBBW.L..ss..", // y2 (ลานรอบเสา Insomnia — ผู้ใช้: เสาโดนตึกบัง)
+  "...p.p..WBpppBp==ppXppBW....p.T.", // y3
+  "..======ppppLpp==ppLpppp===.....", // y4
+  "B..=..pBWBBpppp==ppppBBW..=..L..", // y5
+  "B..=.pppWpppBBp==pBpZppWT.=.....", // y6
+  "T..=..LTWWppppL==LppppWW..=..T..", // y7
+  ".T.=.....WWpWUW==WUWpWW..L=.....", // y8
+  "...=...==============.....=...T.", // y9
+  "...========================.....", // y10
+  "...======.DpBp...TF========F....", // y11
   "...==~~~s..kk....TFFFTTF=====...", // y12
-  "..===~~~~ssk...TTTFFFTTFU=====..", // y13
-  "..===~~~~~~s...FTTFFFTTF..F===..", // y14
-  "..==~~~~~~~s...FTFFkkTTX....==..", // y15
-  "..==~~~~~~~s.U.FFFFkkTTFFF..==..", // y16
-  ".===~~~~~~sX...FTFFFFTFFFTF===..", // y17
-  ".===ss~~sss....FFFTFFFFT.FF===..", // y18
-  ".==.ssssss.....FFFFFTFFFTFF==...", // y19
+  "..===~~~~ssk..LTT...F.HFU=====..", // y13
+  "..===~~~~~~s....TT...FTT..F===..", // y14
+  "..==~~~~~~~sppp...FkkTTX....==..", // y15
+  "..==~~~~~~~spUp.F.FkkTTFFF..==..", // y16
+  ".===~~~~~~sXppp...T..TFFFTF===..", // y17
+  ".===ss~~ssspppp.F..T..FT.FF===..", // y18
+  ".==.ssssss.pppp.FFFFTFFFTFF==...", // y19
   ".===............FFFFF......==..d", // y20
-  ".======.......=======..ddR===ddd", // y21
+  ".======.......=======..ddd===ddd", // y21
   "..===========================ddd", // y22
   ".....===========...=========dddd", // y23
-  ".....===...........dddd====ddddd", // y24
-  ".ZUpL===pLppV.....dddddd====dRdd", // y25
-  ".Bppcp=BBpbpL.....dddddUd====RGG", // y26
-  "~~pXcpccpppcp.....RddXdddd===RGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
-  "~~pp~bppccpcb....dddddddddd===dd", // y28
-  "~~~~~~cpppccp....ddddddRddd===dd", // y29
-  "~~~~~~~BBpcBB....ddddddddZdP==dd", // y30
-  "~~~~~~~~BpcBB...ddd..dddddddPddd", // y31
+  ".....===...........dddd====pppBB", // y24
+  ".ZUpL===ppLpV.....ddddpp====pDBB", // y25
+  ".Bppcp=pBpbpL.....ddddpUp====pGG", // y26
+  "~~pXcpppppccp.....RddXpppp===pGG", // y27 (ลานริมทะเลรอบเสา Altissia — PVE 2026-11-10)
+  "~~pp~bpppppcb....dddddLpppp===pL", // y28
+  "~~~~~cpppppcp....dddddpBBpp===pU", // y29
+  "~~~~~~cpSpcBB....ddddddppZpP==pL", // y30
+  "~~~~~~~~ppcpp...ddd..dddLpppPppp", // y31
 ];
 const COLS = 32;
 // ขั้น 4 (เดินทาง + เก็บของ — GRID_PLAN §8.6 · ตำแหน่ง Claude เลือก): รางรถไฟพาดแผนที่แถว y = 20 (ตัดผ่านป่า = ป่าโล่งตามราง · ทางข้ามถนนคงถนนไว้)
@@ -50,9 +50,10 @@ const RAIL_Y = 20;
 const STATIONS = [[2, 19], [29, 19]];                // ชานชาลา ตะวันตก (Cleigne) · ตะวันออก (Leide) — ยืนตอนรถไฟผ่าน = ไปอีกฝั่ง
 const TUNNELS = [[[6, 4], [0, 18]], [[14, 12], [20, 31]]]; // ปากอุโมงค์เป็นคู่: เนินเขาเหนือ ↔ ริมทะเลสาบ · ทุ่ง Duscae ↔ ทะเลทรายใต้
 const DOCKS = [[5, 26], [12, 28], [9, 31]];          // ท่าเรือกอนโดลา Altissia (ลานริมคลอง)
-const CAMPS = [[1, 13], [29, 12], [15, 24]];         // จุดตั้งแคมป์ (หินเรืองแสง)
+const CAMPS = [[1, 13], [29, 12], [15, 24], [4, 6], [30, 6]]; // จุดตั้งแคมป์ (หินเรืองแสง) · 2 จุดหลังเพิ่ม 2026-11-12 (ป่าเหนือฝั่งตะวันตก/ตะวันออก)
 const FISH = [[12, 14], [10, 19], [12, 16]];         // จุดตกปลาริมทะเลสาบ Cleigne
-const TOMBS = [[1, 6], [30, 6], [18, 30]];           // สุสานราชวงศ์ (สิ่งกีดขวาง — ยืนติดแล้วเปิด)
+// อาวุธจักรพรรดิ 13 แห่ง (ผู้ใช้สั่ง 2026-11-12 — เดิม 3) · ลำดับ = eosArms.ARMS · ตำแหน่ง Claude เลือก (กระจายทั่วแผนที่)
+const TOMBS = [[1, 6], [30, 6], [18, 30], [18, 12], [2, 23], [24, 1], [25, 16], [7, 2], [23, 9], [17, 23], [19, 18], [14, 15], [28, 10]];           // สุสานราชวงศ์ (สิ่งกีดขวาง — ยืนติดแล้วเปิด)
 // รถรางเชื่อมทุกโซน (ผู้ใช้สั่ง 2026-11-11 "รถรางรถไฟสาย ที่เชื่อมสถานีแต่ละเมือง" — ตำแหน่ง Claude เลือก ใกล้เสาโซนละ 1 ป้าย)
 //  ลำดับ = วงรอบของสาย (client วาดรางระหว่างป้ายที่ติดกัน — client/src/board/fodlan/stage6.js TRAM_STOPS ต้องตรงกัน)
 const TRAMS = [
@@ -79,6 +80,8 @@ module.exports = {
       fd_eos_pillar: at("X"), // = PILLARS ด้านล่าง
       fd_eos_lever: at("V"), fd_eos_domecore: at("Q"), fd_eos_switch: at("Z"), fd_eos_turret: at("U"),
       fd_eos_tomb: TOMBS,
+      // ของประจำเมือง (2026-11-12 — server/fodlan/eosTowns.js): S ศาลเทพธิดา Altissia · D ร้านอาหาร (Hammerhead + หมู่บ้านทะเลสาบ) · H บ้านฟาร์มโชโกโบะ Duscae
+      fd_eos_shrine: at("S"), fd_eos_diner: at("D"), fd_eos_ranch: at("H"),
     },
     special: {
       fd_eos_road: not(at("="), P4), fd_eos_plaza: not(at("p"), P4), fd_eos_sand: not(at("d"), P4), fd_eos_bridge: at("b"), fd_eos_stable: at("k"),
@@ -86,7 +89,7 @@ module.exports = {
       fd_eos_station: STATIONS, fd_eos_tunnel: TUNNELS.flat(), fd_eos_dock: DOCKS, fd_eos_camp: CAMPS, fd_eos_fish: FISH,
       fd_eos_tram: TRAMS.map((t) => t.at),
     },
-    heal: [],
+    heal: [[7, 28], [8, 28], [7, 29], [8, 29]], healKind: "fountain", // อ่างน้ำพุ Altissia 2×2 (จบตา เลือด +1 · client วาดอ่าง+น้ำพุแทนเครื่องหมายจุดฟื้นฟู)
     // จุดเกิด 8 จุดกระจายทุกโซน (นครหลวง · เนินเขา · ป่าเหนือ · ฝั่งทะเลสาบ · ป่าตะวันออก · ทะเลทราย · เมืองน้ำ · ที่รกร้าง)
     spawns: [[3, 5], [28, 4], [11, 4], [1, 9], [31, 13], [14, 26], [23, 30], [31, 21]],
     shopSpots: [[19, 6], [24, 28], [9, 26], [15, 15], [24, 18], [26, 3], [5, 6]],
@@ -126,7 +129,10 @@ module.exports = {
     fd_eos_camp: { name: "แคมป์", icon: "🏕️" },
     fd_eos_fish: { name: "จุดตกปลา", icon: "🎣" },
     fd_eos_tram: { name: "ป้ายรถราง", icon: "🚋" },
-    fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
+    fd_eos_tomb: { name: "สุสานราชวงศ์", icon: "⚱️" },
+    fd_eos_shrine: { name: "ศาลเทพธิดา", icon: "⛩️" },
+    fd_eos_diner: { name: "ร้านอาหาร", icon: "🍽️" },
+    fd_eos_ranch: { name: "บ้านฟาร์มโชโกโบะ", icon: "🐤" },            // ชั้น layer: ทหารเหล็ก / สัตว์ยักษ์     // ชั้น layer: ปีศาจ (สิ่งกีดขวางที่ตีได้ — stage6 objects)
   },
   // โซน (สี่เหลี่ยมรวมขอบ [x0, y0, x1, y1]) — เมืองที่มีไฟถนน = ปีศาจเข้าไม่ได้ · ใช้เลือกเสียงบรรยากาศฝั่ง client ด้วย
   ZONES: [

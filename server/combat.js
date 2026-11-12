@@ -364,6 +364,7 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
     for (const mod of CHAR_HOOKS.MODULES) if (typeof mod.auraIncoming === "function") d += runHook(mod, "auraIncoming", engine, p, n) || 0;
     n = Math.max(0, n + d);
   }
+  if (n > 0 && p) n = require("./fodlan").incomingDamage(p, n, match.effectSourceId && match.players[match.effectSourceId]); // Eos: ทหารโล่ (มอน) · Shield of the Just (ผู้เล่น)
   return Math.min(n, damageCapOf(match.effectSourceId && match.players[match.effectSourceId]));
 }
 // เพดานความเสียหายต่อครั้งของผู้ลงมือ (ฮุค damageCap(engine, source) → ตัวเลข | null — ยูนะ: ขี่อยู่ไม่เกิน 2) · ไม่มี = ไม่จำกัด
