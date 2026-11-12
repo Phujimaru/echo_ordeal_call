@@ -2095,6 +2095,8 @@ const TOMBS4 = p4List("fd_eos_tomb").map((t) => { const dx = 15.5 - t.x, dy = 15
 const tombAt = (x, y) => TOMBS4.find((t) => t.x === x && t.y === y) || { x, y, f: [0, 1] };
 // ---------- รถราง (ผู้ใช้สั่ง 2026-11-11 — server/fodlan/map6.js TRAMS · ลำดับวงรอบต้องตรงกัน) ----------
 //  รางวิ่งตามถนนระหว่างป้ายที่ติดกัน (Dijkstra: ถนน/ลาน 1 · ทราย/หญ้า 2 · น้ำตื้น/สะพาน 3 · ป่า 4 · สิ่งกีดขวาง/น้ำลึก ไม่ได้) · เกลาโค้ง Chaikin
+// ยาก / Lament ไม่มีรถราง (server ส่ง trams ว่าง) — ซ่อนราง+ป้าย · ตั้งจากข้อมูลกระดานทุกเฟรม
+let TRAM_OFF = false;
 const TRAM_ORDER = ["insomnia", "duscae", "hammerhead", "altissia", "lake"];
 const TRAM_STOPS = (() => {
   const at = p4List("fd_eos_tram"), want = { insomnia: [17, 4], duscae: [27, 15], hammerhead: [25, 27], altissia: [4, 24], lake: [12, 19] };
@@ -2157,6 +2159,7 @@ function tramPath(za, zb) {
 }
 // อบลงพื้น: หมอนไม้ + รางเหล็กคู่ตามเส้นทาง · ลานป้าย
 function bakeTram(g, C, night) {
+  if (TRAM_OFF) return;
   for (const pts of TRAM_SEGS) {
     const nrm = (i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [-(b[1] - a[1]) / L, (b[0] - a[0]) / L]; };
     // หมอน
@@ -2773,7 +2776,8 @@ function p4Items(list, g, fd, units, now, lowQ, night) {
   };
   for (const t of STATIONS4) push(depthOf(t.x + 0.5, t.y + 0.5 - t.rd * 0.3), () => drawStation(g, t, night, now, warn), K(t.x, t.y));
   for (const s of SIGNALS) push(depthOf(s.x, s.y), () => drawSignal(g, s.x, s.y, night, now, warn));
-  for (const t of TRAM_STOPS) push(depthOf(t.x + 0.78, t.y + 0.22), () => drawTramStop(g, t, night, now), K(t.x, t.y));
+  TRAM_OFF = !!fd && Array.isArray(fd.trams) && !fd.trams.length;
+  if (!TRAM_OFF) for (const t of TRAM_STOPS) push(depthOf(t.x + 0.78, t.y + 0.22), () => drawTramStop(g, t, night, now), K(t.x, t.y));
   for (const e of activeOf(fd, now, "tram")) { // รถรางที่กำลังวิ่ง (ผู้โดยสาร = สีผู้เล่น)
     const pp = tramPath(e.a, e.b);
     if (!pp || pp.pts.length < 2) continue;
@@ -3092,6 +3096,7 @@ function fountainCore(g, now, night, lowQ) {
 }
 export function ground(g, fd, info, now, lowQ = false) {
   LAST_FD = fd;
+  TRAM_OFF = !!fd && Array.isArray(fd.trams) && !fd.trams.length;
   fountainFrom(info);
   fountainBasin(g, now, !!fd.night || LAST_NIGHT, lowQ);
   // สะพานกำลังลดลง (ชั้น layer ไม่มี fd_eos_bridgeup แล้ว — วาดบานสะพานตกลงทับสะพานที่อบไว้)

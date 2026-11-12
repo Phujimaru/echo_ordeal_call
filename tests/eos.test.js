@@ -2320,3 +2320,19 @@ test('เฟสราชาปีศาจ: คลั่งแล้วท่า
   assert.equal(BB.darkTick(ctx(), s, H, b, r + 1 + BB.BIG.darkTurns + 1), false, 'หมดเวลา');
   assert.equal(BB.plan(ctx(), s, H, b, [p]).kind === 'dark', false, 'ไม่ใช้เขตทมิฬติดกัน');
 });
+
+test('รถราง: ยาก / Lament ไม่มี (ไม่มีปุ่ม · นั่งไม่ได้ · ไม่ส่งป้าย) · ง่าย/ปานกลางยังมี', () => {
+  setup();
+  const s = st(), p = P(0), stop = S6.TRAM_STOPS[0], other = S6.TRAM_STOPS[1];
+  for (const d of ['hard', 'lament']) {
+    match.eosDiff = d;
+    p.pos = { x: stop.x, y: stop.y }; actor(p);
+    assert.ok(!btn(p, `fd:tram:${other.zone}`), `${d}: ไม่มีปุ่ม`);
+    assert.equal(S6.rideTram(ctx(), s, p, other.zone), false, `${d}: นั่งไม่ได้`);
+    assert.equal(Fodlan.publicInfo().board.trams.length, 0);
+  }
+  match.eosDiff = 'normal';
+  p.pos = { x: stop.x, y: stop.y }; actor(p);
+  assert.ok(btn(p, `fd:tram:${other.zone}`), 'ปานกลางยังมี');
+  assert.ok(Fodlan.publicInfo().board.trams.length > 0);
+});
