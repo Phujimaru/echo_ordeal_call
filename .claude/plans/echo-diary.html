@@ -41,6 +41,48 @@
   .shot img { filter: saturate(.93) contrast(1.03); }
   #grade { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
     background: radial-gradient(ellipse 80% 75% at 50% 45%, rgba(150, 120, 230, .16), rgba(60, 35, 130, .42)); }
+
+  /* พื้นสีชั้นล่างสุด (หลังการ์ดที่โปรยลงมา) — ผู้ใช้: สีม่วงเรียบไม่สวย · 3 แบบให้เลือก + แบบเดิม */
+  #backdrop { position: absolute; inset: 0; pointer-events: none; }
+  #backdrop::before, #backdrop::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+  /* 1 หน้าไดอารี่ยักษ์: กระดาษงาช้าง ลายเนื้อกระดาษ กรอบเส้นลาเวนเดอร์คู่ + ดาวมุม แบบหน้าสมุด */
+  .bd-page { background: radial-gradient(ellipse 70% 75% at 50% 45%, #fffaf0 0%, #f6ead3 45%, #e2cfae 85%, #cdb48d 100%); }
+  .bd-page::before { opacity: .35; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .45  0 0 0 0 .32  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .bd-page::after { inset: 3.2% 2.2%; border: 2px solid rgba(150, 120, 200, .55); border-radius: 10px;
+    box-shadow: inset 0 0 0 6px rgba(255, 250, 240, 0), inset 0 0 0 7px rgba(150, 120, 200, .35); }
+  .bd-page .bd-corner { position: absolute; width: 5.5%; aspect-ratio: 1; color: rgba(140, 110, 195, .7); }
+  /* 2 พลบค่ำ: ลาเวนเดอร์ → ชมพูทอง + จุดแสงโบเก้นุ่มๆ (นิ่ง ไม่ใช่ดาว) */
+  .bd-dusk { background: linear-gradient(180deg, #5b4aa8 0%, #8f74c2 38%, #d49fb8 72%, #f2c79e 100%); }
+  .bd-dusk::before { background:
+    radial-gradient(circle at 12% 22%, rgba(255, 236, 210, .35) 0 2.2%, transparent 3.2%),
+    radial-gradient(circle at 86% 30%, rgba(255, 236, 210, .3) 0 3%, transparent 4.2%),
+    radial-gradient(circle at 24% 70%, rgba(255, 220, 230, .28) 0 3.6%, transparent 5%),
+    radial-gradient(circle at 74% 78%, rgba(255, 236, 210, .3) 0 2.6%, transparent 3.8%),
+    radial-gradient(circle at 58% 14%, rgba(255, 240, 220, .25) 0 1.8%, transparent 2.8%),
+    radial-gradient(circle at 40% 88%, rgba(255, 230, 210, .25) 0 2%, transparent 3%),
+    radial-gradient(circle at 93% 62%, rgba(255, 230, 240, .22) 0 4.4%, transparent 6%),
+    radial-gradient(circle at 5% 48%, rgba(255, 240, 220, .22) 0 4%, transparent 5.6%); filter: blur(3px); }
+  .bd-dusk::after { background: radial-gradient(ellipse 55% 60% at 50% 50%, rgba(255, 235, 215, .35), transparent 70%); }
+  /* 3 ม่านกำมะหยี่: จีบผ้าแนวตั้งสีม่วงเข้ม + สปอตไลต์จากด้านบนลงที่ตัว Echo */
+  .bd-velvet { background:
+    repeating-linear-gradient(90deg, #2a1640 0%, #4a2a6e 2.6%, #5d3888 3.6%, #3a2058 5.4%, #2a1640 7%),
+    #2a1640; }
+  .bd-velvet::before { background: linear-gradient(180deg, rgba(10, 4, 20, .55), transparent 35%, transparent 70%, rgba(10, 4, 20, .6)); }
+  .bd-velvet::after { background: radial-gradient(ellipse 34% 75% at 50% 30%, rgba(255, 230, 200, .38), rgba(255, 220, 190, .12) 55%, transparent 75%); mix-blend-mode: screen; }
+  /* 0 แบบเดิม: ม่วงเรียบ */
+  .bd-plain { background: radial-gradient(ellipse 70% 80% at 50% 50%, #4a3680 0%, #2c1f55 55%, #171030 100%); }
+  /* พื้นสว่าง (หน้าไดอารี่/พลบค่ำ): ขอบมืดเปลี่ยนเป็นน้ำตาลอุ่น และลดโทนม่วงทับ */
+  .stage.light-bd #vignette { background: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 60%, rgba(90, 60, 40, .32) 100%); }
+  .stage.light-bd #grade { opacity: .35; }
+  /* ทางเข้า/ออกของฉาก: "หน้ากระดาษพลิก" ปาดผ่านจอ — #game = ภาพแทนหน้าจอเกม (ต้นแบบเท่านั้น ในเกมจริงคือกระดานที่อยู่ข้างหลัง) */
+  #game { position: absolute; inset: 0; pointer-events: none; z-index: 20;
+    background: repeating-linear-gradient(0deg, transparent 0 calc(10% - 1px), rgba(255,255,255,.06) calc(10% - 1px) 10%),
+      repeating-linear-gradient(90deg, transparent 0 calc(5.6% - 1px), rgba(255,255,255,.06) calc(5.6% - 1px) 5.6%),
+      radial-gradient(ellipse at 50% 55%, #2f4a3f, #1a2a24 70%, #101a16); }
+  #pageEdge { position: absolute; top: -5%; bottom: -5%; width: 9%; left: 0; pointer-events: none; z-index: 21; opacity: 0;
+    background: linear-gradient(90deg, rgba(30, 15, 40, 0), rgba(30, 15, 40, .35) 30%, #fdf6e6 46%, #f1e2c4 70%, rgba(241, 226, 196, 0));
+    box-shadow: 0 0 30px rgba(20, 10, 30, .35); transform: skewX(-6deg); }
   #vignette { position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(6, 3, 14, .55) 100%); }
   #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none;
@@ -60,10 +102,12 @@
 <body>
 <div class="wrap">
   <div class="stage" id="stage">
+    <div id="backdrop" class="bd-page"><span class="bd-corners"><svg class="bd-corner" viewBox="0 0 40 40" style="left:2.6%;top:4%"><path d="M4 20 Q4 4 20 4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9 4.5 L10.2 8.3 L14 9.5 L10.2 10.7 L9 14.5 L7.8 10.7 L4 9.5 L7.8 8.3 Z" fill="currentColor"/><circle cx="17" cy="15" r="1.3" fill="currentColor"/></svg><svg class="bd-corner" viewBox="0 0 40 40" style="right:2.6%;top:4%;transform:scaleX(-1)"><path d="M4 20 Q4 4 20 4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9 4.5 L10.2 8.3 L14 9.5 L10.2 10.7 L9 14.5 L7.8 10.7 L4 9.5 L7.8 8.3 Z" fill="currentColor"/><circle cx="17" cy="15" r="1.3" fill="currentColor"/></svg><svg class="bd-corner" viewBox="0 0 40 40" style="left:2.6%;bottom:4%;transform:scaleY(-1)"><path d="M4 20 Q4 4 20 4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9 4.5 L10.2 8.3 L14 9.5 L10.2 10.7 L9 14.5 L7.8 10.7 L4 9.5 L7.8 8.3 Z" fill="currentColor"/><circle cx="17" cy="15" r="1.3" fill="currentColor"/></svg><svg class="bd-corner" viewBox="0 0 40 40" style="right:2.6%;bottom:4%;transform:scale(-1,-1)"><path d="M4 20 Q4 4 20 4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9 4.5 L10.2 8.3 L14 9.5 L10.2 10.7 L9 14.5 L7.8 10.7 L4 9.5 L7.8 8.3 Z" fill="currentColor"/><circle cx="17" cy="15" r="1.3" fill="currentColor"/></svg></span></div>
     <canvas id="sky"></canvas>
     <div id="orbit"></div>
     <div class="shot" id="s_fclosed"><img src="echo-diary/front_closed.webp" alt=""></div>
     <div class="shot" id="s_flift"><img src="echo-diary/front_lift.webp" alt=""></div>
+    <div class="shot" id="s_fopen"><img src="echo-diary/front_open.webp" alt=""></div>
     <div class="shot" id="s_reading"><img src="echo-diary/reading.webp" alt="">
       <div id="apparition"><div class="card-in">
         <div class="card-face card-front"><div class="card-art"><img id="cardArt" src="echo-diary/sample.jpg" alt=""></div>
@@ -129,12 +173,15 @@
     <canvas id="fx"></canvas>
     <div id="vignette"></div>
     <div id="flash"></div>
+    <div id="game"></div>
+    <div id="pageEdge"></div>
   </div>
   <div class="bar">
     <button id="playFull">เต็ม</button>
     <button id="playShort">สั้น</button>
     <select id="cardPick"></select>
     <select id="bgPick"></select>
+    <select id="bdPick"></select>
   </div>
   <div class="strip" id="strip"></div>
 </div>
@@ -377,9 +424,10 @@ const drift = () => ({}); // ผู้ใช้: ห้ามเด้ง/ส่
 // 1 เปิดอ่าน → 2 หน้ากระดาษตื่น → 3 นิ้วลาก เส้นแสงตาม → 4 ภาพตัวละครลอยขึ้นจากหน้า → 5 ใบหน้าต้องแสง (จบ — ผู้ใช้ตัดแสงวาบออก)
 // เวลาเป็นของทั้งฉาก (รวมช่วงเปิดฉาก 1400 ms ข้างหน้า)
 const FULL = [ // ผู้ใช้ 2026-11-10: เหลือ 3 ภาพ — ปิด → แง้ม → สมุดเปิด (การ์ดลอยออกจากกลางหนังสือในช็อตนี้)
-  { k: "closed", img: "front_closed", at: 400, until: 750 },
-  { k: "lift", img: "front_lift", at: 1300, until: 1800 },
-  { k: "open", img: "reading", at: 4800, until: 99999 },
+  { k: "closed", img: "front_closed", at: 1100, until: 1450 },
+  { k: "lift", img: "front_lift", at: 2000, until: 2500 },
+  { k: "half", img: "front_open", at: 2900, until: 3300 },
+  { k: "open", img: "reading", at: 6300, until: 99999 },
 ];
 
 // การ์ดตัวละครจริง: ภาพปกของแต่ละตัว + จุดครอป (x,y %) และซูม (z) ให้เห็นหน้าในกรอบการ์ด (ข้อ 3)
@@ -601,14 +649,48 @@ const SKIP_AT = 1900, SKIP = 1950; // เวลาใน frameMain ที่ 190
 // แสงรั่วจากร่องปกที่แง้ม (ภาพ front_lift: ขอบหน้ากระดาษในร่องปก จากล่างซ้ายไปบนขวา)
 const SLIT = [[0.4975, 0.65], [0.6025, 0.529]];
 // ฉากเต็ม 3 ช็อต: ถือสมุดปิด → แง้มปก แสงรั่ว → (ตัดตรง) สมุดเปิด หน้ากระดาษเรือง → การ์ดลอยออกจากกลางหนังสือ หมุน 2 รอบ หยุดหันภาพตัวละคร → จาง
-const SHOT3 = 1800, CARD_T0 = 2500, CARD_MS = 1800, FADE0 = 5300, FADE1 = 5700;
+// 4 ช็อต (ผู้ใช้ 2026-11-12): ปิด → แง้ม → [1800] ปกเปิด หน้ากระดาษเริ่มพลิก (front_open) → [2600] สมุดเปิดเต็ม การ์ดลอยออก
+const SHOT_HALF = 1800, SHOT3 = 2600, CARD_T0 = 3300, CARD_MS = 1800, FADE0 = 6100, FADE1 = 6500;
+const HALF_PAGES = [0.46, 0.58]; // หน้ากระดาษที่เริ่มพลิกในภาพ front_open
 const BOOK_GUTTER = [0.5, 0.655]; // กลางหนังสือ (ร่องกลางระหว่างสองหน้า) ในภาพ reading.webp
+// ทางเข้า (ผู้ใช้ 2026-11-12): หน้ากระดาษไดอารี่พลิกปาดจากขวาไปซ้ายทับหน้าจอเกม → เข้าฉาก
+// ทางออก: การ์ดหยุดหมุนแล้วค้าง → ขยายใหญ่พุ่งเข้าหาจอจนเต็มจอ → หน้ากระดาษพลิกปาดอีกครั้ง เผยหน้าจอเกมกลับมา
+const PRE = 700, RUSH0 = CARD_T0 + CARD_MS + 800, RUSH1 = RUSH0 + 520, OUT1 = RUSH1 + 650;
+function pageWipe(k, entering) { // k 0→1 · ขอบหน้ากระดาษเคลื่อนจากขวาไปซ้าย
+  const edge = 1 - easeInOut(k); // ตำแหน่งขอบ (สัดส่วนจอ)
+  const g = $("game").style, e = $("pageEdge").style;
+  // เข้า: ส่วนซ้ายของขอบยังเป็นเกม · ออก: ส่วนขวาของขอบกลายเป็นเกม
+  g.clipPath = entering ? `inset(0 ${(1 - edge) * 100}% 0 0)` : `inset(0 0 0 ${edge * 100}%)`;
+  e.left = `${(edge - 0.045) * 100}%`;
+  e.opacity = k > 0 && k < 1 ? 1 : 0;
+}
 function frameFull(t, dt, now) {
+  const st = t - PRE;
+  if (t < PRE) pageWipe(t / PRE, true);
+  else if (st < RUSH1) { $("game").style.clipPath = "inset(0 100% 0 0)"; $("pageEdge").style.opacity = 0; }
+  else pageWipe(seg(st, RUSH1, OUT1), false);
+  const more = frameScene(Math.max(st, 0), dt, now);
+  return st < OUT1 + 100 || more;
+}
+function frameScene(t, dt, now) {
   const fxg = ctx($("fx")); fxg.clearRect(0, 0, W, H);
   ctx($("povFx")).clearRect(0, 0, W, H); ctx($("trail")).clearRect(0, 0, W, H);
-  const end = 1 - ease(seg(t, FADE0, FADE1));
-  const closed = inOut(t, 0, 250, 900, 1100), lift = t < SHOT3 ? ease(seg(t, 700, 900)) : 0, open = t >= SHOT3 ? end : 0;
-  shot("s_fclosed", closed, {}); shot("s_flift", lift, {}); shot("s_reading", open, {});
+  const end = 1; // ไม่จางออกแล้ว — ออกด้วยการ์ดพุ่ง + หน้ากระดาษพลิก
+  const closed = inOut(t, -1, 0, 900, 1100), // เห็นเต็มตั้งแต่เริ่ม (ขึ้นจากล่าง ไม่จางเข้า)
+    lift = t < SHOT_HALF ? ease(seg(t, 700, 900)) : 0, half = t >= SHOT_HALF && t < SHOT3 ? 1 : 0, open = t >= SHOT3 ? end : 0;
+  shot("s_fclosed", closed, {}); shot("s_flift", lift, {}); shot("s_fopen", half, {}); shot("s_reading", open, {});
+  // เปิดฉาก: Echo เด้งดึ๋งขึ้นมาจากขอบล่างจอ (ผู้ใช้ 2026-11-12: "เด้งแบบเด้งดึ๋ง" ไม่ใช่กระโดด)
+  //  · ขึ้นจากใต้จอถึงที่ปกติ ไม่เลยขึ้นไป (เลยขึ้นไป = เห็นขอบล่างของภาพ ตัวขาด)
+  //  · ถึงที่แล้วยืด-หดเป็นสปริงหลายจังหวะแล้วค่อยๆ หยุด โดยยึดขอบล่างจอไว้ (ตัวไม่ลอยพ้นขอบ)
+  if (t < 1300) {
+    const up = easeOut(seg(t, 0, 340));
+    const ts = Math.max(0, t - 300) / 1000;
+    const spring = Math.exp(-ts * 3.6) * Math.sin(ts * 20);   // ยืด (+) / หด (−) ลดลงเรื่อยๆ
+    const sy = 1 + 0.14 * spring * (t > 300 ? 1 : 0), sx = 1 - 0.08 * spring * (t > 300 ? 1 : 0);
+    const st = $("s_fclosed").style;
+    st.transformOrigin = "50% 100%";
+    st.transform = `translateY(${(1 - up) * 100}%) scale(${sx}, ${sy})`;
+  }
   fxg.save(); fxg.globalCompositeOperation = "lighter";
   // แสงรั่วจากร่องปกที่แง้ม (สมุดเท่านั้น)
   const leak = lift * ease(seg(t, 900, 1700));
@@ -619,6 +701,11 @@ function frameFull(t, dt, now) {
     }
     if (Math.random() < 0.35 * leak) { const k = Math.random(); spawn(1, lerp(SLIT[0][0], SLIT[1][0], k) * W, lerp(SLIT[0][1], SLIT[1][1], k) * H, "rise", { max: 0.9, r: 0.7 }); }
   }
+  // ปกเปิด: แสงจากหน้ากระดาษที่เริ่มพลิก (ขั้นต่อจากแสงรั่วร่องปก)
+  if (half > 0) {
+    glow(fxg, HALF_PAGES[0] * W, HALF_PAGES[1] * H, W * 0.13, `rgba(255,222,155,${0.3 + 0.1 * ease(seg(t, SHOT_HALF, SHOT3))})`, "rgba(255,214,140,0)");
+    if (Math.random() < 0.4) spawn(1, (HALF_PAGES[0] + (Math.random() - 0.5) * 0.08) * W, HALF_PAGES[1] * H, "rise", { max: 0.9, r: 0.7 });
+  }
   // สมุดเปิด: หน้ากระดาษเรือง ค่อยๆ สว่างขึ้นจนการ์ดออกมา
   if (open > 0) {
     const warm = (0.45 + 0.55 * ease(seg(t, SHOT3, CARD_T0 + 300))) * open;
@@ -627,11 +714,20 @@ function frameFull(t, dt, now) {
   }
   fxg.restore();
   cardRise(t, open);
-  if (t > SHOT3 && t - dt <= SHOT3) fadeParts(0.2);
+  // การ์ดขยายพุ่งเข้าหาจอ (เร่งขึ้นเรื่อยๆ) จนเต็มจอ
+  if (t >= RUSH0) {
+    const r = easeInOut(seg(t, RUSH0, RUSH1)), a = $("apparition").style;
+    const HALF = 0.09 * 1.5 * (2000 / 1116) / 2;
+    a.top = `${(lerp(0.5, 0.5, r) - HALF) * 100}%`;
+    a.transform = `scale(${lerp(1, 2.3, r)})`; // ใหญ่ขึ้นจากเดิมพอประมาณ (ผู้ใช้: ไม่ต้องเต็มจอ)
+    a.transformOrigin = "50% 50%";
+    a.zIndex = 5;
+  } else { $("apparition").style.transform = "none"; }
+  if ((t > SHOT_HALF && t - dt <= SHOT_HALF) || (t > SHOT3 && t - dt <= SHOT3)) fadeParts(0.2);
   drawSky(now, seg(t, 0, 400) * end, t);
   drawParts(fxg, dt / 1000, now);
-  hiliteAt(t);
-  return t < FADE1 + 100;
+  hiliteAt(t + PRE);
+  return t < OUT1 + 100;
 }
 // การ์ด: ขึ้นตรงๆ จากร่องกลางหนังสือ (ส่วนที่ยังอยู่ในหนังสือถูกซ่อน) พร้อมหมุน 2 รอบ แล้วหยุดหันภาพตัวละครเข้าจอ — ขนาดคงที่ ไม่เด้ง
 function cardRise(t, op) { cardRiseAt(t, op, CARD_T0, CARD_MS); }
@@ -674,8 +770,8 @@ function setFlash(op, at) {
   $("flash").style.opacity = op;
 }
 function reset() {
-  for (const id of ["s_fclosed", "s_flift", "s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
-  $("apparition").style.opacity = 0; $("hand").style.transform = ""; setFlash(0, [0.5, 0.5]); parts = [];
+  for (const id of ["s_fclosed", "s_flift", "s_fopen", "s_reading", "s_pov", "s_touch", "s_face", "s_closed"]) $(id).style.opacity = 0;
+  $("apparition").style.opacity = 0; $("apparition").style.transform = "none"; $("game").style.clipPath = "inset(0 100% 0 0)"; $("pageEdge").style.opacity = 0; $("hand").style.transform = ""; setFlash(0, [0.5, 0.5]); parts = [];
 }
 
 // ---------- แถบลำดับ: กด = ค้างที่ช่วงนั้น (ยังขยับ) ----------
@@ -711,6 +807,19 @@ function holdAt(at) { run((now, dt) => { frameFull(at, dt, now); }); }
   BG_MODES.forEach((m) => { const o = document.createElement("option"); o.value = m.k; o.textContent = m.name; sel.appendChild(o); });
   sel.value = bgMode;
   sel.onchange = () => { bgMode = sel.value; play(frameFull); };
+}
+{ // พื้นสีชั้นล่างสุด (เครื่องมือของหน้าต้นแบบ)
+  const BD = [["page", "พื้น 1 หน้าไดอารี่", true], ["dusk", "พื้น 2 พลบค่ำ", true], ["velvet", "พื้น 3 ม่านกำมะหยี่", false], ["plain", "พื้น เดิม (ม่วง)", false]];
+  const sel = $("bdPick");
+  BD.forEach(([k, n]) => { const o = document.createElement("option"); o.value = k; o.textContent = n; sel.appendChild(o); });
+  const apply = (k) => {
+    const row = BD.find((r) => r[0] === k);
+    $("backdrop").className = "bd-" + k;
+    stage.classList.toggle("light-bd", row[2]);
+    document.querySelector(".bd-corners").style.display = k === "page" ? "" : "none";
+  };
+  sel.onchange = () => apply(sel.value);
+  apply("page");
 }
 $("playFull").onclick = () => play(frameFull);
 $("playShort").onclick = () => play(frameShort);

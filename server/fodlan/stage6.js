@@ -2131,12 +2131,14 @@ const tramHere = (p) => (p && p.pos ? TRAM_STOPS.find((t) => sameT(t, p.pos)) ||
 const tramDest = (ctx, s, p, t) => (tileFree(ctx, s, t.x, t.y, p.id) ? { x: t.x, y: t.y } : freeNear(ctx, s, t.x, t.y, 2, p.id));
 // โควตา (ผู้ใช้สั่ง 2026-11-11): คนละ 2 เที่ยว แล้วพัก 2 เทิร์น จึงได้อีก 2 เที่ยว
 const TRAM = { uses: 2, cd: 2 };
+// ยาก / Lament ไม่มีรถราง (ผู้ใช้สั่ง 2026-11-12 "เอารถรางออก เคลื่อนที่ไปแต่ละเมืองออก ในโหมด ยาก และ lament")
+const tramOff = (ctx) => { const d = (ctx.match && ctx.match.eosDiff) || "normal"; return d === "hard" || d === "lament"; };
 const tramQ = (s, p) => { const q = p4State(s); q.tram ||= {}; return q.tram[p.id] || (q.tram[p.id] = { left: TRAM.uses, readyAt: 0 }); };
 const tramCd = (ctx, s, p) => Math.max(0, tramQ(s, p).readyAt - ctx.match.roundNumber);
 function tramLeft(ctx, s, p) { const t = tramQ(s, p); if (t.left <= 0 && tramCd(ctx, s, p) === 0) t.left = TRAM.uses; return t.left; }
 function rideTram(ctx, s, p, zone) {
   const a = tramHere(p), b = TRAM_STOPS.find((t) => t.zone === zone);
-  if (!a || !b || a === b || !canTravel(ctx, s, p) || tramLeft(ctx, s, p) <= 0) return false;
+  if (tramOff(ctx) || !a || !b || a === b || !canTravel(ctx, s, p) || tramLeft(ctx, s, p) <= 0) return false;
   const to = tramDest(ctx, s, p, b);
   if (!to) return false;
   const from = { ...p.pos };
@@ -2323,7 +2325,7 @@ function p4Hud(ctx, s, p, out) {
     const dest = canTravel(ctx, s, p) ? travelTiles(ctx, s, p, MAP.DOCKS.map(tl)) || [] : [];
     out.push({ key: "fd:gondola", icon: "🛶", name: "กอนโดลา", disabled: !dest.length, tiles: dest });
   }
-  const tr = tramHere(p);
+  const tr = tramOff(ctx) ? null : tramHere(p);
   if (tr) {
     const left = tramLeft(ctx, s, p), cd = left > 0 ? 0 : tramCd(ctx, s, p);
     for (const t of TRAM_STOPS) {
@@ -2359,7 +2361,7 @@ function p4Public(ctx, s) {
     tombs: MAP.TOMBS.map(([x, y], i) => { const a = AR.armAt(i); return { x, y, open: !!q.tombs[i], w: a.id, name: a.name, desc: a.desc, img: AR.imgOf(a.id) }; }),
     armiger: (q.armiger ?? -1) >= ctx.match.roundNumber ? q.armiger : null,
     arms: Object.fromEntries(Object.entries(q.arms).map(([pid, r]) => { const a = AR.defOf(r); return [pid, { w: a.id, name: a.name, img: AR.imgOf(a.id), until: r.until }]; })),
-    trams: TRAM_STOPS.map((t) => ({ ...t })),
+    trams: tramOff(ctx) ? [] : TRAM_STOPS.map((t) => ({ ...t })),
   };
 }
 function p4Badges(s, p, badges) {
@@ -2803,7 +2805,7 @@ module.exports = {
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,
   BARREL_DMG, BARREL_BURN, FLASK_RANGE, FLASK_MAX, THUNDER_DMG, SHOCK_DMG, TURRET_DMG, TURRET_RANGE, BEAST, MAGITEK, BRIDGES, LEVER, DOME_CORE, DOME_GATES, DOME_TURNS, GYSAHL_RANGE, blockedTown,
   // เทสต์
-  sandOn, inDesert, SAND_SIGHT, MOB_CONTROL, tickMobControl, LM, dimLights, eosPriceMul, TRAM, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
+  sandOn, inDesert, SAND_SIGHT, MOB_CONTROL, tickMobControl, LM, dimLights, eosPriceMul, TRAM, tramOff, MUSTER, musterTick, TOWN_LIGHT, siegeLight, fixLights, restoreLights, lit, raidPlan, openPillars, RAID, BOSS_AI, turretZone, TRAM_STOPS, rideTram, lightBound, wallFixTarget,
   prey, sideOf, scoreRound, reviveDue, noteDeaths, sideSight, seizeState, heldCount, rateOf, checkChannels, SCORE_GOAL, SCORE_TABLE, REVIVE_TURNS, SIGHT_EXTRA,
   carCells, carOf, canRide, driving, boardCar, leaveCar, ram, ramTargets, syncCars, CAR_OFF, CAR_SEATS, CAR_MOV, checkRiders, spawnDaemons, dissolveDaemons, inTown, zoneAt, ROAD,
   trainTurn, p4State, huntDone, TRAIN_EVERY, TRAIN_DMG, CAMP_TURNS, CAMP_CD, ARM_TURNS, BOUNTY,
