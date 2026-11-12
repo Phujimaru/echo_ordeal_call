@@ -827,6 +827,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   iceFx `shock { x, y, size, r, by, hits: [{ id, dmg, kill, dodge }] }` → client `iceShock` (คลื่นข้าวหลามตัด · `client/src/board/iceFx.js`)
   · ฮุคที่เรียกมัน: `afterSlideStrike(engine, p, u, n, at, ctx)` (`impact` หลังไถลชนลงดาเมจ ก่อนเป้ากระเด็น) · `spikeShock(engine, owner, at, lv, hitter, ctx)` (หนามทำงานทุกทาง — `spikeImpact`/`trampleSpikes` ถามเจ้าของหนาม) ·
     `burstSpec(engine, p)` → `{ range, dmg, label }` = ระเบิดสะสมดาเมจ 3 แบบคลื่น (แทนวง 8 ช่อง) · ตัวละครอื่นใช้ได้ทั้งหมด
+  · **ไถลทะลุ** ฮุค `slidePierce(engine, p)` → true = `resolveEntry` ใช้ `pierceLine` แทน `slideLine`: ผ่านช่องศัตรูจนสุดแนวน้ำแข็ง (หยุดหน้าเพื่อน/สิ่งกีดขวาง · ช่องปลายมีศัตรู = ถอยถึงช่องว่าง ตัวนั้นเป็นตัวขวาง) →
+    ตัวที่ผ่าน `impact(..., { pass: true })` ด้วย n = ช่องที่ไถลมาถึงตัวนั้น (ชน + afterSlideStrike ไม่กระเด็น) แล้วตัวขวางปลายทางชนปกติ · slide event มี `pierce: true`
 - **เหตุการณ์ให้ client**: `Ice.begin()` → ใส่ `ctx.events` → `Ice.flush(ctx)` = socket `iceFx { seq, events }` (ชนิดเหตุการณ์: contract §4) ·
   client ค้างตำแหน่งคนในชุดไว้จนแอนิเมชันของคนนั้นเล่นถึง — **ทุกการขยับตัวที่อยู่ในชุดต้องมีเหตุการณ์ walk/slide/knock** ไม่งั้นตัวค้างที่เดิมจนจบชุด
 

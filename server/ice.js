@@ -327,15 +327,62 @@ function resolveEntry(p, dir, ctx) {
   const map = action.boardMap();
   if (!Board.isIce(map, p.pos.x, p.pos.y)) return;
   ctx.depth++;
-  const s = Board.slideLine(map, p.pos.x, p.pos.y, dir.x, dir.y, units(), p.id, action.boardBlocked(p.id));
+  const hook = hookOf(p);
+  // ฮุค slidePierce(engine, p) → true = ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง (Ice Spike ใน Eos ตั้งแต่ LV.2) — ตัวที่ผ่านโดนชน (ไม่กระเด็น)
+  const pierce = !!(hook && hook.slidePierce && hook.slidePierce(engine, p));
+  const s = pierce ? pierceLine(map, p, dir, action.boardBlocked(p.id))
+    : Board.slideLine(map, p.pos.x, p.pos.y, dir.x, dir.y, units(), p.id, action.boardBlocked(p.id));
   p.pos = { x: s.x, y: s.y };
   const n = s.tiles.length;
-  ctx.events.push({ kind: "slide", id: p.id, path: s.tiles.map((t) => ({ x: t.x, y: t.y })), n });
-  const hook = hookOf(p);
+  ctx.events.push({ kind: "slide", id: p.id, path: s.tiles.map((t) => ({ x: t.x, y: t.y })), n, ...(pierce ? { pierce: true } : {}) });
   if (hook && hook.onSlide) combat.withEffectSource(p, () => hook.onSlide(engine, p, n, ctx));
+  for (const q of s.passed || []) {
+    if (!p.alive) return;
+    const u = match.players[q.id];
+    if (u && u.alive && u.pos) impact(p, { kind: "unit", id: u.id, x: u.pos.x, y: u.pos.y }, dir, q.n, ctx, { pass: true });
+  }
   impact(p, s.hit, dir, n, ctx);
 }
-function impact(p, hit, dir, n, ctx) {
+// ไถลทะลุ (ฮุค slidePierce): ไปตามน้ำแข็งจนสุดแนว ผ่านช่องที่ศัตรูยืน (ไม่ผ่านเพื่อน/สิ่งกีดขวาง/blocked) → หยุดบนช่องว่างช่องสุดท้าย
+//  ศัตรูที่ยืนบนช่องปลายแนว (หยุดทับไม่ได้) = ตัวที่ "ขวางปลายทาง" (ชน + กระเด็น) · ไม่มี = ช่องถัดจากปลายแนวแบบ slideLine
+//  passed = [{ id, n }] ตามลำดับ · n = จำนวนช่องที่ไถลมาถึงก่อนเข้าช่องของตัวนั้น (นับรวมช่องแรก)
+function pierceLine(map, p, dir, blocked) {
+  const us = units();
+  const occ = (x, y) => { const u = Board.unitAt(us, x, y); return u && u.id !== p.id ? match.players[u.id] || null : null; };
+  const tiles = [{ x: p.pos.x, y: p.pos.y }];
+  const passed = [];
+  let cx = p.pos.x, cy = p.pos.y;
+  for (let i = 0; i < map.cols + map.rows; i++) {
+    const nx = cx + dir.x, ny = cy + dir.y, k = K(nx, ny);
+    if (!Board.inBounds(map, nx, ny) || !Board.isIce(map, nx, ny) || map.terrain[k] || (blocked && blocked.has(k)) || Board.wallBlocks(map, cx, cy, ny)) break;
+    const u = occ(nx, ny);
+    if (u && (combat.sameTeam(p, u) || !u.alive)) break;
+    if (u && !passed.some((q) => q.id === u.id)) passed.push({ id: u.id, n: tiles.length });
+    cx = nx; cy = ny;
+    tiles.push({ x: cx, y: cy });
+  }
+  // ช่องปลายมีศัตรูยืน → ถอยกลับถึงช่องว่าง · ตัวที่ยืนช่องถัดไปจากจุดหยุด = ตัวขวางปลายทาง (ไม่นับว่าผ่าน)
+  let hit = null;
+  while (tiles.length > 1 && occ(cx, cy)) {
+    const u = occ(cx, cy);
+    tiles.pop();
+    ({ x: cx, y: cy } = tiles[tiles.length - 1]);
+    const i = passed.findIndex((q) => q.id === u.id);
+    if (i >= 0) passed.splice(i, 1);
+    hit = { kind: "unit", id: u.id, x: cx + dir.x, y: cy + dir.y }; // วนจนช่องว่าง → ตัวสุดท้ายที่ถอยผ่าน = ตัวใกล้จุดหยุดที่สุด
+  }
+  if (!hit) {
+    const nx = cx + dir.x, ny = cy + dir.y;
+    if (Board.inBounds(map, nx, ny)) {
+      const u = Board.unitAt(us, nx, ny);
+      if (u && u.id !== p.id) hit = { kind: "unit", id: u.id, x: nx, y: ny };
+      else if (map.terrain[K(nx, ny)]) hit = { kind: "obstacle", terrain: map.terrain[K(nx, ny)], x: nx, y: ny };
+      else if (Board.wallBlocks(map, cx, cy, ny)) hit = { kind: "obstacle", terrain: "bulkhead", x: nx, y: ny };
+    }
+  }
+  return { x: cx, y: cy, tiles, hit, passed };
+}
+function impact(p, hit, dir, n, ctx, { pass = false } = {}) {
   if (!hit || !p.alive) return;
   if (hit.kind === "unit") {
     const u = match.players[hit.id];
@@ -343,7 +390,7 @@ function impact(p, hit, dir, n, ctx) {
     revealPushed(u); // ถูกชน = เผยตัว (เหตุการณ์ชนมีพิกัด)
     const hook = hookOf(p);
     const enemy = !combat.sameTeam(p, u);
-    if (!enemy) { ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y, ally: true }); return; }
+    if (!enemy) { if (!pass) ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y, ally: true }); return; }
     // ฮุค slideStrikes(p) = ไถลชนแล้วลงดาเมจไหมตอนนี้ (เอมิลิโกะ: ถือไม้ถูพื้นอยู่) · ไม่มี = ทุกครั้ง (Ice Spike)
     //  slideStrike คืน { attack: false } = ไม่นับเป็นการโจมตี (ไม่จบตา) · { knock: false } = เป้าไม่กระเด็น
     if (hook && hook.slideStrike && (!hook.slideStrikes || hook.slideStrikes(engine, p))) {
@@ -358,8 +405,9 @@ function impact(p, hit, dir, n, ctx) {
       // ฮุค afterSlideStrike (Ice Spike ใน Eos: Shock Wave รอบเป้า — เป้าไม่โดน) — เล่นหลังภาพชน ก่อนเป้ากระเด็น
       if (hook.afterSlideStrike) combat.withEffectSource(p, () => hook.afterSlideStrike(engine, p, u, n, { x: hit.x, y: hit.y }, ctx));
       if (kill) { u.pos = null; match.lastLog.push(`💀 ${u.name} เลือดจริงหมด ตกรอบ!`); return; }
-      if (res && res.knock === false) return;
+      if (pass || (res && res.knock === false)) return; // ไถลทะลุผ่าน = ไม่กระเด็น
     } else {
+      if (pass) return;
       ctx.events.push({ kind: "bump", id: u.id, by: p.id, x: hit.x, y: hit.y });
     }
     pushUnit(u, dir, ctx);

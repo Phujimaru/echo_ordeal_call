@@ -38,6 +38,7 @@ function setup() {
   match.gameState = 'PLAYING'; match.actorId = null; match.action = null; match.forcedWinnerId = null;
   // ล้างมอนที่ด่านเกิดเอง — เทสต์วางเอง
   for (const [id, u] of Object.entries(match.players)) if (u.summon) delete match.players[id];
+  st().iceSpikePeak = 0; st().score = 0;
   const I = match.players.p0, F = match.players.p1;
   I.skillPoints = 8; I.statuses = {}; I.statusAmt = {};
   return { I, F };
@@ -135,7 +136,7 @@ test('ติดตัว 2 (Eos): ไถลชนมอน = +1 ต่อช่�
   assert.ok(kinds.indexOf('hit') < kinds.indexOf('shock') && kinds.indexOf('shock') < kinds.lastIndexOf('knock'), 'ชน → คลื่น → กระเด็น');
 });
 
-test('ติดตัว 2 (Eos): LV สูงขึ้น = ซ้อนได้มากขึ้น ระยะคลื่นกว้างขึ้น · ไถลสั้น = คลื่นขั้นต่ำ 1', () => {
+test('ติดตัว 2 (Eos): LV สูงขึ้น = ซ้อนได้มากขึ้น คลื่นแรงขึ้น (50/50/75/75/100% ปัดลง) ระยะกว้างขึ้น · ไถลสั้นปัดลงได้ 0 = ไม่มีคลื่น', () => {
   const { I } = setup();
   st().score = 40; // LV5: ซ้อน 30 · ระยะ 5
   const s = strip(14);
@@ -147,10 +148,11 @@ test('ติดตัว 2 (Eos): LV สูงขึ้น = ซ้อนได�
   engine.setActor('p0');
   engine.moveTo('p0', s.x + 1, s.y, { step: true });
   assert.equal(T.hp, 40 - 8, 'ไถล 8 ช่อง = 8 (ไม่ติดเพดาน 30)');
-  assert.equal(N.hp, 20 - 4);
-  assert.equal(M.hp, 20 - 4, 'ระยะ 5 ที่ LV5');
+  assert.equal(N.hp, 20 - 8, 'LV5 = 100% ของที่ซ้อนทับ');
+  assert.equal(M.hp, 20 - 8, 'ระยะ 5 ที่ LV5');
   // ไถล 1 ช่อง → ดาเมจ 1 · คลื่น 1
   const { I: I2 } = setup();
+  calls.fx = [];
   st().score = 0;
   const s2 = strip(6);
   park(I2, s2.x, s2.y);
@@ -159,7 +161,65 @@ test('ติดตัว 2 (Eos): LV สูงขึ้น = ซ้อนได�
   engine.setActor('p0');
   engine.moveTo('p0', s2.x + 1, s2.y, { step: true });
   assert.equal(T2.hp, 19);
-  assert.equal(N2.hp, 19, 'ขั้นต่ำ 1');
+  assert.equal(N2.hp, 20, '50% ของ 1 ปัดลง = 0');
+  assert.equal(shocks().length, 0, 'คลื่น 0 = ไม่เกิด');
+});
+
+test('ติดตัว 2 (Eos LV.2+): ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง — ทุกตัวที่ผ่านโดนชน (ช่องที่ไถลมาถึง) + คลื่น ไม่กระเด็น · ตัวขวางปลายทางกระเด็น 1 · LV3 คลื่น 75%', () => {
+  const { I, F } = setup();
+  st().score = 20; // LV3: ซ้อน 18 · คลื่น 75% · ระยะ 3
+  assert.equal(ice.eosLv(), 3);
+  const s = strip(12);
+  park(I, s.x, s.y);
+  for (let i = 1; i <= 8; i++) Ice.layIce(s.x + i, s.y, null);
+  const A = mob(s.x + 3, s.y);  // ผ่านเมื่อไถลมาแล้ว 2 ช่อง (ช่องแรก s.x+1, s.x+2)
+  const B = mob(s.x + 6, s.y);  // ผ่านเมื่อไถลมาแล้ว 5 ช่อง
+  const E = mob(s.x + 9, s.y);  // ขวางปลายแนว
+  park(F, s.x + 4, s.y + 3);
+  const fv = vit(F);
+  engine.setActor('p0');
+  assert.equal(engine.moveTo('p0', s.x + 1, s.y, { step: true }), true);
+  assert.deepEqual(I.pos, { x: s.x + 8, y: s.y }, 'ไถลทะลุจนสุดแนว');
+  assert.deepEqual(A.pos, { x: s.x + 3, y: s.y }, 'ตัวที่ผ่านไม่กระเด็น');
+  assert.deepEqual(B.pos, { x: s.x + 6, y: s.y });
+  assert.deepEqual(E.pos, { x: s.x + 10, y: s.y }, 'ตัวขวางปลายทางกระเด็น 1');
+  // ดาเมจชน: A 2 · B 5 · E 8 · คลื่น 75% ปัดลง: รอบ A 1 · รอบ B 3 · รอบ E 6 (ระยะ 3 — ตัวที่ถูกชนไม่โดนคลื่นของตัวเอง)
+  // A โดนคลื่นของ B (ห่าง 3) · B โดนคลื่นของ A และของ E · E โดนคลื่นของ B (ก่อนถูกชน)
+  assert.equal(A.hp, 20 - 2 - 3, 'ชน 2 + คลื่นของ B');
+  assert.equal(B.hp, 20 - 5 - 1 - 6, 'ชน 5 + คลื่นของ A + คลื่นของ E');
+  assert.equal(E.hp, 20 - 3 - 8, 'คลื่นของ B (ห่าง 3) + ชน 8');
+  assert.equal(vit(F), fv, 'เพื่อนไม่โดน');
+  assert.equal(fxEvents().filter((e) => e.kind === 'hit').length, 3);
+  assert.equal(match.gameState, 'ATTACKING', 'ไถลชน = จบตา');
+  // LV1 ไม่ทะลุ
+  const { I: I2 } = setup();
+  st().score = 0;
+  const s2 = strip(10);
+  park(I2, s2.x, s2.y);
+  for (let i = 1; i <= 6; i++) Ice.layIce(s2.x + i, s2.y, null);
+  const A2 = mob(s2.x + 3, s2.y);
+  engine.setActor('p0');
+  engine.moveTo('p0', s2.x + 1, s2.y, { step: true });
+  assert.deepEqual(I2.pos, { x: s2.x + 2, y: s2.y }, 'LV1 หยุดหน้าตัวแรก');
+  assert.deepEqual(A2.pos, { x: s2.x + 6, y: s2.y }, 'ถูกชนกระเด็นลงน้ำแข็ง = ไถลต่อสุดแนว');
+});
+
+test('ทำลาย (Eos): LV1 เทิร์นละ 2 · LV.2 ขึ้นไป เทิร์นละ 4', () => {
+  const { I } = setup();
+  st().score = 0;
+  const s = strip(8);
+  park(I, s.x, s.y);
+  for (let i = 1; i <= 6; i++) Ice.layIce(s.x + i, s.y + 2, 'p0');
+  engine.setActor('p0');
+  const btn = () => ice.hudActions(engine, I)[0];
+  assert.equal(btn().name, 'ทำลาย 2/2');
+  st().score = 10;
+  assert.equal(btn().name, 'ทำลาย 4/4');
+  for (let i = 1; i <= 4; i++) assert.equal(ice.charAction(engine, I, ice.BREAK_KEY, { tile: { x: s.x + i, y: s.y + 2 } }), true, `ครั้งที่ ${i}`);
+  assert.equal(ice.charAction(engine, I, ice.BREAK_KEY, { tile: { x: s.x + 5, y: s.y + 2 } }), false, 'ครั้งที่ 5 ไม่ได้');
+  assert.equal(btn().name, 'ทำลาย 0/4');
+  match.world = 'earth';
+  try { assert.equal(ice.breakLimit(), 2, 'นอก Eos = 2'); } finally { match.world = 'eos'; }
 });
 
 test('ติดตัว 3 (Eos): ดาเมจสะสมครบ 3 = Shock Wave 3 หน่วยรอบตัว ระยะตาม LV · ผลัก 2 + เชื่องช้า 1 · หลบได้ · เพื่อนไม่โดน', async () => {
