@@ -92,7 +92,7 @@ test.after(() => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
 });
 
-test('ค่าสถานะ Eos: พลังชีวิต 5 · เกราะ 3 · เดินฐาน 4 +2 = 6 · Energy 10 ไม่ฟื้นเอง · เพิ่มระยะ 2 Energy · Echo สวมร่างค่าสถานะไม่เปลี่ยน', () => {
+test('ค่าสถานะ Eos: พลังชีวิต 5 · เกราะ 3 · เดินฐาน 4 +2 = 6 · Energy 10 ไม่ฟื้นเอง · เพิ่มระยะ 2 Energy · Echo สวมร่างได้ค่าสถานะของเฟิร์น', () => {
   const { F } = setup();
   assert.equal(combat.maxHpOf(F), 5);
   assert.equal(combat.maxArmorOf(F), 3);
@@ -111,14 +111,10 @@ test('ค่าสถานะ Eos: พลังชีวิต 5 · เกร�
   assert.match(me.character.ultimate.desc, /Energy \+6/);
   assert.match(me.character.passive2.desc, /แนวตรง 4 ช่อง/);
   assert.match(me.character.passive.desc, /กันได้ 2 ครั้ง/);
-  // Echo สวมสกิลเฟิร์น: ค่าสถานะเป็นของ Echo
+  // Echo สวมร่างเฟิร์น: คัดลอกค่าสถานะของเฟิร์นด้วย (ผู้ใช้สั่ง 2026-11-12) — รวมค่าของ Eos
   const E = { id: 'e', characterId: 'fern', echoQ: { mimic: 'fern' }, statuses: {}, statusAmt: {} };
-  assert.equal(fern.mov(E), null);
-  assert.equal(fern.eosWalkMax(E), null);
-  const echoArmor = combat.maxArmorOf(E);
-  match.world = 'earth';
-  assert.equal(combat.maxArmorOf(E), echoArmor, 'เกราะของ Echo ไม่ขึ้นกับ Eos');
-  match.world = 'eos';
+  assert.equal(combat.maxHpOf(E), combat.maxHpOf(F));
+  assert.equal(combat.maxArmorOf(E), combat.maxArmorOf(F), 'เกราะสูงสุดของเฟิร์นใน Eos');
   // นอก Eos = ค่าเดิม
   match.world = 'earth';
   assert.equal(combat.maxArmorOf(F), 2);

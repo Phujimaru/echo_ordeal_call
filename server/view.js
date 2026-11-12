@@ -501,7 +501,7 @@ function broadcastPositions() {
 function takenUniqueChars() {
   return [...new Set(
     Object.values(match.players)
-      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.statId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
+      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.baseId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
       .filter((id) => (CHAR_BY_ID[id] || {}).unique)
   )];
 }

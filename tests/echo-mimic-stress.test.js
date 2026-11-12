@@ -44,7 +44,7 @@ function myTurn(t, E) {
   if (!E.alive) return false;
   engine.setActor('E');
   match.gameState = 'ACTION';
-  E.skillUsedRound = false; E.skillPoints = Math.max(E.skillPoints, 6);
+  E.skillUsedRound = false; E.skillPoints = Math.max(E.skillPoints, Math.min(6, engine.maxSkillOf(E))); // เพดานตามร่างที่สวม (โรลันด์ 5)
   return true;
 }
 function tryAll(t, E) {
