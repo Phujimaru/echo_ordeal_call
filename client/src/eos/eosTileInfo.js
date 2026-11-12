@@ -21,7 +21,8 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const list = [...(fd.daemons || []).map((d) => ({ ...d, type: "daemon" })), ...(fd.mobs || [])];
     const info = list.find((m) => m.id === mob.id) || {};
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
-    return { icon: m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${m.desc}` };
+    const el = (info.elite || []).map((k) => ELITE_INFO[k]).filter(Boolean);
+    return { icon: el.length ? "👑" : m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${el.length ? `หัวหน้า: ${el.join(" · ")} · ล้มได้ = เหรียญ ×3 + ของแน่นอน + แต้มรวม +1\n` : ""}${m.desc}` };
   }
   const sk = fd.sky || {};
   if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "ตกต้นเทิร์นหน้า ดาเมจ 3 (ช่องติดกัน 1) · ตกแล้วเหลือหินพลังเวท" };
@@ -116,6 +117,8 @@ export function eosTerrainInfo(map, x, y, fd = null, round = 0) {
   const t = k && EOS_TERRAIN_INFO[k];
   return t ? { icon: t.icon, name: t.name, desc: t.desc || EOS_NAME_DESC[t.name] || "" } : null;
 }
+// มอนหัวหน้า (server/fodlan/eosElite.js — 2026-11-12)
+const ELITE_INFO = { swift: "💨 ว่องไว เดิน +2", armored: "🪨 เกราะหนา +3", vampiric: "🩸 ดูดเลือด", volatile: "💥 ล้มแล้วระเบิด 3×3 ดาเมจ 2", commander: "🚩 มอนรอบตัว 2 ช่องตี +1", regen: "✚ ฟื้นเลือด 2 ทุกเทิร์น", thorns: "🌵 ตีประชิดโดนสวน 1" };
 // มอนพิเศษ / บอส / รถเสบียง / ดวงวิญญาณ / จุดสัญญาณ (PVE รอบสอง)
 export const EOS_TRAIT_INFO = {
   boss: { icon: "👑", desc: "ราชาปีศาจ — ไล่ทั้งคนและเสา ไม่กลัวไฟ บุกเข้าเมืองได้ · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · พุ่งชนคนที่อยู่แนวตรง 2–6 ช่อง (+1 กระเด็น) · ทุบแผ่นดินแยกวงแดงรัศมี 2 (ออกจากวงทันเทิร์นหน้า = รอด) · เลือดครึ่งคลั่ง ตี +1 เดิน +1 · เรียกปีศาจทุก 2 เทิร์น · ล้มได้ แต้มรวม +5 ทุกคนได้ของ" },

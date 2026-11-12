@@ -45,7 +45,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, elite_spawn: 1600, elite_down: 1400, elite_blast: 1400, elite_drain: 900, elite_thorns: 700, elite_regen: 1000, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -3221,6 +3221,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
           g.save(); g.translate(sx, sy); g.scale(1, 0.42); g.rotate(now / 1600);
           g.strokeStyle = "rgba(120,255,170,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.6, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
         }
+        if (d.elite) eliteRing(g, cx, cy, now, lowQ);
         sprite(g, daemonImg(d.kind), cx, cy, breathe, fitH(daemonImg(d.kind), d.trait === "swarm" ? 0.85 : d.trait === "splitling" ? 1.0 : d.trait === "bomber" ? 1.3 : d.trait === "splitter" || d.trait === "shield" ? 1.6 : 1.45), d.kind % 2 === 0);
         drawTraitMark(g, d, cx, cy, d.trait === "swarm" ? 1.25 : 2.0, now, lowQ);
         if (d.trait === "bomber") { // ไส้ตะเกียงลุก + ตัวพองตามจังหวะ
@@ -3229,7 +3230,8 @@ export function items(list, g, fd, info, units, now, lowQ) {
           if (!lowQ) for (let i = 0; i < 4; i++) { const a = now / 90 + i * 1.6; g.fillStyle = `rgba(255,${180 + i * 15},80,${0.9 - i * 0.15})`; g.fillRect(sx + Math.cos(a) * s * 0.12, sy - s * 1.35 - ((now / 6 + i * 13) % 14), 2, 2); }
         }
         if (d.trait === "healer") { const top = P(cx, cy, 1.75); g.fillStyle = "#7dffaa"; g.fillRect(top[0] - 2, top[1] - 7, 4, 14); g.fillRect(top[0] - 7, top[1] - 2, 14, 4); }
-        hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
+        const top = hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
+        if (d.elite) eliteMark(g, d.elite, top, s, now, lowQ);
       },
     });
   }
@@ -3280,6 +3282,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         const shake = hit < 1 ? Math.sin(hit * 50) * s * 0.03 * (1 - hit) : 0;
         if (beast) drawBeast(g, sx + shake, sy, s, face, now, pos.moving, lowQ);
         else {
+          if (m.elite) eliteRing(g, cx, cy, now, lowQ);
           const bob = pos.moving && !lowQ ? Math.abs(Math.sin(now / 140)) * 0.04 : 0;
           if (m.trait === "mech") {
             if (m.face) { // จุดอ่อนด้านหลัง (ตีจากฝั่งนี้แรง +2): ลูกศรส้มบนพื้นฝั่งตรงข้ามทิศที่หัน
@@ -3296,6 +3299,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
         const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
+        if (m.elite) eliteMark(g, m.elite, top, s, now, lowQ);
       },
     });
   }
@@ -3436,6 +3440,11 @@ function playFx(e) {
     case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;
     case "mob_block": sfx("pillar_ward_hit", { gain: 0.6 }); break;
     case "mob_boom": sfx("barrel_explode"); break;
+    case "elite_spawn": sfx("daemon_growl", { gain: 0.8 }); sfx("royal_arms", { delay: 0.2, gain: 0.35 }); break;
+    case "elite_down": sfx("hunt_done", { gain: 0.7 }); break;
+    case "elite_blast": sfx("barrel_explode"); break;
+    case "elite_drain": sfx("camp_buff", { gain: 0.35 }); break;
+    case "elite_thorns": sfx("pillar_ward_hit", { gain: 0.5 }); break;
     case "blood_moon": sfx("night_fall"); sfx("daemon_growl", { delay: 0.8, gain: 0.8 }); break;
     case "quest_new": sfx("hunt_board"); break;
     case "quest_done": sfx("hunt_done"); sfx("royal_arms", { delay: 0.3, gain: 0.6 }); break;
@@ -3947,6 +3956,31 @@ function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
   g.save(); g.globalAlpha = m.cd ? 0.5 : 1; g.font = Math.max(11, Math.round(s * 0.3)) + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
 }
+// มอนหัวหน้า (server/fodlan/eosElite.js — 2026-11-12): วงทองหมุนใต้เท้า + มงเล็ก + ไอคอนคุณสมบัติเหนือหลอดเลือด
+const ELITE_ICON = { swift: "💨", armored: "🪨", vampiric: "🩸", volatile: "💥", commander: "🚩", regen: "✚", thorns: "🌵" };
+function eliteRing(g, cx, cy, now, lowQ) {
+  const [sx, sy, s] = P(cx, cy - 0.05, 0.02);
+  const k = 0.7 + 0.3 * Math.sin(now / 260);
+  g.save(); g.translate(sx, sy); g.scale(1, 0.42);
+  const gr = g.createRadialGradient(0, 0, s * 0.15, 0, 0, s * 0.75);
+  gr.addColorStop(0, `rgba(255,215,90,${0.4 * k})`); gr.addColorStop(1, "rgba(255,170,40,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, s * 0.75, 0, TAU); g.fill();
+  g.strokeStyle = `rgba(255,220,110,${0.85 * k})`; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, s * 0.55, 0, TAU); g.stroke();
+  if (!lowQ) { g.rotate(now / 700); g.setLineDash([s * 0.12, s * 0.1]); g.strokeStyle = `rgba(255,240,170,${0.7 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.66, 0, TAU); g.stroke(); g.setLineDash([]); }
+  g.restore();
+  glowAt(g, sx, sy - s * 0.7, s * 1.0, "255,200,70", 0.25 * k);
+}
+function eliteMark(g, list, top, s, now, lowQ) { // มงเล็กกลาง + ไอคอนคุณสมบัติสองข้าง เรียงแถวเดียวชิดเหนือหลอดเลือด
+  const UK = Math.max(0.35, (top[2] || s) * 0.0085), y = top[1] - 9 * UK, fs = 10 * UK, w = fs * 1.05; // ผืนผ้าใบย่อขยายตามซูมอยู่แล้ว (UK มักติดขั้นต่ำ) — ห้ามมีขั้นต่ำเป็นพิกเซล
+  drawCrown(g, top[0], y + 3 * UK, 5 * UK, now, true);
+  g.save(); g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+  list.forEach((a, i) => {
+    const x = top[0] + (i % 2 ? 1 : -1) * (w * (1 + Math.floor(i / 2)) + 1 * UK);
+    glowAt(g, x, y, fs * 0.7, "255,200,70", lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + i));
+    g.fillText(ELITE_ICON[a] || "★", x, y);
+  });
+  g.restore();
+}
 // ราชาปีศาจ: ร่างใหญ่ 2.6 ช่อง · ออร่าแดงม่วงหมุน · มงกุฎเรือง · หลอดเลือดใหญ่
 function drawBoss(g, d, cx, cy, sx, sy, s, now, lowQ, breathe) {
   g.save(); g.translate(sx, sy); g.scale(1, 0.4);
@@ -4278,6 +4312,31 @@ function pve2Fx(g, e, p, lowQ, units) {
   }
   if (e.kind === "mob_split") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.6); glowAt(g, x, y, s * (0.8 + p), "220,170,100", (1 - p) * 0.8); if (!lowQ) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, p, e.seq, 10, "150,120,90", 0.3); return true; }
   if (e.kind === "mob_block") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.9); glowAt(g, x, y, s * 0.7, "140,190,255", (1 - p) * 0.9); return true; }
+  if (e.kind === "elite_spawn" || e.kind === "elite_down") { // เสาแสงทอง (เกิด) / ระเบิดทอง (ล้ม)
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05);
+    const up = e.kind === "elite_spawn";
+    glowAt(g, x, y - s * (up ? 0.9 : 0.5), s * (up ? 1.2 + p : 0.8 + p * 1.6), "255,205,80", (1 - p) * 0.9);
+    if (up) { g.fillStyle = `rgba(255,230,140,${0.35 * (1 - p)})`; g.fillRect(x - s * 0.18, y - s * 3, s * 0.36, s * 3); }
+    for (let r = 0; r < 2; r++) { const k = (p - r * 0.25) / 0.7; if (k <= 0 || k >= 1) continue; g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(255,215,90,${0.9 * (1 - k)})`; g.lineWidth = 4 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, s * (0.5 + k * 1.6), 0, TAU); g.stroke(); g.restore(); }
+    if (!up && !lowQ) for (let i = 0; i < 14; i++) { const a = hash(i, e.seq) * TAU, d = s * p * (0.8 + hash(i, 7)); g.fillStyle = `rgba(255,${200 + Math.floor(hash(i, 2) * 50)},90,${1 - p})`; g.fillRect(x + Math.cos(a) * d, y - s * 0.6 + Math.sin(a) * d * 0.55 - s * p * 0.6, 3, 3); }
+    return true;
+  }
+  if (e.kind === "elite_blast") {
+    const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5);
+    glowAt(g, x, y, s * (1 + p * 2.2), "255,170,50", (1 - p) * 0.95);
+    for (const t of e.tiles || []) { const [tx, ty, ts] = P(t.x + 0.5, t.y + 0.5, 0.03); glowAt(g, tx, ty, ts * 0.7, "255,120,40", (1 - p) * 0.5); }
+    if (p > 0.2) puff(g, e.x + 0.5, e.y + 0.5, 0.4 + p, (p - 0.2) / 0.8, e.seq, lowQ ? 4 : 10, "70,55,45", 0.25);
+    return true;
+  }
+  if (e.kind === "elite_drain" && e.from) { // ด้ายเลือดจากเป้ากลับเข้าตัว
+    const a = P(e.from.x + 0.5, e.from.y + 0.5, 0.8), b = P(e.x + 0.5, e.y + 0.5, 0.9), q = Math.min(1, p / 0.7);
+    const hx = a[0] + (b[0] - a[0]) * q, hy = a[1] + (b[1] - a[1]) * q;
+    g.strokeStyle = `rgba(220,30,60,${0.8 * (1 - p)})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(hx, hy); g.stroke();
+    glowAt(g, hx, hy, 14, "255,40,70", 0.9 * (1 - p));
+    return true;
+  }
+  if (e.kind === "elite_thorns") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.7); glowAt(g, x, y, s * (0.6 + p * 0.6), "140,230,90", (1 - p) * 0.85); return true; }
+  if (e.kind === "elite_regen") { for (const r of e.list || []) { const [x, y, s] = P(r.x + 0.5, r.y + 0.5, 0.9 + p * 0.6); glowAt(g, x, y, s * 0.6, "120,255,150", (1 - p) * 0.8); } return true; }
   if (e.kind === "mob_boom") {
     const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.5);
     glowAt(g, x, y, s * (1 + p * 2), "255,130,40", (1 - p) * 0.95);

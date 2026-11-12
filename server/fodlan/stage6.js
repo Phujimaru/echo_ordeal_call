@@ -28,6 +28,7 @@ const XT = require("./eosExtra");
 const SKY = require("./eosSky");
 const TWN = require("./eosTowns"); // ของประจำเมือง (2026-11-12): อู่ · ร้านอาหาร · ศาลเทพธิดา · ฟาร์มโชโกโบะ
 const AR = require("./eosArms"); // อาวุธจักรพรรดิ 13 อัน (2026-11-12)
+const ELT = require("./eosElite"); // มอนหัวหน้า (2026-11-12): คุณสมบัติสุ่ม 7 แบบ
 const MBS = require("./eosMobs"); // มอนรูปแบบใหม่ 8 แบบ (2026-11-12): พลธนู · โล่ · พ่นใย · วาร์ป · โซ่ลาก · วงเวท · ฝูงจิ๋ว · แยกร่าง
 const LM = require("./eosLament"); // ความยาก Lament + ผู้คร่ำครวญ (2026-11-11) // PVE รอบหก: คราสกลางวัน · จันทร์เต็มดวง · ฝนดาวตก · รถไฟขนเสบียง · พายุแม่เหล็ก // PVE รอบสาม: คืนสุดท้าย · พลังประจำเสา · ท่าร่วม · รังปีศาจ · ยักษ์หิน · แสงไฟแคมป์ · พลเรือน · มาตรวัดทีม · ฉายา
 
@@ -544,13 +545,20 @@ function magitekStats(n) {
 }
 function spawnMob(ctx, s, type, at, stats, extra = {}) {
   const look = extra.look || null;
+  const elite = ELT.roll(ctx, s, H(), type, extra);
+  if (elite) stats = ELT.stats(stats, elite);
+  const baseName = (extra.trait && (MBS.nameOf(type, extra.trait) || TRAIT_NAMES[extra.trait])) || (MOB_NAMES[type] + (extra.tier > 1 ? ` ${"I".repeat(Math.min(3, extra.tier))}` : ""));
   const rec = lazySummon().spawn(MOB_OWNER, {
     kind: "eosMob", pos: { x: at.x, y: at.y }, hp: stats.hp, armor: stats.armor + (type !== "lament" && LM.curse(s, "plate") ? 1 : 0), mov: stats.mov, range: [1, 1],
-    name: (extra.trait && (MBS.nameOf(type, extra.trait) || TRAIT_NAMES[extra.trait])) || (MOB_NAMES[type] + (extra.tier > 1 ? ` ${"I".repeat(Math.min(3, extra.tier))}` : "")),
+    name: elite ? ELT.nameOf(baseName) : baseName,
     img: type === "lament" ? "/eos/img/lament.webp" : type === "daemon" ? daemonImg(look) : type === "magitek" ? (extra.trait === "mech" ? "/eos/img/magitek_ex.webp" : "/eos/img/magitek.webp") : null,
     color: MOB_COLORS[type],
-    data: { side: MOB_SIDE, eos: s.visit, mobType: type, atk: stats.atk, gold: stats.gold, look, tier: extra.tier || 1, trait: extra.trait || null, roarAt: ctx.match.roundNumber + 1, ship: extra.ship || null, home: extra.home || null, aggro: null, aggroUntil: 0, mark: stats.hp + stats.armor, born: ctx.match.roundNumber + 1 },
+    data: { side: MOB_SIDE, eos: s.visit, mobType: type, atk: stats.atk, gold: stats.gold, look, tier: extra.tier || 1, trait: extra.trait || null, roarAt: ctx.match.roundNumber + 1, ship: extra.ship || null, home: extra.home || null, aggro: null, aggroUntil: 0, mark: stats.hp + stats.armor, born: ctx.match.roundNumber + 1, elite: elite || null },
   });
+  if (rec && elite && rec.pos) {
+    ctx.fx("elite_spawn", { id: rec.id, x: rec.pos.x, y: rec.pos.y, affixes: elite });
+    ctx.log(`👑 ${rec.name}ปรากฏ! (${elite.map((a) => ELT.AFFIX_NAMES[a]).join(" · ")})`);
+  }
   return rec;
 }
 const mobType = (m) => (m && m.summon ? m.summon.mobType : null);
@@ -1085,8 +1093,9 @@ function hitPillar(ctx, s, pl, m) {
 }
 function actMonsters(ctx, s) {
   const runeOut = MBS.beforeAct(ctx, s, H()); // วงเวทที่วางไว้ตาก่อนระเบิด (นักเวทตายหมดแล้วก็ต้องล้างวง)
+  const regenOut = ELT.beforeAct(ctx, s, H()); // หัวหน้าฟื้นตัว
   const list = mobsOf(ctx);
-  if (!list.length) return runeOut.length ? 1 : 0;
+  if (!list.length) return runeOut.length || regenOut.length ? 1 : 0;
   const moves = [], attacks = [], pillarHits = [], heals = [], shots = [], booms = [];
   const acc = { moves, attacks, shots, blinks: [], pulls: [], runes: [] }; // มอนรูปแบบใหม่ (eosMobs.act)
   const round = ctx.match.roundNumber + 1;
@@ -1195,7 +1204,7 @@ function actMonsters(ctx, s) {
   if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls });
   if (acc.runes.length) ctx.fx("mob_rune_set", { list: acc.runes });
   if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${lightMax(s)})`); }
-  return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big || runeOut.length || acc.runes.length || acc.pulls.length || acc.blinks.length ? 1 : 0;
+  return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big || runeOut.length || regenOut.length || acc.runes.length || acc.pulls.length || acc.blinks.length ? 1 : 0;
 }
 // ปีศาจหมอ: ฟื้นเลือดมอนในระยะ 2 (รวมตัวเอง) แล้วถอยห่างผู้เล่น / เกาะกลุ่มมอนตัวอื่น · ไม่ตี
 function healerAct(ctx, s, m, all, moves, heals) {
@@ -1274,13 +1283,15 @@ function onMobDeath(m, killerId) {
   if (by && (isMob(by) || by.summon)) by = null;
   s.kills = (s.kills || 0) + 1;
   MBS.onDeath(ctx, s, H(), m); // ตัวแยกร่าง: แตก 2 ร่าง
+  const elite = ELT.isElite(m);
+  if (elite) ELT.onDeath(ctx, s, H(), m, by); // หัวหน้า: ระเบิดตอนตาย · แต้มรวม
   if (m.summon.trait === "bomber") bomberBlast(ctx, s, m, false); // โดนฆ่าก็ระเบิด — ฆ่าจากระยะไกลปลอดภัยกว่า
   E.questKill(ctx, s, H(), at, by);
   if (XT.onMobDeath(ctx, s, H(), m, by)) return; // ท่าร่วม · ฉายา · มาตรวัดทีม · ยักษ์หิน (แจกของเอง)
   if (type === "lament") { LM.onDeath(ctx, s, H(), m, by); checkWin(ctx, s); return; }
   if (m.summon.trait === "boss") { if (by) lazyShop().addGold(by, m.summon.gold || 0); E.onBossDeath(ctx, s, H(), m, by); huntDone(ctx, s, by, type); return; }
   const mul = E.bloodMul(s) * (type === "beast" ? SKY.beastMod(s).goldMul : 1), pool0 = DROP_POOL[type] || {}, luck = PKS.fortune(s); // จันทร์เต็มดวง: สัตว์ยักษ์ของรางวัล ×2 // การ์ดโชคลาภ: เหรียญ +1 · โอกาสได้ของ +20%
-  const pool = { ...pool0, pct: Math.min(100, ((pool0.pct || 0) + E.dropBonus(ctx) + luck.pct) * mul), flask: pool0.flask ? Math.min(100, pool0.flask * mul) : 0 };
+  const pool = { ...pool0, pct: elite ? 100 : Math.min(100, ((pool0.pct || 0) + E.dropBonus(ctx) + luck.pct) * mul), flask: pool0.flask ? Math.min(100, pool0.flask * mul) : 0 };
   const gold = by ? lazyShop().addGold(by, Math.max(1, (m.summon.gold || 0) + luck.gold - (s.lamentOn ? LM.LAMENT.goldCut : 0)) * mul) : 0; // Lament: เหรียญ −1
   const got = by ? loot(ctx, s, by, pool) : [];
   if (by && by.alive && PKS.hunterHeal(s) && ctx.combat.healHp) ctx.combat.healHp(by, PKS.hunterHeal(s)); // การ์ดนักล่า
@@ -2332,6 +2343,7 @@ function preRound(ctx, st) {
   s.lamentOn = LM.on(ctx);
   s.roundNow = ctx.match.roundNumber + 1; // เทิร์นปัจจุบัน (ฟังก์ชันที่ไม่มี ctx — Armiger)
   if (process.env.ECHO_DEV_EOS_AT && !s.devAt) { const [ax, ay] = process.env.ECHO_DEV_EOS_AT.split(",").map(Number), h = heroes(ctx)[0], to = h && freeNear(ctx, s, ax, ay, 3); if (to) { s.devAt = true; h.pos = { ...to }; ctx.bump(); } } // dev: วางผู้เล่นคนแรกที่ช่องนี้ (ดูภาพแต่ละเมือง)
+  if (process.env.ECHO_DEV_EOS_ELITE && !s.devElite) { const h = heroes(ctx)[0]; if (h && h.pos) { s.devElite = true; for (const [dx, aff] of [[3, ["commander", "vampiric"]], [-3, ["thorns"]]]) { const at = freeNear(ctx, s, h.pos.x + dx, h.pos.y, 2); if (!at) continue; const st0 = ELT.stats(daemonStats(2), aff); const m = spawnMob(ctx, s, dx > 0 ? "daemon" : "magitek", at, st0, { look: 3, tier: 2, noElite: true }); if (m) { m.summon.elite = aff; m.name = ELT.nameOf(m.name); } } ctx.bump(); } } // dev: หัวหน้า 2 ตัวข้างผู้เล่นคนแรก (ดูภาพ)
   const healed = require("../phases/action").expireChasm(CHASM_TURNS);
   if (healed.length) { ctx.fx("eos_chasm_heal", { tiles: healed.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) }); ctx.bump(); }
   checkRiders(ctx, s);
@@ -2679,7 +2691,7 @@ function publicInfo(ctx, st) {
     ...p4Public(ctx, s), // ขั้น 4: ราง/ชานชาลา · อุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา · สุสาน
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home }, hp: c.hp ?? CHOCO_HP, maxHp: CHOCO_HP })),
     riders,
-    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0 })),
+    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0, elite: ELT.publicOf(d) })),
     warn: [
       ...(s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
       ...(s.ships || []).filter((d) => d.state === "warn").flatMap((d) => [0, 1].flatMap((dy) => [0, 1].map((dx) => ({ x: d.x + dx, y: d.y + dy, kind: "dropship" })))),
@@ -2715,7 +2727,7 @@ function publicInfo(ctx, st) {
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
     barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
     crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element, ...(c.meteor ? { meteor: true } : null) })),
-    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null , face: m.summon.face || null})),
+    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null, face: m.summon.face || null, elite: ELT.publicOf(m) })),
     ships: (s.ships || []).map((d) => ({ id: d.id, x: d.x, y: d.y, state: d.state })),
     dropship: (s.ships || []).find((d) => d.state === "landed") || null,
   };
@@ -2735,7 +2747,7 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   FLASH, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  incoming(ctx, st, p, n, src) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return MBS.incoming(ctx, s, p, n, src); return src && isMob(src) ? AR.guard(armRec(s, p), n) : n; }, // ทหารโล่ · Shield of the Just
+  incoming(ctx, st, p, n, src) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); return src && isMob(src) ? AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)) : n; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
   critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
   strikePierces(ctx, st, p) { const s = st && st.eos; return !!(s && p && !p.summon && AR.piercesOf(armRec(s, p))); }, // Katana of the Warrior

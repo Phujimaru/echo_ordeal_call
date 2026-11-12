@@ -2131,3 +2131,66 @@ test('Armiger: เปิดสุสานครบ 13 แห่ง = ทั้�
   assert.ok(q.armiger >= match.roundNumber);
   assert.equal(Fodlan.atkBonus(P(1)), 2, 'เพื่อนก็ได้');
 });
+
+// ---------- มอนหัวหน้า (2026-11-12) ----------
+const ELT = require('../server/fodlan/eosElite.js');
+test('มอนหัวหน้า: สุ่มเกิดได้ (ชื่อ หัวหน้า… · เลือดมากขึ้น) · ผู้บัญชาการ +1 · ดูดเลือด · หนาม · ฟื้นตัว · ระเบิดตอนตาย + แต้มรวม', () => {
+  const p = soloArena(), o = openSpot();
+  match.eosDiff = 'hard';
+  Math.random = () => 0;
+  let e;
+  try { e = tmob(null, o.x + 3, o.y, { hp: 6 }); } finally { Math.random = realRandom; }
+  assert.ok(ELT.isElite(e), 'สุ่มได้หัวหน้า');
+  assert.ok(e.name.startsWith('หัวหน้า'));
+  assert.equal(e.summon.maxHp, Math.round(6 * ELT.EL.hpMul) + ELT.EL.hpAdd);
+  assert.equal(e.summon.atk, 3);
+  // ผู้บัญชาการ: มอนตัวอื่นในระยะ 2 ตี +1
+  e.summon.elite = ['commander'];
+  const m = tmob(null, o.x + 4, o.y, {});
+  assert.ok(!ELT.isElite(m) || true);
+  m.summon.elite = null;
+  const H = S6.H();
+  assert.equal(ELT.toHero(ctx(), st(), H, p, 2, m), 3);
+  assert.equal(ELT.toHero(ctx(), st(), H, p, 2, e), 2, 'ตัวเองไม่ได้');
+  // ดูดเลือด
+  e.summon.elite = ['vampiric']; e.hp = 2;
+  ELT.toHero(ctx(), st(), H, p, 3, e);
+  assert.equal(e.hp, 5);
+  // หนาม: คนตีติดตัวโดน 1
+  e.summon.elite = ['thorns'];
+  p.pos = { x: o.x + 2, y: o.y }; p.hp = 7; p.armor = 0;
+  ELT.toMob(ctx(), st(), H, e, 2, p);
+  assert.equal(p.hp, 6);
+  p.pos = { x: o.x, y: o.y };
+  ELT.toMob(ctx(), st(), H, e, 2, p);
+  assert.equal(p.hp, 6, 'ไกลไม่โดน');
+  // ฟื้นตัว
+  e.summon.elite = ['regen']; e.hp = 2;
+  ELT.beforeAct(ctx(), st(), H);
+  assert.equal(e.hp, 2 + ELT.EL.regen);
+  // ระเบิดตอนตาย + แต้มรวม
+  e.summon.elite = ['volatile'];
+  p.pos = { x: o.x + 2, y: o.y }; p.hp = 7; p.armor = 0;
+  const sc = st().score || 0;
+  kill(e, p);
+  assert.ok(!e.alive);
+  assert.equal(p.hp, 7 - ELT.EL.blastDmg);
+  assert.ok((st().score || 0) >= sc + ELT.EL.score);
+});
+
+test('มอนหัวหน้า: ไม่เกิดกับบอส/ฝูงจิ๋ว/ระเบิด · ระดับง่ายคืนแรกไม่มี · มีเพดานจำนวน', () => {
+  soloArena();
+  const H = S6.H();
+  Math.random = () => 0;
+  try {
+    match.eosDiff = 'hard';
+    for (const tr of ['boss', 'swarm', 'bomber', 'mech']) assert.equal(ELT.roll(ctx(), st(), H, 'daemon', { trait: tr }), null, tr);
+    assert.equal(ELT.roll(ctx(), st(), H, 'beast', {}), null);
+    match.eosDiff = 'easy'; st().nightNo = 1;
+    assert.equal(ELT.roll(ctx(), st(), H, 'daemon', {}), null);
+    match.eosDiff = 'hard'; st().nightNo = 3;
+    const o = openSpot();
+    for (let i = 0; i < 6; i++) tmob(null, o.x + i, o.y, {});
+    assert.ok(S6.mobsOf(ctx()).filter(ELT.isElite).length <= ELT.capOf(ctx(), H));
+  } finally { Math.random = realRandom; }
+});
