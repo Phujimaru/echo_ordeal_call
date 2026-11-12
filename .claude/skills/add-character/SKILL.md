@@ -205,7 +205,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ล่องหน | `stealthed(p)` + `onReveal(engine, p, kind, how)` (`act`/`hit`/`bump` · `act` ได้ `how` = `strike`/`slide`/`item`) + `logCut(p, round)` | `server/visibility.js` |
 | สกิลไม่นับโควตา / ไม่กินโควตา | `ignoresTurnQuota(p, tier)` / `skipsTurnQuota(p, tier)` | `server/skills.js` |
 | ช่องสกิลที่ใช้ได้แม้ติดห้ามสกิล | `ignoresNoSkill(p, tier)` + `skillLocks[tier].ignoresNoSkill` (โรลันด์: BS Page — GAME_SYSTEM §43) | `server/skills.js` · `Game.jsx slotOff` |
-| ดาเมจสกิลตามค่าท่า + พลังโจมตี (รับเสริมพลัง/อ่อนแอ) | `engine.skillStrike(p, t, ชื่อ, { bonus, sure })` — `sure` = ทอยหลบมาแล้ว (โรลันด์: การ์ด/Furioso) | `attack.skillStrike` |
+| ดาเมจสกิลตามค่าท่า + พลังโจมตี (รับเสริมพลัง/อ่อนแอ) | `engine.skillStrike(p, t, ชื่อ, { bonus, sure, critMult })` — `sure` = ทอยหลบมาแล้ว (โรลันด์: การ์ด/Furioso) · `critMult` = คริที่ผู้เรียกทอยเอง คูณหลัง bonus (คริซุงุ Eos: Thompson) | `attack.skillStrike` |
 | ใช้สกิลแล้วจบตาเดินทันที (หลังผล/คลิปจบ) | `endsTurn(engine, p, tier, opts)` → true (มุยมิ: ท่าไม้ตาย) | `server/skills.js` · `cutscene.pausePlayingForCutscene(after, { endTurn })` |
 | เสียงพากย์ตามเหตุการณ์ (ต้นตาเดิน/ตี/โดนตี/สกิล · สุ่มจากหลายไฟล์) | `voiceLines(p)` → `{ turn, strike, struck, basic, secondary, ultimate: [คีย์] }` · client ตัดประโยคเก่าของคนเดียวกัน (ต้นแบบ ไจโร — GAME_SYSTEM §23) | `server/voice.js` (`nextActor` / `strike` / `useSkill`) |
 | ทรัพยากรที่ตีปกติต้องใช้ (หมด = ตีไม่ได้) | `range(p)` → `[1, 0]` เมื่อหมด · ใช้ใน `onStrikeResolved(engine, attacker, target, res, { counter })` (ตีคน + ตีสวน · เป้ายังอยู่ช่องเดิม) + `onStrikeObject(engine, p, at)` (ตีผนึก/หนาม) | `attack.boardAttack` / `counterAndPush` · `action.attackTarget` |

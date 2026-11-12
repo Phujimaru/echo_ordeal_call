@@ -252,18 +252,18 @@ test("Double Accel: รีโหลด + ยิง = 2 action พอดี · �
 
 test("Eos Thompson: ทุกตัวในแนว · 50% สังหาร · ไม่สังหาร/บอส = พลังโจมตี +5", () => {
   const { t, u } = setup();
-  u.pos = { x: 8, y: 5 };
+  u.pos = { x: 8, y: 5 }; u.hp = 30;
   u.summon = { trait: "boss" };
   const Fodlan = require("../../server/fodlan");
   const real = Fodlan.isEos;
   Fodlan.isEos = () => true;
-  Math.random = () => 0.3; // ไม่หลบ (พื้นโล่ง) · ทอยสังหาร 50% ผ่าน
+  Math.random = () => 0.3; // ไม่หลบ (พื้นโล่ง) · ทอยสังหาร 50% ผ่าน · บอสทอยคริผ่าน
   try {
     engine.useSkill("a", "ultimate", [], { dir: "right" });
   } finally { Fodlan.isEos = real; delete u.summon; }
   assert.equal(t.alive, false, "สังหาร");
   assert.equal(u.alive, true, "บอสไม่โดนสังหาร");
-  assert.equal(u.hp, 1, "บอส: พลังโจมตี 1 + 5 = 6");
+  assert.equal(u.hp, 18, "บอส: (พลังโจมตี 1 + 5) × คริ 2 = 12");
 });
 
 test("อดีนาลีน: ความเสียหายจากศัตรูลงอีก 2 เทิร์น · แต่ละเทิร์นแยกกัน", () => {
@@ -408,9 +408,22 @@ test("Eos Thompson: ทอยสังหารไม่ผ่าน = ควา
   const Fodlan = require("../../server/fodlan");
   const real = Fodlan.isEos;
   Fodlan.isEos = () => true;
-  Math.random = () => 0.99; // ไม่หลบ · ทอยสังหารไม่ผ่าน
+  Math.random = () => 0.99; // ไม่หลบ · ทอยสังหารไม่ผ่าน · ไม่คริ
   try { engine.useSkill("a", "ultimate", [], { dir: "right" }); } finally { Fodlan.isEos = real; }
   assert.equal(t.alive, true);
   assert.equal(t.hp, 14, "1 + 5 = 6");
   assert.ok(t.statuses.noskill > 0);
+});
+
+test("Eos Thompson: ไม่สังหาร + ติดคริ = (พลังโจมตี + 5) × 2", () => {
+  const { p, t } = setup();
+  t.hp = 30; t.armor = 0;
+  const Fodlan = require("../../server/fodlan");
+  const real = Fodlan.isEos;
+  Fodlan.isEos = () => true;
+  const rolls = [0.99, 0.1]; // ทอยสังหาร (ไม่ผ่าน) → ทอยคริ (ผ่าน) · ทอยอื่น (หลบ) = 0.99
+  Math.random = () => (rolls.length ? rolls.shift() : 0.99);
+  try { engine.useSkill("a", "ultimate", [], { dir: "right" }); } finally { Fodlan.isEos = real; }
+  assert.equal(t.hp, 18, "(1 + 5) × 2 = 12");
+  void p;
 });

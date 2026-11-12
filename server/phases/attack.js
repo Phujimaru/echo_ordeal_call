@@ -398,6 +398,8 @@ function skillStrike(attacker, target, reason, opts = {}) {
   let base = atkCtx.base - (atkCtx.empowerAtk ? 1 : 0); // เสริมพลังใช้กับตีปกติเท่านั้น
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   let dmg = base + (opts.bonus || 0) + statusAmtOf(attacker, "might");
+  // คริติคอลของสกิล (opts.critMult — ผู้เรียกทอยเอง): คูณหลังโบนัสท่า (คริซุงุ Eos: Thompson +5 แล้วค่อยติดคริ)
+  if (opts.critMult > 1) { dmg *= opts.critMult; match.lastLog.push(`💥 ${reason} คริติคอล ×${opts.critMult}`); }
   dmg = Math.max(0, dmg - (statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker)));
   const guardAmt = (target.statuses.guard || 0) > 0 ? (statusAmtOf(target, "guard") || 1) : 0;
   dmg = Math.max(0, dmg - guardAmt);
