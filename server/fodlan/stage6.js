@@ -28,6 +28,7 @@ const XT = require("./eosExtra");
 const SKY = require("./eosSky");
 const TWN = require("./eosTowns"); // ของประจำเมือง (2026-11-12): อู่ · ร้านอาหาร · ศาลเทพธิดา · ฟาร์มโชโกโบะ
 const AR = require("./eosArms"); // อาวุธจักรพรรดิ 13 อัน (2026-11-12)
+const BB = require("./eosBoss"); // ท่าใหญ่ราชาปีศาจ (2026-11-12): ลำแสง · วงแหวน · อุกกาบาต · องครักษ์
 const ELT = require("./eosElite"); // มอนหัวหน้า (2026-11-12): คุณสมบัติสุ่ม 7 แบบ
 const MBS = require("./eosMobs"); // มอนรูปแบบใหม่ 8 แบบ (2026-11-12): พลธนู · โล่ · พ่นใย · วาร์ป · โซ่ลาก · วงเวท · ฝูงจิ๋ว · แยกร่าง
 const LM = require("./eosLament"); // ความยาก Lament + ผู้คร่ำครวญ (2026-11-11) // PVE รอบหก: คราสกลางวัน · จันทร์เต็มดวง · ฝนดาวตก · รถไฟขนเสบียง · พายุแม่เหล็ก // PVE รอบสาม: คืนสุดท้าย · พลังประจำเสา · ท่าร่วม · รังปีศาจ · ยักษ์หิน · แสงไฟแคมป์ · พลเรือน · มาตรวัดทีม · ฉายา
@@ -905,12 +906,14 @@ function bossAct(ctx, s, m, all, round, out) {
     e.quake = null; sm.quakeAt = round;
     out.big = true;
   }
+  if (BB.land(ctx, s, H(), m, round)) out.big = true; // ท่าใหญ่ที่เตือนไว้
   // ---- คลั่ง ----
   if (!sm.enraged && m.hp <= (sm.maxHp || m.hp) * BOSS_AI.enrage) {
     sm.enraged = true; sm.atk = (sm.atk | 0) + BOSS_AI.enrageAtk;
     ctx.fx("boss_enrage", { id: m.id, x: m.pos.x, y: m.pos.y });
     ctx.log("👑 ราชาปีศาจคลั่ง! โจมตีแรงขึ้น เดินไวขึ้น");
   }
+  if (BB.guards(ctx, s, H(), m)) out.big = true; // เลือด ≤ 30% = องครักษ์
   // ---- คำราม: ทุก 2 เทิร์นเรียกปีศาจ 2 ตัวข้างตัว ----
   if (round >= (sm.roarAt || 0) + E.BOSS.roarEvery) {
     sm.roarAt = round;
@@ -959,13 +962,16 @@ function bossAct(ctx, s, m, all, round, out) {
     else if (r.wall) { const wh = hitWall(ctx, s, m, r.wall); if (wh) out.pillarHits.push({ type: "boss", ...wh }); }
   }
   // ---- เตือนแผ่นดินแยก (ลงต้นเทิร์นหน้า) ----
-  if (!e.quake && round >= (sm.quakeAt ?? -99) + BOSS_AI.quakeCd && all.some((p) => p.alive && p.pos && manhattan(p.pos, m.pos) <= BOSS_AI.quakeNear)) {
+  let quaked = false;
+  if (!e.quake && !sm.big && round >= (sm.quakeAt ?? -99) + BOSS_AI.quakeCd && all.some((p) => p.alive && p.pos && manhattan(p.pos, m.pos) <= BOSS_AI.quakeNear)) {
     const tiles = diamond(m.pos.x, m.pos.y, BOSS_AI.quakeR).filter((t) => ctx.Board.inBounds(ctx.map(), t.x, t.y));
     e.quake = { by: m.id, at: round + 1, x: m.pos.x, y: m.pos.y, tiles };
     sm.quakeAt = round; // นับพักจากตอนเตือน
     ctx.fx("boss_quake_warn", { id: m.id, x: m.pos.x, y: m.pos.y, tiles });
     ctx.log("⚠️ ราชาปีศาจยกเท้าขึ้นสูง — ออกจากวงแดง!");
+    quaked = true;
   }
+  if (BB.warn(ctx, s, H(), m, all, round, quaked)) out.big = true; // ท่าใหญ่: เตือน 1 เทิร์น
 }
 const SMART = { detour: 3, barricadeCost: 3 };
 // ============================================================ กำแพงเมือง Insomnia พังได้ (ผู้ใช้สั่ง 2026-11-10 — ตัวเลข Claude ตั้ง)
@@ -2344,6 +2350,7 @@ function preRound(ctx, st) {
   s.roundNow = ctx.match.roundNumber + 1; // เทิร์นปัจจุบัน (ฟังก์ชันที่ไม่มี ctx — Armiger)
   if (process.env.ECHO_DEV_EOS_AT && !s.devAt) { const [ax, ay] = process.env.ECHO_DEV_EOS_AT.split(",").map(Number), h = heroes(ctx)[0], to = h && freeNear(ctx, s, ax, ay, 3); if (to) { s.devAt = true; h.pos = { ...to }; ctx.bump(); } } // dev: วางผู้เล่นคนแรกที่ช่องนี้ (ดูภาพแต่ละเมือง)
   if (process.env.ECHO_DEV_EOS_ELITE && !s.devElite) { const h = heroes(ctx)[0]; if (h && h.pos) { s.devElite = true; for (const [dx, aff] of [[3, ["commander", "vampiric"]], [-3, ["thorns"]]]) { const at = freeNear(ctx, s, h.pos.x + dx, h.pos.y, 2); if (!at) continue; const st0 = ELT.stats(daemonStats(2), aff); const m = spawnMob(ctx, s, dx > 0 ? "daemon" : "magitek", at, st0, { look: 3, tier: 2, noElite: true }); if (m) { m.summon.elite = aff; m.name = ELT.nameOf(m.name); } } ctx.bump(); } } // dev: หัวหน้า 2 ตัวข้างผู้เล่นคนแรก (ดูภาพ)
+  if (process.env.ECHO_DEV_EOS_BOSS && !s.devBoss) { const h = heroes(ctx)[0], at = h && h.pos && freeNear(ctx, s, h.pos.x + 4, h.pos.y, 2); if (at) { s.devBoss = true; const b = spawnMob(ctx, s, "daemon", at, { hp: 40, armor: 2, atk: 3, mov: 3, gold: 10 }, { look: 4, tier: 3, trait: "boss" }); if (b) { b.summon.born = 0; b.summon.roarAt = 99; } ctx.bump(); } } // dev: ราชาปีศาจข้างผู้เล่นคนแรก (ดูท่าใหญ่)
   const healed = require("../phases/action").expireChasm(CHASM_TURNS);
   if (healed.length) { ctx.fx("eos_chasm_heal", { tiles: healed.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }) }); ctx.bump(); }
   checkRiders(ctx, s);
@@ -2646,7 +2653,7 @@ function hides(ctx, st, viewer, target) {
 let H_CACHE = null;
 function H() {
   if (H_CACHE) return H_CACHE;
-  H_CACHE = { carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
+  H_CACHE = { carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, traitStats, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
   return H_CACHE;
 }
 // เกราะเสา (ไอเทมร้าน Eos — server/shop.js) · ใช้ไม่ได้ = ไม่เสียของ
@@ -2706,6 +2713,7 @@ function publicInfo(ctx, st) {
     ...XT.publicOf(ctx, s, H()), // final · powers · gauge · giant · civs · lightR · stats · titles
     sky: SKY.publicOf(ctx, s), // คราส · จันทร์เต็มดวง · ดาวตก · รถไฟขนเสบียง
     ...MBS.publicOf(ctx, s),
+    bossBig: BB.publicOf(ctx, mobsOf(ctx, "daemon").filter((d) => d.summon.trait === "boss")), // ท่าใหญ่ที่เตือนไว้
     ...TWN.publicOf(ctx, s), // ของประจำเมือง // วงเวทของมอนที่รอระเบิด
     ...LM.publicOf(ctx, s), // Lament: ชีวิตทีม · คำสาป · ผู้คร่ำครวญ
     ...PKS.publicOf(ctx, s), // perks · perkOffer · perkAt · challenges · walls · wallCharges

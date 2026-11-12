@@ -38,6 +38,8 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
   if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ยืนติดแล้วกด \"ช่วย\" (ใช้การโจมตี) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นตรงนี้" }; }
   const qq = (fd.quests || []).find((o) => o.type === "scout" && at(o, x, y));
   if (qq) return { icon: "📡", name: "จุดสัญญาณภารกิจ", desc: `ยืนบนช่องนี้แล้วกด "สำรวจ" — แต้มรวม +3 · เหลือ ${qq.left} เทิร์น` };
+  const bb = (fd.bossBig || []).find((o) => (o.tiles || []).some((t) => at(t, x, y)));
+  if (bb) return { icon: bb.kind === "beam" ? "🔦" : bb.kind === "ring" ? "⭕" : "☄️", name: bb.kind === "beam" ? "ลำแสงทมิฬ" : bb.kind === "ring" ? "วงแหวนมรณะ" : "ฝนอุกกาบาต", desc: `ราชาปีศาจจะปล่อยท่านี้ลงช่องนี้ตาหน้า ดาเมจ ${bb.kind === "beam" ? 4 : 3} · ราชาปีศาจล้มก่อน = ไม่ลง` };
   if (fd.bossWarn && at(fd.bossWarn, x, y)) return { icon: "⚠️", name: "วงเวทราชาปีศาจ", desc: "ราชาปีศาจจะลงที่นี่ต้นเทิร์นหน้า" };
   const pl = (fd.pillars || []).find((p) => at(p, x, y));
   if (pl) {

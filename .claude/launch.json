@@ -924,6 +924,20 @@
         "ECHO_DEV_EOS_AT": "13,13",
         "ECHO_DEV_EOS_ELITE": "1"
       }
+    },
+    {
+      "name": "server-eos-boss",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3041,
+      "env": {
+        "PORT": "3041",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_EOS_AT": "13,13",
+        "ECHO_DEV_EOS_BOSS": "1"
+      }
     }
   ]
 }

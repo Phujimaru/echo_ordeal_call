@@ -1125,7 +1125,7 @@ test('ราชาปีศาจ: แต้มรวมถึง 25 = เตื
   pl.ward = 1;
   P(0).pos = { x: 30, y: 30 }; P(1).pos = { x: 30, y: 29 }; P(2).pos = { x: 30, y: 28 };
   b.pos = nextToTile(pl);
-  b.summon.born = 0; b.summon.roarAt = 99;
+  b.summon.born = 0; b.summon.roarAt = 99; b.summon.bigAt = 99; // ท่าใหญ่ (eosBoss) ทดสอบแยก
   S6.actMonsters(ctx(), s);
   assert.equal(pl.ward, 0, 'โล่หายก่อน');
   assert.equal(pl.hits, 1);
@@ -1542,7 +1542,7 @@ test('ทหารเหล็กเข้าเมืองที่ไฟเ�
 function bossAt(x, y) {
   const s = st();
   const b = S6.spawnMob(ctx(), s, 'daemon', { x, y }, { hp: 30, armor: 4, atk: 4, mov: 4, gold: 8 }, { look: 4, tier: 1, trait: 'boss' });
-  b.summon.born = 0; b.summon.roarAt = 99;
+  b.summon.born = 0; b.summon.roarAt = 99; b.summon.bigAt = 99; // ท่าใหญ่ (eosBoss) ทดสอบแยก
   return b;
 }
 test('ราชาปีศาจ: ไม่ยืนเฉยแม้เป้าอยู่ในเมือง · พุ่งชนคนในแนวตรง · แผ่นดินแยกเตือนก่อน 1 เทิร์น · คลั่งตอนเลือดครึ่ง', () => {
@@ -2193,4 +2193,44 @@ test('มอนหัวหน้า: ไม่เกิดกับบอส/�
     for (let i = 0; i < 6; i++) tmob(null, o.x + i, o.y, {});
     assert.ok(S6.mobsOf(ctx()).filter(ELT.isElite).length <= ELT.capOf(ctx(), H));
   } finally { Math.random = realRandom; }
+});
+
+// ---------- ท่าใหญ่ราชาปีศาจ (2026-11-12) ----------
+const BB = require('../server/fodlan/eosBoss.js');
+test('ท่าใหญ่ราชาปีศาจ: เลือกท่าตามตำแหน่งผู้เล่น · เตือนแล้วลงตาหน้า · ออกจากช่อง = รอด · บอสตายก่อน = ไม่ลง · องครักษ์ตอนเลือด ≤ 30%', () => {
+  const p = soloArena(), o = openSpot();
+  const H = S6.H(), s = st();
+  const b = bossAt(o.x, o.y);
+  // ลำแสง: 2 คนอยู่แนวขวา
+  p.pos = { x: o.x + 3, y: o.y }; P(1).pos = { x: o.x + 5, y: o.y + 1 }; P(2).pos = { x: 30, y: 0 };
+  const pl = BB.plan(ctx(), s, H, b, [p, P(1), P(2)]);
+  assert.equal(pl.kind, 'beam');
+  assert.deepEqual(pl.dir, { dx: 1, dy: 0 });
+  // วงแหวน: 2 คนรอบตัวระยะ 3–5 คนละทิศ
+  p.pos = { x: o.x + 4, y: o.y }; P(1).pos = { x: o.x, y: o.y + 4 > 31 ? o.y - 4 : o.y + 4 };
+  assert.equal(BB.plan(ctx(), s, H, b, [p, P(1)]).kind, 'ring');
+  // เตือน → ลง
+  p.pos = { x: o.x + 3, y: o.y }; P(1).pos = { x: o.x + 5, y: o.y + 1 };
+  const r = match.roundNumber;
+  b.summon.born = 0; b.summon.bigAt = undefined;
+  assert.ok(BB.warn(ctx(), s, H, b, [p, P(1)], r, false), 'เตือน');
+  assert.ok(Fodlan.publicInfo().board.bossBig.length, 'ส่งให้ client');
+  assert.equal(BB.land(ctx(), s, H, b, r), false, 'ยังไม่ถึงตา');
+  P(1).pos = { x: 30, y: 0 }; // หนีออก
+  p.hp = 7; p.armor = 0; P(1).hp = 7; P(1).armor = 0;
+  assert.ok(BB.land(ctx(), s, H, b, r + 1));
+  assert.equal(p.hp, 7 - BB.BIG.beamDmg, 'ยืนในแนว = โดน');
+  assert.equal(P(1).hp, 7, 'หนีออก = รอด');
+  assert.equal(BB.warn(ctx(), s, H, b, [p], r + 1, false), false, 'คูลดาวน์');
+  // บอสตายก่อน = วงหาย
+  b.summon.big = { kind: 'ring', at: r + 5, tiles: [{ x: 0, y: 0 }] };
+  kill(b, p);
+  assert.equal(Fodlan.publicInfo().board.bossBig.length, 0);
+  // องครักษ์
+  const b2 = bossAt(o.x + 1, o.y + 1 > 31 ? o.y : o.y + 1);
+  b2.hp = Math.floor(b2.summon.maxHp * 0.3);
+  const n0 = S6.mobsOf(ctx()).length;
+  assert.ok(BB.guards(ctx(), s, H, b2).length >= 1);
+  assert.ok(S6.mobsOf(ctx()).length > n0);
+  assert.equal(BB.guards(ctx(), s, H, b2), null, 'ครั้งเดียว');
 });

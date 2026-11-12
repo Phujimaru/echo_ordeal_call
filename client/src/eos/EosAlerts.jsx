@@ -61,6 +61,8 @@ function alertOf(e, fd) {
     case "town_dark": return { icon: "🌑", title: "ไฟเมืองดับ · ปีศาจบุกเข้าเมือง", zone: ZN[e.zone] || "", tone: "danger" };
     case "town_light": return e.relit ? { icon: "💡", title: "ไฟเมืองกลับมา", zone: ZN[e.zone] || "", tone: "good" } : null;
     case "boss_quake_warn": return { icon: "🌋", title: "ราชาปีศาจกำลังทุบแผ่นดิน · ออกจากวงแดง", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "boss_big_warn": return { icon: e.move === "beam" ? "🔦" : e.move === "ring" ? "⭕" : "☄️", title: `ราชาปีศาจเตรียม${e.move === "beam" ? "ลำแสงทมิฬ" : e.move === "ring" ? "วงแหวนมรณะ" : "ฝนอุกกาบาต"} · ออกจากช่องสี`, zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
+    case "boss_guards": return { icon: "🛡️", title: "ราชาปีศาจเรียกองครักษ์", zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
     case "boss_enrage": return { icon: "😡", title: "ราชาปีศาจคลั่ง", zone: zoneAt(e.x, e.y), tone: "danger" };
     case "gold_spawn": return { icon: "🐤", title: "โชโกโบะทองโผล่", zone: zoneAt(e.x, e.y), tone: "good" };
     default: return null;
