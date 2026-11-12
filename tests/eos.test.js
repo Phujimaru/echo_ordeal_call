@@ -16,6 +16,9 @@ const lobby = require('../server/lobby.js');
 const endTurn = require('../server/phases/endTurn.js');
 const S6 = require('../server/fodlan/stage6.js');
 const MAP6 = require('../server/fodlan/map6.js');
+// มอนหัวหน้าสุ่มตอนเกิด = เทสต์อื่นเพี้ยนได้ · ปิดไว้ เปิดเฉพาะเทสต์หัวหน้า
+const ELITE_PCT = { ...require('../server/fodlan/eosElite.js').EL.pct };
+for (const k of Object.keys(ELITE_PCT)) require('../server/fodlan/eosElite.js').EL.pct[k] = 0;
 
 const realRandom = Math.random;
 const realStart = timers.startPhaseTimer;
@@ -1177,6 +1180,7 @@ test('ภารกิจโซน: กวาดล้างครบ/สำร�
   setup();
   const s = st(), e = EV.ev(s);
   EV.spawnQuest(ctx(), s, S6.H(), 5);
+  for (let i = 0; i < 30 && e.quests[0] && e.quests[0].type === 'guard'; i++) { e.quests.length = 0; e.questNext = 0; EV.spawnQuest(ctx(), s, S6.H(), 5); } // เฝ้าเมืองทดสอบแยก
   const q = e.quests[0];
   assert.ok(q);
   const score0 = s.score || 0;
@@ -2136,10 +2140,11 @@ test('Armiger: เปิดสุสานครบ 13 แห่ง = ทั้�
 const ELT = require('../server/fodlan/eosElite.js');
 test('มอนหัวหน้า: สุ่มเกิดได้ (ชื่อ หัวหน้า… · เลือดมากขึ้น) · ผู้บัญชาการ +1 · ดูดเลือด · หนาม · ฟื้นตัว · ระเบิดตอนตาย + แต้มรวม', () => {
   const p = soloArena(), o = openSpot();
+  Object.assign(ELT.EL.pct, ELITE_PCT);
   match.eosDiff = 'hard';
   Math.random = () => 0;
   let e;
-  try { e = tmob(null, o.x + 3, o.y, { hp: 6 }); } finally { Math.random = realRandom; }
+  try { e = tmob(null, o.x + 3, o.y, { hp: 6 }); } finally { Math.random = realRandom; for (const k of Object.keys(ELT.EL.pct)) ELT.EL.pct[k] = 0; }
   assert.ok(ELT.isElite(e), 'สุ่มได้หัวหน้า');
   assert.ok(e.name.startsWith('หัวหน้า'));
   assert.equal(e.summon.maxHp, Math.round(6 * ELT.EL.hpMul) + ELT.EL.hpAdd);
@@ -2180,6 +2185,7 @@ test('มอนหัวหน้า: สุ่มเกิดได้ (ชื�
 
 test('มอนหัวหน้า: ไม่เกิดกับบอส/ฝูงจิ๋ว/ระเบิด · ระดับง่ายคืนแรกไม่มี · มีเพดานจำนวน', () => {
   soloArena();
+  Object.assign(ELT.EL.pct, ELITE_PCT);
   const H = S6.H();
   Math.random = () => 0;
   try {
@@ -2192,7 +2198,7 @@ test('มอนหัวหน้า: ไม่เกิดกับบอส/�
     const o = openSpot();
     for (let i = 0; i < 6; i++) tmob(null, o.x + i, o.y, {});
     assert.ok(S6.mobsOf(ctx()).filter(ELT.isElite).length <= ELT.capOf(ctx(), H));
-  } finally { Math.random = realRandom; }
+  } finally { Math.random = realRandom; for (const k of Object.keys(ELT.EL.pct)) ELT.EL.pct[k] = 0; }
 });
 
 // ---------- ท่าใหญ่ราชาปีศาจ (2026-11-12) ----------
@@ -2233,4 +2239,84 @@ test('ท่าใหญ่ราชาปีศาจ: เลือกท่า
   assert.ok(BB.guards(ctx(), s, H, b2).length >= 1);
   assert.ok(S6.mobsOf(ctx()).length > n0);
   assert.equal(BB.guards(ctx(), s, H, b2), null, 'ครั้งเดียว');
+});
+
+// ---------- รุมเป็นทีม · พักแคมป์ · สรุปจบเกม · เฟสบอส (2026-11-12) ----------
+test('มอนรุมเป็นทีม: ตีเป้าเดียวกับตัวแรก · ไปยืนฝั่งที่ยังว่างรอบเป้า · ตัวเดียวไม่เดินเข้าวงผู้เล่น 2 คน', () => {
+  const p = soloArena(), o = openSpot();
+  const H = S6.H(), s = st();
+  // รุมเป้าเดียว
+  p.pos = { x: o.x, y: o.y }; P(1).pos = { x: o.x + 6, y: o.y };
+  const m = tmob(null, o.x + 3, o.y, { atk: 1 });
+  assert.deepEqual(MBS.smartTargets(ctx(), s, H, m, [p, P(1)], 4, { focus: P(1).id }).map((u) => u.id), [P(1).id]);
+  require('../server/summon.js').remove(m);
+  // ล้อม: พวกยืนฝั่งขวาของเป้าแล้ว → ตัวใหม่ไปฝั่งซ้าย
+  P(1).pos = { x: 30, y: 0 };
+  p.pos = { x: o.x + 3, y: o.y };
+  const a = tmob(null, o.x + 4, o.y, {});
+  const b = tmob(null, o.x + 1, o.y - 1, {});
+  const top = { x: o.x + 3, y: o.y - 1 };
+  const r = MBS.surround(ctx(), s, H, b, { to: top, path: [b.pos, top], target: p }, 4);
+  assert.ok(r.surround, 'ขยับไปล้อม');
+  assert.ok(Math.abs(r.to.x - a.pos.x) + Math.abs(r.to.y - a.pos.y) > 1, 'ไม่ยืนชิดพวกเดิม');
+  require('../server/summon.js').remove(a); require('../server/summon.js').remove(b);
+  // รอฝูง
+  p.pos = { x: o.x + 6, y: o.y }; P(1).pos = { x: o.x + 6, y: o.y + 1 > 31 ? o.y - 1 : o.y + 1 };
+  const c = tmob(null, o.x, o.y, {});
+  const path = [0, 1, 2, 3, 4].map((i) => ({ x: o.x + i, y: o.y }));
+  const h = MBS.holdBack(ctx(), s, H, c, { to: path[4], path, target: null }, [p, P(1)]);
+  assert.ok(h.held);
+  assert.ok(!h.to || Math.abs(h.to.x - p.pos.x) > MBS.TEAM.threatR - 1 || h.to.x < o.x + 4, 'หยุดก่อนเข้าวง');
+});
+
+test('พักแคมป์: กลางคืนอยู่ในวงไฟแคมป์ = ต้นเทิร์นฟื้นเลือด 1 · มีแคมป์ 5 จุด', () => {
+  setup();
+  const s = st();
+  assert.equal(MAP6.CAMPS.length, 5);
+  const p = P(0), [cx, cy] = MAP6.CAMPS[3];
+  p.pos = S6.H().freeNear(ctx(), s, cx, cy, 1) || { x: cx, y: cy };
+  p.hp = 3;
+  s.night = true;
+  const XT = require('../server/fodlan/eosExtra.js');
+  assert.ok(XT.lightSafe(S6.H(), p.pos.x, p.pos.y), 'อยู่ในวงไฟ');
+  assert.equal(S6.campRest(ctx(), s), 1);
+  assert.equal(p.hp, 4, 'ฟื้นเลือด');
+  s.night = false;
+  assert.equal(S6.campRest(ctx(), s), 0, 'กลางวันไม่ฟื้น');
+});
+
+test('สรุปจบเกม Eos: นับดาเมจตามชนิดมอน · ล้มเพราะอะไร · ใครล้มหัวหน้า', () => {
+  const p = soloArena(), o = openSpot(), s = st();
+  p.pos = { x: o.x, y: o.y }; p.hp = 2; p.armor = 0;
+  const a = tmob('archer', o.x + 3, o.y, { atk: 5 });
+  match.effectSourceId = a.id; combat.dealMixed(p, 5); combat.resolveDamageAftermath(p); match.effectSourceId = null;
+  Fodlan.preRound();
+  const sum = Fodlan.publicInfo().board.eosSum;
+  assert.ok(sum.mobDmg.some((m) => m.key === 'archer' && m.n > 0), 'ดาเมจพลธนู');
+  assert.equal(sum.deaths[p.id], 1);
+  assert.ok(sum.causes[p.id].archer >= 1);
+  const e = tmob(null, o.x + 5, o.y, {});
+  e.summon.elite = ['swift'];
+  kill(e, P(1));
+  assert.equal(Fodlan.publicInfo().board.eosSum.elites[P(1).id], 1);
+});
+
+test('เฟสราชาปีศาจ: คลั่งแล้วท่าใหญ่ถี่ขึ้น · หลังองครักษ์สลับเขตทมิฬ (ดาเมจ 2 + พื้นมืดกัด 1 ค้าง 2 เทิร์น)', () => {
+  const p = soloArena(), o = openSpot();
+  const H = S6.H(), s = st();
+  const b = bossAt(o.x, o.y); b.summon.bigAt = undefined;
+  p.pos = { x: o.x + 1, y: o.y }; p.hp = 7; p.armor = 0;
+  const r = match.roundNumber;
+  b.summon.enraged = true; b.summon.bigAt = r - BB.BIG.cdRage;
+  assert.ok(BB.warn(ctx(), s, H, b, [p], r, false), 'คลั่ง = คูลดาวน์สั้นลง');
+  b.summon.big = null; b.summon.guards = true; b.summon.lastBig = 'beam'; b.summon.bigAt = r - 9;
+  assert.equal(BB.plan(ctx(), s, H, b, [p]).kind, 'dark');
+  assert.ok(BB.warn(ctx(), s, H, b, [p], r, false));
+  assert.ok(BB.land(ctx(), s, H, b, r + 1));
+  assert.equal(p.hp, 7 - BB.BIG.darkDmg);
+  assert.ok(Fodlan.publicInfo().board.bossBig.some((z) => z.kind === 'dark_zone'));
+  assert.ok(BB.darkTick(ctx(), s, H, b, r + 2));
+  assert.equal(p.hp, 7 - BB.BIG.darkDmg - BB.BIG.darkTick);
+  assert.equal(BB.darkTick(ctx(), s, H, b, r + 1 + BB.BIG.darkTurns + 1), false, 'หมดเวลา');
+  assert.equal(BB.plan(ctx(), s, H, b, [p]).kind === 'dark', false, 'ไม่ใช้เขตทมิฬติดกัน');
 });

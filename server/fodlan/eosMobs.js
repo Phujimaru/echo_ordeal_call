@@ -261,11 +261,13 @@ function onDeath(ctx, s, H, m) {
 const SMART = { killReach: 1, isoR: 3, isoReach: 3, hurt: 0.35, healerR: 10 };
 const eff = (p) => (p.hp || 0) + (p.armor || 0);
 // เลือกเหยื่อ: ① คนที่ตีทีเดียวตายได้ในระยะเดิน ② คนที่ยืนแยกจากกลุ่ม (ไม่มีเพื่อนในระยะ 3) ③ ทุกคน
-function smartTargets(ctx, s, H, m, all, mov) {
+function smartTargets(ctx, s, H, m, all, mov, acc = null) {
   if (!all.length) return all;
   const atk = Math.max(1, (m.summon.atk | 0)), reach = (p) => H.manhattan(p.pos, m.pos) <= mov + SMART.killReach;
   const kill = all.filter((p) => reach(p) && eff(p) <= atk);
   if (kill.length) return kill;
+  const foc = acc && acc.focus ? all.find((p) => p.id === acc.focus && reach(p)) : null; // รุมเป้าเดียวกับตัวที่ตีไปก่อน
+  if (foc) return [foc];
   const iso = all.filter((p) => H.manhattan(p.pos, m.pos) <= mov + SMART.isoReach && !all.some((o) => o !== p && H.manhattan(o.pos, p.pos) <= SMART.isoR));
   return iso.length ? iso.sort((a, b) => eff(a) - eff(b)) : all;
 }
@@ -284,9 +286,42 @@ function fallBack(ctx, s, H, m, all, mov, acc) {
   ctx.bump();
   return true;
 }
+// ---------- มอนรุมเป็นทีม (ผู้ใช้สั่ง 2026-11-12 "ทำทั้งหมด" — ข้อเสนอ Claude · ตัวเลข Claude ตั้ง) ----------
+//  ล้อม: เป้ามีพวกยืนติดอยู่แล้ว = ไปยืนช่องติดเป้าฝั่งที่ห่างพวกมากสุด (ปิดทางหนี) ถ้าเดินถึงในตานี้
+//  รอฝูง: ตานี้ยังตีใครไม่ถึง + ปลายทางอยู่ในระยะ TEAM.threatR ของผู้เล่น ≥ 2 คน + พวกในระยะ 3 ไม่ถึง 2 ตัว = หยุดก่อนเข้าวงตี
+const TEAM = { threatR: 4, packR: 3, pack: 2 };
+function surround(ctx, s, H, m, r, mov) {
+  const v = r && r.target;
+  if (!v || !v.pos || H.isMob(v) || (ctx.action.sizeOf && ctx.action.sizeOf(v) > 1)) return r;
+  const pals = H.mobsOf(ctx).filter((o) => o !== m && o.pos && H.manhattan(o.pos, v.pos) === 1);
+  if (!pals.length) return r;
+  const cx = pals.reduce((n, o) => n + o.pos.x, 0) / pals.length, cy = pals.reduce((n, o) => n + o.pos.y, 0) / pals.length;
+  const far = (t) => (t.x - cx) ** 2 + (t.y - cy) ** 2; // ฝั่งตรงข้ามพวก = ไกลสุด (ยุคลิด — แมนฮัตตันเท่ากันหลายช่อง)
+  const spots = ctx.Board.DIRS.map(([dx, dy]) => ({ x: v.pos.x + dx, y: v.pos.y + dy })).filter((t) => H.tileFree(ctx, s, t.x, t.y, m.id) || (t.x === m.pos.x && t.y === m.pos.y))
+    .sort((a, b) => far(b) - far(a));
+  const best = spots[0];
+  if (!best || (r.to && r.to.x === best.x && r.to.y === best.y) || (!r.to && m.pos.x === best.x && m.pos.y === best.y)) return r;
+  const now = r.to || m.pos;
+  if (far(now) >= far(best)) return r;
+  const g = H.stepToward(ctx, s, m, mov, (x, y) => x === best.x && y === best.y);
+  if (!g || !g.to || g.to.x !== best.x || g.to.y !== best.y) return r;
+  return { ...r, to: g.to, path: g.path, surround: true };
+}
+function holdBack(ctx, s, H, m, r, all) {
+  if (!r || !r.to || r.target || r.pillar || r.wall || !Array.isArray(r.path)) return r;
+  const threat = (t) => all.filter((p) => p.pos && H.manhattan(p.pos, t) <= TEAM.threatR).length;
+  if (threat(r.to) < 2) return r;
+  const pack = H.mobsOf(ctx).filter((o) => o !== m && o.pos && H.manhattan(o.pos, r.to) <= TEAM.packR).length;
+  if (pack >= TEAM.pack) return r;
+  let i = r.path.length - 1;
+  while (i > 0 && threat(r.path[i]) >= 2) i--;
+  if (i <= 0) return { ...r, to: null, path: null, held: true };
+  return { ...r, to: r.path[i], path: r.path.slice(0, i + 1), held: true };
+}
+function coordinate(ctx, s, H, m, r, all, mov) { return holdBack(ctx, s, H, m, surround(ctx, s, H, m, r, mov), all); }
 function publicOf(ctx, s) {
   const M = MS(s);
   return { mobRunes: M.runes.map((r) => ({ id: r.id, by: r.by, x: r.x, y: r.y })) };
 }
 
-module.exports = { SMART, smartTargets, fallBack, MB, SPECIAL_PCT, MAGITEK_PCT, DAEMON_POOL, MAGITEK_POOL, NEW_TRAITS, isNew, nameOf, pickDaemon, pickMagitek, stats, afterSpawn, act, beforeAct, incoming, onDeath, publicOf, MS };
+module.exports = { TEAM, coordinate, surround, holdBack, SMART, smartTargets, fallBack, MB, SPECIAL_PCT, MAGITEK_PCT, DAEMON_POOL, MAGITEK_POOL, NEW_TRAITS, isNew, nameOf, pickDaemon, pickMagitek, stats, afterSpawn, act, beforeAct, incoming, onDeath, publicOf, MS };

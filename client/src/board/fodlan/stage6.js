@@ -45,7 +45,7 @@ export const fx = {
   // PVE (2026-11-10): มอนตีเสา · เสาหลุด · ซ่อมเสา · หีบสมบัติ
   pillar_hit: 900, pillar_lost: 1600, pillar_repair: 1200, chest_spawn: 1200, chest_open: 1600,
   // PVE รอบสอง: บอส · มอนพิเศษ · พระจันทร์สีเลือด · ภารกิจ · เกราะเสา · ช่วยฟื้น · ขบวนเสบียง
-  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, boss_big_warn: 1500, boss_big: 1900, boss_guards: 1600, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, elite_spawn: 1600, elite_down: 1400, elite_blast: 1400, elite_drain: 900, elite_thorns: 700, elite_regen: 1000, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
+  boss_warn: 1600, boss_land: 2200, boss_roar: 1500, boss_quake_warn: 1400, boss_quake: 1600, boss_enrage: 1800, boss_big_warn: 1500, boss_big: 1900, boss_guards: 1600, boss_dark: 1100, camp_rest: 1200, tram: 2400, mob_wave: 1800, town_siege: 900, town_dark: 1800, town_light: 1400, lament_warn: 2000, lament_land: 2800, lament_blink: 700, lament_phase: 2000, lament_lines: 1400, lament_tears: 1800, lament_die: 3200, lament_curse: 1600, lament_life: 1200, boss_die: 2400, mob_heal: 1200, mob_shot: 700, mob_boom: 1400, mob_blink: 900, mob_pull: 900, mob_rune_set: 1100, mob_rune: 1400, mob_split: 1200, mob_block: 700, elite_spawn: 1600, elite_down: 1400, elite_blast: 1400, elite_drain: 900, elite_thorns: 700, elite_regen: 1000, armiger: 2600, town_garage: 1400, town_diner: 1300, town_shrine: 1600, town_ranch: 1200, blood_moon: 2600,
   quest_new: 1600, quest_step: 900, quest_done: 2000, quest_fail: 1000, pillar_ward: 1100, pillar_ward_hit: 900, revive_help: 1400,
   convoy_start: 1400, convoy_move: 1100, convoy_done: 2000, convoy_fail: 1600, score_bonus: 1800,
   // PVE รอบสาม: ท่าร่วม · พลังเสา · รังปีศาจ · ยักษ์หิน · พลเรือน · ถล่ม · คืนสุดท้าย
@@ -3411,6 +3411,8 @@ function playFx(e) {
     case "boss_big_warn": sfx("daemon_growl", { gain: 0.9 }); sfx("dome_off", { delay: 0.25, gain: 0.6 }); break;
     case "boss_big": sfx(e.kind === "beam" ? "royal_arms" : "barrel_explode", { gain: 0.9 }); sfx("beast_step", { delay: 0.15 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.35 }); break;
     case "boss_guards": sfx("beast_roar", { gain: 0.8 }); break;
+    case "boss_dark": sfx("dome_off", { gain: 0.5 }); break;
+    case "camp_rest": sfx("camp_buff", { gain: 0.4 }); break;
     case "boss_quake_warn": sfx("beast_step", { gain: 0.9 }); sfx("dome_off", { delay: 0.2, gain: 0.5 }); break;
     case "boss_quake": sfx("beast_step"); sfx("barrel_explode", { delay: 0.1, gain: 0.9 }); if (e.hits && e.hits.length) sfx("car_hit", { delay: 0.3 }); break;
     case "boss_enrage": sfx("beast_roar"); sfx("beast_roar", { delay: 0.5, gain: 0.7 }); break;
@@ -3960,9 +3962,16 @@ function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
   g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
 }
 // ท่าใหญ่ราชาปีศาจ (server/fodlan/eosBoss.js — 2026-11-12): ช่องม่วงกะพริบ + ลวดลายตามท่า
-const BIG_RGB = { beam: "190,60,255", ring: "255,50,150", meteor: "255,110,40" };
+const BIG_RGB = { beam: "190,60,255", ring: "255,50,150", meteor: "255,110,40", dark: "110,40,200", dark_zone: "60,10,110" };
 function bigQuad(g, t, z = 0.02) { const c = [P(t.x + 0.05, t.y + 0.05, z), P(t.x + 0.95, t.y + 0.05, z), P(t.x + 0.95, t.y + 0.95, z), P(t.x + 0.05, t.y + 0.95, z)]; g.beginPath(); c.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); }
 function drawBigWarn(g, bb, now, lowQ) {
+  if (bb.kind === "dark_zone") { // เขตทมิฬค้าง: พื้นมืดม่วง + หมอกวน (ไม่กะพริบ = ไม่ใช่คำเตือน)
+    for (const t of bb.tiles || []) {
+      bigQuad(g, t, 0.015); g.fillStyle = "rgba(40,0,85,.62)"; g.fill(); g.strokeStyle = `rgba(160,80,255,${0.45 + 0.15 * Math.sin(now / 400)})`; g.lineWidth = 1.5; g.stroke();
+      if (!lowQ) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.25 + 0.1 * Math.sin(now / 500 + t.x * 1.7 + t.y)); glowAt(g, x, y, s * 0.5, "120,40,220", 0.3); }
+    }
+    return;
+  }
   const rgb = BIG_RGB[bb.kind] || BIG_RGB.beam, k = 0.5 + 0.5 * Math.sin(now / 110);
   for (const t of bb.tiles || []) {
     bigQuad(g, t);
@@ -4382,6 +4391,8 @@ function pve2Fx(g, e, p, lowQ, units) {
     if (e.move === "ring") { const [x, y, s] = P(e.x + 0.5, e.y + 0.5, 0.05); g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(${rgb},${0.9 * (1 - p)})`; g.lineWidth = 8 * (1 - p) + 2; g.beginPath(); g.arc(0, 0, s * (3 + p * 2.5), 0, TAU); g.stroke(); g.restore(); }
     return true;
   }
+  if (e.kind === "boss_dark") { for (const t of e.tiles || []) { const [x, y, s] = P(t.x + 0.5, t.y + 0.5, 0.3 + p * 0.5); glowAt(g, x, y, s * 0.45, "140,50,240", (1 - p) * 0.6); } return true; }
+  if (e.kind === "camp_rest") { for (const u of e.list || []) { const [x, y, s] = P(u.x + 0.5, u.y + 0.5, 0.9 + p * 0.7); glowAt(g, x, y, s * 0.5, "255,200,110", (1 - p) * 0.8); } return true; }
   if (e.kind === "boss_guards") { for (const u of e.spawned || []) { const [x, y, s] = P(u.x + 0.5, u.y + 0.5, 0.6); glowAt(g, x, y, s * (0.6 + p), "200,30,90", (1 - p) * 0.9); } return true; }
   if (e.kind === "boss_quake") { // แผ่นดินแยก: วงแดงแตกเป็นรอยร้าว + ฝุ่น
     for (const t of e.tiles || []) {
