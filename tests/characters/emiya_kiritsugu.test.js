@@ -250,14 +250,14 @@ test("Double Accel: รีโหลด + ยิง = 2 action พอดี · �
   assert.equal(p.kiri.loaded, true);
 });
 
-test("Eos Thompson: ทุกตัวในแนว · 50% สังหาร (บอสไม่โดนสังหาร)", () => {
+test("Eos Thompson: ทุกตัวในแนว · สังหาร 100% (บอสไม่โดนสังหาร)", () => {
   const { t, u } = setup();
   u.pos = { x: 8, y: 5 };
   u.summon = { trait: "boss" };
   const Fodlan = require("../../server/fodlan");
   const real = Fodlan.isEos;
   Fodlan.isEos = () => true;
-  Math.random = () => 0.3; // ไม่หลบ (พื้นโล่ง) · สังหาร 50% ผ่าน
+  Math.random = () => 0.99; // ไม่หลบ (พื้นโล่ง) · สังหารแน่นอนแม้ทอยสูงสุด
   try {
     engine.useSkill("a", "ultimate", [], { dir: "right" });
   } finally { Fodlan.isEos = real; delete u.summon; }
