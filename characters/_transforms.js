@@ -26,6 +26,7 @@ const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kagur
 const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
+const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
@@ -207,6 +208,14 @@ module.exports = function buildTransforms() {
     // เฟรดดี้ — ความยาวจริง 1.5 วิ · ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร")
     [freddy.CUT.scare]: { img: freddy.IMG.card, video: freddy.VIDEO.scare, title: "", label: "", seconds: 1.9, music: null, afterReveal: false, noIntro: true },
     [freddy.CUT.night]: { img: freddy.IMG.card, video: freddy.VIDEO.night, title: "", label: "", seconds: 1.4, music: null, afterReveal: false, noIntro: true },
+    ...Object.fromEntries([
+      ["double", "double", kiri.IMG.alter, "Double Accel", "Time Alter", 7.2],
+      ["square", "square", kiri.IMG.alter, "Square Accel", "Time Alter", 6.8],
+      ["shoot", "shoot", kiri.IMG.thompson, "Thompson Contender", "Origin Bullet", 5.5],
+      ["hit", "hit", kiri.IMG.thompson, "Thompson Contender", "Origin Bullet", 6.0],
+      ["alterReload", "alterReload", kiri.IMG.contender, "Thompson Contender", "Time Alter", 7.4],
+      ["alterShoot", "alterShoot", kiri.IMG.thompson, "Thompson Contender", "Time Alter", 4.3],
+    ].map(([k, v, img, title, label, seconds]) => [kiri.CUT[k], { img, video: kiri.VIDEO[v], title, label, seconds, music: null, afterReveal: false, ...(k === "hit" ? { noIntro: true } : {}) }])), // คลิปโดนต่อจากคลิปยิงทันที
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

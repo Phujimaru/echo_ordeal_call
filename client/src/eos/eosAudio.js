@@ -410,7 +410,8 @@ export function eosMusicPicker() {
     const mechNear = (board.mobs || []).some((m) => m.trait === "mech" && me && me.pos && Math.abs(m.x - me.pos.x) + Math.abs(m.y - me.pos.y) <= sight);
     const bounty = !!(me && me.fodlan && Array.isArray(me.fodlan.badges) && me.fodlan.badges.some((b) => b.key === "bounty"));
     let want = "explore";
-    if (board.final || bossOn) want = "boss";
+    const lordOn = !!(board.lament && (board.lament.lord || board.lament.warn)); // Lament: ผู้คร่ำครวญ = เพลงบอส
+    if (board.final || bossOn || lordOn) want = "boss";
     else if (mechNear) want = "mech";
     else if (battle) want = "battle";
     else if (me && me.alive && me.pos) {

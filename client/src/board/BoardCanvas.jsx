@@ -57,6 +57,7 @@
 //   diego       { oil: [{x,y}], fire: [{x,y,left}], ash: [{x,y}], nets: [{x,y,color}] } | null — ชั้นพื้นของดิเอโก้ แบรนโด (diegoFx.js)
 //               units[].diego = { mounted, horseHp } — ซิลเวอร์ บูลเล็ตใต้หมาก · units[].dstat = { soaked, netted } — หยดน้ำมัน/ลวดรัดตัว
 //               fx diego* ย้ายหมากเองได้ (diegoPose — ถูกตาข่ายดึง · ควบกลอุบาย · กระเด็น)
+//   kiri        { mines: [{x,y,color}] } | null — กับดักระเบิดของเอมิยะ คริซุงุ (kiriFx.js drawKiriGround)
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
@@ -530,7 +531,18 @@ export default function BoardCanvas(props) {
         st.focusRef = p.focus;
         const fp = focusPt(p.focus), goal = st.camAnim ? st.camAnim.to : st.cam;
         if (fp && (zl || rts) && !st.pivot && !(st.drag && st.drag.moved) && !inCamView(base, goal, fp[0], fp[1])) {
-          startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+          // RTS: มุมมองฉายแบบมีจุดกลาง (ตัวเรา) — เลื่อนกล้องไปไกลโดยจุดกลางค้างที่ตัวเรา = ฉากตรงนั้นถูกมองเฉียง ดูเอียง (ผู้ใช้แจ้ง 2026-11-12)
+          //  → ย้ายจุดกลางมุมมองไปที่เหตุการณ์ (vcLock — ค้างจนตัวเราเดิน/กดกลับที่ตัวเรา) แล้วกล้องตามจุดกลางนุ่มๆ (vcFollow)
+          if (rts && !lowQ) { st.vcLock = { x: p.focus.x + 0.5, y: p.focus.y + 0.5 }; st.vcFollow = true; st.camAnim = null; }
+          else startAnim(cc({ z: goal.z, ...camFromEye(base, goal.z, fp[0], fp[1]) }), FOCUS_MS);
+        }
+      }
+      if (st.vcFollow) { // จุดกลางมุมมองกำลังเลื่อน (vcAnim) → กล้องอยู่ที่จุดกลางเสมอ
+        if (!rts || (st.drag && st.drag.moved) || st.pivot) st.vcFollow = false;
+        else {
+          const [sx, sy] = PV(0, 0);
+          st.cam = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
+          if (!st.vcAnim && st.vcTo && st.vcLock && st.vcTo.x === st.vcLock.x && st.vcTo.y === st.vcLock.y) st.vcFollow = false;
         }
       }
       if (st.camAnim) {
@@ -928,7 +940,7 @@ export default function BoardCanvas(props) {
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
-        diego: p.diego || null, timeFreeze: p.timeFreeze || null,
+        diego: p.diego || null, timeFreeze: p.timeFreeze || null, kiri: p.kiri || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);

@@ -10,6 +10,21 @@ import "./zectHud.css";
 export function ClockUpButton({ me, onPress }) {
   const z = me && me.zect;
   const f = me && me.inui;
+  const k = me && me.kiritsugu;
+  // เอมิยะ คริซุงุ: Time Alter แทรก/เข้าร่วม — เลือกได้ 2 แบบ
+  if (k && k.canAlter) {
+    return (
+      <div className="kiri-alter-pick">
+        {[["double", "Double Accel"], ["square", "Square Accel"]].map(([key, name]) => (
+          <button key={key} type="button" className="zect-clock kiri" onClick={onPress(`kiri:${key}`)}>
+            <img src={k.img} alt="" draggable={false} />
+            <span className="zect-clock-name">{name}</span>
+            <span className="zect-clock-num">{k.alterCost}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
   if (z && z.canClock) {
     return (
       <button type="button" className="zect-clock" onClick={onPress("zect:clock")}>

@@ -450,13 +450,14 @@
 @media (prefers-reduced-motion: reduce) { .ocl-cl-link.boom svg { animation: none; } }
 
 /* ความยากของ Eos (ModeVote แผงโหวต — ผู้ใช้สั่ง 2026-11-10) */
-.ocl-diff { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ocl-diff { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .ocl-diff button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 10px; cursor: pointer;
   border: 1px solid var(--oc-line); background: transparent; color: var(--oc-ink-2); font: 600 14px var(--oc-f-ui); transition: background .15s, border-color .15s, color .15s; }
 .ocl-diff button:hover { border-color: var(--oc-azure); }
 .ocl-diff button[data-on="true"] { background: var(--oc-azure); border-color: var(--oc-azure); color: #fff; }
 .ocl-diff button[data-on="true"][data-d="hard"] { background: #c9483f; border-color: #c9483f; }
 .ocl-diff button[data-on="true"][data-d="easy"] { background: #3f9a6b; border-color: #3f9a6b; }
+.ocl-diff button[data-on="true"][data-d="lament"] { background: #2a1838; border-color: #7a3fd0; box-shadow: 0 0 12px rgba(122,63,208,.55); }
 .ocl-diff-pips { display: flex; gap: 3px; }
 .ocl-diff-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.5px solid currentColor; opacity: .5; }
 .ocl-diff-pips i[data-on="true"] { background: currentColor; opacity: 1; }

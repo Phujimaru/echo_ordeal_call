@@ -7,21 +7,27 @@
 // ============================================================
 const lazyShop = () => require("../shop");
 
+// การ์ดซ้อนระดับ (ผู้ใช้สั่ง 2026-11-12 "เลือกใบเดิมซ้ำแล้วได้ผลเพิ่มขึ้น"): เลือกใบเดิมอีก = Lv +1 ผลบวกเพิ่ม จนถึง max · desc(lv) = ผลรวมที่ระดับนั้น
+//  การ์ดผลกับตัวเอง (ผู้ใช้สั่ง 2026-11-12 — ผู้เล่นอยากได้ประโยชน์ง่ายๆ): ฟื้นตัว / ใจสู้ / เงินเดือน · ตัวเลขทั้งหมด Claude ตั้ง
 const PERKS = {
-  swift: { icon: "👟", name: "ฝีเท้าไว", desc: "ทุกคนเดิน +1" },
-  might: { icon: "⚔️", name: "คมดาบ", desc: "ตีปกติใส่มอน +1" },
-  vital: { icon: "❤️", name: "ทนทาน", desc: "เลือดสูงสุด +2 ทุกคน" },
-  bastion: { icon: "🔷", name: "เสาแกร่ง", desc: "เสาทนการตีได้เพิ่ม 1 ครั้ง" },
-  phoenix: { icon: "🕯️", name: "ฟื้นไว", desc: "ล้มแล้วฟื้นเร็วขึ้น 1 เทิร์น" },
-  surge: { icon: "☄️", name: "ใจเดียวกัน", desc: "มาตรวัดทีมเติม 2 เท่า" },
-  fortune: { icon: "💰", name: "โชคลาภ", desc: "ล้มมอนได้เหรียญ +1 · โอกาสได้ของ +20%" },
-  aegis: { icon: "🛡️", name: "เกราะคุ้มกัน", desc: "ต้นทุกเทิร์น ทุกคนฟื้นเกราะ 1" },
-  // เพิ่ม 2026-11-11 (การ์ดมาทุก 10 แต้ม — ระดับยากได้ 9 ครั้ง · ตัวเลข Claude ตั้ง)
-  marksman: { icon: "🎯", name: "ป้อมแม่นยำ", desc: "ป้อมปืนยิงแรง +1 (ทั้งกดยิงเองและยิงอัตโนมัติ)" },
-  timber: { icon: "🪵", name: "ไม้เนื้อแข็ง", desc: "กำแพงไม้ทนเพิ่ม 2 ครั้ง" },
-  beacon: { icon: "🔦", name: "ไฟเมืองแกร่ง", desc: "ไฟเมืองทนการทุบของปีศาจเพิ่ม 4" },
-  hunter: { icon: "🍖", name: "นักล่า", desc: "ล้มมอนได้ = ฟื้นเลือด 1" },
+  swift: { icon: "👟", name: "ฝีเท้าไว", max: 2, desc: (n) => `ทุกคนเดิน +${n}` },
+  might: { icon: "⚔️", name: "คมดาบ", max: 3, desc: (n) => `ตีปกติใส่มอน +${n}` },
+  vital: { icon: "❤️", name: "ทนทาน", max: 3, desc: (n) => `เลือดสูงสุด +${2 * n} ทุกคน` },
+  bastion: { icon: "🔷", name: "เสาแกร่ง", max: 2, desc: (n) => `เสาทนการตีได้เพิ่ม ${n} ครั้ง` },
+  phoenix: { icon: "🕯️", name: "ฟื้นไว", max: 2, desc: (n) => `ล้มแล้วฟื้นเร็วขึ้น ${n} เทิร์น` },
+  surge: { icon: "☄️", name: "ใจเดียวกัน", max: 2, desc: (n) => `มาตรวัดทีมเติม ${n + 1} เท่า` },
+  fortune: { icon: "💰", name: "โชคลาภ", max: 3, desc: (n) => `ล้มมอนได้เหรียญ +${n} · โอกาสได้ของ +${20 * n}%` },
+  aegis: { icon: "🛡️", name: "เกราะคุ้มกัน", max: 2, desc: (n) => `ต้นทุกเทิร์น ทุกคนฟื้นเกราะ ${n}` },
+  marksman: { icon: "🎯", name: "ป้อมแม่นยำ", max: 3, desc: (n) => `ป้อมปืนยิงแรง +${n} (ทั้งกดยิงเองและยิงอัตโนมัติ)` },
+  timber: { icon: "🪵", name: "ไม้เนื้อแข็ง", max: 3, desc: (n) => `กำแพงไม้ทนเพิ่ม ${2 * n} ครั้ง` },
+  beacon: { icon: "🔦", name: "ไฟเมืองแกร่ง", max: 2, desc: (n) => `ไฟเมืองทนการทุบของปีศาจเพิ่ม ${4 * n}` },
+  hunter: { icon: "🍖", name: "นักล่า", max: 3, desc: (n) => `ล้มมอนได้ = ฟื้นเลือด ${n}` },
+  regen: { icon: "💚", name: "ฟื้นตัว", max: 2, desc: (n) => `ต้นทุกเทิร์น ทุกคนฟื้นเลือด ${n}` },
+  guts: { icon: "🔥", name: "ใจสู้", max: 3, desc: (n) => `ทุกคนรอดจากการล้มได้ ${n} ครั้ง (เหลือเลือด 1)` },
+  purse: { icon: "👛", name: "เงินเดือน", max: 3, desc: (n) => `ต้นทุกเทิร์น ทุกคนได้เหรียญ ${2 * n}` },
 };
+const PERK_CHOICES = 5; // การ์ดให้เลือกต่อครั้ง (ผู้ใช้สั่ง 2026-11-12 — เดิม 3)
+const cardOf = (id, n) => ({ id, icon: PERKS[id].icon, name: PERKS[id].name, lv: n, max: PERKS[id].max, desc: PERKS[id].desc(n) });
 // การ์ดทีม: แต้มรวมถึงทุก 10 แต้ม จนถึงก่อนเป้า (ผู้ใช้สั่ง 2026-11-11 — เดิม 10/20/30 ขยายตามเป้า) · ปกติ 10–40 (4 ครั้ง) · ยาก 10–90 (9 ครั้ง)
 const PERK_EVERY = 10;
 const PERK_AT = [10, 20, 30, 40]; // เป้า 50 (ใช้ perkMarks(ctx) — ตามเป้าจริงของความยาก)
@@ -39,11 +45,12 @@ const GOLD = { from: 3, pct: 22, hp: 3, gold: 12, stay: 2, run: 4 };
 const WEATHER_MOB = { stormMagitekAtk: -1, fogDaemonMov: 1, sandSight: 3 };
 
 function init(s) {
-  s.pk = { owned: [], offer: null, nextAt: 0, seq: 0, lost: 0, downs: 0, walls: [], charges: {}, wallUsed: {}, gold: null };
+  s.pk = { owned: [], guts: {}, offer: null, nextAt: 0, seq: 0, lost: 0, downs: 0, walls: [], charges: {}, wallUsed: {}, gold: null };
   return s.pk;
 }
-const PK = (s) => s.pk || init(s);
+const PK = (s) => { const k = s.pk || init(s); k.guts ||= {}; return k; };
 const has = (s, id) => PK(s).owned.includes(id);
+const lv = (s, id) => PK(s).owned.filter((o) => o === id).length;
 const people = (ctx) => Object.values(ctx.match.players).filter((p) => !p.summon && !p.duoOf);
 
 // ---------- การ์ดอัปเกรดทีม ----------
@@ -53,8 +60,8 @@ function onScore(ctx, s) {
   const at = perkMarks(ctx)[k.nextAt] ?? null;
   if (at == null || (s.score || 0) < at) return;
   k.nextAt += 1;
-  const pool = Object.keys(PERKS).filter((id) => !k.owned.includes(id));
-  const choices = ctx.pick(pool, 3);
+  const pool = Object.keys(PERKS).filter((id) => lv(s, id) < PERKS[id].max);
+  const choices = ctx.pick(pool, PERK_CHOICES);
   if (!choices.length) return;
   k.offer = { id: ++k.seq, at: ctx.match.roundNumber, choices, votes: {}, mark: at };
   ctx.bump();
@@ -80,29 +87,50 @@ function resolve(ctx, s) {
   k.owned.push(best);
   k.offer = null;
   if (best === "vital") for (const p of people(ctx)) if (p.alive && ctx.combat.healHp) ctx.combat.healHp(p, 2);
+  if (best === "guts") for (const p of people(ctx)) k.guts[p.id] = (k.guts[p.id] || 0) + 1; // ใจสู้: ทุกคน +1 ครั้ง
+  require("./eosLament").onPerk(ctx, s); // Lament: การ์ดทุกใบมาพร้อมคำสาป
   ctx.bump();
   ctx.fx("perk_pick", { perk: best, votes: count });
-  ctx.log(`✨ ทีมเลือกการ์ด ${PERKS[best].icon} ${PERKS[best].name} — ${PERKS[best].desc}`);
+  const c = cardOf(best, lv(s, best));
+  ctx.log(`✨ ทีมเลือกการ์ด ${c.icon} ${c.name}${c.max > 1 ? ` Lv${c.lv}` : ""} — ${c.desc}`);
 }
 // ต้นเทิร์น: โหวตค้างเกิน 1 เทิร์น = ตัดสินเลย (ทุกคนได้ตาของตัวเองไปแล้ว)
 function tickOffer(ctx, s) {
   const k = PK(s);
   if (k.offer && ctx.match.roundNumber > k.offer.at) resolve(ctx, s);
 }
-const movBonus = (s) => (has(s, "swift") ? 1 : 0);
-const atkBonusVsMob = (s) => (has(s, "might") ? 1 : 0);
-const hpBonus = (s) => (has(s, "vital") ? 2 : 0);
-const pillarHpBonus = (s) => (has(s, "bastion") ? 1 : 0);
-const reviveCut = (s) => (has(s, "phoenix") ? 1 : 0);
-const gaugeMul = (s) => (has(s, "surge") ? 2 : 1);
-const turretBonus = (s) => (has(s, "marksman") ? 1 : 0);
-const wallMax = (s) => WALL.hp + (has(s, "timber") ? 2 : 0);
-const lightBonus = (s) => (has(s, "beacon") ? 4 : 0);
-const hunterHeal = (s) => (has(s, "hunter") ? 1 : 0);
-const fortune = (s) => (has(s, "fortune") ? { gold: 1, pct: 20 } : { gold: 0, pct: 0 });
+const movBonus = (s) => lv(s, "swift");
+const atkBonusVsMob = (s) => lv(s, "might");
+const hpBonus = (s) => 2 * lv(s, "vital") - (require("./eosLament").curse(s, "frail") ? 1 : 0); // คำสาปเลือดจาง −1
+const pillarHpBonus = (s) => lv(s, "bastion");
+const reviveCut = (s) => lv(s, "phoenix");
+const gaugeMul = (s) => (1 + lv(s, "surge")) * (require("./eosLament").curse(s, "drain") ? 0.5 : 1); // คำสาปใจแตกสลาย ×0.5
+const turretBonus = (s) => lv(s, "marksman");
+const wallMax = (s) => WALL.hp + 2 * lv(s, "timber");
+const lightBonus = (s) => 4 * lv(s, "beacon");
+const hunterHeal = (s) => lv(s, "hunter");
+const fortune = (s) => ({ gold: lv(s, "fortune"), pct: 20 * lv(s, "fortune") });
+// ต้นเทิร์น: เกราะคุ้มกัน (เกราะ) · ฟื้นตัว (เลือด) · เงินเดือน (เหรียญ)
 function aegisRound(ctx, s) {
-  if (!has(s, "aegis")) return;
-  for (const p of people(ctx)) if (p.alive && ctx.combat.healArmor) ctx.combat.healArmor(p, 1);
+  const ar = lv(s, "aegis"), hp = lv(s, "regen"), pay = 2 * lv(s, "purse");
+  if (!ar && !hp && !pay) return;
+  for (const p of people(ctx)) {
+    if (!p.alive) continue;
+    if (ar && ctx.combat.healArmor) ctx.combat.healArmor(p, ar);
+    if (hp && ctx.combat.healHp) ctx.combat.healHp(p, hp);
+    if (pay) lazyShop().addGold(p, pay);
+  }
+}
+// ใจสู้: ล้มแล้วรอดด้วยเลือด 1 (นับต่อคน — stage6.preventDeath)
+function gutsSave(ctx, s, p) {
+  const k = PK(s);
+  if (!p || p.summon || !(k.guts[p.id] > 0)) return false;
+  k.guts[p.id] -= 1;
+  p.hp = 1;
+  ctx.fx("perk_guts", { id: p.id, x: p.pos ? p.pos.x : 0, y: p.pos ? p.pos.y : 0, left: k.guts[p.id] });
+  ctx.log(`🔥 ใจสู้ — ${p.name} ไม่ยอมล้ม! เหลือเลือด 1${k.guts[p.id] ? ` (เหลืออีก ${k.guts[p.id]} ครั้ง)` : ""}`);
+  ctx.bump();
+  return true;
 }
 
 // ---------- ดาวท้าทาย ----------
@@ -259,8 +287,9 @@ function action(ctx, s, H, p, key, tile) {
 function publicOf(ctx, s) {
   const k = PK(s);
   return {
-    perks: k.owned.map((id) => ({ id, ...PERKS[id] })),
-    perkOffer: k.offer ? { id: k.offer.id, mark: k.offer.mark, choices: k.offer.choices.map((id) => ({ id, ...PERKS[id] })), votes: { ...k.offer.votes } } : null,
+    perks: [...new Set(k.owned)].map((id) => cardOf(id, lv(s, id))),
+    perkOffer: k.offer ? { id: k.offer.id, mark: k.offer.mark, choices: k.offer.choices.map((id) => cardOf(id, lv(s, id) + 1)), votes: { ...k.offer.votes } } : null,
+    guts: { ...k.guts },
     perkAt: perkMarks(ctx),
     challenges: challengesOf(ctx, s),
     walls: k.walls.map((w) => ({ id: w.id, x: w.x, y: w.y, hp: w.hp ?? wallMax(s), max: wallMax(s) })),
@@ -273,7 +302,7 @@ function wallAt(s, x, y) { return PK(s).walls.some((w) => w.x === x && w.y === y
 function goldReward(ctx, s, by) { void ctx; void s; void by; return { pct: 100, items: ["lifeCrystal", "armorCrystal", "windBoots", "fortune"] }; }
 
 module.exports = {
-  init, PK, PERKS, PERK_AT, PERK_EVERY, perkMarks, turretBonus, wallMax, lightBonus, hunterHeal, CHALLENGES, WALL, GOLD, WEATHER_MOB, has,
+  init, PK, PERKS, PERK_CHOICES, lv, cardOf, gutsSave, PERK_AT, PERK_EVERY, perkMarks, turretBonus, wallMax, lightBonus, hunterHeal, CHALLENGES, WALL, GOLD, WEATHER_MOB, has,
   onScore, vote, resolve, tickOffer, movBonus, atkBonusVsMob, hpBonus, pillarHpBonus, reviveCut, gaugeMul, fortune, aegisRound,
   noteLost, noteDown, challengesOf, addCharge, wallTiles, placeWall, tickWalls, goldTurn, goldUnit, goldReward,
   preRound, hud, action, publicOf, layerWalls, wallAt,

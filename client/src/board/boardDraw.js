@@ -27,6 +27,7 @@ import { drawShopStall, shopDims, SHOP_TOP_Z } from "./shopProps";
 import { drawGroundGL, groundGLHas, groundGLReady } from "./groundGL";
 import { MAPS as RULE_MAPS } from "./boardRules";
 import { eosFast, setEosFast } from "./fodlan/stage6";
+const EOS_HEAL_AREA = 45; // สนาม Eos (boardRules EOS_AREA = FODLAN_AREA + FODLAN_STAGES)
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
@@ -59,6 +60,7 @@ import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir,
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, isFaizFx } from "./faizFx";
 import { ZECT_FX_DUR, ZECT_HIT_P, ZECT_MS, isZectFx, zectFx } from "./zectFx";
+import { KIRI_FX_DUR, KIRI_GHOST, KIRI_HIT_P, KIRI_MS, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaMoon, otoyaNight } from "./otoyaFx";
@@ -365,7 +367,7 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
     for (const { x, y } of info.heal) {
       quad(g, x, y, 0.06); g.strokeStyle = night ? "rgba(255,225,140,.55)" : "rgba(217,169,63,.55)"; g.lineWidth = 1.4; g.stroke();
     }
-  } else if (info.heal.length) bakeHeal(g, info, { night, C, area: info.area });
+  } else if (info.heal.length && info.area !== EOS_HEAL_AREA) bakeHeal(g, info, { night, C, area: info.area }); // สนาม Eos: อ่างน้ำพุวาดเองใน fodlan/stage6
   // ช่องพิเศษ
   for (const sp of info.special) if (!flat || isStaticSp(info, sp)) bakeSpecial(g, sp, { night, C, area: info.area }); // flat (ภาพพื้นผิว) = เฉพาะช่องพิเศษของผัง · ที่เกิดระหว่างเกมวาดสดทับ
   // จุดเกิด
@@ -890,11 +892,13 @@ function drawUnit(g, u, now, boxes) {
     g.strokeStyle = "#ff2433"; g.lineWidth = 3; g.globalAlpha = a * (1 - p); gEllipse(g, wx, wy, (0.42 + p * 0.3) * K, 0.04, 30); g.stroke(); g.globalAlpha = a;
   }
   if (u.faizTrail) {
-    const clock = u.faizTrail === "clock"; // ช่วง Clock Up (ไรเดอร์ ZECT): เงาค้างนานขึ้น · ห่างกันขึ้น (ภาพค้างน้อยลง = วาดเบาลง)
+    // ช่วง Clock Up (ไรเดอร์ ZECT): เงาค้างนานขึ้น · ห่างกันขึ้น (ภาพค้างน้อยลง = วาดเบาลง) · "alter" = Time Alter ของคริซุงุ: เงาสีส้ม
+    const alter = u.faizTrail === "alter", clock = u.faizTrail === "clock" || alter;
     for (const t of faizGhosts(u.id, now, wx, wy, clock ? 1300 : undefined, clock ? 0.62 : undefined, clock ? 55 : undefined)) {
       const [gx, gy, gs] = P(t.x, t.y);
       g.globalAlpha = a * t.a;
       unitHex(g, u, gx, gy - gs * 0.86 * K, gs * 0.4 * K);
+      if (alter) { hexPath(g, gx, gy - gs * 0.86 * K, gs * 0.4 * K + 3); g.fillStyle = `rgba(${KIRI_GHOST},0.62)`; g.fill(); }
     }
     g.globalAlpha = a;
   } else faizTrailClear(u.id);
@@ -1294,8 +1298,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2421,7 +2425,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR,
 };
 
 
@@ -2530,7 +2534,7 @@ export function drawFrame(g, st, now) {
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
   if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
-  if (info.heal.length && !pz && !colony) animHeal(g, info, { night, C, area: info.area }, tA);
+  if (info.heal.length && !pz && !colony && info.area !== EOS_HEAL_AREA) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
   drawRyougiGround(g, ry, info, fx, now, lowQ, { view, C });
@@ -2555,6 +2559,8 @@ export function drawFrame(g, st, now) {
   const amb = diegoAmbientNow(st.timeFreeze || null, now);
   const dGround = st.diego || null, dFx = dGround || fx.some((e) => isDiegoFx(e.kind));
   if (dFx) drawDiegoGround(g, dGround, fx, now, lowQ, amb);
+  // เอมิยะ คริซุงุ (kiriFx.js): กับดักระเบิด ไฟแดงกะพริบ (ทุกคนเห็น) — ใต้ไฮไลต์
+  if (st.kiri) drawKiriGround(g, st.kiri, now, lowQ);
   // โลกคู่ขนาน (วาเลนไทน์): ตะเข็บบางรอบขอบกระดาน — บนพื้น ใต้ไฮไลต์
   if (st.dimLayers && st.dimLayers.length) valentineDimGround(g, info, st.dimLayers, now, lowQ);
   // เซลิน (celineFx.js): พรมกลีบใต้พุ่มดอกไม้ · วงเถาวัลย์ทองใต้ราชาดอกไม้ — ใต้ไฮไลต์
@@ -2864,6 +2870,7 @@ export function drawFrame(g, st, now) {
     else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);
     else if (isFaizFx(e.kind)) faizFx(g, e, now, lowQ);
     else if (isZectFx(e.kind)) zectFx(g, e, now, lowQ); // ไรเดอร์ ZECT (zectFx.js)
+    else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);

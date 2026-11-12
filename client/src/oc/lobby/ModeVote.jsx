@@ -603,11 +603,11 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ความยาก</div>
                 <div className="ocl-diff" role="radiogroup" aria-label="ความยาก">
-                  {[["easy", "ง่าย"], ["normal", "ปกติ"], ["hard", "ยาก"]].map(([d, label]) => {
+                  {[["easy", "ง่าย"], ["normal", "ปกติ"], ["hard", "ยาก"], ["lament", "Lament"]].map(([d, label]) => {
                     const voters = state.players.filter((p) => p.modeVote === "eos" && p.eosDiff === d);
                     return (
                       <button key={d} type="button" role="radio" aria-checked={eosDiff === d} data-on={eosDiff === d ? "true" : undefined} data-d={d} onClick={() => pickDiff(d)}>
-                        <span className="ocl-diff-pips" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} data-on={i <= ["easy", "normal", "hard"].indexOf(d) ? "true" : undefined} />)}</span>
+                        <span className="ocl-diff-pips" aria-hidden="true">{[0, 1, 2, 3].map((i) => <i key={i} data-on={i <= ["easy", "normal", "hard", "lament"].indexOf(d) ? "true" : undefined} />)}</span>
                         <b>{label}</b>
                         {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
                       </button>

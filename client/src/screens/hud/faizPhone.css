@@ -46,6 +46,10 @@
 }
 .axel-world.clock { -webkit-backdrop-filter: grayscale(0.7) brightness(0.92) contrast(0.95); backdrop-filter: grayscale(0.7) brightness(0.92) contrast(0.95); }
 .axel-world.clock::after { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); background: radial-gradient(ellipse 58% 62% at 50% 50%, transparent 60%, rgba(150, 200, 235, 0.22) 100%); }
+/* Time Alter (เอมิยะ คริซุงุ): ทั้งจอออกส้ม ขอบเบลอส้มอุ่น */
+.axel-world.alter { -webkit-backdrop-filter: sepia(0.75) saturate(1.5) hue-rotate(-12deg) brightness(0.95); backdrop-filter: sepia(0.75) saturate(1.5) hue-rotate(-12deg) brightness(0.95); background: rgba(255, 120, 20, 0.08); }
+.axel-world.alter::after { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); background: radial-gradient(ellipse 58% 62% at 50% 50%, transparent 55%, rgba(255, 130, 30, 0.3) 100%); }
+.axel-world.alter[data-low="true"] { -webkit-backdrop-filter: sepia(0.8); backdrop-filter: sepia(0.8); }
 .axel-world[data-low="true"] { -webkit-backdrop-filter: grayscale(0.85); backdrop-filter: grayscale(0.85); }
 .axel-world[data-low="true"]::after { display: none; }
 @keyframes axel-in { from { opacity: 0; } to { opacity: 1; } }

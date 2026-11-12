@@ -173,6 +173,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตัวคูณคริ / หลบหลีกเฉพาะตัว | `critMult(p)` → ×N (ไม่มี = 2) · `ownEvade(p)` → % (ตีปกติ + `skillDodge` + คาดการณ์) | `attack.strike` |
 | คลิปก่อนฉากตีปกติ | `preAttackClip(engine, ผู้ตี, card)` → คีย์คัตซีน (เซลิน: ติดคริ) | `attack.playAttackCard` |
 | เอฟเฟกต์ที่เกิดระหว่างลงผลตีปกติ (ต้องเห็นตอนปะทะ ไม่ใช่ก่อนฉาก/หลังคลิป) | `engine.boardFxAtHit(event, payload)` → `card.hitFx` · client ลงตัวเล่นใน `hitFx.current[event]` (โจรุโน่: giornoFx) | `attack.playAttackCard` · `BoardStage.jsx` |
+| คลื่นดาเมจรอบช่อง/ตัว (ระยะแมนฮัตตัน · หลบได้ · ผลัก/เชื่องช้าได้) | `engine.ice.shockWave(src, center, { range, dmg, exclude, push, slow, label }, ctx)` · ฮุคน้ำแข็ง `afterSlideStrike` (หลังไถลชน) / `spikeShock` (หนามของตัวเองทำงาน) / `burstSpec` (ระเบิดสะสม 3 แบบคลื่น) — ต้นแบบ: Ice Spike ใน Eos | GAME_SYSTEM §19 |
 | ชั้นพื้นที่ปลูก/วางทับระหว่างเกม (ซ่อนตัวได้) | `server/flora.js` (`lay/undo/clear/canBloom`) — ปลูกตอนเดินคืน `{ k, undo }` จาก `afterWalk` · กำแพงตีแตก `engine.ice.placeWall/removeWall/wallsOf` | GAME_SYSTEM §27 |
 | เลือกหลายเป้า / พื้นที่สี่เหลี่ยมหมุนได้ | `area { kind: "target", count: 2 }` · `area { kind: "tile", rect: [3, 1] }` + `skillArea` อ่าน `opts.orient` (socket `orient`) | `action.resolveArea` / `tileArea` |
 | ตีสวนได้ (ตัวละครนี้) | `counter: true` ใน characters.js (ตอนนี้ไม่มีตัวไหนเปิด — ตีสวนปิดทั้งเกม GRID_PLAN §6) | `attack.counterAndPush` |
@@ -264,6 +265,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | target รูปเฉพาะ (กรอบ/ทรงที่ไม่ใช่ระยะ) | `area: { kind: "target", range, cells: [[dx, dy], …] }` (นับจากช่องผู้ใช้ · range = ป้าย) | `action.resolveArea` |
 | ตีปกติได้เฉพาะในกรอบ (พื้นที่ค้างของตัวเอง) | `strikeAllows(p, target)` → false = ตีไม่ได้ + `strikeZone(p)` → `{ x0, y0, x1, y1 }` (client คัดช่องยืน/เป้า/ระยะอันตรายให้เอง) · ระยะทั้งกรอบ = `range` `[1, 30]` (ลอว์ Room — GAME_SYSTEM §35) | `action.canStrike` · `view.buildStateFor` |
 | ศพค้างเฉพาะคนที่ตายในเงื่อนไขของตัวเอง | `claimsCorpse(u, dead)` (ถามตอนตาย · จด `dead.corpseKeeper` — ศพอยู่จนผู้เก็บตาย) | `server/duo.js` `claimCorpse` / `keptFor` |
+| ตีปกติโดนศัตรูทุกตัวในระยะตีรอบตัว (ข้าวหลามตัด) | `strikeArea(p)` → true · เล็งตาม `range` ปกติ · client `players[].strikeArea` ไฮไลต์ทั้งวง (ยังไม่มีตัวไหนใช้ — เฟิร์นบน Eos เคยใช้แล้วเปลี่ยนกลับเป็นแนวตรง) | `action.laneVictims` · BoardStage `planFor` |
+| เพดานระยะเดินของ Eos เฉพาะตัว / มอน Eos ไม่เล็ง | `eosWalkMax(p)` → เพดานแทน 5 · `hiddenFromMobs(p)` → true = ตัดออกจาก `prey` ของมอน (เฟิร์น ซ่อนเร้นมานาบน Eos) | `server/fodlan/stage6.js` movMod / prey |
 | ตีปกติรอบตัว 8 ช่อง (รวมทแยง) | `strikeRing(p)` + `ringTiles(engine, p)` + `range` `[1, 2]` + `strikeAllows` (เชบีเชฟ 1) — client `players[].strikeRing` (กิลกาเมช ถือ EA — GAME_SYSTEM §50) | `action.laneVictims` · BoardStage `planFor` |
 | กระเป๋า/เพดานเหรียญเฉพาะตัว · ซื้อจากระยะไกล · รีสต็อกร้าน | `bagSlots(p)` · `goldCap(p)` · `remoteShop(p)` · `engine.restockShops()` (กิลกาเมช Gate of Babylon / ราชาที่แท้จริง) | `server/shop.js` |
 | เสียงที่ต้องเด่นคนเดียว (เพลงหยุด เสียงอื่นเบา) | `client/src/audio.js FOCUS_SFX { คีย์: ms }` (Enuma Elish) | `audio.playSfx` |
@@ -298,6 +301,10 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตีแล้วเดินต่อเต็มระยะ | `extraStrike` + `engine.freshMove(p)` (อินุอิ: Start Up) | `action.freshMove` |
 | HUD รูปเครื่องจริงกดรหัส / ของสวมกดซ้ำถอด | `FaizPhone.jsx` (รหัส = `useSkill` form) · `choices[].worn` | `client/src/screens/hud/` |
 | หลายคนขยับพร้อมกันแบบเรียลไทม์ (แทรกตา/เข้าร่วม · ชนกันกดรัว) | `engine.clockUp.start / enter / canEnter / countHit / activeMember` + ฮุค `onClockDone` · ตาพิเศษ kind `"clockUp"` (ต้นแบบ ไรเดอร์ ZECT + Faiz Start Up — GAME_SYSTEM §46) | `server/clockUp.js` |
+| ดาเมจจากศัตรูเลื่อนไปลงทีหลัง (หลายเทิร์น) | ฮุคของเป้า `adjustIncomingDamage` คืน 0 + จดคิว → ลงใน `onRoundStartTick` ด้วย `engine.withEffectSource(src, …dealMixed)` + ธงปล่อยผ่าน · ตายเอง `instantDeath` (เอมิยะ คริซุงุ อดีนาลีน — GAME_SYSTEM §53) | `combat.adjustIncomingDamage` |
+| ชั้นพื้นซ่อนตัวชั่วคราว (ม่านควัน) | `match.board.smoke` → special `"smoke"` ใน `Ice.overlayOf` (+ `hasOverlay`) · `iceVer++` ทุกครั้งที่เปลี่ยน · วาดใน `boardProps.js` | `server/ice.js` |
+| กับดักที่ทุกคนเห็น | เก็บที่ตัวเจ้าของ + `walkTrap`/`springTrap` + `boardPublic` → BoardCanvas prop ของตัวเอง (`kiri` → `drawKiriGround`) | `action.moveTo` |
+| ช่วง Clock Up แบบใหม่ (เงา/จอ/ปุ่มแทรกตาเฉพาะตัว) | `engine.clockUp.start/enter` ด้วย `kind` ใหม่ · client: `faizTrail` ตาม kind (BoardStage) · `.axel-world.<kind>` (Game.jsx + faizPhone.css) · ปุ่มใน `ZectHud ClockUpButton` (คริซุงุ: 2 ปุ่ม `kiri:double/square`) | `server/clockUp.js` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

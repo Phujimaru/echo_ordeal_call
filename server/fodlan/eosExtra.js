@@ -67,7 +67,8 @@ function powerRound(ctx, s, H) {
   let secs = 0;
   { // ป้อมปืนของเสาที่ยึดไว้ยิงเอง (เดิมเฉพาะ Insomnia · 2026-11-11 ทุกโซนมีป้อมประจำเสา)
     const shots = [], used = new Set();
-    for (const t of H.TURRETS.filter((o) => held(s, H.turretZone(o)) && (!H.turretUp || H.turretUp(ctx, o)))) { // ป้อมที่พังไม่ยิง
+    const jam = require("./eosLament").curse(s, "jam") && (ctx.match.roundNumber + 1) % 2 === 1; // คำสาปป้อมขัดข้อง: ยิงเฉพาะเทิร์นคู่
+    for (const t of jam ? [] : H.TURRETS.filter((o) => held(s, H.turretZone(o)) && (!H.turretUp || H.turretUp(ctx, o)))) { // ป้อมที่พังไม่ยิง
       const m = H.mobsOf(ctx).filter((u) => !used.has(u.id) && H.manhattan(u.pos, t) <= POWER.turretRange).sort((a, b) => H.manhattan(a.pos, t) - H.manhattan(b.pos, t))[0];
       if (!m) continue;
       used.add(m.id);
@@ -441,6 +442,8 @@ function titlesOf(ctx, s) {
     for (const p of people(ctx)) { const v = (st[p.id] && st[p.id][t.key]) || 0; if (v > n) { n = v; best = p.id; } }
     if (best) out.push({ ...t, id: best, n });
   }
+  // Lament: ชนะ = ทุกคนได้ฉายาพิเศษ (ผู้ใช้ 2026-11-11)
+  if (s.result === "win" && require("./eosLament").on(ctx)) for (const p of people(ctx)) out.push({ key: "lament", icon: "💀", name: "ผู้ก้าวข้ามความโศก", id: p.id, n: 1 });
   return out;
 }
 function publicOf(ctx, s, H) {
@@ -448,7 +451,7 @@ function publicOf(ctx, s, H) {
   return {
     final: x.final ? { from: x.final.from } : null, finalAt: require("./eosEvents").markAt(ctx, FINAL.at),
     powers: powersOf(s),
-    gauge: x.gauge, gaugeMax: GAUGE.max,
+    gauge: Math.floor(x.gauge), gaugeMax: GAUGE.max,
     giant: g ? { id: g.id, state: g.state, axis: g.axis, at: g.at, path: g.path, idx: g.idx, next: bandOf(ctx, g, g.idx + 1, g.idx + GIANT.step) } : null,
     civs: civsOf(ctx).map((c) => ({ id: c.id, x: c.pos.x, y: c.pos.y, hp: c.hp, maxHp: CIV.hp, follow: c.summon.follow || null, look: c.summon.look || 0 })),
     lightR: LIGHT.r,

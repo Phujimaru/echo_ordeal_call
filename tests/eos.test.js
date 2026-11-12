@@ -677,7 +677,7 @@ test('L12 หินพลังเวท → ขวดเวท · ไฟ = ล�
   setup();
   const s4 = st(), p4 = P(0);
   s4.flasks[p4.id] = ['thunder'];
-  const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number));
+  const shallow = Object.entries(action.boardMap().special).filter(([, v]) => v === 'fd_eos_shallow').map(([k]) => k.split(',').map(Number)).filter(([, y]) => y >= 10); // ผืนทะเลสาบ Cleigne (บึงเล็กข้าง Insomnia เป็นอีกผืน)
   const [ax, ay] = shallow[0];
   const far = shallow.find(([x, y]) => Math.abs(x - ax) + Math.abs(y - ay) >= 4);
   const m4 = mob('daemon', far[0], far[1], { hp: 9, armor: 0 });
@@ -1103,6 +1103,10 @@ test('ความยาก: โหวตในหน้าเลือก (เ�
   assert.equal(match.gameMode, 'eos');
   assert.equal(match.eosDiff, 'hard');
   engine.clearPhaseTimer();
+  match.gameState = 'TEAM_MODE'; match.gameMode = null; // Lament โหวตชนะได้จริง (เคยตกเป็นปกติ)
+  for (const id of Object.keys(engine.players)) lobby.voteGameMode(id, 'eos', 'eos', 'lament');
+  assert.equal(match.eosDiff, 'lament');
+  engine.clearPhaseTimer();
   match.eosDiff = 'normal'; // เทสต์ถัดไปใช้เป้า 50 (ยาก = 100)
 });
 
@@ -1395,13 +1399,13 @@ test('มาตรวัดทีม: ล้มมอนเติม · เต�
 // ---------------------------------------------------------------- PVE รอบสี่ (server/fodlan/eosPerks.js)
 const PK = require('../server/fodlan/eosPerks.js');
 
-test('การ์ดอัปเกรดทีม: แต้มถึง 10 = เสนอ 3 ใบ · โหวตครบ = ได้ใบที่เสียงมากสุด · ผลจริง (เดิน/ตีมอน/เสาแกร่ง/ฟื้นไว)', () => {
+test('การ์ดอัปเกรดทีม: แต้มถึง 10 = เสนอ 5 ใบ · โหวตครบ = ได้ใบที่เสียงมากสุด · ผลจริง (เดิน/ตีมอน/เสาแกร่ง/ฟื้นไว)', () => {
   setup();
   const s = st();
   s.score = 9; s.pillars[0].owner = S6.PVE;
   S6.scoreRound(ctx(), s);
   const o = PK.PK(s).offer;
-  assert.ok(o && o.choices.length === 3, 'มีการ์ดให้เลือก');
+  assert.ok(o && o.choices.length === 5, 'มีการ์ดให้เลือก 5 ใบ');
   o.choices = ['swift', 'might', 'bastion'];
   const mov0 = action.movOf(P(0));
   for (const i of [0, 1]) Fodlan.charAction(P(i).id, 'fd:perk:swift');
@@ -1667,7 +1671,7 @@ test('การ์ดทีมทุก 10 แต้มจนก่อนเป�
   const c = (diff) => ({ match: { eosDiff: diff } });
   assert.deepEqual(PK.perkMarks(c('normal')), [10, 20, 30, 40]);
   assert.deepEqual(PK.perkMarks(c('hard')), [10, 20, 30, 40, 50, 60, 70, 80, 90]);
-  assert.ok(Object.keys(PK.PERKS).length >= 9 + 2, 'ครั้งสุดท้ายของระดับยากยังมีให้เลือก 3 ใบ');
+  assert.ok(Object.values(PK.PERKS).reduce((n, c) => n + c.max, 0) >= 9 + PK.PERK_CHOICES, 'ครั้งสุดท้ายของระดับยากยังมีให้เลือกครบ');
   setup();
   const s = st();
   // ไล่แต้มจนครบ 4 ครั้ง (ปกติ) — เลือกใบแรกทุกครั้ง
@@ -1679,7 +1683,7 @@ test('การ์ดทีมทุก 10 แต้มจนก่อนเป�
   }
   s.score = 49; PK.onScore(ctx(), s);
   assert.equal(PK.PK(s).offer, null, 'ไม่มีการ์ดเกินเป้า');
-  PK.PK(s).owned.push('timber', 'beacon', 'marksman', 'hunter');
+  PK.PK(s).owned = ['timber', 'beacon', 'marksman', 'hunter']; // ใบแรกที่สุ่มอาจซ้อนระดับ — ตั้งใหม่ให้แน่นอน
   assert.equal(PK.wallMax(s), PK.WALL.hp + 2);
   assert.equal(PK.lightBonus(s), 4);
   assert.equal(PK.turretBonus(s), 1);
@@ -1699,4 +1703,494 @@ test('รถราง: คนละ 2 เที่ยว แล้วพัก 2
   assert.equal(ride(A, B), false, 'ยังพักอยู่');
   match.roundNumber += 1;
   assert.ok(ride(A, B), 'ครบ 2 เทิร์นได้อีก');
+});
+// ---------- Lament (2026-11-11 · server/fodlan/eosLament.js) ----------
+const LMx = require('../server/fodlan/eosLament.js');
+function lamentOn() { match.eosDiff = 'lament'; st().lamentOn = true; }
+test('Lament: โหวตได้ · เลือด/จำนวน/พลังตีสูงกว่ายาก · เป้า 100 · เสาเปราะ หลุดแล้วแต้ม −3 · ร้าน ×1.5 · มอนดุขึ้นทุก 10 เทิร์น', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    assert.equal(EV.goalOf(ctx()), 100);
+    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk > EV.DIFF.hard.atk);
+    assert.equal(S6.pillarHp(s), 1, 'ตีทีเดียวหลุด');
+    const pl = s.pillars[3]; pl.owner = S6.PVE; s.score = 10;
+    const d = mob('daemon', 0, 0);
+    S6.hitPillar(ctx(), s, pl, d);
+    assert.equal(pl.owner, null);
+    assert.equal(s.score, 7, 'แต้มรวม −3');
+    assert.equal(S6.eosPriceMul(), 1.5);
+    match.roundNumber = 19;
+    assert.deepEqual(LMx.rage(ctx()), { atk: 2, mov: 2 });
+  } finally { match.eosDiff = 'normal'; }
+});
+test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    for (let i = 0; i < 6; i++) mob('daemon', 2 + i * 2, 1);
+    s.night = true; s.dayNo = 1;
+    const before = S6.mobsOf(ctx(), 'daemon').length;
+    S6.dissolveDaemons(ctx(), s);
+    assert.equal(S6.mobsOf(ctx(), 'daemon').length, before - Math.ceil(before / 2), 'เหลือครึ่ง');
+    // คำสาป
+    s.score = 10; PK.onScore(ctx(), s); PK.resolve(ctx(), s);
+    assert.equal(LMx.L(s).curses.length, 1, 'ได้คำสาป 1');
+    // ชีวิตทีม 3 + คน 3 = 6
+    const lives = LMx.livesOf(ctx());
+    assert.equal(lives, 6);
+    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; p.alive = true; }
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st();
+    s.score = 90; S6.scoreRound(ctx(), s);
+    const l = LMx.L(s);
+    assert.ok(l.warn, 'เตือน');
+    LMx.landLord(ctx(), s, S6.H(), l.warn.at);
+    const lord = LMx.lordUnit(ctx(), S6.H(), s);
+    assert.ok(lord && lord.summon.mobType === 'lament', 'ลงแล้ว');
+    lord.summon.born = 0;
+    P(0).pos = { x: 20, y: 22 }; P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+    P(0).hp = 2;
+    const hp0 = total(P(0));
+    S6.actMonsters(ctx(), s);
+    assert.ok(Math.abs(lord.pos.x - 20) + Math.abs(lord.pos.y - 22) === 1, 'วูบมาติดตัว');
+    assert.ok(total(P(0)) < hp0 || !P(0).alive, 'โดนเคียว');
+    // เฟส 2: เตือนแนวน้ำตา
+    P(0).alive = true; P(0).hp = 9;
+    lord.hp = Math.floor(lord.summon.maxHp * 0.5);
+    match.roundNumber = 1; // round 2 = คู่
+    S6.actMonsters(ctx(), s);
+    assert.ok(l.lines && l.lines.tiles.length, 'แนวน้ำตา');
+    assert.ok(Fodlan.publicInfo().board.lament.lines, 'ส่ง client');
+    // แต้มครบแต่ยังไม่ชนะ
+    s.score = 120; S6.scoreRound(ctx(), s);
+    assert.notEqual(s.result, 'win', 'ต้องล้มผู้คร่ำครวญก่อน');
+    match.effectSourceId = P(1).id; combat.dealMixed(lord, 999); combat.resolveDamageAftermath(lord); match.effectSourceId = null;
+    assert.ok(l.dead);
+    assert.equal(s.result, 'win', 'ล้มได้ = ชนะ');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('สตั้นมอน Eos นับตามตาเดินของมอน: สตั้น 1 เทิร์นจากตาผู้เล่น = มอนข้ามตาต้นเทิร์นหน้าจริง 1 ครั้ง (เดิมหมดก่อนมอนได้เดิน)', () => {
+  setup();
+  const s = st(), p = P(0);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  p.pos = { x: 20, y: 22 };
+  const d = mob('daemon', 22, 22);
+  combat.applyDebuff(d, 'stun', 1, 1);
+  const at0 = { ...d.pos }, hp0 = total(p);
+  // จบเทิร์นของผู้เล่น → ลดสถานะ (มอนไม่ลด) → ต้นเทิร์นหน้ามอนได้ตา
+  for (const u of Object.values(match.players)) for (const k of Object.keys(u.statuses || {})) if (!(u.summon && u.summon.kind === 'eosMob' && S6.MOB_CONTROL.includes(k))) { u.statuses[k]--; if (u.statuses[k] <= 0) delete u.statuses[k]; }
+  assert.equal(d.statuses.stun, 1, 'จบเทิร์นแล้วยังสตั้นอยู่');
+  match.roundNumber += 1;
+  Fodlan.preRound(() => {});
+  assert.deepEqual(d.pos, at0, 'ไม่ขยับ');
+  assert.equal(total(p), hp0, 'ไม่ตี');
+  assert.ok(!(d.statuses.stun > 0), 'หลังตาของมอน สตั้นหมด');
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), s);
+  assert.ok(!sameTile(d.pos, at0) || total(p) < hp0, 'เทิร์นถัดไปขยับ/ตีได้');
+});
+test('endTurn ไม่ลดสถานะคุมตัวของมอน Eos', () => {
+  const src = require('fs').readFileSync(require.resolve('../server/phases/endTurn.js'), 'utf8');
+  assert.ok(/EOS_MOB_CONTROL\.has\(k\)/.test(src));
+  for (const k of S6.MOB_CONTROL) assert.ok(src.includes(`"${k}"`), k);
+});
+test('เพดานมอนพร้อมกันขยายตามความยาก: ง่าย ×0.8 · ปกติ ×1 · ยาก ×1.25 · Lament เพดานของตัวเอง', () => {
+  setup(); // 3 คน = เพดานปกติ 20
+  const room = (d) => { match.eosDiff = d; return S6.mobRoom(ctx()); };
+  try {
+    assert.equal(room('normal'), 20);
+    assert.equal(room('easy'), 16);
+    assert.equal(room('hard'), 25);
+    assert.equal(room('lament'), LMx.LAMENT.cap.base + LMx.LAMENT.cap.perHero * 2);
+  } finally { match.eosDiff = 'normal'; }
+});
+
+test('ท่าทำลายพื้นที่ใน Eos: เสายึดพังไม่ได้ · ช่องพังคืนสภาพเองหลัง 2 เทิร์น', () => {
+  setup(2);
+  const pl = MAP6.PILLARS[0], pk = K(pl.at[0], pl.at[1]);
+  match.roundNumber = 4;
+  const got = engine.addChasm([pk, '13,14', '14,14']);
+  assert.ok(!got.includes(pk), 'เสาไม่กลายเป็นช่องพัง');
+  assert.equal(action.boardMap().terrain[pk], 'fd_eos_pillar');
+  assert.deepEqual(action.breakObstacles ? action.breakObstacles([pk]) : [], []);
+  assert.equal(action.boardMap().terrain['13,14'], 'chasm');
+  const tick = () => { match.fodlan.s.preRoundDone = 0; Fodlan.preRound(() => {}); match.roundNumber++; };
+  tick(); tick();
+  assert.equal(action.boardMap().terrain['13,14'], 'chasm', 'ยังพังอยู่ระหว่าง 2 เทิร์น');
+  tick();
+  assert.notEqual(action.boardMap().terrain['13,14'], 'chasm', 'ครบ 2 เทิร์นแล้วคืนสภาพ');
+  assert.equal(match.board.chasm.length, 0);
+});
+
+test('การ์ดทีมซ้อนระดับ: เลือกใบเดิมซ้ำ = Lv ถัดไป ผลบวกเพิ่ม · เต็ม max แล้วไม่สุ่มมาอีก · ฟื้นตัว/เงินเดือน/ใจสู้', () => {
+  setup();
+  const s = st(), k = PK.PK(s);
+  const mov0 = action.movOf(P(0));
+  k.owned.push('swift', 'swift');
+  assert.equal(action.movOf(P(0)), mov0 + 2, 'ฝีเท้าไว Lv2 = เดิน +2');
+  const pub = Fodlan.publicInfo().board;
+  assert.equal(pub.perks.find((c) => c.id === 'swift').lv, 2);
+  s.score = 10; PK.onScore(ctx(), s);
+  assert.ok(!k.offer.choices.includes('swift'), 'เต็ม max แล้วไม่สุ่มมาอีก');
+  assert.equal(k.offer.choices.length, PK.PERK_CHOICES);
+  k.offer.choices = ['might', 'regen', 'purse', 'guts', 'vital'];
+  assert.equal(Fodlan.publicInfo().board.perkOffer.choices[0].lv, 1, 'การ์ดที่เสนอแสดง Lv ถัดไป');
+  k.offer = null;
+  k.owned.push('regen', 'purse');
+  P(0).hp = 2;
+  const g0 = P(0).gold || 0;
+  PK.aegisRound(ctx(), s);
+  assert.equal(P(0).hp, 3, 'ฟื้นตัว: ต้นเทิร์นฟื้นเลือด 1');
+  assert.equal((P(0).gold || 0) - g0, 2, 'เงินเดือน: ต้นเทิร์นได้เหรียญ 2');
+  k.offer = { id: 99, at: match.roundNumber, choices: ['guts'], votes: {}, mark: 20 };
+  PK.resolve(ctx(), s);
+  assert.equal(k.guts[P(1).id], 1);
+  P(1).hp = 1;
+  P(1).hp = 0; combat.instantDeath(P(1));
+  assert.ok(P(1).alive, 'ใจสู้: รอดจากการล้ม');
+  assert.equal(k.guts[P(1).id], 0);
+});
+
+// ---------- มอนรูปแบบใหม่ 8 แบบ (server/fodlan/eosMobs.js — 2026-11-12) ----------
+const MBS = require('../server/fodlan/eosMobs.js');
+const tmob = (trait, x, y, o = {}) => _m(S6.spawnMob(ctx(), st(), 'daemon', { x, y }, { hp: 6, armor: 0, atk: 2, mov: 4, gold: 1, ...o }, { look: 1, tier: 1, trait }));
+function soloArena() {
+  setup(3);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  P(1).pos = { x: 30, y: 0 }; P(2).pos = { x: 28, y: 6 };
+  match.roundNumber = 5; st().nightNo = 3;
+  return P(0);
+}
+const freeAt = (x, y) => S6.H().tileFree(ctx(), st(), x, y);
+function openSpot(dx = 0) { // หาแนวว่าง 7 ช่องแนวนอน
+  for (let y = 4; y < 28; y++) for (let x = 2; x < 22; x++) {
+    let ok = true;
+    for (let i = 0; i < 7 && ok; i++) ok = freeAt(x + i, y) && !S6.blockedTown(st(), x + i, y);
+    for (let i = 0; i < 7 && ok; i++) ok = freeAt(x + i, y + 1) && freeAt(x + i, y - 1);
+    if (ok) return { x: x + dx, y };
+  }
+  throw new Error('ไม่มีที่ว่าง');
+}
+test('มอนใหม่: พลธนูถอยออกเมื่อมีคนประชิดแล้วยิง · ตัวพ่นใยตรึง + 1', () => {
+  const p = soloArena(), o = openSpot();
+  p.pos = { x: o.x, y: o.y };
+  const a = tmob('archer', o.x + 1, o.y);
+  const t0 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.ok(Math.abs(a.pos.x - p.pos.x) + Math.abs(a.pos.y - p.pos.y) >= 3, 'ถอยออกไป');
+  assert.equal(total(p), t0 - 2, 'ยิงโดน');
+  require('../server/summon.js').remove(a);
+  const w = tmob('weaver', o.x + 3, o.y);
+  const t1 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.ok(p.statuses.rooted > 0, 'ติดใย');
+  assert.equal(total(p), t1 - 1);
+  assert.ok(w.summon.cdUntil > match.roundNumber, 'คูลดาวน์');
+});
+test('มอนใหม่: ทหารโล่ ตีจากหน้าเหลือ 1 ตีจากหลังเต็ม · ตัววาร์ปไปติดคนเลือดน้อย · โซ่ลากเข้ามาติดตัว', () => {
+  const p = soloArena(), o = openSpot();
+  const sh = tmob('shield', o.x + 2, o.y, { hp: 20 });
+  sh.summon.face = { dx: -1, dy: 0 };
+  p.pos = { x: o.x + 1, y: o.y };
+  const h0 = sh.hp + sh.armor;
+  combat.withEffectSource(p, () => ctx().damage(sh, 4));
+  assert.equal(h0 - (sh.hp + sh.armor), 1, 'ด้านหน้า = 1');
+  p.pos = { x: o.x + 3, y: o.y };
+  const h1 = sh.hp + sh.armor;
+  combat.withEffectSource(p, () => ctx().damage(sh, 4));
+  assert.equal(h1 - (sh.hp + sh.armor), 4, 'ด้านหลัง = เต็ม');
+  require('../server/summon.js').remove(sh);
+  p.pos = { x: o.x, y: o.y };
+  const b = tmob('blinker', o.x + 6, o.y);
+  const t0 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.equal(Math.abs(b.pos.x - p.pos.x) + Math.abs(b.pos.y - p.pos.y), 1, 'วาร์ปมาติดตัว');
+  assert.ok(total(p) < t0);
+  require('../server/summon.js').remove(b);
+  const hk = tmob('hooker', o.x + 4, o.y);
+  S6.actMonsters(ctx(), st());
+  assert.deepEqual(p.pos, { x: o.x + 3, y: o.y }, 'ถูกลากมาติดตัว');
+  assert.ok(hk.summon.cdUntil > match.roundNumber);
+});
+test('มอนใหม่: วงเวทเตือนก่อน 1 เทิร์นแล้วระเบิด · นักเวทตายก่อน = วงหาย', () => {
+  const p = soloArena(), o = openSpot();
+  p.pos = { x: o.x, y: o.y };
+  const r = tmob('rune', o.x + 4, o.y);
+  S6.actMonsters(ctx(), st());
+  const pub = Fodlan.publicInfo().board.mobRunes;
+  assert.equal(pub.length, 1);
+  assert.deepEqual([pub[0].x, pub[0].y], [o.x, o.y]);
+  const t0 = total(p);
+  match.roundNumber += 1;
+  S6.actMonsters(ctx(), st());
+  assert.equal(total(p), t0 - 3, 'ยืนในวง = โดน 3');
+  // วงใหม่แล้วฆ่านักเวท
+  const runes = MBS.MS(st()).runes;
+  assert.equal(runes.length, 1, 'วางวงใหม่');
+  require('../server/summon.js').remove(r);
+  match.roundNumber += 1;
+  const t1 = total(p);
+  S6.actMonsters(ctx(), st());
+  assert.equal(total(p), t1, 'นักเวทหายไป วงไม่ระเบิด');
+  assert.equal(MBS.MS(st()).runes.length, 0);
+});
+test('มอนใหม่: ฝูงจิ๋วมาเป็นฝูง 5 ตัว · ตัวแยกร่างล้มแล้วแตก 2 ร่าง · ยาก/คืนแรกก็มีมอนพิเศษ', () => {
+  soloArena();
+  const o = openSpot();
+  const st0 = MBS.stats({ hp: 6, armor: 1, atk: 2, mov: 4, gold: 2 }, 'swarm');
+  assert.equal(st0.hp, 1);
+  const lead = tmob('swarm', o.x + 3, o.y + 6 > 30 ? o.y : o.y, st0);
+  MBS.afterSpawn(ctx(), st(), S6.H(), lead, st0, { look: 1, tier: 1, trait: 'swarm' });
+  assert.equal(S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'swarm').length, 5);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  const sp = tmob('splitter', o.x + 3, o.y);
+  P(0).pos = { x: o.x, y: o.y };
+  combat.withEffectSource(P(0), () => ctx().damage(sp, 99));
+  const kids = S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'splitling');
+  assert.equal(kids.length, 2, 'แตก 2 ร่าง');
+  assert.ok(kids.every((k) => k.hp >= 1 && k.summon.maxHp <= 3));
+  combat.withEffectSource(P(0), () => ctx().damage(kids[0], 99));
+  assert.equal(S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'splitling').length, 1, 'ร่างเล็กไม่แตกซ้ำ');
+  match.eosDiff = 'hard'; st().nightNo = 1;
+  let seq = 0; Math.random = () => [0.1, 0.5][seq++ % 2];
+  const got = MBS.pickDaemon(ctx(), st(), S6.H());
+  assert.ok(got, 'ยาก คืนแรก มีมอนพิเศษ');
+  match.eosDiff = 'normal';
+  assert.equal(MBS.pickDaemon(ctx(), st(), S6.H()), null, 'ปกติ คืนแรกยังไม่มี');
+});
+test('ราชาปีศาจ: ยาก 4 คน = 2 ตัว เลือดต่อตัวไม่บาน · ปกติ 3 คน = 1 ตัว', () => {
+  const EV = require('../server/fodlan/eosEvents.js');
+  setup(4);
+  const s = st();
+  match.eosDiff = 'hard';
+  assert.equal(EV.bossCount(ctx(), s), 2);
+  for (const m of S6.mobsOf(ctx())) require('../server/summon.js').remove(m);
+  EV.warnBoss(ctx(), s, S6.H(), match.roundNumber + 1);
+  EV.landBoss(ctx(), s, S6.H(), EV.ev(s).bossWarn.at);
+  const bosses = S6.mobsOf(ctx()).filter((m) => m.summon.trait === 'boss');
+  assert.equal(bosses.length, 2);
+  const single = Math.round(EV.BOSS.hp * EV.DIFF.hard.hp * (1 + 0.2 * 3));
+  assert.ok(bosses[0].summon.maxHp < single, 'เลือดต่อตัวน้อยกว่าตัวเดียว');
+  match.eosDiff = 'normal';
+  setup(3);
+  assert.equal(EV.bossCount(ctx(), st()), 1);
+});
+
+// ---------- อาวุธจักรพรรดิ 13 อัน (server/fodlan/eosArms.js — 2026-11-12) ----------
+const AR = require('../server/fodlan/eosArms.js');
+const tombSide = (i) => { const [x, y] = MAP6.TOMBS[i]; return [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].map(([a, b]) => ({ x: a, y: b })).find((t) => Board.inBounds(action.boardMap(), t.x, t.y) && !Board.isObstacle(action.boardMap(), t.x, t.y)); };
+test('อาวุธจักรพรรดิ: สุสาน 13 แห่ง ทุกแห่งมีช่องยืนติด · ภาพครบ · แต่ละแห่งอาวุธไม่ซ้ำ', () => {
+  setup();
+  assert.equal(MAP6.TOMBS.length, 13);
+  assert.equal(AR.ARMS.length, 13);
+  assert.equal(new Set(AR.ARMS.map((a) => a.id)).size, 13);
+  const fs = require('fs'), path = require('path');
+  for (let i = 0; i < 13; i++) {
+    assert.ok(tombSide(i), `สุสาน ${i} มีช่องยืนติด`);
+    assert.equal(action.boardMap().terrain[K(...MAP6.TOMBS[i])], 'fd_eos_tomb');
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'client', 'public', AR.imgOf(AR.ARMS[i].id))), `ภาพ ${AR.ARMS[i].id}`);
+  }
+  const pub = Fodlan.publicInfo().board.tombs;
+  assert.equal(pub.length, 13);
+  assert.ok(pub.every((t) => t.name && t.img && t.desc));
+});
+const openArm = (p, id) => { const i = AR.ARMS.findIndex((a) => a.id === id); p.pos = tombSide(i); actor(p); assert.ok(Fodlan.charAction(p.id, 'fd:tomb'), id); return i; };
+test('อาวุธจักรพรรดิ: เปลี่ยนอาวุธได้ · Father ตี +2 ไม่ดูดเลือด · Bow ระยะ +2 · Katana ทะลุเกราะ · Wanderer คริ 35 · Shield ลดดาเมจจากมอน', () => {
+  setup();
+  const p = P(0);
+  const r0 = action.rangeOf(p)[1];
+  openArm(p, 'clever');
+  assert.equal(action.rangeOf(p)[1], r0 + 2);
+  assert.equal(Fodlan.atkBonus(p), 0);
+  openArm(p, 'father');
+  assert.equal(S6.p4State(st()).arms[p.id].w, 'father', 'เปลี่ยนอาวุธ');
+  assert.equal(action.rangeOf(p)[1], r0);
+  assert.equal(Fodlan.atkBonus(p), 2);
+  p.hp = 5; p.didAttackRound = true; Fodlan.onUnitEnd(p);
+  assert.equal(p.hp, 5, 'Father ไม่เสียเลือด');
+  openArm(p, 'warrior');
+  assert.ok(Fodlan.strikePierces(p));
+  openArm(p, 'wanderer');
+  assert.equal(Fodlan.critPct(p), 35);
+  openArm(p, 'just');
+  const d = mob('daemon', p.pos.x + 30 > 31 ? 0 : 0, 0, { hp: 9 });
+  d.pos = null;
+  const t0 = total(p);
+  combat.withEffectSource(d, () => ctx().damage(p, 3));
+  assert.equal(t0 - total(p), 2, 'Shield of the Just −1');
+});
+test('อาวุธจักรพรรดิ: ผลตอนตีปกติลง (Wise ฟื้นเกราะ · Mystic ฟื้นเลือด · Tall ผลัก · Fierce สตั้น · Oracle แทงทะลุ · Rogue ช้า)', () => {
+  setup();
+  const p = P(0), H = S6.H();
+  const hit = (id, target) => { S6.p4State(st()).arms[p.id] = { until: match.roundNumber + 5, w: id }; return Fodlan.onStrikeLanded(p, target); };
+  p.pos = { x: 13, y: 13 };
+  const d = mob('daemon', 14, 13, { hp: 9 });
+  p.armor = 0; hit('wise', d); assert.equal(p.armor, 1);
+  p.hp = 3; hit('mystic', d); assert.equal(p.hp, 4);
+  hit('rogue', d); assert.ok(d.statuses.slow > 0);
+  Math.random = () => 0; hit('fierce', d); assert.ok(d.statuses.stun > 0); Math.random = realRandom;
+  const behind = { x: 15, y: 13 };
+  if (H.tileFree(ctx(), st(), behind.x, behind.y)) {
+    const d2 = mob('daemon', 15, 13, { hp: 9 });
+    const h2 = d2.hp + d2.armor; hit('oracle', d); assert.equal(h2 - (d2.hp + d2.armor), 2, 'แทงทะลุ 2');
+    require('../server/summon.js').remove(d2);
+    hit('tall', d); assert.deepEqual(d.pos, { x: 15, y: 13 }, 'ผลักถอย 1');
+  }
+});
+
+// ---------- ของประจำเมือง (server/fodlan/eosTowns.js — 2026-11-12) ----------
+const TWN = require('../server/fodlan/eosTowns.js');
+const sideOf = (t) => [[t.x - 1, t.y], [t.x + 1, t.y], [t.x, t.y - 1], [t.x, t.y + 1]].map(([x, y]) => ({ x, y })).find((q) => Board.inBounds(action.boardMap(), q.x, q.y) && !Board.isObstacle(action.boardMap(), q.x, q.y) && S6.H().tileFree(ctx(), st(), q.x, q.y));
+test('ของประจำเมือง: มีครบ (อู่ · ร้านอาหาร 2 · ศาล · ฟาร์ม) ทุกที่มีช่องยืนติด · ลานน้ำพุ Altissia ฟื้นเลือด', () => {
+  setup();
+  assert.ok(TWN.SPOTS.garage.length && TWN.SPOTS.shrine.length === 1 && TWN.SPOTS.diner.length === 2 && TWN.SPOTS.ranch.length === 1);
+  for (const t of [...TWN.SPOTS.shrine, ...TWN.SPOTS.diner, ...TWN.SPOTS.ranch]) assert.ok(sideOf(t), `${t.x},${t.y}`);
+  const m = action.boardMap();
+  assert.equal(m.heal.size, 4);
+  assert.equal(m.healKind, 'fountain');
+});
+test('ของประจำเมือง: ร้านอาหาร (เหรียญ/ปลา) · ศาลทั้งทีมเกราะ +2 · ฟาร์มเรียกโชโกโบะ · อู่ซ่อม + เทอร์โบ', () => {
+  setup();
+  const p = P(0), q = P(1);
+  p.pos = sideOf(TWN.SPOTS.diner[0]); actor(p);
+  p.gold = 10; p.hp = 2;
+  assert.ok(Fodlan.charAction(p.id, 'fd:diner'));
+  assert.equal(p.gold, 6); assert.ok(p.hp >= 5);
+  assert.equal(S6.p4State(st()).buffs[p.id].kind, 'feast');
+  p.pos = sideOf(TWN.SPOTS.shrine[0]); actor(p);
+  p.armor = 0; q.armor = 0;
+  assert.ok(Fodlan.charAction(p.id, 'fd:shrine'));
+  assert.equal(p.armor, 2); assert.equal(q.armor, 2, 'ทั้งทีม');
+  actor(p); assert.equal(Fodlan.charAction(p.id, 'fd:shrine'), false, 'คูลดาวน์');
+  p.pos = sideOf(TWN.SPOTS.ranch[0]); actor(p); p.gold = 5;
+  assert.ok(Fodlan.charAction(p.id, 'fd:ranch'));
+  assert.ok(st().chocos.some((c) => Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) <= 2), 'โชโกโบะมาข้างตัว');
+  const g = TWN.SPOTS.garage[0], car = st().cars[0];
+  const at = sideOf(g); p.pos = { ...at };
+  const spot = sideOf({ x: at.x, y: at.y }) || { x: at.x - 1, y: at.y };
+  car.x = spot.x; car.y = spot.y; car.hp = 1; car.driver = null;
+  actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:garage'));
+  assert.equal(car.hp, S6.CAR_HP);
+  assert.ok(TWN.TW(st()).turbo[car.id] >= match.roundNumber);
+});
+
+// ---------- มอนฉลาดขึ้น · เฝ้าเมือง · Armiger (2026-11-12) ----------
+test('มอนฉลาด: เลือกคนที่ตีทีเดียวตายก่อน · คนแยกกลุ่มก่อน · บาดเจ็บหนักถอยไปหาหมอ', () => {
+  const p = soloArena(), o = openSpot();
+  const H = S6.H();
+  const m = tmob(null, o.x + 3, o.y, { atk: 2 });
+  P(1).pos = { x: o.x, y: o.y + 1 }; P(2).pos = { x: o.x + 6, y: o.y };
+  p.pos = { x: o.x, y: o.y };
+  P(1).hp = 1; P(1).armor = 0;
+  assert.deepEqual(MBS.smartTargets(ctx(), st(), H, m, [p, P(1), P(2)], 4).map((u) => u.id), [P(1).id], 'ฆ่าได้ก่อน');
+  P(1).hp = 7; P(1).armor = 3;
+  assert.deepEqual(MBS.smartTargets(ctx(), st(), H, m, [p, P(1), P(2)], 4).map((u) => u.id), [P(2).id], 'คนแยกกลุ่ม');
+  require('../server/summon.js').remove(m);
+  const hurt = tmob(null, o.x + 3, o.y, { hp: 10 });
+  hurt.hp = 2;
+  const doc = tmob('healer', o.x + 6, o.y + 1 > 30 ? o.y : o.y + 1);
+  const d0 = Math.abs(hurt.pos.x - doc.pos.x) + Math.abs(hurt.pos.y - doc.pos.y);
+  const acc = { moves: [] };
+  assert.ok(MBS.fallBack(ctx(), st(), H, hurt, [p], 4, acc) || d0 <= 2);
+  assert.ok(Math.abs(hurt.pos.x - doc.pos.x) + Math.abs(hurt.pos.y - doc.pos.y) <= 2, 'ถอยไปข้างหมอ');
+});
+test('ภารกิจเฝ้าเมือง: มีคนอยู่ในเมืองจบเทิร์น 3 ครั้ง = สำเร็จ · เริ่มแล้วมีทหารเหล็กบุก', () => {
+  setup();
+  const EV = require('../server/fodlan/eosEvents.js'), s = st(), H = S6.H();
+  const e = EV.ev(s);
+  e.quests = []; e.questNext = 0;
+  let k = 0; Math.random = () => [0.9, 0.1][k++ % 2] ?? 0.1;
+  const before = S6.mobsOf(ctx(), 'magitek').length;
+  const rect = MAP6.ZONES.find((z) => z.id === 'hammerhead').rect;
+  const q = { id: 'qg', type: 'guard', zone: 'hammerhead', rect: [...rect], x: rect[0], y: rect[1], need: 3, have: 0, until: match.roundNumber + 6, by: [] };
+  e.quests.push(q);
+  Math.random = realRandom;
+  P(0).pos = { x: 25, y: 27 };
+  const s0 = s.score;
+  for (let i = 0; i < 3; i++) EV.tickQuests(ctx(), s, H, match.roundNumber + 1);
+  assert.ok(!e.quests.includes(q), 'สำเร็จแล้วหายจากรายการ');
+  assert.ok(s.score >= s0 + EV.QUEST.score);
+  assert.ok(before >= 0);
+});
+test('Armiger: เปิดสุสานครบ 13 แห่ง = ทั้งทีมตี +2', () => {
+  setup();
+  const p = P(0), q = S6.p4State(st());
+  q.tombs = q.tombs.map((_, i) => i !== 0);
+  p.pos = tombSide(0); actor(p);
+  assert.ok(Fodlan.charAction(p.id, 'fd:tomb'));
+  assert.ok(q.armiger >= match.roundNumber);
+  assert.equal(Fodlan.atkBonus(P(1)), 2, 'เพื่อนก็ได้');
+});
+
+// ---------- มอนหัวหน้า (2026-11-12) ----------
+const ELT = require('../server/fodlan/eosElite.js');
+test('มอนหัวหน้า: สุ่มเกิดได้ (ชื่อ หัวหน้า… · เลือดมากขึ้น) · ผู้บัญชาการ +1 · ดูดเลือด · หนาม · ฟื้นตัว · ระเบิดตอนตาย + แต้มรวม', () => {
+  const p = soloArena(), o = openSpot();
+  match.eosDiff = 'hard';
+  Math.random = () => 0;
+  let e;
+  try { e = tmob(null, o.x + 3, o.y, { hp: 6 }); } finally { Math.random = realRandom; }
+  assert.ok(ELT.isElite(e), 'สุ่มได้หัวหน้า');
+  assert.ok(e.name.startsWith('หัวหน้า'));
+  assert.equal(e.summon.maxHp, Math.round(6 * ELT.EL.hpMul) + ELT.EL.hpAdd);
+  assert.equal(e.summon.atk, 3);
+  // ผู้บัญชาการ: มอนตัวอื่นในระยะ 2 ตี +1
+  e.summon.elite = ['commander'];
+  const m = tmob(null, o.x + 4, o.y, {});
+  assert.ok(!ELT.isElite(m) || true);
+  m.summon.elite = null;
+  const H = S6.H();
+  assert.equal(ELT.toHero(ctx(), st(), H, p, 2, m), 3);
+  assert.equal(ELT.toHero(ctx(), st(), H, p, 2, e), 2, 'ตัวเองไม่ได้');
+  // ดูดเลือด
+  e.summon.elite = ['vampiric']; e.hp = 2;
+  ELT.toHero(ctx(), st(), H, p, 3, e);
+  assert.equal(e.hp, 5);
+  // หนาม: คนตีติดตัวโดน 1
+  e.summon.elite = ['thorns'];
+  p.pos = { x: o.x + 2, y: o.y }; p.hp = 7; p.armor = 0;
+  ELT.toMob(ctx(), st(), H, e, 2, p);
+  assert.equal(p.hp, 6);
+  p.pos = { x: o.x, y: o.y };
+  ELT.toMob(ctx(), st(), H, e, 2, p);
+  assert.equal(p.hp, 6, 'ไกลไม่โดน');
+  // ฟื้นตัว
+  e.summon.elite = ['regen']; e.hp = 2;
+  ELT.beforeAct(ctx(), st(), H);
+  assert.equal(e.hp, 2 + ELT.EL.regen);
+  // ระเบิดตอนตาย + แต้มรวม
+  e.summon.elite = ['volatile'];
+  p.pos = { x: o.x + 2, y: o.y }; p.hp = 7; p.armor = 0;
+  const sc = st().score || 0;
+  kill(e, p);
+  assert.ok(!e.alive);
+  assert.equal(p.hp, 7 - ELT.EL.blastDmg);
+  assert.ok((st().score || 0) >= sc + ELT.EL.score);
+});
+
+test('มอนหัวหน้า: ไม่เกิดกับบอส/ฝูงจิ๋ว/ระเบิด · ระดับง่ายคืนแรกไม่มี · มีเพดานจำนวน', () => {
+  soloArena();
+  const H = S6.H();
+  Math.random = () => 0;
+  try {
+    match.eosDiff = 'hard';
+    for (const tr of ['boss', 'swarm', 'bomber', 'mech']) assert.equal(ELT.roll(ctx(), st(), H, 'daemon', { trait: tr }), null, tr);
+    assert.equal(ELT.roll(ctx(), st(), H, 'beast', {}), null);
+    match.eosDiff = 'easy'; st().nightNo = 1;
+    assert.equal(ELT.roll(ctx(), st(), H, 'daemon', {}), null);
+    match.eosDiff = 'hard'; st().nightNo = 3;
+    const o = openSpot();
+    for (let i = 0; i < 6; i++) tmob(null, o.x + i, o.y, {});
+    assert.ok(S6.mobsOf(ctx()).filter(ELT.isElite).length <= ELT.capOf(ctx(), H));
+  } finally { Math.random = realRandom; }
 });

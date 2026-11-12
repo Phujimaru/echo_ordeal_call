@@ -1183,6 +1183,58 @@ const CHARACTERS = [
     },
   },
   {
+    // ---------- เอมิยะ คริซุงุ (Fate/Zero) — กลาง — ดู characters/emiya_kiritsugu.js (GRID_PLAN §7.31) ----------
+    //  ไม่ระบุค่าพลัง → HP 7 / เกราะ 3 / โจมตี 1 · ความจุพลังชีวิตลดลงจาก Time Alter (ฮุค maxHp)
+    //  ปุ่มทุกช่องเปลี่ยนตามตัวเลือก/สถานะ (skillPub choices · skillArea · skillCost) · Time Alter = ระบบ Clock Up (server/clockUp.js)
+    id: "emiya_kiritsugu",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "เอมิยะ คริซุงุ",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/emiya_kiritsugu/kiritsugu.webp",
+    mov: 4,
+    range: [1, 3], // ปืนกล Calico M950 (ผู้ใช้สั่ง 2026-11-11)
+    passive: {
+      name: "เวทย์ตะกั่ว",
+      desc: "ตีปกติด้วยปืนกล Calico M950 ระยะ 1–3 · ตีปกตินอก Time Alter อัตราคริติคอล 50% · สนาม Eos: ติดคริติคอลได้ใน Time Alter ด้วย",
+    },
+    passive2: {
+      name: "อดีนาลีน",
+      desc: "ความเสียหายจากศัตรูที่ได้รับ ไม่ลงทันที — ลงในอีก 2 เทิร์นข้างหน้า (ต้นเทิร์น · เกราะรับก่อนตามปกติ) · ความเสียหายของแต่ละเทิร์นลงแยกกันคนละเทิร์น",
+    },
+    passive3: {
+      name: "การเอาตัวรอดขั้นสุดยอด",
+      desc: "ความเสียหายที่จะลงครั้งถัดไปถึงตาย: 50% ไม่ได้รับความเสียหายนั้น แล้วเปิด Double Accel ให้ฟรีในตาเดินถัดไป (1 ครั้งต่อเกม)",
+    },
+    basic: {
+      name: "คลังแสง",
+      desc: "ใช้ได้ 2 ครั้งต่อเทิร์น ไม่นับโควตาสกิล (สนาม Eos ไม่จำกัด) · เลือก 1 ใน 3: ระเบิดควัน (โยนรอบตัว 8 ช่อง → แตกเป็นม่านควันทันที 5 ช่องรูป + อยู่ 2 เทิร์น ซ่อนตัวได้ · ใช้แล้วยังเดินได้) · กับดักระเบิด (โยนรอบตัว 8 ช่อง ช่องที่ไม่มีศัตรู · ศัตรูเหยียบ = ระเบิด 3×3 ศัตรูทุกตัวในวงเสียหาย 3 · หลบได้ · วางได้ 3 อัน วางเพิ่ม = อันเก่าสุดหาย · สนาม Eos ไม่จำกัด) · ผ่าพันแผล (ฟื้นเกราะ 2)",
+      area: { kind: "self" }, // พื้นที่จริงตามตัวเลือก (skillArea)
+      cost: 2,
+      img: "/characters/emiya_kiritsugu/kiri_arsenal.webp",
+      instant: true,
+      effect: null, // ปุ่ม 3 ตัวเลือก (skillPub choices)
+    },
+    secondary: {
+      name: "Time Alter",
+      desc: "เลือก 1 ใน 2 · กดแทรกตาคนอื่น/เข้าร่วม Clock Up ได้: Double Accel (ความจุพลังชีวิต −1 · ตี/ใช้สกิลได้ 2 ครั้ง) · Square Accel (ความจุพลังชีวิต −2 · ตี/ใช้สกิลได้ 4 ครั้ง) · เดิน 7 เติมใหม่ทุกครั้งที่ตี (ความจุพลังชีวิตต่ำสุด 1 — ลดไม่ได้แล้วยังใช้ได้ · คูลดาวน์ 1 เทิร์น) · สนาม Eos: พลังโจมตี +2 ระหว่างใช้",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/emiya_kiritsugu/kiri_alter.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Thompson Contender",
+      desc: "ยิงแนว 6×1 โดนศัตรูคนแรก: ความเสียหายตามพลังโจมตี (หลบได้) + ห้ามใช้สกิล 3 เทิร์น + ผนึกพลังงาน 3 เทิร์น + ผุพัง 3 เทิร์น · ยิงไม่ใช้แต้ม · ยิงแล้วต้องเติมกระสุน (4 แต้ม) · 3 นัดต่อเกม · สนาม Eos: โดนทุกตัวในแนว + 50% สังหาร",
+      area: { kind: "line", len: 6, width: 1, hostile: true },
+      cost: 0,
+      img: "/characters/emiya_kiritsugu/kiri_thompson.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
     // ---------- เฟรดดี้ ฟาซแบร์ (Five Nights at Freddy's) — เอาฮา — ดู characters/freddy_fazbear.js ----------
     //  ไม่มีสกิล · ค่าพลังไม่ระบุ → HP 7 / เกราะ 3 · พลังโจมตีตามช่วงเวลา (attackBaseOverride) · ระยะเดินตามช่วงเวลา (ฮุค mov)
     id: "freddy_fazbear",
