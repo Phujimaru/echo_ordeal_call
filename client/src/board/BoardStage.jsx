@@ -1428,7 +1428,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const ringAt = (e.ring || []).map(posOf).filter(Boolean);
       look(e.at);
       pushFx([
-        { kind: "elReact", key: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },
+        { kind: "elReact", rx: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },
         { kind: "elName", name: e.name, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1 },
       ]);
     };

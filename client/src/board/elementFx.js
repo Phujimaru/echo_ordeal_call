@@ -5,7 +5,7 @@
 //   back  = วงแสงสีธาตุใต้ฐาน เต้นช้าๆ + อนุภาค (สะเก็ดไฟลอยขึ้น / เกล็ดน้ำแข็ง+ไอเย็น / ประกายไฟฟ้า / หยดน้ำไหล)
 //   front = ป้ายไอคอนธาตุมุมขวาบนของหมาก
 //  เหตุการณ์ (socket):
-//   elemReact { key, name, a, b, id, at, ring, size } → elReact (ฉากปฏิกิริยา ~1 วิ ตามชนิด) + elName (ป้ายชื่อเด้ง)
+//   elemReact { key, name, a, b, id, at, ring, size } → elReact (ชนิดเก็บใน rx) (ฉากปฏิกิริยา ~1 วิ ตามชนิด) + elName (ป้ายชื่อเด้ง)
 //   elemBomb  { from, to, el, tiles, hits }           → elBomb (ลูกระเบิดโค้ง → วงธาตุ 3×3)
 //   elemAura  { id, el }                               → elAura (ติดคราบ: วงสีวาบที่ฐาน)
 //  lowQ = ตัดอนุภาค · ลดการเคลื่อนไหว = นิ่ง
@@ -19,7 +19,7 @@ export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,7
 const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️" };
 const WHITE = "255,255,255", STEAM = "235,240,245";
 
-export const ELEM_FX_DUR = { elReact: 1100, elName: 1500, elBomb: 1150, elAura: 650 };
+export const ELEM_FX_DUR = { elReact: 1500, elName: 1600, elBomb: 1300, elAura: 800 };
 export const isElemFx = (kind) => typeof kind === "string" && (kind in ELEM_FX_DUR);
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -105,7 +105,7 @@ function bolt(g, x0, y0, x1, y1, rgb, a, w, seed, seg = 7) {
 function ring(g, wx, wy, r, z, rgb, a, w) { gEllipse(g, wx, wy, r, z, 44); g.strokeStyle = rgba(rgb, a); g.lineWidth = w; g.stroke(); }
 
 // ---------- เหตุการณ์ ----------
-//  e: { kind, t0, at, size, key?, a?, b?, el?, ringAt?: [{x,y,size}], from?, to?, tiles?, name? }
+//  e: { kind, t0, at, size, rx?, a?, b?, el?, ringAt?: [{x,y,size}], from?, to?, tiles?, name? }
 export function elemFx(g, e, now, lowQ) {
   const T = ELEM_FX_DUR[e.kind] || 1000, p = (now - e.t0) / T;
   if (p < 0 || p > 1) return;
@@ -157,11 +157,11 @@ function elBomb(g, e, p, lowQ) {
 }
 
 function elReact(g, e, p, lowQ) {
-  const n = Math.max(1, e.size | 0), [wx, wy] = mid(e.at, n), K = 1 + (n - 1) * 0.6;
+  const n = Math.max(1, e.size | 0), [wx, wy] = mid(e.at, n), K = (1 + (n - 1) * 0.6) * 1.45; // ×1.45 = ใหญ่ขึ้น (ผู้ใช้: ดูไม่ออกว่ามีเอฟเฟกต์)
   const A = EL_RGB[e.a] || WHITE, B = EL_RGB[e.b] || A, seed = (e.t0 | 0) % 997;
   const [x, y, s] = P(wx, wy, 0.5);
   const others = (e.ringAt || []).filter(okT).map((t) => mid(t, t.size || 1));
-  switch (e.key) {
+  switch (e.rx) { // ชนิดปฏิกิริยา (ห้ามใช้ key — pushFx เขียนทับเป็นเลขลำดับ)
     case "burst": { // ปะทุ: วาบขาวที่เป้า → วงกระแทกครึ่งร้อนครึ่งเย็น
       const k = env(p, 0, 0.06, 0.3, 0.6);
       additive(g, () => glow(g, x, y, s * 1.3 * K, WHITE, 0.85 * k));
