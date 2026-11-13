@@ -180,38 +180,65 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
   border: 1px solid var(--line); border-left: 3px solid var(--hp); padding: 10px 14px;
 }
 
-/* เมนูหน้าแรก (ผู้ใช้สั่ง 2026-11-14 รอบ 3 "พื้นหลังขาวก็พอ · ใช้สีน้ำเงิน/ฟ้าให้เป็นประโยชน์ · รองรับกลางวัน/กลางคืน")
-   ปุ่มขาวมุมโค้ง · ตัวหนังสือน้ำเงิน · แถบซ้ายน้ำเงิน→ฟ้า · ลูกศรวงกลมฟ้า
-   ปุ่มหลัก (สร้างห้อง) = ขอบน้ำเงิน + ลูกศรน้ำเงินทึบ · ชี้ = ขอบฟ้า ยก เรืองฟ้า ลูกศรทึบ · โหมดมืด = การ์ดกรมท่า ตัวหนังสือขาว */
+/* เมนูหน้าแรก (ผู้ใช้สั่ง 2026-11-14 รอบ 4 "ออกแบบให้เข้ากับธีมเกม ไม่ใช่เหมือนเว็บ") — ภาษาเดียวกับปุ่มโจมตีในเกม (client hud.css .atkb)
+   มุมตัดเฉียง · พื้นหิมะลายตาข่ายหกเหลี่ยม · กรอบเส้นในฟ้า · แถบสีซ้าย · ตราหกเหลี่ยมใส่ไอคอน · บั้งลูกศรวิ่ง · แสงวาบ (ปุ่มหลัก)
+   ปุ่มหลัก = แถบ/ตราน้ำเงิน→ฟ้า · ปุ่มรอง = ฟ้า · ออกจากเกม = เทาฟ้า · โหมดมืด = กระจกกรมท่าลายเดียวกัน ตัวหนังสือขาว */
 .menu { display: flex; flex-direction: column; gap: 12px;
-  --mb-bg: #ffffff; --mb-bg-h: #f3f9ff; --mb-ink: #163a6b; --mb-line: rgba(22, 58, 107, 0.16); --mb-navy: #1f5fbf; --mb-sky: #2bb8ff;
-  --mb-shadow: 0 6px 18px rgba(22, 58, 107, 0.12); --mb-shadow-h: 0 12px 26px rgba(31, 95, 191, 0.22); }
+  --mb-ink: #1c3f6e; --mb-bar: #2bb8ff; --mb-frame: rgba(127, 184, 230, 0.8); --mb-lat: rgba(61, 139, 217, 0.1);
+  --mb-bg1: #ffffff; --mb-bg2: #f7fafd; --mb-bg3: #dce7f3; --mb-hex1: #bee3f8; --mb-hex2: #3d8bd9; --mb-hex3: #1c3f6e;
+  --mb-core1: #ffffff; --mb-core2: #eef3f9; --mb-core3: #c7d9ee; --mb-sheen: rgba(255, 255, 255, 0.95); }
 .menu button {
-  appearance: none; position: relative; overflow: hidden; text-align: left; cursor: pointer; color: var(--mb-ink);
-  background: var(--mb-bg); border: 1.5px solid var(--mb-line); border-radius: 16px; box-shadow: var(--mb-shadow);
-  padding: 15px 16px 15px 24px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
-  transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s;
+  appearance: none; position: relative; display: flex; align-items: center; gap: 16px; height: 72px; padding: 0 22px 0 14px;
+  border: 0; cursor: pointer; color: var(--mb-ink); text-align: left; background: none; isolation: isolate;
+  filter: drop-shadow(0 6px 14px rgba(28, 63, 110, 0.22)); transition: transform 0.15s, filter 0.2s;
 }
-.menu button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, var(--mb-navy), var(--mb-sky)); opacity: 0.55; transition: opacity 0.18s, width 0.18s; }
-.menu .t { font: 600 20px/1.2 var(--f-ui); }
-.menu .arr {
-  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px;
-  color: var(--mb-sky); border: 1.5px solid var(--mb-sky); transition: transform 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
-}
-.menu button:hover { transform: translateY(-2px); background: var(--mb-bg-h); border-color: var(--mb-sky); box-shadow: var(--mb-shadow-h); }
-.menu button:hover::before { opacity: 1; width: 7px; }
-.menu button:hover .arr { transform: translateX(3px); background: var(--mb-sky); color: #fff; }
-.menu button:active { transform: translateY(0); }
-.menu button.main { border-color: var(--mb-navy); }
-.menu button.main::before { opacity: 1; }
-.menu button.main .t { color: var(--mb-navy); }
-.menu button.main .arr { background: linear-gradient(135deg, var(--mb-navy), var(--mb-sky)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(31, 95, 191, 0.35); }
-.menu button:focus-visible { outline: 2px solid var(--mb-sky); outline-offset: 3px; }
+.menu .mb-bg { position: absolute; inset: 0; overflow: hidden; z-index: -1;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  background:
+    linear-gradient(90deg, var(--mb-bar) 0 6px, transparent 6px),
+    repeating-linear-gradient(60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(-60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
+    linear-gradient(115deg, var(--mb-bg1), var(--mb-bg2) 40%, var(--mb-bg3)); }
+.menu .mb-bg::before { content: ""; position: absolute; inset: 5px 5px 5px 11px; border: 1px solid var(--mb-frame);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
+.menu .mb-bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, var(--mb-sheen) 50%, transparent 70%); transform: translateX(-130%); }
+.menu button.main .mb-bg::after { animation: mbSheen 2.8s 0.6s infinite; }
+.menu button:hover .mb-bg::after { animation: mbSheen 0.7s 1; }
+.menu .mb-emb { position: relative; flex: none; width: 46px; height: 52px; display: grid; place-items: center; }
+.menu .mb-hex { position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(160deg, var(--mb-hex1), var(--mb-hex2) 55%, var(--mb-hex3)); }
+.menu .mb-hex::after { content: ""; position: absolute; inset: 3px; clip-path: inherit; background: radial-gradient(circle at 50% 30%, var(--mb-core1), var(--mb-core2) 60%, var(--mb-core3)); }
+.menu .mb-emb svg { position: relative; width: 24px; height: 24px; overflow: visible; }
+.menu .mb-emb svg * { fill: none; stroke: var(--mb-ink); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.menu .t { position: relative; font: 700 22px/1 var(--f-ui); letter-spacing: 0.02em; white-space: nowrap; }
+.menu .mb-chev { position: relative; display: flex; gap: 2px; margin-left: auto; }
+.menu .mb-chev i { width: 9px; height: 16px; background: var(--mb-bar); clip-path: polygon(0 0, 55% 0, 100% 50%, 55% 100%, 0 100%, 45% 50%); opacity: 0.35; }
+.menu button.main .mb-chev i, .menu button:hover .mb-chev i { animation: mbChev 1.2s ease-in-out infinite; }
+.menu .mb-chev i:nth-child(2) { animation-delay: 0.15s !important; } .menu .mb-chev i:nth-child(3) { animation-delay: 0.3s !important; }
+.menu button:hover { transform: translateX(4px); filter: drop-shadow(0 0 12px rgba(127, 184, 230, 0.85)); }
+.menu button:active { transform: translateX(2px) scale(0.98); }
+.menu button.main { --mb-bar: #1f6fd6; height: 80px; }
+.menu button.main .mb-bg { background:
+    linear-gradient(180deg, #1f6fd6, #2bb8ff) 0 0 / 7px 100% no-repeat,
+    repeating-linear-gradient(60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(-60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
+    linear-gradient(115deg, var(--mb-bg1), var(--mb-bg2) 40%, var(--mb-bg3)); }
+.menu button.main .mb-hex { animation: mbHex 1.8s ease-in-out infinite; }
+.menu button.main .t { font-size: 24px; }
+.menu button.quiet { --mb-bar: #8ba3c2; }
+.menu button.quiet .mb-hex { background: linear-gradient(160deg, #e6eef7, #8ba3c2 55%, #4f6e95); }
+.menu button:focus-visible { outline: 2px solid #2bb8ff; outline-offset: 3px; }
+@keyframes mbSheen { 45%, 100% { transform: translateX(130%); } }
+@keyframes mbChev { 0%, 100% { opacity: 0.25; transform: translateX(0); } 50% { opacity: 1; transform: translateX(3px); } }
+@keyframes mbHex { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.2) drop-shadow(0 0 8px rgba(127, 184, 230, 0.9)); } }
+@media (prefers-reduced-motion: reduce) { .menu button, .menu button *, .menu .mb-bg::after { animation: none !important; } }
 :root[data-ui="dark"] .menu {
-  --mb-bg: #10233f; --mb-bg-h: #16305a; --mb-ink: #e6f1ff; --mb-line: rgba(127, 184, 230, 0.28); --mb-navy: #4d8ff0; --mb-sky: #2bb8ff;
-  --mb-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); --mb-shadow-h: 0 12px 28px rgba(43, 184, 255, 0.25);
+  --mb-ink: #eaf4ff; --mb-frame: rgba(127, 184, 230, 0.45); --mb-lat: rgba(127, 184, 230, 0.09);
+  --mb-bg1: rgba(22, 46, 86, 0.96); --mb-bg2: rgba(16, 34, 66, 0.96); --mb-bg3: rgba(10, 22, 44, 0.96);
+  --mb-core1: #1d3a66; --mb-core2: #14294a; --mb-core3: #0b1a2e; --mb-sheen: rgba(127, 200, 255, 0.35);
 }
-:root[data-ui="dark"] .menu button.main .t { color: #9fd0ff; }
+:root[data-ui="dark"] .menu button { filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55)); }
+:root[data-ui="dark"] .menu button:hover { filter: drop-shadow(0 0 14px rgba(43, 184, 255, 0.55)); }
 
 /* ---------- แผงกระจก (มีขีดมุม) ---------- */
 .panel {
