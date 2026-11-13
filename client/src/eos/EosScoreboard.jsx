@@ -103,8 +103,9 @@ export default function EosScoreboard({ state }) {
                 <div className="eos-hud-row eos-hud-chips">
                   {/* ป้าย Lament ครอบแค่ชื่อ — ไม่ครอบชิปคำสาป (เคยซ้อนสองป้าย ผู้ใช้ส่งภาพ 2026-11-12) */}
                   <Tip icon="💀" title="Lament" lines={[
-                    `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} — ใครล้มก็ลด 1 · หมด = แพ้`,
+                    `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} — ใครล้มก็ลด 1 · หมดแล้วคนที่ล้มไม่ฟื้นเอง`,
                     b.lament.rage && b.lament.rage.atk ? `มอนดุขึ้น ตี +${b.lament.rage.atk} เดิน +${b.lament.rage.mov}` : "มอนดุขึ้นทุก 10 เทิร์น",
+                        "ล้มแล้วทิ้งร่าง — ขนนกคืนชีพ (ร้าน) ฟื้นได้ทันที ไม่นับการล้ม",
                     b.lament.dead ? "ผู้คร่ำครวญถูกโค่นแล้ว" : `แต้มรวม ${b.lament.at} = ผู้คร่ำครวญมา · ต้องล้มมันจึงชนะ`,
                   ]}>
                     <span className="eos-hud-label">💀 ชีวิต {Math.max(0, b.lament.lives - b.lament.downs)}/{b.lament.lives}</span>
@@ -149,10 +150,10 @@ export default function EosScoreboard({ state }) {
                   {dead.map((r) => {
                     const left = Math.max(0, (r.at || 0) - round);
                     return (
-                      <Tip key={r.id} icon="🕯️" title={`${r.p.name} ฟื้นในอีก ${left} เทิร์น`} lines={["ฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด", "ยืนติดดวงวิญญาณแล้วกด \"ช่วย\" = ฟื้นเร็วขึ้น 1 เทิร์น", "ล้มหมดทุกคนพร้อมกัน = แพ้"]}>
-                        <span className="eos-revive-face" data-soon={left <= 1 ? "true" : undefined}>
+                      <Tip key={r.id} icon={r.gone ? "🪶" : "🕯️"} title={r.gone ? `${r.p.name} ไม่ฟื้นเอง` : `${r.p.name} ฟื้นในอีก ${left} เทิร์น`} lines={r.gone ? ["ชีวิตทีมหมดตอนล้ม", "ยืนติดร่างแล้วใช้ขนนกคืนชีพ = ฟื้นทันที", "ล้มหมดทุกคนพร้อมกัน = แพ้"] : ["ฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด", "ยืนติดดวงวิญญาณแล้วกด \"ช่วย\" = ฟื้นเร็วขึ้น 1 เทิร์น", "ล้มหมดทุกคนพร้อมกัน = แพ้"]}>
+                        <span className="eos-revive-face" data-soon={!r.gone && left <= 1 ? "true" : undefined} data-gone={r.gone ? "true" : undefined}>
                           {r.p.img ? <img src={r.p.img} alt="" /> : <i style={{ background: r.p.color || "#888" }} />}
-                          <b>{left}</b>
+                          <b>{r.gone ? "✝" : left}</b>
                         </span>
                       </Tip>
                     );

@@ -1,7 +1,7 @@
 // ============================================================
 //  สนาม Eos — ความยาก "Lament" (สูงกว่ายาก · ผู้ใช้สั่ง 2026-11-11 "เอาหมดเลย" — ตัวเลขทั้งหมด Claude ตั้ง · GRID_PLAN §8.6 "Lament")
 //   ค่าพื้นฐานอยู่ที่ eosEvents.DIFF.lament · ไฟล์นี้ = กติกาเฉพาะ Lament + บอสท้ายเกม "ผู้คร่ำครวญ"
-//   1 คืนไม่สิ้นสุด (ฟ้าสางปีศาจสลายครึ่งเดียว) · 2 ไฟเมืองไม่ฟื้นตอนเช้า · 3 ชีวิตทีมจำกัด · 4 เสาเปราะ (ตีทีเดียวหลุด)
+//   1 คืนไม่สิ้นสุด (ฟ้าสางปีศาจสลายครึ่งเดียว) · 2 ไฟเมืองไม่ฟื้นตอนเช้า · 3 ชีวิตทีมจำกัด (หมด = ล้มแล้วไม่ฟื้นเอง) · 4 เสาเปราะ (ตีทีเดียวหลุด)
 //   5 เสาหลุด = แต้มรวม −3 · 6 มอนดุขึ้นทุก 10 เทิร์น · 7 การ์ดทีมคู่คำสาป · 8 ราชาปีศาจมาเร็ว (แต้ม 25) คืนสุดท้ายมา 2 ตัว
 //   9 ร้านแพง ×1.5 · เหรียญจากมอน −1
 //   ผู้คร่ำครวญ: แต้มรวมถึง 90 → เตือน 1 เทิร์น → ลงกลางแผนที่ · ชนะ = แต้มครบเป้า และ ล้มผู้คร่ำครวญได้
@@ -30,15 +30,39 @@ function rage(ctx) {
 }
 
 // ---------- ชีวิตทีม ----------
-function onDown(ctx, s) {
-  if (!on(ctx)) return;
-  const l = L(s);
+//  ผู้ใช้สั่ง 2026-11-14: ชีวิตหมดแล้วเล่นต่อ — แค่คนที่ล้มหลังจากนั้นฟื้นเองไม่ได้ (gone) · ล้ม = นับทันที (stage6.onKill)
+//   ล้มแล้วทิ้งหมากศพ (stage6.keepsCorpse) · ฟื้นด้วยไอเทม "ขนนกคืนชีพ" = ไม่นับการล้มครั้งนั้น (คืนชีวิตทีม)
+//   paid[pid] = การล้มครั้งนี้หักชีวิตทีมไปแล้ว · gone[pid] = ไม่มีชีวิตให้หัก → ไม่ฟื้นตามเวลา
+// คืน true = ฟื้นตามเวลาได้
+function onDown(ctx, s, p) {
+  if (!on(ctx)) return true;
+  const l = L(s), max = livesOf(ctx);
+  l.paid ||= {}; l.gone ||= {};
+  if (l.downs >= max) {
+    if (p) l.gone[p.id] = true;
+    ctx.fx("lament_life", { left: 0, max, gone: p ? p.id : null });
+    ctx.log(`🕯️ ชีวิตทีมหมด — ${p ? p.name : "ผู้เล่น"} ฟื้นเองไม่ได้`);
+    return false;
+  }
   l.downs += 1;
-  const left = livesOf(ctx) - l.downs;
-  ctx.fx("lament_life", { left, max: livesOf(ctx) });
-  ctx.log(left > 0 ? `🕯️ ชีวิตทีมเหลือ ${left}` : "🕯️ ชีวิตทีมหมด");
+  if (p) l.paid[p.id] = true;
+  const left = max - l.downs;
+  ctx.fx("lament_life", { left, max });
+  ctx.log(left > 0 ? `🕯️ ชีวิตทีมเหลือ ${left}` : "🕯️ ชีวิตทีมหมด — ใครล้มต่อจากนี้ฟื้นเองไม่ได้");
+  return true;
 }
-function lost(ctx, s) { return on(ctx) && L(s).downs >= livesOf(ctx); }
+const gone = (s, pid) => !!(s && s.lam && s.lam.gone && s.lam.gone[pid]);
+// ฟื้นตามเวลา: ชีวิตที่หักไปถูกใช้แล้ว
+function onRespawn(s, pid) { if (s && s.lam) { if (s.lam.paid) delete s.lam.paid[pid]; if (s.lam.gone) delete s.lam.gone[pid]; } }
+// ฟื้นด้วยไอเทม: ไม่นับการล้มครั้งนั้น → คืน true ถ้าคืนชีวิตทีม
+function onSaved(ctx, s, p) {
+  if (!s || !s.lam) return false;
+  const l = s.lam, refund = !!(l.paid && l.paid[p.id]);
+  if (refund) l.downs = Math.max(0, l.downs - 1);
+  onRespawn(s, p.id);
+  if (refund && on(ctx)) ctx.fx("lament_life", { left: livesOf(ctx) - l.downs, max: livesOf(ctx), saved: p.id });
+  return refund;
+}
 
 // ---------- คำสาปคู่การ์ดทีม ----------
 function onPerk(ctx, s) {
@@ -185,7 +209,7 @@ function publicOf(ctx, s) {
   const l = L(s);
   return {
     lament: {
-      lives: livesOf(ctx), downs: l.downs, curses: l.curses.map((id) => ({ id, ...CURSES[id] })), rage: rage(ctx),
+      lives: livesOf(ctx), downs: l.downs, gone: Object.keys(l.gone || {}), curses: l.curses.map((id) => ({ id, ...CURSES[id] })), rage: rage(ctx),
       lord: l.lord, phase: l.phase, dead: l.dead, at: LORD.at,
       warn: l.warn ? { x: l.warn.x, y: l.warn.y } : null, lines: l.lines ? l.lines.tiles.map((t) => ({ ...t })) : null,
     },
@@ -193,6 +217,6 @@ function publicOf(ctx, s) {
 }
 
 module.exports = {
-  LAMENT, LORD, CURSES, on, L, curse, livesOf, rage, onDown, lost, onPerk,
+  LAMENT, LORD, CURSES, on, L, curse, livesOf, rage, onDown, gone, onRespawn, onSaved, onPerk,
   warnLord, onScore, landLord, act, onDeath, blocksWin, preRound, publicOf, lordUnit, phaseOf,
 };

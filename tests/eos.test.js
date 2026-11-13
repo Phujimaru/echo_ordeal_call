@@ -1729,7 +1729,7 @@ test('Lament: โหวตได้ · เลือด/จำนวน/พลั
     assert.deepEqual(LMx.rage(ctx()), { atk: 2, mov: 2 });
   } finally { match.eosDiff = 'normal'; }
 });
-test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
+test('Lament: ชีวิตทีมหมดแล้วเล่นต่อ (คนที่ล้มต่อไม่ฟื้นเอง) · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
   setup();
   try {
     lamentOn();
@@ -1745,8 +1745,50 @@ test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสา�
     // ชีวิตทีม 3 + คน 3 = 6
     const lives = LMx.livesOf(ctx());
     assert.equal(lives, 6);
-    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; p.alive = true; }
-    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose');
+    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; LMx.onRespawn(s, p.id); p.alive = true; }
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), null, 'ชีวิตหมดยังไม่แพ้ (ผู้ใช้ 2026-11-14)');
+    // ล้มหลังชีวิตหมด = ไม่ฟื้นเอง
+    const p0 = P(0); p0.alive = false; S6.noteDeaths(ctx(), s);
+    assert.ok(LMx.gone(s, p0.id), 'ไม่ฟื้นเอง');
+    match.roundNumber += 20; S6.reviveDue(ctx(), s);
+    assert.equal(p0.alive, false, 'ผ่านไปนานก็ไม่ฟื้น');
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), null, 'ยังมีคนรอด = เล่นต่อ');
+    assert.ok(Fodlan.publicInfo().board.revive.find((r) => r.id === p0.id).gone, 'ส่ง client');
+    P(1).alive = false; P(2).alive = false;
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose', 'ล้มหมดทุกคน = แพ้');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('Lament: ล้มแล้วนับทันที · ทิ้งหมากศพ · ขนนกคืนชีพฟื้นที่ร่างแล้วคืนชีวิตทีม · คนที่ล้มโหวตการ์ดได้', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st(), l = LMx.L(s);
+    const v = P(0), h = P(1);
+    v.pos = { x: 20, y: 22 }; h.pos = { x: 22, y: 22 }; P(2).pos = { x: 30, y: 0 };
+    const d = mob('daemon', 21, 21);
+    match.effectSourceId = d.id; combat.dealMixed(v, 999); combat.resolveDamageAftermath(v); match.effectSourceId = null;
+    assert.equal(v.alive, false);
+    assert.equal(l.downs, 1, 'นับทันที ไม่รอเทิร์นหน้า');
+    assert.deepEqual(v.corpse, { x: 20, y: 22 }, 'หมากศพ');
+    assert.ok(!(Fodlan.publicInfo().board.spirits || []).some((o) => o.id === v.id), 'วาดร่างแทนดวงวิญญาณ');
+    // ร้านมีขนนก
+    assert.ok(S6.reviveOnSale(), 'ขายใน Lament');
+    // ไม่ติดร่าง = ใช้ไม่ได้
+    h.pos = { x: 25, y: 22 };
+    assert.equal(S6.useRevive(h), false);
+    h.pos = { x: 21, y: 22 };
+    assert.ok(S6.useRevive(h), 'ใช้ได้');
+    assert.ok(v.alive && v.hp === Math.ceil(combat.maxHpOf(v) / 2), 'ฟื้นเลือดครึ่ง');
+    assert.equal(l.downs, 0, 'ไม่นับการล้ม');
+    assert.equal(v.corpse, null);
+    assert.equal(s.dead[v.id], undefined);
+    // โหวต: คนที่ล้มกดได้ และไม่ต้องรอ
+    v.alive = false;
+    s.score = 10; PK.onScore(ctx(), s);
+    const o = Fodlan.publicInfo().board.perkOffer;
+    assert.ok(o, 'มีโหวต');
+    for (const u of [P(0), P(1), P(2)]) Fodlan.charAction(u.id, `fd:perk:${o.choices[0].id}`);
+    assert.equal(Fodlan.publicInfo().board.perkOffer, null, 'ครบทุกคนรวมคนที่ล้ม = ตัดสินเลย');
   } finally { match.eosDiff = 'normal'; }
 });
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {

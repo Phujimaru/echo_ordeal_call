@@ -1453,7 +1453,6 @@ function outcome(ctx, st) {
   if (!s) return null;
   if (s.result) return s.result;
   const people = Object.values(ctx.match.players).filter((u) => !u.summon);
-  if (LM.lost(ctx, s)) { s.result = "lose"; ctx.log("🕯️ ชีวิตทีมหมด — Eos จมสู่ความโศก"); return s.result; } // Lament
   if (people.length && people.every((u) => !u.alive)) {
     s.result = "lose";
     ctx.log("🌑 ผู้เล่นล้มหมดทุกคน — Eos ถูกความมืดกลืนกิน");
@@ -1490,8 +1489,8 @@ function noteDeaths(ctx, s) {
       s.dead[p.id] = ctx.match.roundNumber;
       { const S = SUM(s); S.deaths[p.id] = (S.deaths[p.id] || 0) + 1; const c = S.last[p.id]; if (c) (S.causes[p.id] ||= {})[c] = ((S.causes[p.id] || {})[c] || 0) + 1; }
       PKS.noteDown(s);
-      LM.onDown(ctx, s); // Lament: ชีวิตทีม // ดาวท้าทาย "ไม่มีใครล้ม"
-      ctx.log(`🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${reviveTurns(s)} เทิร์น`);
+      const back = LM.onDown(ctx, s, p); // Lament: ชีวิตทีม (หมดแล้ว = ไม่ฟื้นเอง) // ดาวท้าทาย "ไม่มีใครล้ม"
+      ctx.log(back ? `🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${reviveTurns(s)} เทิร์น` : `🕯️ ${p.name} ล้มลง`);
     }
   }
 }
@@ -1507,24 +1506,30 @@ function reviveSpot(ctx, s, p) {
   return null;
 }
 
+// ฟื้นผู้เล่นที่ spot (ฟื้นตามเวลา / ขนนกคืนชีพ) · hp = เลือดตอนฟื้น (ไม่ส่ง = เต็ม)
+function raise(ctx, s, p, spot, hp) {
+  const pid = p.id;
+  E.onRevived(s, pid);
+  p.alive = true; p.result = null; p.locked = false;
+  p.statuses = {}; p.statusAmt = {};
+  p.shield = 0; p.tempHp = 0; p.tempHpTurns = 0; p.mountId = null; p.wasAttacked = false; p.corpseKeeper = null;
+  p.corpse = null;
+  p.boardSize = 1;
+  if (ctx.combat.respawnReset) ctx.combat.respawnReset(p); // เกิดใหม่: ของที่ใช้ได้ครั้งเดียวต่อเกมกลับมาใช้ได้ (ผู้ใช้สั่ง 2026-11-11)
+  p.hp = hp != null ? Math.max(1, Math.min(ctx.combat.maxHpOf(p), hp)) : ctx.combat.maxHpOf(p);
+  p.armor = ctx.combat.maxArmorOf(p);
+  p.pos = spot;
+  delete s.dead[pid];
+}
 function reviveDue(ctx, s) {
   const turn = ctx.match.roundNumber + 1, back = [];
   for (const [pid, r] of Object.entries(s.dead)) {
     const p = ctx.match.players[pid];
-    if (!p || p.alive || p.summon || turn < r + reviveTurns(s)) continue;
+    if (!p || p.alive || p.summon || LM.gone(s, pid) || turn < r + reviveTurns(s)) continue; // Lament: ชีวิตทีมหมดตอนล้ม = ไม่ฟื้นเอง
     const spot = E.helpedSpot(ctx, s, H(), p) || reviveSpot(ctx, s, p); // ถูกเพื่อนช่วย = ฟื้นข้างดวงวิญญาณ
     if (!spot) continue;
-    E.onRevived(s, pid);
-    p.alive = true; p.result = null; p.locked = false;
-    p.statuses = {}; p.statusAmt = {};
-    p.shield = 0; p.tempHp = 0; p.tempHpTurns = 0; p.mountId = null; p.wasAttacked = false; p.corpseKeeper = null;
-    p.corpse = null;
-    p.boardSize = 1;
-    if (ctx.combat.respawnReset) ctx.combat.respawnReset(p); // เกิดใหม่: ของที่ใช้ได้ครั้งเดียวต่อเกมกลับมาใช้ได้ (ผู้ใช้สั่ง 2026-11-11)
-    p.hp = ctx.combat.maxHpOf(p);
-    p.armor = ctx.combat.maxArmorOf(p);
-    p.pos = spot;
-    delete s.dead[pid];
+    raise(ctx, s, p, spot);
+    LM.onRespawn(s, pid);
     back.push({ id: p.id, x: spot.x, y: spot.y });
     ctx.log(`✨ ${p.name} ฟื้นคืนชีพ!`);
   }
@@ -2295,6 +2300,7 @@ function onKill(ctx, st, victim, killerId) {
   const s = st && st.eos;
   if (!s || !victim || victim.summon) return;
   E.noteDeathAt(s, victim); // ดวงวิญญาณที่ช่องที่ล้ม (ช่วยเพื่อนฟื้นเร็ว)
+  noteDeaths(ctx, s); // นับการล้มทันที (ผู้ใช้ 2026-11-14 — เดิมรอจบตา/ต้นเทิร์นหน้า)
   const by = killerId && ctx.match.players[killerId];
   if (by && by.id !== victim.id) huntDone(ctx, s, by, "player", victim.id);
 }
@@ -2554,6 +2560,7 @@ function descOf(a, s, sz) {
 }
 function charAction(ctx, st, p, key, tile) {
   const s = st && st.eos;
+  if (s && p && typeof key === "string" && key.startsWith("fd:perk:")) return PKS.action(ctx, s, H(), p, key, tile); // โหวตการ์ดทีม (คนที่ล้มก็โหวตได้)
   if (!s || !p || !p.pos) return false;
   const tw = TWN.action(ctx, s, H(), p, key);
   if (tw !== null) return tw;
@@ -2700,6 +2707,45 @@ function useWard(p) {
   if (ok) XT.stat(s, p.id, "guard");
   return ok;
 }
+// ---------- Lament: หมากศพ + ขนนกคืนชีพ (ผู้ใช้สั่ง 2026-11-14) ----------
+//  ล้มใน Lament = ทิ้งร่างไว้ที่ช่องที่ล้ม (server/duo.js keptFor) · ยืนติดร่างเพื่อนแล้วใช้ขนนก = ฟื้นทันทีที่ร่าง เลือดครึ่งหนึ่ง
+//  การล้มครั้งนั้นไม่นับ (คืนชีวิตทีม — eosLament.onSaved) · ไม่มีร่างติดตัว = ไม่เสียของ · ขายเฉพาะ Lament
+const REVIVE_ITEM = { hpK: 0.5 };
+function lamentOn() {
+  if (!gysahlOnSale()) return false;
+  return LM.on(require("../fodlan").makeCtx());
+}
+function keepsCorpse(p) { return !!(p && !p.summon && lamentOn()); }
+function reviveOnSale() { return lamentOn(); }
+function reviveTargets(ctx, s, p) {
+  const e = E.ev(s), out = [];
+  for (const pid of Object.keys(s.dead || {})) {
+    const u = ctx.match.players[pid];
+    if (!u || u.alive || u.summon || u.id === p.id) continue;
+    const at = u.corpse || e.deathAt[pid];
+    if (at && ctx.adjacent(p, at.x, at.y)) out.push({ u, x: at.x, y: at.y });
+  }
+  return out;
+}
+function useRevive(p) {
+  if (!p || !p.alive || !p.pos || !reviveOnSale()) return false;
+  const F = require("../fodlan");
+  const ctx = F.makeCtx(), s = F.stageState().eos;
+  for (const t of reviveTargets(ctx, s, p)) {
+    const u = t.u;
+    u.corpse = null; // ไม่นับร่างตัวเองตอนหาช่อง
+    const spot = tileFree(ctx, s, t.x, t.y, u.id) ? { x: t.x, y: t.y } : freeNear(ctx, s, t.x, t.y, 2, u.id);
+    if (!spot) { u.corpse = { x: t.x, y: t.y }; continue; }
+    raise(ctx, s, u, spot, Math.ceil(ctx.combat.maxHpOf(u) * REVIVE_ITEM.hpK));
+    const refund = LM.onSaved(ctx, s, u);
+    XT.stat(s, p.id, "saves");
+    ctx.bump();
+    ctx.fx("revive", { list: [{ id: u.id, x: spot.x, y: spot.y }], by: p.id, item: true });
+    ctx.log(`🪶 ${p.name} ใช้ขนนกคืนชีพ — ${u.name} ฟื้นคืนชีพ!${refund ? " (ไม่นับการล้ม)" : ""}`);
+    return true;
+  }
+  return false;
+}
 // กำแพงไม้ (ไอเทมร้าน Eos — server/shop.js) → เพิ่มจำนวนที่วางได้ (ปุ่ม "กำแพง" บน HUD) · เต็มแล้ว = ไม่เสียของ
 function useBarricade(p) {
   if (!p || !p.alive || !gysahlOnSale()) return false;
@@ -2759,7 +2805,7 @@ function publicInfo(ctx, st) {
     lastGain: s.lastGain || 0,
     nightNo: s.nightNo || 0, dayNo: s.dayNo || 1, kills: s.kills || 0,
     cycleLeft: (() => { const r = ctx.match.roundNumber, n0 = nightAt(ctx, r); let k = 1; while (k < 12 && nightAt(ctx, r + k) === n0) k++; return k; })(), // อีกกี่เทิร์นสลับกลางวัน/คืน
-    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + reviveTurns(s) })),
+    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + reviveTurns(s), gone: LM.gone(s, id) || undefined })),
     chests: (s.chests || []).map((c) => ({ id: c.id, x: c.x, y: c.y })),
     bridgeUp: !!s.bridgeUp,
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA, hp: s.dome.hp ?? DOME_HP, maxHp: DOME_HP, gates: DOME_GATES.map((t) => ({ ...t })) } : null,
@@ -2799,7 +2845,7 @@ module.exports = {
   preventDeath(ctx, st, p) { return !!(st && st.eos) && PKS.gutsSave(ctx, st.eos, p); }, // การ์ดใจสู้
   enter, weatherStart, layer, keepsTile, CHASM_TURNS, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
-  gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
+  gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, keepsCorpse, reviveOnSale, useRevive, reviveTargets, REVIVE_ITEM, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
   // ผลค้างทั้งแมตช์ (fodlan.persistAll): การ์ดทนทาน = เลือดสูงสุด +2
   persist: { maxHpBonus(ctx, st, p) { return st && st.eos && p && !p.summon ? PKS.hpBonus(st.eos) : 0; } }, addScore, bomberBlast, healerAct, TRAIT, pickTrait, nightTarget, explodeBarrel, throwFlask, fireTurret, actMonsters, spawnBeast, dropshipTurn, respawnProps, hurt, TURRETS, outcome, onMobDeath, isMob, mobsOf, spawnMob, spawnChests, openChest, mountNear, hitPillar,
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,

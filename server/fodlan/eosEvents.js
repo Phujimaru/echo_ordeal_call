@@ -255,7 +255,7 @@ function spiritsNear(ctx, s, p) {
   const e = ev(s), out = [];
   for (const [pid, at] of Object.entries(e.deathAt)) {
     const u = ctx.match.players[pid];
-    if (!u || u.alive || s.dead[pid] == null || pid === p.id) continue;
+    if (!u || u.alive || s.dead[pid] == null || pid === p.id || (s.lam && s.lam.gone && s.lam.gone[pid])) continue; // Lament: ไม่ฟื้นเองแล้ว = ช่วยเร่งไม่ได้ (ใช้ขนนกคืนชีพ)
     if (Math.abs(at.x - p.pos.x) + Math.abs(at.y - p.pos.y) > 1) continue;
     out.push({ id: pid, x: at.x, y: at.y });
   }
@@ -449,7 +449,7 @@ function publicOf(ctx, s, H) {
     bossAt: markAt(ctx, BOSS.at), bossFirst: !!e.bossFirst,
     quests: e.quests.map((q) => ({ id: q.id, type: q.type, zone: q.zone, rect: q.rect, x: q.x, y: q.y, need: q.need, have: q.have, left: Math.max(0, q.until - ctx.match.roundNumber + 1), by: q.by })),
     convoy: conv && conv.alive && conv.pos ? { id: conv.id, x: conv.pos.x, y: conv.pos.y, hp: conv.hp, maxHp: CONVOY.hp, armor: conv.armor, maxArmor: CONVOY.armor, from: e.convoy.from, to: e.convoy.to, goal: e.convoy.goal, path: conv.summon.path } : null,
-    spirits: Object.entries(e.deathAt).filter(([pid]) => s.dead[pid] != null).map(([id, at]) => ({ id, x: at.x, y: at.y, helped: !!e.helped[id] })),
+    spirits: Object.entries(e.deathAt).filter(([pid]) => s.dead[pid] != null && !(ctx.match.players[pid] && ctx.match.players[pid].corpse)).map(([id, at]) => ({ id, x: at.x, y: at.y, helped: !!e.helped[id] })),
   };
 }
 

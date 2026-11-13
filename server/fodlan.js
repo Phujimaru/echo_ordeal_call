@@ -311,7 +311,8 @@ function hudActions(p) {
 // socket charAction (key "fd:…") → ฮุคของด่าน · ฮุคบรอดแคสต์เองหรือคืน true แล้วที่นี่บรอดแคสต์ให้
 function charAction(id, key, tile) {
   const p = match.players[id];
-  if (!active() || !p || !p.alive) return false;
+  const vote = typeof key === "string" && key.startsWith("fd:perk:"); // โหวตการ์ดทีม Eos: คนที่ล้มอยู่ก็โหวตได้ (ผู้ใช้ 2026-11-14 — เดิมโหวตไม่ได้แต่ระบบรอ)
+  if (!active() || !p || (!p.alive && !vote)) return false;
   const ok = combat.withEffectSource(p, () => call("charAction", false, p, key, tile));
   if (ok) view.broadcastState(); // ทุกช่วง (โหวตการ์ดทีม Eos กดได้ตอนจั่วการ์ดด้วย — เดิมเฉพาะ ACTION = หน้าจอไม่อัปเดต)
   return !!ok;
