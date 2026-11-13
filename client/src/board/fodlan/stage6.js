@@ -3236,7 +3236,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         }
         if (d.trait === "healer") { const top = P(cx, cy, 1.75); g.fillStyle = "#7dffaa"; g.fillRect(top[0] - 2, top[1] - 7, 4, 14); g.fillRect(top[0] - 7, top[1] - 2, 14, 4); }
         const top = hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
-        if (d.elite) eliteMark(g, d.elite, top, s, now, lowQ);
+        mobBadges(g, d, top, now, lowQ); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -3304,7 +3304,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
         const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
-        if (m.elite) eliteMark(g, m.elite, top, s, now, lowQ);
+        if (m.type !== "nest" && m.type !== "gold" && m.type !== "giant") mobBadges(g, m, top, now, lowQ); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -3949,7 +3949,7 @@ function pve3Fx(g, e, p, lowQ, units, out) {
 // =================================================================== PVE รอบสอง: ภาพของระบบใหม่
 const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" }, archer: { rgb: "255,210,90" }, shield: { rgb: "120,170,255" }, weaver: { rgb: "235,235,235" }, blinker: { rgb: "190,90,255" }, hooker: { rgb: "170,170,190" }, rune: { rgb: "255,70,200" }, swarm: { rgb: "255,90,90" }, splitter: { rgb: "200,150,90" }, splitling: { rgb: "200,150,90" } };
 // มอนรูปแบบใหม่ (server/fodlan/eosMobs.js — 2026-11-12): ไอคอนลอยเหนือหัว + โล่ฝั่งที่หัน
-const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨" };
+const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨", splitling: "🪨", swarm: "🐝", bomber: "💣", healer: "💚", sniper: "🎯", mech: "🦾" };
 function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
   const tr = m.trait;
   if (tr === "shield" && m.face) { // โล่ใหญ่ฝั่งที่หัน (ตีจากฝั่งนี้เหลือ 1)
@@ -3958,14 +3958,7 @@ function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
     g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(b2[0], b2[1]); g.lineTo(a2[0], a2[1]); g.closePath();
     g.fillStyle = "rgba(90,140,230,.35)"; g.fill(); g.strokeStyle = "rgba(170,210,255,.9)"; g.lineWidth = 2.5; g.stroke();
   }
-  const ic = TRAIT_ICON[tr];
-  if (!ic) return;
-  const [x, y, s] = P(cx, cy, h);
-  const bob = lowQ ? 0 : Math.sin(now / 380 + cx) * 2;
-  const rgb = (TRAIT_LOOK[tr] || {}).rgb || "255,255,255";
-  glowAt(g, x, y - s * 0.12 + bob, s * 0.3, rgb, m.cd ? 0.25 : 0.6);
-  g.save(); g.globalAlpha = m.cd ? 0.5 : 1; g.font = Math.max(11, Math.round(s * 0.3)) + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
+  // ไอคอนความสามารถย้ายไปอยู่ในแถวป้ายเหนือหลอดเลือด (mobBadges — ผู้ใช้ 2026-11-14)
 }
 // ท่าใหญ่ราชาปีศาจ (server/fodlan/eosBoss.js — 2026-11-12): ช่องม่วงกะพริบ + ลวดลายตามท่า
 const BIG_RGB = { beam: "190,60,255", ring: "255,50,150", meteor: "255,110,40", dark: "110,40,200", dark_zone: "60,10,110" };
@@ -4014,15 +4007,34 @@ function eliteRing(g, cx, cy, now, lowQ) {
   g.restore();
   glowAt(g, sx, sy - s * 0.7, s * 1.0, "255,200,70", 0.25 * k);
 }
-function eliteMark(g, list, top, s, now, lowQ) { // มงเล็กกลาง + ไอคอนคุณสมบัติสองข้าง เรียงแถวเดียวชิดเหนือหลอดเลือด
-  const UK = Math.max(0.35, (top[2] || s) * 0.0085), y = top[1] - 9 * UK, fs = 10 * UK, w = fs * 1.05; // ผืนผ้าใบย่อขยายตามซูมอยู่แล้ว (UK มักติดขั้นต่ำ) — ห้ามมีขั้นต่ำเป็นพิกเซล
-  drawCrown(g, top[0], y + 3 * UK, 5 * UK, now, true);
-  g.save(); g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
-  list.forEach((a, i) => {
-    const x = top[0] + (i % 2 ? 1 : -1) * (w * (1 + Math.floor(i / 2)) + 1 * UK);
-    glowAt(g, x, y, fs * 0.7, "255,200,70", lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + i));
-    g.fillText(ELITE_ICON[a] || "★", x, y);
-  });
+// แถวป้ายเหนือหลอดเลือดของมอน (ผู้ใช้สั่ง 2026-11-14 "ใช้ icon ลอยเหนือหัวมอน บอกว่าเป็นระดับอะไร มีความสามารถอะไร")
+//  [ระดับ I/II/III… สีตามระดับ] [ไอคอนความสามารถ] [มง + ไอคอนหัวหน้า] เรียงกลาง ชิดเหนือหลอดเลือด · ขนาดตาม UK (ห้ามขั้นต่ำเป็นพิกเซล)
+const TIER_COL = ["#c08a5a", "#c9d4e2", "#f0c868", "#ff6a5a"]; // I ทองแดง · II เงิน · III ทอง · IV+ แดง
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+function mobBadges(g, m, top, now, lowQ) {
+  const UK = Math.max(0.35, (top[2] || 1) * 0.0085), fs = 17 * UK, y = top[1] - 13 * UK, gap = 3 * UK; // ใหญ่พอให้อ่านออกตอนซูมปกติ
+  const tier = Math.max(1, m.tier | 0), roman = ROMAN[Math.min(ROMAN.length, tier) - 1];
+  g.save(); g.font = `700 ${fs * 0.78}px "Chakra Petch", sans-serif`;
+  const items = !m.type || m.type === "daemon" || m.type === "magitek" ? [{ kind: "tier", w: Math.max(fs * 1.25, g.measureText(roman).width + fs * 0.55) }] : []; // สัตว์ยักษ์ไม่มีระดับ
+  if (TRAIT_ICON[m.trait]) items.push({ kind: "trait", w: fs * 1.15 });
+  if (m.elite && m.elite.length) { items.push({ kind: "crown", w: fs * 1.0 }); for (const a of m.elite) items.push({ kind: "elite", a, w: fs * 1.1 }); }
+  let x = top[0] - (items.reduce((n, it) => n + it.w, 0) + gap * (items.length - 1)) / 2;
+  for (const it of items) {
+    const cx = x + it.w / 2;
+    if (it.kind === "tier") {
+      const col = TIER_COL[Math.min(TIER_COL.length, tier) - 1], h = fs * 1.0;
+      g.fillStyle = "rgba(14,20,34,.85)"; g.strokeStyle = col; g.lineWidth = Math.max(0.6, 1.2 * UK);
+      g.beginPath(); g.roundRect ? g.roundRect(x, y - h / 2, it.w, h, h * 0.3) : g.rect(x, y - h / 2, it.w, h); g.fill(); g.stroke();
+      g.fillStyle = col; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(roman, cx, y + fs * 0.03);
+    } else if (it.kind === "crown") drawCrown(g, cx, y + 3 * UK, 5 * UK, now, true);
+    else {
+      const ic = it.kind === "trait" ? TRAIT_ICON[m.trait] : ELITE_ICON[it.a] || "★";
+      const rgb = it.kind === "trait" ? (TRAIT_LOOK[m.trait] || {}).rgb || "255,255,255" : "255,200,70";
+      glowAt(g, cx, y, fs * 0.7, rgb, lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + x));
+      g.save(); g.globalAlpha = it.kind === "trait" && m.cd ? 0.45 : 1; g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(ic, cx, y); g.restore();
+    }
+    x += it.w + gap;
+  }
   g.restore();
 }
 // ราชาปีศาจ: ร่างใหญ่ 2.6 ช่อง · ออร่าแดงม่วงหมุน · มงกุฎเรือง · หลอดเลือดใหญ่
