@@ -44,7 +44,7 @@ import OhgerSword from "./hud/OhgerSword";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { requestAttention } from "../attention";
-import { clickSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx, pauseLoopSfx, resumeLoopSfx } from "../audio";
+import { clickSound, uiSound, playSfx, stopSfx, sfxPlayId, playCutsceneVideo, suspendMusic, startLoopSfx, stopLoopSfx, pauseLoopSfx, resumeLoopSfx } from "../audio";
 import BoardStage from "../board/BoardStage";
 import YukiBoom from "../board/YukiBoom";
 import ArjunaUlt from "../board/ArjunaUlt";
@@ -1659,8 +1659,9 @@ function QtePanel({ qte }) {
 
 // ---------- กองการ์ดกลางจอ: การ์ดคว่ำซ้อนกันเล็กน้อย ไม่ต้องมีอาร์ตใหม่ ----------
 //  onClick (ถ้ามี) เปิดสมุดการ์ด (DeckLedgerModal) — ต้องเปิด pointer-events เฉพาะจุดนี้เอง เพราะ wrapper รอบนอก (โลโก้/กึ่งกลางจอ) เป็น pointer-events-none ทั้งแถบ
-function BoardTimer({ phaseKey }) {
+function BoardTimer({ phaseKey, mine = false }) {
   const seconds = useTick();
+  useEffect(() => { if (mine && seconds > 0 && seconds <= 5) uiSound("tick"); }, [seconds, mine]); // ตาเรา 5 วิสุดท้าย = เสียงนับถอยหลัง (ผู้ใช้สั่ง 2026-11-14)
   const [max, setMax] = useState(seconds || 1);
   useEffect(() => { setMax(Math.max(1, seconds || 1)); /* เฟสใหม่ -> เริ่มนับเพดานใหม่ */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseKey]);
@@ -1947,6 +1948,14 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const meStatuses = me ? statusEntries(me) : []; // รายการสถานะของตัวเอง — ใช้ในกล่อง "สถานะ" ของแผง HUD (เรียงลงล่างเรื่อยๆ ตามลำดับที่ติด)
   // ---------- ระบบกระดาน (GRID_PLAN.md): ตาเดินของเรา · ร้านบนแผนที่ · กระเป๋า ----------
   const myTurn = !!me && me.alive && phase === "ACTION" && state.actorId === me.id && !!state.action;
+  // เสียง UI จากสถานะของเรา (ผู้ใช้สั่ง 2026-11-14): เหรียญเพิ่ม = coin · ของในกระเป๋าลด (ใช้/ทิ้ง/ให้) = item
+  const goldNow = me ? me.gold || 0 : 0, bagNow = me ? (me.inventory || []).length : 0;
+  const lastGold = useRef(goldNow), lastBag = useRef(bagNow);
+  useEffect(() => {
+    if (goldNow > lastGold.current) uiSound("coin");
+    if (bagNow < lastBag.current) uiSound("item");
+    lastGold.current = goldNow; lastBag.current = bagNow;
+  }, [goldNow, bagNow]);
   const mashClock = useCallback(() => socket.emit("clockMash"), []); // Clock Up ชนกัน: กดรัว
   // เอมิลิโกะเดินต่อหลังจบตา: ได้แค่เดิน/ย้อน/รอ (+ กระจกเงา)
   const canto = myTurn && !!state.action.canto;
@@ -2656,7 +2665,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {!fcOpen && !(state.board && phase === "ATTACKING") && <HudTopBar
         night={nightNow}
         round={phase === "PLAYING" || inBoardTurn ? state.roundNumber : null}
-        timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} />}
+        timer={<BoardTimer phaseKey={`${phase}-${state.roundNumber}-${state.actorId || ""}`} mine={myTurn} />}
         journey={state.journey && !state.colony && !state.moon && (phase === "PLAYING" || inBoardTurn)
           ? { ...journeyArea(state.journey.area), name: state.journey.name, turnsLeft: state.journey.turnsLeft }
           : state.fodlan && state.world === "eos" && (phase === "PLAYING" || inBoardTurn) // Eos (§8.6): ชื่อสนาม + สภาพอากาศ

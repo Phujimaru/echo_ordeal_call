@@ -190,7 +190,7 @@ export function BagButton({ onClick, items = [], slots = 5, hot = false, solo = 
   const peek = items.slice(0, 4);
   const mid = (peek.length - 1) / 2;
   return (
-    <button type="button" className={`bb${solo ? " bb-solo" : ""}`} data-hotkey="B" aria-keyshortcuts="B" data-hot={hot ? "true" : "false"} data-full={n >= slots ? "true" : "false"} onClick={onClick}>
+    <button type="button" className={`bb${solo ? " bb-solo" : ""}`} data-sfx="open" data-hotkey="B" aria-keyshortcuts="B" data-hot={hot ? "true" : "false"} data-full={n >= slots ? "true" : "false"} onClick={onClick}>
       <kbd className="hk" aria-hidden="true">B</kbd>
       <span className="bb-bg" aria-hidden="true" />
       <span className="bb-emb">

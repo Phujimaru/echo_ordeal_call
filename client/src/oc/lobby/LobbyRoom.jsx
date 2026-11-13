@@ -139,7 +139,7 @@ export default function LobbyRoom({ state, ring, vh, armed, onArm, lowQ, onToggl
           <span className="ocl-readynum"><b>{readyCount}</b> / {count}</span>
         </div>
         {canReady && (
-          <OcButton variant={myReady ? "" : "primary"} className="ocl-readybtn" onClick={() => socket.emit("toggleReady")}>
+          <OcButton variant={myReady ? "" : "primary"} className="ocl-readybtn" data-sfx={myReady ? "back" : "confirm"} onClick={() => socket.emit("toggleReady")}>
             {myReady ? "ยกเลิก" : "พร้อม"}
           </OcButton>
         )}

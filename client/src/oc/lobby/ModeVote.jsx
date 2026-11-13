@@ -10,7 +10,7 @@
 //  ป้ายชื่อโหมดแต่ละโหมดมีกรอบของตัวเอง (lobby.css .ocl-modetag[data-mode]) · หน้านี้ไม่มีอีโมต
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { socket } from "../../socket";
-import { clickSound } from "../../audio";
+import { clickSound, uiSound } from "../../audio";
 import { dirFromLonLat, regionDir, COLORS } from "../../globe/globeCore";
 import { createColonyModel } from "../../globe/colonyModel";
 import { createMoonModel } from "../../globe/moonModel";
@@ -155,7 +155,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   const vote = (mode, diff = eosDiff) => {
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
-    clickSound();
+    uiSound("confirm");
     socket.emit("selectGameMode", { mode, world: serverWorld(world), ...(mode === "eos" ? { diff } : null) });
   };
   const pickDiff = (d) => {

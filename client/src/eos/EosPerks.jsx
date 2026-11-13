@@ -7,7 +7,7 @@
 // ============================================================
 import { useEffect, useRef, useState } from "react";
 import { socket } from "../socket";
-import { clickSound } from "../audio";
+import { clickSound, uiSound } from "../audio";
 import "./eosPerks.css";
 
 const RESULT_MS = 6000;
@@ -53,7 +53,7 @@ export default function EosPerks({ state }) {
       </button>
     );
   }
-  const vote = (id) => { clickSound(); socket.emit("charAction", { key: `fd:perk:${id}` }); };
+  const vote = (id) => { uiSound("confirm"); socket.emit("charAction", { key: `fd:perk:${id}` }); };
   return (
     <div className="eos-perks" role="dialog" aria-label="การ์ดทีม">
       <header>

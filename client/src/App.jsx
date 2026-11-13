@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { publishTick, getTickSeconds } from "./tickStore";
 import { socket, connectData } from "./socket";
-import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound } from "./audio";
+import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound, installHoverSound } from "./audio";
 import { musicForState, createPhaseSoundTracker, isMatchPhase } from "./audioPolicy";
 import Setup from "./screens/Setup";
 import CharacterSelect from "./screens/CharacterSelect";
@@ -53,6 +53,7 @@ export default function App() {
 
   // เสียงที่ดังบ่อยที่สุดในเกม: โหลดไว้ตั้งแต่เปิดหน้า ไม่ให้ไปสะดุดกลางแมตช์
   useEffect(() => installClickSound(), []); // เสียงคลิกทุกการกดทั้งเกม
+  useEffect(() => installHoverSound(), []); // เสียงชี้ปุ่มทั้งเกม (ผู้ใช้สั่ง 2026-11-14)
   useEffect(() => { prewarmSfx(["action_button", "change_cutscene", "trun_change", "buy_something", "notificate", "notificate_mine"]); }, []);
   // dev: ?autoplay=<characterId> — เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa อัตโนมัติ (ทดสอบกระดานคู่กับ scripts/dev-bots.js)
   useEffect(() => {

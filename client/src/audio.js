@@ -641,6 +641,21 @@ const FILES = {
     "start1", "start2", "start3", "hit1", "hit2", "hit3", "hit4", "hit5", "hit6", "hit7", "hit8", "hit9",
   ].map((k) => [`yuki_v_${k}`, `/characters/yuki_makoto/voice/yuki_v_${k}.m4a`])),
   action_button: "/effect_sound/click.mp3",
+  // เสียง UI ทั้งระบบ (ผู้ใช้สั่ง 2026-11-14 · Kenney UI Audio + Interface Sounds CC0 — Claude เลือก · public/effect_sound/ui/LICENSE-kenney.txt) — เล่นผ่าน uiSound(kind)
+  ui_hover: "/effect_sound/ui/hover.ogg",
+  ui_open: "/effect_sound/ui/open.ogg",
+  ui_close: "/effect_sound/ui/close.ogg",
+  ui_tab: "/effect_sound/ui/tab.ogg",
+  ui_toggle_on: "/effect_sound/ui/toggle_on.ogg",
+  ui_toggle_off: "/effect_sound/ui/toggle_off.ogg",
+  ui_select: "/effect_sound/ui/select.ogg",
+  ui_back: "/effect_sound/ui/back.ogg",
+  ui_deny: "/effect_sound/ui/deny.ogg",
+  ui_confirm: "/effect_sound/ui/confirm.ogg",
+  ui_notify: "/effect_sound/ui/notify.ogg",
+  ui_item: "/effect_sound/ui/item.ogg",
+  ui_coin: "/effect_sound/ui/coin.ogg",
+  ui_tick: "/effect_sound/ui/tick.ogg",
   trun_change: "/effect_sound/trun_change.wav",
   attack: "/effect_sound/attack.wav",
   death_boom: "/effect_sound/death_boom.mp3", // ตกรอบบนกระดาน: ระเบิด (Mixkit ฟรี — Fire spell with explosion)
@@ -1165,6 +1180,48 @@ export function clickSound() {
   lastClickAt = now;
   playSfx("action_button");
 }
+// ---------- เสียง UI (ผู้ใช้สั่ง 2026-11-14 "หาเสียง effect ทั้งระบบ — hover เลื่อนปุ่ม แจ้งเตือน เปิดกระเป๋า ทุกอย่าง") ----------
+//  kind: hover · open · close · tab · toggle_on · toggle_off · select · back · deny · confirm · notify · item · coin · tick
+//  ความดังต่อชนิด (ไฟล์ Kenney ดังเกือบเต็ม 0 dB — ลดให้อยู่ใต้เสียงเกม) · กันเล่นซ้ำถี่เกิน (UI_GAP ms ต่อชนิด)
+const UI_GAIN = { hover: 0.22, tick: 0.35, select: 0.45, tab: 0.45, toggle_on: 0.5, toggle_off: 0.5, back: 0.5, open: 0.5, close: 0.5, deny: 0.5, item: 0.55, coin: 0.5, confirm: 0.55, notify: 0.6 };
+const UI_GAP = { hover: 45, tick: 120 };
+const uiLast = {};
+export function uiSound(kind) {
+  if (!FILES[`ui_${kind}`]) return;
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (now - (uiLast[kind] || 0) < (UI_GAP[kind] ?? 80)) return;
+  uiLast[kind] = now;
+  if (kind !== "hover") lastClickAt = now; // เสียง UI แทนเสียงคลิก — ตัวดักคลิกไม่ต้องดังซ้ำ
+  playSfx(`ui_${kind}`, { gain: UI_GAIN[kind] ?? 0.5 });
+}
+// ชนิดเสียงของสิ่งที่ถูกกด: data-sfx="…" (ระบุเอง) → แท็บ (role=tab) → สวิตช์ (checkbox / role=switch / aria-pressed) → ปุ่มปิด/ย้อน (aria-label) → คลิกปกติ
+function clickKindOf(el) {
+  const own = el.closest("[data-sfx]");
+  if (own) return own.getAttribute("data-sfx");
+  const role = el.getAttribute("role");
+  if (role === "tab") return "tab";
+  if (el.matches('input[type="checkbox"], [role="switch"]')) return el.checked || el.getAttribute("aria-checked") === "true" ? "toggle_on" : "toggle_off";
+  if (el.hasAttribute("aria-pressed")) return el.getAttribute("aria-pressed") === "true" ? "toggle_off" : "toggle_on"; // ก่อนกด true = จะปิด
+  const lab = (el.getAttribute("aria-label") || "").trim();
+  if (/^(ปิด|close)$/i.test(lab) || el.textContent.trim() === "✕") return "close";
+  if (/^(ย้อน|ย้อนกลับ|กลับ|back)/i.test(lab) || /^(←|ย้อนกลับ)/.test(el.textContent.trim())) return "back";
+  return null;
+}
+// ชี้ปุ่ม/สิ่งที่กดได้ = เสียงชี้ (ครั้งเดียวต่อการเข้า element · ปุ่มที่กดไม่ได้ไม่ดัง · ไม่ดังบนจอสัมผัส)
+export function installHoverSound(root = typeof document !== "undefined" ? document : null) {
+  if (!root) return () => {};
+  let cur = null;
+  const onOver = (e) => {
+    if (e.pointerType && e.pointerType !== "mouse") return;
+    const el = e.target instanceof Element ? e.target.closest(CLICKABLE) : null;
+    if (el === cur) return;
+    cur = el;
+    if (!el || el.disabled || el.getAttribute("aria-disabled") === "true" || el.closest("[data-no-click-sound]")) return;
+    uiSound("hover");
+  };
+  root.addEventListener("pointerover", onOver, true);
+  return () => root.removeEventListener("pointerover", onOver, true);
+}
 // ทุกการกด (ปุ่ม/ลิงก์/สวิตช์/ป้ายบนลูกโลก) มีเสียงคลิกเสมอ — ปุ่มธีมใหม่ไม่ต้องเรียก clickSound เอง
 //  การกดบนลูกโลก (canvas) ไม่ใช่ element พวกนี้ — หน้าจอต้องเรียก clickSound() เองตอนเลือกของบนโลก
 //  ไม่อยากให้ดัง: ใส่ data-no-click-sound ที่ element หรือบรรพบุรุษ
@@ -1173,8 +1230,10 @@ export function installClickSound(root = typeof document !== "undefined" ? docum
   if (!root) return () => {};
   const onClick = (e) => {
     const el = e.target instanceof Element ? e.target.closest(CLICKABLE) : null;
-    if (!el || el.disabled || el.getAttribute("aria-disabled") === "true" || el.closest("[data-no-click-sound]")) return;
-    clickSound();
+    if (!el || el.closest("[data-no-click-sound]")) return;
+    if (el.disabled || el.getAttribute("aria-disabled") === "true" || el.getAttribute("data-off") === "true") { uiSound("deny"); return; } // กดของที่ใช้ไม่ได้
+    const kind = clickKindOf(el);
+    if (kind) uiSound(kind); else clickSound();
   };
   root.addEventListener("click", onClick, true);
   return () => root.removeEventListener("click", onClick, true);

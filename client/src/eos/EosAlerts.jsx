@@ -5,6 +5,7 @@
 //  แหล่งข้อมูล: state.fodlan.board.fx (เหตุการณ์ใหม่ = seq ที่ยังไม่เคยเห็น · เปิดหน้ามาใหม่ไม่ประกาศของเก่า)
 // ============================================================
 import { useEffect, useRef, useState } from "react";
+import { uiSound } from "../audio";
 import "./eosAlerts.css";
 
 const ZN = { insomnia: "Insomnia", hammerhead: "Hammerhead", duscae: "Duscae", forest: "ป่าดัสเค", lake: "Cleigne", altissia: "Altissia", desert: "Leide" };
@@ -87,7 +88,7 @@ export default function EosAlerts({ state }) {
       const at = a.at || (Number.isFinite(e.x) && Number.isFinite(e.y) ? { x: e.x, y: e.y } : null);
       add.push({ ...a, at, id: e.seq, t: Date.now() });
     }
-    if (add.length) setList((l) => [...add.reverse(), ...l].slice(0, 4));
+    if (add.length) { setList((l) => [...add.reverse(), ...l].slice(0, 4)); uiSound("notify"); } // เสียงแจ้งเตือน (ผู้ใช้สั่ง 2026-11-14)
   }, [fd]);
   useEffect(() => {
     if (!list.length) return undefined;

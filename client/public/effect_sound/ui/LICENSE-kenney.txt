@@ -1,0 +1,2 @@
+Kenney UI Audio + Interface Sounds (kenney.nl) — CC0 1.0 (public domain). Credit not required.
+hover=rollover2 · open=open_002 · close=close_002 · tab=select_001 · toggle_on=toggle_002 · toggle_off=toggle_001 · select=select_002 · back=back_002 · deny=error_004 · confirm=confirmation_001 · notify=bong_001 · item=drop_002 · coin=glass_002 · tick=tick_002
