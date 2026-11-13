@@ -938,6 +938,18 @@
         "ECHO_DEV_EOS_AT": "13,13",
         "ECHO_DEV_EOS_BOSS": "1"
       }
+    },
+    {
+      "name": "launcher",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5290",
+        "--directory",
+        "desktop/launcher"
+      ],
+      "port": 5290
     }
   ]
 }
