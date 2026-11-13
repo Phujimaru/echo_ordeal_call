@@ -1819,6 +1819,8 @@ test('ร่วมแรง: มีเพื่อนในระยะ 2 = ต�
   b.pos = { x: 25, y: 22 }; c.pos = { x: 30, y: 0 };
   assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base, 'ไกลเกิน');
   assert.ok(!S6.allyNear(ctx(), d), 'มอนไม่ได้');
+  const info = Fodlan.playerInfo(a);
+  assert.ok(Number.isFinite(info.atk) && info.atk > 0, 'ป้ายชี้ผู้เล่น: พลังตีใส่มอนใกล้สุด');
   void s;
 });
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {

@@ -1843,6 +1843,31 @@ function mobPos(units, id, sm) {
   if (!u) return sm;
   return { x: (u.rx != null ? u.rx : u.x) + (u.ox || 0), y: (u.ry != null ? u.ry : u.y) + (u.oy || 0), moving: false };
 }
+// ร่วมแรง (server stage6 ALLY — ผู้ใช้ 2026-11-14 "ทำทุกข้อ"): ผู้เล่นสองคนห่างกันไม่เกิน 2 ช่อง = เส้นประเขียวบนพื้นระหว่างกัน + วงจางใต้เท้า
+const ALLY_R = 2;
+function allyLinks(g, units, now, lowQ) {
+  const hs = (units || []).filter((u) => !u.summon && !u.corpse && !u.masked && Number.isFinite(u.x));
+  if (hs.length < 2) return;
+  const pos = (u) => ({ x: (u.rx != null ? u.rx : u.x) + (u.ox || 0) + 0.5, y: (u.ry != null ? u.ry : u.y) + (u.oy || 0) + 0.5 });
+  const linked = new Set(), k = lowQ ? 0.8 : 0.65 + 0.2 * Math.sin(now / 420);
+  g.save(); g.lineCap = "round";
+  for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
+    const a = hs[i], b = hs[j];
+    if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > ALLY_R) continue;
+    linked.add(a.id); linked.add(b.id);
+    const pa = pos(a), pb = pos(b), A = P(pa.x, pa.y, 0.04), B = P(pb.x, pb.y, 0.04);
+    g.strokeStyle = `rgba(110,240,160,${0.55 * k})`; g.lineWidth = Math.max(1.5, A[2] * 0.05); g.setLineDash([A[2] * 0.12, A[2] * 0.1]); g.lineDashOffset = lowQ ? 0 : -now / 60;
+    g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+  }
+  g.setLineDash([]);
+  for (const u of hs) {
+    if (!linked.has(u.id)) continue;
+    const p = pos(u), [x, y, s] = P(p.x, p.y, 0.03);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(110,240,160,${0.6 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.48, 0, TAU); g.stroke(); g.restore();
+  }
+  g.restore();
+}
+const threatOf = (units, id) => !!(units || []).find((it) => it.id === id && it.threat);
 function unitAt(units, id) {
   const u = (units || []).find((it) => it.id === id && !it.corpse);
   if (!u) return null;
@@ -3154,6 +3179,7 @@ export function ground(g, fd, info, now, lowQ = false) {
 // =================================================================== items (เรียงความลึกกับตัวละคร)
 export function items(list, g, fd, info, units, now, lowQ) {
   const night = !!fd.night || LAST_NIGHT;
+  if (fd.eos) list.push({ d: -1e9, f: () => allyLinks(g, units, now, lowQ) }); // ร่วมแรง: เส้นโยงเพื่อนในระยะ 2 (ใต้ทุกอย่าง)
   if (fountainFrom(info)) list.push({ d: depthOf(FOUNTAIN.x, FOUNTAIN.y), f: () => fountainCore(g, now, night, lowQ) });
   // รถ 1 ช่อง (ผู้ใช้สั่ง 2026-11-09 — ขึ้นขี่แล้วขับแบบม้า): จอด = ตามตำแหน่งรถ · มีคนขับ = ใต้หมากคนขับ (ตามตำแหน่งวาดของหมาก วิ่งไปพร้อมกัน)
   //  ภาพรถของผู้ใช้หันซ้ายเป็นค่าเริ่ม → กลับด้านตามทิศที่วิ่งบนจอ (หมุนกล้องได้) · ขึ้นรถ = รถยุบรับน้ำหนัก + ไฟหน้าวาบ · ชน = รถพุ่งไปครึ่งช่องแล้วถอย
@@ -3236,7 +3262,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         }
         if (d.trait === "healer") { const top = P(cx, cy, 1.75); g.fillStyle = "#7dffaa"; g.fillRect(top[0] - 2, top[1] - 7, 4, 14); g.fillRect(top[0] - 7, top[1] - 2, 14, 4); }
         const top = hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
-        mobBadges(g, d, top, now, lowQ); // ระดับ · ความสามารถ · หัวหน้า
+        mobBadges(g, d, top, now, lowQ, threatOf(units, d.id)); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -3304,7 +3330,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
         const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
-        if (m.type !== "nest" && m.type !== "gold" && m.type !== "giant") mobBadges(g, m, top, now, lowQ); // ระดับ · ความสามารถ · หัวหน้า
+        if (m.type !== "nest" && m.type !== "gold" && m.type !== "giant") mobBadges(g, m, top, now, lowQ, threatOf(units, m.id)); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -4011,8 +4037,14 @@ function eliteRing(g, cx, cy, now, lowQ) {
 //  [ระดับ I/II/III… สีตามระดับ] [ไอคอนความสามารถ] [มง + ไอคอนหัวหน้า] เรียงกลาง ชิดเหนือหลอดเลือด · ขนาดตาม UK (ห้ามขั้นต่ำเป็นพิกเซล)
 const TIER_COL = ["#c08a5a", "#c9d4e2", "#f0c868", "#ff6a5a"]; // I ทองแดง · II เงิน · III ทอง · IV+ แดง
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-function mobBadges(g, m, top, now, lowQ) {
+function mobBadges(g, m, top, now, lowQ, threat = false) {
   const UK = Math.max(0.35, (top[2] || 1) * 0.0085), fs = 17 * UK, y = top[1] - 13 * UK, gap = 3 * UK; // ใหญ่พอให้อ่านออกตอนซูมปกติ
+  if (threat) { // ❗ ตีถึงตัวเราได้เทิร์นหน้า (BoardStage threatIds — ผู้ใช้ 2026-11-14) · ลอยเหนือแถวป้าย
+    const k = lowQ ? 1 : 0.75 + 0.25 * Math.sin(now / 160), ty = y - fs * 1.35, r = fs * 0.62;
+    g.save(); g.fillStyle = `rgba(225,40,40,${0.9 * k + 0.1})`; g.beginPath(); g.arc(top[0], ty, r, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(255,235,235,.95)"; g.lineWidth = Math.max(0.8, 1.6 * UK); g.stroke();
+    g.fillStyle = "#fff"; g.font = `800 ${fs * 0.95}px "Chakra Petch", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("!", top[0], ty + fs * 0.04); g.restore();
+  }
   const tier = Math.max(1, m.tier | 0), roman = ROMAN[Math.min(ROMAN.length, tier) - 1];
   g.save(); g.font = `700 ${fs * 0.78}px "Chakra Petch", sans-serif`;
   const items = !m.type || m.type === "daemon" || m.type === "magitek" ? [{ kind: "tier", w: Math.max(fs * 1.25, g.measureText(roman).width + fs * 0.55) }] : []; // สัตว์ยักษ์ไม่มีระดับ

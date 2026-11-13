@@ -33,6 +33,12 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
       desc: m.desc,
     };
   }
+  // ผู้เล่น: การ์ดตัวเลขแบบเดียวกับมอน (ผู้ใช้ 2026-11-14 "ทำทุกข้อ") · ⚔ = ตีมอนที่ใกล้สุดได้เท่าไร (server stage6.playerInfo atk)
+  const hero = (players || []).find((p) => p.alive && p.pos && p.pos.x === x && p.pos.y === y && !(p.summon && !p.duoOf) && !p.masked);
+  if (hero) {
+    const fi = hero.fodlan || {};
+    return { icon: "🛡️", name: hero.name, stats: { atk: fi.atk ?? null, hp: hero.hp ?? 0, maxHp: hero.maxHp ?? 0, armor: hero.armor ?? 0, maxArmor: hero.maxArmor ?? 0 }, tags: (fi.badges || []).filter((b) => b.key === "ally" || b.key === "choco" || b.key === "car").map((b) => `${b.icon} ${b.label}`) };
+  }
   const sk = fd.sky || {};
   if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "เทิร์นหน้า ดาเมจ 3" };
   if (fd.dome && (fd.dome.gates || []).some((t) => at(t, x, y))) return { icon: "🛡️", name: "บาเรียประตูโดม", desc: `♥ ${fd.dome.hp}/${fd.dome.maxHp} · มอนผ่านไม่ได้` };

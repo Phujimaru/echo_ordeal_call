@@ -97,6 +97,7 @@ const reachOf = (m, u, mov, units, o) => (o && o.ghost && !GHOST_RULES
 const stepOf = (m, u, mov, units, trail, to, o) => (o && o.ghost && !GHOST_RULES
   ? Rules.stepPath(clearMap(m), u, mov, units, trail, to, { ...o, blocked: null, hop: null })
   : Rules.stepPath(m, u, mov, units, trail, to, o));
+const EOS_MOB_RANGE = { archer: [1, 4], sniper: [1, 3], weaver: [1, 3], hooker: [2, 4] }; // ระยะตีของมอน Eos ตามนิสัย (server/fodlan/eosMobs.js MB)
 const threatOf = (m, u, mov, range, units, o) => zoneThreat(o && o.ghost && !GHOST_RULES
   ? Rules.threatZone(clearMap(m), u, mov, range, units, { ...o, blocked: null, hop: null })
   : Rules.threatZone(m, u, mov, range, units, o), o && o.zone);
@@ -687,18 +688,50 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     pick.onPick({ x, y });
   };
 
+  // ---------- สนาม Eos: ระยะตีจริงของมอนตามนิสัย (ผู้ใช้ 2026-11-14 "ทำทุกข้อ" — บอกว่ามอนตัวไหนจะตีเราได้เทิร์นหน้า) ----------
+  //  พลธนู 4 · ซุ่มยิง/พ่นใย 3 · โซ่ลาก 2–4 · วาร์ป ทุกช่องในระยะ 8 · หมอ/รัง/โชโกโบะทอง/ยักษ์หิน ไม่ตีปกติ
+  const eosMobTrait = useMemo(() => {
+    const fd = state.fodlan && state.fodlan.board, out = {};
+    if (!fd || !fd.eos) return null;
+    for (const d of fd.daemons || []) out[d.id] = d.trait || "daemon";
+    for (const m of fd.mobs || []) out[m.id] = m.type === "nest" || m.type === "gold" || m.type === "giant" ? "none" : m.trait || m.type;
+    return out;
+  }, [state.fodlan]);
+  const zoneOf = (p) => {
+    const tr = eosMobTrait && eosMobTrait[p.id];
+    if (tr === "none" || tr === "healer") return null;
+    const rg = EOS_MOB_RANGE[tr] || p.range || [1, 1];
+    const z = threatOf(map, unitOf(p), p.mov || 0, rg, ruleUnits, optsOf(p));
+    if (tr !== "blinker") return z;
+    const th = new Set(z.threat);
+    for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) if (Math.abs(dx) + Math.abs(dy) <= 8) th.add(key(p.pos.x + dx, p.pos.y + dy));
+    return { move: z.move, threat: [...th] };
+  };
   // ---------- ระยะอันตราย: ช่องที่ศัตรูทุกคนเดินแล้วตีถึง ----------
   const dangerKeys = useMemo(() => {
     if (!danger || !map || !me) return null;
     const out = new Set();
     for (const p of state.players) {
       if (!p.alive || !p.pos || !isEnemy(p)) continue;
-      const z = threatOf(map, unitOf(p), p.mov || 0, p.range || [1, 1], ruleUnits, optsOf(p));
+      const z = zoneOf(p);
+      if (!z) continue;
       for (const k of z.move) out.add(k);
       for (const k of z.threat) out.add(k);
     }
     return [...out];
-  }, [danger, map, me, state.players, ruleUnits, isAlly, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [danger, map, me, state.players, ruleUnits, isAlly, blocked, eosMobTrait]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Eos: มอนที่ตีถึงตัวเราได้เทิร์นหน้า (ไม่ต้องเปิดระยะอันตราย) → ❗ เหนือหัวมอน (board/fodlan/stage6.js mobBadges)
+  const threatIds = useMemo(() => {
+    const out = new Set();
+    if (!eosMobTrait || !map || !me || !me.alive || !me.pos) return out;
+    const mine = Rules.footprint(me.pos.x, me.pos.y, sizeOfP(me)).map((t) => key(t.x, t.y));
+    for (const p of state.players) {
+      if (!p.alive || !p.pos || !isEnemy(p) || !(p.id in eosMobTrait)) continue;
+      const z = zoneOf(p);
+      if (z && mine.some((k) => z.threat.includes(k))) out.add(p.id);
+    }
+    return out;
+  }, [eosMobTrait, map, me, state.players, ruleUnits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- แอนิเมชัน: เดิน (จาก action.path) / ถอย (ฉากตี) ----------
   const [animQ, setAnimQ] = useState([]);
@@ -2348,8 +2381,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         if (sizeOfP(me) > 1) h.ghost = Rules.footprint(goal.x, goal.y, sizeOfP(me)).map((t) => key(t.x, t.y));
       } else if (hoverUnit && hoverUnit.pos && isEnemy(hoverUnit)) {
         // ชี้ศัตรูที่ตาเราเดินไปตีไม่ถึง = เห็นระยะเดิน+ตีของศัตรูตัวนั้น (แบบ FE)
-        const z = threatOf(map, unitOf(hoverUnit), hoverUnit.mov || 0, hoverUnit.range || [1, 1], ruleUnits, optsOf(hoverUnit));
-        h.danger = [...new Set([...(h.danger || []), ...z.move, ...z.threat])];
+        const z = zoneOf(hoverUnit);
+        if (z) h.danger = [...new Set([...(h.danger || []), ...z.move, ...z.threat])];
       }
       return h;
     }
@@ -2393,6 +2426,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       ...(vehicleBars[p.id] && !mk ? { hp: vehicleBars[p.id].hp, maxHp: vehicleBars[p.id].maxHp, armor: 0, maxArmor: 0 } : { hp: (vitHold[p.id] ? vitHold[p.id].hp : p.hp) ?? 0, maxHp: p.maxHp ?? 0, armor: (vitHold[p.id] ? vitHold[p.id].armor : p.armor) ?? 0, maxArmor: p.maxArmor ?? 0 }),
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
+      ...(threatIds.has(p.id) ? { threat: true } : null), // Eos: มอนตัวนี้ตีถึงเราได้เทิร์นหน้า
       ally: coopMode && !mk && !!me && p.id !== me.id && !!me.teamId && p.teamId === me.teamId && !isDoubleP(p),
       // สนาม Eos (PVE — ผู้เล่นทุกคนทีมเดียวกัน): หลอดเลือดผู้เล่นสีเขียว (มอนวาดเองใน fodlan/stage6.js = แดง)
       hpTone: state.world === "eos" && !mk && !(p.summon && !p.summon.controlled) ? "ally" : null,
@@ -2445,7 +2479,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, hold, vitHold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
+  [state.players, state.actorId, state.clockUp, me, myDim, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);

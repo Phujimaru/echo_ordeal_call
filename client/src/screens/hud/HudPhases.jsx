@@ -5,6 +5,7 @@
 //  · BagButton  — ช่วงจั่ว / ตาคนอื่น: เปิดกระเป๋า (คนที่กำลังเดินแสดงที่บนกลางของกระดาน)
 //  · PhaseCall  — ฉากเปิดช่วงจั่วไพ่ (หกเหลี่ยมขยาย + ไพ่ 3 ใบ)
 //  กฎผู้ใช้: ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอนเท่านั้น · หน่วยออกแบบ = ฐาน 1440 × 810 (ขยายด้วย --hud-k ของ SelfHud)
+import { useState } from "react";
 import Card from "../../components/Card";
 import { shopInfoOf } from "../../data/shop";
 
@@ -100,6 +101,23 @@ const extraBtnRaw = (x) => (
 const extraBtn = (x) => (x.desc
   ? <span key={x.key} className="hc-tip" data-tip={x.desc}>{extraBtnRaw(x)}</span>
   : extraBtnRaw(x));
+// ปุ่มพิเศษเยอะ (สนาม Eos ยืนในเมือง/แคมป์ — ผู้ใช้ 2026-11-14 "ทำทุกข้อ"): เรียงปุ่มสำคัญก่อน · เห็น EXTRA_MAX แรก · ที่เหลือซ่อนใต้ "⋯" (กดกาง/หุบ)
+const EXTRA_MAX = 6;
+const EXTRA_PRI = ["fd:seize", "fd:help", "fd:barrage", "fd:mount", "fd:board", "fd:dismount", "fd:leave", "fd:ram", "fd:flask", "fd:turret", "fd:escort", "fd:lightfix", "fd:wallfix"];
+const priOf = (k) => { const i = EXTRA_PRI.findIndex((p) => k === p || k.startsWith(`${p}:`)); return i < 0 ? EXTRA_PRI.length : i; };
+function ExtraGrid({ extra }) {
+  const [more, setMore] = useState(false);
+  const list = extra.map((x, i) => ({ x, i })).sort((a, b) => priOf(a.x.key) - priOf(b.x.key) || a.i - b.i).map((o) => o.x);
+  const cut = list.length > EXTRA_MAX && !more ? EXTRA_MAX - 1 : list.length;
+  return (
+    <div className="hc-grid">
+      {list.slice(0, cut).map(extraBtn)}
+      {list.length > EXTRA_MAX && (
+        <button type="button" className="hc-btn ride" aria-expanded={more} onClick={() => setMore((v) => !v)}><span className="ico">{more ? "▴" : "⋯"}</span><b>{more ? "หุบ" : `+${list.length - cut}`}</b></button>
+      )}
+    </div>
+  );
+}
 // shops = ร้านที่ยืนติดอยู่ [{ id?, name, kind, onClick }] — ปุ่มละร้าน (สีตาม kind)
 export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo, end }) {
   return (
@@ -114,7 +132,7 @@ export function HudCommand({ skills, attack, shops, ride, drop, extra, bag, undo
         {drop && <button type="button" className="hc-btn ride" onClick={drop.onClick}><span className="ico">🙇</span><b>ให้ลง</b></button>}
         {(extra || []).length >= 3
           // ปุ่มพิเศษ 3 อันขึ้นไป = ตาราง 2 คอลัมน์ปุ่มเตี้ย (ผู้ใช้แจ้ง 2026-11-10 "ปุ่ม UI เยอะและสูงขึ้นเรื่อยๆ")
-          ? <div className="hc-grid">{extra.map(extraBtn)}</div>
+          ? <ExtraGrid extra={extra} />
           : extraRows(extra).map((g) => (g.length > 1
             ? <div key={g[0].key} className="hc-row">{g.map(extraBtn)}</div>
             : extraBtn(g[0])))}

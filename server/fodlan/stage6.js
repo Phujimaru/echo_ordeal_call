@@ -2892,8 +2892,14 @@ function playerInfo(ctx, st, p) {
   p4Badges(s, p, badges);
   if (allyNear(ctx, p)) badges.push({ key: "ally", icon: "🤝", label: `ร่วมแรง ตี +${ALLY.atk}`, cls: "bg-emerald-200 text-gray-900" });
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
-  if (!badges.length) return undefined;
-  return { choco: riding(s, p), car: driving(s, p), badges };
+  // พลังตีใส่มอน (ป้ายชี้ผู้เล่น — ผู้ใช้ 2026-11-14 "ทำทุกข้อ"): ประเมินกับมอนที่ใกล้สุด · ไม่มีมอน = null
+  let atk = null;
+  if (p && p.alive && p.pos && !p.summon) {
+    const m = mobsOf(ctx).filter((u) => u.pos).sort((a, b) => manhattan(a.pos, p.pos) - manhattan(b.pos, p.pos))[0];
+    if (m) { const v = require("../phases/attack").estimateAttackOn(p, m); if (Number.isFinite(v)) atk = v; }
+  }
+  if (!badges.length && atk == null) return undefined;
+  return { choco: riding(s, p), car: driving(s, p), badges, atk };
 }
 
 module.exports = {

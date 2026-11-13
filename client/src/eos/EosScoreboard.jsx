@@ -76,6 +76,11 @@ export default function EosScoreboard({ state }) {
               </span>
             </button>
           </Tip>
+          {b.lament && ( /* ชีวิตทีม Lament บนหัวแผง เห็นตลอดแม้พับ (ผู้ใช้ 2026-11-14 "ทำทุกข้อ") */
+            <span className="eos-lives" aria-label="ชีวิตทีม" data-low={b.lament.lives - b.lament.downs <= 2 ? "true" : undefined}>
+              {Array.from({ length: b.lament.lives }, (_, i) => <i key={i} data-on={i < b.lament.lives - b.lament.downs ? "true" : undefined}>🕯</i>)}
+            </span>
+          )}
           <button type="button" className="eos-hud-fold" onClick={() => setFold((v) => !v)} aria-label={fold ? "กาง" : "พับ"} aria-expanded={!fold}>{fold ? "▸" : "▾"}</button>
           <span className="eos-score-bar"><b style={{ width: `${k * 100}%` }} />{b.finalAt && <i className="eos-score-final" style={{ left: `${(b.finalAt / goal) * 100}%` }} />}</span>
         </div>
