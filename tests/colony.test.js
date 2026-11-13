@@ -344,7 +344,7 @@ test('แคปซูลเสบียง 3 แบบ: ยา + ช่าง �
   const shop = require('../server/shop.js');
   assert.deepEqual(shop.capsules().map((c) => c.kind).sort(), ['apoth', 'cara', 'forge']);
   const forge = shop.capsules().find((c) => c.kind === 'forge');
-  assert.ok(forge.items.every((it) => ['windBoots', 'battery'].includes(it.type)), 'โรงช่างขายของโรงช่าง');
+  assert.ok(forge.items.every((it) => ['windBoots', 'battery', 'elemBomb'].includes(it.type)), 'โรงช่างขายของโรงช่าง');
   assert.equal(Colony.publicInfo().capsules.length, 3);
   match.colony.tele = [];
   startTurn(5);

@@ -30,11 +30,11 @@
 .bs-actor-pts[data-bust="true"] { background: var(--oc-hp); font-size: 24px; }
 /* จอแคบ/คนเยอะ: แถบลำดับเดินชนแถบบนซ้าย → ลงมาใต้แถบบน (BoardStage วัดแล้วตั้ง data-order-low) · ปุ่ม/ป้ายช่องเลื่อนตาม */
 .bs-root[data-order-low="true"] .bs-actor { top: var(--bs-order-top, 54px); }
-.bs-root[data-order-low="true"] .bs-tools { top: calc(var(--bs-order-top, 54px) + 50px); }
+
 .bs-root[data-order-low="true"] .bs-tile { top: calc(var(--bs-order-top, 54px) + 50px); }
 /* ---------- คิว 2 คนถัดไป (ขวา ใต้ปุ่มกล้อง — ผู้ใช้สั่ง 2026-10-22) — หกเหลี่ยมแบบคนที่กำลังเดิน ขนาดเล็ก · แถวละ 112px ----------
    ถึงตา/หลุดคิว = เลื่อนขึ้นจางหาย (--slot -1) · ที่เหลือเลื่อนขึ้นตาม · คนใหม่โผล่จากล่าง */
-.bs-queue { position: absolute; top: 132px; right: 14px; z-index: 20; pointer-events: none; width: 340px; height: 224px;
+.bs-queue { position: absolute; top: 74px; right: 14px; z-index: 20; pointer-events: none; width: 340px; height: 224px;
   transform: scale(var(--bs-k, 1)); transform-origin: 100% 0; transition: opacity .35s; }
 .bs-queue[data-show="false"] { opacity: 0; }
 .bs-q { position: absolute; right: 0; top: calc(var(--slot) * 112px); display: flex; align-items: center; justify-content: flex-end;
@@ -47,7 +47,7 @@
 .bs-q-plate { margin-right: -18px; padding: 8px 32px 8px 22px; min-height: 52px; display: flex; align-items: center; color: #fff; white-space: nowrap;
   background: linear-gradient(90deg, rgba(16,34,66,.9), rgba(16,34,66,.96)); clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%); border-top: 3px solid var(--bs-c); }
 .bs-q-plate b { font: 700 22px/1.1 var(--oc-f-ui); max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.bs-root[data-order-low="true"] .bs-queue { top: calc(var(--bs-order-top, 54px) + 118px); }
+.bs-root[data-order-low="true"] .bs-queue { top: calc(var(--bs-order-top, 54px) + 60px); }
 /* สนาม Eos: คิวอยู่ใต้แผงแต้มมุมขวาบน (BoardStage วัด .eos-score → --bs-queue-top) */
 .bs-root[data-queue-low="true"] .bs-queue { top: var(--bs-queue-top); }
 /* หน้าคาดการณ์เปิด = ซ่อนทุกอย่างที่ลอยบนกระดาน */
@@ -70,27 +70,60 @@
 .bs-btn-gold { background: #f0c868; color: #12264a; border-color: #f0c868; }
 .bs-btn-gold:hover { background: #ffd98a; }
 
-/* ---------- ปุ่มระยะอันตราย ---------- */
-.bs-tools { position: absolute; top: 64px; right: 14px; z-index: 20; display: flex; gap: 6px; }
+/* ---------- มุมขวาบน (จัดใหม่ 2026-11-14 · แบบร่าง .claude/plans/element-ui.html — ผู้ใช้ยืนยัน) ----------
+   แถวเดียวกับปุ่มระบบ (.ocv · VolumeControl วัดความกว้างตั้ง --ocv-w) · กลุ่มโค้ง · ปุ่มสูง 40 · ตามโหมดสว่าง/มืด */
+:root {
+  --bs-ui-bg: rgba(255,255,255,.9); --bs-ui-ink: #1c3f6e; --bs-ui-mute: #4f6e95; --bs-ui-line: rgba(61,139,217,.4); --bs-ui-sep: rgba(61,139,217,.18);
+  --bs-ui-hover: rgba(61,139,217,.14); --bs-ui-panel: rgba(255,255,255,.95); --bs-ui-chip: rgba(61,139,217,.08);
+  --bs-ui-shadow: 0 10px 26px -14px rgba(10,24,48,.55); --bs-ui-danger-bg: rgba(210,69,91,.16); --bs-ui-danger-ink: #b3263d; --bs-ui-elem-bg: rgba(155,79,150,.18);
+  --bs-ui-on: #3d8bd9;
+}
+:root[data-ui="dark"] {
+  --bs-ui-bg: rgba(18,38,72,.92); --bs-ui-ink: #eaf3fc; --bs-ui-mute: #9db8da; --bs-ui-line: rgba(127,184,230,.35); --bs-ui-sep: rgba(127,184,230,.18);
+  --bs-ui-hover: rgba(61,139,217,.25); --bs-ui-panel: rgba(10,22,44,.96); --bs-ui-chip: rgba(255,255,255,.06);
+  --bs-ui-shadow: 0 10px 26px -12px rgba(0,0,0,.7); --bs-ui-danger-bg: rgba(210,69,91,.35); --bs-ui-danger-ink: #ffd6dc; --bs-ui-elem-bg: rgba(155,79,150,.45);
+  --bs-ui-on: #f0c868;
+}
+.bs-tools { position: absolute; top: 16px; right: calc(24px + var(--ocv-w, 150px)); z-index: 20; display: flex; gap: 8px; }
+.bs-grp { display: flex; align-items: stretch; height: 40px; background: var(--bs-ui-bg); border: 1px solid var(--bs-ui-line); border-radius: 14px;
+  box-shadow: var(--bs-ui-shadow); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .bs-tool {
-  cursor: pointer; width: 34px; font: 600 18px var(--oc-f-ui); color: #fff;
-  background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
+  cursor: pointer; width: 40px; height: 100%; display: grid; place-items: center; padding: 0; font: 600 18px var(--oc-f-ui); color: var(--bs-ui-ink);
+  background: none; border: 0; transition: background .15s;
 }
-.bs-tool:hover { background: #24406e; }
-.bs-tool[data-on="true"] { background: #3d5f8f; border-color: #f0c868; }
+.bs-tool + .bs-tool, .bs-zoom-lv + .bs-tool { border-left: 1px solid var(--bs-ui-sep); }
+.bs-grp > :first-child { border-radius: 13px 0 0 13px; }
+.bs-grp > :last-child { border-radius: 0 13px 13px 0; }
+.bs-tool:hover { background: var(--bs-ui-hover); }
+.bs-tool[data-on="true"] { background: var(--bs-ui-hover); box-shadow: inset 0 -3px 0 var(--bs-ui-on); }
 .bs-tool:disabled { opacity: .4; cursor: default; }
-/* ระดับซูม (ผู้ใช้สั่ง 2026-10-11): ขีดระหว่างปุ่ม ＋ / － บอกว่าซูมอยู่ระดับไหน */
-.bs-zoom-lv { display: flex; flex-direction: column-reverse; justify-content: center; gap: 3px; padding: 0 2px; }
-.bs-zoom-lv i { display: block; width: 6px; height: 4px; background: rgba(255,255,255,.22); }
-.bs-zoom-lv i[data-on="true"] { background: #f0c868; }
-.bs-view { display: grid; place-items: center; }
-.bs-view svg { width: 18px; height: 18px; } .bs-view svg * { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
-.bs-danger {
-  cursor: pointer;
-  font: 600 14px var(--oc-f-body); color: #fff; padding: 5px 14px;
-  background: var(--oc-navy); border: 1px solid var(--oc-navy-line); clip-path: var(--oc-cut);
-}
-.bs-danger[data-on="true"] { background: #a8336b; border-color: #ff80b6; }
+.bs-tool:disabled:hover { background: none; }
+/* ระดับซูม (ผู้ใช้สั่ง 2026-10-11): ขีดระหว่างปุ่ม － / ＋ บอกว่าซูมอยู่ระดับไหน */
+.bs-zoom-lv { display: flex; align-items: center; gap: 3px; padding: 0 6px; border-left: 1px solid var(--bs-ui-sep); }
+.bs-zoom-lv i { display: block; width: 4px; height: 14px; border-radius: 2px; background: var(--bs-ui-sep); }
+.bs-zoom-lv i[data-on="true"] { background: var(--bs-ui-on); }
+.bs-view svg { width: 20px; height: 20px; } .bs-view svg * { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.bs-danger[data-on="true"] { background: var(--bs-ui-danger-bg); color: var(--bs-ui-danger-ink); box-shadow: none; }
+.bs-elem[data-on="true"] { background: var(--bs-ui-elem-bg); box-shadow: none; }
+.bs-elem-dots { display: grid; grid-template-columns: 9px 9px; gap: 2px; }
+.bs-elem-dots i { width: 9px; height: 9px; border-radius: 50%; }
+/* ตารางปฏิกิริยาธาตุ — เปิดใต้แถวปุ่ม (คิวลำดับเดินหลบระหว่างเปิด) */
+.bs-rx { position: absolute; top: 66px; right: 16px; z-index: 21; width: 430px; padding: 14px 14px 10px; color: var(--bs-ui-ink);
+  background: var(--bs-ui-panel); border: 1px solid var(--bs-ui-line); border-radius: 18px; box-shadow: var(--bs-ui-shadow);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transform: scale(var(--bs-k, 1)); transform-origin: 100% 0;
+  animation: bsRxIn .18s ease-out both; }
+@keyframes bsRxIn { from { opacity: 0; transform: translateY(-6px) scale(var(--bs-k, 1)); } }
+.bs-rx-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.bs-rx-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font: 600 12px var(--oc-f-ui);
+  background: var(--bs-ui-chip); border: 1px solid var(--bs-ui-sep); border-radius: 999px; }
+.bs-rx-row { display: grid; grid-template-columns: 62px 92px 1fr; align-items: center; gap: 10px; padding: 8px 6px; border-top: 1px solid var(--bs-ui-sep); }
+.bs-rx-row:hover { background: var(--bs-ui-hover); border-radius: 10px; }
+.bs-rx-pair { font-size: 19px; letter-spacing: 2px; }
+.bs-rx-name { font: 700 15px var(--oc-f-ui); }
+.bs-rx-eff { font: 400 13px/1.35 var(--oc-f-body); color: var(--bs-ui-mute); }
+.bs-rx-eff b { color: var(--bs-ui-ink); font-weight: 600; }
+.bs-root[data-rx="true"] .bs-queue { opacity: 0; }
+.bs-root[data-fc="true"] .bs-rx { display: none; }
 
 /* ---------- ป้ายข้อมูลช่อง ---------- */
 .bs-tile {

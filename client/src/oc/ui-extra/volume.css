@@ -215,3 +215,7 @@
 .ocv-emo-e { font-size: 22px; line-height: 1; }
 .ocv-emo:hover { border-color: var(--oc-azure); transform: translateY(-2px); }
 .ocv-emo:focus-visible { outline: 2px solid var(--oc-azure); outline-offset: 2px; }
+
+/* ในเกม (กระดาน — BoardStage ตั้ง data-board): กลุ่มโค้งแบบเดียวกับปุ่มกระดานมุมขวาบน (แบบร่าง element-ui 2026-11-14) */
+:root[data-board] .ocv-btn, :root[data-board] .ocv-spec { clip-path: none; border-radius: 14px; }
+:root[data-board] .ocv-btn::after { display: none; }

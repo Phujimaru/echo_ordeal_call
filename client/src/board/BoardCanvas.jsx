@@ -882,7 +882,7 @@ export default function BoardCanvas(props) {
           ...(p.rts && us <= 1 ? { k: EOS_PIECE_K } : {}), // สนาม Eos: หมากใหญ่พอๆ กับโชโกโบะ (ผู้ใช้สั่ง 2026-11-09)
           id: u.id, rx, ry, ox, oy, hz, sq, inCar: !!u.inCar, color: normColor(u.color), img: u.img, name: u.name, // inCar = นั่งในรถ (สนาม Eos) — ไม่มีฐาน/เสา รูปอยู่ในรถ
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, standee: u.standee || null, giorno: u.giorno || null, otoya: u.otoya || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, standee: u.standee || null, giorno: u.giorno || null, otoya: u.otoya || null, elem: u.elem || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

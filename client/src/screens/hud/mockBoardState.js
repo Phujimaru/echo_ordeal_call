@@ -138,11 +138,11 @@ const ROSTER = [
   { id: "p0", name: "เรา", char: "muimi", position: 1, pos: { x: 5, y: 7 }, hp: 5, armor: 2, sp: 5, gold: 9, team: "A",
     cards: [{ value: 7, color: "red" }, { value: 9, color: "blue" }], score: 16, statuses: { atkUp: 2 }, statusAmt: { atkUp: 1 } },
   { id: "p1", name: "ฟ้าใส", char: "oberon_summer", position: 2, pos: { x: 9, y: 7 }, hp: 6, armor: 1, sp: 3, gold: 6, team: "B",
-    cards: [{ value: 10, color: "green" }, { value: 9, color: "yellow" }], score: 19, statuses: { burn: 1 }, statusAmt: {} },
+    cards: [{ value: 10, color: "green" }, { value: 9, color: "yellow" }], score: 19, statuses: { burn: 1, elWater: 2 }, statusAmt: {} }, // คราบน้ำ (ระบบธาตุ — ดูเอฟเฟกต์บนหมาก)
   { id: "p2", name: "ต้นกล้า", char: "muimi", position: 3, pos: { x: 3, y: 4 }, hp: 7, armor: 3, sp: 2, gold: 4, team: "A",
     cards: [{ value: 6, color: "yellow" }, { value: 8, color: "red" }], score: 14, statuses: {}, statusAmt: {} },
   { id: "p3", name: "มิวมิว", char: "oberon_summer", position: 4, pos: { x: 12, y: 9 }, hp: 3, armor: 0, sp: 7, gold: 12, team: "B",
-    cards: [{ value: 10, color: "blue" }, { value: 5, color: "green" }, { value: 8, color: "blue" }], score: 23, statuses: { poison: 2 }, statusAmt: {} },
+    cards: [{ value: 10, color: "blue" }, { value: 5, color: "green" }, { value: 8, color: "blue" }], score: 23, statuses: { poison: 2, elFire: 2 }, statusAmt: {} }, // คราบไฟ
   { id: "p4", name: "บอส", char: "muimi", position: 5, pos: { x: 10, y: 4 }, hp: 4, armor: 2, sp: 1, gold: 2, team: "C",
     cards: [{ value: 4, color: "red" }, { value: 8, color: "green" }], score: 12, statuses: {}, statusAmt: {} },
 ];
@@ -180,6 +180,7 @@ const MY_BAG = [
   { uid: "inv_armor", type: "armor", value: 1, price: 3 },
   { uid: "inv_color", type: "cardColor", price: 5 }, // ไอเทมช่วงจั่ว (เปิดกระเป๋าใช้ช่วงจั่ว)
   { uid: "inv_cut", type: "cardCut", price: 5 },
+  { uid: "inv_bomb", type: "elemBomb", price: 5 }, // ระเบิดธาตุ (GRID_PLAN §8.7)
 ];
 
 // ---------- ฉาก ----------

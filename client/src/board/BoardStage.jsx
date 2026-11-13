@@ -53,6 +53,8 @@ import { KAZUMA_FX, kazumaEventFx, kazumaFourDur, kazumaSonicDur } from "./kazum
 import { ROLAND_FX, rolandEventFx } from "./rolandFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
 import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
+import { ELEMENTS, auraOf } from "../data/elements";
+import ReactionPanel from "./ReactionPanel";
 import { moonEventFx } from "./moonFx";
 import { divineEventFx } from "./divineFx";
 import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
@@ -299,6 +301,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // ---------- โฮเวอร์ / ระยะอันตราย ----------
   const [hover, setHover] = useState(null);
   const [danger, setDanger] = useState(false);
+  const [rxOpen, setRxOpen] = useState(false); // ตารางปฏิกิริยาธาตุ (มุมขวาบน · GRID_PLAN §8.7 — ผู้ใช้สั่ง)
+  // อยู่บนกระดาน = ปุ่มระบบมุมขวาบน (.ocv) ใช้ทรงโค้งเดียวกับแถวปุ่มกระดาน (volume.css :root[data-board])
+  useEffect(() => {
+    document.documentElement.dataset.board = "1";
+    return () => { delete document.documentElement.dataset.board; };
+  }, []);
   // หมุนกระดาน 4 มุม (ทีละ 90° ตามเข็มนาฬิกา) — จำไว้ในเครื่องผู้เล่น · Q / E = หมุนซ้าย / ขวา
   const [rotation, setRotation] = useState(() => {
     try { return Number(localStorage.getItem("echo.boardRotation")) % 4 || 0; } catch { return 0; }
@@ -1356,6 +1364,29 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("otoyaFx", onOtoya);
     return () => socket.off("otoyaFx", onOtoya);
   }, [pushFx, look, lowQ]);
+  // ระบบธาตุ (server/element.js · elementFx.js): ติดคราบ · ปฏิกิริยา (ฉาก + ป้ายชื่อ) · ระเบิดธาตุ
+  useEffect(() => {
+    const posOf = (id) => { const q = playersRef.current.find((u) => u.id === id); return q && q.pos ? { x: q.pos.x, y: q.pos.y, size: sizeOfP(q) } : null; };
+    const onAura = (e) => { const t = e && posOf(e.id); if (t) pushFx([{ kind: "elAura", at: t, x: t.x, y: t.y, size: t.size, el: e.el }]); };
+    const onReact = (e) => {
+      if (!e || !e.at || !Number.isFinite(e.at.x)) return;
+      const ringAt = (e.ring || []).map(posOf).filter(Boolean);
+      look(e.at);
+      pushFx([
+        { kind: "elReact", key: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },
+        { kind: "elName", name: e.name, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1 },
+      ]);
+    };
+    const onBomb = (e) => {
+      if (!e || !e.to || !e.from) return;
+      look(e.to);
+      pushFx([{ kind: "elBomb", el: e.el, from: e.from, to: e.to, tiles: e.tiles || [], x: e.to.x, y: e.to.y, size: 1 }]);
+    };
+    socket.on("elemAura", onAura);
+    socket.on("elemReact", onReact);
+    socket.on("elemBomb", onBomb);
+    return () => { socket.off("elemAura", onAura); socket.off("elemReact", onReact); socket.off("elemBomb", onBomb); };
+  }, [pushFx, look]);
   // มหาเทพอรชุน: socket "arjunaFx" { kind, id, at, size } → arjunaBoardFx.js · จุติเล่นกับทุกคนที่ติดสถานะ
   useEffect(() => {
     const onArj = (e) => {
@@ -2395,6 +2426,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       standee: !mk && p.freddy ? p.freddy.standee || null : null, // เฟรดดี้: ภาพตัวเต็มแทนหมาก (freddyFx.js)
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
+      elem: !mk ? auraOf(p) : null, // คราบธาตุ (elementFx.js · GRID_PLAN §8.7)
       // คุเรไน โอโตยะ (otoyaFx.js): ร่าง Dark Kiva / หลุมพราง / Wake Up 2 / กำลังสีไวโอลิน · เป้าดนตรีในหัวใจ (ใครก็ได้)
       otoya: !mk && p.otoya && (p.otoya.kiva || p.otoya.trap || p.otoya.wake2 || p.otoya.heartTo || p.otoya.heartBy) ? { kiva: !!p.otoya.kiva, trap: !!p.otoya.trap, wake2: !!p.otoya.wake2, playing: !!p.otoya.heartTo, heart: !!p.otoya.heartBy } : null,
       giorno: !mk && p.giorno && (p.giorno.tree || p.giorno.reflect || p.giorno.muda || p.giorno.requiem || p.giorno.arrowWait || p.giorno.loop) ? { tree: !!p.giorno.tree, reflect: !!p.giorno.reflect, muda: !!p.giorno.muda, requiem: !!p.giorno.requiem, arrowWait: !!p.giorno.arrowWait, loop: !!p.giorno.loop } : null,
@@ -2830,7 +2862,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   if (!map) return null;
   return (
     <div ref={rootRef} className="bs-root" data-hidden={hidden ? "true" : "false"} data-order-low={orderLow ? "true" : "false"} data-queue-low={queueTop ? "true" : "false"}
-      data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"}
+      data-fc={fcId ? "true" : "false"} data-fly={shown.fly || "none"} data-shake={shake % 2 ? "true" : "false"} data-rx={rxOpen ? "true" : "false"}
       style={{ "--bs-k": Math.max(0.55, Math.min(1.3, sk)), "--bs-order-dx": `${orderDx}px`, ...(orderLow ? { "--bs-order-top": `${orderLow}px` } : null), ...(queueTop ? { "--bs-queue-top": `${queueTop}px` } : null) }}>
       <BoardCanvas
         map={displayBoard}
@@ -2939,30 +2971,39 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         </button>
       )}
 
-      {/* ปุ่มระยะอันตราย + หมุนกระดาน + ซูม */}
+      {/* มุมขวาบน (จัดใหม่ 2026-11-14 · ผู้ใช้ยืนยันแบบร่าง .claude/plans/element-ui.html): แถวเดียวกับปุ่มระบบ (VolumeControl)
+          กลุ่มกล้อง (หมุน · ซูม · มุมมอง · กลับที่ตัวเรา) · กลุ่มข้อมูลกระดาน (ระยะอันตราย · ตารางปฏิกิริยาธาตุ) */}
       <div className="bs-tools">
-        <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
-        <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
-        <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom >= ZOOM_STEPS - 1}
-          onClick={() => { clickSound(); if (zoom === 0 && me && me.pos) look(me.pos); setZoom(zoom + 1); }}>＋</button>
-        <span className="bs-zoom-lv" aria-hidden="true">{[...Array(ZOOM_STEPS - 1)].map((_, i) => <i key={i} data-on={i < zoom ? "true" : "false"} />)}</span>
-        <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 0}
-          onClick={() => { clickSound(); setZoom(zoom - 1); }}>－</button>
-        <button type="button" className="bs-tool bs-view" title={view === "top" ? "มุมเอียง" : "มุมบน"} data-on={view === "top" ? "true" : "false"}
-          onClick={() => { clickSound(); toggleView(); }}>
-          {view === "top"
-            ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 L9 7 H15 L19 18 Z" /><path d="M7 13 H17 M12 7 V18" /></svg>
-            : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /><path d="M4 12 H20 M12 4 V20" /></svg>}
-        </button>
-        {(state.colony || eosRts) && (
-          <button type="button" className="bs-tool bs-view" title="กลับที่ตัวเรา (Space)" onClick={() => { clickSound(); if (eosRts) goHome(); else setColonyHome((n) => n + 1); }}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" /><path d="M12 2.5 V6 M12 18 V21.5 M2.5 12 H6 M18 12 H21.5" /></svg>
+        <div className="bs-grp">
+          <button type="button" className="bs-tool" title="หมุนซ้าย (Q)" onClick={() => { clickSound(); rotate(-1); }}>⟲</button>
+          <button type="button" className="bs-tool" title="หมุนขวา (E)" onClick={() => { clickSound(); rotate(1); }}>⟳</button>
+          <button type="button" className="bs-tool" title="ซูมออก" disabled={zoom === 0}
+            onClick={() => { clickSound(); setZoom(zoom - 1); }}>－</button>
+          <span className="bs-zoom-lv" aria-hidden="true">{[...Array(ZOOM_STEPS - 1)].map((_, i) => <i key={i} data-on={i < zoom ? "true" : "false"} />)}</span>
+          <button type="button" className="bs-tool" title="ซูมเข้า" disabled={zoom >= ZOOM_STEPS - 1}
+            onClick={() => { clickSound(); if (zoom === 0 && me && me.pos) look(me.pos); setZoom(zoom + 1); }}>＋</button>
+          <button type="button" className="bs-tool bs-view" title={view === "top" ? "มุมเอียง" : "มุมบน"} data-on={view === "top" ? "true" : "false"}
+            onClick={() => { clickSound(); toggleView(); }}>
+            {view === "top"
+              ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 L9 7 H15 L19 18 Z" /><path d="M7 13 H17 M12 7 V18" /></svg>
+              : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" /><path d="M4 12 H20 M12 4 V20" /></svg>}
           </button>
-        )}
-        <button type="button" className="bs-danger" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
-          ระยะอันตราย
-        </button>
+          {(state.colony || eosRts) && (
+            <button type="button" className="bs-tool bs-view" title="กลับที่ตัวเรา (Space)" onClick={() => { clickSound(); if (eosRts) goHome(); else setColonyHome((n) => n + 1); }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" /><path d="M12 2.5 V6 M12 18 V21.5 M2.5 12 H6 M18 12 H21.5" /></svg>
+            </button>
+          )}
+        </div>
+        <div className="bs-grp">
+          <button type="button" className="bs-tool bs-view bs-danger" title="ระยะอันตราย" data-on={danger ? "true" : "false"} onClick={() => { clickSound(); setDanger((v) => !v); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L21 19 H3 Z" /><path d="M12 9 V13 M12 16 V16.5" /></svg>
+          </button>
+          <button type="button" className="bs-tool bs-elem" title="ปฏิกิริยาธาตุ" data-on={rxOpen ? "true" : "false"} onClick={() => { clickSound(); setRxOpen((v) => !v); }}>
+            <span className="bs-elem-dots" aria-hidden="true">{["fire", "ice", "bolt", "water"].map((k) => <i key={k} style={{ background: ELEMENTS[k].color }} />)}</span>
+          </button>
+        </div>
       </div>
+      {rxOpen && <ReactionPanel />}
 
       {/* ป้ายข้อมูลช่อง */}
       {tileInfo && (

@@ -64,6 +64,7 @@ import { KIRI_FX_DUR, KIRI_GHOST, KIRI_HIT_P, KIRI_MS, drawKiriGround, isKiriFx,
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaMoon, otoyaNight } from "./otoyaFx";
+import { ELEM_FX_DUR, isElemFx, elemFx, elemUnitBack, elemUnitFront } from "./elementFx";
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { DIVINE_FX_DUR, divineFx, isDivineFx } from "./divineFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
@@ -883,6 +884,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.truck) otUnitBack(g, u, now, wx, wy);
   // โจรุโน่ (giornoFx.js): ต้นไม้ใต้หมาก (ลอย) · วงเต่าทอง (ต้นตอแห่งชีวิต) · ออร่าทอง (Muda) · วงวนตาย · แสงรอผลธนู · เปลวทอง Requiem — ต้นไม้/วนตาย ใครก็ติดได้
   if (u.giorno) gioUnitBack(g, u, now, wx, wy);
+  if (u.elem) elemUnitBack(g, u, now, wx, wy); // คราบธาตุ (elementFx.js · GRID_PLAN §8.7): วงแสงใต้ฐาน + อนุภาคตามธาตุ
   if (u.otoya) otoUnitBack(g, u, now, wx, wy); // คุเรไน (otoyaFx.js): ออร่า Dark Kiva · ตรา Kiva (หลุมพราง) · โซ่แดง (Wake Up 2) · วงทอง (เป้าดนตรี)
   if (u.dio) dioUnitBack(g, u, now, wx, wy); // ดิโอ (dioFx.js): ออร่าทองตอนหยุดเวลา · ออร่าแดงตอน BloodStack 6 ขึ้นไป
   if (u.arjuna) arjUnitBack(g, u, now, wx, wy); // อรชุน (arjunaBoardFx.js): จุติ = ตะเกียงข้างหมาก · ขจัด = ดาวเคราะห์โคจร
@@ -968,6 +970,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroUnitFront(g, u, now, wx, wy, bx, hy, hexR);
   // ชุ่มน้ำมัน (หยดอำพันไหล) / ติดตาข่าย (ลวดรัดตัว) — ใครก็ติดได้
   if (u.dstat) diegoUnitFront(g, u, now, wx, wy, bx, hy, hexR);
+  if (u.elem && !tb) elemUnitFront(g, u, bx, hy, hexR); // ป้ายไอคอนคราบธาตุมุมขวาบนของหมาก
   if (u.otoya) otoUnitFront(g, u, now, wx, wy); // ค้างคาวโคจร · ไวโอลินเหนือหัว · โน้ตวนรอบเป้า
   if (u.giorno) gioUnitFront(g, u, now, wx, wy); // เปลวทอง Requiem ครึ่งหน้า · ธนูปักตัว (รอผลธนู)
   if (u.offline && !tb) drawOffline(g, bx, hy, hexR, now);
@@ -2425,7 +2428,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...ELEM_FX_DUR,
 };
 
 
@@ -2880,6 +2883,7 @@ export function drawFrame(g, st, now) {
     else if (isKazumaFx(e.kind)) kazumaFx(g, e, now, lowQ);
     else if (isRolandFx(e.kind)) rolandFx(g, e, now, lowQ);
     else if (isOtoyaFx(e.kind)) otoyaFx(g, e, now, lowQ); // คุเรไน โอโตยะ (otoyaFx.js)
+    else if (isElemFx(e.kind)) elemFx(g, e, now, lowQ); // ระบบธาตุ (elementFx.js)
     else if (lFx && isLawFx(e.kind)) lawFx(g, e, now, lowQ, law);
     else if (isMoonFx(e.kind)) moonFx(g, e, now, lowQ, { info });
     else if (isDivineFx(e.kind)) divineFx(g, e, now, lowQ); // นกหวีดอัญเชิญมนต์อสูรเทพ (divineFx.js)

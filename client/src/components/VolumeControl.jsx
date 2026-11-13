@@ -78,6 +78,16 @@ export default function VolumeControl() {
   const dark = uiTheme === "dark";
   const lastOnRef = useRef(getMasterVolume() > 0 ? getMasterVolume() : 0.8); // ระดับก่อนกดปิดเสียง (กดอีกครั้งคืนค่านี้)
   const rootRef = useRef(null);
+  // ความกว้างแถวปุ่มระบบ → --ocv-w (ปุ่มกระดานมุมขวาบนต่อแถวเดียวกันทางซ้าย · boardStage.css .bs-tools)
+  useEffect(() => {
+    const bar = rootRef.current && rootRef.current.querySelector(".ocv-bar");
+    if (!bar || typeof ResizeObserver === "undefined") return undefined;
+    const set = () => document.documentElement.style.setProperty("--ocv-w", `${Math.ceil(bar.getBoundingClientRect().width)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
   const lastEmote = useRef(0);
 
   // ค่าหลอดอาจถูกเปลี่ยนจากที่อื่น (หรือคืนค่าจาก localStorage) — ต้องตามให้ทัน

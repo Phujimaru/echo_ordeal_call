@@ -1358,3 +1358,25 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **กับดักที่ทุกคนเห็น**: เก็บที่ตัวเจ้าของ (`p.kiri.mines`) · ทำงานผ่านฮุค broadcast `walkTrap`/`springTrap` (แบบตาข่ายดิเอโก้) · ส่งทุกคนผ่าน `boardPublic` → `state.board.kiritsugu.mines` → BoardCanvas prop `kiri` → `drawKiriGround`
 - **Time Alter = ช่วง Clock Up kind `"alter"`**: ตาตัวเอง `engine.clockUp.start` · นอกตา `charAction "kiri:double" | "kiri:square"` → `engine.clockUp.enter` (ปุ่ม 2 ปุ่มใน `ZectHud ClockUpButton`) · สกิลระหว่างช่วงเรียก `engine.clockUp.countHit` + ฮุค `endsTurn` เมื่อครบ · client: `faizTrail "alter"` = เงาค้างสีส้ม (`KIRI_GHOST`) · `.axel-world.alter` = จอโทนส้ม · ไม่มีเส้นความเร็ว FULL FORCE
 - เทสต์ `tests/characters/emiya_kiritsugu.test.js`
+
+## 54. ระบบธาตุ + ปฏิกิริยาธาตุ / ระเบิดธาตุ / มุมขวาบนใหม่ (`server/element.js` · GRID_PLAN §8.7 · ผู้ใช้ตัดสิน 2026-11-14)
+
+- **ธาตุ** `fire` 🔥 · `ice` ❄️ · `bolt` ⚡ · `water` 💧 · `wind` 🌪️ · ไม่มี = ปกติ — ผูกกับ **การกระทำ** ไม่ใช่ตัวละคร
+- **คราบ** = สถานะ `elFire` / `elIce` / `elBolt` / `elWater` (ทีละ 1 · ค่า `AURA_TURNS` 2 ลดในลูป `endTurn` = ค้างเทิร์นนี้ + เทิร์นถัดไป) · ไม่อยู่ใน `BASIC_DEBUFF_CLEAR` · ลมไม่ติดคราบ
+  · ไม่ติด: ตัวเอง/ทีมเดียวกับต้นตอ (`sameTeam`) · `summon.noStatus` · ไม่มีช่อง · ดาเมจที่ถูกฮุคเป้าตัดเหลือ 0 (มิติ/กัน/สะท้อน)
+- **ธาตุของการกระทำ** — `match.elemCtx` (`undefined` = ไม่มีใครตั้ง → ฮุค `defaultElement` ของต้นตอ · `null` = ตั้งว่าไม่มีธาตุ):
+  - ท่อดาเมจ `dealMixed` / `dealDirect` / `dealArmorOnly` เรียก `Element.afterHit(p)` หลังดาเมจลง (> 0 หลัง `adjustIncomingDamage`)
+  - ตีปกติ/ตีสวน: `attack.strikeBody` ครอบด้วยฮุค `attackElement(engine, p, { counter, target })` (ไม่มี → `defaultElement`) · ป้ายปฏิกิริยาขึ้นฝั่งผู้ตี (`Element.takeReaction`)
+  - สกิล: `skills.useSkill` ครอบ `applyInstantSkill` ด้วยฮุค `skillElement(engine, p, tier, opts)` · `engine.deferAfterCutscene` / `skillBeat` จดธาตุตอนคิว (`Element.capture`)
+  - เจาะจงในโค้ด: `engine.withElement(el, fn)` (ระเบิดน้ำมันดิเอโก้ · พายุสายฟ้าแดงกิลกาเมช · Lightning Sonic · ไม้ถูพื้นไถลชน · ขวดเวท Eos) · ไม่มีดาเมจ = `engine.elementApply(t, el, src)` (ไม้ขีด · Gamma Knife · นกหวีด · ระเบิดธาตุ)
+- **ปฏิกิริยา** `Element.react` — ดาเมจของปฏิกิริยา `withElement(null)` (ไม่ต่อลูกโซ่) · ต้นตอเดิม (เพื่อนไม่โดน) · คนรอบวงตายเก็บช่องเอง (เป้าหลัก = ผู้เรียกเก็บ)
+  ปะทุ (+3 · รอบ 8 ช่อง 1) · ระเบิด (+2 · รอบ 2 + ผลัก 1 ผ่าน `Ice.pushUnit`) · ระเหย (+3) · กัดเซาะ (+1 · เกราะเป็น 0) · เยือกแข็ง (`frostbite` 2 + `rooted` 1) · นำไฟฟ้า (+2 `dealDirect`)
+  · **พัดพา** `windBurst(sources, src)`: ถ่ายภาพคราบ → ผู้รับรอบตัวแต่ละคนรับธาตุทีละอันตาม `ORDER` (🔥→❄️→⚡→💧 · คราบเดิมของผู้รับยังทำปฏิกิริยาได้) → ต้นลมที่ไม่มีอะไรมาถึง = คราบหาย · คราบจากการพัดไม่พัดต่อ
+- **น้ำแข็งกัด** `frostbite` — `Element.tickFrost` ต้นเทิร์น (คู่ `tickBurn` ใน `dealRound`) ดาเมจ 1 เกราะก่อน · อยู่ใน `NO_TICK_STATUS` + `BASIC_DEBUFF_CLEAR` · ติดตัว 5 ของ Ice Spike กันแค่น้ำแข็งกัดจาก **แผนที่** (Fodlan IV)
+- **พื้นธาตุ** `Element.terrainAura(p)` ที่ `action.endUnitTile` (จบตา): 🔥 ลาวา/พื้นไฟ/กองไฟดิเอโก้ · ❄️ น้ำแข็งลื่น/ธารน้ำแข็ง · 💧 น้ำตื้น/น้ำวน/พื้นเปียก · พื้นมีเจ้าของ = เจ้าของ/ทีมไม่ติด
+- **ระเบิดธาตุ** (`elemBomb` · โรงช่างลุงเริง · `SHOP_ELEM_BOMB_PRICE` 5): `useInventoryItem { uid, tile, element }` → `shop.throwElemBomb` — ช่องกลางในระยะ `baseMovOf` · วง `ELEM_BOMB_SIZE` 3×3 · ทอยหลบรายตัว (`skillDodge`) · ไม่มีดาเมจ · ลม = `windBurst(โดนทั้งหมด)` · ใช้แบบไอเทม (`lockMove`)
+- **client**: `data/elements.js` (ธาตุ/ตารางปฏิกิริยา/`auraOf`) · `board/elementFx.js` (`u.elem` วงแสง+อนุภาค+ป้ายมุมหมาก · เหตุการณ์ socket `elemAura` / `elemReact` / `elemBomb`) · `board/ReactionPanel.jsx`
+  · เสียง `elem_<ปฏิกิริยา>` / `elem_bomb_<ธาตุ>` สังเคราะห์ `.claude/plans/element-sfx.py` → `client/public/effect_sound/element/` (track ใน git)
+- **มุมขวาบนใหม่** (แบบร่าง `.claude/plans/element-ui.html`): `.bs-tools` = กลุ่มกล้อง + กลุ่มข้อมูลกระดาน แถวเดียวกับ `.ocv` (VolumeControl ตั้ง `--ocv-w`) · ทรงโค้ง + โทเคน `--bs-ui-*` สว่าง/มืด (`:root[data-ui="dark"]`) · BoardStage ตั้ง `:root[data-board]` → ปุ่ม `.ocv` โค้งตาม · คิวลำดับเดินเริ่ม 74px
+- เทสต์ `tests/element.test.js`
+
