@@ -75,7 +75,7 @@ export function Chrome({ children }) {
   return (
     <div className="ocd-chrome" aria-hidden="true">
       <i className="oc-tick tl" /><i className="oc-tick tr" /><i className="oc-tick bl" /><i className="oc-tick br" />
-      <span className="ocd-mark oc-latin">ECHO · <b>ORDEAL CALL</b></span>
+      <span className="ocd-mark oc-latin">ECHO · <b>RISING RESONANCE</b></span>
       {children}
     </div>
   );

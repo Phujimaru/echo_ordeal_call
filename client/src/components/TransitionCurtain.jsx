@@ -139,7 +139,7 @@ const TransitionCurtain = forwardRef(function TransitionCurtain({ screenKey }, r
       <div className="occ-core">
         <span className="occ-core-box">
           <b className="occ-logo">ECHO</b>
-          <span className="occ-sub">ORDEAL <em>CALL</em></span>
+          <span className="occ-sub">RISING <em>RESONANCE</em></span>
           <span className="occ-bar"><i /></span>
         </span>
       </div>

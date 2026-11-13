@@ -31,7 +31,7 @@ export function EchoLogo({ small = false, patch = true }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: small ? 6 : 12, alignItems: small ? "flex-start" : "center" }}>
       <div className="oc-echo-logo" role="img" aria-label="ECHO" style={small ? { width: "min(300px,70vw)" } : undefined} />
-      {patch && <p className="oc-logo-text" style={{ margin: 0, fontSize: small ? 14 : 22 }}>ORDEAL <span>CALL</span></p>}
+      {patch && <p className="oc-logo-text" style={{ margin: 0, fontSize: small ? 14 : 22 }}>RISING <span>RESONANCE</span></p>}
     </div>
   );
 }
