@@ -62,6 +62,7 @@ const MOB_OWNER = { id: "eos", name: "Eos", position: 0, customColor: null, team
 const SEIZE_SECS = 1.4;
 const REVIVE_TURNS = 3;       // ตายแล้วฟื้นหลัง 3 เทิร์น
 const SIGHT_EXTRA = 4;        // เห็นผู้เล่นอื่นในระยะเดิน + 4 ช่อง
+const MOB_WALK_MS = 1000; // ช่วงมอนเดิน (client MOB_MS) — ฉากตีเริ่มหลังจากนี้
 const SECS = { dropship: 1.8, mobs: 1.4, revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
 
 const K = (x, y) => `${x},${y}`;
@@ -1231,12 +1232,14 @@ function actMonstersRaw(ctx, s) {
     else if (!victims.length && r.pillar) pillarHits.push({ id: m.id, type, x: m.pos.x, y: m.pos.y, at: { x: r.pillar.x, y: r.pillar.y }, ...hitPillar(ctx, s, r.pillar, m) });
   }
   // ต้นเทิร์นเหตุการณ์เดียวสำหรับ client (เดิน → ตี) · ชื่อเดิม mob_move / mob_attack ใช้ทั้งปีศาจและศัตรูอื่น
+  //  delay (ผู้ใช้ 2026-11-14 "อยู่ๆ ก็ไหลเข้ามาแล้วเกิดความเสียหายเลย ไม่ทันรู้ตัว"): มีมอนเดิน = ฉากตี/ยิง/ดึงรอจนเดินถึงก่อน (client เลื่อนเอฟเฟกต์ + เลขดาเมจ + หลอดเลือดตาม)
+  const hitDelay = moves.length ? MOB_WALK_MS : 0;
   if (moves.length) ctx.fx("mob_move", { moves });
-  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits });
-  if (heals.length) ctx.fx("mob_heal", { heals });
-  if (shots.length) ctx.fx("mob_shot", { shots });
+  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits, delay: hitDelay });
+  if (heals.length) ctx.fx("mob_heal", { heals, delay: hitDelay });
+  if (shots.length) ctx.fx("mob_shot", { shots, delay: hitDelay });
   if (acc.blinks.length) ctx.fx("mob_blink", { list: acc.blinks });
-  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls });
+  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls, delay: hitDelay });
   if (acc.runes.length) ctx.fx("mob_rune_set", { list: acc.runes });
   if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${lightMax(s)})`); }
   return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big || runeOut.length || regenOut.length || acc.runes.length || acc.pulls.length || acc.blinks.length ? 1 : 0;
@@ -2439,7 +2442,7 @@ function preRound(ctx, st) {
   secs = Math.max(secs, E.onNight(ctx, s, H(), realNight));
   secs = Math.max(secs, SKY.onNight(ctx, s, realNight, !!E.ev(s).blood)); // จันทร์เต็มดวง (คืนที่ไม่ใช่สีเลือด) // พระจันทร์สีเลือด (ก่อนเกิดปีศาจ — จำนวน ×1.5) · เตือนบอสต้นคืน
   // มอนเตอร์ที่อยู่แล้วขยับก่อน (ตัวที่เพิ่งเกิดเทิร์นนี้ยังไม่ขยับ)
-  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs);
+  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs + MOB_WALK_MS / 1000); // เดิน (MOB_WALK_MS) แล้วค่อยตี
   if (freshNight) secs = Math.max(secs, spawnDaemons(ctx, s) ? SECS.daemonSpawn : 0);
   else if (night) {
     // เกิดซ้ำทุกเทิร์นกลางคืน จนครบจำนวนของคืนนั้น

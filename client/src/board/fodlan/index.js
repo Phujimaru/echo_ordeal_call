@@ -74,7 +74,7 @@ export function fxT(e, now, ms) {
   if (FX_BASE === null) FX_BASE = e.seq; // เปิดหน้าใหม่: ของเก่าไม่เล่นซ้ำ
   if (e.seq < FX_BASE) return 1;
   let t0 = FX_SEEN.get(e.seq);
-  if (t0 == null) { t0 = now; FX_SEEN.set(e.seq, t0); if (FX_SEEN.size > 64) FX_SEEN.delete(FX_SEEN.keys().next().value); }
+  if (t0 == null) { t0 = now + (e.delay > 0 ? e.delay : 0); FX_SEEN.set(e.seq, t0); if (FX_SEEN.size > 64) FX_SEEN.delete(FX_SEEN.keys().next().value); } // delay = เริ่มช้ากว่าที่เห็น (ฉากตีของมอนรอเดินถึง)
   return Math.max(0, Math.min(1, (now - t0) / Math.max(1, ms)));
 }
 // true ครั้งเดียวต่อเหตุการณ์ (เล่นเสียงตอนฉากเริ่ม: if (fxOnce(e)) fodlanAudio().sfx("wx_thunder"))

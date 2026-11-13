@@ -572,8 +572,10 @@ export default function BoardCanvas(props) {
       if (selfKey !== st.selfKey) {
         const was = st.selfKey;
         st.selfKey = selfKey;
-        st.vcLock = null; // ตัวเราเดิน = ศูนย์กลางมุมมองกลับมาที่ตัวเรา
-        if (selfKey && !(st.drag && st.drag.moved)) {
+        // selfFollow = false (Eos นอกตาเรา: โดนดึง/ฟื้น/ขี่ — ผู้ใช้สั่ง 2026-11-14 กล้องไม่ตามกิจกรรม) → ค้างมุมมองเดิม ไม่เลื่อนกล้อง
+        if (p.selfFollow === false && was != null) { if (st.vc) st.vcLock = { ...st.vc }; }
+        else st.vcLock = null; // ตัวเราเดิน = ศูนย์กลางมุมมองกลับมาที่ตัวเรา
+        if (selfKey && !(st.drag && st.drag.moved) && !(p.selfFollow === false && was != null)) {
           const [sx, sy] = PV(0, 0); // จุดหมุน = ตัวเรา อยู่ที่ (0, 0) ของมุมมองเสมอ
           const to = cc({ z: st.cam.z, ...eyeTo(st.cam.z, sx, sy) });
           if (was == null) { st.cam = to; st.camAnim = null; } else startAnim(to, FOCUS_MS);

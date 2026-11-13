@@ -3398,14 +3398,15 @@ function playFx(e) {
       break;
     }
     case "mob_attack": {
+      const dl = (e.delay || 0) / 1000; // รอมอนเดินถึง
       const ts = new Set((e.attacks || []).map((a) => a.type));
-      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 });
-      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 });
-      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 });
-      if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 });
+      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 + dl });
+      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 + dl });
+      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 + dl });
+      if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 + dl });
       const walls = (e.pillars || []).filter((h) => h.wall), pls = (e.pillars || []).filter((h) => !h.wall);
-      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25, gain: 0.8 });
-      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25, gain: 0.7 });
+      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25 + dl, gain: 0.8 });
+      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25 + dl, gain: 0.7 });
       break;
     }
     case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
@@ -3436,15 +3437,15 @@ function playFx(e) {
     case "town_light": sfx("dome_on", { gain: 0.7 }); break;
     case "tram": sfx("train_horn", { gain: 0.45, dur: 1.2 }); sfx("chocobo_run", { delay: 0.3, gain: 0.35, dur: 1.8 }); break;
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
-    case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
-    case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
+    case "mob_heal": sfx("camp_buff", { gain: 0.45, delay: (e.delay || 0) / 1000 }); break;
+    case "mob_shot": sfx("turret_shot", { gain: 0.8, delay: (e.delay || 0) / 1000 }); break;
     case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
     case "town_garage": sfx("car_start", { gain: 0.8 }); break;
     case "armiger": sfx("royal_arms", { gain: 1 }); sfx("tomb_open", { delay: 0.3, gain: 0.7 }); break;
     case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
     case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
     case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
-    case "mob_pull": sfx("car_hit", { gain: 0.6 }); break;
+    case "mob_pull": sfx("car_hit", { gain: 0.6, delay: (e.delay || 0) / 1000 }); break;
     case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
     case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
     case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;

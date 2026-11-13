@@ -334,7 +334,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, []);
   // จุดที่กล้องมุมใกล้ควรเห็น (อ็อบเจกต์ใหม่ = เลื่อนไปถ้าอยู่นอกจอ)
   const [focus, setFocus] = useState(() => (me && me.pos ? { x: me.pos.x, y: me.pos.y } : null));
-  const look = useCallback((pos) => { if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) setFocus({ x: pos.x, y: pos.y }); }, []);
+  const lookTo = useCallback((pos) => { if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) setFocus({ x: pos.x, y: pos.y }); }, []);
+  // กล้องตามเหตุการณ์อัตโนมัติ (ตีพิเศษ/เดิน/ฉาก ฯลฯ) — สนาม Eos ไม่ตามเลย (ผู้ใช้สั่ง 2026-11-14 "ไม่ต้องขยับตามกิจกรรมต่างๆ รวมถึงเวลาถึงเทิร์นใคร")
+  //  กล้องที่ผู้เล่นสั่งเอง (Tab · Space กลับตัวเรา · กดป้ายสถานการณ์) ใช้ lookTo
+  const autoCamOn = state.world !== "eos";
+  const autoCam = useRef(autoCamOn);
+  useEffect(() => { autoCam.current = autoCamOn; }, [autoCamOn]);
+  const look = useCallback((pos) => { if (autoCam.current) lookTo(pos); }, [lookTo]);
   // Tab / Shift+Tab = เลื่อนกล้องไปดูหมากตัวถัดไป/ก่อนหน้า (วนตามลำดับในรายชื่อ — รวมตัวเรา · ผู้ใช้สั่ง 2026-11-09)
   const tabIdx = useRef(-1);
   const unitsRef = useRef([]);
@@ -347,11 +353,11 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!list.length) return;
       e.preventDefault();
       tabIdx.current = (tabIdx.current + (e.shiftKey ? -1 : 1) + list.length) % list.length;
-      look(list[tabIdx.current].pos);
+      lookTo(list[tabIdx.current].pos);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [look]);
+  }, [lookTo]);
   useEffect(() => {
     const onKey = (e) => {
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -421,7 +427,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     setLookedTurn(turnKey);
     const a = byId[state.actorId];
     const mine = !me || (a && (a.id === me.id || a.duoOf === me.id || (a.summon && a.summon.ownerId === me.id)));
-    if (a && a.pos && mine) setFocus({ x: a.pos.x, y: a.pos.y });
+    if (a && a.pos && mine && autoCamOn) setFocus({ x: a.pos.x, y: a.pos.y });
   }
 
   // ---------- ระยะเดินของเรา ----------
@@ -720,6 +726,9 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [pushFx]);
   const onPing = useCallback((x, y) => { if (coopMode && me) socket.emit("teamPing", { x, y }); }, [coopMode, me]);
   const [hold, setHold] = useState({}); // id → ช่องที่ค้างไว้ระหว่างฉากตี (ก่อนแอนิเมชันถอยเริ่ม)
+  // สนาม Eos: มอนเดินมาแล้วค่อยตี (fx delay) → หลอดเลือด/เกราะของคนที่โดนค้างค่าเดิมจนถึงจังหวะตี (ผู้ใช้ 2026-11-14)
+  const [vitHold, setVitHold] = useState({}); // id → { hp, armor }
+  const eosFxSeq = useRef(null);
   const [cinema, setCinema] = useState(null); // กล้องฉากตี { a, b, z }
   const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
   const [shake, setShake] = useState(0);      // จอสั่น/แฟลช (เลขเปลี่ยน = เล่นใหม่)
@@ -1035,7 +1044,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (deadInAtk.length) later(HIT, () => deadInAtk.forEach((d) => deathBoom(d.t, d.at)));
       if (tPos) {
         look(tPos);
-        if (!lowQ && fromPos) setCinema({ a: fromPos, b: tPos, z: 2 });
+        if (!lowQ && fromPos && autoCam.current) setCinema({ a: fromPos, b: tPos, z: 2 }); // Eos: ไม่ซูมเข้าฉากตี
         if ((melee || kzLunge) && !lowQ) later(ZOOM_IN, () => setAnimQ((q) => [...q, { kind: "lunge", id: a.byId, from: fromPos, to: tPos, hitId: a.targetId, seq: ++fxSeq.current }]));
         later(HIT, () => {
           if ((!myth || saber) && !hk && !fernZ && !arjS) playSfx(a.byAttackSound || "attack");
@@ -1139,12 +1148,25 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       }
       if (broke) playSfx("is_skill_2_broke");
     }
+    // สนาม Eos: เหตุการณ์ใหม่ที่มี delay (ฉากตีของมอนหลังเดิน) → เลขดาเมจ/หลอดเลือดขึ้นตอนตีจริง
+    let eosDelay = 0;
+    {
+      const list = (state.fodlan && state.fodlan.board && state.fodlan.board.fx) || [];
+      const top = list.reduce((m, e) => Math.max(m, e.seq || 0), 0);
+      if (eosFxSeq.current != null) for (const e of list) if (e.seq > eosFxSeq.current && e.delay > 0) eosDelay = Math.max(eosDelay, e.delay);
+      eosFxSeq.current = Math.max(eosFxSeq.current || 0, top);
+    }
     // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
     let hurtPos = null;
     for (const p of state.players) {
       if (involved.has(p.id) || !p.pos || iceSkip(p.id)) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
-      const df = dashFloat[p.id] || (d < 0 && diegoDeferMs(p.id) > 0 ? { ms: diegoDeferMs(p.id), at: p.pos } : null), at = df ? df.at : p.pos;
+      const df = dashFloat[p.id] || (d < 0 && diegoDeferMs(p.id) > 0 ? { ms: diegoDeferMs(p.id), at: p.pos } : null) || (d < 0 && eosDelay > 0 ? { ms: eosDelay, at: p.pos } : null), at = df ? df.at : p.pos;
+      if (d < 0 && eosDelay > 0 && !dashFloat[p.id] && lastPlayers[p.id]) { // หลอดเลือดค้างค่าเดิมจนถึงจังหวะตี
+        const was = lastPlayers[p.id], id = p.id;
+        setVitHold((h) => ({ ...h, [id]: { hp: was.hp ?? 0, armor: was.armor ?? 0 } }));
+        later(eosDelay, () => setVitHold((h) => { if (!h[id]) return h; const n = { ...h }; delete n[id]; return n; }));
+      }
       const fl = d < 0 ? [{ kind: "float", x: at.x, y: at.y, text: `${d}` }] : d > 0 ? [{ kind: "float", x: at.x, y: at.y, text: `+${d}`, color: "#8ff0b0" }] : null;
       if (fl && df) later(df.ms, () => pushFx(fl));
       else if (fl) pushFx(fl);
@@ -2181,13 +2203,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   const [eosZoomed, setEosZoomed] = useState(false);
   if (eosRts && !eosZoomed) { setEosZoomed(true); setZoomState(ZOOM_STEPS - 2); } // ช่วงซูมกว้างขึ้น (2026-11-10: 24↔6 ช่อง) → ขั้นรองสุด ≈ 8.5 ช่อง เท่ากล้องเริ่มเดิม
   if (!eosRts && eosZoomed) setEosZoomed(false);
-  const goHome = useCallback(() => { if (me && me.pos) look(me.pos); setCamHome((n) => n + 1); }, [me, look]);
+  const goHome = useCallback(() => { if (me && me.pos) lookTo(me.pos); setCamHome((n) => n + 1); }, [me, lookTo]);
   // สนาม Eos: แผงสถานการณ์ / ประกาศ กดแล้วกล้องไปดูจุดนั้น (window event "eos:look" { x, y })
   useEffect(() => {
-    const onLook = (e) => { const at = e.detail; if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) look({ x: at.x, y: at.y }); };
+    const onLook = (e) => { const at = e.detail; if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) lookTo({ x: at.x, y: at.y }); };
     window.addEventListener("eos:look", onLook);
     return () => window.removeEventListener("eos:look", onLook);
-  }, [look]);
+  }, [lookTo]);
   useEffect(() => {
     if (!eosRts) return undefined;
     const onKey = (e) => {
@@ -2369,7 +2391,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       ...(carDrivers.has(p.id) ? { inCar: true } : null), // สนาม Eos: คนขับนั่งในรถ (boardDraw — ไม่มีฐาน/เสา รูปอยู่ในห้องโดยสาร)
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
-      ...(vehicleBars[p.id] && !mk ? { hp: vehicleBars[p.id].hp, maxHp: vehicleBars[p.id].maxHp, armor: 0, maxArmor: 0 } : { hp: p.hp ?? 0, maxHp: p.maxHp ?? 0, armor: p.armor ?? 0, maxArmor: p.maxArmor ?? 0 }),
+      ...(vehicleBars[p.id] && !mk ? { hp: vehicleBars[p.id].hp, maxHp: vehicleBars[p.id].maxHp, armor: 0, maxArmor: 0 } : { hp: (vitHold[p.id] ? vitHold[p.id].hp : p.hp) ?? 0, maxHp: p.maxHp ?? 0, armor: (vitHold[p.id] ? vitHold[p.id].armor : p.armor) ?? 0, maxArmor: p.maxArmor ?? 0 }),
       isMe: !!me && p.id === me.id, isActor: p.id === state.actorId, teamId: p.teamId || null,
       ally: coopMode && !mk && !!me && p.id !== me.id && !!me.teamId && p.teamId === me.teamId && !isDoubleP(p),
       // สนาม Eos (PVE — ผู้เล่นทุกคนทีมเดียวกัน): หลอดเลือดผู้เล่นสีเขียว (มอนวาดเองใน fodlan/stage6.js = แดง)
@@ -2423,7 +2445,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, hold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
+  [state.players, state.actorId, state.clockUp, me, myDim, hold, vitHold, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
   // วงเพลงของยูนะ (yunaFx.js drawYunaZones) — คนที่มองไม่เห็นยูนะได้ yuna = undefined (view.unseenPub) จึงไม่เห็นวง
   const songSig = state.players.map((p) => (p.alive && p.yuna && p.yuna.aura ? `${p.yuna.aura.kind}@${p.yuna.aura.x},${p.yuna.aura.y},${p.yuna.aura.r}` : "")).filter(Boolean).join("|");
   const songs = useMemo(() => (songSig ? songSig.split("|").map((t) => { const [kind, rest] = t.split("@"); const [x, y, r] = rest.split(",").map(Number); return { kind, x, y, r }; }) : null), [songSig]);
@@ -2860,6 +2882,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         rts={eosRts}
         camHome={camHome}
         selfPos={eosRts && me && me.alive !== false ? me.pos : null}
+        selfFollow={eosRts ? myTurn : undefined}
         onYawSettle={eosRts ? setRotation : undefined}
         onColonyAway={setColonyAway}
         songs={songs}
