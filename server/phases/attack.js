@@ -6,6 +6,7 @@ Object.assign(module.exports, {
   estimateAttackOn, estimateHitOn, estimateCritOf, strike, skillStrike, skillDodge, doAttack, boardAttack,
 });
 
+const Element = require("../element");
 const CHAR_HOOKS = require("../../characters/index");
 const {
   statusAmtOf, poisonAtkPenalty, invertActive, accurateActive,
@@ -316,8 +317,14 @@ function strikeBody(attacker, target, counter) {
 
   const shieldBefore = target.shield;
   match.lastReflect = null;
-  if (pierce) combat.dealDirect(target, dmg, true);
-  else combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
+  // ธาตุของตีปกติ/ตีสวน (ฮุค attackElement · server/element.js) — คราบ/ปฏิกิริยาลงในท่อดาเมจ
+  const strikeEl = Element.attackElementOf(attacker, { counter, target });
+  match.elemLast = null;
+  Element.withElement(strikeEl, () => {
+    if (pierce) combat.dealDirect(target, dmg, true);
+    else combat.dealMixed(target, dmg, true); // กฎปกติ: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
+  });
+  const reaction = Element.takeReaction();
   // เป้าสะท้อนความเสียหายกลับ (combat.reflectBack — โจรุโน่: ต้นตอแห่งชีวิต) = ฉากตีขึ้น 0 + ป้ายฝั่งป้องกัน
   const reflected = match.lastReflect && match.lastReflect.byId === target.id ? match.lastReflect : null;
   match.lastReflect = null;
@@ -358,6 +365,7 @@ function strikeBody(attacker, target, counter) {
     if (hook && hook.attackFxNames) for (const name of hook.attackFxNames(attacker, atkCtx)) atkFx(name);
   }
   for (const name of landedFx) atkFx(name);
+  if (reaction) atkFx(`${Element.ELEMENTS[reaction.a].icon}${Element.ELEMENTS[reaction.b].icon} ${reaction.name}`, null);
   if (journeyCritFx.crit) atkFx(`คริติคอล ×${journeyCritFx.mult || 2} (${journeyCritFx.pct}%)`, null);
   if (accurate) atkFx("แม่นยำ — เจาะการหลบหลีก");
   if (empowerAtk) atkFx("เสริมพลัง +1");

@@ -361,10 +361,14 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   triggerCutscene: cutscene.triggerCutscene,
   notifyTransform: cutscene.notifyTransform,
   // ให้ผลของสกิลเกิดหลังคลิปที่คิวไว้จบ (ไม่มีคลิป = เกิดทันทีหลัง hook) — ใช้ได้เฉพาะใน applyInstantSkill
-  deferAfterCutscene(fn) { match.afterCutscene.push(fn); },
+  deferAfterCutscene(fn) { match.afterCutscene.push(require("./element").capture(fn)); }, // จดธาตุของการกระทำไว้ลงหลังคลิป (server/element.js)
   // พักตาเดิน seconds วิ (เฟส ATTACKING — กระดานเล่นเอฟเฟกต์ ปิดการกด) แล้วค่อยเรียก fn — ใช้ในผลของสกิล (cutscene.runSkillFlow)
   //  opts.open = รอผู้เล่นตัดสิน: engine.releaseBeat() จบจังหวะก่อนหมดเวลา (ดิโอ: Last Stand)
-  skillBeat(seconds, fn, opts) { match.skillBeats.push({ seconds, fn, open: !!(opts && opts.open) }); },
+  skillBeat(seconds, fn, opts) { match.skillBeats.push({ seconds, fn: require("./element").capture(fn), open: !!(opts && opts.open) }); },
+  // ระบบธาตุ (server/element.js · GRID_PLAN §8.7): withElement(el, fn) = ดาเมจใน fn มีธาตุ el · elementApply(t, el, src) = ให้ธาตุไม่มีดาเมจ
+  withElement(el, fn) { return require("./element").withElement(el, fn); },
+  elementApply(t, el, source) { return require("./element").apply(t, el, source || null); },
+  auraOf(p) { return require("./element").auraOf(p); },
   releaseBeat: cutscene.releaseBeat,
   // ขอให้เล่นฉากที่คิวไว้ (คลิป/ผลหลังคลิป/จังหวะพัก) ทันทีที่คำสั่ง/ฉากตีปัจจุบันจบ — สำหรับผลที่เกิดนอก useSkill ของตัวเอง (ดิโอ: Last Stand)
   wantFlow() { match.flowWanted = true; },

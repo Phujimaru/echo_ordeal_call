@@ -4,6 +4,7 @@ Object.assign(module.exports, {
   useSkill, skillCostOf, hitArea,
 });
 
+const Element = require("./element");
 const { CHAR_BY_ID } = require("../characters");
 const CHAR_HOOKS = require("../characters/index");
 const {
@@ -158,7 +159,11 @@ function runSkill(id, tier, targets, opts = {}) {
   const flashName = pubNow.flash && pubNow.name ? pubNow.name : skill.name;
   const flashImg = pubNow.flash && pubNow.img ? pubNow.img : skill.img || null;
   match.afterCutscene = []; // ผลที่ hook ขอให้เกิด "หลังคลิปจบ" (engine.deferAfterCutscene) — เช่นคลื่นดาบมุยมิ
-  if (hook && hook.applyInstantSkill) flashSuffix = hook.applyInstantSkill(engine, p, tier, targets, opts) || "";
+  // ธาตุของสกิล (ฮุค skillElement · server/element.js) — ครอบผลทันที + ผลหลังคลิป/จังหวะพักที่คิวระหว่างนี้
+  const skillEl = Element.skillElementOf(p, tier, opts || {});
+  if (hook && hook.applyInstantSkill) flashSuffix = (skillEl
+    ? Element.withElement(skillEl, () => hook.applyInstantSkill(engine, p, tier, targets, opts))
+    : hook.applyInstantSkill(engine, p, tier, targets, opts)) || "";
   Voice.play(p, tier); // เสียงพากย์ตามช่องสกิล (server/voice.js — ไจโร: skill1/2 · ท่าไม้ตายสุ่ม 2 ไฟล์)
   const deferred = match.afterCutscene.splice(0);
   // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น

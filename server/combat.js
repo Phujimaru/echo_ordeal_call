@@ -398,6 +398,7 @@ function dealDirect(p, n, isNormalAttack) {
     if (stageAbsorb(p)) continue;
     loseHp(p);
   }
+  Element().afterHit(p); // ระบบธาตุ (server/element.js): คราบ/ปฏิกิริยาของการกระทำที่มีธาตุ
 }
 function dealArmorOnly(p, n, isNormalAttack) {
   if (friendlyEffectBlocked(p)) return;
@@ -408,6 +409,7 @@ function dealArmorOnly(p, n, isNormalAttack) {
     if (layerAbsorb(p)) continue;
     if (p.armor > 0) loseArmor(p);
   }
+  Element().afterHit(p);
 }
 function dealMixed(p, n, isNormalAttack) { // เกราะก่อนแล้วเลือด
   if (friendlyEffectBlocked(p)) return;
@@ -420,7 +422,9 @@ function dealMixed(p, n, isNormalAttack) { // เกราะก่อนแล�
     if (p.armor > 0) loseArmor(p);
     else loseHp(p);
   }
+  Element().afterHit(p);
 }
+const Element = () => require("./element");
 // src = แหล่งที่มาของการฟื้นพลังงาน ("item" / "passive" / "card") — ใส่เฉพาะช่องทาง "ฟื้นฟู" จริงๆ
 function addSkill(p, n, src) {
   if (skillGainBlocked(p, src)) return; // ฮุค blocksSkillGain (เฟิร์น: Energy ฟื้นจากซ่อนเร้นมานาเท่านั้น)

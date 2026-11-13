@@ -139,6 +139,7 @@ function dealRound() {
 
     // ---------- ลุกไหม้ (hburn, สถานะ Universal): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 — ย้าย body ไป characters/_universal_status.js แล้ว ----------
     tickBurn(engine, p);
+    require("../element").tickFrost(engine, p); // น้ำแข็งกัด (ปฏิกิริยาเยือกแข็ง · server/element.js): ดาเมจ 1/เทิร์น
     // ---------- เลือดไหล (hbleed, สถานะ Universal patch 2.5): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 ----------
     tickBleed(engine, p);
     tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase

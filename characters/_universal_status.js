@@ -133,7 +133,7 @@ function applySpellburden(p, turns) {
 
 // ดีบัฟพื้นฐานที่ "ต้านสถานะผิดปกติ" ล้างออกได้ทั้งหมด
 //  — และเป็นรายการเดียวกับที่ cleanseOneStep() ไล่ล้างทีละขั้น · ดีบัฟที่จงใจ "ล้างไม่ได้" จึงต้องไม่อยู่ในนี้
-const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "weak", "fragile", "spellburden", "oblada", "hburn", "hbleed", "invert", "nohealing", "manaSeal", "chaa", "blind",
+const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "weak", "fragile", "spellburden", "oblada", "hburn", "hbleed", "frostbite", "invert", "nohealing", "manaSeal", "chaa", "blind",
   "manaLeech",
   "poison",       // พิษร้าย: ดีบัฟเต็มตัว ล้าง/ต้านได้ตามปกติ
   // patch 3.4.6: ดีบัฟที่ตกหล่นจากรายการเดิม — เดิมล้าง/ต้านไม่ได้ทั้งที่เป็นดีบัฟเต็มตัว
@@ -534,7 +534,7 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce"]);
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
 
 module.exports = {
   SPELLBURDEN_MAX,

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Element UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Kanit:wght@400;600&family=Michroma&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: rgba(18, 38, 72, 0.92); --navy-solid: #12264a; --line: rgba(127, 184, 230, 0.35);
+  --text: #eaf3fc; --mute: #9db8da; --azure: #3d8bd9; --echo: #9b4f96; --hp: #d2455b;
+  --cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  --cut6: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  --f: "Chakra Petch", "Kanit", system-ui, sans-serif;
+  --fire: #ff7a3d; --ice: #8fd8ff; --bolt: #ffd84a; --water: #4aa3ff; --wind: #7fe0b5;
+  /* ธีม UI: สว่าง (ค่าเริ่ม = กระจกขาวแบบ HUD เกม) */
+  --ui-bg: rgba(255,255,255,.9); --ui-ink: #1c3f6e; --ui-mute: #4f6e95; --ui-line: rgba(61,139,217,.4); --ui-sep: rgba(61,139,217,.18);
+  --ui-hover: rgba(61,139,217,.14); --ui-panel: rgba(255,255,255,.95); --ui-chip: rgba(61,139,217,.08); --ui-tip-bg: #1c3f6e; --ui-tip-ink: #fff;
+  --ui-shadow: 0 10px 26px -14px rgba(10,24,48,.55); --ui-danger-bg: rgba(210,69,91,.16); --ui-danger-ink: #b3263d; --ui-elem-bg: rgba(155,79,150,.18);
+}
+:root[data-ui="dark"] {
+  --ui-bg: rgba(18,38,72,.92); --ui-ink: #eaf3fc; --ui-mute: #9db8da; --ui-line: rgba(127,184,230,.35); --ui-sep: rgba(127,184,230,.18);
+  --ui-hover: rgba(61,139,217,.25); --ui-panel: rgba(10,22,44,.96); --ui-chip: rgba(255,255,255,.06); --ui-tip-bg: #050c18; --ui-tip-ink: #eaf3fc;
+  --ui-shadow: 0 10px 26px -12px rgba(0,0,0,.7); --ui-danger-bg: rgba(210,69,91,.35); --ui-danger-ink: #ffd6dc; --ui-elem-bg: rgba(155,79,150,.45);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b1528; color: var(--text); font: 15px/1.4 var(--f); }
+.top { display: flex; gap: 8px; padding: 14px 16px; align-items: center; flex-wrap: wrap; }
+.top h1 { font: 400 15px/1 "Michroma", var(--f); letter-spacing: .25em; margin: 0 18px 0 0; color: var(--mute); }
+.tab { cursor: pointer; padding: 8px 16px; font: 600 14px var(--f); color: var(--mute); background: var(--navy); border: 1px solid var(--line); border-radius: 999px; }
+.tab[aria-pressed="true"] { color: #fff; background: var(--azure); border-color: var(--azure); }
+
+.stage-wrap { padding: 0 16px 24px; }
+.stage { position: relative; width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; margin: 0 auto; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 40% 60%, rgba(61,139,217,.18), transparent 60%),
+    repeating-linear-gradient(60deg, rgba(127,184,230,.07) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(-60deg, rgba(127,184,230,.07) 0 1px, transparent 1px 46px),
+    linear-gradient(#173159, #0e1d38);
+  border: 1px solid var(--line); }
+.scale { position: absolute; inset: 0; transform-origin: 0 0; }
+.layer { position: absolute; inset: 0; display: none; }
+.layer.on { display: block; }
+
+/* ---------- ของเดิม ---------- */
+.old-sys { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; }
+.old-btn { height: 40px; min-width: 40px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; color: #1c3f6e; font: 600 13px var(--f);
+  background: rgba(255,255,255,.88); border: 1px solid rgba(61,139,217,.4); clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+.old-tools { position: absolute; top: 64px; right: 14px; display: flex; gap: 6px; }
+.old-tool { width: 34px; height: 34px; display: grid; place-items: center; font: 600 18px var(--f); color: #fff; background: var(--navy); border: 1px solid var(--line); clip-path: var(--cut6); }
+.old-danger { height: 34px; padding: 0 12px; display: grid; place-items: center; font: 600 13px var(--f); color: #fff; background: var(--navy); border: 1px solid var(--line); clip-path: var(--cut6); }
+.old-zoom { display: inline-flex; gap: 3px; align-items: center; padding: 0 2px; }
+.old-zoom i { width: 5px; height: 14px; background: var(--line); } .old-zoom i.on { background: var(--azure); }
+
+/* ---------- คิวลำดับเดิน (ทั้งสองแบบ) ---------- */
+.queue { position: absolute; right: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.q { display: flex; align-items: center; gap: 10px; }
+.q .nm { font: 600 13px var(--f); padding: 4px 12px; color: var(--ui-ink); background: var(--ui-bg); border: 1px solid var(--ui-line); border-radius: 999px; }
+.q .hex { width: 54px; height: 62px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, #5d7fae, #22406e); display: grid; place-items: center; font: 700 18px var(--f); }
+.q:first-child .hex { width: 70px; height: 80px; background: linear-gradient(160deg, #e0a526, #8a5a07); }
+
+/* ---------- แบบใหม่ ---------- */
+.rail { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; align-items: stretch; }
+.grp { display: flex; align-items: stretch; background: var(--ui-bg); border: 1px solid var(--ui-line); border-radius: 14px; overflow: hidden; box-shadow: var(--ui-shadow); backdrop-filter: blur(12px); }
+.grp + .grp { margin-left: 2px; }
+.ib { appearance: none; cursor: pointer; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: var(--ui-ink); font: 600 17px var(--f); position: relative; }
+.ib:hover { background: var(--ui-hover); }
+.rail .grp { overflow: visible; } .rail .ib:first-child { border-radius: 13px 0 0 13px; } .rail .ib:last-child { border-radius: 0 13px 13px 0; } .rail .ib:only-child { border-radius: 13px; }
+.ib + .ib { border-left: 1px solid var(--ui-sep); }
+.ib svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ib[data-on="true"] { background: var(--ui-danger-bg); color: var(--ui-danger-ink); }
+.ib.elem[data-on="true"] { background: var(--ui-elem-bg); color: var(--ui-ink); }
+.zoomlv { display: flex; align-items: center; gap: 3px; padding: 0 6px; border-left: 1px solid var(--ui-sep); }
+.zoomlv i { width: 4px; height: 14px; background: var(--ui-sep); } .zoomlv i.on { background: var(--azure); }
+.ib .tip { position: absolute; top: 46px; right: 0; white-space: nowrap; font: 600 12px var(--f); padding: 4px 10px; border-radius: 8px; color: var(--ui-tip-ink); background: var(--ui-tip-bg); border: 0; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 5; }
+.ib:hover .tip { opacity: 1; }
+.elem-ico { display: grid; grid-template-columns: 9px 9px; gap: 2px; }
+.elem-ico i { width: 9px; height: 9px; border-radius: 50%; }
+
+/* ---------- ตารางปฏิกิริยา ---------- */
+.rx { position: absolute; top: 64px; right: 14px; width: 430px; color: var(--ui-ink); background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: 18px; box-shadow: var(--ui-shadow); backdrop-filter: blur(12px); padding: 14px 14px 10px; display: none; z-index: 4; }
+.rx.on { display: block; }
+.rx-legend { display: flex; gap: 6px; margin-bottom: 10px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font: 600 12px var(--f); background: var(--ui-chip); border: 1px solid var(--ui-sep); border-radius: 999px; }
+.rx-row:hover { background: var(--ui-hover); border-radius: 10px; }
+.rx-row { display: grid; grid-template-columns: 70px 92px 1fr; align-items: center; gap: 10px; padding: 8px 4px; border-top: 1px solid var(--ui-sep); }
+.pair { font-size: 19px; letter-spacing: 2px; }
+.rx-name { font: 700 15px var(--f); }
+.rx-eff { font: 400 13px/1.35 var(--f); color: var(--ui-mute); }
+.rx-eff b { color: var(--ui-ink); font-weight: 600; }
+
+/* ---------- ตัวอย่างบนกระดาน ---------- */
+.piece { position: absolute; width: 74px; height: 84px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, #c84f6a, #6d1d33); display: grid; place-items: center; font: 700 20px var(--f); }
+.aura { position: absolute; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; background: rgba(5,12,24,.85); border: 2px solid var(--water); box-shadow: 0 0 12px var(--water); }
+.pop { position: absolute; font: 700 30px var(--f); letter-spacing: .08em; color: #fff; text-shadow: 0 0 14px var(--fire), 0 3px 0 #5a1b00; animation: pop 1.8s ease-out infinite; }
+@keyframes pop { 0% { transform: translateY(10px) scale(.6); opacity: 0; } 15% { transform: translateY(0) scale(1.1); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(-18px) scale(1); opacity: 0; } }
+.note { position: absolute; left: 24px; bottom: 20px; font: 600 13px var(--f); color: var(--mute); max-width: 520px; }
+.note b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>ELEMENT UI</h1>
+  <button class="tab" data-v="old" aria-pressed="false">มุมขวาบนตอนนี้</button>
+  <button class="tab" data-v="new" aria-pressed="true">แบบใหม่</button>
+  <span style="width:14px"></span>
+  <button class="tab th" data-t="light" aria-pressed="true">☀ สว่าง</button>
+  <button class="tab th" data-t="dark" aria-pressed="false">🌙 มืด</button>
+</div>
+
+<div class="stage-wrap"><div class="stage" id="stage"><div class="scale" id="scale" style="width:1280px;height:720px">
+
+  <!-- ===== ของเดิม ===== -->
+  <div class="layer" id="v-old">
+    <div class="old-sys">
+      <span class="old-btn">👁 2</span>
+      <span class="old-btn">☺</span>
+      <span class="old-btn">🔊 ▮▮▮▮</span>
+    </div>
+    <div class="old-tools">
+      <span class="old-tool">⟲</span><span class="old-tool">⟳</span><span class="old-tool">＋</span>
+      <span class="old-zoom"><i class="on"></i><i></i><i></i></span>
+      <span class="old-tool">－</span><span class="old-tool">▦</span>
+      <span class="old-danger">ระยะอันตราย</span>
+    </div>
+    <div class="queue" style="top:132px">
+      <div class="q"><span class="nm">Ice Spike</span><span class="hex">1</span></div>
+      <div class="q"><span class="nm">เซลิน</span><span class="hex">2</span></div>
+      <div class="q"><span class="nm">คาซุมะ</span><span class="hex">3</span></div>
+    </div>
+    <div class="note"><b>ตอนนี้</b> · ปุ่มระบบ (ผู้ชม/อีโมต/เสียง) กับปุ่มกล้องแยกกันคนละแถว ขนาดและสไตล์ไม่เท่ากัน · ปุ่ม "ระยะอันตราย" เป็นคำยาว · คิวลำดับเดินเริ่มที่ 132px</div>
+  </div>
+
+  <!-- ===== แบบใหม่ ===== -->
+  <div class="layer on" id="v-new">
+    <div class="rail">
+      <!-- กล้อง -->
+      <div class="grp">
+        <button class="ib" type="button">⟲<span class="tip">หมุนซ้าย Q</span></button>
+        <button class="ib" type="button">⟳<span class="tip">หมุนขวา E</span></button>
+        <button class="ib" type="button">－<span class="tip">ซูมออก</span></button>
+        <span class="zoomlv"><i class="on"></i><i></i><i></i></span>
+        <button class="ib" type="button">＋<span class="tip">ซูมเข้า</span></button>
+        <button class="ib" type="button"><svg viewBox="0 0 24 24"><path d="M5 18 L9 7 H15 L19 18 Z"/><path d="M7 13 H17 M12 7 V18"/></svg><span class="tip">มุมเอียง</span></button>
+      </div>
+      <!-- ข้อมูลบนกระดาน -->
+      <div class="grp">
+        <button class="ib" type="button" id="dangerBtn" data-on="false"><svg viewBox="0 0 24 24"><path d="M12 3 L21 19 H3 Z"/><path d="M12 9 V13 M12 16 V16.5"/></svg><span class="tip">ระยะอันตราย</span></button>
+        <button class="ib elem" type="button" id="rxBtn" data-on="true">
+          <span class="elem-ico"><i style="background:var(--fire)"></i><i style="background:var(--ice)"></i><i style="background:var(--bolt)"></i><i style="background:var(--water)"></i></span>
+          <span class="tip">ปฏิกิริยาธาตุ</span></button>
+      </div>
+      <!-- ระบบ -->
+      <div class="grp">
+        <button class="ib" type="button" style="width:auto;padding:0 10px;font-size:13px">👁 2</button>
+        <button class="ib" type="button">☺</button>
+        <button class="ib" type="button" id="moonBtn"><svg viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5 7.5 7.5 0 1 0 19 14.5z"/></svg><span class="tip">สว่าง/มืด</span></button>
+        <button class="ib" type="button"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.8L13 5v14l-5.2-4.5H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>
+      </div>
+    </div>
+
+    <div class="rx on" id="rx">
+      <div class="rx-legend">
+        <span class="chip">🔥 ไฟ</span><span class="chip">❄️ น้ำแข็ง</span><span class="chip">⚡ สายฟ้า</span><span class="chip">💧 น้ำ</span><span class="chip">🌪️ ลม</span>
+      </div>
+      <div class="rx-row"><span class="pair">🔥❄️</span><span class="rx-name">ปะทุ</span><span class="rx-eff">ดาเมจเพิ่ม <b>3</b> · ศัตรูรอบข้างโดน <b>1</b></span></div>
+      <div class="rx-row"><span class="pair">🔥⚡</span><span class="rx-name">ระเบิด</span><span class="rx-eff">ทุกคนรอบจุดโดน <b>2</b> · กระเด็น <b>1</b> ช่อง</span></div>
+      <div class="rx-row"><span class="pair">🔥💧</span><span class="rx-name">ระเหย</span><span class="rx-eff">ดาเมจเพิ่ม <b>3</b></span></div>
+      <div class="rx-row"><span class="pair">❄️⚡</span><span class="rx-name">กัดเซาะ</span><span class="rx-eff">ดาเมจเพิ่ม <b>1</b> · เกราะแตกหมด</span></div>
+      <div class="rx-row"><span class="pair">❄️💧</span><span class="rx-name">เยือกแข็ง</span><span class="rx-eff">น้ำแข็งกัด <b>2</b> เทิร์น · เดินไม่ได้ <b>1</b> เทิร์น</span></div>
+      <div class="rx-row"><span class="pair">⚡💧</span><span class="rx-name">นำไฟฟ้า</span><span class="rx-eff">ดาเมจเพิ่ม <b>2</b> ทะลุเกราะ</span></div>
+      <div class="rx-row"><span class="pair">🌪️✦</span><span class="rx-name">พัดพา</span><span class="rx-eff">กระจายธาตุที่อยู่บนตัวเป้าหมาย</span></div>
+    </div>
+
+    <div class="queue" style="top:64px;right:458px;display:none" id="qShift"></div>
+    <div class="queue" id="q" style="top:72px">
+      <div class="q"><span class="nm">Ice Spike</span><span class="hex">1</span></div>
+      <div class="q"><span class="nm">เซลิน</span><span class="hex">2</span></div>
+      <div class="q"><span class="nm">คาซุมะ</span><span class="hex">3</span></div>
+    </div>
+
+    <!-- ตัวอย่างบนกระดาน: คราบ + ป้ายปฏิกิริยา -->
+    <div class="piece" style="left:420px;top:330px">ศ</div>
+    <div class="aura" style="left:470px;top:318px">💧</div>
+    <div class="pop" style="left:398px;top:270px">ระเหย</div>
+
+    <div class="note"><b>แบบใหม่</b> · แถวเดียวมุมขวาบน แบ่ง 3 กลุ่ม: กล้อง · ข้อมูลกระดาน · ระบบ · ทุกปุ่มสูง 40 เท่ากัน · ตามโหมดสว่าง/มืด (สว่าง = กระจกขาวแบบ HUD · มืด = กรมท่า) ป้ายชื่อขึ้นตอนชี้ · ปุ่มจุดสี่สี = ตารางปฏิกิริยา (กดเปิด/ปิด · เปิดอยู่ = คิวลำดับเดินถูกบังจึงซ่อนชั่วคราว) · บนหมาก: วงกลมคราบธาตุ · ป้ายชื่อปฏิกิริยาเด้งตอนเกิด</div>
+  </div>
+
+</div></div></div>
+
+<script>
+const ths = document.querySelectorAll(".th");
+function setTheme(t) { if (t === "dark") document.documentElement.dataset.ui = "dark"; else delete document.documentElement.dataset.ui; ths.forEach(x => x.setAttribute("aria-pressed", x.dataset.t === t ? "true" : "false")); }
+ths.forEach(b => b.addEventListener("click", () => setTheme(b.dataset.t)));
+document.getElementById("moonBtn").addEventListener("click", () => setTheme(document.documentElement.dataset.ui === "dark" ? "light" : "dark"));
+const tabs = document.querySelectorAll(".tab:not(.th)");
+tabs.forEach(t => t.addEventListener("click", () => {
+  tabs.forEach(x => x.setAttribute("aria-pressed", x === t ? "true" : "false"));
+  document.getElementById("v-old").classList.toggle("on", t.dataset.v === "old");
+  document.getElementById("v-new").classList.toggle("on", t.dataset.v === "new");
+}));
+const rx = document.getElementById("rx"), rxBtn = document.getElementById("rxBtn"), q = document.getElementById("q");
+function syncRx() { const on = rx.classList.contains("on"); rxBtn.dataset.on = on ? "true" : "false"; q.style.display = on ? "none" : "flex"; }
+rxBtn.addEventListener("click", () => { rx.classList.toggle("on"); syncRx(); });
+const d = document.getElementById("dangerBtn");
+d.addEventListener("click", () => { d.dataset.on = d.dataset.on === "true" ? "false" : "true"; });
+syncRx();
+function fit() { const s = document.getElementById("stage"); document.getElementById("scale").style.transform = `scale(${s.clientWidth / 1280})`; }
+addEventListener("resize", fit); fit();
+</script>
+</body>
+</html>
