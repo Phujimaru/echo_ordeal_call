@@ -308,6 +308,20 @@ function chocoNear(ctx, s, p) {
   if (!p || !p.pos) return [];
   return s.chocos.filter((c) => c.x != null && !c.rider && Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) === 1);
 }
+// เรียกโชโกโบะ (ฟาร์ม/ผักกิซาล) แล้วขึ้นขี่ทันที (ผู้ใช้ 2026-11-14 "เรียกแล้วขี่ไม่ได้เลย ต้องรอเทิร์นหน้า")
+//  ยังไม่ได้เดิน = เดินต่อจากนกเต็มระยะ · เดินแล้ว = ขึ้นได้แต่จบการเดิน · ขี่ไม่ได้ (ตัวใหญ่/บิน/ขับรถ) = นกยืนรอข้างตัวเหมือนเดิม
+function rideNow(ctx, s, p, c) {
+  if (!canRide(ctx, p, s) || riding(s, p) || c.x == null) return false;
+  const a = ctx.match.action;
+  p.pos = { x: c.x, y: c.y };
+  if (a && (a.moved || a.path || a.locked)) ctx.action.lockMove(p);
+  else if (a) {
+    if (!a.eye) a.eye = { ...a.from };
+    a.from = { ...p.pos }; a.trail = null; a.path = null;
+  }
+  mount(ctx, s, p, c);
+  return true;
+}
 function mountNear(ctx, s, p, tile) {
   if (!canRide(ctx, p, s) || riding(s, p) || !canMove(ctx, p) || !tile) return false;
   const c = chocoNear(ctx, s, p).find((o) => o.x === tile.x && o.y === tile.y);
@@ -1777,7 +1791,7 @@ function useGysahl(p) {
   ctx.bump();
   ctx.fx("gysahl_call", { from, to: { ...spot }, by: p.id });
   ctx.log(`🥬 ${p.name} ใช้ผักกิซาล — โชโกโบะวิ่งมาหา`);
-  return true;
+  return rideNow(ctx, s, p, c) ? "ride" : true; // "ride" = ร้านไม่ล็อกการเดิน (เดินต่อจากนกได้)
 }
 // ---------- L10 ซากรถ (ผลักได้) ----------
 function wreckNear(ctx, s, p) { return (s.wrecks || []).filter((w) => ctx.adjacent(p, w.x, w.y)); }
@@ -2571,10 +2585,10 @@ const HUD_DESC = {
   "fd:board": `ขึ้นขับรถคันที่ติดตัว — ยังไม่ได้เดิน = เดินต่อจากรถได้เต็มระยะ +${CAR_MOV}\nขับได้เฉพาะถนน/พื้นเรียบ · อยู่ในรถใช้สกิลไม่ได้`,
   "fd:seat": "ขอนั่งรถที่เพื่อนขับ (คนขับต้องกดยอม) — ไปกับรถ ไม่ร่วงตอนคนขับโดนตี",
   "fd:ram": `ขับชนมอนเตอร์ที่ติดรถ: ดาเมจ ${CAR_HIT_DMG} + กระเด็น 1 ช่อง (ใช้การโจมตีของตา)`,
-  "fd:leave": "ลงจากรถ (ไม่เสียการเดิน) — รถจอดไว้ที่เดิม ผู้โดยสารลงหมด",
+  "fd:leave": "ลงช่องข้างตัว · รถจอดที่เดิม · จบการเดิน",
   "fd:mount": `กระโดดขึ้นหลังโชโกโบะ — ยังไม่ได้เดิน = เดินต่อจากนกได้เต็มระยะ +${CHOCO_MOV}\nผ่านป่า/น้ำตื้นกิน 1 ก้าว · โดนดาเมจ นกรับแทนก่อน (นกเลือดหมด = ตกนก นกกลับคอก)`,
   "fd:fix": `ซ่อมรถ +${CAR_FIX} / ป้อนผักให้โชโกโบะ +${CHOCO_FEED} — คันหรือตัวที่ติดตัวหรือที่ขับ/ขี่อยู่ เลือดน้อยสุดก่อน · รถพังซ่อมแล้วขับได้อีก (ใช้การโจมตี)`,
-  "fd:dismount": "ลงจากโชโกโบะ วางนกไว้ช่องข้างตัว (ไม่เสียการเดิน)",
+  "fd:dismount": "ลงช่องข้างตัว · นกยืนที่เดิม · จบการเดิน",
   "fd:lever": "ยก/ลดสะพานทั้งเมือง Altissia — ยกขึ้น = เดินข้ามไม่ได้ (ใช้การโจมตีของตา)",
   "fd:dome": `เปิดโดมกำแพงเวท Insomnia ${DOME_TURNS} เทิร์น — ปิดประตูเมือง ตีจากนอกโดมเข้าไปไม่ได้ (ใช้การโจมตี)`,
   "fd:lights": `สาดไฟจ้า: มอนในระยะ ${FLASH.r} ช่องจากแผงมึน 1 เทิร์น · ปีศาจโดนแสงไหม้ ${FLASH.dmg} · พัก ${FLASH.cd} เทิร์น (ใช้การโจมตี)`,
@@ -2632,14 +2646,18 @@ function charAction(ctx, st, p, key, tile) {
   if (key === "fd:wallfix") return fixWall(ctx, s, p);
   if (key === "fd:turret") return fireTurret(ctx, s, p, tile);
   if (typeof key === "string" && key.startsWith("fd:flask:")) return throwFlask(ctx, s, p, key.slice(9), tile);
-  if (key === "fd:dismount") {
+  if (key === "fd:dismount") { // ลงแบบรถ (ผู้ใช้ 2026-11-14): เราก้าวลงช่องข้างตัว · นกยืนที่เดิม · จบการเดิน
     if (!riding(s, p) || !ctx.action.canAct(p) || !tile) return false;
     if (!dismountTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
     const c = unride(ctx, s, p.id);
     if (!c) return false;
-    c.rider = null; c.x = tile.x; c.y = tile.y;
+    const from = { ...p.pos };
+    c.rider = null; c.x = from.x; c.y = from.y;
+    p.pos = { x: tile.x, y: tile.y };
+    const a = ctx.match.action;
+    if (a) { a.from = { ...p.pos }; a.trail = null; a.path = null; a.locked = true; }
     ctx.bump();
-    ctx.fx("choco_dismount", { id: p.id, choco: c.id, x: tile.x, y: tile.y });
+    ctx.fx("choco_dismount", { id: p.id, choco: c.id, x: from.x, y: from.y, to: { ...tile } });
     ctx.log(`🐤 ${p.name} ลงจากโชโกโบะ`);
     return true;
   }
@@ -2738,7 +2756,7 @@ function hides(ctx, st, viewer, target) {
 let H_CACHE = null;
 function H() {
   if (H_CACHE) return H_CACHE;
-  H_CACHE = { carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, traitStats, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
+  H_CACHE = { rideNow, carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, traitStats, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
   return H_CACHE;
 }
 // เกราะเสา (ไอเทมร้าน Eos — server/shop.js) · ใช้ไม่ได้ = ไม่เสียของ

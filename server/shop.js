@@ -559,7 +559,9 @@ function useInventoryItem(id, uid, opts = {}) {
     if (!require("./fodlan/stage2").useTorch(p)) return;
   } else if (item.type === "gysahl") {
     // ผักกิซาล (Eos — server/fodlan/stage6.js): ล่อโชโกโบะของศัตรูในระยะ / เรียกโชโกโบะมาหา · ใช้ไม่ได้ = ไม่เสียของ
-    if (!require("./fodlan/stage6").useGysahl(p)) return;
+    const g = require("./fodlan/stage6").useGysahl(p);
+    if (!g) return;
+    if (g === "ride") { p.inventory.splice(idx, 1); itemUsed(p, item); view.broadcastState(); return; } // เรียกแล้วขึ้นขี่ = ไม่ล็อกการเดิน
   } else if (item.type === "pillarWard") {
     // เกราะเสา (Eos — server/fodlan/eosEvents.js): ยืนติดเสาที่ยึดไว้ → โล่เสา +1 (สูงสุด 2) · ใช้ไม่ได้ = ไม่เสียของ
     if (!require("./fodlan/stage6").useWard(p)) return;

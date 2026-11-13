@@ -178,7 +178,7 @@ test('รถมีเลือด: คนขับโดนตี รถรั�
   assert.equal(pub.chocos[0].hp, S6.CHOCO_HP);
 });
 
-test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ปุ่มลงวางนกข้างตัว', () => {
+test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ลงแบบรถ (เราก้าวลงข้างตัว นกยืนที่เดิม จบการเดิน)', () => {
   setup();
   const p = P(0), c = st().chocos[1];
   p.boardSize = 2;
@@ -191,11 +191,13 @@ test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ ·
   actor(p);
   const b = btn(p, 'fd:dismount');
   assert.ok(b && !b.disabled && b.tiles.length);
-  const t = b.tiles[0];
+  const t = b.tiles[0], was = { ...p.pos };
   assert.ok(Fodlan.charAction(p.id, 'fd:dismount', t));
   assert.ok(!st().riders[p.id]);
-  assert.ok(sameTile(c, t));
-  assert.equal(action.boardMap().special[K(t.x, t.y)], 'fd_eos_chocobo');
+  assert.ok(sameTile(p.pos, t), 'เราก้าวลงช่องที่เลือก');
+  assert.ok(sameTile(c, was), 'นกยืนที่เดิม');
+  assert.equal(match.action.locked, true, 'จบการเดินแบบลงรถ');
+  assert.equal(action.boardMap().special[K(was.x, was.y)], 'fd_eos_chocobo');
 });
 
 test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม่เดิน = เดินเต็มระยะจากรถ) · เดิน +3 · รถวิ่งตามคนขับ · ป่า/น้ำตื้นเข้าไม่ได้ · ลงรถ รถจอดที่เดิม', () => {
@@ -562,21 +564,17 @@ test('มอนฉลาดขึ้น: ทางอ้อมไกล = พั
   assert.equal(Stats.publicStats()[p.id].dealt, 1);
 });
 
-test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะมาข้างตัว · ขี่ได้ทันทีด้วยปุ่ม (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {
+test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะแล้วขึ้นขี่ทันที (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {
   setup();
   shop.refreshShopForJourney();
   const s = st(), p = P(0);
   assert.ok(S6.gysahlOnSale());
   p.pos = { x: 13, y: 13 };
-  assert.ok(S6.useGysahl(p));
-  const c = s.chocos.find((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
-  assert.ok(c, 'โชโกโบะวิ่งมาข้างตัว');
   actor(p);
   const mov0 = action.movOf(p);
-  const b = btn(p, 'fd:mount');
-  assert.ok(b && !b.disabled && b.tiles.some((t) => sameTile(t, c)));
-  assert.ok(Fodlan.charAction(p.id, 'fd:mount', { x: c.x, y: c.y }));
-  assert.equal(c.rider, p.id);
+  assert.equal(S6.useGysahl(p), 'ride');
+  const c = s.chocos.find((ch) => ch.rider === p.id);
+  assert.ok(c && Math.abs(c.x - 13) + Math.abs(c.y - 13) === 1, 'โชโกโบะวิ่งมาข้างตัวแล้วขึ้นขี่');
   assert.ok(sameTile(p.pos, c));
   assert.equal(match.action.locked, false, 'ยังเดินต่อได้');
   assert.ok(sameTile(match.action.from, c));
@@ -2151,7 +2149,7 @@ test('ของประจำเมือง: ร้านอาหาร (เ�
   actor(p); assert.equal(Fodlan.charAction(p.id, 'fd:shrine'), false, 'คูลดาวน์');
   p.pos = sideOf(TWN.SPOTS.ranch[0]); actor(p); p.gold = 5;
   assert.ok(Fodlan.charAction(p.id, 'fd:ranch'));
-  assert.ok(st().chocos.some((c) => Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) <= 2), 'โชโกโบะมาข้างตัว');
+  { const rc = st().chocos.find((c) => c.rider === p.id); assert.ok(rc, 'เรียกแล้วขี่ได้เลย'); assert.equal(match.action.locked, false, 'ไม่จบตา'); rc.rider = null; delete st().riders[p.id]; }
   const g = TWN.SPOTS.garage[0], car = st().cars[0];
   const at = sideOf(g); p.pos = { ...at };
   const spot = sideOf({ x: at.x, y: at.y }) || { x: at.x - 1, y: at.y };
