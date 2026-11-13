@@ -7,6 +7,7 @@
 //  ใช้ทั้งในเกม (client) และหน้าแรกของโปรแกรม (desktop/launcher ผ่าน build แบบ iife)
 // ============================================================
 import * as THREE from "three";
+import { createGlitchSpots } from "./glitchSpots";
 
 export { THREE };
 
@@ -201,6 +202,9 @@ export function createGlobe(canvas, opts = {}) {
     spin.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: COLORS.sky, transparent: true, opacity: 0.22 })));
   }
 
+  // จุด glitch บางจุดบนผิวโลก (สปอยอัปเดต — ผู้ใช้สั่ง 2026-11-14 · globe/glitchSpots.js) · opts.glitch = false = ปิด
+  const glitch = opts.glitch === false ? null : createGlitchSpots(THREE, spin);
+
   // แสงชั้นบรรยากาศ
   const halo = new THREE.Mesh(new THREE.SphereGeometry(1.2, 64, 48), new THREE.ShaderMaterial({
     side: THREE.BackSide, transparent: true, depthWrite: false,
@@ -311,6 +315,7 @@ export function createGlobe(canvas, opts = {}) {
     }
     spin.rotation.y = yaw; tilt.rotation.x = pitch;
     if (sand) sand.rotation.y += dt * 0.01;
+    if (glitch) glitch.update(REDUCED ? 0 : clock);
     scene.updateMatrixWorld();
     frameFns.forEach((fn) => fn(dt, clock));
     renderer.render(scene, camera);
