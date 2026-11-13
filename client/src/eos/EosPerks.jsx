@@ -58,10 +58,10 @@ export default function EosPerks({ state }) {
     <div className="eos-perks" role="dialog" aria-label="การ์ดทีม">
       <header>
         <span className="mark">{o.mark}</span>
-        <span className="head"><b>การ์ดทีม</b><small>แต้มรวมถึง {o.mark} — เลือกพลังถาวร 1 ใบให้ทุกคนในทีม</small></span>
+        <span className="head"><b>การ์ดทีม</b><small>แต้ม {o.mark} · ติดทั้งทีมจนจบ</small></span>
         <button type="button" aria-label="หุบ" onClick={() => setHideFor(o.id)}>▾</button>
       </header>
-      <p className="how">ทุกคนกดโหวตใบที่ต้องการ (เปลี่ยนใจได้) · ใบที่ได้เสียงมากสุดได้ · ปิดโหวตเมื่อทุกคนโหวตครบ หรือเมื่อขึ้นเทิร์นใหม่ · โหวตแล้ว {voted}/{total}</p>
+      <p className="how">โหวตแล้ว {voted}/{total}</p>
       <div className="cards">
         {o.choices.map((c, i) => {
           const voters = Object.entries(o.votes || {}).filter(([, v]) => v === c.id).map(([pid]) => players.find((p) => p.id === pid)).filter(Boolean);

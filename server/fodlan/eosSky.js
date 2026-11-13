@@ -149,7 +149,7 @@ function preRound(ctx, s, H, turn) {
 }
 function hud(ctx, s, H, p, out) {
   const sp = sky(s).supply;
-  if (sp && nearSupply(s, p)) out.push({ key: "fd:supply", icon: "📦", name: "ขนของ", count: SUPPLY.max - sp.loads, disabled: !H.canStrike(ctx, p) || sp.loads >= SUPPLY.max, desc: `ขนเสบียงขึ้นรถไฟ (ใช้การโจมตี) — แต้มรวม +${SUPPLY.score} · ได้เหรียญ ${SUPPLY.gold} · ขนได้อีก ${SUPPLY.max - sp.loads}` });
+  if (sp && nearSupply(s, p)) out.push({ key: "fd:supply", icon: "📦", name: "ขนของ", count: SUPPLY.max - sp.loads, disabled: !H.canStrike(ctx, p) || sp.loads >= SUPPLY.max, desc: `แต้มรวม +${SUPPLY.score} · เหรียญ ${SUPPLY.gold}` });
 }
 function action(ctx, s, H, p, key) {
   if (key === "fd:supply") return loadSupply(ctx, s, H, p);

@@ -2074,12 +2074,12 @@ const ARM_TURNS = 5;
 // อาหารทีม (ผู้ใช้เลือกไอเดีย 2026-11-10 "ทำอาหารที่แคมป์จากปลาที่ตกได้ บัฟแรงขึ้น ให้ทั้งทีมกิน") — ใช้ปลาในถุง · ตัวเลข Claude ตั้ง
 const FISH_MAX = 3;
 const TEAM_MEALS = {
-  grill: { icon: "🍢", name: "ปลาย่างทั้งทีม", fish: 1, desc: "ใช้ปลา 1 — ทุกคนในทีมฟื้นเลือด 2 ทันที + ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
-  feast: { icon: "🥘", name: "งานเลี้ยงทีม", fish: 2, desc: "ใช้ปลา 2 — ทุกคนในทีม ตี +1 · เดิน +1 · ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
+  grill: { icon: "🍢", name: "ปลาย่างทั้งทีม", fish: 1, desc: "ปลา 1 · ทั้งทีมเลือด +2 · ฟื้น 1/เทิร์น 3 เทิร์น" },
+  feast: { icon: "🥘", name: "งานเลี้ยงทีม", fish: 2, desc: "ปลา 2 · ทั้งทีมตี +1 เดิน +1 ฟื้น 1/เทิร์น 3 เทิร์น" },
 };
 const CAMP_MEALS = {
   atk: { icon: "🍲", name: "สตูว์", desc: "ตี +1 · 3 เทิร์น" },
-  mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้นเลือด 1 ทุกต้นเทิร์น · 3 เทิร์น" },
+  mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้น 1/เทิร์น · 3 เทิร์น" },
   mov: { icon: "🍙", name: "ข้าวกล่อง", desc: "เดิน +1 · 3 เทิร์น" },
 };
 const BOUNTY = { daemon: { icon: "👹", name: "ปีศาจ", gold: 4 }, beast: { icon: "🦣", name: "สัตว์ยักษ์", gold: 8 }, magitek: { icon: "🤖", name: "ทหารเหล็ก", gold: 4 }, player: { icon: "🎯", name: "ผู้เล่น", gold: 6 } };
@@ -2382,7 +2382,7 @@ function p4Hud(ctx, s, p, out) {
     for (const [k, m] of Object.entries(TEAM_MEALS)) if (has > 0) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, count: m.fish, disabled: !canStrike(ctx, p) || has < m.fish });
   }
   if (onSpot(p, MAP.FISH)) out.push({ key: "fd:fish", icon: "🎣", name: "ตกปลา", disabled: !canStrike(ctx, p) });
-  { const ti = tombNear(ctx, s, p); if (ti >= 0) { const a = AR.armAt(ti); out.push({ key: "fd:tomb", icon: "⚔️", name: a.name, desc: `อาวุธจักรพรรดิ ${ARM_TURNS} เทิร์น: ${a.desc}${a.noDrain ? "" : " · ตาที่ตีเสียเลือด 1"}${hasArm(s, p) ? " · เปลี่ยนจากอาวุธที่ถือ" : ""}`, disabled: !canStrike(ctx, p) }); } }
+  { const ti = tombNear(ctx, s, p); if (ti >= 0) { const a = AR.armAt(ti); out.push({ key: "fd:tomb", icon: "⚔️", name: a.name, desc: `${ARM_TURNS} เทิร์น: ${a.desc}${a.noDrain ? "" : " · ตีแล้วเสียเลือด 1"}`, disabled: !canStrike(ctx, p) }); } }
   if (shopNear(ctx, p) && !q.bounty[p.id]) out.push({ key: "fd:bounty", icon: "📜", name: "ค่าหัว", disabled: !ctx.action.canAct(p) });
 }
 function p4Action(ctx, s, p, key, tile) {
@@ -2533,10 +2533,10 @@ function hudActions(ctx, st, p) {
   }
   const sw = switchNear(ctx, p);
   if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 || !lit(s, sw.zone) }); }
-  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ซ่อมไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${lightMax(s)}) · ไฟดับ = เปิดคืน ปีศาจเข้าเมืองไม่ได้อีก — ใช้การโจมตี` });
+  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${lightMax(s)})` });
   const wf = wallFixTarget(ctx, s, p);
   if (wf) out.push({ key: "fd:wallfix", icon: wf.kind === "turret" ? "🔫" : "🧱", name: wf.broken && wf.kind === "turret" ? "สร้างป้อม" : FIX_NAMES[wf.kind], disabled: !canStrike(ctx, p),
-    desc: wf.kind === "barricade" ? `ซ่อมกำแพงไม้ +${CITY_WALL.fix} (เต็ม ${PKS.wallMax(s)}) — ใช้การโจมตี` : `${wf.kind === "turret" ? "ซ่อมป้อมปืน" : "ซ่อมกำแพง Insomnia"} +${CITY_WALL.fix} (พังแล้วสร้างใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
+    desc: `+${CITY_WALL.fix}` });
   if (fixTargets(ctx, s, p).length) { const ft = fixTargets(ctx, s, p)[0]; out.push({ key: "fd:fix", icon: ft.kind === "car" ? "🔧" : "🥬", name: ft.kind === "car" ? "ซ่อมรถ" : "ป้อนอาหาร", disabled: !canStrike(ctx, p) }); }
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
   for (const el of [...new Set(flasksOf(s, p))]) {

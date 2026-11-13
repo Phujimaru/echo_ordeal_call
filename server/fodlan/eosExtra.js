@@ -424,10 +424,10 @@ function hud(ctx, s, H, p, out) {
   const x = X(s);
   const cv = civNear(ctx, H, p);
   if (cv.length) out.push({ key: "fd:escort", icon: "🕊️", name: "พาไป", disabled: !ctx.action.canAct(p), tiles: cv.length > 1 ? cv.map((c) => ({ ...c.pos })) : undefined,
-    desc: "พาพลเรือนไปด้วย — ตามติดตัวทุกตาที่เราเดิน · เข้าเมืองได้ = รอด แต้มรวม +2 · คนพาได้เหรียญ + ของ" });
+    desc: "ถึงเมือง = แต้มรวม +2" });
   if (x.gauge >= GAUGE.max) {
     const tiles = H.canStrike(ctx, p) ? barrageTiles(ctx, H) : [];
-    out.push({ key: "fd:barrage", icon: "☄️", name: "ถล่ม", disabled: !tiles.length, tiles, desc: `มาตรวัดทีมเต็ม: ถล่มวง 5×5 ที่ไหนก็ได้ในแผนที่ ดาเมจ ${GAUGE.dmg} ใส่มอนทุกตัวในวง (ใช้การโจมตีของตา)` });
+    out.push({ key: "fd:barrage", icon: "☄️", name: "ถล่ม", disabled: !tiles.length, tiles, desc: `วง 5×5 ที่ไหนก็ได้ ดาเมจ ${GAUGE.dmg}` });
   }
 }
 function action(ctx, s, H, p, key, tile) {

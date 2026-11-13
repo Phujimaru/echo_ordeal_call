@@ -16,14 +16,14 @@ const PERKS = {
   bastion: { icon: "🔷", name: "เสาแกร่ง", max: 2, desc: (n) => `เสาทนการตีได้เพิ่ม ${n} ครั้ง` },
   phoenix: { icon: "🕯️", name: "ฟื้นไว", max: 2, desc: (n) => `ล้มแล้วฟื้นเร็วขึ้น ${n} เทิร์น` },
   surge: { icon: "☄️", name: "ใจเดียวกัน", max: 2, desc: (n) => `มาตรวัดทีมเติม ${n + 1} เท่า` },
-  fortune: { icon: "💰", name: "โชคลาภ", max: 3, desc: (n) => `ล้มมอนได้เหรียญ +${n} · โอกาสได้ของ +${20 * n}%` },
+  fortune: { icon: "💰", name: "โชคลาภ", max: 3, desc: (n) => `ล้มมอน เหรียญ +${n} · ของ +${20 * n}%` },
   aegis: { icon: "🛡️", name: "เกราะคุ้มกัน", max: 2, desc: (n) => `ต้นทุกเทิร์น ทุกคนฟื้นเกราะ ${n}` },
-  marksman: { icon: "🎯", name: "ป้อมแม่นยำ", max: 3, desc: (n) => `ป้อมปืนยิงแรง +${n} (ทั้งกดยิงเองและยิงอัตโนมัติ)` },
+  marksman: { icon: "🎯", name: "ป้อมแม่นยำ", max: 3, desc: (n) => `ป้อมปืนแรง +${n}` },
   timber: { icon: "🪵", name: "ไม้เนื้อแข็ง", max: 3, desc: (n) => `กำแพงไม้ทนเพิ่ม ${2 * n} ครั้ง` },
-  beacon: { icon: "🔦", name: "ไฟเมืองแกร่ง", max: 2, desc: (n) => `ไฟเมืองทนการทุบของปีศาจเพิ่ม ${4 * n}` },
+  beacon: { icon: "🔦", name: "ไฟเมืองแกร่ง", max: 2, desc: (n) => `ไฟเมืองทน +${4 * n}` },
   hunter: { icon: "🍖", name: "นักล่า", max: 3, desc: (n) => `ล้มมอนได้ = ฟื้นเลือด ${n}` },
   regen: { icon: "💚", name: "ฟื้นตัว", max: 2, desc: (n) => `ต้นทุกเทิร์น ทุกคนฟื้นเลือด ${n}` },
-  guts: { icon: "🔥", name: "ใจสู้", max: 3, desc: (n) => `ทุกคนรอดจากการล้มได้ ${n} ครั้ง (เหลือเลือด 1)` },
+  guts: { icon: "🔥", name: "ใจสู้", max: 3, desc: (n) => `รอดจากการล้ม ${n} ครั้ง` },
   purse: { icon: "👛", name: "เงินเดือน", max: 3, desc: (n) => `ต้นทุกเทิร์น ทุกคนได้เหรียญ ${2 * n}` },
 };
 const PERK_CHOICES = 5; // การ์ดให้เลือกต่อครั้ง (ผู้ใช้สั่ง 2026-11-12 — เดิม 3)
@@ -273,10 +273,10 @@ function hud(ctx, s, H, p, out) {
     const used = !!k.wallUsed[`${p.id}|${ctx.match.roundNumber}`];
     const tiles = ctx.action.canAct(p) && !used ? wallTiles(ctx, s, H, p) : [];
     out.push({ key: "fd:wall", icon: "🧱", name: "กำแพง", count: k.charges[p.id], disabled: !tiles.length, tiles,
-      desc: `ตั้งกำแพงไม้ขวางทางช่องข้างตัว อยู่ถาวรจนพัง (ทน ${wallMax(s)} ครั้ง · ซ่อมได้) — มอนเดินผ่านไม่ได้ (ไม่ใช้การโจมตี · ตาละครั้ง)` });
+      desc: `ทน ${wallMax(s)} · มอนผ่านไม่ได้` });
   }
   const rz = ctx.action.canAct(p) ? razeTiles(ctx, s, H, p) : [];
-  if (rz.length) out.push({ key: "fd:raze", icon: "🪓", name: "รื้อ", tiles: rz, desc: "รื้อกำแพงไม้ที่ติดตัวออก (ไม่ใช้การโจมตี)" });
+  if (rz.length) out.push({ key: "fd:raze", icon: "🪓", name: "รื้อ", tiles: rz });
 }
 function action(ctx, s, H, p, key, tile) {
   if (typeof key === "string" && key.startsWith("fd:perk:")) return vote(ctx, s, p, key.slice(8));

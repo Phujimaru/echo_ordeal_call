@@ -425,10 +425,10 @@ function hud(ctx, s, H, p, out) {
   if (sp.length) {
     const used = !!e.helpBy[`${p.id}|${ctx.match.roundNumber}`];
     out.push({ key: "fd:help", icon: "🤝", name: "ช่วย", disabled: used || !H.canStrike(ctx, p), tiles: sp.length > 1 ? sp.map((o) => ({ x: o.x, y: o.y })) : undefined,
-      desc: "ช่วยเพื่อนที่ล้ม (ใช้การโจมตีของตา) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นข้างดวงวิญญาณแทนจุดเกิดไกล" });
+      desc: "เพื่อนฟื้นเร็วขึ้น 1 เทิร์น ที่นี่" });
   }
   const q = e.quests.find((o) => o.type === "scout" && p.pos && o.x === p.pos.x && o.y === p.pos.y);
-  if (q) out.push({ key: "fd:scout", icon: "📡", name: "สำรวจ", disabled: !ctx.action.canAct(p), desc: `ทำภารกิจสำรวจของ ${H.ZONE_NAMES[q.zone] || q.zone} สำเร็จ — แต้มรวม +${QUEST.score} · คนทำได้เหรียญ + ของ` });
+  if (q) out.push({ key: "fd:scout", icon: "📡", name: "สำรวจ", disabled: !ctx.action.canAct(p), desc: `แต้มรวม +${QUEST.score}` });
 }
 function action(ctx, s, H, p, key, tile) {
   if (key === "fd:help") return help(ctx, s, H, p, tile);
