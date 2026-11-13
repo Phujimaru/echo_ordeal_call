@@ -82,23 +82,23 @@ test.after(() => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
 });
 
-test('LV ขึ้นทุก 20% ของเป้าแต้มรวม (เริ่ม LV1 · สูงสุด LV5) · ยาก = เป้า 100 · แต้มถูกหักแล้ว LV ไม่ลด · นอก Eos = ไม่มี LV', () => {
+test('LV ขึ้นทุก 10% ของเป้าแต้มรวม (เริ่ม LV1 · สูงสุด LV5) · ยาก = เป้า 100 · แต้มถูกหักแล้ว LV ไม่ลด · นอก Eos = ไม่มี LV', () => {
   setup();
   match.eosDiff = 'normal';
   const at = (score) => { st().score = score; return ice.eosLv(); };
   assert.equal(at(0), 1);
-  assert.equal(at(9), 1);
-  assert.equal(at(10), 2);
-  assert.equal(at(20), 3);
-  assert.equal(at(30), 4);
-  assert.equal(at(40), 5);
+  assert.equal(at(4), 1);
+  assert.equal(at(5), 2);
+  assert.equal(at(10), 3);
+  assert.equal(at(15), 4);
+  assert.equal(at(20), 5);
   assert.equal(at(50), 5);
-  assert.equal(at(5), 5, 'ยึดแต้มสูงสุดที่เคยถึง');
+  assert.equal(at(3), 5, 'ยึดแต้มสูงสุดที่เคยถึง');
   st().iceSpikePeak = 0;
   match.eosDiff = 'hard';
-  assert.equal(at(19), 1);
-  assert.equal(at(20), 2);
-  assert.equal(at(80), 5);
+  assert.equal(at(9), 1);
+  assert.equal(at(10), 2);
+  assert.equal(at(40), 5);
   match.eosDiff = 'normal';
   st().iceSpikePeak = 0; st().score = 0;
   match.world = 'earth';
@@ -117,7 +117,8 @@ test('ติดตัว 2 (Eos): ไถลชนมอน = +1 ต่อช่�
   for (let i = 1; i <= 8; i++) Ice.layIce(s.x + i, s.y, null);
   const T = mob(s.x + 9, s.y);                 // เป้าที่ถูกชน
   const N = mob(s.x + 10, s.y + 1);            // ห่างเป้า 2 = โดนคลื่น
-  const FAR = mob(s.x + 12, s.y + 1);          // ห่างเป้า 4 = ไม่โดน
+  const FAR = mob(s.x + 12, s.y + 1);          // ห่างเป้า 3 (สี่เหลี่ยม) = ไม่โดน
+  const DIAG = mob(s.x + 11, s.y + 2);         // ทแยง 2×2 = ระยะ 2 แบบสี่เหลี่ยม (แมนฮัตตัน 4) = โดน
   park(F, s.x + 9, s.y + 2);                   // เพื่อน ห่างเป้า 2 = ไม่โดน
   const fv = vit(F);
   engine.setActor('p0');
@@ -127,6 +128,7 @@ test('ติดตัว 2 (Eos): ไถลชนมอน = +1 ต่อช่�
   assert.deepEqual(T.pos, { x: s.x + 10, y: s.y }, 'เป้ากระเด็น 1 ช่อง');
   assert.equal(N.hp, 20 - 3, 'Shock Wave 50% ของ 6');
   assert.equal(FAR.hp, 20, 'นอกระยะ');
+  assert.equal(DIAG.hp, 20 - 3, 'คลื่นเป็นสี่เหลี่ยมจัตุรัส — มุมทแยงโดน');
   assert.equal(vit(F), fv, 'เพื่อนไม่โดน');
   const sh = shocks();
   assert.equal(sh.length, 1);
@@ -167,7 +169,7 @@ test('ติดตัว 2 (Eos): LV สูงขึ้น = ซ้อนได�
 
 test('ติดตัว 2 (Eos LV.2+): ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง — ทุกตัวที่ผ่านโดนชน (ช่องที่ไถลมาถึง) + คลื่น ไม่กระเด็น · ตัวขวางปลายทางกระเด็น 1 · LV3 คลื่น 75%', () => {
   const { I, F } = setup();
-  st().score = 20; // LV3: ซ้อน 18 · คลื่น 75% · ระยะ 3
+  st().score = 10; // LV3: ซ้อน 18 · คลื่น 75% · ระยะ 3
   assert.equal(ice.eosLv(), 3);
   const s = strip(12);
   park(I, s.x, s.y);
@@ -362,7 +364,9 @@ test('Ice Surge (Eos): Shock Wave 2 หน่วยทั้งสนาม · �
   st().score = 40;
   const pub5 = engine.buildStateFor('p0').players.find((p) => p.id === 'p0');
   assert.match(pub5.character.passive2.desc, /ซ้อนทับสูงสุด 30/);
-  assert.match(pub5.character.passive3.desc, /ระยะ 5/);
+  assert.match(pub5.character.passive3.desc, /รอบ 5 ช่อง/);
+  assert.deepEqual(pub5.iceLv, { lv: 5, max: 5, stack: 30, pct: 100, r: 5, pierce: true }, 'ป้าย LV บน HUD');
+  assert.equal(engine.buildStateFor('p0').players.find((p) => p.id === 'p1').iceLv, undefined, 'ตัวอื่นไม่มีป้าย');
 });
 
 test('นอก Eos: ไม่มี Shock Wave · Ice Surge ไม่มีคลื่น หนามระหว่าง Ice Surge = Lv1 · คำอธิบายปุ่มเดิม', () => {

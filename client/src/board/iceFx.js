@@ -14,7 +14,7 @@
 //    iceSlow       ติดเชื่องช้า: เกล็ดน้ำแข็งเกาะรอบตัว
 //    iceRegen      ฟื้นจากไถล: ประกายเขียว-ฟ้าลอยขึ้น
 //    iceBurst      ติดตัว 3: วงคลื่นน้ำแข็งแผ่ 8 ช่องรอบตัว
-//    iceShock      Shock Wave (Ice Spike ในสนาม Eos): คลื่นข้าวหลามตัดแผ่ถึงระยะ r (แมนฮัตตัน) จากช่อง/ตัว { x, y, size, r }
+//    iceShock      Shock Wave (Ice Spike ในสนาม Eos): คลื่นแผ่ถึงระยะ r จากช่อง/ตัว { x, y, size, r, square } — square = สี่เหลี่ยมจัตุรัส · ไม่ใส่ = ข้าวหลามตัด
 //    iceSurge      ท่าไม้ตาย Ice Surge: คลื่นน้ำแข็งแผ่ทั้งสนามจากตัว + เสาแสงเย็น + ประกาย
 //    iceShake      ไม่วาด — จอสั่น (BoardCanvas เลื่อนกล้องตาม iceShakeOffset) { amp }
 //  วาดด้วย canvas ล้วน · lowQ = ตัดอนุภาค/เรืองซ้อน · ลดการเคลื่อนไหว = ไม่สั่น/ไม่เต้น
@@ -327,7 +327,10 @@ export function iceFx(g, e, now, lowQ) {
     case "iceShock": {
       // คลื่นข้าวหลามตัด (ระยะแมนฮัตตัน) 2 ชั้นแผ่จากกลางตัว ถึงขอบระยะ r · ทั้งสนาม = ภาพสูงสุด 16 ช่อง
       const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2, R0 = Math.min(16, Math.max(1, e.r | 0)) + n / 2;
-      const dia = (rr, z) => { const a = P(cx, cy - rr, z), b = P(cx + rr, cy, z), c = P(cx, cy + rr, z), d = P(cx - rr, cy, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); };
+      // square = คลื่นสี่เหลี่ยมจัตุรัส (Ice Spike ใน Eos) · ไม่ใส่ = ข้าวหลามตัด (แมนฮัตตัน)
+      const dia = e.square
+        ? (rr, z) => { const a = P(cx - rr, cy - rr, z), b = P(cx + rr, cy - rr, z), c = P(cx + rr, cy + rr, z), d = P(cx - rr, cy + rr, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); }
+        : (rr, z) => { const a = P(cx, cy - rr, z), b = P(cx + rr, cy, z), c = P(cx, cy + rr, z), d = P(cx - rr, cy, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); };
       g.save();
       const waves = lowQ ? 1 : 2;
       for (let i = 0; i < waves; i++) {

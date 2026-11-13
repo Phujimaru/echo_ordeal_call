@@ -821,7 +821,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
     iceFx = `walk` ถึงหนาม → `trample` → `walk` ต่อ · ตายกลางทาง = จบตา · `smashAlong` ไม่พังหนาม (ปล่อยให้เหยียบ)
 - **สกิลเลือกช่อง** `area.kind: "tile"` (`range`, `square?`, `place` ให้ client) — socket `useSkill { tile: { x, y }, dir? }` → `resolveArea(p, area, targets, dir, tile)` / `areaTiles(..., tile)` / `engine.tileArea`
 - **ระเบิดสะสมดาเมจ**: ฮุค `onDamageTaken` → `Ice.noteHurt` · ครบ 3 = `flushBursts` หลังงานปัจจุบันจบ (`setImmediate` · ระหว่างฉากตีรอ `finishActor`) · ผลัก 2 ช่อง + เชื่องช้า 1 เทิร์น
-- **Shock Wave** `Ice.shockWave(src, center, { range, dmg, exclude, push, slow, label }, ctx)` (ผู้ใช้สั่ง 2026-11-11 — บัฟ Ice Spike เฉพาะสนาม Eos · GRID_PLAN §7.9 "บัฟเฉพาะ Eos"):
+- **Shock Wave** `Ice.shockWave(src, center, { range, square, dmg, exclude, push, slow, label }, ctx)` (square = กรอบสี่เหลี่ยมจัตุรัส/เชบีเชฟ · ไม่ใส่ = แมนฮัตตัน · ภาพ `iceShock` ตามรูปเดียวกัน) (ผู้ใช้สั่ง 2026-11-11 — บัฟ Ice Spike เฉพาะสนาม Eos · GRID_PLAN §7.9 "บัฟเฉพาะ Eos"):
   คลื่นจากช่อง/กล่อง `center { x, y, size? }` โดนศัตรูของ `src` ทุกตัวในระยะแมนฮัตตัน ≤ `range` (ชั้นมิติเดียวกัน · ไม่โดนเพื่อน/ตัวเอง/`exclude`) · ดาเมจเกราะก่อน ฆ่าได้ (ต้นตอ = src) ·
   **หลบได้** (`attack.skillDodge` — แม่นยำเจาะ · หลบพ้น = ไม่โดนทั้งดาเมจ/ผลัก/เชื่องช้า) · `push` = ผลักออกจากศูนย์กลาง n ช่อง (`pushUnit` — ลงน้ำแข็ง = ไถลต่อ) · `slow` = เชื่องช้า N เทิร์น ·
   iceFx `shock { x, y, size, r, by, hits: [{ id, dmg, kill, dodge }] }` → client `iceShock` (คลื่นข้าวหลามตัด · `client/src/board/iceFx.js`)

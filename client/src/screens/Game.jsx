@@ -1104,6 +1104,8 @@ function statusEntries(p, full) {
   // Ice Spike: ดาเมจสะสมก่อนระเบิด (ติดตัว 3)
   // Fodlan: ค่าของด่านต่อคน (ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … — server/fodlan/stageN.js playerInfo().badges)
   if (p.fodlan && Array.isArray(p.fodlan.badges)) for (const b of p.fodlan.badges) out.push({ key: `fd_${b.key}`, v: 1, icon: b.icon, label: b.label, cls: b.cls || "bg-amber-200 text-gray-900", desc: b.desc || b.label });
+  // Ice Spike ในสนาม Eos: LV ปัจจุบัน (ผู้ใช้สั่ง 2026-11-14 ให้โชว์) — ค่าตาม LV อยู่ในคำอธิบายชี้ (Eos อนุญาต desc)
+  if (p.iceLv && p.iceLv.lv) { const L = p.iceLv; out.push({ key: "iceLv", v: 1, icon: "🧊", label: `Lv.${L.lv}`, cls: L.lv >= L.max ? "bg-sky-400 text-gray-900" : "bg-sky-100 text-gray-900", desc: `ซ้อนทับสูงสุด ${L.stack} · Shock Wave ${L.pct}% รอบ ${L.r} ช่อง${L.pierce ? " · ไถลทะลุ · ทำลาย 4/เทิร์น" : ""}` }); }
   if (typeof p.iceHurt === "number") out.push({ key: "iceHurt", v: 1, icon: "❄️", label: `${p.iceHurt}/3`, cls: "bg-sky-200 text-gray-900", desc: "ความเสียหายที่ได้รับสะสมครบแล้วระเบิดผลักศัตรูรอบตัวออกไป 2 ช่อง และติดเชื่องช้า 1 เทิร์น" });
   // ยูกิ มาโคโตะ: นับถอยหลังเกิดใหม่เป็นประตู (ตัวเลขเท่านั้น — showV = โชว์เลขแม้เหลือ 1)
   if (p.yuki && p.yuki.left > 0) out.push({ key: "yukiCharge", v: p.yuki.left | 0, turns: true, showV: true, icon: "🚪", label: "เกิดใหม่เป็นประตู", cls: "bg-sky-300 text-gray-900", desc: "" });

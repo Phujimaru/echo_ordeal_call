@@ -313,6 +313,7 @@ function buildStateInner(viewerId) {
         colony: Colony.playerInfo(p), // Colony: { jumpCd }
         fodlan: Fodlan.playerInfo(p), // Fodlan: ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … (server/fodlan/stageN.js playerInfo)
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)
+        iceLv: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? CHAR_HOOKS.ice_spike.eosInfo() || undefined : undefined, // Ice Spike ในสนาม Eos: LV ปัจจุบัน + ค่าตาม LV
         locked: p.locked,
         busted: (show || promoShow || teamReveal) ? cardDeck.bustedOf(p) : false,
         result: p.result,
@@ -465,7 +466,7 @@ function unseenPub(o, p) {
   const character = look ? { ...o.character, img: look.img || o.character.img, cover: look.img || o.character.cover, name: look.name || o.character.name } : o.character;
   return {
     ...o, img: (look && look.img) || p.img, character, hp: null, maxHp: null, armor: null, maxArmor: null, shield: null, tempHp: 0, skillPoints: -1,
-    statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined,
+    statuses: {}, statusAmt: {}, skillLocks: undefined, iceHurt: undefined, iceLv: undefined,
     muimiEmergencyUses: undefined, muimiEmergencyUsed: undefined,
     sliver: undefined, echo: undefined, sora: undefined, hikaru: undefined, shadow: undefined, yuna: undefined, gray: undefined,
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน

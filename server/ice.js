@@ -781,7 +781,7 @@ function burstNow(p) {
   if (spec) {
     const ctx = begin();
     ctx.events.push({ kind: "burst", id: p.id, x: p.pos.x, y: p.pos.y });
-    const ev = shockWave(p, p.pos, { range: spec.range, dmg: spec.dmg, push: BURST_PUSH, slow: BURST_SLOW_TURNS, label: spec.label }, ctx);
+    const ev = shockWave(p, p.pos, { range: spec.range, square: !!spec.square, dmg: spec.dmg, push: BURST_PUSH, slow: BURST_SLOW_TURNS, label: spec.label }, ctx);
     match.lastLog.push(`❄️ ${p.name} สะสมความเสียหายครบ ${BURST_AT} — Shock Wave ระยะ ${spec.range} โดน ${ev.hits.length} ตัว`);
     flush(ctx);
     return;
@@ -802,18 +802,26 @@ function burstNow(p) {
 }
 
 // ---------- Shock Wave (Ice Spike ในสนาม Eos — GRID_PLAN §7.9 "บัฟเฉพาะ Eos") ----------
-//  คลื่นจากช่อง center ({ x, y, size? }) โดนศัตรูของ src ทุกตัวที่ระยะแมนฮัตตัน ≤ range (ตัวใหญ่ = วัดจากขอบตัว) · ชั้นมิติเดียวกัน
-//  o = { range, dmg, exclude: [id], push: n ช่อง (ทิศออกจาก center), slow: เทิร์น, label }
+//  คลื่นจากช่อง center ({ x, y, size? }) โดนศัตรูของ src ทุกตัวที่ระยะแมนฮัตตัน ≤ range (square = สี่เหลี่ยมจัตุรัส/เชบีเชฟ · ตัวใหญ่ = วัดจากขอบตัว) · ชั้นมิติเดียวกัน
+//  o = { range, square, dmg, exclude: [id], push: n ช่อง (ทิศออกจาก center), slow: เทิร์น, label }
 //  ดาเมจเกราะก่อน · ฆ่าได้ · หลบได้ (ทอยหลบสกิล — แม่นยำเจาะ) · หลบพ้น = ไม่โดนทั้งดาเมจ/ผลัก/เชื่องช้า
 //  → เหตุการณ์ { kind: "shock", x, y, size, r, by, hits: [{ id, dmg, kill, dodge }] } (ตามด้วย knock/slide/slow ของคนที่ถูกผลัก)
+// ระยะแบบสี่เหลี่ยมจัตุรัสระหว่างกล่อง (ช่องว่างแกน x/y ที่มากกว่า · ติดกัน/ทแยง = 1)
+function sqDist(a, b) {
+  const as = a.size || 1, bs = b.size || 1;
+  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
+  const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
+  return Math.max(dx, dy);
+}
 function shockWave(src, center, o, ctx) {
   const box = { x: center.x, y: center.y, size: center.size || 1 };
-  const ev = { kind: "shock", x: box.x, y: box.y, size: box.size, r: o.range, by: src.id, hits: [] };
+  const ev = { kind: "shock", x: box.x, y: box.y, size: box.size, r: o.range, ...(o.square ? { square: true } : {}), by: src.id, hits: [] };
+  const far = (u) => (o.square ? sqDist(action.boxOf(u), box) : Board.dist(action.boxOf(u), box));
   ctx.events.push(ev);
   const skip = new Set([src.id, ...(o.exclude || [])]);
   const near = Object.values(match.players).filter((u) => u.alive && u.pos && !skip.has(u.id) && !combat.sameTeam(src, u)
-    && (u.dim || null) === (src.dim || null) && Board.dist(action.boxOf(u), box) <= o.range)
-    .sort((a, b) => Board.dist(action.boxOf(b), box) - Board.dist(action.boxOf(a), box)); // ไกลก่อน — ผลักออกไม่ชนกันเอง
+    && (u.dim || null) === (src.dim || null) && far(u) <= o.range)
+    .sort((a, b) => far(b) - far(a)); // ไกลก่อน — ผลักออกไม่ชนกันเอง
   const label = o.label || "Shock Wave";
   const mid = { x: box.x + (box.size - 1) / 2, y: box.y + (box.size - 1) / 2 };
   combat.withEffectSource(src, () => {

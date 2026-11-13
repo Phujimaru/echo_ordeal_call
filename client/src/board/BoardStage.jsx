@@ -1692,7 +1692,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         case "shock": {
           if (!ok(ev)) return 0;
           const n = Math.max(1, ev.size | 0);
-          pushFx([{ kind: "iceShock", x: ev.x, y: ev.y, size: n, r: Math.max(1, ev.r | 0) }]);
+          pushFx([{ kind: "iceShock", x: ev.x, y: ev.y, size: n, r: Math.max(1, ev.r | 0), square: !!ev.square }]);
           sfx("is_burst");
           shake(4 + Math.min(4, (ev.hits || []).length));
           if ((ev.r | 0) < 20) look({ x: ev.x + (n - 1) / 2, y: ev.y + (n - 1) / 2 });
