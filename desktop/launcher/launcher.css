@@ -98,30 +98,39 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
 .patch.sm { font-size: 14px; letter-spacing: 0.42em; margin-right: 0; }
 /* ชื่อ RISING RESONANCE แบบ "บัค" (ผู้ใช้สั่ง 2026-11-14 — คู่สีเดียวกับ glitch บนลูกโลก ส้ม #ff7a1a / ฟ้า #2bb8ff · ดูมีอะไรน่าสงสัย)
    ชั้นซ้อนส้ม/ฟ้า (::before/::after จาก data-text) เหลื่อมแวบๆ ตัดเป็นแถบ · ตัวอักษรเพี้ยนเป็นสัญลักษณ์ชั่ววูบ (launcher.js glitchName) */
-.patch.rr { position: relative; color: var(--ink); text-shadow: 0 0 0 transparent; animation: rr-flick 5.3s steps(1) infinite; }
-.patch.rr span { color: #2bb8ff; }
-.patch.rr .bug { color: #ff7a1a; text-shadow: 0 0 6px rgba(255, 122, 26, 0.6); }
+/* สีชื่อใหม่ (รอบ 2 — ผู้ใช้ "ตัวหนังสือยังใช้สีเดิม · glitch เห็นไม่ชัด"): RISING ส้ม · RESONANCE ฟ้า
+   ขอบสีแยกถาวร (เงาส้มซ้าย/ฟ้าขวา) + ชั้นซ้อนเหลื่อมแรงทุก ~2 วิ + แถบสัญญาณขาดพาดผ่าน + กะพริบ */
+.patch.rr { position: relative; color: #ff7a1a; font-weight: 400;
+  text-shadow: -1.5px 0 rgba(43, 184, 255, 0.55), 1.5px 0 rgba(255, 122, 26, 0.45);
+  animation: rr-flick 2.9s steps(1) infinite, rr-jit 2.3s steps(1) infinite; }
+.patch.rr span { color: #2bb8ff; text-shadow: -1.5px 0 rgba(255, 122, 26, 0.55), 1.5px 0 rgba(43, 184, 255, 0.4); }
+.patch.rr .bug { color: #0b1a2e; background: #ff7a1a; text-shadow: none; border-radius: 2px; }
+.patch.rr span .bug { background: #2bb8ff; }
 .patch.rr::before, .patch.rr::after {
   content: attr(data-text); position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  letter-spacing: inherit; white-space: nowrap; text-align: inherit;
+  letter-spacing: inherit; white-space: nowrap; text-align: inherit; text-shadow: none;
 }
-.patch.rr::before { color: #ff7a1a; animation: rr-split-a 3.7s steps(1) infinite; }
-.patch.rr::after { color: #2bb8ff; animation: rr-split-b 4.9s steps(1) infinite; }
+.patch.rr::before { color: #ff7a1a; animation: rr-split-a 2.1s steps(1) infinite; }
+.patch.rr::after { color: #2bb8ff; animation: rr-split-b 2.7s steps(1) infinite; }
 @keyframes rr-split-a {
-  0%, 61%, 66%, 88%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-  62% { opacity: 0.9; transform: translate(-3px, 0); clip-path: inset(10% 0 55% 0); }
-  63% { opacity: 0.9; transform: translate(4px, 1px); clip-path: inset(60% 0 8% 0); }
-  64% { opacity: 0.7; transform: translate(-2px, 0); clip-path: inset(35% 0 30% 0); }
-  89% { opacity: 0.8; transform: translate(3px, 0); clip-path: inset(0 0 70% 0); }
+  0%, 41%, 47%, 79%, 84%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
+  42% { opacity: 1; transform: translate(-7px, 0); clip-path: inset(8% 0 52% 0); }
+  43% { opacity: 1; transform: translate(9px, 1px); clip-path: inset(58% 0 6% 0); }
+  44% { opacity: 1; transform: translate(-5px, -1px); clip-path: inset(30% 0 34% 0); }
+  45% { opacity: 0.9; transform: translate(6px, 0); clip-path: inset(0 0 72% 0); }
+  80% { opacity: 1; transform: translate(-8px, 0); clip-path: inset(66% 0 0 0); }
+  82% { opacity: 0.9; transform: translate(5px, 0); clip-path: inset(20% 0 50% 0); }
 }
 @keyframes rr-split-b {
-  0%, 31%, 35%, 72%, 76%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-  32% { opacity: 0.85; transform: translate(3px, 0); clip-path: inset(50% 0 20% 0); }
-  33% { opacity: 0.85; transform: translate(-4px, -1px); clip-path: inset(5% 0 65% 0); }
-  73% { opacity: 0.75; transform: translate(-3px, 1px); clip-path: inset(70% 0 0 0); }
-  74% { opacity: 0.75; transform: translate(2px, 0); clip-path: inset(20% 0 45% 0); }
+  0%, 17%, 23%, 61%, 66%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
+  18% { opacity: 1; transform: translate(8px, 0); clip-path: inset(48% 0 18% 0); }
+  19% { opacity: 1; transform: translate(-9px, -1px); clip-path: inset(4% 0 62% 0); }
+  21% { opacity: 0.9; transform: translate(4px, 1px); clip-path: inset(74% 0 0 0); }
+  62% { opacity: 1; transform: translate(-6px, 1px); clip-path: inset(36% 0 30% 0); }
+  64% { opacity: 0.9; transform: translate(7px, 0); clip-path: inset(0 0 60% 0); }
 }
-@keyframes rr-flick { 0%, 47%, 49%, 100% { opacity: 1; } 48% { opacity: 0.35; } }
+@keyframes rr-flick { 0%, 37%, 39%, 71%, 72%, 100% { opacity: 1; } 38% { opacity: 0.25; } 71.5% { opacity: 0.6; } }
+@keyframes rr-jit { 0%, 55%, 58%, 100% { transform: none; } 56% { transform: translate(3px, 0) skewX(-8deg); } 57% { transform: translate(-2px, 0) skewX(6deg); } }
 @media (prefers-reduced-motion: reduce) { .patch.rr, .patch.rr::before, .patch.rr::after { animation: none; } }
 
 /* ---------- เปิดโปรแกรม ---------- */
@@ -147,24 +156,46 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
   border: 1px solid var(--line); border-left: 3px solid var(--hp); padding: 10px 14px;
 }
 
-/* เมนูหน้าแรก: ปุ่มทึบมุมโค้ง (ผู้ใช้สั่ง 2026-11-14 "ไม่เอาพื้นหลังโปร่ง เอาเป็นปุ่ม โค้งหน่อย") — ปุ่มแรก = ปุ่มหลักสีม่วง ECHO */
-.menu { display: flex; flex-direction: column; gap: 12px; }
+/* เมนูหน้าแรก (ผู้ใช้สั่ง 2026-11-14 รอบ 2 "ไม่เอาสีเดิม ออกแบบดีๆ") — ธีม RISING RESONANCE: กรมท่าเข้ม #0b1a2e + ส้ม #ff7a1a + ฟ้า #2bb8ff
+   ปุ่มทึบมุมโค้ง · ขอบไล่สีส้ม→ฟ้า (ปุ่มหลักขอบเต็ม · ปุ่มรองขอบจางแล้วสว่างตอนชี้) · แถบสีส้มซ้าย · ลูกศรในวงกลม
+   ชี้ = ยกขึ้น + เรืองสองสี + เส้นสแกนกวาดผ่านปุ่ม */
+.menu { display: flex; flex-direction: column; gap: 12px; --rr-o: #ff7a1a; --rr-b: #2bb8ff; --rr-n: #0b1a2e; }
 .menu button {
-  appearance: none; text-align: left; cursor: pointer; color: var(--ink);
-  background: #fff; border: 1px solid var(--line); border-radius: 16px;
-  box-shadow: 0 6px 18px rgba(28, 63, 110, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  padding: 16px 20px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
-  transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s;
+  appearance: none; position: relative; overflow: hidden; isolation: isolate; text-align: left; cursor: pointer; color: #eaf4ff;
+  border: 1.5px solid transparent; border-radius: 16px;
+  background: linear-gradient(160deg, #14294a 0%, var(--rr-n) 70%) padding-box,
+              linear-gradient(90deg, rgba(255, 122, 26, 0.45), rgba(43, 184, 255, 0.45)) border-box;
+  box-shadow: 0 8px 22px rgba(11, 26, 46, 0.28);
+  padding: 15px 16px 15px 24px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
 }
-.menu .t { font: 600 20px/1.2 var(--f-ui); }
-.menu .arr { color: var(--sky); font-size: 18px; transition: transform 0.2s, color 0.2s; }
-.menu button:hover { transform: translateY(-2px); border-color: var(--azure); box-shadow: 0 10px 24px rgba(28, 63, 110, 0.18); }
-.menu button:hover .arr { transform: translateX(4px); color: var(--echo); }
+.menu button::before { /* แถบสีซ้าย */
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; z-index: -1;
+  background: linear-gradient(180deg, var(--rr-o), var(--rr-b));
+}
+.menu button::after { /* เส้นสแกนกวาดผ่านตอนชี้ */
+  content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(43, 184, 255, 0.22) 45%, rgba(255, 122, 26, 0.22) 55%, transparent 70%);
+  transform: translateX(-100%);
+}
+.menu .t { font: 600 20px/1.2 var(--f-ui); letter-spacing: 0.02em; }
+.menu .arr {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px;
+  color: var(--rr-b); border: 1.5px solid rgba(43, 184, 255, 0.55); transition: transform 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
+}
+.menu button:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(11, 26, 46, 0.36), -3px 0 14px rgba(255, 122, 26, 0.35), 3px 0 14px rgba(43, 184, 255, 0.35);
+  background: linear-gradient(160deg, #1a3460 0%, #0f2240 70%) padding-box, linear-gradient(90deg, var(--rr-o), var(--rr-b)) border-box; }
+.menu button:hover::after { opacity: 1; transform: translateX(100%); transition: transform 0.6s ease, opacity 0.1s; }
+.menu button:hover .arr { transform: translateX(3px); background: var(--rr-b); color: var(--rr-n); border-color: var(--rr-b); }
 .menu button:active { transform: translateY(0); }
-.menu button.main { background: linear-gradient(135deg, var(--echo) 0%, var(--echo-deep) 100%); border-color: transparent; box-shadow: 0 8px 22px rgba(110, 44, 122, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
-.menu button.main .t, .menu button.main .arr { color: #fff; }
-.menu button.main:hover { box-shadow: 0 12px 28px rgba(110, 44, 122, 0.42); }
-.menu button:focus-visible { outline: 2px solid var(--azure); outline-offset: 3px; }
+.menu button.main {
+  background: linear-gradient(160deg, #1d3a66 0%, #102445 65%) padding-box, linear-gradient(90deg, var(--rr-o), var(--rr-b)) border-box;
+  box-shadow: 0 10px 26px rgba(11, 26, 46, 0.36), 0 0 0 4px rgba(255, 122, 26, 0.08);
+}
+.menu button.main .t { color: #fff; }
+.menu button.main .arr { background: var(--rr-o); color: #fff; border-color: var(--rr-o); box-shadow: 0 0 12px rgba(255, 122, 26, 0.55); }
+.menu button.main:hover .arr { background: var(--rr-o); color: #fff; border-color: var(--rr-o); }
+.menu button:focus-visible { outline: 2px solid var(--rr-b); outline-offset: 3px; }
 
 /* ---------- แผงกระจก (มีขีดมุม) ---------- */
 .panel {
@@ -272,7 +303,6 @@ h2 { font: 600 26px/1.15 var(--f-ui); margin: 0; }
 :root[data-ui="dark"] :is(.btn:not(.primary):not(.ghost), .ip, .input, .notice, .copy) { background: #13284a; color: var(--ink); }
 :root[data-ui="dark"] .btn:not(.primary):not(.ghost):hover { background: #1d3a63; }
 :root[data-ui="dark"] .whiteout { background: #02040a; }
-:root[data-ui="dark"] .menu button:not(.main) { background: #13284a; border-color: rgba(127, 184, 230, 0.3); color: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
 /* แถบมุมขวาบน + แผงเมนู */
 :root[data-ui="dark"] .ocv-btn { background: rgba(16, 34, 66, 0.9); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
 :root[data-ui="dark"] .ocv-btn:hover { background: #18325c; }

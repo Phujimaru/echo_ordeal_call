@@ -498,17 +498,17 @@ function glitchName() {
     for (const el of document.querySelectorAll(".patch.rr")) {
       wrap(el);
       const chars = [...el.querySelectorAll("i.ch")].filter((s) => s.dataset.c.trim());
-      const n = Math.random() < 0.35 ? 2 : 1;
+      const n = Math.random() < 0.5 ? 2 : 1;
       for (let k = 0; k < n && chars.length; k++) {
         const s = chars[Math.floor(Math.random() * chars.length)];
         const flip = (on) => { s.textContent = on ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)] : s.dataset.c; s.classList.toggle("bug", on); };
         flip(true);
-        setTimeout(() => flip(false), 90);
-        setTimeout(() => flip(true), 160);
-        setTimeout(() => flip(false), 250);
+        setTimeout(() => flip(false), 120);
+        setTimeout(() => flip(true), 200);
+        setTimeout(() => flip(false), 340);
       }
     }
-    setTimeout(tick, 1600 + Math.random() * 2400);
+    setTimeout(tick, 900 + Math.random() * 1500); // ถี่ขึ้น (รอบ 2 — "glitch เห็นไม่ชัด")
   };
   setTimeout(tick, 1200);
 }
