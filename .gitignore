@@ -37,4 +37,4 @@ client/public/fodlan/
 client/public/eos/
 
 # สถิติตัวละครตอนรัน server จากโปรเจกต์ (โปรแกรม ECHO เก็บใน userData แทน — server/charStats.js)
-data/
+/data/
