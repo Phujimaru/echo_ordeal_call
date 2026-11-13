@@ -548,6 +548,7 @@ function spawnMob(ctx, s, type, at, stats, extra = {}) {
   const look = extra.look || null;
   const elite = ELT.roll(ctx, s, H(), type, extra);
   if (elite) stats = ELT.stats(stats, elite);
+  { const cap = type === "lament" || extra.trait === "boss" ? FAIR.bossHit : FAIR.hit; if ((stats.atk | 0) > cap) stats = { ...stats, atk: cap }; } // เพดานพลังโจมตี (ความแฟร์ — ผู้ใช้ 2026-11-14)
   const baseName = (extra.trait && (MBS.nameOf(type, extra.trait) || TRAIT_NAMES[extra.trait])) || (MOB_NAMES[type] + (extra.tier > 1 ? ` ${"I".repeat(Math.min(3, extra.tier))}` : ""));
   const rec = lazySummon().spawn(MOB_OWNER, {
     kind: "eosMob", pos: { x: at.x, y: at.y }, hp: stats.hp, armor: stats.armor + (type !== "lament" && LM.curse(s, "plate") ? 1 : 0), mov: stats.mov, range: [1, 1],
@@ -659,7 +660,7 @@ function prey(ctx, s, m) {
   const town = lightBound(m); // ไฟเมืองกันเฉพาะปีศาจ (เครื่องจักร/ราชาปีศาจเข้าได้ — 2026-11-11)
   const dark = XT.fearsLight(m); // ปีศาจ (ไม่ใช่ราชา) ไม่เข้าวงไฟแคมป์
   const blind = magnetOn(ctx) && mobType(m) !== "beast";
-  return heroes(ctx).filter((p) => !mobBlind(p) && !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)));
+  return heroes(ctx).filter((p) => !mobBlind(p) && !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)) && engageOk(s, m, p)); // รุมได้ไม่เกิน FAIR.engage ตัว
 }
 const pillarGoals = (s) => s.pillars.filter((pl) => pl.owner || pl.ch);
 // สถานะคุมตัวของมอน (สตั้น/หลับ/ตรึง/เชื่องช้า) นับตามตาเดินของมอนเอง: endTurn ไม่ลด (phases/endTurn.js EOS_MOB_CONTROL)
@@ -910,7 +911,7 @@ function bossAct(ctx, s, m, all, round, out) {
   if (BB.land(ctx, s, H(), m, round)) out.big = true; // ท่าใหญ่ที่เตือนไว้
   // ---- คลั่ง ----
   if (!sm.enraged && m.hp <= (sm.maxHp || m.hp) * BOSS_AI.enrage) {
-    sm.enraged = true; sm.atk = (sm.atk | 0) + BOSS_AI.enrageAtk;
+    sm.enraged = true; sm.atk = Math.min(FAIR.bossHit, (sm.atk | 0) + BOSS_AI.enrageAtk);
     ctx.fx("boss_enrage", { id: m.id, x: m.pos.x, y: m.pos.y });
     ctx.log("👑 ราชาปีศาจคลั่ง! โจมตีแรงขึ้น เดินไวขึ้น");
   }
@@ -1098,9 +1099,30 @@ function hitPillar(ctx, s, pl, m) {
   ctx.log(`💔 เสา ${ZONE_NAMES[pl.zone] || ""} ถูกมอนเตอร์ทำลายพิธี — หลุดกลับเป็นกลาง!`);
   return { id: pl.id, lost: true };
 }
+// ---------- ความแฟร์ของช่วงมอน (ผู้ใช้สั่ง 2026-11-14 "ป้องกันไม่ให้ผู้เล่นโดนตีจาก 4 ทิศแล้วตายภายในเทิร์นเดียว · การโจมตีครั้งเดียวไม่ควรฆ่าได้ แม้ท้ายเกม Lament · ไม่เอากันตาย") ----------
+//  ทุกความยาก · ตัวเลข Claude ตั้ง (ผู้เล่นทั่วไปเลือด+เกราะ ~10)
+//  engage: ช่วงมอนหนึ่ง ผู้เล่นคนหนึ่งโดนมอนได้ไม่เกิน 2 ตัว — ตัวที่ 3 ขึ้นไปไม่เลือกคนนั้นเป็นเป้า (prey) ไปหาคนอื่น/เสาแทน
+//  hit / bossHit: ดาเมจรวมที่มอนตัวหนึ่งทำใส่ผู้เล่นคนหนึ่งในช่วงมอนเดียว ไม่เกิน 4 (ราชาปีศาจ/ผู้คร่ำครวญ 5) — รวมความดุ/หัวหน้า/ผู้บัญชาการแล้ว
+//  → มอนทั้งฝูงทำได้สูงสุด 5 + 4 = 9 ต่อเทิร์น: คนที่เลือด+เกราะเต็ม (10) ไม่ตายในเทิร์นเดียว
+const FAIR = { engage: 2, hit: 4, bossHit: 5 };
+// เพดานพลังโจมตีที่ตัวมอน (spawnMob · คลั่ง) = hit/bossHit เช่นกัน — ตัวเลขที่เห็นคือที่ตีจริง
+const fairCap = (m) => (mobType(m) === "lament" || (m.summon && m.summon.trait === "boss") ? FAIR.bossHit : FAIR.hit);
+function engageOk(s, m, p) {
+  const by = s.fight && s.fight.by[p.id];
+  return !by || by[m.id] != null || Object.keys(by).length < FAIR.engage;
+}
+// ดาเมจจากมอนใส่ผู้เล่นในช่วงมอน (ฮุค incoming) → จำนวนที่ลงได้
+function fairHit(s, p, n, src) {
+  if (!s.fight || !(n > 0)) return n;
+  const by = (s.fight.by[p.id] ||= {});
+  if (by[src.id] == null && Object.keys(by).length >= FAIR.engage) return 0; // ตัวที่ 3 (วงที่เตือนไว้ ฯลฯ)
+  const out = Math.max(0, Math.min(n, fairCap(src) - (by[src.id] || 0)));
+  by[src.id] = (by[src.id] || 0) + out;
+  return out;
+}
 function actMonsters(ctx, s) {
-  LM.guardStart(ctx, s); // Lament: กันตายรวดเดียว (เลือด+เกราะเกินครึ่ง = ช่วงมอนนี้ไม่ตาย)
-  try { return actMonstersRaw(ctx, s); } finally { LM.guardEnd(s); }
+  s.fight = { by: {} };
+  try { return actMonstersRaw(ctx, s); } finally { s.fight = null; }
 }
 function actMonstersRaw(ctx, s) {
   const runeOut = MBS.beforeAct(ctx, s, H()); // วงเวทที่วางไว้ตาก่อนระเบิด (นักเวทตายหมดแล้วก็ต้องล้างวง)
@@ -2841,7 +2863,7 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   FLASH, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = LM.guardHit(ctx, s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), kind); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
+  incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = fairHit(s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), src); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
   critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
   strikePierces(ctx, st, p) { const s = st && st.eos; return !!(s && p && !p.summon && AR.piercesOf(armRec(s, p))); }, // Katana of the Warrior

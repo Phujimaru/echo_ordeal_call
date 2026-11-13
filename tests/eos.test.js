@@ -1726,7 +1726,7 @@ test('Lament: โหวตได้ · เลือด/จำนวน/พลั
     assert.equal(s.score, 7, 'แต้มรวม −3');
     assert.equal(S6.eosPriceMul(), 1.5);
     match.roundNumber = 19;
-    assert.deepEqual(LMx.rage(ctx()), { atk: 2, mov: 2 });
+    assert.deepEqual(LMx.rage(ctx()), { atk: 0, mov: 2 }, 'ความดุ = เดินอย่างเดียว');
   } finally { match.eosDiff = 'normal'; }
 });
 test('Lament: ชีวิตทีมหมดแล้วเล่นต่อ (คนที่ล้มต่อไม่ฟื้นเอง) · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
@@ -1791,24 +1791,20 @@ test('Lament: ล้มแล้วนับทันที · ทิ้งห�
     assert.equal(Fodlan.publicInfo().board.perkOffer, null, 'ครบทุกคนรวมคนที่ล้ม = ตัดสินเลย');
   } finally { match.eosDiff = 'normal'; }
 });
-test('Lament: ช่วงมอนเลือด+เกราะเกินครึ่ง = ไม่ตาย เหลือเลือด 1 · ไม่เกินครึ่ง = ตายได้ · นอกช่วงมอนไม่กัน', () => {
+test('ความแฟร์ช่วงมอน: รุมได้ไม่เกิน 2 ตัว · มอนตัวหนึ่งตีคนหนึ่งไม่เกิน 4 ต่อเทิร์น (บอส 5) · เลือดเต็ม 10 ไม่ตายในเทิร์นเดียว แม้ Lament', () => {
   setup();
   try {
     lamentOn();
     const s = st(), v = P(0), w = P(1);
-    v.pos = { x: 20, y: 22 }; w.pos = { x: 10, y: 22 }; P(2).pos = { x: 30, y: 0 };
-    for (const [x, y] of [[21, 22], [19, 22], [20, 23]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
-    for (const [x, y] of [[11, 22], [9, 22]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
-    w.hp = 2; w.armor = 0;
+    v.pos = { x: 20, y: 22 }; w.pos = { x: 15, y: 22 }; P(2).pos = { x: 30, y: 0 };
+    v.hp = 7; v.armor = 3; w.hp = 7; w.armor = 3;
+    match.roundNumber = 40; // ความดุเต็ม
+    for (const [x, y] of [[21, 22], [19, 22], [20, 23], [20, 21]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
+    const before = total(v);
     S6.actMonsters(ctx(), s);
-    assert.ok(v.alive, 'เลือดเต็ม = รอดช่วงมอน');
-    assert.equal(v.hp, 1, 'เหลือเลือด 1');
-    assert.equal(w.alive, false, 'เลือดไม่เกินครึ่ง = ตายได้');
-    assert.equal(LMx.L(s).guard, null, 'จบช่วงมอนแล้วเลิกกัน');
-    // นอกช่วงมอน: ไม่กัน
-    const d = S6.mobsOf(ctx(), 'daemon')[0];
-    match.effectSourceId = d.id; combat.dealMixed(v, 5); combat.resolveDamageAftermath(v); match.effectSourceId = null;
-    assert.equal(v.alive, false);
+    assert.ok(v.alive, 'โดนล้อม 4 ทิศก็ไม่ตายจากเลือดเต็ม');
+    assert.ok(before - total(v) <= 8, 'โดนแค่ 2 ตัว × 4');
+    assert.equal(s.fight, null);
   } finally { match.eosDiff = 'normal'; }
 });
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {

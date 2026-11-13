@@ -104,7 +104,7 @@ export default function EosScoreboard({ state }) {
                   {/* ป้าย Lament ครอบแค่ชื่อ — ไม่ครอบชิปคำสาป (เคยซ้อนสองป้าย ผู้ใช้ส่งภาพ 2026-11-12) */}
                   <Tip icon="💀" title="Lament" lines={[
                     `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} — ใครล้มก็ลด 1 · หมดแล้วคนที่ล้มไม่ฟื้นเอง`,
-                    b.lament.rage && b.lament.rage.atk ? `มอนดุขึ้น ตี +${b.lament.rage.atk} เดิน +${b.lament.rage.mov}` : "มอนดุขึ้นทุก 10 เทิร์น",
+                    b.lament.rage && b.lament.rage.mov ? `มอนดุขึ้น เดิน +${b.lament.rage.mov}` : "มอนดุขึ้นทุก 10 เทิร์น",
                         "ล้มแล้วทิ้งร่าง — ขนนกคืนชีพ (ร้าน) ฟื้นได้ทันที ไม่นับการล้ม",
                     b.lament.dead ? "ผู้คร่ำครวญถูกโค่นแล้ว" : `แต้มรวม ${b.lament.at} = ผู้คร่ำครวญมา · ต้องล้มมันจึงชนะ`,
                   ]}>
