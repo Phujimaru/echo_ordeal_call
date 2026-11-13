@@ -2991,7 +2991,15 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       {tileInfo && (
         <div className="bs-tile">
           <div className="bs-tile-name">{tileInfo.icon ? `${tileInfo.icon} ` : ""}{tileInfo.name}</div>
-          {tileInfo.desc && <div className="bs-tile-desc">{tileInfo.desc}</div>}
+          {tileInfo.stats && ( /* มอน Eos: ตัวเลขใหญ่ก่อน คำอธิบายท้ายสุด */
+            <div className="bs-tile-stats">
+              <span className="atk" title="พลังโจมตี"><i>⚔</i><b>{tileInfo.stats.atk == null ? "?" : tileInfo.stats.atk || "—"}</b></span>
+              <span className="hp" title="พลังชีวิต"><i>♥</i><b>{tileInfo.stats.hp}</b><small>/{tileInfo.stats.maxHp}</small></span>
+              <span className="arm" title="เกราะ"><i>⛨</i><b>{tileInfo.stats.armor}</b>{tileInfo.stats.maxArmor > 0 && <small>/{tileInfo.stats.maxArmor}</small>}</span>
+            </div>
+          )}
+          {tileInfo.tags && tileInfo.tags.length > 0 && <div className="bs-tile-tags">{tileInfo.tags.map((t) => <span key={t}>{t}</span>)}</div>}
+          {tileInfo.desc && <div className={`bs-tile-desc${tileInfo.stats ? " bs-tile-desc-sub" : ""}`}>{tileInfo.desc}</div>}
         </div>
       )}
 

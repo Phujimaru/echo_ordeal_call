@@ -22,7 +22,13 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const info = list.find((m) => m.id === mob.id) || {};
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
     const el = (info.elite || []).map((k) => ELITE_INFO[k]).filter(Boolean);
-    return { icon: el.length ? "👑" : m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${el.length ? `หัวหน้า: ${el.join(" · ")} · ล้มได้ = เหรียญ ×3 + ของแน่นอน + แต้มรวม +1\n` : ""}${m.desc}` };
+    // ตัวเลขก่อน คำอธิบายท้ายสุด (ผู้ใช้ 2026-11-14 "ผู้เล่นอยากรู้พลังโจมตี เกราะ พลังชีวิต · คำอธิบายเป็นอย่างท้ายๆ")
+    return {
+      icon: el.length ? "👑" : m.icon, name: `${mob.name}`,
+      stats: { atk: info.atk ?? null, hp: mob.hp ?? info.hp ?? 0, maxHp: info.maxHp ?? mob.maxHp ?? 0, armor: mob.armor ?? info.armor ?? 0, maxArmor: info.maxArmor ?? 0 },
+      tags: el,
+      desc: `${el.length ? "หัวหน้า: ล้มได้ = เหรียญ ×3 + ของแน่นอน + แต้มรวม +1 · " : ""}${m.desc}`,
+    };
   }
   const sk = fd.sky || {};
   if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "ตกต้นเทิร์นหน้า ดาเมจ 3 (ช่องติดกัน 1) · ตกแล้วเหลือหินพลังเวท" };

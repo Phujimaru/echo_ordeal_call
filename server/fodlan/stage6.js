@@ -1108,6 +1108,13 @@ function hitPillar(ctx, s, pl, m) {
 const FAIR = { engage: 2, hit: 4, bossHit: 5 };
 // เพดานพลังโจมตีที่ตัวมอน (spawnMob · คลั่ง) = hit/bossHit เช่นกัน — ตัวเลขที่เห็นคือที่ตีจริง
 const fairCap = (m) => (mobType(m) === "lament" || (m.summon && m.summon.trait === "boss") ? FAIR.bossHit : FAIR.hit);
+// พลังโจมตีที่แสดงบนป้ายมอน (ผู้ใช้ 2026-11-14 "อยากรู้พลังโจมตี เกราะ พลังชีวิต") — ค่าที่ตีจริงต่อครั้ง (รวมความดุ · ไม่เกินเพดาน) · ยักษ์หินเหยียบ · ไม่ตี = 0
+function mobAtkOf(ctx, m) {
+  const sm = m.summon || {}, type = mobType(m);
+  if (type === "giant") return XT.GIANT ? XT.GIANT.dmg : 3;
+  if (type === "nest" || type === "gold" || sm.trait === "healer") return 0;
+  return Math.max(0, Math.min(fairCap(m), (sm.atk | 0) + (type === "beast" ? 0 : LM.rage(ctx).atk)));
+}
 function engageOk(s, m, p) {
   const by = s.fight && s.fight.by[p.id];
   return !by || by[m.id] != null || Object.keys(by).length < FAIR.engage;
@@ -2808,7 +2815,7 @@ function publicInfo(ctx, st) {
     ...p4Public(ctx, s), // ขั้น 4: ราง/ชานชาลา · อุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา · สุสาน
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home }, hp: c.hp ?? CHOCO_HP, maxHp: CHOCO_HP })),
     riders,
-    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0, elite: ELT.publicOf(d) })),
+    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0, elite: ELT.publicOf(d), atk: mobAtkOf(ctx, d) })),
     warn: [
       ...(s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
       ...(s.ships || []).filter((d) => d.state === "warn").flatMap((d) => [0, 1].flatMap((dy) => [0, 1].map((dx) => ({ x: d.x + dx, y: d.y + dy, kind: "dropship" })))),
@@ -2846,7 +2853,7 @@ function publicInfo(ctx, st) {
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
     barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
     crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element, ...(c.meteor ? { meteor: true } : null) })),
-    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null, face: m.summon.face || null, elite: ELT.publicOf(m) })),
+    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null, face: m.summon.face || null, elite: ELT.publicOf(m), atk: mobAtkOf(ctx, m) })),
     ships: (s.ships || []).map((d) => ({ id: d.id, x: d.x, y: d.y, state: d.state })),
     dropship: (s.ships || []).find((d) => d.state === "landed") || null,
   };
