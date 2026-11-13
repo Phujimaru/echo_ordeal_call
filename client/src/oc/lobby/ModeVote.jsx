@@ -165,9 +165,12 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   };
   // กดหมุด/ป้าย = เลือกดูอย่างเดียว ยังไม่โหวต (ผู้ใช้สั่ง: ต้องกดยืนยันก่อน) · ป้ายเป็นปุ่ม (เสียงคลิกมาเอง) หมุดบนโลกต้องเรียกเอง
   const preview = (mode, sound) => { if (sound && mode !== focus) clickSound(); onFocus(mode); };
-  const clear = () => { if (!focus) return; clickSound(); onFocus(null); };
-  const enter = (w, sound) => { if (sound) clickSound(); onFocus(null); onWorld(w); };
+  // Eos มีโหมดเดียว (ร่วมมือ PVE) → เข้า Eos = เปิดแผงความยาก/โหวตเลย ไม่ต้องกดหมุด "ร่วมมือ" (ผู้ใช้สั่ง 2026-11-14)
+  const SINGLE = { eos: "eos" };
+  const clear = () => { if (!focus || SINGLE[world]) return; clickSound(); onFocus(null); };
+  const enter = (w, sound) => { if (sound) clickSound(); onFocus(SINGLE[w] || null); onWorld(w); };
   const back = () => {
+    if (focus && SINGLE[world]) { onFocus(null); onWorld("earth"); return; }
     if (focus) { onFocus(null); return; }
     if (world === "origin" || world === "fodlan" || world === "eos") { onWorld("earth"); return; }
     if (world) { onWorld(null); return; }
