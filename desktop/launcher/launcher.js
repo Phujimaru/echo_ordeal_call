@@ -495,7 +495,7 @@ function glitchName() {
     walk(el);
   };
   const tick = () => {
-    for (const el of document.querySelectorAll(".patch.rr")) {
+    for (const el of document.querySelectorAll(".patch.rr, .mark .rr-g")) {
       wrap(el);
       const chars = [...el.querySelectorAll("i.ch")].filter((s) => s.dataset.c.trim());
       const n = Math.random() < 0.5 ? 2 : 1;

@@ -61,6 +61,28 @@
 .oc-tick.br { bottom: 18px; right: 18px; border-left: 0; border-top: 0; }
 .oc-mark { position: absolute; top: 22px; left: 52px; font: 500 11px/1 var(--oc-f-ui); letter-spacing: 0.14em; color: var(--oc-ink-2); }
 .oc-mark b { color: var(--oc-azure); font-weight: 600; }
+/* ---------- ชื่อแพตช์แบบบัค (GlitchName — ผู้ใช้สั่ง 2026-11-14 · คู่สีส้ม #ff7a1a / ฟ้า #2bb8ff เหมือน glitch บนลูกโลก) ---------- */
+.rr-g { position: relative; display: inline-block; color: inherit; text-shadow: -1px 0 rgba(43, 184, 255, 0.6), 1px 0 rgba(255, 122, 26, 0.55); animation: rrg-flick 3.1s steps(1) infinite; }
+.rr-g::before, .rr-g::after { content: attr(data-text); position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; white-space: nowrap; letter-spacing: inherit; text-shadow: none; }
+.rr-g::before { color: #ff7a1a; animation: rrg-a 2.3s steps(1) infinite; }
+.rr-g::after { color: #2bb8ff; animation: rrg-b 2.9s steps(1) infinite; }
+.rr-bug { font-style: normal; color: #0b1a2e; background: #ff7a1a; border-radius: 1px; }
+@keyframes rrg-a {
+  0%, 41%, 46%, 79%, 83%, 100% { opacity: 0; transform: none; clip-path: inset(0); }
+  42% { opacity: 1; transform: translate(-4px, 0); clip-path: inset(0 0 55% 0); }
+  43% { opacity: 1; transform: translate(5px, 0); clip-path: inset(50% 0 0 0); }
+  44% { opacity: 0.9; transform: translate(-3px, 0); clip-path: inset(25% 0 35% 0); }
+  80% { opacity: 1; transform: translate(4px, 0); clip-path: inset(60% 0 0 0); }
+}
+@keyframes rrg-b {
+  0%, 17%, 22%, 61%, 65%, 100% { opacity: 0; transform: none; clip-path: inset(0); }
+  18% { opacity: 1; transform: translate(4px, 0); clip-path: inset(45% 0 10% 0); }
+  19% { opacity: 1; transform: translate(-5px, 0); clip-path: inset(0 0 60% 0); }
+  62% { opacity: 1; transform: translate(-3px, 0); clip-path: inset(30% 0 30% 0); }
+}
+@keyframes rrg-flick { 0%, 37%, 39%, 100% { opacity: 1; } 38% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .rr-g, .rr-g::before, .rr-g::after { animation: none; } }
+
 
 /* ---------- ตัวอักษร ---------- */
 .oc-h1 { font: 600 30px/1.15 var(--oc-f-ui); margin: 0; color: var(--oc-ink); text-wrap: balance; }

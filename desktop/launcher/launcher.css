@@ -100,10 +100,13 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
    ชั้นซ้อนส้ม/ฟ้า (::before/::after จาก data-text) เหลื่อมแวบๆ ตัดเป็นแถบ · ตัวอักษรเพี้ยนเป็นสัญลักษณ์ชั่ววูบ (launcher.js glitchName) */
 /* สีชื่อใหม่ (รอบ 2 — ผู้ใช้ "ตัวหนังสือยังใช้สีเดิม · glitch เห็นไม่ชัด"): RISING ส้ม · RESONANCE ฟ้า
    ขอบสีแยกถาวร (เงาส้มซ้าย/ฟ้าขวา) + ชั้นซ้อนเหลื่อมแรงทุก ~2 วิ + แถบสัญญาณขาดพาดผ่าน + กะพริบ */
-.patch.rr { position: relative; color: #ff7a1a; font-weight: 400;
-  text-shadow: -1.5px 0 rgba(43, 184, 255, 0.55), 1.5px 0 rgba(255, 122, 26, 0.45);
+/* เด่นขึ้นโดยไม่ขยาย (รอบ 3): ตัวหนาด้วยเส้นขอบตัวอักษร · สีเข้มอิ่มขึ้น · ขอบสีแยก · แสงรองหลังแยกจากลูกโลก */
+.patch.rr { position: relative; color: #f26a00; font-weight: 400; -webkit-text-stroke: 0.6px currentColor;
+  text-shadow: -1.5px 0 rgba(43, 184, 255, 0.6), 1.5px 0 rgba(255, 122, 26, 0.5), 0 0 10px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 1);
   animation: rr-flick 2.9s steps(1) infinite, rr-jit 2.3s steps(1) infinite; }
-.patch.rr span { color: #2bb8ff; text-shadow: -1.5px 0 rgba(255, 122, 26, 0.55), 1.5px 0 rgba(43, 184, 255, 0.4); }
+.patch.rr span { color: #1a9be6; text-shadow: -1.5px 0 rgba(255, 122, 26, 0.6), 1.5px 0 rgba(43, 184, 255, 0.45), 0 0 10px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 1); }
+:root[data-ui="dark"] .patch.rr { color: #ff8a33; text-shadow: -1.5px 0 rgba(43, 184, 255, 0.7), 1.5px 0 rgba(255, 122, 26, 0.6), 0 0 12px rgba(2, 4, 10, 0.95); }
+:root[data-ui="dark"] .patch.rr span { color: #45c4ff; text-shadow: -1.5px 0 rgba(255, 122, 26, 0.7), 1.5px 0 rgba(43, 184, 255, 0.5), 0 0 12px rgba(2, 4, 10, 0.95); }
 .patch.rr .bug { color: #0b1a2e; background: #ff7a1a; text-shadow: none; border-radius: 2px; }
 .patch.rr span .bug { background: #2bb8ff; }
 .patch.rr::before, .patch.rr::after {
@@ -132,6 +135,27 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
 @keyframes rr-flick { 0%, 37%, 39%, 71%, 72%, 100% { opacity: 1; } 38% { opacity: 0.25; } 71.5% { opacity: 0.6; } }
 @keyframes rr-jit { 0%, 55%, 58%, 100% { transform: none; } 56% { transform: translate(3px, 0) skewX(-8deg); } 57% { transform: translate(-2px, 0) skewX(6deg); } }
 @media (prefers-reduced-motion: reduce) { .patch.rr, .patch.rr::before, .patch.rr::after { animation: none; } }
+/* ป้ายมุมซ้ายบน: ชื่อแพตช์แบบบัค (ตรงกับในเกม client/src/oc/theme.css .rr-g) */
+.rr-g { position: relative; display: inline-block; text-shadow: -1px 0 rgba(43, 184, 255, 0.6), 1px 0 rgba(255, 122, 26, 0.55); animation: rrg-flick 3.1s steps(1) infinite; }
+.rr-g::before, .rr-g::after { content: attr(data-text); position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; white-space: nowrap; letter-spacing: inherit; text-shadow: none; }
+.rr-g::before { color: #ff7a1a; animation: rrg-a 2.3s steps(1) infinite; }
+.rr-g::after { color: #2bb8ff; animation: rrg-b 2.9s steps(1) infinite; }
+.rr-g .bug { color: #0b1a2e; background: #ff7a1a; border-radius: 1px; }
+@keyframes rrg-a {
+  0%, 41%, 46%, 79%, 83%, 100% { opacity: 0; transform: none; clip-path: inset(0); }
+  42% { opacity: 1; transform: translate(-4px, 0); clip-path: inset(0 0 55% 0); }
+  43% { opacity: 1; transform: translate(5px, 0); clip-path: inset(50% 0 0 0); }
+  44% { opacity: 0.9; transform: translate(-3px, 0); clip-path: inset(25% 0 35% 0); }
+  80% { opacity: 1; transform: translate(4px, 0); clip-path: inset(60% 0 0 0); }
+}
+@keyframes rrg-b {
+  0%, 17%, 22%, 61%, 65%, 100% { opacity: 0; transform: none; clip-path: inset(0); }
+  18% { opacity: 1; transform: translate(4px, 0); clip-path: inset(45% 0 10% 0); }
+  19% { opacity: 1; transform: translate(-5px, 0); clip-path: inset(0 0 60% 0); }
+  62% { opacity: 1; transform: translate(-3px, 0); clip-path: inset(30% 0 30% 0); }
+}
+@keyframes rrg-flick { 0%, 37%, 39%, 100% { opacity: 1; } 38% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .rr-g, .rr-g::before, .rr-g::after { animation: none; } }
 
 /* ---------- เปิดโปรแกรม ---------- */
 #boot { align-items: flex-end; justify-content: center; padding: 0 16px 13vh; }
@@ -156,46 +180,38 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
   border: 1px solid var(--line); border-left: 3px solid var(--hp); padding: 10px 14px;
 }
 
-/* เมนูหน้าแรก (ผู้ใช้สั่ง 2026-11-14 รอบ 2 "ไม่เอาสีเดิม ออกแบบดีๆ") — ธีม RISING RESONANCE: กรมท่าเข้ม #0b1a2e + ส้ม #ff7a1a + ฟ้า #2bb8ff
-   ปุ่มทึบมุมโค้ง · ขอบไล่สีส้ม→ฟ้า (ปุ่มหลักขอบเต็ม · ปุ่มรองขอบจางแล้วสว่างตอนชี้) · แถบสีส้มซ้าย · ลูกศรในวงกลม
-   ชี้ = ยกขึ้น + เรืองสองสี + เส้นสแกนกวาดผ่านปุ่ม */
-.menu { display: flex; flex-direction: column; gap: 12px; --rr-o: #ff7a1a; --rr-b: #2bb8ff; --rr-n: #0b1a2e; }
+/* เมนูหน้าแรก (ผู้ใช้สั่ง 2026-11-14 รอบ 3 "พื้นหลังขาวก็พอ · ใช้สีน้ำเงิน/ฟ้าให้เป็นประโยชน์ · รองรับกลางวัน/กลางคืน")
+   ปุ่มขาวมุมโค้ง · ตัวหนังสือน้ำเงิน · แถบซ้ายน้ำเงิน→ฟ้า · ลูกศรวงกลมฟ้า
+   ปุ่มหลัก (สร้างห้อง) = ขอบน้ำเงิน + ลูกศรน้ำเงินทึบ · ชี้ = ขอบฟ้า ยก เรืองฟ้า ลูกศรทึบ · โหมดมืด = การ์ดกรมท่า ตัวหนังสือขาว */
+.menu { display: flex; flex-direction: column; gap: 12px;
+  --mb-bg: #ffffff; --mb-bg-h: #f3f9ff; --mb-ink: #163a6b; --mb-line: rgba(22, 58, 107, 0.16); --mb-navy: #1f5fbf; --mb-sky: #2bb8ff;
+  --mb-shadow: 0 6px 18px rgba(22, 58, 107, 0.12); --mb-shadow-h: 0 12px 26px rgba(31, 95, 191, 0.22); }
 .menu button {
-  appearance: none; position: relative; overflow: hidden; isolation: isolate; text-align: left; cursor: pointer; color: #eaf4ff;
-  border: 1.5px solid transparent; border-radius: 16px;
-  background: linear-gradient(160deg, #14294a 0%, var(--rr-n) 70%) padding-box,
-              linear-gradient(90deg, rgba(255, 122, 26, 0.45), rgba(43, 184, 255, 0.45)) border-box;
-  box-shadow: 0 8px 22px rgba(11, 26, 46, 0.28);
+  appearance: none; position: relative; overflow: hidden; text-align: left; cursor: pointer; color: var(--mb-ink);
+  background: var(--mb-bg); border: 1.5px solid var(--mb-line); border-radius: 16px; box-shadow: var(--mb-shadow);
   padding: 15px 16px 15px 24px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
-  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s;
 }
-.menu button::before { /* แถบสีซ้าย */
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; z-index: -1;
-  background: linear-gradient(180deg, var(--rr-o), var(--rr-b));
-}
-.menu button::after { /* เส้นสแกนกวาดผ่านตอนชี้ */
-  content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0;
-  background: linear-gradient(100deg, transparent 30%, rgba(43, 184, 255, 0.22) 45%, rgba(255, 122, 26, 0.22) 55%, transparent 70%);
-  transform: translateX(-100%);
-}
-.menu .t { font: 600 20px/1.2 var(--f-ui); letter-spacing: 0.02em; }
+.menu button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, var(--mb-navy), var(--mb-sky)); opacity: 0.55; transition: opacity 0.18s, width 0.18s; }
+.menu .t { font: 600 20px/1.2 var(--f-ui); }
 .menu .arr {
   width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px;
-  color: var(--rr-b); border: 1.5px solid rgba(43, 184, 255, 0.55); transition: transform 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
+  color: var(--mb-sky); border: 1.5px solid var(--mb-sky); transition: transform 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
 }
-.menu button:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(11, 26, 46, 0.36), -3px 0 14px rgba(255, 122, 26, 0.35), 3px 0 14px rgba(43, 184, 255, 0.35);
-  background: linear-gradient(160deg, #1a3460 0%, #0f2240 70%) padding-box, linear-gradient(90deg, var(--rr-o), var(--rr-b)) border-box; }
-.menu button:hover::after { opacity: 1; transform: translateX(100%); transition: transform 0.6s ease, opacity 0.1s; }
-.menu button:hover .arr { transform: translateX(3px); background: var(--rr-b); color: var(--rr-n); border-color: var(--rr-b); }
+.menu button:hover { transform: translateY(-2px); background: var(--mb-bg-h); border-color: var(--mb-sky); box-shadow: var(--mb-shadow-h); }
+.menu button:hover::before { opacity: 1; width: 7px; }
+.menu button:hover .arr { transform: translateX(3px); background: var(--mb-sky); color: #fff; }
 .menu button:active { transform: translateY(0); }
-.menu button.main {
-  background: linear-gradient(160deg, #1d3a66 0%, #102445 65%) padding-box, linear-gradient(90deg, var(--rr-o), var(--rr-b)) border-box;
-  box-shadow: 0 10px 26px rgba(11, 26, 46, 0.36), 0 0 0 4px rgba(255, 122, 26, 0.08);
+.menu button.main { border-color: var(--mb-navy); }
+.menu button.main::before { opacity: 1; }
+.menu button.main .t { color: var(--mb-navy); }
+.menu button.main .arr { background: linear-gradient(135deg, var(--mb-navy), var(--mb-sky)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(31, 95, 191, 0.35); }
+.menu button:focus-visible { outline: 2px solid var(--mb-sky); outline-offset: 3px; }
+:root[data-ui="dark"] .menu {
+  --mb-bg: #10233f; --mb-bg-h: #16305a; --mb-ink: #e6f1ff; --mb-line: rgba(127, 184, 230, 0.28); --mb-navy: #4d8ff0; --mb-sky: #2bb8ff;
+  --mb-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); --mb-shadow-h: 0 12px 28px rgba(43, 184, 255, 0.25);
 }
-.menu button.main .t { color: #fff; }
-.menu button.main .arr { background: var(--rr-o); color: #fff; border-color: var(--rr-o); box-shadow: 0 0 12px rgba(255, 122, 26, 0.55); }
-.menu button.main:hover .arr { background: var(--rr-o); color: #fff; border-color: var(--rr-o); }
-.menu button:focus-visible { outline: 2px solid var(--rr-b); outline-offset: 3px; }
+:root[data-ui="dark"] .menu button.main .t { color: #9fd0ff; }
 
 /* ---------- แผงกระจก (มีขีดมุม) ---------- */
 .panel {
