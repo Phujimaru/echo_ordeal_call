@@ -13,6 +13,7 @@ const OUTPUTS = ["globe.js", "main5.0.mp3", "logo_current.webp", "click.mp3", "v
 const STAMP = path.join(vendor, ".built");
 const SOURCES = [
   "src/globe/globeCore.js",
+  "src/globe/glitchSpots.js", // จุด glitch บนลูกโลก (2026-11-14)
   "src/globe/launcherEntry.js",
   "vite.globe.config.js",
   "package-lock.json",
