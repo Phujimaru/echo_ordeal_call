@@ -16,7 +16,7 @@ const DIFF = {
   easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50, cap: 0.8 },
   normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50, cap: 1 },
   hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100, cap: 1.25 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
-  lament: { hp: 1.6, cnt: 1.5, atk: 2, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · กติกาเฉพาะ server/fodlan/eosLament.js)
+  lament: { hp: 1.6, cnt: 1.5, atk: 1, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · ตี +2 → +1 ผู้ใช้ 2026-11-14 "โดนรุม 2 ตัวตายในเทิร์นเดียว ไม่แฟร์" · กติกาเฉพาะ server/fodlan/eosLament.js)
 };
 const diffOf = (ctx) => DIFF[ctx.match.eosDiff] || DIFF.normal;
 // เป้าแต้มรวมตามความยาก · จุดเหตุการณ์ที่ผูกกับแต้ม (ราชาปีศาจ/การ์ดทีม/คืนสุดท้าย) ขยายตามสัดส่วนเป้า (ตั้งไว้ที่เป้า 50 — Claude ตัดสิน)

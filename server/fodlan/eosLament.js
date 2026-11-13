@@ -64,6 +64,31 @@ function onSaved(ctx, s, p) {
   return refund;
 }
 
+// ---------- กันตายรวดเดียว (ผู้ใช้ 2026-11-14 "โดนรุม 2 ตัวแล้วตายเลยในเทิร์นเดียว ไม่มีโอกาสแก้ตัว" — กติกา Claude ตั้ง) ----------
+//  ต้นช่วงมอน (stage6.actMonsters): ใครเลือด+เกราะเกินครึ่งของเต็ม = ช่วงนั้นมอนทำให้ตายไม่ได้ (เหลือเลือดอย่างน้อย 1)
+//  ล้มได้เฉพาะคนที่เข้าช่วงมอนด้วยเลือด+เกราะไม่เกินครึ่ง · นอกช่วงมอน (เช่น หัวหน้าระเบิดตอนผู้เล่นฆ่า) ไม่กัน
+const GUARD = { k: 0.5 };
+function guardStart(ctx, s) {
+  if (!on(ctx)) { if (s.lam) s.lam.guard = null; return; }
+  const ids = {};
+  for (const p of Object.values(ctx.match.players)) {
+    if (p.summon || !p.alive) continue;
+    const full = (ctx.combat.maxHpOf(p) || 0) + (ctx.combat.maxArmorOf(p) || 0);
+    if ((p.hp || 0) + (p.armor || 0) > full * GUARD.k) ids[p.id] = true;
+  }
+  L(s).guard = ids;
+}
+function guardEnd(s) { if (s.lam) s.lam.guard = null; }
+// ดาเมจจากมอนใส่ผู้เล่นที่ถูกกัน: ตัดให้เหลือเลือด 1 (kind direct = ทะลุเกราะ · armor = เกราะอย่างเดียว · อื่น = เกราะก่อน)
+function guardHit(ctx, s, p, n, kind) {
+  const g = s.lam && s.lam.guard;
+  if (!g || !g[p.id] || !(n > 0) || kind === "armor") return n;
+  const room = Math.max(0, (p.hp || 0) - 1 + (kind === "direct" ? 0 : (p.armor || 0)) + (p.shield || 0) + (p.tempHp || 0));
+  if (n <= room) return n;
+  if (!g[`${p.id}:saved`]) { g[`${p.id}:saved`] = true; ctx.fx("lament_endure", { id: p.id, x: p.pos ? p.pos.x : 0, y: p.pos ? p.pos.y : 0 }); ctx.log(`🕯️ ${p.name} ยืนหยัดไว้ได้ — เหลือเลือด 1`); }
+  return room;
+}
+
 // ---------- คำสาปคู่การ์ดทีม ----------
 function onPerk(ctx, s) {
   if (!on(ctx)) return null;
@@ -217,6 +242,6 @@ function publicOf(ctx, s) {
 }
 
 module.exports = {
-  LAMENT, LORD, CURSES, on, L, curse, livesOf, rage, onDown, gone, onRespawn, onSaved, onPerk,
+  LAMENT, LORD, CURSES, on, L, curse, livesOf, rage, onDown, gone, onRespawn, onSaved, onPerk, GUARD, guardStart, guardEnd, guardHit,
   warnLord, onScore, landLord, act, onDeath, blocksWin, preRound, publicOf, lordUnit, phaseOf,
 };

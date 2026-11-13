@@ -56,6 +56,7 @@ function alertOf(e, fd) {
     case "lament_lines": return { icon: "💧", title: "แนวน้ำตาบนพื้น · ออกจากแนว", zone: "", tone: "danger", at: (e.tiles || [])[0] };
     case "lament_die": return { icon: "🏆", title: "ผู้คร่ำครวญสลายไป · +10", zone: "", tone: "good" };
     case "lament_curse": { const c = ((fd.lament && fd.lament.curses) || []).find((o) => o.id === e.curse); return { icon: c ? c.icon : "🩸", title: `คำสาป ${c ? c.name : ""}`, zone: c ? c.desc : "", tone: "danger" }; }
+    case "lament_endure": return { icon: "🕯️", title: "ยืนหยัด · เลือด 1", zone: "", tone: "warn" };
     case "lament_life": return e.saved ? { icon: "🪶", title: `ชีวิตทีมคืน ${e.left}`, zone: "", tone: "good" } : { icon: "🕯️", title: e.left > 0 ? `ชีวิตทีมเหลือ ${e.left}` : "ชีวิตทีมหมด", zone: "", tone: e.left <= 2 ? "danger" : "warn" };
     case "mob_wave": return { icon: "⚠️", title: `ฝูงมอน ${e.n} ตัวบุกพร้อมกัน`, zone: zoneAt(e.x, e.y), tone: "danger", at: { x: e.x, y: e.y } };
     case "town_dark": return { icon: "🌑", title: "ไฟเมืองดับ · ปีศาจบุกเข้าเมือง", zone: ZN[e.zone] || "", tone: "danger" };

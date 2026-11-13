@@ -272,7 +272,7 @@ function maybeAdvance(startTimer, random = Math.random) {
 // ชั้นแผนที่ของด่าน (action.boardMap → layeredMap) — คืน map ใหม่ (ไม่มีฮุค = เดิม)
 // ช่องที่ท่าทำลายพื้นที่ (engine.addChasm) พังไม่ได้ — true = กันไว้
 // ดาเมจที่ยูนิตของด่านได้รับ (combat.adjustIncomingDamage — Eos: ทหารโล่ตีจากหน้าเหลือ 1)
-function incomingDamage(p, n, src) { const r = call("incoming", n, p, n, src); return Number.isFinite(r) ? r : n; }
+function incomingDamage(p, n, src, kind) { const r = call("incoming", n, p, n, src, kind); return Number.isFinite(r) ? r : n; }
 // อาวุธจักรพรรดิ (Eos): ระยะตีปกติ · คริ · ทะลุเกราะ · ผลเมื่อตีปกติลง
 function rangeMod(p, r) { const v = call("rangeMod", r, p, r); return Array.isArray(v) ? v : r; }
 function critPct(p) { return Number(call("critPct", 0, p)) || 0; }

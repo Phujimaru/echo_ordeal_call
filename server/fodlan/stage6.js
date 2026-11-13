@@ -1099,6 +1099,10 @@ function hitPillar(ctx, s, pl, m) {
   return { id: pl.id, lost: true };
 }
 function actMonsters(ctx, s) {
+  LM.guardStart(ctx, s); // Lament: กันตายรวดเดียว (เลือด+เกราะเกินครึ่ง = ช่วงมอนนี้ไม่ตาย)
+  try { return actMonstersRaw(ctx, s); } finally { LM.guardEnd(s); }
+}
+function actMonstersRaw(ctx, s) {
   const runeOut = MBS.beforeAct(ctx, s, H()); // วงเวทที่วางไว้ตาก่อนระเบิด (นักเวทตายหมดแล้วก็ต้องล้างวง)
   const regenOut = ELT.beforeAct(ctx, s, H()); // หัวหน้าฟื้นตัว
   const list = mobsOf(ctx);
@@ -2837,7 +2841,7 @@ function playerInfo(ctx, st, p) {
 module.exports = {
   FLASH, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  incoming(ctx, st, p, n, src) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
+  incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = LM.guardHit(ctx, s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), kind); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
   critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
   strikePierces(ctx, st, p) { const s = st && st.eos; return !!(s && p && !p.summon && AR.piercesOf(armRec(s, p))); }, // Katana of the Warrior

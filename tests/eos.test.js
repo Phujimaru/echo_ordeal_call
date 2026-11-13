@@ -1717,7 +1717,7 @@ test('Lament: โหวตได้ · เลือด/จำนวน/พลั
     lamentOn();
     const s = st();
     assert.equal(EV.goalOf(ctx()), 100);
-    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk > EV.DIFF.hard.atk);
+    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk >= EV.DIFF.hard.atk);
     assert.equal(S6.pillarHp(s), 1, 'ตีทีเดียวหลุด');
     const pl = s.pillars[3]; pl.owner = S6.PVE; s.score = 10;
     const d = mob('daemon', 0, 0);
@@ -1789,6 +1789,26 @@ test('Lament: ล้มแล้วนับทันที · ทิ้งห�
     assert.ok(o, 'มีโหวต');
     for (const u of [P(0), P(1), P(2)]) Fodlan.charAction(u.id, `fd:perk:${o.choices[0].id}`);
     assert.equal(Fodlan.publicInfo().board.perkOffer, null, 'ครบทุกคนรวมคนที่ล้ม = ตัดสินเลย');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('Lament: ช่วงมอนเลือด+เกราะเกินครึ่ง = ไม่ตาย เหลือเลือด 1 · ไม่เกินครึ่ง = ตายได้ · นอกช่วงมอนไม่กัน', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st(), v = P(0), w = P(1);
+    v.pos = { x: 20, y: 22 }; w.pos = { x: 10, y: 22 }; P(2).pos = { x: 30, y: 0 };
+    for (const [x, y] of [[21, 22], [19, 22], [20, 23]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
+    for (const [x, y] of [[11, 22], [9, 22]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
+    w.hp = 2; w.armor = 0;
+    S6.actMonsters(ctx(), s);
+    assert.ok(v.alive, 'เลือดเต็ม = รอดช่วงมอน');
+    assert.equal(v.hp, 1, 'เหลือเลือด 1');
+    assert.equal(w.alive, false, 'เลือดไม่เกินครึ่ง = ตายได้');
+    assert.equal(LMx.L(s).guard, null, 'จบช่วงมอนแล้วเลิกกัน');
+    // นอกช่วงมอน: ไม่กัน
+    const d = S6.mobsOf(ctx(), 'daemon')[0];
+    match.effectSourceId = d.id; combat.dealMixed(v, 5); combat.resolveDamageAftermath(v); match.effectSourceId = null;
+    assert.equal(v.alive, false);
   } finally { match.eosDiff = 'normal'; }
 });
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {
