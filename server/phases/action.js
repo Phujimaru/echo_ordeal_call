@@ -1391,6 +1391,7 @@ function endUnitTile(p) {
     match.lastLog.push(`${heal.icon} ${p.name} ยืนบน${heal.name} — ฟื้นพลังชีวิต +1`);
   }
   if (p && p.alive && p.pos) tileEndEffect(p);
+  if (p && p.alive && p.pos) require("../element").terrainAura(p); // พื้นธาตุ (server/element.js · GRID_PLAN §8.7): จบตาบนพื้นไฟ/น้ำแข็ง/น้ำ = ติดคราบ
   if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
   if (p && p.alive && p.pos) Fodlan.onUnitEnd(p); // Fodlan: ยึดธง · ยืนบนไฟ · นั่งบัลลังก์ … (server/fodlan/stageN.js)
 }

@@ -358,6 +358,14 @@ module.exports = {
   // ---------- ค่าบนกระดาน ----------
   maxArmor(p, base) { return inForm(p) ? base + FORM_ARMOR : base; },
   mov(p) { return bigOn(p) ? GINGA_MOV : null; },
+  // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ทันเดอร์ดารัมเบีย ⚡ · คิงแพนด้อน 🔥 · สโตเรี่ยม 🔥 · ท่าไม้ตาย (Cross Shoot/Strium Ray) 🔥
+  attackElement(engine, p) {
+    const f = formOf(p);
+    if (f === "thunder") return "bolt";
+    if (f === "pandon" || striumOn(p)) return "fire";
+    return null;
+  },
+  skillElement(engine, p, tier) { return tier === "ultimate" ? "fire" : null; },
   range(p) {
     if (gingaOn(p)) return FACE_RANGE;
     const f = FORMS[formOf(p)];

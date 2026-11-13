@@ -199,7 +199,7 @@ function stormStrike(engine, p) {
     for (const w of warns) {
       const set = new Set([Board.key(w.x, w.y)]);
       const victims = Object.values(engine.players).filter((t) => foeOf(engine, p, t) && onTiles(t, set));
-      const res = victims.map((t) => ({ id: t.id, ...hurt(engine, p, t, BOLT_DMG, "สายฟ้าแดง") }));
+      const res = engine.withElement("bolt", () => victims.map((t) => ({ id: t.id, ...hurt(engine, p, t, BOLT_DMG, "สายฟ้าแดง") }))); // สายฟ้า ⚡ (GRID_PLAN §8.7.1)
       for (const r of res) {
         const t = engine.players[r.id];
         engine.log(r.dodge ? `💨 ${t.name} หลบสายฟ้าแดงได้` : `⚡ สายฟ้าแดงผ่า ${t.name} -${r.dealt}`);

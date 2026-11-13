@@ -520,6 +520,7 @@ function gammaKnife(engine, p, t) {
   if (engine.applyBleed(t, n("bleed")) > 0) applied.push("bleed");
   // พิษร้ายเก็บเป็นเทิร์น (ลดตอนจบเทิร์นก่อนออกฤทธิ์ต้นเทิร์นถัดไป) — +1 ให้ออกฤทธิ์ครบตามจำนวน (แบบหนามพิษ GRID_PLAN §3.1)
   if (engine.applyPoison(t, n("poison") + 1)) applied.push("poison");
+  engine.elementApply(t, "bolt", p); // Gamma Knife = สายฟ้า ⚡ (ผู้ใช้ตอบ 2026-11-14 · ตีพลัง 0 จึงให้ธาตุตรง)
   st(p).afterFx = { kind: "gamma", targetId: t.id, applied, extra }; // ภาพสถานะหลังคลิป/ฉากตี (afterBoardAttack)
   engine.log(`🟢 ${p.name} Gamma Knife → ${t.name}${applied.length ? ` (${applied.join(" · ")})` : " — ต้านได้ทั้งหมด"}`);
   const label = { burn: "ลุกไหม้", bleed: "เลือดไหล", poison: "พิษร้าย" };

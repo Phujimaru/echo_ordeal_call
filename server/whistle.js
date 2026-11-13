@@ -162,6 +162,7 @@ function castWinds(p, foes, ctx) {
     Ice.pushUnit(u, dir, ctx, 64); // ผลักจนชนสิ่งกีดขวาง/ขอบ/คน (ลงน้ำแข็ง = ไถลต่อจนชน)
     if (u.alive && debuffFor(u, "rooted", WHISTLE.rootTurns)) names.push(u.name);
   }
+  require("./element").windBurst(foes.filter((u) => u.alive), p); // ธาตุลม 🌪️ (GRID_PLAN §8.7.1): ศัตรูที่มีคราบ = พัดพา
   match.lastLog.push(`🌪️ Cross Winds — ลมกรรโชกพัดศัตรูออกไปจนสุดทาง${names.length ? ` · ถูกตรึง ${WHISTLE.rootTurns} เทิร์น: ${names.join(", ")}` : ""}`);
 }
 
@@ -187,6 +188,7 @@ function castTsunami(p, foes, ctx) {
   }
   const wet = Ice.layWet(plainTiles(WHISTLE.wetShare), WHISTLE.groundTurns);
   if (wet.length) ctx.events.push({ kind: "wet", tiles: wet, by: p.id });
+  for (const u of foes) require("./element").apply(u, "water", p); // ธาตุน้ำ 💧
   match.lastLog.push(`🌊 Tsunami — คลื่นยักษ์ซัด${moved.length ? `รวบ ${moved.join(", ")} เข้ากลางสนาม` : "ทั่วสนาม"} · พื้นเปียก ${wet.length} ช่อง`);
 }
 
@@ -197,6 +199,7 @@ function castDust(p, foes, ctx) {
   const laid = [];
   for (const t of plainTiles(WHISTLE.iceShare)) if (Ice.layIce(t.x, t.y, p.id, { turns: WHISTLE.groundTurns })) laid.push(t);
   if (laid.length) ctx.events.push({ kind: "lay", tiles: laid, by: p.id, divine: true });
+  for (const u of foes) require("./element").apply(u, "ice", p); // ธาตุน้ำแข็ง ❄️
   match.lastLog.push(`❄️ Diamond Dust — พายุน้ำแข็งปกคลุมสนาม ${laid.length} ช่อง${names.length ? ` · เชื่องช้า ${WHISTLE.slowTurns} เทิร์น: ${names.join(", ")}` : ""}`);
 }
 
@@ -204,6 +207,7 @@ function castDust(p, foes, ctx) {
 function castBolt(p, foes, ctx, seq) {
   const names = [];
   for (const u of foes) if (debuffFor(u, "stun", WHISTLE.stunTurns)) names.push(u.name);
+  for (const u of foes) require("./element").apply(u, "bolt", p); // ธาตุสายฟ้า ⚡
   const fire = Ice.layFlame(plainTiles(WHISTLE.flameShare), p.id, WHISTLE.groundTurns);
   engine.boardFx("divineFx", { seq, spell: "judgmentBolt", land: true, by: p.id, hits: foes.map((u) => u.id), tiles: fire });
   match.lastLog.push(`⚡ Judgment Bolt — สายฟ้าพิพากษาฟาดทั่วสนาม · พื้นไฟ ${fire.length} ช่อง${names.length ? ` · สตั้น ${WHISTLE.stunTurns} เทิร์น: ${names.join(", ")}` : ""}`);

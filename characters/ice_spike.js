@@ -114,6 +114,9 @@ module.exports = {
     return lv ? { lv, max: EOS_LV_MAX, stack: EOS_STACK[lv], pct: EOS_SHOCK_PCT[lv], r: EOS_SHOCK_R[lv], pierce: lv >= EOS_PIERCE_LV } : null;
   },
 
+  // ธาตุ (server/element.js · GRID_PLAN §8.7): ทุกการกระทำเป็นน้ำแข็ง ❄️ — ไถลชน (= ตีปกติ) หนาม ระเบิดติดตัว Shock Wave
+  defaultElement(engine, p) { return isIceSpike(p) ? "ice" : null; },
+
   // เลือด 8 / เกราะ 2 · พลังโจมตีพื้นฐาน 0
   maxHp(p) { return isIceSpike(p) ? 8 : undefined; },
   maxArmor(p, base) { return isIceSpike(p) ? 2 : base; },

@@ -336,6 +336,8 @@ module.exports = {
   },
 
   // ---------- ตีปกติ ----------
+  // ธาตุ (server/element.js · GRID_PLAN §8.7.1): เวทย์ไฟ 🔥 · เวทย์ลม 🌪️ · เวทย์ไฟฟ้า ⚡ · ดาบทุกเล่มปกติ (ผู้ใช้ตอบ)
+  attackElement(engine, p) { return isCeline(p) ? ({ fire: "fire", wind: "wind", thunder: "bolt" })[st(p).weapon] || null : null; },
   range(p) { return isCeline(p) ? RANGE[weaponOf(p).cls] : null; },
   critPct(p) { return isCeline(p) ? ownCrit(eng(), p) : 0; },
   critMult(p) { return kingOn(p) ? 3 : 2; },

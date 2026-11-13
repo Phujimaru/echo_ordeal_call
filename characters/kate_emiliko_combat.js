@@ -231,10 +231,12 @@ function hooks({ isKate, isEmi, isPair, st, weaponOf }) {
     afterStrike(engine, p) {
       if (isEmi(p) && weaponOf(p) === "vacuum") spendVacuum(engine, p, st(p));
     },
+    // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ตีด้วยแจกันใส่น้ำ = น้ำ 💧 · ไม้ถูพื้นไถลบนพื้นเปียกชน = น้ำ 💧 · อย่างอื่นปกติ
+    attackElement(engine, p) { return isEmi(p) && weaponOf(p) === "vase" ? "water" : null; },
     // ---------- ไม้ถูพื้น: ไถลบนพื้นเปียก ----------
     slideStrikes(engine, p) { return isEmi(p) && weaponOf(p) === "mop"; },
     slideStrike(engine, p, t) {
-      hurt(engine, p, t, MOP_DMG, `🧹 ${p.name} ไม้ถูพื้นไถลชน`);
+      engine.withElement("water", () => hurt(engine, p, t, MOP_DMG, `🧹 ${p.name} ไม้ถูพื้นไถลชน`));
       return { attack: false, knock: false, style: "mop" };
     },
     onSlide(engine, p, n, ctx) {

@@ -219,7 +219,7 @@ function explode(engine, p, tiles, at) {
     if (!foe(engine, p, t) && !self) continue;
     hits.push(t.id);
     const burn = netted(t) ? NET_BURN : BURN;
-    hurt(engine, p, t, EXPLODE_DMG, `${p.name} ระเบิดน้ำมัน`, self);
+    engine.withElement("fire", () => hurt(engine, p, t, EXPLODE_DMG, `${p.name} ระเบิดน้ำมัน`, self)); // ธาตุไฟ 🔥 (GRID_PLAN §8.7.1)
     if (t.alive && engine.applyBurn(t, burn) > 0) engine.log(`🔥 ${t.name} ลุกไหม้ ${burn} เทิร์น`);
   }
   const until = engine.roundNumber + FIRE_TURNS;
@@ -293,6 +293,7 @@ function throwMatch(engine, p, at, targets) {
     const burn = netted(t) ? NET_BURN : BURN;
     const got = engine.applyBurn(t, burn);
     t.wasAttacked = true;
+    engine.elementApply(t, "fire", p); // ไม้ขีดไฟใส่คน = ธาตุไฟ 🔥 (ไม่มีดาเมจ — ติดคราบ/ปฏิกิริยา)
     engine.hitArea(p, [at], [t.id]);
     fx(engine, p, "ignite", { targetId: t.id, turns: burn, frozen: stopping(p) });
     engine.sfx(SFX.fire);

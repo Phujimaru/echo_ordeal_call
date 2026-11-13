@@ -336,7 +336,7 @@ function rouze(engine, p, targets, opts) {
   delete rest.ace;
   if (combo === "sonic") {
     s.armed = null;
-    sonic(engine, p, opts.dir, targets, rest);
+    engine.withElement("bolt", () => sonic(engine, p, opts.dir, targets, rest)); // Lightning Sonic = สายฟ้า ⚡ (GRID_PLAN §8.7.1)
     return ` — ${COMBOS.sonic.name}`;
   }
   if (combo === "four") {
@@ -690,6 +690,18 @@ module.exports = {
     if (c) return !card.dodge || (card.extra || []).some((e) => !e.dodge) ? CUT[c] : null;
     if (armedOf(attacker)) return null;
     return card.crit || (card.extra || []).some((e) => e.crit) ? CUT.crit : null;
+  },
+  // ธาตุของตีปกติที่ Rouze ไว้ (server/element.js · GRID_PLAN §8.7.1): Lightning Blast/Slash ⚡ · การ์ด THUNDER ⚡ / FIRE 🔥 / BLIZZARD ❄️ / TORNADO 🌪️
+  //  หลายธาตุในชุดเดียว = ธาตุที่มีการ์ดมากสุด (เท่ากัน = ไฟ → น้ำแข็ง → สายฟ้า → ลม) · Straight Flush / Four Card / Royal = ปกติ (ผู้ใช้ตอบ)
+  attackElement(engine, p) {
+    const a = armedOf(p);
+    if (!a) return null;
+    if (a.kind === "blast" || a.kind === "slash") return "bolt";
+    if (a.kind !== "cards") return null;
+    const c = a.cards || {};
+    let best = null, n = 0;
+    for (const [card, el] of [["fire", "fire"], ["blizzard", "ice"], ["thunder", "bolt"], ["tornado", "wind"]]) if ((c[card] || 0) > n) { best = el; n = c[card]; }
+    return best;
   },
   onStrikeLanded(engine, attacker, target) {
     if (!armedOf(attacker) || !target || engine.sameTeam(attacker, target)) return [];

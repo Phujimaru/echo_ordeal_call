@@ -373,6 +373,8 @@ function makeZect(cfg) {
     ownEvade(p) { return isMe(p) && p.alive && PassiveSeal.on(p) && p.zect && p.zect.henshin && require("../server/clockUp").activeMember(p) ? ZECT_DODGE : 0; },
 
     // Rider Kick: ตีปกติครั้งถัดไป
+    // ธาตุ (server/element.js · GRID_PLAN §8.7.1): คากามิ Rider Kick ที่ชาร์จครบ = สายฟ้า ⚡ · ที่เหลือปกติ
+    attackElement(engine, p) { return isMe(p) && ult === "kick" && st(p).kickArmed ? "bolt" : null; },
     strikePierces(engine, attacker, target) { return isMe(attacker) && st(attacker).kickArmed && !!target && (target.statuses.resist || 0) > 0; },
     damageCap(engine, p, kind) {
       if (!isMe(p) || !(kind === "strike" || engine.inStrike())) return null;

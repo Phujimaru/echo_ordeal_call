@@ -413,6 +413,8 @@ function egoChoices(p, r) {
 
 module.exports = {
   id: ID,
+  // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ระหว่าง Emotion A Kiss ทุกความเสียหาย = เศษน้ำแข็ง ❄️
+  defaultElement(engine, p) { return egoOn(p, "kiss") ? "ice" : null; },
   IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, MOV, START_CARDS, HAND_MAX, PAGES_PER_TURN, EMOTION_MAX,
   HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, EGO_TURNS, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RING, FURIOSO,
   isRoland,

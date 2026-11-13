@@ -292,6 +292,9 @@ module.exports = {
   resetCombat(p) { p.sora = isSora(p) ? fresh() : null; },
   displayImg(p) { return fireOn(p) ? IMG.mythFire : mythOn(p) ? IMG.myth : null; },
 
+  // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ร่าง Fire Frame = ไฟ 🔥 ทุกการกระทำ (ตีปกติ + Mouse Separade)
+  defaultElement(engine, p) { return fireOn(p) ? "fire" : null; },
+
   // ---------- ตีปกติ ----------
   range(p) { return gunOn(p) ? GUN_RANGE : null; },
   // Mouse Separade ลงผนึก/หนาม (hitCrossed): ฐาน = ULT_DMG · โบนัสมีดใช้กับตีปกติเท่านั้น

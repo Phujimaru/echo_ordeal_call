@@ -24,7 +24,7 @@
 // ============================================================
 // export ฟังก์ชันก่อน require (hoist) · ค่าคงที่ export ท้ายไฟล์
 Object.assign(module.exports, {
-  current, withElement, capture, auraOf, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
+  current, withElement, capture, auraOf, terrainAura, terrainAt, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
   attackElementOf, skillElementOf, lastReaction, takeReaction,
 });
 
@@ -268,6 +268,40 @@ function windBurst(sources, source) {
     from: snap.map((s) => ({ id: s.from.id, el: s.el })), ring: [...incoming.keys()].map((u) => u.id), size: action().sizeOf(main) });
   sfx("swirl");
   return out;
+}
+
+// ---------- พื้นธาตุ: จบตาบนช่องธาตุ = ติดคราบ (ผู้ใช้ตอบ "ใช่" 2026-11-14) ----------
+//  🔥 ลาวา · พื้นไฟ (นกหวีด/Eos) · กองไฟดิเอโก้ ❄️ น้ำแข็งลื่น · ธารน้ำแข็ง 💧 น้ำตื้น · น้ำวน · พื้นเปียก
+//  พื้นที่มีเจ้าของ: เจ้าของ/ทีมเดียวกันไม่ติด · ต้นตอ = เจ้าของ (ปฏิกิริยาไม่โดนทีมเจ้าของ) · ตัวใหญ่ = ช่องแรกที่เจอตามลำดับ ไฟ → น้ำแข็ง → น้ำ
+function terrainAt(x, y) {
+  const Ice = require("./ice");
+  const map = action().boardMap();
+  const sp = Board.specialAt(map, x, y);
+  const k = Board.key(x, y);
+  const owned = (o) => (o && typeof o === "object" ? o.owner : typeof o === "string" ? o : null) || null;
+  const out = [];
+  const flame = Ice.flameAt(x, y);
+  const pyre = match.board && match.board.diego && match.board.diego.fire && match.board.diego.fire[k];
+  if (sp === "lava" || sp === "flame" || flame || pyre) out.push({ el: "fire", owner: owned(pyre) || owned(flame) });
+  const ice = Ice.iceAt(x, y);
+  if (sp === "ice" || ice) out.push({ el: "ice", owner: owned(ice) });
+  if (sp === "shallow" || sp === "whirl" || sp === "wet" || Ice.wetAt(x, y)) out.push({ el: "water", owner: null });
+  return out;
+}
+function terrainAura(p) {
+  if (!p || !p.alive || !p.pos) return null;
+  const tiles = Board.footprint(p.pos.x, p.pos.y, action().sizeOf(p));
+  const found = tiles.flatMap((t) => terrainAt(t.x, t.y));
+  for (const el of ["fire", "ice", "water"]) {
+    const hit = found.filter((f) => f.el === el);
+    if (!hit.length) continue;
+    const foe = hit.find((f) => !f.owner) || hit.find((f) => { const o = match.players[f.owner]; return !o || (o.id !== p.id && !combat().sameTeam(o, p)); });
+    if (!foe) continue;
+    const src = foe.owner && match.players[foe.owner];
+    const run = () => apply(p, el, src || null);
+    return src ? combat().withEffectSource(src, run) : run();
+  }
+  return null;
 }
 
 // ---------- น้ำแข็งกัด (สถานะ frostbite): ต้นเทิร์นเสีย 1 (เกราะก่อน) แล้วลดทีละ 1 — เรียกคู่กับ tickBurn ใน dealRound ----------

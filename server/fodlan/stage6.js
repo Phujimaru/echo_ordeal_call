@@ -1838,16 +1838,16 @@ function throwFlask(ctx, s, p, element, tile) {
   const tiles = area3(tile.x, tile.y).filter((t) => ctx.Board.inBounds(map, t.x, t.y));
   let hits = [], shock = null;
   if (element === "fire") {
-    hits = hitArea(ctx, s, tiles, FIRE_DMG, p, (u) => ctx.burn(u, FIRE_BURN));
+    hits = require("../element").withElement("fire", () => hitArea(ctx, s, tiles, FIRE_DMG, p, (u) => ctx.burn(u, FIRE_BURN))); // ธาตุไฟ 🔥 (GRID_PLAN §8.7)
     // ไฟลามป่า: ช่องป่าในวง + ป่าที่ติดกัน 1 ช่อง
     const burn = new Set(tiles.map((t) => K(t.x, t.y)));
     for (const t of tiles) if (FOREST.has(K(t.x, t.y))) for (const [dx, dy] of ctx.Board.DIRS) if (FOREST.has(K(t.x + dx, t.y + dy))) burn.add(K(t.x + dx, t.y + dy));
     try { lazyIce().layFlame([...burn].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }), p.id); } catch { /* ไม่มีพื้นไฟ */ }
   } else if (element === "ice") {
-    hits = unitsOn(ctx, tiles).filter((u) => u.id !== p.id && !ctx.combat.sameTeam(p, u)).map((u) => { lazyIce().applySlow(u); return { id: u.id, dmg: 0 }; });
+    hits = unitsOn(ctx, tiles).filter((u) => u.id !== p.id && !ctx.combat.sameTeam(p, u)).map((u) => { lazyIce().applySlow(u); require("../element").apply(u, "ice", p); return { id: u.id, dmg: 0 }; }); // ธาตุน้ำแข็ง ❄️
     for (const t of tiles) if (WATERY.has(K(t.x, t.y))) { try { lazyIce().layIce(t.x, t.y, p.id, { bridge: true }); } catch { /* วางไม่ได้ */ } }
     ctx.bump();
-  } else {
+  } else require("../element").withElement("bolt", () => { // ธาตุสายฟ้า ⚡
     hits = hitArea(ctx, s, tiles, THUNDER_DMG, p);
     const body = waterBody(ctx, tiles);
     if (body.length) {
@@ -1855,7 +1855,7 @@ function throwFlask(ctx, s, p, element, tile) {
       const already = new Set(hits.map((h) => h.id));
       for (const u of unitsOn(ctx, body)) if (!already.has(u.id) && !ctx.action.walksThrough(u)) { if (ctx.combat.sameTeam(p, u)) continue; hits.push({ id: u.id, dmg: hurt(ctx, u, SHOCK_DMG, p), shock: true }); }
     }
-  }
+  });
   ctx.match.action.locked = true;
   p.exposedRound = ctx.match.roundNumber;
   ctx.fx("flask", { element, from: { ...p.pos }, to: { ...tile }, tiles, shock, hits, by: p.id });
