@@ -6,6 +6,7 @@ import { shopInfoOf, DRAW_ITEM_TYPES, BATTERY_MAX } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
+import { ELEMENTS, ELEMENT_KEYS } from "../../data/elements";
 
 const BOUND_ITEMS = ["kebread", "lawHeart", "giornoArrow"]; // ของประจำตัวละคร — ตรงกับ server/shop.js
 
@@ -46,13 +47,14 @@ function Icon({ info, className = "" }) {
 // statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
 // shops = ร้านบนแผนที่ที่ซื้อจากระยะไกลได้ (Gate of Babylon ของกิลกาเมช — me.remoteShop) · null = ไม่มีปุ่มร้าน · onShop(ร้าน) = เปิดร้านนั้น
 const SHOP_CREST = { apoth: "⚗️", forge: "⚙️", cara: "🐎", capsule: "📦" };
-export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop }) {
+export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb }) {
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
   const [swapWith, setSwapWith] = useState(null); // id เพื่อนที่กำลังเลือกของมาแลก
   const [amount, setAmount] = useState(1); // วงจรพลังงาน: จำนวนแต้มที่จะถอน
-  const [cleanseKey, setCleanseKey] = useState(null); // ยาล้างสถานะ: สถานะที่เลือกจะล้าง (ผู้ใช้สั่ง 2026-11-08 — เลือกเอง ลดทีละขั้น)
+  const [cleanseKey, setCleanseKey] = useState(null);
+  const [bombEl, setBombEl] = useState("fire"); // ระเบิดธาตุ: ธาตุที่จะโยน (เลือกตอนโยน — ผู้ใช้ตอบ 2026-11-14) // ยาล้างสถานะ: สถานะที่เลือกจะล้าง (ผู้ใช้สั่ง 2026-11-08 — เลือกเอง ลดทีละขั้น)
   const whistle = me?.whistle || null; // { cd, chance } · ยูนิตที่ถูกเรียก = ไม่มี
   const whistleSel = !!whistle && (selUid === WHISTLE || !items.length);
   const sel = whistleSel ? null : items.find((it) => it.uid === selUid) || items[0] || null;
@@ -125,6 +127,21 @@ export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = nu
             ))}
           </div>
           <button type="button" className="bag-btn primary" disabled={!myTurn || !chosen} onClick={() => { emit("useInventoryItem", { uid: sel.uid, status: chosen }); setCleanseKey(null); }}>ใช้</button>
+        </>
+      );
+    } else if (type === "elemBomb") {
+      // ระเบิดธาตุ: เลือกธาตุ 1 ใน 5 แล้วกดโยน → เลือกช่องบนกระดาน (Game.jsx pickReq "bomb")
+      actions = (
+        <>
+          <div className="bag-cleanse">
+            {ELEMENT_KEYS.map((k) => (
+              <button type="button" key={k} className="bag-cl" data-on={bombEl === k ? "true" : "false"} title={ELEMENTS[k].name} onClick={() => { clickSound(); setBombEl(k); }}>
+                <span className="ic">{ELEMENTS[k].icon}</span>
+                <span className="nm">{ELEMENTS[k].name}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="bag-btn primary" disabled={!myTurn || !onBomb} onClick={() => { clickSound(); onBomb(sel, bombEl); }}>โยน</button>
         </>
       );
     } else if (type === "kebread") {

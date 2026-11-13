@@ -147,3 +147,24 @@ test('ตีปกติใช้ฮุค attackElement · ดาเมจข�
   assert.equal(Element.auraOf(P.b), null);
   assert.equal(match.elemCtx, undefined);
 });
+
+test('ระเบิดธาตุ: ระยะเดินปกติ · วง 3×3 · ไม่มีดาเมจ · ไม่โดนเพื่อน · จุดปฏิกิริยาได้ · ระเบิดลม = พัดพา', () => {
+  const shop = require('../server/shop.js');
+  const action = require('../server/phases/action.js');
+  const P = setup([['a', 'muimi', 2, 7, 't1'], ['b', 'muimi', 5, 7, 't2'], ['c', 'muimi', 6, 8, 't2'], ['d', 'muimi', 5, 8, 't1']], 'duo');
+  const real = Math.random; Math.random = () => 0.99;
+  try {
+    const mov = action.baseMovOf(P.a);
+    assert.equal(shop.throwElemBomb(P.a, { x: 2 + mov + 1, y: 7 }, 'fire'), false, 'ไกลเกินระยะเดิน');
+    assert.equal(shop.throwElemBomb(P.a, { x: 5, y: 7 }, 'water'), true);
+    assert.equal(Element.auraOf(P.b), 'water');
+    assert.equal(Element.auraOf(P.c), 'water');
+    assert.equal(Element.auraOf(P.d), null, 'เพื่อนไม่โดน');
+    assert.equal(P.b.armor + P.b.hp, 10, 'ไม่มีดาเมจ');
+    shop.throwElemBomb(P.a, { x: 5, y: 7 }, 'fire'); // ระเหย
+    assert.equal(P.b.armor + P.b.hp, 7);
+    Element.apply(P.b, 'bolt', P.a);
+    shop.throwElemBomb(P.a, { x: 4, y: 6 }, 'wind'); // b โดน → พัด ⚡ ไป c
+    assert.equal(Element.auraOf(P.c), 'bolt');
+  } finally { Math.random = real; }
+});

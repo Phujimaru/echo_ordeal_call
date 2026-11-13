@@ -32,6 +32,7 @@ import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
+import { ELEMENTS } from "../data/elements";
 import ShopScreen from "./hud/shops/ShopScreen";
 import { shopName } from "../board/shopProps";
 import HikaruForms from "./hud/HikaruForms";
@@ -675,7 +676,7 @@ function ModalMounts({
   shop = null, onCloseShop, shopBlock,
   bagOpen, onCloseBag, players, gameState, roundNumber,
   myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse,
-  skillConfirm, onConfirmSkill, onCancelSkill, remoteShops = null, onRemoteShop,
+  skillConfirm, onConfirmSkill, onCancelSkill, remoteShops = null, onRemoteShop, onBomb,
 }) {
   return (
     <>
@@ -684,7 +685,7 @@ function ModalMounts({
       {shop && (newBag
         ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
         : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
-      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} />}
+      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb} />}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <CharVideoPreloader players={players} />
@@ -774,6 +775,12 @@ function LifeBar({ p, sm, className = "" }) {
 //  ใช้ทั้งป้ายเล็กบนการ์ดผู้เล่น และหน้าต่างรายละเอียด — ทุกคนเห็นสถานะของกันและกันได้
 //  (แตะ/คลิกการ์ดผู้เล่นตอนที่ไม่ได้เลือกเป้าโจมตี เพื่อเปิดดูคำอธิบายเต็ม)
 const STATUS_INFO = {
+  // ระบบธาตุ (server/element.js · GRID_PLAN §8.7): คราบธาตุ + น้ำแข็งกัด (ปฏิกิริยาเยือกแข็ง)
+  elFire:    { icon: "🔥", label: "คราบไฟ", cls: "bg-orange-400 text-gray-900", desc: "" },
+  elIce:     { icon: "❄️", label: "คราบน้ำแข็ง", cls: "bg-sky-200 text-gray-900", desc: "" },
+  elBolt:    { icon: "⚡", label: "คราบสายฟ้า", cls: "bg-yellow-300 text-gray-900", desc: "" },
+  elWater:   { icon: "💧", label: "คราบน้ำ", cls: "bg-blue-400 text-gray-900", desc: "" },
+  frostbite: { icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900", desc: "" },
   hbleed:    { icon: "🩸", label: "เลือดไหล", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1 และระหว่างนี้ฟื้นพลังชีวิตได้แค่ครึ่งเดียว" },
   hburn:     { icon: "🔥", label: "ลุกไหม้", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1" },
   nodraw:    { icon: "🚫", label: "ห้ามจั่ว", cls: "bg-echo-hp", desc: "จั่วไพ่เพิ่มไม่ได้" },
@@ -2277,6 +2284,10 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
       boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "bomb") {
+      // ระเบิดธาตุ (GRID_PLAN §8.7): เลือกช่องกลางในระยะเดินปกติ · กรอบ 3×3 ตามเมาส์
+      const el = ELEMENTS[pickReq.el] || ELEMENTS.fire;
+      boardPick = { kind: "tile", range: me.baseMov || me.mov || 0, place: "any", square: 3, label: `💣 ${el.icon} ${el.name}`, onPick: (tile) => { clickSound(); socket.emit("useInventoryItem", { uid: pickReq.uid, tile, element: pickReq.el }); done(); }, onCancel: done };
     } else if (pickReq.kind === "action") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
@@ -2799,6 +2810,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         myTurn={myTurn && !canto && !me?.summon} bagSlots={me?.bagSlots || state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
+        onBomb={(it, el) => { setBagOpen(false); setPickReq({ kind: "bomb", uid: it.uid, el }); }}
       />
       {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}
       {state.rideAsk && state.rideAsk.mine && (

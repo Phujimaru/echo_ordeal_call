@@ -15,7 +15,7 @@ const {
   BAG_SLOTS, BATTERY_MAX, BATTERY_REGEN, FORTUNE_MAX, GOLD_MAX, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_BATTERY_PRICE,
   SHOP_CARD_COLOR_PRICE, SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_INTERVAL_TURNS,
   SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE, SHOP_BARRICADE_PRICE,
-  SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV,
+  SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV, SHOP_ELEM_BOMB_PRICE, ELEM_BOMB_SIZE,
 } = require("./constants");
 const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("../characters/_universal_status");
 const Board = require("./board");
@@ -59,7 +59,7 @@ function addGold(p, n) {
 const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง" };
 const SHOP_ITEMS = {
   apoth: ["fortune", "cardColor", "cardCut", "armor", "cleanse", "resist"],
-  forge: ["windBoots", "battery"],
+  forge: ["windBoots", "battery", "elemBomb"],
   cara: ["lifeCrystal", "armorCrystal"],
 };
 const SHOP_DIMS = { apoth: [1, 1], forge: [1, 1], cara: [2, 1], capsule: [1, 1] };
@@ -76,6 +76,7 @@ function shopCatalog(kind) {
     { type: "resist", price: SHOP_RESIST_PRICE },
     { type: "windBoots", price: SHOP_WIND_BOOTS_PRICE },
     { type: "battery", price: SHOP_BATTERY_PRICE },
+    { type: "elemBomb", price: SHOP_ELEM_BOMB_PRICE },
     { type: "lifeCrystal", price: SHOP_LIFE_CRYSTAL_PRICE },
     { type: "armorCrystal", price: SHOP_ARMOR_CRYSTAL_PRICE },
   ];
@@ -93,6 +94,7 @@ function shopItemName(item) {
   if (item.type === "lifeCrystal") return "ผลึกชีวิต";
   if (item.type === "armorCrystal") return "ผลึกเกราะ";
   if (item.type === "windBoots") return "รองเท้าวายุ";
+  if (item.type === "elemBomb") return "ระเบิดธาตุ";
   if (item.type === "armor") return `ยาฟื้นเกราะ +${item.value}`;
   if (item.type === "kebread") return "ขนมปัง";
   if (item.type === "giornoArrow") return "ธนู Requiem";
@@ -520,6 +522,16 @@ function useInventoryItem(id, uid, opts = {}) {
     view.broadcastState();
     return;
   }
+  // ---------- ระเบิดธาตุ (ผู้ใช้สั่ง 2026-11-14 · GRID_PLAN §8.7): โยนไปช่องในระยะเดินปกติ → วง 3×3 เป็นธาตุที่เลือก ----------
+  //  opts.tile = ช่องกลาง · opts.element = fire/ice/bolt/water/wind · ไม่มีดาเมจ (ปฏิกิริยามีดาเมจได้) · ไม่โดนตัวเอง/เพื่อน · ทอยหลบรายตัว
+  if (item.type === "elemBomb") {
+    if (!throwElemBomb(p, opts.tile, opts.element)) return;
+    action.lockMove(p);
+    p.inventory.splice(p.inventory.indexOf(item), 1);
+    itemUsed(p, item);
+    view.broadcastState();
+    return;
+  }
   if (item.type === "resist") {
     p.statuses.resist = Math.max(p.statuses.resist || 0, SHOP_RESIST_TURNS);
     match.lastLog.push(`🛡️ ${p.name} ใช้ยาต้านสถานะ — ต้านสถานะผิดปกติ ${SHOP_RESIST_TURNS} เทิร์น จากคลัง`);
@@ -567,6 +579,32 @@ function useInventoryItem(id, uid, opts = {}) {
   p.inventory.splice(idx, 1);
   itemUsed(p, item);
   view.broadcastState();
+}
+// ระเบิดธาตุ: ช่องกลางต้องอยู่ในระยะเดินปกติ (แมนฮัตตันจากขอบตัว) · ทุกช่องในกระดาน
+function throwElemBomb(p, tile, element) {
+  const Element = require("./element");
+  if (!p.pos || !tile || !Number.isFinite(tile.x) || !Number.isFinite(tile.y) || !Element.ELEMENTS[element]) return false;
+  const map = action.boardMap();
+  if (!Board.inBounds(map, tile.x, tile.y)) return false;
+  const range = action.baseMovOf(p);
+  if (Board.dist({ x: p.pos.x, y: p.pos.y, size: action.sizeOf(p) }, { x: tile.x, y: tile.y, size: 1 }) > range) return false;
+  const h = Math.floor(ELEM_BOMB_SIZE / 2);
+  const tiles = [];
+  for (let dy = -h; dy < ELEM_BOMB_SIZE - h; dy++) for (let dx = -h; dx < ELEM_BOMB_SIZE - h; dx++) {
+    const x = Board.wx(tile.x + dx), y = tile.y + dy;
+    if (Board.inBounds(map, x, y)) tiles.push({ x, y });
+  }
+  const inBlast = (u) => Board.footprint(u.pos.x, u.pos.y, action.sizeOf(u)).some((c) => tiles.some((t) => t.x === c.x && t.y === c.y));
+  const foes = Object.values(match.players).filter((u) => u.alive && u.pos && u.id !== p.id && !combat.sameTeam(p, u) && !Dim.blocks(u) && inBlast(u));
+  const hits = foes.filter((u) => !require("./phases/attack").skillDodge(p, u, "ระเบิดธาตุ"));
+  const info = Element.ELEMENTS[element];
+  engine.boardFx("elemBomb", { by: p.id, from: { ...p.pos }, to: { x: tile.x, y: tile.y }, el: element, tiles, hits: hits.map((u) => u.id) });
+  engine.sfx(`elem_bomb_${element}`);
+  match.lastLog.push(`💣 ${p.name} โยนระเบิดธาตุ${info.name} ${info.icon}${hits.length ? ` — โดน ${hits.map((u) => u.name).join(", ")}` : ""}`);
+  if (element === "wind") Element.windBurst(hits, p);
+  else for (const u of hits) Element.apply(u, element, p);
+  for (const u of hits) if (!u.alive) u.pos = null;
+  return true;
 }
 // ใช้ไอเทมจากกระเป๋าสำเร็จ → ฮุค onItemUsed(engine, p, item) ของตัวละครผู้ใช้ (ออพติมัส ไพร์ม: คริ +25% จนจบเทิร์น)
 function itemUsed(p, item) {
@@ -622,4 +660,4 @@ function cleansableOf(p) {
   if (!p || !p.statuses) return [];
   return BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP).filter((k) => (p.statuses[k] || 0) > 0);
 }
-Object.assign(module.exports, { SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop });
+Object.assign(module.exports, { SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop, throwElemBomb });

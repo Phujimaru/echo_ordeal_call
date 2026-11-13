@@ -46,6 +46,7 @@ const stockOf = (it) => ({ n: it.stock ?? 1, max: it.stockMax ?? 1 });
 function dialsOf(it) {
   if (it.type === "windBoots") return [["+2", "ระยะเดิน", 40], ["1", "ตา", 20]];
   if (it.type === "battery") return [[String(BATTERY_MAX), "ความจุ", 100], ["+1", "ต่อเทิร์น", 20]];
+  if (it.type === "elemBomb") return [["3×3", "พื้นที่", 60], ["5", "ธาตุ", 100]];
   return [];
 }
 

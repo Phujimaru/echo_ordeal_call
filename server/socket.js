@@ -380,7 +380,7 @@ io.on('connection', (socket) => {
   }, 12);
   onUnitEvent(socket, 'viewShop', (id, { shopId } = {}) => shop.viewShop(id, shopId), 8); // เปิดดูร้าน = ล็อกการเดิน
   onUnitEvent(socket, 'buyShopItem', (id, { shopId, itemId } = {}) => shop.buyShopItem(id, shopId, itemId), 8);
-  onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, amount, status } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, amount, status })), 8);
+  onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, amount, status, tile, element } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, amount, status, tile, element })), 8);
   onUnitEvent(socket, 'blowWhistle', (id) => combat.withEffectSource(match.players[id], () => require('./whistle').blow(id)), 8); // นกหวีดอัญเชิญมนต์อสูรเทพ (ช่องพิเศษที่ 6)
   onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
   // ให้/แลกของกับเพื่อนร่วมทีมที่ยืนติดกัน (โหมดร่วมมือ · ตาตัวเอง · ทันที)
