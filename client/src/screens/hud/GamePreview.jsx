@@ -160,6 +160,11 @@ export default function GamePreview() {
                 </select>
               </label>
               <Toggle label="lowQ" on={opts.lowQ} set={(v) => setOpts((o) => ({ ...o, lowQ: v }))} />
+              {/* ระบบธาตุ (GRID_PLAN §8.7): เล่นเอฟเฟกต์ + เสียงของแต่ละปฏิกิริยา/ระเบิดธาตุ ที่ฟ้าใส (9,7) */}
+              <div style={{ ...ROW, marginTop: 6 }}>ธาตุ</div>
+              {ELEM_DEMO.map((d) => (
+                <button key={d.key} type="button" style={btn(false)} onClick={() => playElemDemo(d)}>{d.label}</button>
+              ))}
               <button type="button" style={btn(false)} onClick={() => { setSeq((n) => n + 1); setRemount((n) => n + 1); }}>
                 รีเซ็ตฉาก
               </button>
@@ -169,6 +174,30 @@ export default function GamePreview() {
       )}
     </>
   );
+}
+
+// ---------- ระบบธาตุ: ปุ่มดูเอฟเฟกต์ + เสียง (เรียกตัวรับ socket ในหน้าเอง เหมือน server ส่งมา) ----------
+const ELEM_DEMO = [
+  { key: "burst", label: "🔥❄️ ปะทุ", a: "fire", b: "ice", name: "ปะทุ" },
+  { key: "blast", label: "🔥⚡ ระเบิด", a: "fire", b: "bolt", name: "ระเบิด" },
+  { key: "vapor", label: "🔥💧 ระเหย", a: "fire", b: "water", name: "ระเหย" },
+  { key: "erode", label: "❄️⚡ กัดเซาะ", a: "ice", b: "bolt", name: "กัดเซาะ" },
+  { key: "freeze", label: "❄️💧 เยือกแข็ง", a: "ice", b: "water", name: "เยือกแข็ง" },
+  { key: "conduct", label: "⚡💧 นำไฟฟ้า", a: "bolt", b: "water", name: "นำไฟฟ้า" },
+  { key: "swirl", label: "🌪️ พัดพา", a: "wind", b: "fire", name: "พัดพา" },
+  ...["fire", "ice", "bolt", "water", "wind"].map((el) => ({ key: `bomb_${el}`, bomb: el, label: `💣 ระเบิด${{ fire: "ไฟ", ice: "น้ำแข็ง", bolt: "สายฟ้า", water: "น้ำ", wind: "ลม" }[el]}` })),
+];
+function playElemDemo(d) {
+  const fire = (ev, payload) => socket.listeners(ev).forEach((f) => f(payload));
+  const at = { x: 9, y: 7 };
+  if (d.bomb) {
+    const tiles = [8, 9, 10].flatMap((x) => [6, 7, 8].map((y) => ({ x, y })));
+    fire("elemBomb", { el: d.bomb, from: { x: 5, y: 7 }, to: at, tiles, hits: ["p1"] });
+    playSfx(`elem_bomb_${d.bomb}`);
+    return;
+  }
+  fire("elemReact", { key: d.key, name: d.name, a: d.a, b: d.b, id: "p1", at, ring: ["p4", "p3"], size: 1 });
+  playSfx(`elem_${d.key}`);
 }
 
 function Toggle({ label, on, set }) {
