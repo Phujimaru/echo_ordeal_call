@@ -12,7 +12,7 @@ const css = ["arena.css", "index.css"]
 // ฉากประกาศแต่ละอันกินจอเต็มใบ เดิมต่างคนต่างตั้งเวลาของตัวเอง จึงเล่นทับกันได้
 //  (ที่ชนบ่อยที่สุด: กลางวัน-กลางคืนสลับทุก 3 เทิร์น เด้งพร้อม "เริ่มจั่วการ์ด" ที่ต้นเทิร์นพอดี)
 //  ทั้งหมดต้องไหลผ่านคิวเดียว ซึ่งเล่นทีละอันเสมอ
-const SCENE_PREFIX = { cycle: "cy", draw: "dc", atk: "ac", shop: "sh" };
+const SCENE_PREFIX = { cycle: "cy", draw: "dc", atk: "ac", shop: "shh" }; // ป้ายร้านค้าออกแบบใหม่ 2026-11-10 (ShopHerald .shh-*)
 
 function sceneDurations() {
   const m = /const SCENE_MS = \{([^}]*)\}/.exec(game);
@@ -47,8 +47,11 @@ test("แต่ละฉากถูกเรนเดอร์จากหั�
   const desktopAt = lines.findIndex((l) => l.includes("จอคอม/แท็บเล็ต: กระดานเดินได้"));
   assert.ok(desktopAt > 0, "หาจุดเริ่มกระดานจอคอมไม่เจอ");
   // ฉาก "atk" (เฟส ATTACK แบบเดิม) เหลือแค่โค้ดมือถือ — ระบบกระดานไม่มีเฟสนี้แล้ว
+  // ฉาก shop เรนเดอร์ผ่าน shopShowing (= scene?.kind === "shop" และคิวไม่ถูกกั้น — ป้ายเข้าพื้นที่ Eos ขึ้นอยู่ = รอ)
+  assert.match(game, /const shopShowing = scene\?\.kind === "shop" && !sceneBlocked;/, "shopShowing ต้องมาจากหัวคิว");
+  const MARK = { draw: 'scene?.kind === "draw"', shop: "shopShowing && <ShopHerald" };
   for (const kind of ["draw", "shop"]) {
-    const at = lines.reduce((acc, l, i) => (l.includes(`scene?.kind === "${kind}"`) ? [...acc, i] : acc), []);
+    const at = lines.reduce((acc, l, i) => (l.includes(MARK[kind]) ? [...acc, i] : acc), []);
     assert.equal(at.length, 2, `ฉาก ${kind} ถูกเรนเดอร์ ${at.length} จุด (ต้องเป็น 2: มือถือ + จอคอม)`);
     assert.ok(at.some((i) => i < desktopAt) && at.some((i) => i > desktopAt), `ฉาก ${kind} ขาดไปกระดานหนึ่ง`);
   }
@@ -71,7 +74,7 @@ test("เวลาในคิวยาวพอให้อนิเมชั�
 test("แบนเนอร์เปลี่ยนเทิร์นและคัตซีนกั้นคิวไว้ ไม่ให้ฉากอื่นเล่นทับ", () => {
   assert.match(
     game,
-    /const sceneBlocked = phase === "TRANSITION" \|\| phase === "CUTSCENE";/,
+    /const sceneBlocked = phase === "TRANSITION" \|\| phase === "CUTSCENE"[ ;|]/, // เงื่อนไขเพิ่มเติมต่อท้ายได้ (ป้ายร้านรอป้ายเข้าพื้นที่ Eos)
     "คิวต้องหยุดระหว่างแบนเนอร์เปลี่ยนเทิร์นและคัตซีน",
   );
 });
