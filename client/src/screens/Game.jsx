@@ -1951,6 +1951,23 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   // เสียง UI จากสถานะของเรา (ผู้ใช้สั่ง 2026-11-14): เหรียญเพิ่ม = coin · ของในกระเป๋าลด (ใช้/ทิ้ง/ให้) = item
   const goldNow = me ? me.gold || 0 : 0, bagNow = me ? (me.inventory || []).length : 0;
   const lastGold = useRef(goldNow), lastBag = useRef(bagNow);
+  // ด่าน Origin: เสียงเหตุการณ์ภูมิภาคตอนจบเทิร์น (ผู้ใช้สั่ง 2026-11-14 — characters/_journey.js onEndTurn ส่งเป็นบรรทัด log) · เสียงละชนิดครั้งเดียวต่อเทิร์น
+  const seenLogs = useRef(new Set());
+  useEffect(() => {
+    const lines = state.log || [], want = new Set();
+    for (const raw of lines) {
+      const l = String(raw && raw.text != null ? raw.text : raw), k = `${state.roundNumber}|${l}`;
+      if (seenLogs.current.has(k)) continue;
+      seenLogs.current.add(k);
+      if (/^🌼/.test(l)) want.add("jr_gift");
+      else if (/^🌊/.test(l)) want.add("jr_toll");
+      else if (/^☀️ แดดทะเลทราย/.test(l)) want.add("jr_heat");
+      else if (/^🔥 เปลวไฟแห่งจุดจบ/.test(l) || /^🥀/.test(l)) want.add("jr_burn");
+      else if (/^❄️ .*แช่แข็ง/.test(l)) want.add("elem_freeze");
+    }
+    if (seenLogs.current.size > 400) seenLogs.current = new Set();
+    for (const s of want) playSfx(s, { gain: 0.8 });
+  }, [state.log, state.roundNumber]);
   useEffect(() => {
     if (goldNow > lastGold.current) uiSound("coin");
     if (bagNow < lastBag.current) uiSound("item");

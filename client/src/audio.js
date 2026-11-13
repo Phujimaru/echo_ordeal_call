@@ -48,6 +48,22 @@ const FILES = {
   journey_6_night: "/journey/map6/Fire Emblem Engage Tear Streaked.mp3",
   journey_7_day: "/journey/map7/Fire Emblem Engage Distorted Flash of Light (Battle).mp3",
   journey_7_night: "/journey/map7/Fire Emblem Engage Distorted Flash of Light.mp3",
+  // ด่าน Origin (การเดินทาง): เสียงบรรยากาศรายภูมิภาค กลางวัน/กลางคืน + เสียงเหตุการณ์ภูมิภาค (ผู้ใช้สั่ง 2026-11-14 · Mixkit — public/journey/sfx/LICENSE-mixkit.txt)
+  amb_1_day: "/journey/sfx/amb_1_day.m4a",
+  amb_1_night: "/journey/sfx/amb_1_night.m4a",
+  amb_2_day: "/journey/sfx/amb_2_day.m4a",
+  amb_2_night: "/journey/sfx/amb_2_night.m4a",
+  amb_3_day: "/journey/sfx/amb_3_day.m4a",
+  amb_3_night: "/journey/sfx/amb_3_night.m4a",
+  amb_4_day: "/journey/sfx/amb_4_day.m4a",
+  amb_4_night: "/journey/sfx/amb_4_night.m4a",
+  amb_5_day: "/journey/sfx/amb_5_day.m4a",
+  amb_5_night: "/journey/sfx/amb_5_night.m4a",
+  amb_6_day: "/journey/sfx/amb_6_day.m4a",
+  amb_6_night: "/journey/sfx/amb_6_night.m4a",
+  amb_7_day: "/journey/sfx/amb_7_day.m4a",
+  amb_7_night: "/journey/sfx/amb_7_night.m4a",
+  jr_gift: "/journey/sfx/jr_gift.m4a", jr_toll: "/journey/sfx/jr_toll.m4a", jr_heat: "/journey/sfx/jr_heat.m4a", jr_burn: "/journey/sfx/jr_burn.m4a",
   // โหมด Fodlan (GRID_PLAN §8.5 · ไฟล์จากผู้ใช้ 2026-10-27): เพลงต่อด่าน · _wx = ตอนเกิดสภาพอากาศ (ด่าน V = ออร่า)
   //  เริ่มเล่นตอนฉากเข้าด่าน (fodlan/fodlanFlight.js · FodlanTravel.jsx) · เสียงบรรยากาศแยกอยู่ fodlan/fodlanAudio.js
   eos_intro: "/eos/music/somnus.mp3", // สนาม Eos: ฉากเปิด (Somnus — ผู้ใช้ส่งมา 2026-11-10)
@@ -1180,6 +1196,35 @@ export function clickSound() {
   lastClickAt = now;
   playSfx("action_button");
 }
+// ---------- เสียงบรรยากาศ (ด่าน Origin — ผู้ใช้สั่ง 2026-11-14 "ไม่มีเสียงบรรยากาศพื้นหลัง") ----------
+//  setAmbient(name | null): ลูปเบาๆ ใต้เพลง (ช่อง sfx) · เปลี่ยนชื่อ = เฟดข้าม 1.5 วิ · null = เฟดออก
+const AMB_BASE = 0.3, AMB_FADE = 1500;
+let amb = null, ambName = null;
+const ambVol = () => Math.min(1, AMB_BASE * masterGain() * channelGain("sfx") * sfxDuck());
+function fadeAudio(a, to, ms, done) {
+  const from = a.volume, t0 = Date.now();
+  if (a._ambFade) clearInterval(a._ambFade);
+  a._ambFade = setInterval(() => {
+    const k = Math.min(1, (Date.now() - t0) / ms);
+    a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+    if (k >= 1) { clearInterval(a._ambFade); a._ambFade = null; if (done) done(); }
+  }, 50);
+}
+export function setAmbient(name) {
+  const next = name && FILES[name] ? name : null;
+  if (next === ambName) return;
+  ambName = next;
+  const old = amb;
+  amb = null;
+  if (old) fadeAudio(old, 0, AMB_FADE, () => { old.pause(); old.src = ""; });
+  if (!next) return;
+  const a = new Audio(FILES[next]);
+  a.loop = true; a.volume = 0;
+  a.play().catch(() => {});
+  amb = a;
+  fadeAudio(a, ambVol(), AMB_FADE);
+}
+onVolumeChange(() => { if (amb && !amb._ambFade) amb.volume = ambVol(); });
 // ---------- เสียง UI (ผู้ใช้สั่ง 2026-11-14 "หาเสียง effect ทั้งระบบ — hover เลื่อนปุ่ม แจ้งเตือน เปิดกระเป๋า ทุกอย่าง") ----------
 //  kind: hover · open · close · tab · toggle_on · toggle_off · select · back · deny · confirm · notify · item · coin · tick
 //  ความดังต่อชนิด (ไฟล์ Kenney ดังเกือบเต็ม 0 dB — ลดให้อยู่ใต้เสียงเกม) · กันเล่นซ้ำถี่เกิน (UI_GAP ms ต่อชนิด)

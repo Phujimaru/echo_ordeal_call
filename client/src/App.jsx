@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { publishTick, getTickSeconds } from "./tickStore";
 import { socket, connectData } from "./socket";
-import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound, installHoverSound } from "./audio";
+import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound, installHoverSound, setAmbient } from "./audio";
 import { musicForState, createPhaseSoundTracker, isMatchPhase } from "./audioPolicy";
 import Setup from "./screens/Setup";
 import CharacterSelect from "./screens/CharacterSelect";
@@ -378,6 +378,9 @@ export default function App() {
       });
       if (track.name) playMusic(track.name, track.seq);
       else stopMusic();
+      // ด่าน Origin: เสียงบรรยากาศตามภูมิภาค/กลางวัน-คืน ใต้เพลงภูมิภาค (เฉพาะตอนเพลงภูมิภาคเล่นอยู่ — ไม่ทับเพลงท่าไม้ตาย/วีดีโอ)
+      const jn = String(track.name || "").match(/^journey_(\d)_(day|night)$/);
+      setAmbient(jn ? `amb_${jn[1]}_${jn[2]}` : null);
     }
 
     // เปลี่ยนจาก "เลือกการ์ด" ไปสรุปผล -> เสียง trun_change (ยกเว้นเข้า cutscene)
