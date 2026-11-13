@@ -1440,6 +1440,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (!e || !e.to || !e.from) return;
       look(e.to);
       pushFx([{ kind: "elBomb", el: e.el, from: e.from, to: e.to, tiles: e.tiles || [], x: e.to.x, y: e.to.y, size: 1 }]);
+      if (!lowQ) timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: e.el === "bolt" || e.el === "fire" ? 9 : 6, dur: 700 }]), 600)); // ตกพื้น (BOMB_FLY 0.3 × 2 วิ)
     };
     socket.on("elemAura", onAura);
     socket.on("elemReact", onReact);

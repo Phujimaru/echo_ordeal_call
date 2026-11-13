@@ -11,7 +11,8 @@
 //  lowQ = ตัดอนุภาค · ลดการเคลื่อนไหว = นิ่ง
 // ============================================================
 import { P, gEllipse, glow } from "./boardGeo";
-import { elReact } from "./elementReactFx"; // ฉากปฏิกิริยา (รอบ 2 — อิงขนาดช่องจริง)
+import { elReact } from "./elementReactFx";
+import { elBombFx } from "./elementBombFx"; // ระเบิดธาตุ รอบ 2 // ฉากปฏิกิริยา (รอบ 2 — อิงขนาดช่องจริง)
 
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
@@ -20,7 +21,7 @@ export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,7
 const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️" };
 const WHITE = "255,255,255", STEAM = "235,240,245";
 
-export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 1300, elAura: 800 };
+export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 2000, elAura: 800 };
 export const isElemFx = (kind) => typeof kind === "string" && (kind in ELEM_FX_DUR);
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -118,35 +119,10 @@ export function elemFx(g, e, now, lowQ) {
     g.lineWidth = Math.max(3, fs * 0.16); g.strokeStyle = "rgba(10,14,28,.92)"; g.strokeText(e.name || "", x, y);
     g.shadowColor = rgba(a, 0.9); g.shadowBlur = fs * 0.5; g.fillStyle = gr; g.fillText(e.name || "", x, y);
   } else if (e.kind === "elBomb" && okT(e.from) && okT(e.to)) {
-    elBomb(g, e, p, lowQ);
+    elBombFx(g, e, p, lowQ);
   } else if (e.kind === "elReact" && okT(e.at)) {
     elReact(g, e, p, lowQ);
   }
   g.restore();
 }
 
-function elBomb(g, e, p, lowQ) {
-  const rgb = EL_RGB[e.el] || WHITE, fly = 0.42;
-  const [fx, fy] = mid(e.from), [tx, ty] = mid(e.to);
-  if (p < fly) { // ลูกระเบิดโค้ง
-    const q = p / fly, wx = fx + (tx - fx) * q, wy = fy + (ty - fy) * q, z = 0.5 + Math.sin(q * Math.PI) * 1.8;
-    const [x, y, s] = P(wx, wy, z);
-    additive(g, () => glow(g, x, y, s * 0.35, rgb, 0.9));
-    g.fillStyle = "rgba(30,34,44,1)"; g.beginPath(); g.arc(x, y, Math.max(3, s * 0.1), 0, TAU); g.fill();
-    g.strokeStyle = rgba(rgb, 1); g.lineWidth = 2; g.stroke();
-    return;
-  }
-  const q = (p - fly) / (1 - fly), k = env(q, 0, 0.08, 0.55, 1);
-  for (const t of e.tiles || []) { // พื้นวง 3×3 เรืองสีธาตุ
-    const c = [P(t.x, t.y, 0.01), P(t.x + 1, t.y, 0.01), P(t.x + 1, t.y + 1, 0.01), P(t.x, t.y + 1, 0.01)];
-    g.fillStyle = rgba(rgb, 0.32 * k); g.beginPath(); g.moveTo(c[0][0], c[0][1]); for (const v of c.slice(1)) g.lineTo(v[0], v[1]); g.closePath(); g.fill();
-  }
-  ring(g, tx, ty, 0.3 + easeOut3(q) * 1.4, 0.03, rgb, 0.9 * (1 - q), 4);
-  const [x, y, s] = P(tx, ty, 0.4);
-  additive(g, () => glow(g, x, y, s * (0.6 + q * 1.2), rgb, 0.55 * (1 - q)));
-  if (!lowQ) for (let i = 0; i < 16; i++) {
-    const h = hash01((e.t0 | 0) + i), an = h * TAU, rr = easeOut3(q) * (0.6 + h * 0.9);
-    const [px, py, ps] = P(tx + Math.cos(an) * rr, ty + Math.sin(an) * rr, 0.2 + Math.sin(q * Math.PI) * 0.8 * h);
-    g.fillStyle = rgba(rgb, 0.9 * (1 - q)); g.beginPath(); g.arc(px, py, Math.max(1, ps * 0.04), 0, TAU); g.fill();
-  }
-}

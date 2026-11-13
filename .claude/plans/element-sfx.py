@@ -124,32 +124,32 @@ def swirl():  # พัดพา: ลมหวีดหวิว
 
 
 # ---------------------------------------------------------------- ระเบิดธาตุ (โยน → แตก ที่ ~0.48 วิ ตรงกับภาพ)
-HIT = 0.48
+HIT = 0.6  # ตรงกับภาพ: ลอย BOMB_FLY 0.3 × 2 วิ (elementBombFx.js)
 
 
 def bomb_fire():
-    d = 1.3; o = buf(d); toss(o)
+    d = 1.5; o = buf(d); toss(o)
     put(o, thump(0.5, 90, 40, 7, 0.8), HIT)
     put(o, band(noise(0.8), 150, 2500) * 0.6 * env_exp(0.8, 3.5, 0.02), HIT)  # ฟู่ไฟลุก
     return softclip(reverb(o, 0.18, 0.9), 1.5)
 
 
 def bomb_ice():
-    d = 1.2; o = buf(d); toss(o)
+    d = 1.5; o = buf(d); toss(o)
     put(o, thump(0.3, 140, 60, 10, 0.5), HIT)
     shatter(o, HIT, 20, 0.45)
     return reverb(o, 0.25, 1.0)
 
 
 def bomb_bolt():
-    d = 1.3; o = buf(d); toss(o)
+    d = 1.5; o = buf(d); toss(o)
     put(o, zap(0.4, 150, 0.7) * env_lin(0.4, 0.005, 0.39), HIT)
     thunder_crack(o, HIT, 0.5)
     return softclip(reverb(o, 0.15, 0.8), 1.5)
 
 
 def bomb_water():
-    d = 1.2; o = buf(d); toss(o)
+    d = 1.5; o = buf(d); toss(o)
     put(o, thump(0.25, 160, 70, 12, 0.5), HIT)
     put(o, band(noise(0.5), 400, 5000) * 0.7 * env_exp(0.5, 7, 0.005), HIT)  # สาด
     for _ in range(14):  # หยดตกกลับ
@@ -158,7 +158,7 @@ def bomb_water():
 
 
 def bomb_wind():
-    d = 1.3; o = buf(d); toss(o)
+    d = 1.5; o = buf(d); toss(o)
     put(o, thump(0.2, 110, 60, 14, 0.4), HIT)
     put(o, whoosh(0.8, 200, 1500, 0.8), HIT)
     return reverb(o, 0.25, 1.0)
@@ -167,8 +167,8 @@ def bomb_wind():
 SOUNDS = {
     "elem_burst": (burst, 1.0), "elem_blast": (blast, 1.3), "elem_vapor": (vapor, 1.1), "elem_erode": (erode, 0.95),
     "elem_freeze": (freeze, 1.0), "elem_conduct": (conduct, 0.8), "elem_swirl": (swirl, 1.1),
-    "elem_bomb_fire": (bomb_fire, 1.3), "elem_bomb_ice": (bomb_ice, 1.2), "elem_bomb_bolt": (bomb_bolt, 1.3),
-    "elem_bomb_water": (bomb_water, 1.2), "elem_bomb_wind": (bomb_wind, 1.3),
+    "elem_bomb_fire": (bomb_fire, 1.5), "elem_bomb_ice": (bomb_ice, 1.5), "elem_bomb_bolt": (bomb_bolt, 1.5),
+    "elem_bomb_water": (bomb_water, 1.5), "elem_bomb_wind": (bomb_wind, 1.5),
 }
 if __name__ == "__main__":
     args = sys.argv[1:]
