@@ -214,7 +214,7 @@ function strike(ctx, s) {
   }
   ctx.log(`⚡ ฟ้าผ่าลง ${s.warn.length} จุด`);
   for (const p of hits) {
-    const dealt = ctx.damage(p, LIGHTNING_DMG);
+    const dealt = require("../element").withElement("bolt", () => ctx.damage(p, LIGHTNING_DMG)); // ฟ้าผ่า = ธาตุสายฟ้า ⚡ (GRID_PLAN §8.7.1 · ไม่มีต้นตอ)
     ctx.log(`⚡ ${p.name} โดนฟ้าผ่า -${dealt}`);
   }
   s.warn = null;

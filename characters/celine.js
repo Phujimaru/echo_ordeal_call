@@ -227,6 +227,7 @@ function wall(engine, p, tile, orient, dir) {
   const ctx = engine.ice.begin();
   const v = dirVec(dir);
   engine.withEffectSource(p, () => { for (const u of plan.pushes) engine.ice.pushUnit(u, v, ctx, 1); });
+  for (const u of plan.pushes) engine.elementApply(u, "ice", p); // กำแพงน้ำแข็ง = ธาตุน้ำแข็ง ❄️ กับศัตรูที่ถูกผลัก (GRID_PLAN §8.7.1 · ไม่มีดาเมจ)
   const placed = plan.tiles.filter((t) => engine.tileFree(t.x, t.y) && engine.ice.placeWall(t.x, t.y, p.id));
   s.wallCount += 1;
   if (s.wallCount >= WALL_LIMIT) { s.wallCount = 0; s.wallReady = r + WALL_CD; }
