@@ -11,6 +11,7 @@
 //  lowQ = ตัดอนุภาค · ลดการเคลื่อนไหว = นิ่ง
 // ============================================================
 import { P, gEllipse, glow } from "./boardGeo";
+import { elReact } from "./elementReactFx"; // ฉากปฏิกิริยา (รอบ 2 — อิงขนาดช่องจริง)
 
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
@@ -19,7 +20,7 @@ export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,7
 const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️" };
 const WHITE = "255,255,255", STEAM = "235,240,245";
 
-export const ELEM_FX_DUR = { elReact: 1500, elName: 1600, elBomb: 1300, elAura: 800 };
+export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 1300, elAura: 800 };
 export const isElemFx = (kind) => typeof kind === "string" && (kind in ELEM_FX_DUR);
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -96,12 +97,6 @@ function drop(g, x, y, s, rgb, a) {
   g.fillStyle = rgba(rgb, a); g.beginPath(); g.moveTo(x, y - s * 1.8);
   g.quadraticCurveTo(x + s, y, x, y + s); g.quadraticCurveTo(x - s, y, x, y - s * 1.8); g.fill();
 }
-function bolt(g, x0, y0, x1, y1, rgb, a, w, seed, seg = 7) {
-  g.strokeStyle = rgba(rgb, a); g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0);
-  const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
-  for (let i = 1; i < seg; i++) { const q = i / seg, j = (hash01(seed + i) - 0.5) * len * 0.22; g.lineTo(x0 + dx * q + nx * j, y0 + dy * q + ny * j); }
-  g.lineTo(x1, y1); g.stroke();
-}
 function ring(g, wx, wy, r, z, rgb, a, w) { gEllipse(g, wx, wy, r, z, 44); g.strokeStyle = rgba(rgb, a); g.lineWidth = w; g.stroke(); }
 
 // ---------- เหตุการณ์ ----------
@@ -153,113 +148,5 @@ function elBomb(g, e, p, lowQ) {
     const h = hash01((e.t0 | 0) + i), an = h * TAU, rr = easeOut3(q) * (0.6 + h * 0.9);
     const [px, py, ps] = P(tx + Math.cos(an) * rr, ty + Math.sin(an) * rr, 0.2 + Math.sin(q * Math.PI) * 0.8 * h);
     g.fillStyle = rgba(rgb, 0.9 * (1 - q)); g.beginPath(); g.arc(px, py, Math.max(1, ps * 0.04), 0, TAU); g.fill();
-  }
-}
-
-function elReact(g, e, p, lowQ) {
-  const n = Math.max(1, e.size | 0), [wx, wy] = mid(e.at, n), K = (1 + (n - 1) * 0.6) * 1.45; // ×1.45 = ใหญ่ขึ้น (ผู้ใช้: ดูไม่ออกว่ามีเอฟเฟกต์)
-  const A = EL_RGB[e.a] || WHITE, B = EL_RGB[e.b] || A, seed = (e.t0 | 0) % 997;
-  const [x, y, s] = P(wx, wy, 0.5);
-  const others = (e.ringAt || []).filter(okT).map((t) => mid(t, t.size || 1));
-  switch (e.rx) { // ชนิดปฏิกิริยา (ห้ามใช้ key — pushFx เขียนทับเป็นเลขลำดับ)
-    case "burst": { // ปะทุ: วาบขาวที่เป้า → วงกระแทกครึ่งร้อนครึ่งเย็น
-      const k = env(p, 0, 0.06, 0.3, 0.6);
-      additive(g, () => glow(g, x, y, s * 1.3 * K, WHITE, 0.85 * k));
-      const q = easeOut3(clamp01(p / 0.75));
-      gEllipse(g, wx, wy, (0.4 + q * 1.3) * K, 0.03, 48); g.lineWidth = 6 * (1 - q) + 1;
-      const gr = g.createLinearGradient(x - s * 2, y, x + s * 2, y); gr.addColorStop(0, rgba(A, 0.95 * (1 - q))); gr.addColorStop(1, rgba(B, 0.95 * (1 - q)));
-      g.strokeStyle = gr; g.stroke();
-      if (!lowQ) for (let i = 0; i < 18; i++) { // เศษน้ำแข็ง + ประกายไฟ
-        const h = hash01(seed + i), an = h * TAU, rr = q * (0.6 + h) * K;
-        const [px, py, ps] = P(wx + Math.cos(an) * rr, wy + Math.sin(an) * rr, 0.3 + Math.sin(q * Math.PI) * h);
-        if (i % 2) flake(g, px, py, ps * 0.06, B, 0.9 * (1 - q), an); else { g.fillStyle = rgba(A, 0.9 * (1 - q)); g.beginPath(); g.arc(px, py, Math.max(1, ps * 0.04), 0, TAU); g.fill(); }
-      }
-      for (const [ox, oy] of others) { const [qx, qy, qs] = P(ox, oy, 0.5); additive(g, () => glow(g, qx, qy, qs * 0.6, B, 0.5 * env(p, 0.15, 0.25, 0.45, 0.8))); }
-      break;
-    }
-    case "blast": { // ระเบิด: ลูกไฟเต็มวง 3×3 + สายฟ้าแตกออก
-      const k = env(p, 0, 0.05, 0.35, 0.85), q = easeOut3(clamp01(p / 0.6));
-      additive(g, () => { glow(g, x, y, s * (0.8 + q * 1.8) * K, A, 0.75 * k); glow(g, x, y, s * 0.7 * K, "255,240,200", 0.8 * env(p, 0, 0.04, 0.15, 0.35)); });
-      ring(g, wx, wy, (0.5 + q * 1.6) * K, 0.02, A, 0.8 * (1 - q), 5);
-      const arms = lowQ ? 4 : 8;
-      for (let i = 0; i < arms; i++) {
-        if (p > 0.55) break;
-        const an = (i / arms) * TAU + hash01(seed + i) * 0.4, rr = 1.6 * K;
-        const [ex, ey] = P(wx + Math.cos(an) * rr, wy + Math.sin(an) * rr, 0.2);
-        additive(g, () => bolt(g, x, y, ex, ey, B, 0.9 * (1 - p / 0.55), 2.5, seed + i * 11 + ((p * 20) | 0)));
-      }
-      for (const [ox, oy] of others) { const [qx, qy, qs] = P(ox, oy, 0.5); additive(g, () => glow(g, qx, qy, qs * 0.7, A, 0.6 * env(p, 0.08, 0.18, 0.4, 0.7))); }
-      break;
-    }
-    case "vapor": { // ระเหย: ไอน้ำร้อนพวยพุ่งเป็นกลุ่มควัน
-      const cnt = lowQ ? 6 : 14;
-      for (let i = 0; i < cnt; i++) {
-        const h = hash01(seed + i), q = clamp01(p * 1.3 - h * 0.3), an = h * TAU, rr = 0.15 + q * 0.5;
-        const [px, py, ps] = P(wx + Math.cos(an) * rr * K, wy + Math.sin(an) * rr * K, 0.2 + q * 1.8);
-        g.fillStyle = rgba(STEAM, 0.45 * (1 - q) * env(p, 0, 0.1, 0.7, 1)); g.beginPath(); g.arc(px, py, ps * (0.12 + q * 0.22), 0, TAU); g.fill();
-      }
-      additive(g, () => glow(g, x, y, s * 0.9 * K, A, 0.4 * env(p, 0, 0.08, 0.3, 0.7)));
-      break;
-    }
-    case "erode": { // กัดเซาะ: รอยร้าวน้ำแข็งวิ่งทั่วตัว → สายฟ้าผ่ากลาง → เศษเกราะแตก
-      const crack = clamp01(p / 0.45), [cx, cy, cs] = P(wx, wy, 0.6);
-      g.strokeStyle = rgba(A, 0.95 * env(p, 0, 0.05, 0.6, 0.9)); g.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        const an = (i / 6) * TAU + hash01(seed + i), len = cs * 0.55 * crack * K;
-        g.beginPath(); g.moveTo(cx, cy);
-        g.lineTo(cx + Math.cos(an) * len * 0.5 + (hash01(seed + i * 2) - 0.5) * cs * 0.1, cy + Math.sin(an) * len * 0.5);
-        g.lineTo(cx + Math.cos(an) * len, cy + Math.sin(an) * len); g.stroke();
-      }
-      if (p > 0.4 && p < 0.7) { const [tx, ty] = P(wx, wy, 3.5); additive(g, () => bolt(g, tx, ty, cx, cy, B, 1, 4, seed + ((p * 30) | 0), 9)); }
-      if (p > 0.45 && !lowQ) for (let i = 0; i < 12; i++) {
-        const h = hash01(seed + 40 + i), q = (p - 0.45) / 0.55, an = h * TAU;
-        const [px, py, ps] = P(wx + Math.cos(an) * q * (0.5 + h) * K, wy + Math.sin(an) * q * (0.5 + h) * K, 0.6 + Math.sin(q * Math.PI) * 0.6 - q * 0.6);
-        g.fillStyle = rgba("200,220,240", 0.9 * (1 - q)); g.fillRect(px - ps * 0.04, py - ps * 0.03, ps * 0.08, ps * 0.06);
-      }
-      break;
-    }
-    case "freeze": { // เยือกแข็ง: น้ำก่อตัวเป็นก้อนน้ำแข็งหุ้มหมาก
-      const q = easeOut3(clamp01(p / 0.5)), k = env(p, 0, 0.05, 0.75, 1);
-      const [bx, by, bs] = P(wx, wy, 0.55), w = bs * 0.55 * K * q, h = bs * 0.75 * K * q;
-      g.fillStyle = rgba(A, 0.35 * k); g.strokeStyle = rgba(WHITE, 0.85 * k); g.lineWidth = 2;
-      g.beginPath(); g.moveTo(bx, by - h); g.lineTo(bx + w, by - h * 0.35); g.lineTo(bx + w * 0.8, by + h * 0.6); g.lineTo(bx - w * 0.8, by + h * 0.6); g.lineTo(bx - w, by - h * 0.35); g.closePath(); g.fill(); g.stroke();
-      if (!lowQ) for (let i = 0; i < 8; i++) { const an = (i / 8) * TAU, [px, py, ps] = P(wx + Math.cos(an) * 0.5 * K, wy + Math.sin(an) * 0.5 * K, 0.1); flake(g, px, py, ps * 0.08 * q, A, 0.9 * k, an); }
-      break;
-    }
-    case "conduct": { // นำไฟฟ้า: สายฟ้าวิ่งตามหยดน้ำเข้าในตัว → หมากสว่างวาบจากข้างใน
-      const cnt = lowQ ? 3 : 6;
-      for (let i = 0; i < cnt; i++) {
-        const an = (i / cnt) * TAU + hash01(seed + i), q = clamp01(p / 0.5);
-        const [sx, sy] = P(wx + Math.cos(an) * 0.9 * K, wy + Math.sin(an) * 0.9 * K, 0.05);
-        const [ex, ey] = P(wx + Math.cos(an) * 0.9 * K * (1 - q), wy + Math.sin(an) * 0.9 * K * (1 - q), 0.05 + q * 0.5);
-        drop(g, ex, ey, s * 0.05, B, 0.8 * (1 - p));
-        if (p < 0.6) additive(g, () => bolt(g, sx, sy, ex, ey, A, 0.9, 2, seed + i * 7 + ((p * 25) | 0), 5));
-      }
-      additive(g, () => glow(g, x, y, s * 1.1 * K, A, 0.9 * env(p, 0.4, 0.5, 0.6, 0.9)));
-      break;
-    }
-    case "swirl": { // พัดพา: ลมหมุนวนที่เป้า แล้วกวาดอนุภาคธาตุไปลงหมากรอบข้าง
-      const W = EL_RGB.wind, spin = p * TAU * 2.2;
-      for (let j = 0; j < 3; j++) {
-        g.strokeStyle = rgba(W, 0.75 * (1 - p)); g.lineWidth = 2.5; g.beginPath();
-        for (let i = 0; i <= 26; i++) {
-          const q = i / 26, an = spin + j * (TAU / 3) + q * 4.2, rr = (0.15 + q * 0.7) * K;
-          const [px, py] = P(wx + Math.cos(an) * rr, wy + Math.sin(an) * rr, 0.15 + q * 0.9);
-          if (i) g.lineTo(px, py); else g.moveTo(px, py);
-        }
-        g.stroke();
-      }
-      const travel = clamp01((p - 0.25) / 0.6);
-      for (const [ox, oy] of others) {
-        if (travel <= 0) break;
-        for (let i = 0; i < (lowQ ? 2 : 5); i++) {
-          const h = hash01(seed + i + ox * 3 + oy), q = clamp01(travel - h * 0.2);
-          const [px, py, ps] = P(wx + (ox - wx) * q, wy + (oy - wy) * q, 0.4 + Math.sin(q * Math.PI) * 0.7);
-          g.fillStyle = rgba(B, 0.95 * (1 - q * 0.5)); g.beginPath(); g.arc(px, py, Math.max(1.5, ps * 0.05), 0, TAU); g.fill();
-        }
-      }
-      break;
-    }
-    default: break;
   }
 }

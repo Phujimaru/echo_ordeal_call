@@ -1431,6 +1431,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         { kind: "elReact", rx: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },
         { kind: "elName", name: e.name, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1 },
       ]);
+      // จอสั่นตามความแรง (iceShake = เลื่อนกล้อง ไม่มีแฟลชเต็มจอ)
+      const SHAKE = { burst: [10, 900, 280], blast: [14, 1100, 40], erode: [8, 600, 650], conduct: [6, 500, 560], vapor: [4, 600, 100], freeze: [5, 500, 420], swirl: [4, 900, 200] };
+      const sh = SHAKE[e.key];
+      if (sh && !lowQ) timers.current.push(setTimeout(() => pushFx([{ kind: "iceShake", x: 0, y: 0, amp: sh[0], dur: sh[1] }]), sh[2]));
     };
     const onBomb = (e) => {
       if (!e || !e.to || !e.from) return;
@@ -1441,7 +1445,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     socket.on("elemReact", onReact);
     socket.on("elemBomb", onBomb);
     return () => { socket.off("elemAura", onAura); socket.off("elemReact", onReact); socket.off("elemBomb", onBomb); };
-  }, [pushFx, look]);
+  }, [pushFx, look, lowQ]);
   // มหาเทพอรชุน: socket "arjunaFx" { kind, id, at, size } → arjunaBoardFx.js · จุติเล่นกับทุกคนที่ติดสถานะ
   useEffect(() => {
     const onArj = (e) => {
