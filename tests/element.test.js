@@ -168,3 +168,23 @@ test('ระเบิดธาตุ: ระยะเดินปกติ · �
     assert.equal(Element.auraOf(P.c), 'bolt');
   } finally { Math.random = real; }
 });
+
+test('ลูกโซ่: นำไฟฟ้าลามไปศัตรูติดคราบน้ำที่ยืนติดกันเป็นทอด · คนไม่มีคราบ/คราบอื่นไม่ลาม · เพื่อนไม่โดน · ปะทุไม่ลาม', () => {
+  const P = setup([['a', 'muimi', 1, 7, 't1'], ['b', 'muimi', 4, 7, 't2'], ['c', 'muimi', 5, 7, 't2'], ['d', 'muimi', 6, 8, 't2'], ['e', 'muimi', 7, 8, 't2'], ['f', 'muimi', 4, 8, 't1']], 'duo');
+  const hp = (u) => u.armor + u.hp;
+  for (const id of ['b', 'c', 'd']) Element.apply(P[id], 'water', P.a);
+  Element.apply(P.e, 'fire', P.a); // คราบอื่น = ไม่ลาม
+  hit(P.a, P.b, 'bolt'); // b: 1 + 2 ทะลุเกราะ → ลาม c → d (ทแยง)
+  assert.equal(P.b.hp, 5);
+  assert.equal(P.c.hp, 5, 'c โดนลูกโซ่ (2 ทะลุเกราะ)');
+  assert.equal(P.d.hp, 5, 'd โดนลูกโซ่ต่อจาก c');
+  assert.equal(hp(P.e), 10, 'e คราบไฟ ไม่ลาม');
+  assert.equal(Element.auraOf(P.e), 'fire');
+  assert.equal(hp(P.f), 10, 'เพื่อนไม่โดน');
+  for (const id of ['b', 'c', 'd']) assert.equal(Element.auraOf(P[id]), null);
+  // ปะทุ (ปฏิกิริยาวง) ไม่ลามแบบลูกโซ่
+  const Q = setup([['a', 'muimi', 1, 7], ['b', 'muimi', 4, 7], ['c', 'muimi', 6, 7]]);
+  Element.apply(Q.b, 'ice', Q.a); Element.apply(Q.c, 'ice', Q.a);
+  hit(Q.a, Q.b, 'fire');
+  assert.equal(Element.auraOf(Q.c), 'ice');
+});

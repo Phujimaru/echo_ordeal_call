@@ -185,6 +185,7 @@ const ELEM_DEMO = [
   { key: "freeze", label: "❄️💧 เยือกแข็ง", a: "ice", b: "water", name: "เยือกแข็ง" },
   { key: "conduct", label: "⚡💧 นำไฟฟ้า", a: "bolt", b: "water", name: "นำไฟฟ้า" },
   { key: "swirl", label: "🌪️ พัดพา", a: "wind", b: "fire", name: "พัดพา" },
+  { key: "chain", label: "⛓️ ลูกโซ่ นำไฟฟ้า", chain: true },
   ...["fire", "ice", "bolt", "water", "wind"].map((el) => ({ key: `bomb_${el}`, bomb: el, label: `💣 ระเบิด${{ fire: "ไฟ", ice: "น้ำแข็ง", bolt: "สายฟ้า", water: "น้ำ", wind: "ลม" }[el]}` })),
 ];
 function playElemDemo(d) {
@@ -194,6 +195,13 @@ function playElemDemo(d) {
     const tiles = [8, 9, 10].flatMap((x) => [6, 7, 8].map((y) => ({ x, y })));
     fire("elemBomb", { el: d.bomb, from: { x: 5, y: 7 }, to: at, tiles, hits: ["p1"] });
     playSfx(`elem_bomb_${d.bomb}`);
+    return;
+  }
+  if (d.chain) { // ลูกโซ่: ฟ้าใส → บอส → มิวมิว (เดโม — ตำแหน่งจริงไม่ต้องติดกัน)
+    fire("elemReact", { key: "conduct", name: "นำไฟฟ้า", a: "water", b: "bolt", id: "p1", at, ring: [], size: 1 });
+    fire("elemReact", { key: "conduct", name: "นำไฟฟ้า", a: "water", b: "bolt", id: "p4", at: { x: 10, y: 4 }, ring: [], size: 1, chainFrom: "p1", step: 1 });
+    fire("elemReact", { key: "conduct", name: "นำไฟฟ้า", a: "water", b: "bolt", id: "p3", at: { x: 12, y: 9 }, ring: [], size: 1, chainFrom: "p4", step: 2 });
+    playSfx("elem_conduct"); // ทอดถัดไป BoardStage เล่นเสียงเองตามจังหวะ
     return;
   }
   fire("elemReact", { key: d.key, name: d.name, a: d.a, b: d.b, id: "p1", at, ring: ["p4", "p3"], size: 1 });

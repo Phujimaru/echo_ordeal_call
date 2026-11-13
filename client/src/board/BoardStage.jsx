@@ -1426,6 +1426,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     const onReact = (e) => {
       if (!e || !e.at || !Number.isFinite(e.at.x)) return;
       const ringAt = (e.ring || []).map(posOf).filter(Boolean);
+      // ลูกโซ่ (server/element.js): ทอดที่ step เล่นหลังทอดก่อนหน้า · เส้นธาตุวิ่งจากตัวก่อนหน้า (จับตำแหน่งตอนรับ — คนตายจะหายจากกระดานทีหลัง)
+      if (e.chainFrom) {
+        const from = posOf(e.chainFrom);
+        const fxs = [
+          ...(from ? [{ kind: "elLink", a: e.a, b: e.b, from, to: { x: e.at.x, y: e.at.y, size: e.size || 1 }, x: e.at.x, y: e.at.y, size: e.size || 1 }] : []),
+          { kind: "elReact", rx: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },
+          { kind: "elName", name: e.name, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1 },
+        ];
+        // เสียงทอดลูกโซ่เล่นที่นี่ตามจังหวะภาพ (server เล่นเฉพาะทอดแรก)
+        timers.current.push(setTimeout(() => { pushFx(fxs); playSfx(`elem_${e.key}`); }, 420 * Math.max(1, e.step | 0)));
+        return;
+      }
       look(e.at);
       pushFx([
         { kind: "elReact", rx: e.key, a: e.a, b: e.b, at: e.at, x: e.at.x, y: e.at.y, size: e.size || 1, ringAt },

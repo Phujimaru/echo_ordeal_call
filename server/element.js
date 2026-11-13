@@ -24,7 +24,7 @@
 // ============================================================
 // export ฟังก์ชันก่อน require (hoist) · ค่าคงที่ export ท้ายไฟล์
 Object.assign(module.exports, {
-  current, withElement, capture, auraOf, terrainAura, terrainAt, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
+  current, withElement, withChainBlock, capture, auraOf, terrainAura, terrainAt, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
   attackElementOf, skillElementOf, lastReaction, takeReaction,
 });
 
@@ -143,7 +143,15 @@ function apply(t, el, source, opts = {}) {
 }
 
 // ---------- ปฏิกิริยา ----------
-function react(t, a, b, source) {
+// คนที่โดนการกระทำเดียวกันอยู่แล้ว (พัดพา/ระเบิดธาตุหลายคน) — ลูกโซ่ไม่ลามเข้าไปซ้ำ (คนละครั้งต่อการกระทำ)
+let chainBlock = new Set();
+function withChainBlock(ids, fn) {
+  const prev = chainBlock;
+  chainBlock = new Set([...prev, ...ids]);
+  try { return fn(); } finally { chainBlock = prev; }
+}
+//  chain = { from, step } = ปฏิกิริยาที่ลามมา (ลูกโซ่ — ผู้ใช้สั่ง 2026-11-14)
+function react(t, a, b, source, chain = null) {
   const r = REACTIONS[pairKey(a, b)];
   if (!r) return null;
   const C = combat();
@@ -176,11 +184,34 @@ function react(t, a, b, source) {
     if (r.push && at) pushRing(at, t, ring, r.push);
     for (const u of [t, ...ring]) killCheck(u, t);
   });
-  match.lastLog.push(`${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}! ${lines.join(" · ")}`.trim());
+  match.lastLog.push(`${chain ? "⛓️ " : ""}${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}${chain ? " (ลูกโซ่)" : "!"} ${lines.join(" · ")}`.trim());
   const out = { key: r.key, name: r.name, a, b, id: t.id };
-  match.elemLast = out;
-  fx("elemReact", { key: r.key, name: r.name, a, b, id: t.id, at, ring: ring.map((u) => u.id), size: action().sizeOf(t) });
-  sfx(r.key);
+  if (!chain) match.elemLast = out;
+  fx("elemReact", { key: r.key, name: r.name, a, b, id: t.id, at, ring: ring.map((u) => u.id), size: action().sizeOf(t), ...(chain ? { chainFrom: chain.from, step: chain.step } : {}) });
+  if (!chain) sfx(r.key);
+  // ลูกโซ่ (ผู้ใช้สั่ง 2026-11-14): ปฏิกิริยาเป้าเดียว (ระเหย/กัดเซาะ/เยือกแข็ง/นำไฟฟ้า) ลามไปศัตรูที่ยืนติดกันซึ่งมีคราบธาตุเดียวกับคราบที่ถูกใช้ (a)
+  //  ลามต่อเป็นทอดๆ จนไม่มีคนติดคราบยืนติด · คนละครั้งต่อการตี · ผลเท่าปฏิกิริยาเดิม (ไม่รวมดาเมจของการตี)
+  if (!chain && !r.ring && !r.push) {
+    const seen = new Set([t.id, ...chainBlock]), hit = [];
+    let frontier = [t], step = 0;
+    while (frontier.length) {
+      step++;
+      const next = [];
+      for (const f of frontier) {
+        for (const u of ringOf(f, source)) {
+          if (seen.has(u.id) || auraOf(u) !== a) continue;
+          seen.add(u.id);
+          clearAura(u);
+          react(u, a, b, source, { from: f.id, step });
+          hit.push(u);
+          next.push(u);
+        }
+      }
+      frontier = next;
+    }
+    for (const u of hit) if (!u.alive) u.pos = null;
+    if (hit.length) out.chain = hit.length;
+  }
   return out;
 }
 const hpArm = (u) => (u.hp || 0) + (u.armor || 0) + (u.shield || 0);
@@ -252,13 +283,15 @@ function windBurst(sources, source) {
     }
   }
   const got = [];
-  for (const [u, els] of incoming) {
-    for (const el of ORDER) {
-      if (!els.has(el) || !u.alive) continue;
-      apply(u, el, source, { noSwirl: true });
-      got.push(u);
+  withChainBlock([...incoming.keys(), ...snap.map((x) => x.from)].map((u) => u.id), () => {
+    for (const [u, els] of incoming) {
+      for (const el of ORDER) {
+        if (!els.has(el) || !u.alive) continue;
+        apply(u, el, source, { noSwirl: true });
+        got.push(u);
+      }
     }
-  }
+  });
   for (const { from } of snap) if (!incoming.has(from)) clearAura(from);
   const main = sources[0];
   match.lastLog.push(`🌪️ พัดพา! ${snap.map((s) => `${ELEMENTS[s.el].icon} ${s.from.name}`).join(" · ")}${got.length ? ` → ${[...new Set(got)].map((u) => u.name).join(", ")}` : ""}`);

@@ -613,7 +613,7 @@ function throwElemBomb(p, tile, element) {
   engine.sfx(`elem_bomb_${element}`);
   match.lastLog.push(`💣 ${p.name} โยนระเบิดธาตุ${info.name} ${info.icon}${hits.length ? ` — โดน ${hits.map((u) => u.name).join(", ")}` : ""}`);
   if (element === "wind") Element.windBurst(hits, p);
-  else for (const u of hits) Element.apply(u, element, p);
+  else Element.withChainBlock(hits.map((u) => u.id), () => { for (const u of hits) Element.apply(u, element, p); }); // คนในวงไม่โดนลูกโซ่ซ้ำ
   for (const u of hits) if (!u.alive) u.pos = null;
   return true;
 }

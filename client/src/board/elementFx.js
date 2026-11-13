@@ -21,7 +21,7 @@ export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,7
 const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️" };
 const WHITE = "255,255,255", STEAM = "235,240,245";
 
-export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 2000, elAura: 800 };
+export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 2000, elAura: 800, elLink: 750 };
 export const isElemFx = (kind) => typeof kind === "string" && (kind in ELEM_FX_DUR);
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -118,6 +118,8 @@ export function elemFx(g, e, now, lowQ) {
     const gr = g.createLinearGradient(x - fs * 1.6, y, x + fs * 1.6, y); gr.addColorStop(0, rgba(a, 1)); gr.addColorStop(1, rgba(b, 1));
     g.lineWidth = Math.max(3, fs * 0.16); g.strokeStyle = "rgba(10,14,28,.92)"; g.strokeText(e.name || "", x, y);
     g.shadowColor = rgba(a, 0.9); g.shadowBlur = fs * 0.5; g.fillStyle = gr; g.fillText(e.name || "", x, y);
+  } else if (e.kind === "elLink" && okT(e.from) && okT(e.to)) {
+    elLink(g, e, p);
   } else if (e.kind === "elBomb" && okT(e.from) && okT(e.to)) {
     elBombFx(g, e, p, lowQ);
   } else if (e.kind === "elReact" && okT(e.at)) {
@@ -126,3 +128,23 @@ export function elemFx(g, e, now, lowQ) {
   g.restore();
 }
 
+
+// เส้นลูกโซ่: ธาตุวิ่งจากตัวก่อนหน้าไปตัวถัดไป (เส้นหยักเรืองสีธาตุที่เข้ามา + ลูกพลังวิ่งตามเส้น)
+function elLink(g, e, p) {
+  const [fx, fy] = mid(e.from, e.from.size || 1), [tx, ty] = mid(e.to, e.to.size || 1);
+  const B = EL_RGB[e.b] || WHITE, A = EL_RGB[e.a] || B, seed = (e.t0 | 0) % 977;
+  const k = env(p, 0, 0.08, 0.6, 1), head = easeOut3(clamp01(p / 0.45));
+  const [x0, y0] = P(fx, fy, 0.6), [x1, y1] = P(fx + (tx - fx) * head, fy + (ty - fy) * head, 0.6);
+  g.save();
+  additive(g, () => {
+    for (const [w, c, a] of [[10, B, 0.35], [5, B, 0.85], [2, WHITE, 0.95]]) {
+      g.strokeStyle = rgba(c, a * k); g.lineWidth = w; g.lineJoin = "round"; g.beginPath(); g.moveTo(x0, y0);
+      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+      for (let i = 1; i < 8; i++) { const q = i / 8, j = (hash01(seed + i + ((p * 20) | 0)) - 0.5) * Math.min(40, len * 0.18); g.lineTo(x0 + dx * q + nx * j, y0 + dy * q + ny * j); }
+      g.lineTo(x1, y1); g.stroke();
+    }
+    const [, , s] = P(fx + (tx - fx) * head, fy + (ty - fy) * head, 0.6);
+    glow(g, x1, y1, s * 0.7, A, 0.9 * k); glow(g, x1, y1, s * 0.35, WHITE, 0.9 * k);
+  });
+  g.restore();
+}
