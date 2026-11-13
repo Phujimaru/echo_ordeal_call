@@ -30,19 +30,19 @@ function hud(ctx, s, H, p, out) {
   const r = ctx.match.roundNumber, w = TW(s), off = !H.canStrike(ctx, p);
   if (near(ctx, p, SPOTS.garage)) {
     const c = carFor(ctx, s, H, p);
-    out.push({ key: "fd:garage", icon: "🔧", name: "อู่", desc: `ซ่อมรถเต็ม + เทอร์โบ เดิน +${TOWN.garage.turbo} ${TOWN.garage.turns} เทิร์น (ขับอยู่ หรือรถจอดติดตัว · คันละครั้งทุก ${TOWN.garage.cd} เทิร์น) — ใช้การโจมตี`, disabled: off || !c || (w.garageCd[c.id] || 0) > r });
+    out.push({ key: "fd:garage", icon: "🔧", name: "อู่", desc: `ซ่อมรถเต็ม · เดิน +${TOWN.garage.turbo} ${TOWN.garage.turns} เทิร์น`, disabled: off || !c || (w.garageCd[c.id] || 0) > r });
   }
   if (near(ctx, p, SPOTS.diner)) {
     const fish = (H.p4State(s).catch || {})[p.id] || 0;
-    out.push({ key: "fd:diner", icon: "🍽️", name: "ร้านอาหาร", desc: `${fish ? "ใช้ปลา 1" : `จ่าย ${TOWN.diner.gold} เหรียญ`} — ฟื้นเลือด ${TOWN.diner.heal} + งานเลี้ยง ${TOWN.diner.turns} เทิร์น (ตี +1 · เดิน +1 · ฟื้นเลือด 1 ทุกต้นเทิร์น) · คนละครั้งทุก ${TOWN.diner.cd} เทิร์น — ใช้การโจมตี`, disabled: off || (w.dinerCd[p.id] || 0) > r || (!fish && gold(p) < TOWN.diner.gold) });
+    out.push({ key: "fd:diner", icon: "🍽️", name: "ร้านอาหาร", desc: `${fish ? "ปลา 1" : `${TOWN.diner.gold} เหรียญ`} · เลือด +${TOWN.diner.heal} · ตี +1 เดิน +1 ${TOWN.diner.turns} เทิร์น`, disabled: off || (w.dinerCd[p.id] || 0) > r || (!fish && gold(p) < TOWN.diner.gold) });
   }
-  if (near(ctx, p, SPOTS.shrine)) out.push({ key: "fd:shrine", icon: "⛩️", name: "ศาลเทพธิดา", desc: `ทั้งทีมฟื้นเกราะ ${TOWN.shrine.armor} (ทั้งทีมครั้งเดียวทุก ${TOWN.shrine.cd} เทิร์น) — ใช้การโจมตี`, disabled: off || w.shrineCd > r });
-  if (near(ctx, p, SPOTS.ranch)) out.push({ key: "fd:ranch", icon: "🐤", name: "เรียกโชโกโบะ", desc: `จ่าย ${TOWN.ranch.gold} เหรียญ — โชโกโบะที่ว่างวิ่งมายืนข้างตัว — ใช้การโจมตี`, disabled: off || gold(p) < TOWN.ranch.gold || !freeChoco(s) });
+  if (near(ctx, p, SPOTS.shrine)) out.push({ key: "fd:shrine", icon: "⛩️", name: "ศาลเทพธิดา", desc: `ทั้งทีมเกราะ +${TOWN.shrine.armor}`, disabled: off || w.shrineCd > r });
+  if (near(ctx, p, SPOTS.ranch)) out.push({ key: "fd:ranch", icon: "🐤", name: "เรียกโชโกโบะ", desc: `${TOWN.ranch.gold} เหรียญ · ขี่ได้เลย`, disabled: !ctx.action.canAct(p) || gold(p) < TOWN.ranch.gold || !freeChoco(s) });
 }
 const freeChoco = (s) => s.chocos.find((c) => !c.rider && c.x != null && !(c.back > 0) && (c.hp ?? 1) > 0) || null;
 function action(ctx, s, H, p, key) {
   if (!["fd:garage", "fd:diner", "fd:shrine", "fd:ranch"].includes(key)) return null;
-  if (!p || !p.pos || !H.canStrike(ctx, p)) return false;
+  if (!p || !p.pos || !(key === "fd:ranch" ? ctx.action.canAct(p) : H.canStrike(ctx, p))) return false; // เรียกโชโกโบะไม่ใช้การโจมตี
   const r = ctx.match.roundNumber, w = TW(s);
   if (key === "fd:garage") {
     const c = near(ctx, p, SPOTS.garage) && carFor(ctx, s, H, p);
@@ -77,6 +77,9 @@ function action(ctx, s, H, p, key) {
     c.x = at.x; c.y = at.y;
     ctx.fx("town_ranch", { id: p.id, choco: c.id, from, to: { ...at } });
     ctx.log(`🐤 ${p.name} เรียกโชโกโบะจากฟาร์ม Duscae`);
+    H.rideNow(ctx, s, p, c); // ขี่ได้เลย ไม่จบตา (ผู้ใช้ 2026-11-14)
+    ctx.bump();
+    return true;
   }
   ctx.bump();
   ctx.useStrike(p, 1.3);

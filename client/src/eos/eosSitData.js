@@ -1,18 +1,19 @@
 // ============================================================
 //  สถานการณ์ตอนนี้ของสนาม Eos (ผู้ใช้สั่ง 2026-11-10: "ไม่ใช่รายการเหตุการณ์ทั้งหมด แค่บอกว่าตอนนี้มีอีเว้นอะไร สภาพอากาศอะไร
 //   และอื่นๆ ที่ต้องรู้เกี่ยวกับกระดานตอนนี้" + "กดอ่านสรุปได้ว่าจะให้ทำอะไร" — ซ้ายบนข้างตัวนับเทิร์น)
-//  eosSituation(state) → [{ key, icon, title, detail, todo, tone, at? }] เรียงสำคัญก่อน · tone: "danger" | "warn" | "good" | "info"
+//  ผู้ใช้สั่ง 2026-11-14 "คำอธิบายโคตรยาว ใจความสำคัญไม่ค่อยมี": detail = ตัวเลข/ข้อเท็จจริงสั้นๆ · todo = ไม่กี่คำ (มีเฉพาะที่ต้องรีบทำ)
+//  eosSituation(state) → [{ key, icon, title, detail?, todo?, tone, at? }] เรียงสำคัญก่อน · tone: "danger" | "warn" | "good" | "info"
 //  ใช้ทั้งชิปบนแถบซ้ายบน (ไอคอน) และแผง EosSituation.jsx · ไม่มีอะไร = รายการว่าง
 // ============================================================
 const ZONE = { insomnia: "Insomnia", hammerhead: "Hammerhead", duscae: "Duscae", forest: "ป่าดัสเค", lake: "Cleigne", altissia: "Altissia", desert: "Leide", wild: "Eos" };
 const WX = {
-  eos_storm: { icon: "⛈️", title: "ฝนฟ้าคะนอง", detail: "เดิน −1 · ช่องเตือนแดงจะโดนฟ้าผ่าต้นเทิร์นหน้า ดาเมจ 2 · ทหารเหล็กลัดวงจร ตี −1", todo: "หลบออกจากช่องเตือนแดงก่อนจบตา · จังหวะดีที่จะบุกทหารเหล็ก" },
-  eos_fog: { icon: "🌫️", title: "หมอก", detail: "มองเห็นมอนเตอร์แค่ในระยะเดินของฝ่ายเรา · ปีศาจล่าในหมอก เดิน +1", todo: "เดินเป็นกลุ่ม ระวังมอนที่โผล่จากหมอก" },
-  eos_snow: { icon: "🌨️", title: "พายุหิมะ", detail: "ทุกคนและมอนทุกตัวเดิน −1 · ในเมืองหรือในวงไฟแคมป์ 2 ช่อง อุ่น = ไม่โดน", todo: "พักในเมือง/แคมป์ · มอนก็ช้าลง ใช้จังหวะนี้ล่าถอยหรือรวมกลุ่ม" },
-  eos_magnet: { icon: "🧲", title: "พายุแม่เหล็ก", detail: "มอนเห็นผู้เล่นแค่ 4 ช่อง (สัตว์ยักษ์ไม่โดน) · มินิแมพรวน", todo: "ย่องผ่านมอนได้ · แยกกันไปทำภารกิจ" },
-  eos_sand: { icon: "🏜️", title: "พายุทราย", detail: "ในทะเลทราย Leide มองเห็นแค่ 2 ช่อง · ทหารเหล็กในทะเลทรายมองไม่เห็น ขยับเมื่อมีคนเข้าใกล้ 3 ช่อง", todo: "อย่าเข้าทะเลทรายคนเดียว · ย่องผ่านทหารเหล็กได้" },
+  eos_storm: { icon: "⛈️", title: "ฝนฟ้าคะนอง", detail: "เดิน −1 · ช่องแดงฟ้าผ่า 2 · ทหารเหล็กตี −1", todo: "ออกจากช่องแดง" },
+  eos_fog: { icon: "🌫️", title: "หมอก", detail: "เห็นมอนแค่ระยะเดิน · ปีศาจเดิน +1" },
+  eos_snow: { icon: "🌨️", title: "พายุหิมะ", detail: "ทุกตัวเดิน −1 · ในเมือง/แคมป์ไม่โดน" },
+  eos_magnet: { icon: "🧲", title: "พายุแม่เหล็ก", detail: "มอนเห็นแค่ 4 ช่อง" },
+  eos_sand: { icon: "🏜️", title: "พายุทราย", detail: "ใน Leide เห็นแค่ 2 ช่อง" },
 };
-const DIFF = { easy: "ง่าย", normal: "ปกติ", hard: "ยาก" };
+const DIFF = { easy: "ง่าย", normal: "ปกติ", hard: "ยาก", lament: "Lament" };
 
 export function eosSituation(state) {
   const b = state && state.fodlan && state.fodlan.board;
@@ -21,80 +22,79 @@ export function eosSituation(state) {
   const round = state.roundNumber || 0;
   const me = (state.players || []).find((p) => p.id === state.youId);
   // คืนสุดท้าย (PVE รอบสาม)
-  if (b.final) out.push({ key: "final", icon: "🌑", title: "คืนสุดท้าย", detail: `กลางคืนถาวร · ปีศาจบุกรอบเสาที่ยึดไว้ทุกเทิร์น · แต้มรวม ${b.score || 0}/${b.goal || 50}`, todo: "เฝ้าเสาให้ครบจนแต้มถึงเป้า — ใกล้ชนะแล้ว", tone: "danger" });
-  else if (b.finalAt && (b.score || 0) >= b.finalAt - 8) out.push({ key: "finalSoon", icon: "🌑", title: "คืนสุดท้ายใกล้มา", detail: `แต้มรวมถึง ${b.finalAt} = กลางคืนถาวร + คลื่นปีศาจบุกเสา (ตอนนี้ ${b.score || 0})`, todo: "ซ่อมเสา เสริมเกราะเสา เตรียมของ", tone: "warn" });
+  if (b.final) out.push({ key: "final", icon: "🌑", title: "คืนสุดท้าย", detail: `ปีศาจบุกเสาทุกเทิร์น · ${b.score || 0}/${b.goal || 50}`, todo: "เฝ้าเสา", tone: "danger" });
+  else if (b.finalAt && (b.score || 0) >= b.finalAt - 8) out.push({ key: "finalSoon", icon: "🌑", title: "คืนสุดท้ายใกล้มา", detail: `เริ่มที่แต้ม ${b.finalAt} · ตอนนี้ ${b.score || 0}`, tone: "warn" });
   // การ์ดทีมรอโหวต · โชโกโบะทอง
-  if (b.perkOffer) out.push({ key: "perk", icon: "✨", title: "โหวตการ์ดทีม", detail: b.perkOffer.choices.map((c) => `${c.icon} ${c.name}`).join(" · "), todo: "กดเลือกการ์ดกลางจอด้านบน — ใบที่เสียงมากสุดได้", tone: "good" });
+  if (b.perkOffer) out.push({ key: "perk", icon: "✨", title: "โหวตการ์ดทีม", detail: b.perkOffer.choices.map((c) => `${c.icon} ${c.name}`).join(" · "), tone: "good" });
   const gold = (b.mobs || []).find((m) => m.type === "gold");
-  if (gold) out.push({ key: "gold", icon: "🐤", title: "โชโกโบะทอง", detail: "วิ่งหนีทุกต้นเทิร์น · อยู่ 2 เทิร์นแล้วหายไป", todo: "ไล่ตีให้ล้ม = เหรียญ 12 + ของ", tone: "good", at: { x: gold.x, y: gold.y } });
+  if (gold) out.push({ key: "gold", icon: "🐤", title: "โชโกโบะทอง", detail: "อยู่ 2 เทิร์น · เหรียญ 12 + ของ", tone: "good", at: { x: gold.x, y: gold.y } });
   // มาตรวัดทีมเต็ม
-  if (b.gaugeMax && (b.gauge || 0) >= b.gaugeMax) out.push({ key: "gauge", icon: "☄️", title: "มาตรวัดทีมเต็ม", detail: "ถล่มวง 5×5 ที่ไหนก็ได้ ดาเมจ 4 ใส่มอนทุกตัวในวง", todo: "กดปุ่ม \"ถล่ม\" แล้วเลือกมอน (ใช้การโจมตีของตา)", tone: "good" });
+  if (b.gaugeMax && (b.gauge || 0) >= b.gaugeMax) out.push({ key: "gauge", icon: "☄️", title: "ถล่มพร้อม", detail: "วง 5×5 ดาเมจ 4", tone: "good" });
   // ยักษ์หิน
   if (b.giant) {
     const gm = (b.mobs || []).find((m) => m.id === b.giant.id);
     const at = gm ? { x: gm.x, y: gm.y } : b.giant.path && b.giant.path[0] ? { x: b.giant.path[0].x, y: b.giant.path[0].y } : null;
-    out.push({ key: "giant", icon: "🗿", title: b.giant.state === "warn" ? "ยักษ์หินกำลังมา" : "ยักษ์หินเดินผ่าน", detail: `${gm ? `♥ ${gm.hp}/${gm.maxHp} · ` : ""}เดินทีละ 4 ช่อง เหยียบแถบกว้าง 3 ช่อง ดาเมจ 3 ทุกตัว (มอนด้วย) · ช่องส้ม = จะเหยียบเทิร์นหน้า`, todo: "หลบช่องส้ม · ล่อมอนให้โดนเหยียบ · รวมทีมล้มได้ แต้มรวม +4 ทุกคนได้ของ", tone: "warn", at });
+    out.push({ key: "giant", icon: "🗿", title: b.giant.state === "warn" ? "ยักษ์หินกำลังมา" : "ยักษ์หิน", detail: `${gm ? `♥ ${gm.hp}/${gm.maxHp} · ` : ""}ช่องส้มเหยียบ 3`, todo: "หลบช่องส้ม", tone: "warn", at });
   }
   // รังปีศาจ
   const nests = (b.mobs || []).filter((m) => m.type === "nest");
-  if (nests.length) out.push({ key: "nests", icon: "🔥", title: `รังปีศาจ ${nests.length} แห่ง`, detail: "ค่ำแล้วรังพ่นปีศาจ 3 ตัว และเพิ่มอีกตัวทุกเทิร์นกลางคืน", todo: b.night ? "ทำลายรังเพื่อหยุดปีศาจที่เกิดเพิ่ม" : "ทำลายก่อนค่ำ — ได้เหรียญ + ของ", tone: b.night ? "danger" : "warn", at: { x: nests[0].x, y: nests[0].y } });
+  if (nests.length) out.push({ key: "nests", icon: "🔥", title: `รังปีศาจ ${nests.length}`, detail: "กลางคืนพ่นปีศาจ", tone: b.night ? "danger" : "warn", at: { x: nests[0].x, y: nests[0].y } });
   // พลเรือน
   for (const c of b.civs || []) {
     const lead = c.follow ? (state.players || []).find((u) => u.id === c.follow) : null;
-    out.push({ key: `civ${c.id}`, icon: "🕊️", title: lead ? `${lead.name} กำลังพาพลเรือน` : "พลเรือนติดค้าง", detail: `♥ ${c.hp}/${c.maxHp} · มอนเล็งพลเรือนด้วย`, todo: lead ? "พาเข้าเมือง (Insomnia / Hammerhead / Altissia) = แต้มรวม +2" : "ยืนติดแล้วกด \"พาไป\" — พลเรือนจะตามติดตัว", tone: "good", at: { x: c.x, y: c.y } });
+    out.push({ key: `civ${c.id}`, icon: "🕊️", title: lead ? `${lead.name} พาพลเรือน` : "พลเรือน", detail: `♥ ${c.hp}/${c.maxHp} · ถึงเมือง +2`, tone: "good", at: { x: c.x, y: c.y } });
   }
   // พลังประจำเสา
-  const POW = { insomnia: "🔫 ป้อมยิงเอง", altissia: "⛲ น้ำพุฟื้นเลือด", duscae: "🐤 โชโกโบะ +1", hammerhead: "🚗 รถ +1", lake: "🎣 ตกปลานำโชค" };
-  if ((b.powers || []).length) out.push({ key: "powers", icon: "✨", title: `พลังเสา ${b.powers.length}/5`, detail: b.powers.map((z) => POW[z] || z).join(" · "), todo: "เสาหลุด = พลังของโซนนั้นหายด้วย", tone: "good" });
+  const POW = { insomnia: "🔫 ป้อมยิงเอง", altissia: "⛲ ฟื้นเลือด", duscae: "🐤 โชโกโบะ +1", hammerhead: "🚗 รถ +1", lake: "🎣 ตกปลา ×2" };
+  if ((b.powers || []).length) out.push({ key: "powers", icon: "✨", title: `พลังเสา ${b.powers.length}/5`, detail: b.powers.map((z) => POW[z] || z).join(" · "), tone: "good" });
   // บอส
   const boss = b.boss ? [...(b.daemons || [])].find((d) => d.id === b.boss) : null;
-  if (boss) out.push({ key: "boss", icon: "👑", title: "ราชาปีศาจ", detail: `♥ ${boss.hp}/${boss.maxHp} · ⛨ ${boss.armor} · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · เรียกปีศาจทุก 2 เทิร์น`, todo: "รวมทีมล้มก่อนถึงเสา · ใช้เกราะเสากันไว้ · ล้มได้ แต้มรวม +5 ทุกคนได้ของ", tone: "danger", at: { x: boss.x, y: boss.y } });
-  else if (b.bossWarn) out.push({ key: "bossWarn", icon: "⚠️", title: "ราชาปีศาจกำลังมา", detail: "วงเวทแดงบนแผนที่ = จุดที่จะลงต้นเทิร์นหน้า", todo: "เตรียมป้องกันเสาที่ใกล้วงเวท", tone: "danger", at: { x: b.bossWarn.x, y: b.bossWarn.y } });
-  else if (!b.bossFirst && b.bossAt) out.push({ key: "bossSoon", icon: "👑", title: "ราชาปีศาจ", detail: `จะปรากฏเมื่อแต้มรวมถึง ${b.bossAt} (ตอนนี้ ${b.score || 0}) แล้วมาทุกคืนหลังจากนั้น`, tone: "info" });
+  if (boss) out.push({ key: "boss", icon: "👑", title: "ราชาปีศาจ", detail: `♥ ${boss.hp}/${boss.maxHp} · ⛨ ${boss.armor}`, tone: "danger", at: { x: boss.x, y: boss.y } });
+  else if (b.bossWarn) out.push({ key: "bossWarn", icon: "⚠️", title: "ราชาปีศาจกำลังมา", detail: "ลงเทิร์นหน้า", tone: "danger", at: { x: b.bossWarn.x, y: b.bossWarn.y } });
+  else if (!b.bossFirst && b.bossAt) out.push({ key: "bossSoon", icon: "👑", title: "ราชาปีศาจ", detail: `มาที่แต้ม ${b.bossAt} · ตอนนี้ ${b.score || 0}`, tone: "info" });
   // เสาโดนตี
-  for (const pl of b.pillars || []) if (pl.owner && (pl.hits || 0) > 0) out.push({ key: `ph${pl.id}`, icon: "💢", title: `เสา ${ZONE[pl.zone] || pl.zone} โดนตี`, detail: `รอยตี ${pl.hits}/${pl.hp || 2} · ครบ = หลุดกลับเป็นกลาง`, todo: "ยืนติดเสากด \"ซ่อมเสา\" หรือใช้เกราะเสา", tone: "danger", at: { x: pl.x, y: pl.y } });
+  for (const pl of b.pillars || []) if (pl.owner && (pl.hits || 0) > 0) out.push({ key: `ph${pl.id}`, icon: "💢", title: `เสา ${ZONE[pl.zone] || pl.zone} โดนตี`, detail: `รอยตี ${pl.hits}/${pl.hp || 2}`, todo: "ซ่อมเสา", tone: "danger", at: { x: pl.x, y: pl.y } });
   // ยาน
   const warnShips = (b.ships || []).filter((d) => d.state === "warn"), landed = (b.ships || []).filter((d) => d.state === "landed");
-  if (warnShips.length) out.push({ key: "shipWarn", icon: "🚨", title: `ยานจักรวรรดิกำลังลง ${warnShips.length} ลำ`, detail: "ช่องเตือนแดง 2×2 = จุดลงจอดต้นเทิร์นหน้า ปล่อยทหารเหล็กที่มุ่งไปตีเสา", todo: "ออกจากช่องเตือน · เตรียมกันเสาใกล้ๆ", tone: "warn", at: { x: warnShips[0].x, y: warnShips[0].y } });
-  if (landed.length) out.push({ key: "ships", icon: "🛸", title: `ยานลงจอดอยู่ ${landed.length} ลำ`, detail: `ทหารเหล็ก ${(b.mobs || []).filter((m) => m.type === "magitek").length} ตัว · อยู่ 4 เทิร์นแล้วกลับ · ตัวตาแดง = ยิงไกล 3 ช่อง`, todo: "สกัดก่อนถึงเสา", tone: "warn", at: { x: landed[0].x, y: landed[0].y } });
+  if (warnShips.length) out.push({ key: "shipWarn", icon: "🚨", title: `ยานกำลังลง ${warnShips.length}`, detail: "ช่องแดง = ลงเทิร์นหน้า", tone: "warn", at: { x: warnShips[0].x, y: warnShips[0].y } });
+  if (landed.length) out.push({ key: "ships", icon: "🛸", title: `ยานจอด ${landed.length}`, detail: `ทหารเหล็ก ${(b.mobs || []).filter((m) => m.type === "magitek").length}`, tone: "warn", at: { x: landed[0].x, y: landed[0].y } });
   // PVE รอบหก: ท้องฟ้า/รถไฟเสบียง
   const sk = b.sky || {};
-  if (sk.eclipse) out.push({ key: "eclipse", icon: "🌑", title: "สุริยคราส", detail: `มืดกลางวันอีก ${sk.eclipse.left} เทิร์น · ปีศาจโผล่เหมือนกลางคืน`, todo: "อยู่ใกล้เมือง/แคมป์ · คราสหมด ปีศาจสลาย", tone: "danger" });
-  if (sk.fullMoon) out.push({ key: "moon", icon: "🌕", title: "คืนจันทร์เต็มดวง", detail: "สัตว์ยักษ์ตี +1 เดิน +1 เอื้อมไกลขึ้น · ล้มได้เหรียญ/ของ ×2", todo: "รวมทีมไปล่าสัตว์ยักษ์ — คุ้ม", tone: "warn" });
-  if (sk.meteor) out.push({ key: "meteor", icon: "☄️", title: `ฝนดาวตก ${sk.meteor.tiles.length} จุด`, detail: "วงส้มแดง = จุดตกต้นเทิร์นหน้า ดาเมจ 3 (ข้างๆ 1) · ตกแล้วเหลือหินพลังเวท", todo: "ออกจากวง · เทิร์นหน้าไปเก็บหิน (ตี = ได้ขวดเวท)", tone: "danger", at: sk.meteor.tiles[0] });
-  if (sk.supply) out.push({ key: "supply", icon: "🚂", title: "รถไฟขนเสบียงจอดอยู่", detail: `ขนแล้ว ${sk.supply.loads}/${sk.supply.max} · ออกในอีก ${sk.supply.left} เทิร์น`, todo: "ยืนบน/ติดชานชาลา กด \"ขนของ\" — แต้มรวม +1 เหรียญ 2 ต่อครั้ง", tone: "good", at: { x: sk.supply.x, y: sk.supply.y } });
-  if (b.dome && b.dome.maxHp) out.push({ key: "dome", icon: "🛡️", title: `โดม Insomnia เหลือ ${b.dome.left} เทิร์น`, detail: `บาเรียประตู ♥ ${b.dome.hp}/${b.dome.maxHp} · ผู้เล่นเดินทะลุได้ มอนผ่านไม่ได้แต่ทุบได้`, todo: "บาเรียหมด = โดมแตกก่อนเวลา", tone: "info" });
+  if (sk.eclipse) out.push({ key: "eclipse", icon: "🌑", title: "สุริยคราส", detail: `อีก ${sk.eclipse.left} เทิร์น · ปีศาจออก`, tone: "danger" });
+  if (sk.fullMoon) out.push({ key: "moon", icon: "🌕", title: "จันทร์เต็มดวง", detail: "สัตว์ยักษ์ตี +1 · ของ ×2", tone: "warn" });
+  if (sk.meteor) out.push({ key: "meteor", icon: "☄️", title: `ฝนดาวตก ${sk.meteor.tiles.length}`, detail: "เทิร์นหน้า ดาเมจ 3", todo: "ออกจากวง", tone: "danger", at: sk.meteor.tiles[0] });
+  if (sk.supply) out.push({ key: "supply", icon: "🚂", title: "รถไฟเสบียง", detail: `${sk.supply.loads}/${sk.supply.max} · ออกใน ${sk.supply.left} เทิร์น`, tone: "good", at: { x: sk.supply.x, y: sk.supply.y } });
+  if (b.dome && b.dome.maxHp) out.push({ key: "dome", icon: "🛡️", title: `โดม Insomnia ${b.dome.left} เทิร์น`, detail: `♥ ${b.dome.hp}/${b.dome.maxHp}`, tone: "info" });
   // ขบวนเสบียง
-  if (b.convoy) out.push({ key: "convoy", icon: "🚚", title: `ขบวนเสบียง ${ZONE[b.convoy.from] || ""} → ${ZONE[b.convoy.to] || ""}`, detail: `♥ ${b.convoy.hp}/${b.convoy.maxHp} · วิ่งตามเส้นประทองต้นทุกเทิร์น · มอนเล็งรถด้วย`, todo: "คุ้มกันให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ", tone: "good", at: { x: b.convoy.x, y: b.convoy.y } });
+  if (b.convoy) out.push({ key: "convoy", icon: "🚚", title: `ขบวนเสบียง → ${ZONE[b.convoy.to] || ""}`, detail: `♥ ${b.convoy.hp}/${b.convoy.maxHp} · ถึง +6`, tone: "good", at: { x: b.convoy.x, y: b.convoy.y } });
   // ภารกิจ
   for (const q of b.quests || []) out.push({
-    key: q.id, icon: q.type === "hunt" ? "⚔️" : q.type === "guard" ? "🛡️" : "📡", title: `ภารกิจ ${ZONE[q.zone] || q.zone}: ${q.type === "hunt" ? "กวาดล้าง" : q.type === "guard" ? "เฝ้าเมือง" : "สำรวจ"}`,
-    detail: q.type === "hunt" ? `ล้มมอนในกรอบโซน ${q.have}/${q.need} · เหลือ ${q.left} เทิร์น` : q.type === "guard" ? `จบเทิร์นมีคนอยู่ในเมือง ${q.have}/${q.need} · เหลือ ${q.left} เทิร์น` : `ไปยืนบนลำแสงทองแล้วกด "สำรวจ" · เหลือ ${q.left} เทิร์น`,
-    todo: "สำเร็จ = แต้มรวม +3 · คนทำได้เหรียญ + ของ", tone: "good", at: { x: q.x, y: q.y },
+    key: q.id, icon: q.type === "hunt" ? "⚔️" : q.type === "guard" ? "🛡️" : "📡", title: `${q.type === "hunt" ? "กวาดล้าง" : q.type === "guard" ? "เฝ้าเมือง" : "สำรวจ"} ${ZONE[q.zone] || q.zone}`,
+    detail: `${q.type === "scout" ? "" : `${q.have}/${q.need} · `}เหลือ ${q.left} เทิร์น · +3`, tone: "good", at: { x: q.x, y: q.y },
   });
   // พระจันทร์สีเลือด · กลางวัน/คืน
-  if (b.blood) out.push({ key: "blood", icon: "🩸", title: "คืนพระจันทร์สีเลือด", detail: "ปีศาจมากขึ้น 1.5 เท่า · เหรียญ/ของจากมอนเพิ่ม 2 เท่า", todo: "ล่ามอนเก็บของ แต่อย่าทิ้งเสา", tone: "warn" });
+  if (b.blood) out.push({ key: "blood", icon: "🩸", title: "จันทร์สีเลือด", detail: "ปีศาจ ×1.5 · ของ ×2", tone: "warn" });
   out.push(b.night
-    ? { key: "time", icon: "🌙", title: `กลางคืน (คืนที่ ${b.nightNo || 1})`, detail: `ปีศาจโผล่และเติมทุกเทิร์น · อีก ${b.cycleLeft || "?"} เทิร์นฟ้าสาง (ปีศาจสลาย)`, todo: "เฝ้าเสา อย่าเดินคนเดียว", tone: "info" }
-    : { key: "time", icon: "☀️", title: `กลางวัน (วันที่ ${b.dayNo || 1})`, detail: `ยานจักรวรรดิลงบ่อย · อีก ${b.cycleLeft || "?"} เทิร์นค่ำ (ปีศาจรุ่นที่ ${(b.nightNo || 0) + 1})`, todo: "ยึดเสาเพิ่ม เก็บหีบ ทำภารกิจ", tone: "info" });
+    ? { key: "time", icon: "🌙", title: `คืนที่ ${b.nightNo || 1}`, detail: `ฟ้าสางใน ${b.cycleLeft || "?"} เทิร์น`, tone: "info" }
+    : { key: "time", icon: "☀️", title: `วันที่ ${b.dayNo || 1}`, detail: `ค่ำใน ${b.cycleLeft || "?"} เทิร์น`, tone: "info" });
   // สภาพอากาศ
   const wx = state.fodlan.weather;
-  if (wx && WX[wx.kind]) out.push({ key: "wx", ...WX[wx.kind], title: `${WX[wx.kind].title} · อีก ${wx.left} เทิร์น`, tone: "warn" });
+  if (wx && WX[wx.kind]) out.push({ key: "wx", ...WX[wx.kind], title: `${WX[wx.kind].title} · ${wx.left} เทิร์น`, tone: "warn" });
   // รถไฟ
   if (b.rail && b.rail.next) {
     const left = b.rail.next - round;
-    if (left <= 2) out.push({ key: "train", icon: "🚆", title: left <= 1 ? "รถไฟกำลังมา!" : `รถไฟมาในอีก ${left} เทิร์น`, detail: "ยืนบนราง (แถวรางรถไฟ) โดน 3 + กระเด็น · ยืนบนชานชาลา = ไปอีกฝั่งแผนที่", todo: "ออกจากราง", tone: left <= 1 ? "danger" : "info" });
+    if (left <= 2) out.push({ key: "train", icon: "🚆", title: left <= 1 ? "รถไฟกำลังมา!" : `รถไฟใน ${left} เทิร์น`, detail: "บนราง โดน 3 + กระเด็น", todo: "ออกจากราง", tone: left <= 1 ? "danger" : "info" });
   }
   // หีบ · เพื่อนล้ม · เมือง
-  if ((b.chests || []).length) out.push({ key: "chest", icon: "🎁", title: `หีบสมบัติ ${b.chests.length} ใบ`, detail: "โจมตีหีบ = เหรียญ + ไอเทม/ขวดเวท", todo: "เดินไปโจมตีหีบเปิด (กดการ์ดนี้ = กล้องไปดู)", tone: "good", at: { x: b.chests[0].x, y: b.chests[0].y } });
+  if ((b.chests || []).length) out.push({ key: "chest", icon: "🎁", title: `หีบสมบัติ ${b.chests.length}`, tone: "good", at: { x: b.chests[0].x, y: b.chests[0].y } });
   for (const sp of b.spirits || []) {
     const p = (state.players || []).find((u) => u.id === sp.id), r = (b.revive || []).find((o) => o.id === sp.id);
     if (!p) continue;
-    out.push({ key: `sp${sp.id}`, icon: "🕯️", title: `${p.name} ล้ม`, detail: `ฟื้นในอีก ${r ? Math.max(0, r.at - round) : "?"} เทิร์น${sp.helped ? " · มีคนช่วยแล้ว จะฟื้นข้างดวงวิญญาณ" : ""}`, todo: "ยืนติดดวงวิญญาณกด \"ช่วย\" = ฟื้นเร็วขึ้น 1 เทิร์น", tone: "warn", at: { x: sp.x, y: sp.y } });
+    out.push({ key: `sp${sp.id}`, icon: "🕯️", title: `${p.name} ล้ม`, detail: `ฟื้นใน ${r ? Math.max(0, r.at - round) : "?"} เทิร์น`, tone: "warn", at: { x: sp.x, y: sp.y } });
   }
-  if (b.dome) out.push({ key: "dome", icon: "🛡️", title: `โดม Insomnia อีก ${b.dome.left} เทิร์น`, detail: "ประตูเมืองปิด · ตีจากนอกโดมเข้าไปไม่ได้", tone: "info" });
+  if (b.dome && !b.dome.maxHp) out.push({ key: "dome", icon: "🛡️", title: `โดม Insomnia ${b.dome.left} เทิร์น`, tone: "info" });
   const off = Object.entries(b.lightsOff || {}).filter(([, v]) => v).map(([k]) => ZONE[k] || k);
-  if (off.length) out.push({ key: "lights", icon: "💡", title: `ไฟดับ: ${off.join(", ")}`, detail: "ปีศาจ/ทหารเหล็กเข้าเมืองนี้ได้", todo: "ไปเปิดไฟที่แผงไฟเมือง", tone: "warn" });
+  if (off.length) out.push({ key: "lights", icon: "💡", title: `ไฟดับ: ${off.join(", ")}`, detail: "มอนเข้าเมืองได้", todo: "เปิดไฟ", tone: "warn" });
   // ของที่เราได้เทิร์นนี้
   const got = [];
   for (const e of b.fx || []) {
@@ -102,8 +102,8 @@ export function eosSituation(state) {
     if ((e.kind === "mob_die" || e.kind === "daemon_die" || e.kind === "chest_open") && e.by === (me && me.id)) { if (e.gold) got.push(`${e.gold} เหรียญ`); for (const n of e.loot || []) got.push(n); }
     if (e.kind === "boss_die" || e.kind === "giant_die") for (const l of e.loot || []) if (me && l.id === me.id) got.push(l.name);
   }
-  if (got.length) out.push({ key: "got", icon: "🎒", title: "ได้รับเทิร์นนี้", detail: got.join(" · "), todo: "ไอเทมอยู่ในกระเป๋า · ขวดเวทเป็นปุ่มพิเศษ", tone: "good" });
-  out.push({ key: "diff", icon: "🎚️", title: `ความยาก: ${DIFF[b.diff] || "ปกติ"}`, detail: `แต้มรวม ${b.score || 0}/${b.goal || 50} · จบเทิร์นนี้ +${b.rate || 0}`, tone: "info" });
+  if (got.length) out.push({ key: "got", icon: "🎒", title: "ได้รับเทิร์นนี้", detail: got.join(" · "), tone: "good" });
+  out.push({ key: "diff", icon: "🎚️", title: DIFF[b.diff] || "ปกติ", detail: `${b.score || 0}/${b.goal || 50} · +${b.rate || 0}/เทิร์น`, tone: "info" });
   return out;
 }
 export const SIT_COUNT = (list) => list.filter((s) => s.tone === "danger" || s.tone === "warn").length;

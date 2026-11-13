@@ -14,7 +14,7 @@ const Journey = require("../characters/_journey");
 const {
   BAG_SLOTS, BATTERY_MAX, BATTERY_REGEN, FORTUNE_MAX, GOLD_MAX, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_BATTERY_PRICE,
   SHOP_CARD_COLOR_PRICE, SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_INTERVAL_TURNS,
-  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE, SHOP_BARRICADE_PRICE,
+  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE, SHOP_BARRICADE_PRICE, SHOP_EOS_REVIVE_PRICE,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV, SHOP_ELEM_BOMB_PRICE, ELEM_BOMB_SIZE,
 } = require("./constants");
 const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("../characters/_universal_status");
@@ -103,6 +103,7 @@ function shopItemName(item) {
   if (item.type === "gysahl") return "ผักกิซาล";
   if (item.type === "pillarWard") return "เกราะเสา";
   if (item.type === "barricade") return "กำแพงไม้";
+  if (item.type === "eosRevive") return "ขนนกคืนชีพ";
   return "สินค้า";
 }
 function shopsList() { return match.shops || (match.shops = []); }
@@ -176,7 +177,7 @@ function openShop() {
 function refreshShopForJourney() {
   syncStageItems();
   for (const s of shopsList()) for (const it of s.items || []) {
-    if (it.type === "torch" || it.type === "gysahl" || it.type === "pillarWard" || it.type === "barricade") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
+    if (it.type === "torch" || it.type === "gysahl" || it.type === "pillarWard" || it.type === "barricade" || it.type === "eosRevive") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
     if (it.stockBase == null) it.stockBase = 1;
     const limit = it.stockBase + Journey.shopStockBonus(engine);
@@ -208,6 +209,10 @@ function syncStageItems() {
     const hb = (s.items || []).some((it) => it.type === "barricade");
     if (eos && !hb) s.items.push({ id: `${s.id}_wall_${match.shopRoundSeq}`, type: "barricade", price: Math.ceil(SHOP_BARRICADE_PRICE * eosPriceMul()), sold: false, soldTo: null, bought: 0 });
     else if (!eos && hb) s.items = s.items.filter((it) => it.type !== "barricade");
+    // ขนนกคืนชีพ (Eos Lament — ผู้ใช้สั่ง 2026-11-14)
+    const lam = eos && require("./fodlan/stage6").reviveOnSale(), hr = (s.items || []).some((it) => it.type === "eosRevive");
+    if (lam && !hr) s.items.push({ id: `${s.id}_revive_${match.shopRoundSeq}`, type: "eosRevive", price: Math.ceil(SHOP_EOS_REVIVE_PRICE * eosPriceMul()), sold: false, soldTo: null, bought: 0 });
+    else if (!lam && hr) s.items = s.items.filter((it) => it.type !== "eosRevive");
   }
 }
 // การเดินทาง (ทุ่งดอกไม้ กลางวัน): ของฟรีราคาไม่เกิน 5 ที่ใช้ได้ทันที
@@ -450,6 +455,7 @@ function buyShopItem(id, shopId, itemId) {
   p.inventory = p.inventory || [];
   if (item.type === "torch" && !require("./fodlan/stage2").torchOnSale()) return; // คบเพลิง: ขายเฉพาะ Fodlan ด่าน II
   if ((item.type === "gysahl" || item.type === "pillarWard" || item.type === "barricade") && !require("./fodlan/stage6").gysahlOnSale()) return; // ผักกิซาล / เกราะเสา: ขายเฉพาะ Eos
+  if (item.type === "eosRevive" && !require("./fodlan/stage6").reviveOnSale()) return; // ขนนกคืนชีพ: เฉพาะ Lament
   item.bought = (item.bought || 0) + 1; // ช่องละหลายชิ้น (refreshShopForJourney คิด stock/sold ใหม่)
   item.soldTo = p.id;
   refreshShopForJourney();
@@ -565,10 +571,15 @@ function useInventoryItem(id, uid, opts = {}) {
     if (!require("./fodlan/stage2").useTorch(p)) return;
   } else if (item.type === "gysahl") {
     // ผักกิซาล (Eos — server/fodlan/stage6.js): ล่อโชโกโบะของศัตรูในระยะ / เรียกโชโกโบะมาหา · ใช้ไม่ได้ = ไม่เสียของ
-    if (!require("./fodlan/stage6").useGysahl(p)) return;
+    const g = require("./fodlan/stage6").useGysahl(p);
+    if (!g) return;
+    if (g === "ride") { p.inventory.splice(idx, 1); itemUsed(p, item); view.broadcastState(); return; } // เรียกแล้วขึ้นขี่ = ไม่ล็อกการเดิน
   } else if (item.type === "pillarWard") {
     // เกราะเสา (Eos — server/fodlan/eosEvents.js): ยืนติดเสาที่ยึดไว้ → โล่เสา +1 (สูงสุด 2) · ใช้ไม่ได้ = ไม่เสียของ
     if (!require("./fodlan/stage6").useWard(p)) return;
+  } else if (item.type === "eosRevive") {
+    // ขนนกคืนชีพ (Eos Lament — server/fodlan/stage6.js): ยืนติดร่างเพื่อน → ฟื้นทันที ไม่นับการล้ม · ไม่มีร่างติดตัว = ไม่เสียของ
+    if (!require("./fodlan/stage6").useRevive(p)) return;
   } else if (item.type === "barricade") {
     // กำแพงไม้ (Eos — server/fodlan/eosPerks.js): ได้สิทธิ์วางกำแพง 1 ครั้ง (ปุ่ม "กำแพง") · ถือเต็ม 2 = ไม่เสียของ
     if (!require("./fodlan/stage6").useBarricade(p)) return;

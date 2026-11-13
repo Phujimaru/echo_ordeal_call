@@ -62,6 +62,7 @@ const MOB_OWNER = { id: "eos", name: "Eos", position: 0, customColor: null, team
 const SEIZE_SECS = 1.4;
 const REVIVE_TURNS = 3;       // ตายแล้วฟื้นหลัง 3 เทิร์น
 const SIGHT_EXTRA = 4;        // เห็นผู้เล่นอื่นในระยะเดิน + 4 ช่อง
+const MOB_WALK_MS = 1000; // ช่วงมอนเดิน (client MOB_MS) — ฉากตีเริ่มหลังจากนี้
 const SECS = { dropship: 1.8, mobs: 1.4, revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
 
 const K = (x, y) => `${x},${y}`;
@@ -307,6 +308,20 @@ function chocoNear(ctx, s, p) {
   if (!p || !p.pos) return [];
   return s.chocos.filter((c) => c.x != null && !c.rider && Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) === 1);
 }
+// เรียกโชโกโบะ (ฟาร์ม/ผักกิซาล) แล้วขึ้นขี่ทันที (ผู้ใช้ 2026-11-14 "เรียกแล้วขี่ไม่ได้เลย ต้องรอเทิร์นหน้า")
+//  ยังไม่ได้เดิน = เดินต่อจากนกเต็มระยะ · เดินแล้ว = ขึ้นได้แต่จบการเดิน · ขี่ไม่ได้ (ตัวใหญ่/บิน/ขับรถ) = นกยืนรอข้างตัวเหมือนเดิม
+function rideNow(ctx, s, p, c) {
+  if (!canRide(ctx, p, s) || riding(s, p) || c.x == null) return false;
+  const a = ctx.match.action;
+  p.pos = { x: c.x, y: c.y };
+  if (a && (a.moved || a.path || a.locked)) ctx.action.lockMove(p);
+  else if (a) {
+    if (!a.eye) a.eye = { ...a.from };
+    a.from = { ...p.pos }; a.trail = null; a.path = null;
+  }
+  mount(ctx, s, p, c);
+  return true;
+}
 function mountNear(ctx, s, p, tile) {
   if (!canRide(ctx, p, s) || riding(s, p) || !canMove(ctx, p) || !tile) return false;
   const c = chocoNear(ctx, s, p).find((o) => o.x === tile.x && o.y === tile.y);
@@ -473,7 +488,14 @@ function carSeats(ctx, st, p, t) {
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
-function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) + weakBonus(p, target) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
+// ร่วมแรง (ผู้ใช้สั่ง 2026-11-14 "เพื่อนร่วมทีมในบริเวณใกล้เคียง สู้ร่วมกัน" · ค่า Claude ตั้ง): มีเพื่อน (ผู้เล่นคนอื่น) ยืนในระยะ ALLY.r = ตีปกติใส่มอน +ALLY.atk (ไม่ซ้อนตามจำนวนเพื่อน)
+const ALLY = { r: 2, atk: 1 };
+function allyNear(ctx, p) {
+  if (!p || !p.pos || p.summon) return false;
+  const own = p.duoOf || p.id, mine = footOf(ctx, p);
+  return heroes(ctx).some((u) => !u.summon && (u.duoOf || u.id) !== own && footOf(ctx, u).some((a) => mine.some((b) => manhattan(a, b) <= ALLY.r)));
+}
+function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) + weakBonus(p, target) + (allyNear(ctx, p) ? ALLY.atk : 0) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
 // หันหน้าของมอน (summon.face = ทิศหลักแกนเดียว) — หุ่นเกราะใช้หาด้านหลัง
 function faceTo(sm, dx, dy) {
   if (!sm || (!dx && !dy)) return;
@@ -548,6 +570,7 @@ function spawnMob(ctx, s, type, at, stats, extra = {}) {
   const look = extra.look || null;
   const elite = ELT.roll(ctx, s, H(), type, extra);
   if (elite) stats = ELT.stats(stats, elite);
+  { const cap = type === "lament" || extra.trait === "boss" ? FAIR.bossHit : FAIR.hit; if ((stats.atk | 0) > cap) stats = { ...stats, atk: cap }; } // เพดานพลังโจมตี (ความแฟร์ — ผู้ใช้ 2026-11-14)
   const baseName = (extra.trait && (MBS.nameOf(type, extra.trait) || TRAIT_NAMES[extra.trait])) || (MOB_NAMES[type] + (extra.tier > 1 ? ` ${"I".repeat(Math.min(3, extra.tier))}` : ""));
   const rec = lazySummon().spawn(MOB_OWNER, {
     kind: "eosMob", pos: { x: at.x, y: at.y }, hp: stats.hp, armor: stats.armor + (type !== "lament" && LM.curse(s, "plate") ? 1 : 0), mov: stats.mov, range: [1, 1],
@@ -659,7 +682,7 @@ function prey(ctx, s, m) {
   const town = lightBound(m); // ไฟเมืองกันเฉพาะปีศาจ (เครื่องจักร/ราชาปีศาจเข้าได้ — 2026-11-11)
   const dark = XT.fearsLight(m); // ปีศาจ (ไม่ใช่ราชา) ไม่เข้าวงไฟแคมป์
   const blind = magnetOn(ctx) && mobType(m) !== "beast";
-  return heroes(ctx).filter((p) => !mobBlind(p) && !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)));
+  return heroes(ctx).filter((p) => !mobBlind(p) && !(blind && manhattan(p.pos, m.pos) > SKY.MAGNET.sight) && !ctx.action.walksThrough(p) && !(town && footOf(ctx, p).some((t) => blockedTown(s, t.x, t.y))) && !(dark && footOf(ctx, p).some((t) => XT.lightSafe(H(), t.x, t.y))) && !(ctx.combat.sameTeam && ctx.combat.sameTeam(m, p)) && engageOk(s, m, p)); // รุมได้ไม่เกิน FAIR.engage ตัว
 }
 const pillarGoals = (s) => s.pillars.filter((pl) => pl.owner || pl.ch);
 // สถานะคุมตัวของมอน (สตั้น/หลับ/ตรึง/เชื่องช้า) นับตามตาเดินของมอนเอง: endTurn ไม่ลด (phases/endTurn.js EOS_MOB_CONTROL)
@@ -910,7 +933,7 @@ function bossAct(ctx, s, m, all, round, out) {
   if (BB.land(ctx, s, H(), m, round)) out.big = true; // ท่าใหญ่ที่เตือนไว้
   // ---- คลั่ง ----
   if (!sm.enraged && m.hp <= (sm.maxHp || m.hp) * BOSS_AI.enrage) {
-    sm.enraged = true; sm.atk = (sm.atk | 0) + BOSS_AI.enrageAtk;
+    sm.enraged = true; sm.atk = Math.min(FAIR.bossHit, (sm.atk | 0) + BOSS_AI.enrageAtk);
     ctx.fx("boss_enrage", { id: m.id, x: m.pos.x, y: m.pos.y });
     ctx.log("👑 ราชาปีศาจคลั่ง! โจมตีแรงขึ้น เดินไวขึ้น");
   }
@@ -1098,7 +1121,39 @@ function hitPillar(ctx, s, pl, m) {
   ctx.log(`💔 เสา ${ZONE_NAMES[pl.zone] || ""} ถูกมอนเตอร์ทำลายพิธี — หลุดกลับเป็นกลาง!`);
   return { id: pl.id, lost: true };
 }
+// ---------- ความแฟร์ของช่วงมอน (ผู้ใช้สั่ง 2026-11-14 "ป้องกันไม่ให้ผู้เล่นโดนตีจาก 4 ทิศแล้วตายภายในเทิร์นเดียว · การโจมตีครั้งเดียวไม่ควรฆ่าได้ แม้ท้ายเกม Lament · ไม่เอากันตาย") ----------
+//  ทุกความยาก · ตัวเลข Claude ตั้ง (ผู้เล่นทั่วไปเลือด+เกราะ ~10)
+//  engage: ช่วงมอนหนึ่ง ผู้เล่นคนหนึ่งโดนมอนได้ไม่เกิน 2 ตัว — ตัวที่ 3 ขึ้นไปไม่เลือกคนนั้นเป็นเป้า (prey) ไปหาคนอื่น/เสาแทน
+//  hit / bossHit: ดาเมจรวมที่มอนตัวหนึ่งทำใส่ผู้เล่นคนหนึ่งในช่วงมอนเดียว ไม่เกิน 4 (ราชาปีศาจ/ผู้คร่ำครวญ 5) — รวมความดุ/หัวหน้า/ผู้บัญชาการแล้ว
+//  → มอนทั้งฝูงทำได้สูงสุด 5 + 4 = 9 ต่อเทิร์น: คนที่เลือด+เกราะเต็ม (10) ไม่ตายในเทิร์นเดียว
+const FAIR = { engage: 2, hit: 4, bossHit: 5 };
+// เพดานพลังโจมตีที่ตัวมอน (spawnMob · คลั่ง) = hit/bossHit เช่นกัน — ตัวเลขที่เห็นคือที่ตีจริง
+const fairCap = (m) => (mobType(m) === "lament" || (m.summon && m.summon.trait === "boss") ? FAIR.bossHit : FAIR.hit);
+// พลังโจมตีที่แสดงบนป้ายมอน (ผู้ใช้ 2026-11-14 "อยากรู้พลังโจมตี เกราะ พลังชีวิต") — ค่าที่ตีจริงต่อครั้ง (รวมความดุ · ไม่เกินเพดาน) · ยักษ์หินเหยียบ · ไม่ตี = 0
+function mobAtkOf(ctx, m) {
+  const sm = m.summon || {}, type = mobType(m);
+  if (type === "giant") return XT.GIANT ? XT.GIANT.dmg : 3;
+  if (type === "nest" || type === "gold" || sm.trait === "healer") return 0;
+  return Math.max(0, Math.min(fairCap(m), (sm.atk | 0) + (type === "beast" ? 0 : LM.rage(ctx).atk)));
+}
+function engageOk(s, m, p) {
+  const by = s.fight && s.fight.by[p.id];
+  return !by || by[m.id] != null || Object.keys(by).length < FAIR.engage;
+}
+// ดาเมจจากมอนใส่ผู้เล่นในช่วงมอน (ฮุค incoming) → จำนวนที่ลงได้
+function fairHit(s, p, n, src) {
+  if (!s.fight || !(n > 0)) return n;
+  const by = (s.fight.by[p.id] ||= {});
+  if (by[src.id] == null && Object.keys(by).length >= FAIR.engage) return 0; // ตัวที่ 3 (วงที่เตือนไว้ ฯลฯ)
+  const out = Math.max(0, Math.min(n, fairCap(src) - (by[src.id] || 0)));
+  by[src.id] = (by[src.id] || 0) + out;
+  return out;
+}
 function actMonsters(ctx, s) {
+  s.fight = { by: {} };
+  try { return actMonstersRaw(ctx, s); } finally { s.fight = null; }
+}
+function actMonstersRaw(ctx, s) {
   const runeOut = MBS.beforeAct(ctx, s, H()); // วงเวทที่วางไว้ตาก่อนระเบิด (นักเวทตายหมดแล้วก็ต้องล้างวง)
   const regenOut = ELT.beforeAct(ctx, s, H()); // หัวหน้าฟื้นตัว
   const list = mobsOf(ctx);
@@ -1205,12 +1260,14 @@ function actMonsters(ctx, s) {
     else if (!victims.length && r.pillar) pillarHits.push({ id: m.id, type, x: m.pos.x, y: m.pos.y, at: { x: r.pillar.x, y: r.pillar.y }, ...hitPillar(ctx, s, r.pillar, m) });
   }
   // ต้นเทิร์นเหตุการณ์เดียวสำหรับ client (เดิน → ตี) · ชื่อเดิม mob_move / mob_attack ใช้ทั้งปีศาจและศัตรูอื่น
+  //  delay (ผู้ใช้ 2026-11-14 "อยู่ๆ ก็ไหลเข้ามาแล้วเกิดความเสียหายเลย ไม่ทันรู้ตัว"): มีมอนเดิน = ฉากตี/ยิง/ดึงรอจนเดินถึงก่อน (client เลื่อนเอฟเฟกต์ + เลขดาเมจ + หลอดเลือดตาม)
+  const hitDelay = moves.length ? MOB_WALK_MS : 0;
   if (moves.length) ctx.fx("mob_move", { moves });
-  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits });
-  if (heals.length) ctx.fx("mob_heal", { heals });
-  if (shots.length) ctx.fx("mob_shot", { shots });
+  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits, delay: hitDelay });
+  if (heals.length) ctx.fx("mob_heal", { heals, delay: hitDelay });
+  if (shots.length) ctx.fx("mob_shot", { shots, delay: hitDelay });
   if (acc.blinks.length) ctx.fx("mob_blink", { list: acc.blinks });
-  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls });
+  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls, delay: hitDelay });
   if (acc.runes.length) ctx.fx("mob_rune_set", { list: acc.runes });
   if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${lightMax(s)})`); }
   return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big || runeOut.length || regenOut.length || acc.runes.length || acc.pulls.length || acc.blinks.length ? 1 : 0;
@@ -1453,7 +1510,6 @@ function outcome(ctx, st) {
   if (!s) return null;
   if (s.result) return s.result;
   const people = Object.values(ctx.match.players).filter((u) => !u.summon);
-  if (LM.lost(ctx, s)) { s.result = "lose"; ctx.log("🕯️ ชีวิตทีมหมด — Eos จมสู่ความโศก"); return s.result; } // Lament
   if (people.length && people.every((u) => !u.alive)) {
     s.result = "lose";
     ctx.log("🌑 ผู้เล่นล้มหมดทุกคน — Eos ถูกความมืดกลืนกิน");
@@ -1490,8 +1546,8 @@ function noteDeaths(ctx, s) {
       s.dead[p.id] = ctx.match.roundNumber;
       { const S = SUM(s); S.deaths[p.id] = (S.deaths[p.id] || 0) + 1; const c = S.last[p.id]; if (c) (S.causes[p.id] ||= {})[c] = ((S.causes[p.id] || {})[c] || 0) + 1; }
       PKS.noteDown(s);
-      LM.onDown(ctx, s); // Lament: ชีวิตทีม // ดาวท้าทาย "ไม่มีใครล้ม"
-      ctx.log(`🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${reviveTurns(s)} เทิร์น`);
+      const back = LM.onDown(ctx, s, p); // Lament: ชีวิตทีม (หมดแล้ว = ไม่ฟื้นเอง) // ดาวท้าทาย "ไม่มีใครล้ม"
+      ctx.log(back ? `🕯️ ${p.name} ล้มลง — ฟื้นในอีก ${reviveTurns(s)} เทิร์น` : `🕯️ ${p.name} ล้มลง`);
     }
   }
 }
@@ -1507,24 +1563,30 @@ function reviveSpot(ctx, s, p) {
   return null;
 }
 
+// ฟื้นผู้เล่นที่ spot (ฟื้นตามเวลา / ขนนกคืนชีพ) · hp = เลือดตอนฟื้น (ไม่ส่ง = เต็ม)
+function raise(ctx, s, p, spot, hp) {
+  const pid = p.id;
+  E.onRevived(s, pid);
+  p.alive = true; p.result = null; p.locked = false;
+  p.statuses = {}; p.statusAmt = {};
+  p.shield = 0; p.tempHp = 0; p.tempHpTurns = 0; p.mountId = null; p.wasAttacked = false; p.corpseKeeper = null;
+  p.corpse = null;
+  p.boardSize = 1;
+  if (ctx.combat.respawnReset) ctx.combat.respawnReset(p); // เกิดใหม่: ของที่ใช้ได้ครั้งเดียวต่อเกมกลับมาใช้ได้ (ผู้ใช้สั่ง 2026-11-11)
+  p.hp = hp != null ? Math.max(1, Math.min(ctx.combat.maxHpOf(p), hp)) : ctx.combat.maxHpOf(p);
+  p.armor = ctx.combat.maxArmorOf(p);
+  p.pos = spot;
+  delete s.dead[pid];
+}
 function reviveDue(ctx, s) {
   const turn = ctx.match.roundNumber + 1, back = [];
   for (const [pid, r] of Object.entries(s.dead)) {
     const p = ctx.match.players[pid];
-    if (!p || p.alive || p.summon || turn < r + reviveTurns(s)) continue;
+    if (!p || p.alive || p.summon || LM.gone(s, pid) || turn < r + reviveTurns(s)) continue; // Lament: ชีวิตทีมหมดตอนล้ม = ไม่ฟื้นเอง
     const spot = E.helpedSpot(ctx, s, H(), p) || reviveSpot(ctx, s, p); // ถูกเพื่อนช่วย = ฟื้นข้างดวงวิญญาณ
     if (!spot) continue;
-    E.onRevived(s, pid);
-    p.alive = true; p.result = null; p.locked = false;
-    p.statuses = {}; p.statusAmt = {};
-    p.shield = 0; p.tempHp = 0; p.tempHpTurns = 0; p.mountId = null; p.wasAttacked = false; p.corpseKeeper = null;
-    p.corpse = null;
-    p.boardSize = 1;
-    if (ctx.combat.respawnReset) ctx.combat.respawnReset(p); // เกิดใหม่: ของที่ใช้ได้ครั้งเดียวต่อเกมกลับมาใช้ได้ (ผู้ใช้สั่ง 2026-11-11)
-    p.hp = ctx.combat.maxHpOf(p);
-    p.armor = ctx.combat.maxArmorOf(p);
-    p.pos = spot;
-    delete s.dead[pid];
+    raise(ctx, s, p, spot);
+    LM.onRespawn(s, pid);
     back.push({ id: p.id, x: spot.x, y: spot.y });
     ctx.log(`✨ ${p.name} ฟื้นคืนชีพ!`);
   }
@@ -1729,7 +1791,7 @@ function useGysahl(p) {
   ctx.bump();
   ctx.fx("gysahl_call", { from, to: { ...spot }, by: p.id });
   ctx.log(`🥬 ${p.name} ใช้ผักกิซาล — โชโกโบะวิ่งมาหา`);
-  return true;
+  return rideNow(ctx, s, p, c) ? "ride" : true; // "ride" = ร้านไม่ล็อกการเดิน (เดินต่อจากนกได้)
 }
 // ---------- L10 ซากรถ (ผลักได้) ----------
 function wreckNear(ctx, s, p) { return (s.wrecks || []).filter((w) => ctx.adjacent(p, w.x, w.y)); }
@@ -2033,12 +2095,12 @@ const ARM_TURNS = 5;
 // อาหารทีม (ผู้ใช้เลือกไอเดีย 2026-11-10 "ทำอาหารที่แคมป์จากปลาที่ตกได้ บัฟแรงขึ้น ให้ทั้งทีมกิน") — ใช้ปลาในถุง · ตัวเลข Claude ตั้ง
 const FISH_MAX = 3;
 const TEAM_MEALS = {
-  grill: { icon: "🍢", name: "ปลาย่างทั้งทีม", fish: 1, desc: "ใช้ปลา 1 — ทุกคนในทีมฟื้นเลือด 2 ทันที + ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
-  feast: { icon: "🥘", name: "งานเลี้ยงทีม", fish: 2, desc: "ใช้ปลา 2 — ทุกคนในทีม ตี +1 · เดิน +1 · ฟื้นเลือด 1 ทุกต้นเทิร์น 3 เทิร์น" },
+  grill: { icon: "🍢", name: "ปลาย่างทั้งทีม", fish: 1, desc: "ปลา 1 · ทั้งทีมเลือด +2 · ฟื้น 1/เทิร์น 3 เทิร์น" },
+  feast: { icon: "🥘", name: "งานเลี้ยงทีม", fish: 2, desc: "ปลา 2 · ทั้งทีมตี +1 เดิน +1 ฟื้น 1/เทิร์น 3 เทิร์น" },
 };
 const CAMP_MEALS = {
   atk: { icon: "🍲", name: "สตูว์", desc: "ตี +1 · 3 เทิร์น" },
-  mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้นเลือด 1 ทุกต้นเทิร์น · 3 เทิร์น" },
+  mend: { icon: "🐟", name: "ปลาย่าง", desc: "ฟื้น 1/เทิร์น · 3 เทิร์น" },
   mov: { icon: "🍙", name: "ข้าวกล่อง", desc: "เดิน +1 · 3 เทิร์น" },
 };
 const BOUNTY = { daemon: { icon: "👹", name: "ปีศาจ", gold: 4 }, beast: { icon: "🦣", name: "สัตว์ยักษ์", gold: 8 }, magitek: { icon: "🤖", name: "ทหารเหล็ก", gold: 4 }, player: { icon: "🎯", name: "ผู้เล่น", gold: 6 } };
@@ -2295,6 +2357,7 @@ function onKill(ctx, st, victim, killerId) {
   const s = st && st.eos;
   if (!s || !victim || victim.summon) return;
   E.noteDeathAt(s, victim); // ดวงวิญญาณที่ช่องที่ล้ม (ช่วยเพื่อนฟื้นเร็ว)
+  noteDeaths(ctx, s); // นับการล้มทันที (ผู้ใช้ 2026-11-14 — เดิมรอจบตา/ต้นเทิร์นหน้า)
   const by = killerId && ctx.match.players[killerId];
   if (by && by.id !== victim.id) huntDone(ctx, s, by, "player", victim.id);
 }
@@ -2340,7 +2403,7 @@ function p4Hud(ctx, s, p, out) {
     for (const [k, m] of Object.entries(TEAM_MEALS)) if (has > 0) out.push({ key: `fd:camp:${k}`, icon: m.icon, name: m.name, desc: m.desc, count: m.fish, disabled: !canStrike(ctx, p) || has < m.fish });
   }
   if (onSpot(p, MAP.FISH)) out.push({ key: "fd:fish", icon: "🎣", name: "ตกปลา", disabled: !canStrike(ctx, p) });
-  { const ti = tombNear(ctx, s, p); if (ti >= 0) { const a = AR.armAt(ti); out.push({ key: "fd:tomb", icon: "⚔️", name: a.name, desc: `อาวุธจักรพรรดิ ${ARM_TURNS} เทิร์น: ${a.desc}${a.noDrain ? "" : " · ตาที่ตีเสียเลือด 1"}${hasArm(s, p) ? " · เปลี่ยนจากอาวุธที่ถือ" : ""}`, disabled: !canStrike(ctx, p) }); } }
+  { const ti = tombNear(ctx, s, p); if (ti >= 0) { const a = AR.armAt(ti); out.push({ key: "fd:tomb", icon: "⚔️", name: a.name, desc: `${ARM_TURNS} เทิร์น: ${a.desc}${a.noDrain ? "" : " · ตีแล้วเสียเลือด 1"}`, disabled: !canStrike(ctx, p) }); } }
   if (shopNear(ctx, p) && !q.bounty[p.id]) out.push({ key: "fd:bounty", icon: "📜", name: "ค่าหัว", disabled: !ctx.action.canAct(p) });
 }
 function p4Action(ctx, s, p, key, tile) {
@@ -2407,7 +2470,7 @@ function preRound(ctx, st) {
   secs = Math.max(secs, E.onNight(ctx, s, H(), realNight));
   secs = Math.max(secs, SKY.onNight(ctx, s, realNight, !!E.ev(s).blood)); // จันทร์เต็มดวง (คืนที่ไม่ใช่สีเลือด) // พระจันทร์สีเลือด (ก่อนเกิดปีศาจ — จำนวน ×1.5) · เตือนบอสต้นคืน
   // มอนเตอร์ที่อยู่แล้วขยับก่อน (ตัวที่เพิ่งเกิดเทิร์นนี้ยังไม่ขยับ)
-  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs);
+  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs + MOB_WALK_MS / 1000); // เดิน (MOB_WALK_MS) แล้วค่อยตี
   if (freshNight) secs = Math.max(secs, spawnDaemons(ctx, s) ? SECS.daemonSpawn : 0);
   else if (night) {
     // เกิดซ้ำทุกเทิร์นกลางคืน จนครบจำนวนของคืนนั้น
@@ -2491,10 +2554,10 @@ function hudActions(ctx, st, p) {
   }
   const sw = switchNear(ctx, p);
   if (sw) { const cd = flashCd(ctx, s, sw.zone); out.push({ key: "fd:lights", icon: "💡", name: "สาดไฟ", cd, disabled: !canStrike(ctx, p) || cd > 0 || !lit(s, sw.zone) }); }
-  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ซ่อมไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${lightMax(s)}) · ไฟดับ = เปิดคืน ปีศาจเข้าเมืองไม่ได้อีก — ใช้การโจมตี` });
+  if (sw && lightFixable(ctx, s, p)) out.push({ key: "fd:lightfix", icon: "🔦", name: lit(s, sw.zone) ? "ซ่อมไฟ" : "เปิดไฟ", disabled: !canStrike(ctx, p), desc: `ไฟเมือง +${TOWN_LIGHT.fix} (เต็ม ${lightMax(s)})` });
   const wf = wallFixTarget(ctx, s, p);
   if (wf) out.push({ key: "fd:wallfix", icon: wf.kind === "turret" ? "🔫" : "🧱", name: wf.broken && wf.kind === "turret" ? "สร้างป้อม" : FIX_NAMES[wf.kind], disabled: !canStrike(ctx, p),
-    desc: wf.kind === "barricade" ? `ซ่อมกำแพงไม้ +${CITY_WALL.fix} (เต็ม ${PKS.wallMax(s)}) — ใช้การโจมตี` : `${wf.kind === "turret" ? "ซ่อมป้อมปืน" : "ซ่อมกำแพง Insomnia"} +${CITY_WALL.fix} (พังแล้วสร้างใหม่ได้ถ้าไม่มีใครยืน) — ใช้การโจมตี` });
+    desc: `+${CITY_WALL.fix}` });
   if (fixTargets(ctx, s, p).length) { const ft = fixTargets(ctx, s, p)[0]; out.push({ key: "fd:fix", icon: ft.kind === "car" ? "🔧" : "🥬", name: ft.kind === "car" ? "ซ่อมรถ" : "ป้อนอาหาร", disabled: !canStrike(ctx, p) }); }
   if (wreckNear(ctx, s, p).length) out.push({ key: "fd:push", icon: "🚙", name: "ผลัก", disabled: !canStrike(ctx, p) || !wreckNear(ctx, s, p).some((w) => pushTo(ctx, s, p, w)) });
   for (const el of [...new Set(flasksOf(s, p))]) {
@@ -2522,10 +2585,10 @@ const HUD_DESC = {
   "fd:board": `ขึ้นขับรถคันที่ติดตัว — ยังไม่ได้เดิน = เดินต่อจากรถได้เต็มระยะ +${CAR_MOV}\nขับได้เฉพาะถนน/พื้นเรียบ · อยู่ในรถใช้สกิลไม่ได้`,
   "fd:seat": "ขอนั่งรถที่เพื่อนขับ (คนขับต้องกดยอม) — ไปกับรถ ไม่ร่วงตอนคนขับโดนตี",
   "fd:ram": `ขับชนมอนเตอร์ที่ติดรถ: ดาเมจ ${CAR_HIT_DMG} + กระเด็น 1 ช่อง (ใช้การโจมตีของตา)`,
-  "fd:leave": "ลงจากรถ (ไม่เสียการเดิน) — รถจอดไว้ที่เดิม ผู้โดยสารลงหมด",
+  "fd:leave": "ลงช่องข้างตัว · รถจอดที่เดิม · จบการเดิน",
   "fd:mount": `กระโดดขึ้นหลังโชโกโบะ — ยังไม่ได้เดิน = เดินต่อจากนกได้เต็มระยะ +${CHOCO_MOV}\nผ่านป่า/น้ำตื้นกิน 1 ก้าว · โดนดาเมจ นกรับแทนก่อน (นกเลือดหมด = ตกนก นกกลับคอก)`,
   "fd:fix": `ซ่อมรถ +${CAR_FIX} / ป้อนผักให้โชโกโบะ +${CHOCO_FEED} — คันหรือตัวที่ติดตัวหรือที่ขับ/ขี่อยู่ เลือดน้อยสุดก่อน · รถพังซ่อมแล้วขับได้อีก (ใช้การโจมตี)`,
-  "fd:dismount": "ลงจากโชโกโบะ วางนกไว้ช่องข้างตัว (ไม่เสียการเดิน)",
+  "fd:dismount": "ลงช่องข้างตัว · นกยืนที่เดิม · จบการเดิน",
   "fd:lever": "ยก/ลดสะพานทั้งเมือง Altissia — ยกขึ้น = เดินข้ามไม่ได้ (ใช้การโจมตีของตา)",
   "fd:dome": `เปิดโดมกำแพงเวท Insomnia ${DOME_TURNS} เทิร์น — ปิดประตูเมือง ตีจากนอกโดมเข้าไปไม่ได้ (ใช้การโจมตี)`,
   "fd:lights": `สาดไฟจ้า: มอนในระยะ ${FLASH.r} ช่องจากแผงมึน 1 เทิร์น · ปีศาจโดนแสงไหม้ ${FLASH.dmg} · พัก ${FLASH.cd} เทิร์น (ใช้การโจมตี)`,
@@ -2554,6 +2617,7 @@ function descOf(a, s, sz) {
 }
 function charAction(ctx, st, p, key, tile) {
   const s = st && st.eos;
+  if (s && p && typeof key === "string" && key.startsWith("fd:perk:")) return PKS.action(ctx, s, H(), p, key, tile); // โหวตการ์ดทีม (คนที่ล้มก็โหวตได้)
   if (!s || !p || !p.pos) return false;
   const tw = TWN.action(ctx, s, H(), p, key);
   if (tw !== null) return tw;
@@ -2582,14 +2646,18 @@ function charAction(ctx, st, p, key, tile) {
   if (key === "fd:wallfix") return fixWall(ctx, s, p);
   if (key === "fd:turret") return fireTurret(ctx, s, p, tile);
   if (typeof key === "string" && key.startsWith("fd:flask:")) return throwFlask(ctx, s, p, key.slice(9), tile);
-  if (key === "fd:dismount") {
+  if (key === "fd:dismount") { // ลงแบบรถ (ผู้ใช้ 2026-11-14): เราก้าวลงช่องข้างตัว · นกยืนที่เดิม · จบการเดิน
     if (!riding(s, p) || !ctx.action.canAct(p) || !tile) return false;
     if (!dismountTiles(ctx, s, p).some((t) => t.x === tile.x && t.y === tile.y)) return false;
     const c = unride(ctx, s, p.id);
     if (!c) return false;
-    c.rider = null; c.x = tile.x; c.y = tile.y;
+    const from = { ...p.pos };
+    c.rider = null; c.x = from.x; c.y = from.y;
+    p.pos = { x: tile.x, y: tile.y };
+    const a = ctx.match.action;
+    if (a) { a.from = { ...p.pos }; a.trail = null; a.path = null; a.locked = true; }
     ctx.bump();
-    ctx.fx("choco_dismount", { id: p.id, choco: c.id, x: tile.x, y: tile.y });
+    ctx.fx("choco_dismount", { id: p.id, choco: c.id, x: from.x, y: from.y, to: { ...tile } });
     ctx.log(`🐤 ${p.name} ลงจากโชโกโบะ`);
     return true;
   }
@@ -2688,7 +2756,7 @@ function hides(ctx, st, viewer, target) {
 let H_CACHE = null;
 function H() {
   if (H_CACHE) return H_CACHE;
-  H_CACHE = { carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, traitStats, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
+  H_CACHE = { rideNow, carOf, CAR_HP, stepToward, faceTo, mobType, lightSafe: (x, y) => XT.lightSafe(H(), x, y), unitsOn, dimLights, turretZone, mobRoom, bigFree, bigStart, turretUp, p4State, spawnMob, traitStats, mobsOf, heroes, bodies, isMob, tileFree, freeNear, hurt, loot, flasksOf, blockedTown, townOf, inRect, manhattan, area3, addScore, sideColor, ZONE_NAMES, MAP, ROAD, canStrike, canMove, daemonStats, footOf, carGround, onRail, TURRETS };
   return H_CACHE;
 }
 // เกราะเสา (ไอเทมร้าน Eos — server/shop.js) · ใช้ไม่ได้ = ไม่เสียของ
@@ -2699,6 +2767,45 @@ function useWard(p) {
   const ctx = F.makeCtx(), s = F.stageState().eos, ok = E.useWard(ctx, s, p);
   if (ok) XT.stat(s, p.id, "guard");
   return ok;
+}
+// ---------- Lament: หมากศพ + ขนนกคืนชีพ (ผู้ใช้สั่ง 2026-11-14) ----------
+//  ล้มใน Lament = ทิ้งร่างไว้ที่ช่องที่ล้ม (server/duo.js keptFor) · ยืนติดร่างเพื่อนแล้วใช้ขนนก = ฟื้นทันทีที่ร่าง เลือดครึ่งหนึ่ง
+//  การล้มครั้งนั้นไม่นับ (คืนชีวิตทีม — eosLament.onSaved) · ไม่มีร่างติดตัว = ไม่เสียของ · ขายเฉพาะ Lament
+const REVIVE_ITEM = { hpK: 0.5 };
+function lamentOn() {
+  if (!gysahlOnSale()) return false;
+  return LM.on(require("../fodlan").makeCtx());
+}
+function keepsCorpse(p) { return !!(p && !p.summon && lamentOn()); }
+function reviveOnSale() { return lamentOn(); }
+function reviveTargets(ctx, s, p) {
+  const e = E.ev(s), out = [];
+  for (const pid of Object.keys(s.dead || {})) {
+    const u = ctx.match.players[pid];
+    if (!u || u.alive || u.summon || u.id === p.id) continue;
+    const at = u.corpse || e.deathAt[pid];
+    if (at && ctx.adjacent(p, at.x, at.y)) out.push({ u, x: at.x, y: at.y });
+  }
+  return out;
+}
+function useRevive(p) {
+  if (!p || !p.alive || !p.pos || !reviveOnSale()) return false;
+  const F = require("../fodlan");
+  const ctx = F.makeCtx(), s = F.stageState().eos;
+  for (const t of reviveTargets(ctx, s, p)) {
+    const u = t.u;
+    u.corpse = null; // ไม่นับร่างตัวเองตอนหาช่อง
+    const spot = tileFree(ctx, s, t.x, t.y, u.id) ? { x: t.x, y: t.y } : freeNear(ctx, s, t.x, t.y, 2, u.id);
+    if (!spot) { u.corpse = { x: t.x, y: t.y }; continue; }
+    raise(ctx, s, u, spot, Math.ceil(ctx.combat.maxHpOf(u) * REVIVE_ITEM.hpK));
+    const refund = LM.onSaved(ctx, s, u);
+    XT.stat(s, p.id, "saves");
+    ctx.bump();
+    ctx.fx("revive", { list: [{ id: u.id, x: spot.x, y: spot.y }], by: p.id, item: true });
+    ctx.log(`🪶 ${p.name} ใช้ขนนกคืนชีพ — ${u.name} ฟื้นคืนชีพ!${refund ? " (ไม่นับการล้ม)" : ""}`);
+    return true;
+  }
+  return false;
 }
 // กำแพงไม้ (ไอเทมร้าน Eos — server/shop.js) → เพิ่มจำนวนที่วางได้ (ปุ่ม "กำแพง" บน HUD) · เต็มแล้ว = ไม่เสียของ
 function useBarricade(p) {
@@ -2733,7 +2840,7 @@ function publicInfo(ctx, st) {
     ...p4Public(ctx, s), // ขั้น 4: ราง/ชานชาลา · อุโมงค์ · ท่ากอนโดลา · แคมป์ · จุดตกปลา · สุสาน
     chocos: s.chocos.map((c) => ({ id: c.id, x: c.x, y: c.y, rider: c.rider, home: { ...c.home }, hp: c.hp ?? CHOCO_HP, maxHp: CHOCO_HP })),
     riders,
-    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0, elite: ELT.publicOf(d) })),
+    daemons: mobsOf(ctx, "daemon").map((d) => ({ id: d.id, x: d.pos.x, y: d.pos.y, hp: d.hp, maxHp: d.summon.maxHp, armor: d.armor, maxArmor: d.summon.maxArmor, kind: d.summon.look, tier: d.summon.tier || 1, trait: d.summon.trait || null, face: d.summon.face || null, cd: d.summon.cdUntil > ctx.match.roundNumber ? 1 : 0, elite: ELT.publicOf(d), atk: mobAtkOf(ctx, d) })),
     warn: [
       ...(s.warn || []).map((t) => ({ x: t.x, y: t.y, kind: "lightning" })),
       ...(s.ships || []).filter((d) => d.state === "warn").flatMap((d) => [0, 1].flatMap((dy) => [0, 1].map((dx) => ({ x: d.x + dx, y: d.y + dy, kind: "dropship" })))),
@@ -2759,7 +2866,7 @@ function publicInfo(ctx, st) {
     lastGain: s.lastGain || 0,
     nightNo: s.nightNo || 0, dayNo: s.dayNo || 1, kills: s.kills || 0,
     cycleLeft: (() => { const r = ctx.match.roundNumber, n0 = nightAt(ctx, r); let k = 1; while (k < 12 && nightAt(ctx, r + k) === n0) k++; return k; })(), // อีกกี่เทิร์นสลับกลางวัน/คืน
-    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + reviveTurns(s) })),
+    revive: Object.entries(s.dead).map(([id, r]) => ({ id, at: r + reviveTurns(s), gone: LM.gone(s, id) || undefined })),
     chests: (s.chests || []).map((c) => ({ id: c.id, x: c.x, y: c.y })),
     bridgeUp: !!s.bridgeUp,
     dome: domeOn(s) ? { left: s.dome.left, rect: INSOMNIA, hp: s.dome.hp ?? DOME_HP, maxHp: DOME_HP, gates: DOME_GATES.map((t) => ({ ...t })) } : null,
@@ -2771,7 +2878,7 @@ function publicInfo(ctx, st) {
     wrecks: (s.wrecks || []).map((w) => ({ ...w })),
     barrels: (s.barrels || []).map((b) => ({ id: b.id, x: b.x, y: b.y })),
     crystals: (s.crystals || []).map((c) => ({ id: c.id, x: c.x, y: c.y, element: c.element, ...(c.meteor ? { meteor: true } : null) })),
-    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null, face: m.summon.face || null, elite: ELT.publicOf(m) })),
+    mobs: mobsOf(ctx).filter((m) => mobType(m) !== "daemon").map((m) => ({ id: m.id, type: mobType(m), x: m.pos.x, y: m.pos.y, hp: m.hp, maxHp: m.summon.maxHp, armor: m.armor, maxArmor: m.summon.maxArmor, aggro: m.summon.aggro || null, tier: m.summon.tier || 1, trait: m.summon.trait || null, face: m.summon.face || null, elite: ELT.publicOf(m), atk: mobAtkOf(ctx, m) })),
     ships: (s.ships || []).map((d) => ({ id: d.id, x: d.x, y: d.y, state: d.state })),
     dropship: (s.ships || []).find((d) => d.state === "landed") || null,
   };
@@ -2783,15 +2890,22 @@ function playerInfo(ctx, st, p) {
   if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "โชโกโบะ", cls: "bg-yellow-300 text-gray-900" });
   if (driving(s, p)) badges.push({ key: "car", icon: "🚗", label: "รถ", cls: "bg-amber-200 text-gray-900" });
   p4Badges(s, p, badges);
+  if (allyNear(ctx, p)) badges.push({ key: "ally", icon: "🤝", label: `ร่วมแรง ตี +${ALLY.atk}`, cls: "bg-emerald-200 text-gray-900" });
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
-  if (!badges.length) return undefined;
-  return { choco: riding(s, p), car: driving(s, p), badges };
+  // พลังตีใส่มอน (ป้ายชี้ผู้เล่น — ผู้ใช้ 2026-11-14 "ทำทุกข้อ"): ประเมินกับมอนที่ใกล้สุด · ไม่มีมอน = null
+  let atk = null;
+  if (p && p.alive && p.pos && !p.summon) {
+    const m = mobsOf(ctx).filter((u) => u.pos).sort((a, b) => manhattan(a.pos, p.pos) - manhattan(b.pos, p.pos))[0];
+    if (m) { const v = require("../phases/attack").estimateAttackOn(p, m); if (Number.isFinite(v)) atk = v; }
+  }
+  if (!badges.length && atk == null) return undefined;
+  return { choco: riding(s, p), car: driving(s, p), badges, atk };
 }
 
 module.exports = {
   FLASH, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
-  absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
-  incoming(ctx, st, p, n, src) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
+  absorbDamage, ALLY, allyNear, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
+  incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = fairHit(s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), src); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
   critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
   strikePierces(ctx, st, p) { const s = st && st.eos; return !!(s && p && !p.summon && AR.piercesOf(armRec(s, p))); }, // Katana of the Warrior
@@ -2799,7 +2913,7 @@ module.exports = {
   preventDeath(ctx, st, p) { return !!(st && st.eos) && PKS.gutsSave(ctx, st.eos, p); }, // การ์ดใจสู้
   enter, weatherStart, layer, keepsTile, CHASM_TURNS, layerVer, movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, atkBonus, onKill, preRound, onUnitEnd, onEndTurn,
   hudActions, charAction, objects, strikeObject, vision, hides, publicInfo, playerInfo, winner, shields,
-  gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
+  gysahlOnSale, useGysahl, wardOnSale, useWard, useBarricade, keepsCorpse, reviveOnSale, useRevive, reviveTargets, REVIVE_ITEM, onConvoyDeath, onCivDeath, H, pillarHp, reviveTurns,
   // ผลค้างทั้งแมตช์ (fodlan.persistAll): การ์ดทนทาน = เลือดสูงสุด +2
   persist: { maxHpBonus(ctx, st, p) { return st && st.eos && p && !p.summon ? PKS.hpBonus(st.eos) : 0; } }, addScore, bomberBlast, healerAct, TRAIT, pickTrait, nightTarget, explodeBarrel, throwFlask, fireTurret, actMonsters, spawnBeast, dropshipTurn, respawnProps, hurt, TURRETS, outcome, onMobDeath, isMob, mobsOf, spawnMob, spawnChests, openChest, mountNear, hitPillar,
   PILLAR_HP, PVE, MOB_SIDE, daemonStats, magitekStats, daemonCount, CHEST_EVERY, CHEST_MAX, DAY_DROP_PCT,

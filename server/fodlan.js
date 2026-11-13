@@ -272,7 +272,7 @@ function maybeAdvance(startTimer, random = Math.random) {
 // ชั้นแผนที่ของด่าน (action.boardMap → layeredMap) — คืน map ใหม่ (ไม่มีฮุค = เดิม)
 // ช่องที่ท่าทำลายพื้นที่ (engine.addChasm) พังไม่ได้ — true = กันไว้
 // ดาเมจที่ยูนิตของด่านได้รับ (combat.adjustIncomingDamage — Eos: ทหารโล่ตีจากหน้าเหลือ 1)
-function incomingDamage(p, n, src) { const r = call("incoming", n, p, n, src); return Number.isFinite(r) ? r : n; }
+function incomingDamage(p, n, src, kind) { const r = call("incoming", n, p, n, src, kind); return Number.isFinite(r) ? r : n; }
 // อาวุธจักรพรรดิ (Eos): ระยะตีปกติ · คริ · ทะลุเกราะ · ผลเมื่อตีปกติลง
 function rangeMod(p, r) { const v = call("rangeMod", r, p, r); return Array.isArray(v) ? v : r; }
 function critPct(p) { return Number(call("critPct", 0, p)) || 0; }
@@ -311,7 +311,8 @@ function hudActions(p) {
 // socket charAction (key "fd:…") → ฮุคของด่าน · ฮุคบรอดแคสต์เองหรือคืน true แล้วที่นี่บรอดแคสต์ให้
 function charAction(id, key, tile) {
   const p = match.players[id];
-  if (!active() || !p || !p.alive) return false;
+  const vote = typeof key === "string" && key.startsWith("fd:perk:"); // โหวตการ์ดทีม Eos: คนที่ล้มอยู่ก็โหวตได้ (ผู้ใช้ 2026-11-14 — เดิมโหวตไม่ได้แต่ระบบรอ)
+  if (!active() || !p || (!p.alive && !vote)) return false;
   const ok = combat.withEffectSource(p, () => call("charAction", false, p, key, tile));
   if (ok) view.broadcastState(); // ทุกช่วง (โหวตการ์ดทีม Eos กดได้ตอนจั่วการ์ดด้วย — เดิมเฉพาะ ACTION = หน้าจอไม่อัปเดต)
   return !!ok;

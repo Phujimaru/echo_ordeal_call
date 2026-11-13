@@ -16,7 +16,7 @@ const DIFF = {
   easy: { hp: 0.75, cnt: 0.75, atk: -1, drop: 10, bossArmor: 0, goal: 50, cap: 0.8 },
   normal: { hp: 1, cnt: 1, atk: 0, drop: 0, bossArmor: 0, goal: 50, cap: 1 },
   hard: { hp: 1.3, cnt: 1.3, atk: 1, drop: 0, bossArmor: 2, goal: 100, cap: 1.25 }, // ยาก = เป้า 100 (ผู้ใช้สั่ง 2026-11-10)
-  lament: { hp: 1.6, cnt: 1.5, atk: 2, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · กติกาเฉพาะ server/fodlan/eosLament.js)
+  lament: { hp: 1.6, cnt: 1.5, atk: 1, drop: 0, bossArmor: 4, goal: 100 }, // Lament (ผู้ใช้สั่ง 2026-11-11 — สูงกว่ายาก · ตี +2 → +1 ผู้ใช้ 2026-11-14 "โดนรุม 2 ตัวตายในเทิร์นเดียว ไม่แฟร์" · กติกาเฉพาะ server/fodlan/eosLament.js)
 };
 const diffOf = (ctx) => DIFF[ctx.match.eosDiff] || DIFF.normal;
 // เป้าแต้มรวมตามความยาก · จุดเหตุการณ์ที่ผูกกับแต้ม (ราชาปีศาจ/การ์ดทีม/คืนสุดท้าย) ขยายตามสัดส่วนเป้า (ตั้งไว้ที่เป้า 50 — Claude ตัดสิน)
@@ -255,7 +255,7 @@ function spiritsNear(ctx, s, p) {
   const e = ev(s), out = [];
   for (const [pid, at] of Object.entries(e.deathAt)) {
     const u = ctx.match.players[pid];
-    if (!u || u.alive || s.dead[pid] == null || pid === p.id) continue;
+    if (!u || u.alive || s.dead[pid] == null || pid === p.id || (s.lam && s.lam.gone && s.lam.gone[pid])) continue; // Lament: ไม่ฟื้นเองแล้ว = ช่วยเร่งไม่ได้ (ใช้ขนนกคืนชีพ)
     if (Math.abs(at.x - p.pos.x) + Math.abs(at.y - p.pos.y) > 1) continue;
     out.push({ id: pid, x: at.x, y: at.y });
   }
@@ -425,10 +425,10 @@ function hud(ctx, s, H, p, out) {
   if (sp.length) {
     const used = !!e.helpBy[`${p.id}|${ctx.match.roundNumber}`];
     out.push({ key: "fd:help", icon: "🤝", name: "ช่วย", disabled: used || !H.canStrike(ctx, p), tiles: sp.length > 1 ? sp.map((o) => ({ x: o.x, y: o.y })) : undefined,
-      desc: "ช่วยเพื่อนที่ล้ม (ใช้การโจมตีของตา) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นข้างดวงวิญญาณแทนจุดเกิดไกล" });
+      desc: "เพื่อนฟื้นเร็วขึ้น 1 เทิร์น ที่นี่" });
   }
   const q = e.quests.find((o) => o.type === "scout" && p.pos && o.x === p.pos.x && o.y === p.pos.y);
-  if (q) out.push({ key: "fd:scout", icon: "📡", name: "สำรวจ", disabled: !ctx.action.canAct(p), desc: `ทำภารกิจสำรวจของ ${H.ZONE_NAMES[q.zone] || q.zone} สำเร็จ — แต้มรวม +${QUEST.score} · คนทำได้เหรียญ + ของ` });
+  if (q) out.push({ key: "fd:scout", icon: "📡", name: "สำรวจ", disabled: !ctx.action.canAct(p), desc: `แต้มรวม +${QUEST.score}` });
 }
 function action(ctx, s, H, p, key, tile) {
   if (key === "fd:help") return help(ctx, s, H, p, tile);
@@ -449,7 +449,7 @@ function publicOf(ctx, s, H) {
     bossAt: markAt(ctx, BOSS.at), bossFirst: !!e.bossFirst,
     quests: e.quests.map((q) => ({ id: q.id, type: q.type, zone: q.zone, rect: q.rect, x: q.x, y: q.y, need: q.need, have: q.have, left: Math.max(0, q.until - ctx.match.roundNumber + 1), by: q.by })),
     convoy: conv && conv.alive && conv.pos ? { id: conv.id, x: conv.pos.x, y: conv.pos.y, hp: conv.hp, maxHp: CONVOY.hp, armor: conv.armor, maxArmor: CONVOY.armor, from: e.convoy.from, to: e.convoy.to, goal: e.convoy.goal, path: conv.summon.path } : null,
-    spirits: Object.entries(e.deathAt).filter(([pid]) => s.dead[pid] != null).map(([id, at]) => ({ id, x: at.x, y: at.y, helped: !!e.helped[id] })),
+    spirits: Object.entries(e.deathAt).filter(([pid]) => s.dead[pid] != null && !(ctx.match.players[pid] && ctx.match.players[pid].corpse)).map(([id, at]) => ({ id, x: at.x, y: at.y, helped: !!e.helped[id] })),
   };
 }
 

@@ -1,17 +1,20 @@
 // ============================================================
 //  ป้ายข้อมูลช่องของสนาม Eos (ชี้ของบนแผนที่แล้วขึ้นชื่อ + คำอธิบาย — ผู้ใช้สั่ง 2026-11-10 "หลายอย่างไม่มีคำอธิบาย ไม่เข้าใจอะไรเลย")
-//  BoardStage.jsx tileInfo เรียกก่อนป้ายช่องปกติ · คืน { icon, name, desc } | null
+//  ผู้ใช้สั่ง 2026-11-14 "คำอธิบายโคตรยาว ใจความสำคัญไม่ค่อยมี · ไม่ต้องบอกว่าต้องกดอะไร ชี้แล้วจะมีอะไร":
+//   คำอธิบาย = ผลสำคัญ + ตัวเลข สั้นๆ บรรทัดเดียว · ไม่สอนวิธีกด (ปุ่มขึ้นเองเมื่อยืนติด) · ของที่ชื่อบอกอยู่แล้ว = ไม่มีคำอธิบาย
+//  BoardStage.jsx tileInfo เรียกก่อนป้ายช่องปกติ · คืน { icon, name, desc?, stats?, tags? } | null
 //  fd = state.fodlan.board (server/fodlan/stage6.js publicInfo) · players = state.players
 // ============================================================
 const ZONE = { insomnia: "Insomnia", hammerhead: "Hammerhead", duscae: "Duscae", lake: "Cleigne", altissia: "Altissia" };
 const at = (t, x, y) => !!t && t.x === x && t.y === y;
+const hpOf = (o, max) => `♥ ${o.hp ?? max}/${max}`;
 const MOB = {
-  daemon: { icon: "👹", name: "ปีศาจ", desc: "โผล่ตอนกลางคืน แกร่งขึ้นทุกคืน · เดินไล่ผู้เล่นหรือไปตีเสาที่ยึดไว้ · เข้าเมืองที่ไฟเปิดไม่ได้ · ฟ้าสางสลาย · ล้มได้ = เหรียญ + มีโอกาสได้ของ" },
-  magitek: { icon: "🤖", name: "ทหารเหล็ก", desc: "ลงจากยานจักรวรรดิ (กลางวันลงบ่อย หลายจุด) · มุ่งไปตีเสาที่ยึดไว้ก่อน · ไม่กลัวไฟเมือง (บุกเข้าเมืองได้) · อยู่ 4 เทิร์นแล้วขึ้นยานกลับ · ล้มได้ = เหรียญ + ของ/ขวดเวท" },
-  beast: { icon: "🦣", name: "สัตว์ยักษ์", desc: "ตีทุกคนที่เข้าใกล้ · โดนตีแล้วไล่คนตี" },
-  nest: { icon: "🔥", name: "รังปีศาจ", desc: "อยู่กับที่ ไม่ตี · ค่ำแล้วพ่นปีศาจ 3 ตัว และอีกตัวทุกเทิร์นกลางคืน · ทำลายได้ = เหรียญ + ของ" },
-  gold: { icon: "🐤", name: "โชโกโบะทอง", desc: "วิ่งหนีทุกต้นเทิร์น อยู่ 2 เทิร์นแล้วหายไป · ล้มได้ = เหรียญ 12 + ของดี" },
-  giant: { icon: "🗿", name: "ยักษ์หิน", desc: "เดินตัดแผนที่ทีละ 4 ช่อง เหยียบแถบกว้าง 3 ดาเมจ 3 ทุกตัว (มอนด้วย) · ช่องส้ม = จะเหยียบเทิร์นหน้า · ล้มได้ แต้มรวม +4 ทุกคนได้เหรียญ + ของ" },
+  daemon: { icon: "👹", name: "ปีศาจ", desc: "ออกกลางคืน แกร่งขึ้นทุกคืน · เข้าเมืองที่ไฟเปิดไม่ได้ · ฟ้าสางสลาย" },
+  magitek: { icon: "🤖", name: "ทหารเหล็ก", desc: "ลงจากยาน · เล็งเสาก่อน · เข้าเมืองได้ · อยู่ 4 เทิร์น" },
+  beast: { icon: "🦣", name: "สัตว์ยักษ์", desc: "ตีคนที่เข้าใกล้ · โดนตีแล้วไล่ตาม" },
+  nest: { icon: "🔥", name: "รังปีศาจ", desc: "กลางคืนพ่นปีศาจ" },
+  gold: { icon: "🐤", name: "โชโกโบะทอง", desc: "วิ่งหนี · อยู่ 2 เทิร์น · เหรียญ 12 + ของดี" },
+  giant: { icon: "🗿", name: "ยักษ์หิน", desc: "เหยียบแถบกว้าง 3 ดาเมจ 3 (ช่องส้ม = เทิร์นหน้า) · ล้ม = แต้มรวม +4" },
 };
 
 export function eosTileInfo(fd, players, x, y, round = 0) {
@@ -22,79 +25,90 @@ export function eosTileInfo(fd, players, x, y, round = 0) {
     const info = list.find((m) => m.id === mob.id) || {};
     const m = (info.trait && EOS_TRAIT_INFO[info.trait]) || MOB[info.type] || MOB.daemon;
     const el = (info.elite || []).map((k) => ELITE_INFO[k]).filter(Boolean);
-    return { icon: el.length ? "👑" : m.icon, name: `${mob.name}`, desc: `♥ ${mob.hp ?? info.hp ?? "?"}/${info.maxHp ?? "?"} · ⛨ ${mob.armor ?? info.armor ?? 0}\n${el.length ? `หัวหน้า: ${el.join(" · ")} · ล้มได้ = เหรียญ ×3 + ของแน่นอน + แต้มรวม +1\n` : ""}${m.desc}` };
+    // ตัวเลขก่อน คำอธิบายท้ายสุด (ผู้ใช้ 2026-11-14 "ผู้เล่นอยากรู้พลังโจมตี เกราะ พลังชีวิต · คำอธิบายเป็นอย่างท้ายๆ")
+    return {
+      icon: el.length ? "👑" : m.icon, name: `${mob.name}`,
+      stats: { atk: info.atk ?? null, hp: mob.hp ?? info.hp ?? 0, maxHp: info.maxHp ?? mob.maxHp ?? 0, armor: mob.armor ?? info.armor ?? 0, maxArmor: info.maxArmor ?? 0 },
+      tags: el,
+      desc: m.desc,
+    };
+  }
+  // ผู้เล่น: การ์ดตัวเลขแบบเดียวกับมอน (ผู้ใช้ 2026-11-14 "ทำทุกข้อ") · ⚔ = ตีมอนที่ใกล้สุดได้เท่าไร (server stage6.playerInfo atk)
+  const hero = (players || []).find((p) => p.alive && p.pos && p.pos.x === x && p.pos.y === y && !(p.summon && !p.duoOf) && !p.masked);
+  if (hero) {
+    const fi = hero.fodlan || {};
+    return { icon: "🛡️", name: hero.name, stats: { atk: fi.atk ?? null, hp: hero.hp ?? 0, maxHp: hero.maxHp ?? 0, armor: hero.armor ?? 0, maxArmor: hero.maxArmor ?? 0 }, tags: (fi.badges || []).filter((b) => b.key === "ally" || b.key === "choco" || b.key === "car").map((b) => `${b.icon} ${b.label}`) };
   }
   const sk = fd.sky || {};
-  if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "ตกต้นเทิร์นหน้า ดาเมจ 3 (ช่องติดกัน 1) · ตกแล้วเหลือหินพลังเวท" };
-  if (fd.dome && (fd.dome.gates || []).some((t) => at(t, x, y))) return { icon: "🛡️", name: "บาเรียประตูโดม", desc: `♥ ${fd.dome.hp}/${fd.dome.maxHp} (รวมทุกประตู) — ผู้เล่นทุกคนเดินทะลุได้ · มอนผ่านไม่ได้แต่ทุบได้ · บาเรียหมด = โดมแตก` };
-  if (sk.supply && Math.abs(sk.supply.x - x) + Math.abs(sk.supply.y - y) <= 0) return { icon: "🚂", name: "ชานชาลา · รถไฟขนเสบียง", desc: `ขนแล้ว ${sk.supply.loads}/${sk.supply.max} · ออกในอีก ${sk.supply.left} เทิร์น — ยืนบน/ติดชานชาลา กด "ขนของ" (ใช้การโจมตี) แต้มรวม +1 เหรียญ 2` };
+  if (sk.meteor && (sk.meteor.tiles || []).some((t) => at(t, x, y))) return { icon: "☄️", name: "จุดตกอุกกาบาต", desc: "เทิร์นหน้า ดาเมจ 3" };
+  if (fd.dome && (fd.dome.gates || []).some((t) => at(t, x, y))) return { icon: "🛡️", name: "บาเรียประตูโดม", desc: `♥ ${fd.dome.hp}/${fd.dome.maxHp} · มอนผ่านไม่ได้` };
+  if (sk.supply && Math.abs(sk.supply.x - x) + Math.abs(sk.supply.y - y) <= 0) return { icon: "🚂", name: "รถไฟขนเสบียง", desc: `${sk.supply.loads}/${sk.supply.max} · ออกใน ${sk.supply.left} เทิร์น · ขนของ = แต้มรวม +1` };
   const wl = (fd.walls || []).find((w) => at(w, x, y));
-  if (wl) return { icon: "🧱", name: "กำแพงไม้", desc: `♥ ${wl.hp ?? 3}/${wl.max || 3} — อยู่ถาวรจนโดนทุบพัง · มอนเดินผ่านไม่ได้ · ยืนติดกด "ซ่อมไม้กั้น" / "รื้อ"` };
+  if (wl) return { icon: "🧱", name: "กำแพงไม้", desc: `${hpOf(wl, wl.max || 3)} · มอนผ่านไม่ได้` };
   const cv = (fd.civs || []).find((c) => at(c, x, y));
-  if (cv) return { icon: "🕊️", name: "พลเรือน", desc: `♥ ${cv.hp}/${cv.maxHp} — ${cv.follow ? "กำลังตามคนพา · ถึงเมืองได้ = แต้มรวม +2" : "ยืนติดแล้วกด \"พาไป\" = ตามติดตัว · พาถึงเมือง แต้มรวม +2 คนพาได้เหรียญ + ของ"}` };
-  if (fd.giant && (fd.giant.next || []).some((t) => at(t, x, y))) return { icon: "🗿", name: "ทางเดินยักษ์หิน", desc: "ยักษ์หินจะเหยียบช่องนี้ต้นเทิร์นหน้า ดาเมจ 3" };
-  if (fd.convoy && at(fd.convoy, x, y)) return { icon: "🚚", name: "รถเสบียง", desc: `♥ ${fd.convoy.hp}/${fd.convoy.maxHp} — คุ้มกันตามเส้นประทองให้ถึงปลายทาง = แต้มรวม +6 ทุกคนได้เหรียญ+ของ · มอนเล็งรถด้วย` };
+  if (cv) return { icon: "🕊️", name: "พลเรือน", desc: `♥ ${cv.hp}/${cv.maxHp} · พาถึงเมือง = แต้มรวม +2` };
+  if (fd.giant && (fd.giant.next || []).some((t) => at(t, x, y))) return { icon: "🗿", name: "ทางเดินยักษ์หิน", desc: "เทิร์นหน้า ดาเมจ 3" };
+  if (fd.convoy && at(fd.convoy, x, y)) return { icon: "🚚", name: "รถเสบียง", desc: `♥ ${fd.convoy.hp}/${fd.convoy.maxHp} · ถึงปลายทาง = แต้มรวม +6` };
   const sp = (fd.spirits || []).find((o) => at(o, x, y));
-  if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ยืนติดแล้วกด \"ช่วย\" (ใช้การโจมตี) — ฟื้นเร็วขึ้น 1 เทิร์น และฟื้นตรงนี้" }; }
+  if (sp) { const pp = (players || []).find((u) => u.id === sp.id); return { icon: "🕯️", name: `ดวงวิญญาณ ${pp ? pp.name : ""}`, desc: "ช่วย = ฟื้นเร็วขึ้น 1 เทิร์น ที่นี่" }; }
   const qq = (fd.quests || []).find((o) => o.type === "scout" && at(o, x, y));
-  if (qq) return { icon: "📡", name: "จุดสัญญาณภารกิจ", desc: `ยืนบนช่องนี้แล้วกด "สำรวจ" — แต้มรวม +3 · เหลือ ${qq.left} เทิร์น` };
+  if (qq) return { icon: "📡", name: "จุดสัญญาณ", desc: `แต้มรวม +3 · เหลือ ${qq.left} เทิร์น` };
   const bb = (fd.bossBig || []).find((o) => (o.tiles || []).some((t) => at(t, x, y)));
-  if (bb && bb.kind === "dark_zone") return { icon: "🌑", name: "เขตทมิฬ", desc: `ยืนในเขตตอนต้นเฟสมอนเสีย 1 · เหลือ ${bb.left} เทิร์น · ราชาปีศาจล้ม = เขตหาย` };
-  if (bb && bb.kind === "dark") return { icon: "🌑", name: "เขตทมิฬ", desc: "ราชาปีศาจจะปล่อยท่านี้ตาหน้า ดาเมจ 2 แล้วพื้นมืดค้าง 2 เทิร์น" };
-  if (bb) return { icon: bb.kind === "beam" ? "🔦" : bb.kind === "ring" ? "⭕" : "☄️", name: bb.kind === "beam" ? "ลำแสงทมิฬ" : bb.kind === "ring" ? "วงแหวนมรณะ" : "ฝนอุกกาบาต", desc: `ราชาปีศาจจะปล่อยท่านี้ลงช่องนี้ตาหน้า ดาเมจ ${bb.kind === "beam" ? 4 : 3} · ราชาปีศาจล้มก่อน = ไม่ลง` };
-  if (fd.bossWarn && at(fd.bossWarn, x, y)) return { icon: "⚠️", name: "วงเวทราชาปีศาจ", desc: "ราชาปีศาจจะลงที่นี่ต้นเทิร์นหน้า" };
+  if (bb && bb.kind === "dark_zone") return { icon: "🌑", name: "เขตทมิฬ", desc: `เสียเทิร์นละ 1 · เหลือ ${bb.left} เทิร์น` };
+  if (bb && bb.kind === "dark") return { icon: "🌑", name: "เขตทมิฬ", desc: "เทิร์นหน้า ดาเมจ 2" };
+  if (bb) return { icon: bb.kind === "beam" ? "🔦" : bb.kind === "ring" ? "⭕" : "☄️", name: bb.kind === "beam" ? "ลำแสงทมิฬ" : bb.kind === "ring" ? "วงแหวนมรณะ" : "ฝนอุกกาบาต", desc: `เทิร์นหน้า ดาเมจ ${bb.kind === "beam" ? 4 : 3}` };
+  if (fd.bossWarn && at(fd.bossWarn, x, y)) return { icon: "⚠️", name: "ราชาปีศาจกำลังมา", desc: "ลงเทิร์นหน้า" };
   const pl = (fd.pillars || []).find((p) => at(p, x, y));
   if (pl) {
     const name = `เสาคริสตัล ${ZONE[pl.zone] || ""}`;
-    if (pl.owner) return { icon: "🔷", name, desc: `ยึดแล้ว — ให้แต้มรวมทุกจบเทิร์น · รอยโดนตี ${pl.hits || 0}/${pl.hp || 2} (ครบ = หลุดเป็นกลาง) · โล่ ${pl.ward || 0}/${pl.wardMax || 2} · ยืนติดเสากด "ซ่อมเสา" หรือใช้เกราะเสา (ร้านค้า)` };
-    if (pl.ch) return { icon: "🔷", name, desc: "กำลังร่ายพิธียึด — ตาถัดไปของคนร่ายกด \"ยึด\" อีกครั้ง" };
-    return { icon: "🔷", name, desc: "เสากลาง — ยืนติดเสากด \"ยึด\" 2 ตาติดกัน (ใช้การโจมตีของตา) · แต้มต่อเทิร์น 1/2/4/6/8 ตามจำนวนเสาที่ถือ · รวมครบเป้าทุกคนชนะ" };
+    if (pl.owner) return { icon: "🔷", name, desc: `ยึดแล้ว · รอยตี ${pl.hits || 0}/${pl.hp || 2} · โล่ ${pl.ward || 0}/${pl.wardMax || 2}` };
+    if (pl.ch) return { icon: "🔷", name, desc: "กำลังยึด" };
+    return { icon: "🔷", name, desc: "ยึด 2 ตาติดกัน = ได้แต้มทุกเทิร์น" };
   }
-  if ((fd.chests || []).some((c) => at(c, x, y))) return { icon: "🎁", name: "หีบสมบัติ", desc: "ยืนติดแล้วโจมตีหีบ = เหรียญ + มีโอกาสได้ไอเทม/ขวดเวท · หีบใหม่โผล่ทุก 3 เทิร์น" };
+  if ((fd.chests || []).some((c) => at(c, x, y))) return { icon: "🎁", name: "หีบสมบัติ", desc: "ตี = เหรียญ + ของ" };
   const car = (fd.cars || []).find((c) => at(c, x, y));
   if (car) {
-    const hp = car.maxHp ? `♥ ${car.hp}/${car.maxHp} — ` : "";
-    if (car.broken) return { icon: "🚗", name: "รถพัง", desc: `${hp}ขึ้นไม่ได้ · ยืนติดแล้วกด "ซ่อมรถ" (+3 ใช้การโจมตี) จนเลือดกลับมาก็ขับได้อีก` };
-    return { icon: "🚗", name: "รถ", desc: hp + (car.driver ? "มีคนขับ — ยืนติดแล้วกด \"นั่งรถ\" ขอติดรถไปด้วย · ดาเมจที่คนขับโดนเข้ารถก่อน" : "ยืนติดแล้วกด \"ขึ้นรถ\" — เดิน +3 บนถนน/พื้นเรียบ · ขับชนมอนเตอร์ได้ · อยู่ในรถใช้สกิลไม่ได้ · ดาเมจที่คนขับโดนเข้ารถก่อน รถเลือดหมด = พัง") };
+    const hp = car.maxHp ? `♥ ${car.hp}/${car.maxHp} · ` : "";
+    if (car.broken) return { icon: "🚗", name: "รถพัง", desc: `${hp}ซ่อมแล้วขับได้` };
+    return { icon: "🚗", name: "รถ", desc: `${hp}เดิน +3 บนถนน · ชนมอนได้ · ใช้สกิลไม่ได้` };
   }
   const ch = (fd.chocos || []).find((c) => !c.rider && at(c, x, y));
-  if (ch) return { icon: "🐤", name: "โชโกโบะ", desc: `${ch.maxHp ? `♥ ${ch.hp}/${ch.maxHp} — ` : ""}ยืนติดแล้วกด "ขี่" หรือจบตาบนช่องนี้ — เดิน +2 ผ่านป่า/น้ำตื้นกิน 1 ก้าว · ดาเมจที่คนขี่โดนเข้านกก่อน นกเลือดหมด = ตกนก นกกลับคอก · "ป้อนอาหาร" ฟื้น +2` };
-  if ((fd.barrels || []).some((b) => at(b, x, y))) return { icon: "🛢️", name: "ถังน้ำมัน", desc: "โจมตีถัง = ระเบิด 3×3 ดาเมจ 2 + ลุกไหม้ (ไม่โดนเพื่อน) · ถังข้างกันระเบิดต่อ" };
+  if (ch) return { icon: "🐤", name: "โชโกโบะ", desc: `${ch.maxHp ? `♥ ${ch.hp}/${ch.maxHp} · ` : ""}เดิน +2 · ป่า/น้ำตื้นไม่ช้า` };
+  if ((fd.barrels || []).some((b) => at(b, x, y))) return { icon: "🛢️", name: "ถังน้ำมัน", desc: "ตี = ระเบิด 3×3 ดาเมจ 2 + ไฟ" };
   const cr = (fd.crystals || []).find((c) => at(c, x, y));
-  if (cr) return { icon: "💎", name: cr.meteor ? "หินอุกกาบาต" : "หินพลังเวท", desc: `โจมตีหิน = ได้ขวดเวท${cr.element === "fire" ? "ไฟ" : cr.element === "ice" ? "น้ำแข็ง" : "สายฟ้า"} (ถือได้ 2) ไว้ขว้างใส่มอน` };
-  if ((fd.wrecks || []).some((w) => at(w, x, y))) return { icon: "🚙", name: "ซากรถ", desc: "ยืนติดแล้วกด \"ผลัก\" ดันไป 1 ช่อง ใช้ปิดทางเดินของมอน" };
-  if ((fd.tunnels || []).some((pair) => pair.some((t) => at(t, x, y)))) return { icon: "🕳️", name: "อุโมงค์", desc: "ยืนบนปากอุโมงค์ (ยังเดินได้) แล้วกด \"อุโมงค์\" — ออกปากอีกฝั่งทันที" };
-  if ((fd.docks || []).some((t) => at(t, x, y))) return { icon: "🛶", name: "ท่ากอนโดลา", desc: "ยืนบนท่า (ยังเดินได้) แล้วเลือกท่าปลายทาง" };
-  if ((fd.camps || []).some((t) => at(t, x, y))) return { icon: "🏕️", name: "แคมป์", desc: "ยืนบนแคมป์ เลือกอาหาร (ใช้การโจมตี) บัฟ 3 เทิร์น: ตี +1 / ฟื้นเลือดทุกเทิร์น / เดิน +1 · มีปลาจากการตกปลา = ทำอาหารให้ทั้งทีม (ปลาย่างทั้งทีม 1 ตัว · งานเลี้ยงทีม 2 ตัว) · กลางคืน วงไฟ 2 ช่องรอบแคมป์ ปีศาจเข้าไม่ได้" };
-  if (fd.night && (fd.camps || []).some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) <= (fd.lightR || 2))) return { icon: "🔥", name: "วงไฟแคมป์", desc: "ปีศาจเข้าและตีคนในวงนี้ไม่ได้ (ราชาปีศาจ/ทหารเหล็กไม่กลัวไฟ)" };
-  if ((fd.fish || []).some((t) => at(t, x, y))) return { icon: "🎣", name: "จุดตกปลา", desc: "ยืนแล้วกด \"ตกปลา\" (ใช้การโจมตี) — สุ่มได้ปลาเข้าถุง (ถือได้ 3 · เอาไปทำอาหารทีมที่แคมป์)/เหรียญ/ปลาทอง หรือโดนปลายักษ์ลาก" };
+  if (cr) return { icon: "💎", name: cr.meteor ? "หินอุกกาบาต" : "หินพลังเวท", desc: `ตี = ขวดเวท${cr.element === "fire" ? "ไฟ" : cr.element === "ice" ? "น้ำแข็ง" : "สายฟ้า"}` };
+  if ((fd.wrecks || []).some((w) => at(w, x, y))) return { icon: "🚙", name: "ซากรถ", desc: "ผลักไปปิดทางมอน" };
+  if ((fd.tunnels || []).some((pair) => pair.some((t) => at(t, x, y)))) return { icon: "🕳️", name: "อุโมงค์" };
+  if ((fd.docks || []).some((t) => at(t, x, y))) return { icon: "🛶", name: "ท่ากอนโดลา" };
+  if ((fd.camps || []).some((t) => at(t, x, y))) return { icon: "🏕️", name: "แคมป์", desc: "อาหาร 3 เทิร์น: ตี +1 / ฟื้นเลือด / เดิน +1 · กลางคืนปีศาจเข้าวงไฟไม่ได้" };
+  if (fd.night && (fd.camps || []).some((t) => Math.abs(t.x - x) + Math.abs(t.y - y) <= (fd.lightR || 2))) return { icon: "🔥", name: "วงไฟแคมป์", desc: "ปีศาจเข้าไม่ได้" };
+  if ((fd.fish || []).some((t) => at(t, x, y))) return { icon: "🎣", name: "จุดตกปลา" };
   const ts = fd.townSpots || {};
-  if ((ts.shrine || []).some((t) => at(t, x, y))) return { icon: "⛩️", name: "ศาลเทพธิดา", desc: `ยืนติดแล้วกด "ศาลเทพธิดา" (ใช้การโจมตี) — ทั้งทีมฟื้นเกราะ 2 · ทั้งทีมครั้งเดียวทุก 4 เทิร์น${fd.shrineReady === false ? " · ยังไม่พร้อม" : ""}` };
-  if ((ts.diner || []).some((t) => at(t, x, y))) return { icon: "🍽️", name: "ร้านอาหาร", desc: "ยืนติดแล้วกด \"ร้านอาหาร\" (ใช้การโจมตี) — 4 เหรียญหรือปลา 1: ฟื้นเลือด 3 + งานเลี้ยง 3 เทิร์น (ตี +1 · เดิน +1 · ฟื้นเลือดทุกเทิร์น)" };
-  if ((ts.ranch || []).some((t) => at(t, x, y))) return { icon: "🐤", name: "ฟาร์มโชโกโบะ", desc: "ยืนติดแล้วกด \"เรียกโชโกโบะ\" (3 เหรียญ · ใช้การโจมตี) — โชโกโบะที่ว่างวิ่งมาข้างตัว" };
-  if ((ts.garage || []).some((t) => at(t, x, y))) return { icon: "🔧", name: "อู่ Hammerhead", desc: "ยืนติดอู่ (ขับรถอยู่ หรือรถจอดติดตัว) กด \"อู่\" — ซ่อมรถเต็ม + เทอร์โบ เดิน +2 3 เทิร์น" };
+  if ((ts.shrine || []).some((t) => at(t, x, y))) return { icon: "⛩️", name: "ศาลเทพธิดา", desc: `ทั้งทีมเกราะ +2 · ทุก 4 เทิร์น${fd.shrineReady === false ? " · ยังไม่พร้อม" : ""}` };
+  if ((ts.diner || []).some((t) => at(t, x, y))) return { icon: "🍽️", name: "ร้านอาหาร", desc: "4 เหรียญ: เลือด +3 · ตี +1 เดิน +1 3 เทิร์น" };
+  if ((ts.ranch || []).some((t) => at(t, x, y))) return { icon: "🐤", name: "ฟาร์มโชโกโบะ", desc: "3 เหรียญ = เรียกโชโกโบะ" };
+  if ((ts.garage || []).some((t) => at(t, x, y))) return { icon: "🔧", name: "อู่ Hammerhead", desc: "ซ่อมรถเต็ม · เดิน +2 3 เทิร์น" };
   const tomb = (fd.tombs || []).find((t) => at(t, x, y));
-  if (tomb) return { icon: "⚔️", name: tomb.name || "สุสานราชวงศ์", desc: tomb.open ? "เปิดไปแล้ว" : `อาวุธจักรพรรดิ — ยืนติดแล้วกดชื่ออาวุธ (ใช้การโจมตี) · 5 เทิร์น: ${tomb.desc || "ตี +1"}${tomb.w === "father" ? "" : " · ตาที่ตีเสียเลือด 1"}` };
-  if ((fd.trams || []).some((t) => at(t, x, y))) return { icon: "🚋", name: "ป้ายรถราง", desc: "ยืนบนป้ายแล้วกดชื่อโซน = นั่งรถรางไปป้ายนั้นทันที (จบการเดินของตา) · คนละ 2 เที่ยว แล้วพัก 2 เทิร์น · มีป้ายทุกโซน ใกล้เสา" };
+  if (tomb) return { icon: "⚔️", name: tomb.name || "สุสานราชวงศ์", desc: tomb.open ? "เปิดแล้ว" : `5 เทิร์น: ${tomb.desc || "ตี +1"}${tomb.w === "father" ? "" : " · ตีแล้วเสียเลือด 1"}` };
+  if ((fd.trams || []).some((t) => at(t, x, y))) return { icon: "🚋", name: "ป้ายรถราง", desc: "คนละ 2 เที่ยว แล้วพัก 2 เทิร์น" };
   if (fd.rail) {
-    if ((fd.rail.stations || []).some((t) => at(t, x, y))) return { icon: "🚉", name: "ชานชาลา", desc: `ยืนรอตอนรถไฟผ่าน = ไปชานชาลาอีกฝั่ง · รถไฟมาเทิร์น ${fd.rail.next}` };
-    if (y === fd.rail.y) return { icon: "🛤️", name: "รางรถไฟ", desc: `รถไฟผ่านเทิร์น ${fd.rail.next}${fd.rail.next - round <= 1 ? " (มาแล้ว!)" : ""} — ยืนบนรางโดน 3 + กระเด็น` };
+    if ((fd.rail.stations || []).some((t) => at(t, x, y))) return { icon: "🚉", name: "ชานชาลา", desc: `รถไฟมาเทิร์น ${fd.rail.next}` };
+    if (y === fd.rail.y) return { icon: "🛤️", name: "รางรถไฟ", desc: `รถไฟเทิร์น ${fd.rail.next}${fd.rail.next - round <= 1 ? " (มาแล้ว!)" : ""} · โดน 3 + กระเด็น` };
   }
   return null;
 }
-// สิ่งกีดขวาง/ช่องพิเศษที่ป้ายเดิมมีแค่ชื่อ (Rules.tileInfo) → เติมคำอธิบายตามชื่อ
+// สิ่งกีดขวาง/ช่องพิเศษที่ป้ายเดิมมีแค่ชื่อ (Rules.tileInfo) → เติมคำอธิบายตามชื่อ (ไม่มีในตาราง = ชื่ออย่างเดียว)
 export const EOS_NAME_DESC = {
-  "ป้อมปืน": "ยืนติดป้อมแล้วกด \"ป้อมปืน\" ยิงมอนในระยะ 6 ดาเมจ 2 (ใช้การโจมตี)",
-  "คันโยกสะพาน": "ยืนติดแล้วยก/ลดสะพานทั้งเมือง Altissia — สะพานยก = เดินข้ามไม่ได้",
-  "แท่นโดม": "ยืนติดแล้วเปิดโดมกำแพงเวท Insomnia 3 เทิร์น — ปิดประตูเมือง กันการโจมตีจากนอกโดม",
-  "แผงไฟเมือง": "ไฟเมืองโดนปีศาจที่ล้อมเมืองทุบได้ (8) ดับแล้วปีศาจเข้าเมือง — กด \"ซ่อมไฟ\"/\"เปิดไฟ\" +4 · กด \"สาดไฟ\" — มอนในระยะ 6 ช่องมึน 1 เทิร์น · ปีศาจโดนแสงไหม้ 1 · พัก 5 เทิร์น (ไฟเมืองเปิดตลอด ปีศาจ/ทหารเหล็กเข้าเมืองไม่ได้)",
-  "ซากกำแพง": "กำแพงที่พังแล้ว เดินผ่านได้ · ยืนติดกด \"ซ่อมกำแพง\" ก่อขึ้นใหม่ได้",
-  "ป่าทึบ": "เดินกิน 2 ก้าว (ขี่โชโกโบะ = 1) · หลบหลีก +20% · รถเข้าไม่ได้",
-  "น้ำตื้น": "เดินกิน 2 ก้าว (ขี่โชโกโบะ = 1) · รถเข้าไม่ได้ · ขวดสายฟ้าช็อตทั้งผืนน้ำ",
-  "ถนน": "รถขับได้",
-  "คอกโชโกโบะ": "โชโกโบะที่ตกนกกลับมาเกิดใหม่ที่นี่หลัง 3 เทิร์น",
-  "น้ำลึก": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางเดินได้",
-  "คลอง": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางเดินได้",
+  "ป้อมปืน": "ยิงมอนระยะ 6 ดาเมจ 2",
+  "คันโยกสะพาน": "สะพานยก = ข้ามไม่ได้",
+  "แท่นโดม": "โดม 3 เทิร์น กันมอนนอกเมือง",
+  "แผงไฟเมือง": "ไฟเปิด = มอนเข้าเมืองไม่ได้ · สาดไฟ = มอนระยะ 6 มึน 1 เทิร์น",
+  "ซากกำแพง": "เดินผ่านได้ · ซ่อมได้",
+  "ป่าทึบ": "เดินกิน 2 ก้าว · หลบ +20%",
+  "น้ำตื้น": "เดินกิน 2 ก้าว",
+  "คอกโชโกโบะ": "โชโกโบะเกิดใหม่",
+  "น้ำลึก": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางได้",
+  "คลอง": "เดินไม่ได้ · ขวดน้ำแข็งแช่เป็นทางได้",
 };
 // สิ่งกีดขวางที่มีลูกเล่น (อยู่ชั้น terrain — Rules.tileInfo อ่านแค่ special) → ชื่อ + คำอธิบาย (ผู้ใช้ 2026-11-10 "อันไหนมีลูกเล่นต้องมีคำอธิบาย")
 export const EOS_TERRAIN_INFO = {
@@ -108,26 +122,36 @@ export function eosTerrainInfo(map, x, y, fd = null, round = 0) {
   // กำแพงเมือง Insomnia (พังได้ — ผู้ใช้สั่ง 2026-11-10)
   if (k === "fd_eos_turret" && fd) {
     const cw = fd.cityWalls, h = cw && (cw.hurt || []).find((o) => o.x === x && o.y === y), max = (cw && cw.max) || 4;
-    return { icon: "🔫", name: "ป้อมปืน", desc: `♥ ${h ? h.hp : max}/${max} — ${EOS_NAME_DESC["ป้อมปืน"]} · มอนทุบได้ พังแล้วยิงไม่ได้ · ยืนติดกด "ซ่อมป้อม" / "สร้างป้อม" · เสาโซนนี้ถูกยึด = ยิงเองทุกต้นเทิร์น` };
+    return { icon: "🔫", name: "ป้อมปืน", desc: `♥ ${h ? h.hp : max}/${max} · ${EOS_NAME_DESC["ป้อมปืน"]}` };
   }
   if (k === "fd_eos_wall" && x >= 8 && x <= 23 && y <= 8) {
     const cw = fd && fd.cityWalls, h = cw && (cw.hurt || []).find((o) => o.x === x && o.y === y), max = (cw && cw.max) || 4;
-    return { icon: "🧱", name: "กำแพง Insomnia", desc: `♥ ${h ? h.hp : max}/${max} — มอนที่เข้าทางประตูไม่ได้จะมาทุบกำแพง (หุ่นเกราะ/ราชาปีศาจทุบแรง 2 · หุ่นเกราะไม่กลัวไฟเมือง) · พังแล้วเดินผ่านได้ · ยืนติดกด "ซ่อมกำแพง" +2 (ใช้การโจมตี)` };
+    return { icon: "🧱", name: "กำแพง Insomnia", desc: `♥ ${h ? h.hp : max}/${max}` };
   }
   if (k === "fd_eos_domecore" && fd) {
     const on = fd.dome && fd.dome.left > 0, cd = Math.max(0, (fd.domeReadyAt || 0) - round);
-    return { icon: "🛡️", name: "แท่นโดม", desc: `${on ? `โดมเปิดอยู่ เหลือ ${fd.dome.left} เทิร์น` : cd > 0 ? `พักเครื่อง เปิดได้อีกใน ${cd} เทิร์น` : "พร้อมเปิด"} — ${EOS_NAME_DESC["แท่นโดม"]} · ปิดแล้วพัก 5 เทิร์น` };
+    return { icon: "🛡️", name: "แท่นโดม", desc: on ? `เปิดอยู่ · เหลือ ${fd.dome.left} เทิร์น` : cd > 0 ? `พร้อมใน ${cd} เทิร์น` : EOS_NAME_DESC["แท่นโดม"] };
   }
   const t = k && EOS_TERRAIN_INFO[k];
   return t ? { icon: t.icon, name: t.name, desc: t.desc || EOS_NAME_DESC[t.name] || "" } : null;
 }
 // มอนหัวหน้า (server/fodlan/eosElite.js — 2026-11-12)
-const ELITE_INFO = { swift: "💨 ว่องไว เดิน +2", armored: "🪨 เกราะหนา +3", vampiric: "🩸 ดูดเลือด", volatile: "💥 ล้มแล้วระเบิด 3×3 ดาเมจ 2", commander: "🚩 มอนรอบตัว 2 ช่องตี +1", regen: "✚ ฟื้นเลือด 2 ทุกเทิร์น", thorns: "🌵 ตีประชิดโดนสวน 1" };
-// มอนพิเศษ / บอส / รถเสบียง / ดวงวิญญาณ / จุดสัญญาณ (PVE รอบสอง)
+const ELITE_INFO = { swift: "💨 เดิน +2", armored: "🪨 เกราะ +3", vampiric: "🩸 ดูดเลือด", volatile: "💥 ตายแล้วระเบิด 2", commander: "🚩 มอนรอบตัวตี +1", regen: "✚ ฟื้น 2/เทิร์น", thorns: "🌵 สวน 1" };
+// มอนพิเศษ — ความสามารถสั้นๆ (ตัวเลขตี/เลือด/เกราะอยู่แถวบนของป้ายแล้ว)
 export const EOS_TRAIT_INFO = {
-  boss: { icon: "👑", desc: "ราชาปีศาจ — ไล่ทั้งคนและเสา ไม่กลัวไฟ บุกเข้าเมืองได้ · ตีเสาทีเดียวหลุด · กระทืบทุกคนรอบตัว · พุ่งชนคนที่อยู่แนวตรง 2–6 ช่อง (+1 กระเด็น) · ทุบแผ่นดินแยกวงแดงรัศมี 2 (ออกจากวงทันเทิร์นหน้า = รอด) · ท่าใหญ่ทุก 3 เทิร์น เตือนก่อน 1 เทิร์น (ลำแสง/วงแหวน/อุกกาบาต) · เลือดครึ่งคลั่ง ตี +1 เดิน +1 ท่าใหญ่ทุก 2 เทิร์น · เลือด 30% เรียกองครักษ์ แล้วสลับใช้เขตทมิฬ · เรียกปีศาจทุก 2 เทิร์น · ล้มได้ แต้มรวม +5 ทุกคนได้ของ" },
-  bomber: { icon: "💣", desc: "ปีศาจระเบิด — ถึงตัวแล้วระเบิด 3×3 ดาเมจ 3 · โดนฆ่าก็ระเบิด (ตีจากระยะไกลปลอดภัยกว่า)" },
-  healer: { icon: "💚", desc: "ปีศาจหมอ — ไม่ตี แต่ฟื้นเลือดมอนในระยะ 2 ทุกต้นเทิร์น · ชอบหนี — ล้มก่อน" },
-  mech: { icon: "🦾", desc: "หุ่นเกราะจักรวรรดิ — มีโอกาสลงมากับยานจักรวรรดิ · ถึก เกราะหนา ตีแรง แต่เดินช้า · จุดอ่อนด้านหลัง (วงส้มบนพื้น): ตีจากฝั่งนั้นแรง +2 · ล้มได้เหรียญเยอะ · ขึ้นยานกลับพร้อมทหารเหล็ก" },
-  sniper: { icon: "🎯", desc: "ทหารเหล็กยิงไกล — ยิงคนในระยะ 3 ดาเมจ 2 โดยไม่ต้องเดินมา" },
+  boss: { icon: "👑", desc: "พุ่งชน · กระทืบรอบตัว · ท่าใหญ่ทุก 3 เทิร์น (เตือนก่อน) · เลือดครึ่งคลั่ง · ล้ม = แต้มรวม +5" },
+  lament: { icon: "💀", desc: "วูบไปหาคนอ่อนแอสุด · เคียวโดนทุกคนระยะ 2 · ต้องล้มจึงชนะ" },
+  bomber: { icon: "💣", desc: "ถึงตัวแล้วระเบิด 3×3 · ตายก็ระเบิด" },
+  healer: { icon: "💚", desc: "ไม่ตี · ฟื้นมอนรอบตัว 2 ทุกเทิร์น" },
+  mech: { icon: "🦾", desc: "ช้า ถึก · ตีจากด้านหลัง (วงส้ม) +2" },
+  sniper: { icon: "🎯", desc: "ยิงระยะ 3" },
+  archer: { icon: "🏹", desc: "ยิงระยะ 4 · ถอยเมื่อโดนประชิด" },
+  shield: { icon: "🛡️", desc: "ตีจากด้านหน้าเหลือ 1" },
+  weaver: { icon: "🕸️", desc: "พ่นใยระยะ 3 = ตรึง 1 เทิร์น" },
+  blinker: { icon: "👻", desc: "วาร์ปไปตีคนอ่อนแอสุดในระยะ 8 ทุก 2 เทิร์น" },
+  hooker: { icon: "⛓️", desc: "ลากคนในแนวตรง 2–4 ช่องมาติดตัว" },
+  rune: { icon: "🔮", desc: "วางวง 3×3 ระเบิดเทิร์นหน้า ดาเมจ 3" },
+  swarm: { icon: "🐝", desc: "เลือด 1 · มาเป็นฝูง" },
+  splitter: { icon: "🪨", desc: "ตายแล้วแตก 2 ร่าง" },
+  splitling: { icon: "🪨", desc: "ร่างแยก" },
 };

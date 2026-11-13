@@ -197,6 +197,7 @@ function keeperAlive(fresh = false) {
   return Object.values(match.players).some((u) => u.alive && (!fresh || PassiveSeal.on(u)) && HOOKS[u.characterId] && HOOKS[u.characterId].keepsCorpses && HOOKS[u.characterId].keepsCorpses(u));
 }
 const isPair = (p) => !!(p && (p.duoWith || p.duoOf));
+function eosKeeps(dead) { try { return require("./fodlan/stage6").keepsCorpse(dead); } catch { return false; } }
 // ศพเฉพาะคน (ฮุค claimsCorpse(u, dead) — ลอว์: ตายใน Room): ตอนตายจดผู้เก็บไว้ที่ dead.corpseKeeper · ผู้เก็บยังอยู่ = ศพค้าง
 function claimCorpse(dead) {
   dead.corpseKeeper = null;
@@ -207,6 +208,7 @@ function claimCorpse(dead) {
 }
 function keptFor(dead, fresh = false) {
   if (keeperAlive(fresh)) return true;
+  if (eosKeeps(dead)) return true; // สนาม Eos ความยาก Lament: ล้มแล้วทิ้งหมากศพ (ฟื้นด้วยขนนกคืนชีพ — server/fodlan/stage6.js)
   const u = dead && dead.corpseKeeper && match.players[dead.corpseKeeper];
   return !!(u && u.alive);
 }

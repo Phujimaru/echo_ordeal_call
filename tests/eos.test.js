@@ -178,7 +178,7 @@ test('รถมีเลือด: คนขับโดนตี รถรั�
   assert.equal(pub.chocos[0].hp, S6.CHOCO_HP);
 });
 
-test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ปุ่มลงวางนกข้างตัว', () => {
+test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ · ลงแบบรถ (เราก้าวลงข้างตัว นกยืนที่เดิม จบการเดิน)', () => {
   setup();
   const p = P(0), c = st().chocos[1];
   p.boardSize = 2;
@@ -191,11 +191,13 @@ test('โชโกโบะ: ตัวใหญ่ขี่ไม่ได้ ·
   actor(p);
   const b = btn(p, 'fd:dismount');
   assert.ok(b && !b.disabled && b.tiles.length);
-  const t = b.tiles[0];
+  const t = b.tiles[0], was = { ...p.pos };
   assert.ok(Fodlan.charAction(p.id, 'fd:dismount', t));
   assert.ok(!st().riders[p.id]);
-  assert.ok(sameTile(c, t));
-  assert.equal(action.boardMap().special[K(t.x, t.y)], 'fd_eos_chocobo');
+  assert.ok(sameTile(p.pos, t), 'เราก้าวลงช่องที่เลือก');
+  assert.ok(sameTile(c, was), 'นกยืนที่เดิม');
+  assert.equal(match.action.locked, true, 'จบการเดินแบบลงรถ');
+  assert.equal(action.boardMap().special[K(was.x, was.y)], 'fd_eos_chocobo');
 });
 
 test('รถ: ยืนติดรถ → ขึ้นรถ (ยังไม่เดิน = เดินเต็มระยะจากรถ) · เดิน +3 · รถวิ่งตามคนขับ · ป่า/น้ำตื้นเข้าไม่ได้ · ลงรถ รถจอดที่เดิม', () => {
@@ -562,21 +564,17 @@ test('มอนฉลาดขึ้น: ทางอ้อมไกล = พั
   assert.equal(Stats.publicStats()[p.id].dealt, 1);
 });
 
-test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะมาข้างตัว · ขี่ได้ทันทีด้วยปุ่ม (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {
+test('L9 ผักกิซาล: ขายทุกร้านใน Eos · เรียกโชโกโบะแล้วขึ้นขี่ทันที (ยังไม่เดิน = เดินเต็มระยะจากนก +2)', () => {
   setup();
   shop.refreshShopForJourney();
   const s = st(), p = P(0);
   assert.ok(S6.gysahlOnSale());
   p.pos = { x: 13, y: 13 };
-  assert.ok(S6.useGysahl(p));
-  const c = s.chocos.find((ch) => ch.x != null && !ch.rider && Math.abs(ch.x - 13) + Math.abs(ch.y - 13) === 1);
-  assert.ok(c, 'โชโกโบะวิ่งมาข้างตัว');
   actor(p);
   const mov0 = action.movOf(p);
-  const b = btn(p, 'fd:mount');
-  assert.ok(b && !b.disabled && b.tiles.some((t) => sameTile(t, c)));
-  assert.ok(Fodlan.charAction(p.id, 'fd:mount', { x: c.x, y: c.y }));
-  assert.equal(c.rider, p.id);
+  assert.equal(S6.useGysahl(p), 'ride');
+  const c = s.chocos.find((ch) => ch.rider === p.id);
+  assert.ok(c && Math.abs(c.x - 13) + Math.abs(c.y - 13) === 1, 'โชโกโบะวิ่งมาข้างตัวแล้วขึ้นขี่');
   assert.ok(sameTile(p.pos, c));
   assert.equal(match.action.locked, false, 'ยังเดินต่อได้');
   assert.ok(sameTile(match.action.from, c));
@@ -1717,7 +1715,7 @@ test('Lament: โหวตได้ · เลือด/จำนวน/พลั
     lamentOn();
     const s = st();
     assert.equal(EV.goalOf(ctx()), 100);
-    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk > EV.DIFF.hard.atk);
+    assert.ok(EV.DIFF.lament.hp > EV.DIFF.hard.hp && EV.DIFF.lament.atk >= EV.DIFF.hard.atk);
     assert.equal(S6.pillarHp(s), 1, 'ตีทีเดียวหลุด');
     const pl = s.pillars[3]; pl.owner = S6.PVE; s.score = 10;
     const d = mob('daemon', 0, 0);
@@ -1726,10 +1724,10 @@ test('Lament: โหวตได้ · เลือด/จำนวน/พลั
     assert.equal(s.score, 7, 'แต้มรวม −3');
     assert.equal(S6.eosPriceMul(), 1.5);
     match.roundNumber = 19;
-    assert.deepEqual(LMx.rage(ctx()), { atk: 2, mov: 2 });
+    assert.deepEqual(LMx.rage(ctx()), { atk: 0, mov: 2 }, 'ความดุ = เดินอย่างเดียว');
   } finally { match.eosDiff = 'normal'; }
 });
-test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
+test('Lament: ชีวิตทีมหมดแล้วเล่นต่อ (คนที่ล้มต่อไม่ฟื้นเอง) · ฟ้าสางปีศาจสลายครึ่งเดียว · การ์ดทีมมาพร้อมคำสาป', () => {
   setup();
   try {
     lamentOn();
@@ -1745,9 +1743,85 @@ test('Lament: ชีวิตทีมหมด = แพ้ · ฟ้าสา�
     // ชีวิตทีม 3 + คน 3 = 6
     const lives = LMx.livesOf(ctx());
     assert.equal(lives, 6);
-    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; p.alive = true; }
-    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose');
+    for (let i = 0; i < lives; i++) { const p = P(i % 3); p.alive = false; S6.noteDeaths(ctx(), s); delete s.dead[p.id]; LMx.onRespawn(s, p.id); p.alive = true; }
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), null, 'ชีวิตหมดยังไม่แพ้ (ผู้ใช้ 2026-11-14)');
+    // ล้มหลังชีวิตหมด = ไม่ฟื้นเอง
+    const p0 = P(0); p0.alive = false; S6.noteDeaths(ctx(), s);
+    assert.ok(LMx.gone(s, p0.id), 'ไม่ฟื้นเอง');
+    match.roundNumber += 20; S6.reviveDue(ctx(), s);
+    assert.equal(p0.alive, false, 'ผ่านไปนานก็ไม่ฟื้น');
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), null, 'ยังมีคนรอด = เล่นต่อ');
+    assert.ok(Fodlan.publicInfo().board.revive.find((r) => r.id === p0.id).gone, 'ส่ง client');
+    P(1).alive = false; P(2).alive = false;
+    assert.equal(S6.outcome(ctx(), match.fodlan.s), 'lose', 'ล้มหมดทุกคน = แพ้');
   } finally { match.eosDiff = 'normal'; }
+});
+test('Lament: ล้มแล้วนับทันที · ทิ้งหมากศพ · ขนนกคืนชีพฟื้นที่ร่างแล้วคืนชีวิตทีม · คนที่ล้มโหวตการ์ดได้', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st(), l = LMx.L(s);
+    const v = P(0), h = P(1);
+    v.pos = { x: 20, y: 22 }; h.pos = { x: 22, y: 22 }; P(2).pos = { x: 30, y: 0 };
+    const d = mob('daemon', 21, 21);
+    match.effectSourceId = d.id; combat.dealMixed(v, 999); combat.resolveDamageAftermath(v); match.effectSourceId = null;
+    assert.equal(v.alive, false);
+    assert.equal(l.downs, 1, 'นับทันที ไม่รอเทิร์นหน้า');
+    assert.deepEqual(v.corpse, { x: 20, y: 22 }, 'หมากศพ');
+    assert.ok(!(Fodlan.publicInfo().board.spirits || []).some((o) => o.id === v.id), 'วาดร่างแทนดวงวิญญาณ');
+    // ร้านมีขนนก
+    assert.ok(S6.reviveOnSale(), 'ขายใน Lament');
+    // ไม่ติดร่าง = ใช้ไม่ได้
+    h.pos = { x: 25, y: 22 };
+    assert.equal(S6.useRevive(h), false);
+    h.pos = { x: 21, y: 22 };
+    assert.ok(S6.useRevive(h), 'ใช้ได้');
+    assert.ok(v.alive && v.hp === Math.ceil(combat.maxHpOf(v) / 2), 'ฟื้นเลือดครึ่ง');
+    assert.equal(l.downs, 0, 'ไม่นับการล้ม');
+    assert.equal(v.corpse, null);
+    assert.equal(s.dead[v.id], undefined);
+    // โหวต: คนที่ล้มกดได้ และไม่ต้องรอ
+    v.alive = false;
+    s.score = 10; PK.onScore(ctx(), s);
+    const o = Fodlan.publicInfo().board.perkOffer;
+    assert.ok(o, 'มีโหวต');
+    for (const u of [P(0), P(1), P(2)]) Fodlan.charAction(u.id, `fd:perk:${o.choices[0].id}`);
+    assert.equal(Fodlan.publicInfo().board.perkOffer, null, 'ครบทุกคนรวมคนที่ล้ม = ตัดสินเลย');
+  } finally { match.eosDiff = 'normal'; }
+});
+test('ความแฟร์ช่วงมอน: รุมได้ไม่เกิน 2 ตัว · มอนตัวหนึ่งตีคนหนึ่งไม่เกิน 4 ต่อเทิร์น (บอส 5) · เลือดเต็ม 10 ไม่ตายในเทิร์นเดียว แม้ Lament', () => {
+  setup();
+  try {
+    lamentOn();
+    const s = st(), v = P(0), w = P(1);
+    v.pos = { x: 20, y: 22 }; w.pos = { x: 15, y: 22 }; P(2).pos = { x: 30, y: 0 };
+    v.hp = 7; v.armor = 3; w.hp = 7; w.armor = 3;
+    match.roundNumber = 40; // ความดุเต็ม
+    for (const [x, y] of [[21, 22], [19, 22], [20, 23], [20, 21]]) { const d = mob('daemon', x, y); d.summon.atk = 9; d.summon.born = 0; }
+    const before = total(v);
+    S6.actMonsters(ctx(), s);
+    assert.ok(v.alive, 'โดนล้อม 4 ทิศก็ไม่ตายจากเลือดเต็ม');
+    assert.ok(before - total(v) <= 8, 'โดนแค่ 2 ตัว × 4');
+    assert.equal(s.fight, null);
+  } finally { match.eosDiff = 'normal'; }
+});
+test('ร่วมแรง: มีเพื่อนในระยะ 2 = ตีมอน +1 (ไม่ซ้อน) · ไกลกว่านั้น/ยูนิตที่ถูกเรียก = ไม่ได้ · ขึ้นป้าย', () => {
+  setup();
+  const s = st(), a = P(0), b = P(1), c = P(2);
+  a.pos = { x: 20, y: 22 }; b.pos = { x: 25, y: 22 }; c.pos = { x: 30, y: 0 };
+  const d = mob('daemon', 21, 22);
+  const base = S6.atkBonus(ctx(), match.fodlan.s, a, d);
+  b.pos = { x: 22, y: 22 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base + S6.ALLY.atk, 'เพื่อนระยะ 2');
+  c.pos = { x: 20, y: 23 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base + S6.ALLY.atk, 'ไม่ซ้อน');
+  assert.ok(Fodlan.playerInfo(a).badges.some((x) => x.key === 'ally'), 'ป้าย');
+  b.pos = { x: 25, y: 22 }; c.pos = { x: 30, y: 0 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base, 'ไกลเกิน');
+  assert.ok(!S6.allyNear(ctx(), d), 'มอนไม่ได้');
+  const info = Fodlan.playerInfo(a);
+  assert.ok(Number.isFinite(info.atk) && info.atk > 0, 'ป้ายชี้ผู้เล่น: พลังตีใส่มอนใกล้สุด');
+  void s;
 });
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {
   setup();
@@ -2077,7 +2151,7 @@ test('ของประจำเมือง: ร้านอาหาร (เ�
   actor(p); assert.equal(Fodlan.charAction(p.id, 'fd:shrine'), false, 'คูลดาวน์');
   p.pos = sideOf(TWN.SPOTS.ranch[0]); actor(p); p.gold = 5;
   assert.ok(Fodlan.charAction(p.id, 'fd:ranch'));
-  assert.ok(st().chocos.some((c) => Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y) <= 2), 'โชโกโบะมาข้างตัว');
+  { const rc = st().chocos.find((c) => c.rider === p.id); assert.ok(rc, 'เรียกแล้วขี่ได้เลย'); assert.equal(match.action.locked, false, 'ไม่จบตา'); rc.rider = null; delete st().riders[p.id]; }
   const g = TWN.SPOTS.garage[0], car = st().cars[0];
   const at = sideOf(g); p.pos = { ...at };
   const spot = sideOf({ x: at.x, y: at.y }) || { x: at.x - 1, y: at.y };

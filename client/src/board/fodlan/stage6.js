@@ -1843,6 +1843,31 @@ function mobPos(units, id, sm) {
   if (!u) return sm;
   return { x: (u.rx != null ? u.rx : u.x) + (u.ox || 0), y: (u.ry != null ? u.ry : u.y) + (u.oy || 0), moving: false };
 }
+// ร่วมแรง (server stage6 ALLY — ผู้ใช้ 2026-11-14 "ทำทุกข้อ"): ผู้เล่นสองคนห่างกันไม่เกิน 2 ช่อง = เส้นประเขียวบนพื้นระหว่างกัน + วงจางใต้เท้า
+const ALLY_R = 2;
+function allyLinks(g, units, now, lowQ) {
+  const hs = (units || []).filter((u) => !u.summon && !u.corpse && !u.masked && Number.isFinite(u.x));
+  if (hs.length < 2) return;
+  const pos = (u) => ({ x: (u.rx != null ? u.rx : u.x) + (u.ox || 0) + 0.5, y: (u.ry != null ? u.ry : u.y) + (u.oy || 0) + 0.5 });
+  const linked = new Set(), k = lowQ ? 0.8 : 0.65 + 0.2 * Math.sin(now / 420);
+  g.save(); g.lineCap = "round";
+  for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
+    const a = hs[i], b = hs[j];
+    if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > ALLY_R) continue;
+    linked.add(a.id); linked.add(b.id);
+    const pa = pos(a), pb = pos(b), A = P(pa.x, pa.y, 0.04), B = P(pb.x, pb.y, 0.04);
+    g.strokeStyle = `rgba(110,240,160,${0.55 * k})`; g.lineWidth = Math.max(1.5, A[2] * 0.05); g.setLineDash([A[2] * 0.12, A[2] * 0.1]); g.lineDashOffset = lowQ ? 0 : -now / 60;
+    g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+  }
+  g.setLineDash([]);
+  for (const u of hs) {
+    if (!linked.has(u.id)) continue;
+    const p = pos(u), [x, y, s] = P(p.x, p.y, 0.03);
+    g.save(); g.translate(x, y); g.scale(1, 0.42); g.strokeStyle = `rgba(110,240,160,${0.6 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, s * 0.48, 0, TAU); g.stroke(); g.restore();
+  }
+  g.restore();
+}
+const threatOf = (units, id) => !!(units || []).find((it) => it.id === id && it.threat);
 function unitAt(units, id) {
   const u = (units || []).find((it) => it.id === id && !it.corpse);
   if (!u) return null;
@@ -3154,6 +3179,7 @@ export function ground(g, fd, info, now, lowQ = false) {
 // =================================================================== items (เรียงความลึกกับตัวละคร)
 export function items(list, g, fd, info, units, now, lowQ) {
   const night = !!fd.night || LAST_NIGHT;
+  if (fd.eos) list.push({ d: -1e9, f: () => allyLinks(g, units, now, lowQ) }); // ร่วมแรง: เส้นโยงเพื่อนในระยะ 2 (ใต้ทุกอย่าง)
   if (fountainFrom(info)) list.push({ d: depthOf(FOUNTAIN.x, FOUNTAIN.y), f: () => fountainCore(g, now, night, lowQ) });
   // รถ 1 ช่อง (ผู้ใช้สั่ง 2026-11-09 — ขึ้นขี่แล้วขับแบบม้า): จอด = ตามตำแหน่งรถ · มีคนขับ = ใต้หมากคนขับ (ตามตำแหน่งวาดของหมาก วิ่งไปพร้อมกัน)
   //  ภาพรถของผู้ใช้หันซ้ายเป็นค่าเริ่ม → กลับด้านตามทิศที่วิ่งบนจอ (หมุนกล้องได้) · ขึ้นรถ = รถยุบรับน้ำหนัก + ไฟหน้าวาบ · ชน = รถพุ่งไปครึ่งช่องแล้วถอย
@@ -3236,7 +3262,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         }
         if (d.trait === "healer") { const top = P(cx, cy, 1.75); g.fillStyle = "#7dffaa"; g.fillRect(top[0] - 2, top[1] - 7, 4, 14); g.fillRect(top[0] - 7, top[1] - 2, 14, 4); }
         const top = hpPips(g, cx, cy, 1.6, d.hp, d.maxHp, d.armor, d.maxArmor);
-        if (d.elite) eliteMark(g, d.elite, top, s, now, lowQ);
+        mobBadges(g, d, top, now, lowQ, threatOf(units, d.id)); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -3304,7 +3330,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
         if (hit < 1) { const q = P(cx, cy, beast ? 1.0 : 0.7); glowAt(g, q[0], q[1], s * (beast ? 1.1 : 0.7), "255,255,255", (1 - hit) * 0.7); }
         const top = hpPips(g, cx, cy, beast ? 2.0 : m.trait === "mech" ? 2.15 : 1.6, m.hp, m.maxHp, m.armor, m.maxArmor);
         if (m.aggro) glowAt(g, top[0], top[1] - s * 0.22, s * 0.32, "255,40,30", 0.55 + 0.25 * Math.sin(now / 200));
-        if (m.elite) eliteMark(g, m.elite, top, s, now, lowQ);
+        if (m.type !== "nest" && m.type !== "gold" && m.type !== "giant") mobBadges(g, m, top, now, lowQ, threatOf(units, m.id)); // ระดับ · ความสามารถ · หัวหน้า
       },
     });
   }
@@ -3398,14 +3424,15 @@ function playFx(e) {
       break;
     }
     case "mob_attack": {
+      const dl = (e.delay || 0) / 1000; // รอมอนเดินถึง
       const ts = new Set((e.attacks || []).map((a) => a.type));
-      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 });
-      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 });
-      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 });
-      if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 });
+      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 + dl });
+      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 + dl });
+      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 + dl });
+      if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 + dl });
       const walls = (e.pillars || []).filter((h) => h.wall), pls = (e.pillars || []).filter((h) => !h.wall);
-      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25, gain: 0.8 });
-      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25, gain: 0.7 });
+      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25 + dl, gain: 0.8 });
+      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25 + dl, gain: 0.7 });
       break;
     }
     case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
@@ -3436,15 +3463,15 @@ function playFx(e) {
     case "town_light": sfx("dome_on", { gain: 0.7 }); break;
     case "tram": sfx("train_horn", { gain: 0.45, dur: 1.2 }); sfx("chocobo_run", { delay: 0.3, gain: 0.35, dur: 1.8 }); break;
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
-    case "mob_heal": sfx("camp_buff", { gain: 0.45 }); break;
-    case "mob_shot": sfx("turret_shot", { gain: 0.8 }); break;
+    case "mob_heal": sfx("camp_buff", { gain: 0.45, delay: (e.delay || 0) / 1000 }); break;
+    case "mob_shot": sfx("turret_shot", { gain: 0.8, delay: (e.delay || 0) / 1000 }); break;
     case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
     case "town_garage": sfx("car_start", { gain: 0.8 }); break;
     case "armiger": sfx("royal_arms", { gain: 1 }); sfx("tomb_open", { delay: 0.3, gain: 0.7 }); break;
     case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
     case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
     case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
-    case "mob_pull": sfx("car_hit", { gain: 0.6 }); break;
+    case "mob_pull": sfx("car_hit", { gain: 0.6, delay: (e.delay || 0) / 1000 }); break;
     case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
     case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
     case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;
@@ -3948,7 +3975,7 @@ function pve3Fx(g, e, p, lowQ, units, out) {
 // =================================================================== PVE รอบสอง: ภาพของระบบใหม่
 const TRAIT_LOOK = { bomber: { rgb: "255,110,30" }, healer: { rgb: "90,255,150" }, archer: { rgb: "255,210,90" }, shield: { rgb: "120,170,255" }, weaver: { rgb: "235,235,235" }, blinker: { rgb: "190,90,255" }, hooker: { rgb: "170,170,190" }, rune: { rgb: "255,70,200" }, swarm: { rgb: "255,90,90" }, splitter: { rgb: "200,150,90" }, splitling: { rgb: "200,150,90" } };
 // มอนรูปแบบใหม่ (server/fodlan/eosMobs.js — 2026-11-12): ไอคอนลอยเหนือหัว + โล่ฝั่งที่หัน
-const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨" };
+const TRAIT_ICON = { archer: "🏹", shield: "🛡️", weaver: "🕸️", blinker: "👻", hooker: "⛓️", rune: "🔮", splitter: "🪨", splitling: "🪨", swarm: "🐝", bomber: "💣", healer: "💚", sniper: "🎯", mech: "🦾" };
 function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
   const tr = m.trait;
   if (tr === "shield" && m.face) { // โล่ใหญ่ฝั่งที่หัน (ตีจากฝั่งนี้เหลือ 1)
@@ -3957,14 +3984,7 @@ function drawTraitMark(g, m, cx, cy, h, now, lowQ) {
     g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(b2[0], b2[1]); g.lineTo(a2[0], a2[1]); g.closePath();
     g.fillStyle = "rgba(90,140,230,.35)"; g.fill(); g.strokeStyle = "rgba(170,210,255,.9)"; g.lineWidth = 2.5; g.stroke();
   }
-  const ic = TRAIT_ICON[tr];
-  if (!ic) return;
-  const [x, y, s] = P(cx, cy, h);
-  const bob = lowQ ? 0 : Math.sin(now / 380 + cx) * 2;
-  const rgb = (TRAIT_LOOK[tr] || {}).rgb || "255,255,255";
-  glowAt(g, x, y - s * 0.12 + bob, s * 0.3, rgb, m.cd ? 0.25 : 0.6);
-  g.save(); g.globalAlpha = m.cd ? 0.5 : 1; g.font = Math.max(11, Math.round(s * 0.3)) + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText(ic, x, y - s * 0.12 + bob); g.restore();
+  // ไอคอนความสามารถย้ายไปอยู่ในแถวป้ายเหนือหลอดเลือด (mobBadges — ผู้ใช้ 2026-11-14)
 }
 // ท่าใหญ่ราชาปีศาจ (server/fodlan/eosBoss.js — 2026-11-12): ช่องม่วงกะพริบ + ลวดลายตามท่า
 const BIG_RGB = { beam: "190,60,255", ring: "255,50,150", meteor: "255,110,40", dark: "110,40,200", dark_zone: "60,10,110" };
@@ -4013,15 +4033,40 @@ function eliteRing(g, cx, cy, now, lowQ) {
   g.restore();
   glowAt(g, sx, sy - s * 0.7, s * 1.0, "255,200,70", 0.25 * k);
 }
-function eliteMark(g, list, top, s, now, lowQ) { // มงเล็กกลาง + ไอคอนคุณสมบัติสองข้าง เรียงแถวเดียวชิดเหนือหลอดเลือด
-  const UK = Math.max(0.35, (top[2] || s) * 0.0085), y = top[1] - 9 * UK, fs = 10 * UK, w = fs * 1.05; // ผืนผ้าใบย่อขยายตามซูมอยู่แล้ว (UK มักติดขั้นต่ำ) — ห้ามมีขั้นต่ำเป็นพิกเซล
-  drawCrown(g, top[0], y + 3 * UK, 5 * UK, now, true);
-  g.save(); g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
-  list.forEach((a, i) => {
-    const x = top[0] + (i % 2 ? 1 : -1) * (w * (1 + Math.floor(i / 2)) + 1 * UK);
-    glowAt(g, x, y, fs * 0.7, "255,200,70", lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + i));
-    g.fillText(ELITE_ICON[a] || "★", x, y);
-  });
+// แถวป้ายเหนือหลอดเลือดของมอน (ผู้ใช้สั่ง 2026-11-14 "ใช้ icon ลอยเหนือหัวมอน บอกว่าเป็นระดับอะไร มีความสามารถอะไร")
+//  [ระดับ I/II/III… สีตามระดับ] [ไอคอนความสามารถ] [มง + ไอคอนหัวหน้า] เรียงกลาง ชิดเหนือหลอดเลือด · ขนาดตาม UK (ห้ามขั้นต่ำเป็นพิกเซล)
+const TIER_COL = ["#c08a5a", "#c9d4e2", "#f0c868", "#ff6a5a"]; // I ทองแดง · II เงิน · III ทอง · IV+ แดง
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+function mobBadges(g, m, top, now, lowQ, threat = false) {
+  const UK = Math.max(0.35, (top[2] || 1) * 0.0085), fs = 17 * UK, y = top[1] - 13 * UK, gap = 3 * UK; // ใหญ่พอให้อ่านออกตอนซูมปกติ
+  if (threat) { // ❗ ตีถึงตัวเราได้เทิร์นหน้า (BoardStage threatIds — ผู้ใช้ 2026-11-14) · ลอยเหนือแถวป้าย
+    const k = lowQ ? 1 : 0.75 + 0.25 * Math.sin(now / 160), ty = y - fs * 1.35, r = fs * 0.62;
+    g.save(); g.fillStyle = `rgba(225,40,40,${0.9 * k + 0.1})`; g.beginPath(); g.arc(top[0], ty, r, 0, TAU); g.fill();
+    g.strokeStyle = "rgba(255,235,235,.95)"; g.lineWidth = Math.max(0.8, 1.6 * UK); g.stroke();
+    g.fillStyle = "#fff"; g.font = `800 ${fs * 0.95}px "Chakra Petch", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("!", top[0], ty + fs * 0.04); g.restore();
+  }
+  const tier = Math.max(1, m.tier | 0), roman = ROMAN[Math.min(ROMAN.length, tier) - 1];
+  g.save(); g.font = `700 ${fs * 0.78}px "Chakra Petch", sans-serif`;
+  const items = !m.type || m.type === "daemon" || m.type === "magitek" ? [{ kind: "tier", w: Math.max(fs * 1.25, g.measureText(roman).width + fs * 0.55) }] : []; // สัตว์ยักษ์ไม่มีระดับ
+  if (TRAIT_ICON[m.trait]) items.push({ kind: "trait", w: fs * 1.15 });
+  if (m.elite && m.elite.length) { items.push({ kind: "crown", w: fs * 1.0 }); for (const a of m.elite) items.push({ kind: "elite", a, w: fs * 1.1 }); }
+  let x = top[0] - (items.reduce((n, it) => n + it.w, 0) + gap * (items.length - 1)) / 2;
+  for (const it of items) {
+    const cx = x + it.w / 2;
+    if (it.kind === "tier") {
+      const col = TIER_COL[Math.min(TIER_COL.length, tier) - 1], h = fs * 1.0;
+      g.fillStyle = "rgba(14,20,34,.85)"; g.strokeStyle = col; g.lineWidth = Math.max(0.6, 1.2 * UK);
+      g.beginPath(); g.roundRect ? g.roundRect(x, y - h / 2, it.w, h, h * 0.3) : g.rect(x, y - h / 2, it.w, h); g.fill(); g.stroke();
+      g.fillStyle = col; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(roman, cx, y + fs * 0.03);
+    } else if (it.kind === "crown") drawCrown(g, cx, y + 3 * UK, 5 * UK, now, true);
+    else {
+      const ic = it.kind === "trait" ? TRAIT_ICON[m.trait] : ELITE_ICON[it.a] || "★";
+      const rgb = it.kind === "trait" ? (TRAIT_LOOK[m.trait] || {}).rgb || "255,255,255" : "255,200,70";
+      glowAt(g, cx, y, fs * 0.7, rgb, lowQ ? 0.3 : 0.35 + 0.1 * Math.sin(now / 300 + x));
+      g.save(); g.globalAlpha = it.kind === "trait" && m.cd ? 0.45 : 1; g.font = fs + 'px "Segoe UI Emoji", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(ic, cx, y); g.restore();
+    }
+    x += it.w + gap;
+  }
   g.restore();
 }
 // ราชาปีศาจ: ร่างใหญ่ 2.6 ช่อง · ออร่าแดงม่วงหมุน · มงกุฎเรือง · หลอดเลือดใหญ่

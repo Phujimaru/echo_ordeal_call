@@ -20,11 +20,11 @@ const ZONE = {
 const RATE = [0, 1, 2, 4, 6, 8];
 // พลังประจำเสา (PVE รอบสาม — server/fodlan/eosExtra.js POWERS)
 const POWER = {
-  insomnia: { icon: "🔫", tip: "ป้อมปืนบนกำแพง Insomnia ยิงมอนใกล้สุดเองทุกต้นเทิร์น ดาเมจ 2" },
-  altissia: { icon: "⛲", tip: "ต้นเทิร์น: ทุกคนในระยะ 3 ช่องจากเสา Altissia ฟื้นเลือด 1" },
-  duscae: { icon: "🐤", tip: "ขี่โชโกโบะเดินเพิ่มอีก +1" },
-  hammerhead: { icon: "🚗", tip: "ขับรถเดินเพิ่ม +1 · ชนแรงขึ้น +1" },
-  lake: { icon: "🎣", tip: "ตกปลาไม่เจอปลายักษ์ · เหรียญ ×2" },
+  insomnia: { icon: "🔫", tip: "ป้อมปืนยิงเอง ดาเมจ 2" },
+  altissia: { icon: "⛲", tip: "ใกล้เสา 3 ช่อง ฟื้น 1/เทิร์น" },
+  duscae: { icon: "🐤", tip: "โชโกโบะเดิน +1" },
+  hammerhead: { icon: "🚗", tip: "รถเดิน +1 · ชน +1" },
+  lake: { icon: "🎣", tip: "ตกปลาเหรียญ ×2" },
 };
 
 // การ์ดคำอธิบาย: ชี้ = ขึ้นทางซ้าย · กด = ปักค้าง (ชี้ออก = ปิด) — ผู้ใช้ 2026-11-10 "เอาเมาส์ชี้หรือกดอะไรไม่ได้ ไม่มีคำอธิบาย ออกแบบ UI ดีๆหน่อย"
@@ -64,11 +64,8 @@ export default function EosScoreboard({ state }) {
       <div className="eos-hud" data-fold={fold ? "true" : undefined}>
         <div className="eos-hud-head">
           <Tip icon="🔷" title={`แต้มรวมทีม ${score}/${goal}`} lines={[
-            "ทั้งทีมเก็บแต้มร่วมกัน — ครบเป้าแล้วทุกคนชนะ",
-            `ยึดเสาคริสตัล = ได้แต้มทุกจบเทิร์น (ถือ 1–5 ต้น = ${RATE.slice(1).join("/")})`,
-            rate > 0 ? `จบเทิร์นนี้จะได้ +${rate}` : "ยังไม่มีเสา — ยังไม่ได้แต้มต่อเทิร์น",
-            "เพชร 5 เม็ด = เสาแต่ละโซน (ทึบ = ยึดแล้ว · กะพริบ = กำลังร่าย/โดนตี)",
-            "กดเพื่อดูรายละเอียดรายเสา",
+            `ครบเป้า = ชนะ · +${rate}/เทิร์น`,
+            `เสา 1–5 ต้น = ${RATE.slice(1).join("/")} ต่อเทิร์น`,
           ]}>
             <button type="button" className="eos-hud-score" onClick={toggle} aria-expanded={open} aria-label="แต้มรวมทีม">
               <span className="eos-hud-gem" aria-hidden="true">◆</span>
@@ -79,6 +76,11 @@ export default function EosScoreboard({ state }) {
               </span>
             </button>
           </Tip>
+          {b.lament && ( /* ชีวิตทีม Lament บนหัวแผง เห็นตลอดแม้พับ (ผู้ใช้ 2026-11-14 "ทำทุกข้อ") */
+            <span className="eos-lives" aria-label="ชีวิตทีม" data-low={b.lament.lives - b.lament.downs <= 2 ? "true" : undefined}>
+              {Array.from({ length: b.lament.lives }, (_, i) => <i key={i} data-on={i < b.lament.lives - b.lament.downs ? "true" : undefined}>🕯</i>)}
+            </span>
+          )}
           <button type="button" className="eos-hud-fold" onClick={() => setFold((v) => !v)} aria-label={fold ? "กาง" : "พับ"} aria-expanded={!fold}>{fold ? "▸" : "▾"}</button>
           <span className="eos-score-bar"><b style={{ width: `${k * 100}%` }} />{b.finalAt && <i className="eos-score-final" style={{ left: `${(b.finalAt / goal) * 100}%` }} />}</span>
         </div>
@@ -86,10 +88,8 @@ export default function EosScoreboard({ state }) {
           <div className="eos-hud-body">
             {b.gaugeMax > 0 && (
               <Tip icon="☄️" title={`มาตรวัดทีม ${gauge}/${b.gaugeMax}`} lines={[
-                "เติมเมื่อ: ล้มมอนเตอร์ · ท่าร่วม (หลายคนตีมอนตัวเดียวกัน) · ทำลายรัง",
-                "เต็มแล้ว: ปุ่ม \"ถล่ม\" ขึ้นในแถบคำสั่ง — เลือกจุดไหนก็ได้ วง 5×5 ดาเมจ 4",
-                gaugeFull ? "เต็มแล้ว — ใช้ได้เลย" : `อีก ${b.gaugeMax - gauge} จะเต็ม`,
-                b.final ? "คืนสุดท้าย: กลางคืนถาวร ปีศาจบุกเสาทุกเทิร์น" : "",
+                "เต็ม = ถล่มวง 5×5 ดาเมจ 4",
+                b.final ? "คืนสุดท้าย: ปีศาจบุกเสาทุกเทิร์น" : "",
               ]}>
                 <div className="eos-hud-row eos-gauge" data-full={gaugeFull ? "true" : undefined}>
                   <span className="eos-hud-label">☄️ มาตรวัดทีม</span>
@@ -103,9 +103,9 @@ export default function EosScoreboard({ state }) {
                 <div className="eos-hud-row eos-hud-chips">
                   {/* ป้าย Lament ครอบแค่ชื่อ — ไม่ครอบชิปคำสาป (เคยซ้อนสองป้าย ผู้ใช้ส่งภาพ 2026-11-12) */}
                   <Tip icon="💀" title="Lament" lines={[
-                    `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} — ใครล้มก็ลด 1 · หมด = แพ้`,
-                    b.lament.rage && b.lament.rage.atk ? `มอนดุขึ้น ตี +${b.lament.rage.atk} เดิน +${b.lament.rage.mov}` : "มอนดุขึ้นทุก 10 เทิร์น",
-                    b.lament.dead ? "ผู้คร่ำครวญถูกโค่นแล้ว" : `แต้มรวม ${b.lament.at} = ผู้คร่ำครวญมา · ต้องล้มมันจึงชนะ`,
+                    `ชีวิตทีม ${Math.max(0, b.lament.lives - b.lament.downs)}/${b.lament.lives} · หมด = ไม่ฟื้นเอง`,
+                    b.lament.rage && b.lament.rage.mov ? `มอนเดิน +${b.lament.rage.mov}` : "",
+                    b.lament.dead ? "ผู้คร่ำครวญล้มแล้ว" : `แต้ม ${b.lament.at} = ผู้คร่ำครวญมา`,
                   ]}>
                     <span className="eos-hud-label">💀 ชีวิต {Math.max(0, b.lament.lives - b.lament.downs)}/{b.lament.lives}</span>
                   </Tip>
@@ -123,7 +123,7 @@ export default function EosScoreboard({ state }) {
                 <span className="eos-hud-label">✨ การ์ดทีม</span>
                 <span className="eos-power-row">
                   {b.perks.map((c) => (
-                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}${c.max > 1 ? ` Lv ${c.lv}` : ""}`} lines={[c.desc, "ได้จากโหวตทุก 10 แต้ม · ติดทั้งทีมจนจบเกม"]}>
+                    <Tip key={c.id} icon={c.icon} title={`การ์ดทีม · ${c.name}${c.max > 1 ? ` Lv ${c.lv}` : ""}`} lines={[c.desc]}>
                       <span className="eos-power" style={{ "--z": "#e0a92a" }}>{c.icon}{c.lv > 1 && <sup className="eos-perk-lv">{c.lv}</sup>}</span>
                     </Tip>
                   ))}
@@ -135,7 +135,7 @@ export default function EosScoreboard({ state }) {
                 <span className="eos-hud-label">🔷 พลังเสา</span>
                 <span className="eos-power-row">
                   {b.powers.map((z) => (
-                    <Tip key={z} icon={(POWER[z] || {}).icon || "✨"} title={`พลังเสา ${(ZONE[z] || {}).name || z}`} lines={[(POWER[z] || {}).tip || "", "ทำงานตลอดที่ทีมยังถือเสาต้นนี้ · เสาหลุด = พลังหาย"]}>
+                    <Tip key={z} icon={(POWER[z] || {}).icon || "✨"} title={`พลังเสา ${(ZONE[z] || {}).name || z}`} lines={[(POWER[z] || {}).tip || ""]}>
                       <span className="eos-power" style={{ "--z": (ZONE[z] || {}).color }}>{(POWER[z] || {}).icon || "✨"}</span>
                     </Tip>
                   ))}
@@ -149,10 +149,10 @@ export default function EosScoreboard({ state }) {
                   {dead.map((r) => {
                     const left = Math.max(0, (r.at || 0) - round);
                     return (
-                      <Tip key={r.id} icon="🕯️" title={`${r.p.name} ฟื้นในอีก ${left} เทิร์น`} lines={["ฟื้นที่จุดเกิดที่ไกลมอนเตอร์ที่สุด", "ยืนติดดวงวิญญาณแล้วกด \"ช่วย\" = ฟื้นเร็วขึ้น 1 เทิร์น", "ล้มหมดทุกคนพร้อมกัน = แพ้"]}>
-                        <span className="eos-revive-face" data-soon={left <= 1 ? "true" : undefined}>
+                      <Tip key={r.id} icon={r.gone ? "🪶" : "🕯️"} title={r.gone ? `${r.p.name} ไม่ฟื้นเอง` : `${r.p.name} ฟื้นในอีก ${left} เทิร์น`} lines={r.gone ? ["ขนนกคืนชีพ = ฟื้นทันที"] : []}>
+                        <span className="eos-revive-face" data-soon={!r.gone && left <= 1 ? "true" : undefined} data-gone={r.gone ? "true" : undefined}>
                           {r.p.img ? <img src={r.p.img} alt="" /> : <i style={{ background: r.p.color || "#888" }} />}
-                          <b>{left}</b>
+                          <b>{r.gone ? "✝" : left}</b>
                         </span>
                       </Tip>
                     );
@@ -168,16 +168,13 @@ export default function EosScoreboard({ state }) {
           const z = ZONE[pl.zone] || { name: pl.zone, color: "#cccccc" };
           const st = pl.owner ? "own" : pl.ch ? "ch" : "free";
           const by = pl.ch ? players.find((u) => u.id === pl.ch.by) : null;
-          const tip = pl.owner
-            ? `ยึดแล้ว — นับแต้มทุกจบเทิร์น · มอนเตอร์ตีเสาครบ ${pl.hp || 2} ครั้ง = หลุดกลับเป็นกลาง · ยืนติดเสากด "ซ่อมเสา" ล้างรอยตี`
-            : pl.ch ? `${by ? by.name : "เพื่อน"} กำลังร่ายพิธี — ตาถัดไปยืนติดเสาแล้วกด "ยึด" อีกครั้ง · โดนดาเมจ/ออกห่าง = พิธีแตก`
-            : `เสากลาง — ไม่ได้แต้ม · ยืนติดเสากด "ยึด" 2 ตาติดกัน (ใช้การโจมตีของตา)`;
+          const tip = pl.owner ? `ยึดแล้ว · ตีครบ ${pl.hp || 2} = หลุด` : pl.ch ? `${by ? by.name : "เพื่อน"} กำลังยึด` : "ยึด 2 ตาติดกัน";
           return (
             <div key={pl.id} role="listitem" className="eos-pl-row" data-s={st} style={{ "--z": z.color }} title={tip}>
               <span className="eos-pl-gem" aria-hidden="true">{st === "own" ? "✦" : st === "ch" ? "⏳" : "○"}</span>
               <span className="eos-pl-name">{z.name}{POWER[pl.zone] && <i className="eos-pl-pow" data-on={st === "own" ? "true" : undefined} title={POWER[pl.zone].tip}>{POWER[pl.zone].icon}</i>}</span>
               <span className="eos-pl-hits" aria-label="รอยโดนตี">
-                {st === "own" && (pl.ward || 0) > 0 && <em className="eos-pl-ward" title="เกราะเสา — รับการตีแทนรอย">🛡{pl.ward}</em>}
+                {st === "own" && (pl.ward || 0) > 0 && <em className="eos-pl-ward" title="เกราะเสา">🛡{pl.ward}</em>}
                 {st === "own" && Array.from({ length: pl.hp || 2 }, (_, i) => <i key={i} data-on={i < (pl.hits || 0) ? "true" : undefined} />)}
                 {st === "ch" && by && (by.img ? <img src={by.img} alt="" /> : <em>{by.name}</em>)}
               </span>
@@ -185,11 +182,11 @@ export default function EosScoreboard({ state }) {
             </div>
           );
         })}
-        <div className="eos-pl-sum" title="จำนวนเสาที่ยึด → แต้มต่อเทิร์น">
+        <div className="eos-pl-sum" title="เสาที่ยึด · แต้มต่อเทิร์น">
           <span>🔷 {held}/5</span>
           <span className="eos-score-rate">+{rate}</span>
-          {(b.nightNo || 0) > 0 && <span title="คืนที่ — ปีศาจแกร่งขึ้นทุกคืน">🌙 {b.nightNo}</span>}
-          {(b.kills || 0) > 0 && <span title="มอนเตอร์ที่กำจัดแล้ว">⚔ {b.kills}</span>}
+          {(b.nightNo || 0) > 0 && <span title="คืนที่">🌙 {b.nightNo}</span>}
+          {(b.kills || 0) > 0 && <span title="มอนที่ล้ม">⚔ {b.kills}</span>}
           {(b.challenges || []).length > 0 && (
             <span className="eos-stars">
               {b.challenges.map((c) => <i key={c.key} data-ok={c.ok ? "true" : "false"} title={`ดาวท้าทาย: ${c.name}${c.ok ? "" : " (พลาดแล้ว)"}`}>★</i>)}
