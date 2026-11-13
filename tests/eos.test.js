@@ -1807,6 +1807,22 @@ test('ความแฟร์ช่วงมอน: รุมได้ไม่
     assert.equal(s.fight, null);
   } finally { match.eosDiff = 'normal'; }
 });
+test('ร่วมแรง: มีเพื่อนในระยะ 2 = ตีมอน +1 (ไม่ซ้อน) · ไกลกว่านั้น/ยูนิตที่ถูกเรียก = ไม่ได้ · ขึ้นป้าย', () => {
+  setup();
+  const s = st(), a = P(0), b = P(1), c = P(2);
+  a.pos = { x: 20, y: 22 }; b.pos = { x: 25, y: 22 }; c.pos = { x: 30, y: 0 };
+  const d = mob('daemon', 21, 22);
+  const base = S6.atkBonus(ctx(), match.fodlan.s, a, d);
+  b.pos = { x: 22, y: 22 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base + S6.ALLY.atk, 'เพื่อนระยะ 2');
+  c.pos = { x: 20, y: 23 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base + S6.ALLY.atk, 'ไม่ซ้อน');
+  assert.ok(Fodlan.playerInfo(a).badges.some((x) => x.key === 'ally'), 'ป้าย');
+  b.pos = { x: 25, y: 22 }; c.pos = { x: 30, y: 0 };
+  assert.equal(S6.atkBonus(ctx(), match.fodlan.s, a, d), base, 'ไกลเกิน');
+  assert.ok(!S6.allyNear(ctx(), d), 'มอนไม่ได้');
+  void s;
+});
 test('ผู้คร่ำครวญ: แต้ม 90 = เตือน → ลง · วูบไปข้างคนอ่อนแอสุดแล้วกวาดเคียว · เฟส 2 แนวน้ำตา · แต้มครบ 100 ยังไม่ชนะจนกว่าจะล้มมัน', () => {
   setup();
   try {

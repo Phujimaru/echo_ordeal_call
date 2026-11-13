@@ -474,7 +474,14 @@ function carSeats(ctx, st, p, t) {
   if (!s || !driving(s, t) || !canDrive(ctx, s, p)) return 0;
   return CAR_SEATS;
 }
-function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) + weakBonus(p, target) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
+// ร่วมแรง (ผู้ใช้สั่ง 2026-11-14 "เพื่อนร่วมทีมในบริเวณใกล้เคียง สู้ร่วมกัน" · ค่า Claude ตั้ง): มีเพื่อน (ผู้เล่นคนอื่น) ยืนในระยะ ALLY.r = ตีปกติใส่มอน +ALLY.atk (ไม่ซ้อนตามจำนวนเพื่อน)
+const ALLY = { r: 2, atk: 1 };
+function allyNear(ctx, p) {
+  if (!p || !p.pos || p.summon) return false;
+  const own = p.duoOf || p.id, mine = footOf(ctx, p);
+  return heroes(ctx).some((u) => !u.summon && (u.duoOf || u.id) !== own && footOf(ctx, u).some((a) => mine.some((b) => manhattan(a, b) <= ALLY.r)));
+}
+function atkBonus(ctx, st, p, target = null) { const s = st && st.eos; return s && p ? p4AtkBonus(s, p) + XT.comboBonus(ctx, s, H(), p, target) + (target && isMob(target) && !isMob(p) ? PKS.atkBonusVsMob(s) + weakBonus(p, target) + (allyNear(ctx, p) ? ALLY.atk : 0) : 0) : 0; } // + ท่าร่วม (ตีมอนที่เพื่อนตีแล้วในเทิร์นนี้)
 // หันหน้าของมอน (summon.face = ทิศหลักแกนเดียว) — หุ่นเกราะใช้หาด้านหลัง
 function faceTo(sm, dx, dy) {
   if (!sm || (!dx && !dy)) return;
@@ -2865,6 +2872,7 @@ function playerInfo(ctx, st, p) {
   if (riding(s, p)) badges.push({ key: "choco", icon: "🐤", label: "โชโกโบะ", cls: "bg-yellow-300 text-gray-900" });
   if (driving(s, p)) badges.push({ key: "car", icon: "🚗", label: "รถ", cls: "bg-amber-200 text-gray-900" });
   p4Badges(s, p, badges);
+  if (allyNear(ctx, p)) badges.push({ key: "ally", icon: "🤝", label: `ร่วมแรง ตี +${ALLY.atk}`, cls: "bg-emerald-200 text-gray-900" });
   for (const el of flasksOf(s, p)) badges.push({ key: `flask_${el}_${badges.length}`, icon: el === "fire" ? "🔥" : el === "ice" ? "❄️" : "⚡", label: `ขวด${ELEMENT_NAMES[el]}`, cls: "bg-indigo-200 text-gray-900" });
   if (!badges.length) return undefined;
   return { choco: riding(s, p), car: driving(s, p), badges };
@@ -2872,7 +2880,7 @@ function playerInfo(ctx, st, p) {
 
 module.exports = {
   FLASH, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
-  absorbDamage, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
+  absorbDamage, ALLY, allyNear, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
   incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = fairHit(s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), src); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
   critPct(ctx, st, p) { const s = st && st.eos; return s && p && !p.summon ? AR.critOf(armRec(s, p)) : 0; }, // Swords of the Wanderer
