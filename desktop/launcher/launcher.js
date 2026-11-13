@@ -475,6 +475,45 @@ function quit() {
   window.echo.quit();
 }
 
+// ---------- ชื่อ RISING RESONANCE แบบบัค (ผู้ใช้สั่ง 2026-11-14) ----------
+//  ทุก 1.6–4 วิ ตัวอักษร 1–2 ตัวในชื่อเพี้ยนเป็นสัญลักษณ์สีส้มชั่ววูบ (~90ms × 2) แล้วกลับคืน · ปิดเมื่อผู้ใช้ลดการเคลื่อนไหว
+const GLYPHS = "▓▒░#%&@$Ø∆¥ΞΣ";
+function glitchName() {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const wrap = (el) => {
+    if (el.dataset.wrapped) return;
+    el.dataset.wrapped = "1";
+    const walk = (node) => {
+      for (const ch of [...node.childNodes]) {
+        if (ch.nodeType === 3) {
+          const frag = document.createDocumentFragment();
+          for (const c of ch.textContent) { const s = document.createElement("i"); s.className = "ch"; s.style.fontStyle = "normal"; s.textContent = c; s.dataset.c = c; frag.appendChild(s); }
+          ch.replaceWith(frag);
+        } else if (ch.nodeType === 1) walk(ch);
+      }
+    };
+    walk(el);
+  };
+  const tick = () => {
+    for (const el of document.querySelectorAll(".patch.rr")) {
+      wrap(el);
+      const chars = [...el.querySelectorAll("i.ch")].filter((s) => s.dataset.c.trim());
+      const n = Math.random() < 0.35 ? 2 : 1;
+      for (let k = 0; k < n && chars.length; k++) {
+        const s = chars[Math.floor(Math.random() * chars.length)];
+        const flip = (on) => { s.textContent = on ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)] : s.dataset.c; s.classList.toggle("bug", on); };
+        flip(true);
+        setTimeout(() => flip(false), 90);
+        setTimeout(() => flip(true), 160);
+        setTimeout(() => flip(false), 250);
+      }
+    }
+    setTimeout(tick, 1600 + Math.random() * 2400);
+  };
+  setTimeout(tick, 1200);
+}
+glitchName();
+
 // ---------- เริ่ม ----------
 async function init() {
   initCorner();

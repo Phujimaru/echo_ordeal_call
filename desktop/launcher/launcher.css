@@ -95,7 +95,34 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
 .echo-logo.sm { width: min(300px, 70vw); }
 .patch { font: 400 clamp(15px, 1.7vw, 22px)/1 var(--f-logo); letter-spacing: 0.62em; margin-right: -0.62em; color: var(--ink); }
 .patch span { color: var(--azure); }
-.patch.sm { font-size: 14px; letter-spacing: 0.5em; margin-right: 0; }
+.patch.sm { font-size: 14px; letter-spacing: 0.42em; margin-right: 0; }
+/* ชื่อ RISING RESONANCE แบบ "บัค" (ผู้ใช้สั่ง 2026-11-14 — คู่สีเดียวกับ glitch บนลูกโลก ส้ม #ff7a1a / ฟ้า #2bb8ff · ดูมีอะไรน่าสงสัย)
+   ชั้นซ้อนส้ม/ฟ้า (::before/::after จาก data-text) เหลื่อมแวบๆ ตัดเป็นแถบ · ตัวอักษรเพี้ยนเป็นสัญลักษณ์ชั่ววูบ (launcher.js glitchName) */
+.patch.rr { position: relative; color: var(--ink); text-shadow: 0 0 0 transparent; animation: rr-flick 5.3s steps(1) infinite; }
+.patch.rr span { color: #2bb8ff; }
+.patch.rr .bug { color: #ff7a1a; text-shadow: 0 0 6px rgba(255, 122, 26, 0.6); }
+.patch.rr::before, .patch.rr::after {
+  content: attr(data-text); position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  letter-spacing: inherit; white-space: nowrap; text-align: inherit;
+}
+.patch.rr::before { color: #ff7a1a; animation: rr-split-a 3.7s steps(1) infinite; }
+.patch.rr::after { color: #2bb8ff; animation: rr-split-b 4.9s steps(1) infinite; }
+@keyframes rr-split-a {
+  0%, 61%, 66%, 88%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
+  62% { opacity: 0.9; transform: translate(-3px, 0); clip-path: inset(10% 0 55% 0); }
+  63% { opacity: 0.9; transform: translate(4px, 1px); clip-path: inset(60% 0 8% 0); }
+  64% { opacity: 0.7; transform: translate(-2px, 0); clip-path: inset(35% 0 30% 0); }
+  89% { opacity: 0.8; transform: translate(3px, 0); clip-path: inset(0 0 70% 0); }
+}
+@keyframes rr-split-b {
+  0%, 31%, 35%, 72%, 76%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
+  32% { opacity: 0.85; transform: translate(3px, 0); clip-path: inset(50% 0 20% 0); }
+  33% { opacity: 0.85; transform: translate(-4px, -1px); clip-path: inset(5% 0 65% 0); }
+  73% { opacity: 0.75; transform: translate(-3px, 1px); clip-path: inset(70% 0 0 0); }
+  74% { opacity: 0.75; transform: translate(2px, 0); clip-path: inset(20% 0 45% 0); }
+}
+@keyframes rr-flick { 0%, 47%, 49%, 100% { opacity: 1; } 48% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .patch.rr, .patch.rr::before, .patch.rr::after { animation: none; } }
 
 /* ---------- เปิดโปรแกรม ---------- */
 #boot { align-items: flex-end; justify-content: center; padding: 0 16px 13vh; }
@@ -120,18 +147,24 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
   border: 1px solid var(--line); border-left: 3px solid var(--hp); padding: 10px 14px;
 }
 
-.menu { display: flex; flex-direction: column; }
+/* เมนูหน้าแรก: ปุ่มทึบมุมโค้ง (ผู้ใช้สั่ง 2026-11-14 "ไม่เอาพื้นหลังโปร่ง เอาเป็นปุ่ม โค้งหน่อย") — ปุ่มแรก = ปุ่มหลักสีม่วง ECHO */
+.menu { display: flex; flex-direction: column; gap: 12px; }
 .menu button {
-  appearance: none; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; color: var(--ink);
-  padding: 18px 4px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; transition: padding 0.2s, color 0.2s;
+  appearance: none; text-align: left; cursor: pointer; color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(28, 63, 110, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 16px 20px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s;
 }
-.menu button:last-child { border-bottom: 1px solid var(--line); }
 .menu .t { font: 600 20px/1.2 var(--f-ui); }
 .menu .arr { color: var(--sky); font-size: 18px; transition: transform 0.2s, color 0.2s; }
-.menu button:hover { padding-left: 12px; }
+.menu button:hover { transform: translateY(-2px); border-color: var(--azure); box-shadow: 0 10px 24px rgba(28, 63, 110, 0.18); }
 .menu button:hover .arr { transform: translateX(4px); color: var(--echo); }
-.menu button.main .t { color: var(--echo); }
-.menu button:focus-visible { outline: 2px solid var(--azure); outline-offset: -2px; }
+.menu button:active { transform: translateY(0); }
+.menu button.main { background: linear-gradient(135deg, var(--echo) 0%, var(--echo-deep) 100%); border-color: transparent; box-shadow: 0 8px 22px rgba(110, 44, 122, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.menu button.main .t, .menu button.main .arr { color: #fff; }
+.menu button.main:hover { box-shadow: 0 12px 28px rgba(110, 44, 122, 0.42); }
+.menu button:focus-visible { outline: 2px solid var(--azure); outline-offset: 3px; }
 
 /* ---------- แผงกระจก (มีขีดมุม) ---------- */
 .panel {
@@ -239,6 +272,7 @@ h2 { font: 600 26px/1.15 var(--f-ui); margin: 0; }
 :root[data-ui="dark"] :is(.btn:not(.primary):not(.ghost), .ip, .input, .notice, .copy) { background: #13284a; color: var(--ink); }
 :root[data-ui="dark"] .btn:not(.primary):not(.ghost):hover { background: #1d3a63; }
 :root[data-ui="dark"] .whiteout { background: #02040a; }
+:root[data-ui="dark"] .menu button:not(.main) { background: #13284a; border-color: rgba(127, 184, 230, 0.3); color: var(--ink); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
 /* แถบมุมขวาบน + แผงเมนู */
 :root[data-ui="dark"] .ocv-btn { background: rgba(16, 34, 66, 0.9); border-color: rgba(127, 184, 230, 0.45); color: #e8f0fa; }
 :root[data-ui="dark"] .ocv-btn:hover { background: #18325c; }
