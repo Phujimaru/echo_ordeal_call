@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Road Trip Van</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --panel: rgba(255,255,255,.88); --ink: #1f2a33; --line: rgba(31,42,51,.14); --on: #ff8a3d; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe6f2; color: var(--ink);
+    font-family: "Noto Sans Thai", system-ui, sans-serif; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 24px); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--panel); padding: 6px; border-radius: 10px;
+    border: 1px solid var(--line); backdrop-filter: blur(6px); }
+  button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+  button:hover { border-color: var(--on); }
+  button.on { background: var(--on); color: #fff; border-color: var(--on); }
+  .sw { width: 26px; height: 26px; padding: 0; border-radius: 50%; }
+  .sw.on { outline: 3px solid var(--ink); outline-offset: 1px; background-image: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="ui">
+  <div class="row" id="views"></div>
+  <div class="row" id="styles"></div>
+  <div class="row" id="modes"></div>
+  <div class="row" id="paint"></div>
+  <div class="row" id="parts"></div>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(11, 6.5, 11);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.7, 0);
+controls.enableDamping = true;
+controls.minDistance = 3;
+controls.maxDistance = 45;
+controls.maxPolarAngle = Math.PI * 0.497;
+
+const hemi = new THREE.HemisphereLight(0xe3f3ff, 0x7d6c56, 1.15);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.5);
+sun.position.set(9, 15, 7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// ---------- ground / road ----------
+const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...o });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), std(0xb7c98c, { roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(400, 9.6), std(0x5a5f67, { roughness: 0.95 }));
+road.rotation.x = -Math.PI / 2; road.position.y = 0.01; road.receiveShadow = true; scene.add(road);
+const lineMat = std(0xf3efe2);
+const roadDeco = new THREE.Group(); scene.add(roadDeco);
+for (let x = -200; x < 200; x += 4) {
+  const d = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.18), lineMat);
+  d.rotation.x = -Math.PI / 2; d.position.set(x, 0.02, -2.9); d.receiveShadow = true; roadDeco.add(d);
+}
+for (const z of [-4.5, 4.5]) {
+  const e = new THREE.Mesh(new THREE.PlaneGeometry(400, 0.16), lineMat);
+  e.rotation.x = -Math.PI / 2; e.position.set(0, 0.02, z); scene.add(e);
+}
+
+// ---------- van dimensions ----------
+// ด้านหน้ารถ = +X · ขวามือคนขับ = +Z (พวงมาลัยขวาแบบไทย) · ห้องใน 3 × 7 ช่อง
+const W = 3.4, HW = W / 2;
+const tileX = (i) => 2.5 - i;          // แถว 0 (หน้า) … 6 (ท้าย)
+const tileZ = (c) => c;                // คอลัมน์ -1 ซ้าย · 0 กลาง · +1 ขวา
+const FLOOR = 0.62;
+
+const van = new THREE.Group(); scene.add(van);
+const exterior = new THREE.Group(); van.add(exterior);   // เปลือกทึบ (โหมดภายนอก)
+const cutaway = new THREE.Group(); van.add(cutaway);     // ผนังผ่า (โหมดภายใน)
+const interior = new THREE.Group(); van.add(interior);   // เฟอร์นิเจอร์
+const always = new THREE.Group(); van.add(always);       // ล้อ ไฟ กระจกหน้า
+const parts = {}; // ชิ้นอัปเกรด
+
+const paint = std(0x7fb8d8, { roughness: 0.45, metalness: 0.15 });
+const cream = std(0xf6efe0, { roughness: 0.6 });
+const trim = std(0x2d333b, { roughness: 0.6 });
+const chrome = std(0xd9dde2, { roughness: 0.25, metalness: 0.8 });
+const glass = new THREE.MeshStandardMaterial({ color: 0x23384a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+const lining = std(0xece3d0, { roughness: 0.9, side: THREE.DoubleSide });
+
+function shadowAll(o) { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; }
+function mesh(geo, mat, x = 0, y = 0, z = 0, parent) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); (parent || van).add(m); return shadowAll(m); }
+const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+
+// ---------- side profile ----------
+function bottomWithArches(s) {
+  s.moveTo(-4.1, 0.5);
+  s.lineTo(-3.35, 0.5); s.absarc(-2.6, 0.5, 0.75, Math.PI, 0, true);
+  s.lineTo(1.85, 0.5); s.absarc(2.6, 0.5, 0.75, Math.PI, 0, true);
+  s.lineTo(4.1, 0.5);
+}
+function fullProfile() {
+  const s = new THREE.Shape();
+  bottomWithArches(s);
+  s.lineTo(4.1, 1.35); s.quadraticCurveTo(4.1, 1.72, 3.75, 1.76);
+  s.lineTo(3.35, 1.85); s.lineTo(2.72, 3.18); s.quadraticCurveTo(2.62, 3.4, 2.36, 3.4);
+  s.lineTo(-3.8, 3.4); s.quadraticCurveTo(-4.1, 3.4, -4.1, 3.1);
+  s.lineTo(-4.1, 0.5);
+  return s;
+}
+function lowProfile() {
+  const s = new THREE.Shape();
+  bottomWithArches(s);
+  s.lineTo(4.1, 1.3); s.lineTo(-4.1, 1.3); s.lineTo(-4.1, 0.5);
+  return s;
+}
+const WINDOWS = [
+  [[1.95, 2.02], [3.12, 2.02], [2.62, 3.1], [1.95, 3.1]],      // ประตูคนขับ/ข้างคนขับ
+  [[0.1, 2.05], [1.75, 2.05], [1.75, 3.1], [0.1, 3.1]],        // แถว 1
+  [[-1.9, 2.05], [-0.1, 2.05], [-0.1, 3.1], [-1.9, 3.1]],      // แถว 3
+  [[-3.75, 2.05], [-2.1, 2.05], [-2.1, 3.1], [-3.75, 3.1]],    // แถว 5
+];
+const winPath = (pts, Cls = THREE.Path) => { const p = new Cls(); p.moveTo(...pts[0]); pts.slice(1).forEach((q) => p.lineTo(...q)); p.closePath(); return p; };
+
+// ---------- exterior shell (solid) ----------
+{
+  const bevel = 0.06;
+  const g = new THREE.ExtrudeGeometry(fullProfile(), { depth: W - bevel * 2, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 3, curveSegments: 18 });
+  g.translate(0, 0, -(W - bevel * 2) / 2);
+  mesh(g, paint, 0, 0, 0, exterior);
+  // หลังคาครีม + คาดสีขาว
+  mesh(box(6.2, 0.08, W - 0.1), cream, -0.72, 3.44, 0, exterior);
+  for (const z of [HW + 0.004, -HW - 0.004]) {
+    mesh(box(8.1, 0.22, 0.02), cream, 0, 1.62, z, exterior);
+    for (const w of WINDOWS) {
+      const gm = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w, THREE.Shape)), glass);
+      gm.position.z = z + Math.sign(z) * 0.006; exterior.add(gm);
+      const fr = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w.map(([x, y]) => [x, y]), THREE.Shape)), trim);
+      fr.scale.set(1, 1, 1); fr.position.z = z; fr.renderOrder = -1;
+    }
+  }
+  // ประตูเลื่อนด้านซ้าย (−Z) + ประตูคนขับ seams
+  const seam = (x, y, h, z) => mesh(box(0.025, h, 0.02), trim, x, y, z, exterior);
+  seam(0.0, 1.55, 2.0, -HW - 0.01); seam(1.85, 1.55, 2.0, -HW - 0.01);
+  mesh(box(1.85, 0.03, 0.02), trim, 0.92, 0.56, -HW - 0.01, exterior);
+  mesh(box(1.4, 0.06, 0.06), chrome, 0.92, 3.22, -HW - 0.03, exterior); // ราง
+  mesh(box(0.28, 0.06, 0.06), chrome, 0.35, 1.85, -HW - 0.04, exterior); // มือจับ
+  for (const z of [-1, 1]) { seam(1.92, 1.55, 2.0, z * (HW + 0.01)); seam(3.3, 1.2, 1.2, z * (HW + 0.01)); mesh(box(0.25, 0.06, 0.06), chrome, 2.3, 1.85, z * (HW + 0.04), exterior); }
+  // ประตูท้ายบานคู่
+  mesh(box(0.02, 2.6, 0.03), trim, -4.17, 1.95, 0, exterior);
+  for (const z of [-0.18, 0.18]) mesh(box(0.06, 0.06, 0.22), chrome, -4.19, 1.85, z, exterior);
+  for (const z of [-0.85, 0.85]) {
+    const rg = mesh(box(0.02, 0.9, 1.25), glass, -4.172, 2.6, z, exterior); rg.castShadow = false;
+  }
+  // ซันรูฟ
+  const hatch = mesh(box(0.95, 0.1, 0.95), trim, 0.5, 3.5, 0, exterior);
+  mesh(box(0.85, 0.06, 0.85), glass, 0.5, 3.56, 0, exterior);
+}
+
+// ---------- cutaway shell ----------
+{
+  const t = 0.12;
+  // ผนังไกล (ซ้าย −Z) มีช่องหน้าต่าง
+  const far = fullProfile(); WINDOWS.forEach((w) => far.holes.push(winPath(w)));
+  const fg = new THREE.ExtrudeGeometry(far, { depth: t, bevelEnabled: false, curveSegments: 18 });
+  mesh(fg, paint, 0, 0, -HW, cutaway);
+  const fl = new THREE.Mesh(new THREE.ShapeGeometry(far, 18), lining); fl.position.z = -HW + t + 0.004; cutaway.add(fl);
+  for (const w of WINDOWS) { const gm = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w, THREE.Shape)), glass); gm.position.z = -HW + t / 2; cutaway.add(gm); }
+  mesh(box(8.2, 0.22, 0.02), cream, 0, 1.62, -HW - 0.01, cutaway);
+  // ผนังใกล้ (ขวา +Z) เตี้ย
+  const ng = new THREE.ExtrudeGeometry(lowProfile(), { depth: t, bevelEnabled: false, curveSegments: 18 });
+  mesh(ng, paint, 0, 0, HW - t, cutaway);
+  mesh(box(8.2, 0.06, t + 0.02), cream, 0, 1.31, HW - t / 2, cutaway);
+  // หัวรถ (ฝากระโปรง) + ผนังท้ายเตี้ย
+  mesh(box(0.8, 1.22, W), paint, 3.7, 1.11, 0, cutaway);
+  mesh(box(0.42, 0.06, W), paint, 3.55, 1.75, 0, cutaway);
+  mesh(box(t, 0.8, W), paint, -4.1 + t / 2, 0.9, 0, cutaway);
+}
+
+// ---------- floor + grid ----------
+const gridGroup = new THREE.Group(); van.add(gridGroup);
+mesh(box(7.3, 0.12, W - 0.2), std(0x6b5440, { roughness: 0.9 }), -0.5, FLOOR - 0.06, 0, interior);
+const TILE_COL = { drive: 0xffb36b, win: 0x8fd0ff, door: 0xb9a6ff, roof: 0x9be3b0, gear: 0xff8d8d, rest: 0xffe08a, none: 0xd8cbb4 };
+const TILE_KIND = [
+  ["none", "none", "drive"],
+  ["door", "none", "win"],
+  ["none", "roof", "none"],
+  ["win", "none", "win"],
+  ["rest", "none", "gear"],
+  ["rest", "none", "gear"],
+  ["door", "door", "door"],
+];
+for (let i = 0; i < 7; i++) for (let c = -1; c <= 1; c++) {
+  const kind = TILE_KIND[i][c + 1];
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92), new THREE.MeshStandardMaterial({ color: TILE_COL[kind], transparent: true, opacity: 0.55, roughness: 1 }));
+  t.rotation.x = -Math.PI / 2; t.position.set(tileX(i), FLOOR + 0.006, tileZ(c)); t.receiveShadow = true; gridGroup.add(t);
+}
+{
+  const pts = [];
+  for (let i = 0; i <= 7; i++) { const x = 3 - i; pts.push(x, FLOOR + 0.01, -1.5, x, FLOOR + 0.01, 1.5); }
+  for (let c = 0; c <= 3; c++) { const z = -1.5 + c; pts.push(3, FLOOR + 0.01, z, -4, FLOOR + 0.01, z); }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  gridGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x3a2e22, transparent: true, opacity: 0.5 })));
+}
+
+// ---------- furniture ----------
+const fabric = std(0x3f8f8a, { roughness: 0.95 });
+function seat(x, z, rotY = 0, w = 0.8) {
+  const g = new THREE.Group(); g.position.set(x, FLOOR, z); g.rotation.y = rotY; interior.add(g);
+  mesh(box(0.8, 0.42, w), fabric, 0, 0.3, 0, g);
+  mesh(box(0.16, 0.95, w), fabric, -0.36, 0.95, 0, g);
+  mesh(box(0.14, 0.22, w * 0.6), fabric, -0.38, 1.5, 0, g);
+  mesh(box(0.6, 0.1, 0.6), trim, 0, 0.05, 0, g);
+  return g;
+}
+// แถว 0
+seat(tileX(0), 1);                       // คนขับ
+seat(tileX(0), -1);                      // ข้างคนขับ
+mesh(box(0.55, 0.85, W - 0.25), trim, 3.1, FLOOR + 0.6, 0, interior);   // แผงหน้าปัด
+{ // พวงมาลัย
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 10, 28), trim);
+  wheel.position.set(2.82, 1.55, 1); wheel.rotation.y = Math.PI / 2; wheel.rotation.x = 0; wheel.rotateX(0); wheel.rotation.z = 0;
+  wheel.rotation.set(0, Math.PI / 2, 0); wheel.rotateX(-0.5); interior.add(shadowAll(wheel));
+  mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5), trim, 2.98, 1.45, 1, interior).rotation.z = 1.1;
+}
+mesh(box(0.7, 0.5, 0.55), trim, tileX(0), FLOOR + 0.25, 0, interior);       // คอนโซลกลาง
+const radio = mesh(box(0.2, 0.22, 0.5), std(0x222222), 2.84, 1.32, 0, interior);
+const radioGlow = new THREE.MeshStandardMaterial({ color: 0x55ffd0, emissive: 0x33ffc8, emissiveIntensity: 1.2 });
+mesh(box(0.02, 0.08, 0.3), radioGlow, 2.73, 1.36, 0, interior);
+// แถว 2 บันไดขึ้นซันรูฟ
+{
+  const lx = tileX(2) + 0.2, H = 3.35 - FLOOR;
+  for (const z of [-0.28, 0.28]) mesh(box(0.07, H, 0.07), chrome, lx, FLOOR + H / 2, z, interior);
+  for (let k = 1; k < 6; k++) mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.56), chrome, lx, FLOOR + k * H / 6, 0, interior).rotation.x = Math.PI / 2;
+}
+// แถว 4–5 เบาะยาวด้านซ้าย (หันเข้ากลาง)
+{
+  const g = new THREE.Group(); g.position.set((tileX(4) + tileX(5)) / 2, FLOOR, -1.05); interior.add(g);
+  mesh(box(1.9, 0.42, 0.8), fabric, 0, 0.3, 0, g);
+  mesh(box(1.9, 0.9, 0.16), fabric, 0, 0.92, -0.38, g);
+  mesh(box(0.35, 0.18, 0.5), cream, -0.7, 0.6, 0.05, g); // หมอน
+}
+// แถว 4 กล่องเครื่องมือ
+{
+  const g = new THREE.Group(); g.position.set(tileX(4), FLOOR, 1.05); interior.add(g);
+  mesh(box(0.8, 0.5, 0.55), std(0xd8453b, { roughness: 0.45, metalness: 0.3 }), 0, 0.25, 0, g);
+  mesh(box(0.82, 0.06, 0.57), std(0xa8322a), 0, 0.5, 0, g);
+  mesh(box(0.4, 0.04, 0.04), chrome, 0, 0.62, 0, g);
+  for (const x of [-0.2, 0.2]) mesh(box(0.04, 0.12, 0.04), chrome, x, 0.56, 0, g);
+  mesh(box(0.18, 0.1, 0.03), std(0xf2c94c), 0, 0.33, 0.29, g);
+}
+// แถว 5 ตู้เย็น
+{
+  const g = new THREE.Group(); g.position.set(tileX(5), FLOOR, 1.1); interior.add(g);
+  mesh(box(0.8, 1.35, 0.7), std(0xf7f7f4, { roughness: 0.35 }), 0, 0.675, 0, g);
+  mesh(box(0.82, 0.02, 0.72), std(0xc9c9c4), 0, 0.92, 0, g);
+  mesh(box(0.05, 0.4, 0.05), chrome, 0.22, 1.15, -0.37, g);
+  mesh(box(0.05, 0.25, 0.05), chrome, 0.22, 0.6, -0.37, g);
+  mesh(box(0.14, 0.14, 0.02), std(0xff8a3d), -0.15, 1.15, -0.36, g); // แม่เหล็กติดตู้
+}
+// หมากเทียบขนาด
+{
+  const g = new THREE.Group(); g.position.set(tileX(3), FLOOR, 0); interior.add(g);
+  const pm = std(0xff8a3d, { roughness: 0.4 });
+  mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.14, 24), pm, 0, 0.07, 0, g);
+  mesh(new THREE.CylinderGeometry(0.16, 0.28, 0.75, 24), pm, 0, 0.5, 0, g);
+  mesh(new THREE.SphereGeometry(0.22, 24, 16), pm, 0, 1.02, 0, g);
+}
+// ไฟห้องโดยสาร (กลางคืน)
+const cabinLight = new THREE.PointLight(0xffd59a, 0, 7, 1.6); cabinLight.position.set(-0.5, 3.0, 0); van.add(cabinLight);
+
+// ---------- always visible: windshield, wheels, lights, bumpers ----------
+{
+  const a = Math.atan2(1.33, -0.63), nx = 1.33 / 1.47, ny = 0.63 / 1.47;
+  const ws = mesh(box(1.38, 0.035, W - 0.3), glass, (3.35 + 2.72) / 2 + nx * 0.07, (1.85 + 3.18) / 2 + ny * 0.07, 0, always);
+  ws.rotation.z = a; ws.castShadow = false;
+  // ใบปัดน้ำฝน
+  for (const z of [-0.5, 0.6]) { const wp = mesh(box(0.03, 0.03, 0.8), trim, 3.32, 1.95, z, always); wp.rotation.y = 0.35; }
+}
+const wheels = [];
+for (const x of [2.6, -2.6]) for (const z of [HW - 0.22, -HW + 0.22]) {
+  const g = new THREE.Group(); g.position.set(x, 0.56, z); always.add(g);
+  const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 32), std(0x1e1f22, { roughness: 0.95 }));
+  tire.rotation.x = Math.PI / 2; g.add(shadowAll(tire));
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.44, 24), cream); hub.rotation.x = Math.PI / 2; g.add(shadowAll(hub));
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.46, 12), chrome); cap.rotation.x = Math.PI / 2; g.add(cap);
+  for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(box(0.05, 0.05, 0.47), trim); const an = k / 5 * Math.PI * 2; b.position.set(Math.cos(an) * 0.19, Math.sin(an) * 0.19, 0); g.add(b); }
+  wheels.push(g);
+}
+// กันชน
+mesh(box(0.22, 0.28, W + 0.06), trim, 4.18, 0.68, 0, always);
+mesh(box(0.22, 0.28, W + 0.06), trim, -4.18, 0.68, 0, always);
+// กระจังหน้า + ป้าย
+mesh(box(0.05, 0.3, 1.4), cream, 4.15, 1.2, 0, always);
+for (let k = 0; k < 3; k++) mesh(box(0.06, 0.04, 1.3), trim, 4.17, 1.1 + k * 0.1, 0, always);
+function plateTex(txt) {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 96; const g = c.getContext("2d");
+  g.fillStyle = "#fbf8ef"; g.fillRect(0, 0, 256, 96); g.strokeStyle = "#1f2a33"; g.lineWidth = 8; g.strokeRect(4, 4, 248, 88);
+  g.fillStyle = "#1f2a33"; g.font = "700 54px 'Noto Sans Thai', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 128, 52);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+for (const [x, ry] of [[4.3, Math.PI / 2], [-4.3, -Math.PI / 2]]) {
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.26), new THREE.MeshStandardMaterial({ map: plateTex("กข 4567") }));
+  p.position.set(x, 0.68, 0); p.rotation.y = ry; always.add(p);
+}
+// ไฟหน้า / ไฟท้าย
+const headMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.15, roughness: 0.2 });
+const tailMat = new THREE.MeshStandardMaterial({ color: 0xd8342c, emissive: 0xff2a1a, emissiveIntensity: 0.1, roughness: 0.3 });
+const headLights = [];
+for (const z of [-1.15, 1.15]) {
+  const h = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 24), headMat, 4.13, 1.25, z, always); h.rotation.z = Math.PI / 2;
+  mesh(new THREE.TorusGeometry(0.2, 0.03, 8, 24), chrome, 4.16, 1.25, z, always).rotation.y = Math.PI / 2;
+  mesh(box(0.06, 0.45, 0.22), tailMat, -4.15, 1.45, z * 1.15, always);
+  const sp = new THREE.SpotLight(0xfff0c8, 0, 30, 0.5, 0.5, 1.2); sp.position.set(4.2, 1.25, z);
+  sp.target.position.set(14, 0, z); van.add(sp); van.add(sp.target); headLights.push(sp);
+}
+// กระจกข้าง
+for (const z of [-1, 1]) {
+  mesh(box(0.06, 0.06, 0.3), trim, 3.25, 2.0, z * (HW + 0.15), always);
+  mesh(box(0.08, 0.32, 0.22), trim, 3.25, 2.12, z * (HW + 0.32), always);
+}
+
+// ---------- labels ----------
+const labelGroup = new THREE.Group(); van.add(labelGroup);
+function label(text, x, y, z) {
+  const c = document.createElement("canvas"); const g = c.getContext("2d");
+  g.font = "700 44px 'Noto Sans Thai', sans-serif";
+  const w = Math.ceil(g.measureText(text).width) + 36; c.width = w; c.height = 72;
+  g.font = "700 44px 'Noto Sans Thai', sans-serif";
+  g.fillStyle = "rgba(31,42,51,.85)"; g.beginPath(); g.roundRect(0, 0, w, 72, 20); g.fill();
+  g.fillStyle = "#fff"; g.textBaseline = "middle"; g.fillText(text, 18, 38);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
+  s.scale.set(w / 72 * 0.38, 0.38, 1); s.position.set(x, y, z); s.renderOrder = 10; labelGroup.add(s);
+}
+const LABELS = [
+  ["คนขับ", tileX(0), 2.35, 1], ["เบาะข้าง", tileX(0), 2.35, -1], ["วิทยุ", 2.85, 1.85, 0],
+  ["ประตูข้าง", tileX(1), 1.6, -1], ["หน้าต่าง", tileX(1), 1.6, 1], ["ซันรูฟ", tileX(2), 3.75, 0],
+  ["หน้าต่าง", tileX(3), 1.6, -1], ["หน้าต่าง", tileX(3), 1.6, 1], ["เบาะหลัง", -2, 1.95, -1],
+  ["กล่องเครื่องมือ", tileX(4), 1.6, 1], ["ตู้เย็น", tileX(5), 2.4, 1], ["ประตูท้าย", tileX(6), 1.6, 0],
+];
+document.fonts.load("700 44px 'Noto Sans Thai'").finally(() => LABELS.forEach((l) => label(...l)));
+
+// ---------- upgrade parts ----------
+function part(name, build) { const g = new THREE.Group(); van.add(g); build(g); shadowAll(g); g.visible = false; parts[name] = g; }
+part("ป้อมปืน", (g) => {
+  const m = std(0x4b5563, { metalness: 0.5, roughness: 0.4 });
+  mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.25, 24), m, -2.3, 3.6, 0, g);
+  mesh(box(0.9, 0.42, 0.75), m, -2.25, 3.92, 0, g);
+  const b = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 12), trim, -1.35, 3.95, 0.15, g); b.rotation.z = Math.PI / 2;
+  const b2 = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 12), trim, -1.35, 3.95, -0.15, g); b2.rotation.z = Math.PI / 2;
+});
+part("กันชนหนาม", (g) => {
+  const m = std(0x8a8f96, { metalness: 0.7, roughness: 0.3 });
+  mesh(box(0.25, 0.5, W + 0.3), m, 4.4, 0.85, 0, g);
+  for (let k = 0; k < 7; k++) { const c = mesh(new THREE.ConeGeometry(0.12, 0.45, 12), chrome, 4.72, 0.85, -1.5 + k * 0.5, g); c.rotation.z = -Math.PI / 2; }
+});
+const barLamps = [];
+part("ไฟหลังคา", (g) => {
+  mesh(box(0.3, 0.16, 2.8), trim, 2.05, 3.58, 0, g);
+  for (let k = 0; k < 4; k++) { const l = mesh(box(0.06, 0.14, 0.5), headMat, 2.22, 3.58, -1.05 + k * 0.7, g); barLamps.push(l); }
+  for (const z of [-1.2, 1.2]) mesh(box(0.08, 0.2, 0.08), trim, 2.05, 3.47, z, g);
+});
+part("ไนตรัส", (g) => {
+  for (const z of [-0.9, 0.9]) {
+    const p = mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.7, 16), chrome, -4.35, 0.5, z, g); p.rotation.z = Math.PI / 2;
+    const f = mesh(new THREE.ConeGeometry(0.12, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x44bbff, emissiveIntensity: 2, transparent: true, opacity: 0.85 }), -4.95, 0.5, z, g);
+    f.rotation.z = Math.PI / 2; f.castShadow = false;
+  }
+});
+part("แร็คหลังคา", (g) => {
+  for (const z of [-1.4, 1.4]) mesh(box(4.2, 0.08, 0.08), chrome, -1.8, 3.62, z, g);
+  for (let k = 0; k < 4; k++) mesh(box(0.08, 0.08, 2.9), chrome, -3.7 + k * 1.25, 3.62, 0, g);
+  mesh(box(1.1, 0.55, 0.9), std(0xc9853e), -3.1, 3.93, -0.6, g);
+  mesh(box(0.8, 0.45, 0.8), std(0x6c8f4e), -3.0, 3.88, 0.55, g);
+  mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.9, 16), std(0x3f6fb5), -1.6, 3.95, 0, g).rotation.x = Math.PI / 2;
+});
+part("ธง", (g) => {
+  mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8), chrome, -3.9, 4.3, 1.45, g);
+  const fl = mesh(new THREE.PlaneGeometry(0.9, 0.55, 8, 1), new THREE.MeshStandardMaterial({ color: 0xff8a3d, side: THREE.DoubleSide }), -4.35, 4.9, 1.45, g);
+  g.userData.flag = fl;
+});
+part("ตุ๊กตาหน้ารถ", (g) => {
+  const m = std(0xf2a1b5, { roughness: 0.6 });
+  mesh(new THREE.SphereGeometry(0.13, 16, 12), m, 2.95, 1.2, -0.7, g);
+  mesh(new THREE.SphereGeometry(0.1, 16, 12), m, 2.95, 1.39, -0.7, g);
+  for (const z of [-0.06, 0.06]) mesh(new THREE.SphereGeometry(0.04, 8, 8), m, 2.95, 1.48, -0.7 + z, g);
+});
+
+// ---------- body styles (ทรงรถ — เปลี่ยนรูปร่างทั้งคัน) ----------
+const wheelRig = new THREE.Group(); van.add(wheelRig);
+wheels.forEach((w) => { always.remove(w); wheelRig.add(w); });
+const body = new THREE.Group();
+[...van.children].forEach((ch) => { if (ch !== wheelRig) body.add(ch); });
+van.add(body);
+
+// ติ๊งต๊อง: ตาโต ปากยิ้ม หลังคาโดม เสาอากาศสปริง
+const goofy = new THREE.Group(); body.add(goofy);
+const pupils = [];
+{
+  const eyeW = std(0xffffff, { roughness: 0.25 }), eyeB = std(0x111111, { roughness: 0.15 });
+  for (const z of [-0.78, 0.78]) {
+    mesh(new THREE.SphereGeometry(0.4, 28, 20), eyeW, 3.62, 2.12, z, goofy);
+    const p = mesh(new THREE.SphereGeometry(0.17, 20, 14), eyeB, 3.98, 2.12, z, goofy);
+    p.userData = { y: 2.12, z }; pupils.push(p);
+    const lid = mesh(new THREE.SphereGeometry(0.42, 28, 12, 0, Math.PI * 2, 0, Math.PI * 0.32), paint, 3.62, 2.12, z, goofy);
+    lid.rotation.z = -0.5;
+  }
+  const g = new THREE.TorusGeometry(0.34, 0.06, 10, 28, Math.PI); g.rotateZ(Math.PI);
+  const grin = mesh(g, trim, 4.22, 1.2, 0, goofy); grin.rotation.y = Math.PI / 2;
+  mesh(new THREE.SphereGeometry(0.13, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), std(0xf2708a), 4.2, 0.88, 0.12, goofy).rotation.z = Math.PI;
+  const dome = mesh(new THREE.SphereGeometry(1.25, 32, 14, 0, Math.PI * 2, 0, Math.PI / 2), cream, -1.4, 3.42, 0, goofy);
+  dome.scale.set(1.7, 0.55, 1.15);
+  for (const x of [-2.4, -1.4, -0.4]) { const w = mesh(new THREE.CircleGeometry(0.28, 20), glass, x, 3.85, 1.2, goofy); w.lookAt(x, 3.85, 9); }
+}
+const antenna = new THREE.Group(); antenna.position.set(1.6, 3.45, 1.2); goofy.add(antenna);
+mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.3), trim, 0, 0.65, 0, antenna);
+mesh(new THREE.SphereGeometry(0.13, 16, 12), std(0xff8a3d), 0, 1.33, 0, antenna);
+
+// เท่: สปอยเลอร์ สเกิร์ต สปลิตเตอร์ สกู๊ป คาดลายแข่ง ไฟใต้ท้อง
+const cool = new THREE.Group(); body.add(cool);
+const stripe = std(0x15171a, { roughness: 0.5 });
+{
+  mesh(box(0.7, 0.07, W + 0.3), stripe, -3.85, 3.85, 0, cool);
+  for (const z of [-1.1, 1.1]) mesh(box(0.12, 0.38, 0.08), stripe, -3.75, 3.62, z, cool);
+  for (const z of [-1, 1]) {
+    mesh(box(0.08, 0.3, 0.7), stripe, -3.85, 3.95, z * (HW + 0.15), cool);
+    mesh(box(6.4, 0.2, 0.12), stripe, -0.25, 0.47, z * (HW + 0.04), cool);
+  }
+  mesh(box(0.45, 0.05, W + 0.3), stripe, 4.3, 0.5, 0, cool);
+  mesh(box(0.6, 0.16, 0.7), stripe, 3.78, 1.84, 0, cool);
+  for (const z of [-0.32, 0.32]) {
+    mesh(box(6.3, 0.012, 0.32), stripe, -0.72, 3.485, z, cool);
+    mesh(box(0.7, 0.012, 0.32), stripe, 3.75, 1.775, z, cool);
+    const ws = mesh(box(1.38, 0.012, 0.32), stripe, 3.08, 2.55, z, cool); ws.visible = false;
+  }
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: 0.55 });
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(7.4, W + 0.6), glowMat); under.rotation.x = -Math.PI / 2; under.position.y = 0.04 - 0.0; cool.add(under);
+  cool.userData.under = under;
+}
+const glowLight = new THREE.PointLight(0x38e8ff, 0, 9, 1.5); glowLight.position.set(0, 0.3, 0); van.add(glowLight);
+
+const STYLES = {
+  "ปกติ": { s: [1, 1, 1], bottom: 0.5, wr: 1, ww: 1 },
+  "ติ๊งต๊อง": { s: [0.86, 1.2, 1], bottom: 0.98, wr: 1.45, ww: 1.35 },
+  "เท่": { s: [1.05, 0.84, 1.1], bottom: 0.4, wr: 1.02, ww: 1.3 },
+};
+let style = "ปกติ";
+function applyStyle(n) {
+  style = n; const S = STYLES[n];
+  body.scale.set(...S.s); body.position.y = S.bottom - 0.5 * S.s[1];
+  wheels.forEach((w) => {
+    const sx = Math.sign(w.position.x), sz = Math.sign(w.position.z);
+    w.scale.set(S.wr, S.wr, S.ww);
+    w.position.set(sx * 2.6 * S.s[0], 0.56 * S.wr, sz * ((HW - 0.22) * S.s[2] + (S.ww - 1) * 0.12));
+  });
+  goofy.visible = n === "ติ๊งต๊อง"; cool.visible = n === "เท่";
+  cool.userData.under.position.y = (0.05 - body.position.y) / S.s[1];
+  glass.color.setHex(n === "เท่" ? 0x0b0f14 : 0x23384a); glass.opacity = n === "เท่" ? 0.85 : 0.55;
+  glowLight.intensity = night && n === "เท่" ? 14 : 0;
+  document.querySelectorAll("#styles button").forEach((b) => b.classList.toggle("on", b.textContent === n));
+}
+
+// ---------- UI ----------
+const $ = (id) => document.getElementById(id);
+function btn(parent, text, fn, cls = "") { const b = document.createElement("button"); b.textContent = text; b.className = cls; b.onclick = () => fn(b); $(parent).appendChild(b); return b; }
+
+let camAnim = null;
+function flyTo(pos, tgt) { camAnim = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...pos), t1: new THREE.Vector3(...tgt) }; }
+let insideMode = false;
+function setInside(on) {
+  insideMode = on; exterior.visible = !on; cutaway.visible = on;
+  insideBtn.classList.toggle("on", on);
+  labelGroup.visible = labelsOn && on;
+}
+let labelsOn = true;
+Object.keys(STYLES).forEach((n) => btn("styles", n, () => applyStyle(n)));
+const BODY_T = [0, 1.7, 0];
+const VIEWS = [
+  ["เฉียงหน้า", [10, 6, 10], BODY_T, false], ["หน้า", [15, 2.6, 0], BODY_T, false], ["ขวา", [0, 2.6, 15], BODY_T, false],
+  ["หลัง", [-15, 2.6, 0], BODY_T, false], ["ซ้าย", [0, 2.6, -15], BODY_T, false], ["เฉียงหลัง", [-10, 6, -10], BODY_T, false],
+  ["บน", [0.01, 19, 0.01], [0, 0, 0], false], ["ภายใน", [3.5, 10.5, 8.5], [-0.5, 0.6, 0], true], ["ที่นั่งคนขับ", [1.6, 2.6, 1], [6, 1.9, 1], false],
+];
+VIEWS.forEach(([n, p, t, inside]) => btn("views", n, () => {
+  if (inside) setInside(true); else if (n !== "ที่นั่งคนขับ") setInside(false);
+  controls.minDistance = n === "ที่นั่งคนขับ" ? 0.5 : 3;
+  flyTo(p, t);
+}));
+const insideBtn = btn("modes", "ผ่าภายใน", () => setInside(!insideMode));
+const gridBtn = btn("modes", "ตาราง 3×7", (b) => { gridGroup.visible = !gridGroup.visible; b.classList.toggle("on", gridGroup.visible); }, "on");
+const labelBtn = btn("modes", "ป้าย", (b) => { labelsOn = !labelsOn; labelGroup.visible = labelsOn && insideMode; b.classList.toggle("on", labelsOn); }, "on");
+let night = false;
+const nightBtn = btn("modes", "กลางคืน", (b) => { night = !night; b.classList.toggle("on", night); applyTime(); });
+let driving = false;
+btn("modes", "วิ่ง", (b) => { driving = !driving; b.classList.toggle("on", driving); });
+let spin = false;
+btn("modes", "หมุนรอบ", (b) => { spin = !spin; controls.autoRotate = spin; b.classList.toggle("on", spin); });
+
+const PAINTS = [["ฟ้า", 0x7fb8d8], ["ส้ม", 0xf08a4b], ["เหลือง", 0xf2c94c], ["มิ้นต์", 0x8fd3b0], ["ชมพู", 0xf2a1b5], ["แดง", 0xd9534f], ["กรม", 0x34497a], ["ขาว", 0xeeeeea]];
+PAINTS.forEach(([n, c], i) => {
+  const b = btn("paint", "", (el) => { paint.color.setHex(c); document.querySelectorAll("#paint .sw").forEach((x) => x.classList.remove("on")); el.classList.add("on"); }, "sw" + (i === 0 ? " on" : ""));
+  b.style.background = "#" + c.toString(16).padStart(6, "0"); b.title = n;
+});
+Object.keys(parts).forEach((n) => btn("parts", n, (b) => { parts[n].visible = !parts[n].visible; b.classList.toggle("on", parts[n].visible); }));
+
+function applyTime() {
+  scene.background = new THREE.Color(night ? 0x0d1530 : 0xcfe6f2);
+  scene.fog = new THREE.Fog(night ? 0x0d1530 : 0xcfe6f2, 30, night ? 80 : 140);
+  hemi.intensity = night ? 0.25 : 1.15; hemi.color.setHex(night ? 0x6f86c8 : 0xe3f3ff);
+  sun.intensity = night ? 0.35 : 2.5; sun.color.setHex(night ? 0x9fb6ff : 0xfff0d8);
+  headLights.forEach((l) => (l.intensity = night ? 60 : 0));
+  headMat.emissiveIntensity = night ? 2.5 : 0.15; tailMat.emissiveIntensity = night ? 1.6 : 0.1;
+  cabinLight.intensity = night ? 6 : 0;
+  ground.material.color.setHex(night ? 0x3d4a3a : 0xb7c98c);
+  glowLight.intensity = night && style === "เท่" ? 14 : 0;
+  document.body.style.background = night ? "#0d1530" : "#cfe6f2";
+}
+applyTime();
+setInside(false);
+applyStyle("ปกติ");
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  if (camAnim) {
+    camAnim.t = Math.min(1, camAnim.t + dt / 0.9); const k = 1 - Math.pow(1 - camAnim.t, 3);
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, k); controls.target.lerpVectors(camAnim.t0, camAnim.t1, k);
+    if (camAnim.t >= 1) camAnim = null;
+  }
+  if (driving) {
+    wheels.forEach((w) => (w.rotation.z -= dt * 12));
+    roadDeco.position.x = (roadDeco.position.x - dt * 7) % 4;
+    van.position.y = Math.sin(t * 9) * 0.015;
+  } else van.position.y = 0;
+  const fl = parts["ธง"].userData.flag;
+  if (fl) { const p = fl.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, Math.sin(t * (driving ? 9 : 3) + x * 5) * 0.06 * (x + 0.45)); } p.needsUpdate = true; }
+  if (style === "ติ๊งต๊อง") {
+    const S = STYLES[style], k = Math.sin(t * (driving ? 11 : 3)) * (driving ? 0.05 : 0.015);
+    body.scale.set(S.s[0] * (1 - k * 0.5), S.s[1] * (1 + k), S.s[2] * (1 - k * 0.5));
+    pupils.forEach((p, i) => { p.position.y = p.userData.y + Math.sin(t * 6 + i * 2) * 0.07; p.position.z = p.userData.z + Math.cos(t * 4.3 + i) * 0.07; });
+    antenna.rotation.x = Math.sin(t * (driving ? 12 : 5)) * 0.32; antenna.rotation.z = Math.cos(t * 4) * 0.12;
+  }
+  radioGlow.emissiveIntensity = 0.9 + Math.sin(t * 4) * 0.3;
+  barLamps.forEach((l) => (l.material = headMat));
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
