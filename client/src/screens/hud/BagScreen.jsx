@@ -2,7 +2,7 @@
 //  เวที 1920 × 1080 ย่อพอดีจอ · ซ้าย = ช่องกระเป๋าเต็มจำนวน (ช่องว่างเป็นกรอบเส้นประ) · ขวา = รายละเอียดของชิ้นที่เลือก + ปุ่มคำสั่ง
 //  เงื่อนไขทั้งหมดเหมือน InventoryModal เดิม (Game.jsx) — ใช้ได้เฉพาะตาตัวเอง = ปุ่มจาง ไม่มีข้อความบอก
 import { useEffect, useState } from "react";
-import { shopInfoOf, DRAW_ITEM_TYPES, BATTERY_MAX } from "../../data/shop";
+import { shopInfoOf, DRAW_ITEM_TYPES, BATTERY_MAX, isRtDish } from "../../data/shop";
 import { socket } from "../../socket";
 import { clickSound } from "../../audio";
 import { sameSide } from "../../duo";
@@ -47,7 +47,7 @@ function Icon({ info, className = "" }) {
 // statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
 // shops = ร้านบนแผนที่ที่ซื้อจากระยะไกลได้ (Gate of Babylon ของกิลกาเมช — me.remoteShop) · null = ไม่มีปุ่มร้าน · onShop(ร้าน) = เปิดร้านนั้น
 const SHOP_CREST = { apoth: "⚗️", forge: "⚙️", cara: "🐎", capsule: "📦" };
-export default function BagScreen({ me, players, myTurn: turnProp, rtFree = false, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb }) {
+export default function BagScreen({ me, players, myTurn: turnProp, rtFree = false, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb, side = null }) { // side = แผงคู่ข้างกระเป๋า (Road Trip: กล่องรถ — วางในเวทีเดียวกัน ขนาด/สเกลเท่ากัน)
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
@@ -83,7 +83,7 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
   const bound = (it) => !it || BOUND_ITEMS.includes(it.type);
 
   // Road Trip จุดพัก (นอกการต่อสู้ ไม่มีตาเดิน): ใช้ได้ 4 ชนิด ผ่าน rt:use (server/roadtrip/stop.js useItem)
-  const RT_FREE_TYPES = ["rtRevive", "rtFish", "armor", "cleanse"];
+  const RT_FREE_TYPES = ["rtRevive", "rtFish", "armor", "cleanse", "dishOmelet", "dishFriedRice", "dishSteak", "dishFish", "dishTomYum", "dishSalad", "dishLunch", "dishHotpot"]; // + อาหารแคมป์ (กินได้ทุกที่นอกการต่อสู้)
   // ใช้แล้วได้ผลจริงไหม (server ปฏิเสธเงียบถ้าไม่ได้ผล — QA 2026-11-14: ปุ่มกดได้แต่ไม่มีอะไรเกิด)
   const rtUseful = (it) => {
     if (!it || !me) return false;
@@ -91,9 +91,10 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
     if (it.type === "rtFish") return (me.hp | 0) < (me.maxHp | 0);
     if (it.type === "armor") return (me.armor | 0) < (me.maxArmor | 0);
     if (it.type === "cleanse") return (me.cleansable || []).length > 0;
+    if (isRtDish(it.type)) return true;
     return false;
   };
-  const myTurn = turnProp || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type) && rtUseful(sel));
+  const myTurn = (turnProp && !(sel && (isRtDish(sel.type) || sel.qty))) || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type) && rtUseful(sel)); // อาหาร/วัตถุดิบ = ใช้ตอนสู้ไม่ได้
   const tradeOk = turnProp || rtFree; // ให้/แลก/ทิ้ง ที่จุดพัก: ไม่มีตาเดิน — ทำได้ทุกเมื่อ (server shop.js tradeReady/dropItem)
   const emit = (ev, data) => { clickSound(); if (rtFree && ev === "useInventoryItem") socket.emit("rt:use", { uid: data.uid, targetId: data.targetId, status: data.status, ...(me?.duoOf ? { unitId: me.id } : {}) }); else socket.emit(ev, data); }; // status = ยาล้างสถานะ (เลือก 1 อย่าง ลด 1 ขั้น เหมือนตอนสู้)
   const pick = (uid) => { clickSound(); setSelUid(uid); setSwapWith(null); setAmount(1); setCleanseKey(null); };
@@ -176,6 +177,7 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
   return (
     <div className="bag-veil" onClick={onClose}>
       <div className="bag-stage" style={{ "--k": k }}>
+        {side}
         <div className="bag-panel" onClick={(e) => e.stopPropagation()}>
           <div className="bag-head">
             <span className="bag-head-ico" aria-hidden="true">

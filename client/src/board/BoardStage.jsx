@@ -14,6 +14,7 @@
 //  กติกาเดิน/ระยะใช้ boardRules.js (สร้างจาก server/board.js — ผลตรงกับ server)
 // ============================================================
 import { eosTileInfo, eosTerrainInfo, EOS_NAME_DESC } from "../eos/eosTileInfo";
+import { rtMobTileInfo } from "../roadtrip/RtMobInfo";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BoardCanvas from "./BoardCanvas";
@@ -2747,6 +2748,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       const pr = rtPropAt(state.board && state.board.area, x, y);
       if (pr && !pr.spot) return;
       clickSound();
+      // รถตู้ที่จอด = กล่องเก็บของกลาง (ผู้ใช้สั่ง 2026-11-14): server เดินไปติดรถแล้วเปิดกระเป๋า + กล่องรถ (fx stash)
+      const vb = !pr ? (rtDefOf(state.board && state.board.area) || {}).vanBlock : null;
+      if (vb && x >= vb.x0 && x <= vb.x1 && y >= vb.y0 && y <= vb.y1) { socket.emit("rt:act", { id: "van", ...rtUnit }); return; }
       if (pr) socket.emit("rt:act", { id: pr.id, ...rtUnit }); else socket.emit("rt:walk", { x, y, ...rtUnit });
       return;
     }
@@ -2875,6 +2879,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     if (rtStopArea != null) {
       const d = rtDefOf(rtStopArea), out = [];
       for (const p of (d && d.props) || []) if (p.spot && !p.walk) for (let y = p.y0; y <= p.y1; y++) for (let x = p.x0; x <= p.x1; x++) out.push({ x, y, h: Math.min(3, p.h || 1) });
+      const vb = d && d.vanBlock; // รถตู้จอด = กล่องรถ (กดได้)
+      if (vb) for (let y = vb.y0; y <= vb.y1; y++) for (let x = vb.x0; x <= vb.x1; x++) out.push({ x, y, h: 2 });
       return out;
     }
     if (state.world !== "eos" || !map) return null;
@@ -2906,6 +2912,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
     if (rtStopArea != null) { const ri = rtPropInfo(rtPropAt(rtStopArea, hover.x, hover.y), state.roadtrip); if (ri) return ri; } // Road Trip จุดพัก: ชี้วัตถุ = ชื่อ/ราคา/ผล
+    if (rtStopArea != null) { // รถตู้จอด = กล่องรถ (จำนวนของ/ความจุ)
+      const vb = (rtDefOf(rtStopArea) || {}).vanBlock, st = state.roadtrip.van && state.roadtrip.van.stash;
+      if (vb && st && hover.x >= vb.x0 && hover.x <= vb.x1 && hover.y >= vb.y0 && hover.y <= vb.y1) return { icon: "📦", name: "กล่องรถ", desc: `${(st.items || []).length}/${st.cap}` };
+    }
+    if (rtWorld) { const mi = rtMobTileInfo(state.players, hover.x, hover.y); if (mi) return mi; } // Road Trip: ชี้มอน = ตัวเลข + ความสามารถ (แบบมอนสนาม Eos)
     const shopHit = shops.find((sh) => shopCovers(sh, hover.x, hover.y));
     if (shopHit) return { icon: "🏪", name: shopHit.name || shopName(shopHit.kind), desc: shopHit.turnsLeft > 0 ? `เหลือ ${shopHit.turnsLeft} เทิร์น` : "" };
     // Ice Spike: หนามน้ำแข็ง · ธารน้ำแข็ง (น้ำแข็งที่สร้างระหว่างเกม)
@@ -2930,7 +2941,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       return !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
     }
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber, rtStopArea, state.roadtrip]);
+  }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber, rtStopArea, state.roadtrip, rtWorld]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js

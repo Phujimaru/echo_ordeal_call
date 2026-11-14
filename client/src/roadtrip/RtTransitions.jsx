@@ -9,7 +9,7 @@
 //  <RtTransitions state view act endAct lowQ /> — ชั้น DOM ทั้งหมด (pointer-events: none ไม่บังการกด)
 //   1 ฉากเปิดทริป (phase intro): แฟลชต่อจากลูกโลก (MatchIntro + rtFlight.js) → ROAD TRIP + ความยาก → รถตู้แล่นเข้า (บทกล้อง intro)
 //     → ป้ายรูปผู้เล่นทรงกลม (ลูกเรือ) เด้งเรียงแถวใต้รถ 3D → "ออกเดินทาง" + แตร → กล้องคืนท่าไล่หลังพอดีกับที่ server เข้า drive
-//   2 จุดพัก: รถชะลอ + ไฟเลี้ยว + ป้ายริมทาง (⛽ ปั๊มน้ำมัน / 🏨 โรงแรม + ชื่อสถานที่) → ม่านวงกลมหุบ → กระดาน (กล้องค่อยนิ่ง)
+//   2 จุดพัก: รถชะลอ + ไฟเลี้ยว + ป้ายริมทาง (⛽ ปั๊มน้ำมัน / 🏨 โรงแรม / 🏕️ แคมป์ + ชื่อสถานที่) → ม่านวงกลมหุบ → กระดาน (กล้องค่อยนิ่ง)
 //      ออก: ม่านวงกลมหุบบนกระดาน → เปิดบนจอขับ 3D: ประตูท้ายรถจริง (เปิดค้างตั้งแต่จอด) ปิดปัง + เสียง → รถออกตัว (บทกล้อง pullout)
 //   3 ดักทาง/อีลิท: เบรกเสียงยาง + แฟลชแดง + แถบแบนเนอร์เฉียง "มอนดักทาง!" / "มอนระดับสูง!" + ภาพมอน → กล้องโฉบสู่มุมกระดาน
 //      → แถบขยายเต็มจอเป็นม่าน → สลับ → แถบหดคืน
@@ -76,7 +76,7 @@ function describe(from, to, state, boardSnap) {
   if (from === "drive" && to === "board") {
     if (rt.phase === "stop") {
       const area = (rt.stop && rt.stop.area) ?? (state.board && state.board.area);
-      return { kind: "stop", stop: rt.stop && rt.stop.kind === "motel" ? "motel" : "gas", place: (RT_DEFS[area] && RT_DEFS[area].name) || "" };
+      return { kind: "stop", stop: rt.stop && (rt.stop.kind === "motel" || rt.stop.kind === "camp") ? rt.stop.kind : "gas", place: (RT_DEFS[area] && RT_DEFS[area].name) || "" };
     }
     const ck = (rt.combat && rt.combat.kind) || "ambush";
     const sp = fxLatest(rt, "mobSpawn");

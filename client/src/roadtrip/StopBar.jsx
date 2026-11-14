@@ -1,8 +1,7 @@
-// Road Trip — แถบจุดพัก (phase "stop"): ชนิดจุดพัก (ปั๊ม/โมเต็ล) · นับถอยหลัง · ความพร้อมของทุกคน · ปุ่มพร้อม (Enter) · ปุ่มอู่ (ปั๊มเท่านั้น)
-//  พร้อม = rt:ready (สลับ) · ทุกคนพร้อม/หมดเวลา = server ออกเดินทางต่อ
+// Road Trip — แถบจุดพัก (phase "stop"): ชนิดจุดพัก (ปั๊ม/โมเต็ล/แคมป์) · ความพร้อมของทุกคน · ปุ่มพร้อม (Enter) · ปุ่มอู่ (ปั๊มเท่านั้น)
+//  ไม่จำกัดเวลา (ผู้ใช้สั่ง 2026-11-14) — พร้อม = rt:ready (สลับ) · ทุกคนที่มีชีวิตและต่ออยู่พร้อม = server ออกเดินทางต่อ
 import { clickSound } from "../audio";
 import { rtEmit } from "./rtSocket";
-import { CountRing } from "./rtCommon";
 import { forkKind } from "./rtMeta";
 import { tip } from "./rtTip";
 
@@ -20,16 +19,16 @@ export default function StopBar({ rt, players = [], youId, onGarage, zoom = 1 })
   const stop = rt && rt.stop;
   if (!stop) return null;
   const ready = stop.ready || {};
-  const motel = stop.kind === "motel";
+  const motel = stop.kind === "motel", camp = stop.kind === "camp";
+  const icon = motel ? "🏨" : camp ? "🏕️" : "⛽";
   const meReady = !!ready[youId];
   return (
     <div className="rt-stop rt-ui rt-plate" data-kind={stop.kind} data-night={rt.night ? "true" : "false"} style={{ "--hud-k": zoom }}>
       <i className="rt-bg" />
       <span className="rt-stop-kind" {...tip(forkKind(stop.kind).desc, forkKind(stop.kind).name)}>
-        <span className="rt-stop-emb"><span aria-hidden="true">{motel ? "🏨" : "⛽"}</span></span>
-        <b>{motel ? "โรงแรม" : "ปั๊มน้ำมัน"}</b>
+        <span className="rt-stop-emb"><span aria-hidden="true">{icon}</span></span>
+        <b>{forkKind(stop.kind).name}</b>
       </span>
-      <CountRing endsAt={rt.endsAt} low={10} size={48} />
       <span className="rt-stop-div" aria-hidden="true" />
       <span className="rt-ready" aria-label="พร้อม">
         {players.filter((p) => !p.summon && !p.duoOf).map((p) => { /* ตัวที่สองของระบบคู่/ยูนิตที่ถูกเรียก ไม่ได้กดพร้อมเอง (server RT.awake) */
@@ -42,10 +41,10 @@ export default function StopBar({ rt, players = [], youId, onGarage, zoom = 1 })
         })}
       </span>
       <span className="rt-stop-div" aria-hidden="true" />
-      {!motel && onGarage && (
+      {onGarage && (
         <button type="button" className="rt-btn ghost icon" aria-label="อู่" {...tip("อัปเกรดรถตู้ ซื้อของแต่ง ทำสี และตั้งทะเบียน · ซ่อมรถได้ที่อู่ในปั๊ม", "อู่")} onClick={() => { clickSound(); onGarage(); }}>{WRENCH}</button>
       )}
-      <button type="button" className="rt-btn" data-on={meReady ? "true" : "false"} data-hotkey="Enter" aria-pressed={meReady} {...tip(meReady ? "กดอีกครั้งเพื่อยกเลิก · ทุกคนพร้อมหรือหมดเวลา = ออกเดินทางต่อ" : "ทุกคนพร้อมหรือหมดเวลา = ออกเดินทางต่อ (Enter)", "พร้อมออกเดินทาง")} onClick={() => { clickSound(); rtEmit("rt:ready"); }}>
+      <button type="button" className="rt-btn" data-on={meReady ? "true" : "false"} data-hotkey="Enter" aria-pressed={meReady} {...tip(meReady ? "กดอีกครั้งเพื่อยกเลิก · ทุกคนพร้อม = ออกเดินทางต่อ" : "ทุกคนพร้อม = ออกเดินทางต่อ (Enter)", "พร้อมออกเดินทาง")} onClick={() => { clickSound(); rtEmit("rt:ready"); }}>
         {meReady ? CHECK : FLAG}<span>พร้อม</span>
       </button>
     </div>

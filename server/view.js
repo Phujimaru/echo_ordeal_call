@@ -150,6 +150,16 @@ function publicStatuses(p) {
   return out;
 }
 // ช่วง Clock Up (server/clockUp.js): สมาชิกที่ไม่ได้ถือตาเห็นตาของตัวเอง (actorId/action/คาดการณ์/เวลา)
+// Road Trip: มอนบนถนน (summon side "rtmob") — ข้อมูลการ์ดมอนตอนคลิก/ชี้ (ชนิด · พลังโจมตี · ระยะเดิน · บทบาท · หัวหน้า/บอส/ระยะบอส)
+//  ทุกค่าเห็นได้บนกระดานอยู่แล้ว (ไม่มีข้อมูลซ่อน — แผนท่าบอสส่งผ่าน roadtrip.combat.warn ตามเดิม)
+function rtMobView(p) {
+  const s = p.summon;
+  if (!s || s.side !== "rtmob") return {};
+  return {
+    side: "rtmob", mobType: s.mobType || null,
+    rtMob: { atk: s.atk | 0, mov: s.mov == null ? null : s.mov | 0, role: s.boss ? null : s.role || "hunter", elite: !!s.elite, boss: !!s.boss, phase: s.boss ? s.phase || 1 : null, enraged: !!s.enraged, decoy: !!s.decoy, gold: s.gold | 0 },
+  };
+}
 function buildStateFor(viewerId) {
   return ClockUp.asViewer(Duo.controlledId(viewerId) || viewerId, () => buildStateInner(viewerId));
 }
@@ -296,7 +306,7 @@ function buildStateInner(viewerId) {
         // ชั้นมิติ (server/dimension.js): null = กระดานหลัก · คนคนละชั้นกับตัวที่คุม client วาดโปร่ง กดไม่ได้
         dim: p.dim || null,
         // ยูนิตที่ถูกเรียก: { kind: "clone" | "double", ownerId, look?, targetId?, until? }
-        summon: p.summon ? { kind: p.summon.kind, ownerId: p.summon.ownerId, look: p.summon.look || null, targetId: p.summon.targetId || null, until: p.summon.until == null ? null : p.summon.until } : null,
+        summon: p.summon ? { kind: p.summon.kind, ownerId: p.summon.ownerId, look: p.summon.look || null, targetId: p.summon.targetId || null, until: p.summon.until == null ? null : p.summon.until, ...rtMobView(p) } : null,
         duoWith: p.duoWith || null,
         corpse: Duo.corpseKept(p) ? Duo.corpseOf(p) : null, // + ศพค้าง (ยูนะ — ฮุค keepsCorpses)
         ride: p.alive && p.mountId && match.players[p.mountId] ? p.mountId : null, // ขี่ผู้เล่นอื่น (server/ride.js): id ตัวที่ถูกขี่ — วาดบนหลัง

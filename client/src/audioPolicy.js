@@ -56,7 +56,8 @@ export function roadtripMusic(rt, files) {
   const night = !!rt.night;
   let list = null;
   if (rt.phase === "over") list = ["over"];
-  else if (rt.phase === "stop") list = rt.stop && rt.stop.kind === "motel" ? ["motel", night ? "stop_night" : "stop_day"] : [night ? "stop_night" : "stop_day"];
+  else if (rt.phase === "stop") list = rt.stop && rt.stop.kind === "motel" ? ["motel", night ? "stop_night" : "stop_day"] : rt.stop && rt.stop.kind === "camp" ? ["stop_night", "motel"] : [night ? "stop_night" : "stop_day"]; // แคมป์ = เพลงกลางคืน (ใช้ไฟล์เดิม — ผู้ใช้สั่ง 2026-11-14 ไม่โหลดใหม่)
+
   else if (rt.phase === "combat") {
     const kind = rt.combat && rt.combat.kind;
     const base = night ? "combat_night" : "combat_day";

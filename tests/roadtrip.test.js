@@ -329,7 +329,8 @@ test('จุดพัก: ร้านเดียว = อาคารมิน
   setup(1, 'easy');
   S.enter('gas');
   const p = P(0), d = Maps.defs[match.board.area];
-  assert.equal(match.shops.length, 1, 'ร้านเดียว');
+  assert.equal(match.shops.length, 2, 'มินิมาร์ท + แผงวัตถุดิบ (ผู้ใช้สั่ง 2026-11-14)');
+  assert.equal(match.shops[1].kind, 'rtfood');
   const s = match.shops[0];
   const mart = d.props.find((o) => o.kind === 'mart');
   assert.equal(s.kind, 'rtmart');
@@ -520,7 +521,8 @@ test('ตัวจับเวลา: จบเกมแล้วตัวจั
   D.startTick();
   S.enter('gas');
   assert.equal(D.ticking(), false, 'ออกจากช่วงขับ = หยุดจังหวะขับ');
-  assert.ok(match.phaseTimerId, 'จุดพักนับเวลา');
+  assert.equal(match.phaseTimerId, null, 'จุดพักไม่จำกัดเวลา (ผู้ใช้สั่ง 2026-11-14)');
+  assert.equal(rt().endsAt, null);
   RT.lose('van');
   assert.equal(match.phaseTimerId, null);
   assert.equal(D.ticking(), false);

@@ -56,7 +56,7 @@ function addGold(p, n) {
 //  ขนาดร้าน (ผู้ใช้สั่ง 2026-11-09 — 2×2 ใหญ่เกิน): ร้านปกติ 1 ช่อง · ร้านพิเศษ 2×1 = SHOP_DIMS · แคปซูลทุกชนิด 1×1
 //  ทุกร้านกินช่องทั้งก้อน · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
 //  ของในร้าน: ชนิดละช่องเดียว ไม่ซ้ำ · สุ่มจำนวนที่ซื้อได้ต่อช่อง (ของกลาง ใครถึงก่อนได้ก่อน)
-const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง", rtmart: "มินิมาร์ท", rtoffice: "สำนักงานโมเต็ล" }; // rt* = Road Trip: ร้านคืออาคารบนแผนที่ (server/roadtrip/stop.js)
+const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง", rtmart: "มินิมาร์ท", rtoffice: "สำนักงานโมเต็ล", rtfood: "แผงวัตถุดิบ", rtcart: "แผงวัตถุดิบ", rtsnack: "รถฟู้ดทรัค", rtsupply: "แผงของแคมป์" }; // rt* = Road Trip: ร้านคืออาคารบนแผนที่ (server/roadtrip/stop.js)
 const SHOP_ITEMS = {
   apoth: ["fortune", "cardColor", "cardCut", "armor", "cleanse", "resist"],
   forge: ["windBoots", "battery", "elemBomb"],
@@ -83,7 +83,7 @@ function shopCatalog(kind) {
   return SHOP_ITEMS[kind] ? all.filter((it) => SHOP_ITEMS[kind].includes(it.type)) : all; // capsule / ไม่ระบุ = ทุกอย่าง
 }
 // ราคาตั้งต้นของไอเทมตามชนิด (ของที่ได้ฟรีจากเหตุการณ์/รางวัลไม่มีราคาติดมา — ใช้คิดค่าที่ผูกกับราคา เช่น ลาทัมของชินระ)
-const EXTRA_BASE_PRICE = { rtFish: 2, rtRevive: 10 };
+const EXTRA_BASE_PRICE = { rtFish: 2, rtRevive: 10, ...Object.fromEntries(Object.entries(require("./roadtrip/food").ING).map(([k, v]) => [k, v.price])) }; // + วัตถุดิบ Road Trip (roadtrip/food.js)
 function basePriceOf(type) {
   const it = shopCatalog().find((c) => c.type === type);
   return it ? it.price : EXTRA_BASE_PRICE[type] || 0;
@@ -112,6 +112,8 @@ function shopItemName(item) {
   if (item.type === "eosRevive") return "ขนนกคืนชีพ";
   if (item.type === "rtRevive") return "ขนนกคืนชีพ"; // Road Trip (server/roadtrip)
   if (item.type === "rtFish") return "ปลาย่าง";      // Road Trip: บ่อตกปลา
+  const rtFood = require("./roadtrip/food").itemName(item); // Road Trip: วัตถุดิบ/อาหาร (แคมป์)
+  if (rtFood) return rtFood;
   return "สินค้า";
 }
 function shopsList() { return match.shops || (match.shops = []); }
@@ -203,7 +205,7 @@ function syncStageItems() {
   if (rtActive()) {
     const price = require("./roadtrip/diff").diffOf(match.roadtrip).revive;
     for (const s of shopsList()) {
-      if (!s.rt) continue;
+      if (!s.rt || s.rtFood) continue; // แผงวัตถุดิบ (rtFood) ขายวัตถุดิบอย่างเดียว
       if (price != null && !(s.items || []).some((it) => it.type === "rtRevive")) s.items.push({ id: `${s.id}_rtrevive_${match.shopRoundSeq}`, type: "rtRevive", price, sold: false, soldTo: null, bought: 0, unlimited: true });
       if (!(s.items || []).some((it) => it.type === "rtFish")) s.items.push({ id: `${s.id}_rtfish_${match.shopRoundSeq}`, type: "rtFish", price: Math.ceil(2 * rtPriceMul()), sold: false, soldTo: null, bought: 0, stockBase: 3 });
     }
@@ -442,6 +444,8 @@ function swapItem(id, uid, mateId, theirUid) {
 //  item = { type, value?, size? } รูปแบบเดียวกับของในร้าน — คืน item ที่เข้าคลังจริง · กระเป๋าเต็ม = ไม่ได้ (null)
 function grantInventoryItem(p, item) {
   if (!p || !item || !item.type) return null;
+  const Food = require("./roadtrip/food");
+  if (Food.isIng(item.type) || Food.isDish(item.type)) return Food.addTo(p, item.type); // Road Trip: วัตถุดิบซ้อนกอง
   if (bagFull(p)) return null;
   p.inventory = p.inventory || [];
   const entry = { uid: `grant_${item.type}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price || 0 };
@@ -480,8 +484,9 @@ function buyShopItem(id, shopId, itemId) {
   // Road Trip จุดพัก + ระบบคู่: ตัวไหนของผู้เล่นยืนติดร้านก็ซื้อได้ (นอกตาเดินคุมเอมิลิโกะได้ — server/roadtrip/stop.js unitId)
   const rtNear = rtFree && !!sh && require("./duo").unitsOf(p).some((u) => require("./roadtrip").freeShop(u) && nearShopOf(u, sh));
   if (!sh || (!remote && !rtNear && !nearShopOf(p, sh))) return; // ต้องยืนติดร้าน (ระยะ 1 จากขอบร้าน) — GRID_PLAN §8.1 · Gate of Babylon ซื้อจากไหนก็ได้
-  if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = (sh.items || []).find((it) => it.id === itemId);
+  const Food = require("./roadtrip/food");
+  if (bagFull(p) && !(item && Food.stackRoom(p.inventory, item.type))) return; // กระเป๋าเต็ม (วัตถุดิบซ้อนกองเดิมได้)
   if (!item || item.sold) return;
   if ((p.gold || 0) < item.price) return;
   p.inventory = p.inventory || [];
@@ -495,7 +500,8 @@ function buyShopItem(id, shopId, itemId) {
   if (!remote && !rtFree) action.lockMove(p, "shop"); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
   const entry = { uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price };
   if (item.type === "battery") entry.charge = 0; // วงจรพลังงาน: ซื้อมาว่าง ชาร์จเองทุกจบเทิร์น
-  p.inventory.push(entry);
+  if (Food.isIng(item.type)) Food.addTo(p, item.type, { price: item.price }); // วัตถุดิบ: ซ้อนกองละ 5
+  else p.inventory.push(entry);
   match.lastLog.push(`🛍️ ${p.name} ซื้อ ${shopItemName(item)} จาก${SHOP_NAMES[sh.kind] || "ร้านค้า"} (-${item.price} เหรียญ)`);
   view.broadcastState();
 }

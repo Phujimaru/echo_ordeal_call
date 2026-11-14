@@ -16,7 +16,13 @@ import { tip as hoverTip } from "./rtTip";
 import { attachScene, detachScene, frameOpts } from "./rtDirector";
 import VanFun, { FUN_PROPS, useFunToasts, FunToasts } from "./VanFun";
 import StashPanel from "./StashPanel";
+import CampVote from "./CampVote";
+import { RT_DEFS, RT_ONVAN } from "../board/roadtrip/maps.gen";
 import "./RoadDrive.css";
+
+// กล่องเก็บของกลาง = ของในรถ "stash" (ผู้ใช้สั่ง 2026-11-14): คลิกกล่อง → server เดินไปแล้ว fx vanProp → เปิดแผง · เดินออกห่าง = ปิด
+const STASH_TILE = ((RT_DEFS[RT_ONVAN] || {}).vanProps || {}).stash || [7, 6];
+const atStash = (mp) => !!mp && !mp.roof && Math.abs(mp.x - STASH_TILE[0]) + Math.abs(mp.y - STASH_TILE[1]) <= 1;
 
 const CAM_KEY = "echo_rt_cam";
 const SHOW_FPS = typeof location !== "undefined" && new URLSearchParams(location.search).get("fps") === "1";
@@ -55,7 +61,8 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const look = useRef({ yaw: 0, pitch: 0, zoom: 0 });
   const [hud, setHud] = useState({ kmh: 0 });
   const [tip, setTip] = useState(null);
-  const [stashOpen, setStashOpen] = useState(false); // กล่องเก็บของกลางของรถ
+  const [stashOpen, setStashOpen] = useState(false); // กล่องเก็บของกลางของรถ (เปิดจากกล่องในรถเท่านั้น)
+  const stashSeen = useRef(null);
   const [fps, setFps] = useState(null);
   const laneWant = useRef(null);
   const funApi = useRef(null); // กิจกรรมในรถ (VanFun) — คลิกของ 3D ที่เป็นกิจกรรม = ส่งไปที่นี่
@@ -285,6 +292,19 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
     };
   }, []);
 
+  // fx vanProp "stash" ของเรา (ถึงกล่องแล้ว) = เปิดแผงกล่องรถ · ครั้งแรกที่เห็น fx = จำ key อย่างเดียว (ไม่เปิดของเก่า)
+  useEffect(() => {
+    const list = Array.isArray(rt.fx) ? rt.fx : [];
+    const num = (f) => (typeof f.key === "number" ? f.key : 0); // fx บางชนิดมี key เป็นข้อความ (ข้อมูลทับเลข fx) — ข้าม
+    const top = list.reduce((m, f) => Math.max(m, num(f)), 0);
+    if (stashSeen.current == null) { stashSeen.current = top; return; }
+    const hit = list.some((f) => num(f) > stashSeen.current && f.k === "vanProp" && f.prop === "stash" && f.id === selfId);
+
+    stashSeen.current = Math.max(stashSeen.current, top);
+    if (hit) setStashOpen(true);
+  }, [rt.fx]); // eslint-disable-line react-hooks/exhaustive-deps
+  const myPos = myVanPos(state);
+  if (stashOpen && !atStash(myPos)) setStashOpen(false); // เดินออกห่างกล่อง = ปิด
   const hpMax = Math.max(1, +van.hpMax || 20), fuelMax = Math.max(1, +van.fuelMax || 40);
   const hpK = clamp((+van.hp || 0) / hpMax, 0, 1), fuelK = clamp((+van.fuel || 0) / fuelMax, 0, 1);
   const nosLv = (van.upg && +van.upg.nitro) || 0, nosK = clamp(+van.nitro || 0, 0, 1);
@@ -337,15 +357,11 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       )}
       {!intro && <VanFun state={state} amDriver={amDriver} funApi={funApi} onToast={pushFunToast} />}
       {!intro && <FunToasts list={funToasts} />}
-      {!intro && van.stash && (() => {
+      {!intro && van.stash && stashOpen && (() => {
         const meP = state && (state.players || []).find((p) => p.id === state.youId);
-        return (
-          <>
-            <button type="button" className="rtd-stash-btn" data-on={stashOpen ? "true" : "false"} onClick={() => { clickSound(); setStashOpen((v) => !v); }} {...hoverTip("กล่องเก็บของกลางของรถ — ทั้งทีมเก็บ/หยิบได้", "กล่องรถ")}>📦 {(van.stash.items || []).length}/{van.stash.cap}</button>
-            {stashOpen && <div className="rtd-stash-wrap"><StashPanel stash={van.stash} me={meP} players={state.players || []} bagSlots={(meP && meP.bagSlots) || 5} onClose={() => setStashOpen(false)} /></div>}
-          </>
-        );
+        return <div className="rtd-stash-wrap"><StashPanel stash={van.stash} me={meP} players={state.players || []} bagSlots={(meP && meP.bagSlots) || 5} onClose={() => setStashOpen(false)} onEat={(it) => rtEmit("rt:use", { uid: it.uid })} /></div>;
       })()}
+      {!intro && <CampVote rt={rt} players={(state && state.players) || []} youId={selfId} />}
       {tip && <div className="rtd-tip" style={{ left: tip.x, top: tip.y }}>{tip.name}</div>}
       {SHOW_FPS && fps && <div className="rtd-fps">{fps.fps} fps · {fps.cpu} ms · max {fps.worst} ms · {fps.calls} dc · {fps.tris}k ▲</div>}
     </div>

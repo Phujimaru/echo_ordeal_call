@@ -190,7 +190,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const paint = new THREE.MeshPhysicalMaterial({ color: 0x7fb8d8, roughness: 0.32, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12 });
   const paintMats = [paint];
   // ของในรถ: key คงที่ (ใช้ร่วมกับ server — rt:vanProp / state.roadtrip.vanProps / fx vanProp) · act(st) — st ไม่ระบุ = สลับ/เล่นในเครื่อง · ระบุ = ตั้งเป็นค่านั้น
-  const PROP_KEY = { "แตร": "horn", "วิทยุ": "radio", "ช่องเก็บของ": "glove", "พัดลม": "fan", "หมาหัวโยก": "bob", "เกียร์": "gear", "ประตูท้าย": "rear", "ที่นั่งคนขับ": "seat", "สวิตช์ไฟ": "light", "ซันรูฟ": "hatch", "โต๊ะเกม": "table", "หมอน": "pillow", "กล่องเครื่องมือ": "tool", "ตู้เย็น": "fridge", "ไมโครเวฟ": "micro", "กระติกน้ำแข็ง": "cooler", "กีตาร์": "guitar", "ผ้าม่าน": "curtain", "กล้องส่องทางไกล": "binoc", "กล้องดูดาว": "scope", "เตาปิ้งย่าง": "grill", "เก้าอี้อาบแดด": "lounge", "ร่ม": "umbrella", "ป้อมปืน": "turret" };
+  const PROP_KEY = { "แตร": "horn", "วิทยุ": "radio", "ช่องเก็บของ": "glove", "พัดลม": "fan", "หมาหัวโยก": "bob", "เกียร์": "gear", "ประตูท้าย": "rear", "ที่นั่งคนขับ": "seat", "สวิตช์ไฟ": "light", "ซันรูฟ": "hatch", "โต๊ะเกม": "table", "หมอน": "pillow", "กล่องเครื่องมือ": "tool", "ตู้เย็น": "fridge", "ไมโครเวฟ": "micro", "กระติกน้ำแข็ง": "cooler", "กีตาร์": "guitar", "ผ้าม่าน": "curtain", "กล้องส่องทางไกล": "binoc", "กล้องดูดาว": "scope", "เตาปิ้งย่าง": "grill", "เก้าอี้อาบแดด": "lounge", "ร่ม": "umbrella", "ป้อมปืน": "turret", "กล่องเก็บของรถ": "stash" };
   const PROPS = new Map(); // key → group
   let quiet = false; // ตั้งสถานะจาก state (ไม่เล่นเสียง)
   function interactive(g, name, act) {
@@ -654,7 +654,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   for (let k = 0; k < 3; k++) mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 10), trim, 0.21, 0.25 - k * 0.07, -0.215, micro).rotation.x = Math.PI / 2;
   let microT = 0;
   interactive(micro, "ไมโครเวฟ", () => { if (microT <= 0) { microT = 2.1; sfx("hum"); } });
-  const ONE_SHOT = new Set(["micro", "table", "bob", "guitar", "pillow0", "pillow1", "lounge", "turret", "horn", "radio", "gear", "seat", "binoc", "scope"]);
+  const ONE_SHOT = new Set(["stash", "micro", "table", "bob", "guitar", "pillow0", "pillow1", "lounge", "turret", "horn", "radio", "gear", "seat", "binoc", "scope"]);
 
   // แถว 6: กระติก · กีตาร์ · กระเป๋า · คันเบ็ด
   const cooler = grp(tileX(6), FLOOR, -1.05, interior);
@@ -677,10 +677,23 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     for (let k = 0; k < 4; k++) mesh(box(0.004, 0.95, 0.004), chrome, 0.05, 0.9, -0.024 + k * 0.016, guitar);
   }
   interactive(guitar, "กีตาร์", () => { guitar.rotation.x = 0.12; sfx("strum"); });
-  const lug = grp(tileX(6), FLOOR, 1.05, interior);
-  mesh(rbox(0.7, 0.42, 0.5, 0.06), std(0xd2694a, { roughness: 0.5 }), 0, 0.21, 0, lug);
-  mesh(rbox(0.55, 0.34, 0.42, 0.06), std(0x6c8f4e, { roughness: 0.5 }), 0.02, 0.59, 0.02, lug).rotation.y = 0.15;
-  mesh(box(0.2, 0.04, 0.04), trim, 0, 0.8, 0.02, lug);
+  // กล่องเก็บของกลางของรถ (ผู้ใช้สั่ง 2026-11-14 — กล่องจริง เดินไปเปิด · server stash.js · vanProps.stash [7, 6]) — หีบไม้คาดเหล็ก ฝาเปิดชั่วครู่ตอนใช้
+  const chest = grp(tileX(6), FLOOR, 1.05, interior);
+  {
+    const wood = std(0x9a6232, { roughness: 0.6 }), band = std(0x3a3f48, { roughness: 0.35, metalness: 0.7 });
+    mesh(rbox(0.74, 0.42, 0.52, 0.04), wood, 0, 0.21, 0, chest);
+    for (const x of [-0.24, 0.24]) mesh(box(0.06, 0.43, 0.53), band, x, 0.215, 0, chest);
+    mesh(box(0.12, 0.12, 0.02), std(0xf2c94c, { metalness: 0.8, roughness: 0.25 }), 0, 0.33, -0.27, chest);
+  }
+  const chestLid = grp(0, 0.42, 0.26, chest);
+  {
+    const wood = std(0xb07440, { roughness: 0.55 }), band = std(0x3a3f48, { roughness: 0.35, metalness: 0.7 });
+    mesh(rbox(0.76, 0.1, 0.54, 0.04), wood, 0, 0.05, -0.26, chestLid);
+    for (const x of [-0.24, 0.24]) mesh(box(0.06, 0.11, 0.55), band, x, 0.05, -0.26, chestLid);
+  }
+  const chestA = anim(chestLid, "rotation", "x");
+  let chestT = 0;
+  interactive(chest, "กล่องเก็บของรถ", () => { chestA.tgt = 1.3; chestT = 1.6; sfx("pop"); });
   for (let k = 0; k < 2; k++) { const r = mesh(new THREE.CylinderGeometry(0.012, 0.018, 2.3, 8), std(0x2d3b4a), 0, 1.2, 0, grp(-3.9 + k * 0.08, FLOOR, 1.42, interior)); r.rotation.z = 0.12 + k * 0.05; }
 
   // ผ้าม่าน (กดเปิด/ปิด) — ฝั่งขวาอยู่ใน nearDecor (ซ่อนตอนผ่า)
@@ -1219,7 +1232,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   for (const k of ["armor", "engine", "fuel"]) for (let i = 1; i <= 3; i++) mergeStatic(upgVis[k][i]);
   // ของที่กดได้: รวมชิ้นย่อยที่ไม่ขยับ (ไฮไลต์ตอนชี้ยังทำงาน — วัสดุโคลนแล้วก่อนรวม · ชิ้นที่ขยับติดธง dyn ไว้แล้ว)
   for (const r of interactives) if (r !== rearDoors) mergeStatic(r);
-  for (const r of [gloveIn, lug, speedo, bench]) mergeStatic(r);
+  for (const r of [gloveIn, speedo, bench]) mergeStatic(r);
   // ไฮไลต์ตอนชี้: เก็บ emissive เดิมของ mesh หลังรวม
   for (const g of interactives) g.traverse((m) => { if (m.isMesh && m.material.emissive && !m.userData.baseEm) m.userData.baseEm = m.material.emissive.clone(); if (m.isMesh) m.userData.owner = g; });
 
@@ -1277,6 +1290,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     pillow0: [5, -1], pillow1: [4, -1], tool: [4, 1], fridge: [5, 1], micro: [5, 1], cooler: [6, -1], guitar: [6, 0], rear: [6, 0],
     curtain0: [1, -1], curtain1: [3, -1], curtain2: [5, -1], curtain3: [1, 1], curtain4: [3, 1], curtain5: [5, 1],
     binoc: [1, -1, 1], scope: [1, 1, 1], grill: [3, -1, 1], lounge: [3, 1, 1], umbrella: [4, 1, 1], turret: [5, 0, 1],
+    stash: [6, 1], // กล่องรถ = server vanProps.stash [7, 6]
   };
 
   // ---------------------------------------------------------------- ลูกเรือในรถ (ป้ายรูปตัวละครบนฐาน · เดินตามทาง · นั่งที่นั่ง · ตาย = นอนเทา · บนดาดฟ้า)
@@ -1480,6 +1494,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     fanHead.rotation.y = 0.3 + (fanOn ? Math.sin(t * 0.8) * 0.6 : 0);
     for (const d of dice) { if (d.userData.spin > 0) { d.userData.spin -= dt * 1.2; d.rotation.x += dt * 25 * d.userData.spin; d.rotation.z += dt * 19 * d.userData.spin; d.position.y = 0.77 + Math.abs(Math.sin(t * 20)) * 0.06 * d.userData.spin; } else d.position.y = 0.77; }
     if (microT > 0) { microT -= dt; microWin.material.emissiveIntensity = microT > 0 ? 1.2 : 0; }
+    if (chestT > 0) { chestT -= dt; if (chestT <= 0) chestA.tgt = 0; } // ฝากล่องรถปิดเอง
     if (turretHead) {
       turretHead.rotation.y += (turretAim - turretHead.rotation.y) * Math.min(1, dt * 10);
       if (turretFire > 0) { turretFire -= dt; muzzle.visible = Math.sin(turretFire * 60) > 0; muzzle.scale.setScalar(0.7 + Math.random() * 0.5); } else muzzle.visible = false;

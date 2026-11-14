@@ -1,0 +1,72 @@
+/* Road Trip — คู่มือ (RtGuide.jsx) + การ์ดมอน (RtMobInfo.jsx) · สีจาก --rt-* (ธีมมืด: ui-theme.css) */
+
+/* ---------- ปุ่ม ? ---------- */
+.rtg-btn { position: fixed; right: 18px; top: 76px; z-index: 60; width: 46px; height: 46px; display: grid; place-items: center; border: 0; cursor: pointer;
+  font: 700 24px/1 "Chakra Petch", sans-serif; color: var(--rt-ink); background: var(--rt-lattice), var(--rt-paper); clip-path: var(--rt-cut-s);
+  box-shadow: inset 0 0 0 1px var(--rt-line); filter: drop-shadow(0 6px 14px var(--rt-shadow)); transition: color .15s, transform .15s; }
+.rtg-btn::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--rt-a); }
+.rtg-btn:hover { color: var(--rt-a); transform: scale(1.06); }
+.rtg-btn:focus-visible { outline: 2px solid var(--rt-a); outline-offset: 2px; }
+
+/* ---------- หน้าต่างคู่มือ ---------- */
+.rtg-back { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; background: var(--rt-scrim); backdrop-filter: blur(3px); }
+.rtg { width: min(880px, calc(100vw - 32px)); height: min(680px, calc(100vh - 40px)); display: flex; flex-direction: column; color: var(--rt-ink); }
+.rtg > *:not(.rt-bg) { position: relative; }
+.rtg header { display: flex; align-items: center; gap: 12px; padding: 16px 20px 8px 26px; }
+.rtg h2 { margin: 0; font: 700 26px/1.1 "Chakra Petch", sans-serif; letter-spacing: .06em; color: var(--rt-a); }
+.rtg-diff { font: 600 13px/1 Kanit, sans-serif; padding: 5px 10px; color: #fff; background: var(--c, var(--rt-a)); clip-path: var(--rt-cut-s); }
+.rtg-x { margin-left: auto; border: 0; background: transparent; color: var(--rt-mute); font-size: 20px; cursor: pointer; width: 38px; height: 38px; border-radius: 10px; }
+.rtg-x:hover { background: var(--rt-well-hi); color: var(--rt-ink); }
+.rtg nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 20px 12px 26px; border-bottom: 1px solid var(--rt-line); }
+.rtg nav button { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rt-line); background: var(--rt-well); color: var(--rt-mute); font: 500 14px Kanit, sans-serif; }
+.rtg nav button[data-on="true"] { background: var(--rt-a); color: #fff; border-color: var(--rt-a); }
+.rtg nav button:hover:not([data-on="true"]) { color: var(--rt-ink); background: var(--rt-well-hi); }
+.rtg-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 20px 22px 26px; }
+.rtg ul { list-style: none; margin: 0; padding: 0; }
+.rtg-rows { display: flex; flex-direction: column; gap: 7px; }
+.rtg-row { display: grid; grid-template-columns: 32px 170px 1fr; gap: 10px; align-items: start; padding: 9px 12px; border-radius: 10px; background: var(--rt-well); }
+.rtg-row .ico { font-size: 19px; text-align: center; line-height: 1.3; }
+.rtg-row b { font-weight: 600; font-size: 15px; line-height: 1.45; }
+.rtg-row p { margin: 0; color: var(--rt-mute); font-size: 14px; line-height: 1.55; }
+.rtg-h { margin: 18px 0 8px; font: 600 17px Kanit, sans-serif; color: var(--rt-a); }
+.rtg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.rtg-grid-boss { grid-template-columns: 1fr; }
+.rtg-card { display: flex; gap: 12px; padding: 10px; border-radius: 12px; background: var(--rt-well); border: 1px solid var(--rt-off); }
+.rtg-boss { border-color: color-mix(in srgb, #c9483f 45%, transparent); }
+.rtg-card-art { flex: none; width: 76px; height: 76px; border-radius: 10px; overflow: hidden; background: var(--rt-well-hi); display: grid; place-items: center; }
+.rtg-boss .rtg-card-art { width: 96px; height: 96px; }
+.rtg-card-art img { width: 100%; height: 100%; object-fit: contain; }
+.rtg-card-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.rtg-card-name { font-weight: 600; font-size: 15px; line-height: 1.3; }
+.rtg-card-name small { font-weight: 500; font-size: 12px; color: var(--rt-mute); margin-left: 4px; }
+.rtg-card-stats { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; font-weight: 600; }
+.rtg-card-where { font-size: 12.5px; color: var(--rt-mute); }
+
+/* ป้ายความสามารถ (ร่วมกับการ์ดมอน) */
+.rtg-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.rtg-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font: 500 12.5px/1.6 Kanit, sans-serif; cursor: help;
+  background: var(--rt-well-hi); color: var(--rt-ink); border: 1px solid var(--rt-off); }
+.rtg-tag[data-k="role"] { border-color: color-mix(in srgb, var(--rt-a) 55%, transparent); }
+.rtg-tag[data-k="elite"], .rtg-tag[data-k="phase"] { background: color-mix(in srgb, #7a3fd0 22%, transparent); }
+.rtg-moves { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.rtg-moves li { display: grid; grid-template-columns: 170px 1fr; gap: 8px; font-size: 13px; line-height: 1.45; }
+.rtg-moves li b { font-weight: 600; }
+.rtg-ph2 { margin-left: 6px; padding: 0 6px; border-radius: 999px; font: 500 11px/1.6 Kanit, sans-serif; font-style: normal; color: #fff; background: #7a3fd0; }
+.rtg-moves li span { color: var(--rt-mute); }
+.rtg-moves li[data-locked="true"] { opacity: .5; }
+
+/* ---------- การ์ดมอน (ใน StatusModal) ---------- */
+.rtg-mob { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; color: inherit; }
+.rtg-mob .rtg-tag, .rtg-mob .rtg-moves li span { color: inherit; }
+.rtg-mob-top { display: flex; gap: 14px; align-items: center; }
+.rtg-mob-art { flex: none; width: 96px; height: 96px; border-radius: 12px; overflow: hidden; background: rgba(127, 140, 160, .16); display: grid; place-items: center; }
+.rtg-mob-art img { width: 100%; height: 100%; object-fit: contain; }
+.rtg-mob-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.rtg-mob-stats > span { display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 10px; border-radius: 10px; background: rgba(127, 140, 160, .14); cursor: help; }
+.rtg-mob-stats i { font-style: normal; opacity: .75; }
+.rtg-mob-stats .rt-coin { align-self: center; }
+.rtg-mob-stats b { font: 700 20px/1 "Chakra Petch", sans-serif; }
+.rtg-mob-stats small { opacity: .6; font-size: 13px; }
+.rtg-mob .rtg-tag { background: rgba(127, 140, 160, .14); border-color: rgba(127, 140, 160, .3); }
+.rtg-mob .rtg-moves li span { opacity: .72; }

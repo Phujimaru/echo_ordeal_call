@@ -552,13 +552,13 @@ test('FIX คนขับไม่หลุดที่นั่ง: กลั�
   assert.equal(rt().van.driverId, null, 'AFK เกิน 20 วิ = ที่นั่งว่าง');
 });
 
-test('กิจกรรมบนรถตอนขับ: ของทุกชิ้น (24) ใช้ได้จริง · สถานะเปลี่ยน · fx vanProp · ช่องอยู่ในรถ/ดาดฟ้า', () => {
+test('กิจกรรมบนรถตอนขับ: ของทุกชิ้น (25 รวมกล่องรถ) ใช้ได้จริง · สถานะเปลี่ยน · fx vanProp · ช่องอยู่ในรถ/ดาดฟ้า', () => {
   const VW = require('../server/roadtrip/vanwalk.js');
   setup(1);
   const d = Maps.defs[Maps.RT_ONVAN];
   const inside = new Set(d.vanTiles.map(([x, y]) => `${x},${y}`)), roof = new Set(d.roofTiles.map(([x, y]) => `${x},${y}`));
   const keys = Object.keys(d.vanProps);
-  assert.equal(keys.length, 24);
+  assert.equal(keys.length, 25);
   for (const key of keys) {
     const [x, y, r] = d.vanProps[key];
     assert.ok((r ? roof : inside).has(`${x},${y}`), `${key} อยู่บนช่องที่ยืนได้`);
@@ -815,6 +815,8 @@ test('กล่องเก็บของกลางของรถ: เก็
   setup(2);
   P(0).inventory = [{ uid: 'a1', type: 'armor', value: 1, price: 3 }, { uid: 'b1', type: 'kebread' }];
   P(1).inventory = [];
+  const [sx, sy] = Maps.defs[Maps.RT_ONVAN].vanProps.stash;
+  rt().vanPos.p0 = { x: sx, y: sy, roof: false }; rt().vanPos.p1 = { x: sx, y: sy - 1, roof: false }; // ยืนที่กล่อง (ผู้ใช้สั่ง 2026-11-14)
   assert.equal(RT.command('p0', 'stash', { op: 'put', uid: 'a1' }), true);
   assert.equal(P(0).inventory.length, 1);
   assert.equal(RT.publicInfo('p1').van.stash.items.length, 1);

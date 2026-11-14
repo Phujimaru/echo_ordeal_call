@@ -81,6 +81,7 @@ export function ambienceFor(rt) {
     case "intro": case "drive": case "fork": case "event":
       return [{ name: "amb_road", vol: 0.8 }, { name: "amb_wind", vol: 0.5 }, { name: regionBed(rt), vol: 0.55 }];
     case "stop":
+      if (rt.stop && rt.stop.kind === "camp") return [{ name: "amb_night", vol: 0.75 }, { name: "amb_forest", vol: 0.3 }]; // แคมป์กลางป่ายามค่ำ
       return rt.stop && rt.stop.kind === "motel" ? [{ name: "amb_motel", vol: 0.8 }, { name: regionBed(rt), vol: 0.3 }]
         : [{ name: rt.night ? "amb_station_night" : "amb_station", vol: 0.8 }];
     case "combat":
@@ -99,11 +100,16 @@ const FX_SFX = {
   fuel: "fuel_fill", refuel: "fuel_fill", wash: "splash", flush: "toilet_flush", warp: "teleport", teleport: "teleport", dog: "dog_bark",
   claw: "claw", gacha: "gacha", arcade: "arcade", fish: "splash", ferris: "ferris_creak", spicy: "sizzle", karaoke: "crowd_cheer",
   win: "victory", victory: "victory", rear: "rear_doors", seat: "van_door", alert: "alert", boss: "boss_alarm", km: "km_tick",
+  // แคมป์ (camp.js) + กล่องรถ — ใช้ไฟล์เดิมทั้งหมด (ผู้ใช้สั่ง 2026-11-14 ไม่โหลดใหม่)
+  fish: "splash", chop: "wrench", mallow: "sizzle", stars: "coin", sunrise: "victory",
+  campVote: "event_sting", campVoteEnd: "fork_chime", cook: "sizzle", cookDone: "shop_chime", campAct: "crowd_cheer", campJoin: "coin", campActEnd: "crowd_cheer", feast: "crowd_cheer", stash: "sliding_door",
 };
 // กิจกรรมที่จุดพัก (fx act { kind }) → เสียงตามชนิดวัตถุ (QA 2026-11-14 — เดิมหา "act" ไม่เจอ = เงียบทุกกิจกรรม)
 const ACT_SFX = {
   pump: "fuel_fill", garage: "wrench", wash: "splash", wc: "toilet_flush", claw: "claw", gacha: "gacha", arcade: "arcade", karaoke: "crowd_cheer",
   dog: "dog_bark", fortune: "teleport", spicy: "sizzle", pond: "splash", pool: "splash", ferris: "ferris_creak", bbq: "sizzle", stall: "sizzle", vending: "coin", motel: "van_door", mart: "shop_chime",
+  tent: "van_door", jack: "wrench",
+
 };
 const USE_SFX = { rtRevive: "teleport", rtFish: "coin", armor: "wrench", cleanse: "splash" };
 const seen = new Set();
@@ -129,7 +135,7 @@ export function handleFx(rt) {
     const k = f.key ?? f.id ?? JSON.stringify(f);
     if (seen.has(k)) continue;
     seen.add(k);
-    if (f.k === "combatEnd" || f.k === "garage") continue;
+    if (f.k === "combatEnd" || f.k === "garage" || f.k === "camp" || f.k === "campPlay") continue; // camp = เปิดแผงเฉพาะคนกด (ไม่มีเสียงทุกเครื่อง)
     if (f.k === "actFail") continue; // กิจกรรมทำไม่ได้ — เสียงปฏิเสธเฉพาะคนกด เล่นใน board/roadtrip/props.js (รู้ว่าใครคือเครื่องนี้)
     let name = f.sfx || (f.k === "act" ? ACT_SFX[f.kind] : f.k === "use" ? USE_SFX[f.type] || "coin" : null) || FX_SFX[f.k] || f.k;
     if (name === "horn") { const now = Date.now(); if (now - lastHorn < 350) continue; lastHorn = now; if (rt.van && rt.van.style === "goofy") name = "horn_goofy"; }

@@ -29,9 +29,10 @@ const H = {
   timers: () => require("../timers"), view: () => require("../view"), combat: () => require("../combat"), action: () => require("../phases/action"),
   draw: () => require("../phases/draw"), shop: () => require("../shop"), summon: () => require("../summon"),
   drive: () => require("./drive"), vanwalk: () => require("./vanwalk"), vanfun: () => require("./vanfun"), events: () => require("./events"), stop: () => require("./stop"), fight: () => require("./fight"), mobs: () => require("./mobs"),
+  camp: () => require("./camp"),
 };
 
-const SECS = { intro: 8, fork: 15, event: 20, gas: 150, motel: 60, eventResult: 3, combatIntro: 2.8, bossIntro: 4.5 }; // intro/combatIntro/bossIntro = เวลาให้ฉากเปลี่ยนฝั่ง client เล่นจบ (RtTransitions)
+const SECS = { intro: 8, fork: 15, event: 20, eventResult: 3, combatIntro: 2.8, bossIntro: 4.5 }; // intro/combatIntro/bossIntro = เวลาให้ฉากเปลี่ยนฝั่ง client เล่นจบ (RtTransitions)
 const FX_KEEP = 20;
 const START_GOLD = 5;
 let FX_SEQ = Date.now(); // เพิ่มอย่างเดียวตลอดอายุ server (client จำ key ที่เล่นแล้ว)
@@ -61,11 +62,12 @@ function fresh(diff) {
     radio: { src: "synth", station: 0, yt: null, by: null }, // ออกเดินทางมาพร้อมเพลง (สถานีป๊อป)
     fx: [], summary: null, kills: 0, gold: 0, stops: 0, fights: 0,
     buffs: {}, dog: { fed: 0, lastStop: -1, on: false }, reveal: null, deaths: 0,
+    lastCampKm: null, campVote: null, // แคมป์ (camp.js): กม. ที่ตั้งแคมป์ครั้งก่อน · โหวตที่เปิดอยู่
   };
 }
 function reset() { stopAll(); match.roadtrip = null; }
 // หยุดทุกตัวจับเวลาของโหมด (ขับเรียลไทม์) — เรียกตอนจบเกม/กลับห้องรอ/เริ่มแมตช์ใหม่
-function stopAll() { H.drive().stopTick(); H.vanfun().stopTick(); }
+function stopAll() { H.drive().stopTick(); H.vanfun().stopTick(); H.camp().stop(); }
 
 // ---------- เริ่มแมตช์ (lobby.startMatch) ----------
 //  introHold = เวลาฉากเปิดตัวผู้เล่น (ม่าน MatchIntro) · 0 = ไม่มีฉาก (เทสต์ — JOURNEY_START_SECONDS=0)
@@ -101,6 +103,7 @@ function applyDev(ph = process.env.ECHO_DEV_RT_PHASE) {
   if (ph === "event") { H.events().open(); return true; }
   if (ph === "stop" || ph === "gas") { H.stop().enter("gas"); return true; }
   if (ph === "motel") { H.stop().enter("motel"); return true; }
+  if (ph === "camp") { H.stop().enter("camp"); return true; } // dev: ECHO_DEV_RT_PHASE=camp
   if (ph === "ambush" || ph === "onvan" || ph === "boss" || ph === "elite") { H.fight().begin(ph); return true; }
   if (ph === "over") { lose("van"); return true; } // dev: หน้าสรุปผลทันที
   return false;
@@ -124,6 +127,7 @@ function setPhase(name, secs, onExpire) {
   if (!rt) return;
   if (name !== "drive") { H.drive().stopTick(); rt.hazards = []; rt.nitroUntil = 0; }
   H.vanfun().onPhase(rt, name); // กิจกรรมในรถ: ออกจากช่วงเดินทาง = ยกเลิกทุกวง (คืนเงินกองเต๋า) · ไม่ใช่ขับ = กล่องข้างทางหาย // สิ่งกีดขวาง/ไนตรัสค้างไม่ข้ามช่วง (กลับมาขับแล้วไม่โดนชนรวดเดียว)
+  H.camp().onPhase(rt, name); // โหวตแคมป์ที่ค้าง = ยกเลิกเมื่อออกจากช่วงขับ
   rt.phase = name;
   const timers = H.timers();
   timers.clearPhaseTimer();
@@ -289,10 +293,12 @@ function presenceChanged() {
   if (!active()) return;
   const rt = match.roadtrip, list = awake();
   if (!Object.keys(match.players).length) { reset(); return; }
+  if (rt.phase === "stop") { H.stop().presence(); return; } // จุดพักไม่จำกัดเวลา: ทุกคนที่ยังอยู่พร้อม = ออก · ไม่เหลือใคร = ตัวจับเวลากันค้าง
   if (!list.length) return; // ตอนนี้ไม่มีใครต่ออยู่ — ช่วงขับหยุดรอ (drive.step) · ช่วงอื่นรอตัวจับเวลา
+  if (rt.campVote && H.camp().settle()) return; // โหวตแคมป์: คนที่เหลือโหวตครบ = ตัดสิน
   if (rt.phase === "fork" && rt.fork && list.every((o) => rt.fork.votes[o.id] != null)) H.drive().resolveFork();
   else if (rt.phase === "event" && rt.event && !rt.event.result && list.every((o) => rt.event.votes[o.id] != null)) H.events().resolve();
-  else if (rt.phase === "stop" && rt.stop && list.every((o) => rt.stop.ready[o.id])) H.stop().leave();
+  // (จุดพัก: H.stop().presence() ด้านบน)
 }
 function blocksCombatCmd() { return active() && phase() !== "combat"; } // socket.js: สกิล/ท่าไม้ตาย/ตี/ปุ่มตัวละคร นอกการต่อสู้
 function blocksDeal() { return active() && phase() !== "combat"; }      // draw.dealRound: ไม่แจกไพ่นอกการต่อสู้ (ตัวจับเวลาเก่าค้าง)
@@ -345,7 +351,8 @@ function command(id, name, payload) {
     case "upg": ok = H.stop().upgrade(p, o.key, o.unitId); break;
     case "decor": case "style": case "paint": case "plate": ok = cosmetic(p, name, o); break;
     case "radio": ok = radio(p, o); break;
-    case "stash": ok = require("./stash").command(p, o); break; // กล่องเก็บของกลางของรถ
+    case "stash": ok = require("./stash").command(p, o); break; // กล่องเก็บของกลางของรถ (ต้องยืนที่กล่อง)
+    case "camp": ok = H.camp().command(p, o); break;        // แคมป์: โหวต/ทำอาหาร/กิจกรรมกลางคืน (camp.js)
     case "rear": ok = H.fight().toggleRear(p); break;
     case "vanWalk": ok = H.vanwalk().walk(p, o); break;   // เดินเล่นในรถตอนขับ
     case "vanProp": ok = H.vanwalk().useProp(p, typeof o.prop === "string" ? o.prop : ""); break;
@@ -412,7 +419,7 @@ function publicInfo(viewerId = null) {
   const rt = match.roadtrip, v = rt.van;
   return {
     phase: rt.phase, endsAt: rt.endsAt, diff: rt.diff, km: Math.floor(rt.km * 100) / 100,
-    region: { id: rt.region.id, loop: rt.region.loop }, night: rt.night,
+    region: { id: rt.region.id, loop: rt.region.loop }, night: rt.night || (rt.phase === "stop" && !!rt.stop && rt.stop.kind === "camp"), // แคมป์ = กลางคืนเสมอ (ภาพ/เพลง)
     van: {
       hp: v.hp, hpMax: v.hpMax, fuel: Math.round(v.fuel * 10) / 10, fuelMax: v.fuelMax, kmh: H.drive().speedOf(rt), lane: v.lane, driverId: v.driverId, seatReq: v.seatReq || null,
       nitro: v.nitro, nitroOn: rt.nitroUntil > Date.now(), style: v.style, paint: v.paint, plate: v.plate, decor: [...v.decor], upg: { ...v.upg }, rearOpen: v.rearOpen,
@@ -423,7 +430,9 @@ function publicInfo(viewerId = null) {
     hazards: rt.hazards.map((h) => ({ id: h.id, lane: h.lane, at: h.at, kind: h.kind })),
     fork: rt.fork ? { options: rt.fork.options.map((o) => ({ ...o })), votes: { ...rt.fork.votes } } : null,
     event: rt.event ? { id: rt.event.id, kind: rt.event.kind, title: rt.event.title, icon: rt.event.icon, choices: rt.event.choices.map((c) => ({ key: c.key, label: c.label, cost: c.cost || 0, ...(c.desc ? { desc: c.desc } : {}), ...(c.disabled ? { disabled: true } : {}) })), votes: { ...rt.event.votes }, result: rt.event.result || null } : null,
-    stop: rt.stop ? { kind: rt.stop.kind, shopId: rt.stop.shopId || null, ready: { ...rt.stop.ready }, acts: H.stop().publicActs(rt, viewerId), dog: rt.dog.fed } : null,
+    stop: rt.stop ? { kind: rt.stop.kind, shopId: rt.stop.shopId || null, shops: { ...(rt.stop.shops || {}) }, ready: { ...rt.stop.ready }, acts: H.stop().publicActs(rt, viewerId), dog: rt.dog.fed, camp: H.camp().publicStop(rt) } : null,
+    camp: H.camp().publicInfo(rt), // ปุ่มแคมป์/โหวต (ช่วงขับ)
+
     actions: rt.combat ? H.fight().actionsOf() : {}, // ปุ่ม HUD สู้บนรถตู้ต่อผู้เล่น { [pid]: ["swerve"|"turret"|"roof"|"rear"] }
     combat: rt.combat ? { kind: rt.combat.kind, boss: rt.combat.boss || null, roofId: rt.combat.roofId || null, bossPhase: rt.combat.boss ? rt.combat.bossPhase || 1 : null, swerveReady: rt.combat.swerveReady || 0, ...(rt.combat ? { turretRange: H.fight().TURRET_MANUAL_RANGE, turretDmg: H.fight().turretDmg(rt), swerveDmg: H.fight().SWERVE.dmg + Van.statOf(v, "bumper"), swerveCd: H.fight().SWERVE.cd } : {}), round: rt.combat.round, rounds: rt.combat.rounds, scroll: rt.combat.scroll, warn: rt.combat.warn ? { by: rt.combat.warn.by, move: rt.combat.warn.move || null, tiles: rt.combat.warn.tiles, at: rt.combat.warn.at || null } : null } : null,
     radio: { src: rt.radio.src, station: rt.radio.station, yt: rt.radio.yt ? { ...rt.radio.yt, queue: (rt.radio.yt.queue || []).map((q) => ({ ...q })) } : null, by: rt.radio.by },

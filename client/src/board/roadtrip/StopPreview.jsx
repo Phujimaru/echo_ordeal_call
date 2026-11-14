@@ -9,7 +9,7 @@ import { REGIONS, setRoadtripState } from "./theme";
 import { rtPoke } from "./props";
 import { RT_MOB_TYPES } from "./mobArt";
 
-const AREAS = [[70, "ถนน"], [71, "บนรถตู้"], [72, "ปั๊ม A"], [73, "ปั๊ม B"], [74, "ปั๊ม C"], [75, "โรงแรม"]];
+const AREAS = [[70, "ถนน"], [71, "บนรถตู้"], [72, "ปั๊ม A"], [73, "ปั๊ม B"], [74, "ปั๊ม C"], [75, "โรงแรม"], [76, "แคมป์"]];
 const REGION_TH = { plains: "ทุ่งหญ้า", desert: "ทะเลทราย", forest: "ป่าสน", snow: "ทุ่งหิมะ", ghost: "เมืองร้าง" };
 const MOB_TH = { stray: "หมาจรจัด", crow: "อีกาเหล็ก", biker: "แก๊งมอเตอร์ไซค์", trucker: "ซอมบี้รถบรรทุก", giant: "ยักษ์ขวางถนน", cactus: "กระบองเพชรเดินได้", boar: "หมูป่า", yeti: "มนุษย์หิมะ", ghost: "ผีโบกรถ", saberclaw: "เสือเขี้ยวดาบ", devilTruck: "แม็กซ์ เวอร์สแตปเพน", darkKnight: "อัศวินเงามรณะ", jormungand: "จอร์มุนกันด์" };
 const PAINTS = ["#7fb8d8", "#ff8a3d", "#3fae7a", "#d9534f", "#a26bff", "#f2c84b"];

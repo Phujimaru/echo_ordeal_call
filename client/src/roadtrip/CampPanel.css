@@ -1,0 +1,89 @@
+/* หน้ากองไฟในแคมป์ (CampPanel.jsx) — ธีมขาว (ค่าเริ่ม แบบกระเป๋า) + ธีมมืด :root[data-ui="dark"] · สีไฟอุ่นเป็นตัวเน้น */
+.cmp-veil { position: fixed; inset: 0; z-index: 1500; display: grid; place-items: center; background: radial-gradient(70% 70% at 50% 50%, rgba(28,63,110,.22), rgba(10,24,48,.5)); }
+.cmp, .cmp.rt-ui { width: 760px; max-width: calc(100vw - 32px); scale: var(--k, 1); padding: 16px 20px 20px; color: var(--ocw-ink, #1c3f6e);
+  background: radial-gradient(120% 70% at 50% 0%, rgba(255,150,60,.16), transparent 60%), linear-gradient(160deg, #ffffff, #f4f8fc 45%, #e3ecf6);
+  clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px); box-shadow: inset 0 0 0 1px rgba(61,139,217,.35); font-family: Kanit, "Chakra Petch", sans-serif; }
+:root[data-ui="dark"] .cmp { background: radial-gradient(120% 70% at 50% 0%, rgba(255,140,50,.2), transparent 60%), linear-gradient(160deg, #18325c, #10254a 45%, #0a1834); box-shadow: inset 0 0 0 1px rgba(127,184,230,.4); }
+.cmp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(61,139,217,.25); }
+.cmp-head > b { font: 700 24px "Chakra Petch", Kanit, sans-serif; }
+.cmp-fire { font-size: 28px; animation: cmpFlick 1.2s ease-in-out infinite alternate; }
+@keyframes cmpFlick { from { transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 4px #ff8a3d); } to { transform: scale(1.12) rotate(3deg); filter: drop-shadow(0 0 12px #ffb347); } }
+.cmp-feast, .cmp-far { padding: 3px 10px; border-radius: 999px; background: rgba(255,150,60,.18); font: 600 14px "Chakra Petch", Kanit, sans-serif; }
+.cmp-far { background: rgba(210,69,91,.18); }
+.cmp-x { margin-left: auto; width: 38px; height: 38px; border: 0; cursor: pointer; color: inherit; font-size: 18px; background: rgba(127,184,230,.2); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.cmp-x:hover { background: #d2455b; color: #fff; }
+.cmp-sec { margin: 12px 0 6px; font-size: 18px; }
+.cmp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cmp-dish, .cmp-act { position: relative; overflow: hidden; color: inherit; cursor: pointer; border: 0; background: linear-gradient(170deg, #ffffff, #eef3f9); box-shadow: inset 0 0 0 1px rgba(61,139,217,.3), 0 4px 10px rgba(28,63,110,.1);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); transition: transform .12s ease, background .12s ease; }
+:root[data-ui="dark"] .cmp-dish, :root[data-ui="dark"] .cmp-act { background: linear-gradient(170deg, #1b3762, #112548); box-shadow: inset 0 0 0 1px rgba(127,184,230,.4); }
+.cmp-dish { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 6px 9px; }
+.cmp-dish:hover:not(:disabled), .cmp-act:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 0 0 2px #ff9b4a, 0 8px 16px rgba(255,140,50,.2); }
+.cmp-dish:disabled, .cmp-act:disabled { cursor: default; }
+.cmp-dish[data-ok="false"] { opacity: .42; filter: grayscale(.85); }
+.cmp-lock { position: absolute; right: 9px; top: 7px; font-size: 13px; opacity: .8; }
+.cmp-dish[data-cook="true"] { opacity: 1; box-shadow: inset 0 0 0 2px #ff9b4a, 0 0 18px rgba(255,140,50,.35); }
+.cmp-dish-ic { font-size: 34px; line-height: 1.1; }
+.cmp-dish-nm { font: 600 14px Kanit, sans-serif; }
+.cmp-need { display: flex; gap: 6px; }
+.cmp-ing { display: inline-flex; align-items: baseline; gap: 1px; font-size: 16px; }
+.cmp-ing small { font: 700 11px "Chakra Petch", sans-serif; color: #2a8a5a; }
+.cmp-ing[data-ok="false"] small { color: #c9483f; }
+:root[data-ui="dark"] .cmp-ing small { color: #9fe0a8; }
+:root[data-ui="dark"] .cmp-ing[data-ok="false"] small { color: #ff8a7a; }
+.cmp-eff { font: 500 11.5px Kanit, sans-serif; opacity: .8; text-align: center; }
+.cmp-bar { position: absolute; left: 0; bottom: 0; height: 4px; background: linear-gradient(90deg, #ff8a3d, #ffd23f); transition: width .2s linear; }
+.cmp-night { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cmp-act { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font: 500 15px Kanit, sans-serif; }
+.cmp-act:disabled { opacity: .6; }
+.cmp-act[data-live="true"] { opacity: 1; box-shadow: inset 0 0 0 2px #ffb347, 0 0 16px rgba(255,180,70,.35); }
+.cmp-act-ic { font-size: 24px; }
+.cmp-tag { margin-left: auto; font: 600 13px "Chakra Petch", Kanit, sans-serif; opacity: .9; }
+.cmp-join { position: absolute; right: 6px; top: 4px; padding: 1px 8px; border-radius: 999px; background: #ffb347; color: #2a1406; font: 700 12px Kanit, sans-serif; }
+/* มินิเกม (CampGames.jsx) */
+.cmp-game { margin: 8px 0 4px; }
+.cg { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 150, 60, .1); border: 1px solid rgba(255, 150, 60, .4); user-select: none; cursor: pointer; color: inherit; }
+.cg kbd { padding: 2px 8px; border-radius: 6px; background: rgba(61,139,217,.15); font: 600 12px "Chakra Petch", sans-serif; color: inherit; }
+.cg-ic { font-size: 28px; }
+.cg-track { position: relative; flex: 1; height: 16px; border-radius: 999px; background: rgba(28,63,110,.25); overflow: hidden; }
+:root[data-ui="dark"] .cg-track, :root[data-ui="dark"] .cg-lane { background: rgba(0,0,0,.45); }
+.cg-zone { position: absolute; top: 0; bottom: 0; background: linear-gradient(90deg, #3fae7a, #9ff0c0); }
+.cg-needle { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: #ff6a2a; box-shadow: 0 0 8px #ffd23f; }
+.cg-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #fff3d0, #e8a04a); opacity: .85; }
+.cg-dots { display: flex; gap: 5px; }
+.cg-dots b { width: 12px; height: 12px; border-radius: 50%; background: rgba(61,139,217,.25); }
+.cg-dots b[data-q="great"] { background: #3fae7a; } .cg-dots b[data-q="ok"] { background: #f2c94c; } .cg-dots b[data-q="miss"] { background: #c9483f; }
+.cg-mallow { width: 34px; height: 26px; border-radius: 9px; border: 2px solid #f6efe0; transition: background .2s; }
+.cg-res, .cg-score { font: 700 18px "Chakra Petch", Kanit, sans-serif; }
+.cg-lane { position: relative; flex: 1; height: 34px; border-radius: 10px; background: rgba(28,63,110,.2); overflow: hidden; }
+.cg-target { position: absolute; left: 10%; top: 3px; width: 28px; height: 28px; margin-left: -14px; border-radius: 50%; border: 2px solid #ffd23f; box-shadow: 0 0 10px rgba(255, 210, 63, .6); }
+.cg-note { position: absolute; top: 4px; margin-left: -9px; font-size: 20px; color: #ffb066; }
+.cg-note[data-hit="true"] { color: #3fae7a; opacity: .35; }
+.cg-stars, .cg-story { flex-direction: column; cursor: default; background: radial-gradient(120% 120% at 50% 0%, #1c2a52, #0b1024); border-color: rgba(160, 180, 255, .35); color: #eef4ff; }
+.cg-sky-target { padding: 6px 18px; border-radius: 12px; background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 20px rgba(160, 190, 255, .2); }
+.cg-opts { display: flex; gap: 10px; }
+.cg-opt { border-radius: 12px; border: 1px solid rgba(160, 190, 255, .35); background: rgba(255, 255, 255, .05); cursor: pointer; padding: 4px; color: inherit; }
+.cg-opt:hover:not(:disabled) { background: rgba(160, 190, 255, .18); }
+.cg-opt[data-on="true"] { border-color: #ffd23f; box-shadow: 0 0 14px rgba(255, 210, 63, .5); }
+.cg-opt:disabled { cursor: default; }
+.cg-open { display: flex; gap: 8px; font-size: 28px; }
+.cg-end { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 14px; min-width: 110px; font: 600 14px Kanit, sans-serif; }
+.cg-end-ic { font-size: 34px; }
+/* ซ่อมรถ (RepairGame) + ฟ้าสาง */
+.cmp-spot { position: fixed; left: 50%; bottom: 140px; translate: -50% 0; z-index: 1500; width: 560px; scale: var(--k, 1); transform-origin: 50% 100%; padding: 12px; border-radius: 16px; color: var(--ocw-ink, #1c3f6e); background: linear-gradient(160deg, #ffffff, #e3ecf6); box-shadow: inset 0 0 0 1px rgba(61,139,217,.35), 0 14px 40px rgba(28,63,110,.3); }
+:root[data-ui="dark"] .cmp-spot { background: linear-gradient(160deg, #18325c, #0a1834); box-shadow: inset 0 0 0 1px rgba(127,184,230,.4), 0 14px 40px rgba(0,0,0,.5); }
+.cmp-repair-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font: 600 16px Kanit, sans-serif; }
+.cmp-repair-head button { margin-left: auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 16px; }
+.rt-sunrise { position: fixed; inset: 0; z-index: 1400; pointer-events: none; animation: rtSunrise 4.5s ease-in-out forwards;
+  background: linear-gradient(180deg, rgba(20, 30, 70, .0) 0%, rgba(255, 150, 90, .55) 55%, rgba(255, 220, 140, .85) 100%); }
+.rt-sunrise::after { content: "🌅"; position: absolute; left: 50%; bottom: 18%; translate: -50% 0; font-size: 90px; animation: rtSunUp 4.5s ease-out forwards; }
+@keyframes rtSunrise { 0% { opacity: 0; } 30% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rtSunUp { from { transform: translateY(80px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.cmp-spot .cmp-act { width: 100%; }
+.cmp-spot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cmp-res { padding: 14px; text-align: center; font: 700 30px "Chakra Petch", Kanit, sans-serif; }
+.cmp-meter { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 18px; }
+.cmp-meter b { width: 26px; height: 10px; border-radius: 5px; background: rgba(61,139,217,.2); }
+.cmp-meter b[data-on="true"] { background: linear-gradient(90deg, #ff8a3d, #ffd23f); box-shadow: 0 0 8px rgba(255,150,60,.6); }
+.cmp-meter small { margin-left: auto; font: 700 15px "Chakra Petch", Kanit, sans-serif; }
+.cmp-spot-row > .cg { grid-column: 1 / -1; order: -1; }

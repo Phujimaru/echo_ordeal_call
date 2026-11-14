@@ -33,7 +33,9 @@ import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
-import StashPanel from "../roadtrip/StashPanel"; // Road Trip: กล่องเก็บของกลางของรถ (ข้างกระเป๋า ตอนจุดพัก)
+import StashPanel from "../roadtrip/StashPanel"; // Road Trip: กล่องเก็บของกลางของรถ (ข้างกระเป๋า ตอนจุดพัก — ยืนติดรถตู้เท่านั้น)
+import CampPanel from "../roadtrip/CampPanel"; // Road Trip: หน้าแคมป์ (กองไฟ — ทำอาหาร/กิจกรรมกลางคืน)
+import CampSpot from "../roadtrip/CampSpot"; // Road Trip แคมป์: แผงเล็กของแต่ละจุด (ขอนเล่าเรื่อง/เรือ/ปิ้ง/กล้อง/ฟืน/ท่าเรือ/แม่แรง)
 import { ELEMENTS } from "../data/elements";
 import ShopScreen from "./hud/shops/ShopScreen";
 import { shopName } from "../board/shopProps";
@@ -60,6 +62,8 @@ import { rtEmit } from "../roadtrip/rtSocket";
 import { rtMyPopups, rtOwnIds } from "../roadtrip/rtMine";
 import { RT_DEFS } from "../board/roadtrip/maps.gen";
 import RoadtripSummary from "../roadtrip/RoadtripSummary";
+import { RtGuideButton } from "../roadtrip/RtGuideButton"; // คู่มือ Road Trip (ปุ่ม ? ตลอดทริป)
+import RtMobInfo, { isRtMobUnit } from "../roadtrip/RtMobInfo"; // การ์ดมอน Road Trip (คลิกมอน)
 import RtTransitions, { useRtView } from "../roadtrip/RtTransitions"; // ฉากเปลี่ยนของโหมด (เข้าจุดพัก/ต่อสู้/บอส/ชนะ/แพ้/ภูมิภาค)
 import StopBar from "../roadtrip/StopBar";
 import Garage from "../roadtrip/Garage";
@@ -698,8 +702,8 @@ function ModalMounts({
       {shop && (newBag
         ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
         : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
-      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} rtFree={rtFree} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb} />}
-      {bagOpen && newBag && rtStash && <div className="rt-stash-float"><StashPanel stash={rtStash} me={me} players={players} bagSlots={bagSlots || 5} /></div>}
+      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} rtFree={rtFree} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb}
+        side={rtStash ? <StashPanel side stash={rtStash} me={me} players={players} bagSlots={bagSlots || 5} /> : null} />}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <CharVideoPreloader players={players} />
@@ -1248,18 +1252,19 @@ function forecastStatusItems(p) {
 function StatusModal({ p, onClose, statusOnly }) {
   const items = statusEntries(p, true);
   const ch = p.character;
+  const rtMob = isRtMobUnit(p); // Road Trip: มอน = การ์ดมอน (พลังโจมตี/ระยะเดิน/ความสามารถ/บทบาท/ระยะบอส)
   const skillRows = !statusOnly && ch
     ? [["สกิลติดตัว", ch.passive], ["สกิลพื้นฐาน", ch.basic], ["สกิลรอง", ch.secondary], ["ท่าไม้ตาย", ch.ultimate]]
     : [];
   return (
     <AvModal
       tone="white"
-      label={statusOnly ? "สถานะ" : "ข้อมูลผู้เล่น"}
+      label={rtMob ? "มอน" : statusOnly ? "สถานะ" : "ข้อมูลผู้เล่น"}
       title={p.name}
       width="min(34rem, 94vw)"
       onClose={onClose}
       right={
-        !statusOnly && p.img ? (
+        !statusOnly && p.img && !rtMob ? (
           <span className="av-frame relative block w-12 h-12 overflow-hidden shrink-0" style={{ border: `1px solid ${p.color}` }}>
             <img src={p.character?.cover || p.img} alt="" className="w-full h-full object-cover" />
           </span>
@@ -1267,7 +1272,8 @@ function StatusModal({ p, onClose, statusOnly }) {
       }
     >
       <>
-        {!statusOnly && (
+        {rtMob && <RtMobInfo p={p} />}
+        {!statusOnly && !rtMob && (
           <div className="av-heading text-sm mb-4" style={{ color: "var(--avm-dim, rgba(234,243,252,.6))" }}>
             {p.character?.name}
             {!p.connected && <span className="ml-2 text-xs" style={{ color: "var(--av-blood)" }}>• reconnecting</span>}
@@ -1871,6 +1877,7 @@ export default function GameBoard(props) {
         </div>
       )}
       <RtTransitions state={state} view={view} act={rtv.act} endAct={rtv.endAct} lowQ={props.lowQ} />
+      {view !== "over" && <RtGuideButton state={state} />}
     </>
   );
 }
@@ -1921,7 +1928,20 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const rtTravel = rtOn && state.roadtrip.phase !== "combat";
   const rtStop = rtOn && state.roadtrip.phase === "stop" ? state.roadtrip.stop : null;
   const [garageOpen, setGarageOpen] = useState(false);
-  if (garageOpen && (!rtStop || rtStop.kind === "motel")) setGarageOpen(false);
+  if (garageOpen && (!rtStop || rtStop.kind !== "gas")) setGarageOpen(false);
+  const [campOpen, setCampOpen] = useState(false); // แคมป์: แผงทำอาหาร (fx camp spot cook — กองไฟ/ครัว)
+  if (campOpen && (!rtStop || rtStop.kind !== "camp")) setCampOpen(false);
+  const [campSpot, setCampSpot] = useState(null); // แคมป์: แผงของจุดอื่น (fx camp { spot })
+  if (campSpot && (!rtStop || rtStop.kind !== "camp")) setCampSpot(null);
+  // ฟ้าสาง (ทุกคนนอนเต็นท์ครบ — fx sunrise ทุกเครื่อง)
+  const [sunrise, setSunrise] = useState(0);
+  const sunSeen = useRef(null);
+  useEffect(() => {
+    const fx = rtOn && Array.isArray(state.roadtrip.fx) ? state.roadtrip.fx : [];
+    const last = fx.filter((f) => f.k === "sunrise" && typeof f.key === "number").pop();
+    if (sunSeen.current == null) { sunSeen.current = last ? last.key : 0; return; }
+    if (last && last.key > sunSeen.current) { sunSeen.current = last.key; setSunrise(last.key); }
+  }, [rtOn, state.roadtrip?.fx]); // eslint-disable-line react-hooks/exhaustive-deps
   const rtGarageSeen = useRef(new Set());
   useEffect(() => {
     const fx = rtOn && Array.isArray(state.roadtrip.fx) ? state.roadtrip.fx : [];
@@ -1929,6 +1949,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     // จุดพัก: อาคารมินิมาร์ท/สำนักงาน = ร้าน (server ส่ง fx { k: "shop", pid, shopId } ตอนเล่นอาคาร) → เปิดหน้าร้านเดิม (server ยืนยันไปแล้ว ไม่ต้อง emit viewShop ซ้ำ)
     for (const f of rtMyPopups(fx, rtOwnIds(state.players, state.youId), rtGarageSeen.current)) {
       if (f.k === "shop") { if (f.shopId) setShopId(f.shopId); }
+      else if (f.k === "stash") setBagOpen(true); // ยืนติดรถตู้แล้ว = กระเป๋า + กล่องรถ
+      else if (f.k === "camp") { if (f.spot === "cook") { setCampSpot(null); setCampOpen(true); } else { setCampOpen(false); setCampSpot(f.spot); } }
       else setGarageOpen(true);
     }
   }, [rtOn, state.roadtrip?.fx, state.youId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1990,6 +2012,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const rtSelU = rtStop && rtSel ? state.players.find((p) => p.id === rtSel && (p.id === state.youId || p.duoOf === state.youId) && p.alive && p.pos) || null : null;
   const me = rtSelU || (state.controlId && state.players.find((p) => p.id === state.controlId)) || hand;
   const rtUnitArg = rtStop && me && me.id !== state.youId ? { unitId: me.id } : {};
+  // กล่องรถที่จุดพัก: ยืนติดรถตู้ที่จอดเท่านั้น (ผู้ใช้สั่ง 2026-11-14 · server/roadtrip/stash.js near)
+  const rtVanB = rtStop && state.board ? (RT_DEFS[state.board.area] || {}).vanBlock : null;
+  const rtAtVan = !!rtVanB && !!me && me.alive && !!me.pos && Math.max(rtVanB.x0 - me.pos.x, 0, me.pos.x - rtVanB.x1) + Math.max(rtVanB.y0 - me.pos.y, 0, me.pos.y - rtVanB.y1) === 1;
   const roster = rosterOf(state.players); // ผู้เล่นจริง (ตัดตัวที่สองของระบบคู่)
   const duoUnits = hand && hand.duoWith ? unitsOfSide(hand, state.players) : null;
   const handAlive = !!hand && sideAlive(hand, state.players);
@@ -2068,7 +2093,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // Gate of Babylon (me.remoteShop — กิลกาเมช): ซื้อจากร้านไหนก็ได้บนแผนที่ ไม่ต้องยืนติด
   // Road Trip จุดพัก: ไม่มีตาเดิน — ทุกคนซื้อพร้อมกันได้ (server shop.js freeShop) · ผู้ใช้แจ้งบัค 2026-11-14
   const rtShopFree = state.gameMode === "roadtrip" && state.roadtrip && state.roadtrip.phase === "stop" && !!me?.alive;
-  const shopBlock = !rtShopFree && (!myTurn || canto) ? "ไม่ใช่ตาของคุณ" : !openShop || (!nearShops.includes(openShop) && !me?.remoteShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  const shopBlock = !rtShopFree && (!myTurn || canto) ? "ไม่ใช่ตาของคุณ" : !openShop || (!nearShops.includes(openShop) && !me?.remoteShop) ? "ต้องอยู่ติดร้าน" : bagFull && !(openShop.kind === "rtfood" || openShop.kind === "rtcart") ? "กระเป๋าเต็ม" : null; // แผงวัตถุดิบ: ซ้อนกองเดิมได้แม้กระเป๋าเต็ม (server ตัดสิน)
   const viewShop = (sh) => { if (!sh) return; clickSound(); socket.emit("viewShop", { shopId: sh.id }); setShopId(sh.id); };
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
@@ -2800,7 +2825,10 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         zoom={hudZ}
       />}
       {/* Road Trip: แถบจุดพัก (เวลา · ความพร้อม · อู่) + อู่ */}
-      {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "motel" ? null : rtGarageGo} />}
+      {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "gas" ? rtGarageGo : null} />}
+      {campSpot && rtStop && rtStop.kind === "camp" && <CampSpot key={campSpot} spot={campSpot} state={state} me={me} unitArg={rtUnitArg} zoom={hudZ} onClose={() => setCampSpot(null)} />}
+      {sunrise > 0 && <div key={sunrise} className="rt-sunrise" onAnimationEnd={() => setSunrise(0)} />}
+      {campOpen && rtStop && rtStop.kind === "camp" && <CampPanel state={state} me={me} unitArg={rtUnitArg} zoom={hudZ} onClose={() => setCampOpen(false)} />}
       {garageOpen && rtStop && (
         <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} far={rtGarageFar()} unitId={rtUnitArg.unitId} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
       )}
@@ -2942,7 +2970,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
         myTurn={myTurn && !canto && !me?.summon} bagSlots={me?.bagSlots || state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         rtFree={state.gameMode === "roadtrip" && !!state.roadtrip && state.roadtrip.phase === "stop"}
-        rtStash={state.gameMode === "roadtrip" && state.roadtrip && state.roadtrip.phase === "stop" && state.roadtrip.van ? state.roadtrip.van.stash || null : null}
+        rtStash={rtAtVan && state.roadtrip.van ? state.roadtrip.van.stash || null : null}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
         onBomb={(it, el) => { setBagOpen(false); setPickReq({ kind: "bomb", uid: it.uid, el }); }}

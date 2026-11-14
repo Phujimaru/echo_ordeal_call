@@ -380,7 +380,7 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
   // ช่องพิเศษ
   for (const sp of info.special) if (!flat || isStaticSp(info, sp)) bakeSpecial(g, sp, { night, C, area: info.area }); // flat (ภาพพื้นผิว) = เฉพาะช่องพิเศษของผัง · ที่เกิดระหว่างเกมวาดสดทับ
   // จุดเกิด
-  for (const { x, y } of info.spawns) {
+  for (const { x, y } of isRtArea(info.area) ? [] : info.spawns) { // Road Trip: ไม่มีวงจุดเกิด (ผู้ใช้สั่ง 2026-11-15 — วงกลมโล่งๆ ดูไม่สวยในแคมป์/จุดพัก)
     g.strokeStyle = C.spawn; g.lineWidth = 1.5;
     gEllipse(g, x + 0.5, y + 0.5, 0.36, 0, 24); g.stroke(); gEllipse(g, x + 0.5, y + 0.5, 0.2, 0, 24); g.stroke();
   }

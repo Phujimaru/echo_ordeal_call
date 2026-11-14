@@ -12,16 +12,18 @@ export function rtOwnIds(players, youId) {
 }
 
 // fx ที่ต้องเปิดหน้าต่างส่วนตัวบนเครื่องนี้ (garage = หน้าอู่ · shop = หน้าร้าน) — fx ของคนอื่นข้ามเสมอ
-//  seen = Set ของ key ที่จัดการไปแล้ว (แก้ในที่) · คืน [{ k: "garage" } | { k: "shop", shopId }]
+//  seen = Set ของ key ที่จัดการไปแล้ว (แก้ในที่) · คืน [{ k: "garage" | "stash" | "campfire" } | { k: "shop", shopId }]
+// stash = ยืนติดรถตู้ที่จอดแล้ว (เปิดกระเป๋า + กล่องรถ) · camp = แผงของจุดในแคมป์
+const POPUP_KINDS = new Set(["garage", "shop", "stash", "camp"]); // camp = แผงของจุดในแคมป์ (spot: cook/logs/canoe/mallow/scope/chop/fish/repair)
 export function rtMyPopups(fx, own, seen) {
   const out = [];
   for (const f of Array.isArray(fx) ? fx : []) {
-    if (!f || (f.k !== "garage" && f.k !== "shop")) continue;
+    if (!f || !POPUP_KINDS.has(f.k)) continue;
     const k = f.key ?? JSON.stringify(f);
     if (seen.has(k)) continue;
     seen.add(k);
     if (f.pid == null || !own.has(f.pid)) continue;
-    out.push(f.k === "shop" ? { k: "shop", shopId: f.shopId || null } : { k: "garage" });
+    out.push(f.k === "shop" ? { k: "shop", shopId: f.shopId || null } : f.k === "camp" ? { k: "camp", spot: f.spot || null } : { k: f.k });
   }
   return out;
 }

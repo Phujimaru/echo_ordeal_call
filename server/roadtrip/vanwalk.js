@@ -21,6 +21,7 @@ const PROP_KIND = {
   curtain0: "toggle", curtain1: "toggle", curtain2: "toggle", curtain3: "toggle", curtain4: "toggle", curtain5: "toggle",
   fan: "switch", light: "switch", grill: "switch",
   bob: "tap", pillow0: "tap", pillow1: "tap", guitar: "tap", micro: "tap", lounge: "tap", turret: "tap", table: "dice",
+  stash: "tap", // กล่องเก็บของกลาง (stash.js) — ถึงกล่อง = fx vanProp → client เปิดแผงกล่องรถของคนที่กด
 };
 // แตร/พวงมาลัย/วิทยุ/กล้องส่อง = คำสั่งเดิม (rt:horn · rt:seat · วิทยุ) ไม่ใช่ของร่วม
 const DRIVER_ONLY = new Set();

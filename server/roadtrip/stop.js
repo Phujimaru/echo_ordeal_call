@@ -1,4 +1,7 @@
-// Road Trip: จุดพัก (ปั๊ม 150 วิ / โมเต็ล 60 วิ) — กระดาน 2D เดิม เดินอิสระไม่จำกัดระยะ ไม่มีตาเดิน (contract §2)
+// Road Trip: จุดพัก (ปั๊ม / โมเต็ล / แคมป์) — กระดาน 2D เดิม เดินอิสระไม่จำกัดระยะ ไม่มีตาเดิน (contract §2)
+//  ไม่จำกัดเวลา (ผู้ใช้สั่ง 2026-11-14 "ปั๊มไม่ต้องมีเวลา") — ออกเมื่อทุกคนที่มีชีวิตและต่ออยู่กดพร้อม (หลุด/ล้ม ไม่ต้องรอ)
+//   · ทุกคนหลุดหมด = กันค้าง: ออกเองใน CAMP.afkSecs วิ (camp.js) · กลับมาต่อ = ยกเลิก
+//  แคมป์ (kind "camp" — camp.js): เต็นท์นอนพัก · กองไฟทำอาหาร/กิจกรรมกลางคืน · แม่แรงซ่อมรถ · รถเข็นพ่อค้าเร่ขายวัตถุดิบ (50%)
 //  เดิน (rt:walk) = BFS ไม่จำกัดก้าว · ผ่านเพื่อนได้ หยุดซ้อนไม่ได้ (กฎ Fire Emblem — GRID_PLAN §8.8) · ไม่ผ่านสิ่งกีดขวาง/ร้าน
 //  กิจกรรม (rt:act) = วัตถุบนแผนที่ (maps.js props ที่มี spot) — ต้องยืนติด (server เดินไปให้ถ้ายังไม่ติด) · ใช้ได้คนละครั้งต่อจุดพัก (ยกเว้นตู้น้ำมัน)
 //  ร้าน = ระบบร้านเดิม (shop.js) ที่ shopSpots — ซื้อได้นอกตาเดินขณะอยู่จุดพัก (RT.freeShop)
@@ -22,9 +25,9 @@ const K = Board.key;
 function enter(kind) {
   const RT = H(), rt = match.roadtrip;
   const devArea = Number(process.env.ECHO_DEV_RT_AREA); // dev: บังคับแบบปั๊ม (72/73/74) ตอน QA
-  const area = kind === "motel" ? Maps.RT_MOTEL : Maps.RT_GAS.includes(devArea) ? devArea : pick(Maps.RT_GAS);
+  const area = kind === "motel" ? Maps.RT_MOTEL : kind === "camp" ? Maps.RT_CAMP : Maps.RT_GAS.includes(devArea) ? devArea : pick(Maps.RT_GAS);
   rt.stops++;
-  rt.legs = 0;
+  if (kind !== "camp") rt.legs = 0; // แคมป์จอดกลางทาง — ทางแยกถัดไปนับต่อจากเดิม
   // ฟื้นคนที่ล้มก่อนวางกระดาน (placeOnBoard วางเฉพาะคนที่ยังอยู่)
   for (const p of RT.crew()) if (!p.alive) RT.raise(p, kind === "motel" ? 1 : 0.5);
   if (kind === "motel") {
@@ -38,9 +41,12 @@ function enter(kind) {
   rt.van.rearOpen = false;
   match.board = null;
   L.action().placeOnBoard(area);
-  const s = openShops(rt, area, kind);
-  rt.stop = { kind, area, ready: {}, cd: {}, used: {}, shopId: s ? s.id : null, shopProp: s ? s.prop : null };
-  RT.setPhase("stop", Number(process.env.ECHO_DEV_RT_STOP_SECS) || (kind === "motel" ? RT.SECS.motel : RT.SECS.gas), leave); // dev: ECHO_DEV_RT_STOP_SECS = เวลาจุดพักยาวพิเศษ (QA)
+  const camp = kind === "camp" ? require("./camp").fresh(rt) : null;
+  const shops = openShops(rt, area, kind, camp);
+  const s = shops[0] || null;
+  rt.stop = { kind, area, ready: {}, cd: {}, used: {}, shopId: s ? s.id : null, shopProp: s ? s.prop : null, shops: Object.fromEntries(shops.map((o) => [o.prop, o.id])), camp };
+  // ไม่จำกัดเวลา (ผู้ใช้สั่ง 2026-11-14) · dev: ECHO_DEV_RT_STOP_SECS = ตั้งเวลาออกเอง (QA)
+  RT.setPhase("stop", Number(process.env.ECHO_DEV_RT_STOP_SECS) || 0, leave);
   RT.fx("stop", { kind, area });
   RT.broadcast();
 }
@@ -55,22 +61,55 @@ function shopProp(d, kind) {
     ? props.find((o) => o.kind === "motel" && o.style === "office") || props.find((o) => o.kind === "motel")
     : props.find((o) => o.kind === "mart");
 }
-function openShops(rt, area, kind) {
-  const shop = L.shop(), d = Maps.defs[area];
+// คืน [ร้าน…] — ร้านแรก = ร้านหลัก (มินิมาร์ท/สำนักงาน) · ปั๊มมีแผงวัตถุดิบแยก (prop "grocer") · แคมป์ = รถเข็นพ่อค้าเร่ (prop "foodcart") ถ้ามีพ่อค้าแวะ
+function openShops(rt, area, kind, camp = null) {
+  const shop = L.shop(), d = Maps.defs[area], out = [];
   shop.clearShops();
-  const o = shopProp(d, kind);
-  if (!o) return null;
-  const shopKind = kind === "motel" ? "rtoffice" : "rtmart";
-  const s = shop.openShopAt(shopKind, o.x0, o.y0, { w: o.x1 - o.x0 + 1, h: o.y1 - o.y0 + 1, rt: true, building: true, prop: o.id });
-  if (shopKind === "rtoffice") s.items = s.items.filter((it) => OFFICE_ITEMS.includes(it.type));
-  // ยาก: ขนนกคืนชีพไม่ขายประจำ — สุ่มเป็นของหายากที่มินิมาร์ท 30%
-  if (shopKind === "rtmart" && diffOf(rt).revive == null && Math.random() < 0.3) s.items.push({ id: `${s.id}_rtrevive_rare_${Date.now()}`, type: "rtRevive", price: priceOf(rt, 14), stockBase: 1, bought: 0, sold: false, soldTo: null });
+  const o = kind === "camp" ? null : shopProp(d, kind);
+  if (o) {
+    const shopKind = kind === "motel" ? "rtoffice" : "rtmart";
+    const s = shop.openShopAt(shopKind, o.x0, o.y0, { w: o.x1 - o.x0 + 1, h: o.y1 - o.y0 + 1, rt: true, building: true, prop: o.id });
+    if (shopKind === "rtoffice") s.items = s.items.filter((it) => OFFICE_ITEMS.includes(it.type));
+    // ยาก: ขนนกคืนชีพไม่ขายประจำ — สุ่มเป็นของหายากที่มินิมาร์ท 30%
+    if (shopKind === "rtmart" && diffOf(rt).revive == null && Math.random() < 0.3) s.items.push({ id: `${s.id}_rtrevive_rare_${Date.now()}`, type: "rtRevive", price: priceOf(rt, 14), stockBase: 1, bought: 0, sold: false, soldTo: null });
+    out.push(s);
+  }
+  // แผงวัตถุดิบ (ปั๊ม) — ขายวัตถุดิบ 6 ชนิด (food.js)
+  const props = (d && d.props) || [];
+  if (kind === "camp") { out.push(...campShops(rt, props)); shop.refreshShopForJourney(); return out; }
+  const fo = kind === "gas" ? props.find((x) => x.kind === "grocer") : kind === "camp" && camp && camp.vendor ? props.find((x) => x.kind === "foodcart") : null;
+  if (fo) {
+    const Food = require("./food"), fk = kind === "camp" ? "rtcart" : "rtfood";
+    const s = shop.openShopAt(fk, fo.x0, fo.y0, { w: fo.x1 - fo.x0 + 1, h: fo.y1 - fo.y0 + 1, rt: true, rtFood: true, building: true, prop: fo.id });
+    s.items = Object.entries(Food.ING).map(([type, v], i) => ({ id: `${s.id}_${type}_${Date.now()}_${i}`, type, price: priceOf(rt, v.price), stockBase: kind === "camp" ? Food.VENDOR_STOCK : Food.GROCER_STOCK, bought: 0, sold: false, soldTo: null }));
+    out.push(s);
+  }
   shop.refreshShopForJourney();
-  return s;
+  return out;
+}
+// ตลาดนัดกลางคืนในแคมป์ (ผู้ใช้สั่ง 2026-11-15): รถฟู้ดทรัค (อาหารพร้อมกิน) · แผงวัตถุดิบ · แผงของแคมป์ — ร้านคืออาคาร [Claude ตั้งราคา/จำนวน]
+const CAMP_SHOPS = [
+  { kind: "foodtruck", shop: "rtsnack", items: [["dishOmelet", 3], ["dishSteak", 4], ["dishFish", 4], ["dishHotpot", 6]], stock: 1 },
+  { kind: "mstall", style: "ing", shop: "rtcart", ing: true },
+  { kind: "mstall", style: "supply", shop: "rtsupply", items: [["armor", 3, 2], ["cleanse", 3], ["resist", 3], ["rtFish", 2]], stock: 2 },
+];
+function campShops(rt, props) {
+  const shop = L.shop(), Food = require("./food"), out = [];
+  for (const def of CAMP_SHOPS) {
+    const o = props.find((x) => x.kind === def.kind && (!def.style || x.style === def.style));
+    if (!o) continue;
+    const s = shop.openShopAt(def.shop, o.x0, o.y0, { w: o.x1 - o.x0 + 1, h: o.y1 - o.y0 + 1, rt: true, rtFood: true, building: true, prop: o.id });
+    const list = def.ing ? Object.entries(Food.ING).map(([type, v]) => [type, v.price]) : def.items;
+    s.items = list.map(([type, price, value], i) => ({ id: `${s.id}_${type}_${Date.now()}_${i}`, type, ...(value ? { value } : {}), price: priceOf(rt, price), stockBase: def.ing ? Food.VENDOR_STOCK : def.stock, bought: 0, sold: false, soldTo: null }));
+    out.push(s);
+  }
+  return out;
 }
 function leave() {
+
   const RT = H(), rt = match.roadtrip;
   if (!rt || rt.phase !== "stop") return;
+  require("./camp").onLeave(rt); // แคมป์: อาหารที่ยังไม่สุก = เสิร์ฟเลย
   L.shop().clearShops();
   rt.stop = null;
   RT.fx("leave", {});
@@ -81,7 +120,10 @@ function leave() {
 function propsOf(rt) { const d = rt.stop && Maps.defs[rt.stop.area]; return (d && d.props) || []; }
 function propById(rt, id) { return propsOf(rt).find((o) => o.id === id && o.spot) || null; }
 const touchesProp = (pos, o) => Math.max(o.x0 - pos.x, 0, pos.x - o.x1) + Math.max(o.y0 - pos.y, 0, pos.y - o.y1) === 1;
-const ACT_KINDS = new Set(["mart", "garage", "pump", "claw", "gacha", "arcade", "karaoke", "fortune", "spicy", "dog", "wash", "wc", "pond", "ferris", "bbq", "vending", "motel", "stall", "pool"]);
+const ACT_KINDS = new Set(["mart", "garage", "pump", "claw", "gacha", "arcade", "karaoke", "fortune", "spicy", "dog", "wash", "wc", "pond", "ferris", "bbq", "vending", "motel", "stall", "pool", "grocer", "foodcart", "campfire", "tent", "jack",
+  "kitchen", "storylog", "mallow", "ledge", "lake", "woodpile", "hammock", "campdog", "foodtruck", "mstall"]); // แคมป์ (camp.js — แต่ละจุดเปิดแผงของตัวเอง)
+// แคมป์: กดจุด = เปิดแผงมินิเกม/กิจกรรมของจุดนั้น (fx camp { pid, spot }) — ไม่ใช่ผลทันที
+const CAMP_SPOTS = { campfire: "cook", kitchen: "cook", storylog: "logs", mallow: "mallow", ledge: "scope", woodpile: "chop", jack: "repair" };
 // คูลดาวน์/ใช้แล้ว แยกรายคน (QA 2026-11-14 — เดิมทั้งทีมใช้ร่วม) · viewerId = ผู้ดู (ไม่ส่ง = ไม่มีข้อมูลรายคน)
 const cdKey = (pid, objId) => `${pid}:${objId}`;
 function publicActs(rt, viewerId = null) {
@@ -102,8 +144,7 @@ function command(p, name, o) {
   if (rt.phase !== "stop" || !rt.stop) return false;
   if (name === "ready") {
     if (rt.stop.ready[p.id]) delete rt.stop.ready[p.id]; else rt.stop.ready[p.id] = true;
-    const RT = H();
-    if (RT.awake().length && RT.awake().every((u) => rt.stop.ready[u.id])) { leave(); return true; }
+    checkReady();
     return true;
   }
   p = unitOf(p, o);
@@ -118,6 +159,35 @@ function reachOf(p) {
   const action = L.action();
   const units = action.boardUnits("*").filter((u) => u.id !== p.id);
   return Board.reachable(action.boardMap(), { id: p.id, x: p.pos.x, y: p.pos.y, size: 1 }, 999, units, { isAlly: () => true, blocked: action.boardBlocked(p.id) });
+}
+// ทุกคนที่มีชีวิตและต่ออยู่กดพร้อม = ออก (คนล้ม/หลุดไม่ต้องรอ · ล้มหมด = นับคนที่ต่ออยู่) → ออกแล้วไหม
+function readyNeed() { const RT = H(), a = RT.awake(); const live = a.filter((u) => u.alive); return live.length ? live : a; }
+function checkReady() {
+  const rt = match.roadtrip;
+  if (!rt || rt.phase !== "stop" || !rt.stop) return false;
+  const need = readyNeed();
+  if (need.length && need.every((u) => rt.stop.ready[u.id])) { leave(); return true; }
+  return false;
+}
+// มีคนหลุด/กลับมา (index.presenceChanged): ไม่เหลือใครต่ออยู่ = ตั้งเวลากันค้าง · มีคนกลับมา = ยกเลิก
+function presence() {
+  const RT = H(), rt = match.roadtrip, timers = require("../timers");
+  if (!rt || rt.phase !== "stop" || !rt.stop) return;
+  if (!RT.awake().length) {
+    if (!rt.stop.afk) { rt.stop.afk = true; timers.startPhaseTimer(require("./camp").CAMP.afkSecs, () => { if (match.roadtrip === rt && rt.phase === "stop") leave(); }); }
+    return;
+  }
+  if (rt.stop.afk) { rt.stop.afk = false; timers.clearPhaseTimer(); match.timeLeft = 0; }
+  checkReady();
+}
+// เดินไปยืนติดรถตู้ที่จอด (กล่องรถ) → ถึงแล้วไหม
+function toVan(p) {
+  const rt = match.roadtrip, d = Maps.defs[rt.stop.area], b = d && d.vanBlock;
+  if (!b) return false;
+  if (touchesProp(p.pos, b)) return true;
+  const reach = reachOf(p);
+  const goals = [...reach.values()].filter((n) => touchesProp(n, b)).sort((a, c) => Math.abs(a.x - p.pos.x) + Math.abs(a.y - p.pos.y) - (Math.abs(c.x - p.pos.x) + Math.abs(c.y - p.pos.y)));
+  return !!goals[0] && walk(p, goals[0].x, goals[0].y);
 }
 function walk(p, x, y) {
   if (!Number.isInteger(x) || !Number.isInteger(y) || (x === p.pos.x && y === p.pos.y)) return false;
@@ -134,6 +204,12 @@ function walk(p, x, y) {
 }
 function act(p, id) {
   const RT = H(), rt = match.roadtrip;
+  // รถตู้ที่จอด = กล่องเก็บของกลาง (ผู้ใช้สั่ง 2026-11-14 — ต้องยืนติดรถ) → เดินไปแล้วเปิด (fx stash → client เปิดกระเป๋า + กล่องรถ)
+  if (id === "van") {
+    if (!toVan(p)) { RT.fx("actFail", { id: p.id, obj: "van", kind: "van", why: "far" }); RT.broadcast(); return false; }
+    RT.fx("stash", { pid: p.id });
+    return true;
+  }
   const o = propById(rt, id);
   if (!o || !ACT_KINDS.has(o.kind)) return false;
   const now = Date.now();
@@ -152,13 +228,28 @@ function act(p, id) {
     walked = true;
   }
   if (o.kind === "garage" && !walked) RT.fx("garage", { pid: p.id });
-  if (o.id === rt.stop.shopProp && rt.stop.shopId) { RT.fx("shop", { pid: p.id, shopId: rt.stop.shopId }); return true; } // อาคารร้าน = เปิดหน้าร้าน
+  const shopOf = (rt.stop.shops || {})[o.id] || (o.id === rt.stop.shopProp ? rt.stop.shopId : null);
+  if (shopOf) { RT.fx("shop", { pid: p.id, shopId: shopOf }); return true; } // อาคารร้าน/แผงวัตถุดิบ = เปิดหน้าร้าน
+  if (o.kind === "foodcart" || o.kind === "grocer" || o.kind === "mstall" || o.kind === "foodtruck") return fail("closed"); // ร้านที่ไม่ได้เปิด
   if (o.kind === "garage") return true; // อู่ = เปิดหน้าอู่ (fx garage) — ซ่อมด้วยปุ่มในหน้าอู่ (rt:upg { key: "repair" })
+  const c = rt.stop.camp, Camp = require("./camp");
+  if (c && o.kind === "lake") { // ทะเลสาบ: ซ้าย = ตกปลา · ขวา = เรือแคนู (เข้าคิวเรือทันที)
+    if (o.style === "canoe") { if (!c.acts.canoe && !c.done.canoe) Camp.night(p, "canoe"); else if (c.acts.canoe && !c.acts.canoe.ids[p.id]) Camp.night(p, "canoe"); RT.fx("camp", { pid: p.id, spot: "canoe" }); return true; }
+    if ((c.fish[p.id] || 0) >= Camp.FISH.casts) return fail("used");
+    RT.fx("camp", { pid: p.id, spot: "fish" }); return true;
+  }
+  if (c && o.kind === "jack") { // แม่แรง = มินิเกมขันน็อต (camp.js repair) · ซ่อมแล้ว = ✔
+    if (c.fixed[p.id]) return fail("used");
+    if (rt.van.hp >= rt.van.hpMax) return fail("full");
+  }
+  if (c && o.kind === "ledge") Camp.starsAsk(p); // กล้องดูดาว: โจทย์ของคนนี้
+  if (c && CAMP_SPOTS[o.kind]) { RT.fx("camp", { pid: p.id, spot: CAMP_SPOTS[o.kind] }); return true; }
   const g0 = p.gold || 0, hp0 = p.hp, nb0 = (rt.buffs[p.id] || []).length;
   const res = doAct(rt, p, o);
   if (!res || res.fail) return fail(res ? res.fail : "none"); // broadcast แล้ว (รวมตำแหน่งที่เพิ่งเดินไป)
   rt.stop.cd[cdKey(p.id, o.id)] = now + ACT_CD_MS;
   if (!REPEAT.has(o.kind)) used[o.id] = true;
+  if (o.kind === "tent") require("./camp").onSleep(rt); // ทุกคนนอนครบ = ฟ้าสาง
   // ผลที่ client ลอยตัวเลขให้ดู (เหรียญ/เลือด/บัฟ) — คำนวณจากของจริง ไม่ต้องเดาจากแต่ละกิจกรรม
   const extra = { dg: (p.gold || 0) - g0 };
   if (p.hp !== hp0) extra.dhp = p.hp - hp0;
@@ -261,6 +352,29 @@ function doAct(rt, p, o) {
       return { text: "ของกินตลาดนัด — พลังชีวิต +2", heal: 2 };
     }
     case "vending": { if (!pay(p, 1)) return { fail: "gold" }; const it = grant(p, "armor", 2); return { text: it ? `ได้ ${it}` : "กระเป๋าเต็ม", item: it }; }
+    // แคมป์ (camp.js): เต็นท์ = นอนพัก คนละครั้งต่อแคมป์ (เลือด/เกราะเต็ม + ล้างสถานะ) · แม่แรง = ซ่อมรถด้วยมือ ฟรี คนละครั้ง
+    case "tent": {
+      const c = rt.stop.camp, combat = L.combat(), keys = L.shop().cleansableOf(p);
+      if (!c || c.slept[p.id]) return { fail: "used" };
+      c.slept[p.id] = true;
+      combat.healHp(p, 99); p.armor = Math.max(p.armor || 0, combat.maxArmorOf(p));
+      for (const k of keys) { delete p.statuses[k]; if (p.statusAmt) delete p.statusAmt[k]; if (p.statusAt) delete p.statusAt[k]; }
+      return { text: "นอนพักในเต็นท์ — พลังชีวิต/เกราะเต็ม", heal: 99, n: keys.length, sleep: true };
+    }
+    case "hammock": { // เปลญวน: นอนเล่น พลังชีวิต +2 (คนละครั้ง)
+      const c = rt.stop.camp;
+      if (!c || c.hammock[p.id]) return { fail: "used" };
+      c.hammock[p.id] = true;
+      L.combat().healHp(p, require("./camp").REST.hammockHeal);
+      return { text: "นอนเปลญวน — ผ่อนคลาย", heal: require("./camp").REST.hammockHeal };
+    }
+    case "campdog": { // หมาแคมป์: ลูบหัว พลังชีวิต +1 (คนละครั้ง)
+      const c = rt.stop.camp;
+      if (!c || c.pet[p.id]) return { fail: "used" };
+      c.pet[p.id] = true;
+      L.combat().healHp(p, require("./camp").REST.petHeal);
+      return { text: "ลูบหัวหมาแคมป์ ♥", heal: require("./camp").REST.petHeal, pet: true };
+    }
     case "motel": { // ห้องพัก: เลือดเต็ม + ล้างสถานะผิดปกติทั้งหมด (เข้าโมเต็ลก็เลือดเต็มอยู่แล้ว — ห้องพักจึงต้องล้างสถานะด้วยถึงจะมีประโยชน์ · QA 2026-11-14)
       const combat = L.combat(), keys = L.shop().cleansableOf(p);
       if (p.hp >= combat.maxHpOf(p) && !keys.length) return { fail: "full" };
@@ -317,6 +431,12 @@ function useItem(p, o) {
   } else if (it.type === "rtFish") {
     if (p.hp >= combat.maxHpOf(p)) return false;
     combat.healHp(p, 3);
+  } else if (require("./food").isDish(it.type)) {
+    const res = require("./food").eat(p, it); // อาหารแคมป์ (food.js) — กินได้ทุกที่นอกการต่อสู้
+    if (!res) return false;
+    inv.splice(idx, 1);
+    RT.fx("use", { id: p.id, type: it.type, feast: !!res.feast });
+    return true;
   } else if (it.type === "armor") {
     if (p.armor >= combat.maxArmorOf(p)) return false;
     combat.healArmor(p, it.value || 2);
@@ -333,4 +453,5 @@ function useItem(p, o) {
   return true;
 }
 
-module.exports = { ACT_KINDS, FUEL_PER_GOLD, DOG_FEEDS, enter, leave, command, walk, act, doAct, upgrade, repairCost, useItem, publicActs, reachOf, propById };
+module.exports = { ACT_KINDS, FUEL_PER_GOLD, DOG_FEEDS, enter, leave, command, walk, act, doAct, upgrade, repairCost, useItem, publicActs, reachOf, propById, checkReady, presence, toVan };
+

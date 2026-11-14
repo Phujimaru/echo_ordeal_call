@@ -15,6 +15,8 @@ function regionAt(km) {
 }
 function nightAt(km) { return Math.floor(Math.max(0, km) / NIGHT_KM) % 2 === 1; }
 
+// ระยะถึงจุดหมายของแต่ละทาง [ต่ำสุด, สูงสุด] กม. (คู่มือฝั่ง client rtGuideData.js ใช้ค่าเดียวกัน — tests/roadtrip-guide.test.js)
+const FORK_KM = { gas: [4, 9], motel: [6, 11], fight: [2, 6], elite: [2, 5], event: [3, 7] };
 // ทางแยก 2–3 ทาง ไม่ซ้ำชนิด · น้ำมันน้อย (< 35%) = มีปั๊มเสมอ · อีลิทหลัง 20 กม. · โมเต็ลหลัง 30 กม.
 function forkOptions(rt, rng = Math.random) {
   const pool = [
@@ -38,7 +40,6 @@ function forkOptions(rt, rng = Math.random) {
   // สลับตำแหน่ง (ปั๊มไม่ได้อยู่ช่องแรกเสมอ)
   for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
   // ระยะถึงจุดหมาย (ผู้ใช้: "ระยะถึงปั๊มถัดไปขึ้นกับทางที่เลือก") — ปั๊ม/โมเต็ลไกลกว่า · สู้ใกล้
-  const KM = { gas: [4, 9], motel: [6, 11], fight: [2, 6], elite: [2, 5], event: [3, 7] };
-  return out.map((kind) => { const [a, b] = KM[kind] || [3, 7]; return { kind, km: a + Math.floor(rng() * (b - a + 1)) }; });
+  return out.map((kind) => { const [a, b] = FORK_KM[kind] || [3, 7]; return { kind, km: a + Math.floor(rng() * (b - a + 1)) }; });
 }
-module.exports = { REGIONS, REGION_NAMES, REGION_KM, NIGHT_KM, BOSS_KM, LEG_KM, LEGS_PER_FORK, KM_PER_SEC, NODE_KINDS, regionAt, nightAt, forkOptions };
+module.exports = { REGIONS, REGION_NAMES, REGION_KM, NIGHT_KM, BOSS_KM, LEG_KM, LEGS_PER_FORK, KM_PER_SEC, NODE_KINDS, FORK_KM, regionAt, nightAt, forkOptions };

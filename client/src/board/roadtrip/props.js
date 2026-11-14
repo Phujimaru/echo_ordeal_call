@@ -231,6 +231,9 @@ function onAct(id, kind) {
     case "pond": case "pool": for (let i = 0; i < 14; i++) emit({ x: cx + (Math.random() - 0.5), y: cy + (Math.random() - 0.5) * 0.6, z: 0.1, vx: (Math.random() - 0.5) * 1.2, vy: (Math.random() - 0.5) * 0.8, vz: 1.5 + Math.random(), grav: true, drop: true, dur: 0.9, t0: NOW + (k === "pond" ? 1000 : 0) });
       if (k === "pond") emit({ x: cx + 0.4, y: cy - 0.2, z: 0.1, vx: 0.8, vz: 2.6, grav: true, fish: true, dur: 1.1, t0: NOW + 1000 }); break;
     case "bbq": case "stall": for (let i = 0; i < (k === "bbq" ? 14 : 8); i++) emit({ x: cx + (Math.random() - 0.5) * 0.6, y: cy, z: 1.0, vz: 0.5 + Math.random() * 0.4, vx: 0.15, smoke: true, dur: 1.6 + Math.random(), t0: NOW + i * 90 }); break;
+    case "campfire": for (let i = 0; i < 18; i++) emit({ x: cx + (Math.random() - 0.5) * 0.6, y: cy, z: 0.6, vz: 1.4 + Math.random(), vx: (Math.random() - 0.5) * 0.6, fire: true, dur: 0.9 + Math.random() * 0.4, t0: NOW + i * 40 }); break;
+    case "tent": for (let i = 0; i < 3; i++) emit({ x: cx + 0.3, y: cy, z: 1.4 + i * 0.3, vz: 0.4, vx: 0.15, text: "z", col: "#e8eeff", dur: 1.8, t0: NOW + 500 + i * 400 }); break;
+    case "jack": for (let i = 0; i < 8; i++) emit({ x: cx, y: cy, z: 0.4, vz: 1 + Math.random(), vx: (Math.random() - 0.5) * 1.2, star: true, col: "#ffe9a8", dur: 0.7, t0: NOW + 400 }); break;
     case "vending": emit({ x: cx, y: p.y1 + 0.95, z: 0.5, vy: 0.6, vz: 0.6, grav: true, can: PRIZE[(Math.random() * 5) | 0], dur: 0.9, t0: NOW + 500 }); break;
     case "arcade": for (let i = 0; i < 6; i++) emit({ x: cx + (Math.random() - 0.5) * 0.5, y: p.y1 + 1, z: 1.5, vz: 0.8, text: "★", col: PRIZE[i % 5], dur: 1.1, t0: NOW + i * 180 }); break;
     case "ferris": for (let i = 0; i < 8; i++) emit({ x: cx + (Math.random() - 0.5) * 3, y: cy, z: 2 + Math.random() * 2, vz: 0.4, star: true, col: "#ffe9a8", dur: 1.5 }); break;
@@ -815,11 +818,11 @@ function truckStatic(p) {
   const trailer = REGION === "desert" ? "#ece6d8" : "#e3e9ee";
   castShadow(a0, b0, a1, b1, 2.4); ao(a0, b0, a1, b1, 0.2, 0.25);
   for (const x of [a0 + 0.55, a0 + 1.25, a1 - 2.7, a1 - 0.55]) for (const y of [b0, b1]) { ell(x, y, 0.3, 0.3, 0.3, col("#1e1f22")); }
+  box(a0, b0 + 0.1, a1 - 0.1, b1 - 0.1, 0.22, 0.38, "#4a4d52"); // แชสซีใต้ตู้/หัวรถ — วาดก่อนตู้ (เดิมวาดทีหลังจนแผ่นดำทับกลางตู้)
   box(a0, b0, a1 - 2.0, b1, 0.38, 2.25, trailer);
   for (let x = a0 + 0.4; x < a1 - 2.1; x += 0.5) faceRect("s", x, x + 0.03, b1, 0.42, 2.2, "rgba(40,50,60,.1)");
   faceRect("s", a0 + 0.2, a1 - 2.2, b1, 0.95, 1.4, col("#d9534f"));
   faceText("s", "ECHO LOGISTICS", a0 + 0.4, a1 - 2.4, b1, 1.5, 2.05, null, col("#3d7fc0"));
-  box(a0, b0 + 0.1, a1 - 2.0, b1 - 0.1, 0.25, 0.38, "#4a4d52");
   // หัวรถ: กระโปรงยาว + ห้องโดยสาร + กระจก + ปล่องไอเสีย
   box(a1 - 1.95, b0 + 0.05, a1 - 0.9, b1 - 0.05, 0.38, 2.0, "#d9534f");
   box(a1 - 0.9, b0 + 0.12, a1, b1 - 0.12, 0.38, 1.25, "#c9433c");
@@ -863,29 +866,325 @@ function lanternsAir(p) {
   });
 }
 // ---------- แผงอาหาร (ตลาดนัด): เคาน์เตอร์ + หลังคาผ้า + ป้าย + ของบนเคาน์เตอร์
-const STALL = { noodle: ["#d9342c", "ก๋วยเตี๋ยว", "#f6efe0"], grill: ["#e8762b", "ปิ้งย่าง", "#7a4a2a"], sweets: ["#ff6fa8", "ขนม", "#ffd23f"], drinks: ["#3d9fd9", "น้ำ", "#9fe0ff"] };
+const STALL = { noodle: ["#d9342c", "ก๋วยเตี๋ยว", "#f6efe0"], grill: ["#e8762b", "ปิ้งย่าง", "#7a4a2a"], sweets: ["#ff6fa8", "ขนม", "#ffd23f"], drinks: ["#3d9fd9", "น้ำ", "#9fe0ff"], grocer: ["#3fae7a", "วัตถุดิบ", "#ffd23f"], cart: ["#c8682a", "วัตถุดิบ", "#9fe0a8"], ing: ["#3fae7a", "วัตถุดิบ", "#ffd23f"], supply: ["#3d8bd9", "ของแคมป์", "#f2c94c"] };
+const VEG = ["#e94b3c", "#3fae7a", "#f2c94c", "#f6efe0", "#c4604a"]; // มะเขือเทศ ผัก ไข่ ข้าว เนื้อ
 function stallDraw(p) {
+  // แผง/ซุ้มขายของ 2×2 ขึ้นไป (ผู้ใช้สั่ง 2026-11-15 — ต้องมีปริมาตรทุกมุมกล้อง): ผนังหลัง · ผนังข้าง 2 ด้าน · เคาน์เตอร์หน้า · หลังคาหนามีชายผ้า · ป้าย
   const { X0, X1, Y0, Y1, cx } = B(p), [c, name, food] = STALL[p.style] || STALL.noodle;
-  const a0 = X0 + 0.12, a1 = X1 - 0.12, b0 = Y0 + 0.2, b1 = Y1 - 0.18;
-  castShadow(a0, b0, a1, b1, 2.0, 0.1); ao(a0, b0, a1, b1, 0.15, 0.24);
-  box(a0, b0 + 0.25, a1, b1, 0, 0.9, "#a87545");
-  for (let x = a0 + 0.1; x < a1; x += 0.2) faceRect("s", x, x + 0.02, b1, 0.05, 0.86, "rgba(60,30,10,.16)");
-  box(a0 - 0.04, b0 + 0.21, a1 + 0.04, b1 + 0.04, 0.9, 0.98, "#7a4a2a");
+  const a0 = X0 + 0.15, a1 = X1 - 0.15, b0 = Y0 + 0.15, b1 = Y1 - 0.18, H = 1.95;
+  castShadow(a0, b0, a1, b1, 2.2, 0.13); ao(a0, b0, a1, b1, 0.18, 0.26);
+  box(a0, b0, a1, b0 + 0.18, 0, H, "#8a5a32", { top: col("#6a4224") });            // ผนังหลัง
+  box(a0, b0 + 0.18, a0 + 0.1, b1 - 0.35, 0, H, "#9a6a3e");                         // ผนังข้างซ้าย
+  box(a1 - 0.1, b0 + 0.18, a1, b1 - 0.35, 0, H, "#9a6a3e");                         // ผนังข้างขวา
+  faceRect("s", a0 + 0.12, a1 - 0.12, b0 + 0.18, 0.95, 1.75, col(c, 0.75));         // ชั้นวางของด้านหลัง
+  for (let i = 0; i < 5; i++) ball(a0 + 0.35 + i * (a1 - a0 - 0.7) / 4, b0 + 0.24, 1.35, 0.06, PRIZE[i % 5]);
+  box(a0, b1 - 0.35, a1, b1, 0, 0.92, "#a87545");                                   // เคาน์เตอร์หน้า
+  for (let x = a0 + 0.1; x < a1; x += 0.2) faceRect("s", x, x + 0.02, b1, 0.05, 0.88, "rgba(60,30,10,.16)");
+  box(a0 - 0.04, b1 - 0.39, a1 + 0.04, b1 + 0.04, 0.92, 1.0, "#7a4a2a");
   faceRect("s", a0 + 0.08, a1 - 0.08, b1, 0.5, 0.82, col(c));
   for (let i = 0; i < 4; i++) {
-    const x = a0 + 0.28 + i * (a1 - a0 - 0.56) / 3, y = b0 + 0.6;
-    if (p.style === "drinks") { box(x - 0.07, y - 0.07, x + 0.07, y + 0.07, 0.98, 1.25, food, { lit: NIGHT }); box(x - 0.08, y - 0.08, x + 0.08, y + 0.08, 1.25, 1.28, "#ffffff"); }
-    else if (p.style === "grill") { line3([x - 0.12, y, 1.02], [x + 0.12, y, 1.02], "#7a4a2a", 0.05); ball(x - 0.05, y, 1.04, 0.035, "#c4604a"); ball(x + 0.04, y, 1.04, 0.035, "#e8b04a"); }
-    else { ell(x, y, 0.99, 0.13, 0.1, col("#f7f5f0")); ell(x, y, 1.0, 0.09, 0.07, col(food)); }
+    const x = a0 + 0.28 + i * (a1 - a0 - 0.56) / 3, y = b1 - 0.18;
+    if (p.style === "drinks") { box(x - 0.07, y - 0.07, x + 0.07, y + 0.07, 1.0, 1.25, food, { lit: NIGHT }); box(x - 0.08, y - 0.08, x + 0.08, y + 0.08, 1.25, 1.28, "#ffffff"); }
+    else if (p.style === "grill") { line3([x - 0.12, y, 1.04], [x + 0.12, y, 1.04], "#7a4a2a", 0.05); ball(x - 0.05, y, 1.06, 0.035, "#c4604a"); ball(x + 0.04, y, 1.06, 0.035, "#e8b04a"); }
+    else if (p.style === "grocer" || p.style === "cart" || p.style === "ing") { box(x - 0.13, y - 0.1, x + 0.13, y + 0.1, 1.0, 1.12, "#b98a5a"); for (let j = 0; j < 3; j++) ball(x - 0.07 + j * 0.07, y + (j % 2) * 0.03, 1.17, 0.045, VEG[(i + j) % 5]); }
+    else if (p.style === "supply") { box(x - 0.12, y - 0.09, x + 0.12, y + 0.09, 1.0, 1.2, i % 2 ? "#3f78c4" : "#3fae7a", { top: col("#f6f6f2") }); }
+    else { ell(x, y, 1.01, 0.13, 0.1, col("#f7f5f0")); ell(x, y, 1.02, 0.09, 0.07, col(food)); }
   }
-  for (const x of [a0 + 0.04, a1 - 0.04]) for (const y of [b0 + 0.25, b1 - 0.04]) post(x, y, 2.0, 0.05, "#5a3a22", 0.9);
-  // หลังคาผ้าลายทาง มีความหนา + ชายหยัก
-  const n = 6, w = (a1 - a0 + 0.24) / n;
-  for (let i = 0; i < n; i++) { const x0 = a0 - 0.12 + i * w, x1 = x0 + w; poly([[x0, b0, 2.15], [x1, b0, 2.15], [x1, b1 + 0.28, 1.82], [x0, b1 + 0.28, 1.82]], col(i % 2 ? c : "#ffffff"), LINE); poly([[x0, b1 + 0.28, 1.82], [x1, b1 + 0.28, 1.82], [x1, b1 + 0.28, 1.7], [(x0 + x1) / 2, b1 + 0.28, 1.62], [x0, b1 + 0.28, 1.7]], col(i % 2 ? c : "#ffffff", 0.88)); }
-  signBox("s", name, a0 + 0.12, a1 - 0.12, b1 + 0.02, 1.32, 1.6, c, "#ffffff", 0.05);
+  // หลังคาหนา (แผ่น + ชายผ้าลายทางยื่นหน้า) — มีความหนาทุกมุมมอง
+  box(a0 - 0.12, b0 - 0.08, a1 + 0.12, b1 + 0.3, H, H + 0.14, c, { top: col(c, 1.05) });
+  const n = Math.max(4, Math.round((a1 - a0) / 0.4)), w = (a1 - a0 + 0.24) / n;
+  for (let i = 0; i < n; i++) if (i % 2 === 0) { const x0 = a0 - 0.12 + i * w; poly([[x0, b0 - 0.08, H + 0.141], [x0 + w, b0 - 0.08, H + 0.141], [x0 + w, b1 + 0.3, H + 0.141], [x0, b1 + 0.3, H + 0.141]], col("#ffffff", 0.95)); }
+  for (let i = 0; i < n; i++) { const x0 = a0 - 0.12 + i * w, x1 = x0 + w; poly([[x0, b1 + 0.3, H], [x1, b1 + 0.3, H], [x1, b1 + 0.3, H - 0.16], [(x0 + x1) / 2, b1 + 0.3, H - 0.24], [x0, b1 + 0.3, H - 0.16]], col(i % 2 ? c : "#ffffff", 0.9)); }
+  for (const x of [a0 + 0.04, a1 - 0.04]) post(x, b1 - 0.04, H - 0.92, 0.05, "#5a3a22", 0.92);
+  signBox("s", name, a0 + 0.15, a1 - 0.15, b1 + 0.3, H + 0.16, H + 0.5, c, "#ffffff", 0.05);
   const k = actK(p.id, 1800);
-  if (!LOWQ && Math.random() < (k != null ? 0.5 : 0.06)) emit({ x: a0 + 0.3 + Math.random() * (a1 - a0 - 0.6), y: b0 + 0.6, z: 1.1, vz: 0.5, vx: 0.1, smoke: true, dur: 1.4 });
-  if (NIGHT) { post(cx, b1 + 0.1, 0.12, 0.06, "#2d333b", 1.62); glowAt(cx, b1 + 0.2, 1.5, 1.3, "255,210,140", 0.4); }
+  if (!LOWQ && Math.random() < (k != null ? 0.5 : 0.05)) emit({ x: a0 + 0.3 + Math.random() * (a1 - a0 - 0.6), y: b1 - 0.2, z: 1.1, vz: 0.5, vx: 0.1, smoke: true, dur: 1.4 });
+  if (NIGHT) { post(cx, b1 + 0.2, 0.12, 0.06, "#2d333b", H - 0.2); glowAt(cx, b1 + 0.2, 1.6, 1.5, "255,210,140", 0.45); glowAt(cx, (b0 + b1) / 2, 1.2, 1.1, "255,200,130", 0.3); }
+}
+// ---------- แคมป์ / แผงวัตถุดิบ (ผู้ใช้สั่ง 2026-11-14 · server/roadtrip/camp.js · maps.js RT_CAMP)
+function grocerDraw(p) { stallDraw({ ...p, style: "grocer" }); }
+// รถเข็นพ่อค้าเร่: ล้อ + แผง · วันที่ไม่มีพ่อค้า = คลุมผ้าใบ
+function foodcartDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p), st = rtState(), open = !!(st && st.stop && st.stop.camp && st.stop.camp.vendor);
+  for (const x of [X0 + 0.45, X1 - 0.45]) { const [sx, sy, s] = P(x, Y1 - 0.2, 0.22); G.fillStyle = col("#2d333b"); G.beginPath(); G.ellipse(sx, sy, 0.07 * s, 0.22 * s, 0, 0, TAU); G.fill(); }
+  if (open) { stallDraw({ ...p, style: "cart" }); return; }
+  const a0 = X0 + 0.15, a1 = X1 - 0.15, b0 = Y0 + 0.25, b1 = Y1 - 0.2;
+  castShadow(a0, b0, a1, b1, 1.1, 0.1);
+  box(a0, b0, a1, b1, 0.2, 0.95, "#8a6a4a");
+  box(a0 - 0.05, b0 - 0.05, a1 + 0.05, b1 + 0.05, 0.95, 1.15, "#56708a", { top: col("#6f8ba8") });
+}
+// กองไฟ: วงหิน + ฟืน + เปลวไฟขยับ + แสงเรือง (กลางคืนสว่างมาก)
+function campfireDraw(p) {
+  const { cx, cy } = B(p), k = actK(p.id, 2200), t = NOW / 1000;
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; ball(cx + Math.cos(a) * 0.62, cy + Math.sin(a) * 0.5, 0.08, 0.12, i % 2 ? "#8c949c" : "#6f767e"); }
+  ell(cx, cy, 0.02, 0.5, 0.4, col("#2a1a10"));
+  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4 + 0.3; line3([cx - Math.cos(a) * 0.42, cy - Math.sin(a) * 0.3, 0.06], [cx + Math.cos(a) * 0.42, cy + Math.sin(a) * 0.3, 0.16], "#6a3f1f", 0.09); }
+  const lv = (campC().fire | 0), big = (k != null ? 1.35 : 1) * (1 + 0.22 * lv); // ไฟกองใหญ่ตามขั้น (ผ่าฟืน — camp.js)
+  for (let i = 0; i < 5; i++) {
+    const ph = t * (3 + i * 0.7) + i * 1.7, h = (0.55 + 0.25 * Math.sin(ph)) * big, dx = (i - 2) * 0.12 + Math.sin(ph * 0.7) * 0.04;
+    const [bx, by, s] = P(cx + dx, cy, 0.1), [tx, ty] = P(cx + dx * 0.6, cy, 0.1 + h);
+    G.fillStyle = i % 2 ? "rgba(255,170,40,.92)" : "rgba(255,90,30,.88)";
+    G.beginPath(); G.moveTo(bx - 0.13 * s, by); G.quadraticCurveTo(bx - 0.1 * s, (by + ty) / 2, tx, ty); G.quadraticCurveTo(bx + 0.1 * s, (by + ty) / 2, bx + 0.13 * s, by); G.closePath(); G.fill();
+  }
+  ell(cx, cy, 0.14, 0.18, 0.12, "rgba(255,240,180,.95)");
+  glowAt(cx, cy, 0.4, NIGHT ? 3.4 : 1.6, "255,150,60", (NIGHT ? 0.55 : 0.3) * (0.85 + 0.15 * Math.sin(t * 9)));
+  if (NIGHT) glowAt(cx, cy, 0.05, 6.5, "255,140,50", 0.22 * (0.9 + 0.1 * Math.sin(t * 7))); // แสงไฟอุ่นส่องทั่วลาน
+  if (!LOWQ && Math.random() < (k != null ? 0.6 : 0.18)) emit({ x: cx + (Math.random() - 0.5) * 0.4, y: cy, z: 0.7, vz: 0.9 + Math.random() * 0.6, vx: (Math.random() - 0.5) * 0.3, fire: true, dur: 0.8 + Math.random() * 0.5 });
+  if (!LOWQ && Math.random() < 0.05) emit({ x: cx, y: cy, z: 1.1, vz: 0.4, vx: 0.1, smoke: true, dur: 2.2 });
+}
+// เต็นท์: สันกลางตามแนว y · หน้าเต็นท์ (ใต้) มีประตู · กลางคืนบางหลังเปิดไฟ
+const TENT = { orange: ["#e8762b", "#c45a1a"], green: ["#3fae7a", "#2a7f56"], blue: ["#3d8bd9", "#2a64a8"] };
+function tentDraw(p) {
+  const { X0, X1, Y0, Y1, cx } = B(p), [c1, c2] = TENT[p.style] || TENT.orange, h = 1.35;
+  const a0 = X0 + 0.15, a1 = X1 - 0.15, b0 = Y0 + 0.2, b1 = Y1 - 0.25;
+  castShadow(a0, b0, a1, b1, h, 0.12); ao(a0, b0, a1, b1, 0.2, 0.22);
+  poly([[a0, b0, 0], [a0, b1, 0], [cx, b1, h], [cx, b0, h]], col(c2), LINE);
+  poly([[a1, b0, 0], [a1, b1, 0], [cx, b1, h], [cx, b0, h]], col(c1), LINE);
+  poly([[a0, b1, 0], [a1, b1, 0], [cx, b1, h]], col(c1, 1.08), LINE);
+  const lit = NIGHT; // แคมป์ = กลางคืนเสมอ · ไฟอุ่นในทุกเต็นท์
+  poly([[cx - 0.32, b1 + 0.002, 0], [cx + 0.32, b1 + 0.002, 0], [cx, b1 + 0.002, h * 0.62]], lit ? "rgba(255,214,140,.95)" : col("#2a1a10"));
+  line3([cx, b0 - 0.15, h + 0.05], [cx, b1 + 0.15, h + 0.05], "#f7f5f0", 0.025);
+  if (lit) glowAt(cx, b1 + 0.2, 0.3, 1.2, "255,200,120", 0.35);
+  for (const x of [a0 - 0.15, a1 + 0.15]) line3([x, b1 + 0.2, 0], [cx, b1, h * 0.9], "rgba(240,240,230,.6)", 0.012);
+}
+// ขอนไม้นั่งรอบกองไฟ (เดินทับได้)
+function logDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p), horiz = X1 - X0 >= Y1 - Y0;
+  const a0 = X0 + 0.12, a1 = X1 - 0.12, b0 = Y0 + 0.12, b1 = Y1 - 0.12;
+  if (horiz) { const y = (Y0 + Y1) / 2; box(a0, y - 0.16, a1, y + 0.16, 0, 0.28, "#7a4a2a", { top: col("#9a6232") }); faceRect("e", y - 0.16, y + 0.16, a1, 0.02, 0.26, col("#d8b48a")); }
+  else { const x = (X0 + X1) / 2; box(x - 0.16, b0, x + 0.16, b1, 0, 0.28, "#7a4a2a", { top: col("#9a6232") }); faceRect("s", x - 0.16, x + 0.16, b1, 0.02, 0.26, col("#d8b48a")); }
+}
+// ลำธารชิดขอบ: น้ำไหลระยิบ + หินริมตลิ่ง
+function streamDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p), t = NOW / 1000;
+  poly([[X0 - 3, Y0, 0.01], [X1 + 3, Y0, 0.01], [X1 + 3, Y1, 0.01], [X0 - 3, Y1, 0.01]], col(NIGHT ? "#1d4a6a" : "#3d8bd9", 1, false));
+  poly([[X0 - 3, Y0 + 0.2, 0.012], [X1 + 3, Y0 + 0.2, 0.012], [X1 + 3, Y1 - 0.25, 0.012], [X0 - 3, Y1 - 0.25, 0.012]], col(NIGHT ? "#2a6a8f" : "#5fb0e8", 1, false));
+  G.strokeStyle = NIGHT ? "rgba(190,230,255,.45)" : "rgba(255,255,255,.6)"; G.lineWidth = 1.3;
+  for (let i = 0; i < 26; i++) { const x = X0 - 2 + ((i * 0.93 + t * 0.6) % (X1 - X0 + 4)), y = Y0 + 0.3 + (i % 3) * 0.2; const a = P(x, y, 0.02), b = P(x + 0.5, y, 0.02); G.beginPath(); G.moveTo(a[0], a[1]); G.lineTo(b[0], b[1]); G.stroke(); }
+  for (let x = X0; x < X1; x += 1.3) ball(x + 0.4, Y1 - 0.05, 0.05, 0.11, (x | 0) % 2 ? "#8c949c" : "#6f767e");
+  if (NIGHT) for (let i = 0; i < 6; i++) glowAt(X0 + 2 + i * 3.2, Y0 + 0.5, 0.05, 0.9, "120,200,255", 0.12);
+}
+// ไฟประดับสายยาว (ขึงสูงตลอดแนว · หลอดอุ่นกะพริบเบาๆ) + หิ่งห้อยลอยทั่วลาน — วาดทับตัวละคร (air)
+function lightsAir(p) {
+  const { X0, X1, Y0 } = B(p), y = Y0 + 0.5, t = NOW / 1000;
+  const n = Math.max(2, Math.round((X1 - X0) / 3));
+  for (let k = 0; k <= n; k++) post(X0 + (k * (X1 - X0)) / n, y, 2.6, 0.05, "#5a3a22");
+  for (let k = 0; k < n; k++) {
+    const a = X0 + (k * (X1 - X0)) / n, b = X0 + ((k + 1) * (X1 - X0)) / n;
+    let prev = null;
+    for (let i = 0; i <= 12; i++) { const x = a + ((b - a) * i) / 12, z = 2.55 - Math.sin((i / 12) * Math.PI) * 0.55, q = P(x, y, z); if (prev) { G.strokeStyle = "rgba(40,30,20,.7)"; G.lineWidth = 1; G.beginPath(); G.moveTo(prev[0], prev[1]); G.lineTo(q[0], q[1]); G.stroke(); } prev = q; }
+    for (let i = 1; i < 12; i += 2) {
+      const x = a + ((b - a) * i) / 12, z = 2.5 - Math.sin((i / 12) * Math.PI) * 0.55, c = ["255,214,140", "255,170,120", "255,236,170", "190,230,160"][(k + i) % 4];
+      const tw = 0.75 + 0.25 * Math.sin(t * 2.2 + i + k * 3);
+      ball(x, y, z, 0.05, `rgb(${c})`, true);
+      if (NIGHT) glowAt(x, y, z, 0.45, c, 0.5 * tw);
+    }
+  }
+  if (NIGHT && !LOWQ) for (let i = 0; i < 18; i++) { // หิ่งห้อย
+    const ph = t * 0.35 + i * 1.37, x = 1 + ((i * 2.9 + Math.sin(ph) * 1.5) % 18), yy = 2 + ((i * 1.7 + Math.cos(ph * 0.8) * 1.2) % 9), z = 0.6 + 0.5 * Math.sin(ph * 1.6);
+    const a = 0.5 + 0.5 * Math.sin(t * 3 + i * 2);
+    glowAt(x, yy, z, 0.35, "200,255,120", 0.45 * a); ball(x, yy, z, 0.025, "#eaffb0", true);
+  }
+}
+// ผ้าปูปิกนิกลายตาราง + ตะกร้า + แก้ว
+function blanketDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p), a0 = X0 + 0.2, a1 = X1 - 0.2, b0 = Y0 + 0.2, b1 = Y1 - 0.2;
+  poly([[a0, b0, 0.01], [a1, b0, 0.01], [a1, b1, 0.01], [a0, b1, 0.01]], col("#d9342c"));
+  const n = 6;
+  for (let i = 0; i < n; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2) { const x0 = a0 + ((a1 - a0) * i) / n, x1 = a0 + ((a1 - a0) * (i + 1)) / n, y0 = b0 + ((b1 - b0) * j) / 4, y1 = b0 + ((b1 - b0) * (j + 1)) / 4; poly([[x0, y0, 0.012], [x1, y0, 0.012], [x1, y1, 0.012], [x0, y1, 0.012]], col("#f6efe0")); }
+  const cx = a1 - 0.6, cy = b0 + 0.6;
+  box(cx - 0.25, cy - 0.18, cx + 0.25, cy + 0.18, 0.01, 0.32, "#b98a5a", { top: col("#c9a06a") });
+  line3([cx - 0.22, cy, 0.32], [cx + 0.22, cy, 0.32], "#7a4a2a", 0.03);
+  for (const [dx, c] of [[-0.9, "#ff8a3d"], [-0.6, "#5aa0e0"]]) post(a0 + 0.8 + dx + 1, b1 - 0.45, 0.16, 0.06, c, 0.01);
+}
+// ของขนลงข้างท้ายรถ: ลังไม้ 2 ใบซ้อน · กระติก · เก้าอี้พับ 2 ตัว · เตาแก๊สกับหม้อ
+function gearDraw(p) {
+  const { X0, X1, Y0, Y1, cy } = B(p);
+  ao(X0 + 0.1, Y0 + 0.15, X1 - 0.1, Y1 - 0.15, 0.15, 0.2);
+  box(X0 + 0.15, Y0 + 0.2, X0 + 0.7, Y0 + 0.65, 0, 0.45, "#a87545", { top: col("#c49060") });
+  box(X0 + 0.2, Y0 + 0.25, X0 + 0.62, Y0 + 0.6, 0.45, 0.8, "#9a6232", { top: col("#b98a5a") });
+  box(X0 + 0.85, cy - 0.15, X0 + 1.3, cy + 0.15, 0, 0.35, "#3f78c4", { top: col("#f6f6f2") });
+  for (const x of [X1 - 0.55, X1 - 0.25]) { box(x - 0.13, Y1 - 0.55, x + 0.13, Y1 - 0.3, 0.25, 0.3, "#3fae7a"); poly([[x - 0.13, Y1 - 0.55, 0.3], [x + 0.13, Y1 - 0.55, 0.3], [x + 0.13, Y1 - 0.6, 0.65], [x - 0.13, Y1 - 0.6, 0.65]], col("#2a7f56")); post(x - 0.1, Y1 - 0.32, 0.25, 0.02, "#5c636b"); post(x + 0.1, Y1 - 0.32, 0.25, 0.02, "#5c636b"); }
+  box(X0 + 0.25, Y1 - 0.4, X0 + 0.65, Y1 - 0.15, 0, 0.12, "#2d333b");
+  post(X0 + 0.45, Y1 - 0.28, 0.12, 0.13, "#9aa1a8", 0.12);
+  if (NIGHT) glowAt(X0 + 0.45, Y1 - 0.28, 0.15, 0.4, "90,160,255", 0.5);
+}
+// ---------- แคมป์ริมทะเลสาบ (ผู้ใช้สั่ง 2026-11-15 "ต้องมีมิติ อบอุ่นหัวใจ") ----------
+const campC = () => { const st = rtState(); return (st && st.stop && st.stop.camp) || {}; };
+// พื้นแคมป์ (แบน): ลานดินเหยียบรอบกองไฟ · ทางเดินดินจากกองไฟไปท่าเรือ/รถตู้/ตลาด/ครัว · ดอกหญ้า
+function campgroundDraw(p) {
+  const dirt = NIGHT ? "rgba(70,52,38,.55)" : "rgba(150,118,80,.5)", dirt2 = NIGHT ? "rgba(58,42,30,.6)" : "rgba(128,98,64,.5)";
+  const d = rtDefOf(76), props = (d && d.props) || [];
+  const at = (k, s) => { const o = props.find((x) => x.kind === k && (!s || x.style === s)); return o ? [(o.x0 + o.x1 + 1) / 2, (o.y0 + o.y1 + 1) / 2] : null; };
+  const fire = at("campfire");
+  if (fire) { ell(fire[0], fire[1], 0.006, 3.1, 2.6, dirt); ell(fire[0], fire[1], 0.007, 2.2, 1.8, dirt2); }
+  const path = (a, b, w = 0.45) => { if (!a || !b) return; const n = 14; for (let i = 0; i <= n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t + Math.sin(t * 6 + a[0]) * 0.18, y = a[1] + (b[1] - a[1]) * t; ell(x, y, 0.005, w, w * 0.8, dirt); } };
+  const pier = at("pier"), van = d && d.vanBlock ? [(d.vanBlock.x0 + d.vanBlock.x1 + 1) / 2, d.vanBlock.y0 - 0.2] : null;
+  path(fire, pier ? [pier[0], 3.4] : null); path(fire, van); path(fire, at("foodtruck")); path(fire, at("kitchen")); path(fire, at("ledge"), 0.35); path(fire, at("tent", "orange"), 0.35);
+  if (LOWQ) return;
+  const R = rng(76);
+  for (let i = 0; i < 70; i++) { const x = p.x0 + R() * (p.x1 - p.x0 + 1), y = p.y0 + R() * (p.y1 - p.y0 + 1); if (fire && Math.hypot(x - fire[0], y - fire[1]) < 2.4) continue; const [sx, sy, s] = P(x, y, 0); G.strokeStyle = NIGHT ? "rgba(60,110,70,.7)" : "rgba(90,150,80,.8)"; G.lineWidth = Math.max(1, s * 0.02); G.beginPath(); for (let k = -1; k <= 1; k++) { G.moveTo(sx + k * s * 0.04, sy); G.lineTo(sx + k * s * 0.07, sy - s * 0.1); } G.stroke(); if (i % 7 === 0) { G.fillStyle = ["#fff6c8", "#ffd84d", "#f58fb8"][i % 3]; G.beginPath(); G.arc(sx, sy - s * 0.1, Math.max(1, s * 0.025), 0, TAU); G.fill(); } }
+}
+// ทะเลสาบ: น้ำไล่สี ฝั่งลาดเป็นทราย/หิน · แสงไฟสะท้อนเป็นเส้นระยิบ · ระลอกขยับ · เรือแคนูผูกท่า (ฝั่งขวา)
+function lakeDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p), t = NOW / 1000, ext = p.x0 === 0 ? -6 : 0, ext2 = p.x1 >= 25 ? 6 : 0;
+  poly([[X0 + ext, Y1 - 0.05, 0.004], [X1 + ext2, Y1 - 0.05, 0.004], [X1 + ext2, Y1 + 0.35, 0.002], [X0 + ext, Y1 + 0.35, 0.002]], col(NIGHT ? "#5a5040" : "#cdb48c")); // ฝั่งลาด
+  poly([[X0 + ext, Y0 - 3, 0.01], [X1 + ext2, Y0 - 3, 0.01], [X1 + ext2, Y1, 0.01], [X0 + ext, Y1, 0.01]], col(NIGHT ? "#123048" : "#3d8bd9", 1, false));
+  poly([[X0 + ext, Y0 - 3, 0.012], [X1 + ext2, Y0 - 3, 0.012], [X1 + ext2, Y1 - 0.6, 0.012], [X0 + ext, Y1 - 0.6, 0.012]], col(NIGHT ? "#173d5c" : "#5fb0e8", 1, false));
+  for (let i = 0; i < 26; i++) { const ph = t * 0.4 + i * 0.7, x = X0 + ext + ((i * 1.37 + ph) % (X1 - X0 + ext2 - ext)), y = Y0 - 2 + ((i * 0.77) % (Y1 - Y0 + 1.6)); const a = P(x, y, 0.02), b = P(x + 0.6, y, 0.02); G.strokeStyle = NIGHT ? `rgba(160,210,255,${0.25 + 0.2 * Math.sin(ph)})` : "rgba(255,255,255,.55)"; G.lineWidth = 1.2; G.beginPath(); G.moveTo(a[0], a[1]); G.quadraticCurveTo((a[0] + b[0]) / 2, a[1] - 2, b[0], b[1]); G.stroke(); }
+  if (NIGHT) for (let i = 0; i < 9; i++) { const x = X0 + 1 + i * (X1 - X0 - 2) / 8; for (let j = 0; j < 4; j++) { const y = Y1 - 0.5 - j * 0.45, w = 0.35 - j * 0.06, f = 0.5 + 0.5 * Math.sin(t * 3 + i + j); const a = P(x - w, y, 0.02), b = P(x + w, y, 0.02); G.strokeStyle = `rgba(255,190,110,${0.35 * f})`; G.lineWidth = 2; G.beginPath(); G.moveTo(a[0], a[1]); G.lineTo(b[0], b[1]); G.stroke(); } } // ไฟจากฝั่งสะท้อนน้ำ
+  for (let x = X0 + 0.4; x < X1; x += 1.1) ball(x, Y1 + 0.05, 0.04, 0.1, (x | 0) % 2 ? "#8c949c" : "#6f767e");
+  if (p.style === "canoe") { // เรือแคนูผูกข้างท่า (โยกตามคลื่น)
+    const cx = X0 + 1.4, cy = Y1 - 0.7, bob = Math.sin(t * 1.6) * 0.03, acts = campC().acts || {};
+    const busy = !!(acts.canoe && acts.canoe.stage === "play");
+    const ox = busy ? Math.sin(t * 0.6) * 2.5 + 2.5 : 0;
+    poly([[cx - 0.9 + ox, cy, 0.05 + bob], [cx + ox, cy - 0.22, 0.05 + bob], [cx + 0.9 + ox, cy, 0.05 + bob], [cx + ox, cy + 0.22, 0.05 + bob]], col("#c4604a"), LINE);
+    poly([[cx - 0.7 + ox, cy, 0.12 + bob], [cx + ox, cy - 0.14, 0.12 + bob], [cx + 0.7 + ox, cy, 0.12 + bob], [cx + ox, cy + 0.14, 0.12 + bob]], col("#7a3a20"));
+    line3([cx - 0.2 + ox, cy - 0.3, 0.3], [cx + 0.1 + ox, cy + 0.3, 0.1], "#c9a06a", 0.025);
+    if (!busy) line3([cx - 0.9, cy, 0.1], [X0 - 0.05, cy - 0.3, 0.35], "rgba(240,230,210,.7)", 0.01);
+  }
+}
+// ท่าเรือไม้ (เดินได้): แผ่นไม้ + เสา + ตะเกียงปลายท่า + คันเบ็ด
+function pierDraw(p) {
+  const { X0, X1, Y0, Y1 } = B(p);
+  for (const x of [X0 + 0.1, X1 - 0.1]) for (let y = Y0 + 0.3; y < Y1; y += 1) post(x, y, 0.3, 0.07, "#5a3a22", -0.2);
+  for (let y = Y0; y < Y1 + 0.2; y += 0.25) box(X0, y, X1, y + 0.22, 0.22, 0.28, (Math.round(y * 4) % 2) ? "#a87545" : "#9a6a3e", { line: false });
+  post(X0 + 0.15, Y0 + 0.2, 1.1, 0.05, "#2d333b", 0.28);
+  ball(X0 + 0.15, Y0 + 0.2, 1.42, 0.08, "#ffd28a", true);
+  if (NIGHT) { glowAt(X0 + 0.15, Y0 + 0.2, 1.4, 1.8, "255,200,120", 0.55); glowAt(X0 + 0.15, Y0 - 0.4, 0.02, 1.3, "255,190,110", 0.3); }
+  line3([X1 - 0.2, Y0 + 0.6, 0.3], [X1 - 0.6, Y0 - 0.9, 1.4], "#3a3f48", 0.02); line3([X1 - 0.6, Y0 - 0.9, 1.4], [X1 - 0.65, Y0 - 1.0, 0.02], "rgba(240,240,240,.5)", 0.006);
+}
+// เปลญวนขึงระหว่างต้นไม้ 2 ต้น (โยกเบาๆ)
+function hammockDraw(p) {
+  const { X0, X1, Y0, Y1, cy } = B(p), sw = Math.sin(NOW / 900) * 0.05;
+  shadowAt((X0 + X1) / 2, cy, 1.2, 0.35);
+  for (const x of [X0 + 0.25, X1 - 0.25]) { post(x, cy, 1.4, 0.1, "#6a4224"); }
+  let prev = null;
+  for (let i = 0; i <= 12; i++) { const t = i / 12, x = X0 + 0.25 + (X1 - X0 - 0.5) * t, z = 1.15 - Math.sin(t * Math.PI) * 0.55, q = P(x, cy + sw * Math.sin(t * Math.PI), z); if (prev) { G.strokeStyle = col(i % 2 ? "#ff8a3d" : "#ffd23f"); G.lineWidth = Math.max(3, q[2] * 0.12); G.beginPath(); G.moveTo(prev[0], prev[1]); G.lineTo(q[0], q[1]); G.stroke(); } prev = q; }
+  const c = campC();
+  if (c.hammock && Object.keys(c.hammock).length) ball((X0 + X1) / 2, cy, 0.75, 0.12, "#f6e2cc");
+}
+// ราวตากผ้า (ทับตัวละคร): เชือก + ผ้าสีๆ ปลิว
+function clotheslineAir(p) {
+  const { X0, X1, cy } = B(p), t = NOW / 1000;
+  for (const x of [X0 + 0.2, X1 - 0.2]) post(x, cy, 1.8, 0.05, "#6a4224");
+  const a = P(X0 + 0.2, cy, 1.75), b = P(X1 - 0.2, cy, 1.75); G.strokeStyle = "rgba(240,235,220,.8)"; G.lineWidth = 1; G.beginPath(); G.moveTo(a[0], a[1]); G.quadraticCurveTo((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 6, b[0], b[1]); G.stroke();
+  const cl = ["#ff6fa8", "#5aa0e0", "#ffd23f", "#3fae7a", "#ff8a3d"];
+  for (let i = 0; i < 5; i++) { const x = X0 + 0.6 + i * (X1 - X0 - 1.2) / 4, w = Math.sin(t * 2 + i) * 0.05; poly([[x - 0.18, cy, 1.7], [x + 0.18, cy, 1.7], [x + 0.18 + w, cy, 1.25], [x - 0.18 + w, cy, 1.25]], col(cl[i])); }
+}
+// ลานหินยกสูง + กล้องดูดาว (ขาตั้ง 3 ขา)
+function ledgeDraw(p) {
+  const { X0, X1, Y0, Y1, cx, cy } = B(p), H = 0.7;
+  castShadow(X0 + 0.1, Y0 + 0.1, X1 - 0.1, Y1 - 0.1, 1.2, 0.16);
+  box(X0 + 0.1, Y0 + 0.15, X1 - 0.1, Y1 - 0.1, 0, H, "#7d8590", { top: col("#9aa1a8") });
+  for (let i = 0; i < 4; i++) ball(X0 + 0.4 + i * 0.7, Y1 - 0.15, 0.15, 0.22, i % 2 ? "#6f767e" : "#8c949c");
+  box(X0 + 0.2, Y1 - 0.45, X0 + 0.8, Y1 - 0.1, 0, 0.35, "#8c949c"); // ขั้นบันไดหิน
+  for (const [dx, dy] of [[-0.2, 0.15], [0.2, 0.15], [0, -0.2]]) line3([cx + dx, cy + dy, H], [cx, cy, H + 0.9], "#2d333b", 0.025);
+  line3([cx - 0.35, cy + 0.1, H + 0.75], [cx + 0.45, cy - 0.1, H + 1.25], "#c9d0d6", 0.08);
+  ball(cx + 0.45, cy - 0.1, H + 1.25, 0.06, "#5aa0e0", NIGHT);
+  if (NIGHT) for (let i = 0; i < 6; i++) { const a = P(cx + 0.5 + i * 0.4, cy - 0.15 - i * 0.1, H + 1.4 + i * 0.35); G.fillStyle = `rgba(255,250,210,${0.25 + 0.2 * Math.sin(NOW / 300 + i)})`; G.beginPath(); G.arc(a[0], a[1], 2, 0, TAU); G.fill(); }
+}
+// ที่ปิ้งมาร์ชเมลโล่: ถังไม้เสียบไม้ปิ้ง + ถุงมาร์ชเมลโล่
+function mallowDraw(p) {
+  const { cx, cy } = B(p);
+  ao(cx - 0.3, cy - 0.3, cx + 0.3, cy + 0.3, 0.1, 0.2);
+  box(cx - 0.22, cy - 0.2, cx + 0.22, cy + 0.2, 0, 0.5, "#9a6232", { top: col("#7a4a2a") });
+  for (let i = 0; i < 5; i++) { const a = -0.5 + i * 0.25; line3([cx + a * 0.3, cy, 0.45], [cx + a * 0.8, cy - 0.1, 1.15], "#c9a06a", 0.015); ball(cx + a * 0.8, cy - 0.1, 1.15, 0.05, i % 2 ? "#fff8ee" : "#ffdf9a"); }
+  box(cx + 0.25, cy - 0.1, cx + 0.45, cy + 0.12, 0, 0.3, "#f6efe0");
+}
+// หมาแคมป์นอนขดข้างกองไฟ (หายใจ · ลูบแล้วหางกระดิก)
+function campdogDraw(p) {
+  const { cx, cy } = B(p), br = 1 + Math.sin(NOW / 700) * 0.04, k = actK(p.id, 1600);
+  shadowAt(cx, cy, 0.42, 0.26);
+  ell(cx, cy, 0.14 * br, 0.36, 0.24, col("#c9873a")); ell(cx + 0.22, cy + 0.05, 0.2, 0.15, 0.12, col("#d99a52"));
+  ell(cx + 0.3, cy + 0.02, 0.27, 0.05, 0.07, col("#7a4a2a"));
+  const wag = k != null ? Math.sin(NOW / 60) * 0.12 : 0;
+  line3([cx - 0.3, cy, 0.12], [cx - 0.45, cy + 0.08 + wag, 0.18], "#c9873a", 0.05);
+  if (k != null || NIGHT) { const [sx, sy, s] = P(cx + 0.3, cy, 0.5 + Math.sin(NOW / 500) * 0.05); G.fillStyle = k != null ? "#ff6fa8" : "rgba(230,235,255,.7)"; G.font = `700 ${Math.max(9, s * 0.18) | 0}px sans-serif`; G.fillText(k != null ? "♥" : "z", sx, sy); }
+}
+// ขอนเล่าเรื่อง (ขอนใหญ่ + กีตาร์พิง + เทียน)
+function storylogDraw(p) {
+  const { X0, X1, cy } = B(p);
+  castShadow(X0 + 0.1, cy - 0.25, X1 - 0.1, cy + 0.25, 0.5, 0.14);
+  box(X0 + 0.1, cy - 0.25, X1 - 0.1, cy + 0.25, 0, 0.42, "#7a4a2a", { top: col("#9a6232") });
+  faceRect("e", cy - 0.25, cy + 0.25, X1 - 0.1, 0.02, 0.4, col("#d8b48a"));
+  const gx = X1 - 0.5; ell(gx, cy - 0.32, 0.45, 0.13, 0.2, col("#d99a52")); line3([gx, cy - 0.32, 0.55], [gx + 0.1, cy - 0.35, 1.2], "#5a3a22", 0.04);
+  post(X0 + 0.35, cy, 0.18, 0.05, "#f6efe0", 0.42); ball(X0 + 0.35, cy, 0.66, 0.035, "#ffd28a", true);
+  if (NIGHT) glowAt(X0 + 0.35, cy, 0.66, 0.9, "255,200,120", 0.45 * flicker(3));
+}
+// ครัวกลางแจ้ง: โต๊ะเตรียม + เขียง + หม้อบนเตาแก๊ส (ไอน้ำ) + ชั้นแขวนกระทะ
+function kitchenDraw(p) {
+  const { X0, X1, Y0, Y1, cy } = B(p), cooking = Object.keys(campC().cooking || {}).length > 0;
+  castShadow(X0 + 0.15, Y0 + 0.2, X1 - 0.15, Y1 - 0.2, 1.2, 0.14); ao(X0 + 0.15, Y0 + 0.2, X1 - 0.15, Y1 - 0.2, 0.2, 0.24);
+  for (const x of [X0 + 0.25, X1 - 0.25]) for (const y of [Y0 + 0.35, Y1 - 0.3]) post(x, y, 0.85, 0.05, "#5c636b");
+  box(X0 + 0.15, Y0 + 0.25, X1 - 0.15, Y1 - 0.2, 0.85, 0.95, "#c9a06a", { top: col("#e8d4b0") });
+  box(X0 + 0.2, Y0 + 0.3, X0 + 1.4, Y0 + 0.9, 0.1, 0.18, "#8a6a4a"); // ชั้นล่าง
+  box(X0 + 0.4, cy - 0.15, X0 + 1.0, cy + 0.2, 0.95, 1.0, "#b98a5a"); // เขียง
+  for (let i = 0; i < 3; i++) ball(X0 + 0.5 + i * 0.18, cy, 1.04, 0.05, VEG[i]);
+  const sx = X1 - 1.0;
+  box(sx - 0.35, cy - 0.25, sx + 0.35, cy + 0.25, 0.95, 1.08, "#2d333b");
+  ell(sx, cy, 1.1, 0.22, 0.17, col(cooking ? "#ff7a30" : "#3a3f48", 1, cooking));
+  box(sx - 0.2, cy - 0.16, sx + 0.2, cy + 0.16, 1.1, 1.38, "#9aa1a8", { top: col("#c9d0d6") });
+  post(X0 + 0.3, Y0 + 0.3, 1.0, 0.04, "#5c636b", 0.95); line3([X0 + 0.3, Y0 + 0.3, 1.95], [X1 - 0.3, Y0 + 0.3, 1.95], "#5c636b", 0.03); post(X1 - 0.3, Y0 + 0.3, 1.0, 0.04, "#5c636b", 0.95);
+  for (let i = 0; i < 3; i++) { const x = X0 + 1.2 + i * 0.6; line3([x, Y0 + 0.3, 1.95], [x, Y0 + 0.3, 1.75], "#5c636b", 0.01); ell(x, Y0 + 0.32, 1.65, 0.12, 0.04, col("#3a3f48")); }
+  if (cooking) { glowAt(sx, cy, 1.1, 0.9, "255,140,40", 0.5); if (!LOWQ && Math.random() < 0.35) emit({ x: sx, y: cy, z: 1.45, vz: 0.5, vx: 0.05, smoke: true, dur: 1.3 }); }
+  if (NIGHT) { post(X0 + 0.25, Y1 - 0.3, 0.2, 0.05, "#2d333b", 0.95); glowAt(X0 + 0.25, Y1 - 0.3, 1.2, 1.4, "255,215,150", 0.45); }
+}
+// กองฟืน + ตอสับฟืน (ขวานปัก)
+function woodpileDraw(p) {
+  const { X0, X1, cy } = B(p), k = actK(p.id, 900);
+  ao(X0 + 0.1, cy - 0.35, X1 - 0.1, cy + 0.35, 0.12, 0.22);
+  for (let r = 0; r < 3; r++) for (let i = 0; i < 4 - r; i++) { const x = X0 + 0.35 + i * 0.28 + r * 0.14, z = 0.1 + r * 0.2; box(x - 0.12, cy - 0.3, x + 0.12, cy + 0.3, z - 0.1, z + 0.1, "#8a5a32", { front: col("#d8b48a") }); }
+  const sx = X1 - 0.45;
+  box(sx - 0.2, cy - 0.2, sx + 0.2, cy + 0.2, 0, 0.35, "#7a4a2a", { top: col("#d8b48a") });
+  const ang = k != null ? Math.sin(k * Math.PI) * 0.5 : 0;
+  line3([sx, cy, 0.36], [sx + 0.15 + ang * 0.2, cy, 0.85 + ang], "#5a3a22", 0.035); box(sx + 0.05 + ang * 0.2, cy - 0.05, sx + 0.3 + ang * 0.2, cy + 0.05, 0.75 + ang, 0.9 + ang, "#9aa1a8");
+  if (k != null && !LOWQ && Math.random() < 0.5) emit({ x: sx, y: cy, z: 0.4, vz: 1.2, vx: (Math.random() - 0.5), ball: "#d8b48a", grav: true, dur: 0.7 });
+}
+// ไฟประดับตลาดนัด (ทับตัวละคร): สายไฟลอยระหว่างเสา หลอดสีอุ่น
+function marketlightsAir(p) {
+  const { X0, X1, cy } = B(p), t = NOW / 1000;
+  for (const x of [X0 + 0.1, X1 - 0.1]) post(x, cy, 2.8, 0.05, "#3a3f48");
+  let prev = null;
+  for (let i = 0; i <= 20; i++) { const x = X0 + 0.1 + (X1 - X0 - 0.2) * (i / 20), z = 2.75 - Math.sin((i / 20) * Math.PI * 2) ** 2 * 0.4, q = P(x, cy, z); if (prev) { G.strokeStyle = "rgba(40,30,20,.7)"; G.lineWidth = 1; G.beginPath(); G.moveTo(prev[0], prev[1]); G.lineTo(q[0], q[1]); G.stroke(); } prev = q; if (i % 2) { const c = ["255,120,90", "255,214,120", "120,200,255", "190,255,160"][i % 4]; ball(x, cy, z - 0.08, 0.06, `rgb(${c})`, true); if (NIGHT) glowAt(x, cy, z - 0.1, 0.5, c, 0.4 * (0.8 + 0.2 * Math.sin(t * 3 + i))); } }
+}
+// รถฟู้ดทรัค: ตัวรถ + ช่องขายเปิดด้านข้าง + กันสาด + เมนูไฟ + คนขาย
+function foodtruckDraw(p) {
+  const { X0, X1, Y0, Y1, cy } = B(p), H = 2.0;
+  castShadow(X0 + 0.15, Y0 + 0.2, X1 - 0.15, Y1 - 0.2, H, 0.15);
+  for (const x of [X0 + 0.7, X1 - 0.8]) for (const y of [Y0 + 0.25, Y1 - 0.25]) { const [sx, sy, s] = P(x, y, 0.25); G.fillStyle = col("#1e1f22"); G.beginPath(); G.ellipse(sx, sy, 0.25 * s, 0.25 * s, 0, 0, TAU); G.fill(); }
+  box(X0 + 0.15, Y0 + 0.25, X1 - 0.95, Y1 - 0.25, 0.3, H, "#f2c94c", { top: col("#f6f6f2") });           // ตู้ขาย
+  box(X1 - 0.95, Y0 + 0.35, X1 - 0.15, Y1 - 0.35, 0.3, 1.45, "#e8762b");                              // หัวรถ
+  box(X1 - 0.75, Y0 + 0.4, X1 - 0.2, Y1 - 0.4, 1.0, 1.4, "#9fd3f0", NIGHT ? { front: "#3a4a6a" } : {});
+  faceRect("s", X0 + 0.5, X1 - 1.3, Y1 - 0.25, 0.95, 1.7, NIGHT ? "rgba(255,226,160,.95)" : col("#fff6d8")); // ช่องขาย (ไฟในร้าน)
+  ball(X0 + 1.2, Y1 - 0.4, 1.25, 0.14, "#f6e2cc"); box(X0 + 1.05, Y1 - 0.5, X0 + 1.35, Y1 - 0.3, 0.95, 1.15, "#d9342c"); // คนขาย
+  box(X0 + 0.4, Y1 - 0.25, X1 - 1.2, Y1 + 0.45, 1.72, 1.8, "#d9342c", { top: col("#ff6a4a") });         // กันสาด
+  box(X0 + 0.45, Y1 - 0.25, X1 - 1.25, Y1 + 0.1, 0.92, 1.0, "#b98a5a");                                // ชั้นวาง
+  signBox("s", "ฟู้ดทรัค", X0 + 0.6, X1 - 1.4, Y1 - 0.25, H + 0.02, H + 0.4, "#d9342c", "#ffffff", 0.05);
+  if (NIGHT) { glowAt((X0 + X1) / 2 - 0.4, Y1 + 0.2, 1.3, 2.2, "255,214,140", 0.5); glowAt(X1 + 0.1, cy, 0.6, 1.2, "255,240,190", 0.4); }
+  if (!LOWQ && Math.random() < 0.08) emit({ x: X0 + 0.6, y: cy, z: H + 0.1, vz: 0.5, vx: 0.08, smoke: true, dur: 1.6 });
+}
+function mstallDraw(p) { stallDraw({ ...p, style: p.style === "supply" ? "supply" : "ing" }); }
+// โต๊ะพับ + กระติก + ตะเกียง
+function camptableDraw(p) {
+  const { X0, X1, Y0, Y1, cy } = B(p), a0 = X0 + 0.15, a1 = X1 - 0.15;
+  ao(a0, Y0 + 0.2, a1, Y1 - 0.2, 0.15, 0.2);
+  for (const x of [a0 + 0.1, a1 - 0.1]) for (const y of [Y0 + 0.3, Y1 - 0.3]) post(x, y, 0.72, 0.04, "#5c636b");
+  box(a0, Y0 + 0.25, a1, Y1 - 0.25, 0.72, 0.78, "#d8cdb8");
+  box(a0 + 0.2, cy - 0.15, a0 + 0.62, cy + 0.15, 0.78, 1.08, "#3f78c4", { top: col("#f6f6f2") });
+  ball(a1 - 0.45, cy, 0.86, 0.07, "#f2c94c"); ball(a1 - 0.3, cy + 0.05, 0.85, 0.06, "#e94b3c");
+  post(a1 - 0.15, cy, 0.25, 0.06, "#2d333b", 0.78);
+  if (NIGHT) glowAt(a1 - 0.15, cy, 1.1, 1.4, "255,220,150", 0.45 * flicker(5));
+}
+// แม่แรง + กล่องเครื่องมือข้างรถ
+function jackDraw(p) {
+  const { cx, cy } = B(p), k = actK(p.id, 1500);
+  ao(cx - 0.35, cy - 0.3, cx + 0.35, cy + 0.3, 0.1, 0.2);
+  box(cx - 0.32, cy - 0.05, cx + 0.12, cy + 0.25, 0, 0.32, "#d8453b", { top: col("#a8322a") });
+  box(cx - 0.12, cy - 0.04, cx - 0.02, cy + 0.02, 0.32, 0.4, "#c9d0d6");
+  const lift = k != null ? Math.abs(Math.sin(k * 10)) * 0.1 : 0;
+  box(cx + 0.12, cy - 0.28, cx + 0.34, cy - 0.06, 0, 0.12, "#f2c94c");
+  post(cx + 0.23, cy - 0.17, 0.45 + lift, 0.05, "#5c636b", 0.12);
 }
 // ---------- โมเต็ล: ห้องเรียงแถว (ประตูเลข · หน้าต่างม่าน · แอร์) + ชายคาทางเดินมีเสา · สำนักงาน = ล็อบบี้กระจก
 function motelStatic(p) {
@@ -1089,10 +1388,16 @@ const KIND = {
   motel: { s: motelStatic, l: (p) => { if (NIGHT) { const { X0, X1, Y1 } = B(p); for (let x = X0 + 0.6; x < X1 - 0.4; x += 1.6) glowAt(x, Y1 - 0.2, 2.0, 0.8, "255,220,150", 0.35); } } },
   pool: { l: poolDraw }, lounger: { l: loungerDraw }, bbq: { l: bbqDraw }, vending: { l: vendingDraw }, neon: { s: signStatic, l: signLive },
   seat: { l: seatDraw }, fridge: { l: fridgeDraw }, mat: { l: matDraw },
+  grocer: { l: grocerDraw }, foodcart: { l: foodcartDraw }, campfire: { l: campfireDraw }, tent: { l: tentDraw }, log: { l: logDraw }, camptable: { l: camptableDraw }, jack: { l: jackDraw },
+  stream: { l: streamDraw }, lights: { a: lightsAir }, blanket: { l: blanketDraw }, gear: { l: gearDraw },
+  campground: { l: campgroundDraw }, lake: { l: lakeDraw }, pier: { l: pierDraw }, hammock: { l: hammockDraw }, clothesline: { a: clotheslineAir }, ledge: { l: ledgeDraw },
+  mallow: { l: mallowDraw }, campdog: { l: campdogDraw }, storylog: { l: storylogDraw }, kitchen: { l: kitchenDraw }, woodpile: { l: woodpileDraw },
+  marketlights: { a: marketlightsAir }, foodtruck: { l: foodtruckDraw }, mstall: { l: mstallDraw },
   canopy: { a: canopyAir }, lanterns: { a: lanternsAir },
 };
 // ชนิดเตี้ยที่วาดบนพื้น (ก่อนตัวละครทุกตัว)
-const FLAT = new Set(["pond", "pool", "mat"]);
+const FLAT = new Set(["pond", "pool", "mat", "log", "stream", "blanket", "campground", "lake", "pier"]);
+
 
 // หลังคาปั๊ม: กรอบหลังคาทึบหนา (ป้ายส้มรอบ) + แผ่นกลางโปร่งแสงพอเห็นตู้น้ำมัน/รถตู้ข้างใต้ (ผู้ใช้สั่งให้เห็นพื้นที่ชัด) + เสาหน้า + ไฟดาวน์ไลต์
 // ของที่วาดทับตัวละคร (หลังคา/สายโคม) บังตัวที่ยืนใต้หรือหลังมันบนจอ? (QA 2026-11-14 — จุดเกิดปั๊ม B อยู่หลังหลังคา ตัวหายทั้งตัว)
@@ -1317,7 +1622,8 @@ export function rtItems(items, g, info, units, now, lowQ, night) {
     // รถ 3D จริง (vanSprite.js — ภาพจาก van3d เรนเดอร์ครั้งเดียวต่อกุญแจ) · ยังไม่พร้อม/หมุนมุมมอง/ไม่มี WebGL = รถ 2D เดิม
     items.push({ d, f: run(() => {
       const cx = (vb.x0 + vb.x1 + 1) / 2, cy = (vb.y0 + vb.y1 + 1) / 2, [sx, sy, s] = P(cx, cy, 0);
-      const sp = s > 0 ? vanSprite(rtState().van, NIGHT, s, Math.abs(G.getTransform().a)) : null;
+      const vl = def.vanOpen && rtState().van ? { ...rtState().van, rearOpen: true } : rtState().van; // แคมป์: รถเปิดประตูท้าย ขนของลง
+      const sp = s > 0 ? vanSprite(vl, NIGHT, s, Math.abs(G.getTransform().a)) : null;
       if (!sp) { spriteDraw(pv, () => parkedVan(vb), 2.2); return; }
       shadowAt(cx, cy, 2.1, 1.0);
       G.drawImage(sp.cv, sx - sp.R * s, sy - sp.R * s, 2 * sp.R * s, 2 * sp.R * s);
@@ -1377,6 +1683,23 @@ export function rtPropInfo(p, rt) {
     pool: ["🏊", "สระว่ายน้ำ", "ฟรี · สู้ครั้งหน้า หลบหลีก 20% (2 เทิร์น)"],
     motel: p.style === "office" ? ["🛎️", "สำนักงานโมเต็ล", "ร้านค้า"] : ["🛏️", "ห้องพัก", "ฟรี · พลังชีวิตเต็ม · ล้างสถานะผิดปกติ"],
     stall: p.style === "drinks" ? ["🧋", "แผงน้ำ", "1 🪙 · เกราะ +1"] : ["🍜", "แผงอาหาร", "1 🪙 · พลังชีวิต +2"],
+    grocer: ["🥬", "แผงวัตถุดิบ", "ร้านค้า"],
+    mstall: p.style === "supply" ? ["⛺", "แผงของแคมป์", "ร้านค้า"] : ["🥬", "แผงวัตถุดิบ", "ร้านค้า"],
+    foodtruck: ["🚚", "รถฟู้ดทรัค", "ร้านค้า · อาหารพร้อมกิน"],
+    kitchen: ["🍳", "ครัวกลางแจ้ง", "ทำอาหาร"],
+    storylog: ["🪵", "ขอนเล่าเรื่อง", "เล่าเรื่องผี · ร้องเพลง · 2 คนขึ้นไป"],
+    mallow: ["🍡", "ปิ้งมาร์ชเมลโล่", "กดค้าง ปล่อยตอนเหลืองทอง · คนละครั้ง"],
+    ledge: ["🔭", "กล้องดูดาว", "หากลุ่มดาว · คนละครั้ง"],
+    lake: p.style === "canoe" ? ["🛶", "เรือแคนู", "2 คน · พายตามจังหวะ"] : ["🎣", "ท่าเรือ", "ตกปลา · คนละ 3 ครั้ง"],
+    woodpile: ["🪓", "กองฟืน", "ผ่าฟืนตามจังหวะ · ไฟกองใหญ่ขึ้น"],
+    hammock: ["🌿", "เปลญวน", "ฟรี · พลังชีวิต +2 · คนละครั้ง"],
+    campdog: ["🐕", "หมาแคมป์", "ลูบหัว · พลังชีวิต +1 · คนละครั้ง"],
+
+    foodcart: ["🛒", "รถเข็นพ่อค้าเร่", rt && rt.stop && rt.stop.camp && rt.stop.camp.vendor ? "ร้านค้า" : "✖"],
+    campfire: ["🔥", "กองไฟ", "ทำอาหาร · กิจกรรมกลางคืน"],
+    tent: ["⛺", "เต็นท์", "ฟรี · พลังชีวิต/เกราะเต็ม · ล้างสถานะ · คนละครั้ง"],
+    jack: ["🛠️", "แม่แรง", "ฟรี · รถตู้ +3 · คนละครั้ง"],
+
   }[p.kind];
   if (!T) return null;
   const a = rt && rt.stop && rt.stop.acts ? rt.stop.acts[p.id] : null;

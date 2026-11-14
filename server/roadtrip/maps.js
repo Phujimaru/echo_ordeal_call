@@ -17,7 +17,7 @@
 //  รันไฟล์นี้ตรงๆ (node server/roadtrip/maps.js) = ตรวจผัง + เขียน client/src/board/roadtrip/maps.gen.js (ESM ให้ client วาด/พรีวิว)
 // ============================================================
 
-const RT_ROAD = 70, RT_ONVAN = 71, RT_GAS = [72, 73, 74], RT_MOTEL = 75;
+const RT_ROAD = 70, RT_ONVAN = 71, RT_GAS = [72, 73, 74], RT_MOTEL = 75, RT_CAMP = 76;
 
 const K = (x, y) => `${x},${y}`;
 const tilesOf = (r) => { const out = []; for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) out.push([x, y]); return out; };
@@ -80,6 +80,7 @@ const onvan = build({
     pillow0: [8, 4], pillow1: [9, 4], tool: [9, 6], fridge: [8, 6], micro: [8, 6], cooler: [7, 4], guitar: [7, 5], rear: [7, 5],
     curtain0: [12, 4], curtain1: [10, 4], curtain2: [8, 4], curtain3: [12, 6], curtain4: [10, 6], curtain5: [8, 6],
     grill: [10, 4, 1], lounge: [10, 6, 1], umbrella: [9, 6, 1], turret: [8, 5, 1],
+    stash: [7, 6], // กล่องเก็บของกลางของรถ (ผู้ใช้สั่ง 2026-11-14 — ต้องเดินไปที่กล่อง · มุมท้ายขวา แทนกองกระเป๋าเดิม · server/roadtrip/stash.js)
   },
   // ของในรถ (เดินทับได้ทุกชิ้น — v1): เบาะ ตู้เย็น โต๊ะแผนที่ — วาดใน props.js
   props: [
@@ -111,8 +112,9 @@ const gasA = build({
     P("claw", 2, 6, 2, 6, [2, 7], 1.65, { group: "arcade" }), P("gacha", 3, 6, 3, 6, [3, 7], 1.45, { group: "arcade" }), P("arcade", 4, 6, 4, 6, [4, 7], 1.85, { group: "arcade" }),
     P("karaoke", 7, 5, 8, 6, [8, 7], 2.0),
     P("pond", 11, 5, 13, 6, [12, 7], 0.3),
-    P("spicy", 16, 5, 18, 5, [17, 6], 2.1),
-    P("dog", 21, 6, 21, 6, [21, 7], 0.9),
+    P("spicy", 16, 5, 17, 6, [16, 7], 2.1),
+    P("dog", 20, 6, 20, 6, [20, 7], 0.9),
+    P("grocer", 22, 5, 23, 6, [22, 7], 2.0), // แผงวัตถุดิบ (ผู้ใช้สั่ง 2026-11-14 — แยกจากมินิมาร์ท)
     P("wc", 0, 10, 2, 12, [3, 11], 2.2),
     P("canopy", 6, 9, 15, 12, null, 2.85, { walk: true }),
     P("pillar", 6, 9, 6, 9, null, 2.6), P("pillar", 15, 9, 15, 9, null, 2.6),
@@ -143,12 +145,13 @@ const gasB = build({
     P("dog", 4, 12, 4, 12, [4, 11], 0.9),
     P("pond", 7, 11, 8, 12, [7, 10], 0.3, { style: "oasis" }),
     P("arcade", 11, 12, 11, 12, [11, 11], 1.85, { group: "arcade" }), P("claw", 12, 12, 12, 12, [12, 11], 1.65, { group: "arcade" }),
-    P("spicy", 15, 12, 17, 12, [16, 11], 2.1),
+    P("spicy", 15, 11, 16, 12, [15, 10], 2.1),
     P("fortune", 20, 11, 21, 12, [20, 10], 2.5),
     P("truck", 0, 14, 8, 15, null, 2.3),
     P("tower", 22, 14, 23, 15, null, 5.2),
     P("price", 0, 2, 0, 2, null, 4.3),
     P("bench", 13, 15, 13, 15, null, 0.4), P("plant", 19, 15, 19, 15, null, 1.2),
+    P("grocer", 16, 14, 17, 15, [15, 14], 2.0), // แผงวัตถุดิบ
   ],
   vanBlock: { x0: 10, y0: 7, x1: 13, y1: 8 },
   pumpSpots: [[10, 5], [13, 5]],
@@ -168,12 +171,13 @@ const gasC = build({
     P("karaoke", 14, 0, 16, 1, [15, 2], 2.0, { style: "stage" }),
     P("garage", 19, 0, 23, 3, [20, 4], 2.6),
     P("lanterns", 1, 6, 15, 8, null, 2.6, { walk: true }),
-    P("stall", 0, 6, 1, 6, [0, 7], 2.0, { style: "noodle" }),
-    P("stall", 3, 6, 4, 6, [3, 7], 2.0, { style: "grill" }),
-    P("stall", 6, 6, 7, 6, [6, 7], 2.0, { style: "sweets" }),
-    P("spicy", 9, 6, 11, 6, [10, 7], 2.1),
-    P("stall", 13, 6, 14, 6, [13, 7], 2.0, { style: "drinks" }),
+    P("stall", 0, 5, 1, 6, [0, 7], 2.0, { style: "noodle" }), // แผงทุกแผงหนา 2×2 (ผู้ใช้สั่ง 2026-11-15)
+    P("stall", 3, 5, 4, 6, [3, 7], 2.0, { style: "grill" }),
+    P("stall", 6, 5, 7, 6, [6, 7], 2.0, { style: "sweets" }),
+    P("spicy", 9, 5, 11, 6, [10, 7], 2.1),
+    P("stall", 13, 5, 14, 6, [13, 7], 2.0, { style: "drinks" }),
     P("gacha", 18, 6, 18, 6, [18, 7], 1.45, { group: "arcade" }), P("claw", 19, 6, 19, 6, [19, 7], 1.65, { group: "arcade" }), P("arcade", 20, 6, 20, 6, [20, 7], 1.85, { group: "arcade" }),
+    P("grocer", 22, 5, 23, 6, [22, 7], 2.0), // แผงวัตถุดิบ
     P("dog", 17, 10, 17, 10, [17, 9], 0.9),
     P("pond", 21, 10, 23, 11, [20, 11], 0.3),
     P("wc", 0, 10, 1, 12, [2, 11], 2.2),
@@ -209,12 +213,58 @@ const motel = build({
   spawns: [[3, 9], [5, 9], [7, 9], [9, 9], [11, 9], [13, 9], [7, 4]],
 });
 
-const defs = { [RT_ROAD]: road, [RT_ONVAN]: onvan, [RT_GAS[0]]: gasA, [RT_GAS[1]]: gasB, [RT_GAS[2]]: gasC, [RT_MOTEL]: motel };
+// ---------------------------------------------------------------- RT_CAMP 26×18 — แคมป์ริมทะเลสาบยามค่ำ "อบอุ่นหัวใจ" (ผู้ใช้สั่ง 2026-11-14/15 · ผัง [Claude])
+//  แถวหลัง y 0–2: ทะเลสาบ (ซ้าย = ตกปลาจากปลายท่า · ขวา = เรือแคนู) + ท่าเรือไม้ x 11–12 ยื่นลงน้ำ (เดินได้) · y 3 ริมฝั่ง
+//  y 4–5: เต็นท์ 2 หลัง · เปลญวนขึงระหว่างต้นไม้ · ราวตากผ้า · ลานหินยกสูง + กล้องดูดาว
+//  กลาง y 7–11: กองไฟ + ขอนไม้นั่ง (เดินทับได้) · ขอนเล่าเรื่อง (เล่าเรื่องผี/ร้องเพลง) · ที่ปิ้งมาร์ชเมลโล่ · หมาแคมป์นอนข้างกองไฟ
+//   · ครัวกลางแจ้ง (โต๊ะเตรียม/หม้อ/เตา) + กองฟืนกับตอสับฟืน (ซ้าย) · ตลาดนัดกลางคืน: รถฟู้ดทรัค + แผงวัตถุดิบ + แผงของแคมป์ (ขวา) + ไฟประดับ
+//  y 12–14: ผ้าปูปิกนิก · รถตู้จอด (ประตูท้ายเปิด) + ของขนลงข้างท้าย + แม่แรง · ถนนล่าง y 16–17
+const camp = build({
+  name: "แคมป์",
+  cols: 26, rows: 18,
+  rt: { kind: "camp", road: [16, 17], lanes: 1, shoulder: [15, 15] },
+  props: [
+    P("lake", 0, 0, 10, 2, [11, 0], 0.05, { group: "lake", style: "fish" }),
+    P("lake", 13, 0, 25, 2, [12, 2], 0.05, { group: "lake", style: "canoe" }),
+    P("pier", 11, 0, 12, 2, null, 0.3, { walk: true }),
+    P("campground", 0, 3, 25, 15, null, 0.01, { walk: true }), // พื้นแคมป์: ลานดินเหยียบรอบกองไฟ · ทางเดินดิน · หญ้า/ดอกไม้ (วาดอย่างเดียว)
+    P("tent", 2, 4, 3, 5, [2, 6], 1.6, { style: "orange" }),
+    P("tent", 5, 4, 6, 5, [5, 6], 1.6, { style: "green" }),
+    P("hammock", 9, 4, 11, 4, [10, 5], 1.4),
+    P("clothesline", 13, 4, 16, 4, null, 1.8, { walk: true }),
+    P("ledge", 19, 4, 21, 5, [20, 6], 1.3),
+    P("log", 11, 7, 12, 7, null, 0.35, { walk: true }),
+    P("log", 10, 8, 10, 9, null, 0.35, { walk: true }),
+    P("log", 13, 8, 13, 9, null, 0.35, { walk: true }),
+    P("campfire", 11, 8, 12, 9, [11, 10], 1.0),
+    P("mallow", 14, 7, 14, 7, [14, 8], 0.9),
+    P("campdog", 9, 10, 9, 10, [8, 10], 0.6),
+    P("storylog", 11, 11, 12, 11, [13, 11], 0.5),
+    P("kitchen", 2, 8, 5, 9, [4, 10], 1.6),
+    P("woodpile", 7, 8, 8, 8, [7, 9], 1.0),
+    P("marketlights", 17, 7, 25, 7, null, 2.8, { walk: true }),
+    P("foodtruck", 17, 8, 20, 9, [17, 10], 2.4),
+    P("mstall", 24, 8, 25, 9, [23, 9], 2.2, { style: "ing" }),
+    P("mstall", 24, 12, 25, 13, [23, 12], 2.2, { style: "supply" }),
+    P("blanket", 2, 12, 4, 13, null, 0.05, { walk: true }),
+    P("gear", 7, 14, 8, 14, null, 0.9),
+    P("jack", 15, 14, 15, 14, [15, 13], 0.8),
+  ],
+  vanBlock: { x0: 10, y0: 13, x1: 13, y1: 14 },
+  vanOpen: true, // รถตู้เปิดประตูท้าย (props.js — ภาพรถ 3D)
+  deco: { rt_tree: [[0, 4], [0, 7], [0, 11], [0, 14], [25, 4], [25, 15], [17, 13], [8, 4], [12, 4]], rt_rock: [[22, 4], [19, 13]] },
+  spawns: [[5, 11], [6, 11], [7, 11], [6, 12], [7, 12], [8, 12], [5, 12]],
+});
+
+const defs = { [RT_ROAD]: road, [RT_ONVAN]: onvan, [RT_GAS[0]]: gasA, [RT_GAS[1]]: gasB, [RT_GAS[2]]: gasC, [RT_MOTEL]: motel, [RT_CAMP]: camp };
 
 // ชนิดช่องพิเศษ/สิ่งกีดขวางใหม่ (รวมเข้า board.js TERRAIN_INFO แบบ Fodlan — ไม่มี desc: กฎห้ามข้อความอธิบายใน UI)
 const TERRAIN = {
   van: { name: "รถตู้", icon: "🚐" },
 };
+
+// ร้าน/แผง/ซุ้มขายของ (validate: อย่างน้อย 2×2)
+const SHOP_KINDS = new Set(["mart", "grocer", "stall", "mstall", "foodtruck", "foodcart", "spicy"]);
 
 // ---------------------------------------------------------------- ตรวจผัง (รันตรง) — ทุก spot/จุดเกิด/จุดร้าน/ช่องเติมน้ำมัน เดินถึงกันได้
 function validate() {
@@ -247,13 +297,16 @@ function validate() {
     }
     for (const p of d.props) {
       if (p.x0 < 0 || p.y0 < 0 || p.x1 >= d.cols || p.y1 >= d.rows) errs.push(`${area} ${p.id} เลยขอบ`);
+      // ร้าน/แผง/ซุ้มทุกแบบต้องหนาอย่างน้อย 2×2 (ผู้ใช้สั่ง 2026-11-15 — แผงหนาช่องเดียวหมุนกล้องแล้วเหมือนกระดาษแผ่นเดียว)
+      if (SHOP_KINDS.has(p.kind) && (p.x1 - p.x0 < 1 || p.y1 - p.y0 < 1)) errs.push(`${area} ${p.id} ร้าน/แผงต้องอย่างน้อย 2×2`);
+
       if (!p.spot) continue;
       must(`spot ${p.id}`, p.spot[0], p.spot[1]);
       const [x, y] = p.spot, ddx = Math.max(p.x0 - x, 0, x - p.x1), ddy = Math.max(p.y0 - y, 0, y - p.y1);
       if (ddx + ddy !== 1) errs.push(`${area} spot ${p.id} ไม่ติดวัตถุ`);
     }
     // 2) ของทุกชิ้นเว้นรอบตัว 1 ช่อง (รวมรถตู้จอด) — ยกเว้นวัตถุเดินทับได้ และ group เดียวกัน
-    if (d.rt && (d.rt.kind === "gas" || d.rt.kind === "motel")) {
+    if (d.rt && (d.rt.kind === "gas" || d.rt.kind === "motel" || d.rt.kind === "camp")) {
       const solid = d.props.filter((p) => !p.walk).map((p) => ({ id: p.id, g: p.group, x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1 }));
       if (d.vanBlock) solid.push({ id: "van", ...d.vanBlock });
       for (let i = 0; i < solid.length; i++) for (let j = i + 1; j < solid.length; j++) {
@@ -274,7 +327,7 @@ function validate() {
   return errs;
 }
 
-module.exports = { RT_ROAD, RT_ONVAN, RT_GAS, RT_MOTEL, defs, TERRAIN, validate };
+module.exports = { RT_ROAD, RT_ONVAN, RT_GAS, RT_MOTEL, RT_CAMP, defs, TERRAIN, validate };
 
 if (require.main === module) {
   const errs = validate();
@@ -284,7 +337,7 @@ if (require.main === module) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, [
     "// ⚠️ สร้างอัตโนมัติจาก server/roadtrip/maps.js — ห้ามแก้ตรงนี้ (แก้ที่ server แล้วรัน node server/roadtrip/maps.js)",
-    `export const RT_ROAD = ${RT_ROAD}, RT_ONVAN = ${RT_ONVAN}, RT_GAS = ${JSON.stringify(RT_GAS)}, RT_MOTEL = ${RT_MOTEL};`,
+    `export const RT_ROAD = ${RT_ROAD}, RT_ONVAN = ${RT_ONVAN}, RT_GAS = ${JSON.stringify(RT_GAS)}, RT_MOTEL = ${RT_MOTEL}, RT_CAMP = ${RT_CAMP};`,
     `export const RT_DEFS = ${JSON.stringify(defs)};`,
     "",
   ].join("\n"));

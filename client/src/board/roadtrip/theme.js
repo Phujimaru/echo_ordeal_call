@@ -11,7 +11,7 @@ import { cactusShape, deadTreeShape, drawTree, pineShape, SNOW_PINE } from "../b
 import { RT_DEFS } from "./maps.gen";
 
 const TAU = Math.PI * 2;
-export const RT_AREA0 = 70, RT_AREA1 = 75;
+export const RT_AREA0 = 70, RT_AREA1 = 76; // 76 = แคมป์ (ผู้ใช้สั่ง 2026-11-14)
 export const isRtArea = (area) => Number(area) >= RT_AREA0 && Number(area) <= RT_AREA1;
 export const REGIONS = ["plains", "desert", "forest", "snow", "ghost"];
 
@@ -25,6 +25,7 @@ export function setRoadtripState(rt, youId, extraIds) {
   RT.night = !!rt.night;
   RT.fx = Array.isArray(rt.fx) ? rt.fx : [];
   RT.acts = (rt.stop && rt.stop.acts) || {};
+  RT.stop = rt.stop || null; // แคมป์: รถเข็นพ่อค้าเร่มา/ไม่มา (props.js foodcartDraw)
   RT.phase = rt.phase || null;
   RT.van = rt.van || null;
 }
@@ -440,7 +441,7 @@ function deco(c) {
       else for (let y = y0 + 1; y <= y1; y++) lineG(g, x0 + 0.06, y, x1 + 0.94, y, paint, 2);
     }
     // ทางม้าลายจากลานลงถนน (กลางกระดาน)
-    const cx = Math.floor(W / 2) - 1, lotEdge = rt.lot[1] > r1 ? r1 + 1 : r0;
+    const cx = Math.floor(W / 2) - 1, lotEdge = rt.lot && rt.lot[1] > r1 ? r1 + 1 : r0;
     if (rt.kind === "gas") for (let k = 0; k < 5; k++) fillRect(g, cx - 1 + k * 0.6, lotEdge === r0 ? r0 + 0.25 : r1 + 1 - 0.95, cx - 1 + k * 0.6 + 0.32, lotEdge === r0 ? r0 + 0.95 : r1 + 1 - 0.25, paint);
   }
   g.globalAlpha = 1;
