@@ -89,7 +89,7 @@ function start(introHold = 0) {
   if (secs > 0) setPhase("intro", secs, () => applyDev() || toDrive());
   else if (!applyDev()) toDrive();
 }
-// dev: ECHO_DEV_RT_PHASE = drive|fork|event|stop|motel|ambush|onvan|boss — ข้ามไปช่วงนั้นทันทีหลังฉากเปิด
+// dev: ECHO_DEV_RT_PHASE = drive|fork|event|stop|motel|ambush|onvan|boss|over — ข้ามไปช่วงนั้นทันทีหลังฉากเปิด
 function applyDev(ph = process.env.ECHO_DEV_RT_PHASE) {
   if (!ph || !active()) return false;
   const rt = match.roadtrip;
@@ -101,6 +101,7 @@ function applyDev(ph = process.env.ECHO_DEV_RT_PHASE) {
   if (ph === "stop" || ph === "gas") { H.stop().enter("gas"); return true; }
   if (ph === "motel") { H.stop().enter("motel"); return true; }
   if (ph === "ambush" || ph === "onvan" || ph === "boss" || ph === "elite") { H.fight().begin(ph); return true; }
+  if (ph === "over") { lose("van"); return true; } // dev: หน้าสรุปผลทันที
   return false;
 }
 function syncRoute(rt) {
@@ -135,6 +136,7 @@ function toDrive() {
   if (!rt || rt.phase === "over") return;
   rt.fork = null; rt.event = null; rt.stop = null; rt.combat = null;
   rt.legKm = rt.km;
+  rt.driverActAt = Date.now(); // นับไม่ขยับใหม่ทุกครั้งที่กลับมาขับ — เดิมค้างค่าก่อนเข้าปั๊ม/สู้/ทางแยก → คนขับหลุดทันทีที่ออกตัว (ผู้ใช้แจ้ง 2026-11-14)
   rt.hzNextAt = Date.now() + H.drive().HZ_FIRST_MS; // กลับมาขับ: สิ่งกีดขวางชิ้นแรกไม่ก่อน 8 วิ (ฉากชนะ/ออกจากปั๊มยังเล่นอยู่ · ช่วงพักในรถ)
   setPhase("drive", 0);
   H.drive().startTick();
@@ -327,6 +329,10 @@ function command(id, name, payload) {
   const o = payload && typeof payload === "object" ? payload : {};
   const rt = match.roadtrip;
   if (rt.phase === "over") return false;
+  // คนขับยังอยู่หน้าจอ (ขยับเมาส์/กดปุ่มอะไรก็ได้ · client ส่ง rt:alive ทุก ~5 วิ) หรือสั่งอะไรก็ได้ = ไม่นับว่าไม่ขยับ
+  //  เดิมนับเฉพาะเลี้ยว/ไนตรัส/แตร → ขับตรงเฉยๆ 20 วิก็หลุดที่นั่ง (ผู้ใช้แจ้ง 2026-11-14 "หลุดจากที่นั่งคนขับบ่อยๆ")
+  if (rt.van && rt.van.driverId === p.id) rt.driverActAt = Date.now();
+  if (name === "alive") return false;
   let ok = false;
   switch (name) {
     case "seat": case "steer": case "nitro": case "horn": ok = H.drive().command(p, name, o); break;

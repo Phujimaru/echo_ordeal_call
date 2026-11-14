@@ -19,7 +19,8 @@ registerSounds(
 export function rtSfx(name, opts) {
   if (!name || isMusicSuspended()) return null; // คลิปวีดีโอกำลังเล่น = ห้ามเสียงซ้อน
   const key = `rt_${name}`;
-  if (!hasSound(key)) return null;
+  // เฉพาะเสียงเอฟเฟกต์ของ manifest — กันชื่อ fx ไปชนเพลงเฟส (fx "over" เคยเปิด rt_over เป็นเสียงเอฟเฟกต์ → เพลงสรุปผลค้างแม้ออกจากด่าน · ผู้ใช้แจ้ง 2026-11-14)
+  if (!Object.prototype.hasOwnProperty.call(RT_SFX, name) || !hasSound(key)) return null;
   return playSfx(key, opts);
 }
 

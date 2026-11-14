@@ -533,3 +533,21 @@ test('FIX หน้าอู่/หน้าร้านเด้งเฉพา
   assert.deepEqual(rtMyPopups(fx, rtOwnIds(players, 'a'), new Set()), [{ k: 'garage' }, { k: 'shop', shopId: 'rtmart' }]);
   assert.deepEqual(rtMyPopups([{ k: 'garage', key: 9 }], rtOwnIds(players, 'a'), new Set()), [], 'ไม่มี pid = ไม่เด้งให้ใคร');
 });
+
+test('FIX คนขับไม่หลุดที่นั่ง: กลับมาขับหลังปั๊ม/สู้ = นับไม่ขยับใหม่ · rt:alive ต่อเวลา · AFK 20 วิ ยังหลุด', () => {
+  setup(2);
+  RT.command('p0', 'seat', { seat: 'driver' });
+  assert.equal(rt().van.driverId, 'p0');
+  rt().driverActAt = Date.now() - 120000; // ค้างจากก่อนเข้าปั๊ม
+  S.enter('gas');
+  RT.toDrive ? RT.toDrive() : require('../server/roadtrip').toDrive();
+  D.step(250, Date.now() + 250);
+  assert.equal(rt().van.driverId, 'p0', 'กลับมาขับแล้วไม่หลุดทันที');
+  rt().driverActAt = Date.now() - 15000;
+  assert.equal(RT.command('p0', 'alive', {}), false); // ไม่ broadcast
+  D.step(250, Date.now() + 10000);
+  assert.equal(rt().van.driverId, 'p0', 'ส่ง alive = ยังขับอยู่');
+  rt().driverActAt = Date.now() - 25000;
+  D.step(250, Date.now() + 250);
+  assert.equal(rt().van.driverId, null, 'AFK เกิน 20 วิ = ที่นั่งว่าง');
+});

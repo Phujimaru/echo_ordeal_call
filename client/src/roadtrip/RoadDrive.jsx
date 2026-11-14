@@ -80,6 +80,16 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   }, [van.driverId]); // eslint-disable-line react-hooks/exhaustive-deps
   // ไม่ใช่คนขับแล้ว (หรือเริ่มเป็นผู้โดยสาร) แต่อยู่มุมของคนขับ = กลับมุมภายนอก · ได้เป็นคนขับ = คงมุมเดิม
   useEffect(() => { if (!amDriver && !RIDER_OK.has(camRef.current)) setCam("chase"); }, [amDriver]); // eslint-disable-line react-hooks/exhaustive-deps
+  // คนขับยังอยู่หน้าจอ: ขยับเมาส์/กดปุ่ม/เลื่อน = ส่ง rt:alive ทุก ~5 วิ (server นับไม่ขยับ 20 วิ = ที่นั่งว่าง — กันคน AFK แต่ไม่ไล่คนที่ขับตรงเฉยๆ)
+  useEffect(() => {
+    if (!amDriver || !active) return undefined;
+    let last = 0;
+    const ping = () => { const now = Date.now(); if (now - last < 5000 || document.hidden) return; last = now; rtEmit("rt:alive", {}); };
+    ping();
+    const evs = ["pointermove", "pointerdown", "keydown", "wheel"];
+    for (const e of evs) window.addEventListener(e, ping, { passive: true });
+    return () => { for (const e of evs) window.removeEventListener(e, ping); };
+  }, [amDriver, active]);
 
   const setCam = (m) => {
     camRef.current = m; setCamState(m);

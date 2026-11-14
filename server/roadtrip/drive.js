@@ -9,7 +9,7 @@ const { diffOf } = require("./diff");
 
 const H = () => require("./index");
 const TICK_MS = 250;
-const HZ_WARN_MS = 3000;
+const HZ_WARN_MS = 5000; // เตือนล่วงหน้า (เดิม 3000 — ผู้ใช้แจ้ง 2026-11-14 "อุปสรรคเกิดตรงหน้าทันที หลบไม่ทัน")
 // ช่องว่างระหว่างสิ่งกีดขวาง — ยืดตามการขับที่ช้าลง (KM_PER_SEC 0.004 → 0.0022) ให้ความถี่ต่อ กม. เท่าเดิม (ไม่งั้นรถพังก่อนถึงทางแยก · ช่วงขับ = เวลาเที่ยวในรถ)
 const HZ_GAP = [8000, 13000];
 const HZ_FIRST_MS = 8000;         // ออกตัว/กลับมาขับ: ชิ้นแรกไม่ก่อน 8 วิ
@@ -39,7 +39,7 @@ function speedOf(rt) {
   if (rt.van.fuel <= 0) return EMPTY_KMH;
   return Math.round(rt.van.kmh * (rt.nitroUntil > Date.now() ? NITRO_MUL : 1));
 }
-const DRIVER_IDLE_MS = 20000; // คนขับไม่บังคับรถ (เลี้ยว/ไนตรัส/แตร) เกิน 20 วิ = ที่นั่งว่าง (ผู้ใช้สั่ง 2026-11-14)
+const DRIVER_IDLE_MS = 20000; // คนขับไม่อยู่หน้าจอ (ไม่ขยับเมาส์/ไม่กดอะไรเลย — rt:alive) เกิน 20 วิ = ที่นั่งว่าง (ผู้ใช้สั่ง 2026-11-14)
 function driverOk(rt, now = Date.now()) {
   const d = rt.van.driverId && match.players[rt.van.driverId];
   if (rt.van.driverId && (!d || !d.alive || d.connected === false)) { rt.van.driverId = null; rt.van.seatReq = null; urgent = true; return; }

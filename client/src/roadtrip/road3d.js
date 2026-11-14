@@ -589,12 +589,12 @@ function makeRenderer(canvas, lowQ, alpha = false) {
   renderer.shadowMap.type = lowQ ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   return renderer;
 }
-// เวลาที่สิ่งกีดขวางถึงรถ (นาฬิกาเครื่องเรา) — กันนาฬิกา server/เครื่องไม่ตรงกัน: ครั้งแรกที่เห็นยึดระยะเวลาที่เหลือไว้ (≤ 3.2 วิ)
+// เวลาที่สิ่งกีดขวางถึงรถ (นาฬิกาเครื่องเรา) — กันนาฬิกา server/เครื่องไม่ตรงกัน: ครั้งแรกที่เห็นยึดระยะเวลาที่เหลือไว้ (≤ 5.4 วิ · server เตือน 5 วิ)
 function hazardArrival(map, h, nowMs, srvOffset) {
   let a = map.get(h.id);
   if (a == null) {
     const left = srvOffset != null ? h.at - (nowMs + srvOffset) : h.at - nowMs;
-    a = nowMs + clamp(left, 300, 3400);
+    a = nowMs + clamp(left, 300, 5400);
     map.set(h.id, a);
   }
   return a;
@@ -763,7 +763,7 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
       s.live = true; s.lane = clamp(Math.round(+hzd.lane || 0), -1, 1);
       s.arr = hazardArrival(D.arr, hzd, Date.now(), srvOffset);
       const kind = hzd.kind && world.HZ_KINDS.includes(hzd.kind) ? hzd.kind : world.HZ_KINDS[Math.floor(hash(strHash(hzd.id), 91) * 5) % 5];
-      if (s.kind !== kind) { for (const k in s.models) s.models[k].visible = false; if (!s.models[kind]) { s.models[kind] = world.hazardModel(kind); s.root.add(s.models[kind]); } s.models[kind].visible = true; s.kind = kind; }
+      if (s.kind !== kind) { for (const k in s.models) s.models[k].visible = false; if (!s.models[kind]) { s.models[kind] = world.hazardModel(kind); s.models[kind].traverse((o) => { if (o.material && !Array.isArray(o.material)) { o.material = o.material.clone(); o.material.fog = false; } }); s.root.add(s.models[kind]); } /* ไม่จางในหมอก — เห็นตั้งแต่ไกล (ผู้ใช้แจ้ง 2026-11-14) */ s.models[kind].visible = true; s.kind = kind; }
     }
     const nowC = Date.now();
     for (const s of slots) {
