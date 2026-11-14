@@ -311,3 +311,22 @@ test("อุ่นเครื่องพอแล้วเสริมสก�
   assert.equal(t.hp, 6);
   assert.equal(t.statuses.hburn, 1);
 });
+
+test("อุ่นเครื่องพอแล้วเสริมลาทัม: 2 เปลวเพลง · พุ่ง 8 ช่อง · ลุกไหม้ 3 · เพดาน PVP 5 คงเดิม", () => {
+  const { p, t, u } = setup({ points: 12 });
+  p.skillPoints = 12;
+  use("ultimate", "warm");
+  nextRound(); engine.setActor("a");
+  p.shinra.ember = 4;
+  delete p.statuses.hburn;
+  p.pos = { x: 3, y: 6 }; t.pos = { x: 4, y: 6 }; u.pos = { x: 10, y: 6 };
+  p.inventory.push({ uid: "i1", type: "lifeCrystal", price: 15 });
+  assert.equal(sh.skillArea(p, "ultimate", null, { form: "latom:i1" }).len, 8);
+  use("ultimate", "latom:i1", { dir: "right" });
+  assert.equal(ember(p), 2);
+  assert.deepEqual(p.pos, { x: 11, y: 6 }, "พุ่ง 8 ช่อง");
+  runBeats();
+  assert.equal(t.hp, 4, "เพดาน PVP 5");
+  assert.equal(t.statuses.hburn, 3);
+  assert.equal(u.statuses.hburn, 3);
+});

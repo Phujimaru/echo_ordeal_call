@@ -17,7 +17,7 @@
 //  สกิลรอง อุ้งเท้าปีศาจ (4 แต้ม หรือ 3 เปลวเพลง · ไฟ): ศัตรูทุกคนรอบตัว 3×3 (aoe square) เสียหาย 2 + บัฟพลังโจมตี (skillStrike bonus 1 · หลบได้)
 //  ท่าไม้ตาย (ช่องเดียว เลือก 1 ใน 2 — ผู้ใช้สั่ง 2026-11-14 "เลือกใช้ได้ ไม่ต้องใช้ 1 ก่อน"):
 //    อุ่นเครื่องพอแล้ว (6 แต้ม): 5 เทิร์น เปลวเพลงสูงสุด 8 · ฟื้น +2/เทิร์น · ตีปกติลุกไหม้ 2 · ลุกไหม้ตัวเอง 5 (ข้ามต้านสถานะ)
-//      เสริมสกิล (ผู้ใช้สั่ง 2026-11-14 · ค่า Claude เสนอ): ฮีโร่ ระยะเดิน +3 ใช้ 1 เปลวเพลง · อุ้งเท้าปีศาจ เสียหาย 3 + ลุกไหม้ 1 · เพลง inferno (skillMusic)
+//      เสริมสกิล (ผู้ใช้สั่ง 2026-11-14 · ค่า Claude เสนอ): ฮีโร่ ระยะเดิน +3 ใช้ 1 เปลวเพลง · อุ้งเท้าปีศาจ เสียหาย 3 + ลุกไหม้ 1 · ลาทัม 2 เปลวเพลง พุ่ง 8 ลุกไหม้ 3 · เพลง inferno (skillMusic)
 //      หมดเวลา = เปลวเพลงเกิน 5 ตัดเหลือ 5 · ไม่เติมเปลวเพลงตอนกด
 //    ลาทัม (3 แต้ม + 4 เปลวเพลง · ไฟ · คูลดาวน์ 2): ตัวเลือก = ไอเทมในกระเป๋าแต่ละชิ้น (ไม่มีไอเทม = กดไม่ได้)
 //      ได้แม่นยำ 2 เทิร์นก่อน → เลือกทิศ แนว 6×1 → พุ่งไปโผล่ช่องว่างไกลสุดของแนว (สิ่งกีดขวาง/ร้าน = แนวหยุดก่อนช่องนั้น)
@@ -64,6 +64,7 @@ const STORM = { sp: 4, ember: 3, dmg: 2 };
 // อุ่นเครื่องพอแล้วเสริมสกิลพื้นฐาน/รอง (ผู้ใช้สั่ง 2026-11-14 "ท่าไม้ตาย 1 บัฟสกิลพื้นฐานและสกิลรองด้วย" — ค่าที่ Claude เสนอ)
 const WARM_HERO = { mov: 3, ember: 1 };   // ฮีโร่: ระยะเดิน +3 (แทน +2) · 1 เปลวเพลง (แทน 2)
 const WARM_STORM = { dmg: 3, burn: 1 };   // อุ้งเท้าปีศาจ: ความเสียหาย 3 (แทน 2) + ลุกไหม้ 1
+const WARM_LATOM = { ember: 2, len: 8, burn: 3 }; // ลาทัม (ผู้ใช้สั่ง "บัฟท่าไม้ตาย 2 ด้วย" · ค่า Claude เสนอ): 2 เปลวเพลง (แทน 4) · พุ่ง 8 ช่อง (แทน 6) · ลุกไหม้ 3 (แทน 2)
 const WARM = { sp: 6, turns: 5, selfBurn: 5 };
 const LATOM = { sp: 3, ember: 4, cd: 2, len: 6, burn: 2, accurate: 2, smolder: 2, pvpCap: 5 };
 const DETONATE_PVP_CAP = 4;
@@ -93,6 +94,9 @@ const smolderOn = (p, r = round()) => isMe(p) && r < st(p).smolderEnd;
 const emberMax = (p) => (warmOn(p) ? EMBER_MAX_WARM : EMBER_MAX);
 const heroMov = (p) => (warmOn(p) ? WARM_HERO.mov : HERO.mov);
 const heroEmber = (p) => (warmOn(p) ? WARM_HERO.ember : HERO.ember);
+const latomEmber = (p) => (warmOn(p) ? WARM_LATOM.ember : LATOM.ember);
+const latomLen = (p) => (warmOn(p) ? WARM_LATOM.len : LATOM.len);
+const latomBurn = (p) => (warmOn(p) ? WARM_LATOM.burn : LATOM.burn);
 const stormDmg = (p) => (warmOn(p) ? WARM_STORM.dmg : STORM.dmg);
 const pve = () => { const m = matchOf().gameMode; return m === "eos" || m === "moon"; };
 const passiveOn = (p) => PassiveSeal.on(p);
@@ -139,7 +143,7 @@ function endWarm(engine, p, why) {
 //  ช่องลงจอด = ช่องว่างไกลสุดในแนว (ไม่มีคน · ไม่ใช่สิ่งกีดขวาง) · ไม่มี = อยู่ที่เดิม
 function planLatom(engine, p, dir) {
   const tiles = [];
-  for (const t of engine.chargeTiles(p, dir, LATOM.len)) {
+  for (const t of engine.chargeTiles(p, dir, latomLen(p))) {
     if (t.obstacle || t.shop) break;
     tiles.push(t);
   }
@@ -174,7 +178,7 @@ function latomHit(engine, p, t, item) {
   finally { s.latomHit = false; }
   const reacted = !!Element.takeReaction();
   if (t.alive && !(res && res.dodge)) {
-    const n = engine.applyBurn(t, LATOM.burn);
+    const n = engine.applyBurn(t, latomBurn(p));
     if (n > 0) engine.log(`🔥 ${t.name} ติดลุกไหม้ ${n}`);
   }
   engine.boardFxTo(watchers(engine, p), FX, { kind: "latomHit", id: p.id, at, to: t.id, dmg: res ? res.dmg : 0 });
@@ -183,7 +187,7 @@ function latomHit(engine, p, t, item) {
 
 module.exports = {
   id: ID,
-  IMG, SFX, FX, VIDEO, CUT, PASSIVE, NAMES, WARM_HERO, WARM_STORM, EMBER_MAX, EMBER_MAX_WARM, HERO, STORM, WARM, LATOM, DETONATE_PVP_CAP, T,
+  IMG, SFX, FX, VIDEO, CUT, PASSIVE, NAMES, WARM_HERO, WARM_STORM, WARM_LATOM, EMBER_MAX, EMBER_MAX_WARM, HERO, STORM, WARM, LATOM, DETONATE_PVP_CAP, T,
   isMe, heroOn, warmOn, smolderOn, planLatom,
 
   resetCombat(p) {
@@ -275,22 +279,22 @@ module.exports = {
       const latomCd = cdLeft(s.latomReady, r);
       const cap = pve() ? null : LATOM.pvpCap;
       const items = sacrificeable(p);
-      const latomArea = { kind: "line", len: LATOM.len, width: 1, hostile: true };
-      const latomLocked = latomCd > 0 || s.ember < LATOM.ember;
+      const latomArea = { kind: "line", len: latomLen(p), width: 1, hostile: true };
+      const latomLocked = latomCd > 0 || s.ember < latomEmber(p);
       return {
         choices: [
           { key: "warm", name: NAMES.warm, img: IMG.warm, cost: costOf(WARM.sp, "warm"), free: false, locked: warmOn(p), active: warmOn(p),
-            desc: `${WARM.sp} แต้ม · ${WARM.turns} เทิร์น: เปลวเพลงสูงสุด ${EMBER_MAX_WARM} · ฟื้นเปลวเพลง +${EMBER_REGEN + EMBER_REGEN_WARM}/เทิร์น · ตีปกติติดลุกไหม้ ${STRIKE_BURN_WARM} · ${NAMES.hero} ระยะเดิน +${WARM_HERO.mov} ใช้ ${WARM_HERO.ember} เปลวเพลง · ${NAMES.storm} เสียหาย ${WARM_STORM.dmg} + ลุกไหม้ ${WARM_STORM.burn} · ติดลุกไหม้ตัวเอง ${WARM.selfBurn}` },
+            desc: `${WARM.sp} แต้ม · ${WARM.turns} เทิร์น: เปลวเพลงสูงสุด ${EMBER_MAX_WARM} · ฟื้นเปลวเพลง +${EMBER_REGEN + EMBER_REGEN_WARM}/เทิร์น · ตีปกติติดลุกไหม้ ${STRIKE_BURN_WARM} · ${NAMES.hero} ระยะเดิน +${WARM_HERO.mov} ใช้ ${WARM_HERO.ember} เปลวเพลง · ${NAMES.storm} เสียหาย ${WARM_STORM.dmg} + ลุกไหม้ ${WARM_STORM.burn} · ${NAMES.latom} ใช้ ${WARM_LATOM.ember} เปลวเพลง พุ่ง ${WARM_LATOM.len} ช่อง ลุกไหม้ ${WARM_LATOM.burn} · ติดลุกไหม้ตัวเอง ${WARM.selfBurn}` },
           ...(items.length ? items.map((it) => {
             const dmg = cap ? Math.min(cap, latomDmg(it)) : latomDmg(it);
             return {
-              key: `latom:${it.uid}`, name: NAMES.latom, item: { ...it }, cost: costOf(LATOM.sp, `latom:${it.uid}`), ember: LATOM.ember, free: false,
+              key: `latom:${it.uid}`, name: NAMES.latom, item: { ...it }, cost: costOf(LATOM.sp, `latom:${it.uid}`), ember: latomEmber(p), free: false,
               area: latomArea, cd: latomCd, locked: latomLocked,
-              desc: `${NAMES.latom} · สละ${itemName(it)} · ${LATOM.sp} แต้ม + ${LATOM.ember} เปลวเพลง · ธาตุไฟ · แม่นยำ ${LATOM.accurate} เทิร์น · พุ่งแนว ${LATOM.len}×1 ไปโผล่ปลายแนว · ศัตรูที่พุ่งผ่าน: ล้างต้านสถานะ · เสียหาย ${dmg}${cap ? ` (สูงสุด ${cap})` : ""} · ลุกไหม้ ${LATOM.burn} · เกิดปฏิกิริยา = ${NAMES.smolder} ${LATOM.smolder} เทิร์น`,
+              desc: `${NAMES.latom} · สละ${itemName(it)} · ${LATOM.sp} แต้ม + ${latomEmber(p)} เปลวเพลง · ธาตุไฟ · แม่นยำ ${LATOM.accurate} เทิร์น · พุ่งแนว ${latomLen(p)}×1 ไปโผล่ปลายแนว · ศัตรูที่พุ่งผ่าน: ล้างต้านสถานะ · เสียหาย ${dmg}${cap ? ` (สูงสุด ${cap})` : ""} · ลุกไหม้ ${latomBurn(p)} · เกิดปฏิกิริยา = ${NAMES.smolder} ${LATOM.smolder} เทิร์น`,
             };
           }) : [{
-            key: "latom:none", name: NAMES.latom, img: IMG.latom, cost: LATOM.sp, ember: LATOM.ember, free: false, locked: true, cd: latomCd,
-            desc: `${NAMES.latom} · ${LATOM.sp} แต้ม + ${LATOM.ember} เปลวเพลง · ต้องมีไอเทมให้สละ`,
+            key: "latom:none", name: NAMES.latom, img: IMG.latom, cost: LATOM.sp, ember: latomEmber(p), free: false, locked: true, cd: latomCd,
+            desc: `${NAMES.latom} · ${LATOM.sp} แต้ม + ${latomEmber(p)} เปลวเพลง · ต้องมีไอเทมให้สละ`,
           }]),
         ],
       };
@@ -305,7 +309,7 @@ module.exports = {
   },
   skillArea(p, tier, area, opts = {}) {
     if (!isMe(p) || tier !== "ultimate") return area;
-    return String(opts.form || "").startsWith("latom:") ? { kind: "line", len: LATOM.len, width: 1, hostile: true } : { kind: "self" };
+    return String(opts.form || "").startsWith("latom:") ? { kind: "line", len: latomLen(p), width: 1, hostile: true } : { kind: "self" };
   },
   // ลาทัม: ผลพื้นที่ลงเฉพาะช่องที่พุ่งผ่านจริง (หยุดที่สิ่งกีดขวาง)
   ownsAreaHit(p, tier, opts = {}) { return isMe(p) && tier === "ultimate" && String(opts.form || "").startsWith("latom:"); },
@@ -320,7 +324,7 @@ module.exports = {
       if (form === "warm" || form === "") return !warmOn(p);
       if (form.startsWith("latom:")) {
         const uid = form.slice(6);
-        if (cdLeft(s.latomReady, engine.roundNumber) > 0 || s.ember < LATOM.ember || !p.pos) return false;
+        if (cdLeft(s.latomReady, engine.roundNumber) > 0 || s.ember < latomEmber(p) || !p.pos) return false;
         return sacrificeable(p).some((it) => it.uid === uid);
       }
       return false;
@@ -439,7 +443,7 @@ function castLatom(engine, p, uid, dir) {
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0 || !p.pos) return "";
   const [item] = p.inventory.splice(idx, 1);
-  payEmber(p, LATOM.ember);
+  payEmber(p, latomEmber(p));
   s.latomReady = r + LATOM.cd;
   engine.applyBuff(p, "accurate", null, LATOM.accurate);
   const plan = planLatom(engine, p, dir);
