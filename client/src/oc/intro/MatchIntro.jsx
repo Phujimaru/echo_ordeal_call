@@ -21,6 +21,8 @@
 //       prop fodlan = { stage, weather } (รู้ตั้งแต่เริ่มฉาก) = เริ่มสร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร ไม่ต้องรอ onOutro
 //      { eos, board, self, night }: ฉากเข้าสนาม Eos (GRID_PLAN §8.6) — โลกหมุนหาหมุด Eos → ดิ่งชน (eos/eosFlight.js) → แฟลชฟ้า
 //       → ฉาก 3 มิติดินแดน Lucis (eos/eosTheatre.js) + ชั้น DOM (eos/EosCine.jsx) → แฟลชขาวส่งต่อ (D − 240)
+//      { roadtrip }: โลกหมุนหาหมุดส้ม Road Trip → ดิ่งชน → แฟลชส้ม-ขาว (roadtrip/rtFlight.js + RtDiveCine) → ส่งต่อ (D − 200)
+//       จอขับ 3D mount ใต้แฟลช แล้วฉากเปิดทริป (roadtrip/RtTransitions.jsx RtIntro) รับแฟลชเดิมต่อ · title = หัวข้อช่วงรวมแถว
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";
@@ -40,6 +42,8 @@ import { FODLAN_INTRO_MS, clampFodlanStage } from "../../fodlan/stages";
 import EosCine from "../../eos/EosCine";
 import { EOS_INTRO_MS } from "../../eos/eosMeta";
 import { createEosFlight } from "../../eos/eosFlight";
+import { createRtFlight, RT_DIVE_T } from "../../roadtrip/rtFlight";
+import { RtDiveCine } from "../../roadtrip/RtTransitions";
 
 const FINALE_MS = 2900;
 const FIRST_MS = 120;
@@ -116,7 +120,7 @@ function OrbitCard({ p, cardRef }) {
   );
 }
 
-export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fodlanPrep = null, onFodlanMap, onOutro, onHandoff, onDone }) {
+export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fodlanPrep = null, title = null, onFodlanMap, onOutro, onHandoff, onDone }) {
   const ordered = useMemo(() => [...players].sort((a, b) => a.position - b.position), [players]);
   const n = ordered.length;
   const perMs = introPerMs(n);
@@ -138,6 +142,8 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
   const [cdash, setCdash] = useState(false);      // ช่วงพุ่งเข้าท่าเทียบยาน (เส้นพุ่ง)
   const [fodlan, setFodlan] = useState(null);     // ฉากเข้าโหมด Fodlan { D, stage, weather }
   const [eos, setEos] = useState(null);           // ฉากเข้าสนาม Eos { D, live, board, self, night }
+  const [rtrip, setRtrip] = useState(null);       // ฉากเข้าโหมด Road Trip { D }
+  const [rdash, setRdash] = useState(false);      // Road Trip: ช่วงดิ่ง (เส้นความเร็ว)
   const prepRef = useRef(fodlanPrep);
   const mapRef = useRef(onFodlanMap); // Fodlan: เห็นแผนที่ทวีปแล้ว (App สลับเพลง)
   useLayoutEffect(() => { mapRef.current = onFodlanMap; });
@@ -189,6 +195,16 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         setEos({ D, self: spec.self || null });
         setMode("eos");
         at(D - 240, handoff);
+        at(D, done);
+      } else if (spec && spec.roadtrip) {
+        // Road Trip: การ์ดไหลออก → โลกหมุนหาหมุดส้ม → ดิ่งชน → แฟลชส้ม-ขาวทึบ → ส่งต่อจอขับ 3D ใต้แฟลช
+        const D = Math.max(2200, Number(spec.durationMs) || 3200);
+        tlRef.current.out = true;
+        tlRef.current.rtrip = { at: performance.now(), D };
+        setRtrip({ D });
+        setMode("roadtrip");
+        at(RT_DIVE_T.dive * D, () => setRdash(true));
+        at(D - 200, handoff);
         at(D, done);
       } else if (spec && spec.colony) {
         // โคโลนี: การ์ดไหลออก → เหวี่ยงรอบโลก → ควงสว่าน → พุ่งเข้าท่าเทียบยาน → แฟลชขาวส่งต่อ
@@ -263,6 +279,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = เริ่มสร้างเลย (ไม่งั้นสร้างตอน onOutro — ภาพค้างใต้แฟลชจนเสร็จ)
     let fodlanCam = null;
     let eosCam = null;
+    let rtCam = null;
     const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false, onMap: () => mapRef.current?.() });
     if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
@@ -353,6 +370,13 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         eosCam.frame(import.meta.env.DEV && window.__eosGU != null ? window.__eosGU : clamp01((now - ev.at) / ev.D), (now - start) / 1000);
         return;
       }
+      // ---------- Road Trip: หมุน → ดิ่งลงหมุด ----------
+      const rv = tlRef.current.rtrip;
+      if (rv) {
+        if (!rtCam) rtCam = createRtFlight(core, { lowQ, wrapEl: stageEl, start });
+        rtCam.frame(clamp01((now - rv.at) / rv.D));
+        return;
+      }
       // ---------- บินอ้อมโลกไปดวงจันทร์ ----------
       const mv = tlRef.current.moon;
       if (mv) {
@@ -399,6 +423,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       colonyCam?.restore();
       fodlanCam?.dispose();
       eosCam?.dispose();
+      rtCam?.dispose();
       if (core.sand) core.sand.visible = sandShown;
       core.world.rotation.set(0, 0, 0);
     };
@@ -416,6 +441,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     mode === "colony" ? "is-colony" : "",
     mode === "fodlan" ? "is-fodlan" : "",
     mode === "eos" ? "is-eos" : "",
+    mode === "roadtrip" ? "is-roadtrip" : "",
     diving ? `ocd-p${dphase}` : "",
     crash ? "is-crash" : "",
     lineup ? "is-lineup" : "",
@@ -448,7 +474,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       {!handed && ordered.map((p, i) => (i < seen ? <OrbitCard key={p.id} p={p} cardRef={(el) => { cardRefs.current[i] = el; }} /> : null))}
 
       <div className="ocx-title" aria-hidden={!lineup}>
-        <h1 className="ocx-title-h">เริ่มการประลอง</h1>
+        <h1 className="ocx-title-h">{title || "เริ่มการประลอง"}</h1>
       </div>
 
       {diving && (
@@ -485,6 +511,12 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
       {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.stage} />}
       {eos && <EosCine D={eos.D} self={eos.self} />}
+      {rtrip && (
+        <>
+          <DiveStreaks show={rdash} seed={4} lowQ={lowQ} />
+          <RtDiveCine D={rtrip.D} />
+        </>
+      )}
     </div>
   );
 }

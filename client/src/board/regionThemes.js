@@ -17,6 +17,7 @@ import { cactusShape, deadTreeShape, drawTree, pineShape, prism, SNOW_PINE, wind
 import { ZERO_THEMES } from "./zeroTheme";
 import { MOON_THEMES } from "./schoolTheme";
 import { fodlanThemes } from "./fodlan/index";
+import { roadtripThemes } from "./roadtrip/theme";
 
 const TAU = Math.PI * 2;
 // วงรีบนพื้นในพิกัดฉาก
@@ -1020,6 +1021,8 @@ Object.assign(THEMES, MOON_THEMES);
 for (const [area, th] of Object.entries(fodlanThemes())) { if (th.pal) THEMES[area] = th; }
 
 // ธีมของภูมิภาค (ไม่รู้จัก = ภูมิภาค I)
+// Road Trip (area 70–75 · board/roadtrip/theme.js) — ธีมตามภูมิภาคปัจจุบันของการเดินทาง
+Object.assign(THEMES, roadtripThemes());
 export function themeOf(area) { return THEMES[area] || THEMES[1]; }
 // ช่วงพื้นโลกที่มองเห็น (หน่วยช่อง) — ใช้กระจายลายพื้น
 export function worldRange(view) {

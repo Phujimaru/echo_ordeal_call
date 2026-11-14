@@ -68,6 +68,21 @@ const FILES = {
   //  เริ่มเล่นตอนฉากเข้าด่าน (fodlan/fodlanFlight.js · FodlanTravel.jsx) · เสียงบรรยากาศแยกอยู่ fodlan/fodlanAudio.js
   eos_intro: "/eos/music/somnus.mp3", // สนาม Eos: ฉากเปิด (Somnus — ผู้ใช้ส่งมา 2026-11-10)
   eos_end: "/eos/music/omnis.mp3",    // สนาม Eos: หน้าจบเกม (Omnis Lacrima)
+  // Road Trip (GRID_PLAN §8.8 · ชื่อไฟล์ตายตัว ผู้ใช้ส่งทีหลัง 2026-11-14): ยังไม่มีไฟล์ = เพลงสังเคราะห์ใน roadtrip/radio.js (setBed)
+  //  ไฟล์ไหนมีจริง roadtrip/radio.js probeMusicFiles ตรวจให้ · เลือกตามเฟส/กลางคืน/ชนิดการต่อสู้ที่ audioPolicy.roadtripMusic
+  //  วนทุกเพลง ยกเว้น over/intro (RT_NO_LOOP)
+  rt_stop_day: "/roadtrip/music/stop_day.mp3",
+  rt_stop_night: "/roadtrip/music/stop_night.mp3",
+  rt_motel: "/roadtrip/music/motel.mp3",
+  rt_combat_day: "/roadtrip/music/combat_day.mp3",
+  rt_combat_night: "/roadtrip/music/combat_night.mp3",
+  rt_onvan: "/roadtrip/music/onvan.mp3",
+  rt_boss: "/roadtrip/music/boss.mp3",
+  rt_boss_devilTruck: "/roadtrip/music/boss_devilTruck.mp3", // แม็กซ์ เวอร์สแตปเพน (ผู้ใช้ส่ง 2026-11-14 "Max Verstappen Song")
+  rt_boss_darkKnight: "/roadtrip/music/boss_darkKnight.mp3",
+  rt_boss_jormungand: "/roadtrip/music/boss_jormungand.mp3",
+  rt_over: "/roadtrip/music/over.mp3",
+  rt_intro: "/roadtrip/music/intro.mp3",
   fodlan_map: "/fodlan/music/map.mp3", // ฉากแผนที่ทวีป: ก่อนเข้าด่าน (ดิ่งลงโลก → แผนที่) + ระหว่างเปลี่ยนด่าน (ไฟล์ผู้ใช้ fodlanmap.mp3 ดันเป็น -11.6 LUFS)
   fodlan_1: "/fodlan/music/stage1.mp3",
   fodlan_1_wx: "/fodlan/music/stage1_wx.mp3",
@@ -760,6 +775,16 @@ const LOUDNESS_GAIN = {
   "/fodlan/music/stage4_wx.mp3": 0.83, // -9.7 LUFS
   "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
   // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
+  // Road Trip (ยังไม่มีไฟล์ — วัด ffmpeg ebur128 แล้วใส่ค่าจริงเมื่อผู้ใช้ส่งมา · เป้า -14 LUFS)
+  "/roadtrip/music/stop_day.mp3": 1,
+  "/roadtrip/music/stop_night.mp3": 1,
+  "/roadtrip/music/motel.mp3": 1,
+  "/roadtrip/music/combat_day.mp3": 1,
+  "/roadtrip/music/combat_night.mp3": 1,
+  "/roadtrip/music/onvan.mp3": 1,
+  "/roadtrip/music/boss.mp3": 1,
+  "/roadtrip/music/over.mp3": 1,
+  "/roadtrip/music/intro.mp3": 1,
   "/characters/sliver_bullet/sliver_bullet_skill3.mp4": 0.84,
   "/characters/sliver_bullet/banagher_ntd.mp4": 0.84,
   "/characters/sliver_bullet/banagher_ntd_shot.mp4": 0.84,
@@ -773,6 +798,18 @@ const LOUDNESS_GAIN = {
   // เกรย์ (ffmpeg ebur128 ทั้งไฟล์) — contro -14.6 / standBy -14.1 / skill3_intro.mp4 -16.2 / skill3_final.mp4 -15.5 อยู่ที่เป้าแล้ว ไม่อยู่ในตาราง
 };
 function pathGain(path) { return LOUDNESS_GAIN[path] ?? 1; }
+// ลงทะเบียนเสียงเพิ่มตอนรันไทม์ (Road Trip: roadtrip/sfxManifest.js → roadtrip/rtAudio.js) · ชื่อซ้ำของเดิม = ไม่ทับ
+//  gainsDb = ปรับความดังต่อชื่อ (dB · ลดได้อย่างเดียว เพดาน volume 1)
+export function registerSounds(map, gainsDb = {}) {
+  for (const [name, path] of Object.entries(map || {})) {
+    if (!path || FILES[name]) continue;
+    FILES[name] = path;
+    const db = Number(gainsDb && gainsDb[name]);
+    if (Number.isFinite(db) && LOUDNESS_GAIN[path] == null) LOUDNESS_GAIN[path] = Math.min(1, Math.pow(10, db / 20));
+  }
+}
+export function hasSound(name) { return !!FILES[name]; }
+export function soundPath(name) { const f = FILES[name]; return Array.isArray(f) ? f[0] : f || null; }
 export function soundGain(name) { return pathGain(FILES[name]); }
 const activeSfx = new Map();
 const musicSuspensions = new Set();
@@ -918,7 +955,7 @@ function getMusic(name) {
       intro.addEventListener("ended", toLoop);
       musicCache[name] = intro;
     } else {
-      musicCache[name] = musicTrack(name, FILES[name], true, 0);
+      musicCache[name] = musicTrack(name, FILES[name], !RT_NO_LOOP.has(name), 0);
     }
   }
   musicCache[name].volume = trackVolume(name);
@@ -1036,6 +1073,8 @@ export function stopMusicExcept(keep) {
 export function stopMusic() {
   stopMusicExcept(null);
 }
+// เพลงที่เล่นจบครั้งเดียว ไม่วน (Road Trip: หน้าจบเกม / ฉากเปิด)
+const RT_NO_LOOP = new Set(["rt_over", "rt_intro"]);
 // เริ่มเกมใหม่ / จบแมตช์: รีเซ็ตตำแหน่งเพลงทุกเพลง -> ครั้งถัดไปเริ่มจากต้นทั้งหมด
 export function resetMusicPositions() {
   stopLoopSfx();
@@ -1341,6 +1380,19 @@ if (typeof window !== "undefined") {
 
 // Start a foreground clip and restore sound on the next gesture if autoplay required muting.
 // Cleanup prevents a rejected play promise from restarting a clip that has already unmounted.
+// ---------- หยุดสื่อที่ค้างจากการต่อสู้ (Road Trip — ผู้ใช้สั่ง 2026-11-14: ออกจากการต่อสู้ = หยุดทุกอย่างที่ยังเล่นอยู่) ----------
+//  เสียงเอฟเฟกต์/พากย์ทุกตัว · ลูปเสียงเฉพาะกิจ · เพลงท่าไม้ตาย · เพลงประจำฉาก · คลิปวีดีโอที่เล่นผ่าน playCutsceneVideo
+//  แล้วส่งอีเวนต์ "echo:stop-combat-media" ให้ฉากซ้อน/คลิปที่จัดการเองปิดตัวเอง
+const activeClips = new Set();   // ตัวหยุดของ playCutsceneVideo ที่ยังเล่นอยู่
+const activeScenes = new Set();  // ตัวหยุดของ playSceneMusic ที่ยังเล่นอยู่
+export function stopCombatMedia() {
+  for (const a of Array.from(activeSfx.keys())) { activeSfx.delete(a); try { a.pause(); } catch { /* element ถูกทิ้งแล้ว */ } }
+  stopLoopSfx();
+  for (const stop of Array.from(activeClips)) { try { stop(); } catch { /* */ } }
+  for (const stop of Array.from(activeScenes)) { try { stop(); } catch { /* */ } }
+  stopMusic();
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("echo:stop-combat-media"));
+}
 export function playCutsceneVideo(video) {
   const releaseMusic = suspendMusic();
   let disposed = false;
@@ -1369,8 +1421,10 @@ export function playCutsceneVideo(video) {
     play().catch(() => {});
   });
   const unsubscribe = onVolumeChange(updateVolume);
-  return () => {
+  const stop = () => {
+    if (disposed) return;
     disposed = true;
+    activeClips.delete(stop);
     video.pause();
     unsubscribe();
     if (typeof window !== "undefined") {
@@ -1379,6 +1433,8 @@ export function playCutsceneVideo(video) {
     }
     releaseMusic();
   };
+  activeClips.add(stop);
+  return stop;
 }
 
 // เพลงประจำฉากของ client เอง (ท่าไม้ตาย Echo "ก่อกำเนิดใหม่" — ฉากไม่มีวีดีโอ): พักเพลงพื้นหลังทั้งหมดแล้วเล่นเพลงนี้แทน
@@ -1416,8 +1472,10 @@ export function playSceneMusic(name, { from = 0 } = {}) {
       window.removeEventListener("pointerdown", retry);
       window.removeEventListener("keydown", retry);
     }
+    activeScenes.delete(stop);
     releaseMusic();
   };
+  activeScenes.add(stop);
   return {
     fadeOut(ms = 800) {
       if (done) return;

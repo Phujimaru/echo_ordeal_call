@@ -64,8 +64,19 @@ const FreddyPreview = import.meta.env.DEV && hudQ.has("freddy")
   ? React.lazy(() => import("./screens/hud/FreddyDoorsPreview.jsx"))
   : null;
 
+// ?roadtrip=ui = หน้าดูแผงของโหมด Road Trip ด้วย state จำลอง (เฉพาะ dev) — ดู roadtrip/RoadtripUiPreview.jsx
+const RoadtripUiPreview = import.meta.env.DEV && hudQ.get("roadtrip") === "ui"
+  ? React.lazy(() => import("./roadtrip/RoadtripUiPreview.jsx"))
+  : null;
+
+// ?roadtrip=stop = หน้าดูกระดานโหมด Road Trip (ถนน/บนรถตู้/ปั๊ม 3 แบบ/โมเต็ล × 5 ภูมิภาค × กลางคืน) (เฉพาะ dev) — ดู board/roadtrip/StopPreview.jsx
+const RtStopPreview = import.meta.env.DEV && hudQ.get("roadtrip") === "stop" ? React.lazy(() => import("./board/roadtrip/StopPreview.jsx")) : null;
+
+// ?roadtrip=drive = หน้าดูฉากขับ 3D ของโหมด Road Trip ด้วย state จำลองที่เดินเอง (เฉพาะ dev · &combat=onvan|road = ฉากใต้กระดานตอนต่อสู้ · &fps=1) — ดู roadtrip/RoadtripDrivePreview.jsx
+const RtDrivePreview = import.meta.env.DEV && hudQ.get("roadtrip") === "drive" ? React.lazy(() => import("./roadtrip/RoadtripDrivePreview.jsx")) : null;
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {FreddyPreview ? <React.Suspense fallback={null}><FreddyPreview /></React.Suspense> : EosPreview ? <React.Suspense fallback={null}><EosPreview /></React.Suspense> : ArjunaPreview ? <React.Suspense fallback={null}><ArjunaPreview /></React.Suspense> : FodlanPreview ? <React.Suspense fallback={null}><FodlanPreview /></React.Suspense> : RebirthPreview ? <React.Suspense fallback={null}><RebirthPreview /></React.Suspense> : TravelPreview ? <React.Suspense fallback={null}><TravelPreview /></React.Suspense> : VictoryPreview ?<React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
+    {RtDrivePreview ? <React.Suspense fallback={null}><RtDrivePreview /></React.Suspense> : RtStopPreview ? <React.Suspense fallback={null}><RtStopPreview /></React.Suspense> : RoadtripUiPreview ? <React.Suspense fallback={null}><RoadtripUiPreview /></React.Suspense> : FreddyPreview ? <React.Suspense fallback={null}><FreddyPreview /></React.Suspense> : EosPreview ? <React.Suspense fallback={null}><EosPreview /></React.Suspense> : ArjunaPreview ? <React.Suspense fallback={null}><ArjunaPreview /></React.Suspense> : FodlanPreview ? <React.Suspense fallback={null}><FodlanPreview /></React.Suspense> : RebirthPreview ? <React.Suspense fallback={null}><RebirthPreview /></React.Suspense> : TravelPreview ? <React.Suspense fallback={null}><TravelPreview /></React.Suspense> : VictoryPreview ?<React.Suspense fallback={null}><VictoryPreview /></React.Suspense> : BoardPreview ? <React.Suspense fallback={null}><BoardPreview /></React.Suspense> : HudPreview ? <React.Suspense fallback={null}><HudPreview /></React.Suspense> : ArenaPreview ? <React.Suspense fallback={null}><ArenaPreview /></React.Suspense> : MoonPreview ? <React.Suspense fallback={null}><MoonPreview /></React.Suspense> : <App />}
   </React.StrictMode>
 );

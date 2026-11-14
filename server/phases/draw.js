@@ -28,9 +28,13 @@ const Soot = require("../soot");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
+const RT = require("../roadtrip"); // Road Trip (GRID_PLAN §8.8)
 
 function dealRound() {
   timers.clearPhaseTimer();
+  // Road Trip: นอกการต่อสู้ไม่มีเทิร์น/ไม่แจกไพ่ (ตัวจับเวลาเก่าที่ค้างมาเรียก = ไม่ทำอะไร) · ต้นเทิร์นของการต่อสู้ = มอนเดิน/ถนนเลื่อน/ป้อมปืน ก่อนแจกไพ่
+  if (RT.blocksDeal()) return;
+  if (RT.preRound(dealRound)) return;
   // Colony: อีเวนต์ต้นเทิร์น (อุกกาบาต/ลำแสง/แคปซูล/ดูด/หมุน) ลงผลก่อนแจกไพ่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ
   if (Colony.preRound(dealRound)) return;
   // Moon Cell: ฟื้นคืนชีพ / คำสาปแห่งดวงจันทร์ลงผล (คลิป) / เล็งคำสาปใหม่ — มีฉาก = พักเกมแล้วกลับมาที่นี่อีกรอบ

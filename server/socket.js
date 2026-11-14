@@ -1,7 +1,7 @@
 // Socket.io: เชื่อมต่อ/หลุด/กลับเข้า + รับคำสั่งผู้เล่น
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  scheduleDisconnectedRemoval, newPlayerRecord, kickPlayer, isHostSocket, dropPlayerNow: removeDisconnectedPlayer,
+  scheduleDisconnectedRemoval, newPlayerRecord, kickPlayer, isHostSocket, dropPlayerNow: removeDisconnectedPlayer, combatOnly,
 });
 
 const crypto = require("crypto");
@@ -28,6 +28,7 @@ const ClockUp = require("./clockUp");
 const { engine } = require("./engine");
 const Colony = require("./colony");
 const CharStats = require("./charStats");
+const RT = require("./roadtrip"); // โหมด Road Trip (GRID_PLAN §8.8)
 
 // playerId is independent from socket.id so a reconnect can reclaim the same player.
 const sessions = new Map();          // sessionToken -> playerId
@@ -145,6 +146,7 @@ function kickPlayer(targetId, byId = null) {
   }
   delete match.players[targetId];
   const others = Object.keys(match.players);
+  RT.presenceChanged(); // Road Trip: โหวต/พร้อมไม่ต้องรอคนที่ออก · ทุกคนออก = ล้างสถานะโหมด
   if (!others.length) {
     match.gameState = 'LOBBY';
     timers.clearPhaseTimer();
@@ -193,6 +195,13 @@ function onUnitEvent(socket, event, handler, limit = 20, windowMs = 1000) {
     return TimeStop.guard(() => handler(id, payload));
   }, limit, windowMs);
 }
+
+// Road Trip (กฎผู้ใช้ 2026-11-14): ช่วงเดินทาง (ขับ/ทางแยก/เหตุการณ์/จุดพัก) ใช้สกิล/ท่าไม้ตาย/ตี/ปุ่มตัวละครไม่ได้ — ได้เฉพาะตอนต่อสู้
+function combatOnly(handler) {
+  return (id, payload) => (RT.blocksCombatCmd() ? false : handler(id, payload));
+}
+// คำสั่งของโหมด Road Trip (contract §5) — ใช้ได้ทุกคนไม่ต้องเป็นตาตัวเอง (ยกเว้น rt:rear) · ตัวคุมตรวจข้อมูลเอง
+const RT_COMMANDS = { seat: 6, steer: 12, nitro: 4, horn: 4, vote: 6, event: 6, walk: 8, act: 6, ready: 4, upg: 6, decor: 10, style: 6, paint: 6, plate: 4, radio: 4, rear: 4, use: 6 };
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join
 function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, ch, mode = null }) {
@@ -366,7 +375,8 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'lock', (id) => draw.lock(id), 4);
   // ไอเทมช่วงจั่วไพ่ (ยาโชคลาภ / ยาเปลี่ยนสีการ์ด) — ผู้ถือไพ่ = เจ้าของ (ระบบคู่)
   onPlayerEvent(socket, 'useDrawItem', (id, { uid, cardIndex, color } = {}) => shop.useDrawItem(id, uid, { cardIndex, color }), 8);
-  onUnitEvent(socket, 'useSkill', (id, { tier, targets, dir, form, tile, tiles, orient } = {}) => {
+  for (const [name, limit] of Object.entries(RT_COMMANDS)) onPlayerEvent(socket, `rt:${name}`, (id, payload) => RT.command(id, name, payload), limit);
+  onUnitEvent(socket, 'useSkill', combatOnly((id, { tier, targets, dir, form, tile, tiles, orient } = {}) => {
     const okTile = (t) => !!t && Number.isInteger(t.x) && Number.isInteger(t.y);
     // เลือกหลายช่อง (area tile place "list" + count — ลอว์: Shambles / Shamble เลือก 2 อย่าง) · ช่องแรกใช้เป็น tile ของด่านระยะ
     const list = Array.isArray(tiles) ? tiles.slice(0, 4).filter(okTile).map((t) => ({ x: t.x, y: t.y })) : undefined;
@@ -377,11 +387,11 @@ io.on('connection', (socket) => {
       tiles: list,
       orient: orient === 'h' || orient === 'v' ? orient : undefined, // แนวของพื้นที่ rect (เซลิน: กำแพงน้ำแข็ง 3×1 / 1×3)
     });
-  }, 12);
+  }), 12);
   onUnitEvent(socket, 'viewShop', (id, { shopId } = {}) => shop.viewShop(id, shopId), 8); // เปิดดูร้าน = ล็อกการเดิน
   onUnitEvent(socket, 'buyShopItem', (id, { shopId, itemId } = {}) => shop.buyShopItem(id, shopId, itemId), 8);
   onUnitEvent(socket, 'useInventoryItem', (id, { uid, targetId, amount, status, tile, element } = {}) => combat.withEffectSource(match.players[id], () => shop.useInventoryItem(id, uid, { targetId, amount, status, tile, element })), 8);
-  onUnitEvent(socket, 'blowWhistle', (id) => combat.withEffectSource(match.players[id], () => require('./whistle').blow(id)), 8); // นกหวีดอัญเชิญมนต์อสูรเทพ (ช่องพิเศษที่ 6)
+  onUnitEvent(socket, 'blowWhistle', combatOnly((id) => combat.withEffectSource(match.players[id], () => require('./whistle').blow(id))), 8); // นกหวีดอัญเชิญมนต์อสูรเทพ (ช่องพิเศษที่ 6)
   onUnitEvent(socket, 'dropItem', (id, { uid } = {}) => shop.dropItem(id, uid), 8); // ทิ้งของ (ตาตัวเอง · ไม่นับเป็นการใช้)
   // ให้/แลกของกับเพื่อนร่วมทีมที่ยืนติดกัน (โหมดร่วมมือ · ตาตัวเอง · ทันที)
   onUnitEvent(socket, 'giveItem', (id, { uid, toId } = {}) => shop.giveItem(id, uid, toId), 8);
@@ -389,7 +399,7 @@ io.on('connection', (socket) => {
   // กระดาน (GRID_PLAN.md): ตาเดินของตัวเอง — เดิน / ย้อน / โจมตี (ในระยะ) / รอ (จบตา)
   onUnitEvent(socket, 'move', (id, { x, y, step } = {}) => action.moveTo(id, x, y, { step: step === true }), 12);
   onUnitEvent(socket, 'undoMove', (id) => action.undoMove(id), 8);
-  onUnitEvent(socket, 'attack', (id, { targetId } = {}) => action.attackTarget(id, targetId), 6);
+  onUnitEvent(socket, 'attack', combatOnly((id, { targetId } = {}) => action.attackTarget(id, targetId)), 6);
   onUnitEvent(socket, 'endAction', (id) => action.waitAction(id), 4);
   // ขี่ผู้เล่นอื่น (server/ride.js — ยูนะ): ขอขี่คนที่อยู่ติดกัน · เจ้าของตัวที่ถูกขอกดตอบ
   onUnitEvent(socket, 'rideAsk', (id, { targetId } = {}) => Ride.ask(id, targetId), 6);
@@ -397,7 +407,7 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'rideDrop', (id) => Ride.drop(id), 6); // ตัวที่ถูกขี่สั่งให้ลง (ตาของตัวเอง)
   // ปุ่มพิเศษบน HUD ของตัวละคร (ไม่ใช่ช่องสกิล — state.players[].actions จากฮุค hudActions) → ฮุค charAction(engine, p, key, { tile })
   //  ไจโร: ขึ้น/ลงม้า · ทาคุโตะ: พุ่ง (ปุ่มที่มี tiles — client ให้เลือกช่องแล้วส่ง tile) · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
-  onUnitEvent(socket, 'charAction', (id, { key, tile } = {}) => {
+  onUnitEvent(socket, 'charAction', combatOnly((id, { key, tile } = {}) => {
     const p = match.players[id];
     if (key === 'colonyJump') { Colony.jump(id); return; } // สนาม Colony: ปุ่มกระโดด (ทุกตัวละคร)
     if (typeof key === 'string' && key.startsWith('fd:')) { // Fodlan: ปุ่มกิมมิกของด่าน (server/fodlan/stageN.js charAction)
@@ -414,18 +424,18 @@ io.on('connection', (socket) => {
     if (!hook || !hook.charAction || typeof key !== 'string') return;
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
     combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key, { tile: t }));
-  }, 8);
+  }), 8);
   // Last Stand ของดิโอ: จั่ว/พอ ของสองฝ่ายที่ดวลกัน (characters/dio_brando.js)
-  onUnitEvent(socket, 'dioDuel', (id, { action: act } = {}) => {
+  onUnitEvent(socket, 'dioDuel', combatOnly((id, { action: act } = {}) => {
     if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
-  }, 12);
+  }), 12);
   // มินิเกมประตูของเฟรดดี้: เป้าเลือกประตูที่จะปิด / เฟรดดี้เลือกประตูที่จะเข้า (characters/freddy_fazbear.js)
-  onUnitEvent(socket, 'freddyDoor', (id, { door } = {}) => {
+  onUnitEvent(socket, 'freddyDoor', combatOnly((id, { door } = {}) => {
     if (door === 'left' || door === 'right') CHAR_HOOKS.freddy_fazbear.doorAction(engine, id, door);
-  }, 12);
+  }), 12);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
-  onPlayerEvent(socket, 'clockMash', (id) => ClockUp.mash(Duo.controlledId(id)), 40, 1000); // Clock Up ชนกัน: กดรัว
-  onPlayerEvent(socket, 'qteKey', (id, { key } = {}) => qteSystem.qteKey(id, key), 40);
+  onPlayerEvent(socket, 'clockMash', combatOnly((id) => ClockUp.mash(Duo.controlledId(id))), 40, 1000); // Clock Up ชนกัน: กดรัว
+  onPlayerEvent(socket, 'qteKey', combatOnly((id, { key } = {}) => qteSystem.qteKey(id, key)), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);
   onPlayerEvent(socket, 'backToLobby', () => { if (match.gameState === 'GAMEOVER') lobby.backToLobby(); }, 2);
   onPlayerEvent(socket, 'rematch', (id) => lobby.rematchVote(id), 4); // หน้าจบเกม: เล่นอีกรอบ (ครบทุกคน = เริ่มใหม่โหมดเดิม)
@@ -459,7 +469,7 @@ io.on('connection', (socket) => {
       // During a match the player is parked indefinitely and may reclaim this
       // exact character/session whenever they return. Lobby slots still expire.
       if (lobby.pregameStateActive()) scheduleDisconnectedRemoval(playerId);
-      else draw.checkAllLocked(); // ช่วงจั่วไพ่: ไม่ต้องรอคนที่หลุด (phases/draw.js)
+      else { draw.checkAllLocked(); RT.presenceChanged(); } // ช่วงจั่วไพ่: ไม่ต้องรอคนที่หลุด (phases/draw.js) · Road Trip: โหวต/พร้อม
       view.broadcastState();
     }
     view.broadcastPositions();

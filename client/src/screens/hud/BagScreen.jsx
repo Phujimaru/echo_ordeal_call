@@ -47,7 +47,7 @@ function Icon({ info, className = "" }) {
 // statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
 // shops = ร้านบนแผนที่ที่ซื้อจากระยะไกลได้ (Gate of Babylon ของกิลกาเมช — me.remoteShop) · null = ไม่มีปุ่มร้าน · onShop(ร้าน) = เปิดร้านนั้น
 const SHOP_CREST = { apoth: "⚗️", forge: "⚙️", cara: "🐎", capsule: "📦" };
-export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb }) {
+export default function BagScreen({ me, players, myTurn: turnProp, rtFree = false, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb }) {
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
@@ -82,7 +82,10 @@ export default function BagScreen({ me, players, myTurn, bagSlots = 5, draw = nu
     && !!me?.teamId && p.teamId === me.teamId && boxAdj(me, p));
   const bound = (it) => !it || BOUND_ITEMS.includes(it.type);
 
-  const emit = (ev, data) => { clickSound(); socket.emit(ev, data); };
+  // Road Trip จุดพัก (นอกการต่อสู้ ไม่มีตาเดิน): ใช้ได้ 4 ชนิด ผ่าน rt:use (server/roadtrip/stop.js useItem)
+  const RT_FREE_TYPES = ["rtRevive", "rtFish", "armor", "cleanse"];
+  const myTurn = turnProp || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type));
+  const emit = (ev, data) => { clickSound(); if (rtFree && ev === "useInventoryItem") socket.emit("rt:use", { uid: data.uid, targetId: data.targetId }); else socket.emit(ev, data); };
   const pick = (uid) => { clickSound(); setSelUid(uid); setSwapWith(null); setAmount(1); setCleanseKey(null); };
 
   const info = sel ? shopInfoOf(sel) : null;

@@ -29,6 +29,7 @@ const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
+const RT = require("../roadtrip"); // Road Trip (GRID_PLAN §8.8)
 const CharStats = require("../charStats");
 const { io } = require("../app");
 
@@ -46,7 +47,7 @@ function endTurn() {
       // หลับไหล: เทิร์นที่เพิ่งโดนกล่อม ยังไม่เริ่มนับ (เริ่มหลับจริงเทิร์นถัดไป)
       if (k === "sleep" && p.sleepFresh) { p.sleepFresh = false; continue; }
       // มอนเตอร์สนาม Eos เดินต้นเทิร์นถัดไป (ก่อนผู้เล่น) — สถานะคุมตัวลดหลังมอนได้ตาของตัวเองแทน (stage6 tickMobControl · ผู้ใช้แจ้ง 2026-11-11 "สตั้นมอนแค่ 1 เทิร์น ไม่มีประโยชน์")
-      if (p.summon && p.summon.kind === "eosMob" && EOS_MOB_CONTROL.has(k)) continue;
+      if (p.summon && (p.summon.kind === "eosMob" || p.summon.kind === "rtMob") && EOS_MOB_CONTROL.has(k)) continue; // + มอน Road Trip (server/roadtrip/mobs.js tickControl)
       p.statuses[k]--;
       if (p.statuses[k] <= 0) {
         delete p.statuses[k];
@@ -106,6 +107,8 @@ function endTurn() {
   match.endTurnHoldStart = null;
   // Fodlan: สภาพอากาศนับเวลาลง
   Fodlan.onEndTurn();
+  // Road Trip (สู้บนรถตู้): ช่องคนขับว่าง = รถส่าย · นับเทิร์นที่รอด
+  RT.onEndTurn();
 
   for (const p of Object.values(match.players)) {
     if (p.alive && p.hp <= 0) {
@@ -145,6 +148,8 @@ function colonyHoldThen(secs, onStart, next) {
 
 // เหลือทีมเดียว (duo/trio) หรือเหลือคนสุดท้าย (อิสระ) = จบเกม
 function gameOver() {
+  // Road Trip (GRID_PLAN §8.8): มอนหมด/รอดครบ = จบสู้ → ขับต่อ (ไม่ใช่จบเกม) · ผู้เล่นล้มหมด/รถพัง = จบเกม · นอกการต่อสู้ = ไม่ตัดสินที่นี่
+  if (RT.active()) return RT.outcome();
   // สนาม Eos (GRID_PLAN §8.6): ชนะด้วยแต้มยึดเสาเท่านั้น (ตายแล้วฟื้น — ไม่ใช้กติกาคนสุดท้ายที่รอด)
   //  PVE (ผู้ใช้สั่ง 2026-11-10): แต้มรวมครบ = ผู้เล่นทุกคนชนะ · ผู้เล่นล้มหมดพร้อมกัน = แพ้ทุกคน
   if (Fodlan.isEos() && Fodlan.active() && !match.forcedWinnerId) {

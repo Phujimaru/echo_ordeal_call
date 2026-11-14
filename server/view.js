@@ -95,6 +95,7 @@ function boardPublic() {
     ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike) / พื้นเปียก (เอมิลิโกะ)
     storms: Soot.publicInfo(), // ม่านแดง (ระบำเขม่า — เคท)
     spawns: m.spawns, shopSpots: m.shopSpots,
+    ...(match.world === "roadtrip" && match.roadtrip ? { rtRegion: match.roadtrip.region.id, rtNight: !!match.roadtrip.night } : {}), // Road Trip: ภูมิภาค/กลางคืน (client เปลี่ยนชุดสีพื้นเมื่อเปลี่ยน)
     // Colony (GRID_PLAN §8.3): กระดานต่อวงรอบ · กำแพงกั้นปล้อง + ประตู · แถวแรกที่ยังไม่ปิดผนึก · แถบกระจก
     ...(m.wrap ? { wrap: true, walls: m.walls, doors: m.doors, minRow: m.minRow | 0, glass: m.glass, section: m.section } : {}),
     ...boardExtras(), // ชั้นบนพื้นของตัวละคร (ฮุค boardPublic — ดิเอโก้: น้ำมัน/กองไฟ/ขี้เถ้า → diego)
@@ -157,7 +158,7 @@ function buildStateInner(viewerId) {
   const drawingCutscene = match.gameState === "CUTSCENE" && Duo.cardHolders().some((p) => !p.locked);
   const revealAll = !drawingCutscene && match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
   const nightNow = dayNight.isNightRound(Zero.worldRound()); // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้)
-  const sm = activeSkillMusic();
+  const sm = require("./roadtrip").traveling() ? null : activeSkillMusic(); // Road Trip: ช่วงเดินทางไม่มีเพลงท่าไม้ตาย (สถานะค้างไว้แต่ไม่เล่น — กฎผู้ใช้ 2026-11-14)
   const viewer = match.players[viewerId];
   // ระบบคู่ (server/duo.js): ตัวที่ผู้เล่นคนนี้คุมอยู่ — แผงตัวเรา/ปุ่มสกิล/คาดการณ์ผลใช้ตัวนี้
   const controlId = viewer ? Duo.controlledId(viewerId) : null;
@@ -175,6 +176,7 @@ function buildStateInner(viewerId) {
     world: match.world, // earth | fodlan (GRID_PLAN §8.5) | colony (§8.3) | moon (§8.4)
     fodlan: Fodlan.publicInfo(), // Fodlan: ด่าน/สภาพอากาศ/เทิร์นที่เหลือ/ฉากเข้า-เปลี่ยนแผนที่ — null = ไม่ได้อยู่ใน Fodlan
     colony: Colony.publicInfo(), // Colony: ปล้อง/ประตู/เป้าอันตราย/รอยรั่ว/แคปซูล/ฉากต้นเทิร์น — null = ไม่ได้อยู่ใน Colony
+    roadtrip: require("./roadtrip").publicInfo(viewerId), // Road Trip (GRID_PLAN §8.8 · contract §4) — null = ไม่ได้อยู่
     moon: Moon.publicInfo(), // Moon Cell (GRID_PLAN §8.4): ฮาคุโนะ/ฟื้นคืนชีพ/คำสาปที่เตือนไว้/ผลแพ้ชนะ/ฉากต้นเทิร์น — null = ไม่ได้อยู่
     teamSize: match.teamSize,
     teamCount: match.teamCount,
@@ -310,6 +312,7 @@ function buildStateInner(viewerId) {
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         eosDiff: p.modeVote ? p.eosDiff || null : null, // ความยากที่โหวต (สนาม Eos)
+        rtDiff: p.modeVote ? p.rtDiff || null : null, // ความยากที่โหวต (Road Trip)
         colony: Colony.playerInfo(p), // Colony: { jumpCd }
         fodlan: Fodlan.playerInfo(p), // Fodlan: ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … (server/fodlan/stageN.js playerInfo)
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)

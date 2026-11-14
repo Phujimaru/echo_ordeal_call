@@ -5,7 +5,7 @@ Object.assign(module.exports, {
   resetModeVotes, resetPregameFlowToLobby, validGameMode, modeOptionsFor, currentTeamOptions, normWorld,
   modeVoteSummary, voteGameMode, chooseTeam, confirmTeam, remainingTeamWinInfo, releaseReservation,
   reservePosition, positionsFor, positionUsedByOther, checkLobbyReady, startSoloTest, startMatch, backToLobby,
-  relayLobbyEmote, modeSelectBackToLobby, rematchVote,
+  relayLobbyEmote, modeSelectBackToLobby, rematchVote, rtDiffOf,
 });
 
 const { POSITION_COLORS } = require("../characters");
@@ -31,6 +31,7 @@ const Colony = require("./colony");
 const Fodlan = require("./fodlan");
 const Moon = require("./moonCell");
 const Board = require("./board");
+const RT = require("./roadtrip"); // โหมด Road Trip (GRID_PLAN §8.8 · server/roadtrip/)
 
 // สีประจำตัว: ผู้เล่นปรับเองได้ตอนตั้งค่าก่อนเข้าเกม — ไม่ได้ตั้งไว้ก็ใช้สีประจำตำแหน่งเดิม
 const CUSTOM_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -43,7 +44,7 @@ function colorOf(p) {
 }
 // Moon Cell (GRID_PLAN §8.4): ผู้เล่นทุกคนเป็นทีมเดียวกัน (ทีม A) สู้บอส — ใช้กติกาทีมเดิม (ตีกันไม่ได้ · ผลดีถึงเพื่อน)
 function teamModeActive() {
-  return match.gameMode === "duo" || match.gameMode === "trio" || match.gameMode === "moon" || match.gameMode === "eos";
+  return match.gameMode === "duo" || match.gameMode === "trio" || match.gameMode === "moon" || match.gameMode === "eos" || match.gameMode === "roadtrip";
 }
 // "เป็นพวกเดียวกัน" สำหรับการมอบผลดี (ซัพพอร์ต) — duo/trio: ทีมเดียวกัน
 function isAlly(a, b) {
@@ -69,7 +70,7 @@ function resetTeamAssignments(resetMode = false) {
 }
 function resetModeVotes() {
   match.modeVotes = {};
-  for (const p of Object.values(match.players)) { p.modeVote = null; p.modeWorld = null; p.eosDiff = null; }
+  for (const p of Object.values(match.players)) { p.modeVote = null; p.modeWorld = null; p.eosDiff = null; p.rtDiff = null; }
 }
 function resetPregameFlowToLobby() {
   match.gameState = "LOBBY";
@@ -83,6 +84,7 @@ function validGameMode(mode, count = Object.keys(match.players).length) {
   if (mode === "trio") return count === 6;
   if (mode === "moon") return count >= 1; // Moon Cell: ผู้เล่นทุกคนร่วมทีมเดียว (1 คนก็ได้)
   if (mode === "eos") return count >= 1; // Eos PVE (ผู้ใช้สั่ง 2026-11-10): ผู้เล่นทุกคนร่วมทีมเดียวสู้มอนเตอร์
+  if (mode === "roadtrip") return count >= 1 && count <= RT_MAX_PLAYERS; // Road Trip (GRID_PLAN §8.8): 1–6 คน ทีมเดียว
   return false;
 }
 // โหมดที่ "พักใช้งาน" — โค้ดยังอยู่ครบ แต่ไม่โผล่ในหน้าโหวตโหมด และโหวตเข้าไม่ได้
@@ -95,6 +97,8 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
     ? [{ mode: "moon", label: "Moon Cell", size: count, group: "special" }]
     : world === "eos"
     ? [{ mode: "eos", label: "Eos", size: count, group: "special" }] // Eos PVE: โหมดเดียว ไม่มี ffa/duo/trio (ผู้ใช้สั่ง 2026-11-10)
+    : world === "roadtrip"
+    ? [{ mode: "roadtrip", label: "Road Trip", size: count, group: "special" }] // Road Trip: โหมดเดียว + ความยาก (contract §1)
     : [
       { mode: "ffa", label: "Free For All", size: 1, group: "normal" },
       { mode: "duo", label: "Duo", size: 2, group: "normal" },
@@ -106,9 +110,10 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
   });
 }
 // สนามที่โหวตได้: โลก (Origin — การเดินทาง) / Fodlan (บนโลก — GRID_PLAN §8.5) / โคโลนี — มีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
-const WORLDS = ["earth", "fodlan", "eos", "colony", "moon"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6)
+const RT_MAX_PLAYERS = 6;
+const WORLDS = ["earth", "fodlan", "eos", "colony", "moon", "roadtrip"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6)
 // โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
-function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon") && (world === "eos") === (mode === "eos"); } // ดวงจันทร์ = moon · Eos = eos (PVE) อย่างเดียว
+function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon") && (world === "eos") === (mode === "eos") && (world === "roadtrip") === (mode === "roadtrip"); } // ดวงจันทร์ = moon · Eos = eos (PVE) อย่างเดียว
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
 const voteKey = (world, mode) => `${world}:${mode}`;
 function currentTeamOptions() {
@@ -131,6 +136,16 @@ function eosDiffOf(list) {
   const win = EOS_DIFFS.filter((d) => n[d] === top);
   return win.length === 1 ? win[0] : "normal";
 }
+// ความยากของ Road Trip (contract §1): ง่าย/ปกติ/ยาก · เสียงมากสุดชนะ เท่ากัน = ปกติ
+const RT_DIFFS = ["easy", "normal", "hard"];
+function rtDiffOf(list) {
+  const n = Object.fromEntries(RT_DIFFS.map((d) => [d, 0]));
+  for (const p of list) if (RT_DIFFS.includes(p.rtDiff)) n[p.rtDiff]++;
+  const top = Math.max(...RT_DIFFS.map((d) => n[d]));
+  if (!top) return "normal";
+  const win = RT_DIFFS.filter((d) => n[d] === top);
+  return win.length === 1 ? win[0] : "normal";
+}
 function voteGameMode(playerId, mode, world = "earth", diff = null) {
   if (match.gameState !== "TEAM_MODE") return;
   const p = match.players[playerId];
@@ -139,6 +154,7 @@ function voteGameMode(playerId, mode, world = "earth", diff = null) {
   if (!worldHasMode(w, mode)) return;
   match.modeVotes[playerId] = voteKey(w, mode);
   p.eosDiff = w === "eos" && EOS_DIFFS.includes(diff) ? diff : w === "eos" ? "normal" : null;
+  p.rtDiff = w === "roadtrip" ? (RT_DIFFS.includes(diff) ? diff : "normal") : null;
   p.modeVote = mode;
   p.modeWorld = w;
   const list = Object.values(match.players);
@@ -173,12 +189,17 @@ function startTeamSetup(mode, world = "earth") {
   const count = Object.keys(match.players).length;
   if (!validGameMode(mode, count)) return;
   const eosDiff = eosDiffOf(Object.values(match.players)); // ก่อนล้างโหวต (resetModeVotes ล้าง p.eosDiff)
+  const rtDiff = rtDiffOf(Object.values(match.players));
   resetModeVotes();
   match.world = normWorld(world);
   if (!worldHasMode(match.world, mode)) { match.world = "earth"; return; }
   if (match.world === "eos") mode = "eos"; // Eos (ผู้ใช้สั่ง 2026-11-10): PVE เสมอ — ผู้เล่นทุกคนทีมเดียวสู้มอนเตอร์
   match.eosDiff = mode === "eos" ? eosDiff : null;
-  if (mode === "moon" || mode === "eos") {
+  if (match.world === "roadtrip") mode = "roadtrip";
+  // Road Trip: ความยากที่โหวต · เล่นอีกรอบ (rematch) = ความยากเดิม (ไม่มีโหวตใหม่)
+  if (mode === "roadtrip") match.rtDiff = Object.values(match.players).some((p) => p.rtDiff) || !RT_DIFFS.includes(match.rtDiff) ? rtDiff : match.rtDiff;
+  else match.rtDiff = null;
+  if (mode === "moon" || mode === "eos" || mode === "roadtrip") {
     // Moon Cell / Eos PVE: ทุกคนทีม A ยืนยันแล้ว → เข้าแมตช์ทันที (ไม่มีหน้าเลือกทีม)
     match.gameMode = mode;
     match.teamSize = count;
@@ -350,6 +371,16 @@ function startMatch() {
   match.colony = null;
   match.moon = null;
   match.fodlan = null;
+  RT.reset(); // Road Trip: สถานะเก่า + ตัวจับเวลาขับ (เริ่มใหม่ด้านล่างถ้าเป็นโหมดนี้)
+  if (RT.inWorld()) {
+    // Road Trip (GRID_PLAN §8.8): ไม่มีการจั่วการ์ดนอกการต่อสู้ — ตัวคุมของโหมดดูแลทุกช่วงเอง (ฉากเปิด → ขับ …)
+    match.shops = []; match.shopCycleRound = null; match.merchantCycle = null;
+    match.cutsceneQueue = []; match.skillBeats = []; match.dash = null;
+    match.clockUp = null; match.extraTurns = []; match.timeFreeze = null; match.tsSnap = null; match.flowWanted = false; match.flowHandoff = null;
+    RT.start(JOURNEY_START_SECONDS > 0 ? gameIntroHoldSeconds() : 0);
+    view.broadcastState();
+    return;
+  }
   if (Fodlan.inWorld()) Fodlan.start(); // Fodlan: ด่าน I เสมอ (สภาพอากาศเกิดเร็วสุดเทิร์น 3 — GRID_PLAN §8.5)
   else if (Colony.inWorld()) Colony.start(); // สนาม Colony: กระดานโคโลนี 16×40 ต่อวงรอบ (GRID_PLAN §8.3)
   else if (Moon.inWorld()) Moon.start(); // Moon Cell: กระดานดวงจันทร์ 20×20 + ฮาคุโนะ 2 ตัว + Moon Cell (GRID_PLAN §8.4)
@@ -439,6 +470,7 @@ function backToLobby() {
   match.colony = null;
   match.moon = null;
   match.fodlan = null;
+  RT.reset(); // Road Trip: หยุดตัวจับเวลาขับ + ล้างสถานะ
   Board.setWrap(0);
   Zero.reset();
   match.lastLog = [];

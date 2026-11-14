@@ -42,6 +42,7 @@ const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
 const ClockUp = require("../clockUp");
+const RT = require("../roadtrip"); // Road Trip: ประตูท้ายเปิด = ระยะตี +1 (rangeOf)
 
 // ---------- ตำแหน่งบนกระดาน ----------
 //  สิ่งกีดขวางที่ถูกพังในภูมิภาคนี้ (Echo ตัวใหญ่เดินพัง) = match.board.broken ["x,y"…] — เปลี่ยนภูมิภาคแล้วกลับมาครบ
@@ -162,10 +163,12 @@ function boardBlocked(selfId = null) {
   const corpses = Duo.corpseKeys();
   const trap = selfId ? Soot.blockedFor(match.players[selfId]) : null;
   const shopKeys = shop.shopTiles(); // ร้านค้า 2×2 (หลายร้าน) — กินช่องทั้งก้อน
-  if (!shopKeys.size && !corpses.length && !trap) return null;
+  const offVan = RT.offVan(selfId); // Road Trip สู้บนรถตู้: ฝั่งผู้เล่นออกนอกรถไม่ได้ (ช่องถนน = สิ่งกีดขวาง)
+  if (!shopKeys.size && !corpses.length && !trap && !offVan) return null;
   const out = new Set(corpses);
   for (const k of shopKeys) out.add(k);
-  return trap ? { has: (k) => out.has(k) || trap.has(k) } : out;
+  const extra = [trap, offVan].filter(Boolean);
+  return extra.length ? { has: (k) => out.has(k) || extra.some((e) => e.has(k)) } : out;
 }
 // เดินตามช่องดอกไม้ไม่เสียก้าว (Board.reachable opts.flowerWalk — ฮุค flowerWalk(p) · เซลิน: ราชาดอกไม้) · ถูกตรึง = ไม่ได้
 function flowerWalk(p) {
@@ -308,7 +311,7 @@ function counters(p, card) {
 // ระยะโจมตีปกติ [rmin, rmax] — ฮุค range(p) ของตัวละครแทนได้ (โซระ: ปืน)
 function rangeOf(p) {
   if (p.summon && Array.isArray(p.summon.range)) return p.summon.range; // ยูนิตที่ถูกเรียก (server/summon.js)
-  return Fodlan.rangeMod(p, Colony.rangeMod(p, baseRangeOf(p))); // Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js) · Eos: Bow of the Clever +2
+  return RT.rangeMod(p, Fodlan.rangeMod(p, Colony.rangeMod(p, baseRangeOf(p)))); // Road Trip: ประตูท้าย +1 · Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js) · Eos: Bow of the Clever +2
 }
 function baseRangeOf(p) {
   const hook = CHAR_HOOKS[p.characterId];
@@ -506,7 +509,7 @@ function chargeTiles(p, dir, len) {
 // ระยะของสกิล (area.range) — "mov" = ระยะเดินปกติสูงสุดของผู้ใช้ (บัฟของโอเบรอน — ผู้ใช้ตัดสิน)
 function areaRange(p, area) {
   if (!area) return 0;
-  return area.range === "mov" ? baseMovOf(p) : Colony.areaRangeMod(p, Number(area.range) || 0); // Colony: ไฟดับ −1
+  return area.range === "mov" ? baseMovOf(p) : RT.areaRangeMod(p, Colony.areaRangeMod(p, Number(area.range) || 0)); // Colony: ไฟดับ −1 · Road Trip: ประตูท้าย +1
 }
 // ตรวจระยะสกิลบนกระดาน แล้วคืนรายชื่อผู้โดน (playerId[]) ที่ส่งต่อให้ hook ของตัวละคร — null = ใช้ไม่ได้
 //  self: ไม่สนเป้า · target: เป้า 1 คนในระยะ (self = เลือกตัวเองได้) · aoe: ทุกคนในรัศมี (self = รวมตัวเอง)
@@ -1401,6 +1404,7 @@ function endUnitTile(p) {
   if (p && p.alive && p.pos) tileEndEffect(p);
   if (p && p.alive && p.pos) require("../element").terrainAura(p); // พื้นธาตุ (server/element.js · GRID_PLAN §8.7): จบตาบนพื้นไฟ/น้ำแข็ง/น้ำ = ติดคราบ
   if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
+  if (p && p.alive && p.pos) RT.onUnitEnd(p); // Road Trip สู้บนรถตู้: ใครหลุดออกนอกรถ (พุ่ง/วาร์ป/ผลัก) = ร่วง
   if (p && p.alive && p.pos) Fodlan.onUnitEnd(p); // Fodlan: ยึดธง · ยืนบนไฟ · นั่งบัลลังก์ … (server/fodlan/stageN.js)
 }
 // ผลของช่องพิเศษตอนจบตาบนช่องนั้น (GRID_PLAN §3.1) — กติกาอยู่ที่ Board.endTurnTile · ที่นี่แค่ลงผลกับผู้เล่น

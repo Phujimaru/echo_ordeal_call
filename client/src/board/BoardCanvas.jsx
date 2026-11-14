@@ -77,6 +77,7 @@
 //   storms      state.board.storms [{ x0, y0, x1, y1, owner, left }] — ม่านแดง (ระบำเขม่า · เคท) วาดค้าง/กลืนพื้นที่/จางหาย — sootStorm.js
 //   colony      state.colony (สนาม Colony — map.wrap) → ฉาก 3D (colony3d.js) ใต้แคนวาสนี้ + ตัวฉายภาพทรงกระบอก (boardGeo.setCustomProjection)
 //               กล้อง 3D แทนกล้องเอียง: rotation = หมุน 90° · zoom = ระยะ · view "top" = ก้มสุด · focus = ตามตัวเมื่อหลุดจอ · ลากซ้าย = หมุนรอบ 360°/ก้มเงย · ลากขวา/Shift/ลูกศร = เลื่อน · ล้อ = ซูม · Space = กลับที่ตัวเรา
+//   roadtrip    state.roadtrip ตอนต่อสู้ (phase combat) → ฉากถนน/รถตู้ 3D (roadtrip/road3d.js createRoadUnderlay) ใต้แคนวาสนี้ · ตัวฉายภาพพื้นเรียบ (ช่องในรถตู้ยกสูงเท่าพื้นรถ) · null = กระดานปกติ
 //   onColonyAway(bool)  กล้อง Colony ออกห่างจากตัวเรา (อิสระ/หมากหลุดจอ) เปลี่ยน → แจ้ง (ปุ่มกลับที่หมาก)
 //   colonyHome  ตัวเลขใดๆ — เปลี่ยนค่า = กล้อง Colony กลับมาที่ตัวเรา (ปุ่มเป้าใน BoardStage)
 //   colonyEvents [{ key, kind, data }] — boardFx ของ Colony (colonyScene/colonySeal/colonyBoom/colonyJump/colonyLift) เล่นเมื่อเห็น key ใหม่
@@ -131,6 +132,8 @@ function dimLayersOf(st, kind, now) {
 const onBody = (u, x, y) => x >= u.x && x < u.x + Math.max(1, u.size | 0) && y >= u.y && y < u.y + Math.max(1, u.size | 0);
 import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, PV, setPitch, setCustomProjection, customProjection, setViewCenter } from "./boardGeo";
 import { createColonyView } from "./colony3d";
+import { createRoadUnderlay } from "../roadtrip/road3d";
+import { setRtMobRun } from "./roadtrip/mobArt";
 import { setEosFast } from "./fodlan/stage6";
 import { groundGLReady } from "./groundGL";
 
@@ -352,7 +355,8 @@ export default function BoardCanvas(props) {
       //  (ผู้ใช้ 2026-11-09 "เกมกระตุกตลอดเวลา": วาดทั้งกระดานใหม่ทุกเฟรมแม้ไม่มีอะไรเปลี่ยน — ลดงานครึ่งหนึ่งในเวลาส่วนใหญ่ของเกม)
       const hovKey = st.hover ? `${st.hover.x},${st.hover.y}` : "";
       const busyNow = p !== st.busyProps || hovKey !== st.busyHov || !!st.camAnim || !!st.drag || st.keys.size > 0
-        || st.fxActive.length > 0 || (st.anim && !st.anim.done) || st.turnFrom !== st.turnTo || !!p.cinema || !!(p.glides && Object.keys(p.glides).length);
+        || st.fxActive.length > 0 || (st.anim && !st.anim.done) || st.turnFrom !== st.turnTo || !!p.cinema || !!(p.glides && Object.keys(p.glides).length)
+        || !!(st.cv3 && st.cv3.busy && st.cv3.busy()); // Road Trip 3D: ถนนกำลังเลื่อน/กล้องหมุน/ซูม = วาดเต็ม 60
       st.busyProps = p; st.busyHov = hovKey;
       if (busyNow) st.busyUntil = now + BUSY_HOLD;
       const idle = now > (st.busyUntil || 0);
@@ -372,9 +376,24 @@ export default function BoardCanvas(props) {
       const info = st.info;
       // --- สนาม Colony: ฉาก 3D + ตัวฉายภาพทรงกระบอก (ไม่ใช่ Colony = คืนกล้องเอียงปกติ)
       const colony = !!(p.colony && p.map && p.map.wrap);
-      if (colony && !st.cv3 && glRef.current) { try { st.cv3 = createColonyView(glRef.current, { lowQ }); } catch (err) { console.error("colony3d", err); st.cv3 = null; } }
-      if (import.meta.env.DEV && st.cv3) window.__colony3d = st.cv3; // dev (เฉพาะแคนวาสที่เป็น Colony — แคนวาสอื่นในหน้าไม่ทับเป็น null): เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))
-      if (!colony && st.cv3) { st.cv3.dispose(); st.cv3 = null; }
+      // Road Trip ตอนต่อสู้ (p.roadtrip = state.roadtrip): ฉากถนน 3D ใต้กระดาน (roadtrip/road3d.js) — ใช้ช่อง st.cv3 เดียวกับ Colony (API เดียวกัน · isRoad)
+      const road3 = !colony && !!(p.roadtrip && p.map);
+      const want3 = colony ? "colony" : road3 ? "road" : null;
+      if (st.cv3 && st.cv3Kind !== want3) { st.cv3.dispose(); st.cv3 = null; setCustomProjection(null); }
+      if (want3 && !st.cv3 && glRef.current && !(st.cv3Retry && now < st.cv3Retry)) {
+        // แคนวาสที่ context ถูกปล่อยไปแล้ว (ออกจากกระดานก่อนหน้า / StrictMode) หรือ context หาย = เปลี่ยนเป็นแคนวาสใหม่ก่อนสร้าง
+        //  (หน้าเดียวมี WebGL หลายตัว: ฉากขับที่ซ่อนค้างไว้ · รถตู้สไปรต์ · ฉากนี้ — context เก่าที่ค้างไม่คืน = เบราว์เซอร์ทิ้งตัวเก่าสุด)
+        const freshGl = () => { const old = glRef.current, c = old.cloneNode(false); old.replaceWith(c); glRef.current = c; return c; };
+        if (glRef.current.__lost) freshGl();
+        const make = () => (want3 === "colony" ? createColonyView(glRef.current, { lowQ }) : createRoadUnderlay(glRef.current, { lowQ }));
+        try { st.cv3 = make(); st.cv3Kind = want3; st.cv3Retry = 0; }
+        catch (err) {
+          console.error(want3 === "colony" ? "colony3d" : "road3d", err); st.cv3 = null;
+          try { freshGl(); st.cv3 = make(); st.cv3Kind = want3; st.cv3Retry = 0; } // ลองอีกครั้งบนแคนวาสใหม่
+          catch (err2) { console.error("3d retry", err2); st.cv3 = null; st.cv3Retry = now + 2000; }
+        }
+      }
+      if (import.meta.env.DEV && st.cv3) window[want3 === "road" ? "__road3d" : "__colony3d"] = st.cv3; // dev (เฉพาะแคนวาสที่เป็น Colony — แคนวาสอื่นในหน้าไม่ทับเป็น null): เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))
       if (!st.cv3 && customProjection()) setCustomProjection(null);
       if (glRef.current) glRef.current.style.display = st.cv3 ? "block" : "none";
       // --- ขนาด + ชั้นนิ่ง
@@ -801,9 +820,10 @@ export default function BoardCanvas(props) {
           st.cv3.onEvent(ev.kind, ev.data);
         }
         if (p.colonyHome !== st.colonyHome) { if (st.colonyHome !== undefined) { st.cv3.skipShot(); st.cv3.home(); } st.colonyHome = p.colonyHome; }
-        st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema, hl });
+        st.cv3.update(now, dt, { map: p.map, colony: p.colony, units, focus: p.focus, rotation: p.rotation, zoom: p.zoom, view: p.view, night, size: { w, h }, base, cinema: p.cinema, hl, roadtrip: p.roadtrip || null });
         setCustomProjection(st.cv3);
       }
+      setRtMobRun(st.cv3 && st.cv3.isRoad ? st.cv3.runSpeed() : 0); // Road Trip สู้บนรถตู้: มอนวิ่งไล่รถตามความเร็วถนน
       // --- ตัวละครพร้อมวาด
       const targeting = hl.skill.size > 0 || hl.aoe.size > 0;
       const hov = st.hover;
@@ -944,7 +964,7 @@ export default function BoardCanvas(props) {
         zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null, kiri: p.kiri || null,
         valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
-        colony: !!st.cv3, colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
+        colony: !!st.cv3 && !st.cv3.isRoad, roadtrip3d: !!(st.cv3 && st.cv3.isRoad), colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       if (!zs) {
         st.boxes = frame(g);
@@ -994,7 +1014,7 @@ export default function BoardCanvas(props) {
 
     // ล้อเมาส์: ขึ้น = มุมใกล้ (ซูมเข้าหาจุดใต้เมาส์) · ลง = มุมปกติ (ต้อง passive: false เพื่อกันหน้าเลื่อน)
     const onWheel = (e) => {
-      if (st.cv3 && !e.ctrlKey && e.deltaY) { e.preventDefault(); st.cv3.zoomBy(e.deltaY); return; } // Colony: ซูมต่อเนื่อง
+      if (st.cv3 && !st.cv3.isRoad && !e.ctrlKey && e.deltaY) { e.preventDefault(); st.cv3.zoomBy(e.deltaY); return; } // Colony: ซูมต่อเนื่อง (Road Trip 3D = ซูม 5 ขั้นแบบกระดานปกติ)
       // RTS (สนาม Eos): ล้อ = ซูมต่อเนื่องเข้าหาจุดใต้เมาส์ (ไม่ผ่านระดับ +/−)
       if (st.rts && st.rtsRange && st.view && !e.ctrlKey && e.deltaY) {
         e.preventDefault();
@@ -1025,7 +1045,8 @@ export default function BoardCanvas(props) {
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKeyDown = (e) => {
       // Colony: ลูกศร = เลื่อนกล้อง (WASD = เดินตัวละคร — BoardStage) · Space = กลับมาที่ตัว (กลางฉากอีเวนต์ = ข้ามฉาก) · V = มุมมองตามแกน
-      if (st.cv3 && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (st.cv3 && st.cv3.isRoad && ARROWS[e.code]) return; // Road Trip 3D: กล้องล็อก (ไม่เลื่อนด้วยลูกศร)
+      if (st.cv3 && !st.cv3.isRoad && !typing(e) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const mv = { ArrowUp: [0, -70], ArrowDown: [0, 70], ArrowLeft: [-70, 0], ArrowRight: [70, 0] }[e.code];
         if (mv) { e.preventDefault(); st.cv3.pan(-mv[0], -mv[1]); return; }
         if (e.code === "Space") { e.preventDefault(); st.cv3.skipShot(); st.cv3.home(); return; }
@@ -1047,7 +1068,8 @@ export default function BoardCanvas(props) {
     window.addEventListener("blur", onBlur);
     return () => {
       alive = false; cancelAnimationFrame(raf); ro.disconnect();
-      if (st.cv3) { st.cv3.dispose(); st.cv3 = null; setCustomProjection(null); }
+      // ออกจากกระดาน: คืน WebGL context ทันที (ไม่รอ GC — หลายรอบต่อสู้ context ค้างสะสม) · แคนวาสนี้ใช้สร้างใหม่ไม่ได้แล้ว (ติดธง __lost)
+      if (st.cv3) { st.cv3.dispose(true); st.cv3 = null; setCustomProjection(null); if (glRef.current) glRef.current.__lost = true; }
       wrap.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);

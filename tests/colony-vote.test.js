@@ -66,7 +66,7 @@ test('เลือกสนาม: โหวต Colony คู่กับโห�
     const tm = await tmP;
     assert.equal(tm.world, 'earth', 'เข้าหน้าเลือกโหมด = สนามตั้งต้นโลก');
     const keys = tm.modeVotes.map((o) => `${o.world}:${o.mode}`).sort();
-    assert.deepEqual(keys, ['colony:duo', 'colony:ffa', 'colony:trio', 'earth:duo', 'earth:ffa', 'earth:trio', 'eos:eos', 'fodlan:duo', 'fodlan:ffa', 'fodlan:trio', 'moon:moon']);
+    assert.deepEqual(keys, ['colony:duo', 'colony:ffa', 'colony:trio', 'earth:duo', 'earth:ffa', 'earth:trio', 'eos:eos', 'fodlan:duo', 'fodlan:ffa', 'fodlan:trio', 'moon:moon', 'roadtrip:roadtrip']);
 
     // คนละสนาม โหมดเดียวกัน → ยังไม่ครบเสียง
     a.emit('selectGameMode', { mode: 'ffa', world: 'colony' });

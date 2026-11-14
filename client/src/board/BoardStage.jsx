@@ -62,6 +62,8 @@ import { rosterAlive, sameSide, sideAlive, sideOf } from "../duo";
 import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequest, shouldLandOnMount } from "../journey/arena/arenaLandBus";
 import KateStorm from "../oc/intro/KateStorm";
 import "./boardStage.css";
+import { setRoadtripState } from "./roadtrip/theme";
+import { rtPropAt } from "./roadtrip/props";
 
 const key = (x, y) => `${x},${y}`;
 const samePos = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
@@ -259,7 +261,10 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     for (const k of shopTiles) b.add(k);
     return b;
   }, [shopTiles, hop]);
-  const night = state.cycle === "night";
+  // Road Trip: กลางวัน/กลางคืนตามระยะทาง (state.roadtrip.night) · ส่ง state.roadtrip ให้ตัววาดกระดาน (theme.setRoadtripState — ภูมิภาค/fx/รถตู้) ทั้งจุดพักและตอนต่อสู้
+  const rtWorld = (state.world === "roadtrip" || state.gameMode === "roadtrip") && !!state.roadtrip;
+  const night = rtWorld ? !!state.roadtrip.night : state.cycle === "night";
+  if (rtWorld) setRoadtripState(state.roadtrip);
 
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
   const byId = useMemo(() => Object.fromEntries(state.players.map((p) => [p.id, p])), [state.players]);
@@ -2683,6 +2688,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   };
   const onTileClick = (x, y) => {
     const k = key(x, y);
+    // Road Trip จุดพัก: เดินอิสระ (rt:walk) · คลิกวัตถุที่มีกิจกรรม = rt:act (server เดินไปช่องเล่นให้ — มินิมาร์ท/สำนักงาน = เปิดร้าน fx "shop" → Game.jsx)
+    if (rtWorld && state.roadtrip.phase === "stop" && !pick) {
+      const pr = rtPropAt(state.board && state.board.area, x, y);
+      if (pr && !pr.spot) return;
+      clickSound();
+      if (pr) socket.emit("rt:act", { id: pr.id }); else socket.emit("rt:walk", { x, y });
+      return;
+    }
     if (pick) {
       if (pick.kind === "tile") { pickTileAt(x, y); return; }
       if (pick.kind === "aoe" && pickInfo && pickInfo.aoe.includes(k)) { clickSound(); pick.onConfirm(); }
@@ -2996,6 +3009,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
         colony={colonyView}
+        roadtrip={(state.world === "roadtrip" || state.gameMode === "roadtrip") && state.roadtrip && state.roadtrip.phase === "combat" ? state.roadtrip : null}
         moon={state.moon || null}
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}

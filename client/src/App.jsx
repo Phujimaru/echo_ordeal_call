@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { publishTick, getTickSeconds } from "./tickStore";
 import { socket, connectData } from "./socket";
-import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound, installHoverSound, setAmbient } from "./audio";
+import { playMusic, playSfx, stopMusic, resetMusicPositions, prewarmSfx, installClickSound, installHoverSound, setAmbient, stopCombatMedia } from "./audio";
+import * as rtRadio from "./roadtrip/radio";
+import { setAmbience as rtSetAmbience, ambienceFor as rtAmbienceFor, handleFx as rtHandleFx, stopRtAudio } from "./roadtrip/rtAudio";
+import { noteServerNow, serverNow } from "./roadtrip/rtSocket";
 import { musicForState, createPhaseSoundTracker, isMatchPhase } from "./audioPolicy";
 import Setup from "./screens/Setup";
 import CharacterSelect from "./screens/CharacterSelect";
@@ -73,7 +76,7 @@ export default function App() {
     if (state.gameState === "LOBBY" && !me.ready) socket.emit("toggleReady");
     // &world=colony = โหวตสนาม Colony · &world=moon = Moon Cell · &world=none = ไม่โหวตเอง (หยุดดูหน้าเลือกโหมด)
     const world = new URLSearchParams(location.search).get("world") || "earth";
-    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : world === "eos" ? "eos" : "ffa", world });
+    if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : world === "eos" ? "eos" : world === "roadtrip" ? "roadtrip" : "ffa", world });
   }, [state]);
   const curtainRef = useRef(null); // ม่านเปลี่ยนฉาก — ควบคุมจังหวะปิด/เปิดจอตอนสลับหน้า
   // กันดับเบิ้ลคลิก/กดรัวบนปุ่มนำทาง (ถัดไป/ยืนยัน/ย้อนกลับ) ไม่ให้ยิงคำสั่งเปลี่ยนฉากซ้อนกัน
@@ -91,6 +94,7 @@ export default function App() {
   const journeySeqRef = useRef(null);      // ฉากที่เล่น/จองไว้แล้ว (กันเล่นซ้ำจากบรอดแคสต์ถัดๆ ไป)
   const pendingJourneyRef = useRef(null);  // ฉาก start ที่รอช่วงเปิดตัวผู้เล่นจบก่อน
   const journeyStateRef = useRef(null);    // ก้อน journey ล่าสุด (startPendingJourney อ่านว่าช่วงพักยังไม่หมด)
+  const rtLiveRef = useRef(null);          // Road Trip: state.roadtrip ล่าสุด (ฉากดิ่งเข้าโหมดดูว่า phase intro ยังเหลือเวลาไหม)
   const worldRef = useRef("earth");        // สนามของแมตช์ (earth | fodlan | colony | moon) — colony = ฉากพุ่งเข้าโคโลนี · moon = บินอ้อมโลกไปดวงจันทร์ · fodlan = ดิ่งลงหมุด Fodlan → แผนที่ทวีป แทนดิ่งลงโลก
   const fodlanRef = useRef(null);          // ก้อน state.fodlan ล่าสุด (ด่าน/สภาพอากาศ/ฉาก)
   const prevGameStateRef = useRef(null);
@@ -138,7 +142,8 @@ export default function App() {
     // (ต่างจากตอนกดยืนยันตัวละครที่ต้องรอ server ตอบแบบไม่รู้เวลาแน่นอน) ถ้าใช้ holdCover ที่นี่จะเจอบั๊กใหม่:
     // ม่านจะปล่อยเปิดทันทีตั้งแต่เฟรมแรก (เพราะ screenKey เปลี่ยนพร้อมกันในเรนเดอร์เดียวกันอยู่แล้ว)
     const onState = (s) => {
-      const matchStates = new Set(["PLAYING", "CUTSCENE", "ORDER", "ACTION", "ATTACKING", "TRANSITION", "GAMEOVER"]);
+      // ROADTRIP = เฟสเดินทางของโหมด Road Trip (ขับ/ทางแยก/เหตุการณ์/จุดพัก) — นับเป็นในแมตช์ (ไปมากับการต่อสู้ได้โดยไม่เล่นฉากเปิดซ้ำ)
+      const matchStates = new Set(["PLAYING", "CUTSCENE", "ORDER", "ACTION", "ATTACKING", "TRANSITION", "GAMEOVER", "ROADTRIP"]);
       const wasInMatch = matchStates.has(prevGameStateRef.current);
       const nowInMatch = matchStates.has(s.gameState);
       if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(s.gameState)) {
@@ -162,6 +167,9 @@ export default function App() {
         else if (s.world === "fodlan") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
         else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
+      if (s.roadtrip && Number.isFinite(s.roadtrip.now)) noteServerNow(s.roadtrip.now);
+      // Road Trip: ฉากเปิดแมตช์บนลูกโลกเหมือนสนามอื่น → ดิ่งลงหมุด Road Trip (roadtrip/rtFlight.js) → ฉากเปิดทริป 3D (RtTransitions RtIntro) ช่วง phase intro
+      rtLiveRef.current = s.roadtrip || null;
       if (!wasInMatch && nowInMatch) {
         curtainRef.current?.skip("gameintro");
         ghostScreen(".ocl"); // หน้าเลือกโหมด/จัดทีมจางหายแทนการหายวับ (ลูกโลกอยู่ต่อในฉากเปิดแมตช์)
@@ -169,6 +177,7 @@ export default function App() {
           key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1,
           // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = MatchIntro สร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร (เพลงคุมโดย audioPolicy)
           fodlan: s.world === "fodlan" && s.fodlan ? { stage: s.fodlan.stage, weather: !!s.fodlan.weather, music: false } : null,
+          title: s.world === "roadtrip" ? "เริ่มการเดินทาง" : null,
         });
         setShowIntro(true);
       }
@@ -297,6 +306,38 @@ export default function App() {
   const journeyNow = stage === "connected" ? state?.journey : null;
   // Fodlan: "ช่วงเวลา" = ด่าน + สภาพอากาศ (เพลงด่านเริ่มใหม่เมื่อเปลี่ยนด่าน/สภาพอากาศมา-หมด)
   const fodlanNow = stage === "connected" ? state?.fodlan : null;
+  // Road Trip (GRID_PLAN §8.8): ไฟล์เพลง /roadtrip/music/*.mp3 ที่มีจริง (ไม่มี = ลูปสังเคราะห์) · วิทยุซิงก์ตาม state.roadtrip.radio
+  const rtNow = stage === "connected" && state?.gameMode === "roadtrip" && state?.roadtrip ? state.roadtrip : null;
+  const [rtFiles, setRtFiles] = useState(null);
+  useEffect(() => {
+    if (!rtNow || rtFiles) return;
+    let alive = true;
+    rtRadio.probeMusicFiles().then((set) => { if (alive) setRtFiles(set); });
+    return () => { alive = false; };
+  }, [!!rtNow, rtFiles]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rtPhase = rtNow ? rtNow.phase : null;
+  // ผู้ใช้สั่ง 2026-11-14: ออกจากการต่อสู้ (fx combatEnd หรือเฟสเปลี่ยนจาก combat) = หยุดเสียง/คลิป/ลูปทุกอย่างที่ค้างจากการต่อสู้
+  //  (effect นี้ต้องอยู่ก่อน effect เพลงพื้นหลัง — เพลงของเฟสใหม่เริ่มหลังหยุดของเก่า)
+  const prevRtPhase = useRef(null);
+  const rtFxSeen = useRef(new Set());
+  const rtFx = rtNow && Array.isArray(rtNow.fx) ? rtNow.fx : null;
+  useEffect(() => {
+    let end = prevRtPhase.current === "combat" && rtPhase !== "combat";
+    if (rtFx) for (const f of rtFx) {
+      const k = f.key ?? f.id ?? JSON.stringify(f);
+      if (rtFxSeen.current.has(k)) continue;
+      rtFxSeen.current.add(k);
+      if (f.k === "combatEnd") end = true;
+    }
+    if (rtFxSeen.current.size > 400) rtFxSeen.current = new Set(Array.from(rtFxSeen.current).slice(-200));
+    if (end) stopCombatMedia();
+    prevRtPhase.current = rtPhase;
+    if (!rtPhase) { rtRadio.stopAll(); stopRtAudio(); rtFxSeen.current.clear(); }
+  }, [rtPhase, rtFx]);
+  // Road Trip: เสียงบรรยากาศตามเฟส/ภูมิภาค/กลางคืน + เสียงจาก fx / เปลี่ยนเฟส (roadtrip/rtAudio.js)
+  const rtAmbKey = rtNow ? JSON.stringify(rtAmbienceFor(rtNow)) : "[]";
+  useEffect(() => { rtSetAmbience(JSON.parse(rtAmbKey)); }, [rtAmbKey]);
+  useEffect(() => { if (rtNow) rtHandleFx(rtNow); }, [rtNow]);
   const cycle = stage === "connected" && state
     ? (journeyNow ? `${journeyNow.area}-${journeyNow.night ? "night" : "day"}` : fodlanNow ? `f${fodlanNow.stage}-${fodlanNow.weather ? "wx" : ""}` : state.cycle)
     : null;
@@ -374,10 +415,12 @@ export default function App() {
     // 5.1: เข้าห้องแล้ว (ตั้งแต่หน้าเลือกลำดับ) เปลี่ยนเป็นเพลงห้องรอ lobby5 ทันที — main5 อยู่แค่ใน launcher · ฉากเปิดตัว + ซูมเข้าโลก ยังเป็น lobby5 (intro)
     {
       const track = musicForState(stage === "connected" ? state : null, {
-        lowQ, cycleSeq: cycleSeq.current, attackSeq: attackSeq.current, intro: introOn, fodlanMap: fodlanMapOn,
+        lowQ, cycleSeq: cycleSeq.current, attackSeq: attackSeq.current, intro: introOn, fodlanMap: fodlanMapOn, rtFiles,
       });
       if (track.name) playMusic(track.name, track.seq);
       else stopMusic();
+      // Road Trip: ไม่มีไฟล์เพลงของเฟสนี้ = ลูปสังเคราะห์ · ช่วงขับ (track.radio) = วิทยุรถตู้ (effect ถัดไป)
+      rtRadio.setBed(track.rtSynth || null);
       // ด่าน Origin: เสียงบรรยากาศตามภูมิภาค/กลางวัน-คืน ใต้เพลงภูมิภาค (เฉพาะตอนเพลงภูมิภาคเล่นอยู่ — ไม่ทับเพลงท่าไม้ตาย/วีดีโอ)
       const jn = String(track.name || "").match(/^journey_(\d)_(day|night)$/);
       setAmbient(jn ? `amb_${jn[1]}_${jn[2]}` : null);
@@ -393,7 +436,24 @@ export default function App() {
     if (sounds.attack && !(state?.board && window.innerWidth >= 768)) {
       playSfx(state?.attack?.byAttackSound || "attack");
     }
-  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, fodlanNow?.scene?.active, introOn, fodlanMapOn]);
+  }, [stage, phase, cycle, skillMusic, skillMusicSeq, lowQ, state?.cutscene?.id, state?.attack?.id, state?.roundNumber, journeyNow?.scene?.active, journeyNow?.scene?.seq, fodlanNow?.scene?.active, introOn, fodlanMapOn,
+    rtPhase, rtNow?.night, rtNow?.stop?.kind, rtNow?.combat?.kind, rtFiles]);
+
+  // Road Trip: วิทยุเล่นเฉพาะช่วงขับ (intro/drive/fork/event) — ฉากเปิดมีไฟล์ intro.mp3 = วิทยุรอจนเข้าช่วงขับ
+  //  หัวหน้าคิว (เลื่อนเพลง YouTube ตอนจบ/ฝังไม่ได้) = คนที่ตั้งเพลงล่าสุด · ไม่อยู่แล้ว = ผู้เล่นคนแรกในรายชื่อ
+  const rtRadioState = rtNow ? rtNow.radio : null;
+  const rtRadioKey = rtRadioState ? JSON.stringify(rtRadioState) : "";
+  const rtDriving = !!rtPhase && ["intro", "drive", "fork", "event"].includes(rtPhase) && !(rtPhase === "intro" && rtFiles && rtFiles.has("intro"));
+  const rtLeader = (() => {
+    if (!rtNow || !state) return false;
+    const ids = (state.players || []).map((p) => p.id);
+    const by = rtRadioState && rtRadioState.by;
+    return by && ids.includes(by) ? by === state.youId : ids[0] === state.youId;
+  })();
+  useEffect(() => {
+    if (!rtPhase) return;
+    rtRadio.sync(rtRadioState, { active: rtDriving, leader: rtLeader, now: serverNow() });
+  }, [rtRadioKey, rtDriving, rtLeader, !!rtPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const goCharacter = (n, pos, col) => {
     setName(n);
@@ -447,6 +507,13 @@ export default function App() {
         eos: true, durationMs: journeyDurationMs(getTickSeconds(), EOS_INTRO_MS),
         board: state?.board || null, self: me && me.alive !== false ? me.pos || null : null, night: !!state?.fodlan?.board?.night,
       };
+    }
+    // Road Trip (§8.8): server อยู่ phase intro (introHold + 6 วิ) — ดิ่งลงหมุดสั้นๆ แล้วเหลือเวลาให้ฉากเปิดทริป 3D (RtIntro) อย่างน้อย ~4.5 วิ
+    if (worldRef.current === "roadtrip") {
+      const r = rtLiveRef.current;
+      const left = r && r.phase === "intro" && r.endsAt ? r.endsAt - serverNow() : 0;
+      if (left < 5600) return null;
+      return { roadtrip: true, durationMs: Math.max(2400, Math.min(3400, left - 4600)) };
     }
     const live = journeyStateRef.current?.scene || (fodlanRef.current?.scene ? { ...fodlanRef.current.scene } : null);
     if (pending && live?.active && live.seq === pending.seq) {
@@ -547,6 +614,7 @@ export default function App() {
           players={intro.players}
           area={intro.area}
           fodlan={intro.fodlan}
+          title={intro.title}
           onFodlanMap={() => setFodlanMapOn(true)}
           lowQ={lowQ}
           onOutro={startPendingJourney}

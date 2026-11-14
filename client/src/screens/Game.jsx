@@ -52,6 +52,13 @@ import ArjunaUlt from "../board/ArjunaUlt";
 import { preloadArjunaUlt } from "../board/arjunaFx";
 import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
+// Road Trip (GRID_PLAN §8.8): ช่วงขับ = จอ 3D (RoadtripScreen) · จุดพัก/ต่อสู้ = กระดานเดิม + แถบจุดพัก/อู่/สถานะรถ · จบ = สรุป
+import RoadtripScreen, { RT_DRIVE_PHASES } from "../roadtrip/RoadtripScreen";
+import RoadtripSummary from "../roadtrip/RoadtripSummary";
+import RtTransitions, { useRtView } from "../roadtrip/RtTransitions"; // ฉากเปลี่ยนของโหมด (เข้าจุดพัก/ต่อสู้/บอส/ชนะ/แพ้/ภูมิภาค)
+import StopBar from "../roadtrip/StopBar";
+import Garage from "../roadtrip/Garage";
+import "../roadtrip/roadtrip.css";
 
 const P_DISPLAY = "var(--font-p-display)";
 const TEAM_COLORS = { A: "#22d3ee", B: "#f97316", C: "#a3e635" };
@@ -676,7 +683,7 @@ function ModalMounts({
   statusView, statusViewIsSelf, onCloseStatus,
   shop = null, onCloseShop, shopBlock,
   bagOpen, onCloseBag, players, gameState, roundNumber,
-  myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse,
+  myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse, rtFree = false,
   skillConfirm, onConfirmSkill, onCancelSkill, remoteShops = null, onRemoteShop, onBomb,
 }) {
   return (
@@ -686,7 +693,7 @@ function ModalMounts({
       {shop && (newBag
         ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
         : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
-      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb} />}
+      {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} rtFree={rtFree} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb} />}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <CharVideoPreloader players={players} />
@@ -1839,7 +1846,30 @@ function FlyingCardsLayer({ flights, onDone }) {
   );
 }
 
-export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
+// Road Trip: เลือกจอตามเฟสของโหมด — ช่วงขับไม่ mount กระดาน (ไม่มีการ์ด/สกิล/ปุ่มตัวละครเลย — ผู้ใช้สั่ง 2026-11-14)
+//  ภาพที่โชว์ (drive/board/over) ตามหลังเฟสจริงเล็กน้อยเพื่อเล่นฉากเปลี่ยน (roadtrip/RtTransitions.jsx useRtView) — ระหว่างค้างภาพกระดานเดิมใช้ state ชุดสุดท้ายของกระดาน
+export default function GameBoard(props) {
+  const { state } = props;
+  const rt = state && state.gameMode === "roadtrip" ? state.roadtrip : null;
+  const rtv = useRtView(state);
+  if (!rt) return <GameBoardCore {...props} />;
+  const view = rtv.view || (RT_DRIVE_PHASES.has(rt.phase) ? "drive" : "board");
+  // ฉากขับ 3D mount ค้างไว้ตลอดทริป (ซ่อน + หยุดวาดตอนจุดพัก/ต่อสู้) — สร้างใหม่ทุกครั้งที่กลับมาขับ = ค้าง ~0.8 วิ (วัดแล้ว 2026-11-14)
+  return (
+    <>
+      {view !== "over" && <RoadtripScreen key="rt-drive" state={state} lowQ={props.lowQ} active={view === "drive"} />}
+      {view === "board" && <GameBoardCore key="rt-board" {...props} state={rtv.boardState} />}
+      {view === "over" && (
+        <div className="rtx-sumfade">
+          <RoadtripSummary summary={rt.summary || { km: rt.km, region: rt.region, diff: rt.diff }} players={state.players || []} />
+        </div>
+      )}
+      <RtTransitions state={state} view={view} act={rtv.act} endAct={rtv.endAct} lowQ={props.lowQ} />
+    </>
+  );
+}
+
+function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // หยุดเวลา (ดิเอโก้ — state.timeFreeze): ไม่มีเพลงพื้นหลังเลย (ผู้ใช้สั่ง · เสียงนาฬิกาวนเอาออกแล้ว — ผู้ใช้: น่ารำคาญ) · เสียงการกระทำ/เอฟเฟกต์ยังดังตามปกติ
   const frozenBy = state?.timeFreeze?.by || null;
   useEffect(() => (frozenBy ? suspendMusic() : undefined), [frozenBy]);
@@ -1880,6 +1910,26 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const [eosMapOpen, setEosMapOpen] = useState(false); // สนาม Eos: แผนที่ภาพรวม (eos/EosMap.jsx)
   const [deckOpen, setDeckOpen] = useState(false);   // สมุดการ์ดกองกลาง: กดที่กองการ์ดกลางเพื่อดู
   const [deckTab, setDeckTab] = useState(false);     // แถบกองการ์ดกลาง (จอคอม): หุบไว้เป็นค่าเริ่ม
+  // Road Trip: จุดพัก (phase stop) = ช่วงเดินทาง → ไม่มีการ์ด/สกิล/ปุ่มตัวละคร (มีเฉพาะตอนต่อสู้) · อู่เปิดจากแถบจุดพัก หรือ fx { k: "garage", pid }
+  const rtOn = state.gameMode === "roadtrip" && !!state.roadtrip;
+  const rtTravel = rtOn && state.roadtrip.phase !== "combat";
+  const rtStop = rtOn && state.roadtrip.phase === "stop" ? state.roadtrip.stop : null;
+  const [garageOpen, setGarageOpen] = useState(false);
+  if (garageOpen && (!rtStop || rtStop.kind === "motel")) setGarageOpen(false);
+  const rtGarageSeen = useRef(new Set());
+  useEffect(() => {
+    const fx = rtOn && Array.isArray(state.roadtrip.fx) ? state.roadtrip.fx : [];
+    for (const f of fx) {
+      if (f.k !== "garage" && f.k !== "shop") continue;
+      const k = f.key ?? f.id ?? JSON.stringify(f);
+      if (rtGarageSeen.current.has(k)) continue;
+      rtGarageSeen.current.add(k);
+      if (f.pid !== state.youId) continue;
+      // จุดพัก: อาคารมินิมาร์ท/สำนักงาน = ร้าน (server ส่ง fx { k: "shop", pid, shopId } ตอนเล่นอาคาร) → เปิดหน้าร้านเดิม (server ยืนยันไปแล้ว ไม่ต้อง emit viewShop ซ้ำ)
+      if (f.k === "shop") { if (f.shopId) setShopId(f.shopId); }
+      else setGarageOpen(true);
+    }
+  }, [rtOn, state.roadtrip?.fx, state.youId]); // eslint-disable-line react-hooks/exhaustive-deps
   const shopSeen = useRef(new Set());                // ร้านที่ประกาศ "ปรากฏ" ไปแล้ว (id ร้าน — กันเด้งซ้ำ)
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
@@ -2656,7 +2706,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       {clockWorld && !alterWorld && !lowQ && <div className="full-force-speed" />}
       {/* กองการ์ดกลาง: แถบสไลด์ขอบซ้ายกลางจอ — ค่าเริ่ม = หุบ (ผู้ใช้สั่ง 2026-10-09 · เกะกะจอ) · การ์ดยังบินออกจากตรงนี้ไปมือเรา */}
       {/*  สนาม Eos (ผู้ใช้สั่ง 2026-11-10 "รวมทั้ง 3 อันในอันเดียว สไลด์ออกมาแล้วกดได้"): ปุ่มแผนที่ + คู่มืออยู่ในถาดเดียวกับกองการ์ด */}
-      <div className="deck-drawer" data-eos={state.world === "eos" && state.board ? "true" : undefined} data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
+      {!rtTravel && <div className="deck-drawer" data-eos={state.world === "eos" && state.board ? "true" : undefined} data-open={deckTab ? "true" : "false"} data-away={fcOpen || (!!state.board && phase === "ATTACKING") ? "true" : "false"}>
         <div className="deck-drawer-pile"><DeckPile hostRef={deckRef} size="md" onClick={() => setDeckOpen(true)} /></div>
         {state.world === "eos" && state.board && (
           <div className="deck-drawer-extra">
@@ -2669,7 +2719,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         <button type="button" className="deck-drawer-tab" aria-expanded={deckTab} aria-label="กองการ์ดกลาง" onClick={() => { clickSound(); setDeckTab((v) => !v); }}>
           <span className="deck-drawer-ico" aria-hidden="true" /><span className="deck-drawer-arrow" aria-hidden="true">{deckTab ? "◂" : "▸"}</span>
         </button>
-      </div>
+      </div>}
       {deckOpen && <DeckLedgerModal ledger={state.deckLedger || []} onClose={() => setDeckOpen(false)} />}
       {eosMapOpen && state.world === "eos" && <EosMap state={state} onClose={() => setEosMapOpen(false)} />}
       {eosGuideOpen && state.world === "eos" && <EosGuide onClose={() => setEosGuideOpen(false)} />}
@@ -2703,9 +2753,15 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}
+        roadtrip={rtOn ? { rt: state.roadtrip, myTurn } : null}
         players={state.players}
         zoom={hudZ}
       />}
+      {/* Road Trip: แถบจุดพัก (เวลา · ความพร้อม · อู่) + อู่ */}
+      {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "motel" ? null : () => setGarageOpen(true)} />}
+      {garageOpen && rtStop && (
+        <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
+      )}
 
       {/* ---------- แผงตัวเรา (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------
           ซ้ายล่าง = แผงผู้เล่น · ขอบซ้าย = ลิ้นชักสถานะ · กลางล่าง = แต้ม · มือไพ่ · จั่ว/พอ (ช่วงจั่ว) หรือ ย้อน/รอ (ตาเดิน)
@@ -2750,7 +2806,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
             />
           }
           mode={hudMode}
-          center={hudMode !== "draw" && ch?.basic?.book ? (
+          center={rtTravel ? <span /> : hudMode !== "draw" && ch?.basic?.book ? (
             // เจ้าหญิง Echo: สมุดไดอารี่กลาง HUD แทนช่องสกิลพื้นฐาน
             <DiaryCenter skill={ch.basic} disabled={hudMode !== "turn" || slotOff("basic")} cooldown={giftCd("basic")} onOpen={() => requestSkillUse("basic", ch.basic, "พื้นฐาน", ch.basic.cost)} />
           ) : hudMode !== "draw" && me?.ohger ? (
@@ -2843,6 +2899,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         shop={openShop} onCloseShop={() => setShopId(null)} shopBlock={shopBlock}
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
         myTurn={myTurn && !canto && !me?.summon} bagSlots={me?.bagSlots || state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
+        rtFree={state.gameMode === "roadtrip" && !!state.roadtrip && state.roadtrip.phase === "stop"}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
         onBomb={(it, el) => { setBagOpen(false); setPickReq({ kind: "bomb", uid: it.uid, el }); }}
@@ -2901,12 +2958,12 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
         />
       )}
       {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
-      {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
+      {me?.dio && !hudAway && !rtTravel && <DioGauge dio={me.dio} />}
       {/* คุซาคาเบะ ชินระ: แถบเปลวเพลง */}
-      {me?.shinra && !hudAway && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
-      {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
+      {me?.shinra && !hudAway && !rtTravel && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
+      {me?.dio && !rtTravel && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
-      <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
+      <ClockUpButton me={rtTravel ? null : me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
       <ClockDuel clock={state.clockUp || null} players={state.players} myId={me?.id} onMash={mashClock} />
       {/* เฟรดดี้ ฟาซแบร์: มินิเกมประตู 10 วิ (state.freddyDoor — characters/freddy_fazbear.js) */}
       <FreddyDoors door={state.freddyDoor || null} onPick={(d) => { clickSound(); socket.emit("freddyDoor", { door: d }); }} />

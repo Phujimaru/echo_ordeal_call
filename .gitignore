@@ -35,6 +35,7 @@ client/public/zero_time/
 # เพลงด่าน + เสียงบรรยากาศ/เอฟเฟกต์โหมด Fodlan (GRID_PLAN §8.5 · เพลงจากผู้ใช้ ~50 MB + Mixkit) — เก็บบน R2 เหมือนสื่ออื่น
 client/public/fodlan/
 client/public/eos/
+client/public/roadtrip/
 
 # สถิติตัวละครตอนรัน server จากโปรเจกต์ (โปรแกรม ECHO เก็บใน userData แทน — server/charStats.js)
 /data/

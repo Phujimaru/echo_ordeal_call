@@ -12,9 +12,10 @@ function generate() {
   const m = src.match(/\nmodule\.exports = \{([\s\S]*?)\};\s*$/);
   if (!m) throw new Error("server/board.js ต้องจบด้วย module.exports = { ... };");
   // ข้อมูลแผนที่ Fodlan (server/fodlan/mapN.js — ข้อมูลล้วน) ฝังแทน require (ESM ใช้ require ไม่ได้)
-  const body = src.slice(0, m.index).replace(/require\("\.\/fodlan\/(map\d)"\)/g, (_, name) => {
-    const file = fs.readFileSync(path.join(__dirname, "..", "server", "fodlan", `${name}.js`), "utf8").replace(/\r\n/g, "\n").trim();
-    return `(() => { const module = { exports: {} }; ${file}\n  return module.exports; })()`;
+  // + แผนที่ Road Trip (server/roadtrip/maps.js) — require ปลอม: ไฟล์มีส่วน "รันตรง" (require.main === module) ที่ไม่ทำงานฝั่ง client
+  const body = src.slice(0, m.index).replace(/require\("\.\/(fodlan\/map\d|roadtrip\/maps)"\)/g, (_, name) => {
+    const file = fs.readFileSync(path.join(__dirname, "..", "server", `${name}.js`), "utf8").replace(/\r\n/g, "\n").trim();
+    return `(() => { const module = { exports: {} }; const require = { main: null }; ${file}\n  return module.exports; })()`;
   });
   return [
     "// ⚠️ ไฟล์นี้สร้างอัตโนมัติจาก server/board.js — ห้ามแก้ตรงนี้ (แก้ที่ server แล้วรัน node scripts/gen-board-rules.js)",

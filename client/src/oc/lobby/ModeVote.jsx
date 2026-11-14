@@ -18,9 +18,11 @@ import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas"
 import { FODLAN_GEO, FODLAN_STAGES } from "../../fodlan/stages";
 import { EOS_GEO } from "../../eos/eosMeta";
 import { OcButton, OcPanel } from "../ui";
+import { DIFFS as RT_DIFFS, RT_GEO } from "../../roadtrip/rtMeta";
+import { tip as rtTip } from "../../roadtrip/rtTip";
 
-const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell", eos: "ร่วมมือ" };
-const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss", eos: "PVE" };
+const MODE_TITLES = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell", eos: "ร่วมมือ", roadtrip: "Road Trip" };
+const MODE_SUBTITLES = { ffa: "ทุกคนสู้กันเอง", duo: "ทีมละ 2 คน", trio: "ทีมละ 3 คน", moon: "Raid Boss", eos: "PVE", roadtrip: "PVE" };
 // ไอคอนในวงหมุดโหมด (lobby.css .ocl-mt-disc)
 const MODE_ICONS = {
   ffa: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9.5 9.5M4 5l1-1M13 12l-2.5 2.5M8.5 15.5L6 18M19 4L9.5 13.5M20 5l-1-1M11 12l2.5 2.5M15.5 15.5L18 18M4.5 19.5l2-2M19.5 19.5l-2-2" /></svg>,
@@ -29,8 +31,10 @@ const MODE_ICONS = {
   moon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5a8 8 0 1 0 4 12.6A6.5 6.5 0 0 1 15.5 4.5z" /></svg>,
   // Eos (PVE ร่วมมือ): คริสตัลเสา + วงล้อมป้องกัน
   eos: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l3.2 5.5L12 21 8.8 8.5z" /><path d="M8.8 8.5h6.4" /><path d="M4 14.5a8.5 8.5 0 0 0 16 0" /></svg>,
+  // Road Trip (GRID_PLAN §8.8): รถตู้ข้าง — หลังคาโค้ง หน้าต่าง 2 บาน ล้อ 2 ล้อ
+  roadtrip: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16.5V9.5C3 7.6 4.6 6 6.5 6h9.2c1 0 1.9.5 2.5 1.3l2.3 3.4c.3.5.5 1 .5 1.6v4.2h-2.4" /><path d="M8.4 16.5h6.5M3 16.5h1.6" /><circle cx="6.5" cy="16.8" r="1.9" /><circle cx="16.8" cy="16.8" r="1.9" /><path d="M5.5 9h4.5v2.8H5.5zM12.5 9h3.6l1.8 2.8h-5.4z" /></svg>,
 };
-const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป", eos: "1 คนขึ้นไป" };
+const MODE_NEED = { ffa: "2 คนขึ้นไป", duo: "4 หรือ 6 คน", trio: "6 คน", moon: "1 คนขึ้นไป", eos: "1 คนขึ้นไป", roadtrip: "1 คนขึ้นไป" };
 const MODE_GEO = { ffa: [2, 30], duo: [26, 4], trio: [48, 30] };
 // หมุดโหมดของ Fodlan กระจุกรอบหมุด Fodlan (ทะเลเปิดระหว่างภูมิภาค III–IV ของ Origin)
 const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [FODLAN_GEO.lon + 4, FODLAN_GEO.lat - 8], trio: [FODLAN_GEO.lon + 16, FODLAN_GEO.lat + 8] };
@@ -38,11 +42,23 @@ const FODLAN_MODE_GEO = { ffa: [FODLAN_GEO.lon - 12, FODLAN_GEO.lat + 8], duo: [
 // Eos (GRID_PLAN §8.6): หมุดที่ 3 บนโลก (มหาสมุทรซีกตะวันตก) — แผนที่เดียว 32×32
 // Eos = PVE (ผู้ใช้สั่ง 2026-11-10): ไม่มีโหมดย่อย ffa/duo/trio — หมุดเดียว โหมด "eos" (ทุกคนทีมเดียว)
 const EOS_MODE_GEO = { eos: [EOS_GEO.lon + 2, EOS_GEO.lat - 6] };
-const SUBS = ["origin", "fodlan", "eos"];
-const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat] };
+// Road Trip (GRID_PLAN §8.8 · PVE ไม่มีจุดจบ): หมุดที่ 4 บนโลก (ซีกตะวันตกเฉียงเหนือ) — โหมดเดียว "roadtrip" + ความยาก 3 ระดับ
+// RT_GEO (หมุด Road Trip) อยู่ใน roadtrip/rtMeta.js — ฉากดิ่งเข้าโหมด (rtFlight.js) ใช้จุดเดียวกัน
+const RT_MODE_GEO = { roadtrip: [RT_GEO.lon + 3, RT_GEO.lat - 7] };
+const SUBS = ["origin", "fodlan", "eos", "roadtrip"];
+const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat], roadtrip: [RT_GEO.lon, RT_GEO.lat] };
 const FODLAN_GOLD = 0xe0a63a;
 const EOS_BLUE = 0x7fd4ff;
-const SUB_COLORS = { fodlan: FODLAN_GOLD, eos: EOS_BLUE };
+const RT_ORANGE = 0xf08a4b;
+const SUB_COLORS = { fodlan: FODLAN_GOLD, eos: EOS_BLUE, roadtrip: RT_ORANGE };
+// ภูมิภาคของ Road Trip (server/roadtrip — เปลี่ยนทุก 100 กม. แล้ววนรอบ)
+const RT_REGIONS = [
+  { id: "plains", name: "ทุ่งหญ้า", color: "#7cc46a" },
+  { id: "desert", name: "ทะเลทราย", color: "#e3b25a" },
+  { id: "forest", name: "ป่าสน", color: "#3f8f5a" },
+  { id: "snow", name: "ทุ่งหิมะ", color: "#8cc8ea" },
+  { id: "ghost", name: "เมืองร้าง", color: "#8a7aa8" },
+];
 // โซนของ Eos (server/fodlan/map6.js ZONES) — แผงโหวตแสดงชื่ออย่างเดียว
 const EOS_ZONES = [
   { id: "insomnia", name: "Insomnia", color: "#7fd4ff" },
@@ -52,17 +68,17 @@ const EOS_ZONES = [
   { id: "altissia", name: "Altissia", color: "#9fe0e8" },
 ];
 const ORDER = ["ffa", "duo", "trio"];
-const PIN_MODES = [...ORDER, "eos"]; // หมุดโหมดบนลูกโลก — eos มีเฉพาะชุด eos (geo ชุดอื่นไม่มี = ข้าม) · Colony ใช้ ORDER
+const PIN_MODES = [...ORDER, "eos", "roadtrip"]; // หมุดโหมดบนลูกโลก — eos มีเฉพาะชุด eos (geo ชุดอื่นไม่มี = ข้าม) · Colony ใช้ ORDER
 const WORLDS = ["earth", "colony", "moon"];
-const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", colony: "Colony", moon: "ดวงจันทร์" };
-const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "colony"]);
+const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", colony: "Colony", moon: "ดวงจันทร์" };
+const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "roadtrip", "colony"]);
 // ชื่อสนามตามที่ server เก็บ (ผลโหวต): earth = Origin
-const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", eos: "Eos", colony: "Colony", moon: "ดวงจันทร์" };
+const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", colony: "Colony", moon: "ดวงจันทร์" };
 // world ฝั่ง client → world ที่ส่งให้ server
 const serverWorld = (w) => (w === "origin" || w === "earth" || !w ? "earth" : w);
-const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan" || w === "eos";
-const EARTH_SUBS = new Set(["fodlan", "eos"]); // สนามย่อยบนโลกที่ server เก็บเป็น world ของตัวเอง
-const LATIN_MODES = new Set(["moon"]);
+const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan" || w === "eos" || w === "roadtrip";
+const EARTH_SUBS = new Set(["fodlan", "eos", "roadtrip"]); // สนามย่อยบนโลกที่ server เก็บเป็น world ของตัวเอง
+const LATIN_MODES = new Set(["moon", "roadtrip"]);
 // บอสของ Moon Cell (server/moonCell.js) — ชื่อ + พลังชีวิต/เกราะ
 const MOON_BOSSES = [
   { id: "m", name: "คิชินามิ ฮาคุโนะ", img: "/mooncell/hakuno_m.png", hp: 15, armor: 5 },
@@ -123,7 +139,10 @@ function useOptions(state, world) {
   ]);
   if (world === "earth") return []; // ชั้นหมุด Origin / Fodlan ยังไม่มีหมุดโหมด
   const w = serverWorld(world);
-  return list.filter((o) => (w === "moon" ? o.mode === "moon" : w === "eos" ? o.mode === "eos" : MODE_GEO[o.mode]) && worldOf(o) === w)
+  const out = list.filter((o) => (w === "moon" ? o.mode === "moon" : w === "eos" ? o.mode === "eos" : w === "roadtrip" ? o.mode === "roadtrip" : MODE_GEO[o.mode]) && worldOf(o) === w);
+  // Road Trip: server ที่ยังไม่ส่งตัวเลือกนี้ = แสดงหมุดไว้ก่อน (server ตัดสินตอนโหวตเอง)
+  if (w === "roadtrip" && !out.length) out.push({ mode: "roadtrip", world: "roadtrip", enabled: count >= 1, voters: state.players.filter((p) => p.modeVote === "roadtrip").map((p) => p.id), voteCount: 0 });
+  return out
     .sort((a, b) => PIN_MODES.indexOf(a.mode) - PIN_MODES.indexOf(b.mode));
 }
 
@@ -151,28 +170,30 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   useLayoutEffect(() => { optsRef.current = options; worldRef.current = world; });
 
   // ความยากของ Eos (ผู้ใช้สั่ง 2026-11-10 — เลือกในหน้าโหวต): ส่งไปพร้อมโหวต · โหวตแล้วเปลี่ยนความยาก = ส่งโหวตซ้ำ
+  //  Road Trip ใช้ค่าเดียวกัน (ง่าย/ปกติ/ยาก — ไม่มี Lament)
   const [eosDiff, setEosDiff] = useState("normal");
   const vote = (mode, diff = eosDiff) => {
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
     uiSound("confirm");
-    socket.emit("selectGameMode", { mode, world: serverWorld(world), ...(mode === "eos" ? { diff } : null) });
+    const d = mode === "roadtrip" && diff === "lament" ? "hard" : diff;
+    socket.emit("selectGameMode", { mode, world: serverWorld(world), ...(mode === "eos" || mode === "roadtrip" ? { diff: d } : null) });
   };
-  const pickDiff = (d) => {
+  const pickDiff = (d, mode = "eos") => {
     setEosDiff(d);
     const me = state.players.find((p) => p.id === state.youId);
-    if (me && me.modeVote === "eos") vote("eos", d); else clickSound();
+    if (me && me.modeVote === mode) vote(mode, d); else clickSound();
   };
   // กดหมุด/ป้าย = เลือกดูอย่างเดียว ยังไม่โหวต (ผู้ใช้สั่ง: ต้องกดยืนยันก่อน) · ป้ายเป็นปุ่ม (เสียงคลิกมาเอง) หมุดบนโลกต้องเรียกเอง
   const preview = (mode, sound) => { if (sound && mode !== focus) clickSound(); onFocus(mode); };
   // Eos มีโหมดเดียว (ร่วมมือ PVE) → เข้า Eos = เปิดแผงความยาก/โหวตเลย ไม่ต้องกดหมุด "ร่วมมือ" (ผู้ใช้สั่ง 2026-11-14)
-  const SINGLE = { eos: "eos" };
+  const SINGLE = { eos: "eos", roadtrip: "roadtrip" };
   const clear = () => { if (!focus || SINGLE[world]) return; clickSound(); onFocus(null); };
   const enter = (w, sound) => { if (sound) clickSound(); onFocus(SINGLE[w] || null); onWorld(w); };
   const back = () => {
     if (focus && SINGLE[world]) { onFocus(null); onWorld("earth"); return; }
     if (focus) { onFocus(null); return; }
-    if (world === "origin" || world === "fodlan" || world === "eos") { onWorld("earth"); return; }
+    if (world === "origin" || EARTH_SUBS.has(world)) { onWorld("earth"); return; }
     if (world) { onWorld(null); return; }
     socket.emit("modeBackToLobby");
   };
@@ -213,10 +234,10 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
       return { g, stem, head, ring, hit, dir, k };
     };
     // หมุดโหมดสองชุด: Origin (ตำแหน่งเดิม) / Fodlan (รอบหมุด Fodlan)
-    const modeSets = { origin: {}, fodlan: {}, eos: {} };
-    const hitsBy = { origin: [], fodlan: [], eos: [] };
+    const modeSets = { origin: {}, fodlan: {}, eos: {}, roadtrip: {} };
+    const hitsBy = { origin: [], fodlan: [], eos: [], roadtrip: [] };
     for (const mode of PIN_MODES) {
-      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO]]) {
+      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO], ["roadtrip", RT_MODE_GEO]]) {
         if (!geo[mode]) continue;
         const m = makePin(geo[mode], COLORS.azure, { mode });
         modeSets[set][mode] = m;
@@ -227,6 +248,11 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     const subHits = [];
     for (const sub of SUBS) {
       const m = makePin(SUB_GEO[sub], SUB_COLORS[sub] || COLORS.azure, { sub }, true);
+      if (sub === "roadtrip") {
+        // หัวหมุด Road Trip = กล่องรถตู้จิ๋ว (แทนเพชร) ให้แยกจากหมุดอื่นได้ด้วยตา
+        m.head.geometry.dispose();
+        m.head.geometry = new THREE.BoxGeometry(0.05, 0.026, 0.026);
+      }
       m.ring.material.opacity = 0.7;
       subs[sub] = m;
       subHits.push(m.hit);
@@ -478,7 +504,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     for (const [k, pins] of Object.entries(s.modeSets)) for (const [mode, m] of Object.entries(pins)) m.ring.material.opacity = mode === focus && world === k ? 0.9 : 0;
     const set = s.modeSets[world];
     if (set) { core.setAutoSpin(0); core.focusDir((set[focus] || (EARTH_SUBS.has(world) ? s.subs[world] : set.ffa)).dir); }
-    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).add(s.subs.eos.dir).normalize()); } // เห็น Origin · Fodlan · Eos
+    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).add(s.subs.eos.dir).add(s.subs.roadtrip.dir).normalize()); } // เห็น Origin · Fodlan · Eos · Road Trip
     else { core.focusDir(null); core.setAutoSpin(world === "colony" || world === "moon" ? 0.04 : 0.07); }
     if (s.route) { s.root.remove(s.route); s.route.geometry.dispose(); s.route.material.dispose(); s.route = null; }
     s.curve = null;
@@ -601,7 +627,39 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
               <span className="oc-muted">{MODE_SUBTITLES[panelOpt.mode]}</span>
             </div>
 
-            {world === "eos" ? (
+            {world === "roadtrip" ? (
+              <>
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">ความยาก</div>
+                <div className="ocl-diff" data-n="3" role="radiogroup" aria-label="ความยาก">
+                  {[["easy", "ง่าย"], ["normal", "ปกติ"], ["hard", "ยาก"]].map(([d, label], k) => {
+                    const cur = eosDiff === "lament" ? "hard" : eosDiff;
+                    const voters = state.players.filter((p) => p.modeVote === "roadtrip" && (p.rtDiff || p.eosDiff) === d);
+                    return (
+                      <button key={d} type="button" role="radio" aria-checked={cur === d} data-on={cur === d ? "true" : undefined} data-d={d} onClick={() => pickDiff(d, "roadtrip")} {...rtTip(RT_DIFFS[d] && RT_DIFFS[d].desc, label)}>
+                        <span className="ocl-diff-pips" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} data-on={i <= k ? "true" : undefined} />)}</span>
+                        <b>{label}</b>
+                        {voters.length > 0 && <span className="ocl-dots">{voters.map((p) => <i key={p.id} style={{ background: p.color }} />)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">เส้นทาง</div>
+                <ol className="ocl-rt-route">
+                  {RT_REGIONS.map((r, i) => (
+                    <li key={r.id} style={{ "--c": r.color }}>
+                      <span className="ocl-rt-dot" aria-hidden="true" />
+                      <b>{r.name}</b>
+                      <span className="ocl-rt-km">{i * 100}<small>กม.</small></span>
+                    </li>
+                  ))}
+                  <li className="ocl-rt-loop" aria-hidden="true"><span>↻</span></li>
+                </ol>
+              </section>
+              </>
+            ) : world === "eos" ? (
               <>
               <section className="ocl-sec">
                 <div className="ocl-seclabel">ความยาก</div>

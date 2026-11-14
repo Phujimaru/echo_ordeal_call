@@ -11,6 +11,8 @@ const cycleTurns = () => (match.world === "eos" ? EOS_CYCLE_TURNS : CYCLE_TURNS)
 
 // สลับทุก CYCLE_TURNS เทิร์น เริ่มเกมเป็นกลางวัน — cycleShift เลื่อนวงจรทั้งเกม (เทสต์ตั้งผ่าน engine.setCycleShift)
 function isNightRound(n) {
+  // Road Trip (GRID_PLAN §8.8): กลางวัน/กลางคืนตามระยะทาง (match.roadtrip.night) — ไม่ใช้วงจรเทิร์นเดิม
+  if (match.world === "roadtrip" && match.roadtrip) return forcedNightAt(n) || !!match.roadtrip.night; // กลางคืนบังคับ (Wake Up 1) มาก่อน
   if (forcedNightAt(n)) return true;
   const m = n - match.cycleShift;
   const block = m > 0 ? Math.floor((m - 1) / cycleTurns()) : 0;

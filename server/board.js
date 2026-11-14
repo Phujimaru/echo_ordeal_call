@@ -378,6 +378,14 @@ Object.assign(TERRAIN_INFO, EOS_DEF.TERRAIN || {});
 MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
 const isEosArea = (area) => Number(area) === EOS_AREA;
 
+// ---------- Road Trip (GRID_PLAN §8.8 · .claude/plans/roadtrip-contract.md §6) ----------
+//  area 70 ถนน (ดักทาง) · 71 บนรถตู้ · 72–74 ปั๊ม 3 แบบ · 75 โมเต็ล — ข้อมูลล้วนใน server/roadtrip/maps.js (props/vanTiles/… server/roadtrip ใช้เอง)
+const RT_DEF = require("./roadtrip/maps");
+Object.assign(TERRAIN_INFO, RT_DEF.TERRAIN || {});
+for (const [area, d] of Object.entries(RT_DEF.defs)) MAPS[area] = buildMap({ ...d, area: Number(area), name: d.name });
+const RT_AREAS = Object.keys(RT_DEF.defs).map(Number);
+const isRoadtripArea = (area) => RT_AREAS.includes(Number(area));
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -1124,7 +1132,7 @@ function nearShop(pos, shop) {
 
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
-  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea,
+  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, RT_AREAS, isRoadtripArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

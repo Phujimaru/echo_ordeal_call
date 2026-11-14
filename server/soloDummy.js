@@ -18,7 +18,7 @@ function ensure() {
   const Fodlan = require("./fodlan");
   const Moon = require("./moonCell");
   const real = Object.values(match.players).filter((p) => !p.summon && !p.duoOf);
-  if (real.length !== 1 || Fodlan.inWorld() || Moon.inWorld()) return null;
+  if (real.length !== 1 || Fodlan.inWorld() || Moon.inWorld() || match.world === "roadtrip") return null; // Road Trip มีมอนของโหมดเอง
   const owner = real[0];
   if (Object.values(match.players).some((p) => p.summon && p.alive && p.summon.kind === KIND)) return null;
   const near = owner.pos ? { x: owner.pos.x + 2, y: owner.pos.y } : null;

@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PERMANENT_STATUS_KEYS } from "../../data/permanentStatus";
 import { ZeroIcon } from "../../board/BoardScenes";
+import VanStatus from "../../roadtrip/VanStatus";
 import "./hud.css";
 
 // สีประจำหมวดสถานะ (จาก cls ของ STATUS_INFO) — ใช้ย้อมช่องไอคอนกับตัวเลข
@@ -656,19 +657,27 @@ function ZeroChip({ zero }) {
 }
 // Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
 const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲" };
-export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, players, zoom = 1 }) {
+// Road Trip (state.roadtrip — GRID_PLAN §8.8): แทนป้ายภูมิภาค — ภูมิภาค/รอบวน · กม. · HP รถ · น้ำมัน (+ รอบที่รอด/ประตูท้ายตอนสู้บนรถ) — roadtrip/VanStatus.jsx
+//  roadtrip = { rt: state.roadtrip, myTurn } · กลางวัน/กลางคืนตาม rt.night (ไม่ใช่ cycle ของเกมเดิม)
+export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, roadtrip, players, zoom = 1 }) {
   const zeroOn = !!(zero && zero.active);
-  if (round == null && !journey && !zeroOn && !colony && !moon) return null;
+  if (round == null && !journey && !zeroOn && !colony && !moon && !roadtrip) return null;
+  const nightNow = roadtrip ? !!roadtrip.rt.night : night;
   return (
-    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined}>
-      <span className="hud-top-cycle" title={zeroOn ? undefined : night ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : night ? <MoonIcon /> : <SunIcon />}</span>
+    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined} data-roadtrip={roadtrip ? "true" : undefined}>
+      <span className="hud-top-cycle" title={zeroOn ? undefined : nightNow ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : nightNow ? <MoonIcon /> : <SunIcon />}</span>
       {round != null && (
         <>
           <span className="hud-top-round"><span className="hud-top-k">รอบที่</span><span className="hud-top-n">{round}</span></span>
           {timer}
         </>
       )}
-      {zeroOn ? (
+      {roadtrip ? (
+        <>
+          <span className="hud-top-div" aria-hidden="true" />
+          <VanStatus rt={roadtrip.rt} myTurn={!!roadtrip.myTurn} />
+        </>
+      ) : zeroOn ? (
         <>
           {round != null && <span className="hud-top-div" aria-hidden="true" />}
           <ZeroChip zero={zero} />

@@ -56,7 +56,7 @@ function addGold(p, n) {
 //  ขนาดร้าน (ผู้ใช้สั่ง 2026-11-09 — 2×2 ใหญ่เกิน): ร้านปกติ 1 ช่อง · ร้านพิเศษ 2×1 = SHOP_DIMS · แคปซูลทุกชนิด 1×1
 //  ทุกร้านกินช่องทั้งก้อน · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
 //  ของในร้าน: ชนิดละช่องเดียว ไม่ซ้ำ · สุ่มจำนวนที่ซื้อได้ต่อช่อง (ของกลาง ใครถึงก่อนได้ก่อน)
-const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง" };
+const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง", rtmart: "มินิมาร์ท", rtoffice: "สำนักงานโมเต็ล" }; // rt* = Road Trip: ร้านคืออาคารบนแผนที่ (server/roadtrip/stop.js)
 const SHOP_ITEMS = {
   apoth: ["fortune", "cardColor", "cardCut", "armor", "cleanse", "resist"],
   forge: ["windBoots", "battery", "elemBomb"],
@@ -104,6 +104,8 @@ function shopItemName(item) {
   if (item.type === "pillarWard") return "เกราะเสา";
   if (item.type === "barricade") return "กำแพงไม้";
   if (item.type === "eosRevive") return "ขนนกคืนชีพ";
+  if (item.type === "rtRevive") return "ขนนกคืนชีพ"; // Road Trip (server/roadtrip)
+  if (item.type === "rtFish") return "ปลาย่าง";      // Road Trip: บ่อตกปลา
   return "สินค้า";
 }
 function shopsList() { return match.shops || (match.shops = []); }
@@ -147,9 +149,11 @@ function shopTiles() {
 function stockShop(s) {
   match.shopRoundSeq = (match.shopRoundSeq || 0) + 1;
   s.items = shopCatalog(s.kind).map((it, i) => ({ id: `${s.id}_${match.shopRoundSeq}_${i}`, ...it, stockBase: rollStock(s.kind), bought: 0, sold: false, soldTo: null }));
-  const mul = eosPriceMul();
-  if (mul !== 1) for (const it of s.items) it.price = Math.ceil(it.price * mul); // Eos Lament: ร้านแพง ×1.5
+  const mul = eosPriceMul() * rtPriceMul();
+  if (mul !== 1) for (const it of s.items) it.price = Math.ceil(it.price * mul); // Eos Lament: ร้านแพง ×1.5 · Road Trip: ราคาตามความยาก
 }
+const rtActive = () => match.world === "roadtrip" && !!match.roadtrip; // Road Trip (GRID_PLAN §8.8 · server/roadtrip)
+function rtPriceMul() { return rtActive() ? require("./roadtrip/diff").diffOf(match.roadtrip).price : 1; }
 function eosPriceMul() { try { return require("./fodlan/stage6").eosPriceMul(); } catch { return 1; } }
 // เปิดร้าน kind ที่จุด (x, y) — แทนร้าน kind เดิม (ถ้ามี)
 //  (เดิมรับ size เป็นอาร์กิวเมนต์ที่ 4 — ยังรับได้ แต่ขนาดจริงมาจาก SHOP_DIMS)
@@ -177,7 +181,7 @@ function openShop() {
 function refreshShopForJourney() {
   syncStageItems();
   for (const s of shopsList()) for (const it of s.items || []) {
-    if (it.type === "torch" || it.type === "gysahl" || it.type === "pillarWard" || it.type === "barricade" || it.type === "eosRevive") { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
+    if (it.type === "torch" || it.type === "gysahl" || it.type === "pillarWard" || it.type === "barricade" || it.type === "eosRevive" || (it.type === "rtRevive" && it.unlimited)) { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
     if (it.stockBase == null) it.stockBase = 1;
     const limit = it.stockBase + Journey.shopStockBonus(engine);
@@ -189,6 +193,16 @@ function refreshShopForJourney() {
 }
 // Fodlan ด่าน II เรเมียร์ (server/fodlan/stage2.js): คบเพลิงขายที่ร้านยาเจริญชัยเฉพาะตอนอยู่ด่านนี้ · ออกจากด่าน = เอาออก
 function syncStageItems() {
+  // Road Trip: ขนนกคืนชีพขายประจำที่มินิมาร์ท (ร้านยา) ง่าย 6 / ปกติ 10 · ยาก = ไม่ขายประจำ (สุ่มของหายาก — server/roadtrip/stop.js)
+  if (rtActive()) {
+    const price = require("./roadtrip/diff").diffOf(match.roadtrip).revive;
+    for (const s of shopsList()) {
+      if (!s.rt) continue;
+      if (price != null && !(s.items || []).some((it) => it.type === "rtRevive")) s.items.push({ id: `${s.id}_rtrevive_${match.shopRoundSeq}`, type: "rtRevive", price, sold: false, soldTo: null, bought: 0, unlimited: true });
+      if (!(s.items || []).some((it) => it.type === "rtFish")) s.items.push({ id: `${s.id}_rtfish_${match.shopRoundSeq}`, type: "rtFish", price: Math.ceil(2 * rtPriceMul()), sold: false, soldTo: null, bought: 0, stockBase: 3 });
+    }
+    return;
+  }
   const want = require("./fodlan/stage2").torchOnSale();
   for (const s of shopsList()) {
     if (s.kind !== "apoth" && s.kind !== "capsule") continue;
@@ -292,6 +306,7 @@ function tickMerchant() {
 }
 // ต้นเทิร์น (dealRound): ครบกำหนด = ร้านยา/โรงช่างปรากฏจุดใหม่ + ของใหม่ · พ่อค้าเร่สุ่มโผล่/จากไป · คิดผลของภูมิภาคใหม่
 function maybeMoveShop() {
+  if (rtActive()) { refreshShopForJourney(); return; } // Road Trip: ร้านมีเฉพาะที่จุดพัก (server/roadtrip/stop.js เปิด/ปิดเอง)
   if (Colony.active()) { refreshShopForJourney(); return; } // Colony: ร้าน = แคปซูลเสบียง (server/colony.js ตั้ง/เก็บเอง)
   if (shopDue()) relocateShop();
   tickMerchant();
@@ -329,7 +344,7 @@ function clearShops() { match.shops = []; match.shopCycleRound = null; match.mer
 function publicShops() {
   return shopsList().map((s) => {
     const [w, h] = dimsOf(s);
-    return { id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, w, h, turnsLeft: shopTurnsLeftOf(s), items: s.items || [], ...(s.capsule ? { capsule: true } : {}) };
+    return { id: s.id, kind: s.kind, name: SHOP_NAMES[s.kind] || "ร้านค้า", x: s.x, y: s.y, w, h, turnsLeft: shopTurnsLeftOf(s), items: s.items || [], ...(s.capsule ? { capsule: true } : {}), ...(s.building ? { building: true, prop: s.prop || null } : {}) }; // building = ร้านคืออาคารบนแผนที่ (Road Trip) — client ไม่วาดแผงร้าน
   });
 }
 // ผู้เล่นยืนติดร้านนี้ไหม (ตัวใหญ่นับจากขอบตัว)
@@ -340,7 +355,10 @@ function nearShopOf(p, s) { return !!p && !!p.pos && !!s && distToTiles(Board.bo
 function bagSlotsOf(p) {
   const hook = p && CHAR_HOOKS[p.characterId];
   const n = hook && hook.bagSlots ? hook.bagSlots(p) : null;
-  return Number.isFinite(n) ? n : BAG_SLOTS;
+  if (Number.isFinite(n)) return n;
+  // Road Trip: อัปเกรดที่เก็บของ = ช่องเพิ่มให้ทุกคน +0..+3 (ไม่เกิน 8)
+  if (rtActive() && !(p && p.summon)) return Math.max(BAG_SLOTS, Math.min(require("./roadtrip/van").BAG_CAP, BAG_SLOTS + require("./roadtrip").bagBonus()));
+  return BAG_SLOTS;
 }
 function bagFull(p) {
   return (p.inventory || []).filter((it) => it.type !== "kebread").length >= bagSlotsOf(p);
@@ -432,6 +450,7 @@ const adjacentShop = (p, shopId) => (shopId ? [shopById(shopId)] : shopsList()).
 function viewShop(id, shopId) {
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return;
+  if (require("./roadtrip").freeShop(p)) { const s = adjacentShop(p, shopId); if (s) { require("./roadtrip").fx("shop", { pid: p.id, shopId: s.id }); view.broadcastState(); } return; } // Road Trip จุดพัก: ไม่มีตาเดิน
   if (!action.canAct(p)) return;
   if (remoteShop(p)) { if (!shopId || !shopById(shopId)) return; view.broadcastState(); return; } // ซื้อจากระยะไกล = ไม่ล็อกการเดิน
   if (match.action.locked) return;
@@ -443,7 +462,8 @@ function buyShopItem(id, shopId, itemId) {
   if (itemId === undefined) { itemId = shopId; shopId = null; } // ทางเข้าเดิม buyShopItem(id, itemId) — หาร้านที่มีของชิ้นนี้
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return; // ร่างแยกที่คุมได้ซื้อให้เจ้าของได้ (เหรียญ/กระเป๋าใช้ร่วม — ผู้ใช้สั่ง 2026-10-21) · ตัวเหมือนซื้อไม่ได้
-  if (!action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
+  const rtFree = require("./roadtrip").freeShop(p); // Road Trip จุดพัก: ซื้อได้นอกตาเดิน (ยืนติดร้าน)
+  if (!rtFree && !action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   const sh = shopId ? shopById(shopId) : shopsList().find((s) => (s.items || []).some((it) => it.id === itemId));
   const remote = remoteShop(p);
@@ -460,7 +480,7 @@ function buyShopItem(id, shopId, itemId) {
   item.soldTo = p.id;
   refreshShopForJourney();
   p.gold -= item.price;
-  if (!remote) action.lockMove(p, "shop"); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
+  if (!remote && !rtFree) action.lockMove(p, "shop"); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
   const entry = { uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price };
   if (item.type === "battery") entry.charge = 0; // วงจรพลังงาน: ซื้อมาว่าง ชาร์จเองทุกจบเทิร์น
   p.inventory.push(entry);
@@ -580,6 +600,18 @@ function useInventoryItem(id, uid, opts = {}) {
   } else if (item.type === "eosRevive") {
     // ขนนกคืนชีพ (Eos Lament — server/fodlan/stage6.js): ยืนติดร่างเพื่อน → ฟื้นทันที ไม่นับการล้ม · ไม่มีร่างติดตัว = ไม่เสียของ
     if (!require("./fodlan/stage6").useRevive(p)) return;
+  } else if (item.type === "rtRevive") {
+    // ขนนกคืนชีพ (Road Trip): ฟื้นเพื่อนที่ล้ม (opts.targetId หรือคนแรกที่ล้ม) เลือด 50% ข้างตัวคนใช้
+    const RT = require("./roadtrip");
+    const t = (opts.targetId && match.players[opts.targetId]) || RT.crew().find((u) => !u.alive);
+    if (!RT.inCombat() || !t || t.alive || t.summon || !p.pos) return;
+    const spot = RT.placeSpot(p.pos, t.id) || (require("./roadtrip/fight").onvanNow() ? null : action.nearFreeTile(p.pos)); // บนรถตู้ = ในรถเท่านั้น
+    if (!spot) return;
+    RT.raise(t, 0.5, spot);
+  } else if (item.type === "rtFish") {
+    // ปลาย่าง (Road Trip): ฟื้นพลังชีวิต 3
+    if (p.hp >= combat.maxHpOf(p)) return;
+    combat.healHp(p, 3);
   } else if (item.type === "barricade") {
     // กำแพงไม้ (Eos — server/fodlan/eosPerks.js): ได้สิทธิ์วางกำแพง 1 ครั้ง (ปุ่ม "กำแพง") · ถือเต็ม 2 = ไม่เสียของ
     if (!require("./fodlan/stage6").useBarricade(p)) return;

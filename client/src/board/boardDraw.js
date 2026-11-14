@@ -71,6 +71,10 @@ import { DIVINE_FX_DUR, divineFx, isDivineFx } from "./divineFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
 import { OHGER_FX_DUR, OHGER_HIT_P, OHGER_MS, isOhgerFx, ohgerFx } from "./ohgerFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
+// โหมด Road Trip (area 70–75 · board/roadtrip/): พื้นถนน/วัตถุบนแผนที่/มอน
+import { drawRtObstacle, isRtObstacle, rtAir, rtGround, rtItems, rtSkipTerrain } from "./roadtrip/props";
+import { isRtArea, rtState } from "./roadtrip/theme";
+import { drawRtMob, isRtMob } from "./roadtrip/mobArt";
 import { drawYukiDim, yukiAuraBack, yukiAuraFront, yukiNoteUnit } from "./yukiFx";
 
 export { LW, LH, key, parseKey, project, unproject, computeView, toLogical };
@@ -255,7 +259,9 @@ function ptList(list) {
 // ลายเซ็นของแผนที่ — ใช้ตัดสินว่าต้องอบชั้นนิ่งใหม่ไหม (state จาก server เป็นอ็อบเจกต์ใหม่ทุกครั้ง)
 export function mapSignature(map) {
   if (!map) return "none";
-  return JSON.stringify([map.area, map.cols, map.rows, map.terrain || {}, ptList(map.heal), ptList(map.spawns), map.special || {}, map.flow || {}]);
+  // Road Trip: พื้น/ฟ้าขึ้นกับภูมิภาค (ชั้นกระดานอบใหม่เมื่อภูมิภาคเปลี่ยน — board/roadtrip/theme.js)
+  const rt = isRtArea(map.area) ? `|${map.rtRegion || rtState().region}` : "";
+  return JSON.stringify([map.area, map.cols, map.rows, map.terrain || {}, ptList(map.heal), ptList(map.spawns), map.special || {}, map.flow || {}]) + rt;
 }
 // แปลง map (รูปแบบ state.board) เป็นข้อมูลพร้อมวาด
 export function prepareMap(map) {
@@ -288,6 +294,7 @@ export function prepareMap(map) {
   return {
     cols, rows, area, terrain, terrainKind: tMap, heal, plaza, spawns: ptList(map && map.spawns), special,
     healClusters: healClusters(heal), lavaTiles: special.filter((s) => s.kind === "lava"),
+    rtProps: (map && Array.isArray(map.rtProps) && map.rtProps) || null, rtRegion: (map && map.rtRegion) || null, // Road Trip (ไม่ส่ง = ใช้ผังใน roadtrip/maps.gen.js)
   };
 }
 
@@ -698,6 +705,7 @@ function cloakShimmer(g, cx, cy, r, now) {
 // u = { id, rx, ry, ox, oy, color, img, name, hp, maxHp, armor, maxArmor, isMe, isActor, tag, alpha, reticle, hitT, hovered, cloak }
 // สนาม Colony: ขยายแถบเลือด/ป้าย (หมากถูกย่อตามระยะกล้อง + จอถูกย่อ → แถบบางจนอ่านไม่ออก) — ตั้งจาก onWall ของ drawFrame
 let UNIT_UI_K = 1;
+let FRAME_NIGHT = false; // กลางคืนของเฟรมนี้ (มอน Road Trip — drawAnyUnit ไม่ได้รับ night)
 // สนาม Eos (กล้องใกล้): แถบเลือด/เกราะ/ป้ายวัดจากขนาดหมาก — เล็กกว่ารูปตัวละครเสมอ (ผู้ใช้สั่ง 2026-11-09) · ขอบหกเหลี่ยมบางตามขนาด
 let UI_PIECE = false;
 // Colony: หมาก = เหรียญหกเหลี่ยมหนา 3 มิติ (จุดยอดเป็นพิกัดกระดาน ฉายผ่านกล้อง 3D → ยึดพื้น ไม่หันตามกล้อง) + ป้ายรูปตั้งบนเสา (ผู้ใช้ขอดู 2026-11-09)
@@ -1178,6 +1186,14 @@ function drawAnyUnit(g, u, now, boxes) {
   yukiNoteUnit(g, u);
   // Moon Cell (moonFx.js): โมเดลลูกบาศก์ลอย แทนหมาก
   if (u.summon && u.summon.kind === "moonCell" && !u.corpse) { drawMoonCell(g, u, now, boxes, { UK: UNIT_UI_K, vitalBar: drawVitalBar, vitalHeight }); return; }
+  // มอนโหมด Road Trip (board/roadtrip/mobArt.js): ตัวมอนแทนหมาก · แถบเลือดแดง · เป้าเล็ง · กล่องคลิก
+  if (isRtMob(u) && !u.corpse) {
+    const m = drawRtMob(g, u, now, FRAME_NIGHT), UK = UNIT_UI_K;
+    if (!u.masked && !u.noBar) { const w = Math.max(m.half * 1.9, 46 * UK); drawVitalBar(g, m.cx, m.top - vitalHeight(u, UK) - 3 * UK, w, { ...u, hpTone: null }, UK); }
+    if (u.reticle) drawReticle(g, m.cx, (m.top + m.bottom) / 2, Math.max(12, (m.bottom - m.top) * 0.42), u.reticle, now, false, 4);
+    if (boxes) boxes.push({ id: u.id, x: u.rx, y: u.ry, d: m.d, x0: m.cx - m.half, y0: m.top - vitalHeight(u, UK) - 4, x1: m.cx + m.half, y1: m.bottom });
+    return;
+  }
   // มอนเตอร์ของสนาม Eos (ยูนิตที่ถูกเรียก — server/fodlan/stage6.js): ภาพตัว/หลอดเลือดวาดใน fodlan/stage6.js items · ที่นี่แค่กรอบคลิก + เป้าเล็ง
   if (u.summon && (u.summon.kind === "eosMob" || u.summon.kind === "eosConvoy" || u.summon.kind === "eosCivilian") && !u.corpse) { // รถเสบียง/พลเรือนวาดใน stage6 items เช่นกัน
     const cx = u.rx + 0.5, cy = u.ry + 0.55, [sx, sy, s] = P(cx, cy, 0);
@@ -2495,7 +2511,9 @@ export function drawFrame(g, st, now) {
   // สนาม Colony: พื้น/ผนังกั้น/โดม วาดเป็น 3D ใต้แคนวาสนี้ (colony3d.js) — ชั้นนี้โปร่ง วาดไฮไลต์ + สไปรต์ 2D (บ้าน ตึก ต้นไม้ แคปซูล ตัวละคร)
   //  สไปรต์ยืนบนผิวโค้ง: วาดในกรอบหมุน (withLocalFrame) ให้ "ขึ้น" ชี้เข้าแกน — บนเพดานจึงเห็นกลับหัว
   const colony = !!st.colony;
-  if (colony) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, g.canvas.width, g.canvas.height); }
+  // Road Trip ตอนต่อสู้: ถนน/ฉาก/รถตู้วาดเป็น 3D ใต้แคนวาสนี้ (roadtrip/road3d.js createRoadUnderlay — ตัวฉายภาพแบบ Colony แต่พื้นเรียบ) — ชั้นนี้โปร่ง
+  const rt3d = !!st.roadtrip3d;
+  if (colony || rt3d) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, g.canvas.width, g.canvas.height); }
   if (bake && bake.scene) {
     if (bake.sceneFrom && bake.mix < 1) {
       blit(bake.sceneFrom);
@@ -2504,10 +2522,10 @@ export function drawFrame(g, st, now) {
   }
   L();
   // จันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): บนฟ้าของฉาก หลังชั้นกระดาน
-  if (st.otoya && st.otoya.night && !colony) otoyaMoon(g, now, lowQ);
+  if (st.otoya && st.otoya.night && !colony && !rt3d) otoyaMoon(g, now, lowQ);
   // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
   const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
-  if (T.animBack && !colony) T.animBack(g, f, lowQ ? 0 : now);
+  if (T.animBack && !colony && !rt3d) T.animBack(g, f, lowQ ? 0 : now);
   if (colony) {
     // พื้นวาดใน 3D — ช่องพิเศษที่เกิดระหว่างเกม (ธารน้ำแข็ง พื้นเปียก พื้นไฟ ...) วาดทับที่นี่ (เดิมไม่วาดเลย = มองไม่เห็นพื้นน้ำแข็ง · บั๊ก 2026-11-09)
     //  ช่องของสนามเอง (น้ำตื้น ลิฟต์ สายพาน ราง วาร์ป หอ) = ระบายลงพื้น 3D อยู่แล้ว — วาดซ้ำชั้น 2D = ขอบเส้นประลอยทับกำแพง/ตึก (เห็นทะลุ)
@@ -2515,6 +2533,13 @@ export function drawFrame(g, st, now) {
       if (COLONY_FLOOR.has(sp.kind)) continue;
       bakeSpecial(g, sp, { night, C, area: info.area });
       animSpecial(g, sp, { night, lowQ, area: info.area }, lowQ ? 0 : now);
+    }
+  }
+  else if (rt3d) {
+    // Road Trip 3D: พื้นถนนวาดใน 3D — วาดเฉพาะช่องพิเศษที่เกิดระหว่างเกม (ไม่ใช่พื้นรถตู้)
+    for (const sp of info.special) {
+      if (sp.kind === "van") continue;
+      bakeSpecial(g, sp, { night, C, area: info.area });
     }
   }
   else if (bake && bake.board) {
@@ -2540,7 +2565,7 @@ export function drawFrame(g, st, now) {
   }
   // ช่องพิเศษ/จุดฟื้นฟูขยับเบาๆ (lowQ = หยุดนิ่ง)
   const tA = lowQ ? 0 : now;
-  if (!colony) for (const sp of info.special) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
+  if (!colony) for (const sp of info.special) if (!(rt3d && sp.kind === "van")) animSpecial(g, sp, { night, lowQ, area: info.area }, tA);
   if (info.heal.length && !pz && !colony && info.area !== EOS_HEAL_AREA) animHeal(g, info, { night, C, area: info.area }, tA);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): ช่องพัง (terrain "chasm") · กองเลือด · เนตรมณะ (มืดจาง + รอยร้าวแดง) · ส่วนบนพื้นของฉาก — ใต้ไฮไลต์
   const ry = st.ryougi || null, rFx = fx.some((e) => isRyougiFx(e.kind));
@@ -2579,21 +2604,25 @@ export function drawFrame(g, st, now) {
   const fd = st.fodlan || null;
   setCullView(st.uiK && !colony ? view : null); // สนาม Eos (กล้อง RTS): ตัดของนอกจอ
   if (fd) drawFodlanGround(g, fd, info, now, lowQ);
+  // Road Trip: เส้นถนนเลื่อน (บนรถตู้) · พื้นในรถ · รอยเท้า — ใต้ไฮไลต์
+  const rtOn = isRtArea(info.area);
+  if (rtOn) { FRAME_NIGHT = !!night; if (!rt3d) rtGround(g, info, units, now, lowQ, night); }
   // ทราฟาก้า ลอว์ (lawFx.js): พื้น Room + ด้านหลังโดม — ใต้ไฮไลต์ (เรียกทุกเฟรม: จำ Room ที่มีอยู่แล้วตอนเฟรมแรก ไม่เล่นฉากกางซ้ำ)
   const law = st.law || null, lFx = fx.some((e) => isLawFx(e.kind));
   drawLawGround(g, law, fx, now, lowQ);
   // Colony: ช่องไฮไลต์ (เดิน/ตี/สกิล/พื้นที่/อันตราย/เป้า) วาดลงพื้นในฉาก 3D (colony3d.paintHighlights) — กำแพง/ตึกบังได้ ไม่เห็นทะลุ
   drawHighlights(g, info, colony ? { ...hl, danger: new Set(), move: new Set(), attack: new Set(), skill: new Set(), aoe: new Set(), ghost: new Set(), target: null } : hl, hover, now);
   // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
-  if (T.overBoard && !colony) T.overBoard(g, f, now);
+  if (T.overBoard && !colony && !rt3d) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
   // ตัวใหญ่: จุดกลางตัว (เรียงความลึก/จางสิ่งกีดขวางที่อยู่หลัง)
-  const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return colony ? [0, depthOf(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0))] : toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
+  const uv = units.map((u) => { const h = Math.max(1, u.size | 0) / 2; return colony || rt3d ? [0, depthOf(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0))] : toView(u.rx + h + (u.ox || 0), u.ry + h + (u.oy || 0)); });
   // Colony: จุดบนจอของหมาก (ตัดสินว่าสิ่งกีดขวางสูงบังตัวที่อยู่ไกลกว่าไหม — เทียบในกรอบหมุนของสิ่งกีดขวาง)
   //  เทียบทั้งเท้าและหัว (z ≈ ความสูงหมาก) — หมากที่ยืนเยื้องหลังสิ่งปลูกสร้างแค่ครึ่งตัวก็ทำให้จาง
   const usc = colony ? units.map((u) => { const h = Math.max(1, u.size | 0) / 2, x = u.rx + h + (u.ox || 0), y = u.ry + h + (u.oy || 0); return [P(x, y), P(x, y, 0.75 + (u.hz || 0))]; }) : null;
   const behind = (x, y) => {
+    if (rt3d) return false; // Road Trip 3D: ไม่จางสิ่งกีดขวาง (มุมกล้อง 3D)
     if (colony) {
       const fr = localFrame(x + 0.5, y + 0.5), d = depthOf(x + 0.5, y + 0.5);
       if (!fr) return false;
@@ -2658,6 +2687,10 @@ export function drawFrame(g, st, now) {
   for (const t of info.terrain) {
     if (t.kind === "chasm") continue; // ช่องพังของเรียวกิ = หลุมบนพื้น (drawRyougiGround) ไม่มีสไปรต์
     if (t.kind === "breach") continue; // Colony: รูรั่ว = หลุมบนพื้น 3D (colony3d)
+    // Road Trip: ช่องของวัตถุ (rt_<ชนิด>) วาดทั้งชิ้นใน rtItems · ของข้างทาง (หิน ต้นไม้ ป้าย กรวย รถพัง) วาดที่นี่
+    if (rtOn && rtSkipTerrain(t.kind)) continue;
+    if (rtOn && rt3d && isRtObstacle(t.kind)) continue; // Road Trip 3D: สิ่งกีดขวางข้างทางเป็นโมเดล 3D ในฉากใต้กระดาน
+    if (rtOn && isRtObstacle(t.kind)) { if (onScreen(t.x + 0.5, t.y + 0.5, 3)) { const tt = t; items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: () => drawRtObstacle(g, tt, { night, area: info.area, info, terrainKind: info.terrainKind }, now) }); } continue; }
     // Colony: บ้าน · ตึก · ต้นไม้ · ป้อมปืน = โมเดล 3D ยึดพื้นในฉาก (colonyModels.js) — ชั้น 2D ไม่วาด
     if (colony && (t.kind === "house" || t.kind === "tower" || t.kind === "tree" || t.kind === "turret")) continue;
     // กำแพงน้ำแข็งของเซลิน — งอกขึ้นตาม fx celineWall · ตัวละครยืนหลัง = จาง
@@ -2691,7 +2724,8 @@ export function drawFrame(g, st, now) {
   const caps = colony && Array.isArray(st.colonyCapsule) ? st.colonyCapsule : []; // ใช้ตัดสินป้ายร้าน (ลงถึงพื้นแล้ว)
   // ร้านบนกระดาน (state.shops — สูงสุด 3 ร้าน · ร้านปกติ 1×1 · พ่อค้าเร่ 2×1 แบบ 2.5D) — เรียงความลึกที่กลางพื้นที่ · ตัวละครยืนหลังร้าน = ร้านจาง
   const shopList = Array.isArray(st.shops) ? st.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
-  if (!colony) for (const sh of shopList) {
+  // Road Trip: ร้าน = อาคารมินิมาร์ท/สำนักงานบนแผนที่ (props.js) — ไม่วาดแผงร้านเล็ก/ป้ายร้าน
+  if (!colony && !rtOn) for (const sh of shopList) {
     if (sh.kind === "capsule") continue;
     const [w, h] = shopDims(sh);
     if (!onScreen(sh.x + w / 2, sh.y + h / 2, 2.5, Math.max(w, h))) continue;
@@ -2741,6 +2775,8 @@ export function drawFrame(g, st, now) {
   if (law || lCut) lawItems(items, g, law, units, fx, now, lowQ);
   // Fodlan: เรือ · เครื่องยิงหิน · ธง · กองไฟ · บัลลังก์ … (เรียงความลึกกับตัวละคร)
   if (fd) fodlanItems(items, g, fd, info, units, now, lowQ);
+  // Road Trip: มินิมาร์ท อู่ ตู้น้ำมัน ชิงช้าสวรรค์ … + รถตู้จอด/ห้องในรถตู้ (เรียงความลึกกับตัวละคร)
+  if (rtOn && !rt3d) rtItems(items, g, info, units, now, lowQ, night); // Road Trip 3D: รถตู้/ของในรถเป็นโมเดล 3D แล้ว
   // ทาคุโตะ: ดาบลอยข้างตัว (หน้าหมาก) · ดาบแห่งการพิพากษา/ออร่าช่วงพังทลาย (หลังหมาก) · เงาซ้อนตอนพุ่งต้นตาเดิน
   if (st.takutos && st.takutos.length) takutoItems(items, g, st.takutos, units, fx, now, lowQ);
   if (fx.some((e) => e.kind === "takutoDash")) for (const gh of takutoGhosts(fx, units, now)) items.push({ d: depthOf(gh.rx + gh.size / 2, gh.ry + gh.size / 2) - 0.0008, f: () => drawAnyUnit(g, gh, now, null) });
@@ -2788,7 +2824,7 @@ export function drawFrame(g, st, now) {
   if (st.otoya && st.otoya.links && st.otoya.links.length) otoyaLinks(g, st.otoya.links, units, now, lowQ); // สายโน้ตดนตรีในหัวใจ (เหนือตัวละคร)
   if (storms) drawStormAir(g, storms, info, now, lowQ);
   // ป้าย "🏪 N" (เหลือ N เทิร์น) เหนือกลางร้านแต่ละร้าน · Colony = เฉพาะแคปซูลที่ลงถึงพื้นแล้ว
-  for (const sh of shopList) {
+  if (!rtOn) for (const sh of shopList) {
     if (!(sh.turnsLeft > 0) || (colony ? !caps.some((c) => c.x === sh.x && c.y === sh.y && !(c.z > 0.05)) : sh.kind === "capsule" || sh.capsule)) continue;
     const [w, h] = colony ? [1, 1] : shopDims(sh);
     // ร้านอยู่หลังโดมเขม่า (ม่านแดง — มุมคนนอก) = ป้ายถูกโดมบังส่วนที่ซ้อนกัน
@@ -2815,7 +2851,7 @@ export function drawFrame(g, st, now) {
       }
       g.globalAlpha = 1;
     }
-    if (T.ambient && !colony) { g.save(); T.ambient(g, f, now); g.restore(); }
+    if (T.ambient && !colony && !rt3d) { g.save(); T.ambient(g, f, now); g.restore(); }
     if (domeClip) g.restore();
   }
   // หอกรองโกมิเนียตลอยเหนือหัวเกรย์ + ละอองทองวนเข้าหอก (ทับตัวละคร)
@@ -2830,6 +2866,8 @@ export function drawFrame(g, st, now) {
   if (law) drawLawAir(g, law, units, fx, now, lowQ);
   // Fodlan: สภาพอากาศ/ฉากเหตุการณ์ (ฝน ฟ้าผ่า ไฟมังกร ซึนามิ …) + หมอกนอกระยะมองเห็น — ทับตัวละคร
   if (fd) drawFodlanAir(g, fd, info, units, now, lowQ, view);
+  // Road Trip: หลังคาปั๊ม · สายโคม · อนุภาคกิจกรรม — ทับตัวละคร
+  if (rtOn) rtAir(g, info, units, now, lowQ, night);
   // เรียวกิหลังดับสิ้นซะ: กลีบซากุระปลิวทั่วกระดาน (ทับตัวละคร)
   if (ry) drawRyougiAir(g, ry, info, fx, now, lowQ);
   // โลก UBW ของชิโร่: เฟืองยักษ์ + ประกายไฟ (ทับตัวละคร)

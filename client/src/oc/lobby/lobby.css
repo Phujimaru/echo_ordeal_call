@@ -461,3 +461,22 @@
 .ocl-diff-pips { display: flex; gap: 3px; }
 .ocl-diff-pips i { width: 7px; height: 7px; transform: rotate(45deg); border: 1.5px solid currentColor; opacity: .5; }
 .ocl-diff-pips i[data-on="true"] { background: currentColor; opacity: 1; }
+
+/* ===== Road Trip (GRID_PLAN §8.8) — หมุดย่อยบนโลก + แผงโหวต (ความยาก 3 ระดับ · เส้นทาง 5 ภูมิภาค) ===== */
+.ocl-modetag[data-mode="roadtrip"] { --a: #e0702e; }
+.ocl-worldtag[data-world="roadtrip"] { --a: #e0702e; }
+:is(.ocl-tl-bar i, .ocl-tl-vote)[data-mode="roadtrip"] { --a: #e0702e; }
+.ocl-modetag[data-mode="roadtrip"] .ocl-mt-name { font: 400 13px/1 var(--oc-f-logo); letter-spacing: 0.12em; }
+.ocl-diff[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ocl-rt-route { list-style: none; margin: 0; padding: 2px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) 26px; align-items: start; position: relative; }
+.ocl-rt-route::before { content: ""; position: absolute; left: 10%; right: 26px; top: 9px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, #7cc46a, #e3b25a 25%, #3f8f5a 50%, #8cc8ea 75%, #8a7aa8); opacity: .85; }
+.ocl-rt-route li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.ocl-rt-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--oc-paper, #fff), 0 0 0 4px color-mix(in srgb, var(--c) 60%, transparent); position: relative; z-index: 1; }
+.ocl-rt-route li b { font: 600 13px/1.15 var(--oc-f-ui); color: var(--oc-ink); white-space: nowrap; }
+.ocl-rt-km { font: 700 11px/1 var(--oc-f-ui); color: var(--oc-ink-3); font-variant-numeric: tabular-nums; }
+.ocl-rt-km small { font-size: 9px; margin-left: 2px; font-weight: 600; }
+.ocl-rt-loop span { display: grid; place-items: center; width: 22px; height: 22px; margin-top: -3px; border-radius: 50%; font: 700 14px/1 var(--oc-f-ui);
+  color: #fff; background: #e0702e; box-shadow: 0 0 0 3px var(--oc-paper, #fff); animation: ocl-rt-loop 4s linear infinite; }
+@keyframes ocl-rt-loop { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ocl-rt-loop span { animation: none; } }

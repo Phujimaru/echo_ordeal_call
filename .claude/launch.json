@@ -950,6 +950,141 @@
         "desktop/launcher"
       ],
       "port": 5290
+    },
+    {
+      "name": "client-roadtrip",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "client", "run", "dev", "--", "--port", "5241", "--strictPort", "--host", "127.0.0.1"],
+      "port": 5241,
+      "env": { "ECHO_SERVER_PORT": "3051" }
+    },
+    {
+      "name": "server-roadtrip",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
+    },
+    {
+      "name": "server-roadtrip-fork",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "fork"
+      }
+    },
+    {
+      "name": "server-roadtrip-event",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "event"
+      }
+    },
+    {
+      "name": "server-roadtrip-stop",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "stop",
+        "ECHO_DEV_RICH": "1"
+      }
+    },
+    {
+      "name": "server-roadtrip-motel",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "motel"
+      }
+    },
+    {
+      "name": "server-roadtrip-ambush",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "ambush"
+      }
+    },
+    {
+      "name": "server-roadtrip-onvan",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "onvan"
+      }
+    },
+    {
+      "name": "server-roadtrip-boss",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "boss",
+        "ECHO_DEV_RT_KM": "50"
+      }
+    },
+    {
+      "name": "server-roadtrip-far",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3051,
+      "env": {
+        "PORT": "3051",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_KM": "260",
+        "ECHO_DEV_RT_DIFF": "hard"
+      }
+    },
+    {
+      "name": "client-rtboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "client", "run", "dev", "--", "--port", "5233", "--strictPort", "--host", "127.0.0.1"],
+      "port": 5233,
+      "env": {
+        "ECHO_SERVER_PORT": "3051"
+      }
     }
   ]
 }

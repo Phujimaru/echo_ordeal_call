@@ -1,9 +1,17 @@
 // Shared music priorities for every mode.
 // ECHO 5.1: main5 เล่นเฉพาะใน launcher ของโปรแกรม · เข้าห้องแล้ว (เลือกลำดับ/ตัวละคร/ห้องรอ/โหวตโหมด/จัดทีม + ฉากเปิดตัวแมตช์) = lobby5 จนเข้าด่าน
-export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0, intro = false, fodlanMap = false } = {}) {
+export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0, intro = false, fodlanMap = false, rtFiles = null } = {}) {
   const phase = state?.gameState;
   if (!phase) return { name: "lobby5" };
   if (["LOBBY", "TEAM_MODE", "TEAM_SETUP"].includes(phase)) return { name: "lobby5" };
+  // Road Trip (GRID_PLAN §8.8): ช่วงขับ = วิทยุรถตู้คุมเพลงเอง (เพลงหลักเงียบ) · จุดพัก/ต่อสู้/บอส/จบ = roadtripMusic
+  //  ไฟล์ไม่มี → { name: null, rtSynth } ให้ App สั่งเพลงสังเคราะห์ (roadtrip/radio.js setBed) · คลิปวีดีโอ = เงียบ · ท่าไม้ตายมีเพลง = ทับได้เฉพาะตอนต่อสู้
+  if (state?.gameMode === "roadtrip" && state?.roadtrip) {
+    const cs = phase === "CUTSCENE" ? state.cutscene : null;
+    if (cs && (!lowQ || cs.announce)) return { name: null };
+    if (state.roadtrip.phase === "combat" && state.skillMusic) return { name: state.skillMusic, seq: state.skillMusicSeq };
+    return roadtripMusic(state.roadtrip, rtFiles);
+  }
   // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ — การ์ด/ลูกโลกหมุนดิ่ง = เพลงห้องรอเดิม · เห็นแผนที่ทวีปแล้ว (fodlanMap) = เพลงฉากแผนที่ (ผู้ใช้สั่ง)
   if (intro) return { name: state?.world === "eos" ? "eos_intro" : state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" }; // Eos: ฉากเปิด = Somnus
   if (phase === "GAMEOVER" && state?.world === "eos") return { name: "eos_end" }; // Eos: หน้าจบเกม = Omnis Lacrima
@@ -39,6 +47,27 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
     return { name: state.cycle === "night" ? "new_night" : "new_morning", seq: cycleSeq };
   }
   return { name: "main_home" };
+}
+
+// Road Trip: เพลงตามเฟส — คืน { name: "rt_<ไฟล์>" } ถ้ามีไฟล์ · ไม่มี = { name: null, rtSynth: "<ลูปสังเคราะห์>" } · ช่วงขับ = { name: null, radio: true }
+//  files = Set ของคีย์ไฟล์ที่มีจริง (roadtrip/radio.js probeMusicFiles) · ลำดับในรายการ = ไฟล์ที่ลองก่อน (ตัวสำรองตามที่ผู้ใช้กำหนด)
+export function roadtripMusic(rt, files) {
+  const has = (k) => !!files && typeof files.has === "function" && files.has(k);
+  const night = !!rt.night;
+  let list = null;
+  if (rt.phase === "over") list = ["over"];
+  else if (rt.phase === "stop") list = rt.stop && rt.stop.kind === "motel" ? ["motel", night ? "stop_night" : "stop_day"] : [night ? "stop_night" : "stop_day"];
+  else if (rt.phase === "combat") {
+    const kind = rt.combat && rt.combat.kind;
+    const base = night ? "combat_night" : "combat_day";
+    list = kind === "boss" ? [...(rt.combat && rt.combat.boss ? [`boss_${rt.combat.boss}`] : []), "boss"] : kind === "onvan" ? ["onvan", base] : [base];
+  } else if (rt.phase === "intro") {
+    if (has("intro")) return { name: "rt_intro" };
+    return { name: null, radio: true };
+  } else return { name: null, radio: true };
+  const hit = list.find(has);
+  if (hit) return { name: `rt_${hit}` };
+  return { name: null, rtSynth: list[list.length - 1] };
 }
 
 // เฟสที่นับว่า "อยู่ในแมตช์" — ข้ามขอบนี้เมื่อไหร่ App รีเซ็ตตำแหน่งเพลงทั้งหมด (เพลงเริ่มจากต้น)
