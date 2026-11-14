@@ -325,6 +325,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ชั้นพื้นซ่อนตัวชั่วคราว (ม่านควัน) | `match.board.smoke` → special `"smoke"` ใน `Ice.overlayOf` (+ `hasOverlay`) · `iceVer++` ทุกครั้งที่เปลี่ยน · วาดใน `boardProps.js` | `server/ice.js` |
 | กับดักที่ทุกคนเห็น | เก็บที่ตัวเจ้าของ + `walkTrap`/`springTrap` + `boardPublic` → BoardCanvas prop ของตัวเอง (`kiri` → `drawKiriGround`) | `action.moveTo` |
 | ช่วง Clock Up แบบใหม่ (เงา/จอ/ปุ่มแทรกตาเฉพาะตัว) | `engine.clockUp.start/enter` ด้วย `kind` ใหม่ · client: `faizTrail` ตาม kind (BoardStage) · `.axel-world.<kind>` (Game.jsx + faizPhone.css) · ปุ่มใน `ZectHud ClockUpButton` (คริซุงุ: 2 ปุ่ม `kiri:double/square`) | `server/clockUp.js` |
+| ใช้สกิล/ไอเทมแล้วไม่หยุดเดิน (เดินต่อด้วยระยะที่เหลือ) | ฮุค `keepsWalking(engine, p, kind)` → true (`kind` "shop" = เปิดร้าน/ซื้อ) — `action.lockMove` เรียก `rebaseMove` แทนล็อก (ชินระ ฉันนี่แหละฮีโร่ — GAME_SYSTEM §55) | `action.lockMove` |
+| สกิลรอบตัวเป็นกรอบสี่เหลี่ยม (นับทแยง) / ปุ่มจ่ายด้วยพลังงานที่สอง | `area { kind: "aoe", range: 1, square: true }` = 8 ช่อง · `choices[].ember` ป้าย 🔥 + `choiceOk` เช็ค `me.shinra.ember` (ชินระ) | `Board.aoeTiles` · `SkillChoices.jsx` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

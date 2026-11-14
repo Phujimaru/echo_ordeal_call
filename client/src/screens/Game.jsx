@@ -27,6 +27,7 @@ import { socket } from "../socket";
 import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
+import { ShinraEmber } from "./hud/ShinraHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
@@ -1000,6 +1001,14 @@ function statusEntries(p, full) {
     else if (f.count != null) out.push({ key: "fernCount", v: 1, icon: "✨", label: `Zoltraak ${f.count}/${f.need || 4}`, cls: "bg-violet-200 text-gray-900", desc: `ตีปกติครบ ${f.need || 4} ครั้ง ครั้งถัดไปไม่ใช้ Energy ทะลุเกราะ และรีเซ็ทคูลดาวน์ทุกอย่าง` });
     if (f.shieldCd > 0) out.push({ key: "fernShieldCd", v: f.shieldCd, turns: true, icon: "🛡️", label: "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงกันการโจมตีได้อีก" });
     else if (f.shieldCd != null) out.push({ key: "fernShield", v: 1, icon: "🛡️", label: f.eos ? `ผู้เชี่ยวชาญเวทมนต์พื้นฐาน ${f.shieldLeft}` : "ผู้เชี่ยวชาญเวทมนต์พื้นฐาน", cls: "bg-cyan-300 text-gray-900", desc: f.eos ? `การโจมตีของศัตรูอีก ${f.shieldLeft} ครั้งถูกกันทั้งหมด ความเสียหายเป็น 0` : "การโจมตีครั้งถัดไปของศัตรูถูกกันทั้งหมด ความเสียหายเป็น 0" });
+  }
+  // คุซาคาเบะ ชินระ: ฉันนี่แหละฮีโร่ · อุ่นเครื่องพอแล้ว · มอดไหม้จากภายใน (เทิร์นที่เหลือ) · คูลดาวน์ลาทัม — เปลวเพลงอยู่ในแถบ ShinraEmber
+  if (p.shinra) {
+    const s = p.shinra;
+    if (s.hero > 0) out.push({ key: "shinraHero", v: s.hero, turns: true, icon: "👟", label: "ฉันนี่แหละฮีโร่", cls: "bg-orange-400 text-gray-900", desc: "ระยะเดิน +2 · ใช้สกิลหรือไอเทมแล้วยังเดินต่อได้" });
+    if (s.warm > 0) out.push({ key: "shinraWarm", v: s.warm, turns: true, icon: "🔥", label: "อุ่นเครื่องพอแล้ว", cls: "bg-red-600 text-white", desc: "เปลวเพลงสูงสุด 8 · ฟื้นเปลวเพลง +2/เทิร์น · ตีปกติติดลุกไหม้ 2" });
+    if (s.smolder > 0) out.push({ key: "shinraSmolder", v: s.smolder, turns: true, icon: "💥", label: "มอดไหม้จากภายใน", cls: "bg-amber-300 text-gray-900", desc: "ตีปกติระเบิดลุกไหม้บนตัวเป้าเป็นความเสียหาย" });
+    if (s.latomCd > 0) out.push({ key: "shinraLatomCd", v: s.latomCd, turns: true, icon: "⏳", label: "ลาทัม", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ลาทัมได้" });
   }
   // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
   if (p.takuto) {
@@ -1991,7 +2000,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
   const viewShop = (sh) => { if (!sh) return; clickSound(); socket.emit("viewShop", { shopId: sh.id }); setShopId(sh.id); };
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
-  const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? `รอบตัว ${a.range}`
+  const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? (a.square ? `รอบตัว ${a.range * 2 + 1}×${a.range * 2 + 1}` : `รอบตัว ${a.range}`)
     : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
   const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
@@ -2292,7 +2301,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       const count = Math.max(1, a.count | 0);
       const small = ch?.id === "celine" && (pickReq.form === "swap" || pickReq.form === "pair") ? { allow: (p) => p.id !== me.id && (p.size || 1) <= 1 } : {};
       if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, count, ...(cells ? { cells, allow: enemyOf } : {}), ...small, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: Array.isArray(id) ? id : [id], ...f }); done(); }, onCancel: done };
-      else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
+      else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, square: !!a.square, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
       else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, arc: a.arc || 0, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
@@ -2620,7 +2629,7 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
     onClick: canSwitchTo(u) ? () => { clickSound(); socket.emit("useSkill", { tier: "basic" }); } : null,
   })) : null;
   // ปุ่มหลายตัวเลือก: ตัวเลือกนี้ใช้ได้ตอนนี้ไหม (แต้ม · โควตา · มีเป้าในระยะ · ล็อก)
-  const choiceOk = (c) => !c.locked && !c.active && (me?.skillPoints || 0) >= (c.cost || 0) && (!me?.skillUsed || choiceFree(c)) && !noTargetInRange(c.area);
+  const choiceOk = (c) => !c.locked && !c.active && (me?.skillPoints || 0) >= (c.cost || 0) && (!(c.ember > 0) || (me?.shinra?.ember || 0) >= c.ember) && (!me?.skillUsed || choiceFree(c)) && !noTargetInRange(c.area);
   const slotOff = (tier) => {
     const s = ch?.[tier];
     if (!myTurn || (noSkill && !me?.skillLocks?.[tier]?.ignoresNoSkill) || giftLocked(tier)) return true;
@@ -2893,6 +2902,8 @@ export default function GameBoard({ state, lowQ, skillConfirmOn = true }) {
       )}
       {/* ดิโอ บรันโด: แถบ Time Meter/BloodStack · ปุ่มแทรกตา · ดวล Last Stand */}
       {me?.dio && !hudAway && <DioGauge dio={me.dio} />}
+      {/* คุซาคาเบะ ชินระ: แถบเปลวเพลง */}
+      {me?.shinra && !hudAway && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
       {me?.dio && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />

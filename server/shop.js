@@ -436,7 +436,7 @@ function viewShop(id, shopId) {
   if (remoteShop(p)) { if (!shopId || !shopById(shopId)) return; view.broadcastState(); return; } // ซื้อจากระยะไกล = ไม่ล็อกการเดิน
   if (match.action.locked) return;
   if (!adjacentShop(p, shopId)) return;
-  action.lockMove(p);
+  action.lockMove(p, "shop");
   view.broadcastState();
 }
 function buyShopItem(id, shopId, itemId) {
@@ -460,7 +460,7 @@ function buyShopItem(id, shopId, itemId) {
   item.soldTo = p.id;
   refreshShopForJourney();
   p.gold -= item.price;
-  if (!remote) action.lockMove(p); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
+  if (!remote) action.lockMove(p, "shop"); // ซื้อแล้วเดินไม่ได้อีก (ยังตีได้) · ซื้อจากระยะไกล (Gate of Babylon) ยังเดินได้
   const entry = { uid: `${item.id}_${p.inventory.length}_${Date.now()}`, type: item.type, value: item.value, price: item.price };
   if (item.type === "battery") entry.charge = 0; // วงจรพลังงาน: ซื้อมาว่าง ชาร์จเองทุกจบเทิร์น
   p.inventory.push(entry);

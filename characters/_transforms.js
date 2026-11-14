@@ -27,6 +27,7 @@ const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
+const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
@@ -216,6 +217,9 @@ module.exports = function buildTransforms() {
       ["alterReload", "alterReload", kiri.IMG.contender, "Thompson Contender", "Time Alter", 7.4],
       ["alterShoot", "alterShoot", kiri.IMG.thompson, "Thompson Contender", "Time Alter", 4.3],
     ].map(([k, v, img, title, label, seconds]) => [kiri.CUT[k], { img, video: kiri.VIDEO[v], title, label, seconds, music: null, afterReveal: false, ...(k === "hit" ? { noIntro: true } : {}) }])), // คลิปโดนต่อจากคลิปยิงทันที
+    // คุซาคาเบะ ชินระ (GRID_PLAN §7.32) — ความยาวจริง 9.1 / 15.5 วิ
+    [shinra.CUT.warm]: { img: shinra.IMG.warm, video: shinra.VIDEO.warm, title: "อุ่นเครื่องพอแล้ว", label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
+    [shinra.CUT.latom]: { img: shinra.IMG.latom, video: shinra.VIDEO.latom, title: "ลาทัม", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

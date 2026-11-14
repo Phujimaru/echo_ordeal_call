@@ -17,6 +17,7 @@
 //   ?diego=1 = ดิเอโก้ แบรนโด โลกคู่ขนาน (ขี่ซิลเวอร์ บูลเล็ต) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "diegoFx" + หยุดเวลา (DiegoFxDev.jsx)
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
+//   ?shinra=1 = คุซาคาเบะ ชินระ · ปุ่มเล่นเอฟเฟกต์ไฟทุกแบบ + สลับออร่า (ShinraFxDev.jsx)
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
@@ -51,6 +52,7 @@ import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่น
 import OtoyaFxDev from "./OtoyaFxDev"; // ?otoya=1 = ปุ่มเล่นเอฟเฟกต์คุเรไน โอโตยะ
 import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่นเอฟเฟกต์มหาเทพอรชุน
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
+import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
@@ -151,6 +153,7 @@ const OTOYA_DEV = Q.get("otoya") === "1";
 const DIO_DEV = Q.get("dio") === "1";
 const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
+const SHINRA_DEV = Q.get("shinra") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
   : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : OHGER_DEV ? OhgerFxDev.units(baseUnits()) : baseUnits());
@@ -610,6 +613,7 @@ export default function BoardPreview() {
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
       {OHGER_DEV && <OhgerFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} setCinema={setCinema} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
+      {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}

@@ -1382,3 +1382,11 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **มุมขวาบนใหม่** (แบบร่าง `.claude/plans/element-ui.html`): `.bs-tools` = กลุ่มกล้อง + กลุ่มข้อมูลกระดาน แถวเดียวกับ `.ocv` (VolumeControl ตั้ง `--ocv-w`) · ทรงโค้ง + โทเคน `--bs-ui-*` สว่าง/มืด (`:root[data-ui="dark"]`) · BoardStage ตั้ง `:root[data-board]` → ปุ่ม `.ocv` โค้งตาม · คิวลำดับเดินเริ่ม 74px
 - เทสต์ `tests/element.test.js`
 
+## 55. พลังงานที่สอง / เดินต่อหลังใช้สกิล-ไอเทม / พื้นที่สี่เหลี่ยมรอบตัว (คุซาคาเบะ ชินระ — `characters/kusakabe_shinra.js` · GRID_PLAN §7.32)
+
+- **เดินต่อหลังใช้สกิล/ไอเทม**: `action.lockMove(p, kind)` ถามฮุค `keepsWalking(engine, p, kind)` → true = ไม่ล็อก แต่ `rebaseMove` (เดินต่อจากช่องที่ยืนด้วยระยะที่เหลือ · ย้อนการเดินก่อนหน้าไม่ได้) · `kind` = `"shop"` ตอนเปิดร้าน/ซื้อ (`shop.viewShop`/ซื้อ) · ไม่ระบุ = สกิล/ไอเทม · กดสกิลที่เปิดบัฟนี้เองใช้ `keepsMove` + `engine.rebaseMove` ใน `applyInstantSkill`
+- **พื้นที่ `aoe` + `square: true`** = กรอบสี่เหลี่ยมรอบตัว (นับทแยง · รัศมี 1 = 8 ช่อง) — `Board.aoeTiles(map, x, y, r, size, square)` (client `boardRules` สร้างจาก `scripts/gen-board-rules.js`) · ป้าย "รอบตัว 3×3"
+- **ปุ่มตัวเลือกจ่ายด้วยพลังงานที่สอง**: `choices[].ember` = ไอคอน 🔥N บนการ์ด (`SkillChoices.jsx`) · `Game.jsx choiceOk` เช็ค `me.shinra.ember` · server จ่ายเองใน `applyInstantSkill` + `skillFree` (ไม่คิดภาษี) · `canUseSkill` เช็คพลังงานพอ
+- **ลาทัม**: ตัวเลือกต่อไอเทม (`item` + key `latom:<uid>`) · คลิปทุกครั้ง → `deferAfterCutscene` พุ่ง (`setDash style "shinraLatom"` — BoardStage ยืนชาร์จ `SHINRA_T.latomCharge` แล้วเลื่อนทีละ `latomStep`) → `skillBeat` ลงดาเมจ · เพดาน PVP ผ่านฮุค `damageCap` (ธงระหว่างลงดาเมจ) · ปฏิกิริยา = `Element.takeReaction()` หลัง `skillStrike`
+- **มอดไหม้จากภายใน**: `damageBonus` เฉพาะ `engine.inStrike()` (skillStrike ก็เรียก computeAttackBase — ต้องกัน) · ลบลุกไหม้ใน `onStrikeLanded` · เอฟเฟกต์/เสียงตรงจังหวะปะทะผ่าน `engine.boardFxAtHit` → `hitFx.current.shinraFx`
+- client: `board/shinraFx.js` (ท่าตี `shinraKick`/`shinraKickBlaze` · socket `shinraFx` · ออร่า `shinraHero`/`shinraBlaze` · รอยเท้า `shinraPrints` จาก BoardStage ตอนเดิน) · `screens/hud/ShinraHud.jsx` แถบเปลวเพลง · เพลง `shinra_inferno` (skillMusic) · เสียง `effect_sound/shinra/`

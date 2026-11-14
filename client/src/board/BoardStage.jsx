@@ -43,6 +43,7 @@ import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { dioEventFx } from "./dioFx";
 import { ZECT_LUNGE, ZECT_FX_DUR } from "./zectFx";
 import { KIRI_FX_DUR } from "./kiriFx";
+import { SHINRA_FX_DUR, SHINRA_T, latomDur } from "./shinraFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
@@ -582,7 +583,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const valid = new Set(state.players.filter((p) => p.alive && p.pos && sameDim(p) && inKeys(p) && (!pick.allow || pick.allow(p)) && tauntOk(p)).map((p) => p.id));
       return { skill: [...keys], valid };
     }
-    if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me)).map((t) => key(t.x, t.y)) };
+    if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me), !!pick.square).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0).map((t) => key(t.x, t.y)) };
@@ -886,6 +887,18 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
           anims.push({ kind: "move", id, path: pts, stepMs: ROLAND_FX.dashStep, seq: ++fxSeq.current });
         }
         look(end);
+      } else if (s0 && d.style === "shinraLatom") {
+        // คุซาคาเบะ ชินระ ลาทัม: ยืนชาร์จไอพ่น (SHINRA_T.latomCharge) → พุ่งเส้นไฟตามเส้นทาง (latomStep ต่อช่อง = T ของ server)
+        //  เส้นไฟ/ไฟลุกตามแนวมาทาง socket "shinraFx" latom (pushFx shinraLatom)
+        if (pts.length > 1) {
+          dashSkip.current[id] = end;
+          anims.push({ kind: "move", id, path: [s0, s0], stepMs: SHINRA_T.latomCharge, seq: ++fxSeq.current });
+          anims.push({ kind: "move", id, path: pts, stepMs: SHINRA_T.latomStep, seq: ++fxSeq.current });
+        }
+        const dir = d.dir && Number.isFinite(d.dir.x) && Number.isFinite(d.dir.y) ? d.dir : { x: end.x - s0.x, y: end.y - s0.y };
+        if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
+        look(end);
+        if (!lowQ && pts.length > 1) later(SHINRA_T.latomCharge, () => setShake((n) => n + 1));
       } else if (s0 && d.style === "ohger") {
         // คิงโอเจอร์ (ทอมโบไปกลับ / พาพิยอง / ฮาจิถอย): เลื่อนตัวตามเส้นทางเท่านั้น — แถบแสง/ปะทะมาจาก socket "ohgerFx" (ไม่มีระเบิดฟ้าของโซระ ไม่หันตัว)
         if (pts.length > 1) {
@@ -972,6 +985,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
         const mover = state.players.find((q) => q.id === id);
         const hop = mover && mover.character && BIG_ART[mover.character.id] ? sizeOfP(mover) : 0;
         anims.push({ kind: "move", id, path, hop, seq: ++fxSeq.current });
+        // คุซาคาเบะ ชินระ: เดินระหว่างฮีโร่/อุ่นเครื่อง = รอยเท้าเถ้า (Devil's Footprints · shinraFx.js)
+        if (mover && mover.shinra && (mover.shinra.hero > 0 || mover.shinra.warm > 0)) pushFx([{ kind: "shinraPrints", x: path[0].x, y: path[0].y, path: path.map((t) => ({ x: t.x, y: t.y })), step: 120, dur: 3600 + path.length * 120 }]);
         const a = path[path.length - 2], b = path[path.length - 1];
         setFaces((f) => ({ ...f, [id]: { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) } }));
         // คนอื่นเดิน = ไม่ดึงกล้องตาม (ผู้ใช้สั่ง 2026-11-10 ไม่ให้กล้องโดนดึงไปหาผู้เล่นอื่น) · คนดู = ตามเหมือนเดิม
@@ -1968,7 +1983,24 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       if (kind === "kiriShot" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), 120));
     };
     socket.on("kiriFx", onKiri);
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("clockWalk", onClockWalk); };
+    // คุซาคาเบะ ชินระ (shinraFx.js): ฮีโร่ / พายุไฟ / อุ่นเครื่อง / ลาทัม (เส้นไฟ + ลูกไฟที่เป้า) / มอดไหม้
+    const SHINRA_KIND = { hero: "shinraHero", storm: "shinraStorm", warm: "shinraWarm", latom: "shinraLatom", latomHit: "shinraLatomHit", detonate: "shinraDetonate", smolder: "shinraSmolder" };
+    const onShinra = (ev) => {
+      const kind = ev && SHINRA_KIND[ev.kind];
+      const at = ev && ev.at;
+      if (!kind || !(kind in SHINRA_FX_DUR) || !at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
+      const tl = (arr) => (Array.isArray(arr) ? arr.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null);
+      const path = tl(ev.path);
+      if (kind === "shinraDetonate") playSfx("shinra_detonate"); // ตรงจังหวะปะทะ (hitFx) · ไม่มีคลิป
+      pushFx([{ kind, x: at.x, y: at.y, tiles: tl(ev.tiles), path, ...(kind === "shinraLatom" ? { dur: latomDur(path) + 900 } : {}) }]);
+      if (lowQ) return;
+      if (kind === "shinraWarm") timers.current.push(setTimeout(() => setShake((n) => n + 1), 380));
+      else if (kind === "shinraStorm") timers.current.push(setTimeout(() => setShake((n) => n + 1), SHINRA_T.stormBeat));
+      else if (kind === "shinraLatomHit" || kind === "shinraDetonate") setShake((n) => n + 1);
+    };
+    socket.on("shinraFx", onShinra);
+    hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)
@@ -2487,7 +2519,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
       faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? (state.clockUp.members.some((m) => m.id === p.id && m.kind === "alter") ? "alter" : "clock") : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
-      aura: p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
+      aura: p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)

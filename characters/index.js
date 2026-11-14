@@ -37,6 +37,7 @@ const arjuna = require("./arjuna"); // มหาเทพอรชุน — พ
 const roland = require("./roland"); // โรลันด์ Black Silence — ยาก · unique (การ์ดอาวุธ 9 แบบ · Emotion · Furioso)
 const giorno_giovanna = require("./giorno_giovanna"); // โจรุโน่ โจวาน่า — ปานกลาง (สะท้อน · ต้นไม้หลบ/ตรึง · Muda ฮีลแล้วสตั้น · ตีเพื่อน = ฮีล)
 const emiya_kiritsugu = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ — กลาง (คลังแสง ควัน/กับดัก/ผ่าพันแผล · Time Alter = Clock Up · Thompson Contender · อดีนาลีน)
+const kusakabe_shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ — ยาก (เปลวเพลง · ฮีโร่เดินต่อ · พายุไฟ 3×3 · อุ่นเครื่อง / ลาทัมพุ่งสละไอเทม · มอดไหม้จากภายใน)
 const freddy_fazbear = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์ — เอาฮา (ไม่มีสกิล · กลางวันล่องหน + มินิเกมประตู · กลางคืนเดิน 9)
 const Status = require("./_universal_status");
 
@@ -94,6 +95,7 @@ const CHARACTER_MODULES = [
   gilgamesh_fake,
   freddy_fazbear,
   emiya_kiritsugu,
+  kusakabe_shinra,
 ];
 
 const CHAR_HOOKS = {};

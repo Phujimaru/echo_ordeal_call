@@ -61,6 +61,7 @@ import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiy
 import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, isFaizFx } from "./faizFx";
 import { ZECT_FX_DUR, ZECT_HIT_P, ZECT_MS, isZectFx, zectFx } from "./zectFx";
 import { KIRI_FX_DUR, KIRI_GHOST, KIRI_HIT_P, KIRI_MS, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
+import { SHINRA_FX_DUR, SHINRA_HIT_P, SHINRA_MS, isShinraFx, shinraAuraBack, shinraAuraFront, shinraFx } from "./shinraFx";
 import { KAZUMA_FX_DUR, KAZUMA_HIT_P, KAZUMA_MS, isKazumaFx, kazumaFx, kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
 import { OTOYA_FX_DUR, isOtoyaFx, otoUnitBack, otoUnitFront, otoyaFx, otoyaLinks, otoyaMoon, otoyaNight } from "./otoyaFx";
@@ -863,6 +864,8 @@ function drawUnit(g, u, now, boxes) {
   // ออร่าควันดำแดงของกิระ (kiraFx.js): พื้น + ควันด้านหลังก่อนตัว · ควันด้านหน้า + ประกายไฟหลังตัว (ท้ายฟังก์ชัน)
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
   if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  // คุซาคาเบะ ชินระ (shinraFx.js): ไอพ่นใต้เท้า (ฮีโร่) / เพลิงท่วมตัว (อุ่นเครื่องพอแล้ว)
+  if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   // ยูกิ (yukiFx.js): นับถอยหลังเกิดใหม่เป็นประตู — แสงฟ้าบนพื้นก่อนตัว · อนุภาคไหลเข้าตัว + ตัวเลขหลังตัว
   if (u.yuki) yukiAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.yuki.left | 0, u.alpha == null ? 1 : u.alpha, u.k || 1);
@@ -1011,6 +1014,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now, u.hpTone === "ally"); else drawReticle(g, bx, hy, hexR, u.reticle, now, u.hpTone === "ally"); }
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (boxes) boxes.push(unitBox(u, wx, wy, bx, by, s, hy, hexR, tb));
 }
@@ -1301,8 +1305,8 @@ function smashFx(g, e, now) {
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
 //  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS, ...SHINRA_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P, ...SHINRA_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2428,7 +2432,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...ELEM_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...ELEM_FX_DUR,
 };
 
 
@@ -2874,6 +2878,7 @@ export function drawFrame(g, st, now) {
     else if (isFaizFx(e.kind)) faizFx(g, e, now, lowQ);
     else if (isZectFx(e.kind)) zectFx(g, e, now, lowQ); // ไรเดอร์ ZECT (zectFx.js)
     else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
+    else if (isShinraFx(e.kind)) shinraFx(g, e, now, lowQ); // คุซาคาเบะ ชินระ (shinraFx.js)
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);

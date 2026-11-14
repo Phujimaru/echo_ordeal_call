@@ -538,7 +538,7 @@ function resolveArea(p, area, targets, dir, tile) {
   }
   const units = area.hostile ? boardUnits() : boardUnits().filter((u) => !Visibility.hiddenFromUnit(p, match.players[u.id]));
   if (kind === "aoe") {
-    const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range, sizeOf(p))).map((u) => u.id);
+    const ids = Board.unitsOnTiles(units, Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, range, sizeOf(p), !!area.square)).map((u) => u.id);
     return area.self ? [p.id, ...ids] : ids;
   }
   if (kind === "line") {
@@ -587,7 +587,7 @@ function areaTiles(p, area, dir, tile) {
   const kind = (area && area.kind) || "self";
   if (kind === "tile") { const t = tileOf(tile); return t ? tileArea(area, t) : []; }
   if (!p || !p.pos) return [];
-  if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p));
+  if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p), !!area.square);
   if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0);
   return [];
 }
@@ -809,9 +809,17 @@ function canAct(p, { move = false } = {}) {
   return move || !match.action.canto;
 }
 // ใช้สกิล/ไอเทม/ซื้อของแล้ว เดินไม่ได้อีก (ยังโจมตีปกติได้) — GRID_PLAN §4 กฎพื้นฐาน
-function lockMove(p) {
+//  kind = "shop" (เปิดร้าน/ซื้อของ) · ไม่ระบุ = ใช้สกิล/ไอเทม
+//  ฮุค keepsWalking(engine, p, kind) → true = ไม่หยุดเดิน: เดินต่อจากช่องที่ยืนด้วยระยะที่เหลือ (rebaseMove — คุซาคาเบะ ชินระ: ฉันนี่แหละฮีโร่)
+function lockMove(p, kind) {
   if (ClockUp.owns() && ClockUp.activeMember(p)) return; // ช่วง Clock Up: ใช้สกิล/ไอเทมแล้วยังเดินได้เต็มระยะ
-  if (canAct(p)) match.action.locked = true;
+  if (!canAct(p)) return;
+  const hook = CHAR_HOOKS[p.characterId];
+  if (hook && hook.keepsWalking && combat.runHook(hook, "keepsWalking", engine, p, kind || null) && !match.action.canto && !match.action.noStrike) {
+    rebaseMove(p);
+    return;
+  }
+  match.action.locked = true;
 }
 // เดินไม่ได้ ตีปกติไม่ได้ และไม่ได้เดินต่อหลังจบตา (ยังใช้สกิล/รอได้) — ขนมปังของเอมิลิโกะ
 function lockStrike(p) {

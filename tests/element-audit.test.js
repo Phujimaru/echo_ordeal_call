@@ -47,6 +47,7 @@ test('ตีปกติที่มีธาตุตามร่าง/อา�
     ['kensaki_kazuma', (p) => { p.kazuma.blade = true; p.kazuma.armed = { kind: 'cards', cards: { blizzard: 1 }, round: engine.roundNumber, at: 1 }; }, 'ice'],
     ['kensaki_kazuma', (p) => { p.kazuma.blade = true; p.kazuma.armed = { kind: 'blast', cards: {}, round: engine.roundNumber, at: 1 }; }, 'bolt'],
     ['kagami', (p) => { p.zect.kickArmed = true; }, 'bolt'],
+    ['kusakabe_shinra', () => {}, 'fire'], // ตีปกติไฟเสมอ (GRID_PLAN §7.32)
   ];
   for (const [ch, prep, want] of cases) {
     const P = setup(ch);
@@ -102,7 +103,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
   const covered = new Set(['ice_spike', 'sora_otosumi', 'raido_hikaru', 'kate', 'emiliko', 'celine', 'diego_alt', 'kensaki_kazuma', 'trafalgar_law',
     'kagami', 'gilgamesh_fake', 'roland', 'echo', 'muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine',
     'fern', 'ryougi', 'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
-    'emiya_kiritsugu', 'inui_takumi', 'gira_ohger', 'yanma_ohger', 'himeno_ohger', 'rita_ohger', 'kaguragi_ohger', 'daisuke', 'yaguruma', 'tsurugi']);
+    'emiya_kiritsugu', 'inui_takumi', 'gira_ohger', 'yanma_ohger', 'himeno_ohger', 'rita_ohger', 'kaguragi_ohger', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra']);
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));
   assert.deepEqual(missing, [], `ตัวที่ยังไม่อยู่ในตารางธาตุ: ${missing.join(', ')}`);

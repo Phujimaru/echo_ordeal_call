@@ -1245,8 +1245,23 @@ function tilesInRange(map, x, y, range, size = 1) {
   return out;
 }
 // สกิลตีหมู่ "รอบตัว N" = ข้าวหลามตัดรัศมี N (ไม่รวมช่องที่ยืน)
-function aoeTiles(map, x, y, radius, size = 1) {
-  return tilesInRange(map, x, y, [1, radius], size);
+//  square = กรอบสี่เหลี่ยมรอบตัว (นับแนวทแยงด้วย — รัศมี 1 = 8 ช่องรอบตัว · อุ้งเท้าปีศาจของคุซาคาเบะ ชินระ)
+function aoeTiles(map, x, y, radius, size = 1, square = false) {
+  if (!square) return tilesInRange(map, x, y, [1, radius], size);
+  syncWrap(map);
+  const out = [];
+  const seen = new Set();
+  for (let tx = x - radius; tx <= x + size - 1 + radius; tx++) {
+    for (let ty = y - radius; ty <= y + size - 1 + radius; ty++) {
+      if (tx >= x && tx < x + size && ty >= y && ty < y + size) continue; // ช่องที่ยืน
+      if (!inBounds(map, tx, ty)) continue;
+      const k = tk(tx, ty);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ x: wx(tx), y: ty });
+    }
+  }
+  return out;
 }
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
 //  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4 คุวากาตะ โอเจอร์: −2…+1)

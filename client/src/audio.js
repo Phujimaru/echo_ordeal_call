@@ -620,6 +620,10 @@ const FILES = {
   kiri_reload: "/characters/emiya_kiritsugu/sfx/kiri_reload.mp3",
   kiri_bandage: "/characters/emiya_kiritsugu/sfx/kiri_bandage.mp3",
   kiri_heart: "/characters/emiya_kiritsugu/sfx/kiri_heart.mp3",
+  // คุซาคาเบะ ชินระ (GRID_PLAN §7.32): shinra_inferno = เพลงของผู้ใช้ (ตลอดอุ่นเครื่องพอแล้ว · ปรับ −14 LUFS)
+  //  เสียงไฟสังเคราะห์ .claude/plans/shinra-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) — ตีปกติ: จุดปะทะ 0.30 วิ (SHINRA_HIT_P)
+  shinra_inferno: "/characters/kusakabe_shinra/shinra_inferno.mp3",
+  ...Object.fromEntries(["kick", "kick_blaze", "hero", "storm", "warm", "latom", "detonate"].map((k) => [`shinra_${k}`, `/effect_sound/shinra/shinra_${k}.m4a`])),
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)
   //  parry (ชนกัน) / clock_over / kick_charge = สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   full_force: "/theme_song/FULL FORCE.mp3",
