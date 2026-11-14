@@ -77,6 +77,20 @@ export function fxT(e, now, ms) {
   if (t0 == null) { t0 = now + (e.delay > 0 ? e.delay : 0); FX_SEEN.set(e.seq, t0); if (FX_SEEN.size > 64) FX_SEEN.delete(FX_SEEN.keys().next().value); } // delay = เริ่มช้ากว่าที่เห็น (ฉากตีของมอนรอเดินถึง)
   return Math.max(0, Math.min(1, (now - t0) / Math.max(1, ms)));
 }
+// เวลาเริ่มของเหตุการณ์ (performance.now) — ตามอนทีละตัว (server stage6 mobTimeline: รายการมี at ms นับจากจุดนี้) · null = เหตุการณ์เก่าที่เล่นจบแล้ว
+export function fxStart(e, now) {
+  if (!e) return null;
+  fxT(e, now, 1);
+  if (e.seq < FX_BASE) return null;
+  return FX_SEEN.get(e.seq) ?? null;
+}
+// ความคืบหน้า 0..1 ของรายการย่อยที่มี at (ยังไม่ถึง = -1 · จบแล้ว = 1)
+export function fxSubT(e, item, now, ms) {
+  const t0 = fxStart(e, now);
+  if (t0 == null) return 1;
+  const k = (now - t0 - ((item && item.at) || 0)) / Math.max(1, ms);
+  return k < 0 ? -1 : Math.min(1, k);
+}
 // true ครั้งเดียวต่อเหตุการณ์ (เล่นเสียงตอนฉากเริ่ม: if (fxOnce(e)) fodlanAudio().sfx("wx_thunder"))
 const FX_PLAYED = new Set();
 export function fxOnce(e) {
@@ -91,7 +105,7 @@ export function fxActive(fd, now) {
   const list = fd && Array.isArray(fd.fx) ? fd.fx : [];
   const m = modOfArea(FODLAN_AREA + (fd ? fd.stage : 1) - 1);
   const durs = (m && m.fx) || {};
-  return list.filter((e) => fxT(e, now, durs[e.kind] || 1500) < 1);
+  return list.filter((e) => fxT(e, now, e.dur || durs[e.kind] || 1500) < 1); // dur = ฉากยาวตามคิวมอน (seqd)
 }
 
 // ---------- ช่องเตือน (กะพริบแดง — ผู้ใช้สั่ง) ----------

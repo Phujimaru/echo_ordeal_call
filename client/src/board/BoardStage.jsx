@@ -745,7 +745,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     for (const p of state.players) {
       if (!p.alive || !p.pos || !isEnemy(p) || !(p.id in eosMobTrait)) continue;
       const z = zoneOf(p);
-      if (z && mine.some((k) => z.threat.includes(k))) out.add(p.id);
+      const th = z && z.threat ? (z.threat instanceof Set ? z.threat : new Set(z.threat)) : null; // threatZone คืน Set (เดิมเรียก .includes = จอขาวทั้งกระดาน)
+      if (th && mine.some((k) => th.has(k))) out.add(p.id);
     }
     return out;
   }, [eosMobTrait, map, me, state.players, ruleUnits]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1214,10 +1215,19 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     }
     // สนาม Eos: เหตุการณ์ใหม่ที่มี delay (ฉากตีของมอนหลังเดิน) → เลขดาเมจ/หลอดเลือดขึ้นตอนตีจริง
     let eosDelay = 0;
+    // ตามอนทีละตัว (server stage6 mobTimeline — รายการมี at): คนที่โดนตี → เลขดาเมจ/หลอดเลือดลดทีละครั้งตามจังหวะของมอนแต่ละตัว
+    const eosHits = {}; // id → [{ at (ms ถึงจังหวะปะทะ), dmg }]
     {
       const list = (state.fodlan && state.fodlan.board && state.fodlan.board.fx) || [];
       const top = list.reduce((m, e) => Math.max(m, e.seq || 0), 0);
-      if (eosFxSeq.current != null) for (const e of list) if (e.seq > eosFxSeq.current && e.delay > 0) eosDelay = Math.max(eosDelay, e.delay);
+      const IMPACT = { mob_attack: ["attacks", 260], mob_shot: ["shots", 220], mob_pull: ["list", 420] };
+      if (eosFxSeq.current != null) for (const e of list) {
+        if (e.seq <= eosFxSeq.current) continue;
+        if (e.seqd && IMPACT[e.kind]) {
+          const [key, off] = IMPACT[e.kind];
+          for (const h of e[key] || []) if (h && h.target && (h.dmg | 0) > 0) (eosHits[h.target] ||= []).push({ at: (h.at || 0) + off, dmg: h.dmg | 0 });
+        } else if (e.delay > 0) eosDelay = Math.max(eosDelay, e.delay);
+      }
       eosFxSeq.current = Math.max(eosFxSeq.current || 0, top);
     }
     // Road Trip (board/roadtrip/rtTimeline.js): เดินในจุดพักทีละช่อง · ตามอนเล่นทีละตัว (เดิน → พุ่งตี → เลข) · ท่าบอส — คนที่ฉากดูแลไม่ต้องเลื่อน/ขึ้นเลขซ้ำ
@@ -1248,6 +1258,22 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     for (const p of state.players) {
       if (involved.has(p.id) || !p.pos || iceSkip(p.id)) continue;
       const d = (nextVit[p.id] || 0) - (prevVit.current[p.id] ?? nextVit[p.id]);
+      const hs = eosHits[p.id];
+      if (hs && d < 0 && lastPlayers[p.id] && !dashFloat[p.id]) { // ตามอนทีละตัว: ลดทีละครั้ง (เกราะก่อน) ตามคิว · ครั้งสุดท้าย = ค่าจริง
+        const was = lastPlayers[p.id], id = p.id, at = p.pos;
+        hs.sort((a, b) => a.at - b.at);
+        let hp = was.hp ?? 0, ar = was.armor ?? 0;
+        setVitHold((h) => ({ ...h, [id]: { hp, armor: ar } }));
+        hs.forEach((h, i) => {
+          const take = Math.min(ar, h.dmg); ar -= take; hp = Math.max(0, hp - (h.dmg - take));
+          const step = { hp, armor: ar }, last = i === hs.length - 1;
+          later(h.at, () => {
+            pushFx([{ kind: "float", x: at.x, y: at.y, text: `-${h.dmg}` }]);
+            setVitHold((v) => { if (!v[id]) return v; if (last) { const n = { ...v }; delete n[id]; return n; } return { ...v, [id]: step }; });
+          });
+        });
+        continue;
+      }
       const df = dashFloat[p.id] || (d < 0 && diegoDeferMs(p.id) > 0 ? { ms: diegoDeferMs(p.id), at: p.pos } : null) || (d < 0 && eosDelay > 0 ? { ms: eosDelay, at: p.pos } : null), at = df ? df.at : p.pos;
       if (d < 0 && eosDelay > 0 && !dashFloat[p.id] && lastPlayers[p.id]) { // หลอดเลือดค้างค่าเดิมจนถึงจังหวะตี
         const was = lastPlayers[p.id], id = p.id;

@@ -2410,3 +2410,31 @@ test('รถราง: ยาก / Lament ไม่มี (ไม่มีปุ
   assert.ok(btn(p, `fd:tram:${other.zone}`), 'ปานกลางยังมี');
   assert.ok(Fodlan.publicInfo().board.trams.length > 0);
 });
+
+// ตามอนทีละตัวแบบ Road Trip (ผู้ใช้ 2026-11-14): มอนแต่ละตัวเดินทีละช่องแล้วตี ตัวถัดไปรอ · ยาวเกินเพดาน = เร่งทั้งชุด
+test('Eos: ตามอนเรียงทีละตัว — เดินก่อน ตีหลังเดินถึง ตัวถัดไปเริ่มหลังตัวก่อนจบ', () => {
+  const { MOB_SEQ, mobTimeline } = S6;
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const L = {
+    moves: [{ id: 'a', path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }, { id: 'c', path: [{ x: 5, y: 5 }, { x: 5, y: 6 }] }],
+    attacks: [{ id: 'a', target: 'p1', dmg: 2 }, { id: 'b', target: 'p1', dmg: 1 }],
+    pillarHits: [], heals: [], shots: [], blinks: [], pulls: [],
+  };
+  const total = mobTimeline(list, L, {});
+  const [ma, mc] = L.moves, [aa, ab] = L.attacks;
+  assert.equal(ma.at, 0);
+  assert.equal(ma.ms, 2 * MOB_SEQ.step);
+  assert.ok(aa.at >= ma.at + ma.ms, 'a ตีหลังเดินถึง');
+  assert.ok(ab.at >= aa.at + MOB_SEQ.hit, 'b เริ่มหลัง a ตีเสร็จ');
+  assert.ok(mc.at >= ab.at + MOB_SEQ.hit, 'c เดินหลัง b');
+  assert.equal(total, mc.at + mc.ms + MOB_SEQ.gap);
+  // มอนเยอะ = เร่งให้ไม่เกินเพดาน (ช้าสุดไม่ต่ำกว่า minK)
+  const many = Array.from({ length: 40 }, (_, i) => ({ id: `m${i}` }));
+  const L2 = { moves: many.map((m) => ({ id: m.id, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }] })), attacks: many.map((m) => ({ id: m.id, target: 'p1', dmg: 1 })), pillarHits: [], heals: [], shots: [], blinks: [], pulls: [] };
+  const raw = 40 * (3 * MOB_SEQ.step + MOB_SEQ.gap + MOB_SEQ.hit);
+  const t2 = mobTimeline(many, L2, {});
+  assert.ok(t2 < raw, 'เร่งแล้ว');
+  assert.ok(t2 <= Math.max(MOB_SEQ.max, raw * MOB_SEQ.minK) + 40, 'ไม่เกินเพดาน (หรือความเร็วสูงสุด minK)');
+  const L3 = { moves: many.slice(0, 6).map((m) => ({ id: m.id, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }] })), attacks: [], pillarHits: [], heals: [], shots: [], blinks: [], pulls: [] };
+  assert.ok(mobTimeline(many.slice(0, 6), L3, {}) <= MOB_SEQ.max, 'มอนน้อย = ความเร็วปกติ ไม่เกินเพดาน');
+});
