@@ -36,13 +36,25 @@ const ELITE = { hp: 2, atk: 1, armor: 1, gold: 3 };
 const K = Board.key;
 const man = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-function scale(rt, base, { elite = false } = {}) {
+// จำนวนผู้เล่นที่ยังสู้ได้ (ไม่นับยูนิตเรียก/ตัวที่สองของระบบคู่)
+function heroCount() { return Math.max(1, Object.values(match.players).filter((p) => p.alive && !p.summon && !p.duoOf).length); }
+// คูณเลือดตามจำนวนผู้เล่น (ปรับสมดุล 2026-11-14): มอนธรรมดา 1 คน 0.75 → 6 คน 1.25 · บอส 1 คน 0.5 → 6 คน 1.5
+const partyMul = (n) => 0.65 + 0.1 * Math.min(6, n);
+const bossPartyMul = (n) => 0.3 + 0.2 * Math.min(6, n);
+function scale(rt, base, { elite = false, heroes = null, tier = null } = {}) {
   const d = diffOf(rt);
   const steps = Math.floor(Math.max(0, rt.km) / 10);
   const loop = (rt.region && rt.region.loop) | 0;
-  const k = (1 + d.grow * steps) * (1 + 0.25 * loop);
+  const n = heroes == null ? heroCount() : heroes;
   const cap = base.boss ? BOSS_ATK_CAP : ATK_CAP;
-  let hp = Math.max(1, Math.round(base.hp * k)), atk = Math.min(cap, Math.max(1, Math.round(base.atk * (1 + (k - 1) * 0.5))));
+  if (base.boss) { // บอส: แกร่งขึ้นตามลำดับบอส (ไม่ใช่ตามกม.) × จำนวนผู้เล่น × ความยาก
+    const t = tier == null ? Math.max(0, Math.floor(Math.max(50, rt.km) / 50) - 1) : tier;
+    const hp = Math.max(8, Math.round(base.hp * (d.bossHp || 1) * (1 + (d.bossGrow || 0.2) * t) * bossPartyMul(n)));
+    const atk = Math.min(cap, Math.max(2, base.atk + Math.floor(t / 2) + (d.bossAtk || 0) + (n >= 4 ? 1 : 0)));
+    return { hp, atk, armor: base.armor + Math.floor(t / 3), mov: base.mov, gold: base.gold + 3 * t };
+  }
+  const k = (1 + d.grow * steps) * (1 + 0.25 * loop);
+  let hp = Math.max(1, Math.round(base.hp * k * partyMul(n))), atk = Math.min(cap, Math.max(1, Math.round(base.atk * (1 + (k - 1) * 0.5))));
   let armor = base.armor + loop, gold = base.gold + Math.floor(steps / 10);
   if (elite) { hp = hp * ELITE.hp + 2; atk = Math.min(cap, atk + ELITE.atk); armor += ELITE.armor; gold += ELITE.gold; }
   return { hp, atk, armor, mov: base.mov, gold };
@@ -64,15 +76,15 @@ function poolFor(rt, kind = null) {
   return out;
 }
 function waveSize(rt, kind, heroes) {
-  const base = kind === "boss" ? 2 : 3 + Math.floor(rt.km / 40);
+  const base = kind === "boss" ? 1 : 2 + Math.floor(rt.km / 50); // ปรับสมดุล 2026-11-14 (เดิม บอส 2 · ทั่วไป 3 + กม./40)
   const n = Math.round((base + Math.max(0, heroes - 1)) * diffOf(rt).count);
   return Math.max(1, Math.min(MOB_CAP, n));
 }
 
-function spawn(rt, type, at, { elite = false, born = null } = {}) {
+function spawn(rt, type, at, { elite = false, born = null, heroes = null, tier = null } = {}) {
   const base = ROSTER[type];
   if (!base || !at) return null;
-  const st = scale(rt, base, { elite });
+  const st = scale(rt, base, { elite, heroes, tier });
   const rec = lazy.summon().spawn(RT_OWNER, {
     kind: KIND, pos: { x: at.x, y: at.y }, hp: st.hp, armor: st.armor, mov: st.mov, range: [1, 1],
     name: elite ? `หัวหน้า${base.name}` : base.name, img: `/roadtrip/mobs/${type}.webp`, color: base.color,
@@ -586,4 +598,4 @@ function bossOf(n) { return BOSSES[((n | 0) % BOSSES.length + BOSSES.length) % B
 // สู้บนรถตู้ (รถกำลังวิ่ง — กฎผู้ใช้ 2026-11-14): เฉพาะมอนที่วิ่งไล่รถได้
 const CHASERS = ["biker", "crow", "stray", "trucker", "boar", "saberclaw", "ghost"];
 
-module.exports = { SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, movesFor, bossPre, phaseByHp, RADIO, assignRoles, approach, SABOTEUR_SHARE, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };
+module.exports = { heroCount, partyMul, bossPartyMul, SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, movesFor, bossPre, phaseByHp, RADIO, assignRoles, approach, SABOTEUR_SHARE, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };

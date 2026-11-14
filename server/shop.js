@@ -82,6 +82,12 @@ function shopCatalog(kind) {
   ];
   return SHOP_ITEMS[kind] ? all.filter((it) => SHOP_ITEMS[kind].includes(it.type)) : all; // capsule / ไม่ระบุ = ทุกอย่าง
 }
+// ราคาตั้งต้นของไอเทมตามชนิด (ของที่ได้ฟรีจากเหตุการณ์/รางวัลไม่มีราคาติดมา — ใช้คิดค่าที่ผูกกับราคา เช่น ลาทัมของชินระ)
+const EXTRA_BASE_PRICE = { rtFish: 2, rtRevive: 10 };
+function basePriceOf(type) {
+  const it = shopCatalog().find((c) => c.type === type);
+  return it ? it.price : EXTRA_BASE_PRICE[type] || 0;
+}
 const rollRange = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
 const rollStock = (kind) => rollRange(kind === "cara" ? MERCHANT_STOCK : [SHOP_STOCK_MIN, SHOP_STOCK_MAX]);
 function shopItemName(item) {
@@ -706,4 +712,4 @@ function cleansableOf(p) {
   if (!p || !p.statuses) return [];
   return BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP).filter((k) => (p.statuses[k] || 0) > 0);
 }
-Object.assign(module.exports, { SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop, throwElemBomb });
+Object.assign(module.exports, { basePriceOf, SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop, throwElemBomb });

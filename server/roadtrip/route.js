@@ -4,9 +4,9 @@ const REGION_NAMES = { plains: "ทุ่งหญ้า", desert: "ทะเล
 const REGION_KM = 100;
 const NIGHT_KM = 40;
 const BOSS_KM = 50;
-const LEG_KM = 10;           // ช่วงขับละ ~25 วิ ที่ 100 กม./ชม. (KM_PER_SEC)
+const LEG_KM = 10;           // ช่วงขับละ ~45 วิ ที่ 100 กม./ชม. (KM_PER_SEC)
 const LEGS_PER_FORK = 2;
-const KM_PER_SEC = 0.004;    // กม. ต่อวินาทีจริง ต่อ 1 กม./ชม. (100 กม./ชม. = 0.4 กม./วิ)
+const KM_PER_SEC = 0.0022;   // กม. ต่อวินาทีจริง ต่อ 1 กม./ชม. (100 กม./ชม. = 0.22 กม./วิ) — ผู้ใช้ 2026-11-14 "ยังไม่ทันฟังเพลง ขับแป๊บๆเจอมอน" (เดิม 0.004)
 const NODE_KINDS = ["gas", "motel", "fight", "elite", "event"];
 
 function regionAt(km) {
@@ -26,6 +26,8 @@ function forkOptions(rt, rng = Math.random) {
   const out = [];
   const needGas = rt.van.fuel < rt.van.fuelMax * 0.35;
   if (needGas) out.push("gas");
+  // ใกล้บอส (≤ 20 กม.): มีจุดพัก (ปั๊ม/โรงแรม) ให้เตรียมตัวเสมอ (ปรับสมดุล 2026-11-14)
+  if (!needGas && rt.nextBossKm != null && rt.nextBossKm - rt.km <= 20) out.push(rt.km >= 30 && rng() < 0.5 ? "motel" : "gas");
   while (out.length < n) {
     const left = pool.filter((o) => !out.includes(o.kind));
     if (!left.length) break;

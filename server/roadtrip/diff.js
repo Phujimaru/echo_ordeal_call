@@ -2,9 +2,11 @@
 //  grow = มอนเลือด/พลังโจมตีเพิ่มต่อ 10 กม. · count = คูณจำนวนมอน · fuel = คูณน้ำมันที่ใช้ · price = คูณราคา
 //  revive = ราคาขนนกคืนชีพที่มินิมาร์ท (null = ไม่ขายประจำ — สุ่มเป็นของหายาก) · autoRevive = ฟื้นอัตโนมัติ 50% หลังสู้
 const DIFF = {
-  easy: { grow: 0.04, count: 0.8, fuel: 0.7, price: 0.8, revive: 6, autoRevive: true, hazard: 1 },
-  normal: { grow: 0.07, count: 1, fuel: 1, price: 1, revive: 10, autoRevive: false, hazard: 2 },
-  hard: { grow: 0.11, count: 1.3, fuel: 1.3, price: 1.25, revive: null, autoRevive: false, hazard: 3 },
+//  ปรับสมดุล 2026-11-14 (ผู้ใช้: "ยาก/ปานกลาง ระยะทางกับบอสไม่สมเหตุสมผล ผ่านไม่ได้" · ค่า Claude ตั้ง):
+//  bossHp = คูณเลือดบอส · bossGrow = เลือดบอสเพิ่มต่อบอสตัวถัดไป (แทนการโตตามกม.) · bossAtk = บวกพลังโจมตีบอส
+  easy: { grow: 0.03, count: 0.8, fuel: 0.7, price: 0.8, revive: 6, autoRevive: true, hazard: 1, bossHp: 0.8, bossGrow: 0.15, bossAtk: -1 },
+  normal: { grow: 0.05, count: 1, fuel: 1, price: 1, revive: 10, autoRevive: false, hazard: 2, bossHp: 1, bossGrow: 0.2, bossAtk: 0 },
+  hard: { grow: 0.07, count: 1.15, fuel: 1.15, price: 1.15, revive: null, autoRevive: false, hazard: 3, bossHp: 1.15, bossGrow: 0.25, bossAtk: 0 },
 };
 const DIFFS = Object.keys(DIFF);
 const diffOf = (rt) => DIFF[(rt && rt.diff) || "normal"] || DIFF.normal;

@@ -156,7 +156,7 @@ test('ทางแยก: หมดเวลา/ไม่มีใครโห�
 
 test('ข้าม 50 กม. = บอส แม็กซ์ เวอร์สแตปเพน (devilTruck) · state.roadtrip.combat.boss', () => {
   setup(1);
-  rt().km = 49.9; rt().legKm = 40;
+  rt().km = 49.99; rt().legKm = 40;
   D.step(250, Date.now() + 250);
   assert.equal(rt().phase, 'combat');
   assert.equal(rt().combat.kind, 'boss');
@@ -535,14 +535,23 @@ test('ตัวจับเวลา: จบเกมแล้วตัวจั
 // ---------------------------------------------------------------- มอน
 test('สเกลมอน: กม. · ความยาก · รอบ (loop) · จำนวนตามความยาก/ผู้เล่น', () => {
   const base = M.ROSTER.biker;
-  const at = (km, diff, loop = 0) => M.scale({ km, diff, region: { loop } }, base);
+  const at = (km, diff, loop = 0) => M.scale({ km, diff, region: { loop } }, base, { heroes: 4 });
   assert.equal(at(0, 'normal').hp, base.hp);
   assert.ok(at(100, 'normal').hp > at(0, 'normal').hp);
   assert.ok(at(100, 'hard').hp > at(100, 'easy').hp);
   assert.ok(at(100, 'normal', 1).hp > at(100, 'normal', 0).hp);
   assert.ok(at(100, 'normal', 1).armor > at(100, 'normal', 0).armor);
   assert.ok(at(9999, 'hard', 5).atk <= M.ATK_CAP);
-  const ws = (diff, heroes) => M.waveSize({ km: 40, diff, region: { loop: 0 } }, 'ambush', heroes);
+  // ปรับสมดุล 2026-11-14: เลือดตามจำนวนผู้เล่น · บอสโตตามลำดับบอส ไม่ใช่ตามกม.
+  const solo = M.scale({ km: 40, diff: 'hard', region: { loop: 0 } }, base, { heroes: 1 }).hp, six = M.scale({ km: 40, diff: 'hard', region: { loop: 0 } }, base, { heroes: 6 }).hp;
+  assert.ok(six > solo);
+  const boss = (diff, heroes, tier, km = 50) => M.scale({ km, diff, region: { loop: 0 } }, M.ROSTER.devilTruck, { heroes, tier });
+  assert.ok(boss('hard', 1, 0).hp < boss('hard', 4, 0).hp);
+  assert.ok(boss('hard', 1, 0).hp <= 25, 'บอสตัวแรก เล่นคนเดียว โหมดยาก ไม่ถึก');
+  assert.ok(boss('normal', 2, 1).hp > boss('normal', 2, 0).hp);
+  assert.equal(boss('normal', 2, 0, 50).hp, boss('normal', 2, 0, 90).hp, 'บอสไม่โตตามกม.');
+  assert.ok(boss('hard', 2, 0).hp > boss('normal', 2, 0).hp && boss('normal', 2, 0).hp > boss('easy', 2, 0).hp);
+  const ws = (diff, heroes) => M.waveSize({ km: 100, diff, region: { loop: 0 } }, 'ambush', heroes);
   assert.ok(ws('hard', 1) > ws('easy', 1));
   assert.ok(ws('normal', 4) > ws('normal', 1));
   assert.ok(ws('hard', 6) <= M.MOB_CAP);

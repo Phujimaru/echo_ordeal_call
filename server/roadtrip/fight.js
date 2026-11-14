@@ -137,10 +137,10 @@ function spawnWave(rt, kind, lead) {
   const out = [];
   // บอสหมุนตามหลัก (แม็กซ์ เวอร์สแตปเพน → อัศวินเงามรณะ → จอร์มุนกันด์ → วนใหม่ · แกร่งขึ้นตามรอบผ่าน Mobs.scale)
   //  หลัก 50 = ตัวที่ 0 · 100 = 1 · 150 = 2 · 200 = 0 … (rt.bossKm ตั้งตอนข้ามหลัก — dev/ไม่มี = ใช้ระยะตอนนี้)
-  if (kind === "boss") { const type = Mobs.bossOf(bossIndex(rt)); rt.bossKm = null; rt.combat.boss = type; const m = Mobs.spawn(rt, type, spot(), { born }); if (m) out.push(m); }
+  if (kind === "boss") { const tier = bossIndex(rt), type = Mobs.bossOf(tier); rt.bossKm = null; rt.combat.boss = type; const m = Mobs.spawn(rt, type, spot(), { born, tier, heroes }); if (m) out.push(m); }
   for (let i = 0; i < n; i++) {
     const type = i === 0 && lead ? lead : pool[Math.floor(Math.random() * pool.length)];
-    const m = Mobs.spawn(rt, type, spot(), { elite: kind === "elite" && i === 0, born });
+    const m = Mobs.spawn(rt, type, spot(), { elite: kind === "elite" && i === 0, born, heroes });
     if (m) out.push(m);
   }
   Mobs.assignRoles(out); // บทบาท: ล่าผู้เล่น / ป่วนรถ (~1 ใน 4)

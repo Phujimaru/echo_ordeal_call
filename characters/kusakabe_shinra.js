@@ -110,7 +110,12 @@ function baseMov(p) {
   const ch = CHAR_BY_ID[require("./echo").statId(p)];
   return ch && Number.isFinite(ch.mov) ? ch.mov : 4;
 }
-const itemPrice = (it) => Math.max(0, Number(it && it.price) || 0);
+// ไอเทมที่ได้ฟรี (รางวัลเหตุการณ์/ตกปลา/ของขวัญ) ไม่มีราคาติด → โหมด PVE ใช้ราคาตั้งต้นของชนิดนั้น (ผู้ใช้แจ้ง 2026-11-14: ลาทัมใน Road Trip ตีแค่ 1)
+const itemPrice = (it) => {
+  const n = Math.max(0, Number(it && it.price) || 0);
+  if (n > 0 || !it || !pve()) return n;
+  try { return require("../server/shop").basePriceOf(it.type) || 0; } catch { return 0; }
+};
 const latomDmg = (it) => Math.max(1, itemPrice(it));
 // ไอเทมที่สละได้ (ของประจำตัวละครอื่นสละไม่ได้)
 const NO_SACRIFICE = new Set(["kebread", "giornoArrow", "lawHeart"]);

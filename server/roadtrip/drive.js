@@ -15,7 +15,8 @@ const FUEL_PER_KM = 0.6;
 const EMPTY_KMH = 30;
 const NITRO_MS = 5000, NITRO_MUL = 1.5;
 const STEER_MS = 500;             // คูลดาวน์เปลี่ยนเลน ÷ ช่วงล่าง
-const ONVAN_PCT = 25;             // จบช่วงแรกของทางแยก: มอนไล่ล่ารถ (สู้บนรถตู้)
+const ONVAN_PCT = 15;             // จบช่วงแรกของทางแยก: มอนไล่ล่ารถ (สู้บนรถตู้) · ไม่เกิดก่อน ONVAN_MIN_KM และไม่ติดกับการสู้ครั้งก่อน (ผู้ใช้ 2026-11-14 "ไม่ได้ใช้เวลาร่วมกันบนรถเลย")
+const ONVAN_MIN_KM = 25;
 const HZ_KINDS = { plains: ["cone", "rock", "car"], desert: ["rock", "tumble", "car"], forest: ["log", "rock", "car"], snow: ["ice", "rock", "car"], ghost: ["wreck", "grave", "car"] };
 let tickId = null, lastAt = 0, lastSend = 0, urgent = false;
 
@@ -80,7 +81,7 @@ function step(dt = null, now = Date.now()) {
     rt.legKm = rt.km;
     if (rt.km >= rt.nextBossKm) { bossNow(rt); return; }
     if (rt.legs >= Route.LEGS_PER_FORK) { openFork(); return; }
-    if (Math.random() * 100 < ONVAN_PCT) { require("./fight").begin("onvan"); return; }
+    if (rt.km >= ONVAN_MIN_KM && !rt.lastNodeFight && Math.random() * 100 < ONVAN_PCT) { require("./fight").begin("onvan"); return; }
   }
   send(now);
 }
@@ -90,6 +91,7 @@ function bossNow(rt) {
   rt.legs = 0;
   rt.legKm = rt.km;
   H().fx("bossAlert", { type: require("./mobs").bossOf(require("./fight").bossIndex(rt)) });
+  rt.lastNodeFight = true;
   require("./fight").begin("boss");
 }
 function send(now = Date.now()) {
@@ -237,6 +239,7 @@ function resolveFork() {
   goNode(kind);
 }
 function goNode(kind) {
+  const rt0 = match.roadtrip; if (rt0) rt0.lastNodeFight = kind === "fight" || kind === "elite"; // เพิ่งสู้มา = ช่วงขับถัดไปไม่มีมอนไล่ล่า
   if (kind === "gas" || kind === "motel") return require("./stop").enter(kind);
   if (kind === "event") return require("./events").open();
   if (kind === "elite") return require("./fight").begin("elite");
