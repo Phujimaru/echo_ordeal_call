@@ -201,7 +201,7 @@ function combatOnly(handler) {
   return (id, payload) => (RT.blocksCombatCmd() ? false : handler(id, payload));
 }
 // คำสั่งของโหมด Road Trip (contract §5) — ใช้ได้ทุกคนไม่ต้องเป็นตาตัวเอง (ยกเว้น rt:rear) · ตัวคุมตรวจข้อมูลเอง
-const RT_COMMANDS = { seat: 6, steer: 12, nitro: 4, horn: 4, vote: 6, event: 6, walk: 8, act: 6, ready: 4, upg: 6, decor: 10, style: 6, paint: 6, plate: 4, radio: 4, rear: 4, use: 6 };
+const RT_COMMANDS = { seat: 6, steer: 12, nitro: 4, horn: 4, vote: 6, event: 6, walk: 8, act: 6, ready: 4, upg: 6, decor: 10, style: 6, paint: 6, plate: 4, radio: 4, rear: 4, use: 6, swerve: 4, turret: 6, roof: 4 };
 
 // ระเบียนผู้เล่นใหม่ (ค่าเริ่มต้นของทุกฟิลด์) — ใช้ตอน join
 function newPlayerRecord({ playerId, sessionToken, socketId, name, color, pos, ch, mode = null }) {

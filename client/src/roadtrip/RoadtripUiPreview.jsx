@@ -10,6 +10,8 @@ import Garage from "./Garage";
 import RadioPanel from "./RadioPanel";
 import RoadtripSummary from "./RoadtripSummary";
 import { HudTopBar } from "../screens/hud/SelfHud";
+import { HudCommand } from "../screens/hud/HudPhases";
+import { rtVanButtons, useRtVanHotkeys } from "./rtVanActions";
 import { setUiTheme, useUiTheme } from "../uiTheme";
 import "./roadtrip.css";
 
@@ -24,11 +26,12 @@ function initial() {
   return {
     phase: "fork", endsAt: now() + 15000, diff: "normal", km: 137, region: { id: "desert", loop: 1 }, night: false,
     van: { hp: 31, hpMax: 40, fuel: 12, fuelMax: 60, kmh: 115, lane: 0, driverId: "a", nitro: 1, style: "normal", paint: "#f08a4b", plate: "กข 4567", decor: ["ธง", "ลูกโป่ง"],
-      upg: { body: 2, engine: 1, tank: 1, susp: 0, nitro: 1, turret: 0, bumper: 3, storage: 0 }, rearOpen: false },
+      upg: { body: 2, engine: 1, tank: 1, susp: 0, nitro: 1, turret: 1, bumper: 3, storage: 0 }, rearOpen: false },
     fork: { options: [{ kind: "gas", km: 18 }, { kind: "elite", km: 9 }, { kind: "event", km: 14 }], votes: { b: 1, c: 0 } },
     event: { id: 1, kind: "police", choices: [{ key: "pay", label: "จ่ายค่าปรับ", cost: 8 }, { key: "run", label: "เหยียบหนี", cost: { fuel: 10, van: 5 } }, { key: "fight", label: "สู้", cost: 0 }], votes: { c: "run" } },
     stop: { kind: "gas", ready: { b: true }, acts: {} },
-    combat: { kind: "onvan", round: 2, rounds: 5, scroll: 1 },
+    combat: { kind: "onvan", round: 2, rounds: 5, scroll: 1, roofId: null },
+    actions: { a: [{ key: "swerve", cd: 0, cdMax: 3, dmg: 3 }, { key: "turret" }, "roof"] },
     radio: { src: "synth", station: 3, yt: null, by: "a" },
     fx: [],
     summary: { km: 214, kills: 37, gold: 86, region: "snow", loop: 1, diff: "hard" },
@@ -57,6 +60,9 @@ export default function RoadtripUiPreview() {
           case "rt:paint": return { ...s, van: { ...v, paint: d.hex } };
           case "rt:plate": return { ...s, van: { ...v, plate: d.text } };
           case "rt:rear": return { ...s, van: { ...v, rearOpen: !v.rearOpen } };
+          case "rt:swerve": return { ...s, actions: { a: s.actions.a.map((x) => (x && x.key === "swerve" ? { ...x, cd: 3 } : x)) } };
+          case "rt:roof": return { ...s, combat: { ...s.combat, roofId: s.combat.roofId === "a" ? null : "a" } };
+          case "rt:turret": return { ...s, van: { ...v, turretReady: false } };
           case "rt:radio": return { ...s, radio: { ...d, yt: d.yt ? { ...d.yt, at: d.yt.at || Date.now() } : null, by: "a" } };
           default: return s;
         }
@@ -70,6 +76,8 @@ export default function RoadtripUiPreview() {
   const reset = (p) => setRt((s) => ({ ...s, phase: p, endsAt: now() + (p === "stop" ? 150000 : 15000) }));
   const phaseOf = { fork: "fork", event: "event", stop: "stop", garage: "stop", combat: "combat", radio: "drive", over: "over" };
   const hudZ = Math.min(1.6, Math.max(0.6, Math.min(window.innerHeight / 810, window.innerWidth / 1376)));
+  const vanBtns = rtVanButtons({ rt: { ...rt, phase: "combat" }, youId: "a", enabled: view === "combat", picking: false, onTurret: () => setRt((s) => ({ ...s, van: { ...s.van, turretReady: false } })) });
+  useRtVanHotkeys(view === "combat" ? vanBtns : []);
   const showTop = view === "stop" || view === "garage" || view === "combat";
   const rtView = useMemo(() => ({ ...rt, phase: phaseOf[view] }), [rt, view]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -87,6 +95,11 @@ export default function RoadtripUiPreview() {
       {view === "event" && <EventCard event={rt.event} endsAt={rt.endsAt} players={PLAYERS} youId="a" />}
       {(view === "stop" || view === "garage") && <StopBar rt={rtView} players={PLAYERS} youId="a" zoom={hudZ} onGarage={() => setView("garage")} />}
       {view === "garage" && <Garage van={rt.van} gold={gold} diff={rt.diff} night={rt.night} onClose={() => setView("stop")} />}
+      {view === "combat" && (
+        <div className="hud-grp hud-right" style={{ "--hud-k": hudZ, position: "fixed" }}>
+          <HudCommand skills={null} attack={{ disabled: true, targets: 0, onClick() {} }} extra={vanBtns} bag={{ items: [], slots: 5, onClick() {} }} undo={{ disabled: true, onClick() {} }} end={{ onClick() {} }} />
+        </div>
+      )}
       {view === "radio" && <RadioPanel radioState={rt.radio} zoom={hudZ} />}
       {view === "over" && <RoadtripSummary summary={rt.summary} players={PLAYERS} />}
     </div>

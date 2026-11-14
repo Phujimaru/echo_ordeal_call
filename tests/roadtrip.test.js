@@ -558,11 +558,11 @@ test('บอส: เตือนแนวพุ่ง 1 เทิร์น → �
   for (const m of mobs()) if (m !== boss) require('../server/summon.js').remove(m);
   boss.summon.born = 0;
   boss.pos = { x: 2, y: 2 };
-  P(0).pos = { x: 15, y: 2 };
+  P(0).pos = { x: 7, y: 2 }; // แนวพุ่ง 6 ช่อง (DRS +3)
   const out = { moves: [], attacks: [], misses: [], van: [], charges: [], warns: [], falls: [], shots: [], rams: [] };
   M.actOne(rt(), boss, out);
   assert.equal(out.warns.length, 1);
-  assert.ok(rt().combat.warn.tiles.some((t) => t.x === 15 && t.y === 2));
+  assert.ok(rt().combat.warn.tiles.some((t) => t.x === 7 && t.y === 2));
   const hp0 = P(0).hp + P(0).armor;
   Math.random = () => 0.99;
   M.actOne(rt(), boss, out);
@@ -908,6 +908,238 @@ test('สู้บนรถตู้: ฝั่งผู้เล่นเดิ
   shop.useInventoryItem('p0', 'f', { targetId: 'p1' });
   assert.equal(P(1).alive, true);
   assert.ok(onVan(P(1)), 'ฟื้นในรถ');
+});
+
+test('AI: ผู้เล่นคือเป้าหลัก — ติดทั้งรถและคน = ตีคน · เดินเต็มระยะอ้อมรถแล้วตีในตาเดียวกัน · ตัวป่วนรถ ~1 ใน 4 · fx เรียงลำดับ mobMove → mobHit', () => {
+  const OUTF = () => ({ moves: [], attacks: [], misses: [], van: [], charges: [], warns: [], falls: [], shots: [], rams: [] });
+  const Summon = require('../server/summon.js');
+  setup(1);
+  F.begin('ambush'); fire();
+  for (const m of mobs()) Summon.remove(m);
+  const vb = Maps.defs[Maps.RT_ROAD].vanBlock; // x 8–11 y 4–5
+  const p = P(0);
+  // ติดทั้งรถ (7,4)→ติด vanBlock และคน (7,3)
+  p.pos = { x: 7, y: 3 };
+  const a = M.spawn(rt(), 'stray', { x: 7, y: 4 }, { born: 0 });
+  a.summon.role = 'hunter';
+  Math.random = () => 0.99;
+  const v0 = rt().van.hp;
+  let o = OUTF();
+  M.actOne(rt(), a, o);
+  assert.equal(o.attacks.length, 1, 'ตีคน');
+  assert.equal(rt().van.hp, v0, 'ไม่ทุบรถ');
+  // ตัวป่วนรถที่มีคนติดตัวก็ป้องกันตัวก่อน
+  a.summon.role = 'saboteur';
+  o = OUTF(); M.actOne(rt(), a, o);
+  assert.equal(o.attacks.length, 1);
+  Summon.remove(a);
+  // อ้อมรถ: มอนหลังรถ (12,4) ผู้เล่นหน้ารถอีกฝั่ง (6,5) → เดินอ้อมเต็มระยะ แล้วตีถ้าถึง
+  p.pos = { x: 6, y: 5 };
+  const b = M.spawn(rt(), 'saberclaw', { x: 12, y: 4 }, { born: 0 });
+  b.summon.role = 'hunter';
+  o = OUTF(); M.actOne(rt(), b, o);
+  assert.equal(o.moves.length, 1);
+  assert.ok(o.moves[0].path.every((t) => !(t.x >= vb.x0 && t.x <= vb.x1 && t.y >= vb.y0 && t.y <= vb.y1)), 'ไม่เดินทะลุรถ');
+  assert.ok(Board.dist(b.pos, p.pos) < Board.dist({ x: 12, y: 4 }, p.pos), 'เข้าใกล้');
+  assert.equal(o.seq[0].k, 'mobMove');
+  assert.ok(Array.isArray(o.seq[0].path[0]) && o.seq[0].path[0].length === 2);
+  if (Board.dist(b.pos, p.pos) === 1) assert.equal(o.seq[1].k, 'mobHit', 'ถึงแล้วตีในตาเดียวกัน');
+  Summon.remove(b);
+  // ตัวป่วนรถ (ไม่มีคนติดตัว) → เดินไปติดรถแล้วทุบ
+  p.pos = { x: 0, y: 10 };
+  const c = M.spawn(rt(), 'biker', { x: 14, y: 5 }, { born: 0 });
+  c.summon.role = 'saboteur';
+  o = OUTF(); M.actOne(rt(), c, o);
+  assert.ok(o.van.length === 1 && rt().van.hp < v0, 'ทุบรถ');
+  assert.equal(o.seq[o.seq.length - 1].target, 'van');
+  // สัดส่วนบทบาท
+  const fake = Array.from({ length: 8 }, (_, i) => ({ summon: { mobType: i < 2 ? 'biker' : 'stray' } }));
+  assert.equal(M.assignRoles(fake), 2);
+  assert.ok(fake.filter((m) => m.summon.role === 'saboteur').every((m) => m.summon.mobType === 'biker'), 'แก๊งมอเตอร์ไซค์ก่อน');
+  setup(2);
+  F.begin('ambush');
+  assert.ok(mobs().every((m) => ['hunter', 'saboteur'].includes(m.summon.role)));
+});
+
+test('AI บอส: ไม่เดินหนีคนที่ติดตัว · ไม่มีท่าไหนถึง = เดินเข้าหาคนใกล้สุดแล้วตีในตาเดียวกัน · เลือกท่าที่โดนคนมากสุด', () => {
+  const OUTF = () => ({ moves: [], attacks: [], misses: [], van: [], charges: [], warns: [], falls: [], shots: [], rams: [] });
+  const Summon = require('../server/summon.js');
+  setup(2);
+  F.begin('ambush'); fire();
+  for (const m of mobs()) Summon.remove(m);
+  Math.random = () => 0.99;
+  // อัศวิน: มีคนติดตัวแต่ไม่มีท่าใหญ่ไหนโดนคนอื่นเพิ่ม → ยืนสู้ ไม่เดินหนี
+  P(0).pos = { x: 3, y: 9 }; P(1).pos = { x: 18, y: 1 };
+  const k = M.spawn(rt(), 'darkKnight', { x: 2, y: 9 }, { born: 0 });
+  const at0 = { ...k.pos };
+  let o = OUTF(); M.actOne(rt(), k, o);
+  assert.ok(o.attacks.some((a) => a.target === 'p0') || o.warns.length, 'สู้คนที่ติดตัว');
+  assert.ok(Board.dist(k.pos, P(0).pos) <= 1 || o.warns.length, 'ไม่เดินหนี');
+  assert.deepEqual(o.moves.length ? k.pos : at0, k.pos);
+  Summon.remove(k);
+  // แม็กซ์: เลือกโยน (โดน 2 คนในวง 3×3) แทนพุ่ง (โดน 1)
+  P(0).pos = { x: 4, y: 7 }; P(1).pos = { x: 5, y: 7 };
+  const mx = M.spawn(rt(), 'devilTruck', { x: 1, y: 8 }, { born: 0 });
+  o = OUTF(); M.actOne(rt(), mx, o);
+  assert.equal(o.warns[0].move, 'throw');
+  assert.ok(o.seq.some((e) => e.k === 'bossWarn' && e.move === 'throw'));
+  Summon.remove(mx);
+  // จอร์มุนกันด์ไกลทุกท่า → เดินเข้าหาคนใกล้สุด (ระยะลดลง)
+  P(0).pos = { x: 18, y: 9 }; P(1).pos = { x: 19, y: 10 };
+  const j = M.spawn(rt(), 'jormungand', { x: 1, y: 2 }, { born: 0 });
+  const d0 = Board.dist(j.pos, P(0).pos);
+  o = OUTF(); M.actOne(rt(), j, o);
+  assert.ok(Board.dist(j.pos, P(0).pos) < d0, 'เข้าใกล้');
+  assert.equal(o.seq[0].k, 'mobMove');
+});
+
+test('สู้บนรถตู้ (ตัวประชิดได้สู้): มอนขึ้นรถ · หน้าต่างตีไกล 2 · ปาดรถ · ป้อมปืนมือ · หลังคา', () => {
+  const OUTF = () => ({ moves: [], attacks: [], misses: [], van: [], charges: [], warns: [], falls: [], shots: [], rams: [] });
+  const Summon = require('../server/summon.js'), action = require('../server/phases/action.js');
+  setup(2);
+  F.begin('onvan'); fire();
+  for (const m of mobs()) Summon.remove(m);
+  const d = Maps.defs[Maps.RT_ONVAN];
+  const van = new Set(d.vanTiles.map(([x, y]) => Board.key(x, y)));
+  const p = P(0), q = P(1);
+  const turn = (u) => { match.gameState = 'ACTION'; match.actorId = u.id; match.action = { locked: false, moved: false, from: { ...u.pos } }; };
+  Math.random = () => 0.99;
+  // 1) มอนตัวล่ากระโดดขึ้นรถไปหาผู้เล่น
+  p.pos = { x: 10, y: 5 }; q.pos = { x: 13, y: 6 };
+  const m1 = M.spawn(rt(), 'stray', { x: 9, y: 2 }, { born: 0 }); m1.summon.role = 'hunter';
+  let o = OUTF(); M.actOne(rt(), m1, o);
+  assert.ok(van.has(Board.key(m1.pos.x, m1.pos.y)), 'มอนขึ้นรถ');
+  assert.ok(o.attacks.length === 1, 'แล้วตีในรถ');
+  Summon.remove(m1);
+  // 2) หน้าต่าง: ระยะอย่างน้อย 2
+  p.pos = { x: 9, y: 4 };
+  assert.ok(action.rangeOf(p)[1] >= 2);
+  assert.ok(action.areaRange(p, { range: 1 }) >= 2);
+  p.pos = { x: 10, y: 5 };
+  // 3) ปาดรถ (คนขับ · ฝั่งซ้าย = แถวเหนือรถ)
+  const side = M.spawn(rt(), 'giant', { x: 10, y: 3 }, { born: 99 });
+  const hp0 = side.hp + side.armor, v0 = rt().van.hp;
+  turn(q);
+  assert.equal(RT.command('p1', 'swerve', { side: 'up' }), false);
+  assert.equal(RT.command('p0', 'swerve', { side: 'left' }), false, 'ไม่ใช่ตา/ไม่ใช่คนขับ');
+  assert.ok(RT.publicInfo('p1').actions.p1.includes('swerve'));
+  assert.equal(RT.command('p1', 'swerve', { side: 'left' }), true);
+  assert.ok(side.hp + side.armor < hp0);
+  assert.equal(side.pos.y, 2, 'กระเด็นออกจากรถ');
+  assert.equal(rt().van.hp, v0 - 1, 'กันชน 0 = รถเสีย 1');
+  assert.equal(RT.command('p1', 'swerve', { side: 'left' }), false, 'คูลดาวน์');
+  Summon.remove(side);
+  // 4) ป้อมปืนมือ (ช่องซันรูฟ)
+  rt().van.upg.turret = 1;
+  turn(p);
+  const tg = M.spawn(rt(), 'giant', { x: 10, y: 1 }, { born: 99 });
+  const far = M.spawn(rt(), 'giant', { x: 1, y: 1 }, { born: 99 });
+  assert.equal(RT.publicInfo().van.turretReady, true);
+  assert.equal(RT.command('p0', 'turret', { x: far.pos.x, y: far.pos.y }), false, 'ไกลเกิน 4');
+  const t0 = tg.hp + tg.armor;
+  assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), true);
+  assert.equal(t0 - (tg.hp + tg.armor), 2, 'ขั้น + 1');
+  assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), false, 'ครั้งเดียวต่อตา');
+  Summon.remove(tg); Summon.remove(far);
+  // 5) หลังคา: ทีละคน · ระยะ +2 · มอนเดินดินแตะไม่ได้ (อีกา/บอสได้) · ร่วง 25% ตอนถนนกระตุก
+  const r0 = action.rangeOf(p)[1];
+  assert.equal(RT.command('p0', 'roof', {}), true);
+  assert.equal(RT.publicInfo().combat.roofId, 'p0');
+  assert.equal(action.rangeOf(p)[1], r0 + 2);
+  const st = M.spawn(rt(), 'stray', { x: 10, y: 3 }, { born: 99 });
+  const cr = M.spawn(rt(), 'crow', { x: 9, y: 3 }, { born: 99 });
+  assert.ok(!M.prey(st).includes(p) && M.prey(cr).includes(p));
+  Math.random = () => 0;
+  assert.equal(F.roofLurch('lurch'), true);
+  assert.equal(p.rtRoof, false);
+  assert.ok(van.has(Board.key(p.pos.x, p.pos.y)), 'ร่วงกลับท้ายรถ');
+  // จบสู้ = ล้างหลังคา
+  p.pos = { x: 10, y: 5 }; turn(p);
+  Math.random = () => 0.99;
+  RT.command('p0', 'roof', {});
+  for (const m of mobs()) Summon.remove(m);
+  endTurn.gameOver();
+  assert.equal(p.rtRoof, false);
+});
+
+test('บอสอลังการ: แม็กซ์ พิทสต็อป/DRS/ล็อกล้อ/แชมป์โลก/วิทยุ · อัศวินแยกเงา/คลื่นดาบ/หนามเงา · จอร์มุนกันด์ถนนน้ำแข็ง/คลื่นยักษ์/คุก · ระยะ + คลั่ง', () => {
+  const OUTF = () => ({ moves: [], attacks: [], misses: [], van: [], charges: [], warns: [], falls: [], shots: [], rams: [] });
+  const Summon = require('../server/summon.js');
+  const fresh = (n = 1) => { setup(n); F.begin('boss'); fire(); for (const m of mobs()) Summon.remove(m); };
+  const fxk = (k) => rt().fx.filter((f) => f.k === k);
+  // ---- แม็กซ์: พิทสต็อป ≤ 50% (กินทั้งตา · หลบทุกอย่าง · ฟื้น 25% · รถใหม่)
+  fresh();
+  P(0).pos = { x: 3, y: 8 };
+  let mx = M.spawn(rt(), 'devilTruck', { x: 2, y: 8 }, { born: 0 });
+  mx.summon.boss = true;
+  mx.hp = Math.floor(mx.summon.maxHp * 0.45);
+  const h0 = mx.hp;
+  Math.random = () => 0.99;
+  let o = OUTF(); M.actOne(rt(), mx, o);
+  assert.ok(mx.hp > h0, 'ฟื้น');
+  assert.equal(o.attacks.length, 0, 'พิทกินทั้งตา');
+  assert.equal(mx.statuses.evade > 0 && mx.statusAmt.evade, 100, 'หลบทุกอย่าง');
+  assert.ok(fxk('pitstop').length && fxk('pitstop')[0].crew >= 4 && fxk('pitstop')[0].time === '1.8 วิ');
+  assert.ok(fxk('radio').some((f) => f.boss === 'devilTruck' && typeof f.text === 'string'));
+  assert.equal(mx.summon.phase, 2);
+  assert.equal(RT.publicInfo().combat.bossPhase, 2);
+  assert.equal(mx.summon.celebrate, true, 'เข้าระยะ 2 = ฉลอง');
+  // ฉลอง: เตือนวงแล้วลง — โดนัทติดตัวกระเด็น + เชื่องช้าจากแชมเปญ
+  o = OUTF(); M.actOne(rt(), mx, o);
+  assert.equal(o.warns[0].move, 'celebrate');
+  const hp1 = P(0).hp + P(0).armor;
+  o = OUTF(); M.actOne(rt(), mx, o);
+  assert.ok(P(0).hp + P(0).armor < hp1 || (P(0).statuses.slow || 0) > 0, 'โดนัทหรือแชมเปญ');
+  assert.ok(fxk('donut').length && fxk('champagne').length);
+  assert.equal(mx.summon.celebrate, false);
+  // ล็อกล้อ: พุ่งแล้ว 20% หมุนติ้ว (Math.random 0)
+  fresh();
+  P(0).pos = { x: 5, y: 8 };
+  mx = M.spawn(rt(), 'devilTruck', { x: 1, y: 8 }, { born: 0 });
+  Math.random = () => 0.99;
+  M.actOne(rt(), mx, OUTF()); // เล็งพุ่ง
+  Math.random = () => 0.1;
+  P(0).statuses = {};
+  M.actOne(rt(), mx, OUTF());
+  assert.ok(mx.statuses.stun >= 1, 'มึน');
+  assert.ok(fxk('spinout').length);
+  // คลั่ง ≤ 20%: ATK +1
+  fresh();
+  mx = M.spawn(rt(), 'devilTruck', { x: 1, y: 8 }, { born: 0 });
+  mx.summon.pit1 = true; mx.summon.pit2 = true;
+  const a0 = mx.summon.atk;
+  mx.hp = 1;
+  M.bossPre(rt(), mx, [], OUTF());
+  assert.equal(mx.summon.atk, a0 + 1);
+  assert.equal(mx.summon.phase, 3);
+  assert.ok(fxk('enrage').length);
+  // ---- อัศวิน ระยะ 2: เงา 2 ตัว · ชุดท่าใหม่
+  fresh();
+  P(0).pos = { x: 6, y: 8 };
+  const k = M.spawn(rt(), 'darkKnight', { x: 2, y: 8 }, { born: 0 });
+  k.summon.boss = true;
+  k.hp = Math.floor(k.summon.maxHp * 0.4);
+  Math.random = () => 0.99;
+  o = OUTF(); M.actOne(rt(), k, o);
+  const clones = mobs().filter((m) => m.summon.decoy);
+  assert.equal(clones.length, 2);
+  assert.ok(clones.every((c) => !c.summon.boss && c.hp === 3));
+  assert.ok(M.movesFor(k).includes('wave') && M.movesFor(k).includes('spikes'));
+  assert.ok(['wave', 'spikes', 'charge', 'slash'].includes(o.warns[0].move));
+  // ---- จอร์มุนกันด์ ระยะ 2: ถนนน้ำแข็ง · คุกน้ำแข็ง = ตรึง
+  fresh();
+  P(0).pos = { x: 6, y: 9 };
+  const j = M.spawn(rt(), 'jormungand', { x: 1, y: 2 }, { born: 0 });
+  j.summon.boss = true;
+  j.hp = Math.floor(j.summon.maxHp * 0.4);
+  j.summon.moveNo = 1; // ลำดับถัดไป = คุกน้ำแข็ง
+  o = OUTF(); M.actOne(rt(), j, o);
+  assert.ok(fxk('freezeRoad').length && fxk('freezeRoad')[0].tiles.length > 0);
+  assert.ok(require('../server/ice.js').iceAt(6, 9) || fxk('freezeRoad')[0].tiles.length);
+  const w = rt().combat.warn;
+  assert.ok(w && ['tidal', 'prison'].includes(w.move));
+  M.actOne(rt(), j, OUTF());
+  if (w.move === 'prison') assert.ok((P(0).statuses.rooted || 0) > 0 || !P(0).alive, 'ตรึง');
 });
 
 // ---------------------------------------------------------------- กฎผู้ใช้ 2026-11-14

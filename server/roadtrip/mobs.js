@@ -87,8 +87,10 @@ const mobs = () => Object.values(match.players).filter((p) => isMob(p) && p.aliv
 function prey(m = null) {
   const action = lazy.action(), Vis = lazy.vis(), Dim = lazy.dim();
   return lazy.combat().alivePlayers().filter((p) => p.pos && !isMob(p) && (!p.summon || p.summon.rtDog)
-    && (!m || (Dim.same(m, p) && !Vis.hiddenFromUnit(m, p) && action.tauntAllows(m, p))));
+    && (!m || (Dim.same(m, p) && !Vis.hiddenFromUnit(m, p) && action.tauntAllows(m, p)))
+    && (!m || !p.rtRoof || canHitRoof(m))); // บนหลังคารถตู้: เฉพาะตัวบิน/บอสเอื้อมถึง
 }
+function canHitRoof(m) { const b = ROSTER[m.summon && m.summon.mobType] || {}; return !!(b.fly || b.boss); }
 
 // ช่องว่างสำหรับเกิด (ไม่ทับยูนิต/สิ่งกีดขวาง/ร้าน)
 function freeAt(x, y, taken) {
@@ -146,6 +148,52 @@ function adjTarget(x, y, targets) {
   return targets.filter((t) => t.alive && t.pos && Board.dist(Board.boxOf(t), { x, y, size: 1 }) === 1)
     .sort((a, b) => ((a.hp || 0) + (a.armor || 0)) - ((b.hp || 0) + (b.armor || 0)))[0] || null;
 }
+// ---------- AI (ผู้ใช้แจ้ง 2026-11-14 "บอสเมินผู้เล่นที่อยู่ใกล้แล้วเดินหนี … มอนมุ่งแต่รถ แล้วจะชนะยังไง") ----------
+//  เป้าหลัก = ผู้เล่น: ล่าคนที่ใกล้ที่สุดที่ไปถึงได้ (ระยะทางเดินจริง อ้อมสิ่งกีดขวาง/รถตู้) · เดินเต็มระยะ แล้วตีในตาเดียวกันถ้าถึง
+//   · มีคนติดตัวอยู่แล้ว = ตีเลย ไม่เดินหนี
+//  บทบาท (summon.role — client ทำเครื่องหมายได้): "hunter" ล่าผู้เล่น · "saboteur" ป่วนรถ (~1 ใน 4 ของฝูง ไม่รวมบอส — แก๊งมอเตอร์ไซค์/ซอมบี้รถบรรทุก/อีกาก่อน)
+//   ตัวป่วนรถเดินไปติดรถแล้วทุบรถ (มีคนติดตัว = ตีคนนั้นก่อน) · ไปหาผู้เล่นไม่ได้เลย (ทางตัน) = ไปทุบรถแทน
+const SABOTEUR_SHARE = 0.25, SABOTEUR_PREF = ["biker", "trucker", "crow"];
+function assignRoles(list) {
+  const pool = list.filter((m) => m && m.summon && !m.summon.boss);
+  for (const m of pool) m.summon.role = "hunter";
+  const n = pool.length >= 2 ? Math.max(1, Math.round(pool.length * SABOTEUR_SHARE)) : 0;
+  const order = [...pool].sort((a, b) => (SABOTEUR_PREF.includes(b.summon.mobType) ? 1 : 0) - (SABOTEUR_PREF.includes(a.summon.mobType) ? 1 : 0));
+  for (const m of order.slice(0, n)) m.summon.role = "saboteur";
+  return n;
+}
+// บันทึกเหตุการณ์ตามลำดับจริง (mobTurn.seq) ให้ client เล่นทีละตัว: mobMove → mobHit …
+function seqPush(out, e) { (out.seq || (out.seq = [])).push(e); }
+function moveMob(out, m, path, extra = {}) {
+  if (!path || path.length < 2) return;
+  const from = { ...m.pos }, to = { x: path[path.length - 1].x, y: path[path.length - 1].y };
+  out.moves.push({ id: m.id, type: m.summon.mobType, from, to, path, ...extra });
+  seqPush(out, { k: "mobMove", id: m.id, type: m.summon.mobType, path: path.map((t) => [t.x, t.y]), ...(extra.dash ? { dash: true } : {}) });
+  m.pos = to;
+}
+// เดินเข้าหาเป้าหมาย: BFS ระยะไม่จำกัด (ทางจริง) → เดินตามเส้นทางนั้นให้ไกลสุดในระยะเดิน (หยุดบนช่องว่างเท่านั้น)
+//  goal(n) = ช่องปลายทางที่ต้องการ · rank(n) = ค่าเทียบเมื่อระยะเท่ากัน (น้อย = ดี) → คืน true ถ้าขยับ
+function approach(rt, m, mov, goal, rank = () => 0, out) {
+  if (!(mov > 0)) return false;
+  const stops = reach(rt, m, 99);
+  let best = null;
+  for (const n of stops.values()) if (goal(n) && (!best || n.d < best.d || (n.d === best.d && rank(n) < rank(best)))) best = n;
+  if (!best || (best.x === m.pos.x && best.y === m.pos.y)) return false;
+  const path = Board.pathTo(stops, best.x, best.y) || [];
+  let i = path.length - 1;
+  while (i > 0 && ((stops.get(K(path[i].x, path[i].y)) || { d: 99 }).d > mov || !stops.has(K(path[i].x, path[i].y)))) i--;
+  if (i <= 0) return false;
+  moveMob(out, m, path.slice(0, i + 1));
+  return true;
+}
+const adjTo = (t) => (n) => t.alive && t.pos && Board.dist(Board.boxOf(t), { x: n.x, y: n.y, size: 1 }) === 1;
+const adjAny = (targets) => (n) => targets.some((t) => adjTo(t)(n));
+const weakness = (t) => (t.hp || 0) + (t.armor || 0);
+function hitVan(m, out) {
+  const n = H().hurtVan(1, "mob", m.id);
+  out.van.push({ id: m.id, x: m.pos.x, y: m.pos.y, dmg: n });
+  seqPush(out, { k: "mobHit", id: m.id, target: "van", dmg: n, dodged: false, crit: false });
+}
 function actOne(rt, m, out) {
   const sm = m.summon, base = ROSTER[sm.mobType] || ROSTER.stray;
   const action = lazy.action();
@@ -154,36 +202,36 @@ function actOne(rt, m, out) {
   if (base.thorns) for (const t of prey(m)) if (t.pos && Board.dist(Board.boxOf(t), m.pos) === 1) hit(rt, m, t, base.thorns, out, "หนามทิ่ม");
   const targets = prey(m);
   if (sm.boss) return bossAct(rt, m, targets, out);
-  // พุ่ง (แก๊งมอเตอร์ไซค์ / หมูป่า) / ชนแนว (ซอมบี้รถบรรทุก): มีเป้าในแนวตรง ≤ N ช่อง ทางโล่ง = พุ่งไปติดแล้วตีแรง +1
+  // มีคนติดตัวอยู่แล้ว = ตีเลย (ไม่เดินหนี — ตัวป่วนรถก็ป้องกันตัว)
+  let target = adjTarget(m.pos.x, m.pos.y, targets);
+  if (target) { hit(rt, m, target, sm.atk | 0, out, "โจมตี"); return; }
+  if (sm.role === "saboteur") return sabotage(rt, m, mov, targets, out);
+  // พุ่ง (แก๊งมอเตอร์ไซค์ / หมูป่า / เสือ) / ชนแนว (ซอมบี้รถบรรทุก): เป้าในแนวตรง ≤ N ช่อง ทางโล่ง = พุ่งไปติดแล้วตีแรง +1
   const lineN = base.dash || base.ram || 0;
-  if (lineN && !adjTarget(m.pos.x, m.pos.y, targets)) {
+  if (lineN) {
     const d = lineCharge(rt, m, targets, lineN);
     if (d) {
-      out.moves.push({ id: m.id, type: sm.mobType, from: { ...m.pos }, to: { ...d.to }, path: d.path, dash: true });
-      m.pos = { ...d.to };
+      moveMob(out, m, d.path, { dash: true });
       hit(rt, m, d.target, (sm.atk | 0) + 1, out, base.ram ? "ชนกระแทก" : "พุ่งชน");
       if (base.ram && d.target.alive && d.target.pos) push(d.target, d.dir);
       return;
     }
   }
-  let target = adjTarget(m.pos.x, m.pos.y, targets);
-  if (!target && mov > 0 && targets.length) {
-    const stops = reach(rt, m, mov);
-    let best = null, bestScore = Infinity;
-    for (const n of stops.values()) {
-      const t = adjTarget(n.x, n.y, targets);
-      const score = t ? n.d * 0.01 + ((t.hp || 0) + (t.armor || 0)) * 0.001 : 100 + Math.min(...targets.filter((u) => u.pos).map((u) => Board.dist(Board.boxOf(u), { x: n.x, y: n.y, size: 1 })));
-      if (score < bestScore) { bestScore = score; best = n; }
-    }
-    if (best && (best.x !== m.pos.x || best.y !== m.pos.y)) {
-      out.moves.push({ id: m.id, type: sm.mobType, from: { ...m.pos }, to: { x: best.x, y: best.y }, path: pathFrom(stops, best.x, best.y) });
-      m.pos = { x: best.x, y: best.y };
-    }
+  // ล่าผู้เล่นที่ใกล้สุด (ระยะเดินจริง) — ระยะเท่ากัน = ตัวที่อ่อนสุด
+  if (targets.length && approach(rt, m, mov, adjAny(targets), (n) => Math.min(...targets.filter((t) => adjTo(t)(n)).map(weakness)), out)) {
     target = adjTarget(m.pos.x, m.pos.y, targets);
+    if (target) { hit(rt, m, target, sm.atk | 0, out, "โจมตี"); return; }
+    return;
   }
-  if (target) { hit(rt, m, target, sm.atk | 0, out, "โจมตี"); return; }
-  // ไม่มีใครติดตัว แต่ติดรถตู้ = ทุบรถ
-  if (H().touchesVan(m.pos)) { H().hurtVan(1, "mob", m.id); out.van.push({ id: m.id, x: m.pos.x, y: m.pos.y, dmg: 1 }); }
+  // ไปหาผู้เล่นไม่ได้เลย = ไปทุบรถ
+  return sabotage(rt, m, mov, [], out);
+}
+// ตัวป่วนรถ: เดินไปติดรถ (ทางจริง) แล้วทุบ · ติดรถอยู่แล้ว = ทุบเลย
+function sabotage(rt, m, mov, targets, out) {
+  if (!H().touchesVan(m.pos)) approach(rt, m, mov, (n) => H().touchesVan(n), () => 0, out);
+  const t = adjTarget(m.pos.x, m.pos.y, targets);
+  if (t) { hit(rt, m, t, m.summon.atk | 0, out, "โจมตี"); return; }
+  if (H().touchesVan(m.pos)) hitVan(m, out);
 }
 function lineCharge(rt, m, targets, n) {
   const action = lazy.action(), map = action.boardMap();
@@ -209,13 +257,15 @@ function push(t, [dx, dy]) {
 function hit(rt, m, t, dmg, out, reason) {
   const combat = lazy.combat(), attack = lazy.attack();
   if (!t || !t.alive) return 0;
-  if (attack.skillDodge(m, t, reason)) { out.misses.push({ id: m.id, target: t.id }); return 0; }
+  if (attack.skillDodge(m, t, reason)) { out.misses.push({ id: m.id, target: t.id }); seqPush(out, { k: "mobHit", id: m.id, target: t.id, dmg: 0, dodged: true, crit: false, reason }); return 0; }
   const before = (t.hp || 0) + (t.armor || 0);
   combat.withEffectSource(m, () => combat.dealMixed(t, Math.max(1, dmg)));
   t.wasAttacked = true;
   const dealt = Math.max(0, before - ((t.hp || 0) + (t.armor || 0)));
   if (ROSTER[m.summon.mobType] && ROSTER[m.summon.mobType].slowHit && t.alive) combat.applyDebuff(t, "slow", 1, 1);
   out.attacks.push({ id: m.id, type: m.summon.mobType, x: m.pos.x, y: m.pos.y, target: t.id, dmg: dealt });
+  seqPush(out, { k: "mobHit", id: m.id, target: t.id, dmg: dealt, dodged: false, crit: false, reason, kill: !t.alive || t.hp <= 0 });
+  if ((!t.alive || t.hp <= 0) && !t.summon && m.summon.mobType === "devilTruck" && m.summon.boss) { m.summon.celebrate = true; radio(m, "kill"); } // แชมป์โลก: ฆ่าได้ = ฉลอง
   match.lastLog.push(`${m.name} ${reason} ${t.name} -${dealt}`);
   H().settle(t);
   counterBack(m, t, out);
@@ -230,6 +280,7 @@ function counterBack(m, t, out) {
   if (!anyRange && !Board.canCounter(action.rangeOf(t), m.pos, t.pos)) return;
   const r = attack.strike(t, m, { counter: true });
   (out.counters || (out.counters = [])).push({ id: t.id, target: m.id, dmg: r ? r.dmg : 0, dodge: !!(r && r.dodge) });
+  seqPush(out, { k: "mobCounter", id: t.id, target: m.id, dmg: r ? r.dmg : 0, dodged: !!(r && r.dodge), crit: !!(r && r.crit) });
   H().settle(m);
 }
 
@@ -244,7 +295,11 @@ function counterBack(m, t, out) {
 //  จอร์มุนกันด์: lunge ฉกยาว 6 ช่อง atk+2 + เชื่องช้า · tide คลื่นน้ำเย็นรัศมี 2 atk+1 + เชื่องช้า
 const BOSS_MOVES = { devilTruck: ["ram", "throw"], darkKnight: ["charge", "slash"], jormungand: ["lunge", "lunge", "tide"] };
 const MOVE = {
-  charge: { bonus: 2, verb: "พุ่งชน", move: true, line: 99 }, ram: { bonus: 2, verb: "ขี่รถ F1 พุ่งชน", move: true, line: 99, aside: true },
+  charge: { bonus: 2, verb: "พุ่งชน", move: true, line: 99 }, ram: { bonus: 2, verb: "ขี่รถ F1 พุ่งชน", move: true, line: 6, aside: true },
+  // ท่าเพิ่ม (ผู้ใช้ 2026-11-14 "อลังการสมชื่อบอส · MAX ฮาๆ"): ระยะ 2 ขั้น · คลั่งที่เลือดต่ำ — ดู bossPhase ด้านล่าง
+  celebrate: { bonus: 0, verb: "โดนัทฉลองแชมป์", celebrate: true }, // แม็กซ์: โดนัทวง 1 (กระเด็น) + พ่นแชมเปญวง 2 (เชื่องช้า)
+  wave: { bonus: 2, verb: "คลื่นดาบเงา", line: 9 }, spikes: { bonus: 2, verb: "หนามเงาผุด" },   // อัศวิน (ระยะ 2)
+  sweep: { bonus: 1, verb: "ฟาดหาง", knockAway: true }, tidal: { bonus: 1, verb: "คลื่นยักษ์", push: true }, prison: { bonus: 1, verb: "คุกน้ำแข็ง", root: true }, // จอร์มุนกันด์
   slash: { bonus: 3, verb: "ฟันกว้าง" }, lunge: { bonus: 2, verb: "ฉก", slow: true, line: 6 }, tide: { bonus: 1, verb: "คลื่นน้ำแข็ง", slow: true },
   throw: { bonus: 2, verb: "โยนรถ F1 ใส่", wreck: true }, swing: { bonus: 1, verb: "ฟาดรถ F1", knock: true },
 };
@@ -262,6 +317,10 @@ function moveTiles(map, blocked, m, move, [dx, dy]) {
     }
   } else if (move === "swing") { // โค้ง 3 ช่องหน้าตัว (หน้า + ทแยงซ้าย/ขวา)
     for (const w of [-1, 0, 1]) { const x = m.pos.x + dx + (dy ? w : 0), y = m.pos.y + dy + (dx ? w : 0); if (free(x, y)) out.push({ x, y }); }
+  } else if (move === "sweep") { // วงรอบตัว 8 ช่อง
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) if ((ox || oy) && free(m.pos.x + ox, m.pos.y + oy)) out.push({ x: m.pos.x + ox, y: m.pos.y + oy });
+  } else if (move === "celebrate") { // วงโดนัท 1 + วงแชมเปญ 2
+    for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) if ((ox || oy) && Math.abs(ox) + Math.abs(oy) <= 2 || (Math.abs(ox) === 1 && Math.abs(oy) === 1)) { if (free(m.pos.x + ox, m.pos.y + oy)) out.push({ x: m.pos.x + ox, y: m.pos.y + oy }); }
   } else if (move === "tide") {
     for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) {
       const d = Math.abs(ox) + Math.abs(oy);
@@ -299,12 +358,121 @@ function expireWrecks() {
   return out;
 }
 function knock(t, [dx, dy]) { if (t.alive && t.pos && lazy.action().tileFree(t.pos.x + dx, t.pos.y + dy, t.id)) t.pos = { x: t.pos.x + dx, y: t.pos.y + dy }; }
-function bossFx(m, move, from, to, tiles) { H().fx("bossMove", { boss: m.summon.mobType, id: m.id, move, from: { ...from }, to: to ? { ...to } : null, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) }); }
+function bossFx(m, move, from, to, tiles, out = null) {
+  const e = { boss: m.summon.mobType, id: m.id, move, from: { ...from }, to: to ? { ...to } : null, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+  H().fx("bossMove", e);
+  if (out) seqPush(out, { k: "bossMove", ...e });
+}
+// ---------- ระยะของบอส + คลั่ง + ชุดท่าตามระยะ (ผู้ใช้ 2026-11-14) ----------
+//  ระยะ 1 (> 50%) → ระยะ 2 (≤ 50% · ปลดท่าใหม่ + เหตุการณ์ระยะ) → ระยะ 3 คลั่ง (≤ 20% · ATK +1 เดิน +1) — rt.combat.bossPhase
+//  แม็กซ์: พิทสต็อป (≤ 50% และ ≤ 20% ครั้งละหน: หลบทุกอย่าง 1 เทิร์น ฟื้น 25% รถใหม่ พุ่ง +1) · DRS (ตาหน้าเดิน ×2 พุ่งยาว +3)
+//   · ล็อกล้อ (พุ่ง 20% หมุนติ้วมึน 1 เทิร์น) · แชมป์โลก (ฆ่าผู้เล่น/เข้าระยะ 2 = โดนัท + แชมเปญ) · วิทยุทีม (fx radio)
+//  อัศวิน ระยะ 2: เงาอัศวิน 2 ตัว (ตัวล่อ อ่อน) + คลื่นดาบเงา/หนามเงา · จอร์มุนกันด์ ระยะ 2: ถนนเป็นน้ำแข็ง (ลื่น 3 เทิร์น) + คลื่นยักษ์/คุกน้ำแข็ง
+const RADIO = {
+  pitstop: ["บ๊อกซ์ บ๊อกซ์!", "Box, box!"], drs: ["DRS เปิด!", "DRS enabled!"], spinout: ["ยางหมดแล้ว!", "No grip, no grip!"],
+  kill: ["Simply lovely!", "แซงแล้ว!"], celebrate: ["ดู ดู ดู ดู~", "แชมป์โลก!"], phase2: ["Push now!", "ไปกันเต็มสูบ!"], enrage: ["Full push!", "ห้ามยกคันเร่ง!"],
+};
+function radio(m, key) { const list = RADIO[key]; if (list && m.summon.mobType === "devilTruck") H().fx("radio", { id: m.id, boss: "devilTruck", key, text: list[Math.floor(Math.random() * list.length)] }); }
+function movesFor(m) {
+  const sm = m.summon, ph = sm.phase || 1;
+  if (sm.mobType === "darkKnight") return ph >= 2 ? ["wave", "spikes", "slash", "charge"] : ["charge", "slash"];
+  if (sm.mobType === "jormungand") return ph >= 2 ? ["tidal", "prison", "lunge", "sweep", "tide"] : ["lunge", "sweep", "tide"];
+  return BOSS_MOVES[sm.mobType] || BOSS_MOVES.devilTruck;
+}
+const phaseByHp = (m) => { const f = m.hp / Math.max(1, m.summon.maxHp); return f <= 0.2 ? 3 : f <= 0.5 ? 2 : 1; };
+// ต้นตาของบอส: อัปเดตระยะ (+เหตุการณ์ระยะ) · พิทสต็อปของแม็กซ์ (กินทั้งตา) → true = จบตานี้
+function bossPre(rt, m, targets, out) {
+  const sm = m.summon, c = rt.combat, round = match.roundNumber + 1;
+  const ph = Math.max(sm.phase || 1, phaseByHp(m));
+  if (ph !== (sm.phase || 1)) {
+    const prev = sm.phase || 1;
+    sm.phase = ph;
+    c.bossPhase = ph;
+    H().fx("bossPhase", { id: m.id, boss: sm.mobType, phase: ph });
+    if (prev < 2 && ph >= 2) phase2(rt, m, targets, out);
+    if (ph >= 3 && !sm.enraged) { sm.enraged = true; sm.atk = (sm.atk | 0) + 1; sm.mov = (sm.mov | 0) + 1; H().fx("enrage", { id: m.id, boss: sm.mobType }); radio(m, "enrage"); match.lastLog.push(`🔥 ${m.name} คลั่ง!`); }
+  }
+  if (sm.mobType === "devilTruck") {
+    const f = m.hp / Math.max(1, sm.maxHp);
+    if ((f <= 0.5 && !sm.pit1) || (f <= 0.2 && !sm.pit2)) {
+      if (f <= 0.2) sm.pit2 = true; sm.pit1 = true;
+      c.warn = c.warn && c.warn.by === m.id ? null : c.warn; // เข้าพิท = ยกเลิกท่าที่เล็งไว้
+      const heal = Math.ceil(sm.maxHp * 0.25);
+      m.hp = Math.min(sm.maxHp, m.hp + heal);
+      sm.car = (sm.car | 0) + 1; // รถใหม่: พุ่งแรงขึ้น
+      lazy.combat().applyBuff(m, "evade", 100, 1); // หลบทุกอย่างตลอดเทิร์นนี้ (ทีมพิทบัง)
+      sm.drs = round + 1;
+      const crew = 4 + Math.floor(Math.random() * 3);
+      H().fx("pitstop", { id: m.id, x: m.pos.x, y: m.pos.y, crew, time: "1.8 วิ", heal });
+      seqPush(out, { k: "bossMove", boss: "devilTruck", id: m.id, move: "pitstop", from: { ...m.pos }, to: null, tiles: [] });
+      radio(m, "pitstop");
+      match.lastLog.push(`🔧 ${m.name} เข้าพิท ${"1.8 วิ"}! ฟื้น +${heal}`);
+      return true;
+    }
+    if (sm.drs === round) { H().fx("drs", { id: m.id }); radio(m, "drs"); }
+    else if (!sm.drs || sm.drs < round) { if ((sm.moveNo | 0) % 3 === 2) sm.drs = round + 1; }
+  }
+  return false;
+}
+function phase2(rt, m, targets, out) {
+  const sm = m.summon, action = lazy.action();
+  if (sm.mobType === "devilTruck") { sm.celebrate = true; radio(m, "phase2"); return; }
+  if (sm.mobType === "darkKnight") { // เงาอัศวิน 2 ตัว (ตัวล่อ)
+    const list = [];
+    for (let i = 0; i < 2; i++) {
+      const at = action.nearFreeTile(m.pos);
+      if (!at) break;
+      const d = spawn(rt, "darkKnight", at, { born: match.roundNumber + 1 });
+      if (!d) continue;
+      Object.assign(d.summon, { boss: false, decoy: true, atk: 1, gold: 0, role: "hunter", maxHp: 3, maxArmor: 0 });
+      d.hp = 3; d.armor = 0; d.name = "เงาอัศวิน";
+      list.push({ id: d.id, x: d.pos.x, y: d.pos.y });
+    }
+    H().fx("shadowClones", { id: m.id, list });
+    match.lastLog.push(`🌑 ${m.name} แยกเงา!`);
+    return;
+  }
+  if (sm.mobType === "jormungand") { // ถนนเป็นน้ำแข็ง (ลื่น) รอบผู้เล่น
+    const Ice = require("../ice"), map = action.boardMap(), tiles = [];
+    for (const t of targets) for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+      const x = t.pos.x + ox, y = t.pos.y + oy;
+      if (tiles.length >= 12 || !Board.inBounds(map, x, y) || Board.specialAt(map, x, y)) continue; // ไม่แช่ช่องพิเศษ (ในรถตู้)
+      if (Ice.layIce(x, y, null, { turns: 3 })) tiles.push({ x, y });
+    }
+    H().fx("freezeRoad", { id: m.id, tiles });
+    match.lastLog.push(`❄️ ${m.name} แช่แข็งถนน!`);
+  }
+}
+// แผนท่าพิเศษที่เล็งตามตำแหน่งผู้เล่น (ไม่ใช่ทิศ)
+function specialPlan(map, blocked, m, move, targets) {
+  const free = (x, y) => Board.inBounds(map, x, y) && !Board.isObstacle(map, x, y, blocked);
+  if (move === "spikes") { // หนามผุดใต้ผู้เล่นในระยะ 6 (สูงสุด 3 คน)
+    const tiles = targets.filter((t) => t.pos && man(t.pos, m.pos) <= 6).slice(0, 3).map((t) => ({ x: t.pos.x, y: t.pos.y }));
+    return tiles.length ? { move, dir: null, tiles, n: tiles.length } : null;
+  }
+  if (move === "prison") { // คุกน้ำแข็ง: คนที่ใกล้สุดในระยะ 6
+    const t = targets.filter((u) => u.pos && man(u.pos, m.pos) <= 6).sort((a, b) => man(a.pos, m.pos) - man(b.pos, m.pos))[0];
+    return t ? { move, dir: null, tiles: [{ x: t.pos.x, y: t.pos.y }], n: 1 } : null;
+  }
+  if (move === "tidal") { // คลื่นยักษ์ 2 แถวเต็มความกว้าง — ดันออกห่างบอส 1 ช่อง
+    let best = null;
+    for (let y = 0; y < map.rows - 1; y++) {
+      const tiles = [];
+      for (const yy of [y, y + 1]) for (let x = 0; x < map.cols; x++) if (free(x, yy)) tiles.push({ x, y: yy });
+      const n = targets.filter((t) => t.pos && (t.pos.y === y || t.pos.y === y + 1)).length;
+      if (n > 0 && (!best || n > best.n)) best = { move, dir: [0, y + 0.5 >= m.pos.y ? 1 : -1], tiles, n };
+    }
+    return best;
+  }
+  if (move === "celebrate") { const tiles = moveTiles(map, blocked, m, "celebrate", [1, 0]); return { move, dir: null, tiles, n: Math.max(1, targets.filter((t) => t.pos && tiles.some((tt) => tt.x === t.pos.x && tt.y === t.pos.y)).length) }; }
+  return undefined; // ไม่ใช่ท่าพิเศษ
+}
 function bossAct(rt, m, targets, out) {
   const c = rt.combat, sm = m.summon;
   const action = lazy.action(), map = action.boardMap();
   const blocked = action.boardBlocked(m.id);
   const onTiles = (tiles) => targets.filter((t) => t.pos && tiles.some((tt) => Board.covers({ ...t.pos, size: action.sizeOf(t) }, tt.x, tt.y)));
+  if (bossPre(rt, m, targets, out)) return;
   if (c.warn && c.warn.by === m.id) {
     const w = c.warn; c.warn = null;
     const spec = MOVE[w.move] || MOVE.charge;
@@ -314,19 +482,38 @@ function bossAct(rt, m, targets, out) {
     else tiles = w.tiles.filter((tt) => !Board.isObstacle(map, tt.x, tt.y, blocked));
     const from = { ...m.pos };
     const victims = onTiles(tiles);
+    const carBonus = w.move === "ram" ? (sm.car | 0) : 0;
     for (const v of victims) {
-      const dealt = hit(rt, m, v, (sm.atk | 0) + spec.bonus, out, spec.verb);
+      if (spec.celebrate) { // โดนัท (ติดตัว 8 ช่อง) = ตี + กระเด็น · แชมเปญ (วงนอก) = เชื่องช้าถ้าไม่หลบ
+        const near = Math.max(Math.abs(v.pos.x - m.pos.x), Math.abs(v.pos.y - m.pos.y)) <= 1;
+        if (near) { const dealt = hit(rt, m, v, Math.max(1, sm.atk | 0), out, "โดนัทฉลองแชมป์"); if (dealt > 0) knock(v, [Math.sign(v.pos.x - m.pos.x), Math.sign(v.pos.y - m.pos.y)]); }
+        else if (!lazy.attack().skillDodge(m, v, "พ่นแชมเปญ")) lazy.combat().applyDebuff(v, "slow", 1, 1);
+        continue;
+      }
+      const dealt = hit(rt, m, v, (sm.atk | 0) + spec.bonus + carBonus, out, spec.verb);
       if (spec.slow && dealt > 0 && v.alive) lazy.combat().applyDebuff(v, "slow", 1, 1);
+      if (spec.root && dealt > 0 && v.alive) lazy.combat().applyDebuff(v, "rooted", 1, 1);
+      if (spec.knockAway && dealt > 0 && v.alive && v.pos) knock(v, [Math.sign(v.pos.x - m.pos.x), Math.sign(v.pos.y - m.pos.y)]);
+      if (spec.push && dealt > 0 && v.alive && w.dir) knock(v, w.dir);
       if (spec.aside && dealt > 0 && v.alive && w.dir) { const [dx] = w.dir; const side = Math.random() < 0.5 ? 1 : -1; knock(v, dx ? [0, side] : [side, 0]); } // กระเด็นออกข้างแนว
     }
     let to = w.at || null;
     if (spec.move) { // ปลายแนว: ช่องว่างสุดท้าย
       const end = [...tiles].reverse().find((tt) => action.tileFree(tt.x, tt.y, m.id));
-      if (end) { out.moves.push({ id: m.id, type: sm.mobType, from: { ...m.pos }, to: { ...end }, path: [{ ...m.pos }, { ...end }], dash: true }); m.pos = { ...end }; to = end; }
+      if (end) { moveMob(out, m, [{ ...m.pos }, ...tiles.slice(0, tiles.indexOf(end) + 1)], { dash: true }); to = end; }
     }
     if (spec.wreck && w.at) { const wr = dropWreck(rt, m, w.at, tiles); if (wr) out.wrecks = [...(out.wrecks || []), { id: wr.id, x: wr.pos.x, y: wr.pos.y }]; }
+    if (spec.celebrate) { sm.celebrate = false; H().fx("donut", { id: m.id, x: m.pos.x, y: m.pos.y }); H().fx("champagne", { id: m.id, tiles }); radio(m, "celebrate"); }
+    if (w.move === "ram" && Math.random() < 0.2) { // ล็อกล้อ: หมุนติ้วมึน 1 เทิร์น
+      m.statuses.stun = Math.max(m.statuses.stun || 0, 2); // tickControl ลดหลังตานี้ 1 → ข้ามตาหน้าจริง 1 ครั้ง
+      H().fx("spinout", { id: m.id, x: m.pos.x, y: m.pos.y }); radio(m, "spinout");
+      match.lastLog.push(`🌀 ${m.name} ล็อกล้อหมุนติ้ว!`);
+    }
     out.charges.push({ id: m.id, move: w.move, type: sm.mobType, tiles, hit: victims.map((v) => v.id) });
-    if (sm.mobType === "devilTruck") bossFx(m, w.move, from, to, tiles);
+    bossFx(m, w.move, from, to, tiles, out);
+    // ท่าใหญ่ลงแล้วยังมีคนติดตัว = ตีต่อ (ไม่ปล่อยให้ยืนเฉย)
+    const adj2 = adjTarget(m.pos.x, m.pos.y, prey(m));
+    if (adj2 && sm.mobType !== "devilTruck") hit(rt, m, adj2, sm.atk | 0, out, "โจมตี");
     return;
   }
   // ตาปกติ: แม็กซ์ฟาดรถ F1 (โค้งหน้าตัว) · บอสอื่นตีคนที่ติดตัว
@@ -335,36 +522,62 @@ function bossAct(rt, m, targets, out) {
     for (const dir of Board.DIRS) { const tiles = moveTiles(map, blocked, m, "swing", dir); const vs = onTiles(tiles); if (vs.length && (!sw || vs.length > sw.vs.length)) sw = { dir, tiles, vs }; }
     if (sw) {
       for (const v of sw.vs) { const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, sw.dir); }
-      bossFx(m, "swing", m.pos, { x: m.pos.x + sw.dir[0], y: m.pos.y + sw.dir[1] }, sw.tiles);
+      bossFx(m, "swing", m.pos, { x: m.pos.x + sw.dir[0], y: m.pos.y + sw.dir[1] }, sw.tiles, out);
     }
   } else {
     const adj = adjTarget(m.pos.x, m.pos.y, targets);
     if (adj) hit(rt, m, adj, sm.atk | 0, out, "โจมตี");
   }
-  // ท่าใหญ่ถัดไปตามลำดับของบอสตัวนี้ → เลือกทิศ/จุดที่โดนคนมากสุด
-  const seq = BOSS_MOVES[sm.mobType] || BOSS_MOVES.devilTruck;
-  const move = seq[(sm.moveNo | 0) % seq.length];
-  let best = null;
-  if (move === "throw") { const tp = throwPlan(map, blocked, m, targets); if (tp && tp.n > 0) best = { dir: null, tiles: tp.tiles, n: tp.n, at: tp.at }; else sm.moveNo = (sm.moveNo | 0) + 1; } // ไม่มีใครในระยะโยน = ตาหน้าใช้ท่าถัดไป
-  else for (const dir of move === "tide" ? [[1, 0]] : Board.DIRS) {
-    const tiles = moveTiles(map, blocked, m, move, dir);
-    const n = onTiles(tiles).length;
-    if (n > 0 && (!best || n > best.n)) best = { dir, tiles, n };
-  }
-  if (!best && targets.length) { // ไม่มีใครในระยะท่า = ขยับเข้าหาแล้วเล็งใหม่ตาหน้า
-    const stops = reach(rt, m, Math.max(1, action.movOf(m) | 0));
-    let pick = null, bd = Infinity;
-    for (const n of stops.values()) {
-      const d = Math.min(...targets.filter((t) => t.pos).map((t) => Math.min(Math.abs(t.pos.x - n.x), Math.abs(t.pos.y - n.y)) + (move === "tide" || move === "slash" ? Math.abs(t.pos.x - n.x) + Math.abs(t.pos.y - n.y) : 0)));
-      if (d < bd) { bd = d; pick = n; }
+  // ท่าใหญ่: เลือกท่าที่โดนผู้เล่นมากสุดจากชุดท่าของบอสตัวนี้ (เท่ากัน = ตามลำดับหมุนเวียน) · ทิศ/จุดที่โดนมากสุด
+  const seq = sm.celebrate ? ["celebrate"] : movesFor(m); // แชมป์โลกค้างอยู่ = ฉลองก่อน
+  const drsNow = sm.drs === match.roundNumber + 1;
+  const planOf = (move) => {
+    if (move === "throw") { const tp = throwPlan(map, blocked, m, targets); return tp && tp.n > 0 ? { move, dir: null, tiles: tp.tiles, n: tp.n, at: tp.at } : null; }
+    const sp = specialPlan(map, blocked, m, move, targets);
+    if (sp !== undefined) return sp;
+    if (move === "ram" && drsNow) { // DRS: พุ่งยาว +3
+      let b = null;
+      for (const dir of Board.DIRS) {
+        const tiles = [];
+        for (let i = 1, x = m.pos.x + dir[0], y = m.pos.y + dir[1]; i <= MOVE.ram.line + 3 && Board.inBounds(map, x, y) && !Board.isObstacle(map, x, y, blocked); i++, x += dir[0], y += dir[1]) tiles.push({ x, y });
+        const n = onTiles(tiles).length;
+        if (n > 0 && (!b || n > b.n)) b = { move, dir, tiles, n };
+      }
+      return b;
     }
-    if (pick && (pick.x !== m.pos.x || pick.y !== m.pos.y)) { out.moves.push({ id: m.id, type: sm.mobType, from: { ...m.pos }, to: { x: pick.x, y: pick.y }, path: pathFrom(stops, pick.x, pick.y) }); m.pos = { x: pick.x, y: pick.y }; }
+    let b = null;
+    for (const dir of move === "tide" ? [[1, 0]] : Board.DIRS) {
+      const tiles = moveTiles(map, blocked, m, move, dir);
+      const n = onTiles(tiles).length;
+      if (n > 0 && (!b || n > b.n)) b = { move, dir, tiles, n };
+    }
+    return b;
+  };
+  const start = (sm.moveNo | 0) % seq.length;
+  let best = null;
+  for (let i = 0; i < seq.length; i++) { const pl = planOf(seq[(start + i) % seq.length]); if (pl && (!best || pl.n > best.n)) best = pl; }
+  if (!best && targets.length) {
+    // ไม่มีใครในระยะท่าไหนเลย = เดินเข้าหาผู้เล่นใกล้สุด (ทางจริง · ไม่ถอยหนี) — มีคนติดตัวอยู่แล้ว = ยืนสู้
+    if (!adjTarget(m.pos.x, m.pos.y, targets)) {
+      approach(rt, m, Math.max(1, action.movOf(m) | 0) * (drsNow ? 2 : 1), adjAny(targets), (n) => Math.min(...targets.filter((t) => adjTo(t)(n)).map(weakness)), out);
+      const adj3 = adjTarget(m.pos.x, m.pos.y, targets);
+      if (adj3) { // ถึงตัวแล้ว = ตีในตาเดียวกัน
+        if (sm.mobType === "devilTruck") {
+          const dir = [Math.sign(adj3.pos.x - m.pos.x), Math.sign(adj3.pos.y - m.pos.y)];
+          const d2 = dir[0] && dir[1] ? [dir[0], 0] : dir;
+          const tiles = moveTiles(map, action.boardBlocked(m.id), m, "swing", d2);
+          for (const v of onTiles(tiles)) { const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, d2); }
+          bossFx(m, "swing", m.pos, { x: m.pos.x + d2[0], y: m.pos.y + d2[1] }, tiles, out);
+        } else hit(rt, m, adj3, sm.atk | 0, out, "โจมตี");
+      }
+    }
     return;
   }
   if (best) {
-    sm.moveNo = (sm.moveNo | 0) + 1;
-    c.warn = { by: m.id, move, axis: best.dir ? (best.dir[0] ? "row" : "col") : null, dir: best.dir, tiles: best.tiles, ...(best.at ? { at: best.at } : {}) };
-    out.warns.push({ id: m.id, move, type: sm.mobType, tiles: best.tiles, ...(best.at ? { at: best.at } : {}) });
+    sm.moveNo = sm.celebrate ? (sm.moveNo | 0) : seq.indexOf(best.move) + 1;
+    c.warn = { by: m.id, move: best.move, axis: best.dir ? (best.dir[0] ? "row" : "col") : null, dir: best.dir, tiles: best.tiles, ...(best.at ? { at: best.at } : {}) };
+    out.warns.push({ id: m.id, move: best.move, type: sm.mobType, tiles: best.tiles, ...(best.at ? { at: best.at } : {}) });
+    seqPush(out, { k: "bossWarn", id: m.id, boss: sm.mobType, move: best.move, tiles: best.tiles.map((t) => ({ x: t.x, y: t.y })), ...(best.at ? { at: best.at } : {}) });
   }
 }
 // บอสของหลักนี้ (นับครั้งที่เจอบอส 0, 1, 2 … วนทุก 3)
@@ -373,4 +586,4 @@ function bossOf(n) { return BOSSES[((n | 0) % BOSSES.length + BOSSES.length) % B
 // สู้บนรถตู้ (รถกำลังวิ่ง — กฎผู้ใช้ 2026-11-14): เฉพาะมอนที่วิ่งไล่รถได้
 const CHASERS = ["biker", "crow", "stray", "trucker", "boar", "saberclaw", "ghost"];
 
-module.exports = { SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };
+module.exports = { SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, movesFor, bossPre, phaseByHp, RADIO, assignRoles, approach, SABOTEUR_SHARE, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };

@@ -134,6 +134,7 @@ import { P as projectZ, PITCH_BIRD, PITCH_LOW, PITCH_NORMAL, PV, setPitch, setCu
 import { createColonyView } from "./colony3d";
 import { createRoadUnderlay } from "../roadtrip/road3d";
 import { setRtMobRun } from "./roadtrip/mobArt";
+import { rtBusy } from "./roadtrip/rtTimeline";
 import { setEosFast } from "./fodlan/stage6";
 import { groundGLReady } from "./groundGL";
 
@@ -356,6 +357,7 @@ export default function BoardCanvas(props) {
       const hovKey = st.hover ? `${st.hover.x},${st.hover.y}` : "";
       const busyNow = p !== st.busyProps || hovKey !== st.busyHov || !!st.camAnim || !!st.drag || st.keys.size > 0
         || st.fxActive.length > 0 || (st.anim && !st.anim.done) || st.turnFrom !== st.turnTo || !!p.cinema || !!(p.glides && Object.keys(p.glides).length)
+        || rtBusy(now) // Road Trip: ฉากมอน/ท่าบอสกำลังเล่น (rtTimeline)
         || !!(st.cv3 && st.cv3.busy && st.cv3.busy()); // Road Trip 3D: ถนนกำลังเลื่อน/กล้องหมุน/ซูม = วาดเต็ม 60
       st.busyProps = p; st.busyHov = hovKey;
       if (busyNow) st.busyUntil = now + BUSY_HOLD;
@@ -843,8 +845,8 @@ export default function BoardCanvas(props) {
         const gl = p.glides && p.glides[u.id];
         if (gl && Array.isArray(gl.path) && gl.path.length > 1 && !(an && !an.done && an.obj.id === u.id)) {
           let rec = st.glides.get(u.id);
-          if (!rec || rec.key !== gl.key) { rec = { key: gl.key, t0: now }; st.glides.set(u.id, rec); }
-          const gp = animPose({ kind: "move", path: gl.path, stepMs: gl.stepMs }, now - rec.t0);
+          if (!rec || rec.key !== gl.key) { rec = { key: gl.key, t0: now + (gl.delay > 0 ? gl.delay : 0) }; st.glides.set(u.id, rec); } // delay = รอคิว (ลำดับฉากมอน Road Trip — ค้างที่ช่องแรกจนถึงตา)
+          const gp = animPose({ kind: "move", path: gl.path, stepMs: gl.stepMs }, Math.max(0, now - rec.t0));
           if (!gp.done) { rx = gp.x; ry = gp.y; ox = 0; oy = 0; }
         }
         // ฉากของเคท & เอมิลิโกะ (บิน/ถูกดึง/พุ่ง/ฟื้น) ย้ายหมากเอง — ทับแอนิเมชันอื่น
@@ -888,6 +890,8 @@ export default function BoardCanvas(props) {
           const cpo2 = st.cv3.pose(u.id, now);
           if (cpo2) { rx = cpo2.x; ry = cpo2.y; ox = 0; oy = 0; }
         }
+        // Road Trip 3D: ความสูงของหมาก — ช่องรถตู้ = พื้นรถ · คนบนหลังคา = หลังคา · ข้ามระดับ (กระโดดขึ้น/ลงรถ) = โค้งกระโดด
+        if (st.cv3 && st.cv3.isRoad && st.cv3.unitLift) { const hs = Math.max(1, u.size | 0) / 2; hz += st.cv3.unitLift(u.id, rx + hs, ry + hs); }
         const vmod = u.corpse ? null : valentineMod(st.fxActive, u, now);
         const k = key(u.x, u.y), us = Math.max(1, u.size | 0);
         // ตัวใหญ่: ช่องไหนของตัวอยู่ในไฮไลต์ก็นับ

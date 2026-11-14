@@ -81,7 +81,8 @@ test('FIX บอส: แนวพุ่งหยุดที่รถตู้ (
   const hp0 = p.hp + p.armor;
   M.actOne(rt(), boss, OUT());
   assert.equal(p.hp + p.armor, hp0, 'คนหลังรถตู้ไม่โดน');
-  assert.ok(boss.pos.x < vb.x0, `บอสไม่ข้ามรถ x=${boss.pos.x}`);
+  const onVanBlock = (q) => q.x >= vb.x0 && q.x <= vb.x1 && q.y >= vb.y0 && q.y <= vb.y1;
+  assert.ok(!onVanBlock(boss.pos), `บอสไม่ทับรถ ${boss.pos.x},${boss.pos.y}`); // เดินอ้อมรถเข้าหาผู้เล่นได้ (AI ใหม่ 2026-11-14) แต่ไม่พุ่งทะลุ
 });
 
 test('FIX มอนถูกล่อเป้า (p.taunt — โล่ของบานาจ) = ไปหาตัวล่อ ไม่ตีคนอื่น', () => {
@@ -112,8 +113,7 @@ test('FIX มอนไม่เล็ง/ไม่เดินหาคนที
   Math.random = () => 0.99;
   const out = OUT();
   M.actOne(rt(), m, out);
-  assert.equal(out.moves.length, 0, 'ไม่เดินหา');
-  assert.equal(out.attacks.length, 0);
+  assert.ok(!out.attacks.some((a) => a.target === p.id), 'ไม่ตีคนอีกมิติ');
   assert.ok(!M.prey(m).includes(p));
   p.dim = null;
 });

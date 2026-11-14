@@ -36,9 +36,15 @@ function speedOf(rt) {
   if (rt.van.fuel <= 0) return EMPTY_KMH;
   return Math.round(rt.van.kmh * (rt.nitroUntil > Date.now() ? NITRO_MUL : 1));
 }
-function driverOk(rt) {
+const DRIVER_IDLE_MS = 20000; // คนขับไม่บังคับรถ (เลี้ยว/ไนตรัส/แตร) เกิน 20 วิ = ที่นั่งว่าง (ผู้ใช้สั่ง 2026-11-14)
+function driverOk(rt, now = Date.now()) {
   const d = rt.van.driverId && match.players[rt.van.driverId];
-  if (rt.van.driverId && (!d || !d.alive || d.connected === false)) { rt.van.driverId = null; urgent = true; }
+  if (rt.van.driverId && (!d || !d.alive || d.connected === false)) { rt.van.driverId = null; rt.van.seatReq = null; urgent = true; return; }
+  if (rt.van.driverId && rt.phase === "drive" && now - (rt.driverActAt || now) > DRIVER_IDLE_MS) {
+    rt.van.driverId = null; rt.van.seatReq = null; urgent = true;
+    H().fx("seat", { id: null, idle: true });
+  }
+  if (rt.van.seatReq && (!match.players[rt.van.seatReq] || !rt.van.driverId)) rt.van.seatReq = null;
 }
 
 // หนึ่งจังหวะ (dt = มิลลิวินาที) — เทสต์เรียกตรงได้
@@ -50,7 +56,7 @@ function step(dt = null, now = Date.now()) {
   if (!RT.awake().length) { rt.hzNextAt = Math.max(rt.hzNextAt, now + 2500); return; } // ไม่มีใครต่ออยู่ = รถจอดรอ (ไม่วิ่ง/ไม่ชนเองจนจบเกม)
   // บอสบังคับทุก 50 กม. (เช็คทุกจังหวะ — ข้ามหลักระหว่างทางแยก/จุดพักก็ขึ้นทันทีที่กลับมาขับ)
   if (rt.km >= rt.nextBossKm) { bossNow(rt); return; }
-  driverOk(rt);
+  driverOk(rt, now);
   // ระยะ + น้ำมัน
   const kmh = speedOf(rt);
   const dist = kmh * Route.KM_PER_SEC * dt / 1000;
@@ -119,12 +125,27 @@ function command(p, name, o) {
       if (van.driverId === p.id) return false;
       const cur = van.driverId && match.players[van.driverId];
       if (cur && cur.alive && cur.connected !== false) return false; // ใครนั่งก่อนได้ก่อน
-      van.driverId = p.id;
+      van.driverId = p.id; van.seatReq = null; rt.driverActAt = Date.now();
       RT.fx("seat", { id: p.id });
       return true;
     }
+    // ขอขับ: คนอื่นกดขอ → คนขับกด "ยกให้" (seat: "give") · กดขอซ้ำ = ยกเลิก
+    if (o.seat === "request") {
+      if (!van.driverId || van.driverId === p.id) return false;
+      van.seatReq = van.seatReq === p.id ? null : p.id;
+      if (van.seatReq) RT.fx("seatReq", { id: p.id, driver: van.driverId });
+      return true;
+    }
+    if (o.seat === "give") {
+      if (van.driverId !== p.id || !van.seatReq) return false;
+      const to = match.players[van.seatReq];
+      if (!to || !to.alive || to.connected === false) { van.seatReq = null; return true; }
+      van.driverId = to.id; van.seatReq = null; rt.driverActAt = Date.now();
+      RT.fx("seat", { id: to.id, from: p.id });
+      return true;
+    }
     if (van.driverId !== p.id) return false;
-    van.driverId = null;
+    van.driverId = null; van.seatReq = null;
     RT.fx("seat", { id: null });
     return true;
   }
@@ -132,6 +153,7 @@ function command(p, name, o) {
     const now = Date.now();
     if (rt.hornAt && now - rt.hornAt < 600) return false;
     rt.hornAt = now;
+    if (van.driverId === p.id) rt.driverActAt = now;
     RT.fx("horn", { id: p.id, style: van.style });
     return true;
   }
@@ -141,14 +163,14 @@ function command(p, name, o) {
     if (![-1, 0, 1].includes(lane) || lane === van.lane) return false;
     const now = Date.now(), cd = STEER_MS / Van.statOf(van, "susp");
     if (now - rt.steerAt < cd || Math.abs(lane - van.lane) > 1) return false; // ทีละเลน
-    rt.steerAt = now;
+    rt.steerAt = now; rt.driverActAt = now;
     van.lane = lane;
     return true;
   }
   if (name === "nitro") {
     const now = Date.now();
     if (rt.phase !== "drive" || van.nitro <= 0 || rt.nitroUntil > now || van.fuel <= 0) return false;
-    van.nitro--;
+    van.nitro--; rt.driverActAt = now;
     rt.nitroUntil = now + NITRO_MS;
     RT.fx("nitro", { until: rt.nitroUntil });
     return true;

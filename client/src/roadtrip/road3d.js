@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createVan, canvasTex, mergeStatic } from "./van3d";
+import { takeRtShake } from "../board/roadtrip/rtTimeline";
 import { RT_DEFS } from "../board/roadtrip/maps.gen";
 
 export const LANE = 3.3, ROAD_W = 10.8;
@@ -982,6 +983,64 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
     C.shadowFrames = 0; // อบเงาใหม่ (มีสิ่งกีดขวางเพิ่ม/หาย)
   }
 
+  // ---------------------------------------------------------------- เอฟเฟกต์ชั่วคราว: กระสุนส่องวิถี · ควันยาง (พูลคงที่ ไม่สร้างใหม่)
+  const _b = new THREE.Vector3();
+  const tracerGeo = new THREE.BoxGeometry(1, 0.05, 0.05); tracerGeo.translate(0.5, 0, 0);
+  const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const smokeTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, "rgba(235,235,235,.9)"); gr.addColorStop(1, "rgba(235,235,235,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  const FXP = [];
+  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(tracerGeo, tracerMat.clone()); m.visible = false; m.renderOrder = 5; scene.add(m); FXP.push({ kind: "tracer", o: m, t: 0, life: 0 }); }
+  for (let i = 0; i < 16; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 })); sp.visible = false; scene.add(sp); FXP.push({ kind: "smoke", o: sp, t: 0, life: 0 }); }
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0xffc060, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false }));
+  flash.visible = false; scene.add(flash);
+  function fxSpawn(kind, a, b, delay = 0) {
+    const e = FXP.find((q) => q.kind === kind && q.life <= 0) || FXP.find((q) => q.kind === kind);
+    if (!e) return;
+    e.t = -delay; e.life = kind === "tracer" ? 0.16 : 0.9;
+    if (kind === "tracer") {
+      e.o.position.copy(a); const d = _b2.copy(b).sub(a), len = d.length();
+      e.o.scale.set(len, 1, 1); e.o.rotation.set(0, Math.atan2(-d.z, d.x), Math.atan2(d.y, Math.hypot(d.x, d.z)), "YZX");
+      flash.position.copy(b); flash.userData.t = 0.25 + delay;
+    } else { e.o.position.copy(a); e.o.scale.setScalar(0.4); }
+  }
+  const _b2 = new THREE.Vector3();
+  function fxTick(dt) {
+    let live = false;
+    for (const e of FXP) {
+      if (e.life <= 0) { if (e.o.visible) e.o.visible = false; continue; }
+      e.t += dt; live = true;
+      if (e.t < 0) { e.o.visible = false; continue; }
+      const k = e.t / e.life;
+      if (k >= 1) { e.life = 0; e.o.visible = false; continue; }
+      e.o.visible = true;
+      if (e.kind === "tracer") e.o.material.opacity = 1 - k;
+      else { e.o.material.opacity = 0.55 * (1 - k); e.o.scale.setScalar(0.4 + k * 1.6); e.o.position.y += dt * 0.6; e.o.position.x -= dt * 3; }
+    }
+    if (flash.userData.t > 0) { flash.userData.t -= dt; flash.visible = true; flash.material.opacity = Math.min(1, flash.userData.t * 4); flash.scale.setScalar(1.2 + Math.random() * 0.4); live = true; } else flash.visible = false;
+    C.fxLive = live;
+  }
+  function disposeFx() { tracerGeo.dispose(); tracerMat.dispose(); smokeTex.dispose(); FXP.forEach((e) => e.o.material.dispose()); flash.material.dispose(); }
+
+  // ---------------------------------------------------------------- ความสูงของหมาก (ชั้น 2D): พื้นถนน 0 · ช่องรถตู้ = พื้นรถ · คนบนหลังคา = หลังคา
+  //  project() ยกช่องรถตู้ให้อยู่แล้ว (ไฮไลต์/หมากยืนนิ่ง) → unitLift คืนส่วนต่างเป็น hz (หน่วยช่อง) ให้ BoardCanvas บวกเข้าหมาก:
+  //  เปลี่ยนระดับ (กระโดดขึ้น/ลงรถ · ปีนหลังคา) = โค้งกระโดดนุ่ม 0.4 วิ แทนการกระตุกขึ้นทันที
+  const LIFT = new Map(); // id → { cur, from, to, t0 }
+  function unitLift(id, cx, cy, nowS) {
+    const tileL = inVan(cx, cy) ? L.floor : 0;
+    const roofExtra = id != null && id === C.roofId ? Math.max(0, van.roofY() - L.floor) : 0;
+    const want = tileL + roofExtra;
+    let e = LIFT.get(id);
+    if (!e) { e = { cur: want, from: want, to: want, t0: -9 }; LIFT.set(id, e); }
+    if (Math.abs(want - e.to) > 1e-3) { e.from = e.cur; e.to = want; e.t0 = nowS; }
+    const k = Math.min(1, (nowS - e.t0) / (roofExtra || e.from > e.to + 1 ? 0.55 : 0.4));
+    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    e.cur = e.from + (e.to - e.from) * ease + Math.sin(Math.PI * k) * (0.35 + Math.abs(e.to - e.from) * 0.25) * (k < 1 ? 1 : 0);
+    if (k >= 1) e.cur = e.to;
+    if (LIFT.size > 80) LIFT.delete(LIFT.keys().next().value);
+    C.liftAnim = C.liftAnim || k < 1;
+    return e.cur - tileL;
+  }
+
   function inVan(bx, by) { const l = L.lay; return l.has && l.walk && bx >= l.x0 - 1e-6 && bx <= l.x1 + 1 + 1e-6 && by >= l.y0 - 1e-6 && by <= l.y1 + 1 + 1e-6; }
   function toWorld(bx, by, z, out, flat = false) {
     const l = L.lay, dx = bx - l.cx, dy = by - l.cy;
@@ -1064,10 +1123,15 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
         if (!f || C.fx.has(k)) continue;
         C.fx.add(k);
         if (f.k === "turret") {
-          if (Number.isFinite(f.x) && Number.isFinite(f.y)) { toWorld(f.x + 0.5, f.y + 0.5, 0, _a, true); const yaw = Math.atan2(-_a.z, _a.x + 2); van.fireTurret(L.lay.mirror ? -yaw : yaw, false); }
-          else van.fireTurret(undefined, false);
+          // เป้า: x,y หรือ to {x,y} หรือ target {x,y} — หันป้อม · แสงปากกระบอก · กระสุนส่องวิถี 3 นัด
+          const tg = Number.isFinite(f.x) ? f : f.to || f.target || f.at || null;
+          if (tg && Number.isFinite(tg.x) && Number.isFinite(tg.y)) {
+            toWorld(tg.x + 0.5, tg.y + 0.5, 0.5, _a);
+            if (van.aimFire(_a, _b)) for (let k = 0; k < 3; k++) fxSpawn("tracer", _b, _a, k * 0.11);
+          } else van.fireTurret(undefined, false);
         }
-        if (f.k === "crash" || f.k === "hit" || f.k === "swerve") C.shake = Math.max(C.shake, 0.35);
+        if (f.k === "swerve") { C.sw = { t0: t, side: f.side === "left" || f.side < 0 ? -1 : 1 }; C.shake = Math.max(C.shake, 0.5); }
+        if (f.k === "crash" || f.k === "hit") C.shake = Math.max(C.shake, 0.35);
       }
       if (C.fx.size > 300) C.fx = new Set([...C.fx].slice(-120));
     }
@@ -1096,10 +1160,26 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
     // โยกเบาๆ (เล็กพอที่หมากบนพื้นรถไม่ดูลอย) — กระชากตอนเปลี่ยนรอบ = เงยหน้านิดหนึ่ง
     const lurch = onvan && C.scroll.k < 1 ? Math.sin(C.scroll.k * Math.PI) : 0;
     C.runSpeed = onvan ? speed : 0;
-    const roll = onvan ? Math.sin(t * 1.7) * 0.004 + Math.sin(t * 4.3) * 0.002 : 0, pitchV = onvan ? Math.sin(t * 2.3) * 0.002 - lurch * 0.012 : 0;
+    let roll = onvan ? Math.sin(t * 1.7) * 0.004 + Math.sin(t * 4.3) * 0.002 : 0;
+    const pitchV = onvan ? Math.sin(t * 2.3) * 0.002 - lurch * 0.012 : 0;
+    // หักหลบ/พุ่งชน (fx swerve): รถเอียง + ไถลไปข้างแล้วกลับ + ควันยาง
+    let slide = 0;
+    if (C.sw) {
+      const k = (t - C.sw.t0) / 1.1;
+      if (k >= 1) C.sw = null;
+      else {
+        const env = Math.sin(Math.PI * Math.min(1, k * 1.2)) * (1 - k * 0.3);
+        roll += -C.sw.side * 0.07 * env; slide = C.sw.side * 0.18 * env;
+        if (Math.random() < dt * 30) { van.group.updateMatrixWorld(); for (const wx of [-2.6, 2.6]) { _b.set(wx, 0.3, -C.sw.side * 1.5).applyMatrix4(van.group.matrixWorld); fxSpawn("smoke", _b); } }
+      }
+    }
+    van.group.position.z = slide; // เลื่อนข้างในโลก (แกนข้างของรถ = Z)
     van.tick(dt, t, { speed: onvan ? Math.max(speed, 0) : 0, roll, pitch: pitchV, steer: 0, beat: 0 });
     world.update(dt, t, dx, 0, 0);
     // เงาอบใหม่เฉพาะตอนรถเปลี่ยน
+    fxTick(dt);
+    if (rt && rt.combat) van.setRoofStand(rt.combat.roofId != null);
+    C.roofId = rt && rt.combat ? rt.combat.roofId : null;
     const vSig = rt && rt.van;
     if (vSig !== C.vanRef || van.busy() || C.shadowFrames < 3 || world.W.regionTo != null || (world.W.nightK > 0 && world.W.nightK < 1) || lurch > 0) { C.vanRef = vSig; renderer.shadowMap.needsUpdate = true; }
     C.shadowFrames = (C.shadowFrames || 0) + 1;
@@ -1126,6 +1206,7 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
     C.zd = C.zd == null ? ZOOM_K[zl] : lerp(C.zd, ZOOM_K[zl], Math.min(1, dt * 5));
     C.tx = C.camTx; C.tz = C.camTz;
     C.anim = Math.abs(C.camTx - gx) + Math.abs(C.camTz - gz) > 0.01 || Math.abs(C.zd - ZOOM_K[zl]) > 0.002 || C.pitch !== pitchT;
+    C.shake = Math.max(C.shake, takeRtShake()); // ปะทะหนักบนกระดาน 2D (ท่าบอส — board/roadtrip/rtTimeline.rtShake)
     C.shake = Math.max(0, C.shake - dt * 1.4);
     placeCamera(f.dist * C.zd, f.off);
     if (C.shake > 0) { camera.position.x += (Math.random() - 0.5) * C.shake; camera.position.y += (Math.random() - 0.5) * C.shake; camera.updateMatrixWorld(); }
@@ -1167,9 +1248,11 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
   // API เดียวกับ colony3d (BoardCanvas ใช้ช่องเดียวกัน st.cv3) — ส่วนที่เป็นของ Colony = ว่าง
   return {
     isRoad: true,
+    // ความสูงเพิ่มของหมาก id ที่จุดกลางตัว (cx, cy) — หน่วยช่อง (BoardCanvas บวกเข้า u.hz)
+    unitLift: (id, cx, cy) => unitLift(id, cx, cy, performance.now() / 1000),
     runSpeed: () => C.runSpeed || 0, // ความเร็วถนนตอนนี้ (หน่วย/วิ) — มอนวิ่งไล่ตามจังหวะนี้ (mobArt.setRtMobRun)
     update, project, depth, unproject,
-    busy: () => C.cruise > 0 || C.scroll.k < 1 ||  // บนรถตู้: ถนนวิ่งตลอด = วาด 60 fps (30 fps ดูกระตุก — ผู้ใช้ต้องการคุณภาพสูงสุด)
+    busy: () => C.cruise > 0 || !!C.sw || !!C.fxLive || ((la) => { C.liftAnim = false; return la; })(!!C.liftAnim) || C.scroll.k < 1 ||  // บนรถตู้: ถนนวิ่งตลอด = วาด 60 fps (30 fps ดูกระตุก — ผู้ใช้ต้องการคุณภาพสูงสุด)
       C.yawGoal != null || !!C.anim || C.shake > 0 || world.W.regionTo != null || (world.W.nightK > 0 && world.W.nightK < 1) || (van.group.visible && van.busy()),
     onEvent() {}, pose() { return null; }, hidden() { return false; }, occludeBelow() { return null; }, capsuleAt() { return []; },
     flash() { return 0; }, flashColor() { return "255,255,255"; }, burnFrom() { return null; },
@@ -1178,7 +1261,7 @@ export function createRoadUnderlay(canvas, { lowQ = false } = {}) {
     van, camera,
     dispose(lose = false) {
       if (grid) grid.geometry.dispose(); gridMat.dispose();
-      disposeObs();
+      disposeObs(); disposeFx();
       van.dispose(); world.dispose(); renderer.dispose();
       if (lose) { try { renderer.forceContextLoss(); } catch { /* แล้ว */ } } // ออกจากกระดานจริง = คืน context ทันที
     },

@@ -954,9 +954,22 @@
     {
       "name": "client-roadtrip",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "client", "run", "dev", "--", "--port", "5241", "--strictPort", "--host", "127.0.0.1"],
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5241",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 5241,
-      "env": { "ECHO_SERVER_PORT": "3051" }
+      "env": {
+        "ECHO_SERVER_PORT": "3051"
+      }
     },
     {
       "name": "server-roadtrip",
@@ -1080,10 +1093,55 @@
     {
       "name": "client-rtboard",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "client", "run", "dev", "--", "--port", "5233", "--strictPort", "--host", "127.0.0.1"],
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5233",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 5233,
       "env": {
         "ECHO_SERVER_PORT": "3051"
+      }
+    },
+    {
+      "name": "server-rt-art",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3091,
+      "env": {
+        "PORT": "3091",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RT_PHASE": "boss",
+        "ECHO_DEV_RT_KM": "50"
+      }
+    },
+    {
+      "name": "client-rt-art",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5291",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5291,
+      "env": {
+        "ECHO_SERVER_PORT": "3091"
       }
     }
   ]

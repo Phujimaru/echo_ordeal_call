@@ -10,6 +10,7 @@
 // ============================================================
 import { P, depthOf } from "../boardGeo";
 import { rtState } from "./theme";
+import { bossF1For, rtRoleOf } from "./rtTimeline";
 
 const TAU = Math.PI * 2;
 export const RT_MOB_TYPES = ["stray", "crow", "biker", "trucker", "giant", "cactus", "boar", "yeti", "ghost", "saberclaw", "devilTruck", "darkKnight", "jormungand"];
@@ -303,15 +304,12 @@ function dust(gg, x, y, s, k, night) {
 }
 // fx ของบอสตัวนี้ที่กำลังเล่น (อ่านจาก state.roadtrip.fx ผ่าน theme.rtState — ไม่ต้องต่อสายเพิ่ม)
 function activeBossFx(u, now) {
-  const list = (rtState().fx || []).filter((f) => f && f.k === "bossMove" && (!f.id || f.id === u.id));
-  for (const f of list) if (!BOSS_FX.has(f.key)) BOSS_FX.set(f.key, now);
-  for (const [k, t0] of BOSS_FX) if (now - t0 > BOSS_FX_KEEP) BOSS_FX.delete(k);
-  return list.map((f) => ({ f, age: now - BOSS_FX.get(f.key) })).filter((o) => o.age >= 0 && o.age < (F1_MS[o.f.move] || 600) + F1_MS.land);
+  return bossF1For(u.id, now).filter((o) => o.age < (o.f.dur || F1_MS[o.f.move] || 600) + F1_MS.land);
 }
 // วาดท่ารถ F1 ของแม็กซ์ (เรียกจาก drawRtMob ก่อนตัวบอส) — พิกัดกระดานกลางช่อง
 function drawBossF1(gg, u, now, night, wx, wy) {
   for (const { f, age } of activeBossFx(u, now)) {
-    const dur = F1_MS[f.move] || 600, k = Math.min(1, age / dur);
+    const dur = f.dur || F1_MS[f.move] || 600, k = Math.min(1, age / dur);
     const from = f.from ? { x: f.from.x + 0.5, y: f.from.y + 0.5 } : { x: wx, y: wy };
     const to = f.to ? { x: f.to.x + 0.5, y: f.to.y + 0.5 } : from;
     if (f.move === "swing") { // หมุนเป็นโค้ง 160° รอบตัวไปทางเป้า
@@ -355,6 +353,15 @@ function drawWreck(gg, u, now, night) {
 // ---------------------------------------------------------------- ท่าวิ่งไล่รถ (สู้บนรถตู้ — ถนนเลื่อนตลอด)
 //  BoardCanvas ตั้งทุกเฟรมจากฉาก 3D ใต้กระดาน (road3d runSpeed: หน่วย/วิ · 0 = รถจอด = ท่ายืนปกติ)
 let RUN = 0;
+// ความเร็วบนจอของมอนแต่ละตัว (ช่อง/วิ) — ใช้ตัดสินท่าเดิน (ไม่สร้างอ็อบเจกต์ใหม่ทุกเฟรม)
+const LAST = new Map();
+function moveSpeed(id, x, y, now) {
+  let e = LAST.get(id);
+  if (!e) { e = { x, y, t: now, v: 0 }; LAST.set(id, e); if (LAST.size > 80) LAST.delete(LAST.keys().next().value); return 0; }
+  const dt = now - e.t;
+  if (dt > 0) { const v = Math.hypot(x - e.x, y - e.y) / dt * 1000; e.v = dt > 400 ? 0 : e.v * 0.6 + v * 0.4; e.x = x; e.y = y; e.t = now; }
+  return e.v;
+}
 export function setRtMobRun(v) { RUN = Number.isFinite(v) && v > 0 ? v : 0; }
 const WHEELED = new Set(["biker", "trucker", "devilTruck"]), FLYING = new Set(["crow", "ghost"]);
 // ฝุ่น/เส้นความเร็วหลังตัว (พิกัดท้องถิ่น: เท้า = (0,0) · หน้า = +x · หน่วย sc)
@@ -421,6 +428,16 @@ export function drawRtMob(gg, u, now, night) {
       gg.scale(1 + 0.06 * c, 1 - 0.06 * c);
     }
   } else gg.scale(dir, 1);
+  // เดินบนกระดาน (ตามลำดับฉากมอน — rtTimeline glide): ก้าวกระโดด + ยืด/หด · แม็กซ์ = วิ่งโยกเยกแบบการ์ตูน ขาเบลอ เหงื่อกระเด็น
+  const mv = running ? 0 : moveSpeed(u.id, wx, wy, now);
+  if (mv > 0.8) {
+    const ph = now / (type === "devilTruck" ? 55 : 80), hop = Math.abs(Math.sin(ph)), c = Math.cos(ph * 2);
+    if (type === "devilTruck") {
+      gg.translate(0, -hop * sc * 0.14); gg.rotate(Math.sin(ph) * 0.16); gg.scale(1 + 0.12 * c, 1 - 0.12 * c);
+      gg.fillStyle = "rgba(40,40,50,.35)"; for (let i = 0; i < 3; i++) { const lx = Math.sin(ph * 2 + i * 2.1) * sc * 0.18; gg.beginPath(); gg.ellipse(lx, -sc * 0.08, sc * 0.05, sc * 0.11, 0, 0, TAU); gg.fill(); } // ขาเบลอ
+      for (let i = 0; i < 3; i++) { const q = ((now / 300) + i / 3) % 1; gg.fillStyle = `rgba(150,210,255,${1 - q})`; gg.beginPath(); gg.arc(-sc * (0.2 + q * 0.4), -sc * (1.5 - q * 0.3) - Math.sin(q * Math.PI) * sc * 0.25, sc * 0.035, 0, TAU); gg.fill(); }
+    } else if (!FLYING.has(type)) { gg.translate(0, -hop * sc * 0.08); gg.scale(1 + 0.07 * c, 1 - 0.07 * c); gg.rotate(Math.sin(ph) * 0.05); }
+  }
   if (hitAge >= 0 && hitAge < 160 && "filter" in gg) gg.filter = "brightness(2.6) saturate(.2)";
   let h = 1.2;
   const img = artOf(type);
@@ -440,5 +457,11 @@ export function drawRtMob(gg, u, now, night) {
     h = DRAW[type](now + (u.rx * 131 + u.ry * 71));
   }
   gg.restore();
+  // ตัวป่วนรถ (summon.role / mobSpawn role = saboteur): ป้ายประแจเล็กเหนือหัว
+  if ((u.summon && u.summon.role === "saboteur") || rtRoleOf(u.id) === "saboteur") {
+    const tx = bx + sc * 0.32, ty = by - h * sc - sc * 0.05;
+    gg.save(); gg.fillStyle = "rgba(20,22,30,.85)"; gg.beginPath(); gg.arc(tx, ty, Math.max(7, sc * 0.13), 0, TAU); gg.fill();
+    gg.font = `${Math.max(9, sc * 0.16)}px sans-serif`; gg.textAlign = "center"; gg.textBaseline = "middle"; gg.fillText("🔧", tx, ty + 1); gg.restore();
+  }
   return { cx: bx, top: by - h * sc - sc * 0.05, bottom: by + sc * 0.15, half: sc * 0.45, d: depthOf(wx, wy) };
 }

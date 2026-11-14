@@ -64,6 +64,8 @@ import KateStorm from "../oc/intro/KateStorm";
 import "./boardStage.css";
 import { setRoadtripState } from "./roadtrip/theme";
 import { rtPropAt } from "./roadtrip/props";
+import { rtFxPlay } from "./roadtrip/rtTimeline";
+import { rtDefOf } from "./roadtrip/theme";
 
 const key = (x, y) => `${x},${y}`;
 const samePos = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
@@ -1216,6 +1218,29 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const top = list.reduce((m, e) => Math.max(m, e.seq || 0), 0);
       if (eosFxSeq.current != null) for (const e of list) if (e.seq > eosFxSeq.current && e.delay > 0) eosDelay = Math.max(eosDelay, e.delay);
       eosFxSeq.current = Math.max(eosFxSeq.current || 0, top);
+    }
+    // Road Trip (board/roadtrip/rtTimeline.js): เดินในจุดพักทีละช่อง · ตามอนเล่นทีละตัว (เดิน → พุ่งตี → เลข) · ท่าบอส — คนที่ฉากดูแลไม่ต้องเลื่อน/ขึ้นเลขซ้ำ
+    if (rtWorld) {
+      const unset = (setter, id, key) => setter((h) => { if (!h[id] || (key && h[id].key !== key)) return h; const n = { ...h }; delete n[id]; return n; });
+      const rtIds = rtFxPlay(state.roadtrip, {
+        now: () => performance.now(), later,
+        glide: (id, path, stepMs, delay) => {
+          const key = `rt${++fxSeq.current}`, end = path[path.length - 1], a = path[path.length - 2];
+          setGlides((g) => ({ ...g, [id]: { key, path, stepMs, delay } }));
+          later(delay, () => setFaces((f) => ({ ...f, [id]: { x: Math.sign(end.x - a.x), y: Math.sign(end.y - a.y) } })));
+          later(delay + (path.length - 1) * stepMs + 250, () => unset(setGlides, id, key));
+        },
+        hold: (id, pos) => { setHold((h) => ({ ...h, [id]: pos })); later(9000, () => unset(setHold, id)); },
+        knock: (id, a, b) => { unset(setHold, id); setAnimQ((q) => [...q, { kind: "push", id, from: a, to: b, collide: false, seq: ++fxSeq.current }]); },
+        vitHold: (id) => { const was = lastPlayers[id]; if (!was) return; setVitHold((h) => ({ ...h, [id]: { hp: was.hp ?? 0, armor: was.armor ?? 0 } })); later(9000, () => unset(setVitHold, id)); },
+        vitUnhold: (id) => unset(setVitHold, id),
+        lunge: (id, from, to, hitId) => setAnimQ((q) => [...q, { kind: "lunge", id, from, to, hitId: hitId || undefined, seq: ++fxSeq.current }]),
+        fx: pushFx, sfx: playSfx, shake: () => { if (!lowQ) setShake((n) => n + 1); },
+        prevPos: (id) => prevPos.current[id] || null, nextPos: (id) => nextPos[id] || null,
+        vanAt: () => { const d = rtDefOf(state.board && state.board.area), v = d && d.vanBlock; return v ? { x: Math.round((v.x0 + v.x1) / 2), y: Math.round((v.y0 + v.y1) / 2) } : null; },
+        look: (pos, delay) => { if (pos) later(delay || 0, () => look(pos)); },
+      });
+      for (const id of rtIds) involved.add(id);
     }
     // เลือด/เกราะเปลี่ยนนอกฉากตี (สกิล/สถานะ/ช่องพิเศษ) → ตัวเลขลอย (กล้องตามคนแรกที่โดน)
     let hurtPos = null;

@@ -1144,7 +1144,10 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     shellRightLow.visible = cut;
     roofTop.visible = goofyRoof.visible = coolRoof.visible = nearDecor.visible = !cut;
     roofDeck.visible = roofMode && !cut;
-    for (const k in parts) parts[k].g.visible = parts[k].on && !(parts[k].roof && cut);
+    // กระดานต่อสู้: มีคนขึ้นหลังคา (ซันรูฟ) = โชว์ดาดฟ้า (พื้นช่อง + ราว) ลอยเหนือห้อง · ป้อมปืนโชว์เสมอ (ยิงได้)
+    if (board && roofStand) { roofTop.visible = true; roofDeck.visible = true; }
+    for (const k in parts) parts[k].g.visible = parts[k].on && !(parts[k].roof && cut && !(board && (k === "ป้อมปืน" || roofStand)));
+    if (board) hatchA.tgt = roofStand ? 1.15 : 0;
     gridGroup.visible = m === "cut";
     upper.visible = !board; rearDoors.scale.y = board ? 0.4 : 1; // กระดาน: ผนังเตี้ย — ซ่อนของสูง · ประตูท้ายเตี้ยลง (ยังเห็นเปิด/ปิด)
     driverPiece.visible = !!driverKey && m !== "drv";
@@ -1240,6 +1243,18 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   // ---------------------------------------------------------------- tick (ทุกเฟรม — ไม่สร้างอ็อบเจกต์ใหม่)
   let shake = 0, beatPulse = 0;
   function bump(s) { shake = Math.max(shake, s); }
+  let roofStand = false;
+  function setRoofStand(on) { on = !!on; if (on === roofStand) return; roofStand = on; applyView(); }
+  // เล็งไปที่จุดในโลก แล้วยิง (ยิงเอง/อัตโนมัติ) · คืนตำแหน่งปากกระบอกในโลก (ไว้วาดกระสุนส่องวิถี)
+  const _lp = new THREE.Vector3();
+  function aimFire(worldPt, out) {
+    if (!parts["ป้อมปืน"].on || !turretHead) return null;
+    _lp.copy(worldPt); turretHead.parent.worldToLocal(_lp);
+    turretAim = Math.atan2(-(_lp.z - turretHead.position.z), _lp.x - turretHead.position.x);
+    turretHead.rotation.y = turretAim; turretFire = 0.5;
+    turretHead.updateWorldMatrix(true, false);
+    return out ? out.set(1.7, 0.23, 0).applyMatrix4(turretHead.matrixWorld) : null;
+  }
   function fireTurret(yaw = (Math.random() - 0.5) * 1.6, sound = true) { if (!parts["ป้อมปืน"].on) return; turretAim = yaw; turretFire = 0.5; if (sound) sfx("gun"); }
   // ctx: { speed (หน่วย/วิ), roll, pitch, steer (เลี้ยว −1..1), beat (0..1), boost, moving (ล้อหมุน) }
   function tick(dt, t, ctx = {}) {
@@ -1299,7 +1314,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
 
   let lastRadio = null;
   return {
-    group: van, body, setState, setView, setRoof, setRear, setNight, setDriver, fireTurret, tick, pick, hover, dispose, bump,
+    group: van, body, setRoofStand, aimFire, hasTurret: () => !!parts["ป้อมปืน"].on, setState, setView, setRoof, setRear, setNight, setDriver, fireTurret, tick, pick, hover, dispose, bump,
     setRadio(r) { lastRadio = r; drawRadio(r); },
     shake: () => shake,
     // ยังมีของขยับอยู่ (ประตู/ซันรูฟ/ป้อมปืน) — กระดานใช้ตัดสินว่าต้องวาดเต็ม 60 เฟรมไหม

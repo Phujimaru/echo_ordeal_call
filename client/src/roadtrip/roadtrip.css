@@ -357,3 +357,8 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-ui *, .rt-ui *::before, .rt-ui *::after, .rt-sum *, .rt-sum-road { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================ ปุ่มรถตู้ตอนสู้บนรถ (rtVanActions — เข้าแถวปุ่มพิเศษ HudCommand) · ชื่อยาวกว่าปุ่มอื่น = ไอคอนเล็กลงในตาราง 2 คอลัมน์ */
+.hc-grid .hc-btn:has(> kbd.hk) { padding: 0 6px; gap: 5px; }
+.hc-grid .hc-btn:has(> kbd.hk) .ico { width: 20px; height: 20px; }
+.hc-grid .hc-btn:has(> kbd.hk) b { font-size: 14px; }

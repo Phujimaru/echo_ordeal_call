@@ -57,3 +57,7 @@
   position: absolute; left: 10px; bottom: 10px; padding: 3px 8px; border-radius: 6px; pointer-events: none;
   background: rgba(0, 0, 0, .6); color: #7dffcf; font: 600 12px/1.4 ui-monospace, Consolas, monospace;
 }
+
+.rtd-give { animation: rtd-give-pulse 1s ease-in-out infinite; border-color: #ffd27a; }
+.rtd-give span { white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+@keyframes rtd-give-pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 210, 122, .35); } }

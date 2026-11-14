@@ -54,6 +54,9 @@ import * as Rules from "../board/boardRules";
 import { holdBoard } from "../board/boardPause";
 // Road Trip (GRID_PLAN §8.8): ช่วงขับ = จอ 3D (RoadtripScreen) · จุดพัก/ต่อสู้ = กระดานเดิม + แถบจุดพัก/อู่/สถานะรถ · จบ = สรุป
 import RoadtripScreen, { RT_DRIVE_PHASES } from "../roadtrip/RoadtripScreen";
+import { rtVanButtons, useRtVanHotkeys, turretTiles, canRear as rtCanRear } from "../roadtrip/rtVanActions";
+import { rtEmit } from "../roadtrip/rtSocket";
+import { RT_DEFS } from "../board/roadtrip/maps.gen";
 import RoadtripSummary from "../roadtrip/RoadtripSummary";
 import RtTransitions, { useRtView } from "../roadtrip/RtTransitions"; // ฉากเปลี่ยนของโหมด (เข้าจุดพัก/ต่อสู้/บอส/ชนะ/แพ้/ภูมิภาค)
 import StopBar from "../roadtrip/StopBar";
@@ -2334,6 +2337,16 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     const gone = (pickReq.kind === "action" && !(me?.actions || []).some((x) => x.key === pickReq.key && !x.disabled && Array.isArray(x.tiles) && x.tiles.length));
     if (!myTurn || canto || gone) setPickReq(null);
   }, [pickReq, myTurn, canto, me?.actions]);
+  // Road Trip: ปุ่มรถตู้ตอนสู้บนรถ (หักรถชน · ยิงป้อมปืน · ขึ้น/ลงหลังคา) — เข้าแถวปุ่มพิเศษของ HUD · ปุ่มลัด G H T Y (roadtrip/rtVanActions.jsx)
+  const rtVanBtns = rtVanButtons({
+    rt: state.gameMode === "roadtrip" ? state.roadtrip : null, youId: state.youId, me, round: state.roundNumber,
+    defs: state.board ? RT_DEFS[state.board.area] : null, enabled: myTurn && !canto,
+    picking: pickReq?.kind === "rtTurret",
+    onTurret: () => setPickReq((r) => (r && r.kind === "rtTurret" ? null : { kind: "rtTurret" })),
+  });
+  useRtVanHotkeys(rtVanBtns);
+  const rtTurretOk = rtVanBtns.some((b) => b.key === "rt:turret" && !b.disabled);
+  useEffect(() => { if (pickReq?.kind === "rtTurret" && !rtTurretOk) setPickReq(null); }, [pickReq, rtTurretOk]);
   // โหมดเลือกเป้าที่ส่งให้ BoardStage
   let boardPick = null;
   if (pickReq && me) {
@@ -2373,6 +2386,15 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       // ระเบิดธาตุ (GRID_PLAN §8.7): เลือกช่องกลางในระยะเดินปกติ · กรอบ 3×3 ตามเมาส์
       const el = ELEMENTS[pickReq.el] || ELEMENTS.fire;
       boardPick = { kind: "tile", range: me.baseMov || me.mov || 0, place: "any", square: 3, label: `💣 ${el.icon} ${el.name}`, onPick: (tile) => { clickSound(); socket.emit("useInventoryItem", { uid: pickReq.uid, tile, element: pickReq.el }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "rtTurret") {
+      // Road Trip: ยิงป้อมปืน = เลือกช่องในระยะ 4 จากรถตู้ → rt:turret { x, y }
+      const tiles = turretTiles(state.roadtrip, state.board, state.board ? RT_DEFS[state.board.area] : null);
+      boardPick = { kind: "tile", place: "list", tiles, foot: 1, label: "🎯 ยิงป้อมปืน", onPick: (tile) => {
+        // ยิงได้เฉพาะช่องที่มีมอน (server ตรวจซ้ำ) — ช่องว่าง = เลือกต่อ
+        const mob = (state.players || []).some((o) => o.alive && o.summon && o.summon.ownerId === "rt" && o.pos && o.pos.x === tile.x && o.pos.y === tile.y);
+        if (!mob) return;
+        clickSound(); rtEmit("rt:turret", { x: tile.x, y: tile.y }); done();
+      }, onCancel: done };
     } else if (pickReq.kind === "action") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
@@ -2753,7 +2775,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}
-        roadtrip={rtOn ? { rt: state.roadtrip, myTurn } : null}
+        roadtrip={rtOn ? { rt: state.roadtrip, myTurn: myTurn && !canto && rtCanRear(state.roadtrip, state.youId) } : null}
         players={state.players}
         zoom={hudZ}
       />}
@@ -2849,7 +2871,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               shops={canto ? null : nearShops.map((sh) => ({ id: sh.id, kind: sh.kind, name: sh.name || shopName(sh.kind), onClick: () => viewShop(sh) }))}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
-              extra={(me?.actions || []).map((x) => {
+              extra={[...rtVanBtns, ...(me?.actions || []).map((x) => {
                 // tiles = เลือกช่องบนกระดานก่อน (กดซ้ำ = ยกเลิก) · ไม่มี = ส่งทันที (ม้าของไจโร/ดิเอโก้)
                 const picking = pickReq?.kind === "action" && pickReq.key === x.key;
                 const tiles = Array.isArray(x.tiles) && x.tiles.length ? x.tiles : null;
@@ -2862,7 +2884,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
                     socket.emit("charAction", { key: x.key });
                   },
                 };
-              })}
+              })]}
               bag={{
                 onClick: () => { clickSound(); setBagOpen(true); },
                 items: me?.inventory || [], slots: me?.bagSlots || state.bagSlots || 5,

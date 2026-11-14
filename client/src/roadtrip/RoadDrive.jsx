@@ -49,6 +49,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const selfId = state ? state.youId : null;
   const amDriver = van.driverId != null && van.driverId === selfId;
   const seatTaken = van.driverId != null && !amDriver;
+  const nameOf = (id) => { const pl = ((state && state.players) || []).find((x) => x.id === id); return pl ? pl.name : ""; };
 
   const setCam = (m) => {
     camRef.current = m; setCamState(m);
@@ -122,7 +123,8 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       if (!activeRef.current || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       const s = stRef.current, v = (s && s.roadtrip && s.roadtrip.van) || {};
       const driver = v.driverId != null && v.driverId === (s && s.youId);
-      const k = e.key.toLowerCase();
+      // ใช้ตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็กดได้ (ผู้ใช้แจ้ง 2026-11-14: เผลอเป็นไทยแล้ว WASD ไม่ทำงาน)
+      const k = { KeyC: "c", KeyA: "a", KeyD: "d", Space: " ", ShiftLeft: "shift", ShiftRight: "shift", ArrowLeft: "arrowleft", ArrowRight: "arrowright" }[e.code] || "";
       if (k === "c" && !e.repeat) { const i = DRIVE_CAMS.findIndex((c) => c[0] === camRef.current); setCam(DRIVE_CAMS[(i + 1) % DRIVE_CAMS.length][0]); return; }
       if (k === " " || e.code === "Space") { e.preventDefault(); if (!e.repeat) rtEmit("rt:horn", {}); return; }
       if (!driver) return;
@@ -222,9 +224,20 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       )}
       {!intro && (
         <div className="rtd-hud">
-          <button type="button" className="rtd-seat" data-on={amDriver ? "true" : "false"} disabled={seatTaken} onClick={() => { clickSound(); toggleSeat(); }} {...hoverTip(amDriver ? "ลุกจากที่นั่งคนขับ ให้คนอื่นขับแทน" : "นั่งที่คนขับ (ใครนั่งก่อนได้ก่อน) · A/D หรือ ←/→ เปลี่ยนเลน · Shift ไนตรัส · Space บีบแตร", amDriver ? "ลุก" : "ขับ")}>
-            {I_SEAT}<span>{amDriver ? "ลุก" : "ขับ"}</span>
-          </button>
+          {seatTaken ? (
+            <button type="button" className="rtd-seat" data-on={van.seatReq === selfId ? "true" : "false"} onClick={() => { clickSound(); rtEmit("rt:seat", { seat: "request" }); }} {...hoverTip(van.seatReq === selfId ? "กดอีกครั้งเพื่อยกเลิกคำขอ" : `ขอให้ ${nameOf(van.driverId)} ยกที่นั่งคนขับให้ · คนขับไม่บังคับรถเกิน 20 วิ ที่นั่งว่างเอง`, "ขอขับ")}>
+              {I_SEAT}<span>{van.seatReq === selfId ? "รอ…" : "ขอขับ"}</span>
+            </button>
+          ) : (
+            <button type="button" className="rtd-seat" data-on={amDriver ? "true" : "false"} onClick={() => { clickSound(); toggleSeat(); }} {...hoverTip(amDriver ? "ลุกจากที่นั่งคนขับ ให้คนอื่นขับแทน" : "นั่งที่คนขับ (ใครนั่งก่อนได้ก่อน) · A/D หรือ ←/→ เปลี่ยนเลน · Shift ไนตรัส · Space บีบแตร", amDriver ? "ลุก" : "ขับ")}>
+              {I_SEAT}<span>{amDriver ? "ลุก" : "ขับ"}</span>
+            </button>
+          )}
+          {amDriver && van.seatReq && (
+            <button type="button" className="rtd-seat rtd-give" onClick={() => { clickSound(); rtEmit("rt:seat", { seat: "give" }); }} {...hoverTip("ยกที่นั่งคนขับให้", "ยกให้")}>
+              {I_SEAT}<span>ยกให้ {nameOf(van.seatReq)}</span>
+            </button>
+          )}
           <div className="rtd-spd"><b>{hud.kmh}</b><small>กม./ชม.</small></div>
           <div className="rtd-col">
             <div className="rtd-km">{km.toFixed(1)}<small>กม.</small></div>

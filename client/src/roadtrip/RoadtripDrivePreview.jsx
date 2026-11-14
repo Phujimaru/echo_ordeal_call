@@ -151,7 +151,7 @@ function CombatPreview({ rt, lowQ, bar, area }) {
   }, [d]);
   const hl = useMemo(() => { const me = units[0], mv = []; for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) if (Math.abs(dx) + Math.abs(dy) <= 2 && (dx || dy)) mv.push(K(me.x + dx, me.y + dy)); return { move: mv }; }, [units]);
   useEffect(() => {
-    const on = (e) => { if (e.key === "q" || e.key === "Q") setRotation((r) => (r + 3) % 4); if (e.key === "e" || e.key === "E") setRotation((r) => (r + 1) % 4); };
+    const on = (e) => { if (e.code === "KeyQ") setRotation((r) => (r + 3) % 4); if (e.code === "KeyE") setRotation((r) => (r + 1) % 4); };
     window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on);
   }, []);
   const btn = (on) => ({ padding: "4px 9px", border: "1px solid rgba(255,255,255,.2)", borderRadius: 7, background: on ? "#ff8a3d" : "rgba(20,26,36,.75)", color: "#fff", cursor: "pointer", font: "600 12px Kanit, sans-serif" });

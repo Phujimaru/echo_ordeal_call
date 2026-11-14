@@ -140,7 +140,7 @@ export default function ShopScreen({ shop, me, block = null, bagSlots = 5, onClo
     keyRef.current = (e) => {
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable) return;
-      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const key = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d" }[e.code] || e.key; // ตำแหน่งปุ่ม — แป้นไทยก็ใช้ได้
       const i = sel ? list.findIndex((x) => x.id === sel.id) : -1;
       let hit = true;
       if (key === "Escape") onClose?.();

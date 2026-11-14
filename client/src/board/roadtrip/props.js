@@ -16,6 +16,7 @@
 import { F_TH, P, depthOf, faceVisible, gEllipse, glow, onScreen, pitchOf, rng, viewCenter, viewTurn } from "../boardGeo";
 import { cactusShape, deadTreeShape, drawPalm, drawTree, pineShape, SNOW_PINE } from "../boardProps";
 import { vanSprite } from "./vanSprite";
+import { drawBossAir, drawBossGround } from "./bossFx";
 import { dashRow, isRtArea, nightColor, rtDefOf, rtPal, rtRegionOf, rtState } from "./theme";
 
 const TAU = Math.PI * 2;
@@ -956,7 +957,29 @@ function seatDraw(p) {
   if (drv) { const [sx, sy, s] = P(cx + 0.45, cy, 0.85); G.strokeStyle = col("#1e1f22"); G.lineWidth = Math.max(2, 0.06 * s); G.beginPath(); G.ellipse(sx, sy, 0.18 * s, 0.22 * s, 0, 0, TAU); G.stroke(); }
 }
 function fridgeDraw(p) { const { cx, cy } = B(p); box(cx - 0.32, cy - 0.35, cx + 0.32, cy - 0.05, 0.05, 0.85, "#e8eef3"); faceRect("s", cx - 0.25, cx + 0.25, cy - 0.05, 0.6, 0.64, col("#9aa8bc")); }
-function matDraw(p) { const { cx, cy } = B(p); ell(cx, cy, 0.01, 0.42, 0.42, col("#ffd23f")); ell(cx, cy, 0.012, 0.3, 0.3, col("#ff8a3d")); }
+// ช่องซันรูฟ (hatchTile — ขึ้นหลังคา/ป้อมปืน): ฝาเหล็กเหลี่ยม ขอบเหลืองดำ หมุดมุม มือจับ + ลูกศรขึ้นจางๆ
+function matDraw(p) {
+  const { cx, cy } = B(p), z = 0.33, r = 0.36;
+  poly([[cx - r, cy - r, z], [cx + r, cy - r, z], [cx + r, cy + r, z], [cx - r, cy + r, z]], col("#2d333b"), LINE);
+  for (let i = 0; i < 8; i++) { const t0 = i / 8, t1 = (i + 0.5) / 8; poly([[cx - r + 2 * r * t0, cy + r, z + 0.001], [cx - r + 2 * r * t1, cy + r, z + 0.001], [cx - r + 2 * r * t1, cy + r - 0.07, z + 0.001], [cx - r + 2 * r * t0, cy + r - 0.07, z + 0.001]], col("#ffd23f")); }
+  const q = 0.27; poly([[cx - q, cy - q, z + 0.002], [cx + q, cy - q, z + 0.002], [cx + q, cy + q - 0.07, z + 0.002], [cx - q, cy + q - 0.07, z + 0.002]], col("#8c949c"));
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ball(cx + dx * 0.22, cy + dy * 0.18, z + 0.01, 0.025, "#c9d0d6");
+  line3([cx - 0.1, cy, z + 0.02], [cx + 0.1, cy, z + 0.02], "#2d333b", 0.04);
+  const bob = Math.sin(NOW / 400) * 0.04, [sx, sy, s] = P(cx, cy, z + 0.25 + bob);
+  G.fillStyle = "rgba(255,210,63,.55)"; G.beginPath(); G.moveTo(sx, sy - s * 0.12); G.lineTo(sx + s * 0.09, sy); G.lineTo(sx - s * 0.09, sy); G.fill();
+}
+// ช่องหน้าต่าง (windowTiles — ตีออกนอกรถได้ไกล): กรอบหน้าต่างบนพื้นชิดผนัง + ลูกศรชี้ออก
+function windowDecals(def) {
+  const v = vanBounds(def), z = 0.315;
+  for (const [x, y] of def.windowTiles || []) {
+    const side = y <= v.y0 ? -1 : y >= v.y1 - 1 ? 1 : 0; if (!side) continue;
+    const ey = side < 0 ? y + 0.08 : y + 0.92, iy = side < 0 ? y + 0.34 : y + 0.66;
+    poly([[x + 0.18, ey, z], [x + 0.82, ey, z], [x + 0.82, iy, z], [x + 0.18, iy, z]], NIGHT ? "rgba(140,190,255,.35)" : "rgba(120,190,240,.38)", "rgba(255,255,255,.55)");
+    line3([x + 0.5, ey, z], [x + 0.5, iy, z], "rgba(255,255,255,.55)", 0.012);
+    const ay = side < 0 ? y + 0.5 : y + 0.5, ty = ay + side * 0.16, [ax, aY] = P(x + 0.5, ay, z), [bx, bY] = P(x + 0.5, ty, z), [lx, lY] = P(x + 0.38, ay + side * 0.04, z), [rx, rY] = P(x + 0.62, ay + side * 0.04, z);
+    G.strokeStyle = "rgba(255,255,255,.6)"; G.lineWidth = 1.6; G.beginPath(); G.moveTo(lx, lY); G.lineTo(bx, bY); G.lineTo(rx, rY); G.stroke(); void ax; void aY;
+  }
+}
 
 // ---------------------------------------------------------------- รถตู้ (จอด / บนถนน)
 function vanLook() {
@@ -995,6 +1018,7 @@ function vanFloor(def) {
   poly([[v.x0, v.y0, 0.31 + bob], [v.x1, v.y0, 0.31 + bob], [v.x1, v.y1, 0.31 + bob], [v.x0, v.y1, 0.31 + bob]], col("#c9b48e"));
   G.strokeStyle = "rgba(90,60,30,.25)"; G.lineWidth = 1;
   for (let x = v.x0; x <= v.x1; x += 0.5) { const a = P(x, v.y0, 0.31), b = P(x, v.y1, 0.31); G.beginPath(); G.moveTo(a[0], a[1]); G.lineTo(b[0], b[1]); G.stroke(); }
+  windowDecals(def);
   // ฝากระโปรงหน้า + ไฟหน้า
   box(v.x1 + 0.15, v.y0 + 0.1, v.x1 + 0.95, v.y1 - 0.1, 0.25, 0.85 + bob, L.paint);
   if (NIGHT) glowAt(v.x1 + 1.6, (v.y0 + v.y1) / 2, 0.4, 2.4, "255,246,200", 0.5);
@@ -1196,6 +1220,7 @@ export function rtGround(g, info, units, now, lowQ, night) {
       g.fillStyle = col("#e0453b"); g.fillRect(bx - 0.05 * s, ty, 0.1 * s, (by - ty) * 0.15);
     }
   }
+  drawBossGround(g, now, NIGHT); // ช่องเตือนท่าบอส + รอยแตก/คลื่น/รอยยาง (bossFx.js)
   // รอยเท้าตามทางที่เดิน (จางใน 2.5 วิ)
   for (let i = WALKS.length - 1; i >= 0; i--) {
     const w = WALKS[i], k = (now - w.t0) / 2500;
@@ -1263,6 +1288,9 @@ export function rtAir(g, info, units, now, lowQ, night) {
   // ท่าที่สั่งจากพรีวิว (rtPoke) — อนุภาคเริ่มตอนนี้
   while (PEND.length) { const id = PEND.shift(), p = PROPS_BY_ID.get(id); if (p) { ACT.get(id).t0 = now; onAct(id, p.kind); } }
   drawParts();
+  // ท่าบอส/มุกแม็กซ์ทับตัวละคร (bossFx.js) — กรอบจอในพิกัดตรรกะจากทรานส์ฟอร์มปัจจุบัน
+  const m = g.getTransform(), view = { x0: -m.e / m.a, y0: -m.f / m.d, x1: (g.canvas.width - m.e) / m.a, y1: (g.canvas.height - m.f) / m.d };
+  drawBossAir(g, now, NIGHT, units, view);
 }
 // วัตถุที่กินช่อง (x, y) ของแผนที่ area (ไม่นับของที่เดินทับได้) — BoardStage ใช้ตอนคลิกในจุดพัก (rt:act)
 export function rtPropAt(area, x, y) {

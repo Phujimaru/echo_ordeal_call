@@ -243,6 +243,7 @@ function cancelCombatFlow() {
   });
   for (const p of Object.values(match.players)) {
     p.qte = null;
+    p.rtRoof = false; p.rtTurretAt = null; // หลังคา/ป้อมปืน (สู้บนรถตู้) จบไปพร้อมการต่อสู้
     if (p.freddy) p.freddy.door = null;
     if (p.dio) Object.assign(p.dio, { duel: null, duelPending: false, duelFoe: null, stopping: false, pending: 0 });
     p.locked = true;
@@ -295,18 +296,24 @@ function onEndTurn() { if (active() && inCombat()) H.fight().onEndTurn(); }
 function outcome() { return active() ? H.fight().outcome() : false; }
 function onMobDeath(m, killerId) { if (active()) H.fight().onMobDeath(m, killerId); }
 // ระยะตีปกติ: ประตูท้ายเปิด + ยืนแถวท้ายรถ = +1
+// ระยะตีปกติ/สกิลตอนสู้ (ผู้ใช้ 2026-11-14): ประตูท้ายเปิด + ยืนแถวท้ายรถ = +1 · หน้าต่างข้าง (สู้บนรถตู้) = อย่างน้อย 2 · บนหลังคา = +2
 function rangeMod(p, r) {
   if (!active() || !inCombat() || !p || !p.pos || p.summon || !Array.isArray(r)) return r;
   const rt = match.roadtrip, d = mapDef();
-  if (!rt.van.rearOpen || !d || !d.rearTiles || !d.rearTiles.some(([x, y]) => x === p.pos.x && y === p.pos.y)) return r;
-  return [r[0], r[1] + 1];
+  if (!d) return r;
+  const on = (list) => !!list && list.some(([x, y]) => x === p.pos.x && y === p.pos.y);
+  let max = r[1];
+  if (rt.van.rearOpen && on(d.rearTiles)) max += 1;
+  if (on(d.windowTiles)) max = Math.max(max, 2);
+  if (p.rtRoof && rt.combat && rt.combat.roofId === p.id) max += 2;
+  return max === r[1] ? r : [r[0], max];
 }
-// ระยะสกิล (area.range ตัวเลข ≥ 1): ประตูท้ายเปิด + ยืนแถวท้ายรถ = +1 (ผู้ใช้ 2026-11-14 "ท่าระยะถึง สกิลถึง")
+// ระยะสกิล (area.range ตัวเลข ≥ 1): กติกาเดียวกับตีปกติ
 function areaRangeMod(p, n) { return n >= 1 ? rangeMod(p, [0, n])[1] : n; }
 // ร้านที่จุดพัก: ซื้อได้นอกตาเดิน (ยืนติดร้าน · ยังมีชีวิต)
 // สู้บนรถตู้: ช่องนอกรถห้ามฝั่งผู้เล่น (action.boardBlocked) · จบตาของแต่ละตัว = เช็คร่วง (action.endUnitTile)
 function offVan(selfId) { return active() && inCombat() ? H.fight().offVan(selfId) : null; }
-function onUnitEnd(p) { if (active() && inCombat() && p && p.alive && p.pos) H.fight().enforceVan(); }
+function onUnitEnd(p) { if (active() && inCombat() && p && p.alive && p.pos) { H.fight().enforceVan(); H.fight().roofSync(); } }
 function placeSpot(near, selfId = null) { return active() && inCombat() ? H.fight().placeSpot(near, selfId) : null; }
 function freeShop(p) { return active() && phase() === "stop" && !!p && p.alive && !!p.pos && !p.summon; }
 function bagBonus() { return active() ? Van.bagBonus(match.roadtrip.van) : 0; }
@@ -329,6 +336,9 @@ function command(id, name, payload) {
     case "decor": case "style": case "paint": case "plate": ok = cosmetic(p, name, o); break;
     case "radio": ok = radio(p, o); break;
     case "rear": ok = H.fight().toggleRear(p); break;
+    case "swerve": ok = H.fight().swerve(p, o.side); break;
+    case "turret": ok = H.fight().fireTurret(p, Number(o.x), Number(o.y)); break;
+    case "roof": ok = H.fight().toggleRoof(p); break;
     default: return false;
   }
   if (ok) broadcast();
@@ -381,15 +391,17 @@ function publicInfo(viewerId = null) {
     phase: rt.phase, endsAt: rt.endsAt, diff: rt.diff, km: Math.floor(rt.km * 100) / 100,
     region: { id: rt.region.id, loop: rt.region.loop }, night: rt.night,
     van: {
-      hp: v.hp, hpMax: v.hpMax, fuel: Math.round(v.fuel * 10) / 10, fuelMax: v.fuelMax, kmh: H.drive().speedOf(rt), lane: v.lane, driverId: v.driverId,
+      hp: v.hp, hpMax: v.hpMax, fuel: Math.round(v.fuel * 10) / 10, fuelMax: v.fuelMax, kmh: H.drive().speedOf(rt), lane: v.lane, driverId: v.driverId, seatReq: v.seatReq || null,
       nitro: v.nitro, nitroOn: rt.nitroUntil > Date.now(), style: v.style, paint: v.paint, plate: v.plate, decor: [...v.decor], upg: { ...v.upg }, rearOpen: v.rearOpen,
+      turretReady: (v.upg.turret | 0) >= 1,
       prices: Object.fromEntries(Van.UPG_KEYS.map((k) => [k, Van.upgCost(rt, k)])), // ราคาขั้นถัดไป (null = เต็ม)
     },
     hazards: rt.hazards.map((h) => ({ id: h.id, lane: h.lane, at: h.at, kind: h.kind })),
     fork: rt.fork ? { options: rt.fork.options.map((o) => ({ ...o })), votes: { ...rt.fork.votes } } : null,
     event: rt.event ? { id: rt.event.id, kind: rt.event.kind, title: rt.event.title, icon: rt.event.icon, choices: rt.event.choices.map((c) => ({ key: c.key, label: c.label, cost: c.cost || 0, ...(c.desc ? { desc: c.desc } : {}), ...(c.disabled ? { disabled: true } : {}) })), votes: { ...rt.event.votes }, result: rt.event.result || null } : null,
     stop: rt.stop ? { kind: rt.stop.kind, shopId: rt.stop.shopId || null, ready: { ...rt.stop.ready }, acts: H.stop().publicActs(rt, viewerId), dog: rt.dog.fed } : null,
-    combat: rt.combat ? { kind: rt.combat.kind, boss: rt.combat.boss || null, round: rt.combat.round, rounds: rt.combat.rounds, scroll: rt.combat.scroll, warn: rt.combat.warn ? { by: rt.combat.warn.by, move: rt.combat.warn.move || null, tiles: rt.combat.warn.tiles, at: rt.combat.warn.at || null } : null } : null,
+    actions: rt.combat ? H.fight().actionsOf() : {}, // ปุ่ม HUD สู้บนรถตู้ต่อผู้เล่น { [pid]: ["swerve"|"turret"|"roof"|"rear"] }
+    combat: rt.combat ? { kind: rt.combat.kind, boss: rt.combat.boss || null, roofId: rt.combat.roofId || null, bossPhase: rt.combat.boss ? rt.combat.bossPhase || 1 : null, swerveReady: rt.combat.swerveReady || 0, round: rt.combat.round, rounds: rt.combat.rounds, scroll: rt.combat.scroll, warn: rt.combat.warn ? { by: rt.combat.warn.by, move: rt.combat.warn.move || null, tiles: rt.combat.warn.tiles, at: rt.combat.warn.at || null } : null } : null,
     radio: { src: rt.radio.src, station: rt.radio.station, yt: rt.radio.yt ? { ...rt.radio.yt, queue: [...(rt.radio.yt.queue || [])] } : null, by: rt.radio.by },
     now: Date.now(), // นาฬิกา server ตอนส่ง (client เทียบนับถอยหลัง endsAt/hazards.at)
     fx: rt.fx.slice(-FX_KEEP),
