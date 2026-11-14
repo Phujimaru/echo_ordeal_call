@@ -21,7 +21,7 @@ const PLAYERS = [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", alive: true },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#2E9E4B", alive: true },
 ];
-const VAN0 = { hp: 30, hpMax: 30, fuel: 60, fuelMax: 60, kmh: 115, lane: 0, driverId: null, nitro: 1, style: "normal", paint: "#7fb8d8", plate: "กข 4567", decor: ["ธง", "ลูกโป่ง", "ป้ายหลังคา", "ไฟประดับนอก"], upg: { body: 1, engine: 1, tank: 1, susp: 1, nitro: 2, turret: 2, bumper: 1, storage: 1 }, rearOpen: false };
+const VAN0 = { hp: 30, hpMax: 30, fuel: 60, fuelMax: 60, kmh: 115, lane: 0, driverId: null, nitro: 1, style: "normal", paint: "#7fb8d8", plate: "กข 4567", decor: ["ธง", "ลูกโป่ง", "ป้ายหลังคา", "ไฟประดับนอก"], upg: { body: 1, engine: 1, tank: 1, susp: 1, nitro: 2, turret: 2, bumper: 1, storage: 1 }, rearOpen: false, stash: { items: [{ uid: "s1", type: "armor", value: 1 }, { uid: "s2", type: "cleanse" }], cap: 8 } };
 
 function boardOf(area, region) {
   const d = RT_DEFS[area], terrain = {}, special = {};

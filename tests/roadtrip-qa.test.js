@@ -809,3 +809,22 @@ test('ตู้เย็น: ของมีจำกัด ฟื้นเล�
   assert.equal(fun().jam, null); assert.deepEqual(fun().spot, {});
   assert.equal(funCmd(0, { a: 'drink' }), false, 'จุดพักใช้ไม่ได้');
 });
+
+test('กล่องเก็บของกลางของรถ: เก็บ/หยิบได้ทุกคนในทีม · ช่วงเดินทางเท่านั้น · ความจุตามอัปเกรด · ของผูกตัวเก็บไม่ได้', () => {
+  const ST = require('../server/roadtrip/stash.js');
+  setup(2);
+  P(0).inventory = [{ uid: 'a1', type: 'armor', value: 1, price: 3 }, { uid: 'b1', type: 'kebread' }];
+  P(1).inventory = [];
+  assert.equal(RT.command('p0', 'stash', { op: 'put', uid: 'a1' }), true);
+  assert.equal(P(0).inventory.length, 1);
+  assert.equal(RT.publicInfo('p1').van.stash.items.length, 1);
+  assert.equal(RT.command('p0', 'stash', { op: 'put', uid: 'b1' }), false, 'ของผูกตัว');
+  assert.equal(RT.command('p1', 'stash', { op: 'take', uid: 'a1' }), true, 'เพื่อนหยิบได้');
+  assert.equal(P(1).inventory[0].type, 'armor');
+  assert.equal(rt().stash.length, 0);
+  assert.equal(ST.cap(rt()), ST.STASH_BASE);
+  rt().van.upg.storage = 2;
+  assert.equal(ST.cap(rt()), ST.STASH_BASE + 2 * require('../server/roadtrip/van.js').statOf(rt().van, 'storage'));
+  F.begin('ambush');
+  assert.equal(RT.command('p1', 'stash', { op: 'put', uid: P(1).inventory[0].uid }), false, 'ตอนสู้ใช้ไม่ได้');
+});

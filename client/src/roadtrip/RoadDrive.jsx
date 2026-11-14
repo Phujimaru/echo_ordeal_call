@@ -15,6 +15,7 @@ import { clickSound } from "../audio";
 import { tip as hoverTip } from "./rtTip";
 import { attachScene, detachScene, frameOpts } from "./rtDirector";
 import VanFun, { FUN_PROPS, useFunToasts, FunToasts } from "./VanFun";
+import StashPanel from "./StashPanel";
 import "./RoadDrive.css";
 
 const CAM_KEY = "echo_rt_cam";
@@ -54,6 +55,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const look = useRef({ yaw: 0, pitch: 0, zoom: 0 });
   const [hud, setHud] = useState({ kmh: 0 });
   const [tip, setTip] = useState(null);
+  const [stashOpen, setStashOpen] = useState(false); // กล่องเก็บของกลางของรถ
   const [fps, setFps] = useState(null);
   const laneWant = useRef(null);
   const funApi = useRef(null); // กิจกรรมในรถ (VanFun) — คลิกของ 3D ที่เป็นกิจกรรม = ส่งไปที่นี่
@@ -335,6 +337,15 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       )}
       {!intro && <VanFun state={state} amDriver={amDriver} funApi={funApi} onToast={pushFunToast} />}
       {!intro && <FunToasts list={funToasts} />}
+      {!intro && van.stash && (() => {
+        const meP = state && (state.players || []).find((p) => p.id === state.youId);
+        return (
+          <>
+            <button type="button" className="rtd-stash-btn" data-on={stashOpen ? "true" : "false"} onClick={() => { clickSound(); setStashOpen((v) => !v); }} {...hoverTip("กล่องเก็บของกลางของรถ — ทั้งทีมเก็บ/หยิบได้", "กล่องรถ")}>📦 {(van.stash.items || []).length}/{van.stash.cap}</button>
+            {stashOpen && <div className="rtd-stash-wrap"><StashPanel stash={van.stash} me={meP} players={state.players || []} bagSlots={(meP && meP.bagSlots) || 5} onClose={() => setStashOpen(false)} /></div>}
+          </>
+        );
+      })()}
       {tip && <div className="rtd-tip" style={{ left: tip.x, top: tip.y }}>{tip.name}</div>}
       {SHOW_FPS && fps && <div className="rtd-fps">{fps.fps} fps · {fps.cpu} ms · max {fps.worst} ms · {fps.calls} dc · {fps.tris}k ▲</div>}
     </div>

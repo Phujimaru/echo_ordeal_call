@@ -33,6 +33,7 @@ import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import BagScreen from "./hud/BagScreen";
+import StashPanel from "../roadtrip/StashPanel"; // Road Trip: กล่องเก็บของกลางของรถ (ข้างกระเป๋า ตอนจุดพัก)
 import { ELEMENTS } from "../data/elements";
 import ShopScreen from "./hud/shops/ShopScreen";
 import { shopName } from "../board/shopProps";
@@ -687,7 +688,7 @@ function ModalMounts({
   statusView, statusViewIsSelf, onCloseStatus,
   shop = null, onCloseShop, shopBlock,
   bagOpen, onCloseBag, players, gameState, roundNumber,
-  myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse, rtFree = false,
+  myTurn, bagSlots, newBag = false, drawBag = null, onDrawUse, rtFree = false, rtStash = null,
   skillConfirm, onConfirmSkill, onCancelSkill, remoteShops = null, onRemoteShop, onBomb,
 }) {
   return (
@@ -698,6 +699,7 @@ function ModalMounts({
         ? <ShopScreen shop={shop} me={me} block={shopBlock} bagSlots={bagSlots || 5} onClose={onCloseShop} />
         : <ShopModal shop={shop} me={me} block={shopBlock} onClose={onCloseShop} />)}
       {bagOpen && newBag && <BagScreen me={me} players={players} myTurn={myTurn} rtFree={rtFree} bagSlots={bagSlots} draw={drawBag} onDrawUse={onDrawUse} statusOf={forecastStatusItems} onClose={onCloseBag} shops={remoteShops} onShop={onRemoteShop} onBomb={onBomb} />}
+      {bagOpen && newBag && rtStash && <div className="rt-stash-float"><StashPanel stash={rtStash} me={me} players={players} bagSlots={bagSlots || 5} /></div>}
       {bagOpen && !newBag && <InventoryModal me={me} myTurn={myTurn} bagSlots={bagSlots} onClose={onCloseBag} />}
       {skillConfirm && <SkillConfirmModal confirm={skillConfirm} onConfirm={onConfirmSkill} onCancel={onCancelSkill} />}
       <CharVideoPreloader players={players} />
@@ -2940,6 +2942,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         bagOpen={bagOpen} onCloseBag={() => setBagOpen(false)} players={state.players} gameState={state.gameState} roundNumber={state.roundNumber}
         myTurn={myTurn && !canto && !me?.summon} bagSlots={me?.bagSlots || state.bagSlots} newBag={!!state.board} drawBag={drawBag} onDrawUse={useDrawFromBag}
         rtFree={state.gameMode === "roadtrip" && !!state.roadtrip && state.roadtrip.phase === "stop"}
+        rtStash={state.gameMode === "roadtrip" && state.roadtrip && state.roadtrip.phase === "stop" && state.roadtrip.van ? state.roadtrip.van.stash || null : null}
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
         onBomb={(it, el) => { setBagOpen(false); setPickReq({ kind: "bomb", uid: it.uid, el }); }}

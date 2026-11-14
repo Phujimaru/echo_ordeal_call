@@ -715,4 +715,4 @@ function cleansableOf(p) {
   if (!p || !p.statuses) return [];
   return BASIC_DEBUFF_CLEAR.concat(SOFT_DEBUFF_STEP).filter((k) => (p.statuses[k] || 0) > 0);
 }
-Object.assign(module.exports, { basePriceOf, SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop, throwElemBomb });
+Object.assign(module.exports, { basePriceOf, BOUND_ITEMS, SHOP_NAMES, SHOP_ITEMS, SHOP_DIMS, MERCHANT_PCT, MERCHANT_TURNS, tilesOfShop, throwElemBomb });

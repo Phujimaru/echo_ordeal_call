@@ -345,6 +345,7 @@ function command(id, name, payload) {
     case "upg": ok = H.stop().upgrade(p, o.key, o.unitId); break;
     case "decor": case "style": case "paint": case "plate": ok = cosmetic(p, name, o); break;
     case "radio": ok = radio(p, o); break;
+    case "stash": ok = require("./stash").command(p, o); break; // กล่องเก็บของกลางของรถ
     case "rear": ok = H.fight().toggleRear(p); break;
     case "vanWalk": ok = H.vanwalk().walk(p, o); break;   // เดินเล่นในรถตอนขับ
     case "vanProp": ok = H.vanwalk().useProp(p, typeof o.prop === "string" ? o.prop : ""); break;
@@ -415,6 +416,7 @@ function publicInfo(viewerId = null) {
     van: {
       hp: v.hp, hpMax: v.hpMax, fuel: Math.round(v.fuel * 10) / 10, fuelMax: v.fuelMax, kmh: H.drive().speedOf(rt), lane: v.lane, driverId: v.driverId, seatReq: v.seatReq || null,
       nitro: v.nitro, nitroOn: rt.nitroUntil > Date.now(), style: v.style, paint: v.paint, plate: v.plate, decor: [...v.decor], upg: { ...v.upg }, rearOpen: v.rearOpen,
+      stash: require("./stash").publicInfo(rt),
       turretReady: true, // ป้อมปืนมือใช้ได้ไม่ต้องอัปเกรด (บัฟ 2026-11-14 — อัปเกรดเพิ่มดาเมจ + ยิงอัตโนมัติต้นเทิร์น)
       prices: { ...Object.fromEntries(Van.UPG_KEYS.map((k) => [k, Van.upgCost(rt, k)])), repair: H.stop().repairCost(rt) }, // ราคาขั้นถัดไป (null = เต็ม) · repair = ค่าซ่อมเต็ม
     },
