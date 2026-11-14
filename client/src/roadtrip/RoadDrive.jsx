@@ -14,6 +14,7 @@ import * as radio from "./radio";
 import { clickSound } from "../audio";
 import { tip as hoverTip } from "./rtTip";
 import { attachScene, detachScene, frameOpts } from "./rtDirector";
+import VanFun, { FUN_PROPS, useFunToasts, FunToasts } from "./VanFun";
 import "./RoadDrive.css";
 
 const CAM_KEY = "echo_rt_cam";
@@ -55,6 +56,8 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const [tip, setTip] = useState(null);
   const [fps, setFps] = useState(null);
   const laneWant = useRef(null);
+  const funApi = useRef(null); // กิจกรรมในรถ (VanFun) — คลิกของ 3D ที่เป็นกิจกรรม = ส่งไปที่นี่
+  const [funToasts, pushFunToast] = useFunToasts();
 
   const rt = (state && state.roadtrip) || {};
   const van = rt.van || {};
@@ -63,6 +66,9 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const seatTaken = van.driverId != null && !amDriver;
   const nameOf = (id) => { const pl = ((state && state.players) || []).find((x) => x.id === id); return pl ? pl.name : ""; };
   const driverPl = van.driverId != null ? ((state && state.players) || []).find((x) => x.id === van.driverId) || null : null;
+  // ผู้ส่องทาง (กิจกรรมกล้องส่องทางไกลบนดาดฟ้า) = กล้องซูมจากหลังคาแทนมุมปกติ
+  const spotRef = useRef(false);
+  spotRef.current = !!(rt.fun && Array.isArray(rt.fun.spot) && rt.fun.spot.includes(selfId));
   const amDriverRef = useRef(amDriver);
   amDriverRef.current = amDriver;
   // ป้ายประกาศคนขับเปลี่ยน (ทุกเครื่อง) — นั่ง/ยกให้/ลุก/ปล่อยเพราะไม่ขยับ
@@ -138,7 +144,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       const beat = st >= 0 ? Math.max(0, 1 - (((now / 1000) * STATION_BPM[st] / 60) % 1) * 4) : 0;
       const t0 = performance.now();
       const dir = frameOpts(now);
-      const out = scene.update(now, dtMs, { rt: r, cam: dir.camOverride || (camRef.current === "sky" ? "roof" : camRef.current), look: dir.camOverride ? NO_LOOK : look.current, players: s && s.players, selfId: s ? s.youId : null, srvOffset: serverNow() - Date.now(), beat, slow: dir.slow, cutCam: dir.cutCam, rear: dir.rear });
+      const out = scene.update(now, dtMs, { rt: r, cam: dir.camOverride || (spotRef.current ? "spot" : camRef.current === "sky" ? "roof" : camRef.current), look: dir.camOverride ? NO_LOOK : look.current, players: s && s.players, selfId: s ? s.youId : null, srvOffset: serverNow() - Date.now(), beat, slow: dir.slow, cutCam: dir.cutCam, rear: dir.rear });
       const ft = performance.now() - t0;
       if (out && out.inside !== lastInside) { lastInside = out.inside; radio.setInside(out.inside); }
       if (out && now - lastHud > 120) { lastHud = now; setHud((h) => (h.kmh === out.kmh ? h : { kmh: out.kmh })); }
@@ -210,7 +216,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
         if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 5) drag.moved = true;
         if (drag.moved) {
-          const L = look.current, fp = ["driver", "hood", "bumper", "roof", "wheel", "sky"].includes(camRef.current);
+          const L = look.current, fp = spotRef.current || ["driver", "hood", "bumper", "roof", "wheel", "sky"].includes(camRef.current);
           L.yaw -= dx * 0.005; L.pitch = clamp(L.pitch - dy * 0.004, -0.9, 0.9);
           if (fp) L.yaw = clamp(L.yaw, -2.6, 2.6);
           setTip(null);
@@ -246,6 +252,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const hit = sc.pick(nx, ny) || hoverHit;
         const s = stRef.current, mp = myVanPos(s);
         if (hit) {
+          if (mp && hit.key && FUN_PROPS.has(hit.key) && funApi.current) { funApi.current.prop(hit.key); return; } // กิจกรรมกับเพื่อน (vanfun.js)
           // ของใช้ร่วม (มี vanPos = server รองรับ): server เดินไปช่องว่างที่ติดของให้ (ถ้ายังไม่ติด) แล้วใช้ตอนถึง — ท่า/เสียงเล่นจาก fx ให้ทุกคน
           if (mp && hit.key && !LOCAL_PROPS.has(hit.key)) rtEmit("rt:vanProp", { prop: hit.key });
           else hit.run();
@@ -326,6 +333,8 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
           </div>
         </div>
       )}
+      {!intro && <VanFun state={state} amDriver={amDriver} funApi={funApi} onToast={pushFunToast} />}
+      {!intro && <FunToasts list={funToasts} />}
       {tip && <div className="rtd-tip" style={{ left: tip.x, top: tip.y }}>{tip.name}</div>}
       {SHOW_FPS && fps && <div className="rtd-fps">{fps.fps} fps · {fps.cpu} ms · max {fps.worst} ms · {fps.calls} dc · {fps.tris}k ▲</div>}
     </div>

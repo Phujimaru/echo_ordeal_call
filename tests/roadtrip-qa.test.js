@@ -551,3 +551,261 @@ test('FIX คนขับไม่หลุดที่นั่ง: กลั�
   D.step(250, Date.now() + 250);
   assert.equal(rt().van.driverId, null, 'AFK เกิน 20 วิ = ที่นั่งว่าง');
 });
+
+test('กิจกรรมบนรถตอนขับ: ของทุกชิ้น (24) ใช้ได้จริง · สถานะเปลี่ยน · fx vanProp · ช่องอยู่ในรถ/ดาดฟ้า', () => {
+  const VW = require('../server/roadtrip/vanwalk.js');
+  setup(1);
+  const d = Maps.defs[Maps.RT_ONVAN];
+  const inside = new Set(d.vanTiles.map(([x, y]) => `${x},${y}`)), roof = new Set(d.roofTiles.map(([x, y]) => `${x},${y}`));
+  const keys = Object.keys(d.vanProps);
+  assert.equal(keys.length, 24);
+  for (const key of keys) {
+    const [x, y, r] = d.vanProps[key];
+    assert.ok((r ? roof : inside).has(`${x},${y}`), `${key} อยู่บนช่องที่ยืนได้`);
+    rt().vanBusy = {};
+    rt().vanPos.p0 = { x, y, roof: !!r };
+    const before = JSON.stringify(rt().vanProps[key].state);
+    const k0 = Math.max(0, ...rt().fx.map((f) => f.key || 0));
+    assert.equal(RT.command('p0', 'vanProp', { prop: key }), true, `${key} กดได้`);
+    const after = JSON.stringify(rt().vanProps[key].state);
+    assert.notEqual(after, before, `${key} สถานะเปลี่ยน`);
+    assert.ok(rt().fx.some((f) => f.key > k0 && f.k === 'vanProp' && f.prop === key), `${key} มี fx`);
+    assert.ok(VW.PROP_KIND[key]);
+  }
+  // ผิดชั้น = ใช้ไม่ได้ทันที (เดินไปเองแล้วค่อยใช้)
+  rt().vanBusy = {};
+  rt().vanPos.p0 = { x: 12, y: 5, roof: true };
+  RT.command('p0', 'vanProp', { prop: 'fridge' });
+  assert.notEqual(rt().vanPos.p0.roof, true, 'เดินลงไปหาตู้เย็น');
+});
+
+// ---------------------------------------------------------------- กิจกรรมกับเพื่อนในรถ (server/roadtrip/vanfun.js · 2026-11-14)
+const VF = require('../server/roadtrip/vanfun.js');
+const fun = () => rt().fun;
+function vanSetup(n = 2) {
+  setup(n);
+  VF.stopTick();
+  rt().vanBusy = {}; rt().vanPend = {};
+  rt().van.driverId = null;
+  for (let i = 0; i < n; i++) { P(i).gold = 10; P(i).hp = 10; P(i).armor = 0; }
+}
+const place = (i, x, y, roof = false) => { rt().vanPos['p' + i] = { x, y, roof }; rt().vanBusy = {}; };
+const funCmd = (i, o) => { const r = RT.command('p' + i, 'fun', o); VF.stopTick(); return r; };
+function seq(vals, fn) { let k = 0; Math.random = () => vals[k++ % vals.length]; try { return fn(); } finally { Math.random = realRandom; } }
+
+test('วงเต๋า: เปิดวง/เข้าร่วม/ทอย — แต้มสูงสุดกินกอง · เสมอแบ่ง · เงินรวมเท่าเดิม · คนขับ/คนตาย/เงินไม่พอเข้าไม่ได้', () => {
+  vanSetup(3);
+  place(0, 10, 5); place(1, 9, 5); place(2, 10, 6);
+  assert.equal(funCmd(0, { a: 'dice', ante: 5 }), false, 'เดิมพันนอกตาราง');
+  assert.equal(funCmd(0, { a: 'dice', ante: 2 }), true);
+  assert.equal(P(0).gold, 8);
+  assert.equal(funCmd(0, { a: 'dice', ante: 2 }), false, 'เปิดซ้อนไม่ได้');
+  assert.equal(funCmd(1, { a: 'diceJoin' }), true);
+  assert.equal(funCmd(1, { a: 'diceJoin' }), false, 'เข้าซ้ำไม่ได้');
+  rt().van.driverId = 'p2';
+  assert.equal(funCmd(2, { a: 'diceJoin' }), false, 'คนขับเข้าไม่ได้');
+  rt().van.driverId = null;
+  P(2).alive = false;
+  assert.equal(funCmd(2, { a: 'diceJoin' }), false, 'คนตายเข้าไม่ได้');
+  P(2).alive = true; P(2).gold = 1;
+  assert.equal(funCmd(2, { a: 'diceJoin' }), false, 'เงินไม่พอ');
+  assert.equal(fun().dice.pot, 4);
+  const total0 = P(0).gold + P(1).gold + 4;
+  seq([0.99, 0.99, 0, 0], () => VF.tick(Date.now() + 9000));
+  const r = fun().dice.result;
+  assert.deepEqual(r.win, ['p0']);
+  assert.equal(P(0).gold, 12); assert.equal(P(1).gold, 8);
+  assert.equal(P(0).gold + P(1).gold, total0, 'เงินไม่งอก/ไม่หาย');
+  assert.equal(r.gain.p0, 2); assert.equal(r.gain.p1, -2);
+  assert.ok(rt().fx.some((f) => f.k === 'fun' && f.f === 'diceRoll'));
+  VF.tick(r.until + 1);
+  assert.equal(fun().dice, null, 'ผลโชว์ครบแล้วล้างวง');
+  // เสมอ = แบ่งกอง
+  P(0).gold = 10; P(1).gold = 10;
+  funCmd(0, { a: 'dice', ante: 3 }); funCmd(1, { a: 'diceJoin' });
+  seq([0.5], () => VF.tick(Date.now() + 9000));
+  assert.deepEqual(fun().dice.result.win.sort(), ['p0', 'p1']);
+  assert.equal(P(0).gold, 10); assert.equal(P(1).gold, 10);
+});
+
+test('วงเต๋าคนเดียว = เจ้ามือ (ชนะได้ 2 เท่า) · เข้าสู้กลางวง = คืนเงินกองทุกคน', () => {
+  vanSetup(2);
+  place(0, 10, 5); place(1, 9, 5);
+  funCmd(0, { a: 'dice', ante: 3 });
+  seq([0.99, 0.99, 0, 0], () => VF.tick(Date.now() + 9000));
+  assert.ok(fun().dice.result.house);
+  assert.equal(P(0).gold, 13, 'ชนะเจ้ามือ +3');
+  VF.tick(Date.now() + 60000);
+  P(0).gold = 10; P(1).gold = 10;
+  funCmd(0, { a: 'dice', ante: 2 }); funCmd(1, { a: 'diceJoin' });
+  assert.equal(P(0).gold + P(1).gold, 16);
+  F.begin('ambush');
+  assert.equal(fun().dice, null);
+  assert.equal(P(0).gold, 10); assert.equal(P(1).gold, 10, 'คืนเงินกองครบ');
+  assert.equal(funCmd(0, { a: 'dice', ante: 1 }), false, 'ตอนสู้เปิดวงไม่ได้');
+});
+
+test('วงดนตรี: เริ่มที่กีตาร์ · ทุกคน (ไม่ใช่คนขับ) เข้าร่วม · กดตรงจังหวะ = บัฟทีมสู้ครั้งหน้า · ช่วงละครั้ง', () => {
+  vanSetup(3);
+  place(0, 7, 4); place(1, 12, 5, true); place(2, 13, 6);
+  rt().van.driverId = 'p2';
+  assert.equal(funCmd(2, { a: 'jam' }), false, 'คนขับเริ่มไม่ได้');
+  assert.equal(funCmd(0, { a: 'jam' }), true);
+  const j = fun().jam;
+  assert.ok(j.chart.length >= 12, 'มีโน้ตพอ');
+  assert.deepEqual(VF.chartOf(j.seed), j.chart, 'โน้ตจากเมล็ด (ทุกเครื่องตรงกัน)');
+  assert.equal(funCmd(1, { a: 'jamJoin' }), true, 'อยู่บนหลังคาก็เล่นได้');
+  assert.equal(funCmd(2, { a: 'jamJoin' }), false, 'คนขับเล่นไม่ได้');
+  assert.equal(RT.publicInfo('p0').fun.jamUsed, true);
+  for (let i = 0; i < j.chart.length; i++) {
+    j.startAt = Date.now() - j.chart[i][0];
+    RT.command('p0', 'fun', { a: 'jamHit', i, off: 10 });
+    RT.command('p1', 'fun', { a: 'jamHit', i, off: 100 });
+  }
+  j.startAt = Date.now() - j.chart[0][0];
+  RT.command('p0', 'fun', { a: 'jamHit', i: 0, off: 0 }); // กดซ้ำไม่นับ
+  RT.command('p1', 'fun', { a: 'jamHit', i: 1, off: 400 }); // ห่างจังหวะเกิน = ไม่นับ
+  VF.stopTick();
+  const pi = RT.publicInfo('p0').fun.jam;
+  assert.equal(pi.ids.p0, j.chart.length, 'เป๊ะทุกโน้ต');
+  assert.ok(Math.abs(pi.ids.p1 - j.chart.length * 0.6) < 0.2, 'ดี = 0.6');
+  VF.tick(j.endAt + 1);
+  const res = fun().jam.result;
+  assert.equal(res.tier, 3, `คะแนน ${res.score}`);
+  assert.ok(rt().buffs.team.some((b) => b.key === 'might' && b.amt === 1));
+  assert.ok(rt().buffs.team.some((b) => b.key === 'evade'));
+  VF.tick(res.until + 1);
+  assert.equal(fun().jam, null);
+  assert.equal(funCmd(0, { a: 'jam' }), false, 'ช่วงขับเดียวกันเล่นซ้ำไม่ได้');
+  RT.toDrive(); D.stopTick(); VF.stopTick();
+  assert.equal(funCmd(0, { a: 'jam' }), true, 'ช่วงขับใหม่เล่นได้อีก');
+  VF.tick(fun().jam.endAt + 1);
+  assert.equal(fun().jam.result.tier, 0, 'ไม่กดเลย = ไม่มีบัฟ');
+  assert.ok(rt().buffs.team.length >= 2);
+  F.begin('ambush');
+  assert.deepEqual(rt().buffs, {}, 'สู้แล้วใช้บัฟ');
+});
+
+test('ปิ้งย่างบนหลังคา: พลิก/เสิร์ฟตรงจังหวะ = ที่ตามจำนวนคน (+เป๊ะ) · รับคนละที่ ฟื้นเลือด/เกราะ · ปล่อยไหม้ = ไม่ได้อะไร · ช่วงละ 2 ครั้ง', () => {
+  vanSetup(3);
+  place(0, 11, 4, true); place(1, 9, 4, true); place(2, 10, 5);
+  assert.equal(funCmd(0, { a: 'grill' }), true);
+  assert.equal(rt().vanProps.grill.state, 'on');
+  assert.equal(funCmd(1, { a: 'grillJoin' }), true);
+  assert.equal(funCmd(1, { a: 'grillFlip' }), false, 'คนย่างเท่านั้นที่พลิก');
+  const g = fun().grill;
+  const mid = (VF.FUN.grill.win[0] + VF.FUN.grill.win[1]) / 2;
+  g.t0 = Date.now() - mid * g.len;
+  assert.equal(funCmd(0, { a: 'grillFlip' }), true);
+  assert.equal(g.stage, 1); assert.equal(g.marks[0], 'perfect');
+  g.t0 = Date.now() - 0.65 * g.len;
+  assert.equal(funCmd(0, { a: 'grillFlip' }), true);
+  assert.equal(g.state, 'served');
+  assert.equal(g.portions, 3, '2 คน + เป๊ะ 1');
+  P(0).hp = 3;
+  assert.equal(funCmd(0, { a: 'grillTake' }), true);
+  assert.equal(P(0).hp, 3 + VF.FUN.grill.heal);
+  assert.equal(funCmd(0, { a: 'grillTake' }), false, 'คนละที่');
+  const combat = require('../server/combat.js');
+  P(1).hp = combat.maxHpOf(P(1)); P(1).armor = 0;
+  assert.equal(funCmd(1, { a: 'grillTake' }), true);
+  assert.equal(P(1).armor, 1, 'เลือดเต็ม = เกราะ +1');
+  assert.equal(g.portions, 1);
+  VF.tick(g.until + 1);
+  assert.equal(fun().grill, null);
+  assert.equal(funCmd(0, { a: 'grill' }), true);
+  const g2 = fun().grill;
+  VF.tick(g2.t0 + g2.len + 500);
+  assert.equal(g2.state, 'burnt'); assert.equal(g2.portions, 0);
+  assert.equal(rt().vanProps.grill.state, 'off');
+  VF.tick(g2.until + 1);
+  assert.equal(funCmd(0, { a: 'grill' }), false, 'ช่วงละ 2 ครั้ง');
+  RT.toDrive(); D.stopTick(); VF.stopTick();
+  funCmd(0, { a: 'grill' });
+  const g3 = fun().grill;
+  g3.t0 = Date.now() - 0.1 * g3.len; funCmd(0, { a: 'grillFlip' });
+  assert.equal(g3.marks[0], 'raw');
+  g3.t0 = Date.now() - 0.62 * g3.len; funCmd(0, { a: 'grillFlip' });
+  assert.equal(g3.state, 'burnt', 'คนเดียว −1 = ไม่เหลือ');
+});
+
+test('ผู้ส่องทาง: เห็นกล่องข้างทางคนเดียว · ปักหมุด = คนขับเห็นเลน · เข้าเลนทัน = ทุกคนได้เหรียญ · พลาด = ไม่ได้', () => {
+  vanSetup(2);
+  place(0, 12, 5, true); place(1, 13, 6);
+  rt().van.driverId = 'p1';
+  assert.equal(funCmd(1, { a: 'spot' }), false, 'คนขับส่องไม่ได้');
+  assert.equal(funCmd(0, { a: 'spot' }), true);
+  assert.deepEqual(RT.publicInfo('p0').fun.spot, ['p0']);
+  VF.tick(Date.now() + VF.FUN.spot.firstMs + 10);
+  assert.equal(fun().loot.length, 1);
+  const l = fun().loot[0];
+  assert.equal(RT.publicInfo('p0').fun.loot.length, 1, 'ผู้ส่องเห็น');
+  assert.equal(RT.publicInfo('p0').fun.loot[0].hidden, false);
+  assert.equal(RT.publicInfo('p1').fun.loot.length, 0, 'คนอื่นไม่เห็น');
+  assert.equal(funCmd(1, { a: 'mark', id: l.id }), false, 'ไม่ใช่ผู้ส่อง');
+  assert.equal(funCmd(0, { a: 'mark', id: l.id }), true);
+  const seen = RT.publicInfo('p1').fun.loot;
+  assert.equal(seen.length, 1); assert.equal(seen[0].hidden, true, 'เห็นแต่หมุดเลน'); assert.equal(seen[0].lane, l.lane); assert.equal(seen[0].kind, null);
+  rt().van.lane = l.lane;
+  l.kind = 'coin';
+  const g0 = P(0).gold, g1 = P(1).gold;
+  VF.tick(l.at + 1);
+  assert.equal(P(0).gold, g0 + VF.FUN.spot.coin); assert.equal(P(1).gold, g1 + VF.FUN.spot.coin);
+  assert.equal(fun().loot.length, 0);
+  fun().lootNextAt = 0;
+  VF.tick(Date.now());
+  const l2 = fun().loot[0];
+  rt().van.lane = l2.lane === 1 ? 0 : 1;
+  VF.tick(l2.at + 1);
+  assert.equal(P(0).gold, g0 + VF.FUN.spot.coin, 'พลาดไม่ได้อะไร');
+  assert.ok(rt().fx.some((f) => f.f === 'lootMiss'));
+  place(0, 7, 6, true);
+  VF.tick(Date.now());
+  assert.deepEqual(fun().spot, {}, 'เดินออกจากกล้อง = เลิกส่อง');
+});
+
+test('ตู้เย็น: ของมีจำกัด ฟื้นเลือด/ล้างสถานะ · เติมที่ปั๊ม · กล่องเครื่องมือ: ซ่อมรถ (สองคนเร็วขึ้น) + พัก · คนขับซ่อมไม่ได้ · จุดพักยกเลิกทุกวง', () => {
+  vanSetup(2);
+  place(0, 8, 5); place(1, 10, 6);
+  const combat = require('../server/combat.js');
+  P(0).hp = combat.maxHpOf(P(0));
+  assert.equal(funCmd(0, { a: 'drink' }), false, 'เลือดเต็มไม่มีสถานะ = ไม่ดื่ม');
+  P(0).hp = 3;
+  assert.equal(funCmd(0, { a: 'drink' }), true);
+  assert.equal(P(0).hp, 3 + VF.FUN.fridge.heal);
+  assert.equal(fun().fridge, VF.FUN.fridge.stock - 1);
+  P(0).hp = combat.maxHpOf(P(0)); P(0).statuses = { stun: 1 };
+  if (require('../server/shop.js').cleansableOf(P(0)).length) {
+    assert.equal(funCmd(0, { a: 'drink' }), true);
+    assert.equal(P(0).statuses.stun, undefined, 'ล้างสถานะ');
+  }
+  fun().fridge = 0; P(0).hp = 2;
+  assert.equal(funCmd(0, { a: 'drink' }), false, 'หมดตู้');
+  rt().van.hp = rt().van.hpMax - 3;
+  place(0, 9, 5);
+  rt().van.driverId = 'p1';
+  assert.equal(funCmd(1, { a: 'repair' }), false, 'คนขับซ่อมไม่ได้');
+  rt().van.driverId = null;
+  assert.equal(funCmd(0, { a: 'repair' }), true);
+  assert.equal(funCmd(1, { a: 'repair' }), true);
+  const hp0 = rt().van.hp;
+  VF.tick(Date.now() + 2600);
+  assert.equal(rt().van.hp, hp0 + 1, 'สองคน 2.5 วิ');
+  assert.equal(fun().repair, null);
+  assert.equal(funCmd(0, { a: 'repair' }), false, 'พัก');
+  fun().repairCd = {};
+  funCmd(0, { a: 'repair' });
+  VF.tick(Date.now() + 2600);
+  assert.equal(rt().van.hp, hp0 + 1, 'คนเดียวยังไม่ครบ');
+  place(0, 12, 4);
+  VF.tick(Date.now() + 3000);
+  assert.equal(fun().repair, null, 'เดินออก = เลิกซ่อม');
+  assert.equal(rt().van.hp, hp0 + 1);
+  place(0, 12, 5, true);
+  assert.equal(funCmd(0, { a: 'spot' }), true);
+  place(1, 7, 4); assert.equal(funCmd(1, { a: 'jam' }), true);
+  S.enter('gas');
+  assert.equal(fun().fridge, VF.FUN.fridge.stock);
+  assert.equal(fun().jam, null); assert.deepEqual(fun().spot, {});
+  assert.equal(funCmd(0, { a: 'drink' }), false, 'จุดพักใช้ไม่ได้');
+});

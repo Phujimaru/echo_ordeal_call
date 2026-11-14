@@ -15,7 +15,8 @@ let inside = true, suspended = false;
 // ความดังวิทยุของเครื่องนี้ (แผงวิทยุ: ปุ่มปิดเสียง + แถบ 0–100 · จำในเครื่อง) — ใช้ทั้ง YouTube และสถานีสังเคราะห์ (ผู้ใช้ 2026-11-14: แถบเสียงในตัวเล่น YouTube หายก่อนกดทัน)
 const VOL_KEY = "echo_rt_radio_vol";
 const own = (() => { try { const o = JSON.parse(localStorage.getItem(VOL_KEY) || "null"); if (o && Number.isFinite(o.v)) return { v: Math.max(0, Math.min(1, o.v)), mute: !!o.mute }; } catch { /* ไม่มีที่เก็บ */ } return { v: 0.8, mute: false }; })();
-const ownVol = () => (own.mute ? 0 : own.v);
+let duckK = 1; // วงดนตรีในรถ (VanFun) กำลังเล่น = วิทยุเบาลง
+const ownVol = () => (own.mute ? 0 : own.v) * duckK;
 const synthLevel = () => (inside ? 1 : 0.55) * ownVol();
 const outLevel = () => (suspended ? 0 : OUT_BASE * masterGain() * channelGain("music"));
 function makeRock(dest) {
@@ -477,6 +478,14 @@ export function resumeYouTube() {
   return false;
 }
 
+// วงดนตรีในรถ (กิจกรรมกีตาร์ — VanFun.jsx): ลดเสียงวิทยุระหว่างเล่น แล้วคืนตอนจบ
+export function setDuck(on) {
+  const k = on ? 0.2 : 1;
+  if (k === duckK) return;
+  duckK = k;
+  if (ac && cur.active && cur.src === "synth") ramp(radioGain.gain, synthLevel(), 0.5);
+  if (yt.want && yt.playing) ytFade(ytTargetVol(), 0.5);
+}
 // กล้องอยู่ในรถ (เพลงชัด) / นอกรถ (อู้อี้ + เบาลง)
 export function setInside(on) {
   if (inside === !!on) return;

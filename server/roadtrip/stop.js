@@ -34,6 +34,7 @@ function enter(kind) {
     match.lastLog.push("🏨 พักโรงแรม — ทุกคนฟื้นเต็ม");
   }
   rt.van.nitro = Van.statOf(rt.van, "nitro"); // ไนตรัสเติมเต็มทุกจุดพัก
+  if (kind === "gas") require("./vanfun").restock(rt); // ตู้เย็นในรถ: เติมเครื่องดื่มที่ปั๊ม
   rt.van.rearOpen = false;
   match.board = null;
   L.action().placeOnBoard(area);

@@ -613,7 +613,7 @@ export const VAN_HATCH_TILE = VAN_DEF.hatchTile || [11, 5]; // ซันรู�
 
 // ================================================================ (ก) หน้าขับเต็มจอ
 export const DRIVE_CAMS = [["chase", "ไล่หลัง"], ["far", "ไกล"], ["driver", "คนขับ"], ["hood", "ฝากระโปรง"], ["bumper", "กันชน"], ["roof", "ซันรูฟ"], ["wheel", "ข้างล้อ"], ["cine", "ภาพยนตร์"], ["inside", "ในรถ"]];
-const FP = { driver: [[2.3, 2.42, 1.0], [14, 1.6, 1.0]], hood: [[3.95, 2.1, 0], [16, 1.5, 0]], bumper: [[4.6, 0.72, 0], [16, 0.72, 0]], roof: [[0.5, 4.2, 0], [14, 2.9, 0]], wheel: [[1.6, 0.85, 1.7 + 1.2], [12, 0.6, 1.7 + 0.4]] };
+const FP = { driver: [[2.3, 2.42, 1.0], [14, 1.6, 1.0]], hood: [[3.95, 2.1, 0], [16, 1.5, 0]], bumper: [[4.6, 0.72, 0], [16, 0.72, 0]], roof: [[0.5, 4.2, 0], [14, 2.9, 0]], wheel: [[1.6, 0.85, 1.7 + 1.2], [12, 0.6, 1.7 + 0.4]], spot: [[1.4, 4.6, -1.0], [40, 1.4, -1.0]] }; // spot = กล้องส่องทางไกลบนดาดฟ้า (ผู้ส่องทาง — VanFun)
 
 export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onAction = () => {} } = {}) {
   const renderer = makeRenderer(canvas, lowQ);
@@ -626,7 +626,27 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
   van.setRoof(true);
   world.showRegion("plains");
 
-  const D = { v: 0, z: 0, zv: 0, lastV: 0, roll: 0, pitch: 0, shake: 0, boostT: 0, laneT: 0, lastLane: 0, fxSeen: new Set(), arr: new Map(), cam: "chase", camT: 0, introT0: null, size: { w: 0, h: 0 } };
+  const D = { v: 0, z: 0, zv: 0, lastV: 0, roll: 0, pitch: 0, shake: 0, boostT: 0, laneT: 0, lastLane: 0, fxSeen: new Set(), arr: new Map(), larr: new Map(), cam: "chase", camT: 0, introT0: null, size: { w: 0, h: 0 } };
+  // ---- กล่องของข้างทาง (state.roadtrip.fun.loot — กิจกรรมผู้ส่องทาง vanfun.js): กล่อง (เห็นเฉพาะที่ server ให้เห็น) + ลำแสงหมุดเลน (ปักแล้ว) · จองไว้ 3 ช่อง ไม่สร้างใหม่ระหว่างเฟรม
+  const lootSlots = [];
+  {
+    const crateGeo = new THREE.BoxGeometry(1.2, 1.0, 1.2), bandGeo = new THREE.BoxGeometry(1.24, 0.2, 1.24), beamGeo = new THREE.CylinderGeometry(0.55, 0.55, 26, 16, 1, true), ringGeo = new THREE.RingGeometry(1.1, 1.5, 28);
+    ringGeo.rotateX(-Math.PI / 2);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.8, fog: false }), gold = new THREE.MeshStandardMaterial({ color: 0xffc94a, emissive: 0xffa500, emissiveIntensity: 0.6, metalness: 0.6, roughness: 0.3, fog: false });
+    const item = new THREE.MeshStandardMaterial({ color: 0x5aa0e0, emissive: 0x3a7fff, emissiveIntensity: 0.6, metalness: 0.4, roughness: 0.3, fog: false });
+    for (let i = 0; i < 3; i++) {
+      const root = new THREE.Group(); root.visible = false; scene.add(root);
+      const crate = new THREE.Group(); root.add(crate);
+      const box0 = new THREE.Mesh(crateGeo, wood); box0.position.y = 0.5; box0.castShadow = true; crate.add(box0);
+      const band = new THREE.Mesh(bandGeo, gold); band.position.y = 0.5; crate.add(band);
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0x46d8ff, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide });
+      const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.y = 13; beam.renderOrder = 4; root.add(beam);
+      const ring = new THREE.Mesh(ringGeo, beamMat); ring.position.y = 0.06; root.add(ring);
+      lootSlots.push({ root, crate, band, beam, ring, id: null, fly: 0, arr: 0, lane: 0 });
+    }
+    lootSlots.mats = { gold, item };
+    lootSlots.dispose = () => { crateGeo.dispose(); bandGeo.dispose(); beamGeo.dispose(); ringGeo.dispose(); wood.dispose(); gold.dispose(); item.dispose(); for (const s of lootSlots) s.beam.material.dispose(); };
+  }
   // คอมไพล์ shader ล่วงหน้า (กลางวัน + กลางคืน) — สลับวัน/คืนกลางทางแล้วไม่สะดุด
   try {
     renderer.compile(scene, camera);
@@ -644,14 +664,14 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
 
   function camera3(dt, t, mode, look, boosting) {
     const fp = FP[mode];
-    const fov = (boosting ? 54 : 40 + D.v * 0.15) + (fp ? 14 : 0) + (look.zoom || 0);
+    const fov = mode === "spot" ? 16 + (look.zoom || 0) * 0.5 : (boosting ? 54 : 40 + D.v * 0.15) + (fp ? 14 : 0) + (look.zoom || 0); // ส่องทางไกล = ซูมแคบ
     camera.fov += (clamp(fov, 18, 95) - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix();
     const sh = D.shake + van.shake() + (boosting ? 0.06 : 0);
     _j.set((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
     if (fp) {
       van.body.updateMatrixWorld();
       _v.set(fp[0][0], fp[0][1], fp[0][2]); _d.set(fp[1][0], fp[1][1], fp[1][2]).sub(_v).normalize();
-      _d.applyAxisAngle(Y, (look.yaw || 0) - D.zv * (mode === "driver" ? 0.03 : 0.015));
+      _d.applyAxisAngle(Y, (look.yaw || 0) * (mode === "spot" ? 0.35 : 1) - D.zv * (mode === "driver" ? 0.03 : 0.015));
       _ax.crossVectors(_d, Y).normalize(); _d.applyAxisAngle(_ax, look.pitch || 0);
       camera.position.copy(_v); van.body.localToWorld(camera.position);
       camera.position.addScaledVector(_j, mode === "bumper" || mode === "wheel" ? 0.6 : 0.2);
@@ -715,6 +735,7 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
         if (f.k === "nitro") D.boostT = 1.6;
         else if (f.k === "crash" || f.k === "hit" || f.k === "hazardHit") D.shake = Math.max(D.shake, 0.6);
         else if (f.k === "turret") van.fireTurret(undefined, false);
+        else if (f.k === "fun" && f.f === "lootGet") { for (const s of lootSlots) if (s.id === f.loot) { s.fly = 0.9; s.root.visible = true; s.root.position.x = 2; } }
       }
       if (D.fxSeen.size > 300) D.fxSeen = new Set([...D.fxSeen].slice(-120));
     }
@@ -786,6 +807,35 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
       s.warn.scale.set(wl, 1, 1); s.warn.material.opacity = (0.35 + 0.35 * Math.sin(t * 10)) * clamp(1 - left / 3.4, 0.3, 1);
     }
     if (D.arr.size > 60) for (const k of [...D.arr.keys()].slice(0, 30)) D.arr.delete(k);
+    // ---- กล่องของข้างทาง (ผู้ส่องทาง): ไม่อยู่ในรายการแล้ว = ซ่อน (ยกเว้นกำลังลอยขึ้นตอนเก็บได้)
+    const loot = rt && rt.fun && Array.isArray(rt.fun.loot) ? rt.fun.loot : null;
+    for (const s of lootSlots) s.live = false;
+    if (loot) for (const l of loot) {
+      if (!l || l.id == null) continue;
+      let s = null;
+      for (const q of lootSlots) if (q.id === l.id) { s = q; break; }
+      if (!s) { for (const q of lootSlots) if (q.id == null || (!q.root.visible && q.fly <= 0)) { s = q; break; } if (!s) continue; s.id = l.id; s.fly = 0; }
+      s.live = true; s.lane = clamp(Math.round(+l.lane || 0), -1, 1);
+      if (!D.larr.has(l.id)) D.larr.set(l.id, Date.now() + clamp(srvOffset != null ? l.at - (Date.now() + srvOffset) : l.at - Date.now(), 0, 12000)); // กล่องโผล่ล่วงหน้า 9 วิ (ยาวกว่าสิ่งกีดขวาง — ไม่ใช้เพดาน 5.4 วิ)
+      s.arr = D.larr.get(l.id);
+      s.crate.visible = !l.hidden; s.beam.visible = !!l.marked; s.ring.visible = !!l.marked;
+      s.band.material = l.kind === "item" ? lootSlots.mats.item : lootSlots.mats.gold;
+    }
+    for (const s of lootSlots) {
+      if (s.id == null) continue;
+      if (s.fly > 0) {
+        s.fly -= dt; const k = 0.9 - s.fly;
+        s.root.position.set(Math.max(1, s.root.position.x - dt * 20), k * 6, s.lane * LANE); s.crate.rotation.y += dt * 9; s.crate.visible = true; s.beam.visible = false; s.ring.visible = false;
+        if (s.fly <= 0) { s.root.visible = false; s.id = null; }
+        continue;
+      }
+      const left = (s.arr - Date.now()) / 1000;
+      if (!s.live) { s.root.visible = false; D.larr.delete(s.id); s.id = null; continue; }
+      if (left < -0.15) { s.root.visible = false; continue; } // ผ่านรถแล้ว รอผลจาก server (เก็บได้ = ลอยขึ้น)
+      s.root.visible = true; s.root.position.set(left * Math.max(D.v, 4), 0, s.lane * LANE);
+      s.crate.rotation.y = t * 0.8; s.beam.material.opacity = 0.25 + 0.15 * Math.sin(t * 6);
+    }
+    if (D.larr.size > 30) D.larr.clear();
     // ---- ป้ายทางแยก
     const fork = rt && rt.phase === "fork" && rt.fork && Array.isArray(rt.fork.options) ? rt.fork : null;
     world.gantry.visible = !!fork;
@@ -852,7 +902,7 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
     update, pick: pickAt, tileAt, crewAt, showWalk, propTile, hover: (hit) => van.hover(hit), van, camera, renderer,
     info: () => renderer.info,
     dispose() {
-      van.dispose(); world.dispose(); renderer.dispose(); // ไม่ forceContextLoss — แคนวาสเดิมอาจถูกใช้สร้างฉากใหม่ (StrictMode / ต่อสู้รอบถัดไป)
+      lootSlots.dispose(); van.dispose(); world.dispose(); renderer.dispose(); // ไม่ forceContextLoss — แคนวาสเดิมอาจถูกใช้สร้างฉากใหม่ (StrictMode / ต่อสู้รอบถัดไป)
     },
   };
 }

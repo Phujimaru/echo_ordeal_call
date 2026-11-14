@@ -28,7 +28,7 @@ const Route = require("./route");
 const H = {
   timers: () => require("../timers"), view: () => require("../view"), combat: () => require("../combat"), action: () => require("../phases/action"),
   draw: () => require("../phases/draw"), shop: () => require("../shop"), summon: () => require("../summon"),
-  drive: () => require("./drive"), vanwalk: () => require("./vanwalk"), events: () => require("./events"), stop: () => require("./stop"), fight: () => require("./fight"), mobs: () => require("./mobs"),
+  drive: () => require("./drive"), vanwalk: () => require("./vanwalk"), vanfun: () => require("./vanfun"), events: () => require("./events"), stop: () => require("./stop"), fight: () => require("./fight"), mobs: () => require("./mobs"),
 };
 
 const SECS = { intro: 8, fork: 15, event: 20, gas: 150, motel: 60, eventResult: 3, combatIntro: 2.8, bossIntro: 4.5 }; // intro/combatIntro/bossIntro = เวลาให้ฉากเปลี่ยนฝั่ง client เล่นจบ (RtTransitions)
@@ -65,7 +65,7 @@ function fresh(diff) {
 }
 function reset() { stopAll(); match.roadtrip = null; }
 // หยุดทุกตัวจับเวลาของโหมด (ขับเรียลไทม์) — เรียกตอนจบเกม/กลับห้องรอ/เริ่มแมตช์ใหม่
-function stopAll() { H.drive().stopTick(); }
+function stopAll() { H.drive().stopTick(); H.vanfun().stopTick(); }
 
 // ---------- เริ่มแมตช์ (lobby.startMatch) ----------
 //  introHold = เวลาฉากเปิดตัวผู้เล่น (ม่าน MatchIntro) · 0 = ไม่มีฉาก (เทสต์ — JOURNEY_START_SECONDS=0)
@@ -76,6 +76,7 @@ function start(introHold = 0) {
   match.rtDiff = diff;
   match.roadtrip = fresh(diff);
   H.vanwalk().ensure(match.roadtrip); // ที่นั่งในรถตั้งต้น (ช่องคนขับว่าง)
+  H.vanfun().ensure(match.roadtrip); // กิจกรรมในรถ (ตู้เย็นเต็ม)
   const rt = match.roadtrip;
   match.board = null;
   H.action().placeOnBoard(Maps.RT_ROAD); // ตำแหน่งจริงตอนขับไม่มีผล — กระดานพร้อมให้ view
@@ -121,7 +122,8 @@ Object.assign(module.exports, { syncRoute });
 function setPhase(name, secs, onExpire) {
   const rt = match.roadtrip;
   if (!rt) return;
-  if (name !== "drive") { H.drive().stopTick(); rt.hazards = []; rt.nitroUntil = 0; } // สิ่งกีดขวาง/ไนตรัสค้างไม่ข้ามช่วง (กลับมาขับแล้วไม่โดนชนรวดเดียว)
+  if (name !== "drive") { H.drive().stopTick(); rt.hazards = []; rt.nitroUntil = 0; }
+  H.vanfun().onPhase(rt, name); // กิจกรรมในรถ: ออกจากช่วงเดินทาง = ยกเลิกทุกวง (คืนเงินกองเต๋า) · ไม่ใช่ขับ = กล่องข้างทางหาย // สิ่งกีดขวาง/ไนตรัสค้างไม่ข้ามช่วง (กลับมาขับแล้วไม่โดนชนรวดเดียว)
   rt.phase = name;
   const timers = H.timers();
   timers.clearPhaseTimer();
@@ -136,6 +138,7 @@ function toDrive() {
   if (!rt || rt.phase === "over") return;
   rt.fork = null; rt.event = null; rt.stop = null; rt.combat = null;
   rt.legKm = rt.km;
+  H.vanfun().onDrive(rt); // ช่วงขับใหม่ = โควตาดนตรี/ปิ้งย่างใหม่
   rt.driverActAt = Date.now(); // นับไม่ขยับใหม่ทุกครั้งที่กลับมาขับ — เดิมค้างค่าก่อนเข้าปั๊ม/สู้/ทางแยก → คนขับหลุดทันทีที่ออกตัว (ผู้ใช้แจ้ง 2026-11-14)
   rt.hzNextAt = Date.now() + H.drive().HZ_FIRST_MS; // กลับมาขับ: สิ่งกีดขวางชิ้นแรกไม่ก่อน 8 วิ (ฉากชนะ/ออกจากปั๊มยังเล่นอยู่ · ช่วงพักในรถ)
   setPhase("drive", 0);
@@ -345,6 +348,7 @@ function command(id, name, payload) {
     case "rear": ok = H.fight().toggleRear(p); break;
     case "vanWalk": ok = H.vanwalk().walk(p, o); break;   // เดินเล่นในรถตอนขับ
     case "vanProp": ok = H.vanwalk().useProp(p, typeof o.prop === "string" ? o.prop : ""); break;
+    case "fun": ok = H.vanfun().command(p, o); break;      // กิจกรรมกับเพื่อนในรถ (vanfun.js)
     case "swerve": ok = H.fight().swerve(p, o.side); break;
     case "turret": ok = H.fight().fireTurret(p, Number(o.x), Number(o.y)); break;
     case "roof": ok = H.fight().toggleRoof(p); break;
@@ -424,6 +428,7 @@ function publicInfo(viewerId = null) {
     now: Date.now(), // นาฬิกา server ตอนส่ง (client เทียบนับถอยหลัง endsAt/hazards.at)
     fx: rt.fx.slice(-FX_KEEP),
     summary: rt.summary,
+    fun: H.vanfun().publicInfo(rt, viewerId), // กิจกรรมในรถ (vanfun.js) — กล่องข้างทางกรองตามผู้ดู
     ...H.vanwalk().publicInfo(rt), // vanPos { [id]: { x, y, roof } } · vanProps { [key]: { x, y, roof, state } }
     best: (leaderboard()[rt.diff] || [])[0] ? leaderboard()[rt.diff][0].km : 0,
   };
