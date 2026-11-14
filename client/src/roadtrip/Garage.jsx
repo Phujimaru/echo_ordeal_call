@@ -115,7 +115,8 @@ function VanStage({ van, night }) {
  * @param night    กลางคืน (ไฟรถในภาพ 3D)
  * @param onClose  ปิดอู่
  */
-export default function Garage({ van = {}, gold = 0, diff = "normal", night = false, far = false, onClose }) {
+export default function Garage({ van = {}, gold = 0, diff = "normal", night = false, far = false, unitId, onClose }) {
+  const who = unitId ? { unitId } : {}; // ระบบคู่: ตัวที่ยืนใกล้อู่ (เอมิลิโกะ)
   const [tab, setTab] = useState("upg");
   const [plate, setPlate] = useState(van.plate || "");
   const [bumped, setBumped] = useState(null);
@@ -191,9 +192,22 @@ export default function Garage({ van = {}, gold = 0, diff = "normal", night = fa
             <div className="rt-g-scroll" key={tab}>
               {tab === "upg" && (
                 <div className="rt-upg-grid">
+                  {(van.hp | 0) < (van.hpMax | 0) && ( /* ซ่อมรถ (server stop.upgrade key "repair" · 1 เหรียญ × ราคาความยาก ต่อ 3 HP · จ่ายเท่าที่มี) */
+                    <div className="rt-upg" style={{ "--i": 0 }} {...tip("ซ่อมรถตู้ 3 HP ต่อเหรียญ (ราคาตามความยาก) · เหรียญไม่พอ = ซ่อมเท่าที่จ่ายได้", "ซ่อมรถ")}>
+                      <span className="rt-upg-ico" aria-hidden="true">🔧</span>
+                      <span className="rt-upg-name"><b>ซ่อมรถ</b></span>
+                      <span className="rt-upg-val">
+                        <span>{van.hp} HP</span><span className="arr" aria-hidden="true">→</span><span className="to">{van.hpMax}</span>
+                      </span>
+                      <button type="button" className="rt-buy rt-num" data-max="false" disabled={gold <= 0 || far}
+                        onClick={() => { uiSound("confirm"); rtSfx("wrench"); rtEmit("rt:upg", { key: "repair", ...who }); }}>
+                        <i className="rt-coin s" />{van.prices && van.prices.repair != null ? van.prices.repair : "?"}
+                      </button>
+                    </div>
+                  )}
                   {UPGRADES.map((u, i) => {
                     const lv = Math.max(0, Math.min(3, upg[u.key] || 0));
-                    const price = upgPrice(lv, diff, van);
+                    const price = upgPrice(lv, diff, van, u.key);
                     const max = lv >= 3;
                     return (
                       <div key={u.key} className="rt-upg" style={{ "--i": i }} {...tip(u.desc, u.name)}>
@@ -211,7 +225,7 @@ export default function Garage({ van = {}, gold = 0, diff = "normal", night = fa
                           className="rt-buy rt-num"
                           data-max={max ? "true" : "false"}
                           disabled={max || gold < price || far /* far = ยืนไกลอู่ (server stop.upgrade ≤ 2 ช่อง) */}
-                          onClick={() => { uiSound("confirm"); rtSfx("upgrade"); rtEmit("rt:upg", { key: u.key }); }}
+                          onClick={() => { uiSound("confirm"); rtSfx("upgrade"); rtEmit("rt:upg", { key: u.key, ...who }); }}
                         >
                           {max ? "สูงสุด" : <><i className="rt-coin s" />{price}</>}
                         </button>

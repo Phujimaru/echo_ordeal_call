@@ -61,3 +61,25 @@
 .rtd-give { animation: rtd-give-pulse 1s ease-in-out infinite; border-color: #ffd27a; }
 .rtd-give span { white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 @keyframes rtd-give-pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 210, 122, .35); } }
+
+/* คนขับตอนนี้ (HUD ซ้ายสุด) — รูป/สีผู้เล่น + ชื่อ + ไอคอนพวงมาลัย · ว่าง = จาง */
+.rtd-driver { --dc: #ff8a3d; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; max-width: 92px; }
+.rtd-driver-face { position: relative; width: 42px; height: 42px; border-radius: 50%; overflow: visible; background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--dc) 70%, #fff) 0%, var(--dc) 60%, #22324f 100%); box-shadow: 0 0 0 2px var(--dc), 0 2px 8px rgba(0, 0, 0, .35); }
+.rtd-driver-face img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.rtd-driver-face i { position: absolute; right: -6px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #1b2330; box-shadow: 0 0 0 2px var(--dc); }
+.rtd-driver-face i svg { width: 14px; height: 14px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+.rtd-driver b { font: 700 12px/1.1 "Kanit", sans-serif; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rtd-driver[data-empty="true"] .rtd-driver-face { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .28); }
+.rtd-driver[data-empty="true"] .rtd-driver-face i { box-shadow: 0 0 0 2px rgba(255, 255, 255, .4); }
+.rtd-driver[data-empty="true"] b { opacity: .55; }
+
+/* ประกาศคนขับเปลี่ยน (ทุกเครื่อง · 2.6 วิ) */
+.rtd-seat-toast {
+  --dc: #ff8a3d; position: absolute; left: 50%; top: 66px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px 8px 10px; border-radius: 999px; color: #fff; pointer-events: none; z-index: 3;
+  background: rgba(13, 19, 28, .78); backdrop-filter: blur(6px); box-shadow: 0 0 0 2px var(--dc), 0 8px 22px rgba(0, 0, 0, .3);
+  font: 700 16px/1 "Kanit", sans-serif; animation: rtd-toast 2.6s ease both;
+}
+.rtd-seat-toast svg { width: 22px; height: 22px; fill: none; stroke: var(--dc); stroke-width: 2; stroke-linecap: round; }
+.rtd-seat-toast[data-empty="true"] { --dc: rgba(255, 255, 255, .55); }
+@keyframes rtd-toast { 0% { opacity: 0; transform: translate(-50%, -10px); } 10%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -6px); } }

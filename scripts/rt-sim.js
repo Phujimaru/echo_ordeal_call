@@ -104,7 +104,7 @@ async function walkTo(c, tiles) {
 // ---------- ฉาก: จุดพัก (ปั๊ม) ----------
 async function sceneStop() {
   console.log("\n== จุดพัก: เดิน/ซื้อ/ให้-แลก/ทิ้ง/อู่/กิจกรรม/พร้อม พร้อมกันทุกคน ==");
-  const srv = await startServer({ ECHO_DEV_RT_PHASE: "stop", ECHO_DEV_RT_DIFF: "easy" });
+  const srv = await startServer({ ECHO_DEV_RT_PHASE: "stop", ECHO_DEV_RT_DIFF: "easy", ECHO_DEV_RICH: "1" }); // มีทองพอ = อัปเกรด/ซ่อมทดสอบได้จริง (เดิมทองไม่พอ อัปเกรด 0→0 ผ่านเงียบ)
   const cs = await lobby(srv, N);
   if (!(await until(() => cs.every((c) => c.rt().phase === "stop" && c.me().pos)))) { bug("ไม่เข้าจุดพัก/ผู้เล่นไม่มีตำแหน่ง"); return finish(srv, cs); }
   ok(`เข้าปั๊ม area ${cs[0].st.board.area}`);
@@ -170,6 +170,14 @@ async function sceneStop() {
   const lv1 = g1.rt().van.upg.body | 0, spent = gg[0] - g1.me().gold + gg[1] - g2.me().gold;
   console.log(`  · อัปเกรดพร้อมกัน: ขั้น ${lv0}→${lv1} ใช้ทอง ${spent}`);
   if (lv1 - lv0 === 0 && spent > 0) bug("อัปเกรดไม่ขึ้นแต่เสียทอง");
+  if (lv1 - lv0 === 0 && gg[0] >= 6) bug("ยืนติดอู่ ทองพอ แต่อัปเกรดไม่ขึ้น");
+  if (lv1 > lv0 && spent <= 0) bug("อัปเกรดขึ้นแต่ไม่เสียทอง");
+  // ซ่อมรถ (ปุ่มในหน้าอู่ — rt:upg repair) · กดตัวอาคารอู่ไม่หักเงิน
+  const g1g = g1.me().gold;
+  g1.emit("rt:act", { id: garage.id });
+  await sleep(400);
+  if (g1.me().gold !== g1g) bug("กดอาคารอู่แล้วเสียทอง (ควรแค่เปิดหน้าอู่)");
+  // กิจกรรมที่ทำไม่ได้ต้องบอก (fx actFail) — ตู้น้ำมันตอนถังเต็มทำทีหลัง
   desync(cs, "หลังอัปเกรด");
   // กิจกรรมพร้อมกัน: ตู้น้ำมัน (ใช้ซ้ำได้) — ทุกคนกดพร้อมกัน
   const pump = def.props.find((o) => o.kind === "pump");
@@ -178,6 +186,11 @@ async function sceneStop() {
   const fuel = cs[0].rt().van.fuel;
   if (cs.some((c) => c.rt().van.fuel !== fuel)) bug("น้ำมันไม่ตรงกันระหว่างเครื่อง");
   ok(`กิจกรรมตู้น้ำมันพร้อมกัน — น้ำมัน ${fuel}/${cs[0].rt().van.fuelMax}`);
+  if (fuel >= cs[0].rt().van.fuelMax) {
+    const k0 = cs[0].rt().fx.length ? cs[0].rt().fx[cs[0].rt().fx.length - 1].key : 0;
+    cs[0].emit("rt:act", { id: pump.id });
+    if (await until(() => cs[0].rt().fx.some((f) => f.key > k0 && f.k === "actFail" && f.why === "full"), 1500)) ok("ถังเต็ม = fx actFail (full)"); else bug("ถังเต็มกดตู้น้ำมันแล้วเงียบ (ไม่มี actFail)");
+  }
   // กดพร้อมสลับไปมา แล้วพร้อมครบ → ขับต่อ
   cs[0].emit("rt:ready"); cs[0].emit("rt:ready"); // กดแล้วยกเลิก
   await sleep(300);

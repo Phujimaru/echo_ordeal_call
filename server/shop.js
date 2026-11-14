@@ -321,6 +321,7 @@ function maybeMoveShop() {
 // อีกกี่เทิร์นร้านนี้อยู่ (นับเทิร์นนี้ด้วย — 1 = เทิร์นสุดท้าย)
 function shopTurnsLeftOf(s) {
   if (!s) return 0;
+  if (s.rt) return 0; // Road Trip จุดพัก: ร้านอยู่จนออกจากจุดพัก (นับเวลาที่แถบจุดพัก) — ไม่มีเทิร์นให้นับ
   const now = Zero.worldRound();
   if (s.capsule || s.kind === "capsule") return Math.max(1, (s.openedRound || now) + (s.kind === "cara" ? 2 : SHOP_INTERVAL_TURNS) - now);
   if (s.kind === "cara") return Math.max(1, (s.leaves || now) - now);
@@ -459,7 +460,7 @@ const adjacentShop = (p, shopId) => (shopId ? [shopById(shopId)] : shopsList()).
 function viewShop(id, shopId) {
   const p = match.players[id];
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return;
-  if (require("./roadtrip").freeShop(p)) { const s = adjacentShop(p, shopId); if (s) { require("./roadtrip").fx("shop", { pid: p.id, shopId: s.id }); view.broadcastState(); } return; } // Road Trip จุดพัก: ไม่มีตาเดิน
+  if (require("./roadtrip").freeShop(p)) { const s = adjacentShop(p, shopId) || require("./duo").unitsOf(p).map((u) => adjacentShop(u, shopId)).find(Boolean); if (s) { require("./roadtrip").fx("shop", { pid: p.id, shopId: s.id }); view.broadcastState(); } return; } // Road Trip จุดพัก: ไม่มีตาเดิน
   if (!action.canAct(p)) return;
   if (remoteShop(p)) { if (!shopId || !shopById(shopId)) return; view.broadcastState(); return; } // ซื้อจากระยะไกล = ไม่ล็อกการเดิน
   if (match.action.locked) return;
@@ -476,7 +477,9 @@ function buyShopItem(id, shopId, itemId) {
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   const sh = shopId ? shopById(shopId) : shopsList().find((s) => (s.items || []).some((it) => it.id === itemId));
   const remote = remoteShop(p);
-  if (!sh || (!remote && !nearShopOf(p, sh))) return; // ต้องยืนติดร้าน (ระยะ 1 จากขอบร้าน) — GRID_PLAN §8.1 · Gate of Babylon ซื้อจากไหนก็ได้
+  // Road Trip จุดพัก + ระบบคู่: ตัวไหนของผู้เล่นยืนติดร้านก็ซื้อได้ (นอกตาเดินคุมเอมิลิโกะได้ — server/roadtrip/stop.js unitId)
+  const rtNear = rtFree && !!sh && require("./duo").unitsOf(p).some((u) => require("./roadtrip").freeShop(u) && nearShopOf(u, sh));
+  if (!sh || (!remote && !rtNear && !nearShopOf(p, sh))) return; // ต้องยืนติดร้าน (ระยะ 1 จากขอบร้าน) — GRID_PLAN §8.1 · Gate of Babylon ซื้อจากไหนก็ได้
   if (bagFull(p)) return; // กระเป๋าเต็ม
   const item = (sh.items || []).find((it) => it.id === itemId);
   if (!item || item.sold) return;

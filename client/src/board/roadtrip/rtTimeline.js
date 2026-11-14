@@ -11,8 +11,17 @@
 //  เวลารวมของมอนธรรมดาถูกบีบไม่เกิน ~6 วิ (เร่งเมื่อมอนเยอะ) · ท่าบอสเวลาเต็ม
 //  คืน Set ของ id ที่ฉากนี้ดูแลตำแหน่ง/หลอดเลือดเอง (BoardStage ไม่ต้องเลื่อน/ขึ้นเลขซ้ำ)
 // ============================================================
-import { rtSfx } from "../../roadtrip/rtAudio";
+import { rtSfx as rtSfxRaw } from "../../roadtrip/rtAudio";
 import { channelGain, isMusicSuspended, masterGain } from "../../audio";
+
+// จบการต่อสู้ (audio.stopCombatMedia → "echo:stop-combat-media"): ล้างเอฟเฟกต์บอสที่ค้าง + ปิดเสียงที่ตั้งเวลาไว้แล้ว (api.later) ไม่ให้ดังหลังออกจากการต่อสู้ (กฎผู้ใช้)
+let stoppedAt = -1e9;
+const muted = () => typeof performance !== "undefined" && performance.now() - stoppedAt < 6000;
+const rtSfx = (...a) => { if (!muted()) rtSfxRaw(...a); };
+if (typeof window !== "undefined") window.addEventListener("echo:stop-combat-media", () => {
+  stoppedAt = performance.now();
+  BFX.length = 0; F1.length = 0; busyTill = 0; shakeReq = 0;
+});
 
 const SEEN = new Set();
 let BOSS_ID = null, BOSS_TYPE = null;
@@ -54,7 +63,7 @@ function ac() {
 }
 function env(g, t, a, v, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
 export function synth(name) {
-  if (isMusicSuspended()) return;
+  if (isMusicSuspended() || muted()) return;
   const c = ac(); if (!c) return;
   const t = c.currentTime;
   const tone = (type, f, d, v, to, cut = 9000, at = 0) => { const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t + at); if (to) o.frequency.exponentialRampToValueAtTime(to, t + at + d); fl.type = "lowpass"; fl.frequency.value = cut; env(g, t + at, 0.01, v, d); o.connect(fl).connect(g).connect(BUS); o.start(t + at); o.stop(t + at + d + 0.1); };
@@ -80,8 +89,15 @@ export function synth(name) {
 const xyOf = (p) => (Array.isArray(p) ? { x: p[0], y: p[1] } : { x: p.x, y: p.y });
 const LUNGE_HIT_MS = 384; // ตรงกับ BoardCanvas LUNGE_MS 620 × LUNGE_HIT 0.62
 // ระยะเวลาท่าบอส: wind = ง้าง (ms) · act = ช่วงลงมือ · imp = จังหวะปะทะ (นับจากเริ่ม) · step = ms ต่อช่องตอนพุ่ง
-const BOSS_T = { swing: { wind: 300, act: 560 }, ram: { wind: 520, step: 60 }, throw: { wind: 420, act: 950 }, charge: { wind: 420, step: 65 }, slash: { wind: 380, act: 560 }, lunge: { wind: 320, act: 520 }, tide: { wind: 360, act: 900 } };
+const BOSS_T = {
+  swing: { wind: 300, act: 560 }, ram: { wind: 520, step: 60 }, throw: { wind: 420, act: 950 }, charge: { wind: 420, step: 65 }, slash: { wind: 380, act: 560 }, lunge: { wind: 320, act: 520 }, tide: { wind: 360, act: 900 },
+  // ท่าระยะ 2 (QA 2026-11-14: เดิมไม่มีจังหวะ/ภาพ — เลขดาเมจขึ้นเฉยๆ)
+  celebrate: { wind: 300, act: 900 }, pitstop: { wind: 200, act: 1200 }, wave: { wind: 420, act: 700 }, spikes: { wind: 420, act: 620 }, sweep: { wind: 320, act: 560 }, tidal: { wind: 420, act: 1000 }, prison: { wind: 380, act: 700 },
+};
 
+const HATCH = { x: 11, y: 5 }; // ช่องซันรูฟ/ป้อมปืนของกระดานสู้บนรถตู้ (server maps.js RT_ONVAN hatchTile) — api.vanAt() มีแค่รถจอด (vanBlock)
+// จุดที่มอนทุบรถ: รถจอด = กลางรถ · บนรถตู้ (ไม่มี vanBlock) = ช่องในรถที่ติดตัวมอน (RT_ONVAN vanTiles x 7–13 · y 4–6)
+function vanHitAt(api, from) { return api.vanAt() || (from ? { x: Math.max(7, Math.min(13, from.x)), y: Math.max(4, Math.min(6, from.y)) } : HATCH); }
 function vanCenter(def) { const v = def && def.vanBlock; return v ? { x: (v.x0 + v.x1) / 2, y: (v.y0 + v.y1) / 2 } : null; }
 
 // rt = state.roadtrip · api = ตัวเชื่อม BoardStage (ดูท้ายไฟล์ BoardStage — rtApi)
@@ -131,7 +147,7 @@ export function rtFxPlay(rt, api) {
       addBfx("freeze", api.now(), 2400, {});
       api.later(0, () => { synth("ice"); synth("water"); rtShake(0.3); });
     } else if (f.k === "turretShot") {
-      const v = api.vanAt(), tgt = f.x != null ? { x: f.x, y: f.y } : api.nextPos(f.target);
+      const v = (f.id && (api.prevPos(f.id) || api.nextPos(f.id))) || api.vanAt() || HATCH, tgt = f.x != null ? { x: f.x, y: f.y } : api.nextPos(f.target); // ยิงมือ = จากตัวคนยิง (บนรถตู้ไม่มี vanBlock)
       if (v && tgt) {
         addBfx("tracer", api.now(), 420, { from: v, to: tgt });
         api.later(0, () => rtSfx("turret_fire"));
@@ -140,6 +156,8 @@ export function rtFxPlay(rt, api) {
     } else if (f.k === "swerveRam" && Array.isArray(f.tiles)) {
       api.later(0, () => { rtSfx("tire_screech"); });
       api.later(250, () => { api.fx(f.tiles.map((t) => ({ kind: "slash", x: t.x, y: t.y, rgb: "255,170,80" }))); rtSfx("crash"); rtShake(0.5); api.shake(); });
+    } else if (f.k === "swerve" && f.dmg > 0) { // จบเทิร์นไม่มีคนขับ = รถส่าย (รถเสีย HP) — เลขลอยที่ช่องคนขับ
+      api.later(0, () => { api.fx([{ kind: "float", x: 13, y: 6, text: `🚐 -${f.dmg | 0}`, color: "#ffb070", size: 28, z: 1.5 }]); rtSfx("tire_screech"); rtShake(0.4); api.shake(); });
     } else if ((f.k === "roofFall" || f.k === "fall") && f.id) {
       const p = f.from || api.prevPos(f.id) || api.nextPos(f.id);
       if (p) api.later(0, () => { api.fx([{ kind: "float", x: p.x, y: p.y, text: "ร่วง!", color: "#ffb0a8", size: 26, z: 1.5 }]); synth("thud"); });
@@ -198,12 +216,13 @@ function playTurn(f, api, out) {
   // คนที่โดน: หลอดเลือด/ตำแหน่งค้างค่าเดิมจนถึงจังหวะปะทะ
   const targets = new Set();
   for (const e of seq) if ((e.k === "mobHit" || e.k === "mobCounter") && e.target && e.target !== "van") targets.add(e.target);
+  for (const e of seq) if (e.k === "ram" && e.id) targets.add(e.id); else if (e.k === "turretShot" && e.target) targets.add(e.target);
   for (const e of seq) if (e.k === "mobCounter") targets.add(e.target);
   for (const id of targets) { api.vitHold(id); out.add(id); const a = api.prevPos(id), b = api.nextPos(id); if (a && b && (a.x !== b.x || a.y !== b.y)) api.hold(id, a); }
   const moved = new Set();
   let t = 80;
   const impact = (e, at, heavy) => {
-    const tgt = e.target === "van" ? api.vanAt() : posOf(e.target);
+    const tgt = e.target === "van" ? vanHitAt(api, posOf(e.id)) : posOf(e.target);
     api.later(at, () => {
       if (!tgt) return;
       if (e.target !== "van") { api.vitUnhold(e.target); const a = api.prevPos(e.target), b = api.nextPos(e.target); if (!moved.has(e.target) && a && b && (a.x !== b.x || a.y !== b.y)) { moved.add(e.target); api.knock(e.target, a, b); } }
@@ -231,7 +250,7 @@ function playTurn(f, api, out) {
       api.look(pts[pts.length - 1], t);
       t += (pts.length - 1) * step + 60 * k;
     } else if (e.k === "mobHit") {
-      const from = posOf(e.id), tgt = e.target === "van" ? api.vanAt() : posOf(e.target);
+      const from = posOf(e.id), tgt = e.target === "van" ? vanHitAt(api, from) : posOf(e.target);
       if (from && tgt) api.later(t, () => api.lunge(e.id, from, tgt, e.target === "van" ? null : e.target));
       impact(e, t + LUNGE_HIT_MS, false);
       t += 640 * k;
@@ -242,6 +261,37 @@ function playTurn(f, api, out) {
     } else if (COMIC[e.k]) {
       comic(e, api.now() + t, api);
       t += Math.min(COMIC[e.k], 1200);
+    } else if (e.k === "scroll" && Array.isArray(e.list)) { // ถนนเลื่อน (สู้บนรถตู้): ทุกตัวนอกรถไถลถอยหลังพร้อมกัน
+      for (const s of e.list) {
+        if (!Array.isArray(s.path) || s.path.length < 2) continue;
+        const pts = s.path.map(xyOf);
+        api.glide(s.id, pts, 260, t);
+        out.add(s.id);
+        pos[s.id] = pts[pts.length - 1];
+      }
+      t += 380;
+    } else if (e.k === "ram" && e.id) { // รถตู้ชนมอน (กันชน / ถนนเลื่อนเข้าหน้ารถ)
+      const at = posOf(e.id);
+      api.later(t, () => {
+        api.vitUnhold(e.id);
+        if (!at) return;
+        api.fx(e.dodged ? [{ kind: "float", x: at.x, y: at.y, text: "หลบ", color: "#d8f2ff", size: 28, z: 1.5 }] : [{ kind: "burst", x: at.x, y: at.y, rgb: "255,180,80" }, { kind: "float", x: at.x, y: at.y, text: `-${e.dmg | 0}`, color: "#ffb070", size: e.kill ? 36 : 30, z: 1.5 }]);
+        if (!e.dodged) { rtSfx("crash"); rtShake(0.35); api.shake(); }
+      });
+      t += 420 * k;
+    } else if (e.k === "turretShot" && e.target) { // ป้อมปืนยิงอัตโนมัติต้นเทิร์น
+      const v = api.vanAt() || HATCH, tgt = e.x != null ? { x: e.x, y: e.y } : posOf(e.target);
+      if (v && tgt) addBfx("tracer", api.now() + t, 420, { from: v, to: tgt });
+      api.later(t, () => rtSfx("turret_fire"));
+      api.later(t + 160, () => {
+        api.vitUnhold(e.target);
+        if (tgt) api.fx([{ kind: "burst", x: tgt.x, y: tgt.y, rgb: "255,220,120" }, { kind: "float", x: tgt.x, y: tgt.y, text: e.dodged ? "หลบ" : `-${e.dmg | 0}`, color: e.dodged ? "#d8f2ff" : "#ffd27a", size: 26, z: 1.5 }]);
+      });
+      t += 480 * k;
+    } else if (e.k === "fall" && e.id) { // มอนร่วงหลุดถนนท้ายรถ
+      const at = e.from || posOf(e.id);
+      api.later(t, () => { if (at) api.fx([{ kind: "float", x: at.x, y: at.y, text: "ร่วง!", color: "#ffb0a8", size: 26, z: 1.5 }]); synth("thud"); });
+      t += 300 * k;
     } else if (e.k === "bossWarn") {
       api.later(t, () => { rtSfx("alert"); addBfx("warnFlash", api.now(), 900, { tiles: e.tiles || [], move: e.move, boss: e.boss }); });
       t += 520;
@@ -285,6 +335,8 @@ function playBoss(it, t, api, out, posOf, pos, impact) {
     if (dashPts) { const tp = posOf(h.target); const i = tp ? dashPts.findIndex((p) => Math.abs(p.x - tp.x) + Math.abs(p.y - tp.y) <= 1) : -1; at = t + T.wind + Math.max(1, i) * T.step; }
     if (m === "throw") at = t + T.wind + T.act;
     if (m === "tide") at = t + T.wind + T.act * 0.45;
+    if (m === "wave" && tiles.length) { const tp = posOf(h.target), i = tp ? tiles.findIndex((p) => p.x === tp.x && p.y === tp.y) : -1; at = t + T.wind + T.act * Math.max(0.15, (i + 1) / tiles.length); }
+    if (m === "tidal") at = t + T.wind + T.act * 0.5;
     impact(h, at, true);
   }
   // ปะทะใหญ่ (เสียง + จอสั่น) — ไม่ขึ้นกับว่ามีใครโดน
@@ -294,7 +346,12 @@ function playBoss(it, t, api, out, posOf, pos, impact) {
     else if (m === "swing") { synth("whoosh"); rtSfx("crash"); rtShake(0.7); }
     else if (m === "slash") { synth("slash"); synth("thud"); rtShake(0.7); }
     else if (m === "lunge") { synth("water"); synth("ice"); rtShake(0.5); }
-    else if (m === "tide") { synth("water"); synth("ice"); rtShake(0.6); }
+    else if (m === "tide" || m === "tidal") { synth("water"); synth("ice"); rtShake(m === "tidal" ? 0.9 : 0.6); }
+    else if (m === "wave") { synth("slash"); synth("dark"); rtShake(0.6); }
+    else if (m === "spikes") { synth("slash"); synth("thud"); rtShake(0.7); }
+    else if (m === "prison") { synth("ice"); rtShake(0.4); }
+    else if (m === "sweep") { synth("whoosh"); synth("thud"); rtShake(0.6); }
+    else if (m === "pitstop" || m === "celebrate") { /* มุกของแม็กซ์มีเสียง/จอสั่นของตัวเอง (comic) */ return; }
     else { synth("thud"); rtShake(0.5); }
     api.shake();
   });

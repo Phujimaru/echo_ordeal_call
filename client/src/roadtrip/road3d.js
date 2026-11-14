@@ -609,6 +609,7 @@ const propVal = (v) => (v === "open" || v === "on" ? true : v === "closed" || v 
 export const boardToGrid = (x, y) => ({ i: VG.x1 - x, c: y - (VG.y0 + 1) });
 export const gridToBoard = (i, c) => ({ x: VG.x1 - i, y: c + VG.y0 + 1 });
 export const VAN_DRIVER_TILE = VAN_DEF.driverTile || [13, 6];
+export const VAN_HATCH_TILE = VAN_DEF.hatchTile || [11, 5]; // ซันรูฟ: ช่องเดียวที่ขึ้น/ลงดาดฟ้าได้
 
 // ================================================================ (ก) หน้าขับเต็มจอ
 export const DRIVE_CAMS = [["chase", "ไล่หลัง"], ["far", "ไกล"], ["driver", "คนขับ"], ["hood", "ฝากระโปรง"], ["bumper", "กันชน"], ["roof", "ซันรูฟ"], ["wheel", "ข้างล้อ"], ["cine", "ภาพยนตร์"], ["inside", "ในรถ"]];
@@ -676,7 +677,7 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
   const NO_LOOK = { yaw: 0, pitch: 0, zoom: 0 };
   // rt = state.roadtrip · cam = มุมกล้อง · look = { yaw, pitch, zoom } · players = [{ id, img, color }] (หาคนขับ) · srvOffset = นาฬิกา server − เครื่องเรา (ไม่รู้ = null)
   //  rear (null | bool) = บังคับประตูท้าย · slow (0..1) = ชะลอ/จอด ตามฉากเปลี่ยน · cutCam(camera, { z, v, t }) = บทกล้องของฉากเปลี่ยน (roadtrip/rtDirector.js) ทับกล้องปกติ
-  function update(nowMs, dtMs, { rt, cam = "chase", look = NO_LOOK, players = null, srvOffset = null, beat = 0, slow = 0, cutCam = null, rear = null } = {}) {
+  function update(nowMs, dtMs, { rt, cam = "chase", look = NO_LOOK, players = null, selfId = null, srvOffset = null, beat = 0, slow = 0, cutCam = null, rear = null } = {}) {
     const dt = Math.min(0.05, Math.max(0, dtMs / 1000)), t = nowMs / 1000;
     const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1; resize(w, h);
     const vs = rt && rt.van ? rt.van : null;
@@ -689,15 +690,15 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
       const drv = vs && vs.driverId != null ? (players || []).find((p) => p && p.id === vs.driverId) : null;
       van.setDriver(vs && vs.driverId != null ? { img: drv && drv.img, color: (drv && drv.color) || "#ff8a3d" } : null);
       // ลูกเรือเดินในรถ (state.roadtrip.vanPos) + ของในรถใช้ร่วมกัน (vanProps)
-      if (rt.vanPos && typeof rt.vanPos === "object" && (rt.vanPos !== D.vanPosRef || players !== D.crewPlayers)) {
-        D.vanPosRef = rt.vanPos; D.crewPlayers = players; // สร้างรายการใหม่เฉพาะตอนข้อมูลเปลี่ยน
+      if (rt.vanPos && typeof rt.vanPos === "object" && (rt.vanPos !== D.vanPosRef || players !== D.crewPlayers || selfId !== D.crewSelf || (vs && vs.driverId) !== D.crewDrv)) {
+        D.vanPosRef = rt.vanPos; D.crewPlayers = players; D.crewSelf = selfId; D.crewDrv = vs && vs.driverId; // สร้างรายการใหม่เฉพาะตอนข้อมูลเปลี่ยน
         const byId = D.byId || (D.byId = new Map());
         if (D.playersRef !== players) { D.playersRef = players; byId.clear(); for (const pl of players || []) if (pl) byId.set(pl.id, pl); }
         const list = D.crewList || (D.crewList = []); list.length = 0;
         for (const id in rt.vanPos) {
           const q = rt.vanPos[id]; if (!q || !Number.isFinite(q.x)) continue;
           const pl = byId.get(id) || byId.get(+id) || null, g0 = boardToGrid(q.x, q.y);
-          list.push({ id: pl ? pl.id : id, i: g0.i, c: g0.c, roof: !!q.roof, img: pl && pl.img, color: (pl && pl.color) || "#ff8a3d", name: (pl && pl.name) || "", alive: !pl || pl.alive !== false });
+          list.push({ id: pl ? pl.id : id, i: g0.i, c: g0.c, roof: !!q.roof, img: pl && pl.img, color: (pl && pl.color) || "#ff8a3d", name: (pl && pl.name) || "", alive: !pl || pl.alive !== false, me: selfId != null && String(pl ? pl.id : id) === String(selfId), driver: !!vs && vs.driverId != null && String(pl ? pl.id : id) === String(vs.driverId) });
         }
         van.setCrew(list);
       }

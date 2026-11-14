@@ -12,6 +12,11 @@ import { rtEmit } from "./rtSocket";
 let ac = null, out, comp, radioGain, carFilter, musicBus, rockIn, bedGain, bedBus, bedRock, sfxBus, noiseBuf;
 const OUT_BASE = 0.62;
 let inside = true, suspended = false;
+// ความดังวิทยุของเครื่องนี้ (แผงวิทยุ: ปุ่มปิดเสียง + แถบ 0–100 · จำในเครื่อง) — ใช้ทั้ง YouTube และสถานีสังเคราะห์ (ผู้ใช้ 2026-11-14: แถบเสียงในตัวเล่น YouTube หายก่อนกดทัน)
+const VOL_KEY = "echo_rt_radio_vol";
+const own = (() => { try { const o = JSON.parse(localStorage.getItem(VOL_KEY) || "null"); if (o && Number.isFinite(o.v)) return { v: Math.max(0, Math.min(1, o.v)), mute: !!o.mute }; } catch { /* ไม่มีที่เก็บ */ } return { v: 0.8, mute: false }; })();
+const ownVol = () => (own.mute ? 0 : own.v);
+const synthLevel = () => (inside ? 1 : 0.55) * ownVol();
 const outLevel = () => (suspended ? 0 : OUT_BASE * masterGain() * channelGain("music"));
 function makeRock(dest) {
   const inp = ac.createGain(); inp.gain.value = 0.9;
@@ -278,12 +283,11 @@ function loadYTApi() {
   });
   return ytApi;
 }
-const yt = { player: null, ready: false, wrap: null, box: null, key: null, want: null, playing: false, err: false, title: "", fadeT: 0, vol: 0, pausedAt: null, pausedKey: null, visible: false };
+const yt = { player: null, ready: false, wrap: null, box: null, key: null, want: null, playing: false, err: false, title: "", fadeT: 0, vol: 0, userK: 1, pausedAt: null, pausedKey: null, visible: false };
 function ytWrap() {
   if (yt.wrap || typeof document === "undefined") return yt.wrap;
   const w = document.createElement("div");
   w.className = "rt-yt";
-  w.setAttribute("aria-hidden", "true");
   const b = document.createElement("div");
   w.appendChild(b);
   document.body.appendChild(w);
@@ -296,19 +300,34 @@ function ytShow(on) {
   notify();
 }
 const ytKey = (v) => (v ? `${v.id || ""}|${v.list || ""}|${v.at || 0}` : null);
-function ytTargetVol() { return Math.round(100 * Math.min(1, masterGain() * channelGain("music") * 0.9) * (inside ? 1 : 0.4) * (suspended ? 0 : 1)); }
+// ytTargetVol × yt.userK — userK = ระดับที่ผู้เล่นปรับเองบนแถบเสียงของตัวเล่น (ไม่ถูกจางทับตอนเข้า/ออกห้องรถ)
+function ytTargetVol() { return Math.round(100 * Math.min(1, masterGain() * channelGain("music") * 0.9) * (inside ? 1 : 0.4) * (suspended ? 0 : 1) * yt.userK * ownVol()); }
+// ผู้เล่นเลื่อนแถบเสียงของตัวเล่นเอง (ค่าจริงต่างจากที่เราตั้งล่าสุด) → จำเป็นสัดส่วน
+function ytNoteUser() {
+  try {
+    if (!yt.player || !yt.ready) return;
+    const cur = yt.player.getVolume();
+    if (!Number.isFinite(cur) || Math.abs(cur - yt.vol) <= 2) return;
+    const base = yt.vol / Math.max(0.01, yt.userK);
+    yt.userK = base > 1 ? Math.max(0, Math.min(1, cur / base)) : 1;
+    yt.vol = cur;
+  } catch { /* ตัวเล่นยังไม่พร้อม */ }
+}
+// ปิดเสียงตามแผงวิทยุ · เบราว์เซอร์บังคับเล่นอัตโนมัติแบบปิดเสียง (autoplay) = เปิดเสียงให้เมื่อแผงไม่ได้ปิดไว้
+function ytSyncMute() { try { if (!yt.player || !yt.ready) return; const m = yt.player.isMuted(); if (own.mute && !m) yt.player.mute(); else if (!own.mute && m) yt.player.unMute(); } catch { /* ตัวเล่นยังไม่พร้อม */ } }
 function ytSetVol(v) { yt.vol = v; try { if (yt.player && yt.ready) yt.player.setVolume(Math.max(0, Math.min(100, v))); } catch { /* ตัวเล่นยังไม่พร้อม */ } }
 // จางเสียง YouTube ไปหาค่าเป้า (setVolume ทีละขั้น — API ไม่มีการจางเอง) · then = ทำต่อเมื่อถึงค่า
 function ytFade(to, sec, then) {
-  clearInterval(yt.fadeT);
+  ytNoteUser();
+  clearInterval(yt.fadeT); yt.fadeT = 0;
   const from = yt.vol, t0 = performance.now(), dur = Math.max(1, sec * 1000);
   yt.fadeT = setInterval(() => {
     const k = Math.min(1, (performance.now() - t0) / dur);
     ytSetVol(from + (to - from) * k);
-    if (k >= 1) { clearInterval(yt.fadeT); if (then) then(); }
+    if (k >= 1) { clearInterval(yt.fadeT); yt.fadeT = 0; if (then) then(); }
   }, 50);
 }
-function ytApplyVolume(sec = 0.4) { if (yt.want && yt.playing) ytFade(ytTargetVol(), sec); }
+function ytApplyVolume(sec = 0.4) { if (yt.want && yt.playing) { ytNoteUser(); ytFade(ytTargetVol(), sec); } } // จำระดับที่ผู้เล่นปรับก่อนคิดค่าเป้า
 const alignedStart = (v, now) => Math.max(0, (v.start || 0) + (v.at ? Math.max(0, (now - v.at) / 1000) : 0));
 async function ytLoad(v, at) {
   ytWrap();
@@ -329,7 +348,7 @@ async function ytLoad(v, at) {
           if (yt.playing) {
             yt.err = false;
             try { yt.title = (yt.player.getVideoData() || {}).title || ""; } catch { yt.title = ""; }
-            if (yt.want) ytFade(ytTargetVol(), 1.2); else { ytFade(0, 0.3, () => { try { yt.player.pauseVideo(); } catch { /* */ } }); }
+            if (yt.want) { ytSyncMute(); ytNoteUser(); ytFade(ytTargetVol(), 1.2); } else { ytFade(0, 0.3, () => { try { yt.player.pauseVideo(); } catch { /* */ } }); }
           }
           if (e.data === S.ENDED && !(yt.want && yt.want.list)) advance("ended");
           notify();
@@ -355,9 +374,19 @@ const cur = { src: "off", station: 0, active: false, leader: false, radio: null 
 const listeners = new Set();
 function notify() { const v = snapshot(); listeners.forEach((fn) => { try { fn(v); } catch { /* */ } }); }
 export function snapshot() {
-  return { src: cur.src, station: cur.station, active: cur.active, inside, ytPlaying: yt.playing, ytErr: yt.err, ytTitle: yt.title, ytVisible: yt.visible, queue: (cur.radio && cur.radio.yt && cur.radio.yt.queue) || [] };
+  return { vol: own.v, muted: own.mute, src: cur.src, station: cur.station, active: cur.active, inside, ytPlaying: yt.playing, ytErr: yt.err, ytTitle: yt.title, ytVisible: yt.visible, queue: (cur.radio && cur.radio.yt && cur.radio.yt.queue) || [] };
 }
 export function subscribe(fn) { listeners.add(fn); fn(snapshot()); return () => listeners.delete(fn); }
+
+// แผงวิทยุ: ตั้งความดัง (0..1) / ปิด-เปิดเสียง — มีผลทันทีทั้ง YouTube (setVolume ผ่าน iframe API) และสถานีสังเคราะห์
+function applyOwnVol() {
+  try { localStorage.setItem(VOL_KEY, JSON.stringify(own)); } catch { /* ไม่มีที่เก็บ */ }
+  if (ac && cur.active && cur.src === "synth") ramp(radioGain.gain, synthLevel(), 0.08);
+  if (yt.want && yt.playing) { clearInterval(yt.fadeT); yt.fadeT = 0; ytSyncMute(); ytSetVol(ytTargetVol()); }
+  notify();
+}
+export function setRadioVolume(v) { own.v = Math.max(0, Math.min(1, +v || 0)); if (own.v > 0) own.mute = false; applyOwnVol(); }
+export function toggleRadioMute() { own.mute = !own.mute; applyOwnVol(); }
 
 function staticBurst() { if (ac) noise(ac.currentTime, 0.38, 0.2, sfxBus, "bandpass", 1600, 1.5); }
 
@@ -382,7 +411,7 @@ export function sync(radio, { active = false, leader = false, now = Date.now() }
       if (cur.src === "synth" && seqs.radio.pat && wasActive) staticBurst();
       startSeq(seqs.radio, STATIONS[st]);
     }
-    ramp(radioGain.gain, inside ? 1 : 0.55, wasActive ? 0.25 : 1.6);
+    ramp(radioGain.gain, synthLevel(), wasActive ? 0.25 : 1.6);
   } else if (ac && seqs.radio.pat) {
     const q = seqs.radio;
     ramp(radioGain.gain, 0, cur.active ? 0.3 : 1.4);
@@ -454,7 +483,7 @@ export function setInside(on) {
   inside = !!on;
   if (ac) {
     ramp(carFilter.frequency, inside ? 18000 : 900, 0.5);
-    if (cur.active && cur.src === "synth") ramp(radioGain.gain, inside ? 1 : 0.55, 0.5);
+    if (cur.active && cur.src === "synth") ramp(radioGain.gain, synthLevel(), 0.5);
   }
   ytApplyVolume(0.5);
   notify();

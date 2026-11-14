@@ -99,6 +99,12 @@ const FX_SFX = {
   claw: "claw", gacha: "gacha", arcade: "arcade", fish: "splash", ferris: "ferris_creak", spicy: "sizzle", karaoke: "crowd_cheer",
   win: "victory", victory: "victory", rear: "rear_doors", seat: "van_door", alert: "alert", boss: "boss_alarm", km: "km_tick",
 };
+// กิจกรรมที่จุดพัก (fx act { kind }) → เสียงตามชนิดวัตถุ (QA 2026-11-14 — เดิมหา "act" ไม่เจอ = เงียบทุกกิจกรรม)
+const ACT_SFX = {
+  pump: "fuel_fill", garage: "wrench", wash: "splash", wc: "toilet_flush", claw: "claw", gacha: "gacha", arcade: "arcade", karaoke: "crowd_cheer",
+  dog: "dog_bark", fortune: "teleport", spicy: "sizzle", pond: "splash", pool: "splash", ferris: "ferris_creak", bbq: "sizzle", stall: "sizzle", vending: "coin", motel: "van_door", mart: "shop_chime",
+};
+const USE_SFX = { rtRevive: "teleport", rtFish: "coin", armor: "wrench", cleanse: "splash" };
 const seen = new Set();
 let lastPhase = null, lastHorn = 0;
 export function handleFx(rt) {
@@ -123,7 +129,8 @@ export function handleFx(rt) {
     if (seen.has(k)) continue;
     seen.add(k);
     if (f.k === "combatEnd" || f.k === "garage") continue;
-    let name = f.sfx || FX_SFX[f.k] || f.k;
+    if (f.k === "actFail") continue; // กิจกรรมทำไม่ได้ — เสียงปฏิเสธเฉพาะคนกด เล่นใน board/roadtrip/props.js (รู้ว่าใครคือเครื่องนี้)
+    let name = f.sfx || (f.k === "act" ? ACT_SFX[f.kind] : f.k === "use" ? USE_SFX[f.type] || "coin" : null) || FX_SFX[f.k] || f.k;
     if (name === "horn") { const now = Date.now(); if (now - lastHorn < 350) continue; lastHorn = now; if (rt.van && rt.van.style === "goofy") name = "horn_goofy"; }
     rtSfx(name);
   }

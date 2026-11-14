@@ -748,7 +748,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     const k = d ? `${d.img || ""}|${d.color || ""}` : null;
     if (k === driverKey) return;
     driverKey = k;
-    driverPiece.visible = !!d && viewMode !== "drv";
+    driverPiece.visible = !!d && viewMode !== "drv" && !CREW.size; // มีลูกเรือเดินในรถ = ป้ายคนขับคือหนึ่งในลูกเรือแล้ว (ไม่ซ้อนสองตัว)
     if (!d) return;
     const col = d.color || "#ff8a3d";
     driverBase.material.color.set(col);
@@ -1192,8 +1192,10 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       cargoPod.visible = upg.storage > 0; cargoPod.scale.z = [1, 1.0, 1.7, 2.5][upg.storage];
       applyStyle(); applyView();
     }
-    setRear(!!v.rearOpen);
+    // ประตูท้ายจาก state เฉพาะตอนค่าเปลี่ยน — ไม่งั้นทับประตูที่ลูกเรือเปิดเล่นตอนขับ (ของใช้ร่วม rear) ทุกเฟรม
+    if (!!v.rearOpen !== lastVRear) { lastVRear = !!v.rearOpen; setRear(lastVRear); }
   }
+  let lastVRear = null;
 
   // ---------------------------------------------------------------- กลางวัน/กลางคืน
   function applyNight() {
@@ -1300,6 +1302,19 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     if (img) { const im = new Image(); im.onload = () => paint0(im); im.src = img; }
     return tex;
   }
+  let wheelT = null;
+  const wheelTex = () => {
+    if (wheelT) return wheelT;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+    const g = cv.getContext("2d");
+    g.fillStyle = "#1b2330"; g.beginPath(); g.arc(32, 32, 30, 0, TAU); g.fill();
+    g.strokeStyle = "#ffb347"; g.lineWidth = 6; g.beginPath(); g.arc(32, 32, 19, 0, TAU); g.stroke();
+    g.lineWidth = 5; g.beginPath(); g.moveTo(13, 32); g.lineTo(51, 32); g.moveTo(32, 32); g.lineTo(32, 51); g.stroke();
+    g.fillStyle = "#ffb347"; g.beginPath(); g.arc(32, 32, 6, 0, TAU); g.fill();
+    wheelT = new THREE.CanvasTexture(cv); wheelT.colorSpace = THREE.SRGBColorSpace; ownedTex.push(wheelT);
+    return wheelT;
+  };
+  const markGeo = new THREE.ConeGeometry(0.15, 0.3, 4), markMat = new THREE.MeshBasicMaterial({ color: 0xffa21a }); // ตัวเรา: ลูกศรเหนือหัว
   const crewBaseGeo = new THREE.CylinderGeometry(0.26, 0.3, 0.06, 24), crewStemGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.3, 6);
   const CREW = new Map(); // id → { g, base, sprite, cur: Vector3, path: [], target, alive, roof, info }
   const SEAT_TILES = new Set(["0,1", "0,-1", "4,-1", "5,-1"]); // ที่นั่ง/เบาะ — นั่ง
@@ -1328,10 +1343,19 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       if (e.col !== col) { e.col = col; e.base.material.color.set(col); }
       tileLocal(m.i, m.c, m.roof, e.target);
       e.roof = !!m.roof; e.alive = m.alive !== false;
+      if (!!m.driver !== !!e.wheel) { // คนขับ: ป้ายพวงมาลัยข้างรูป
+        if (m.driver) { e.wheel = new THREE.Sprite(new THREE.SpriteMaterial({ map: wheelTex(), transparent: true, depthTest: false })); e.wheel.scale.setScalar(0.3); e.wheel.renderOrder = 5; e.g.add(e.wheel); }
+        else { e.g.remove(e.wheel); e.wheel.material.dispose(); e.wheel = null; }
+      }
+      if (!!m.me !== !!e.mark) {
+        if (m.me) { e.mark = new THREE.Mesh(markGeo, markMat); e.mark.rotation.x = Math.PI; e.g.add(e.mark); }
+        else { e.g.remove(e.mark); e.mark = null; }
+      }
       e.seated = !m.roof && SEAT_TILES.has(`${m.i},${m.c}`);
       if (!e.init) { e.init = true; e.cur.copy(e.target); }
     }
-    for (const [id, e] of CREW) if (!seen.has(id)) { crewG.remove(e.g); e.base.material.dispose(); e.sprite.material.dispose(); CREW.delete(id); }
+    for (const [id, e] of CREW) if (!seen.has(id)) { crewG.remove(e.g); e.base.material.dispose(); e.sprite.material.dispose(); if (e.wheel) e.wheel.material.dispose(); CREW.delete(id); }
+    driverPiece.visible = !!driverKey && viewMode !== "drv" && !CREW.size;
     void crewSig;
   }
   // ทางเดิน (fx vanWalk): pts = [{ i, c, roof }]
@@ -1362,9 +1386,10 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       e.sprite.material.color.setHex(e.alive ? 0xffffff : 0x777777);
       if (!e.alive) { e.sprite.position.y = 0.22; e.stem.visible = false; }
       // มุมคนขับ: ตัวที่นั่งที่คนขับไม่บังกล้อง
-      e.g.visible = !(viewMode === "drv" && sit && e.info && e.info.i === 0 && e.info.c === 1) && !(e.roof && (viewMode === "cut" || viewMode === "board"));
+      e.g.visible = !(viewMode === "drv" && sit && e.info && e.info.i === 0 && e.info.c === 1) && !(e.roof && viewMode === "board");
+      if (e.wheel) { e.wheel.position.set(0, (sit ? 0.5 : 0.66) + 0.4, 0); e.wheel.visible = e.g.visible; }
+      if (e.mark) { e.mark.visible = e.g.visible && !sit; e.mark.position.y = 1.25 + Math.sin(t * 4) * 0.07; e.mark.rotation.y = t * 1.6; }
     }
-    void t;
   }
   function pickCrew(raycaster) {
     _hits.length = 0;
@@ -1389,7 +1414,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       if (roof ? i < 1 || i > 6 : i < 0 || i > 6) return null;
       return { i, c, roof };
     };
-    if (roofDeck.visible) { const r = tryPlane(RY, true); if (r) return r; }
+    if (roofDeck.visible && _ro.y > RY + 0.2) { const r = tryPlane(RY, true); if (r) return r; } // มองจากใต้หลังคา (มุมคนขับ) ไม่นับดาดฟ้า
     if (viewMode === "cut" || viewMode === "drv") return tryPlane(FLOOR, false);
     return null;
   }
@@ -1479,6 +1504,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => x.dispose());
     });
     ownedTex.forEach((t) => t.dispose());
+    markGeo.dispose(); markMat.dispose(); crewBaseGeo.dispose(); crewStemGeo.dispose(); hlGeo.dispose(); hlMat.dispose(); dotGeo.dispose(); dotMat.dispose();
     if (van.parent) van.parent.remove(van);
   }
 

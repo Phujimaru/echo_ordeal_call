@@ -23,6 +23,8 @@ const DOG = { hp: 6, armor: 1, mov: 5, atk: 2 };
 const TURRET_RANGE = 4;
 // ผู้โจมตีสมมติของรถตู้ (ป้อมปืน/กันชน) — ให้ attack.skillDodge ทอยหลบได้ตามกติกา (ไม่มีแม่นยำ)
 const VAN_SRC = { id: "rtvan", name: "รถตู้", characterId: "rtvan", statuses: {}, statusAmt: {}, alive: true };
+// ลำดับฉากฝั่ง client (rtTimeline.js playTurn) — เหตุการณ์ที่ไม่อยู่ใน seq = วาร์ป/เลขลอยไม่ตรงจังหวะ (QA 2026-11-14)
+const seqPush = (out, e) => { if (out) (out.seq || (out.seq = [])).push(e); };
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // เวลาพักช่วงมอนเดิน = ให้ภาพฝั่ง client (rtTimeline.js) เล่นจบก่อนตาผู้เล่นเริ่ม — มอนทั่วไปบีบรวม ≤ 6 วิ · ท่าบอสเล่นเต็ม ~2.4 วิ/ท่า
@@ -30,7 +32,8 @@ function mobSecs(out) {
   const seq = Array.isArray(out.seq) ? out.seq : [];
   const bossMoves = seq.filter((e) => e && e.k === "bossMove").length;
   const ids = new Set(seq.filter((e) => e && (e.k === "mobMove" || e.k === "mobHit") && !e.boss).map((e) => e.id));
-  const secs = 1.2 + Math.min(6, ids.size * 0.9) + bossMoves * 2.4;
+  const extra = seq.filter((e) => e && (e.k === "scroll" || e.k === "ram" || e.k === "turretShot" || e.k === "fall" || e.k === "bossWarn")).length; // ถนนเลื่อน/ชน/ป้อมปืน/เตือนท่า ~0.4–0.5 วิ ต่อครั้ง (rtTimeline)
+  const secs = 1.2 + Math.min(6, ids.size * 0.9) + bossMoves * 2.4 + Math.min(3, extra * 0.45);
   return Math.max(MOB_SECS, Math.min(12, secs));
 }
 function begin(kind = "ambush", opts = {}) {
@@ -43,7 +46,7 @@ function begin(kind = "ambush", opts = {}) {
   rt.legs = 0;
   rt.fork = null; rt.event = null; rt.stop = null;
   rt.van.rearOpen = false;
-  rt.combat = { kind, area, round: 0, rounds: onvan ? 4 + Math.min(3, Math.floor(rt.km / 100)) : 0, scroll: onvan ? 1 : 0, warn: null, preDone: null, survived: false };
+  rt.combat = { kind, area, round: 0, rounds: onvan ? 3 + Math.min(2, Math.floor(rt.km / 100)) : 0, scroll: onvan ? 1 : 0, warn: null, preDone: null, survived: false };
   L.shop().clearShops();
   match.board = null;
   L.action().placeOnBoard(area); // ลบยูนิตที่ถูกเรียกเก่าทั้งหมด → เกิดมอน/หมาหลังจากนี้
@@ -149,11 +152,14 @@ function spawnWave(rt, kind, lead) {
 }
 // ---------- สู้บนรถตู้: ให้ตัวประชิดได้สู้ (ผู้ใช้เลือกครบทุกข้อ 2026-11-14) ----------
 //  มอนกระโดดขึ้นรถได้ (BFS ของมอนเดินเข้าช่อง van ได้อยู่แล้ว — ตัวล่าเข้าไปหาผู้เล่นในรถ · ตัวป่วนรถอยู่ข้างนอกทุบรถ)
-//  หน้าต่างข้าง windowTiles: ตีออกนอกรถได้ไกลอย่างน้อย 2 (RT.rangeMod)
-//  rt:swerve {side} (คนนั่งช่องคนขับ · ตาตัวเอง · คูลดาวน์ 2 เทิร์น): ปาดรถชนมอนบนถนนแถวข้างรถฝั่งนั้น 2 + ขั้นกันชน (หลบได้) กระเด็นออก 1 · กันชน 0 = รถเสีย 1 · คนบนหลังคาเสี่ยงร่วง 25%
-//  rt:turret {x,y} (ป้อมปืน ≥ 1 · ยืนช่องซันรูฟหรือบนหลังคา · ตาตัวเอง ครั้งเดียวต่อตา): ยิงมอนที่ห่างรถ ≤ 4 ดาเมจ = ขั้น + 1 (หลบได้)
-//  rt:roof (ยืนช่องซันรูฟ · ตาตัวเอง): ขึ้น/ลงหลังคา — ทีละคน · ระยะ +2 · โดนได้แค่ตัวบิน/บอส · ถนนกระตุกต้นเทิร์น/คนขับปาดรถ = ร่วง 25%
-const SWERVE = { cd: 2, dmg: 2 }, ROOF_FALL = 0.25, TURRET_MANUAL_RANGE = 4;
+//  หน้าต่างข้าง windowTiles: ตีออกนอกรถได้ไกลอย่างน้อย 2 · ตีปกติของตัวประชิด 3 (RT.rangeMod)
+//  rt:swerve {side} (คนนั่งช่องคนขับ · ตาตัวเอง · คูลดาวน์ 1 เทิร์น): ปาดรถชนมอนบนถนนแถวข้างรถฝั่งนั้น 2 + ขั้นกันชน (หลบได้) กระเด็นออก 1 + มึน 1 เทิร์น · กันชน 0 = รถเสีย 1 · คนบนหลังคาเสี่ยงร่วง 25%
+//  rt:turret {x,y} (ไม่ต้องอัปเกรด · ยืนช่องซันรูฟหรือบนหลังคา · ตาตัวเอง ครั้งเดียวต่อตา): ยิงมอนที่ห่างรถ ≤ 5 ดาเมจ = 2 + ขั้น (หลบได้)
+//  rt:roof (ยืนช่องซันรูฟ · ตาตัวเอง): ขึ้น/ลงหลังคา — ทีละคน · ระยะ +2 · โดนได้แค่ตัวบิน/บอส · ถนนกระตุกต้นเทิร์น/คนขับปาดรถ = ร่วง 15%
+// ผู้ใช้แจ้ง 2026-11-14 "ตอนไล่ล่าแทบสู้กลับไม่ได้" → บัฟ (ค่า Claude ตั้ง): ป้อมปืนมือใช้ได้ไม่ต้องอัปเกรด (ขั้น 0 = 2 · +1 ต่อขั้น · ระยะ 5)
+//  ปาดรถคูลดาวน์ 1 + มึน 1 เทิร์น · หลังคาร่วง 15% · ตีปกติจากหน้าต่าง (ตัวประชิด) ระยะ 3 · รอดครบ 3 + กม./100 (≤ 5)
+const SWERVE = { cd: 1, dmg: 2, stun: 1 }, ROOF_FALL = 0.15, TURRET_MANUAL_RANGE = 5, TURRET_BASE = 2;
+const turretDmg = (rt) => TURRET_BASE + Van.statOf(rt.van, "turret");
 const tileIs = (list, pos) => !!list && !!pos && list.some(([x, y]) => x === pos.x && y === pos.y);
 function myTurn(p) {
   const u = match.players[require("../duo").controlledId(p.id)] || p;
@@ -174,10 +180,11 @@ function swerve(p, side) {
     const before = m.hp + (m.armor || 0);
     L.combat().withEffectSource(u, () => { L.combat().dealMixed(m, SWERVE.dmg + lv); H().settle(m); });
     if (m.alive && m.pos && L.action().tileFree(m.pos.x, m.pos.y + dy, m.id)) m.pos = { x: m.pos.x, y: m.pos.y + dy };
+    if (m.alive) m.statuses.stun = Math.max(m.statuses.stun || 0, SWERVE.stun); // มึน: เสียตาหน้า 1 ครั้ง (Mobs.tickControl ลดหลังตาของมอน)
     hits.push({ id: m.id, dmg: before - (m.alive ? m.hp + (m.armor || 0) : 0) });
   }
   if (!lv) RT.hurtVan(1, "swerve");
-  c.swerveReady = match.roundNumber + SWERVE.cd + 1; // ใช้ได้อีกหลังผ่านไป 2 เทิร์น
+  c.swerveReady = match.roundNumber + SWERVE.cd + 1; // ใช้ได้อีกหลังผ่านไป SWERVE.cd เทิร์น
   if (match.action) match.action.locked = true;
   RT.fx("swerveRam", { id: u.id, side, tiles: Array.from({ length: x1 - x0 + 1 }, (_, i) => ({ x: x0 + i, y })), hits });
   match.lastLog.push(`🚐 ${u.name} ปาดรถ${side === "left" ? "ซ้าย" : "ขวา"}${hits.length ? ` ชนมอน ${hits.filter((h) => !h.dodge).length}` : ""}`);
@@ -185,18 +192,26 @@ function swerve(p, side) {
   if (require("../phases/endTurn").gameOver()) return true;
   return true;
 }
+// ยิงป้อมปืนมือได้ไหม: บนรถตู้ = ช่องซันรูฟ/หลังคา · รถจอด (ดักทาง/อีลิท/บอส — ผู้ใช้ตัดสิน 2026-11-14) = ยืนติดรถตู้ (ไม่ต้องปีน)
+function turretSpot(u) {
+  const rt = match.roadtrip;
+  if (!u || !u.pos || !H().inCombat() || !rt.combat) return false;
+  if (onvanNow()) { const d = Maps.defs[Maps.RT_ONVAN]; return tileIs([d.hatchTile], u.pos) || (!!u.rtRoof && rt.combat.roofId === u.id); }
+  const d = H().mapDef();
+  return !!(d && d.vanBlock) && H().touchesVan(u.pos);
+}
 function fireTurret(p, x, y) {
-  const RT = H(), rt = match.roadtrip, d = Maps.defs[Maps.RT_ONVAN];
-  const lv = Van.statOf(rt.van, "turret");
-  if (!onvanNow() || !lv || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+  const RT = H(), rt = match.roadtrip;
+  if (!RT.inCombat() || !rt.combat || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+  const dmgN = turretDmg(rt);
   const u = myTurn(p);
-  if (!u || !(tileIs([d.hatchTile], u.pos) || (u.rtRoof && rt.combat.roofId === u.id)) || u.rtTurretAt === match.roundNumber) return false;
+  if (!u || !turretSpot(u) || u.rtTurretAt === match.roundNumber) return false;
   const m = Mobs.mobs().find((o) => o.pos.x === x && o.pos.y === y);
   if (!m || vanDist(m.pos) > TURRET_MANUAL_RANGE) return false;
   u.rtTurretAt = match.roundNumber;
   let dmg = 0, dodge = false;
   if (L.attack().skillDodge(u, m, "ป้อมปืน")) dodge = true;
-  else { const before = m.hp + (m.armor || 0); L.combat().withEffectSource(u, () => { L.combat().dealMixed(m, lv + 1); H().settle(m); }); dmg = before - (m.alive ? m.hp + (m.armor || 0) : 0); }
+  else { const before = m.hp + (m.armor || 0); L.combat().withEffectSource(u, () => { L.combat().dealMixed(m, dmgN); H().settle(m); }); dmg = before - (m.alive ? m.hp + (m.armor || 0) : 0); }
   RT.fx("turretShot", { id: u.id, target: m.id, x, y, dmg, dodge });
   match.lastLog.push(`🔫 ${u.name} ยิงป้อมปืนใส่ ${m.name}${dodge ? " — พลาด" : ` -${dmg}`}`);
   require("../phases/endTurn").gameOver();
@@ -235,7 +250,21 @@ function roofLurch(why) {
 // ปุ่ม HUD ต่อผู้เล่น (ตาตัวเอง) — { [pid]: ["swerve", "turret", "roof", "rear"] }
 function actionsOf() {
   const rt = match.roadtrip, c = rt && rt.combat, out = {};
-  if (!c || !onvanNow()) return out;
+  if (!c || !H().inCombat()) return out;
+  // ดักทาง/อีลิท/บอส (รถจอด): ป้อมปืน (ยืนติดรถ) + ประตูท้าย (ยืนช่องหลังรถ — rearTiles ของ RT_ROAD) — QA 2026-11-14 เดิมไม่ส่ง = ไม่มีปุ่มนอกการสู้บนรถ
+  if (!onvanNow()) {
+    const d = H().mapDef();
+    if (!d) return out;
+    for (const p of H().realPlayers()) {
+      const u = myTurn(p);
+      if (!u || !u.pos) continue;
+      const list = [];
+      if (turretSpot(u) && u.rtTurretAt !== match.roundNumber) list.push("turret");
+      if (d.rearTiles && tileIs(d.rearTiles, u.pos)) list.push("rear");
+      if (list.length) out[p.id] = list;
+    }
+    return out;
+  }
   const d = Maps.defs[Maps.RT_ONVAN];
   for (const p of H().realPlayers()) {
     const u = myTurn(p);
@@ -243,7 +272,7 @@ function actionsOf() {
     const list = [];
     if (tileIs([d.driverTile], u.pos) && (c.swerveReady || 0) <= match.roundNumber) list.push("swerve");
     const onHatch = tileIs([d.hatchTile], u.pos);
-    if (Van.statOf(rt.van, "turret") >= 1 && (onHatch || u.rtRoof) && u.rtTurretAt !== match.roundNumber) list.push("turret");
+    if (turretSpot(u) && u.rtTurretAt !== match.roundNumber) list.push("turret"); // ป้อมปืนมือ: ไม่ต้องอัปเกรด (บัฟ 2026-11-14)
     if (onHatch && (!c.roofId || c.roofId === u.id)) list.push("roof");
     if (tileIs(d.rearTiles, u.pos)) list.push("rear");
     if (list.length) out[p.id] = list;
@@ -314,6 +343,7 @@ function scroll(rt, c, out) {
   // มอนที่ยังไม่เคยได้ตา (เพิ่งเกิด) ไม่ถูกถนนพาไป — ไม่งั้นมอนขอบหลังร่วงหายก่อนได้ขยับ (QA 2026-11-14)
   const units = Object.values(match.players).filter((p) => p.alive && p.pos && !van.has(K(p.pos.x, p.pos.y)) && !(Mobs.isMob(p) && !p.summon.acted))
     .sort((a, b) => (a.pos.x * fx + a.pos.y * fy) - (b.pos.x * fx + b.pos.y * fy));
+  const slid = [], rams = [];
   for (const u of units) {
     const from = { ...u.pos };
     let fell = false;
@@ -321,7 +351,7 @@ function scroll(rt, c, out) {
       const nx = u.pos.x - fx, ny = u.pos.y - fy;
       if (!Board.inBounds(map, nx, ny)) { fell = true; break; }
       if (van.has(K(nx, ny))) { // หน้ารถ: ถูกรถตู้ชน
-        if (Mobs.isMob(u)) { const n = 1 + Van.statOf(rt.van, "bumper"); L.combat().dealMixed(u, n); out.rams.push({ id: u.id, dmg: n }); H().settle(u); }
+        if (Mobs.isMob(u)) { const n = 1 + Van.statOf(rt.van, "bumper"); const b0 = u.hp + (u.armor || 0); L.combat().dealMixed(u, n); const dealt = b0 - (u.hp + (u.armor || 0)); out.rams.push({ id: u.id, dmg: dealt }); rams.push({ id: u.id, dmg: dealt, kill: !u.alive || u.hp <= 0 }); H().settle(u); }
         break;
       }
       if (!L.action().tileFree(nx, ny, u.id)) break;
@@ -329,11 +359,14 @@ function scroll(rt, c, out) {
     }
     if (fell) {
       if (!Mobs.isMob(u)) { u.pos = from; dropOff(u, out); continue; }
-      out.falls.push({ id: u.id, from, mob: true });
+      out.falls.push({ id: u.id, from, mob: true }); seqPush(out, { k: "fall", id: u.id, from });
       L.summon().remove(u);
       match.lastLog.push(`🛣️ ${u.name}ร่วงหลุดถนน`);
-    } else if (u.pos.x !== from.x || u.pos.y !== from.y) out.moves.push({ id: u.id, from, to: { ...u.pos }, path: [from, { ...u.pos }], scroll: true });
+    } else if (u.pos.x !== from.x || u.pos.y !== from.y) { out.moves.push({ id: u.id, from, to: { ...u.pos }, path: [from, { ...u.pos }], scroll: true }); slid.push({ id: u.id, path: [[from.x, from.y], [u.pos.x, u.pos.y]] }); }
   }
+  // ทุกตัวไถลพร้อมกัน (ไม่ใช่ทีละตัว) แล้วค่อยชนหน้ารถ
+  if (slid.length) seqPush(out, { k: "scroll", list: slid });
+  for (const r of rams) seqPush(out, { k: "ram", id: r.id, dmg: r.dmg, dodged: false, kill: r.kill });
 }
 // กันชน (กระดานถนน): มอนที่ติดหน้ารถโดนชน (ขั้นกันชน)
 function bumper(rt, out) {
@@ -342,9 +375,11 @@ function bumper(rt, out) {
   const b = d.vanBlock, frontX = b.x1 + 1;
   for (const m of Mobs.mobs()) {
     if (m.pos.x !== frontX || m.pos.y < b.y0 || m.pos.y > b.y1) continue;
-    if (L.attack().skillDodge(VAN_SRC, m, "กันชน")) { out.rams.push({ id: m.id, dmg: 0, dodge: true }); continue; } // หลบได้ (ทุกการโจมตีหลบได้)
+    if (L.attack().skillDodge(VAN_SRC, m, "กันชน")) { out.rams.push({ id: m.id, dmg: 0, dodge: true }); seqPush(out, { k: "ram", id: m.id, dmg: 0, dodged: true }); continue; } // หลบได้ (ทุกการโจมตีหลบได้)
+    const b0 = m.hp + (m.armor || 0);
     L.combat().dealMixed(m, lv);
     out.rams.push({ id: m.id, dmg: lv });
+    seqPush(out, { k: "ram", id: m.id, dmg: b0 - (m.hp + (m.armor || 0)), dodged: false, kill: !m.alive || m.hp <= 0 });
     H().settle(m);
   }
 }
@@ -367,10 +402,11 @@ function turret(rt, out) {
   if (!lv) return;
   const t = Mobs.mobs().filter((m) => vanDist(m.pos) <= TURRET_RANGE).sort((a, b) => vanDist(a.pos) - vanDist(b.pos))[0];
   if (!t) return;
-  if (L.attack().skillDodge(VAN_SRC, t, "ป้อมปืน")) { out.shots.push({ id: t.id, x: t.pos.x, y: t.pos.y, dmg: 0, dodge: true }); return; }
+  if (L.attack().skillDodge(VAN_SRC, t, "ป้อมปืน")) { out.shots.push({ id: t.id, x: t.pos.x, y: t.pos.y, dmg: 0, dodge: true }); seqPush(out, { k: "turretShot", target: t.id, x: t.pos.x, y: t.pos.y, dmg: 0, dodged: true }); return; }
   const before = t.hp + (t.armor || 0);
   L.combat().dealMixed(t, lv);
   out.shots.push({ id: t.id, x: t.pos.x, y: t.pos.y, dmg: before - (t.hp + (t.armor || 0)) });
+  seqPush(out, { k: "turretShot", target: t.id, x: t.pos.x, y: t.pos.y, dmg: before - (t.hp + (t.armor || 0)), dodged: false, kill: !t.alive || t.hp <= 0 });
   H().settle(t);
 }
 function dogAct(rt, out) {
@@ -385,14 +421,14 @@ function dogAct(rt, out) {
     const stops = Board.reachable(action.boardMap(), { id: dog.id, x: dog.pos.x, y: dog.pos.y, size: 1 }, DOG.mov, action.boardUnits().filter((u) => u.id !== dog.id), { isAlly: (a, b) => !Mobs.isMob(match.players[b.id]), blocked: action.boardBlocked(dog.id) });
     let best = null, bd = Infinity;
     for (const n of stops.values()) { const dd = Math.min(...targets.map((m) => Math.abs(m.pos.x - n.x) + Math.abs(m.pos.y - n.y))); if (dd < bd) { bd = dd; best = n; } }
-    if (best && (best.x !== dog.pos.x || best.y !== dog.pos.y)) { out.moves.push({ id: dog.id, from: { ...dog.pos }, to: { x: best.x, y: best.y }, path: Board.pathTo(stops, best.x, best.y) }); dog.pos = { x: best.x, y: best.y }; }
+    if (best && (best.x !== dog.pos.x || best.y !== dog.pos.y)) { const path = Board.pathTo(stops, best.x, best.y) || [{ ...dog.pos }, { x: best.x, y: best.y }]; out.moves.push({ id: dog.id, from: { ...dog.pos }, to: { x: best.x, y: best.y }, path }); seqPush(out, { k: "mobMove", id: dog.id, type: "dog", path: path.map((q) => [q.x, q.y]) }); dog.pos = { x: best.x, y: best.y }; }
     t = adj(dog.pos.x, dog.pos.y);
   }
   if (!t) return;
-  if (L.attack().skillDodge(dog, t, "กัด")) { out.misses.push({ id: dog.id, target: t.id }); return; }
+  if (L.attack().skillDodge(dog, t, "กัด")) { out.misses.push({ id: dog.id, target: t.id }); seqPush(out, { k: "mobHit", id: dog.id, target: t.id, dmg: 0, dodged: true, crit: false }); return; }
   const before = t.hp + (t.armor || 0);
   // ต้นตอ = หมา ทั้งตอนลงดาเมจและตอนตัดสินตาย → เหรียญเข้าเจ้าของหมา (onMobDeath)
-  L.combat().withEffectSource(dog, () => { L.combat().dealMixed(t, dog.summon.atk || DOG.atk); out.attacks.push({ id: dog.id, type: "dog", x: dog.pos.x, y: dog.pos.y, target: t.id, dmg: before - (t.hp + (t.armor || 0)) }); H().settle(t); });
+  L.combat().withEffectSource(dog, () => { L.combat().dealMixed(t, dog.summon.atk || DOG.atk); out.attacks.push({ id: dog.id, type: "dog", x: dog.pos.x, y: dog.pos.y, target: t.id, dmg: before - (t.hp + (t.armor || 0)) }); seqPush(out, { k: "mobHit", id: dog.id, target: t.id, dmg: before - (t.hp + (t.armor || 0)), dodged: false, crit: false, kill: !t.alive || t.hp <= 0 }); H().settle(t); });
 }
 
 // ---------- จบเทิร์น ----------
@@ -460,4 +496,4 @@ function toggleRear(p) {
   return true;
 }
 
-module.exports = { swerve, fireTurret, toggleRoof, roofSync, roofLurch, actionsOf, SWERVE, ROOF_FALL, offVan, vanSpot, placeSpot, dropOff, enforceVan, onvanNow, bossIndex, FALL_DMG, SWERVE_DMG, REWARD, begin, startRound, spawnWave, spawnDog, applyBuffs, preRound, scroll, turret, onEndTurn, outcome, win, onMobDeath, toggleRear, forwardOf };
+module.exports = { turretSpot, TURRET_MANUAL_RANGE, TURRET_BASE, turretDmg, swerve, fireTurret, toggleRoof, roofSync, roofLurch, actionsOf, SWERVE, ROOF_FALL, offVan, vanSpot, placeSpot, dropOff, enforceVan, onvanNow, bossIndex, FALL_DMG, SWERVE_DMG, REWARD, begin, startRound, spawnWave, spawnDog, applyBuffs, preRound, scroll, turret, onEndTurn, outcome, win, onMobDeath, toggleRear, forwardOf };

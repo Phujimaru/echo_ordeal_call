@@ -9,6 +9,7 @@ const POWER = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8" /><p
 const SKIP = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7z" /><path d="M18 5v14" /></svg>;
 const PLUS = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
 const YT_LOGO = <svg viewBox="0 0 28 20" aria-hidden="true"><rect x="0.5" y="0.5" width="27" height="19" rx="5" fill="currentColor" /><path d="M11 5.5v9l8-4.5z" fill="#fff" /></svg>;
+const SPK = (mute, lv) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" />{mute ? <path d="M17 9l5 6M22 9l-5 6" /> : <>{lv > 0 && <path d="M16.5 9.5a3.5 3.5 0 0 1 0 5" />}{lv > 0.5 && <path d="M19 7a7 7 0 0 1 0 10" />}</>}</svg>;
 const CHEV = (up) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={up ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} /></svg>;
 
 function loadMin() { try { return localStorage.getItem("echo_rt_radio_min") === "1"; } catch { return false; } }
@@ -54,6 +55,12 @@ export default function RadioPanel({ radioState, zoom = 1 }) {
         <button type="button" className="rt-knob min" aria-label={min ? "ขยาย" : "ย่อ"} {...tip(min ? "ขยายแผงวิทยุ" : "ย่อเหลือแค่จอ")} aria-expanded={!min} onClick={() => { clickSound(); setMin((v) => { saveMin(!v); return !v; }); }}>
           {CHEV(min)}
         </button>
+      </div>
+      <div className="rt-vol">
+        <button type="button" className="rt-sq" aria-label={snap.muted ? "เปิดเสียง" : "ปิดเสียง"} aria-pressed={snap.muted} data-on={snap.muted ? "true" : "false"} onClick={() => { clickSound(); radio.toggleRadioMute(); }}>{SPK(snap.muted, snap.vol)}</button>
+        <input type="range" className="rt-vol-in" min={0} max={100} step={1} aria-label="ความดัง" value={Math.round((snap.muted ? 0 : snap.vol) * 100)} style={{ "--p": `${Math.round((snap.muted ? 0 : snap.vol) * 100)}%` }}
+          onChange={(e) => radio.setRadioVolume(Number(e.target.value) / 100)} onKeyDown={(e) => e.stopPropagation()} />
+        <span className="rt-vol-n rt-num">{Math.round((snap.muted ? 0 : snap.vol) * 100)}</span>
       </div>
       {!min && (
         <>

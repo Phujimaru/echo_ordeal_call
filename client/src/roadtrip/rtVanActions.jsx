@@ -1,4 +1,4 @@
-// Road Trip — ปุ่มคำสั่งบนรถตู้ตอนสู้ไล่ล่า (combat kind "onvan" · ตาของเราเท่านั้น — ผู้ใช้สั่ง 2026-11-14 ให้ตัวสายประชิดสู้ได้)
+// Road Trip — ปุ่มคำสั่งรถตู้ตอนสู้ (สู้บนรถตู้ + ป้อมปืน/ประตูท้ายตอนรถจอด · ตาของเราเท่านั้น — ผู้ใช้สั่ง 2026-11-14 ให้ตัวสายประชิดสู้ได้)
 //  หักรถชนซ้าย/ขวา (ช่องคนขับ · คูลดาวน์) → rt:swerve { side } · ยิงป้อมปืน (ช่องซันรูฟ/หลังคา · อัปเกรดป้อมปืน ≥ 1 · ตาละครั้ง) → เลือกช่องบนกระดาน → rt:turret { x, y }
 //  ขึ้น/ลงหลังคา (ช่องซันรูฟ) → rt:roof · ปุ่มเข้าแถวปุ่มพิเศษของ HUD (HudCommand extra) · คำอธิบาย = กล่องชี้ (desc)
 //  ปุ่มลัด: G หักซ้าย · H หักขวา · T ยิงป้อมปืน · Y หลังคา (ไม่ชน 1–3 / F / Z / B / Enter / WASD / Q E / R / V ของเกม)
@@ -7,12 +7,14 @@ import { useEffect, useRef } from "react";
 import { clickSound } from "../audio";
 import { rtEmit } from "./rtSocket";
 
-const TURRET_RANGE = 4;
+const TURRET_RANGE = 5; // server fight.TURRET_MANUAL_RANGE (บัฟ 2026-11-14) — server ส่ง combat.turretRange มาด้วย
 const I = {
   left: <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 10 L16 24 L30 38" /><path d="M40 10 L26 24 L40 38" /><path d="M8 12 V36" /></svg>,
   right: <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 10 L32 24 L18 38" /><path d="M8 10 L22 24 L8 38" /><path d="M40 12 V36" /></svg>,
   turret: <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="13" /><path d="M24 4 V14 M24 34 V44 M4 24 H14 M34 24 H44" /><circle cx="24" cy="24" r="3" /></svg>,
   up: <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 40 H40" /><path d="M14 30 H34 L30 22 H18 Z" /><path d="M24 18 V4 M17 11 L24 4 L31 11" /></svg>,
+  rear: <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="8" width="32" height="32" rx="5" /><path d="M8 18 H40" /><path d="M24 26 V34 M20 30 L24 34 L28 30" /></svg>,
+  rearOpen: <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="8" width="32" height="10" rx="4" /><path d="M8 18 V40 H40 V18" strokeDasharray="4 4" /><path d="M24 36 V26 M20 30 L24 26 L28 30" /></svg>,
   down: <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 40 H40" /><path d="M14 30 H34 L30 22 H18 Z" /><path d="M24 4 V18 M17 11 L24 18 L31 11" /></svg>,
 };
 
@@ -40,7 +42,10 @@ export function onRoof(rt, youId) {
 export function turretTiles(rt, board, defs) {
   if (!board) return [];
   const cols = board.cols | 0, rows = board.rows | 0;
-  const van = (defs && defs.vanTiles) || (board.special && board.special.van) || [];
+  // บนรถตู้ = ช่องในรถ · รถจอด (ดักทาง/บอส) = กรอบรถ vanBlock — ระยะนับจากขอบรถ (server fight.vanDist)
+  const vb = defs && defs.vanBlock;
+  const van = vb ? [] : (defs && defs.vanTiles) || (board.special && board.special.van) || [];
+  if (vb) for (let y = vb.y0; y <= vb.y1; y++) for (let x = vb.x0; x <= vb.x1; x++) van.push([x, y]);
   const vk = new Set(van.map(([x, y]) => `${x},${y}`));
   const range = (rt && rt.combat && rt.combat.turretRange) || TURRET_RANGE;
   const out = [];
@@ -54,7 +59,7 @@ export function turretTiles(rt, board, defs) {
 }
 
 /**
- * ปุ่มสำหรับ HudCommand extra (ตัวเลขตาม server/roadtrip/fight.js: ปาดรถ 2 + ขั้นกันชน คูลดาวน์ 2 · ป้อมปืน ขั้น + 1 ระยะ 4 · หลังคา ระยะ +2 ร่วง 25%)
+ * ปุ่มสำหรับ HudCommand extra (ตัวเลขตาม server/roadtrip/fight.js — บัฟ 2026-11-14: ปาดรถ 2 + ขั้นกันชน มึน 1 คูลดาวน์ 1 · ป้อมปืน 2 + ขั้น ระยะ 5 ไม่ต้องอัปเกรด · หลังคา ระยะ +2 ร่วง 15%)
  * @param rt        state.roadtrip
  * @param youId     ตัวเรา · me = ผู้เล่นของเรา (ตำแหน่ง — นั่งช่องคนขับแต่ปาดรถติดคูลดาวน์ = ปุ่มเทา + เลขเทิร์น)
  * @param round     state.roundNumber
@@ -63,15 +68,16 @@ export function turretTiles(rt, board, defs) {
  * @param onTurret  เริ่ม/ยกเลิกการเลือกช่องยิง
  */
 export function rtVanButtons({ rt, youId, me = null, round = 0, defs = null, enabled, picking, onTurret }) {
-  if (!rt || rt.phase !== "combat" || !rt.combat || rt.combat.kind !== "onvan") return [];
+  if (!rt || rt.phase !== "combat" || !rt.combat) return [];
   const list = normalize(rt.actions && rt.actions[youId]);
+  // รถจอด (ดักทาง/อีลิท/บอส): server ส่งแค่ "turret" (ยืนติดรถ) / "rear" (ยืนหลังรถ) — ปาดรถ/หลังคามีแค่ตอนสู้บนรถตู้
   const c = rt.combat, van = rt.van || {};
   const bumper = (van.upg && van.upg.bumper) | 0, tlv = (van.upg && van.upg.turret) | 0;
   // ปาดรถติดคูลดาวน์ (server ไม่ส่ง "swerve") แต่เรานั่งช่องคนขับ = แสดงปุ่มเทาพร้อมเลขเทิร์น
   const dt = (defs && defs.driverTile) || [13, 6];
   const onDriver = !!(me && me.pos && me.pos.x === dt[0] && me.pos.y === dt[1]);
   const swCd = Math.max(0, (c.swerveReady | 0) - (round | 0));
-  if (onDriver && swCd > 0 && !list.some((a) => kindOf(a.key).kind === "swerve")) list.unshift({ key: "swerve", cd: swCd });
+  if (rt.combat.kind === "onvan" && onDriver && swCd > 0 && !list.some((a) => kindOf(a.key).kind === "swerve")) list.unshift({ key: "swerve", cd: swCd });
   if (!list.length) return [];
   const out = [];
   const off = (a) => !enabled || !!a.disabled || (a.cd | 0) > 0;
@@ -86,26 +92,36 @@ export function rtVanButtons({ rt, youId, me = null, round = 0, defs = null, ena
           key: `rt:swerve:${side}`, row: "rt-swerve", icon: I[side],
           name: cool ? (L ? "ซ้าย" : "ขวา") : L ? "หักรถชนซ้าย" : "หักรถชนขวา", // ติดคูลดาวน์ = ชื่อสั้น ให้เห็นเลข ⏳
           cd: a.cd | 0, disabled: off(a), hk: L ? "KeyG" : "KeyH", hkLabel: L ? "G" : "H",
-          desc: a.desc || `ปาดรถชนมอนแถวข้างรถฝั่ง${L ? "ซ้าย" : "ขวา"} ดาเมจ ${(a.dmg || 2 + bumper)} กระเด็นออก 1 ช่อง${bumper ? "" : " · รถเสีย 1"} · คูลดาวน์ ${a.cdMax || 2} เทิร์น · คนบนหลังคาอาจร่วง`,
+          desc: a.desc || `ปาดรถชนมอนแถวข้างรถฝั่ง${L ? "ซ้าย" : "ขวา"} ดาเมจ ${(a.dmg || c.swerveDmg || 2 + bumper)} กระเด็นออก 1 ช่อง มึน 1 เทิร์น${bumper ? "" : " · รถเสีย 1"} · คูลดาวน์ ${a.cdMax || c.swerveCd || 1} เทิร์น · คนบนหลังคาอาจร่วง`,
           onClick: () => { clickSound(); rtEmit("rt:swerve", { side }); },
         });
       }
     } else if (k.kind === "turret") {
       out.push({
-        key: "rt:turret", icon: I.turret, name: "ยิงป้อมปืน", on: !!picking, cd: a.cd | 0, disabled: off(a) || van.turretReady === false || tlv < 1, hk: "KeyT", hkLabel: "T",
-        desc: a.desc || `เลือกมอนในระยะ ${c.turretRange || TURRET_RANGE} ช่องจากรถ ดาเมจ ${a.dmg || tlv + 1} · ตาละ 1 ครั้ง`,
+        key: "rt:turret", icon: I.turret, name: "ยิงป้อมปืน", on: !!picking, cd: a.cd | 0, disabled: off(a), hk: "KeyT", hkLabel: "T",
+        desc: a.desc || `เลือกมอนในระยะ ${c.turretRange || TURRET_RANGE} ช่องจากรถ ดาเมจ ${a.dmg || c.turretDmg || 2 + tlv} · ตาละ 1 ครั้ง`,
         onClick: () => { clickSound(); onTurret && onTurret(); },
       });
     } else if (k.kind === "roof") {
       const up = onRoof(rt, youId);
       out.push({
         key: "rt:roof", icon: up ? I.down : I.up, name: up ? "ลงจากหลังคา" : "ขึ้นหลังคา", cd: a.cd | 0, disabled: off(a), hk: "KeyY", hkLabel: "Y",
-        desc: a.desc || (up ? "กลับลงในรถทางซันรูฟ" : "ปีนขึ้นหลังคาทางซันรูฟ ระยะโจมตี +2 · โดนได้แค่ตัวบิน/บอส · ปีนแล้วเดินต่อไม่ได้ในตานี้ · ถนนกระตุก/ปาดรถ อาจร่วง 25%"),
+        desc: a.desc || (up ? "กลับลงในรถทางซันรูฟ" : "ปีนขึ้นหลังคาทางซันรูฟ ระยะโจมตี +2 · โดนได้แค่ตัวบิน/บอส · ปีนแล้วเดินต่อไม่ได้ในตานี้ · ถนนกระตุก/ปาดรถ อาจร่วง 15%"),
         onClick: () => { clickSound(); rtEmit("rt:roof"); },
       });
     }
   }
-  return out;
+  return [...out, ...rearButton(rt, list, enabled)];
+}
+// ประตูท้าย (ยืนแถวท้ายรถในตาตัวเอง — server ส่ง "rear") · ปุ่มลัด U
+function rearButton(rt, list, enabled) {
+  if (!list.some((a) => a.key === "rear")) return [];
+  const open = !!(rt.van && rt.van.rearOpen);
+  return [{
+    key: "rt:rear", icon: open ? I.rearOpen : I.rear, name: open ? "ปิดประตูท้าย" : "เปิดประตูท้าย", on: open, disabled: !enabled, hk: "KeyU", hkLabel: "U",
+    desc: "ยืนแถวท้ายรถ ประตูเปิด = ตีและใช้สกิลไกลขึ้น 1 ช่อง",
+    onClick: () => { clickSound(); rtEmit("rt:rear"); },
+  }];
 }
 // ประตูท้ายสลับได้ไหม (server ส่ง "rear" ตอนยืนแถวท้ายในตาตัวเอง)
 export const canRear = (rt, youId) => normalize(rt && rt.actions && rt.actions[youId]).some((a) => a.key === "rear");

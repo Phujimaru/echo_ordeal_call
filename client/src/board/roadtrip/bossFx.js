@@ -44,7 +44,7 @@ function puff(g, x, y, z, r, a, night, col) {
   g.fillStyle = col || (night ? `rgba(170,170,200,${a})` : `rgba(235,228,215,${a})`);
   for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(sx + (i - 1) * r * s * 0.55, sy - (i % 2) * r * s * 0.25, r * s * (0.7 + (i % 2) * 0.25), 0, TAU); g.fill(); }
 }
-const MOVE_ICON = { ram: "🏎️", throw: "💥", swing: "💫", charge: "⚔️", slash: "⚔️", lunge: "🐍", tide: "🌊" };
+const MOVE_ICON = { ram: "🏎️", throw: "💥", swing: "💫", charge: "⚔️", slash: "⚔️", lunge: "🐍", tide: "🌊", celebrate: "🍾", wave: "🌑", spikes: "🗡️", sweep: "🐍", tidal: "🌊", prison: "🧊" };
 const ACCENT = { devilTruck: "255,120,40", darkKnight: "170,80,255", jormungand: "90,200,255" };
 
 // หาตำแหน่ง (กลางช่อง) ของยูนิต id จากรายการที่วาด
@@ -94,8 +94,8 @@ export function drawBossGround(g, now, night) {
         }
         break;
       }
-      case "darkKnight:slash": case "darkKnight:charge": crackTiles(g, b, now, "190,90,255"); break;
-      case "jormungand:lunge": case "jormungand:tide": { // พื้นน้ำแข็งเกาะ
+      case "darkKnight:slash": case "darkKnight:charge": case "darkKnight:wave": case "darkKnight:spikes": crackTiles(g, b, now, "190,90,255"); break;
+      case "jormungand:lunge": case "jormungand:tide": case "jormungand:sweep": case "jormungand:tidal": case "jormungand:prison": { // พื้นน้ำแข็งเกาะ
         const kk = Math.min(1, Math.max(0, (age - b.wind) / (b.act * 0.6)));
         for (const t of b.tiles) { quad(g, t.x, t.y, 0.05); g.fillStyle = `rgba(200,240,255,${0.45 * kk * (1 - Math.max(0, (age - b.dur) / 1500))})`; g.fill(); }
         if (b.kind === "jormungand:tide") { const r = 0.3 + Math.min(1, (age - b.wind) / b.act) * 2.6; if (age > b.wind) { g.strokeStyle = `rgba(120,210,255,${0.8 * (1 - k)})`; g.lineWidth = 5; gEllipse(g, b.from.x + 0.5, b.from.y + 0.5, r, 0.05, 48); g.stroke(); g.strokeStyle = `rgba(255,255,255,${0.6 * (1 - k)})`; g.lineWidth = 2; gEllipse(g, b.from.x + 0.5, b.from.y + 0.5, r * 0.85, 0.06, 48); g.stroke(); } }
@@ -144,8 +144,8 @@ export function drawBossAir(g, now, night, units, view) {
       case "devilTruck:swing": maxSwing(g, b, age, night); break;
       case "devilTruck:ram": maxRam(g, b, age, night); break;
       case "devilTruck:throw": maxThrow(g, b, age, night); break;
-      case "darkKnight:slash": case "darkKnight:charge": knight(g, b, age, night, view); break;
-      case "jormungand:lunge": case "jormungand:tide": serpent(g, b, age, night, view); break;
+      case "darkKnight:slash": case "darkKnight:charge": case "darkKnight:wave": case "darkKnight:spikes": knight(g, b, age, night, view); break;
+      case "jormungand:lunge": case "jormungand:tide": case "jormungand:sweep": case "jormungand:tidal": case "jormungand:prison": serpent(g, b, age, night, view); break;
       case "radio": radio(g, b, age, units); break;
       case "pitstop": pitstop(g, b, age, units, night); break;
       case "drs": drs(g, b, age, units); break;
@@ -353,6 +353,30 @@ function knight(g, b, age, night, view) {
       g.beginPath(); for (let j = 0; j <= 18; j++) { const a = a0 + (a1 - a0) * j / 18, [sx, sy] = P(from.x + Math.cos(a) * R, from.y + Math.sin(a) * R, 0.7); j ? g.lineTo(sx, sy) : g.moveTo(sx, sy); } g.stroke();
     }
     g.lineCap = "butt";
+  } else if (b.kind === "darkKnight:wave" && b.tiles.length && kk > 0) {
+    // คลื่นดาบเงา: เสี้ยวจันทร์ม่วงวิ่งไปตามแนว
+    const n = b.tiles.length, f = ease(kk) * n, head = b.tiles[Math.min(n - 1, Math.floor(f))];
+    const base = Math.atan2(Math.sign(head.y + 0.5 - from.y), Math.sign(head.x + 0.5 - from.x));
+    g.lineCap = "round";
+    for (let i = 0; i < 3; i++) {
+      const tt = b.tiles[Math.max(0, Math.min(n - 1, Math.floor(f) - i))], cx = tt.x + 0.5, cy = tt.y + 0.5, a = (1 - i * 0.3) * (1 - kk * 0.5);
+      g.strokeStyle = `rgba(${i ? "230,200,255" : "140,50,255"},${a})`; g.lineWidth = i ? 4 : 12;
+      g.beginPath(); for (let j = 0; j <= 12; j++) { const an = base - 1.2 + 2.4 * j / 12, [sx, sy] = P(cx + Math.cos(an) * 0.55, cy + Math.sin(an) * 0.55, 0.6); j ? g.lineTo(sx, sy) : g.moveTo(sx, sy); } g.stroke();
+    }
+    g.lineCap = "butt";
+    glowAt(g, head.x + 0.5, head.y + 0.5, 0.6, 1.1, "170,80,255", 0.7 * (1 - kk * 0.5));
+  } else if (b.kind === "darkKnight:spikes" && kk > 0) {
+    // หนามเงาผุดใต้เท้า: หนามดำม่วงพุ่งขึ้นแล้วยุบ
+    const up = Math.sin(Math.min(1, kk * 1.4) * Math.PI);
+    b.tiles.forEach((t, i) => {
+      for (let j = 0; j < 5; j++) {
+        const ox = (H01(i * 5 + j) - 0.5) * 0.6, oy = (H01(i * 5 + j + 9) - 0.5) * 0.4, h = (0.9 + H01(j + i) * 0.8) * up;
+        const [bx, by, s] = P(t.x + 0.5 + ox, t.y + 0.5 + oy, 0), [tx, ty] = P(t.x + 0.5 + ox, t.y + 0.5 + oy, h);
+        g.fillStyle = `rgba(30,6,50,${0.95 * up})`; g.beginPath(); g.moveTo(bx - s * 0.07, by); g.lineTo(tx, ty); g.lineTo(bx + s * 0.07, by); g.fill();
+        g.strokeStyle = `rgba(190,110,255,${0.8 * up})`; g.lineWidth = 1.5; g.stroke();
+      }
+      glowAt(g, t.x + 0.5, t.y + 0.5, 0.3, 0.9, "170,80,255", 0.6 * up);
+    });
   } else if (b.path) {
     // พุ่ง: เงาซ้อนตามแนว (ร่างโคลนเงา) + รอยฟันตัด
     const n = b.path.length - 1, f = kk * n;
@@ -378,6 +402,38 @@ function serpent(g, b, age, night, view) {
     }
     g.lineCap = "butt";
     glowAt(g, ex, ey, 0.6, 1.0, "180,240,255", 0.8);
+  }
+  if (b.kind === "jormungand:tidal" && b.tiles.length && kk > 0) {
+    // คลื่นยักษ์: กำแพงน้ำกวาดผ่านแถบแล้วซัดลง
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const t of b.tiles) { x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x + 1); y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y + 1); }
+    const h = 1.8 * Math.sin(Math.min(1, kk * 1.2) * Math.PI), yy = y0 + (y1 - y0) * ease(kk);
+    const crest = (j) => P(x0 + (x1 - x0) * j / 24, yy, h * (0.85 + 0.15 * Math.sin(j * 1.3 + age / 90)));
+    g.fillStyle = "rgba(40,140,230,.55)"; g.beginPath();
+    for (let j = 0; j <= 24; j++) { const [sx, sy] = crest(j); j ? g.lineTo(sx, sy) : g.moveTo(sx, sy); }
+    for (let j = 24; j >= 0; j--) { const [sx, sy] = P(x0 + (x1 - x0) * j / 24, yy, 0); g.lineTo(sx, sy); }
+    g.closePath(); g.fill();
+    g.strokeStyle = "rgba(235,250,255,.9)"; g.lineWidth = 3; g.beginPath();
+    for (let j = 0; j <= 24; j++) { const [sx, sy] = crest(j); j ? g.lineTo(sx, sy) : g.moveTo(sx, sy); }
+    g.stroke();
+  } else if (b.kind === "jormungand:prison" && kk > 0) {
+    // คุกน้ำแข็ง: แท่งน้ำแข็งผุดล้อมช่อง
+    const up = Math.min(1, kk * 1.6), fade = Math.max(0, 1 - Math.max(0, (age - b.dur) / 1200));
+    for (const t of b.tiles) for (let j = 0; j < 8; j++) {
+      const an = j / 8 * TAU, cx = t.x + 0.5 + Math.cos(an) * 0.42, cy = t.y + 0.5 + Math.sin(an) * 0.3, [bx, by, s] = P(cx, cy, 0), [tx, ty] = P(cx, cy, 1.3 * up);
+      g.fillStyle = `rgba(190,235,255,${0.75 * fade})`; g.beginPath(); g.moveTo(bx - s * 0.08, by); g.lineTo(tx, ty); g.lineTo(bx + s * 0.08, by); g.fill();
+      g.strokeStyle = `rgba(255,255,255,${0.9 * fade})`; g.lineWidth = 1.2; g.stroke();
+    }
+  } else if (b.kind === "jormungand:sweep" && kk > 0) {
+    // ฟาดหาง: หางกวาดวงรอบตัว
+    const a1 = ease(kk) * TAU;
+    g.lineCap = "round";
+    for (const [w, c] of [[14, "rgba(40,120,140,.85)"], [5, "rgba(170,240,255,.9)"]]) {
+      g.strokeStyle = c; g.lineWidth = w; g.beginPath();
+      for (let j = 0; j <= 20; j++) { const an = a1 - 1.6 + 1.6 * j / 20, [sx, sy] = P(from.x + Math.cos(an) * 1.3, from.y + Math.sin(an) * 1.0, 0.4); j ? g.lineTo(sx, sy) : g.moveTo(sx, sy); }
+      g.stroke();
+    }
+    g.lineCap = "butt";
   }
   // เกล็ดน้ำแข็งระเบิดบนช่องที่โดน + หมอกเย็น
   if (kk > 0.4) for (const [i, t] of b.tiles.entries()) {

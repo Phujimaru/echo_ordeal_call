@@ -15,6 +15,9 @@ const LOOKS = {
   forge: { look: "forge", theme: "forge", crest: "⚙️", name: "โรงช่างลุงเริง", latin: "Uncle Roeng's Workshop" },
   cara: { look: "cara", theme: "cara", crest: "🐎", name: "พ่อค้าเร่", latin: "Wandering Merchant" },
   capsule: { look: "apoth", theme: "capsule", crest: "📦", name: "แคปซูลเสบียง", latin: "Supply Capsule" },
+  // Road Trip จุดพัก (ร้านคืออาคาร — server/roadtrip/stop.js) · เดิมไม่มีในตาราง = ขึ้นชื่อร้านยาเจริญชัย (QA 2026-11-14)
+  rtmart: { look: "apoth", theme: "apoth", crest: "🏪", name: "มินิมาร์ท", latin: "24h Mini Mart" },
+  rtoffice: { look: "apoth", theme: "apoth", crest: "🛎️", name: "สำนักงานโมเต็ล", latin: "Motel Office" },
 };
 const KEEP_TYPES = ["lifeCrystal", "armorCrystal", "battery"]; // ของถาวร/ชาร์จเก็บ (ชั้นที่ 3 ของแคปซูล)
 const SHELF_LABEL = { draw: "ช่วงจั่ว", turn: "ตาเดิน", keep: "ถาวร" };

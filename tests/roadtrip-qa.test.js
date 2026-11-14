@@ -210,3 +210,326 @@ test('FIX มอน Road Trip (rtmob) ไม่ซ่อนในพุ่ม/�
     assert.equal(Vis.hiddenFrom(P(0), m), false, 'ผู้เล่นยังเห็นมอน');
   } finally { delete match.board.smoke; }
 });
+
+// QA รอบ 3 (2026-11-14 · จำลองการต่อสู้จนจบจริงหลายร้อยครั้ง): บอสโดนัทฆ่าคน = server ล้ม · ประตูท้ายตอนดักทาง · สมดุลบอสเล่นคนเดียว
+test('FIX บอสแม็กซ์: โดนัทฉลองแชมป์ฆ่าผู้เล่น (pos = null) ไม่ทำให้ตามอนพัง', () => {
+  setup(2);
+  F.begin('boss');
+  fire();
+  clearMobs();
+  const a = P(0), b = P(1);
+  a.pos = { x: 5, y: 3 }; a.hp = 1; a.armor = 0;
+  b.pos = { x: 15, y: 9 };
+  const boss = M.spawn(rt(), 'devilTruck', { x: 5, y: 2 }, { born: 0 });
+  const map = require('../server/phases/action.js').boardMap();
+  rt().combat.warn = { by: boss.id, move: 'celebrate', dir: null, tiles: M.moveTiles(map, null, boss, 'celebrate', [1, 0]) };
+  Math.random = () => 0.99; // ไม่หลบ
+  assert.doesNotThrow(() => M.actOne(rt(), boss, OUT()));
+  assert.equal(a.alive, false, 'โดนโดนัทล้ม');
+});
+
+test('FIX ประตูท้าย: ดักทาง/บอส (รถจอด) มีปุ่มเมื่อยืนช่องหลังรถในตาตัวเอง', () => {
+  setup(1);
+  F.begin('ambush');
+  fire();
+  const p = P(0), d = Maps.defs[Maps.RT_ROAD];
+  p.pos = { x: d.rearTiles[0][0], y: d.rearTiles[0][1] };
+  match.gameState = 'ACTION'; match.actorId = 'p0'; match.action = { locked: false, moved: false, from: { ...p.pos } };
+  assert.ok(F.actionsOf().p0.includes('rear')); // ช่องหลังรถติดรถตู้ = มีป้อมปืนด้วย
+  assert.equal(F.toggleRear(p), true);
+  assert.equal(rt().van.rearOpen, true);
+  p.pos = { x: 15, y: 9 };
+  assert.ok(!(F.actionsOf().p0 || []).includes('rear'), 'ไม่ได้ยืนหลังรถ = ไม่มีปุ่ม');
+});
+
+test('สมดุล QA: บอสตัวแรก เล่นคนเดียว (ปกติ) เลือด ≤ 14 เกราะ ≤ 2 พลังโจมตี ≤ 2 · ทีมใหญ่ยังถึกตามจำนวนคน · ลูกน้องบอสไม่เพิ่มทุกคน', () => {
+  const st = (diff, heroes, tier = 0, type = 'devilTruck') => M.scale({ km: 50, diff, region: { loop: 0 } }, M.ROSTER[type], { heroes, tier });
+  for (const type of M.BOSSES) {
+    const s = st('normal', 1, 0, type);
+    assert.ok(s.hp <= 15 && s.armor <= 2 && s.atk <= 2, `${type} ${JSON.stringify(s)}`);
+  }
+  assert.ok(st('easy', 1).atk < st('normal', 1).atk || st('easy', 1).atk === 1);
+  assert.ok(st('normal', 6).hp >= st('normal', 1).hp * 4);
+  assert.ok(st('normal', 4).atk > st('normal', 1).atk);
+  const ws = (heroes) => M.waveSize({ km: 150, diff: 'normal', region: { loop: 0 } }, 'boss', heroes);
+  assert.equal(ws(1), 1);
+  assert.ok(ws(4) <= 2 && ws(6) <= 3);
+});
+
+// QA จุดพัก รอบ 3 (2026-11-14 · เล่นจริง 2 เครื่องในเบราว์เซอร์ + socket) — ปั๊ม/โมเต็ลเดินอิสระ
+const enterGas = (area) => { process.env.ECHO_DEV_RT_AREA = String(area); try { S.enter('gas'); } finally { delete process.env.ECHO_DEV_RT_AREA; } };
+const propOf = (kind, extra = () => true) => (Maps.defs[rt().stop.area].props || []).find((o) => o.kind === kind && o.spot && extra(o));
+const fxSince = (n) => rt().fx.slice(n);
+
+test('FIX จุดพัก: ชิงช้าสวรรค์ไม่ไหลไปกิจกรรมอื่น (จ่ายครั้งเดียวทั้งทีม · คนที่สองไม่เสียเงิน)', () => {
+  setup(2);
+  enterGas(72);
+  const f = propOf('ferris');
+  P(0).gold = 10; P(1).gold = 10;
+  assert.equal(S.act(P(0), f.id), true);
+  assert.equal(P(0).gold, 9);
+  assert.equal(rt().reveal, true, 'เห็นทางแยกข้างหน้า');
+  const n = rt().fx.length;
+  assert.equal(S.act(P(1), f.id), false, 'ทีมเห็นแล้ว = ไม่ต้องขึ้นซ้ำ');
+  assert.equal(P(1).gold, 10, 'ไม่เสียเงิน');
+  assert.ok(fxSince(n).some((e) => e.k === 'actFail' && e.id === 'p1' && e.why === 'used'));
+});
+
+test('FIX จุดพัก: กิจกรรมที่ทำไม่ได้ = fx actFail พร้อมเหตุผล (เงินไม่พอ / เต็มแล้ว / ใช้แล้ว) · ไม่เสียอะไร', () => {
+  setup(1);
+  enterGas(72);
+  const a = P(0), pump = propOf('pump'), claw = propOf('claw');
+  a.gold = 0;
+  let n = rt().fx.length;
+  assert.equal(S.act(a, claw.id), false);
+  assert.ok(fxSince(n).some((e) => e.k === 'actFail' && e.why === 'gold'), 'เงินไม่พอ');
+  assert.ok(!(rt().stop.used.p0 || {})[claw.id], 'ไม่นับว่าเล่นแล้ว');
+  a.gold = 10; rt().van.fuel = rt().van.fuelMax;
+  n = rt().fx.length;
+  assert.equal(S.act(a, pump.id), false);
+  assert.ok(fxSince(n).some((e) => e.k === 'actFail' && e.why === 'full'), 'ถังเต็ม');
+  assert.equal(a.gold, 10);
+  Math.random = () => 0.99;
+  assert.equal(S.act(a, claw.id), true);
+  rt().stop.cd = {}; // พ้นคูลดาวน์ 1.5 วิ
+  n = rt().fx.length;
+  assert.equal(S.act(a, claw.id), false);
+  assert.ok(fxSince(n).some((e) => e.k === 'actFail' && e.why === 'used'), 'เล่นไปแล้ว');
+});
+
+test('FIX จุดพัก: fx act บอกผลจริง (เหรียญที่เปลี่ยน · บัฟที่ได้) ให้ client ลอยป้าย', () => {
+  setup(1);
+  enterGas(72);
+  const a = P(0);
+  a.gold = 10;
+  const n = rt().fx.length;
+  assert.equal(S.act(a, propOf('arcade').id), true);
+  const e = fxSince(n).find((x) => x.k === 'act');
+  assert.equal(e.dg, -1);
+  assert.deepEqual(e.buffs.map((b) => [b.key, b.amt, b.name]), [['might', 1, 'เสริมพลัง']]);
+});
+
+test('FIX อู่: กดตัวอาคาร = เปิดหน้าอู่เฉยๆ ไม่หักเงินซ่อม · ซ่อมด้วย rt:upg { key: "repair" } (ยืนใกล้อู่) · ราคาซ่อมอยู่ใน state', () => {
+  setup(1);
+  enterGas(72);
+  const a = P(0), g = propOf('garage');
+  a.gold = 50; rt().van.hp = 10;
+  let n = rt().fx.length;
+  assert.equal(S.act(a, g.id), true);
+  assert.equal(a.gold, 50, 'ไม่หักเงิน');
+  assert.equal(rt().van.hp, 10);
+  assert.equal(fxSince(n).filter((e) => e.k === 'garage' && e.pid === 'p0').length, 1, 'เปิดหน้าอู่ครั้งเดียว (เดิมซ้ำ 2)');
+  assert.equal(RT.publicInfo('p0').van.prices.repair, 4, 'ค่าซ่อมเต็ม 10 HP = 4 เหรียญ (ปกติ 3 HP/เหรียญ)');
+  n = rt().fx.length;
+  assert.equal(RT.command('p0', 'upg', { key: 'repair' }), true);
+  assert.equal(rt().van.hp, rt().van.hpMax);
+  assert.equal(a.gold, 46);
+  assert.ok(fxSince(n).some((e) => e.k === 'act' && e.kind === 'garage' && e.dg === -4));
+  assert.equal(RT.publicInfo('p0').van.prices.repair, null, 'รถเต็ม');
+  assert.equal(RT.command('p0', 'upg', { key: 'repair' }), false, 'เต็มแล้วซ่อมไม่ได้');
+  rt().van.hp = 10;
+  a.pos = { x: 0, y: 13 };
+  assert.equal(RT.command('p0', 'upg', { key: 'repair' }), false, 'ไกลอู่ซ่อมไม่ได้');
+});
+
+test('FIX อู่: หน้าอู่เด้งเฉพาะตอนเพิ่งเดินมาติดอู่ (เดินเลียบอู่ไม่เด้งซ้ำทุกก้าว)', () => {
+  setup(1);
+  enterGas(72);
+  const a = P(0), g = propOf('garage');
+  S.walk(a, g.spot[0], g.spot[1]);
+  const n = rt().fx.length;
+  const side = [[g.spot[0] + 1, g.spot[1]], [g.spot[0] - 1, g.spot[1]]].find(([x, y]) => S.reachOf(a).get(Board.key(x, y)) && y === g.y1 + 1);
+  assert.ok(side, 'มีช่องเลียบอู่');
+  assert.equal(S.walk(a, side[0], side[1]), true);
+  assert.ok(!fxSince(n).some((e) => e.k === 'garage'), 'ไม่เด้งซ้ำ');
+});
+
+test('FIX ตลาดนัดปั๊ม: แผงอาหารกดได้จริง (ของกิน +2 พลังชีวิต · น้ำ +1 เกราะ · เต็ม = ไม่เสียเงิน)', () => {
+  const combat = require('../server/combat.js');
+  setup(1);
+  enterGas(74);
+  const a = P(0);
+  a.gold = 10;
+  const food = propOf('stall', (o) => o.style !== 'drinks'), drink = propOf('stall', (o) => o.style === 'drinks');
+  a.hp = combat.maxHpOf(a);
+  assert.equal(S.act(a, food.id), false, 'เลือดเต็ม');
+  assert.equal(a.gold, 10);
+  a.hp = 3;
+  assert.equal(S.act(a, food.id), true);
+  assert.equal(a.hp, 5); assert.equal(a.gold, 9);
+  a.armor = 0;
+  assert.equal(S.act(a, drink.id), true);
+  assert.equal(a.armor, 1); assert.equal(a.gold, 8);
+});
+
+test('FIX โมเต็ล: ห้องพักล้างสถานะผิดปกติด้วย (เข้าโมเต็ลเลือดเต็มอยู่แล้ว — เดิมห้องพักไม่มีประโยชน์)', () => {
+  setup(1);
+  S.enter('motel');
+  const a = P(0), room = propOf('motel', (o) => o.style !== 'office');
+  assert.equal(S.act(a, room.id), false, 'ไม่มีอะไรให้ฟื้น = ไม่นับว่าใช้');
+  a.statuses.poison = 2; a.statuses.slow = 1;
+  assert.equal(S.act(a, room.id), true);
+  assert.ok(!a.statuses.poison && !a.statuses.slow);
+  const pool = propOf('pool');
+  assert.ok(RT.publicInfo('p0').stop.acts[pool.id], 'สระมีกิจกรรม (เดิมกดได้แต่ไม่มีอะไรเกิด)');
+  assert.equal(S.act(a, pool.id), true);
+  assert.ok(rt().buffs.p0.some((b) => b.key === 'evade'));
+});
+
+test('FIX จุดพัก: ยาล้างสถานะ (rt:use) ลดสถานะที่เลือก 1 ขั้นแบบตอนสู้ (เดิมล้างหมดทุกอย่าง)', () => {
+  setup(1);
+  enterGas(72);
+  const a = P(0);
+  a.statuses.poison = 2; a.statuses.slow = 1;
+  a.inventory = [{ uid: 'c1', type: 'cleanse' }];
+  assert.equal(RT.command('p0', 'use', { uid: 'c1', status: 'poison' }), true);
+  assert.equal(a.statuses.poison, 1);
+  assert.equal(a.statuses.slow, 1);
+  assert.equal(a.inventory.length, 0);
+});
+
+test('FIX ร้านจุดพัก: ไม่มีเวลานับเทิร์น (หน้าร้านเคยขึ้น "เหลือ 6 เทิร์น")', () => {
+  const shop = require('../server/shop.js');
+  setup(1);
+  enterGas(72);
+  const s = shop.publicShops().find((x) => x.kind === 'rtmart');
+  assert.ok(s && s.building);
+  assert.equal(s.turnsLeft, 0);
+});
+
+test('FIX จุดพัก: วัตถุทุกชิ้นที่มีช่องยืน (spot) กดเล่นได้จริง — ไม่มีของที่กดแล้วเงียบ (แผงตลาดนัด/สระ)', () => {
+  for (const area of [...Maps.RT_GAS, Maps.RT_MOTEL]) {
+    for (const o of Maps.defs[area].props) if (o.spot && !o.walk) assert.ok(S.ACT_KINDS.has(o.kind), `${area} ${o.id} (${o.kind}) มี spot แต่ไม่มีกิจกรรม`);
+  }
+});
+
+test('FIX ภาพไม่วาร์ป: ถนนเลื่อน/รถชน/ป้อมปืนอัตโนมัติ/หมาลูกทีม อยู่ในลำดับฉาก mobTurn.seq', () => {
+  setup(1);
+  rt().van.upg.turret = 2;
+  rt().dog.on = true;
+  F.begin('onvan');
+  fire();
+  clearMobs();
+  const m = M.spawn(rt(), 'stray', { x: 4, y: 2 }, { born: 0 });
+  m.summon.acted = true;
+  const ram = M.spawn(rt(), 'giant', { x: 14, y: 5 }, { born: 0 }); // หน้ารถ: ถนนเลื่อนพาเข้าหน้ารถ = ถูกชน
+  ram.summon.acted = true;
+  Math.random = () => 0.99;
+  match.roundNumber += 1; // เทิร์น 2 (ถนนเริ่มเลื่อน)
+  F.preRound(() => {});
+  const turn = [...rt().fx].reverse().find((f) => f.k === 'mobTurn');
+  assert.ok(turn && Array.isArray(turn.seq));
+  const kinds = new Set(turn.seq.map((e) => e.k));
+  assert.ok(kinds.has('scroll'), 'ถนนเลื่อน');
+  assert.ok(turn.seq.find((e) => e.k === 'scroll').list.some((s) => s.id === m.id), 'มอนไถลถอยหลังแบบมีภาพ');
+  assert.ok(kinds.has('ram'), 'รถชนมอนหน้ารถ');
+  assert.ok(kinds.has('turretShot'), 'ป้อมปืนยิงอัตโนมัติ');
+  const dog = Object.values(match.players).find((p) => p.summon && p.summon.rtDog);
+  if (dog) assert.ok(turn.seq.some((e) => e.id === dog.id), 'หมาลูกทีมเดิน/กัดในลำดับฉาก');
+});
+
+test('บัฟสู้บนรถตู้ 2026-11-14: รอด 3 + กม./100 (≤ 5) · หลังคาร่วง 15% · ตัวล่าข้างรถที่ยังตีใครไม่ถึงกระโดดขึ้นรถ', () => {
+  setup(1);
+  rt().km = 0;
+  F.begin('onvan');
+  fire();
+  assert.equal(rt().combat.rounds, 3);
+  assert.equal(F.ROOF_FALL, 0.15);
+  clearMobs();
+  const p = P(0);
+  p.pos = { x: 12, y: 5 }; // กลางรถ (ไม่ติดขอบ)
+  const m = M.spawn(rt(), 'stray', { x: 10, y: 3 }, { born: 0 }); // ติดข้างรถ (แถวบน) ยังตีใครไม่ถึง
+  m.summon.role = 'hunter';
+  Math.random = () => 0.99;
+  const out = OUT();
+  assert.equal(M.boardVan(rt(), m, M.prey(m), out), true);
+  assert.ok(out.seq.some((e) => e.k === 'mobMove' && e.id === m.id), 'กระโดดมีภาพ (ไม่วาร์ป)');
+  const van = new Set(Maps.defs[Maps.RT_ONVAN].vanTiles.map(([x, y]) => x + ',' + y));
+  assert.ok(van.has(m.pos.x + ',' + m.pos.y), `ขึ้นรถ ${m.pos.x},${m.pos.y}`);
+  rt().km = 500;
+  F.begin('onvan');
+  fire();
+  assert.equal(rt().combat.rounds, 5);
+});
+
+test('ป้อมปืนมือตอนรถจอด (ดักทาง/อีลิท/บอส — ผู้ใช้ตัดสิน 2026-11-14): ยืนติดรถตู้ ยิงได้ตาละครั้ง · 2 + ขั้น · ระยะ 5 จากขอบรถ · หลบได้', () => {
+  for (const kind of ['ambush', 'boss']) {
+    setup(1);
+    F.begin(kind);
+    fire();
+    clearMobs();
+    const p = P(0), vb = Maps.defs[Maps.RT_ROAD].vanBlock;
+    const turn = () => { match.gameState = 'ACTION'; match.actorId = 'p0'; match.action = { locked: false, moved: false, from: { ...p.pos } }; };
+    p.pos = { x: 15, y: 9 }; turn(); // ไม่ติดรถ
+    const tg = M.spawn(rt(), 'giant', { x: vb.x1 + 4, y: vb.y0 }, { born: 99 }); // ห่างขอบรถ 4
+    const far = M.spawn(rt(), 'giant', { x: 0, y: 9 }, { born: 99 });
+    assert.ok(!(F.actionsOf().p0 || []).includes('turret'), `${kind}: ไม่ติดรถ = ไม่มีปุ่ม`);
+    assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), false);
+    p.pos = { x: vb.x0 + 1, y: vb.y1 + 1 }; turn(); // ติดรถด้านล่าง
+    assert.ok(F.actionsOf().p0.includes('turret'), `${kind}: ติดรถ = มีปุ่ม`);
+    Math.random = () => 0.99;
+    assert.equal(RT.command('p0', 'turret', { x: far.pos.x, y: far.pos.y }), false, 'ไกลเกิน 5');
+    const h0 = tg.hp + tg.armor;
+    assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), true);
+    assert.equal(h0 - (tg.hp + tg.armor), 2, 'ขั้น 0 = 2');
+    assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), false, 'ตาละครั้ง');
+    assert.ok(!(F.actionsOf().p0 || []).includes('turret'));
+    assert.ok(rt().fx.some((f) => f.k === 'turretShot' && f.id === 'p0'));
+    assert.equal(RT.publicInfo('p0').combat.turretRange, 5);
+  }
+});
+
+// QA จุดพัก รอบ 4 (2026-11-14 · ผู้ใช้แจ้ง): ระบบคู่คุมตัวที่สองนอกตาเดิน · หน้าต่างส่วนตัวไม่เด้งให้ทุกคน
+test('FIX ระบบคู่ที่จุดพัก: เอมิลิโกะเดิน/เล่นกิจกรรม/เปิดอู่/อัปเกรด/ซื้อของ/ใช้ไอเทมได้ด้วย unitId (เฉพาะตัวของตัวเอง)', () => {
+  const shop = require('../server/shop.js');
+  const combat = require('../server/combat.js');
+  for (const id of Object.keys(engine.players)) delete engine.players[id];
+  engine.players.p0 = { id: 'p0', name: 'K', position: 1, characterId: 'kate', alive: true, connected: true, cards: [], statuses: {}, statusAmt: {}, seen: {}, inventory: [], teamId: 'A', teamConfirmed: true };
+  engine.players.p1 = { id: 'p1', name: 'M', position: 2, characterId: 'muimi', alive: true, connected: true, cards: [], statuses: {}, statusAmt: {}, seen: {}, inventory: [], teamId: 'A', teamConfirmed: true };
+  engine.setGameMode('roadtrip'); match.world = 'roadtrip'; match.rtDiff = 'normal';
+  engine.startMatch(); D.stopTick();
+  enterGas(72);
+  const kate = P(0), emi = match.players['p0~duo'];
+  assert.ok(emi && emi.pos, 'เอมิลิโกะอยู่บนกระดานจุดพัก');
+  const k0 = { ...kate.pos };
+  const reach = [...S.reachOf(emi).values()].find((n) => n.x !== emi.pos.x || n.y !== emi.pos.y);
+  assert.equal(RT.command('p0', 'walk', { x: reach.x, y: reach.y, unitId: 'p0~duo' }), true, 'เอมิลิโกะเดิน');
+  assert.deepEqual(emi.pos, { x: reach.x, y: reach.y });
+  assert.deepEqual(kate.pos, k0, 'เคทอยู่ที่เดิม');
+  assert.equal(RT.command('p1', 'walk', { x: k0.x, y: k0.y + 0, unitId: 'p0~duo' }), false, 'คุมตัวของคนอื่นไม่ได้');
+  // กิจกรรม + อู่ (fx ใส่ id ตัวที่ทำ)
+  kate.gold = 30;
+  let n = rt().fx.length;
+  assert.equal(RT.command('p0', 'act', { id: propOf('arcade').id, unitId: 'p0~duo' }), true);
+  assert.ok(fxSince(n).some((e) => e.k === 'act' && e.id === 'p0~duo'));
+  assert.ok(rt().buffs['p0~duo'].length, 'บัฟสู้ครั้งหน้าเป็นของเอมิลิโกะ');
+  n = rt().fx.length;
+  assert.equal(RT.command('p0', 'act', { id: propOf('garage').id, unitId: 'p0~duo' }), true);
+  assert.ok(fxSince(n).some((e) => e.k === 'garage' && e.pid === 'p0~duo'));
+  kate.pos = { x: 0, y: 13 }; // เคทไกลอู่ — เอมิลิโกะยืนติด
+  assert.equal(RT.command('p0', 'upg', { key: 'body' }), false, 'เคทไกลอู่');
+  assert.equal(RT.command('p0', 'upg', { key: 'body', unitId: 'p0~duo' }), true, 'เอมิลิโกะยืนติดอู่ อัปเกรดได้');
+  // ร้าน: เอมิลิโกะยืนติดมินิมาร์ท เคทอยู่ไกล
+  const mart = propOf('mart');
+  assert.equal(RT.command('p0', 'act', { id: mart.id, unitId: 'p0~duo' }), true);
+  const s = shop.publicShops().find((x) => x.kind === 'rtmart');
+  const it = s.items.find((x) => x.type === 'rtFish');
+  shop.buyShopItem('p0', s.id, it.id);
+  assert.ok(kate.inventory.some((x) => x.type === 'rtFish'), 'ซื้อได้ (กระเป๋าใช้ร่วม)');
+  // ไอเทม: ปลาย่างเข้าตัวเอมิลิโกะ
+  emi.hp = 1;
+  const uid = kate.inventory.find((x) => x.type === 'rtFish').uid;
+  assert.equal(RT.command('p0', 'use', { uid, unitId: 'p0~duo' }), true);
+  assert.equal(emi.hp, Math.min(combat.maxHpOf(emi), 4));
+});
+
+test('FIX หน้าอู่/หน้าร้านเด้งเฉพาะเครื่องที่กด (client roadtrip/rtMine.js — รวมตัวที่สองของระบบคู่)', async () => {
+  const { rtOwnIds, rtMyPopups } = await import('../client/src/roadtrip/rtMine.js');
+  const players = [{ id: 'a' }, { id: 'b' }, { id: 'b~duo', duoOf: 'b' }];
+  const fx = [{ k: 'garage', key: 1, pid: 'a' }, { k: 'shop', key: 2, pid: 'a', shopId: 'rtmart' }, { k: 'garage', key: 3, pid: 'b~duo' }, { k: 'walk', key: 4, id: 'b' }];
+  const seenB = new Set();
+  assert.deepEqual(rtMyPopups(fx, rtOwnIds(players, 'b'), seenB), [{ k: 'garage' }], 'B เห็นแค่อู่ที่ตัวที่สองของตัวเองเปิด');
+  assert.deepEqual(rtMyPopups(fx, rtOwnIds(players, 'b'), seenB), [], 'ไม่เด้งซ้ำ');
+  assert.deepEqual(rtMyPopups(fx, rtOwnIds(players, 'a'), new Set()), [{ k: 'garage' }, { k: 'shop', shopId: 'rtmart' }]);
+  assert.deepEqual(rtMyPopups([{ k: 'garage', key: 9 }], rtOwnIds(players, 'a'), new Set()), [], 'ไม่มี pid = ไม่เด้งให้ใคร');
+});

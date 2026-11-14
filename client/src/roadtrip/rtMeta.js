@@ -49,7 +49,7 @@ export const eventKind = (k) => EVENT_KINDS[k] || { name: "เหตุการ
 export const DIFFS = {
   easy: { name: "ง่าย", lv: 1, color: "#3f9a6b", price: 0.8, desc: "มอนโหดขึ้นช้าและมาน้อยลง · น้ำมันหมดช้า · ของถูกลง 20% · ขนนกคืนชีพราคาถูก · คนที่ล้มฟื้นเองครึ่งเลือดหลังจบการต่อสู้" },
   normal: { name: "ปกติ", lv: 2, color: "#3d8bd9", price: 1, desc: "มอน น้ำมัน และราคาของตามมาตรฐาน · ขนนกคืนชีพมีขายที่มินิมาร์ททุกปั๊ม" },
-  hard: { name: "ยาก", lv: 3, color: "#c9483f", price: 1.25, desc: "มอนโหดขึ้นไวและมาเยอะขึ้น · น้ำมันหมดไว · ของแพงขึ้น 25% · ชนสิ่งกีดขวางเจ็บกว่า · ขนนกคืนชีพไม่มีขายประจำ" },
+  hard: { name: "ยาก", lv: 3, color: "#c9483f", price: 1.15, desc: "มอนโหดขึ้นไวและมาเยอะขึ้น · น้ำมันหมดไว · ของแพงขึ้น 15% · ชนสิ่งกีดขวางเจ็บกว่า · ขนนกคืนชีพไม่มีขายประจำ" },
 };
 export const diffOf = (d) => DIFFS[d] || DIFFS.normal;
 
@@ -66,10 +66,11 @@ export const UPGRADES = [
   { key: "bumper", name: "กันชนเหล็ก", icon: "🦏", vals: [0, 1, 2, 3], desc: "ชนสิ่งกีดขวางเสีย HP น้อยลง 0 → 1 → 2 → 3 · มอนที่ขวางหน้ารถโดนชนแรงเท่ากัน" },
   { key: "storage", name: "ที่เก็บของ", icon: "🧳", vals: [0, 1, 2, 3], fmt: (v) => `+${v}`, desc: "ช่องกระเป๋าของทุกคนเพิ่ม +0 → +1 → +2 → +3" },
 ];
-export const upgPrice = (lv, diff, van) => {
+// ราคาขั้นถัดไป: ใช้ของ server (van.prices { [key]: ราคา | null }) ก่อนเสมอ — สูตรสำรองตรงกับ server/roadtrip/diff.js priceOf (ปัดขึ้น)
+export const upgPrice = (lv, diff, van, key) => {
   if (lv >= 3) return null;
-  if (van && van.prices && Array.isArray(van.prices) && van.prices[lv] != null) return van.prices[lv];
-  return Math.round(UPG_PRICE[lv] * diffOf(diff).price);
+  if (van && van.prices && key && !Array.isArray(van.prices) && van.prices[key] !== undefined) return van.prices[key];
+  return Math.max(1, Math.ceil(UPG_PRICE[lv] * diffOf(diff).price));
 };
 export const fmtUpg = (u, lv) => {
   const v = u.vals[Math.max(0, Math.min(3, lv | 0))];

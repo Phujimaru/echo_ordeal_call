@@ -40,10 +40,10 @@ export default function VanStatus({ rt, myTurn = false }) {
         <span className="rt-vs-bar" data-k="fuel" {...tip("น้ำมัน (ลิตร) — หมดถังรถคลานได้แค่ 30 กม./ชม. · เติมที่ปั๊ม", "น้ำมัน")} data-low={fuelLow ? "true" : "false"}><span style={{ width: pct(van.fuel, van.fuelMax) }} /></span>
         <b>{Math.max(0, Math.round(van.fuel || 0))}/{van.fuelMax || 0}</b>
       </span>
-      {combat && combat.kind === "onvan" && (
+      {combat && ( // ประตูท้าย: ทุกแบบการต่อสู้ (รถจอดตอนดักทาง/บอสก็เปิดได้ — server fight.toggleRear) · รอบที่รอด = เฉพาะสู้บนรถตู้
         <>
           <span className="rt-vs-div" aria-hidden="true" />
-          {combat.rounds ? (
+          {combat.kind === "onvan" && combat.rounds ? (
             <span className="rt-vs-round" {...tip("ยื้อให้รอดครบทุกรอบ หรือล้มมอนให้หมด = ชนะ", "รอด")}><small>รอด</small><b className="rt-num">{Math.min(combat.round || 0, combat.rounds)}/{combat.rounds}</b></span>
           ) : null}
           <button

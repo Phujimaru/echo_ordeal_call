@@ -56,6 +56,7 @@ import { holdBoard } from "../board/boardPause";
 import RoadtripScreen, { RT_DRIVE_PHASES } from "../roadtrip/RoadtripScreen";
 import { rtVanButtons, useRtVanHotkeys, turretTiles, canRear as rtCanRear } from "../roadtrip/rtVanActions";
 import { rtEmit } from "../roadtrip/rtSocket";
+import { rtMyPopups, rtOwnIds } from "../roadtrip/rtMine";
 import { RT_DEFS } from "../board/roadtrip/maps.gen";
 import RoadtripSummary from "../roadtrip/RoadtripSummary";
 import RtTransitions, { useRtView } from "../roadtrip/RtTransitions"; // ฉากเปลี่ยนของโหมด (เข้าจุดพัก/ต่อสู้/บอส/ชนะ/แพ้/ภูมิภาค)
@@ -1922,13 +1923,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const rtGarageSeen = useRef(new Set());
   useEffect(() => {
     const fx = rtOn && Array.isArray(state.roadtrip.fx) ? state.roadtrip.fx : [];
-    for (const f of fx) {
-      if (f.k !== "garage" && f.k !== "shop") continue;
-      const k = f.key ?? f.id ?? JSON.stringify(f);
-      if (rtGarageSeen.current.has(k)) continue;
-      rtGarageSeen.current.add(k);
-      if (f.pid !== state.youId) continue;
-      // จุดพัก: อาคารมินิมาร์ท/สำนักงาน = ร้าน (server ส่ง fx { k: "shop", pid, shopId } ตอนเล่นอาคาร) → เปิดหน้าร้านเดิม (server ยืนยันไปแล้ว ไม่ต้อง emit viewShop ซ้ำ)
+    // หน้าอู่/หน้าร้าน = เฉพาะเครื่องที่ตัวของตัวเองเป็นคนกด (รวมตัวที่สองของระบบคู่ — roadtrip/rtMine.js) · fx ของคนอื่นข้าม
+    // จุดพัก: อาคารมินิมาร์ท/สำนักงาน = ร้าน (server ส่ง fx { k: "shop", pid, shopId } ตอนเล่นอาคาร) → เปิดหน้าร้านเดิม (server ยืนยันไปแล้ว ไม่ต้อง emit viewShop ซ้ำ)
+    for (const f of rtMyPopups(fx, rtOwnIds(state.players, state.youId), rtGarageSeen.current)) {
       if (f.k === "shop") { if (f.shopId) setShopId(f.shopId); }
       else setGarageOpen(true);
     }
@@ -1937,13 +1934,13 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   //  เดิมเปิดหน้าอู่ทันทีจากที่ไหนก็ได้ → กดอัปเกรดแล้วเงียบ (QA 2026-11-14) · เดินไปไม่ได้ (ตาย/ไม่มีตำแหน่ง/ไม่มีอู่) = เปิดหน้าอู่ไว้แต่งรถได้อย่างเดียว
   const rtGarageOf = () => (rtStop && state.board ? ((RT_DEFS[state.board.area] || {}).props || []).find((o) => o.kind === "garage" && o.spot) || null : null);
   const rtGarageFar = () => {
-    const garage = rtGarageOf(), meU = (state.players || []).find((p) => p.id === state.youId);
+    const garage = rtGarageOf(), meU = me; // ตัวที่เลือกอยู่ (ระบบคู่ — เอมิลิโกะเดินไปอู่ได้)
     return !garage || !meU || !meU.alive || !meU.pos || Math.max(garage.x0 - meU.pos.x, 0, meU.pos.x - garage.x1) + Math.max(garage.y0 - meU.pos.y, 0, meU.pos.y - garage.y1) > 2;
   };
   const rtGarageGo = () => {
-    const garage = rtGarageOf(), meU = (state.players || []).find((p) => p.id === state.youId);
+    const garage = rtGarageOf(), meU = me;
     const far = !!garage && !!meU && meU.alive && !!meU.pos && rtGarageFar();
-    if (far) rtEmit("rt:walk", { x: garage.spot[0], y: garage.spot[1] }); // ถึงอู่ = server ส่ง fx garage (ไม่ใช้ rt:act — นั่นคือซ่อมรถ เสียเงิน)
+    if (far) rtEmit("rt:act", { id: garage.id, ...rtUnitArg }); // server เดินไปช่องไหนก็ได้ที่ติดอู่ แล้วส่ง fx garage (rt:act อู่ = เปิดหน้าอู่อย่างเดียวแล้ว · เดิม rt:walk ช่อง spot — มีคนยืนอยู่ = เงียบ)
     else setGarageOpen(true);
   };
   const shopSeen = useRef(new Set());                // ร้านที่ประกาศ "ปรากฏ" ไปแล้ว (id ร้าน — กันเด้งซ้ำ)
@@ -1985,7 +1982,12 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ระบบคู่ (เคท & เอมิลิโกะ): hand = ระเบียนผู้เล่น (ไพ่/แต้ม/จั่ว) · me = ตัวที่คุมอยู่ (controlId — แผงตัวเรา/สกิล/ระยะเดิน)
   //  ตัวละครทั่วไป controlId = youId → hand กับ me เป็นตัวเดียวกัน
   const hand = state.players.find((p) => p.id === state.youId);
-  const me = (state.controlId && state.players.find((p) => p.id === state.controlId)) || hand;
+  // Road Trip จุดพัก (ไม่มีตาเดิน — Duo.controlledId ไม่สลับ): ระบบคู่เลือกตัวเองที่เครื่องนี้ (กดตัวบนกระดาน/รูปเล็กเหนือรูปหลัก) แล้วส่ง unitId
+  const [rtSel, setRtSel] = useState(null);
+  if (rtSel && !rtStop) setRtSel(null); // ออกจากจุดพัก = กลับไปคุมตามตาเดินปกติ
+  const rtSelU = rtStop && rtSel ? state.players.find((p) => p.id === rtSel && (p.id === state.youId || p.duoOf === state.youId) && p.alive && p.pos) || null : null;
+  const me = rtSelU || (state.controlId && state.players.find((p) => p.id === state.controlId)) || hand;
+  const rtUnitArg = rtStop && me && me.id !== state.youId ? { unitId: me.id } : {};
   const roster = rosterOf(state.players); // ผู้เล่นจริง (ตัดตัวที่สองของระบบคู่)
   const duoUnits = hand && hand.duoWith ? unitsOfSide(hand, state.players) : null;
   const handAlive = !!hand && sideAlive(hand, state.players);
@@ -2713,7 +2715,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     active: u.id === me?.id,
     done: duoDone.has(u.id),
     dead: !u.alive,
-    onClick: canSwitchTo(u) ? () => { clickSound(); socket.emit("useSkill", { tier: "basic" }); } : null,
+    onClick: rtStop ? (u.id !== me?.id && u.alive && u.pos ? () => { clickSound(); setRtSel(u.id); } : null) // จุดพัก: สลับตัวได้เลย ไม่ใช่สกิล
+      : canSwitchTo(u) ? () => { clickSound(); socket.emit("useSkill", { tier: "basic" }); } : null,
   })) : null;
   // ปุ่มหลายตัวเลือก: ตัวเลือกนี้ใช้ได้ตอนนี้ไหม (แต้ม · โควตา · มีเป้าในระยะ · ล็อก)
   const choiceOk = (c) => !c.locked && !c.active && (me?.skillPoints || 0) >= (c.cost || 0) && (!(c.ember > 0) || (me?.shinra?.ember || 0) >= c.ember) && (!me?.skillUsed || choiceFree(c)) && !noTargetInRange(c.area);
@@ -2732,7 +2735,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: nightNow ? "#0b1830" : "#dfeaf6" }}>
       {state.board ? (
-        <BoardStage state={state} me={me} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther}
+        <BoardStage state={state} me={me} onRtSelect={setRtSel} lowQ={lowQ} vp={vp} pick={boardPick} onInspect={setStatusViewId} registerOther={registerOther}
           atkSignal={atkSignal} onAttackables={setAttackables} onOverlay={setFcOpen} statusOf={forecastStatusItems} />
       ) : (
         <GameBackground cycle={state.cycle} round={state.roundNumber} lowQ={lowQ} journey={arenaJourney} />
@@ -2797,7 +2800,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {/* Road Trip: แถบจุดพัก (เวลา · ความพร้อม · อู่) + อู่ */}
       {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "motel" ? null : rtGarageGo} />}
       {garageOpen && rtStop && (
-        <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} far={rtGarageFar()} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
+        <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} far={rtGarageFar()} unitId={rtUnitArg.unitId} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
       )}
 
       {/* ---------- แผงตัวเรา (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------

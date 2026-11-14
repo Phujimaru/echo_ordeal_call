@@ -16,6 +16,7 @@
 import { F_TH, P, depthOf, faceVisible, gEllipse, glow, onScreen, pitchOf, rng, viewCenter, viewTurn } from "../boardGeo";
 import { cactusShape, deadTreeShape, drawPalm, drawTree, pineShape, SNOW_PINE } from "../boardProps";
 import { vanSprite } from "./vanSprite";
+import { uiSound } from "../../audio";
 import { drawBossAir, drawBossGround } from "./bossFx";
 import { dashRow, isRtArea, nightColor, rtDefOf, rtPal, rtRegionOf, rtState } from "./theme";
 
@@ -134,12 +135,45 @@ function syncFx() {
     if (!fresh) continue;
     // act: obj = id วัตถุ (server/roadtrip/stop.js) · id = ผู้เล่น — ไม่มี obj = id คือวัตถุ
     const oid = e.obj != null ? e.obj : e.id;
-    if (e.k === "act" && oid != null) { ACT.set(String(oid), { t0: NOW, by: e.obj != null ? e.id : e.by || null }); onAct(String(oid), e.kind); }
-    else if (e.k === "walk" && Array.isArray(e.path) && e.path.length) WALKS.push({ t0: NOW, path: e.path.map((q) => (Array.isArray(q) ? q : [q.x, q.y])) });
+    if (e.k === "act" && oid != null) { ACT.set(String(oid), { t0: NOW, by: e.obj != null ? e.id : e.by || null }); onAct(String(oid), e.kind); actLabel(e, String(oid)); }
+    else if (e.k === "actFail" && rtState().mine.has(e.id) && e.why !== "cd") failLabel(e);
+    else if (e.k === "walk" && Array.isArray(e.path) && e.path.length) { WALKS.push({ t0: NOW, path: e.path.map((q) => (Array.isArray(q) ? q : [q.x, q.y])) }); if (e.id != null) WALK_END.set(String(e.id), NOW + e.path.length * 105); }
   }
   if (SEEN.size > 400) { const keep = [...SEEN].slice(-200); SEEN.clear(); keep.forEach((k) => SEEN.add(k)); }
   if (WALKS.length > 12) WALKS.splice(0, WALKS.length - 12);
   firstSync = false;
+}
+// ป้ายผลกิจกรรมลอยเหนือวัตถุ (QA 2026-11-14 — เดิมผลไม่ขึ้นที่ไหนเลย) · ตัวเลข/ไอคอน/ชื่อเท่านั้น · เริ่มหลังเดินถึง
+const WALK_END = new Map(); // id ผู้เล่น → เวลาที่เดินถึง (performance.now)
+function floatLines(p, lines, t0) {
+  if (!p || !lines.length) return;
+  const cx = (p.x0 + p.x1 + 1) / 2, cy = (p.y0 + p.y1 + 1) / 2, z0 = Math.min(3, (p.h || 1) + 0.5);
+  lines.forEach(([text, c], i) => PARTS.length < 240 && PARTS.push({ x: cx, y: cy, z: z0 + (lines.length - 1 - i) * 0.42, vx: 0, vy: 0, vz: 0.35, text, col: c, dur: 2.2, t0, label: true }));
+}
+function actLabel(e, oid) {
+  const p = PROPS_BY_ID.get(oid);
+  const L = [];
+  if (e.dg) L.push([`${e.dg > 0 ? "+" : ""}${e.dg} 🪙`, e.dg > 0 ? "#ffe066" : "#ffb3a6"]);
+  if (e.liters) L.push([`⛽ +${e.liters}`, "#ffffff"]);
+  if (e.hp) L.push([`🚐 +${e.hp}`, "#9ff0c0"]);
+  if (e.armor) L.push([`🛡 +${e.armor}`, "#c8f7ff"]);
+  if (e.dhp > 0) L.push([`❤ +${e.dhp}`, "#ff9ab8"]);
+  if (e.item) L.push([`🎁 ${e.item}`, "#ffffff"]);
+  for (const b of e.buffs || []) L.push([b.key === "evade" ? `${b.name} ${b.amt}%` : b.debuff ? b.name : `${b.name} +${b.amt}`, b.debuff ? "#ffb3a6" : "#c8f7ff"]);
+  if (e.n && (e.kind === "wash" || e.kind === "motel")) L.push([`✨ ${e.n}`, "#c8f7ff"]);
+  if (e.fed != null) L.push([e.join ? "🐶 🚐" : `🐶 ${e.fed}/3`, "#ffffff"]);
+  if (e.reveal) L.push(["🎡 👁", "#ffe9a8"]);
+  if (e.warp) L.push(["🌀", "#d9c2ff"]);
+  if (e.win === false && !e.dg && !e.item && !(e.buffs || []).length) L.push(["✖", "#ffb3a6"]);
+  else if (!L.length) L.push(["✔", "#9ff0c0"]);
+  floatLines(p, L, Math.max(NOW, WALK_END.get(String(e.id)) || 0) + 150);
+}
+const FAIL_TXT = { gold: "🪙 ✖", full: "เต็ม", used: "✔", far: "✖", none: "✖" };
+function failLabel(e) {
+  const p = PROPS_BY_ID.get(String(e.obj));
+  const t0 = Math.max(NOW, WALK_END.get(String(e.id)) || 0);
+  floatLines(p, [[FAIL_TXT[e.why] || "✖", "#ffb3a6"]], t0);
+  setTimeout(() => uiSound("deny"), Math.max(0, t0 - NOW)); // เสียงปฏิเสธเฉพาะคนกด (ตอนเดินถึง)
 }
 // ความคืบหน้าท่าตอบสนอง 0..1 (null = ไม่ได้เล่น)
 function actK(id, ms) {
@@ -164,7 +198,8 @@ function drawParts() {
     const z = Math.max(0.03, p.z + p.vz * t - (p.grav ? 3 * t * t : 0)), x = p.x + p.vx * t, y = p.y + p.vy * t, k = t / p.dur;
     const [sx, sy, s] = P(x, y, z);
     g.globalAlpha = 1 - k * k;
-    if (p.text) { g.font = `800 ${Math.max(10, 0.42 * s)}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 3; g.strokeStyle = "rgba(0,0,0,.35)"; g.strokeText(p.text, sx, sy); g.fillStyle = p.col || "#fff"; g.fillText(p.text, sx, sy); g.textBaseline = "alphabetic"; }
+    if (p.label) g.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) * 4;
+    if (p.text) { g.font = `800 ${Math.max(p.label ? 13 : 10, (p.label ? 0.36 : 0.42) * s)}px ${F_TH}`; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 3; g.strokeStyle = "rgba(0,0,0,.35)"; g.strokeText(p.text, sx, sy); g.fillStyle = p.col || "#fff"; g.fillText(p.text, sx, sy); g.textBaseline = "alphabetic"; }
     else if (p.bubble) { g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 1.4; g.beginPath(); g.arc(sx, sy, 0.1 * s, 0, TAU); g.stroke(); }
     else if (p.fire) { g.fillStyle = `rgba(255,${(200 - k * 160) | 0},40,${0.9 - k * 0.6})`; g.beginPath(); g.arc(sx, sy, 0.12 * s * (1 + k), 0, TAU); g.fill(); }
     else if (p.smoke) { g.fillStyle = `rgba(${NIGHT ? "150,155,170" : "235,235,235"},${0.5 * (1 - k)})`; g.beginPath(); g.arc(sx, sy, 0.16 * s * (1 + k * 1.6), 0, TAU); g.fill(); }
@@ -1060,9 +1095,26 @@ const KIND = {
 const FLAT = new Set(["pond", "pool", "mat"]);
 
 // หลังคาปั๊ม: กรอบหลังคาทึบหนา (ป้ายส้มรอบ) + แผ่นกลางโปร่งแสงพอเห็นตู้น้ำมัน/รถตู้ข้างใต้ (ผู้ใช้สั่งให้เห็นพื้นที่ชัด) + เสาหน้า + ไฟดาวน์ไลต์
+// ของที่วาดทับตัวละคร (หลังคา/สายโคม) บังตัวที่ยืนใต้หรือหลังมันบนจอ? (QA 2026-11-14 — จุดเกิดปั๊ม B อยู่หลังหลังคา ตัวหายทั้งตัว)
+//  ใต้ = อยู่ในขอบวัตถุ · หลัง = ลึกกว่าขอบหน้า และหัว/เท้าตกอยู่ในกรอบหลังคาบนจอ
+function airCovers(p, units, zLo, zHi) {
+  const { X0, X1, Y0, Y1 } = B(p);
+  let lx0 = 1e9, ly0 = 1e9, lx1 = -1e9, ly1 = -1e9;
+  for (const x of [X0, X1]) for (const y of [Y0, Y1]) for (const z of [zLo, zHi]) { const q = P(x, y, z); lx0 = Math.min(lx0, q[0]); lx1 = Math.max(lx1, q[0]); ly0 = Math.min(ly0, q[1]); ly1 = Math.max(ly1, q[1]); }
+  const front = Math.max(depthOf(X0, Y0), depthOf(X1, Y0), depthOf(X1, Y1), depthOf(X0, Y1));
+  return (units || []).some((u) => {
+    if (u.corpse) return false;
+    const x = u.rx + 0.5, y = u.ry + 0.5;
+    if (x > X0 && x < X1 && y > Y0 && y < Y1) return true;
+    if (depthOf(x, y) >= front) return false;
+    return [0.2, 0.8, 1.3].some((z) => { const q = P(x, y, z); return q[0] > lx0 && q[0] < lx1 && q[1] > ly0 && q[1] < ly1; });
+  });
+}
 function canopyAir(p, units) {
   const { X0, X1, Y0, Y1 } = B(p), x0 = X0 + 0.15, x1 = X1 - 0.15, y0 = Y0 + 0.15, y1 = Y1 - 0.15, z0 = 2.55, z1 = 2.9, e = 0.38;
   const under = units.some((u) => u.rx + 0.5 > X0 && u.rx + 0.5 < X1 && u.ry + 0.5 > Y0 && u.ry + 0.5 < Y1);
+  const A = airCovers(p, units, z0, z1) ? 0.4 : 1; // มีตัวยืนใต้/หลังหลังคา = จางทั้งหลังคา
+  G.globalAlpha = A;
   // เสาหน้า 2 ต้น (เสาหลังเป็นวัตถุ pillar บนกระดาน)
   for (const x of [X0 + 0.5, X1 - 0.5]) { box(x - 0.16, Y1 - 0.66, x + 0.16, Y1 - 0.34, 0.18, 0.9, "#ff8a3d"); box(x - 0.13, Y1 - 0.63, x + 0.13, Y1 - 0.37, 0.9, z0, "#f2f0ea"); }
   const fasc = (a0, b0, a1, b1) => {
@@ -1074,14 +1126,15 @@ function canopyAir(p, units) {
     { d: depthOf(x0, (y0 + y1) / 2), f: () => fasc(x0, y0 + e, x0 + e, y1 - e) },
     { d: depthOf(x1, (y0 + y1) / 2), f: () => fasc(x1 - e, y0 + e, x1, y1 - e) },
     { d: depthOf((x0 + x1) / 2, (y0 + y1) / 2), f: () => {
-      G.globalAlpha = under ? 0.3 : 0.5;
+      G.globalAlpha = A * (under ? 0.3 : 0.5);
       poly([[x0 + e, y0 + e, z1 - 0.06], [x1 - e, y0 + e, z1 - 0.06], [x1 - e, y1 - e, z1 - 0.06], [x0 + e, y1 - e, z1 - 0.06]], col("#eef2f4"));
-      G.globalAlpha = 1;
+      G.globalAlpha = A;
       for (let x = x0 + e + 1.2; x < x1 - e; x += 1.2) line3([x, y0 + e, z1 - 0.06], [x, y1 - e, z1 - 0.06], "rgba(160,170,180,.5)", 0.02);
     } },
     { d: depthOf((x0 + x1) / 2, y1) + 0.01, f: () => { fasc(x0, y1 - e, x1, y1); signBox("s", "⛽ ECHO", (X0 + X1) / 2 - 1.3, (X0 + X1) / 2 + 1.3, y1, z0 - 0.02, z1 + 0.04, "#ff8a3d", "#ffffff", 0.05); } },
   ];
   parts.sort((a, b) => a.d - b.d).forEach((q) => q.f());
+  G.globalAlpha = 1;
   if (NIGHT) for (let x = x0 + 1.2; x < x1 - 0.8; x += 2.2) for (let y = y0 + 0.9; y < y1 - 0.5; y += 1.8) { glowAt(x, y, 0.05, 1.3, "255,244,210", 0.22 * flicker(x * 3 + y)); glowAt(x, y, z0 - 0.02, 0.35, "255,250,230", 0.7); }
 }
 
@@ -1296,4 +1349,36 @@ export function rtAir(g, info, units, now, lowQ, night) {
 export function rtPropAt(area, x, y) {
   const d = rtDefOf(area);
   return ((d && d.props) || []).find((p) => !p.walk && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1) || null;
+}
+// ป้ายตอนชี้วัตถุในจุดพัก (BoardStage tileInfo — QA 2026-11-14: เดิมชี้แล้วไม่มีอะไร ไม่รู้ว่าเล่นแล้วได้อะไร/เสียกี่เหรียญ)
+//  ตัวเลขตรงกับ server/roadtrip/stop.js doAct · ราคา × ความยาก (diff.js priceOf: ปัดขึ้น)
+const RT_PRICE_MUL = { easy: 0.8, normal: 1, hard: 1.15 };
+export function rtPropInfo(p, rt) {
+  if (!p) return null;
+  const mul = RT_PRICE_MUL[(rt && rt.diff) || "normal"] || 1, pr = (b) => Math.max(1, Math.ceil(b * mul));
+  const fed = rt && rt.stop ? rt.stop.dog | 0 : 0;
+  const T = {
+    mart: ["🏪", "มินิมาร์ท", "ร้านค้า"],
+    garage: ["🔧", "อู่ซ่อมรถ", "อัปเกรด · ซ่อม · ของแต่ง"],
+    pump: ["⛽", "ตู้น้ำมัน", `1 🪙 = ${Math.round((4 / mul) * 10) / 10} ลิตร`],
+    claw: ["🧸", "ตู้คีบตุ๊กตา", `${pr(2)} 🪙 · ไอเทม / เหรียญ`],
+    gacha: ["🎰", "ตู้กาชา", `${pr(2)} 🪙 · ไอเทม / เหรียญ`],
+    arcade: ["🕹️", "ตู้เกม", "1 🪙 · สู้ครั้งหน้า เสริมพลัง +1 (2 เทิร์น)"],
+    karaoke: ["🎤", "คาราโอเกะ", "1 🪙 · สู้ครั้งหน้า คุ้มครอง +1 (2 เทิร์น)"],
+    fortune: ["🔮", "หมอดู", `${pr(2)} 🪙 · สู้ครั้งหน้า หลบหลีก 30% (2 เทิร์น)`],
+    spicy: ["🌶️", "แข่งกินเผ็ด", "ฟรี · สู้ครั้งหน้า 60% เสริมพลัง +2 / 40% สตั้น"],
+    dog: ["🐶", "หมาจรจัด", rt && rt.dog && rt.dog.on ? "🚐" : `1 🪙 · ${fed}/3`],
+    wash: ["🚿", "ล้างรถ", "1 🪙 · ล้างสถานะผิดปกติทั้งทีม"],
+    wc: ["🚻", "ห้องน้ำ", "ฟรี · วาร์ป"],
+    pond: ["🎣", "บ่อตกปลา", "ฟรี · 50% ปลาย่าง"],
+    ferris: ["🎡", "ชิงช้าสวรรค์", "1 🪙 · เห็นทางแยกถัดไป (ทั้งทีม)"],
+    bbq: ["🍖", "เตาปิ้งย่าง", "ฟรี · พลังชีวิต +2"],
+    vending: ["🥤", "ตู้กดน้ำ", "1 🪙 · ยาฟื้นเกราะ +2"],
+    pool: ["🏊", "สระว่ายน้ำ", "ฟรี · สู้ครั้งหน้า หลบหลีก 20% (2 เทิร์น)"],
+    motel: p.style === "office" ? ["🛎️", "สำนักงานโมเต็ล", "ร้านค้า"] : ["🛏️", "ห้องพัก", "ฟรี · พลังชีวิตเต็ม · ล้างสถานะผิดปกติ"],
+    stall: p.style === "drinks" ? ["🧋", "แผงน้ำ", "1 🪙 · เกราะ +1"] : ["🍜", "แผงอาหาร", "1 🪙 · พลังชีวิต +2"],
+  }[p.kind];
+  if (!T) return null;
+  const a = rt && rt.stop && rt.stop.acts ? rt.stop.acts[p.id] : null;
+  return { icon: T[0], name: T[1], desc: a && a.used ? `${T[2]} · ✔` : T[2] };
 }

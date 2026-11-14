@@ -75,28 +75,53 @@ function pathTo(rt, from, to) {
 const isDriverTile = (q) => { const d = def().driverTile; return !!d && !q.roof && q.x === d[0] && q.y === d[1]; };
 
 function walk(p, o) {
-  const RT = H(), rt = match.roadtrip;
+  const rt = match.roadtrip;
   if (!rt || !DRIVE_PHASES.has(rt.phase) || !p.alive) return false;
-  const vp = ensure(rt);
+  ensure(rt);
   if (o.unitId != null) { const u = require("../duo").unitsOf(p).find((x) => x.id === o.unitId); if (!u || !u.alive) return false; p = u; }
-  const from = vp[p.id];
   const x = Number(o.x), y = Number(o.y), roof = !!o.roof;
-  if (!from || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
+  // near = ปลายทางมีคนยืน → ไปช่องว่างติดกันที่ใกล้สุดแทน (ปีนซันรูฟตอนมีคนยืนปากช่อง)
+  if (o.near && occupant(rt, x, y, roof, p.id)) {
+    const t = nearestFree(rt, rt.vanPos[p.id], { x, y, roof });
+    return !!t && !!moveTo(rt, p, t);
+  }
+  return !!moveTo(rt, p, { x, y, roof });
+}
+// ช่องว่างที่ติดกับ at (ชั้นเดียวกัน · ไม่ใช่ช่องคนขับ) ที่เดินไปถึงได้เร็วสุด
+function nearestFree(rt, from, at, self = true) {
+  if (!from) return null;
+  const g = grids(), layer = at.roof ? g.roof : g.inside, me = occupant(rt, from.x, from.y, from.roof);
+  let best = null;
+  for (const [dx, dy] of self ? [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const t = { x: at.x + dx, y: at.y + dy, roof: !!at.roof };
+    if (!layer.has(K3(t.x, t.y, t.roof)) || occupant(rt, t.x, t.y, t.roof, me) || isDriverTile(t)) continue;
+    const path = pathTo(rt, from, t);
+    if (path && (!best || path.length < best.len)) best = { t, len: path.length };
+  }
+  return best ? best.t : null;
+}
+// เดินไปช่อง to (ตรวจครบ: ไม่ได้เดินอยู่ · ปลายทางว่าง · มีทาง) → path | null · ผ่านซันรูฟตอนปิด = เปิดให้ (ทุกเครื่องเห็น)
+function moveTo(rt, p, to) {
+  const RT = H(), vp = rt.vanPos, from = vp[p.id];
+  if (!from) return null;
   const now = Date.now();
   rt.vanBusy = rt.vanBusy || {};
-  if ((rt.vanBusy[p.id] || 0) > now) return false; // ยังเดินอยู่
-  if (from.x === x && from.y === y && !!from.roof === roof) return false;
-  if (occupant(rt, x, y, roof, p.id)) return false; // ปลายทางมีคน (ช่องคนขับที่มีคนนั่ง = client เสนอ "ขอขับ")
-  const path = pathTo(rt, from, { x, y, roof });
-  if (!path || path.length < 2) return false;
+  if ((rt.vanBusy[p.id] || 0) > now) return null; // ยังเดินอยู่
+  if (from.x === to.x && from.y === to.y && !!from.roof === !!to.roof) return null;
+  if (occupant(rt, to.x, to.y, to.roof, p.id)) return null; // ปลายทางมีคน (ช่องคนขับที่มีคนนั่ง = client เสนอ "ขอขับ")
+  const path = pathTo(rt, from, to);
+  if (!path || path.length < 2) return null;
   const wasDriver = rt.van.driverId === p.id;
-  vp[p.id] = { x, y, roof };
+  vp[p.id] = { x: to.x, y: to.y, roof: !!to.roof };
   rt.vanBusy[p.id] = now + (path.length - 1) * STEP_MS;
-  RT.fx("vanWalk", { id: p.id, path: path.map((t) => [t.x, t.y, t.roof]), roof });
+  const hatch = rt.vanProps && rt.vanProps.hatch;
+  if (hatch && hatch.state !== "open" && path.some((t, i) => i > 0 && !!t.roof !== !!path[i - 1].roof)) { hatch.state = "open"; RT.fx("vanProp", { id: p.id, prop: "hatch", state: "open" }); }
+  RT.fx("vanWalk", { id: p.id, path: path.map((t) => [t.x, t.y, t.roof]), roof: !!to.roof });
   // ที่นั่งคนขับตามช่องที่ยืน
   if (isDriverTile(vp[p.id]) && !rt.van.driverId) { rt.van.driverId = p.id; rt.van.seatReq = null; rt.driverActAt = now; RT.fx("seat", { id: p.id }); }
   else if (wasDriver && !isDriverTile(vp[p.id])) { rt.van.driverId = null; rt.van.seatReq = null; RT.fx("seat", { id: null }); }
-  return true;
+  return path;
 }
 // คนขับเปลี่ยนจากทางอื่น (rt:seat นั่ง/ยกให้/ลุก · ไม่ขยับนาน · หลุด/ตาย) → จัดตำแหน่งให้ตรง: คนขับยืนช่องคนขับ · ยกให้ = สลับที่กัน · ลุก = ขยับไปช่องว่างใกล้สุด
 function syncDriver(rt = match.roadtrip) {
@@ -105,36 +130,58 @@ function syncDriver(rt = match.roadtrip) {
   if (!d) return;
   const occ = occupant(rt, d[0], d[1], false), drv = rt.van.driverId;
   if (drv && occ === drv) return;
+  // ทางเดินจริง (ผ่านซันรูฟ/เพื่อนได้) — ไม่มีทาง = เส้นตรง
+  const route = (a, b) => (pathTo(rt, a, b) || [a, b]).map((t) => [t.x, t.y, !!t.roof]);
+  const seatT = { x: d[0], y: d[1], roof: false };
   if (drv && vp[drv]) {
     const mine = { ...vp[drv] };
-    if (occ) vp[occ] = mine; // สลับที่ (ยกให้)
-    vp[drv] = { x: d[0], y: d[1], roof: false };
-    H().fx("vanWalk", { id: drv, path: [[mine.x, mine.y, mine.roof], [d[0], d[1], false]], roof: false, seat: true });
+    vp[drv] = seatT;
+    if (occ) { vp[occ] = mine; H().fx("vanWalk", { id: occ, path: route(seatT, mine), roof: !!mine.roof }); } // สลับที่ (ยกให้)
+    H().fx("vanWalk", { id: drv, path: route(mine, seatT), roof: false, seat: true });
     return;
   }
   if (!drv && occ) { // ลุก/ถูกปล่อย = ขยับออกจากช่องคนขับ
     const g = grids();
     const free = [...g.inside].map((k) => k.slice(2).split(",").map(Number)).filter(([x, y]) => !(x === d[0] && y === d[1]) && !occupant(rt, x, y, false))
       .sort((a, b) => (Math.abs(a[0] - d[0]) + Math.abs(a[1] - d[1])) - (Math.abs(b[0] - d[0]) + Math.abs(b[1] - d[1])))[0];
-    if (free) { vp[occ] = { x: free[0], y: free[1], roof: false }; H().fx("vanWalk", { id: occ, path: [[d[0], d[1], false], [free[0], free[1], false]], roof: false }); }
+    if (free) { const to = { x: free[0], y: free[1], roof: false }; vp[occ] = to; H().fx("vanWalk", { id: occ, path: route(seatT, to), roof: false }); }
   }
 }
-// ของในรถ
+// ของในรถ: ยืนบน/ติดช่องของของชิ้นนั้น (ชั้นเดียวกัน) = ใช้ทันที · ยังไม่ถึง = เดินไปช่องว่างที่ใกล้สุด (บน/ติดของ) แล้วใช้ตอนเดินถึง
+const reach = (me, pr) => !!me && !!me.roof === !!pr.roof && Math.abs(me.x - pr.x) + Math.abs(me.y - pr.y) <= 1;
 function useProp(p, key) {
-  const RT = H(), rt = match.roadtrip;
+  const rt = match.roadtrip;
   if (!rt || !DRIVE_PHASES.has(rt.phase) || !p.alive) return false;
   ensure(rt);
   const pr = rt.vanProps && rt.vanProps[key], kind = PROP_KIND[key];
   const me = rt.vanPos[p.id];
-  if (!pr || !kind || !me || !!me.roof !== !!pr.roof) return false;
-  if (Math.abs(me.x - pr.x) + Math.abs(me.y - pr.y) > 1) return false; // ต้องยืนบน/ติด
+  if (!pr || !kind || !me) return false;
   if (DRIVER_ONLY.has(key) && rt.van.driverId !== p.id) return false;
+  if (reach(me, pr)) { if ((rt.vanBusy && rt.vanBusy[p.id] || 0) > Date.now()) return false; applyProp(rt, p, key); return true; }
+  // เดินไปหา: ช่องของ + 4 ทิศ (ชั้นเดียวกัน) ที่ว่าง · ทางสั้นสุด
+  const best = nearestFree(rt, me, pr);
+  if (!best) return false;
+  const path = moveTo(rt, p, best);
+  if (!path) return false;
+  const pend = rt.vanPend || (rt.vanPend = {});
+  if (pend[p.id]) clearTimeout(pend[p.id]);
+  const t0 = setTimeout(() => {
+    if (rt.vanPend && rt.vanPend[p.id] === t0) delete rt.vanPend[p.id];
+    if (match.roadtrip !== rt || !DRIVE_PHASES.has(rt.phase) || !p.alive || !reach(rt.vanPos[p.id], pr)) return;
+    applyProp(rt, p, key);
+    H().broadcast();
+  }, (path.length - 1) * STEP_MS);
+  if (t0.unref) t0.unref();
+  pend[p.id] = t0;
+  return true;
+}
+function applyProp(rt, p, key) {
+  const pr = rt.vanProps[key], kind = PROP_KIND[key];
   if (kind === "toggle") pr.state = pr.state === "open" ? "closed" : "open";
   else if (kind === "switch") pr.state = pr.state === "on" ? "off" : "on";
   else if (kind === "dice") pr.state = { a: 1 + Math.floor(Math.random() * 6), b: 1 + Math.floor(Math.random() * 6), n: ((pr.state && pr.state.n) | 0) + 1 };
   else pr.state = (pr.state | 0) + 1;
-  RT.fx("vanProp", { id: p.id, prop: key, state: pr.state });
-  return true;
+  H().fx("vanProp", { id: p.id, prop: key, state: pr.state });
 }
 // เข้าสู้บนรถตู้: วางตามตำแหน่งในรถ (ดาดฟ้า = ท่าบนหลังคา ทีละคน ที่ช่องซันรูฟ)
 function placeForFight(rt) {
@@ -174,4 +221,4 @@ function publicInfo(rt) {
   if (!rt || !rt.vanPos) return { vanPos: {}, vanProps: {} };
   return { vanPos: Object.fromEntries(Object.entries(rt.vanPos).map(([id, q]) => [id, { ...q }])), vanProps: Object.fromEntries(Object.entries(rt.vanProps || {}).map(([k, v]) => [k, { ...v, state: v.state && typeof v.state === "object" ? { ...v.state } : v.state }])) };
 }
-module.exports = { STEP_MS, PROP_KIND, DRIVER_ONLY, ensure, walk, syncDriver, useProp, placeForFight, captureFromFight, publicInfo, pathTo, occupant };
+module.exports = { STEP_MS, PROP_KIND, DRIVER_ONLY, ensure, walk, moveTo, applyProp, syncDriver, useProp, placeForFight, captureFromFight, publicInfo, pathTo, occupant };

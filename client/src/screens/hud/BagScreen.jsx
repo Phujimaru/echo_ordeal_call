@@ -84,9 +84,18 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
 
   // Road Trip จุดพัก (นอกการต่อสู้ ไม่มีตาเดิน): ใช้ได้ 4 ชนิด ผ่าน rt:use (server/roadtrip/stop.js useItem)
   const RT_FREE_TYPES = ["rtRevive", "rtFish", "armor", "cleanse"];
-  const myTurn = turnProp || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type));
+  // ใช้แล้วได้ผลจริงไหม (server ปฏิเสธเงียบถ้าไม่ได้ผล — QA 2026-11-14: ปุ่มกดได้แต่ไม่มีอะไรเกิด)
+  const rtUseful = (it) => {
+    if (!it || !me) return false;
+    if (it.type === "rtRevive") return (players || []).some((p) => p.alive === false && !p.summon);
+    if (it.type === "rtFish") return (me.hp | 0) < (me.maxHp | 0);
+    if (it.type === "armor") return (me.armor | 0) < (me.maxArmor | 0);
+    if (it.type === "cleanse") return (me.cleansable || []).length > 0;
+    return false;
+  };
+  const myTurn = turnProp || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type) && rtUseful(sel));
   const tradeOk = turnProp || rtFree; // ให้/แลก/ทิ้ง ที่จุดพัก: ไม่มีตาเดิน — ทำได้ทุกเมื่อ (server shop.js tradeReady/dropItem)
-  const emit = (ev, data) => { clickSound(); if (rtFree && ev === "useInventoryItem") socket.emit("rt:use", { uid: data.uid, targetId: data.targetId }); else socket.emit(ev, data); };
+  const emit = (ev, data) => { clickSound(); if (rtFree && ev === "useInventoryItem") socket.emit("rt:use", { uid: data.uid, targetId: data.targetId, status: data.status, ...(me?.duoOf ? { unitId: me.id } : {}) }); else socket.emit(ev, data); }; // status = ยาล้างสถานะ (เลือก 1 อย่าง ลด 1 ขั้น เหมือนตอนสู้)
   const pick = (uid) => { clickSound(); setSelUid(uid); setSwapWith(null); setAmount(1); setCleanseKey(null); };
 
   const info = sel ? shopInfoOf(sel) : null;

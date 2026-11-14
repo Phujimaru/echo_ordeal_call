@@ -6,7 +6,7 @@
 //  เมาส์: ลาก = หันมอง · ล้อ = ซูม · ดับเบิลคลิก = คืนค่า · คลิกของในรถ = เล่น (เฉพาะเครื่องเรา) · เกียร์/ที่นั่งคนขับ = นั่ง/ลุก
 //  ?fps=1 = ตัวเลข FPS / เวลาต่อเฟรม (dev)
 import { useEffect, useRef, useState } from "react";
-import { createRoadDrive, DRIVE_CAMS } from "./road3d";
+import { createRoadDrive, DRIVE_CAMS, VAN_HATCH_TILE } from "./road3d";
 import { createVanSfx } from "./van3d";
 import { rtEmit, noteServerNow, serverNow } from "./rtSocket";
 import { rtSfx } from "./rtAudio";
@@ -22,8 +22,15 @@ const STATION_BPM = [118, 132, 144, 80, 60];
 const loadCam = () => { try { const c = localStorage.getItem(CAM_KEY); return DRIVE_CAMS.some((d) => d[0] === c) ? c : "chase"; } catch { return "chase"; } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const NO_LOOK = { yaw: 0, pitch: 0, zoom: 0 };
-// เดินในรถ (state.roadtrip.vanPos): คลิกพื้น/ดาดฟ้า + WASD/ลูกศร ทำงานเฉพาะมุมในรถ (ผ่า) และมุมคนขับ — ไม่ชนกับปุ่มกล้อง/ขับ
+// มุมกล้อง: คนขับเห็นครบ 9 มุม · คนอื่นเห็น 2 ปุ่ม (ผู้ใช้สั่ง 2026-11-14) — ภายนอก = ไล่หลัง · ภายใน = ผ่าห้องในรถ
+const RIDER_CAMS = [["chase", "ภายนอก"], ["inside", "ภายใน"]];
+const RIDER_OK = new Set(RIDER_CAMS.map((c) => c[0]));
+const camsFor = (driver) => (driver ? DRIVE_CAMS : RIDER_CAMS);
+// เดินในรถ (state.roadtrip.vanPos): คลิกพื้น (มุมในรถ/คนขับ) หรือดาดฟ้า (มุมนอกรถ) · WASD/ลูกศร · E = ขึ้น/ลงซันรูฟ
+//  คนขับ: คลิกเดินได้เฉพาะมุมในรถ/คนขับ (มุมนอกรถคลิกพลาดแล้วหลุดจากที่นั่งง่าย) · A/D/ลูกศร = เปลี่ยนเลน (ไม่เดิน)
 const WALK_CAMS = new Set(["inside", "driver"]);
+const isHatch = (t) => !!t && t.x === VAN_HATCH_TILE[0] && t.y === VAN_HATCH_TILE[1];
+const climbOf = (mp) => ({ x: VAN_HATCH_TILE[0], y: VAN_HATCH_TILE[1], roof: !mp.roof, near: true }); // near: ปากช่องมีคนยืน = ไปช่องติดกัน
 // ของที่ทำงานในเครื่อง (ไม่ส่งเป็นของใช้ร่วม): แตร · นั่ง/ลุก · วิทยุ (แผงวิทยุ) · กล้องส่องทางไกล/ดูดาว (มุมกล้อง)
 const LOCAL_PROPS = new Set(["horn", "seat", "gear", "radio", "binoc", "scope"]);
 const myVanPos = (s) => { const r = s && s.roadtrip; return r && r.vanPos && s.youId != null ? r.vanPos[s.youId] || null : null; };
@@ -55,11 +62,35 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
   const amDriver = van.driverId != null && van.driverId === selfId;
   const seatTaken = van.driverId != null && !amDriver;
   const nameOf = (id) => { const pl = ((state && state.players) || []).find((x) => x.id === id); return pl ? pl.name : ""; };
+  const driverPl = van.driverId != null ? ((state && state.players) || []).find((x) => x.id === van.driverId) || null : null;
+  const amDriverRef = useRef(amDriver);
+  amDriverRef.current = amDriver;
+  // ป้ายประกาศคนขับเปลี่ยน (ทุกเครื่อง) — นั่ง/ยกให้/ลุก/ปล่อยเพราะไม่ขยับ
+  const [seatToast, setSeatToast] = useState(null);
+  const lastDrv = useRef(undefined);
+  useEffect(() => {
+    const id = van.driverId != null ? van.driverId : null;
+    if (lastDrv.current === undefined || rt.phase === "intro") { lastDrv.current = id; return undefined; }
+    if (lastDrv.current === id) return undefined;
+    lastDrv.current = id;
+    const pl = id != null ? ((state && state.players) || []).find((x) => x.id === id) : null;
+    setSeatToast({ k: Date.now(), name: pl ? pl.name : null, color: (pl && pl.color) || null, me: id != null && id === selfId });
+    const t = setTimeout(() => setSeatToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [van.driverId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ไม่ใช่คนขับแล้ว (หรือเริ่มเป็นผู้โดยสาร) แต่อยู่มุมของคนขับ = กลับมุมภายนอก · ได้เป็นคนขับ = คงมุมเดิม
+  useEffect(() => { if (!amDriver && !RIDER_OK.has(camRef.current)) setCam("chase"); }, [amDriver]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCam = (m) => {
     camRef.current = m; setCamState(m);
     look.current = { yaw: 0, pitch: m === "sky" ? 0.8 : 0, zoom: 0 };
     try { localStorage.setItem(CAM_KEY, m); } catch { /* ไม่มีที่เก็บ */ }
+  };
+  // คลิกเดินได้ไหม: มีที่ในรถ · คนขับ = เฉพาะมุมในรถ/คนขับ
+  const canWalk = (s, mp) => {
+    if (!mp) return false;
+    const v = (s && s.roadtrip && s.roadtrip.van) || {};
+    return WALK_CAMS.has(camRef.current) || v.driverId == null || v.driverId !== s.youId;
   };
   const toggleSeat = () => {
     const s = stRef.current, v = (s && s.roadtrip && s.roadtrip.van) || {};
@@ -97,7 +128,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       const beat = st >= 0 ? Math.max(0, 1 - (((now / 1000) * STATION_BPM[st] / 60) % 1) * 4) : 0;
       const t0 = performance.now();
       const dir = frameOpts(now);
-      const out = scene.update(now, dtMs, { rt: r, cam: dir.camOverride || (camRef.current === "sky" ? "roof" : camRef.current), look: dir.camOverride ? NO_LOOK : look.current, players: s && s.players, srvOffset: serverNow() - Date.now(), beat, slow: dir.slow, cutCam: dir.cutCam, rear: dir.rear });
+      const out = scene.update(now, dtMs, { rt: r, cam: dir.camOverride || (camRef.current === "sky" ? "roof" : camRef.current), look: dir.camOverride ? NO_LOOK : look.current, players: s && s.players, selfId: s ? s.youId : null, srvOffset: serverNow() - Date.now(), beat, slow: dir.slow, cutCam: dir.cutCam, rear: dir.rear });
       const ft = performance.now() - t0;
       if (out && out.inside !== lastInside) { lastInside = out.inside; radio.setInside(out.inside); }
       if (out && now - lastHud > 120) { lastHud = now; setHud((h) => (h.kmh === out.kmh ? h : { kmh: out.kmh })); }
@@ -130,11 +161,12 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       const driver = v.driverId != null && v.driverId === (s && s.youId);
       // ใช้ตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็กดได้ (ผู้ใช้แจ้ง 2026-11-14: เผลอเป็นไทยแล้ว WASD ไม่ทำงาน)
       const k = { KeyC: "c", KeyA: "a", KeyD: "d", Space: " ", ShiftLeft: "shift", ShiftRight: "shift", ArrowLeft: "arrowleft", ArrowRight: "arrowright" }[e.code] || "";
-      if (k === "c" && !e.repeat) { const i = DRIVE_CAMS.findIndex((c) => c[0] === camRef.current); setCam(DRIVE_CAMS[(i + 1) % DRIVE_CAMS.length][0]); return; }
+      if (k === "c" && !e.repeat) { const list = camsFor(driver), i = list.findIndex((c) => c[0] === camRef.current); setCam(list[(i + 1) % list.length][0]); return; }
       if (k === " " || e.code === "Space") { e.preventDefault(); if (!e.repeat) rtEmit("rt:horn", {}); return; }
-      // เดินในรถทีละช่อง (ไม่ใช่คนขับ · มุมในรถ/คนขับ): W/↑ ไปหน้ารถ · S/↓ ไปท้าย · A/← ซ้าย · D/→ ขวา (ตามคนขับ)
+      // เดินในรถทีละช่อง (ไม่ใช่คนขับ · ทุกมุมกล้อง): W/↑ ไปหน้ารถ · S/↓ ไปท้าย · A/← ซ้าย · D/→ ขวา (ตามคนขับ) · E ขึ้น/ลงซันรูฟ
       const mp = myVanPos(s);
-      if (!driver && mp && WALK_CAMS.has(camRef.current)) {
+      if (!driver && mp) {
+        if (e.code === "KeyE") { e.preventDefault(); if (!e.repeat) rtEmit("rt:vanWalk", climbOf(mp)); return; }
         const st0 = { KeyW: [1, 0], ArrowUp: [1, 0], KeyS: [-1, 0], ArrowDown: [-1, 0], KeyA: [0, -1], ArrowLeft: [0, -1], KeyD: [0, 1], ArrowRight: [0, 1] }[e.code];
         if (st0) { e.preventDefault(); if (!e.repeat || performance.now() - (onKey.last || 0) > 180) { onKey.last = performance.now(); rtEmit("rt:vanWalk", { x: mp.x + st0[0], y: mp.y + st0[1], roof: !!mp.roof }); } return; }
       }
@@ -184,13 +216,14 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const [nx, ny] = ndc(pend.e);
         const hit = sc.pick(nx, ny);
         sc.hover(hit); hoverHit = hit;
-        const s = stRef.current, mp = myVanPos(s), walkOk = !!mp && WALK_CAMS.has(camRef.current);
+        const s = stRef.current, mp = myVanPos(s), walkOk = canWalk(s, mp);
         const crew = hit ? null : sc.crewAt(nx, ny);
         const tile = !hit && walkOk ? sc.tileAt(nx, ny) : null;
+        const climb = tile && mp && isHatch(tile) && !!tile.roof === !!mp.roof;
         sc.showWalk(tile, mp);
         cv.style.cursor = hit || tile ? "pointer" : "grab";
         const r = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0 };
-        const label = hit ? hit.name : crew ? crew.name : null;
+        const label = hit ? hit.name : crew ? crew.name : climb ? (mp.roof ? "ลงในรถ (E)" : "ขึ้นหลังคา (E)") : null;
         setTip(label ? { name: label, x: pend.e.clientX - r.left, y: pend.e.clientY - r.top } : null);
       });
     };
@@ -203,15 +236,16 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const hit = sc.pick(nx, ny) || hoverHit;
         const s = stRef.current, mp = myVanPos(s);
         if (hit) {
-          // ของใช้ร่วม (มี vanPos = server รองรับ): เดินไปช่องของก่อน (ถ้ายังไม่ติด) แล้วสั่งของ — ท่า/เสียงเล่นจาก fx ให้ทุกคน
-          if (mp && hit.key && !LOCAL_PROPS.has(hit.key)) {
-            const pt = sc.propTile(hit.key);
-            if (pt && (Math.abs(pt.x - mp.x) + Math.abs(pt.y - mp.y) > 1 || !!pt.roof !== !!mp.roof)) rtEmit("rt:vanWalk", { x: pt.x, y: pt.y, roof: !!pt.roof });
-            rtEmit("rt:vanProp", { prop: hit.key });
-          } else hit.run();
+          // ของใช้ร่วม (มี vanPos = server รองรับ): server เดินไปช่องว่างที่ติดของให้ (ถ้ายังไม่ติด) แล้วใช้ตอนถึง — ท่า/เสียงเล่นจาก fx ให้ทุกคน
+          if (mp && hit.key && !LOCAL_PROPS.has(hit.key)) rtEmit("rt:vanProp", { prop: hit.key });
+          else hit.run();
           return;
         }
-        if (mp && WALK_CAMS.has(camRef.current)) { const tile = sc.tileAt(nx, ny); if (tile) { clickSound(); rtEmit("rt:vanWalk", tile); } }
+        if (canWalk(s, mp)) {
+          const tile = sc.tileAt(nx, ny);
+          // ช่องซันรูฟชั้นเดียวกับเรา = ปีนขึ้น/ลง (ช่องอื่น = เดินไป · server หาทางผ่านซันรูฟเอง)
+          if (tile) { clickSound(); rtEmit("rt:vanWalk", isHatch(tile) && !!tile.roof === !!mp.roof ? climbOf(mp) : tile); }
+        }
       }
     };
     const wheel = (e) => { e.preventDefault(); look.current.zoom = clamp(look.current.zoom + e.deltaY * 0.02, -25, 25); };
@@ -243,13 +277,22 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       <canvas ref={cvRef} className="rtd-cv" />
       {!intro && (
         <div className="rtd-cams" role="toolbar">
-          {DRIVE_CAMS.map(([k, n]) => (
+          {camsFor(amDriver).map(([k, n]) => (
             <button key={k} type="button" className="rtd-cam" data-on={cam === k || (cam === "sky" && k === "roof") ? "true" : "false"} {...hoverTip("กด C สลับมุมกล้อง · ลากเมาส์หันมอง · ล้อเมาส์ซูม · ดับเบิลคลิกคืนค่า", n)} onClick={() => { clickSound(); setCam(k); }}>{n}</button>
           ))}
         </div>
       )}
+      {!intro && seatToast && (
+        <div key={seatToast.k} className="rtd-seat-toast" data-empty={seatToast.name ? "false" : "true"} style={seatToast.color ? { "--dc": seatToast.color } : undefined}>
+          {I_SEAT}<span>{seatToast.name ? `${seatToast.name} ขับ` : "ที่นั่งคนขับว่าง"}</span>
+        </div>
+      )}
       {!intro && (
         <div className="rtd-hud">
+          <div className="rtd-driver" data-empty={driverPl ? "false" : "true"} data-me={amDriver ? "true" : "false"} style={driverPl && driverPl.color ? { "--dc": driverPl.color } : undefined}>
+            <span className="rtd-driver-face">{driverPl && driverPl.img ? <img src={driverPl.img} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}<i>{I_SEAT}</i></span>
+            <b>{driverPl ? driverPl.name : "ว่าง"}</b>
+          </div>
           {seatTaken ? (
             <button type="button" className="rtd-seat" data-on={van.seatReq === selfId ? "true" : "false"} onClick={() => { clickSound(); rtEmit("rt:seat", { seat: "request" }); }} {...hoverTip(van.seatReq === selfId ? "กดอีกครั้งเพื่อยกเลิกคำขอ" : `ขอให้ ${nameOf(van.driverId)} ยกที่นั่งคนขับให้ · คนขับไม่บังคับรถเกิน 20 วิ ที่นั่งว่างเอง`, "ขอขับ")}>
               {I_SEAT}<span>{van.seatReq === selfId ? "รอ…" : "ขอขับ"}</span>

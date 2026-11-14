@@ -38,9 +38,11 @@ const man = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
 // จำนวนผู้เล่นที่ยังสู้ได้ (ไม่นับยูนิตเรียก/ตัวที่สองของระบบคู่)
 function heroCount() { return Math.max(1, Object.values(match.players).filter((p) => p.alive && !p.summon && !p.duoOf).length); }
-// คูณเลือดตามจำนวนผู้เล่น (ปรับสมดุล 2026-11-14): มอนธรรมดา 1 คน 0.75 → 6 คน 1.25 · บอส 1 คน 0.5 → 6 คน 1.5
+// คูณเลือดตามจำนวนผู้เล่น (ปรับสมดุล 2026-11-14): มอนธรรมดา 1 คน 0.75 → 6 คน 1.25 · บอส 1 คน 0.3 → 6 คน 1.3
+//  QA 2026-11-14 (จำลองสู้จบจริง): บอสเดิม 1 คน 0.5 / เกราะเต็ม / พลังโจมตี 4 = คนเดียวชนะ 0/20 แม้โหมดง่าย (ตีปกติ 1 vs เกราะ 3 ที่ฟื้นทุก 2 เทิร์น)
+//   → เลือด 1 คน 0.3 · เกราะ ≤ 1 + จำนวนคน · ทีมเล็ก (≤ 2 คน) พลังโจมตี −1
 const partyMul = (n) => 0.65 + 0.1 * Math.min(6, n);
-const bossPartyMul = (n) => 0.3 + 0.2 * Math.min(6, n);
+const bossPartyMul = (n) => 0.1 + 0.2 * Math.min(6, n);
 function scale(rt, base, { elite = false, heroes = null, tier = null } = {}) {
   const d = diffOf(rt);
   const steps = Math.floor(Math.max(0, rt.km) / 10);
@@ -50,8 +52,8 @@ function scale(rt, base, { elite = false, heroes = null, tier = null } = {}) {
   if (base.boss) { // บอส: แกร่งขึ้นตามลำดับบอส (ไม่ใช่ตามกม.) × จำนวนผู้เล่น × ความยาก
     const t = tier == null ? Math.max(0, Math.floor(Math.max(50, rt.km) / 50) - 1) : tier;
     const hp = Math.max(8, Math.round(base.hp * (d.bossHp || 1) * (1 + (d.bossGrow || 0.2) * t) * bossPartyMul(n)));
-    const atk = Math.min(cap, Math.max(2, base.atk + Math.floor(t / 2) + (d.bossAtk || 0) + (n >= 4 ? 1 : 0)));
-    return { hp, atk, armor: base.armor + Math.floor(t / 3), mov: base.mov, gold: base.gold + 3 * t };
+    const atk = Math.min(cap, Math.max(1, base.atk + Math.floor(t / 2) + (d.bossAtk || 0) + (n >= 4 ? 1 : n <= 1 ? -2 : n === 2 ? -1 : 0)));
+    return { hp, atk, armor: Math.min(base.armor, 1 + n) + Math.floor(t / 3), mov: base.mov, gold: base.gold + 3 * t };
   }
   const k = (1 + d.grow * steps) * (1 + 0.25 * loop);
   let hp = Math.max(1, Math.round(base.hp * k * partyMul(n))), atk = Math.min(cap, Math.max(1, Math.round(base.atk * (1 + (k - 1) * 0.5))));
@@ -76,8 +78,10 @@ function poolFor(rt, kind = null) {
   return out;
 }
 function waveSize(rt, kind, heroes) {
-  const base = kind === "boss" ? 1 : 2 + Math.floor(rt.km / 50); // ปรับสมดุล 2026-11-14 (เดิม บอส 2 · ทั่วไป 3 + กม./40)
-  const n = Math.round((base + Math.max(0, heroes - 1)) * diffOf(rt).count);
+  const base = kind === "boss" ? 1 : 2 + Math.floor(rt.km / 75); // ปรับสมดุล 2026-11-14 (เดิม บอส 2 · ทั่วไป 3 + กม./40 → กม./50 → QA กม./75)
+  // บอส: ลูกน้อง 1 + 1 ต่อผู้เล่น 2 คน (QA 2026-11-14 — เดิม +1 ต่อคน: 4 คนโหมดยากบอสที่ 3 มียักษ์ 30 เลือด 2 ตัว + อีก 3 = แพ้ 6/6)
+  const extra = kind === "boss" ? Math.floor(Math.max(0, heroes - 1) / 2) : Math.max(0, heroes - 1);
+  const n = Math.round((base + extra) * diffOf(rt).count);
   return Math.max(1, Math.min(MOB_CAP, n));
 }
 
@@ -211,7 +215,8 @@ function actOne(rt, m, out) {
   const action = lazy.action();
   const mov = Math.max(0, action.movOf(m) | 0);
   // หนาม (กระบองเพชร): ทุกคนที่ติดตัวโดน 1 ต้นตา
-  if (base.thorns) for (const t of prey(m)) if (t.pos && Board.dist(Board.boxOf(t), m.pos) === 1) hit(rt, m, t, base.thorns, out, "หนามทิ่ม");
+  if (base.thorns) for (const t of prey(m)) if (m.alive && m.pos && t.pos && Board.dist(Board.boxOf(t), m.pos) === 1) hit(rt, m, t, base.thorns, out, "หนามทิ่ม");
+  if (!m.alive || !m.pos) return; // ล้มจากการตีสวน
   const targets = prey(m);
   if (sm.boss) return bossAct(rt, m, targets, out);
   // มีคนติดตัวอยู่แล้ว = ตีเลย (ไม่เดินหนี — ตัวป่วนรถก็ป้องกันตัว)
@@ -232,11 +237,31 @@ function actOne(rt, m, out) {
   // ล่าผู้เล่นที่ใกล้สุด (ระยะเดินจริง) — ระยะเท่ากัน = ตัวที่อ่อนสุด
   if (targets.length && approach(rt, m, mov, adjAny(targets), (n) => Math.min(...targets.filter((t) => adjTo(t)(n)).map(weakness)), out)) {
     target = adjTarget(m.pos.x, m.pos.y, targets);
+    if (!target && boardVan(rt, m, targets, out)) target = adjTarget(m.pos.x, m.pos.y, targets);
     if (target) { hit(rt, m, target, sm.atk | 0, out, "โจมตี"); return; }
     return;
   }
+  if (targets.length && boardVan(rt, m, targets, out)) { target = adjTarget(m.pos.x, m.pos.y, targets); if (target) hit(rt, m, target, sm.atk | 0, out, "โจมตี"); return; }
   // ไปหาผู้เล่นไม่ได้เลย = ไปทุบรถ
   return sabotage(rt, m, mov, [], out);
+}
+// สู้บนรถตู้: ตัวล่าที่มาติดข้างรถแต่ยังตีใครไม่ถึง = กระโดดขึ้นรถ 1 ช่อง (ช่องในรถที่ว่าง · ติดผู้เล่นก่อน) — ตัวประชิดในรถได้มีเป้า (บัฟ 2026-11-14)
+function boardVan(rt, m, targets, out) {
+  const c = rt.combat;
+  if (!c || c.kind !== "onvan" || m.summon.role === "saboteur" || !m.pos || !((lazy.action().movOf(m) | 0) > 0)) return false; // ถูกตรึง = กระโดดไม่ได้
+  const d = require("./maps").defs[match.board && match.board.area];
+  if (!d || !d.vanTiles) return false;
+  const vk = new Set(d.vanTiles.map(([x, y]) => K(x, y)));
+  if (vk.has(K(m.pos.x, m.pos.y))) return false;
+  const action = lazy.action();
+  const opts = d.vanTiles.filter(([x, y]) => Math.abs(x - m.pos.x) + Math.abs(y - m.pos.y) === 1 && action.tileFree(x, y, m.id))
+    .map(([x, y]) => ({ x, y, near: targets.some((t) => t.pos && Math.abs(t.pos.x - x) + Math.abs(t.pos.y - y) === 1) }))
+    .sort((a, b) => (b.near ? 1 : 0) - (a.near ? 1 : 0));
+  if (!opts.length) return false;
+  moveMob(out, m, [{ ...m.pos }, { x: opts[0].x, y: opts[0].y }], { dash: true });
+  m.summon.boarded = true;
+  match.lastLog.push(`🐾 ${m.name}กระโดดขึ้นรถตู้!`);
+  return true;
 }
 // ตัวป่วนรถ: เดินไปติดรถ (ทางจริง) แล้วทุบ · ติดรถอยู่แล้ว = ทุบเลย
 function sabotage(rt, m, mov, targets, out) {
@@ -496,9 +521,11 @@ function bossAct(rt, m, targets, out) {
     const victims = onTiles(tiles);
     const carBonus = w.move === "ram" ? (sm.car | 0) : 0;
     for (const v of victims) {
+      if (!m.alive || !m.pos) break; // บอสล้มกลางท่า (ตีสวน) — หยุด
+      if (!v.alive || !v.pos) continue;
       if (spec.celebrate) { // โดนัท (ติดตัว 8 ช่อง) = ตี + กระเด็น · แชมเปญ (วงนอก) = เชื่องช้าถ้าไม่หลบ
         const near = Math.max(Math.abs(v.pos.x - m.pos.x), Math.abs(v.pos.y - m.pos.y)) <= 1;
-        if (near) { const dealt = hit(rt, m, v, Math.max(1, sm.atk | 0), out, "โดนัทฉลองแชมป์"); if (dealt > 0) knock(v, [Math.sign(v.pos.x - m.pos.x), Math.sign(v.pos.y - m.pos.y)]); }
+        if (near) { const dir = [Math.sign(v.pos.x - m.pos.x), Math.sign(v.pos.y - m.pos.y)]; const dealt = hit(rt, m, v, Math.max(1, sm.atk | 0), out, "โดนัทฉลองแชมป์"); if (dealt > 0) knock(v, dir); } // ล้มแล้ว pos = null — คิดทิศก่อนตี
         else if (!lazy.attack().skillDodge(m, v, "พ่นแชมเปญ")) lazy.combat().applyDebuff(v, "slow", 1, 1);
         continue;
       }
@@ -509,6 +536,7 @@ function bossAct(rt, m, targets, out) {
       if (spec.push && dealt > 0 && v.alive && w.dir) knock(v, w.dir);
       if (spec.aside && dealt > 0 && v.alive && w.dir) { const [dx] = w.dir; const side = Math.random() < 0.5 ? 1 : -1; knock(v, dx ? [0, side] : [side, 0]); } // กระเด็นออกข้างแนว
     }
+    if (!m.alive || !m.pos) return;
     let to = w.at || null;
     if (spec.move) { // ปลายแนว: ช่องว่างสุดท้าย
       const end = [...tiles].reverse().find((tt) => action.tileFree(tt.x, tt.y, m.id));
@@ -533,13 +561,15 @@ function bossAct(rt, m, targets, out) {
     let sw = null;
     for (const dir of Board.DIRS) { const tiles = moveTiles(map, blocked, m, "swing", dir); const vs = onTiles(tiles); if (vs.length && (!sw || vs.length > sw.vs.length)) sw = { dir, tiles, vs }; }
     if (sw) {
-      for (const v of sw.vs) { const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, sw.dir); }
+      for (const v of sw.vs) { if (!m.alive || !m.pos) return; const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, sw.dir); }
+      if (!m.alive || !m.pos) return;
       bossFx(m, "swing", m.pos, { x: m.pos.x + sw.dir[0], y: m.pos.y + sw.dir[1] }, sw.tiles, out);
     }
   } else {
     const adj = adjTarget(m.pos.x, m.pos.y, targets);
     if (adj) hit(rt, m, adj, sm.atk | 0, out, "โจมตี");
   }
+  if (!m.alive || !m.pos) return;
   // ท่าใหญ่: เลือกท่าที่โดนผู้เล่นมากสุดจากชุดท่าของบอสตัวนี้ (เท่ากัน = ตามลำดับหมุนเวียน) · ทิศ/จุดที่โดนมากสุด
   const seq = sm.celebrate ? ["celebrate"] : movesFor(m); // แชมป์โลกค้างอยู่ = ฉลองก่อน
   const drsNow = sm.drs === match.roundNumber + 1;
@@ -578,8 +608,8 @@ function bossAct(rt, m, targets, out) {
           const dir = [Math.sign(adj3.pos.x - m.pos.x), Math.sign(adj3.pos.y - m.pos.y)];
           const d2 = dir[0] && dir[1] ? [dir[0], 0] : dir;
           const tiles = moveTiles(map, action.boardBlocked(m.id), m, "swing", d2);
-          for (const v of onTiles(tiles)) { const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, d2); }
-          bossFx(m, "swing", m.pos, { x: m.pos.x + d2[0], y: m.pos.y + d2[1] }, tiles, out);
+          for (const v of onTiles(tiles)) { if (!m.alive || !m.pos) return; const dealt = hit(rt, m, v, (sm.atk | 0) + MOVE.swing.bonus, out, MOVE.swing.verb); if (dealt > 0) knock(v, d2); }
+          if (m.alive && m.pos) bossFx(m, "swing", m.pos, { x: m.pos.x + d2[0], y: m.pos.y + d2[1] }, tiles, out);
         } else hit(rt, m, adj3, sm.atk | 0, out, "โจมตี");
       }
     }
@@ -598,4 +628,4 @@ function bossOf(n) { return BOSSES[((n | 0) % BOSSES.length + BOSSES.length) % B
 // สู้บนรถตู้ (รถกำลังวิ่ง — กฎผู้ใช้ 2026-11-14): เฉพาะมอนที่วิ่งไล่รถได้
 const CHASERS = ["biker", "crow", "stray", "trucker", "boar", "saberclaw", "ghost"];
 
-module.exports = { heroCount, partyMul, bossPartyMul, SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, movesFor, bossPre, phaseByHp, RADIO, assignRoles, approach, SABOTEUR_SHARE, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };
+module.exports = { boardVan, heroCount, partyMul, bossPartyMul, SIDE, KIND, RT_OWNER, ROSTER, ATK_CAP, MOB_CAP, BOSSES, BOSS_MOVES, CHASERS, WRECK, THROW_RANGE, bossOf, moveTiles, expireWrecks, movesFor, bossPre, phaseByHp, RADIO, assignRoles, approach, SABOTEUR_SHARE, scale, poolFor, waveSize, spawn, isMob, mobs, prey, freeAt, actAll, actOne, hit, reach };

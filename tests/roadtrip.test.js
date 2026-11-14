@@ -1020,10 +1020,11 @@ test('สู้บนรถตู้ (ตัวประชิดได้สู
   assert.ok(van.has(Board.key(m1.pos.x, m1.pos.y)), 'มอนขึ้นรถ');
   assert.ok(o.attacks.length === 1, 'แล้วตีในรถ');
   Summon.remove(m1);
-  // 2) หน้าต่าง: ระยะอย่างน้อย 2
+  // 2) หน้าต่าง: ตีปกติของตัวประชิดถึง 3 · สกิล ≥ 2 (บัฟ 2026-11-14)
   p.pos = { x: 9, y: 4 };
-  assert.ok(action.rangeOf(p)[1] >= 2);
+  assert.equal(action.rangeOf(p)[1], 3, 'มุยมิ (ประชิด) ตีจากหน้าต่างถึง 3');
   assert.ok(action.areaRange(p, { range: 1 }) >= 2);
+  assert.ok(action.areaRange(p, { range: 1 }) < 3, 'สกิลไม่ได้ 3');
   p.pos = { x: 11, y: 5 };
   // 3) ปาดรถ (คนขับ · ฝั่งซ้าย = แถวเหนือรถ)
   const side = M.spawn(rt(), 'giant', { x: 10, y: 3 }, { born: 99 });
@@ -1035,22 +1036,29 @@ test('สู้บนรถตู้ (ตัวประชิดได้สู
   assert.equal(RT.command('p1', 'swerve', { side: 'left' }), true);
   assert.ok(side.hp + side.armor < hp0);
   assert.equal(side.pos.y, 2, 'กระเด็นออกจากรถ');
+  assert.equal(side.statuses.stun, 1, 'มึน 1 เทิร์น');
   assert.equal(rt().van.hp, v0 - 1, 'กันชน 0 = รถเสีย 1');
   assert.equal(RT.command('p1', 'swerve', { side: 'left' }), false, 'คูลดาวน์');
+  assert.equal(rt().combat.swerveReady, match.roundNumber + 2, 'คูลดาวน์ 1 เทิร์น');
   Summon.remove(side);
-  // 4) ป้อมปืนมือ (ช่องซันรูฟ)
-  rt().van.upg.turret = 1;
+  // 4) ป้อมปืนมือ (ช่องซันรูฟ) — ไม่ต้องอัปเกรด: ขั้น 0 = 2 · +1 ต่อขั้น · ระยะ 5
   turn(p);
   const tg = M.spawn(rt(), 'giant', { x: 11, y: 1 }, { born: 99 });
   const far = M.spawn(rt(), 'giant', { x: 1, y: 1 }, { born: 99 });
   assert.equal(RT.publicInfo().van.turretReady, true);
-  assert.equal(RT.command('p0', 'turret', { x: far.pos.x, y: far.pos.y }), false, 'ไกลเกิน 4');
-  const t0 = tg.hp + tg.armor;
+  assert.ok(RT.publicInfo('p0').actions.p0.includes('turret'), 'ขั้น 0 ก็ยิงได้');
+  assert.equal(RT.command('p0', 'turret', { x: far.pos.x, y: far.pos.y }), false, 'ไกลเกิน 5');
+  let t0 = tg.hp + tg.armor;
   assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), true);
-  assert.equal(t0 - (tg.hp + tg.armor), 2, 'ขั้น + 1');
+  assert.equal(t0 - (tg.hp + tg.armor), 2, 'ขั้น 0 = 2');
   assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), false, 'ครั้งเดียวต่อตา');
+  rt().van.upg.turret = 1; p.rtTurretAt = null;
+  t0 = tg.hp + tg.armor;
+  assert.equal(RT.command('p0', 'turret', { x: tg.pos.x, y: tg.pos.y }), true);
+  assert.equal(t0 - (tg.hp + tg.armor), 3, 'ขั้น 1 = 3');
+  assert.equal(RT.publicInfo().combat.turretRange, 5);
   Summon.remove(tg); Summon.remove(far);
-  // 5) หลังคา: ทีละคน · ระยะ +2 · มอนเดินดินแตะไม่ได้ (อีกา/บอสได้) · ร่วง 25% ตอนถนนกระตุก
+  // 5) หลังคา: ทีละคน · ระยะ +2 · มอนเดินดินแตะไม่ได้ (อีกา/บอสได้) · ร่วง 15% ตอนถนนกระตุก
   const r0 = action.rangeOf(p)[1];
   assert.equal(RT.command('p0', 'roof', {}), true);
   assert.equal(RT.publicInfo().combat.roofId, 'p0');
@@ -1176,14 +1184,23 @@ test('เดินเล่นในรถตอนขับ: ที่นั่
   assert.deepEqual(at('p0'), { x: 10, y: 5, roof: true });
   const path = rt().fx.filter((f) => f.k === 'vanWalk' && f.id === 'p0').pop().path;
   assert.ok(path.some(([x, y, r]) => x === d.hatchTile[0] && y === d.hatchTile[1] && !r) && path.some(([x, y, r]) => x === d.hatchTile[0] && y === d.hatchTile[1] && r), 'ผ่านช่องซันรูฟ');
+  assert.equal(rt().vanProps.hatch.state, 'open', 'ปีนผ่านซันรูฟ = เปิดให้');
   rt().vanBusy = {};
   // ของในรถ: ต้องติด · สถานะร่วม · ทอยเต๋า
-  assert.equal(RT.command('p0', 'vanProp', { prop: 'fridge' }), false, 'อยู่บนดาดฟ้า');
   assert.equal(RT.command('p0', 'vanProp', { prop: 'grill' }), true);
   assert.equal(rt().vanProps.grill.state, 'on');
   assert.ok(rt().fx.some((f) => f.k === 'vanProp' && f.prop === 'grill' && f.state === 'on'));
-  RT.command('p0', 'vanWalk', { x: 10, y: 4 }); rt().vanBusy = {};
+  // ของอยู่อีกชั้น/ไกล = เดินไปช่องว่างติดของ (ลงทางซันรูฟ) แล้วใช้ตอนถึง
+  const fr0 = rt().vanProps.fridge.state;
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'fridge' }), true, 'เดินไปหาตู้เย็น');
   assert.equal(at('p0').roof, false, 'ลงทางซันรูฟ');
+  assert.ok(Math.abs(at('p0').x - rt().vanProps.fridge.x) + Math.abs(at('p0').y - rt().vanProps.fridge.y) <= 1);
+  assert.equal(rt().vanProps.fridge.state, fr0, 'ใช้ตอนเดินถึง ไม่ใช่ทันที');
+  assert.ok(rt().vanPend && rt().vanPend.p0);
+  clearTimeout(rt().vanPend.p0); delete rt().vanPend.p0;
+  rt().vanBusy = {};
+  RT.command('p0', 'vanWalk', { x: 10, y: 4 }); rt().vanBusy = {};
+  assert.equal(at('p0').roof, false);
   assert.equal(RT.command('p0', 'vanProp', { prop: 'table' }), true);
   const dice = rt().vanProps.table.state;
   assert.ok(dice.a >= 1 && dice.a <= 6 && dice.b >= 1 && dice.n === 1);
@@ -1221,6 +1238,32 @@ test('เดินเล่นในรถตอนขับ: ที่นั่
   assert.equal(rt().phase, 'drive');
   assert.deepEqual(at('p2'), { x: 8, y: 6, roof: false });
   assert.equal(at('p1').roof, true, 'คนบนหลังคากลับดาดฟ้า');
+});
+
+test('เดินเล่นในรถ: ปีนซันรูฟตอนมีคนยืนปากช่อง = ไปช่องติดกัน (near) · ของในรถไกล = เดินไปแล้วใช้ตอนถึง · สิ่งกีดขวางไม่ถี่ขึ้นตามการขับที่ช้าลง', async () => {
+  setup(2);
+  const d = Maps.defs[Maps.RT_ONVAN];
+  const at = (id) => rt().vanPos[id];
+  const [hx, hy] = d.hatchTile;
+  rt().vanPos.p1 = { x: hx, y: hy, roof: true }; // ยืนปากช่องบนดาดฟ้า
+  rt().vanPos.p0 = { x: 9, y: 5, roof: false }; rt().vanBusy = {};
+  assert.equal(RT.command('p0', 'vanWalk', { x: hx, y: hy, roof: true }), false, 'ปลายทางมีคน');
+  assert.equal(RT.command('p0', 'vanWalk', { x: hx, y: hy, roof: true, near: true }), true);
+  const q = at('p0');
+  assert.equal(q.roof, true);
+  assert.equal(Math.abs(q.x - hx) + Math.abs(q.y - hy), 1, 'ช่องติดปากช่อง');
+  rt().vanBusy = {};
+  // ของในรถไกล: เดินไป → ใช้ตอนเดินถึง (ทุกเครื่องเห็นผ่าน fx)
+  const st0 = rt().vanProps.cooler.state;
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'cooler' }), true);
+  assert.equal(rt().vanProps.cooler.state, st0);
+  await new Promise((r) => setTimeout(r, 2600));
+  assert.notEqual(rt().vanProps.cooler.state, st0, 'ใช้แล้วตอนถึง');
+  assert.ok(rt().fx.some((f) => f.k === 'vanProp' && f.prop === 'cooler'));
+  // สิ่งกีดขวาง: ช่องว่าง ≥ 8 วิ (ความถี่ต่อ กม. ใกล้ของเดิมตอนขับเร็ว)
+  const RouteM = require('../server/roadtrip/route.js');
+  assert.ok(D.HZ_GAP[0] * RouteM.KM_PER_SEC >= 4500 * 0.004 * 0.95, 'กม. ต่อสิ่งกีดขวางไม่น้อยกว่าเดิม');
+  assert.ok(D.HZ_FIRST_MS >= 8000);
 });
 
 // ---------------------------------------------------------------- กฎผู้ใช้ 2026-11-14

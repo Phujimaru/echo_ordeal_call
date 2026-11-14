@@ -10,7 +10,9 @@ const { diffOf } = require("./diff");
 const H = () => require("./index");
 const TICK_MS = 250;
 const HZ_WARN_MS = 3000;
-const HZ_GAP = [4500, 7500];
+// ช่องว่างระหว่างสิ่งกีดขวาง — ยืดตามการขับที่ช้าลง (KM_PER_SEC 0.004 → 0.0022) ให้ความถี่ต่อ กม. เท่าเดิม (ไม่งั้นรถพังก่อนถึงทางแยก · ช่วงขับ = เวลาเที่ยวในรถ)
+const HZ_GAP = [8000, 13000];
+const HZ_FIRST_MS = 8000;         // ออกตัว/กลับมาขับ: ชิ้นแรกไม่ก่อน 8 วิ
 const FUEL_PER_KM = 0.6;
 const EMPTY_KMH = 30;
 const NITRO_MS = 5000, NITRO_MUL = 1.5;
@@ -24,7 +26,7 @@ function startTick() {
   stopTick();
   lastAt = Date.now();
   const rt = match.roadtrip;
-  if (rt && !rt.hzNextAt) rt.hzNextAt = lastAt + 2500;
+  if (rt && !rt.hzNextAt) rt.hzNextAt = lastAt + HZ_FIRST_MS;
   tickId = setInterval(() => { try { step(); } catch (err) { console.error("[roadtrip] drive tick:", err); stopTick(); } }, TICK_MS);
   if (tickId.unref) tickId.unref();
 }
@@ -81,7 +83,7 @@ function step(dt = null, now = Date.now()) {
     rt.legKm = rt.km;
     if (rt.km >= rt.nextBossKm) { bossNow(rt); return; }
     if (rt.legs >= Route.LEGS_PER_FORK) { openFork(); return; }
-    if (rt.km >= ONVAN_MIN_KM && !rt.lastNodeFight && Math.random() * 100 < ONVAN_PCT) { require("./fight").begin("onvan"); return; }
+    if (rt.km >= ONVAN_MIN_KM && !rt.lastNodeFight && Math.random() * 100 < ONVAN_PCT) { rt.lastNodeFight = true; require("./fight").begin("onvan"); return; } // เพิ่งโดนไล่ = ช่วงถัดไปไม่โดนซ้ำ
   }
   send(now);
 }
@@ -246,4 +248,4 @@ function goNode(kind) {
   return require("./fight").begin(Math.random() < 0.5 ? "ambush" : "onvan");
 }
 
-module.exports = { TICK_MS, HZ_WARN_MS, FUEL_PER_KM, EMPTY_KMH, NITRO_MS, STEER_MS, startTick, stopTick, ticking, step, speedOf, spawnHazard, resolveHazard, hazardDmg, command, openFork, vote, tally, resolveFork, goNode };
+module.exports = { TICK_MS, HZ_WARN_MS, HZ_GAP, HZ_FIRST_MS, FUEL_PER_KM, EMPTY_KMH, NITRO_MS, STEER_MS, startTick, stopTick, ticking, step, speedOf, spawnHazard, resolveHazard, hazardDmg, command, openFork, vote, tally, resolveFork, goNode };

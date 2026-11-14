@@ -63,7 +63,7 @@ import { announceArenaLand, noteArenaShown, onArenaLandRequest, onArenaLeaveRequ
 import KateStorm from "../oc/intro/KateStorm";
 import "./boardStage.css";
 import { setRoadtripState } from "./roadtrip/theme";
-import { rtPropAt } from "./roadtrip/props";
+import { rtPropAt, rtPropInfo } from "./roadtrip/props";
 import { rtFxPlay } from "./roadtrip/rtTimeline";
 import { rtDefOf } from "./roadtrip/theme";
 
@@ -234,7 +234,7 @@ function AttackTags({ a, byId }) {
   );
 }
 
-export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay, statusOf }) {
+export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onInspect, registerOther, hidden, atkSignal = 0, onAttackables, onOverlay, statusOf }) {
   const phase = state.gameState;
   const map = useMemo(() => Rules.normalizeMap(state.board), [state.board]);
   const mapRef = useRef(map);
@@ -266,7 +266,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   // Road Trip: กลางวัน/กลางคืนตามระยะทาง (state.roadtrip.night) · ส่ง state.roadtrip ให้ตัววาดกระดาน (theme.setRoadtripState — ภูมิภาค/fx/รถตู้) ทั้งจุดพักและตอนต่อสู้
   const rtWorld = (state.world === "roadtrip" || state.gameMode === "roadtrip") && !!state.roadtrip;
   const night = rtWorld ? !!state.roadtrip.night : state.cycle === "night";
-  if (rtWorld) setRoadtripState(state.roadtrip);
+  if (rtWorld) setRoadtripState(state.roadtrip, state.youId, (state.players || []).filter((p) => p.duoOf === state.youId).map((p) => p.id)); // + ตัวที่สองของระบบคู่ = ของเครื่องนี้
+  const rtUnit = rtWorld && me && me.id !== state.youId ? { unitId: me.id } : {}; // จุดพัก: ระบบคู่คุมตัวที่สอง (Game.jsx rtSel)
 
   // ผู้เล่นบนกระดาน (รูปที่ boardRules ใช้)
   const byId = useMemo(() => Object.fromEntries(state.players.map((p) => [p.id, p])), [state.players]);
@@ -2695,6 +2696,8 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (cp) { onTileClick(cp.x, cp.y); return; } // ร่าง = ช่องธรรมดา (เลือกช่อง/เดิน)
     const p = byId[id];
     if (!p) return;
+    // Road Trip จุดพัก: กดตัวเองอีกตัว (ระบบคู่) = เลือกคุมตัวนั้น — นอกตาเดินไม่มีกระจกเงา (QA 2026-11-14)
+    if (rtWorld && state.roadtrip.phase === "stop" && !pick && onRtSelect && p.id !== me?.id && (p.id === state.youId || p.duoOf === state.youId) && p.alive && p.pos) { clickSound(); onRtSelect(p.id); return; }
     // คนคนละชั้นมิติ = กดตัวไม่ได้ (คลิก = คลิกช่องใต้ภาพโปร่ง — ชั้นเราเดินไปยืนช่องนั้นได้)
     if (!sameDim(p)) { const t = hover && onBody(p, hover) ? hover : p.pos; if (t) onTileClick(t.x, t.y); return; }
     if (pick) {
@@ -2718,7 +2721,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const pr = rtPropAt(state.board && state.board.area, x, y);
       if (pr && !pr.spot) return;
       clickSound();
-      if (pr) socket.emit("rt:act", { id: pr.id }); else socket.emit("rt:walk", { x, y });
+      if (pr) socket.emit("rt:act", { id: pr.id, ...rtUnit }); else socket.emit("rt:walk", { x, y, ...rtUnit });
       return;
     }
     if (pick) {
@@ -2767,6 +2770,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
     if (!rtStopWalk || pick) return undefined;
     const onKey = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
+      if (document.querySelector('.rt-scrim, .shs-veil, .bag-veil, [aria-modal="true"]')) return; // หน้าอู่/ร้าน/กระเป๋าเปิดอยู่ = ไม่เดิน (QA 2026-11-14 — กด S ในหน้าอู่แล้วตัวเดินออกจนปุ่มอัปเกรดใช้ไม่ได้)
       const dir = screenDir(rotation, e.code, me.pos);
       if (!dir) return;
       e.preventDefault();
@@ -2776,7 +2780,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const to = { x: me.pos.x + dir.x, y: me.pos.y + dir.y };
       stepSent.current = { to, t: performance.now() };
       look(to);
-      socket.emit("rt:walk", { x: to.x, y: to.y });
+      socket.emit("rt:walk", { x: to.x, y: to.y, ...rtUnit });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -2839,7 +2843,14 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   }, [wallMode, dirPick, flipWall]);
 
   // สนาม Eos: ของที่ตัวสูงยื่นบังช่องหลัง → ชี้ที่ตัวของก็ขึ้นป้ายของชิ้นนั้น (ผู้ใช้ 2026-11-10 "บางมุมรถพัง ชี้แล้วไม่บอก")
+  const rtStopArea = rtWorld && state.roadtrip && state.roadtrip.phase === "stop" && state.board ? state.board.area : null;
   const tallTiles = useMemo(() => {
+    // Road Trip จุดพัก: กดที่ตัวตู้/อาคารที่สูงยื่นบังช่องหลัง = กดวัตถุนั้น (QA 2026-11-14 — กดตู้คีบตุ๊กตาแล้วเดินไปช่องหลังตู้แทน)
+    if (rtStopArea != null) {
+      const d = rtDefOf(rtStopArea), out = [];
+      for (const p of (d && d.props) || []) if (p.spot && !p.walk) for (let y = p.y0; y <= p.y1; y++) for (let x = p.x0; x <= p.x1; x++) out.push({ x, y, h: Math.min(3, p.h || 1) });
+      return out;
+    }
     if (state.world !== "eos" || !map) return null;
     const out = [], seen = new Set();
     const add = (x, y, h) => { const k = `${x},${y}`; if (!seen.has(k)) { seen.add(k); out.push({ x, y, h }); } };
@@ -2863,11 +2874,12 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       add(x, y, TALL[kind]);
     }
     return out;
-  }, [state.world, state.fodlan, map]);
+  }, [state.world, state.fodlan, map, rtStopArea]);
 
   // ---------- ป้ายข้อมูลช่อง ----------
   const tileInfo = useMemo(() => {
     if (!hover || !map) return null;
+    if (rtStopArea != null) { const ri = rtPropInfo(rtPropAt(rtStopArea, hover.x, hover.y), state.roadtrip); if (ri) return ri; } // Road Trip จุดพัก: ชี้วัตถุ = ชื่อ/ราคา/ผล
     const shopHit = shops.find((sh) => shopCovers(sh, hover.x, hover.y));
     if (shopHit) return { icon: "🏪", name: shopHit.name || shopName(shopHit.kind), desc: shopHit.turnsLeft > 0 ? `เหลือ ${shopHit.turnsLeft} เทิร์น` : "" };
     // Ice Spike: หนามน้ำแข็ง · ธารน้ำแข็ง (น้ำแข็งที่สร้างระหว่างเกม)
@@ -2892,7 +2904,7 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       return !ri.desc && EOS_NAME_DESC[ri.name] ? { ...ri, desc: EOS_NAME_DESC[ri.name] } : ri;
     }
     return Rules.tileInfo(map, hover.x, hover.y); // ช่องพิเศษ / จุดฟื้นฟู (ชื่อตามภูมิภาค) · พื้นธรรมดา = null
-  }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber]);
+  }, [hover, map, shops, spikeList, board, celFlora, state.world, state.fodlan, state.players, state.roundNumber, rtStopArea, state.roadtrip]);
 
   // ---------- เปลี่ยนภูมิภาค: กระดานเดิมซูมออก (ลอยขึ้นไปหาลูกโลก) → รอฉาก RegionTravel ชนผิวโลก → กระดานใหม่ซูมเข้า ----------
   //  เริ่มแมตช์ (ต่อจาก MatchIntro) ก็ซูมเข้า · mount ใหม่ในภูมิภาคเดิม (หลังคัตซีน) ไม่เล่นซ้ำ — ดู journey/arena/arenaLandBus.js

@@ -212,6 +212,15 @@
 .rt-preset.yt { --sc: #e62117; }
 .rt-preset.yt svg { width: 22px; height: 16px; }
 .rt-yt-row { display: flex; gap: 6px; align-items: center; }
+/* ความดังวิทยุของเครื่องนี้ (โชว์ตลอด แม้ย่อแผง — ไม่ซ่อนตอนเมาส์ออก) */
+.rt-vol { display: flex; gap: 8px; align-items: center; }
+.rt-vol .rt-sq[data-on="true"] { color: #e62117; }
+.rt-vol-in { --p: 80%; flex: 1; min-width: 90px; height: 22px; margin: 0; background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.rt-vol-in::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--rt-a) var(--p), var(--rt-well-hi) var(--p)); }
+.rt-vol-in::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--rt-a) var(--p), var(--rt-well-hi) var(--p)); }
+.rt-vol-in::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--rt-a), 0 1px 4px rgba(0, 0, 0, 0.3); }
+.rt-vol-in::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--rt-a), 0 1px 4px rgba(0, 0, 0, 0.3); }
+.rt-vol-n { width: 30px; text-align: right; font: 700 13px/1 "Chakra Petch", sans-serif; color: var(--rt-ink); }
 .rt-yt-in { flex: 1; min-width: 0; height: 36px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--rt-line); background: var(--rt-well); color: var(--rt-ink); font: 400 14px/1 Kanit, sans-serif; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
 .rt-yt-in:focus { border-color: #e62117; box-shadow: 0 0 0 3px rgba(230, 33, 23, 0.15); }
 .rt-yt-in[data-bad="true"] { border-color: #d2455b; animation: rtShake 0.3s; }
@@ -223,15 +232,16 @@
 .rt-sq svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .rt-sq .q { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; display: grid; place-items: center; font: 700 11px/1 "Chakra Petch", sans-serif; color: #fff; background: #e62117; box-shadow: 0 0 0 2px #fff; }
 
-/* ตัวเล่น YouTube (radio.js สร้างเองที่ <body>) — มุมขวาล่าง 320×200 (เงื่อนไข YouTube: มองเห็น ≥ 200×200) */
-.rt-yt { position: fixed; right: 18px; bottom: 18px; z-index: 36; width: 320px; height: 200px; border-radius: 12px; overflow: hidden; background: #000;
+/* ตัวเล่น YouTube (radio.js สร้างเองที่ <body>) — ขวา เหนือแถบ HUD ล่าง 320×200 (เงื่อนไข YouTube: มองเห็น ≥ 200×200)
+   เดิมชิดขอบล่าง = แถบควบคุม/แถบเสียงของตัวเล่นใช้ไม่ได้ (ผู้ใช้ 2026-11-14) · ไม่วางขวาบน = ทับการ์ดทางแยก/เหตุการณ์ */
+.rt-yt { position: fixed; right: 18px; bottom: 150px; z-index: 36; width: 320px; height: 200px; border-radius: 12px; overflow: hidden; background: #000;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.85); opacity: 0; visibility: hidden; transform: translateY(16px) scale(0.96);
   transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1), visibility 0s linear 0.35s; }
 .rt-yt[data-on="true"] { opacity: 1; visibility: visible; transform: none; transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1), visibility 0s; }
 .rt-yt iframe { display: block; width: 100%; height: 100%; border: 0; }
 
 /* ============================================================ อู่ (Garage) */
-.rt-scrim { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: var(--rt-scrim); backdrop-filter: blur(5px); animation: rtFade 0.25s ease both; }
+.rt-scrim { position: fixed; inset: 0; z-index: 72; /* เหนือปุ่มมุมขวาบน .ocv (70) — จอแคบปุ่มเสียง/เมนูทับแท็บและปุ่มปิดหน้าอู่ (QA 2026-11-14) */ display: grid; place-items: center; background: var(--rt-scrim); backdrop-filter: blur(5px); animation: rtFade 0.25s ease both; }
 @keyframes rtFade { from { opacity: 0; } }
 .rt-garage { width: min(1120px, calc(100vw - 48px)); height: min(680px, calc(100vh - 48px)); padding: 0; animation: rtCard 0.4s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
 .rt-garage-in { position: relative; height: 100%; display: grid; grid-template-columns: 42% 1fr; }

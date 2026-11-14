@@ -16,9 +16,10 @@ export const isRtArea = (area) => Number(area) >= RT_AREA0 && Number(area) <= RT
 export const REGIONS = ["plains", "desert", "forest", "snow", "ghost"];
 
 // ---------------------------------------------------------------- สถานะกลาง (state.roadtrip ล่าสุด)
-const RT = { region: "plains", night: false, fx: [], acts: {}, phase: null, van: null };
-export function setRoadtripState(rt) {
+const RT = { region: "plains", night: false, fx: [], acts: {}, phase: null, van: null, you: null, mine: new Set() };
+export function setRoadtripState(rt, youId, extraIds) {
   if (!rt) return;
+  if (youId !== undefined) { RT.you = youId || null; RT.mine = new Set([youId, ...(extraIds || [])].filter(Boolean)); } // ตัวของเครื่องนี้ (+ ตัวที่สองระบบคู่) — ป้ายกิจกรรมพลาด/เสียงปฏิเสธ แสดงเฉพาะคนกด
   const id = rt.region && (rt.region.id || rt.region);
   if (REGIONS.includes(id)) RT.region = id;
   RT.night = !!rt.night;
