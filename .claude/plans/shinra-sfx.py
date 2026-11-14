@@ -9,6 +9,7 @@
 #   shinra_storm       อุ้งเท้าปีศาจ: พายุไฟหมุนรอบตัว (เสียงลมไฟวนซ้ายขวา) → ปะทุรอบวง
 #   shinra_warm        อุ่นเครื่องพอแล้ว: หายใจเข้า → ไฟลุกท่วมตัว (ทุ้ม) → ไฟคำรามยาว + ไม้แตก
 #   shinra_latom       ลาทัม: ชาร์จไอพ่น (0–0.38 วิ) → พุ่ง Rapid (เสียงจรวด) → ปะทะ
+#   shinra_latom_boom  ลาทัม: ระเบิดปิดท้ายไล่ตามทางที่พุ่งผ่าน ตูม-ตาม (ผู้ใช้สั่ง)
 #   shinra_detonate    มอดไหม้จากภายใน: ไฟอัดอยู่ข้างใน (ทุ้มอู้อี้) → ระเบิดออก + ซ่า
 import importlib.util, os, sys
 import numpy as np
@@ -162,9 +163,25 @@ def detonate():
     return reverb(o, 0.25, 1.1)
 
 
+def latom_boom():
+    # ระเบิดปิดท้ายลาทัม: ตูม-ตามไล่กันทีละช่อง (ช่องละ 60 ms ตาม client LATOM_BOOM.gap) แล้วคำรามทุ้มค้าง
+    d = 2.0; o = buf(d)
+    for i in range(7):
+        at = i * 0.06
+        amp = 1.0 if i in (0, 6) else rng.uniform(0.6, 0.85)
+        put(o, thump(0.4, rng.uniform(95, 130), rng.uniform(30, 42), 8, amp), at)
+        put(o, crash(0.45, 8, 250, 8000, amp * 0.55), at)
+        put(o, fwoomp(0.35, amp * 0.6, 60), at + 0.01)
+    put(o, rumble(1.6, 25, 150, 0.7) * env_lin(1.6, 0.03, 1.2), 0.0)
+    put(o, roar(1.2, 80, 2000, 0.4) * env_lin(1.2, 0.05, 0.9), 0.2)
+    put(o, crackle(1.3, 60, 0.4), 0.15)
+    return reverb(o, 0.3, 1.6)
+
+
 SOUNDS = {
     "shinra_kick": (kick, 0.95), "shinra_kick_blaze": (kick_blaze, 1.15), "shinra_hero": (hero, 1.35),
     "shinra_storm": (storm, 1.6), "shinra_warm": (warm, 2.4), "shinra_latom": (latom, 1.5), "shinra_detonate": (detonate, 1.1),
+    "shinra_latom_boom": (latom_boom, 2.0),
 }
 if __name__ == "__main__":
     args = sys.argv[1:]

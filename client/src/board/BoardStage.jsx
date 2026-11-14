@@ -43,7 +43,7 @@ import { diegoEventFx, preloadDiegoArt } from "./diegoFx";
 import { dioEventFx } from "./dioFx";
 import { ZECT_LUNGE, ZECT_FX_DUR } from "./zectFx";
 import { KIRI_FX_DUR } from "./kiriFx";
-import { SHINRA_FX_DUR, SHINRA_T, latomDur } from "./shinraFx";
+import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "./shinraFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
 import { takutoEventFx } from "./takutoFx";
@@ -1992,7 +1992,13 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
       const tl = (arr) => (Array.isArray(arr) ? arr.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null);
       const path = tl(ev.path);
       if (kind === "shinraDetonate") playSfx("shinra_detonate"); // ตรงจังหวะปะทะ (hitFx) · ไม่มีคลิป
-      pushFx([{ kind, x: at.x, y: at.y, tiles: tl(ev.tiles), path, ...(kind === "shinraLatom" ? { dur: latomDur(path) + 900 } : {}) }]);
+      pushFx([{ kind, x: at.x, y: at.y, tiles: tl(ev.tiles), path, ...(kind === "shinraLatom" ? { dur: latomFxDur(path) } : {}) }]);
+      // ลาทัม: ระเบิดปิดท้ายไล่ตามทาง — เสียงตูมตาม + จอสั่น 2 จังหวะ (หลังคลิป · ไม่ซ้อนวีดีโอ)
+      if (kind === "shinraLatom" && path && path.length > 2) {
+        const at0 = latomBoomStart(path);
+        timers.current.push(setTimeout(() => playSfx("shinra_latom_boom"), at0));
+        if (!lowQ) { timers.current.push(setTimeout(() => setShake((n) => n + 1), at0 + 40)); timers.current.push(setTimeout(() => setShake((n) => n + 1), at0 + 260)); }
+      }
       if (lowQ) return;
       if (kind === "shinraWarm") timers.current.push(setTimeout(() => setShake((n) => n + 1), 380));
       else if (kind === "shinraStorm") timers.current.push(setTimeout(() => setShake((n) => n + 1), SHINRA_T.stormBeat));

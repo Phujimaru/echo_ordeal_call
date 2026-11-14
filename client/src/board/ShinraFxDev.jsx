@@ -2,7 +2,7 @@
 //  เป้า = ตัวที่ใกล้ "me" ที่สุด · ลาทัมพุ่งจาก me ไปทางขวา 5 ช่อง (ตัวไม่ขยับจริง — ดูแค่ภาพ)
 //  คอนโซล: window.__shinraFx(kind) = เล่นชุดเดียวกับปุ่ม (kick / blaze / hero / storm / warm / latom / detonate / smolder / prints / aura)
 import { useEffect } from "react";
-import { SHINRA_T, SHINRA_MS, latomDur } from "./shinraFx";
+import { SHINRA_T, SHINRA_MS, latomDur, latomBoomStart, latomFxDur } from "./shinraFx";
 import { playSfx } from "../audio";
 
 const CUR = { units: [] };
@@ -25,7 +25,8 @@ export default function ShinraFxDev({ units, setUnits, pushFx, setFocus }) {
     warm: () => { const a = me(); pushFx([{ kind: "shinraWarm", x: a.x, y: a.y }]); playSfx("shinra_warm"); setFocus(a); },
     latom: () => {
       const a = me(), path = [a, ...[1, 2, 3, 4, 5].map((i) => ({ x: a.x + i, y: a.y }))];
-      pushFx([{ kind: "shinraLatom", x: a.x, y: a.y, path, dur: latomDur(path) + 900 }]);
+      pushFx([{ kind: "shinraLatom", x: a.x, y: a.y, path, dur: latomFxDur(path) }]);
+      setTimeout(() => playSfx("shinra_latom_boom"), latomBoomStart(path));
       playSfx("shinra_latom"); setFocus(path[3]);
       setTimeout(() => pushFx([{ kind: "shinraLatomHit", x: a.x + 3, y: a.y }]), latomDur(path));
     },

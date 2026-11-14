@@ -70,7 +70,7 @@ const LATOM = { sp: 3, ember: 4, cd: 2, len: 6, burn: 2, accurate: 2, smolder: 2
 const DETONATE_PVP_CAP = 4;
 const HBURN_MAX = 6;
 // จังหวะฉาก (ms) — client SHINRA_T ต้องตรงกัน
-const T = { stormBeat: 0.75, latomCharge: 380, latomStep: 70, latomTail: 260 };
+const T = { stormBeat: 0.75, latomCharge: 380, latomStep: 70, latomTail: 200 }; // ดาเมจลาทัมลงตอนระเบิดปิดท้ายเริ่ม (client LATOM_BOOM)
 
 const isMe = (p) => !!p && p.characterId === ID && !p.summon;
 const matchOf = () => require("../server/match");

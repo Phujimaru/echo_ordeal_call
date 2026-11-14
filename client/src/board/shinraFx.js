@@ -26,7 +26,9 @@ const WHITE = "255,250,226", CORE = "255,236,140", YEL = "255,204,64", ORG = "25
 const BLAZE_ORG = "255,92,24", BLAZE_RED = "214,24,14";
 
 // จังหวะ (ms) — server characters/kusakabe_shinra.js T ต้องตรงกัน
-export const SHINRA_T = { stormBeat: 750, latomCharge: 380, latomStep: 70, latomTail: 260 };
+export const SHINRA_T = { stormBeat: 750, latomCharge: 380, latomStep: 70, latomTail: 200 };
+// ลาทัม: พุ่งผ่านแล้วระเบิดปิดท้ายไล่ตามทางที่ผ่าน ตูม-ตาม (ผู้ใช้สั่ง 2026-11-14) — เริ่มหลังถึงปลายทาง delay ms · ช่องละ gap ms · ลูกละ life ms
+export const LATOM_BOOM = { delay: 120, gap: 60, life: 820 };
 export const SHINRA_MS = { shinraKick: 950, shinraKickBlaze: 1150 };
 export const SHINRA_HIT_P = { shinraKick: 0.3, shinraKickBlaze: 0.27 }; // ตรงกับจุดปะทะของเสียง (0.30 วิ)
 export const SHINRA_FX_DUR = {
@@ -34,6 +36,9 @@ export const SHINRA_FX_DUR = {
   shinraDetonate: 1000, shinraSmolder: 1200, shinraPrints: 3600,
 };
 export const isShinraFx = (kind) => typeof kind === "string" && kind in SHINRA_FX_DUR;
+const latomSteps = (path) => Math.max(0, (path ? path.length : 1) - 1);
+export const latomBoomStart = (path) => SHINRA_T.latomCharge + latomSteps(path) * SHINRA_T.latomStep + LATOM_BOOM.delay;
+export const latomFxDur = (path) => latomBoomStart(path) + Math.max(0, latomSteps(path) - 1) * LATOM_BOOM.gap + LATOM_BOOM.life + 120;
 export const latomDur = (path) => SHINRA_T.latomCharge + Math.max(0, (path ? path.length : 1) - 1) * SHINRA_T.latomStep + SHINRA_T.latomTail;
 
 function bodyAt(x, y, n = 1) {
@@ -403,6 +408,31 @@ function latomFx(g, e, now, p, seed, lowQ) {
       rocketJet(g, head.x, H(head), head.s, back, head.s * (1.1 + 0.2 * Math.sin(t * 0.06)), jetA, t);
       glow(g, head.x, H(head), head.s * 0.35, ORG, jetA * 0.6, CORE);
       embers(g, head.x, head.y, head.s, (t % 380) / 380, seed + headF, lowQ ? 6 : 14, 0.35, 0.5);
+    }
+  }
+  // 3) ระเบิดปิดท้าย: ไล่จากช่องแรกที่ผ่านถึงปลายทาง ทีละช่อง — ลูกไฟ + คลื่นกระแทก + เสาไฟพุ่ง + เศษ (ช่องปลายทาง = ตัวชินระ ไม่ระเบิด)
+  const bs = ch + steps * st + LATOM_BOOM.delay;
+  for (let i = 1; i < steps; i++) {
+    const q = (t - bs - (i - 1) * LATOM_BOOM.gap) / LATOM_BOOM.life;
+    if (q < 0 || q > 1) continue;
+    const c = pts[i];
+    if (q < 0.08) glow(g, c.x, c.y - c.s * 0.2, c.s * 0.9, YEL, (1 - q / 0.08) * 0.75);
+    // คลื่นกระแทกบนพื้น
+    const w = clamp01(q / 0.45);
+    if (w < 1) {
+      g.strokeStyle = rgba(w < 0.4 ? YEL : ORG, (1 - w) * 0.85); g.lineWidth = Math.max(2, c.s * 0.05 * (1 - w));
+      g.beginPath(); g.ellipse(c.x, c.y, c.s * (0.15 + 0.75 * w), c.s * (0.08 + 0.37 * w), 0, 0, TAU); g.stroke();
+    }
+    // เสาไฟพุ่งขึ้นสั้นๆ
+    if (!lowQ && q < 0.5) tongue(g, c.x, c.y, c.s * 0.16, c.s * 1.1 * Math.sin(Math.PI * (q / 0.5)), Math.sin(i * 1.7) * 0.2, t * 0.04 + i, 0.9, BLAZE_ORG);
+    fireball(g, c.x, c.y - c.s * 0.25, c.s, q, seed + i * 3.1, lowQ, 1.25, i % 2 ? ORG : BLAZE_ORG);
+    // เศษดินกระเด็น
+    if (!lowQ && q < 0.6) {
+      g.fillStyle = rgba("50,34,26", 1 - q / 0.6);
+      for (let k = 0; k < 8; k++) {
+        const a = seed + i + k * 0.8, v = c.s * (0.5 + (k % 3) * 0.2), qq = q / 0.6;
+        g.fillRect(c.x + Math.cos(a) * v * qq, c.y - Math.abs(Math.sin(a)) * v * qq * 1.3 + c.s * 1.2 * qq * qq, c.s * 0.035, c.s * 0.035);
+      }
     }
   }
   embers(g, A.x, A.y, A.s, p, seed, lowQ ? 6 : 16, 0.5, 1.2);
