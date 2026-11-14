@@ -33,6 +33,12 @@
   #hud .bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #38e8ff, #a26bff); }
   #hud .st { font-size: 13px; color: #ffd27a; font-weight: 700; }
   #drivecams { display: none; }
+  #yt { font: inherit; font-size: 13px; width: 170px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; }
+  #ytbtn.on { background: #ff3b30; border-color: #ff3b30; }
+  #ytq { font-size: 12px; font-weight: 700; opacity: .6; min-width: 14px; }
+  #ytwrap { position: fixed; right: 14px; bottom: 14px; width: 320px; height: 200px; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 28px rgba(0,0,0,.35); background: #000; visibility: hidden; }
+  #ytwrap.on { visibility: visible; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -52,6 +58,7 @@
   <div class="row" id="parts"></div>
 </div>
 <div id="tip"></div>
+<div id="ytwrap"><div id="ytbox"></div></div>
 <div id="hud">
   <div><span class="spd" id="spd">0</span><span class="u">กม./ชม.</span></div>
   <div class="col">
@@ -568,7 +575,7 @@ function sched() {
 }
 const beats = [];
 function setStation(i) {
-  initAudio();
+  initAudio(); ytStop();
   noise(ac.currentTime, 0.38, 0.22, sfxBus, "bandpass", 1600, 1.5);
   station = i; step = 0; bar = 0; nextT = ac.currentTime + 0.4;
   if (!schedId) schedId = setInterval(sched, 25);
@@ -576,6 +583,71 @@ function setStation(i) {
   document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k - 1 === i));
   document.getElementById("st").textContent = i < 0 ? "" : STATIONS[i].freq + " " + STATIONS[i].name;
 }
+// ---------- YouTube (IFrame Player API — ตัวเล่นต้องมองเห็นบนจอ ≥ 200×200 ตามเงื่อนไข YouTube)
+let ytPlayer = null, ytOn = false, ytPlaying = false, ytErr = false, ytTitle = "", ytVol = -1, ytCurrent = null;
+const ytQueue = [];
+function parseYT(raw) {
+  const u = (raw || "").trim(); if (!u) return null;
+  if (/^[\w-]{11}$/.test(u)) return { id: u };
+  try {
+    const url = new URL(/^https?:/i.test(u) ? u : "https://" + u);
+    const h = url.hostname.replace(/^(www|m|music)\./, ""), list = url.searchParams.get("list");
+    let id = null;
+    if (h === "youtu.be") id = url.pathname.slice(1, 12);
+    else if (/(^|\.)youtube(-nocookie)?\.com$/.test(h)) { id = url.searchParams.get("v"); const m = url.pathname.match(/\/(shorts|embed|live|v)\/([\w-]{11})/); if (m) id = m[2]; }
+    else return null;
+    if (id && !/^[\w-]{11}$/.test(id)) id = null;
+    if (!id && !list) return null;
+    return { id, list, start: parseInt(url.searchParams.get("t") || "0", 10) || 0 };
+  } catch { return null; }
+}
+let ytApi = null;
+function loadYTApi() {
+  if (ytApi) return ytApi;
+  ytApi = new Promise((res) => {
+    if (window.YT && YT.Player) return res();
+    window.onYouTubeIframeAPIReady = res;
+    const sc = document.createElement("script"); sc.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(sc);
+  });
+  return ytApi;
+}
+function ytQueueUI() { $("ytq").textContent = ytQueue.length ? "+" + ytQueue.length : ""; }
+async function ytPlay(it) {
+  initAudio(); station = -1;
+  document.querySelectorAll("#radio button").forEach((b) => b.classList.remove("on"));
+  ytOn = true; ytErr = false; ytTitle = ""; ytCurrent = it; ytVol = -1;
+  ytBtn.classList.add("on"); $("ytwrap").classList.add("on"); drawRadio(); ytQueueUI();
+  await loadYTApi();
+  if (!ytOn) return;
+  if (!ytPlayer) {
+    ytPlayer = new YT.Player("ytbox", {
+      width: 320, height: 200, videoId: it.id || undefined,
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0, start: it.start || 0, ...(it.list ? { listType: "playlist", list: it.list } : {}) },
+      events: {
+        onReady: (e) => { e.target.playVideo(); },
+        onStateChange: (e) => {
+          ytPlaying = e.data === YT.PlayerState.PLAYING;
+          if (ytPlaying) { ytErr = false; ytTitle = (ytPlayer.getVideoData() || {}).title || ""; drawRadio(); $("st").textContent = "YouTube · " + ytTitle; }
+          if (e.data === YT.PlayerState.ENDED && !(ytCurrent && ytCurrent.list)) ytNext();
+        },
+        onError: () => { ytErr = true; ytPlaying = false; drawRadio(); setTimeout(ytNext, 1500); },
+      },
+    });
+  } else if (it.id) ytPlayer.loadVideoById({ videoId: it.id, startSeconds: it.start || 0 });
+  else ytPlayer.loadPlaylist({ list: it.list, listType: "playlist" });
+  if (it.id && it.list && ytPlayer.loadPlaylist && ytPlayer.getPlayerState) { /* เพลย์ลิสต์ที่มีเพลงตั้งต้น — เล่นเพลงนั้นก่อน */ }
+}
+function ytNext() {
+  if (ytQueue.length) { ytPlay(ytQueue.shift()); return; }
+  if (ytOn && ytPlayer && ytCurrent && ytCurrent.list && ytPlayer.nextVideo) ytPlayer.nextVideo();
+}
+function ytStop() {
+  if (!ytOn) return;
+  ytOn = false; ytPlaying = false;
+  if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+  ytBtn.classList.remove("on"); $("ytwrap").classList.remove("on"); $("st").textContent = "";
+}
+
 function sfx(name) {
   initAudio(); const t = ac.currentTime, d = sfxBus;
   ({
@@ -643,6 +715,12 @@ function drawRadio() {
   const g = radioCanvas.getContext("2d");
   g.fillStyle = "#0b1410"; g.fillRect(0, 0, 320, 96);
   g.fillStyle = station < 0 ? "#26352d" : "#7dffcf"; g.font = "800 40px 'Noto Sans Thai', sans-serif"; g.textBaseline = "middle";
+  if (ytOn) {
+    g.fillStyle = "#ff4e45"; g.fillText("YouTube" + (ytErr ? " ⚠" : ""), 14, 34);
+    g.font = "700 24px 'Noto Sans Thai', sans-serif"; g.fillStyle = "#ffd27a";
+    let tt = ytTitle || "…"; while (g.measureText(tt).width > 292 && tt.length > 2) tt = tt.slice(0, -2) + "…";
+    g.fillText(tt, 16, 74); radioTex.needsUpdate = true; return;
+  }
   g.fillText(station < 0 ? "--.-" : STATIONS[station].freq, 14, 34);
   if (station >= 0) { g.font = "700 26px 'Noto Sans Thai', sans-serif"; g.fillStyle = "#ffd27a"; g.fillText(STATIONS[station].name, 16, 74); }
   radioTex.needsUpdate = true;
@@ -1259,8 +1337,17 @@ btn("modes", "กลางคืน", (b) => { night = !night; b.classList.toggl
 btn("modes", "หมุนรอบ", (b) => { controls.autoRotate = !controls.autoRotate; b.classList.toggle("on", controls.autoRotate); });
 const driveBtn = btn("modes", "ขับ", () => toggleDrive());
 const rearBtn = btn("modes", "เปิดท้าย", () => toggleRear());
-btn("radio", "ปิด", () => { station = -1; drawRadio(); document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k === 0)); $("st").textContent = ""; }, "on");
+btn("radio", "ปิด", () => { station = -1; ytStop(); drawRadio(); document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k === 0)); $("st").textContent = ""; }, "on");
 STATIONS.forEach((s, i) => btn("radio", s.name, () => setStation(i)));
+const ytBtn = btn("radio", "YouTube", () => { if (ytOn) return; if (ytCurrent) ytPlay(ytCurrent); else if (ytQueue.length) ytPlay(ytQueue.shift()); else $("yt").focus(); });
+ytBtn.id = "ytbtn";
+{ const inp = document.createElement("input"); inp.id = "yt"; inp.autocomplete = "off"; inp.spellcheck = false; $("radio").appendChild(inp);
+  const add = () => { const it = parseYT(inp.value); inp.style.borderColor = it ? "" : "#ff3b30"; if (!it) return; inp.value = "";
+    if (ytOn) { ytQueue.push(it); ytQueueUI(); } else ytPlay(it); };
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+  inp.addEventListener("paste", () => setTimeout(add, 0));
+  btn("radio", "+", add); btn("radio", "⏭", () => ytNext());
+  const q = document.createElement("span"); q.id = "ytq"; $("radio").appendChild(q); }
 const PAINTS = [["ฟ้า", 0x7fb8d8], ["ส้ม", 0xf08a4b], ["เหลือง", 0xf2c94c], ["มิ้นต์", 0x8fd3b0], ["ชมพู", 0xf2a1b5], ["แดง", 0xd9534f], ["กรม", 0x34497a], ["ขาว", 0xeeeeea]];
 PAINTS.forEach(([n, c], i) => {
   const b = document.createElement("button"); b.className = "sw" + (i === 0 ? " on" : ""); b.title = n; b.style.background = "#" + c.toString(16).padStart(6, "0");
@@ -1341,6 +1428,8 @@ function frame() {
   // จังหวะเพลง → ของในรถเต้น
   let beatPulse = 0;
   if (ac) { while (beats.length && beats[0] <= ac.currentTime) { beats.shift(); lastBeat = ac.currentTime; } if (station >= 0 && lastBeat > 0) beatPulse = Math.max(0, 1 - (ac.currentTime - lastBeat) * 4); }
+  if (ytOn && ytPlaying) beatPulse = Math.max(0, 1 - ((t * 2) % 1) * 4);
+  if (ytOn && ytPlayer && ytPlayer.setVolume) { const v = shell !== "out" ? 100 : 40; if (v !== ytVol) { ytVol = v; ytPlayer.setVolume(v); } }
   bobKick = Math.max(0, bobKick - dt * 0.8);
   bobHead.rotation.z = Math.sin(t * 14) * 0.35 * bobKick + beatPulse * 0.25 + (drive.on ? Math.sin(t * 9) * 0.06 : 0);
   bobHead.rotation.x = Math.sin(t * 11) * 0.3 * bobKick - drive.roll * 4;
