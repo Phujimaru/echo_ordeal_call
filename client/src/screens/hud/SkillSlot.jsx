@@ -25,7 +25,8 @@ export function SkillSlot({ label, tier, skill, points, disabled: disabledProp, 
   const ammoLeft = hasAmmo ? (ammo ?? skill.ammo) : null;
   const outOfAmmo = hasAmmo && ammoLeft <= 0;
   const useCost = skill ? (cost ?? skill.cost) : 0;
-  const afford = skill && points >= useCost;
+  // ปุ่มหลายตัวเลือก: แต้มเช็คต่อตัวเลือก (choiceOk ใน Game.jsx → disabled) — ชินระจ่ายด้วยเปลวเพลงได้แม้แต้มไม่พอ
+  const afford = skill && (skill.choices ? true : points >= useCost);
   const usable = skill && !disabled && afford && !outOfAmmo;
   const accent = SKILL_TIER_ACCENT[tier] || "var(--color-echo-ice)";
   const heightCls = size === "lg" ? "h-24 sm:h-28" : "h-20 sm:h-24";

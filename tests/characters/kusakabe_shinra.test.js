@@ -147,6 +147,20 @@ test("ฉันนี่แหละฮีโร่: จ่ายแต้ม 3 
   assert.ok(sh.heroOn(p));
 });
 
+test("แต้มสกิล 0 แต่เปลวเพลงพอ = ใช้พื้นฐาน/รองด้วยเปลวเพลงได้", () => {
+  const { p } = setup();
+  p.skillPoints = 0;
+  use("basic", "ember");
+  assert.ok(sh.heroOn(p));
+  assert.equal(ember(p), 3);
+  nextRound();
+  engine.setActor("a");
+  p.skillPoints = 0;
+  use("secondary", "ember");
+  assert.equal(p.skillUsedRound, engine.roundNumber);
+  assert.equal(p.skillPoints, 0);
+});
+
 test("ไม่มีฮีโร่ = ใช้สกิลแล้วหยุดเดินตามปกติ", () => {
   const { p } = setup();
   use("secondary", "sp");
